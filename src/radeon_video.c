@@ -5,6 +5,7 @@
 #include "radeon_probe.h"
 #include "radeon_reg.h"
 #include "radeon_mergedfb.h"
+#include "radeon_video.h"
 
 #include "xf86.h"
 #include "dixstruct.h"
@@ -36,6 +37,7 @@ static int  RADEONQueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
 			unsigned short *,  int *, int *);
 
 static void RADEONVideoTimerCallback(ScrnInfoPtr pScrn, Time now);
+static void RADEON_board_setmisc(RADEONPortPrivPtr pPriv);
 
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
@@ -46,30 +48,6 @@ static Atom xvRedIntensity, xvGreenIntensity, xvBlueIntensity;
 static Atom xvContrast, xvHue, xvColor, xvAutopaintColorkey, xvSetDefaults;
 static Atom xvGamma, xvColorspace;
 static Atom xvSwitchCRT;
-
-typedef struct {
-   CARD32	 transform_index;
-   CARD32	 gamma; /* gamma value x 1000 */
-   int           brightness;
-   int           saturation;
-   int           hue;
-   int           contrast;
-   int           red_intensity;
-   int           green_intensity;
-   int           blue_intensity;
-   int		 ecp_div;
-
-   Bool          doubleBuffer;
-   unsigned char currentBuffer;
-   RegionRec     clip;
-   CARD32        colorKey;
-   CARD32        videoStatus;
-   Time          offTime;
-   Time          freeTime;
-   Bool          autopaint_colorkey;
-   Bool		 crt2; /* 0=CRT1, 1=CRT2 */
-} RADEONPortPrivRec, *RADEONPortPrivPtr;
-
 
 #define GET_PORT_PRIVATE(pScrn) \
    (RADEONPortPrivPtr)((RADEONPTR(pScrn))->adaptor->pPortPrivates[0].ptr)
@@ -855,6 +833,21 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     else
 	pPriv->crt2 = FALSE;
 
+       /* TV-in stuff */
+    pPriv->video_stream_active = FALSE;
+    pPriv->encoding = 4;
+    pPriv->frequency = 1000;
+    pPriv->volume = -1000;
+    pPriv->mute = TRUE;
+    pPriv->v = 0;
+    pPriv->overlay_deinterlacing_method = METHOD_BOB;
+    pPriv->capture_vbi_data = 0;
+    pPriv->dec_brightness = 0;
+    pPriv->dec_saturation = 0;
+    pPriv->dec_contrast = 0;
+    pPriv->dec_hue = 0;
+
+
     /*
      * Unlike older Mach64 chips, RADEON has only two ECP settings:
      * 0 for PIXCLK < 175Mhz, and 1 (divide by 2)
@@ -892,6 +885,23 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 	 */
         OUTPLL(RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) | (1<<18)));
     }
+    
+    /* Decide on tuner type */
+    if((info->tunerType<0) && (info->MM_TABLE_valid)) {
+        pPriv->tuner_type = info->MM_TABLE.tuner_type;
+    	} else
+        pPriv->tuner_type = info->tunerType;
+        
+    /* Initialize I2C bus */
+    RADEONInitI2C(pScrn, pPriv);
+    if(pPriv->i2c != NULL)RADEON_board_setmisc(pPriv);
+
+    #if 0  /* this is just here for easy debugging - normally off */
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Scanning I2C Bus\n");
+    for(i=0;i<255;i+=2)
+        if(RADEONProbeAddress(pPriv->i2c, i))
+                xf86DrvMsg(pScrn->scrnIndex, X_INFO, "     found device at address 0x%02x\n", i);
+    #endif
 
     info->adaptor = adapt;
 
@@ -1944,4 +1954,28 @@ RADEONInitOffscreenImages(ScreenPtr pScreen)
     offscreenImages[0].attributes = Attributes;
 
     xf86XVRegisterOffscreenImages(pScreen, offscreenImages, 1);
+}
+
+static void RADEON_board_setmisc(RADEONPortPrivPtr pPriv)
+{
+    /* Adjust PAL/SECAM constants for FI1216MF tuner */
+    if((((pPriv->tuner_type & 0xf)==5) ||
+        ((pPriv->tuner_type & 0xf)==11)||
+        ((pPriv->tuner_type & 0xf)==14))
+        && (pPriv->fi1236!=NULL))
+    {
+        if((pPriv->encoding>=1)&&(pPriv->encoding<=3)) /*PAL*/
+        {
+           pPriv->fi1236->parm.band_low = 0xA1;
+           pPriv->fi1236->parm.band_mid = 0x91;
+           pPriv->fi1236->parm.band_high = 0x31;
+        }
+        if((pPriv->encoding>=7)&&(pPriv->encoding<=9)) /*SECAM*/
+        {
+           pPriv->fi1236->parm.band_low = 0xA3;
+           pPriv->fi1236->parm.band_mid = 0x93;
+           pPriv->fi1236->parm.band_high = 0x33;
+        }
+    }
+    
 }

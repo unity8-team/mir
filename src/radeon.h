@@ -619,7 +619,6 @@ typedef struct {
     Bool		IsDellServer; 
 } RADEONInfoRec, *RADEONInfoPtr;
 
-
 #define RADEONWaitForFifo(pScrn, entries)				\
 do {									\
     if (info->fifo_slots < entries)					\
