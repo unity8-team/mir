@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimach64.c,v 1.52 2003/04/23 21:51:28 tsi Exp $ */
 /*
- * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -226,18 +226,18 @@ ATIMach64PreInit
          */
         if (pATI->Chip >= ATI_CHIP_264VT4)
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
 	    /* Changing the FIFO depth seems to interfere with DMA, so use 
 	     * default of 128 entries (0x01)
 	     */
 	    pATIHW->gui_cntl = (inm(GUI_CNTL) & ~CMDFIFO_SIZE_MODE) | 0x01;
 
-#else /* XF86DRI */
+#else /* XF86DRI_DEVEL */
 
             pATIHW->gui_cntl = inm(GUI_CNTL) & ~CMDFIFO_SIZE_MODE;
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
         /* Initialise destination registers */
         pATIHW->dst_off_pitch =
@@ -1123,12 +1123,12 @@ ATIMach64SetDPMSMode
             return;
     }
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
     /* XAA Sync requires the DRM lock if DRI enabled */
     ATIDRILock(pScreenInfo);
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
     ATIMach64Sync(pScreenInfo);
 
@@ -1226,10 +1226,10 @@ ATIMach64SetDPMSMode
         }
     }
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
     ATIDRIUnlock(pScreenInfo);
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
 }

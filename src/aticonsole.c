@@ -1,6 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticonsole.c,v 1.21 2003/07/24 22:08:27 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticonsole.c,v 1.22 2003/11/13 18:42:47 tsi Exp $ */
 /*
- * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -37,6 +37,10 @@
 #include "atistruct.h"
 #include "ativga.h"
 #include "atividmem.h"
+
+#ifdef XF86DRI_DEVEL
+#include "mach64_common.h"
+#endif
 
 #include "mach64_common.h"
 
@@ -253,7 +257,7 @@ ATISwitchMode
     {
         pScreenInfo->currentMode = pMode;
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
         if (pATI->directRenderingEnabled) 
         {
@@ -261,18 +265,18 @@ ATISwitchMode
 	    ATIDRIWaitForIdle(pATI);
         }
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
         ATIModeSet(pScreenInfo, pATI, &pATI->NewHW);
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
         if (pATI->directRenderingEnabled) 
         {
             DRIUnlock(pScreenInfo->pScreen);
         }
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
     }
 
@@ -307,14 +311,14 @@ ATIEnterVT
     if (pATI->OptionShadowFB)
     {
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
         if (pATI->directRenderingEnabled) 
         {
             DRIUnlock(pScreen);
         }
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
         return TRUE;
     }
@@ -342,14 +346,14 @@ ATIEnterVT
         pScreenPixmap->devPrivate.ptr = NULL;
     }
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
     if (pATI->directRenderingEnabled) 
     {
         DRIUnlock(pScreen);
     }
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
     return Entered;
 }
@@ -371,7 +375,7 @@ ATILeaveVT
     ScreenPtr   pScreen     = pScreenInfo->pScreen;
     ATIPtr      pATI        = ATIPTR(pScreenInfo);
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
     if (pATI->directRenderingEnabled) 
     {
@@ -379,7 +383,7 @@ ATILeaveVT
         ATIDRIWaitForIdle(pATI);
     }
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
     ATILeaveGraphics(pScreenInfo, ATIPTR(pScreenInfo));
 }
@@ -400,7 +404,8 @@ ATIFreeScreen
     ScrnInfoPtr pScreenInfo = xf86Screens[iScreen];
     ATIPtr      pATI        = ATIPTR(pScreenInfo);
 
-    ATII2CFreeScreen(iScreen);
+    if (pATI->Closeable || (serverGeneration > 1))
+        ATII2CFreeScreen(iScreen);
 
     if (pATI->Closeable)
         (void)(*pScreen->CloseScreen)(iScreen, pScreen);

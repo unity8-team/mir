@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atiscreen.c,v 1.30 2003/04/23 21:51:30 tsi Exp $ */
 /*
- * Copyright 1999 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1999 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -42,8 +42,10 @@
 #include "atixv.h"
 #include "atimach64accel.h"
 
+#ifdef XF86DRI_DEVEL
 #include "mach64_dri.h"
 #include "mach64_sarea.h"
+#endif
 
 #include "shadowfb.h"
 #include "xf86cmap.h"
@@ -130,7 +132,9 @@ ATIScreenInit
     ATIPtr       pATI        = ATIPTR(pScreenInfo);
     pointer      pFB;
     int          VisualMask;
+#ifdef XF86DRI_DEVEL
     BoxRec       ScreenArea;
+#endif
 
     /* Set video hardware state */
     if (!ATIEnterGraphics(pScreen, pScreenInfo, pATI))
@@ -169,7 +173,7 @@ ATIScreenInit
         }
     }
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
     /* Setup DRI after visuals have been established, but before
      * cfbScreenInit is called.  cfbScreenInit will eventually call the
@@ -211,7 +215,7 @@ ATIScreenInit
 	}
     }
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
     /* Initialise framebuffer layer */
     switch (pATI->bitsPerPixel)
@@ -315,7 +319,7 @@ ATIScreenInit
 
 	/* Memory manager setup */
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
     if (pATI->directRenderingEnabled)
     {
@@ -344,7 +348,7 @@ ATIScreenInit
 	} else {
 	    int l, maxPixcache;
 
-#       ifdef XvExtension
+#ifdef XvExtension
 
 	    int xvBytes;
 
@@ -353,12 +357,12 @@ ATIScreenInit
 	    xvBytes = 720*480*cpp; /* enough for single-buffered DVD */
 	    maxPixcache = xvBytes > bufferSize ? xvBytes : bufferSize;
 
-#       else /* XvExtension */
+#else /* XvExtension */
 
 	    /* Try for one viewport */
 	    maxPixcache = bufferSize;
 
-#       endif /* XvExtension */
+#endif /* XvExtension */
 
 	    pATIDRIServer->textureSize = offscreenBytes - maxPixcache;
 
@@ -485,7 +489,7 @@ ATIScreenInit
 	}
     }
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
     /* Setup acceleration */
     /* If direct rendering is not enabled, the framebuffer memory 
@@ -549,7 +553,7 @@ ATIScreenInit
     if (serverGeneration == 1)
         xf86ShowUnusedOptions(pScreenInfo->scrnIndex, pScreenInfo->options);
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
     /* DRI finalization */
     if (pATI->directRenderingEnabled) {
@@ -567,7 +571,7 @@ ATIScreenInit
 		   "Direct rendering disabled\n");
     }
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
     return TRUE;
 }
@@ -588,7 +592,7 @@ ATICloseScreen
     ATIPtr      pATI        = ATIPTR(pScreenInfo);
     Bool        Closed      = TRUE;
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
     /* Disable direct rendering */
     if (pATI->directRenderingEnabled)
@@ -597,7 +601,7 @@ ATICloseScreen
 	pATI->directRenderingEnabled = FALSE;
     }
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
     ATICloseXVideo(pScreen, pScreenInfo, pATI);
 

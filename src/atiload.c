@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atiload.c,v 1.15 2003/08/29 21:07:57 tsi Exp $ */
 /*
- * Copyright 2000 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 2000 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -75,7 +75,7 @@ const char *ATIxf4bppSymbols[] =
 
 #endif /* AVOID_CPIO */
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
 const char *ATIdrmSymbols[] = {
     "drmAddBufs",
@@ -125,7 +125,7 @@ const char *ATIdriSymbols[] = {
     NULL
 };
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
 const char *ATIfbSymbols[] =
 {

@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimach64io.h,v 1.15 2003/04/23 21:51:29 tsi Exp $ */
 /*
- * Copyright 2000 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 2000 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -204,7 +204,7 @@ extern void ATIMach64PollEngineStatus FunctionPrototype((ATIPtr));
     while ((_pATI)->EngineIsBusy)           \
         ATIMach64PollEngineStatus(_pATI)
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
  
 #define ATIDRIWaitForIdle(_pATI)                                \
 do {                                                            \
@@ -257,7 +257,7 @@ do                                                                              
     }                                                                           \
 } while (0)
                                                                                                
-#else /* XF86DRI */
+#else /* XF86DRI_DEVEL */
 
                                                                                                
 #define ATIDRIWaitForIdle(_pATI)
@@ -265,7 +265,7 @@ do                                                                              
 #define ATIDRIUnlock(_pScrInfo)
 #define ATIDRISync(_pScrInfo)
                                                                                                
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
 
 /*

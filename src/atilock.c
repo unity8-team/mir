@@ -1,6 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atilock.c,v 1.19 2003/04/23 21:51:28 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atilock.c,v 1.20tsi Exp $ */
 /*
- * Copyright 1999 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1999 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -120,13 +120,13 @@ ATIUnlock
         outr(CRTC_INT_CNTL, (pATI->LockData.crtc_int_cntl & ~CRTC_INT_ENS) |
             CRTC_INT_ACKS);
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
 	if (pATI->irq > 0)
 	    outr(CRTC_INT_CNTL, (inr(CRTC_INT_CNTL) & ~CRTC_INT_ACKS) | 
 		 CRTC_VBLANK_INT_EN); /* Enable VBLANK interrupt - handled by DRM */
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
 
         pATI->LockData.gen_test_cntl = inr(GEN_TEST_CNTL) &
             (GEN_OVR_OUTPUT_EN | GEN_OVR_POLARITY | GEN_CUR_EN |
@@ -152,7 +152,7 @@ ATIUnlock
             /*
              * Prevent BIOS initiated display switches on dual-CRT controllers.
              */
-            if (pATI->Chip != ATI_CHIP_264XL)
+            if (!pATI->OptionBIOSDisplay && (pATI->Chip != ATI_CHIP_264XL))
             {
                 pATI->LockData.scratch_reg3 = inr(SCRATCH_REG3);
                 outr(SCRATCH_REG3,
@@ -575,7 +575,7 @@ ATILock
         if ((pATI->LCDPanelID >= 0) && (pATI->Chip != ATI_CHIP_264LT))
         {
             outr(LCD_INDEX, pATI->LockData.lcd_index);
-            if (pATI->Chip != ATI_CHIP_264XL)
+            if (!pATI->OptionBIOSDisplay && (pATI->Chip != ATI_CHIP_264XL))
                 outr(SCRATCH_REG3, pATI->LockData.scratch_reg3);
         }
         if (pATI->Chip >= ATI_CHIP_264VTB)

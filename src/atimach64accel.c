@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimach64accel.c,v 1.1 2003/04/23 21:51:28 tsi Exp $ */
 /*
- * Copyright 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 2003 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -56,7 +56,9 @@
 #include "atipriv.h"
 #include "atiregs.h"
 
+#ifdef XF86DRI_DEVEL
 #include "mach64_common.h"
+#endif
 
 #include "miline.h"
 
@@ -137,7 +139,7 @@ ATIMach64Sync
 {
     ATIPtr pATI = ATIPTR(pScreenInfo);
 
-#ifdef XF86DRI
+#ifdef XF86DRI_DEVEL
 
     if ( pATI->directRenderingEnabled && pATI->NeedDRISync )
     {
@@ -271,7 +273,7 @@ ATIMach64Sync
     }
     else
 
-#endif /* XF86DRI */
+#endif /* XF86DRI_DEVEL */
     {
       ATIMach64WaitForIdle(pATI);
       
