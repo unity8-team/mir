@@ -259,7 +259,7 @@ I810Sync(ScrnInfoPtr pScrn)
 #ifdef XF86DRI
    /* VT switching tries to do this.  
     */
-   if ((!pI810->LockHeld && pI810->directRenderingEnabled) || pScrn->vtSema) {
+   if (!pI810->LockHeld && pI810->directRenderingEnabled) {
       return;
    }
 #endif
