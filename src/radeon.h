@@ -624,6 +624,8 @@ typedef struct {
     /* enable bios hotkey output switching */
     Bool		BiosHotkeys;
 
+    Bool               VGAAccess;
+
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\

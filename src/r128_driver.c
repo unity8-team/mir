@@ -137,7 +137,8 @@ typedef enum {
   OPTION_PROG_FP_REGS,
   OPTION_FBDEV,
   OPTION_VIDEO_KEY,
-  OPTION_SHOW_CACHE
+  OPTION_SHOW_CACHE,
+  OPTION_VGA_ACCESS
 } R128Opts;
 
 static const OptionInfoRec R128Options[] = {
@@ -164,6 +165,7 @@ static const OptionInfoRec R128Options[] = {
   { OPTION_FBDEV,        "UseFBDev",         OPTV_BOOLEAN, {0}, FALSE },
   { OPTION_VIDEO_KEY,    "VideoKey",         OPTV_INTEGER, {0}, FALSE },
   { OPTION_SHOW_CACHE,   "ShowCache",        OPTV_BOOLEAN, {0}, FALSE },
+  { OPTION_VGA_ACCESS,   "VGAAccess",        OPTV_BOOLEAN, {0}, TRUE  },
   { -1,                  NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -1875,13 +1877,6 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
 	return TRUE;
     }
 
-    if (!xf86LoadSubModule(pScrn, "vgahw")) return FALSE;
-    xf86LoaderReqSymLists(vgahwSymbols, NULL);
-    if (!vgaHWGetHWRec(pScrn)) {
-	R128FreeRec(pScrn);
-	return FALSE;
-    }
-
     info->PciInfo      = xf86GetPciInfoForEntity(info->pEnt->index);
     info->PciTag       = pciTag(info->PciInfo->bus,
 				info->PciInfo->device,
@@ -1907,6 +1902,33 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
     if (!(info->Options = xalloc(sizeof(R128Options))))    goto fail;
     memcpy(info->Options, R128Options, sizeof(R128Options));
     xf86ProcessOptions(pScrn->scrnIndex, pScrn->options, info->Options);
+
+    /* By default, don't do VGA IOs on ppc */
+#ifdef __powerpc__
+    info->VGAAccess = FALSE;
+#else
+    info->VGAAccess = TRUE;
+#endif
+
+    xf86GetOptValBool(info->Options, OPTION_VGA_ACCESS, &info->VGAAccess);
+    if (info->VGAAccess) {
+       if (!xf86LoadSubModule(pScrn, "vgahw"))
+           info->VGAAccess = FALSE;
+        else {
+           xf86LoaderReqSymLists(vgahwSymbols, NULL);
+            if (!vgaHWGetHWRec(pScrn))
+               info->VGAAccess = FALSE;
+       }
+       if (!info->VGAAccess)
+           xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Loading VGA module failed,"
+                      " trying to run without it\n");
+    } else
+           xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VGAAccess option set to FALSE,"
+                      " VGA module load skipped\n");
+    if (info->VGAAccess)
+        vgaHWGetIOBase(VGAHWPTR(pScrn));
+
+
 
     if (!R128PreInitWeight(pScrn))    goto fail;
 
@@ -1996,7 +2018,8 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
     if (pInt10)
 	xf86FreeInt10(pInt10);
 
-    vgaHWFreeHWRec(pScrn);
+    if (info->VGAAccess)
+           vgaHWFreeHWRec(pScrn);
     R128FreeRec(pScrn);
     return FALSE;
 }
@@ -2809,16 +2832,30 @@ static void R128Save(ScrnInfoPtr pScrn)
     R128InfoPtr   info      = R128PTR(pScrn);
     unsigned char *R128MMIO = info->MMIO;
     R128SavePtr   save      = &info->SavedReg;
-    vgaHWPtr      hwp       = VGAHWPTR(pScrn);
 
     R128TRACE(("R128Save\n"));
     if (info->FBDev) {
 	fbdevHWSave(pScrn);
 	return;
     }
-    vgaHWUnlock(hwp);
-    vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_ALL); /* save mode, fonts, cmap */
-    vgaHWLock(hwp);
+
+    if (info->VGAAccess) {
+        vgaHWPtr hwp = VGAHWPTR(pScrn);
+
+        vgaHWUnlock(hwp);
+#if defined(__powerpc__)
+        /* temporary hack to prevent crashing on PowerMacs when trying to
+         * read VGA fonts and colormap, will find a better solution
+         * in the future. TODO: Check if there's actually some VGA stuff
+         * setup in the card at all !!
+         */
+        vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE); /* Save mode only */
+#else
+        /* Save mode * & fonts & cmap */
+        vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS);
+#endif
+        vgaHWLock(hwp);
+    }
 
     R128SaveMode(pScrn, save);
 
@@ -2835,7 +2872,6 @@ static void R128Restore(ScrnInfoPtr pScrn)
     R128InfoPtr   info      = R128PTR(pScrn);
     unsigned char *R128MMIO = info->MMIO;
     R128SavePtr   restore   = &info->SavedReg;
-    vgaHWPtr      hwp       = VGAHWPTR(pScrn);
 
     R128TRACE(("R128Restore\n"));
     if (info->FBDev) {
@@ -2851,9 +2887,19 @@ static void R128Restore(ScrnInfoPtr pScrn)
     OUTREG(R128_DP_DATATYPE,      restore->dp_datatype);
 
     R128RestoreMode(pScrn, restore);
-    vgaHWUnlock(hwp);
-    vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
-    vgaHWLock(hwp);
+    if (info->VGAAccess) {
+        vgaHWPtr hwp = VGAHWPTR(pScrn);
+        vgaHWUnlock(hwp);
+#if defined(__powerpc__)
+        /* Temporary hack to prevent crashing on PowerMacs when trying to
+         * write VGA fonts, will find a better solution in the future
+         */
+        vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE );
+#else
+        vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
+#endif
+        vgaHWLock(hwp);
+    }
 
     R128WaitForVerticalSync(pScrn);
     R128Unblank(pScrn);
@@ -3586,9 +3632,10 @@ static Bool R128CloseScreen(int scrnIndex, ScreenPtr pScreen)
 void R128FreeScreen(int scrnIndex, int flags)
 {
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+    R128InfoPtr   info      = R128PTR(pScrn);
 
     R128TRACE(("R128FreeScreen\n"));
-    if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
+    if (info->VGAAccess && xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
 	vgaHWFreeHWRec(pScrn);
     R128FreeRec(pScrn);
 }

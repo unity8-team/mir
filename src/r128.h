@@ -401,6 +401,8 @@ typedef struct {
     I2CBusPtr         pI2CBus;
     CARD32            DDCReg;
 
+    Bool              VGAAccess;
+
 } R128InfoRec, *R128InfoPtr;
 
 #define R128WaitForFifo(pScrn, entries)                                      \

@@ -511,6 +511,34 @@ there is no way to validate modes on an output switch and the BIOS can
 potentially change things behind the driver's back.  The default is
 .B off.
 .TP
+.BI "Option \*qVGAAccess\*q \*q" boolean \*q
+Tell the driver if it can do legacy VGA IOs to the card. This is
+necessary for properly resuming consoles when in VGA text mode, but
+shouldn't be if the console is using radeonfb or some other graphic
+mode driver. Some platforms like PowerPC have issues with those, and they aren't
+necessary unless you have a real text mode in console. The default is
+.B off
+on PowerPC and
+.B on
+on other architectures.
+.TP
+.BI "Option \*qReverseDDC\*q \*q" boolean \*q
+When BIOS connector informations aren't available, use this option to
+reverse the mapping of the 2 main DDC ports. Use this if the X serve
+obviously detects the wrong display for each connector. This is
+typically needed on the Radeon 9600 cards bundled with Apple G5s. The
+default is
+.B off.
+.TP
+.BI "Option \*qLVDSProbePLL\*q \*q" boolean \*q
+When BIOS panel informations aren't available (like on PowerBooks), it
+may still be necessary to use the firmware provided PLL values for the
+panel or flickering will happen. This option will force probing of
+the current value programmed in the chip when X is launched in that
+case.  This is only useful for LVDS panels (laptop internal panels).
+The default is
+.B on.
+.TP
 
 .SH SEE ALSO
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
