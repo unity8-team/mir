@@ -237,17 +237,23 @@ void R128CCEWaitForIdle(ScrnInfoPtr pScrn)
         i = 0;
         do {
             ret = drmCommandNone(info->drmFD, DRM_R128_CCE_IDLE);
-        } while ( ret && errno == EBUSY && i++ < R128_IDLE_RETRY );
+        } while ( ret && errno == EBUSY && i++ < (R128_IDLE_RETRY * R128_IDLE_RETRY) );
 
 	if (ret && ret != -EBUSY) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "%s: CCE idle %d\n", __FUNCTION__, ret);
 	}
 
+	if (i > R128_IDLE_RETRY) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "%s: (DEBUG) CCE idle took i = %d\n", __FUNCTION__, i);
+	}
+
 	if (ret == 0) return;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Idle timed out, resetting engine...\n");
+	R128CCE_STOP(pScrn, info);
 	R128EngineReset(pScrn);
 
 	/* Always restart the engine when doing CCE 2D acceleration */
