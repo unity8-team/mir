@@ -142,6 +142,7 @@ typedef enum {
     OPTION_PAGE_FLIP,
     OPTION_NO_BACKBUFFER,
     OPTION_XV_DMA,
+    OPTION_R300_DRM,
 #endif
     OPTION_PANEL_OFF,
     OPTION_DDC_MODE,
@@ -195,6 +196,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_PAGE_FLIP,      "EnablePageFlip",   OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_NO_BACKBUFFER,  "NoBackBuffer",     OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_XV_DMA,         "DMAForXv",         OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_R300_DRM,       "X_R300_DRM",       OPTV_BOOLEAN, {0}, FALSE },
 #endif
     { OPTION_PANEL_OFF,      "PanelOff",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DDC_MODE,       "DDCMode",          OPTV_BOOLEAN, {0}, FALSE },
@@ -4709,11 +4711,21 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		       (pScrn->displayWidth * pScrn->virtualY *
 			info->CurrentLayout.pixel_bytes * 3 + 1023) / 1024);
 	    info->directRenderingEnabled = FALSE;
-	} else if (info->ChipFamily >= CHIP_FAMILY_R300) {
-	    info->directRenderingEnabled = FALSE;
-	    xf86DrvMsg(scrnIndex, X_WARNING,
-		       "Direct rendering not yet supported on "
-		       "Radeon 9500 and newer cards\n");
+	} else if (info->ChipFamily >= CHIP_FAMILY_R300)  {
+	    if ( xf86ReturnOptValBool(info->Options, OPTION_R300_DRM, FALSE) ) {
+	       xf86DrvMsg(scrnIndex, X_WARNING,
+                      "Direct rendering support is highly experimental for "
+                      "Radeon 9500/9700 and newer cards\n"
+		      "\t\tIn fact, the only thing you could probably use it for is better 2d acceleration.\n"
+		      );
+               info->directRenderingEnabled = RADEONDRIScreenInit(pScreen);
+            } else {
+	      info->directRenderingEnabled = FALSE;
+	       xf86DrvMsg(scrnIndex, X_WARNING,
+		       "Direct rendering is not yet supported on "
+		       "Radeon 9500 and newer cards. \n"
+		       "\t\tTo enable it anyway turn on X_R300_DRM option. Note: this might lockup your computer\n");
+            }
 	} else if (info->IsSecondary) {
 	    info->directRenderingEnabled = FALSE;
 	} else if (xf86IsEntityShared(info->pEnt->index)) {

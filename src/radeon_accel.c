@@ -168,6 +168,31 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
     CARD32         rbbm_soft_reset;
     CARD32         host_path_cntl;
 
+    /* The following RBBM_SOFT_RESET sequence can help un-wedge
+     * an R300 after the command processor got stuck.
+     */
+    rbbm_soft_reset = INREG(RADEON_RBBM_SOFT_RESET);
+    OUTREG(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset |
+                                   RADEON_SOFT_RESET_CP |
+                                   RADEON_SOFT_RESET_HI |
+                                   RADEON_SOFT_RESET_SE |
+                                   RADEON_SOFT_RESET_RE |
+                                   RADEON_SOFT_RESET_PP |
+                                   RADEON_SOFT_RESET_E2 |
+                                   RADEON_SOFT_RESET_RB));
+    INREG(RADEON_RBBM_SOFT_RESET);
+    OUTREG(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset & (CARD32)
+                                   ~(RADEON_SOFT_RESET_CP |
+                                     RADEON_SOFT_RESET_HI |
+                                     RADEON_SOFT_RESET_SE |
+                                     RADEON_SOFT_RESET_RE |
+                                     RADEON_SOFT_RESET_PP |
+                                     RADEON_SOFT_RESET_E2 |
+                                     RADEON_SOFT_RESET_RB)));
+    INREG(RADEON_RBBM_SOFT_RESET);
+    OUTREG(RADEON_RBBM_SOFT_RESET, rbbm_soft_reset);
+    INREG(RADEON_RBBM_SOFT_RESET);
+
     RADEONEngineFlush(pScrn);
 
     clock_cntl_index = INREG(RADEON_CLOCK_CNTL_INDEX);

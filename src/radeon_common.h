@@ -31,7 +31,7 @@
  * Converted to common header format:
  *   Jens Owen <jens@tungstengraphics.com>
  *
- * $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_common.h,v 1.2 2004/04/23 19:26:46 eich Exp $
+ * $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_common.h,v 1.3 2004/06/16 09:43:58 anholt Exp $
  * $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_common.h,v 1.8tsi Exp $
  *
  */
@@ -93,7 +93,8 @@ typedef struct {
    enum {
       DRM_RADEON_INIT_CP    = 0x01,
       DRM_RADEON_CLEANUP_CP = 0x02,
-      DRM_RADEON_INIT_R200_CP = 0x03
+      DRM_RADEON_INIT_R200_CP = 0x03,
+      DRM_RADEON_INIT_R300_CP = 0x04
    } func;
    unsigned long sarea_priv_offset;
    int is_pci;
