@@ -4284,6 +4284,16 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
             info->MM_TABLE.input[2],
             info->MM_TABLE.input[3],
             info->MM_TABLE.input[4]);
+	    
+	  /* Is it an MM_TABLE we know about ? */
+	  if(info->MM_TABLE.table_size != 0xc){
+	       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "This card has MM_TABLE we do not recognize.\n"
+			"\t\tIf your card is TV-in capable you will need to specify options RageTheatreCrystal, RageTheatreTunerPort, \n"
+			"\t\tRageTheatreSVideoPort and TunerType in /etc/X11/xorg.conf.\n"
+			);
+		info->MM_TABLE_valid = FALSE;
+		return TRUE;
+	  	}
         info->MM_TABLE_valid = TRUE;
     } else {
         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "No MM_TABLE found - assuming card is not TV-in capable (mm_table=%d).\n", mm_table);
