@@ -3052,7 +3052,7 @@ RADEONPutVideo(
    CARD32 id, display_base;
    int width, height;
    int mult;
-   int vbi_line_width;
+   int vbi_line_width, vbi_start, vbi_end;
 
    info->accel->Sync(pScrn);
    /*
@@ -3196,14 +3196,24 @@ RADEONPutVideo(
    OUTREG(RADEON_CAP0_ONESHOT_BUF_OFFSET, offset1+display_base);
 
    if(pPriv->capture_vbi_data){
+        if ((pPriv->encoding==2)||(pPriv->encoding==8)) {
+            /* PAL, SECAM */
+            vbi_start = 5;
+            vbi_end = 21;
+        } else {
+            /* NTSC */
+            vbi_start = 8;
+            vbi_end = 20;
+        }
+
+
         vbi_offset0 = ((info->videoLinear->offset+mult*new_size)*bpp+0xf) & (~0xf);
         vbi_offset1 = vbi_offset0 + dstPitch*20;
         OUTREG(RADEON_CAP0_VBI0_OFFSET, vbi_offset0+display_base);
         OUTREG(RADEON_CAP0_VBI1_OFFSET, vbi_offset1+display_base);
         OUTREG(RADEON_CAP0_VBI2_OFFSET, 0);
         OUTREG(RADEON_CAP0_VBI3_OFFSET, 0);
-        OUTREG(RADEON_CAP0_VBI_V_WINDOW, 8 | ((pPriv->v-1)<<16));
-        OUTREG(RADEON_CAP0_VBI_V_WINDOW, 8 | ((20)<<16));
+        OUTREG(RADEON_CAP0_VBI_V_WINDOW, vbi_start | (vbi_end<<16));
         OUTREG(RADEON_CAP0_VBI_H_WINDOW, 0 | (vbi_line_width)<<16);
         }
    
@@ -3334,9 +3344,17 @@ static void RADEON_RT_SetEncoding(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 {
 int width, height;
 RADEONWaitForIdleMMIO(pScrn);
+
 /* Disable VBI capture for anything but TV tuner */
-if(pPriv->encoding==5)pPriv->capture_vbi_data=1;
-    	else pPriv->capture_vbi_data=0;
+switch(pPriv->encoding){
+	case 2:
+	case 5:
+	case 8:
+		pPriv->capture_vbi_data=1;
+		break;
+	default:
+		pPriv->capture_vbi_data=0;
+	}
 
 switch(pPriv->encoding){
         case 1:
