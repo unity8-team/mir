@@ -2109,6 +2109,7 @@ RADEONDisplayVideo(
             is_rgb=1;
             break;
         default:
+	    break;
         }
 
     /* Unlike older Mach64 chips, RADEON has only two ECP settings: 0 for PIXCLK < 175Mhz, and 1 (divide by 2)
