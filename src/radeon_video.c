@@ -46,10 +46,12 @@ static void RADEONVideoTimerCallback(ScrnInfoPtr pScrn, Time now);
 static Atom xvBrightness, xvColorKey, xvSaturation, xvDoubleBuffer;
 static Atom xvRedIntensity, xvGreenIntensity, xvBlueIntensity;
 static Atom xvContrast, xvHue, xvColor, xvAutopaintColorkey, xvSetDefaults;
+static Atom xvGamma, xvColorspace;
 static Atom xvSwitchCRT;
 
 typedef struct {
    CARD32	 transform_index;
+   CARD32	 gamma; /* gamma value x 1000 */
    int           brightness;
    int           saturation;
    int           hue;
@@ -130,7 +132,7 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] =
 };
 
 
-#define NUM_ATTRIBUTES 9+4
+#define NUM_ATTRIBUTES 9+6
 
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES] =
 {
@@ -147,6 +149,8 @@ static XF86AttributeRec Attributes[NUM_ATTRIBUTES] =
    {XvSettable | XvGettable, -1000, 1000, "XV_GREEN_INTENSITY"},
    {XvSettable | XvGettable, -1000, 1000, "XV_BLUE_INTENSITY"},
    {XvSettable | XvGettable,     0,    1, "XV_SWITCHCRT"},
+   {XvSettable | XvGettable,   100, 10000, "XV_GAMMA"},
+   {XvSettable | XvGettable,     0,    1, "XV_COLORSPACE"},
 };
 
 #define NUM_IMAGES 4
@@ -179,36 +183,389 @@ REF_TRANSFORM trans[2] =
 };
 
 
-/* Gamma curve definition */
-typedef struct
+/* Gamma curve definition for preset gammas */
+typedef struct tagGAMMA_CURVE_R100
 {
-    unsigned int gammaReg;
-    unsigned int gammaSlope;
-    unsigned int gammaOffset;
-} GAMMA_SETTINGS;
+    CARD32 GAMMA_0_F_SLOPE;
+    CARD32 GAMMA_0_F_OFFSET;
+    CARD32 GAMMA_10_1F_SLOPE;
+    CARD32 GAMMA_10_1F_OFFSET;
+    CARD32 GAMMA_20_3F_SLOPE;
+    CARD32 GAMMA_20_3F_OFFSET;
+    CARD32 GAMMA_40_7F_SLOPE;
+    CARD32 GAMMA_40_7F_OFFSET;
+    CARD32 GAMMA_380_3BF_SLOPE;
+    CARD32 GAMMA_380_3BF_OFFSET;
+    CARD32 GAMMA_3C0_3FF_SLOPE;
+    CARD32 GAMMA_3C0_3FF_OFFSET;
+    float OvGammaCont;
+} GAMMA_CURVE_R100;
 
-/* Recommended gamma curve parameters */
-GAMMA_SETTINGS def_gamma[18] =
+typedef struct tagGAMMA_CURVE_R200
 {
-    {RADEON_OV0_GAMMA_000_00F, 0x100, 0x0000},
-    {RADEON_OV0_GAMMA_010_01F, 0x100, 0x0020},
-    {RADEON_OV0_GAMMA_020_03F, 0x100, 0x0040},
-    {RADEON_OV0_GAMMA_040_07F, 0x100, 0x0080},
-    {RADEON_OV0_GAMMA_080_0BF, 0x100, 0x0100},
-    {RADEON_OV0_GAMMA_0C0_0FF, 0x100, 0x0100},
-    {RADEON_OV0_GAMMA_100_13F, 0x100, 0x0200},
-    {RADEON_OV0_GAMMA_140_17F, 0x100, 0x0200},
-    {RADEON_OV0_GAMMA_180_1BF, 0x100, 0x0300},
-    {RADEON_OV0_GAMMA_1C0_1FF, 0x100, 0x0300},
-    {RADEON_OV0_GAMMA_200_23F, 0x100, 0x0400},
-    {RADEON_OV0_GAMMA_240_27F, 0x100, 0x0400},
-    {RADEON_OV0_GAMMA_280_2BF, 0x100, 0x0500},
-    {RADEON_OV0_GAMMA_2C0_2FF, 0x100, 0x0500},
-    {RADEON_OV0_GAMMA_300_33F, 0x100, 0x0600},
-    {RADEON_OV0_GAMMA_340_37F, 0x100, 0x0600},
-    {RADEON_OV0_GAMMA_380_3BF, 0x100, 0x0700},
-    {RADEON_OV0_GAMMA_3C0_3FF, 0x100, 0x0700}
+    CARD32 GAMMA_0_F_SLOPE;
+    CARD32 GAMMA_0_F_OFFSET;
+    CARD32 GAMMA_10_1F_SLOPE;
+    CARD32 GAMMA_10_1F_OFFSET;
+    CARD32 GAMMA_20_3F_SLOPE;
+    CARD32 GAMMA_20_3F_OFFSET;
+    CARD32 GAMMA_40_7F_SLOPE;
+    CARD32 GAMMA_40_7F_OFFSET;
+    CARD32 GAMMA_80_BF_SLOPE;
+    CARD32 GAMMA_80_BF_OFFSET;
+    CARD32 GAMMA_C0_FF_SLOPE;
+    CARD32 GAMMA_C0_FF_OFFSET;
+    CARD32 GAMMA_100_13F_SLOPE;
+    CARD32 GAMMA_100_13F_OFFSET;
+    CARD32 GAMMA_140_17F_SLOPE;
+    CARD32 GAMMA_140_17F_OFFSET;
+    CARD32 GAMMA_180_1BF_SLOPE;
+    CARD32 GAMMA_180_1BF_OFFSET;
+    CARD32 GAMMA_1C0_1FF_SLOPE;
+    CARD32 GAMMA_1C0_1FF_OFFSET;
+    CARD32 GAMMA_200_23F_SLOPE;
+    CARD32 GAMMA_200_23F_OFFSET;
+    CARD32 GAMMA_240_27F_SLOPE;
+    CARD32 GAMMA_240_27F_OFFSET;
+    CARD32 GAMMA_280_2BF_SLOPE;
+    CARD32 GAMMA_280_2BF_OFFSET;
+    CARD32 GAMMA_2C0_2FF_SLOPE;
+    CARD32 GAMMA_2C0_2FF_OFFSET;
+    CARD32 GAMMA_300_33F_SLOPE;
+    CARD32 GAMMA_300_33F_OFFSET;
+    CARD32 GAMMA_340_37F_SLOPE;
+    CARD32 GAMMA_340_37F_OFFSET;
+    CARD32 GAMMA_380_3BF_SLOPE;
+    CARD32 GAMMA_380_3BF_OFFSET;
+    CARD32 GAMMA_3C0_3FF_SLOPE;
+    CARD32 GAMMA_3C0_3FF_OFFSET;
+    float OvGammaCont;
+} GAMMA_CURVE_R200;
+
+
+/* Preset gammas */
+GAMMA_CURVE_R100 gamma_curve_r100[8] = 
+{
+	/* Gamma 1.0 */
+	{0x100, 0x0, 
+	 0x100, 0x20, 
+	 0x100, 0x40, 
+	 0x100, 0x80, 
+	 0x100, 0x100, 
+	 0x100, 0x100, 
+	 1.0},
+	/* Gamma 0.85 */
+	{0x75,  0x0, 
+	 0xA2,  0xF,  
+	 0xAC,  0x23, 
+	 0xC6,  0x4E, 
+	 0x129, 0xD6, 
+	 0x12B, 0xD5, 
+	 1.0},
+	/* Gamma 1.1 */
+	{0x180, 0x0, 
+	 0x13C, 0x30, 
+	 0x13C, 0x57, 
+	 0x123, 0xA5, 
+	 0xEA,  0x116, 
+	 0xEA, 0x116, 
+	 0.9913},
+	/* Gamma 1.2 */
+	{0x21B, 0x0, 
+	 0x16D, 0x43, 
+	 0x172, 0x71, 
+	 0x13D, 0xCD, 
+	 0xD9,  0x128, 
+	 0xD6, 0x12A, 
+	 0.9827},
+	/* Gamma 1.45 */
+	{0x404, 0x0, 
+	 0x1B9, 0x81, 
+	 0x1EE, 0xB8, 
+	 0x16A, 0x133, 
+	 0xB7, 0x14B, 
+	 0xB2, 0x14E, 
+	 0.9567},
+	/* Gamma 1.7 */
+	{0x658, 0x0, 
+	 0x1B5, 0xCB, 
+	 0x25F, 0x102, 
+	 0x181, 0x199, 
+	 0x9C,  0x165, 
+	 0x98, 0x167, 
+	 0.9394},
+	/* Gamma 2.2 */
+	{0x7FF, 0x0, 
+	 0x625, 0x100, 
+	 0x1E4, 0x1C4, 
+	 0x1BD, 0x23D, 
+	 0x79,  0x187, 
+	 0x76,  0x188, 
+	 0.9135},
+	/* Gamma 2.5 */
+	{0x7FF, 0x0, 
+	 0x7FF, 0x100, 
+	 0x2AD, 0x200, 
+	 0x1A2, 0x2AB, 
+	 0x6E,  0x194, 
+	 0x67,  0x197, 
+	 0.9135}
 };
+
+GAMMA_CURVE_R200 gamma_curve_r200[8] =
+ {
+	/* Gamma 1.0 */
+      {0x00000040, 0x00000000,
+       0x00000040, 0x00000020,
+       0x00000080, 0x00000040,
+       0x00000100, 0x00000080,
+       0x00000100, 0x00000100,
+       0x00000100, 0x00000100,
+       0x00000100, 0x00000200,
+       0x00000100, 0x00000200,
+       0x00000100, 0x00000300,
+       0x00000100, 0x00000300,
+       0x00000100, 0x00000400,
+       0x00000100, 0x00000400,
+       0x00000100, 0x00000500,
+       0x00000100, 0x00000500,
+       0x00000100, 0x00000600,
+       0x00000100, 0x00000600,
+       0x00000100, 0x00000700,
+       0x00000100, 0x00000700,
+       1.0},
+	/* Gamma 0.85 */
+      {0x0000001D, 0x00000000,
+       0x00000028, 0x0000000F,
+       0x00000056, 0x00000023,
+       0x000000C5, 0x0000004E,
+       0x000000DA, 0x000000B0,
+       0x000000E6, 0x000000AA,
+       0x000000F1, 0x00000190,
+       0x000000F9, 0x0000018C,
+       0x00000101, 0x00000286,
+       0x00000108, 0x00000282,
+       0x0000010D, 0x0000038A,
+       0x00000113, 0x00000387,
+       0x00000118, 0x0000049A,
+       0x0000011C, 0x00000498,
+       0x00000120, 0x000005B4,
+       0x00000124, 0x000005B2,
+       0x00000128, 0x000006D6,
+       0x0000012C, 0x000006D5,
+       1.0},
+	/* Gamma 1.1 */
+      {0x00000060, 0x00000000,
+       0x0000004F, 0x00000030,
+       0x0000009C, 0x00000057,
+       0x00000121, 0x000000A5,
+       0x00000113, 0x00000136,
+       0x0000010B, 0x0000013A,
+       0x00000105, 0x00000245,
+       0x00000100, 0x00000247,
+       0x000000FD, 0x00000348,
+       0x000000F9, 0x00000349,
+       0x000000F6, 0x00000443,
+       0x000000F4, 0x00000444,
+       0x000000F2, 0x00000538,
+       0x000000F0, 0x00000539,
+       0x000000EE, 0x00000629,
+       0x000000EC, 0x00000629,
+       0x000000EB, 0x00000716,
+       0x000000E9, 0x00000717,
+       0.9913},
+	/* Gamma 1.2 */
+      {0x00000087, 0x00000000,
+       0x0000005B, 0x00000043,
+       0x000000B7, 0x00000071,
+       0x0000013D, 0x000000CD,
+       0x00000121, 0x0000016B,
+       0x00000113, 0x00000172,
+       0x00000107, 0x00000286,
+       0x000000FF, 0x0000028A,
+       0x000000F8, 0x00000389,
+       0x000000F2, 0x0000038B,
+       0x000000ED, 0x0000047D,
+       0x000000E9, 0x00000480,
+       0x000000E5, 0x00000568,
+       0x000000E1, 0x0000056A,
+       0x000000DE, 0x0000064B,
+       0x000000DB, 0x0000064D,
+       0x000000D9, 0x00000728,
+       0x000000D6, 0x00000729,
+       0.9827},
+	/* Gamma 1.45 */
+      {0x00000101, 0x00000000,
+       0x0000006E, 0x00000081,
+       0x000000F7, 0x000000B8,
+       0x0000016E, 0x00000133,
+       0x00000139, 0x000001EA,
+       0x0000011B, 0x000001F9,
+       0x00000105, 0x00000314,
+       0x000000F6, 0x0000031C,
+       0x000000E9, 0x00000411,
+       0x000000DF, 0x00000417,
+       0x000000D7, 0x000004F6,
+       0x000000CF, 0x000004F9,
+       0x000000C9, 0x000005C9,
+       0x000000C4, 0x000005CC,
+       0x000000BF, 0x0000068F,
+       0x000000BA, 0x00000691,
+       0x000000B6, 0x0000074B,
+       0x000000B2, 0x0000074D,
+       0.9567},
+	/* Gamma 1.7 */
+      {0x00000196, 0x00000000,
+       0x0000006D, 0x000000CB,
+       0x0000012F, 0x00000102,
+       0x00000187, 0x00000199,
+       0x00000144, 0x0000025b,
+       0x00000118, 0x00000273,
+       0x000000FE, 0x0000038B,
+       0x000000E9, 0x00000395,
+       0x000000DA, 0x0000047E,
+       0x000000CE, 0x00000485,
+       0x000000C3, 0x00000552,
+       0x000000BB, 0x00000556,
+       0x000000B3, 0x00000611,
+       0x000000AC, 0x00000614,
+       0x000000A7, 0x000006C1,
+       0x000000A1, 0x000006C3,
+       0x0000009D, 0x00000765,
+       0x00000098, 0x00000767,
+       0.9394},
+	/* Gamma 2.2 */
+      {0x000001FF, 0x00000000,
+       0x0000018A, 0x00000100,
+       0x000000F1, 0x000001C5,
+       0x000001D6, 0x0000023D,
+       0x00000124, 0x00000328,
+       0x00000116, 0x0000032F,
+       0x000000E2, 0x00000446,
+       0x000000D3, 0x0000044D,
+       0x000000BC, 0x00000520,
+       0x000000B0, 0x00000526,
+       0x000000A4, 0x000005D6,
+       0x0000009B, 0x000005DB,
+       0x00000092, 0x00000676,
+       0x0000008B, 0x00000679,
+       0x00000085, 0x00000704,
+       0x00000080, 0x00000707,
+       0x0000007B, 0x00000787,
+       0x00000076, 0x00000789,
+       0.9135},
+	/* Gamma 2.5 */
+      {0x000001FF, 0x00000000,
+       0x000001FF, 0x00000100,
+       0x00000159, 0x000001FF,
+       0x000001AC, 0x000002AB,
+       0x0000012F, 0x00000381,
+       0x00000101, 0x00000399,
+       0x000000D9, 0x0000049A,
+       0x000000C3, 0x000004A5,
+       0x000000AF, 0x00000567,
+       0x000000A1, 0x0000056E,
+       0x00000095, 0x00000610,
+       0x0000008C, 0x00000614,
+       0x00000084, 0x000006A0,
+       0x0000007D, 0x000006A4,
+       0x00000077, 0x00000721,
+       0x00000071, 0x00000723,
+       0x0000006D, 0x00000795,
+       0x00000068, 0x00000797,
+       0.9135}
+};
+
+static void
+RADEONSetOverlayGamma(ScrnInfoPtr pScrn, CARD32 gamma)
+{
+    RADEONInfoPtr    info = RADEONPTR(pScrn);
+    unsigned char   *RADEONMMIO = info->MMIO;
+    CARD32	    ov0_scale_cntl;
+
+    /* Set gamma */
+    ov0_scale_cntl = INREG(RADEON_OV0_SCALE_CNTL) & ~RADEON_SCALER_GAMMA_SEL_MASK;
+    OUTREG(RADEON_OV0_SCALE_CNTL, ov0_scale_cntl | (gamma << 0x00000005));
+
+    /* Load gamma curve adjustments */
+    if (info->ChipFamily >= CHIP_FAMILY_R200) {
+    	OUTREG(RADEON_OV0_GAMMA_000_00F,
+	    (gamma_curve_r200[gamma].GAMMA_0_F_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_0_F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_010_01F,
+	    (gamma_curve_r200[gamma].GAMMA_10_1F_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_10_1F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_020_03F,
+	    (gamma_curve_r200[gamma].GAMMA_20_3F_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_20_3F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_040_07F,
+	    (gamma_curve_r200[gamma].GAMMA_40_7F_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_40_7F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_080_0BF,
+	    (gamma_curve_r200[gamma].GAMMA_80_BF_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_80_BF_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_0C0_0FF,
+	    (gamma_curve_r200[gamma].GAMMA_C0_FF_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_C0_FF_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_100_13F,
+	    (gamma_curve_r200[gamma].GAMMA_100_13F_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_100_13F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_140_17F,
+	    (gamma_curve_r200[gamma].GAMMA_140_17F_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_140_17F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_180_1BF,
+	    (gamma_curve_r200[gamma].GAMMA_180_1BF_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_180_1BF_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_1C0_1FF,
+	    (gamma_curve_r200[gamma].GAMMA_1C0_1FF_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_1C0_1FF_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_200_23F,
+	    (gamma_curve_r200[gamma].GAMMA_200_23F_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_200_23F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_240_27F,
+	    (gamma_curve_r200[gamma].GAMMA_240_27F_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_240_27F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_280_2BF,
+	    (gamma_curve_r200[gamma].GAMMA_280_2BF_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_280_2BF_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_2C0_2FF,
+	    (gamma_curve_r200[gamma].GAMMA_2C0_2FF_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_2C0_2FF_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_300_33F,
+	    (gamma_curve_r200[gamma].GAMMA_300_33F_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_300_33F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_340_37F,
+	    (gamma_curve_r200[gamma].GAMMA_340_37F_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_340_37F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_380_3BF,
+	    (gamma_curve_r200[gamma].GAMMA_380_3BF_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_380_3BF_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_3C0_3FF,
+	    (gamma_curve_r200[gamma].GAMMA_3C0_3FF_OFFSET << 0x00000000) |
+	    (gamma_curve_r200[gamma].GAMMA_3C0_3FF_SLOPE << 0x00000010));
+    } else {
+    	OUTREG(RADEON_OV0_GAMMA_000_00F,
+	    (gamma_curve_r100[gamma].GAMMA_0_F_OFFSET << 0x00000000) |
+	    (gamma_curve_r100[gamma].GAMMA_0_F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_010_01F,
+	    (gamma_curve_r100[gamma].GAMMA_10_1F_OFFSET << 0x00000000) |
+	    (gamma_curve_r100[gamma].GAMMA_10_1F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_020_03F,
+	    (gamma_curve_r100[gamma].GAMMA_20_3F_OFFSET << 0x00000000) |
+	    (gamma_curve_r100[gamma].GAMMA_20_3F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_040_07F,
+	    (gamma_curve_r100[gamma].GAMMA_40_7F_OFFSET << 0x00000000) |
+	    (gamma_curve_r100[gamma].GAMMA_40_7F_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_380_3BF,
+	    (gamma_curve_r100[gamma].GAMMA_380_3BF_OFFSET << 0x00000000) |
+	    (gamma_curve_r100[gamma].GAMMA_380_3BF_SLOPE << 0x00000010));
+    	OUTREG(RADEON_OV0_GAMMA_3C0_3FF,
+	    (gamma_curve_r100[gamma].GAMMA_3C0_3FF_OFFSET << 0x00000000) |
+	    (gamma_curve_r100[gamma].GAMMA_3C0_3FF_SLOPE << 0x00000010));
+    }
+
+}
+
 
 /****************************************************************************
  * SetTransform                                                             *
@@ -223,6 +580,7 @@ GAMMA_SETTINGS def_gamma[18] =
  *            green_intensity - intensity of green component                *
  *            blue_intensity - intensity of blue component                  *
  *            ref - index to the table of refernce transforms               *
+ *            user_gamma - gamma value x 1000 (e.g., 1200 = gamma of 1.2)   *
  *   Outputs: NONE                                                          *
  ****************************************************************************/
 
@@ -234,7 +592,8 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
 				float	    red_intensity,
 				float	    green_intensity,
 				float	    blue_intensity,
-				CARD32	    ref)
+				CARD32	    ref,
+				CARD32      user_gamma)
 {
     RADEONInfoPtr    info = RADEONPTR(pScrn);
     unsigned char   *RADEONMMIO = info->MMIO;
@@ -255,8 +614,30 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
     CARD32	    dwOvRCb, dwOvRCr;
     CARD32	    dwOvGCb, dwOvGCr;
     CARD32	    dwOvBCb, dwOvBCr;
+    CARD32	    gamma = 0;
 
     if (ref >= 2)
+	return;
+
+    /* translate from user_gamma (gamma x 1000) to radeon gamma table index value */
+    if (user_gamma <= 925)       /* 0.85 */
+	gamma = 1;
+    else if (user_gamma <= 1050) /* 1.0  */
+	gamma = 0;
+    else if (user_gamma <= 1150) /* 1.1  */
+	gamma = 2;
+    else if (user_gamma <= 1325) /* 1.2  */
+	gamma = 3;
+    else if (user_gamma <= 1575) /* 1.45 */
+	gamma = 4;
+    else if (user_gamma <= 1950) /* 1.7  */
+	gamma = 5;
+    else if (user_gamma <= 2350) /* 2.2  */
+	gamma = 6;
+    else if (user_gamma > 2350)  /* 2.5  */
+	gamma = 7;
+
+    if (gamma >= 8) 
 	return;
 
     OvHueSin = sin(hue);
@@ -285,19 +666,20 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
     CAdjBCb = 2.01708984375;
     CAdjBCr = 0;
 #endif
-    OvLuma = CAdjLuma;
-    OvRCb = CAdjRCb;
-    OvRCr = CAdjRCr;
-    OvGCb = CAdjGCb;
-    OvGCr = CAdjGCr;
-    OvBCb = CAdjBCb;
-    OvBCr = CAdjBCr;
-    OvROff = RedAdj + CAdjOff -
-    OvLuma * Loff - (OvRCb + OvRCr) * Coff;
-    OvGOff = GreenAdj + CAdjOff -
-    OvLuma * Loff - (OvGCb + OvGCr) * Coff;
-    OvBOff = BlueAdj + CAdjOff -
-    OvLuma * Loff - (OvBCb + OvBCr) * Coff;
+
+    OvLuma = CAdjLuma * gamma_curve_r100[gamma].OvGammaCont;
+    OvRCb = CAdjRCb * gamma_curve_r100[gamma].OvGammaCont;
+    OvRCr = CAdjRCr * gamma_curve_r100[gamma].OvGammaCont;
+    OvGCb = CAdjGCb * gamma_curve_r100[gamma].OvGammaCont;
+    OvGCr = CAdjGCr * gamma_curve_r100[gamma].OvGammaCont;
+    OvBCb = CAdjBCb * gamma_curve_r100[gamma].OvGammaCont;
+    OvBCr = CAdjBCr * gamma_curve_r100[gamma].OvGammaCont;
+    OvROff = CAdjOff * gamma_curve_r100[gamma].OvGammaCont - 
+	OvLuma * Loff - (OvRCb + OvRCr) * Coff;
+    OvGOff = CAdjOff * gamma_curve_r100[gamma].OvGammaCont - 
+	OvLuma * Loff - (OvGCb + OvGCr) * Coff;
+    OvBOff = CAdjOff * gamma_curve_r100[gamma].OvGammaCont - 
+	OvLuma * Loff - (OvBCb + OvBCr) * Coff;
 #if 0 /* default constants */
     OvROff = -888.5;
     OvGOff = 545;
@@ -331,6 +713,11 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
 	dwOvBCb = (((INT32)(OvBCb * 256.0))&0xfff)<<4;
 	dwOvBCr = (((INT32)(OvBCr * 256.0))&0xfff)<<20;
     }
+
+    /* set gamma */
+    RADEONSetOverlayGamma(pScrn, gamma);
+
+    /* color transforms */
     OUTREG(RADEON_OV0_LIN_TRANS_A, dwOvRCb | dwOvLuma);
     OUTREG(RADEON_OV0_LIN_TRANS_B, dwOvROff | dwOvRCr);
     OUTREG(RADEON_OV0_LIN_TRANS_C, dwOvGCb | dwOvLuma);
@@ -399,12 +786,16 @@ RADEONResetVideo(ScrnInfoPtr pScrn)
     OUTREG(RADEON_CAP0_TRIG_CNTL, 0);
     RADEONSetColorKey(pScrn, pPriv->colorKey);
 
-    if ((info->ChipFamily == CHIP_FAMILY_R300) ||
-	(info->ChipFamily == CHIP_FAMILY_R350) ||
-	(info->ChipFamily == CHIP_FAMILY_RV350) ||
-	(info->ChipFamily == CHIP_FAMILY_R200) ||
-	(info->ChipFamily == CHIP_FAMILY_RADEON)) {
-	int i;
+    if (info->ChipFamily == CHIP_FAMILY_RADEON) {
+
+	OUTREG(RADEON_OV0_LIN_TRANS_A, 0x12a00000);
+	OUTREG(RADEON_OV0_LIN_TRANS_B, 0x1990190e);
+	OUTREG(RADEON_OV0_LIN_TRANS_C, 0x12a0f9c0);
+	OUTREG(RADEON_OV0_LIN_TRANS_D, 0xf3000442);
+	OUTREG(RADEON_OV0_LIN_TRANS_E, 0x12a02040);
+	OUTREG(RADEON_OV0_LIN_TRANS_F, 0x175f);
+
+    } else {
 
 	OUTREG(RADEON_OV0_LIN_TRANS_A, 0x12a20000);
 	OUTREG(RADEON_OV0_LIN_TRANS_B, 0x198a190e);
@@ -412,7 +803,7 @@ RADEONResetVideo(ScrnInfoPtr pScrn)
 	OUTREG(RADEON_OV0_LIN_TRANS_D, 0xf2fe0442);
 	OUTREG(RADEON_OV0_LIN_TRANS_E, 0x12a22046);
 	OUTREG(RADEON_OV0_LIN_TRANS_F, 0x175f);
-
+    }
 	/*
 	 * Set default Gamma ramp:
 	 *
@@ -420,18 +811,9 @@ RADEONResetVideo(ScrnInfoPtr pScrn)
 	 * newer) are programmable, while only lower 4 and upper 2
 	 * segments are programmable in the older Radeons.
 	 */
-	for (i = 0; i < 18; i++) {
-	    OUTREG(def_gamma[i].gammaReg,
-		   (def_gamma[i].gammaSlope<<16) | def_gamma[i].gammaOffset);
-	}
-    } else {
-	OUTREG(RADEON_OV0_LIN_TRANS_A, 0x12a00000);
-	OUTREG(RADEON_OV0_LIN_TRANS_B, 0x1990190e);
-	OUTREG(RADEON_OV0_LIN_TRANS_C, 0x12a0f9c0);
-	OUTREG(RADEON_OV0_LIN_TRANS_D, 0xf3000442);
-	OUTREG(RADEON_OV0_LIN_TRANS_E, 0x12a02040);
-	OUTREG(RADEON_OV0_LIN_TRANS_F, 0x175f);
-    }
+
+    RADEONSetOverlayGamma(pScrn, 0); /* gamma = 1.0 */
+
 }
 
 
@@ -469,6 +851,7 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     pPriv->hue = 0;
     pPriv->currentBuffer = 0;
     pPriv->autopaint_colorkey = TRUE;
+    pPriv->gamma = 1000;
     if (info->OverlayOnCRTC2)
 	pPriv->crt2 = TRUE;
     else
@@ -563,6 +946,8 @@ RADEONSetupImageVideo(ScreenPtr pScreen)
     xvRedIntensity   = MAKE_ATOM("XV_RED_INTENSITY");
     xvGreenIntensity = MAKE_ATOM("XV_GREEN_INTENSITY");
     xvBlueIntensity  = MAKE_ATOM("XV_BLUE_INTENSITY");
+    xvGamma          = MAKE_ATOM("XV_GAMMA");
+    xvColorspace     = MAKE_ATOM("XV_COLORSPACE");
 
     xvAutopaintColorkey = MAKE_ATOM("XV_AUTOPAINT_COLORKEY");
     xvSetDefaults = MAKE_ATOM("XV_SET_DEFAULTS");
@@ -632,6 +1017,8 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 	pPriv->red_intensity = 0;
 	pPriv->green_intensity = 0;
 	pPriv->blue_intensity = 0;
+	pPriv->gamma = 1000;
+	pPriv->transform_index = 0;
 	pPriv->doubleBuffer = FALSE;
 	setTransform = TRUE;
     }
@@ -670,6 +1057,16 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 	pPriv->blue_intensity = ClipValue (value, -1000, 1000);
 	setTransform = TRUE;
     }
+    else if(attribute == xvGamma) 
+    {
+	pPriv->gamma = ClipValue (value, 100, 10000);
+	setTransform = TRUE;
+    } 
+    else if(attribute == xvColorspace) 
+    {
+	pPriv->transform_index = ClipValue (value, 0, 1);
+	setTransform = TRUE;
+    } 
     else if(attribute == xvDoubleBuffer)
     {
 	pPriv->doubleBuffer = ClipValue (value, 0, 1);
@@ -703,7 +1100,8 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 			   RTFIntensity(pPriv->red_intensity),
 			   RTFIntensity(pPriv->green_intensity),
 			   RTFIntensity(pPriv->blue_intensity),
-			   pPriv->transform_index);
+			   pPriv->transform_index,
+			   pPriv->gamma);
     }
 
     return Success;
@@ -736,6 +1134,10 @@ RADEONGetPortAttribute(ScrnInfoPtr  pScrn,
 	*value = pPriv->green_intensity;
     else if(attribute == xvBlueIntensity)
 	*value = pPriv->blue_intensity;
+    else if(attribute == xvGamma)
+	*value = pPriv->gamma;
+    else if(attribute == xvColorspace)
+	*value = pPriv->transform_index;
     else if(attribute == xvDoubleBuffer)
 	*value = pPriv->doubleBuffer ? 1 : 0;
     else if(attribute == xvColorKey)
@@ -1496,8 +1898,10 @@ RADEONDisplaySurface(
 	dstBox.y2 -= pScrn->frameY0;
     }
 
+#if 0
+    /* this isn't needed */
     RADEONResetVideo(pScrn);
-
+#endif
     RADEONDisplayVideo(pScrn, surface->id,
 		       surface->offsets[0], surface->offsets[0],
 		       surface->width, surface->height, surface->pitches[0],
@@ -1540,8 +1944,8 @@ RADEONInitOffscreenImages(ScreenPtr pScreen)
     offscreenImages[0].stop = RADEONStopSurface;
     offscreenImages[0].setAttribute = RADEONSetSurfaceAttribute;
     offscreenImages[0].getAttribute = RADEONGetSurfaceAttribute;
-    offscreenImages[0].max_width = 1024;
-    offscreenImages[0].max_height = 1024;
+    offscreenImages[0].max_width = 2048;
+    offscreenImages[0].max_height = 2048;
     offscreenImages[0].num_attributes = NUM_ATTRIBUTES;
     offscreenImages[0].attributes = Attributes;
 
