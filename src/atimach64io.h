@@ -19,6 +19,10 @@
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
+ *
+ * DRI support by:
+ *    Manuel Teira
+ *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
 #ifndef ___ATIMACH64IO_H___
@@ -199,6 +203,70 @@ extern void ATIMach64PollEngineStatus FunctionPrototype((ATIPtr));
 #define ATIMach64WaitForIdle(_pATI)         \
     while ((_pATI)->EngineIsBusy)           \
         ATIMach64PollEngineStatus(_pATI)
+
+#ifdef XF86DRI
+ 
+#define ATIDRIWaitForIdle(_pATI)                                \
+do {                                                            \
+    ATIDRIServerInfoPtr pATIDRIServer = _pATI->pDRIServerInfo;  \
+    int ret;                                                    \
+                                                                \
+    if (pATIDRIServer && pATI->directRenderingEnabled) {        \
+        /* Wait for DMA to complete */                          \
+        ret = drmCommandNone(_pATI->drmFD, DRM_MACH64_IDLE);    \
+        if (ret) {                                              \
+            drmCommandNone(_pATI->drmFD, DRM_MACH64_RESET);     \
+        }                                                       \
+                                                                \
+        /* Force updating of FIFO entry counters */             \
+        pATI->EngineIsBusy = TRUE;                              \
+        ATIMach64PollEngineStatus(_pATI);                       \
+    } else {                                                    \
+        ATIMach64WaitForIdle(_pATI);                            \
+    }                                                           \
+} while (0)
+
+#define ATIDRILock(_pScrInfo)                   \
+do                                              \
+{                                               \
+    ATIPtr _pATI=ATIPTR(_pScrInfo);             \
+    if (_pATI->directRenderingEnabled)          \
+    {                                           \
+        DRILock(_pScrInfo->pScreen, 0);         \
+        pATI->NeedDRISync = TRUE;               \
+    }                                           \
+} while (0)
+                                                                                
+#define ATIDRIUnlock(_pScrInfo)                 \
+do                                              \
+{                                               \
+    ATIPtr _pATI=ATIPTR(_pScrInfo);             \
+    if (_pATI->directRenderingEnabled)          \
+    {                                           \
+        DRIUnlock(_pScrInfo->pScreen);          \
+    }                                           \
+} while (0)
+
+#define ATIDRISync(_pScrInfo)                                                   \
+do                                                                              \
+{                                                                               \
+    ATIPtr _pATI=ATIPTR(_pScrInfo);                                             \
+    if (_pATI->directRenderingEnabled && _pATI->pXAAInfo)                       \
+    {                                                                           \
+        if (_pATI->NeedDRISync) (*_pATI->pXAAInfo->Sync)(_pScrInfo);            \
+    }                                                                           \
+} while (0)
+                                                                                               
+#else /* XF86DRI */
+
+                                                                                               
+#define ATIDRIWaitForIdle(_pATI)
+#define ATIDRILock(_pScrInfo)
+#define ATIDRIUnlock(_pScrInfo)
+#define ATIDRISync(_pScrInfo)
+                                                                                               
+#endif /* XF86DRI */
+
 
 /*
  * An outf() variant to write two registers such that the second register is

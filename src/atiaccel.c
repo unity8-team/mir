@@ -19,6 +19,9 @@
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
+ *
+ * DRI support by:
+ *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
 #include "atiaccel.h"
@@ -64,6 +67,12 @@ ATIInitializeAcceleration
 
 #endif /* AVOID_CPIO */
 
+#ifdef XF86DRI
+
+        /* If DRI is enabled, we've already set up the FB manager in ATIScreenInit */
+        if (!pATI->directRenderingEnabled)
+
+#endif /* XF86DRI */
     {
         /*
          * Note:  If PixelArea exceeds the engine's maximum, the excess is

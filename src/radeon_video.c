@@ -4,6 +4,7 @@
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_reg.h"
+#include "radeon_mergedfb.h"
 
 #include "xf86.h"
 #include "dixstruct.h"
@@ -38,11 +39,13 @@ static int  RADEONQueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
 
 static void RADEONVideoTimerCallback(ScrnInfoPtr pScrn, Time now);
 
+
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
 static Atom xvBrightness, xvColorKey, xvSaturation, xvDoubleBuffer;
 static Atom xvRedIntensity, xvGreenIntensity, xvBlueIntensity;
 static Atom xvContrast, xvHue, xvColor, xvAutopaintColorkey, xvSetDefaults;
+static Atom xvSwitchCRT;
 
 typedef struct {
    CARD32	 transform_index;
@@ -63,11 +66,13 @@ typedef struct {
    Time          offTime;
    Time          freeTime;
    Bool          autopaint_colorkey;
+   Bool		 crt2; /* 0=CRT1, 1=CRT2 */
 } RADEONPortPrivRec, *RADEONPortPrivPtr;
 
 
 #define GET_PORT_PRIVATE(pScrn) \
    (RADEONPortPrivPtr)((RADEONPTR(pScrn))->adaptor->pPortPrivates[0].ptr)
+
 
 void RADEONInitVideo(ScreenPtr pScreen)
 {
@@ -124,7 +129,7 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] =
 };
 
 
-#define NUM_ATTRIBUTES 9+3
+#define NUM_ATTRIBUTES 9+4
 
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES] =
 {
@@ -140,6 +145,7 @@ static XF86AttributeRec Attributes[NUM_ATTRIBUTES] =
    {XvSettable | XvGettable, -1000, 1000, "XV_RED_INTENSITY"},
    {XvSettable | XvGettable, -1000, 1000, "XV_GREEN_INTENSITY"},
    {XvSettable | XvGettable, -1000, 1000, "XV_BLUE_INTENSITY"},
+   {XvSettable | XvGettable,     0,    1, "XV_SWITCHCRT"},
 };
 
 #define NUM_IMAGES 4
@@ -434,6 +440,7 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONPortPrivPtr pPriv;
     unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 dot_clock;
 
     if(!(adapt = xf86XVAllocateVideoAdaptorRec(pScrn)))
 	return NULL;
@@ -460,16 +467,28 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     pPriv->hue = 0;
     pPriv->currentBuffer = 0;
     pPriv->autopaint_colorkey = TRUE;
+    if (info->OverlayOnCRTC2)
+	pPriv->crt2 = TRUE;
+    else
+	pPriv->crt2 = FALSE;
 
     /*
      * Unlike older Mach64 chips, RADEON has only two ECP settings: 
      * 0 for PIXCLK < 175Mhz, and 1 (divide by 2)
      * for higher clocks, sure makes life nicer 
      */
-    if(info->ModeReg.dot_clock_freq < 17500) 
-	pPriv->ecp_div = 0;
+
+    /* Figure out which head we are on */
+    if ((info->MergedFB && info->OverlayOnCRTC2) || info->IsSecondary)
+	dot_clock = info->ModeReg.dot_clock_freq_2;
     else
-	pPriv->ecp_div = 1;
+	dot_clock = info->ModeReg.dot_clock_freq;
+
+    if(dot_clock < 17500)
+        pPriv->ecp_div = 0;
+    else
+        pPriv->ecp_div = 1;
+
 
 #if 0
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Dotclock is %g Mhz, setting ecp_div to %d\n", info->ModeReg.dot_clock_freq/100.0, pPriv->ecp_div);
@@ -477,6 +496,11 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
  
     OUTPLL(RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) & 
 				  0xfffffCff) | (pPriv->ecp_div << 8));
+
+    /* I suspect we may need a usleep after writing to the PLL.  if you play a video too soon
+       after switching crtcs in mergedfb clone mode you get a temporary one pixel line of colorkey 
+       on the right edge video output.  */
+
 
     if ((info->ChipFamily == CHIP_FAMILY_RS100) || 
 	(info->ChipFamily == CHIP_FAMILY_RS200) ||
@@ -540,6 +564,7 @@ RADEONSetupImageVideo(ScreenPtr pScreen)
 
     xvAutopaintColorkey = MAKE_ATOM("XV_AUTOPAINT_COLORKEY");
     xvSetDefaults = MAKE_ATOM("XV_SET_DEFAULTS");
+    xvSwitchCRT = MAKE_ATOM("XV_SWITCHCRT");
     
     RADEONResetVideo(pScrn);
 
@@ -655,6 +680,15 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 	RADEONSetColorKey (pScrn, pPriv->colorKey);
 	REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
     } 
+    else if(attribute == xvSwitchCRT) 
+    {
+	pPriv->crt2 = ClipValue (value, 0, 1);
+	pPriv->crt2 = value;
+	if (pPriv->crt2)
+	    info->OverlayOnCRTC2 = TRUE;
+	else
+	    info->OverlayOnCRTC2 = FALSE; 
+    } 
     else 
 	return BadMatch;
 
@@ -705,6 +739,8 @@ RADEONGetPortAttribute(ScrnInfoPtr  pScrn,
 	*value = pPriv->doubleBuffer ? 1 : 0;
     else if(attribute == xvColorKey)
 	*value = pPriv->colorKey;
+    else if(attribute == xvSwitchCRT)
+	*value = pPriv->crt2 ? 1 : 0;
     else 
 	return BadMatch;
 
@@ -854,28 +890,65 @@ RADEONDisplayVideo(
     int v_inc_shift;
     int y_mult;
     int x_off;
+    int y_off;
     CARD32 scaler_src;
+    CARD32 dot_clock;
+    DisplayModePtr overlay_mode;
 
     /* Unlike older Mach64 chips, RADEON has only two ECP settings: 0 for PIXCLK < 175Mhz, and 1 (divide by 2)
        for higher clocks, sure makes life nicer 
        
        Here we need to find ecp_div again, as the user may have switched resolutions */
-    if(info->ModeReg.dot_clock_freq < 17500) 
-	ecp_div = 0;
+
+
+    /* Figure out which head we are on for dot clock */
+    if ((info->MergedFB && info->OverlayOnCRTC2) || info->IsSecondary)
+        dot_clock = info->ModeReg.dot_clock_freq_2;
+    else
+        dot_clock = info->ModeReg.dot_clock_freq;
+
+    if (dot_clock < 17500)
+        ecp_div = 0;
     else
 	ecp_div = 1;
- 
+
     OUTPLL(RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) & 0xfffffCff) | (ecp_div << 8));
 
+    /* I suspect we may need a usleep after writing to the PLL.  if you play a video too soon
+       after switching crtcs in mergedfb clone mode you get a temporary one pixel line of colorkey 
+       on the right edge video output.  */
+
     v_inc_shift = 20;
-    if (pScrn->currentMode->Flags & V_INTERLACE)
-	v_inc_shift++;
-    if (pScrn->currentMode->Flags & V_DBLSCAN)
-	v_inc_shift--;
-    if (pScrn->currentMode->Flags & RADEON_USE_RMX) {
-	v_inc = ((src_h * pScrn->currentMode->CrtcVDisplay / info->PanelYRes) << v_inc_shift) / drw_h;
+    y_mult = 1;
+
+    if (info->MergedFB) {
+        if (info->OverlayOnCRTC2)
+	    overlay_mode = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2;
+	else
+	    overlay_mode = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT1;
+	if (overlay_mode->Flags & V_INTERLACE)
+	    v_inc_shift++;
+    	if (overlay_mode->Flags & V_DBLSCAN) {
+	    v_inc_shift--;
+	    y_mult = 2;
+	}
+    	if (overlay_mode->Flags & RADEON_USE_RMX) {
+	    v_inc = ((src_h * overlay_mode->CrtcVDisplay / info->PanelYRes) << v_inc_shift) / drw_h;
+    	} else {
+	    v_inc = (src_h << v_inc_shift) / drw_h;
+    	}
     } else {
-	v_inc = (src_h << v_inc_shift) / drw_h;
+	if (pScrn->currentMode->Flags & V_INTERLACE)
+	    v_inc_shift++;
+    	if (pScrn->currentMode->Flags & V_DBLSCAN) {
+	    v_inc_shift--;
+	    y_mult = 2;
+	}
+    	if (pScrn->currentMode->Flags & RADEON_USE_RMX) {
+	    v_inc = ((src_h * pScrn->currentMode->CrtcVDisplay / info->PanelYRes) << v_inc_shift) / drw_h;
+    	} else {
+	    v_inc = (src_h << v_inc_shift) / drw_h;
+    	}
     }
     h_inc = ((src_w << (12 + ecp_div)) / drw_w);
     step_by = 1;
@@ -917,10 +990,8 @@ RADEONDisplayVideo(
     OUTREG(RADEON_OV0_H_INC, h_inc | ((h_inc >> 1) << 16));
     OUTREG(RADEON_OV0_STEP_BY, step_by | (step_by << 8));
 
-    y_mult = 1;
-    if (pScrn->currentMode->Flags & V_DBLSCAN)
-	y_mult = 2;
     x_off = 8;
+    y_off = 0;
 
     if ((info->ChipFamily == CHIP_FAMILY_R300) ||
         (info->ChipFamily == CHIP_FAMILY_R350) ||
@@ -928,34 +999,40 @@ RADEONDisplayVideo(
         (info->ChipFamily == CHIP_FAMILY_R200))
 	x_off = 0;
 
+    /* needed to make the overlay work on crtc1 in leftof and above modes */
+    if (info->MergedFB) {
+	RADEONScrn2Rel srel =
+	    ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2Position;
+	overlay_mode = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2;
+	if (srel == radeonLeftOf) {
+    	    x_off -= overlay_mode->CrtcHDisplay;
+	    /* y_off -= pScrn->frameY0; */
+	}
+	if (srel == radeonAbove) {
+    	    y_off -= overlay_mode->CrtcVDisplay;
+	    /* x_off -= pScrn->frameX0; */
+	}
+    }
+
     /* Put the hardware overlay on CRTC2:
      *
      * Since one hardware overlay can not be displayed on two heads 
      * at the same time, we might need to consider using software
      * rendering for the second head.
      */
-    if ((info->Clone && info->OverlayOnCRTC2) || info->IsSecondary) {
-	x_off = 0;
-	OUTREG(RADEON_OV1_Y_X_START, ((dstBox->x1
-				       + x_off
-				       - info->CloneFrameX0
-				       + pScrn->frameX0) |
-				      ((dstBox->y1*y_mult -
-					info->CloneFrameY0
-					+ pScrn->frameY0) << 16)));
-	OUTREG(RADEON_OV1_Y_X_END,   ((dstBox->x2
-				       + x_off
-				       - info->CloneFrameX0
-				       + pScrn->frameX0) |
-				      ((dstBox->y2*y_mult
-					- info->CloneFrameY0
-					+ pScrn->frameY0) << 16)));
-	scaler_src = (1 << 14);
+
+    if ((info->MergedFB && info->OverlayOnCRTC2) || info->IsSecondary) {
+        x_off = 0;
+        OUTREG(RADEON_OV1_Y_X_START, ((dstBox->x1 + x_off) |
+                                      ((dstBox->y1*y_mult) << 16)));
+        OUTREG(RADEON_OV1_Y_X_END,   ((dstBox->x2 + x_off) |
+                                      ((dstBox->y2*y_mult) << 16)));
+        scaler_src = (1 << 14);
     } else {
 	OUTREG(RADEON_OV0_Y_X_START, ((dstBox->x1 + x_off) |
-				      ((dstBox->y1*y_mult) << 16)));
+				      (((dstBox->y1*y_mult) + y_off) << 16)));
 	OUTREG(RADEON_OV0_Y_X_END,   ((dstBox->x2 + x_off) |
-				      ((dstBox->y2*y_mult) << 16)));
+				      (((dstBox->y2*y_mult) + y_off) << 16)));
 	scaler_src = 0;
     }
 
@@ -1064,14 +1141,24 @@ RADEONPutImage(
    dstBox.y1 = drw_y;
    dstBox.y2 = drw_y + drw_h;
 
+   if (info->MergedFB)
+	RADEONChooseOverlayCRTC(pScrn, &dstBox);
+
    if(!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb,
 			     clipBoxes, width, height))
 	return Success;
 
-   dstBox.x1 -= pScrn->frameX0;
-   dstBox.x2 -= pScrn->frameX0;
-   dstBox.y1 -= pScrn->frameY0;
-   dstBox.y2 -= pScrn->frameY0;
+   if (info->MergedFB && info->OverlayOnCRTC2) {
+	dstBox.x1 -= info->CRT2pScrn->frameX0;
+	dstBox.x2 -= info->CRT2pScrn->frameX0;
+	dstBox.y1 -= info->CRT2pScrn->frameY0;
+	dstBox.y2 -= info->CRT2pScrn->frameY0;
+   } else {
+	dstBox.x1 -= pScrn->frameX0;
+	dstBox.x2 -= pScrn->frameX0;
+	dstBox.y1 -= pScrn->frameY0;
+	dstBox.y2 -= pScrn->frameY0;
+   }
 
    bpp = pScrn->bitsPerPixel >> 3;
    pitch = bpp * pScrn->displayWidth;
@@ -1392,14 +1479,24 @@ RADEONDisplaySurface(
     dstBox.y1 = drw_y;
     dstBox.y2 = drw_y + drw_h;
 
+    if (info->MergedFB)
+        RADEONChooseOverlayCRTC(pScrn, &dstBox);
+
     if (!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb, clipBoxes, 
 			       surface->width, surface->height))
 	return Success;
 
-    dstBox.x1 -= pScrn->frameX0;
-    dstBox.x2 -= pScrn->frameX0;
-    dstBox.y1 -= pScrn->frameY0;
-    dstBox.y2 -= pScrn->frameY0;
+    if (info->MergedFB && info->OverlayOnCRTC2) {
+	dstBox.x1 -= info->CRT2pScrn->frameX0;
+	dstBox.x2 -= info->CRT2pScrn->frameX0;
+	dstBox.y1 -= info->CRT2pScrn->frameY0;
+	dstBox.y2 -= info->CRT2pScrn->frameY0;
+    } else {
+	dstBox.x1 -= pScrn->frameX0;
+	dstBox.x2 -= pScrn->frameX0;
+	dstBox.y1 -= pScrn->frameY0;
+	dstBox.y2 -= pScrn->frameY0;
+    }
 
     RADEONResetVideo(pScrn);
 

@@ -40,7 +40,6 @@
 #define _R128_DRI_
 
 #include "xf86drm.h"
-#include "r128_common.h"
 
 /* DRI Driver defaults */
 #define R128_DEFAULT_CCE_PIO_MODE R128_PM4_64PIO_64VCBM_64INDBM
@@ -88,11 +87,11 @@ typedef struct {
     int           log2TexGran;
 
     /* MMIO register data */
-    drmHandle     registerHandle;
+    drm_handle_t     registerHandle;
     drmSize       registerSize;
 
     /* CCE AGP Texture data */
-    drmHandle     agpTexHandle;
+    drm_handle_t     agpTexHandle;
     drmSize       agpTexMapSize;
     int           log2AGPTexGran;
     int           agpTexOffset;

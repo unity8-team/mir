@@ -19,6 +19,9 @@
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
+ *
+ * DRI support by:
+ *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
 #ifndef ___ATIOPTION_H___
@@ -43,6 +46,17 @@ typedef enum
     ATI_OPTION_LINEAR,
 
 #endif /* AVOID_CPIO */
+
+#ifdef XF86DRI
+                                                                                               
+    ATI_OPTION_IS_PCI,
+    ATI_OPTION_DMA_MODE,
+    ATI_OPTION_AGP_MODE,
+    ATI_OPTION_AGP_SIZE,
+    ATI_OPTION_LOCAL_TEXTURES,
+    ATI_OPTION_BUFFER_SIZE,
+                                                                                               
+#endif /* XF86DRI */
 
     ATI_OPTION_MMIO_CACHE,
     ATI_OPTION_TEST_MMIO_CACHE,

@@ -181,8 +181,8 @@ FUNC_NAME(RADEONRestoreAccelState)(ScrnInfoPtr pScrn)
 
     pitch64 = ((pScrn->displayWidth * (pScrn->bitsPerPixel / 8) + 0x3f)) >> 6;
 
-    OUTREG(RADEON_DEFAULT_OFFSET, (((INREG(RADEON_DISPLAY_BASE_ADDR) + pScrn->fbOffset) >> 10) |
-				   (pitch64 << 22)));
+    OUTREG(RADEON_DEFAULT_OFFSET, ((info->fbLocation + pScrn->fbOffset) >> 10)
+				 | (pitch64 << 22));
 
     /* FIXME: May need to restore other things, like BKGD_CLK FG_CLK... */
 
@@ -1169,7 +1169,7 @@ RADEONSelectBuffer(ScrnInfoPtr pScrn, int buffer)
 }
 #endif
 
-static void
+void
 FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
@@ -1224,9 +1224,10 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 	   | LEFT_EDGE_CLIPPING_NEGATIVE_X);
     a->NumScanlineColorExpandBuffers    = 1;
     a->ScanlineColorExpandBuffers       = info->scratch_buffer;
-    info->scratch_save
-	= xalloc(((pScrn->virtualX+31)/32*4)
-		 + (pScrn->virtualX * info->CurrentLayout.pixel_bytes));
+    if (!info->scratch_save)
+	info->scratch_save
+	    = xalloc(((pScrn->virtualX+31)/32*4)
+		     + (pScrn->virtualX * info->CurrentLayout.pixel_bytes));
     info->scratch_buffer[0]             = info->scratch_save;
     a->SetupForScanlineCPUToScreenColorExpandFill
 	= FUNC_NAME(RADEONSetupForScanlineCPUToScreenColorExpandFill);

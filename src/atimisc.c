@@ -19,6 +19,9 @@
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
+ *
+ * DRI support by:
+ *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
 #ifdef XFree86LOADER
@@ -80,6 +83,13 @@ ATISetup
             ATIxf4bppSymbols,
 
 #endif /* AVOID_CPIO */
+
+#ifdef XF86DRI
+
+            ATIdrmSymbols,
+            ATIdriSymbols,
+
+#endif /* XF86DRI */
 
             ATIfbSymbols,
             ATIshadowfbSymbols,

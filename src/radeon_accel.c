@@ -79,6 +79,7 @@
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
 #include "radeon_dri.h"
+#include "radeon_common.h"
 #include "radeon_sarea.h"
 #endif
 
@@ -283,8 +284,8 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
     pitch64 = ((pScrn->displayWidth * (pScrn->bitsPerPixel / 8) + 0x3f)) >> 6;
 
     RADEONWaitForFifo(pScrn, 1);
-    OUTREG(RADEON_DEFAULT_OFFSET, ((INREG(RADEON_DISPLAY_BASE_ADDR) >> 10)
-				   | (pitch64 << 22)));
+    OUTREG(RADEON_DEFAULT_OFFSET, ((info->fbLocation >> 10)
+				  | (pitch64 << 22)));
 
     RADEONWaitForFifo(pScrn, 1);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -329,15 +330,6 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 		 info->CurrentLayout.bitsPerPixel));
 
     OUTREG(RADEON_RB3D_CNTL, 0);
-#if defined(__powerpc__)
-#if defined(XF86_DRI)
-    if(!info->directRenderingEnabled)
-#endif
-    {
-	OUTREG(RADEON_MC_FB_LOCATION, 0xffff0000);
-    	OUTREG(RADEON_MC_AGP_LOCATION, 0xfffff000);
-    }
-#endif
 
     RADEONEngineReset(pScrn);
 

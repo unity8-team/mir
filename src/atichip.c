@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atichip.c,v 1.35 2003/07/02 17:31:28 martin Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atichip.c,v 1.37 2003/10/07 22:47:11 martin Exp $ */
 /*
  * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -101,6 +101,7 @@ const char *ATIChipNames[] =
     "ATI Radeon 9700/9500",
     "ATI Radeon 9600",
     "ATI Radeon 9800",
+    "ATI Radeon 9800XT",
     "ATI Rage HDTV"
 };
 
@@ -673,14 +674,11 @@ ATIChipID
         case NewChipID('Q', 'X'):
             return ATI_CHIP_RV200;
 
-        case NewChipID('I', 'd'):
-        case NewChipID('I', 'e'):
         case NewChipID('I', 'f'):
         case NewChipID('I', 'g'):
             return ATI_CHIP_RV250;
 
         case NewChipID('L', 'd'):
-        case NewChipID('L', 'e'):
         case NewChipID('L', 'f'):
         case NewChipID('L', 'g'):
             return ATI_CHIP_RADEONMOBILITY9;
@@ -691,14 +689,12 @@ ATIChipID
 
         case NewChipID('Y', '\''):
         case NewChipID('Y', 'a'):
-        case NewChipID('I', 'b'):
-        case NewChipID('I', 'c'):
+        case NewChipID('Y', 'b'):
+        case NewChipID('Y', 'd'):
             return ATI_CHIP_RV280;
 
-        case NewChipID('Y', 'h'):
-        case NewChipID('Y', 'i'):
-        case NewChipID('Y', 'j'):
-        case NewChipID('Y', 'k'):
+        case NewChipID('\\', 'a'):
+        case NewChipID('\\', 'c'):
             return ATI_CHIP_RADEONMOBILITY9PLUS;
 
         case NewChipID('A', 'D'):
@@ -711,15 +707,31 @@ ATIChipID
         case NewChipID('N', 'G'):
             return ATI_CHIP_R300;
 
+        case NewChipID('A', 'H'):
+        case NewChipID('A', 'I'):
+        case NewChipID('A', 'J'):
         case NewChipID('A', 'K'):
         case NewChipID('N', 'H'):
+        case NewChipID('N', 'I'):
         case NewChipID('N', 'K'):
             return ATI_CHIP_R350;
 
-        case NewChipID('N', 'P'):
         case NewChipID('A', 'P'):
+        case NewChipID('A', 'Q'):
         case NewChipID('A', 'R'):
+        case NewChipID('A', 'S'):
+        case NewChipID('A', 'T'):
+        case NewChipID('A', 'V'):
+        case NewChipID('N', 'P'):
+        case NewChipID('N', 'Q'):
+        case NewChipID('N', 'R'):
+        case NewChipID('N', 'S'):
+        case NewChipID('N', 'T'):
+        case NewChipID('N', 'V'):
             return ATI_CHIP_RV350;
+
+        case NewChipID('N', 'J'):
+            return ATI_CHIP_R360;
 
         case NewChipID('H', 'D'):
             return ATI_CHIP_HDTV;

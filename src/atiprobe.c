@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atiprobe.c,v 1.58 2003/07/02 17:31:29 martin Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atiprobe.c,v 1.60 2003/10/07 22:47:11 martin Exp $ */
 /*
  * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -206,7 +206,7 @@ ATICheckSparseIOBases
 
             /* User might wish to override this decision */
             xf86Msg(X_WARNING,
-                ATI_NAME ":  Sparse I/O base 0x%04X not probed.\n", IOBase);
+                ATI_NAME ":  Sparse I/O base 0x%04lX not probed.\n", IOBase);
             return Allowed;
         }
     }
@@ -310,7 +310,7 @@ ATIVGAWonderProbe
         case 0:
             xf86Msg(X_WARNING,
                 ATI_NAME ":  Expected VGA Wonder capability could not be"
-                " detected at I/O port 0x%04X because it would conflict with"
+                " detected at I/O port 0x%04lX because it would conflict with"
                 " a non-video PCI/AGP device.\n", pATI->CPIO_VGAWonder);
             pATI->CPIO_VGAWonder = 0;
             break;
@@ -318,7 +318,7 @@ ATIVGAWonderProbe
         case Detected8514A:
             xf86Msg(X_WARNING,
                 ATI_NAME ":  Expected VGA Wonder capability could not be"
-                " detected at I/O port 0x%04X because it would conflict with"
+                " detected at I/O port 0x%04lX because it would conflict with"
                 " a %s %s.\n", pATI->CPIO_VGAWonder,
                 ATIBusNames[p8514->BusType], ATIAdapterNames[p8514->Adapter]);
             pATI->CPIO_VGAWonder = 0;
@@ -327,7 +327,7 @@ ATIVGAWonderProbe
         case DetectedMach64:
             xf86Msg(X_WARNING,
                 ATI_NAME ":  Expected VGA Wonder capability could not be"
-                " detected at I/O port 0x%04X because it would conflict with"
+                " detected at I/O port 0x%04lX because it would conflict with"
                 " a Mach64.\n", pATI->CPIO_VGAWonder);
             pATI->CPIO_VGAWonder = 0;
             break;
@@ -367,14 +367,14 @@ ATIVGAWonderProbe
                 (IOValue6 == 0))
             {
                 xf86MsgVerb(X_INFO, 3,
-                    ATI_NAME ":  VGA Wonder at I/O port 0x%04X detected.\n",
+                    ATI_NAME ":  VGA Wonder at I/O port 0x%04lX detected.\n",
                     pATI->CPIO_VGAWonder);
             }
             else
             {
                 xf86Msg(X_WARNING,
                     ATI_NAME ":  Expected VGA Wonder capability at I/O port"
-                    " 0x%04X was not detected.\n", pATI->CPIO_VGAWonder);
+                    " 0x%04lX was not detected.\n", pATI->CPIO_VGAWonder);
                 pATI->CPIO_VGAWonder = 0;
             }
             break;
@@ -1300,7 +1300,7 @@ ATIProbe
                     4, fChipsets[ATI_CHIPSET_MACH64]) != DoProbe)
             {
                 xf86MsgVerb(X_INFO, 2,
-                    ATI_NAME ":  Unshared Mach64 at PIO base 0x%04X not"
+                    ATI_NAME ":  Unshared Mach64 at PIO base 0x%04lX not"
                     " probed.\n",
                     Mach64SparseIOBases[i]);
                 continue;
@@ -1310,7 +1310,7 @@ ATIProbe
             if (!pATI)
             {
                 xf86MsgVerb(X_INFO, 4,
-                    ATI_NAME ":  Unshared Mach64 at PIO base 0x%04X not"
+                    ATI_NAME ":  Unshared Mach64 at PIO base 0x%04lX not"
                     " detected.\n", Mach64SparseIOBases[i]);
                 continue;
             }
@@ -1604,7 +1604,7 @@ ATIProbe
                                 ATI_NAME ":  PCI Mach64 in slot %d:%d:%d will"
                                 " not be enabled\n because it conflicts with"
                                 " another %s Mach64 at sparse I/O base"
-                                " 0x%04X.\n",
+                                " 0x%04lX.\n",
                                 pVideo->bus, pVideo->device, pVideo->func,
                                 ATIBusNames[pATI->BusType],
                                 Mach64SparseIOBases[j]);
@@ -1639,7 +1639,7 @@ ATIProbe
                                 "Shared PCI Mach64 in slot %d:%d:%d",
                                 pVideo->bus, pVideo->device, pVideo->func);
                             xf86MsgVerb(X_INFO, 3,
-                                ATI_NAME ":  %s with sparse PIO base 0x%04X"
+                                ATI_NAME ":  %s with sparse PIO base 0x%04lX"
                                 " detected.\n", Identifier,
                                 Mach64SparseIOBases[j]);
                             AddAdapter(pATI);
@@ -1753,6 +1753,7 @@ ATIProbe
                     case ATI_CHIP_R300:
                     case ATI_CHIP_RV350:
                     case ATI_CHIP_R350:
+                    case ATI_CHIP_R360:
                         DoRadeon = TRUE;
                         continue;
 

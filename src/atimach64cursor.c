@@ -132,6 +132,13 @@ ATIMach64LoadCursorImage
     CARD32          *pSrc     = (pointer)pImage;
     volatile CARD32 *pDst     = pATI->pCursorImage;
 
+#ifdef XF86DRI
+
+    /* XAA Sync requires the DRM lock if DRI enabled */
+    ATIDRILock(pScreenInfo);
+
+#endif /* XF86DRI */
+
     /* Synchronise video memory accesses */
     ATIMach64Sync(pScreenInfo);
 
@@ -276,6 +283,12 @@ ATIMach64LoadCursorImage
     }
 
 #endif
+
+#ifdef XF86DRI
+
+    ATIDRIUnlock(pScreenInfo);
+
+#endif /* XF86DRI */
 
 }
 

@@ -40,6 +40,7 @@
 				/* Driver data structures */
 #include "r128.h"
 #include "r128_dri.h"
+#include "r128_common.h"
 #include "r128_reg.h"
 #include "r128_sarea.h"
 #include "r128_version.h"
@@ -277,7 +278,7 @@ static Bool R128InitVisualConfigs(ScreenPtr pScreen)
 
 /* Create the Rage 128-specific context information */
 static Bool R128CreateContext(ScreenPtr pScreen, VisualPtr visual,
-			      drmContext hwContext, void *pVisualConfigPriv,
+			      drm_context_t hwContext, void *pVisualConfigPriv,
 			      DRIContextType contextStore)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
@@ -288,7 +289,7 @@ static Bool R128CreateContext(ScreenPtr pScreen, VisualPtr visual,
 }
 
 /* Destroy the Rage 128-specific context information */
-static void R128DestroyContext(ScreenPtr pScreen, drmContext hwContext,
+static void R128DestroyContext(ScreenPtr pScreen, drm_context_t hwContext,
 			       DRIContextType contextStore)
 {
     /* Nothing yet */
@@ -1022,12 +1023,16 @@ Bool R128DRIScreenInit(ScreenPtr pScreen)
     info->pDRIInfo                       = pDRIInfo;
     pDRIInfo->drmDriverName              = R128_DRIVER_NAME;
     pDRIInfo->clientDriverName           = R128_DRIVER_NAME;
-    pDRIInfo->busIdString                = xalloc(64);
-    sprintf(pDRIInfo->busIdString,
-	    "PCI:%d:%d:%d",
-	    info->PciInfo->bus,
-	    info->PciInfo->device,
-	    info->PciInfo->func);
+    if (xf86LoaderCheckSymbol("DRICreatePCIBusID")) {
+	pDRIInfo->busIdString = DRICreatePCIBusID(info->PciInfo);
+    } else {
+	pDRIInfo->busIdString            = xalloc(64);
+	sprintf(pDRIInfo->busIdString,
+		"PCI:%d:%d:%d",
+		info->PciInfo->bus,
+		info->PciInfo->device,
+		info->PciInfo->func);
+    }
     pDRIInfo->ddxDriverMajorVersion      = R128_VERSION_MAJOR;
     pDRIInfo->ddxDriverMinorVersion      = R128_VERSION_MINOR;
     pDRIInfo->ddxDriverPatchVersion      = R128_VERSION_PATCH;
@@ -1329,10 +1334,10 @@ void R128DRICloseScreen(ScreenPtr pScreen)
 	drmUnmap(info->ring, info->ringMapSize);
 	info->ring = NULL;
     }
-    if (info->agpMemHandle!=DRM_AGP_NO_HANDLE) {
+    if (info->agpMemHandle != DRM_AGP_NO_HANDLE) {
 	drmAgpUnbind(info->drmFD, info->agpMemHandle);
 	drmAgpFree(info->drmFD, info->agpMemHandle);
-	info->agpMemHandle = 0;
+	info->agpMemHandle = DRM_AGP_NO_HANDLE;
 	drmAgpRelease(info->drmFD);
     }
     if (info->pciMemHandle) {
@@ -1473,13 +1478,17 @@ static void R128DRITransitionTo2d(ScreenPtr pScreen)
     R128InfoPtr         info       = R128PTR(pScrn);
     R128SAREAPrivPtr    pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
+    /* Try flipping back to the front page if necessary */
+    if (pSAREAPriv->pfCurrentPage == 1)
+	drmCommandNone(info->drmFD, DRM_R128_FLIP);
+
     /* Shut down shadowing if we've made it back to the front page */
     if (pSAREAPriv->pfCurrentPage == 0) {
 	R128DisablePageFlip(pScreen);
     } else {
 	xf86DrvMsg(pScreen->myNum, X_WARNING,
 		   "[dri] R128DRITransitionTo2d: "
-		   "kernel failed to unflip buffers.\n"); 
+		   "kernel failed to unflip buffers.\n");
     }
 
     info->have3DWindows = 0;

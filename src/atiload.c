@@ -19,6 +19,9 @@
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
+ *
+ * DRI support by:
+ *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
 #ifdef XFree86LOADER
@@ -44,7 +47,7 @@ const char *ATIint10Symbols[] =
 const char *ATIddcSymbols[] =
 {
     "xf86PrintEDID",
-    "xf86SetDDCProperties",
+    "xf86SetDDCproperties",
     NULL
 };
 
@@ -71,6 +74,58 @@ const char *ATIxf4bppSymbols[] =
 };
 
 #endif /* AVOID_CPIO */
+
+#ifdef XF86DRI
+
+const char *ATIdrmSymbols[] = {
+    "drmAddBufs",
+    "drmAddMap",
+    "drmAgpAcquire",
+    "drmAgpAlloc",
+    "drmAgpBase",
+    "drmAgpBind",
+    "drmAgpDeviceId",
+    "drmAgpEnable",
+    "drmAgpFree",
+    "drmAgpGetMode",
+    "drmAgpRelease",
+    "drmAgpUnbind",
+    "drmAgpVendorId",
+    "drmAvailable",
+    "drmCommandNone",
+    "drmCommandRead",
+    "drmCommandWrite",
+    "drmCommandWriteRead",
+    "drmCtlInstHandler",
+    "drmCtlUninstHandler",
+    "drmFreeVersion",
+    "drmGetInterruptFromBusID",
+    "drmGetLibVersion",
+    "drmGetVersion",
+    "drmMap",
+    "drmMapBufs",
+    "drmDMA",
+    "drmUnmap",
+    "drmUnmapBufs",
+    NULL
+};
+
+const char *ATIdriSymbols[] = {
+    "DRICloseScreen",
+    "DRICreateInfoRec",
+    "DRIDestroyInfoRec",
+    "DRIFinishScreenInit",
+    "DRIGetSAREAPrivate",
+    "DRILock",
+    "DRIQueryVersion",
+    "DRIScreenInit",
+    "DRIUnlock",
+    "GlxSetVisualConfigs",
+    "DRICreatePCIBusID",
+    NULL
+};
+
+#endif /* XF86DRI */
 
 const char *ATIfbSymbols[] =
 {

@@ -19,6 +19,10 @@
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
+ *
+ * DRI support by:
+ *    Gareth Hughes <gareth@valinux.com>
+ *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
 #ifndef ___ATISTRUCT_H___
@@ -27,6 +31,20 @@
 #include "atibank.h"
 #include "aticlock.h"
 #include "atiregs.h"
+
+#ifdef XF86DRI
+                                                                                
+/*
+ * DRI support
+ */
+#define _XF86DRI_SERVER_
+#include "atidripriv.h"
+#include "mach64_dri.h"
+#include "sarea.h"
+#include "xf86dri.h"
+#include "dri.h"
+ 
+#endif /* XF86DRI */
 
 #include "xaa.h"
 #include "xf86Cursor.h"
@@ -250,7 +268,7 @@ typedef struct _ATIRec
     pointer pMemory, pShadow;
     pointer pMemoryLE;          /* Always little-endian */
     unsigned long LinearBase;
-    int LinearSize, FBPitch;
+    int LinearSize, FBPitch, FBBytesPerPixel;
 
 #ifndef AVOID_CPIO
 
@@ -435,6 +453,37 @@ typedef struct _ATIRec
      * Wrapped functions.
      */
     CloseScreenProcPtr CloseScreen;
+
+#ifdef XF86DRI
+ 
+    /*
+     * DRI data.
+     */
+    int directRenderingEnabled;
+    DRIInfoPtr pDRIInfo;
+    int drmFD;
+    int irq;
+    int numVisualConfigs;
+    __GLXvisualConfig *pVisualConfigs;
+    ATIConfigPrivPtr pVisualConfigsPriv;
+    ATIDRIServerInfoPtr pDRIServerInfo;
+    Bool NeedDRISync;
+    Bool have3DWindows;
+                                                                                
+    /* offscreen memory management */
+    int               backLines;
+    FBAreaPtr         backArea;
+    int               depthTexLines;
+    FBAreaPtr         depthTexArea;
+    CARD8 OptionIsPCI;           /* Force PCI mode */
+    CARD8 OptionDMAMode;         /* async, sync, mmio */
+    CARD8 OptionAGPMode;         /* AGP mode */
+    CARD8 OptionAGPSize;         /* AGP size in MB */
+    CARD8 OptionLocalTextures;   /* Use local textures + AGP textures (only valid for AGP) */
+    CARD8 OptionBufferSize;      /* Command/dma buffer size in MB */
+                                                                                
+#endif /* XF86DRI */
+
 } ATIRec;
 
 #define ATIPTR(_p) ((ATIPtr)((_p)->driverPrivate))

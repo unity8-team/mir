@@ -195,7 +195,7 @@ typedef struct {
     unsigned int vc_format;
 
     /* The current cliprects, or a subset thereof */
-    XF86DRIClipRectRec boxes[RADEON_NR_SAREA_CLIPRECTS];
+    drm_clip_rect_t boxes[RADEON_NR_SAREA_CLIPRECTS];
     unsigned int nbox;
 
     /* Counters for throttling of rendering clients */

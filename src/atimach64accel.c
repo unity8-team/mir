@@ -43,6 +43,11 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+/* 
+ * DRI support by:
+ *    Manuel Teira
+ *    Leif Delgass <ldelgass@retinalburn.net>
+ */
 
 #include "ati.h"
 #include "atichip.h"
@@ -50,6 +55,8 @@
 #include "atimach64io.h"
 #include "atipriv.h"
 #include "atiregs.h"
+
+#include "mach64_common.h"
 
 #include "miline.h"
 
@@ -130,12 +137,146 @@ ATIMach64Sync
 {
     ATIPtr pATI = ATIPTR(pScreenInfo);
 
-    ATIMach64WaitForIdle(pATI);
-    if (pATI->pXAAInfo)
-        pATI->pXAAInfo->NeedToSync = FALSE;
+#ifdef XF86DRI
 
-    if (pATI->OptionMMIOCache && pATI->OptionTestMMIOCache)
+    if ( pATI->directRenderingEnabled && pATI->NeedDRISync )
     {
+	ATIHWPtr pATIHW = &pATI->NewHW;
+
+	if (pATI->OptionMMIOCache) {
+	    /* "Invalidate" the MMIO cache so the cache slots get updated */
+	    UncacheRegister(SRC_CNTL);
+	    UncacheRegister(HOST_CNTL);
+	    UncacheRegister(PAT_CNTL);
+	    UncacheRegister(SC_LEFT_RIGHT);
+	    UncacheRegister(SC_TOP_BOTTOM);
+	    UncacheRegister(DP_BKGD_CLR);
+	    UncacheRegister(DP_FRGD_CLR);
+	    UncacheRegister(DP_WRITE_MASK);
+	    UncacheRegister(DP_MIX);
+	    UncacheRegister(CLR_CMP_CNTL);
+	}
+
+	ATIDRIWaitForIdle(pATI);
+
+	outr( BUS_CNTL, pATIHW->bus_cntl );
+
+	/* DRI uses GUI_TRAJ_CNTL, which is a composite of 
+	 * src_cntl, dst_cntl, pat_cntl, and host_cntl
+	 */
+	outf( SRC_CNTL, pATIHW->src_cntl );
+	outf( DST_CNTL, pATIHW->dst_cntl );
+	outf( PAT_CNTL, pATIHW->pat_cntl );
+	outf( HOST_CNTL, pATIHW->host_cntl );
+
+	outf( DST_OFF_PITCH, pATIHW->dst_off_pitch );
+	outf( SRC_OFF_PITCH, pATIHW->src_off_pitch );
+	outf( DP_SRC, pATIHW->dp_src );
+	outf( DP_MIX, pATIHW->dp_mix );
+	outf( DP_FRGD_CLR,  pATIHW->dp_frgd_clr );
+	outf( DP_WRITE_MASK, pATIHW->dp_write_mask );
+	
+	outf( DP_PIX_WIDTH, pATIHW->dp_pix_width );
+	outf( CLR_CMP_CNTL, pATIHW->clr_cmp_cntl );
+	outf( ALPHA_TST_CNTL, 0 );
+	outf( Z_CNTL, 0 );
+	outf( SCALE_3D_CNTL, 0 );
+
+	ATIMach64WaitForFIFO(pATI, 2);
+	outf( SC_LEFT_RIGHT,
+	      SetWord(pATIHW->sc_right, 1) | SetWord(pATIHW->sc_left, 0) );
+	outf( SC_TOP_BOTTOM,
+	      SetWord(pATIHW->sc_bottom, 1) | SetWord(pATIHW->sc_top, 0) );
+
+	if (pATI->OptionMMIOCache) {
+	    /* Now that the cache slots reflect the register state, re-enable MMIO cache */
+	    CacheRegister(SRC_CNTL);
+	    CacheRegister(HOST_CNTL);
+	    CacheRegister(PAT_CNTL);
+	    CacheRegister(SC_LEFT_RIGHT);
+	    CacheRegister(SC_TOP_BOTTOM);
+	    CacheRegister(DP_BKGD_CLR);
+	    CacheRegister(DP_FRGD_CLR);
+	    CacheRegister(DP_WRITE_MASK);
+	    CacheRegister(DP_MIX);
+	    CacheRegister(CLR_CMP_CNTL);
+	}
+
+	ATIMach64WaitForIdle(pATI);
+
+	if (pATI->OptionMMIOCache && pATI->OptionTestMMIOCache) {
+	  
+	    /* Only check registers we didn't restore */
+	    TestRegisterCaching(PAT_REG0);
+            TestRegisterCaching(PAT_REG1);
+
+            TestRegisterCaching(CLR_CMP_CLR);
+            TestRegisterCaching(CLR_CMP_MSK);
+
+	    if (pATI->Block1Base)
+            {
+                TestRegisterCaching(OVERLAY_Y_X_START);
+                TestRegisterCaching(OVERLAY_Y_X_END);
+
+                TestRegisterCaching(OVERLAY_GRAPHICS_KEY_CLR);
+                TestRegisterCaching(OVERLAY_GRAPHICS_KEY_MSK);
+
+                TestRegisterCaching(OVERLAY_KEY_CNTL);
+
+                TestRegisterCaching(OVERLAY_SCALE_INC);
+                TestRegisterCaching(OVERLAY_SCALE_CNTL);
+
+                TestRegisterCaching(SCALER_HEIGHT_WIDTH);
+
+                TestRegisterCaching(SCALER_TEST);
+
+                TestRegisterCaching(VIDEO_FORMAT);
+   
+                if (pATI->Chip < ATI_CHIP_264VTB)
+                {
+                    TestRegisterCaching(BUF0_OFFSET);
+                    TestRegisterCaching(BUF0_PITCH);
+                    TestRegisterCaching(BUF1_OFFSET);
+                    TestRegisterCaching(BUF1_PITCH);
+                }
+                else
+                {
+                    TestRegisterCaching(SCALER_BUF0_OFFSET);
+                    TestRegisterCaching(SCALER_BUF1_OFFSET);
+                    TestRegisterCaching(SCALER_BUF_PITCH);
+
+                    TestRegisterCaching(OVERLAY_EXCLUSIVE_HORZ);
+                    TestRegisterCaching(OVERLAY_EXCLUSIVE_VERT);
+  
+                    if (pATI->Chip >= ATI_CHIP_264GTPRO)
+                    {
+                        TestRegisterCaching(SCALER_COLOUR_CNTL);
+  
+                        TestRegisterCaching(SCALER_H_COEFF0);
+                        TestRegisterCaching(SCALER_H_COEFF1);
+                        TestRegisterCaching(SCALER_H_COEFF2);
+                        TestRegisterCaching(SCALER_H_COEFF3);
+                        TestRegisterCaching(SCALER_H_COEFF4);
+
+                        TestRegisterCaching(SCALER_BUF0_OFFSET_U);
+                        TestRegisterCaching(SCALER_BUF0_OFFSET_V);
+                        TestRegisterCaching(SCALER_BUF1_OFFSET_U);
+                        TestRegisterCaching(SCALER_BUF1_OFFSET_V);
+                    }
+                }
+    	    }
+         }
+	pATI->NeedDRISync = FALSE;
+
+    }
+    else
+
+#endif /* XF86DRI */
+    {
+      ATIMach64WaitForIdle(pATI);
+      
+      if (pATI->OptionMMIOCache && pATI->OptionTestMMIOCache)
+      {
         /*
          * For debugging purposes, attempt to verify that each cached register
          * should actually be cached.
@@ -227,6 +368,7 @@ ATIMach64Sync
                 }
             }
         }
+      }
     }
 
     /*
@@ -235,6 +377,9 @@ ATIMach64Sync
      * caching of framebuffer data I haven't found any way of disabling, or
      * otherwise circumventing.  Thanks to Mark Vojkovich for the suggestion.
      */
+    if (pATI->pXAAInfo)
+      pATI->pXAAInfo->NeedToSync = FALSE;
+
     pATI = *(volatile ATIPtr *)pATI->pMemory;
 }
 
@@ -256,6 +401,8 @@ ATIMach64SetupForScreenToScreenCopy
 )
 {
     ATIPtr pATI = ATIPTR(pScreenInfo);
+
+    ATIDRISync(pScreenInfo);
 
     ATIMach64WaitForFIFO(pATI, 3);
     outf(DP_WRITE_MASK, planemask);
@@ -319,6 +466,8 @@ ATIMach64SubsequentScreenToScreenCopy
     xDst *= pATI->XModifier;
     w    *= pATI->XModifier;
 
+    ATIDRISync(pScreenInfo);
+
     /* Disable clipping if it gets in the way */
     ATIMach64ValidateClip(pATI, xDst, xDst + w - 1, yDst, yDst + h - 1);
 
@@ -360,6 +509,8 @@ ATIMach64SetupForSolidFill
 {
     ATIPtr pATI = ATIPTR(pScreenInfo);
 
+    ATIDRISync(pScreenInfo);
+
     ATIMach64WaitForFIFO(pATI, 5);
     outf(DP_WRITE_MASK, planemask);
     outf(DP_SRC, DP_MONO_SRC_ALLONES |
@@ -389,6 +540,8 @@ ATIMach64SubsequentSolidFillRect
 )
 {
     ATIPtr pATI = ATIPTR(pScreenInfo);
+
+    ATIDRISync(pScreenInfo);
 
     if (pATI->XModifier != 1)
     {
@@ -424,6 +577,8 @@ ATIMach64SetupForSolidLine
 {
     ATIPtr pATI = ATIPTR(pScreenInfo);
 
+    ATIDRISync(pScreenInfo);
+
     ATIMach64WaitForFIFO(pATI, 5);
     outf(DP_WRITE_MASK, planemask);
     outf(DP_SRC, DP_MONO_SRC_ALLONES |
@@ -454,6 +609,8 @@ ATIMach64SubsequentSolidHorVertLine
 )
 {
     ATIPtr pATI = ATIPTR(pScreenInfo);
+
+    ATIDRISync(pScreenInfo);
 
     ATIMach64WaitForFIFO(pATI, 3);
     outf(DST_CNTL, DST_X_DIR | DST_Y_DIR);
@@ -495,6 +652,8 @@ ATIMach64SubsequentSolidBresenhamLine
     if (!(octant & YDECREASING))
         dst_cntl |= DST_Y_DIR;
 
+    ATIDRISync(pScreenInfo);
+
     ATIMach64WaitForFIFO(pATI, 6);
     outf(DST_CNTL, dst_cntl);
     outf(DST_Y_X, SetWord(x, 1) | SetWord(y, 0));
@@ -523,6 +682,8 @@ ATIMach64SetupForMono8x8PatternFill
 )
 {
     ATIPtr pATI = ATIPTR(pScreenInfo);
+
+    ATIDRISync(pScreenInfo);
 
     ATIMach64WaitForFIFO(pATI, 3);
     outf(DP_WRITE_MASK, planemask);
@@ -573,6 +734,8 @@ ATIMach64SubsequentMono8x8PatternFillRect
 {
     ATIPtr pATI = ATIPTR(pScreenInfo);
 
+    ATIDRISync(pScreenInfo);
+
     if (pATI->XModifier != 1)
     {
         x *= pATI->XModifier;
@@ -606,6 +769,8 @@ ATIMach64SetupForScanlineCPUToScreenColorExpandFill
 )
 {
     ATIPtr pATI = ATIPTR(pScreenInfo);
+
+    ATIDRISync(pScreenInfo);
 
     ATIMach64WaitForFIFO(pATI, 3);
     outf(DP_WRITE_MASK, planemask);
@@ -650,6 +815,8 @@ ATIMach64SubsequentScanlineCPUToScreenColorExpandFill
 {
     ATIPtr pATI = ATIPTR(pScreenInfo);
 
+    ATIDRISync(pScreenInfo);
+
     if (pATI->XModifier != 1)
     {
         x *= pATI->XModifier;
@@ -690,6 +857,8 @@ ATIMach64SubsequentColorExpandScanline
     CARD32          *pBitmapData = pATI->ExpansionBitmapScanlinePtr[iBuffer];
     int             w            = pATI->ExpansionBitmapWidth;
     int             nDWord;
+
+    ATIDRISync(pScreenInfo);
 
     while (w > 0)
     {

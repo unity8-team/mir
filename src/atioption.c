@@ -19,6 +19,9 @@
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
+ *
+ * DRI support by:
+ *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
 #include "atioption.h"
@@ -73,6 +76,53 @@ const OptionInfoRec ATIPublicOptions[] =
 
 #endif /* AVOID_CPIO */
 
+#ifdef XF86DRI
+
+    {
+        ATI_OPTION_IS_PCI,
+        "force_pci_mode",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE,
+    },
+    {
+        ATI_OPTION_DMA_MODE,
+        "dma_mode",
+        OPTV_STRING,
+        {0, },
+        FALSE,
+    },
+    {
+        ATI_OPTION_AGP_MODE,
+        "agp_mode",
+        OPTV_INTEGER,
+        {0, },
+        FALSE,
+    },
+    {
+        ATI_OPTION_AGP_SIZE,
+        "agp_size",
+        OPTV_INTEGER,
+        {0, },
+        FALSE,
+    },
+    {
+        ATI_OPTION_LOCAL_TEXTURES,
+        "local_textures",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE,
+    },
+    {
+        ATI_OPTION_BUFFER_SIZE,
+        "buffer_size",
+        OPTV_INTEGER,
+        {0, },
+        FALSE,
+    },
+
+#endif /* XF86DRI */
+
     {
         ATI_OPTION_MMIO_CACHE,
         "mmio_cache",
@@ -80,6 +130,8 @@ const OptionInfoRec ATIPublicOptions[] =
         {0, },
         FALSE
     },
+
+
     {
         ATI_OPTION_TEST_MMIO_CACHE,
         "test_mmio_cache",

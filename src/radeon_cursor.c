@@ -48,6 +48,7 @@
 #include "radeon.h"
 #include "radeon_macros.h"
 #include "radeon_reg.h"
+#include "radeon_mergedfb.h"
 
 				/* X and server generic header files */
 #include "xf86.h"
@@ -88,6 +89,7 @@ static CARD32 mono_cursor_color[] = {
 #define CURSOR_SWAPPING_END()
 
 #endif
+
 
 /* Set cursor foreground and background colors */
 static void RADEONSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
@@ -138,9 +140,12 @@ static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
     int                xorigin    = 0;
     int                yorigin    = 0;
     int                total_y    = pScrn->frameY1 - pScrn->frameY0;
-    int                X2         = pScrn->frameX0 + x;
-    int                Y2         = pScrn->frameY0 + y;
     int		       stride     = 256;
+
+    if(info->MergedFB) {
+       RADEONSetCursorPositionMerged(pScrn, x, y);
+       return;
+    }
 
     if (x < 0)                        xorigin = -x+1;
     if (y < 0)                        yorigin = -y+1;
@@ -148,57 +153,6 @@ static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
     if (info->Flags & V_DBLSCAN)      y       *= 2;
     if (xorigin >= cursor->MaxWidth)  xorigin = cursor->MaxWidth - 1;
     if (yorigin >= cursor->MaxHeight) yorigin = cursor->MaxHeight - 1;
-
-    if (info->Clone) {
-	int X0 = 0;
-	int Y0 = 0;
-
-	if ((info->CurCloneMode->VDisplay == pScrn->currentMode->VDisplay) &&
-	    (info->CurCloneMode->HDisplay == pScrn->currentMode->HDisplay)) {
-	    Y2 = y;
-	    X2 = x;
-	    X0 = pScrn->frameX0;
-	    Y0 = pScrn->frameY0;
-	} else {
-	    if (y < 0)
-		Y2 = pScrn->frameY0;
-
-	    if (x < 0)
-		X2 = pScrn->frameX0;
-
-	    if (Y2 >= info->CurCloneMode->VDisplay + info->CloneFrameY0) {
-		Y0 = Y2 - info->CurCloneMode->VDisplay;
-		Y2 = info->CurCloneMode->VDisplay - 1;
-	    } else if (Y2 < info->CloneFrameY0) {
-		Y0 = Y2;
-		Y2 = 0;
-	    } else {
-		Y2 -= info->CloneFrameY0;
-		Y0 = info->CloneFrameY0;
-	    }
-
-	    if (X2 >= info->CurCloneMode->HDisplay + info->CloneFrameX0) {
-		X0 = X2 - info->CurCloneMode->HDisplay;
-		X2 = info->CurCloneMode->HDisplay - 1;
-	    } else if (X2 < info->CloneFrameX0) {
-		X0 = X2;
-		X2 = 0;
-	    } else {
-		X2 -= info->CloneFrameX0;
-		X0 = info->CloneFrameX0;
-	    }
-
-	    if (info->CurCloneMode->Flags & V_DBLSCAN)
-		Y2 *= 2;
-	}
-
-	if ((X0 >= 0 || Y0 >= 0) &&
-	    ((info->CloneFrameX0 != X0) || (info->CloneFrameY0 != Y0))) {
-	    RADEONDoAdjustFrame(pScrn, X0, Y0, TRUE);
-	    info->CloneFrameX0 = X0;
-	    info->CloneFrameY0 = Y0;
-	}
-    }
 
     if (!info->IsSecondary) {
 	OUTREG(RADEON_CUR_HORZ_VERT_OFF,  (RADEON_CUR_LOCK
@@ -219,23 +173,6 @@ static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 	       info->cursor_start + pScrn->fbOffset + yorigin * stride);
     }
 
-    if (info->Clone) {
-	xorigin = 0;
-	yorigin = 0;
-	if (X2 < 0) xorigin = -X2 + 1;
-	if (Y2 < 0) yorigin = -Y2 + 1;
-	if (xorigin >= cursor->MaxWidth)  xorigin = cursor->MaxWidth - 1;
-	if (yorigin >= cursor->MaxHeight) yorigin = cursor->MaxHeight - 1;
-
-	OUTREG(RADEON_CUR2_HORZ_VERT_OFF,  (RADEON_CUR2_LOCK
-					    | (xorigin << 16)
-					    | yorigin));
-	OUTREG(RADEON_CUR2_HORZ_VERT_POSN, (RADEON_CUR2_LOCK
-					    | ((xorigin ? 0 : X2) << 16)
-					    | (yorigin ? 0 : Y2)));
-	OUTREG(RADEON_CUR2_OFFSET,
-	       info->cursor_start + pScrn->fbOffset + yorigin * stride);
-    }
 }
 
 /* Copy cursor image from `image' to video memory.  RADEONSetCursorPosition
@@ -259,7 +196,7 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
 	OUTREG(RADEON_CRTC_GEN_CNTL, save1 & (CARD32)~RADEON_CRTC_CUR_EN);
     }
 
-    if (info->IsSecondary || info->Clone) {
+    if (info->IsSecondary || info->MergedFB) {
 	save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
 	save2 |= (CARD32) (2 << 20);
 	OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
@@ -292,7 +229,7 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
     if (!info->IsSecondary)
 	OUTREG(RADEON_CRTC_GEN_CNTL, save1);
 
-    if (info->IsSecondary || info->Clone)
+    if (info->IsSecondary || info->MergedFB)
 	OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
 
 }
@@ -303,7 +240,7 @@ static void RADEONHideCursor(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    if (info->IsSecondary || info->Clone)
+    if (info->IsSecondary || info->MergedFB)
 	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~RADEON_CRTC2_CUR_EN);
 
     if (!info->IsSecondary)
@@ -316,7 +253,7 @@ static void RADEONShowCursor(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    if (info->IsSecondary || info->Clone)
+    if (info->IsSecondary || info->MergedFB)
 	OUTREGP(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_CUR_EN,
 		~RADEON_CRTC2_CUR_EN);
 
@@ -369,7 +306,7 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 	OUTREG(RADEON_CRTC_GEN_CNTL, save1 & (CARD32)~RADEON_CRTC_CUR_EN);
     }
 
-    if (info->IsSecondary || info->Clone) {
+    if (info->IsSecondary || info->MergedFB) {
 	save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
 	save2 |= (CARD32) (2 << 20);
 	OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
@@ -407,7 +344,7 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
     if (!info->IsSecondary)
 	OUTREG(RADEON_CRTC_GEN_CNTL, save1);
 
-    if (info->IsSecondary || info->Clone)
+    if (info->IsSecondary || info->MergedFB)
 	OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
 
 }

@@ -53,8 +53,8 @@ typedef struct {
 
 typedef struct {
 #ifdef PER_CONTEXT_SAREA
-    drmContext ctx_id;
-    drmHandle sarea_handle;
+    drm_context_t ctx_id;
+    drm_handle_t sarea_handle;
 #else
     /* Nothing here yet */
     int dummy;

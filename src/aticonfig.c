@@ -19,6 +19,9 @@
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
+ *
+ * DRI support by:
+ *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
 #include "ati.h"
@@ -28,6 +31,8 @@
 #include "aticursor.h"
 #include "atioption.h"
 #include "atistruct.h"
+
+#include "mach64_common.h"
 
 /*
  * Non-publicised XF86Config options.
@@ -109,6 +114,17 @@ ATIProcessOptions
 
 #endif /* AVOID_CPIO */
 
+#ifdef XF86DRI
+
+#   define IsPCI       PublicOption[ATI_OPTION_IS_PCI].value.bool
+#   define DMAMode     PublicOption[ATI_OPTION_DMA_MODE].value.str
+#   define AGPMode     PublicOption[ATI_OPTION_AGP_MODE].value.num
+#   define AGPSize     PublicOption[ATI_OPTION_AGP_SIZE].value.num
+#   define LocalTex    PublicOption[ATI_OPTION_LOCAL_TEXTURES].value.bool
+#   define BufferSize  PublicOption[ATI_OPTION_BUFFER_SIZE].value.num
+
+#endif /* XF86DRI */
+
 #   define CacheMMIO     PublicOption[ATI_OPTION_MMIO_CACHE].value.bool
 #   define TestCacheMMIO PublicOption[ATI_OPTION_TEST_MMIO_CACHE].value.bool
 #   define PanelDisplay  PublicOption[ATI_OPTION_PANEL_DISPLAY].value.bool
@@ -155,6 +171,7 @@ ATIProcessOptions
     }
 
     Blend = PanelDisplay = TRUE;
+    DMAMode = "mmio";
 
     xf86ProcessOptions(pScreenInfo->scrnIndex, pScreenInfo->options,
         PublicOption);
@@ -199,6 +216,32 @@ ATIProcessOptions
         pATI->OptionPanelDisplay = PanelDisplay;
     else
         pATI->OptionPanelDisplay = !CRTScreen;
+
+#ifdef XF86DRI
+
+    pATI->OptionIsPCI = IsPCI;
+    pATI->OptionAGPMode = AGPMode;
+    pATI->OptionAGPSize = AGPSize;
+    pATI->OptionLocalTextures = LocalTex;
+    pATI->OptionBufferSize = BufferSize;
+
+    if (strcasecmp(DMAMode, "async")==0)
+        pATI->OptionDMAMode = MACH64_MODE_DMA_ASYNC;
+    else if (strcasecmp(DMAMode, "sync")==0)
+        pATI->OptionDMAMode = MACH64_MODE_DMA_SYNC;
+    else if (strcasecmp(DMAMode, "mmio")==0 )
+        pATI->OptionDMAMode = MACH64_MODE_MMIO;
+    else {
+        xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
+		   "Unkown dma_mode: '%s'\n", DMAMode);
+	xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+		   "Valid dma_mode options are: 'async','sync','mmio'\n");
+        xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+		   "Defaulting to async DMA mode\n");
+	pATI->OptionDMAMode = MACH64_MODE_DMA_ASYNC;
+    }
+
+#endif /* XF86DRI */
 
     /* Validate and set cursor options */
     pATI->Cursor = ATI_CURSOR_SOFTWARE;

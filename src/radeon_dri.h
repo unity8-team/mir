@@ -38,12 +38,14 @@
 #define _RADEON_DRI_
 
 #include "xf86drm.h"
-#include "radeon_common.h"
 
 /* DRI Driver defaults */
 #define RADEON_DEFAULT_CP_PIO_MODE    RADEON_CSQ_PRIPIO_INDPIO
 #define RADEON_DEFAULT_CP_BM_MODE     RADEON_CSQ_PRIBM_INDBM
-#define RADEON_DEFAULT_AGP_MODE       1
+/* Default to AGP 4x mode for IGP chips, there are some problems with 1x and 2x
+ * modes on AGP master side
+ */
+#define RADEON_DEFAULT_AGP_MODE       (info->IsIGP ? 4 : 1)
 #define RADEON_DEFAULT_AGP_FAST_WRITE 0
 #define RADEON_DEFAULT_GART_SIZE      8 /* MB (must be 2^n and > 4MB) */
 #define RADEON_DEFAULT_RING_SIZE      1 /* MB (must be page aligned) */
@@ -85,15 +87,15 @@ typedef struct {
     int           log2TexGran;
 
     /* MMIO register data */
-    drmHandle     registerHandle;
+    drm_handle_t     registerHandle;
     drmSize       registerSize;
 
     /* CP in-memory status information */
-    drmHandle     statusHandle;
+    drm_handle_t     statusHandle;
     drmSize       statusSize;
 
     /* CP GART Texture data */
-    drmHandle     gartTexHandle;
+    drm_handle_t     gartTexHandle;
     drmSize       gartTexMapSize;
     int           log2GARTTexGran;
     int           gartTexOffset;

@@ -119,6 +119,15 @@ ATIUnlock
         pATI->LockData.crtc_int_cntl = inr(CRTC_INT_CNTL);
         outr(CRTC_INT_CNTL, (pATI->LockData.crtc_int_cntl & ~CRTC_INT_ENS) |
             CRTC_INT_ACKS);
+
+#ifdef XF86DRI
+
+	if (pATI->irq > 0)
+	    outr(CRTC_INT_CNTL, (inr(CRTC_INT_CNTL) & ~CRTC_INT_ACKS) | 
+		 CRTC_VBLANK_INT_EN); /* Enable VBLANK interrupt - handled by DRM */
+
+#endif /* XF86DRI */
+
         pATI->LockData.gen_test_cntl = inr(GEN_TEST_CNTL) &
             (GEN_OVR_OUTPUT_EN | GEN_OVR_POLARITY | GEN_CUR_EN |
                 GEN_BLOCK_WR_EN);

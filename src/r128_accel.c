@@ -87,6 +87,7 @@
 #include "r128_sarea.h"
 #define _XF86DRI_SERVER_
 #include "r128_dri.h"
+#include "r128_common.h"
 #endif
 
 				/* Line support */
