@@ -957,7 +957,7 @@ I830CopyPackedData(ScrnInfoPtr pScrn,
 
 static void
 I830CopyPlanarData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
-		   int dstPitch, int srcH, int top, int left,
+		   int srcPitch2, int dstPitch, int srcH, int top, int left,
 		   int h, int w, int id)
 {
    I830Ptr pI830 = I830PTR(pScrn);
@@ -965,8 +965,8 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
    int i;
    unsigned char *src1, *src2, *src3, *dst1, *dst2, *dst3;
 
-   DPRINTF(PFX, "I830CopyPlanarData: srcPitch %d, dstPitch %d\n"
-	   "nlines %d, npixels %d, top %d, left %d\n", srcPitch, dstPitch,
+   ErrorF("I830CopyPlanarData: srcPitch %d, srcPitch %d, dstPitch %d\n"
+	   "nlines %d, npixels %d, top %d, left %d\n", srcPitch, srcPitch2, dstPitch,
 	   h, w, top, left);
 
    /* Copy Y data */
@@ -1002,12 +1002,12 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
 
    for (i = 0; i < h / 2; i++) {
       memcpy(dst2, src2, w / 2);
-      src2 += srcPitch >> 1;
+      src2 += srcPitch2;
       dst2 += dstPitch;
    }
 
    /* Copy U data for YV12, or V data for I420 */
-   src3 = buf + (srcH * srcPitch) + ((srcH * srcPitch) >> 2) +
+   src3 = buf + (srcH * srcPitch) + ((srcH >> 1) * srcPitch2) +
 	 ((top * srcPitch) >> 2) + (left >> 1);
    ErrorF("src3 is %p, offset is %d\n", src3,
 	  (unsigned long)src3 - (unsigned long)buf);
@@ -1025,7 +1025,7 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
 
    for (i = 0; i < h / 2; i++) {
       memcpy(dst3, src3, w / 2);
-      src3 += srcPitch >> 1;
+      src3 += srcPitch2;
       dst3 += dstPitch;
    }
 }
@@ -1171,7 +1171,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
    unsigned int swidth;
 
-   DPRINTF(PFX, "I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
+   ErrorF("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
 	   dstPitch);
 
    if (!pPriv->overlayOK)
@@ -1318,9 +1318,9 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       xscaleIntUV = xscaleFractUV >> 12;
       yscaleIntUV = yscaleFractUV >> 12;
 
-      ErrorF("xscale: 0x%x.%03x, yscale: 0x%x.%03x\n", xscaleInt,
+      ErrorF("xscale: %x.%03x, yscale: %x.%03x\n", xscaleInt,
 	     xscaleFract & 0xFFF, yscaleInt, yscaleFract & 0xFFF);
-      ErrorF("UV xscale: 0x%x.%03x, UV yscale: 0x%x.%03x\n", xscaleIntUV,
+      ErrorF("UV xscale: %x.%03x, UV yscale: %x.%03x\n", xscaleIntUV,
 	     xscaleFractUV & 0xFFF, yscaleIntUV, yscaleFractUV & 0xFFF);
 
       newval = (xscaleInt << 16) |
@@ -1479,7 +1479,7 @@ I830PutImage(ScrnInfoPtr pScrn,
    I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
    INT32 x1, x2, y1, y2;
-   int srcPitch, dstPitch;
+   int srcPitch, srcPitch2 = 0, dstPitch;
    int top, left, npixels, nlines, size, loops;
    BoxRec dstBox;
 
@@ -1527,21 +1527,22 @@ I830PutImage(ScrnInfoPtr pScrn,
    case FOURCC_YV12:
    case FOURCC_I420:
       srcPitch = (width + 3) & ~3;
-      dstPitch = ((width / 2) + 255) & ~255;	/* of chroma */
+      srcPitch2 = ((width >> 1) + 3) & ~3;
+      dstPitch = ((width / 2) + 31) & ~31;	/* of chroma */
       size = dstPitch * height * 3;
       break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
       srcPitch = (width << 1);
-      dstPitch = (srcPitch + 255) & ~255;
+      dstPitch = (srcPitch + 31) & ~31;
       size = dstPitch * height;
       break;
    }
    ErrorF("srcPitch: %d, dstPitch: %d, size: %d\n", srcPitch, dstPitch, size);
 
-   if (!(pPriv->linear = I830AllocateMemory(pScrn, pPriv->linear,
-					    size * 2 / pI830->cpp)))
+   /* size is multiplied by 2 because we have two buffers that are flipping */
+   if (!(pPriv->linear = I830AllocateMemory(pScrn, pPriv->linear, size * 2 / pI830->cpp)))
       return BadAlloc;
 
    /* fixup pointers */
@@ -1590,7 +1591,7 @@ I830PutImage(ScrnInfoPtr pScrn,
    case FOURCC_I420:
       top &= ~1;
       nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
-      I830CopyPlanarData(pScrn, buf, srcPitch, dstPitch, height, top, left,
+      I830CopyPlanarData(pScrn, buf, srcPitch, srcPitch2, dstPitch, height, top, left,
 			 nlines, npixels, id);
       break;
    case FOURCC_UYVY:
@@ -1646,21 +1647,13 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
    case FOURCC_YV12:
    case FOURCC_I420:
       *h = (*h + 1) & ~1;
-#if 1
       size = (*w + 3) & ~3;
-#else
-      size = (*w + 255) & ~255;
-#endif
       if (pitches)
 	 pitches[0] = size;
       size *= *h;
       if (offsets)
 	 offsets[1] = size;
-#if 1
       tmp = ((*w >> 1) + 3) & ~3;
-#else
-      tmp = ((*w >> 1) + 255) & ~255;
-#endif
       if (pitches)
 	 pitches[1] = pitches[2] = tmp;
       tmp *= (*h >> 1);
