@@ -1243,6 +1243,10 @@ ATIProbe
             xf86MsgVerb(X_INFO, 2, ATI_NAME ":  Unshared VGA not probed.\n");
         }
 
+	/* 
+	 *  Mach8/32 probing doesn't work well on some legacy free ia64 
+	 *  However if we use AVOID_CPIO we don't get here at all.
+	 */
         if (ATICheckSparseIOBases(NULL, ProbeFlags, 0x02E8U, 8,
                 fChipsets[ATI_CHIPSET_IBM8514] ||
                 fChipsets[ATI_CHIPSET_MACH8] ||
@@ -1275,6 +1279,10 @@ ATIProbe
                 ATI_NAME ":  Unshared 8514/A not probed.\n");
         }
 
+	/* 
+	 * Also NONPCI Mach64 probing is evil on legacy free platforms.
+	 * However if we use AVOID_CPIO we don't get here at all.
+	 */
         for (i = 0;  i < NumberOf(Mach64SparseIOBases);  i++)
         {
             if (ATICheckSparseIOBases(NULL, ProbeFlags, Mach64SparseIOBases[i],
@@ -1309,7 +1317,6 @@ ATIProbe
             ATIClaimSparseIOBases(ProbeFlags, Mach64SparseIOBases[i], 4,
                 DetectedMach64);
         }
-
 #endif /* AVOID_NON_PCI */
 
     }
@@ -1539,7 +1546,6 @@ ATIProbe
                                 ATIFindVGA(pVideo, &pVGA, &pATI, p8514,
                                     ProbeFlags);
                         }
-
                         xf86SetPciVideo(NULL, NONE);
                         break;
                 }
