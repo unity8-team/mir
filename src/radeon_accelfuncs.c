@@ -32,7 +32,7 @@
  *   Kevin E. Martin <martin@xfree86.org>
  *   Rickard E. Faith <faith@valinux.com>
  *   Alan Hourihane <alanh@fairlite.demon.co.uk>
- *   Michel Dänzer <michel@daenzer.net>
+ *   Michel DÃ¤nzer <michel@daenzer.net>
  *
  * Credits:
  *
