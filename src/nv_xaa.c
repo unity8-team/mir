@@ -37,7 +37,7 @@
 |*                                                                           *|
  \***************************************************************************/
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_xaa.c,v 1.34 2003/10/15 20:28:31 mvojkovi Exp $ */
+/* $XFree86$ */
 
 #include "nv_include.h"
 #include "xaalocal.h"

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_proto.h,v 1.10 2003/07/31 20:24:29 mvojkovi Exp $ */
+/* $XFree86$ */
 
 #ifndef __NV_PROTO_H__
 #define __NV_PROTO_H__
