@@ -60,8 +60,10 @@
 #define C_PRIME           (((C - J) * K/256.0) + J)
 #define M_PRIME           (K/256.0 * M)
 
+extern const int i830refreshes[];
+
 static DisplayModePtr
-i830GetGTF (int h_pixels, int v_lines, float freq,
+I830GetGTF (int h_pixels, int v_lines, float freq,
                     int interlaced, int margins)
 {
     float h_pixels_rnd;
@@ -90,6 +92,7 @@ i830GetGTF (int h_pixels, int v_lines, float freq,
     float h_sync;
     float h_front_porch;
     float v_odd_front_porch_lines;
+    char modename[20];
     DisplayModePtr m;
 
     m = xnfcalloc(sizeof(DisplayModeRec), 1);
@@ -341,6 +344,9 @@ i830GetGTF (int h_pixels, int v_lines, float freq,
     m->HSync = h_freq;
     m->VRefresh = freq;
 
+    sprintf(modename, "%dx%d", m->HDisplay,m->VDisplay);
+    m->name = xnfstrdup(modename);
+
     return (m);
 }
 
@@ -390,8 +396,16 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
 		 vrefresh >= pScrn->monitor->vrefresh[i].lo; vrefresh -= 1.0f) {
 
 	        if (vrefresh != (float)0.0f) {
-		    pMode = i830GetGTF(mode->XResolution, mode->YResolution, 
-							vrefresh, 0, 0);
+                    float best_vrefresh;
+                    int int_vrefresh;
+ 
+                    /* Find the best refresh for the Intel chipsets */
+                    int_vrefresh = I830GetBestRefresh(pScrn, (int)vrefresh);
+		    best_vrefresh = (float)i830refreshes[int_vrefresh];
+
+                    /* Now, grab the best mode from the available refresh */
+		    pMode = I830GetGTF(mode->XResolution, mode->YResolution, 
+							best_vrefresh, 0, 0);
 
     	            pMode->type = M_T_BUILTIN;
 
@@ -649,6 +663,7 @@ i830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe)
 	data->mode |= (1 << 11);
 	data->block->RefreshRate = ((double)(data->block->PixelClock) /
                        (double)(pMode->HTotal * pMode->VTotal)) * 100;
+	data->block->RefreshRate = i830refreshes[I830GetBestRefresh(pScrn, data->block->RefreshRate / 100)] * 100;
 #ifdef DEBUG
 	ErrorF("Video Modeline: ID: 0x%x Name: %s %i %i %i %i - "
 	       "  %i %i %i %i %.2f MHz Refresh: %.2f Hz\n",

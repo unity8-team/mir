@@ -428,6 +428,7 @@ extern DisplayModePtr i830GetModePool(ScrnInfoPtr pScrn, vbeInfoPtr pVbe,
 					VbeInfoBlock *vbe, int modeTypes);
 extern void i830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe);
 extern void i830PrintModes(ScrnInfoPtr pScrn);
+extern int I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for

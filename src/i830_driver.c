@@ -365,11 +365,14 @@ I830BIOSProbeDDC(ScrnInfoPtr pScrn, int index)
    ConfiguredMonitor = vbeDoEDID(pVbe, NULL);
 }
 
-/* Various extended video BIOS functions. */
-static const int refreshes[] = {
-   43, 56, 60, 70, 72, 75, 85, 100, 120
+/* Various extended video BIOS functions. 
+ * 100 and 120Hz aren't really supported, they work but only get close
+ * to the requested refresh, and really not close enough.
+ * I've seen 100Hz come out at 104Hz, and 120Hz come out at 128Hz */
+const int i830refreshes[] = {
+   43, 56, 60, 70, 72, 75, 85 /* 100, 120 */
 };
-static const int nrefreshes = sizeof(refreshes) / sizeof(refreshes[0]);
+static const int nrefreshes = sizeof(i830refreshes) / sizeof(i830refreshes[0]);
 
 static Bool
 Check5fStatus(ScrnInfoPtr pScrn, int func, int ax)
@@ -400,7 +403,7 @@ BitToRefresh(int bits)
 
    for (i = 0; i < nrefreshes; i++)
       if (bits & (1 << i))
-	 return refreshes[i];
+	 return i830refreshes[i];
    return 0;
 }
 
@@ -538,14 +541,38 @@ vbeDoPanelID(vbeInfoPtr pVbe)
     I830InterpretPanelID(pVbe->pInt10->scrnIndex, PanelID_data);
 }
 
+int 
+I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh)
+{
+   int i;
+
+   for (i = nrefreshes - 1; i >= 0; i--) {
+      /*
+       * Look for the highest value that the requested (refresh + 2) is
+       * greater than or equal to.
+       */
+      if (i830refreshes[i] <= (refresh + 2))
+	 break;
+   }
+   /* i can be 0 if the requested refresh was higher than the max. */
+   if (i == 0) {
+      if (refresh >= i830refreshes[nrefreshes - 1])
+         i = nrefreshes - 1;
+   }
+
+   return i;
+}
 
 static int
 SetRefreshRate(ScrnInfoPtr pScrn, int mode, int refresh)
 {
-   int i;
    vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
+   int i = I830GetBestRefresh(pScrn, refresh);
 
    DPRINTF(PFX, "SetRefreshRate: mode 0x%x, refresh: %d\n", mode, refresh);
+
+   DPRINTF(PFX, "Setting refresh rate to %dHz for mode 0x%02x\n",
+	   i830refreshes[i], mode & 0xff);
 
    /* Only 8-bit mode numbers are supported. */
    if (mode & 0x100)
@@ -555,25 +582,10 @@ SetRefreshRate(ScrnInfoPtr pScrn, int mode, int refresh)
    pVbe->pInt10->ax = 0x5f05;
    pVbe->pInt10->bx = mode & 0xff;
 
-   for (i = nrefreshes - 1; i >= 0; i--) {
-      /*
-       * Look for the highest value that the requested (refresh + 2) is
-       * greater than or equal to.
-       */
-      if (refreshes[i] <= (refresh + 2))
-	 break;
-   }
-   /* i can be 0 if the requested refresh was higher than the max. */
-   if (i == 0) {
-      if (refresh >= refreshes[nrefreshes - 1])
-         i = nrefreshes - 1;
-   }
-   DPRINTF(PFX, "Setting refresh rate to %dHz for mode 0x%02x\n",
-	   refreshes[i], mode & 0xff);
    pVbe->pInt10->cx = 1 << i;
    xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
    if (Check5fStatus(pScrn, 0x5f05, pVbe->pInt10->ax))
-      return refreshes[i];
+      return i830refreshes[i];
    else
       return 0;
 }
@@ -2104,7 +2116,8 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
          xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Clone Monitor Refresh Rate %d\n",
 		 pI830->CloneRefresh);
       }
-      if (pI830->CloneRefresh < 60 || pI830->CloneRefresh > 120) {
+      /* See above i830refreshes on why 120Hz is commented out */
+      if (pI830->CloneRefresh < 60 || pI830->CloneRefresh > 85 /* 120 */) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad Clone Refresh Rate\n");
          PreInitCleanup(pScrn);
          return FALSE;
