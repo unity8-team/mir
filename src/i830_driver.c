@@ -1191,8 +1191,7 @@ TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize, Bool preinit)
     PCITAG tag =pciTag(0,0,0);
 
     if(!pI830->PciInfo 
-       || !(pI830->PciInfo->chipType == PCI_CHIP_I855_GM
-	    || pI830->PciInfo->chipType == PCI_CHIP_I865_G))
+       || !(IS_845G(pI830) || IS_I85X(pI830) || IS_I865G(pI830)))
 	return 0;
 
     if (!pI830->pVbe)
