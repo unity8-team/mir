@@ -4572,13 +4572,26 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 		       "Couldn't load fbdevhw module, not using framebuffer device\n");
 	}
     }
-    
+
+    if (!info->FBDev)
+	if (!RADEONPreInitInt10(pScrn, &pInt10))
+	    goto fail;
+
+    RADEONPostInt10Check(pScrn, int10_save);
+
+    if (!RADEONPreInitConfig(pScrn))
+	goto fail;
+
     info->allowColorTiling = xf86ReturnOptValBool(info->Options,
 						OPTION_COLOR_TILING, TRUE);
     if ((info->allowColorTiling) && (info->IsSecondary)) {
 	/* can't have tiling on the 2nd head (as long as it can't use drm). We'd never
 	   get the surface save/restore (vt switching) right... */
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling disabled for 2nd head\n");
+	info->allowColorTiling = FALSE;
+    }
+    else if ((info->allowColorTiling) && (info->ChipFamily >= CHIP_FAMILY_R300)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling disabled for r300 and newer chips\n");
 	info->allowColorTiling = FALSE;
     }
     else if ((info->allowColorTiling) && (info->FBDev)) {
@@ -4591,15 +4604,6 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling disabled\n");
     }
-
-    if (!info->FBDev)
-	if (!RADEONPreInitInt10(pScrn, &pInt10))
-	    goto fail;
-
-    RADEONPostInt10Check(pScrn, int10_save);
-
-    if (!RADEONPreInitConfig(pScrn))
-	goto fail;
 
     RADEONPreInitDDC(pScrn);
 
