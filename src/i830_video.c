@@ -1449,9 +1449,12 @@ I830PutImage(ScrnInfoPtr pScrn,
    if (pI830->entityPrivate) {
 	 if (pI830->entityPrivate->XvInUse != -1 &&
 	     pI830->entityPrivate->XvInUse != pI830->pipe) {
+#ifdef PANORAMIX
 		if (!noPanoramiXExtension) {
 			return Success; /* faked for trying to share it */
-		} else {
+		} else
+#endif
+		{
 			return BadAlloc;
 		}
 	 }
@@ -1834,9 +1837,12 @@ I830DisplaySurface(XF86SurfacePtr surface,
    if (pI830->entityPrivate) {
 	 if (pI830->entityPrivate->XvInUse != -1 &&
 	     pI830->entityPrivate->XvInUse != pI830->pipe) {
+#ifdef PANORAMIX
 		if (!noPanoramiXExtension) {
 			return Success; /* faked for trying to share it */
-		} else {
+		} else
+#endif
+		{
 			return BadAlloc;
 		}
 	 }
