@@ -1780,7 +1780,6 @@ void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
 
     t->wConnector = wConnector;
 
-     xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre Checkpoint 1\n");
     /* Get the contrast value - make sure we are viewing a visible line*/
     counter=0;
     #if 0
@@ -1790,7 +1789,6 @@ void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
     	counter++;
 	}
     dwTempContrast = ReadRT_fld (fld_LP_CONTRAST);
-    xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre Checkpoint 2, counter=%ld  (%d)\n", counter,  ReadRT_fld(fld_VS_LINE_COUNT));
     if(counter>=10000)xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre: timeout waiting for line count (%d)\n", ReadRT_fld (fld_VS_LINE_COUNT));
 
 
@@ -1835,20 +1833,17 @@ void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
       */
     i = 100000;
     
-    xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre Checkpoint 3\n");
     while ((i>=0) && (! ReadRT_fld (fld_HS_GENLOCKED)))
     {
       i--;
     }
     if(i<0) xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre: waiting for fld_HS_GENLOCKED failed\n");
-    xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre Checkpoint 4 i=%d\n",i);
     /* now we are waiting for a non-visible line.. and there is absolutely no point to wait too long */
     counter = 0;
     while (!((ReadRT_fld (fld_VS_LINE_COUNT)> 1) && (ReadRT_fld (fld_VS_LINE_COUNT)<20)) && (counter < 10000)){
     	counter++;
 	}
     WriteRT_fld (fld_LP_CONTRAST, dwTempContrast);
-    xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre Checkpoint 5 counter=%d (%d)\n", counter, ReadRT_fld (fld_VS_LINE_COUNT));
     if(counter>=10000)xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre: timeout waiting for line count (%d)\n", ReadRT_fld (fld_VS_LINE_COUNT));
 
 

@@ -23,6 +23,11 @@ typedef struct {
    int           blue_intensity;
    int		 ecp_div;
 
+	/* overlay composition mode */
+   int		 alpha_mode; /* 0 = key mode, 1 = global mode */
+   int		 ov_alpha;
+   int		 gr_alpha;
+
      /* i2c bus and devices */
    I2CBusPtr     i2c;
    CARD32        radeon_i2c_timing;
