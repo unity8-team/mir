@@ -1190,7 +1190,7 @@ RivaScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
      * function.  If not, the visuals will need to be setup before calling
      * a fb ScreenInit() function and fixed up after.
      *
-     * For most PC hardware at depths >= 8, the defaults that cfb uses
+     * For most PC hardware at depths >= 8, the defaults that fb uses
      * are not appropriate.  In this driver, we fixup the visuals after.
      */
 

@@ -1,4 +1,4 @@
-/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.4 2004/07/31 01:21:19 ajax Exp $ */
+/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.5 2004/08/16 09:13:14 ajax Exp $ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
@@ -1646,7 +1646,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
      * function.  If not, the visuals will need to be setup before calling
      * a fb ScreenInit() function and fixed up after.
      *
-     * For most PC hardware at depths >= 8, the defaults that cfb uses
+     * For most PC hardware at depths >= 8, the defaults that fb uses
      * are not appropriate.  In this driver, we fixup the visuals after.
      */
 
