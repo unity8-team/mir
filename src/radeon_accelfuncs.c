@@ -1367,7 +1367,7 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 	a->CPUToScreenTextureFlags = XAA_RENDER_POWER_OF_2_TILE_ONLY;
 	a->CPUToScreenTextureFormats = RADEONTextureFormats;
 
-	if (info->ChipFamily >= CHIP_FAMILY_R300) {
+	if (IS_R300_VARIANT) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 		"unsupported on Radeon 9500/9700 and newer.\n");
 	    return;

@@ -1393,9 +1393,7 @@ RADEONDisplayVideo(
     x_off = 8;
     y_off = 0;
 
-    if ((info->ChipFamily == CHIP_FAMILY_R300) ||
-        (info->ChipFamily == CHIP_FAMILY_R350) ||
-        (info->ChipFamily == CHIP_FAMILY_RV350) ||
+    if (IS_R300_VARIANT ||
         (info->ChipFamily == CHIP_FAMILY_R200))
 	x_off = 0;
 

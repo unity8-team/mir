@@ -45,6 +45,7 @@
 
 				/* XAA and Cursor Support */
 #include "xaa.h"
+#include "vbe.h"
 #include "xf86Cursor.h"
 
 				/* DDC support */
@@ -53,6 +54,7 @@
 				/* Xv support */
 #include "xf86xv.h"
 
+#include "radeon_probe.h"
 				/* DRI support */
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
@@ -133,6 +135,7 @@ typedef struct {
     CARD32            bios_4_scratch;
     CARD32            bios_5_scratch;
     CARD32            bios_6_scratch;
+
 				/* Other registers to save for VT switches */
     CARD32            dp_datatype;
     CARD32            rbbm_soft_reset;
@@ -213,6 +216,9 @@ typedef struct {
     Bool              palette_valid;
     CARD32            palette[256];
     CARD32            palette2[256];
+
+    CARD32            tv_dac_cntl;
+
 } RADEONSaveRec, *RADEONSavePtr;
 
 typedef struct {
@@ -233,31 +239,6 @@ typedef struct {
 } RADEONFBLayout;
 
 typedef enum {
-    MT_NONE,
-    MT_CRT,
-    MT_LCD,
-    MT_DFP,
-    MT_CTV,
-    MT_STV
-} RADEONMonitorType;
-
-typedef enum {
-    DDC_NONE_DETECTED,
-    DDC_MONID,
-    DDC_DVI,
-    DDC_VGA,
-    DDC_CRT2
-} RADEONDDCType;
-
-typedef enum {
-    CONNECTOR_NONE,
-    CONNECTOR_PROPRIETARY,
-    CONNECTOR_CRT,
-    CONNECTOR_DVI_I,
-    CONNECTOR_DVI_D
-} RADEONConnectorType;
-
-typedef enum {
     CHIP_FAMILY_UNKNOW,
     CHIP_FAMILY_LEGACY,
     CHIP_FAMILY_RADEON,
@@ -267,13 +248,31 @@ typedef enum {
     CHIP_FAMILY_RS200,    /* U2 (IGP330M/340M/350M) or A4 (IGP330/340/345/350), RS250 (IGP 7000) */
     CHIP_FAMILY_R200,
     CHIP_FAMILY_RV250,
-    CHIP_FAMILY_RS300,    /* Radeon 9000 IGP */
+    CHIP_FAMILY_RS300,    /* RS300/RS350 */
     CHIP_FAMILY_RV280,
     CHIP_FAMILY_R300,
     CHIP_FAMILY_R350,
     CHIP_FAMILY_RV350,
+    CHIP_FAMILY_RV380,    /* RV370/RV380/M22/M24 */
+    CHIP_FAMILY_R420,     /* R420/R423/M18 */
     CHIP_FAMILY_LAST
 } RADEONChipFamily;
+
+#define IS_RV100_VARIANT ((info->ChipFamily == CHIP_FAMILY_RV100)  ||  \
+        (info->ChipFamily == CHIP_FAMILY_RV200)  ||  \
+        (info->ChipFamily == CHIP_FAMILY_RS100)  ||  \
+        (info->ChipFamily == CHIP_FAMILY_RS200)  ||  \
+        (info->ChipFamily == CHIP_FAMILY_RV250)  ||  \
+        (info->ChipFamily == CHIP_FAMILY_RV280)  ||  \
+        (info->ChipFamily == CHIP_FAMILY_RS300))
+
+
+#define IS_R300_VARIANT ((info->ChipFamily == CHIP_FAMILY_R300)  ||  \
+        (info->ChipFamily == CHIP_FAMILY_RV350) ||  \
+        (info->ChipFamily == CHIP_FAMILY_R350)  ||  \
+        (info->ChipFamily == CHIP_FAMILY_RV380) ||  \
+        (info->ChipFamily == CHIP_FAMILY_R420))
+
 
 typedef struct {
     CARD32 freq;
@@ -298,6 +297,10 @@ typedef struct {
     unsigned char     *FB;              /* Map of frame buffer               */
     CARD8             *VBIOS;           /* Video BIOS pointer                */
 
+    Bool              IsAtomBios;       /* New BIOS used in R420 etc.        */
+    int               ROMHeaderStart;   /* Start of the ROM Info Table       */
+    int               MasterDataStart;  /* Offset for Master Data Table for ATOM BIOS */
+
     CARD32            MemCntl;
     CARD32            BusCntl;
     unsigned long     FbMapSize;        /* Size of frame buffer, in bytes    */
@@ -310,11 +313,11 @@ typedef struct {
     Bool              HasCRTC2;         /* All cards except original Radeon  */
     Bool              IsMobility;       /* Mobile chips for laptops */
     Bool              IsIGP;            /* IGP chips */
+    Bool              HasSingleDAC;     /* only TVDAC on chip */
     Bool              IsSecondary;      /* Second Screen                     */
     Bool              IsSwitching;      /* Flag for switching mode           */
     Bool              OverlayOnCRTC2;
     Bool              PanelOff;         /* Force panel (LCD/DFP) off         */
-    int               FPBIOSstart;      /* Start of the flat panel info      */
     Bool              ddc_mode;         /* Validate mode by matching exactly
 					 * the modes supported in DDC data
 					 */
@@ -589,6 +592,8 @@ typedef struct {
     int			MergedFBXDPI, MergedFBYDPI;
     Bool		NoVirtual;
 
+    /* special handlings for DELL triple-head server */
+    Bool		IsDellServer; 
 } RADEONInfoRec, *RADEONInfoPtr;
 
 
@@ -599,6 +604,7 @@ do {									\
     info->fifo_slots -= entries;					\
 } while (0)
 
+extern RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn);
 extern void        RADEONWaitForFifoFunction(ScrnInfoPtr pScrn, int entries);
 extern void        RADEONWaitForIdleMMIO(ScrnInfoPtr pScrn);
 #ifdef XF86DRI
@@ -643,6 +649,12 @@ extern void        RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard);
 extern void        RADEONCPReleaseIndirect(ScrnInfoPtr pScrn);
 extern int         RADEONCPStop(ScrnInfoPtr pScrn,  RADEONInfoPtr info);
 
+extern Bool        RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10);
+extern Bool        RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn);
+extern Bool        RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn);
+extern Bool        RADEONGetLVDSInfoFromBIOS (ScrnInfoPtr pScrn);
+extern Bool        RADEONGetTMDSInfoFromBIOS (ScrnInfoPtr pScrn);
+extern Bool        RADEONGetHardCodedEDIDFromBIOS (ScrnInfoPtr pScrn);
 
 #define RADEONCP_START(pScrn, info)					\
 do {									\

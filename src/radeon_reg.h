@@ -638,10 +638,17 @@
 #       define RADEON_FP_V_SYNC_WID_SHIFT       0x00000010
 #define RADEON_FP_GEN_CNTL                  0x0284
 #       define RADEON_FP_FPON                  (1 <<  0)
+#       define RADEON_FP_BLANK_EN              (1 <<  1)
 #       define RADEON_FP_TMDS_EN               (1 <<  2)
 #       define RADEON_FP_PANEL_FORMAT          (1 <<  3)
 #       define RADEON_FP_EN_TMDS               (1 <<  7)
 #       define RADEON_FP_DETECT_SENSE          (1 <<  8)
+#       define R200_FP_SOURCE_SEL_MASK         (3 <<  10)
+#       define R200_FP_SOURCE_SEL_CRTC1        (0 <<  10)
+#       define R200_FP_SOURCE_SEL_CRTC2        (1 <<  10)
+#       define R200_FP_SOURCE_SEL_RMX          (2 <<  10)
+#       define R200_FP_SOURCE_SEL_TRANS        (3 <<  10)
+#       define RADEON_FP_SEL_CRTC1             (0 << 13)
 #       define RADEON_FP_SEL_CRTC2             (1 << 13)
 #       define RADEON_FP_CRTC_DONT_SHADOW_HPAR (1 << 15)
 #       define RADEON_FP_CRTC_DONT_SHADOW_VPAR (1 << 16)
@@ -657,8 +664,10 @@
 #       define RADEON_FP2_BLANK_EN             (1 <<  1)
 #       define RADEON_FP2_ON                   (1 <<  2)
 #       define RADEON_FP2_PANEL_FORMAT         (1 <<  3)
-#       define RADEON_FP2_SOURCE_SEL_MASK      (3 << 10)
-#       define RADEON_FP2_SOURCE_SEL_CRTC2     (1 << 10)
+#       define R200_FP2_SOURCE_SEL_MASK        (3 << 10)
+#       define R200_FP2_SOURCE_SEL_CRTC1       (0 <<  10)
+#       define R200_FP2_SOURCE_SEL_CRTC2       (1 << 10)
+#       define R200_FP2_SOURCE_SEL_RMX         (2 << 10)
 #       define RADEON_FP2_SRC_SEL_MASK         (3 << 13)
 #       define RADEON_FP2_SRC_SEL_CRTC2        (1 << 13)
 #       define RADEON_FP2_FP_POL               (1 << 16)
@@ -668,8 +677,8 @@
 #       define RADEON_FP2_PAD_FLOP_EN          (1 << 22)
 #       define RADEON_FP2_CRC_EN               (1 << 23)
 #       define RADEON_FP2_CRC_READ_EN          (1 << 24)
-#       define RADEON_FP2_DV0_EN               (1 << 25)
-#       define RADEON_FP2_DV0_RATE_SEL_SDR     (1 << 26)
+#       define RADEON_FP2_DVO_EN               (1 << 25)
+#       define RADEON_FP2_DVO_RATE_SEL_SDR     (1 << 26)
 #define RADEON_FP_H_SYNC_STRT_WID           0x02c4
 #define RADEON_FP_H2_SYNC_STRT_WID          0x03c4
 #define RADEON_FP_HORZ_STRETCH              0x028c

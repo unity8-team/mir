@@ -45,6 +45,76 @@
 #define _XF86MISC_SERVER_
 #include "xf86misc.h"
 
+typedef enum
+{
+    DDC_NONE_DETECTED,
+    DDC_MONID,
+    DDC_DVI,
+    DDC_VGA,
+    DDC_CRT2
+} RADEONDDCType;
+
+typedef enum
+{
+    MT_UNKNOWN = -1,
+    MT_NONE    = 0,
+    MT_CRT     = 1,
+    MT_LCD     = 2,
+    MT_DFP     = 3,
+    MT_CTV     = 4,
+    MT_STV     = 5
+} RADEONMonitorType;
+
+typedef enum
+{
+    CONNECTOR_NONE,
+    CONNECTOR_PROPRIETARY,
+    CONNECTOR_CRT,
+    CONNECTOR_DVI_I,
+    CONNECTOR_DVI_D,
+    CONNECTOR_CTV,
+    CONNECTOR_STV,
+    CONNECTOR_UNSUPPORTED
+} RADEONConnectorType;
+
+typedef enum
+{
+    CONNECTOR_NONE_ATOM,
+    CONNECTOR_VGA_ATOM,
+    CONNECTOR_DVI_I_ATOM,
+    CONNECTOR_DVI_D_ATOM,
+    CONNECTOR_DVI_A_ATOM,
+    CONNECTOR_STV_ATOM,
+    CONNECTOR_CTV_ATOM,
+    CONNECTOR_LVDS_ATOM,
+    CONNECTOR_DIGITAL_ATOM,
+    CONNECTOR_UNSUPPORTED_ATOM
+} RADEONConnectorTypeATOM;
+
+typedef enum
+{
+    DAC_UNKNOWN = -1,
+    DAC_PRIMARY = 0,
+    DAC_TVDAC   = 1
+} RADEONDacType;
+
+typedef enum
+{
+    TMDS_UNKNOWN = -1,
+    TMDS_INT     = 0,
+    TMDS_EXT     = 1
+} RADEONTmdsType;
+
+typedef struct
+{
+    RADEONDDCType DDCType;
+    RADEONDacType DACType;
+    RADEONTmdsType TMDSType;
+    RADEONConnectorType ConnectorType;
+    RADEONMonitorType MonType;
+    xf86MonPtr MonInfo;
+} RADEONConnector;
+
 typedef struct
 {
     Bool HasSecondary;
@@ -65,6 +135,7 @@ typedef struct
     xf86MonPtr MonInfo2;
     Bool ReversedDAC;	  /* TVDAC used as primary dac */
     Bool ReversedTMDS;    /* DDC_DVI is used for external TMDS */
+    RADEONConnector PortInfo[2];
 } RADEONEntRec, *RADEONEntPtr;
 
 /* radeon_probe.c */

@@ -1,6 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atichip.h,v 1.25 2003/10/07 22:47:11 martin Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atichip.h,v 1.26tsi Exp $ */
 /*
- * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -77,7 +77,7 @@ typedef enum
     ATI_CHIP_264LTPRO,          /* Mach64 */
     ATI_CHIP_264XL,             /* Mach64 */
     ATI_CHIP_MOBILITY,          /* Mach64 */
-    ATI_CHIP_Mach64,            /* Mach64 */
+    ATI_CHIP_Mach64,            /* Last among Mach64's */
     ATI_CHIP_RAGE128GL,         /* Rage128 */
     ATI_CHIP_RAGE128VR,         /* Rage128 */
     ATI_CHIP_RAGE128PROGL,      /* Rage128 */
@@ -85,7 +85,7 @@ typedef enum
     ATI_CHIP_RAGE128PROULTRA,   /* Rage128 */
     ATI_CHIP_RAGE128MOBILITY3,  /* Rage128 */
     ATI_CHIP_RAGE128MOBILITY4,  /* Rage128 */
-    ATI_CHIP_Rage128,           /* Rage128 */
+    ATI_CHIP_Rage128,           /* Last among Rage128's */
     ATI_CHIP_RADEON,            /* Radeon */
     ATI_CHIP_RADEONVE,          /* Radeon VE */
     ATI_CHIP_RADEONMOBILITY6,   /* Radeon M6 */
@@ -97,13 +97,19 @@ typedef enum
     ATI_CHIP_R200,              /* R200 */
     ATI_CHIP_RV250,             /* RV250 */
     ATI_CHIP_RADEONMOBILITY9,   /* Radeon M9 */
-    ATI_CHIP_RS300,             /* Radoen 9000 IGP */
+    ATI_CHIP_RS300,             /* Radoen 9100 IGP */
+    ATI_CHIP_RS350,             /* Radoen 9200 IGP */
     ATI_CHIP_RV280,             /* RV250 */
     ATI_CHIP_RADEONMOBILITY9PLUS,   /* Radeon M9+ */
     ATI_CHIP_R300,              /* R300 */
-    ATI_CHIP_RV350,             /* RV350 */
+    ATI_CHIP_RV350,             /* RV350/M10/M11 */
     ATI_CHIP_R350,              /* R350 */
     ATI_CHIP_R360,              /* R360 */
+    ATI_CHIP_RV370,             /* RV370/M22 */
+    ATI_CHIP_RV380,             /* RV380/M24 */
+    ATI_CHIP_R420,              /* R420/M18 */
+    ATI_CHIP_R423,              /* R423 */
+    ATI_CHIP_Radeon,            /* Last among Radeon's */
     ATI_CHIP_HDTV               /* HDTV */
 } ATIChipType;
 

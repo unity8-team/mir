@@ -1,6 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atichip.c,v 1.37 2003/10/07 22:47:11 martin Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atichip.c,v 1.38tsi Exp $ */
 /*
- * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -95,13 +95,19 @@ const char *ATIChipNames[] =
     "ATI Radeon 8500/9100",
     "ATI Radeon 9000",
     "ATI Radeon Mobility M9",
-    "ATI Radeon 9000 IGP",
+    "ATI Radeon 9100 IGP",
+    "ATI Radeon 9200 IGP",
     "ATI Radeon 9200",
     "ATI Radeon Mobility M9+",
     "ATI Radeon 9700/9500",
     "ATI Radeon 9600",
     "ATI Radeon 9800",
     "ATI Radeon 9800XT",
+    "ATI Radeon X300/M22",
+    "ATI Radeon X600/M24",
+    "ATI Radeon X800/M18",
+    "ATI Radeon X800 PCIE",
+    "ATI unknown Radeon",
     "ATI Rage HDTV"
 };
 
@@ -687,6 +693,10 @@ ATIChipID
         case NewChipID('X', '5'):
              return ATI_CHIP_RS300;
 
+        case NewChipID('x', '4'):
+        case NewChipID('x', '5'):
+             return ATI_CHIP_RS350;
+
         case NewChipID('Y', '\''):
         case NewChipID('Y', 'a'):
         case NewChipID('Y', 'b'):
@@ -733,14 +743,48 @@ ATIChipID
         case NewChipID('N', 'J'):
             return ATI_CHIP_R360;
 
+        case NewChipID('[', '\''):
+        case NewChipID('[', 'b'):
+        case NewChipID('[', 'd'):
+        case NewChipID('[', 'e'):
+        case NewChipID('T', '\''):
+        case NewChipID('T', 'd'):
+	    return ATI_CHIP_RV370;
+
+        case NewChipID('>', 'P'):
+        case NewChipID('>', 'T'):
+        case NewChipID('1', 'P'):
+        case NewChipID('1', 'T'):
+	    return ATI_CHIP_RV380;
+
+        case NewChipID('J', 'H'):
+        case NewChipID('J', 'I'):
+        case NewChipID('J', 'J'):
+        case NewChipID('J', 'K'):
+        case NewChipID('J', 'L'):
+        case NewChipID('J', 'M'):
+        case NewChipID('J', 'N'):
+        case NewChipID('J', 'P'):
+	    return ATI_CHIP_R420;
+
+        case NewChipID('U', 'H'):
+        case NewChipID('U', 'I'):
+        case NewChipID('U', 'J'):
+        case NewChipID('U', 'K'):
+        case NewChipID('U', 'Q'):
+        case NewChipID('U', 'R'):
+        case NewChipID('U', 'T'):
+        case NewChipID(']', 'W'):
+	    return ATI_CHIP_R423;
+
         case NewChipID('H', 'D'):
             return ATI_CHIP_HDTV;
 
         default:
             /*
-             * I'd say it's a Rage128 or a Radeon here, except that I don't
-             * support them.
+             * Treat anything else as an unknown Radeon.  Please keep the above
+             * up-to-date however, as it serves as a central chip list.
              */
-            return ATI_CHIP_Mach64;
+            return ATI_CHIP_Radeon;
     }
 }
