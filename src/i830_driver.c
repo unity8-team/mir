@@ -1202,8 +1202,7 @@ TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize, Bool preinit)
 				    pI830->pVbe->pInt10->BIOSseg << 4);
 
     if (!pI830->BIOSMemSizeLoc) {
-
-	if (preinit)
+	if (!preinit)
 	    return 0;
 
 	/* Search for MAGIC string */
@@ -1224,10 +1223,11 @@ TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize, Bool preinit)
     
     position = biosAddr + pI830->BIOSMemSizeLoc;
     oldsize = *(CARD32 *)position;
+
     ret = oldsize - 0x21000;
     
     /* verify that register really contains current size */
-    if (pI830->preinit && ((ret >> 16) !=  pI830->vbeInfo->TotalMemory))
+    if (preinit && ((ret >> 16) !=  pI830->vbeInfo->TotalMemory))
 	return 0;
 
     oldpermission = pciReadLong(tag, reg);
@@ -1235,7 +1235,7 @@ TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize, Bool preinit)
     
     *(CARD32 *)position = newsize + 0x21000;
 
-    if (pI830->preinit) {
+    if (preinit) {
 	/* reinitialize VBE for new size */
 	VBEFreeVBEInfo(pI830->vbeInfo);
 	vbeFree(pI830->pVbe);
@@ -2139,6 +2139,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 	      pI830->StolenMemory.Size / 1024);
    xf86DrvMsg(pScrn->scrnIndex, from, "VideoRAM: %d kByte\n",
 	      pScrn->videoRam);
+
    pI830->TotalVideoRam = KB(pScrn->videoRam);
 
    /*
@@ -2208,7 +2209,8 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    v[1] = (ver & 0x00ff0000) >> 16;
    v[2] = (ver & 0x0000ff00) >> 8;
    v[3] = (ver & 0x000000ff) >> 0;
-
+   v[4] = 0;
+   
    pI830->bios_version = atoi(v);
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS Build: %d\n",pI830->bios_version);
@@ -2249,7 +2251,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    if (IsPrimary(pScrn)) {
       pI830->pipe = GetBIOSPipe(pScrn);
-
+      
       if (xf86ReturnOptValBool(pI830->Options, OPTION_FLIP_PRIMARY, FALSE)) {
          xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Primary flipping enabled\n");
          pI830->pipe = !pI830->pipe;
@@ -2264,7 +2266,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       pI830->operatingDevices = (pI830->MonType2 << 8) | pI830->MonType1;
 
       if (!xf86IsEntityShared(pScrn->entityList[0]) && !pI830->Clone) {
-         /* If we're not dual head or clone, turn off the second head,
+	  /* If we're not dual head or clone, turn off the second head,
           * if monitorlayout is also specified. */
 
          if (pI830->pipe == 0)
