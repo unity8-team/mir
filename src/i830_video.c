@@ -632,7 +632,7 @@ I830SetupImageVideo(ScreenPtr pScreen)
    pPriv->gamma0 = 0x080808;
 
    /* gotta uninit this someplace */
-   REGION_INIT(pScreen, &pPriv->clip, NullBox, 0);
+   REGION_NULL(pScreen, &pPriv->clip);
 
    pI830->adaptor = adapt;
 
