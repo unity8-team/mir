@@ -408,7 +408,7 @@ For example, Option "MergedDPI" "100 100"
 The default value is
 .B undefined.
 .TP
-.BI "Option \*qEnableColorTiling\*q \*q" "boolean" \*q
+.BI "Option \*qColorTiling\*q \*q" "boolean" \*q
 Frame buffer can be addressed either in linear or tiled mode. Tiled mode can provide
 significant performance benefits with 3D applications, for 2D it shouldn't matter
 much. Tiling will be disabled if the virtual x resolution exceeds 2048, if option

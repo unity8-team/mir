@@ -218,7 +218,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_DISP_PRIORITY,  "DisplayPriority",  OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_PANEL_SIZE,     "PanelSize",        OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_MIN_DOTCLOCK,   "ForceMinDotClock", OPTV_FREQ,    {0}, FALSE },
-    { OPTION_COLOR_TILING,   "EnableColorTiling",OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_COLOR_TILING,   "ColorTiling",      OPTV_BOOLEAN, {0}, FALSE },
 #ifdef XvExtension
     { OPTION_VIDEO_KEY,                   "VideoKey",                 OPTV_INTEGER, {0}, FALSE },
     { OPTION_RAGE_THEATRE_CRYSTAL,        "RageTheatreCrystal",       OPTV_INTEGER, {0}, FALSE },
