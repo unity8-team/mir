@@ -368,6 +368,9 @@ static Bool FUNC_NAME(R100SetupTexture)(
     CARD8 *dst;
     CARD32 tex_size = 0, txformat;
     int dst_pitch, offset, size, i, tex_bytepp;
+#if X_BYTE_ORDER == X_BIG_ENDIAN && defined(ACCEL_CP)
+    unsigned char *RADEONMMIO = info->MMIO;
+#endif
     ACCEL_PREAMBLE();
 
     if ((width > 2048) || (height > 2048))
@@ -375,6 +378,31 @@ static Bool FUNC_NAME(R100SetupTexture)(
 
     txformat = RadeonGetTextureFormat(format);
     tex_bytepp = PICT_FORMAT_BPP(format) >> 3;
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    /* Set up byte swapping for the framebuffer aperture as needed */
+    switch (tex_bytepp) {
+    case 1:
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl &
+				    ~(RADEON_NONSURF_AP0_SWP_32BPP
+				    | RADEON_NONSURF_AP0_SWP_16BPP));
+	break;
+    case 2:
+	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg.surface_cntl &
+				     ~RADEON_NONSURF_AP0_SWP_32BPP)
+				   | RADEON_NONSURF_AP0_SWP_16BPP);
+	break;
+    case 4:
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl
+				  | RADEON_NONSURF_AP0_SWP_32BPP
+				  | RADEON_NONSURF_AP0_SWP_16BPP);
+	break;
+    default:
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%s: Don't know what to do for "
+		   "tex_bytepp == %d!\n", __func__, tex_bytepp);
+	return FALSE;
+    }
+#endif
 
     dst_pitch = (width * tex_bytepp + 31) & ~31;
     size = dst_pitch * height;
@@ -402,6 +430,11 @@ static Bool FUNC_NAME(R100SetupTexture)(
 	src += src_pitch;
 	dst += dst_pitch;
     }
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    /* restore byte swapping */
+    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+#endif
 
     BEGIN_ACCEL(5);
     OUT_ACCEL_REG(RADEON_PP_TXFORMAT_0, txformat);
@@ -639,6 +672,9 @@ static Bool FUNC_NAME(R200SetupTexture)(
     CARD8 *dst;
     CARD32 tex_size = 0, txformat;
     int dst_pitch, offset, size, i, tex_bytepp;
+#if X_BYTE_ORDER == X_BIG_ENDIAN && defined(ACCEL_CP)
+    unsigned char *RADEONMMIO = info->MMIO;
+#endif
     ACCEL_PREAMBLE();
 
     if ((width > 2048) || (height > 2048))
@@ -646,6 +682,31 @@ static Bool FUNC_NAME(R200SetupTexture)(
 
     txformat = RadeonGetTextureFormat(format);
     tex_bytepp = PICT_FORMAT_BPP(format) >> 3;
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    /* Set up byte swapping for the framebuffer aperture as needed */
+    switch (tex_bytepp) {
+    case 1:
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl &
+				    ~(RADEON_NONSURF_AP0_SWP_32BPP
+				    | RADEON_NONSURF_AP0_SWP_16BPP));
+	break;
+    case 2:
+	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg.surface_cntl &
+				     ~RADEON_NONSURF_AP0_SWP_32BPP)
+				   | RADEON_NONSURF_AP0_SWP_16BPP);
+	break;
+    case 4:
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl
+				  | RADEON_NONSURF_AP0_SWP_32BPP
+				  | RADEON_NONSURF_AP0_SWP_16BPP);
+	break;
+    default:
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%s: Don't know what to do for "
+		   "tex_bytepp == %d!\n", __func__, tex_bytepp);
+	return FALSE;
+    }
+#endif
 
     dst_pitch = (width * tex_bytepp + 31) & ~31;
     size = dst_pitch * height;
@@ -673,6 +734,11 @@ static Bool FUNC_NAME(R200SetupTexture)(
 	src += src_pitch;
 	dst += dst_pitch;
     }
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    /* restore byte swapping */
+    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+#endif
 
     BEGIN_ACCEL(6);
     OUT_ACCEL_REG(R200_PP_TXFORMAT_0, txformat);

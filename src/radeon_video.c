@@ -1503,10 +1503,6 @@ RADEONPutImage(
    CARD32 tmp;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
    unsigned char *RADEONMMIO = info->MMIO;
-   CARD32 surface_cntl = INREG(RADEON_SURFACE_CNTL);
-
-   OUTREG(RADEON_SURFACE_CNTL, (surface_cntl |
-		RADEON_NONSURF_AP0_SWP_32BPP) & ~RADEON_NONSURF_AP0_SWP_16BPP);
 #endif
 
    /*
@@ -1613,7 +1609,8 @@ RADEONPutImage(
 	}
 	nlines = ((((yb + 0xffff) >> 16) + 1) & ~1) - top;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-	OUTREG(RADEON_SURFACE_CNTL, (surface_cntl | RADEON_NONSURF_AP0_SWP_32BPP)
+	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg.surface_cntl |
+				     RADEON_NONSURF_AP0_SWP_32BPP)
 				    & ~RADEON_NONSURF_AP0_SWP_16BPP);
 #endif
 	RADEONCopyMungedData(buf + (top * srcPitch) + left, buf + s2offset,
@@ -1628,8 +1625,9 @@ RADEONPutImage(
 	nlines = ((yb + 0xffff) >> 16) - top;
 	dst_start += left;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-	OUTREG(RADEON_SURFACE_CNTL, surface_cntl & ~(RADEON_NONSURF_AP0_SWP_32BPP
-						   | RADEON_NONSURF_AP0_SWP_16BPP));
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl &
+				    ~(RADEON_NONSURF_AP0_SWP_32BPP
+				      | RADEON_NONSURF_AP0_SWP_16BPP));
 #endif
 	RADEONCopyData(buf, dst_start, srcPitch, dstPitch, nlines, npixels);
 	break;
@@ -1637,7 +1635,7 @@ RADEONPutImage(
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     /* restore byte swapping */
-    OUTREG(RADEON_SURFACE_CNTL, surface_cntl);
+    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
 #endif
 
     /* update cliplist */

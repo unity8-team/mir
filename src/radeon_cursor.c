@@ -73,18 +73,17 @@ static CARD32 mono_cursor_color[] = {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 
 #define CURSOR_SWAPPING_DECL_MMIO   unsigned char *RADEONMMIO = info->MMIO;
-#define CURSOR_SWAPPING_DECL	    CARD32  __surface_cntl;
 #define CURSOR_SWAPPING_START() \
     OUTREG(RADEON_SURFACE_CNTL, \
-	   ((__surface_cntl = INREG(RADEON_SURFACE_CNTL)) | \
+	   (info->ModeReg.surface_cntl | \
 	    RADEON_NONSURF_AP0_SWP_32BPP) & \
 	   ~RADEON_NONSURF_AP0_SWP_16BPP)
-#define CURSOR_SWAPPING_END()	(OUTREG(RADEON_SURFACE_CNTL, __surface_cntl))
+#define CURSOR_SWAPPING_END()	(OUTREG(RADEON_SURFACE_CNTL, \
+					info->ModeReg.surface_cntl))
 
 #else
 
 #define CURSOR_SWAPPING_DECL_MMIO
-#define CURSOR_SWAPPING_DECL
 #define CURSOR_SWAPPING_START()
 #define CURSOR_SWAPPING_END()
 
@@ -98,7 +97,6 @@ static void RADEONSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
     CARD32        *pixels     = (CARD32 *)(pointer)(info->FB + info->cursor_start);
     int            pixel, i;
     CURSOR_SWAPPING_DECL_MMIO
-    CURSOR_SWAPPING_DECL
 
 #ifdef ARGB_CURSOR
     /* Don't recolour cursors set with SetCursorARGB. */
@@ -188,7 +186,6 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
     CARD32         save2      = 0;
     CARD8	   chunk;
     CARD32         i, j;
-    CURSOR_SWAPPING_DECL
 
     if (!info->IsSecondary) {
 	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
@@ -295,7 +292,6 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
     CARD32         save2      = 0;
     CARD32	  *image = pCurs->bits->argb;
     CARD32	  *i;
-    CURSOR_SWAPPING_DECL
 
     if (!image)
 	return;	/* XXX can't happen */
