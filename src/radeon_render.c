@@ -321,6 +321,7 @@ static Bool RADEONSetupRenderByteswap(ScrnInfoPtr pScrn, int tex_bytepp)
 		   "tex_bytepp == %d!\n", __func__, tex_bytepp);
 	return FALSE;
     }
+    return TRUE;
 }
 
 static void RADEONRestoreByteswap(RADEONInfoPtr info)
