@@ -1950,8 +1950,8 @@ RADEONCopyData(
   int w,
   int bpp
 ){
-#ifdef XF86DRI
     RADEONInfoPtr info = RADEONPTR(pScrn);
+#ifdef XF86DRI
 
     if ( info->directRenderingEnabled && info->DMAForXv )
     {
@@ -2041,8 +2041,8 @@ RADEONCopyRGB24Data(
     CARD32 *dptr;
     CARD8 *sptr;
     int i,j;
-#ifdef XF86DRI
     RADEONInfoPtr info = RADEONPTR(pScrn);
+#ifdef XF86DRI
 
     if ( info->directRenderingEnabled && info->DMAForXv )
     {
@@ -2113,8 +2113,8 @@ RADEONCopyMungedData(
    int h,
    int w
 ){
-#ifdef XF86DRI
     RADEONInfoPtr info = RADEONPTR(pScrn);
+#ifdef XF86DRI
 
     if ( info->directRenderingEnabled && info->DMAForXv )
     {
