@@ -586,6 +586,13 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	    drmFreeVersion(version);
 	    return FALSE;
 	 }
+	 if (strncmp(version->name, I830KernelDriverName, strlen(I830KernelDriverName))) {
+	    xf86DrvMsg(pScreen->myNum, X_WARNING, 
+			"i830 Kernel module detected, Use the i915 Kernel module instead, aborting DRI init.\n");
+	    I830DRICloseScreen(pScreen);
+	    drmFreeVersion(version);
+	    return FALSE;
+	 }
 	 if (version->version_minor < 2)
 	    xf86DrvMsg(pScreen->myNum, X_WARNING, 
 			"Resume functionality not available with DRM < 1.2\n");
@@ -593,6 +600,7 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	 drmFreeVersion(version);
       }
    }
+
    return TRUE;
 }
 
@@ -676,7 +684,10 @@ I830DRIDoMappings(ScreenPtr pScreen)
    xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] textures = 0x%08lx\n",
 	      pI830DRI->textures);
 
-   I830InitDma(pScrn);
+   if (!I830InitDma(pScrn)) {
+      DRICloseScreen(pScreen);
+      return FALSE;
+   }
 
    if (pI830->PciInfo->chipType != PCI_CHIP_845_G &&
        pI830->PciInfo->chipType != PCI_CHIP_I830_M) {
