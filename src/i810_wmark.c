@@ -25,7 +25,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_wmark.c,v 1.8 2002/10/30 12:52:18 alanh Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_wmark.c,v 1.7 2002/09/11 00:29:32 dawes Exp $ */
 
 /*
  * Reformatted with GNU indent (2.2.8), using the following options:

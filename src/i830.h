@@ -303,6 +303,7 @@ typedef struct _I830Rec {
 
    int SaveGeneration;
    Bool vbeRestoreWorkaround;
+   Bool displayInfo;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))

@@ -32,7 +32,7 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  *
  */
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_hwmc.c,v 1.4 2002/09/11 00:29:32 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_hwmc.c,v 1.3 2001/12/04 21:17:56 tsi Exp $ */
 
 
 #include "xf86.h"
