@@ -345,6 +345,8 @@ static int i810_pitches[] = {
 #endif
 #endif
 
+int I830EntityIndex = -1;
+
 #ifdef XFree86LOADER
 
 static MODULESETUPPROTO(i810Setup);
@@ -363,8 +365,6 @@ static XF86ModuleVersionInfo i810VersRec = {
 };
 
 XF86ModuleData i810ModuleData = { &i810VersRec, i810Setup, 0 };
-
-int I830EntityIndex = -1;
 
 static pointer
 i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
