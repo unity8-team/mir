@@ -546,6 +546,12 @@ typedef struct {
     FBLinearPtr       videoLinear;
     int               videoKey;
 
+				/* Render */
+    Bool              RenderAccel;
+    FBLinearPtr       RenderTex;
+    void              (*RenderCallback)(ScrnInfoPtr);
+    Time              RenderTimeout;
+
 				/* general */
     Bool              showCache;
     OptionInfoPtr     Options;
@@ -612,6 +618,7 @@ extern void        RADEONSelectBuffer(ScrnInfoPtr pScrn, int buffer);
 
 extern Bool        RADEONAccelInit(ScreenPtr pScreen);
 extern void        RADEONAccelInitMMIO(ScreenPtr pScreen, XAAInfoRecPtr a);
+extern void        RADEONInit3DEngineForRender(ScrnInfoPtr pScrn);
 extern void        RADEONEngineInit(ScrnInfoPtr pScrn);
 extern Bool        RADEONCursorInit(ScreenPtr pScreen);
 extern Bool        RADEONDGAInit(ScreenPtr pScreen);

@@ -155,7 +155,11 @@ typedef enum {
     OPTION_CRT2ISSCRN0,
     OPTION_DISP_PRIORITY,
     OPTION_PANEL_SIZE,
-    OPTION_MIN_DOTCLOCK
+    OPTION_MIN_DOTCLOCK,
+#ifdef RENDER
+    OPTION_RENDER_ACCEL,
+    OPTION_SUBPIXEL_ORDER
+#endif
 } RADEONOpts;
 
 const OptionInfoRec RADEONOptions[] = {
@@ -194,6 +198,10 @@ const OptionInfoRec RADEONOptions[] = {
     { OPTION_DISP_PRIORITY,  "DisplayPriority",  OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_PANEL_SIZE,     "PanelSize",        OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_MIN_DOTCLOCK,   "ForceMinDotClock", OPTV_FREQ,    {0}, FALSE },
+#ifdef RENDER
+    { OPTION_RENDER_ACCEL,   "RenderAccel",      OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_SUBPIXEL_ORDER, "SubPixelOrder",    OPTV_ANYSTR,  {0}, FALSE },
+#endif
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -2433,6 +2441,12 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     }
 #endif
 
+#ifdef RENDER
+    info->RenderAccel = xf86ReturnOptValBool (info->Options,
+					      OPTION_RENDER_ACCEL, TRUE);
+#endif
+
+
     return TRUE;
 }
 
@@ -4369,6 +4383,12 @@ static void RADEONBlockHandler(int i, pointer blockData,
 
     if (info->VideoTimerCallback)
 	(*info->VideoTimerCallback)(pScrn, currentTime.milliseconds);
+
+#ifdef RENDER
+    if(info->RenderCallback)
+	(*info->RenderCallback)(pScrn);
+#endif
+
 }
 
 /* Called at the start of each server generation. */
@@ -4378,6 +4398,10 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     BoxRec         MemBox;
     int            y2;
+#ifdef RENDER
+    int            subPixelOrder = SubPixelUnknown;
+    char*          s;
+#endif
 
     RADEONTRACE(("RADEONScreenInit %x %d\n",
 		 pScrn->memPhysBase, pScrn->fbOffset));
@@ -4516,10 +4540,14 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     fbPictureInit (pScreen, 0, 0);
 
 #ifdef RENDER
-    if (PictureGetSubpixelOrder (pScreen) == SubPixelUnknown)
-    {
-	int subPixelOrder;
+    if ((s = xf86GetOptValString(info->Options, OPTION_SUBPIXEL_ORDER))) {
+	if (strcmp(s, "RGB") == 0) subPixelOrder = SubPixelHorizontalRGB;
+	else if (strcmp(s, "BGR") == 0) subPixelOrder = SubPixelHorizontalBGR;
+	else if (strcmp(s, "NONE") == 0) subPixelOrder = SubPixelNone;
+	PictureSetSubpixelOrder (pScreen, subPixelOrder);
+    } 
 
+    if (PictureGetSubpixelOrder (pScreen) == SubPixelUnknown) {
 	switch (info->DisplayType) {
 	case MT_NONE:	subPixelOrder = SubPixelUnknown; break;
 	case MT_LCD:	subPixelOrder = SubPixelHorizontalRGB; break;
@@ -5248,7 +5276,7 @@ static void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
 	       restore->ppll_div_3 & RADEON_PPLL_FB3_DIV_MASK,
 	       (restore->ppll_div_3 & RADEON_PPLL_POST3_DIV_MASK) >> 16));
 
-    usleep(5000); /* Let the clock to lock */
+    usleep(50000); /* Let the clock to lock */
 
     OUTPLLP(pScrn, RADEON_VCLK_ECP_CNTL,
 	    RADEON_VCLK_SRC_SEL_PPLLCLK,
@@ -7129,6 +7157,11 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	info->directRenderingEnabled = FALSE;
     }
 #endif
+
+    if(info->RenderTex) {
+        xf86FreeOffscreenLinear(info->RenderTex);
+        info->RenderTex = NULL;
+    }
 
     if (pScrn->vtSema) {
 	RADEONRestore(pScrn);

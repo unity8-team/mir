@@ -435,6 +435,40 @@ You have been warned. The
 .B frequency
 parameter may be specified as a float value with standard suffixes like
 "k", "kHz", "M", "MHz".
+.TP
+.BI "Option \*qRenderAccel\*q \*q" boolean \*q
+Enable Render acceleration.  Does not support component alpha (subpixel)
+rendering.  Only supported on Radeon series up to and including 9200 (9500/9700
+and newer unsupported).  The default is 
+.B on.
+.TP
+.BI "Option \*qSubPixelOrder\*q \*q" "string" \*q
+Force subpixel order to specified order.
+Subpixel order is used for subpixel decimation on flat panels.
+.br
+NONE   \-\- No subpixel (CRT like displays)
+.br
+RGB    \-\- in horizontal RGB order (most flat panels)
+.br
+BGR    \-\- in horizontal BGR order (some flat panels)
+
+.br
+This option is intended to be used in following cases:
+.br
+1. The default subpixel order is incorrect for your panel.
+.br
+2. Enable subpixel decimation on analog panels.
+.br
+3. Adjust to one display type in dual-head clone mode setup.
+.br
+4. Get better performance with Render acceleration on 
+digital panels (use NONE setting).
+.br
+The default is 
+.B NONE 
+for CRT, 
+.B RGB 
+for digital panels
 
 .SH SEE ALSO
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)

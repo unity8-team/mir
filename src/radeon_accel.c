@@ -318,6 +318,14 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
     OUTREG(RADEON_DP_SRC_BKGD_CLR,   0x00000000);
     OUTREG(RADEON_DP_WRITE_MASK,     0xffffffff);
 
+#ifdef RENDER
+    /* In the DRI case, it's initialized when the server grabs the lock.  We
+     * don't hold the lock here, so don't do it in that case.
+     */
+    if (!info->directRenderingEnabled && info->RenderAccel)
+	RADEONInit3DEngineForRender(pScrn);
+#endif
+
     RADEONWaitForIdleMMIO(pScrn);
 }
 
@@ -378,6 +386,9 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 #define OUT_ACCEL_REG(reg, val) OUTREG(reg, val)
 #define FINISH_ACCEL()
 
+#ifdef RENDER
+#include "radeon_render.c"
+#endif
 #include "radeon_accelfuncs.c"
 
 #undef ACCEL_MMIO
@@ -396,6 +407,9 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 #define OUT_ACCEL_REG(reg, val) OUT_RING_REG(reg, val)
 #define FINISH_ACCEL()          ADVANCE_RING()
 
+#ifdef RENDER
+#include "radeon_render.c"
+#endif
 #include "radeon_accelfuncs.c"
 
 #undef ACCEL_CP
