@@ -172,7 +172,8 @@ typedef enum {
     OPTION_SUBPIXEL_ORDER,
 #endif
     OPTION_SHOWCACHE,
-    OPTION_DYNAMIC_CLOCKS
+    OPTION_DYNAMIC_CLOCKS,
+    OPTION_BIOS_HOTKEYS
 } RADEONOpts;
 
 static const OptionInfoRec RADEONOptions[] = {
@@ -225,6 +226,7 @@ static const OptionInfoRec RADEONOptions[] = {
 #endif
     { OPTION_SHOWCACHE,      "ShowCache",        OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DYNAMIC_CLOCKS, "DynamicClocks",    OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_BIOS_HOTKEYS,   "BIOSHotkeys",      OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -1733,6 +1735,13 @@ static BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 		break;
 	    }
 	}
+	for (i = 0; i < max_mt; i++) {
+	    if (strcmp(s2, MonTypeName[i]) == 0) {
+		pRADEONEnt->PortInfo[1].MonType = MonTypeID[i];
+		break;
+	    }
+	}
+
 	if (i ==  max_mt)
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Invalid Monitor type specified for 2nd port \n");
@@ -1765,31 +1774,44 @@ static BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 
     }
 
-    if (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN || pRADEONEnt->PortInfo[1].MonType == MT_UNKNOWN) {
-
-	if(((!info->HasCRTC2) || info->IsDellServer) && 
-	   (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN)) {
+    if(((!info->HasCRTC2) || info->IsDellServer)) {
+	if (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN) {
 	    if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn, DDC_DVI, &pRADEONEnt->PortInfo[0])));
 	    else if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn, DDC_VGA, &pRADEONEnt->PortInfo[0])));
 	    else if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn, DDC_CRT2, &pRADEONEnt->PortInfo[0])));
 	    else
 		pRADEONEnt->PortInfo[0].MonType = MT_CRT;
-
-	    if (!ignore_edid) {
-		if (pRADEONEnt->PortInfo[0].MonInfo) {
-		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Monitor1 EDID data ---------------------------\n");
-		    xf86PrintEDID(pRADEONEnt->PortInfo[0].MonInfo );
-		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "End of Monitor1 EDID data --------------------\n");
-		}
-	    }
-
-	    pRADEONEnt->MonType1 = pRADEONEnt->PortInfo[0].MonType;
-	    pRADEONEnt->MonInfo1 = pRADEONEnt->PortInfo[0].MonInfo;
-	    pRADEONEnt->MonType2 = MT_NONE;
-	    pRADEONEnt->MonInfo2 = NULL;
-	    info->MergeType = MT_NONE;
-	    return TRUE;
 	}
+
+	if (!ignore_edid) {
+	    if (pRADEONEnt->PortInfo[0].MonInfo) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Monitor1 EDID data ---------------------------\n");
+		xf86PrintEDID(pRADEONEnt->PortInfo[0].MonInfo );
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "End of Monitor1 EDID data --------------------\n");
+	    }
+	}
+
+	pRADEONEnt->MonType1 = pRADEONEnt->PortInfo[0].MonType;
+	pRADEONEnt->MonInfo1 = pRADEONEnt->PortInfo[0].MonInfo;
+	pRADEONEnt->MonType2 = MT_NONE;
+	pRADEONEnt->MonInfo2 = NULL;
+	info->MergeType = MT_NONE;
+	info->DisplayType = pRADEONEnt->MonType1;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Primary:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n",
+		   MonTypeName[pRADEONEnt->PortInfo[0].MonType+1],
+		   info->IsAtomBios ?
+		   ConnectorTypeNameATOM[pRADEONEnt->PortInfo[0].ConnectorType]:
+		   ConnectorTypeName[pRADEONEnt->PortInfo[0].ConnectorType],
+		   DACTypeName[pRADEONEnt->PortInfo[0].DACType+1],
+		   TMDSTypeName[pRADEONEnt->PortInfo[0].TMDSType+1],
+		   DDCTypeName[pRADEONEnt->PortInfo[0].DDCType]);
+
+	return TRUE;
+    }
+
+    if (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN || pRADEONEnt->PortInfo[1].MonType == MT_UNKNOWN) {
 
 	/* Primary Head (DVI or Laptop Int. panel)*/
 	/* A ddc capable display connected on DVI port */
@@ -4623,10 +4645,12 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
     RADEONSave(pScrn);
 
-    if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
-	RADEONSetDynamicClock(pScrn, 1);
-    } else {
-	RADEONSetDynamicClock(pScrn, 0);
+    if ((!info->IsSecondary) && info->IsMobility) {
+        if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
+	    RADEONSetDynamicClock(pScrn, 1);
+        } else {
+	    RADEONSetDynamicClock(pScrn, 0);
+        }
     }
 
     if (info->FBDev) {
@@ -6817,7 +6841,18 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
         }
     }
 
-    if (info->IsMobility) {
+    info->BiosHotkeys = FALSE;
+    /*
+     * Allow the bios to toggle outputs. see below for more.
+     */
+    if (xf86ReturnOptValBool(info->Options, OPTION_BIOS_HOTKEYS, FALSE)) {
+	info->BiosHotkeys = TRUE;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Enabled\n");
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Disabled\n");
+    }
+
+    if (info->IsMobility && (!info->BiosHotkeys)) {
 	RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
 	/* To work correctly with laptop hotkeys.
@@ -6845,6 +6880,21 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
 	}
 	save->bios_4_scratch = 0x4;
 	save->bios_6_scratch = orig->bios_6_scratch | 0x40000000;
+
+    } else if (info->IsMobility && (info->DisplayType == MT_LCD)) {
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+	/* BIOS will use this setting to reset displays upon lid close/open.
+	 * Here we let BIOS controls LCD, but the driver will control the external CRT.
+	 */
+	if (info->MergedFB || pRADEONEnt->HasSecondary)
+	    save->bios_5_scratch = 0x01020201;
+	else
+	    save->bios_5_scratch = orig->bios_5_scratch;
+
+    	save->bios_4_scratch = orig->bios_4_scratch;
+	save->bios_6_scratch = orig->bios_6_scratch;
+
     }
 
     save->fp_crtc_h_total_disp = save->crtc_h_total_disp;

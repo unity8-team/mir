@@ -620,6 +620,10 @@ typedef struct {
 
     /* special handlings for DELL triple-head server */
     Bool		IsDellServer; 
+
+    /* enable bios hotkey output switching */
+    Bool		BiosHotkeys;
+
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
