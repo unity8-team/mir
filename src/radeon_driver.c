@@ -7874,13 +7874,6 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 	int tile_addr = (((y >> 3) * info->CurrentLayout.displayWidth + x) >> (8 - byteshift)) << 11;
 	Base = tile_addr + ((x << byteshift) % 256) + ((y % 8) << 8);
 	crtcoffsetcntl = crtcoffsetcntl | (y % 16);
-	if (((info->ChipFamily == CHIP_FAMILY_RV100) ||
-            (info->ChipFamily == CHIP_FAMILY_RS100) ||
-            (info->ChipFamily == CHIP_FAMILY_RS200)) && ((y >> 3) % 2)) {
-	    /* FIXME: unknown why some cards (confirmed only for rv100) need this.
-	       other cards might need that too (all 64bit cards maybe?) */
-	    Base ^= 2048;
-	}
     }
     else {
        Base = y * info->CurrentLayout.displayWidth + x;
