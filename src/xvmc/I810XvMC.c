@@ -227,7 +227,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
   context->flags = (unsigned long)magic;
 
   /*
-    Pass control to the X server to create a drmContext for us and
+    Pass control to the X server to create a drm_context_t for us and
     validate the with/height and flags.
   */
   if((ret = _xvmc_create_context(display, context, &priv_count, &priv_data))) {
@@ -237,7 +237,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 
   /* 
      X server returns a structure like this:
-     drmContext
+     drm_context_t
      fbBase
      OverlayOffset
      OverlaySize
@@ -411,7 +411,7 @@ Status XvMCDestroyContext(Display *display, XvMCContext *context) {
     I810_UNLOCK(pI810XvMC);
   }
 
-  /* Pass Control to the X server to destroy the drmContext */
+  /* Pass Control to the X server to destroy the drm_context_t */
   _xvmc_destroy_context(display, context);
 
   i810_free_privContext(pI810XvMC);
