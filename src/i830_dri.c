@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_dri.c,v 1.16 2003/09/28 20:15:58 alanh Exp $ */
+/* $XFree86$ */
 /**************************************************************************
 
 Copyright 2001 VA Linux Systems Inc., Fremont, California.

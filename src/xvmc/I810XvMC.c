@@ -33,7 +33,7 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **
 **
 ***************************************************************************/
-/* $XFree86: xc/lib/XvMC/hw/i810/I810XvMC.c,v 1.11 2002/11/19 09:35:49 alanh Exp $ */
+/* $XFree86$ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
