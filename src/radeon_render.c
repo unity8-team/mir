@@ -62,7 +62,7 @@ static const struct blendinfo RadeonBlendOp[] = {
     {0, 0, RADEON_SRC_BLEND_GL_ONE |
 	   RADEON_DST_BLEND_GL_ONE},
     /* Saturate */
-    {0, 1, RADEON_SRC_BLEND_GL_SRC_ALPHA_SATURATE |
+    {1, 1, RADEON_SRC_BLEND_GL_SRC_ALPHA_SATURATE |
 	   RADEON_DST_BLEND_GL_ONE},
     {0, 0, 0},
     {0, 0, 0},
@@ -121,37 +121,87 @@ static CARD32 RADEONTextureFormats[] = {
     PICT_a8,
     PICT_x8r8g8b8,
     PICT_r5g6b5,
+    PICT_a1r5g5b5,
     PICT_x1r5g5b5,
+    0
 };
 
-static void RadeonGetTextureFormat(CARD32 format, CARD32 *txformat, int *bytepp)
+static CARD32 RADEONDstFormats[] = {
+    PICT_a8r8g8b8,
+    PICT_x8r8g8b8,
+    PICT_r5g6b5,
+    PICT_a1r5g5b5,
+    PICT_x1r5g5b5,
+    0
+};
+
+static CARD32
+RadeonGetTextureFormat(CARD32 format)
 {
     switch (format) {
     case PICT_a8r8g8b8:
-	*txformat = RADEON_TXFORMAT_ARGB8888 | RADEON_TXFORMAT_ALPHA_IN_MAP;
-	*bytepp = 4;
-	break;
+	return RADEON_TXFORMAT_ARGB8888 | RADEON_TXFORMAT_ALPHA_IN_MAP;
     case PICT_a8:
-	*txformat = RADEON_TXFORMAT_I8 | RADEON_TXFORMAT_ALPHA_IN_MAP;
-	*bytepp = 1;
-	break;
+	return RADEON_TXFORMAT_I8 | RADEON_TXFORMAT_ALPHA_IN_MAP;
     case PICT_x8r8g8b8:
-	*txformat = RADEON_TXFORMAT_ARGB8888;
-	*bytepp = 4;
-	break;
+	return RADEON_TXFORMAT_ARGB8888;
     case PICT_r5g6b5:
-	*txformat = RADEON_TXFORMAT_RGB565;
-	*bytepp = 2;
-	break;
+	return RADEON_TXFORMAT_RGB565;
     case PICT_a1r5g5b5:
-	*txformat = RADEON_TXFORMAT_ARGB1555 | RADEON_TXFORMAT_ALPHA_IN_MAP;
-	*bytepp = 2;
-	break;
+	return RADEON_TXFORMAT_ARGB1555 | RADEON_TXFORMAT_ALPHA_IN_MAP;
     case PICT_x1r5g5b5:
-	*txformat = RADEON_TXFORMAT_ARGB1555;
-	*bytepp = 2;
-	break;
+	return RADEON_TXFORMAT_ARGB1555;
+    default:
+	return 0;
     }
+}
+
+static CARD32
+RadeonGetColorFormat(CARD32 format)
+{
+    switch (format) {
+    case PICT_a8r8g8b8:
+    case PICT_x8r8g8b8:
+	return RADEON_COLOR_FORMAT_ARGB8888;
+    case PICT_r5g6b5:
+	return RADEON_COLOR_FORMAT_RGB565;
+    case PICT_a1r5g5b5:
+    case PICT_x1r5g5b5:
+	return RADEON_COLOR_FORMAT_ARGB1555;
+    default:
+	return 0;
+    }
+}
+
+/* Returns a RADEON_RB3D_BLENDCNTL value, or 0 if the operation is not
+ * supported
+ */
+static CARD32
+RadeonGetBlendCntl(CARD8 op, CARD32 dstFormat)
+{
+    CARD32 blend_cntl;
+
+    if (op >= RadeonOpMax || RadeonBlendOp[op].blend_cntl == 0)
+	return 0;
+
+    blend_cntl = RadeonBlendOp[op].blend_cntl;
+	
+    if (RadeonBlendOp[op].dst_alpha && !PICT_FORMAT_A(dstFormat)) {
+	CARD32 srcblend = blend_cntl & RADEON_SRC_BLEND_MASK;
+
+	/* If there's no destination alpha channel, we need to wire the blending
+	 * to treat the alpha channel as always 1.
+	 */
+	if (srcblend == RADEON_SRC_BLEND_GL_ONE_MINUS_DST_ALPHA ||
+	    srcblend == RADEON_SRC_BLEND_GL_SRC_ALPHA_SATURATE)
+	    blend_cntl = (blend_cntl & ~RADEON_SRC_BLEND_MASK) |
+			 RADEON_SRC_BLEND_GL_ZERO;
+	else if (srcblend == RADEON_SRC_BLEND_GL_DST_ALPHA)
+	    blend_cntl = (blend_cntl & ~RADEON_SRC_BLEND_MASK) |
+			 RADEON_SRC_BLEND_GL_ONE;
+    }
+
+    return blend_cntl;
 }
 
 static __inline__ CARD32 F_TO_DW(float val)
@@ -305,8 +355,9 @@ static void FUNC_NAME(RadeonInit3DEngine)(ScrnInfoPtr pScrn)
     FINISH_ACCEL();
 }
 
-static Bool FUNC_NAME(R100SetupTexture)(ScrnInfoPtr pScrn,
-	int format,
+static Bool FUNC_NAME(R100SetupTexture)(
+	ScrnInfoPtr pScrn,
+	CARD32 format,
 	CARD8 *src,
 	int src_pitch,
 	int width,
@@ -322,7 +373,8 @@ static Bool FUNC_NAME(R100SetupTexture)(ScrnInfoPtr pScrn,
     if ((width > 2048) || (height > 2048))
 	return FALSE;
 
-    RadeonGetTextureFormat(format, &txformat, &tex_bytepp);
+    txformat = RadeonGetTextureFormat(format);
+    tex_bytepp = PICT_FORMAT_BPP(format) >> 3;
 
     dst_pitch = (width * tex_bytepp + 31) & ~31;
     size = dst_pitch * height;
@@ -374,7 +426,8 @@ FUNC_NAME(R100SetupForCPUToScreenAlphaTexture) (
 	CARD16		green,
 	CARD16		blue,
 	CARD16		alpha,
-	int		alphaFormat,
+	CARD32		maskFormat,
+	CARD32		dstFormat,
 	CARD8		*alphaPtr,
 	int		alphaPitch,
 	int		width,
@@ -383,26 +436,24 @@ FUNC_NAME(R100SetupForCPUToScreenAlphaTexture) (
 ) 
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    CARD32 format, srccolor;
+    CARD32 colorformat, srccolor, blend_cntl;
     ACCEL_PREAMBLE();
 
-    if (op >= RadeonOpMax || RadeonBlendOp[op].blend_cntl == 0)
+    blend_cntl = RadeonGetBlendCntl(op, dstFormat);
+    if (blend_cntl == 0)
 	return FALSE;
     
-    if (!FUNC_NAME(R100SetupTexture)(pScrn, alphaFormat, alphaPtr, alphaPitch,
+    if (!FUNC_NAME(R100SetupTexture)(pScrn, maskFormat, alphaPtr, alphaPitch,
 				     width, height, flags))
 	return FALSE;
 
-    if (pScrn->bitsPerPixel == 32)
-	format = RADEON_COLOR_FORMAT_ARGB8888;
-    else
-	format = RADEON_COLOR_FORMAT_RGB565;
+    colorformat = RadeonGetColorFormat(dstFormat);
 
     srccolor = ((alpha & 0xff00) << 16) | ((red & 0xff00) << 8) | (blue >> 8) |
 	(green & 0xff00);
 
     BEGIN_ACCEL(8);
-    OUT_ACCEL_REG(RADEON_RB3D_CNTL, format | RADEON_ALPHA_BLEND_ENABLE);
+    OUT_ACCEL_REG(RADEON_RB3D_CNTL, colorformat | RADEON_ALPHA_BLEND_ENABLE);
     OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth);
     OUT_ACCEL_REG(RADEON_PP_CNTL, RADEON_TEX_0_ENABLE |
 				  RADEON_TEX_BLEND_0_ENABLE);
@@ -413,8 +464,7 @@ FUNC_NAME(R100SetupForCPUToScreenAlphaTexture) (
 					RADEON_ALPHA_ARG_B_T0_ALPHA);
     OUT_ACCEL_REG(RADEON_SE_VTX_FMT, RADEON_SE_VTX_FMT_XY |
 				     RADEON_SE_VTX_FMT_ST0);
-    OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL,
-	RadeonBlendOp[op].blend_cntl);
+    OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blend_cntl);
     FINISH_ACCEL();
 
     return TRUE;
@@ -425,7 +475,8 @@ static Bool
 FUNC_NAME(R100SetupForCPUToScreenTexture) (
 	ScrnInfoPtr	pScrn,
 	int		op,
-	int		texFormat,
+	CARD32		srcFormat,
+	CARD32		dstFormat,
 	CARD8		*texPtr,
 	int		texPitch,
 	int		width,
@@ -434,35 +485,32 @@ FUNC_NAME(R100SetupForCPUToScreenTexture) (
 )
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    CARD32 format;
+    CARD32 colorformat, blend_cntl;
     ACCEL_PREAMBLE();
 
-    if (op >= RadeonOpMax || RadeonBlendOp[op].blend_cntl == 0)
+    blend_cntl = RadeonGetBlendCntl(op, dstFormat);
+    if (blend_cntl == 0)
 	return FALSE;
     
-    if (!FUNC_NAME(R100SetupTexture)(pScrn, texFormat, texPtr, texPitch, width,
+    if (!FUNC_NAME(R100SetupTexture)(pScrn, srcFormat, texPtr, texPitch, width,
 				     height, flags))
 	return FALSE;
 
-    if (pScrn->bitsPerPixel == 32)
-	format = RADEON_COLOR_FORMAT_ARGB8888;
-    else
-	format = RADEON_COLOR_FORMAT_RGB565;
+    colorformat = RadeonGetColorFormat(dstFormat);
     
     BEGIN_ACCEL(7);
-    OUT_ACCEL_REG(RADEON_RB3D_CNTL, format | RADEON_ALPHA_BLEND_ENABLE);
+    OUT_ACCEL_REG(RADEON_RB3D_CNTL, colorformat | RADEON_ALPHA_BLEND_ENABLE);
     OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth);
     OUT_ACCEL_REG(RADEON_PP_CNTL, RADEON_TEX_0_ENABLE |
 				  RADEON_TEX_BLEND_0_ENABLE);
-    if (texFormat != PICT_a8)
+    if (srcFormat != PICT_a8)
 	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_0, RADEON_COLOR_ARG_C_T0_COLOR);
     else
 	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_0, RADEON_COLOR_ARG_C_ZERO);
     OUT_ACCEL_REG(RADEON_PP_TXABLEND_0, RADEON_ALPHA_ARG_C_T0_ALPHA);
     OUT_ACCEL_REG(RADEON_SE_VTX_FMT, RADEON_SE_VTX_FMT_XY |
 				     RADEON_SE_VTX_FMT_ST0);
-    OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL,
-	RadeonBlendOp[op].blend_cntl);
+    OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blend_cntl);
     FINISH_ACCEL();
 
     return TRUE;
@@ -578,8 +626,9 @@ FUNC_NAME(R100SubsequentCPUToScreenTexture) (
 
 }
 
-static Bool FUNC_NAME(R200SetupTexture)(ScrnInfoPtr pScrn,
-	int format,
+static Bool FUNC_NAME(R200SetupTexture)(
+	ScrnInfoPtr pScrn,
+	CARD32 format,
 	CARD8 *src,
 	int src_pitch,
 	int width,
@@ -595,7 +644,8 @@ static Bool FUNC_NAME(R200SetupTexture)(ScrnInfoPtr pScrn,
     if ((width > 2048) || (height > 2048))
 	return FALSE;
 
-    RadeonGetTextureFormat(format, &txformat, &tex_bytepp);
+    txformat = RadeonGetTextureFormat(format);
+    tex_bytepp = PICT_FORMAT_BPP(format) >> 3;
 
     dst_pitch = (width * tex_bytepp + 31) & ~31;
     size = dst_pitch * height;
@@ -648,7 +698,8 @@ FUNC_NAME(R200SetupForCPUToScreenAlphaTexture) (
 	CARD16		green,
 	CARD16		blue,
 	CARD16		alpha,
-	int		alphaFormat,
+	CARD32		maskFormat,
+	CARD32		dstFormat,
 	CARD8		*alphaPtr,
 	int		alphaPitch,
 	int		width,
@@ -657,26 +708,24 @@ FUNC_NAME(R200SetupForCPUToScreenAlphaTexture) (
 ) 
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
-    CARD32 format, srccolor;
+    CARD32 colorformat, srccolor, blend_cntl;
     ACCEL_PREAMBLE();
 
-    if (op >= RadeonOpMax || RadeonBlendOp[op].blend_cntl == 0)
+    blend_cntl = RadeonGetBlendCntl(op, dstFormat);
+    if (blend_cntl == 0)
 	return FALSE;
 
-    if (!FUNC_NAME(R200SetupTexture)(pScrn, alphaFormat, alphaPtr, alphaPitch,
+    if (!FUNC_NAME(R200SetupTexture)(pScrn, maskFormat, alphaPtr, alphaPitch,
 				     width, height, flags))
 	return FALSE;
 
-    if (pScrn->bitsPerPixel == 32)
-	format = RADEON_COLOR_FORMAT_ARGB8888;
-    else
-	format = RADEON_COLOR_FORMAT_RGB565;
+    colorformat = RadeonGetColorFormat(dstFormat);
 
     srccolor = ((alpha & 0xff00) << 16) | ((red & 0xff00) << 8) | (blue >> 8) |
 	(green & 0xff00);
 
     BEGIN_ACCEL(11);
-    OUT_ACCEL_REG(RADEON_RB3D_CNTL, format | RADEON_ALPHA_BLEND_ENABLE);
+    OUT_ACCEL_REG(RADEON_RB3D_CNTL, colorformat | RADEON_ALPHA_BLEND_ENABLE);
     OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth);
     OUT_ACCEL_REG(RADEON_PP_CNTL, RADEON_TEX_0_ENABLE |
 				  RADEON_TEX_BLEND_0_ENABLE);
@@ -689,8 +738,7 @@ FUNC_NAME(R200SetupForCPUToScreenAlphaTexture) (
     OUT_ACCEL_REG(R200_PP_TXABLEND2_0, R200_TXA_OUTPUT_REG_R0);
     OUT_ACCEL_REG(R200_SE_VTX_FMT_0, 0);
     OUT_ACCEL_REG(R200_SE_VTX_FMT_1, (2 << R200_VTX_TEX0_COMP_CNT_SHIFT));
-    OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL,
-	RadeonBlendOp[op].blend_cntl);
+    OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blend_cntl);
     FINISH_ACCEL();
 
     return TRUE;
@@ -700,7 +748,8 @@ static Bool
 FUNC_NAME(R200SetupForCPUToScreenTexture) (
 	ScrnInfoPtr	pScrn,
 	int		op,
-	int		texFormat,
+	CARD32		srcFormat,
+	CARD32		dstFormat,
 	CARD8		*texPtr,
 	int		texPitch,
 	int		width,
@@ -709,27 +758,25 @@ FUNC_NAME(R200SetupForCPUToScreenTexture) (
 )
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    CARD32 format;
+    CARD32 colorformat, blend_cntl;
     ACCEL_PREAMBLE();
 
-    if (op >= RadeonOpMax || RadeonBlendOp[op].blend_cntl == 0)
+    blend_cntl = RadeonGetBlendCntl(op, dstFormat);
+    if (blend_cntl == 0)
 	return FALSE;
 
-    if (!FUNC_NAME(R200SetupTexture)(pScrn, texFormat, texPtr, texPitch, width,
+    if (!FUNC_NAME(R200SetupTexture)(pScrn, srcFormat, texPtr, texPitch, width,
 				     height, flags))
 	return FALSE;
 
-    if (pScrn->bitsPerPixel == 32)
-	format = RADEON_COLOR_FORMAT_ARGB8888;
-    else
-	format = RADEON_COLOR_FORMAT_RGB565;
+    colorformat = RadeonGetColorFormat(dstFormat);
 
     BEGIN_ACCEL(10);
-    OUT_ACCEL_REG(RADEON_RB3D_CNTL, format | RADEON_ALPHA_BLEND_ENABLE);
+    OUT_ACCEL_REG(RADEON_RB3D_CNTL, colorformat | RADEON_ALPHA_BLEND_ENABLE);
     OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth);
     OUT_ACCEL_REG(RADEON_PP_CNTL, RADEON_TEX_0_ENABLE |
 				  RADEON_TEX_BLEND_0_ENABLE);
-    if (texFormat != PICT_a8)
+    if (srcFormat != PICT_a8)
 	OUT_ACCEL_REG(R200_PP_TXCBLEND_0, R200_TXC_ARG_C_R0_COLOR);
     else
 	OUT_ACCEL_REG(R200_PP_TXCBLEND_0, R200_TXC_ARG_C_ZERO);
@@ -738,8 +785,7 @@ FUNC_NAME(R200SetupForCPUToScreenTexture) (
     OUT_ACCEL_REG(R200_PP_TXABLEND2_0, R200_TXA_OUTPUT_REG_R0);
     OUT_ACCEL_REG(R200_SE_VTX_FMT_0, 0);
     OUT_ACCEL_REG(R200_SE_VTX_FMT_1, (2 << R200_VTX_TEX0_COMP_CNT_SHIFT));
-    OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL,
-	RadeonBlendOp[op].blend_cntl);
+    OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blend_cntl);
     FINISH_ACCEL();
 
     return TRUE;

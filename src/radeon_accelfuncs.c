@@ -1348,60 +1348,60 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 					   | BIT_ORDER_IN_BYTE_LSBFIRST);
 #endif
 
-#if defined(RENDER) && defined(XF86DRI)
+#if defined(RENDER)
+#if defined(XF86DRI)
     if (info->RenderAccel && info->directRenderingEnabled &&
-	((pScrn->bitsPerPixel == 32) || (pScrn->bitsPerPixel == 16))) {
+	info->xaaReq.minorversion >= 2) {
 	/* XXX: The non-CP vertex dispatch doesn't seem to work. */
-	/* XXX: We are actually violating Render semantics with this, but it
-	 * can't be helped with current XAA.  With Render you can make the
-	 * Picture have whatever r/g/b/a masks you want, pretty much.
-	 * We're forced to assume window pictures as destinations are of the
-	 * common types of PICT_r5g6b5 for 16bpp and PICT_a8r8g8b8 for 32bpp,
-	 * due to the lack of a dst format arg to the Setup functions.
-	 * PICT_x8r8g8b8 is certainly almost as likely for 32bpp though, because
-	 * XRenderFindStandardFormat(dpy, PictStandardRGB24) returns it.
-	 */
 
 	a->CPUToScreenAlphaTextureFlags = XAA_RENDER_POWER_OF_2_TILE_ONLY;
 	a->CPUToScreenAlphaTextureFormats = RADEONTextureFormats;
+	a->CPUToScreenAlphaTextureDstFormats = RADEONDstFormats;
 	a->CPUToScreenTextureFlags = XAA_RENDER_POWER_OF_2_TILE_ONLY;
 	a->CPUToScreenTextureFormats = RADEONTextureFormats;
+	a->CPUToScreenTextureDstFormats = RADEONDstFormats;
 
 	if (IS_R300_VARIANT) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
-		"unsupported on Radeon 9500/9700 and newer.\n");
-	    return;
+		       "unsupported on Radeon 9500/9700 and newer.\n");
 	} else if ((info->ChipFamily == CHIP_FAMILY_RV250) || 
 		   (info->ChipFamily == CHIP_FAMILY_RV280) || 
 		   (info->ChipFamily == CHIP_FAMILY_RS300) || 
 		   (info->ChipFamily == CHIP_FAMILY_R200)) {
-	    a->SetupForCPUToScreenAlphaTexture =
+	    a->SetupForCPUToScreenAlphaTexture2 =
 		FUNC_NAME(R200SetupForCPUToScreenAlphaTexture);
 	    a->SubsequentCPUToScreenAlphaTexture = 
 		FUNC_NAME(R200SubsequentCPUToScreenTexture);
 
-	    a->SetupForCPUToScreenTexture =
+	    a->SetupForCPUToScreenTexture2 =
 		FUNC_NAME(R200SetupForCPUToScreenTexture);
 	    a->SubsequentCPUToScreenTexture =
 		FUNC_NAME(R200SubsequentCPUToScreenTexture);
 	} else {
-	    a->SetupForCPUToScreenAlphaTexture =
+	    a->SetupForCPUToScreenAlphaTexture2 =
 		FUNC_NAME(R100SetupForCPUToScreenAlphaTexture);
 	    a->SubsequentCPUToScreenAlphaTexture =
 		FUNC_NAME(R100SubsequentCPUToScreenTexture);
 
-	    a->SetupForCPUToScreenTexture =
+	    a->SetupForCPUToScreenTexture2 =
 		FUNC_NAME(R100SetupForCPUToScreenTexture);
 	    a->SubsequentCPUToScreenTexture =
 		FUNC_NAME(R100SubsequentCPUToScreenTexture);
 	}
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration enabled\n");
-    } else {
-	info->RenderAccel = FALSE;
+    } else
+#endif /* XF86DRI */
+    if (info->RenderAccel)
+    {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration currently "
+		   "requires the DRI.\n");
     }
-#else /* RENDER && XF86DRI */
-    info->RenderAccel = FALSE;
-#endif /* RENDER && XF86DRI */
+
+    if (!a->SetupForCPUToScreenAlphaTexture2 && !a->SetupForCPUToScreenTexture2)
+	info->RenderAccel = FALSE;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration %s\n",
+	       info->RenderAccel ? "enabled" : "disabled");
+#endif /* RENDER */
 }
 
 #undef FUNC_NAME

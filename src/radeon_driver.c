@@ -3834,16 +3834,21 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 	int errmaj = 0, errmin = 0;
 
 	info->xaaReq.majorversion = 1;
-	info->xaaReq.minorversion = 1;
+	info->xaaReq.minorversion = 2;
 
 	if (!LoadSubModule(pScrn->module, "xaa", NULL, NULL, NULL,
 			   &info->xaaReq, &errmaj, &errmin)) {
-	    info->xaaReq.minorversion = 0;
+	    info->xaaReq.minorversion = 1;
 
 	    if (!LoadSubModule(pScrn->module, "xaa", NULL, NULL, NULL,
 			       &info->xaaReq, &errmaj, &errmin)) {
-		LoaderErrorMsg(NULL, "xaa", errmaj, errmin);
-		return FALSE;
+		info->xaaReq.minorversion = 0;
+
+		if (!LoadSubModule(pScrn->module, "xaa", NULL, NULL, NULL,
+			       &info->xaaReq, &errmaj, &errmin)) {
+		    LoaderErrorMsg(NULL, "xaa", errmaj, errmin);
+		    return FALSE;
+		}
 	    }
 	}
 	xf86LoaderReqSymLists(xaaSymbols, NULL);
