@@ -68,8 +68,9 @@ const char *RADEONSymbols[] =
     "RADEONLeaveVT",
     "RADEONFreeScreen",
     "RADEONValidMode",
-    "RADEONOptions",
+    "RADEONOptionsWeak",
     "RADEONHandleMessage",
+    "RADEONFillInScreenInfo",
     NULL
 };
 
