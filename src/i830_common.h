@@ -106,7 +106,15 @@ typedef struct {
         drm_clip_rect_t *cliprects; /* pointer to userspace cliprects */
 } drmI830BatchBuffer;
 
-
+typedef struct {
+   	char *buf;		/* agp offset */
+	int sz; 		/* nr bytes in use */
+	int DR1;		/* hw flags for GFX_OP_DRAWRECT_INFO */
+        int DR4;		/* window origin for GFX_OP_DRAWRECT_INFO*/
+	int num_cliprects;	/* mulitpass with multiple cliprects? */
+        drm_clip_rect_t *cliprects; /* pointer to userspace cliprects */
+} drmI830CmdBuffer;
+ 
 typedef struct {
 	int *irq_seq;
 } drmI830IrqEmit;
@@ -121,8 +129,7 @@ typedef struct {
 } drmI830GetParam;
 
 #define I830_PARAM_IRQ_ACTIVE     1
-#define I830_PARAM_LAST_ENQUEUE   2 
-#define I830_PARAM_LAST_DEQUEUE   3 
+#define I830_PARAM_ALLOW_BATCHBUFFER   2 
 
 typedef struct {
 	int param;
@@ -131,6 +138,7 @@ typedef struct {
 
 #define I830_SETPARAM_USE_MI_BATCHBUFFER_START  1
 #define I830_SETPARAM_TEX_LRU_LOG_GRANULARITY   2
+#define I830_SETPARAM_ALLOW_BATCHBUFFER         3
 
 
 /* A memory manager for regions of shared memory:
