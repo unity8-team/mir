@@ -2186,7 +2186,8 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 if (!I810AccelInit(pScreen)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Hardware acceleration initialization failed\n");
-	 }
+	 }  else /* PK added 16.02.2004 */
+	     I810EmitFlush(pScrn);
       }
    }
 
