@@ -71,7 +71,7 @@ void I810XvMCDestroySubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSurf);
 
 
 typedef struct {
-  drmContext drmcontext;
+  drm_context_t drmcontext;
   unsigned int fbBase;
   unsigned int OverlayOffset;
   unsigned int OverlaySize;
@@ -206,12 +206,12 @@ void I810InitMC(ScreenPtr pScreen)
   }  
 
   /* Cursor is at a page boundary, Overlay regs are not, don't forget */
-  if (drmAddMap(pI810->drmSubFD, (drmHandle)pI810->CursorStart,
+  if (drmAddMap(pI810->drmSubFD, (drm_handle_t)pI810->CursorStart,
                 4096, DRM_AGP, 0, &pI810->overlay_map) < 0) {
     xf86DrvMsg(pScreen->myNum, X_ERROR, "drmAddMap(overlay) failed\n");
     return;
   }
-  if (drmAddMap(pI810->drmSubFD, (drmHandle)pI810->MC.Start,
+  if (drmAddMap(pI810->drmSubFD, (drm_handle_t)pI810->MC.Start,
                 pI810->MC.Size, DRM_AGP, 0, &pI810->mc_map) < 0) {
     xf86DrvMsg(pScreen->myNum, X_ERROR, "drmAddMap(MC) failed\n");
     return;

@@ -80,9 +80,9 @@ static char I830ClientDriverName[] = "i830";
 
 static Bool I830InitVisualConfigs(ScreenPtr pScreen);
 static Bool I830CreateContext(ScreenPtr pScreen, VisualPtr visual,
-			      drmContext hwContext, void *pVisualConfigPriv,
+			      drm_context_t hwContext, void *pVisualConfigPriv,
 			      DRIContextType contextStore);
-static void I830DestroyContext(ScreenPtr pScreen, drmContext hwContext,
+static void I830DestroyContext(ScreenPtr pScreen, drm_context_t hwContext,
 			       DRIContextType contextStore);
 static void I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 			       DRIContextType readContextType,
@@ -444,12 +444,15 @@ I830DRIScreenInit(ScreenPtr pScreen)
 
    pDRIInfo->drmDriverName = I830KernelDriverName;
    pDRIInfo->clientDriverName = I830ClientDriverName;
-   pDRIInfo->busIdString = xalloc(64);
-
-   sprintf(pDRIInfo->busIdString, "PCI:%d:%d:%d",
-	   ((pciConfigPtr) pI830->PciInfo->thisCard)->busnum,
-	   ((pciConfigPtr) pI830->PciInfo->thisCard)->devnum,
-	   ((pciConfigPtr) pI830->PciInfo->thisCard)->funcnum);
+   if (xf86LoaderCheckSymbol("DRICreatePCIBusID")) {
+      pDRIInfo->busIdString = DRICreatePCIBusID(pI830->PciInfo);
+   } else {
+      pDRIInfo->busIdString = xalloc(64);
+      sprintf(pDRIInfo->busIdString, "PCI:%d:%d:%d",
+	      ((pciConfigPtr) pI830->PciInfo->thisCard)->busnum,
+	      ((pciConfigPtr) pI830->PciInfo->thisCard)->devnum,
+	      ((pciConfigPtr) pI830->PciInfo->thisCard)->funcnum);
+   }
    pDRIInfo->ddxDriverMajorVersion = I830_MAJOR_VERSION;
    pDRIInfo->ddxDriverMinorVersion = I830_MINOR_VERSION;
    pDRIInfo->ddxDriverPatchVersion = I830_PATCHLEVEL;
@@ -585,7 +588,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
 
    DPRINTF(PFX, "I830DRIDoMappings\n");
    pI830DRI->regsSize = I830_REG_SIZE;
-   if (drmAddMap(pI830->drmSubFD, (drmHandle)pI830->MMIOAddr,
+   if (drmAddMap(pI830->drmSubFD, (drm_handle_t)pI830->MMIOAddr,
 		 pI830DRI->regsSize, DRM_REGISTERS, 0, &pI830DRI->regs) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR, "[drm] drmAddMap(regs) failed\n");
       DRICloseScreen(pScreen);
@@ -604,7 +607,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
    pI830DRI->backbufferSize = pI830->BackBuffer.Size;
 
    if (drmAddMap(pI830->drmSubFD,
-		 (drmHandle)pI830->BackBuffer.Start + pI830->LinearAddr,
+		 (drm_handle_t)pI830->BackBuffer.Start + pI830->LinearAddr,
 		 pI830->BackBuffer.Size, DRM_AGP, 0,
 		 &pI830DRI->backbuffer) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
@@ -617,7 +620,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
 
    pI830DRI->depthbufferSize = pI830->DepthBuffer.Size;
    if (drmAddMap(pI830->drmSubFD,
-		 (drmHandle)pI830->DepthBuffer.Start + pI830->LinearAddr,
+		 (drm_handle_t)pI830->DepthBuffer.Start + pI830->LinearAddr,
 		 pI830->DepthBuffer.Size, DRM_AGP, 0,
 		 &pI830DRI->depthbuffer) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
@@ -629,7 +632,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
 	      pI830DRI->depthbuffer);
 
    if (drmAddMap(pI830->drmSubFD,
-		 (drmHandle)pI830->BufferMem.Start + pI830->LinearAddr,
+		 (drm_handle_t)pI830->BufferMem.Start + pI830->LinearAddr,
 		 pI830->BufferMem.Size, DRM_AGP, 0,
 		 &pI830->buffer_map) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
@@ -644,7 +647,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
    pI830DRI->agp_buf_size = pI830->BufferMem.Size;
 
    if (drmAddMap(pI830->drmSubFD,
-		 (drmHandle)pI830->LpRing.mem.Start + pI830->LinearAddr,
+		 (drm_handle_t)pI830->LpRing.mem.Start + pI830->LinearAddr,
 		 pI830->LpRing.mem.Size, DRM_AGP, 0,
 		 &pI830->ring_map) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
@@ -659,7 +662,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
    pI830DRI->logTextureGranularity = pI830->TexGranularity;
 
    if (drmAddMap(pI830->drmSubFD,
-		 (drmHandle)pI830->TexMem.Start + pI830->LinearAddr,
+		 (drm_handle_t)pI830->TexMem.Start + pI830->LinearAddr,
 		 pI830->TexMem.Size, DRM_AGP, 0,
 		 &pI830DRI->textures) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
@@ -786,14 +789,14 @@ I830DRICloseScreen(ScreenPtr pScreen)
 
 static Bool
 I830CreateContext(ScreenPtr pScreen, VisualPtr visual,
-		  drmContext hwContext, void *pVisualConfigPriv,
+		  drm_context_t hwContext, void *pVisualConfigPriv,
 		  DRIContextType contextStore)
 {
    return TRUE;
 }
 
 static void
-I830DestroyContext(ScreenPtr pScreen, drmContext hwContext,
+I830DestroyContext(ScreenPtr pScreen, drm_context_t hwContext,
 		   DRIContextType contextStore)
 {
 }
@@ -1664,6 +1667,10 @@ I830DRITransitionTo2d(ScreenPtr pScreen)
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
    I830SAREARec *sPriv = (I830SAREARec *) DRIGetSAREAPrivate(pScreen);
+
+   /* Try flipping back to the front page if necessary */
+   if (sPriv->pf_current_page == 1)
+      drmCommandNone(pI830->drmSubFD, DRM_I830_FLIP);
 
    /* Shut down shadowing if we've made it back to the front page:
     */

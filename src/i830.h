@@ -246,8 +246,8 @@ typedef struct _I830Rec {
    int numVisualConfigs;
    __GLXvisualConfig *pVisualConfigs;
    I830ConfigPrivPtr pVisualConfigsPriv;
-   drmHandle buffer_map;
-   drmHandle ring_map;
+   drm_handle_t buffer_map;
+   drm_handle_t ring_map;
 #endif
 
    OptionInfoPtr Options;

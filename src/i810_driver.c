@@ -292,6 +292,7 @@ static const char *driSymbols[] = {
    "DRIScreenInit",
    "DRIUnlock",
    "GlxSetVisualConfigs",
+   "DRICreatePCIBusID",
    NULL
 };
 
@@ -2273,10 +2274,13 @@ I810EnterVT(int scrnIndex, int flags)
    if (I810_DEBUG & DEBUG_VERBOSE_DRI)
       ErrorF("\n\nENTER VT\n");
 
-   if (!I810BindGARTMemory(pScrn))
+   if (!I810BindGARTMemory(pScrn)) {
       return FALSE;
-
+   }
 #ifdef XF86DRI
+   if (!I810DRIEnter(pScrn)) {
+      return FALSE;
+   }
    if (pI810->directRenderingEnabled) {
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("calling dri unlock\n");
@@ -2319,6 +2323,10 @@ I810LeaveVT(int scrnIndex, int flags)
 
    if (!I810UnbindGARTMemory(pScrn))
       return;
+#ifdef XF86DRI
+   if (!I810DRILeave(pScrn))
+      return;
+#endif
 
    vgaHWLock(hwp);
 }

@@ -238,11 +238,11 @@ typedef struct _I810Rec {
    unsigned long xvmcHandle;
    unsigned long sysmemHandle;
    Bool agpAcquired;
-   drmHandle buffer_map;
-   drmHandle ring_map;
-   drmHandle overlay_map;
-   drmHandle mc_map;
-   drmHandle xvmcContext;
+   drm_handle_t buffer_map;
+   drm_handle_t ring_map;
+   drm_handle_t overlay_map;
+   drm_handle_t mc_map;
+   drm_handle_t xvmcContext;
 #endif
    Bool agpAcquired2d;
 
@@ -264,9 +264,13 @@ typedef struct _I810Rec {
 #define I810_SELECT_BACK	1
 #define I810_SELECT_DEPTH	2
 
+#ifdef XF86DRI
 extern Bool I810DRIScreenInit(ScreenPtr pScreen);
 extern void I810DRICloseScreen(ScreenPtr pScreen);
 extern Bool I810DRIFinishScreenInit(ScreenPtr pScreen);
+extern Bool I810DRILeave(ScrnInfoPtr pScrn);
+extern Bool I810DRIEnter(ScrnInfoPtr pScrn);
+#endif
 extern Bool I810InitDma(ScrnInfoPtr pScrn);
 extern Bool I810CleanupDma(ScrnInfoPtr pScrn);
 

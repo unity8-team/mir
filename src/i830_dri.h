@@ -3,6 +3,7 @@
 #ifndef _I830_DRI_H
 #define _I830_DRI_H
 
+#include "xf86dri.h"
 #include "xf86drm.h"
 #include "i830_common.h"
 
@@ -15,20 +16,20 @@
 #define I830_REG_SIZE 0x80000
 
 typedef struct _I830DRIRec {
-   drmHandle regs;
+   drm_handle_t regs;
    drmSize regsSize;
    drmAddress regsMap;
 
    drmSize backbufferSize;
-   drmHandle backbuffer;
+   drm_handle_t backbuffer;
 
    drmSize depthbufferSize;
-   drmHandle depthbuffer;
+   drm_handle_t depthbuffer;
 
-   drmHandle textures;
+   drm_handle_t textures;
    int textureSize;
 
-   drmHandle agp_buffers;
+   drm_handle_t agp_buffers;
    drmSize agp_buf_size;
 
    int deviceID;
@@ -82,7 +83,7 @@ typedef struct _I830SAREA {
    unsigned int dirty;
 
    unsigned int nbox;
-   XF86DRIClipRectRec boxes[I830_NR_SAREA_CLIPRECTS];
+   drm_clip_rect_t boxes[I830_NR_SAREA_CLIPRECTS];
 
    /* Maintain an LRU of contiguous regions of texture space.  If
     * you think you own a region of texture memory, and it has an
