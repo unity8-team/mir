@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_dga.c,v 1.1 2003/07/31 20:24:29 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/riva/riva_dga.c $ */
 
 #include "riva_local.h"
 #include "riva_include.h"

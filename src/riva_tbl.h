@@ -36,7 +36,7 @@
 |*     those rights set forth herein.                                        *|
 |*                                                                           *|
  \***************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_tbl.h,v 1.10 2003/07/31 20:24:31 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_tbl.h,v 1.9 2002/01/30 01:35:03 mvojkovi Exp $ */
 
 
 /*

@@ -36,7 +36,7 @@
 |*     those rights set forth herein.                                        *|
 |*                                                                           *|
 \***************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_hw.h,v 1.26 2003/07/31 20:24:31 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_hw.h,v 1.25 2003/05/04 01:20:52 mvojkovi Exp $ */
 #ifndef __RIVA_HW_H__
 #define __RIVA_HW_H__
 

@@ -36,7 +36,7 @@
 |*     those rights set forth herein.                                        *|
 |*                                                                           *|
  \***************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_local.h,v 1.2 2003/11/03 05:11:26 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_local.h,v 1.1tsi Exp $ */
 
 #ifndef __RIVA_LOCAL_H__
 #define __RIVA_LOCAL_H__

@@ -37,7 +37,7 @@
 |*                                                                           *|
  \***************************************************************************/
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_cursor.c,v 1.12 2003/07/31 20:24:29 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_cursor.c,v 1.11 2002/11/26 23:41:58 mvojkovi Exp $ */
 
 #include "nv_include.h"
 

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_const.h,v 1.1 2003/07/31 20:24:29 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_const.h $ */
 
 #ifndef __RIVA_CONST_H__
 #define __RIVA_CONST_H__

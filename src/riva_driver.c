@@ -23,7 +23,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_driver.c,v 1.6 2004/01/10 22:31:53 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_driver.c,v 1.5 2003/11/03 05:11:26 tsi Exp $ */
 
 #include "riva_include.h"
 
