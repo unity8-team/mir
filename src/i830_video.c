@@ -2036,12 +2036,13 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
       }
    }
 
-   /* Check we are on pipe B and have an LFP connected */
-   if ((pPriv->pipe == 1) && (pI830->operatingDevices & (PIPE_LFP << 8))) {
-      size = INREG(PIPEBSRC);
+   /* Check we have an LFP connected */
+   if ((pPriv->pipe == 1 && pI830->operatingDevices & (PIPE_LFP << 8)) ||
+       (pPriv->pipe == 0 && pI830->operatingDevices & PIPE_LFP) ) {
+      size = pI830->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
       hsize = (size >> 16) & 0x7FF;
       vsize = size & 0x7FF;
-      active = INREG(VTOTAL_B) & 0x7FF;
+      active = pI830->pipe ? (INREG(VTOTAL_B) & 0x7FF) : (INREG(VTOTAL_A) & 0x7FF);
 
       if (vsize < active && hsize > 1024)
          I830SetOneLineModeRatio(pScrn);

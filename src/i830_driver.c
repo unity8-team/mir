@@ -2633,9 +2633,10 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       return FALSE;
    }
 
-   /* Check we are on pipe B and have an LFP connected, before trying to
+   /* Check we have an LFP connected, before trying to
     * read PanelID information. */
-   if ((pI830->pipe == 1) && (pI830->operatingDevices & (PIPE_LFP << 8))) {
+   if ( (pI830->pipe == 1 && pI830->operatingDevices & (PIPE_LFP << 8)) ||
+        (pI830->pipe == 0 && pI830->operatingDevices & PIPE_LFP) ) {
    	vbeDoPanelID(pI830->pVbe);
    }
 
