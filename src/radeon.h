@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon.h,v 1.42 2003/10/07 22:47:12 martin Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon.h,v 1.43 2003/11/06 18:38:00 tsi Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -93,8 +93,8 @@ typedef enum {
 #define RADEON_MMIOSIZE   0x80000
 
 #define RADEON_VBIOS_SIZE 0x00010000
-#define RADEON_USE_RMX 0x80000000 /* mode flag for using RMX 
-				   * Need to comfirm this is not used 
+#define RADEON_USE_RMX 0x80000000 /* mode flag for using RMX
+				   * Need to comfirm this is not used
 				   * for something else.
 				   */
 
@@ -192,8 +192,8 @@ typedef struct {
     int               post_div;
 
 				/* PLL registers */
-    CARD32            ppll_ref_div;
-    CARD32            ppll_div_3;
+    unsigned          ppll_ref_div;
+    unsigned          ppll_div_3;
     CARD32            htotal_cntl;
 
 				/* Computed values for PLL2 */
@@ -305,14 +305,14 @@ typedef struct {
     RADEONDDCType     DDCType;
     RADEONConnectorType ConnectorType;
     Bool              HasCRTC2;         /* All cards except original Radeon  */
-    Bool              IsMobility;       /* Mobile chips for laptops */      
-    Bool              IsIGP;            /* IGP chips */      
+    Bool              IsMobility;       /* Mobile chips for laptops */
+    Bool              IsIGP;            /* IGP chips */
     Bool              IsSecondary;      /* Second Screen                     */
     Bool              IsSwitching;      /* Flag for switching mode           */
     Bool              OverlayOnCRTC2;
     Bool              PanelOff;         /* Force panel (LCD/DFP) off         */
     int               FPBIOSstart;      /* Start of the flat panel info      */
-    Bool              ddc_mode;         /* Validate mode by matching exactly  
+    Bool              ddc_mode;         /* Validate mode by matching exactly
 					 * the modes supported in DDC data
 					 */
     Bool              R300CGWorkaround;
@@ -722,7 +722,7 @@ do {									\
 		   "ADVANCE_RING() start: %d used: %d count: %d\n",	\
 		   info->indirectStart,					\
 		   info->indirectBuffer->used,				\
-		   __count * sizeof(CARD32));				\
+		   __count * (int)sizeof(CARD32));			\
     }									\
     info->indirectBuffer->used += __count * (int)sizeof(CARD32);	\
 } while (0)

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_video.c,v 1.28 2003/07/02 17:31:30 martin Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_video.c,v 1.30 2003/11/10 18:22:18 tsi Exp $ */
 
 #include "radeon.h"
 #include "radeon_macros.h"
@@ -56,7 +56,7 @@ typedef struct {
    int           red_intensity;
    int           green_intensity;
    int           blue_intensity;
-   int		 ecp_div;   
+   int		 ecp_div;
 
    Bool          doubleBuffer;
    unsigned char currentBuffer;
@@ -179,7 +179,7 @@ REF_TRANSFORM trans[2] =
 
 
 /* Gamma curve definition */
-typedef struct 
+typedef struct
 {
     unsigned int gammaReg;
     unsigned int gammaSlope;
@@ -187,7 +187,7 @@ typedef struct
 } GAMMA_SETTINGS;
 
 /* Recommended gamma curve parameters */
-GAMMA_SETTINGS def_gamma[18] = 
+GAMMA_SETTINGS def_gamma[18] =
 {
     {RADEON_OV0_GAMMA_000_00F, 0x100, 0x0000},
     {RADEON_OV0_GAMMA_010_01F, 0x100, 0x0020},
@@ -228,10 +228,10 @@ GAMMA_SETTINGS def_gamma[18] =
 static void RADEONSetTransform (ScrnInfoPtr pScrn,
 				float	    bright,
 				float	    cont,
-				float	    sat, 
+				float	    sat,
 				float	    hue,
-				float	    red_intensity, 
-				float	    green_intensity, 
+				float	    red_intensity,
+				float	    green_intensity,
 				float	    blue_intensity,
 				CARD32	    ref)
 {
@@ -255,7 +255,7 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
     CARD32	    dwOvGCb, dwOvGCr;
     CARD32	    dwOvBCb, dwOvBCr;
 
-    if (ref >= 2) 
+    if (ref >= 2)
 	return;
 
     OvHueSin = sin(hue);
@@ -293,23 +293,23 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
     OvBCr = CAdjBCr;
     OvROff = RedAdj + CAdjOff -
     OvLuma * Loff - (OvRCb + OvRCr) * Coff;
-    OvGOff = GreenAdj + CAdjOff - 
+    OvGOff = GreenAdj + CAdjOff -
     OvLuma * Loff - (OvGCb + OvGCr) * Coff;
-    OvBOff = BlueAdj + CAdjOff - 
+    OvBOff = BlueAdj + CAdjOff -
     OvLuma * Loff - (OvBCb + OvBCr) * Coff;
 #if 0 /* default constants */
     OvROff = -888.5;
     OvGOff = 545;
     OvBOff = -1104;
-#endif 
+#endif
 
     dwOvROff = ((INT32)(OvROff * 2.0)) & 0x1fff;
     dwOvGOff = ((INT32)(OvGOff * 2.0)) & 0x1fff;
     dwOvBOff = ((INT32)(OvBOff * 2.0)) & 0x1fff;
     /*
      * Whatever docs say about R200 having 3.8 format instead of 3.11
-     * as in Radeon is a lie 
-     * Or more precisely the location of bit fields is a lie 
+     * as in Radeon is a lie
+     * Or more precisely the location of bit fields is a lie
      */
     if(1 || info->ChipFamily < CHIP_FAMILY_R200)
     {
@@ -396,11 +396,11 @@ RADEONResetVideo(ScrnInfoPtr pScrn)
     OUTREG(RADEON_FCP_CNTL, RADEON_FCP0_SRC_GND);
     OUTREG(RADEON_CAP0_TRIG_CNTL, 0);
     RADEONSetColorKey(pScrn, pPriv->colorKey);
-    
+
     if ((info->ChipFamily == CHIP_FAMILY_R300) ||
 	(info->ChipFamily == CHIP_FAMILY_R350) ||
 	(info->ChipFamily == CHIP_FAMILY_RV350) ||
-	(info->ChipFamily == CHIP_FAMILY_R200) || 
+	(info->ChipFamily == CHIP_FAMILY_R200) ||
 	(info->ChipFamily == CHIP_FAMILY_RADEON)) {
 	int i;
 
@@ -473,9 +473,9 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 	pPriv->crt2 = FALSE;
 
     /*
-     * Unlike older Mach64 chips, RADEON has only two ECP settings: 
+     * Unlike older Mach64 chips, RADEON has only two ECP settings:
      * 0 for PIXCLK < 175Mhz, and 1 (divide by 2)
-     * for higher clocks, sure makes life nicer 
+     * for higher clocks, sure makes life nicer
      */
 
     /* Figure out which head we are on */
@@ -493,8 +493,8 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 #if 0
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Dotclock is %g Mhz, setting ecp_div to %d\n", info->ModeReg.dot_clock_freq/100.0, pPriv->ecp_div);
 #endif
- 
-    OUTPLL(RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) & 
+
+    OUTPLL(RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) &
 				  0xfffffCff) | (pPriv->ecp_div << 8));
 
     /* I suspect we may need a usleep after writing to the PLL.  if you play a video too soon
@@ -506,7 +506,7 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 	(info->ChipFamily == CHIP_FAMILY_RS200) ||
 	(info->ChipFamily == CHIP_FAMILY_RS300)) {
         /* Force the overlay clock on for integrated chips
-	 */ 
+	 */
         OUTPLL(RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) | (1<<18)));
     }
 
@@ -549,8 +549,8 @@ RADEONSetupImageVideo(ScreenPtr pScreen)
     adapt->QueryImageAttributes = RADEONQueryImageAttributes;
 
     pPriv = (RADEONPortPrivPtr)(adapt->pPortPrivates[0].ptr);
-    REGION_INIT(pScreen, &(pPriv->clip), NullBox, 0);
-    
+    REGION_NULL(pScreen, &(pPriv->clip));
+
     xvBrightness   = MAKE_ATOM("XV_BRIGHTNESS");
     xvSaturation   = MAKE_ATOM("XV_SATURATION");
     xvColor        = MAKE_ATOM("XV_COLOR");
@@ -617,11 +617,11 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 #define RTFHue(a)   (((a)*3.1416)/1000.0)
 #define ClipValue(v,min,max) ((v) < (min) ? (min) : (v) > (max) ? (max) : (v))
 
-    if(attribute == xvAutopaintColorkey) 
+    if(attribute == xvAutopaintColorkey)
     {
 	pPriv->autopaint_colorkey = ClipValue (value, 0, 1);
     }
-    else if(attribute == xvSetDefaults) 
+    else if(attribute == xvSetDefaults)
     {
 	pPriv->autopaint_colorkey = TRUE;
 	pPriv->brightness = 0;
@@ -633,48 +633,48 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 	pPriv->blue_intensity = 0;
 	pPriv->doubleBuffer = FALSE;
 	setTransform = TRUE;
-    } 
-    else if(attribute == xvBrightness) 
+    }
+    else if(attribute == xvBrightness)
     {
 	pPriv->brightness = ClipValue (value, -1000, 1000);
 	setTransform = TRUE;
-    } 
-    else if((attribute == xvSaturation) || (attribute == xvColor)) 
+    }
+    else if((attribute == xvSaturation) || (attribute == xvColor))
     {
 	pPriv->saturation = ClipValue (value, -1000, 1000);
 	setTransform = TRUE;
-    } 
-    else if(attribute == xvContrast) 
+    }
+    else if(attribute == xvContrast)
     {
 	pPriv->contrast = ClipValue (value, -1000, 1000);
 	setTransform = TRUE;
-    } 
-    else if(attribute == xvHue) 
+    }
+    else if(attribute == xvHue)
     {
 	pPriv->hue = ClipValue (value, -1000, 1000);
 	setTransform = TRUE;
-    } 
-    else if(attribute == xvRedIntensity) 
+    }
+    else if(attribute == xvRedIntensity)
     {
 	pPriv->red_intensity = ClipValue (value, -1000, 1000);
 	setTransform = TRUE;
-    } 
-    else if(attribute == xvGreenIntensity) 
+    }
+    else if(attribute == xvGreenIntensity)
     {
 	pPriv->green_intensity = ClipValue (value, -1000, 1000);
 	setTransform = TRUE;
-    } 
-    else if(attribute == xvBlueIntensity) 
+    }
+    else if(attribute == xvBlueIntensity)
     {
 	pPriv->blue_intensity = ClipValue (value, -1000, 1000);
 	setTransform = TRUE;
-    } 
-    else if(attribute == xvDoubleBuffer) 
+    }
+    else if(attribute == xvDoubleBuffer)
     {
 	pPriv->doubleBuffer = ClipValue (value, 0, 1);
 	pPriv->doubleBuffer = value;
-    } 
-    else if(attribute == xvColorKey) 
+    }
+    else if(attribute == xvColorKey)
     {
 	pPriv->colorKey = value;
 	RADEONSetColorKey (pScrn, pPriv->colorKey);
@@ -694,17 +694,17 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 
     if (setTransform)
     {
-	RADEONSetTransform(pScrn, 
-			   RTFBrightness(pPriv->brightness), 
-			   RTFContrast(pPriv->contrast), 
-			   RTFSaturation(pPriv->saturation), 
+	RADEONSetTransform(pScrn,
+			   RTFBrightness(pPriv->brightness),
+			   RTFContrast(pPriv->contrast),
+			   RTFSaturation(pPriv->saturation),
 			   RTFHue(pPriv->hue),
 			   RTFIntensity(pPriv->red_intensity),
 			   RTFIntensity(pPriv->green_intensity),
 			   RTFIntensity(pPriv->blue_intensity),
 			   pPriv->transform_index);
     }
-	
+
     return Success;
 }
 
@@ -896,10 +896,9 @@ RADEONDisplayVideo(
     DisplayModePtr overlay_mode;
 
     /* Unlike older Mach64 chips, RADEON has only two ECP settings: 0 for PIXCLK < 175Mhz, and 1 (divide by 2)
-       for higher clocks, sure makes life nicer 
-       
-       Here we need to find ecp_div again, as the user may have switched resolutions */
+       for higher clocks, sure makes life nicer
 
+       Here we need to find ecp_div again, as the user may have switched resolutions */
 
     /* Figure out which head we are on for dot clock */
     if ((info->MergedFB && info->OverlayOnCRTC2) || info->IsSecondary)
@@ -1016,7 +1015,7 @@ RADEONDisplayVideo(
 
     /* Put the hardware overlay on CRTC2:
      *
-     * Since one hardware overlay can not be displayed on two heads 
+     * Since one hardware overlay can not be displayed on two heads
      * at the same time, we might need to consider using software
      * rendering for the second head.
      */
@@ -1098,7 +1097,7 @@ RADEONPutImage(
    RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
    INT32 xa, xb, ya, yb;
    unsigned char *dst_start;
-   int pitch, new_size, offset, s2offset, s3offset;
+   int new_size, offset, s2offset, s3offset;
    int srcPitch, srcPitch2, dstPitch;
    int top, left, npixels, nlines, bpp;
    BoxRec dstBox;
@@ -1107,7 +1106,7 @@ RADEONPutImage(
    unsigned char *RADEONMMIO = info->MMIO;
    CARD32 surface_cntl = INREG(RADEON_SURFACE_CNTL);
 
-   OUTREG(RADEON_SURFACE_CNTL, (surface_cntl | 
+   OUTREG(RADEON_SURFACE_CNTL, (surface_cntl |
 		RADEON_NONSURF_AP0_SWP_32BPP) & ~RADEON_NONSURF_AP0_SWP_16BPP);
 #endif
 
@@ -1161,7 +1160,6 @@ RADEONPutImage(
    }
 
    bpp = pScrn->bitsPerPixel >> 3;
-   pitch = bpp * pScrn->displayWidth;
 
    switch(id) {
    case FOURCC_YV12:
@@ -1244,7 +1242,7 @@ RADEONPutImage(
 #endif
 
     /* update cliplist */
-    if(!REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes)) 
+    if(!REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes))
     {
 	REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
 	/* draw these */
@@ -1339,16 +1337,16 @@ typedef struct {
   Bool isOn;
 } OffscreenPrivRec, * OffscreenPrivPtr;
 
-static int 
+static int
 RADEONAllocateSurface(
     ScrnInfoPtr pScrn,
     int id,
-    unsigned short w, 	
+    unsigned short w,
     unsigned short h,
     XF86SurfacePtr surface
 ){
     FBLinearPtr linear;
-    int pitch, fbpitch, size, bpp;
+    int pitch, size, bpp;
     OffscreenPrivPtr pPriv;
     if((w > 1024) || (h > 1024))
 	return BadAlloc;
@@ -1356,7 +1354,6 @@ RADEONAllocateSurface(
     w = (w + 1) & ~1;
     pitch = ((w << 1) + 15) & ~15;
     bpp = pScrn->bitsPerPixel >> 3;
-    fbpitch = bpp * pScrn->displayWidth;
     size = ((pitch * h) + bpp - 1) / bpp;
 
     if(!(linear = RADEONAllocateMemory(pScrn, NULL, size)))
@@ -1385,7 +1382,7 @@ RADEONAllocateSurface(
     pPriv->isOn = FALSE;
 
     surface->pScrn = pScrn;
-    surface->id = id;   
+    surface->id = id;
     surface->pitches[0] = pitch;
     surface->offsets[0] = linear->offset * bpp;
     surface->devPrivate.ptr = (pointer)pPriv;
@@ -1393,7 +1390,7 @@ RADEONAllocateSurface(
     return Success;
 }
 
-static int 
+static int
 RADEONStopSurface(
     XF86SurfacePtr surface
 ){
@@ -1409,7 +1406,7 @@ RADEONStopSurface(
 }
 
 
-static int 
+static int
 RADEONFreeSurface(
     XF86SurfacePtr surface
 ){
@@ -1431,8 +1428,8 @@ RADEONGetSurfaceAttribute(
     Atom attribute,
     INT32 *value
 ){
-   return RADEONGetPortAttribute(pScrn, attribute, value, 
-   		(pointer)(GET_PORT_PRIVATE(pScrn)));
+   return RADEONGetPortAttribute(pScrn, attribute, value,
+		(pointer)(GET_PORT_PRIVATE(pScrn)));
 }
 
 static int
@@ -1441,17 +1438,17 @@ RADEONSetSurfaceAttribute(
     Atom attribute,
     INT32 value
 ){
-   return RADEONSetPortAttribute(pScrn, attribute, value, 
-   		(pointer)(GET_PORT_PRIVATE(pScrn)));
+   return RADEONSetPortAttribute(pScrn, attribute, value,
+		(pointer)(GET_PORT_PRIVATE(pScrn)));
 }
 
 
-static int 
+static int
 RADEONDisplaySurface(
     XF86SurfacePtr surface,
-    short src_x, short src_y, 
+    short src_x, short src_y,
     short drw_x, short drw_y,
-    short src_w, short src_h, 
+    short src_w, short src_h,
     short drw_w, short drw_h,
     RegionPtr clipBoxes
 ){
@@ -1463,7 +1460,7 @@ RADEONDisplaySurface(
 
     INT32 xa, ya, xb, yb;
     BoxRec dstBox;
-	
+
     if (src_w > (drw_w << 4))
 	drw_w = src_w >> 4;
     if (src_h > (drw_h << 4))
@@ -1511,7 +1508,7 @@ RADEONDisplaySurface(
     pPriv->isOn = TRUE;
     /* we've prempted the XvImage stream so set its free timer */
     if (portPriv->videoStatus & CLIENT_VIDEO_ON) {
-	REGION_EMPTY(pScrn->pScreen, &portPriv->clip);   
+	REGION_EMPTY(pScrn->pScreen, &portPriv->clip);
 	UpdateCurrentTime();
 	portPriv->videoStatus = FREE_TIMER;
 	portPriv->freeTime = currentTime.milliseconds + FREE_DELAY;
@@ -1522,7 +1519,7 @@ RADEONDisplaySurface(
 }
 
 
-static void 
+static void
 RADEONInitOffscreenImages(ScreenPtr pScreen)
 {
 /*  ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
@@ -1534,7 +1531,7 @@ RADEONInitOffscreenImages(ScreenPtr pScreen)
 	return;
 
     offscreenImages[0].image = &Images[0];
-    offscreenImages[0].flags = VIDEO_OVERLAID_IMAGES | 
+    offscreenImages[0].flags = VIDEO_OVERLAID_IMAGES |
 			       VIDEO_CLIP_TO_VIEWPORT;
     offscreenImages[0].alloc_surface = RADEONAllocateSurface;
     offscreenImages[0].free_surface = RADEONFreeSurface;

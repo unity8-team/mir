@@ -1,22 +1,22 @@
-.\" $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon.man,v 1.0 2003/01/31 23:04:50
+.\" $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon.man,v 1.0 2003/01/31 23:04:50 $
 .ds q \N'34'
 .TH RADEON __drivermansuffix__ __vendorversion__
 .SH NAME
 radeon \- ATI RADEON video driver
 .SH SYNOPSIS
-.nf 
+.nf
 .B "Section \*qDevice\*q"
 .BI "  Identifier \*q"  devname \*q
 .B  "  Driver \*qradeon\*q"
 \ \ ...
 .B EndSection
-.fi 
+.fi
 .SH DESCRIPTION
 .B radeon
-is a XFree86 driver for ATI RADEON based video cards.  It contains
-full support for 8, 15, 16 and 24 bit pixel depths, dual-head setup, 
-flat panel, hardware 2D acceleration, hardware 3D acceleration 
-(except R300 series cards), hardware cursor, XV extension, Xinerama extension.
+is a __xservername__ driver for ATI RADEON based video cards.  It contains
+full support for 8, 15, 16 and 24 bit pixel depths, dual-head setup,
+flat panel, hardware 2D acceleration, hardware 3D acceleration
+(except R300 and IGP series cards), hardware cursor, XV extension, Xinerama extension.
 .SH SUPPORTED HARDWARE
 The
 .B radeon
@@ -68,53 +68,53 @@ Radeon 9600PRO/9600SE/9600, M10/M11, FireGL T2 (2D only)
 Radeon 9600XT (2d only)
 
 .SH CONFIGURATION DETAILS
-Please refer to XF86Config(__filemansuffix__) for general configuration
+Please refer to __xconfigfile__(__filemansuffix__) for general configuration
 details.  This section only covers configuration details specific to this
 driver.
-.PP 
+.PP
 The driver auto\-detects all device information necessary to initialize
 the card.  However, if you have problems with auto\-detection, you can
 specify:
-.PP 
+.PP
 .RS 4
 VideoRam \- in kilobytes
-.br 
+.br
 MemBase  \- physical address of the linear framebuffer
-.br 
+.br
 IOBase   \- physical address of the MMIO registers
-.br 
+.br
 ChipID   \- PCI DEVICE ID
 .RE
-.PP 
+.PP
 In addition, the following driver
 .B Options
 are supported:
-.TP 
+.TP
 .BI "Option \*qSWcursor\*q \*q" boolean \*q
 Selects software cursor.  The default is
 .B off.
-.TP 
+.TP
 .BI "Option \*qNoAccel\*q \*q" boolean \*q
-Enables or disables all hardware acceleration.  
+Enables or disables all hardware acceleration.
 .br
 The default is to
 .B enable
 hardware acceleration.
-.TP 
+.TP
 .BI "Option \*qDac6Bit\*q \*q" boolean \*q
 Enables or disables the use of 6 bits per color component when in 8 bpp
 mode (emulates VGA mode).  By default, all 8 bits per color component
-are used.  
+are used.
 .br
 The default is
 .B off.
-.TP 
+.TP
 .BI "Option \*qVideoKey\*q \*q" integer \*q
 This overrides the default pixel value for the YUV video overlay key.
 .br
 The default value is
 .B 0x1E.
-.TP 
+.TP
 .BI "Option \*qUseFBDev\*q \*q" boolean \*q
 Enable or disable use of an OS\-specific framebuffer device interface
 (which is not supported on all OSs).  MergedFB does not work when this
@@ -122,7 +122,7 @@ option is in use.  See fbdevhw(__drivermansuffix__) for further information.
 .br
 The default is
 .B off.
-.TP 
+.TP
 .BI "Option \*qAGPMode\*q \*q" integer \*q
 Set AGP data transfer rate.
 (used only when DRI is enabled)
@@ -134,7 +134,7 @@ Set AGP data transfer rate.
 4      \-\- x4
 .br
 others \-\- invalid
-.TP 
+.TP
 .BI "Option \*qAGPFastWrite\*q \*q" boolean \*q
 Enable AGP fast write.
 .br
@@ -142,7 +142,7 @@ Enable AGP fast write.
 .br
 The default is
 .B off.
-.TP 
+.TP
 .BI "Option \*qBusType\*q \*q" string \*q
 Used to replace previous ForcePCIMode option.
 Should only be used when driver's bus detection is incorrect
@@ -165,34 +165,34 @@ Force to use the modes queried from the connected monitor.
 .br
 The default is
 .B off.
-.TP 
+.TP
 .BI "Option \*qDisplayPriority\*q \*q" string \*q
-.br 
+.br
 Used to prevent flickering or tearing problem caused by display buffer underflow.
-.br 
+.br
 AUTO   \-\- Driver calculated (default).
-.br 
+.br
 BIOS   \-\- Remain unchanged from BIOS setting.
-          Use this if the calculation is not correct 
+          Use this if the calculation is not correct
           for your card.
-.br 
-HIGH   \-\- Force to the highest priority. 
+.br
+HIGH   \-\- Force to the highest priority.
           Use this if you have problem with above options.
-          This may affect performance slightly.
-.br 
+          This may affect performence slightly.
+.br
 The default value is
 .B AUTO.
-.TP 
+.TP
 .BI "Option \*qMonitorLayout\*q \*q" string \*q
-.br 
+.br
 This option is used to overwrite the detected monitor types.
 This is only required when driver makes a false detection.
 The possible monitor types are:
-.br 
+.br
 NONE   \-\- Not connected
-.br 
+.br
 CRT    \-\- Analog CRT monitor
-.br 
+.br
 TMDS   \-\- Desktop flat panel
 .br 
 LVDS   \-\- Laptop flat panel
@@ -204,23 +204,23 @@ Option "MonitorLayout" "[type on primary], [type on secondary]"
 For example, Option "MonitorLayout" "CRT, TMDS"
 
 Primary/Secondary head for dual\-head cards:
-.br 
+.br
 (when only one port is used, it will be treated as the primary regardless)
-.br 
+.br
 .B Primary head:
-.br 
+.br
 DVI port on DVI+VGA cards
-.br 
+.br
 LCD output on laptops
 .br 
 Internal TMDS port on DVI+DVI cards
 .br 
 .B Secondary head:
-.br 
+.br
 VGA port on DVI+VGA cards
-.br 
+.br
 VGA port on laptops
-.br 
+.br
 External TMDS port on DVI+DVI cards
 
 The default value is
@@ -348,7 +348,13 @@ For example, Option "MetaModes" "1024x768-1024x768 800x600-1024x768 640x480-800x
 .br
 The default value is
 .B undefined.
-.TP 
+.TP
+.BI "Option \*qOverlayOnCRTC2\*q \*q" boolean \*q
+Force hardware overlay to clone head.
+.br
+The default value is
+.B off.
+.TP
 .BI "Option \*qNoMergedXinerama\*q \*q" boolean \*q
 Since merged framebuffer mode does not use Xinerama, apps are not able to intelligently
 place windows.  Merged framebuffer mode provides its own pseudo-Xinerama.  This allows
@@ -385,7 +391,7 @@ The default value is
 .TP 
 .BI "Option \*qIgnoreEDID\*q \*q" boolean \*q
 Do not use EDID data for mode validation, but DDC is still used
-for monitor detection. This is different from NoDDC option.  
+for monitor detection. This is different from NoDDC option.
 .br
 The default value is
 .B off.
@@ -408,7 +414,7 @@ Disable panel output.
 .br
 The default value is
 .B off.
-.TP 
+.TP
 .BI "Option \*qEnablePageFlip\*q \*q" boolean \*q
 Enable page flipping for 3D acceleration. This will increase performance
 but not work correctly in some rare cases, hence the default is
@@ -418,9 +424,20 @@ but not work correctly in some rare cases, hence the default is
 Page flipping does not work well in certain configurations with MergedFB.  If you
 see rendering errors or other strange behavior, disable page flipping.
 
+.TP
+.BI "Option \*qForceMinDotClock\*q \*q" frequency \*q
+Override minimum dot clock. Some Radeon BIOSes report a minimum dot
+clock unsuitable (too high) for use with television sets even when they
+actually can produce lower dot clocks. If this is the case you can
+override the value here.
+.B Note that using this option may damage your hardware.
+You have been warned. The
+.B frequency
+parameter may be specified as a float value with standard suffixes like
+"k", "kHz", "M", "MHz".
 
 .SH SEE ALSO
-XFree86(1), XF86Config(__filemansuffix__), xf86config(1), Xserver(1), X(__miscmansuffix__)
+__xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .SH AUTHORS
-.nf 
+.nf
 Authors include: ...

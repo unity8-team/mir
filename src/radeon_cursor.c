@@ -105,16 +105,16 @@ static void RADEONSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
     if (info->cursor_argb)
        return;
 #endif
-    
+
     fg |= 0xff000000;
     bg |= 0xff000000;
-    
+
     /* Don't recolour the image if we don't have to. */
     if (fg == info->cursor_fg && bg == info->cursor_bg)
        return;
 
     CURSOR_SWAPPING_START();
-    
+
     /* Note: We assume that the pixels are either fully opaque or fully
      * transparent, so we won't premultiply them, and we can just
      * check for non-zero pixel values; those are either fg or bg
@@ -222,7 +222,7 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
 	    *d++ = mono_cursor_color[chunk & 3];
     }
     CURSOR_SWAPPING_END();
-    
+
     info->cursor_bg = mono_cursor_color[2];
     info->cursor_fg = mono_cursor_color[3];
 
@@ -299,7 +299,7 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 
     if (!image)
 	return;	/* XXX can't happen */
-    
+
     if (!info->IsSecondary) {
 	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
 	save1 |= (CARD32) (2 << 20);
@@ -315,7 +315,7 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 #ifdef ARGB_CURSOR
     info->cursor_argb = TRUE;
 #endif
-    
+
     CURSOR_SWAPPING_START();
 
     w = pCurs->bits->width;
@@ -350,7 +350,7 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 }
 
 #endif
-    
+
 
 /* Initialize hardware cursor support. */
 Bool RADEONCursorInit(ScreenPtr pScreen)
@@ -371,7 +371,7 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
     cursor->Flags             = (HARDWARE_CURSOR_TRUECOLOR_AT_8BPP
 				 | HARDWARE_CURSOR_AND_SOURCE_WITH_MASK
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-				 /* this is a lie -- 
+				 /* this is a lie --
 				  * HARDWARE_CURSOR_BIT_ORDER_MSBFIRST
 				  * actually inverts the bit order, so
 				  * this switches to LSBFIRST
@@ -409,7 +409,7 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 		   "Hardware cursor disabled"
 		   " due to insufficient offscreen memory\n");
     } else {
-	info->cursor_start    = RADEON_ALIGN((fbarea->box.x1 + 
+	info->cursor_start    = RADEON_ALIGN((fbarea->box.x1 +
 					      fbarea->box.y1 * width) *
 					     info->CurrentLayout.pixel_bytes,
 					     256);

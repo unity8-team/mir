@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_accel.c,v 1.34 2003/07/02 17:31:29 martin Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_accel.c,v 1.36 2003/11/10 18:41:22 tsi Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -296,8 +296,10 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
     OUTREGP(RADEON_DP_DATATYPE, 0, ~RADEON_HOST_BIG_ENDIAN_EN);
 #endif
 
-    /* Restore SURFACE_CNTL */
-    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+    /* Restore SURFACE_CNTL - only the first head contains valid data -ReneR */
+    if (!info->IsSecondary) {
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+    }
 
     RADEONWaitForFifo(pScrn, 1);
     OUTREG(RADEON_DEFAULT_SC_BOTTOM_RIGHT, (RADEON_DEFAULT_SC_RIGHT_MAX
@@ -411,7 +413,7 @@ int RADEONCPStop(ScrnInfoPtr pScrn, RADEONInfoPtr info)
     stop.flush = 1;
     stop.idle  = 1;
 
-    ret = drmCommandWrite(info->drmFD, DRM_RADEON_CP_STOP, &stop, 
+    ret = drmCommandWrite(info->drmFD, DRM_RADEON_CP_STOP, &stop,
 			  sizeof(drmRadeonCPStop));
 
     if (ret == 0) {
@@ -421,10 +423,10 @@ int RADEONCPStop(ScrnInfoPtr pScrn, RADEONInfoPtr info)
     }
 
     stop.flush = 0;
- 
+
     i = 0;
     do {
-	ret = drmCommandWrite(info->drmFD, DRM_RADEON_CP_STOP, &stop, 
+	ret = drmCommandWrite(info->drmFD, DRM_RADEON_CP_STOP, &stop,
 			      sizeof(drmRadeonCPStop));
     } while (ret && errno == EBUSY && i++ < RADEON_IDLE_RETRY);
 
@@ -491,7 +493,7 @@ drmBufPtr RADEONCPGetBuffer(ScrnInfoPtr pScrn)
 	    buf->used = 0;
 	    if (RADEON_VERBOSE) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "   GetBuffer returning %d %08x\n",
+			   "   GetBuffer returning %d %p\n",
 			   buf->idx, buf->address);
 	    }
 	    return buf;

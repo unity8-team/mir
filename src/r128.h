@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128.h,v 1.24 2002/12/16 16:19:10 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128.h,v 1.26 2003/11/06 18:37:58 tsi Exp $ */
 /*
  * Copyright 1999, 2000 ATI Technologies Inc., Markham, Ontario,
  *                      Precision Insight, Inc., Cedar Park, Texas, and
@@ -172,8 +172,8 @@ typedef struct {
 typedef struct {
     CARD16        reference_freq;
     CARD16        reference_div;
-    CARD32        min_pll_freq;
-    CARD32        max_pll_freq;
+    unsigned      min_pll_freq;
+    unsigned      max_pll_freq;
     CARD16        xclk;
 } R128PLLRec, *R128PLLPtr;
 
@@ -491,7 +491,7 @@ do {									\
 		  !info->CCEInUse , __FUNCTION__ );			\
    }									\
    if ( !info->CCEInUse ) {						\
-      R128CCEWaitForIdle(pScrn);       					\
+      R128CCEWaitForIdle(pScrn);					\
       BEGIN_RING( 6 );							\
       OUT_RING_REG( R128_RE_TOP_LEFT,     info->re_top_left );		\
       OUT_RING_REG( R128_RE_WIDTH_HEIGHT, info->re_width_height );	\
@@ -523,9 +523,9 @@ do {									\
       xf86DrvMsg( pScrn->scrnIndex, X_INFO,				\
 		  "ADVANCE_RING() used: %d+%d=%d/%d\n",			\
 		  info->indirectBuffer->used - info->indirectStart,	\
-		  __count * sizeof(CARD32),				\
+		  __count * (int)sizeof(CARD32),			\
 		  info->indirectBuffer->used - info->indirectStart +	\
-		  __count * sizeof(CARD32),				\
+		  __count * (int)sizeof(CARD32),			\
 		  info->indirectBuffer->total - info->indirectStart );	\
    }									\
    info->indirectBuffer->used += __count * (int)sizeof(CARD32);		\

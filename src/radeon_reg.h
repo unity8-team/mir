@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_reg.h,v 1.30 2003/10/07 22:47:12 martin Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_reg.h,v 1.31 2003/11/10 18:41:23 tsi Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -65,6 +65,12 @@
 #       define RADEON_AGP_APER_SIZE_8MB     (0x3e << 0)
 #       define RADEON_AGP_APER_SIZE_4MB     (0x3f << 0)
 #       define RADEON_AGP_APER_SIZE_MASK    (0x3f << 0)
+#define RADEON_STATUS_PCI_CONFIG            0x06
+#       define RADEON_CAP_LIST              0x100000
+#define RADEON_CAPABILITIES_PTR_PCI_CONFIG  0x34 /* offset in PCI config*/
+#       define RADEON_CAP_PTR_MASK          0xfc /* mask off reserved bits of CAP_PTR */
+#       define RADEON_CAP_ID_NULL           0x00 /* End of capability list */
+#       define RADEON_CAP_ID_AGP            0x02 /* AGP capability ID */
 #define RADEON_AGP_COMMAND                  0x0f60 /* PCI */
 #define RADEON_AGP_COMMAND_PCI_CONFIG       0x0060 /* offset in PCI config*/
 #       define RADEON_AGP_ENABLE            (1<<8)
@@ -401,11 +407,16 @@
 #       define RADEON_DAC_FORCE_DATA_SEL_MASK (3 << 6)
 #       define RADEON_DAC_FORCE_DATA_MASK   0x0003ff00
 #       define RADEON_DAC_FORCE_DATA_SHIFT  8
+#define RADEON_DAC_MACRO_CNTL               0x0d04
+#       define RADEON_DAC_PDWN_R            (1 << 16)
+#       define RADEON_DAC_PDWN_G            (1 << 17)
+#       define RADEON_DAC_PDWN_B            (1 << 18)
 #define RADEON_TV_DAC_CNTL                  0x088c
 #       define RADEON_TV_DAC_STD_MASK       0x0300
 #       define RADEON_TV_DAC_RDACPD         (1 <<  24)
 #       define RADEON_TV_DAC_GDACPD         (1 <<  25)
 #       define RADEON_TV_DAC_BDACPD         (1 <<  26)
+#       define RADEON_TV_DAC_BGSLEEP        (1 <<  26)
 #define RADEON_DISP_HW_DEBUG                0x0d14
 #       define RADEON_CRT2_DISP1_SEL        (1 <<  5)
 #define RADEON_DISP_OUTPUT_CNTL             0x0d64
@@ -430,7 +441,7 @@
 #define RADEON_DEVICE_ID                    0x0f02 /* PCI */
 #define RADEON_DISP_MISC_CNTL               0x0d00
 #       define RADEON_SOFT_RESET_GRPH_PP    (1 << 0)
-#define RADEON_DISP_MERGE_CNTL	          0x0d60
+#define RADEON_DISP_MERGE_CNTL		  0x0d60
 #       define RADEON_DISP_ALPHA_MODE_MASK  0x03
 #       define RADEON_DISP_ALPHA_MODE_KEY   0
 #       define RADEON_DISP_ALPHA_MODE_PER_PIXEL 1
@@ -439,7 +450,7 @@
 #       define RADEON_DISP_GRPH_ALPHA_MASK  (0xff << 16)
 #       define RADEON_DISP_OV0_ALPHA_MASK   (0xff << 24)
 #	define RADEON_DISP_LIN_TRANS_BYPASS (0x01 << 9)
-#define RADEON_DISP2_MERGE_CNTL	            0x0d68
+#define RADEON_DISP2_MERGE_CNTL		    0x0d68
 #       define RADEON_DISP2_RGB_OFFSET_EN   (1<<8)
 #define RADEON_DISP_LIN_TRANS_GRPH_A        0x0d80
 #define RADEON_DISP_LIN_TRANS_GRPH_B        0x0d84
@@ -1064,6 +1075,8 @@
 #       define RADEON_SURF_TRANSLATION_DIS  (1 << 8)
 #       define RADEON_NONSURF_AP0_SWP_16BPP (1 << 20)
 #       define RADEON_NONSURF_AP0_SWP_32BPP (1 << 21)
+#       define RADEON_NONSURF_AP1_SWP_16BPP (1 << 22)
+#       define RADEON_NONSURF_AP1_SWP_32BPP (1 << 23)
 #define RADEON_SURFACE0_INFO                0x0b0c
 #define RADEON_SURFACE0_LOWER_BOUND         0x0b04
 #define RADEON_SURFACE0_UPPER_BOUND         0x0b08
