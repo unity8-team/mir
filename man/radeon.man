@@ -52,6 +52,9 @@ Radeon 9100 IGP
 .B RS350
 Radeon 9200 IGP
 .TP 12
+.B RS400
+Radeon XPRESS 200/200M IGP
+.TP 12
 .B RV280
 Radeon 9200PRO/9200/9200SE, M9+
 .TP 12
@@ -76,11 +79,17 @@ Radeon X300, M22 (2d only)
 .B RV380
 Radeon X600, M24 (2d only)
 .TP 12
-.B R420
-Radeon X800 (2d only)
+.B RV410
+Radeon X700, M26 PCIE (2d only)
 .TP 12
-.B R423
-Radeon X800 PCIE (2d only)
+.B R420
+Radeon X800 AGP (2d only)
+.TP 12
+.B R423/R430
+Radeon X800, M28 PCIE (2d only)
+.TP 12
+.B R480/R481
+Radeon X850 PCIE/AGP (2d only)
 
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration

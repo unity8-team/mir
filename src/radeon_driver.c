@@ -2435,6 +2435,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     case PCI_CHIP_RV280_5961:
     case PCI_CHIP_RV280_5962:
     case PCI_CHIP_RV280_5964:
+    case PCI_CHIP_RV280_5965:
 	info->ChipFamily = CHIP_FAMILY_RV280;
 	break;
 
@@ -2462,6 +2463,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     case PCI_CHIP_RV350_AS:
     case PCI_CHIP_RV350_AT:
     case PCI_CHIP_RV350_AV:
+    case PCI_CHIP_RV350_4155:
 	info->ChipFamily = CHIP_FAMILY_RV350;
         break;
 
@@ -2493,6 +2495,34 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
         info->ChipFamily = CHIP_FAMILY_RV380;
         break;
 
+    case PCI_CHIP_RS400_5A42:
+    case PCI_CHIP_RC410_5A62:
+    case PCI_CHIP_RS480_5955:
+    case PCI_CHIP_RS482_5975:
+        info->IsMobility = TRUE;
+    case PCI_CHIP_RS400_5A41:
+    case PCI_CHIP_RC410_5A61:
+    case PCI_CHIP_RS480_5954:
+    case PCI_CHIP_RS482_5974:
+	info->ChipFamily = CHIP_FAMILY_RS300; /*CHIP_FAMILY_RS400*/
+	info->IsIGP = TRUE;
+	info->HasSingleDAC = TRUE; /*?*/
+        break;
+
+    case PCI_CHIP_RV410_564A:
+    case PCI_CHIP_RV410_564B:
+    case PCI_CHIP_RV410_5652:
+    case PCI_CHIP_RV410_5653:
+        info->IsMobility = TRUE;
+    case PCI_CHIP_RV410_5E48:
+    case PCI_CHIP_RV410_5E4B:
+    case PCI_CHIP_RV410_5E4A:
+    case PCI_CHIP_RV410_5E4D:
+    case PCI_CHIP_RV410_5E4C:
+    case PCI_CHIP_RV410_5E4F:
+        info->ChipFamily = CHIP_FAMILY_R420; /* CHIP_FAMILY_RV410*/
+        break;
+
     case PCI_CHIP_R420_JN:
         info->IsMobility = TRUE;
     case PCI_CHIP_R420_JH:
@@ -2502,6 +2532,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     case PCI_CHIP_R420_JL:
     case PCI_CHIP_R420_JM:
     case PCI_CHIP_R420_JP:
+    case PCI_CHIP_R420_4A4F:
         info->ChipFamily = CHIP_FAMILY_R420;
         break;
 
@@ -2513,7 +2544,32 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     case PCI_CHIP_R423_UR:
     case PCI_CHIP_R423_UT:
     case PCI_CHIP_R423_5D57:
+    case PCI_CHIP_R423_5550:
         info->ChipFamily = CHIP_FAMILY_R420;
+        break;
+
+    case PCI_CHIP_R430_5D49:
+    case PCI_CHIP_R430_5D4A:
+    case PCI_CHIP_R430_5D48:
+        info->IsMobility = TRUE;
+    case PCI_CHIP_R430_554F:
+    case PCI_CHIP_R430_554D:
+    case PCI_CHIP_R430_554E:
+    case PCI_CHIP_R430_554C:
+        info->ChipFamily = CHIP_FAMILY_R420; /*CHIP_FAMILY_R430*/
+        break;
+
+    case PCI_CHIP_R480_5D4C:
+    case PCI_CHIP_R480_5D50:
+    case PCI_CHIP_R480_5D4E:
+    case PCI_CHIP_R480_5D4F:
+    case PCI_CHIP_R480_5D52:
+    case PCI_CHIP_R480_5D4D:
+    case PCI_CHIP_R481_4B4B:
+    case PCI_CHIP_R481_4B4A:
+    case PCI_CHIP_R481_4B49:
+    case PCI_CHIP_R481_4B4C:
+        info->ChipFamily = CHIP_FAMILY_R420; /*CHIP_FAMILY_R480*/
         break;
 
     default:
