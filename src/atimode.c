@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimode.c,v 1.18 2004/01/05 16:42:03 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimode.c,v 1.19 2004/02/11 17:20:06 tsi Exp $ */
 /*
  * Copyright 2000 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -125,7 +125,6 @@ ATISwap
     seq4 = GetReg(SEQX, 0x04U);
     gra1 = GetReg(GRAX, 0x01U);
     gra3 = GetReg(GRAX, 0x03U);
-    gra4 = GetReg(GRAX, 0x04U);
     gra5 = GetReg(GRAX, 0x05U);
     gra6 = GetReg(GRAX, 0x06U);
     gra8 = GetReg(GRAX, 0x08U);
@@ -365,7 +364,7 @@ ATIModeSave
 
     int Index;
 
-    /* Get bank to bank 0 */
+    /* Get back to bank 0 */
     (*pATIHW->SetBank)(pATI, 0);
 
 #endif /* AVOID_CPIO */

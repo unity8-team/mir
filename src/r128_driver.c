@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128_driver.c,v 1.87 2003/11/10 18:41:21 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128_driver.c,v 1.89 2004/01/29 03:37:16 dawes Exp $ */
 /*
  * Copyright 1999, 2000 ATI Technologies Inc., Markham, Ontario,
  *                      Precision Insight, Inc., Cedar Park, Texas, and
@@ -500,7 +500,9 @@ static void R128Unblank(ScrnInfoPtr pScrn)
     if(info->isDFP)
         OUTREGP(R128_FP_GEN_CNTL, 0, ~R128_FP_BLANK_DIS);
     else
-        OUTREGP(R128_CRTC_EXT_CNTL, 0, ~R128_CRTC_DISPLAY_DIS);
+        OUTREGP(R128_CRTC_EXT_CNTL, 0, ~(R128_CRTC_DISPLAY_DIS |
+					 R128_CRTC_VSYNC_DIS |
+					 R128_CRTC_HSYNC_DIS));
 }
 
 /* Compute log base 2 of val. */
