@@ -555,7 +555,24 @@ typedef struct {
     void              (*VideoTimerCallback)(ScrnInfoPtr, Time);
     FBLinearPtr       videoLinear;
     int               videoKey;
-
+    int		      RageTheatreCrystal;
+    int               RageTheatreTunerPort;
+    int               RageTheatreCompositePort;
+    int               RageTheatreSVideoPort;
+    int               tunerType;
+    Bool              MM_TABLE_valid;
+    struct {
+    	CARD8 table_revision;
+	CARD8 table_size;
+        CARD8 tuner_type;
+        CARD8 audio_chip;
+        CARD8 product_id;
+        CARD8 tuner_voltage_teletext_fm;
+        CARD8 i2s_config; /* configuration of the sound chip */
+        CARD8 video_decoder_type;
+        CARD8 video_decoder_host_config;
+        CARD8 input[5];
+    	} MM_TABLE;
 				/* Render */
     Bool              RenderAccel;
     Bool              RenderInited3D;

@@ -147,7 +147,6 @@ typedef enum {
     OPTION_MONITOR_LAYOUT,
     OPTION_IGNORE_EDID,
     OPTION_FBDEV,
-    OPTION_VIDEO_KEY,
     OPTION_MERGEDFB,
     OPTION_CRT2HSYNC,
     OPTION_CRT2VREFRESH,
@@ -159,6 +158,14 @@ typedef enum {
     OPTION_DISP_PRIORITY,
     OPTION_PANEL_SIZE,
     OPTION_MIN_DOTCLOCK,
+#ifdef XvExtension
+    OPTION_VIDEO_KEY,
+    OPTION_RAGE_THEATRE_CRYSTAL,
+    OPTION_RAGE_THEATRE_TUNER_PORT,
+    OPTION_RAGE_THEATRE_COMPOSITE_PORT,
+    OPTION_RAGE_THEATRE_SVIDEO_PORT,
+    OPTION_TUNER_TYPE,
+#endif
 #ifdef RENDER
     OPTION_RENDER_ACCEL,
     OPTION_SUBPIXEL_ORDER,
@@ -191,7 +198,6 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_MONITOR_LAYOUT, "MonitorLayout",    OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_IGNORE_EDID,    "IgnoreEDID",       OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_FBDEV,          "UseFBDev",         OPTV_BOOLEAN, {0}, FALSE },
-    { OPTION_VIDEO_KEY,      "VideoKey",         OPTV_INTEGER, {0}, FALSE },
     { OPTION_MERGEDFB,	     "MergedFB",      	 OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_CRT2HSYNC,	     "CRT2HSync",        OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_CRT2VREFRESH,   "CRT2VRefresh",     OPTV_ANYSTR,  {0}, FALSE },
@@ -203,6 +209,14 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_DISP_PRIORITY,  "DisplayPriority",  OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_PANEL_SIZE,     "PanelSize",        OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_MIN_DOTCLOCK,   "ForceMinDotClock", OPTV_FREQ,    {0}, FALSE },
+#ifdef XvExtension
+    { OPTION_VIDEO_KEY,                   "VideoKey",                 OPTV_INTEGER, {0}, FALSE },
+    { OPTION_RAGE_THEATRE_CRYSTAL,        "RageTheatreCrystal",       OPTV_INTEGER, {0}, FALSE },
+    { OPTION_RAGE_THEATRE_TUNER_PORT,     "RageTheatreTunerPort",     OPTV_INTEGER, {0}, FALSE },
+    { OPTION_RAGE_THEATRE_COMPOSITE_PORT, "RageTheatreCompositePort", OPTV_INTEGER, {0}, FALSE },
+    { OPTION_RAGE_THEATRE_SVIDEO_PORT,    "RageTheatreSVideoPort",    OPTV_INTEGER, {0}, FALSE },
+    { OPTION_TUNER_TYPE,                  "TunerType",                OPTV_INTEGER, {0}, FALSE },
+#endif
 #ifdef RENDER
     { OPTION_RENDER_ACCEL,   "RenderAccel",      OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_SUBPIXEL_ORDER, "SubPixelOrder",    OPTV_ANYSTR,  {0}, FALSE },
@@ -4018,6 +4032,63 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 }
 #endif
 
+static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    CARD16 mm_table;
+    CARD16 bios_header;
+    
+    /* Rescue MM_TABLE before VBIOS is freed */
+    info->MM_TABLE_valid = FALSE;
+    
+    if((info->VBIOS==NULL)||(info->VBIOS[0]!=0x55)||(info->VBIOS[1]!=0xaa)){
+       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Cannot access BIOS or it is not valid.\n"
+               "\t\tIf your card is TV-in capable you will need to specify options RageTheatreCrystal, RageTheatreTunerPort, \n"
+               "\t\tRageTheatreSVideoPort and TunerType in /etc/X11/xorg.conf.\n"
+               );
+       info->MM_TABLE_valid = FALSE;
+       return TRUE;
+       }
+
+    bios_header=info->VBIOS[0x48];
+    bios_header+=(((int)info->VBIOS[0x49]+0)<<8);           
+        
+    mm_table=info->VBIOS[bios_header+0x38];
+    if(mm_table==0)
+    {
+        xf86DrvMsg(pScrn->scrnIndex,X_INFO,"No MM_TABLE found - assuming CARD is not TV-in capable.\n");
+        info->MM_TABLE_valid = FALSE;
+        return TRUE;
+    }
+    mm_table+=(((int)info->VBIOS[bios_header+0x39]+0)<<8)-2;
+    
+    if(mm_table>0)
+    {
+        memcpy(&(info->MM_TABLE), &(info->VBIOS[mm_table]), sizeof(info->MM_TABLE));
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "MM_TABLE: %02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x\n",
+            info->MM_TABLE.table_revision,
+            info->MM_TABLE.table_size,
+            info->MM_TABLE.tuner_type,
+            info->MM_TABLE.audio_chip,
+            info->MM_TABLE.product_id,
+            info->MM_TABLE.tuner_voltage_teletext_fm,
+            info->MM_TABLE.i2s_config,
+            info->MM_TABLE.video_decoder_type,
+            info->MM_TABLE.video_decoder_host_config,
+            info->MM_TABLE.input[0],
+            info->MM_TABLE.input[1],
+            info->MM_TABLE.input[2],
+            info->MM_TABLE.input[3],
+            info->MM_TABLE.input[4]);
+        info->MM_TABLE_valid = TRUE;
+    } else {
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "No MM_TABLE found - assuming card is not TV-in capable (mm_table=%d).\n", mm_table);
+        info->MM_TABLE_valid = FALSE;
+    }
+
+    return TRUE;
+}
+
 static void
 RADEONProbeDDC(ScrnInfoPtr pScrn, int indx)
 {
@@ -4158,6 +4229,7 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     if (!RADEONPreInitWeight(pScrn))
 	goto fail;
 
+#ifdef XvExtension
     if (xf86GetOptValInteger(info->Options, OPTION_VIDEO_KEY,
 			     &(info->videoKey))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "video key set to 0x%x\n",
@@ -4165,6 +4237,62 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     } else {
 	info->videoKey = 0x1E;
     }
+    
+    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_CRYSTAL, &(info->RageTheatreCrystal))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre Crystal frequency was specified as %d.%d Mhz\n",
+                                info->RageTheatreCrystal/100, info->RageTheatreCrystal % 100);
+    } else {
+    	info->RageTheatreCrystal=-1;
+    }
+
+    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_TUNER_PORT, &(info->RageTheatreTunerPort))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre tuner port was specified as %d\n",
+                                info->RageTheatreTunerPort);
+    } else {
+    	info->RageTheatreTunerPort=-1;
+    }
+    
+    if(info->RageTheatreTunerPort>5){
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to assign Rage Theatre tuner port to invalid value. Disabling setting\n");
+	 info->RageTheatreTunerPort=-1;
+	 }
+
+    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_COMPOSITE_PORT, &(info->RageTheatreCompositePort))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre composite port was specified as %d\n",
+                                info->RageTheatreCompositePort);
+    } else {
+    	info->RageTheatreCompositePort=-1;
+    }
+
+    if(info->RageTheatreCompositePort>6){
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to assign Rage Theatre composite port to invalid value. Disabling setting\n");
+	 info->RageTheatreCompositePort=-1;
+	 }
+
+    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_SVIDEO_PORT, &(info->RageTheatreSVideoPort))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre SVideo Port was specified as %d\n",
+                                info->RageTheatreSVideoPort);
+    } else {
+    	info->RageTheatreSVideoPort=-1;
+    }
+
+    if(info->RageTheatreSVideoPort>6){
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to assign Rage Theatre SVideo port to invalid value. Disabling setting\n");
+	 info->RageTheatreSVideoPort=-1;
+	 }
+
+    if(xf86GetOptValInteger(info->Options, OPTION_TUNER_TYPE, &(info->tunerType))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Tuner type was specified as %d\n",
+                                info->tunerType);
+    } else {
+    	info->tunerType=-1;
+    }
+
+    if(info->tunerType>31){
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to set tuner type to invalid value. Disabling setting\n");
+	 info->tunerType=-1;
+	 }
+#endif
 
     info->DispPriority = 1; 
     if ((s = xf86GetOptValString(info->Options, OPTION_DISP_PRIORITY))) {
@@ -4233,6 +4361,8 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 #ifdef XF86DRI
     if (!RADEONPreInitDRI(pScrn))                goto fail;
 #endif
+
+    if (!RADEONPreInitXv(pScrn))                 goto fail;
 
 				/* Free the video bios (if applicable) */
     if (info->VBIOS) {
