@@ -9,9 +9,12 @@
 
 #include "xf86.h"
 #include "dixstruct.h"
+#include "xf86PciInfo.h"
 
 #include "Xv.h"
 #include "fourcc.h"
+
+#include "theatre_reg.h"
 
 #define OFF_DELAY       250  /* milliseconds */
 #define FREE_DELAY      15000
@@ -38,6 +41,7 @@ static int  RADEONQueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
 
 static void RADEONVideoTimerCallback(ScrnInfoPtr pScrn, Time now);
 static void RADEON_board_setmisc(RADEONPortPrivPtr pPriv);
+static void RADEON_RT_SetEncoding(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
@@ -96,6 +100,27 @@ static XF86VideoEncodingRec DummyEncoding =
    2048, 2048,
    {1, 1}
 };
+
+ /* the picture is interlaced - hence the half-heights */
+
+static XF86VideoEncodingRec
+InputVideoEncodings[] =
+{
+    { 0, "XV_IMAGE",			2048,2048,{1,1}},        
+    { 1, "pal-composite",		720, 288, { 1, 50 }},
+    { 2, "pal-tuner",			720, 288, { 1, 50 }},
+    { 3, "pal-svideo",			720, 288, { 1, 50 }},
+    { 4, "ntsc-composite",		640, 240, { 1001, 60000 }},
+    { 5, "ntsc-tuner",			640, 240, { 1001, 60000 }},
+    { 6, "ntsc-svideo",			640, 240, { 1001, 60000 }},
+    { 7, "secam-composite",		720, 288, { 1, 50 }},
+    { 8, "secam-tuner",			720, 288, { 1, 50 }},
+    { 9, "secam-svideo",		720, 288, { 1, 50 }},
+    { 10,"pal_60-composite",		768, 288, { 1, 50 }},
+    { 11,"pal_60-tuner",		768, 288, { 1, 50 }},
+    { 12,"pal_60-svideo",		768, 288, { 1, 50 }}
+};
+
 
 #define NUM_FORMATS 12
 
@@ -792,6 +817,87 @@ RADEONResetVideo(ScrnInfoPtr pScrn)
 
 }
 
+static void RADEONSetupTheatre(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONPLLPtr  pll = &(info->pll);
+    TheatrePtr t = pPriv->theatre;
+
+    CARD8 a;
+    int i;
+              
+    t->video_decoder_type=info->video_decoder_type;
+        
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "video decoder type is 0x%04x (BIOS value) versus 0x%04x (current PLL setting)\n",
+         t->video_decoder_type, pll->xclk);
+        
+    if(!info->MM_TABLE_valid && 
+       !((info->RageTheatreCrystal>=0) &&
+           (info->RageTheatreTunerPort>=0) && (info->RageTheatreCompositePort>=0) &&
+           (info->RageTheatreSVideoPort>=0)))
+    {
+       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "no multimedia table present, disabling Rage Theatre.\n");
+       xf86free(pPriv->theatre);
+       pPriv->theatre = NULL;
+       return;
+    }
+    
+    if(info->MM_TABLE_valid){
+         for(i=0;i<5;i++){
+                a=info->MM_TABLE.input[i];
+                
+                switch(a & 0x3){
+                        case 1:
+                                t->wTunerConnector=i;
+                                xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Tuner is on port %d\n",i);
+                                break;
+                        case 2:  if(a & 0x4){
+                                   t->wComp0Connector=RT_COMP2;
+                                   } else {
+                                   t->wComp0Connector=RT_COMP1;
+                                   }
+                                xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Composite connector is port %d\n", t->wComp0Connector);
+                                  break;
+                        case 3:  if(a & 0x4){
+                                   t->wSVideo0Connector=RT_YCR_COMP4;
+                                   } else {
+                                   t->wSVideo0Connector=RT_YCF_COMP4;
+                                   }
+                                xf86DrvMsg(pScrn->scrnIndex, X_INFO, "SVideo connector is port %d\n", t->wSVideo0Connector);
+                                   break;
+                        default:
+                                break;
+                        }
+                }
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rage Theatre: Connectors (detected): tuner=%d, composite=%d, svideo=%d\n",
+    	     t->wTunerConnector, t->wComp0Connector, t->wSVideo0Connector);
+        
+         }
+
+    if(info->RageTheatreTunerPort>=0)t->wTunerConnector=info->RageTheatreTunerPort;
+    if(info->RageTheatreCompositePort>=0)t->wComp0Connector=info->RageTheatreCompositePort;
+    if(info->RageTheatreSVideoPort>=0)t->wSVideo0Connector=info->RageTheatreSVideoPort;
+        
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RageTheatre: Connectors (using): tuner=%d, composite=%d, svideo=%d\n",
+    	t->wTunerConnector, t->wComp0Connector, t->wSVideo0Connector);
+
+    switch((info->RageTheatreCrystal>=0)?info->RageTheatreCrystal:pll->reference_freq){
+                case 2700:
+                        t->video_decoder_type=RT_FREF_2700;
+                        break;
+                case 2950:
+                        t->video_decoder_type=RT_FREF_2950;
+                        break;
+                default:
+                        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                                "Unsupported reference clock frequency, Rage Theatre disabled\n");
+                        t->theatre_num=-1;
+			xf86free(pPriv->theatre);
+			pPriv->theatre = NULL;
+			return;
+                }
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "video decoder type used: 0x%04x\n", t->video_decoder_type);
+}
 
 static XF86VideoAdaptorPtr
 RADEONAllocAdaptor(ScrnInfoPtr pScrn)
@@ -886,6 +992,17 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
         OUTPLL(RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) | (1<<18)));
     }
     
+    /* overlay scaler line length differs for different revisions 
+       this needs to be maintained by hand  */
+    switch(info->ChipFamily){
+    	case CHIP_FAMILY_R200:
+	case CHIP_FAMILY_R300:
+		pPriv->overlay_scaler_buffer_width=1920;
+		break;
+	default:
+		pPriv->overlay_scaler_buffer_width=1536;
+    	}
+
     /* Decide on tuner type */
     if((info->tunerType<0) && (info->MM_TABLE_valid)) {
         pPriv->tuner_type = info->MM_TABLE.tuner_type;
@@ -896,8 +1013,6 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     RADEONInitI2C(pScrn, pPriv);
     if(pPriv->i2c != NULL)RADEON_board_setmisc(pPriv);
     
-    /* Initialize VIP bus */
-    RADEONVIP_init(pScrn, pPriv);
 
     #if 0  /* this is just here for easy debugging - normally off */
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Scanning I2C Bus\n");
@@ -906,7 +1021,46 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
                 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "     found device at address 0x%02x\n", i);
     #endif
 
+    /* Initialize VIP bus */
+    RADEONVIP_init(pScrn, pPriv);
     info->adaptor = adapt;
+
+    /* Go and fine Rage Theatre, if it exists */
+    
+    pPriv->theatre = NULL;
+    if(!xf86LoadSubModule(pScrn,"theatre")) 
+    {
+    	xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"Unable to load Rage Theatre module\n");
+	goto skip_theatre;
+    }
+    xf86LoaderReqSymbols(TheatreSymbolsList, NULL);
+    
+    switch(info->Chipset){
+    	case PCI_CHIP_RADEON_LY:
+	case PCI_CHIP_RADEON_LZ:
+	        xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility M6, not scanning for Rage Theatre\n");
+		break;
+	case PCI_CHIP_RADEON_LW:
+	        xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility M7, not scanning for Rage Theatre\n");
+		break;
+	default:
+	    pPriv->theatre=xf86_DetectTheatre(pPriv->VIP);
+	}
+    if(pPriv->theatre!=NULL){
+    	RADEONSetupTheatre(pScrn, pPriv);
+	
+        xf86_InitTheatre(pPriv->theatre);
+        xf86_ResetTheatreRegsForNoTVout(pPriv->theatre);
+        xf86_RT_SetTint(pPriv->theatre, pPriv->dec_hue);
+        xf86_RT_SetSaturation(pPriv->theatre, pPriv->dec_saturation);
+        xf86_RT_SetSharpness(pPriv->theatre, RT_NORM_SHARPNESS);
+        xf86_RT_SetContrast(pPriv->theatre, pPriv->dec_contrast);
+        xf86_RT_SetBrightness(pPriv->theatre, pPriv->dec_brightness);  
+	
+        RADEON_RT_SetEncoding(pScrn, pPriv);	
+	}
+	
+skip_theatre:
 
     return adapt;
 }
@@ -1959,6 +2113,8 @@ RADEONInitOffscreenImages(ScreenPtr pScreen)
     xf86XVRegisterOffscreenImages(pScreen, offscreenImages, 1);
 }
 
+        /* miscellaneous helper functions */
+
 static void RADEON_board_setmisc(RADEONPortPrivPtr pPriv)
 {
     /* Adjust PAL/SECAM constants for FI1216MF tuner */
@@ -1981,4 +2137,83 @@ static void RADEON_board_setmisc(RADEONPortPrivPtr pPriv)
         }
     }
     
+}
+
+static void RADEON_RT_SetEncoding(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
+{
+int width, height;
+RADEONWaitForIdleMMIO(pScrn);
+/* Disable VBI capture for anything but TV tuner */
+if(pPriv->encoding==5)pPriv->capture_vbi_data=1;
+    	else pPriv->capture_vbi_data=0;
+
+switch(pPriv->encoding){
+        case 1:
+                xf86_RT_SetConnector(pPriv->theatre,DEC_COMPOSITE, 0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_PAL | extPAL);
+                pPriv->v=25;
+                break;
+        case 2:
+                xf86_RT_SetConnector(pPriv->theatre,DEC_TUNER,0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_PAL | extPAL);
+                pPriv->v=25;
+                break;
+        case 3:
+                xf86_RT_SetConnector(pPriv->theatre,DEC_SVIDEO,0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_PAL | extPAL);
+                pPriv->v=25;
+                break;
+        case 4:
+                xf86_RT_SetConnector(pPriv->theatre, DEC_COMPOSITE,0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_NTSC | extNONE);
+                pPriv->v=23;
+                break;
+        case 5:
+                xf86_RT_SetConnector(pPriv->theatre, DEC_TUNER, 0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_NTSC | extNONE);
+                pPriv->v=23;
+                break;
+        case 6:
+                xf86_RT_SetConnector(pPriv->theatre, DEC_SVIDEO, 0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_NTSC | extNONE);
+                pPriv->v=23;
+                break;
+        case 7:
+                xf86_RT_SetConnector(pPriv->theatre, DEC_COMPOSITE, 0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_SECAM | extNONE);
+                pPriv->v=25;
+                break;
+        case 8:
+                xf86_RT_SetConnector(pPriv->theatre, DEC_TUNER, 0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_SECAM | extNONE);
+                pPriv->v=25;
+                break;
+        case 9:
+                xf86_RT_SetConnector(pPriv->theatre, DEC_SVIDEO, 0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_SECAM | extNONE);
+                pPriv->v=25;
+                break;
+        case 10:
+                xf86_RT_SetConnector(pPriv->theatre,DEC_COMPOSITE, 0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_PAL | extPAL_60);
+                pPriv->v=25;
+                break;
+        case 11:
+                xf86_RT_SetConnector(pPriv->theatre,DEC_TUNER,0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_PAL | extPAL_60);
+                pPriv->v=25;
+                break;
+        case 12:
+                xf86_RT_SetConnector(pPriv->theatre,DEC_SVIDEO,0);
+                xf86_RT_SetStandard(pPriv->theatre,DEC_PAL | extPAL_60);
+                pPriv->v=25;
+                break;
+        default:
+                pPriv->v=0;
+                return;
+        }       
+xf86_RT_SetInterlace(pPriv->theatre, 1);
+width = InputVideoEncodings[pPriv->encoding].width;
+height = InputVideoEncodings[pPriv->encoding].height;
+xf86_RT_SetOutputVideoSize(pPriv->theatre, width, height*2, 0, pPriv->capture_vbi_data);   
 }

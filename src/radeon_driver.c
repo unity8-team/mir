@@ -4037,7 +4037,8 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     CARD16 mm_table;
     CARD16 bios_header;
-    
+    CARD16 pll_info_block;
+
     /* Rescue MM_TABLE before VBIOS is freed */
     info->MM_TABLE_valid = FALSE;
     
@@ -4086,6 +4087,12 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
         info->MM_TABLE_valid = FALSE;
     }
 
+    pll_info_block=info->VBIOS[bios_header+0x30];
+    pll_info_block+=(((int)info->VBIOS[bios_header+0x31]+0)<<8);
+       
+    info->video_decoder_type=info->VBIOS[pll_info_block+0x08];
+    info->video_decoder_type+=(((int)info->VBIOS[pll_info_block+0x09]+0)<<8);
+    
     return TRUE;
 }
 

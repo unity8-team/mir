@@ -560,7 +560,7 @@ typedef struct {
     int               RageTheatreCompositePort;
     int               RageTheatreSVideoPort;
     int               tunerType;
-    Bool              MM_TABLE_valid;
+    Bool               MM_TABLE_valid;
     struct {
     	CARD8 table_revision;
 	CARD8 table_size;
@@ -573,6 +573,7 @@ typedef struct {
         CARD8 video_decoder_host_config;
         CARD8 input[5];
     	} MM_TABLE;
+    CARD16 video_decoder_type;
 				/* Render */
     Bool              RenderAccel;
     Bool              RenderInited3D;

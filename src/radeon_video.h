@@ -8,6 +8,7 @@
 #include "i2c_def.h"
 
 #include "generic_bus.h"
+#include "theatre.h"
 
 /* Xvideo port struct */
 typedef struct {
@@ -37,6 +38,7 @@ typedef struct {
 
    /* VIP bus and devices */
    GENERIC_BUS_Ptr  VIP;
+   TheatrePtr       theatre;   
 
    Bool          video_stream_active;
    int           encoding;
@@ -53,6 +55,7 @@ typedef struct {
 #define METHOD_ADAPTIVE 3
 
    int           overlay_deinterlacing_method;
+   int		 overlay_scaler_buffer_width;
    
    int           capture_vbi_data;
 
