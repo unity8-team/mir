@@ -2098,8 +2098,8 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 #ifdef XF86DRI
    /*
-    * Setup DRI after visuals have been established, but before cfbScreenInit
-    * is called.   cfbScreenInit will eventually call into the drivers
+    * Setup DRI after visuals have been established, but before fbScreenInit
+    * is called.   fbScreenInit will eventually call into the drivers
     * InitGLXVisuals call back.
     */
    /*
@@ -2242,7 +2242,7 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 #ifdef XF86DRI
    if (pI810->directRenderingEnabled) {
-      /* Now that mi, cfb, drm and others have done their thing,
+      /* Now that mi, fb, drm and others have done their thing,
        * complete the DRI setup.
        */
       pI810->directRenderingEnabled = I810DRIFinishScreenInit(pScreen);
