@@ -27,7 +27,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/common.h,v 1.9 2003/09/24 02:43:23 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/common.h,v 1.10 2004/01/03 02:11:53 dawes Exp $ */
 
 /*
  * Authors:
@@ -257,7 +257,9 @@ extern void I830DPRINTF_stub(const char *filename, int line,
  * preprocessor symbol, and equal to zero.
  */
 #if 1
+#ifndef I810_DEBUG
 #define I810_DEBUG 0
+#endif
 #endif
 #ifndef I810_DEBUG
 #warning "Debugging enabled - expect reduced performance"

@@ -25,7 +25,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_driver.c,v 1.98 2003/12/07 18:28:07 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_driver.c,v 1.102 2004/01/02 22:16:18 dawes Exp $ */
 
 /*
  * Reformatted with GNU indent (2.2.8), using the following options:
@@ -244,6 +244,8 @@ const char *I810xaaSymbols[] = {
    "XAACreateInfoRec",
    "XAADestroyInfoRec",
    "XAAInit",
+   "XAACopyROP",
+   "XAAPatternROP",
    NULL
 };
 
@@ -376,6 +378,7 @@ i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
 			I810drmSymbols,
 			I810driSymbols,
 			I810shadowSymbols,
+			driShadowFBSymbols,
 #endif
 			I810vbeSymbols, vbeOptionalSymbols,
 			I810ddcSymbols, I810int10Symbols, NULL);
@@ -2219,9 +2222,38 @@ Bool
 I810SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+   I810Ptr pI810 = I810PTR(pScrn);
 
    if (I810_DEBUG & DEBUG_VERBOSE_CURSOR)
       ErrorF("I810SwitchMode %p %x\n", (void *)mode, flags);
+
+#ifdef XF86DRI
+   if (pI810->directRenderingEnabled) {
+      if (I810_DEBUG & DEBUG_VERBOSE_DRI)
+	 ErrorF("calling dri lock\n");
+      DRILock(screenInfo.screens[scrnIndex], 0);
+      pI810->LockHeld = 1;
+   }
+#endif
+
+   if (pI810->AccelInfoRec != NULL) {
+      I810RefreshRing(pScrn);
+      I810Sync(pScrn);
+      pI810->AccelInfoRec->NeedToSync = FALSE;
+   }
+   I810Restore(pScrn);
+
+#ifdef XF86DRI
+   if (!I810DRIEnter(pScrn)) {
+      return FALSE;
+   }
+   if (pI810->directRenderingEnabled) {
+      if (I810_DEBUG & DEBUG_VERBOSE_DRI)
+	 ErrorF("calling dri unlock\n");
+      DRIUnlock(screenInfo.screens[scrnIndex]);
+      pI810->LockHeld = 0;
+   }
+#endif
 
    return I810ModeInit(pScrn, mode);
 }
@@ -2356,6 +2388,11 @@ I810CloseScreen(int scrnIndex, ScreenPtr pScreen)
    XAAInfoRecPtr infoPtr = pI810->AccelInfoRec;
 
    if (pScrn->vtSema == TRUE) {
+      if (pI810->AccelInfoRec != NULL) {
+	 I810RefreshRing(pScrn);
+	 I810Sync(pScrn);
+	 pI810->AccelInfoRec->NeedToSync = FALSE;
+      }
       I810Restore(pScrn);
       vgaHWLock(hwp);
    }
