@@ -1497,6 +1497,11 @@ I810DRILeave(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,"%s\n",strerror(errno));
 	    return FALSE;
 	 }
+      if (pI810->cursorARGBHandle != 0)
+	  if (drmAgpUnbind(pI810->drmSubFD, pI810->cursorARGBHandle) != 0) {
+	      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,"%s\n",strerror(errno));
+	      return FALSE;
+	  }
       if (pI810->agpAcquired == TRUE)
 	 drmAgpRelease(pI810->drmSubFD);
       pI810->agpAcquired = FALSE;
