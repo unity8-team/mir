@@ -40,6 +40,7 @@
 
 #ifdef XF86DRI_DEVEL
 #include "mach64_common.h"
+#include "atidri.h"
 #endif
 
 #include "mach64_common.h"
@@ -315,6 +316,8 @@ ATIEnterVT
 
         if (pATI->directRenderingEnabled) 
         {
+            /* get the Mach64 back into shape after resume */
+            ATIDRIResume(pScreen);
             DRIUnlock(pScreen);
         }
 
@@ -350,6 +353,8 @@ ATIEnterVT
 
     if (pATI->directRenderingEnabled) 
     {
+        /* get the Mach64 back into shape after resume */
+        ATIDRIResume(pScreen);
         DRIUnlock(pScreen);
     }
 

@@ -638,34 +638,15 @@ static int Mach64MinBits(int val)
     return bits;
 }
 
-/* Initialize the AGP state.  Request memory for use in AGP space, and
- * initialize the Rage Pro registers to point to that memory.
- */
-static Bool ATIDRIAgpInit( ScreenPtr pScreen )
+static Bool ATIDRISetAgpMode( ScreenPtr pScreen )
 {
    ScrnInfoPtr pScreenInfo = xf86Screens[pScreen->myNum];
    ATIPtr pATI = ATIPTR(pScreenInfo);
    ATIDRIServerInfoPtr pATIDRIServer = pATI->pDRIServerInfo;
 
-   unsigned long mode;
-   unsigned int  vendor, device;
-   int ret;
-   unsigned long cntl;
-   int s, l;
-
-   pATIDRIServer->agpSize = ATI_DEFAULT_AGP_SIZE;
-   pATIDRIServer->agpMode = ATI_DEFAULT_AGP_MODE;
-   pATIDRIServer->bufferSize = ATI_DEFAULT_BUFFER_SIZE;
-   pATIDRIServer->ringSize = 16; /* 16 kB ring */
-
-   if ( drmAgpAcquire( pATI->drmFD ) < 0 ) {
-      xf86DrvMsg( pScreen->myNum, X_WARNING, "[agp] AGP not available\n" );
-      return FALSE;
-   }
-
-   mode   = drmAgpGetMode( pATI->drmFD );        /* Default mode */
-   vendor = drmAgpVendorId( pATI->drmFD );
-   device = drmAgpDeviceId( pATI->drmFD );
+   unsigned long mode   = drmAgpGetMode( pATI->drmFD );        /* Default mode */
+   unsigned int vendor = drmAgpVendorId( pATI->drmFD );
+   unsigned int device = drmAgpDeviceId( pATI->drmFD );
 
    if (pATI->OptionAGPMode > 0 && pATI->OptionAGPMode <= ATI_AGP_MAX_MODE) {
       pATIDRIServer->agpMode = pATI->OptionAGPMode;
@@ -726,6 +707,35 @@ static Bool ATIDRIAgpInit( ScreenPtr pScreen )
       drmAgpRelease( pATI->drmFD );
       return FALSE;
    }
+
+   return TRUE;
+}
+
+/* Initialize the AGP state.  Request memory for use in AGP space, and
+ * initialize the Rage Pro registers to point to that memory.
+ */
+static Bool ATIDRIAgpInit( ScreenPtr pScreen )
+{
+   ScrnInfoPtr pScreenInfo = xf86Screens[pScreen->myNum];
+   ATIPtr pATI = ATIPTR(pScreenInfo);
+   ATIDRIServerInfoPtr pATIDRIServer = pATI->pDRIServerInfo;
+
+   int ret;
+   unsigned long cntl;
+   int s, l;
+
+   pATIDRIServer->agpSize = ATI_DEFAULT_AGP_SIZE;
+   pATIDRIServer->agpMode = ATI_DEFAULT_AGP_MODE;
+   pATIDRIServer->bufferSize = ATI_DEFAULT_BUFFER_SIZE;
+   pATIDRIServer->ringSize = 16; /* 16 kB ring */
+
+   if ( drmAgpAcquire( pATI->drmFD ) < 0 ) {
+      xf86DrvMsg( pScreen->myNum, X_WARNING, "[agp] AGP not available\n" );
+      return FALSE;
+   }
+
+   if (!ATIDRISetAgpMode( pScreen ))
+      return FALSE;
 
    pATIDRIServer->agpOffset = 0;
 
@@ -1429,6 +1439,35 @@ Bool ATIDRIFinishScreenInit( ScreenPtr pScreen )
    pATIDRI->agpTextureOffset = pATIDRIServer->agpTexStart;
 
    return TRUE;
+}
+
+/*
+ * This function will attempt to get the Mach64 hardware back into shape
+ * after a resume from disc. Its an extract from ATIDRIAgpInit and ATIDRIFinishScreenInit
+ * This also calls a new ioctl in the mach64 DRM that in its turn is
+ * an extraction of the hardware-affecting bits from mach64_do_init_drm()
+ * (see atidrm.c)
+ * I am assuming here that pATI->pDRIServerInfo doesn't change
+ * elsewhere in incomaptible ways.
+ * How will this code react to resuming after a failed resumeor pci based dri ?
+ */
+void ATIDRIResume( ScreenPtr pScreen )
+{
+   ScrnInfoPtr pScreenInfo = xf86Screens[pScreen->myNum];
+   ATIPtr pATI = ATIPTR(pScreenInfo);
+   ATIDRIServerInfoPtr pATIDRIServer = pATI->pDRIServerInfo;
+
+   int ret;
+
+   xf86DrvMsg( pScreen->myNum, X_INFO,
+		 "[RESUME] Attempting to re-init Mach64 hardware.\n");
+
+   if (!pATIDRIServer->IsPCI) {
+      if (!ATIDRISetAgpMode(pScreen))
+      return;
+
+      outm( AGP_BASE, drmAgpBase(pATI->drmFD) );
+   }
 }
 
 /* The screen is being closed, so clean up any state and free any

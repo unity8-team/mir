@@ -38,6 +38,10 @@
 
 #define ATI_AGP_MAX_MODE	 2
 
+/* Imported from the radeon suspend code writen by cpbotha@ieee.org
+ * to enable suspend/resume support for the mach64 card.
+ */
+extern void ATIDRIResume(ScreenPtr pScreen);
 extern Bool ATIDRIScreenInit(ScreenPtr);
 extern Bool ATIDRIFinishScreenInit(ScreenPtr);
 extern void ATIDRICloseScreen(ScreenPtr);
