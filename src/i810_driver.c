@@ -905,10 +905,13 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
     *  Changed to 8 Meg so we can have acceleration by default (Mark).
     */
    mem = I810CheckAvailableMemory(pScrn);
-   if (pI810->directRenderingDisabled || mem < 134217728)  /* < 128 MB */
+   if (pI810->directRenderingDisabled || mem < 131072)  /* < 128 MB */
        pScrn->videoRam = 8192;
+   else if (mem < 196608)
+       pScrn->videoRam = 16384;  /* < 192 MB */
    else
-       pScrn->videoRam = 16384;
+       pScrn->videoRam = 24576;
+   
    from = X_DEFAULT;
    
    if (pI810->pEnt->device->videoRam) {
