@@ -141,6 +141,7 @@ typedef enum {
     OPTION_DEPTH_MOVE,
     OPTION_PAGE_FLIP,
     OPTION_NO_BACKBUFFER,
+    OPTION_XV_DMA,
 #endif
     OPTION_PANEL_OFF,
     OPTION_DDC_MODE,
@@ -192,6 +193,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_DEPTH_MOVE,     "EnableDepthMoves", OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_PAGE_FLIP,      "EnablePageFlip",   OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_NO_BACKBUFFER,  "NoBackBuffer",     OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_XV_DMA,         "DMAForXv",         OPTV_BOOLEAN, {0}, FALSE },
 #endif
     { OPTION_PANEL_OFF,      "PanelOff",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DDC_MODE,       "DDCMode",          OPTV_BOOLEAN, {0}, FALSE },
@@ -3896,6 +3898,7 @@ static Bool RADEONPreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
 static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    MessageType    from;
 
     if (xf86ReturnOptValBool(info->Options, OPTION_CP_PIO, FALSE)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Forcing CP into PIO mode\n");
@@ -4031,6 +4034,13 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Page flipping %sabled\n",
 	       info->allowPageFlip ? "en" : "dis");
+
+    info->DMAForXv = TRUE;
+    from = xf86GetOptValBool(info->Options, OPTION_XV_DMA, &info->DMAForXv)
+	 ? X_CONFIG : X_INFO;
+    xf86DrvMsg(pScrn->scrnIndex, from,
+	       "Will %stry to use DMA for Xv image transfers\n",
+	       info->DMAForXv ? "" : "not ");
 
     return TRUE;
 }

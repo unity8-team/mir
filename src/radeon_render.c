@@ -422,6 +422,10 @@ static Bool FUNC_NAME(R100SetupTexture)(
     CARD8 *dst;
     CARD32 tex_size = 0, txformat;
     int dst_pitch, offset, size, i, tex_bytepp;
+#ifdef ACCEL_CP
+    CARD32 buf_pitch;
+    unsigned int hpass;
+#endif
     ACCEL_PREAMBLE();
 
     if ((width > 2048) || (height > 2048))
@@ -429,6 +433,8 @@ static Bool FUNC_NAME(R100SetupTexture)(
 
     txformat = RadeonGetTextureFormat(format);
     tex_bytepp = PICT_FORMAT_BPP(format) >> 3;
+
+#ifndef ACCEL_CP
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     if (!RADEONSetupRenderByteswap(pScrn, tex_bytepp)) {
@@ -438,7 +444,9 @@ static Bool FUNC_NAME(R100SetupTexture)(
     }
 #endif
 
-    dst_pitch = (width * tex_bytepp + 31) & ~31;
+#endif
+
+    dst_pitch = (width * tex_bytepp + 63) & ~63;
     size = dst_pitch * height;
 
     if (!AllocateLinear(pScrn, size))
@@ -453,10 +461,27 @@ static Bool FUNC_NAME(R100SetupTexture)(
     }
 
     offset = info->RenderTex->offset * pScrn->bitsPerPixel / 8;
-
-    /* Upload texture to card.  Should use ImageWrite to avoid syncing. */
-    i = height;
     dst = (CARD8*)(info->FB + offset);
+
+    /* Upload texture to card. */
+
+#ifdef ACCEL_CP
+
+    while ( height )
+    {
+	RADEONHostDataBlitCopyPass( RADEONHostDataBlit( pScrn, tex_bytepp, width,
+							dst_pitch, &buf_pitch,
+							&dst, &height, &hpass ),
+				    src, hpass, buf_pitch, src_pitch );
+	src += hpass * src_pitch;
+    }
+
+    RADEON_PURGE_CACHE();
+    RADEON_WAIT_UNTIL_IDLE();
+
+#else
+
+    i = height;
 
     if (info->accel->NeedToSync)
 	info->accel->Sync(pScrn);
@@ -470,6 +495,8 @@ static Bool FUNC_NAME(R100SetupTexture)(
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     RADEONRestoreByteswap(info);
 #endif
+
+#endif	/* ACCEL_CP */
 
     BEGIN_ACCEL(5);
     OUT_ACCEL_REG(RADEON_PP_TXFORMAT_0, txformat);
@@ -713,6 +740,10 @@ static Bool FUNC_NAME(R200SetupTexture)(
     CARD8 *dst;
     CARD32 tex_size = 0, txformat;
     int dst_pitch, offset, size, i, tex_bytepp;
+#ifdef ACCEL_CP
+    CARD32 buf_pitch;
+    unsigned int hpass;
+#endif
     ACCEL_PREAMBLE();
 
     if ((width > 2048) || (height > 2048))
@@ -720,6 +751,8 @@ static Bool FUNC_NAME(R200SetupTexture)(
 
     txformat = RadeonGetTextureFormat(format);
     tex_bytepp = PICT_FORMAT_BPP(format) >> 3;
+
+#ifndef ACCEL_CP
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     if (!RADEONSetupRenderByteswap(pScrn, tex_bytepp)) {
@@ -729,7 +762,9 @@ static Bool FUNC_NAME(R200SetupTexture)(
     }
 #endif
 
-    dst_pitch = (width * tex_bytepp + 31) & ~31;
+#endif
+
+    dst_pitch = (width * tex_bytepp + 63) & ~63;
     size = dst_pitch * height;
 
     if (!AllocateLinear(pScrn, size))
@@ -744,10 +779,27 @@ static Bool FUNC_NAME(R200SetupTexture)(
     }
 
     offset = info->RenderTex->offset * pScrn->bitsPerPixel / 8;
-
-    /* Upload texture to card.  Should use ImageWrite to avoid syncing. */
-    i = height;
     dst = (CARD8*)(info->FB + offset);
+
+    /* Upload texture to card. */
+
+#ifdef ACCEL_CP
+
+    while ( height )
+    {
+	RADEONHostDataBlitCopyPass( RADEONHostDataBlit( pScrn, tex_bytepp, width,
+							dst_pitch, &buf_pitch,
+							&dst, &height, &hpass ),
+				    src, hpass, buf_pitch, src_pitch );
+	src += hpass * src_pitch;
+    }
+
+    RADEON_PURGE_CACHE();
+    RADEON_WAIT_UNTIL_IDLE();
+
+#else
+
+    i = height;
     if (info->accel->NeedToSync)
 	info->accel->Sync(pScrn);
 
@@ -760,6 +812,8 @@ static Bool FUNC_NAME(R200SetupTexture)(
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     RADEONRestoreByteswap(info);
 #endif
+
+#endif	/* ACCEL_CP */
 
     BEGIN_ACCEL(6);
     OUT_ACCEL_REG(R200_PP_TXFORMAT_0, txformat);

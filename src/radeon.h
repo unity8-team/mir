@@ -540,6 +540,8 @@ typedef struct {
 
     int               irq;
 
+    Bool              DMAForXv;
+
 #ifdef PER_CONTEXT_SAREA
     int               perctx_sarea_size;
 #endif
@@ -670,6 +672,15 @@ extern drmBufPtr   RADEONCPGetBuffer(ScrnInfoPtr pScrn);
 extern void        RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard);
 extern void        RADEONCPReleaseIndirect(ScrnInfoPtr pScrn);
 extern int         RADEONCPStop(ScrnInfoPtr pScrn,  RADEONInfoPtr info);
+
+extern CARD8*      RADEONHostDataBlit(ScrnInfoPtr pScrn, unsigned int bpp,
+				      unsigned int w, CARD32 dstPitch,
+				      CARD32 *bufPitch, CARD8 **dst,
+				      unsigned int *h, unsigned int *hpass);
+extern void        RADEONHostDataBlitCopyPass(CARD8 *dst, CARD8 *src,
+					      unsigned int hpass,
+					      unsigned int dstPitch,
+					      unsigned int srcPitch);
 
 extern Bool        RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10);
 extern Bool        RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn);

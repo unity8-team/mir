@@ -461,6 +461,12 @@ unsupported).  The default is to
 .B enable
 Render acceleration.
 .TP
+.BI "Option \*qDMAForXv\*q \*q" boolean \*q
+Try or don't try to use DMA for Xv image transfers. This will reduce CPU
+usage when playing big videos like DVDs, but may cause instabilities.
+Default:
+.B on.
+.TP
 .BI "Option \*qSubPixelOrder\*q \*q" "string" \*q
 Force subpixel order to specified order.
 Subpixel order is used for subpixel decimation on flat panels.

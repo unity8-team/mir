@@ -578,6 +578,131 @@ void RADEONCPReleaseIndirect(ScrnInfoPtr pScrn)
     drmCommandWriteRead(info->drmFD, DRM_RADEON_INDIRECT,
 			&indirect, sizeof(drmRadeonIndirect));
 }
+
+
+/* Set up a hostdata blit to transfer data from system memory to the
+ * framebuffer. Returns the address where the data can be written to and sets
+ * the dstPitch and hpass variables as required.
+ */
+CARD8*
+RADEONHostDataBlit(
+    ScrnInfoPtr pScrn,
+    unsigned int bpp,
+    unsigned int w,
+    CARD32 dstPitch,
+    CARD32 *bufPitch,
+    CARD8* *dst,
+    unsigned int *h,
+    unsigned int *hpass
+){
+    RADEONInfoPtr info = RADEONPTR( pScrn );
+    CARD32 format, dst_offs, dwords, x, y;
+    CARD8 *ret;
+    RING_LOCALS;
+
+    if ( *h == 0 )
+    {
+	return NULL;
+    }
+
+    switch ( bpp )
+    {
+    case 4:
+	format = RADEON_GMC_DST_32BPP;
+	*bufPitch = 4 * w;
+	break;
+    case 2:
+	format = RADEON_GMC_DST_16BPP;
+	w = (w + 1) & ~1;
+	*bufPitch = 2 * w;
+	break;
+    case 1:
+	format = RADEON_GMC_DST_8BPP_CI;
+	w = (w + 3) & ~3;
+	*bufPitch = w;
+	break;
+    default:
+	xf86DrvMsg( pScrn->scrnIndex, X_ERROR,
+		    "%s: Unsupported bpp %d!\n", __func__, bpp );
+	return NULL;
+    }
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    BEGIN_RING(2);
+    if (bpp == 2)
+	OUT_RING_REG(RADEON_RBBM_GUICNTL,   RADEON_HOST_DATA_SWAP_16BIT);
+    else if (bpp == 1)
+	OUT_RING_REG(RADEON_RBBM_GUICNTL,   RADEON_HOST_DATA_SWAP_32BIT);
+    else
+	OUT_RING_REG(RADEON_RBBM_GUICNTL,   RADEON_HOST_DATA_SWAP_NONE);
+    ADVANCE_RING();
+#endif
+
+    /*RADEON_PURGE_CACHE();
+      RADEON_WAIT_UNTIL_IDLE();*/
+
+    dst_offs = *dst - info->FB + info->fbLocation;
+    *hpass = min( *h, ( ( RADEON_BUFFER_SIZE - 8 * 4 ) / *bufPitch ) );
+    dwords = *hpass * *bufPitch / 4;
+
+    y = ( dst_offs & 1023 ) / dstPitch;
+    x = ( ( dst_offs & 1023 ) - ( y * dstPitch ) ) / bpp;
+
+    BEGIN_RING( dwords + 8 );
+    OUT_RING( CP_PACKET3( RADEON_CP_PACKET3_CNTL_HOSTDATA_BLT, dwords + 8 - 2 ) );
+    OUT_RING( RADEON_GMC_DST_PITCH_OFFSET_CNTL
+	    | RADEON_GMC_BRUSH_NONE
+	    | format
+	    | RADEON_GMC_SRC_DATATYPE_COLOR
+	    | RADEON_ROP3_S
+	    | RADEON_DP_SRC_SOURCE_HOST_DATA
+	    | RADEON_GMC_CLR_CMP_CNTL_DIS
+	    | RADEON_GMC_WR_MSK_DIS );
+    OUT_RING( dstPitch << 16 | dst_offs >> 10 );
+    OUT_RING( 0xffffffff );
+    OUT_RING( 0xffffffff );
+    OUT_RING( y << 16 | x );
+    OUT_RING( *hpass << 16 | w );
+    OUT_RING( dwords );
+
+    ret = ( CARD8* )&__head[__count];
+
+    __count += dwords;
+    ADVANCE_RING();
+
+    *dst += *hpass * dstPitch;
+    *h -= *hpass;
+
+    return ret;
+}
+
+/* Copies a single pass worth of data for a hostdata blit set up by
+ * RADEONHostDataBlit().
+ */
+void
+RADEONHostDataBlitCopyPass(
+    CARD8 *dst,
+    CARD8 *src,
+    unsigned int hpass,
+    unsigned int dstPitch,
+    unsigned int srcPitch
+){
+    if ( dstPitch == srcPitch )
+    {
+	memcpy( dst, src, hpass * dstPitch );
+    }
+    else
+    {
+	unsigned int minPitch = min( dstPitch, srcPitch );
+	while ( hpass-- )
+	{
+	    memcpy( dst, src, minPitch );
+	    src += srcPitch;
+	    dst += dstPitch;
+	}
+    }
+}
+
 #endif
 
 /* Initialize XAA for supported acceleration and also initialize the
