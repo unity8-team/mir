@@ -414,8 +414,8 @@ static Bool FUNC_NAME(R100SetupTexture)(
 	CARD32 format,
 	CARD8 *src,
 	int src_pitch,
-	int width,
-	int height,
+	unsigned int width,
+	unsigned int height,
 	int flags)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -733,8 +733,8 @@ static Bool FUNC_NAME(R200SetupTexture)(
 	CARD32 format,
 	CARD8 *src,
 	int src_pitch,
-	int width,
-	int height,
+	unsigned int width,
+	unsigned int height,
 	int flags)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
