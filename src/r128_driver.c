@@ -1921,9 +1921,9 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
 	if (!xf86LoadSubModule(pScrn, "fbdevhw")) return FALSE;
 	xf86LoaderReqSymLists(fbdevHWSymbols, NULL);
 	if (!fbdevHWInit(pScrn, info->PciInfo, NULL)) return FALSE;
-	pScrn->SwitchMode    = LoaderSymbol("fbdevHWSwitchMode");
-	pScrn->AdjustFrame   = LoaderSymbol("fbdevHWAdjustFrame");
-	pScrn->ValidMode     = LoaderSymbol("fbdevHWValidMode");
+	pScrn->SwitchMode    = fbdevHWSwitchModeWeak();
+	pScrn->AdjustFrame   = fbdevHWAdjustFrameWeak();
+	pScrn->ValidMode     = fbdevHWValidModeWeak();
     }
 
     if (!info->FBDev)
@@ -2427,7 +2427,7 @@ Bool R128ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 				/* Colormap setup */
     if (!miCreateDefColormap(pScreen)) return FALSE;
     if (!xf86HandleColormaps(pScreen, 256, info->dac6bits ? 6 : 8,
-			     (info->FBDev ? LoaderSymbol("fbdevHWLoadPalette") :
+			     (info->FBDev ? fbdevHWLoadPaletteWeak() :
 			     R128LoadPalette), NULL,
 			     CMAP_PALETTED_TRUECOLOR
 			     | CMAP_RELOAD_ON_MODE_SWITCH
@@ -2438,7 +2438,7 @@ Bool R128ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
     /* DPMS setup - FIXME: also for mirror mode in non-fbdev case? - Michel */
     if (info->FBDev)
-	xf86DPMSInit(pScreen, LoaderSymbol("fbdevHWDPMSSet"), 0);
+	xf86DPMSInit(pScreen, fbdevHWDPMSSetWeak(), 0);
     else {
 	if (!info->HasPanelRegs || info->BIOSDisplay == R128_BIOS_DISPLAY_CRT)
 	    xf86DPMSInit(pScreen, R128DisplayPowerManagementSet, 0);

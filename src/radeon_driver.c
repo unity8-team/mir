@@ -4178,7 +4178,7 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	    xf86LoaderReqSymLists(fbdevHWSymbols, NULL);
 
 	    if (fbdevHWInit(pScrn, info->PciInfo, NULL)) {
-		pScrn->ValidMode     = LoaderSymbol("fbdevHWValidMode");
+		pScrn->ValidMode     = fbdevHWValidModeWeak();
 		info->FBDev = TRUE;
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
 			   "Using framebuffer device\n");
