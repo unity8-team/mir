@@ -345,15 +345,7 @@ static void RADEONEnterServer(ScreenPtr pScreen)
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
     if (info->accel) info->accel->NeedToSync = TRUE;
-#ifdef RENDER
-    if (info->RenderAccel) {
-	RADEONSAREAPrivPtr pSAREAPriv;
 
-	RADEONInit3DEngineForRender(pScrn);
-	pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
-	pSAREAPriv->ctxOwner = DRIGetContext(pScrn->pScreen);
-    }
-#endif
 }
 
 /* Called when the X server goes to sleep to allow the X server's

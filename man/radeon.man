@@ -455,7 +455,7 @@ parameter may be specified as a float value with standard suffixes like
 Enable Render acceleration.  Does not support component alpha (subpixel)
 rendering.  Only supported on Radeon series up to and including 9200 (9500/9700
 and newer unsupported).  The default is 
-.B on.
+.B off.
 .TP
 .BI "Option \*qSubPixelOrder\*q \*q" "string" \*q
 Force subpixel order to specified order.

@@ -1349,10 +1349,8 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 #endif
 
 #if defined(RENDER)
-#if defined(XF86DRI)
-    if (info->RenderAccel && info->directRenderingEnabled &&
+    if (info->RenderAccel &&
 	info->xaaReq.minorversion >= 2) {
-	/* XXX: The non-CP vertex dispatch doesn't seem to work. */
 
 	a->CPUToScreenAlphaTextureFlags = XAA_RENDER_POWER_OF_2_TILE_ONLY;
 	a->CPUToScreenAlphaTextureFormats = RADEONTextureFormats;
@@ -1388,12 +1386,9 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 	    a->SubsequentCPUToScreenTexture =
 		FUNC_NAME(R100SubsequentCPUToScreenTexture);
 	}
-    } else
-#endif /* XF86DRI */
-    if (info->RenderAccel)
-    {
+    } else if (info->RenderAccel) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration currently "
-		   "requires the DRI.\n");
+		   "requires XAA v1.2 or newer.\n");
     }
 
     if (!a->SetupForCPUToScreenAlphaTexture2 && !a->SetupForCPUToScreenTexture2)

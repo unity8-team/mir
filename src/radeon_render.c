@@ -230,7 +230,7 @@ void RADEONInit3DEngineForRender(ScrnInfoPtr pScrn)
 #ifdef XF86DRI
     RADEONInfoPtr info = RADEONPTR (pScrn);
 
-    if (info->directRenderingEnabled)
+    if (info->CPStarted)
 	RadeonInit3DEngineCP(pScrn);
     else
 #endif
@@ -321,8 +321,13 @@ static void FUNC_NAME(RadeonInit3DEngine)(ScrnInfoPtr pScrn)
 	       (info->ChipFamily == CHIP_FAMILY_RV280) || 
 	       (info->ChipFamily == CHIP_FAMILY_RS300) || 
 	       (info->ChipFamily == CHIP_FAMILY_R200)) {
+
 	BEGIN_ACCEL(7);
-	OUT_ACCEL_REG(R200_SE_VAP_CNTL_STATUS, 0);
+        if (info->ChipFamily == CHIP_FAMILY_RS300) {
+            OUT_ACCEL_REG(R200_SE_VAP_CNTL_STATUS, RADEON_TCL_BYPASS);
+        } else {
+            OUT_ACCEL_REG(R200_SE_VAP_CNTL_STATUS, 0);
+        }
 	OUT_ACCEL_REG(R200_PP_CNTL_X, 0);
 	OUT_ACCEL_REG(R200_PP_TXMULTI_CTL_0, 0);
 	OUT_ACCEL_REG(R200_SE_VTX_STATE_CNTL, 0);
@@ -334,7 +339,11 @@ static void FUNC_NAME(RadeonInit3DEngine)(ScrnInfoPtr pScrn)
 	FINISH_ACCEL();
     } else {
 	BEGIN_ACCEL(2);
-	OUT_ACCEL_REG(RADEON_SE_CNTL_STATUS, RADEON_TCL_BYPASS);
+        if ((info->ChipFamily == CHIP_FAMILY_RADEON) ||
+            (info->ChipFamily == CHIP_FAMILY_RV200))
+            OUT_ACCEL_REG(RADEON_SE_CNTL_STATUS, 0);
+        else
+            OUT_ACCEL_REG(RADEON_SE_CNTL_STATUS, RADEON_TCL_BYPASS);
 	OUT_ACCEL_REG(RADEON_SE_COORD_FMT,
 	    RADEON_VTX_XY_PRE_MULT_1_OVER_W0 |
 	    RADEON_VTX_ST0_NONPARAMETRIC |
@@ -423,8 +432,13 @@ static Bool FUNC_NAME(R100SetupTexture)(
     /* Upload texture to card.  Should use ImageWrite to avoid syncing. */
     i = height;
     dst = (CARD8*)(info->FB + offset);
-    if (info->accel->NeedToSync)
+
+    if (info->accel->NeedToSync) {
 	info->accel->Sync(pScrn);
+	if (info->CPStarted)
+	    RADEONInit3DEngineForRender(pScrn);
+    }
+
     while(i--) {
 	memcpy(dst, src, width * tex_bytepp);
 	src += src_pitch;
@@ -475,7 +489,7 @@ FUNC_NAME(R100SetupForCPUToScreenAlphaTexture) (
     blend_cntl = RadeonGetBlendCntl(op, dstFormat);
     if (blend_cntl == 0)
 	return FALSE;
-    
+
     if (!FUNC_NAME(R100SetupTexture)(pScrn, maskFormat, alphaPtr, alphaPitch,
 				     width, height, flags))
 	return FALSE;
@@ -727,8 +741,12 @@ static Bool FUNC_NAME(R200SetupTexture)(
     /* Upload texture to card.  Should use ImageWrite to avoid syncing. */
     i = height;
     dst = (CARD8*)(info->FB + offset);
-    if (info->accel->NeedToSync)
+    if (info->accel->NeedToSync) {
 	info->accel->Sync(pScrn);
+	if (info->CPStarted)
+	    RADEONInit3DEngineForRender(pScrn);
+    }
+
     while(i--) {
 	memcpy(dst, src, width * tex_bytepp);
 	src += src_pitch;
