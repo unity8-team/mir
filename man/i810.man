@@ -1,4 +1,4 @@
-.\" $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810.man,v 1.6 2004/01/07 03:43:19 dawes Exp $ 
+.\" $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810.man,v 1.5 2003/10/18 02:27:07 dawes Exp $ 
 .\" shorthand for double quote that works everywhere.
 .ds q \N'34'
 .TH I810 __drivermansuffix__ __vendorversion__
@@ -14,7 +14,7 @@ i810 \- Intel 8xx integrated graphics chipsets
 .fi
 .SH DESCRIPTION
 .B i810
-is an XFree86 driver for Intel integrated graphics chipsets.
+is an __xservername__ driver for Intel integrated graphics chipsets.
 The driver supports depths 8, 15, 16 and 24.  All visual types are
 supported in depth 8.  For the i810/i815 other depths support the
 TrueColor and DirectColor visuals.  For the 830M and later, only the
@@ -28,7 +28,7 @@ supports the i810, i810-DC100, i810e, i815, 830M, 845G, 852GM, 855GM,
 and 865G chipsets.
 
 .SH CONFIGURATION DETAILS
-Please refer to XF86Config(__filemansuffix__) for general configuration
+Please refer to __xconfigfile__(__filemansuffix__) for general configuration
 details.  This section only covers configuration details specific to this
 driver.
 .PP
@@ -50,7 +50,8 @@ DRI is enabled.  This amount may be changed with the
 entry in the config file
 .B "Device"
 section.  It may be set to any reasonable value up to 64MB for older
-chipsets or 128MB for newer chipets.  It is advisable to check the XFree86
+chipsets or 128MB for newer chipets.  It is advisable to check the
+__xservername__
 log file to check if any features have been disabled because of insufficient
 video memory.  In particular, DRI support or tiling mode may be disabled
 with insufficient video memory.  Either of these being disabled will
@@ -87,7 +88,7 @@ textures.  Increasing it can improve 2D performance at the expense of
 Default: depends on the resolution, depth, and available video memory.  The
 driver attempts to allocate at least enough to hold two DVD-sized YUV buffers
 by default.  The default used for a specific configuration can be found
-by examining the XFree86 log file.
+by examining the __xservername__ log file.
 .TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
 Disable or enable DRI support.
@@ -135,9 +136,9 @@ configurations where it is supported.
 
 
 .SH "SEE ALSO"
-XFree86(1), XF86Config(__filemansuffix__), xf86config(1), Xserver(1), X(__miscmansuffix__)
+__xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .SH AUTHORS
 Authors include: Keith Whitwell, and also Jonathan Bian, Matthew J Sottek, 
 Jeff Hartmann, Mark Vojkovich, Alan Hourihane, H. J. Lu.  830M and 845G
-support reworked for XFree86 4.3 by David Dawes and Keith Whitwell.
+support reworked originally for XFree86 4.3 by David Dawes and Keith Whitwell.
 852GM, 855GM, and 865G support added by David Dawes and Keith Whitwell.

@@ -7,7 +7,7 @@
 <author>Precision Insight, Inc.
 <date>3 March 2000
 <ident>
-$XFree86: xc/programs/Xserver/hw/xfree86/doc/sgml/i810.sgml,v 1.4 2003/07/29 20:59:06 dawes Exp $
+$XFree86: xc/programs/Xserver/hw/xfree86/doc/sgml/i810.sgml,v 1.4 2001/04/04 01:34:18 dawes Exp $
 </ident>
 <toc>
 
@@ -71,14 +71,14 @@ More up to date information about the i810 driver can be found in the
 <p>
 The driver auto-detects all device information necessary to
 initialize the card.  The only lines you need in the "Device"
-section of your XF86Config file are:
+section of your xorg.conf file are:
 <verb>
        Section "Device"
            Identifier "Intel i810"
            Driver     "i810"
        EndSection
 </verb>
-or let <tt>xf86config</tt> do this for you.
+or let <tt>xorgconfig</tt> do this for you.
 
 However, if you have problems with auto-detection, you can specify:
 <itemize>
@@ -120,7 +120,9 @@ capable server.
    <item>Keith Whitwell
 </itemize>
 
-This driver was donated to The XFree86 Project by:
+The X11R&relvers; version of this driver originally came from XFree86 4.4 rc2.
+
+The XFree86 version of this driver was donated to The XFree86 Project by:
 <verb>
     Precision Insight, Inc.
     Cedar Park, TX

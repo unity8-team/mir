@@ -27,7 +27,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830.h,v 1.13 2004/02/20 00:06:00 alanh Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830.h,v 1.12 2004/01/07 03:43:19 dawes Exp $ */
 
 /*
  * Authors:
@@ -401,7 +401,8 @@ extern void I830ChangeFrontbuffer(ScrnInfoPtr pScrn,int buffer);
 #define ALLOCATE_DRY_RUN		0x80000000
 
 /* Chipset registers for VIDEO BIOS memory RW access */
-#define DRAM_RW_CONTROL 0x58
+#define _855_DRAM_RW_CONTROL 0x58
+#define _845_DRAM_RW_CONTROL 0x90
 #define DRAM_WRITE    0x33330000
 
 #endif /* _I830_H_ */

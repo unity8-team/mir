@@ -26,7 +26,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_common.h,v 1.2 2002/12/10 01:27:05 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_common.h,v 1.1 2002/09/11 00:29:32 dawes Exp $ */
 
 /* Author: Jeff Hartmann <jhartmann@valinux.com> 
 

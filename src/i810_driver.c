@@ -25,7 +25,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_driver.c,v 1.102 2004/01/02 22:16:18 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_driver.c,v 1.101 2004/01/02 20:15:47 dawes Exp $ */
 
 /*
  * Reformatted with GNU indent (2.2.8), using the following options:
@@ -347,7 +347,7 @@ static XF86ModuleVersionInfo i810VersRec = {
    MODULEVENDORSTRING,
    MODINFOSTRING1,
    MODINFOSTRING2,
-   XF86_VERSION_CURRENT,
+   XORG_VERSION_CURRENT,
    I810_MAJOR_VERSION, I810_MINOR_VERSION, I810_PATCHLEVEL,
    ABI_CLASS_VIDEODRV,
    ABI_VIDEODRV_VERSION,

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_dri.c,v 1.42 2003/09/28 20:15:58 alanh Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_dri.c,v 1.41 2003/09/24 02:43:23 dawes Exp $ */
 /*
  * Reformatted with GNU indent (2.2.8), using the following options:
  *

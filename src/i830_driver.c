@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_driver.c,v 1.51 2004/02/25 12:53:14 eich Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_driver.c,v 1.50 2004/02/20 00:06:00 alanh Exp $ */
 /**************************************************************************
 
 Copyright 2001 VA Linux Systems Inc., Fremont, California.
@@ -1079,7 +1079,9 @@ static CARD32
 TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize, Bool preinit)
 {
 #define SIZE 0x10000
-#define IDOFFSET (-23)
+#define _855_IDOFFSET (-23)
+#define _845_IDOFFSET (-19)
+
     const char *MAGICstring = "Total time for VGA POST:";
     const int len = strlen(MAGICstring);
     I830Ptr pI830 = I830PTR(pScrn);
@@ -1090,9 +1092,11 @@ TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize, Bool preinit)
     CARD32 ret = 0;
     int i,j = 0;
     PCITAG tag =pciTag(0,0,0);
-
+    int reg = IS_845G(pI830) ? _845_DRAM_RW_CONTROL : _855_DRAM_RW_CONTROL;
+    
     if(!pI830->PciInfo 
-       || !(pI830->PciInfo->chipType == PCI_CHIP_I855_GM
+       || !(pI830->PciInfo->chipType == PCI_CHIP_845_G
+	    || pI830->PciInfo->chipType == PCI_CHIP_I855_GM
 	    || pI830->PciInfo->chipType == PCI_CHIP_I865_G))
 	return 0;
 
@@ -1119,19 +1123,19 @@ TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize, Bool preinit)
 	}
 	if (j < len) return 0;
 
-	pI830->BIOSMemSizeLoc =  (i - j + 1 + IDOFFSET);
+	pI830->BIOSMemSizeLoc =  (i - j + 1 + (IS_845G(pI830)
+				  ? _845_IDOFFSET : _855_IDOFFSET));
     }
 
     position = biosAddr + pI830->BIOSMemSizeLoc;
     oldsize = *(CARD32 *)position;
     ret = oldsize - (3 << 16);
-
     /* verify that register really contains current size */
     if (preinit && ((oldsize) >> 16) - 3 !=  pI830->vbeInfo->TotalMemory)
 	return 0;
 
-    oldpermission = pciReadLong(tag, DRAM_RW_CONTROL);
-    pciWriteLong(tag, DRAM_RW_CONTROL, 0x33330000);
+    oldpermission = pciReadLong(tag, reg);
+    pciWriteLong(tag, reg, 0x33330000);
 
     *(CARD32 *)position = newsize + (3 << 16);
     if (preinit) {
@@ -1142,7 +1146,7 @@ TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize, Bool preinit)
 	pI830->vbeInfo = VBEGetVBEInfo(pI830->pVbe);
 
 	/* verify that change was successful */
-	if (pI830->vbeInfo->TotalMemory * 64 * 1024 != pI830->newBIOSMemSize) {
+	if (pI830->vbeInfo->TotalMemory * 64 * 1024 != pI830->newBIOSMemSize){
 	    ret = 0;
 	    *(CARD32 *)position = oldsize;
 	} else {
@@ -1153,7 +1157,7 @@ TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize, Bool preinit)
 	}
     }
 
-     pciWriteLong(tag, DRAM_RW_CONTROL, oldpermission);
+     pciWriteLong(tag, reg, oldpermission);
 
      return ret;
 }
