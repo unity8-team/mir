@@ -1255,14 +1255,12 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     info->pDRIInfo                       = pDRIInfo;
     pDRIInfo->drmDriverName              = RADEON_DRIVER_NAME;
 
+    if ( (info->ChipFamily >= CHIP_FAMILY_R300) ) {
+       pDRIInfo->clientDriverName        = R300_DRIVER_NAME;
+    } else    
     if ( info->ChipFamily >= CHIP_FAMILY_R200 )
        pDRIInfo->clientDriverName	 = R200_DRIVER_NAME;
     else 
-    if ( (info->ChipFamily == CHIP_FAMILY_R300) ||
-	 (info->ChipFamily == CHIP_FAMILY_R350) ||
-	 (info->ChipFamily == CHIP_FAMILY_RV350) ) {
-       pDRIInfo->clientDriverName        = R300_DRIVER_NAME;
-    } else
        pDRIInfo->clientDriverName	 = RADEON_DRIVER_NAME;
 
     if (xf86LoaderCheckSymbol("DRICreatePCIBusID")) {
