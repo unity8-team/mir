@@ -1348,9 +1348,12 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 					   | BIT_ORDER_IN_BYTE_LSBFIRST);
 #endif
 
-#if defined(RENDER)
-    if (info->RenderAccel &&
-	info->xaaReq.minorversion >= 2) {
+#ifdef RENDER
+    if (info->RenderAccel
+#ifdef XFree86LOADER
+	&& info->xaaReq.minorversion >= 2
+#endif
+	) {
 
 	a->CPUToScreenAlphaTextureFlags = XAA_RENDER_POWER_OF_2_TILE_ONLY;
 	a->CPUToScreenAlphaTextureFormats = RADEONTextureFormats;
