@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_dri.c,v 1.40 2003/07/09 01:45:23 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_dri.c,v 1.41 2003/09/24 02:43:23 dawes Exp $ */
 /*
  * Reformatted with GNU indent (2.2.8), using the following options:
  *
@@ -525,7 +525,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    drmAgpAlloc(pI810->drmSubFD, 4096 * 1024, 1, NULL, &dcacheHandle);
    pI810->dcacheHandle = dcacheHandle;
 
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[agp] dcacheHandle : %p\n",
+   xf86DrvMsg(pScreen->myNum, X_INFO, "[agp] dcacheHandle : 0x%lx\n",
 	      dcacheHandle);
 
 #define Elements(x) sizeof(x)/sizeof(*x)
