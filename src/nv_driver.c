@@ -24,7 +24,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.119 2003/11/07 23:56:28 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.120 2003/12/11 00:12:34 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -1183,22 +1183,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
     NVCommonSetup(pScrn);
 
-    /*
-     * If the user has specified the amount of memory in the XF86Config
-     * file, we respect that setting.
-     */
-    if (pNv->pEnt->device->videoRam != 0) {
-	pScrn->videoRam = pNv->pEnt->device->videoRam;
-	from = X_CONFIG;
+    if (pNv->FBDev) {
+       pScrn->videoRam = fbdevHWGetVidmem(pScrn)/1024;
     } else {
-	if (pNv->FBDev) {
-	    pScrn->videoRam = fbdevHWGetVidmem(pScrn)/1024;
-	} else {
-            pScrn->videoRam = pNv->RamAmountKBytes;
-	}
-	from = X_PROBED;
+       pScrn->videoRam = pNv->RamAmountKBytes;
     }
-    xf86DrvMsg(pScrn->scrnIndex, from, "VideoRAM: %d kBytes\n",
+    xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "VideoRAM: %d kBytes\n",
                pScrn->videoRam);
 	
     pNv->FbMapSize = pScrn->videoRam * 1024;
