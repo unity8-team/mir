@@ -1297,8 +1297,8 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       /*
        * Y down-scale factor as a multiple of 4096.
        */
-      xscaleFract = (src_w << 12) / drw_w;
-      yscaleFract = (src_h << 12) / drw_h;
+      xscaleFract = ((src_w - 1) << 12) / drw_w;
+      yscaleFract = ((src_h - 1) << 12) / drw_h;
 
       /* Calculate the UV scaling factor. */
       xscaleFractUV = xscaleFract / uvratio;
