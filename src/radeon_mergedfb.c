@@ -1443,14 +1443,6 @@ RADEONChooseCursorCRTC(ScrnInfoPtr pScrn1, int x, int y)
     RADEONScrn2Rel srel = 
         ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2Position;
     ScrnInfoPtr pScrn2 = info->CRT2pScrn;
-
-    /*
-       Note: we need WaitForIdle here because OUTREGP() involves an INREG() to obtain a previous
-       value. This fix is needed for RV350 + 3d driver (or we get a lockup otherwise).
-       
-       It is also indicated by documentation (we should not be doing INREG if CP engine is active)       
-    */
-    RADEONWaitForIdleMMIO(pScrn1);
     
     if (srel == radeonClone) {
 	/* show cursor 2 */
