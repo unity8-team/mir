@@ -1916,7 +1916,12 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ShowCache enabled\n");
     }
 
-    if (xf86ReturnOptValBool(info->Options, OPTION_FBDEV, FALSE)) {
+#ifdef __powerpc__
+    if (xf86ReturnOptValBool(info->Options, OPTION_FBDEV, TRUE))
+#else
+    if (xf86ReturnOptValBool(info->Options, OPTION_FBDEV, FALSE))
+#endif
+    {
 	info->FBDev = TRUE;
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
 		   "Using framebuffer device\n");
