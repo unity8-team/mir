@@ -2341,7 +2341,7 @@ RADEONDisplayVideo(
     OUTREG(RADEON_OV0_P23_H_ACCUM_INIT, p23_h_accum_init);
 
    scale_cntl = RADEON_SCALER_ADAPTIVE_DEINT | RADEON_SCALER_DOUBLE_BUFFER 
-        | RADEON_SCALER_ENABLE | RADEON_SCALER_SMART_SWITCH | (0x7f<<16);
+        | RADEON_SCALER_ENABLE | RADEON_SCALER_SMART_SWITCH | (0x7f<<16) | scaler_src;
    switch(id){
         case FOURCC_UYVY:
                 OUTREG(RADEON_OV0_SCALE_CNTL, RADEON_SCALER_SOURCE_YVYU422 | scale_cntl);
@@ -2937,14 +2937,24 @@ RADEONPutVideo(
 	   vbi_line_width = 0x640; /* 1600 actually */
 	   else
 	   vbi_line_width = 2000; /* might need adjustment */
+
+   if (info->MergedFB)
+        RADEONChooseOverlayCRTC(pScrn, &dstBox);
         
    if(!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb, clipBoxes, width, height))
         return Success;
 
-   dstBox.x1 -= pScrn->frameX0;
-   dstBox.x2 -= pScrn->frameX0;
-   dstBox.y1 -= pScrn->frameY0;
-   dstBox.y2 -= pScrn->frameY0;
+   if (info->MergedFB && info->OverlayOnCRTC2) {
+	dstBox.x1 -= info->CRT2pScrn->frameX0;
+	dstBox.x2 -= info->CRT2pScrn->frameX0;
+	dstBox.y1 -= info->CRT2pScrn->frameY0;
+	dstBox.y2 -= info->CRT2pScrn->frameY0;
+   } else {
+	dstBox.x1 -= pScrn->frameX0;
+	dstBox.x2 -= pScrn->frameX0;
+	dstBox.y1 -= pScrn->frameY0;
+	dstBox.y2 -= pScrn->frameY0;
+   }
 
    bpp = pScrn->bitsPerPixel >> 3;
    pitch = bpp * pScrn->displayWidth;
