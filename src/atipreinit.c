@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atipreinit.c,v 1.71 2003/11/13 21:21:34 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atipreinit.c,v 1.73 2003/12/15 15:14:56 tsi Exp $ */
 /*
  * Copyright 1999 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -2217,8 +2217,9 @@ ATIPreInit
 
             /* If the mode on entry wasn't stretched, adjust timings */
             if (!(pATIHW->horz_stretching & HORZ_STRETCH_EN) &&
-                ((HDisplay = pATI->LCDHorizontal - HDisplay) > 0))
+                (pATI->LCDHorizontal > HDisplay))
             {
+                HDisplay = pATI->LCDHorizontal - HDisplay;
                 if (pATI->LCDHSyncStart >= HDisplay)
                     pATI->LCDHSyncStart -= HDisplay;
                 else
@@ -2230,8 +2231,9 @@ ATIPreInit
             }
 
             if (!(pATIHW->vert_stretching & VERT_STRETCH_EN) &&
-                ((VDisplay = pATI->LCDVertical - VDisplay) > 0))
+                (pATI->LCDVertical > VDisplay))
             {
+                VDisplay = pATI->LCDVertical - VDisplay;
                 if (pATI->LCDVSyncStart >= VDisplay)
                     pATI->LCDVSyncStart -= VDisplay;
                 else
@@ -3277,8 +3279,7 @@ ATIPreInit
             pATI->pitchInc = pATI->XModifier * (64 * 8);
     }
 
-    if (pATI->OptionPanelDisplay && (pATI->LCDPanelID >= 0) &&
-       (ModeType == M_T_BUILTIN))
+    if (pATI->OptionPanelDisplay && (pATI->LCDPanelID >= 0))
     {
         /*
          * Given LCD modes are more tightly controlled than CRT modes, allow
@@ -3287,53 +3288,56 @@ ATIPreInit
          */
         Strategy |= LOOKUP_OPTIONAL_TOLERANCES;
 
-        /*
-         * Add a mode to the end of the monitor's list for the panel's native
-         * resolution.
-         */
-        pMode = (DisplayModePtr)xnfcalloc(1, SizeOf(DisplayModeRec));
-        pMode->name = "Native panel mode";
-        pMode->type = M_T_BUILTIN;
-        pMode->Clock = pATI->LCDClock;
-        pMode->HDisplay = pATI->LCDHorizontal;
-        pMode->VDisplay = pATI->LCDVertical;
-
-        /*
-         * These timings are bogus, but enough to survive sync tolerance
-         * checks.
-         */
-        pMode->HSyncStart = pMode->HDisplay;
-        pMode->HSyncEnd = pMode->HSyncStart + minPitch;
-        pMode->HTotal = pMode->HSyncEnd + minPitch;
-        pMode->VSyncStart = pMode->VDisplay;
-        pMode->VSyncEnd = pMode->VSyncStart + 1;
-        pMode->VTotal = pMode->VSyncEnd + 1;
-
-        pMode->CrtcHDisplay = pMode->HDisplay;
-        pMode->CrtcHBlankStart = pMode->HDisplay;
-        pMode->CrtcHSyncStart = pMode->HSyncStart;
-        pMode->CrtcHSyncEnd = pMode->HSyncEnd;
-        pMode->CrtcHBlankEnd = pMode->HTotal;
-        pMode->CrtcHTotal = pMode->HTotal;
-
-        pMode->CrtcVDisplay = pMode->VDisplay;
-        pMode->CrtcVBlankStart = pMode->VDisplay;
-        pMode->CrtcVSyncStart = pMode->VSyncStart;
-        pMode->CrtcVSyncEnd = pMode->VSyncEnd;
-        pMode->CrtcVBlankEnd = pMode->VTotal;
-        pMode->CrtcVTotal = pMode->VTotal;
-
-        if (!pScreenInfo->monitor->Modes)
+        if (ModeType == M_T_BUILTIN)
         {
-            pScreenInfo->monitor->Modes = pMode;
-        }
-        else
-        {
-            pScreenInfo->monitor->Last->next = pMode;
-            pMode->prev = pScreenInfo->monitor->Last;
-        }
+            /*
+             * Add a mode to the end of the monitor's list for the panel's
+             * native resolution.
+             */
+            pMode = (DisplayModePtr)xnfcalloc(1, SizeOf(DisplayModeRec));
+            pMode->name = "Native panel mode";
+            pMode->type = M_T_BUILTIN;
+            pMode->Clock = pATI->LCDClock;
+            pMode->HDisplay = pATI->LCDHorizontal;
+            pMode->VDisplay = pATI->LCDVertical;
 
-        pScreenInfo->monitor->Last = pMode;
+            /*
+             * These timings are bogus, but enough to survive sync tolerance
+             * checks.
+             */
+            pMode->HSyncStart = pMode->HDisplay;
+            pMode->HSyncEnd = pMode->HSyncStart + minPitch;
+            pMode->HTotal = pMode->HSyncEnd + minPitch;
+            pMode->VSyncStart = pMode->VDisplay;
+            pMode->VSyncEnd = pMode->VSyncStart + 1;
+            pMode->VTotal = pMode->VSyncEnd + 1;
+
+            pMode->CrtcHDisplay = pMode->HDisplay;
+            pMode->CrtcHBlankStart = pMode->HDisplay;
+            pMode->CrtcHSyncStart = pMode->HSyncStart;
+            pMode->CrtcHSyncEnd = pMode->HSyncEnd;
+            pMode->CrtcHBlankEnd = pMode->HTotal;
+            pMode->CrtcHTotal = pMode->HTotal;
+
+            pMode->CrtcVDisplay = pMode->VDisplay;
+            pMode->CrtcVBlankStart = pMode->VDisplay;
+            pMode->CrtcVSyncStart = pMode->VSyncStart;
+            pMode->CrtcVSyncEnd = pMode->VSyncEnd;
+            pMode->CrtcVBlankEnd = pMode->VTotal;
+            pMode->CrtcVTotal = pMode->VTotal;
+
+            if (!pScreenInfo->monitor->Modes)
+            {
+                pScreenInfo->monitor->Modes = pMode;
+            }
+            else
+            {
+                pScreenInfo->monitor->Last->next = pMode;
+                pMode->prev = pScreenInfo->monitor->Last;
+            }
+
+            pScreenInfo->monitor->Last = pMode;
+        }
 
         /*
          * Defeat Xconfigurator brain damage.  Ignore all HorizSync and
@@ -3342,7 +3346,7 @@ ATIPreInit
          */
         if (pScreenInfo->monitor->nHsync > 0)
         {
-            double hsync = (double)pMode->Clock /
+            double hsync = (double)pATI->LCDClock /
                            (pATI->LCDHorizontal + pATI->LCDHBlankWidth);
 
             for (i = 0;  ;  i++)
@@ -3370,7 +3374,7 @@ ATIPreInit
 
         if (pScreenInfo->monitor->nVrefresh > 0)
         {
-            double vrefresh = ((double)pMode->Clock * 1000.0) /
+            double vrefresh = ((double)pATI->LCDClock * 1000.0) /
                               ((pATI->LCDHorizontal + pATI->LCDHBlankWidth) *
                                (pATI->LCDVertical + pATI->LCDVBlankWidth));
 
