@@ -115,6 +115,7 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 
 static void RADEONGetMergedFBOptions(ScrnInfoPtr pScrn);
 static int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
+static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode);
 
 /* psuedo xinerama support */
 
@@ -160,7 +161,8 @@ typedef enum {
     OPTION_RENDER_ACCEL,
     OPTION_SUBPIXEL_ORDER,
 #endif
-    OPTION_SHOWCACHE
+    OPTION_SHOWCACHE,
+    OPTION_DYNAMIC_CLOCKS
 } RADEONOpts;
 
 const OptionInfoRec RADEONOptions[] = {
@@ -204,6 +206,7 @@ const OptionInfoRec RADEONOptions[] = {
     { OPTION_SUBPIXEL_ORDER, "SubPixelOrder",    OPTV_ANYSTR,  {0}, FALSE },
 #endif
     { OPTION_SHOWCACHE,      "ShowCache",        OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_DYNAMIC_CLOCKS, "DynamicClocks",    OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -929,8 +932,17 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
 
     if (*MonInfo) {
 	if ((*MonInfo)->rawData[0x14] & 0x80) {
-	    if (INREG(RADEON_LVDS_GEN_CNTL) & RADEON_LVDS_ON) MonType = MT_LCD;
-	    else MonType = MT_DFP;
+	    /* Note some laptops have a DVI output that uses internal TMDS,
+	     * when its DVI is enabled by hotkey, LVDS panel is not used.
+	     * In this case, the laptop is configured as DVI+VGA as a normal 
+	     * desktop card.
+	     * Also for laptop, when X starts with lid closed (no DVI connection)
+	     * both LDVS and TMDS are disable, we still need to treat it as a LVDS panel.
+	     */
+	    if ((INREG(RADEON_FP_GEN_CNTL) & (1<<7)) || !info->IsMobility)
+		MonType = MT_DFP;
+	    else 
+		MonType = MT_LCD;
 	} else MonType = MT_CRT;
     } else MonType = MT_NONE;
 
@@ -1572,7 +1584,7 @@ static Bool RADEONGetBIOSParameters(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 
 		info->PanelXRes = RADEON_BIOS16(tmp+25);
 		info->PanelYRes = RADEON_BIOS16(tmp+27);
-		xf86DrvMsg(0, X_INFO, "Panel Size from BIOS: %dx%d\n",
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Panel Size from BIOS: %dx%d\n",
 			   info->PanelXRes, info->PanelYRes);
 
 		info->PanelPwrDly = RADEON_BIOS16(tmp+44);
@@ -4255,7 +4267,7 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
     if (info->CPStarted) DRILock(pScrn->pScreen, 0);
 #endif
 
-    if (info->accelOn) info->accel->Sync(pScrn);
+    if (info->accelOn && pScrn->pScreen) info->accel->Sync(pScrn);
 
     if (info->FBDev) {
 	fbdevHWLoadPalette(pScrn, numColors, indices, colors, pVisual);
@@ -4430,6 +4442,13 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     info->PaletteSavedOnVT = FALSE;
 
     RADEONSave(pScrn);
+
+    if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
+	RADEONSetDynamicClock(pScrn, 1);
+    } else {
+	RADEONSetDynamicClock(pScrn, 0);
+    }
+
     if (info->FBDev) {
 	unsigned char *RADEONMMIO = info->MMIO;
 
@@ -4819,10 +4838,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (RADEONAccelInit(pScreen)) {
 	    xf86DrvMsg(scrnIndex, X_INFO, "Acceleration enabled\n");
 	    info->accelOn = TRUE;
-
-	    /* FIXME: Figure out why this was added because it shouldn't be! */
-	    /* This is needed by the DRI and XAA code for shared entities */
-	    pScrn->pScreen = pScreen;
 	} else {
 	    xf86DrvMsg(scrnIndex, X_ERROR,
 		       "Acceleration initialization failed\n");
@@ -5103,6 +5118,12 @@ static void RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	OUTREG(RADEON_GRPH_BUFFER_CNTL,
 	       INREG(RADEON_GRPH_BUFFER_CNTL) & ~0x7f0000);
 
+    if (info->IsMobility) {
+	OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
+	OUTREG(RADEON_BIOS_5_SCRATCH, restore->bios_5_scratch);
+	OUTREG(RADEON_BIOS_6_SCRATCH, restore->bios_6_scratch);
+    }
+
     if (info->DisplayType != MT_DFP) {
 	unsigned long tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
         OUTREG(RADEON_BIOS_5_SCRATCH, restore->bios_5_scratch);
@@ -5270,11 +5291,6 @@ static void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
 	      | RADEON_PPLL_SLEEP
 	      | RADEON_PPLL_ATOMIC_UPDATE_EN
 	      | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN));
-
-    xf86DrvMsg(0, X_INFO, "Wrote: rd=%ld, fd=%ld, pd=%ld\n",
-	       restore->ppll_ref_div & RADEON_PPLL_REF_DIV_MASK,
-	       restore->ppll_div_3 & RADEON_PPLL_FB3_DIV_MASK,
-	       (restore->ppll_div_3 & RADEON_PPLL_POST3_DIV_MASK) >> 16);
 
     RADEONTRACE(("Wrote: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
 	       restore->ppll_ref_div,
@@ -5534,7 +5550,9 @@ static void RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->lvds_pll_cntl        = INREG(RADEON_LVDS_PLL_CNTL);
     save->tmds_pll_cntl        = INREG(RADEON_TMDS_PLL_CNTL);
     save->tmds_transmitter_cntl= INREG(RADEON_TMDS_TRANSMITTER_CNTL);
+    save->bios_4_scratch       = INREG(RADEON_BIOS_4_SCRATCH);
     save->bios_5_scratch       = INREG(RADEON_BIOS_5_SCRATCH);
+    save->bios_6_scratch       = INREG(RADEON_BIOS_6_SCRATCH);
 
     if (info->ChipFamily == CHIP_FAMILY_RV280) {
 	/* bit 22 of TMDS_PLL_CNTL is read-back inverted */
@@ -6110,10 +6128,7 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     int  format;
     int  hsync_start;
     int  hsync_wid;
-    int  hsync_fudge;
     int  vsync_wid;
-    int  hsync_fudge_default[] = { 0x00, 0x12, 0x09, 0x09, 0x06, 0x05 };
-    int  hsync_fudge_fp[]      = { 0x02, 0x02, 0x00, 0x00, 0x05, 0x05 };
 
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
@@ -6131,7 +6146,6 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
     if ((info->DisplayType == MT_DFP) ||
 	(info->DisplayType == MT_LCD)) {
-	hsync_fudge = hsync_fudge_fp[format-1];
 	if (mode->Flags & RADEON_USE_RMX) {
 #if 0
 	    mode->CrtcHDisplay   = info->PanelXRes;
@@ -6146,8 +6160,6 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	    mode->Clock          = info->DotClock;
 	    mode->Flags          = info->Flags | RADEON_USE_RMX;
 	}
-    } else {
-	hsync_fudge = hsync_fudge_default[format-1];
     }
 
     save->crtc_gen_cntl = (RADEON_CRTC_EXT_DISP_EN
@@ -6185,7 +6197,7 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
     hsync_wid = (mode->CrtcHSyncEnd - mode->CrtcHSyncStart) / 8;
     if (!hsync_wid) hsync_wid = 1;
-    hsync_start = mode->CrtcHSyncStart - 8 + hsync_fudge;
+    hsync_start = mode->CrtcHSyncStart - 8;
 
     save->crtc_h_sync_strt_wid = ((hsync_start & 0x1fff)
 				  | ((hsync_wid & 0x3f) << 16)
@@ -6279,9 +6291,7 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     int  format;
     int  hsync_start;
     int  hsync_wid;
-    int  hsync_fudge;
     int  vsync_wid;
-    int  hsync_fudge_default[] = { 0x00, 0x12, 0x09, 0x09, 0x06, 0x05 };
 
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
@@ -6296,8 +6306,6 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 		   info->CurrentLayout.bitsPerPixel);
 	return FALSE;
     }
-
-    hsync_fudge = hsync_fudge_default[format-1];
 
     save->crtc2_gen_cntl = (RADEON_CRTC2_EN
 			    | RADEON_CRTC2_CRT2_ON
@@ -6362,7 +6370,7 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
     hsync_wid = (mode->CrtcHSyncEnd - mode->CrtcHSyncStart) / 8;
     if (!hsync_wid) hsync_wid = 1;
-    hsync_start = mode->CrtcHSyncStart - 8 + hsync_fudge;
+    hsync_start = mode->CrtcHSyncStart - 8;
 
     save->crtc2_h_sync_strt_wid = ((hsync_start & 0x1fff)
 				   | ((hsync_wid & 0x3f) << 16)
@@ -6590,15 +6598,6 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
 	    save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
     } else {
 	if (info->DisplayType == MT_LCD) {
-	    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-
-	    /* BIOS will use this setting to reset displays upon lid close/open.
-	     * Here we let BIOS controls LCD, but the driver will control the external CRT.
-	     */
-	    if (info->MergedFB || pRADEONEnt->HasSecondary)
-		save->bios_5_scratch = 0x01020201;
-	    else
-		save->bios_5_scratch = orig->bios_5_scratch;
 
 	    save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
 	    save->fp_gen_cntl   &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
@@ -6638,6 +6637,36 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
 
 	    save->fp_gen_cntl   |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
         }
+    }
+
+    if (info->IsMobility) {
+	RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+
+	/* To work correctly with laptop hotkeys.
+	 * Since there is no machnism for accessing ACPI evnets
+	 * and the driver currently doesn't know how to validate
+	 * a mode dynamically, we have to tell BIOS don't do
+	 * display switching after X has started.  
+	 * If LCD is on, lid close/open should still work 
+	 * with below settings
+	 */
+	if (info->DisplayType == MT_LCD) {
+	    if (pRADEONEnt->MonType2 == MT_CRT)
+		save->bios_5_scratch = 0x0201;
+	    else if (pRADEONEnt->MonType2 == MT_DFP)
+		save->bios_5_scratch = 0x0801;
+	    else
+		save->bios_5_scratch = orig->bios_5_scratch;
+	} else {
+	    if (pRADEONEnt->MonType2 == MT_CRT)
+		save->bios_5_scratch = 0x0200;
+	    else if (pRADEONEnt->MonType2 == MT_DFP)
+		save->bios_5_scratch = 0x0800;
+	    else
+		save->bios_5_scratch = 0x0; 
+	}
+	save->bios_4_scratch = 0x4;
+	save->bios_6_scratch = orig->bios_6_scratch | 0x40000000;
     }
 
     save->fp_crtc_h_total_disp = save->crtc_h_total_disp;
@@ -7682,3 +7711,352 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
        }
     }
 }
+
+static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 tmp;
+    switch(mode) {
+        case 0: /* Turn everything OFF (ForceON to everything)*/
+            if ( !info->HasCRTC2 ) {
+                tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
+                tmp |= (RADEON_SCLK_FORCE_CP   | RADEON_SCLK_FORCE_HDP |
+			RADEON_SCLK_FORCE_DISP1 | RADEON_SCLK_FORCE_TOP |
+                        RADEON_SCLK_FORCE_E2   | RADEON_SCLK_FORCE_SE  |
+			RADEON_SCLK_FORCE_IDCT | RADEON_SCLK_FORCE_VIP |
+			RADEON_SCLK_FORCE_RE   | RADEON_SCLK_FORCE_PB  |
+			RADEON_SCLK_FORCE_TAM  | RADEON_SCLK_FORCE_TDM |
+                        RADEON_SCLK_FORCE_RB);
+                OUTPLL(RADEON_SCLK_CNTL, tmp);
+            } else if (info->ChipFamily == CHIP_FAMILY_RV350) {
+                /* for RV350/M10, no delays are required. */
+                tmp = INPLL(pScrn, R300_SCLK_CNTL2);
+                tmp |= (R300_SCLK_FORCE_TCL |
+                        R300_SCLK_FORCE_GA  |
+			R300_SCLK_FORCE_CBA);
+                OUTPLL(R300_SCLK_CNTL2, tmp);
+
+                tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
+                tmp |= (RADEON_SCLK_FORCE_DISP2 | RADEON_SCLK_FORCE_CP      |
+                        RADEON_SCLK_FORCE_HDP   | RADEON_SCLK_FORCE_DISP1   |
+                        RADEON_SCLK_FORCE_TOP   | RADEON_SCLK_FORCE_E2      |
+                        R300_SCLK_FORCE_VAP     | RADEON_SCLK_FORCE_IDCT    |
+			RADEON_SCLK_FORCE_VIP   | R300_SCLK_FORCE_SR        |
+			R300_SCLK_FORCE_PX      | R300_SCLK_FORCE_TX        |
+			R300_SCLK_FORCE_US      | RADEON_SCLK_FORCE_TV_SCLK |
+                        R300_SCLK_FORCE_SU      | RADEON_SCLK_FORCE_OV0);
+                OUTPLL(RADEON_SCLK_CNTL, tmp);
+
+                tmp = INPLL(pScrn, RADEON_SCLK_MORE_CNTL);
+                tmp |= RADEON_SCLK_MORE_FORCEON;
+                OUTPLL(RADEON_SCLK_MORE_CNTL, tmp);
+
+                tmp = INPLL(pScrn, RADEON_MCLK_CNTL);
+                tmp |= (RADEON_FORCEON_MCLKA |
+                        RADEON_FORCEON_MCLKB |
+                        RADEON_FORCEON_YCLKA |
+			RADEON_FORCEON_YCLKB |
+                        RADEON_FORCEON_MC);
+                OUTPLL(RADEON_MCLK_CNTL, tmp);
+
+                tmp = INPLL(pScrn, RADEON_VCLK_ECP_CNTL);
+                tmp &= ~(RADEON_PIXCLK_ALWAYS_ONb  | 
+                         RADEON_PIXCLK_DAC_ALWAYS_ONb | 
+			 R300_DISP_DAC_PIXCLK_DAC_BLANK_OFF); 
+                OUTPLL(RADEON_VCLK_ECP_CNTL, tmp);
+
+                tmp = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
+                tmp &= ~(RADEON_PIX2CLK_ALWAYS_ONb         | 
+			 RADEON_PIX2CLK_DAC_ALWAYS_ONb     | 
+			 RADEON_DISP_TVOUT_PIXCLK_TV_ALWAYS_ONb | 
+			 R300_DVOCLK_ALWAYS_ONb            | 
+			 RADEON_PIXCLK_BLEND_ALWAYS_ONb    | 
+			 RADEON_PIXCLK_GV_ALWAYS_ONb       | 
+			 R300_PIXCLK_DVO_ALWAYS_ONb        | 
+			 RADEON_PIXCLK_LVDS_ALWAYS_ONb     | 
+			 RADEON_PIXCLK_TMDS_ALWAYS_ONb     | 
+			 R300_PIXCLK_TRANS_ALWAYS_ONb      | 
+			 R300_PIXCLK_TVO_ALWAYS_ONb        | 
+			 R300_P2G2CLK_ALWAYS_ONb            | 
+			 R300_P2G2CLK_ALWAYS_ONb           | 
+			 R300_DISP_DAC_PIXCLK_DAC2_BLANK_OFF); 
+                OUTPLL(RADEON_PIXCLKS_CNTL, tmp);
+            }  else {
+                tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
+                tmp |= (RADEON_SCLK_FORCE_CP | RADEON_SCLK_FORCE_E2);
+                tmp |= RADEON_SCLK_FORCE_SE;
+
+		if ( !info->HasCRTC2 ) {
+                     tmp |= ( RADEON_SCLK_FORCE_RB    |
+			      RADEON_SCLK_FORCE_TDM   |
+			      RADEON_SCLK_FORCE_TAM   |
+			      RADEON_SCLK_FORCE_PB    |
+			      RADEON_SCLK_FORCE_RE    |
+			      RADEON_SCLK_FORCE_VIP   |
+			      RADEON_SCLK_FORCE_IDCT  |
+			      RADEON_SCLK_FORCE_TOP   |
+			      RADEON_SCLK_FORCE_DISP1 |
+			      RADEON_SCLK_FORCE_DISP2 |
+			      RADEON_SCLK_FORCE_HDP    );
+		} else if ((info->ChipFamily == CHIP_FAMILY_R300) ||
+			   (info->ChipFamily == CHIP_FAMILY_R350)) {
+		    tmp |= ( RADEON_SCLK_FORCE_HDP   |
+			     RADEON_SCLK_FORCE_DISP1 |
+			     RADEON_SCLK_FORCE_DISP2 |
+			     RADEON_SCLK_FORCE_TOP   |
+			     RADEON_SCLK_FORCE_IDCT  |
+			     RADEON_SCLK_FORCE_VIP);
+		}
+                OUTREG(RADEON_SCLK_CNTL, tmp);
+            
+                usleep(16000);
+
+		if ((info->ChipFamily == CHIP_FAMILY_R300) ||
+		    (info->ChipFamily == CHIP_FAMILY_R350)) {
+                    tmp = INPLL(pScrn, R300_SCLK_CNTL2);
+                    tmp |= ( R300_SCLK_FORCE_TCL |
+			     R300_SCLK_FORCE_GA  |
+			     R300_SCLK_FORCE_CBA);
+                    OUTPLL(R300_SCLK_CNTL2, tmp);
+		    usleep(16000);
+		}
+
+                if (info->IsIGP) {
+                    tmp = INPLL(pScrn, RADEON_MCLK_CNTL);
+                    tmp &= ~(RADEON_FORCEON_MCLKA |
+			     RADEON_FORCEON_YCLKA);
+                    OUTREG(RADEON_MCLK_CNTL, tmp);
+		    usleep(16000);
+		}
+  
+		if ((info->ChipFamily == CHIP_FAMILY_RV200) ||
+		    (info->ChipFamily == CHIP_FAMILY_RV250) ||
+		    (info->ChipFamily == CHIP_FAMILY_RV280)) {
+                    tmp = INPLL(pScrn, RADEON_SCLK_MORE_CNTL);
+		    tmp |= RADEON_SCLK_MORE_FORCEON;
+                    OUTPLL(RADEON_SCLK_MORE_CNTL, tmp);
+		    usleep(16000);
+		}
+
+                tmp = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
+                tmp &= ~(RADEON_PIX2CLK_ALWAYS_ONb         |
+                         RADEON_PIX2CLK_DAC_ALWAYS_ONb     |
+                         RADEON_PIXCLK_BLEND_ALWAYS_ONb    |
+                         RADEON_PIXCLK_GV_ALWAYS_ONb       |
+                         RADEON_PIXCLK_DIG_TMDS_ALWAYS_ONb |
+                         RADEON_PIXCLK_LVDS_ALWAYS_ONb     |
+                         RADEON_PIXCLK_TMDS_ALWAYS_ONb);
+
+		OUTREG(RADEON_PIXCLKS_CNTL, tmp);
+		usleep(16000);
+
+                tmp = INPLL(pScrn, RADEON_VCLK_ECP_CNTL);
+                tmp &= ~(RADEON_PIXCLK_ALWAYS_ONb  |
+			 RADEON_PIXCLK_DAC_ALWAYS_ONb); 
+                OUTPLL(RADEON_VCLK_ECP_CNTL, tmp);
+	    }
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Dynamic Clock Scaling Disabled\n");
+            break;
+        case 1:
+            if (!info->HasCRTC2) {
+                tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
+		if ((INREG(RADEON_CONFIG_CNTL) & RADEON_CFG_ATI_REV_ID_MASK) >
+		    RADEON_CFG_ATI_REV_A13) { 
+                    tmp &= ~(RADEON_SCLK_FORCE_CP | RADEON_SCLK_FORCE_RB);
+                }
+                tmp &= ~(RADEON_SCLK_FORCE_HDP  | RADEON_SCLK_FORCE_DISP1 |
+			 RADEON_SCLK_FORCE_TOP  | RADEON_SCLK_FORCE_SE   |
+			 RADEON_SCLK_FORCE_IDCT | RADEON_SCLK_FORCE_RE   |
+			 RADEON_SCLK_FORCE_PB   | RADEON_SCLK_FORCE_TAM  |
+			 RADEON_SCLK_FORCE_TDM);
+                OUTPLL (RADEON_SCLK_CNTL, tmp);
+	    } else if ((info->ChipFamily == CHIP_FAMILY_R300) ||
+		       (info->ChipFamily == CHIP_FAMILY_R350) ||
+		       (info->ChipFamily == CHIP_FAMILY_RV350)) {
+		if (info->ChipFamily == CHIP_FAMILY_RV350) {
+		    tmp = INPLL(pScrn, R300_SCLK_CNTL2);
+		    tmp &= ~(R300_SCLK_FORCE_TCL |
+			     R300_SCLK_FORCE_GA  |
+			     R300_SCLK_FORCE_CBA);
+		    tmp |=  (R300_SCLK_TCL_MAX_DYN_STOP_LAT |
+			     R300_SCLK_GA_MAX_DYN_STOP_LAT  |
+			     R300_SCLK_CBA_MAX_DYN_STOP_LAT);
+		    OUTPLL(R300_SCLK_CNTL2, tmp);
+
+		    tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
+		    tmp &= ~(RADEON_SCLK_FORCE_DISP2 | RADEON_SCLK_FORCE_CP      |
+			     RADEON_SCLK_FORCE_HDP   | RADEON_SCLK_FORCE_DISP1   |
+			     RADEON_SCLK_FORCE_TOP   | RADEON_SCLK_FORCE_E2      |
+			     R300_SCLK_FORCE_VAP     | RADEON_SCLK_FORCE_IDCT    |
+			     RADEON_SCLK_FORCE_VIP   | R300_SCLK_FORCE_SR        |
+			     R300_SCLK_FORCE_PX      | R300_SCLK_FORCE_TX        |
+			     R300_SCLK_FORCE_US      | RADEON_SCLK_FORCE_TV_SCLK |
+			     R300_SCLK_FORCE_SU      | RADEON_SCLK_FORCE_OV0);
+		    tmp |=  RADEON_DYN_STOP_LAT_MASK;
+		    OUTPLL(RADEON_SCLK_CNTL, tmp);
+
+		    tmp = INPLL(pScrn, RADEON_SCLK_MORE_CNTL);
+		    tmp &= ~RADEON_SCLK_MORE_FORCEON;
+		    tmp |=  RADEON_SCLK_MORE_MAX_DYN_STOP_LAT;
+		    OUTPLL(RADEON_SCLK_MORE_CNTL, tmp);
+
+		    tmp = INPLL(pScrn, RADEON_VCLK_ECP_CNTL);
+		    tmp |= (RADEON_PIXCLK_ALWAYS_ONb |
+			    RADEON_PIXCLK_DAC_ALWAYS_ONb);   
+		    OUTPLL(RADEON_VCLK_ECP_CNTL, tmp);
+
+		    tmp = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
+		    tmp |= (RADEON_PIX2CLK_ALWAYS_ONb         |
+			    RADEON_PIX2CLK_DAC_ALWAYS_ONb     |
+			    RADEON_DISP_TVOUT_PIXCLK_TV_ALWAYS_ONb |
+			    R300_DVOCLK_ALWAYS_ONb            |   
+			    RADEON_PIXCLK_BLEND_ALWAYS_ONb    |
+			    RADEON_PIXCLK_GV_ALWAYS_ONb       |
+			    R300_PIXCLK_DVO_ALWAYS_ONb        | 
+			    RADEON_PIXCLK_LVDS_ALWAYS_ONb     |
+			    RADEON_PIXCLK_TMDS_ALWAYS_ONb     |
+			    R300_PIXCLK_TRANS_ALWAYS_ONb      |
+			    R300_PIXCLK_TVO_ALWAYS_ONb        |
+			    R300_P2G2CLK_ALWAYS_ONb           |
+			    R300_P2G2CLK_ALWAYS_ONb);
+		    OUTPLL(RADEON_PIXCLKS_CNTL, tmp);
+
+		    tmp = INPLL(pScrn, RADEON_MCLK_MISC);
+		    tmp |= (RADEON_MC_MCLK_DYN_ENABLE |
+			    RADEON_IO_MCLK_DYN_ENABLE);
+		    OUTPLL(RADEON_MCLK_MISC, tmp);
+
+		    tmp = INPLL(pScrn, RADEON_MCLK_CNTL);
+		    tmp |= (RADEON_FORCEON_MCLKA |
+			    RADEON_FORCEON_MCLKB);
+
+		    tmp &= ~(RADEON_FORCEON_YCLKA  |
+			     RADEON_FORCEON_YCLKB  |
+			     RADEON_FORCEON_MC);
+
+		    /* Some releases of vbios have set DISABLE_MC_MCLKA
+		       and DISABLE_MC_MCLKB bits in the vbios table.  Setting these
+		       bits will cause H/W hang when reading video memory with dynamic clocking
+		       enabled. */
+		    if ((tmp & R300_DISABLE_MC_MCLKA) &&
+			(tmp & R300_DISABLE_MC_MCLKB)) {
+			/* If both bits are set, then check the active channels */
+			tmp = INPLL(pScrn, RADEON_MCLK_CNTL);
+			if (info->RamWidth == 64) {
+			    if (INREG(RADEON_MEM_CNTL) & R300_MEM_USE_CD_CH_ONLY)
+				tmp &= ~R300_DISABLE_MC_MCLKB;
+			    else
+				tmp &= ~R300_DISABLE_MC_MCLKA;
+			} else {
+			    tmp &= ~(R300_DISABLE_MC_MCLKA |
+				     R300_DISABLE_MC_MCLKB);
+			}
+		    }
+
+		    OUTPLL(RADEON_MCLK_CNTL, tmp);
+		} else {
+		    tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
+		    tmp &= ~(R300_SCLK_FORCE_VAP);
+		    tmp |= RADEON_SCLK_FORCE_CP;
+		    OUTPLL(RADEON_SCLK_CNTL, tmp);
+		    usleep(15000);
+
+		    tmp = INPLL(pScrn, R300_SCLK_CNTL2);
+		    tmp &= ~(R300_SCLK_FORCE_TCL |
+			     R300_SCLK_FORCE_GA  |
+			     R300_SCLK_FORCE_CBA);
+		    OUTPLL(R300_SCLK_CNTL2, tmp);
+		}
+	    } else {
+                tmp = INPLL(pScrn, RADEON_CLK_PWRMGT_CNTL);
+
+                tmp &= ~(RADEON_ACTIVE_HILO_LAT_MASK     | 
+			 RADEON_DISP_DYN_STOP_LAT_MASK   | 
+			 RADEON_DYN_STOP_MODE_MASK); 
+
+                tmp |= (RADEON_ENGIN_DYNCLK_MODE |
+			(0x01 << RADEON_ACTIVE_HILO_LAT_SHIFT));
+                OUTPLL(RADEON_CLK_PWRMGT_CNTL, tmp);
+		usleep(15000);
+
+                tmp = INPLL(pScrn, RADEON_CLK_PIN_CNTL);
+                tmp |= RADEON_SCLK_DYN_START_CNTL; 
+                OUTPLL(RADEON_CLK_PIN_CNTL, tmp);
+		usleep(15000);
+
+		/* When DRI is enabled, setting DYN_STOP_LAT to zero can cause some R200 
+		   to lockup randomly, leave them as set by BIOS.
+		*/
+                tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
+                /*tmp &= RADEON_SCLK_SRC_SEL_MASK;*/
+		tmp &= ~RADEON_SCLK_FORCEON_MASK;
+
+                /*RAGE_6::A11 A12 A12N1 A13, RV250::A11 A12, R300*/
+		if (((info->ChipFamily == CHIP_FAMILY_RV250) &&
+		     ((INREG(RADEON_CONFIG_CNTL) & RADEON_CFG_ATI_REV_ID_MASK) <
+		      RADEON_CFG_ATI_REV_A13)) || 
+		    ((info->ChipFamily == CHIP_FAMILY_RV100) &&
+		     ((INREG(RADEON_CONFIG_CNTL) & RADEON_CFG_ATI_REV_ID_MASK) <=
+		      RADEON_CFG_ATI_REV_A13))){
+                    tmp |= RADEON_SCLK_FORCE_CP;
+                    tmp |= RADEON_SCLK_FORCE_VIP;
+                }
+
+                OUTPLL(RADEON_SCLK_CNTL, tmp);
+
+		if ((info->ChipFamily == CHIP_FAMILY_RV200) ||
+		    (info->ChipFamily == CHIP_FAMILY_RV250) ||
+		    (info->ChipFamily == CHIP_FAMILY_RV280)) {
+                    tmp = INPLL(pScrn, RADEON_SCLK_MORE_CNTL);
+                    tmp &= ~RADEON_SCLK_MORE_FORCEON;
+
+                    /* RV200::A11 A12 RV250::A11 A12 */
+		    if (((info->ChipFamily == CHIP_FAMILY_RV200) ||
+			 (info->ChipFamily == CHIP_FAMILY_RV250)) &&
+			((INREG(RADEON_CONFIG_CNTL) & RADEON_CFG_ATI_REV_ID_MASK) <
+			 RADEON_CFG_ATI_REV_A13)) {
+                        tmp |= RADEON_SCLK_MORE_FORCEON;
+		    }
+                    OUTPLL(RADEON_SCLK_MORE_CNTL, tmp);
+		    usleep(15000);
+                }
+
+                /* RV200::A11 A12, RV250::A11 A12 */
+                if (((info->ChipFamily == CHIP_FAMILY_RV200) ||
+		     (info->ChipFamily == CHIP_FAMILY_RV250)) &&
+		    ((INREG(RADEON_CONFIG_CNTL) & RADEON_CFG_ATI_REV_ID_MASK) <
+		     RADEON_CFG_ATI_REV_A13)) {
+                    tmp = INPLL(pScrn, RADEON_PLL_PWRMGT_CNTL);
+                    tmp |= RADEON_TCL_BYPASS_DISABLE;
+                    OUTREG(RADEON_PLL_PWRMGT_CNTL, tmp);
+                }
+		usleep(15000);
+
+                /*enable dynamic mode for display clocks (PIXCLK and PIX2CLK)*/
+		tmp = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
+		tmp |=  (RADEON_PIX2CLK_ALWAYS_ONb         |
+			 RADEON_PIX2CLK_DAC_ALWAYS_ONb     |
+			 RADEON_PIXCLK_BLEND_ALWAYS_ONb    |
+			 RADEON_PIXCLK_GV_ALWAYS_ONb       |
+			 RADEON_PIXCLK_DIG_TMDS_ALWAYS_ONb |
+			 RADEON_PIXCLK_LVDS_ALWAYS_ONb     |
+			 RADEON_PIXCLK_TMDS_ALWAYS_ONb);
+
+		OUTPLL(RADEON_PIXCLKS_CNTL, tmp);
+		usleep(15000);
+
+		tmp = INPLL(pScrn, RADEON_VCLK_ECP_CNTL);
+		tmp |= (RADEON_PIXCLK_ALWAYS_ONb  |
+		        RADEON_PIXCLK_DAC_ALWAYS_ONb); 
+
+                OUTPLL(RADEON_VCLK_ECP_CNTL, tmp);
+		usleep(15000);
+            }    
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Dynamic Clock Scaling Enabled\n");
+	    break;
+        default:
+	    break;
+    }
+}
+

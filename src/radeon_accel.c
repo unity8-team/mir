@@ -175,6 +175,7 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
     clock_cntl_index = INREG(RADEON_CLOCK_CNTL_INDEX);
     if (info->R300CGWorkaround) R300CGWorkaround(pScrn);
 
+#if 0 /* taken care of by new PM code */
     /* Some ASICs have bugs with dynamic-on feature, which are
      * ASIC-version dependent, so we force all blocks on for now
      */
@@ -191,8 +192,11 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
 	    OUTPLL(RADEON_SCLK_MORE_CNTL, tmp | RADEON_SCLK_MORE_FORCEON);
 	}
     }
+#endif /* new PM code */
 
     mclk_cntl = INPLL(pScrn, RADEON_MCLK_CNTL);
+
+#if 0 /* handled by new PM code */
     OUTPLL(RADEON_MCLK_CNTL, (mclk_cntl |
 			      RADEON_FORCEON_MCLKA |
 			      RADEON_FORCEON_MCLKB |
@@ -200,6 +204,7 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
 			      RADEON_FORCEON_YCLKB |
 			      RADEON_FORCEON_MC |
 			      RADEON_FORCEON_AIC));
+#endif /* new PM code */
 
     /* Soft resetting HDP thru RBBM_SOFT_RESET register can cause some
      * unexpected behaviour on some machines.  Here we use

@@ -133,12 +133,12 @@ SymTabRec RADEONChipsets[] = {
     { PCI_CHIP_RV350_AS, "ATI Radeon 9600 AS (AGP)" },
     { PCI_CHIP_RV350_AT, "ATI FireGL T2 AT (AGP)" },
     { PCI_CHIP_RV350_AV, "ATI FireGL RV360 AV (AGP)" },
-    { PCI_CHIP_RV350_NP, "ATI Radeon Mobility 9600 (M10) NP (AGP)" },
+    { PCI_CHIP_RV350_NP, "ATI Radeon Mobility 9600/9700 (M10/M11) NP (AGP)" },
     { PCI_CHIP_RV350_NQ, "ATI Radeon Mobility 9600 (M10) NQ (AGP)" },
     { PCI_CHIP_RV350_NR, "ATI Radeon Mobility 9600 (M11) NR (AGP)" },
     { PCI_CHIP_RV350_NS, "ATI Radeon Mobility 9600 (M10) NS (AGP)" },
     { PCI_CHIP_RV350_NT, "ATI FireGL Mobility T2 (M10) NT (AGP)" },
-    { PCI_CHIP_RV350_NV, "ATI FireGL Mobility T2 (M11) NV (AGP)" },
+    { PCI_CHIP_RV350_NV, "ATI FireGL Mobility T2e (M11) NV (AGP)" },
     { PCI_CHIP_R350_AH, "ATI Radeon 9800SE AH (AGP)" },
     { PCI_CHIP_R350_AI, "ATI Radeon 9800 AI (AGP)" },
     { PCI_CHIP_R350_AJ, "ATI Radeon 9800 AJ (AGP)" },
@@ -337,10 +337,10 @@ RADEONProbe(DriverPtr drv, int flags)
 
 	    pEnt = xf86GetEntityInfo(usedChips[i]);
 
-            /* create a RADEONEntity for all chips, even with 
-               old single head Radeon, need to use pRADEONEnt 
+            /* create a RADEONEntity for all chips, even with
+               old single head Radeon, need to use pRADEONEnt
                for new monitor detection routines
-            */   
+            */
             {
 		DevUnion   *pPriv;
 		RADEONEntPtr pRADEONEnt;

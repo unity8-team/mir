@@ -41,6 +41,7 @@ static void RADEONVideoTimerCallback(ScrnInfoPtr pScrn, Time now);
 
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
+#define ClipValue(v,min,max) ((v) < (min) ? (min) : (v) > (max) ? (max) : (v))
 
 static Atom xvBrightness, xvColorKey, xvSaturation, xvDoubleBuffer;
 static Atom xvRedIntensity, xvGreenIntensity, xvBlueIntensity;
@@ -303,15 +304,14 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
     OvBOff = -1104;
 #endif
 
+    OvROff = ClipValue(OvROff, -2048.0, 2047.5);
+    OvGOff = ClipValue(OvGOff, -2048.0, 2047.5);
+    OvBOff = ClipValue(OvBOff, -2048.0, 2047.5);
     dwOvROff = ((INT32)(OvROff * 2.0)) & 0x1fff;
     dwOvGOff = ((INT32)(OvGOff * 2.0)) & 0x1fff;
     dwOvBOff = ((INT32)(OvBOff * 2.0)) & 0x1fff;
-    /*
-     * Whatever docs say about R200 having 3.8 format instead of 3.11
-     * as in Radeon is a lie
-     * Or more precisely the location of bit fields is a lie
-     */
-    if(1 || info->ChipFamily < CHIP_FAMILY_R200)
+
+    if(info->ChipFamily < CHIP_FAMILY_RADEON)
     {
 	dwOvLuma =(((INT32)(OvLuma * 2048.0))&0x7fff)<<17;
 	dwOvRCb = (((INT32)(OvRCb * 2048.0))&0x7fff)<<1;
@@ -323,13 +323,13 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
     }
     else
     {
-	dwOvLuma = (((INT32)(OvLuma * 256.0))&0x7ff)<<20;
-	dwOvRCb = (((INT32)(OvRCb * 256.0))&0x7ff)<<4;
-	dwOvRCr = (((INT32)(OvRCr * 256.0))&0x7ff)<<20;
-	dwOvGCb = (((INT32)(OvGCb * 256.0))&0x7ff)<<4;
-	dwOvGCr = (((INT32)(OvGCr * 256.0))&0x7ff)<<20;
-	dwOvBCb = (((INT32)(OvBCb * 256.0))&0x7ff)<<4;
-	dwOvBCr = (((INT32)(OvBCr * 256.0))&0x7ff)<<20;
+	dwOvLuma = (((INT32)(OvLuma * 256.0))&0xfff)<<20;
+	dwOvRCb = (((INT32)(OvRCb * 256.0))&0xfff)<<4;
+	dwOvRCr = (((INT32)(OvRCr * 256.0))&0xfff)<<20;
+	dwOvGCb = (((INT32)(OvGCb * 256.0))&0xfff)<<4;
+	dwOvGCr = (((INT32)(OvGCr * 256.0))&0xfff)<<20;
+	dwOvBCb = (((INT32)(OvBCb * 256.0))&0xfff)<<4;
+	dwOvBCr = (((INT32)(OvBCr * 256.0))&0xfff)<<20;
     }
     OUTREG(RADEON_OV0_LIN_TRANS_A, dwOvRCb | dwOvLuma);
     OUTREG(RADEON_OV0_LIN_TRANS_B, dwOvROff | dwOvRCr);
@@ -382,9 +382,11 @@ RADEONResetVideo(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONPortPrivPtr pPriv = info->adaptor->pPortPrivates[0].ptr;
 
-    if (info->accelOn) info->accel->Sync(pScrn);
+    /* this function is called from ScreenInit. pScreen is used 
+       by XAA internally, but not valid until ScreenInit finishs.
+    */
+    if (info->accelOn && pScrn->pScreen) info->accel->Sync(pScrn);
 
-    RADEONWaitForIdleMMIO(pScrn);
     OUTREG(RADEON_OV0_SCALE_CNTL, 0x80000000);
     OUTREG(RADEON_OV0_AUTO_FLIP_CNTL, 0);   /* maybe */
     OUTREG(RADEON_OV0_EXCLUSIVE_HORZ, 0);
@@ -615,7 +617,6 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 #define RTFIntensity(a)   (((a)*1.0)/2000.0)
 #define RTFContrast(a)   (1.0 + ((a)*1.0)/1000.0)
 #define RTFHue(a)   (((a)*3.1416)/1000.0)
-#define ClipValue(v,min,max) ((v) < (min) ? (min) : (v) > (max) ? (max) : (v))
 
     if(attribute == xvAutopaintColorkey)
     {

@@ -130,7 +130,9 @@ typedef struct {
     CARD32            cap1_trig_cntl;
     CARD32            bus_cntl;
     CARD32            surface_cntl;
+    CARD32            bios_4_scratch;
     CARD32            bios_5_scratch;
+    CARD32            bios_6_scratch;
 				/* Other registers to save for VT switches */
     CARD32            dp_datatype;
     CARD32            rbbm_soft_reset;

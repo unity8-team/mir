@@ -469,6 +469,14 @@ The default is
 for CRT, 
 .B RGB 
 for digital panels
+.TP
+.BI "Option \*qDynamicClocks\*q \*q" boolean \*q
+Enable dynamic clock scaling.  The on-chip clocks will scale dynamically 
+based on usage. This can help reduce heat and increase battery 
+life by reducing power usage.  Some users report reduced 3D preformance
+with this enabled.  The default is
+.B off.
+.TP
 
 .SH SEE ALSO
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
