@@ -162,9 +162,13 @@ typedef struct _I810Rec {
    int auxPitch;
    int auxPitchBits;
 
+   Bool CursorIsARGB;
    int CursorOffset;
    unsigned long CursorPhysical;
    unsigned long CursorStart;
+   int CursorARGBOffset;
+   unsigned long CursorARGBPhysical;
+   unsigned long CursorARGBStart;
    unsigned long OverlayPhysical;
    unsigned long OverlayStart;
    int colorKey;
@@ -184,7 +188,7 @@ typedef struct _I810Rec {
    pciVideoPtr PciInfo;
    PCITAG PciTag;
 
-   I810RingBuffer LpRing;
+   I810RingBuffer *LpRing;
    unsigned int BR[20];
 
    int LmFreqSel;
@@ -195,6 +199,8 @@ typedef struct _I810Rec {
    unsigned long DcacheOffset;
    int HwcursKey;
    unsigned long HwcursOffset;
+   int ARGBHwcursKey;
+   unsigned long ARGBHwcursOffset;
 
    int GttBound;
 
@@ -235,6 +241,7 @@ typedef struct _I810Rec {
    unsigned long backHandle;
    unsigned long zHandle;
    unsigned long cursorHandle;
+   unsigned long cursorARGBHandle;
    unsigned long xvmcHandle;
    unsigned long sysmemHandle;
    Bool agpAcquired;

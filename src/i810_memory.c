@@ -149,7 +149,7 @@ I810AllocateGARTMemory(ScrnInfoPtr pScrn)
       pI810->DcacheKey = key;
       if (!xf86BindGARTMemory(pScrn->scrnIndex, key, tom)) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Allocation of %d bytes for DCACHE failed\n", size);
+		    "Allocation of %ld bytes for DCACHE failed\n", size);
 	 pI810->DcacheKey = -1;
       } else {
 	 pI810->DcacheMem.Start = tom;
@@ -159,7 +159,7 @@ I810AllocateGARTMemory(ScrnInfoPtr pScrn)
       }
    } else {
       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		 "No physical memory available for %d bytes of DCACHE\n",
+		 "No physical memory available for %ld bytes of DCACHE\n",
 		 size);
       pI810->DcacheKey = -1;
    }
@@ -188,11 +188,41 @@ I810AllocateGARTMemory(ScrnInfoPtr pScrn)
       pI810->HwcursKey = key;
       if (!xf86BindGARTMemory(pScrn->scrnIndex, key, tom)) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Allocation of %d bytes for HW cursor failed\n", size);
+		    "Allocation of %ld bytes for HW cursor failed\n", size);
 	 pI810->HwcursKey = -1;
       } else {
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "Allocated of %ld bytes for HW cursor\n", size);
 	 pI810->CursorPhysical = physical;
 	 pI810->CursorStart = tom;
+	 tom += size;
+      }
+   }
+
+   /*
+    * 16k for the ARGB cursor
+    */
+
+   size = 16384;
+
+   if ((key =
+	xf86AllocateGARTMemory(pScrn->scrnIndex, size, 2, &physical)) == -1) {
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		 "No physical memory available for ARGB HW cursor\n");
+      pI810->ARGBHwcursKey = -1;
+      pI810->CursorARGBStart = 0;
+   } else {
+      pI810->ARGBHwcursOffset = tom;
+      pI810->ARGBHwcursKey = key;
+      if (!xf86BindGARTMemory(pScrn->scrnIndex, key, tom)) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "Allocation of %ld bytes for ARGB HW cursor failed\n", size);
+	 pI810->ARGBHwcursKey = -1;
+      } else {
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "Allocated of %ld bytes for ARGB HW cursor\n", size);
+	 pI810->CursorARGBPhysical = physical;
+	 pI810->CursorARGBStart = tom;
 	 tom += size;
       }
    }
@@ -345,6 +375,11 @@ I810BindGARTMemory(ScrnInfoPtr pScrn)
 				 pI810->HwcursOffset))
 	 return FALSE;
 
+      if (pI810->ARGBHwcursKey != -1
+	  && !xf86BindGARTMemory(pScrn->scrnIndex, pI810->ARGBHwcursKey,
+				 pI810->ARGBHwcursOffset))
+	 return FALSE;
+
       pI810->GttBound = 1;
    }
 
@@ -368,6 +403,10 @@ I810UnbindGARTMemory(ScrnInfoPtr pScrn)
 
       if (pI810->HwcursKey != -1
 	  && !xf86UnbindGARTMemory(pScrn->scrnIndex, pI810->HwcursKey))
+	 return FALSE;
+
+      if (pI810->ARGBHwcursKey != -1
+	  && !xf86UnbindGARTMemory(pScrn->scrnIndex, pI810->ARGBHwcursKey))
 	 return FALSE;
 
       if (!xf86ReleaseGART(pScrn->scrnIndex))

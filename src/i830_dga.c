@@ -34,7 +34,7 @@
  * with <TAB> characters expanded at 8-column intervals.
  */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_dga.c,v 1.3 2003/02/26 04:11:23 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_dga.c,v 1.2 2002/11/05 02:01:18 dawes Exp $ */
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -281,7 +281,12 @@ I830_OpenFramebuffer(ScrnInfoPtr pScrn,
 
    *name = NULL;			/* no special device */
    *mem = (unsigned char *)(pI830->LinearAddr + pScrn->fbOffset);
-   *size = pI830->FrontBuffer.Size;
+   if (pI830->init == 0)
+      *size = pI830->FrontBuffer.Size;
+   else {
+      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
+      *size = pI8301->FrontBuffer2.Size;
+   }
    *offset = 0;
    *flags = DGA_NEED_ROOT;
 

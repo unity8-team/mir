@@ -44,6 +44,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Authors:
  *   Keith Whitwell <keith@tungstengraphics.com>
  *
+ * Add ARGB HW cursor support:
+ *   Alan Hourihane <alanh@tungstengraphics.com>
+ *
  */
 
 /*
@@ -69,12 +72,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "micmap.h"
 
 #include "fb.h"
-#include "regionstr.h"
+#include "miscstruct.h"
 #include "xf86xv.h"
 #include "Xv.h"
 #include "vbe.h"
 
 #include "i810.h"
+#include "i830.h"
 
 #ifdef XF86DRI
 #include "dri.h"
@@ -124,6 +128,7 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_845_G,		"845G"},
    {PCI_CHIP_I855_GM,		"852GM/855GM"},
    {PCI_CHIP_I865_G,		"865G"},
+   {PCI_CHIP_I915_G,		"915G"},
    {-1,				NULL}
 };
 
@@ -138,6 +143,7 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_845_G,		PCI_CHIP_845_G,		RES_SHARED_VGA},
    {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	RES_SHARED_VGA},
    {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	RES_SHARED_VGA},
+   {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	RES_SHARED_VGA},
    {-1,				-1, RES_UNDEFINED }
 };
 
@@ -358,6 +364,8 @@ static XF86ModuleVersionInfo i810VersRec = {
 
 XF86ModuleData i810ModuleData = { &i810VersRec, i810Setup, 0 };
 
+int I830EntityIndex = -1;
+
 static pointer
 i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
 {
@@ -467,6 +475,8 @@ static Bool
 I810Probe(DriverPtr drv, int flags)
 {
    int i, numUsed, numDevSections, *usedChips;
+   I830EntPtr pI830Ent = NULL;					
+   DevUnion *pPriv;						
    GDevPtr *devSections;
    Bool foundScreen = FALSE;
    pciVideoPtr *VideoInfo;
@@ -542,10 +552,38 @@ I810Probe(DriverPtr drv, int flags)
 	    pScrn->Probe = I810Probe;
 	    foundScreen = TRUE;
 	    switch (pEnt->chipset) {
-	    case PCI_CHIP_I830_M:
 	    case PCI_CHIP_845_G:
-	    case PCI_CHIP_I855_GM:
 	    case PCI_CHIP_I865_G:
+	       I830InitpScrn(pScrn);
+               break;
+	    case PCI_CHIP_I830_M:
+	    case PCI_CHIP_I855_GM:
+	    case PCI_CHIP_I915_G:
+    	       xf86SetEntitySharable(usedChips[i]);
+
+    	       /* Allocate an entity private if necessary */		
+    	       if (I830EntityIndex < 0)					
+		  I830EntityIndex = xf86AllocateEntityPrivateIndex();	
+
+    	       pPriv = xf86GetEntityPrivate(pScrn->entityList[0],		
+						I830EntityIndex);	
+    	       if (!pPriv->ptr) {						
+		  pPriv->ptr = xnfcalloc(sizeof(I830EntRec), 1);		
+		  pI830Ent = pPriv->ptr;					
+		  pI830Ent->lastInstance = -1;				
+    	       } else {							
+		  pI830Ent = pPriv->ptr;					
+    	       }
+								
+    	       /*								
+     	        * Set the entity instance for this instance of the driver.	
+     	        * For dual head per card, instance 0 is the "master" 	
+     	        * instance, driving the primary head, and instance 1 is 	
+     	        * the "slave".						
+     	        */								
+    	       pI830Ent->lastInstance++;					
+               xf86SetEntityInstanceForScreen(pScrn,			
+			pScrn->entityList[0], pI830Ent->lastInstance);	
 	       I830InitpScrn(pScrn);
 	       break;
 #ifndef I830_ONLY
@@ -1122,7 +1160,7 @@ I810MapMem(ScrnInfoPtr pScrn)
    if (!pI810->FbBase)
       return FALSE;
 
-   pI810->LpRing.virtual_start = pI810->FbBase + pI810->LpRing.mem.Start;
+   pI810->LpRing->virtual_start = pI810->FbBase + pI810->LpRing->mem.Start;
 
    return TRUE;
 }
@@ -1486,8 +1524,8 @@ DoRestore(ScrnInfoPtr pScrn, vgaRegPtr vgaReg, I810RegPtr i810Reg,
    OUTREG(LP_RING + RING_TAIL, 0);
    OUTREG(LP_RING + RING_HEAD, 0);
 
-   pI810->LpRing.head = 0;
-   pI810->LpRing.tail = 0;
+   pI810->LpRing->head = 0;
+   pI810->LpRing->tail = 0;
 
    itemp = INREG(LP_RING + RING_START);
    itemp &= ~(START_ADDR);
@@ -1527,12 +1565,12 @@ I810SetRingRegs(ScrnInfoPtr pScrn)
 
    itemp = INREG(LP_RING + RING_START);
    itemp &= ~(START_ADDR);
-   itemp |= pI810->LpRing.mem.Start;
+   itemp |= pI810->LpRing->mem.Start;
    OUTREG(LP_RING + RING_START, itemp);
 
    itemp = INREG(LP_RING + RING_LEN);
    itemp &= ~(RING_NR_PAGES | RING_REPORT_MASK | RING_VALID_MASK);
-   itemp |= ((pI810->LpRing.mem.Size - 4096) | RING_NO_REPORT | RING_VALID);
+   itemp |= ((pI810->LpRing->mem.Size - 4096) | RING_NO_REPORT | RING_VALID);
    OUTREG(LP_RING + RING_LEN, itemp);
 }
 
@@ -1728,10 +1766,10 @@ I810SetMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
    /* Setup the ring buffer */
    i810Reg->LprbTail = 0;
    i810Reg->LprbHead = 0;
-   i810Reg->LprbStart = pI810->LpRing.mem.Start;
+   i810Reg->LprbStart = pI810->LpRing->mem.Start;
 
    if (i810Reg->LprbStart)
-      i810Reg->LprbLen = ((pI810->LpRing.mem.Size - 4096) |
+      i810Reg->LprbLen = ((pI810->LpRing->mem.Size - 4096) |
 			  RING_NO_REPORT | RING_VALID);
    else
       i810Reg->LprbLen = RING_INVALID;
@@ -1974,18 +2012,18 @@ I810AllocateFront(ScrnInfoPtr pScrn)
 	      pI810->FrontBuffer.Start,
 	      pI810->FrontBuffer.Size / 1024, pI810->FrontBuffer.Size);
 
-   memset(&(pI810->LpRing), 0, sizeof(I810RingBuffer));
-   if (I810AllocLow(&(pI810->LpRing.mem), &(pI810->SysMem), 16 * 4096)) {
+   memset(pI810->LpRing, 0, sizeof(I810RingBuffer));
+   if (I810AllocLow(&(pI810->LpRing->mem), &(pI810->SysMem), 16 * 4096)) {
       DPRINTF(PFX,
 	      "Ring buffer at 0x%.8x (%luk, %lu bytes)\n",
-	      pI810->LpRing.mem.Start,
-	      pI810->LpRing.mem.Size / 1024, pI810->LpRing.mem.Size);
+	      pI810->LpRing->mem.Start,
+	      pI810->LpRing->mem.Size / 1024, pI810->LpRing->mem.Size);
 
-      pI810->LpRing.tail_mask = pI810->LpRing.mem.Size - 1;
-      pI810->LpRing.virtual_start = pI810->FbBase + pI810->LpRing.mem.Start;
-      pI810->LpRing.head = 0;
-      pI810->LpRing.tail = 0;
-      pI810->LpRing.space = 0;
+      pI810->LpRing->tail_mask = pI810->LpRing->mem.Size - 1;
+      pI810->LpRing->virtual_start = pI810->FbBase + pI810->LpRing->mem.Start;
+      pI810->LpRing->head = 0;
+      pI810->LpRing->tail = 0;
+      pI810->LpRing->space = 0;
    } else {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "Ring buffer allocation failed\n");
@@ -2114,7 +2152,7 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    xf86SetBlackWhitePixels(pScreen);
 
 #ifdef XF86DRI
-   if (pI810->LpRing.mem.Start == 0 && pI810->directRenderingEnabled) {
+   if (pI810->LpRing->mem.Start == 0 && pI810->directRenderingEnabled) {
       pI810->directRenderingEnabled = FALSE;
       driFrom = X_PROBED;
       I810DRICloseScreen(pScreen);
@@ -2138,7 +2176,7 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 
    if (!xf86ReturnOptValBool(pI810->Options, OPTION_NOACCEL, FALSE)) {
-      if (pI810->LpRing.mem.Size != 0) {
+      if (pI810->LpRing->mem.Size != 0) {
 	 I810SetRingRegs(pScrn);
 
 	 if (!I810AccelInit(pScreen)) {
