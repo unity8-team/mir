@@ -1565,6 +1565,8 @@ I830UseDDC(ScrnInfoPtr pScrn)
    Bool ret = FALSE;
    int i;
 
+   if (!DDC) return 0;
+
    /* Now change the hsync/vrefresh values of the current monitor to
     * match those of DDC */
    for (i = 0; i < 4; i++) {
