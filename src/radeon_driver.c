@@ -118,6 +118,7 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 static void RADEONGetMergedFBOptions(ScrnInfoPtr pScrn);
 static int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode);
+static void RADEONUpdatePanelSize(ScrnInfoPtr pScrn);
 
 /* psuedo xinerama support */
 
