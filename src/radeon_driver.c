@@ -1634,7 +1634,11 @@ static BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
     } else if ((pRADEONEnt->PortInfo[0].TMDSType != TMDS_INT &&
                 pRADEONEnt->PortInfo[1].TMDSType != TMDS_INT)) {
         /* no TMDS_INT port, make primary DAC port first */
-        if (pRADEONEnt->PortInfo[1].DACType == DAC_PRIMARY) {
+	/* On my Inspiron 8600 both internal and external ports are
+	   marked DAC_PRIMARY in BIOS. So be extra careful - only
+	   swap when the first port is not DAC_PRIMARY */
+        if ( (pRADEONEnt->PortInfo[1].DACType == DAC_PRIMARY) &&
+	     (pRADEONEnt->PortInfo[0].DACType != DAC_PRIMARY)) {
             RADEONConnector connector;
             connector = pRADEONEnt->PortInfo[0];
             pRADEONEnt->PortInfo[0] = pRADEONEnt->PortInfo[1];
