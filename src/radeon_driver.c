@@ -2310,6 +2310,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 
     case PCI_CHIP_RV100_QY:
     case PCI_CHIP_RV100_QZ:
+    case PCI_CHIP_RN50_515E:  /* RN50 is based on the RV100 but 3D isn't guaranteed to work.  YMMV. */
     case PCI_CHIP_RN50_5969:
 	info->ChipFamily = CHIP_FAMILY_RV100;
 
