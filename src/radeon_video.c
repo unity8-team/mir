@@ -1144,27 +1144,46 @@ static void RADEONSetupTheatre(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONPLLPtr  pll = &(info->pll);
-    TheatrePtr t = pPriv->theatre;
+    TheatrePtr t;
 
     CARD8 a;
     int i;
               
-    t->video_decoder_type=info->video_decoder_type;
-        
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "video decoder type is 0x%04x (BIOS value) versus 0x%04x (current PLL setting)\n",
-         t->video_decoder_type, pll->xclk);
-        
+    pPriv->theatre = NULL;
+
     if(!info->MM_TABLE_valid && 
        !((info->RageTheatreCrystal>=0) &&
            (info->RageTheatreTunerPort>=0) && (info->RageTheatreCompositePort>=0) &&
            (info->RageTheatreSVideoPort>=0)))
     {
        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "no multimedia table present, disabling Rage Theatre.\n");
-       xf86free(pPriv->theatre);
-       pPriv->theatre = NULL;
        return;
     }
+
+    /* Go and find Rage Theatre, if it exists */
     
+    switch(info->Chipset){
+    	case PCI_CHIP_RADEON_LY:
+	case PCI_CHIP_RADEON_LZ:
+	        xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility M6, not scanning for Rage Theatre\n");
+		break;
+	case PCI_CHIP_RADEON_LW:
+	        xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility M7, not scanning for Rage Theatre\n");
+		break;
+	default:
+	    pPriv->theatre=xf86_DetectTheatre(pPriv->VIP);
+	}
+
+    if(pPriv->theatre==NULL)return;
+    
+    /* just a matter of convenience */
+    t=pPriv->theatre; 
+        
+    t->video_decoder_type=info->video_decoder_type;
+        
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "video decoder type is 0x%04x (BIOS value) versus 0x%04x (current PLL setting)\n",
+         t->video_decoder_type, pll->xclk);
+        
     if(info->MM_TABLE_valid){
          for(i=0;i<5;i++){
                 a=info->MM_TABLE.input[i];
@@ -1352,9 +1371,6 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     RADEONVIP_init(pScrn, pPriv);
     info->adaptor = adapt;
 
-    /* Go and fine Rage Theatre, if it exists */
-    
-    pPriv->theatre = NULL;
     if(!xf86LoadSubModule(pScrn,"theatre")) 
     {
     	xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"Unable to load Rage Theatre module\n");
@@ -1362,20 +1378,9 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     }
     xf86LoaderReqSymbols(TheatreSymbolsList, NULL);
     
-    switch(info->Chipset){
-    	case PCI_CHIP_RADEON_LY:
-	case PCI_CHIP_RADEON_LZ:
-	        xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility M6, not scanning for Rage Theatre\n");
-		break;
-	case PCI_CHIP_RADEON_LW:
-	        xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility M7, not scanning for Rage Theatre\n");
-		break;
-	default:
-	    pPriv->theatre=xf86_DetectTheatre(pPriv->VIP);
-	}
-    if(pPriv->theatre!=NULL){
-    	RADEONSetupTheatre(pScrn, pPriv);
-	
+    RADEONSetupTheatre(pScrn, pPriv);
+    
+    if(pPriv->theatre!=NULL){	
         xf86_InitTheatre(pPriv->theatre);
         xf86_ResetTheatreRegsForNoTVout(pPriv->theatre);
         xf86_RT_SetTint(pPriv->theatre, pPriv->dec_hue);
