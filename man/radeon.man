@@ -346,8 +346,10 @@ MetaModes are mode combinations for CRT1 and CRT2.  If you are using merged
 frame buffer mode and want to change modes (CTRL-ALT-+/-), these define which
 modes will be switched to on CRT1 and CRT2.  The MetaModes are defined as 
 CRT1Mode-CRT2Mode (800x600-1024x768).  Modes listed individually (800x600) 
-define clone modes, that way you can mix clone modes with non-clone modes.
-Also some programs require "standard" modes.  
+define clone modes, that way you can mix clone modes with non-clone modes. 
+Also some programs require "standard" modes.  If you want to add clone modes 
+of different refreshes or sizes to the mix, they are defined as CRT1Mode+CRT2Mode 
+(800x600+1024x768).
 .br
 Note:  Any mode you use in the MetaModes must be defined in the
 .B Screen 
