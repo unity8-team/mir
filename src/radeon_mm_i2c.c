@@ -430,8 +430,6 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
         xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"Failed to register i2c bus\n");
     }
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "*** %p versus %p\n", xf86CreateI2CBusRec, CreateI2CBusRec);
-
 #if 1
     switch(info->ChipFamily){
 	case CHIP_FAMILY_RV200:
