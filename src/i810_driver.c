@@ -776,6 +776,34 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
       ptr->found = FALSE;
    }
 
+   if (xf86ReturnOptValBool(pI810->Options, OPTION_NOACCEL, FALSE))
+      pI810->noAccel = TRUE;
+
+   if (!pI810->noAccel) {
+      if (!xf86LoadSubModule(pScrn, "xaa")) {
+	 I810FreeRec(pScrn);
+	 return FALSE;
+      }
+      xf86LoaderReqSymLists(I810xaaSymbols, NULL);
+   }
+   
+#ifdef XF86DRI
+   pI810->directRenderingDisabled =
+     !xf86ReturnOptValBool(pI810->Options, OPTION_DRI, TRUE);
+
+   if (!pI810->directRenderingDisabled) {
+     if (pI810->noAccel) {
+       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
+		  "needs 2D acceleration.\n");
+       pI810->directRenderingDisabled=TRUE;
+     } else if (pScrn->depth!=16) {
+       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
+		  "runs only at 16-bit depth.\n");
+       pI810->directRenderingDisabled=TRUE;
+     }
+   }
+#endif
+
    /* Get DDC info from monitor */
    /* after xf86ProcessOptions,
     * because it is controlled by options [no]vbe and [no]ddc
@@ -875,14 +903,18 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
     *
     *  Changed to 8 Meg so we can have acceleration by default (Mark).
     */
-   pScrn->videoRam = 8192;
+   mem = I810CheckAvailableMemory(pScrn);
+   if (pI810->directRenderingDisabled || mem < 134217728)  /* < 128 MB */
+       pScrn->videoRam = 8192;
+   else
+       pScrn->videoRam = 16384;
    from = X_DEFAULT;
+   
    if (pI810->pEnt->device->videoRam) {
       pScrn->videoRam = pI810->pEnt->device->videoRam;
       from = X_CONFIG;
    }
 
-   mem = I810CheckAvailableMemory(pScrn);
    if (mem > 0 && mem < pScrn->videoRam) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "%dk of memory was requested,"
 		 " but the\n\t maximum AGP memory available is %dk.\n",
@@ -1014,17 +1046,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    }
    xf86LoaderReqSymLists(I810fbSymbols, NULL);
 
-   if (xf86ReturnOptValBool(pI810->Options, OPTION_NOACCEL, FALSE))
-      pI810->noAccel = TRUE;
-
-   if (!pI810->noAccel) {
-      if (!xf86LoadSubModule(pScrn, "xaa")) {
-	 I810FreeRec(pScrn);
-	 return FALSE;
-      }
-      xf86LoaderReqSymLists(I810xaaSymbols, NULL);
-   }
-
    if (!xf86ReturnOptValBool(pI810->Options, OPTION_SW_CURSOR, FALSE)) {
       if (!xf86LoadSubModule(pScrn, "ramdac")) {
 	 I810FreeRec(pScrn);
@@ -1043,23 +1064,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 	    (((pScrn->mask.blue >> pScrn->offset.blue) -
 	      1) << pScrn->offset.blue);
    }
-
-   pI810->directRenderingDisabled =
-     !xf86ReturnOptValBool(pI810->Options, OPTION_DRI, TRUE);
-
-#ifdef XF86DRI
-   if (!pI810->directRenderingDisabled) {
-     if (pI810->noAccel) {
-       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
-		  "needs 2D acceleration.\n");
-       pI810->directRenderingDisabled=TRUE;
-     } else if (pScrn->depth!=16) {
-       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
-		  "runs only at 16-bit depth.\n");
-       pI810->directRenderingDisabled=TRUE;
-     }
-   }
-#endif
 
    pI810->allowPageFlip=FALSE;
    enable = xf86ReturnOptValBool(pI810->Options, OPTION_PAGEFLIP, FALSE);   
@@ -2261,20 +2265,29 @@ Bool
 I810SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+#if 0
    I810Ptr pI810 = I810PTR(pScrn);
-
+#endif
    if (I810_DEBUG & DEBUG_VERBOSE_CURSOR)
       ErrorF("I810SwitchMode %p %x\n", (void *)mode, flags);
 
-#ifdef XF86DRI
+#if 0
+/* 
+ * This has been added to prevent lockups on mode switch by modeling
+ * it after I810Leave()/I810Enter() but the call to I810DRILeave() 
+ * was missing so it caused the opposite. 
+ * The version below works but it is doubtful it does any good.
+ * If lockups on mode switch are still seen revisit this code. (EE)
+ */
+
+# ifdef XF86DRI
    if (pI810->directRenderingEnabled) {
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("calling dri lock\n");
       DRILock(screenInfo.screens[scrnIndex], 0);
       pI810->LockHeld = 1;
    }
-#endif
-
+# endif
    if (pI810->AccelInfoRec != NULL) {
       I810RefreshRing(pScrn);
       I810Sync(pScrn);
@@ -2282,18 +2295,20 @@ I810SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
    }
    I810Restore(pScrn);
 
-#ifdef XF86DRI
-   if (!I810DRIEnter(pScrn)) {
-      return FALSE;
-   }
+# ifdef XF86DRI
    if (pI810->directRenderingEnabled) {
-      if (I810_DEBUG & DEBUG_VERBOSE_DRI)
-	 ErrorF("calling dri unlock\n");
-      DRIUnlock(screenInfo.screens[scrnIndex]);
-      pI810->LockHeld = 0;
-   }
-#endif
+       if (!I810DRILeave(pScrn))
+	   return FALSE;
+       if (!I810DRIEnter(pScrn))
+	   return FALSE;
 
+       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
+	   ErrorF("calling dri unlock\n");
+       DRIUnlock(screenInfo.screens[scrnIndex]);
+       pI810->LockHeld = 0;
+   }
+# endif
+#endif
    return I810ModeInit(pScrn, mode);
 }
 

@@ -451,7 +451,8 @@ extern void I830ChangeFrontbuffer(ScrnInfoPtr pScrn,int buffer);
 #define ALLOCATE_DRY_RUN		0x80000000
 
 /* Chipset registers for VIDEO BIOS memory RW access */
-#define DRAM_RW_CONTROL 0x58
+#define _855_DRAM_RW_CONTROL 0x58
+#define _845_DRAM_RW_CONTROL 0x90
 #define DRAM_WRITE    0x33330000
 
 #endif /* _I830_H_ */

@@ -1008,7 +1008,7 @@ I830Allocate3DMemory(ScrnInfoPtr pScrn, const int flags)
       return FALSE;
    }
    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		  "%sAllocated %d kB for the logical context at 0x%x.\n", s,
+		  "%sAllocated %ld kB for the logical context at 0x%lx.\n", s,
 		  alloced / 1024, pI830->ContextMem.Start);
 
 
@@ -1230,7 +1230,7 @@ SetFence(ScrnInfoPtr pScrn, int nr, unsigned int start, unsigned int pitch,
 
    if (nr < 0 || nr > 7) {
       xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
-		 "SetFence: fence %d out of range\n");
+		 "SetFence: fence %d out of range\n",nr);
       return;
    }
 
