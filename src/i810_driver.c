@@ -25,7 +25,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_driver.c,v 1.95 2003/10/30 18:37:21 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_driver.c,v 1.97 2003/12/01 03:20:15 dawes Exp $ */
 
 /*
  * Reformatted with GNU indent (2.2.8), using the following options:
@@ -852,7 +852,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 	 pScrn->videoRam = 4096;
       } else {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Less than 6MB of AGP memory"
-		    "is available. Cannot proceed.\n");
+		    " is available. Cannot proceed.\n");
 	 I810FreeRec(pScrn);
 	 return FALSE;
       }
@@ -927,7 +927,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    }
    clockRanges = xnfcalloc(sizeof(ClockRange), 1);
    clockRanges->next = NULL;
-   clockRanges->minClock = 12000;	/* !!! What's the min clock? !!! */
+   clockRanges->minClock = 2000;	/* !!! What's the min clock? !!! */
    clockRanges->maxClock = pI810->MaxClock;
    clockRanges->clockIndex = -1;
    clockRanges->interlaceAllowed = TRUE;
@@ -1572,6 +1572,11 @@ I810CalcVCLK(ScrnInfoPtr pScrn, double freq)
    double err_best = 999999.0;
 
    p_best = p = log(MAX_VCO_FREQ / f_target) / log((double)2);
+   /* Make sure p is within range. */
+   if (p_best > 5) {
+      p_best = p = 5;
+   }
+
    f_vco = f_target * (1 << p);
 
    n = 2;
