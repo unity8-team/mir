@@ -56,15 +56,7 @@
 #include "sarea.h"
 #include "radeon_sarea.h"
 
-/* HACK - for now, put this here... */
-/* Alpha - this may need to be a variable to handle UP1x00 vs TITAN */
-#if defined(__alpha__)
-# define DRM_PAGE_SIZE 8192
-#elif defined(__ia64__)
-# define DRM_PAGE_SIZE getpagesize()
-#else
-# define DRM_PAGE_SIZE 4096
-#endif
+static size_t radeon_drm_page_size;
 
 
 static Bool RADEONDRICloseFullScreen(ScreenPtr pScreen);
@@ -701,11 +693,11 @@ static void RADEONDRIInitGARTValues(RADEONInfoPtr info)
 
 				/* Initialize the CP ring buffer data */
     info->ringStart       = info->gartOffset;
-    info->ringMapSize     = info->ringSize*1024*1024 + DRM_PAGE_SIZE;
+    info->ringMapSize     = info->ringSize*1024*1024 + radeon_drm_page_size;
     info->ringSizeLog2QW  = RADEONMinBits(info->ringSize*1024*1024/8)-1;
 
     info->ringReadOffset  = info->ringStart + info->ringMapSize;
-    info->ringReadMapSize = DRM_PAGE_SIZE;
+    info->ringReadMapSize = radeon_drm_page_size;
 
 				/* Reserve space for vertex/indirect buffers */
     info->bufStart        = info->ringReadOffset + info->ringReadMapSize;
@@ -1233,6 +1225,8 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     case 32:
 	break;
     }
+
+    radeon_drm_page_size = getpagesize();
 
     /* Create the DRI data structure, and fill it in before calling the
      * DRIScreenInit().

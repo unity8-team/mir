@@ -56,15 +56,7 @@
 #include "GL/glxtokens.h"
 #include "sarea.h"
 
-/* ?? HACK - for now, put this here... */
-/* ?? Alpha - this may need to be a variable to handle UP1x00 vs TITAN */
-#if defined(__alpha__)
-# define DRM_PAGE_SIZE 8192
-#elif defined(__ia64__)
-# define DRM_PAGE_SIZE getpagesize()
-#else
-# define DRM_PAGE_SIZE 4096
-#endif
+static size_t r128_drm_page_size;
 
 static void R128DRITransitionTo2d(ScreenPtr pScreen);
 static void R128DRITransitionTo3d(ScreenPtr pScreen);
@@ -502,11 +494,11 @@ static Bool R128DRIAgpInit(R128InfoPtr info, ScreenPtr pScreen)
 
 				/* Initialize the CCE ring buffer data */
     info->ringStart       = info->agpOffset;
-    info->ringMapSize     = info->ringSize*1024*1024 + DRM_PAGE_SIZE;
+    info->ringMapSize     = info->ringSize*1024*1024 + r128_drm_page_size;
     info->ringSizeLog2QW  = R128MinBits(info->ringSize*1024*1024/8) - 1;
 
     info->ringReadOffset  = info->ringStart + info->ringMapSize;
-    info->ringReadMapSize = DRM_PAGE_SIZE;
+    info->ringReadMapSize = r128_drm_page_size;
 
 				/* Reserve space for vertex/indirect buffers */
     info->bufStart        = info->ringReadOffset + info->ringReadMapSize;
@@ -655,11 +647,11 @@ static Bool R128DRIPciInit(R128InfoPtr info, ScreenPtr pScreen)
 
 				/* Initialize the CCE ring buffer data */
     info->ringStart       = info->agpOffset;
-    info->ringMapSize     = info->ringSize*1024*1024 + DRM_PAGE_SIZE;
+    info->ringMapSize     = info->ringSize*1024*1024 + r128_drm_page_size;
     info->ringSizeLog2QW  = R128MinBits(info->ringSize*1024*1024/8) - 1;
 
     info->ringReadOffset  = info->ringStart + info->ringMapSize;
-    info->ringReadMapSize = DRM_PAGE_SIZE;
+    info->ringReadMapSize = r128_drm_page_size;
 
 				/* Reserve space for vertex/indirect buffers */
     info->bufStart        = info->ringReadOffset + info->ringReadMapSize;
@@ -1015,6 +1007,8 @@ Bool R128DRIScreenInit(ScreenPtr pScreen)
     case 32:
 	break;
     }
+
+    r128_drm_page_size = getpagesize();
 
     /* Create the DRI data structure, and fill it in before calling the
        DRIScreenInit(). */
