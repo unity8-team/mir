@@ -1,6 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atiprint.c,v 1.28 2003/11/07 13:45:26 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atiprint.c,v 1.26 2003/04/23 21:51:30 tsi Exp $ */
 /*
- * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -184,7 +184,7 @@ ATIMach64PrintRegisters
                 (IOValue & CRTC_EXT_DISP_EN))
                 *crtc = ATI_CRTC_MACH64;
 
-            xf86ErrorFVerb(4, " %08lX", (unsigned long)IOValue);
+            xf86ErrorFVerb(4, " %08X", IOValue);
         }
     }
 
@@ -223,7 +223,7 @@ ATIMach64PrintRegisters
                 (IOValue & CRTC_EXT_DISP_EN))
                 *crtc = ATI_CRTC_MACH64;
 
-            xf86ErrorFVerb(4, " %08lX", (unsigned long)IOValue);
+            xf86ErrorFVerb(4, " %08X", IOValue);
         }
     }
 
@@ -685,8 +685,7 @@ ATIPrintRegisters
         {
             if (!(Index & 15))
                 xf86ErrorFVerb(4, "\n 0x%02X: ", Index);
-            xf86ErrorFVerb(4, " 0x%08lX",
-			   (unsigned long)pciReadLong(pPCI->tag, Index));
+            xf86ErrorFVerb(4, " 0x%08X", pciReadLong(pPCI->tag, Index));
         }
     }
 
@@ -696,7 +695,7 @@ ATIPrintRegisters
 
     if (pATI->pBank)
         xf86ErrorFVerb(4, "\n Banked aperture at 0x%0lX.",
-            (unsigned long)pATI->pBank);
+            pATI->pBank);
     else
         xf86ErrorFVerb(4, "\n No banked aperture.");
 
@@ -713,18 +712,18 @@ ATIPrintRegisters
 #endif /* AVOID_CPIO */
 
     {
-        xf86ErrorFVerb(4, "\n Linear aperture at %p.\n", pATI->pMemory);
+        xf86ErrorFVerb(4, "\n Linear aperture at 0x%0lX.\n", pATI->pMemory);
     }
 
     if (pATI->pBlock[0])
     {
-        xf86ErrorFVerb(4, " Block 0 aperture at %p.\n", pATI->pBlock[0]);
+        xf86ErrorFVerb(4, " Block 0 aperture at 0x%0lX.\n", pATI->pBlock[0]);
         if (inr(CONFIG_CHIP_ID) == pATI->config_chip_id)
             xf86ErrorFVerb(4, " MMIO registers are correctly mapped.\n");
         else
             xf86ErrorFVerb(4, " MMIO mapping is in error!\n");
         if (pATI->pBlock[1])
-            xf86ErrorFVerb(4, " Block 1 aperture at %p.\n",
+            xf86ErrorFVerb(4, " Block 1 aperture at 0x%0lX.\n",
                 pATI->pBlock[1]);
     }
     else
@@ -733,7 +732,7 @@ ATIPrintRegisters
     }
 
     if (pATI->pCursorImage)
-        xf86ErrorFVerb(4, " Hardware cursor image aperture at %p.\n",
+        xf86ErrorFVerb(4, " Hardware cursor image aperture at 0x%0lX.\n",
             pATI->pCursorImage);
     else
         xf86ErrorFVerb(4, " No hardware cursor image aperture.\n");

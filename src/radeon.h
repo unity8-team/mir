@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon.h,v 1.43 2003/11/06 18:38:00 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon.h,v 1.40 2003/07/02 17:31:29 martin Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -72,8 +72,8 @@
 #define RADEON_MMIOSIZE   0x80000
 
 #define RADEON_VBIOS_SIZE 0x00010000
-#define RADEON_USE_RMX 0x80000000 /* mode flag for using RMX
-				   * Need to comfirm this is not used
+#define RADEON_USE_RMX 0x80000000 /* mode flag for using RMX 
+				   * Need to comfirm this is not used 
 				   * for something else.
 				   */
 
@@ -92,6 +92,20 @@ do {									\
 #define RADEON_ARRAY_SIZE(x)  (sizeof(x)/sizeof(x[0]))
 #define RADEON_ALIGN(x,bytes) (((x) + ((bytes) - 1)) & ~((bytes) - 1))
 #define RADEONPTR(pScrn)      ((RADEONInfoPtr)(pScrn)->driverPrivate)
+
+typedef struct {
+				/* All values in XCLKS    */
+    int               ML;            /* Memory Read Latency    */
+    int               MB;            /* Memory Burst Length    */
+    int               Trcd;          /* RAS to CAS delay       */
+    int               Trp;           /* RAS percentage         */
+    int               Twr;           /* Write Recovery         */
+    int               CL;            /* CAS Latency            */
+    int               Tr2w;          /* Read to Write Delay    */
+    int               Rloop;         /* Loop Latency           */
+    int               Rloop_fudge;   /* Add to ML to get Rloop */
+    char              *name;
+} RADEONRAMRec, *RADEONRAMPtr;
 
 typedef struct {
 				/* Common registers */
@@ -130,7 +144,6 @@ typedef struct {
     CARD32            crtc_pitch;
     CARD32            disp_merge_cntl;
     CARD32            grph_buffer_cntl;
-    CARD32            crtc_more_cntl;
 
 				/* CRTC2 registers */
     CARD32            crtc2_gen_cntl;
@@ -171,8 +184,8 @@ typedef struct {
     int               post_div;
 
 				/* PLL registers */
-    unsigned          ppll_ref_div;
-    unsigned          ppll_div_3;
+    CARD32            ppll_ref_div;
+    CARD32            ppll_div_3;
     CARD32            htotal_cntl;
 
 				/* Computed values for PLL2 */
@@ -248,14 +261,8 @@ typedef enum {
     CHIP_FAMILY_RV280,
     CHIP_FAMILY_R300,
     CHIP_FAMILY_R350,
-    CHIP_FAMILY_RV350,
-    CHIP_FAMILY_LAST
+    CHIP_FAMILY_RV350
 } RADEONChipFamily;
-
-typedef struct {
-    CARD32 freq;
-    CARD32 value;
-}RADEONTMDSPll;
 
 typedef struct {
     EntityInfoPtr     pEnt;
@@ -284,8 +291,8 @@ typedef struct {
     RADEONDDCType     DDCType;
     RADEONConnectorType ConnectorType;
     Bool              HasCRTC2;         /* All cards except original Radeon  */
-    Bool              IsMobility;       /* Mobile chips for laptops */
-    Bool              IsIGP;            /* IGP chips */
+    Bool              IsMobility;       /* Mobile chips for laptops */      
+    Bool              IsIGP;            /* IGP chips */      
     Bool              IsSecondary;      /* Second Screen                     */
     Bool              IsSwitching;      /* Flag for switching mode           */
     Bool              Clone;            /* Force second head to clone primary*/
@@ -298,7 +305,7 @@ typedef struct {
     Bool              OverlayOnCRTC2;
     Bool              PanelOff;         /* Force panel (LCD/DFP) off         */
     int               FPBIOSstart;      /* Start of the flat panel info      */
-    Bool              ddc_mode;         /* Validate mode by matching exactly
+    Bool              ddc_mode;         /* Validate mode by matching exactly  
 					 * the modes supported in DDC data
 					 */
     Bool              R300CGWorkaround;
@@ -318,6 +325,7 @@ typedef struct {
     int               FeedbackDivider;
     int               PostDivider;
     Bool              UseBiosDividers;
+
 				/* EDID data using DDC interface */
     Bool              ddc_bios;
     Bool              ddc1;
@@ -326,12 +334,7 @@ typedef struct {
     CARD32            DDCReg;
 
     RADEONPLLRec      pll;
-    RADEONTMDSPll     tmds_pll[4];
-    int               RamWidth;
-    float	      sclk;		/* in MHz */
-    float	      mclk;		/* in MHz */
-    Bool	      IsDDR;
-    int               DispPriority;
+    RADEONRAMPtr      ram;
 
     RADEONSaveRec     SavedReg;         /* Original (text) mode              */
     RADEONSaveRec     ModeReg;          /* Current mode                      */
@@ -675,7 +678,7 @@ do {									\
 		   "ADVANCE_RING() start: %d used: %d count: %d\n",	\
 		   info->indirectStart,					\
 		   info->indirectBuffer->used,				\
-		   __count * (int)sizeof(CARD32));			\
+		   __count * sizeof(CARD32));				\
     }									\
     info->indirectBuffer->used += __count * (int)sizeof(CARD32);	\
 } while (0)

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128_dri.c,v 1.31 2003/09/28 20:15:53 alanh Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128_dri.c,v 1.29 2003/07/09 01:45:22 dawes Exp $ */
 /*
  * Copyright 1999, 2000 ATI Technologies Inc., Markham, Ontario,
  *                      Precision Insight, Inc., Cedar Park, Texas, and
@@ -152,7 +152,7 @@ static Bool R128InitVisualConfigs(ScreenPtr pScreen)
 		    pConfigs[i].accumBlueSize  = 0;
 		    pConfigs[i].accumAlphaSize = 0;
 		}
-		if (db)
+		if (db) 
 		    pConfigs[i].doubleBuffer       = TRUE;
 		else
 		    pConfigs[i].doubleBuffer       = FALSE;
@@ -363,9 +363,9 @@ static void R128DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 indx)
     int         nbox, nboxSave;
     int         depth;
 
-    /* FIXME: Use accel when CCE 2D code is written
+    /* FIXME: Use accel when CCE 2D code is written 
      * EA: What is this code kept for? Radeon doesn't have it and
-     * has a comment: "There's no need for the 2d driver to be clearing
+     * has a comment: "There's no need for the 2d driver to be clearing 
      * buffers for the 3d client.  It knows how to do that on its own."
      */
     if (info->directRenderingEnabled)
@@ -489,7 +489,7 @@ static Bool R128DRIAgpInit(R128InfoPtr info, ScreenPtr pScreen)
 	return FALSE;
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	       "[agp] %d kB allocated with handle 0x%08lx\n",
+	       "[agp] %d kB allocated with handle 0x%08x\n",
 	       info->agpSize*1024, info->agpMemHandle);
 
     if (drmAgpBind(info->drmFD, info->agpMemHandle, info->agpOffset) < 0) {
@@ -618,7 +618,7 @@ static Bool R128DRIAgpInit(R128InfoPtr info, ScreenPtr pScreen)
 	return FALSE;
     }
     agpBase = drmAgpBase(info->drmFD);
-    OUTREG(R128_AGP_BASE, agpBase);
+    OUTREG(R128_AGP_BASE, agpBase); 
     OUTREG(R128_AGP_CNTL, cntl);
 
 				/* Disable Rage 128's PCIGART registers */
@@ -649,7 +649,7 @@ static Bool R128DRIPciInit(R128InfoPtr info, ScreenPtr pScreen)
 	return FALSE;
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	       "[pci] %d kB allocated with handle 0x%08lx\n",
+	       "[pci] %d kB allocated with handle 0x%08x\n",
 	       info->agpSize*1024, info->pciMemHandle);
 
 				/* Initialize the CCE ring buffer data */
@@ -1178,9 +1178,9 @@ Bool R128DRIScreenInit(ScreenPtr pScreen)
     {
 	void *scratch_ptr;
         int scratch_int;
-
+	
 	DRIGetDeviceInfo(pScreen, &info->fbHandle,
-                         &scratch_int, &scratch_int,
+                         &scratch_int, &scratch_int, 
                          &scratch_int, &scratch_int,
                          &scratch_ptr);
     }
@@ -1329,10 +1329,10 @@ void R128DRICloseScreen(ScreenPtr pScreen)
 	drmUnmap(info->ring, info->ringMapSize);
 	info->ring = NULL;
     }
-    if (info->agpMemHandle != DRM_AGP_NO_HANDLE) {
+    if (info->agpMemHandle!=DRM_AGP_NO_HANDLE) {
 	drmAgpUnbind(info->drmFD, info->agpMemHandle);
 	drmAgpFree(info->drmFD, info->agpMemHandle);
-	info->agpMemHandle = DRM_AGP_NO_HANDLE;
+	info->agpMemHandle = 0;
 	drmAgpRelease(info->drmFD);
     }
     if (info->pciMemHandle) {
@@ -1479,7 +1479,7 @@ static void R128DRITransitionTo2d(ScreenPtr pScreen)
     } else {
 	xf86DrvMsg(pScreen->myNum, X_WARNING,
 		   "[dri] R128DRITransitionTo2d: "
-		   "kernel failed to unflip buffers.\n");
+		   "kernel failed to unflip buffers.\n"); 
     }
 
     info->have3DWindows = 0;

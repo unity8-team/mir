@@ -1,6 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticonfig.c,v 1.15tsi Exp $*/
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticonfig.c,v 1.14 2003/04/30 21:43:31 tsi Exp $*/
 /*
- * Copyright 2000 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 2000 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -34,7 +34,6 @@
  */
 typedef enum
 {
-    ATI_OPTION_BIOS_DISPLAY,    /* Allow BIOS interference */
     ATI_OPTION_CRT_SCREEN,      /* Legacy negation of "PanelDisplay" */
     ATI_OPTION_DEVEL,           /* Intentionally undocumented */
     ATI_OPTION_BLEND,           /* Force horizontal blending of small modes */
@@ -57,23 +56,9 @@ ATIProcessOptions
     OptionInfoPtr PublicOption = xnfalloc(ATIPublicOptionSize);
     OptionInfoRec PrivateOption[] =
     {
-        {                       /* ON:  Let BIOS change display(s) */
-            ATI_OPTION_BIOS_DISPLAY,    /* OFF:  Don't */
-            "biosdisplay",
-            OPTV_BOOLEAN,
-            {0, },
-            FALSE
-        },
         {                       /* Negation of "PanelDisplay" public option */
             ATI_OPTION_CRT_SCREEN,
             "crtscreen",
-            OPTV_BOOLEAN,
-            {0, },
-            FALSE
-        },
-        {                       /* ON:   Ease exploration of loose ends */
-            ATI_OPTION_DEVEL,   /* OFF:  Fit for public consumption */
-            "tsi",
             OPTV_BOOLEAN,
             {0, },
             FALSE
@@ -92,6 +77,13 @@ ATIProcessOptions
             {0, },
             FALSE
         },
+        {                       /* ON:   Ease exploration of loose ends */
+            ATI_OPTION_DEVEL,   /* OFF:  Fit for public consumption */
+            "tsi",
+            OPTV_BOOLEAN,
+            {0, },
+            FALSE
+        },
         {
             -1,
             NULL,
@@ -104,7 +96,6 @@ ATIProcessOptions
     (void)memcpy(PublicOption, ATIPublicOptions, ATIPublicOptionSize);
 
 #   define Accel         PublicOption[ATI_OPTION_ACCEL].value.bool
-#   define BIOSDisplay   PrivateOption[ATI_OPTION_BIOS_DISPLAY].value.bool
 #   define Blend         PrivateOption[ATI_OPTION_BLEND].value.bool
 #   define CRTDisplay    PublicOption[ATI_OPTION_CRT_DISPLAY].value.bool
 #   define CRTScreen     PrivateOption[ATI_OPTION_CRT_SCREEN].value.bool
@@ -185,7 +176,6 @@ ATIProcessOptions
 
     /* Move option values into driver private structure */
     pATI->OptionAccel = Accel;
-    pATI->OptionBIOSDisplay = BIOSDisplay;
     pATI->OptionBlend = Blend;
     pATI->OptionCRTDisplay = CRTDisplay;
     pATI->OptionCSync = CSync;

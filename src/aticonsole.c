@@ -1,6 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticonsole.c,v 1.22 2003/11/13 18:42:47 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticonsole.c,v 1.21 2003/07/24 22:08:27 tsi Exp $ */
 /*
- * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -336,8 +336,7 @@ ATIFreeScreen
     ScrnInfoPtr pScreenInfo = xf86Screens[iScreen];
     ATIPtr      pATI        = ATIPTR(pScreenInfo);
 
-    if (pATI->Closeable || (serverGeneration > 1))
-        ATII2CFreeScreen(iScreen);
+    ATII2CFreeScreen(iScreen);
 
     if (pATI->Closeable)
         (void)(*pScreen->CloseScreen)(iScreen, pScreen);

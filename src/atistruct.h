@@ -1,6 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atistruct.h,v 1.41tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atistruct.h,v 1.39 2003/07/24 22:08:28 tsi Exp $ */
 /*
- * Copyright 1999 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1999 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -318,8 +318,8 @@ typedef struct _ATIRec
      * LCD panel data.
      */
     int LCDPanelID, LCDClock, LCDHorizontal, LCDVertical;
-    unsigned LCDHSyncStart, LCDHSyncWidth, LCDHBlankWidth;
-    unsigned LCDVSyncStart, LCDVSyncWidth, LCDVBlankWidth;
+    int LCDHSyncStart, LCDHSyncWidth, LCDHBlankWidth;
+    int LCDVSyncStart, LCDVSyncWidth, LCDVBlankWidth;
     int LCDVBlendFIFOSize;
 
     /*
@@ -406,25 +406,24 @@ typedef struct _ATIRec
     /*
      * Driver options.
      */
-    CARD8 OptionAccel:1;        /* Use hardware draw engine */
-    CARD8 OptionBIOSDisplay:1;  /* Allow BIOS interference */
-    CARD8 OptionBlend:1;        /* Force horizontal blending */
-    CARD8 OptionCRTDisplay:1;   /* Display on both CRT and digital panel */
-    CARD8 OptionCSync:1;        /* Use composite sync */
-    CARD8 OptionDevel:1;        /* Intentionally undocumented */
+    CARD8 OptionAccel;          /* Use hardware draw engine */
+    CARD8 OptionBlend;          /* Force horizontal blending */
+    CARD8 OptionCRTDisplay;     /* Display on both CRT and digital panel */
+    CARD8 OptionCSync;          /* Use composite sync */
+    CARD8 OptionDevel;          /* Intentionally undocumented */
 
 #ifndef AVOID_CPIO
 
-    CARD8 OptionLinear:1;       /* Use linear fb aperture when available */
+    CARD8 OptionLinear;         /* Use linear fb aperture when available */
 
 #endif /* AVOID_CPIO */
 
-    CARD8 OptionMMIOCache:1;    /* Cache MMIO writes */
-    CARD8 OptionTestMMIOCache:1;/* Test MMIO cache integrity */
-    CARD8 OptionPanelDisplay:1; /* Prefer digital panel over CRT */
-    CARD8 OptionProbeClocks:1;  /* Force probe for fixed clocks */
-    CARD8 OptionShadowFB:1;     /* Use shadow frame buffer */
-    CARD8 OptionLCDSync:1;      /* Temporary */
+    CARD8 OptionMMIOCache;      /* Cache MMIO writes */
+    CARD8 OptionTestMMIOCache;  /* Test MMIO cache integrity */
+    CARD8 OptionPanelDisplay;   /* Prefer CRT over digital panel */
+    CARD8 OptionProbeClocks;    /* Force probe for fixed clocks */
+    CARD8 OptionShadowFB;       /* Use shadow frame buffer */
+    CARD8 OptionLCDSync;        /* Temporary */
 
     /*
      * State flags.

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_dri.c,v 1.39 2003/11/06 18:38:00 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_dri.c,v 1.36 2003/07/09 01:45:22 dawes Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario,
  *                VA Linux Systems Inc., Fremont, California.
@@ -40,12 +40,12 @@
 #include "radeon.h"
 #include "radeon_macros.h"
 #include "radeon_dri.h"
+#include "radeon_pci.h"
 #include "radeon_reg.h"
 #include "radeon_version.h"
 
 				/* X and server generic header files */
 #include "xf86.h"
-#include "xf86PciInfo.h"
 #include "windowstr.h"
 
 
@@ -516,7 +516,7 @@ static void RADEONScreenToScreenCopyDepth(ScrnInfoPtr pScrn,
 static void RADEONDRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 indx)
 {
    /* NOOP.  There's no need for the 2d driver to be clearing buffers
-    * for the 3d client.  It knows how to do that on its own.
+    * for the 3d client.  It knows how to do that on its own. 
     */
 }
 
@@ -716,8 +716,8 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
 {
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned long mode   = drmAgpGetMode(info->drmFD);	/* Default mode */
-    unsigned int  vendor = drmAgpVendorId(info->drmFD);
-    unsigned int  device = drmAgpDeviceId(info->drmFD);
+    unsigned long vendor = drmAgpVendorId(info->drmFD);
+    unsigned long device = drmAgpDeviceId(info->drmFD);
 
     mode &= ~RADEON_AGP_MODE_MASK;
     switch (info->agpMode) {
@@ -727,7 +727,7 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
     }
 
     if (info->agpFastWrite) mode |= RADEON_AGP_FW_MODE;
-
+    
     if ((vendor == PCI_VENDOR_AMD) &&
 	(device == PCI_CHIP_AMD761)) {
 
@@ -794,7 +794,7 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	return FALSE;
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	       "[agp] %d kB allocated with handle 0x%08lx\n",
+	       "[agp] %d kB allocated with handle 0x%08x\n",
 	       info->gartSize*1024, info->agpMemHandle);
 
     if (drmAgpBind(info->drmFD,
@@ -903,7 +903,7 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	return FALSE;
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	       "[pci] %d kB allocated with handle 0x%08lx\n",
+	       "[pci] %d kB allocated with handle 0x%08x\n",
 	       info->gartSize*1024, info->pciMemHandle);
 
     RADEONDRIInitGARTValues(info);
@@ -1077,7 +1077,7 @@ static void RADEONDRIGartHeapInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	drmHeap.region = RADEON_MEM_REGION_GART;
 	drmHeap.start  = 0;
 	drmHeap.size   = info->gartTexMapSize;
-
+    
 	if (drmCommandWrite(info->drmFD, DRM_RADEON_INIT_HEAP,
 			    &drmHeap, sizeof(drmHeap))) {
 	    xf86DrvMsg(pScreen->myNum, X_ERROR,
@@ -1239,7 +1239,7 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
 	 (info->ChipFamily == CHIP_FAMILY_RV250) ||
 	 (info->ChipFamily == CHIP_FAMILY_RV280) )
        pDRIInfo->clientDriverName        = R200_DRIVER_NAME;
-    else
+    else 
        pDRIInfo->clientDriverName        = RADEON_DRIVER_NAME;
 
     pDRIInfo->busIdString                = xalloc(64);
@@ -1366,20 +1366,20 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
 	    (info->ChipFamily == CHIP_FAMILY_RV250) ||
 	    (info->ChipFamily == CHIP_FAMILY_RV280)) {
 	    req_minor = 5;
-	    req_patch = 0;
+	    req_patch = 0;	
 	} else {
 #if X_BYTE_ORDER == X_LITTLE_ENDIAN
 	    req_minor = 1;
 	    req_patch = 0;
 #else
 	    req_minor = 2;
-	    req_patch = 1;
+	    req_patch = 1;	     
 #endif
 	}
 
 	if (version->version_major != 1 ||
 	    version->version_minor < req_minor ||
-	    (version->version_minor == req_minor &&
+	    (version->version_minor == req_minor && 
 	     version->version_patchlevel < req_patch)) {
 	    /* Incompatible drm version */
 	    xf86DrvMsg(pScreen->myNum, X_ERROR,
@@ -1449,9 +1449,9 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     {
 	void *scratch_ptr;
         int scratch_int;
-
+	
 	DRIGetDeviceInfo(pScreen, &info->fbHandle,
-                         &scratch_int, &scratch_int,
+                         &scratch_int, &scratch_int, 
                          &scratch_int, &scratch_int,
                          &scratch_ptr);
     }
@@ -1594,10 +1594,10 @@ void RADEONDRIResume(ScreenPtr pScreen)
 	RADEONSetAgpBase(info);
     }
 
-    _ret = drmCommandNone(info->drmFD, DRM_RADEON_CP_RESUME);
-    if (_ret) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "%s: CP resume %d\n", __FUNCTION__, _ret);
+    _ret = drmCommandNone(info->drmFD, DRM_RADEON_CP_RESUME); 
+    if (_ret) {      
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,  
+		   "%s: CP resume %d\n", __FUNCTION__, _ret); 
 	/* FIXME: return? */
     }
 
@@ -1898,10 +1898,10 @@ static void RADEONDRITransitionTo2d(ScreenPtr pScreen)
     } else {
 	xf86DrvMsg(pScreen->myNum, X_WARNING,
 		   "[dri] RADEONDRITransitionTo2d: "
-		   "kernel failed to unflip buffers.\n");
+		   "kernel failed to unflip buffers.\n"); 
     }
 
-    xf86FreeOffscreenArea(info->depthTexArea);
+    xf86FreeOffscreenArea(info->depthTexArea); 
 
     info->have3DWindows = 0;
 

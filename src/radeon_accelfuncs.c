@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_accelfuncs.c,v 1.7tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_accelfuncs.c,v 1.7 2003/04/06 20:07:33 martin Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -1305,6 +1305,12 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 	   | HARDWARE_CLIP_SCREEN_TO_SCREEN_COPY);
 
     if (xf86IsEntityShared(info->pEnt->index)) {
+	DevUnion     *pPriv;
+	RADEONEntPtr  pRADEONEnt;
+
+	pPriv = xf86GetEntityPrivate(info->pEnt->index, gRADEONEntityIndex);
+	pRADEONEnt = pPriv->ptr;
+
 	/* If there are more than one devices sharing this entity, we
 	 * have to assign this call back, otherwise the XAA will be
 	 * disabled

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_probe.h,v 1.13 2003/10/30 17:37:00 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_probe.h,v 1.11 2003/07/02 17:31:30 martin Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -60,9 +60,9 @@ typedef struct
     ScrnInfoPtr pPrimaryScrn;
 
     int MonType1;
-    int MonType2;
+    int MonType2; 
     xf86MonPtr MonInfo1;
-    xf86MonPtr MonInfo2;
+    xf86MonPtr MonInfo2;   
     Bool ReversedDAC;	  /* TVDAC used as primary dac */
     Bool ReversedTMDS;    /* DDC_DVI is used for external TMDS */
 } RADEONEntRec, *RADEONEntPtr;
@@ -100,7 +100,7 @@ extern void                 RADEONLeaveVT
 			    FunctionPrototype((int, int));
 extern void                 RADEONFreeScreen
 			    FunctionPrototype((int, int));
-extern ModeStatus           RADEONValidMode
+extern int                  RADEONValidMode
 			    FunctionPrototype((int, DisplayModePtr, Bool,
 					       int));
 

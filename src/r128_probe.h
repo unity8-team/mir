@@ -69,7 +69,7 @@ extern void                  R128LeaveVT
 			     FunctionPrototype((int, int));
 extern void                  R128FreeScreen
 			     FunctionPrototype((int, int));
-extern ModeStatus            R128ValidMode
+extern int                   R128ValidMode
 			     FunctionPrototype((int, DisplayModePtr, Bool,
 						int));
 
