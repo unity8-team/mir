@@ -1325,7 +1325,7 @@ static void RADEONGetPanelInfoFromReg (ScrnInfoPtr pScrn)
 	info->PanelYRes = (INREG(RADEON_CRTC_V_TOTAL_DISP)>>16) + 1;
     }
     if (fp_horz_stretch & RADEON_HORZ_STRETCH_ENABLE) {
-	info->PanelXRes = ((fp_vert_stretch>>16) + 1) * 8;
+	info->PanelXRes = ((fp_horz_stretch>>16) + 1) * 8;
     } else {
 	info->PanelXRes = ((INREG(RADEON_CRTC_H_TOTAL_DISP)>>16) + 1) * 8;
     }
