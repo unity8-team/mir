@@ -198,8 +198,6 @@
 
 #define RADEON_CACHE_CNTL                   0x1724
 #define RADEON_CACHE_LINE                   0x0f0c /* PCI */
-#define RADEON_CAP0_TRIG_CNTL               0x0950 /* ? */
-#define RADEON_CAP1_TRIG_CNTL               0x09c0 /* ? */
 #define RADEON_CAPABILITIES_ID              0x0f50 /* PCI */
 #define RADEON_CAPABILITIES_PTR             0x0f34 /* PCI */
 #define RADEON_CLK_PIN_CNTL                 0x0001 /* PLL */
@@ -760,8 +758,15 @@
 #define RADEON_HTOTAL_CNTL                  0x0009 /* PLL */
 #define RADEON_HTOTAL2_CNTL                 0x002e /* PLL */
 
-#define RADEON_I2C_CNTL_1                   0x0094 /* ? */
+       /* Multimedia I2C bus */
+#define RADEON_I2C_CNTL_0		    0x0090
+#define RADEON_I2C_CNTL_1                   0x0094
+#define RADEON_I2C_DATA			    0x0098
+
+#define RADEON_DVI_I2C_CNTL_0		    0x02e0
 #define RADEON_DVI_I2C_CNTL_1               0x02e4 /* ? */
+#define RADEON_DVI_I2C_DATA		    0x02e8
+
 #define RADEON_INTERRUPT_LINE               0x0f3c /* PCI */
 #define RADEON_INTERRUPT_PIN                0x0f3d /* PCI */
 #define RADEON_IO_BASE                      0x0f14 /* PCI */
@@ -977,6 +982,106 @@
 #define RADEON_OVR_CLR                      0x0230
 #define RADEON_OVR_WID_LEFT_RIGHT           0x0234
 #define RADEON_OVR_WID_TOP_BOTTOM           0x0238
+
+/* first capture unit */
+
+#define RADEON_CAP0_BUF0_OFFSET           0x0920
+#define RADEON_CAP0_BUF1_OFFSET           0x0924
+#define RADEON_CAP0_BUF0_EVEN_OFFSET      0x0928
+#define RADEON_CAP0_BUF1_EVEN_OFFSET      0x092C
+
+#define RADEON_CAP0_BUF_PITCH             0x0930
+#define RADEON_CAP0_V_WINDOW              0x0934
+#define RADEON_CAP0_H_WINDOW              0x0938
+#define RADEON_CAP0_VBI0_OFFSET           0x093C
+#define RADEON_CAP0_VBI1_OFFSET           0x0940
+#define RADEON_CAP0_VBI_V_WINDOW          0x0944
+#define RADEON_CAP0_VBI_H_WINDOW          0x0948
+#define RADEON_CAP0_PORT_MODE_CNTL        0x094C
+#define RADEON_CAP0_TRIG_CNTL             0x0950
+#define RADEON_CAP0_DEBUG                 0x0954
+#define RADEON_CAP0_CONFIG                0x0958
+#       define RADEON_CAP0_CONFIG_CONTINUOS          0x00000001
+#       define RADEON_CAP0_CONFIG_START_FIELD_EVEN   0x00000002
+#       define RADEON_CAP0_CONFIG_START_BUF_GET      0x00000004
+#       define RADEON_CAP0_CONFIG_START_BUF_SET      0x00000008
+#       define RADEON_CAP0_CONFIG_BUF_TYPE_ALT       0x00000010
+#       define RADEON_CAP0_CONFIG_BUF_TYPE_FRAME     0x00000020
+#       define RADEON_CAP0_CONFIG_ONESHOT_MODE_FRAME 0x00000040
+#       define RADEON_CAP0_CONFIG_BUF_MODE_DOUBLE    0x00000080
+#       define RADEON_CAP0_CONFIG_BUF_MODE_TRIPLE    0x00000100
+#       define RADEON_CAP0_CONFIG_MIRROR_EN          0x00000200
+#       define RADEON_CAP0_CONFIG_ONESHOT_MIRROR_EN  0x00000400
+#       define RADEON_CAP0_CONFIG_VIDEO_SIGNED_UV    0x00000800
+#       define RADEON_CAP0_CONFIG_ANC_DECODE_EN      0x00001000
+#       define RADEON_CAP0_CONFIG_VBI_EN             0x00002000
+#       define RADEON_CAP0_CONFIG_SOFT_PULL_DOWN_EN  0x00004000
+#       define RADEON_CAP0_CONFIG_VIP_EXTEND_FLAG_EN 0x00008000
+#       define RADEON_CAP0_CONFIG_FAKE_FIELD_EN      0x00010000
+#       define RADEON_CAP0_CONFIG_ODD_ONE_MORE_LINE  0x00020000
+#       define RADEON_CAP0_CONFIG_EVEN_ONE_MORE_LINE 0x00040000
+#       define RADEON_CAP0_CONFIG_HORZ_DIVIDE_2      0x00080000
+#       define RADEON_CAP0_CONFIG_HORZ_DIVIDE_4      0x00100000
+#       define RADEON_CAP0_CONFIG_VERT_DIVIDE_2      0x00200000
+#       define RADEON_CAP0_CONFIG_VERT_DIVIDE_4      0x00400000
+#       define RADEON_CAP0_CONFIG_FORMAT_BROOKTREE   0x00000000
+#       define RADEON_CAP0_CONFIG_FORMAT_CCIR656     0x00800000
+#       define RADEON_CAP0_CONFIG_FORMAT_ZV          0x01000000
+#       define RADEON_CAP0_CONFIG_FORMAT_VIP         0x01800000
+#       define RADEON_CAP0_CONFIG_FORMAT_TRANSPORT   0x02000000
+#       define RADEON_CAP0_CONFIG_HORZ_DECIMATOR     0x04000000
+#       define RADEON_CAP0_CONFIG_VIDEO_IN_YVYU422   0x00000000
+#       define RADEON_CAP0_CONFIG_VIDEO_IN_VYUY422   0x20000000
+#       define RADEON_CAP0_CONFIG_VBI_DIVIDE_2       0x40000000
+#       define RADEON_CAP0_CONFIG_VBI_DIVIDE_4       0x80000000
+#define RADEON_CAP0_ANC_ODD_OFFSET        0x095C
+#define RADEON_CAP0_ANC_EVEN_OFFSET       0x0960
+#define RADEON_CAP0_ANC_H_WINDOW          0x0964
+#define RADEON_CAP0_VIDEO_SYNC_TEST       0x0968
+#define RADEON_CAP0_ONESHOT_BUF_OFFSET    0x096C
+#define RADEON_CAP0_BUF_STATUS            0x0970
+/* #define RADEON_CAP0_DWNSC_XRATIO       0x0978 */
+/* #define RADEON_CAP0_XSHARPNESS                 0x097C */
+#define RADEON_CAP0_VBI2_OFFSET           0x0980
+#define RADEON_CAP0_VBI3_OFFSET           0x0984
+#define RADEON_CAP0_ANC2_OFFSET           0x0988
+#define RADEON_CAP0_ANC3_OFFSET           0x098C
+#define RADEON_VID_BUFFER_CONTROL         0x0900
+
+/* second capture unit */
+
+#define RADEON_CAP1_BUF0_OFFSET           0x0990
+#define RADEON_CAP1_BUF1_OFFSET           0x0994
+#define RADEON_CAP1_BUF0_EVEN_OFFSET      0x0998
+#define RADEON_CAP1_BUF1_EVEN_OFFSET      0x099C
+
+#define RADEON_CAP1_BUF_PITCH             0x09A0
+#define RADEON_CAP1_V_WINDOW              0x09A4
+#define RADEON_CAP1_H_WINDOW              0x09A8
+#define RADEON_CAP1_VBI_ODD_OFFSET        0x09AC
+#define RADEON_CAP1_VBI_EVEN_OFFSET       0x09B0
+#define RADEON_CAP1_VBI_V_WINDOW                  0x09B4
+#define RADEON_CAP1_VBI_H_WINDOW                  0x09B8
+#define RADEON_CAP1_PORT_MODE_CNTL        0x09BC
+#define RADEON_CAP1_TRIG_CNTL             0x09C0
+#define RADEON_CAP1_DEBUG                         0x09C4
+#define RADEON_CAP1_CONFIG                0x09C8
+#define RADEON_CAP1_ANC_ODD_OFFSET        0x09CC
+#define RADEON_CAP1_ANC_EVEN_OFFSET       0x09D0
+#define RADEON_CAP1_ANC_H_WINDOW                  0x09D4
+#define RADEON_CAP1_VIDEO_SYNC_TEST       0x09D8
+#define RADEON_CAP1_ONESHOT_BUF_OFFSET    0x09DC
+#define RADEON_CAP1_BUF_STATUS            0x09E0
+#define RADEON_CAP1_DWNSC_XRATIO                  0x09E8
+#define RADEON_CAP1_XSHARPNESS            0x09EC
+
+/* misc multimedia registers */
+
+#define RADEON_IDCT_RUNS                  0x1F80
+#define RADEON_IDCT_LEVELS                0x1F84
+#define RADEON_IDCT_CONTROL               0x1FBC
+#define RADEON_IDCT_AUTH_CONTROL          0x1F88
+#define RADEON_IDCT_AUTH                  0x1F8C
 
 #define RADEON_P2PLL_CNTL                   0x002a /* P2PLL */
 #       define RADEON_P2PLL_RESET                (1 <<  0)
