@@ -277,6 +277,16 @@ typedef enum {
         (info->ChipFamily == CHIP_FAMILY_RV380) ||  \
         (info->ChipFamily == CHIP_FAMILY_R420))
 
+/*
+ * Errata workarounds
+ */
+typedef enum {
+       CHIP_ERRATA_R300_CG             = 0x00000001,
+       CHIP_ERRATA_PLL_DUMMYREADS      = 0x00000002,
+       CHIP_ERRATA_PLL_DELAY           = 0x00000004
+} RADEONErrata;
+
+
 
 typedef struct {
     CARD32 freq;
@@ -289,6 +299,7 @@ typedef struct {
     PCITAG            PciTag;
     int               Chipset;
     RADEONChipFamily  ChipFamily;
+    RADEONErrata      ChipErrata;
 
     Bool              FBDev;
 

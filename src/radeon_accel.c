@@ -72,9 +72,9 @@
 
 				/* Driver data structures */
 #include "radeon.h"
+#include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
-#include "radeon_reg.h"
 #include "radeon_version.h"
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
@@ -196,7 +196,7 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
     RADEONEngineFlush(pScrn);
 
     clock_cntl_index = INREG(RADEON_CLOCK_CNTL_INDEX);
-    if (info->R300CGWorkaround) R300CGWorkaround(pScrn);
+    RADEONPllErrataAfterIndex(info);
 
 #if 0 /* taken care of by new PM code */
     /* Some ASICs have bugs with dynamic-on feature, which are
@@ -274,8 +274,8 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
 	OUTREG(RADEON_RBBM_SOFT_RESET, rbbm_soft_reset);
 
     OUTREG(RADEON_CLOCK_CNTL_INDEX, clock_cntl_index);
-    OUTPLL(RADEON_MCLK_CNTL, mclk_cntl);
-    if (info->R300CGWorkaround) R300CGWorkaround(pScrn);
+    RADEONPllErrataAfterIndex(info);
+    OUTPLL(pScrn, RADEON_MCLK_CNTL, mclk_cntl);
 }
 
 /* Restore the acceleration hardware to its previous state */

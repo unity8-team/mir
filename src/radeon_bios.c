@@ -30,9 +30,9 @@
 #include "xf86_OSproc.h"
 
 #include "radeon.h"
+#include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
-#include "radeon_reg.h"
 #include "vbe.h"
 
 /* Read the Video BIOS block and the FP registers (if applicable). */

@@ -1,9 +1,9 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_video.c,v 1.30 2003/11/10 18:22:18 tsi Exp $ */
 
 #include "radeon.h"
+#include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
-#include "radeon_reg.h"
 #include "radeon_mergedfb.h"
 #include "radeon_video.h"
 
@@ -1323,8 +1323,8 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Dotclock is %g Mhz, setting ecp_div to %d\n", info->ModeReg.dot_clock_freq/100.0, pPriv->ecp_div);
 #endif
 
-    OUTPLL(RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) &
-				  0xfffffCff) | (pPriv->ecp_div << 8));
+    OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) &
+					 0xfffffCff) | (pPriv->ecp_div << 8));
 
     /* I suspect we may need a usleep after writing to the PLL.  if you play a video too soon
        after switching crtcs in mergedfb clone mode you get a temporary one pixel line of colorkey 
@@ -1336,7 +1336,8 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 	(info->ChipFamily == CHIP_FAMILY_RS300)) {
         /* Force the overlay clock on for integrated chips
 	 */
-        OUTPLL(RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) | (1<<18)));
+        OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL,
+	       (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) | (1<<18)));
     }
     
     /* overlay scaler line length differs for different revisions 
@@ -2301,7 +2302,8 @@ RADEONDisplayVideo(
     else
 	ecp_div = 1;
 
-    OUTPLL(RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) & 0xfffffCff) | (ecp_div << 8));
+    OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL,
+	   (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) & 0xfffffCff) | (ecp_div << 8));
 
     /* I suspect we may need a usleep after writing to the PLL.  if you play a video too soon
        after switching crtcs in mergedfb clone mode you get a temporary one pixel line of colorkey 

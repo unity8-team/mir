@@ -38,9 +38,9 @@
 
 				/* Driver data structures */
 #include "radeon.h"
+#include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_dri.h"
-#include "radeon_reg.h"
 #include "radeon_version.h"
 
 				/* X and server generic header files */
