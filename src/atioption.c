@@ -30,6 +30,28 @@
 #include "radeon_probe.h"
 #include "r128_probe.h"
 
+#ifdef TV_OUT
+
+/*
+ * List of supported TV standard names
+ */
+const char *ATITVStandardNames[ATI_TV_STDS_MAX_VALID+1] = {
+    "NTSC",
+    "PAL",
+    "PAL-M",
+    "PAL-60",
+    "NTSC-J",
+    "PAL-CN",
+    "PAL-N",
+    "Reserved1",
+    "Reserved2",
+    "SCART-PAL",
+    "None",
+    "Invalid"
+};
+
+#endif /* TV_OUT */
+
 /*
  * Recognised XF86Config options.
  */
@@ -122,6 +144,24 @@ const OptionInfoRec ATIPublicOptions[] =
     },
 
 #endif /* XF86DRI_DEVEL */
+
+#ifdef TV_OUT
+    {
+        ATI_OPTION_TV_OUT,
+        "tv_out",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
+        ATI_OPTION_TV_STD,
+        "tv_standard",
+        OPTV_STRING,
+        {0, },
+        FALSE
+    },
+
+#endif /* TV_OUT */
 
     {
         ATI_OPTION_MMIO_CACHE,

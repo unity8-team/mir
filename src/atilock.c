@@ -154,9 +154,14 @@ ATIUnlock
              */
             if (!pATI->OptionBIOSDisplay && (pATI->Chip != ATI_CHIP_264XL))
             {
-                pATI->LockData.scratch_reg3 = inr(SCRATCH_REG3);
-                outr(SCRATCH_REG3,
-                    pATI->LockData.scratch_reg3 | DISPLAY_SWITCH_DISABLE);
+#ifdef TV_OUT
+		pATI->LockData.scratch_reg3 = inr(SCRATCH_REG3) & ~DISPLAY_SWITCH_DISABLE;
+		outr(SCRATCH_REG3, pATI->LockData.scratch_reg3);
+#else
+		pATI->LockData.scratch_reg3 = inr(SCRATCH_REG3);
+		outr(SCRATCH_REG3,
+		     pATI->LockData.scratch_reg3 | DISPLAY_SWITCH_DISABLE);
+#endif /* TV_OUT */
             }
         }
 
@@ -575,14 +580,18 @@ ATILock
         if ((pATI->LCDPanelID >= 0) && (pATI->Chip != ATI_CHIP_264LT))
         {
             outr(LCD_INDEX, pATI->LockData.lcd_index);
+#ifndef TV_OUT
             if (!pATI->OptionBIOSDisplay && (pATI->Chip != ATI_CHIP_264XL))
                 outr(SCRATCH_REG3, pATI->LockData.scratch_reg3);
+#endif /* TV_OUT */
         }
         if (pATI->Chip >= ATI_CHIP_264VTB)
         {
             outr(MPP_CONFIG, pATI->LockData.mpp_config);
             outr(MPP_STROBE_SEQ, pATI->LockData.mpp_strobe_seq);
+#ifndef TV_OUT
             outr(TVO_CNTL, pATI->LockData.tvo_cntl);
+#endif /* TV_OUT */
             if (pATI->Chip >= ATI_CHIP_264GT2C)
             {
                 outr(HW_DEBUG, pATI->LockData.hw_debug);

@@ -1,6 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimode.c,v 1.17 2003/04/23 21:51:29 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimode.c,v 1.18 2004/01/05 16:42:03 tsi Exp $ */
 /*
- * Copyright 2000 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 2000 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -34,6 +34,18 @@
 #include "ativga.h"
 #include "atiwonder.h"
 #include "atiwonderio.h"
+
+#ifdef TV_OUT
+
+#include "vbe.h"
+
+static const char *vbeSymbols[] = {
+    "VBESetVBEMode",
+    "vbeFree",
+    NULL
+};
+
+#endif /* TV_OUT */
 
 #ifndef AVOID_CPIO
 
@@ -125,7 +137,6 @@ ATISwap
     seq4 = GetReg(SEQX, 0x04U);
     gra1 = GetReg(GRAX, 0x01U);
     gra3 = GetReg(GRAX, 0x03U);
-    gra4 = GetReg(GRAX, 0x04U);
     gra5 = GetReg(GRAX, 0x05U);
     gra6 = GetReg(GRAX, 0x06U);
     gra8 = GetReg(GRAX, 0x08U);
@@ -365,7 +376,7 @@ ATIModeSave
 
     int Index;
 
-    /* Get bank to bank 0 */
+    /* Get back to bank 0 */
     (*pATIHW->SetBank)(pATI, 0);
 
 #endif /* AVOID_CPIO */
@@ -908,11 +919,17 @@ ATIModeCalculate
         else
             MaxScalerClock = 80000;     /* Conservative */
         pATIHW->pll_vclk_cntl &= ~PLL_ECP_DIV;
-        /* XXX Don't do this for TVOut! */
-        ECPClock = pMode->SynthClock;
-        for (Index = 0;  (ECPClock > MaxScalerClock) && (Index < 2);  Index++)
-            ECPClock >>= 1;
-        pATIHW->pll_vclk_cntl |= SetBits(Index, PLL_ECP_DIV);
+#ifdef TV_OUT
+	if (!pATI->OptionTvOut) {
+#endif /* TV_OUT */
+	   /* XXX Don't do this for TVOut! */
+	   ECPClock = pMode->SynthClock;
+	   for (Index = 0;  (ECPClock > MaxScalerClock) && (Index < 2);  Index++)
+	      ECPClock >>= 1;
+	   pATIHW->pll_vclk_cntl |= SetBits(Index, PLL_ECP_DIV);
+#ifdef TV_OUT
+	}
+#endif /* TV_OUT */
     }
     else if (pATI->DAC == ATI_DAC_IBMRGB514)
     {
@@ -921,6 +938,108 @@ ATIModeCalculate
 
     return TRUE;
 }
+
+#ifdef TV_OUT
+
+static void
+ATISetVBEMode
+(
+    ScrnInfoPtr pScreenInfo,
+    ATIPtr      pATI,
+    ATIHWPtr    pATIHW
+)
+{
+
+    xf86LoaderRefSymLists(vbeSymbols, NULL);
+
+    if (pATIHW->crtc == ATI_CRTC_MACH64) {
+	int vbemode, modekey;
+
+	/* Find a suitable VESA VBE mode, if one exists */
+	modekey = (pScreenInfo->depth << 16) | 
+	    (pScreenInfo->currentMode->HDisplay);
+
+	switch (modekey) {
+	case (15<<16)|(640):
+	    vbemode = 0x110;
+	    break;
+	case (16<<16)|(640):
+	    vbemode = 0x111;
+	    break;
+#if 0
+	case (24<<16)|(640):
+	    vbemode = 0x112;
+	    break;
+#endif
+	case (15<<16)|(800):
+	    vbemode = 0x113;
+	    break;
+	case (16<<16)|(800):
+	    vbemode = 0x114;
+	    break;
+#if 0
+	case (24<<16)|(800):
+	    vbemode = 0x115;
+	    break;
+#endif
+	case (15<<16)|(1024):
+	    vbemode = 0x116;
+	    break;
+	case (16<<16)|(1024):
+	    vbemode = 0x117;
+	    break;
+#if 0
+	case (24<<16)|(1024):
+	    vbemode = 0x118;
+	    break;
+#endif
+	default:
+	    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+		       "Mode not supported for TV-Out: depth: %ld HDisplay: %ld\n", 
+		       modekey>>16, modekey & 0xffff);
+	    return;
+	}
+
+	if (pATI->pVBE) {
+
+            /* Preserve video memory contents */
+            vbemode |= (1<<15);
+
+	    if (VBESetVBEMode(pATI->pVBE, vbemode, NULL)) {
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			   "VBESetMode: 0x%X (width: %d, pitch: %d, depth: %d)\n",
+			   vbemode, 
+			   pScreenInfo->currentMode->HDisplay,     
+			   pScreenInfo->displayWidth,
+			   pScreenInfo->depth);
+		outr(CRTC_OFF_PITCH,
+		     SetBits(pScreenInfo->displayWidth>>3, CRTC_PITCH));
+	    } else {
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, "VBESetMode failed.\n");
+	    }
+	} else {
+	    xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, "VBE module not loaded.\n");
+	}
+    } else {
+	/* restore text mode with VBESetMode */
+	if (pATI->pVBE) {
+	    if (VBESetVBEMode(pATI->pVBE, pATI->vbemode, NULL)) {
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, "Restoring VESA mode: 0x%x\n", 
+			   pATI->vbemode);
+	    } else {
+	        xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, "VBESetMode failed.\n");
+	    }
+	} else {
+	    xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, "VBE module not loaded.\n");
+	}
+    }
+    if (xf86ServerIsExiting()) {
+	if (pATI->pVBE) vbeFree(pATI->pVBE);
+	if (pATI->pInt10) xf86FreeInt10(pATI->pInt10);
+    }
+}
+
+#endif /* TV_OUT */
 
 /*
  * ATIModeSet --
@@ -1164,6 +1283,14 @@ ATIModeSet
 
     /* Reset hardware cursor caching */
     pATI->CursorXOffset = pATI->CursorYOffset = (CARD16)(-1);
+
+#ifdef TV_OUT
+
+    /* Set VBE mode for TV-Out */
+    if (pATI->OptionTvOut /* && pATI->tvActive */)
+	ATISetVBEMode(pScreenInfo, pATI, pATIHW);
+
+#endif /* TV_OUT */
 
 #ifndef AVOID_CPIO
 

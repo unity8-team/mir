@@ -597,6 +597,13 @@ ATIPreInit
 
 #else /* AVOID_CPIO */
 
+#ifdef TV_OUT
+
+    pATI->pVBE = NULL;
+    pATI->pInt10 = NULL;
+
+#endif /* TV_OUT */
+
     /*
      * If there is an ix86-style BIOS, ensure its initialisation entry point
      * has been executed, and retrieve DDC and VBE information from it.
@@ -629,9 +636,17 @@ ATIPreInit
             if ((pVBE = VBEInit(pInt10Info, pATI->iEntity)))
             {
                 ConfiguredMonitor = vbeDoEDID(pVBE, pDDCModule);
+#ifdef TV_OUT
+		pATI->pInt10 = pInt10Info;
+		pATI->pVBE = pVBE;
+		pVBE = NULL;
+#else
                 vbeFree(pVBE);
+#endif /* TV_OUT */
             }
+#ifndef TV_OUT
             xf86UnloadSubModule(pVBEModule);
+#endif /* TV_OUT */
         }
 
         if (!(flags & PROBE_DETECT))
@@ -654,9 +669,13 @@ ATIPreInit
         }
     }
 
+#ifndef TV_OUT
     /* De-activate int10 */
     xf86FreeInt10(pInt10Info);
     xf86UnloadSubModule(pInt10Module);
+#else
+    pInt10Info = NULL;
+#endif /* TV_OUT */
 
     if (flags & PROBE_DETECT)
     {

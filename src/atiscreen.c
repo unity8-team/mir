@@ -47,6 +47,12 @@
 #include "mach64_sarea.h"
 #endif
 
+#ifdef TV_OUT
+
+#include "atichip.h"
+
+#endif /* TV_OUT */
+
 #include "shadowfb.h"
 #include "xf86cmap.h"
 
@@ -552,6 +558,12 @@ ATIScreenInit
 
     if (serverGeneration == 1)
         xf86ShowUnusedOptions(pScreenInfo->scrnIndex, pScreenInfo->options);
+
+#ifdef TV_OUT
+    /* Fix-up TV out after ImpacTV probe */
+    if (pATI->OptionTvOut && pATI->Chip < ATI_CHIP_264GTPRO)
+        ATISwitchMode(0, pScreenInfo->currentMode, 0);
+#endif /* TV_OUT */
 
 #ifdef XF86DRI_DEVEL
 

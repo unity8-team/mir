@@ -49,6 +49,20 @@
 
 #include "xf86.h"
 
+#ifdef TV_OUT
+
+#include "atichip.h"
+#include "atiprint.h"
+#include "atioption.h"
+#include "vbe.h"
+
+static const char *vbeSymbols[] = {
+    "VBEGetVBEMode",
+    NULL
+};
+
+#endif /* TV_OUT */
+
 /*
  * ATISaveScreen --
  *
@@ -142,6 +156,398 @@ ATISetDPMSMode
     }
 }
 
+#ifdef TV_OUT
+
+static void
+ATIProbeAndSetActiveDisplays
+(
+    ScrnInfoPtr pScreenInfo,
+    ATIPtr      pATI
+)
+{
+    vbeInfoPtr pVbe;
+    Bool tv_attached, crt_attached, lcd_attached;
+    int disp_request;
+    ATITVStandard tv_std, tv_std_request;
+
+    xf86LoaderRefSymLists(vbeSymbols, NULL);
+
+    if (xf86GetVerbosity() > 3) {
+	xf86ErrorFVerb(4, "\n Before TV-Out queries\n\n",
+		       pScreenInfo->currentMode->name);
+	ATIPrintRegisters(pATI);
+    }
+
+    pATI->tvActive = FALSE;
+    pVbe = pATI->pVBE;
+    if (pVbe) {
+	/* LT Pro, XL, Mobility specific BIOS functions */
+	if (pATI->Chip == ATI_CHIP_264LTPRO ||
+	    pATI->Chip == ATI_CHIP_264XL || 
+	    pATI->Chip == ATI_CHIP_MOBILITY) {
+    
+	    /* Get attached display(s) - LTPro, XL, Mobility */
+	    pVbe->pInt10->num = 0x10;
+	    pVbe->pInt10->ax = 0xa083;
+	    pVbe->pInt10->cx = 0x0700; /* ch=0x07 - probe all, 0x01 CRT, 0x02 TV, 0x04 LCD */
+	    xf86ExecX86int10(pVbe->pInt10);
+
+	    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+		       "Attached displays: ax=0x%04x, cx=0x%04x\n",
+		       pVbe->pInt10->ax, pVbe->pInt10->cx);
+
+	    tv_attached = crt_attached = lcd_attached = FALSE;
+	    if (pVbe->pInt10->ax & 0xff00) {
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+			   "Failed to detect attached displays\n");
+	    } else {
+			
+		if (pVbe->pInt10->cx & 0x3)
+		{
+			xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+				   "   CRT attached\n");
+			crt_attached = TRUE;
+		}
+		else
+		    crt_attached = FALSE;
+
+		if ((pVbe->pInt10->cx >> 2) & 0x3)
+		{
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "   DFP/LCD attached\n");
+		    lcd_attached = TRUE;
+		}
+		else
+		    lcd_attached = FALSE;
+
+		switch ((pVbe->pInt10->cx >> 4) & 0x3) {
+		case 0:
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "   No TV attached\n");
+		    break;
+		case 1:
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "   TV attached (composite connector)\n");
+		    tv_attached = TRUE;
+		    break;
+		case 2:
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "   TV attached (S-video connector)\n");
+		    tv_attached = TRUE;
+		    break;
+		case 3:
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "   TV attached (S-video/composite connectors)\n");
+		    tv_attached = TRUE;
+		    break;
+		default:
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+			       "Unrecognized return code: 0x%04x\n", 
+			       pVbe->pInt10->cx);
+		}
+
+	    }
+
+	    /* Get active display  - LTPro, XL, Mobility */
+	    pVbe->pInt10->num = 0x10;
+	    pVbe->pInt10->ax = 0xa084;
+	    pVbe->pInt10->bx = 0x0000; /* bh=0x00 get active, bh=0x01 set active */
+	    xf86ExecX86int10(pVbe->pInt10);
+
+	    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+		       "Active displays: ax=0x%04x, bx=0x%04x, cx=0x%04x\n",
+		       pVbe->pInt10->ax, pVbe->pInt10->bx, pVbe->pInt10->cx);
+
+	    if (pVbe->pInt10->ax & 0xff00) {
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+			   "Failed to detect active display\n");
+	    } else {
+		if (pVbe->pInt10->bx & 0x1) 
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 		       
+			       "   DFP/LCD is active\n");
+
+		if (pVbe->pInt10->bx & 0x2) 
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "   CRT is active\n");
+
+		if (pVbe->pInt10->bx & 0x4) {
+		    
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "   TV is active\n");
+
+		    if (!tv_attached) {
+			/* tv not connected - disable tv */
+			disp_request = 0x00;
+			if (crt_attached)
+			    disp_request |= 0x02; /* enable CRT */
+			if (lcd_attached && pATI->OptionPanelDisplay)
+			    disp_request |= 0x01; /* enable DFP/LCD */
+
+			pVbe->pInt10->num = 0x10;
+			pVbe->pInt10->ax = 0xa084;
+			pVbe->pInt10->bx = 0x0100; /* bh=0x01 set active */
+			pVbe->pInt10->cx = disp_request; 
+			xf86ExecX86int10(pVbe->pInt10);
+
+			xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+				   "TV not present, disabling: ax=0x%04x, bx=0x%04x, cx=0x%04x\n",
+				   pVbe->pInt10->ax, pVbe->pInt10->bx, pVbe->pInt10->cx);
+			if (pVbe->pInt10->ax & 0xff00) {
+			    xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+				       "Disabling TV failed\n");
+			}
+		    } else {
+			pATI->tvActive = TRUE;
+		    }
+
+		} else if (tv_attached && (pVbe->pInt10->bx & 0x0400)) {
+		    /* tv connected and available - enable TV */
+		    disp_request = 0x04;          /* enable TV */
+
+#if 0
+		    /* This works, but CRT image is vertically compressed */
+		    if (crt_attached)
+			    disp_request |= 0x02; /* enable CRT */
+		    /* NOTE: For me, LCD+TV does NOT work */
+		    /*if (lcd_attached && pATI->OptionPanelDisplay)
+			    disp_request |= 0x01; * enable DFP/LCD */
+#endif
+
+		    pVbe->pInt10->num = 0x10;
+		    pVbe->pInt10->ax = 0xa084;
+		    pVbe->pInt10->bx = 0x0100; /* bh=0x01 set active */
+		    pVbe->pInt10->cx = disp_request; /* try to activate TV */
+		    xf86ExecX86int10(pVbe->pInt10);
+		    
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "Setting TV active: ax=0x%04x, bx=0x%04x, cx=0x%04x\n",
+			       pVbe->pInt10->ax, pVbe->pInt10->bx, pVbe->pInt10->cx);
+		    if (pVbe->pInt10->ax & 0xff00) {
+			xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+				   "Setting TV active failed\n");
+		    } else {
+			pATI->tvActive = TRUE;
+		    }
+		}
+	    }
+
+	} else { /* pATI->Chip < ATI_CHIP_264LTPRO */
+	    /* TVOut Hooks - Check for TVOut BIOS/hardware */
+	    pVbe->pInt10->num = 0x10;
+	    pVbe->pInt10->ax = 0xa019;
+	    pVbe->pInt10->cx = 0x0000; /* TVOut BIOS query */
+	    xf86ExecX86int10(pVbe->pInt10);
+
+	    tv_attached = FALSE;
+
+	    if (pVbe->pInt10->ax & 0xff00) {
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+			   "Failed to detect TV-Out BIOS\n");
+	    } else {
+		switch (pVbe->pInt10->ax & 0x0003) {
+		case 3:
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "TV-Out BIOS detected and active\n");
+
+		    /* TV attached query */
+		    pVbe->pInt10->num = 0x10;
+		    pVbe->pInt10->ax = 0xa070;
+		    pVbe->pInt10->bx = 0x0002; /* Sub-function: return tv attached info */
+		    xf86ExecX86int10(pVbe->pInt10);
+
+		    if (pVbe->pInt10->ax & 0xff00) {
+			xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+				   "Failed to detect if TV is attached\n");
+		    } else {
+			switch (pVbe->pInt10->cx & 0x0003) {
+			case 3:
+			    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+				       "TV attached to composite and S-video connectors\n");
+			    tv_attached = TRUE;
+			    break;
+			case 2:
+			    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+				       "TV attached to S-video connector\n");
+			    tv_attached = TRUE;
+			    break;
+			case 1:
+			    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+				       "TV attached to composite connector\n");
+			    tv_attached = TRUE;
+			    break;
+			default:
+			    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+				       "TV is not attached\n");
+			}
+		    }
+		    break;
+		case 1:
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "TV-Out BIOS service is not available due to" 
+			       "a system BIOS error or TV-Out hardware not being installed\n");
+		    break;
+		default:
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "No TV-Out BIOS or hardware detected\n");
+		}
+	    }
+	}
+
+	/* Return TV-Out configuration 
+	 * see Programmer's Guide under "TV Out Specific Functions"
+	 * It's not clear exactly which adapters support these
+	 */
+	pVbe->pInt10->num = 0x10;
+	pVbe->pInt10->ax = 0xa070;
+	pVbe->pInt10->bx = 0x00;
+	xf86ExecX86int10(pVbe->pInt10);
+
+	xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+		   "TV-Out query: ax=0x%04x, bx=0x%04x, cx=0x%04x, dx=0x%04x\n",
+		   pVbe->pInt10->ax, pVbe->pInt10->bx, pVbe->pInt10->cx, pVbe->pInt10->dx);
+
+	if (pVbe->pInt10->ax & 0xff00) {
+
+	    xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+		       "Failed to detect TV-Out configuration.\n");
+
+	} else if (pVbe->pInt10->bx == 0) {
+	    if (pVbe->pInt10->dx == 0) {
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			   "TV-Out is not detected.\n");
+	    } else {
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			   "TV-Out is detected but not supported.\n");
+	    }
+
+	} else if ((pVbe->pInt10->cx & 0xff) == 0) {
+
+	    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+		       "TV-Out is currently disabled.\n");
+	    if (tv_attached && pATI->Chip < ATI_CHIP_264LTPRO) {
+		/* Try to enable TV-Out */
+		pVbe->pInt10->num = 0x10;
+		pVbe->pInt10->ax = 0xa070;
+		pVbe->pInt10->bx = 0x0001; /* Sub-function: Select TV Out */
+		/* cl=0x001 enable, cl=0x000 disable, 
+		 * cl=0x080 disable with feature connector bit preserved 
+		 */
+		pVbe->pInt10->cx = 0x0001;
+			
+		xf86ExecX86int10(pVbe->pInt10);
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			   "Setting TV active: ax=0x%04x, bx=0x%04x, cx=0x%04x\n",
+			   pVbe->pInt10->ax, pVbe->pInt10->bx, pVbe->pInt10->cx);
+
+		if (pVbe->pInt10->ax & 0xff00) {
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+			       "Setting TV active failed\n");
+		} else {
+		    pATI->tvActive = TRUE;
+		}
+	    }
+
+	} else {
+	    pATI->tvActive = TRUE;
+
+	    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+		       "TV-Out is currently enabled (TV-Out revision code: %d).\n",
+		       (pVbe->pInt10->dx >> 8) & 0xff);
+
+	    switch ((pVbe->pInt10->cx >> 8) & 0xff) {
+	    case 0:
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, "Reference frequency 29.49892\n");
+		break;
+	    case 1:
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, "Reference frequency 28.63636\n");
+		break;
+	    case 2:
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, "Reference frequency 14.31818\n");
+		break;
+	    case 3:
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, "Reference frequency 27.00000\n");
+		break;
+	    default:
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+			   "Unknown reference frequency cx=0x%04x\n", pVbe->pInt10->cx);
+		    
+	    }
+
+	    /* Return TV standard
+	     * see Programmer's Guide under "TV Out Specific Functions"
+	     * It's not clear exactly which adapters support these
+	     */
+	    pVbe->pInt10->num = 0x10;
+	    pVbe->pInt10->ax = 0xa071;
+	    pVbe->pInt10->bx = 0x00;
+	    xf86ExecX86int10(pVbe->pInt10);
+
+	    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+		       "TV standard query result: ax=0x%04x, bx=0x%04x, cx=0x%04x\n",
+		       pVbe->pInt10->ax, pVbe->pInt10->bx, pVbe->pInt10->cx);
+
+	    if (pVbe->pInt10->ax & 0xff00) {
+
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+			   "Failed to return TV standard.\n");
+	    } else {
+		tv_std = pVbe->pInt10->cx & 0x00ff;
+		switch (tv_std) {
+		case ATI_TV_STD_NTSC:
+		case ATI_TV_STD_PAL:
+		case ATI_TV_STD_PALM:
+		case ATI_TV_STD_PAL60:
+		case ATI_TV_STD_NTSCJ:
+		case ATI_TV_STD_PALCN:
+		case ATI_TV_STD_PALN:
+		case ATI_TV_STD_SCARTPAL:
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, 
+			       "Current TV standard: %s\n", ATITVStandardNames[tv_std]);
+		    break;
+		default:
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+			       "Unrecognized TV standard return code cx=0x%04x\n", 
+			       pVbe->pInt10->cx);
+		}
+
+		tv_std_request = pATI->OptionTvStd;
+		if (tv_std_request < 0 || 
+		    tv_std_request > ATI_TV_STD_NONE || 
+		    tv_std_request == ATI_TV_STD_RESERVED1 || 
+		    tv_std_request == ATI_TV_STD_RESERVED2) {
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+			       "Invalid TV standard requested, please check configuration file\n");
+		} else if (tv_std_request != ATI_TV_STD_NONE) {
+		    /* Set TV standard if requested (LT Pro not supported) */
+		    if (pATI->Chip != ATI_CHIP_264LTPRO &&
+			tv_std_request != tv_std) {
+				
+			pVbe->pInt10->num = 0x10;
+			pVbe->pInt10->ax = 0xa070;
+			pVbe->pInt10->bx = 0x0003; /* sub-function: set TV standard */
+			pVbe->pInt10->cx = tv_std_request;
+			xf86ExecX86int10(pVbe->pInt10);
+			if (pVbe->pInt10->ax & 0xff00)
+			    xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+				       "Failed to set TV standard\n");
+			else
+			    xf86DrvMsg(pScreenInfo->scrnIndex, X_CONFIG, 
+				       "Set TV standard to %s\n", ATITVStandardNames[tv_std_request]);
+		    } else {
+			xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, 
+				   "Setting TV standard not supported on ATI Rage LT Pro\n");
+		    }
+		}
+	    }
+	    
+	}
+    } else {
+	xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING, "VBE module not loaded\n");
+    }
+}
+
+#endif /* TV_OUT */
+
 /*
  * ATIEnterGraphics --
  *
@@ -170,8 +576,27 @@ ATIEnterGraphics
 
     pScreenInfo->vtSema = TRUE;
 
+#ifdef TV_OUT
+    if (pATI->OptionTvOut) {
+
+	xf86LoaderRefSymLists(vbeSymbols, NULL);
+
+	if (pATI->pVBE) {
+	    if (VBEGetVBEMode(pATI->pVBE, &pATI->vbemode)) {
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO, "Saving VESA mode: 0x%x\n", 
+			   pATI->vbemode);
+	    }
+	}
+    }
+#endif /* TV_OUT */
+
     /* Save current state */
     ATIModeSave(pScreenInfo, pATI, &pATI->OldHW);
+
+#ifdef TV_OUT
+    if (pATI->OptionTvOut) 
+	ATIProbeAndSetActiveDisplays(pScreenInfo, pATI);
+#endif /* TV_OUT */
 
     /* Set graphics state */
     ATIModeSet(pScreenInfo, pATI, &pATI->NewHW);
@@ -206,6 +631,11 @@ ATILeaveGraphics
         /* If not exiting, save graphics video state */
         if (!xf86ServerIsExiting())
             ATIModeSave(pScreenInfo, pATI, &pATI->NewHW);
+
+#ifdef TV_OUT
+	if (pATI->OptionTvOut) 
+	    ATIProbeAndSetActiveDisplays(pScreenInfo, pATI);
+#endif /* TV_OUT */
 
         /* Restore mode in effect on server entry */
         ATIModeSet(pScreenInfo, pATI, &pATI->OldHW);

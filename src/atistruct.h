@@ -46,6 +46,12 @@
  
 #endif /* XF86DRI_DEVEL */
 
+#ifdef TV_OUT
+
+#include "vbe.h"
+
+#endif /* TV_OUT */
+
 #include "xaa.h"
 #include "xf86Cursor.h"
 #include "xf86Pci.h"
@@ -436,6 +442,13 @@ typedef struct _ATIRec
     CARD8 OptionLinear:1;       /* Use linear fb aperture when available */
 
 #endif /* AVOID_CPIO */
+ 
+#ifdef TV_OUT
+
+    CARD8 OptionTvOut;          /* Enable TV out if TV is connected */
+    CARD8 OptionTvStd;          /* Requested TV standard - see ATITVStandard enum in atioption.h */
+
+#endif /* TV_OUT */
 
     CARD8 OptionMMIOCache:1;    /* Cache MMIO writes */
     CARD8 OptionTestMMIOCache:1;/* Test MMIO cache integrity */
@@ -485,6 +498,13 @@ typedef struct _ATIRec
 
 #endif /* XF86DRI_DEVEL */
 
+#ifdef TV_OUT
+    /* TV out */
+    vbeInfoPtr pVBE;
+    xf86Int10InfoPtr pInt10;
+    int vbemode; /* saved text mode */
+    Bool tvActive;
+#endif /* TV_OUT */
 } ATIRec;
 
 #define ATIPTR(_p) ((ATIPtr)((_p)->driverPrivate))

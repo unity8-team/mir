@@ -134,6 +134,13 @@ ATIProcessOptions
 
 #endif /* XF86DRI_DEVEL */
 
+#ifdef TV_OUT
+
+#   define TvOut        PublicOption[ATI_OPTION_TV_OUT].value.bool
+#   define TvStd        PublicOption[ATI_OPTION_TV_STD].value.str
+
+#endif /* TV_OUT */
+
 #   define CacheMMIO     PublicOption[ATI_OPTION_MMIO_CACHE].value.bool
 #   define TestCacheMMIO PublicOption[ATI_OPTION_TEST_MMIO_CACHE].value.bool
 #   define PanelDisplay  PublicOption[ATI_OPTION_PANEL_DISPLAY].value.bool
@@ -165,6 +172,11 @@ ATIProcessOptions
 
 #endif /* AVOID_CPIO */
 
+#ifdef TV_OUT
+
+	TvStd = "None";  /* No tv standard change requested */
+
+#endif
     }
 
     ReferenceClock = ((double)157500000.0) / ((double)11.0);
@@ -215,6 +227,31 @@ ATIProcessOptions
     pATI->OptionLinear = Linear;
 
 #endif /* AVOID_CPIO */
+
+#ifdef TV_OUT
+
+    if (TvOut && pATI->Chip < ATI_CHIP_264GT) {
+       /* Only allow this for 3D Rage (I) or greater chip ID
+	* AFAIK, no chips before this supported TV-Out
+	* mach64VT has support for TV tuner, but no TV-Out
+	*/
+	xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
+                "TV Out not supported for this chip.\n");
+    } else {
+	ATITVStandard std;
+	pATI->OptionTvOut = TvOut;
+	pATI->OptionTvStd = ATI_TV_STD_INVALID;
+	for (std = 0; std < ATI_TV_STDS_MAX_VALID; std++) {
+	    if (std != ATI_TV_STD_RESERVED1 && std != ATI_TV_STD_RESERVED2) {
+		if (strncasecmp(TvStd, ATITVStandardNames[std], ATI_TV_STDS_NAME_MAXLEN)==0) {
+		    pATI->OptionTvStd = std;
+		    break;
+		}
+	    }
+	}
+    }
+
+#endif /* TV_OUT */
 
     pATI->OptionMMIOCache = CacheMMIO;
     pATI->OptionTestMMIOCache = TestCacheMMIO;

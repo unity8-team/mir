@@ -56,6 +56,13 @@ typedef enum
 
 #endif /* XF86DRI_DEVEL */
 
+#ifdef TV_OUT
+
+    ATI_OPTION_TV_OUT,
+    ATI_OPTION_TV_STD,
+
+#endif /* TV_OUT */
+
     ATI_OPTION_MMIO_CACHE,
     ATI_OPTION_TEST_MMIO_CACHE,
     ATI_OPTION_PANEL_DISPLAY,
@@ -64,6 +71,30 @@ typedef enum
     ATI_OPTION_SHADOW_FB,
     ATI_OPTION_SWCURSOR
 } ATIPublicOptionType;
+
+#ifdef TV_OUT
+
+#define ATI_TV_STDS_MAX_VALID   11
+#define ATI_TV_STDS_NAME_MAXLEN 9
+
+typedef enum {
+    ATI_TV_STD_NTSC = 0,
+    ATI_TV_STD_PAL,
+    ATI_TV_STD_PALM,
+    ATI_TV_STD_PAL60,
+    ATI_TV_STD_NTSCJ,
+    ATI_TV_STD_PALCN,
+    ATI_TV_STD_PALN,
+    ATI_TV_STD_RESERVED1, /* NOT usable */
+    ATI_TV_STD_RESERVED2, /* NOT usable */
+    ATI_TV_STD_SCARTPAL,
+    ATI_TV_STD_NONE,      /* OK, means no tv standard change requested */
+    ATI_TV_STD_INVALID    /* Invalid tv standard requested */
+} ATITVStandard;
+
+extern const char          * ATITVStandardNames[];
+
+#endif /* TV_OUT */
 
 extern const OptionInfoRec   ATIPublicOptions[];
 extern const unsigned long   ATIPublicOptionSize;
