@@ -6593,6 +6593,7 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	save->fp2_h_sync_strt_wid = save->crtc2_h_sync_strt_wid;
 	save->fp2_v_sync_strt_wid = save->crtc2_v_sync_strt_wid;
 	save->fp2_gen_cntl        = info->SavedReg.fp2_gen_cntl | RADEON_FP2_ON;
+	save->fp2_gen_cntl	  &= ~(RADEON_FP2_BLANK_EN);
 
 	if (info->ChipFamily == CHIP_FAMILY_R200 ||
 	    IS_R300_VARIANT) {
