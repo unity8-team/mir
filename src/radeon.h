@@ -94,6 +94,8 @@ typedef enum {
 #define RADEON_TIMEOUT    2000000 /* Fall out of wait loops after this count */
 #define RADEON_MMIOSIZE   0x80000
 
+/* Buffer are aligned on 4096 byte boundaries */
+#define RADEON_BUFFER_ALIGN 0x00000fff
 #define RADEON_VBIOS_SIZE 0x00010000
 #define RADEON_USE_RMX 0x80000000 /* mode flag for using RMX
 				   * Need to comfirm this is not used
@@ -428,6 +430,7 @@ typedef struct {
     DGAFunctionRec    DGAFuncs;
 
     RADEONFBLayout    CurrentLayout;
+    CARD32            dst_pitch_offset;
 #ifdef XF86DRI
     Bool              noBackBuffer;
     Bool              directRenderingEnabled;
@@ -523,8 +526,6 @@ typedef struct {
     CARD32            frontPitchOffset;
     CARD32            backPitchOffset;
     CARD32            depthPitchOffset;
-
-    CARD32            dst_pitch_offset;
 
 				/* offscreen memory management */
     int               backLines;

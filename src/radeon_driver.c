@@ -4998,7 +4998,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	    info->directRenderingEnabled = RADEONDRIScreenInit(pScreen);
 	}
     }
-#endif
 
     /* Depth moves are disabled by default since they are extremely slow */
     info->depthMoves = xf86ReturnOptValBool(info->Options,
@@ -5013,6 +5012,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Depth moves disabled by default\n");
     }
+#endif
 
     RADEONSetFBLocation(pScrn);
 
@@ -7872,7 +7872,10 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
     }
     crtcoffsetcntl = INREG(regcntl) & ~0xf;
     /* try to get rid of flickering when scrolling at least for 2d */
-    if (!info->have3DWindows) crtcoffsetcntl &= ~RADEON_CRTC_OFFSET_FLIP_CNTL;
+#ifdef XF86DRI
+    if (!info->have3DWindows)
+#endif
+    crtcoffsetcntl &= ~RADEON_CRTC_OFFSET_FLIP_CNTL;
     if (info->tilingEnabled) {
 	int byteshift = info->CurrentLayout.bitsPerPixel >> 4;
 	/* crtc uses 256(bytes)x8 "half-tile" start addresses? */

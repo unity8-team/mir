@@ -58,9 +58,6 @@
 
 #define RADEON_CARD_TYPE_RADEON       1
 
-/* Buffer are aligned on 4096 byte boundaries */
-#define RADEON_BUFFER_ALIGN           0x00000fff
-
 #define RADEONCP_USE_RING_BUFFER(m)					\
     (((m) == RADEON_CSQ_PRIBM_INDDIS) ||				\
      ((m) == RADEON_CSQ_PRIBM_INDBM))
