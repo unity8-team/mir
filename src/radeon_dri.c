@@ -721,22 +721,37 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
     unsigned int  device = drmAgpDeviceId(info->drmFD);
 
     mode &= ~RADEON_AGP_MODE_MASK;
-    switch (info->agpMode) {
-    case 4:          mode |= RADEON_AGP_4X_MODE;
-    case 2:          mode |= RADEON_AGP_2X_MODE;
-    case 1: default: mode |= RADEON_AGP_1X_MODE;
+    if ((mode & RADEON_AGPv3_MODE) &&
+	(INREG(RADEON_AGP_STATUS) & RADEON_AGPv3_MODE)) {
+	switch (info->agpMode) {
+	case 8:          mode |= RADEON_AGPv3_8X_MODE;
+	case 4: default: mode |= RADEON_AGPv3_4X_MODE;
+	}
+	/*TODO: need to take care of other bits valid for v3 mode
+	 *      currently these bits are not used in all tested cards.
+	 */
+    } else {
+	switch (info->agpMode) {
+	case 4:          mode |= RADEON_AGP_4X_MODE;
+	case 2:          mode |= RADEON_AGP_2X_MODE;
+	case 1: default: mode |= RADEON_AGP_1X_MODE;
+	}
     }
 
-    if (info->agpFastWrite) mode |= RADEON_AGP_FW_MODE;
-
-    if ((vendor == PCI_VENDOR_AMD) &&
+    if (info->agpFastWrite &&
+	(vendor == PCI_VENDOR_AMD) &&
 	(device == PCI_CHIP_AMD761)) {
 
 	/* Disable fast write for AMD 761 chipset, since they cause
 	 * lockups when enabled.
 	 */
-	mode &= ~0x10; /* FIXME: Magic number */
+	info->agpFastWrite = FALSE;
+	xf86DrvMsg(pScreen->myNum, X_WARNING,
+		   "[agp] Not enabling Fast Writes on AMD 761 chipset to avoid "
+		   "lockups");
     }
+
+    if (info->agpFastWrite) mode |= RADEON_AGP_FW_MODE;
 
     xf86DrvMsg(pScreen->myNum, X_INFO,
 	       "[agp] Mode 0x%08lx [AGP 0x%04x/0x%04x; Card 0x%04x/0x%04x]\n",
