@@ -4209,7 +4209,7 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     info->MMIO = NULL;
 
     xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
-	       "For information on using the multimedia capabilities\n of this"
+	       "For information on using the multimedia capabilities\n\tof this"
 	       " adapter, please see http://gatos.sf.net.\n");
 
     return TRUE;
