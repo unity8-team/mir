@@ -25,7 +25,7 @@ the 830M and later.
 .SH SUPPORTED HARDWARE
 .B i810
 supports the i810, i810-DC100, i810e, i815, 830M, 845G, 852GM, 855GM,
-865G and 915G chipsets.
+865G, 915G and 915GM chipsets.
 
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
@@ -199,5 +199,5 @@ Authors include: Keith Whitwell, and also Jonathan Bian, Matthew J Sottek,
 Jeff Hartmann, Mark Vojkovich, Alan Hourihane, H. J. Lu.  830M and 845G
 support reworked for XFree86 4.3 by David Dawes and Keith Whitwell.
 852GM, 855GM, and 865G support added by David Dawes and Keith Whitwell.
-915G support added by Alan Hourihane and Keith Whitwell.
+915G and 915GM support added by Alan Hourihane and Keith Whitwell.
 Dual Head, Clone and lid status support added by Alan Hourihane.

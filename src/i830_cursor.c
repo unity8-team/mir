@@ -304,7 +304,7 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
    }
 
    /* have to upload the base for the new position */
-   if (IS_I915G(pI830)) {
+   if (IS_I915G(pI830) || IS_I915GM(pI830)) {
       if (pI830->CursorIsARGB)
          OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
       else

@@ -390,6 +390,7 @@ extern Bool I830Allocate3DMemory(ScrnInfoPtr pScrn, const int flags);
 extern void I830SetupMemoryTiling(ScrnInfoPtr pScrn);
 extern Bool I830DRIScreenInit(ScreenPtr pScreen);
 extern Bool I830DRIDoMappings(ScreenPtr pScreen);
+extern Bool I830DRIResume(ScreenPtr pScreen);
 extern void I830DRICloseScreen(ScreenPtr pScreen);
 extern Bool I830DRIFinishScreenInit(ScreenPtr pScreen);
 #endif
@@ -422,6 +423,11 @@ extern void I830PrintAllRegisters(I830RegPtr i830Reg);
 extern void I830ReadAllRegisters(I830Ptr pI830, I830RegPtr i830Reg);
 
 extern void I830ChangeFrontbuffer(ScrnInfoPtr pScrn,int buffer);
+
+extern DisplayModePtr i830GetModePool(ScrnInfoPtr pScrn, vbeInfoPtr pVbe,
+					VbeInfoBlock *vbe, int modeTypes);
+extern void i830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe);
+extern void i830PrintModes(ScrnInfoPtr pScrn);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for

@@ -1236,7 +1236,7 @@ SetFence(ScrnInfoPtr pScrn, int nr, unsigned int start, unsigned int pitch,
 
    i830Reg->Fence[nr] = 0;
 
-   if (IS_I915G(pI830))
+   if (IS_I915G(pI830) || IS_I915GM(pI830))
    	fence_mask = ~I915G_FENCE_START_MASK;
    else
    	fence_mask = ~I830_FENCE_START_MASK;
@@ -1244,7 +1244,7 @@ SetFence(ScrnInfoPtr pScrn, int nr, unsigned int start, unsigned int pitch,
    if (start & fence_mask) {
       xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
 		 "SetFence: %d: start (0x%08x) is not %s aligned\n",
-		 nr, start, (IS_I915G(pI830)) ? "1MB" : "512k");
+		 nr, start, (IS_I915G(pI830) || IS_I915GM(pI830)) ? "1MB" : "512k");
       return;
    }
 
@@ -1264,7 +1264,7 @@ SetFence(ScrnInfoPtr pScrn, int nr, unsigned int start, unsigned int pitch,
 
    val = (start | FENCE_X_MAJOR | FENCE_VALID);
 
-   if (IS_I915G(pI830)) {
+   if (IS_I915G(pI830) || IS_I915GM(pI830)) {
    	switch (size) {
 	   case MB(1):
       		val |= I915G_FENCE_SIZE_1M;
@@ -1325,7 +1325,7 @@ SetFence(ScrnInfoPtr pScrn, int nr, unsigned int start, unsigned int pitch,
    	}
    }
 
-   if (IS_I915G(pI830))
+   if (IS_I915G(pI830) || IS_I915GM(pI830))
 	fence_pitch = pitch / 512;
    else
 	fence_pitch = pitch / 128;

@@ -55,7 +55,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef struct {
    enum {
       I830_INIT_DMA = 0x01,
-      I830_CLEANUP_DMA = 0x02
+      I830_CLEANUP_DMA = 0x02,
+      I830_RESUME_DMA = 0x03
    } func;
    unsigned int mmio_offset;
    int sarea_priv_offset;

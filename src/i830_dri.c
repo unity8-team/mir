@@ -163,6 +163,24 @@ I830InitDma(ScrnInfoPtr pScrn)
 }
 
 static Bool
+I830ResumeDma(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   drmI830Init info;
+
+   memset(&info, 0, sizeof(drmI830Init));
+   info.func = I830_RESUME_DMA;
+
+   if (drmCommandWrite(pI830->drmSubFD, DRM_I830_INIT,
+		       &info, sizeof(drmI830Init))) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "I830 Dma Resume Failed\n");
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
+static Bool
 I830SetParam(ScrnInfoPtr pScrn, int param, int value)
 {
    I830Ptr pI830 = I830PTR(pScrn);
@@ -510,7 +528,7 @@ I830DRIScreenInit(ScreenPtr pScreen)
       return FALSE;
    }
 
-   /* Check the i830 DRM versioning */
+   /* Check the i915 DRM versioning */
    {
       drmVersionPtr version;
 
@@ -568,6 +586,9 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	    drmFreeVersion(version);
 	    return FALSE;
 	 }
+	 if (version->version_minor < 2)
+	    xf86DrvMsg(pScreen->myNum, X_WARNING, 
+			"Resume functionality not available with DRM < 1.2\n");
 	 pI830->drmMinor = version->version_minor;
 	 drmFreeVersion(version);
       }
@@ -740,6 +761,41 @@ I830DRIDoMappings(ScreenPtr pScreen)
    pI830->pDRIInfo->driverSwapMethod = DRI_HIDE_X_CONTEXT;
 
    return TRUE;
+}
+
+Bool
+I830DRIResume(ScreenPtr pScreen)
+{
+   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
+   I830DRIPtr pI830DRI = (I830DRIPtr) pI830->pDRIInfo->devPrivate;
+
+   DPRINTF(PFX, "I830DRIResume\n");
+
+   I830ResumeDma(pScrn);
+
+   {
+      pI830DRI->irq = drmGetInterruptFromBusID(pI830->drmSubFD,
+					       ((pciConfigPtr) pI830->
+						PciInfo->thisCard)->busnum,
+					       ((pciConfigPtr) pI830->
+						PciInfo->thisCard)->devnum,
+					       ((pciConfigPtr) pI830->
+						PciInfo->thisCard)->funcnum);
+
+      if (drmCtlInstHandler(pI830->drmSubFD, pI830DRI->irq)) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "[drm] failure adding irq handler\n");
+	 pI830DRI->irq = 0;
+	 return FALSE;
+      }
+      else
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "[drm] dma control initialized, using IRQ %d\n",
+		    pI830DRI->irq);
+   }
+
+   return FALSE;
 }
 
 void
