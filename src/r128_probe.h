@@ -49,7 +49,6 @@ extern void                  R128Identify
 extern Bool                  R128Probe
 			     FunctionPrototype((DriverPtr, int));
 
-extern SymTabRec             R128Chipsets[];
 extern PciChipsets           R128PciChipsets[];
 
 /* r128_driver.c */

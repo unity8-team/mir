@@ -91,6 +91,8 @@
 #include "vgaHW.h"
 #include "dixstruct.h"
 
+#include "r128_chipset.h"
+
 #ifndef MAX
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #endif
