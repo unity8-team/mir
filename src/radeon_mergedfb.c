@@ -406,7 +406,7 @@ RADEONGenerateModeListFromMetaModes(ScrnInfoPtr pScrn, char* str,
                  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                      "Mode: \"%s\" is not a supported mode for CRT2\n", mode1->name);
                  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                     "Skipping metamode \"%s\".\n");
+                     "Skipping metamode \"%s\".\n", mode1->name);
                  mode1 = NULL;
               } else {
                  result = RADEONCopyModeNLink(pScrn, result, mode1, mode2, sr);
