@@ -1357,23 +1357,19 @@ static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
     }
 
     /* Calculate "base" xclk straight from MPLL, though that isn't
-     * really useful (hopefully)
+     * really useful (hopefully). This isn't called XCLK anymore on
+     * radeon's...
      */
     mpll_fb_div = (tmp & 0xff00) >> 8;
     spll_fb_div = (tmp & 0xff0000) >> 16;
     M = (tmp & 0xff);
-    xclk = RADEONDiv((2 * mpll_fb_div * xtal), (2 * M));
+    xclk = RADEONDiv((2 * mpll_fb_div * xtal), (M));
 
     /*
-     * Calculate MCLK based on MCLK-A and SCLK
-     *
-     * NOTE: It is not clear at this point wether we should put in sclk and
-     * mclk the raw SPLL and MPLL output values, or the divided values according
-     * to the source selection iN MCLK_CNTL and SCLK_CNTL. I'm putting the divided
-     * values for now, waiting for a definitive answer from ATI
+     * Calculate MCLK based on MCLK-A
      */
-    mpll = ((float)mpll_fb_div * (float)(xtal / 100.0)) / (float)M;
-    spll = ((float)spll_fb_div * (float)(xtal / 100.0)) / (float)M;
+    mpll = (2.0 * (float)mpll_fb_div * (xtal / 100.0)) / (float)M;
+    spll = (2.0 * (float)spll_fb_div * (xtal / 100.0)) / (float)M;
 
     tmp = INPLL(pScrn, RADEON_MCLK_CNTL) & 0x7;
     switch(tmp) {
@@ -1388,6 +1384,9 @@ static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
                       " setting %d, can't probe MCLK value !\n", tmp);
     }
 
+    /*
+     * Calculate SCLK
+     */
     tmp = INPLL(pScrn, RADEON_SCLK_CNTL) & 0x7;
     switch(tmp) {
     case 1: info->sclk = spll; break;
@@ -6844,7 +6843,7 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	save->fp2_gen_cntl        = info->SavedReg.fp2_gen_cntl | RADEON_FP2_ON;
 	save->fp2_gen_cntl	  &= ~(RADEON_FP2_BLANK_EN);
 
-	if (info->ChipFamily == CHIP_FAMILY_R200 ||
+	if ((info->ChipFamily == CHIP_FAMILY_R200) ||
 	    IS_R300_VARIANT) {
 	    save->fp2_gen_cntl   &= ~(R200_FP2_SOURCE_SEL_MASK |
 				      RADEON_FP2_DVO_RATE_SEL_SDR);
