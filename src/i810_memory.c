@@ -128,6 +128,7 @@ I810AllocateGARTMemory(ScrnInfoPtr pScrn)
    pI810->DcacheMem.End = 0;
    pI810->DcacheMem.Size = 0;
    pI810->CursorPhysical = 0;
+   pI810->CursorARGBPhysical = 0;
 
    /*
     * Dcache - half the speed of normal ram, so not really useful for
