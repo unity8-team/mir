@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticonsole.h,v 1.9 2003/01/01 19:16:31 tsi Exp $ */
 /*
- * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -25,22 +25,20 @@
 #define ___ATICONSOLE_H___ 1
 
 #include "atipriv.h"
-#include "atiproto.h"
 
 #include "xf86str.h"
 
-extern Bool ATISaveScreen    FunctionPrototype((ScreenPtr, int));
-extern void ATISetDPMSMode   FunctionPrototype((ScrnInfoPtr, int, int));
+extern Bool ATISaveScreen(ScreenPtr, int);
+extern void ATISetDPMSMode(ScrnInfoPtr, int, int);
 
-extern Bool ATIEnterGraphics FunctionPrototype((ScreenPtr, ScrnInfoPtr,
-                                                ATIPtr));
-extern void ATILeaveGraphics FunctionPrototype((ScrnInfoPtr, ATIPtr));
+extern Bool ATIEnterGraphics(ScreenPtr, ScrnInfoPtr, ATIPtr);
+extern void ATILeaveGraphics(ScrnInfoPtr, ATIPtr);
 
-extern Bool ATISwitchMode    FunctionPrototype((int, DisplayModePtr, int));
+extern Bool ATISwitchMode(int, DisplayModePtr, int);
 
-extern Bool ATIEnterVT       FunctionPrototype((int, int));
-extern void ATILeaveVT       FunctionPrototype((int, int));
+extern Bool ATIEnterVT(int, int);
+extern void ATILeaveVT(int, int);
 
-extern void ATIFreeScreen    FunctionPrototype((int, int));
+extern void ATIFreeScreen(int, int);
 
 #endif /* ___ATICONSOLE_H___ */

@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticlock.h,v 1.8 2003/01/01 19:16:31 tsi Exp $ */
 /*
- * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -25,7 +25,6 @@
 #define ___ATICLOCK_H___ 1
 
 #include "atipriv.h"
-#include "atiproto.h"
 
 #include "xf86str.h"
 
@@ -75,12 +74,9 @@ typedef struct
 } ClockRec, *ClockPtr;
 extern ClockRec ATIClockDescriptors[];
 
-extern void ATIClockPreInit   FunctionPrototype((ScrnInfoPtr, ATIPtr, GDevPtr,
-                                                 ClockRangePtr));
-extern void ATIClockSave      FunctionPrototype((ScrnInfoPtr, ATIPtr,
-                                                 ATIHWPtr));
-extern Bool ATIClockCalculate FunctionPrototype((int, ATIPtr, ATIHWPtr,
-                                                 DisplayModePtr));
-extern void ATIClockSet       FunctionPrototype((ATIPtr, ATIHWPtr));
+extern void ATIClockPreInit(ScrnInfoPtr, ATIPtr, GDevPtr, ClockRangePtr);
+extern void ATIClockSave(ScrnInfoPtr, ATIPtr, ATIHWPtr);
+extern Bool ATIClockCalculate(int, ATIPtr, ATIHWPtr, DisplayModePtr);
+extern void ATIClockSet(ATIPtr, ATIHWPtr);
 
 #endif /* ___ATICLOCK_H___ */

@@ -145,7 +145,7 @@
 
 #endif /* AVOID_CPIO */
 
-extern void ATIMach64PollEngineStatus FunctionPrototype((ATIPtr));
+extern void ATIMach64PollEngineStatus(ATIPtr);
 
 /*
  * MMIO cache definitions.
@@ -303,8 +303,7 @@ do                                                                              
         }                                                               \
     } while (0)
 
-extern void ATIMach64AccessPLLReg FunctionPrototype((ATIPtr, const CARD8,
-                                                     const Bool));
+extern void ATIMach64AccessPLLReg(ATIPtr, const CARD8, const Bool);
 
 #define ATIMach64GetPLLReg(_Index)                  \
     (                                               \

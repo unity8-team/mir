@@ -17,6 +17,6 @@
 #include "atiadjust.h"
 #include "ativalid.h"
 
-extern void ATIFillInScreenInfo FunctionPrototype((ScrnInfoPtr));
+extern void ATIFillInScreenInfo(ScrnInfoPtr);
 
 #endif

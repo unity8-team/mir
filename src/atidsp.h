@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atidsp.h,v 1.10 2003/01/01 19:16:32 tsi Exp $ */
 /*
- * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -25,14 +25,12 @@
 #define ___ATIDSP_H___ 1
 
 #include "atipriv.h"
-#include "atiproto.h"
 
 #include "xf86str.h"
 
-extern Bool ATIDSPPreInit   FunctionPrototype((int, ATIPtr));
-extern void ATIDSPSave      FunctionPrototype((ATIPtr, ATIHWPtr));
-extern void ATIDSPCalculate FunctionPrototype((ATIPtr, ATIHWPtr,
-                                               DisplayModePtr));
-extern void ATIDSPSet       FunctionPrototype((ATIPtr, ATIHWPtr));
+extern Bool ATIDSPPreInit(int, ATIPtr);
+extern void ATIDSPSave(ATIPtr, ATIHWPtr);
+extern void ATIDSPCalculate(ATIPtr, ATIHWPtr, DisplayModePtr);
+extern void ATIDSPSet(ATIPtr, ATIHWPtr);
 
 #endif /* ___ATIDSP_H___ */

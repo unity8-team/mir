@@ -37,45 +37,28 @@
 #ifndef _R128_PROBE_H_
 #define _R128_PROBE_H_ 1
 
-#include "atiproto.h"
-
 #include "xf86str.h"
 
 /* r128_probe.c */
-extern const OptionInfoRec * R128AvailableOptions
-			     FunctionPrototype((int, int));
-extern void                  R128Identify
-			     FunctionPrototype((int));
-extern Bool                  R128Probe
-			     FunctionPrototype((DriverPtr, int));
+extern const OptionInfoRec * R128AvailableOptions(int, int);
+extern void                  R128Identify(int);
+extern Bool                  R128Probe(DriverPtr, int);
 
 extern PciChipsets           R128PciChipsets[];
 
 /* r128_driver.c */
-extern void                  R128LoaderRefSymLists
-			     FunctionPrototype((void));
-extern Bool                  R128PreInit
-			     FunctionPrototype((ScrnInfoPtr, int));
-extern Bool                  R128ScreenInit
-			     FunctionPrototype((int, ScreenPtr, int, char **));
-extern Bool                  R128SwitchMode
-			     FunctionPrototype((int, DisplayModePtr, int));
-extern void                  R128AdjustFrame
-			     FunctionPrototype((int, int, int, int));
-extern Bool                  R128EnterVT
-			     FunctionPrototype((int, int));
-extern void                  R128LeaveVT
-			     FunctionPrototype((int, int));
-extern void                  R128FreeScreen
-			     FunctionPrototype((int, int));
-extern ModeStatus            R128ValidMode
-			     FunctionPrototype((int, DisplayModePtr, Bool,
-						int));
+extern void                  R128LoaderRefSymLists(void);
+extern Bool                  R128PreInit(ScrnInfoPtr, int);
+extern Bool                  R128ScreenInit(int, ScreenPtr, int, char **);
+extern Bool                  R128SwitchMode(int, DisplayModePtr, int);
+extern void                  R128AdjustFrame(int, int, int, int);
+extern Bool                  R128EnterVT(int, int);
+extern void                  R128LeaveVT(int, int);
+extern void                  R128FreeScreen(int, int);
+extern ModeStatus            R128ValidMode(int, DisplayModePtr, Bool, int);
 
-extern const OptionInfoRec * R128OptionsWeak
-                             FunctionPrototype((void));
+extern const OptionInfoRec * R128OptionsWeak(void);
 
-extern void                  R128FillInScreenInfo
-                             FunctionPrototype((ScrnInfoPtr));
+extern void                  R128FillInScreenInfo(ScrnInfoPtr);
 
 #endif /* _R128_PROBE_H_ */

@@ -30,7 +30,6 @@
 #ifdef XFree86LOADER
 
 #include "atipriv.h"
-#include "atiproto.h"
 
 #include "xf86str.h"
 
@@ -51,9 +50,8 @@ extern const char *ATIint10Symbols[], *ATIddcSymbols[], *ATIvbeSymbols[],
                   *ATIfbSymbols[], *ATIshadowfbSymbols[], *ATIxaaSymbols[],
                   *ATIramdacSymbols[], *ATIi2cSymbols[];
 
-extern pointer ATILoadModule  FunctionPrototype((ScrnInfoPtr, const char *,
-                                                 const char **));
-extern pointer ATILoadModules FunctionPrototype((ScrnInfoPtr, ATIPtr));
+extern pointer ATILoadModule(ScrnInfoPtr, const char *, const char **);
+extern pointer ATILoadModules(ScrnInfoPtr, ATIPtr);
 
 #else /* XFree86LOADER */
 

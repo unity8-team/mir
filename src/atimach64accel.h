@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimach64accel.h,v 1.1 2003/04/23 21:51:29 tsi Exp $ */
 /*
- * Copyright 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 2003 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -25,14 +25,13 @@
 #define ___ATIMACH64ACCEL_H___ 1
 
 #include "atipriv.h"
-#include "atiproto.h"
 
 #include "xaa.h"
 
 #define ATIMach64MaxX  8191
 #define ATIMach64MaxY 32767
 
-extern int  ATIMach64AccelInit FunctionPrototype((ATIPtr, XAAInfoRecPtr));
-extern void ATIMach64Sync      FunctionPrototype((ScrnInfoPtr));
+extern int  ATIMach64AccelInit(ATIPtr, XAAInfoRecPtr);
+extern void ATIMach64Sync(ScrnInfoPtr);
 
 #endif /* ___ATIMACH64ACCEL_H___ */

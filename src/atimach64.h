@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimach64.h,v 1.17 2003/04/23 21:51:28 tsi Exp $ */
 /*
- * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -25,16 +25,13 @@
 #define ___ATIMACH64_H___ 1
 
 #include "atipriv.h"
-#include "atiproto.h"
 
-extern void ATIMach64PreInit     FunctionPrototype((ScrnInfoPtr, ATIPtr,
-                                                    ATIHWPtr));
-extern void ATIMach64Save        FunctionPrototype((ATIPtr, ATIHWPtr));
-extern void ATIMach64Calculate   FunctionPrototype((ATIPtr, ATIHWPtr,
-                                                    DisplayModePtr));
-extern void ATIMach64Set         FunctionPrototype((ATIPtr, ATIHWPtr));
+extern void ATIMach64PreInit(ScrnInfoPtr, ATIPtr, ATIHWPtr);
+extern void ATIMach64Save(ATIPtr, ATIHWPtr);
+extern void ATIMach64Calculate(ATIPtr, ATIHWPtr, DisplayModePtr);
+extern void ATIMach64Set(ATIPtr, ATIHWPtr);
 
-extern void ATIMach64SaveScreen  FunctionPrototype((ATIPtr, int));
-extern void ATIMach64SetDPMSMode FunctionPrototype((ScrnInfoPtr, ATIPtr, int));
+extern void ATIMach64SaveScreen(ATIPtr, int);
+extern void ATIMach64SetDPMSMode(ScrnInfoPtr, ATIPtr, int);
 
 #endif /* ___ATIMACH64_H___ */

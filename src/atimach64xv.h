@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimach64xv.h,v 1.1 2003/04/23 21:51:29 tsi Exp $ */
 /*
- * Copyright 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 2003 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -25,16 +25,13 @@
 #define ___ATIMACH64XV_H___ 1
 
 #include "atipriv.h"
-#include "atiproto.h"
 
 #include "xf86str.h"
 #include "xf86xv.h"
 
-extern int  ATIMach64XVInitialiseAdaptor
-            FunctionPrototype((ScreenPtr, ScrnInfoPtr, ATIPtr,
-                              XF86VideoAdaptorPtr **));
+extern int  ATIMach64XVInitialiseAdaptor(ScreenPtr, ScrnInfoPtr, ATIPtr,
+                                         XF86VideoAdaptorPtr **);
 
-extern void ATIMach64CloseXVideo
-            FunctionPrototype((ScreenPtr, ScrnInfoPtr, ATIPtr));
+extern void ATIMach64CloseXVideo(ScreenPtr, ScrnInfoPtr, ATIPtr);
 
 #endif /* ___ATIMACH64XV_H___ */

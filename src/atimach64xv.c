@@ -1,6 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimach64xv.c,v 1.6 2003/07/19 15:26:54 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimach64xv.c,v 1.7 2003/11/10 18:22:18 tsi Exp $ */
 /*
- * Copyright 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 2003 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -150,8 +150,8 @@ typedef struct _ATIMach64Attribute
 {
     Atom  AttributeID;
     INT32 MaxValue;             /* ... for the hardware */
-    void  (*SetAttribute) NestedPrototype((ATIPtr, INT32));
-    INT32 (*GetAttribute) NestedPrototype((ATIPtr));
+    void  (*SetAttribute) (ATIPtr, INT32);
+    INT32 (*GetAttribute) (ATIPtr);
 } ATIMach64AttributeRec, *ATIMach64AttributePtr;
 
 /* Functions to get/set XVideo adaptor attributes */
@@ -1438,7 +1438,7 @@ ATIMach64XVInitialiseAdaptor
     pAdaptor->PutImage             = ATIMach64PutImage;
     pAdaptor->QueryImageAttributes = ATIMach64QueryImageAttributes;
 
-    REGION_INIT(pScreen, &pATI->VideoClip, NullBox, 0);
+    REGION_NULL(pScreen, &pATI->VideoClip);
     pATI->ActiveSurface = FALSE;
 
     if (ATIMach64XVAtomGeneration != serverGeneration)

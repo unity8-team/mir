@@ -134,13 +134,12 @@ extern const char *ATIFoundryNames[];
 
 #ifndef AVOID_CPIO
 
-extern void        ATIMach32ChipID FunctionPrototype((ATIPtr));
+extern void        ATIMach32ChipID(ATIPtr);
 
 #endif /* AVOID_CPIO */
 
-extern void        ATIMach64ChipID FunctionPrototype((ATIPtr, const CARD16));
-extern ATIChipType ATIChipID       FunctionPrototype((const CARD16,
-                                                      const CARD8));
+extern void        ATIMach64ChipID(ATIPtr, const CARD16);
+extern ATIChipType ATIChipID(const CARD16, const CARD8);
 
 #define OldChipID(_1, _0) \
     (SetBits(_0 - 'A', CHIP_CODE_0) | SetBits(_1 - 'A', CHIP_CODE_1))

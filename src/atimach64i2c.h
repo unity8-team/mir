@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimach64i2c.h,v 1.1 2003/07/24 22:08:28 tsi Exp $ */
 /*
- * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -25,10 +25,9 @@
 #define ___ATIMACH64I2C_H___ 1
 
 #include "atipriv.h"
-#include "atiproto.h"
 
 #include "xf86str.h"
 
-extern void ATIMach64I2CPreInit FunctionPrototype((ScrnInfoPtr, ATIPtr));
+extern void ATIMach64I2CPreInit(ScrnInfoPtr, ATIPtr);
 
 #endif /* ___ATIMACH64I2C_H___ */

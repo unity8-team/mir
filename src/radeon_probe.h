@@ -37,8 +37,6 @@
 #ifndef _RADEON_PROBE_H_
 #define _RADEON_PROBE_H_ 1
 
-#include "atiproto.h"
-
 #include "xf86str.h"
 #include "xf86DDC.h"
 
@@ -139,46 +137,30 @@ typedef struct
 } RADEONEntRec, *RADEONEntPtr;
 
 /* radeon_probe.c */
-extern const OptionInfoRec *RADEONAvailableOptions
-			    FunctionPrototype((int, int));
-extern void                 RADEONIdentify
-			    FunctionPrototype((int));
-extern Bool                 RADEONProbe
-			    FunctionPrototype((DriverPtr, int));
+extern const OptionInfoRec *RADEONAvailableOptions(int, int);
+extern void                 RADEONIdentify(int);
+extern Bool                 RADEONProbe(DriverPtr, int);
 
 extern SymTabRec            RADEONChipsets[];
 extern PciChipsets          RADEONPciChipsets[];
 
 /* radeon_driver.c */
-extern void                 RADEONLoaderRefSymLists
-			    FunctionPrototype((void));
-extern Bool                 RADEONPreInit
-			    FunctionPrototype((ScrnInfoPtr, int));
-extern Bool                 RADEONScreenInit
-			    FunctionPrototype((int, ScreenPtr, int, char **));
-extern Bool                 RADEONSwitchMode
-			    FunctionPrototype((int, DisplayModePtr, int));
+extern void                 RADEONLoaderRefSymLists(void);
+extern Bool                 RADEONPreInit(ScrnInfoPtr, int);
+extern Bool                 RADEONScreenInit(int, ScreenPtr, int, char **);
+extern Bool                 RADEONSwitchMode(int, DisplayModePtr, int);
 #ifdef X_XF86MiscPassMessage
-extern Bool                 RADEONHandleMessage
-			    FunctionPrototype((int, const char*, const char*,
-					       char**));
+extern Bool                 RADEONHandleMessage(int, const char*, const char*,
+					        char**);
 #endif
-extern void                 RADEONAdjustFrame
-			    FunctionPrototype((int, int, int, int));
-extern Bool                 RADEONEnterVT
-			    FunctionPrototype((int, int));
-extern void                 RADEONLeaveVT
-			    FunctionPrototype((int, int));
-extern void                 RADEONFreeScreen
-			    FunctionPrototype((int, int));
-extern ModeStatus           RADEONValidMode
-			    FunctionPrototype((int, DisplayModePtr, Bool,
-					       int));
+extern void                 RADEONAdjustFrame(int, int, int, int);
+extern Bool                 RADEONEnterVT(int, int);
+extern void                 RADEONLeaveVT(int, int);
+extern void                 RADEONFreeScreen(int, int);
+extern ModeStatus           RADEONValidMode(int, DisplayModePtr, Bool, int);
 
-extern const OptionInfoRec *RADEONOptionsWeak
-                            FunctionPrototype((void));
+extern const OptionInfoRec *RADEONOptionsWeak(void);
 
-extern void                 RADEONFillInScreenInfo
-                            FunctionPrototype((ScrnInfoPtr));
+extern void                 RADEONFillInScreenInfo(ScrnInfoPtr);
 
 #endif /* _RADEON_PROBE_H_ */

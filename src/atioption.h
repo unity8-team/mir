@@ -27,8 +27,6 @@
 #ifndef ___ATIOPTION_H___
 #define ___ATIOPTION_H___ 1
 
-#include "atiproto.h"
-
 #include "xf86str.h"
 
 /*
@@ -70,6 +68,6 @@ typedef enum
 extern const OptionInfoRec   ATIPublicOptions[];
 extern const unsigned long   ATIPublicOptionSize;
 
-extern const OptionInfoRec * ATIAvailableOptions FunctionPrototype((int, int));
+extern const OptionInfoRec * ATIAvailableOptions(int, int);
 
 #endif /* ___ATIOPTION_H___ */

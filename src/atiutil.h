@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atiutil.h,v 1.8 2003/01/01 19:16:34 tsi Exp $ */
 /*
- * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -23,8 +23,6 @@
 
 #ifndef ___ATIUTIL_H___
 #define ___ATIUTIL_H___ 1
-
-#include "atiproto.h"
 
 /*
  * Prevent the C standard's insistence on unsigned long sizeof's from causing
@@ -64,7 +62,7 @@
 #define GetWord(_Value, _Word)  GetBits(_Value, _WordMask(_Word))
 #define SetWord(_Value, _Word)  SetBits(_Value, _WordMask(_Word))
 
-extern void ATIReduceRatio FunctionPrototype((int *, int *));
-extern int  ATIDivide      FunctionPrototype((int, int, int, const int));
+extern void ATIReduceRatio(int *, int *);
+extern int  ATIDivide(int, int, int, const int);
 
 #endif /* ___ATIUTIL_H___ */

@@ -40,8 +40,6 @@
 #include "GL/glxint.h"
 #include "GL/glxtokens.h"
 
-#include "atiproto.h"
-
 #define ATI_MAX_DRAWABLES	256
 
 typedef struct {
@@ -54,6 +52,6 @@ typedef struct {
     int dummy;
 } ATIDRIContextRec, *ATIDRIContextPtr;
 
-extern void GlxSetVisualConfigs FunctionPrototype((int, __GLXvisualConfig *, void **));
+extern void GlxSetVisualConfigs(int, __GLXvisualConfig *, void **);
 
 #endif /* __ATIDRIPRIV_H__ */

@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atirgb514.h,v 1.3 2003/01/01 19:16:34 tsi Exp $ */
 /*
- * Copyright 2001 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 2001 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -25,14 +25,12 @@
 #define ___ATIRGB514_H___ 1
 
 #include "atipriv.h"
-#include "atiproto.h"
 
 #include "xf86str.h"
 
-extern void ATIRGB514PreInit   FunctionPrototype((ATIPtr, ATIHWPtr));
-extern void ATIRGB514Save      FunctionPrototype((ATIPtr, ATIHWPtr));
-extern void ATIRGB514Calculate FunctionPrototype((ATIPtr, ATIHWPtr,
-                                                  DisplayModePtr));
-extern void ATIRGB514Set       FunctionPrototype((ATIPtr, ATIHWPtr));
+extern void ATIRGB514PreInit(ATIPtr, ATIHWPtr);
+extern void ATIRGB514Save(ATIPtr, ATIHWPtr);
+extern void ATIRGB514Calculate(ATIPtr, ATIHWPtr, DisplayModePtr);
+extern void ATIRGB514Set(ATIPtr, ATIHWPtr);
 
 #endif /* ___ATIRGB514_H___ */

@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atii2c.h,v 1.1 2003/07/24 22:08:28 tsi Exp $ */
 /*
- * Copyright 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 2003 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -25,7 +25,6 @@
 #define ___ATII2C_H___ 1
 
 #include "atipriv.h"
-#include "atiproto.h"
 
 #include "xf86str.h"
 
@@ -36,15 +35,15 @@ typedef struct _ATII2CRec ATII2CRec, *ATII2CPtr;
 struct _ATII2CRec
 {
     ATIPtr pATI;
-    void   (*I2CSetBits) FunctionPrototype((ATII2CPtr, ATIPtr, CARD32));
-    CARD32 (*I2CGetBits) FunctionPrototype((ATIPtr));
+    void   (*I2CSetBits) (ATII2CPtr, ATIPtr, CARD32);
+    CARD32 (*I2CGetBits) (ATIPtr);
     CARD32 SCLDir, SCLGet, SCLSet;
     CARD32 SDADir, SDAGet, SDASet;
     CARD32 I2CCur;
 };
 
-extern void      ATII2CPreInit       FunctionPrototype((ScrnInfoPtr, ATIPtr));
-extern I2CBusPtr ATICreateI2CBusRec  FunctionPrototype((int, ATIPtr, char *));
-extern void      ATII2CFreeScreen    FunctionPrototype((int));
+extern void      ATII2CPreInit(ScrnInfoPtr, ATIPtr);
+extern I2CBusPtr ATICreateI2CBusRec(int, ATIPtr, char *);
+extern void      ATII2CFreeScreen(int);
 
 #endif /* ___ATII2C_H___ */
