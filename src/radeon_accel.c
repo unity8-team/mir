@@ -712,6 +712,10 @@ RADEONHostDataBlitCopyPass(
     unsigned int dstPitch,
     unsigned int srcPitch
 ){
+
+    /* RADEONHostDataBlitCopy can return NULL ! */
+    if( (dst==NULL) || (src==NULL)) return;
+
     if ( dstPitch == srcPitch )
     {
 	memcpy( dst, src, hpass * dstPitch );

@@ -425,6 +425,7 @@ static Bool FUNC_NAME(R100SetupTexture)(
 #ifdef ACCEL_CP
     CARD32 buf_pitch;
     unsigned int hpass;
+    CARD8 *tmp_dst;
 #endif
     ACCEL_PREAMBLE();
 
@@ -469,10 +470,10 @@ static Bool FUNC_NAME(R100SetupTexture)(
 
     while ( height )
     {
-	RADEONHostDataBlitCopyPass( RADEONHostDataBlit( pScrn, tex_bytepp, width,
+    	tmp_dst = RADEONHostDataBlit( pScrn, tex_bytepp, width,
 							dst_pitch, &buf_pitch,
-							&dst, &height, &hpass ),
-				    src, hpass, buf_pitch, src_pitch );
+							&dst, &height, &hpass );
+	RADEONHostDataBlitCopyPass( tmp_dst, src, hpass, buf_pitch, src_pitch );
 	src += hpass * src_pitch;
     }
 
@@ -743,6 +744,7 @@ static Bool FUNC_NAME(R200SetupTexture)(
 #ifdef ACCEL_CP
     CARD32 buf_pitch;
     unsigned int hpass;
+    CARD8 *tmp_dst;
 #endif
     ACCEL_PREAMBLE();
 
@@ -787,10 +789,10 @@ static Bool FUNC_NAME(R200SetupTexture)(
 
     while ( height )
     {
-	RADEONHostDataBlitCopyPass( RADEONHostDataBlit( pScrn, tex_bytepp, width,
+        tmp_dst = RADEONHostDataBlit( pScrn, tex_bytepp, width,
 							dst_pitch, &buf_pitch,
-							&dst, &height, &hpass ),
-				    src, hpass, buf_pitch, src_pitch );
+							&dst, &height, &hpass );
+	RADEONHostDataBlitCopyPass( tmp_dst, src, hpass, buf_pitch, src_pitch );
 	src += hpass * src_pitch;
     }
 
