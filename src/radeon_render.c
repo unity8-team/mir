@@ -312,8 +312,9 @@ static Bool RADEONSetupRenderByteswap(ScrnInfoPtr pScrn, int tex_bytepp)
 				   | RADEON_NONSURF_AP0_SWP_16BPP);
 	break;
     case 4:
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl
-				  | RADEON_NONSURF_AP0_SWP_32BPP);
+	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg.surface_cntl &
+				     ~RADEON_NONSURF_AP0_SWP_16BPP)
+				   | RADEON_NONSURF_AP0_SWP_32BPP);
 	break;
     default:
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%s: Don't know what to do for "
