@@ -7296,6 +7296,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     } else
 	if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
 
+    RADEONSetFBLocation(pScrn);
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
 	/* get the Radeon back into shape after resume */
