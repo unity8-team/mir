@@ -5,6 +5,7 @@ static SymTabRec RADEONChipsets[] = {
     { PCI_CHIP_RADEON_QG, "ATI Radeon QG (AGP)" },
     { PCI_CHIP_RV100_QY, "ATI Radeon VE/7000 QY (AGP/PCI)" },
     { PCI_CHIP_RV100_QZ, "ATI Radeon VE/7000 QZ (AGP/PCI)" },
+    { PCI_CHIP_RN50_5969, "ATI ES1000 (PCI)" },
     { PCI_CHIP_RADEON_LW, "ATI Radeon Mobility M7 LW (AGP)" },
     { PCI_CHIP_RADEON_LX, "ATI Mobility FireGL 7800 M7 LX (AGP)" },
     { PCI_CHIP_RADEON_LY, "ATI Radeon Mobility M6 LY (AGP)" },

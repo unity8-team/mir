@@ -2310,6 +2310,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 
     case PCI_CHIP_RV100_QY:
     case PCI_CHIP_RV100_QZ:
+    case PCI_CHIP_RN50_5969:
 	info->ChipFamily = CHIP_FAMILY_RV100;
 
 	/* DELL triple-head configuration. */
