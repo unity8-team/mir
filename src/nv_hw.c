@@ -36,7 +36,7 @@
 |*     those rights set forth herein.                                        *|
 |*                                                                           *|
  \***************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.4 2003/11/03 05:11:25 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.5 2004/01/06 22:47:07 mvojkovi Exp $ */
 
 #include "nv_local.h"
 #include "compiler.h"
@@ -1132,9 +1132,9 @@ void NVLoadStateExt (
            }
     
            VGA_WR08(pNv->PCIO, 0x03D4, 0x53);
-           VGA_WR08(pNv->PCIO, 0x03D5, 0);
+           VGA_WR08(pNv->PCIO, 0x03D5, state->timingH);
            VGA_WR08(pNv->PCIO, 0x03D4, 0x54);
-           VGA_WR08(pNv->PCIO, 0x03D5, 0);
+           VGA_WR08(pNv->PCIO, 0x03D5, state->timingV);
            VGA_WR08(pNv->PCIO, 0x03D4, 0x21);
            VGA_WR08(pNv->PCIO, 0x03D5, 0xfa);
         }
@@ -1242,6 +1242,13 @@ void NVUnloadStateExt
         } else 
         if((pNv->Chipset & 0x0ff0) >= 0x0170) {
             state->dither = pNv->PRAMDAC[0x083C/4];
+        }
+
+        if(pNv->FlatPanel) {
+           VGA_WR08(pNv->PCIO, 0x03D4, 0x53);
+           state->timingH = VGA_RD08(pNv->PCIO, 0x03D5);
+           VGA_WR08(pNv->PCIO, 0x03D4, 0x54);
+           state->timingV = VGA_RD08(pNv->PCIO, 0x03D5);
         }
     }
 }

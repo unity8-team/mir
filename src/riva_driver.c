@@ -23,7 +23,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_driver.c,v 1.5 2003/11/03 05:11:26 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_driver.c,v 1.6 2004/01/10 22:31:53 mvojkovi Exp $ */
 
 #include "riva_include.h"
 
@@ -1334,6 +1334,9 @@ RivaScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
                case 16:	refreshArea = RivaRefreshArea16;	break;
                case 32:	refreshArea = RivaRefreshArea32;	break;
 	   }
+           xf86DisableRandR();
+           xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                      "Driver rotation enabled, RandR disabled\n");
 	}
 
 	ShadowFBInit(pScreen, refreshArea);

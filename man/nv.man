@@ -1,4 +1,4 @@
-.\" $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv.man,v 1.22 2003/10/18 01:14:26 mvojkovi Exp $ 
+.\" $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv.man,v 1.23 2004/01/10 22:31:53 mvojkovi Exp $ 
 .\" shorthand for double quote that works everywhere.
 .ds q \N'34'
 .TH NV __drivermansuffix__ __vendorversion__
@@ -108,8 +108,8 @@ Default: off.
 Rotate the display clockwise or counterclockwise.  This mode is unaccelerated.
 Default: no rotation.
 
-Note: Option Rotate does not work unless the Resize and Rotate extension has
-been turned off.
+Note: The Resize and Rotate extension will be disabled if the Rotate option
+is used.
 .TP
 .BI "Option \*qShadowFB\*q \*q" boolean \*q
 Enable or disable use of the shadow framebuffer layer.  Default: off.

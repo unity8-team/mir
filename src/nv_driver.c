@@ -24,7 +24,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.120 2003/12/11 00:12:34 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.123 2004/01/13 19:03:28 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -167,6 +167,7 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE031D, "0x031D" },
   { 0x10DE031E, "0x031E" },
   { 0x10DE031F, "0x031F" },
+  { 0x10DE0320, "GeForce FX 5200" },
   { 0x10DE0321, "GeForce FX 5200 Ultra" },
   { 0x10DE0322, "GeForce FX 5200" },
   { 0x10DE0323, "GeForce FX 5200SE" },
@@ -191,12 +192,14 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0338, "Quadro FX 3000" },
   { 0x10DE0341, "GeForce FX 5700 Ultra" },
   { 0x10DE0342, "GeForce FX 5700" },
-  { 0x10DE0343, "0x0343" },
-  { 0x10DE0347, "0x0347" },
-  { 0x10DE0348, "0x0348" },
+  { 0x10DE0343, "GeForce FX 5700LE" },
+  { 0x10DE0344, "GeForce FX 5700VE" },
+  { 0x10DE0345, "0x0345" },
+  { 0x10DE0347, "GeForce FX Go5700" },
+  { 0x10DE0348, "GeForce FX Go5700" },
   { 0x10DE0349, "0x0349" },
   { 0x10DE034B, "0x034B" },
-  { 0x10DE034C, "0x034C" },
+  { 0x10DE034C, "Quadro FX Go1000" },
   { 0x10DE034E, "Quadro FX 1100" },
   { 0x10DE034F, "0x034F" },
   {-1, NULL}
@@ -1509,13 +1512,15 @@ static void NVBacklightEnable(NVPtr pNv,  Bool on)
        (pNv->Chipset == 0x10DE0329))
     {
        /* NV17,18,34 Apple iMac, iBook, PowerBook */
-       CARD32 tmp;
-       tmp = pNv->PMC[0x10F0/4] & 0x7FFFFFFF;
-       pNv->PMC[0x10F0/4] = tmp;
-       tmp = pNv->PCRTC0[0x081C/4] & 0xFFFFFFFC;
-       if(on)
-           tmp |= 0x1;
-       pNv->PCRTC0[0x081C/4] = tmp;
+      CARD32 tmp_pmc, tmp_pcrt;
+      tmp_pmc = pNv->PMC[0x10F0/4] & 0x7FFFFFFF;
+      tmp_pcrt = pNv->PCRTC0[0x081C/4] & 0xFFFFFFFC;
+      if(on) {
+          tmp_pmc |= (1 << 31);
+          tmp_pcrt |= 0x1;
+      }
+      pNv->PMC[0x10F0/4] = tmp_pmc;
+      pNv->PCRTC0[0x081C/4] = tmp_pcrt;
     }
 #endif
 }
@@ -1775,6 +1780,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
                case 16:	refreshArea = NVRefreshArea16;	break;
                case 32:	refreshArea = NVRefreshArea32;	break;
 	   }
+           xf86DisableRandR();
+           xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                      "Driver rotation enabled, RandR disabled\n");
 	}
 
 	ShadowFBInit(pScreen, refreshArea);

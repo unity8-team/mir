@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_type.h,v 1.44 2003/09/08 20:00:27 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_type.h,v 1.45 2004/01/06 22:47:07 mvojkovi Exp $ */
 
 #ifndef __NV_STRUCT_H__
 #define __NV_STRUCT_H__
@@ -63,6 +63,8 @@ typedef struct _riva_hw_state
     U032 cursor0;
     U032 cursor1;
     U032 cursor2;
+    U032 timingH;
+    U032 timingV;
 } RIVA_HW_STATE, *NVRegPtr;
 
 
