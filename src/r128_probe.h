@@ -73,7 +73,7 @@ extern ModeStatus            R128ValidMode
 			     FunctionPrototype((int, DisplayModePtr, Bool,
 						int));
 
-extern OptionInfoRec *       R128OptionsWeak
+extern const OptionInfoRec * R128OptionsWeak
                              FunctionPrototype((void));
 
 extern void                  R128FillInScreenInfo

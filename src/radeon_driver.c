@@ -210,7 +210,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
-OptionInfoRec *RADEONOptionsWeak(void) { return RADEONOptions; }
+const OptionInfoRec *RADEONOptionsWeak(void) { return RADEONOptions; }
 
 static const char *vgahwSymbols[] = {
     "vgaHWFreeHWRec",

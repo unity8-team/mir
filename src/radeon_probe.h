@@ -175,7 +175,7 @@ extern ModeStatus           RADEONValidMode
 			    FunctionPrototype((int, DisplayModePtr, Bool,
 					       int));
 
-extern OptionInfoRec *      RADEONOptionsWeak
+extern const OptionInfoRec *RADEONOptionsWeak
                             FunctionPrototype((void));
 
 extern void                 RADEONFillInScreenInfo

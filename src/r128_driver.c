@@ -165,7 +165,7 @@ static const OptionInfoRec R128Options[] = {
   { -1,                  NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
-OptionInfoRec *R128OptionsWeak(void) { return R128Options; }
+const OptionInfoRec *R128OptionsWeak(void) { return R128Options; }
 
 R128RAMRec R128RAM[] = {        /* Memory Specifications
 				   From RAGE 128 Software Development
