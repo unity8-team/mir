@@ -1,4 +1,4 @@
-/* $XFree86$ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_dri.h,v 1.11 2003/09/28 20:15:58 alanh Exp $ */
 
 #ifndef _I810_DRI_
 #define _I810_DRI_
