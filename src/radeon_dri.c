@@ -1035,10 +1035,7 @@ static int RADEONDRIKernelInit(RADEONInfoPtr info, ScreenPtr pScreen)
     drmRadeonInit  drmInfo;
 
     memset(&drmInfo, 0, sizeof(drmRadeonInit));
-    if ( (info->ChipFamily == CHIP_FAMILY_R300) ||
-	 (info->ChipFamily == CHIP_FAMILY_R350) ||
-	 (info->ChipFamily == CHIP_FAMILY_RV350) ||
-	 (info->ChipFamily == CHIP_FAMILY_R420) )
+    if ( info->ChipFamily >= CHIP_FAMILY_R300 )
        drmInfo.func             = DRM_RADEON_INIT_R300_CP;
     else
     if ( info->ChipFamily >= CHIP_FAMILY_R200 )
@@ -1391,12 +1388,12 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
 	if (info->IsIGP) {
 	    req_minor = 10;
 	    req_patch = 0;
-	} else if (info->ChipFamily >= CHIP_FAMILY_R200) {
-	    req_minor = 5;
-	    req_patch = 0;
        	} else if (info->ChipFamily >= CHIP_FAMILY_R300) {
            req_minor = 12;
            req_patch = 0;
+	} else if (info->ChipFamily >= CHIP_FAMILY_R200) {
+	    req_minor = 5;
+	    req_patch = 0;
 	} else {
 #if X_BYTE_ORDER == X_LITTLE_ENDIAN
 	    req_minor = 1;
