@@ -250,8 +250,8 @@ const char *I810xaaSymbols[] = {
    "XAACreateInfoRec",
    "XAADestroyInfoRec",
    "XAAInit",
-   "XAACopyROP",
-   "XAAPatternROP",
+   "XAAGetCopyROP",
+   "XAAGetPatternROP",
    NULL
 };
 

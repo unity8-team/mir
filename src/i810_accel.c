@@ -293,7 +293,7 @@ I810SetupForSolidFill(ScrnInfoPtr pScrn, int color, int rop,
 
    /* Color blit, p166 */
    pI810->BR[13] = (BR13_SOLID_PATTERN |
-		    (XAAPatternROP[rop] << 16) |
+		    (XAAGetPatternROP(rop) << 16) |
 		    (pScrn->displayWidth * pI810->cpp));
    pI810->BR[16] = color;
 }
@@ -339,7 +339,7 @@ I810SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir, int ydir, int rop,
    if (xdir == -1)
       pI810->BR[13] |= BR13_RIGHT_TO_LEFT;
 
-   pI810->BR[13] |= XAACopyROP[rop] << 16;
+   pI810->BR[13] |= XAAGetCopyROP(rop) << 16;
 
    pI810->BR[18] = 0;
 }
@@ -425,7 +425,7 @@ I810SetupForMono8x8PatternFill(ScrnInfoPtr pScrn, int pattx, int patty,
    pI810->BR[18] = bg;
    pI810->BR[19] = fg;
    pI810->BR[13] = (pScrn->displayWidth * pI810->cpp);
-   pI810->BR[13] |= XAAPatternROP[rop] << 16;
+   pI810->BR[13] |= XAAGetPatternROP(rop) << 16;
    if (bg == -1)
       pI810->BR[13] |= BR13_MONO_PATN_TRANS;
 }
@@ -489,7 +489,7 @@ I810SetupForScanlineCPUToScreenColorExpandFill(ScrnInfoPtr pScrn,
 	     fg, bg, rop, planemask);
 
    pI810->BR[13] = (pScrn->displayWidth * pI810->cpp);
-   pI810->BR[13] |= XAACopyROP[rop] << 16;
+   pI810->BR[13] |= XAAGetCopyROP(rop) << 16;
    pI810->BR[13] |= (1 << 27);
    if (bg == -1)
       pI810->BR[13] |= BR13_MONO_TRANSPCY;

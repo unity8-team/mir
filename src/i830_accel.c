@@ -392,7 +392,7 @@ I830SetupForSolidFill(ScrnInfoPtr pScrn, int color, int rop,
       ErrorF("I830SetupForFillRectSolid color: %x rop: %x mask: %x\n",
 	     color, rop, planemask);
 
-   pI830->BR[13] = ((XAAPatternROP[rop] << 16) |
+   pI830->BR[13] = ((XAAGetPatternROP(rop) << 16) |
 		    (pScrn->displayWidth * pI830->cpp));
 
    pI830->BR[16] = color;
@@ -448,7 +448,7 @@ I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir, int ydir, int rop,
 	     xdir, ydir, rop, planemask, transparency_color);
 
    pI830->BR[13] = (pScrn->displayWidth * pI830->cpp);
-   pI830->BR[13] |= XAACopyROP[rop] << 16;
+   pI830->BR[13] |= XAAGetCopyROP(rop) << 16;
 
    switch (pScrn->bitsPerPixel) {
    case 8:
@@ -514,7 +514,7 @@ I830SetupForMono8x8PatternFill(ScrnInfoPtr pScrn, int pattx, int patty,
    pI830->BR[19] = fg;
 
    pI830->BR[13] = (pScrn->displayWidth * pI830->cpp);	/* In bytes */
-   pI830->BR[13] |= XAAPatternROP[rop] << 16;
+   pI830->BR[13] |= XAAGetPatternROP(rop) << 16;
    if (bg == -1)
       pI830->BR[13] |= (1 << 28);
 
@@ -603,7 +603,7 @@ I830SetupForScanlineCPUToScreenColorExpandFill(ScrnInfoPtr pScrn,
 
    /* Fill out register values */
    pI830->BR[13] = (pScrn->displayWidth * pI830->cpp);
-   pI830->BR[13] |= XAACopyROP[rop] << 16;
+   pI830->BR[13] |= XAAGetCopyROP(rop) << 16;
    if (bg == -1)
       pI830->BR[13] |= (1 << 29);
 
@@ -701,7 +701,7 @@ I830SetupForScanlineImageWrite(ScrnInfoPtr pScrn, int rop,
 
    /* Fill out register values */
    pI830->BR[13] = (pScrn->displayWidth * pI830->cpp);
-   pI830->BR[13] |= XAACopyROP[rop] << 16;
+   pI830->BR[13] |= XAAGetCopyROP(rop) << 16;
 
    switch (pScrn->bitsPerPixel) {
    case 8:
