@@ -1732,6 +1732,21 @@ I810SetMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
    i810Reg->ExtHorizBlank = (((mode->CrtcHBlankEnd >> 3) - 1) & 0x40) >> 6;
 
    /*
+    * the KGA fix in vgaHW.c results in the first
+    * scanline and the first character clock (8 pixels)
+    * of each scanline thereafter on display with an i810
+    * to be blank. Restoring CRTC 3, 5, & 22 to their
+    * "theoretical" values corrects the problem. KAO.
+    */
+   pVga->CRTC[3] = (((mode->CrtcHBlankEnd >> 3) - 1) & 0x1F) | 0x80;
+   pVga->CRTC[5] = ((((mode->CrtcHBlankEnd >> 3) - 1) & 0x20) << 2)
+	 | (((mode->CrtcHSyncEnd >> 3)) & 0x1F);
+   pVga->CRTC[22] = (mode->CrtcVBlankEnd - 1) & 0xFF;
+
+   i810Reg->ExtHorizBlank = vgaHWHBlankKGA(mode, pVga, 7, 0);
+   vgaHWVBlankKGA(mode, pVga, 8, 0);
+
+   /*
     * The following workarounds are needed to get video overlay working
     * at 1024x768 and 1280x1024 display resolutions.
     */
@@ -1799,18 +1814,6 @@ I810ModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
    if (!vgaHWInit(pScrn, mode))
       return FALSE;
-   /*
-    * the KGA fix in vgaHW.c results in the first
-    * scanline and the first character clock (8 pixels)
-    * of each scanline thereafter on display with an i810
-    * to be blank. Restoring CRTC 3, 5, & 22 to their
-    * "theoretical" values corrects the problem. KAO.
-    */
-   pVga = &VGAHWPTR(pScrn)->ModeReg;
-   pVga->CRTC[3] = (((mode->CrtcHBlankEnd >> 3) - 1) & 0x1F) | 0x80;
-   pVga->CRTC[5] = ((((mode->CrtcHBlankEnd >> 3) - 1) & 0x20) << 2)
-	 | (((mode->CrtcHSyncEnd >> 3)) & 0x1F);
-   pVga->CRTC[22] = (mode->CrtcVBlankEnd - 1) & 0xFF;
 
    pScrn->vtSema = TRUE;
 
