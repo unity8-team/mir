@@ -64,6 +64,10 @@ static CARD32 mono_cursor_color[] = {
 #define CURSOR_WIDTH	64
 #define CURSOR_HEIGHT	64
 
+#define COMMON_CURSOR_SWAPPING_START()	  \
+    if (info->accel && info->accel->Sync) \
+	info->accel->Sync(pScrn);
+
 /*
  * The cursor bits are always 32bpp.  On MSBFirst buses,
  * configure byte swapping to swap 32 bit units when writing
@@ -74,17 +78,23 @@ static CARD32 mono_cursor_color[] = {
 
 #define CURSOR_SWAPPING_DECL_MMIO   unsigned char *RADEONMMIO = info->MMIO;
 #define CURSOR_SWAPPING_START() \
+  do { \
     OUTREG(RADEON_SURFACE_CNTL, \
 	   (info->ModeReg.surface_cntl | \
 	    RADEON_NONSURF_AP0_SWP_32BPP) & \
-	   ~RADEON_NONSURF_AP0_SWP_16BPP)
+	   ~RADEON_NONSURF_AP0_SWP_16BPP); \
+    COMMON_CURSOR_SWAPPING_START(); \
+  } while (0)
 #define CURSOR_SWAPPING_END()	(OUTREG(RADEON_SURFACE_CNTL, \
 					info->ModeReg.surface_cntl))
 
 #else
 
 #define CURSOR_SWAPPING_DECL_MMIO
-#define CURSOR_SWAPPING_START()
+#define CURSOR_SWAPPING_START() \
+  do { \
+    COMMON_CURSOR_SWAPPING_START(); \
+  } while (0)
 #define CURSOR_SWAPPING_END()
 
 #endif
