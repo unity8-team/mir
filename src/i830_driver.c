@@ -1302,12 +1302,12 @@ SaveBIOSMemSize(ScrnInfoPtr pScrn)
  * Original implementation by Christian Zietz in a stand-alone tool.
  */
 static CARD32
-TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize)
+TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize, Bool preinit)
 {
 #define SIZE 0x10000
 #define _855_IDOFFSET (-23)
 #define _845_IDOFFSET (-19)
-
+    
     const char *MAGICstring = "Total time for VGA POST:";
     const int len = strlen(MAGICstring);
     I830Ptr pI830 = I830PTR(pScrn);
@@ -1317,11 +1317,13 @@ TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize)
     CARD32 oldpermission;
     CARD32 ret = 0;
     int i,j = 0;
-    PCITAG tag =pciTag(0,0,0);
-    int reg = (IS_845G(pI830) || IS_I865G(pI830)) ? _845_DRAM_RW_CONTROL : _855_DRAM_RW_CONTROL;
+    int reg = (IS_845G(pI830) || IS_I865G(pI830)) ? _845_DRAM_RW_CONTROL
+	: _855_DRAM_RW_CONTROL;
     
-    if(!pI830->PciInfo
-	|| !(IS_845G(pI830) || IS_I85X(pI830) || IS_I865G(pI830)))
+    PCITAG tag =pciTag(0,0,0);
+
+    if(!pI830->PciInfo 
+       || !(IS_845G(pI830) || IS_I85X(pI830) || IS_I865G(pI830)))
 	return 0;
 
     if (!pI830->pVbe)
@@ -1331,8 +1333,7 @@ TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize)
 				    pI830->pVbe->pInt10->BIOSseg << 4);
 
     if (!pI830->BIOSMemSizeLoc) {
-
-	if (!pI830->preinit)
+	if (!preinit)
 	    return 0;
 
 	/* Search for MAGIC string */
@@ -1348,30 +1349,32 @@ TweakMemorySize(ScrnInfoPtr pScrn, CARD32 newsize)
 	if (j < len) return 0;
 
 	pI830->BIOSMemSizeLoc =  (i - j + 1 + (IS_845G(pI830)
-				  ? _845_IDOFFSET : _855_IDOFFSET));
+					    ? _845_IDOFFSET : _855_IDOFFSET));
     }
-
+    
     position = biosAddr + pI830->BIOSMemSizeLoc;
     oldsize = *(CARD32 *)position;
-    ret = oldsize - 0x21000;
 
+    ret = oldsize - 0x21000;
+    
     /* verify that register really contains current size */
-    if (pI830->preinit && ((ret >> 16) !=  pI830->vbeInfo->TotalMemory))
+    if (preinit && ((ret >> 16) !=  pI830->vbeInfo->TotalMemory))
 	return 0;
 
     oldpermission = pciReadLong(tag, reg);
     pciWriteLong(tag, reg, DRAM_WRITE | (oldpermission & 0xffff)); 
-
+    
     *(CARD32 *)position = newsize + 0x21000;
-    if (pI830->preinit) {
+
+    if (preinit) {
 	/* reinitialize VBE for new size */
 	VBEFreeVBEInfo(pI830->vbeInfo);
 	vbeFree(pI830->pVbe);
 	pI830->pVbe = VBEInit(NULL, pI830->pEnt->index);
 	pI830->vbeInfo = VBEGetVBEInfo(pI830->pVbe);
-
+	
 	/* verify that change was successful */
-	if (pI830->vbeInfo->TotalMemory != (newsize >> 16)) {
+	if (pI830->vbeInfo->TotalMemory != (newsize >> 16)){
 	    ret = 0;
 	    *(CARD32 *)position = oldsize;
 	} else {
@@ -1395,7 +1398,7 @@ RestoreBIOSMemSize(ScrnInfoPtr pScrn)
 
    DPRINTF(PFX, "RestoreBIOSMemSize\n");
 
-   if (TweakMemorySize(pScrn, pI830->saveBIOSMemSize))
+   if (TweakMemorySize(pScrn, pI830->saveBIOSMemSize,FALSE))
        return;
 
    if (!pI830->overrideBIOSMemSize)
@@ -2255,14 +2258,13 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "BIOS now sees %ld kB VideoRAM\n",
 		       pI830->BIOSMemorySize / 1024);
-         } else 
-         if ((pI830->saveBIOSMemSize =
-		     TweakMemorySize(pScrn, pI830->newBIOSMemSize)) != 0)
-	    pI830->overrideBIOSMemSize = TRUE;
+ 	 } else if ((pI830->saveBIOSMemSize
+		 = TweakMemorySize(pScrn, pI830->newBIOSMemSize,TRUE)) != 0) 
+	     pI830->overrideBIOSMemSize = TRUE;
 	 else {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "BIOS view of memory size can't be changed "
-		       "(this is not an error).\n");
+	     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"BIOS view of memory size can't be changed "
+			"(this is not an error).\n");
 	 }
       }
    }
@@ -2869,9 +2871,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    /* PreInit shouldn't leave any state changes, so restore this. */
-   pI830->preinit = FALSE; /* temporarily do this */
    RestoreBIOSMemSize(pScrn);
-   pI830->preinit = TRUE; /* now put it back */
 
    /* Don't need MMIO access anymore. */
    if (pI830->swfSaved) {
@@ -4124,7 +4124,7 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     * first, then re-initialise the VBE information.
     */
    pI830->pVbe = VBEInit(NULL, pI830->pEnt->index);
-   if (!TweakMemorySize(pScrn, pI830->newBIOSMemSize))
+   if (!TweakMemorySize(pScrn, pI830->newBIOSMemSize,FALSE))
        SetBIOSMemSize(pScrn, pI830->newBIOSMemSize);
    if (!pI830->pVbe)
       return FALSE;
@@ -4810,7 +4810,7 @@ I830BIOSEnterVT(int scrnIndex, int flags)
          return FALSE;
 
    CheckInheritedState(pScrn);
-   if (!TweakMemorySize(pScrn, pI830->newBIOSMemSize))
+   if (!TweakMemorySize(pScrn, pI830->newBIOSMemSize,FALSE))
        SetBIOSMemSize(pScrn, pI830->newBIOSMemSize);
 
    /*
