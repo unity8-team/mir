@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128_video.c,v 1.28 2003/04/23 21:51:31 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128_video.c,v 1.30 2003/11/10 18:22:18 tsi Exp $ */
 
 #include "r128.h"
 #include "r128_reg.h"
@@ -65,7 +65,7 @@ static void R128ECP(ScrnInfoPtr pScrn, R128PortPrivPtr pPriv)
     R128InfoPtr     info      = R128PTR(pScrn);
     unsigned char   *R128MMIO = info->MMIO;
     int             dot_clock = info->ModeReg.dot_clock_freq;
-    
+
     if (dot_clock < 12500)      pPriv->ecp_div = 0;
     else if (dot_clock < 25000) pPriv->ecp_div = 1;
     else                        pPriv->ecp_div = 2;
@@ -245,7 +245,7 @@ R128SetupImageVideo(ScreenPtr pScreen)
     info->adaptor = adapt;
 
     pPriv = (R128PortPrivPtr)(adapt->pPortPrivates[0].ptr);
-    REGION_INIT(pScreen, &(pPriv->clip), NullBox, 0);
+    REGION_NULL(pScreen, &(pPriv->clip));
 
     R128ResetVideo(pScrn);
 
@@ -430,7 +430,7 @@ R128DMA(
 	return FALSE;
     }
 
-    /* Copy parts of the block into buffers and fire them */ 
+    /* Copy parts of the block into buffers and fire them */
     dstpassbytes = hpass*dstPitch;
     dstPitch /= 8;
 
@@ -449,7 +449,7 @@ R128DMA(
 	} else {
 	    int count = hpass;
 	    while(count--) {
-	        memcpy(buf, src, w);
+		memcpy(buf, src, w);
 		src += srcPitch;
 		buf += w;
 	    }
@@ -579,20 +579,20 @@ R128AllocateMemory(
 
    pScreen = screenInfo.screens[pScrn->scrnIndex];
 
-   new_linear = xf86AllocateOffscreenLinear(pScreen, size, 16,
+   new_linear = xf86AllocateOffscreenLinear(pScreen, size, 8,
 						NULL, NULL, NULL);
 
    if(!new_linear) {
 	int max_size;
 
-	xf86QueryLargestOffscreenLinear(pScreen, &max_size, 16,
+	xf86QueryLargestOffscreenLinear(pScreen, &max_size, 8,
 						PRIORITY_EXTREME);
 
 	if(max_size < size)
 	   return NULL;
 
 	xf86PurgeUnlockedOffscreenAreas(pScreen);
-	new_linear = xf86AllocateOffscreenLinear(pScreen, size, 16,
+	new_linear = xf86AllocateOffscreenLinear(pScreen, size, 8,
 						NULL, NULL, NULL);
    }
 
@@ -770,7 +770,7 @@ R128PutImage(
    R128InfoPtr info = R128PTR(pScrn);
    R128PortPrivPtr pPriv = (R128PortPrivPtr)data;
    INT32 xa, xb, ya, yb;
-   int pitch, new_size, offset, s1offset, s2offset, s3offset;
+   int new_size, offset, s1offset, s2offset, s3offset;
    int srcPitch, srcPitch2, dstPitch;
    int d1line, d2line, d3line, d1offset, d2offset, d3offset;
    int top, left, npixels, nlines, bpp;
@@ -826,7 +826,6 @@ R128PutImage(
    dstBox.y2 -= pScrn->frameY0;
 
    bpp = pScrn->bitsPerPixel >> 3;
-   pitch = bpp * pScrn->displayWidth;
 
    switch(id) {
    case FOURCC_YV12:

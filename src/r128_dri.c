@@ -1297,6 +1297,7 @@ void R128DRICloseScreen(ScreenPtr pScreen)
     if (info->irq) {
 	drmCtlUninstHandler(info->drmFD);
 	info->irq = 0;
+	info->gen_int_cntl = 0;
     }
 
 				/* De-allocate vertex buffers */

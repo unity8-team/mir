@@ -1642,7 +1642,11 @@ static Bool R128PreInitModes(ScrnInfoPtr pScrn)
 				   NULL,        /* linePitches */
 				   8 * 64,      /* minPitch */
 				   8 * 1024,    /* maxPitch */
-				   8 * 64,      /* pitchInc */
+/*
+ * ATI docs say pitchInc must be 8 * 64, but this doesn't permit a pitch of
+ * 800 bytes, which is known to work on the Rage128 LF on clamshell iBooks
+ */
+				   8 * 32,      /* pitchInc */
 				   128,         /* minHeight */
 				   2048,        /* maxHeight */
 				   pScrn->display->virtualX,
