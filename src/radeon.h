@@ -315,6 +315,7 @@ typedef struct {
     Bool              IsIGP;            /* IGP chips */
     Bool              HasSingleDAC;     /* only TVDAC on chip */
     Bool              IsSecondary;      /* Second Screen                     */
+    Bool	      IsPrimary;        /* Primary Screen */
     Bool              IsSwitching;      /* Flag for switching mode           */
     Bool              OverlayOnCRTC2;
     Bool              PanelOff;         /* Force panel (LCD/DFP) off         */

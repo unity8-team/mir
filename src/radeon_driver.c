@@ -2545,21 +2545,6 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     /* Some production boards of m6 will return 0 if it's 8 MB */
     if (pScrn->videoRam == 0) pScrn->videoRam = 8192;
 
-    if (info->IsSecondary) {
-	/* FIXME: For now, split FB into two equal sections. This should
-	 * be able to be adjusted by user with a config option. */
-        RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-	RADEONInfoPtr  info1;
-
-	pScrn->videoRam /= 2;
-	pRADEONEnt->pPrimaryScrn->videoRam = pScrn->videoRam;
-
-	info1 = RADEONPTR(pRADEONEnt->pPrimaryScrn);
-	info1->FbMapSize  = pScrn->videoRam * 1024;
-	info->LinearAddr += pScrn->videoRam * 1024;
-	info1->MergedFB = FALSE;
-    }
-
     info->R300CGWorkaround =
 	(info->ChipFamily == CHIP_FAMILY_R300 &&
 	 (INREG(RADEON_CONFIG_CNTL) & RADEON_CFG_ATI_REV_ID_MASK)
@@ -2578,10 +2563,30 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 	from             = X_CONFIG;
 	pScrn->videoRam  = dev->videoRam;
     }
-    pScrn->videoRam  &= ~1023;
-    info->FbMapSize  = pScrn->videoRam * 1024;
+
     xf86DrvMsg(pScrn->scrnIndex, from,
 	       "VideoRAM: %d kByte (%d bit %s SDRAM)\n", pScrn->videoRam, info->RamWidth, info->IsDDR?"DDR":"SDR");
+
+    /* FIXME: For now, split FB into two equal sections. This should
+     * be able to be adjusted by user with a config option. */
+    if (info->IsPrimary) {
+        pScrn->videoRam /= 2;
+	info->MergedFB = FALSE;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+		"Using %dk of videoram for primary head\n",
+		pScrn->videoRam);
+    }
+
+    if (info->IsSecondary) {  
+        pScrn->videoRam /= 2;
+        info->LinearAddr += pScrn->videoRam * 1024;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+		"Using %dk of videoram for secondary head\n",
+		pScrn->videoRam);
+    }
+
+    pScrn->videoRam  &= ~1023;
+    info->FbMapSize  = pScrn->videoRam * 1024;
 
 #ifdef XF86DRI
 				/* AGP/PCI */
@@ -4321,6 +4326,7 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     info               = RADEONPTR(pScrn);
     info->IsSecondary  = FALSE;
+    info->IsPrimary     = FALSE;
     info->MergedFB     = FALSE;
     info->IsSwitching  = FALSE;
     info->MMIO         = NULL;
@@ -4380,6 +4386,8 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	    pRADEONEnt->pSecondaryScrn = pScrn;
 	} else {
 	    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+	    info->IsPrimary = TRUE;
 
 	    xf86SetPrimInitDone(info->pEnt->index);
 
