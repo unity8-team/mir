@@ -1715,7 +1715,7 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 		xf86_tda9885_dumpstatus(pPriv->tda9885);
 		}
 	if(pPriv->fi1236!=NULL){
-		fi1236_dump_status(pPriv->fi1236);
+		xf86_fi1236_dump_status(pPriv->fi1236);
 		}
    } 
    else if(attribute == xvAdjustment) 
