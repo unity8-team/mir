@@ -88,12 +88,12 @@ static const char *fbSymbols[] = {
 };
 
 static const char *xaaSymbols[] = {
-    "XAACopyROP",
+    "XAAGetCopyROP",
     "XAACreateInfoRec",
     "XAADestroyInfoRec",
-    "XAAFallbackOps",
+    "XAAGetFallbackOps",
     "XAAInit",
-    "XAAPatternROP",
+    "XAAGetPatternROP",
     NULL
 };
 
@@ -688,11 +688,11 @@ RivaPreInit(ScrnInfoPtr pScrn, int flags)
 	    xf86FreeInt10(pRiva->pInt);
 	    return FALSE;
 	}
-	pScrn->SwitchMode    = fbdevHWSwitchMode;
-	pScrn->AdjustFrame   = fbdevHWAdjustFrame;
+	pScrn->SwitchMode    = LoaderSymbol("fbdevHWSwitchMode");
+	pScrn->AdjustFrame   = LoaderSymbol("fbdevHWAdjustFrame");
 	pScrn->EnterVT       = RivaEnterVTFBDev;
-	pScrn->LeaveVT       = fbdevHWLeaveVT;
-	pScrn->ValidMode     = fbdevHWValidMode;
+	pScrn->LeaveVT       = LoaderSymbol("fbdevHWLeaveVT");
+	pScrn->ValidMode     = LoaderSymbol("fbdevHWValidMode");
     }
     pRiva->Rotate = 0;
     if ((s = xf86GetOptValString(pRiva->Options, OPTION_ROTATE))) {
@@ -1317,7 +1317,8 @@ RivaScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     /* Initialize colormap layer.  
 	Must follow initialization of the default colormap */
     if(!xf86HandleColormaps(pScreen, 256, 8,
-	(pRiva->FBDev ? fbdevHWLoadPalette : Rivadac->LoadPalette), 
+	(pRiva->FBDev ? LoaderSymbol("fbdevHWLoadPalette")
+	              : Rivadac->LoadPalette), 
 	NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
 	return FALSE;
 

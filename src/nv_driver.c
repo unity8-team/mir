@@ -1,3 +1,4 @@
+/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.2 2004/04/23 19:42:10 eich Exp $ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
@@ -24,7 +25,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.114 2003/08/23 16:09:18 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.122 2004/01/10 22:31:53 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -51,8 +52,8 @@ static Bool    NVSaveScreen(ScreenPtr pScreen, int mode);
 
 /* Optional functions */
 static void    NVFreeScreen(int scrnIndex, int flags);
-static int     NVValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose,
-                           int flags);
+static ModeStatus NVValidMode(int scrnIndex, DisplayModePtr mode,
+			      Bool verbose, int flags);
 
 /* Internally used functions */
 
@@ -112,7 +113,11 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0175, "GeForce4 420 Go" },
   { 0x10DE0176, "GeForce4 420 Go 32M" },
   { 0x10DE0177, "GeForce4 460 Go" },
+#if defined(__powerpc__)
+  { 0x10DE0179, "GeForce4 MX (Mac)" },
+#else
   { 0x10DE0179, "GeForce4 440 Go 64M" },
+#endif
   { 0x10DE017D, "GeForce4 410 Go 16M" },
   { 0x10DE017C, "Quadro4 500 GoGL" },
   { 0x10DE0178, "Quadro4 550 XGL" },
@@ -123,6 +128,9 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0186, "GeForce4 448 Go" },
   { 0x10DE0187, "GeForce4 488 Go" },
   { 0x10DE0188, "Quadro4 580 XGL" },
+#if defined(__powerpc__)
+  { 0x10DE0189, "GeForce4 MX with AGP8X (Mac)" },
+#endif
   { 0x10DE018A, "Quadro4 280 NVS" },
   { 0x10DE018B, "Quadro4 380 XGL" },
   { 0x10DE01F0, "GeForce4 MX Integrated GPU" },
@@ -160,33 +168,40 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE031D, "0x031D" },
   { 0x10DE031E, "0x031E" },
   { 0x10DE031F, "0x031F" },
+  { 0x10DE0320, "GeForce FX 5200" },
   { 0x10DE0321, "GeForce FX 5200 Ultra" },
   { 0x10DE0322, "GeForce FX 5200" },
   { 0x10DE0323, "GeForce FX 5200SE" },
   { 0x10DE0324, "GeForce FX Go5200" },
   { 0x10DE0325, "GeForce FX Go5250" },
   { 0x10DE0328, "GeForce FX Go5200 32M/64M" },
+#if defined(__powerpc__)
+  { 0x10DE0329, "GeForce FX 5200 (Mac)" },
+#else
   { 0x10DE0329, "0x0329" },
-  { 0x10DE032A, "0x032A" },
+#endif
+  { 0x10DE032A, "Quadro NVS 280 PCI" },
   { 0x10DE032B, "Quadro FX 500" },
   { 0x10DE032C, "GeForce FX Go5300" },
   { 0x10DE032D, "GeForce FX Go5100" },
   { 0x10DE032F, "0x032F" },
   { 0x10DE0330, "GeForce FX 5900 Ultra" },
   { 0x10DE0331, "GeForce FX 5900" },
-  { 0x10DE0332, "0x0332" },
+  { 0x10DE0332, "GeForce FX 5900XT" },
   { 0x10DE0333, "GeForce FX 5950 Ultra" },
   { 0x10DE0334, "0x0334" },
   { 0x10DE0338, "Quadro FX 3000" },
-  { 0x10DE0341, "0x0341" },
-  { 0x10DE0342, "0x0342" },
-  { 0x10DE0343, "0x0343" },
-  { 0x10DE0347, "0x0347" },
-  { 0x10DE0348, "0x0348" },
+  { 0x10DE0341, "GeForce FX 5700 Ultra" },
+  { 0x10DE0342, "GeForce FX 5700" },
+  { 0x10DE0343, "GeForce FX 5700LE" },
+  { 0x10DE0344, "GeForce FX 5700VE" },
+  { 0x10DE0345, "0x0345" },
+  { 0x10DE0347, "GeForce FX Go5700" },
+  { 0x10DE0348, "GeForce FX Go5700" },
   { 0x10DE0349, "0x0349" },
   { 0x10DE034B, "0x034B" },
-  { 0x10DE034C, "0x034C" },
-  { 0x10DE034E, "0x034E" },
+  { 0x10DE034C, "Quadro FX Go1000" },
+  { 0x10DE034E, "Quadro FX 1100" },
   { 0x10DE034F, "0x034F" },
   {-1, NULL}
 };
@@ -313,7 +328,7 @@ static XF86ModuleVersionInfo nvVersRec =
     MODULEVENDORSTRING,
     MODINFOSTRING1,
     MODINFOSTRING2,
-    XF86_VERSION_CURRENT,
+    XORG_VERSION_CURRENT,
     NV_MAJOR_VERSION, NV_MINOR_VERSION, NV_PATCHLEVEL,
     ABI_CLASS_VIDEODRV,                     /* This is a video driver */
     ABI_VIDEODRV_VERSION,
@@ -431,9 +446,13 @@ nvSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 static const OptionInfoRec *
 NVAvailableOptions(int chipid, int busid)
 {
-    if(chipid == 0x12D20018)
-       return RivaAvailableOptions(chipid, busid);
-
+    if(chipid == 0x12D20018) {
+	if (!xf86LoadOneModule("riva128", NULL)) {
+	    return NULL;
+	} else
+	    return RivaAvailableOptions(chipid, busid);
+    }
+    
     return NVOptions;
 }
 
@@ -746,7 +765,7 @@ NVFreeScreen(int scrnIndex, int flags)
 /* Checks if a mode is suitable for the selected chipset. */
 
 /* Optional */
-static int
+static ModeStatus
 NVValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
 {
     return (MODE_OK);
@@ -792,7 +811,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     NVPtr pNv;
     MessageType from;
     int i, max_width, max_height;
-    int bytesPerPixel;
     ClockRangePtr clockRanges;
     const char *s;
 
@@ -960,8 +978,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
     }
 
-    bytesPerPixel = pScrn->bitsPerPixel / 8;
-
     /* The vgahw module should be loaded here when needed */
     if (!xf86LoadSubModule(pScrn, "vgahw")) {
 	xf86FreeInt10(pNv->pInt);
@@ -1037,11 +1053,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	    xf86FreeInt10(pNv->pInt);
 	    return FALSE;
 	}
-	pScrn->SwitchMode    = fbdevHWSwitchMode;
-	pScrn->AdjustFrame   = fbdevHWAdjustFrame;
+	pScrn->SwitchMode    = LoaderSymbol("fbdevHWSwitchMode");
+	pScrn->AdjustFrame   = LoaderSymbol("fbdevHWAdjustFrame");
 	pScrn->EnterVT       = NVEnterVTFBDev;
-	pScrn->LeaveVT       = fbdevHWLeaveVT;
-	pScrn->ValidMode     = fbdevHWValidMode;
+	pScrn->LeaveVT       = LoaderSymbol("fbdevHWLeaveVT");
+	pScrn->ValidMode     = LoaderSymbol("fbdevHWValidMode");
     }
     pNv->Rotate = 0;
     if ((s = xf86GetOptValString(pNv->Options, OPTION_ROTATE))) {
@@ -1171,22 +1187,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
     NVCommonSetup(pScrn);
 
-    /*
-     * If the user has specified the amount of memory in the XF86Config
-     * file, we respect that setting.
-     */
-    if (pNv->pEnt->device->videoRam != 0) {
-	pScrn->videoRam = pNv->pEnt->device->videoRam;
-	from = X_CONFIG;
+    if (pNv->FBDev) {
+       pScrn->videoRam = fbdevHWGetVidmem(pScrn)/1024;
     } else {
-	if (pNv->FBDev) {
-	    pScrn->videoRam = fbdevHWGetVidmem(pScrn)/1024;
-	} else {
-            pScrn->videoRam = pNv->RamAmountKBytes;
-	}
-	from = X_PROBED;
+       pScrn->videoRam = pNv->RamAmountKBytes;
     }
-    xf86DrvMsg(pScrn->scrnIndex, from, "VideoRAM: %d kBytes\n",
+    xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "VideoRAM: %d kBytes\n",
                pScrn->videoRam);
 	
     pNv->FbMapSize = pScrn->videoRam * 1024;
@@ -1496,12 +1502,57 @@ NVRestore(ScrnInfoPtr pScrn)
     vgaHWProtect(pScrn, FALSE);
 }
 
+static void NVBacklightEnable(NVPtr pNv,  Bool on)
+{
+    /* This is done differently on each laptop.  Here we
+       define the ones we know for sure. */
+
+#if defined(__powerpc__)
+    if((pNv->Chipset == 0x10DE0179) || 
+       (pNv->Chipset == 0x10DE0189) || 
+       (pNv->Chipset == 0x10DE0329))
+    {
+       /* NV17,18,34 Apple iMac, iBook, PowerBook */
+      CARD32 tmp_pmc, tmp_pcrt;
+      tmp_pmc = pNv->PMC[0x10F0/4] & 0x7FFFFFFF;
+      tmp_pcrt = pNv->PCRTC0[0x081C/4] & 0xFFFFFFFC;
+      if(on) {
+          tmp_pmc |= (1 << 31);
+          tmp_pcrt |= 0x1;
+      }
+      pNv->PMC[0x10F0/4] = tmp_pmc;
+      pNv->PCRTC0[0x081C/4] = tmp_pcrt;
+    }
+#endif
+}
+
+static void
+NVDPMSSetLCD(ScrnInfoPtr pScrn, int PowerManagementMode, int flags)
+{
+  NVPtr pNv = NVPTR(pScrn);
+
+  if (!pScrn->vtSema) return;
+
+  switch (PowerManagementMode) {
+  case DPMSModeStandby:  /* HSync: Off, VSync: On */
+  case DPMSModeSuspend:  /* HSync: On, VSync: Off */
+  case DPMSModeOff:      /* HSync: Off, VSync: Off */
+    NVBacklightEnable(pNv, 0);
+    break;
+  case DPMSModeOn:       /* HSync: On, VSync: On */
+    NVBacklightEnable(pNv, 1);
+  default:
+    break;
+  }
+  vgaHWDPMSSet(pScrn, PowerManagementMode, flags);
+}
+
+
 static void
 NVDPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags)
 {
   unsigned char crtc1A;
   vgaHWPtr hwp = VGAHWPTR(pScrn);
-  NVPtr pNv = NVPTR(pScrn);
 
   if (!pScrn->vtSema) return;
 
@@ -1525,8 +1576,7 @@ NVDPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags)
   /* vgaHWDPMSSet will merely cut the dac output */
   vgaHWDPMSSet(pScrn, PowerManagementMode, flags);
 
-  if(!pNv->FlatPanel)  /* this doesn't work for flat panels */
-     hwp->writeCrtc(hwp, 0x1A, crtc1A);
+  hwp->writeCrtc(hwp, 0x1A, crtc1A);
 }
 
 
@@ -1715,7 +1765,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     /* Initialize colormap layer.  
 	Must follow initialization of the default colormap */
     if(!xf86HandleColormaps(pScreen, 256, 8,
-	(pNv->FBDev ? fbdevHWLoadPalette : NVDACLoadPalette), 
+	(pNv->FBDev ? LoaderSymbol("fbdevHWLoadPalette") : NVDACLoadPalette), 
 	NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
 	return FALSE;
 
@@ -1731,12 +1781,18 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
                case 16:	refreshArea = NVRefreshArea16;	break;
                case 32:	refreshArea = NVRefreshArea32;	break;
 	   }
+           xf86DisableRandR();
+           xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                      "Driver rotation enabled, RandR disabled\n");
 	}
 
 	ShadowFBInit(pScreen, refreshArea);
     }
 
-    xf86DPMSInit(pScreen, NVDPMSSet, 0);
+    if(pNv->FlatPanel)
+       xf86DPMSInit(pScreen, NVDPMSSetLCD, 0);
+    else
+       xf86DPMSInit(pScreen, NVDPMSSet, 0);
     
     pScrn->memPhysBase = pNv->FbAddress;
     pScrn->fbOffset = 0;
