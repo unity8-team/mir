@@ -396,9 +396,15 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
     	            pMode->type = M_T_BUILTIN;
 
 	            status = xf86CheckModeForMonitor(pMode, pScrn->monitor);
-	            if (status == MODE_OK)
-	                modeOK = TRUE;
-	            else
+	            if (status == MODE_OK) {
+			if (major >= 3) {
+			    if (pMode->Clock * 1000 <= mode->MaxPixelClock)
+				modeOK = TRUE;
+			    else
+				modeOK = FALSE;
+			} else
+			    modeOK = TRUE;
+	            } else
 	    	        modeOK = FALSE;
   	            pMode->status = status;
 	        } else { 
@@ -643,7 +649,15 @@ i830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe)
 	data->mode |= (1 << 11);
 	data->block->RefreshRate = ((double)(data->block->PixelClock) /
                        (double)(pMode->HTotal * pMode->VTotal)) * 100;
-
+#ifdef DEBUG
+	ErrorF("Video Modeline: ID: 0x%x Name: %s %i %i %i %i - "
+	       "  %i %i %i %i %.2f MHz Refresh: %.2f Hz\n",
+	       data->mode, pMode->name, pMode->HDisplay, pMode->HSyncStart,
+	       pMode->HSyncEnd, pMode->HTotal, pMode->VDisplay,
+	       pMode->VSyncStart,pMode->VSyncEnd,pMode->VTotal,
+	       (double)data->block->PixelClock/1000000.0,
+	       (double)data->block->RefreshRate/100);
+#endif
 	pMode = pMode->next;
     } while (pMode != pScrn->modes);
 }
