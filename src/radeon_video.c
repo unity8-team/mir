@@ -1587,7 +1587,6 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
     else if(attribute == xvDoubleBuffer)
     {
 	pPriv->doubleBuffer = ClipValue (value, 0, 1);
-	pPriv->doubleBuffer = value;
     }
     else if(attribute == xvColorKey)
     {
