@@ -37,7 +37,7 @@
 |*                                                                           *|
  \***************************************************************************/
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_setup.c,v 1.39 2003/11/07 23:56:28 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_setup.c,v 1.38 2003/09/08 20:00:27 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -292,7 +292,7 @@ static void nv10GetConfig (NVPtr pNv)
     }
 #endif
 
-    if((pNv->Chipset & 0xffff) == 0x01a0) {
+    if((pNv->Chipset && 0xffff) == 0x01a0) {
         int amt = pciReadLong(pciTag(0, 0, 1), 0x7C);
         pNv->RamAmountKBytes = (((amt >> 6) & 31) + 1) * 1024;
     } else if((pNv->Chipset & 0xffff) == 0x01f0) {
@@ -403,7 +403,6 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     case 0x017D:
     case 0x0186:
     case 0x0187:
-    case 0x0189:
     case 0x0286:
     case 0x028C:
     case 0x0316:

@@ -37,7 +37,7 @@
 |*                                                                           *|
  \***************************************************************************/
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_xaa.c,v 1.33 2003/09/21 00:17:34 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_xaa.c,v 1.32 2003/08/18 21:40:04 mvojkovi Exp $ */
 
 #include "nv_include.h"
 #include "xaalocal.h"
@@ -113,13 +113,6 @@ NVDmaKickoff(NVPtr pNv)
     }
 }
 
-
-/* There is a HW race condition with videoram command buffers.
-   You can't jump to the location of your put offset.  We write put
-   at the jump offset + SKIPS dwords with noop padding in between
-   to solve this problem */
-#define SKIPS  8
-
 void 
 NVDmaWait (
    NVPtr pNv,
@@ -136,15 +129,15 @@ NVDmaWait (
            pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
            if(pNv->dmaFree < size) {
                NVDmaNext(pNv, 0x20000000);
-               if(dmaGet <= SKIPS) {
-                   if(pNv->dmaPut <= SKIPS) /* corner case - will be idle */
-                      WRITE_PUT(pNv, SKIPS + 1);
+               if(!dmaGet) {
+                   if(!pNv->dmaPut) /* corner case - idle */
+                      NVDmaKickoff(pNv);
                    do { dmaGet = READ_GET(pNv); }
-                   while(dmaGet <= SKIPS);
+                   while(!dmaGet);
                }
-               WRITE_PUT(pNv, SKIPS);
-               pNv->dmaCurrent = pNv->dmaPut = SKIPS;
-               pNv->dmaFree = dmaGet - (SKIPS + 1);
+               WRITE_PUT(pNv, 0);
+               pNv->dmaCurrent = pNv->dmaPut = 0;
+               pNv->dmaFree = dmaGet - 1;
            }
        } else 
            pNv->dmaFree = dmaGet - pNv->dmaCurrent - 1;
@@ -201,7 +194,7 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 {
     NVPtr pNv = NVPTR(pScrn);
     CARD32 surfaceFormat, patternFormat, rectFormat, lineFormat;
-    int pitch, i;
+    int pitch;
 
     if(pNv->NoAccel) return;
 
@@ -210,30 +203,27 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 
     pNv->dmaBase = (CARD32*)(&pNv->FbStart[pNv->FbUsableSize]);
 
-    for(i = 0; i < SKIPS; i++)
-      pNv->dmaBase[i] = 0x00000000;
-
-    pNv->dmaBase[0x0 + SKIPS] = 0x00040000;
-    pNv->dmaBase[0x1 + SKIPS] = 0x80000010;
-    pNv->dmaBase[0x2 + SKIPS] = 0x00042000;
-    pNv->dmaBase[0x3 + SKIPS] = 0x80000011;
-    pNv->dmaBase[0x4 + SKIPS] = 0x00044000;
-    pNv->dmaBase[0x5 + SKIPS] = 0x80000012;
-    pNv->dmaBase[0x6 + SKIPS] = 0x00046000;
-    pNv->dmaBase[0x7 + SKIPS] = 0x80000013;
-    pNv->dmaBase[0x8 + SKIPS] = 0x00048000;
-    pNv->dmaBase[0x9 + SKIPS] = 0x80000014;
-    pNv->dmaBase[0xA + SKIPS] = 0x0004A000;
-    pNv->dmaBase[0xB + SKIPS] = 0x80000015;
-    pNv->dmaBase[0xC + SKIPS] = 0x0004C000;
-    pNv->dmaBase[0xD + SKIPS] = 0x80000016;
-    pNv->dmaBase[0xE + SKIPS] = 0x0004E000;
-    pNv->dmaBase[0xF + SKIPS] = 0x80000017;
+    pNv->dmaBase[0x0] = 0x00040000;
+    pNv->dmaBase[0x1] = 0x80000010;
+    pNv->dmaBase[0x2] = 0x00042000;
+    pNv->dmaBase[0x3] = 0x80000011;
+    pNv->dmaBase[0x4] = 0x00044000;
+    pNv->dmaBase[0x5] = 0x80000012;
+    pNv->dmaBase[0x6] = 0x00046000;
+    pNv->dmaBase[0x7] = 0x80000013;
+    pNv->dmaBase[0x8] = 0x00048000;
+    pNv->dmaBase[0x9] = 0x80000014;
+    pNv->dmaBase[0xA] = 0x0004A000;
+    pNv->dmaBase[0xB] = 0x80000015;
+    pNv->dmaBase[0xC] = 0x0004C000;
+    pNv->dmaBase[0xD] = 0x80000016;
+    pNv->dmaBase[0xE] = 0x0004E000;
+    pNv->dmaBase[0xF] = 0x80000017;
 
     pNv->dmaPut = 0;
-    pNv->dmaCurrent = 16 + SKIPS;
+    pNv->dmaCurrent = 16;
     pNv->dmaMax = 8191;
-    pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
+    pNv->dmaFree = 8175;
 
     switch(pNv->CurrentLayout.depth) {
     case 24:

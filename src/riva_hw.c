@@ -36,7 +36,7 @@
 |*     those rights set forth herein.                                        *|
 |*                                                                           *|
  \***************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_hw.c,v 1.51tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_hw.c,v 1.51 2003/07/31 20:24:30 mvojkovi Exp $ */
 
 #include "riva_local.h"
 #include "compiler.h"
@@ -169,13 +169,14 @@ static int nv3_iterate(nv3_fifo_info *res_info, nv3_sim_state * state, nv3_arb_i
     int mburst_size = 32;
     int mmisses, gmisses, vmisses;
     int misses;
-    int vlwm, glwm;
+    int vlwm, glwm, mlwm;
     int last, next, cur;
     int max_gfsize ;
     long ns;
 
     vlwm = 0;
     glwm = 0;
+    mlwm = 0;
     vfsize = 0;
     gfsize = 0;
     cur = ainfo->cur;
