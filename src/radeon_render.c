@@ -293,7 +293,44 @@ AllocateLinear (
    return (info->RenderTex != NULL);
 }
 
-#endif
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+static Bool RADEONSetupRenderByteswap(ScrnInfoPtr pScrn, int tex_bytepp)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    /* Set up byte swapping for the framebuffer aperture as needed */
+    switch (tex_bytepp) {
+    case 1:
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl &
+				    ~(RADEON_NONSURF_AP0_SWP_32BPP
+				    | RADEON_NONSURF_AP0_SWP_16BPP));
+	break;
+    case 2:
+	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg.surface_cntl &
+				     ~RADEON_NONSURF_AP0_SWP_32BPP)
+				   | RADEON_NONSURF_AP0_SWP_16BPP);
+	break;
+    case 4:
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl
+				  | RADEON_NONSURF_AP0_SWP_32BPP);
+	break;
+    default:
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%s: Don't know what to do for "
+		   "tex_bytepp == %d!\n", __func__, tex_bytepp);
+	return FALSE;
+    }
+}
+
+static void RADEONRestoreByteswap(RADEONInfoPtr info)
+{
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+}
+#endif	/* X_BYTE_ORDER == X_BIG_ENDIAN */
+
+#endif	/* RENDER_GENERIC_HELPER */
 
 #if defined(ACCEL_MMIO) && defined(ACCEL_CP)
 #error Cannot define both MMIO and CP acceleration!
@@ -383,9 +420,6 @@ static Bool FUNC_NAME(R100SetupTexture)(
     CARD8 *dst;
     CARD32 tex_size = 0, txformat;
     int dst_pitch, offset, size, i, tex_bytepp;
-#if X_BYTE_ORDER == X_BIG_ENDIAN && defined(ACCEL_CP)
-    unsigned char *RADEONMMIO = info->MMIO;
-#endif
     ACCEL_PREAMBLE();
 
     if ((width > 2048) || (height > 2048))
@@ -395,26 +429,9 @@ static Bool FUNC_NAME(R100SetupTexture)(
     tex_bytepp = PICT_FORMAT_BPP(format) >> 3;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* Set up byte swapping for the framebuffer aperture as needed */
-    switch (tex_bytepp) {
-    case 1:
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl &
-				    ~(RADEON_NONSURF_AP0_SWP_32BPP
-				    | RADEON_NONSURF_AP0_SWP_16BPP));
-	break;
-    case 2:
-	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg.surface_cntl &
-				     ~RADEON_NONSURF_AP0_SWP_32BPP)
-				   | RADEON_NONSURF_AP0_SWP_16BPP);
-	break;
-    case 4:
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl
-				  | RADEON_NONSURF_AP0_SWP_32BPP
-				  | RADEON_NONSURF_AP0_SWP_16BPP);
-	break;
-    default:
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%s: Don't know what to do for "
-		   "tex_bytepp == %d!\n", __func__, tex_bytepp);
+    if (!RADEONSetupRenderByteswap(pScrn, tex_bytepp)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%s: RADEONSetupRenderByteswap() "
+		   "failed!\n", __func__);
 	return FALSE;
     }
 #endif
@@ -449,8 +466,7 @@ static Bool FUNC_NAME(R100SetupTexture)(
     }
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* restore byte swapping */
-    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+    RADEONRestoreByteswap(info);
 #endif
 
     BEGIN_ACCEL(5);
@@ -695,9 +711,6 @@ static Bool FUNC_NAME(R200SetupTexture)(
     CARD8 *dst;
     CARD32 tex_size = 0, txformat;
     int dst_pitch, offset, size, i, tex_bytepp;
-#if X_BYTE_ORDER == X_BIG_ENDIAN && defined(ACCEL_CP)
-    unsigned char *RADEONMMIO = info->MMIO;
-#endif
     ACCEL_PREAMBLE();
 
     if ((width > 2048) || (height > 2048))
@@ -707,26 +720,9 @@ static Bool FUNC_NAME(R200SetupTexture)(
     tex_bytepp = PICT_FORMAT_BPP(format) >> 3;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* Set up byte swapping for the framebuffer aperture as needed */
-    switch (tex_bytepp) {
-    case 1:
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl &
-				    ~(RADEON_NONSURF_AP0_SWP_32BPP
-				    | RADEON_NONSURF_AP0_SWP_16BPP));
-	break;
-    case 2:
-	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg.surface_cntl &
-				     ~RADEON_NONSURF_AP0_SWP_32BPP)
-				   | RADEON_NONSURF_AP0_SWP_16BPP);
-	break;
-    case 4:
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl
-				  | RADEON_NONSURF_AP0_SWP_32BPP
-				  | RADEON_NONSURF_AP0_SWP_16BPP);
-	break;
-    default:
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%s: Don't know what to do for "
-		   "tex_bytepp == %d!\n", __func__, tex_bytepp);
+    if (!RADEONSetupRenderByteswap(pScrn, tex_bytepp)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%s: RADEONSetupRenderByteswap() "
+		   "failed!\n", __func__);
 	return FALSE;
     }
 #endif
@@ -760,8 +756,7 @@ static Bool FUNC_NAME(R200SetupTexture)(
     }
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* restore byte swapping */
-    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+    RADEONRestoreByteswap(info);
 #endif
 
     BEGIN_ACCEL(6);
