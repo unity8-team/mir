@@ -31,7 +31,7 @@
  * Converted to common header format:
  *   Jens Owen <jens@tungstengraphics.com>
  *
- * $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_common.h,v 1.3 2004/06/16 09:43:58 anholt Exp $
+ * $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_common.h,v 1.4 2004/12/12 16:05:35 volodya Exp $
  * $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_common.h,v 1.8tsi Exp $
  *
  */
@@ -74,6 +74,8 @@
 #define DRM_RADEON_IRQ_WAIT               0x17
 #define DRM_RADEON_CP_RESUME              0x18
 #define DRM_RADEON_SETPARAM               0x19
+#define DRM_RADEON_SURF_ALLOC             0x1a
+#define DRM_RADEON_SURF_FREE              0x1b
 #define DRM_RADEON_MAX_DRM_COMMAND_INDEX  0x39
 
 
@@ -470,6 +472,19 @@ typedef struct drm_radeon_set_param {
 } drmRadeonSetParam;
 
 #define RADEON_SETPARAM_FB_LOCATION     1
+#define RADEON_SETPARAM_SWITCH_TILING   2
+
+/* 1.14: Clients can allocate/free a surface
+ */
+typedef struct drm_radeon_surface_alloc {
+	unsigned int address;
+	unsigned int size;
+	unsigned int flags;
+} drmRadeonSurfaceAlloc;
+
+typedef struct drm_radeon_surface_free {
+	unsigned int address;
+} drmRadeonSurfaceFree;
 
 
 #endif

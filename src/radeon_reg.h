@@ -487,6 +487,10 @@
 #define RADEON_DP_CNTL                      0x16c0
 #       define RADEON_DST_X_LEFT_TO_RIGHT   (1 <<  0)
 #       define RADEON_DST_Y_TOP_TO_BOTTOM   (1 <<  1)
+#       define RADEON_DP_DST_TILE_LINEAR    (0 <<  3)
+#       define RADEON_DP_DST_TILE_MACRO     (1 <<  3)
+#       define RADEON_DP_DST_TILE_MICRO     (2 <<  3)
+#       define RADEON_DP_DST_TILE_BOTH      (3 <<  3)
 #define RADEON_DP_CNTL_XDIR_YDIR_YMAJOR     0x16d0
 #       define RADEON_DST_Y_MAJOR             (1 <<  2)
 #       define RADEON_DST_Y_DIR_TOP_TO_BOTTOM (1 << 15)
@@ -1280,6 +1284,20 @@
 #       define RADEON_NONSURF_AP1_SWP_16BPP (1 << 22)
 #       define RADEON_NONSURF_AP1_SWP_32BPP (1 << 23)
 #define RADEON_SURFACE0_INFO                0x0b0c
+#       define RADEON_SURF_TILE_COLOR_MACRO (0 << 16)
+#       define RADEON_SURF_TILE_COLOR_BOTH  (1 << 16)
+#       define RADEON_SURF_TILE_DEPTH_32BPP (2 << 16)
+#       define RADEON_SURF_TILE_DEPTH_16BPP (3 << 16)
+#       define R200_SURF_TILE_NONE          (0 << 16)
+#       define R200_SURF_TILE_COLOR_MACRO   (1 << 16)
+#       define R200_SURF_TILE_COLOR_MICRO   (2 << 16)
+#       define R200_SURF_TILE_COLOR_BOTH    (3 << 16)
+#       define R200_SURF_TILE_DEPTH_32BPP   (4 << 16)
+#       define R200_SURF_TILE_DEPTH_16BPP   (5 << 16)
+#       define RADEON_SURF_AP0_SWP_16BPP    (1 << 20)
+#       define RADEON_SURF_AP0_SWP_32BPP    (1 << 21)
+#       define RADEON_SURF_AP1_SWP_16BPP    (1 << 22)
+#       define RADEON_SURF_AP1_SWP_32BPP    (1 << 23)
 #define RADEON_SURFACE0_LOWER_BOUND         0x0b04
 #define RADEON_SURFACE0_UPPER_BOUND         0x0b08
 #define RADEON_SURFACE1_INFO                0x0b1c

@@ -407,6 +407,20 @@ For example, Option "MergedDPI" "100 100"
 .br
 The default value is
 .B undefined.
+.TP
+.BI "Option \*qEnableColorTiling\*q \*q" "boolean" \*q
+Frame buffer can be addressed either in linear or tiled mode. Tiled mode can provide
+significant performance benefits with 3D applications, for 2D it shouldn't matter
+much. Tiling will be disabled if the virtual x resolution exceeds 2048, if option
+.B UseFBDev
+is used, or (if DRI is enabled) the drm module is too old.
+.br
+If this option is enabled, a new dri driver is required for direct rendering too.
+.br
+Color tiling will be automatically disabled in interlaced or doublescan screen modes.
+.br
+The default value is
+.B on.
 .TP 
 .BI "Option \*qIgnoreEDID\*q \*q" boolean \*q
 Do not use EDID data for mode validation, but DDC is still used

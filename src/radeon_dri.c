@@ -446,73 +446,23 @@ static void RADEONDRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
     }
 }
 
-/* The Radeon has depth tiling on all the time, so we have to convert
- * the x,y coordinates into the memory bus address (mba) in the same
- * manner as the engine.  In each case, the linear block address (ba)
- * is calculated, and then wired with x and y to produce the final
- * memory address.
+/* The Radeon has depth tiling on all the time. Rely on surface regs to
+ * translate the addresses (only works if allowColorTiling is true).
  */
-static CARD32 radeon_mba_z16(RADEONInfoPtr info, int x, int y)
-{
-    CARD32  pitch   = info->frontPitch;
-    CARD32  address = 0;			/* a[0]    = 0           */
-    CARD32  ba;
-
-    ba = (y / 16) * (pitch / 32) + (x / 32);
-
-    address |= (x & 0x7) << 1;			/* a[1..3] = x[0..2]     */
-    address |= (y & 0x7) << 4;			/* a[4..6] = y[0..2]     */
-    address |= (x & 0x8) << 4;			/* a[7]    = x[3]        */
-    address |= (ba & 0x3) << 8;			/* a[8..9] = ba[0..1]    */
-    address |= (y & 0x8) << 7;			/* a[10]   = y[3]        */
-    address |= ((x & 0x10) ^ (y & 0x10)) << 7;	/* a[11]   = x[4] ^ y[4] */
-    address |= (ba & ~0x3u) << 10;		/* a[12..] = ba[2..]     */
-
-    return address;
-}
-
-static CARD32 radeon_mba_z32(RADEONInfoPtr info, int x, int y)
-{
-    CARD32  pitch   = info->frontPitch;
-    CARD32  address = 0;			/* a[0..1] = 0           */
-    CARD32  ba;
-
-    ba = (y / 16) * (pitch / 16) + (x / 16);
-
-    address |= (x & 0x7) << 2;			/* a[2..4] = x[0..2]     */
-    address |= (y & 0x3) << 5;			/* a[5..6] = y[0..1]     */
-    address |=
-	(((x & 0x10) >> 2) ^ (y & 0x4)) << 5;	/* a[7]    = x[4] ^ y[2] */
-    address |= (ba & 0x3) << 8;			/* a[8..9] = ba[0..1]    */
-
-    address |= (y & 0x8) << 7;			/* a[10]   = y[3]        */
-    address |=
-	(((x & 0x8) << 1) ^ (y & 0x10)) << 7;	/* a[11]   = x[3] ^ y[4] */
-    address |= (ba & ~0x3u) << 10;		/* a[12..] = ba[2..]     */
-
-    return address;
-}
 
 /* 16-bit depth buffer functions */
 #define WRITE_DEPTH16(_x, _y, d)					\
-    *(CARD16 *)(pointer)(buf + radeon_mba_z16(info, (_x), (_y))) = (d)
+    *(CARD16 *)(pointer)(buf + 2*(_x + _y*info->frontPitch)) = (d)
 
 #define READ_DEPTH16(d, _x, _y)						\
-    (d) = *(CARD16 *)(pointer)(buf + radeon_mba_z16(info, (_x), (_y)))
+    (d) = *(CARD16 *)(pointer)(buf + 2*(_x + _y*info->frontPitch))
 
-/* 24 bit depth, 8 bit stencil depthbuffer functions */
-#define WRITE_DEPTH32(_x, _y, d)					\
-do {									\
-    CARD32 tmp =							\
-	*(CARD32 *)(pointer)(buf + radeon_mba_z32(info, (_x), (_y)));	\
-    tmp &= 0xff000000;							\
-    tmp |= ((d) & 0x00ffffff);						\
-    *(CARD32 *)(pointer)(buf + radeon_mba_z32(info, (_x), (_y))) = tmp;	\
-} while (0)
+/* 32-bit depth buffer (stencil and depth simultaneously) functions */
+#define WRITE_DEPTHSTENCIL32(_x, _y, d)					\
+    *(CARD32 *)(pointer)(buf + 4*(_x + _y*info->frontPitch)) = (d)
 
-#define READ_DEPTH32(d, _x, _y)						\
-    d = (*(CARD32 *)(pointer)(buf + radeon_mba_z32(info, (_x), (_y)))	\
-	 & 0x00ffffff)
+#define READ_DEPTHSTENCIL32(d, _x, _y)					\
+    (d) = *(CARD32 *)(pointer)(buf + 4*(_x + _y*info->frontPitch))
 
 /* Screen to screen copy of data in the depth buffer */
 static void RADEONScreenToScreenCopyDepth(ScrnInfoPtr pScrn,
@@ -545,8 +495,8 @@ static void RADEONScreenToScreenCopyDepth(ScrnInfoPtr pScrn,
     case 32:
 	for (x = xstart; x != xend; x += xdir) {
 	    for (y = ystart; y != yend; y += ydir) {
-		READ_DEPTH32(d, xa+x, ya+y);
-		WRITE_DEPTH32(xb+x, yb+y, d);
+		READ_DEPTHSTENCIL32(d, xa+x, ya+y);
+		WRITE_DEPTHSTENCIL32(xb+x, yb+y, d);
 	    }
 	}
 	break;
@@ -684,6 +634,11 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 	xdir = 1;
     }
 
+    /* pretty much a hack. */
+    info->dst_pitch_offset = info->backPitchOffset;
+    if (info->tilingEnabled)
+       info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
+
     (*info->accel->SetupForScreenToScreenCopy)(pScrn, xdir, ydir, GXcopy,
 					       (CARD32)(-1), -1);
 
@@ -703,14 +658,12 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 	if (w <= 0) continue;
 	if (h <= 0) continue;
 
-	RADEONSelectBuffer(pScrn, RADEON_BACK);
 	(*info->accel->SubsequentScreenToScreenCopy)(pScrn,
 						     xa, ya,
 						     destx, desty,
 						     w, h);
 
 	if (info->depthMoves) {
-	    RADEONSelectBuffer(pScrn, RADEON_DEPTH);
 	    RADEONScreenToScreenCopyDepth(pScrn,
 					  xa, ya,
 					  destx, desty,
@@ -718,7 +671,7 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 	}
     }
 
-    RADEONSelectBuffer(pScrn, RADEON_FRONT);
+    info->dst_pitch_offset = info->frontPitchOffset;;
 
     DEALLOCATE_LOCAL(pptNew2);
     DEALLOCATE_LOCAL(pboxNew2);
@@ -1228,7 +1181,7 @@ static void RADEONDRICPInit(ScrnInfoPtr pScrn)
 
 				/* Make sure the CP is on for the X server */
     RADEONCP_START(pScrn, info);
-    RADEONSelectBuffer(pScrn, RADEON_FRONT);
+    info->dst_pitch_offset = info->frontPitchOffset;
 }
 
 
@@ -1316,7 +1269,8 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
 		info->PciInfo->device,
 		info->PciInfo->func);
     }
-    pDRIInfo->ddxDriverMajorVersion      = RADEON_VERSION_MAJOR;
+    pDRIInfo->ddxDriverMajorVersion      = info->allowColorTiling ?
+    				RADEON_VERSION_MAJOR_TILED : RADEON_VERSION_MAJOR;
     pDRIInfo->ddxDriverMinorVersion      = RADEON_VERSION_MINOR;
     pDRIInfo->ddxDriverPatchVersion      = RADEON_VERSION_PATCH;
     pDRIInfo->frameBufferPhysicalAddress = info->LinearAddr;
@@ -1484,6 +1438,24 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
 		       version->version_patchlevel);
 	}
 	info->drmMinor = version->version_minor;
+
+	if (info->allowColorTiling && version->version_minor < 14) {
+	    xf86DrvMsg(pScreen->myNum, X_WARNING,
+		       "[dri] color tiling disabled because of version "
+		       "mismatch.\n"
+		       "[dri] radeon.o kernel module version is %d.%d.%d but "
+		       "1.14.0 or later is required for color tiling.\n",
+		       version->version_major,
+		       version->version_minor,
+		       version->version_patchlevel);
+	   info->allowColorTiling = FALSE;
+	   info->tilingEnabled = FALSE;
+	   /* try to fix up already set mode, crt pitch, ddx major (hope that's ok to do here) */
+	   /* is this correct scrnIndex? flags? */
+	   RADEONSwitchMode(pScrn->scrnIndex, pScrn->currentMode, 0);
+	   pScrn->AdjustFrame(pScrn->scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+	   pDRIInfo->ddxDriverMajorVersion = RADEON_VERSION_MAJOR;
+	}
 	drmFreeVersion(version);
     }
 
@@ -1820,6 +1792,9 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     if (!pSAREAPriv->pfAllowPageFlip && pSAREAPriv->pfCurrentPage == 0)
 	return;
 
+    /* pretty much a hack. */
+    if (info->tilingEnabled)
+       info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
     (*info->accel->SetupForScreenToScreenCopy)(pScrn,
 					       1, 1, GXcopy,
 					       (CARD32)(-1), -1);
@@ -1836,6 +1811,7 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 							 yb - ya + 1);
 	}
     }
+    info->dst_pitch_offset &= ~RADEON_DST_TILE_MACRO;
 }
 
 static void RADEONEnablePageFlip(ScreenPtr pScreen)
@@ -1845,6 +1821,9 @@ static void RADEONEnablePageFlip(ScreenPtr pScreen)
     RADEONSAREAPrivPtr  pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
     if (info->allowPageFlip) {
+        /* pretty much a hack. */
+	if (info->tilingEnabled)
+	    info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
 	/* Duplicate the frontbuffer to the backbuffer */
 	(*info->accel->SetupForScreenToScreenCopy)(pScrn,
 						   1, 1, GXcopy,
@@ -1858,6 +1837,7 @@ static void RADEONEnablePageFlip(ScreenPtr pScreen)
 						     pScrn->virtualX,
 						     pScrn->virtualY);
 
+	info->dst_pitch_offset &= ~RADEON_DST_TILE_MACRO;
 	pSAREAPriv->pfAllowPageFlip = 1;
     }
 }
@@ -1947,9 +1927,10 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen)
 
     xf86FreeOffscreenArea(fbarea);
 
-    RADEONEnablePageFlip(pScreen);
-
     info->have3DWindows = 1;
+
+    RADEONChangeSurfaces(pScrn);
+    RADEONEnablePageFlip(pScreen);
 
     if (info->cursor_start)
 	xf86ForceHWCursor (pScreen, TRUE);
@@ -1979,6 +1960,8 @@ static void RADEONDRITransitionTo2d(ScreenPtr pScreen)
     xf86FreeOffscreenArea(info->depthTexArea);
 
     info->have3DWindows = 0;
+
+    RADEONChangeSurfaces(pScrn);
 
     if (info->cursor_start)
 	    xf86ForceHWCursor (pScreen, FALSE);

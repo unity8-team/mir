@@ -226,6 +226,7 @@ typedef struct {
     int pfAllowPageFlip;	/* set by the 2d driver, read by the client */
     int pfCurrentPage;		/* set by kernel, read by others */
     int crtc2_base;		/* for pageflipping with CloneMode */
-} RADEONSAREAPriv, *RADEONSAREAPrivPtr;
+    int tiling_enabled;         /* set by drm, read by 2d + 3d clients */
+ } RADEONSAREAPriv, *RADEONSAREAPrivPtr;
 
 #endif

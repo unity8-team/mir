@@ -303,9 +303,9 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
 
     pitch64 = ((pScrn->displayWidth * (pScrn->bitsPerPixel / 8) + 0x3f)) >> 6;
 
-    RADEONWaitForFifo(pScrn, 1);
-    OUTREG(RADEON_DEFAULT_OFFSET, ((info->fbLocation >> 10)
-				  | (pitch64 << 22)));
+/*    RADEONWaitForFifo(pScrn, 2);
+    OUTREG(RADEON_DST_PITCH_OFFSET, info->dst_pitch_offset);
+    OUTREG(RADEON_SRC_PITCH_OFFSET, info->dst_pitch_offset);*/
 
     RADEONWaitForFifo(pScrn, 1);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -376,7 +376,8 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 
     info->dp_gui_master_cntl =
 	((info->datatype << RADEON_GMC_DST_DATATYPE_SHIFT)
-	 | RADEON_GMC_CLR_CMP_CNTL_DIS);
+	 | RADEON_GMC_CLR_CMP_CNTL_DIS
+	 | RADEON_GMC_DST_PITCH_OFFSET_CNTL);
 
 #ifdef XF86DRI
     info->sc_left         = 0x00000000;

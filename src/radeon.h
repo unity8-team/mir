@@ -142,6 +142,8 @@ typedef struct {
     CARD32            clock_cntl_index;
     CARD32            amcgpio_en_reg;
     CARD32            amcgpio_mask;
+    
+    CARD32            surfaces[8][3];
 
 				/* CRTC registers */
     CARD32            crtc_gen_cntl;
@@ -367,6 +369,8 @@ typedef struct {
     xf86CursorInfoPtr cursor;
     unsigned long     cursor_start;
     unsigned long     cursor_end;
+    Bool              allowColorTiling;
+    Bool              tilingEnabled; /* mirror of sarea->tiling_enabled */
 #ifdef ARGB_CURSOR
     Bool	      cursor_argb;
 #endif
@@ -654,7 +658,7 @@ extern unsigned    RADEONINPLL(ScrnInfoPtr pScrn, int addr);
 extern void        RADEONWaitForVerticalSync(ScrnInfoPtr pScrn);
 extern void        RADEONWaitForVerticalSync2(ScrnInfoPtr pScrn);
 
-extern void        RADEONSelectBuffer(ScrnInfoPtr pScrn, int buffer);
+extern void        RADEONChangeSurfaces(ScrnInfoPtr pScrn);
 
 extern Bool        RADEONAccelInit(ScreenPtr pScreen);
 extern void        RADEONAccelInitMMIO(ScreenPtr pScreen, XAAInfoRecPtr a);

@@ -161,6 +161,7 @@ typedef enum {
     OPTION_DISP_PRIORITY,
     OPTION_PANEL_SIZE,
     OPTION_MIN_DOTCLOCK,
+    OPTION_COLOR_TILING,
 #ifdef XvExtension
     OPTION_VIDEO_KEY,
     OPTION_RAGE_THEATRE_CRYSTAL,
@@ -217,6 +218,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_DISP_PRIORITY,  "DisplayPriority",  OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_PANEL_SIZE,     "PanelSize",        OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_MIN_DOTCLOCK,   "ForceMinDotClock", OPTV_FREQ,    {0}, FALSE },
+    { OPTION_COLOR_TILING,   "EnableColorTiling",OPTV_BOOLEAN, {0}, FALSE },
 #ifdef XvExtension
     { OPTION_VIDEO_KEY,                   "VideoKey",                 OPTV_INTEGER, {0}, FALSE },
     { OPTION_RAGE_THEATRE_CRYSTAL,        "RageTheatreCrystal",       OPTV_INTEGER, {0}, FALSE },
@@ -1223,7 +1225,7 @@ static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
     long start_secs, start_usecs, stop_secs, stop_usecs, total_usecs;
     long to1_secs, to1_usecs, to2_secs, to2_usecs;
     unsigned int f1, f2, f3;
-    int i, tries = 0;
+    int tries = 0;
 
     prev_xtal = 0;
  again:
@@ -2895,13 +2897,20 @@ static void RADEONSortModes(DisplayModePtr *new, DisplayModePtr *first,
 static void RADEONSetPitch (ScrnInfoPtr pScrn)
 {
     int  dummy = pScrn->virtualX;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
 
     /* FIXME: May need to validate line pitch here */
     switch (pScrn->depth / 8) {
-    case 1: dummy = (pScrn->virtualX + 127) & ~127; break;
-    case 2: dummy = (pScrn->virtualX +  31) &  ~31; break;
+    case 1: if (info->allowColorTiling) dummy = (pScrn->virtualX + 255) & ~255;
+	else dummy = (pScrn->virtualX + 127) & ~127;
+	break;
+    case 2: if (info->allowColorTiling) dummy = (pScrn->virtualX + 127) & ~127;
+	else dummy = (pScrn->virtualX + 31) & ~31;
+	break;
     case 3:
-    case 4: dummy = (pScrn->virtualX +  15) &  ~15; break;
+    case 4: if (info->allowColorTiling) dummy = (pScrn->virtualX + 63) & ~63;
+	else dummy = (pScrn->virtualX + 15) & ~15;
+	break;
     }
     pScrn->displayWidth = dummy;
 }
@@ -3538,7 +3547,8 @@ static int RADEONValidateMergeModes(ScrnInfoPtr pScrn1)
 			      NULL,                  /* linePitches */
 			      8 * 64,                /* minPitch */
 			      8 * 1024,              /* maxPitch */
-			      64 * pScrn1->bitsPerPixel, /* pitchInc */
+			      info->allowColorTiling ? 2048 :
+			          64 * pScrn1->bitsPerPixel, /* pitchInc */
 			      128,                   /* minHeight */
 			      8 * 1024, /*2048,*/    /* maxHeight */
 			      pScrn1->display->virtualX ? pScrn1->virtualX : 0,
@@ -3600,7 +3610,8 @@ static int RADEONValidateMergeModes(ScrnInfoPtr pScrn1)
 					  NULL,                  /* linePitches */
 					  8 * 64,                /* minPitch */
 					  8 * 1024,              /* maxPitch */
-					  64 * pScrn1->bitsPerPixel, /* pitchInc */
+					  info->allowColorTiling ? 2048 :
+					      64 * pScrn1->bitsPerPixel, /* pitchInc */
 					  128,                   /* minHeight */
 					  8 * 1024, /*2048,*/    /* maxHeight */
 					  pScrn1->display->virtualX,
@@ -3797,7 +3808,8 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 			      NULL,                  /* linePitches */
 			      8 * 64,                /* minPitch */
 			      8 * 1024,              /* maxPitch */
-			      64 * pScrn->bitsPerPixel, /* pitchInc */
+			      info->allowColorTiling ? 2048 :
+			          64 * pScrn->bitsPerPixel, /* pitchInc */
 			      128,                   /* minHeight */
 			      2048,                  /* maxHeight */
 			      pScrn->display->virtualX,
@@ -3865,7 +3877,8 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 					  NULL,                  /* linePitches */
 					  8 * 64,                /* minPitch */
 					  8 * 1024,              /* maxPitch */
-					  64 * pScrn->bitsPerPixel, /* pitchInc */
+					  info->allowColorTiling ? 2048 :
+					      64 * pScrn->bitsPerPixel, /* pitchInc */
 					  128,                   /* minHeight */
 					  2048,                  /* maxHeight */
 					  pScrn->display->virtualX,
@@ -4190,15 +4203,6 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     if (xf86GetOptValInteger(info->Options, OPTION_USEC_TIMEOUT,
 			     &(info->CPusecTimeout))) {
 	/* This option checked by the RADEON DRM kernel module */
-    }
-
-    /* Depth moves are disabled by default since they are extremely slow */
-    if ((info->depthMoves = xf86ReturnOptValBool(info->Options,
-						 OPTION_DEPTH_MOVE, FALSE))) {
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Enabling depth moves\n");
-    } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Depth moves disabled by default\n");
     }
 
     /* Two options to try and squeeze as much texture memory as possible
@@ -4568,6 +4572,25 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 		       "Couldn't load fbdevhw module, not using framebuffer device\n");
 	}
     }
+    
+    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
+						OPTION_COLOR_TILING, TRUE);
+    if ((info->allowColorTiling) && (info->IsSecondary)) {
+	/* can't have tiling on the 2nd head (as long as it can't use drm). We'd never
+	   get the surface save/restore (vt switching) right... */
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling disabled for 2nd head\n");
+	info->allowColorTiling = FALSE;
+    }
+    else if ((info->allowColorTiling) && (info->FBDev)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Color tiling not supported with UseFBDev option\n");
+	info->allowColorTiling = FALSE;
+    }
+    else if (info->allowColorTiling) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling enabled by default\n");
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling disabled\n");
+    }
 
     if (!info->FBDev)
 	if (!RADEONPreInitInt10(pScrn, &pInt10))
@@ -4851,6 +4874,36 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
         }
     }
 
+    if (info->allowColorTiling && (pScrn->virtualX > 2048)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Color tiling not supported with virtual x resolutions larger than 2048, disabling\n");
+	info->allowColorTiling = FALSE;
+    }
+    if (info->allowColorTiling) {
+	if (info->MergedFB) {
+	    if ((((RADEONMergedDisplayModePtr)pScrn->currentMode->Private)->CRT1->Flags &
+		(V_DBLSCAN | V_INTERLACE)) ||
+		(((RADEONMergedDisplayModePtr)pScrn->currentMode->Private)->CRT2->Flags &
+		(V_DBLSCAN | V_INTERLACE)))
+		info->tilingEnabled = FALSE;
+	    else info->tilingEnabled = TRUE;
+	}
+	else {
+            info->tilingEnabled = (pScrn->currentMode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
+	}
+    }
+
+    if (!info->IsSecondary) {
+	/* empty the surfaces */
+	unsigned char *RADEONMMIO = info->MMIO;
+	unsigned int i;
+	for (i = 0; i < 8; i++) {
+	    OUTREG(RADEON_SURFACE0_INFO + 16 * i, 0);
+	    OUTREG(RADEON_SURFACE0_LOWER_BOUND + 16 * i, 0);
+	    OUTREG(RADEON_SURFACE0_UPPER_BOUND + 16 * i, 0);
+	}
+    }
+
     if (info->FBDev) {
 	unsigned char *RADEONMMIO = info->MMIO;
 
@@ -4942,6 +4995,20 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     }
 #endif
 
+    /* Depth moves are disabled by default since they are extremely slow */
+    info->depthMoves = xf86ReturnOptValBool(info->Options,
+						 OPTION_DEPTH_MOVE, FALSE);
+    if (info->depthMoves && info->allowColorTiling) {
+	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Enabling depth moves\n");
+    } else if (info->depthMoves) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Depth moves don't work without color tiling, disabled\n");
+	info->depthMoves = FALSE;
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Depth moves disabled by default\n");
+    }
+
     RADEONSetFBLocation(pScrn);
 
     if (!fbScreenInit(pScreen, info->FB,
@@ -4993,26 +5060,32 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
 	FBAreaPtr  fbarea;
-	int        width_bytes = (pScrn->displayWidth *
-				  info->CurrentLayout.pixel_bytes);
-	int        cpp         = info->CurrentLayout.pixel_bytes;
-	int        bufferSize  = ((pScrn->virtualY * width_bytes
-				   + RADEON_BUFFER_ALIGN)
-				  & ~RADEON_BUFFER_ALIGN);
+	int        cpp = info->CurrentLayout.pixel_bytes;
+	int        width_bytes = pScrn->displayWidth * cpp;
+	int        bufferSize;
 	int        depthSize;
 	int        l;
 	int        scanlines;
 
 	info->frontOffset = 0;
 	info->frontPitch = pScrn->displayWidth;
-
+	info->backPitch = pScrn->displayWidth;
+	/* make sure we use 16 line alignment for tiling (8 might be enough).
+	   Might need that for non-XF86DRI too? */
+	if (info->allowColorTiling) {
+	    bufferSize = (((pScrn->virtualY + 15) & ~15) * width_bytes
+			+ RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN;
+	}
+	else {
+	    bufferSize = (pScrn->virtualY * width_bytes
+			+ RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN;
+	}
 	/* Due to tiling, the Z buffer pitch must be a multiple of 32 pixels,
-	 * and its height a multiple of 16 lines.
+	 * which is always the case due to color pitch and its height a multiple of 16 lines.
 	 */
-	info->depthPitch = (pScrn->displayWidth + 31) & ~31;
-	depthSize = ((((pScrn->virtualY+15) & ~15) * info->depthPitch
-		      * info->CurrentLayout.pixel_bytes + RADEON_BUFFER_ALIGN)
-		     & ~RADEON_BUFFER_ALIGN);
+	info->depthPitch = pScrn->displayWidth;
+	depthSize = ((((pScrn->virtualY + 15) & ~15) * info->depthPitch
+	      * cpp + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
 
 	switch (info->CPMode) {
 	case RADEON_DEFAULT_CP_PIO_MODE:
@@ -5052,14 +5125,16 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (info->textureSize < (int)info->FbMapSize / 2) {
 	    info->textureSize = info->FbMapSize - 3 * bufferSize - depthSize;
 	}
-	/* If there's still no space for textures, try without pixmap cache */
+	/* If there's still no space for textures, try without pixmap cache, but never use
+	   the reserved space and the space hw cursor might use */
 	if (info->textureSize < 0) {
 	    info->textureSize = info->FbMapSize - 2 * bufferSize - depthSize
-				- 64/4*64;
+				- 2 * width_bytes - 16384;
 	}
 
 	/* Check to see if there is more room available after the 8192nd
 	   scanline for textures */
+	/* FIXME: what's this good for? condition is pretty much impossible to meet */
 	if ((int)info->FbMapSize - 8192*width_bytes - bufferSize - depthSize
 	    > info->textureSize) {
 	    info->textureSize =
@@ -5071,6 +5146,19 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	   info->textureSize += bufferSize;
 	}
 
+	/* RADEON_BUFFER_ALIGN is not sufficient for backbuffer!
+	   At least for pageflip + color tiling, need to make sure it's 16 scanlines aligned,
+	   otherwise the copy-from-front-to-back will fail (width_bytes * 16 will also guarantee
+	   it's still 4kb aligned for tiled case). Need to round up offset (might get into cursor
+	   area otherwise).
+	   This might cause some space at the end of the video memory to be unused, since it
+	   can't be used (?) due to that log_tex_granularity thing???
+	   Could use different copyscreentoscreen function for the pageflip copies
+	   (which would use different src and dst offsets) to avoid this. */   
+	if (info->allowColorTiling && !info->noBackBuffer) {
+	    info->textureSize = info->FbMapSize - ((info->FbMapSize - info->textureSize +
+		width_bytes * 16 - 1) / (width_bytes * 16)) * (width_bytes * 16);
+	}
 	if (info->textureSize > 0) {
 	    l = RADEONMinBits((info->textureSize-1) / RADEON_NR_TEX_REGIONS);
 	    if (l < RADEON_LOG_TEX_GRANULARITY) l = RADEON_LOG_TEX_GRANULARITY;
@@ -5093,10 +5181,16 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	    info->textureSize = 0;
 	}
 
+	if (info->allowColorTiling && !info->noBackBuffer) {
+	    info->textureOffset = ((info->FbMapSize - info->textureSize) /
+		(width_bytes * 16)) * (width_bytes * 16);
+	}
+	else {
 				/* Reserve space for textures */
-	info->textureOffset = ((info->FbMapSize - info->textureSize +
+	    info->textureOffset = ((info->FbMapSize - info->textureSize +
 				RADEON_BUFFER_ALIGN) &
 			       ~(CARD32)RADEON_BUFFER_ALIGN);
+	}
 
 				/* Reserve space for the shared depth
                                  * buffer.
@@ -5108,12 +5202,10 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 				/* Reserve space for the shared back buffer */
 	if (info->noBackBuffer) {
 	   info->backOffset = info->depthOffset;
-	   info->backPitch = pScrn->displayWidth;
 	} else {
 	   info->backOffset = ((info->depthOffset - bufferSize +
 				RADEON_BUFFER_ALIGN) &
 			       ~(CARD32)RADEON_BUFFER_ALIGN);
-	   info->backPitch = pScrn->displayWidth;
 	}
 
 	info->backY = info->backOffset / width_bytes;
@@ -5139,9 +5231,14 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	    xf86DrvMsg(scrnIndex, X_INFO,
 		       "Memory manager initialized to (%d,%d) (%d,%d)\n",
 		       MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
+	    /* why oh why can't we just request modes which are guaranteed to be 16 lines
+	       aligned... sigh */
 	    if ((fbarea = xf86AllocateOffscreenArea(pScreen,
 						    pScrn->displayWidth,
-						    2, 0, NULL, NULL,
+						    info->allowColorTiling ? 
+						    ((pScrn->virtualY + 15) & ~15)
+						        - pScrn->virtualY + 2 : 2,
+						    0, NULL, NULL,
 						    NULL))) {
 		xf86DrvMsg(scrnIndex, X_INFO,
 			   "Reserved area from (%d,%d) to (%d,%d)\n",
@@ -5194,12 +5291,11 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     } else
 #endif
     {
+	int width_bytes = pScrn->displayWidth * info->CurrentLayout.pixel_bytes;
 	MemBox.x1 = 0;
 	MemBox.y1 = 0;
 	MemBox.x2 = pScrn->displayWidth;
-	y2        = (info->FbMapSize
-		     / (pScrn->displayWidth *
-			info->CurrentLayout.pixel_bytes));
+	y2 = info->FbMapSize / width_bytes;
 	if (y2 >= 32768) y2 = 32767; /* because MemBox.y2 is signed short */
 	MemBox.y2 = y2;
 
@@ -5223,7 +5319,10 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		       MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
 	    if ((fbarea = xf86AllocateOffscreenArea(pScreen,
 						    pScrn->displayWidth,
-						    2, 0, NULL, NULL,
+						    info->allowColorTiling ? 
+						    ((pScrn->virtualY + 15) & ~15)
+						        - pScrn->virtualY + 2 : 2,
+						    0, NULL, NULL,
 						    NULL))) {
 		xf86DrvMsg(scrnIndex, X_INFO,
 			   "Reserved area from (%d,%d) to (%d,%d)\n",
@@ -5240,6 +5339,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	    }
 	}
     }
+
+    info->dst_pitch_offset = (((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64) << 22) |
+				  ((info->fbLocation + pScrn->fbOffset) >> 10));
 
 				/* Acceleration setup */
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
@@ -5348,10 +5450,26 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	    RADEONInitDispBandwidth(pScrn);
 	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Direct rendering enabled\n");
+
+	/* we might already be in tiled mode, tell drm about it */
+	if (info->directRenderingEnabled && info->tilingEnabled) {
+	    drmRadeonSetParam  radeonsetparam;
+	    memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
+	    radeonsetparam.param = RADEON_SETPARAM_SWITCH_TILING;
+	    radeonsetparam.value = info->tilingEnabled ? 1 : 0; 
+	    if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
+		&radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "[drm] failed changing tiling status\n");
+	}
+
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Direct rendering disabled\n");
     }
 #endif
+
+    if (!info->IsSecondary)
+	RADEONChangeSurfaces(pScrn);
 
     if(info->MergedFB) {
 	/* need this here to fix up sarea values */
@@ -5784,6 +5902,130 @@ static void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
 	    ~(RADEON_PIX2CLK_SRC_SEL_MASK));
 }
 
+void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
+{
+   /* the idea here is to only set up front buffer as tiled, and back/depth buffer when needed.
+      Everything else is left as untiled. This means we need to use eplicit src/dst pitch control
+      when blitting, based on the src/target address, and can no longer use a default offset.
+      But OTOH we don't need to dynamically change surfaces (for xv for instance), and some
+      ugly offset / fb reservation (cursor) is gone. And as a bonus, everything actually works...
+      For simplicity, just always update everything (just let the ioctl fail - could do better).
+      All surface addresses are relative to RADEON_MC_FB_LOCATION */
+  
+    RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    int cpp = info->CurrentLayout.pixel_bytes;
+    /* depth/front/back pitch must be identical (and the same as displayWidth) */
+    int width_bytes = pScrn->displayWidth * cpp;
+    int bufferSize = ((((pScrn->virtualY + 15) & ~15) * width_bytes
+        + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
+    unsigned int depth_pattern, color_pattern, swap_pattern;
+
+    swap_pattern = 0;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    switch (pScrn->bitsPerPixel) {
+    case 16:
+	swap_pattern = RADEON_SURF_AP0_SWP_16BPP | RADEON_SURF_AP1_SWP_16BPP;
+	break;
+
+    case 32:
+	swap_pattern = RADEON_SURF_AP0_SWP_32BPP | RADEON_SURF_AP1_SWP_32BPP;
+	break;
+    }
+#endif
+    if (info->ChipFamily < CHIP_FAMILY_R200) {
+	color_pattern = RADEON_SURF_TILE_COLOR_MACRO;
+	if (cpp == 2)
+	    depth_pattern = RADEON_SURF_TILE_DEPTH_16BPP;
+	else
+	    depth_pattern = RADEON_SURF_TILE_DEPTH_32BPP;
+    }
+    else {
+	/* no idea about R300, just set it up the same as r200
+	   if someone is crazy enough to try... */
+	color_pattern = R200_SURF_TILE_COLOR_MACRO;
+	if (cpp == 2)
+	    depth_pattern = R200_SURF_TILE_DEPTH_16BPP;
+	else
+	    depth_pattern = R200_SURF_TILE_DEPTH_32BPP;
+    }   
+#ifdef XF86DRI
+    if (info->directRenderingEnabled && info->allowColorTiling) {
+	drmRadeonSurfaceFree drmsurffree;
+	int retvalue;
+
+	drmsurffree.address = info->frontOffset;
+	retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_FREE,
+	    &drmsurffree, sizeof(drmsurffree));
+
+	if ((info->ChipFamily != CHIP_FAMILY_RV100) || 
+	    (info->ChipFamily != CHIP_FAMILY_RS100) ||
+	    (info->ChipFamily != CHIP_FAMILY_RS200)) {
+	    drmsurffree.address = info->depthOffset;
+	    retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_FREE,
+		&drmsurffree, sizeof(drmsurffree));
+	}
+
+	if (!info->noBackBuffer) {
+	    drmsurffree.address = info->backOffset;
+	    retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_FREE,
+		&drmsurffree, sizeof(drmsurffree));
+	}
+
+	if (info->tilingEnabled) {
+	    drmRadeonSurfaceAlloc drmsurfalloc;
+	    drmsurfalloc.size = bufferSize;
+	    drmsurfalloc.address = info->frontOffset;
+	    drmsurfalloc.flags = swap_pattern | (width_bytes / 16) | color_pattern;
+	    retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_ALLOC,
+		&drmsurfalloc, sizeof(drmsurfalloc));
+	    if (retvalue < 0)
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "drm: could not allocate surface for front buffer!\n");
+
+	    if ((info->have3DWindows) && (!info->noBackBuffer)) {
+		drmsurfalloc.address = info->backOffset;
+		retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_ALLOC,
+		    &drmsurfalloc, sizeof(drmsurfalloc));
+		if (retvalue < 0)
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"drm: could not allocate surface for back buffer!\n");
+	    }
+	}
+	/* rv100 and probably the derivative igps don't have depth tiling on all the time? */
+	if (info->have3DWindows && ((info->ChipFamily != CHIP_FAMILY_RV100) || 
+	    (info->ChipFamily != CHIP_FAMILY_RS100) ||
+	    (info->ChipFamily != CHIP_FAMILY_RS200))) {
+	    drmRadeonSurfaceAlloc drmsurfalloc;
+	    drmsurfalloc.size = bufferSize;
+	    drmsurfalloc.address = info->depthOffset;
+	    drmsurfalloc.flags = swap_pattern | (width_bytes / 16) | depth_pattern;
+	    retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_ALLOC,
+		&drmsurfalloc, sizeof(drmsurfalloc));
+	    if (retvalue < 0)
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "drm: could not allocate surface for depth buffer!\n");
+	}
+    }
+    else
+#endif
+    if (info->allowColorTiling) {
+	unsigned int surf_info = 0;
+	unsigned char *RADEONMMIO = info->MMIO;
+	/* we don't need anything like WaitForFifo, no? */
+	if (!info->IsSecondary) {
+	    if (info->tilingEnabled) {
+		surf_info = swap_pattern | (width_bytes / 16) | color_pattern;
+	    }
+	    OUTREG(RADEON_SURFACE0_INFO, surf_info);
+	    OUTREG(RADEON_SURFACE0_LOWER_BOUND, 0);
+	    OUTREG(RADEON_SURFACE0_UPPER_BOUND, bufferSize - 1);
+/*	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"surface0 set to %x, LB 0x%x UB 0x%x\n",
+		surf_info, 0, bufferSize - 1024);*/
+	}
+    }
+}
+
 #if 0
 /* Write palette data */
 static void RADEONRestorePalette(ScrnInfoPtr pScrn, RADEONSavePtr restore)
@@ -5809,6 +6051,35 @@ static void RADEONRestorePalette(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     }
 }
 #endif
+
+/* restore original surface info (for fb console). */
+static void RADEONRestoreSurfaces(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr      info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned int surfnr;
+    
+    for ( surfnr = 0; surfnr < 8; surfnr++ ) {
+	OUTREG(RADEON_SURFACE0_INFO + 16 * surfnr, restore->surfaces[surfnr][0]);
+	OUTREG(RADEON_SURFACE0_LOWER_BOUND + 16 * surfnr, restore->surfaces[surfnr][1]);
+	OUTREG(RADEON_SURFACE0_UPPER_BOUND + 16 * surfnr, restore->surfaces[surfnr][2]);
+    }
+}
+
+/* save original surface info (for fb console). */
+static void RADEONSaveSurfaces(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr      info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned int surfnr;
+    
+    for ( surfnr = 0; surfnr < 8; surfnr++ ) {
+	save->surfaces[surfnr][0] = INREG(RADEON_SURFACE0_INFO + 16 * surfnr);
+	save->surfaces[surfnr][1] = INREG(RADEON_SURFACE0_LOWER_BOUND + 16 * surfnr);
+	save->surfaces[surfnr][2] = INREG(RADEON_SURFACE0_UPPER_BOUND + 16 * surfnr);
+    }
+}
+
 
 /* Write out state to define a new video mode */
 static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
@@ -6122,6 +6393,8 @@ static void RADEONSave(ScrnInfoPtr pScrn)
     }
 
     RADEONSaveMode(pScrn, save);
+    if (!info->IsSecondary)
+	RADEONSaveSurfaces(pScrn, save);
 }
 
 /* Restore the original (text) mode */
@@ -6161,6 +6434,8 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
 #endif
 
     RADEONRestoreMode(pScrn, restore);
+    if (!info->IsSecondary)
+	RADEONRestoreSurfaces(pScrn, restore);
 
 #if 0
     /* Temp fix to "solve" VT switch problems.  When switching VTs on
@@ -6654,6 +6929,12 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
     save->crtc_offset      = 0;
     save->crtc_offset_cntl = INREG(RADEON_CRTC_OFFSET_CNTL);
+    if (info->tilingEnabled) {
+       save->crtc_offset_cntl |= RADEON_CRTC_TILE_EN;
+    }
+    else {
+       save->crtc_offset_cntl &= ~RADEON_CRTC_TILE_EN;
+    }
 
     save->crtc_pitch  = (((pScrn->displayWidth * pScrn->bitsPerPixel) +
 			  ((pScrn->bitsPerPixel * 8) -1)) /
@@ -6833,6 +7114,12 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
      */
     save->crtc2_offset      = 0;
     save->crtc2_offset_cntl = INREG(RADEON_CRTC2_OFFSET_CNTL) & RADEON_CRTC_OFFSET_FLIP_CNTL;
+    if (info->tilingEnabled) {
+       save->crtc2_offset_cntl |= RADEON_CRTC_TILE_EN;
+    }
+    else {
+       save->crtc2_offset_cntl &= ~RADEON_CRTC_TILE_EN;
+    }
 
     /* this should be right */
     if (info->MergedFB) {
@@ -7435,6 +7722,7 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
     ScrnInfoPtr    pScrn       = xf86Screens[scrnIndex];
     RADEONInfoPtr  info        = RADEONPTR(pScrn);
+    Bool           tilingOld   = info->tilingEnabled;
     Bool           ret;
 #ifdef XF86DRI
     Bool           CPStarted   = info->CPStarted;
@@ -7444,6 +7732,35 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 	RADEONCP_STOP(pScrn, info);
     }
 #endif
+
+    if (info->allowColorTiling) {
+	if (info->MergedFB) {
+	    if ((((RADEONMergedDisplayModePtr)mode->Private)->CRT1->Flags &
+		(V_DBLSCAN | V_INTERLACE)) ||
+		(((RADEONMergedDisplayModePtr)mode->Private)->CRT2->Flags &
+		(V_DBLSCAN | V_INTERLACE)))
+		info->tilingEnabled = FALSE;
+	    else info->tilingEnabled = TRUE;
+	}
+	else {
+            info->tilingEnabled = (mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
+	}
+#ifdef XF86DRI	
+	if (info->directRenderingEnabled && (info->tilingEnabled != tilingOld)) {
+	    RADEONSAREAPrivPtr pSAREAPriv;
+	    drmRadeonSetParam  radeonsetparam;
+	    memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
+	    radeonsetparam.param = RADEON_SETPARAM_SWITCH_TILING;
+	    radeonsetparam.value = info->tilingEnabled ? 1 : 0;
+	    if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
+		&radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "[drm] failed changing tiling status\n");
+	    pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+	    info->tilingEnabled = pSAREAPriv->tiling_enabled ? TRUE : FALSE;
+	}
+#endif
+    }
 
     if (info->accelOn) info->accel->Sync(pScrn);
 
@@ -7457,6 +7774,14 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 	info->IsSwitching = TRUE;
 	ret = RADEONModeInit(xf86Screens[scrnIndex], mode);
 	info->IsSwitching = FALSE;
+    }
+
+    if (info->tilingEnabled != tilingOld) {
+	/* need to redraw front buffer, I guess this can be considered a hack ? */
+	xf86EnableDisableFBAccess(scrnIndex, FALSE);
+	RADEONChangeSurfaces(pScrn);
+	xf86EnableDisableFBAccess(scrnIndex, TRUE);
+	/* xf86SetRootClip would do, but can't access that here */
     }
 
     if (info->accelOn) {
@@ -7514,7 +7839,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    int            reg, Base;
+    int            reg, Base, regcntl, crtcoffsetcntl;
 #ifdef XF86DRI
     RADEONSAREAPrivPtr pSAREAPriv;
     XF86DRISAREAPtr pSAREA;
@@ -7528,13 +7853,43 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 		y += (pScrn->virtualY - 1) * (y / 3 + 1);
 		if (y > lastline) y = lastline;
     }
-    Base = y * info->CurrentLayout.displayWidth + x;
-    
-    switch (info->CurrentLayout.pixel_code) {
-    case 15:
-    case 16: Base *= 2; break;
-    case 24: Base *= 3; break;
-    case 32: Base *= 4; break;
+
+  /* note we cannot really simply use the info->ModeReg.crtc_offset_cntl value, since the
+     drm might have set FLIP_CNTL since we wrote that. Unfortunately FLIP_CNTL causes
+     flickering when scrolling vertically in a virtual screen, possibly because crtc will
+     pick up the new offset value at the end of each scanline, but the new offset_cntl value
+     only after a vsync. We'd probably need to wait (in drm) for vsync and only then update
+     OFFSET and OFFSET_CNTL, if the y coord has changed. Seems hard to fix. */
+    if (clone || info->IsSecondary) {
+	regcntl = RADEON_CRTC2_OFFSET_CNTL;
+    } else {
+	regcntl = RADEON_CRTC_OFFSET_CNTL;
+    }
+    crtcoffsetcntl = INREG(regcntl) & ~0xf;
+    /* try to get rid of flickering when scrolling at least for 2d */
+    if (!info->have3DWindows) crtcoffsetcntl &= ~RADEON_CRTC_OFFSET_FLIP_CNTL;
+    if (info->tilingEnabled) {
+	int byteshift = info->CurrentLayout.bitsPerPixel >> 4;
+	/* crtc uses 256(bytes)x8 "half-tile" start addresses? */
+	int tile_addr = (((y >> 3) * info->CurrentLayout.displayWidth + x) >> (8 - byteshift)) << 11;
+	Base = tile_addr + ((x << byteshift) % 256) + ((y % 8) << 8);
+	crtcoffsetcntl = crtcoffsetcntl | (y % 16);
+	if (((info->ChipFamily == CHIP_FAMILY_RV100) ||
+            (info->ChipFamily == CHIP_FAMILY_RS100) ||
+            (info->ChipFamily == CHIP_FAMILY_RS200)) && ((y >> 3) % 2)) {
+	    /* FIXME: unknown why some cards (confirmed only for rv100) need this.
+	       other cards might need that too (all 64bit cards maybe?) */
+	    Base ^= 2048;
+	}
+    }
+    else {
+       Base = y * info->CurrentLayout.displayWidth + x;
+       switch (info->CurrentLayout.pixel_code) {
+       case 15:
+       case 16: Base *= 2; break;
+       case 24: Base *= 3; break;
+       case 32: Base *= 4; break;
+       }
     }
 
     Base &= ~7;                 /* 3 lower bits are always 0 */
@@ -7573,6 +7928,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 #endif
 
     OUTREG(reg, Base);
+    OUTREG(regcntl, crtcoffsetcntl);
 }
 
 void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
@@ -7633,6 +7989,8 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 	if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
 
     RADEONSetFBLocation(pScrn);
+    if (!info->IsSecondary)
+	RADEONRestoreSurfaces(pScrn, &info->ModeReg);
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
 	/* get the Radeon back into shape after resume */
@@ -7685,6 +8043,8 @@ void RADEONLeaveVT(int scrnIndex, int flags)
 	fbdevHWLeaveVT(scrnIndex,flags);
     }
 
+    if (!info->IsSecondary)
+	RADEONSaveSurfaces(pScrn, save);
     RADEONRestore(pScrn);
 }
 

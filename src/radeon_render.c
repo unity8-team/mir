@@ -551,9 +551,8 @@ FUNC_NAME(R100SetupForCPUToScreenAlphaTexture) (
     srccolor = ((alpha & 0xff00) << 16) | ((red & 0xff00) << 8) | (blue >> 8) |
 	(green & 0xff00);
 
-    BEGIN_ACCEL(8);
+    BEGIN_ACCEL(7);
     OUT_ACCEL_REG(RADEON_RB3D_CNTL, colorformat | RADEON_ALPHA_BLEND_ENABLE);
-    OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth);
     OUT_ACCEL_REG(RADEON_PP_CNTL, RADEON_TEX_0_ENABLE |
 				  RADEON_TEX_BLEND_0_ENABLE);
     OUT_ACCEL_REG(RADEON_PP_TFACTOR_0, srccolor);
@@ -600,9 +599,8 @@ FUNC_NAME(R100SetupForCPUToScreenTexture) (
 
     colorformat = RadeonGetColorFormat(dstFormat);
     
-    BEGIN_ACCEL(7);
+    BEGIN_ACCEL(6);
     OUT_ACCEL_REG(RADEON_RB3D_CNTL, colorformat | RADEON_ALPHA_BLEND_ENABLE);
-    OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth);
     OUT_ACCEL_REG(RADEON_PP_CNTL, RADEON_TEX_0_ENABLE |
 				  RADEON_TEX_BLEND_0_ENABLE);
     if (srcFormat != PICT_a8)
@@ -640,24 +638,36 @@ FUNC_NAME(R100SubsequentCPUToScreenTexture) (
     /* Note: we can't simply set up the 3D surface at the same location as the
      * front buffer, because the 2048x2048 limit on coordinates may be smaller
      * than the (MergedFB) screen.
+     * Can't use arbitrary offsets for color tiling
      */ 
-    byteshift = (pScrn->bitsPerPixel >> 4);
-    fboffset = (info->fbLocation + pScrn->fbOffset +
+    if (info->tilingEnabled) {
+       /* can't play tricks with x coordinate, or could we - tiling is disabled anyway in that case */
+       fboffset = info->fbLocation + pScrn->fbOffset +
+          (pScrn->displayWidth * (dsty & ~15) * (pScrn->bitsPerPixel >> 3));
+       l = dstx;
+       t = (dsty % 16);
+    }
+    else {
+       byteshift = (pScrn->bitsPerPixel >> 4);
+       fboffset = (info->fbLocation + pScrn->fbOffset +
 		((pScrn->displayWidth * dsty + dstx) << byteshift)) & ~15;
-    l = ((dstx << byteshift) % 16) >> byteshift;
-    t = 0.0;
+       l = ((dstx << byteshift) % 16) >> byteshift;
+       t = 0.0;
+    }
+
     r = width + l;
-    b = height;
+    b = height + t;
     fl = srcx;
     fr = srcx + width;
     ft = srcy;
     fb = srcy + height;
 
 #ifdef ACCEL_CP
-    BEGIN_RING(23);
+    BEGIN_RING(25);
 
+    OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth |
+	((info->tilingEnabled && (dsty <= pScrn->virtualY)) ? RADEON_COLOR_TILE_ENABLE : 0));
     OUT_ACCEL_REG(RADEON_RB3D_COLOROFFSET, fboffset);
-
     OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD, 17));
     /* RADEON_SE_VTX_FMT */
     OUT_RING(RADEON_CP_VC_FRMT_XY |
@@ -693,8 +703,10 @@ FUNC_NAME(R100SubsequentCPUToScreenTexture) (
 
     ADVANCE_RING();
 #else
-    BEGIN_ACCEL(19);
+    BEGIN_ACCEL(20);
     
+    OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth |
+	((info->tilingEnabled && (dsty <= pScrn->virtualY)) ? RADEON_COLOR_TILE_ENABLE : 0));
     OUT_ACCEL_REG(RADEON_RB3D_COLOROFFSET, fboffset);
 
     OUT_ACCEL_REG(RADEON_SE_VF_CNTL, RADEON_VF_PRIM_TYPE_TRIANGLE_FAN |
@@ -870,9 +882,8 @@ FUNC_NAME(R200SetupForCPUToScreenAlphaTexture) (
     srccolor = ((alpha & 0xff00) << 16) | ((red & 0xff00) << 8) | (blue >> 8) |
 	(green & 0xff00);
 
-    BEGIN_ACCEL(11);
+    BEGIN_ACCEL(10);
     OUT_ACCEL_REG(RADEON_RB3D_CNTL, colorformat | RADEON_ALPHA_BLEND_ENABLE);
-    OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth);
     OUT_ACCEL_REG(RADEON_PP_CNTL, RADEON_TEX_0_ENABLE |
 				  RADEON_TEX_BLEND_0_ENABLE);
     OUT_ACCEL_REG(R200_PP_TFACTOR_0, srccolor);
@@ -920,9 +931,8 @@ FUNC_NAME(R200SetupForCPUToScreenTexture) (
 
     colorformat = RadeonGetColorFormat(dstFormat);
 
-    BEGIN_ACCEL(10);
+    BEGIN_ACCEL(9);
     OUT_ACCEL_REG(RADEON_RB3D_CNTL, colorformat | RADEON_ALPHA_BLEND_ENABLE);
-    OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth);
     OUT_ACCEL_REG(RADEON_PP_CNTL, RADEON_TEX_0_ENABLE |
 				  RADEON_TEX_BLEND_0_ENABLE);
     if (srcFormat != PICT_a8)
@@ -960,22 +970,35 @@ FUNC_NAME(R200SubsequentCPUToScreenTexture) (
     /* Note: we can't simply set up the 3D surface at the same location as the
      * front buffer, because the 2048x2048 limit on coordinates may be smaller
      * than the (MergedFB) screen.
+     * Can't use arbitrary offsets for color tiling
      */ 
-    byteshift = (pScrn->bitsPerPixel >> 4);
-    fboffset = (info->fbLocation + pScrn->fbOffset + ((pScrn->displayWidth *
-	dsty + dstx) << byteshift)) & ~15;
-    l = ((dstx << byteshift) % 16) >> byteshift;
-    t = 0.0;
+    if (info->tilingEnabled) {
+       /* can't play tricks with x coordinate, or could we - tiling is disabled anyway in that case */
+       fboffset = info->fbLocation + pScrn->fbOffset +
+          (pScrn->displayWidth * (dsty & ~15) * (pScrn->bitsPerPixel >> 3));
+       l = dstx;
+       t = (dsty % 16);
+    }
+    else {
+       byteshift = (pScrn->bitsPerPixel >> 4);
+       fboffset = (info->fbLocation + pScrn->fbOffset +
+		((pScrn->displayWidth * dsty + dstx) << byteshift)) & ~15;
+       l = ((dstx << byteshift) % 16) >> byteshift;
+       t = 0.0;
+    }
+    
     r = width + l;
-    b = height;
+    b = height + t;
     fl = srcx;
     fr = srcx + width;
     ft = srcy;
     fb = srcy + height;
 
 #ifdef ACCEL_CP
-    BEGIN_RING(22);
+    BEGIN_RING(24);
 
+    OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth |
+	((info->tilingEnabled && (dsty <= pScrn->virtualY)) ? RADEON_COLOR_TILE_ENABLE : 0));
     OUT_ACCEL_REG(RADEON_RB3D_COLOROFFSET, fboffset);
 
     OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2, 16));
@@ -1008,11 +1031,13 @@ FUNC_NAME(R200SubsequentCPUToScreenTexture) (
 
     ADVANCE_RING();
 #else
-    BEGIN_ACCEL(19);
+    BEGIN_ACCEL(20);
     
     /* Note: we can't simply setup 3D surface at the same location as the front buffer,
        some apps may draw offscreen pictures out of the limitation of radeon 3D surface.
     */ 
+    OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, pScrn->displayWidth |
+	((info->tilingEnabled && (dsty <= pScrn->virtualY)) ? RADEON_COLOR_TILE_ENABLE : 0));
     OUT_ACCEL_REG(RADEON_RB3D_COLOROFFSET, fboffset);
 
     OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_QUAD_LIST |
