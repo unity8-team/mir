@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atii2c.h,v 1.2 2004/01/05 16:42:02 tsi Exp $ */
+/* $XFree86$ */
 /*
  * Copyright 2003 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
