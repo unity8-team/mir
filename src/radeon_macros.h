@@ -133,46 +133,4 @@ do {									\
     }									\
 } while (0)
 
-static void RADEONPllErrataAfterIndex(RADEONInfoPtr info)
-{
-    unsigned char *RADEONMMIO = info->MMIO;
-	
-    if (!(info->ChipErrata & CHIP_ERRATA_PLL_DUMMYREADS))
-	return;
-
-    /* This workaround is necessary on rv200 and RS200 or PLL
-     * reads may return garbage (among others...)
-     */
-    (void)INREG(RADEON_CLOCK_CNTL_DATA);
-    (void)INREG(RADEON_CRTC_GEN_CNTL);
-}
-
-static void RADEONPllErrataAfterData(RADEONInfoPtr info)
-{
-    unsigned char *RADEONMMIO = info->MMIO;
-
-    /* This workarounds is necessary on RV100, RS100 and RS200 chips
-     * or the chip could hang on a subsequent access
-     */
-    if (info->ChipErrata & CHIP_ERRATA_PLL_DELAY) {
-	/* we can't deal with posted writes here ... */
-	usleep(5000);
-    }
-
-    /* This function is required to workaround a hardware bug in some (all?)
-     * revisions of the R300.  This workaround should be called after every
-     * CLOCK_CNTL_INDEX register access.  If not, register reads afterward
-     * may not be correct.
-     */
-    if (info->ChipErrata & CHIP_ERRATA_R300_CG) {
-	CARD32         save, tmp;
-
-	save = INREG(RADEON_CLOCK_CNTL_INDEX);
-	tmp = save & ~(0x3f | RADEON_PLL_WR_EN);
-	OUTREG(RADEON_CLOCK_CNTL_INDEX, tmp);
-	tmp = INREG(RADEON_CLOCK_CNTL_DATA);
-	OUTREG(RADEON_CLOCK_CNTL_INDEX, save);
-    }
-}
-
 #endif

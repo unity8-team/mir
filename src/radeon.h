@@ -667,6 +667,8 @@ extern void        RADEONEngineFlush(ScrnInfoPtr pScrn);
 extern void        RADEONEngineRestore(ScrnInfoPtr pScrn);
 
 extern unsigned    RADEONINPLL(ScrnInfoPtr pScrn, int addr);
+extern void        RADEONOUTPLL(ScrnInfoPtr pScrn, int addr, CARD32 data);
+
 extern void        RADEONWaitForVerticalSync(ScrnInfoPtr pScrn);
 extern void        RADEONWaitForVerticalSync2(ScrnInfoPtr pScrn);
 
@@ -683,6 +685,9 @@ extern int         RADEONMinBits(int val);
 extern void        RADEONInitVideo(ScreenPtr pScreen);
 extern void        RADEONResetVideo(ScrnInfoPtr pScrn);
 extern void        R300CGWorkaround(ScrnInfoPtr pScrn);
+
+extern void        RADEONPllErrataAfterIndex(RADEONInfoPtr info);
+extern void        RADEONPllErrataAfterData(RADEONInfoPtr info);
 
 #ifdef XF86DRI
 extern void        RADEONAccelInitCP(ScreenPtr pScreen, XAAInfoRecPtr a);

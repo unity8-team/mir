@@ -712,6 +712,48 @@ static Bool RADEONUnmapMem(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+void RADEONPllErrataAfterIndex(RADEONInfoPtr info)
+{
+    unsigned char *RADEONMMIO = info->MMIO;
+	
+    if (!(info->ChipErrata & CHIP_ERRATA_PLL_DUMMYREADS))
+	return;
+
+    /* This workaround is necessary on rv200 and RS200 or PLL
+     * reads may return garbage (among others...)
+     */
+    (void)INREG(RADEON_CLOCK_CNTL_DATA);
+    (void)INREG(RADEON_CRTC_GEN_CNTL);
+}
+
+void RADEONPllErrataAfterData(RADEONInfoPtr info)
+{
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    /* This workarounds is necessary on RV100, RS100 and RS200 chips
+     * or the chip could hang on a subsequent access
+     */
+    if (info->ChipErrata & CHIP_ERRATA_PLL_DELAY) {
+	/* we can't deal with posted writes here ... */
+	usleep(5000);
+    }
+
+    /* This function is required to workaround a hardware bug in some (all?)
+     * revisions of the R300.  This workaround should be called after every
+     * CLOCK_CNTL_INDEX register access.  If not, register reads afterward
+     * may not be correct.
+     */
+    if (info->ChipErrata & CHIP_ERRATA_R300_CG) {
+	CARD32         save, tmp;
+
+	save = INREG(RADEON_CLOCK_CNTL_INDEX);
+	tmp = save & ~(0x3f | RADEON_PLL_WR_EN);
+	OUTREG(RADEON_CLOCK_CNTL_INDEX, tmp);
+	tmp = INREG(RADEON_CLOCK_CNTL_DATA);
+	OUTREG(RADEON_CLOCK_CNTL_INDEX, save);
+    }
+}
+
 /* Read PLL register */
 unsigned RADEONINPLL(ScrnInfoPtr pScrn, int addr)
 {
@@ -728,7 +770,7 @@ unsigned RADEONINPLL(ScrnInfoPtr pScrn, int addr)
 }
 
 /* Write PLL information */
-unsigned RADEONOUTPLL(ScrnInfoPtr pScrn, int addr, CARD32 data)
+void RADEONOUTPLL(ScrnInfoPtr pScrn, int addr, CARD32 data)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -5727,9 +5769,6 @@ static void RADEONPLLWaitForReadUpdateComplete(ScrnInfoPtr pScrn)
 
 static void RADEONPLLWriteUpdate(ScrnInfoPtr pScrn)
 {
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-
     while (INPLL(pScrn, RADEON_PPLL_REF_DIV) & RADEON_PPLL_ATOMIC_UPDATE_R);
 
     OUTPLLP(pScrn, RADEON_PPLL_REF_DIV,
@@ -5753,9 +5792,6 @@ static void RADEONPLL2WaitForReadUpdateComplete(ScrnInfoPtr pScrn)
 
 static void RADEONPLL2WriteUpdate(ScrnInfoPtr pScrn)
 {
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-
     while (INPLL(pScrn, RADEON_P2PLL_REF_DIV) & RADEON_P2PLL_ATOMIC_UPDATE_R);
 
     OUTPLLP(pScrn, RADEON_P2PLL_REF_DIV,
@@ -5869,9 +5905,6 @@ static void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
 static void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
 				       RADEONSavePtr restore)
 {
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-
     OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL,
 	    RADEON_PIX2CLK_SRC_SEL_CPUCLK,
 	    ~(RADEON_PIX2CLK_SRC_SEL_MASK));
