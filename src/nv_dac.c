@@ -37,9 +37,37 @@
 |*                                                                           *|
  \***************************************************************************/
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_dac.c,v 1.41 2004/10/05 21:23:03 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_dac.c,v 1.44 2004/12/09 00:21:04 mvojkovi Exp $ */
 
 #include "nv_include.h"
+
+static int
+NVDACPanelTweaks(NVPtr pNv, NVRegPtr state)
+{
+   int tweak = 0;
+
+   if(pNv->usePanelTweak) {
+       tweak = pNv->PanelTweak;
+   } else {
+       /* begin flat panel hacks */
+       /* This is unfortunate, but some chips need this register
+          tweaked or else you get artifacts where adjacent pixels are
+          swapped.  There are no hard rules for what to set here so all
+          we can do is experiment and apply hacks. */
+
+       if(((pNv->Chipset & 0xffff) == 0x0328) && (state->bpp == 32)) {
+          /* At least one NV34 laptop needs this workaround. */
+          tweak = -1;
+       }
+
+       if((pNv->Chipset & 0xfff0) == 0x0310) {
+          tweak = 1;
+       }
+       /* end flat panel hacks */
+   }
+
+   return tweak;
+}
 
 Bool
 NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
@@ -185,12 +213,17 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
        {
            nvReg->scale |= (1 << 8) ;
        }
+       nvReg->crtcSync = pNv->PRAMDAC[0x0828/4];
+       nvReg->crtcSync += NVDACPanelTweaks(pNv, nvReg);
     }
 
     nvReg->vpll = nvReg->pll;
     nvReg->vpll2 = nvReg->pll;
     nvReg->vpllB = nvReg->pllB;
     nvReg->vpll2B = nvReg->pllB;
+
+    VGA_WR08(pNv->PCIO, 0x03D4, 0x1C);
+    nvReg->fifo = VGA_RD08(pNv->PCIO, 0x03D5) & ~(1<<5);
 
     if(pNv->CRTCnumber) {
        nvReg->head  = pNv->PCRTC0[0x00000860/4] & ~0x00001000;

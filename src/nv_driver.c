@@ -1,4 +1,3 @@
-/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.5 2004/08/16 09:13:14 ajax Exp $ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
@@ -25,7 +24,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.128 2004/10/09 22:53:25 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.130 2004/12/09 00:21:04 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -113,18 +112,19 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0175, "GeForce4 420 Go" },
   { 0x10DE0176, "GeForce4 420 Go 32M" },
   { 0x10DE0177, "GeForce4 460 Go" },
+  { 0x10DE0178, "Quadro4 550 XGL" },
 #if defined(__powerpc__)
   { 0x10DE0179, "GeForce4 MX (Mac)" },
 #else
   { 0x10DE0179, "GeForce4 440 Go 64M" },
 #endif
-  { 0x10DE017D, "GeForce4 410 Go 16M" },
-  { 0x10DE017C, "Quadro4 500 GoGL" },
-  { 0x10DE0178, "Quadro4 550 XGL" },
   { 0x10DE017A, "Quadro4 NVS" },
+  { 0x10DE017C, "Quadro4 500 GoGL" },
+  { 0x10DE017D, "GeForce4 410 Go 16M" },
   { 0x10DE0181, "GeForce4 MX 440 with AGP8X" },
   { 0x10DE0182, "GeForce4 MX 440SE with AGP8X" },
   { 0x10DE0183, "GeForce4 MX 420 with AGP8X" },
+  { 0x10DE0185, "GeForce4 MX 4000" },
   { 0x10DE0186, "GeForce4 448 Go" },
   { 0x10DE0187, "GeForce4 488 Go" },
   { 0x10DE0188, "Quadro4 580 XGL" },
@@ -133,6 +133,8 @@ static SymTabRec NVKnownChipsets[] =
 #endif
   { 0x10DE018A, "Quadro4 280 NVS" },
   { 0x10DE018B, "Quadro4 380 XGL" },
+  { 0x10DE018C, "Quadro NVS 50 PCI" },
+  { 0x10DE018D, "GeForce4 448 Go" },
   { 0x10DE01F0, "GeForce4 MX Integrated GPU" },
   { 0x10DE0200, "GeForce3" },
   { 0x10DE0201, "GeForce3 Ti 200" },
@@ -213,9 +215,10 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0045, "GeForce 6800 GT" },
   { 0x10DE0049, "0x0049" },
   { 0x10DE004E, "Quadro FX 4000" },
+  { 0x10DE004D, "Quadro FX 4400" },
   { 0x10DE00C0, "0x00C0" },
   { 0x10DE00C1, "0x00C1" },
-  { 0x10DE00C2, "0x00C2" },
+  { 0x10DE00C2, "GeForce 6800 LE" },
   { 0x10DE00C8, "0x00C8" },
   { 0x10DE00C9, "0x00C9" },
   { 0x10DE00CC, "0x00CC" },
@@ -224,11 +227,11 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0141, "GeForce 6600" },
   { 0x10DE0142, "0x0142" },
   { 0x10DE0143, "0x0143" },
-  { 0x10DE0144, "0x0144" },
+  { 0x10DE0144, "GeForce Go 6600" },
   { 0x10DE0145, "GeForce 6610 XL" },
-  { 0x10DE0146, "0x0146" },
+  { 0x10DE0146, "GeForce Go 6600 TE/6200 TE" },
   { 0x10DE0147, "0x0147" },
-  { 0x10DE0148, "0x0148" },
+  { 0x10DE0148, "GeForce Go 6600" },
   { 0x10DE0149, "0x0149" },
   { 0x10DE014B, "0x014B" },
   { 0x10DE014C, "0x014C" },
@@ -389,7 +392,8 @@ typedef enum {
     OPTION_FLAT_PANEL,
     OPTION_FP_DITHER,
     OPTION_CRTC_NUMBER,
-    OPTION_FP_SCALE
+    OPTION_FP_SCALE,
+    OPTION_FP_TWEAK
 } NVOpts;
 
 
@@ -405,6 +409,7 @@ static const OptionInfoRec NVOptions[] = {
     { OPTION_FP_DITHER, 	"FPDither",	OPTV_BOOLEAN,	{0}, FALSE },
     { OPTION_CRTC_NUMBER,	"CrtcNumber",	OPTV_INTEGER,	{0}, FALSE },
     { OPTION_FP_SCALE,          "FPScale",      OPTV_BOOLEAN,   {0}, FALSE },
+    { OPTION_FP_TWEAK,          "FPTweak",      OPTV_INTEGER,   {0}, FALSE },
     { -1,                       NULL,           OPTV_NONE,      {0}, FALSE }
 };
 
@@ -1220,6 +1225,14 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
         pNv->CRTCnumber = -1; /* autodetect later */
     }
 
+
+    if (xf86GetOptValInteger(pNv->Options, OPTION_FP_TWEAK, 
+                             &pNv->PanelTweak))
+    {
+        pNv->usePanelTweak = TRUE;
+    } else {
+        pNv->usePanelTweak = FALSE;
+    }
     
     if (pNv->pEnt->device->MemBase != 0) {
 	/* Require that the config file value matches one of the PCI values. */
