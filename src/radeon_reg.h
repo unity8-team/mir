@@ -1064,6 +1064,8 @@
 #       define RADEON_SURF_TRANSLATION_DIS  (1 << 8)
 #       define RADEON_NONSURF_AP0_SWP_16BPP (1 << 20)
 #       define RADEON_NONSURF_AP0_SWP_32BPP (1 << 21)
+#       define RADEON_NONSURF_AP1_SWP_16BPP (1 << 22)
+#       define RADEON_NONSURF_AP1_SWP_32BPP (1 << 23)
 #define RADEON_SURFACE0_INFO                0x0b0c
 #define RADEON_SURFACE0_LOWER_BOUND         0x0b04
 #define RADEON_SURFACE0_UPPER_BOUND         0x0b08

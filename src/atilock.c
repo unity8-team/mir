@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atilock.c,v 1.20 2004/01/05 16:42:02 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atilock.c,v 1.20tsi Exp $ */
 /*
  * Copyright 1999 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -143,7 +143,7 @@ ATIUnlock
             /*
              * Prevent BIOS initiated display switches on dual-CRT controllers.
              */
-            if (pATI->Chip != ATI_CHIP_264XL)
+            if (!pATI->OptionBIOSDisplay && (pATI->Chip != ATI_CHIP_264XL))
             {
                 pATI->LockData.scratch_reg3 = inr(SCRATCH_REG3);
                 outr(SCRATCH_REG3,
@@ -566,7 +566,7 @@ ATILock
         if ((pATI->LCDPanelID >= 0) && (pATI->Chip != ATI_CHIP_264LT))
         {
             outr(LCD_INDEX, pATI->LockData.lcd_index);
-            if (pATI->Chip != ATI_CHIP_264XL)
+            if (!pATI->OptionBIOSDisplay && (pATI->Chip != ATI_CHIP_264XL))
                 outr(SCRATCH_REG3, pATI->LockData.scratch_reg3);
         }
         if (pATI->Chip >= ATI_CHIP_264VTB)

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.116 2003/11/19 02:08:15 martin Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -5058,6 +5058,7 @@ static void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
 	    ~(RADEON_PLL_DIV_SEL));
 
     if ((info->ChipFamily == CHIP_FAMILY_R300) ||
+	(info->ChipFamily == CHIP_FAMILY_RS300) ||
 	(info->ChipFamily == CHIP_FAMILY_R350) ||
 	(info->ChipFamily == CHIP_FAMILY_RV350)) {
 	if (restore->ppll_ref_div & R300_PPLL_REF_DIV_ACC_MASK) {
@@ -5455,12 +5456,12 @@ static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
     RADEONTRACE(("RADEONSaveMode(%p)\n", save));
+    RADEONSaveCommonRegisters(pScrn, save);
     if (info->IsSecondary) {
 	RADEONSaveCrtc2Registers(pScrn, save);
 	RADEONSavePLL2Registers(pScrn, save);
     } else {
 	RADEONSavePLLRegisters(pScrn, save);
-	RADEONSaveCommonRegisters(pScrn, save);
 	RADEONSaveCrtcRegisters(pScrn, save);
 	RADEONSaveFPRegisters(pScrn, save);
 
@@ -6064,13 +6065,16 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     save->disp_merge_cntl &= ~RADEON_DISP_RGB_OFFSET_EN;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
+    /* Alhought we current onlu use aperture 0, also setting aperture 1 should not harm -ReneR */
     switch (pScrn->bitsPerPixel) {
     case 16:
 	save->surface_cntl |= RADEON_NONSURF_AP0_SWP_16BPP;
+	save->surface_cntl |= RADEON_NONSURF_AP1_SWP_16BPP;
 	break;
 
     case 32:
 	save->surface_cntl |= RADEON_NONSURF_AP0_SWP_32BPP;
+	save->surface_cntl |= RADEON_NONSURF_AP1_SWP_32BPP;
 	break;
     }
 #endif
@@ -6634,12 +6638,12 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
 
     info->Flags = mode->Flags;
 
+    RADEONInitCommonRegisters(save, info);
     if (info->IsSecondary) {
 	if (!RADEONInitCrtc2Registers(pScrn, save, mode, info))
 	    return FALSE;
 	RADEONInitPLL2Registers(save, &info->pll, dot_clock);
     } else {
-	RADEONInitCommonRegisters(save, info);
 	if (!RADEONInitCrtcRegisters(pScrn, save, mode, info))
 	    return FALSE;
 	dot_clock = mode->Clock/1000.0;

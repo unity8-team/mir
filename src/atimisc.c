@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimisc.c,v 1.8 2004/01/05 16:42:03 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimisc.c,v 1.8tsi Exp $ */
 /*
  * Copyright 2000 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -62,8 +62,38 @@ ATISetup
     if (!Inited)
     {
         /* Ensure main driver module is loaded, but not as a submodule */
-        if (!xf86ServerIsOnlyDetecting() && !LoaderSymbol(ATI_NAME))
-            xf86LoadOneModule(ATI_DRIVER_NAME, Options);
+        if (!xf86ServerIsOnlyDetecting())
+        {
+            if (!LoaderSymbol(ATI_NAME))
+                xf86LoadOneModule(ATI_DRIVER_NAME, Options);
+
+            /* ati & atimisc module versions must match */
+            do
+            {
+                XF86ModuleData *pModuleData = LoaderSymbol("atiModuleData");
+
+                if (pModuleData)
+                {
+                    XF86ModuleVersionInfo *pModuleInfo = pModuleData->vers;
+
+                    if ((pModuleInfo->majorversion == ATI_VERSION_MAJOR) &&
+                        (pModuleInfo->minorversion == ATI_VERSION_MINOR) &&
+                        (pModuleInfo->patchlevel == ATI_VERSION_PATCH))
+                        break;
+                }
+
+                xf86Msg(X_ERROR,
+                        "\"ati\" and \"atimisc\" module versions must"
+                        " match.\n");
+
+                if (ErrorMajor)
+                    *ErrorMajor = (int)LDR_MISMATCH;
+                if (ErrorMinor)
+                    *ErrorMinor = (int)LDR_MISMATCH;
+
+                return NULL;
+            } while (0);
+        }
 
         /*
          * Tell loader about symbols from other modules that this module might

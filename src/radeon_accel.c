@@ -295,8 +295,10 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
     OUTREGP(RADEON_DP_DATATYPE, 0, ~RADEON_HOST_BIG_ENDIAN_EN);
 #endif
 
-    /* Restore SURFACE_CNTL */
-    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+    /* Restore SURFACE_CNTL - only the first head contains valid data -ReneR */
+    if (!info->IsSecondary) {
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+    }
 
     RADEONWaitForFifo(pScrn, 1);
     OUTREG(RADEON_DEFAULT_SC_BOTTOM_RIGHT, (RADEON_DEFAULT_SC_RIGHT_MAX

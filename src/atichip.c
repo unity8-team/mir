@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atichip.c,v 1.38 2004/01/05 16:42:00 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atichip.c,v 1.38tsi Exp $ */
 /*
  * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -102,6 +102,7 @@ const char *ATIChipNames[] =
     "ATI Radeon 9600",
     "ATI Radeon 9800",
     "ATI Radeon 9800XT",
+    "ATI unknown Radeon",
     "ATI Rage HDTV"
 };
 
@@ -738,9 +739,9 @@ ATIChipID
 
         default:
             /*
-             * I'd say it's a Rage128 or a Radeon here, except that I don't
-             * support them.
+             * Treat anything else as an unknown Radeon.  Please keep the above
+             * up-to-date however, as it serves as a central chip list.
              */
-            return ATI_CHIP_Mach64;
+            return ATI_CHIP_Radeon;
     }
 }
