@@ -141,7 +141,6 @@ extern const OptionInfoRec *RADEONAvailableOptions(int, int);
 extern void                 RADEONIdentify(int);
 extern Bool                 RADEONProbe(DriverPtr, int);
 
-extern SymTabRec            RADEONChipsets[];
 extern PciChipsets          RADEONPciChipsets[];
 
 /* radeon_driver.c */
