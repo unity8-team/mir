@@ -1260,7 +1260,7 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
     a->SolidLineLimits.x2 = pScrn->virtualX-1;
     a->SolidLineLimits.y2 = pScrn->virtualY-1;
 
-    /* Call miSetZeroLineBias() to have mi/mfb/cfb/fb routines match
+    /* Call miSetZeroLineBias() to have mi/mfb/fb routines match
        hardware accel two point lines */
     miSetZeroLineBias(pScreen, (OCTANT5 | OCTANT6 | OCTANT7 | OCTANT8));
 

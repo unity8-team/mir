@@ -176,7 +176,7 @@ ATIScreenInit
 #ifdef XF86DRI_DEVEL
 
     /* Setup DRI after visuals have been established, but before
-     * cfbScreenInit is called.  cfbScreenInit will eventually call the
+     * fbScreenInit is called.  fbScreenInit will eventually call the
      * driver's InitGLXVisuals call back.
      */
 
@@ -557,7 +557,7 @@ ATIScreenInit
 
     /* DRI finalization */
     if (pATI->directRenderingEnabled) {
-	/* Now that mi, cfb, drm and others have done their thing,
+	/* Now that mi, fb, drm and others have done their thing,
 	 * complete the DRI setup.
 	 */
 	pATI->directRenderingEnabled = ATIDRIFinishScreenInit(pScreen);
