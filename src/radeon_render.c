@@ -225,16 +225,22 @@ ATILog2(int val)
 	return bits - 1;
 }
 
-void RADEONInit3DEngineForRender(ScrnInfoPtr pScrn)
+static void RadeonInit3DEngine(ScrnInfoPtr pScrn)
 {
-#ifdef XF86DRI
     RADEONInfoPtr info = RADEONPTR (pScrn);
 
-    if (info->CPStarted)
+#ifdef XF86DRI
+    if (info->directRenderingEnabled) {
+	RADEONSAREAPrivPtr pSAREAPriv;
+
+	pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+	pSAREAPriv->ctxOwner = DRIGetContext(pScrn->pScreen);
 	RadeonInit3DEngineCP(pScrn);
-    else
+    } else
 #endif
 	RadeonInit3DEngineMMIO(pScrn);
+
+    info->RenderInited3D = TRUE;
 }
 
 static void
@@ -433,11 +439,8 @@ static Bool FUNC_NAME(R100SetupTexture)(
     i = height;
     dst = (CARD8*)(info->FB + offset);
 
-    if (info->accel->NeedToSync) {
+    if (info->accel->NeedToSync)
 	info->accel->Sync(pScrn);
-	if (info->CPStarted)
-	    RADEONInit3DEngineForRender(pScrn);
-    }
 
     while(i--) {
 	memcpy(dst, src, width * tex_bytepp);
@@ -490,6 +493,9 @@ FUNC_NAME(R100SetupForCPUToScreenAlphaTexture) (
     if (blend_cntl == 0)
 	return FALSE;
 
+    if (!info->RenderInited3D)
+	RadeonInit3DEngine(pScrn);
+
     if (!FUNC_NAME(R100SetupTexture)(pScrn, maskFormat, alphaPtr, alphaPitch,
 				     width, height, flags))
 	return FALSE;
@@ -539,6 +545,9 @@ FUNC_NAME(R100SetupForCPUToScreenTexture) (
     if (blend_cntl == 0)
 	return FALSE;
     
+    if (!info->RenderInited3D)
+	RadeonInit3DEngine(pScrn);
+
     if (!FUNC_NAME(R100SetupTexture)(pScrn, srcFormat, texPtr, texPitch, width,
 				     height, flags))
 	return FALSE;
@@ -741,11 +750,8 @@ static Bool FUNC_NAME(R200SetupTexture)(
     /* Upload texture to card.  Should use ImageWrite to avoid syncing. */
     i = height;
     dst = (CARD8*)(info->FB + offset);
-    if (info->accel->NeedToSync) {
+    if (info->accel->NeedToSync)
 	info->accel->Sync(pScrn);
-	if (info->CPStarted)
-	    RADEONInit3DEngineForRender(pScrn);
-    }
 
     while(i--) {
 	memcpy(dst, src, width * tex_bytepp);
@@ -799,6 +805,9 @@ FUNC_NAME(R200SetupForCPUToScreenAlphaTexture) (
     if (blend_cntl == 0)
 	return FALSE;
 
+    if (!info->RenderInited3D)
+	RadeonInit3DEngine(pScrn);
+
     if (!FUNC_NAME(R200SetupTexture)(pScrn, maskFormat, alphaPtr, alphaPitch,
 				     width, height, flags))
 	return FALSE;
@@ -848,6 +857,9 @@ FUNC_NAME(R200SetupForCPUToScreenTexture) (
     blend_cntl = RadeonGetBlendCntl(op, dstFormat);
     if (blend_cntl == 0)
 	return FALSE;
+
+    if (!info->RenderInited3D)
+	RadeonInit3DEngine(pScrn);
 
     if (!FUNC_NAME(R200SetupTexture)(pScrn, srcFormat, texPtr, texPitch, width,
 				     height, flags))

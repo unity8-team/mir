@@ -343,9 +343,17 @@ static void RADEONEnterServer(ScreenPtr pScreen)
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+#ifdef RENDER
+    RADEONSAREAPrivPtr pSAREAPriv;
+#endif
 
     if (info->accel) info->accel->NeedToSync = TRUE;
 
+#ifdef RENDER
+    pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+    if (pSAREAPriv->ctxOwner != DRIGetContext(pScrn->pScreen))
+	info->RenderInited3D = FALSE;
+#endif
 }
 
 /* Called when the X server goes to sleep to allow the X server's

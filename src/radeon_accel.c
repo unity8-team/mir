@@ -313,12 +313,11 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
     OUTREG(RADEON_DP_SRC_BKGD_CLR,   0x00000000);
     OUTREG(RADEON_DP_WRITE_MASK,     0xffffffff);
 
-#ifdef RENDER
-    if (info->RenderAccel)
-        RADEONInit3DEngineForRender(pScrn);
-#endif
-
     RADEONWaitForIdleMMIO(pScrn);
+
+#ifdef RENDER
+    info->RenderInited3D = FALSE;
+#endif
 }
 
 /* Initialize the acceleration hardware */
