@@ -1006,6 +1006,9 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
 	MonType = MT_NONE;
     }
 
+    OUTREG(info->DDCReg, INREG(info->DDCReg) &
+	   ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
+
     if (*MonInfo) {
 	if ((*MonInfo)->rawData[0x14] & 0x80) {
 	    /* Note some laptops have a DVI output that uses internal TMDS,
