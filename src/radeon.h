@@ -290,6 +290,7 @@ typedef struct {
     unsigned long     LinearAddr;       /* Frame buffer physical address     */
     unsigned long     MMIOAddr;         /* MMIO region physical address      */
     unsigned long     BIOSAddr;         /* BIOS physical address             */
+    unsigned int      fbLocation;
 
     unsigned char     *MMIO;            /* Map of MMIO region                */
     unsigned char     *FB;              /* Map of frame buffer               */
@@ -499,7 +500,6 @@ typedef struct {
     int               depthX;
     int               depthY;
 
-    unsigned int      fbLocation;
     int               frontOffset;
     int               frontPitch;
     int               backOffset;

@@ -1348,7 +1348,7 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 					   | BIT_ORDER_IN_BYTE_LSBFIRST);
 #endif
 
-#ifdef RENDER
+#if defined(RENDER) && defined(XF86DRI)
     if (info->RenderAccel && info->directRenderingEnabled &&
 	((pScrn->bitsPerPixel == 32) || (pScrn->bitsPerPixel == 16))) {
 	/* XXX: The non-CP vertex dispatch doesn't seem to work. */
@@ -1396,8 +1396,12 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 		FUNC_NAME(R100SubsequentCPUToScreenTexture);
 	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration enabled\n");
+    } else {
+	info->RenderAccel = FALSE;
     }
-#endif
+#else /* RENDER && XF86DRI */
+    info->RenderAccel = FALSE;
+#endif /* RENDER && XF86DRI */
 }
 
 #undef FUNC_NAME

@@ -177,9 +177,9 @@ ATILog2(int val)
 
 void RADEONInit3DEngineForRender(ScrnInfoPtr pScrn)
 {
+#ifdef XF86DRI
     RADEONInfoPtr info = RADEONPTR (pScrn);
 
-#ifdef XF86DRI
     if (info->directRenderingEnabled)
 	RadeonInit3DEngineCP(pScrn);
     else

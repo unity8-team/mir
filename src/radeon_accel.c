@@ -322,8 +322,14 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
     /* In the DRI case, it's initialized when the server grabs the lock.  We
      * don't hold the lock here, so don't do it in that case.
      */
-    if (!info->directRenderingEnabled && info->RenderAccel)
-	RADEONInit3DEngineForRender(pScrn);
+#ifdef XF86DRI
+    if (!info->directRenderingEnabled) {
+#endif
+	if (info->RenderAccel)
+	    RADEONInit3DEngineForRender(pScrn);
+#ifdef XF86DRI
+    }
+#endif
 #endif
 
     RADEONWaitForIdleMMIO(pScrn);
