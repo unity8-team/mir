@@ -31,7 +31,7 @@
  * Converted to common header format:
  *   Jens Owen <jens@tungstengraphics.com>
  *
- * $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_common.h,v 1.1 2002/10/30 12:52:13 alanh Exp $
+ * $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_common.h,v 1.4 2003/11/10 18:41:22 tsi Exp $
  *
  */
 
@@ -70,6 +70,7 @@
 #define DRM_RADEON_INIT_HEAP              0x15
 #define DRM_RADEON_IRQ_EMIT               0x16
 #define DRM_RADEON_IRQ_WAIT               0x17
+#define DRM_RADEON_CP_RESUME              0x18
 #define DRM_RADEON_MAX_DRM_COMMAND_INDEX  0x39
 
 
@@ -94,7 +95,7 @@ typedef struct {
    unsigned long sarea_priv_offset;
    int is_pci;
    int cp_mode;
-   int agp_size;
+   int gart_size;
    int ring_size;
    int usec_timeout;
 
@@ -109,7 +110,7 @@ typedef struct {
    unsigned long ring_offset;
    unsigned long ring_rptr_offset;
    unsigned long buffers_offset;
-   unsigned long agp_textures_offset;
+   unsigned long gart_textures_offset;
 } drmRadeonInit;
 
 typedef struct {
@@ -169,7 +170,7 @@ typedef struct {
 
 #define RADEON_MAX_TEXTURE_UNITS 3
 
-/* Layout matches drm_radeon_state_t in linux drm_radeon.h.  
+/* Layout matches drm_radeon_state_t in linux drm_radeon.h.
  */
 typedef struct {
 	struct {
@@ -232,7 +233,7 @@ typedef struct {
 		unsigned int pp_border_color;
 	} texture[RADEON_MAX_TEXTURE_UNITS];
 	struct {
-		unsigned int se_zbias_factor; 
+		unsigned int se_zbias_factor;
 		unsigned int se_zbias_constant;
 	} zbias;
 	unsigned int dirty;
@@ -342,7 +343,22 @@ typedef struct {
 #define R200_EMIT_SE_VTX_STATE_CNTL                 58 /* cst/1 */
 #define R200_EMIT_RE_POINTSIZE                      59 /* cst/1 */
 #define R200_EMIT_TCL_INPUT_VTX_VECTOR_ADDR_0       60 /* cst/4 */
-#define RADEON_MAX_STATE_PACKETS                    61
+#define R200_EMIT_PP_CUBIC_FACES_0                  61
+#define R200_EMIT_PP_CUBIC_OFFSETS_0                62
+#define R200_EMIT_PP_CUBIC_FACES_1                  63
+#define R200_EMIT_PP_CUBIC_OFFSETS_1                64
+#define R200_EMIT_PP_CUBIC_FACES_2                  65
+#define R200_EMIT_PP_CUBIC_OFFSETS_2                66
+#define R200_EMIT_PP_CUBIC_FACES_3                  67
+#define R200_EMIT_PP_CUBIC_OFFSETS_3                68
+#define R200_EMIT_PP_CUBIC_FACES_4                  69
+#define R200_EMIT_PP_CUBIC_OFFSETS_4                70
+#define R200_EMIT_PP_CUBIC_FACES_5                  71
+#define R200_EMIT_PP_CUBIC_OFFSETS_5                72
+#define RADEON_EMIT_PP_TEX_SIZE_0                   73
+#define RADEON_EMIT_PP_TEX_SIZE_1                   74
+#define RADEON_EMIT_PP_TEX_SIZE_2                   75
+#define RADEON_MAX_STATE_PACKETS                    76
 
 
 /* Commands understood by cmd_buffer ioctl.  More can be added but
@@ -359,23 +375,23 @@ typedef struct {
 
 typedef union {
 	int i;
-	struct { 
+	struct {
 	   unsigned char cmd_type, pad0, pad1, pad2;
 	} header;
-	struct { 
+	struct {
 	   unsigned char cmd_type, packet_id, pad0, pad1;
 	} packet;
-	struct { 
-	   unsigned char cmd_type, offset, stride, count; 
+	struct {
+	   unsigned char cmd_type, offset, stride, count;
 	} scalars;
-	struct { 
-	   unsigned char cmd_type, offset, stride, count; 
+	struct {
+	   unsigned char cmd_type, offset, stride, count;
 	} vectors;
-	struct { 
-	   unsigned char cmd_type, buf_idx, pad0, pad1; 
+	struct {
+	   unsigned char cmd_type, buf_idx, pad0, pad1;
 	} dma;
-	struct { 
-	   unsigned char cmd_type, flags, pad0, pad1; 
+	struct {
+	   unsigned char cmd_type, flags, pad0, pad1;
 	} wait;
 } drmRadeonCmdHeader;
 
@@ -389,22 +405,22 @@ typedef struct drm_radeon_getparam {
 	int *value;
 } drmRadeonGetParam;
 
-#define RADEON_PARAM_AGP_BUFFER_OFFSET 1
-#define RADEON_PARAM_LAST_FRAME        2
-#define RADEON_PARAM_LAST_DISPATCH     3
-#define RADEON_PARAM_LAST_CLEAR        4
-#define RADEON_PARAM_IRQ_NR            5
-#define RADEON_PARAM_AGP_BASE          6
+#define RADEON_PARAM_GART_BUFFER_OFFSET 1
+#define RADEON_PARAM_LAST_FRAME         2
+#define RADEON_PARAM_LAST_DISPATCH      3
+#define RADEON_PARAM_LAST_CLEAR         4
+#define RADEON_PARAM_IRQ_NR             5
+#define RADEON_PARAM_GART_BASE          6
 
 
-#define RADEON_MEM_REGION_AGP 1
-#define RADEON_MEM_REGION_FB  2
+#define RADEON_MEM_REGION_GART 1
+#define RADEON_MEM_REGION_FB   2
 
 typedef struct drm_radeon_mem_alloc {
 	int region;
 	int alignment;
 	int size;
-	int *region_offset;	/* offset from start of fb or agp */
+	int *region_offset;	/* offset from start of fb or GART */
 } drmRadeonMemAlloc;
 
 typedef struct drm_radeon_mem_free {
@@ -415,7 +431,7 @@ typedef struct drm_radeon_mem_free {
 typedef struct drm_radeon_mem_init_heap {
 	int region;
 	int size;
-	int start;	
+	int start;
 } drmRadeonMemInitHeap;
 
 /* 1.6: Userspace can request & wait on irq's:

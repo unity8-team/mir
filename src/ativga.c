@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/ativga.c,v 1.19 2003/01/01 19:16:34 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/ativga.c,v 1.20 2003/04/23 21:51:31 tsi Exp $ */
 /*
  * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -318,7 +318,9 @@ ATIVGACalculate
         pMode->CrtcVTotal >>= 1;
     }
     else
+    {
         pATIHW->crt[23] &= ~0x04U;
+    }
 
     pMode->CrtcVDisplay--;
     if (pATI->Chip == ATI_CHIP_18800)

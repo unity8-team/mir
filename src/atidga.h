@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atidga.h,v 1.6 2003/01/01 19:16:31 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atidga.h,v 1.7 2003/04/23 21:51:28 tsi Exp $ */
 /*
  * Copyright 2000 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -31,7 +31,7 @@
 
 #include "xf86str.h"
 
-extern Bool ATIDGAInit FunctionPrototype((ScrnInfoPtr, ScreenPtr, ATIPtr));
+extern Bool ATIDGAInit FunctionPrototype((ScreenPtr, ScrnInfoPtr, ATIPtr));
 
 #endif /* AVOID_DGA */
 

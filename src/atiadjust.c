@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atiadjust.c,v 1.14 2003/01/01 19:16:30 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atiadjust.c,v 1.15 2003/04/23 21:51:27 tsi Exp $ */
 /*
  * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -38,7 +38,7 @@
  */
 
 /*
- * ATIAjustPreInit  --
+ * ATIAjustPreInit --
  *
  * This function calculates values needed to speed up the setting of the
  * display start address.
@@ -90,11 +90,17 @@ ATIAdjustPreInit
                     pATI->AdjustMaxBase <<= 1;
             }
             else if (!pATI->CPIO_VGAWonder)
+            {
                 pATI->AdjustMaxBase = 0xFFFFU << 3;
+            }
             else if (pATI->Chip <= ATI_CHIP_28800_6)
+            {
                 pATI->AdjustMaxBase = 0x03FFFFU << 3;
+            }
             else /* Mach32 & Mach64 */
+            {
                 pATI->AdjustMaxBase = 0x0FFFFFU << 3;
+            }
             break;
 
 #endif /* AVOID_CPIO */

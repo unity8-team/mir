@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimisc.c,v 1.6 2003/01/01 19:16:32 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimisc.c,v 1.7 2003/07/24 22:08:28 tsi Exp $ */
 /*
  * Copyright 2000 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -85,6 +85,7 @@ ATISetup
             ATIshadowfbSymbols,
             ATIxaaSymbols,
             ATIramdacSymbols,
+            ATIi2cSymbols,
             NULL);
 
         Inited = TRUE;

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticonfig.c,v 1.12 2003/01/01 19:16:31 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticonfig.c,v 1.14 2003/04/30 21:43:31 tsi Exp $*/
 /*
  * Copyright 2000 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -37,7 +37,7 @@ typedef enum
     ATI_OPTION_CRT_SCREEN,      /* Legacy negation of "PanelDisplay" */
     ATI_OPTION_DEVEL,           /* Intentionally undocumented */
     ATI_OPTION_BLEND,           /* Force horizontal blending of small modes */
-    ATI_OPTION_SYNC             /* Use XF86Config panel mode porches */
+    ATI_OPTION_LCDSYNC          /* Use XF86Config panel mode porches */
 } ATIPrivateOptionType;
 
 /*
@@ -71,7 +71,7 @@ ATIProcessOptions
             FALSE
         },
         {                       /* ON:   Use XF86Config porch timings */
-            ATI_OPTION_SYNC,    /* OFF:  Use porches from mode on entry */
+            ATI_OPTION_LCDSYNC, /* OFF:  Use porches from mode on entry */
             "lcdsync",
             OPTV_BOOLEAN,
             {0, },
@@ -95,26 +95,27 @@ ATIProcessOptions
 
     (void)memcpy(PublicOption, ATIPublicOptions, ATIPublicOptionSize);
 
-#   define Accel        PublicOption[ATI_OPTION_ACCEL].value.bool
-#   define Blend        PrivateOption[ATI_OPTION_BLEND].value.bool
-#   define CRTDisplay   PublicOption[ATI_OPTION_CRT_DISPLAY].value.bool
-#   define CRTScreen    PrivateOption[ATI_OPTION_CRT_SCREEN].value.bool
-#   define CSync        PublicOption[ATI_OPTION_CSYNC].value.bool
-#   define Devel        PrivateOption[ATI_OPTION_DEVEL].value.bool
-#   define HWCursor     PublicOption[ATI_OPTION_HWCURSOR].value.bool
+#   define Accel         PublicOption[ATI_OPTION_ACCEL].value.bool
+#   define Blend         PrivateOption[ATI_OPTION_BLEND].value.bool
+#   define CRTDisplay    PublicOption[ATI_OPTION_CRT_DISPLAY].value.bool
+#   define CRTScreen     PrivateOption[ATI_OPTION_CRT_SCREEN].value.bool
+#   define CSync         PublicOption[ATI_OPTION_CSYNC].value.bool
+#   define Devel         PrivateOption[ATI_OPTION_DEVEL].value.bool
+#   define HWCursor      PublicOption[ATI_OPTION_HWCURSOR].value.bool
 
 #ifndef AVOID_CPIO
 
-#   define Linear       PublicOption[ATI_OPTION_LINEAR].value.bool
+#   define Linear        PublicOption[ATI_OPTION_LINEAR].value.bool
 
 #endif /* AVOID_CPIO */
 
-#   define CacheMMIO    PublicOption[ATI_OPTION_MMIO_CACHE].value.bool
-#   define PanelDisplay PublicOption[ATI_OPTION_PANEL_DISPLAY].value.bool
-#   define ProbeClocks  PublicOption[ATI_OPTION_PROBE_CLOCKS].value.bool
-#   define ShadowFB     PublicOption[ATI_OPTION_SHADOW_FB].value.bool
-#   define SWCursor     PublicOption[ATI_OPTION_SWCURSOR].value.bool
-#   define Sync         PrivateOption[ATI_OPTION_SYNC].value.bool
+#   define CacheMMIO     PublicOption[ATI_OPTION_MMIO_CACHE].value.bool
+#   define TestCacheMMIO PublicOption[ATI_OPTION_TEST_MMIO_CACHE].value.bool
+#   define PanelDisplay  PublicOption[ATI_OPTION_PANEL_DISPLAY].value.bool
+#   define ProbeClocks   PublicOption[ATI_OPTION_PROBE_CLOCKS].value.bool
+#   define ShadowFB      PublicOption[ATI_OPTION_SHADOW_FB].value.bool
+#   define SWCursor      PublicOption[ATI_OPTION_SWCURSOR].value.bool
+#   define LCDSync       PrivateOption[ATI_OPTION_LCDSYNC].value.bool
 
 #   define ReferenceClock \
         PublicOption[ATI_OPTION_REFERENCE_CLOCK].value.freq.freq
@@ -187,9 +188,10 @@ ATIProcessOptions
 #endif /* AVOID_CPIO */
 
     pATI->OptionMMIOCache = CacheMMIO;
+    pATI->OptionTestMMIOCache = TestCacheMMIO;
     pATI->OptionProbeClocks = ProbeClocks;
     pATI->OptionShadowFB = ShadowFB;
-    pATI->OptionSync = Sync;
+    pATI->OptionLCDSync = LCDSync;
 
     /* "CRTScreen" is now "NoPanelDisplay" */
     if ((PanelDisplay != CRTScreen) ||

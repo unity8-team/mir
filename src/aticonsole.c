@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticonsole.c,v 1.20 2003/01/01 19:16:31 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/aticonsole.c,v 1.22 2003/11/13 18:42:47 tsi Exp $ */
 /*
  * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -24,6 +24,7 @@
 #include "atiadapter.h"
 #include "aticonsole.h"
 #include "aticrtc.h"
+#include "atii2c.h"
 #include "atilock.h"
 #include "atimach64.h"
 #include "atimode.h"
@@ -334,6 +335,9 @@ ATIFreeScreen
     ScreenPtr   pScreen     = screenInfo.screens[iScreen];
     ScrnInfoPtr pScreenInfo = xf86Screens[iScreen];
     ATIPtr      pATI        = ATIPTR(pScreenInfo);
+
+    if (pATI->Closeable || (serverGeneration > 1))
+        ATII2CFreeScreen(iScreen);
 
     if (pATI->Closeable)
         (void)(*pScreen->CloseScreen)(iScreen, pScreen);

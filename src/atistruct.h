@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atistruct.h,v 1.37 2003/01/10 20:57:58 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atistruct.h,v 1.40 2003/11/13 21:21:34 tsi Exp $ */
 /*
  * Copyright 1999 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -119,7 +119,16 @@ typedef struct _ATIHWRec
     CARD32 context_mask, context_load_cntl;
 
     /* Mach64 MMIO Block 1 registers */
-    CARD32 gui_cntl;
+    CARD32 overlay_y_x_start, overlay_y_x_end, overlay_graphics_key_clr,
+           overlay_graphics_key_msk, overlay_key_cntl, overlay_scale_inc,
+           overlay_scale_cntl, scaler_height_width, scaler_test,
+           scaler_buf0_offset, scaler_buf1_offset, scaler_buf_pitch,
+           video_format, overlay_exclusive_horz, overlay_exclusive_vert,
+           buf0_offset, buf0_pitch, buf1_offset, buf1_pitch,
+           scaler_colour_cntl, scaler_h_coeff0, scaler_h_coeff1,
+           scaler_h_coeff2, scaler_h_coeff3, scaler_h_coeff4, gui_cntl,
+           scaler_buf0_offset_u, scaler_buf0_offset_v, scaler_buf1_offset_u,
+           scaler_buf1_offset_v;
 
     /* Clock map pointers */
     const CARD8 *ClockMap, *ClockUnmap;
@@ -233,13 +242,15 @@ typedef struct _ATIRec
      * BIOS-related definitions.
      */
     unsigned long BIOSBase;
+    CARD8 I2CType, Tuner, Decoder, Audio;
 
     /*
      * Definitions related to video memory apertures.
      */
     pointer pMemory, pShadow;
+    pointer pMemoryLE;          /* Always little-endian */
     unsigned long LinearBase;
-    int LinearSize, FBPitch, FBBytesPerPixel;
+    int LinearSize, FBPitch;
 
 #ifndef AVOID_CPIO
 
@@ -307,8 +318,8 @@ typedef struct _ATIRec
      * LCD panel data.
      */
     int LCDPanelID, LCDClock, LCDHorizontal, LCDVertical;
-    int LCDHSyncStart, LCDHSyncWidth, LCDHBlankWidth;
-    int LCDVSyncStart, LCDVSyncWidth, LCDVBlankWidth;
+    unsigned LCDHSyncStart, LCDHSyncWidth, LCDHBlankWidth;
+    unsigned LCDVSyncStart, LCDVSyncWidth, LCDVBlankWidth;
     int LCDVBlendFIFOSize;
 
     /*
@@ -342,6 +353,15 @@ typedef struct _ATIRec
     CARD8 XAAForceTransBlit;
 
 #endif /* AVOID_DGA */
+
+    /*
+     * XVideo-related data.
+     */
+    DevUnion XVPortPrivate[1];
+    FBLinearPtr pXVBuffer;
+    RegionRec VideoClip;
+    int SurfacePitch, SurfaceOffset;
+    CARD8 AutoPaint, DoubleBuffer, CurrentBuffer, ActiveSurface;
 
     /*
      * Data saved by ATIUnlock() and restored by ATILock().
@@ -399,10 +419,11 @@ typedef struct _ATIRec
 #endif /* AVOID_CPIO */
 
     CARD8 OptionMMIOCache;      /* Cache MMIO writes */
-    CARD8 OptionPanelDisplay;   /* Prefer CRT over digital panel */
+    CARD8 OptionTestMMIOCache;  /* Test MMIO cache integrity */
+    CARD8 OptionPanelDisplay;   /* Prefer digital panel over CRT */
     CARD8 OptionProbeClocks;    /* Force probe for fixed clocks */
     CARD8 OptionShadowFB;       /* Use shadow frame buffer */
-    CARD8 OptionSync;           /* Temporary */
+    CARD8 OptionLCDSync;        /* Temporary */
 
     /*
      * State flags.
