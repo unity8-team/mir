@@ -2489,7 +2489,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 
 #ifdef RENDER
     info->RenderAccel = xf86ReturnOptValBool (info->Options,
-					      OPTION_RENDER_ACCEL, FALSE);
+					      OPTION_RENDER_ACCEL, TRUE);
 #endif
 
     return TRUE;
