@@ -976,12 +976,14 @@ RADEONXineramaExtensionInit(ScrnInfoPtr pScrn)
           return;
        }
 
+#ifdef PANORAMIX
        if(!noPanoramiXExtension) {
           xf86DrvMsg(pScrn->scrnIndex, X_INFO,
        	     "Xinerama active, not initializing Radeon Pseudo-Xinerama\n");
           RADEONnoPanoramiXExtension = TRUE;
           return;
        }
+#endif
 
        if(RADEONnoPanoramiXExtension) {
           xf86DrvMsg(pScrn->scrnIndex, X_INFO,
