@@ -53,6 +53,8 @@
 				/* Xv support */
 #include "xf86xv.h"
 
+#include "r128_probe.h"
+
 				/* DRI support */
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
@@ -135,6 +137,13 @@ typedef struct {
 
 				/* CRTC2 registers */
     CARD32     crtc2_gen_cntl;
+    CARD32     crtc2_h_total_disp;
+    CARD32     crtc2_h_sync_strt_wid;
+    CARD32     crtc2_v_total_disp;
+    CARD32     crtc2_v_sync_strt_wid;
+    CARD32     crtc2_offset;
+    CARD32     crtc2_offset_cntl;
+    CARD32     crtc2_pitch;
 
 				/* Flat panel registers */
     CARD32     fp_crtc_h_total_disp;
@@ -160,13 +169,29 @@ typedef struct {
     CARD32     ppll_div_3;
     CARD32     htotal_cntl;
 
+				/* Computed values for PLL2 */
+    CARD32     dot_clock_freq_2;
+    CARD32     pll_output_freq_2;
+    int        feedback_div_2;
+    int        post_div_2;
+
+				/* PLL2 registers */
+    CARD32     p2pll_ref_div;
+    CARD32     p2pll_div_0;
+    CARD32     htotal_cntl2;
+
 				/* DDA register */
     CARD32     dda_config;
     CARD32     dda_on_off;
 
+				/* DDA2 register */
+    CARD32     dda2_config;
+    CARD32     dda2_on_off;
+
 				/* Pallet */
     Bool       palette_valid;
     CARD32     palette[256];
+    CARD32     palette2[256];
 } R128SaveRec, *R128SavePtr;
 
 typedef struct {
@@ -185,6 +210,16 @@ typedef struct {
     int                pixel_bytes;
     DisplayModePtr     mode;
 } R128FBLayout;
+
+typedef enum
+{
+    MT_NONE,
+    MT_CRT,
+    MT_LCD,
+    MT_DFP,
+    MT_CTV,
+    MT_STV
+} R128MonitorType;
 
 typedef struct {
     EntityInfoPtr     pEnt;
@@ -403,6 +438,14 @@ typedef struct {
 
     Bool              VGAAccess;
 
+    /****** Added for dualhead support *******************/
+    BOOL              HasCRTC2;     /* M3/M4 */
+    BOOL              IsSecondary;  /* second Screen */
+    BOOL	      IsPrimary;    /* primary Screen */
+    BOOL              UseCRT;       /* force use CRT port as primary */
+    BOOL              SwitchingMode;
+    R128MonitorType DisplayType;  /* Monitor connected on*/
+
 } R128InfoRec, *R128InfoPtr;
 
 #define R128WaitForFifo(pScrn, entries)                                      \
@@ -411,6 +454,7 @@ do {                                                                         \
     info->fifo_slots -= entries;                                             \
 } while (0)
 
+extern R128EntPtr R128EntPriv(ScrnInfoPtr pScrn);
 extern void        R128WaitForFifoFunction(ScrnInfoPtr pScrn, int entries);
 extern void        R128WaitForIdle(ScrnInfoPtr pScrn);
 extern void        R128EngineReset(ScrnInfoPtr pScrn);

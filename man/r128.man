@@ -19,7 +19,8 @@ full support for 8, 15, 16 and 24 bit pixel depths, hardware
 acceleration of drawing primitives, hardware cursor, video modes up to
 1800x1440 @ 70Hz, doublescan modes (e.g., 320x200 and 320x240), gamma
 correction at all pixel depths, a fully programming dot clock and robust
-text mode restoration for VT switching.
+text mode restoration for VT switching.  Dualhead is supported on M3/M4
+mobile chips.
 .SH SUPPORTED HARDWARE
 The
 .B r128
@@ -108,7 +109,11 @@ are used, the system may hang.
 Enable or disable use of an OS-specific framebuffer device interface
 (which is not supported on all OSs).  See fbdevhw(__drivermansuffix__)
 for further information.
-Default: off.
+Default: 
+.BI on 
+for PowerPC, 
+.BI off 
+for other architectures.
 .TP
 .BI "Option \*qDMAForXv\*q \*q" boolean \*q
 Try or don't try to use DMA for Xv image transfers. This will reduce CPU
@@ -134,6 +139,12 @@ necessary unless you have a real text mode in console. The default is
 on PowerPC and
 .B on
 on other architectures.
+
+.PP
+.B Dualhead Note: 
+Changing modes on crtc2 in dualhead mode causes problems in
+some configurations.  The workaround is to switch the mode, change to another
+VT, then change back.
 
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
