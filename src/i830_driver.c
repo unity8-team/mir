@@ -1557,6 +1557,70 @@ PreInitCleanup(ScrnInfoPtr pScrn)
 }
 
 static int
+I830UseDDC(ScrnInfoPtr pScrn)
+{
+   xf86MonPtr DDC = (xf86MonPtr)(pScrn->monitor->DDC);
+   struct detailed_monitor_section* detMon;
+   struct monitor_ranges *mon_range = NULL;
+   Bool ret = FALSE;
+   int i;
+
+   /* Now change the hsync/vrefresh values of the current monitor to
+    * match those of DDC */
+   for (i = 0; i < 4; i++) {
+      detMon = &DDC->det_mon[i];
+      if(detMon->type == DS_RANGES)
+         mon_range = &detMon->section.ranges;
+   }
+
+   if (!mon_range || mon_range->min_h == 0 || mon_range->max_h == 0 ||
+		     mon_range->min_v == 0 || mon_range->max_v == 0)
+      return FALSE;	/* bad ddc */
+
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using detected DDC timings\n");
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "\tHorizSync %d-%d\n", 
+		mon_range->min_h, mon_range->max_h);
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "\tVertRefresh %d-%d\n", 
+		mon_range->min_v, mon_range->max_v);
+#define DDC_SYNC_TOLERANCE SYNC_TOLERANCE
+   if (pScrn->monitor->nHsync > 0) {
+      for (i = 0; i < pScrn->monitor->nHsync; i++) {
+         if ((1.0 - DDC_SYNC_TOLERANCE) * mon_range->min_h >
+				pScrn->monitor->hsync[i].lo ||
+	     (1.0 + DDC_SYNC_TOLERANCE) * mon_range->max_h <
+				pScrn->monitor->hsync[i].hi) {
+ 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			  "config file hsync range %g-%gkHz not within DDC "
+			  "hsync range %d-%dkHz\n",
+			  pScrn->monitor->hsync[i].lo, pScrn->monitor->hsync[i].hi,
+			  mon_range->min_h, mon_range->max_h);
+         }
+         pScrn->monitor->hsync[i].lo = mon_range->min_h;
+	 pScrn->monitor->hsync[i].hi = mon_range->max_h;
+      }
+   }
+
+   if (pScrn->monitor->nVrefresh > 0) {
+      for (i=0; i<pScrn->monitor->nVrefresh; i++) {
+         if ((1.0 - DDC_SYNC_TOLERANCE) * mon_range->min_v >
+				pScrn->monitor->vrefresh[i].lo ||
+	     (1.0 + DDC_SYNC_TOLERANCE) * mon_range->max_v <
+				pScrn->monitor->vrefresh[i].hi) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			  "config file vrefresh range %g-%gHz not within DDC "
+			  "vrefresh range %d-%dHz\n",
+			  pScrn->monitor->vrefresh[i].lo, pScrn->monitor->vrefresh[i].hi,
+			  mon_range->min_v, mon_range->max_v);
+         }
+         pScrn->monitor->vrefresh[i].lo = mon_range->min_v;
+         pScrn->monitor->vrefresh[i].hi = mon_range->max_v;
+      }
+   }
+
+   return mon_range->max_clock;
+}
+
+static int
 GetBIOSPipe(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
@@ -1653,7 +1717,9 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    int flags24;
    int defmon = 0;
    int i, n;
+   int DDCclock = 0;
    char *s;
+   DisplayModePtr p, pMon;
    pointer pDDCModule, pVBEModule;
    Bool enable;
    const char *chipname;
@@ -2583,6 +2649,8 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       xf86SetDDCproperties(pScrn, pI830->vesa->monitor);
    xf86UnloadSubModule(pDDCModule);
 
+   DDCclock = I830UseDDC(pScrn);
+
    /* XXX Move this to a header. */
 #define VIDEO_BIOS_SCRATCH 0x18
 
@@ -2737,6 +2805,35 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       PreInitCleanup(pScrn);
       return FALSE;
+   }
+
+   /* Only use this if we've got DDC available */
+   if (DDCclock > 0) {
+      p = pScrn->modes;
+      if (p == NULL)
+         return FALSE;
+      do {
+         int Clock = 100000000; /* incredible value */
+
+         for (pMon = pScrn->monitor->Modes; pMon != NULL; pMon = pMon->next) {
+            if ((pMon->HDisplay != p->HDisplay) ||
+                (pMon->VDisplay != p->VDisplay) ||
+                (pMon->Flags & (V_INTERLACE | V_DBLSCAN | V_CLKDIV2)))
+               continue;
+
+            /* Find lowest supported Clock for this resolution */
+            if (Clock > pMon->Clock)
+               Clock = pMon->Clock;
+         } 
+
+         if (DDCclock < 2550 && Clock / 1000.0 > DDCclock) {
+            ErrorF("(%s,%s) mode clock %gMHz exceeds DDC maximum %dMHz\n",
+		   p->name, pScrn->monitor->id,
+		   Clock/1000.0, DDCclock);
+            p->status = MODE_BAD;
+         } 
+         p = p->next;
+      } while (p != NULL && p != pScrn->modes);
    }
 
    xf86PruneDriverModes(pScrn);
@@ -4582,9 +4679,8 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
    pointer pDDCModule;
    DisplayModePtr p, pMon;
    xf86MonPtr DDC;
-   struct detailed_monitor_section* detMon;
    int i, memsize;
-   struct monitor_ranges *mon_range = NULL;
+   int DDCclock = 0;
    int displayWidth = pScrn->displayWidth;
    int curHDisplay = pScrn->currentMode->HDisplay;
    int curVDisplay = pScrn->currentMode->VDisplay;
@@ -4607,56 +4703,8 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
       /* No DDC, so get out of here, and continue to use the current settings */
       return FALSE; 
 
-   DDC = (xf86MonPtr)(pScrn->monitor->DDC);
-
-   /* Now change the hsync/vrefresh values of the current monitor to
-    * match those of DDC */
-   for (i = 0; i < 4; i++) {
-      detMon = &DDC->det_mon[i];
-      if(detMon->type == DS_RANGES)
-         mon_range = &detMon->section.ranges;
-   }
-
-   if (!mon_range || mon_range->min_h == 0 || mon_range->max_h == 0 ||
-		     mon_range->min_v == 0 || mon_range->max_v == 0)
-      return FALSE;	/* bad ddc */
-
-   if (mon_range) {
-#define DDC_SYNC_TOLERANCE SYNC_TOLERANCE
-      if (pScrn->monitor->nHsync > 0) {
-         for (i = 0; i < pScrn->monitor->nHsync; i++) {
-            if ((1.0 - DDC_SYNC_TOLERANCE) * mon_range->min_h >
-				pScrn->monitor->hsync[i].lo ||
-		(1.0 + DDC_SYNC_TOLERANCE) * mon_range->max_h <
-				pScrn->monitor->hsync[i].hi) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			  "config file hsync range %g-%gkHz not within DDC "
-			  "hsync range %d-%dkHz\n",
-			  pScrn->monitor->hsync[i].lo, pScrn->monitor->hsync[i].hi,
-			  mon_range->min_h, mon_range->max_h);
-            }
-            pScrn->monitor->hsync[i].lo = mon_range->min_h;
-	    pScrn->monitor->hsync[i].hi = mon_range->max_h;
-         }
-      }
-
-      if (pScrn->monitor->nVrefresh > 0) {
-         for (i=0; i<pScrn->monitor->nVrefresh; i++) {
-            if ((1.0 - DDC_SYNC_TOLERANCE) * mon_range->min_v >
-				pScrn->monitor->vrefresh[i].lo ||
-		(1.0 + DDC_SYNC_TOLERANCE) * mon_range->max_v <
-				pScrn->monitor->vrefresh[i].hi) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			  "config file vrefresh range %g-%gHz not within DDC "
-			  "vrefresh range %d-%dHz\n",
-			  pScrn->monitor->vrefresh[i].lo, pScrn->monitor->vrefresh[i].hi,
-			  mon_range->min_v, mon_range->max_v);
-            }
-            pScrn->monitor->vrefresh[i].lo = mon_range->min_v;
-            pScrn->monitor->vrefresh[i].hi = mon_range->max_v;
-         }
-      }
-   } /* if (mon_range) */
+   if (!(DDCclock = I830UseDDC(pScrn)))
+      return FALSE;
 
    /* Revalidate the modes */
 
@@ -4708,13 +4756,10 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
             Clock = pMon->Clock;
       } 
 
-      if (mon_range->max_clock < 2550 &&
-	 			Clock / 1000.0 > mon_range->max_clock) {
-#if 0
+      if (DDCclock < 2550 && Clock / 1000.0 > DDCclock) {
          ErrorF("(%s,%s) mode clock %gMHz exceeds DDC maximum %dMHz\n",
 		   p->name, pScrn->monitor->id,
-		   Clock/1000.0, mon_range->max_clock);
-#endif
+		   Clock/1000.0, DDCclock);
          p->status = MODE_BAD;
       } 
       p = p->next;
