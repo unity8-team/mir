@@ -180,17 +180,17 @@ typedef struct _I830Rec {
    int CacheLines;
 
    /* These are set in PreInit and never changed. */
-   unsigned long FbMapSize;
-   unsigned long TotalVideoRam;
+   long FbMapSize;
+   long TotalVideoRam;
    I830MemRange StolenMemory;		/* pre-allocated memory */
-   unsigned long BIOSMemorySize;	/* min stolen pool size */
+   long BIOSMemorySize;			/* min stolen pool size */
    int BIOSMemSizeLoc;
 
    /* These change according to what has been allocated. */
    long FreeMemory;
    I830MemRange MemoryAperture;
    I830MemPool StolenPool;
-   unsigned long allocatedMemory;
+   long allocatedMemory;
 
    /* Regions allocated either from the above pools, or from agpgart. */
    /* for single and dual head configurations */
@@ -348,7 +348,7 @@ typedef struct _I830Rec {
    int xoffset;
    int yoffset;
 
-   int SaveGeneration;
+   unsigned int SaveGeneration;
    Bool vbeRestoreWorkaround;
    Bool displayInfo;
    Bool devicePresence;
@@ -415,7 +415,7 @@ extern Bool I830FixupOffsets(ScrnInfoPtr pScrn);
 extern Bool I830BindGARTMemory(ScrnInfoPtr pScrn);
 extern Bool I830UnbindGARTMemory(ScrnInfoPtr pScrn);
 extern unsigned long I830AllocVidMem(ScrnInfoPtr pScrn, I830MemRange *result,
-				     I830MemPool *pool, unsigned long size,
+				     I830MemPool *pool, long size,
 				     unsigned long alignment, int flags);
 
 extern void I830PrintAllRegisters(I830RegPtr i830Reg);

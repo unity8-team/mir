@@ -1018,7 +1018,7 @@ static Bool
 I830MapMem(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   unsigned i;
+   long i;
 
    for (i = 2; i < pI830->FbMapSize; i <<= 1) ;
    pI830->FbMapSize = i;
@@ -2898,7 +2898,7 @@ SetRingRegs(ScrnInfoPtr pScrn)
    OUTREG(LP_RING + RING_TAIL, 0);
    OUTREG(LP_RING + RING_HEAD, 0);
 
-   if ((pI830->LpRing->mem.Start & I830_RING_START_MASK) !=
+   if ((long)(pI830->LpRing->mem.Start & I830_RING_START_MASK) !=
        pI830->LpRing->mem.Start) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "I830SetRingRegs: Ring buffer start (%lx) violates its "
@@ -3441,7 +3441,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
          I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
 
          temp = INREG(stridereg);
-         if (temp / pI8301->cpp != pI830->entityPrivate->pScrn_1->displayWidth) {
+         if (temp / pI8301->cpp != (CARD32)(pI830->entityPrivate->pScrn_1->displayWidth)) {
             xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		    "Correcting plane %c stride (%d -> %d)\n", PIPE_NAME(pI830->pipe),
 		    (int)(temp / pI8301->cpp), pI830->entityPrivate->pScrn_1->displayWidth);
@@ -3459,7 +3459,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
             sizereg = pI830->pipe ? DSPASIZE : DSPBSIZE;
 
             temp = INREG(stridereg);
-            if (temp / pI8302->cpp != pI830->entityPrivate->pScrn_2->displayWidth) {
+            if (temp / pI8302->cpp != (CARD32)(pI830->entityPrivate->pScrn_2->displayWidth)) {
 	       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		    "Correcting plane %c stride (%d -> %d)\n", PIPE_NAME(!pI830->pipe),
 		    (int)(temp / pI8302->cpp), pI830->entityPrivate->pScrn_2->displayWidth);
@@ -3478,7 +3478,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
          I830Ptr pI8302 = I830PTR(pI830->entityPrivate->pScrn_2);
 
          temp = INREG(stridereg);
-         if (temp / pI8301->cpp != pI830->entityPrivate->pScrn_1->displayWidth) {
+         if (temp / pI8301->cpp != (CARD32)(pI830->entityPrivate->pScrn_1->displayWidth)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		    "Correcting plane %c stride (%d -> %d)\n", PIPE_NAME(pI830->pipe),
 		    (int)(temp / pI8301->cpp), pI830->entityPrivate->pScrn_1->displayWidth);
@@ -3494,7 +3494,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
          sizereg = !pI830->pipe ? DSPASIZE : DSPBSIZE;
 
          temp = INREG(stridereg);
-         if (temp / pI8302->cpp != pI830->entityPrivate->pScrn_2->displayWidth) {
+         if (temp / pI8302->cpp != ((CARD32)pI830->entityPrivate->pScrn_2->displayWidth)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		    "Correcting plane %c stride (%d -> %d)\n", PIPE_NAME(!pI830->pipe),
 		    (int)(temp / pI8302->cpp), pI830->entityPrivate->pScrn_2->displayWidth);
@@ -3515,7 +3515,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	    continue;
 
          temp = INREG(stridereg);
-         if (temp / pI830->cpp != pScrn->displayWidth) {
+         if (temp / pI830->cpp != (CARD32)pScrn->displayWidth) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		    "Correcting plane %c stride (%d -> %d)\n", PIPE_NAME(i),
 		    (int)(temp / pI830->cpp), pScrn->displayWidth);
@@ -4354,6 +4354,13 @@ I830BIOSLeaveVT(int scrnIndex, int flags)
       SaveHWOperatingState(pScrn);
 #endif
 
+   ResetState(pScrn, TRUE);
+   RestoreHWState(pScrn);
+   RestoreBIOSMemSize(pScrn);
+   if (IsPrimary(pScrn))
+      I830UnbindGARTMemory(pScrn);
+   if (pI830->AccelInfoRec)
+      pI830->AccelInfoRec->NeedToSync = FALSE;
    if (IsPrimary(pScrn)) {
       if (!SetDisplayDevices(pScrn, pI830->savedDevices)) {
          xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -4364,14 +4371,6 @@ I830BIOSLeaveVT(int scrnIndex, int flags)
 		 "Successfully set original devices\n");
       }
    }
-
-   ResetState(pScrn, TRUE);
-   RestoreHWState(pScrn);
-   RestoreBIOSMemSize(pScrn);
-   if (IsPrimary(pScrn))
-      I830UnbindGARTMemory(pScrn);
-   if (pI830->AccelInfoRec)
-      pI830->AccelInfoRec->NeedToSync = FALSE;
 }
 
 /*
@@ -4506,7 +4505,8 @@ I830BIOSSaveScreen(ScreenPtr pScreen, int mode)
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
    Bool on = xf86IsUnblank(mode);
-   CARD32 temp, ctrl, base, i;
+   CARD32 temp, ctrl, base;
+   int i;
 
    DPRINTF(PFX, "I830BIOSSaveScreen: %d, on is %s\n", mode, BOOLTOSTRING(on));
 

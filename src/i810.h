@@ -172,7 +172,7 @@ typedef struct _I810Rec {
    unsigned long OverlayPhysical;
    unsigned long OverlayStart;
    int colorKey;
-   int surfaceAllocation[I810_TOTAL_SURFACES];
+   unsigned int surfaceAllocation[I810_TOTAL_SURFACES];
    int numSurfaces;
 
    DGAModePtr DGAModes;
@@ -295,9 +295,10 @@ extern int I810WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis);
 extern void I810Sync(ScrnInfoPtr pScrn);
 extern unsigned long I810LocalToPhysical(ScrnInfoPtr pScrn,
 					 unsigned long local);
-extern int I810AllocLow(I810MemRange * result, I810MemRange * pool, int size);
+extern int I810AllocLow(I810MemRange * result, I810MemRange * pool, 
+			int size);
 extern int I810AllocHigh(I810MemRange * result, I810MemRange * pool,
-			 int size);
+			int size);
 extern Bool I810AllocateFront(ScrnInfoPtr pScrn);
 
 extern int I810AllocateGARTMemory(ScrnInfoPtr pScrn);

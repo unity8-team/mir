@@ -63,10 +63,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 static unsigned long
 AllocFromPool(ScrnInfoPtr pScrn, I830MemRange *result, I830MemPool *pool,
-	      unsigned long size, unsigned long alignment, int flags)
+	      long size, unsigned long alignment, int flags)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   unsigned long needed, start, end;
+   long needed, start, end;
    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
 
    if (!result || !pool || !size)
@@ -94,7 +94,7 @@ AllocFromPool(ScrnInfoPtr pScrn, I830MemRange *result, I830MemPool *pool,
       }
    }
    if (needed > pool->Free.Size) {
-      unsigned long extra;
+      long extra;
       /* See if the pool can be grown. */
       if (pI830->StolenOnly && !dryrun)
 	 return 0;
@@ -107,7 +107,7 @@ AllocFromPool(ScrnInfoPtr pScrn, I830MemRange *result, I830MemPool *pool,
 	    return 0;
       }
 
-      if (!dryrun && (extra > pI830->MemoryAperture.Size))
+      if (!dryrun && ((long)extra > pI830->MemoryAperture.Size))
 	 return 0;
 
       pool->Free.Size += extra;
@@ -136,7 +136,7 @@ AllocFromPool(ScrnInfoPtr pScrn, I830MemRange *result, I830MemPool *pool,
 }
 
 static unsigned long
-AllocFromAGP(ScrnInfoPtr pScrn, I830MemRange *result, unsigned long size,
+AllocFromAGP(ScrnInfoPtr pScrn, I830MemRange *result, long size,
 	     unsigned long alignment, int flags)
 {
    I830Ptr pI830 = I830PTR(pScrn);
@@ -212,7 +212,7 @@ AllocFromAGP(ScrnInfoPtr pScrn, I830MemRange *result, unsigned long size,
 
 unsigned long
 I830AllocVidMem(ScrnInfoPtr pScrn, I830MemRange *result, I830MemPool *pool,
-		unsigned long size, unsigned long alignment, int flags)
+		long size, unsigned long alignment, int flags)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
@@ -392,7 +392,7 @@ Bool
 I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   unsigned long size, alloced;
+   long size, alloced;
    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
    int verbosity = dryrun ? 4 : 1;
    const char *s = dryrun ? "[dryrun] " : "";
@@ -610,9 +610,9 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 	 return FALSE;
       }
    } else {
-      unsigned long lineSize;
-      unsigned long extra = 0;
-      unsigned long maxFb = 0;
+      long lineSize;
+      long extra = 0;
+      long maxFb = 0;
 
       /*
        * XXX Need to "free" up any 3D allocations if the DRI ended up
@@ -857,7 +857,7 @@ long
 I830GetExcessMemoryAllocations(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   unsigned long allocated;
+   long allocated;
 
    allocated = pI830->StolenPool.Total.Size + pI830->allocatedMemory;
    if (allocated > pI830->TotalVideoRam)
@@ -1367,7 +1367,7 @@ MakeTiles(ScrnInfoPtr pScrn, I830MemRange *pMem)
    I830Ptr pI830 = I830PTR(pScrn);
    int pitch, ntiles, i;
    static int nextTile = 0;
-   static int tileGeneration = -1;
+   static unsigned int tileGeneration = -1;
 
 #if 0
    /* Hack to "improve" the alignment of the front buffer.

@@ -290,7 +290,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    unsigned long dcacheHandle;
    int sysmem_size = 0;
    int back_size = 0;
-   int pitch_idx = 0;
+   unsigned int pitch_idx = 0;
    int bufs;
    int width = pScrn->displayWidth * pI810->cpp;
    int i;

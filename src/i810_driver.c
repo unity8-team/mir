@@ -1127,14 +1127,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    xf86SetOperatingState(resVgaIo, pI810->pEnt->index, ResUnusedOpr);
    xf86SetOperatingState(resVgaMem, pI810->pEnt->index, ResDisableOpr);
 
-   pI810->LpRing = xalloc(sizeof(I810RingBuffer));
-   if (!pI810->LpRing) {
-     xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
-		"Could not allocate lpring data structure.\n");
-     I810FreeRec(pScrn);
-     return FALSE;
-   }
-   
    return TRUE;
 }
 
@@ -1162,7 +1154,7 @@ static Bool
 I810MapMem(ScrnInfoPtr pScrn)
 {
    I810Ptr pI810 = I810PTR(pScrn);
-   unsigned i;
+   long i;
 
    for (i = 2; i < pI810->FbMapSize; i <<= 1) ;
    pI810->FbMapSize = i;
@@ -2077,6 +2069,13 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI810 = I810PTR(pScrn);
    hwp = VGAHWPTR(pScrn);
 
+   pI810->LpRing = xcalloc(sizeof(I810RingBuffer),1);
+   if (!pI810->LpRing) {
+     xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
+		"Could not allocate lpring data structure.\n");
+     return FALSE;
+   }
+   
    miClearVisualTypes();
 
    /* Re-implemented Direct Color support, -jens */

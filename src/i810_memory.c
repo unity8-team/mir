@@ -55,7 +55,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 int
 I810AllocLow(I810MemRange * result, I810MemRange * pool, int size)
 {
-   if (size > pool->Size)
+   if (size > (long)pool->Size)
       return 0;
 
    pool->Size -= size;
@@ -69,7 +69,7 @@ I810AllocLow(I810MemRange * result, I810MemRange * pool, int size)
 int
 I810AllocHigh(I810MemRange * result, I810MemRange * pool, int size)
 {
-   if (size > pool->Size)
+   if (size > (long)pool->Size)
       return 0;
 
    pool->Size -= size;

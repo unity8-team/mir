@@ -173,7 +173,7 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 #define BEGIN_LP_RING(n)						\
    unsigned int outring, ringmask;					\
    volatile unsigned char *virt;					\
-   unsigned int needed;							\
+   int needed;							\
    if ((n) & 1)								\
       ErrorF("BEGIN_LP_RING called with odd argument: %d\n", n);	\
    if ((n) > 2 && (I810_DEBUG&DEBUG_ALWAYS_SYNC))			\
@@ -206,7 +206,7 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 #define BEGIN_LP_RING(n)						\
    unsigned int outring, ringmask;					\
    volatile unsigned char *virt;					\
-   unsigned int needed;							\
+   int needed;								\
    if ((n) & 1)								\
       ErrorF("BEGIN_LP_RING called with odd argument: %d\n", n);	\
    if ((n) > 2 && (I810_DEBUG&DEBUG_ALWAYS_SYNC))			\
