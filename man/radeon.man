@@ -109,9 +109,15 @@ are supported:
 Selects software cursor.  The default is
 .B off.
 .TP
+.BI "Option \*qRenderAccel\*q \*q" boolean \*q
+Enables or disables hardware Render acceleration.
+The default is to
+.B enable
+Render acceleration for the 9200 and below.  This driver cannot do Render
+acceleration for the 9500 and above.
+.TP
 .BI "Option \*qNoAccel\*q \*q" boolean \*q
 Enables or disables all hardware acceleration.
-.br
 The default is to
 .B enable
 hardware acceleration.
