@@ -1,4 +1,4 @@
-/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.3 2004/07/30 20:30:53 ajax Exp $ */
+/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.4 2004/07/31 01:21:19 ajax Exp $ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
@@ -288,16 +288,16 @@ static const char *fbdevHWSymbols[] = {
     "fbdevHWGetVidmem",
 
     /* colormap */
-    "fbdevHWLoadPalette",
+    "fbdevHWLoadPaletteWeak",
 
     /* ScrnInfo hooks */
-    "fbdevHWAdjustFrame",
+    "fbdevHWAdjustFrameWeak",
     "fbdevHWEnterVT",
-    "fbdevHWLeaveVT",
+    "fbdevHWLeaveVTWeak",
     "fbdevHWModeInit",
     "fbdevHWSave",
-    "fbdevHWSwitchMode",
-    "fbdevHWValidMode",
+    "fbdevHWSwitchModeWeak",
+    "fbdevHWValidModeWeak",
 
     "fbdevHWMapMMIO",
     "fbdevHWMapVidmem",
