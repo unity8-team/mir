@@ -264,13 +264,9 @@ typedef struct _I810Rec {
 #define I810_SELECT_BACK	1
 #define I810_SELECT_DEPTH	2
 
-#ifdef XF86DRI
 extern Bool I810DRIScreenInit(ScreenPtr pScreen);
 extern void I810DRICloseScreen(ScreenPtr pScreen);
 extern Bool I810DRIFinishScreenInit(ScreenPtr pScreen);
-extern Bool I810DRILeave(ScrnInfoPtr pScrn);
-extern Bool I810DRIEnter(ScrnInfoPtr pScrn);
-#endif
 extern Bool I810InitDma(ScrnInfoPtr pScrn);
 extern Bool I810CleanupDma(ScrnInfoPtr pScrn);
 

@@ -1,6 +1,6 @@
 #define VIDEO_DEBUG 0
 /***************************************************************************
-
+ 
 Copyright 2000 Intel Corporation.  All Rights Reserved. 
 
 Permission is hereby granted, free of charge, to any person obtaining a 
@@ -24,7 +24,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
 THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_video.c,v 1.11tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_video.c,v 1.8 2003/06/18 13:14:19 dawes Exp $ */
 
 /*
  * Reformatted with GNU indent (2.2.8), using the following options:
@@ -631,15 +631,11 @@ I830SetupImageVideo(ScreenPtr pScreen)
    }
 
    /* gotta uninit this someplace */
-   REGION_NULL(pScreen, &pPriv->clip);
+   REGION_INIT(pScreen, &pPriv->clip, NullBox, 0);
 
    pI830->adaptor = adapt;
 
-   /*
-    * Initialise pPriv->refreshOK.  Set it to TRUE here so that a warning will
-    * be generated if I830VideoSwitchModeAfter() sets it to FALSE.
-    */
-   pPriv->refreshOK = TRUE;
+   /* Initialise pPriv->refreshOK */
    I830VideoSwitchModeAfter(pScrn, pScrn->currentMode);
 
    pI830->BlockHandler = pScreen->BlockHandler;
@@ -989,7 +985,7 @@ UpdateCoeff(int taps, double fCutoff, Bool isHoriz, Bool isY, coeffPtr pCoeff)
 	       SetCoeffRegs(&coeffs[i][tap2Fix], mantSize + 2, pCoeff, pos);
 	    else
 	       SetCoeffRegs(&coeffs[i][tap2Fix], mantSize, pCoeff, pos);
-
+	 
 	    sum = 0.0;
 	    for (j = 0; j < taps; j++)
 	       sum += coeffs[i][j];
@@ -1151,7 +1147,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 	 scaleChanged = TRUE;
 	 overlay->YRGBSCALE = newval;
       }
-
+		
       newval = (xscaleIntUV << 16) | ((xscaleFractUV & 0xFFF) << 3) |
 	    ((yscaleFractUV & 0xFFF) << 20);
       if (newval != overlay->UVSCALE) {
@@ -1166,14 +1162,14 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       }
 
       /* Recalculate coefficients if the scaling changed. */
-
+	
       /*
        * Only Horizontal coefficients so far.
        */
       if (scaleChanged) {
 	 double fCutoffY;
 	 double fCutoffUV;
-
+	 
 	 fCutoffY = xscaleFract / 4096.0;
 	 fCutoffUV = xscaleFractUV / 4096.0;
 
@@ -1252,13 +1248,8 @@ I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size)
 {
    ScreenPtr pScreen;
    FBLinearPtr new_linear;
-   int bytespp = pScrn->bitsPerPixel >> 3;
 
    DPRINTF(PFX, "I830AllocateMemory\n");
-
-   /* convert size in bytes into number of pixels */
-   size = (size + bytespp - 1) / bytespp;
-
    if (linear) {
       if (linear->size >= size)
 	 return linear;
@@ -1795,9 +1786,6 @@ I830VideoSwitchModeBefore(ScrnInfoPtr pScrn, DisplayModePtr mode)
    if (pixrate > pPriv->maxRate && pPriv->refreshOK) {
       I830StopVideo(pScrn, pPriv, TRUE);
       pPriv->refreshOK = FALSE;
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	"Disabling XVideo output because the mode pixel rate (%d MHz)\n"
-	"\texceeds the hardware limit (%d MHz).\n", pixrate, pPriv->maxRate);
    }
 }
 
@@ -1819,16 +1807,6 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
       mode->VRefresh = 60;
 
    pixrate = (mode->HDisplay * mode->VDisplay * mode->VRefresh) / 1000000;
-   if (pPriv->refreshOK && pixrate > pPriv->maxRate) {
-      pPriv->refreshOK = FALSE;
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	"Disabling XVideo output because the mode pixel rate (%d MHz)\n"
-	"\texceeds the hardware limit (%d MHz)\n", pixrate, pPriv->maxRate);
-   } else if (!pPriv->refreshOK && pixrate <= pPriv->maxRate) {
-      pPriv->refreshOK = TRUE;
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	"Enabling XVideo output (mode pixel rate %d MHz is within limits).\n",
-	pixrate);
-   }
+   pPriv->refreshOK = (pixrate <= pPriv->maxRate);
 }
 
