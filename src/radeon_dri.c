@@ -354,6 +354,49 @@ static void RADEONEnterServer(ScreenPtr pScreen)
     if (pSAREAPriv->ctxOwner != DRIGetContext(pScrn->pScreen))
 	info->RenderInited3D = FALSE;
 #endif
+
+    /* TODO: Fix this more elegantly.
+     * Sometimes (especially with multiple DRI clients), this code
+     * runs immediately after a DRI client issues a rendering command.
+     *
+     * The accel code regularly inserts WAIT_UNTIL_IDLE into the
+     * command buffer that is sent with the indirect buffer below.
+     * The accel code fails to set the 3D cache flush registers for
+     * the R300 before sending WAIT_UNTIL_IDLE. Sending a cache flush
+     * on these new registers is not necessary for pure 2D functionality,
+     * but it *is* necessary after 3D operations.
+     * Without the cache flushes before WAIT_UNTIL_IDLE, the R300 locks up.
+     *
+     * The CP_IDLE call into the DRM indirectly flushes all caches and
+     * thus avoids the lockup problem, but the solution is far from ideal.
+     * Better solutions could be:
+     *  - always flush caches when entering the X server
+     *  - track the type of rendering commands somewhere and issue
+     *    cache flushes when they change
+     * However, I don't feel confident enough with the control flow
+     * inside the X server to implement either fix. -- nh
+     */
+    
+    /* On my computer (Radeon Mobility M10)
+       The fix below results in x11perf -shmput500 rate of 245.0/sec
+       which is lower than 264.0/sec I get without it.
+       
+       Doing the same each time before indirect buffer is submitted
+       results in x11perf -shmput500 rate of 225.0/sec.
+       
+       On the other hand, not using CP acceleration at all benchmarks
+       at 144.0/sec.
+      
+       For now let us accept this as a lesser evil, especially as the
+       DRM driver for R300 is still in flux.
+       
+       Once the code is more stable this should probably be moved into DRM driver.
+    */ 
+     
+    if (info->ChipFamily>=CHIP_FAMILY_R300)
+        drmCommandNone(info->drmFD, DRM_RADEON_CP_IDLE);
+
+
 }
 
 /* Called when the X server goes to sleep to allow the X server's
