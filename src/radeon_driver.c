@@ -4572,14 +4572,20 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	int        bufferSize  = ((pScrn->virtualY * width_bytes
 				   + RADEON_BUFFER_ALIGN)
 				  & ~RADEON_BUFFER_ALIGN);
-	int        depthSize   = ((((pScrn->virtualY+15) & ~15) * width_bytes
-				   + RADEON_BUFFER_ALIGN)
-				  & ~RADEON_BUFFER_ALIGN);
+	int        depthSize;
 	int        l;
 	int        scanlines;
 
 	info->frontOffset = 0;
 	info->frontPitch = pScrn->displayWidth;
+
+	/* Due to tiling, the Z buffer pitch must be a multiple of 32 pixels,
+	 * and its height a multiple of 16 lines.
+	 */
+	info->depthPitch = (pScrn->displayWidth + 31) & ~31;
+	depthSize = ((((pScrn->virtualY+15) & ~15) * info->depthPitch
+		      * info->CurrentLayout.pixel_bytes + RADEON_BUFFER_ALIGN)
+		     & ~RADEON_BUFFER_ALIGN);
 
 	switch (info->CPMode) {
 	case RADEON_DEFAULT_CP_PIO_MODE:
@@ -4671,7 +4677,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	info->depthOffset = ((info->textureOffset - depthSize +
 			      RADEON_BUFFER_ALIGN) &
 			     ~(CARD32)RADEON_BUFFER_ALIGN);
-	info->depthPitch = pScrn->displayWidth;
 
 				/* Reserve space for the shared back buffer */
 	if (info->noBackBuffer) {
