@@ -3651,7 +3651,7 @@ static int r128_set_backlight_enable(ScrnInfoPtr pScrn, int on)
 	lvds_gen_cntl |= (/*R128_LVDS_BL_MOD_EN |*/ R128_LVDS_BLON);
 	if (on) {
 		lvds_gen_cntl |= R128_LVDS_DIGON;
-		if (!lvds_gen_cntl & R128_LVDS_ON) {
+		if (!(lvds_gen_cntl & R128_LVDS_ON)) {
 			lvds_gen_cntl &= ~R128_LVDS_BLON;
 			OUTREG(R128_LVDS_GEN_CNTL, lvds_gen_cntl);
 			(void)INREG(R128_LVDS_GEN_CNTL);
