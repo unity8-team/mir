@@ -691,6 +691,7 @@ RADEONSetOverlayGamma(ScrnInfoPtr pScrn, CARD32 gamma)
     CARD32	    ov0_scale_cntl;
 
     /* Set gamma */
+    RADEONWaitForIdleMMIO(pScrn);
     ov0_scale_cntl = INREG(RADEON_OV0_SCALE_CNTL) & ~RADEON_SCALER_GAMMA_SEL_MASK;
     OUTREG(RADEON_OV0_SCALE_CNTL, ov0_scale_cntl | (gamma << 0x00000005));
 
