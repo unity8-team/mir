@@ -352,6 +352,7 @@
 #       define RADEON_CRTC_TILE_LINE_RIGHT_SHIFT        4
 #       define RADEON_CRTC_TILE_EN_RIGHT                (1 << 14)
 #       define RADEON_CRTC_TILE_EN                      (1 << 15)
+#       define RADEON_CRTC_OFFSET_FLIP_CNTL             (1 << 16)
 #       define RADEON_CRTC_STEREO_OFFSET_EN             (1 << 17)
 
 #define RADEON_CRTC2_OFFSET_CNTL            0x0328

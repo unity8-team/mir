@@ -1328,6 +1328,9 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
 					    < RADEON_MAX_DRAWABLES
 					    ? SAREA_MAX_DRAWABLES
 					    : RADEON_MAX_DRAWABLES);
+    /* kill DRIAdjustFrame. We adjust sarea frame info ourselves to work
+       correctly with pageflip + mergedfb/color tiling */
+    pDRIInfo->wrap.AdjustFrame = NULL;
 
 #ifdef PER_CONTEXT_SAREA
     /* This is only here for testing per-context SAREAs.  When used, the

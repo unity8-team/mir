@@ -74,6 +74,7 @@
 #define _XF86DRI_SERVER_
 #include "radeon_dri.h"
 #include "radeon_sarea.h"
+#include "sarea.h"
 #endif
 
 #include "fb.h"
@@ -5352,6 +5353,11 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     }
 #endif
 
+    if(info->MergedFB) {
+	/* need this here to fix up sarea values */
+	RADEONAdjustFrameMerged(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+    }
+
     info->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = RADEONBlockHandler;
 
@@ -6823,12 +6829,10 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				      ? RADEON_CRTC2_V_SYNC_POL
 				      : 0));
 
-    /* We must make sure Tiling is disabled. It seem all other fancy
-     * options in there can be safely disabled too
+    /* It seems all fancy options apart from pflip can be safely disabled
      */
     save->crtc2_offset      = 0;
-    save->crtc2_offset_cntl = 0;
-
+    save->crtc2_offset_cntl = INREG(RADEON_CRTC2_OFFSET_CNTL) & RADEON_CRTC_OFFSET_FLIP_CNTL;
 
     /* this should be right */
     if (info->MergedFB) {
@@ -7513,6 +7517,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
     int            reg, Base;
 #ifdef XF86DRI
     RADEONSAREAPrivPtr pSAREAPriv;
+    XF86DRISAREAPtr pSAREA;
 #endif
 
     if (info->showCache && y) {
@@ -7543,11 +7548,22 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
-
-	pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+	/* note cannot use pScrn->pScreen since this is unitialized when called from
+	   RADEONScreenInit, and we need to call from there to get mergedfb + pageflip working */
+	pSAREAPriv = DRIGetSAREAPrivate(screenInfo.screens[pScrn->scrnIndex]);
+	/* can't get at sarea in a semi-sane way? */
+	pSAREA = (void *)((char*)pSAREAPriv - sizeof(XF86DRISAREARec));
 
 	if (clone || info->IsSecondary) {
 	    pSAREAPriv->crtc2_base = Base;
+	}
+	else {
+	    pSAREA->frame.x = (Base  / info->CurrentLayout.pixel_bytes)
+		% info->CurrentLayout.displayWidth;
+	    pSAREA->frame.y = (Base / info->CurrentLayout.pixel_bytes)
+		/ info->CurrentLayout.displayWidth;
+	    pSAREA->frame.width = pScrn->frameX1 - x + 1;
+	    pSAREA->frame.height = pScrn->frameY1 - y + 1;
 	}
 
 	if (pSAREAPriv->pfCurrentPage == 1) {
