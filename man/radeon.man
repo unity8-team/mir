@@ -148,6 +148,8 @@ Set AGP data transfer rate.
 .br
 4      \-\- x4
 .br
+8      \-\- x8
+.br
 others \-\- invalid
 .TP
 .BI "Option \*qAGPFastWrite\*q \*q" boolean \*q

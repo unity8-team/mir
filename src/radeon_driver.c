@@ -3944,11 +3944,18 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 				 OPTION_AGP_MODE, &(info->agpMode))) {
 	    if (info->agpMode < 1 || info->agpMode > RADEON_AGP_MAX_MODE) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Illegal AGP Mode: %d\n", info->agpMode);
-		return FALSE;
+			   "Illegal AGP Mode: %dx, set to default %dx mode\n",
+			   info->agpMode, RADEON_DEFAULT_AGP_MODE);
+		info->agpMode = RADEON_DEFAULT_AGP_MODE;
 	    }
+
+	    /* AGP_MAX_MODE is changed to allow v3 8x mode.
+	     * At this time we don't know if the AGP bridge supports
+	     * 8x mode. This will later be verified on both 
+	     * AGP master and target sides.
+	     */
 	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-		       "Using AGP %dx mode\n", info->agpMode);
+		       "AGP %dx mode is configured\n", info->agpMode);
 	}
 
 	if ((info->agpFastWrite = xf86ReturnOptValBool(info->Options,

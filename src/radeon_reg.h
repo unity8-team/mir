@@ -81,6 +81,9 @@
 #       define RADEON_AGP_4X_MODE           0x04
 #       define RADEON_AGP_FW_MODE           0x10
 #       define RADEON_AGP_MODE_MASK         0x17
+#       define RADEON_AGPv3_MODE            0x08
+#       define RADEON_AGPv3_4X_MODE         0x01
+#       define RADEON_AGPv3_8X_MODE         0x02
 #define RADEON_ATTRDR                       0x03c1 /* VGA */
 #define RADEON_ATTRDW                       0x03c0 /* VGA */
 #define RADEON_ATTRX                        0x03c0 /* VGA */

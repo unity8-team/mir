@@ -54,7 +54,7 @@
 
 #define RADEON_DEFAULT_CP_TIMEOUT     10000  /* usecs */
 
-#define RADEON_AGP_MAX_MODE           4
+#define RADEON_AGP_MAX_MODE           8
 
 #define RADEON_CARD_TYPE_RADEON       1
 
