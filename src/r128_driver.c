@@ -197,18 +197,22 @@ static const char *fbdevHWSymbols[] = {
     "fbdevHWGetVidmem",
 
     "fbdevHWDPMSSet",
+    "fbdevHWDPMSSetWeak",
 
     /* colormap */
     "fbdevHWLoadPalette",
+    "fbdevHWLoadPaletteWeak",
 
     /* ScrnInfo hooks */
     "fbdevHWAdjustFrame",
+    "fbdevHWAdjustFrameWeak",
     "fbdevHWEnterVT",
     "fbdevHWLeaveVT",
     "fbdevHWModeInit",
     "fbdevHWRestore",
     "fbdevHWSave",
     "fbdevHWSwitchMode",
+    "fbdevHWSwitchModeWeak",
     "fbdevHWValidModeWeak",
 
     "fbdevHWMapMMIO",
