@@ -5086,11 +5086,12 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			+ RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN;
 	}
 	/* Due to tiling, the Z buffer pitch must be a multiple of 32 pixels,
-	 * which is always the case due to color pitch and its height a multiple of 16 lines.
+	 * which is always the case if color tiling is used due to color pitch
+	 * but not necessarily otherwise, and its height a multiple of 16 lines.
 	 */
-	info->depthPitch = pScrn->displayWidth;
+	info->depthPitch = (pScrn->displayWidth + 31) & ~31;
 	depthSize = ((((pScrn->virtualY + 15) & ~15) * info->depthPitch
-	      * cpp + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
+		* cpp + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
 
 	switch (info->CPMode) {
 	case RADEON_DEFAULT_CP_PIO_MODE:
