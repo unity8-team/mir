@@ -1364,8 +1364,8 @@ static Bool RADEONGetLVDSInfo (ScrnInfoPtr pScrn)
                     info->Flags = 0;
                     break;
                 }
-                tmp_mode = tmp_mode->next;
             }
+            tmp_mode = tmp_mode->next;
         }
         if ((info->DotClock == 0) && !pRADEONEnt->PortInfo[0].MonInfo) {
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
