@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_type.h,v 1.1 2003/07/31 20:24:31 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_type.h $ */
 
 #ifndef __Riva_STRUCT_H__
 #define __Riva_STRUCT_H__

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_proto.h,v 1.1 2003/07/31 20:24:31 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_proto.h $ */
 
 #ifndef __RIVA_PROTO_H__
 #define __RIVA_PROTO_H__

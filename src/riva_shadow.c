@@ -2,7 +2,7 @@
    Copyright (c) 1999,  The XFree86 Project Inc. 
    Written by Mark Vojkovich <markv@valinux.com>
 */
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_shadow.c,v 1.1 2003/07/31 20:24:31 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_shadow.c $ */
 
 #include "riva_local.h"
 #include "riva_include.h"

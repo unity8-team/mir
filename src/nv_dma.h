@@ -38,7 +38,7 @@
 |*                                                                           *|
  \***************************************************************************/
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_dma.h,v 1.2 2003/07/31 21:41:26 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_dma.h,v 1.1 2003/07/31 20:24:29 mvojkovi Exp $ */
 
 #define SURFACE_FORMAT                                              0x00000300
 #define SURFACE_FORMAT_DEPTH8                                       0x00000001

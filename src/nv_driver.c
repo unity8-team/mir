@@ -1,3 +1,4 @@
+/* $XdotOrg$ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
@@ -24,7 +25,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.123 2004/01/13 19:03:28 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.122 2004/01/10 22:31:53 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -327,7 +328,7 @@ static XF86ModuleVersionInfo nvVersRec =
     MODULEVENDORSTRING,
     MODINFOSTRING1,
     MODINFOSTRING2,
-    XF86_VERSION_CURRENT,
+    XORG_VERSION_CURRENT,
     NV_MAJOR_VERSION, NV_MINOR_VERSION, NV_PATCHLEVEL,
     ABI_CLASS_VIDEODRV,                     /* This is a video driver */
     ABI_VIDEODRV_VERSION,
