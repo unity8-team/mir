@@ -1277,6 +1277,8 @@
 #define RADEON_SW_SEMAPHORE                 0x013c
 
 #define RADEON_TEST_DEBUG_CNTL              0x0120
+#define RADEON_TEST_DEBUG_CNTL__TEST_DEBUG_OUT_EN 0x00000001
+
 #define RADEON_TEST_DEBUG_MUX               0x0124
 #define RADEON_TEST_DEBUG_OUT               0x012c
 #define RADEON_TMDS_PLL_CNTL                0x02a8
@@ -1304,7 +1306,36 @@
 #define RADEON_VGA_DDA_ON_OFF               0x02ec
 #define RADEON_VID_BUFFER_CONTROL           0x0900
 #define RADEON_VIDEOMUX_CNTL                0x0190
-#define RADEON_VIPH_CONTROL                 0x0c40 /* ? */
+
+                 /* VIP bus */
+#define RADEON_VIPH_CH0_DATA                0x0c00
+#define RADEON_VIPH_CH1_DATA                0x0c04
+#define RADEON_VIPH_CH2_DATA                0x0c08
+#define RADEON_VIPH_CH3_DATA                0x0c0c
+#define RADEON_VIPH_CH0_ADDR                0x0c10
+#define RADEON_VIPH_CH1_ADDR                0x0c14
+#define RADEON_VIPH_CH2_ADDR                0x0c18
+#define RADEON_VIPH_CH3_ADDR                0x0c1c
+#define RADEON_VIPH_CH0_SBCNT               0x0c20
+#define RADEON_VIPH_CH1_SBCNT               0x0c24
+#define RADEON_VIPH_CH2_SBCNT               0x0c28
+#define RADEON_VIPH_CH3_SBCNT               0x0c2c
+#define RADEON_VIPH_CH0_ABCNT               0x0c30
+#define RADEON_VIPH_CH1_ABCNT               0x0c34
+#define RADEON_VIPH_CH2_ABCNT               0x0c38
+#define RADEON_VIPH_CH3_ABCNT               0x0c3c
+#define RADEON_VIPH_CONTROL                 0x0c40
+#define RADEON_VIPH_DV_LAT                  0x0c44
+#define RADEON_VIPH_BM_CHUNK                0x0c48
+#define RADEON_VIPH_DV_INT                  0x0c4c
+#define RADEON_VIPH_TIMEOUT_STAT            0x0c50
+#define RADEON_VIPH_TIMEOUT_STAT__VIPH_REG_STAT 0x00000010
+#define RADEON_VIPH_TIMEOUT_STAT__VIPH_REG_AK   0x00000010
+#define RADEON_VIPH_TIMEOUT_STAT__VIPH_REGR_DIS 0x01000000
+
+#define RADEON_VIPH_REG_DATA                0x0084
+#define RADEON_VIPH_REG_ADDR                0x0080
+
 
 #define RADEON_WAIT_UNTIL                   0x1720
 #       define RADEON_WAIT_CRTC_PFLIP       (1 << 0)

@@ -895,6 +895,9 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     /* Initialize I2C bus */
     RADEONInitI2C(pScrn, pPriv);
     if(pPriv->i2c != NULL)RADEON_board_setmisc(pPriv);
+    
+    /* Initialize VIP bus */
+    RADEONVIP_init(pScrn, pPriv);
 
     #if 0  /* this is just here for easy debugging - normally off */
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Scanning I2C Bus\n");

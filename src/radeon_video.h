@@ -7,6 +7,8 @@
 #include "tda9885.h"
 #include "i2c_def.h"
 
+#include "generic_bus.h"
+
 /* Xvideo port struct */
 typedef struct {
    CARD32	 transform_index;
@@ -32,7 +34,10 @@ typedef struct {
    CARD8         tuner_type;
    MSP3430Ptr    msp3430;
    TDA9885Ptr    tda9885;
-   
+
+   /* VIP bus and devices */
+   GENERIC_BUS_Ptr  VIP;
+
    Bool          video_stream_active;
    int           encoding;
    CARD32        frequency;
@@ -72,6 +77,9 @@ typedef struct {
 
 void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 void RADEONResetI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
+
+void RADEONVIP_init(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
+void RADEONVIP_reset(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 
 
 #endif
