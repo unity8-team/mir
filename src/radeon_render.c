@@ -917,7 +917,7 @@ FUNC_NAME(R200SubsequentCPUToScreenTexture) (
     fb = srcy + height;
 
 #ifdef ACCEL_CP
-    BEGIN_RING(24);
+    BEGIN_RING(22);
 
     OUT_ACCEL_REG(RADEON_RB3D_COLOROFFSET, fboffset);
 

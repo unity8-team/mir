@@ -543,7 +543,12 @@ typedef struct {
 #ifdef PER_CONTEXT_SAREA
     int               perctx_sarea_size;
 #endif
-#endif
+
+    /* Debugging info for BEGIN_RING/ADVANCE_RING pairs. */
+    int               dma_begin_count;
+    char              *dma_debug_func;
+    int               dma_debug_lineno;
+#endif /* XF86DRI */
 
 				/* XVideo */
     XF86VideoAdaptorPtr adaptor;
@@ -718,13 +723,21 @@ do {									\
 
 #define RADEON_VERBOSE	0
 
-#define RING_LOCALS	CARD32 *__head = NULL; int __count = 0
+#define RING_LOCALS	CARD32 *__head = NULL; int __expected; int __count = 0
 
 #define BEGIN_RING(n) do {						\
     if (RADEON_VERBOSE) {						\
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,				\
 		   "BEGIN_RING(%d) in %s\n", n, __FUNCTION__);		\
     }									\
+    if (++info->dma_begin_count != 1) {					\
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,				\
+		   "BEGIN_RING without end at %s:%d\n",			\
+		   info->dma_debug_func, info->dma_debug_lineno);	\
+	info->dma_begin_count = 1;					\
+    }									\
+    info->dma_debug_func = __FILE__;					\
+    info->dma_debug_lineno = __LINE__;					\
     if (!info->indirectBuffer) {					\
 	info->indirectBuffer = RADEONCPGetBuffer(pScrn);		\
 	info->indirectStart = 0;					\
@@ -732,12 +745,24 @@ do {									\
 	       info->indirectBuffer->total) {				\
 	RADEONCPFlushIndirect(pScrn, 1);				\
     }									\
+    __expected = n;							\
     __head = (pointer)((char *)info->indirectBuffer->address +		\
 		       info->indirectBuffer->used);			\
     __count = 0;							\
 } while (0)
 
 #define ADVANCE_RING() do {						\
+    if (info->dma_begin_count-- != 1) {					\
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,				\
+		   "ADVANCE_RING without begin at %s:%d\n",		\
+		   __FILE__, __LINE__);					\
+	info->dma_begin_count = 0;					\
+    }									\
+    if (__count != __expected) {					\
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,				\
+		   "ADVANCE_RING count != expected (%d vs %d) at %s:%d\n", \
+		   __count, __expected, __FILE__, __LINE__);		\
+    }									\
     if (RADEON_VERBOSE) {						\
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,				\
 		   "ADVANCE_RING() start: %d used: %d count: %d\n",	\
