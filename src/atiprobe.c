@@ -1554,6 +1554,9 @@ ATIProbe
                     continue;
 
                 pPCI = pVideo->thisCard;
+		if (pPCI == NULL)
+		    continue;
+		
                 PciReg = pciReadLong(pPCI->tag, PCI_REG_USERCONFIG);
                 j = PciReg & 0x03U;
                 if (j == 0x03U)
