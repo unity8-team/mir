@@ -253,7 +253,7 @@ determined by the
 .B Virtual
 keyword defined on the
 .B Screen
-section of your XF86Config file.  It works just like regular virtual
+section of your __xconfigfile__ file.  It works just like regular virtual
 desktop except you have two viewports looking into it instead of one.
 .br
 For example, if you wanted a desktop composed of two 1024x768 viewports
@@ -353,7 +353,7 @@ of different refreshes or sizes to the mix, they are defined as CRT1Mode+CRT2Mod
 .br
 Note:  Any mode you use in the MetaModes must be defined in the
 .B Screen 
-section of your XF86Config file.  Modes not defined there will be ignored when
+section of your __xconfigfile__ file.  Modes not defined there will be ignored when
 the MetaModes are parsed since the driver uses them to make sure the monitors can 
 handle those modes.  If you do not define a MetaMode the driver will create
 one based on the orientation of the heads and size of the largest defined mode in 
