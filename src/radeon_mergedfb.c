@@ -29,6 +29,7 @@
 /*
  * Authors:
  *   Alex Deucher <agd5f@yahoo.com>
+ *   Based, in large part, on the sis driver by Thomas Winischhofer.
  */
 
 #include "xf86.h"
