@@ -158,8 +158,9 @@ typedef enum {
     OPTION_MIN_DOTCLOCK,
 #ifdef RENDER
     OPTION_RENDER_ACCEL,
-    OPTION_SUBPIXEL_ORDER
+    OPTION_SUBPIXEL_ORDER,
 #endif
+    OPTION_SHOWCACHE
 } RADEONOpts;
 
 const OptionInfoRec RADEONOptions[] = {
@@ -202,6 +203,7 @@ const OptionInfoRec RADEONOptions[] = {
     { OPTION_RENDER_ACCEL,   "RenderAccel",      OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_SUBPIXEL_ORDER, "SubPixelOrder",    OPTV_ANYSTR,  {0}, FALSE },
 #endif
+    { OPTION_SHOWCACHE,      "ShowCache",        OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -2440,12 +2442,15 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 	}
     }
 #endif
+    xf86GetOptValBool(info->Options, OPTION_SHOWCACHE, &info->showCache);
+    if (info->showCache)
+	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
+		   "Option ShowCache enabled\n");
 
 #ifdef RENDER
     info->RenderAccel = xf86ReturnOptValBool (info->Options,
 					      OPTION_RENDER_ACCEL, TRUE);
 #endif
-
 
     return TRUE;
 }
@@ -7001,11 +7006,21 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    int            reg, Base = y * info->CurrentLayout.displayWidth + x;
+    int            reg, Base;
 #ifdef XF86DRI
     RADEONSAREAPrivPtr pSAREAPriv;
 #endif
 
+    if (info->showCache && y) {
+	        int lastline = info->FbMapSize /
+		    ((pScrn->displayWidth * pScrn->bitsPerPixel) / 8);
+
+		lastline -= pScrn->currentMode->VDisplay;
+		y += (pScrn->virtualY - 1) * (y / 3 + 1);
+		if (y > lastline) y = lastline;
+    }
+    Base = y * info->CurrentLayout.displayWidth + x;
+    
     switch (info->CurrentLayout.pixel_code) {
     case 15:
     case 16: Base *= 2; break;
