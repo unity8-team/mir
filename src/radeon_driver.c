@@ -242,7 +242,7 @@ static const char *fbdevHWSymbols[] = {
     "fbdevHWRestore",
     "fbdevHWSave",
     "fbdevHWSwitchMode",
-    "fbdevHWValidMode",
+    "fbdevHWValidModeWeak",
 
     "fbdevHWMapMMIO",
     "fbdevHWMapVidmem",
