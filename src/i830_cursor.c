@@ -2,7 +2,7 @@
 /**************************************************************************
 
 Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
-Copyright © 2002 David Dawes
+Copyright Â© 2002 David Dawes
 All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a

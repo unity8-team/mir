@@ -2,7 +2,7 @@
 /**************************************************************************
 
 Copyright 2001 VA Linux Systems Inc., Fremont, California.
-Copyright © 2002 by David Dawes
+Copyright Â© 2002 by David Dawes
 
 All Rights Reserved.
 
@@ -49,7 +49,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /*
  * Mode handling is based on the VESA driver written by:
- * Paulo César Pereira de Andrade <pcpa@conectiva.com.br>
+ * Paulo CÃ©sar Pereira de Andrade <pcpa@conectiva.com.br>
  */
 
 /*

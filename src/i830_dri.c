@@ -2,7 +2,7 @@
 /**************************************************************************
 
 Copyright 2001 VA Linux Systems Inc., Fremont, California.
-Copyright © 2002 by David Dawes
+Copyright Â© 2002 by David Dawes
 
 All Rights Reserved.
 
