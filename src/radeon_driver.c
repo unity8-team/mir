@@ -381,6 +381,7 @@ static const char *int10Symbols[] = {
     "xf86InitInt10",
     "xf86FreeInt10",
     "xf86int10Addr",
+    "xf86ExecX86int10",
     NULL
 };
 
@@ -7297,8 +7298,21 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 {
     ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
 
     RADEONTRACE(("RADEONEnterVT\n"));
+
+    if (INREG(RADEON_CONFIG_MEMSIZE) == 0) { /* Softboot V_BIOS */
+       xf86Int10InfoPtr pInt;
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                  "zero MEMSIZE, probably at D3cold. Re-POSTing via int10.\n");
+       pInt = xf86InitInt10 (info->pEnt->index);
+       if (pInt) {
+           pInt->num = 0xe6;
+           xf86ExecX86int10 (pInt);
+           xf86FreeInt10 (pInt);
+       }
+    }
 
     if (info->FBDev) {
 	unsigned char *RADEONMMIO = info->MMIO;
