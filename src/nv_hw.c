@@ -36,7 +36,7 @@
 |*     those rights set forth herein.                                        *|
 |*                                                                           *|
  \***************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.13 2004/12/09 00:21:04 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.14 2005/01/20 01:01:00 mvojkovi Exp $ */
 
 #include "nv_local.h"
 #include "compiler.h"
@@ -1173,6 +1173,7 @@ void NVLoadStateExt (
 
               switch(pNv->Chipset & 0xfff0) {
               case 0x0040:
+              case 0x0210:
                  pNv->PGRAPH[0x09b8/4] = 0x0078e366;
                  pNv->PGRAPH[0x09bc/4] = 0x0000014c;
                  pNv->PFB[0x033C/4] &= 0xffff7fff;
@@ -1182,6 +1183,7 @@ void NVLoadStateExt (
                  pNv->PGRAPH[0x082C/4] = 0x00000108;
                  break;
               case 0x0160:
+              case 0x01D0:
                  pNv->PMC[0x1700/4] = pNv->PFB[0x020C/4];
                  pNv->PMC[0x1704/4] = 0;
                  pNv->PMC[0x1708/4] = 0;
@@ -1193,6 +1195,15 @@ void NVLoadStateExt (
               case 0x0140:
                  pNv->PGRAPH[0x0828/4] = 0x0072cb77;
                  pNv->PGRAPH[0x082C/4] = 0x00000108;
+                 break;
+              case 0x0220:
+              case 0x0230:
+                 pNv->PGRAPH[0x0860/4] = 0;
+                 pNv->PGRAPH[0x0864/4] = 0;
+                 pNv->PRAMDAC[0x0608/4] |= 0x00100000;
+                 break;
+              case 0x0090:
+                 pNv->PRAMDAC[0x0608/4] |= 0x00100000;
                  break;
               default:
                  break;
