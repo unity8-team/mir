@@ -69,10 +69,14 @@ extern void                  R128LeaveVT
 			     FunctionPrototype((int, int));
 extern void                  R128FreeScreen
 			     FunctionPrototype((int, int));
-extern int                   R128ValidMode
+extern ModeStatus            R128ValidMode
 			     FunctionPrototype((int, DisplayModePtr, Bool,
 						int));
 
-extern const OptionInfoRec   R128Options[];
+extern OptionInfoRec *       R128OptionsWeak
+                             FunctionPrototype((void));
+
+extern void                  R128FillInScreenInfo
+                             FunctionPrototype((ScrnInfoPtr));
 
 #endif /* _R128_PROBE_H_ */

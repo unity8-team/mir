@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128_probe.c,v 1.18 2003/02/09 15:33:17 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128_probe.c,v 1.17 2003/02/07 20:41:15 martin Exp $ */
 /*
  * Copyright 1999, 2000 ATI Technologies Inc., Markham, Ontario,
  *                      Precision Insight, Inc., Cedar Park, Texas, and
@@ -47,32 +47,6 @@
 #include "xf86.h"
 #include "xf86_ansic.h"
 #include "xf86Resources.h"
-
-#ifdef XFree86LOADER
-
-/*
- * The following exists to prevent the compiler from considering entry points
- * defined in a separate module from being constants.
- */
-static xf86PreInitProc     * const volatile PreInitProc     = R128PreInit;
-static xf86ScreenInitProc  * const volatile ScreenInitProc  = R128ScreenInit;
-static xf86SwitchModeProc  * const volatile SwitchModeProc  = R128SwitchMode;
-static xf86AdjustFrameProc * const volatile AdjustFrameProc = R128AdjustFrame;
-static xf86EnterVTProc     * const volatile EnterVTProc     = R128EnterVT;
-static xf86LeaveVTProc     * const volatile LeaveVTProc     = R128LeaveVT;
-static xf86FreeScreenProc  * const volatile FreeScreenProc  = R128FreeScreen;
-static xf86ValidModeProc   * const volatile ValidModeProc   = R128ValidMode;
-
-#define R128PreInit     PreInitProc
-#define R128ScreenInit  ScreenInitProc
-#define R128SwitchMode  SwitchModeProc
-#define R128AdjustFrame AdjustFrameProc
-#define R128EnterVT     EnterVTProc
-#define R128LeaveVT     LeaveVTProc
-#define R128FreeScreen  FreeScreenProc
-#define R128ValidMode   ValidModeProc
-
-#endif
 
 SymTabRec R128Chipsets[] = {
     /* FIXME: The chipsets with (PCI/AGP) are not known wether they are AGP or
@@ -194,7 +168,7 @@ R128AvailableOptions(int chipid, int busid)
 	chipid -= PCI_VENDOR_ATI << 16;
     for (i = 0; R128PciChipsets[i].PCIid > 0; i++) {
 	if (chipid == R128PciChipsets[i].PCIid)
-	    return R128Options;
+	    return R128OptionsWeak();
     }
     return NULL;
 }
@@ -280,18 +254,8 @@ R128Probe(DriverPtr drv, int flags)
 
 #endif
 
-	    pScrn->driverVersion = R128_VERSION_CURRENT;
-	    pScrn->driverName    = R128_DRIVER_NAME;
-	    pScrn->name          = R128_NAME;
 	    pScrn->Probe         = R128Probe;
-	    pScrn->PreInit       = R128PreInit;
-	    pScrn->ScreenInit    = R128ScreenInit;
-	    pScrn->SwitchMode    = R128SwitchMode;
-	    pScrn->AdjustFrame   = R128AdjustFrame;
-	    pScrn->EnterVT       = R128EnterVT;
-	    pScrn->LeaveVT       = R128LeaveVT;
-	    pScrn->FreeScreen    = R128FreeScreen;
-	    pScrn->ValidMode     = R128ValidMode;
+	    R128FillInScreenInfo(pScrn);
 
 	    foundScreen          = TRUE;
 

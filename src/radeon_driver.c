@@ -165,7 +165,7 @@ typedef enum {
     OPTION_DYNAMIC_CLOCKS
 } RADEONOpts;
 
-const OptionInfoRec RADEONOptions[] = {
+static const OptionInfoRec RADEONOptions[] = {
     { OPTION_NOACCEL,        "NoAccel",          OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_SW_CURSOR,      "SWcursor",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DAC_6BIT,       "Dac6Bit",          OPTV_BOOLEAN, {0}, FALSE },
@@ -209,6 +209,8 @@ const OptionInfoRec RADEONOptions[] = {
     { OPTION_DYNAMIC_CLOCKS, "DynamicClocks",    OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
+
+OptionInfoRec *RADEONOptionsWeak(void) { return RADEONOptions; }
 
 static const char *vgahwSymbols[] = {
     "vgaHWFreeHWRec",
@@ -439,7 +441,7 @@ static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
     {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RV350*/
 };
 
-extern int gRADEONEntityIndex;
+extern int getRADEONEntityIndex(void);
 
 struct RADEONInt10Save {
 	CARD32 MEM_CNTL;
@@ -455,7 +457,7 @@ static RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn)
     DevUnion     *pPriv;
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     pPriv = xf86GetEntityPrivate(info->pEnt->index,
-                                 gRADEONEntityIndex);
+                                 getRADEONEntityIndex());
     return pPriv->ptr;
 }
 
@@ -4152,7 +4154,7 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	    xf86LoaderReqSymLists(fbdevHWSymbols, NULL);
 
 	    if (fbdevHWInit(pScrn, info->PciInfo, NULL)) {
-		pScrn->ValidMode     = fbdevHWValidMode;
+		pScrn->ValidMode     = LoaderSymbol("fbdevHWValidMode");
 		info->FBDev = TRUE;
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
 			   "Using framebuffer device\n");
@@ -8060,3 +8062,20 @@ static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
     }
 }
 
+void RADEONFillInScreenInfo(ScrnInfoPtr pScrn)
+{
+    pScrn->driverVersion = RADEON_VERSION_CURRENT;
+    pScrn->driverName    = RADEON_DRIVER_NAME;
+    pScrn->name          = RADEON_NAME;
+    pScrn->PreInit       = RADEONPreInit;
+    pScrn->ScreenInit    = RADEONScreenInit;
+    pScrn->SwitchMode    = RADEONSwitchMode;
+#ifdef X_XF86MiscPassMessage
+    pScrn->HandleMessage = RADEONHandleMessage;
+#endif
+    pScrn->AdjustFrame   = RADEONAdjustFrame;
+    pScrn->EnterVT       = RADEONEnterVT;
+    pScrn->LeaveVT       = RADEONLeaveVT;
+    pScrn->FreeScreen    = RADEONFreeScreen;
+    pScrn->ValidMode     = RADEONValidMode;
+}

@@ -138,7 +138,7 @@ typedef enum {
   OPTION_SHOW_CACHE
 } R128Opts;
 
-const OptionInfoRec R128Options[] = {
+static const OptionInfoRec R128Options[] = {
   { OPTION_NOACCEL,      "NoAccel",          OPTV_BOOLEAN, {0}, FALSE },
   { OPTION_SW_CURSOR,    "SWcursor",         OPTV_BOOLEAN, {0}, FALSE },
   { OPTION_DAC_6BIT,     "Dac6Bit",          OPTV_BOOLEAN, {0}, FALSE },
@@ -164,6 +164,8 @@ const OptionInfoRec R128Options[] = {
   { OPTION_SHOW_CACHE,   "ShowCache",        OPTV_BOOLEAN, {0}, FALSE },
   { -1,                  NULL,               OPTV_NONE,    {0}, FALSE }
 };
+
+OptionInfoRec *R128OptionsWeak(void) { return R128Options; }
 
 R128RAMRec R128RAM[] = {        /* Memory Specifications
 				   From RAGE 128 Software Development
@@ -1919,9 +1921,9 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
 	if (!xf86LoadSubModule(pScrn, "fbdevhw")) return FALSE;
 	xf86LoaderReqSymLists(fbdevHWSymbols, NULL);
 	if (!fbdevHWInit(pScrn, info->PciInfo, NULL)) return FALSE;
-	pScrn->SwitchMode    = fbdevHWSwitchMode;
-	pScrn->AdjustFrame   = fbdevHWAdjustFrame;
-	pScrn->ValidMode     = fbdevHWValidMode;
+	pScrn->SwitchMode    = LoaderSymbol("fbdevHWSwitchMode");
+	pScrn->AdjustFrame   = LoaderSymbol("fbdevHWAdjustFrame");
+	pScrn->ValidMode     = LoaderSymbol("fbdevHWValidMode");
     }
 
     if (!info->FBDev)
@@ -2425,7 +2427,7 @@ Bool R128ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 				/* Colormap setup */
     if (!miCreateDefColormap(pScreen)) return FALSE;
     if (!xf86HandleColormaps(pScreen, 256, info->dac6bits ? 6 : 8,
-			     (info->FBDev ? fbdevHWLoadPalette :
+			     (info->FBDev ? LoaderSymbol("fbdevHWLoadPalette") :
 			     R128LoadPalette), NULL,
 			     CMAP_PALETTED_TRUECOLOR
 			     | CMAP_RELOAD_ON_MODE_SWITCH
@@ -2436,7 +2438,7 @@ Bool R128ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
     /* DPMS setup - FIXME: also for mirror mode in non-fbdev case? - Michel */
     if (info->FBDev)
-	xf86DPMSInit(pScreen, fbdevHWDPMSSet, 0);
+	xf86DPMSInit(pScreen, LoaderSymbol("fbdevHWDPMSSet"), 0);
     else {
 	if (!info->HasPanelRegs || info->BIOSDisplay == R128_BIOS_DISPLAY_CRT)
 	    xf86DPMSInit(pScreen, R128DisplayPowerManagementSet, 0);
@@ -3674,4 +3676,19 @@ static int r128_set_backlight_enable(ScrnInfoPtr pScrn, int on)
 	OUTREG(R128_LVDS_GEN_CNTL, lvds_gen_cntl);
 
 	return 0;
- }
+}
+
+void R128FillInScreenInfo(ScrnInfoPtr pScrn)
+{
+	pScrn->driverVersion = R128_VERSION_CURRENT;
+	pScrn->driverName    = R128_DRIVER_NAME;
+	pScrn->name          = R128_NAME;
+	pScrn->PreInit       = R128PreInit;
+	pScrn->ScreenInit    = R128ScreenInit;
+	pScrn->SwitchMode    = R128SwitchMode;
+	pScrn->AdjustFrame   = R128AdjustFrame;
+	pScrn->EnterVT       = R128EnterVT;
+	pScrn->LeaveVT       = R128LeaveVT;
+	pScrn->FreeScreen    = R128FreeScreen;
+	pScrn->ValidMode     = R128ValidMode;
+}

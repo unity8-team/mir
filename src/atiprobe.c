@@ -1,6 +1,6 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atiprobe.c,v 1.60 2003/10/07 22:47:11 martin Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atiprobe.c,v 1.62tsi Exp $ */
 /*
- * Copyright 1997 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -27,6 +27,7 @@
 #include "atibus.h"
 #include "atichip.h"
 #include "aticonsole.h"
+#include "atifillin.h"
 #include "atiident.h"
 #include "atimach64io.h"
 #include "atimodule.h"
@@ -56,32 +57,6 @@
  *   Device sections.  Also, PCI configuration space for Mach32's is to be
  *   largely ignored.
  */
-
-#ifdef XFree86LOADER
-
-/*
- * The following exists to prevent the compiler from considering entry points
- * defined in a separate module from being constants.
- */
-static xf86PreInitProc     * const volatile PreInitProc     = ATIPreInit;
-static xf86ScreenInitProc  * const volatile ScreenInitProc  = ATIScreenInit;
-static xf86SwitchModeProc  * const volatile SwitchModeProc  = ATISwitchMode;
-static xf86AdjustFrameProc * const volatile AdjustFrameProc = ATIAdjustFrame;
-static xf86EnterVTProc     * const volatile EnterVTProc     = ATIEnterVT;
-static xf86LeaveVTProc     * const volatile LeaveVTProc     = ATILeaveVT;
-static xf86FreeScreenProc  * const volatile FreeScreenProc  = ATIFreeScreen;
-static xf86ValidModeProc   * const volatile ValidModeProc   = ATIValidMode;
-
-#define ATIPreInit     PreInitProc
-#define ATIScreenInit  ScreenInitProc
-#define ATISwitchMode  SwitchModeProc
-#define ATIAdjustFrame AdjustFrameProc
-#define ATIEnterVT     EnterVTProc
-#define ATILeaveVT     LeaveVTProc
-#define ATIFreeScreen  FreeScreenProc
-#define ATIValidMode   ValidModeProc
-
-#endif
 
 /* Used as a temporary buffer */
 #define Identifier ((char *)(pATI->MMIOCache))
@@ -214,6 +189,8 @@ ATICheckSparseIOBases
     return DoProbe;
 }
 
+#ifndef AVOID_NON_PCI
+
 /*
  * ATIClaimSparseIOBases --
  *
@@ -235,6 +212,8 @@ ATIClaimSparseIOBases
     for (;  FirstPort <= LastPort;  FirstPort++)
         ProbeFlags[FirstPort] = ProbeFlag;
 }
+
+#endif /* AVOID_NON_PCI */
 
 /*
  * ATIVGAProbe --
@@ -803,9 +782,8 @@ ATIAssignVGA
                     outb(VGA_DAC_MASK, 0xA5U);
                     if (inb(IBM_DAC_MASK) == 0xA5U)
                         pATI->VGAAdapter = ATI_ADAPTER_VGA;
+                    outb(VGA_DAC_MASK, OldDACMask);
                 }
-
-                outb(VGA_DAC_MASK, OldDACMask);
             }
             break;
 
@@ -825,9 +803,8 @@ ATIAssignVGA
                     outb(VGA_DAC_MASK, 0xA5U);
                     if (inb(IBM_DAC_MASK) == 0xA5U)
                         pATI->VGAAdapter = ATI_ADAPTER_VGA;
+                    outb(VGA_DAC_MASK, OldDACMask);
                 }
-
-                outb(VGA_DAC_MASK, OldDACMask);
 
                 if (ClockSel & DISABPASSTHRU)
                     outw(CLOCK_SEL, ClockSel);
@@ -854,9 +831,8 @@ ATIAssignVGA
                     outb(VGA_DAC_MASK, 0xA5U);
                     if (inb(IBM_DAC_MASK) == 0xA5U)
                         pATI->VGAAdapter = ATI_ADAPTER_MACH32;
+                    outb(VGA_DAC_MASK, OldDACMask);
                 }
-
-                outb(VGA_DAC_MASK, OldDACMask);
 
                 if (ClockSel & DISABPASSTHRU)
                     outw(CLOCK_SEL, ClockSel);
@@ -879,9 +855,8 @@ ATIAssignVGA
                     outb(VGA_DAC_MASK, 0xA5U);
                     if (in8(M64_DAC_MASK) == 0xA5U)
                         pATI->VGAAdapter = ATI_ADAPTER_MACH64;
+                    outb(VGA_DAC_MASK, OldDACMask);
                 }
-
-                outb(VGA_DAC_MASK, OldDACMask);
 
                 if (!(DACCntl & DAC_VGA_ADR_EN))
                     outr(DAC_CNTL, DACCntl);
@@ -927,6 +902,8 @@ ATIAssignVGA
     xf86MsgVerb(X_INFO, 3, ATI_NAME ":  VGA assigned to this adapter.\n");
 }
 
+#ifndef AVOID_NON_PCI
+
 /*
  * ATIClaimVGA --
  *
@@ -954,6 +931,8 @@ ATIClaimVGA
 
     ATIClaimSparseIOBases(ProbeFlags, pATI->CPIO_VGAWonder, 2, Detected);
 }
+
+#endif /* AVOID_NON_PCI */
 
 /*
  * ATIFindVGA --
@@ -1217,6 +1196,8 @@ ATIProbe
 
         xfree(PCIPorts);
 
+#ifndef AVOID_NON_PCI
+
         /*
          * A note on probe strategy.  I/O and memory response by certain PCI
          * devices has been disabled by the common layer at this point,
@@ -1328,6 +1309,9 @@ ATIProbe
             ATIClaimSparseIOBases(ProbeFlags, Mach64SparseIOBases[i], 4,
                 DetectedMach64);
         }
+
+#endif /* AVOID_NON_PCI */
+
     }
 
 #endif /* AVOID_CPIO */
@@ -1370,7 +1354,7 @@ ATIProbe
                     "Unshared PCI sparse I/O Mach64 in slot %d:%d:%d",
                     pVideo->bus, pVideo->device, pVideo->func);
                 xf86MsgVerb(X_INFO, 3,
-                    ATI_NAME ":  %s detected through Block 0 at 0x%08X.\n",
+                    ATI_NAME ":  %s detected through Block 0 at 0x%08lX.\n",
                     Identifier, pATI->Block0Base);
                 AddAdapter(pATI);
                 pATI->PCIInfo = pVideo;
@@ -1493,6 +1477,8 @@ ATIProbe
                             pVideo->bus, pVideo->device, pVideo->func);
                         break;
 
+#ifndef AVOID_NON_PCI
+
                     case Detected8514A:
                         if ((p8514->BusType >= ATI_BUS_PCI) && !p8514->PCIInfo)
                             p8514->PCIInfo = pVideo;
@@ -1513,6 +1499,8 @@ ATIProbe
                             " at I/O base 0x02EC.\n",
                             pVideo->bus, pVideo->device, pVideo->func);
                         break;
+
+#endif /* AVOID_NON_PCI */
 
                     default:    /* Must be DoProbe */
                         if (!xf86CheckPciSlot(pVideo->bus,
@@ -1587,6 +1575,8 @@ ATIProbe
                             pVideo->bus, pVideo->device, pVideo->func);
                         break;
 
+#ifndef AVOID_NON_PCI
+
                     case Detected8514A:
                         xf86Msg(X_WARNING,
                             ATI_NAME ":  PCI Mach64 in slot %d:%d:%d will not"
@@ -1609,6 +1599,8 @@ ATIProbe
                                 ATIBusNames[pATI->BusType],
                                 Mach64SparseIOBases[j]);
                         break;
+
+#endif /* AVOID_NON_PCI */
 
                     default:        /* Must be DoProbe */
                         if (!xf86CheckPciSlot(pVideo->bus,
@@ -1689,7 +1681,7 @@ ATIProbe
                     sprintf(Identifier, "Shared PCI Mach64 in slot %d:%d:%d",
                         pVideo->bus, pVideo->device, pVideo->func);
                     xf86MsgVerb(X_INFO, 3,
-                        ATI_NAME ":  %s with Block 0 base 0x%08X detected.\n",
+                        ATI_NAME ":  %s with Block 0 base 0x%08lX detected.\n",
                         Identifier, pATI->Block0Base);
                     AddAdapter(pATI);
                     pATI->SharedAccelerator = TRUE;
@@ -1724,43 +1716,12 @@ ATIProbe
             Chip = ATIChipID(pVideo->chipType, pVideo->chipRev);
             if (Chip > ATI_CHIP_Mach64)
             {
-                switch (Chip)
-                {
-                    case ATI_CHIP_RAGE128GL:
-                    case ATI_CHIP_RAGE128VR:
-                    case ATI_CHIP_RAGE128PROULTRA:
-                    case ATI_CHIP_RAGE128PROGL:
-                    case ATI_CHIP_RAGE128PROVR:
-                    case ATI_CHIP_RAGE128MOBILITY3:
-                    case ATI_CHIP_RAGE128MOBILITY4:
-                        DoRage128 = TRUE;
-                        continue;
+                if (Chip <= ATI_CHIP_Rage128)
+                    DoRage128 = TRUE;
+                else if (Chip <= ATI_CHIP_Radeon)
+                    DoRadeon = TRUE;
 
-                    case ATI_CHIP_RADEON:
-                    case ATI_CHIP_RADEONVE:
-                    case ATI_CHIP_RADEONMOBILITY6:
-                    case ATI_CHIP_RS100:
-                    case ATI_CHIP_RS200:
-                    case ATI_CHIP_RS250:
-                    case ATI_CHIP_RADEONMOBILITY7:
-                    case ATI_CHIP_R200:
-                    case ATI_CHIP_RV200:
-                    case ATI_CHIP_RV250:
-                    case ATI_CHIP_RADEONMOBILITY9:
-                    case ATI_CHIP_RS300:
-                    case ATI_CHIP_RV280:
-                    case ATI_CHIP_RADEONMOBILITY9PLUS:
-                    case ATI_CHIP_R300:
-                    case ATI_CHIP_RV350:
-                    case ATI_CHIP_R350:
-                    case ATI_CHIP_R360:
-                        DoRadeon = TRUE;
-                        continue;
-
-                    case ATI_CHIP_HDTV:
-                    default:
-                        continue;
-                }
+                continue;
             }
 
             if (!nATIGDev)
@@ -2313,18 +2274,7 @@ NoVGAWonder:;
             ATIPtrs[j - 1] = NULL;
 
             /* Fill in probe data */
-            pScreenInfo->driverVersion = ATI_VERSION_CURRENT;
-            pScreenInfo->driverName    = ATI_DRIVER_NAME;
-            pScreenInfo->name          = ATI_NAME;
-            pScreenInfo->Probe         = ATIProbe;
-            pScreenInfo->PreInit       = ATIPreInit;
-            pScreenInfo->ScreenInit    = ATIScreenInit;
-            pScreenInfo->SwitchMode    = ATISwitchMode;
-            pScreenInfo->AdjustFrame   = ATIAdjustFrame;
-            pScreenInfo->EnterVT       = ATIEnterVT;
-            pScreenInfo->LeaveVT       = ATILeaveVT;
-            pScreenInfo->FreeScreen    = ATIFreeScreen;
-            pScreenInfo->ValidMode     = ATIValidMode;
+	    ATIFillInScreenInfo(pScreenInfo);
 
             pScreenInfo->driverPrivate = pATI;
 

@@ -111,8 +111,6 @@ static struct {
     { RADEON_ROP3_ONE,  RADEON_ROP3_ONE  }  /* GXset          */
 };
 
-extern int gRADEONEntityIndex;
-
 /* The FIFO has 64 slots.  This routines waits until at least `entries'
  * of these slots are empty.
  */

@@ -21,8 +21,6 @@
 
 #define TIMER_MASK      (OFF_TIMER | FREE_TIMER)
 
-extern int gRADEONEntityIndex;
-
 static void RADEONInitOffscreenImages(ScreenPtr);
 
 static XF86VideoAdaptorPtr RADEONSetupImageVideo(ScreenPtr);

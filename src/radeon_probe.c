@@ -49,39 +49,6 @@
 #include "xf86misc.h"
 #include "xf86Resources.h"
 
-#ifdef XFree86LOADER
-
-/*
- * The following exists to prevent the compiler from considering entry points
- * defined in a separate module from being constants.
- */
-static xf86PreInitProc     *const volatile PreInitProc     = RADEONPreInit;
-static xf86ScreenInitProc  *const volatile ScreenInitProc  = RADEONScreenInit;
-static xf86SwitchModeProc  *const volatile SwitchModeProc  = RADEONSwitchMode;
-static xf86AdjustFrameProc *const volatile AdjustFrameProc = RADEONAdjustFrame;
-static xf86EnterVTProc     *const volatile EnterVTProc     = RADEONEnterVT;
-static xf86LeaveVTProc     *const volatile LeaveVTProc     = RADEONLeaveVT;
-static xf86FreeScreenProc  *const volatile FreeScreenProc  = RADEONFreeScreen;
-static xf86ValidModeProc   *const volatile ValidModeProc   = RADEONValidMode;
-#ifdef X_XF86MiscPassMessage
-static xf86HandleMessageProc *const volatile HandleMessageProc
-							= RADEONHandleMessage;
-#endif
-
-#define RADEONPreInit       PreInitProc
-#define RADEONScreenInit    ScreenInitProc
-#define RADEONSwitchMode    SwitchModeProc
-#define RADEONAdjustFrame   AdjustFrameProc
-#define RADEONEnterVT       EnterVTProc
-#define RADEONLeaveVT       LeaveVTProc
-#define RADEONFreeScreen    FreeScreenProc
-#define RADEONValidMode     ValidModeProc
-#ifdef X_XF86MiscPassMessage
-# define RADEONHandleMessage HandleMessageProc
-#endif
-
-#endif
-
 SymTabRec RADEONChipsets[] = {
     { PCI_CHIP_RADEON_QD, "ATI Radeon QD (AGP)" },
     { PCI_CHIP_RADEON_QE, "ATI Radeon QE (AGP)" },
@@ -220,6 +187,8 @@ PciChipsets RADEONPciChipsets[] = {
 
 int gRADEONEntityIndex = -1;
 
+const int getRADEONEntityIndex(void) { return gRADEONEntityIndex; }
+
 /* Return the options for supported chipset 'n'; NULL otherwise */
 const OptionInfoRec *
 RADEONAvailableOptions(int chipid, int busid)
@@ -234,7 +203,7 @@ RADEONAvailableOptions(int chipid, int busid)
 	chipid -= PCI_VENDOR_ATI << 16;
     for (i = 0; RADEONPciChipsets[i].PCIid > 0; i++) {
 	if (chipid == RADEONPciChipsets[i].PCIid)
-	    return RADEONOptions;
+	    return RADEONOptionsWeak();
     }
     return NULL;
 }
@@ -317,21 +286,8 @@ RADEONProbe(DriverPtr drv, int flags)
 		xf86LoaderReqSymLists(RADEONSymbols, NULL);
 #endif
 
-		pScrn->driverVersion = RADEON_VERSION_CURRENT;
-		pScrn->driverName    = RADEON_DRIVER_NAME;
-		pScrn->name          = RADEON_NAME;
 		pScrn->Probe         = RADEONProbe;
-		pScrn->PreInit       = RADEONPreInit;
-		pScrn->ScreenInit    = RADEONScreenInit;
-		pScrn->SwitchMode    = RADEONSwitchMode;
-#ifdef X_XF86MiscPassMessage
-		pScrn->HandleMessage = RADEONHandleMessage;
-#endif
-		pScrn->AdjustFrame   = RADEONAdjustFrame;
-		pScrn->EnterVT       = RADEONEnterVT;
-		pScrn->LeaveVT       = RADEONLeaveVT;
-		pScrn->FreeScreen    = RADEONFreeScreen;
-		pScrn->ValidMode     = RADEONValidMode;
+		RADEONFillInScreenInfo(pScrn);
 		foundScreen          = TRUE;
 	    }
 
