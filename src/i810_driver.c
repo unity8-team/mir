@@ -274,6 +274,7 @@ const char *I810drmSymbols[] = {
    "drmAgpRelease",
    "drmAgpUnbind",
    "drmAuthMagic",
+   "drmCommandNone",
    "drmCommandWrite",
    "drmCreateContext",
    "drmCtlInstHandler",
@@ -1123,6 +1124,14 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    xf86SetOperatingState(resVgaIo, pI810->pEnt->index, ResUnusedOpr);
    xf86SetOperatingState(resVgaMem, pI810->pEnt->index, ResDisableOpr);
 
+   pI810->LpRing = xalloc(sizeof(I810RingBuffer));
+   if (!pI810->LpRing) {
+     xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
+		"Could not allocate lpring data structure.\n");
+     I810FreeRec(pScrn);
+     return FALSE;
+   }
+   
    return TRUE;
 }
 
@@ -2494,6 +2503,9 @@ I810CloseScreen(int scrnIndex, ScreenPtr pScreen)
     * around.  Will prevent the Xserver from recycling.
     */
    xf86GARTCloseScreen(scrnIndex);
+
+   xfree(pI810->LpRing);
+   pI810->LpRing = NULL;
 
    pScrn->vtSema = FALSE;
    pScreen->CloseScreen = pI810->CloseScreen;
