@@ -7380,6 +7380,8 @@ static void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
+    if (!pScrn->vtSema) return;
+
 #ifdef XF86DRI
     if (info->CPStarted) DRILock(pScrn->pScreen, 0);
 #endif
