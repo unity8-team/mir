@@ -236,6 +236,9 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     } else
        nvReg->cursorConfig |= 0x02000000;
 
+    nvReg->timingH = 0;
+    nvReg->timingV = 0;
+
     return (TRUE);
 }
 
@@ -270,8 +273,6 @@ NVDACSave(ScrnInfoPtr pScrn, vgaRegPtr vgaReg, NVRegPtr nvReg,
 #if defined(__powerpc__)
     saveFonts = FALSE;
 #endif
-
-    NVLockUnlock(pNv, 0);
 
     vgaHWSave(pScrn, vgaReg, VGA_SR_CMAP | VGA_SR_MODE | 
                              (saveFonts? VGA_SR_FONTS : 0));

@@ -1,4 +1,4 @@
-/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.5 2004/08/16 09:13:14 ajax Exp $ */
+/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.6 2004/09/17 03:04:52 ajax Exp $ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
@@ -1488,17 +1488,21 @@ NVRestore(ScrnInfoPtr pScrn)
     NVPtr pNv = NVPTR(pScrn);
     NVRegPtr nvReg = &pNv->SavedReg;
 
-    if(pNv->twoHeads) {
-        VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
-        VGA_WR08(pNv->PCIO, 0x03D5, nvReg->crtcOwner);
-        NVLockUnlock(pNv, 0);
-    }
-
     NVLockUnlock(pNv, 0);
+    if(pNv->twoHeads) {
+	VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
+	VGA_WR08(pNv->PCIO, 0x03D5, pNv->CRTCnumber * 0x3);
+	NVLockUnlock(pNv, 0);
+    }
 
     /* Only restore text mode fonts/text for the primary card */
     vgaHWProtect(pScrn, TRUE);
     NVDACRestore(pScrn, vgaReg, nvReg, pNv->Primary);
+    if(pNv->twoHeads) {
+	VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
+	VGA_WR08(pNv->PCIO, 0x03D5, nvReg->crtcOwner);
+     }  
+
     vgaHWProtect(pScrn, FALSE);
 }
 
@@ -1533,6 +1537,8 @@ NVDPMSSetLCD(ScrnInfoPtr pScrn, int PowerManagementMode, int flags)
 
   if (!pScrn->vtSema) return;
 
+  vgaHWDPMSSet(pScrn, PowerManagementMode, flags);
+
   switch (PowerManagementMode) {
   case DPMSModeStandby:  /* HSync: Off, VSync: On */
   case DPMSModeSuspend:  /* HSync: On, VSync: Off */
@@ -1544,7 +1550,6 @@ NVDPMSSetLCD(ScrnInfoPtr pScrn, int PowerManagementMode, int flags)
   default:
     break;
   }
-  vgaHWDPMSSet(pScrn, PowerManagementMode, flags);
 }
 
 
@@ -1829,6 +1834,13 @@ NVSave(ScrnInfoPtr pScrn)
     NVRegPtr nvReg = &pNv->SavedReg;
     vgaHWPtr pVga = VGAHWPTR(pScrn);
     vgaRegPtr vgaReg = &pVga->SavedReg;
+
+    NVLockUnlock(pNv, 0);
+    if(pNv->twoHeads) {
+	VGA_WR08(pNv->PCIO, 0x03D4, 0x44);                   
+	VGA_WR08(pNv->PCIO, 0x03D5, pNv->CRTCnumber * 0x3);
+	NVLockUnlock(pNv, 0);
+    }
 
     NVDACSave(pScrn, vgaReg, nvReg, pNv->Primary);
 }
