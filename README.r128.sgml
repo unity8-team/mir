@@ -1,4 +1,4 @@
-<!DOCTYPE linuxdoc PUBLIC "-//XFree86//DTD linuxdoc//EN"[
+<!DOCTYPE linuxdoc PUBLIC "-//Xorg//DTD linuxdoc//EN"[
 <!ENTITY % defs SYSTEM "defs.ent"> %defs;
 ]>
 
@@ -8,7 +8,6 @@
 <date>13 June 2000
 
 <ident>
-$XFree86: xc/programs/Xserver/hw/xfree86/doc/sgml/r128.sgml,v 1.8 2000/06/14 00:16:09 dawes Exp $
 </ident>
 
 <toc>
@@ -54,14 +53,14 @@ $XFree86: xc/programs/Xserver/hw/xfree86/doc/sgml/r128.sgml,v 1.8 2000/06/14 00:
 <p>
 The driver auto-detects all device information necessary to
 initialize the card.  The only lines you need in the "Device"
-section of your XF86Config file are:
+section of your xorg.conf file are:
 <verb>
        Section "Device"
            Identifier "Rage 128"
            Driver     "r128"
        EndSection
 </verb>
-or let <tt>xf86config</tt> do this for you.
+or let <tt>xorgconfig</tt> do this for you.
 
 However, if you have problems with auto-detection, you can specify:
 <itemize>
@@ -92,6 +91,8 @@ However, if you have problems with auto-detection, you can specify:
 
 <sect>Authors
 <p>
+The X11R&relvers; driver was originally part of XFree86 4.4 rc2.
+
 The XFree86 4 driver was ported from XFree86 3.3.x and enhanced by:
 <itemize>
    <item>Rickard E. (Rik) Faith <email>faith@precisioninsight.com</email>

@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_reg.h,v 1.33 2004/03/03 18:11:45 dawes Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_reg.h,v 1.31 2003/11/10 18:41:23 tsi Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -65,6 +65,12 @@
 #       define RADEON_AGP_APER_SIZE_8MB     (0x3e << 0)
 #       define RADEON_AGP_APER_SIZE_4MB     (0x3f << 0)
 #       define RADEON_AGP_APER_SIZE_MASK    (0x3f << 0)
+#define RADEON_STATUS_PCI_CONFIG            0x06
+#       define RADEON_CAP_LIST              0x100000
+#define RADEON_CAPABILITIES_PTR_PCI_CONFIG  0x34 /* offset in PCI config*/
+#       define RADEON_CAP_PTR_MASK          0xfc /* mask off reserved bits of CAP_PTR */
+#       define RADEON_CAP_ID_NULL           0x00 /* End of capability list */
+#       define RADEON_CAP_ID_AGP            0x02 /* AGP capability ID */
 #define RADEON_AGP_COMMAND                  0x0f60 /* PCI */
 #define RADEON_AGP_COMMAND_PCI_CONFIG       0x0060 /* offset in PCI config*/
 #       define RADEON_AGP_ENABLE            (1<<8)

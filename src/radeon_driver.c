@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.120 2004/03/08 17:12:32 tsi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -2258,27 +2258,66 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 
 #ifdef XF86DRI
 				/* AGP/PCI */
-
-    /* There are signatures in BIOS and PCI-SSID for a PCI card, but
-     * they are not very reliable.  Following detection method works for
-     * all cards tested so far.  Note, checking AGP_ENABLE bit after
-     * drmAgpEnable call can also give the correct result.  However,
-     * calling drmAgpEnable on a PCI card can cause some strange lockup
-     * when the server restarts next time.
+    /* Proper autodetection of an AGP capable device requires examining
+     * PCI config registers to determine if the device implements extended
+     * PCI capabilities, and then walking the capability list as indicated
+     * in the PCI 2.2 and AGP 2.0 specifications, to determine if AGP
+     * capability is present.  The procedure is outlined as follows:
+     *
+     * 1) Test bit 4 (CAP_LIST) of the PCI status register of the device
+     *    to determine wether or not this device implements any extended
+     *    capabilities.  If this bit is zero, then the device is a PCI 2.1
+     *    or earlier device and is not AGP capable, and we can conclude it
+     *    to be a PCI device.
+     *
+     * 2) If bit 4 of the status register is set, then the device implements
+     *    extended capabilities.  There is an 8 bit wide capabilities pointer
+     *    register located at offset 0x34 in PCI config space which points to
+     *    the first capability in a linked list of extended capabilities that
+     *    this device implements.  The lower two bits of this register are
+     *    reserved and MBZ so must be masked out.
+     *
+     * 3) The extended capabilities list is formed by one or more extended
+     *    capabilities structures which are aligned on DWORD boundaries.
+     *    The first byte of the structure is the capability ID (CAP_ID)
+     *    indicating what extended capability this structure refers to.  The
+     *    second byte of the structure is an offset from the beginning of
+     *    PCI config space pointing to the next capability in the linked
+     *    list (NEXT_PTR) or NULL (0x00) at the end of the list.  The lower
+     *    two bits of this pointer are reserved and MBZ.  By examining the
+     *    CAP_ID of each capability and walking through the list, we will
+     *    either find the AGP_CAP_ID (0x02) indicating this device is an
+     *    AGP device, or we'll reach the end of the list, indicating it is
+     *    a PCI device.
+     *
+     * Mike A. Harris <mharris@redhat.com>
+     *
+     * References:
+     *	- PCI Local Bus Specification Revision 2.2, Chapter 6
+     *	- AGP Interface Specification Revision 2.0, Section 6.1.5
      */
 
-    agpCommand = pciReadLong(info->PciTag, RADEON_AGP_COMMAND_PCI_CONFIG);
-    pciWriteLong(info->PciTag, RADEON_AGP_COMMAND_PCI_CONFIG,
-		 agpCommand | RADEON_AGP_ENABLE);
-    if (pciReadLong(info->PciTag, RADEON_AGP_COMMAND_PCI_CONFIG)
-	& RADEON_AGP_ENABLE) {
-	info->IsPCI = FALSE; 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "AGP card detected\n");
-    } else {
-	info->IsPCI = TRUE; 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PCI card detected\n");
+    info->IsPCI = TRUE;
+
+    if (pciReadLong(info->PciTag, PCI_CMD_STAT_REG) & RADEON_CAP_LIST) {
+	CARD32 cap_ptr, cap_id;
+
+	cap_ptr = pciReadLong(info->PciTag,
+			      RADEON_CAPABILITIES_PTR_PCI_CONFIG)
+	    & RADEON_CAP_PTR_MASK;
+
+	while(cap_ptr != RADEON_CAP_ID_NULL) {
+	    cap_id = pciReadLong(info->PciTag, cap_ptr);
+	    if ((cap_id & 0xff)== RADEON_CAP_ID_AGP) {
+		info->IsPCI = FALSE;
+		break;
+	    }
+	    cap_ptr = (cap_id >> 8) & RADEON_CAP_PTR_MASK;
+	}
     }
-    pciWriteLong(info->PciTag, RADEON_AGP_COMMAND_PCI_CONFIG, agpCommand);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s card detected\n",
+	       (info->IsPCI) ? "PCI" : "AGP");
 
     if ((s = xf86GetOptValString(info->Options, OPTION_BUS_TYPE))) {
 	if (strcmp(s, "AGP") == 0) {
@@ -5184,6 +5223,7 @@ static void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
 	    ~(RADEON_PIX2CLK_SRC_SEL_MASK));
 }
 
+#if 0
 /* Write palette data */
 static void RADEONRestorePalette(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
@@ -5207,6 +5247,7 @@ static void RADEONRestorePalette(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	OUTPAL_NEXT_CARD32(restore->palette[i]);
     }
 }
+#endif
 
 /* Write out state to define a new video mode */
 static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
@@ -5275,7 +5316,9 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	}
     }
 
+#if 0
     RADEONRestorePalette(pScrn, &info->SavedReg);
+#endif
 }
 
 /* Read common registers */
@@ -5465,7 +5508,7 @@ static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	    RADEONSaveCrtc2Registers(pScrn, save);
 	    RADEONSavePLL2Registers(pScrn, save);
 	}
-	RADEONSavePalette(pScrn, save);
+     /* RADEONSavePalette(pScrn, save); */
     }
 
     RADEONTRACE(("RADEONSaveMode returns %p\n", save));

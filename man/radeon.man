@@ -1,4 +1,4 @@
-.\" $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon.man,v 1.9 2004/01/26 21:05:43 tsi Exp $
+.\" $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon.man,v 1.0 2003/01/31 23:04:50 $
 .ds q \N'34'
 .TH RADEON __drivermansuffix__ __vendorversion__
 .SH NAME
@@ -13,7 +13,7 @@ radeon \- ATI RADEON video driver
 .fi
 .SH DESCRIPTION
 .B radeon
-is a XFree86 driver for ATI RADEON based video cards.  It contains
+is a __xservername__ driver for ATI RADEON based video cards.  It contains
 full support for 8, 15, 16 and 24 bit pixel depths, dual-head setup,
 flat panel, hardware 2D acceleration, hardware 3D acceleration
 (except R300 and IGP series cards), hardware cursor, XV extension, Xinerama extension.
@@ -68,7 +68,7 @@ Radeon 9600PRO/9600SE/9600, M10/M11, FireGL T2 (2D only)
 Radeon 9600XT (2d only)
 
 .SH CONFIGURATION DETAILS
-Please refer to XF86Config(__filemansuffix__) for general configuration
+Please refer to __xconfigfile__(__filemansuffix__) for general configuration
 details.  This section only covers configuration details specific to this
 driver.
 .PP
@@ -311,7 +311,7 @@ parameter may be specified as a float value with standard suffixes like
 "k", "kHz", "M", "MHz".
 
 .SH SEE ALSO
-XFree86(1), XF86Config(__filemansuffix__), xf86config(1), Xserver(1), X(__miscmansuffix__)
+__xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .SH AUTHORS
 .nf
 Authors include: ...

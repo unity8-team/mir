@@ -1,4 +1,4 @@
-<!DOCTYPE linuxdoc PUBLIC "-//XFree86//DTD linuxdoc//EN"[
+<!DOCTYPE linuxdoc PUBLIC "-//Xorg//DTD linuxdoc//EN"[
 <!ENTITY % defs SYSTEM "defs.ent"> %defs;
 ]>
 
@@ -15,11 +15,12 @@
 
 
 <ident>
-$XFree86: xc/programs/Xserver/hw/xfree86/doc/sgml/ati.sgml,v 3.43 2003/02/25 19:31:02 dawes Exp $
+$Id$ 
+Based on XFree86: xc/programs/Xserver/hw/xfree86/doc/sgml/ati.sgml,v 3.42 2003/01/20 03:43:07 dawes Exp 
 </ident>
 
 <abstract>
-This is the README for the XFree86 ATI driver included in this release.
+This is the README for the XAA ATI driver included in this release.
 </abstract>
 
 <!-- Table of contents -->
@@ -46,8 +47,8 @@ otherwise
 <it>and</it> the user has requested such support.
 </itemize>
 Thus, the level of support provided not only depends on what the driver detects
-in the system, but also, on what the user specifies in the XF86Config file.
-See the <bf>``XF86Config specifications''</bf> section below for details.<p>
+in the system, but also, on what the user specifies in the xorg.conf file.
+See the <bf>``xorg.conf specifications''</bf> section below for details.<p>
 If none of the above conditions are met, the ATI driver will essentially
 disable itself to allow other drivers to examine the system.<p>
 Note that I am currently considering removing the driver's support for generic
@@ -138,18 +139,18 @@ functionality, but the driver currently only uses the VGA.<p>
 The driver <it>does</it> however support the accelerator CRTC present in all
 ATI Mach64 adapters.
 For 256-colour, and higher depth modes, this support will be used by default,
-although an XF86Config option can be specified to use the SuperVGA CRTC
+although an xorg.conf option can be specified to use the SuperVGA CRTC
 instead.
 A linear video memory aperture is also available in 256-colour and higher depth
 modes and enabled by default if a 264xT or 3D Rage controller is detected or,
 on 88800 controllers, if the accelerator CRTC is used.
-XF86Config options are available to disable this aperture, or (for non-PCI
+xorg.conf options are available to disable this aperture, or (for non-PCI
 adapters) enable it or move it to some other address.<p>
 By default, the driver provides some acceleration for Mach64 if the accelerator
 CRTC is used, and modes whose colour depth greater than or equal to 8 are to be
 used.
 This support is as yet incomplete and can be disabled entirely with an
-XF86Config option.<p>
+xorg.conf option.<p>
 On non-Intel platforms, the driver can, currently, only support PCI Mach64
 adapters.<p>
 <sect>Current implementation of generic VGA support for non-ATI adapters<p>
@@ -157,7 +158,7 @@ Support for generic VGA with non-ATI adapters is also implemented, but has
 undergone only limited testing.
 The driver will intentionally disallow the use of this support with ATI
 adapters.
-This support must be explicitly requested through an XF86Config ChipSet
+This support must be explicitly requested through an xorg.conf ChipSet
 specification.
 This prevents the current VGA generic driver from being disabled.<p>
 This driver's generic VGA support is intended as an extension of that provided
@@ -174,8 +175,8 @@ VGA implementation:
 <item>Interlaced modes are not available.
 <item>Colour depths higher than 8 are not available.
 </itemize>
-<sect>XF86Config specifications<p>
-The driver recognises a number of XF86Config options.
+<sect>xorg.conf specifications<p>
+The driver recognises a number of xorg.conf options.
 In general, all such options should be specified in a ``Device'' section, and
 affect only that ``Device'' section.<p>
 Those options that affect how the driver associates adapters with ``Device''
@@ -248,7 +249,7 @@ This option limits the adapters that can be associated with the ``Device''
 section to the one with the specified PCI Bus ID.
 This specification excludes non-PCI adapters.<p>
 <sect1>Clocks<p>
-For the purpose of specifying a clock line in your XF86Config, one of four
+For the purpose of specifying a clock line in your xorg.conf, one of four
 different situations can occur, as follows.<p>
 Those configuring the driver's generic VGA support for a non-ATI adapter,
 can skip ahead to the <bf>``Clocks for non-ATI adapters''</bf> section below.
@@ -274,14 +275,14 @@ The clock numbers reserved in this way are dependent on the particular clock
 generator used by the adapter.<p>
 The driver currently supports all programmable clock generators known to exist
 on Mach64 adapters.
-In this case, the driver will completely ignore any XF86Config clock
+In this case, the driver will completely ignore any xorg.conf clock
 specification, and programme the clock generator as needed by the modes used
 during the X session.<p>
 <sect2>Clocks for unsupported programmable clock generators<p>
 This case is unlikely to occur, but is documented for the sake of
 completeness.<p>
 In this situation, the driver will probe the adapter for clock frequencies
-unless XF86Config clocks are already specified.
+unless xorg.conf clocks are already specified.
 In either case, the driver will then attempt to normalise the clocks to one of
 the following specifications:
 <verb>
@@ -372,12 +373,12 @@ those that are zero above, or vice-versa.<p>
 The order of the clocks <it>is</it> very important, although the driver will
 reorder the specified clocks if it deems it appropriate to do so.
 Mach32 and Mach64 owners should note that this order is different than what
-they would use for previous XFree86 accelerated servers.<p>
+they would use for previous accelerated servers.<p>
 <sect2>Clocks for non-ATI adapters<p>
-If no clocks are specified in the XF86Config, the driver will probe for four
+If no clocks are specified in the xorg.conf, the driver will probe for four
 clocks, the second of which will be assumed to be 28.322 MHz.
 The first clock will typically be 25.175 MHz, but there are exceptions.
-You can include up to four clock frequencies in your XF86Config to specify the
+You can include up to four clock frequencies in your xorg.conf to specify the
 actual values used by the adapter.
 Any more will be ignored.<p>
 <sect1>Option <it>``nopanel_display''</it><p>
@@ -479,8 +480,8 @@ generator, which means it will treat it as a fixed-frequency clock generator,
 as described under the heading <bf>``Clocks for unsupported programmable clock
 generators''</bf> above.<p>
 <sect>Video modes<p>
-Mode timings can be derived from the information in XFree86's doc subdirectory.
-However, it is no longer required to specify such timings in an XF86Config's
+Mode timings can be derived from the information in X's doc subdirectory.
+However, it is no longer required to specify such timings in an xorg.conf's
 ``Monitor'' section(s), if only standard mode timings are to be used.
 The server automatically inserts VESA standard mode timings in every
 ``Monitor'' section, and these modes will be checked first for mode constraints
@@ -498,7 +499,7 @@ server entry.
 The driver also inserts timings for a mode called <it>"Native panel mode"</it>
 that represents the panel's native resolution.<p>
 <sect>Known problems and limitations<p>
-There are several known problems or limitations related to the XFree86 ATI
+There are several known problems or limitations related to the ATI
 driver.
 They include:<p>
 <itemize>
@@ -544,7 +545,7 @@ should be on 264xT and 3D Rage adapters.
 For now, clocks will, by default, be limited to 80MHz, 135MHz, 170MHz, 200MHz
 or 230MHz, depending on the specific controller.
 This limit can only be increased (up to a driver-calculated absolute maximum)
-through the DACSpeed specification in XF86Config.
+through the DACSpeed specification in xorg.conf.
 Be aware however that doing so is untested and might damage the adapter.
 <item>Except as in the previous items, clocks are limited to 80MHz on most
 adapters, although many are capable of higher frequencies.
@@ -580,18 +581,18 @@ DVD, etc.) in a window or full-screen.
 <sect>Reporting problems<p>
 If you are experiencing problems that are not already recorded in this
 document, first ensure that you have the latest current release of this driver
-and XFree86.
-Check the server's log (usually found in /var/log/XFree86.0.log) and <htmlurl
-name="ftp://ftp.xfree86.org/pub/XFree86"
-url="ftp://ftp.xfree86.org/pub/XFree86"> if you are uncertain.<p>
-Secondly, please check XFree86's doc directory for additional information.<p>
+and the Xorg X server..
+Check the server's log (usually found in /var/log/Xorg.0.log) and <htmlurl
+name="ftp://ftp.freedesktop.org/pub/Xorg"
+url="ftp://ftp.freedesktop.org/pub/Xorg"> if you are uncertain.<p>
+Secondly, please check Xorg's doc directory for additional information.<p>
 Thirdly, a scan through the comp.windows.x.i386unix and comp.os.linux.x
-newsgroups and the xfree86 mailing list using your favourite archiving
+newsgroups and the xorg mailing list using your favourite archiving
 service can also prove useful in resolving problems.<p>
 If you are still experiencing problems, you can send me <it>non-HTMLised</it>
 e-mail at <email>tsi@xfree86.org</email>.
 Please be as specific as possible when describing the problem(s), and include
-an <it>unedited</it> copy of the server's log and the XF86Config file used.<p>
+an <it>unedited</it> copy of the server's log and the xorg.conf file used.<p>
 <sect>Driver history<p>
 The complete history of the driver is rather cloudy.
 The following is more than likely to be incomplete and inaccurate.<p>
