@@ -142,7 +142,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     return XvMCBadContext;
   }
 
-  if(!flags & XVMC_DIRECT) {
+  if(!(flags & XVMC_DIRECT)) {
     /* Indirect */
     printf("Indirect Rendering not supported!\nUsing Direct.");
   }
