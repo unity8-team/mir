@@ -1309,7 +1309,9 @@ static Bool R128GetDFPInfo(ScrnInfoPtr pScrn)
 
     for(i=0; i<4; i++)
     {
-        if(ddc->det_mon[i].type == 0)
+        if((ddc->det_mon[i].type == 0) &&
+	  (ddc->det_mon[i].section.d_timings.h_active > 0) &&
+	  (ddc->det_mon[i].section.d_timings.v_active > 0))
         {
             info->PanelXRes =
                 ddc->det_mon[i].section.d_timings.h_active;
