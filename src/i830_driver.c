@@ -2652,8 +2652,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       xf86SetDDCproperties(pScrn, pI830->vesa->monitor);
    xf86UnloadSubModule(pDDCModule);
 
-   DDCclock = I830UseDDC(pScrn);
-
    /* XXX Move this to a header. */
 #define VIDEO_BIOS_SCRATCH 0x18
 
@@ -2754,6 +2752,8 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       pScrn->monitor->nVrefresh = 1;
       defmon |= 2;
    }
+
+   DDCclock = I830UseDDC(pScrn);
 
    /*
     * Note: VBE modes (> 0x7f) won't work with Intel's extended BIOS
