@@ -24,6 +24,7 @@ static Bool theatre_write(TheatrePtr t,CARD32 reg, CARD32 data)
 #define VIP_TYPE      "ATI VIP BUS"
 
 
+#if 0
 TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b)
 {
    TheatrePtr t;  
@@ -85,6 +86,7 @@ DumpRageTheatreRegsByName(t);
 #endif
    return t;
 }
+#endif
 
 enum
 {

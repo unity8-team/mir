@@ -11,6 +11,8 @@ typedef struct {
 	 int theatre_num;
 	 CARD32 theatre_id;
 	 int  mode;
+	 char* microc_path;
+	 char* microc_type;
 	 
 	 CARD16 video_decoder_type;
 	 CARD32 wStandard;
@@ -33,8 +35,6 @@ typedef struct {
 	 
 	 } TheatreRec, * TheatrePtr;
 
-TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b);
-
 /* DO NOT FORGET to setup constants before calling InitTheatre */
 void InitTheatre(TheatrePtr t);
 
@@ -54,11 +54,11 @@ void RageTheatreDebugGain(TheatrePtr t, Bool on, CARD32 gain);
 void ShutdownTheatre(TheatrePtr t);
 void DumpRageTheatreRegs(TheatrePtr t);
 void ResetTheatreRegsForTVout(TheatrePtr t);
+void ResetTheatreRegsForNoTVout(TheatrePtr t);
 
 
 #define TheatreSymbolsList  \
 		"InitTheatre" \
-		"DetectTheatre" \
 		"RT_SetTint", \
 		"RT_SetSaturation", \
 		"RT_SetBrightness", \
@@ -75,8 +75,6 @@ void ResetTheatreRegsForTVout(TheatrePtr t);
 		"ShutdownTheatre"
 
 #ifdef XFree86LOADER
-
-#define xf86_DetectTheatre         ((TheatrePtr (*)(GENERIC_BUS_Ptr))LoaderSymbol("DetectTheatre"))
 
 #define xf86_InitTheatre           ((void (*)(TheatrePtr t))LoaderSymbol("InitTheatre"))
 
@@ -95,9 +93,8 @@ void ResetTheatreRegsForTVout(TheatrePtr t);
 #define xf86_DumpRageTheatreRegs       ((void (*)(TheatrePtr))LoaderSymbol("DumpRageTheatreRegs"))
 #define xf86_ResetTheatreRegsForTVout       ((void (*)(TheatrePtr))LoaderSymbol("ResetTheatreRegsForTVout"))
 #define xf86_ResetTheatreRegsForNoTVout       ((void (*)(TheatrePtr))LoaderSymbol("ResetTheatreRegsForNoTVout"))
+#define xf86_RT_GetSignalStatus       ((void (*)(TheatrePtr))LoaderSymbol("xf86_RT_GetSignalStatus"))
 #else
-
-#define xf86_DetectTheatre             DetectTheatre
 
 #define xf86_InitTheatre               InitTheatre
 
@@ -114,8 +111,6 @@ void ResetTheatreRegsForTVout(TheatrePtr t);
 #define xf86_RageTheatreDebugGain      RageTheatreDebugGain
 #define xf86_ShutdownTheatre           ShutdownTheatre
 #define xf86_DumpRageTheatreRegs       DumpRageTheatreRegs 
-#define xf86_ResetTheatreRegsForTVout  ResetTheatreRegsForTVout
-#define xf86_ResetTheatreRegsForNoTVout ResetTheatreRegsForNoTVout
 
 #endif		
 
