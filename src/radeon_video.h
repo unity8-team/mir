@@ -5,6 +5,7 @@
 #include "fi1236.h"
 #include "msp3430.h"
 #include "tda9885.h"
+#include "uda1380.h"
 #include "i2c_def.h"
 
 #include "generic_bus.h"
@@ -40,6 +41,7 @@ typedef struct {
    CARD8         tuner_type;
    MSP3430Ptr    msp3430;
    TDA9885Ptr    tda9885;
+	UDA1380Ptr	  uda1380;
 
    /* VIP bus and devices */
    GENERIC_BUS_Ptr  VIP;

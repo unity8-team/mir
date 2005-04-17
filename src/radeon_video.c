@@ -14,6 +14,7 @@
 #include "Xv.h"
 #include "fourcc.h"
 
+#include "theatre_detect.h"
 #include "theatre_reg.h"
 #include "fi1236.h"
 #include "msp3430.h"
@@ -1373,17 +1374,69 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     RADEONVIP_init(pScrn, pPriv);
     info->adaptor = adapt;
 
-    if(!xf86LoadSubModule(pScrn,"theatre")) 
-    {
-    	xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"Unable to load Rage Theatre module\n");
-	goto skip_theatre;
+	if(!xf86LoadSubModule(pScrn,"theatre_detect")) 
+	{
+		xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"Unable to load Rage Theatre detect module\n");
+		goto skip_theatre;
     }
-    xf86LoaderReqSymbols(TheatreSymbolsList, NULL);
+	xf86LoaderReqSymbols(TheatreDetectSymbolsList, NULL);
+
+	RADEONSetupTheatre(pScrn, pPriv);
+
+	/*
+	 * Now load the correspondind theatre chip based on what has been detected. 
+	 */
+	if (pPriv->theatre)
+	{
+		xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Going to load the corresponding theatre module\n");
+		switch (pPriv->theatre->theatre_id)
+		{
+			case RT100_ATI_ID:
+			{
+				if(!xf86LoadSubModule(pScrn,"theatre")) 
+				{
+					xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"Unable to load Rage Theatre module\n");
+					xfree(pPriv->theatre);
+					goto skip_theatre;
+				}
+				break;
+			}
+			case RT200_ATI_ID:
+			{
+				if(!xf86LoadSubModule(pScrn,"theatre200")) 
+				{
+					xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"Unable to load Rage Theatre module\n");
+					xfree(pPriv->theatre);
+					goto skip_theatre;
+				}
+				pPriv->theatre->microc_path = info->RageTheatreMicrocPath;
+				pPriv->theatre->microc_type = info->RageTheatreMicrocType;
+				break;
+			}
+			default:
+			{
+				xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"Unknown Theatre chip\n");
+				xfree(pPriv->theatre);
+				goto skip_theatre;
+			}
+		}
+		xf86LoaderReqSymbols(TheatreSymbolsList, NULL);
+	}
     
-    RADEONSetupTheatre(pScrn, pPriv);
-    
+	if(pPriv->theatre!=NULL)
+	{
+		xf86_InitTheatre(pPriv->theatre);
+		if(pPriv->theatre->mode == MODE_UNINITIALIZED)
+		{
+			Xfree(pPriv->theatre);
+			pPriv->theatre = NULL;
+			xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Rage Theatre disabled\n");
+			/* Here the modules must be unloaded */
+			goto skip_theatre;
+		}
+	}
+  
     if(pPriv->theatre!=NULL){	
-        xf86_InitTheatre(pPriv->theatre);
         xf86_ResetTheatreRegsForNoTVout(pPriv->theatre);
         xf86_RT_SetTint(pPriv->theatre, pPriv->dec_hue);
         xf86_RT_SetSaturation(pPriv->theatre, pPriv->dec_saturation);
@@ -1471,6 +1524,7 @@ RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
         RADEONResetVideo(pScrn);
         pPriv->video_stream_active = FALSE;
         if(pPriv->msp3430 != NULL) xf86_MSP3430SetVolume(pPriv->msp3430, MSP3430_FAST_MUTE);
+		if(pPriv->uda1380 != NULL) xf86_uda1380_mute(pPriv->uda1380, TRUE);
         if(pPriv->i2c != NULL) RADEON_board_setmisc(pPriv);
      }
      if(info->videoLinear) {
@@ -1660,17 +1714,20 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
         pPriv->frequency = value;
         /* mute volume if it was not muted before */
         if((pPriv->msp3430!=NULL)&& !pPriv->mute)xf86_MSP3430SetVolume(pPriv->msp3430, MSP3430_FAST_MUTE);
+		if((pPriv->uda1380!=NULL)&& !pPriv->mute)xf86_uda1380_mute(pPriv->uda1380, TRUE);
         if(pPriv->fi1236 != NULL) xf86_TUNER_set_frequency(pPriv->fi1236, value);
 /*        if(pPriv->theatre != NULL) RADEON_RT_SetEncoding(pScrn, pPriv);  */
         if((pPriv->msp3430 != NULL) && (pPriv->msp3430->recheck))
                 xf86_InitMSP3430(pPriv->msp3430);
         if((pPriv->msp3430 != NULL)&& !pPriv->mute) xf86_MSP3430SetVolume(pPriv->msp3430, MSP3430_VOLUME(pPriv->volume));
+		if((pPriv->uda1380 != NULL)&& !pPriv->mute) xf86_uda1380_setvolume(pPriv->uda1380, pPriv->volume);
    } 
    else if(attribute == xvMute) 
    {
         pPriv->mute = value;
         if(pPriv->msp3430 != NULL) xf86_MSP3430SetVolume(pPriv->msp3430, pPriv->mute ? MSP3430_FAST_MUTE : MSP3430_VOLUME(pPriv->volume));
         if(pPriv->i2c != NULL) RADEON_board_setmisc(pPriv);
+		if(pPriv->uda1380 != NULL) xf86_uda1380_mute(pPriv->uda1380, pPriv->mute);
    } 
    else if(attribute == xvSAP) 
    {
@@ -1685,6 +1742,7 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
         pPriv->mute = FALSE;
         if(pPriv->msp3430 != NULL) xf86_MSP3430SetVolume(pPriv->msp3430, MSP3430_VOLUME(value));
         if(pPriv->i2c != NULL) RADEON_board_setmisc(pPriv);
+		if(pPriv->uda1380 != NULL) xf86_uda1380_setvolume(pPriv->uda1380, value);
    } 
    else if(attribute == xvOverlayDeinterlacingMethod) 
    {
@@ -3496,8 +3554,8 @@ switch(pPriv->encoding){
         case 2:
         case 3:
                 t->standard_video_if=2;
-                t->standard_sound_carrier=3;
-		t->modulation=0; /* positive AM */
+                t->standard_sound_carrier=1;
+					 t->modulation=2; /* negative FM */
                 break;
                 /* NTSC */
         case 4:
@@ -3505,7 +3563,7 @@ switch(pPriv->encoding){
         case 6:
                 t->standard_video_if=1;
                 t->standard_sound_carrier=0;
-		t->modulation=2; /* negative FM */
+					 t->modulation=2; /* negative FM */
                 break;
                 /* SECAM */
         case 7:
