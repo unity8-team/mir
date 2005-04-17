@@ -169,6 +169,8 @@ typedef enum {
     OPTION_RAGE_THEATRE_COMPOSITE_PORT,
     OPTION_RAGE_THEATRE_SVIDEO_PORT,
     OPTION_TUNER_TYPE,
+    OPTION_RAGE_THEATRE_MICROC_PATH,
+    OPTION_RAGE_THEATRE_MICROC_TYPE,
 #endif
 #ifdef RENDER
     OPTION_RENDER_ACCEL,
@@ -226,6 +228,8 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_RAGE_THEATRE_COMPOSITE_PORT, "RageTheatreCompositePort", OPTV_INTEGER, {0}, FALSE },
     { OPTION_RAGE_THEATRE_SVIDEO_PORT,    "RageTheatreSVideoPort",    OPTV_INTEGER, {0}, FALSE },
     { OPTION_TUNER_TYPE,                  "TunerType",                OPTV_INTEGER, {0}, FALSE },
+	{ OPTION_RAGE_THEATRE_MICROC_PATH,	"RageTheatreMicrocPath",	 OPTV_STRING, {0}, FALSE },
+	{ OPTION_RAGE_THEATRE_MICROC_TYPE, 	"RageTheatreMicrocType",	 OPTV_STRING, {0}, FALSE },
 #endif
 #ifdef RENDER
     { OPTION_RENDER_ACCEL,   "RenderAccel",      OPTV_BOOLEAN, {0}, FALSE },
@@ -4445,6 +4449,9 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     xf86Int10InfoPtr  pInt10 = NULL;
     void *int10_save = NULL;
     const char *s;
+	 char* microc_path = NULL;
+	 char* microc_type = NULL;
+
 
     RADEONTRACE(("RADEONPreInit\n"));
     if (pScrn->numEntities != 1) return FALSE;
@@ -4651,6 +4658,23 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to set tuner type to invalid value. Disabling setting\n");
 	 info->tunerType=-1;
 	 }
+
+	if((microc_path = xf86GetOptValString(info->Options, OPTION_RAGE_THEATRE_MICROC_PATH)) != NULL) 
+	{
+		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre Microcode path was specified as %s\n", microc_path);
+		info->RageTheatreMicrocPath = microc_path;
+    } else {
+		info->RageTheatreMicrocPath= NULL;
+    }
+
+	if((microc_type = xf86GetOptValString(info->Options, OPTION_RAGE_THEATRE_MICROC_TYPE)) != NULL) 
+	{
+		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre Microcode type was specified as %s\n", microc_type);
+		info->RageTheatreMicrocType = microc_type;
+	} else {
+		info->RageTheatreMicrocType= NULL;
+	}
+	 
 #endif
 
     info->DispPriority = 1; 

@@ -579,6 +579,8 @@ typedef struct {
     int               RageTheatreCompositePort;
     int               RageTheatreSVideoPort;
     int               tunerType;
+	char*			RageTheatreMicrocPath;
+	char*			RageTheatreMicrocType;
     Bool               MM_TABLE_valid;
     struct {
     	CARD8 table_revision;
