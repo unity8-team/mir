@@ -2,21 +2,98 @@
 #define __THEATRE_REGS_H__
 
 
+#define VIPH_CH0_DATA                              0x0c00
+#define VIPH_CH1_DATA                              0x0c04
+#define VIPH_CH2_DATA                              0x0c08
+#define VIPH_CH3_DATA                              0x0c0c
+#define VIPH_CH0_ADDR                              0x0c10
+#define VIPH_CH1_ADDR                              0x0c14
+#define VIPH_CH2_ADDR                              0x0c18
+#define VIPH_CH3_ADDR                              0x0c1c
+#define VIPH_CH0_SBCNT                             0x0c20
+#define VIPH_CH1_SBCNT                             0x0c24
+#define VIPH_CH2_SBCNT                             0x0c28
+#define VIPH_CH3_SBCNT                             0x0c2c
+#define VIPH_CH0_ABCNT                             0x0c30
+#define VIPH_CH1_ABCNT                             0x0c34
+#define VIPH_CH2_ABCNT                             0x0c38
+#define VIPH_CH3_ABCNT                             0x0c3c
+#define VIPH_CONTROL                               0x0c40
+#define VIPH_DV_LAT                                0x0c44
+#define VIPH_BM_CHUNK                              0x0c48
+#define VIPH_DV_INT                                0x0c4c
+#define VIPH_TIMEOUT_STAT                          0x0c50
+
+#define VIPH_REG_DATA                              0x0084
+#define VIPH_REG_ADDR                              0x0080
+
 /* Address Space Rage Theatre Registers (VIP Access) */
-#define VIP_VIP_VENDOR_DEVICE_ID                 0x0000
-#define VIP_VIP_SUB_VENDOR_DEVICE_ID             0x0004
-#define VIP_VIP_COMMAND_STATUS                   0x0008
-#define VIP_VIP_REVISION_ID                      0x000c
-#define VIP_HW_DEBUG                             0x0010
-#define VIP_SW_SCRATCH                           0x0014
-#define VIP_I2C_CNTL_0                           0x0020
-#define VIP_I2C_CNTL_1                           0x0024
-#define VIP_I2C_DATA                             0x0028
-#define VIP_INT_CNTL                             0x002c
-#define VIP_GPIO_INOUT                           0x0030
-#define VIP_GPIO_CNTL                            0x0034
-#define VIP_CLKOUT_GPIO_CNTL                     0x0038
-#define VIP_RIPINTF_PORT_CNTL                    0x003c
+#define VIP_VIP_VENDOR_DEVICE_ID                   0x0000
+#define VIP_VIP_SUB_VENDOR_DEVICE_ID               0x0004
+#define VIP_VIP_COMMAND_STATUS                     0x0008
+#define VIP_VIP_REVISION_ID                        0x000c
+#define VIP_HW_DEBUG                               0x0010
+#define VIP_SW_SCRATCH                             0x0014
+#define VIP_I2C_CNTL_0                             0x0020
+#define VIP_I2C_CNTL_1                             0x0024
+#define VIP_I2C_DATA                               0x0028
+#define VIP_INT_CNTL                               0x002c
+/* RT200 */
+#define VIP_INT_CNTL__FB_INT0                      0x02000000
+#define VIP_INT_CNTL__FB_INT0_CLR                  0x02000000
+#define VIP_GPIO_INOUT                             0x0030
+#define VIP_GPIO_CNTL                              0x0034
+#define VIP_CLKOUT_GPIO_CNTL                       0x0038
+#define VIP_RIPINTF_PORT_CNTL                      0x003c
+
+/* RT200 */
+#define VIP_GPIO_INOUT                             0x0030
+#define VIP_GPIO_CNTL                              0x0034
+#define VIP_HOSTINTF_PORT_CNTL                     0x003c
+#define VIP_HOSTINTF_PORT_CNTL__HAD_HCTL_SDA_SN    0x00000008
+#define VIP_HOSTINTF_PORT_CNTL__HAD_HCTL_SDA_SP    0x00000080
+#define VIP_HOSTINTF_PORT_CNTL__HAD_HCTL_SDA_SR    0x00000100
+#define VIP_HOSTINTF_PORT_CNTL__SUB_SYS_ID_EN      0x00010000
+#define VIP_HOSTINTF_PORT_CNTL__FIFO_RW_MODE       0x00300000
+#define VIP_HOSTINTF_PORT_CNTL__FIFOA_ENDIAN_SWAP  0x00c00000
+#define VIP_HOSTINTF_PORT_CNTL__FIFOB_ENDIAN_SWAP  0x03000000
+#define VIP_HOSTINTF_PORT_CNTL__FIFOC_ENDIAN_SWAP  0x0c000000
+#define VIP_HOSTINTF_PORT_CNTL__FIFOD_ENDIAN_SWAP  0x30000000
+#define VIP_HOSTINTF_PORT_CNTL__FIFOE_ENDIAN_SWAP  0xc0000000
+
+/* RT200 */
+#define VIP_DSP_PLL_CNTL                           0x0bc
+
+/* RT200 */
+#define VIP_TC_SOURCE                              0x300
+#define VIP_TC_DESTINATION                         0x304
+#define VIP_TC_COMMAND                             0x308
+
+/* RT200 */
+#define VIP_TC_STATUS                              0x030c
+#define VIP_TC_STATUS__TC_CHAN_BUSY                0x00007fff
+#define VIP_TC_STATUS__TC_WRITE_PENDING            0x00008000
+#define VIP_TC_STATUS__TC_FIFO_4_EMPTY             0x00040000
+#define VIP_TC_STATUS__TC_FIFO_6_EMPTY             0x00080000
+#define VIP_TC_STATUS__TC_FIFO_8_EMPTY             0x00100000
+#define VIP_TC_STATUS__TC_FIFO_10_EMPTY            0x00200000
+#define VIP_TC_STATUS__TC_FIFO_4_FULL              0x04000000
+#define VIP_TC_STATUS__TC_FIFO_6_FULL              0x08080000
+#define VIP_TC_STATUS__TC_FIFO_8_FULL              0x10080000
+#define VIP_TC_STATUS__TC_FIFO_10_FULL             0x20080000
+#define VIP_TC_STATUS__DSP_ILLEGAL_OP              0x80080000
+
+/* RT200 */
+#define VIP_TC_DOWNLOAD                            0x0310
+#define VIP_TC_DOWNLOAD__TC_DONE_MASK              0x00003fff
+#define VIP_TC_DOWNLOAD__TC_RESET_MODE             0x00060000
+
+/* RT200 */
+#define VIP_FB_INT                                 0x0314
+#define VIP_FB_INT__INT_7                          0x00000080
+#define VIP_FB_SCRATCH0                            0x0318 
+#define VIP_FB_SCRATCH1                            0x031c 
+
 #define VIP_ADC_CNTL                             0x0400
 #define VIP_ADC_DEBUG                            0x0404
 #define VIP_STANDARD_SELECT                      0x0408
@@ -194,8 +271,27 @@
 #define VIP_SPDIF_TX_CNT_REG                     0x0820
 #define VIP_IIS_TX_CNT_REG                       0x0824
 
+/* Status defines */
+#define VIP_BUSY 0
+#define VIP_IDLE 1
+#define VIP_RESET 2
+
+#define VIPH_TIMEOUT_STAT__VIPH_FIFO0_STAT 0x00000001
+#define VIPH_TIMEOUT_STAT__VIPH_FIFO0_AK 0x00000001
+#define VIPH_TIMEOUT_STAT__VIPH_FIFO1_STAT 0x00000002
+#define VIPH_TIMEOUT_STAT__VIPH_FIFO1_AK 0x00000002
+#define VIPH_TIMEOUT_STAT__VIPH_FIFO2_STAT 0x00000004
+#define VIPH_TIMEOUT_STAT__VIPH_FIFO2_AK 0x00000004
+#define VIPH_TIMEOUT_STAT__VIPH_FIFO3_STAT 0x00000008
+#define VIPH_TIMEOUT_STAT__VIPH_FIFO3_AK 0x00000008
+
+#define VIPH_TIMEOUT_STAT__VIPH_REG_STAT 0x00000010
+#define VIPH_TIMEOUT_STAT__VIPH_REG_AK 0x00000010
+#define VIPH_TIMEOUT_STAT__VIPH_REGR_DIS 0x01000000
+#define TEST_DEBUG_CNTL__TEST_DEBUG_OUT_EN 0x00000001
+
 #define RT100_ATI_ID 0x4D541002
-#define RT200_ATI_ID 0x4f4a1002
+#define RT200_ATI_ID 0x4d4a1002
 
 /* Register/Field values: */
 #define     RT_COMP0              0x0
@@ -225,6 +321,20 @@
  /* these are used in MSP3430 */
 #define     extPAL_DK1	      0x0C00
 #define     extPAL_AUTO       0x0D00
+ /* these are used in RT200. Some are defined above */
+#define		extPAL_B			0x0E00
+#define 	extPAL_D			0x0F00
+#define		extPAL_G			0x1000
+#define		extPAL_H			0x1100
+#define		extPAL_I			0x1200
+#define		extSECAM_B			0x1300
+#define		extSECAM_D			0x1400
+#define		extSECAM_G			0x1500
+#define		extSECAM_H			0x1600
+#define		extSECAM_K			0x1700
+#define		extSECAM_K1			0x1800
+#define		extSECAM_L			0x1900
+#define		extSECAM_L1			0x1A00
 
 #define     RT_FREF_2700      6
 #define     RT_FREF_2950      5
