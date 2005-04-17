@@ -23,6 +23,9 @@ typedef struct _GENERIC_BUS_Rec{
 	Bool (*ioctl)(GENERIC_BUS_Ptr, long, long, char *);
 	Bool (*read)(GENERIC_BUS_Ptr, CARD32,  CARD32, CARD8 *);
 	Bool (*write)(GENERIC_BUS_Ptr, CARD32,  CARD32, CARD8 *);
+	Bool (*fifo_read)(GENERIC_BUS_Ptr, CARD32,  CARD32, CARD8 *);
+	Bool (*fifo_write)(GENERIC_BUS_Ptr, CARD32,  CARD32, CARD8 *);
+
 	} GENERIC_BUS_Rec;
 
 
