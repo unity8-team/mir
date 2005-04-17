@@ -13,6 +13,7 @@
 #include "fi1236.h"
 #include "msp3430.h"
 #include "tda9885.h"
+#include "uda1380.h"
 #include "i2c_def.h"
 
 
@@ -322,9 +323,9 @@ const struct
         {"TEMIC-FN5AL"          , TUNER_TYPE_TEMIC_FN5AL},
         {"FQ1216ME/P"           , TUNER_TYPE_FI1216},
         {"FI1236W"              , TUNER_TYPE_FI1236W},
-        {"Alps TSBH5"           , -1},
+		{"Philips FI1216ME (or compatible)"             , TUNER_TYPE_FM1216ME},
         {"Alps TSCxx"           , -1},
-        {"Alps TSCH5 FM"        , -1},
+		{"Philips FI1216ME (or compatible)"             , TUNER_TYPE_FM1216ME},
         {"UNKNOWN-19"           , -1},
         {"UNKNOWN-20"           , -1},
         {"UNKNOWN-21"           , -1},
@@ -363,6 +364,7 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     pPriv->fi1236 = NULL;
     pPriv->msp3430 = NULL;
     pPriv->tda9885 = NULL;
+	 pPriv->uda1380 = NULL;
     #if 0 /* put back on when saa7114 support is present */
     pPriv->saa7114 = NULL;
     #endif
@@ -415,9 +417,12 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     pPriv->i2c->BusName="Radeon multimedia bus";
     pPriv->i2c->DriverPrivate.ptr=(pointer)pPriv;
     switch(info->ChipFamily){
+    	case CHIP_FAMILY_RV350:
+    	case CHIP_FAMILY_R350:
     	case CHIP_FAMILY_R300:
+		case CHIP_FAMILY_RV250:
     	case CHIP_FAMILY_R200:
-	case CHIP_FAMILY_RV200:
+		case CHIP_FAMILY_RV200:
             	pPriv->i2c->I2CWriteRead=R200_I2CWriteRead;
             	xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Using R200 i2c bus access method\n");
 		break;
@@ -516,6 +521,54 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     }
     }
     }
+
+	if(info->MM_TABLE_valid && ((RADEON_tuners[info->MM_TABLE.tuner_type & 0x1f].type==TUNER_TYPE_FM1216ME)
+							|| (RADEON_tuners[info->MM_TABLE.tuner_type & 0x1f].type==TUNER_TYPE_FI1236W)))
+	{
+		if(!xf86LoadSubModule(pScrn,"tda9885"))
+		{
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unable to initialize tda9885 driver\n");
+		}
+		else
+		{
+			xf86LoaderReqSymbols(TDA9885SymbolsList, NULL);
+			if(pPriv->tda9885 == NULL)
+			{
+				pPriv->tda9885 = xf86_Detect_tda9885(pPriv->i2c, TDA9885_ADDR_1);
+			}
+			if(pPriv->tda9885 == NULL)
+			{
+				pPriv->tda9885 = xf86_Detect_tda9885(pPriv->i2c, TDA9885_ADDR_2);
+			}
+			if(pPriv->tda9885 != NULL)
+			{
+				RADEON_TDA9885_Init(pPriv);
+				pPriv->fi1236->afc_source = (void*)pPriv->tda9885;
+			}
+		}
+	}
+	
+	if(!xf86LoadSubModule(pScrn,"uda1380"))
+	{
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unable to initialize uda1380 driver\n");
+	}
+	else    
+	{
+		xf86LoaderReqSymbols(UDA1380SymbolsList, NULL);
+		if(pPriv->uda1380 == NULL)
+		{
+			pPriv->uda1380 = xf86_Detect_uda1380(pPriv->i2c, UDA1380_ADDR_1);
+		}
+		if(pPriv->uda1380 == NULL)
+		{
+			pPriv->uda1380 = xf86_Detect_uda1380(pPriv->i2c, UDA1380_ADDR_2);
+		}
+		if(pPriv->uda1380 != NULL)
+		{
+			xf86_uda1380_init(pPriv->uda1380);
+		}
+	}
+
     
     if(!xf86LoadSubModule(pScrn,"msp3430"))
     {
