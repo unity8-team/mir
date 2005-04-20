@@ -46,7 +46,7 @@
 #include "xf86.h"
 #include "xf86_ansic.h"
 #define _XF86MISC_SERVER_
-#include "xf86misc.h"
+#include <X11/extensions/xf86misc.h>
 #include "xf86Resources.h"
 
 #include "radeon_chipset.h"

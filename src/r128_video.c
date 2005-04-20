@@ -11,7 +11,7 @@
 #include "xf86.h"
 #include "dixstruct.h"
 
-#include "Xv.h"
+#include <X11/extensions/Xv.h>
 #include "fourcc.h"
 
 #define OFF_DELAY       250  /* milliseconds */

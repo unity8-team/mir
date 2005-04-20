@@ -38,7 +38,7 @@
 #ifndef _R128_SAREA_H_
 #define _R128_SAREA_H_
 
-#include "Xmd.h"
+#include <X11/Xmd.h>
 
 /* WARNING: If you change any of these defines, make sure to change the
  * defines in the kernel file (r128_drm.h)

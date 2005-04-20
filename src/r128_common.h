@@ -38,7 +38,7 @@
 #ifndef _R128_COMMON_H_
 #define _R128_COMMON_H_
 
-#include "X11/Xmd.h"
+#include <X11/Xmd.h>
 
 /*
  * WARNING: If you change any of these defines, make sure to change

@@ -44,7 +44,7 @@
 #define NEED_REPLIES  		/* ? */
 #define EXTENSION_PROC_ARGS void *
 #include "extnsionst.h"  	/* required */
-#include "panoramiXproto.h"  	/* required */
+#include <X11/extensions/panoramiXproto.h>  	/* required */
 #define RADEON_XINERAMA_MAJOR_VERSION  1
 #define RADEON_XINERAMA_MINOR_VERSION  1
 

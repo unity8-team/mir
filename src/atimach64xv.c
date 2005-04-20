@@ -28,7 +28,7 @@
 #include "atimach64io.h"
 #include "atimach64xv.h"
 
-#include "Xv.h"
+#include <X11/extensions/Xv.h>
 #include "fourcc.h"
 
 #define MAKE_ATOM(string) MakeAtom(string, strlen(string), TRUE)

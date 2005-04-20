@@ -31,7 +31,7 @@
 #ifndef __MACH64_SAREA_H__
 #define __MACH64_SAREA_H__ 1
 
-#include "Xmd.h"
+#include <X11/Xmd.h>
 
 /* WARNING: If you change any of these defines, make sure to change the
  * defines in the kernel file (mach64_drm.h)

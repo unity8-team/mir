@@ -61,7 +61,7 @@
 #ifndef DPMS_SERVER
 # define DPMS_SERVER
 #endif
-#include "extensions/dpms.h"
+#include <X11/extensions/dpms.h>
 
 /*
  * ATIMach64PreInit --

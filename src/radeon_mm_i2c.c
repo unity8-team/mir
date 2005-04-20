@@ -2,7 +2,7 @@
 #include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
-#include "Xv.h"
+#include <X11/extensions/Xv.h>
 #include "radeon_video.h"
 
 #include "xf86.h"

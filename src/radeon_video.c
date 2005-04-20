@@ -11,7 +11,7 @@
 #include "dixstruct.h"
 #include "xf86PciInfo.h"
 
-#include "Xv.h"
+#include <X11/extensions/Xv.h>
 #include "fourcc.h"
 
 #include "theatre_detect.h"

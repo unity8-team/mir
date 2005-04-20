@@ -41,7 +41,7 @@
 #include "xf86DDC.h"
 
 #define _XF86MISC_SERVER_
-#include "xf86misc.h"
+#include <X11/extensions/xf86misc.h>
 
 typedef enum
 {

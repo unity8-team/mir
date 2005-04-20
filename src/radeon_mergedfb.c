@@ -37,7 +37,7 @@
 #include "xf86Resources.h"
 #include "xf86_OSproc.h"
 #include "extnsionst.h"  	/* required */
-#include "panoramiXproto.h"  	/* required */
+#include <X11/extensions/panoramiXproto.h>  	/* required */
 #include "dixstruct.h"
 #include "vbe.h"
 

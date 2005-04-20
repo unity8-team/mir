@@ -27,7 +27,7 @@
 #include "atipriv.h"
 #include "atiregs.h"
 
-#include "Xmd.h"
+#include <X11/Xmd.h>
 
 /*
  * Chip-related definitions.
