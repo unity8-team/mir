@@ -1,4 +1,4 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_include.h,v 1.11 2001/12/07 00:09:56 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_include.h,v 1.9 2000/10/06 12:31:03 eich Exp $ */
 
 #ifndef __NV_INCLUDE_H__
 #define __NV_INCLUDE_H__
@@ -43,7 +43,7 @@
 #include "fbdevhw.h"
 
 #include "xf86xv.h"
-#include "Xv.h"
+#include <X11/extensions/Xv.h>
 
 #include "vgaHW.h"
 

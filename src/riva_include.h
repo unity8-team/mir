@@ -43,7 +43,7 @@
 #include "fbdevhw.h"
 
 #include "xf86xv.h"
-#include "Xv.h"
+#include <X11/extensions/Xv.h>
 
 #include "vgaHW.h"
 
