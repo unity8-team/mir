@@ -111,7 +111,7 @@ void ResetTheatreRegsForNoTVout(TheatrePtr t);
 #define xf86_RageTheatreDebugGain      RageTheatreDebugGain
 #define xf86_ShutdownTheatre           ShutdownTheatre
 #define xf86_DumpRageTheatreRegs       DumpRageTheatreRegs 
-
+#define xf86_ResetTheatreRegsForNoTVout ResetTheatreRegsForNoTVout
 #endif		
 
 #endif
