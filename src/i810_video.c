@@ -23,7 +23,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
 THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_video.c,v 1.24 2003/09/08 14:25:29 eich Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_video.c,v 1.26 2003/11/10 18:22:22 tsi Exp $ */
 
 /*
  * i810_video.c: i810 Xv driver. Based on the mga Xv driver by Mark Vojkovich.
@@ -46,7 +46,7 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "i810.h"
 #include "xf86xv.h"
-#include "Xv.h"
+#include <X11/extensions/Xv.h>
 #include "xaa.h"
 #include "xaalocal.h"
 #include "dixstruct.h"
@@ -420,7 +420,7 @@ I810SetupImageVideo(ScreenPtr pScreen)
     pPriv->currentBuf = 0;
 
     /* gotta uninit this someplace */
-    REGION_INIT(pScreen, &pPriv->clip, NullBox, 0); 
+    REGION_NULL(pScreen, &pPriv->clip);
 
     pI810->adaptor = adapt;
 
@@ -765,9 +765,9 @@ I810DisplayVideo(
     } else {
 	overlay->OV0CONF = 0; /* two 720 pixel line buffers */
     }
-
+	    
     overlay->SHEIGHT = height | (height << 15);
-    overlay->DWINPOS = (dstBox->y1 << 16) | dstBox->x1;
+    overlay->DWINPOS = (dstBox->y1 << 16) | (dstBox->x1);
     overlay->DWINSZ = ((dstBox->y2 - dstBox->y1) << 16) | 
 	              (dstBox->x2 - dstBox->x1);
 
@@ -991,14 +991,18 @@ I810PutImage(
     dstBox.y2 = drw_y + drw_h;
 
     I810ClipVideo(&dstBox, &x1, &x2, &y1, &y2, 
-		  REGION_EXTENTS(pScreen, clipBoxes), width, height);
-
+		  REGION_EXTENTS(pScrn->pScreen, clipBoxes), width, height);
+    
     if((x1 >= x2) || (y1 >= y2))
        return Success;
-
-    dstBox.x1 -= pScrn->frameX0;
-    dstBox.x2 -= pScrn->frameX0;
-    dstBox.y1 -= pScrn->frameY0;
+    /* 
+     * Fix for 4 pixel granularity of AdjustFrame  
+     * unless boarder is clipped  by frame 
+     */
+    dstBox.x1 -= (pScrn->frameX0 & 
+		  ((dstBox.x1 == pScrn->frameX0) ? ~0x0UL : ~0x3UL));
+    dstBox.x2 -= (pScrn->frameX0 & ~0x3);
+    dstBox.y1 -= pScrn->frameY0; 
     dstBox.y2 -= pScrn->frameY0;
 
     switch(id) {
@@ -1078,7 +1082,6 @@ I810PutImage(
 	/* draw these */
 	xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes);
     }
-
 
     I810DisplayVideo(pScrn, id, width, height, dstPitch, 
 	     x1, y1, x2, y2, &dstBox, src_w, src_h, drw_w, drw_h);
@@ -1336,8 +1339,13 @@ I810DisplaySurface(
 		  REGION_EXTENTS(screenInfo.screens[0], clipBoxes),
 		  surface->width, surface->height);
 
-    dstBox.x1 -= pScrn->frameX0;
-    dstBox.x2 -= pScrn->frameX0;
+    /* 
+     * Fix for 4 pixel granularity of AdjustFrame  
+     * unless boarder is clipped  by frame 
+     */
+    dstBox.x1 -= (pScrn->frameX0 & 
+		  ((dstBox.x1 == pScrn->frameX0) ? ~0x0UL : ~0x3UL));
+    dstBox.x2 -= (pScrn->frameX0 & ~0x3);
     dstBox.y1 -= pScrn->frameY0;
     dstBox.y2 -= pScrn->frameY0;
 

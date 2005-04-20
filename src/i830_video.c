@@ -72,7 +72,7 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "i830.h"
 #include "xf86xv.h"
-#include "Xv.h"
+#include <X11/extensions/Xv.h>
 #include "xaa.h"
 #include "xaalocal.h"
 #include "dixstruct.h"

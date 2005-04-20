@@ -164,7 +164,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "fb.h"
 #include "miscstruct.h"
 #include "xf86xv.h"
-#include "Xv.h"
+#include <X11/extensions/Xv.h>
 #include "vbe.h"
 #include "vbeModes.h"
 
