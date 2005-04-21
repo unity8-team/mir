@@ -1,4 +1,4 @@
-/* $XdotOrg: $ */
+/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.10 2005/01/26 01:36:04 alanc Exp $ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
@@ -25,7 +25,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.131 2005/01/20 01:01:00 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.133 2005/04/16 23:57:26 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -1706,7 +1706,7 @@ NVRestore(ScrnInfoPtr pScrn)
 
 static void NVBacklightEnable(NVPtr pNv,  Bool on)
 {
-    CARD32 fpcontrol = pNv->PRAMDAC[0x0848/4] & 0xCfffffCC;
+    CARD32 fpcontrol;
 
     /* This is done differently on each laptop.  Here we
        define the ones we know for sure. */
@@ -1729,11 +1729,15 @@ static void NVBacklightEnable(NVPtr pNv,  Bool on)
     }
 #endif
     
-    /* cut the TMDS output */
-    if(on) fpcontrol |= pNv->fpSyncs;
-    else fpcontrol |= 0x20000022;
+    if(!pNv->LVDS) {
+       fpcontrol = pNv->PRAMDAC[0x0848/4] & 0xCfffffCC;
 
-    pNv->PRAMDAC[0x0848/4] = fpcontrol;
+       /* cut the TMDS output */
+       if(on) fpcontrol |= pNv->fpSyncs;
+       else fpcontrol |= 0x20000022;
+
+       pNv->PRAMDAC[0x0848/4] = fpcontrol;
+    }
 }
 
 static void

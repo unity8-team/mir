@@ -37,7 +37,7 @@
 |*                                                                           *|
  \***************************************************************************/
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_setup.c,v 1.44 2004/12/09 00:21:05 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_setup.c,v 1.45 2005/04/16 23:57:26 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -680,5 +680,14 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 
     if(!pNv->FlatPanel || (pScrn->depth != 24) || !pNv->twoHeads)
         pNv->FPDither = FALSE;
+
+    pNv->LVDS = FALSE;
+    if(pNv->FlatPanel && pNv->twoHeads) {
+        pNv->PRAMDAC0[0x08B0/4] = 0x00010004;
+        if(pNv->PRAMDAC0[0x08B4/4] & 1)
+           pNv->LVDS = TRUE;
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Panel is %s\n", 
+                   pNv->LVDS ? "LVDS" : "TMDS");
+    }
 }
 
