@@ -1211,14 +1211,15 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
 
     /* Check the DRI version */
     DRIQueryVersion(&major, &minor, &patch);
-    if (major != 4 || minor < 0) {
+    if (major != DRIINFO_MAJOR_VERSION || minor < DRIINFO_MINOR_VERSION) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 		   "[dri] RADEONDRIScreenInit failed because of a version "
 		   "mismatch.\n"
-		   "[dri] libDRI version is %d.%d.%d but version 4.0.x is "
+		   "[dri] libdri version is %d.%d.%d but version %d.%d.x is "
 		   "needed.\n"
 		   "[dri] Disabling DRI.\n",
-		   major, minor, patch);
+		   major, minor, patch,
+                   DRIINFO_MAJOR_VERSION, DRIINFO_MINOR_VERSION);
 	return FALSE;
     }
 
