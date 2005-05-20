@@ -129,6 +129,7 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_I855_GM,		"852GM/855GM"},
    {PCI_CHIP_I865_G,		"865G"},
    {PCI_CHIP_I915_G,		"915G"},
+   {PCI_CHIP_E7221_G,		"E7221 (i915)"},
    {PCI_CHIP_I915_GM,		"915GM"},
    {-1,				NULL}
 };
@@ -145,6 +146,7 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	RES_SHARED_VGA},
    {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	RES_SHARED_VGA},
    {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	RES_SHARED_VGA},
+   {PCI_CHIP_E7221_G,		PCI_CHIP_E7221_G,	RES_SHARED_VGA},
    {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	RES_SHARED_VGA},
    {-1,				-1, RES_UNDEFINED }
 };
@@ -562,6 +564,7 @@ I810Probe(DriverPtr drv, int flags)
 	    case PCI_CHIP_I830_M:
 	    case PCI_CHIP_I855_GM:
 	    case PCI_CHIP_I915_G:
+	    case PCI_CHIP_E7221_G:
 	    case PCI_CHIP_I915_GM:
     	       xf86SetEntitySharable(usedChips[i]);
 

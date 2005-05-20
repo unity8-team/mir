@@ -185,6 +185,7 @@ static SymTabRec I830BIOSChipsets[] = {
    {PCI_CHIP_I855_GM,		"852GM/855GM"},
    {PCI_CHIP_I865_G,		"865G"},
    {PCI_CHIP_I915_G,		"915G"},
+   {PCI_CHIP_E7221_G,		"E7221 (i915)"},
    {PCI_CHIP_I915_GM,		"915GM"},
    {-1,				NULL}
 };
@@ -195,6 +196,7 @@ static PciChipsets I830BIOSPciChipsets[] = {
    {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	RES_SHARED_VGA},
    {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	RES_SHARED_VGA},
    {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	RES_SHARED_VGA},
+   {PCI_CHIP_E7221_G,		PCI_CHIP_E7221_G,	RES_SHARED_VGA},
    {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	RES_SHARED_VGA},
    {-1,				-1,			RES_UNDEFINED}
 };
@@ -697,10 +699,14 @@ GetDisplayDevices(ScrnInfoPtr pScrn)
    pVbe->pInt10->bx = 0x100;
 
    xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax))
+   if (Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax)) {
       return pVbe->pInt10->cx & 0xffff;
-   else
-      return -1;
+   } else {
+      if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G) /* FIXED CONFIG */
+         return PIPE_CRT;
+      else
+         return -1;
+   }
 }
 
 /* This is needed for SetDisplayDevices to work correctly on I915G
@@ -1872,6 +1878,9 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    case PCI_CHIP_I915_G:
       chipname = "915G";
       break;
+   case PCI_CHIP_E7221_G:
+      chipname = "E7221 (i915)";
+      break;
    case PCI_CHIP_I915_GM:
       chipname = "915GM";
       break;
@@ -1984,6 +1993,9 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 	    pI830->FbMapSize = 0x8000000;	/* 128MB aperture */
 	 else
 	    pI830->FbMapSize = 0x10000000;	/* 256MB aperture */
+
+   	 if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
+	    pI830->FbMapSize = 0x8000000;	/* 128MB aperture */
       } else
 	 /* 128MB aperture for later chips */
 	 pI830->FbMapSize = 0x8000000;
@@ -2006,6 +2018,9 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       }
    }
 
+   if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
+      pI830->availablePipes = 1;
+   else
    if (IS_MOBILE(pI830) || IS_I915G(pI830))
       pI830->availablePipes = 2;
    else
