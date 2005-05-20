@@ -91,7 +91,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef struct _VESARec {
    /* SVGA state */
    pointer state, pstate;
-   int statePage, stateSize, stateMode;
+   int statePage, stateSize, stateMode, stateRefresh;
    CARD32 *savedPal;
    int savedScanlinePitch;
    xf86MonPtr monitor;
@@ -165,13 +165,17 @@ typedef struct _I830Rec {
 
    Bool newPipeSwitch;
 
+   Bool fakeSwitch;
+   
+   int fixedPipe;
+
    Bool Clone;
    int CloneRefresh;
    int CloneHDisplay;
    int CloneVDisplay;
 
    I830EntPtr entityPrivate;	
-   int pipe;
+   int pipe, origPipe;
    int init;
 
    unsigned int bufferOffset;		/* for I830SelectBuffer */
@@ -234,6 +238,7 @@ typedef struct _I830Rec {
 
    int MonType1;
    int MonType2;
+   Bool specifiedMonitor;
 
    DGAModePtr DGAModes;
    int numDGAModes;
@@ -320,10 +325,11 @@ typedef struct _I830Rec {
    /* Use BIOS call 0x5f05 to set the refresh rate. */
    Bool useExtendedRefresh;
 
-   Bool checkLid;
+   Bool checkDevices;
    int monitorSwitch;
    int operatingDevices;
    int savedDevices;
+   int lastDevice1, lastDevice2;
 
    /* These are indexed by the display types */
    Bool displayAttached[NumDisplayTypes];
@@ -343,6 +349,7 @@ typedef struct _I830Rec {
    Bool starting;
    Bool closing;
    Bool suspended;
+   Bool leaving;
 
    /* fbOffset converted to (x, y). */
    int xoffset;
@@ -353,7 +360,7 @@ typedef struct _I830Rec {
    Bool displayInfo;
    Bool devicePresence;
 
-   OsTimerPtr lidTimer;
+   OsTimerPtr devicesTimer;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -424,19 +431,21 @@ extern void I830ReadAllRegisters(I830Ptr pI830, I830RegPtr i830Reg);
 
 extern void I830ChangeFrontbuffer(ScrnInfoPtr pScrn,int buffer);
 
-extern DisplayModePtr i830GetModePool(ScrnInfoPtr pScrn, vbeInfoPtr pVbe,
-					VbeInfoBlock *vbe, int modeTypes);
-extern void i830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe);
-extern void i830PrintModes(ScrnInfoPtr pScrn);
+extern DisplayModePtr I830GetModePool(ScrnInfoPtr pScrn, vbeInfoPtr pVbe,
+					VbeInfoBlock *vbe);
+extern void I830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe);
+extern void I830UnsetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe);
+extern void I830PrintModes(ScrnInfoPtr pScrn);
 extern int I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh);
+extern Bool I830CheckModeSupport(ScrnInfoPtr pScrn, int x, int y, int mode);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for
  * 1920x1440@32bpp with a 2048 pixel line pitch with some to spare.
  */
 #define I830_MAXIMUM_VBIOS_MEM		12288
-#define I830_DEFAULT_VIDEOMEM_2D	(MB(8) / 1024)
-#define I830_DEFAULT_VIDEOMEM_3D	(MB(32) / 1024)
+#define I830_DEFAULT_VIDEOMEM_2D	(MB(32) / 1024)
+#define I830_DEFAULT_VIDEOMEM_3D	(MB(64) / 1024)
 
 /* Flags for memory allocation function */
 #define FROM_ANYWHERE			0x00000000
