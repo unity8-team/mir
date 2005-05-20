@@ -160,6 +160,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "vgaHW.h"
 #include "mipointer.h"
 #include "micmap.h"
+#include "shadowfb.h"
 
 #include "fb.h"
 #include "miscstruct.h"
@@ -223,7 +224,9 @@ typedef enum {
    OPTION_CLONE,
    OPTION_CLONE_REFRESH,
    OPTION_CHECKDEVICES,
-   OPTION_FIXEDPIPE
+   OPTION_FIXEDPIPE,
+   OPTION_SHADOW_FB,
+   OPTION_ROTATE
 } I830Opts;
 
 static OptionInfoRec I830BIOSOptions[] = {
@@ -243,6 +246,8 @@ static OptionInfoRec I830BIOSOptions[] = {
    {OPTION_CLONE_REFRESH,"CloneRefresh",OPTV_INTEGER,	{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FIXEDPIPE,   "FixedPipe",    OPTV_ANYSTR, 	{0},	FALSE},
+   {OPTION_SHADOW_FB,   "ShadowFB",     OPTV_BOOLEAN,   {0},    FALSE},
+   {OPTION_ROTATE,      "Rotate",       OPTV_ANYSTR,    {0},    FALSE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -2427,6 +2432,37 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       }
     }
 
+    xf86GetOptValBool(pI830->Options, OPTION_SHADOW_FB, &pI830->shadowFB);
+    if (pI830->shadowFB) {
+	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Option: shadow FB enabled\n");
+    }
+
+    if ((s = xf86GetOptValString(pI830->Options, OPTION_ROTATE))) {
+	if(!xf86NameCmp(s, "CW")) {
+	    /* accel is disabled below for shadowFB */
+	    pI830->shadowFB = TRUE;
+	    pI830->rotate = 1;
+	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
+		"Rotating screen clockwise - acceleration disabled\n");
+	} else if(!xf86NameCmp(s, "CCW")) {
+	    pI830->shadowFB = TRUE;
+	    pI830->rotate = -1;
+	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,  "Rotating screen"
+		"counter clockwise - acceleration disabled\n");
+	} else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "\"%s\" is not a valid"
+		"value for Option \"Rotate\"\n", s);
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"Valid options are \"CW\" or \"CCW\"\n");
+	}
+    }
+
+   if (pI830->shadowFB && !pI830->noAccel) {
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+       	   "HW acceleration not supported with \"shadowFB\".\n");
+       pI830->noAccel = TRUE;
+   }
+
    /*
     * Let's setup the mobile systems to check the lid status
     */
@@ -3268,6 +3304,15 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    I830SetMMIOAccess(pI830);
    xf86SetOperatingState(resVgaIo, pI830->pEnt->index, ResUnusedOpr);
    xf86SetOperatingState(resVgaMem, pI830->pEnt->index, ResDisableOpr);
+
+   if (pI830->shadowFB) {
+       if (!xf86LoadSubModule(pScrn, "shadowfb")) {
+	   I830BIOSFreeRec(pScrn);
+	   vbeFree(pI830->pVbe);
+	   return FALSE;
+       }
+      xf86LoaderReqSymLists(I810shadowFBSymbols, NULL);
+   }
 
    VBEFreeVBEInfo(pI830->vbeInfo);
    pI830->vbeInfo = NULL;
@@ -4398,6 +4443,8 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    VisualPtr visual;
    I830EntPtr pI830Ent = NULL;
    I830Ptr pI8301 = NULL;
+   int width, height, displayWidth;
+   unsigned char *fbbase;
 #ifdef XF86DRI
    Bool driDisabled;
 #endif
@@ -4632,10 +4679,26 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       return FALSE;
 
    DPRINTF(PFX, "assert( if(!fbScreenInit(pScreen, ...) )\n");
-   if (!fbScreenInit(pScreen, pI830->FbBase + pScrn->fbOffset,
-		     pScrn->virtualX, pScrn->virtualY,
+   if (pI830->rotate) {
+       height = pScrn->virtualX;
+       width = pScrn->virtualY;
+   } else {
+       width = pScrn->virtualX;
+       height = pScrn->virtualY;
+   }
+   if (pI830->shadowFB) {
+       pI830->shadowPitch = BitmapBytePad(pScrn->bitsPerPixel * width);
+       pI830->shadowPtr = xalloc(pI830->shadowPitch * height);
+       displayWidth = pI830->shadowPitch / (pScrn->bitsPerPixel >> 3);
+       fbbase = pI830->shadowPtr;
+   } else {
+       pI830->shadowPtr = NULL;
+       fbbase = pI830->FbBase;
+       displayWidth = pScrn->displayWidth;
+   }
+   if (!fbScreenInit(pScreen, fbbase + pScrn->fbOffset, width, height,
 		     pScrn->xDpi, pScrn->yDpi,
-		     pScrn->displayWidth, pScrn->bitsPerPixel))
+		     displayWidth, pScrn->bitsPerPixel))
       return FALSE;
 
    if (pScrn->bitsPerPixel > 8) {
@@ -4657,7 +4720,8 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    xf86SetBlackWhitePixels(pScreen);
 
-   I830DGAInit(pScreen);
+   if (!pI830->shadowFB)
+       I830DGAInit(pScreen);
 
    DPRINTF(PFX,
 	   "assert( if(!xf86InitFBManager(pScreen, &(pI830->FbMemBox))) )\n");
@@ -4694,6 +4758,31 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		    "Hardware cursor initialization failed\n");
    } else
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initializing SW Cursor!\n");
+
+   if (pI830->shadowFB) {
+       RefreshAreaFuncPtr refreshArea = I830RefreshArea;
+       if (pI830->rotate) {
+	   if (!pI830->PointerMoved) {
+	       pI830->PointerMoved = pScrn->PointerMoved;
+	       pScrn->PointerMoved = I830PointerMoved;
+	   }
+	   switch (pScrn->bitsPerPixel) {
+	   case 8:
+	       refreshArea = I830RefreshArea8;
+	       break;
+	   case 16:
+	       refreshArea = I830RefreshArea16;
+	       break;
+	   case 24:
+	       refreshArea = I830RefreshArea24;
+	       break;
+	   case 32:
+	       refreshArea = I830RefreshArea32;
+	       break;
+	   }
+       }
+       ShadowFBInit(pScreen, refreshArea);
+   }
 
    DPRINTF(PFX, "assert( if(!miCreateDefColormap(pScreen)) )\n");
    if (!miCreateDefColormap(pScreen))

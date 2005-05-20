@@ -191,6 +191,17 @@ monitors. This option is useful if the monitor was not connected when
 the machine has booted, but unfortunately it doesn't always work and
 is extremely dependent upon the Video BIOS.
 Default: disabled
+.TP
+.BI "Option \*qRotate\*q \*qCW\*q"
+.TP
+.BI "Option \*qRotate\*q \*qCCW\*q"
+Rotate the desktop 90 degrees clockwise or counterclockwise.  This option 
+forces the ShadowFB option on, and disables acceleration.
+Default: no rotation.
+.TP
+.BI "Option \*qShadowFB\*q \*q" boolean \*q
+Enable or disable use of the shadow framebuffer layer.  This option
+disables acceleration.  Default: off.
 
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)

@@ -302,7 +302,15 @@ typedef struct _I830Rec {
    drm_handle_t ring_map;
 #endif
 
+   /* Broken-out options. */
    OptionInfoPtr Options;
+   int rotate;
+   Bool shadowFB;
+
+   /* Support for shadowFB and rotation. */
+   unsigned char *shadowPtr;
+   int shadowPitch;
+   void (*PointerMoved)(int, int, int);
 
    /* Stolen memory support */
    Bool StolenOnly;
@@ -438,6 +446,12 @@ extern void I830UnsetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe);
 extern void I830PrintModes(ScrnInfoPtr pScrn);
 extern int I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh);
 extern Bool I830CheckModeSupport(ScrnInfoPtr pScrn, int x, int y, int mode);
+extern void I830PointerMoved(int index, int x, int y);
+extern void I830RefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
+extern void I830RefreshArea8(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
+extern void I830RefreshArea16(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
+extern void I830RefreshArea24(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
+extern void I830RefreshArea32(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for

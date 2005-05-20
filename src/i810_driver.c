@@ -309,7 +309,7 @@ const char *I810driSymbols[] = {
 
 #ifdef XF86DRI
 
-static const char *driShadowFBSymbols[] = {
+const char *I810shadowFBSymbols[] = {
     "ShadowFBInit",
     NULL
 };
@@ -392,7 +392,7 @@ i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
 			I810drmSymbols,
 			I810driSymbols,
 			I810shadowSymbols,
-			driShadowFBSymbols,
+			I810shadowFBSymbols,
 #endif
 			I810vbeSymbols, vbeOptionalSymbols,
 			I810ddcSymbols, I810int10Symbols, NULL);
@@ -1089,7 +1089,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 		    "Couldn't load shadowfb module:\n");
        }
        else {
-	 xf86LoaderReqSymLists(driShadowFBSymbols, NULL);
+	 xf86LoaderReqSymLists(I810shadowFBSymbols, NULL);
        }
      }
      
