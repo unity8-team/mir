@@ -68,7 +68,7 @@
     do {                           \
 	CARD32 tmp = INREG(addr);  \
 	tmp &= (mask);             \
-	tmp |= (val);              \
+	tmp |= ((val) & ~(mask));  \
 	OUTREG(addr, tmp);         \
     } while (0)
 
@@ -84,7 +84,7 @@
     do {                                                                  \
 	CARD32 tmp = INPLL(pScrn, addr);                                  \
 	tmp &= (mask);                                                    \
-	tmp |= (val);                                                     \
+	tmp |= ((val) & ~(mask));                                         \
 	OUTPLL(addr, tmp);                                                \
     } while (0)
 

@@ -8209,6 +8209,7 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     }
 
     if (pScrn->vtSema) {
+	RADEONDisplayPowerManagementSet(pScrn, DPMSModeOn, 0);
 	RADEONRestore(pScrn);
     }
     RADEONUnmapMem(pScrn);
@@ -8392,15 +8393,15 @@ static void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 	    /* Screen: Off; HSync: Off, VSync: On */
 	    if (info->IsSecondary)
 		OUTREGP(RADEON_CRTC2_GEN_CNTL,
-			RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_HSYNC_DIS,
+			(RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_HSYNC_DIS),
 			~mask2);
 	    else {
 		if (info->MergedFB)
 		    OUTREGP(RADEON_CRTC2_GEN_CNTL,
-			    RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_HSYNC_DIS,
+			    (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_HSYNC_DIS),
 			    ~mask2);
 		OUTREGP(RADEON_CRTC_EXT_CNTL,
-			RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS,
+			(RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS),
 			~mask1);
 	    }
 	    break;
@@ -8409,15 +8410,15 @@ static void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 	    /* Screen: Off; HSync: On, VSync: Off */
 	    if (info->IsSecondary)
 		OUTREGP(RADEON_CRTC2_GEN_CNTL,
-			RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS,
+			(RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS),
 			~mask2);
 	    else {
 		if (info->MergedFB)
 		    OUTREGP(RADEON_CRTC2_GEN_CNTL,
-			    RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS,
+			    (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS),
 			    ~mask2);
 		OUTREGP(RADEON_CRTC_EXT_CNTL,
-			RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_VSYNC_DIS,
+			(RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_VSYNC_DIS),
 			~mask1);
 	    }
 	    break;
