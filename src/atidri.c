@@ -1099,7 +1099,7 @@ Bool ATIDRIScreenInit( ScreenPtr pScreen )
 		  "[dri] ATIDRIScreenInit failed because of a version mismatch.\n"
 		  "[dri] libdri version is %d.%d.%d but version %d.%d.x is needed.\n"
 		  "[dri] Disabling the DRI.\n",
-		  major, minor, patch
+		  major, minor, patch,
                   DRIINFO_MAJOR_VERSION, DRIINFO_MINOR_VERSION );
       return FALSE;
    }
