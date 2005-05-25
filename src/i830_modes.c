@@ -669,22 +669,6 @@ I830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe)
 }
 
 void
-I830UnsetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe)
-{
-    DisplayModePtr pMode;
-    VbeModeInfoData *data;
-
-    pMode = pScrn->modes;
-    do {
-	pMode = pMode->next;
-
-	data = (VbeModeInfoData*)pMode->Private;
-	xfree(data->block);
-        data->block = NULL;
-    } while (pMode != pScrn->modes);
-}
-
-void
 I830PrintModes(ScrnInfoPtr scrp)
 {
     DisplayModePtr p;

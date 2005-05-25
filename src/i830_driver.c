@@ -3458,7 +3458,7 @@ SetFenceRegs(ScrnInfoPtr pScrn)
    for (i = 0; i < 8; i++) {
       OUTREG(FENCE + i * 4, pI830->ModeReg.Fence[i]);
       if (I810_DEBUG & DEBUG_VERBOSE_VGA)
-	 ErrorF("Fence Register : %x\n", pI830->ModeReg.Fence[i]);
+	 ErrorF("Fence Register : %lx\n", pI830->ModeReg.Fence[i]);
    }
 }
 
@@ -3759,25 +3759,24 @@ I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block)
       if (pI830->vesa->useDefaultRefresh)
             newmode &= ~(1 << 11);
 
-      if (pI830->useExtendedRefresh && !pI830->vesa->useDefaultRefresh &&
-         (newmode & (1 << 11))) {
-         if (!SetRefreshRate(pScrn, newmode, 60)) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+      if (!SetRefreshRate(pScrn, newmode, 60)) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "BIOS call 0x5f05 not supported on Clone Head, "
 		    "setting refresh with VBE 3 method.\n");
-	    pI830->useExtendedRefresh = FALSE;
-         }
+	 pI830->useExtendedRefresh = FALSE;
       }
 
-      if (!pI830->useExtendedRefresh && !pI830->vesa->useDefaultRefresh) {
+      if (!pI830->vesa->useDefaultRefresh) {
          I830SetCloneVBERefresh(pScrn, newmode, &newblock, pI830->CloneRefresh * 100);
 
          if (!VBESetVBEMode(pI830->pVbe, newmode, &newblock)) {
             if (!VBESetVBEMode(pI830->pVbe, (newmode & ~(1 << 11)), NULL))
                xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "Failed to set mode for Clone head.\n");
-            else
-               newmode &= ~(1 << 11);
+         } else {
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		 "Setting refresh on clone head with VBE 3 method.\n");
+            pI830->useExtendedRefresh = FALSE;
          }
       } else {
          if (!VBESetVBEMode(pI830->pVbe, (newmode & ~(1 << 11)), NULL))
@@ -3785,8 +3784,7 @@ I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block)
 		 "Failed to set mode for Clone head.\n");
       }
 
-      if (pI830->useExtendedRefresh && !pI830->vesa->useDefaultRefresh &&
-          (newmode & (1 << 11))) {
+      if (pI830->useExtendedRefresh && !pI830->vesa->useDefaultRefresh) {
          if (!SetRefreshRate(pScrn, newmode, pI830->CloneRefresh))
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		    "Failed to set refresh rate to %dHz on Clone head.\n",
@@ -3821,7 +3819,6 @@ I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block)
    if (!pI830->vesa->useDefaultRefresh) 
       pI830->useExtendedRefresh = TRUE;
 
-
    if (!SetRefreshRate(pScrn, mode, 60)) {
       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "BIOS call 0x5f05 not supported, "
@@ -3829,10 +3826,15 @@ I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block)
       pI830->useExtendedRefresh = FALSE;
    }
 
-   if (!pI830->useExtendedRefresh && !pI830->vesa->useDefaultRefresh && block) {
+   if (!pI830->vesa->useDefaultRefresh && block) {
       ret = VBESetVBEMode(pI830->pVbe, mode, block);
       if (!ret)
          ret = VBESetVBEMode(pI830->pVbe, (mode & ~(1 << 11)), NULL);
+      else {
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		 "Setting refresh with VBE 3 method.\n");
+	 pI830->useExtendedRefresh = FALSE;
+      }
    } else {
       ret = VBESetVBEMode(pI830->pVbe, (mode & ~(1 << 11)), NULL);
    }
@@ -3840,8 +3842,7 @@ I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block)
    /* Might as well bail now if we've failed */
    if (!ret) return FALSE;
 
-   if (pI830->useExtendedRefresh && !pI830->vesa->useDefaultRefresh &&
-       (mode & (1 << 11)) && block) {
+   if (pI830->useExtendedRefresh && !pI830->vesa->useDefaultRefresh && block) {
       if (!SetRefreshRate(pScrn, mode, block->RefreshRate / 100)) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		    "Failed to set refresh rate to %dHz.\n",
@@ -3890,11 +3891,6 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 #if MODESWITCH_RESET_STATE
    ResetState(pScrn, TRUE);
 #endif
-
-   /* XXX Add macros for the various mode parameter bits. */
-
-   if (pI830->vesa->useDefaultRefresh)
-      mode &= ~(1 << 11);
 
    SetPipeAccess(pScrn);
 
