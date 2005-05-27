@@ -3816,7 +3816,11 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
     /* don't use RMX if we have a dual-tmds panels */
    if (pRADEONEnt->MonType2 == MT_DFP)
 	info->ddc_mode = TRUE;
-
+   /* don't use RMX if we are Dell Server */  
+   if (info->IsDellServer)
+   {
+       info->ddc_mode = TRUE;
+   }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Validating modes on %s head ---------\n",
 	       info->IsSecondary ? "Secondary" : "Primary");
