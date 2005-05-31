@@ -613,7 +613,7 @@ I830SetupImageVideo(ScreenPtr pScreen)
    adapt->nAttributes = NUM_ATTRIBUTES;
    if (pI830->Clone)
       adapt->nAttributes += CLONE_ATTRIBUTES;
-   if (IS_I915G(pI830) || IS_I915GM(pI830))
+   if (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))
       adapt->nAttributes += GAMMA_ATTRIBUTES; /* has gamma */
    adapt->pAttributes = xnfalloc(sizeof(XF86AttributeRec) * adapt->nAttributes);
    /* Now copy the attributes */
@@ -624,7 +624,7 @@ I830SetupImageVideo(ScreenPtr pScreen)
       memcpy((char*)att, (char*)CloneAttributes, sizeof(XF86AttributeRec) * CLONE_ATTRIBUTES);
       att+=CLONE_ATTRIBUTES;
    }
-   if (IS_I915G(pI830) || IS_I915GM(pI830)) {
+   if (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830)) {
       memcpy((char*)att, (char*)GammaAttributes, sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
       att+=GAMMA_ATTRIBUTES;
    }
@@ -684,7 +684,7 @@ I830SetupImageVideo(ScreenPtr pScreen)
    if (pI830->Clone)
      xvPipe = MAKE_ATOM("XV_PIPE");
 
-   if (IS_I915G(pI830) || IS_I915GM(pI830)) {
+   if (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830)) {
      xvGamma0 = MAKE_ATOM("XV_GAMMA0");
      xvGamma1 = MAKE_ATOM("XV_GAMMA1");
      xvGamma2 = MAKE_ATOM("XV_GAMMA2");
@@ -802,7 +802,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
          overlay->OCONFIG |= OVERLAY_PIPE_B;
       if (pPriv->overlayOK)
          OVERLAY_UPDATE;
-   } else if (attribute == xvGamma0 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma0 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       /* Avoid video anomalies, so set gamma registers when overlay is off */
       /* We also clamp the values if they are outside the ranges */
       if (!*pI830->overlayOn) {
@@ -811,35 +811,35 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	   pPriv->gamma1 = pPriv->gamma0 + 0x7d;
       } else
          return BadRequest;
-   } else if (attribute == xvGamma1 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma1 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       if (!*pI830->overlayOn) {
          pPriv->gamma1 = value;
          if (pPriv->gamma1 - pPriv->gamma0 > 0x7d)
            pPriv->gamma0 = pPriv->gamma1 - 0x7d;
       } else
          return BadRequest;
-   } else if (attribute == xvGamma2 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma2 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       if (!*pI830->overlayOn) {
          pPriv->gamma2 = value;
          if (pPriv->gamma3 - pPriv->gamma2 > 0x7d)
             pPriv->gamma3 = pPriv->gamma2 + 0x7d;
       } else
          return BadRequest;
-   } else if (attribute == xvGamma3 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma3 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       if (!*pI830->overlayOn) {
          pPriv->gamma3 = value;
          if (pPriv->gamma3 - pPriv->gamma2 > 0x7d)
             pPriv->gamma2 = pPriv->gamma3 - 0x7d;
       } else
          return BadRequest;
-   } else if (attribute == xvGamma4 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma4 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       if (!*pI830->overlayOn) {
          pPriv->gamma4 = value;
          if (pPriv->gamma5 - pPriv->gamma4 > 0x7d)
             pPriv->gamma5 = pPriv->gamma4 + 0x7d;
       } else
          return BadRequest;
-   } else if (attribute == xvGamma5 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma5 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       if (!*pI830->overlayOn) {
          pPriv->gamma5 = value;
          if (pPriv->gamma5 - pPriv->gamma4 > 0x7d)
@@ -871,7 +871,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
         attribute == xvGamma2 ||
         attribute == xvGamma3 ||
         attribute == xvGamma4 ||
-        attribute == xvGamma5) && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+        attribute == xvGamma5) && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
 	I830UpdateGamma(pScrn);
    }
 
@@ -891,17 +891,17 @@ I830GetPortAttribute(ScrnInfoPtr pScrn,
       *value = pPriv->contrast;
    } else if (pI830->Clone && attribute == xvPipe) {
       *value = pPriv->pipe;
-   } else if (attribute == xvGamma0 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma0 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       *value = pPriv->gamma0;
-   } else if (attribute == xvGamma1 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma1 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       *value = pPriv->gamma1;
-   } else if (attribute == xvGamma2 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma2 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       *value = pPriv->gamma2;
-   } else if (attribute == xvGamma3 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma3 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       *value = pPriv->gamma3;
-   } else if (attribute == xvGamma4 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma4 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       *value = pPriv->gamma4;
-   } else if (attribute == xvGamma5 && (IS_I915G(pI830) || IS_I915GM(pI830))) {
+   } else if (attribute == xvGamma5 && (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))) {
       *value = pPriv->gamma5;
    } else if (attribute == xvColorKey) {
       *value = pPriv->colorKey;

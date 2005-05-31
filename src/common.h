@@ -317,6 +317,11 @@ extern int I810_DEBUG;
 #define PCI_CHIP_E7221_G_BRIDGE	   0x2580
 #endif
 
+#ifndef PCI_CHIP_I945_G
+#define PCI_CHIP_I945_G        0x2772
+#define PCI_CHIP_I945_G_BRIDGE 0x2770
+#endif
+
 #define IS_I810(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I810 ||	\
 			pI810->PciInfo->chipType == PCI_CHIP_I810_DC100 || \
 			pI810->PciInfo->chipType == PCI_CHIP_I810_E)
@@ -329,6 +334,7 @@ extern int I810_DEBUG;
 #define IS_I865G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I865_G)
 #define IS_I915G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I915_G || pI810->PciInfo->chipType == PCI_CHIP_E7221_G)
 #define IS_I915GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I915_GM)
+#define IS_I945G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_G)
 
 #define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810))
 
