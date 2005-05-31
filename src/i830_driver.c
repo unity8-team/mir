@@ -2222,7 +2222,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
       pI830->availablePipes = 1;
    else
-   if (IS_MOBILE(pI830) || IS_I915G(pI830))
+   if (IS_MOBILE(pI830) || IS_I915G(pI830) || IS_I945G(pI830))
       pI830->availablePipes = 2;
    else
       pI830->availablePipes = 1;
