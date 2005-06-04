@@ -1,4 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atipreinit.c,v 1.74 2003/12/22 17:48:09 tsi Exp $ */
+/* $XdotOrg: $ */
 /*
  * Copyright 1999 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -1937,11 +1938,11 @@ ATIPreInit
                    VBlankEnd += 0x0100U;
 
                 pATI->LCDHBlankWidth = HBlankEnd - HBlankStart;
-                pATI->LCDHSyncStart = HSyncStart - HBlankStart - 1;
+                pATI->LCDHSyncStart = HSyncStart - HBlankStart;
                 pATI->LCDHSyncWidth = HSyncEnd - HSyncStart;
 
                 pATI->LCDVBlankWidth = VBlankEnd - VBlankStart;
-                pATI->LCDVSyncStart = VSyncStart - VBlankStart - 1;
+                pATI->LCDVSyncStart = VSyncStart - VBlankStart;
                 pATI->LCDVSyncWidth = VSyncEnd - VSyncStart;
 
                 HDisplay = HTotal + 5 - pATI->LCDHBlankWidth;
