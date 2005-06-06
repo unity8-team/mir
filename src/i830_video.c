@@ -1170,6 +1170,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    I830OverlayRegPtr overlay =
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
    unsigned int swidth;
+   unsigned int mask, shift, offsety, offsetu;
 
    ErrorF("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
 	   dstPitch);
