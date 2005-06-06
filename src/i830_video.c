@@ -1177,52 +1177,103 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    if (!pPriv->overlayOK)
       return;
 
+   if (IS_I915G(pI830) || IS_I915GM(pI830)) {
+      shift = 6;
+      mask = 0x3f;
+   } else {
+      shift = 5;
+      mask = 0x1f;
+   }
+
+   if (pPriv->currentBuf == 0) {
+      offsety = pPriv->YBuf0offset;
+      offsetu = pPriv->UBuf0offset;
+   } else {
+      offsety = pPriv->YBuf1offset;
+      offsetu = pPriv->UBuf1offset;
+   }
+
 #if VIDEO_DEBUG
    CompareOverlay(pI830, (CARD32 *) overlay, 0x100);
 #endif
 
    /* When in dual head with different bpp setups we need to refresh the
     * color key, so let's reset the video parameters and refresh here */
-   I830ResetVideo(pScrn);
+#if 0
+   if (pI830->entityPrivate)
+#endif
+      I830ResetVideo(pScrn);
 
    switch (id) {
    case FOURCC_YV12:
    case FOURCC_I420:
-      swidth = (width + 1) & ~1 & 0xfff;
+      swidth = width;
+
       overlay->SWIDTH = swidth;
       swidth /= 2;
       overlay->SWIDTH |= (swidth & 0x7ff) << 16;
 
-      swidth = ((pPriv->YBuf0offset + width + 0x1f) >> 5) -
-	    (pPriv->YBuf0offset >> 5) - 1;
+      swidth = ((offsety + width + mask) >> shift) -
+	    (offsety >> shift);
 
-      ErrorF("Y width is %d, swidthsw is %d\n", width, swidth);
+      if (IS_I915G(pI830) || IS_I915GM(pI830))
+         swidth <<= 1;
+
+      swidth -= 1;
+
+      ErrorF("Y width is %d, swidth is %d\n", width, swidth);
 
       overlay->SWIDTHSW = swidth << 2;
 
-      swidth = ((pPriv->UBuf0offset + (width / 2) + 0x1f) >> 5) -
-	    (pPriv->UBuf0offset >> 5) - 1;
+      swidth = ((offsetu + (width / 2) + mask) >> shift) -
+	    (offsetu >> shift);
+
+      if (IS_I915G(pI830) || IS_I915GM(pI830))
+         swidth <<= 1;
+
+      swidth -= 1;
+
       ErrorF("UV width is %d, swidthsw is %d\n", width / 2, swidth);
 
       overlay->SWIDTHSW |= swidth << 18;
+
+      ErrorF("HEIGHT is %d\n",height);
+
+      overlay->SHEIGHT = height | ((height / 2) << 16);
       break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
-      /* XXX Check for i845 */
-
-      swidth = ((width + 31) & ~31) << 1;
+      swidth = width << 1;
       overlay->SWIDTH = swidth;
-      overlay->SWIDTHSW = swidth >> 3;
+
+      ErrorF("Y width is %d\n", swidth);
+
+      swidth = ((offsety + (width << 1) + mask) >> shift) -
+	    (offsety >> shift);
+
+      if (IS_I915G(pI830) || IS_I915GM(pI830))
+         swidth <<= 1;
+
+      swidth -= 1;
+
+      ErrorF("swidthsw is %d\n", swidth);
+
+      overlay->SWIDTHSW = swidth << 2;
+
+      ErrorF("HEIGHT is %d\n",height);
+
+      overlay->SHEIGHT = height;
       break;
    }
 
-   overlay->SHEIGHT = height | ((height / 2) << 16);
-
    if (pPriv->oneLineMode) {
       /* change the coordinates with panel fitting active */
+      /* Should move this to before clip helper */
       dstBox->y1 = (((dstBox->y1 - 1) * pPriv->scaleRatio) >> 16) + 1;
       dstBox->y2 = ((dstBox->y2 * pPriv->scaleRatio) >> 16) + 1;
+ 
+      if (dstBox->y1 < 0) dstBox->y1 = 0;
 
       /* Now, alter the height, so we scale to the correct size */
       drw_h = dstBox->y2 - dstBox->y1;
@@ -1233,6 +1284,9 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
    overlay->DWINSZ = ((dstBox->y2 - dstBox->y1) << 16) |
 	 (dstBox->x2 - dstBox->x1);
+
+   ErrorF("dstBox: x1: %d, y1: %d, x2: %d, y2: %d\n", dstBox->x1, dstBox->y1,
+			dstBox->x2, dstBox->y2);
 
    /* buffer locations */
    overlay->OBUF_0Y = pPriv->YBuf0offset;
@@ -1503,6 +1557,13 @@ I830PutImage(ScrnInfoPtr pScrn,
       pI830->entityPrivate->XvInUse = pPriv->pipe;
    }
 
+   /* overlay limits */
+   if(src_w > (drw_w * 7))
+      drw_w = src_w * 7;
+
+   if(src_h > (drw_h * 7))
+      drw_h = src_h * 7;
+
    /* Clip */
    x1 = src_x;
    x2 = src_x + src_w;
@@ -1526,16 +1587,16 @@ I830PutImage(ScrnInfoPtr pScrn,
    switch (id) {
    case FOURCC_YV12:
    case FOURCC_I420:
-      srcPitch = (width + 3) & ~3;
+      srcPitch = width;
       srcPitch2 = ((width >> 1) + 3) & ~3;
-      dstPitch = ((width / 2) + 31) & ~31;	/* of chroma */
+      dstPitch = ((width / 2) + 63) & ~63;	/* of chroma */
       size = dstPitch * height * 3;
       break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
-      srcPitch = (width << 1);
-      dstPitch = (srcPitch + 31) & ~31;
+      srcPitch = width << 1;
+      dstPitch = (srcPitch + 63) & ~63;	/* of chroma */
       size = dstPitch * height;
       break;
    }
