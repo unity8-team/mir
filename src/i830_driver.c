@@ -5707,6 +5707,9 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
 		"Detected display change operation (0x%x, 0x%x, 0x%lx).\n", 
                 pI8301->lastDevice1, pI8301->lastDevice2, temp);
 
+         /* So that if we close on the wrong config, we restore correctly */
+         pI830->specifiedMonitor = TRUE;
+
          /* double check the display devices are what's configured and try
           * not to do it twice because of dual heads with the code above */
          if (!SetDisplayDevices(pScrn, temp)) {
