@@ -594,9 +594,6 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	    drmFreeVersion(version);
 	    return FALSE;
 	 }
-	 if (version->version_minor < 2)
-	    xf86DrvMsg(pScreen->myNum, X_WARNING, 
-			"Resume functionality not available with DRM < 1.2\n");
 	 pI830->drmMinor = version->version_minor;
 	 drmFreeVersion(version);
       }
