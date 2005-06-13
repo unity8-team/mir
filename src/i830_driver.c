@@ -5283,9 +5283,7 @@ I830BIOSEnterVT(int scrnIndex, int flags)
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled) {
       if (!pI830->starting) {
-         /* i915 DRM driver 1.2 supports resume */
-         if (pI830->drmMinor >= 2)
-	    I830DRIResume(screenInfo.screens[scrnIndex]);
+	 I830DRIResume(screenInfo.screens[scrnIndex]);
       
 	 I830EmitInvarientState(pScrn);
 	 I830RefreshRing(pScrn);
