@@ -87,6 +87,10 @@ typedef enum {
    radeonClone
 } RADEONScrn2Rel;
 
+typedef struct _region {
+    int x0,x1,y0,y1;
+} region;
+
 /* ------------------------------------- */
 
 #define RADEON_DEBUG            0 /* Turn off debugging output               */
@@ -237,6 +241,7 @@ typedef struct {
     int               bitsPerPixel;
     int               depth;
     int               displayWidth;
+    int               displayHeight;
     int               pixel_code;
     int               pixel_bytes;
     DisplayModePtr    mode;
@@ -636,6 +641,10 @@ typedef struct {
     Bool		AtLeastOneNonClone;
     int			MergedFBXDPI, MergedFBYDPI;
     Bool		NoVirtual;
+    int                 CRT1XOffs, CRT1YOffs, CRT2XOffs, CRT2YOffs;
+    int                 MBXNR1XMAX, MBXNR1YMAX, MBXNR2XMAX, MBXNR2YMAX;
+    Bool                NonRect, HaveNonRect, HaveOffsRegions, MouseRestrictions;
+    region              NonRectDead, OffDead1, OffDead2;
 
     /* special handlings for DELL triple-head server */
     Bool		IsDellServer; 

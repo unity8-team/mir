@@ -349,6 +349,16 @@ Set the relationship of CRT2 relative to CRT1. Valid options are:
 .br
 For example, Option "CRT2Position" "RightOf"
 .br
+This option also supports an offset.  This is most useful when
+.B MergedNonRectangular 
+is enabled.  For example if you want CRT2 to be offset 100 pixels down from 
+the start of CRT1, you'd type:
+.br
+Option "CRT2Position" "LeftOf 100"
+.br
+The offset is vertical for LeftOf and RightOf and horizontal for Above and 
+Below.  Offsets can be postive or negative.
+.br
 The default value is
 .B Clone.
 .TP
@@ -383,7 +393,7 @@ Force hardware overlay to clone head.
 The default value is
 .B off.
 .TP
-.BI "Option \*qNoMergedXinerama\*q \*q" boolean \*q
+.BI "Option \*qMergedXinerama\*q \*q" boolean \*q
 Since merged framebuffer mode does not use Xinerama, apps are not able to intelligently
 place windows.  Merged framebuffer mode provides its own pseudo-Xinerama.  This allows
 Xinerama compliant applications to place windows appropriately.  There are some caveats.
@@ -397,7 +407,7 @@ three heads), pseudo-Xinerama will be disabled.
 This option allows you turn off the driver provided pseudo-Xinerama extension.
 .br
 The default value is
-.B FALSE.
+.B TRUE.
 .TP 
 .BI "Option \*qMergedXineramaCRT2IsScreen0\*q \*q" boolean \*q
 By default the pseudo-Xinerama provided by the driver makes the left-most or bottom
@@ -416,6 +426,15 @@ For example, Option "MergedDPI" "100 100"
 .br
 The default value is
 .B undefined.
+.TP
+.BI "Option \*qMergedNonRectangular\*q \*q" boolean \*q
+If you are using MergedFB with two modes of different sizes, turn this option on to 
+keep the smaller head from scrolling within the larger virtual desktop and to keep 
+the mouse from moving into that area.  Applications that are not Xinerama aware can 
+potentially end up stranded in this area.
+.br
+The default value is
+.B FALSE.
 .TP
 .BI "Option \*qColorTiling\*q \*q" "boolean" \*q
 Frame buffer can be addressed either in linear or tiled mode. Tiled mode can provide
@@ -461,11 +480,6 @@ The default value is
 Enable page flipping for 3D acceleration. This will increase performance
 but not work correctly in some rare cases, hence the default is
 .B off.
-.br
-.B Note:
-Page flipping does not work well in certain configurations with MergedFB.  If you
-see rendering errors or other strange behavior, disable page flipping.
-
 .TP
 .BI "Option \*qForceMinDotClock\*q \*q" frequency \*q
 Override minimum dot clock. Some Radeon BIOSes report a minimum dot

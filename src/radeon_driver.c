@@ -156,8 +156,10 @@ typedef enum {
     OPTION_CRT2POS,
     OPTION_METAMODES,
     OPTION_MERGEDDPI,
-    OPTION_NORADEONXINERAMA,
+    OPTION_RADEONXINERAMA,
     OPTION_CRT2ISSCRN0,
+    OPTION_MERGEDFBNONRECT,
+    OPTION_MERGEDFBMOUSER,
     OPTION_DISP_PRIORITY,
     OPTION_PANEL_SIZE,
     OPTION_MIN_DOTCLOCK,
@@ -215,8 +217,10 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_CRT2POS,        "CRT2Position",	 OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_METAMODES,      "MetaModes",        OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_MERGEDDPI,	     "MergedDPI", 	 OPTV_ANYSTR,  {0}, FALSE },
-    { OPTION_NORADEONXINERAMA, "NoMergedXinerama", OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_RADEONXINERAMA, "MergedXinerama", OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_CRT2ISSCRN0,    "MergedXineramaCRT2IsScreen0", OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_MERGEDFBNONRECT, "MergedNonRectangular", OPTV_BOOLEAN,   {0}, FALSE },
+    { OPTION_MERGEDFBMOUSER,  "MergedMouseRestriction", OPTV_BOOLEAN,   {0}, FALSE },
     { OPTION_DISP_PRIORITY,  "DisplayPriority",  OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_PANEL_SIZE,     "PanelSize",        OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_MIN_DOTCLOCK,   "ForceMinDotClock", OPTV_FREQ,    {0}, FALSE },
@@ -5574,6 +5578,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
        if(info->UseRADEONXinerama) {
           RADEONnoPanoramiXExtension = FALSE;
           RADEONXineramaExtensionInit(pScrn);
+       } else {
+	  info->MouseRestrictions = FALSE;
        }
     }
 
@@ -8562,6 +8568,10 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
     info->CRT2IsScrn0 = FALSE;
     info->CRT2Position = radeonClone;
     info->MergedFBXDPI = info->MergedFBYDPI = 0;
+    info->CRT1XOffs = info->CRT1YOffs = info->CRT2XOffs = info->CRT2YOffs = 0;
+    info->NonRect = info->HaveNonRect = info->HaveOffsRegions = FALSE;
+    info->MBXNR1XMAX = info->MBXNR1YMAX = info->MBXNR2XMAX = info->MBXNR2YMAX = 65536;
+    info->MouseRestrictions = TRUE;
 
     if (info->MergeType == MT_NONE) {
 	info->MergedFB = FALSE;
@@ -8597,36 +8607,60 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
        }
     }
     if(info->MergedFB) {
+	  int result, ival;
+	  Bool valid = FALSE;
+	  char *tempstr;
 	  strptr = (char *)xf86GetOptValString(info->Options, OPTION_CRT2POS);
-      	  if(strptr) {
-       	     if((!strcmp(strptr,"LeftOf")) || (!strcmp(strptr,"leftof"))) {
-                info->CRT2Position = radeonLeftOf;
-		info->CRT2IsScrn0 = TRUE;
-	     }
- 	     else if((!strcmp(strptr,"RightOf")) || (!strcmp(strptr,"rightof"))) {
-                info->CRT2Position = radeonRightOf;
-                info->CRT2IsScrn0 = FALSE;
-	     }
-	     else if((!strcmp(strptr,"Above")) || (!strcmp(strptr,"above"))) {
-                info->CRT2Position = radeonAbove;
-                info->CRT2IsScrn0 = FALSE;
-	     }
-	     else if((!strcmp(strptr,"Below")) || (!strcmp(strptr,"below"))) {
-                info->CRT2Position = radeonBelow;
-                info->CRT2IsScrn0 = TRUE;
-	     }
-	     else if((!strcmp(strptr,"Clone")) || (!strcmp(strptr,"clone"))) {
-                info->CRT2Position = radeonClone;
-                /*info->CRT2IsScrn0 = FALSE; */
-                 info->CRT2IsScrn0 = TRUE; 
-	     }
-	     else {
+	  tempstr = xalloc(strlen(strptr) + 1);
+	  result = sscanf(strptr, "%s %d", tempstr, &ival);
+	  if(result >= 1) {
+       	        if(!xf86NameCmp(tempstr,"LeftOf")) {
+                   info->CRT2Position = radeonLeftOf;
+		   valid = TRUE;
+		   if(result == 2) {
+		      if(ival < 0) info->CRT1YOffs = -ival;
+		      else info->CRT2YOffs = ival;
+		   }
+		   info->CRT2IsScrn0 = TRUE;
+ 	        } else if(!xf86NameCmp(tempstr,"RightOf")) {
+                   info->CRT2Position = radeonRightOf;
+		   if(result == 2) {
+		      if(ival < 0) info->CRT1YOffs = -ival;
+		      else info->CRT2YOffs = ival;
+		   }
+		   info->CRT2IsScrn0 = FALSE;
+	        } else if(!xf86NameCmp(tempstr,"Above")) {
+                   info->CRT2Position = radeonAbove;
+		   valid = TRUE;
+		   if(result == 2) {
+		      if(ival < 0) info->CRT1XOffs = -ival;
+		      else info->CRT2XOffs = ival;
+		   }
+		   info->CRT2IsScrn0 = FALSE;
+	        } else if(!xf86NameCmp(tempstr,"Below")) {
+                   info->CRT2Position = radeonBelow;
+		   valid = TRUE;
+		   if(result == 2) {
+		      if(ival < 0) info->CRT1XOffs = -ival;
+		      else info->CRT2XOffs = ival;
+		   }
+		   info->CRT2IsScrn0 = TRUE;
+	        } else if(!xf86NameCmp(tempstr,"Clone")) {
+                   info->CRT2Position = radeonClone;
+		   if(result == 1) valid = TRUE;
+		   /*info->CRT2IsScrn0 = TRUE;*/
+	        } 
+	  }
+	  if(!valid) {
 	        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 	            "\"%s\" is not a valid parameter for Option \"CRT2Position\"\n", strptr);
 	    	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	            "Valid parameters are \"RightOf\", \"LeftOf\", \"Above\", \"Below\", or \"Clone\"\n");
-	     }
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	            "Except for \"Clone\", the parameter may be followed by an integer.\n");
 	  }
+	  xfree(tempstr);
+
 	  strptr = (char *)xf86GetOptValString(info->Options, OPTION_METAMODES);
 	  if(strptr) {
 	     info->MetaModes = xalloc(strlen(strptr) + 1);
@@ -8643,8 +8677,8 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 	      if(info->CRT2VRefresh) memcpy(info->CRT2VRefresh, strptr, strlen(strptr) + 1);
 	  }
 
-	if(xf86GetOptValBool(info->Options, OPTION_NORADEONXINERAMA, &val)) {
-	    if (val)
+	if(xf86GetOptValBool(info->Options, OPTION_RADEONXINERAMA, &val)) {
+	    if (!val)
 		info->UseRADEONXinerama = FALSE;
 	}
 	if(info->UseRADEONXinerama) {
@@ -8652,6 +8686,12 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 		   if(val) info->CRT2IsScrn0 = TRUE;
 		   else    info->CRT2IsScrn0 = FALSE;
 		}
+                if(xf86GetOptValBool(info->Options, OPTION_MERGEDFBNONRECT, &val)) {
+  	            info->NonRect = val ? TRUE : FALSE;
+  	        }
+  	        if(xf86GetOptValBool(info->Options, OPTION_MERGEDFBMOUSER, &val)) {
+  	            info->MouseRestrictions = val ? TRUE : FALSE;
+  	        }
 	}
 	strptr = (char *)xf86GetOptValString(info->Options, OPTION_MERGEDDPI);
 	if(strptr) {

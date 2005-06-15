@@ -82,10 +82,6 @@ typedef struct _MergedDisplayModeRec {
     RADEONScrn2Rel    CRT2Position;
 } RADEONMergedDisplayModeRec, *RADEONMergedDisplayModePtr;
 
-typedef struct _region {
-    int x0,x1,y0,y1;
-} region;
-
 typedef struct _RADEONXineramaData {
     int x;
     int y;
