@@ -180,7 +180,7 @@ static XF86ModuleVersionInfo rivaVersRec =
     {0,0,0,0}
 };
 
-XF86ModuleData riva128ModuleData = { &rivaVersRec, rivaSetup, NULL };
+_X_EXPORT XF86ModuleData riva128ModuleData = { &rivaVersRec, rivaSetup, NULL };
 #endif
 
 

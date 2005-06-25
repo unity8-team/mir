@@ -73,7 +73,7 @@ static Bool	NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
  * this DriverRec be an upper-case version of the driver name.
  */
 
-DriverRec NV = {
+_X_EXPORT DriverRec NV = {
         NV_VERSION,
 	NV_DRIVER_NAME,
         NVIdentify,
@@ -419,7 +419,7 @@ static XF86ModuleVersionInfo nvVersRec =
     {0,0,0,0}
 };
 
-XF86ModuleData nvModuleData = { &nvVersRec, nvSetup, NULL };
+_X_EXPORT XF86ModuleData nvModuleData = { &nvVersRec, nvSetup, NULL };
 #endif
 
 
