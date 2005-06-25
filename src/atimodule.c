@@ -120,7 +120,7 @@ ATISetup
 }
 
 /* The following record must be called atiModuleData */
-XF86ModuleData atiModuleData =
+_X_EXPORT XF86ModuleData atiModuleData =
 {
     &ATIVersionRec,
     ATISetup,

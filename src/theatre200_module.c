@@ -18,7 +18,11 @@ static XF86ModuleVersionInfo theatre200VersRec =
         {0,0,0,0}
 };
  
-XF86ModuleData theatre200ModuleData = { &theatre200VersRec, theatre200Setup, NULL }; 
+_X_EXPORT XF86ModuleData theatre200ModuleData = {
+        &theatre200VersRec,
+        theatre200Setup,
+        NULL
+}; 
 
 static pointer
 theatre200Setup(pointer module, pointer opts, int *errmaj, int *errmin) {

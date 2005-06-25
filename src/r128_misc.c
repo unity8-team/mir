@@ -1,6 +1,6 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128_misc.c,v 1.5 2003/01/01 19:16:35 tsi Exp $ */
 /*
- * Copyright 2000 through 2003 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
+ * Copyright 2000 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -38,7 +38,7 @@ static XF86ModuleVersionInfo R128VersionRec =
     MODULEVENDORSTRING,
     MODINFOSTRING1,
     MODINFOSTRING2,
-    XF86_VERSION_CURRENT,
+    XORG_VERSION_CURRENT,
     R128_VERSION_MAJOR, R128_VERSION_MINOR, R128_VERSION_PATCH,
     ABI_CLASS_VIDEODRV,
     ABI_VIDEODRV_VERSION,
@@ -77,7 +77,7 @@ R128Setup
 }
 
 /* The following record must be called r128ModuleData */
-XF86ModuleData r128ModuleData =
+_X_EXPORT XF86ModuleData r128ModuleData =
 {
     &R128VersionRec,
     R128Setup,
