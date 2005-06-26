@@ -125,7 +125,7 @@ ATIMinBits
  *
  * This function is called by DIX to initialise the screen.
  */
-Bool
+_X_EXPORT Bool
 ATIScreenInit
 (
     int       iScreen,

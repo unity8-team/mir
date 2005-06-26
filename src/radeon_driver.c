@@ -248,7 +248,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
-const OptionInfoRec *RADEONOptionsWeak(void) { return RADEONOptions; }
+_X_EXPORT const OptionInfoRec *RADEONOptionsWeak(void) { return RADEONOptions; }
 
 static const char *vgahwSymbols[] = {
     "vgaHWFreeHWRec",
@@ -4452,8 +4452,7 @@ RADEONProbeDDC(ScrnInfoPtr pScrn, int indx)
     }
 }
 
-/* RADEONPreInit is called once at server startup */
-Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
+_X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 {
     RADEONInfoPtr     info;
     xf86Int10InfoPtr  pInt10 = NULL;
@@ -4983,7 +4982,8 @@ static void RADEONBlockHandler(int i, pointer blockData,
 }
 
 /* Called at the start of each server generation. */
-Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
+_X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
+                                int argc, char **argv)
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -7870,7 +7870,7 @@ static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode)
     return TRUE;
 }
 
-Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
+_X_EXPORT Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
     ScrnInfoPtr    pScrn       = xf86Screens[scrnIndex];
     RADEONInfoPtr  info        = RADEONPTR(pScrn);
@@ -7959,8 +7959,8 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 }
 
 #ifdef X_XF86MiscPassMessage
-Bool RADEONHandleMessage(int scrnIndex, const char* msgtype,
-			 const char* msgval, char** retmsg)
+_X_EXPORT Bool RADEONHandleMessage(int scrnIndex, const char* msgtype,
+                                   const char* msgval, char** retmsg)
 {
     ErrorF("RADEONHandleMessage(%d, \"%s\", \"%s\", retmsg)\n", scrnIndex,
 		    msgtype, msgval);
@@ -7970,8 +7970,8 @@ Bool RADEONHandleMessage(int scrnIndex, const char* msgtype,
 #endif
 
 /* Used to disallow modes that are not supported by the hardware */
-ModeStatus RADEONValidMode(int scrnIndex, DisplayModePtr mode,
-			   Bool verbose, int flag)
+_X_EXPORT ModeStatus RADEONValidMode(int scrnIndex, DisplayModePtr mode,
+                                     Bool verbose, int flag)
 {
     /* There are problems with double scan mode at high clocks
      * They're likely related PLL and display buffer settings.
@@ -8079,7 +8079,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
     OUTREG(regcntl, crtcoffsetcntl);
 }
 
-void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
+_X_EXPORT void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
 {
     ScrnInfoPtr    pScrn      = xf86Screens[scrnIndex];
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
@@ -8106,7 +8106,7 @@ void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
 /* Called when VT switching back to the X server.  Reinitialize the
  * video mode.
  */
-Bool RADEONEnterVT(int scrnIndex, int flags)
+_X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
 {
     ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -8168,7 +8168,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 /* Called when VT switching away from the X server.  Restore the
  * original text mode.
  */
-void RADEONLeaveVT(int scrnIndex, int flags)
+_X_EXPORT void RADEONLeaveVT(int scrnIndex, int flags)
 {
     ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -8247,7 +8247,7 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     return (*pScreen->CloseScreen)(scrnIndex, pScreen);
 }
 
-void RADEONFreeScreen(int scrnIndex, int flags)
+_X_EXPORT void RADEONFreeScreen(int scrnIndex, int flags)
 {
     ScrnInfoPtr  pScrn = xf86Screens[scrnIndex];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -9108,7 +9108,7 @@ static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
     }
 }
 
-void RADEONFillInScreenInfo(ScrnInfoPtr pScrn)
+_X_EXPORT void RADEONFillInScreenInfo(ScrnInfoPtr pScrn)
 {
     pScrn->driverVersion = RADEON_VERSION_CURRENT;
     pScrn->driverName    = RADEON_DRIVER_NAME;
