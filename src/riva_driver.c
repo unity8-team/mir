@@ -273,14 +273,14 @@ rivaSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 
 #endif /* XFree86LOADER */
 
-const OptionInfoRec *
+_X_EXPORT const OptionInfoRec *
 RivaAvailableOptions(int chipid, int busid)
 {
     return RivaOptions;
 }
 
 
-Bool
+_X_EXPORT Bool
 RivaGetScrnInfoRec(PciChipsets *chips, int chip)
 {
     ScrnInfoPtr pScrn;
