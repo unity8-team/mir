@@ -406,7 +406,38 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
 	}
 	if (p) {
     		pMode = xnfcalloc(sizeof(DisplayModeRec), 1);
-		memcpy((char*)pMode, (char*)p, sizeof(DisplayModeRec));
+		memcpy((char*)pMode,(char*)p,sizeof(DisplayModeRec));
+	}
+    } 
+
+    /*
+     * Now, check if there's a valid monitor mode that this one can be matched
+     * up with from the default modes list. i.e. VESA modes in xf86DefModes.c
+     */
+    if (modeOK && !pMode) {
+	int refresh = 0, calcrefresh = 0;
+	DisplayModePtr newMode;
+
+	for (p = pScrn->monitor->Modes; p != NULL; p = p->next) {
+	    calcrefresh = (int)(((double)(p->Clock * 1000) /
+                       (double)(p->HTotal * p->VTotal)) * 100);
+	    if ((p->type != M_T_DEFAULT) ||
+		(p->HDisplay != mode->XResolution) ||
+		(p->VDisplay != mode->YResolution) ||
+		(p->Flags & (V_INTERLACE | V_DBLSCAN | V_CLKDIV2)))
+		continue;
+	    status = xf86CheckModeForMonitor(p, pScrn->monitor);
+	    if (status == MODE_OK) {
+	    	if (calcrefresh > refresh) {
+			refresh = calcrefresh;
+			newMode = p;
+		}
+		modeOK = TRUE;
+	    }
+	}
+	if (newMode) {
+    		pMode = xnfcalloc(sizeof(DisplayModeRec), 1);
+		memcpy((char*)pMode,(char*)newMode,sizeof(DisplayModeRec));
 	}
     } 
 
@@ -414,7 +445,7 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
      * Check if there's a valid monitor mode that this one can be matched
      * up with.  The actual matching is done later.
      */
-    if (modeOK && pMode == NULL) {
+    if (modeOK && !pMode) {
 	float vrefresh = 0.0f;
 	int i;
 
@@ -642,16 +673,20 @@ I830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe)
 	data->block->PixelClock = pMode->Clock * 1000;
 	/* XXX May not have this. */
 	clock = VBEGetPixelClock(pVbe, data->mode, data->block->PixelClock);
+	if (clock)
+	    data->block->PixelClock = clock;
 #ifdef DEBUG
 	ErrorF("Setting clock %.2fMHz, closest is %.2fMHz\n",
 		(double)data->block->PixelClock / 1000000.0, 
 		(double)clock / 1000000.0);
 #endif
-	if (clock)
-	    data->block->PixelClock = clock;
 	data->mode |= (1 << 11);
-	data->block->RefreshRate = (int)(((double)(data->block->PixelClock) /
+	if (pMode->VRefresh != 0) {
+	    data->block->RefreshRate = pMode->VRefresh * 100;
+	} else {
+	    data->block->RefreshRate = (int)(((double)(data->block->PixelClock)/
                        (double)(pMode->HTotal * pMode->VTotal)) * 100);
+	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Attempting to use %2.2fHz refresh for mode \"%s\" (%x)\n",
 		       (float)(((double)(data->block->PixelClock) / (double)(pMode->HTotal * pMode->VTotal))), pMode->name, data->mode);
