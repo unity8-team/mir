@@ -2203,6 +2203,7 @@ static void
 RADEONSetFBLocation(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 mc_fb_location;
     CARD32 mc_agp_location = INREG(RADEON_MC_AGP_LOCATION);
@@ -2265,6 +2266,22 @@ RADEONSetFBLocation(ScrnInfoPtr pScrn)
     if (info->HasCRTC2)
 	OUTREG(RADEON_DISPLAY2_BASE_ADDR, info->fbLocation);
     OUTREG(RADEON_OV0_BASE_ADDR, info->fbLocation);
+
+
+    /* Set display0/1 priority up on r3/4xx in the memory controller for 
+     * high res modes if the user specifies HIGH for displaypriority 
+     * option.
+     */
+    if ((info->DispPriority == 2) && IS_R300_VARIANT) {
+        CARD32 mc_init_misc_lat_timer = INREG(R300_MC_INIT_MISC_LAT_TIMER);
+	if (info->MergedFB || pRADEONEnt->HasSecondary) {
+	    mc_init_misc_lat_timer |= 0x1100; /* display 0 and 1 */
+	} else {
+	    mc_init_misc_lat_timer |= 0x0100; /* display 0 only */
+	}
+	OUTREG(R300_MC_INIT_MISC_LAT_TIMER, mc_init_misc_lat_timer);
+    }
+
 }
 
 static void RADEONGetVRamType(ScrnInfoPtr pScrn)

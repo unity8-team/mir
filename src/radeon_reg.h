@@ -816,6 +816,7 @@
 #define RADEON_DISPLAY2_BASE_ADDR           0x33c
 #define RADEON_OV0_BASE_ADDR                0x43c
 #define RADEON_NB_TOM                       0x15c
+#define R300_MC_INIT_MISC_LAT_TIMER         0x180
 #define RADEON_MCLK_CNTL                    0x0012 /* PLL */
 #       define RADEON_FORCEON_MCLKA         (1 << 16)
 #       define RADEON_FORCEON_MCLKB         (1 << 17)
