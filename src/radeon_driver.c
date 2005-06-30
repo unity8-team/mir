@@ -8856,7 +8856,7 @@ static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
 			     RADEON_SCLK_FORCE_IDCT  |
 			     RADEON_SCLK_FORCE_VIP);
 		}
-                OUTREG(RADEON_SCLK_CNTL, tmp);
+                OUTPLL(pScrn, RADEON_SCLK_CNTL, tmp);
             
                 usleep(16000);
 
@@ -8874,7 +8874,7 @@ static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
                     tmp = INPLL(pScrn, RADEON_MCLK_CNTL);
                     tmp &= ~(RADEON_FORCEON_MCLKA |
 			     RADEON_FORCEON_YCLKA);
-                    OUTREG(RADEON_MCLK_CNTL, tmp);
+                    OUTPLL(pScrn, RADEON_MCLK_CNTL, tmp);
 		    usleep(16000);
 		}
   
@@ -8896,7 +8896,7 @@ static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
                          RADEON_PIXCLK_LVDS_ALWAYS_ONb     |
                          RADEON_PIXCLK_TMDS_ALWAYS_ONb);
 
-		OUTREG(RADEON_PIXCLKS_CNTL, tmp);
+		OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmp);
 		usleep(16000);
 
                 tmp = INPLL(pScrn, RADEON_VCLK_ECP_CNTL);
@@ -9077,7 +9077,7 @@ static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
 		     RADEON_CFG_ATI_REV_A13)) {
                     tmp = INPLL(pScrn, RADEON_PLL_PWRMGT_CNTL);
                     tmp |= RADEON_TCL_BYPASS_DISABLE;
-                    OUTREG(RADEON_PLL_PWRMGT_CNTL, tmp);
+                    OUTPLL(pScrn, RADEON_PLL_PWRMGT_CNTL, tmp);
                 }
 		usleep(15000);
 
