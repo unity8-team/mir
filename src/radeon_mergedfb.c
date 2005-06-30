@@ -706,24 +706,23 @@ RADEONUpdateXineramaScreenInfo(ScrnInfoPtr pScrn1)
     }
 
     if((usenonrect) && (info->CRT2Position != radeonClone) && info->maxCRT1_X1) {
-#if 0
      switch(info->CRT2Position) {
        case radeonLeftOf:
        case radeonRightOf:
-	  if((info->maxCRT1_Y1 != realvirtY) && (info->maxCRT2_Y1 != realvirtY)) {
+	  if((info->maxCRT1_Y1 != realvirtY) && (info->maxCRT2_Y2 != realvirtY)) {
 	     usenonrect = FALSE;
 	  }
 	  break;
        case radeonAbove:
        case radeonBelow:
-	  if((info->maxCRT1_X1 != realvirtX) && (info->maxCRT2_X1 != realvirtX)) {
+	  if((info->maxCRT1_X1 != realvirtX) && (info->maxCRT2_X2 != realvirtX)) {
 	     usenonrect = FALSE;
 	  }
 	  break;
        case radeonClone:
 	  break;
        }
-#endif
+
        if(infochanged && !usenonrect) {
 	  xf86DrvMsg(pScrn1->scrnIndex, X_INFO,
 			"Virtual screen size does not match maximum display modes...\n");
