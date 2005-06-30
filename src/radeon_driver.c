@@ -6201,7 +6201,7 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	    OUTREG(RADEON_SURFACE0_UPPER_BOUND, bufferSize - 1);
 /*	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"surface0 set to %x, LB 0x%x UB 0x%x\n",
-		surf_info, -1, bufferSize - 1024);*/
+		surf_info, 0, bufferSize - 1024);*/
 	}
     }
 }
