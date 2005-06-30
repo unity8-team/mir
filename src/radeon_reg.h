@@ -350,10 +350,29 @@
 #define RADEON_CRTC_OFFSET_CNTL             0x0228
 #       define RADEON_CRTC_TILE_LINE_SHIFT              0
 #       define RADEON_CRTC_TILE_LINE_RIGHT_SHIFT        4
+#	define R300_CRTC_X_Y_MODE_EN_RIGHT		(1 << 6)
+#	define R300_CRTC_MICRO_TILE_BUFFER_RIGHT_MASK   (3 << 7)
+#	define R300_CRTC_MICRO_TILE_BUFFER_RIGHT_AUTO   (0 << 7)
+#	define R300_CRTC_MICRO_TILE_BUFFER_RIGHT_SINGLE (1 << 7)
+#	define R300_CRTC_MICRO_TILE_BUFFER_RIGHT_DOUBLE (2 << 7)
+#	define R300_CRTC_MICRO_TILE_BUFFER_RIGHT_DIS    (3 << 7)
+#	define R300_CRTC_X_Y_MODE_EN			(1 << 9)
+#	define R300_CRTC_MICRO_TILE_BUFFER_MASK   	(3 << 10)
+#	define R300_CRTC_MICRO_TILE_BUFFER_AUTO   	(0 << 10)
+#	define R300_CRTC_MICRO_TILE_BUFFER_SINGLE 	(1 << 10)
+#	define R300_CRTC_MICRO_TILE_BUFFER_DOUBLE 	(2 << 10)
+#	define R300_CRTC_MICRO_TILE_BUFFER_DIS    	(3 << 10)
+#	define R300_CRTC_MICRO_TILE_EN_RIGHT		(1 << 12)
+#	define R300_CRTC_MICRO_TILE_EN			(1 << 13)
+#	define R300_CRTC_MACRO_TILE_EN_RIGHT		(1 << 14)
+#       define R300_CRTC_MACRO_TILE_EN                  (1 << 15)
 #       define RADEON_CRTC_TILE_EN_RIGHT                (1 << 14)
 #       define RADEON_CRTC_TILE_EN                      (1 << 15)
 #       define RADEON_CRTC_OFFSET_FLIP_CNTL             (1 << 16)
 #       define RADEON_CRTC_STEREO_OFFSET_EN             (1 << 17)
+
+#define R300_CRTC_TILE_X0_Y0	            0x0350
+#define R300_CRTC2_TILE_X0_Y0	            0x0358
 
 #define RADEON_CRTC2_OFFSET_CNTL            0x0328
 #       define RADEON_CRTC2_TILE_EN         (1 << 15)
