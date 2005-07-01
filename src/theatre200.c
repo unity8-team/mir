@@ -5,8 +5,8 @@
  * License: GPL
  *
  * $Log$
- * Revision 1.1  2005/04/17 23:06:17  bogdand
- * Added the RageTheatre200 video demodulator support
+ * Revision 1.2  2005/07/01 22:43:11  daniels
+ * Change all misc.h and os.h references to <X11/foo.h>.
  *
  *
  ************************************************************************************/

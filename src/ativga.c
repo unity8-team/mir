@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/ativga.c,v 1.20 2003/04/23 21:51:31 tsi Exp $ */
-/* $XdotOrg: $ */
+/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/ati/ativga.c,v 1.4 2005/06/04 20:26:28 alanc Exp $ */
 /*
  * Copyright 1997 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
