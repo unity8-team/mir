@@ -307,7 +307,7 @@ const struct
 } RADEON_tuners[32] =
     {
         /* name ,index to tuner_parms table */
-        {"NO TUNNER"            , -1},
+        {"NO TUNER"            , -1},
         {"Philips FI1236 (or compatible)"               , TUNER_TYPE_FI1236},
         {"Philips FI1236 (or compatible)"               , TUNER_TYPE_FI1236},
         {"Philips FI1216 (or compatible)"               , TUNER_TYPE_FI1216},
@@ -323,9 +323,10 @@ const struct
         {"TEMIC-FN5AL"          , TUNER_TYPE_TEMIC_FN5AL},
         {"FQ1216ME/P"           , TUNER_TYPE_FI1216},
         {"FI1236W"              , TUNER_TYPE_FI1236W},
-		{"Philips FI1216ME (or compatible)"             , TUNER_TYPE_FM1216ME},
-        {"Alps TSCxx"           , -1},
-		{"Philips FI1216ME (or compatible)"             , TUNER_TYPE_FM1216ME},
+	{"Philips FI1216ME (or compatible)"             , TUNER_TYPE_FM1216ME},
+        /*{"Alps TSCxx"           , -1},*/
+	{"Philips FM1236/F"     , TUNER_TYPE_FI1236W},
+	{"Philips FI1216ME (or compatible)"             , TUNER_TYPE_FM1216ME},
         {"UNKNOWN-19"           , -1},
         {"UNKNOWN-20"           , -1},
         {"UNKNOWN-21"           , -1},
