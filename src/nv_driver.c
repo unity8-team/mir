@@ -1,4 +1,4 @@
-/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.10 2005/01/26 01:36:04 alanc Exp $ */
+/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.13 2005/06/29 15:56:23 alanc Exp $ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
