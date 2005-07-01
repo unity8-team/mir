@@ -3687,7 +3687,7 @@ static int RADEONValidateMergeModes(ScrnInfoPtr pScrn1)
 			      NULL,                  /* linePitches */
 			      8 * 64,                /* minPitch */
 			      8 * 1024,              /* maxPitch */
-			      info->allowColorTiling ? 2048 :
+			      info->allowColorTiling ? info->MaxSurfaceWidth :
 			          64 * pScrn1->bitsPerPixel, /* pitchInc */
 			      128,                   /* minHeight */
 			      8 * 1024, /*2048,*/    /* maxHeight */
@@ -3750,7 +3750,7 @@ static int RADEONValidateMergeModes(ScrnInfoPtr pScrn1)
 					  NULL,                  /* linePitches */
 					  8 * 64,                /* minPitch */
 					  8 * 1024,              /* maxPitch */
-					  info->allowColorTiling ? 2048 :
+					  info->allowColorTiling ? info->MaxSurfaceWidth :
 					      64 * pScrn1->bitsPerPixel, /* pitchInc */
 					  128,                   /* minHeight */
 					  8 * 1024, /*2048,*/    /* maxHeight */
@@ -3952,10 +3952,10 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 			      NULL,                  /* linePitches */
 			      8 * 64,                /* minPitch */
 			      8 * 1024,              /* maxPitch */
-			      info->allowColorTiling ? 2048 :
+			      info->allowColorTiling ? info->MaxSurfaceWidth :
 			          64 * pScrn->bitsPerPixel, /* pitchInc */
 			      128,                   /* minHeight */
-			      2048,                  /* maxHeight */
+			      info->MaxLines,      /* maxHeight */
 			      pScrn->display->virtualX,
 			      pScrn->display->virtualY,
 			      info->FbMapSize,
@@ -4021,10 +4021,10 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 					  NULL,                  /* linePitches */
 					  8 * 64,                /* minPitch */
 					  8 * 1024,              /* maxPitch */
-					  info->allowColorTiling ? 2048 :
+					  info->allowColorTiling ? info->MaxSurfaceWidth :
 					      64 * pScrn->bitsPerPixel, /* pitchInc */
 					  128,                   /* minHeight */
-					  2048,                  /* maxHeight */
+					  info->MaxLines,      /* maxHeight */
 					  pScrn->display->virtualX,
 					  pScrn->display->virtualY,
 					  info->FbMapSize,
@@ -4749,9 +4749,13 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
         /* false by default on R3/4xx */
         info->allowColorTiling = xf86ReturnOptValBool(info->Options,
 					        OPTION_COLOR_TILING, FALSE);
+	info->MaxSurfaceWidth = 3968; /* one would have thought 4096...*/
+	info->MaxLines = 4096;
     } else {
         info->allowColorTiling = xf86ReturnOptValBool(info->Options,
 						OPTION_COLOR_TILING, TRUE);
+	info->MaxSurfaceWidth = 2048;
+	info->MaxLines = 2048;
     }
 
     if ((info->allowColorTiling) && (info->IsSecondary)) {
@@ -5045,9 +5049,10 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
         }
     }
 
-    if (info->allowColorTiling && (pScrn->virtualX > 2048)) {
+    if (info->allowColorTiling && (pScrn->virtualX > info->MaxSurfaceWidth)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Color tiling not supported with virtual x resolutions larger than 2048, disabling\n");
+		   "Color tiling not supported with virtual x resolutions larger than %d, disabling\n",
+		    info->MaxSurfaceWidth);
 	info->allowColorTiling = FALSE;
     }
     if (info->allowColorTiling) {
@@ -5146,20 +5151,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 			"DRI at present.\n"
 			"Please use the radeon MergedFB option if you "
 			"want Dual-head with DRI.\n");
-#if 0
-	} else if ( pScrn->virtualX > 2048 || pScrn->virtualY > 2048 ) {
-            if (info->No2048Limit) {
-	    	info->directRenderingEnabled = RADEONDRIScreenInit(pScreen);
-            	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	    		"DRI forced on with virtual screen of greater than 2048.\n");
-            } else {
-                info->directRenderingEnabled = FALSE;
-                xf86DrvMsg(scrnIndex, X_WARNING,
-                            "Direct Rendering Disabled -- "
-                            "Virtual resolution exceeds 2048 "
-                            "(hardware limitation)\n");
-	    }
-#endif
 	} else {
 	    info->directRenderingEnabled = RADEONDRIScreenInit(pScreen);
 	}
@@ -6110,10 +6101,13 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	    depth_pattern = RADEON_SURF_TILE_DEPTH_16BPP;
 	else
 	    depth_pattern = RADEON_SURF_TILE_DEPTH_32BPP;
-    }
-    else {
-	/* no idea about R300, just set it up the same as r200
-	   if someone is crazy enough to try... */
+    } else if (IS_R300_VARIANT) {
+       color_pattern = R300_SURF_TILE_COLOR_MACRO;
+       if (cpp == 2)
+           depth_pattern = R300_SURF_TILE_COLOR_MACRO;
+       else
+           depth_pattern = R300_SURF_TILE_COLOR_MACRO | R300_SURF_TILE_DEPTH_32BPP;
+    } else {
 	color_pattern = R200_SURF_TILE_COLOR_MACRO;
 	if (cpp == 2)
 	    depth_pattern = R200_SURF_TILE_DEPTH_16BPP;
@@ -6175,7 +6169,10 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	    drmRadeonSurfaceAlloc drmsurfalloc;
 	    drmsurfalloc.size = bufferSize;
 	    drmsurfalloc.address = info->depthOffset;
-	    drmsurfalloc.flags = swap_pattern | (width_bytes / 16) | depth_pattern;
+            if (IS_R300_VARIANT)
+                drmsurfalloc.flags = swap_pattern | (width_bytes / 8) | depth_pattern;
+            else
+                drmsurfalloc.flags = swap_pattern | (width_bytes / 16) | depth_pattern;
 	    retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_ALLOC,
 		&drmsurfalloc, sizeof(drmsurfalloc));
 	    if (retvalue < 0)

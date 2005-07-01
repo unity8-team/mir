@@ -654,6 +654,9 @@ typedef struct {
 
     Bool               VGAAccess;
 
+    int                MaxSurfaceWidth;
+    int                MaxLines;
+
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\

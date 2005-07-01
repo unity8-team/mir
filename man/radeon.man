@@ -439,7 +439,8 @@ The default value is
 .BI "Option \*qColorTiling\*q \*q" "boolean" \*q
 Frame buffer can be addressed either in linear or tiled mode. Tiled mode can provide
 significant performance benefits with 3D applications, for 2D it shouldn't matter
-much. Tiling will be disabled if the virtual x resolution exceeds 2048, if option
+much. Tiling will be disabled if the virtual x resolution exceeds 2048 (3968 for R300 
+and above), if option
 .B UseFBDev
 is used, or (if DRI is enabled) the drm module is too old.
 .br
