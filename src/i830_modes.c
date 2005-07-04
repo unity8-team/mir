@@ -416,7 +416,7 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
      */
     if (modeOK && !pMode) {
 	int refresh = 0, calcrefresh = 0;
-	DisplayModePtr newMode;
+	DisplayModePtr newMode = NULL;
 
 	for (p = pScrn->monitor->Modes; p != NULL; p = p->next) {
 	    calcrefresh = (int)(((double)(p->Clock * 1000) /
