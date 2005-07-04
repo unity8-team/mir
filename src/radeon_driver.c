@@ -8069,11 +8069,13 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 	xytilereg = R300_CRTC_TILE_X0_Y0;
     }
     crtcoffsetcntl = INREG(regcntl) & ~0xf;
+#if 0
     /* try to get rid of flickering when scrolling at least for 2d */
 #ifdef XF86DRI
     if (!info->have3DWindows)
 #endif
     crtcoffsetcntl &= ~RADEON_CRTC_OFFSET_FLIP_CNTL;
+#endif
     if (info->tilingEnabled) {
         if (IS_R300_VARIANT) {
 	/* On r300/r400 when tiling is enabled crtc_offset is set to the address of
