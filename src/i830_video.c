@@ -1245,7 +1245,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
-      swidth = width << 1;
+      swidth = width;
       overlay->SWIDTH = swidth;
 
       ErrorF("Y width is %d\n", swidth);
@@ -1270,16 +1270,17 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
    if (pPriv->oneLineMode) {
       /* change the coordinates with panel fitting active */
-      /* Should move this to before clip helper */
       dstBox->y1 = (((dstBox->y1 - 1) * pPriv->scaleRatio) >> 16) + 1;
       dstBox->y2 = ((dstBox->y2 * pPriv->scaleRatio) >> 16) + 1;
  
-      if (dstBox->y1 < 0) dstBox->y1 = 0;
-
       /* Now, alter the height, so we scale to the correct size */
-      drw_h = dstBox->y2 - dstBox->y1;
-      if (drw_h < height) drw_h = height;
+      drw_h = ((drw_h * pPriv->scaleRatio) >> 16) + 1;
+
+      /* Keep the engine happy */
+      if (dstBox->y1 < 0) dstBox->y1 = 0;
+      if (dstBox->y2 < 0) dstBox->y2 = 0;
    }
+
 
    overlay->DWINPOS = (dstBox->y1 << 16) | dstBox->x1;
 
@@ -1588,7 +1589,7 @@ I830PutImage(ScrnInfoPtr pScrn,
    switch (id) {
    case FOURCC_YV12:
    case FOURCC_I420:
-      srcPitch = width;
+      srcPitch = (width + 3) & ~3;
       srcPitch2 = ((width >> 1) + 3) & ~3;
       dstPitch = ((width / 2) + 63) & ~63;	/* of chroma */
       size = dstPitch * height * 3;
