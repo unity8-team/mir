@@ -37,7 +37,7 @@
 |*                                                                           *|
  \***************************************************************************/
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_setup.c,v 1.45 2005/04/16 23:57:26 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_setup.c,v 1.46 2005/07/09 00:53:00 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -408,6 +408,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     case 0x0186:
     case 0x0187:
     case 0x018D:
+    case 0x0228:
     case 0x0286:
     case 0x028C:
     case 0x0316:
@@ -431,11 +432,16 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     case 0x034C:
     case 0x0160:
     case 0x0166:
+    case 0x0169:
+    case 0x016B:
+    case 0x016C:
+    case 0x016D:
     case 0x00C8:
     case 0x00CC:
     case 0x0144:
     case 0x0146:
     case 0x0148:
+    case 0x0099:
         mobile = TRUE;
         break;
     default:
