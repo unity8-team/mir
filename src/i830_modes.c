@@ -407,6 +407,7 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
 	if (p) {
     		pMode = xnfcalloc(sizeof(DisplayModeRec), 1);
 		memcpy((char*)pMode,(char*)p,sizeof(DisplayModeRec));
+    		pMode->name = xnfstrdup(p->name);
 	}
     } 
 
@@ -438,6 +439,7 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
 	if (newMode) {
     		pMode = xnfcalloc(sizeof(DisplayModeRec), 1);
 		memcpy((char*)pMode,(char*)newMode,sizeof(DisplayModeRec));
+    		pMode->name = xnfstrdup(newMode->name);
 	}
     } 
 
