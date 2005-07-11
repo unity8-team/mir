@@ -5,6 +5,10 @@
  *    borrowing some code from the Chips and MGA drivers.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 				/* Driver data structures */
 #include "r128.h"
 #include "r128_probe.h"

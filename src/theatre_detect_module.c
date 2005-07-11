@@ -2,6 +2,10 @@
  * Created by Bogdan D. bogdand@users.sourceforge.net
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "xf86Module.h"
 
 static MODULESETUPPROTO(theatre_detectSetup);

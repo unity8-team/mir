@@ -24,6 +24,10 @@
  *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "ati.h"
 #include "atiadapter.h"
 #include "atichip.h"

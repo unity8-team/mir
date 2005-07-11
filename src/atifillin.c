@@ -5,6 +5,10 @@
  * (c) 2004 Adam Jackson.  Standard MIT license applies.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "atifillin.h"
 
 _X_EXPORT void ATIFillInScreenInfo(ScrnInfoPtr pScreenInfo)

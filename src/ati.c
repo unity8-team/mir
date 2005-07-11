@@ -54,6 +54,10 @@
  * V3, including OEM counterparts.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "atiident.h"
 #include "atioption.h"
 #include "atiprobe.h"

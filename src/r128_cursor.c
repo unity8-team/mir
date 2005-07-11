@@ -44,6 +44,10 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 				/* Driver data structures */
 #include "r128.h"
 #include "r128_reg.h"
