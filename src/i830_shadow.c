@@ -10,6 +10,10 @@
  * Helmar Spangenberg <hspangenberg@frey.de> and Dima Dorfman
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "xf86.h"
 #include "i830.h"
 #include "shadowfb.h"

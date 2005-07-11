@@ -34,6 +34,10 @@
  * to support extended BIOS modes for the Intel chipsets
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "xf86.h"
 #include "xf86_ansic.h"
 #include "vbe.h"

@@ -2,6 +2,11 @@
  * XXX So far, for GXxor this is about 40% of the speed of SW, but CPU
  * utilisation falls from 95% to < 5%.
  */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifndef DO_SCANLINE_IMAGE_WRITE
 #define DO_SCANLINE_IMAGE_WRITE 0
 #endif

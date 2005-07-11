@@ -27,6 +27,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************/
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_accel.c,v 1.21 2004/01/02 20:22:17 dawes Exp $ */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 /*
  * Reformatted with GNU indent (2.2.8), using the following options:
  *

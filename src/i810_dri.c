@@ -12,6 +12,10 @@
  * with <TAB> characters expanded at 8-column intervals.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86_ansic.h"

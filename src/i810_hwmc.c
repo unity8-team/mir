@@ -34,6 +34,9 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_hwmc.c,v 1.3 2001/12/04 21:17:56 tsi Exp $ */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include "xf86.h"
 #include "xf86_OSproc.h"

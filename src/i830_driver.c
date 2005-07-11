@@ -148,6 +148,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
  *        - Add Intel(R) 945G support.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifndef PRINT_MODE_INFO
 #define PRINT_MODE_INFO 0
 #endif

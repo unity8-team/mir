@@ -60,6 +60,10 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * XXX Could support more formats.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"

@@ -36,6 +36,10 @@
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_dga.c,v 1.2 2002/11/05 02:01:18 dawes Exp $ */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86_ansic.h"
