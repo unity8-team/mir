@@ -42,6 +42,10 @@
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_xaa.c $ */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "riva_include.h"
 #include "xaalocal.h"
 #include "xaarop.h"
