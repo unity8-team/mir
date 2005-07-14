@@ -40,24 +40,55 @@ AC_PROG_CC
 
 AH_TOP([#include "xorg-server.h"])
 
-AC_ARG_WITH(xorg-module-dir, [  --with-xorg-module-dir=DIR ],
-                             [ moduledir="$withval" ],
-                             [ moduledir="$libdir/xorg/modules" ])
-AC_SUBST(moduledir)
+AC_ARG_WITH(xorg-module-dir,
+            AC_HELP_STRING([--with-xorg-module-dir=DIR],
+                           [Default xorg module directory [[default=$libdir/xorg/modules]]]),
+            [moduledir="$withval"],
+            [moduledir="$libdir/xorg/modules"])
+
+AC_ARG_ENABLE(dri, AC_HELP_STRING([--disable-dri],
+                                  [Disable DRI support [[default=auto]]]),
+              [DRI="$enableval"],
+              [DRI=auto])
 
 # Checks for pkg-config packages
-PKG_CHECK_MODULES(XORG, xorg-server xproto libdrm)
+PKG_CHECK_MODULES(XORG, [xorg-server xproto])
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
-
-CFLAGS="$XORG_CFLAGS "' -I$(top_srcdir)/src'
-INCLUDES="$XORG_INCS -I${sdkdir} "'-I$(top_srcdir)/src -I$(prefix)/include'
-AC_SUBST([CFLAGS])
-AC_SUBST([INCLUDES])
 
 # Checks for libraries.
 
 # Checks for header files.
 AC_HEADER_STDC
+
+if test "$DRI" != no; then
+	CFLAGS="-I${sdkdir}"
+	AC_CHECK_HEADERS([dri.h sarea.h dristruct.h])
+fi
+
+AC_MSG_CHECKING([whether to include DRI support])
+if test x$DRI = xauto; then
+	if test "$ac_cv_header_dri_h" = yes -a \
+                "$ac_cv_header_sarea_h" = yes -a \
+                "$ac_cv_header_dristruct_h" = yes; then
+		DRI="yes"
+	else
+		DRI="no"
+	fi
+fi
+AC_MSG_RESULT([$DRI])
+
+AM_CONDITIONAL(DRI, test x$DRI = xyes)
+if test "$DRI" = yes; then
+	PKG_CHECK_MODULES(DRI, [libdrm])
+        AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
+        AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
+fi
+
+CFLAGS="$XORG_CFLAGS $DRI_CFLAGS"' -I$(top_srcdir)/src'
+
+AC_SUBST([CFLAGS])
+AC_SUBST(DRI)
+AC_SUBST(moduledir)
 
 AC_OUTPUT([
 	Makefile
