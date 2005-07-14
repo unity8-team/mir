@@ -32,6 +32,8 @@ R128_DRI_SRCS = r128_dri.c
 RADEON_DRI_SRCS = radeon_dri.c
 endif
 
+AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@
+
 ati_drv_la_LTLIBRARIES = ati_drv.la
 ati_drv_la_LDFLAGS = -module -avoid-version
 ati_drv_ladir = @moduledir@/drivers

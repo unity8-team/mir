@@ -61,15 +61,19 @@ sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 AC_HEADER_STDC
 
 if test "$DRI" != no; then
-	CFLAGS="-I${sdkdir}"
-	AC_CHECK_HEADERS([dri.h sarea.h dristruct.h])
+	AC_CHECK_FILE([${sdkdir}/dri.h],
+                      [have_dri_h="yes"], [have_dri_h="no"])
+	AC_CHECK_FILE([${sdkdir}/sarea.h],
+                      [have_sarea_h="yes"], [have_sarea_h="no"])
+	AC_CHECK_FILE([${sdkdir}/dristruct.h],
+                      [have_dristruct_h="yes"], [have_dristruct_h="no"])
 fi
 
 AC_MSG_CHECKING([whether to include DRI support])
 if test x$DRI = xauto; then
-	if test "$ac_cv_header_dri_h" = yes -a \
-                "$ac_cv_header_sarea_h" = yes -a \
-                "$ac_cv_header_dristruct_h" = yes; then
+	if test "$have_dri_h" = yes -a \
+                "$have_sarea_h" = yes -a \
+                "$have_dristruct_h" = yes; then
 		DRI="yes"
 	else
 		DRI="no"
@@ -79,16 +83,14 @@ AC_MSG_RESULT([$DRI])
 
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
-	PKG_CHECK_MODULES(DRI, [libdrm])
+	PKG_CHECK_MODULES(DRI, [libdrm xf86driproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
 fi
 
-CFLAGS="$XORG_CFLAGS $DRI_CFLAGS"' -I$(top_srcdir)/src'
-
-AC_SUBST([CFLAGS])
-AC_SUBST(DRI)
-AC_SUBST(moduledir)
+AC_SUBST([XORG_CFLAGS])
+AC_SUBST([DRI_CFLAGS])
+AC_SUBST([moduledir])
 
 AC_OUTPUT([
 	Makefile
