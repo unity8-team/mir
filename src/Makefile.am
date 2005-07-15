@@ -71,19 +71,20 @@ radeon_drv_la_SOURCES = \
 
 theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
 theatre_detect_drv_la_LDFLAGS = -module -avoid-version
-theatre_detect_drv_ladir = @moduledir@/drivers
+theatre_detect_drv_ladir = @moduledir@/multimedia
 theatre_detect_drv_la_SOURCES = \
 	theatre_detect.c theatre_detect_module.c
 
 theatre_drv_la_LTLIBRARIES = theatre_drv.la
 theatre_drv_la_LDFLAGS = -module -avoid-version
-theatre_drv_ladir = @moduledir@/drivers
+theatre_drv_ladir = @moduledir@/multimedia
+
 theatre_drv_la_SOURCES = \
 	theatre.c theatre_module.c
 
 theatre200_drv_la_LTLIBRARIES = theatre200_drv.la
 theatre200_drv_la_LDFLAGS = -module -avoid-version
-theatre200_drv_ladir = @moduledir@/drivers
+theatre200_drv_ladir = @moduledir@/multimedia
 theatre200_drv_la_SOURCES = \
 	theatre200.c theatre200_module.c
 
