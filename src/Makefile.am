@@ -73,7 +73,7 @@ theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
 theatre_detect_drv_la_LDFLAGS = -module -avoid-version
 theatre_detect_drv_ladir = @moduledir@/drivers
 theatre_detect_drv_la_SOURCES = \
-	theatre.c theatre_detect_module.c
+	theatre_detect.c theatre_detect_module.c
 
 theatre_drv_la_LTLIBRARIES = theatre_drv.la
 theatre_drv_la_LDFLAGS = -module -avoid-version
