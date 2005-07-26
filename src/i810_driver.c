@@ -272,6 +272,11 @@ const char *I810ramdacSymbols[] = {
    NULL
 };
 
+const char *I810shadowFBSymbols[] = {
+    "ShadowFBInit",
+    NULL
+};
+
 #ifdef XF86DRI
 const char *I810drmSymbols[] = {
    "drmAddBufs",
@@ -313,13 +318,6 @@ const char *I810driSymbols[] = {
    NULL
 };
 
-#ifdef XF86DRI
-
-const char *I810shadowFBSymbols[] = {
-    "ShadowFBInit",
-    NULL
-};
-
 const char *I810shadowSymbols[] = {
     "shadowInit",
     "shadowSetup",
@@ -327,9 +325,7 @@ const char *I810shadowSymbols[] = {
     NULL
 };
 
-#endif
-
-#endif /* I830_ONLY */
+#endif 
 
 #ifndef I810_DEBUG
 int I810_DEBUG = (0
