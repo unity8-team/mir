@@ -2211,7 +2211,10 @@ RADEONSetFBLocation(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 mc_fb_location;
     CARD32 mc_agp_location = INREG(RADEON_MC_AGP_LOCATION);
-
+    CARD32 bus_cntl = INREG(RADEON_BUS_CNTL);
+    
+    OUTREG (RADEON_BUS_CNTL, bus_cntl | RADEON_BUS_MASTER_DIS);
+    RADEONWaitForIdleMMIO(pScrn);
 
     /* This function has many problems with newer cards.
      * Even with older cards, all registers changed here are not
@@ -2231,6 +2234,9 @@ RADEONSetFBLocation(ScrnInfoPtr pScrn)
 	    OUTREG(RADEON_DISPLAY2_BASE_ADDR, info->fbLocation);
 	    OUTREG(RADEON_OV0_BASE_ADDR, info->fbLocation);
 	}
+	OUTREG (RADEON_BUS_CNTL, bus_cntl);
+	RADEONWaitForIdleMMIO(pScrn);
+
 	return;
     }
 
@@ -2271,6 +2277,8 @@ RADEONSetFBLocation(ScrnInfoPtr pScrn)
 	OUTREG(RADEON_DISPLAY2_BASE_ADDR, info->fbLocation);
     OUTREG(RADEON_OV0_BASE_ADDR, info->fbLocation);
 
+    OUTREG (RADEON_BUS_CNTL, bus_cntl);
+    RADEONWaitForIdleMMIO(pScrn);
 
     /* Set display0/1 priority up on r3/4xx in the memory controller for 
      * high res modes if the user specifies HIGH for displaypriority 
