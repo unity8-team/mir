@@ -22,8 +22,8 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-ati],
-        0.1.0,
-        [ajax@freedesktop.org],
+        6.5.6,
+        [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-ati)
 
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -91,6 +91,8 @@ fi
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([moduledir])
+
+XORG_RELEASE_VERSION
 
 AC_OUTPUT([
 	Makefile
