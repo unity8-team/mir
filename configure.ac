@@ -22,8 +22,8 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-i810],
-        0.1.0,
-        [ajax@freedesktop.org],
+        1.4.0,
+        [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-i810)
 
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -91,6 +91,8 @@ fi
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([moduledir])
+
+XORG_RELEASE_VERSION
 
 AC_OUTPUT([
 	Makefile
