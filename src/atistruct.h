@@ -41,7 +41,7 @@
 #include "atidripriv.h"
 #include "mach64_dri.h"
 #include "sarea.h"
-#include "xf86dri.h"
+#include "xf86drm.h"
 #include "dri.h"
  
 #endif /* XF86DRI_DEVEL */
