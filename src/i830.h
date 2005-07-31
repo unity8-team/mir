@@ -63,7 +63,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86drm.h"
 #include "sarea.h"
 #define _XF86DRI_SERVER_
-#include "xf86dri.h"
 #include "dri.h"
 #include "GL/glxint.h"
 #include "i830_dri.h"

@@ -3,7 +3,6 @@
 #ifndef _I830_DRI_H
 #define _I830_DRI_H
 
-#include "xf86dri.h"
 #include "xf86drm.h"
 #include "i830_common.h"
 

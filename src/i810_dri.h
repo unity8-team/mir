@@ -3,7 +3,6 @@
 #ifndef _I810_DRI_
 #define _I810_DRI_
 
-#include "xf86dri.h"
 #include "xf86drm.h"
 #include "i810_common.h"
 
