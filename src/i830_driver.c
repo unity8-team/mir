@@ -2697,15 +2697,21 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS Build: %d\n",pI830->bios_version);
 
-   if (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830))
+   /* Great..
+    * Intel changed the BIOS version codes and started at 1200.
+    * We know that bios codes for 830M started around 2400.
+    * So we test those conditions to make this judgement. Ugh.
+    */
+   if (pI830->availablePipes == 2 && pI830->bios_version < 2000)
       pI830->newPipeSwitch = TRUE;
-   else
-   if (pI830->availablePipes == 2 && pI830->bios_version >= 3062) {
+   else if (pI830->availablePipes == 2 && pI830->bios_version >= 3062) 
       /* BIOS build 3062 changed the pipe switching functionality */
       pI830->newPipeSwitch = TRUE;
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using new Pipe switch code\n");
-   } else
+   else
       pI830->newPipeSwitch = FALSE;
+
+   if (pI830->newPipeSwitch)
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using new Pipe switch code\n");
 
    pI830->devicePresence = FALSE;
    from = X_DEFAULT;
@@ -3467,7 +3473,7 @@ SetFenceRegs(ScrnInfoPtr pScrn)
    for (i = 0; i < 8; i++) {
       OUTREG(FENCE + i * 4, pI830->ModeReg.Fence[i]);
       if (I810_DEBUG & DEBUG_VERBOSE_VGA)
-	 ErrorF("Fence Register : %lx\n", pI830->ModeReg.Fence[i]);
+	 ErrorF("Fence Register : %x\n", pI830->ModeReg.Fence[i]);
    }
 }
 
