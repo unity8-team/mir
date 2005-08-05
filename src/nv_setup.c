@@ -37,7 +37,7 @@
 |*                                                                           *|
  \***************************************************************************/
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_setup.c,v 1.46 2005/07/09 00:53:00 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_setup.c,v 1.47 2005/08/03 17:39:31 mvojkovi Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -305,6 +305,9 @@ static void nv10GetConfig (NVPtr pNv)
     } else {
         pNv->RamAmountKBytes = (pNv->PFB[0x020C/4] & 0xFFF00000) >> 10;
     }
+
+    if(pNv->RamAmountKBytes > 256*1024)
+        pNv->RamAmountKBytes = 256*1024;
 
     pNv->CrystalFreqKHz = (pNv->PEXTDEV[0x0000/4] & (1 << 6)) ? 14318 : 13500;
     
