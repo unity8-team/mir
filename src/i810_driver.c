@@ -2269,9 +2269,9 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #endif
 
    if (pI810->directRenderingEnabled) {
-      xf86DrvMsg(pScrn->scrnIndex, driFrom, "Direct rendering enabled\n");
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Direct rendering enabled\n");
    } else {
-      xf86DrvMsg(pScrn->scrnIndex, driFrom, "Direct rendering disabled\n");
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Direct rendering disabled\n");
    }
 
    pScreen->SaveScreen = I810SaveScreen;
