@@ -5641,7 +5641,8 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	}
 
     } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Direct rendering disabled\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
+		   "Direct rendering disabled\n");
     }
 #endif
 
