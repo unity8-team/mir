@@ -8702,6 +8702,7 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 		   info->CRT2IsScrn0 = TRUE;
  	        } else if(!xf86NameCmp(tempstr,"RightOf")) {
                    info->CRT2Position = radeonRightOf;
+		   valid = TRUE;
 		   if(result == 2) {
 		      if(ival < 0) info->CRT1YOffs = -ival;
 		      else info->CRT2YOffs = ival;
