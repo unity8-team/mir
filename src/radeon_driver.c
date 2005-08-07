@@ -5130,11 +5130,9 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	       xf86DrvMsg(scrnIndex, X_WARNING,
 	              "Enabling DRM support\n\n"
                       "\t*** Direct rendering support is highly experimental for Radeon 9500\n"
-		      "\t*** and newer cards. In fact, the only thing you could probably use\n"
-		      "\t***  it for is better 2d acceleration. The 3d mesa driver is not  \n"
-		      "\t*** provided in this tree. A very experimental (and incomplete)\n"
-		      "\t*** version is available from http://r300.sourceforge.net\n"
-		      "\t*** This message has been last modified on 12/12/04.\n\n"
+		      "\t*** and newer cards. The 3d mesa driver is not provided in this tree.\n"
+		      "\t*** A very experimental (and incomplete) version is available from Mesa CVS.\n" "\t*** Additional information can be found on http://r300.sourceforge.net\n"
+		      "\t*** This message has been last modified on 2005-08-07.\n\n"
 		      );
                info->directRenderingEnabled = RADEONDRIScreenInit(pScreen);
 	} else if (info->IsSecondary) {
