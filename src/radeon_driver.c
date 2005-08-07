@@ -2224,21 +2224,6 @@ RADEONSetFBLocation(ScrnInfoPtr pScrn)
      * we just hardcode these values for now.
      * Need to revisit this whole function!!!
      */
-    if (IS_R300_VARIANT) {
-	info->fbLocation = 0;
-	
-	if (!info->IsSecondary) {
-	    RADEONWaitForIdleMMIO(pScrn);
-	    OUTREG (RADEON_MC_FB_LOCATION, (INREG(RADEON_CONFIG_MEMSIZE) - 1) & 0xffff0000);
-	    OUTREG(RADEON_DISPLAY_BASE_ADDR, info->fbLocation);
-	    OUTREG(RADEON_DISPLAY2_BASE_ADDR, info->fbLocation);
-	    OUTREG(RADEON_OV0_BASE_ADDR, info->fbLocation);
-	}
-	OUTREG (RADEON_BUS_CNTL, bus_cntl);
-	RADEONWaitForIdleMMIO(pScrn);
-
-	return;
-    }
 
     if (info->IsIGP) {
 	mc_fb_location = INREG(RADEON_NB_TOM);
