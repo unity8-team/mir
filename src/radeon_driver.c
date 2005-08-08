@@ -2530,9 +2530,9 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     case PCI_CHIP_RC410_5A61:
     case PCI_CHIP_RS480_5954:
     case PCI_CHIP_RS482_5974:
-	info->ChipFamily = CHIP_FAMILY_RS300; /*CHIP_FAMILY_RS400*/
-	info->IsIGP = TRUE;
-	info->HasSingleDAC = TRUE; /*?*/
+	info->ChipFamily = CHIP_FAMILY_RV380; /*CHIP_FAMILY_RS400*/
+	/*info->IsIGP = TRUE;*/ /* ??? */
+	/*info->HasSingleDAC = TRUE;*/ /* ??? */
         break;
 
     case PCI_CHIP_RV410_564A:
