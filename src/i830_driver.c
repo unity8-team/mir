@@ -1736,11 +1736,7 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
       dspbase = DSPBBASE;
    }
 
-   if (pScrn->depth > 8) {
-      OUTREG(dspreg, INREG(dspreg) | DISPPLANE_GAMMA_ENABLE);
-   } else {
-      OUTREG(dspreg, INREG(dspreg) & ~DISPPLANE_GAMMA_ENABLE);
-   }
+   OUTREG(dspreg, INREG(dspreg) | DISPPLANE_GAMMA_ENABLE);
    OUTREG(dspbase, INREG(dspbase));
 
    /* It seems that an initial read is needed. */
