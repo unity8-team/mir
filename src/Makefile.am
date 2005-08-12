@@ -50,7 +50,8 @@ i810_drv_la_SOURCES = \
          i830.h \
          i830_memory.c \
          i830_modes.c \
-         i830_video.c
+         i830_video.c \
+         i830_shadow.c
 
 if DRI
 i810_drv_la_SOURCES = \
