@@ -32,6 +32,15 @@ R128_DRI_SRCS = r128_dri.c
 RADEON_DRI_SRCS = radeon_dri.c
 endif
 
+if ATIMISC_CPIO
+ATI_CPIO_SOURCES = ativgaio.c
+ATIMISC_CPIO_SOURCES = ativga.c atibank.c atiwonder.c atiwonderio.c
+endif
+
+if ATIMISC_DGA
+ATIMISC_DGA_SOURCES = atidga.c
+endif
+
 AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@
 
 ati_drv_la_LTLIBRARIES = ati_drv.la
@@ -39,7 +48,7 @@ ati_drv_la_LDFLAGS = -module -avoid-version
 ati_drv_ladir = @moduledir@/drivers
 ati_drv_la_SOURCES = \
 	ati.c atiadapter.c atibus.c atichip.c atiident.c atioption.c \
-	atiprobe.c atividmem.c ativgaio.c atimodule.c \
+	atiprobe.c atividmem.c atimodule.c $(ATI_CPIO_SOURCES) \
 	radeon_probe.c r128_probe.c
 
 atimisc_drv_la_LTLIBRARIES = atimisc_drv.la
@@ -51,8 +60,8 @@ atimisc_drv_la_SOURCES = \
 	atilock.c atimach64.c atimach64accel.c atimach64cursor.c \
 	atimach64i2c.c atimach64io.c atimach64xv.c atimode.c atipreinit.c \
 	atiprint.c atirgb514.c atiscreen.c atituner.c atiutil.c ativalid.c \
-	atixv.c atibank.c ativga.c atiwonder.c atiwonderio.c atidga.c \
-	atiload.c atimisc.c $(ATIMISC_DRI_SRCS) 
+	atixv.c atiload.c atimisc.c $(ATIMISC_DRI_SRCS) $(ATIMISC_DGA_SOURCES) \
+	$(ATIMISC_CPIO_SOURCES)
 
 r128_drv_la_LTLIBRARIES = r128_drv.la
 r128_drv_la_LDFLAGS = -module -avoid-version

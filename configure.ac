@@ -88,6 +88,74 @@ if test "$DRI" = yes; then
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
 fi
 
+# Note that this is sort of inverted from drivers/ati/Imakefile in
+# the monolith.  We test for foo, not for !foo (i.e. ATMISC_CPIO, not
+# ATIMISC_AVOID_CPIO), but the defines are negative.  So beware.  Oh yeah,
+# TV_OUT is the special case where it's a positive define, not AVOID_TV_OUT.
+
+# AVOID_CPIO: Only x86, amd64, and alpha are cool with CPIO.  It needs a
+# little-endian, undirected PIO space of at least 64kB.
+# AVOID_NON_PCI: Platforms which don't deal with PCI master aborts should
+# stick to PCI-only probing, stick their fingers in their ears, and pretend
+# that ISA cards simply don't exist.
+# AVOID_DGA: ???
+# ATI_TV_OUT: This only works on x86.
+
+ATIMISC_CPIO=no
+ATIMISC_NON_PCI=yes
+ATIMISC_DGA=yes
+ATIMISC_TV_OUT=no
+
+case $host_cpu in
+  i*86)
+    ATIMISC_TV_OUT=yes
+    ATIMISC_CPIO=yes
+    ;;
+  amd64|alpha)
+    ATIMISC_CPIO=yes
+    ;;
+  sparc)
+    ATIMISC_DGA=no
+    ;;
+  powerpc)
+    ATIMISC_NON_PCI=no
+    ;;
+  *)
+    ;;
+esac
+
+AC_MSG_CHECKING([whether to include PIO support])
+AM_CONDITIONAL(ATIMISC_CPIO, test "x$ATIMISC_CPIO" = xyes)
+if test "x$ATIMISC_CPIO" = xyes; then
+	echo "yes, PIO"
+else
+	AC_DEFINE(AVOID_CPIO, 1, [Avoid PIO and use MMIO for atimisc.])
+	echo "no, MMIO"
+fi
+
+AC_MSG_CHECKING([whether to include support for non-PCI devices])
+AM_CONDITIONAL(ATIMISC_NON_PCI, test "x$ATIMISC_NON_PCI" = xyes)
+if test "x$ATI_AVOID_NON_PCI" = xyes; then
+	echo "yes, PCI and ISA"
+else
+	AC_DEFINE(AVOID_NON_PCI, 1, [Only probe PCI cards; do not probe ISA.])
+	echo "no, PCI only"
+fi
+
+AC_MSG_CHECKING([whether to include DGA support])
+AC_MSG_RESULT([$ATIMISC_DGA])
+AM_CONDITIONAL(ATIMISC_DGA, test "x$ATIMISC_DGA" = xyes)
+if ! test "x$ATIMISC_DGA" = xyes; then
+	AC_DEFINE(AVOID_DGA, 1, [Do not build DGA support.])
+fi
+
+AC_MSG_CHECKING([whether to include TV Out support])
+AC_MSG_RESULT([$ATIMISC_TV_OUT])
+AM_CONDITIONAL(ATIMISC_TV_OUT, test "x$ATIMISC_TV_OUT" = xyes)
+if test "x$ATIMISC_TV_OUT" = xyes; then
+	AC_DEFINE(TV_OUT, 1, [Build TV-Out support for atimisc.])
+fi
+
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([moduledir])
