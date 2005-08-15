@@ -290,8 +290,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
    DRIInfoPtr pDRIInfo;
    I810DRIPtr pI810DRI;
    unsigned long tom;
-   unsigned long agpHandle;
-   unsigned long dcacheHandle;
+   drm_handle_t agpHandle;
+   drm_handle_t dcacheHandle;
    int sysmem_size = 0;
    int back_size = 0;
    unsigned int pitch_idx = 0;
@@ -492,7 +492,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Registers = 0x%08lx\n",
+   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Registers = 0x%08x\n",
 	      pI810DRI->regs);
 
    pI810->backHandle = DRM_AGP_NO_HANDLE;
@@ -531,7 +531,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    drmAgpAlloc(pI810->drmSubFD, 4096 * 1024, 1, NULL, &dcacheHandle);
    pI810->dcacheHandle = dcacheHandle;
 
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[agp] dcacheHandle : 0x%lx\n",
+   xf86DrvMsg(pScreen->myNum, X_INFO, "[agp] dcacheHandle : 0x%x\n",
 	      dcacheHandle);
 
 #define Elements(x) sizeof(x)/sizeof(*x)

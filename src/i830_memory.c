@@ -1617,7 +1617,7 @@ long
 I830CheckAvailableMemory(ScrnInfoPtr pScrn)
 {
    AgpInfoPtr agpinf;
-   int maxPages;
+   long maxPages;
 
    if (!xf86AgpGARTSupported() ||
        !xf86AcquireGART(pScrn->scrnIndex) ||
@@ -1626,8 +1626,9 @@ I830CheckAvailableMemory(ScrnInfoPtr pScrn)
       return -1;
 
    maxPages = agpinf->totalPages - agpinf->usedPages;
-   xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 2, "%s: %d kB available\n",
-		  "I830CheckAvailableMemory", maxPages * 4);
+   xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 2, 
+   	"Checking Available AGP Memory: %ld kB available (total %ld kB, used %ld kB)\n",
+	maxPages * 4, agpinf->totalPages * 4, agpinf->usedPages * 4);
 
    return maxPages * 4;
 }

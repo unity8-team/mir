@@ -622,7 +622,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Registers = 0x%08lx\n",
+   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Registers = 0x%08x\n",
 	      pI830DRI->regs);
 
    /*
@@ -642,7 +642,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Back Buffer = 0x%08lx\n",
+   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Back Buffer = 0x%08x\n",
 	      pI830DRI->backbuffer);
 
    pI830DRI->depthbufferSize = pI830->DepthBuffer.Size;
@@ -655,7 +655,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Depth Buffer = 0x%08lx\n",
+   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Depth Buffer = 0x%08x\n",
 	      pI830DRI->depthbuffer);
 
 
@@ -668,7 +668,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] ring buffer = 0x%08lx\n",
+   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] ring buffer = 0x%08x\n",
 	      pI830->ring_map);
 
    pI830DRI->textureSize = pI830->TexMem.Size;
@@ -683,7 +683,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] textures = 0x%08lx\n",
+   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] textures = 0x%08x\n",
 	      pI830DRI->textures);
 
    if (!I830InitDma(pScrn)) {
