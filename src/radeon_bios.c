@@ -216,7 +216,8 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	if ((tmp = RADEON_BIOS16(info->ROMHeaderStart + 0x50))) {
 	    for (i = 1; i < 4; i++) {
 
-		if (!RADEON_BIOS8(tmp + i*2) && i > 1) break; /* end of table */
+		if (!RADEON_BIOS16(tmp + i*2))
+			break; /* end of table */
 		
 		tmp0 = RADEON_BIOS16(tmp + i*2);
 		if (((tmp0 >> 12) & 0x0f) == 0) continue;     /* no connector */
