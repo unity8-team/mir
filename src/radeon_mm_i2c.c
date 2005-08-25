@@ -37,6 +37,34 @@
 
 static void RADEON_TDA9885_Init(RADEONPortPrivPtr pPriv);
 
+/* Wait for 10ms at the most for the I2C_GO register to drop. */
+#define I2C_WAIT_FOR_GO() { \
+	int i2ctries = 0; \
+	RADEONWaitForIdleMMIO(pScrn); \
+	write_mem_barrier(); \
+	while (i2ctries < 10) { \
+		reg = INREG8(RADEON_I2C_CNTL_0+1); \
+		if (!(reg & (I2C_GO >> 8))) \
+			break; \
+		if (reg & (I2C_ABORT >> 8)) \
+			break; \
+		usleep(1000); \
+		i2ctries++; \
+	} \
+}
+
+/* Wait, and dump the status in the 'status' register.  If we time out or
+ * receive an abort signal, halt/restart the I2C bus and leave _ABORT in the
+ * status register. */
+#define I2C_WAIT_WITH_STATUS() { \
+	I2C_WAIT_FOR_GO() \
+	if (reg & ((I2C_ABORT >> 8) | (I2C_GO >> 8))) { \
+		RADEON_I2C_Halt(pScrn); \
+		status = I2C_ABORT; \
+	} \
+	else \
+		status = RADEON_I2C_WaitForAck(pScrn, pPriv); \
+}
 
 /****************************************************************************
  *  I2C_WaitForAck (void)                                                   *
@@ -73,12 +101,13 @@ static CARD8 RADEON_I2C_WaitForAck (ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
             return I2C_DONE;
         }       
         counter++;
-        if(counter>1000000)
+	/* 50ms ought to be long enough. */
+        if(counter > 50)
         {
              xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Timeout condition on Radeon i2c bus\n");
              return I2C_HALT;
         }
-        
+	usleep(1000);
     }
 }
 
@@ -100,12 +129,7 @@ static void RADEON_I2C_Halt (ScrnInfoPtr pScrn)
     OUTREG8 (RADEON_I2C_CNTL_0 + 1, (reg |((I2C_GO|I2C_ABORT) >> 8)));
 
     /* wait for GO bit to go low */
-    RADEONWaitForIdleMMIO(pScrn);
-    while (INREG8 (RADEON_I2C_CNTL_0 + 1) & (I2C_GO>>8))
-    {
-      counter++;
-      if(counter>1000000)return;
-    }
+    I2C_WAIT_FOR_GO();
 }
 
 
@@ -114,6 +138,7 @@ static Bool RADEONI2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
 {
     int loop, status;
     CARD32 i2c_cntl_0, i2c_cntl_1;
+    CARD8 reg;
     RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)(d->pI2CBus->DriverPrivate.ptr);
     ScrnInfoPtr pScrn = xf86Screens[d->pI2CBus->scrnIndex];
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -145,9 +170,7 @@ static Bool RADEONI2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
                         I2C_GO | I2C_START | ((nRead >0)?0:I2C_STOP) | I2C_DRIVE_EN;
        OUTREG(RADEON_I2C_CNTL_0, i2c_cntl_0);
     
-       while(INREG8(RADEON_I2C_CNTL_0+1) & (I2C_GO >> 8));
-
-       status=RADEON_I2C_WaitForAck(pScrn,pPriv);
+       I2C_WAIT_WITH_STATUS();
 
        if(status!=I2C_DONE){
           RADEON_I2C_Halt(pScrn);
@@ -172,10 +195,7 @@ static Bool RADEONI2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
                         I2C_GO | I2C_START | I2C_STOP | I2C_DRIVE_EN | I2C_RECEIVE;
        OUTREG(RADEON_I2C_CNTL_0, i2c_cntl_0);
     
-       RADEONWaitForIdleMMIO(pScrn);
-       while(INREG8(RADEON_I2C_CNTL_0+1) & (I2C_GO >> 8));
-
-       status=RADEON_I2C_WaitForAck(pScrn,pPriv);
+       I2C_WAIT_WITH_STATUS();
   
        /* Write Value into the buffer */
        for (loop = 0; loop < nRead; loop++)
@@ -203,6 +223,7 @@ static Bool R200_I2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
 {
     int loop, status;
     CARD32 i2c_cntl_0, i2c_cntl_1;
+    CARD8 reg;
     RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)(d->pI2CBus->DriverPrivate.ptr);
     ScrnInfoPtr pScrn = xf86Screens[d->pI2CBus->scrnIndex];
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -234,11 +255,7 @@ static Bool R200_I2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
                         I2C_GO | I2C_START | ((nRead >0)?0:I2C_STOP) | I2C_DRIVE_EN;
        OUTREG(RADEON_I2C_CNTL_0, i2c_cntl_0);
     
-       write_mem_barrier();
-
-       while(INREG8(RADEON_I2C_CNTL_0+1) & (I2C_GO >> 8));
-
-       status=RADEON_I2C_WaitForAck(pScrn,pPriv);
+       I2C_WAIT_WITH_STATUS();
 
        if(status!=I2C_DONE){
           RADEON_I2C_Halt(pScrn);
@@ -263,10 +280,7 @@ static Bool R200_I2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
                         I2C_GO | I2C_START | I2C_STOP | I2C_DRIVE_EN | I2C_RECEIVE;
        OUTREG(RADEON_I2C_CNTL_0, i2c_cntl_0);
     
-       write_mem_barrier();
-       while(INREG8(RADEON_I2C_CNTL_0+1) & (I2C_GO >> 8));
-
-       status=RADEON_I2C_WaitForAck(pScrn,pPriv);
+       I2C_WAIT_WITH_STATUS();
   
        RADEONWaitForIdleMMIO(pScrn);
        /* Write Value into the buffer */
@@ -384,11 +398,11 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	case PCI_CHIP_RADEON_LW:
 	     xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility M7, disabling multimedia i2c\n");
  	     return;
-	#ifndef PCI_CHIP_RADEON_If
-		#define PCI_CHIP_RADEON_If 0x496e
-	#endif
-	case PCI_CHIP_RADEON_If:
+	case PCI_CHIP_RV250_If:
 	     xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon 9000 - skipping multimedia i2c initialization code.\n");
+	     return;
+	case PCI_CHIP_RV370_5460:
+	     xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility X300, disabling multimedia i2c\n");
 	     return;
 	}
     
@@ -425,7 +439,7 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     	case CHIP_FAMILY_RV350:
     	case CHIP_FAMILY_R350:
     	case CHIP_FAMILY_R300:
-		case CHIP_FAMILY_RV250:
+	case CHIP_FAMILY_RV250:
     	case CHIP_FAMILY_R200:
 		case CHIP_FAMILY_RV200:
             	pPriv->i2c->I2CWriteRead=R200_I2CWriteRead;
