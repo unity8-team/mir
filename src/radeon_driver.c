@@ -104,7 +104,7 @@
 
 				/* DPMS support. */
 #define DPMS_SERVER
-#include "extensions/dpms.h"
+#include <X11/extensions/dpms.h>
 
 #include "radeon_chipset.h"
 
