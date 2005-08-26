@@ -3684,10 +3684,10 @@ static int RADEONValidateMergeModes(ScrnInfoPtr pScrn1)
 			      NULL,                  /* linePitches */
 			      8 * 64,                /* minPitch */
 			      8 * 1024,              /* maxPitch */
-			      info->allowColorTiling ? info->MaxSurfaceWidth :
+			      info->allowColorTiling ? 2048 :
 			          64 * pScrn1->bitsPerPixel, /* pitchInc */
 			      128,                   /* minHeight */
-			      8 * 1024, /*2048,*/    /* maxHeight */
+			      info->MaxLines,        /* maxHeight */
 			      pScrn1->display->virtualX ? pScrn1->virtualX : 0,
 			      pScrn1->display->virtualY ? pScrn1->virtualY : 0,
 			      info->FbMapSize,
@@ -3747,10 +3747,10 @@ static int RADEONValidateMergeModes(ScrnInfoPtr pScrn1)
 					  NULL,                  /* linePitches */
 					  8 * 64,                /* minPitch */
 					  8 * 1024,              /* maxPitch */
-					  info->allowColorTiling ? info->MaxSurfaceWidth :
+					  info->allowColorTiling ? 2048 :
 					      64 * pScrn1->bitsPerPixel, /* pitchInc */
 					  128,                   /* minHeight */
-					  8 * 1024, /*2048,*/    /* maxHeight */
+					  info->MaxLines,        /* maxHeight */
 					  pScrn1->display->virtualX,
 					  pScrn1->display->virtualY,
 					  info->FbMapSize,
@@ -3949,7 +3949,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 			      NULL,                  /* linePitches */
 			      8 * 64,                /* minPitch */
 			      8 * 1024,              /* maxPitch */
-			      info->allowColorTiling ? info->MaxSurfaceWidth :
+			      info->allowColorTiling ? 2048 :
 			          64 * pScrn->bitsPerPixel, /* pitchInc */
 			      128,                   /* minHeight */
 			      info->MaxLines,      /* maxHeight */
@@ -4018,7 +4018,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 					  NULL,                  /* linePitches */
 					  8 * 64,                /* minPitch */
 					  8 * 1024,              /* maxPitch */
-					  info->allowColorTiling ? info->MaxSurfaceWidth :
+					  info->allowColorTiling ? 2048 :
 					      64 * pScrn->bitsPerPixel, /* pitchInc */
 					  128,                   /* minHeight */
 					  info->MaxLines,      /* maxHeight */
