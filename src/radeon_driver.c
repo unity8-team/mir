@@ -96,9 +96,15 @@
 #include "xf86cmap.h"
 #include "vbe.h"
 
-				/* fbdevhw * vgaHW definitions */
-#include "fbdevhw.h"
+				/* fbdevhw & vgaHW definitions */
+#ifdef WITH_VGAHW
 #include "vgaHW.h"
+#endif
+#include "fbdevhw.h"
+
+				/* DPMS support. */
+#define DPMS_SERVER
+#include "extensions/dpms.h"
 
 #include "radeon_chipset.h"
 
@@ -254,6 +260,7 @@ static const OptionInfoRec RADEONOptions[] = {
 
 _X_EXPORT const OptionInfoRec *RADEONOptionsWeak(void) { return RADEONOptions; }
 
+#ifdef WITH_VGAHW
 static const char *vgahwSymbols[] = {
     "vgaHWFreeHWRec",
     "vgaHWGetHWRec",
@@ -265,6 +272,7 @@ static const char *vgahwSymbols[] = {
     "vgaHWGetIOBase",
     NULL
 };
+#endif
 
 static const char *fbdevHWSymbols[] = {
     "fbdevHWInit",
@@ -421,7 +429,10 @@ void RADEONLoaderRefSymLists(void)
      * Tell the loader about symbols from other modules that this module might
      * refer to.
      */
-    xf86LoaderRefSymLists(vgahwSymbols,
+    xf86LoaderRefSymLists(
+#ifdef WITH_VGAHW
+			  vgahwSymbols,
+#endif
 			  fbSymbols,
 			  xaaSymbols,
 #if 0
@@ -4590,12 +4601,13 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     xf86ProcessOptions(pScrn->scrnIndex, pScrn->options, info->Options);
 
     /* By default, don't do VGA IOs on ppc */
-#ifdef __powerpc__
+#if defined(__powerpc__) || !defined(WITH_VGAHW)
     info->VGAAccess = FALSE;
 #else
     info->VGAAccess = TRUE;
 #endif
 
+#ifdef WITH_VGAHW
     xf86GetOptValBool(info->Options, OPTION_VGA_ACCESS, &info->VGAAccess);
     if (info->VGAAccess) {
        if (!xf86LoadSubModule(pScrn, "vgahw"))
@@ -4613,6 +4625,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
                       " VGA module load skipped\n");
     if (info->VGAAccess)
         vgaHWGetIOBase(VGAHWPTR(pScrn));
+#endif
 
 
     if (!RADEONPreInitWeight(pScrn))
@@ -4834,8 +4847,10 @@ fail:
     if (pInt10)
 	xf86FreeInt10(pInt10);
 
+#ifdef WITH_VGAHW
     if (info->VGAAccess)
            vgaHWFreeHWRec(pScrn);
+#endif
 
  fail2:
     if(info->MMIO) RADEONUnmapMMIO(pScrn);
@@ -6542,23 +6557,25 @@ static void RADEONSave(ScrnInfoPtr pScrn)
     }
 
     if (!info->IsSecondary) {
+#ifdef WITH_VGAHW
         if (info->VGAAccess) {
            vgaHWPtr hwp = VGAHWPTR(pScrn);
 
             vgaHWUnlock(hwp);
-#if defined(__powerpc__)
+# if defined(__powerpc__)
            /* temporary hack to prevent crashing on PowerMacs when trying to
             * read VGA fonts and colormap, will find a better solution
             * in the future. TODO: Check if there's actually some VGA stuff
             * setup in the card at all !!
             */
            vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE); /* Save mode only */
-#else
+# else
            /* Save mode * & fonts & cmap */
            vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS);
-#endif
+# endif
            vgaHWLock(hwp);
        }
+#endif
 	save->dp_datatype      = INREG(RADEON_DP_DATATYPE);
 	save->rbbm_soft_reset  = INREG(RADEON_RBBM_SOFT_RESET);
 	save->clock_cntl_index = INREG(RADEON_CLOCK_CNTL_INDEX);
@@ -6619,18 +6636,19 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
     usleep(100000);
 #endif
 
+#ifdef WITH_VGAHW
     if (info->VGAAccess) {
        vgaHWPtr hwp = VGAHWPTR(pScrn);
         if (!info->IsSecondary) {
             vgaHWUnlock(hwp);
-#if defined(__powerpc__)
+# if defined(__powerpc__)
            /* Temporary hack to prevent crashing on PowerMacs when trying to
             * write VGA fonts, will find a better solution in the future
             */
            vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE );
-#else
+# else
            vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
-#endif
+# endif
            vgaHWLock(hwp);
         } else {
             RADEONEntPtr  pRADEONEnt = RADEONEntPriv(pScrn);
@@ -6650,6 +6668,7 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
            }
        }
     }
+#endif
     RADEONUnblank(pScrn);
 
 #if 0
@@ -8351,8 +8370,10 @@ _X_EXPORT void RADEONFreeScreen(int scrnIndex, int flags)
        }
     }
 
+#ifdef WITH_VGAHW
     if (info->VGAAccess && xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
 	vgaHWFreeHWRec(pScrn);
+#endif
     RADEONFreeRec(pScrn);
 }
 

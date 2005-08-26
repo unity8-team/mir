@@ -93,9 +93,15 @@
 #include "vbe.h"
 
 				/* fbdevhw & vgahw */
-#include "fbdevhw.h"
+#ifdef WITH_VGAHW
 #include "vgaHW.h"
+#endif
+#include "fbdevhw.h"
 #include "dixstruct.h"
+
+				/* DPMS support. */
+#define DPMS_SERVER
+#include <X11/extensions/dpms.h>
 
 #include "r128_chipset.h"
 
@@ -187,6 +193,7 @@ R128RAMRec R128RAM[] = {        /* Memory Specifications
     { 4, 4, 3, 3, 2, 3, 1, 16, 12, "64-bit DDR SGRAM" },
 };
 
+#ifdef WITH_VGAHW
 static const char *vgahwSymbols[] = {
     "vgaHWFreeHWRec",
     "vgaHWGetHWRec",
@@ -197,6 +204,7 @@ static const char *vgahwSymbols[] = {
     "vgaHWUnlock",
     NULL
 };
+#endif
 
 static const char *fbdevHWSymbols[] = {
     "fbdevHWInit",
@@ -343,7 +351,10 @@ void R128LoaderRefSymLists(void)
      * Tell the loader about symbols from other modules that this module might
      * refer to.
      */
-    xf86LoaderRefSymLists(vgahwSymbols,
+    xf86LoaderRefSymLists(
+#ifdef WITH_VGAHW
+		      vgahwSymbols,
+#endif
 		      fbSymbols,
 		      xaaSymbols,
 		      ramdacSymbols,
@@ -2098,12 +2109,13 @@ _X_EXPORT Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
     xf86ProcessOptions(pScrn->scrnIndex, pScrn->options, info->Options);
 
     /* By default, don't do VGA IOs on ppc */
-#ifdef __powerpc__
+#if defined(__powerpc__) || !defined(WITH_VGAHW)
     info->VGAAccess = FALSE;
 #else
     info->VGAAccess = TRUE;
 #endif
 
+#ifdef WITH_VGAHW
     xf86GetOptValBool(info->Options, OPTION_VGA_ACCESS, &info->VGAAccess);
     if (info->VGAAccess) {
        if (!xf86LoadSubModule(pScrn, "vgahw"))
@@ -2121,6 +2133,10 @@ _X_EXPORT Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
                       " VGA module load skipped\n");
     if (info->VGAAccess)
         vgaHWGetIOBase(VGAHWPTR(pScrn));
+#else
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VGAHW support not compiled, VGA "
+               "module load skipped\n");
+#endif
 
 
 
@@ -2212,8 +2228,10 @@ _X_EXPORT Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
     if (pInt10)
 	xf86FreeInt10(pInt10);
 
+#ifdef WITH_VGAHW
     if (info->VGAAccess)
            vgaHWFreeHWRec(pScrn);
+#endif
     R128FreeRec(pScrn);
     return FALSE;
 }
@@ -3355,23 +3373,25 @@ static void R128Save(ScrnInfoPtr pScrn)
     }
 
     if (!info->IsSecondary) {
+#ifdef WITH_VGAHW
         if (info->VGAAccess) {
             vgaHWPtr hwp = VGAHWPTR(pScrn);
 
             vgaHWUnlock(hwp);
-#if defined(__powerpc__)
+# if defined(__powerpc__)
             /* temporary hack to prevent crashing on PowerMacs when trying to
              * read VGA fonts and colormap, will find a better solution
              * in the future. TODO: Check if there's actually some VGA stuff
              * setup in the card at all !!
              */
             vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE); /* Save mode only */
-#else
+# else
             /* Save mode * & fonts & cmap */
             vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS);
-#endif
+# endif
             vgaHWLock(hwp);
         }
+#endif
 
         save->dp_datatype      = INREG(R128_DP_DATATYPE);
         save->gen_reset_cntl   = INREG(R128_GEN_RESET_CNTL);
@@ -3408,18 +3428,19 @@ static void R128Restore(ScrnInfoPtr pScrn)
     }
 
     R128RestoreMode(pScrn, restore);
+#ifdef WITH_VGAHW
     if (info->VGAAccess) {
         vgaHWPtr hwp = VGAHWPTR(pScrn);
         if (!info->IsSecondary) {
             vgaHWUnlock(hwp);
-#if defined(__powerpc__)
+# if defined(__powerpc__)
             /* Temporary hack to prevent crashing on PowerMacs when trying to
              * write VGA fonts, will find a better solution in the future
              */
             vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE );
-#else
+# else
             vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
-#endif
+# endif
             vgaHWLock(hwp);
         } else {
             R128EntPtr  pR128Ent = R128EntPriv(pScrn);
@@ -3439,6 +3460,7 @@ static void R128Restore(ScrnInfoPtr pScrn)
             }
         }
     }
+#endif
 
     R128WaitForVerticalSync(pScrn);
     R128Unblank(pScrn);
@@ -4432,8 +4454,10 @@ _X_EXPORT void R128FreeScreen(int scrnIndex, int flags)
     R128InfoPtr   info      = R128PTR(pScrn);
 
     R128TRACE(("R128FreeScreen\n"));
+#ifdef WITH_VGAHW
     if (info->VGAAccess && xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
 	vgaHWFreeHWRec(pScrn);
+#endif
     R128FreeRec(pScrn);
 }
 
