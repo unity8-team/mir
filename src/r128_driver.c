@@ -791,8 +791,8 @@ static Bool R128GetBIOSParameters(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
     if (!info->PanelXRes || !info->PanelYRes) {
         info->HasPanelRegs = FALSE;
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Can't determine panel dimensions, and none specified. \
-			      Disabling programming of FP registers.\n");
+		   "Can't determine panel dimensions, and none specified.\n"
+		   "\tDisabling programming of FP registers.\n");
     }
 
     return TRUE;
