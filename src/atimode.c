@@ -1,4 +1,3 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atimode.c,v 1.18 2004/01/05 16:42:03 tsi Exp $ */
 /*
  * Copyright 2000 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -662,7 +661,7 @@ ATIModeCalculate
                             SetBits(pMode->CrtcVDisplay, CRTC_V_DISP);
                     pATIHW->crtc_v_sync_strt_wid =
                         SetBits(pMode->CrtcVSyncStart, CRTC_V_SYNC_STRT) |
-                            SetBits(pMode->CrtcVSyncEnd, CRTC_V_SYNC_WID);
+                            SetBits(pMode->CrtcVSyncEnd, CRTC_V_SYNC_END_VGA);
                     if (pMode->Flags & V_NVSYNC)
                         pATIHW->crtc_v_sync_strt_wid |= CRTC_V_SYNC_POL;
                 }

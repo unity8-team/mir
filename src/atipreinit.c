@@ -1926,10 +1926,10 @@ ATIPreInit
                 VDisplay = GetBits(pATIHW->crtc_v_total_disp, CRTC_V_DISP);
                 VSyncStart =
                     GetBits(pATIHW->crtc_v_sync_strt_wid, CRTC_V_SYNC_STRT);
-                VSyncEnd = (VSyncStart & ~MaxBits(CRTC_V_SYNC_WID)) |
-                    GetBits(pATIHW->crtc_v_sync_strt_wid, CRTC_V_SYNC_WID);
+                VSyncEnd = (VSyncStart & ~MaxBits(CRTC_V_SYNC_END_VGA)) |
+                    GetBits(pATIHW->crtc_v_sync_strt_wid, CRTC_V_SYNC_END_VGA);
                 if (VSyncStart > VSyncEnd)
-                    VSyncEnd += MaxBits(CRTC_V_SYNC_WID) + 1;
+                    VSyncEnd += MaxBits(CRTC_V_SYNC_END_VGA) + 1;
                 VTotal = GetBits(pATIHW->crtc_v_total_disp, CRTC_V_TOTAL);
 
                 VBlankStart = (VDisplay & ~0x03FFU) |
@@ -2201,7 +2201,7 @@ ATIPreInit
                 if ((pATIHW->horz_stretching &
                     (HORZ_STRETCH_EN | AUTO_HORZ_RATIO)) !=
                     (HORZ_STRETCH_EN | AUTO_HORZ_RATIO))
-                    xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
+                    xf86DrvMsgVerb(pScreenInfo->scrnIndex, X_WARNING, 4,
                         "Inconsistent panel horizontal dimension:"
                         "  %d and %d.\n", pATI->LCDHorizontal, HDisplay);
                 HDisplay = pATI->LCDHorizontal;
@@ -2217,7 +2217,7 @@ ATIPreInit
             {
                 if (!(pATIHW->vert_stretching & VERT_STRETCH_EN) ||
                     !(pATIHW->ext_vert_stretch & AUTO_VERT_RATIO))
-                    xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
+                    xf86DrvMsgVerb(pScreenInfo->scrnIndex, X_WARNING, 4,
                         "Inconsistent panel vertical dimension:  %d and %d.\n",
                         pATI->LCDVertical, VDisplay);
                 VDisplay = pATI->LCDVertical;
