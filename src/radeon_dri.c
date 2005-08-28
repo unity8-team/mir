@@ -1394,7 +1394,7 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
 	    req_minor = 10;
 	    req_patch = 0;
        	} else if (info->ChipFamily >= CHIP_FAMILY_R300) {
-           req_minor = 12;
+           req_minor = 17;
            req_patch = 0;
 	} else if (info->ChipFamily >= CHIP_FAMILY_R200) {
 	    req_minor = 5;
