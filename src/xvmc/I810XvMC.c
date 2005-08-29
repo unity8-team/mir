@@ -46,10 +46,10 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/ioctl.h>
 #include <X11/Xlibint.h>
 #include <fourcc.h>
-#include <Xv.h>
-#include <Xvlib.h>
-#include <XvMC.h>
-#include <XvMClib.h>
+#include <X11/extensions/Xv.h>
+#include <X11/extensions/Xvlib.h>
+#include <X11/extensions/XvMC.h>
+#include <X11/extensions/XvMClib.h>
 #include "I810XvMC.h"
 
 static int error_base;
