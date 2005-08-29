@@ -18,6 +18,7 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+SUBDIRS = xvmc
 # this is obnoxious:
 # -module lets us name the module exactly how we want
 # -avoid-version prevents gratuitous .0.0.0 version numbers on the end
@@ -55,7 +56,7 @@ i810_drv_la_SOURCES = \
          i830_shadow.c
 
 if DRI
-i810_drv_la_SOURCES = \
+i810_drv_la_SOURCES += \
          i810_dri.c \
          i810_dri.h \
          i830_dri.c \

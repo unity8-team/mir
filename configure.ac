@@ -71,9 +71,9 @@ fi
 
 AC_MSG_CHECKING([whether to include DRI support])
 if test x$DRI = xauto; then
-        if test "$ac_cv_header_dri_h" = yes -a \
-                "$ac_cv_header_sarea_h" = yes -a \
-                "$ac_cv_header_dristruct_h" = yes; then
+        if test "$have_dri_h" = yes -a \
+                "$have_sarea_h" = yes -a \
+                "$have_dristruct_h" = yes; then
                 DRI="yes"
         else
                 DRI="no"
@@ -97,5 +97,6 @@ XORG_RELEASE_VERSION
 AC_OUTPUT([
 	Makefile
 	src/Makefile
+	src/xvmc/Makefile
 	man/Makefile
 ])
