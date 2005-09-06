@@ -91,6 +91,18 @@ static CARD32 RADEONVIP_fifo_idle(GENERIC_BUS_Ptr b, CARD8 channel)
      ((device & 0x3)<<14)   | (fifo << 12) | (addr)
 */
 
+#define VIP_WAIT_FOR_IDLE() {			\
+    int i2ctries = 0;				\
+    while (i2ctries < 10) {			\
+      status = RADEONVIP_idle(b);		\
+      if (status==VIP_BUSY)			\
+      {						\
+	usleep(1000);				\
+	i2ctries++;				\
+      } else break;				\
+    }						\
+  } 
+
 static Bool RADEONVIP_read(GENERIC_BUS_Ptr b, CARD32 address, CARD32 count, CARD8 *buffer)
 {
    ScrnInfoPtr pScrn = xf86Screens[b->scrnIndex];
@@ -107,7 +119,7 @@ static Bool RADEONVIP_read(GENERIC_BUS_Ptr b, CARD32 address, CARD32 count, CARD
    RADEONWaitForFifo(pScrn, 2);
    OUTREG(RADEON_VIPH_REG_ADDR, address | 0x2000);
    write_mem_barrier();
-   while(VIP_BUSY == (status = RADEONVIP_idle(b)));
+   VIP_WAIT_FOR_IDLE();
    if(VIP_IDLE != status) return FALSE;
    
 /*
@@ -126,7 +138,7 @@ static Bool RADEONVIP_read(GENERIC_BUS_Ptr b, CARD32 address, CARD32 count, CARD
     RADEONWaitForIdleMMIO(pScrn);
     INREG(RADEON_VIPH_REG_DATA);
     
-    while(VIP_BUSY == (status = RADEONVIP_idle(b)));
+    VIP_WAIT_FOR_IDLE();
     if(VIP_IDLE != status) return FALSE;
 /*
         set RADEON_VIPH_REGR_DIS so that the read won't take too long.
@@ -147,7 +159,7 @@ static Bool RADEONVIP_read(GENERIC_BUS_Ptr b, CARD32 address, CARD32 count, CARD
              *(CARD32 *)buffer=(CARD32) ( INREG(RADEON_VIPH_REG_DATA) & 0xffffffff);
              break;
         }
-     while(VIP_BUSY == (status = RADEONVIP_idle(b)));
+     VIP_WAIT_FOR_IDLE();
      if(VIP_IDLE != status) return FALSE;
  /*     
  so that reading RADEON_VIPH_REG_DATA would not trigger unnecessary vip cycles.
