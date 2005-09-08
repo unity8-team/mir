@@ -5329,7 +5329,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
    DPRINTF(PFX, "I830BIOSSwitchMode: mode == %p\n", mode);
 
    /* Sync the engine before mode switch */
-   if (!pI830->noAccel)
+   if (!pI830->noAccel && pI830->AccelInfoRec)
       (*pI830->AccelInfoRec->Sync)(pScrn);
 
 #ifndef BINDUNBIND
