@@ -4869,7 +4869,7 @@ I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
 	   x, pI830->xoffset, y, pI830->yoffset);
 
    /* Sync the engine before adjust frame */
-   if (!pI830->noAccel)
+   if (!pI830->noAccel && pI830->AccelInfoRec)
       (*pI830->AccelInfoRec->Sync)(pScrn);
 
    /* The i830M just happens to have some problems programming offsets via
