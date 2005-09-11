@@ -43,8 +43,15 @@
 				/* PCI support */
 #include "xf86Pci.h"
 
-				/* XAA and Cursor Support */
+#ifdef USE_EXA
+#include "exa.h"
+#endif
+#ifdef USE_XAA
 #include "xaa.h"
+#include "xf86fbman.h"
+#endif
+
+				/* Exa and Cursor Support */
 #include "vbe.h"
 #include "xf86Cursor.h"
 
@@ -121,6 +128,7 @@ do {									\
 #define RADEON_ARRAY_SIZE(x)  (sizeof(x)/sizeof(x[0]))
 #define RADEON_ALIGN(x,bytes) (((x) + ((bytes) - 1)) & ~((bytes) - 1))
 #define RADEONPTR(pScrn)      ((RADEONInfoPtr)(pScrn)->driverPrivate)
+
 
 typedef struct {
 				/* Common registers */
@@ -382,11 +390,25 @@ typedef struct {
 
     Bool              PaletteSavedOnVT; /* Palette saved on last VT switch   */
 
+#ifdef USE_EXA
+    ExaDriverRec      exa;
+#endif
+#ifdef USE_XAA
     XAAInfoRecPtr     accel;
+    int               engineMode;
+#define EXA_ENGINEMODE_UNKNOWN 0
+#define EXA_ENGINEMODE_2D      1
+#define EXA_ENGINEMODE_3D      2
+#endif
     Bool              accelOn;
     xf86CursorInfoPtr cursor;
-    unsigned long     cursor_start;
+#ifdef USE_EXA
+    ExaOffscreenArea   *cursorArea;
+#endif
+    unsigned long     cursor_offset;
+#ifdef USE_XAA
     unsigned long     cursor_end;
+#endif
     Bool              allowColorTiling;
     Bool              tilingEnabled; /* mirror of sarea->tiling_enabled */
 #ifdef ARGB_CURSOR
@@ -395,11 +417,13 @@ typedef struct {
     int               cursor_fg;
     int               cursor_bg;
 
+#ifdef USE_XAA
     /*
      * XAAForceTransBlit is used to change the behavior of the XAA
      * SetupForScreenToScreenCopy function, to make it DGA-friendly.
      */
     Bool              XAAForceTransBlit;
+#endif
 
     int               fifo_slots;       /* Free slots in the FIFO (64 max)   */
     int               pix24bpp;         /* Depth of pixmap for 24bpp fb      */
@@ -416,6 +440,7 @@ typedef struct {
     int               xdir;
     int               ydir;
 
+#ifdef USE_XAA
 				/* ScanlineScreenToScreenColorExpand support */
     unsigned char     *scratch_buffer[1];
     unsigned char     *scratch_save;
@@ -432,7 +457,7 @@ typedef struct {
     int               scanline_hpass;
     int               scanline_x1clip;
     int               scanline_x2clip;
-
+#endif
 				/* Saved values for DashedTwoPointLine */
     int               dashLen;
     CARD32            dashPattern;
@@ -539,6 +564,7 @@ typedef struct {
     int               textureSize;
     int               log2TexGran;
 
+#ifdef USE_XAA
     CARD32            frontPitchOffset;
     CARD32            backPitchOffset;
     CARD32            depthPitchOffset;
@@ -551,6 +577,7 @@ typedef struct {
     FBAreaPtr         backArea;
     int               depthTexLines;
     FBAreaPtr         depthTexArea;
+#endif
 
 				/* Saved scissor values */
     CARD32            sc_left;
@@ -580,7 +607,6 @@ typedef struct {
 				/* XVideo */
     XF86VideoAdaptorPtr adaptor;
     void              (*VideoTimerCallback)(ScrnInfoPtr, Time);
-    FBLinearPtr       videoLinear;
     int               videoKey;
     int		      RageTheatreCrystal;
     int               RageTheatreTunerPort;
@@ -603,19 +629,31 @@ typedef struct {
         CARD8 input[5];
     	} MM_TABLE;
     CARD16 video_decoder_type;
-				/* Render */
+
+    /* Render */
     Bool              RenderAccel;
-    Bool              RenderInited3D;
+#ifdef USE_XAA
     FBLinearPtr       RenderTex;
     void              (*RenderCallback)(ScrnInfoPtr);
     Time              RenderTimeout;
+#endif
 
-				/* general */
+    /* general */
     Bool              showCache;
     OptionInfoPtr     Options;
+
+    Bool              useEXA;
 #ifdef XFree86LOADER
+#ifdef USE_EXA
+    XF86ModReqInfo    exaReq;
+#endif
+#ifdef USE_XAA
     XF86ModReqInfo    xaaReq;
 #endif
+#endif
+
+    /* X itself has the 3D context */
+    Bool              XInited3D;
 
     /* merged fb stuff, also covers clone modes */
     Bool		MergedFB;
@@ -692,10 +730,21 @@ extern void        RADEONWaitForVerticalSync2(ScrnInfoPtr pScrn);
 extern void        RADEONChangeSurfaces(ScrnInfoPtr pScrn);
 
 extern Bool        RADEONAccelInit(ScreenPtr pScreen);
+#ifdef USE_EXA
+extern Bool        RADEONSetupMemEXA (ScreenPtr pScreen);
+extern Bool        RADEONDrawInitMMIO(ScreenPtr pScreen);
+#ifdef XF86DRI
+extern Bool        RADEONDrawInitCP(ScreenPtr pScreen);
+#endif
+#endif
+#ifdef USE_XAA
 extern void        RADEONAccelInitMMIO(ScreenPtr pScreen, XAAInfoRecPtr a);
+#endif
 extern void        RADEONEngineInit(ScrnInfoPtr pScrn);
 extern Bool        RADEONCursorInit(ScreenPtr pScreen);
 extern Bool        RADEONDGAInit(ScreenPtr pScreen);
+
+extern void        RADEONInit3DEngine(ScrnInfoPtr pScrn);
 
 extern int         RADEONMinBits(int val);
 
@@ -707,7 +756,9 @@ extern void        RADEONPllErrataAfterIndex(RADEONInfoPtr info);
 extern void        RADEONPllErrataAfterData(RADEONInfoPtr info);
 
 #ifdef XF86DRI
+#ifdef USE_XAA
 extern void        RADEONAccelInitCP(ScreenPtr pScreen, XAAInfoRecPtr a);
+#endif
 extern Bool        RADEONDRIScreenInit(ScreenPtr pScreen);
 extern void        RADEONDRICloseScreen(ScreenPtr pScreen);
 extern void        RADEONDRIResume(ScreenPtr pScreen);
@@ -723,10 +774,14 @@ extern CARD8*      RADEONHostDataBlit(ScrnInfoPtr pScrn, unsigned int bpp,
 				      unsigned int w, CARD32 dstPitch,
 				      CARD32 *bufPitch, CARD8 **dst,
 				      unsigned int *h, unsigned int *hpass);
-extern void        RADEONHostDataBlitCopyPass(CARD8 *dst, CARD8 *src,
+extern void        RADEONHostDataBlitCopyPass(ScrnInfoPtr pScrn,
+					      unsigned int bpp,
+					      CARD8 *dst, CARD8 *src,
 					      unsigned int hpass,
 					      unsigned int dstPitch,
 					      unsigned int srcPitch);
+extern void        RADEONCopySwap(CARD8 *dst, CARD8 *src, unsigned int size,
+				  int swap);
 
 extern Bool        RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10);
 extern Bool        RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn);
@@ -907,19 +962,43 @@ do {									\
 #define RADEON_FLUSH_CACHE()						\
 do {									\
     BEGIN_RING(2);							\
-    OUT_RING(CP_PACKET0(RADEON_RB2D_DSTCACHE_CTLSTAT, 0));		\
-    OUT_RING(RADEON_RB2D_DC_FLUSH);					\
+    OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));		\
+    OUT_RING(RADEON_RB3D_DC_FLUSH);					\
     ADVANCE_RING();							\
 } while (0)
 
 #define RADEON_PURGE_CACHE()						\
 do {									\
     BEGIN_RING(2);							\
-    OUT_RING(CP_PACKET0(RADEON_RB2D_DSTCACHE_CTLSTAT, 0));		\
-    OUT_RING(RADEON_RB2D_DC_FLUSH_ALL);					\
+    OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));		\
+    OUT_RING(RADEON_RB3D_DC_FLUSH_ALL);					\
     ADVANCE_RING();							\
 } while (0)
 
 #endif /* XF86DRI */
+
+static __inline__ void RADEON_MARK_SYNC(RADEONInfoPtr info, ScrnInfoPtr pScrn)
+{
+#ifdef USE_EXA
+    if (info->useEXA)
+	exaMarkSync(pScrn->pScreen);
+#endif
+#ifdef USE_XAA
+    if (!info->useEXA)
+	SET_SYNC_FLAG(info->accel);
+#endif
+}
+
+static __inline__ void RADEON_SYNC(RADEONInfoPtr info, ScrnInfoPtr pScrn)
+{
+#ifdef USE_EXA
+    if (info->useEXA)
+	exaWaitSync(pScrn->pScreen);
+#endif
+#ifdef USE_XAA
+    if (!info->useEXA && info->accel)
+	info->accel->Sync(pScrn);
+#endif
+}
 
 #endif /* _RADEON_H_ */

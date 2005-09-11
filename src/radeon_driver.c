@@ -96,13 +96,12 @@
 #include "xf86cmap.h"
 #include "vbe.h"
 
-				/* fbdevhw & vgaHW definitions */
+				/* fbdevhw * vgaHW definitions */
 #ifdef WITH_VGAHW
 #include "vgaHW.h"
 #endif
 #include "fbdevhw.h"
 
-				/* DPMS support. */
 #define DPMS_SERVER
 #include <X11/extensions/dpms.h>
 
@@ -193,7 +192,8 @@ typedef enum {
     OPTION_BIOS_HOTKEYS,
     OPTION_VGA_ACCESS,
     OPTION_REVERSE_DDC,
-    OPTION_LVDS_PROBE_PLL
+    OPTION_LVDS_PROBE_PLL,
+    OPTION_ACCELMETHOD
 } RADEONOpts;
 
 static const OptionInfoRec RADEONOptions[] = {
@@ -255,6 +255,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_VGA_ACCESS,     "VGAAccess",        OPTV_BOOLEAN, {0}, TRUE  },
     { OPTION_REVERSE_DDC,    "ReverseDDC",       OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_LVDS_PROBE_PLL, "LVDSProbePLL",     OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_ACCELMETHOD,    "AccelMethod",      OPTV_STRING,  {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -315,12 +316,30 @@ static const char *fbSymbols[] = {
     NULL
 };
 
+
+#ifdef USE_EXA
+static const char *exaSymbols[] = {
+    "exaDriverInit",
+    "exaDriverFini",
+    "exaOffscreenAlloc",
+    "exaOffscreenFree",
+    "exaGetPixmapOffset",
+    "exaGetPixmapPitch",
+    "exaGetPixmapSize",
+    "exaMarkSync",
+    "exaWaitSync",
+    NULL
+};
+#endif /* USE_EXA */
+
+#ifdef USE_XAA
 static const char *xaaSymbols[] = {
     "XAACreateInfoRec",
     "XAADestroyInfoRec",
     "XAAInit",
     NULL
 };
+#endif /* USE_XAA */
 
 #if 0
 static const char *xf8_32bppSymbols[] = {
@@ -434,7 +453,12 @@ void RADEONLoaderRefSymLists(void)
 			  vgahwSymbols,
 #endif
 			  fbSymbols,
+#ifdef USE_EXA
+			  exaSymbols,
+#endif
+#ifdef USE_XAA
 			  xaaSymbols,
+#endif
 #if 0
 			  xf8_32bppSymbols,
 #endif
@@ -3963,7 +3987,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 			      info->allowColorTiling ? 2048 :
 			          64 * pScrn->bitsPerPixel, /* pitchInc */
 			      128,                   /* minHeight */
-			      info->MaxLines,      /* maxHeight */
+			      info->MaxLines,        /* maxHeight */
 			      pScrn->display->virtualX,
 			      pScrn->display->virtualY,
 			      info->FbMapSize,
@@ -4032,7 +4056,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 					  info->allowColorTiling ? 2048 :
 					      64 * pScrn->bitsPerPixel, /* pitchInc */
 					  128,                   /* minHeight */
-					  info->MaxLines,      /* maxHeight */
+					  info->MaxLines,        /* maxHeight */
 					  pScrn->display->virtualX,
 					  pScrn->display->virtualY,
 					  info->FbMapSize,
@@ -4199,31 +4223,72 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 {
 #ifdef XFree86LOADER
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    MessageType from;
+#if defined(USE_EXA) && defined(USE_XAA)
+    char *optstr;
+#endif
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	int errmaj = 0, errmin = 0;
 
-	info->xaaReq.majorversion = 1;
-	info->xaaReq.minorversion = 2;
+	from = X_DEFAULT;
+#if defined(USE_EXA)
+#if defined(USE_XAA)
+	optstr = (char *)xf86GetOptValString(info->Options, OPTION_ACCELMETHOD);
+	if (optstr != NULL) {
+	    if (xf86NameCmp(optstr, "EXA") == 0) {
+		from = X_CONFIG;
+		info->useEXA = TRUE;
+	    } else if (xf86NameCmp(optstr, "XAA") == 0) {
+		from = X_CONFIG;
+	    }
+	}
+#else /* USE_XAA */
+	info->useEXA = TRUE;
+#endif /* !USE_XAA */
+#endif /* USE_EXA */
+	xf86DrvMsg(pScrn->scrnIndex, from,
+	    "Using %s acceleration architecture\n",
+	    info->useEXA ? "EXA" : "XAA");
 
-	if (!LoadSubModule(pScrn->module, "xaa", NULL, NULL, NULL,
-			   &info->xaaReq, &errmaj, &errmin)) {
-	    info->xaaReq.minorversion = 1;
+#ifdef USE_EXA
+	if (info->useEXA) {
+	    info->exaReq.majorversion = 1;
+	    info->exaReq.minorversion = 0;
+
+	    if (!LoadSubModule(pScrn->module, "exa", NULL, NULL, NULL,
+			       &info->exaReq, &errmaj, &errmin)) {
+		LoaderErrorMsg(NULL, "exa", errmaj, errmin);
+		return FALSE;
+	    }
+	    xf86LoaderReqSymLists(exaSymbols, NULL);
+	}
+#endif /* USE_EXA */
+#ifdef USE_XAA
+	if (!info->useEXA) {
+	    info->xaaReq.majorversion = 1;
+	    info->xaaReq.minorversion = 2;
 
 	    if (!LoadSubModule(pScrn->module, "xaa", NULL, NULL, NULL,
-			       &info->xaaReq, &errmaj, &errmin)) {
-		info->xaaReq.minorversion = 0;
+			   &info->xaaReq, &errmaj, &errmin)) {
+		info->xaaReq.minorversion = 1;
 
 		if (!LoadSubModule(pScrn->module, "xaa", NULL, NULL, NULL,
 			       &info->xaaReq, &errmaj, &errmin)) {
-		    LoaderErrorMsg(NULL, "xaa", errmaj, errmin);
-		    return FALSE;
+		    info->xaaReq.minorversion = 0;
+
+		    if (!LoadSubModule(pScrn->module, "xaa", NULL, NULL, NULL,
+			       &info->xaaReq, &errmaj, &errmin)) {
+			LoaderErrorMsg(NULL, "xaa", errmaj, errmin);
+			return FALSE;
+		    }
 		}
 	    }
+	    xf86LoaderReqSymLists(xaaSymbols, NULL);
 	}
-	xf86LoaderReqSymLists(xaaSymbols, NULL);
+#endif /* USE_XAA */
     }
-#endif
+#endif /* XFree86Loader */
 
     return TRUE;
 }
@@ -4376,6 +4441,11 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	info->allowPageFlip = xf86ReturnOptValBool(info->Options,
 						   OPTION_PAGE_FLIP,
 						   FALSE);
+	if (info->allowPageFlip && info->useEXA) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Page flipping not allowed with EXA, disabling.\n");
+	    info->allowPageFlip = FALSE;
+	}
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Page flipping %sabled\n",
@@ -4876,7 +4946,8 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
     if (info->CPStarted) DRILock(pScrn->pScreen, 0);
 #endif
 
-    if (info->accelOn && pScrn->pScreen) info->accel->Sync(pScrn);
+    if (info->accelOn && pScrn->pScreen)
+        RADEON_SYNC(info, pScrn);
 
     if (info->FBDev) {
 	fbdevHWLoadPalette(pScrn, numColors, indices, colors, pVisual);
@@ -4999,10 +5070,13 @@ static void RADEONBlockHandler(int i, pointer blockData,
     RADEONInfoPtr  info    = RADEONPTR(pScrn);
 
 #ifdef XF86DRI
-    if (info->directRenderingEnabled)
+    if (info->directRenderingEnabled) {
 	FLUSH_RING();
+    }
 #endif
-
+#ifdef USE_EXA
+    info->engineMode = EXA_ENGINEMODE_UNKNOWN;
+#endif
     pScreen->BlockHandler = info->BlockHandler;
     (*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
     pScreen->BlockHandler = RADEONBlockHandler;
@@ -5010,12 +5084,326 @@ static void RADEONBlockHandler(int i, pointer blockData,
     if (info->VideoTimerCallback)
 	(*info->VideoTimerCallback)(pScrn, currentTime.milliseconds);
 
-#ifdef RENDER
+#if defined(RENDER) && defined(USE_XAA)
     if(info->RenderCallback)
 	(*info->RenderCallback)(pScrn);
 #endif
-
 }
+
+
+#ifdef USE_XAA
+#ifdef XF86DRI
+Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
+{
+    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    int            cpp = info->CurrentLayout.pixel_bytes;
+    int            width_bytes = pScrn->displayWidth * cpp;
+    int            bufferSize;
+    int            depthSize;
+    int            l;
+    int            scanlines;
+    BoxRec         MemBox;
+    FBAreaPtr      fbarea;
+
+    info->frontOffset = 0;
+    info->frontPitch = pScrn->displayWidth;
+    info->backPitch = pScrn->displayWidth;
+
+    /* make sure we use 16 line alignment for tiling (8 might be enough).
+     * Might need that for non-XF86DRI too?
+     */
+    if (info->allowColorTiling) {
+	bufferSize = (((pScrn->virtualY + 15) & ~15) * width_bytes
+		      + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN;
+    } else {
+        bufferSize = (pScrn->virtualY * width_bytes
+		      + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN;
+    }
+
+    /* Due to tiling, the Z buffer pitch must be a multiple of 32 pixels,
+     * which is always the case if color tiling is used due to color pitch
+     * but not necessarily otherwise, and its height a multiple of 16 lines.
+     */
+    info->depthPitch = (pScrn->displayWidth + 31) & ~31;
+    depthSize = ((((pScrn->virtualY + 15) & ~15) * info->depthPitch
+		  * cpp + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
+
+    switch (info->CPMode) {
+    case RADEON_DEFAULT_CP_PIO_MODE:
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in PIO mode\n");
+	break;
+    case RADEON_DEFAULT_CP_BM_MODE:
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in BM mode\n");
+	break;
+    default:
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in UNKNOWN mode\n");
+	break;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Using %d MB GART aperture\n", info->gartSize);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Using %d MB for the ring buffer\n", info->ringSize);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Using %d MB for vertex/indirect buffers\n", info->bufSize);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Using %d MB for GART textures\n", info->gartTexSize);
+
+    /* Try for front, back, depth, and three framebuffers worth of
+     * pixmap cache.  Should be enough for a fullscreen background
+     * image plus some leftovers.
+     */
+    info->textureSize = info->FbMapSize - 5 * bufferSize - depthSize;
+
+    /* If that gives us less than half the available memory, let's
+     * be greedy and grab some more.  Sorry, I care more about 3D
+     * performance than playing nicely, and you'll get around a full
+     * framebuffer's worth of pixmap cache anyway.
+     */
+    if (info->textureSize < (int)info->FbMapSize / 2) {
+        info->textureSize = info->FbMapSize - 4 * bufferSize - depthSize;
+    }
+    if (info->textureSize < (int)info->FbMapSize / 2) {
+        info->textureSize = info->FbMapSize - 3 * bufferSize - depthSize;
+    }
+
+    /* If there's still no space for textures, try without pixmap cache, but
+     * never use the reserved space, the space hw cursor and PCIGART table might
+     * use.
+     */
+    if (info->textureSize < 0) {
+	info->textureSize = info->FbMapSize - 2 * bufferSize - depthSize
+		- 2 * width_bytes - 16384 - RADEON_PCIGART_TABLE_SIZE;
+    }
+
+    /* Check to see if there is more room available after the 8192nd
+     * scanline for textures
+     */
+    /* FIXME: what's this good for? condition is pretty much impossible to meet */
+    if ((int)info->FbMapSize - 8192*width_bytes - bufferSize - depthSize
+	> info->textureSize) {
+	info->textureSize =
+		info->FbMapSize - 8192*width_bytes - bufferSize - depthSize;
+    }
+
+    /* If backbuffer is disabled, don't allocate memory for it */
+    if (info->noBackBuffer) {
+	info->textureSize += bufferSize;
+    }
+
+    /* RADEON_BUFFER_ALIGN is not sufficient for backbuffer!
+       At least for pageflip + color tiling, need to make sure it's 16 scanlines aligned,
+       otherwise the copy-from-front-to-back will fail (width_bytes * 16 will also guarantee
+       it's still 4kb aligned for tiled case). Need to round up offset (might get into cursor
+       area otherwise).
+       This might cause some space at the end of the video memory to be unused, since it
+       can't be used (?) due to that log_tex_granularity thing???
+       Could use different copyscreentoscreen function for the pageflip copies
+       (which would use different src and dst offsets) to avoid this. */   
+    if (info->allowColorTiling && !info->noBackBuffer) {
+	info->textureSize = info->FbMapSize - ((info->FbMapSize - info->textureSize +
+			  width_bytes * 16 - 1) / (width_bytes * 16)) * (width_bytes * 16);
+    }
+    if (info->textureSize > 0) {
+	l = RADEONMinBits((info->textureSize-1) / RADEON_NR_TEX_REGIONS);
+	if (l < RADEON_LOG_TEX_GRANULARITY)
+	    l = RADEON_LOG_TEX_GRANULARITY;
+	/* Round the texture size up to the nearest whole number of
+	 * texture regions.  Again, be greedy about this, don't
+	 * round down.
+	 */
+	info->log2TexGran = l;
+	info->textureSize = (info->textureSize >> l) << l;
+    } else {
+	info->textureSize = 0;
+    }
+
+    /* Set a minimum usable local texture heap size.  This will fit
+     * two 256x256x32bpp textures.
+     */
+    if (info->textureSize < 512 * 1024) {
+	info->textureOffset = 0;
+	info->textureSize = 0;
+    }
+
+    if (info->allowColorTiling && !info->noBackBuffer) {
+	info->textureOffset = ((info->FbMapSize - info->textureSize) /
+			       (width_bytes * 16)) * (width_bytes * 16);
+    }
+    else {
+	/* Reserve space for textures */
+	info->textureOffset = ((info->FbMapSize - info->textureSize +
+				RADEON_BUFFER_ALIGN) &
+			       ~(CARD32)RADEON_BUFFER_ALIGN);
+    }
+
+    /* Reserve space for the shared depth
+     * buffer.
+     */
+    info->depthOffset = ((info->textureOffset - depthSize +
+			  RADEON_BUFFER_ALIGN) &
+			 ~(CARD32)RADEON_BUFFER_ALIGN);
+
+    /* Reserve space for the shared back buffer */
+    if (info->noBackBuffer) {
+       info->backOffset = info->depthOffset;
+    } else {
+       info->backOffset = ((info->depthOffset - bufferSize +
+			    RADEON_BUFFER_ALIGN) &
+			   ~(CARD32)RADEON_BUFFER_ALIGN);
+    }
+
+    info->backY = info->backOffset / width_bytes;
+    info->backX = (info->backOffset - (info->backY * width_bytes)) / cpp;
+
+    scanlines = info->FbMapSize / width_bytes;
+    if (scanlines > 8191)
+	scanlines = 8191;
+
+    MemBox.x1 = 0;
+    MemBox.y1 = 0;
+    MemBox.x2 = pScrn->displayWidth;
+    MemBox.y2 = scanlines;
+
+    if (!xf86InitFBManager(pScreen, &MemBox)) {
+        xf86DrvMsg(scrnIndex, X_ERROR,
+		   "Memory manager initialization to "
+		   "(%d,%d) (%d,%d) failed\n",
+		   MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
+	return FALSE;
+    } else {
+	int  width, height;
+
+	xf86DrvMsg(scrnIndex, X_INFO,
+		   "Memory manager initialized to (%d,%d) (%d,%d)\n",
+		   MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
+	/* why oh why can't we just request modes which are guaranteed to be 16 lines
+	   aligned... sigh */
+	if ((fbarea = xf86AllocateOffscreenArea(pScreen,
+						pScrn->displayWidth,
+						info->allowColorTiling ? 
+						((pScrn->virtualY + 15) & ~15)
+						- pScrn->virtualY + 2 : 2,
+						0, NULL, NULL,
+						NULL))) {
+	    xf86DrvMsg(scrnIndex, X_INFO,
+		       "Reserved area from (%d,%d) to (%d,%d)\n",
+		       fbarea->box.x1, fbarea->box.y1,
+		       fbarea->box.x2, fbarea->box.y2);
+	} else {
+	    xf86DrvMsg(scrnIndex, X_ERROR, "Unable to reserve area\n");
+	}
+
+	RADEONDRIAllocatePCIGARTTable(pScreen);
+
+	if (xf86QueryLargestOffscreenArea(pScreen, &width,
+					  &height, 0, 0, 0)) {
+	    xf86DrvMsg(scrnIndex, X_INFO,
+		       "Largest offscreen area available: %d x %d\n",
+		       width, height);
+
+	    /* Lines in offscreen area needed for depth buffer and
+	     * textures
+	     */
+	    info->depthTexLines = (scanlines
+				   - info->depthOffset / width_bytes);
+	    info->backLines	    = (scanlines
+				       - info->backOffset / width_bytes
+				       - info->depthTexLines);
+	    info->backArea	    = NULL;
+	} else {
+	    xf86DrvMsg(scrnIndex, X_ERROR,
+		       "Unable to determine largest offscreen area "
+		       "available\n");
+	    return FALSE;
+	}
+    }
+
+    xf86DrvMsg(scrnIndex, X_INFO,
+	       "Will use back buffer at offset 0x%x\n",
+	       info->backOffset);
+    xf86DrvMsg(scrnIndex, X_INFO,
+	       "Will use depth buffer at offset 0x%x\n",
+	       info->depthOffset);
+    xf86DrvMsg(scrnIndex, X_INFO,
+	       "Will use %d kb for PCI GART table at offset 0x%x\n",
+	       info->pciGartSize/1024, info->pciGartOffset);
+    xf86DrvMsg(scrnIndex, X_INFO,
+	       "Will use %d kb for textures at offset 0x%x\n",
+	       info->textureSize/1024, info->textureOffset);
+
+    info->frontPitchOffset = (((info->frontPitch * cpp / 64) << 22) |
+			      ((info->frontOffset + info->fbLocation) >> 10));
+
+    info->backPitchOffset = (((info->backPitch * cpp / 64) << 22) |
+			     ((info->backOffset + info->fbLocation) >> 10));
+
+    info->depthPitchOffset = (((info->depthPitch * cpp / 64) << 22) |
+			      ((info->depthOffset + info->fbLocation) >> 10));
+}
+#endif /* XF86DRI */
+
+Bool RADEONSetupMemXAA(int scrnIndex, ScreenPtr pScreen)
+{
+    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    BoxRec         MemBox;
+    int            y2;
+
+    int width_bytes = pScrn->displayWidth * info->CurrentLayout.pixel_bytes;
+
+    MemBox.x1 = 0;
+    MemBox.y1 = 0;
+    MemBox.x2 = pScrn->displayWidth;
+    y2 = info->FbMapSize / width_bytes;
+    if (y2 >= 32768)
+	y2 = 32767; /* because MemBox.y2 is signed short */
+    MemBox.y2 = y2;
+    
+    /* The acceleration engine uses 14 bit
+     * signed coordinates, so we can't have any
+     * drawable caches beyond this region.
+     */
+    if (MemBox.y2 > 8191)
+	MemBox.y2 = 8191;
+
+    if (!xf86InitFBManager(pScreen, &MemBox)) {
+	xf86DrvMsg(scrnIndex, X_ERROR,
+		   "Memory manager initialization to "
+		   "(%d,%d) (%d,%d) failed\n",
+		   MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
+	return FALSE;
+    } else {
+	int       width, height;
+	FBAreaPtr fbarea;
+
+	xf86DrvMsg(scrnIndex, X_INFO,
+		   "Memory manager initialized to (%d,%d) (%d,%d)\n",
+		   MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
+	if ((fbarea = xf86AllocateOffscreenArea(pScreen,
+						pScrn->displayWidth,
+						info->allowColorTiling ? 
+						((pScrn->virtualY + 15) & ~15)
+						- pScrn->virtualY + 2 : 2,
+						0, NULL, NULL,
+						NULL))) {
+	    xf86DrvMsg(scrnIndex, X_INFO,
+		       "Reserved area from (%d,%d) to (%d,%d)\n",
+		       fbarea->box.x1, fbarea->box.y1,
+		       fbarea->box.x2, fbarea->box.y2);
+	} else {
+	    xf86DrvMsg(scrnIndex, X_ERROR, "Unable to reserve area\n");
+	}
+	if (xf86QueryLargestOffscreenArea(pScreen, &width, &height,
+					      0, 0, 0)) {
+	    xf86DrvMsg(scrnIndex, X_INFO,
+		       "Largest offscreen area available: %d x %d\n",
+		       width, height);
+	}
+    }    
+}
+#endif /* USE_XAA */
 
 /* Called at the start of each server generation. */
 _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
@@ -5023,8 +5411,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
-    BoxRec         MemBox;
-    int            y2;
+    int            hasDRI = 0;
 #ifdef RENDER
     int            subPixelOrder = SubPixelUnknown;
     char*          s;
@@ -5061,6 +5448,13 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
         }
     }
 
+#if 0
+    if (info->allowColorTiling && info->useEXA) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Color tiling not supported yet with EXA, disabling\n");
+	info->allowColorTiling = FALSE;
+    }
+#endif
     if (info->allowColorTiling && (pScrn->virtualX > info->MaxSurfaceWidth)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Color tiling not supported with virtual x resolutions larger than %d, disabling\n",
@@ -5179,6 +5573,8 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Depth moves disabled by default\n");
     }
+
+    hasDRI = info->directRenderingEnabled;
 #endif
 
     RADEONSetFBLocation(pScrn);
@@ -5229,300 +5625,25 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     }
 #endif
 				/* Memory manager setup */
-#ifdef XF86DRI
-    if (info->directRenderingEnabled) {
-	FBAreaPtr  fbarea;
-	int        cpp = info->CurrentLayout.pixel_bytes;
-	int        width_bytes = pScrn->displayWidth * cpp;
-	int        bufferSize;
-	int        depthSize;
-	int        l;
-	int        scanlines;
-
-	info->frontOffset = 0;
-	info->frontPitch = pScrn->displayWidth;
-	info->backPitch = pScrn->displayWidth;
-	/* make sure we use 16 line alignment for tiling (8 might be enough).
-	   Might need that for non-XF86DRI too? */
-	if (info->allowColorTiling) {
-	    bufferSize = (((pScrn->virtualY + 15) & ~15) * width_bytes
-			+ RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN;
-	}
-	else {
-	    bufferSize = (pScrn->virtualY * width_bytes
-			+ RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN;
-	}
-	/* Due to tiling, the Z buffer pitch must be a multiple of 32 pixels,
-	 * which is always the case if color tiling is used due to color pitch
-	 * but not necessarily otherwise, and its height a multiple of 16 lines.
-	 */
-	info->depthPitch = (pScrn->displayWidth + 31) & ~31;
-	depthSize = ((((pScrn->virtualY + 15) & ~15) * info->depthPitch
-		* cpp + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
-
-	switch (info->CPMode) {
-	case RADEON_DEFAULT_CP_PIO_MODE:
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in PIO mode\n");
-	    break;
-	case RADEON_DEFAULT_CP_BM_MODE:
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in BM mode\n");
-	    break;
-	default:
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in UNKNOWN mode\n");
-	    break;
-	}
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Using %d MB GART aperture\n", info->gartSize);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Using %d MB for the ring buffer\n", info->ringSize);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Using %d MB for vertex/indirect buffers\n", info->bufSize);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Using %d MB for GART textures\n", info->gartTexSize);
-
-	/* Try for front, back, depth, and three framebuffers worth of
-	 * pixmap cache.  Should be enough for a fullscreen background
-	 * image plus some leftovers.
-	 */
-	info->textureSize = info->FbMapSize - 5 * bufferSize - depthSize;
-
-	/* If that gives us less than half the available memory, let's
-	 * be greedy and grab some more.  Sorry, I care more about 3D
-	 * performance than playing nicely, and you'll get around a full
-	 * framebuffer's worth of pixmap cache anyway.
-	 */
-	if (info->textureSize < (int)info->FbMapSize / 2) {
-	    info->textureSize = info->FbMapSize - 4 * bufferSize - depthSize;
-	}
-	if (info->textureSize < (int)info->FbMapSize / 2) {
-	    info->textureSize = info->FbMapSize - 3 * bufferSize - depthSize;
-	}
-	/* If there's still no space for textures, try without pixmap cache, but never use
-	   the reserved space, the space hw cursor and PCIGART table might use */
-	if (info->textureSize < 0) {
-	    info->textureSize = info->FbMapSize - 2 * bufferSize - depthSize
-				- 2 * width_bytes - 16384 - RADEON_PCIGART_TABLE_SIZE;
-	}
-
-	/* Check to see if there is more room available after the 8192nd
-	   scanline for textures */
-	/* FIXME: what's this good for? condition is pretty much impossible to meet */
-	if ((int)info->FbMapSize - 8192*width_bytes - bufferSize - depthSize
-	    > info->textureSize) {
-	    info->textureSize =
-		info->FbMapSize - 8192*width_bytes - bufferSize - depthSize;
-	}
-
-	/* If backbuffer is disabled, don't allocate memory for it */
-	if (info->noBackBuffer) {
-	   info->textureSize += bufferSize;
-	}
-
-	/* RADEON_BUFFER_ALIGN is not sufficient for backbuffer!
-	   At least for pageflip + color tiling, need to make sure it's 16 scanlines aligned,
-	   otherwise the copy-from-front-to-back will fail (width_bytes * 16 will also guarantee
-	   it's still 4kb aligned for tiled case). Need to round up offset (might get into cursor
-	   area otherwise).
-	   This might cause some space at the end of the video memory to be unused, since it
-	   can't be used (?) due to that log_tex_granularity thing???
-	   Could use different copyscreentoscreen function for the pageflip copies
-	   (which would use different src and dst offsets) to avoid this. */   
-	if (info->allowColorTiling && !info->noBackBuffer) {
-	    info->textureSize = info->FbMapSize - ((info->FbMapSize - info->textureSize +
-		width_bytes * 16 - 1) / (width_bytes * 16)) * (width_bytes * 16);
-	}
-	if (info->textureSize > 0) {
-	    l = RADEONMinBits((info->textureSize-1) / RADEON_NR_TEX_REGIONS);
-	    if (l < RADEON_LOG_TEX_GRANULARITY) l = RADEON_LOG_TEX_GRANULARITY;
-
-	    /* Round the texture size up to the nearest whole number of
-	     * texture regions.  Again, be greedy about this, don't
-	     * round down.
-	     */
-	    info->log2TexGran = l;
-	    info->textureSize = (info->textureSize >> l) << l;
-	} else {
-	    info->textureSize = 0;
-	}
-
-	/* Set a minimum usable local texture heap size.  This will fit
-	 * two 256x256x32bpp textures.
-	 */
-	if (info->textureSize < 512 * 1024) {
-	    info->textureOffset = 0;
-	    info->textureSize = 0;
-	}
-
-	if (info->allowColorTiling && !info->noBackBuffer) {
-	    info->textureOffset = ((info->FbMapSize - info->textureSize) /
-		(width_bytes * 16)) * (width_bytes * 16);
-	}
-	else {
-				/* Reserve space for textures */
-	    info->textureOffset = ((info->FbMapSize - info->textureSize +
-				RADEON_BUFFER_ALIGN) &
-			       ~(CARD32)RADEON_BUFFER_ALIGN);
-	}
-
-				/* Reserve space for the shared depth
-                                 * buffer.
-				 */
-	info->depthOffset = ((info->textureOffset - depthSize +
-			      RADEON_BUFFER_ALIGN) &
-			     ~(CARD32)RADEON_BUFFER_ALIGN);
-
-				/* Reserve space for the shared back buffer */
-	if (info->noBackBuffer) {
-	   info->backOffset = info->depthOffset;
-	} else {
-	   info->backOffset = ((info->depthOffset - bufferSize +
-				RADEON_BUFFER_ALIGN) &
-			       ~(CARD32)RADEON_BUFFER_ALIGN);
-	}
-
-	info->backY = info->backOffset / width_bytes;
-	info->backX = (info->backOffset - (info->backY * width_bytes)) / cpp;
-
-	scanlines = info->FbMapSize / width_bytes;
-	if (scanlines > 8191) scanlines = 8191;
-
-	MemBox.x1 = 0;
-	MemBox.y1 = 0;
-	MemBox.x2 = pScrn->displayWidth;
-	MemBox.y2 = scanlines;
-
-	if (!xf86InitFBManager(pScreen, &MemBox)) {
-	    xf86DrvMsg(scrnIndex, X_ERROR,
-		       "Memory manager initialization to "
-		       "(%d,%d) (%d,%d) failed\n",
-		       MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
-	    return FALSE;
-	} else {
-	    int  width, height;
-
-	    xf86DrvMsg(scrnIndex, X_INFO,
-		       "Memory manager initialized to (%d,%d) (%d,%d)\n",
-		       MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
-	    /* why oh why can't we just request modes which are guaranteed to be 16 lines
-	       aligned... sigh */
-	    if ((fbarea = xf86AllocateOffscreenArea(pScreen,
-						    pScrn->displayWidth,
-						    info->allowColorTiling ? 
-						    ((pScrn->virtualY + 15) & ~15)
-						        - pScrn->virtualY + 2 : 2,
-						    0, NULL, NULL,
-						    NULL))) {
-		xf86DrvMsg(scrnIndex, X_INFO,
-			   "Reserved area from (%d,%d) to (%d,%d)\n",
-			   fbarea->box.x1, fbarea->box.y1,
-			   fbarea->box.x2, fbarea->box.y2);
-	    } else {
-		xf86DrvMsg(scrnIndex, X_ERROR, "Unable to reserve area\n");
-	    }
-
-	    RADEONDRIAllocatePCIGARTTable(pScreen);
-
-	    if (xf86QueryLargestOffscreenArea(pScreen, &width,
-					      &height, 0, 0, 0)) {
-		xf86DrvMsg(scrnIndex, X_INFO,
-			   "Largest offscreen area available: %d x %d\n",
-			   width, height);
-
-		/* Lines in offscreen area needed for depth buffer and
-		 * textures
-		 */
-		info->depthTexLines = (scanlines
-				       - info->depthOffset / width_bytes);
-		info->backLines	    = (scanlines
-				       - info->backOffset / width_bytes
-				       - info->depthTexLines);
-		info->backArea	    = NULL;
-	    } else {
-		xf86DrvMsg(scrnIndex, X_ERROR,
-			   "Unable to determine largest offscreen area "
-			   "available\n");
-		return FALSE;
-	    }
-	}
-
-	xf86DrvMsg(scrnIndex, X_INFO,
-		   "Will use back buffer at offset 0x%x\n",
-		   info->backOffset);
-	xf86DrvMsg(scrnIndex, X_INFO,
-		   "Will use depth buffer at offset 0x%x\n",
-		   info->depthOffset);
-	xf86DrvMsg(scrnIndex, X_INFO,
-		   "Will use %d kb for PCI GART table at offset 0x%x\n",
-		   info->pciGartSize/1024, info->pciGartOffset);
-	xf86DrvMsg(scrnIndex, X_INFO,
-		   "Will use %d kb for textures at offset 0x%x\n",
-		   info->textureSize/1024, info->textureOffset);
-
-	info->frontPitchOffset = (((info->frontPitch * cpp / 64) << 22) |
-				  ((info->frontOffset + info->fbLocation) >> 10));
-
-	info->backPitchOffset = (((info->backPitch * cpp / 64) << 22) |
-				 ((info->backOffset + info->fbLocation) >> 10));
-
-	info->depthPitchOffset = (((info->depthPitch * cpp / 64) << 22) |
-				  ((info->depthOffset + info->fbLocation) >> 10));
-    } else
+#ifdef USE_EXA
+    if (info->useEXA && !RADEONSetupMemEXA(pScreen))
+	return FALSE;
 #endif
-    {
-	int width_bytes = pScrn->displayWidth * info->CurrentLayout.pixel_bytes;
-	MemBox.x1 = 0;
-	MemBox.y1 = 0;
-	MemBox.x2 = pScrn->displayWidth;
-	y2 = info->FbMapSize / width_bytes;
-	if (y2 >= 32768) y2 = 32767; /* because MemBox.y2 is signed short */
-	MemBox.y2 = y2;
 
-				/* The acceleration engine uses 14 bit
-				   signed coordinates, so we can't have any
-				   drawable caches beyond this region. */
-	if (MemBox.y2 > 8191) MemBox.y2 = 8191;
+#if defined(XF86DRI) && defined(USE_XAA)
+    if (!info->useEXA && hasDRI && !RADEONSetupMemXAA_DRI(scrnIndex, pScreen))
+	return FALSE;
+#endif
 
-	if (!xf86InitFBManager(pScreen, &MemBox)) {
-	    xf86DrvMsg(scrnIndex, X_ERROR,
-		       "Memory manager initialization to "
-		       "(%d,%d) (%d,%d) failed\n",
-		       MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
-	    return FALSE;
-	} else {
-	    int       width, height;
-	    FBAreaPtr fbarea;
+#ifdef USE_XAA
+    if (!info->useEXA && !hasDRI && !RADEONSetupMemXAA(scrnIndex, pScreen))
+	return FALSE;
+#endif
 
-	    xf86DrvMsg(scrnIndex, X_INFO,
-		       "Memory manager initialized to (%d,%d) (%d,%d)\n",
-		       MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
-	    if ((fbarea = xf86AllocateOffscreenArea(pScreen,
-						    pScrn->displayWidth,
-						    info->allowColorTiling ? 
-						    ((pScrn->virtualY + 15) & ~15)
-						        - pScrn->virtualY + 2 : 2,
-						    0, NULL, NULL,
-						    NULL))) {
-		xf86DrvMsg(scrnIndex, X_INFO,
-			   "Reserved area from (%d,%d) to (%d,%d)\n",
-			   fbarea->box.x1, fbarea->box.y1,
-			   fbarea->box.x2, fbarea->box.y2);
-	    } else {
-		xf86DrvMsg(scrnIndex, X_ERROR, "Unable to reserve area\n");
-	    }
-	    if (xf86QueryLargestOffscreenArea(pScreen, &width, &height,
-					      0, 0, 0)) {
-		xf86DrvMsg(scrnIndex, X_INFO,
-			   "Largest offscreen area available: %d x %d\n",
-			   width, height);
-	    }
-	}
-    }
+    info->dst_pitch_offset = (((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64)
+			       << 22) | ((info->fbLocation + pScrn->fbOffset) >> 10));
 
-    info->dst_pitch_offset = (((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64) << 22) |
-				  ((info->fbLocation + pScrn->fbOffset) >> 10));
-
-				/* Acceleration setup */
+    /* Acceleration setup */
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	if (RADEONAccelInit(pScreen)) {
 	    xf86DrvMsg(scrnIndex, X_INFO, "Acceleration enabled\n");
@@ -5538,41 +5659,53 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	info->accelOn = FALSE;
     }
 
-				/* DGA setup */
-    RADEONDGAInit(pScreen);
+    /* DGA setup XXX FIXME EXA */
+    if (!info->useEXA)
+	RADEONDGAInit(pScreen);
 
-				/* Backing store setup */
+    /* Backing store setup */
     miInitializeBackingStore(pScreen);
     xf86SetBackingStore(pScreen);
 
-				/* Set Silken Mouse */
+    /* Set Silken Mouse */
     xf86SetSilkenMouse(pScreen);
 
-				/* Cursor setup */
+    /* Cursor setup */
     miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
 
-				/* Hardware cursor setup */
+    /* Hardware cursor setup */
     if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
 	if (RADEONCursorInit(pScreen)) {
-	    int  width, height;
-
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Using hardware cursor (scanline %ld)\n",
-		       info->cursor_start / pScrn->displayWidth
-		       / info->CurrentLayout.pixel_bytes);
-	    if (xf86QueryLargestOffscreenArea(pScreen, &width, &height,
-					      0, 0, 0)) {
-		xf86DrvMsg(scrnIndex, X_INFO,
-			   "Largest offscreen area available: %d x %d\n",
-			   width, height);
+#ifdef USE_EXA
+	    if (info->useEXA) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Using hardware cursor (offset %d)\n",
+			   info->cursor_offset);
 	    }
+#endif /* USE_EXA */
+#ifdef USE_XAA
+	    if (!info->useEXA) {
+		int  width, height;
+
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Using hardware cursor (scanline %ld)\n",
+			   info->cursor_offset / pScrn->displayWidth
+			   / info->CurrentLayout.pixel_bytes);
+		if (xf86QueryLargestOffscreenArea(pScreen, &width, &height,
+					      0, 0, 0)) {
+		    xf86DrvMsg(scrnIndex, X_INFO,
+			       "Largest offscreen area available: %d x %d\n",
+			       width, height);
+		}
+	    }
+#endif /* USE_XAA */
 	} else {
 	    xf86DrvMsg(scrnIndex, X_ERROR,
 		       "Hardware cursor initialization failed\n");
 	    xf86DrvMsg(scrnIndex, X_INFO, "Using software cursor\n");
 	}
     } else {
-	info->cursor_start = 0;
+	info->cursor_offset = 0;
 	xf86DrvMsg(scrnIndex, X_INFO, "Using software cursor\n");
     }
 
@@ -5634,7 +5767,15 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 				   done their thing, complete the DRI
 				   setup. */
 	if (!(info->directRenderingEnabled = RADEONDRIFinishScreenInit(pScreen))) {
-	    RADEONAccelInitMMIO(pScreen, info->accel);
+#ifdef USE_EXA
+	    if (info->useEXA) {
+		RADEONDrawInitMMIO(pScreen);
+	    }
+#endif /* USE_EXA */
+#ifdef USE_XAA
+	    if (!info->useEXA)
+		RADEONAccelInitMMIO(pScreen, info->accel);
+#endif /* USE_XAA */
 	}
     }
     if (info->directRenderingEnabled) {
@@ -7992,7 +8133,8 @@ _X_EXPORT Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 #endif
     }
 
-    if (info->accelOn) info->accel->Sync(pScrn);
+    if (info->accelOn)
+        RADEON_SYNC(info, pScrn);
 
     if (info->FBDev) {
 	RADEONSaveFBDevRegisters(pScrn, &info->ModeReg);
@@ -8015,7 +8157,7 @@ _X_EXPORT Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     }
 
     if (info->accelOn) {
-	info->accel->Sync(pScrn);
+        RADEON_SYNC(info, pScrn);
 	RADEONEngineRestore(pScrn);
     }
 
@@ -8185,7 +8327,8 @@ _X_EXPORT void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
     if (info->CPStarted) DRILock(pScrn->pScreen, 0);
 #endif
 
-    if (info->accelOn) info->accel->Sync(pScrn);
+    if (info->accelOn)
+        RADEON_SYNC(info, pScrn);
 
     if(info->MergedFB) {
     	RADEONAdjustFrameMerged(scrnIndex, x, y, flags);
@@ -8312,10 +8455,12 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     }
 #endif
 
-    if(info->RenderTex) {
+#ifdef USE_XAA
+    if(!info->useEXA && info->RenderTex) {
         xf86FreeOffscreenLinear(info->RenderTex);
         info->RenderTex = NULL;
     }
+#endif /* USE_XAA */
 
     if (pScrn->vtSema) {
 	RADEONDisplayPowerManagementSet(pScrn, DPMSModeOn, 0);
@@ -8323,11 +8468,21 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     }
     RADEONUnmapMem(pScrn);
 
-    if (info->accel) XAADestroyInfoRec(info->accel);
-    info->accel = NULL;
+#ifdef USE_EXA
+    if (info->useEXA && info->accelOn)
+	exaDriverFini(pScreen);
+#endif /* USE_EXA */
+#ifdef USE_XAA
+    if (!info->useEXA) {
+	if (info->accel)
+		XAADestroyInfoRec(info->accel);
+	info->accel = NULL;
 
-    if (info->scratch_save) xfree(info->scratch_save);
-    info->scratch_save = NULL;
+	if (info->scratch_save)
+	    xfree(info->scratch_save);
+	info->scratch_save = NULL;
+    }
+#endif /* USE_XAA */
 
     if (info->cursor) xf86DestroyCursorInfoRec(info->cursor);
     info->cursor = NULL;
@@ -8476,7 +8631,8 @@ static void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
     if (info->CPStarted) DRILock(pScrn->pScreen, 0);
 #endif
 
-    if (info->accelOn) info->accel->Sync(pScrn);
+    if (info->accelOn)
+        RADEON_SYNC(info, pScrn);
 
     if (info->FBDev) {
 	fbdevHWDPMSSet(pScrn, PowerManagementMode, flags);

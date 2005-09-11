@@ -68,9 +68,7 @@ static CARD32 mono_cursor_color[] = {
 #define CURSOR_WIDTH	64
 #define CURSOR_HEIGHT	64
 
-#define COMMON_CURSOR_SWAPPING_START()	  \
-    if (info->accel && info->accel->Sync) \
-	info->accel->Sync(pScrn);
+#define COMMON_CURSOR_SWAPPING_START()	 RADEON_SYNC(info, pScrn)
 
 /*
  * The cursor bits are always 32bpp.  On MSBFirst buses,
@@ -108,7 +106,7 @@ static CARD32 mono_cursor_color[] = {
 static void RADEONSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    CARD32        *pixels     = (CARD32 *)(pointer)(info->FB + info->cursor_start);
+    CARD32        *pixels     = (CARD32 *)(pointer)(info->FB + info->cursor_offset);
     int            pixel, i;
     CURSOR_SWAPPING_DECL_MMIO
 
@@ -173,7 +171,7 @@ static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 	OUTREG(RADEON_CUR_HORZ_VERT_POSN, (RADEON_CUR_LOCK
 					   | ((xorigin ? 0 : x) << 16)
 					   | (yorigin ? 0 : y)));
-	OUTREG(RADEON_CUR_OFFSET, info->cursor_start + yorigin * stride);
+	OUTREG(RADEON_CUR_OFFSET, info->cursor_offset + yorigin * stride);
     } else {
 	OUTREG(RADEON_CUR2_HORZ_VERT_OFF,  (RADEON_CUR2_LOCK
 					    | (xorigin << 16)
@@ -182,7 +180,7 @@ static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 					    | ((xorigin ? 0 : x) << 16)
 					    | (yorigin ? 0 : y)));
 	OUTREG(RADEON_CUR2_OFFSET,
-	       info->cursor_start + pScrn->fbOffset + yorigin * stride);
+	       info->cursor_offset + pScrn->fbOffset + yorigin * stride);
     }
 
 }
@@ -195,7 +193,7 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD8         *s          = (CARD8 *)(pointer)image;
-    CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_start);
+    CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset);
     CARD32         save1      = 0;
     CARD32         save2      = 0;
     CARD8	   chunk;
@@ -279,7 +277,7 @@ static Bool RADEONUseHWCursor(ScreenPtr pScreen, CursorPtr pCurs)
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
-    return info->cursor_start ? TRUE : FALSE;
+    return info->cursor_offset ? TRUE : FALSE;
 }
 
 #ifdef ARGB_CURSOR
@@ -290,7 +288,7 @@ static Bool RADEONUseHWCursorARGB (ScreenPtr pScreen, CursorPtr pCurs)
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
-    if (info->cursor_start &&
+    if (info->cursor_offset &&
 	pCurs->bits->height <= CURSOR_HEIGHT && pCurs->bits->width <= CURSOR_WIDTH)
 	return TRUE;
     return FALSE;
@@ -300,7 +298,7 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_start);
+    CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset);
     int            x, y, w, h;
     CARD32         save1      = 0;
     CARD32         save2      = 0;
@@ -361,6 +359,18 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 
 #endif
 
+#ifdef USE_EXA
+static void
+ATICursorSave(ScreenPtr pScreen, ExaOffscreenArea *area)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    info->cursorArea = NULL;
+    info->cursor_offset = 0;
+}
+#endif
+
 
 /* Initialize hardware cursor support. */
 Bool RADEONCursorInit(ScreenPtr pScreen)
@@ -368,7 +378,6 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
     ScrnInfoPtr        pScrn   = xf86Screens[pScreen->myNum];
     RADEONInfoPtr      info    = RADEONPTR(pScrn);
     xf86CursorInfoPtr  cursor;
-    FBAreaPtr          fbarea;
     int                width;
     int		       width_bytes;
     int                height;
@@ -405,29 +414,49 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
     width                     = pScrn->displayWidth;
     width_bytes		      = width * (pScrn->bitsPerPixel / 8);
     height                    = (size_bytes + width_bytes - 1) / width_bytes;
-    fbarea                    = xf86AllocateOffscreenArea(pScreen,
-							  width,
-							  height,
-							  256,
-							  NULL,
-							  NULL,
-							  NULL);
 
-    if (!fbarea) {
-	info->cursor_start    = 0;
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+#ifdef USE_EXA
+    if (info->useEXA) {
+	info->cursorArea = exaOffscreenAlloc(pScreen, size_bytes,
+                                             128, TRUE, ATICursorSave, info);
+
+	if (!info->cursorArea) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Hardware cursor disabled"
+		       " due to insufficient offscreen memory\n");
+	    info->cursor_offset = 0;
+	} else {
+	    info->cursor_offset = info->cursorArea->offset;
+	}
+
+	RADEONTRACE(("RADEONCursorInit (0x%08x-0x%08x)\n",
+		     info->cursor_offset,
+		     info->cursor_offset + info->cursorArea->size));
+    }
+#endif /* USE_EXA */
+#ifdef USE_XAA
+    if (!info->useEXA) {
+	FBAreaPtr          fbarea;
+
+	fbarea = xf86AllocateOffscreenArea(pScreen, width, height,
+					   256, NULL, NULL, NULL);
+
+	if (!fbarea) {
+	    info->cursor_offset    = 0;
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "Hardware cursor disabled"
 		   " due to insufficient offscreen memory\n");
-    } else {
-	info->cursor_start    = RADEON_ALIGN((fbarea->box.x1 +
-					      fbarea->box.y1 * width) *
-					     info->CurrentLayout.pixel_bytes,
-					     256);
-	info->cursor_end      = info->cursor_start + size_bytes;
+	} else {
+	    info->cursor_offset  = RADEON_ALIGN((fbarea->box.x1 +
+						fbarea->box.y1 * width) *
+						info->CurrentLayout.pixel_bytes,
+						256);
+	    info->cursor_end = info->cursor_offset + size_bytes;
+	}
+	RADEONTRACE(("RADEONCursorInit (0x%08x-0x%08x)\n",
+		    info->cursor_offset, info->cursor_end));
     }
-
-    RADEONTRACE(("RADEONCursorInit (0x%08x-0x%08x)\n",
-		 info->cursor_start, info->cursor_end));
+#endif
 
     return xf86InitCursor(pScreen, cursor);
 }

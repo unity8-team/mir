@@ -1,6 +1,37 @@
+/*
+ * Copyright 2004 Eric Anholt
+ * All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * Authors:
+ *    Eric Anholt <anholt@FreeBSD.org>
+ *    Hui Yu <hyu@ati.com>
+ *
+ */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+#ifdef USE_XAA
 
 #include "dixstruct.h"
 
@@ -9,11 +40,6 @@
 
 #ifndef RENDER_GENERIC_HELPER
 #define RENDER_GENERIC_HELPER
-
-static void RadeonInit3DEngineMMIO(ScrnInfoPtr pScrn);
-#ifdef XF86DRI
-static void RadeonInit3DEngineCP(ScrnInfoPtr pScrn);
-#endif
 
 struct blendinfo {
 	Bool dst_alpha;
@@ -228,24 +254,6 @@ ATILog2(int val)
 	return bits - 1;
 }
 
-static void RadeonInit3DEngine(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr info = RADEONPTR (pScrn);
-
-#ifdef XF86DRI
-    if (info->directRenderingEnabled) {
-	RADEONSAREAPrivPtr pSAREAPriv;
-
-	pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
-	pSAREAPriv->ctxOwner = DRIGetContext(pScrn->pScreen);
-	RadeonInit3DEngineCP(pScrn);
-    } else
-#endif
-	RadeonInit3DEngineMMIO(pScrn);
-
-    info->RenderInited3D = TRUE;
-}
-
 static void
 RemoveLinear (FBLinearPtr linear)
 {
@@ -357,61 +365,6 @@ static void RADEONRestoreByteswap(RADEONInfoPtr info)
 #endif
 #endif
 
-
-static void FUNC_NAME(RadeonInit3DEngine)(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    ACCEL_PREAMBLE();
-
-    if (info->ChipFamily >= CHIP_FAMILY_R300) {
-	/* Unimplemented */
-    } else if ((info->ChipFamily == CHIP_FAMILY_RV250) || 
-	       (info->ChipFamily == CHIP_FAMILY_RV280) || 
-	       (info->ChipFamily == CHIP_FAMILY_RS300) || 
-	       (info->ChipFamily == CHIP_FAMILY_R200)) {
-
-	BEGIN_ACCEL(7);
-        if (info->ChipFamily == CHIP_FAMILY_RS300) {
-            OUT_ACCEL_REG(R200_SE_VAP_CNTL_STATUS, RADEON_TCL_BYPASS);
-        } else {
-            OUT_ACCEL_REG(R200_SE_VAP_CNTL_STATUS, 0);
-        }
-	OUT_ACCEL_REG(R200_PP_CNTL_X, 0);
-	OUT_ACCEL_REG(R200_PP_TXMULTI_CTL_0, 0);
-	OUT_ACCEL_REG(R200_SE_VTX_STATE_CNTL, 0);
-	OUT_ACCEL_REG(R200_RE_CNTL, 0x0);
-	/* XXX: correct?  Want it to be like RADEON_VTX_ST?_NONPARAMETRIC */
-	OUT_ACCEL_REG(R200_SE_VTE_CNTL, R200_VTX_ST_DENORMALIZED);
-	OUT_ACCEL_REG(R200_SE_VAP_CNTL, R200_VAP_FORCE_W_TO_ONE |
-	    R200_VAP_VF_MAX_VTX_NUM);
-	FINISH_ACCEL();
-    } else {
-	BEGIN_ACCEL(2);
-        if ((info->ChipFamily == CHIP_FAMILY_RADEON) ||
-            (info->ChipFamily == CHIP_FAMILY_RV200))
-            OUT_ACCEL_REG(RADEON_SE_CNTL_STATUS, 0);
-        else
-            OUT_ACCEL_REG(RADEON_SE_CNTL_STATUS, RADEON_TCL_BYPASS);
-	OUT_ACCEL_REG(RADEON_SE_COORD_FMT,
-	    RADEON_VTX_XY_PRE_MULT_1_OVER_W0 |
-	    RADEON_VTX_ST0_NONPARAMETRIC |
-	    RADEON_VTX_ST1_NONPARAMETRIC |
-	    RADEON_TEX1_W_ROUTING_USE_W0);
-	FINISH_ACCEL();
-    }
-
-    BEGIN_ACCEL(3);
-    OUT_ACCEL_REG(RADEON_RE_TOP_LEFT, 0);
-    OUT_ACCEL_REG(RADEON_RE_WIDTH_HEIGHT, 0x07ff07ff);
-    OUT_ACCEL_REG(RADEON_SE_CNTL, RADEON_DIFFUSE_SHADE_GOURAUD |
-				  RADEON_BFACE_SOLID | 
-				  RADEON_FFACE_SOLID |
-				  RADEON_VTX_PIX_CENTER_OGL |
-				  RADEON_ROUND_MODE_ROUND |
-				  RADEON_ROUND_PREC_4TH_PIX);
-    FINISH_ACCEL();
-}
-
 static Bool FUNC_NAME(R100SetupTexture)(
 	ScrnInfoPtr pScrn,
 	CARD32 format,
@@ -474,9 +427,10 @@ static Bool FUNC_NAME(R100SetupTexture)(
     while ( height )
     {
     	tmp_dst = RADEONHostDataBlit( pScrn, tex_bytepp, width,
-							dst_pitch, &buf_pitch,
-							&dst, &height, &hpass );
-	RADEONHostDataBlitCopyPass( tmp_dst, src, hpass, buf_pitch, src_pitch );
+				      dst_pitch, &buf_pitch,
+				      &dst, &height, &hpass);
+	RADEONHostDataBlitCopyPass( pScrn, tex_bytepp, tmp_dst, src,
+				    hpass, buf_pitch, src_pitch );
 	src += hpass * src_pitch;
     }
 
@@ -542,8 +496,8 @@ FUNC_NAME(R100SetupForCPUToScreenAlphaTexture) (
     if (blend_cntl == 0)
 	return FALSE;
 
-    if (!info->RenderInited3D)
-	RadeonInit3DEngine(pScrn);
+    if (!info->XInited3D)
+	RADEONInit3DEngine(pScrn);
 
     if (!FUNC_NAME(R100SetupTexture)(pScrn, maskFormat, alphaPtr, alphaPitch,
 				     width, height, flags))
@@ -593,8 +547,8 @@ FUNC_NAME(R100SetupForCPUToScreenTexture) (
     if (blend_cntl == 0)
 	return FALSE;
     
-    if (!info->RenderInited3D)
-	RadeonInit3DEngine(pScrn);
+    if (!info->XInited3D)
+	RADEONInit3DEngine(pScrn);
 
     if (!FUNC_NAME(R100SetupTexture)(pScrn, srcFormat, texPtr, texPitch, width,
 				     height, flags))
@@ -805,9 +759,10 @@ static Bool FUNC_NAME(R200SetupTexture)(
     while ( height )
     {
         tmp_dst = RADEONHostDataBlit( pScrn, tex_bytepp, width,
-							dst_pitch, &buf_pitch,
-							&dst, &height, &hpass );
-	RADEONHostDataBlitCopyPass( tmp_dst, src, hpass, buf_pitch, src_pitch );
+				      dst_pitch, &buf_pitch,
+				      &dst, &height, &hpass );
+	RADEONHostDataBlitCopyPass( pScrn, tex_bytepp, tmp_dst, src,
+				    hpass, buf_pitch, src_pitch );
 	src += hpass * src_pitch;
     }
 
@@ -873,8 +828,8 @@ FUNC_NAME(R200SetupForCPUToScreenAlphaTexture) (
     if (blend_cntl == 0)
 	return FALSE;
 
-    if (!info->RenderInited3D)
-	RadeonInit3DEngine(pScrn);
+    if (!info->XInited3D)
+	RADEONInit3DEngine(pScrn);
 
     if (!FUNC_NAME(R200SetupTexture)(pScrn, maskFormat, alphaPtr, alphaPitch,
 				     width, height, flags))
@@ -925,8 +880,8 @@ FUNC_NAME(R200SetupForCPUToScreenTexture) (
     if (blend_cntl == 0)
 	return FALSE;
 
-    if (!info->RenderInited3D)
-	RadeonInit3DEngine(pScrn);
+    if (!info->XInited3D)
+	RADEONInit3DEngine(pScrn);
 
     if (!FUNC_NAME(R200SetupTexture)(pScrn, srcFormat, texPtr, texPitch, width,
 				     height, flags))
@@ -1074,4 +1029,4 @@ FUNC_NAME(R200SubsequentCPUToScreenTexture) (
 }
 
 #undef FUNC_NAME
-
+#endif /* USE_XAA */

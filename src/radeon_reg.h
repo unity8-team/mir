@@ -53,6 +53,22 @@
 #ifndef _RADEON_REG_H_
 #define _RADEON_REG_H_
 
+#define ATI_DATATYPE_VQ				0
+#define ATI_DATATYPE_CI4			1
+#define ATI_DATATYPE_CI8			2
+#define ATI_DATATYPE_ARGB1555			3
+#define ATI_DATATYPE_RGB565			4
+#define ATI_DATATYPE_RGB888			5
+#define ATI_DATATYPE_ARGB8888			6
+#define ATI_DATATYPE_RGB332			7
+#define ATI_DATATYPE_Y8				8
+#define ATI_DATATYPE_RGB8			9
+#define ATI_DATATYPE_CI16			10
+#define ATI_DATATYPE_VYUY_422			11
+#define ATI_DATATYPE_YVYU_422			12
+#define ATI_DATATYPE_AYUV_444			14
+#define ATI_DATATYPE_ARGB4444			15
+
 				/* Registers for 2D/Video/Overlay */
 #define RADEON_ADAPTER_ID                   0x0f2c /* PCI */
 #define RADEON_AGP_BASE                     0x0170
@@ -1226,6 +1242,28 @@
 #       define RADEON_RB2D_DC_FLUSH_ALL     0xf
 #       define RADEON_RB2D_DC_BUSY          (1 << 31)
 #define RADEON_RB2D_DSTCACHE_MODE           0x3428
+
+#define RADEON_RB3D_DSTCACHE_MODE           0x3258
+# define RADEON_RB3D_DC_CACHE_ENABLE            (0)
+# define RADEON_RB3D_DC_2D_CACHE_DISABLE        (1)
+# define RADEON_RB3D_DC_3D_CACHE_DISABLE        (2)
+# define RADEON_RB3D_DC_CACHE_DISABLE           (3)
+# define RADEON_RB3D_DC_2D_CACHE_LINESIZE_128   (1 << 2)
+# define RADEON_RB3D_DC_3D_CACHE_LINESIZE_128   (2 << 2)
+# define RADEON_RB3D_DC_2D_CACHE_AUTOFLUSH      (1 << 8)
+# define RADEON_RB3D_DC_3D_CACHE_AUTOFLUSH      (2 << 8)
+# define R200_RB3D_DC_2D_CACHE_AUTOFREE         (1 << 10)
+# define R200_RB3D_DC_3D_CACHE_AUTOFREE         (2 << 10)
+# define RADEON_RB3D_DC_FORCE_RMW               (1 << 16)
+# define RADEON_RB3D_DC_DISABLE_RI_FILL         (1 << 24)
+# define RADEON_RB3D_DC_DISABLE_RI_READ         (1 << 25)
+
+#define RADEON_RB3D_DSTCACHE_CTLSTAT            0x325C
+# define RADEON_RB3D_DC_FLUSH                   (3 << 0)
+# define RADEON_RB3D_DC_FREE                    (3 << 2)
+# define RADEON_RB3D_DC_FLUSH_ALL               0xf
+# define RADEON_RB3D_DC_BUSY                    (1 << 31)
+
 #define RADEON_REG_BASE                     0x0f18 /* PCI */
 #define RADEON_REGPROG_INF                  0x0f09 /* PCI */
 #define RADEON_REVISION_ID                  0x0f08 /* PCI */
@@ -2305,6 +2343,11 @@
 #       define R200_VC_16BIT_SWAP		(1 << 0)
 #       define R200_VC_32BIT_SWAP		(2 << 0)
 #define R200_PP_TXFILTER_0			0x2c00 
+#define R200_PP_TXFILTER_1			0x2c20
+#define R200_PP_TXFILTER_2			0x2c40
+#define R200_PP_TXFILTER_3			0x2c60
+#define R200_PP_TXFILTER_4			0x2c80
+#define R200_PP_TXFILTER_5			0x2ca0
 #       define R200_MAG_FILTER_NEAREST		(0  <<  0)
 #       define R200_MAG_FILTER_LINEAR		(1  <<  0)
 #       define R200_MAG_FILTER_MASK		(1  <<  0)
@@ -2355,6 +2398,11 @@
 #       define R200_BORDER_MODE_OGL		(0  << 31)
 #       define R200_BORDER_MODE_D3D		(1  << 31)
 #define R200_PP_TXFORMAT_0			0x2c04
+#define R200_PP_TXFORMAT_1			0x2c24
+#define R200_PP_TXFORMAT_2			0x2c44
+#define R200_PP_TXFORMAT_3			0x2c64
+#define R200_PP_TXFORMAT_4			0x2c84
+#define R200_PP_TXFORMAT_5			0x2ca4
 #       define R200_TXFORMAT_I8			(0 << 0)
 #       define R200_TXFORMAT_AI88		(1 << 0)
 #       define R200_TXFORMAT_RGB332		(2 << 0)
@@ -2394,15 +2442,42 @@
 #       define R200_TXFORMAT_CHROMA_KEY_ENABLE	(1 << 29)
 #       define R200_TXFORMAT_CUBIC_MAP_ENABLE		(1 << 30)
 #define R200_PP_TXFORMAT_X_0                    0x2c08
+#define R200_PP_TXFORMAT_X_1                    0x2c28
+#define R200_PP_TXFORMAT_X_2                    0x2c48
+#define R200_PP_TXFORMAT_X_3                    0x2c68
+#define R200_PP_TXFORMAT_X_4                    0x2c88
+#define R200_PP_TXFORMAT_X_5                    0x2ca8
+
 #define R200_PP_TXSIZE_0			0x2c0c /* NPOT only */
+#define R200_PP_TXSIZE_1			0x2c2c /* NPOT only */
+#define R200_PP_TXSIZE_2			0x2c4c /* NPOT only */
+#define R200_PP_TXSIZE_3			0x2c6c /* NPOT only */
+#define R200_PP_TXSIZE_4			0x2c8c /* NPOT only */
+#define R200_PP_TXSIZE_5			0x2cac /* NPOT only */
+
 #define R200_PP_TXPITCH_0                       0x2c10 /* NPOT only */
+#define R200_PP_TXPITCH_1			0x2c30 /* NPOT only */
+#define R200_PP_TXPITCH_2			0x2c50 /* NPOT only */
+#define R200_PP_TXPITCH_3			0x2c70 /* NPOT only */
+#define R200_PP_TXPITCH_4			0x2c90 /* NPOT only */
+#define R200_PP_TXPITCH_5			0x2cb0 /* NPOT only */
+
 #define R200_PP_TXOFFSET_0			0x2d00
 #       define R200_TXO_ENDIAN_NO_SWAP		(0 << 0)
 #       define R200_TXO_ENDIAN_BYTE_SWAP	(1 << 0)
 #       define R200_TXO_ENDIAN_WORD_SWAP	(2 << 0)
 #       define R200_TXO_ENDIAN_HALFDW_SWAP	(3 << 0)
+#       define R200_TXO_MACRO_LINEAR		(0 << 2)
+#       define R200_TXO_MACRO_TILE		(1 << 2)
+#       define R200_TXO_MICRO_LINEAR		(0 << 3)
+#       define R200_TXO_MICRO_TILE		(1 << 3)
 #       define R200_TXO_OFFSET_MASK		0xffffffe0
 #       define R200_TXO_OFFSET_SHIFT		5
+#define R200_PP_TXOFFSET_1			0x2d18
+#define R200_PP_TXOFFSET_2			0x2d30
+#define R200_PP_TXOFFSET_3			0x2d48
+#define R200_PP_TXOFFSET_4			0x2d60
+#define R200_PP_TXOFFSET_5			0x2d78
 
 #define R200_PP_TFACTOR_0			0x2ee0
 #define R200_PP_TFACTOR_1			0x2ee4

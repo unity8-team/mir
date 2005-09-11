@@ -81,6 +81,14 @@ typedef struct {
    Bool          autopaint_colorkey;
    Bool		 crt2; /* 0=CRT1, 1=CRT2 */
 
+#ifdef USE_EXA
+   int              size;
+   ExaOffscreenArea *off_screen;
+#endif
+
+   void         *video_memory;
+   int           video_offset;
+
    Atom          device_id, location_id, instance_id;
 } RADEONPortPrivRec, *RADEONPortPrivPtr;
 

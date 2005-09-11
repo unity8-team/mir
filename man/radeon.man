@@ -501,6 +501,17 @@ unsupported).  The default is to
 .B enable
 Render acceleration.
 .TP
+.BI "Option \*qAccelMethod\*q \*q" "string" \*q
+Chooses between available acceleration architectures.  Valid options are
+.B XAA
+and
+.B EXA.
+XAA is the traditional acceleration architecture and support for it is very
+stable.  EXA is a newer acceleration architecture with better performance for
+the Render and Composite extensions, but the rendering code for it is newer and
+possibly unstable.  The default is
+.B XAA.
+.TP
 .BI "Option \*qDMAForXv\*q \*q" boolean \*q
 Try or don't try to use DMA for Xv image transfers. This will reduce CPU
 usage when playing big videos like DVDs, but may cause instabilities.

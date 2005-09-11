@@ -42,6 +42,7 @@
 
 				/* Driver data structures */
 #include "radeon.h"
+#include "radeon_video.h"
 #include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_dri.h"
@@ -347,17 +348,15 @@ static void RADEONEnterServer(ScreenPtr pScreen)
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
-#ifdef RENDER
     RADEONSAREAPrivPtr pSAREAPriv;
-#endif
 
-    if (info->accel) info->accel->NeedToSync = TRUE;
 
-#ifdef RENDER
+    RADEON_MARK_SYNC(info, pScrn);
+
     pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
     if (pSAREAPriv->ctxOwner != DRIGetContext(pScrn->pScreen))
-	info->RenderInited3D = FALSE;
-#endif
+	info->XInited3D = FALSE;
+
 
     /* TODO: Fix this more elegantly.
      * Sometimes (especially with multiple DRI clients), this code
@@ -528,6 +527,7 @@ static void RADEONDRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 indx)
 static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 				 RegionPtr prgnSrc, CARD32 indx)
 {
+#ifdef USE_XAA
     ScreenPtr      pScreen  = pParent->drawable.pScreen;
     ScrnInfoPtr    pScrn    = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info     = RADEONPTR(pScrn);
@@ -550,6 +550,10 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
     int            dx       = pParent->drawable.x - ptOldOrg.x;
     int            dy       = pParent->drawable.y - ptOldOrg.y;
+
+    /* XXX: Fix in EXA case. */
+    if (info->useEXA)
+	return;
 
     /* If the copy will overlap in Y, reverse the order */
     if (dy > 0) {
@@ -683,6 +687,7 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
     DEALLOCATE_LOCAL(pboxNew1);
 
     info->accel->NeedToSync = TRUE;
+#endif /* USE_XAA */
 }
 
 static void RADEONDRIInitGARTValues(RADEONInfoPtr info)
@@ -1183,7 +1188,10 @@ static void RADEONDRICPInit(ScrnInfoPtr pScrn)
 
 				/* Make sure the CP is on for the X server */
     RADEONCP_START(pScrn, info);
-    info->dst_pitch_offset = info->frontPitchOffset;
+#ifdef USE_XAA
+    if (!info->useEXA)
+	info->dst_pitch_offset = info->frontPitchOffset;
+#endif
 }
 
 
@@ -1276,7 +1284,7 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     				RADEON_VERSION_MAJOR_TILED : RADEON_VERSION_MAJOR;
     pDRIInfo->ddxDriverMinorVersion      = RADEON_VERSION_MINOR;
     pDRIInfo->ddxDriverPatchVersion      = RADEON_VERSION_PATCH;
-    pDRIInfo->frameBufferPhysicalAddress = info->LinearAddr;
+    pDRIInfo->frameBufferPhysicalAddress = (void *)info->LinearAddr;
     pDRIInfo->frameBufferSize            = info->FbMapSize;
     pDRIInfo->frameBufferStride          = (pScrn->displayWidth *
 					    info->CurrentLayout.pixel_bytes);
@@ -1602,7 +1610,7 @@ Bool RADEONDRIFinishScreenInit(ScreenPtr pScreen)
 #endif
 
     /* Have shadowfb run only while there is 3d active. */
-    if (info->allowPageFlip /* && info->drmMinor >= 3 */) {
+    if (!info->useEXA && info->allowPageFlip /* && info->drmMinor >= 3 */) {
 	ShadowFBInit( pScreen, RADEONDRIRefreshArea );
     } else {
        info->allowPageFlip = 0;
@@ -1795,6 +1803,8 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     if (!pSAREAPriv->pfAllowPageFlip && pSAREAPriv->pfCurrentPage == 0)
 	return;
 
+#ifdef USE_XAA
+    /* XXX: implement for EXA */
     /* pretty much a hack. */
     if (info->tilingEnabled)
        info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
@@ -1815,6 +1825,7 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 	}
     }
     info->dst_pitch_offset &= ~RADEON_DST_TILE_MACRO;
+#endif /* USE_XAA */
 }
 
 static void RADEONEnablePageFlip(ScreenPtr pScreen)
@@ -1823,6 +1834,8 @@ static void RADEONEnablePageFlip(ScreenPtr pScreen)
     RADEONInfoPtr       info       = RADEONPTR(pScrn);
     RADEONSAREAPrivPtr  pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
+#ifdef USE_XAA
+    /* XXX: Fix in EXA case */
     if (info->allowPageFlip) {
         /* pretty much a hack. */
 	if (info->tilingEnabled)
@@ -1843,6 +1856,7 @@ static void RADEONEnablePageFlip(ScreenPtr pScreen)
 	info->dst_pitch_offset &= ~RADEON_DST_TILE_MACRO;
 	pSAREAPriv->pfAllowPageFlip = 1;
     }
+#endif /* USE_XAA */
 }
 
 static void RADEONDisablePageFlip(ScreenPtr pScreen)
@@ -1874,6 +1888,21 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen)
     FBAreaPtr      fbarea;
     int            width, height;
 
+    info->have3DWindows = 1;
+
+    RADEONChangeSurfaces(pScrn);
+    RADEONEnablePageFlip(pScreen);
+
+    if (info->cursor_offset != 0)
+	xf86ForceHWCursor (pScreen, TRUE);
+
+#ifdef USE_XAA
+    /* EXA allocates these areas up front, so it doesn't do the following
+     * stuff.
+     */
+    if (info->useEXA)
+	return;
+
     /* reserve offscreen area for back and depth buffers and textures */
 
     /* If we still have an area for the back buffer reserved, free it
@@ -1889,15 +1918,21 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen)
 
     xf86QueryLargestOffscreenArea(pScreen, &width, &height, 0, 0, 0);
 
-    /* Free Xv linear offscreen memory if necessary */
+    /* Free Xv linear offscreen memory if necessary
+     * FIXME: This is hideous.  What about telling xv "oh btw you have no memory
+     * any more?" -- anholt
+     */
     if (height < (info->depthTexLines + info->backLines)) {
-	xf86FreeOffscreenLinear(info->videoLinear);
-	info->videoLinear = NULL;
+	RADEONPortPrivPtr portPriv = info->adaptor->pPortPrivates[0].ptr;
+	xf86FreeOffscreenLinear((FBLinearPtr)portPriv->video_memory);
+	portPriv->video_memory = NULL;
 	xf86QueryLargestOffscreenArea(pScreen, &width, &height, 0, 0, 0);
     }
 
     /* Reserve placeholder area so the other areas will match the
      * pre-calculated offsets
+     * FIXME: We may have other locked allocations and thus this would allocate
+     * in the wrong place.  The XV surface allocations seem likely. -- anholt
      */
     fbarea = xf86AllocateOffscreenArea(pScreen, pScrn->displayWidth,
 				       height
@@ -1929,14 +1964,7 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen)
 		   "experience screen corruption\n");
 
     xf86FreeOffscreenArea(fbarea);
-
-    info->have3DWindows = 1;
-
-    RADEONChangeSurfaces(pScrn);
-    RADEONEnablePageFlip(pScreen);
-
-    if (info->cursor_start)
-	xf86ForceHWCursor (pScreen, TRUE);
+#endif /* USE_XAA */
 }
 
 static void RADEONDRITransitionTo2d(ScreenPtr pScreen)
@@ -1952,22 +1980,29 @@ static void RADEONDRITransitionTo2d(ScreenPtr pScreen)
     /* Shut down shadowing if we've made it back to the front page */
     if (pSAREAPriv->pfCurrentPage == 0) {
 	RADEONDisablePageFlip(pScreen);
-	xf86FreeOffscreenArea(info->backArea);
-	info->backArea = NULL;
+#ifdef USE_XAA
+	if (!info->useEXA) {
+	    xf86FreeOffscreenArea(info->backArea);
+	    info->backArea = NULL;
+	}
+#endif
     } else {
 	xf86DrvMsg(pScreen->myNum, X_WARNING,
 		   "[dri] RADEONDRITransitionTo2d: "
 		   "kernel failed to unflip buffers.\n");
     }
 
-    xf86FreeOffscreenArea(info->depthTexArea);
+#ifdef USE_XAA
+    if (!info->useEXA)
+	xf86FreeOffscreenArea(info->depthTexArea);
+#endif
 
     info->have3DWindows = 0;
 
     RADEONChangeSurfaces(pScrn);
 
-    if (info->cursor_start)
-	    xf86ForceHWCursor (pScreen, FALSE);
+    if (info->cursor_offset != 0)
+	xf86ForceHWCursor (pScreen, FALSE);
 }
 
 void RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen)

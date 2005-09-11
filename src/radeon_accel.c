@@ -93,6 +93,7 @@
 				/* X and server generic header files */
 #include "xf86.h"
 
+
 static struct {
     int rop;
     int pattern;
@@ -159,6 +160,10 @@ void RADEONEngineFlush(ScrnInfoPtr pScrn)
     for (i = 0; i < RADEON_TIMEOUT; i++) {
 	if (!(INREG(RADEON_RB2D_DSTCACHE_CTLSTAT) & RADEON_RB2D_DC_BUSY))
 	    break;
+    }
+    if (i == RADEON_TIMEOUT) {
+	RADEONTRACE(("DC flush timeout: %x\n",
+		    INREG(RADEON_RB2D_DSTCACHE_CTLSTAT)));
     }
 }
 
@@ -342,9 +347,7 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
 
     RADEONWaitForIdleMMIO(pScrn);
 
-#ifdef RENDER
-    info->RenderInited3D = FALSE;
-#endif
+    info->XInited3D = FALSE;
 }
 
 /* Initialize the acceleration hardware */
@@ -399,13 +402,15 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
     RADEONEngineRestore(pScrn);
 }
 
+
 #define ACCEL_MMIO
 #define ACCEL_PREAMBLE()        unsigned char *RADEONMMIO = info->MMIO
 #define BEGIN_ACCEL(n)          RADEONWaitForFifo(pScrn, (n))
 #define OUT_ACCEL_REG(reg, val) OUTREG(reg, val)
 #define FINISH_ACCEL()
 
-#ifdef RENDER
+#include "radeon_commonfuncs.c"
+#if defined(RENDER) && defined(USE_XAA)
 #include "radeon_render.c"
 #endif
 #include "radeon_accelfuncs.c"
@@ -426,7 +431,9 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 #define OUT_ACCEL_REG(reg, val) OUT_RING_REG(reg, val)
 #define FINISH_ACCEL()          ADVANCE_RING()
 
-#ifdef RENDER
+
+#include "radeon_commonfuncs.c"
+#if defined(RENDER) && defined(USE_XAA)
 #include "radeon_render.c"
 #endif
 #include "radeon_accelfuncs.c"
@@ -656,14 +663,22 @@ RADEONHostDataBlit(
     }
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    BEGIN_RING(2);
-    if (bpp == 2)
-	OUT_RING_REG(RADEON_RBBM_GUICNTL,   RADEON_HOST_DATA_SWAP_16BIT);
-    else if (bpp == 1)
-	OUT_RING_REG(RADEON_RBBM_GUICNTL,   RADEON_HOST_DATA_SWAP_32BIT);
-    else
-	OUT_RING_REG(RADEON_RBBM_GUICNTL,   RADEON_HOST_DATA_SWAP_NONE);
-    ADVANCE_RING();
+    /* Swap doesn't work on R300 and later, it's handled during the
+     * copy to ind. buffer pass
+     */
+    if (info->ChipFamily < CHIP_FAMILY_R300) {
+        BEGIN_RING(2);
+	if (bpp == 2)
+	    OUT_RING_REG(RADEON_RBBM_GUICNTL,
+			 RADEON_HOST_DATA_SWAP_HDW);
+	else if (bpp == 1)
+	    OUT_RING_REG(RADEON_RBBM_GUICNTL,
+			 RADEON_HOST_DATA_SWAP_32BIT);
+	else
+	    OUT_RING_REG(RADEON_RBBM_GUICNTL,
+			 RADEON_HOST_DATA_SWAP_NONE);
+	ADVANCE_RING();
+    }
 #endif
 
     /*RADEON_PURGE_CACHE();
@@ -704,11 +719,61 @@ RADEONHostDataBlit(
     return ret;
 }
 
+void RADEONCopySwap(CARD8 *dst, CARD8 *src, unsigned int size, int swap)
+{
+    switch(swap) {
+    case RADEON_HOST_DATA_SWAP_HDW:
+        {
+	    unsigned int *d = (unsigned int *)dst;
+	    unsigned int *s = (unsigned int *)src;
+	    unsigned int nwords = size >> 2;
+
+	    for (; nwords > 0; --nwords, ++d, ++s)
+		*d = ((*s & 0xffff) << 16) | ((*s >> 16) & 0xffff);
+	    return;
+        }
+    case RADEON_HOST_DATA_SWAP_32BIT:
+        {
+	    unsigned int *d = (unsigned int *)dst;
+	    unsigned int *s = (unsigned int *)src;
+	    unsigned int nwords = size >> 2;
+
+	    for (; nwords > 0; --nwords, ++d, ++s)
+#ifdef __powerpc__
+		asm volatile("stwbrx %0,0,%1" : : "r" (*s), "r" (d));
+#else
+		*d = ((*s >> 24) & 0xff) | ((*s >> 8) & 0xff00)
+			| ((*s & 0xff00) << 8) | ((*s & 0xff) << 24);
+#endif
+	    return;
+        }
+    case RADEON_HOST_DATA_SWAP_16BIT:
+        {
+	    unsigned short *d = (unsigned short *)dst;
+	    unsigned short *s = (unsigned short *)src;
+	    unsigned int nwords = size >> 1;
+
+	    for (; nwords > 0; --nwords, ++d, ++s)
+#ifdef __powerpc__
+		asm volatile("stwbrx %0,0,%1" : : "r" (*s), "r" (d));
+#else
+	        *d = ((*s >> 24) & 0xff) | ((*s >> 8) & 0xff00)
+			| ((*s & 0xff00) << 8) | ((*s & 0xff) << 24);
+#endif
+	    return;
+	}
+    }
+    if (src != dst)
+	    memmove(dst, src, size);
+}
+
 /* Copies a single pass worth of data for a hostdata blit set up by
  * RADEONHostDataBlit().
  */
 void
 RADEONHostDataBlitCopyPass(
+    ScrnInfoPtr pScrn,
+    unsigned int bpp,
     CARD8 *dst,
     CARD8 *src,
     unsigned int hpass,
@@ -716,11 +781,27 @@ RADEONHostDataBlitCopyPass(
     unsigned int srcPitch
 ){
 
+    RADEONInfoPtr info = RADEONPTR( pScrn );
+
     /* RADEONHostDataBlitCopy can return NULL ! */
     if( (dst==NULL) || (src==NULL)) return;
 
     if ( dstPitch == srcPitch )
     {
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+        if (info->ChipFamily >= CHIP_FAMILY_R300) {
+	    switch(bpp) {
+	    case 1:
+		RADEONCopySwap(dst, src, hpass * dstPitch,
+			       RADEON_HOST_DATA_SWAP_32BIT);
+		return;
+	    case 2:
+	        RADEONCopySwap(dst, src, hpass * dstPitch,
+			       RADEON_HOST_DATA_SWAP_HDW);
+		return;
+	    }
+	}
+#endif
 	memcpy( dst, src, hpass * dstPitch );
     }
     else
@@ -728,7 +809,22 @@ RADEONHostDataBlitCopyPass(
 	unsigned int minPitch = min( dstPitch, srcPitch );
 	while ( hpass-- )
 	{
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+            if (info->ChipFamily >= CHIP_FAMILY_R300) {
+		switch(bpp) {
+		case 1:
+		    RADEONCopySwap(dst, src, minPitch,
+				   RADEON_HOST_DATA_SWAP_32BIT);
+		    goto next;
+		case 2:
+	            RADEONCopySwap(dst, src, minPitch,
+				   RADEON_HOST_DATA_SWAP_HDW);
+		    goto next;
+		}
+	    }
+#endif
 	    memcpy( dst, src, minPitch );
+	next:
 	    src += srcPitch;
 	    dst += dstPitch;
 	}
@@ -737,33 +833,67 @@ RADEONHostDataBlitCopyPass(
 
 #endif
 
-/* Initialize XAA for supported acceleration and also initialize the
- * graphics hardware for acceleration
- */
 Bool RADEONAccelInit(ScreenPtr pScreen)
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
-    XAAInfoRecPtr  a;
 
-    if (!(a = info->accel = XAACreateInfoRec())) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "XAACreateInfoRec Error\n");
-	return FALSE;
+#ifdef USE_EXA
+    if (info->useEXA) {
+# ifdef XF86DRI
+	if (info->directRenderingEnabled) {
+	    if (!RADEONDrawInitCP(pScreen))
+		return FALSE;
+	} else
+# endif /* XF86DRI */
+	{
+	    if (!RADEONDrawInitMMIO(pScreen))
+		return FALSE;
+	}
     }
+#endif /* USE_EXA */
+#ifdef USE_XAA
+    if (!info->useEXA) {
+	XAAInfoRecPtr  a;
+
+	if (!(a = info->accel = XAACreateInfoRec())) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "XAACreateInfoRec Error\n");
+	    return FALSE;
+	}
 
 #ifdef XF86DRI
-    if (info->directRenderingEnabled)
-	RADEONAccelInitCP(pScreen, a);
-    else
-#endif
-	RADEONAccelInitMMIO(pScreen, a);
+	if (info->directRenderingEnabled)
+	    RADEONAccelInitCP(pScreen, a);
+	else
+#endif /* XF86DRI */
+	    RADEONAccelInitMMIO(pScreen, a);
 
-    RADEONEngineInit(pScrn);
+	RADEONEngineInit(pScrn);
 
-    if (!XAAInit(pScreen, a)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "XAAInit Error\n");
-	return FALSE;
+	if (!XAAInit(pScreen, a)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "XAAInit Error\n");
+	    return FALSE;
+	}
     }
-
+#endif /* USE_XAA */
     return TRUE;
 }
+
+void RADEONInit3DEngine(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+
+#ifdef XF86DRI
+    if (info->directRenderingEnabled) {
+	RADEONSAREAPrivPtr pSAREAPriv;
+
+	pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+	pSAREAPriv->ctxOwner = DRIGetContext(pScrn->pScreen);
+	RADEONInit3DEngineCP(pScrn);
+    } else
+#endif
+	RADEONInit3DEngineMMIO(pScrn);
+
+    info->XInited3D = TRUE;
+}
+
