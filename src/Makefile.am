@@ -41,7 +41,7 @@ if ATIMISC_DGA
 ATIMISC_DGA_SOURCES = atidga.c
 endif
 
-AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@
+AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ -DUSE_EXA -DUSE_XAA
 
 ati_drv_la_LTLIBRARIES = ati_drv.la
 ati_drv_la_LDFLAGS = -module -avoid-version
@@ -76,7 +76,7 @@ radeon_drv_ladir = @moduledir@/drivers
 radeon_drv_la_SOURCES = \
 	radeon_accel.c radeon_mergedfb.c radeon_cursor.c radeon_dga.c \
 	radeon_driver.c radeon_video.c radeon_bios.c radeon_mm_i2c.c \
-	radeon_vip.c radeon_misc.c $(RADEON_DRI_SRCS)
+	radeon_vip.c radeon_misc.c radeon_exa.c $(RADEON_DRI_SRCS)
 
 theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
 theatre_detect_drv_la_LDFLAGS = -module -avoid-version
