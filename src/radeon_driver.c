@@ -5299,10 +5299,10 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	    info->textureSize = info->FbMapSize - 3 * bufferSize - depthSize;
 	}
 	/* If there's still no space for textures, try without pixmap cache, but never use
-	   the reserved space and the space hw cursor might use */
+	   the reserved space, the space hw cursor and PCIGART table might use */
 	if (info->textureSize < 0) {
 	    info->textureSize = info->FbMapSize - 2 * bufferSize - depthSize
-				- 2 * width_bytes - 16384;
+				- 2 * width_bytes - 16384 - RADEON_PCIGART_TABLE_SIZE;
 	}
 
 	/* Check to see if there is more room available after the 8192nd
@@ -5420,6 +5420,9 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	    } else {
 		xf86DrvMsg(scrnIndex, X_ERROR, "Unable to reserve area\n");
 	    }
+
+	    RADEONDRIAllocatePCIGARTTable(pScreen);
+
 	    if (xf86QueryLargestOffscreenArea(pScreen, &width,
 					      &height, 0, 0, 0)) {
 		xf86DrvMsg(scrnIndex, X_INFO,
@@ -5449,6 +5452,9 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	xf86DrvMsg(scrnIndex, X_INFO,
 		   "Will use depth buffer at offset 0x%x\n",
 		   info->depthOffset);
+	xf86DrvMsg(scrnIndex, X_INFO,
+		   "Will use %d kb for PCI GART table at offset 0x%x\n",
+		   info->pciGartSize/1024, info->pciGartOffset);
 	xf86DrvMsg(scrnIndex, X_INFO,
 		   "Will use %d kb for textures at offset 0x%x\n",
 		   info->textureSize/1024, info->textureOffset);
@@ -5610,7 +5616,19 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
 #ifdef XF86DRI
-				/* DRI finalization */
+    if (info->IsPCI && info->pciGartOffset && info->drmMinor>=19)
+    {
+      drmRadeonSetParam  radeonsetparam;
+      memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
+      radeonsetparam.param = RADEON_SETPARAM_PCIGART_LOCATION;
+      radeonsetparam.value = info->pciGartOffset;
+      if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
+			  &radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "[drm] failed set pci gart location\n");
+    }
+
+      /* DRI finalization */
     if (info->directRenderingEnabled) {
 				/* Now that mi, fb, drm and others have
 				   done their thing, complete the DRI

@@ -473,6 +473,7 @@ typedef struct drm_radeon_set_param {
 
 #define RADEON_SETPARAM_FB_LOCATION     1
 #define RADEON_SETPARAM_SWITCH_TILING   2
+#define RADEON_SETPARAM_PCIGART_LOCATION 3
 
 /* 1.14: Clients can allocate/free a surface
  */
@@ -485,6 +486,5 @@ typedef struct drm_radeon_surface_alloc {
 typedef struct drm_radeon_surface_free {
 	unsigned int address;
 } drmRadeonSurfaceFree;
-
 
 #endif
