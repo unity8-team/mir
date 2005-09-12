@@ -156,6 +156,9 @@ if test "x$ATIMISC_TV_OUT" = xyes; then
 	AC_DEFINE(TV_OUT, 1, [Build TV-Out support for atimisc.])
 fi
 
+AC_DEFINE(USE_XAA, 1, [Build support for XAA])
+AC_DEFINE(USE_EXA, 1, [Build support for Exa])
+
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([moduledir])
