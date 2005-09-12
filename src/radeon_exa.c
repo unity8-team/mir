@@ -29,6 +29,10 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "radeon.h"
 #include "radeon_reg.h"
 #include "radeon_dri.h"

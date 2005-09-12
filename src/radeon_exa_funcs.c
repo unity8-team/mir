@@ -369,6 +369,7 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     info->exa.card.maxX = 2047;
     info->exa.card.maxY = 2047;
 
+#ifdef RENDER
     if (info->RenderAccel) {
 	if (info->ChipFamily >= CHIP_FAMILY_R300) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
@@ -394,6 +395,7 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 		info->exa.accel.DoneComposite = RadeonDoneComposite;
 	}
     }
+#endif
 
     RADEONEngineInit(pScrn);
 
