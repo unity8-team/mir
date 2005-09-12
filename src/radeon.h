@@ -564,13 +564,13 @@ typedef struct {
     int               textureSize;
     int               log2TexGran;
 
+    int               pciGartSize;
+    CARD32            pciGartOffset;
+
 #ifdef USE_XAA
     CARD32            frontPitchOffset;
     CARD32            backPitchOffset;
     CARD32            depthPitchOffset;
-
-    int               pciGartSize;
-    CARD32            pciGartOffset;
 
 				/* offscreen memory management */
     int               backLines;
