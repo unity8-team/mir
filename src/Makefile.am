@@ -41,7 +41,7 @@ if ATIMISC_DGA
 ATIMISC_DGA_SOURCES = atidga.c
 endif
 
-AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ -DUSE_EXA -DUSE_XAA
+AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@
 
 ati_drv_la_LTLIBRARIES = ati_drv.la
 ati_drv_la_LDFLAGS = -module -avoid-version
