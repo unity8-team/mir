@@ -300,16 +300,6 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
 
     RADEONWaitForFifo(pScrn, 1);
 
-    /* NOTE: The following RB2D_DSTCACHE_MODE setting will cause the
-     * R300 to hang.  ATI does not see a reason to change it from the
-     * default BIOS settings (even on non-R300 cards).  This setting
-     * might be removed in future versions of the Radeon driver.
-     */
-
-    /* Turn of all automatic flushing - we'll do it all */
-    if (!IS_R300_VARIANT)
-	OUTREG(RADEON_RB2D_DSTCACHE_MODE, 0);
-
     pitch64 = ((pScrn->displayWidth * (pScrn->bitsPerPixel / 8) + 0x3f)) >> 6;
 
 /*    RADEONWaitForFifo(pScrn, 2);
