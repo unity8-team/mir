@@ -87,6 +87,7 @@
 #       define RADEON_CAP_PTR_MASK          0xfc /* mask off reserved bits of CAP_PTR */
 #       define RADEON_CAP_ID_NULL           0x00 /* End of capability list */
 #       define RADEON_CAP_ID_AGP            0x02 /* AGP capability ID */
+#       define RADEON_CAP_ID_EXP            0x10 /* PCI Express */
 #define RADEON_AGP_COMMAND                  0x0f60 /* PCI */
 #define RADEON_AGP_COMMAND_PCI_CONFIG       0x0060 /* offset in PCI config*/
 #       define RADEON_AGP_ENABLE            (1<<8)

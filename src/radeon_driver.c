@@ -2802,7 +2802,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
      *	- AGP Interface Specification Revision 2.0, Section 6.1.5
      */
 
-    info->IsPCI = TRUE;
+    info->cardType = CARD_PCI;
 
     if (pciReadLong(info->PciTag, PCI_CMD_STAT_REG) & RADEON_CAP_LIST) {
 	CARD32 cap_ptr, cap_id;
@@ -2814,7 +2814,11 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 	while(cap_ptr != RADEON_CAP_ID_NULL) {
 	    cap_id = pciReadLong(info->PciTag, cap_ptr);
 	    if ((cap_id & 0xff)== RADEON_CAP_ID_AGP) {
-		info->IsPCI = FALSE;
+		info->cardType = CARD_AGP;
+		break;
+	    }
+	    if ((cap_id & 0xff)== RADEON_CAP_ID_EXP) {
+		info->cardType = CARD_PCIE;
 		break;
 	    }
 	    cap_ptr = (cap_id >> 8) & RADEON_CAP_PTR_MASK;
@@ -2822,19 +2826,19 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s card detected\n",
-	       (info->IsPCI) ? "PCI" : "AGP");
+	       (info->cardType==CARD_PCI) ? "PCI" :
+		(info->cardType==CARD_PCIE) ? "PCIE" : "AGP");
 
     if ((s = xf86GetOptValString(info->Options, OPTION_BUS_TYPE))) {
 	if (strcmp(s, "AGP") == 0) {
-	    info->IsPCI = FALSE;
+	    info->cardType = CARD_AGP;
 	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Forced into AGP mode\n");
 	} else if (strcmp(s, "PCI") == 0) {
-	    info->IsPCI = TRUE;
+	    info->cardType = CARD_PCI;
 	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Forced into PCI mode\n");
 	} else if (strcmp(s, "PCIE") == 0) {
-	    info->IsPCI = TRUE;
-	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-		       "PCI Express not supported yet, using PCI mode\n");
+	    info->cardType = CARD_PCIE;
+	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Forced into PCI Express mode\n");
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
 		       "Invalid BusType option, using detected type\n");
@@ -4329,7 +4333,7 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 
     info->CPusecTimeout = RADEON_DEFAULT_CP_TIMEOUT;
 
-    if (!info->IsPCI) {
+    if (info->cardType==CARD_AGP) {
 	if (xf86GetOptValInteger(info->Options,
 				 OPTION_AGP_MODE, &(info->agpMode))) {
 	    if (info->agpMode < 1 || info->agpMode > RADEON_AGP_MAX_MODE) {
@@ -5326,9 +5330,10 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
     xf86DrvMsg(scrnIndex, X_INFO,
 	       "Will use depth buffer at offset 0x%x\n",
 	       info->depthOffset);
-    xf86DrvMsg(scrnIndex, X_INFO,
-	       "Will use %d kb for PCI GART table at offset 0x%x\n",
-	       info->pciGartSize/1024, info->pciGartOffset);
+    if (info->cardType==CARD_PCIE)
+    	xf86DrvMsg(scrnIndex, X_INFO,
+	           "Will use %d kb for PCI GART table at offset 0x%x\n",
+		   info->pciGartSize/1024, info->pciGartOffset);
     xf86DrvMsg(scrnIndex, X_INFO,
 	       "Will use %d kb for textures at offset 0x%x\n",
 	       info->textureSize/1024, info->textureOffset);
@@ -5749,7 +5754,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
 #ifdef XF86DRI
-    if (info->IsPCI && info->pciGartOffset && info->drmMinor>=19)
+    if (info->cardType==CARD_PCIE && info->pciGartOffset && info->drmMinor>=19)
     {
       drmRadeonSetParam  radeonsetparam;
       memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
@@ -5779,7 +5784,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	}
     }
     if (info->directRenderingEnabled) {
-	if ((info->DispPriority == 1) && (!info->IsPCI)) {
+	if ((info->DispPriority == 1) && (info->cardType==CARD_AGP)) {
 	    /* we need to re-calculate bandwidth because of AGPMode difference. */ 
 	    RADEONInitDispBandwidth(pScrn);
 	}

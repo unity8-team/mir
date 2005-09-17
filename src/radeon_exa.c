@@ -392,7 +392,7 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 	info->frontOffset = 0;
 	info->frontPitch = pScrn->displayWidth;
 
-	if (info->IsPCI && info->drmMinor >= 19) {
+	if ((info->cardType==CARD_PCIE) && info->drmMinor >= 19) {
 	    info->pciGartSize = RADEON_PCIGART_TABLE_SIZE;
 	    info->pciGartOffset = RADEON_ALIGN(info->exa.card.offScreenBase,
 					       256);

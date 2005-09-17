@@ -1053,7 +1053,7 @@ static int RADEONDRIKernelInit(RADEONInfoPtr info, ScreenPtr pScreen)
        drmInfo.func		= DRM_RADEON_INIT_CP;
 
     drmInfo.sarea_priv_offset   = sizeof(XF86DRISAREARec);
-    drmInfo.is_pci              = info->IsPCI;
+    drmInfo.is_pci              = (info->cardType!=CARD_AGP);
     drmInfo.cp_mode             = info->CPMode;
     drmInfo.gart_size           = info->gartSize*1024*1024;
     drmInfo.ring_size           = info->ringSize*1024*1024;
@@ -1124,7 +1124,7 @@ static Bool RADEONDRIBufInit(RADEONInfoPtr info, ScreenPtr pScreen)
     info->bufNumBufs = drmAddBufs(info->drmFD,
 				  info->bufMapSize / RADEON_BUFFER_SIZE,
 				  RADEON_BUFFER_SIZE,
-				  info->IsPCI ? DRM_SG_BUFFER : DRM_AGP_BUFFER,
+				  (info->cardType!=CARD_AGP) ? DRM_SG_BUFFER : DRM_AGP_BUFFER,
 				  info->bufStart);
 
     if (info->bufNumBufs <= 0) {
@@ -1471,7 +1471,7 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     }
 
 				/* Initialize AGP */
-    if (!info->IsPCI && !RADEONDRIAgpInit(info, pScreen)) {
+    if (info->cardType==CARD_AGP && !RADEONDRIAgpInit(info, pScreen)) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 		   "[agp] AGP failed to initialize. Disabling the DRI.\n" );
 	xf86DrvMsg(pScreen->myNum, X_INFO,
@@ -1482,7 +1482,7 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     }
 
 				/* Initialize PCI */
-    if (info->IsPCI && !RADEONDRIPciInit(info, pScreen)) {
+    if ((info->cardType!=CARD_AGP) && !RADEONDRIPciInit(info, pScreen)) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 		   "[pci] PCI failed to initialize. Disabling the DRI.\n" );
 	RADEONDRICloseScreen(pScreen);
@@ -1578,7 +1578,7 @@ Bool RADEONDRIFinishScreenInit(ScreenPtr pScreen)
     pRADEONDRI->depth             = pScrn->depth;
     pRADEONDRI->bpp               = pScrn->bitsPerPixel;
 
-    pRADEONDRI->IsPCI             = info->IsPCI;
+    pRADEONDRI->IsPCI             = (info->cardType!=CARD_AGP);
     pRADEONDRI->AGPMode           = info->agpMode;
 
     pRADEONDRI->frontOffset       = info->frontOffset;
@@ -1641,7 +1641,7 @@ void RADEONDRIResume(ScreenPtr pScreen)
 	return;
     }
 
-    if (!info->IsPCI) {
+    if (info->cardType==CARD_AGP) {
 	if (!RADEONSetAgpMode(info, pScreen))
 	    return;
 
@@ -2015,7 +2015,7 @@ void RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen)
     int width_bytes;
     int size_bytes;
 
-    if (!info->IsPCI || info->drmMinor<19)
+    if (info->cardType!=CARD_PCIE || info->drmMinor<19)
       return;
 
     size_bytes = RADEON_PCIGART_TABLE_SIZE;

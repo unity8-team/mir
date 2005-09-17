@@ -299,7 +299,11 @@ typedef enum {
        CHIP_ERRATA_PLL_DELAY           = 0x00000004
 } RADEONErrata;
 
-
+typedef enum {
+	CARD_PCI,
+	CARD_AGP,
+	CARD_PCIE
+} RADEONCardType;
 
 typedef struct {
     CARD32 freq;
@@ -486,7 +490,7 @@ typedef struct {
     drmSize           registerSize;
     drm_handle_t         registerHandle;
 
-    Bool              IsPCI;            /* Current card is a PCI card */
+    RADEONCardType    cardType;            /* Current card is a PCI card */
     drmSize           pciSize;
     drm_handle_t         pciMemHandle;
     unsigned char     *PCI;             /* Map */
