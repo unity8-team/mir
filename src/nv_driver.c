@@ -29,7 +29,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.135 2005/07/09 00:53:00 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.137 2005/09/14 02:28:03 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -86,6 +86,8 @@ _X_EXPORT DriverRec NV = {
         NULL,
         0
 };
+
+/* Known cards as of 2005/08/31  */
 
 static SymTabRec NVKnownChipsets[] =
 {
@@ -205,7 +207,7 @@ static SymTabRec NVKnownChipsets[] =
 #else
   { 0x10DE0329, "0x0329" },
 #endif
-  { 0x10DE032A, "Quadro NVS 280 PCI" },
+  { 0x10DE032A, "Quadro NVS 55/280 PCI" },
   { 0x10DE032B, "Quadro FX 500/600 PCI" },
   { 0x10DE032C, "GeForce FX Go53xx Series" },
   { 0x10DE032D, "GeForce FX Go5100" },
@@ -238,12 +240,14 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0043, "0x0043" },
   { 0x10DE0045, "GeForce 6800 GT" },
   { 0x10DE0046, "GeForce 6800 GT" },
+  { 0x10DE0048, "GeForce 6800 XT" },
   { 0x10DE0049, "0x0049" },
   { 0x10DE004E, "Quadro FX 4000" },
 
   { 0x10DE00C0, "0x00C0" },
   { 0x10DE00C1, "GeForce 6800" },
   { 0x10DE00C2, "GeForce 6800 LE" },
+  { 0x10DE00C3, "GeForce 6800 XT" },
   { 0x10DE00C8, "GeForce Go 6800" },
   { 0x10DE00C9, "GeForce Go 6800 Ultra" },
   { 0x10DE00CC, "Quadro FX Go1400" },
@@ -266,16 +270,16 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE014E, "Quadro FX 540" },
   { 0x10DE014F, "GeForce 6200" },
 
-  { 0x10DE0160, "0x0160" },
+  { 0x10DE0160, "GeForce 6500" },
   { 0x10DE0161, "GeForce 6200 TurboCache(TM)" },
   { 0x10DE0162, "GeForce 6200SE TurboCache(TM)" },
-  { 0x10DE0163, "0x0163" },
+  { 0x10DE0163, "GeForce 6200 LE" },
   { 0x10DE0164, "GeForce Go 6200" },
   { 0x10DE0165, "Quadro NVS 285" },
   { 0x10DE0166, "GeForce Go 6400" },
   { 0x10DE0167, "GeForce Go 6200" },
   { 0x10DE0168, "GeForce Go 6400" },
-  { 0x10DE0169, "0x0169" },
+  { 0x10DE0169, "GeForce 6250" },
   { 0x10DE016B, "0x016B" },
   { 0x10DE016C, "0x016C" },
   { 0x10DE016D, "0x016D" },
@@ -293,7 +297,7 @@ static SymTabRec NVKnownChipsets[] =
 
   { 0x10DE0090, "0x0090" },
   { 0x10DE0091, "GeForce 7800 GTX" },
-  { 0x10DE0092, "0x0092" },
+  { 0x10DE0092, "GeForce 7800 GT" },
   { 0x10DE0093, "0x0093" },
   { 0x10DE0094, "0x0094" },
   { 0x10DE0098, "0x0098" },
@@ -699,6 +703,8 @@ NVProbe(DriverPtr drv, int flags)
                case 0x0210:
                case 0x0220:
                case 0x0230:
+               case 0x0290:
+               case 0x0390:
                    NVChipsets[numUsed].token = pciid;
                    NVChipsets[numUsed].name = "Unknown NVIDIA chip";
                    NVPciChipsets[numUsed].numChipset = pciid;
@@ -1389,6 +1395,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     case 0x0210:
     case 0x0220:
     case 0x0230:
+    case 0x0290:
+    case 0x0390:
          pNv->Architecture =  NV_ARCH_40;
          break;
     default:
@@ -1425,9 +1433,13 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
     }
 
-    pNv->FbUsableSize = pNv->FbMapSize - (128 * 1024);
+    if(pNv->Architecture >= NV_ARCH_40)
+       pNv->FbUsableSize = pNv->FbMapSize - (560 * 1024);
+    else
+       pNv->FbUsableSize = pNv->FbMapSize - (128 * 1024);
     pNv->ScratchBufferSize = (pNv->Architecture < NV_ARCH_10) ? 8192 : 16384;
     pNv->ScratchBufferStart = pNv->FbUsableSize - pNv->ScratchBufferSize;
+    pNv->CursorStart = pNv->FbUsableSize + (32 * 1024);
 
     /*
      * Setup the ClockRanges, which describe what clock ranges are available,

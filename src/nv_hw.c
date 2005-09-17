@@ -36,7 +36,7 @@
 |*     those rights set forth herein.                                        *|
 |*                                                                           *|
  \***************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.15 2005/02/03 23:16:50 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.16 2005/09/14 02:28:03 mvojkovi Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -932,16 +932,28 @@ void NVLoadStateExt (
 
     if(pNv->Architecture == NV_ARCH_04) {
         pNv->PFB[0x0200/4] = state->config;
-    } else if ((pNv->Chipset & 0xfff0) == 0x0090) {
-        for(i = 0; i < 15; i++) {
-           pNv->PFB[(0x0600 + (i * 0x10))/4] = 0;
-           pNv->PFB[(0x0604 + (i * 0x10))/4] = pNv->FbMapSize - 1;
-        }
-    } else {
+    } else 
+    if((pNv->Architecture < NV_ARCH_40) ||
+       ((pNv->Chipset & 0xfff0) == 0x0040))
+    {
         for(i = 0; i < 8; i++) {
            pNv->PFB[(0x0240 + (i * 0x10))/4] = 0;
            pNv->PFB[(0x0244 + (i * 0x10))/4] = pNv->FbMapSize - 1;
         }
+    } else {
+        int regions = 12;
+
+        if(((pNv->Chipset & 0xfff0) == 0x0090) ||
+           ((pNv->Chipset & 0xfff0) == 0x01D0) ||
+           ((pNv->Chipset & 0xfff0) == 0x0290))
+        {
+           regions = 15;
+        }
+ 
+       for(i = 0; i < regions; i++) {
+          pNv->PFB[(0x0600 + (i * 0x10))/4] = 0;
+          pNv->PFB[(0x0604 + (i * 0x10))/4] = pNv->FbMapSize - 1;
+       }
     }
 
     if(pNv->Architecture >= NV_ARCH_40) {
@@ -1176,6 +1188,7 @@ void NVLoadStateExt (
                  pNv->PFB[0x033C/4] &= 0xffff7fff;
                  break;
               case 0x00C0:
+              case 0x0120:
                  pNv->PGRAPH[0x0828/4] = 0x007596ff;
                  pNv->PGRAPH[0x082C/4] = 0x00000108;
                  break;
@@ -1200,6 +1213,7 @@ void NVLoadStateExt (
                  pNv->PRAMDAC[0x0608/4] |= 0x00100000;
                  break;
               case 0x0090:
+              case 0x0290:
                  pNv->PRAMDAC[0x0608/4] |= 0x00100000;
                  pNv->PGRAPH[0x0828/4] = 0x07830610;
                  pNv->PGRAPH[0x082C/4] = 0x0000016A;
@@ -1247,12 +1261,22 @@ void NVLoadStateExt (
               }
            }
 
-           if((pNv->Chipset & 0xfff0) == 0x0090) {
-              for(i = 0; i < 60; i++)
-                pNv->PGRAPH[(0x0D00/4) + i] = pNv->PFB[(0x0600/4) + i];
-           } else {
+           if((pNv->Architecture < NV_ARCH_40) ||
+              ((pNv->Chipset & 0xfff0) == 0x0040)) 
+           {
               for(i = 0; i < 32; i++)
                 pNv->PGRAPH[(0x0900/4) + i] = pNv->PFB[(0x0240/4) + i];
+           } else {
+              if(((pNv->Chipset & 0xfff0) == 0x0090) ||
+                 ((pNv->Chipset & 0xfff0) == 0x01D0) ||
+                 ((pNv->Chipset & 0xfff0) == 0x0290))
+              {
+                 for(i = 0; i < 60; i++)
+                   pNv->PGRAPH[(0x0D00/4) + i] = pNv->PFB[(0x0600/4) + i];
+              } else {
+                 for(i = 0; i < 48; i++)
+                   pNv->PGRAPH[(0x0900/4) + i] = pNv->PFB[(0x0600/4) + i];
+              }
            }
 
            if(pNv->Architecture >= NV_ARCH_40) {
@@ -1267,7 +1291,10 @@ void NVLoadStateExt (
                  pNv->PGRAPH[0x0864/4] = pNv->FbMapSize - 1;
                  pNv->PGRAPH[0x0868/4] = pNv->FbMapSize - 1;
               } else {
-                 if((pNv->Chipset & 0xfff0) == 0x0090) {
+                 if(((pNv->Chipset & 0xfff0) == 0x0090) ||
+                    ((pNv->Chipset & 0xfff0) == 0x01D0) ||
+                    ((pNv->Chipset & 0xfff0) == 0x0290)) 
+                 {
                     pNv->PGRAPH[0x0DF0/4] = pNv->PFB[0x0200/4];
                     pNv->PGRAPH[0x0DF4/4] = pNv->PFB[0x0204/4];
                  } else {
