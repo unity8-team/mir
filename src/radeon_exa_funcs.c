@@ -206,15 +206,14 @@ FUNC_NAME(RADEONDoneCopy)(PixmapPtr pDst)
 }
 
 static Bool
-FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, char *src, int src_pitch)
+FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
+				char *src, int src_pitch)
 {
 #if X_BYTE_ORDER == X_BIG_ENDIAN || defined(ACCEL_CP)
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
 #endif
     CARD8	   *dst	     = pDst->devPrivate.ptr;
     unsigned int   dst_pitch = exaGetPixmapPitch(pDst);
-    unsigned int   w	     = pDst->drawable.width;
-    unsigned int   h	     = pDst->drawable.height;
     unsigned int   bpp	     = pDst->drawable.bitsPerPixel;
 #ifdef ACCEL_CP
     unsigned int   hpass;
@@ -229,12 +228,16 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, char *src, int src_pitch)
 
     TRACE;
 
+    if (bpp < 8)
+	return FALSE;
+
 #ifdef ACCEL_CP
     if (info->directRenderingEnabled) {
 	CARD8 *buf;
 	int cpp = bpp / 8;
 	ACCEL_PREAMBLE();
 
+	dst += (x * cpp) + (y * dst_pitch);
 	RADEON_SWITCH_TO_2D();
 	while ((buf = RADEONHostDataBlit(pScrn,
 					cpp, w, dst_pitch, &buf_pitch,
@@ -268,6 +271,7 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, char *src, int src_pitch)
     OUTREG(RADEON_SURFACE_CNTL, swapper);
 #endif
     w *= bpp / 8;
+    dst += (x * bpp / 8) + (y * dst_pitch);
 
     while (h--) {
 	memcpy(dst, src, w);
