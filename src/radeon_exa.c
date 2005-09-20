@@ -35,11 +35,15 @@
 
 #include "radeon.h"
 #include "radeon_reg.h"
+#ifdef XF86DRI
 #include "radeon_dri.h"
+#endif
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
+#ifdef XF86DRI
 #include "radeon_sarea.h"
+#endif
 
 #include "xf86.h"
 

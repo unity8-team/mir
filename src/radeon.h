@@ -39,6 +39,7 @@
 #define _RADEON_H_
 
 #include "xf86str.h"
+#include "compiler.h"
 
 				/* PCI support */
 #include "xf86Pci.h"
