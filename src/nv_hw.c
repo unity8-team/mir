@@ -36,7 +36,7 @@
 |*     those rights set forth herein.                                        *|
 |*                                                                           *|
  \***************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.16 2005/09/14 02:28:03 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.17 2005/09/22 20:34:42 mvojkovi Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -1264,18 +1264,28 @@ void NVLoadStateExt (
            if((pNv->Architecture < NV_ARCH_40) ||
               ((pNv->Chipset & 0xfff0) == 0x0040)) 
            {
-              for(i = 0; i < 32; i++)
+              for(i = 0; i < 32; i++) {
                 pNv->PGRAPH[(0x0900/4) + i] = pNv->PFB[(0x0240/4) + i];
+                pNv->PGRAPH[(0x6900/4) + i] = pNv->PFB[(0x0240/4) + i];
+              }
            } else {
               if(((pNv->Chipset & 0xfff0) == 0x0090) ||
                  ((pNv->Chipset & 0xfff0) == 0x01D0) ||
                  ((pNv->Chipset & 0xfff0) == 0x0290))
               {
-                 for(i = 0; i < 60; i++)
+                 for(i = 0; i < 60; i++) {
                    pNv->PGRAPH[(0x0D00/4) + i] = pNv->PFB[(0x0600/4) + i];
+                   pNv->PGRAPH[(0x6900/4) + i] = pNv->PFB[(0x0600/4) + i];
+                 }
               } else {
-                 for(i = 0; i < 48; i++)
+                 for(i = 0; i < 48; i++) {
                    pNv->PGRAPH[(0x0900/4) + i] = pNv->PFB[(0x0600/4) + i];
+                   if(((pNv->Chipset & 0xfff0) != 0x0160) &&
+                      ((pNv->Chipset & 0xfff0) != 0x0220))
+                   {
+                      pNv->PGRAPH[(0x6900/4) + i] = pNv->PFB[(0x0600/4) + i];
+                   }
+                 }
               }
            }
 
