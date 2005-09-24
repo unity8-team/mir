@@ -96,8 +96,6 @@ static void I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index);
 static void I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 			       RegionPtr prgnSrc, CARD32 index);
 
-static Bool I830DRICloseFullScreen(ScreenPtr pScreen);
-static Bool I830DRIOpenFullScreen(ScreenPtr pScreen);
 static void I830DRITransitionTo2d(ScreenPtr pScreen);
 static void I830DRITransitionTo3d(ScreenPtr pScreen);
 static void I830DRITransitionMultiToSingle3d(ScreenPtr pScreen);
@@ -516,8 +514,6 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->InitBuffers = I830DRIInitBuffers;
    pDRIInfo->MoveBuffers = I830DRIMoveBuffers;
    pDRIInfo->bufferRequests = DRI_ALL_WINDOWS;
-   pDRIInfo->OpenFullScreen = I830DRIOpenFullScreen;
-   pDRIInfo->CloseFullScreen = I830DRICloseFullScreen;
    pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
    pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
    pDRIInfo->TransitionSingleToMulti3D = I830DRITransitionSingleToMulti3d;
@@ -1133,24 +1129,6 @@ I830EmitInvarientState(ScrnInfoPtr pScrn)
       ADVANCE_LP_RING();
    }
 }
-
-/* Fullscreen hooks.  The DRI fullscreen mode can probably be removed
- * as it adds little or nothing above the mechanism below.  (and isn't
- * widely used)
- */
-static Bool
-I830DRIOpenFullScreen(ScreenPtr pScreen)
-{
-  return TRUE;
-}
-
-static Bool
-I830DRICloseFullScreen(ScreenPtr pScreen)
-{
-  return TRUE;
-}
-
-
 
 /* Use callbacks from dri.c to support pageflipping mode for a single
  * 3d context without need for any specific full-screen extension.

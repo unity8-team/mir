@@ -52,8 +52,6 @@ static void I810DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 			       RegionPtr prgnSrc, CARD32 index);
 
 
-static Bool I810DRIOpenFullScreen(ScreenPtr pScreen);
-static Bool I810DRICloseFullScreen(ScreenPtr pScreen);
 static void I810EnablePageFlip(ScreenPtr pScreen);
 static void I810DisablePageFlip(ScreenPtr pScreen);
 static void I810DRITransitionSingleToMulti3d(ScreenPtr pScreen);
@@ -398,8 +396,6 @@ I810DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->InitBuffers = I810DRIInitBuffers;
    pDRIInfo->MoveBuffers = I810DRIMoveBuffers;
    pDRIInfo->bufferRequests = DRI_ALL_WINDOWS;
-   pDRIInfo->OpenFullScreen = I810DRIOpenFullScreen;
-   pDRIInfo->CloseFullScreen = I810DRICloseFullScreen;
    pDRIInfo->TransitionTo2d = I810DRITransitionTo2d;
    pDRIInfo->TransitionTo3d = I810DRITransitionTo3d;
    pDRIInfo->TransitionSingleToMulti3D = I810DRITransitionSingleToMulti3d;
@@ -1327,19 +1323,6 @@ I810DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 }
 
 
-/* Fullscreen hooks.  The DRI fullscreen mode can probably be removed as
- * it adds little or nothing above the mechanism below (and isn't widely
- * used).
- */
-static Bool I810DRIOpenFullScreen(ScreenPtr pScreen)
-{
-    return TRUE;
-}
-
-static Bool I810DRICloseFullScreen(ScreenPtr pScreen)
-{
-    return TRUE;
-}
 /* Use the miext/shadow module to maintain a list of dirty rectangles.
  * These are blitted to the back buffer to keep both buffers clean
  * during page-flipping when the 3d application isn't fullscreen.
