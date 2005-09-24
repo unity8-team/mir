@@ -64,8 +64,6 @@
 static size_t radeon_drm_page_size;
 
 
-static Bool RADEONDRICloseFullScreen(ScreenPtr pScreen);
-static Bool RADEONDRIOpenFullScreen(ScreenPtr pScreen);
 static void RADEONDRITransitionTo2d(ScreenPtr pScreen);
 static void RADEONDRITransitionTo3d(ScreenPtr pScreen);
 static void RADEONDRITransitionMultiToSingle3d(ScreenPtr pScreen);
@@ -1336,8 +1334,6 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     pDRIInfo->InitBuffers    = RADEONDRIInitBuffers;
     pDRIInfo->MoveBuffers    = RADEONDRIMoveBuffers;
     pDRIInfo->bufferRequests = DRI_ALL_WINDOWS;
-    pDRIInfo->OpenFullScreen = RADEONDRIOpenFullScreen;
-    pDRIInfo->CloseFullScreen = RADEONDRICloseFullScreen;
     pDRIInfo->TransitionTo2d = RADEONDRITransitionTo2d;
     pDRIInfo->TransitionTo3d = RADEONDRITransitionTo3d;
     pDRIInfo->TransitionSingleToMulti3D = RADEONDRITransitionSingleToMulti3d;
@@ -1752,23 +1748,6 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
 	info->pVisualConfigsPriv = NULL;
     }
 }
-
-
-
-/* Fullscreen hooks.  The DRI fullscreen mode can probably be removed as
- * it adds little or nothing above the mechanism below (and isn't widely
- * used).
- */
-static Bool RADEONDRIOpenFullScreen(ScreenPtr pScreen)
-{
-    return TRUE;
-}
-
-static Bool RADEONDRICloseFullScreen(ScreenPtr pScreen)
-{
-    return TRUE;
-}
-
 
 
 /* Use callbacks from dri.c to support pageflipping mode for a single
