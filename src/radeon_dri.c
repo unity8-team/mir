@@ -1867,6 +1867,75 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen)
     FBAreaPtr      fbarea;
     int            width, height;
 
+#ifdef USE_XAA
+    /* EXA allocates these areas up front, so it doesn't do the following
+     * stuff.
+     */
+    if (!info->useEXA) {
+	/* reserve offscreen area for back and depth buffers and textures */
+
+	/* If we still have an area for the back buffer reserved, free it
+	 * first so we always start with all free offscreen memory, except
+	 * maybe for Xv
+	 */
+	if (info->backArea) {
+	    xf86FreeOffscreenArea(info->backArea);
+	    info->backArea = NULL;
+        }
+
+	xf86PurgeUnlockedOffscreenAreas(pScreen);
+
+	xf86QueryLargestOffscreenArea(pScreen, &width, &height, 0, 0, 0);
+
+	/* Free Xv linear offscreen memory if necessary
+	 * FIXME: This is hideous.  What about telling xv "oh btw you have no memory
+	 * any more?" -- anholt
+	 */
+	if (height < (info->depthTexLines + info->backLines)) {
+	    RADEONPortPrivPtr portPriv = info->adaptor->pPortPrivates[0].ptr;
+	    xf86FreeOffscreenLinear((FBLinearPtr)portPriv->video_memory);
+	    portPriv->video_memory = NULL;
+	    xf86QueryLargestOffscreenArea(pScreen, &width, &height, 0, 0, 0);
+	}
+
+	/* Reserve placeholder area so the other areas will match the
+	 * pre-calculated offsets
+	 * FIXME: We may have other locked allocations and thus this would allocate
+	 * in the wrong place.  The XV surface allocations seem likely. -- anholt
+	 */
+	fbarea = xf86AllocateOffscreenArea(pScreen, pScrn->displayWidth,
+					   height
+					   - info->depthTexLines
+					   - info->backLines,
+					   pScrn->displayWidth,
+					   NULL, NULL, NULL);
+	if (!fbarea)
+	    xf86DrvMsg(pScreen->myNum, X_ERROR, "Unable to reserve placeholder "
+		       "offscreen area, you might experience screen corruption\n");
+
+	info->backArea = xf86AllocateOffscreenArea(pScreen, pScrn->displayWidth,
+						   info->backLines,
+						   pScrn->displayWidth,
+						   NULL, NULL, NULL);
+	if (!info->backArea)
+	    xf86DrvMsg(pScreen->myNum, X_ERROR, "Unable to reserve offscreen "
+		       "area for back buffer, you might experience screen "
+		       "corruption\n");
+
+	info->depthTexArea = xf86AllocateOffscreenArea(pScreen,
+						       pScrn->displayWidth,
+						       info->depthTexLines,
+						       pScrn->displayWidth,
+						       NULL, NULL, NULL);
+	if (!info->depthTexArea)
+	    xf86DrvMsg(pScreen->myNum, X_ERROR, "Unable to reserve offscreen "
+		       "area for depth buffer and textures, you might "
+		       "experience screen corruption\n");
+
+	xf86FreeOffscreenArea(fbarea);
+    }
+#endif /* USE_XAA */
+
     info->have3DWindows = 1;
 
     RADEONChangeSurfaces(pScrn);
@@ -1874,76 +1943,6 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen)
 
     if (info->cursor_offset != 0)
 	xf86ForceHWCursor (pScreen, TRUE);
-
-#ifdef USE_XAA
-    /* EXA allocates these areas up front, so it doesn't do the following
-     * stuff.
-     */
-    if (info->useEXA)
-	return;
-
-    /* reserve offscreen area for back and depth buffers and textures */
-
-    /* If we still have an area for the back buffer reserved, free it
-     * first so we always start with all free offscreen memory, except
-     * maybe for Xv
-     */
-    if (info->backArea) {
-	xf86FreeOffscreenArea(info->backArea);
-	info->backArea = NULL;
-    }
-
-    xf86PurgeUnlockedOffscreenAreas(pScreen);
-
-    xf86QueryLargestOffscreenArea(pScreen, &width, &height, 0, 0, 0);
-
-    /* Free Xv linear offscreen memory if necessary
-     * FIXME: This is hideous.  What about telling xv "oh btw you have no memory
-     * any more?" -- anholt
-     */
-    if (height < (info->depthTexLines + info->backLines)) {
-	RADEONPortPrivPtr portPriv = info->adaptor->pPortPrivates[0].ptr;
-	xf86FreeOffscreenLinear((FBLinearPtr)portPriv->video_memory);
-	portPriv->video_memory = NULL;
-	xf86QueryLargestOffscreenArea(pScreen, &width, &height, 0, 0, 0);
-    }
-
-    /* Reserve placeholder area so the other areas will match the
-     * pre-calculated offsets
-     * FIXME: We may have other locked allocations and thus this would allocate
-     * in the wrong place.  The XV surface allocations seem likely. -- anholt
-     */
-    fbarea = xf86AllocateOffscreenArea(pScreen, pScrn->displayWidth,
-				       height
-				       - info->depthTexLines
-				       - info->backLines,
-				       pScrn->displayWidth,
-				       NULL, NULL, NULL);
-    if (!fbarea)
-	xf86DrvMsg(pScreen->myNum, X_ERROR, "Unable to reserve placeholder "
-		   "offscreen area, you might experience screen corruption\n");
-
-    info->backArea = xf86AllocateOffscreenArea(pScreen, pScrn->displayWidth,
-					       info->backLines,
-					       pScrn->displayWidth,
-					       NULL, NULL, NULL);
-    if (!info->backArea)
-	xf86DrvMsg(pScreen->myNum, X_ERROR, "Unable to reserve offscreen "
-		   "area for back buffer, you might experience screen "
-		   "corruption\n");
-
-    info->depthTexArea = xf86AllocateOffscreenArea(pScreen,
-						   pScrn->displayWidth,
-						   info->depthTexLines,
-						   pScrn->displayWidth,
-						   NULL, NULL, NULL);
-    if (!info->depthTexArea)
-	xf86DrvMsg(pScreen->myNum, X_ERROR, "Unable to reserve offscreen "
-		   "area for depth buffer and textures, you might "
-		   "experience screen corruption\n");
-
-    xf86FreeOffscreenArea(fbarea);
-#endif /* USE_XAA */
 }
 
 static void RADEONDRITransitionTo2d(ScreenPtr pScreen)
