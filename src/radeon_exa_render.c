@@ -150,6 +150,7 @@ static Bool RADEONGetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
 
     return TRUE;
 }
+
 static CARD32 RADEONGetBlendCntl(int op, CARD32 dst_format)
 {
     CARD32 blendcntl = RadeonBlendOp[op].blend_cntl;
@@ -678,12 +679,12 @@ do {								\
 
 #define VTX_OUT(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
 do {								\
-    OUT_ACCEL_REG(RADEON_SE_PORT_DATA0, _dstX);			\
-    OUT_ACCEL_REG(RADEON_SE_PORT_DATA0, _dstY);			\
-    OUT_ACCEL_REG(RADEON_SE_PORT_DATA0, _srcX);			\
-    OUT_ACCEL_REG(RADEON_SE_PORT_DATA0, _srcY);			\
-    OUT_ACCEL_REG(RADEON_SE_PORT_DATA0, _maskX);		\
-    OUT_ACCEL_REG(RADEON_SE_PORT_DATA0, _maskY);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstX);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstY);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcX);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcY);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskX);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskY);		\
 } while (0)
 
 #endif /* !ACCEL_CP */

@@ -325,6 +325,7 @@ do {									\
 #define ACCEL_PREAMBLE()	unsigned char *RADEONMMIO = info->MMIO
 #define BEGIN_ACCEL(n)		RADEONWaitForFifo(pScrn, (n))
 #define OUT_ACCEL_REG(reg, val)	OUTREG(reg, val)
+#define OUT_ACCEL_REG_F(reg, val) OUTREG(reg, F_TO_DW(val))
 #define FINISH_ACCEL()
 
 #ifdef RENDER
