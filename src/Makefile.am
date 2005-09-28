@@ -169,8 +169,11 @@ EXTRA_DIST = \
 	r128_version.h \
 	radeon_chipset.h \
 	radeon_common.h \
+	radeon_commonfuncs.c \
 	radeon_dri.h \
 	radeon_dripriv.h \
+	radeon_exa_render.c \
+	radeon_exa_funcs.c \
 	radeon.h \
 	radeon_macros.h \
 	radeon_mergedfb.h \
