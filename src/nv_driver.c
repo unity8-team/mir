@@ -87,7 +87,7 @@ _X_EXPORT DriverRec NV = {
         0
 };
 
-/* Known cards as of 2005/08/31  */
+/* Known cards as of 2005/09/21  */
 
 static SymTabRec NVKnownChipsets[] =
 {
@@ -300,7 +300,7 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0092, "GeForce 7800 GT" },
   { 0x10DE0093, "0x0093" },
   { 0x10DE0094, "0x0094" },
-  { 0x10DE0098, "0x0098" },
+  { 0x10DE0098, "GeForce Go 7800" },
   { 0x10DE0099, "GeForce Go 7800 GTX" },
   { 0x10DE009C, "0x009C" },
   { 0x10DE009D, "Quadro FX 4500" },

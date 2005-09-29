@@ -447,6 +447,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     case 0x0144:
     case 0x0146:
     case 0x0148:
+    case 0x0098:
     case 0x0099:
         mobile = TRUE;
         break;
