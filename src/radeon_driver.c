@@ -5346,6 +5346,7 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
 
     info->depthPitchOffset = (((info->depthPitch * cpp / 64) << 22) |
 			      ((info->depthOffset + info->fbLocation) >> 10));
+    return TRUE;
 }
 #endif /* XF86DRI */
 
