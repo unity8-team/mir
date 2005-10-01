@@ -5406,6 +5406,7 @@ Bool RADEONSetupMemXAA(int scrnIndex, ScreenPtr pScreen)
 		       "Largest offscreen area available: %d x %d\n",
 		       width, height);
 	}
+	return TRUE;
     }    
 }
 #endif /* USE_XAA */
