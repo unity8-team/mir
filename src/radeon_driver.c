@@ -2941,7 +2941,7 @@ static void RADEONUpdatePanelSize(ScrnInfoPtr pScrn)
     xf86MonPtr      ddc  = pScrn->monitor->DDC;
     DisplayModePtr  p;
 
-    if (info->UseBiosDividers && info->DotClock != 0)
+    if ((info->UseBiosDividers && info->DotClock != 0) || (ddc == NULL))
        return;
 
     /* Go thru detailed timing table first */
