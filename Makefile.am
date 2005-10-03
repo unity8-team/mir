@@ -20,3 +20,14 @@
 
 AUTOMAKE_OPTIONS = foreign
 SUBDIRS = src man
+
+if BUILD_LINUXDOC
+README.ati: README.ati.sgml
+	$(MAKE_TEXT) README.ati.sgml && mv README.ati.txt README.ati
+
+README.r128: README.r128.sgml
+	$(MAKE_TEXT) README.r128.sgml && mv README.r128.txt README.r128
+
+endif
+
+EXTRA_DIST = README.ati README.r128 README.ati.sgml README.r128.sgml
