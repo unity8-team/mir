@@ -94,6 +94,8 @@ AC_SUBST([moduledir])
 
 XORG_RELEASE_VERSION
 
+XORG_CHECK_LINUXDOC
+
 AC_OUTPUT([
 	Makefile
 	src/Makefile

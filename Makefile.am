@@ -20,3 +20,10 @@
 
 AUTOMAKE_OPTIONS = foreign
 SUBDIRS = src man
+
+if BUILD_LINUXDOC
+README: README.sgml
+	$(MAKE_TEXT) README.sgml && mv README.txt README
+endif
+
+EXTRA_DIST = README.sgml
