@@ -4967,6 +4967,11 @@ I830BIOSLeaveVT(int scrnIndex, int flags)
       TimerCancel(pI830->devicesTimer);
    pI830->devicesTimer = NULL;
 
+#ifdef I830_XV
+   /* Give the video overlay code a chance to shutdown. */
+   I830VideoSwitchModeBefore(pScrn, NULL);
+#endif
+
    if (pI830->Clone) {
       /* Ensure we don't try and setup modes on a clone head */
       pI830->CloneHDisplay = 0;
