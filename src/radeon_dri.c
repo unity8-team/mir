@@ -1283,7 +1283,7 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     pDRIInfo->ddxDriverMinorVersion      = RADEON_VERSION_MINOR;
     pDRIInfo->ddxDriverPatchVersion      = RADEON_VERSION_PATCH;
     pDRIInfo->frameBufferPhysicalAddress = (void *)info->LinearAddr;
-    pDRIInfo->frameBufferSize            = info->FbMapSize;
+    pDRIInfo->frameBufferSize            = info->FbMapSize - info->FbSecureSize;
     pDRIInfo->frameBufferStride          = (pScrn->displayWidth *
 					    info->CurrentLayout.pixel_bytes);
     pDRIInfo->ddxDrawableTableEntry      = RADEON_MAX_DRAWABLES;
@@ -1987,28 +1987,13 @@ void RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen)
 {
     ScrnInfoPtr        pScrn   = xf86Screens[pScreen->myNum];
     RADEONInfoPtr      info    = RADEONPTR(pScrn);
-    FBAreaPtr fbarea;
-    int width;
-    int height;
-    int width_bytes;
-    int size_bytes;
 
     if (info->cardType!=CARD_PCIE || info->drmMinor<19)
       return;
 
-    size_bytes = RADEON_PCIGART_TABLE_SIZE;
-    width = pScrn->displayWidth;
-    width_bytes = width * (pScrn->bitsPerPixel / 8);
-    height = (size_bytes + width_bytes - 1)/width_bytes;
-    
-    fbarea = xf86AllocateOffscreenArea(pScreen, width, height, 256, NULL, NULL, NULL);
+    if (info->FbSecureSize==0)
+      return;
 
-    if (!fbarea) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "PCI GART Table allocation failed due to stupid memory manager\n");
-    } else {
-      info->pciGartSize = size_bytes;
-      info->pciGartOffset = RADEON_ALIGN((fbarea->box.x1 + fbarea->box.y1 * width) *
-					 info->CurrentLayout.pixel_bytes, 256);
-      
-    }
+    info->pciGartSize = RADEON_PCIGART_TABLE_SIZE;
+    info->pciGartOffset = (info->FbMapSize - info->FbSecureSize);
 }

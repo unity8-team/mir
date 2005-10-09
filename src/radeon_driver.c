@@ -2761,6 +2761,8 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     pScrn->videoRam  &= ~1023;
     info->FbMapSize  = pScrn->videoRam * 1024;
 
+    info->FbSecureSize = 0;
+
 #ifdef XF86DRI
 				/* AGP/PCI */
     /* Proper autodetection of an AGP capable device requires examining
@@ -2844,6 +2846,10 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 		       "Invalid BusType option, using detected type\n");
 	}
     }
+
+    /* if the card is PCI Express reserve the last 32k for the gart table */
+    if (info->cardType == CARD_PCIE)
+        info->FbSecureSize = RADEON_PCIGART_TABLE_SIZE;
 #endif
     xf86GetOptValBool(info->Options, OPTION_SHOWCACHE, &info->showCache);
     if (info->showCache)
@@ -5158,7 +5164,7 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
      * pixmap cache.  Should be enough for a fullscreen background
      * image plus some leftovers.
      */
-    info->textureSize = info->FbMapSize - 5 * bufferSize - depthSize;
+    info->textureSize = info->FbMapSize - info->FbSecureSize - 5 * bufferSize - depthSize;
 
     /* If that gives us less than half the available memory, let's
      * be greedy and grab some more.  Sorry, I care more about 3D
@@ -5178,7 +5184,7 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
      */
     if (info->textureSize < 0) {
 	info->textureSize = info->FbMapSize - 2 * bufferSize - depthSize
-		- 2 * width_bytes - 16384 - RADEON_PCIGART_TABLE_SIZE;
+ 	                    - 2 * width_bytes - 16384 - info->FbSecureSize;
     }
 
     /* Check to see if there is more room available after the 8192nd
@@ -5261,7 +5267,7 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
     info->backY = info->backOffset / width_bytes;
     info->backX = (info->backOffset - (info->backY * width_bytes)) / cpp;
 
-    scanlines = info->FbMapSize / width_bytes;
+    scanlines = (info->FbMapSize-info->FbSecureSize) / width_bytes;
     if (scanlines > 8191)
 	scanlines = 8191;
 

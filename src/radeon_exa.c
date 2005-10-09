@@ -380,7 +380,7 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 	screen_size = pScrn->virtualY * byteStride;
 
     info->exa.card.memoryBase = info->FB + pScrn->fbOffset;
-    info->exa.card.memorySize = info->FbMapSize;
+    info->exa.card.memorySize = info->FbMapSize - info->FbSecureSize;
     info->exa.card.offScreenBase = screen_size;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Allocating from a screen of %ld kb\n",
@@ -397,17 +397,14 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 	info->frontOffset = 0;
 	info->frontPitch = pScrn->displayWidth;
 
-	if ((info->cardType==CARD_PCIE) && info->drmMinor >= 19) {
-	    info->pciGartSize = RADEON_PCIGART_TABLE_SIZE;
-	    info->pciGartOffset = RADEON_ALIGN(info->exa.card.offScreenBase,
-					       256);
-	    info->exa.card.offScreenBase = info->pciGartOffset +
-					   info->pciGartSize;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Will use %d kb for PCI GART at offset 0x%08x\n",
-		       RADEON_PCIGART_TABLE_SIZE / 1024,
-		       (int)info->pciGartOffset);
-	}
+	RADEONDRIAllocatePCIGARTTable(pScreen);
+	
+	if (info->cardType==CARD_PCIE)
+	  xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		     "Will use %d kb for PCI GART at offset 0x%08x\n",
+		     RADEON_PCIGART_TABLE_SIZE / 1024,
+		     (int)info->pciGartOffset);
+
 	/* Reserve a static area for the back buffer the same size as the
 	 * visible screen.  XXX: This would be better initialized in ati_dri.c
 	 * when GLX is set up, but the offscreen memory manager's allocations

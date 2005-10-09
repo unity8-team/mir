@@ -337,6 +337,7 @@ typedef struct {
     CARD32            MemCntl;
     CARD32            BusCntl;
     unsigned long     FbMapSize;        /* Size of frame buffer, in bytes    */
+    unsigned long     FbSecureSize;     /* Size of secured fb area at end of framebuffer */
     int               Flags;            /* Saved copy of mode flags          */
 
 				/* VE/M6 support */
