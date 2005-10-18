@@ -29,7 +29,7 @@ drivermandir = $(mandir)/man$(DRIVER_MAN_SUFFIX)
 
 driverman_SOURCES = @DRIVER_NAME@.man r128.man radeon.man
 
-driverman_DATA = $(driverman_SOURCES:man=$(DRIVER_MAN_SUFFIX))
+driverman_DATA = $(driverman_SOURCES:man=@DRIVER_MAN_SUFFIX@)
 
 EXTRA_DIST = @DRIVER_NAME@.man
 
