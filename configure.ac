@@ -111,7 +111,7 @@ case $host_cpu in
     ATIMISC_TV_OUT=yes
     ATIMISC_CPIO=yes
     ;;
-  amd64|alpha)
+  x86_64|amd64|alpha)
     ATIMISC_CPIO=yes
     ;;
   sparc)

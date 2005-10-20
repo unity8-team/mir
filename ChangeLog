@@ -1,0 +1,5 @@
+2005-10-20  Donnie Berkholz  <spyderous@gentoo.org>
+
+	* configure.ac: Bug #4831
+	<https://bugs.freedesktop.org/show_bug.cgi?id=4831>. Check for x86_64 in
+	addition to amd64 in host_cpu.
