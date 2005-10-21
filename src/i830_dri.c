@@ -425,8 +425,6 @@ I830DRIScreenInit(ScreenPtr pScreen)
     * for known symbols in each module. */
    if (!xf86LoaderCheckSymbol("GlxSetVisualConfigs"))
       return FALSE;
-   if (!xf86LoaderCheckSymbol("DRIScreenInit"))
-      return FALSE;
    if (!xf86LoaderCheckSymbol("drmAvailable"))
       return FALSE;
    if (!xf86LoaderCheckSymbol("DRIQueryVersion")) {
