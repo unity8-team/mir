@@ -1,3 +1,8 @@
+2005-11-01  Kevin E. Martin  <kem-at-freedesktop-dot-org>
+
+	* configure.ac:
+	Update pkgcheck depedencies to work with separate build roots.
+
 2005-10-20  Donnie Berkholz  <spyderous@gentoo.org>
 
 	* configure.ac: Bug #4831
