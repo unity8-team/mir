@@ -8880,8 +8880,15 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 	  Bool valid = FALSE;
 	  char *tempstr;
 	  strptr = (char *)xf86GetOptValString(info->Options, OPTION_CRT2POS);
-	  tempstr = xalloc(strlen(strptr) + 1);
-	  result = sscanf(strptr, "%s %d", tempstr, &ival);
+	  if (strptr) {
+	      tempstr = xalloc(strlen(strptr) + 1);
+	      result = sscanf(strptr, "%s %d", tempstr, &ival);
+	  } else { 	      /* Not specified - default is "Clone" */
+	      tempstr = NULL;
+	      result = 0;
+	      info->CRT2Position = radeonClone;
+	      valid = TRUE;
+	  }
 	  if(result >= 1) {
        	        if(!xf86NameCmp(tempstr,"LeftOf")) {
                    info->CRT2Position = radeonLeftOf;
