@@ -23,6 +23,9 @@
  * authorization from the author.
  *
  * $Log$
+ * Revision 1.4  2005/11/07 19:28:40  bogdand
+ * Replaced the variadic macros(gcc) by macros according to C99 standard
+ *
  * Revision 1.3  2005/08/28 18:00:23  bogdand
  * Modified the licens type from GPL to a X/MIT one
  *
@@ -43,11 +46,23 @@
 /* #define ENABLE_DEBUG 1 */
 
 #ifdef ENABLE_DEBUG
-#define ERROR(str...) xf86DrvMsg(screen, X_ERROR, ##str)
-#define DEBUG(str...) xf86DrvMsg(screen, X_INFO, ##str) 
+#define ERROR_0(str) xf86DrvMsg(screen, X_ERROR, str)
+#define DEBUG_0(str) xf86DrvMsg(screen, X_INFO, str) 
+#define ERROR(str,param1) xf86DrvMsg(screen, X_ERROR, str, param1)
+#define DEBUG(str,param1) xf86DrvMsg(screen, X_INFO, str, param1) 
+#define ERROR_2(str,param1,param2) xf86DrvMsg(screen, X_ERROR, str, param1, param2)
+#define DEBUG_2(str,param1,param2) xf86DrvMsg(screen, X_INFO, str, param1, param2) 
+#define ERROR_3(str,param1,param2,param3) xf86DrvMsg(screen, X_ERROR, str, param1, param2, param3)
+#define DEBUG_3(str,param1,param2,param3) xf86DrvMsg(screen, X_INFO, str, param1, param2, param3) 
 #else
-#define ERROR(fmt,str...)
-#define DEBUG(fmt,str...)
+#define ERROR_0(str)
+#define DEBUG_0(str)
+#define ERROR(str,param1)
+#define DEBUG(str,param1)
+#define ERROR_2(str,param1,param2)
+#define DEBUG_2(str,param1,param2)
+#define ERROR_3(str,param1,param2,param3)
+#define DEBUG_3(str,param1,param2,param3)
 #endif
 
 

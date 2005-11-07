@@ -23,6 +23,9 @@
  * authorization from the author.
  *
  * $Log$
+ * Revision 1.5  2005/11/07 19:28:40  bogdand
+ * Replaced the variadic macros(gcc) by macros according to C99 standard
+ *
  * Revision 1.4  2005/08/28 18:00:23  bogdand
  * Modified the licens type from GPL to a X/MIT one
  *
@@ -130,7 +133,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 
 	file = xf86fopen(micro_path, "r");
 	if (file == NULL) {
-		ERROR("Cannot open microcode file\n");
+		ERROR_0("Cannot open microcode file\n");
 					 return -1;
 	}
 
@@ -154,7 +157,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 			curr_seg = (struct rt200_microc_seg*)xf86malloc(sizeof(struct rt200_microc_seg));
 			if (curr_seg == NULL)
 			{
-				ERROR("Cannot allocate memory\n");
+				ERROR_0("Cannot allocate memory\n");
 				goto fail_exit;
 			}
 
@@ -170,7 +173,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 			curr_seg->data = (unsigned char*)xf86malloc(curr_seg->num_bytes);
 			if (curr_seg->data == NULL)
 			{
-				ERROR("cannot allocate memory\n");
+				ERROR_0("cannot allocate memory\n");
 				goto fail_exit;
 			}
 
@@ -195,7 +198,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 		{
 			if (xf86fread(curr_seg->data, curr_seg->num_bytes, 1, file) != 1)
 			{
-				ERROR("Cannot read segment data\n");
+				ERROR_0("Cannot read segment data\n");
 				goto fail_exit;
 			}
 
@@ -233,7 +236,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 			curr_seg = (struct rt200_microc_seg*)xf86malloc(sizeof(struct rt200_microc_seg));
 			if (curr_seg == NULL)
 			{
-				ERROR("Cannot allocate memory\n");
+				ERROR_0("Cannot allocate memory\n");
 				goto fail_exit;
 			}
 
@@ -254,7 +257,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 			curr_seg->data = (unsigned char*)xf86malloc(curr_seg->num_bytes);
 			if (curr_seg->data == NULL)
 			{
-				ERROR("cannot allocate memory\n");
+				ERROR_0("cannot allocate memory\n");
 				goto fail_exit;
 			}
 
@@ -281,7 +284,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 
 				if (xf86fgets(tmp1, 12, file) == NULL)
 				{
-					ERROR("Cannot read from file\n");
+					ERROR_0("Cannot read from file\n");
 					goto fail_exit;
 				}
 				ltmp = xf86strtoul(tmp1, NULL, 16);
@@ -350,7 +353,7 @@ static int dsp_init(TheatrePtr t, struct rt200_microc_data* microc_datap)
 	while(((data & VIP_TC_STATUS__TC_CHAN_BUSY) & 0x00004000) && (i++ < 10000))
 		RT_regr(VIP_TC_STATUS, &data);
 		  
-	DEBUG("Microcode: dsp_init: channel 14 available\n");
+	DEBUG_0("Microcode: dsp_init: channel 14 available\n");
 		  
 	return 0;
 }
@@ -376,7 +379,7 @@ static int dsp_load(TheatrePtr t, struct rt200_microc_data* microc_datap)
 		DEBUG("Microcode: FIFO status0: %x\n", data8);
 	else
 	{
-		ERROR("Microcode: error reading FIFO status0\n");
+		ERROR_0("Microcode: error reading FIFO status0\n");
 		return -1;
 	}
 
@@ -385,7 +388,7 @@ static int dsp_load(TheatrePtr t, struct rt200_microc_data* microc_datap)
 		DEBUG("Microcode: FIFO status1: %x\n", data8);
 	else
 	{
-		ERROR("Microcode: error reading FIFO status1\n");
+		ERROR_0("Microcode: error reading FIFO status1\n");
 		return -1;
 	}
 
@@ -409,11 +412,11 @@ static int dsp_load(TheatrePtr t, struct rt200_microc_data* microc_datap)
 		RT_regw(VIP_TC_COMMAND, 0xe0000044 | ((seg_list->num_bytes - 1) << 7));
 
 		/* Load first segment */
-		DEBUG("Microcode: Loading first segment\n");
+		DEBUG_0("Microcode: Loading first segment\n");
 
 		if (!RT_fifow(0x700, seg_list->num_bytes, seg_list->data))
 		{
-			ERROR("Microcode: write to FIFOD failed\n");
+			ERROR_0("Microcode: write to FIFOD failed\n");
 			return -1;
 		}
 
@@ -425,11 +428,11 @@ static int dsp_load(TheatrePtr t, struct rt200_microc_data* microc_datap)
 
 		if (i >= 10000)
 		{
-			ERROR("Microcode: channel 14 timeout\n");
+			ERROR_0("Microcode: channel 14 timeout\n");
 			return -1;
 		}
 
-		DEBUG("Microcode: dsp_load: checkpoint 1\n");
+		DEBUG_0("Microcode: dsp_load: checkpoint 1\n");
 		DEBUG("Microcode: TC_STATUS: %x\n", data);
 
 		/* transfer the code from program memory to data memory */
@@ -445,10 +448,10 @@ static int dsp_load(TheatrePtr t, struct rt200_microc_data* microc_datap)
 					 
 		if (i >= 10000)
 		{
-			ERROR("Microcode: channel 14 timeout\n");
+			ERROR_0("Microcode: channel 14 timeout\n");
 			return -1;
 		}
-		DEBUG("Microcode: dsp_load: checkpoint 2\n");
+		DEBUG_0("Microcode: dsp_load: checkpoint 2\n");
 		DEBUG("Microcode: TC_STATUS: %x\n", data);
 
 		/* Take DSP out from reset (0x0) */
@@ -457,7 +460,7 @@ static int dsp_load(TheatrePtr t, struct rt200_microc_data* microc_datap)
 		RT_regw(VIP_TC_DOWNLOAD, data & ~VIP_TC_DOWNLOAD__TC_RESET_MODE);
 
 		RT_regr(VIP_TC_STATUS, &data);
-		DEBUG("Microcode: dsp_load: checkpoint 3\n");
+		DEBUG_0("Microcode: dsp_load: checkpoint 3\n");
 		DEBUG("Microcode: TC_STATUS: %x\n", data);
 
 		/* send dsp_download_check_CRC */
@@ -466,16 +469,16 @@ static int dsp_load(TheatrePtr t, struct rt200_microc_data* microc_datap)
 					 
 		result = dsp_send_command(t, fb_scratch1, fb_scratch0);
 
-		DEBUG("Microcode: dsp_load: checkpoint 4\n");
+		DEBUG_0("Microcode: dsp_load: checkpoint 4\n");
 	}
 
 	if (tries >= 10)
 	{
-		ERROR("Microcode: Download of boot degment failed\n");
+		ERROR_0("Microcode: Download of boot degment failed\n");
 		return -1;
 	}
 
-	DEBUG("Microcode: Download of boot code succeeded\n");
+	DEBUG_0("Microcode: Download of boot code succeeded\n");
 
 	while((seg_list = seg_list->next) != NULL)
 	{
@@ -494,7 +497,7 @@ static int dsp_load(TheatrePtr t, struct rt200_microc_data* microc_datap)
 
 			if (!RT_fifow(0x700, seg_list->num_bytes, seg_list->data))
 			{
-				ERROR("Microcode: write to FIFOD failed\n");
+				ERROR_0("Microcode: write to FIFOD failed\n");
 				return -1;
 			}
 										
@@ -535,7 +538,7 @@ static int dsp_load(TheatrePtr t, struct rt200_microc_data* microc_datap)
 		}
 	}
 
-	DEBUG("Microcode: download complete\n");
+	DEBUG_0("Microcode: download complete\n");
 
 	/*
 	 * The last step is sending dsp_download_check_CRC with "download complete"
@@ -547,10 +550,10 @@ static int dsp_load(TheatrePtr t, struct rt200_microc_data* microc_datap)
 	result = dsp_send_command(t, fb_scratch1, fb_scratch0);
 
 	if (result == DSP_OK)
-		DEBUG("Microcode: DSP microcode successfully loaded\n");
+		DEBUG_0("Microcode: DSP microcode successfully loaded\n");
 	else
 	{
-		ERROR("Microcode: DSP microcode UNsuccessfully loaded\n");
+		ERROR_0("Microcode: DSP microcode UNsuccessfully loaded\n");
 		return -1;
 	}
 
@@ -614,7 +617,7 @@ static CARD32 dsp_set_video_input_connector(TheatrePtr t, CARD32 connector)
 
 	result = dsp_send_command(t, 0, fb_scratch0);
 
-	DEBUG("dsp_set_video_input_connector: %x, result: %x\n", connector, result);
+	DEBUG_2("dsp_set_video_input_connector: %x, result: %x\n", connector, result);
 		  
 	 return result;
 }
@@ -704,7 +707,7 @@ static CARD32 dsp_get_signallockstatus(TheatrePtr t)
 
 	result = dsp_send_command(t, fb_scratch1, fb_scratch0);
 
-	DEBUG("dsp_get_signallockstatus: %x, h_pll: %x, v_pll: %x\n", \
+	DEBUG_3("dsp_get_signallockstatus: %x, h_pll: %x, v_pll: %x\n", \
 		result, (result >> 8) & 0xff, (result >> 16) & 0xff);
 		  
 	return result;
@@ -721,7 +724,7 @@ static CARD32 dsp_get_signallinenumber(TheatrePtr t)
 
 	result = dsp_send_command(t, fb_scratch1, fb_scratch0);
 
-	DEBUG("dsp_get_signallinenumber: %x, linenum: %x\n", \
+	DEBUG_2("dsp_get_signallinenumber: %x, linenum: %x\n", \
 		result, (result >> 8) & 0xffff);
 		  
 	return result;
