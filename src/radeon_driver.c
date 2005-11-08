@@ -5672,9 +5672,8 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	info->accelOn = FALSE;
     }
 
-    /* DGA setup XXX FIXME EXA */
-    if (!info->useEXA)
-	RADEONDGAInit(pScreen);
+    /* DGA setup */
+    RADEONDGAInit(pScreen);
 
     /* Backing store setup */
     miInitializeBackingStore(pScreen);
