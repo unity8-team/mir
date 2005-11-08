@@ -1963,7 +1963,7 @@ RADEONSetCursorPositionMerged(ScrnInfoPtr pScrn, int x, int y)
 				   | (yorigin ? 0 : y1)));
 #ifdef USE_EXA
     if (info->useEXA)
-	OUTREG(RADEON_CUR_OFFSET, info->cursorArea->offset + yorigin * stride);
+	OUTREG(RADEON_CUR_OFFSET, info->cursor_offset + yorigin * stride);
 #endif /* USE_EXA */
 #ifdef USE_XAA
     if (!info->useEXA)
@@ -1978,7 +1978,7 @@ RADEONSetCursorPositionMerged(ScrnInfoPtr pScrn, int x, int y)
 				    | (yorigin ? 0 : y2)));
 #ifdef USE_EXA
     if (info->useEXA)
-	OUTREG(RADEON_CUR2_OFFSET, info->cursorArea->offset + yorigin * stride);
+	OUTREG(RADEON_CUR2_OFFSET, info->cursor_offset + yorigin * stride);
 #endif /* USE_EXA */
 #ifdef USE_XAA
     if (!info->useEXA)
