@@ -102,6 +102,45 @@ static CARD32 mono_cursor_color[] = {
 #endif
 
 
+#ifdef USE_EXA
+static void
+RADEONCursorSave(ScreenPtr pScreen, ExaOffscreenArea *area)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    info->cursorArea = NULL;
+    info->cursor_offset = 0;
+}
+
+static void
+RADEONCursorAllocEXA(ScreenPtr pScreen)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    info->cursorArea = exaOffscreenAlloc(pScreen,
+					 CURSOR_WIDTH * 4 * CURSOR_HEIGHT,
+					 128, TRUE, RADEONCursorSave, info);
+
+    if (!info->cursorArea) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Hardware cursor temporarily disabled"
+		   " due to insufficient offscreen memory\n");
+	info->cursor_offset = 0;
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Using hardware cursor\n",
+		   info->cursor_offset = info->cursorArea->offset);
+
+	RADEONTRACE(("%s (0x%08x-0x%08x)\n", __func__,
+		     info->cursor_offset,
+		     info->cursor_offset + info->cursorArea->size));
+    }
+}
+#endif
+
+
 /* Set cursor foreground and background colors */
 static void RADEONSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 {
@@ -277,6 +316,13 @@ static Bool RADEONUseHWCursor(ScreenPtr pScreen, CursorPtr pCurs)
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
+ #ifdef USE_EXA
+    if (!info->cursor_offset && info->useEXA && info->cursor)
+    {
+	RADEONCursorAllocEXA(pScreen);
+    }
+#endif
+
     return info->cursor_offset ? TRUE : FALSE;
 }
 
@@ -288,7 +334,7 @@ static Bool RADEONUseHWCursorARGB (ScreenPtr pScreen, CursorPtr pCurs)
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
-    if (info->cursor_offset &&
+    if (RADEONUseHWCursor(pScreen, pCurs) &&
 	pCurs->bits->height <= CURSOR_HEIGHT && pCurs->bits->width <= CURSOR_WIDTH)
 	return TRUE;
     return FALSE;
@@ -359,18 +405,6 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 
 #endif
 
-#ifdef USE_EXA
-static void
-ATICursorSave(ScreenPtr pScreen, ExaOffscreenArea *area)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-
-    info->cursorArea = NULL;
-    info->cursor_offset = 0;
-}
-#endif
-
 
 /* Initialize hardware cursor support. */
 Bool RADEONCursorInit(ScreenPtr pScreen)
@@ -417,21 +451,7 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 
 #ifdef USE_EXA
     if (info->useEXA) {
-	info->cursorArea = exaOffscreenAlloc(pScreen, size_bytes,
-                                             128, TRUE, ATICursorSave, info);
-
-	if (!info->cursorArea) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Hardware cursor disabled"
-		       " due to insufficient offscreen memory\n");
-	    info->cursor_offset = 0;
-	} else {
-	    info->cursor_offset = info->cursorArea->offset;
-	}
-
-	RADEONTRACE(("RADEONCursorInit (0x%08x-0x%08x)\n",
-		     info->cursor_offset,
-		     info->cursor_offset + info->cursorArea->size));
+	RADEONCursorAllocEXA(pScreen);
     }
 #endif /* USE_EXA */
 #ifdef USE_XAA

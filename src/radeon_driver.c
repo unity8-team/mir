@@ -5689,13 +5689,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     /* Hardware cursor setup */
     if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
 	if (RADEONCursorInit(pScreen)) {
-#ifdef USE_EXA
-	    if (info->useEXA) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Using hardware cursor (offset %d)\n",
-			   info->cursor_offset);
-	    }
-#endif /* USE_EXA */
 #ifdef USE_XAA
 	    if (!info->useEXA) {
 		int  width, height;
