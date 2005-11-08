@@ -279,7 +279,7 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
     INREG(RADEON_HOST_PATH_CNTL);
     OUTREG(RADEON_HOST_PATH_CNTL, host_path_cntl);
 
-    if (IS_R300_VARIANT)
+    if (!IS_R300_VARIANT)
 	OUTREG(RADEON_RBBM_SOFT_RESET, rbbm_soft_reset);
 
     OUTREG(RADEON_CLOCK_CNTL_INDEX, clock_cntl_index);
