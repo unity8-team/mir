@@ -413,7 +413,8 @@ RADEONGenerateModeListFromMetaModes(ScrnInfoPtr pScrn, char* str,
 {
     char* strmode = str;
     char modename[256];
-    Bool gotdash = FALSE, gotplus = FALSE;
+    Bool gotdash = FALSE;
+    char gotsep = 0;
     RADEONScrn2Rel sr;
     DisplayModePtr mode1 = NULL;
     DisplayModePtr mode2 = NULL;
@@ -429,6 +430,8 @@ RADEONGenerateModeListFromMetaModes(ScrnInfoPtr pScrn, char* str,
         case '-':
 	case '+':
         case ' ':
+	case ',':
+	case ';':
            if(strmode != str) {
 
               myslen = str - strmode;
@@ -447,9 +450,9 @@ RADEONGenerateModeListFromMetaModes(ScrnInfoPtr pScrn, char* str,
                     xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                         "Mode \"%s\" is not a supported mode for CRT2\n", modename);
                     xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                        "\t(Skipping metamode \"%s%s%s\")\n", mode1->name, gotplus ? "+" : "-", modename);
+                        "\t(Skipping metamode \"%s%c%s\")\n", mode1->name, gotsep, modename);
                     mode1 = NULL;
-		    gotplus = FALSE;
+		    gotsep = 0;
                  }
               } else {
                  mode1 = RADEONGetModeFromName(modename, i);
@@ -457,14 +460,14 @@ RADEONGenerateModeListFromMetaModes(ScrnInfoPtr pScrn, char* str,
                     char* tmps = str;
                     xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                         "Mode \"%s\" is not a supported mode for CRT1\n", modename);
-                    while(*tmps == ' ') tmps++;
+                    while(*tmps == ' ' || *tmps == ';') tmps++;
                     /* skip the next mode */
-  	            if((*tmps == '-') || (*tmps == '+')) {
+  	            if(*tmps == '-' || *tmps == '+' || *tmps == ',') {
                        tmps++;
 		       /* skip spaces */
-		       while(*tmps == ' ') tmps++;
+		       while(*tmps == ' ' || *tmps == ';') tmps++;
 		       /* skip modename */
-		       while((*tmps != ' ') && (*tmps != '-') && (*tmps != '+') && (*tmps != 0)) tmps++;
+		       while(*tmps && *tmps != ' ' && *tmps != ';' && *tmps != '-' && *tmps != '+' && *tmps != ',') tmps++;
   	               myslen = tmps - strmode;
   	               if(myslen > 255) myslen = 255;
   	               strncpy(modename,strmode,myslen);
@@ -474,14 +477,15 @@ RADEONGenerateModeListFromMetaModes(ScrnInfoPtr pScrn, char* str,
                     xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                         "\t(Skipping metamode \"%s\")\n", modename);
                     mode1 = NULL;
-		    gotplus = FALSE;
+		    gotsep = 0;
                  }
               }
               gotdash = FALSE;
            }
            strmode = str + 1;
-           gotdash |= ((*str == '-') || (*str == '+'));
-  	   gotplus |= (*str == '+');
+           gotdash |= (*str == '-' || *str == '+' || *str == ',');
+	   if (*str == '-' || *str == '+' || *str == ',')
+  	      gotsep = *str;
 
            if(*str != 0) break;
 	   /* Fall through otherwise */
@@ -489,7 +493,7 @@ RADEONGenerateModeListFromMetaModes(ScrnInfoPtr pScrn, char* str,
         default:
            if(!gotdash && mode1) {
               sr = srel;
-	      if(gotplus) sr = radeonClone;
+	      if(gotsep == '+') sr = radeonClone;
               if(!mode2) {
                  mode2 = RADEONGetModeFromName(mode1->name, j);
                  sr = radeonClone;
@@ -505,7 +509,7 @@ RADEONGenerateModeListFromMetaModes(ScrnInfoPtr pScrn, char* str,
                  mode1 = NULL;
                  mode2 = NULL;
               }
-	      gotplus = FALSE;
+	      gotsep = 0;
            }
            break;
 
