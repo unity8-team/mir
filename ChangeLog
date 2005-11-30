@@ -1,3 +1,8 @@
+2005-11-20  Adam Jackson  <ajax@freedesktop.org>
+
+	* configure.ac:
+	Bump libdrm dep to 2.0.
+
 2005-11-29  Adam Jackson  <ajax@freedesktop.org>
 
 	* configure.ac:
