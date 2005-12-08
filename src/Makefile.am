@@ -94,6 +94,8 @@ theatre_drv_la_SOURCES = \
 theatre200_drv_la_LTLIBRARIES = theatre200_drv.la
 theatre200_drv_la_LDFLAGS = -module -avoid-version
 theatre200_drv_ladir = @moduledir@/multimedia
+theatre200_drv_la_CFLAGS = \
+	$(AM_CFLAGS) -DMICROC_DIR=\"$(theatre200_drv_ladir)\"
 theatre200_drv_la_SOURCES = \
 	theatre200.c theatre200_module.c
 
