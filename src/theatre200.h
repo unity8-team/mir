@@ -23,6 +23,9 @@
  * authorization from the author.
  *
  * $Log$
+ * Revision 1.5  2005/12/08 17:54:40  kem
+ * 	Allow hard-coded paths to be configurable.
+ *
  * Revision 1.4  2005/11/07 19:28:40  bogdand
  * Replaced the variadic macros(gcc) by macros according to C99 standard
  *
@@ -40,7 +43,11 @@
 
 #include "theatre.h"
 
+#ifdef MICROC_DIR
+#define DEFAULT_MICROC_PATH MICROC_DIR"/rt2_pmem.bin"
+#else
 #define DEFAULT_MICROC_PATH "/usr/X11R6/lib/modules/multimedia/rt2_pmem.bin"
+#endif
 #define DEFAULT_MICROC_TYPE "BINARY"
 
 /* #define ENABLE_DEBUG 1 */
