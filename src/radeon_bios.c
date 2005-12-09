@@ -165,12 +165,12 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 				pRADEONEnt->PortInfo[crtc].DDCType = DDC_CRT2;
 				break;
 			    default:
-				pRADEONEnt->PortInfo[crtc].DDCType = DDC_NONE;
+				pRADEONEnt->PortInfo[crtc].DDCType = DDC_NONE_DETECTED;
 				break;
 			    }
 
 			} else {
-			    pRADEONEnt->PortInfo[crtc].DDCType = DDC_NONE;
+			    pRADEONEnt->PortInfo[crtc].DDCType = DDC_NONE_DETECTED;
 			}
 			crtc++;
 		    } else {
@@ -273,6 +273,12 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	        if ((tmp0 = RADEON_BIOS16(tmp + 0x15))) {
 		    if ((tmp1 = RADEON_BIOS8(tmp0+2) & 0x07)) {	    
 			pRADEONEnt->PortInfo[0].DDCType	= tmp1;      
+			if (pRADEONEnt->PortInfo[0].DDCType > DDC_CRT2) {
+			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				       "Unknown DDCType %d found\n",
+				       pRADEONEnt->PortInfo[0].DDCType);
+			    pRADEONEnt->PortInfo[0].DDCType = DDC_NONE_DETECTED;
+			}
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "LCD DDC Info Table found!\n");
 		    }
 		}
