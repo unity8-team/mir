@@ -281,10 +281,16 @@ AllocateLinear (
    ScrnInfoPtr pScrn,
    int sizeNeeded
 ){
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+   RADEONInfoPtr  info       = RADEONPTR(pScrn);
+   int cpp = info->CurrentLayout.bitsPerPixel / 8;
 
    info->RenderTimeout = currentTime.milliseconds + 30000;
    info->RenderCallback = RenderCallback;
+
+   /* XAA allocates in units of pixels at the screen bpp, so adjust size
+    * appropriately.
+    */
+   sizeNeeded = (sizeNeeded + cpp - 1) / cpp;
 
    if (info->RenderTex) {
 	if (info->RenderTex->size >= sizeNeeded)
