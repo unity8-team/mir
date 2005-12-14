@@ -521,7 +521,22 @@ static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
     {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_R420*/
 };
 
-extern int getRADEONEntityIndex(void);
+#ifdef XFree86LOADER
+static int getRADEONEntityIndex(void)
+{
+    int *radeon_entity_index = LoaderSymbol("gRADEONEntityIndex");
+    if (!radeon_entity_index)
+        return -1;
+    else
+        return *radeon_entity_index;
+}
+#else
+extern int gRADEONEntityIndex;
+static int getRADEONEntityIndex(void)
+{
+    return gRADEONEntityIndex;
+}
+#endif
 
 struct RADEONInt10Save {
 	CARD32 MEM_CNTL;

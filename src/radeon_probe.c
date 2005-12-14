@@ -195,8 +195,6 @@ PciChipsets RADEONPciChipsets[] = {
 
 int gRADEONEntityIndex = -1;
 
-const int getRADEONEntityIndex(void) { return gRADEONEntityIndex; }
-
 /* Return the options for supported chipset 'n'; NULL otherwise */
 const OptionInfoRec *
 RADEONAvailableOptions(int chipid, int busid)

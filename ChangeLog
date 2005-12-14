@@ -1,3 +1,11 @@
+2005-12-14  Adam Jackson  <ajax@freedesktop.org>
+
+	* src/r128_accel.c:
+	* src/r128_driver.c:
+	* src/radeon_driver.c:
+	* src/radeon_probe.c:
+	Bug #1760: Fix ati wrapper multihead to be dlloader friendly.
+
 2005-12-08  Kevin E. Martin  <kem-at-freedesktop-dot-org>
 
 	* src/Makefile.am:

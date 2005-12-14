@@ -122,7 +122,7 @@ static struct {
     { R128_ROP3_ONE,  R128_ROP3_ONE  }  /* GXset          */
 };
 
-extern int gR128EntityIndex;
+extern int getR128EntityIndex(void);
 
 /* Flush all dirty data in the Pixel Cache to memory. */
 void R128EngineFlush(ScrnInfoPtr pScrn)
@@ -1842,7 +1842,7 @@ static void R128MMIOAccelInit(ScrnInfoPtr pScrn, XAAInfoRecPtr a)
         DevUnion* pPriv;
         R128EntPtr pR128Ent;
         pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
-                gR128EntityIndex);
+                getR128EntityIndex());
         pR128Ent = pPriv->ptr;
         
         /*if there are more than one devices sharing this entity, we

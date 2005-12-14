@@ -372,14 +372,29 @@ void R128LoaderRefSymLists(void)
 		      NULL);
 }
 
+#ifdef XFree86LOADER
+int getR128EntityIndex(void)
+{
+    int *r128_entity_index = LoaderSymbol("gR128EntityIndex");
+    if (!r128_entity_index)
+        return -1;
+    else
+        return *r128_entity_index;
+}
+#else
 extern int gR128EntityIndex;
+int getR128EntityIndex(void)
+{
+    return gR128EntityIndex;
+}
+#endif
 
 R128EntPtr R128EntPriv(ScrnInfoPtr pScrn)
 {
     DevUnion     *pPriv;
     R128InfoPtr  info   = R128PTR(pScrn);
     pPriv = xf86GetEntityPrivate(info->pEnt->index,
-                                 gR128EntityIndex);
+                                 getR128EntityIndex());
     return pPriv->ptr;
 }
 
@@ -665,7 +680,7 @@ static Bool R128GetBIOSParameters(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
                      DevUnion* pPriv;
                      R128EntPtr pR128Ent;
                      pPriv = xf86GetEntityPrivate(pScrn->entityList[0], 
-                         gR128EntityIndex);
+                         getR128EntityIndex());
                      pR128Ent = pPriv->ptr;
                      pR128Ent->HasSecondary = TRUE;
 
@@ -689,7 +704,7 @@ static Bool R128GetBIOSParameters(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
                          DevUnion* pPriv;
                          R128EntPtr pR128Ent;
                          pPriv = xf86GetEntityPrivate(pScrn->entityList[0], 
-                             gR128EntityIndex);
+                             getR128EntityIndex());
                          pR128Ent = pPriv->ptr;
                          pR128Ent->BypassSecondary = TRUE;
                      }
@@ -2054,7 +2069,7 @@ _X_EXPORT Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
             R128EntPtr pR128Ent;
             info->IsSecondary = TRUE;
             pPriv = xf86GetEntityPrivate(pScrn->entityList[0], 
-                    gR128EntityIndex);
+                    getR128EntityIndex());
             pR128Ent = pPriv->ptr;
             if(pR128Ent->BypassSecondary) return FALSE;
             pR128Ent->pSecondaryScrn = pScrn;
@@ -2066,7 +2081,7 @@ _X_EXPORT Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
 	    info->IsPrimary = TRUE;
             xf86SetPrimInitDone(pScrn->entityList[0]);
             pPriv = xf86GetEntityPrivate(pScrn->entityList[0], 
-                    gR128EntityIndex);
+                    getR128EntityIndex());
             pR128Ent = pPriv->ptr;
             pR128Ent->pPrimaryScrn = pScrn;
             pR128Ent->IsDRIEnabled = FALSE;
@@ -2410,7 +2425,7 @@ _X_EXPORT Bool R128ScreenInit(int scrnIndex, ScreenPtr pScreen,
                     DevUnion* pPriv;
                     R128EntPtr pR128Ent;
                     pPriv = xf86GetEntityPrivate(pScrn->entityList[0], 
-                        gR128EntityIndex);
+                        getR128EntityIndex());
                     pR128Ent = pPriv->ptr;
                     pR128Ent->IsDRIEnabled = info->directRenderingEnabled;
                 }
@@ -3111,7 +3126,7 @@ static void R128RestoreMode(ScrnInfoPtr pScrn, R128SavePtr restore)
     }       
     
     pPriv = xf86GetEntityPrivate(pScrn->entityList[0], 
-                   gR128EntityIndex);
+                   getR128EntityIndex());
     pR128Ent = pPriv->ptr;
    
 
