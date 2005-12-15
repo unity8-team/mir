@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-nv],
-        1.0.1.3,
+        1.0.1.4,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-nv)
 
