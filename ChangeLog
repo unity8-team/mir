@@ -1,3 +1,11 @@
+2005-12-14  Kevin E. Martin  <kem-at-freedesktop-dot-org>
+
+	* configure.ac:
+	* src/r128_version.h:
+	* src/radeon_version.h:
+	Update package version number for final X11R7 release candidate.
+	Bump driver version number.
+
 2005-12-14  Adam Jackson  <ajax@freedesktop.org>
 
 	* src/r128_accel.c:
