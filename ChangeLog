@@ -1,3 +1,10 @@
+2005-12-15  Alan Coopersmith  <alan.coopersmith@sun.com>
+
+	* man/r128.man: 
+	Bugzilla #5238 <https://bugs.freedesktop.org/show_bug.cgi?id=5238>
+	Patch #3978  <https://bugs.freedesktop.org/attachment.cgi?id=3978>
+	r128 man page dualhead note update (Alex Deucher)
+
 2005-12-14  Kevin E. Martin  <kem-at-freedesktop-dot-org>
 
 	* configure.ac:

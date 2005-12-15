@@ -142,9 +142,11 @@ on other architectures.
 
 .PP
 .B Dualhead Note: 
-Changing modes on crtc2 in dualhead mode causes problems in
-some configurations.  The workaround is to switch the mode, change to another
-VT, then change back.
+The video BIOS on some laptops interacts strangely with dualhead.
+This can result in flickering and problems changing modes on crtc2.
+If you experience these problems try toggling your laptop's video
+output switch (e.g., fn-f7, etc.) prior to starting X or switch to
+another VT and back.
 
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
