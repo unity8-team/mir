@@ -34,7 +34,7 @@ driver.
 .PP
 The Intel 8xx family of integrated graphics chipsets has a unified memory
 architecture and uses system memory for video ram.  For the i810 and
-i815 familiy of chipset, operating system support for allocating system
+i815 family of chipset, operating system support for allocating system
 memory for video use is required in order to use this driver.  For the
 830M and later, this is required in order for the driver to use more
 video ram than has been pre-allocated at boot time by the BIOS.  This
