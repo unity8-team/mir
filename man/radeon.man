@@ -204,7 +204,7 @@ BIOS   \-\- Remain unchanged from BIOS setting.
 .br
 HIGH   \-\- Force to the highest priority.
           Use this if you have problem with above options.
-          This may affect performence slightly.
+          This may affect performance slightly.
 .br
 The default value is
 .B AUTO.
@@ -280,7 +280,7 @@ looking into it.  In this case the linked viewports will scroll around in the
 virtual desktop.  Viewports with different sizes are also supported (e.g., one
 that is 1024x768 and one that is 640x480).  In this case the smaller viewport
 will scroll relative to the larger one such that none of the virtual desktop 
-is inaccessable.  If you do not define a virtual desktop the driver will create
+is inaccessible.  If you do not define a virtual desktop the driver will create
 one based on the orientation of the heads and size of the largest defined mode in 
 the display section that is supported on each head.
 .br
@@ -357,7 +357,7 @@ the start of CRT1, you'd type:
 Option "CRT2Position" "LeftOf 100"
 .br
 The offset is vertical for LeftOf and RightOf and horizontal for Above and 
-Below.  Offsets can be postive or negative.
+Below.  Offsets can be positive or negative.
 .br
 The default value is
 .B Clone.
@@ -549,7 +549,7 @@ for digital panels
 .BI "Option \*qDynamicClocks\*q \*q" boolean \*q
 Enable dynamic clock scaling.  The on-chip clocks will scale dynamically 
 based on usage. This can help reduce heat and increase battery 
-life by reducing power usage.  Some users report reduced 3D preformance
+life by reducing power usage.  Some users report reduced 3D performance
 with this enabled.  The default is
 .B off.
 .TP

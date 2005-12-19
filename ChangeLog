@@ -1,3 +1,10 @@
+2005-12-19  Alan Coopersmith  <alan.coopersmith@sun.com>
+
+	* README.ati.sgml:
+	* man/radeon.man:
+	Typo fixes, mailing list & url updates, and other changes
+        to prepare for X11R6.9 & 7.0 releases.
+
 2005-12-15  Alan Coopersmith  <alan.coopersmith@sun.com>
 
 	* man/r128.man: 

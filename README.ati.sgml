@@ -29,10 +29,17 @@ This is the README for the XAA ATI driver included in this release.
 <!-- Begin the document -->
 
 <sect>Statement of intent<p>
-Generally speaking, the driver is intended for all ATI video adapters,
+Generally speaking, the driver is intended for all ATI video adapters
+based on the Mach64 series or older chipsets,
 providing maximum video function within hardware limitations.
 The driver is also intended to optionally provide the same level of support for
 generic VGA or 8514/A adapters.
+The newer Rage 128 and Radeon chips are not yet supported by this driver.
+Rage 128's and Radeon's are, however, supported by separate drivers, and
+owners of such adapters should consult the documentation provided with these
+drivers.
+This driver will also invoke the appropriate driver if it finds Rage 128 and/or
+Radeon adapter(s) in the system.
 This driver is still being actively developed, meaning that it currently does
 not yet fully meet these goals.<p>
 The driver will provide
@@ -51,10 +58,12 @@ in the system, but also, on what the user specifies in the xorg.conf file.
 See the <bf>``xorg.conf specifications''</bf> section below for details.<p>
 If none of the above conditions are met, the ATI driver will essentially
 disable itself to allow other drivers to examine the system.<p>
+<!-- 
 Note that I am currently considering removing the driver's support for generic
 VGA.
 If you have any concerns about this, please contact me at
 <email>tsi@xfree86.org</email>.
+-->
 <sect>A note on acceleration<p>
 The meaning of ``acceleration'', as used in this document, needs to be
 clarified.
@@ -581,16 +590,21 @@ DVD, etc.) in a window or full-screen.
 <sect>Reporting problems<p>
 If you are experiencing problems that are not already recorded in this
 document, first ensure that you have the latest current release of this driver
-and the Xorg X server..
+and the Xorg X server.
 Check the server's log (usually found in /var/log/Xorg.0.log) and <htmlurl
 name="ftp://ftp.freedesktop.org/pub/Xorg"
 url="ftp://ftp.freedesktop.org/pub/Xorg"> if you are uncertain.<p>
 Secondly, please check Xorg's doc directory for additional information.<p>
 Thirdly, a scan through the comp.windows.x.i386unix and comp.os.linux.x
-newsgroups and the xorg mailing list using your favourite archiving
-service can also prove useful in resolving problems.<p>
-If you are still experiencing problems, you can send me <it>non-HTMLised</it>
-e-mail at <email>tsi@xfree86.org</email>.
+newsgroups, the xorg mailing list archives at <htmlurl
+name="http://lists.freedesktop.org/mailman/listinfo/xorg"
+url="http://lists.freedesktop.org/mailman/listinfo/xorg">, and
+the Xorg bug database at <htmlurl
+name="https://bugs.freedesktop.org/enter_bug.cgi?product=xorg"
+url="https://bugs.freedesktop.org/enter_bug.cgi?product=xorg">
+can also prove useful in resolving problems.<p>
+If you are still experiencing problems, you can send <it>non-HTMLised</it>
+e-mail to <email>xorg@lists.fredesktop.org</email>.
 Please be as specific as possible when describing the problem(s), and include
 an <it>unedited</it> copy of the server's log and the xorg.conf file used.<p>
 <sect>Driver history<p>
@@ -605,7 +619,7 @@ to make the driver work with all other ATI adapters available at the time.<p>
 Rik Faith obtained the X11R4 driver from Doug Evans in the summer of 1992 and
 ported the code to the X386 part of X11R5.
 This subsequently became part of XFree86.<p>
-I (Marc Aurele La France) took over development and maintenance of the driver
+Marc Aurele La France took over development and maintenance of the driver
 in the fall of 1993 after Rik got rid of his VGA Wonder adapter.<p>
 <sect>Driver versions<p>
 Due to the introduction of loadable drivers in XFree86 4.0, it has become
