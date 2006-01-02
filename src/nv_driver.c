@@ -1,4 +1,4 @@
-/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.13 2005/06/29 15:56:23 alanc Exp $ */
+/* $XdotOrg: driver/xf86-video-nv/src/nv_driver.c,v 1.18 2005/09/29 21:47:29 aplattner Exp $ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
@@ -58,6 +58,10 @@ static Bool    NVSaveScreen(ScreenPtr pScreen, int mode);
 static void    NVFreeScreen(int scrnIndex, int flags);
 static ModeStatus NVValidMode(int scrnIndex, DisplayModePtr mode,
 			      Bool verbose, int flags);
+#ifdef RANDR
+static Bool    NVDriverFunc(ScrnInfoPtr pScrnInfo, xorgDriverFuncOp op,
+			      pointer data);
+#endif
 
 /* Internally used functions */
 
@@ -1236,6 +1240,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	pScrn->ValidMode     = fbdevHWValidModeWeak();
     }
     pNv->Rotate = 0;
+    pNv->RandRRotation = FALSE;
     if ((s = xf86GetOptValString(pNv->Options, OPTION_ROTATE))) {
       if(!xf86NameCmp(s, "CW")) {
 	pNv->ShadowFB = TRUE;
@@ -1252,13 +1257,29 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	pNv->Rotate = -1;
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
 		"Rotating screen counter clockwise - acceleration disabled\n");
+      } else
+      if(!xf86NameCmp(s, "RandR")) {
+#ifdef RANDR
+	pNv->ShadowFB = TRUE;
+	pNv->NoAccel = TRUE;
+	pNv->HWCursor = FALSE;
+	pNv->RandRRotation = TRUE;
+	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
+		"Using RandR rotation - acceleration disabled\n");
+#else
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		"This driver was not compiled with support for the Resize and "
+		"Rotate extension.  Cannot honor 'Option \"Rotate\" "
+		"\"RandR\"'.\n");
+#endif
       } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
 		"\"%s\" is not a valid value for Option \"Rotate\"\n", s);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		"Valid options are \"CW\" or \"CCW\"\n");
+		"Valid options are \"CW\", \"CCW\", and \"RandR\"\n");
       }
     }
+
     if(xf86GetOptValInteger(pNv->Options, OPTION_VIDEO_KEY, &(pNv->videoKey))) {
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "video key set to 0x%x\n",
                                 pNv->videoKey);
@@ -1840,7 +1861,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     int ret;
     VisualPtr visual;
     unsigned char *FBStart;
-    int width, height, displayWidth, offscreenHeight;
+    int width, height, displayWidth, offscreenHeight, shadowHeight;
     BoxRec AvailFBArea;
 
     /* 
@@ -1925,9 +1946,18 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	width = pScrn->virtualY;
     }
 
+    /* If RandR rotation is enabled, leave enough space in the
+     * framebuffer for us to rotate the screen dimensions without
+     * changing the pitch.
+     */
+    if(pNv->RandRRotation)
+        shadowHeight = max(width, height);
+    else
+        shadowHeight = height;
+
     if(pNv->ShadowFB) {
  	pNv->ShadowPitch = BitmapBytePad(pScrn->bitsPerPixel * width);
-        pNv->ShadowPtr = xalloc(pNv->ShadowPitch * height);
+        pNv->ShadowPtr = xalloc(pNv->ShadowPitch * shadowHeight);
 	displayWidth = pNv->ShadowPitch / (pScrn->bitsPerPixel >> 3);
         FBStart = pNv->ShadowPtr;
     } else {
@@ -2019,18 +2049,21 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     if(pNv->ShadowFB) {
 	RefreshAreaFuncPtr refreshArea = NVRefreshArea;
 
-	if(pNv->Rotate) {
-   	   pNv->PointerMoved = pScrn->PointerMoved;
-	   pScrn->PointerMoved = NVPointerMoved;
+	if(pNv->Rotate || pNv->RandRRotation) {
+	   pNv->PointerMoved = pScrn->PointerMoved;
+	   if(pNv->Rotate)
+	       pScrn->PointerMoved = NVPointerMoved;
 
 	   switch(pScrn->bitsPerPixel) {
                case 8:	refreshArea = NVRefreshArea8;	break;
                case 16:	refreshArea = NVRefreshArea16;	break;
                case 32:	refreshArea = NVRefreshArea32;	break;
 	   }
-           xf86DisableRandR();
-           xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                      "Driver rotation enabled, RandR disabled\n");
+           if(!pNv->RandRRotation) {
+               xf86DisableRandR();
+               xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                          "Driver rotation enabled, RandR disabled\n");
+           }
 	}
 
 	ShadowFBInit(pScreen, refreshArea);
@@ -2044,7 +2077,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     pScrn->memPhysBase = pNv->FbAddress;
     pScrn->fbOffset = 0;
 
-    if(pNv->Rotate == 0)
+    if(pNv->Rotate == 0 && !pNv->RandRRotation)
        NVInitVideo(pScreen);
 
     pScreen->SaveScreen = NVSaveScreen;
@@ -2055,6 +2088,13 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
     pNv->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = NVBlockHandler;
+
+#ifdef RANDR
+    /* Install our DriverFunc.  We have to do it this way instead of using the
+     * HaveDriverFuncs argument to xf86AddDriver, because InitOutput clobbers
+     * pScrn->DriverFunc */
+    pScrn->DriverFunc = NVDriverFunc;
+#endif
 
     /* Report any unused options (only for the first generation) */
     if (serverGeneration == 1) {
@@ -2087,3 +2127,64 @@ NVSave(ScrnInfoPtr pScrn)
     NVDACSave(pScrn, vgaReg, nvReg, pNv->Primary);
 }
 
+#ifdef RANDR
+static Bool
+NVRandRGetInfo(ScrnInfoPtr pScrn, Rotation *rotations)
+{
+    NVPtr pNv = NVPTR(pScrn);
+
+    if(pNv->RandRRotation)
+       *rotations = RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_270;
+    else
+       *rotations = RR_Rotate_0;
+
+    return TRUE;
+}
+
+static Bool
+NVRandRSetConfig(ScrnInfoPtr pScrn, xorgRRConfig *config)
+{
+    NVPtr pNv = NVPTR(pScrn);
+
+    switch(config->rotation) {
+        case RR_Rotate_0:
+            pNv->Rotate = 0;
+            pScrn->PointerMoved = pNv->PointerMoved;
+            break;
+
+        case RR_Rotate_90:
+            pNv->Rotate = -1;
+            pScrn->PointerMoved = NVPointerMoved;
+            break;
+
+        case RR_Rotate_270:
+            pNv->Rotate = 1;
+            pScrn->PointerMoved = NVPointerMoved;
+            break;
+
+        default:
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                    "Unexpected rotation in NVRandRSetConfig!\n");
+            pNv->Rotate = 0;
+            pScrn->PointerMoved = pNv->PointerMoved;
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
+static Bool
+NVDriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op, pointer data)
+{
+    switch(op) {
+       case RR_GET_INFO:
+          return NVRandRGetInfo(pScrn, (Rotation*)data);
+       case RR_SET_CONFIG:
+          return NVRandRSetConfig(pScrn, (xorgRRConfig*)data);
+       default:
+          return FALSE;
+    }
+
+    return FALSE;
+}
+#endif

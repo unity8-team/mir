@@ -68,6 +68,11 @@ NVRefreshArea8(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     CARD8 *dstPtr, *srcPtr, *src;
     CARD32 *dst;
 
+    if(!pNv->Rotate) {
+       NVRefreshArea(pScrn, num, pbox);
+       return;
+    }
+
     dstPitch = pScrn->displayWidth;
     srcPitch = -pNv->Rotate * pNv->ShadowPitch;
 
@@ -114,6 +119,11 @@ NVRefreshArea16(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     CARD16 *dstPtr, *srcPtr, *src;
     CARD32 *dst;
 
+    if(!pNv->Rotate) {
+       NVRefreshArea(pScrn, num, pbox);
+       return;
+    }
+
     dstPitch = pScrn->displayWidth;
     srcPitch = -pNv->Rotate * pNv->ShadowPitch >> 1;
 
@@ -158,6 +168,11 @@ NVRefreshArea32(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     NVPtr pNv = NVPTR(pScrn);
     int count, width, height, dstPitch, srcPitch;
     CARD32 *dstPtr, *srcPtr, *src, *dst;
+
+    if(!pNv->Rotate) {
+       NVRefreshArea(pScrn, num, pbox);
+       return;
+    }
 
     dstPitch = pScrn->displayWidth;
     srcPitch = -pNv->Rotate * pNv->ShadowPitch >> 2;

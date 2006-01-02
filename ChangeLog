@@ -1,3 +1,15 @@
+2006-01-01  Aaron Plattner  <aplattner@nvidia.com>
+
+	* man/nv.man:
+	* src/nv_driver.c: (NVPreInit), (NVScreenInit), (NVRandRGetInfo),
+	(NVRandRSetConfig), (NVDriverFunc):
+	* src/nv_include.h:
+	* src/nv_shadow.c: (NVRefreshArea8), (NVRefreshArea16),
+	(NVRefreshArea32):
+	* src/nv_type.h:
+	Preliminary RandR rotation support.
+	Bug #4708 <https://bugs.freedesktop.org/show_bug.cgi?id=4708>
+
 2005-12-20  Kevin E. Martin  <kem-at-freedesktop-dot-org>
 
 	* configure.ac:

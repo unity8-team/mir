@@ -172,6 +172,7 @@ typedef struct {
     CARD32              currentRop;
     Bool                WaitVSyncPossible;
     Bool                BlendingPossible;
+    Bool                RandRRotation;
 } NVRec, *NVPtr;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

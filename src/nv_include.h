@@ -52,6 +52,10 @@
 
 #include "region.h"
 
+#ifdef RANDR
+#include <X11/extensions/randr.h>
+#endif
+
 #include "nv_local.h"
 #include "nv_type.h"
 #include "nv_proto.h"
