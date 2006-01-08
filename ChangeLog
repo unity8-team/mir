@@ -1,3 +1,8 @@
+2006-01-08  Adam Jackson  <ajax@freedesktop.org>
+
+	* src/radeon.h:
+	Bug #5523: Make radeon compile without USE_XAA.  (Tilman Sauerbeck)
+
 2005-12-20  Kevin E. Martin  <kem-at-freedesktop-dot-org>
 
 	* configure.ac:

@@ -41,6 +41,7 @@
 #include "xf86str.h"
 #include "xf86_ansic.h"
 #include "compiler.h"
+#include "xf86fbman.h"
 
 				/* PCI support */
 #include "xf86Pci.h"
@@ -50,7 +51,6 @@
 #endif
 #ifdef USE_XAA
 #include "xaa.h"
-#include "xf86fbman.h"
 #endif
 
 				/* Exa and Cursor Support */
@@ -399,13 +399,13 @@ typedef struct {
 
 #ifdef USE_EXA
     ExaDriverRec      exa;
-#endif
-#ifdef USE_XAA
-    XAAInfoRecPtr     accel;
     int               engineMode;
 #define EXA_ENGINEMODE_UNKNOWN 0
 #define EXA_ENGINEMODE_2D      1
 #define EXA_ENGINEMODE_3D      2
+#endif
+#ifdef USE_XAA
+    XAAInfoRecPtr     accel;
 #endif
     Bool              accelOn;
     xf86CursorInfoPtr cursor;
