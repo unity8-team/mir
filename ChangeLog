@@ -1,3 +1,10 @@
+2006-01-12  Alan Coopersmith  <alan.coopersmith@sun.com>
+
+	* src/radeon_driver.c (RADEONPreInitModes): 
+	When failing to parse MetaModes, reset CRT2pScrn to NULL after 
+	free'ing it so we don't crash when trying to use it later 
+	(such as in RADEONFreeRec).
+
 2006-01-08  Adam Jackson  <ajax@freedesktop.org>
 
 	* src/radeon.h:

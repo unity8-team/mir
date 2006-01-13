@@ -1,4 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
+/* $XdotOrg: $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -4185,6 +4186,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 	        xfree(info->CRT2pScrn->monitor);
 	     }
              xfree(info->CRT2pScrn);
+	     info->CRT2pScrn = NULL;
 	  }
 	  pScrn->modes = info->CRT1Modes;
 	  info->CRT1Modes = NULL;
