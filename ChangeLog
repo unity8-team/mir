@@ -1,3 +1,9 @@
+2006-01-19  Daniel Stone  <daniel@freedesktop.org>
+
+	* src/radeon_driver.c:
+	Bug #5656: Set all Radeon XPRESS 200 R[CS]4xx-based chips to
+	have IsIGP = 1, fixing modesetting issues.
+
 2006-01-12  Alan Coopersmith  <alan.coopersmith@sun.com>
 
 	* src/theatre200_module.c (theatre200VersRec): 

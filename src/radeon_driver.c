@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.84 2006/01/13 01:02:01 alanc Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -2582,7 +2582,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     case PCI_CHIP_RS480_5954:
     case PCI_CHIP_RS482_5974:
 	info->ChipFamily = CHIP_FAMILY_RV380; /*CHIP_FAMILY_RS400*/
-	/*info->IsIGP = TRUE;*/ /* ??? */
+	info->IsIGP = TRUE;
 	/*info->HasSingleDAC = TRUE;*/ /* ??? */
         break;
 
