@@ -1,3 +1,11 @@
+2006-01-22  Aaron Plattner  <aplattner@nvidia.com>
+
+	* man/nv.man:
+	* src/nv_driver.c: (NVProbe), (NVPreInit):
+	* src/nv_hw.c: (nvGetClocks), (NVCalcStateExt), (NVLoadStateExt):
+	New chip support from Mark Vojkovich's 2006-01-20 and 2006-01-21 XFree86 CVS
+	updates.
+
 2006-01-01  Aaron Plattner  <aplattner@nvidia.com>
 
 	* man/nv.man:

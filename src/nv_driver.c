@@ -1,4 +1,4 @@
-/* $XdotOrg: driver/xf86-video-nv/src/nv_driver.c,v 1.18 2005/09/29 21:47:29 aplattner Exp $ */
+/* $XdotOrg: driver/xf86-video-nv/src/nv_driver.c,v 1.19 2006/01/02 01:54:19 aplattner Exp $ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
@@ -29,7 +29,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.137 2005/09/14 02:28:03 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.141 2006/01/21 01:17:59 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -91,7 +91,7 @@ _X_EXPORT DriverRec NV = {
         0
 };
 
-/* Known cards as of 2005/09/21  */
+/* Known cards as of 2006/01/12  */
 
 static SymTabRec NVKnownChipsets[] =
 {
@@ -137,7 +137,7 @@ static SymTabRec NVKnownChipsets[] =
 #else
   { 0x10DE0179, "GeForce4 440 Go 64M" },
 #endif
-  { 0x10DE017A, "Quadro4 NVS" },
+  { 0x10DE017A, "Quadro NVS" },
   { 0x10DE017C, "Quadro4 500 GoGL" },
   { 0x10DE017D, "GeForce4 410 Go 16M" },
 
@@ -151,7 +151,7 @@ static SymTabRec NVKnownChipsets[] =
 #if defined(__powerpc__)
   { 0x10DE0189, "GeForce4 MX with AGP8X (Mac)" },
 #endif
-  { 0x10DE018A, "Quadro4 280 NVS" },
+  { 0x10DE018A, "Quadro4 NVS 280 SD" },
   { 0x10DE018B, "Quadro4 380 XGL" },
   { 0x10DE018C, "Quadro NVS 50 PCI" },
   { 0x10DE018D, "GeForce4 448 Go" },
@@ -165,7 +165,6 @@ static SymTabRec NVKnownChipsets[] =
 
   { 0x10DE0250, "GeForce4 Ti 4600" },
   { 0x10DE0251, "GeForce4 Ti 4400" },
-  { 0x10DE0252, "0x0252" },
   { 0x10DE0253, "GeForce4 Ti 4200" },
   { 0x10DE0258, "Quadro4 900 XGL" },
   { 0x10DE0259, "Quadro4 750 XGL" },
@@ -186,21 +185,15 @@ static SymTabRec NVKnownChipsets[] =
 
   { 0x10DE0311, "GeForce FX 5600 Ultra" },
   { 0x10DE0312, "GeForce FX 5600" },
-  { 0x10DE0313, "0x0313"},
-  { 0x10DE0314, "GeForce FX 5600SE" },
-  { 0x10DE0316, "0x0316" },
-  { 0x10DE0317, "0x0317" },
+  { 0x10DE0314, "GeForce FX 5600XT" },
   { 0x10DE031A, "GeForce FX Go5600" },
   { 0x10DE031B, "GeForce FX Go5650" },
   { 0x10DE031C, "Quadro FX Go700" },
-  { 0x10DE031D, "0x031D" },
-  { 0x10DE031E, "0x031E" },
-  { 0x10DE031F, "0x031F" },
 
   { 0x10DE0320, "GeForce FX 5200" },
   { 0x10DE0321, "GeForce FX 5200 Ultra" },
   { 0x10DE0322, "GeForce FX 5200" },
-  { 0x10DE0323, "GeForce FX 5200SE" },
+  { 0x10DE0323, "GeForce FX 5200LE" },
   { 0x10DE0324, "GeForce FX Go5200" },
   { 0x10DE0325, "GeForce FX Go5250" },
   { 0x10DE0326, "GeForce FX 5500" },
@@ -208,47 +201,40 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0328, "GeForce FX Go5200 32M/64M" },
 #if defined(__powerpc__)
   { 0x10DE0329, "GeForce FX 5200 (Mac)" },
-#else
-  { 0x10DE0329, "0x0329" },
 #endif
   { 0x10DE032A, "Quadro NVS 55/280 PCI" },
   { 0x10DE032B, "Quadro FX 500/600 PCI" },
   { 0x10DE032C, "GeForce FX Go53xx Series" },
   { 0x10DE032D, "GeForce FX Go5100" },
-  { 0x10DE032F, "0x032F" },
 
   { 0x10DE0330, "GeForce FX 5900 Ultra" },
   { 0x10DE0331, "GeForce FX 5900" },
   { 0x10DE0332, "GeForce FX 5900XT" },
   { 0x10DE0333, "GeForce FX 5950 Ultra" },
-  { 0x10DE033F, "Quadro FX 700" },
   { 0x10DE0334, "GeForce FX 5900ZT" },
   { 0x10DE0338, "Quadro FX 3000" },
+  { 0x10DE033F, "Quadro FX 700" },
 
   { 0x10DE0341, "GeForce FX 5700 Ultra" },
   { 0x10DE0342, "GeForce FX 5700" },
   { 0x10DE0343, "GeForce FX 5700LE" },
   { 0x10DE0344, "GeForce FX 5700VE" },
-  { 0x10DE0345, "0x0345" },
   { 0x10DE0347, "GeForce FX Go5700" },
   { 0x10DE0348, "GeForce FX Go5700" },
-  { 0x10DE0349, "0x0349" },
-  { 0x10DE034B, "0x034B" },
   { 0x10DE034C, "Quadro FX Go1000" },
   { 0x10DE034E, "Quadro FX 1100" },
-  { 0x10DE034F, "0x034F" },
 
   { 0x10DE0040, "GeForce 6800 Ultra" },
   { 0x10DE0041, "GeForce 6800" },
   { 0x10DE0042, "GeForce 6800 LE" },
-  { 0x10DE0043, "0x0043" },
+  { 0x10DE0043, "GeForce 6800 XE" },
   { 0x10DE0045, "GeForce 6800 GT" },
   { 0x10DE0046, "GeForce 6800 GT" },
+  { 0x10DE0047, "GeForce 6800 GS" },
   { 0x10DE0048, "GeForce 6800 XT" },
-  { 0x10DE0049, "0x0049" },
   { 0x10DE004E, "Quadro FX 4000" },
 
-  { 0x10DE00C0, "0x00C0" },
+  { 0x10DE00C0, "GeForce 6800 GS" },
   { 0x10DE00C1, "GeForce 6800" },
   { 0x10DE00C2, "GeForce 6800 LE" },
   { 0x10DE00C3, "GeForce 6800 XT" },
@@ -261,16 +247,13 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0140, "GeForce 6600 GT" },
   { 0x10DE0141, "GeForce 6600" },
   { 0x10DE0142, "GeForce 6600 LE" },
-  { 0x10DE0143, "0x0143" },
+  { 0x10DE0143, "GeForce 6600 VE" },
   { 0x10DE0144, "GeForce Go 6600" },
   { 0x10DE0145, "GeForce 6610 XL" },
   { 0x10DE0146, "GeForce Go 6600 TE/6200 TE" },
   { 0x10DE0147, "GeForce 6700 XL" },
   { 0x10DE0148, "GeForce Go 6600" },
   { 0x10DE0149, "GeForce Go 6600 GT" },
-  { 0x10DE014B, "0x014B" },
-  { 0x10DE014C, "0x014C" },
-  { 0x10DE014D, "0x014D" },
   { 0x10DE014E, "Quadro FX 540" },
   { 0x10DE014F, "GeForce 6200" },
 
@@ -284,32 +267,49 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0167, "GeForce Go 6200" },
   { 0x10DE0168, "GeForce Go 6400" },
   { 0x10DE0169, "GeForce 6250" },
-  { 0x10DE016B, "0x016B" },
-  { 0x10DE016C, "0x016C" },
-  { 0x10DE016D, "0x016D" },
-  { 0x10DE016E, "0x016E" },
 
-  { 0x10DE0210, "0x0210" },
   { 0x10DE0211, "GeForce 6800" },
   { 0x10DE0212, "GeForce 6800 LE" },
   { 0x10DE0215, "GeForce 6800 GT" },
+  { 0x10DE0218, "GeForce 6800 XT" },
 
-  { 0x10DE0220, "0x0220" },
   { 0x10DE0221, "GeForce 6200" },
-  { 0x10DE0222, "0x0222" },
-  { 0x10DE0228, "0x0228" },
 
-  { 0x10DE0090, "0x0090" },
+  { 0x10DE0090, "GeForce 7800 GTX" },
   { 0x10DE0091, "GeForce 7800 GTX" },
   { 0x10DE0092, "GeForce 7800 GT" },
-  { 0x10DE0093, "0x0093" },
-  { 0x10DE0094, "0x0094" },
+  { 0x10DE0093, "GeForce 7800 GS" },
+  { 0x10DE0095, "GeForce 7800 SLI" },
   { 0x10DE0098, "GeForce Go 7800" },
   { 0x10DE0099, "GeForce Go 7800 GTX" },
-  { 0x10DE009C, "0x009C" },
   { 0x10DE009D, "Quadro FX 4500" },
-  { 0x10DE009E, "0x009E" },
-  
+
+  { 0x10DE01D1, "GeForce 7300 LE" },
+  { 0x10DE01D6, "GeForce Go 7200" },
+  { 0x10DE01D7, "GeForce Go 7300" },
+  { 0x10DE01D8, "GeForce Go 7400" },
+  { 0x10DE01DA, "Quadro NVS 110M" },
+  { 0x10DE01DB, "Quadro NVS 120M" },
+  { 0x10DE01DC, "Quadro FX 350M" },
+  { 0x10DE01DE, "Quadro FX 350" },
+  { 0x10DE01DF, "GeForce 7300 GS" },
+
+  { 0x10DE0398, "GeForce Go 7600" },
+  { 0x10DE0399, "GeForce Go 7600 GT"},
+  { 0x10DE039A, "Quadro NVS 300M" },
+  { 0x10DE039C, "Quadro FX 550M" },
+
+  { 0x10DE0298, "GeForce Go 7900 GS" },
+  { 0x10DE0299, "GeForce Go 7900 GTX" },
+  { 0x10DE029A, "Quadro FX 2500M" },
+  { 0x10DE029B, "Quadro FX 1500M" },
+
+  { 0x10DE0240, "GeForce 6150" },
+  { 0x10DE0241, "GeForce 6150 LE" },
+  { 0x10DE0241, "GeForce 6100" },
+  { 0x10DE0244, "GeForce Go 6150" },
+  { 0x10DE0247, "GeForce Go 6100" },
+
   {-1, NULL}
 };
 
@@ -701,12 +701,11 @@ NVProbe(DriverPtr drv, int flags)
                case 0x0120:
                case 0x0140:
                case 0x0160:
-               case 0x0130:
                case 0x01D0:
                case 0x0090:
                case 0x0210:
                case 0x0220:
-               case 0x0230:
+               case 0x0240:
                case 0x0290:
                case 0x0390:
                    NVChipsets[numUsed].token = pciid;
@@ -1398,26 +1397,25 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     case 0x0280:   /* GeForce4 Ti (8x AGP) */
          pNv->Architecture =  NV_ARCH_20;
          break;
-    case 0x0300:   /* GeForceFX 5800 */
-    case 0x0310:   /* GeForceFX 5600 */
-    case 0x0320:   /* GeForceFX 5200 */
-    case 0x0330:   /* GeForceFX 5900 */
-    case 0x0340:   /* GeForceFX 5700 */
+    case 0x0300:   /* GeForce FX 5800 */
+    case 0x0310:   /* GeForce FX 5600 */
+    case 0x0320:   /* GeForce FX 5200 */
+    case 0x0330:   /* GeForce FX 5900 */
+    case 0x0340:   /* GeForce FX 5700 */
          pNv->Architecture =  NV_ARCH_30;
          break;
-    case 0x0040:
-    case 0x00C0:
-    case 0x0120:
-    case 0x0130:
-    case 0x0140:
-    case 0x0160:
-    case 0x01D0:
-    case 0x0090:
-    case 0x0210:
-    case 0x0220:
-    case 0x0230:
-    case 0x0290:
-    case 0x0390:
+    case 0x0040:   /* GeForce 6800 */
+    case 0x00C0:   /* GeForce 6800 */
+    case 0x0120:   /* GeForce 6800 */
+    case 0x0140:   /* GeForce 6600 */
+    case 0x0160:   /* GeForce 6200 */
+    case 0x01D0:   /* GeForce 7200, 7300, 7400 */
+    case 0x0090:   /* GeForce 7800 */
+    case 0x0210:   /* GeForce 6800 */
+    case 0x0220:   /* GeForce 6200 */
+    case 0x0290:   /* GeForce 7900 */
+    case 0x0390:   /* GeForce 7600 */
+    case 0x0240:   /* GeForce 6100 */
          pNv->Architecture =  NV_ARCH_40;
          break;
     default:
