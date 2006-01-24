@@ -356,7 +356,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->ddxDriverMajorVersion = I810_MAJOR_VERSION;
    pDRIInfo->ddxDriverMinorVersion = I810_MINOR_VERSION;
    pDRIInfo->ddxDriverPatchVersion = I810_PATCHLEVEL;
-   pDRIInfo->frameBufferPhysicalAddress = pI810->LinearAddr;
+   pDRIInfo->frameBufferPhysicalAddress = (pointer) pI810->LinearAddr;
    pDRIInfo->frameBufferSize = (((pScrn->displayWidth *
 				  pScrn->virtualY * pI810->cpp) +
 				 4096 - 1) / 4096) * 4096;

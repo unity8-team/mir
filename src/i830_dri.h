@@ -9,8 +9,8 @@
 #define I830_MAX_DRAWABLES 256
 
 #define I830_MAJOR_VERSION 1
-#define I830_MINOR_VERSION 4
-#define I830_PATCHLEVEL 1
+#define I830_MINOR_VERSION 5
+#define I830_PATCHLEVEL 0
 
 #define I830_REG_SIZE 0x80000
 
@@ -23,6 +23,9 @@ typedef struct _I830DRIRec {
 
    drmSize depthbufferSize;
    drm_handle_t depthbuffer;
+
+   drmSize rotatedSize;
+   drm_handle_t rotatedbuffer;
 
    drm_handle_t textures;
    int textureSize;
@@ -45,6 +48,9 @@ typedef struct _I830DRIRec {
 
    int depthOffset;
    int depthPitch;
+
+   int rotatedOffset;
+   int rotatedPitch;
 
    int logTextureGranularity;
    int textureOffset;

@@ -136,6 +136,7 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_E7221_G,		"E7221 (i915)"},
    {PCI_CHIP_I915_GM,		"915GM"},
    {PCI_CHIP_I945_G,		"945G"},
+   {PCI_CHIP_I945_GM,		"945GM"},
    {-1,				NULL}
 };
 
@@ -154,6 +155,7 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_E7221_G,		PCI_CHIP_E7221_G,	RES_SHARED_VGA},
    {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	RES_SHARED_VGA},
    {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	RES_SHARED_VGA},
+   {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	RES_SHARED_VGA},
    {-1,				-1, RES_UNDEFINED }
 };
 
@@ -299,6 +301,7 @@ const char *I810drmSymbols[] = {
    "drmGetInterruptFromBusID",
    "drmGetLibVersion",
    "drmGetVersion",
+   "drmRmMap",
    NULL
 };
 
@@ -306,6 +309,7 @@ const char *I810drmSymbols[] = {
 const char *I810driSymbols[] = {
    "DRICloseScreen",
    "DRICreateInfoRec",
+   "DRIGetContext",
    "DRIDestroyInfoRec",
    "DRIFinishScreenInit",
    "DRIGetSAREAPrivate",
@@ -317,15 +321,16 @@ const char *I810driSymbols[] = {
    "DRICreatePCIBusID",
    NULL
 };
+#endif 
 
 const char *I810shadowSymbols[] = {
     "shadowInit",
     "shadowSetup",
     "shadowAdd",
+    "shadowRemove",
+    "shadowUpdateRotatePacked",
     NULL
 };
-
-#endif 
 
 #ifndef I810_DEBUG
 int I810_DEBUG = (0
@@ -569,6 +574,7 @@ I810Probe(DriverPtr drv, int flags)
 	    case PCI_CHIP_E7221_G:
 	    case PCI_CHIP_I915_GM:
 	    case PCI_CHIP_I945_G:
+	    case PCI_CHIP_I945_GM:
     	       xf86SetEntitySharable(usedChips[i]);
 
     	       /* Allocate an entity private if necessary */		

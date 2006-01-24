@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-i810],
-        1.4.1.3,
+        1.5.0.0,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-i810)
 

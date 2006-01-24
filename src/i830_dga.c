@@ -54,6 +54,7 @@
 
 static Bool I830_OpenFramebuffer(ScrnInfoPtr, char **, unsigned char **,
 				 int *, int *, int *);
+static void I830_CloseFramebuffer(ScrnInfoPtr pScrn);
 static Bool I830_SetMode(ScrnInfoPtr, DGAModePtr);
 static void I830_Sync(ScrnInfoPtr);
 static int I830_GetViewport(ScrnInfoPtr);
@@ -69,7 +70,7 @@ static void I830_BlitTransRect(ScrnInfoPtr, int, int, int, int, int, int,
 static
 DGAFunctionRec I830DGAFuncs = {
    I830_OpenFramebuffer,
-   NULL,
+   I830_CloseFramebuffer,
    I830_SetMode,
    I830_SetViewport,
    I830_GetViewport,
@@ -131,11 +132,22 @@ I830DGAInit(ScreenPtr pScreen)
       currentMode->yViewportStep = 1;
       currentMode->viewportFlags = DGA_FLIP_RETRACE;
       currentMode->offset = 0;
-      currentMode->address = pI830->FbBase + pScrn->fbOffset;
+      if (I830IsPrimary(pScrn)) {
+         currentMode->address = pI830->FbBase + pI830->FrontBuffer.Start;
+      } else {
+         I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
+         currentMode->address = pI830->FbBase + pI8301->FrontBuffer2.Start;
+      }
 
-      currentMode->bytesPerScanline = ((pScrn->displayWidth * Bpp) + 3) & ~3L;
-      currentMode->imageWidth = pI830->FbMemBox.x2;
-      currentMode->imageHeight = pI830->FbMemBox.y2;
+      currentMode->bytesPerScanline = ((pI830->displayWidth * Bpp) + 3) & ~3L;
+      if (I830IsPrimary(pScrn)) {
+         currentMode->imageWidth = pI830->FbMemBox.x2;
+         currentMode->imageHeight = pI830->FbMemBox.y2;
+      } else {
+         I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
+         currentMode->imageWidth = pI8301->FbMemBox2.x2;
+         currentMode->imageHeight = pI8301->FbMemBox2.y2;
+      }
       currentMode->pixmapWidth = currentMode->imageWidth;
       currentMode->pixmapHeight = currentMode->imageHeight;
       currentMode->maxViewportX = currentMode->imageWidth -
@@ -168,6 +180,7 @@ I830_SetMode(ScrnInfoPtr pScrn, DGAModePtr pMode)
    if (!pMode) {			/* restore the original mode */
       DPRINTF(PFX, "Restoring original mode (from DGA mode)\n");
       if (pI830->DGAactive) {
+         I830_CloseFramebuffer(pScrn);
 	 pScrn->currentMode = I830SavedDGAModes[index];
 	 pScrn->SwitchMode(index, pScrn->currentMode, 0);
 	 pScrn->AdjustFrame(index, 0, 0, 0);
@@ -178,6 +191,15 @@ I830_SetMode(ScrnInfoPtr pScrn, DGAModePtr pMode)
 	 DPRINTF(PFX, "Setting DGA mode\n");
 	 I830SavedDGAModes[index] = pScrn->currentMode;
 	 pI830->DGAactive = TRUE;
+         if (I830IsPrimary(pScrn)) {
+            pScrn->fbOffset = pI830->FrontBuffer.Start;
+         }
+         else {
+            I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
+            pScrn->fbOffset = pI8301->FrontBuffer2.Start;
+         }
+         pScrn->displayWidth = pI830->displayWidth;
+         I830SelectBuffer(pScrn, I830_SELECT_FRONT);
       }
 
       pScrn->SwitchMode(index, pMode->mode, 0);
@@ -284,13 +306,19 @@ I830_OpenFramebuffer(ScrnInfoPtr pScrn,
    MARKER();
 
    *name = NULL;			/* no special device */
-   *mem = (unsigned char *)(pI830->LinearAddr + pScrn->fbOffset);
-   if (pI830->init == 0)
+   if (I830IsPrimary(pScrn)) {
       *size = pI830->FrontBuffer.Size;
+      *mem = (unsigned char *)(pI830->LinearAddr + pI830->FrontBuffer.Start);
+      pScrn->fbOffset = pI830->FrontBuffer.Start;
+   }
    else {
       I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
       *size = pI8301->FrontBuffer2.Size;
+      *mem = (unsigned char *)(pI8301->LinearAddr + pI8301->FrontBuffer2.Start);
+      pScrn->fbOffset = pI8301->FrontBuffer2.Start;
    }
+   pScrn->displayWidth = pI830->displayWidth;
+   I830SelectBuffer(pScrn, I830_SELECT_FRONT);
    *offset = 0;
    *flags = DGA_NEED_ROOT;
 
@@ -299,4 +327,78 @@ I830_OpenFramebuffer(ScrnInfoPtr pScrn,
 	   "size == %lu (pI830->FbMapSize)\n", *mem, *size);
 
    return TRUE;
+}
+
+static void
+I830_CloseFramebuffer(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   int i;
+   /* Good pitches to allow tiling.  Don't care about pitches < 1024. */
+   static const int pitches[] = {
+/*
+	 128 * 2,
+	 128 * 4,
+*/
+	 128 * 8,
+	 128 * 16,
+	 128 * 32,
+	 128 * 64,
+	 0
+   };
+
+   if (I830IsPrimary(pScrn)) {
+      if (pI830->rotation != RR_Rotate_0)
+         pScrn->fbOffset = pI830->RotatedMem.Start;
+      else
+         pScrn->fbOffset = pI830->FrontBuffer.Start;
+   } else {
+      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
+
+      if (pI830->rotation != RR_Rotate_0)
+         pScrn->fbOffset = pI8301->RotatedMem2.Start;
+      else
+         pScrn->fbOffset = pI8301->FrontBuffer2.Start;
+   }
+   I830SelectBuffer(pScrn, I830_SELECT_FRONT);
+
+   switch (pI830->rotation) {
+      case RR_Rotate_0:
+         pScrn->displayWidth = pI830->displayWidth;
+         break;
+      case RR_Rotate_90:
+         pScrn->displayWidth = pScrn->pScreen->width;
+         break;
+      case RR_Rotate_180:
+         pScrn->displayWidth = pI830->displayWidth;
+         break;
+      case RR_Rotate_270:
+         pScrn->displayWidth = pScrn->pScreen->width;
+         break;
+   }
+
+   /* As DRI doesn't run on the secondary head, we know that disableTiling
+    * is always TRUE.
+    */
+   if (I830IsPrimary(pScrn) && !pI830->disableTiling) {
+#if 0
+      int dWidth = pScrn->displayWidth; /* save current displayWidth */
+#endif
+
+      for (i = 0; pitches[i] != 0; i++) {
+         if (pitches[i] >= pScrn->displayWidth) {
+            pScrn->displayWidth = pitches[i];
+            break;
+         }
+      }
+
+      /*
+       * If the displayWidth is a tilable pitch, test if there's enough
+       * memory available to enable tiling.
+       */
+      if (pScrn->displayWidth == pitches[i]) {
+  	/* TODO */
+      }
+   }
+
 }

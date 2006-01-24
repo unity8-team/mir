@@ -58,6 +58,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86int10.h"
 #include "vbe.h"
 #include "vgaHW.h"
+#include "randrstr.h"
 
 #ifdef XF86DRI
 #include "xf86drm.h"
@@ -168,6 +169,8 @@ typedef struct _I830Rec {
    
    int fixedPipe;
 
+   DisplayModePtr currentMode;
+
    Bool Clone;
    int CloneRefresh;
    int CloneHDisplay;
@@ -214,14 +217,25 @@ typedef struct _I830Rec {
 #ifdef I830_XV
    /* For Xvideo */
    I830MemRange *OverlayMem;
+   I830MemRange LinearMem;
 #endif
+   unsigned int LinearAlloc;
+  
+   I830MemRange RotatedMem;
+   I830MemRange RotatedMem2;
+   Rotation rotation;
+   int InitialRotation;
+   int displayWidth;
+   void (*PointerMoved)(int, int, int);
+   CreateScreenResourcesProcPtr    CreateScreenResources;
+   int *used3D;
 
 #ifdef XF86DRI
    I830MemRange BackBuffer;
    I830MemRange DepthBuffer;
    I830MemRange TexMem;
-   I830MemRange ContextMem;
    int TexGranularity;
+   I830MemRange ContextMem;
    int drmMinor;
    Bool have3DWindows;
 #endif
@@ -234,6 +248,7 @@ typedef struct _I830Rec {
 
    Bool CursorNeedsPhysical;
    Bool CursorIsARGB;
+   CursorPtr pCurs;
 
    int MonType1;
    int MonType2;
@@ -303,13 +318,6 @@ typedef struct _I830Rec {
 
    /* Broken-out options. */
    OptionInfoPtr Options;
-   int rotate;
-   Bool shadowFB;
-
-   /* Support for shadowFB and rotation. */
-   unsigned char *shadowPtr;
-   int shadowPitch;
-   void (*PointerMoved)(int, int, int);
 
    /* Stolen memory support */
    Bool StolenOnly;
@@ -335,8 +343,9 @@ typedef struct _I830Rec {
    Bool checkDevices;
    int monitorSwitch;
    int operatingDevices;
+   int toggleDevices;
    int savedDevices;
-   int lastDevice1, lastDevice2;
+   int lastDevice0, lastDevice1, lastDevice2;
 
    /* These are indexed by the display types */
    Bool displayAttached[NumDisplayTypes];
@@ -399,15 +408,27 @@ extern void I830VideoSwitchModeBefore(ScrnInfoPtr pScrn, DisplayModePtr mode);
 extern void I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode);
 #endif
 
+extern Bool I830AllocateRotatedBuffer(ScrnInfoPtr pScrn, const int flags);
+extern Bool I830AllocateRotated2Buffer(ScrnInfoPtr pScrn, const int flags);
 #ifdef XF86DRI
 extern Bool I830Allocate3DMemory(ScrnInfoPtr pScrn, const int flags);
+extern Bool I830AllocateBackBuffer(ScrnInfoPtr pScrn, const int flags);
+extern Bool I830AllocateDepthBuffer(ScrnInfoPtr pScrn, const int flags);
+extern Bool I830AllocateTextureMemory(ScrnInfoPtr pScrn, const int flags);
 extern void I830SetupMemoryTiling(ScrnInfoPtr pScrn);
 extern Bool I830DRIScreenInit(ScreenPtr pScreen);
+extern Bool I830CheckDRIAvailable(ScrnInfoPtr pScrn);
 extern Bool I830DRIDoMappings(ScreenPtr pScreen);
 extern Bool I830DRIResume(ScreenPtr pScreen);
 extern void I830DRICloseScreen(ScreenPtr pScreen);
 extern Bool I830DRIFinishScreenInit(ScreenPtr pScreen);
+extern Bool I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
+extern void I830DRIUnmapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
+extern Bool I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
+extern void I830DRIUnlock(ScrnInfoPtr pScrn);
+extern Bool I830DRILock(ScrnInfoPtr pScrn);
 #endif
+
 extern Bool I830AccelInit(ScreenPtr pScreen);
 extern void I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir,
 					   int ydir, int rop,
@@ -432,11 +453,13 @@ extern Bool I830UnbindGARTMemory(ScrnInfoPtr pScrn);
 extern unsigned long I830AllocVidMem(ScrnInfoPtr pScrn, I830MemRange *result,
 				     I830MemPool *pool, long size,
 				     unsigned long alignment, int flags);
+extern void I830FreeVidMem(ScrnInfoPtr pScrn, I830MemRange *range);
 
 extern void I830PrintAllRegisters(I830RegPtr i830Reg);
 extern void I830ReadAllRegisters(I830Ptr pI830, I830RegPtr i830Reg);
 
 extern void I830ChangeFrontbuffer(ScrnInfoPtr pScrn,int buffer);
+extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
 extern DisplayModePtr I830GetModePool(ScrnInfoPtr pScrn, vbeInfoPtr pVbe,
 					VbeInfoBlock *vbe);
@@ -445,12 +468,8 @@ extern void I830UnsetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe);
 extern void I830PrintModes(ScrnInfoPtr pScrn);
 extern int I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh);
 extern Bool I830CheckModeSupport(ScrnInfoPtr pScrn, int x, int y, int mode);
-extern void I830PointerMoved(int index, int x, int y);
-extern void I830RefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
-extern void I830RefreshArea8(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
-extern void I830RefreshArea16(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
-extern void I830RefreshArea24(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
-extern void I830RefreshArea32(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
+extern Bool I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode);
+extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for

@@ -192,16 +192,18 @@ the machine has booted, but unfortunately it doesn't always work and
 is extremely dependent upon the Video BIOS.
 Default: disabled
 .TP
-.BI "Option \*qRotate\*q \*qCW\*q"
+.BI "Option \*qRotate\*q \*q90\*q"
+Rotate the desktop 90 degrees counterclockwise. Other valid options are
+0, 90, 180 and 270 degrees. The RandR extension is used for rotation 
+functionality. So this option allows the Xserver to start with a rotated
+mode of operation.
+Default: 0 degrees.
 .TP
-.BI "Option \*qRotate\*q \*qCCW\*q"
-Rotate the desktop 90 degrees clockwise or counterclockwise.  This option 
-forces the ShadowFB option on, and disables acceleration.
-Default: no rotation.
-.TP
-.BI "Option \*qShadowFB\*q \*q" boolean \*q
-Enable or disable use of the shadow framebuffer layer.  This option
-disables acceleration.  Default: off.
+.BI "Option \*qLinearAlloc\*q \*q" integer \*q
+Allows more memory for the offscreen allocator. This usually helps in
+situations where HDTV movies are required to play but not enough offscreen
+memory is usually available. Set this to 6144 for upto 1920x1080 HDTV support.
+Default 0KB (off).
 
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)

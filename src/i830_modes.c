@@ -346,7 +346,7 @@ I830GetGTF (int h_pixels, int v_lines, float freq,
     m->Clock   = (int)(pixel_freq * 1000);
     m->SynthClock   = m->Clock;
     m->HSync = h_freq;
-    m->VRefresh = freq;
+    m->VRefresh = v_frame_rate /* freq */;
 
     snprintf(modename, sizeof(modename), "%dx%d", m->HDisplay,m->VDisplay);
     m->name = xnfstrdup(modename);
