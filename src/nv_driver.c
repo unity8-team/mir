@@ -1,4 +1,4 @@
-/* $XdotOrg: driver/xf86-video-nv/src/nv_driver.c,v 1.19 2006/01/02 01:54:19 aplattner Exp $ */
+/* $XdotOrg: driver/xf86-video-nv/src/nv_driver.c,v 1.20 2006/01/23 00:04:41 aplattner Exp $ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
@@ -29,7 +29,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.141 2006/01/21 01:17:59 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.142 2006/01/23 18:35:53 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -306,7 +306,7 @@ static SymTabRec NVKnownChipsets[] =
 
   { 0x10DE0240, "GeForce 6150" },
   { 0x10DE0241, "GeForce 6150 LE" },
-  { 0x10DE0241, "GeForce 6100" },
+  { 0x10DE0242, "GeForce 6100" },
   { 0x10DE0244, "GeForce Go 6150" },
   { 0x10DE0247, "GeForce Go 6100" },
 
