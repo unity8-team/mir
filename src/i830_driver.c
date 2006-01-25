@@ -2676,7 +2676,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
       if (xf86IsEntityShared(pScrn->entityList[0])) {
          if (I830IsPrimary(pScrn))
-            pScrn->videoRam *= 2;
+            pScrn->videoRam += I830_DEFAULT_VIDEOMEM_2D;
       else
             pScrn->videoRam = I830_MAXIMUM_VBIOS_MEM;
       } 
