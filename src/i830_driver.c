@@ -3264,7 +3264,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
                   Clock = pMon->Clock;
             } 
 
-            if (DDCclock < 2550 && Clock / 1000.0 > DDCclock) {
+            if (Clock != 100000000 && DDCclock < 2550 && Clock / 1000.0 > DDCclock) {
                ErrorF("(%s,%s) mode clock %gMHz exceeds DDC maximum %dMHz\n",
 		   p->name, pScrn->monitor->id,
 		   Clock/1000.0, DDCclock);
@@ -4806,20 +4806,23 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     * If we're changing the BIOS's view of the video memory size, do that
     * first, then re-initialise the VBE information.
     */
-   SetPipeAccess(pScrn);
    if (I830IsPrimary(pScrn)) {
+      SetPipeAccess(pScrn);
       if (pI830->pVbe)
          vbeFree(pI830->pVbe);
       pI830->pVbe = VBEInit(NULL, pI830->pEnt->index);
    } else {
       pI830->pVbe = pI8301->pVbe;
    }
+
    if (I830IsPrimary(pScrn)) {
       if (!TweakMemorySize(pScrn, pI830->newBIOSMemSize,FALSE))
          SetBIOSMemSize(pScrn, pI830->newBIOSMemSize);
    }
+
    if (!pI830->pVbe)
       return FALSE;
+
    if (I830IsPrimary(pScrn)) {
       if (pI830->vbeInfo)
          VBEFreeVBEInfo(pI830->vbeInfo);
@@ -4827,6 +4830,8 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    } else {
       pI830->vbeInfo = pI8301->vbeInfo;
    }
+
+   SetPipeAccess(pScrn);
 
    miClearVisualTypes();
    if (!miSetVisualTypes(pScrn->depth,
@@ -5372,7 +5377,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
                   Clock = pMon->Clock;
             } 
 
-            if (DDCclock < 2550 && Clock / 1000.0 > DDCclock) {
+            if (Clock != 100000000 && DDCclock < 2550 && Clock / 1000.0 > DDCclock) {
                ErrorF("(%s,%s) mode clock %gMHz exceeds DDC maximum %dMHz\n",
 		   p->name, pScrn->monitor->id,
 		   Clock/1000.0, DDCclock);
