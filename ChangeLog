@@ -1,3 +1,9 @@
+2005-01-23  Alan Hourihane   <alanh@fairlite.demon.co.uk>
+	
+	Add i945GM support
+	Add rotation support (randr), including hwcursor, xvideo & 3D.
+	Remove older shadow rotation code
+
 2005-12-20  Kevin E. Martin  <kem-at-freedesktop-dot-org>
 
 	* configure.ac:
