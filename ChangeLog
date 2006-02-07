@@ -1,3 +1,10 @@
+2006-02-06  Eric Anholt  <anholt@FreeBSD.org>
+
+	* src/radeon_exa_render.c:
+	Fix a copy'n'paste-o in the EXA render implementation that resulted in
+	[ax]8b8g8r8 pict formats not being supported on r200, but no other
+	issues.
+
 2006-01-19  Daniel Stone  <daniel@freedesktop.org>
 
 	* src/radeon_driver.c:
