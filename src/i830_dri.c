@@ -490,7 +490,7 @@ I830DRIScreenInit(ScreenPtr pScreen)
 					     pScrn->virtualY * pI830->cpp);
 #else
    /* For rotation we map a 0 length framebuffer as we remap ourselves later */
-   pDRIInfo->frameBufferSize = 0;
+   pDRIInfo->frameBufferSize = 4096;
 #endif
    pDRIInfo->frameBufferStride = pScrn->displayWidth * pI830->cpp;
    pDRIInfo->ddxDrawableTableEntry = I830_MAX_DRAWABLES;
