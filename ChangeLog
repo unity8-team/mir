@@ -1,3 +1,9 @@
+2006-02-13  Benjamin Herrenschmidt <benh@kernel.crashing.org>
+
+	* src/radeon_exa_render.c: (R100TextureSetup), (R200TextureSetup):
+	Fix EXA acceleration of textures with byteswap or tiling
+	From John Clemens <john@deater.net>
+
 2006-02-06  Eric Anholt  <anholt@FreeBSD.org>
 
 	* src/radeon_exa_render.c:

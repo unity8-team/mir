@@ -223,6 +223,11 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     txpitch = exaGetPixmapPitch(pPix);
     txoffset = exaGetPixmapOffset(pPix) + info->fbLocation;
 
+    if ((txoffset & 0x1f) != 0)
+	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
+    if ((txpitch & 0x1f) != 0)
+	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
+    
     for (i = 0; i < sizeof(R100TexFormats) / sizeof(R100TexFormats[0]); i++)
     {
 	if (R100TexFormats[i].fmt == pPict->format)
@@ -241,11 +246,6 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	txformat |= RADEON_TXFORMAT_NON_POWER2;
     txformat |= unit << 24; /* RADEON_TXFORMAT_ST_ROUTE_STQX */
  
-    if ((txoffset & 0x1f) != 0)
-	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
-    if ((txpitch & 0x1f) != 0)
-	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
-
     switch (pPict->filter) {
     case PictFilterNearest:
 	txfilter = (RADEON_MAG_FILTER_NEAREST | RADEON_MIN_FILTER_NEAREST);
@@ -466,6 +466,11 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     txpitch = exaGetPixmapPitch(pPix);
     txoffset = exaGetPixmapOffset(pPix) + info->fbLocation;
 
+    if ((txoffset & 0x1f) != 0)
+	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
+    if ((txpitch & 0x1f) != 0)
+	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
+    
     for (i = 0; i < sizeof(R200TexFormats) / sizeof(R200TexFormats[0]); i++)
     {
 	if (R200TexFormats[i].fmt == pPict->format)
@@ -483,11 +488,6 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     } else
 	txformat |= R200_TXFORMAT_NON_POWER2;
     txformat |= unit << R200_TXFORMAT_ST_ROUTE_SHIFT;
-
-    if ((txoffset & 0x1f) != 0)
-	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
-    if ((txpitch & 0x1f) != 0)
-	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
 
     switch (pPict->filter) {
     case PictFilterNearest:
