@@ -483,16 +483,13 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->ddxDriverMajorVersion = I830_MAJOR_VERSION;
    pDRIInfo->ddxDriverMinorVersion = I830_MINOR_VERSION;
    pDRIInfo->ddxDriverPatchVersion = I830_PATCHLEVEL;
+#if 1 /* temporary until this gets removed from the libdri layer */
    pDRIInfo->frameBufferPhysicalAddress = (pointer) pI830->LinearAddr +
 					  pI830->FrontBuffer.Start;
-#if 0
    pDRIInfo->frameBufferSize = ROUND_TO_PAGE(pScrn->displayWidth *
 					     pScrn->virtualY * pI830->cpp);
-#else
-   /* For rotation we map a 0 length framebuffer as we remap ourselves later */
-   pDRIInfo->frameBufferSize = 4096;
-#endif
    pDRIInfo->frameBufferStride = pScrn->displayWidth * pI830->cpp;
+#endif
    pDRIInfo->ddxDrawableTableEntry = I830_MAX_DRAWABLES;
 
    if (SAREA_MAX_DRAWABLES < I830_MAX_DRAWABLES)
@@ -929,13 +926,10 @@ I830DRIFinishScreenInit(ScreenPtr pScreen)
 
    /* Have shadow run only while there is 3d active.
     */
-#if 0
-   if (pI830->allowPageFlip && pI830->drmMinor >= 1) {
-      shadowSetup(pScreen);
+   if (pI830->allowPageFlip && pI830->drmMinor >= 1 && pI830->shadowReq.minorversion >= 1) {
       shadowAdd(pScreen, 0, I830DRIShadowUpdate, 0, 0, 0);
    }
    else
-#endif
       pI830->allowPageFlip = 0;
 
 
@@ -1225,7 +1219,6 @@ I830EmitInvarientState(ScrnInfoPtr pScrn)
  */
 
 
-#if 0
 /* This should be done *before* XAA syncs,
  * Otherwise will have to sync again???
  */
@@ -1234,7 +1227,7 @@ I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
-   RegionPtr damage = &pBuf->damage;
+   RegionPtr damage = (RegionPtr) shadowBuf(pBuf);
    int i, num =  REGION_NUM_RECTS(damage);
    BoxPtr pbox = REGION_RECTS(damage);
    drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScreen);
@@ -1270,7 +1263,6 @@ I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf)
       ADVANCE_LP_RING();
    }
 }
-#endif
 
 static void
 I830EnablePageFlip(ScreenPtr pScreen)
