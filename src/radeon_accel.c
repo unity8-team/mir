@@ -292,19 +292,19 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    int            pitch64;
 
     RADEONTRACE(("EngineRestore (%d/%d)\n",
 		 info->CurrentLayout.pixel_code,
 		 info->CurrentLayout.bitsPerPixel));
 
-    RADEONWaitForFifo(pScrn, 1);
-
-    pitch64 = ((pScrn->displayWidth * (pScrn->bitsPerPixel / 8) + 0x3f)) >> 6;
-
-/*    RADEONWaitForFifo(pScrn, 2);
+    /* Setup engine location. This shouldn't be necessary since we
+     * set them appropriately before any accel ops, but let's avoid
+     * random bogus DMA in case we inadvertently trigger the engine
+     * in the wrong place (happened).
+     */
+    RADEONWaitForFifo(pScrn, 2);
     OUTREG(RADEON_DST_PITCH_OFFSET, info->dst_pitch_offset);
-    OUTREG(RADEON_SRC_PITCH_OFFSET, info->dst_pitch_offset);*/
+    OUTREG(RADEON_SRC_PITCH_OFFSET, info->dst_pitch_offset);
 
     RADEONWaitForFifo(pScrn, 1);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -326,9 +326,7 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
 				       | RADEON_GMC_BRUSH_SOLID_COLOR
 				       | RADEON_GMC_SRC_DATATYPE_COLOR));
 
-    RADEONWaitForFifo(pScrn, 7);
-    OUTREG(RADEON_DST_LINE_START,    0);
-    OUTREG(RADEON_DST_LINE_END,      0);
+    RADEONWaitForFifo(pScrn, 5);
     OUTREG(RADEON_DP_BRUSH_FRGD_CLR, 0xffffffff);
     OUTREG(RADEON_DP_BRUSH_BKGD_CLR, 0x00000000);
     OUTREG(RADEON_DP_SRC_FRGD_CLR,   0xffffffff);

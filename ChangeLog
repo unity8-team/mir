@@ -1,3 +1,13 @@
+2006-02-16  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon_accel.c: (RADEONEngineRestore):
+	The engine setup would trigger a bogus line write before the proper
+	addresses are setup, thus causing the card to try to bus master over
+	the system bus to some stale location (usually 0 but could depend on
+	whatever was used before X). Remove that useless init bit, and always
+	setup some good enough engine source & destination pointers in case we
+	have some other spurrious engine activity going on.
+
 2006-02-13  Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
 	* src/radeon_exa_render.c: (R100TextureSetup), (R200TextureSetup):
