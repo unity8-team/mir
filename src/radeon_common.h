@@ -31,7 +31,7 @@
  * Converted to common header format:
  *   Jens Owen <jens@tungstengraphics.com>
  *
- * $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_common.h,v 1.5 2005/01/26 18:23:40 sroland Exp $
+ * $XdotOrg: driver/xf86-video-ati/src/radeon_common.h,v 1.7 2005/09/11 08:51:38 airlied Exp $
  * $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_common.h,v 1.8tsi Exp $
  *
  */
@@ -474,6 +474,7 @@ typedef struct drm_radeon_set_param {
 #define RADEON_SETPARAM_FB_LOCATION     1
 #define RADEON_SETPARAM_SWITCH_TILING   2
 #define RADEON_SETPARAM_PCIGART_LOCATION 3
+#define RADEON_SETPARAM_NEW_MEMMAP 4
 
 /* 1.14: Clients can allocate/free a surface
  */

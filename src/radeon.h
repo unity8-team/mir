@@ -102,7 +102,7 @@ typedef struct _region {
 
 /* ------------------------------------- */
 
-#define RADEON_DEBUG            0 /* Turn off debugging output               */
+#define RADEON_DEBUG            1 /* Turn off debugging output               */
 #define RADEON_IDLE_RETRY      16 /* Fall out of idle loops after this count */
 #define RADEON_TIMEOUT    2000000 /* Fall out of wait loops after this count */
 #define RADEON_MMIOSIZE   0x80000
@@ -116,13 +116,13 @@ typedef struct _region {
 				   */
 
 #if RADEON_DEBUG
-#define RADEONTRACE(x)							\
+#define RADEONTRACE(x)						\
 do {									\
     ErrorF("(**) %s(%d): ", RADEON_NAME, pScrn->scrnIndex);		\
     ErrorF x;								\
-} while (0);
+} while(0)
 #else
-#define RADEONTRACE(x)
+#define RADEONTRACE(x) do { } while(0)
 #endif
 
 
@@ -147,10 +147,16 @@ typedef struct {
     CARD32            cap0_trig_cntl;
     CARD32            cap1_trig_cntl;
     CARD32            bus_cntl;
-    CARD32            surface_cntl;
     CARD32            bios_4_scratch;
     CARD32            bios_5_scratch;
     CARD32            bios_6_scratch;
+    CARD32            surface_cntl;
+    CARD32            surfaces[8][3];
+    CARD32            mc_agp_location;
+    CARD32            mc_fb_location;
+    CARD32            display_base_addr;
+    CARD32            display2_base_addr;
+    CARD32            ov0_base_addr;
 
 				/* Other registers to save for VT switches */
     CARD32            dp_datatype;
@@ -158,8 +164,6 @@ typedef struct {
     CARD32            clock_cntl_index;
     CARD32            amcgpio_en_reg;
     CARD32            amcgpio_mask;
-    
-    CARD32            surfaces[8][3];
 
 				/* CRTC registers */
     CARD32            crtc_gen_cntl;
@@ -326,6 +330,8 @@ typedef struct {
     unsigned long     MMIOAddr;         /* MMIO region physical address      */
     unsigned long     BIOSAddr;         /* BIOS physical address             */
     unsigned int      fbLocation;
+    CARD32            mc_fb_location;
+    CARD32            mc_agp_location;
 
     unsigned char     *MMIO;            /* Map of MMIO region                */
     unsigned char     *FB;              /* Map of frame buffer               */
@@ -482,6 +488,7 @@ typedef struct {
 #ifdef XF86DRI
     Bool              noBackBuffer;
     Bool              directRenderingEnabled;
+    Bool              directRenderingInited;
     DRIInfoPtr        pDRIInfo;
     int               drmFD;
     int               numVisualConfigs;

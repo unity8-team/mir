@@ -1456,10 +1456,6 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
 		       version->version_patchlevel);
 	   info->allowColorTiling = FALSE;
 	   info->tilingEnabled = FALSE;
-	   /* try to fix up already set mode, crt pitch, ddx major (hope that's ok to do here) */
-	   /* is this correct scrnIndex? flags? */
-	   RADEONSwitchMode(pScrn->scrnIndex, pScrn->currentMode, 0);
-	   pScrn->AdjustFrame(pScrn->scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 	   pDRIInfo->ddxDriverMajorVersion = RADEON_VERSION_MAJOR;
 	}
 	drmFreeVersion(version);
@@ -1611,6 +1607,8 @@ Bool RADEONDRIFinishScreenInit(ScreenPtr pScreen)
        info->allowPageFlip = 0;
     }
 
+    info->directRenderingInited = TRUE;
+
     return TRUE;
 }
 
@@ -1665,7 +1663,9 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
     drmRadeonInit  drmInfo;
     RING_LOCALS;
 
-				/* Stop the CP */
+    RADEONTRACE(("RADEONDRICloseScreen\n"));
+    
+    /* Stop the CP */
     if (info->directRenderingEnabled) {
 	/* If we've generated any CP commands, we must flush them to the
 	 * kernel module now.
@@ -1775,6 +1775,9 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     int                 i;
     RADEONSAREAPrivPtr  pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
 
+    if (!info->directRenderingInited)
+	return;
+
     /* Don't want to do this when no 3d is active and pages are
      * right-way-round
      */
@@ -1784,6 +1787,10 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 #ifdef USE_XAA
     /* XXX: implement for EXA */
     /* pretty much a hack. */
+
+    /* Make sure accel has been properly inited */
+    if (info->accel == NULL || info->accel->SetupForScreenToScreenCopy == NULL)
+	return;
     if (info->tilingEnabled)
        info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
     (*info->accel->SetupForScreenToScreenCopy)(pScrn,

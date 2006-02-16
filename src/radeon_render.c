@@ -315,29 +315,27 @@ static Bool RADEONSetupRenderByteswap(ScrnInfoPtr pScrn, int tex_bytepp)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 swapper = info->ModeReg.surface_cntl;
+
+    swapper &= ~(RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP |
+		 RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP);
 
     /* Set up byte swapping for the framebuffer aperture as needed */
     switch (tex_bytepp) {
     case 1:
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl &
-				    ~(RADEON_NONSURF_AP0_SWP_32BPP
-				    | RADEON_NONSURF_AP0_SWP_16BPP));
 	break;
     case 2:
-	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg.surface_cntl &
-				     ~RADEON_NONSURF_AP0_SWP_32BPP)
-				   | RADEON_NONSURF_AP0_SWP_16BPP);
+	swapper |= RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP;
 	break;
     case 4:
-	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg.surface_cntl &
-				     ~RADEON_NONSURF_AP0_SWP_16BPP)
-				   | RADEON_NONSURF_AP0_SWP_32BPP);
+	swapper |= RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP;
 	break;
     default:
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%s: Don't know what to do for "
 		   "tex_bytepp == %d!\n", __func__, tex_bytepp);
 	return FALSE;
     }
+    OUTREG(RADEON_SURFACE_CNTL, swapper);
     return TRUE;
 }
 

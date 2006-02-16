@@ -155,9 +155,11 @@ void FUNC_NAME(RADEONWaitForIdle)(ScrnInfoPtr pScrn)
     }
 #endif
 
+#if 0
     RADEONTRACE(("WaitForIdle (entering): %d entries, stat=0x%08x\n",
 		     INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
 		     INREG(RADEON_RBBM_STATUS)));
+#endif
 
     /* Wait for the engine to go idle */
     RADEONWaitForFifoFunction(pScrn, 64);

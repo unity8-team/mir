@@ -31,6 +31,9 @@
 #include "config.h"
 #endif
 
+#define RADEONCTRACE(x)
+/* #define RADEONCTRACE(x) RADEONTRACE(x)  */
+
 /*
  * Authors:
  *   Kevin E. Martin <martin@xfree86.org>
@@ -50,6 +53,7 @@
 
 				/* Driver data structures */
 #include "radeon.h"
+#include "radeon_version.h"
 #include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_mergedfb.h"
@@ -81,11 +85,11 @@ static CARD32 mono_cursor_color[] = {
 #define CURSOR_SWAPPING_DECL_MMIO   unsigned char *RADEONMMIO = info->MMIO;
 #define CURSOR_SWAPPING_START() \
   do { \
+    COMMON_CURSOR_SWAPPING_START(); \
     OUTREG(RADEON_SURFACE_CNTL, \
 	   (info->ModeReg.surface_cntl | \
-	    RADEON_NONSURF_AP0_SWP_32BPP) & \
-	   ~RADEON_NONSURF_AP0_SWP_16BPP); \
-    COMMON_CURSOR_SWAPPING_START(); \
+	     RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP) & \
+	   ~(RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP)); \
   } while (0)
 #define CURSOR_SWAPPING_END()	(OUTREG(RADEON_SURFACE_CNTL, \
 					info->ModeReg.surface_cntl))
@@ -133,9 +137,9 @@ RADEONCursorAllocEXA(ScreenPtr pScreen)
 		   "Using hardware cursor\n",
 		   info->cursor_offset = info->cursorArea->offset);
 
-	RADEONTRACE(("%s (0x%08x-0x%08x)\n", __func__,
-		     info->cursor_offset,
-		     info->cursor_offset + info->cursorArea->size));
+	RADEONCTRACE(("%s (0x%08x-0x%08x)\n", __func__,
+		      info->cursor_offset,
+		      info->cursor_offset + info->cursorArea->size));
     }
 }
 #endif
@@ -148,6 +152,11 @@ static void RADEONSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
     CARD32        *pixels     = (CARD32 *)(pointer)(info->FB + info->cursor_offset);
     int            pixel, i;
     CURSOR_SWAPPING_DECL_MMIO
+
+    RADEONCTRACE(("RADEONSetCursorColors\n"));
+
+    if (info->cursor_offset == 0)
+	return;
 
 #ifdef ARGB_CURSOR
     /* Don't recolour cursors set with SetCursorARGB. */
@@ -191,10 +200,16 @@ static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
     int                total_y    = pScrn->frameY1 - pScrn->frameY0;
     int		       stride     = 256;
 
+    if (info->cursor_offset == 0)
+	return;
+
     if(info->MergedFB) {
+       RADEONCTRACE(("RADEONSetCursorPositionMerged\n"));
        RADEONSetCursorPositionMerged(pScrn, x, y);
        return;
     }
+
+    RADEONCTRACE(("RADEONSetCursorPosition\n"));
 
     if (x < 0)                        xorigin = -x+1;
     if (y < 0)                        yorigin = -y+1;
@@ -210,6 +225,8 @@ static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 	OUTREG(RADEON_CUR_HORZ_VERT_POSN, (RADEON_CUR_LOCK
 					   | ((xorigin ? 0 : x) << 16)
 					   | (yorigin ? 0 : y)));
+	RADEONCTRACE(("cursor_offset: 0x%x, yorigin: %d, stride: %d\n",
+		     info->cursor_offset, yorigin, stride));
 	OUTREG(RADEON_CUR_OFFSET, info->cursor_offset + yorigin * stride);
     } else {
 	OUTREG(RADEON_CUR2_HORZ_VERT_OFF,  (RADEON_CUR2_LOCK
@@ -238,6 +255,11 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
     CARD8	   chunk;
     CARD32         i, j;
 
+    if (info->cursor_offset == 0)
+	return;
+
+    RADEONCTRACE(("RADEONLoadCursorImage (at %x)\n", info->cursor_offset));
+
     if (!info->IsSecondary) {
 	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
 	save1 |= (CARD32) (2 << 20);
@@ -264,7 +286,7 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
      */
     CURSOR_SWAPPING_START();
 #define ARGB_PER_CHUNK	(8 * sizeof (chunk) / 2)
-    for (i = 0; i < CURSOR_WIDTH * CURSOR_HEIGHT / ARGB_PER_CHUNK; i++) {
+    for (i = 0; i < (CURSOR_WIDTH * CURSOR_HEIGHT / ARGB_PER_CHUNK); i++) {
         chunk = *s++;
 	for (j = 0; j < ARGB_PER_CHUNK; j++, chunk >>= 2)
 	    *d++ = mono_cursor_color[chunk & 3];
@@ -288,6 +310,8 @@ static void RADEONHideCursor(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
+    RADEONCTRACE(("RADEONHideCursor\n"));
+
     if (info->IsSecondary || info->MergedFB)
 	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~RADEON_CRTC2_CUR_EN);
 
@@ -300,6 +324,8 @@ static void RADEONShowCursor(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+
+    RADEONCTRACE(("RADEONShowCursor\n"));
 
     if (info->IsSecondary || info->MergedFB)
 	OUTREGP(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_CUR_EN,
@@ -351,8 +377,10 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
     CARD32	  *image = pCurs->bits->argb;
     CARD32	  *i;
 
-    if (!image)
-	return;	/* XXX can't happen */
+    RADEONCTRACE(("RADEONLoadCursorARGB\n"));
+
+    if (info->cursor_offset == 0)
+	return;
 
     if (!info->IsSecondary) {
 	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
@@ -473,7 +501,7 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 						256);
 	    info->cursor_end = info->cursor_offset + size_bytes;
 	}
-	RADEONTRACE(("RADEONCursorInit (0x%08x-0x%08x)\n",
+	RADEONCTRACE(("RADEONCursorInit (0x%08x-0x%08x)\n",
 		    info->cursor_offset, info->cursor_end));
     }
 #endif

@@ -812,6 +812,7 @@
 #define RADEON_HOST_DATA_LAST               0x17e0
 #define RADEON_HOST_PATH_CNTL               0x0130
 #       define RADEON_HDP_SOFT_RESET        (1 << 26)
+#       define RADEON_HDP_APER_CNTL         (1 << 23)
 #define RADEON_HTOTAL_CNTL                  0x0009 /* PLL */
 #define RADEON_HTOTAL2_CNTL                 0x002e /* PLL */
 

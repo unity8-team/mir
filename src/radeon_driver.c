@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.84 2006/01/13 01:02:01 alanc Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.85 2006/01/19 14:20:37 daniels Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -130,6 +130,8 @@ static void RADEONGetMergedFBOptions(ScrnInfoPtr pScrn);
 static int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode);
 static void RADEONUpdatePanelSize(ScrnInfoPtr pScrn);
+static void RADEONSaveMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 
 /* psuedo xinerama support */
 
@@ -733,6 +735,7 @@ static Bool RADEONMapFB(ScrnInfoPtr pScrn)
     if (info->FBDev) {
 	info->FB = fbdevHWMapVidmem(pScrn);
     } else {
+	RADEONTRACE(("Map: 0x%08x, 0x%08x\n", info->LinearAddr, info->FbMapSize));
 	info->FB = xf86MapPciMem(pScrn->scrnIndex,
 				 VIDMEM_FRAMEBUFFER,
 				 info->PciTag,
@@ -2253,83 +2256,65 @@ static Bool RADEONPreInitWeight(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-/* Set up MC_FB_LOCATION and related registers */
-static void
-RADEONSetFBLocation(ScrnInfoPtr pScrn)
+static void RADEONInitMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
+				      RADEONInfoPtr info)
 {
-    RADEONInfoPtr  info = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    save->mc_fb_location = info->mc_fb_location;
+    save->mc_agp_location = info->mc_agp_location;
+    save->display_base_addr = info->fbLocation;
+    save->display2_base_addr = info->fbLocation;
+    save->ov0_base_addr = info->fbLocation;
+}
+
+static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 mc_fb_location;
-    CARD32 mc_agp_location = INREG(RADEON_MC_AGP_LOCATION);
-    CARD32 bus_cntl = INREG(RADEON_BUS_CNTL);
-    
-    OUTREG (RADEON_BUS_CNTL, bus_cntl | RADEON_BUS_MASTER_DIS);
-    RADEONWaitForIdleMMIO(pScrn);
+    unsigned long agp_size, agp_base, mem_size;
 
-    /* This function has many problems with newer cards.
-     * Even with older cards, all registers changed here are not
-     * restored properly when X quits, this will also cause 
-     * various problems, especially with radeonfb.
-     * Since we don't have DRI support for R300 and above cards, 
-     * we just hardcode these values for now.
-     * Need to revisit this whole function!!!
+    /* Default to existing values */
+    info->mc_fb_location = INREG(RADEON_MC_FB_LOCATION);
+    info->mc_agp_location = INREG(RADEON_MC_AGP_LOCATION);
+
+    /* We shouldn't use info->videoRam here which might have been clipped
+     * but the real video RAM instead
      */
+    mem_size = INREG(RADEON_CONFIG_MEMSIZE);
+    if (mem_size == 0)
+	    mem_size = 0x800000;
 
-    if (info->IsIGP) {
-	mc_fb_location = INREG(RADEON_NB_TOM);
 
-	OUTREG(RADEON_GRPH2_BUFFER_CNTL,
-	       INREG(RADEON_GRPH2_BUFFER_CNTL) & ~0x7f0000);
-
-    } else
+    /* We won't try to change MC_FB_LOCATION when using fbdev */
+    if (!info->FBDev) {
+	if (info->IsIGP)
+	    info->mc_fb_location = INREG(RADEON_NB_TOM);
+	else
 #ifdef XF86DRI
-    if ( info->directRenderingEnabled && info->drmMinor < 10 ) {
-	mc_fb_location = (INREG(RADEON_CONFIG_APER_SIZE) - 1) & 0xffff0000U;
-    } else
+	/* Old DRI has restrictions on the memory map */
+	if ( info->directRenderingEnabled && info->drmMinor < 10 )
+	    info->mc_fb_location = (mem_size - 1) & 0xffff0000U;
+	else
 #endif
-    {
-	CARD32 aper0_base = INREG(RADEON_CONFIG_APER_0_BASE);
+	{
+	    CARD32 aper0_base = INREG(RADEON_CONFIG_APER_0_BASE);
 
-	mc_fb_location = (aper0_base >> 16)
-		       | ((aper0_base + (INREG(RADEON_CONFIG_APER_SIZE) - 1)
-			   ) & 0xffff0000U);
-    }
-
-    info->fbLocation = (mc_fb_location & 0xffff) << 16;
-
-    if (((mc_agp_location & 0xffff) << 16) !=
-	((mc_fb_location & 0xffff0000U) + 0x10000)) {
-	mc_agp_location = mc_fb_location & 0xffff0000U;
-	mc_agp_location |= (mc_agp_location + 0x10000) >> 16;
-    }
-
-    RADEONWaitForIdleMMIO(pScrn);
-
-    OUTREG(RADEON_MC_FB_LOCATION, mc_fb_location);
-    OUTREG(RADEON_MC_AGP_LOCATION, mc_agp_location);
-    OUTREG(RADEON_DISPLAY_BASE_ADDR, info->fbLocation);
-    if (info->HasCRTC2)
-	OUTREG(RADEON_DISPLAY2_BASE_ADDR, info->fbLocation);
-    OUTREG(RADEON_OV0_BASE_ADDR, info->fbLocation);
-
-    OUTREG (RADEON_BUS_CNTL, bus_cntl);
-    RADEONWaitForIdleMMIO(pScrn);
-
-    /* Set display0/1 priority up on r3/4xx in the memory controller for 
-     * high res modes if the user specifies HIGH for displaypriority 
-     * option.
-     */
-    if ((info->DispPriority == 2) && IS_R300_VARIANT) {
-        CARD32 mc_init_misc_lat_timer = INREG(R300_MC_INIT_MISC_LAT_TIMER);
-	if (info->MergedFB || pRADEONEnt->HasSecondary) {
-	    mc_init_misc_lat_timer |= 0x1100; /* display 0 and 1 */
-	} else {
-	    mc_init_misc_lat_timer |= 0x0100; /* display 0 only */
+	    info->mc_fb_location = (aper0_base >> 16) |
+		    ((aper0_base + mem_size - 1) & 0xffff0000U);
 	}
-	OUTREG(R300_MC_INIT_MISC_LAT_TIMER, mc_init_misc_lat_timer);
     }
+    info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
+   
+    /* Just disable the damn AGP apertures for now, it may be
+     * re-enabled later by the DRM
+     */
+    info->mc_agp_location = 0xffffffc0;
 
+    RADEONTRACE(("RADEONInitMemoryMap() : \n"));
+    RADEONTRACE(("  mem_size         : 0x%08lx\n", mem_size));
+    RADEONTRACE(("  agp_size         : 0x%08lx\n", agp_size));
+    RADEONTRACE(("  agp_base         : 0x%08lx\n", agp_base));
+    RADEONTRACE(("  MC_FB_LOCATION   : 0x%08lx\n", info->mc_fb_location));
+    RADEONTRACE(("  MC_AGP_LOCATION  : 0x%08lx\n", info->mc_agp_location));
 }
 
 static void RADEONGetVRamType(ScrnInfoPtr pScrn)
@@ -2366,6 +2351,55 @@ static void RADEONGetVRamType(ScrnInfoPtr pScrn)
     /* This may not be correct, as some cards can have half of channel disabled 
      * ToDo: identify these cases
      */
+}
+
+/*
+ * Depending on card genertation, chipset bugs, etc... the amount of vram
+ * accessible to the CPU can vary. This function is our best shot at figuring
+ * it out. Returns a value in KB.
+ */
+static CARD32 RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    EntityInfoPtr  pEnt   = info->pEnt;
+    GDevPtr        dev    = pEnt->device;
+    MessageType    from;
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32	   aper_size = INREG(RADEON_CONFIG_APER_SIZE) / 1024;
+
+    /* Set HDP_APER_CNTL only on cards that are known not to be broken,
+     * that is has the 2nd generation multifunction PCI interface
+     */
+    if (info->ChipFamily == CHIP_FAMILY_RV280 ||
+	info->ChipFamily == CHIP_FAMILY_RV350 ||
+	info->ChipFamily == CHIP_FAMILY_RV380 ||
+	info->ChipFamily == CHIP_FAMILY_R420) {
+	    OUTREGP (RADEON_HOST_PATH_CNTL, RADEON_HDP_APER_CNTL,
+		     ~RADEON_HDP_APER_CNTL);
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Generation 2 PCI interface, using max accessible memory\n");
+	    return aper_size * 2;
+    }
+
+    /* Older cards have all sorts of funny issues to deal with. First
+     * check if it's a multifunction card by reading the PCI config
+     * header type... Limit those to one aperture size
+     */
+    if (pciReadByte(info->PciTag, 0xe) & 0x80) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Generation 1 PCI interface in multifunction mode"
+		   ", accessible memory limited to one aperture\n");
+	return aper_size;
+    }
+
+    /* Single function older card. We read HDP_APER_CNTL to see how the BIOS
+     * have set it up. We don't write this as it's broken on some ASICs but
+     * we expect the BIOS to have done the right thing (might be too optimistic...)
+     */
+    if (INREG(RADEON_HOST_PATH_CNTL) & RADEON_HDP_APER_CNTL)
+        return aper_size * 2;
+    
+    return aper_size;
 }
 
 /* This is called by RADEONPreInit to handle config file overrides for
@@ -2705,22 +2739,25 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 
 	OUTREG(RADEON_CONFIG_MEMSIZE, pScrn->videoRam * 1024);
     } else {
-        /* There are different HDP mapping schemes depending on single/multi funciton setting,
-         * chip family, HDP mode, and the generation of HDP mapping scheme.
-         * To make things simple, we only allow maximum 128M addressable FB. Anything more than
-         * 128M is configured as invisible FB to CPU that can only be accessed from chip side.
-         */
-        pScrn->videoRam      = INREG(RADEON_CONFIG_MEMSIZE) / 1024;
-        if (pScrn->videoRam > 128*1024) pScrn->videoRam = 128*1024;
-        if ((info->ChipFamily == CHIP_FAMILY_RV350) ||
-            (info->ChipFamily == CHIP_FAMILY_RV380) ||
-            (info->ChipFamily == CHIP_FAMILY_R420)) {
-	    OUTREGP (RADEON_HOST_PATH_CNTL, (1<<23), ~(1<<23));
-        }
-    }
+	CARD32 accessible;
 
-    /* Some production boards of m6 will return 0 if it's 8 MB */
-    if (pScrn->videoRam == 0) pScrn->videoRam = 8192;
+	/* Read VRAM size from card */
+        pScrn->videoRam      = INREG(RADEON_CONFIG_MEMSIZE) / 1024;
+
+	/* Some production boards of m6 will return 0 if it's 8 MB */
+	if (pScrn->videoRam == 0) {
+	    pScrn->videoRam = 8192;
+	    OUTREG(RADEON_CONFIG_MEMSIZE, 0x800000);
+	}
+
+	/* Get accessible memory */
+	accessible = RADEONGetAccessibleVRAM(pScrn);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Detected total video RAM: %dl, max accessible: %dK\n",
+	       pScrn->videoRam, accessible);
+	if (pScrn->videoRam > accessible)
+	    pScrn->videoRam = accessible;
+    }
 
     /* Check chip errata */
     info->ChipErrata = 0;
@@ -4969,8 +5006,10 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
     int            idx, j;
     unsigned char  r, g, b;
 
+    RADEONTRACE(("RADEONLoadPalette !\n"));
+
 #ifdef XF86DRI
-    if (info->CPStarted) DRILock(pScrn->pScreen, 0);
+    if (info->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
 #endif
 
     if (info->accelOn && pScrn->pScreen)
@@ -5085,8 +5124,10 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
     }
 
 #ifdef XF86DRI
-    if (info->CPStarted) DRIUnlock(pScrn->pScreen);
+    if (info->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
 #endif
+
+    RADEONTRACE(("LoadPalette() end\n"));
 }
 
 static void RADEONBlockHandler(int i, pointer blockData,
@@ -5097,7 +5138,7 @@ static void RADEONBlockHandler(int i, pointer blockData,
     RADEONInfoPtr  info    = RADEONPTR(pScrn);
 
 #ifdef XF86DRI
-    if (info->directRenderingEnabled) {
+    if (info->directRenderingInited) {
 	FLUSH_RING();
     }
 #endif
@@ -5455,8 +5496,10 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     info->CPInUse      = FALSE;
     info->CPStarted    = FALSE;
     info->directRenderingEnabled = FALSE;
+    info->directRenderingInited = FALSE;
 #endif
     info->accelOn      = FALSE;
+    info->accel        = NULL;
     pScrn->fbOffset    = 0;
     if (info->IsSecondary) pScrn->fbOffset = pScrn->videoRam * 1024;
     if (!RADEONMapMem(pScrn)) return FALSE;
@@ -5504,31 +5547,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
             info->tilingEnabled = (pScrn->currentMode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
 	}
     }
-
-    if (!info->IsSecondary) {
-	/* empty the surfaces */
-	unsigned char *RADEONMMIO = info->MMIO;
-	unsigned int i;
-	for (i = 0; i < 8; i++) {
-	    OUTREG(RADEON_SURFACE0_INFO + 16 * i, 0);
-	    OUTREG(RADEON_SURFACE0_LOWER_BOUND + 16 * i, 0);
-	    OUTREG(RADEON_SURFACE0_UPPER_BOUND + 16 * i, 0);
-	}
-    }
-
-    if (info->FBDev) {
-	unsigned char *RADEONMMIO = info->MMIO;
-
-	if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) return FALSE;
-	info->ModeReg.surface_cntl = INREG(RADEON_SURFACE_CNTL);
-    } else {
-	if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
-    }
-
-    RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
-
-    pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-
 				/* Visual setup */
     miClearVisualTypes();
     if (!miSetVisualTypes(pScrn->depth,
@@ -5590,6 +5608,41 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	}
     }
 
+    hasDRI = info->directRenderingEnabled;
+#endif
+
+    /* Initialize the memory map, this basically calculates the values
+     * we'll use later on for MC_FB_LOCATION & MC_AGP_LOCATION
+     */
+    RADEONInitMemoryMap(pScrn);
+
+    if (!info->IsSecondary) {
+	/* empty the surfaces */
+	unsigned char *RADEONMMIO = info->MMIO;
+	unsigned int i;
+	for (i = 0; i < 8; i++) {
+	    OUTREG(RADEON_SURFACE0_INFO + 16 * i, 0);
+	    OUTREG(RADEON_SURFACE0_LOWER_BOUND + 16 * i, 0);
+	    OUTREG(RADEON_SURFACE0_UPPER_BOUND + 16 * i, 0);
+	}
+    }
+
+    if (info->FBDev) {
+	unsigned char *RADEONMMIO = info->MMIO;
+
+	if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) return FALSE;
+	RADEONSaveMemMapRegisters(pScrn, &info->ModeReg);
+	info->fbLocation = (info->ModeReg.mc_fb_location & 0xffff) << 16;
+	info->ModeReg.surface_cntl = INREG(RADEON_SURFACE_CNTL);
+	info->ModeReg.surface_cntl &= ~RADEON_SURF_TRANSLATION_DIS;
+    } else {
+	if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
+    }
+
+    RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
+
+    pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+
     /* Depth moves are disabled by default since they are extremely slow */
     info->depthMoves = xf86ReturnOptValBool(info->Options,
 						 OPTION_DEPTH_MOVE, FALSE);
@@ -5604,11 +5657,15 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 		   "Depth moves disabled by default\n");
     }
 
-    hasDRI = info->directRenderingEnabled;
-#endif
+    /* Initial setup of surfaces */
+    if (!info->IsSecondary) {
+	RADEONTRACE(("Setting up initial surfaces\n"));
+	RADEONChangeSurfaces(pScrn);
+    }
 
-    RADEONSetFBLocation(pScrn);
+    RADEONTRACE(("Initializing fb layer\n"));
 
+    /* Init fb layer */
     if (!fbScreenInit(pScreen, info->FB,
 		      pScrn->virtualX, pScrn->virtualY,
 		      pScrn->xDpi, pScrn->yDpi, pScrn->displayWidth,
@@ -5655,6 +5712,9 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     }
 #endif
 				/* Memory manager setup */
+
+    RADEONTRACE(("Setting up accel memmap\n"));
+
 #ifdef USE_EXA
     if (info->useEXA && !RADEONSetupMemEXA(pScreen))
 	return FALSE;
@@ -5673,8 +5733,85 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     info->dst_pitch_offset = (((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64)
 			       << 22) | ((info->fbLocation + pScrn->fbOffset) >> 10));
 
-    /* Acceleration setup */
+    /* Backing store setup */
+    RADEONTRACE(("Initializing backing store\n"));
+    miInitializeBackingStore(pScreen);
+    xf86SetBackingStore(pScreen);
+
+    /* DRI finalisation */
+#ifdef XF86DRI
+    /* Tell DRI about new memory map */
+    if (info->directRenderingEnabled) {
+	drmRadeonSetParam  radeonsetparam;
+	RADEONTRACE(("DRI New memory map param\n"));
+	memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
+	radeonsetparam.param = RADEON_SETPARAM_NEW_MEMMAP;
+	radeonsetparam.value = 1;
+	if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
+			    &radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "[drm] failed to enable new memory map\n");
+    }
+
+    if (info->cardType==CARD_PCIE && info->pciGartOffset && info->drmMinor>=19)
+    {
+      drmRadeonSetParam  radeonsetparam;
+      RADEONTRACE(("DRI PCIGART param\n"));
+      memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
+      radeonsetparam.param = RADEON_SETPARAM_PCIGART_LOCATION;
+      radeonsetparam.value = info->pciGartOffset;
+      if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
+			  &radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "[drm] failed set pci gart location\n");
+    }
+    if (info->directRenderingEnabled) {
+        RADEONTRACE(("DRI Finishing init !\n"));
+	info->directRenderingEnabled = RADEONDRIFinishScreenInit(pScreen);
+    }
+    if (info->directRenderingEnabled) {
+	/* DRI final init might have changed the memory map, we need to adjust
+	 * our local image to make sure we restore them properly on mode
+	 * changes or VT switches
+	 */
+	RADEONAdjustMemMapRegisters(pScrn, &info->ModeReg);
+
+	if ((info->DispPriority == 1) && (info->cardType==CARD_AGP)) {
+	    /* we need to re-calculate bandwidth because of AGPMode difference. */ 
+	    RADEONInitDispBandwidth(pScrn);
+	}
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Direct rendering enabled\n");
+
+	/* we might already be in tiled mode, tell drm about it */
+	if (info->directRenderingEnabled && info->tilingEnabled) {
+	    drmRadeonSetParam  radeonsetparam;
+	    memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
+	    radeonsetparam.param = RADEON_SETPARAM_SWITCH_TILING;
+	    radeonsetparam.value = info->tilingEnabled ? 1 : 0; 
+	    if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
+		&radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "[drm] failed changing tiling status\n");
+	}
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
+		   "Direct rendering disabled\n");
+    }
+#endif
+
+    /* Make sure surfaces are allright since DRI setup may have changed them */
+    if (!info->IsSecondary) {
+	RADEONTRACE(("Setting up final surfaces\n"));
+	RADEONChangeSurfaces(pScrn);
+    }
+
+    if(info->MergedFB)
+	/* need this here to fix up sarea values */
+	RADEONAdjustFrameMerged(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+
+    /* Enable aceleration */
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
+	 RADEONTRACE(("Initializing Acceleration\n"));
 	if (RADEONAccelInit(pScreen)) {
 	    xf86DrvMsg(scrnIndex, X_INFO, "Acceleration enabled\n");
 	    info->accelOn = TRUE;
@@ -5689,12 +5826,11 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	info->accelOn = FALSE;
     }
 
-    /* DGA setup */
-    RADEONDGAInit(pScreen);
+    /* Init DPMS */
+    RADEONTRACE(("Initializing DPMS\n"));
+    xf86DPMSInit(pScreen, RADEONDisplayPowerManagementSet, 0);
 
-    /* Backing store setup */
-    miInitializeBackingStore(pScreen);
-    xf86SetBackingStore(pScreen);
+    RADEONTRACE(("Initializing Cursor\n"));
 
     /* Set Silken Mouse */
     xf86SetSilkenMouse(pScreen);
@@ -5731,7 +5867,8 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	xf86DrvMsg(scrnIndex, X_INFO, "Using software cursor\n");
     }
 
-				/* Colormap setup */
+    /* Colormap setup */
+    RADEONTRACE(("Initializing color map\n"));
     if (!miCreateDefColormap(pScreen)) return FALSE;
     if (!xf86HandleColormaps(pScreen, 256, info->dac6bits ? 6 : 8,
 			     RADEONLoadPalette, NULL,
@@ -5741,17 +5878,9 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 #endif
 			     | CMAP_RELOAD_ON_MODE_SWITCH)) return FALSE;
 
-				/* DPMS setup */
-    xf86DPMSInit(pScreen, RADEONDisplayPowerManagementSet, 0);
-
-    RADEONInitVideo(pScreen);
-
-				/* Provide SaveScreen */
-    pScreen->SaveScreen  = RADEONSaveScreen;
-
-				/* Wrap CloseScreen */
-    info->CloseScreen    = pScreen->CloseScreen;
-    pScreen->CloseScreen = RADEONCloseScreen;
+    /* DGA setup */
+    RADEONTRACE(("Initializing DGA\n"));
+    RADEONDGAInit(pScreen);
 
     /* Wrap some funcs for MergedFB */
     if(info->MergedFB) {
@@ -5766,80 +5895,125 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
        }
     }
 
-				/* Note unused options */
+    /* Init Xv */
+    RADEONTRACE(("Initializing Xv\n"));
+    RADEONInitVideo(pScreen);
+
+    /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
+    /* Wrap CloseScreen */
+    info->CloseScreen    = pScreen->CloseScreen;
+    pScreen->CloseScreen = RADEONCloseScreen;
+    pScreen->SaveScreen  = RADEONSaveScreen;
+    info->BlockHandler = pScreen->BlockHandler;
+    pScreen->BlockHandler = RADEONBlockHandler;
+
+    /* Note unused options */
     if (serverGeneration == 1)
 	xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
-#ifdef XF86DRI
-    if (info->cardType==CARD_PCIE && info->pciGartOffset && info->drmMinor>=19)
-    {
-      drmRadeonSetParam  radeonsetparam;
-      memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
-      radeonsetparam.param = RADEON_SETPARAM_PCIGART_LOCATION;
-      radeonsetparam.value = info->pciGartOffset;
-      if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
-			  &radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "[drm] failed set pci gart location\n");
-    }
-
-      /* DRI finalization */
-    if (info->directRenderingEnabled) {
-				/* Now that mi, fb, drm and others have
-				   done their thing, complete the DRI
-				   setup. */
-	if (!(info->directRenderingEnabled = RADEONDRIFinishScreenInit(pScreen))) {
-#ifdef USE_EXA
-	    if (info->useEXA) {
-		RADEONDrawInitMMIO(pScreen);
-	    }
-#endif /* USE_EXA */
-#ifdef USE_XAA
-	    if (!info->useEXA)
-		RADEONAccelInitMMIO(pScreen, info->accel);
-#endif /* USE_XAA */
-	}
-    }
-    if (info->directRenderingEnabled) {
-	if ((info->DispPriority == 1) && (info->cardType==CARD_AGP)) {
-	    /* we need to re-calculate bandwidth because of AGPMode difference. */ 
-	    RADEONInitDispBandwidth(pScrn);
-	}
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Direct rendering enabled\n");
-
-	/* we might already be in tiled mode, tell drm about it */
-	if (info->directRenderingEnabled && info->tilingEnabled) {
-	    drmRadeonSetParam  radeonsetparam;
-	    memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
-	    radeonsetparam.param = RADEON_SETPARAM_SWITCH_TILING;
-	    radeonsetparam.value = info->tilingEnabled ? 1 : 0; 
-	    if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
-		&radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "[drm] failed changing tiling status\n");
-	}
-
-    } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-		   "Direct rendering disabled\n");
-    }
-#endif
-
-    if (!info->IsSecondary)
-	RADEONChangeSurfaces(pScrn);
-
-    if(info->MergedFB) {
-	/* need this here to fix up sarea values */
-	RADEONAdjustFrameMerged(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-    }
-
-    info->BlockHandler = pScreen->BlockHandler;
-    pScreen->BlockHandler = RADEONBlockHandler;
+    RADEONTRACE(("RADEONScreenInit finished\n"));
 
     return TRUE;
 }
 
-/* Write common registers (initialized to 0) */
+/* Write memory mapping registers */
+static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
+					 RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    int i;
+
+    RADEONTRACE(("RADEONRestoreMemMapRegisters() : \n"));
+    RADEONTRACE(("  MC_FB_LOCATION   : 0x%08lx\n", restore->mc_fb_location));
+    RADEONTRACE(("  MC_AGP_LOCATION  : 0x%08lx\n", restore->mc_agp_location));
+
+    /* Write memory mapping registers only if their value change
+     * since we must ensure no access is done while they are
+     * reprogrammed
+     */
+    if (INREG(RADEON_MC_FB_LOCATION) != restore->mc_fb_location ||
+	INREG(RADEON_MC_AGP_LOCATION) != restore->mc_agp_location) {
+	CARD32 tmp;
+
+	RADEONTRACE(("  Map Changed ! Applying ...\n"));
+
+	/* Make sure engine is idle. We assume the CCE is stopped
+	 * at this point
+	 */
+	RADEONWaitForIdleMMIO(pScrn);
+
+	/* Stop display & memory access */
+	tmp = INREG(RADEON_CRTC_EXT_CNTL);
+	OUTREG(RADEON_CRTC_EXT_CNTL, tmp | RADEON_CRTC_DISPLAY_DIS);
+	tmp = INREG(RADEON_CRTC_GEN_CNTL);
+	tmp &= ~RADEON_CRTC_CUR_EN;
+	tmp |= RADEON_CRTC_DISP_REQ_EN_B;
+	OUTREG(RADEON_CRTC_GEN_CNTL, tmp);
+	if (info->HasCRTC2) {
+		tmp = INREG(RADEON_CRTC2_GEN_CNTL);
+		tmp &= ~RADEON_CRTC2_CUR_EN;
+		tmp |= RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_DISP_REQ_EN_B;
+		OUTREG(RADEON_CRTC2_GEN_CNTL, tmp);
+	}
+	tmp = INREG(RADEON_OV0_SCALE_CNTL);
+	tmp &= ~RADEON_SCALER_ENABLE;
+	OUTREG(RADEON_OV0_SCALE_CNTL, tmp);
+
+	/* Make sure the chip settles down and set new map*/ 
+	usleep(100000);
+	OUTREG(RADEON_MC_FB_LOCATION, restore->mc_fb_location);
+ 	OUTREG(RADEON_MC_AGP_LOCATION, restore->mc_agp_location);
+	/* Make sure map fully reached the chip */
+	(void)INREG(RADEON_MC_FB_LOCATION);
+
+	/* Reset the engine and HDP */
+	RADEONEngineReset(pScrn);
+    }
+    
+    /* Restore base addresses */
+    OUTREG(RADEON_DISPLAY_BASE_ADDR, restore->display_base_addr);
+    OUTREG(RADEON_DISPLAY2_BASE_ADDR, restore->display2_base_addr);
+    OUTREG(RADEON_OV0_BASE_ADDR, restore->ov0_base_addr);
+}
+
+static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 fb, agp;
+    int fb_loc_changed;
+
+    fb = INREG(RADEON_MC_FB_LOCATION);
+    agp = INREG(RADEON_MC_AGP_LOCATION);
+    fb_loc_changed = (fb != info->mc_fb_location);
+
+    if (fb_loc_changed || agp != info->mc_agp_location) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "DRI init changed memory map, adjusting ...\n");
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "  MC_FB_LOCATION  was: 0x%08lx is: 0x%08lx\n",
+		       info->mc_fb_location, fb);
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "  MC_AGP_LOCATION was: 0x%08lx is: 0x%08lx\n",
+		       info->mc_agp_location, agp);
+	    info->mc_fb_location = fb;
+	    info->mc_agp_location = agp;
+	    info->fbLocation = (save->mc_fb_location & 0xffff) << 16;
+	    info->dst_pitch_offset =
+		    (((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64)
+		      << 22) | ((info->fbLocation + pScrn->fbOffset) >> 10));
+
+
+	    RADEONInitMemMapRegisters(pScrn, save, info);
+
+	    /* If MC_FB_LOCATION was changed, adjust the various offsets */
+	    if (fb_loc_changed)
+		    RADEONRestoreMemMapRegisters(pScrn, save);
+    }
+}
+
+/* Write common registers */
 static void RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
 					 RADEONSavePtr restore)
 {
@@ -6257,6 +6431,35 @@ static void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
 	    ~(RADEON_PIX2CLK_SRC_SEL_MASK));
 }
 
+
+/* restore original surface info (for fb console). */
+static void RADEONRestoreSurfaces(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr      info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned int surfnr;
+    
+    for ( surfnr = 0; surfnr < 8; surfnr++ ) {
+	OUTREG(RADEON_SURFACE0_INFO + 16 * surfnr, restore->surfaces[surfnr][0]);
+	OUTREG(RADEON_SURFACE0_LOWER_BOUND + 16 * surfnr, restore->surfaces[surfnr][1]);
+	OUTREG(RADEON_SURFACE0_UPPER_BOUND + 16 * surfnr, restore->surfaces[surfnr][2]);
+    }
+}
+
+/* save original surface info (for fb console). */
+static void RADEONSaveSurfaces(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr      info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned int surfnr;
+    
+    for ( surfnr = 0; surfnr < 8; surfnr++ ) {
+	save->surfaces[surfnr][0] = INREG(RADEON_SURFACE0_INFO + 16 * surfnr);
+	save->surfaces[surfnr][1] = INREG(RADEON_SURFACE0_LOWER_BOUND + 16 * surfnr);
+	save->surfaces[surfnr][2] = INREG(RADEON_SURFACE0_UPPER_BOUND + 16 * surfnr);
+    }
+}
+
 void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 {
    /* the idea here is to only set up front buffer as tiled, and back/depth buffer when needed.
@@ -6274,6 +6477,9 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
     int bufferSize = ((((pScrn->virtualY + 15) & ~15) * width_bytes
         + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
     unsigned int depth_pattern, color_pattern, swap_pattern;
+
+    if (!info->allowColorTiling)
+	return;
 
     swap_pattern = 0;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -6307,8 +6513,9 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	    depth_pattern = R200_SURF_TILE_DEPTH_32BPP;
     }   
 #ifdef XF86DRI
-    if (info->directRenderingEnabled && info->allowColorTiling) {
+    if (info->directRenderingInited) {
 	drmRadeonSurfaceFree drmsurffree;
+	drmRadeonSurfaceAlloc drmsurfalloc;
 	int retvalue;
 
 	drmsurffree.address = info->frontOffset;
@@ -6329,31 +6536,31 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 		&drmsurffree, sizeof(drmsurffree));
 	}
 
+	drmsurfalloc.size = bufferSize;
+	drmsurfalloc.address = info->frontOffset;
+	drmsurfalloc.flags = swap_pattern;
+
 	if (info->tilingEnabled) {
-	    drmRadeonSurfaceAlloc drmsurfalloc;
-	    drmsurfalloc.size = bufferSize;
-	    drmsurfalloc.address = info->frontOffset;
-
 	    if (IS_R300_VARIANT)
-		drmsurfalloc.flags = swap_pattern | (width_bytes / 8) | color_pattern;
+		drmsurfalloc.flags |= (width_bytes / 8) | color_pattern;
 	    else
-		drmsurfalloc.flags = swap_pattern | (width_bytes / 16) | color_pattern;
-
+		drmsurfalloc.flags |= (width_bytes / 16) | color_pattern;
+	}
+	retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_ALLOC,
+				   &drmsurfalloc, sizeof(drmsurfalloc));
+	if (retvalue < 0)
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "drm: could not allocate surface for front buffer!\n");
+	
+	if ((info->have3DWindows) && (!info->noBackBuffer)) {
+	    drmsurfalloc.address = info->backOffset;
 	    retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_ALLOC,
-		&drmsurfalloc, sizeof(drmsurfalloc));
+				       &drmsurfalloc, sizeof(drmsurfalloc));
 	    if (retvalue < 0)
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "drm: could not allocate surface for front buffer!\n");
-
-	    if ((info->have3DWindows) && (!info->noBackBuffer)) {
-		drmsurfalloc.address = info->backOffset;
-		retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_ALLOC,
-		    &drmsurfalloc, sizeof(drmsurfalloc));
-		if (retvalue < 0)
-		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"drm: could not allocate surface for back buffer!\n");
-	    }
+			   "drm: could not allocate surface for back buffer!\n");
 	}
+
 	/* rv100 and probably the derivative igps don't have depth tiling on all the time? */
 	if (info->have3DWindows && ((info->ChipFamily != CHIP_FAMILY_RV100) || 
 	    (info->ChipFamily != CHIP_FAMILY_RS100) ||
@@ -6374,16 +6581,16 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
     }
     else
 #endif
-    if (info->allowColorTiling) {
-	unsigned int surf_info = 0;
+    {
+	unsigned int surf_info = swap_pattern;
 	unsigned char *RADEONMMIO = info->MMIO;
 	/* we don't need anything like WaitForFifo, no? */
 	if (!info->IsSecondary) {
 	    if (info->tilingEnabled) {
 		if (IS_R300_VARIANT)
-		   surf_info = swap_pattern | (width_bytes / 8) | color_pattern;
+		   surf_info |= (width_bytes / 8) | color_pattern;
 		else
-		   surf_info = swap_pattern | (width_bytes / 16) | color_pattern;
+		   surf_info |= (width_bytes / 16) | color_pattern;
 	    }
 	    OUTREG(RADEON_SURFACE0_INFO, surf_info);
 	    OUTREG(RADEON_SURFACE0_LOWER_BOUND, 0);
@@ -6393,6 +6600,9 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 		surf_info, 0, bufferSize - 1024);*/
 	}
     }
+
+    /* Update surface images */
+    RADEONSaveSurfaces(pScrn, &info->ModeReg);
 }
 
 #if 0
@@ -6421,35 +6631,6 @@ static void RADEONRestorePalette(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 }
 #endif
 
-/* restore original surface info (for fb console). */
-static void RADEONRestoreSurfaces(ScrnInfoPtr pScrn, RADEONSavePtr restore)
-{
-    RADEONInfoPtr      info = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    unsigned int surfnr;
-    
-    for ( surfnr = 0; surfnr < 8; surfnr++ ) {
-	OUTREG(RADEON_SURFACE0_INFO + 16 * surfnr, restore->surfaces[surfnr][0]);
-	OUTREG(RADEON_SURFACE0_LOWER_BOUND + 16 * surfnr, restore->surfaces[surfnr][1]);
-	OUTREG(RADEON_SURFACE0_UPPER_BOUND + 16 * surfnr, restore->surfaces[surfnr][2]);
-    }
-}
-
-/* save original surface info (for fb console). */
-static void RADEONSaveSurfaces(ScrnInfoPtr pScrn, RADEONSavePtr save)
-{
-    RADEONInfoPtr      info = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    unsigned int surfnr;
-    
-    for ( surfnr = 0; surfnr < 8; surfnr++ ) {
-	save->surfaces[surfnr][0] = INREG(RADEON_SURFACE0_INFO + 16 * surfnr);
-	save->surfaces[surfnr][1] = INREG(RADEON_SURFACE0_LOWER_BOUND + 16 * surfnr);
-	save->surfaces[surfnr][2] = INREG(RADEON_SURFACE0_UPPER_BOUND + 16 * surfnr);
-    }
-}
-
-
 /* Write out state to define a new video mode */
 static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
@@ -6457,8 +6638,11 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     static RADEONSaveRec  restore0;
 
+    RADEONTRACE(("RADEONRestoreMode()\n"));
+
     /* For Non-dual head card, we don't have private field in the Entity */
     if (!info->HasCRTC2) {
+	RADEONRestoreMemMapRegisters(pScrn, restore);
 	RADEONRestoreCommonRegisters(pScrn, restore);
 	RADEONRestoreCrtcRegisters(pScrn, restore);
 	RADEONRestoreFPRegisters(pScrn, restore);
@@ -6476,10 +6660,12 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
      * order. Regardless the order of X server issuing the calls, we
      * have to ensure we set registers in the right order!!!  Otherwise
      * we may get a blank screen.
+     *
+     * We always restore MemMap first, the saverec should be up to date
+     * in all cases
      */
     if (info->IsSecondary) {
-	if (!pRADEONEnt->RestorePrimary  && !info->IsSwitching)
-	    RADEONRestoreCommonRegisters(pScrn, restore);
+	RADEONRestoreMemMapRegisters(pScrn, restore);
 	RADEONRestoreCrtc2Registers(pScrn, restore);
 	RADEONRestorePLL2Registers(pScrn, restore);
 
@@ -6490,15 +6676,14 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	if (pRADEONEnt->RestorePrimary) {
 	    pRADEONEnt->RestorePrimary = FALSE;
 
+	    RADEONRestoreCommonRegisters(pScrn, &restore0);
 	    RADEONRestoreCrtcRegisters(pScrn, &restore0);
 	    RADEONRestoreFPRegisters(pScrn, &restore0);
 	    RADEONRestorePLLRegisters(pScrn, &restore0);
 	    pRADEONEnt->IsSecondaryRestored = FALSE;
 	}
     } else {
-	if (!pRADEONEnt->IsSecondaryRestored)
-	    RADEONRestoreCommonRegisters(pScrn, restore);
-
+	RADEONRestoreMemMapRegisters(pScrn, restore);
 	if (info->MergedFB) {
 	    RADEONRestoreCrtc2Registers(pScrn, restore);
 	    RADEONRestorePLL2Registers(pScrn, restore);
@@ -6508,6 +6693,7 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	    info->IsSwitching) {
 	    pRADEONEnt->IsSecondaryRestored = FALSE;
 
+	    RADEONRestoreCommonRegisters(pScrn, restore);
 	    RADEONRestoreCrtcRegisters(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
 	    RADEONRestorePLLRegisters(pScrn, restore);
@@ -6520,6 +6706,19 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 #if 0
     RADEONRestorePalette(pScrn, &info->SavedReg);
 #endif
+}
+
+/* Read memory map */
+static void RADEONSaveMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    save->mc_fb_location     = INREG(RADEON_MC_FB_LOCATION);
+    save->mc_agp_location    = INREG(RADEON_MC_AGP_LOCATION);
+    save->display_base_addr  = INREG(RADEON_DISPLAY_BASE_ADDR);
+    save->display2_base_addr = INREG(RADEON_DISPLAY2_BASE_ADDR);
+    save->ov0_base_addr      = INREG(RADEON_OV0_BASE_ADDR);
 }
 
 /* Read common registers */
@@ -6705,6 +6904,7 @@ static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
     RADEONTRACE(("RADEONSaveMode(%p)\n", save));
+    RADEONSaveMemMapRegisters(pScrn, save);
     RADEONSaveCommonRegisters(pScrn, save);
     if (info->IsSecondary) {
 	RADEONSaveCrtc2Registers(pScrn, save);
@@ -6733,6 +6933,7 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 
     RADEONTRACE(("RADEONSave\n"));
     if (info->FBDev) {
+	RADEONSaveMemMapRegisters(pScrn, save);
 	fbdevHWSave(pScrn);
 	return;
     }
@@ -6915,6 +7116,22 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     int critical_point, critical_point2;
     int stop_req, max_stop_req;
     float read_return_rate, time_disp1_drop_priority;
+
+    /* 
+     * Set display0/1 priority up on r3/4xx in the memory controller for 
+     * high res modes if the user specifies HIGH for displaypriority 
+     * option.
+     */
+    if ((info->DispPriority == 2) && IS_R300_VARIANT) {
+        CARD32 mc_init_misc_lat_timer = INREG(R300_MC_INIT_MISC_LAT_TIMER);
+	if (info->MergedFB || pRADEONEnt->HasSecondary) {
+	    mc_init_misc_lat_timer |= 0x1100; /* display 0 and 1 */
+	} else {
+	    mc_init_misc_lat_timer |= 0x0100; /* display 0 only */
+	}
+	OUTREG(R300_MC_INIT_MISC_LAT_TIMER, mc_init_misc_lat_timer);
+    }
+
 
     /* R420 family not supported yet */
     if (info->ChipFamily == CHIP_FAMILY_R420) return; 
@@ -7824,8 +8041,9 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
 }
 
 /* Define PLL registers for requested video mode */
-static void RADEONInitPLLRegisters(RADEONInfoPtr info, RADEONSavePtr save,
-                                  RADEONPLLPtr pll, double dot_clock)
+static void RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONInfoPtr info,
+				   RADEONSavePtr save, RADEONPLLPtr pll,
+				   double dot_clock)
 {
     unsigned long  freq = dot_clock * 100;
 
@@ -7889,8 +8107,9 @@ static void RADEONInitPLLRegisters(RADEONInfoPtr info, RADEONSavePtr save,
 }
 
 /* Define PLL2 registers for requested video mode */
-static void RADEONInitPLL2Registers(RADEONSavePtr save, RADEONPLLPtr pll,
-                                   double dot_clock, int no_odd_postdiv)
+static void RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
+				    RADEONPLLPtr pll, double dot_clock,
+				    int no_odd_postdiv)
 {
     unsigned long  freq = dot_clock * 100;
 
@@ -8018,11 +8237,12 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
 
     info->Flags = mode->Flags;
 
+    RADEONInitMemMapRegisters(pScrn, save, info);
     RADEONInitCommonRegisters(save, info);
     if (info->IsSecondary) {
 	if (!RADEONInitCrtc2Registers(pScrn, save, mode, info))
 	    return FALSE;
-       RADEONInitPLL2Registers(save, &info->pll, dot_clock, info->DisplayType != MT_CRT);
+	RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, info->DisplayType != MT_CRT);
     } else if (info->MergedFB) {
         RADEONInitCommonRegisters(save, info);
         if (!RADEONInitCrtcRegisters(pScrn, save, 
@@ -8030,7 +8250,7 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
             return FALSE;
         dot_clock = (((RADEONMergedDisplayModePtr)mode->Private)->CRT1)->Clock / 1000.0;
         if (dot_clock) {
-            RADEONInitPLLRegisters(info, save, &info->pll, dot_clock);
+		RADEONInitPLLRegisters(pScrn, info, save, &info->pll, dot_clock);
         } else {
             save->ppll_ref_div = info->SavedReg.ppll_ref_div;
             save->ppll_div_3   = info->SavedReg.ppll_div_3;
@@ -8039,13 +8259,13 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
         RADEONInitCrtc2Registers(pScrn, save, 
 			((RADEONMergedDisplayModePtr)mode->Private)->CRT2, info);
         dot_clock = (((RADEONMergedDisplayModePtr)mode->Private)->CRT2)->Clock / 1000.0;
-        RADEONInitPLL2Registers(save, &info->pll, dot_clock, info->MergeType != MT_CRT);
+        RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, info->MergeType != MT_CRT);
     } else {
 	if (!RADEONInitCrtcRegisters(pScrn, save, mode, info))
 	    return FALSE;
 	dot_clock = mode->Clock/1000.0;
 	if (dot_clock) {
-           RADEONInitPLLRegisters(info, save, &info->pll, dot_clock);
+		RADEONInitPLLRegisters(pScrn, info, save, &info->pll, dot_clock);
 	} else {
 	    save->ppll_ref_div = info->SavedReg.ppll_ref_div;
 	    save->ppll_div_3   = info->SavedReg.ppll_div_3;
@@ -8081,6 +8301,8 @@ static Bool RADEONModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
+    RADEONTRACE(("RADEONModeInit()\n"));
+
     if (!RADEONInit(pScrn, mode, &info->ModeReg)) return FALSE;
 
     pScrn->vtSema = TRUE;
@@ -8100,6 +8322,8 @@ static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode)
 {
     ScrnInfoPtr  pScrn = xf86Screens[pScreen->myNum];
     Bool         unblank;
+
+    RADEONTRACE(("RADEONSaveScreen(%d)\n", mode));
 
     unblank = xf86IsUnblank(mode);
     if (unblank) SetTimeSinceLastInputEvent();
@@ -8125,6 +8349,8 @@ _X_EXPORT Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 	RADEONCP_STOP(pScrn, info);
     }
 #endif
+
+    RADEONTRACE(("RADEONSwitchMode() !n"));
 
     if (info->allowColorTiling) {
 	if (info->MergedFB) {
@@ -8239,6 +8465,8 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
     XF86DRISAREAPtr pSAREA;
 #endif
 
+    RADEONTRACE(("RADEONDoAdjustFrame(%d,%d,%d)\n", x, y, clone));
+
     if (info->showCache && y) {
 	        int lastline = info->FbMapSize /
 		    ((pScrn->displayWidth * pScrn->bitsPerPixel) / 8);
@@ -8302,7 +8530,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
     Base &= ~7;                 /* 3 lower bits are always 0 */
 
 #ifdef XF86DRI
-    if (info->directRenderingEnabled) {
+    if (info->directRenderingInited) {
 	/* note cannot use pScrn->pScreen since this is unitialized when called from
 	   RADEONScreenInit, and we need to call from there to get mergedfb + pageflip working */
         /*** NOTE: r3/4xx will need sarea and drm pageflip updates to handle the xytile regs for
@@ -8330,11 +8558,15 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
     }
 #endif
 
+    RADEONTRACE((" -> reg     : 0x%04x = 0x%08x\n", reg, Base));
+
     OUTREG(reg, Base);
 
     if (IS_R300_VARIANT) {
+	RADEONTRACE(("    regcntl : 0x%04x = 0x%08x\n", xytilereg, crtcxytile));
         OUTREG(xytilereg, crtcxytile);
     } else {
+	RADEONTRACE(("    regcntl : 0x%04x = 0x%08x\n", regcntl, crtcoffsetcntl));
         OUTREG(regcntl, crtcoffsetcntl);
     }
 
@@ -8346,7 +8578,7 @@ _X_EXPORT void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
 #ifdef XF86DRI
-    if (info->CPStarted) DRILock(pScrn->pScreen, 0);
+    if (info->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
 #endif
 
     if (info->accelOn)
@@ -8361,7 +8593,7 @@ _X_EXPORT void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
     }
 
 #ifdef XF86DRI
-	if (info->CPStarted) DRIUnlock(pScrn->pScreen);
+	if (info->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
 #endif
 }
 
@@ -8388,6 +8620,9 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
        }
     }
 
+    /* Makes sure the engine is idle before doing anything */
+    RADEONWaitForIdleMMIO(pScrn);
+
     if (info->FBDev) {
 	unsigned char *RADEONMMIO = info->MMIO;
 	if (!fbdevHWEnterVT(scrnIndex,flags)) return FALSE;
@@ -8398,13 +8633,13 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
     } else
 	if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
 
-    RADEONSetFBLocation(pScrn);
     if (!info->IsSecondary)
 	RADEONRestoreSurfaces(pScrn, &info->ModeReg);
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
-	/* get the Radeon back into shape after resume */
+	/* get the DRI back into shape after resume */
 	RADEONDRIResume(pScrn->pScreen);
+	RADEONAdjustMemMapRegisters(pScrn, &info->ModeReg);
     }
 #endif
     /* this will get XVideo going again, but only if XVideo was initialised
@@ -8438,7 +8673,7 @@ _X_EXPORT void RADEONLeaveVT(int scrnIndex, int flags)
 
     RADEONTRACE(("RADEONLeaveVT\n"));
 #ifdef XF86DRI
-    if (RADEONPTR(pScrn)->directRenderingEnabled) {
+    if (RADEONPTR(pScrn)->directRenderingInited) {
 	DRILock(pScrn->pScreen, 0);
 	RADEONCP_STOP(pScrn, info);
     }
@@ -8453,9 +8688,9 @@ _X_EXPORT void RADEONLeaveVT(int scrnIndex, int flags)
 	fbdevHWLeaveVT(scrnIndex,flags);
     }
 
-    if (!info->IsSecondary)
-	RADEONSaveSurfaces(pScrn, save);
     RADEONRestore(pScrn);
+
+    RADEONTRACE(("Ok, leaving now...\n"));
 }
 
 /* Called at the end of each server generation.  Restore the original
@@ -8469,11 +8704,17 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
     RADEONTRACE(("RADEONCloseScreen\n"));
 
+    /* Mark acceleration as stopped or we might try to access the engine at
+     * wrong times, especially if we had DRI, after DRI has been stopped
+     */
+    info->accelOn = FALSE;
+
 #ifdef XF86DRI
-				/* Disable direct rendering */
+    /* Disable direct rendering */
     if (info->directRenderingEnabled) {
 	RADEONDRICloseScreen(pScreen);
 	info->directRenderingEnabled = FALSE;
+	info->directRenderingInited = FALSE;
     }
 #endif
 
@@ -8488,8 +8729,8 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	RADEONDisplayPowerManagementSet(pScrn, DPMSModeOn, 0);
 	RADEONRestore(pScrn);
     }
-    RADEONUnmapMem(pScrn);
 
+    RADEONTRACE(("Disposing accel...\n"));
 #ifdef USE_EXA
     if (info->useEXA && info->accelOn)
 	exaDriverFini(pScreen);
@@ -8506,11 +8747,16 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     }
 #endif /* USE_XAA */
 
+    RADEONTRACE(("Disposing cusor info\n"));
     if (info->cursor) xf86DestroyCursorInfoRec(info->cursor);
     info->cursor = NULL;
 
+    RADEONTRACE(("Disposing DGA\n"));
     if (info->DGAModes) xfree(info->DGAModes);
     info->DGAModes = NULL;
+
+    RADEONTRACE(("Unmapping memory\n"));
+    RADEONUnmapMem(pScrn);
 
     pScrn->vtSema = FALSE;
 
@@ -8648,6 +8894,8 @@ static void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
     unsigned char *RADEONMMIO = info->MMIO;
 
     if (!pScrn->vtSema) return;
+
+    RADEONTRACE(("RADEONDisplayPowerManagementSet(%d,0x%x)\n", PowerManagementMode, flags));
 
 #ifdef XF86DRI
     if (info->CPStarted) DRILock(pScrn->pScreen, 0);

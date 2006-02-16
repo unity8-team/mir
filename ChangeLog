@@ -1,3 +1,38 @@
+2006-02-17  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon.h:
+	* src/radeon_common.h:
+	* src/radeon_commonfuncs.c: (RADEONWaitForIdle):
+	* src/radeon_cursor.c: (RADEONCursorAllocEXA),
+	(RADEONSetCursorColors), (RADEONSetCursorPosition),
+	(RADEONLoadCursorImage), (RADEONHideCursor), (RADEONShowCursor),
+	(RADEONLoadCursorARGB), (RADEONCursorInit):
+	* src/radeon_dri.c: (RADEONDRIScreenInit),
+	(RADEONDRIFinishScreenInit), (RADEONDRICloseScreen),
+	(RADEONDRIRefreshArea):
+	* src/radeon_driver.c: (RADEONMapFB), (RADEONInitMemMapRegisters),
+	(RADEONInitMemoryMap), (RADEONGetAccessibleVRAM),
+	(RADEONPreInitConfig), (RADEONLoadPalette), (RADEONBlockHandler),
+	(RADEONScreenInit), (RADEONRestoreMemMapRegisters),
+	(RADEONAdjustMemMapRegisters), (RADEONRestoreSurfaces),
+	(RADEONSaveSurfaces), (RADEONChangeSurfaces), (RADEONRestoreMode),
+	(RADEONSaveMemMapRegisters), (RADEONSaveMode), (RADEONSave),
+	(RADEONInitDispBandwidth), (RADEONInitPLLRegisters),
+	(RADEONInitPLL2Registers), (RADEONInit), (RADEONModeInit),
+	(RADEONSaveScreen), (RADEONSwitchMode), (RADEONDoAdjustFrame),
+	(RADEONAdjustFrame), (RADEONEnterVT), (RADEONLeaveVT),
+	(RADEONCloseScreen), (RADEONDisplayPowerManagementSet):
+	* src/radeon_reg.h:
+	* src/radeon_render.c: (RADEONSetupRenderByteswap):
+	Memory map and misc fixes. This completely reworks the way the driver
+	detects available & accessible video memory and initializes the card
+	internal memory map. Along the way, I re-ordered some of the stuffs
+	in pre-init in order to remove some dodgy codepath, fixed various
+	init, exit and vt switch issues, and overall made the driver more
+	robust. The full memory map fix requires an updated DRM. The X driver
+	no longer tries to position the AGP aperture, this becomes entirely
+	DRM responsibility.
+
 2006-02-16  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon_accel.c: (RADEONEngineRestore):
