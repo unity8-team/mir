@@ -926,7 +926,7 @@ I830DRIFinishScreenInit(ScreenPtr pScreen)
 
    /* Have shadow run only while there is 3d active.
     */
-   if (pI830->allowPageFlip && pI830->drmMinor >= 1 && pI830->shadowReq.minorversion >= 1) {
+   if (pI830->allowPageFlip && pI830->drmMinor >= 1) {
       shadowAdd(pScreen, 0, I830DRIShadowUpdate, 0, 0, 0);
    }
    else
