@@ -926,10 +926,12 @@ I830DRIFinishScreenInit(ScreenPtr pScreen)
 
    /* Have shadow run only while there is 3d active.
     */
+#if 0
    if (pI830->allowPageFlip && pI830->drmMinor >= 1) {
       shadowAdd(pScreen, 0, I830DRIShadowUpdate, 0, 0, 0);
    }
    else
+#endif
       pI830->allowPageFlip = 0;
 
 
@@ -1218,7 +1220,7 @@ I830EmitInvarientState(ScrnInfoPtr pScrn)
  * might be faster, but seems like a lot more work...
  */
 
-
+#if 0
 /* This should be done *before* XAA syncs,
  * Otherwise will have to sync again???
  */
@@ -1227,7 +1229,7 @@ I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
-   RegionPtr damage = (RegionPtr) shadowBuf(pBuf);
+   RegionPtr damage = (RegionPtr) shadowDamage(pBuf);
    int i, num =  REGION_NUM_RECTS(damage);
    BoxPtr pbox = REGION_RECTS(damage);
    drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScreen);
@@ -1263,6 +1265,7 @@ I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf)
       ADVANCE_LP_RING();
    }
 }
+#endif
 
 static void
 I830EnablePageFlip(ScreenPtr pScreen)
