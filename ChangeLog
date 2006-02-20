@@ -1,3 +1,8 @@
+2006-02-20  Alan Hourihane  <alanh@fairlite.demon.co.uk>
+
+	* src/i830_rotate.c: (I915UpdateRotate), (I830UpdateRotate):
+	Fix a rotation problem when DRI is disabled
+
 2005-01-25  Alan Hourihane   <alanh@fairlite.demon.co.uk>
 
 	* src/i830_driver.c: When going dual head only take a portion of
@@ -14,12 +19,15 @@
 	  src/i830_common.h, src/i830_cursor.c, src/i830_dga.c,
 	  src/i830_dri.c, src/i830_dri.h, src/i830_driver.c,
 	  src/i830_memory.c, src/i830_modes.c, src/i830_randr.c,
-	  src/i830_rotate.c, src/i830_shadow.c, src/i830_video.c: Bump
-	  version to 1.5.0.0 Add Intel 945GM support Add RandR rotation
-	  support (full 3D acceleration, HWcursor & Xvideo rotated too)
-	  Remove shadow framebuffer rotation code Add a new LinearAlloc
-	  option to allow more offscreen memory to be allocated for XVideo
-	  applications. This allows HDTV movies to be played via Xvideo.
+	  src/i830_rotate.c, src/i830_shadow.c, src/i830_video.c: 
+	  Bump version to 1.5.0.0 
+	  Add Intel 945GM support 
+	  Add RandR rotation support (full 3D acceleration, HWcursor & 
+	  Xvideo rotated too)
+	  Remove older shadow framebuffer rotation code 
+	  Add a new LinearAlloc option to allow more offscreen memory 
+	  to be allocated for XVideo applications. This allows HDTV movies
+	  to be played via Xvideo.
 
 2005-12-20  Kevin E. Martin  <kem-at-freedesktop-dot-org>
 
