@@ -253,7 +253,7 @@ I915UpdateRotate (ScreenPtr      pScreen,
       updateInvarient = TRUE;
  
 #ifdef XF86DRI
-   if (sarea->ctxOwner != myContext)
+   if (sarea && sarea->ctxOwner != myContext)
       updateInvarient = TRUE;
 #endif
 
@@ -485,7 +485,7 @@ I830UpdateRotate (ScreenPtr      pScreen,
       updateInvarient = TRUE;
 
 #ifdef XF86DRI
-   if (sarea->ctxOwner != myContext)
+   if (sarea && sarea->ctxOwner != myContext)
       updateInvarient = TRUE;
 #endif
 
