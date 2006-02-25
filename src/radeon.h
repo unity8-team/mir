@@ -278,6 +278,8 @@ typedef enum {
     CHIP_FAMILY_RV350,
     CHIP_FAMILY_RV380,    /* RV370/RV380/M22/M24 */
     CHIP_FAMILY_R420,     /* R420/R423/M18 */
+    CHIP_FAMILY_RV410,    /* RV410, M26 */
+    CHIP_FAMILY_RS400,    /* xpress 200, 200m (RS400/410/480) */
     CHIP_FAMILY_LAST
 } RADEONChipFamily;
 
@@ -294,7 +296,9 @@ typedef enum {
         (info->ChipFamily == CHIP_FAMILY_RV350) ||  \
         (info->ChipFamily == CHIP_FAMILY_R350)  ||  \
         (info->ChipFamily == CHIP_FAMILY_RV380) ||  \
-        (info->ChipFamily == CHIP_FAMILY_R420))
+        (info->ChipFamily == CHIP_FAMILY_R420)  ||  \
+        (info->ChipFamily == CHIP_FAMILY_RV410) ||  \
+        (info->ChipFamily == CHIP_FAMILY_RS400))
 
 /*
  * Errata workarounds

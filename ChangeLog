@@ -1,3 +1,14 @@
+2006-02-24  Roland Scheidegger  <rscheidegger_lists@hispeed.ch>
+	* src/radeon.h:
+	* src/radeon_chipset.h:
+	* src/radeon_driver.c:
+	* src/radeon_probe.c:
+	Add pci ids known to exist (see #4284 for instance). There are still
+	entries which probably don't really exist (cancelled cards and such),
+	leave them as-is. Fix the name of some entries, mostly based on the
+	.inf file of the newest catalyst driver. Use own family id for rv410
+	and rs400, though there is no different code (yet?).
+
 2006-02-17  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon.h:

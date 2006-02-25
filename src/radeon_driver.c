@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.85 2006/01/19 14:20:37 daniels Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.86 2006/02/16 23:27:44 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -522,6 +522,8 @@ static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
     {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RV350*/
     {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RV380*/
     {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_R420*/
+    {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_RV410*/ /* FIXME: just values from r420 used... */
+    {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RS400*/ /* FIXME: just values from rv380 used... */
 };
 
 #ifdef XFree86LOADER
@@ -1701,7 +1703,7 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 		    "Video BIOS not detected, using default clock settings!\n");
 
        /* Default min/max PLL values */
-       if (info->ChipFamily == CHIP_FAMILY_R420) {
+       if (info->ChipFamily == CHIP_FAMILY_R420 || info->ChipFamily == CHIP_FAMILY_RV410) {
            pll->min_pll_freq = 20000;
            pll->max_pll_freq = 50000;
        } else {
@@ -2589,6 +2591,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
         break;
 
     case PCI_CHIP_RV380_3150:
+    case PCI_CHIP_RV380_3152:
     case PCI_CHIP_RV380_3154:
         info->IsMobility = TRUE;
     case PCI_CHIP_RV380_3E50:
@@ -2597,10 +2600,12 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
         break;
 
     case PCI_CHIP_RV370_5460:
+    case PCI_CHIP_RV370_5462:
     case PCI_CHIP_RV370_5464:
         info->IsMobility = TRUE;
     case PCI_CHIP_RV370_5B60:
     case PCI_CHIP_RV370_5B62:
+    case PCI_CHIP_RV370_5B63:
     case PCI_CHIP_RV370_5B64:
     case PCI_CHIP_RV370_5B65:
         info->ChipFamily = CHIP_FAMILY_RV380;
@@ -2615,13 +2620,14 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     case PCI_CHIP_RC410_5A61:
     case PCI_CHIP_RS480_5954:
     case PCI_CHIP_RS482_5974:
-	info->ChipFamily = CHIP_FAMILY_RV380; /*CHIP_FAMILY_RS400*/
+	info->ChipFamily = CHIP_FAMILY_RS400;
 	info->IsIGP = TRUE;
 	/*info->HasSingleDAC = TRUE;*/ /* ??? */
         break;
 
     case PCI_CHIP_RV410_564A:
     case PCI_CHIP_RV410_564B:
+    case PCI_CHIP_RV410_564F:
     case PCI_CHIP_RV410_5652:
     case PCI_CHIP_RV410_5653:
         info->IsMobility = TRUE;
@@ -2631,7 +2637,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     case PCI_CHIP_RV410_5E4D:
     case PCI_CHIP_RV410_5E4C:
     case PCI_CHIP_RV410_5E4F:
-        info->ChipFamily = CHIP_FAMILY_R420; /* CHIP_FAMILY_RV410*/
+        info->ChipFamily = CHIP_FAMILY_RV410;
         break;
 
     case PCI_CHIP_R420_JN:
@@ -7133,8 +7139,8 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     }
 
 
-    /* R420 family not supported yet */
-    if (info->ChipFamily == CHIP_FAMILY_R420) return; 
+    /* R420 and RV410 family not supported yet */
+    if (info->ChipFamily == CHIP_FAMILY_R420 || info->ChipFamily == CHIP_FAMILY_RV410) return; 
 
     if (pRADEONEnt->pSecondaryScrn) {
 	if (info->IsSecondary) return;
