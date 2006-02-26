@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.86 2006/02/16 23:27:44 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.87 2006/02/25 01:57:05 sroland Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -5830,6 +5830,13 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     } else {
 	xf86DrvMsg(scrnIndex, X_INFO, "Acceleration disabled\n");
 	info->accelOn = FALSE;
+    }
+
+
+    /* Init page flipping if enabled now */
+    if (info->allowPageFlip) {
+	RADEONTRACE(("Initializing Page Flipping\n"));
+	RADEONDRIInitPageFlip(pScreen);
     }
 
     /* Init DPMS */

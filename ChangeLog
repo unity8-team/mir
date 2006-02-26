@@ -1,3 +1,12 @@
+2006-02-26  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon.h:
+	* src/radeon_dri.c: (RADEONDRIFinishScreenInit),
+	(RADEONDRIInitPageFlip):
+	* src/radeon_driver.c: (RADEONScreenInit):
+	Fix page flipping with XAA. The new code ended up calling
+	ShadowFBInit() before XAAInit(), which breaks ShadowFB.
+
 2006-02-24  Roland Scheidegger  <rscheidegger_lists@hispeed.ch>
 	* src/radeon.h:
 	* src/radeon_chipset.h:

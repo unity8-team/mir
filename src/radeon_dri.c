@@ -1600,16 +1600,30 @@ Bool RADEONDRIFinishScreenInit(ScreenPtr pScreen)
     pRADEONDRI->perctx_sarea_size = info->perctx_sarea_size;
 #endif
 
-    /* Have shadowfb run only while there is 3d active. */
-    if (!info->useEXA && info->allowPageFlip /* && info->drmMinor >= 3 */) {
-	ShadowFBInit( pScreen, RADEONDRIRefreshArea );
-    } else {
-       info->allowPageFlip = 0;
-    }
-
     info->directRenderingInited = TRUE;
 
     return TRUE;
+}
+
+void RADEONDRIInitPageFlip(ScreenPtr pScreen)
+{
+    ScrnInfoPtr         pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr       info  = RADEONPTR(pScrn);
+
+   /* Have shadowfb run only while there is 3d active. This must happen late,
+     * after XAAInit has been called 
+     */
+    if (!info->useEXA  /* && info->drmMinor >= 3 */) {
+	if (!ShadowFBInit( pScreen, RADEONDRIRefreshArea )) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "ShadowFB init failed, Page Flipping disabled\n");
+	    info->allowPageFlip = 0;
+	} else
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "ShadowFB initialized for Page Flipping\n");
+    } else {
+       info->allowPageFlip = 0;
+    }
 }
 
 /**
