@@ -110,7 +110,7 @@ static SymTabRec RADEONChipsets[] = {
     { PCI_CHIP_R420_JN, "ATI Radeon Mobility 9800 (M18) JN (AGP)" },
     { PCI_CHIP_R420_JP, "ATI Radeon X800XT (R420) JP (AGP)" },
     { PCI_CHIP_R420_4A4F, "ATI Radeon X800 SE (R420) (AGP)" },
-    { PCI_CHIP_R420_4A54, "ATI Radeon AIW X800 (R420) JT (AGP)" },
+    { PCI_CHIP_R420_4A54, "ATI Radeon AIW X800 VE (R420) JT (AGP)" },
     { PCI_CHIP_R423_UH, "ATI Radeon X800 (R423) UH (PCIE)" },
     { PCI_CHIP_R423_UI, "ATI Radeon X800PRO (R423) UI (PCIE)" },
     { PCI_CHIP_R423_UJ, "ATI Radeon X800LE (R423) UJ (PCIE)" },

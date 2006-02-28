@@ -1,3 +1,11 @@
+2006-02-27  Roland Scheidegger  <rscheidegger_lists@hispeed.ch>
+	* src/atichip.h:
+	* src/atichip.c:
+	* src/radeon_chipset.h:
+	Add the newly added (and tons of previously forgotten ones) pci ids
+	to the ati wrapper too (probably not required for it to work as
+	everything should default to radeon anyway there).
+
 2006-02-26  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon.h:

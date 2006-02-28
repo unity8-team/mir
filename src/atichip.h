@@ -108,7 +108,12 @@ typedef enum
     ATI_CHIP_RV370,             /* RV370/M22 */
     ATI_CHIP_RV380,             /* RV380/M24 */
     ATI_CHIP_R420,              /* R420/M18 */
-    ATI_CHIP_R423,              /* R423 */
+    ATI_CHIP_R423,              /* R423/M28? */
+    ATI_CHIP_R430,              /* R430 */
+    ATI_CHIP_R480,              /* R480/M28? */
+    ATI_CHIP_R481,              /* R481 */
+    ATI_CHIP_RV410,             /* RV410, M26 */
+    ATI_CHIP_RS400,             /* RS400, RS410, RS480, RS482, ... */
     ATI_CHIP_Radeon,            /* Last among Radeon's */
     ATI_CHIP_HDTV               /* HDTV */
 } ATIChipType;
