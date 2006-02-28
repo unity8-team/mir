@@ -1,3 +1,13 @@
+2006-03-01  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon_driver.c: (RADEONInitMemoryMap),
+	(RADEONPreInitConfig):
+	Workaround for rv280 bug which needs the framebuffer memory mapping
+	to be aligned to its own size. Also add back limit of 128Mb of mapped
+	fb space for now until I fully sort out what's up with dual function
+	cards. I would really need to access the PCI BAR sizes here but that
+	information seem to be missing from the PCI info passed to the driver.
+
 2006-02-27  Roland Scheidegger  <rscheidegger_lists@hispeed.ch>
 	* src/atichip.h:
 	* src/atichip.c:

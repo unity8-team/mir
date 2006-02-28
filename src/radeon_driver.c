@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.87 2006/02/25 01:57:05 sroland Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.88 2006/02/26 10:01:32 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -2300,6 +2300,14 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 	{
 	    CARD32 aper0_base = INREG(RADEON_CONFIG_APER_0_BASE);
 
+	    /* The rv280 has an "issue" with it's memory controller, the
+	     * location must be aligned to the size. We just align it down,
+	     * too bad if we walk over the top of system memory, we don't
+	     * use DMA without a remapped anyway
+	     */
+	    if (info->ChipFamily == CHIP_FAMILY_RV280)
+		    aper0_base &= ~(mem_size - 1);
+
 	    info->mc_fb_location = (aper0_base >> 16) |
 		    ((aper0_base + mem_size - 1) & 0xffff0000U);
 	}
@@ -2758,6 +2766,14 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 
 	/* Get accessible memory */
 	accessible = RADEONGetAccessibleVRAM(pScrn);
+
+	/* XXX There are still some unresolved issues with card splitting
+	 * over two PCI functions, so we have to limit accessible RAM to
+	 * 128Mb for the time being
+	 */
+	if (accessible > 0x08000000)
+	    accessible = 0x08000000;
+
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Detected total video RAM: %dl, max accessible: %dK\n",
 	       pScrn->videoRam, accessible);
