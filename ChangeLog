@@ -1,3 +1,12 @@
+2006-03-02  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon_driver.c: (RADEONInitMemoryMap),
+	(RADEONPreInitConfig):
+	Extend the alignement workaround to post-rv280 chips as well (thanks
+	Hui) and also limit the CPU accessible memory to the size of the PCI
+	BAR size (yeah, it was passed to the driver, I just got blind for a
+	while it seems)
+
 2006-03-01  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon_driver.c: (RADEONInitMemoryMap),

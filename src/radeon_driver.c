@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.88 2006/02/26 10:01:32 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.89 2006/02/28 23:34:03 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -2300,12 +2300,19 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 	{
 	    CARD32 aper0_base = INREG(RADEON_CONFIG_APER_0_BASE);
 
-	    /* The rv280 has an "issue" with it's memory controller, the
+	    /* Recent chips have an "issue" with the memory controller, the
 	     * location must be aligned to the size. We just align it down,
 	     * too bad if we walk over the top of system memory, we don't
-	     * use DMA without a remapped anyway
+	     * use DMA without a remapped anyway.
+	     * Affected chips are rv280, all r3xx, and all r4xx, but not IGP
 	     */
-	    if (info->ChipFamily == CHIP_FAMILY_RV280)
+	    if (info->ChipFamily == CHIP_FAMILY_RV280 ||
+		info->ChipFamily == CHIP_FAMILY_R300 ||
+		info->ChipFamily == CHIP_FAMILY_R350 ||
+		info->ChipFamily == CHIP_FAMILY_RV350 ||
+		info->ChipFamily == CHIP_FAMILY_RV380 ||
+		info->ChipFamily == CHIP_FAMILY_R420 ||
+		info->ChipFamily == CHIP_FAMILY_RV410)
 		    aper0_base &= ~(mem_size - 1);
 
 	    info->mc_fb_location = (aper0_base >> 16) |
@@ -2754,6 +2761,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 	OUTREG(RADEON_CONFIG_MEMSIZE, pScrn->videoRam * 1024);
     } else {
 	CARD32 accessible;
+	CARD32 bar_size;
 
 	/* Read VRAM size from card */
         pScrn->videoRam      = INREG(RADEON_CONFIG_MEMSIZE) / 1024;
@@ -2767,12 +2775,12 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 	/* Get accessible memory */
 	accessible = RADEONGetAccessibleVRAM(pScrn);
 
-	/* XXX There are still some unresolved issues with card splitting
-	 * over two PCI functions, so we have to limit accessible RAM to
-	 * 128Mb for the time being
-	 */
-	if (accessible > 0x08000000)
-	    accessible = 0x08000000;
+	/* Crop it to the size of the PCI BAR */
+	bar_size = info->PciInfo->size[0];
+	if (bar_size == 0)
+	    bar_size = 0x08000000;
+	if (accessible > bar_size)
+	    accessible = bar_size;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Detected total video RAM: %dl, max accessible: %dK\n",
