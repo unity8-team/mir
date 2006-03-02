@@ -1,5 +1,11 @@
 2006-03-02  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
+	* src/radeon_driver.c: (RADEONPreInitConfig):
+	Fix the fix ... I didn't interpret PciInfo->size properly and forgot
+	that the function works in Kb not bytes... Ooops.
+
+2006-03-02  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
 	* src/radeon_driver.c: (RADEONInitMemoryMap),
 	(RADEONPreInitConfig):
 	Extend the alignement workaround to post-rv280 chips as well (thanks

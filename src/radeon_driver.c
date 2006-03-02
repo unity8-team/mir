@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.89 2006/02/28 23:34:03 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.90 2006/03/01 21:35:14 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -2776,15 +2776,16 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 	accessible = RADEONGetAccessibleVRAM(pScrn);
 
 	/* Crop it to the size of the PCI BAR */
-	bar_size = info->PciInfo->size[0];
+	bar_size = (1ul << info->PciInfo->size[0]) / 1024;
 	if (bar_size == 0)
-	    bar_size = 0x08000000;
+	    bar_size = 0x20000;
 	if (accessible > bar_size)
 	    accessible = bar_size;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Detected total video RAM: %dl, max accessible: %dK\n",
-	       pScrn->videoRam, accessible);
+	       "Detected total video RAM=%dK,  accessible=%dK "
+		   "(PCI BAR=%dK)\n",
+	       pScrn->videoRam, accessible, bar_size);
 	if (pScrn->videoRam > accessible)
 	    pScrn->videoRam = accessible;
     }
@@ -2821,7 +2822,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     }
 
     xf86DrvMsg(pScrn->scrnIndex, from,
-	       "VideoRAM: %d kByte (%d bit %s SDRAM)\n", pScrn->videoRam, info->RamWidth, info->IsDDR?"DDR":"SDR");
+	       "Mapped VideoRAM: %d kByte (%d bit %s SDRAM)\n", pScrn->videoRam, info->RamWidth, info->IsDDR?"DDR":"SDR");
 
     /* FIXME: For now, split FB into two equal sections. This should
      * be able to be adjusted by user with a config option. */
