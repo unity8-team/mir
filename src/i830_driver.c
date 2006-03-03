@@ -3516,9 +3516,26 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    }
 #endif
 
-   if (!xf86LoadSubModule(pScrn, "shadow")) {
-      PreInitCleanup(pScrn);
-      return FALSE;
+   /* rotation requires the newer libshadow */
+   if (I830IsPrimary(pScrn)) {
+      int errmaj, errmin;
+      pI830->shadowReq.majorversion = 1;
+      pI830->shadowReq.minorversion = 1;
+
+      if (!LoadSubModule(pScrn->module, "shadow", NULL, NULL, NULL,
+			       &pI830->shadowReq, &errmaj, &errmin)) {
+         pI830->shadowReq.minorversion = 0;
+         if (!LoadSubModule(pScrn->module, "shadow", NULL, NULL, NULL,
+			       &pI830->shadowReq, &errmaj, &errmin)) {
+            LoaderErrorMsg(NULL, "shadow", errmaj, errmin);
+	    return FALSE;
+         }
+      }
+   } else {
+      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
+      pI830->shadowReq.majorversion = pI8301->shadowReq.majorversion;
+      pI830->shadowReq.minorversion = pI8301->shadowReq.minorversion;
+      pI830->shadowReq.patchlevel = pI8301->shadowReq.patchlevel;
    }
    xf86LoaderReqSymLists(I810shadowSymbols, NULL);
 
@@ -5104,17 +5121,21 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->CloseScreen = pScreen->CloseScreen;
    pScreen->CloseScreen = I830BIOSCloseScreen;
 
-   /* Rotation */
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
-   xf86DisableRandR(); /* Disable built-in RandR extension */
-
-   shadowSetup(pScreen);
-   /* support all rotations */
-   I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
-   pI830->PointerMoved = pScrn->PointerMoved;
-   pScrn->PointerMoved = I830PointerMoved;
-   pI830->CreateScreenResources = pScreen->CreateScreenResources;
-   pScreen->CreateScreenResources = I830CreateScreenResources;
+   if (pI830->shadowReq.minorversion >= 1) {
+      /* Rotation */
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
+      xf86DisableRandR(); /* Disable built-in RandR extension */
+      shadowSetup(pScreen);
+      /* support all rotations */
+      I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
+      pI830->PointerMoved = pScrn->PointerMoved;
+      pScrn->PointerMoved = I830PointerMoved;
+      pI830->CreateScreenResources = pScreen->CreateScreenResources;
+      pScreen->CreateScreenResources = I830CreateScreenResources;
+   } else {
+      /* Rotation */
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "libshadow is version %d.%d.%d, required 1.1.0 or greater for rotation.\n",pI830->shadowReq.majorversion,pI830->shadowReq.minorversion,pI830->shadowReq.patchlevel);
+   }
 
    if (serverGeneration == 1)
       xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
@@ -5827,7 +5848,9 @@ I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen)
       pI830->used3D = NULL;
    }
 
-   pScrn->PointerMoved = pI830->PointerMoved;
+   if (pI830->shadowReq.minorversion >= 1)
+      pScrn->PointerMoved = pI830->PointerMoved;
+
    pScrn->vtSema = FALSE;
    pI830->closing = FALSE;
    pScreen->CloseScreen = pI830->CloseScreen;

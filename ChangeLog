@@ -1,3 +1,16 @@
+2006-03-03  Alan Hourihane  <alanh@fairlite.demon.co.uk>
+
+	* configure.ac:
+	* src/i810.h:
+	* src/i830.h:
+	* src/i830_dri.h:
+	* src/i830_driver.c: (I830BIOSPreInit), (I830BIOSScreenInit),
+	(I830BIOSCloseScreen):
+	* src/i830_video.c:
+	Check the version of shadow being used and turn off rotation if
+	it isn't the right one.
+	Bump the Xvideo resolution support from 1920x1080 to 1920x1088.
+
 2006-02-20  Alan Hourihane  <alanh@fairlite.demon.co.uk>
 
 	* src/i830_rotate.c: (I915UpdateRotate), (I830UpdateRotate):

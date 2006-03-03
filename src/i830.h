@@ -221,6 +221,7 @@ typedef struct _I830Rec {
 #endif
    unsigned int LinearAlloc;
   
+   XF86ModReqInfo shadowReq; /* to test for later libshadow */
    I830MemRange RotatedMem;
    I830MemRange RotatedMem2;
    Rotation rotation;
