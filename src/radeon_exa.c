@@ -438,11 +438,9 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 		       depth_size / 1024, info->depthOffset);
 	}
 	
-	/* Reserve approx. half of remaining offscreen memory for local
-	* textures.  Round down to a whole number of texture regions.
-	*/
-	info->textureSize = (info->exa.card.memorySize -
-			     info->exa.card.offScreenBase) / 2;
+	info->textureSize *= (info->exa.card.memorySize -
+			      info->exa.card.offScreenBase) / 100;
+
 	l = RADEONLog2(info->textureSize / RADEON_NR_TEX_REGIONS);
 	if (l < RADEON_LOG_TEX_GRANULARITY)
 	    l = RADEON_LOG_TEX_GRANULARITY;

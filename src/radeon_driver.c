@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.90 2006/03/01 21:35:14 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.91 2006-03-02 02:05:17 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -156,6 +156,9 @@ typedef enum {
     OPTION_PAGE_FLIP,
     OPTION_NO_BACKBUFFER,
     OPTION_XV_DMA,
+#ifdef USE_EXA
+    OPTION_FBTEX_PERCENT,
+#endif
 #endif
     OPTION_PANEL_OFF,
     OPTION_DDC_MODE,
@@ -218,6 +221,9 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_PAGE_FLIP,      "EnablePageFlip",   OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_NO_BACKBUFFER,  "NoBackBuffer",     OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_XV_DMA,         "DMAForXv",         OPTV_BOOLEAN, {0}, FALSE },
+#ifdef USE_EXA
+    { OPTION_FBTEX_PERCENT,  "FBTexPercent",     OPTV_INTEGER, {0}, FALSE },
+#endif
 #endif
     { OPTION_PANEL_OFF,      "PanelOff",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DDC_MODE,       "DDCMode",          OPTV_BOOLEAN, {0}, FALSE },
@@ -5747,8 +5753,28 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     RADEONTRACE(("Setting up accel memmap\n"));
 
 #ifdef USE_EXA
-    if (info->useEXA && !RADEONSetupMemEXA(pScreen))
-	return FALSE;
+    if (info->useEXA) {
+#ifdef XF86DRI
+	/* Reserve approx. half of offscreen memory for local textures by
+	 * default, can be overridden with Option "FBTexPercent".
+	 * Round down to a whole number of texture regions.
+	 */
+	info->textureSize = 50;
+
+	if (xf86GetOptValInteger(info->Options, OPTION_FBTEX_PERCENT,
+				 &(info->textureSize))) {
+	    if (info->textureSize < 0 || info->textureSize > 100) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Illegal texture memory percentage: %dx, setting to default 50%\n",
+			   info->textureSize);
+		info->textureSize = 50;
+	    }
+	}
+#endif /* XF86DRI */
+
+	if (!RADEONSetupMemEXA(pScreen))
+	    return FALSE;
+    }
 #endif
 
 #if defined(XF86DRI) && defined(USE_XAA)

@@ -1,3 +1,11 @@
+2006-03-03  Michel Dänzer  <michel@daenzer.net>
+
+	* man/radeon.man:
+	* src/radeon_driver.c: (RADEONScreenInit):
+	* src/radeon_exa.c: (RADEONSetupMemEXA):
+	Add Option "FBTexPercent" to override the amount of video RAM reserved
+	for OpenGL textures with EXA.
+
 2006-03-02  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon_driver.c: (RADEONPreInitConfig):
