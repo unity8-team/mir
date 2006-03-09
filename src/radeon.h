@@ -348,7 +348,8 @@ typedef struct {
     CARD32            MemCntl;
     CARD32            BusCntl;
     unsigned long     FbMapSize;        /* Size of frame buffer, in bytes    */
-    unsigned long     FbSecureSize;     /* Size of secured fb area at end of framebuffer */
+    unsigned long     FbSecureSize;     /* Size of secured fb area at end of
+                                           framebuffer */
     int               Flags;            /* Saved copy of mode flags          */
 
 				/* VE/M6 support */
@@ -490,9 +491,12 @@ typedef struct {
     RADEONFBLayout    CurrentLayout;
     CARD32            dst_pitch_offset;
 #ifdef XF86DRI
-    Bool              noBackBuffer;
+    Bool              noBackBuffer;	
     Bool              directRenderingEnabled;
     Bool              directRenderingInited;
+    Bool              newMemoryMap;
+    drmVersionPtr     pLibDRMVersion;
+    drmVersionPtr     pKernelDRMVersion;
     DRIInfoPtr        pDRIInfo;
     int               drmFD;
     int               numVisualConfigs;
@@ -512,7 +516,6 @@ typedef struct {
     Bool              depthMoves;       /* Enable depth moves -- slow! */
     Bool              allowPageFlip;    /* Enable 3d page flipping */
     Bool              have3DWindows;    /* Are there any 3d clients? */
-    int               drmMinor;
 
     drmSize           gartSize;
     drm_handle_t         agpMemHandle;     /* Handle from drmAgpAlloc */
@@ -777,6 +780,7 @@ extern void        RADEONPllErrataAfterData(RADEONInfoPtr info);
 #ifdef USE_XAA
 extern void        RADEONAccelInitCP(ScreenPtr pScreen, XAAInfoRecPtr a);
 #endif
+extern Bool        RADEONDRIGetVersion(ScrnInfoPtr pScrn);
 extern Bool        RADEONDRIScreenInit(ScreenPtr pScreen);
 extern void        RADEONDRICloseScreen(ScreenPtr pScreen);
 extern void        RADEONDRIResume(ScreenPtr pScreen);

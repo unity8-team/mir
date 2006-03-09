@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.93 2006-03-09 06:06:24 anholt Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.94 2006/03/09 15:41:16 daenzer Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -2301,6 +2301,14 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
     if (mem_size == 0)
 	    mem_size = 0x800000;
 
+#ifdef XF86DRI
+    /* Apply memory map limitation if using an old DRI */
+    if (info->directRenderingEnabled && !info->newMemoryMap) {
+	    CARD32 aper_size = INREG(RADEON_CONFIG_APER_SIZE);
+	    if (aper_size < mem_size)
+		mem_size = aper_size;
+    }
+#endif
 
     /* We won't try to change MC_FB_LOCATION when using fbdev */
     if (!info->FBDev) {
@@ -2309,7 +2317,8 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 	else
 #ifdef XF86DRI
 	/* Old DRI has restrictions on the memory map */
-	if ( info->directRenderingEnabled && info->drmMinor < 10 )
+	if ( info->directRenderingEnabled &&
+	     info->pKernelDRMVersion->version_minor < 10 )
 	    info->mc_fb_location = (mem_size - 1) & 0xffff0000U;
 	else
 #endif
@@ -2403,6 +2412,28 @@ static CARD32 RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
     MessageType    from;
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32	   aper_size = INREG(RADEON_CONFIG_APER_SIZE) / 1024;
+
+#ifdef XF86DRI
+    /* If we use the DRI, we need to check if it's a version that has the
+     * bug of always cropping MC_FB_LOCATION to one aperture, in which case
+     * we need to limit the amount of accessible video memory
+     */
+    if (info->directRenderingEnabled &&
+	info->pKernelDRMVersion->version_minor < 23) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "[dri] limiting video memory to one aperture of %dK\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "[dri] use radeon.o kernel module version 1.23.0 for"
+		   " full memory mapping.\n",
+		   aper_size,
+		   info->pKernelDRMVersion->version_major,
+		   info->pKernelDRMVersion->version_minor,
+		   info->pKernelDRMVersion->version_patchlevel);
+	info->newMemoryMap = FALSE;
+	return aper_size;
+    }
+    info->newMemoryMap = TRUE;
+#endif /* XF86DRI */
 
     /* Set HDP_APER_CNTL only on cards that are known not to be broken,
      * that is has the 2nd generation multifunction PCI interface
@@ -2804,7 +2835,7 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 	    accessible = bar_size;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Detected total video RAM=%dK,  accessible=%dK "
+	       "Detected total video RAM=%dK, accessible=%dK "
 		   "(PCI BAR=%dK)\n",
 	       pScrn->videoRam, accessible, bar_size);
 	if (pScrn->videoRam > accessible)
@@ -2865,7 +2896,6 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 
     pScrn->videoRam  &= ~1023;
     info->FbMapSize  = pScrn->videoRam * 1024;
-
     info->FbSecureSize = 0;
 
 #ifdef XF86DRI
@@ -4429,6 +4459,44 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     MessageType    from;
 
+    info->directRenderingEnabled = FALSE;
+    info->directRenderingInited = FALSE;
+    info->CPInUse = FALSE;
+    info->CPStarted = FALSE;
+    info->pLibDRMVersion = NULL;
+    info->pKernelDRMVersion = NULL;
+
+    if (xf86IsEntityShared(info->pEnt->index)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Direct Rendering Disabled -- "
+		   "Dual-head configuration is not working with "
+		   "DRI at present.\n"
+		   "Please use the radeon MergedFB option if you "
+		   "want Dual-head with DRI.\n");
+	return FALSE;
+    }
+    if (info->IsSecondary)
+        return FALSE;
+
+    if (xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "[dri] Acceleration disabled, not initializing the DRI\n");
+	return FALSE;
+    }
+
+    if (!RADEONDRIGetVersion(pScrn))
+	return FALSE;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "[dri] Found DRI library version %d.%d.%d and kernel"
+	       " module version %d.%d.%d\n",
+	       info->pLibDRMVersion->version_major,
+	       info->pLibDRMVersion->version_minor,
+	       info->pLibDRMVersion->version_patchlevel,
+	       info->pKernelDRMVersion->version_major,
+	       info->pKernelDRMVersion->version_minor,
+	       info->pKernelDRMVersion->version_patchlevel);
+
     if (xf86ReturnOptValBool(info->Options, OPTION_CP_PIO, FALSE)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Forcing CP into PIO mode\n");
 	info->CPMode = RADEON_DEFAULT_CP_PIO_MODE;
@@ -4576,7 +4644,63 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 
     return TRUE;
 }
-#endif
+#endif /* XF86DRI */
+
+static void RADEONPreInitColorTiling(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+
+    if (IS_R300_VARIANT) {
+        /* false by default on R3/4xx */
+        info->allowColorTiling = xf86ReturnOptValBool(info->Options,
+					        OPTION_COLOR_TILING, FALSE);
+	info->MaxSurfaceWidth = 3968; /* one would have thought 4096...*/
+	info->MaxLines = 4096;
+    } else {
+        info->allowColorTiling = xf86ReturnOptValBool(info->Options,
+						OPTION_COLOR_TILING, TRUE);
+	info->MaxSurfaceWidth = 2048;
+	info->MaxLines = 2048;
+    }
+
+    if (!info->allowColorTiling)
+	return;
+
+#ifdef XF86DRI
+    if (info->directRenderingEnabled &&
+	info->pKernelDRMVersion->version_minor < 14) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "[dri] color tiling disabled because of version "
+		   "mismatch.\n"
+		   "[dri] radeon.o kernel module version is %d.%d.%d but "
+		   "1.14.0 or later is required for color tiling.\n",
+		   info->pKernelDRMVersion->version_major,
+		   info->pKernelDRMVersion->version_minor,
+		   info->pKernelDRMVersion->version_patchlevel);
+	   info->allowColorTiling = FALSE;
+	   return;	   
+    }
+#endif /* XF86DRI */
+
+    if ((info->allowColorTiling) && (info->IsSecondary)) {
+	/* can't have tiling on the 2nd head (as long as it can't use drm).
+	 * We'd never get the surface save/restore (vt switching) right...
+	 */
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling disabled for 2nd head\n");
+	info->allowColorTiling = FALSE;
+    }
+    else if ((info->allowColorTiling) && (info->FBDev)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Color tiling not supported with UseFBDev option\n");
+	info->allowColorTiling = FALSE;
+    }
+    else if (info->allowColorTiling) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling enabled by default\n");
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling disabled\n");
+    }
+}
+
 
 static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
 {
@@ -4938,38 +5062,17 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     RADEONPostInt10Check(pScrn, int10_save);
 
+#ifdef XF86DRI
+    /* PreInit DRI first of all since we need that for getting a proper
+     * memory map
+     */
+    info->directRenderingEnabled = RADEONPreInitDRI(pScrn);
+#endif
+
     if (!RADEONPreInitConfig(pScrn))
 	goto fail;
 
-    if (IS_R300_VARIANT) {
-        /* false by default on R3/4xx */
-        info->allowColorTiling = xf86ReturnOptValBool(info->Options,
-					        OPTION_COLOR_TILING, FALSE);
-	info->MaxSurfaceWidth = 3968; /* one would have thought 4096...*/
-	info->MaxLines = 4096;
-    } else {
-        info->allowColorTiling = xf86ReturnOptValBool(info->Options,
-						OPTION_COLOR_TILING, TRUE);
-	info->MaxSurfaceWidth = 2048;
-	info->MaxLines = 2048;
-    }
-
-    if ((info->allowColorTiling) && (info->IsSecondary)) {
-	/* can't have tiling on the 2nd head (as long as it can't use drm). We'd never
-	   get the surface save/restore (vt switching) right... */
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling disabled for 2nd head\n");
-	info->allowColorTiling = FALSE;
-    }
-    else if ((info->allowColorTiling) && (info->FBDev)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Color tiling not supported with UseFBDev option\n");
-	info->allowColorTiling = FALSE;
-    }
-    else if (info->allowColorTiling) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling enabled by default\n");
-    } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling disabled\n");
-    }
+    RADEONPreInitColorTiling(pScrn);
 
     RADEONPreInitDDC(pScrn);
 
@@ -4992,13 +5095,9 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitAccel(pScrn))              goto fail;
 
-#ifdef XF86DRI
-    if (!RADEONPreInitDRI(pScrn))                goto fail;
-#endif
-
     if (!RADEONPreInitXv(pScrn))                 goto fail;
 
-				/* Free the video bios (if applicable) */
+    /* Free the video bios (if applicable) */
     if (info->VBIOS) {
 	xfree(info->VBIOS);
 	info->VBIOS = NULL;
@@ -5543,13 +5642,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     RADEONTRACE(("RADEONScreenInit %x %d\n",
 		 pScrn->memPhysBase, pScrn->fbOffset));
 
-#ifdef XF86DRI
-				/* Turn off the CP for now. */
-    info->CPInUse      = FALSE;
-    info->CPStarted    = FALSE;
-    info->directRenderingEnabled = FALSE;
-    info->directRenderingInited = FALSE;
-#endif
     info->accelOn      = FALSE;
     info->accel        = NULL;
     pScrn->fbOffset    = 0;
@@ -5573,13 +5665,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
         }
     }
 
-#if 0
-    if (info->allowColorTiling && info->useEXA) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Color tiling not supported yet with EXA, disabling\n");
-	info->allowColorTiling = FALSE;
-    }
-#endif
     if (info->allowColorTiling && (pScrn->virtualX > info->MaxSurfaceWidth)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Color tiling not supported with virtual x resolutions larger than %d, disabling\n",
@@ -5599,7 +5684,8 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
             info->tilingEnabled = (pScrn->currentMode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
 	}
     }
-				/* Visual setup */
+
+    /* Visual setup */
     miClearVisualTypes();
     if (!miSetVisualTypes(pScrn->depth,
 			  miGetDefaultVisualMask(pScrn->depth),
@@ -5608,12 +5694,10 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     miSetPixmapDepths ();
 
 #ifdef XF86DRI
-				/* Setup DRI after visuals have been
-				   established, but before fbScreenInit is
-				   called.  fbScreenInit will eventually
-				   call the driver's InitGLXVisuals call
-				   back. */
-    {
+    /* Setup DRI after visuals have been established, but before fbScreenInit is
+     * called.  fbScreenInit will eventually call the driver's InitGLXVisuals
+     * call back. */
+    if (info->directRenderingEnabled) {
 	/* FIXME: When we move to dynamic allocation of back and depth
 	 * buffers, we will want to revisit the following check for 3
 	 * times the virtual size of the screen below.
@@ -5622,11 +5706,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 			    info->CurrentLayout.pixel_bytes);
 	int  maxy        = info->FbMapSize / width_bytes;
 
-	if (xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
-	    xf86DrvMsg(scrnIndex, X_WARNING,
-		       "Acceleration disabled, not initializing the DRI\n");
-	    info->directRenderingEnabled = FALSE;
-	} else if (maxy <= pScrn->virtualY * 3) {
+	if (maxy <= pScrn->virtualY * 3) {
 	    xf86DrvMsg(scrnIndex, X_ERROR,
 		       "Static buffer allocation failed.  Disabling DRI.\n");
 	    xf86DrvMsg(scrnIndex, X_ERROR,
@@ -5644,24 +5724,29 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 		      "\t*** This message has been last modified on 2005-08-07.\n\n"
 		      );
                info->directRenderingEnabled = RADEONDRIScreenInit(pScreen);
-	} else if (info->IsSecondary) {
-	    info->directRenderingEnabled = FALSE;
-	} else if (xf86IsEntityShared(info->pEnt->index)) {
-	    /* Xinerama has sync problem with DRI, disable it for now */
-	    info->directRenderingEnabled = FALSE;
-	    xf86DrvMsg(scrnIndex, X_WARNING,
-			"Direct Rendering Disabled -- "
-			"Dual-head configuration is not working with "
-			"DRI at present.\n"
-			"Please use the radeon MergedFB option if you "
-			"want Dual-head with DRI.\n");
 	} else {
 	    info->directRenderingEnabled = RADEONDRIScreenInit(pScreen);
 	}
     }
 
+    /* Tell DRI about new memory map */
+    if (info->directRenderingEnabled && info->newMemoryMap) {
+	drmRadeonSetParam  radeonsetparam;
+	RADEONTRACE(("DRI New memory map param\n"));
+	memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
+	radeonsetparam.param = RADEON_SETPARAM_NEW_MEMMAP;
+	radeonsetparam.value = 1;
+	if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
+			    &radeonsetparam, sizeof(drmRadeonSetParam)) < 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "[drm] failed to enable new memory map\n");
+		RADEONDRICloseScreen(pScreen);
+		info->directRenderingEnabled = FALSE;		
+	}
+    }
+
     hasDRI = info->directRenderingEnabled;
-#endif
+#endif /* XF86DRI */
 
     /* Initialize the memory map, this basically calculates the values
      * we'll use later on for MC_FB_LOCATION & MC_AGP_LOCATION
@@ -5812,20 +5897,8 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     /* DRI finalisation */
 #ifdef XF86DRI
-    /* Tell DRI about new memory map */
-    if (info->directRenderingEnabled) {
-	drmRadeonSetParam  radeonsetparam;
-	RADEONTRACE(("DRI New memory map param\n"));
-	memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
-	radeonsetparam.param = RADEON_SETPARAM_NEW_MEMMAP;
-	radeonsetparam.value = 1;
-	if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
-			    &radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "[drm] failed to enable new memory map\n");
-    }
-
-    if (info->cardType==CARD_PCIE && info->pciGartOffset && info->drmMinor>=19)
+    if (info->directRenderingEnabled && info->cardType==CARD_PCIE &&
+	info->pciGartOffset && info->pKernelDRMVersion->version_minor >= 19)
     {
       drmRadeonSetParam  radeonsetparam;
       RADEONTRACE(("DRI PCIGART param\n"));
@@ -6748,7 +6821,8 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	RADEONRestoreCrtc2Registers(pScrn, restore);
 	RADEONRestorePLL2Registers(pScrn, restore);
 
-	if(info->IsSwitching) return;
+	if (info->IsSwitching)
+	    return;
 
 	pRADEONEnt->IsSecondaryRestored = TRUE;
 

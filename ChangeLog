@@ -1,3 +1,21 @@
+2006-03-10  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon.h:
+	* src/radeon_dri.c: (RADEONDRIGartHeapInit), (RADEONDRIGetVersion),
+	(RADEONDRIScreenInit), (RADEONDRIInitPageFlip), (RADEONDRIResume),
+	(RADEONDRIAllocatePCIGARTTable):
+	* src/radeon_driver.c: (RADEONInitMemoryMap),
+	(RADEONGetAccessibleVRAM), (RADEONPreInitConfig),
+	(RADEONPreInitDRI), (RADEONPreInitColorTiling), (RADEONPreInit),
+	(RADEONScreenInit), (RADEONRestoreMode):
+	More memory map fixes !!! This time, we add a way to get the DRM
+	kernel module version early, in order to properly limit the
+	framebuffer size when a module that doesn't support the new map is
+	loaded. That will improve backward compatibility. I also made the
+	minimum required kernel module version 1.3 which hopefully shouldn't
+	be a problem for anybody, and cleaned up the ordering in which we test
+	for DRM version to enable features
+
 2006-03-09  Michel Dänzer  <michel@daenzer.net>
 
 	* src/radeon_driver.c: (RADEONGetClockInfo), (RADEONGetVRamType),
