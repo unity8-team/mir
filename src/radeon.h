@@ -408,7 +408,7 @@ typedef struct {
     Bool              PaletteSavedOnVT; /* Palette saved on last VT switch   */
 
 #ifdef USE_EXA
-    ExaDriverRec      exa;
+    ExaDriverPtr      exa;
     int               engineMode;
 #define EXA_ENGINEMODE_UNKNOWN 0
 #define EXA_ENGINEMODE_2D      1

@@ -347,31 +347,37 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 {
     RINFO_FROM_SCREEN(pScreen);
 
-    memset(&info->exa.accel, 0, sizeof(ExaAccelInfoRec));
+    if (info->exa == NULL) {
+	xf86DrvMsg(pScreen->myNum, X_ERROR, "Memory map not set up\n");
+	return FALSE;
+    }
 
-    info->exa.accel.PrepareSolid = FUNC_NAME(RADEONPrepareSolid);
-    info->exa.accel.Solid = FUNC_NAME(RADEONSolid);
-    info->exa.accel.DoneSolid = FUNC_NAME(RADEONDoneSolid);
+    info->exa->exa_major = 2;
+    info->exa->exa_minor = 0;
 
-    info->exa.accel.PrepareCopy = FUNC_NAME(RADEONPrepareCopy);
-    info->exa.accel.Copy = FUNC_NAME(RADEONCopy);
-    info->exa.accel.DoneCopy = FUNC_NAME(RADEONDoneCopy);
+    info->exa->PrepareSolid = FUNC_NAME(RADEONPrepareSolid);
+    info->exa->Solid = FUNC_NAME(RADEONSolid);
+    info->exa->DoneSolid = FUNC_NAME(RADEONDoneSolid);
 
-    info->exa.accel.WaitMarker = FUNC_NAME(RADEONSync);
-    info->exa.accel.UploadToScreen = FUNC_NAME(RADEONUploadToScreen);
-    info->exa.accel.DownloadFromScreen = FUNC_NAME(RADEONDownloadFromScreen);
+    info->exa->PrepareCopy = FUNC_NAME(RADEONPrepareCopy);
+    info->exa->Copy = FUNC_NAME(RADEONCopy);
+    info->exa->DoneCopy = FUNC_NAME(RADEONDoneCopy);
+
+    info->exa->WaitMarker = FUNC_NAME(RADEONSync);
+    info->exa->UploadToScreen = FUNC_NAME(RADEONUploadToScreen);
+    info->exa->DownloadFromScreen = FUNC_NAME(RADEONDownloadFromScreen);
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    info->exa.accel.PrepareAccess = RADEONPrepareAccess;
-    info->exa.accel.FinishAccess = RADEONFinishAccess;
+    info->exa->PrepareAccess = RADEONPrepareAccess;
+    info->exa->FinishAccess = RADEONFinishAccess;
 #endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
 
-    info->exa.card.flags = EXA_OFFSCREEN_PIXMAPS;
-    info->exa.card.pixmapOffsetAlign = RADEON_BUFFER_ALIGN + 1;
-    info->exa.card.pixmapPitchAlign = 64;
+    info->exa->flags = EXA_OFFSCREEN_PIXMAPS;
+    info->exa->pixmapOffsetAlign = RADEON_BUFFER_ALIGN + 1;
+    info->exa->pixmapPitchAlign = 64;
 
-    info->exa.card.maxX = 2047;
-    info->exa.card.maxY = 2047;
+    info->exa->maxX = 2047;
+    info->exa->maxY = 2047;
 
 #ifdef RENDER
     if (info->RenderAccel) {
@@ -384,26 +390,27 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 		   (info->ChipFamily == CHIP_FAMILY_R200)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R200 type cards.\n");
-		info->exa.accel.CheckComposite = R200CheckComposite;
-		info->exa.accel.PrepareComposite =
+		info->exa->CheckComposite = R200CheckComposite;
+		info->exa->PrepareComposite =
 		    FUNC_NAME(R200PrepareComposite);
-		info->exa.accel.Composite = FUNC_NAME(RadeonComposite);
-		info->exa.accel.DoneComposite = RadeonDoneComposite;
+		info->exa->Composite = FUNC_NAME(RadeonComposite);
+		info->exa->DoneComposite = RadeonDoneComposite;
 	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R100 type cards.\n");
-		info->exa.accel.CheckComposite = R100CheckComposite;
-		info->exa.accel.PrepareComposite =
+		info->exa->CheckComposite = R100CheckComposite;
+		info->exa->PrepareComposite =
 		    FUNC_NAME(R100PrepareComposite);
-		info->exa.accel.Composite = FUNC_NAME(RadeonComposite);
-		info->exa.accel.DoneComposite = RadeonDoneComposite;
+		info->exa->Composite = FUNC_NAME(RadeonComposite);
+		info->exa->DoneComposite = RadeonDoneComposite;
 	}
     }
 #endif
 
     RADEONEngineInit(pScrn);
 
-    if (!exaDriverInit(pScreen, &info->exa)) {
+    if (!exaDriverInit(pScreen, info->exa)) {
+	xfree(info->exa);
 	return FALSE;
     }
     exaMarkSync(pScreen);

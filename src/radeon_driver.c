@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.91 2006-03-02 02:05:17 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.92 2006/03/03 16:41:41 daenzer Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -328,6 +328,7 @@ static const char *fbSymbols[] = {
 
 #ifdef USE_EXA
 static const char *exaSymbols[] = {
+    "exaDriverAlloc",
     "exaDriverInit",
     "exaDriverFini",
     "exaOffscreenAlloc",
@@ -4354,7 +4355,7 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 
 #ifdef USE_EXA
 	if (info->useEXA) {
-	    info->exaReq.majorversion = 1;
+	    info->exaReq.majorversion = 2;
 	    info->exaReq.minorversion = 0;
 
 	    if (!LoadSubModule(pScrn->module, "exa", NULL, NULL, NULL,
