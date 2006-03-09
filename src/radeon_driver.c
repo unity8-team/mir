@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.92 2006/03/03 16:41:41 daenzer Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.93 2006-03-09 06:06:24 anholt Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -1733,6 +1733,15 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
         info->mclk = 200.00;
     }
 
+    if (info->ChipFamily == CHIP_FAMILY_RV100 && !info->HasCRTC2) {
+        /* Avoid RN50 corruption due to memory bandwidth starvation.
+         * 18 is an empirical value based on the databook and Windows driver.
+        */
+        pll->max_pll_freq = min(pll->max_pll_freq,
+                               18 * info->mclk * 100 / pScrn->bitsPerPixel *
+                               info->RamWidth / 16);
+    }
+
     xf86DrvMsg (pScrn->scrnIndex, X_INFO,
 		"PLL parameters: rf=%d rd=%d min=%ld max=%ld; xclk=%d\n",
 		pll->reference_freq,
@@ -2367,6 +2376,10 @@ static void RADEONGetVRamType(ScrnInfoPtr pScrn)
 	       (info->ChipFamily == CHIP_FAMILY_RS200)){
 	if (tmp & RV100_HALF_MODE) info->RamWidth = 32;
 	else info->RamWidth = 64;
+       if (!info->HasCRTC2) {
+           info->RamWidth /= 4;
+           info->IsDDR = TRUE;
+       }
     } else {
 	if (tmp & RADEON_MEM_NUM_CHANNELS_MASK) info->RamWidth = 128;
 	else info->RamWidth = 64;
@@ -2482,10 +2495,11 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 	info->ChipFamily = CHIP_FAMILY_RV100;
 	break;
 
-    case PCI_CHIP_RV100_QY:
-    case PCI_CHIP_RV100_QZ:
     case PCI_CHIP_RN50_515E:  /* RN50 is based on the RV100 but 3D isn't guaranteed to work.  YMMV. */
     case PCI_CHIP_RN50_5969:
+        info->HasCRTC2 = FALSE;
+    case PCI_CHIP_RV100_QY:
+    case PCI_CHIP_RV100_QZ:
 	info->ChipFamily = CHIP_FAMILY_RV100;
 
 	/* DELL triple-head configuration. */

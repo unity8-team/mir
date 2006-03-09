@@ -1,3 +1,16 @@
+2006-03-09  Michel Dänzer  <michel@daenzer.net>
+
+	* src/radeon_driver.c: (RADEONGetClockInfo), (RADEONGetVRamType),
+	(RADEONPreInitConfig):
+	Bugzilla #5766 <https://bugs.freedesktop.org/show_bug.cgi?id=5766>
+	Patch #4636  <https://bugs.freedesktop.org/attachment.cgi?id=4636>
+	- Acknowledge that RN50 only has one CRTC, and use this to distinguish
+	  it from RV100.
+	- Fix detection of RN50 memory type and bus width.
+	- Model RN50 memory bandwidth limits by capping the pixel clock range
+	  based on memory clock, bpp and memory bus width.
+	(ATI Technologies Inc.)
+
 2006-03-03  Michel Dänzer  <michel@daenzer.net>
 
 	* man/radeon.man:
