@@ -1,3 +1,9 @@
+2006-03-09  Aaron Plattner  <aplattner@nvidia.com>
+
+	* src/nv_driver.c: (NVPreInit):
+	* src/riva_driver.c: (RivaPreInit):
+	Coverity nos. 868 and 869: Free the result of xf86GetEntityInfo.
+
 2006-01-24  Aaron Plattner  <aplattner@nvidia.com>
 
 	* src/nv_driver.c:

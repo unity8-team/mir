@@ -1,4 +1,4 @@
-/* $XdotOrg: driver/xf86-video-nv/src/nv_driver.c,v 1.20 2006/01/23 00:04:41 aplattner Exp $ */
+/* $XdotOrg: driver/xf86-video-nv/src/nv_driver.c,v 1.21 2006/01/24 16:45:29 aplattner Exp $ */
 /* $XConsortium: nv_driver.c /main/3 1996/10/28 05:13:37 kaleb $ */
 /*
  * Copyright 1996-1997  David J. McKay
@@ -983,8 +983,16 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     const char *s;
 
     if (flags & PROBE_DETECT) {
-        nvProbeDDC( pScrn, xf86GetEntityInfo(pScrn->entityList[0])->index );
-	return TRUE;
+        EntityInfoPtr pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
+
+        if (!pEnt)
+            return FALSE;
+
+        i = pEnt->index;
+        xfree(pEnt);
+
+        nvProbeDDC(pScrn, i);
+        return TRUE;
     }
 
     /*

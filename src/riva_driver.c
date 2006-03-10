@@ -493,8 +493,16 @@ RivaPreInit(ScrnInfoPtr pScrn, int flags)
     const char *s;
 
     if (flags & PROBE_DETECT) {
-        rivaProbeDDC( pScrn, xf86GetEntityInfo(pScrn->entityList[0])->index );
-	return TRUE;
+        EntityInfoPtr pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
+
+        if (!pEnt)
+            return FALSE;
+
+        i = pEnt->index;
+        xfree(pEnt);
+
+        rivaProbeDDC(pScrn, i);
+        return TRUE;
     }
 
     /*
