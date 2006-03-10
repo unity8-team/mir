@@ -114,6 +114,8 @@ I830InitHWCursor(ScrnInfoPtr pScrn)
       temp &= ~(CURSOR_FORMAT_MASK | CURSOR_GAMMA_ENABLE |
 		CURSOR_ENABLE  | CURSOR_STRIDE_MASK);
       temp |= (CURSOR_FORMAT_3C);
+      if (pI830->CursorIsARGB)
+         temp |= CURSOR_GAMMA_ENABLE;
       /* This initialises the format and leave the cursor disabled. */
       OUTREG(CURSOR_CONTROL, temp);
       /* Need to set address and size after disabling. */
@@ -480,7 +482,7 @@ I830ShowCursor(ScrnInfoPtr pScrn)
       temp = INREG(CURSOR_A_CONTROL);
       temp &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
       if (pI830->CursorIsARGB)
-         temp |= CURSOR_MODE_64_ARGB_AX;
+         temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
       else
          temp |= CURSOR_MODE_64_4C_AX;
       temp |= (pI830->pipe << 28); /* Connect to correct pipe */
@@ -504,7 +506,7 @@ I830ShowCursor(ScrnInfoPtr pScrn)
       temp &= ~(CURSOR_FORMAT_MASK);
       temp |= CURSOR_ENABLE;
       if (pI830->CursorIsARGB)
-         temp |= CURSOR_FORMAT_ARGB;
+         temp |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
       else 
          temp |= CURSOR_FORMAT_3C;
       OUTREG(CURSOR_CONTROL, temp);
@@ -526,7 +528,7 @@ I830HideCursor(ScrnInfoPtr pScrn)
    pI830->cursorOn = FALSE;
    if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
       temp = INREG(CURSOR_A_CONTROL);
-      temp &= ~CURSOR_MODE;
+      temp &= ~(CURSOR_MODE|MCURSOR_GAMMA_ENABLE);
       temp |= CURSOR_MODE_DISABLE;
       OUTREG(CURSOR_A_CONTROL, temp);
       /* This is needed to flush the above change. */
@@ -543,7 +545,7 @@ I830HideCursor(ScrnInfoPtr pScrn)
       }
    } else {
       temp = INREG(CURSOR_CONTROL);
-      temp &= ~CURSOR_ENABLE;
+      temp &= ~(CURSOR_ENABLE|CURSOR_GAMMA_ENABLE);
       OUTREG(CURSOR_CONTROL, temp);
    }
 }
