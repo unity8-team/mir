@@ -513,12 +513,14 @@ possibly unstable.  The default is
 .B XAA.
 .TP
 .BI "Option \*qFBTexPercent\*q \*q" integer \*q
-Amount of video RAM to reserve for OpenGL textures, in percent. This option only
-has an effect with EXA. The remainder of video RAM is reserved for EXA offscrren
-management. Specifying 0 results in all offscreen video RAM being reserved for
-EXA and only GART memory being available for OpenGL textures. This may improve
-EXA performance, but beware that it may cause problems with OpenGL drivers from
-Mesa versions older than 6.4.
+Amount of video RAM to reserve for OpenGL textures, in percent. With EXA, the
+remainder of video RAM is reserved for EXA offscreen management. Specifying 0
+results in all offscreen video RAM being reserved for EXA and only GART memory
+being available for OpenGL textures. This may improve EXA performance, but
+beware that it may cause problems with OpenGL drivers from Mesa versions older
+than 6.4. With XAA, specifiying lower percentage than what gets reserved without
+this option has no effect, but the driver tries to increase the video RAM
+reserved for textures to the amount specified roughly.
 Default:
 .B 50.
 .TP

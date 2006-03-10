@@ -1,3 +1,9 @@
+2006-03-10  Roland Scheidegger  <rscheidegger_lists@hispeed.ch>
+	* man/radeon.man:
+	* src/radeon_driver.c: (RADEONSetupMemXAA_DRI), (RADEONScreenInit):
+	Use "FBTexPercent" option for XAA too (only for increasing
+	memory reserved for textures).
+
 2006-03-10  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon.h:

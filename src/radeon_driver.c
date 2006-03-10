@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.94 2006/03/09 15:41:16 daenzer Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.95 2006/03/09 23:26:27 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -156,9 +156,7 @@ typedef enum {
     OPTION_PAGE_FLIP,
     OPTION_NO_BACKBUFFER,
     OPTION_XV_DMA,
-#ifdef USE_EXA
     OPTION_FBTEX_PERCENT,
-#endif
 #endif
     OPTION_PANEL_OFF,
     OPTION_DDC_MODE,
@@ -221,9 +219,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_PAGE_FLIP,      "EnablePageFlip",   OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_NO_BACKBUFFER,  "NoBackBuffer",     OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_XV_DMA,         "DMAForXv",         OPTV_BOOLEAN, {0}, FALSE },
-#ifdef USE_EXA
     { OPTION_FBTEX_PERCENT,  "FBTexPercent",     OPTV_INTEGER, {0}, FALSE },
-#endif
 #endif
     { OPTION_PANEL_OFF,      "PanelOff",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DDC_MODE,       "DDCMode",          OPTV_BOOLEAN, {0}, FALSE },
@@ -5322,6 +5318,7 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
     int            depthSize;
     int            l;
     int            scanlines;
+    int            texsizerequest;
     BoxRec         MemBox;
     FBAreaPtr      fbarea;
 
@@ -5372,18 +5369,31 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
     /* Try for front, back, depth, and three framebuffers worth of
      * pixmap cache.  Should be enough for a fullscreen background
      * image plus some leftovers.
+     * If the FBTexPercent option was used, try to achieve that percentage instead,
+     * but still have at least one pixmap buffer (get problems with xvideo/render
+     * otherwise probably), and never reserve more than 3 offscreen buffers as it's
+     * probably useless for XAA.
      */
+    if (info->textureSize >= 0) {
+	texsizerequest = ((int)info->FbMapSize - 2 * bufferSize - depthSize
+			 - 2 * width_bytes - 16384 - info->FbSecureSize)
+	/* first divide, then multiply or we'll get an overflow (been there...) */
+			 / 100 * info->textureSize;
+    }
+    else {
+	texsizerequest = (int)info->FbMapSize / 2;
+    }
     info->textureSize = info->FbMapSize - info->FbSecureSize - 5 * bufferSize - depthSize;
 
-    /* If that gives us less than half the available memory, let's
+    /* If that gives us less than the requested memory, let's
      * be greedy and grab some more.  Sorry, I care more about 3D
      * performance than playing nicely, and you'll get around a full
      * framebuffer's worth of pixmap cache anyway.
      */
-    if (info->textureSize < (int)info->FbMapSize / 2) {
+    if (info->textureSize < texsizerequest) {
         info->textureSize = info->FbMapSize - 4 * bufferSize - depthSize;
     }
-    if (info->textureSize < (int)info->FbMapSize / 2) {
+    if (info->textureSize < texsizerequest) {
         info->textureSize = info->FbMapSize - 3 * bufferSize - depthSize;
     }
 
@@ -5393,7 +5403,7 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
      */
     if (info->textureSize < 0) {
 	info->textureSize = info->FbMapSize - 2 * bufferSize - depthSize
- 	                    - 2 * width_bytes - 16384 - info->FbSecureSize;
+	                    - 2 * width_bytes - 16384 - info->FbSecureSize;
     }
 
     /* Check to see if there is more room available after the 8192nd
@@ -5878,8 +5888,20 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 #endif
 
 #if defined(XF86DRI) && defined(USE_XAA)
-    if (!info->useEXA && hasDRI && !RADEONSetupMemXAA_DRI(scrnIndex, pScreen))
-	return FALSE;
+    if (!info->useEXA && hasDRI) {
+	info->textureSize = -1;
+	if (xf86GetOptValInteger(info->Options, OPTION_FBTEX_PERCENT,
+				 &(info->textureSize))) {
+	    if (info->textureSize < 0 || info->textureSize > 100) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Illegal texture memory percentage: %dx, using default behaviour\n",
+			   info->textureSize);
+		info->textureSize = -1;
+	    }
+	}
+	if (!RADEONSetupMemXAA_DRI(scrnIndex, pScreen))
+	    return FALSE;
+    }
 #endif
 
 #ifdef USE_XAA
