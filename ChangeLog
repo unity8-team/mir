@@ -1,3 +1,10 @@
+2006-03-10  Alan Coopersmith  <alan.coopersmith@sun.com>
+
+	* src/radeon_driver.c: 
+	Add #ifdef XF86DRI guards around references to info->allowPageFlip
+	and info->depthMoves, since they are only defined if building with
+	DRI.
+
 2006-03-10  Roland Scheidegger  <rscheidegger_lists@hispeed.ch>
 	* man/radeon.man:
 	* src/radeon_driver.c: (RADEONSetupMemXAA_DRI), (RADEONScreenInit):
