@@ -1,3 +1,19 @@
+2006-03-12  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/ati.h:
+	* src/r128_dri.c:
+	* src/r128_driver.c:
+	* src/r128_probe.c:
+	* src/radeon_driver.c:
+	* src/radeon_mm_i2c.c:
+	* src/radeon_probe.c:
+	* src/radeon_video.c:
+	* src/radeon_vip.c:
+	* src/atipciids.h:
+	Stop using xf86PciInfo.h, instead use a local copy of the PCI IDs
+	we need in atipciids.h so we can update the ATI driver independently
+	of the server when new chips are added
+
 2006-03-10  Alan Coopersmith  <alan.coopersmith@sun.com>
 
 	* src/radeon_driver.c: 

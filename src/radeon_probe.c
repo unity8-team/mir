@@ -44,8 +44,7 @@
 
 #include "radeon_probe.h"
 #include "radeon_version.h"
-
-#include "xf86PciInfo.h"
+#include "atipciids.h"
 
 #include "xf86.h"
 #include "xf86_ansic.h"

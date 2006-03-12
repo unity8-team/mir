@@ -13,7 +13,7 @@
 
 #include "xf86.h"
 #include "dixstruct.h"
-#include "xf86PciInfo.h"
+#include "atipciids.h"
 #include "xf86fbman.h"
 
 #include <X11/extensions/Xv.h>

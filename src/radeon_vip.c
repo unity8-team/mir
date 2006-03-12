@@ -10,7 +10,7 @@
 #include "radeon_video.h"
 
 #include "xf86.h"
-#include "xf86PciInfo.h"
+#include "atipciids.h"
 
 #include "generic_bus.h"
 #include "theatre_reg.h"

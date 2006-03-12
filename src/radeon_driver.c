@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.96 2006/03/10 13:00:49 sroland Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.97 2006/03/11 04:19:47 alanc Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -91,7 +91,6 @@
 				/* X and server generic header files */
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "xf86PciInfo.h"
 #include "xf86RAC.h"
 #include "xf86Resources.h"
 #include "xf86cmap.h"
@@ -106,6 +105,7 @@
 #define DPMS_SERVER
 #include <X11/extensions/dpms.h>
 
+#include "atipciids.h"
 #include "radeon_chipset.h"
 
 #ifndef MAX
