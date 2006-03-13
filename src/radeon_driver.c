@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.97 2006/03/11 04:19:47 alanc Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.98 2006/03/12 06:53:27 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -2466,23 +2466,121 @@ static CARD32 RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
     return aper_size;
 }
 
+static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    EntityInfoPtr  pEnt   = info->pEnt;
+    GDevPtr        dev    = pEnt->device;
+    unsigned char *RADEONMMIO = info->MMIO;
+    MessageType    from = X_PROBED;
+
+    if (info->FBDev)
+	pScrn->videoRam      = fbdevHWGetVidmem(pScrn) / 1024;
+    else if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
+	     (info->ChipFamily == CHIP_FAMILY_RS200) ||
+	     (info->ChipFamily == CHIP_FAMILY_RS300)) {
+        CARD32 tom = INREG(RADEON_NB_TOM);
+
+	pScrn->videoRam = (((tom >> 16) -
+			    (tom & 0xffff) + 1) << 6);
+
+	OUTREG(RADEON_CONFIG_MEMSIZE, pScrn->videoRam * 1024);
+    } else {
+	CARD32 accessible;
+	CARD32 bar_size;
+
+	/* Read VRAM size from card */
+        pScrn->videoRam      = INREG(RADEON_CONFIG_MEMSIZE) / 1024;
+
+	/* Some production boards of m6 will return 0 if it's 8 MB */
+	if (pScrn->videoRam == 0) {
+	    pScrn->videoRam = 8192;
+	    OUTREG(RADEON_CONFIG_MEMSIZE, 0x800000);
+	}
+
+	/* Get accessible memory */
+	accessible = RADEONGetAccessibleVRAM(pScrn);
+
+	/* Crop it to the size of the PCI BAR */
+	bar_size = (1ul << info->PciInfo->size[0]) / 1024;
+	if (bar_size == 0)
+	    bar_size = 0x20000;
+	if (accessible > bar_size)
+	    accessible = bar_size;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Detected total video RAM=%dK, accessible=%dK "
+		   "(PCI BAR=%dK)\n",
+	       pScrn->videoRam, accessible, bar_size);
+	if (pScrn->videoRam > accessible)
+	    pScrn->videoRam = accessible;
+    }
+
+    info->MemCntl            = INREG(RADEON_SDRAM_MODE_REG);
+    info->BusCntl            = INREG(RADEON_BUS_CNTL);
+
+    RADEONGetVRamType(pScrn);
+
+    if (dev->videoRam) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Video RAM override, using %d kB instead of %d kB\n",
+		   dev->videoRam,
+		   pScrn->videoRam);
+	from             = X_CONFIG;
+	pScrn->videoRam  = dev->videoRam;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, from,
+	       "Mapped VideoRAM: %d kByte (%d bit %s SDRAM)\n", pScrn->videoRam, info->RamWidth, info->IsDDR?"DDR":"SDR");
+
+    /* FIXME: For now, split FB into two equal sections. This should
+     * be able to be adjusted by user with a config option. */
+    if (info->IsPrimary) {
+        pScrn->videoRam /= 2;
+	info->MergedFB = FALSE;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+		"Using %dk of videoram for primary head\n",
+		pScrn->videoRam);
+    }
+
+    if (info->IsSecondary) {  
+        pScrn->videoRam /= 2;
+        info->LinearAddr += pScrn->videoRam * 1024;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+		"Using %dk of videoram for secondary head\n",
+		pScrn->videoRam);
+    }
+
+    pScrn->videoRam  &= ~1023;
+    info->FbMapSize  = pScrn->videoRam * 1024;
+
+    /* if the card is PCI Express reserve the last 32k for the gart table */
+#ifdef XF86DRI
+    if (info->cardType == CARD_PCIE && info->directRenderingEnabled)
+        info->FbSecureSize = RADEON_PCIGART_TABLE_SIZE;
+    else
+#endif
+	info->FbSecureSize = 0;
+}
+
+
 /* This is called by RADEONPreInit to handle config file overrides for
  * things like chipset and memory regions.  Also determine memory size
  * and type.  If memory type ever needs an override, put it in this
  * routine.
  */
-static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
+static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     EntityInfoPtr  pEnt   = info->pEnt;
     GDevPtr        dev    = pEnt->device;
-    MessageType    from;
     unsigned char *RADEONMMIO = info->MMIO;
+    MessageType    from = X_PROBED;
 #ifdef XF86DRI
     const char *s;
 #endif
 
-				/* Chipset */
+    /* Chipset */
     from = X_PROBED;
     if (dev->chipset && *dev->chipset) {
 	info->Chipset  = xf86StringToToken(RADEONChipsets, dev->chipset);
@@ -2758,7 +2856,6 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 	info->HasCRTC2 = FALSE;
     }
 
-				/* Framebuffer */
 
     from               = X_PROBED;
     info->LinearAddr   = info->PciInfo->memBase[0] & 0xfe000000;
@@ -2795,49 +2892,6 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
     }
 
 				/* Read registers used to determine options */
-    from                     = X_PROBED;
-    if (info->FBDev)
-	pScrn->videoRam      = fbdevHWGetVidmem(pScrn) / 1024;
-    else if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
-	     (info->ChipFamily == CHIP_FAMILY_RS200) ||
-	     (info->ChipFamily == CHIP_FAMILY_RS300)) {
-        CARD32 tom = INREG(RADEON_NB_TOM);
-
-	pScrn->videoRam = (((tom >> 16) -
-			    (tom & 0xffff) + 1) << 6);
-
-	OUTREG(RADEON_CONFIG_MEMSIZE, pScrn->videoRam * 1024);
-    } else {
-	CARD32 accessible;
-	CARD32 bar_size;
-
-	/* Read VRAM size from card */
-        pScrn->videoRam      = INREG(RADEON_CONFIG_MEMSIZE) / 1024;
-
-	/* Some production boards of m6 will return 0 if it's 8 MB */
-	if (pScrn->videoRam == 0) {
-	    pScrn->videoRam = 8192;
-	    OUTREG(RADEON_CONFIG_MEMSIZE, 0x800000);
-	}
-
-	/* Get accessible memory */
-	accessible = RADEONGetAccessibleVRAM(pScrn);
-
-	/* Crop it to the size of the PCI BAR */
-	bar_size = (1ul << info->PciInfo->size[0]) / 1024;
-	if (bar_size == 0)
-	    bar_size = 0x20000;
-	if (accessible > bar_size)
-	    accessible = bar_size;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Detected total video RAM=%dK, accessible=%dK "
-		   "(PCI BAR=%dK)\n",
-	       pScrn->videoRam, accessible, bar_size);
-	if (pScrn->videoRam > accessible)
-	    pScrn->videoRam = accessible;
-    }
-
     /* Check chip errata */
     info->ChipErrata = 0;
 
@@ -2854,45 +2908,6 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 	info->ChipFamily == CHIP_FAMILY_RS100 ||
 	info->ChipFamily == CHIP_FAMILY_RS200)
 	    info->ChipErrata |= CHIP_ERRATA_PLL_DELAY;
-
-    info->MemCntl            = INREG(RADEON_SDRAM_MODE_REG);
-    info->BusCntl            = INREG(RADEON_BUS_CNTL);
-
-    RADEONGetVRamType(pScrn);
-
-    if (dev->videoRam) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Video RAM override, using %d kB instead of %d kB\n",
-		   dev->videoRam,
-		   pScrn->videoRam);
-	from             = X_CONFIG;
-	pScrn->videoRam  = dev->videoRam;
-    }
-
-    xf86DrvMsg(pScrn->scrnIndex, from,
-	       "Mapped VideoRAM: %d kByte (%d bit %s SDRAM)\n", pScrn->videoRam, info->RamWidth, info->IsDDR?"DDR":"SDR");
-
-    /* FIXME: For now, split FB into two equal sections. This should
-     * be able to be adjusted by user with a config option. */
-    if (info->IsPrimary) {
-        pScrn->videoRam /= 2;
-	info->MergedFB = FALSE;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		"Using %dk of videoram for primary head\n",
-		pScrn->videoRam);
-    }
-
-    if (info->IsSecondary) {  
-        pScrn->videoRam /= 2;
-        info->LinearAddr += pScrn->videoRam * 1024;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		"Using %dk of videoram for secondary head\n",
-		pScrn->videoRam);
-    }
-
-    pScrn->videoRam  &= ~1023;
-    info->FbMapSize  = pScrn->videoRam * 1024;
-    info->FbSecureSize = 0;
 
 #ifdef XF86DRI
 				/* AGP/PCI */
@@ -2977,10 +2992,6 @@ static Bool RADEONPreInitConfig(ScrnInfoPtr pScrn)
 		       "Invalid BusType option, using detected type\n");
 	}
     }
-
-    /* if the card is PCI Express reserve the last 32k for the gart table */
-    if (info->cardType == CARD_PCIE)
-        info->FbSecureSize = RADEON_PCIGART_TABLE_SIZE;
 #endif
     xf86GetOptValBool(info->Options, OPTION_SHOWCACHE, &info->showCache);
     if (info->showCache)
@@ -5060,6 +5071,9 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     RADEONPostInt10Check(pScrn, int10_save);
 
+    if (!RADEONPreInitChipType(pScrn))
+	goto fail;
+
 #ifdef XF86DRI
     /* PreInit DRI first of all since we need that for getting a proper
      * memory map
@@ -5067,7 +5081,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     info->directRenderingEnabled = RADEONPreInitDRI(pScrn);
 #endif
 
-    if (!RADEONPreInitConfig(pScrn))
+    if (!RADEONPreInitVRAM(pScrn))
 	goto fail;
 
     RADEONPreInitColorTiling(pScrn);
