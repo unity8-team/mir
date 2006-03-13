@@ -1,5 +1,11 @@
 2006-03-13  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
+	* src/radeon_video.c: (RADEONSetTransform):
+	Fix typo in the function setting the color space transformation
+	factors for old radeon
+
+2006-03-13  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
 	* src/radeon_driver.c: (RADEONPreInitVRAM),
 	(RADEONPreInitChipType), (RADEONPreInit):
 	Earliest fix introduced a bug due to another chicken & egg problem in

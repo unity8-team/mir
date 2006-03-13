@@ -928,7 +928,7 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
     dwOvGOff = ((INT32)(OvGOff * 2.0)) & 0x1fff;
     dwOvBOff = ((INT32)(OvBOff * 2.0)) & 0x1fff;
 
-    if(info->ChipFamily < CHIP_FAMILY_RADEON)
+    if(info->ChipFamily == CHIP_FAMILY_RADEON)
     {
 	dwOvLuma =(((INT32)(OvLuma * 2048.0))&0x7fff)<<17;
 	dwOvRCb = (((INT32)(OvRCb * 2048.0))&0x7fff)<<1;
