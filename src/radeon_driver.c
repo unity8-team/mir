@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.98 2006/03/12 06:53:27 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.99 2006/03/13 00:09:44 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -4380,6 +4380,8 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 #if defined(USE_EXA) && defined(USE_XAA)
     char *optstr;
 #endif
+
+    info->useEXA = FALSE;
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	int errmaj = 0, errmin = 0;

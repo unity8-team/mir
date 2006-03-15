@@ -1,3 +1,17 @@
+2006-03-15  Luc Verhaegen  <libv@skynet.be>
+
+	* configure.ac:
+	* src/Makefile.am:
+	* src/radeon_cursor.c: (RADEONUseHWCursor):
+	* src/radeon_dga.c: (RADEON_BlitRect):
+	* src/radeon_driver.c: (RADEONPreInitAccel), (RADEONScreenInit):
+
+	Add some autoconf to keep this driver from building EXA when a
+	slightly older server with older exa is installed.
+
+	The way in which this problem was treated by the actually related
+	developers explains a lot about this driver.
+
 2006-03-13  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon_video.c: (RADEONSetTransform):

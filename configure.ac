@@ -52,6 +52,11 @@ AC_ARG_ENABLE(dri, AC_HELP_STRING([--disable-dri],
               [DRI="$enableval"],
               [DRI=auto])
 
+AC_ARG_ENABLE(exa,
+              AC_HELP_STRING([--disable-exa],
+                             [Disable EXA support [[default enabled]]]),
+              [EXA="$enableval"],
+              [EXA=yes])
 
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
@@ -167,7 +172,36 @@ if test "x$ATIMISC_TV_OUT" = xyes; then
 fi
 
 AC_DEFINE(USE_XAA, 1, [Build support for XAA])
-AC_DEFINE(USE_EXA, 1, [Build support for Exa])
+
+# Properly handle EXA.
+AC_MSG_CHECKING([whether to enable EXA support])
+if test "x$EXA" = xyes; then
+        echo "yes"
+        AC_CHECK_FILE([${sdkdir}/exa.h],
+                      [have_exa_h="yes"], [have_exa_h="no"])
+else
+        echo "no"
+fi 
+
+if test "x$have_exa_h" = xyes; then
+        AC_MSG_CHECKING([wether EXA version is at least 2.0.0])
+        AC_PREPROC_IFELSE([AC_LANG_PROGRAM([[
+#include "${sdkdir}/exa.h"
+#if EXA_VERSION_MAJOR < 2
+#error OLD EXA!
+#endif
+                          ]])],
+                          [USE_EXA=yes],
+                          [USE_EXA=no])
+        if test "x$USE_EXA" = xyes; then
+                echo "yes."
+                AC_DEFINE(USE_EXA, 1, [Build support for Exa])
+        else
+                echo "no."
+        fi
+fi
+
+AM_CONDITIONAL(USE_EXA, test "x$USE_EXA" = xyes)
 
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([DRI_CFLAGS])
