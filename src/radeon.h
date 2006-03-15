@@ -502,6 +502,7 @@ typedef struct {
     int               numVisualConfigs;
     __GLXvisualConfig *pVisualConfigs;
     RADEONConfigPrivPtr pVisualConfigsPriv;
+    Bool             (*DRICloseScreen)(int, ScreenPtr);
 
     drm_handle_t         fbHandle;
 
@@ -787,6 +788,7 @@ extern void        RADEONDRIResume(ScreenPtr pScreen);
 extern Bool        RADEONDRIFinishScreenInit(ScreenPtr pScreen);
 extern void        RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen);
 extern void	   RADEONDRIInitPageFlip(ScreenPtr pScreen);
+extern void        RADEONDRIStop(ScreenPtr pScreen);
 
 extern drmBufPtr   RADEONCPGetBuffer(ScrnInfoPtr pScrn);
 extern void        RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard);

@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.99 2006/03/13 00:09:44 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.100 2006/03/15 00:46:33 libv Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -8906,12 +8906,7 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     info->accelOn = FALSE;
 
 #ifdef XF86DRI
-    /* Disable direct rendering */
-    if (info->directRenderingEnabled) {
-	RADEONDRICloseScreen(pScreen);
-	info->directRenderingEnabled = FALSE;
-	info->directRenderingInited = FALSE;
-    }
+    RADEONDRIStop(pScreen);
 #endif
 
 #ifdef USE_XAA

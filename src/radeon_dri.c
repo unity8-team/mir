@@ -1340,6 +1340,8 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     RADEONDRIPtr   pRADEONDRI;
     drmVersionPtr  version;
 
+    info->DRICloseScreen = NULL;
+
     switch (info->CurrentLayout.pixel_code) {
     case 8:
     case 15:
@@ -1509,6 +1511,17 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     return TRUE;
 }
 
+static Bool RADEONDRIDoCloseScreen(int scrnIndex, ScreenPtr pScreen)
+{
+    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr  info  = RADEONPTR(pScrn);
+
+    RADEONDRICloseScreen(pScreen);
+
+    pScreen->CloseScreen = info->DRICloseScreen;
+    return (*pScreen->CloseScreen)(scrnIndex, pScreen);
+}
+
 /* Finish initializing the device-dependent DRI state, and call
  * DRIFinishScreenInit() to complete the device-independent DRI
  * initialization.
@@ -1599,6 +1612,10 @@ Bool RADEONDRIFinishScreenInit(ScreenPtr pScreen)
 
     info->directRenderingInited = TRUE;
 
+    /* Wrap CloseScreen */
+    info->DRICloseScreen = pScreen->CloseScreen;
+    pScreen->CloseScreen = RADEONDRIDoCloseScreen;
+
     return TRUE;
 }
 
@@ -1664,20 +1681,16 @@ void RADEONDRIResume(ScreenPtr pScreen)
     RADEONDRICPInit(pScrn);
 }
 
-/* The screen is being closed, so clean up any state and free any
- * resources used by the DRI.
- */
-void RADEONDRICloseScreen(ScreenPtr pScreen)
+void RADEONDRIStop(ScreenPtr pScreen)
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
-    drmRadeonInit  drmInfo;
     RING_LOCALS;
 
-    RADEONTRACE(("RADEONDRICloseScreen\n"));
-    
+    RADEONTRACE(("RADEONDRIStop\n"));
+
     /* Stop the CP */
-    if (info->directRenderingEnabled) {
+    if (info->directRenderingInited) {
 	/* If we've generated any CP commands, we must flush them to the
 	 * kernel module now.
 	 */
@@ -1690,26 +1703,39 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
 	}
 	RADEONCP_STOP(pScrn, info);
     }
+    info->directRenderingInited = FALSE;
+}
 
-    if (info->irq) {
+/* The screen is being closed, so clean up any state and free any
+ * resources used by the DRI.
+ */
+void RADEONDRICloseScreen(ScreenPtr pScreen)
+{
+    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    drmRadeonInit  drmInfo;
+
+     RADEONTRACE(("RADEONDRICloseScreen\n"));
+    
+     if (info->irq) {
 	drmCtlUninstHandler(info->drmFD);
 	info->irq = 0;
 	info->ModeReg.gen_int_cntl = 0;
     }
 
-				/* De-allocate vertex buffers */
+    /* De-allocate vertex buffers */
     if (info->buffers) {
 	drmUnmapBufs(info->buffers);
 	info->buffers = NULL;
     }
 
-				/* De-allocate all kernel resources */
+    /* De-allocate all kernel resources */
     memset(&drmInfo, 0, sizeof(drmRadeonInit));
     drmInfo.func = DRM_RADEON_CLEANUP_CP;
     drmCommandWrite(info->drmFD, DRM_RADEON_CP_INIT,
 		    &drmInfo, sizeof(drmRadeonInit));
 
-				/* De-allocate all GART resources */
+    /* De-allocate all GART resources */
     if (info->gartTex) {
 	drmUnmap(info->gartTex, info->gartTexMapSize);
 	info->gartTex = NULL;
@@ -1737,10 +1763,10 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
 	info->pciMemHandle = 0;
     }
 
-				/* De-allocate all DRI resources */
+    /* De-allocate all DRI resources */
     DRICloseScreen(pScreen);
 
-				/* De-allocate all DRI data structures */
+    /* De-allocate all DRI data structures */
     if (info->pDRIInfo) {
 	if (info->pDRIInfo->devPrivate) {
 	    xfree(info->pDRIInfo->devPrivate);
@@ -1758,7 +1784,6 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
 	info->pVisualConfigsPriv = NULL;
     }
 }
-
 
 /* Use callbacks from dri.c to support pageflipping mode for a single
  * 3d context without need for any specific full-screen extension.

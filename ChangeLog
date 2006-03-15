@@ -1,3 +1,14 @@
+2006-03-15  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon.h:
+	* src/radeon_dri.c: (RADEONDRIScreenInit),
+	(RADEONDRIDoCloseScreen), (RADEONDRIFinishScreenInit),
+	(RADEONDRIStop), (RADEONDRICloseScreen):
+	* src/radeon_driver.c: (RADEONCloseScreen):
+	Fix various issues with DRI & server recycle by putting DRICloseSreen
+	in the normal CloseScreen callback chain at a spot that matches the
+	call to DRIFinishScreenInit in order to unwrap at the right time.
+
 2006-03-15  Luc Verhaegen  <libv@skynet.be>
 
 	* configure.ac:
