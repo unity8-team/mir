@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.102 2006/03/16 03:09:34 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.103 2006/03/16 04:32:22 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -2429,7 +2429,8 @@ static CARD32 RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
     if (info->directRenderingEnabled &&
 	info->pKernelDRMVersion->version_minor < 23) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "[dri] limiting video memory to one aperture of %dK\n");
+		   "[dri] limiting video memory to one aperture of %dK\n",
+		   aper_size);
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "[dri] use radeon.o kernel module version 1.23.0 for"
 		   " full memory mapping.\n",
@@ -2449,7 +2450,8 @@ static CARD32 RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
     if (info->ChipFamily == CHIP_FAMILY_RV280 ||
 	info->ChipFamily == CHIP_FAMILY_RV350 ||
 	info->ChipFamily == CHIP_FAMILY_RV380 ||
-	info->ChipFamily == CHIP_FAMILY_R420) {
+	info->ChipFamily == CHIP_FAMILY_R420 ||
+	info->ChipFamily == CHIP_FAMILY_RV410) {
 	    OUTREGP (RADEON_HOST_PATH_CNTL, RADEON_HDP_APER_CNTL,
 		     ~RADEON_HDP_APER_CNTL);
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2573,6 +2575,8 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
     else
 #endif
 	info->FbSecureSize = 0;
+
+    return TRUE;
 }
 
 

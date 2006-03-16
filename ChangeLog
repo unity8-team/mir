@@ -1,3 +1,11 @@
+2006-03-17  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon_driver.c: (RADEONGetAccessibleVRAM),
+	(RADEONPreInitVRAM):
+	Add missing return statement (the driver would not start randomly),
+	add RV410 to the list of new generation cards for the memory map
+	setup and fix a bogus message.
+
 2006-03-16  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon_driver.c: (RADEONInitCrtcRegisters),
