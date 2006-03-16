@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.101 2006/03/15 04:03:37 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.102 2006/03/16 03:09:34 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -7824,7 +7824,7 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				     ? RADEON_CRTC_V_SYNC_POL
 				     : 0));
 
-    save->crtc_offset      = 0;
+    save->crtc_offset      = pScrn->fbOffset;
     save->crtc_offset_cntl = INREG(RADEON_CRTC_OFFSET_CNTL);
     if (info->tilingEnabled) {
        if (IS_R300_VARIANT)
@@ -8019,7 +8019,7 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
     /* It seems all fancy options apart from pflip can be safely disabled
      */
-    save->crtc2_offset      = 0;
+    save->crtc2_offset      = pScrn->fbOffset;
     save->crtc2_offset_cntl = INREG(RADEON_CRTC2_OFFSET_CNTL) & RADEON_CRTC_OFFSET_FLIP_CNTL;
     if (info->tilingEnabled) {
        if (IS_R300_VARIANT)
@@ -8827,13 +8827,14 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
          }
     }
     else {
-       Base += y * info->CurrentLayout.displayWidth + x;
+       int offset = y * info->CurrentLayout.displayWidth + x;
        switch (info->CurrentLayout.pixel_code) {
        case 15:
-       case 16: Base *= 2; break;
-       case 24: Base *= 3; break;
-       case 32: Base *= 4; break;
+       case 16: offset *= 2; break;
+       case 24: offset *= 3; break;
+       case 32: offset *= 4; break;
        }
+       Base += offset;
     }
 
     Base &= ~7;                 /* 3 lower bits are always 0 */

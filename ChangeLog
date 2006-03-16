@@ -1,5 +1,12 @@
 2006-03-16  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
+	* src/radeon_driver.c: (RADEONInitCrtcRegisters),
+	(RADEONInitCrtc2Registers), (RADEONDoAdjustFrame):
+	Fix incorrect CRTC2_OFFSET values when using old-style dual head (not
+	MergedFB). Fixes Xinerama for me.
+
+2006-03-16  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
 	* src/radeon_driver.c: (RADEONWaitForVerticalSync),
 	(RADEONWaitForVerticalSync2), (RADEONLoadPalette),
 	(RADEONScreenInit), (RADEONRestoreMemMapRegisters),
