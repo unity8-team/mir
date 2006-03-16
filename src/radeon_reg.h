@@ -307,9 +307,9 @@
 #       define RADEON_CRTC_DBL_SCAN_EN      (1 <<  0)
 #       define RADEON_CRTC_INTERLACE_EN     (1 <<  1)
 #       define RADEON_CRTC_CSYNC_EN         (1 <<  4)
+#       define RADEON_CRTC_ICON_EN          (1 << 15)
 #       define RADEON_CRTC_CUR_EN           (1 << 16)
 #       define RADEON_CRTC_CUR_MODE_MASK    (7 << 17)
-#       define RADEON_CRTC_ICON_EN          (1 << 20)
 #       define RADEON_CRTC_EXT_DISP_EN      (1 << 24)
 #       define RADEON_CRTC_EN               (1 << 25)
 #       define RADEON_CRTC_DISP_REQ_EN_B    (1 << 26)
@@ -849,6 +849,9 @@
 #define RADEON_MAX_LATENCY                  0x0f3f /* PCI */
 #define RADEON_MC_AGP_LOCATION              0x014c
 #define RADEON_MC_FB_LOCATION               0x0148
+#define RADEON_MC_STATUS                    0x0150
+#       define RADEON_MC_IDLE               (1 << 2)
+#       define R300_MC_IDLE                 (1 << 4)
 #define RADEON_DISPLAY_BASE_ADDR            0x23c
 #define RADEON_DISPLAY2_BASE_ADDR           0x33c
 #define RADEON_OV0_BASE_ADDR                0x43c

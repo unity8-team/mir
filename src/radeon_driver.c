@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.100 2006/03/15 00:46:33 libv Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.101 2006/03/15 04:03:37 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -871,7 +871,13 @@ void RADEONWaitForVerticalSync(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    CARD32         crtc_gen_cntl;
     int            i;
+
+    crtc_gen_cntl = INREG(RADEON_CRTC_GEN_CNTL);
+    if ((crtc_gen_cntl & RADEON_CRTC_DISP_REQ_EN_B) ||
+	!(crtc_gen_cntl & RADEON_CRTC_EN))
+	return;
 
     /* Clear the CRTC_VBLANK_SAVE bit */
     OUTREG(RADEON_CRTC_STATUS, RADEON_CRTC_VBLANK_SAVE_CLEAR);
@@ -888,7 +894,13 @@ void RADEONWaitForVerticalSync2(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    CARD32         crtc2_gen_cntl;
     int            i;
+ 
+    crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL);
+    if ((crtc2_gen_cntl & RADEON_CRTC2_DISP_REQ_EN_B) ||
+	!(crtc2_gen_cntl & RADEON_CRTC2_EN))
+	return;
 
     /* Clear the CRTC2_VBLANK_SAVE bit */
     OUTREG(RADEON_CRTC2_STATUS, RADEON_CRTC2_VBLANK_SAVE_CLEAR);
@@ -5171,8 +5183,6 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
     int            idx, j;
     unsigned char  r, g, b;
 
-    RADEONTRACE(("RADEONLoadPalette !\n"));
-
 #ifdef XF86DRI
     if (info->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
 #endif
@@ -5291,8 +5301,6 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
 #ifdef XF86DRI
     if (info->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
 #endif
-
-    RADEONTRACE(("LoadPalette() end\n"));
 }
 
 static void RADEONBlockHandler(int i, pointer blockData,
@@ -6094,6 +6102,10 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     RADEONTRACE(("Initializing Xv\n"));
     RADEONInitVideo(pScreen);
 
+    if(info->MergedFB)
+	/* need this here to fix up sarea values */
+	RADEONAdjustFrameMerged(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+
     /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
     /* Wrap CloseScreen */
     info->CloseScreen    = pScreen->CloseScreen;
@@ -6129,7 +6141,9 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
      */
     if (INREG(RADEON_MC_FB_LOCATION) != restore->mc_fb_location ||
 	INREG(RADEON_MC_AGP_LOCATION) != restore->mc_agp_location) {
-	CARD32 tmp;
+	CARD32 crtc_ext_cntl, crtc_gen_cntl, crtc2_gen_cntl=0, ov0_scale_cntl;
+	CARD32 old_mc_status, status_idle;
+	int timeout;
 
 	RADEONTRACE(("  Map Changed ! Applying ...\n"));
 
@@ -6138,39 +6152,92 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	 */
 	RADEONWaitForIdleMMIO(pScrn);
 
-	/* Stop display & memory access */
-	tmp = INREG(RADEON_CRTC_EXT_CNTL);
-	OUTREG(RADEON_CRTC_EXT_CNTL, tmp | RADEON_CRTC_DISPLAY_DIS);
-	tmp = INREG(RADEON_CRTC_GEN_CNTL);
-	tmp &= ~RADEON_CRTC_CUR_EN;
-	tmp |= RADEON_CRTC_DISP_REQ_EN_B;
-	OUTREG(RADEON_CRTC_GEN_CNTL, tmp);
-	if (info->HasCRTC2) {
-		tmp = INREG(RADEON_CRTC2_GEN_CNTL);
-		tmp &= ~RADEON_CRTC2_CUR_EN;
-		tmp |= RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_DISP_REQ_EN_B;
-		OUTREG(RADEON_CRTC2_GEN_CNTL, tmp);
-	}
-	tmp = INREG(RADEON_OV0_SCALE_CNTL);
-	tmp &= ~RADEON_SCALER_ENABLE;
-	OUTREG(RADEON_OV0_SCALE_CNTL, tmp);
+	if (info->IsIGP)
+		goto igp_no_mcfb;
 
-	/* Make sure the chip settles down and set new map*/ 
-	usleep(100000);
+	/* Capture MC_STATUS in case things go wrong ... */
+	old_mc_status = INREG(RADEON_MC_STATUS);
+
+	/* Stop display & memory access */
+	ov0_scale_cntl = INREG(RADEON_OV0_SCALE_CNTL);
+	OUTREG(RADEON_OV0_SCALE_CNTL, ov0_scale_cntl & ~RADEON_SCALER_ENABLE);
+	crtc_ext_cntl = INREG(RADEON_CRTC_EXT_CNTL);
+	OUTREG(RADEON_CRTC_EXT_CNTL, crtc_ext_cntl | RADEON_CRTC_DISPLAY_DIS);
+	crtc_gen_cntl = INREG(RADEON_CRTC_GEN_CNTL);
+	RADEONWaitForVerticalSync(pScrn);
+	OUTREG(RADEON_CRTC_GEN_CNTL,
+	       (crtc_gen_cntl
+		& ~(RADEON_CRTC_CUR_EN | RADEON_CRTC_ICON_EN | RADEON_CRTC_EN))
+	       | RADEON_CRTC_DISP_REQ_EN_B | RADEON_CRTC_EXT_DISP_EN);
+
+ 	if (info->HasCRTC2) {
+	    crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL);
+	    RADEONWaitForVerticalSync2(pScrn);
+	    OUTREG(RADEON_CRTC2_GEN_CNTL,
+		   (crtc2_gen_cntl
+		    & ~(RADEON_CRTC2_CUR_EN | RADEON_CRTC2_ICON_EN |
+			RADEON_CRTC2_EN))
+		   | RADEON_CRTC2_DISP_REQ_EN_B | RADEON_CRTC2_EN);
+	}
+
+ 	/* Make sure the chip settles down (paranoid !) */ 
+ 	usleep(100000);
+
+	/* Wait for MC idle */
+	if (IS_R300_VARIANT)
+	    status_idle = R300_MC_IDLE;
+	else
+	    status_idle = RADEON_MC_IDLE;
+
+	while (!(INREG(RADEON_MC_STATUS) & status_idle)) {
+	    if (++timeout > 1000000) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Timeout trying to update memory controller settings !\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "MC_STATUS = 0x%08x (on entry = 0x%08x)\n",
+		    INREG(RADEON_MC_STATUS), old_mc_status);
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "You will probably crash now ... \n");
+		/* Nothing we can do except maybe try to kill the server,
+		 * let's wait 2 seconds to leave the above message a chance
+		 * to maybe hit the disk and continue trying to setup despite
+		 * the MC being non-idle
+		 */
+		usleep(2000000);
+	    }
+	}
+
+	/* Update maps, first clearing out AGP to make sure we don't get
+	 * a temporary overlap
+	 */
+ 	OUTREG(RADEON_MC_AGP_LOCATION, 0xfffffffc);
 	OUTREG(RADEON_MC_FB_LOCATION, restore->mc_fb_location);
+    igp_no_mcfb:
  	OUTREG(RADEON_MC_AGP_LOCATION, restore->mc_agp_location);
 	/* Make sure map fully reached the chip */
 	(void)INREG(RADEON_MC_FB_LOCATION);
 
+	RADEONTRACE(("  Map applied, resetting engine ...\n"));
+
 	/* Reset the engine and HDP */
 	RADEONEngineReset(pScrn);
+
+	RADEONTRACE(("  All done.\n"));
     }
-    
+
+    RADEONTRACE(("Updating base addresses...\n"));
+
     /* Restore base addresses */
     OUTREG(RADEON_DISPLAY_BASE_ADDR, restore->display_base_addr);
-    OUTREG(RADEON_DISPLAY2_BASE_ADDR, restore->display2_base_addr);
+    if (info->HasCRTC2)
+        OUTREG(RADEON_DISPLAY2_BASE_ADDR, restore->display2_base_addr);
     OUTREG(RADEON_OV0_BASE_ADDR, restore->ov0_base_addr);
-}
+
+    /* Flush PCI posting, make sure the above actually hit the card */
+    (void)INREG(RADEON_OV0_BASE_ADDR);
+
+    RADEONTRACE(("Done updating base addresses.\n"));
+ }
 
 static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
@@ -6279,7 +6346,25 @@ static void RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    OUTREG(RADEON_CRTC_GEN_CNTL, restore->crtc_gen_cntl);
+    RADEONTRACE(("Programming CRTC1, offset: 0x%08x\n",
+		 restore->crtc_offset));
+
+    /* Make sure we have sane offsets before enabling */
+    OUTREG(RADEON_CRTC_OFFSET, 0);
+    OUTREG(RADEON_CRTC_OFFSET_CNTL, 0);
+    OUTREG(RADEON_CUR_OFFSET, 0);
+
+    /* Magic delay ! This helps fixing a lockup on some setups, maybe
+     * the above need some time to properly hit the CRTC before we enable
+     * it, go figure ...
+     */
+    usleep(100000);
+
+    /* We prevent the CRTC from hitting the memory controller until
+     * fully programmed
+     */
+    OUTREG(RADEON_CRTC_GEN_CNTL, restore->crtc_gen_cntl |
+	   RADEON_CRTC_DISP_REQ_EN_B);
 
     OUTREGP(RADEON_CRTC_EXT_CNTL,
 	    restore->crtc_ext_cntl,
@@ -6308,6 +6393,8 @@ static void RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
 	OUTREG(RADEON_DAC_CNTL2, restore->dac2_cntl);
 	OUTREG(RADEON_CRTC2_GEN_CNTL, restore->crtc2_gen_cntl);
     }
+
+    OUTREG(RADEON_CRTC_GEN_CNTL, restore->crtc_gen_cntl);
 }
 
 /* Write CRTC2 registers */
@@ -6316,12 +6403,33 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    CARD32	   crtc2_gen_cntl;
 
-    OUTREGP(RADEON_CRTC2_GEN_CNTL,
-	    restore->crtc2_gen_cntl,
-	    RADEON_CRTC2_VSYNC_DIS |
-	    RADEON_CRTC2_HSYNC_DIS |
-	    RADEON_CRTC2_DISP_DIS);
+    RADEONTRACE(("Programming CRTC2, offset: 0x%08x\n",
+		 restore->crtc2_offset));
+
+    /* Make sure we have sane offsets before enabling */
+    OUTREG(RADEON_CRTC2_OFFSET, 0);
+    OUTREG(RADEON_CRTC2_OFFSET_CNTL, 0);
+    OUTREG(RADEON_CUR2_OFFSET, 0);
+
+    /* Magic delay ! This helps fixing a lockup on some setups, maybe
+     * the above need some time to properly hit the CRTC before we enable
+     * it, go figure ...
+     */
+    usleep(100000);
+
+    crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL) &
+	    (RADEON_CRTC2_VSYNC_DIS |
+	     RADEON_CRTC2_HSYNC_DIS |
+	     RADEON_CRTC2_DISP_DIS);
+    crtc2_gen_cntl |= restore->crtc2_gen_cntl;
+
+    /* We prevent the CRTC from hitting the memory controller until
+     * fully programmed
+     */
+    OUTREG(RADEON_CRTC2_GEN_CNTL,
+	   crtc2_gen_cntl | RADEON_CRTC2_DISP_REQ_EN_B);
 
     OUTREG(RADEON_DAC_CNTL2, restore->dac2_cntl);
 
@@ -6348,6 +6456,9 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
 	OUTREG(RADEON_FP_V2_SYNC_STRT_WID, restore->fp2_v_sync_strt_wid);
 	OUTREG(RADEON_FP2_GEN_CNTL,        restore->fp2_gen_cntl);
     }
+
+    OUTREG(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
+
 #if 0
     /* Hack for restoring text mode -- fixed elsewhere */
     usleep(100000);
@@ -8661,7 +8772,9 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
     XF86DRISAREAPtr pSAREA;
 #endif
 
+#if 0 /* Verbose */
     RADEONTRACE(("RADEONDoAdjustFrame(%d,%d,%d)\n", x, y, clone));
+#endif
 
     if (info->showCache && y) {
 	        int lastline = info->FbMapSize /
@@ -8754,15 +8867,11 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
     }
 #endif
 
-    RADEONTRACE((" -> reg     : 0x%04x = 0x%08x\n", reg, Base));
-
     OUTREG(reg, Base);
 
     if (IS_R300_VARIANT) {
-	RADEONTRACE(("    regcntl : 0x%04x = 0x%08x\n", xytilereg, crtcxytile));
         OUTREG(xytilereg, crtcxytile);
     } else {
-	RADEONTRACE(("    regcntl : 0x%04x = 0x%08x\n", regcntl, crtcoffsetcntl));
         OUTREG(regcntl, crtcoffsetcntl);
     }
 
@@ -8945,7 +9054,6 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     RADEONTRACE(("Disposing DGA\n"));
     if (info->DGAModes) xfree(info->DGAModes);
     info->DGAModes = NULL;
-
     RADEONTRACE(("Unmapping memory\n"));
     RADEONUnmapMem(pScrn);
 
