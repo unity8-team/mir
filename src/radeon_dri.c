@@ -1288,12 +1288,12 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
     }
 
     /* Now check if we qualify */
-    if (info->IsIGP) {
-        req_minor = 10;
-	req_patch = 0;
-    } else if (info->ChipFamily >= CHIP_FAMILY_R300) {
+    if (info->ChipFamily >= CHIP_FAMILY_R300) {
         req_minor = 17;
         req_patch = 0;
+    } else if (info->IsIGP) {
+        req_minor = 10;
+	req_patch = 0;
     } else if (info->ChipFamily >= CHIP_FAMILY_R200) {
 	req_minor = 5;
 	req_patch = 0;

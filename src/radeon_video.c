@@ -1115,9 +1115,11 @@ RADEONResetVideo(ScrnInfoPtr pScrn)
     sprintf(tmp, "INSTANCE:%d", pScrn->scrnIndex);
     pPriv->instance_id = MAKE_ATOM(tmp);
 
-    OUTREG(RADEON_OV0_SCALE_CNTL, 0x80000000);
+    OUTREG(RADEON_OV0_SCALE_CNTL, RADEON_SCALER_SOFT_RESET);
     OUTREG(RADEON_OV0_AUTO_FLIP_CNTL, 0);   /* maybe */
     OUTREG(RADEON_OV0_EXCLUSIVE_HORZ, 0);
+    /* FIXME: we are not actually using the tap coefficients we program (twice!)? */
+    OUTREG(RADEON_OV0_FILTER_CNTL, FILTER_HARDCODED_COEF);
     OUTREG(RADEON_OV0_FILTER_CNTL, 0x0000000f);
     OUTREG(RADEON_OV0_KEY_CNTL, RADEON_GRAPHIC_KEY_FN_EQ |
 				RADEON_VIDEO_KEY_FN_FALSE |
@@ -2569,9 +2571,9 @@ RADEONDisplayVideo(
     left = (left >> 16) & 7;
 
     RADEONWaitForFifo(pScrn, 2);
-    OUTREG(RADEON_OV0_REG_LOAD_CNTL, 1);
+    OUTREG(RADEON_OV0_REG_LOAD_CNTL, RADEON_REG_LD_CTL_LOCK);
     if (info->accelOn) RADEON_SYNC(info, pScrn);
-    while(!(INREG(RADEON_OV0_REG_LOAD_CNTL) & (1 << 3)));
+    while(!(INREG(RADEON_OV0_REG_LOAD_CNTL) & RADEON_REG_LD_CTL_LOCK_READBACK));
 
     dsr=(double)(1<<0xC)/h_inc;
     if(dsr<0.25)dsr=0.25;

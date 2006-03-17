@@ -929,6 +929,10 @@
 #       define  RADEON_EXCL_VERT_START_MASK        0x000003ff
 #       define  RADEON_EXCL_VERT_END_MASK          0x03ff0000
 #define RADEON_OV0_FILTER_CNTL              0x04A0
+#       define FILTER_PROGRAMMABLE_COEF            0x00000000
+#       define FILTER_HARDCODED_COEF               0x0000000f
+#       define FILTER_COEF_MASK                    0x0000000f
+
 #define RADEON_OV0_FOUR_TAP_COEF_0          0x04B0
 #define RADEON_OV0_FOUR_TAP_COEF_1          0x04B4
 #define RADEON_OV0_FOUR_TAP_COEF_2          0x04B8
@@ -1023,7 +1027,6 @@
 #       define  RADEON_SCALER_INT_EMU              0x20000000L
 #       define  RADEON_SCALER_ENABLE               0x40000000L
 #       define  RADEON_SCALER_SOFT_RESET           0x80000000L
-#       define  RADEON_SCALER_ADAPTIVE_DEINT       0x00001000L
 #define RADEON_OV0_STEP_BY                  0x0484
 #define RADEON_OV0_TEST                     0x04F8
 #define RADEON_OV0_V_INC                    0x0424

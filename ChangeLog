@@ -1,3 +1,13 @@
+2006-03-18  Roland Scheidegger  <rscheidegger_lists@hispeed.ch>
+	* src/radeon_dri.c: (RADEONDRIGetVersion):
+	* src/radeon_driver.c: (RADEONGetAccessibleVRAM):
+	* man/radeon_reg.h:
+	* src/radeon_video.c:
+	Fix various small cosmetic issues. Change a driver message, get the order
+	right for requesting drm versions, replace the use of some numbers with
+	the respective macro defines in radeon_video.c, and add some more macro
+	defines. None of that really matters.
+
 2006-03-17  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon_driver.c: (RADEONGetAccessibleVRAM),
