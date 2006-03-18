@@ -1,3 +1,12 @@
+2006-03-18  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon_driver.c: (RADEONRestoreMemMapRegisters),
+	(RADEONRestoreCrtcRegisters), (RADEONRestoreCrtc2Registers):
+	* src/radeon_reg.h:
+	Clear the offsets when updating the memory map instead of when
+	enabling the CRTCs and try to make that code more reliable. Doesn't
+	disable the CRTCs beforehand.
+
 2006-03-18  Roland Scheidegger  <rscheidegger_lists@hispeed.ch>
 	* src/radeon_dri.c: (RADEONDRIGetVersion):
 	* src/radeon_driver.c: (RADEONGetAccessibleVRAM):

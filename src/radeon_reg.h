@@ -364,6 +364,8 @@
 #	define RADEON_CRTC_OFFSET__OFFSET_LOCK 	   (1<<31)
 
 #define RADEON_CRTC2_OFFSET                 0x0324
+#	define RADEON_CRTC2_OFFSET__GUI_TRIG_OFFSET (1<<30)
+#	define RADEON_CRTC2_OFFSET__OFFSET_LOCK	    (1<<31)
 #define RADEON_CRTC_OFFSET_CNTL             0x0228
 #       define RADEON_CRTC_TILE_LINE_SHIFT              0
 #       define RADEON_CRTC_TILE_LINE_RIGHT_SHIFT        4
@@ -392,6 +394,7 @@
 #define R300_CRTC2_TILE_X0_Y0	            0x0358
 
 #define RADEON_CRTC2_OFFSET_CNTL            0x0328
+#       define RADEON_CRTC2_OFFSET_FLIP_CNTL (1 << 16)
 #       define RADEON_CRTC2_TILE_EN         (1 << 15)
 #define RADEON_CRTC_PITCH                   0x022c
 #	define RADEON_CRTC_PITCH__SHIFT		 0
