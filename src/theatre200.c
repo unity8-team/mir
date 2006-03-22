@@ -23,8 +23,15 @@
  * authorization from the author.
  *
  * $Log$
- * Revision 1.5  2005/11/07 19:28:40  bogdand
- * Replaced the variadic macros(gcc) by macros according to C99 standard
+ * Revision 1.6  2006/03/22 22:30:14  krh
+ * 2006-03-22  Kristian Høgsberg  <krh@redhat.com>
+ *
+ * 	* src/theatre200.c: Convert use of xf86fopen() and other xf86
+ * 	wrapped libc symbols to use libc symbols directly.  The xf86*
+ * 	versions aren't supposed to be used directly.
+ *
+ * 	* src/*.c: Drop libc wrapper; don't include xf86_ansic.h and add
+ * 	includes now missing.
  *
  * Revision 1.4  2005/08/28 18:00:23  bogdand
  * Modified the licens type from GPL to a X/MIT one
@@ -42,9 +49,10 @@
 #include "config.h"
 #endif
 
+#include <stdio.h>
+
 #include "xf86.h"
 #include "generic_bus.h"
-#include "xf86_ansic.h"
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "theatre_reg.h"
@@ -131,15 +139,15 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 	if (micro_type == NULL)
 		return -1;
 
-	file = xf86fopen(micro_path, "r");
+	file = fopen(micro_path, "r");
 	if (file == NULL) {
 		ERROR_0("Cannot open microcode file\n");
 					 return -1;
 	}
 
-	if (!xf86strcmp(micro_type, "BINARY"))
+	if (!strcmp(micro_type, "BINARY"))
 	{
-		if (xf86fread(microc_headp, sizeof(struct rt200_microc_head), 1, file) != 1)
+		if (fread(microc_headp, sizeof(struct rt200_microc_head), 1, file) != 1)
 		{
 			ERROR("Cannot read header from file: %s\n", micro_path);
 			goto fail_exit;
@@ -154,23 +162,23 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 		{
 			int ret;
 			
-			curr_seg = (struct rt200_microc_seg*)xf86malloc(sizeof(struct rt200_microc_seg));
+			curr_seg = (struct rt200_microc_seg*)Xalloc(sizeof(struct rt200_microc_seg));
 			if (curr_seg == NULL)
 			{
 				ERROR_0("Cannot allocate memory\n");
 				goto fail_exit;
 			}
 
-			ret = xf86fread(&curr_seg->num_bytes, 4, 1, file);
-			ret += xf86fread(&curr_seg->download_dst, 4, 1, file);
-			ret += xf86fread(&curr_seg->crc_val, 4, 1, file);
+			ret = fread(&curr_seg->num_bytes, 4, 1, file);
+			ret += fread(&curr_seg->download_dst, 4, 1, file);
+			ret += fread(&curr_seg->crc_val, 4, 1, file);
 			if (ret != 3)
 			{
 				ERROR("Cannot read segment from microcode file: %s\n", micro_path);
 				goto fail_exit;
 			}
 
-			curr_seg->data = (unsigned char*)xf86malloc(curr_seg->num_bytes);
+			curr_seg->data = (unsigned char*)Xalloc(curr_seg->num_bytes);
 			if (curr_seg->data == NULL)
 			{
 				ERROR_0("cannot allocate memory\n");
@@ -196,7 +204,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 		curr_seg = seg_list;
 		while (curr_seg)
 		{
-			if (xf86fread(curr_seg->data, curr_seg->num_bytes, 1, file) != 1)
+			if (fread(curr_seg->data, curr_seg->num_bytes, 1, file) != 1)
 			{
 				ERROR_0("Cannot read segment data\n");
 				goto fail_exit;
@@ -205,20 +213,20 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 			curr_seg = curr_seg->next;
 		}
 	}
-	else if (!xf86strcmp(micro_type, "ASCII"))
+	else if (!strcmp(micro_type, "ASCII"))
 	{
 		char tmp1[12], tmp2[12], tmp3[12], tmp4[12];
 		unsigned int ltmp;
 
-		if ((xf86fgets(tmp1, 12, file) != NULL) &&
-			(xf86fgets(tmp2, 12, file) != NULL) &&
-			(xf86fgets(tmp3, 12, file) != NULL) &&
-			xf86fgets(tmp4, 12, file) != NULL)
+		if ((fgets(tmp1, 12, file) != NULL) &&
+			(fgets(tmp2, 12, file) != NULL) &&
+			(fgets(tmp3, 12, file) != NULL) &&
+			fgets(tmp4, 12, file) != NULL)
 		{
-			microc_headp->device_id = xf86strtoul(tmp1, NULL, 16);
-			microc_headp->vendor_id = xf86strtoul(tmp2, NULL, 16);
-			microc_headp->revision_id = xf86strtoul(tmp3, NULL, 16);
-			microc_headp->num_seg = xf86strtoul(tmp4, NULL, 16);
+			microc_headp->device_id = strtoul(tmp1, NULL, 16);
+			microc_headp->vendor_id = strtoul(tmp2, NULL, 16);
+			microc_headp->revision_id = strtoul(tmp3, NULL, 16);
+			microc_headp->num_seg = strtoul(tmp4, NULL, 16);
 		}
 		else
 		{
@@ -233,20 +241,20 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 
 		for (i = 0; i < microc_headp->num_seg; i++)
 		{
-			curr_seg = (struct rt200_microc_seg*)xf86malloc(sizeof(struct rt200_microc_seg));
+			curr_seg = (struct rt200_microc_seg*)Xalloc(sizeof(struct rt200_microc_seg));
 			if (curr_seg == NULL)
 			{
 				ERROR_0("Cannot allocate memory\n");
 				goto fail_exit;
 			}
 
-			if (xf86fgets(tmp1, 12, file) != NULL &&
-				xf86fgets(tmp2, 12, file) != NULL &&
-				xf86fgets(tmp3, 12, file) != NULL)
+			if (fgets(tmp1, 12, file) != NULL &&
+				fgets(tmp2, 12, file) != NULL &&
+				fgets(tmp3, 12, file) != NULL)
 			{
-				curr_seg->num_bytes = xf86strtoul(tmp1, NULL, 16); 
-				curr_seg->download_dst = xf86strtoul(tmp2, NULL, 16); 
-				curr_seg->crc_val = xf86strtoul(tmp3, NULL, 16); 
+				curr_seg->num_bytes = strtoul(tmp1, NULL, 16); 
+				curr_seg->download_dst = strtoul(tmp2, NULL, 16); 
+				curr_seg->crc_val = strtoul(tmp3, NULL, 16); 
 			}
 			else
 			{
@@ -254,7 +262,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 				goto fail_exit;
 			}
 								
-			curr_seg->data = (unsigned char*)xf86malloc(curr_seg->num_bytes);
+			curr_seg->data = (unsigned char*)Xalloc(curr_seg->num_bytes);
 			if (curr_seg->data == NULL)
 			{
 				ERROR_0("cannot allocate memory\n");
@@ -282,12 +290,12 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 			for ( i = 0; i < curr_seg->num_bytes; i+=4)
 			{
 
-				if (xf86fgets(tmp1, 12, file) == NULL)
+				if (fgets(tmp1, 12, file) == NULL)
 				{
 					ERROR_0("Cannot read from file\n");
 					goto fail_exit;
 				}
-				ltmp = xf86strtoul(tmp1, NULL, 16);
+				ltmp = strtoul(tmp1, NULL, 16);
 
 				*(unsigned int*)(curr_seg->data + i) = ltmp;
 			}
@@ -303,7 +311,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 
 	microc_datap->microc_seg_list = seg_list;
 
-	xf86fclose(file);
+	fclose(file);
 	return 0;
 
 fail_exit:
@@ -315,7 +323,7 @@ fail_exit:
 		curr_seg = curr_seg->next;
 		Xfree(prev_seg);
 	}
-	xf86fclose(file);
+	fclose(file);
 
 	return -1;
 }

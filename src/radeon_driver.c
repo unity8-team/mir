@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.105 2006/03/17 03:00:53 sroland Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.106 2006/03/18 00:08:24 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -66,6 +66,9 @@
  * based on the sis driver by Thomas Winischhofer.
  *
  */
+
+#include <string.h>
+#include <stdio.h>
 
 				/* Driver data structures */
 #include "radeon.h"

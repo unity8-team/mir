@@ -31,6 +31,8 @@
 #include "config.h"
 #endif
 
+#include <string.h>
+
 /*
  * Authors:
  *   Kevin E. Martin <martin@xfree86.org>
@@ -47,7 +49,6 @@
 #include "atipciids.h"
 
 #include "xf86.h"
-#include "xf86_ansic.h"
 #define _XF86MISC_SERVER_
 #include <X11/extensions/xf86misc.h>
 #include "xf86Resources.h"

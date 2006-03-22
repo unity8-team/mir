@@ -4,6 +4,11 @@
 #include "config.h"
 #endif
 
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
+
 #include "radeon.h"
 #include "radeon_reg.h"
 #include "radeon_macros.h"
@@ -1265,7 +1270,7 @@ static void RADEONSetupTheatre(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
                         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
                                 "Unsupported reference clock frequency, Rage Theatre disabled\n");
                         t->theatre_num=-1;
-			xf86free(pPriv->theatre);
+			xfree(pPriv->theatre);
 			pPriv->theatre = NULL;
 			return;
                 }

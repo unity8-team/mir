@@ -31,6 +31,9 @@
  *   Leif Delgass <ldelgass@retinalburn.net>
  */
 
+#include <string.h>
+#include <stdio.h>
+
 /* Driver data structures */
 #include "ati.h"
 #include "atibus.h"

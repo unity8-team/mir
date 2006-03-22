@@ -49,6 +49,8 @@
 #endif
 #endif
 
+#include <string.h>
+
 #include "radeon.h"
 #include "atidri.h"
 

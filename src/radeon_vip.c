@@ -2,6 +2,8 @@
 #include "config.h"
 #endif
 
+#include <string.h>
+
 #include "radeon.h"
 #include "radeon_reg.h"
 #include "radeon_macros.h"

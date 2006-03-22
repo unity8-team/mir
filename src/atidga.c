@@ -26,6 +26,8 @@
 #endif
 #ifndef AVOID_DGA
 
+#include <string.h>
+
 #include "ati.h"
 #include "atiadjust.h"
 #include "atichip.h"

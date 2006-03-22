@@ -31,6 +31,8 @@
 #include "config.h"
 #endif
 
+#include <string.h>
+
 #ifdef USE_XAA
 
 #include "dixstruct.h"

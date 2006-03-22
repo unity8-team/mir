@@ -32,6 +32,8 @@
 #include "config.h"
 #endif
 
+#include <string.h>
+
 /*
  * Authors:
  *   Rickard E. Faith <faith@valinux.com>
@@ -48,7 +50,6 @@
 #include "atipciids.h"
 
 #include "xf86.h"
-#include "xf86_ansic.h"
 #include "xf86Resources.h"
 
 #include "r128_chipset.h"

@@ -63,6 +63,8 @@
  * Dualhead support - Alex Deucher <agd5f@yahoo.com>
  */
 
+#include <string.h>
+#include <stdio.h>
 
 				/* Driver data structures */
 #include "r128.h"

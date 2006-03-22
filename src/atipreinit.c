@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/atipreinit.c,v 1.74 2003/12/22 17:48:09 tsi Exp $ */
-/* $XdotOrg: xc/programs/Xserver/hw/xfree86/drivers/ati/atipreinit.c,v 1.6 2005/06/26 04:38:12 ajax Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/atipreinit.c,v 1.9 2005/08/28 18:10:34 ajax Exp $ */
 /*
  * Copyright 1999 through 2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
  *
@@ -25,6 +25,9 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+#include <string.h>
+#include <stdio.h>
 
 #include "ati.h"
 #include "atiadapter.h"

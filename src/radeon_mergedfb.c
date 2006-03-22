@@ -36,6 +36,9 @@
  *   Based, in large part, on the sis driver by Thomas Winischhofer.
  */
 
+#include <string.h>
+#include <stdio.h>
+
 #include "xf86.h"
 #include "xf86Priv.h"
 #include "xf86Resources.h"

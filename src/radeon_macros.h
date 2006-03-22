@@ -50,9 +50,6 @@
 #ifndef _RADEON_MACROS_H_
 #define _RADEON_MACROS_H_
 
-#ifdef XFree86Module
-#include "xf86_ansic.h"
-#endif
 #include "compiler.h"
 
 #define RADEON_BIOS8(v)  (info->VBIOS[v])

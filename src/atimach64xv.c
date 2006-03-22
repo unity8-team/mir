@@ -25,6 +25,8 @@
 #include "config.h"
 #endif
 
+#include <string.h>
+
 #include "ati.h"
 #include "atiaccel.h"
 #include "atichip.h"

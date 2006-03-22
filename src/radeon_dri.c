@@ -39,6 +39,8 @@
  *
  */
 
+#include <string.h>
+#include <stdio.h>
 
 				/* Driver data structures */
 #include "radeon.h"

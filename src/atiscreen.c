@@ -30,6 +30,8 @@
 #include "config.h"
 #endif
 
+#include <string.h>
+
 #include "ati.h"
 #include "atibus.h"
 #include "atichip.h"

@@ -32,6 +32,8 @@
 #include "config.h"
 #endif
 
+#include <string.h>
+
 /*
  * Authors:
  *   Kevin E. Martin <martin@valinux.com>

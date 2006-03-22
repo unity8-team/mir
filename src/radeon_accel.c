@@ -74,6 +74,8 @@
  *
  */
 
+#include <errno.h>
+#include <string.h>
 				/* Driver data structures */
 #include "radeon.h"
 #include "radeon_reg.h"

@@ -1,3 +1,12 @@
+2006-03-22  Kristian Høgsberg  <krh@redhat.com>
+
+	* src/theatre200.c: Convert use of xf86fopen() and other xf86
+	wrapped libc symbols to use libc symbols directly.  The xf86*
+	versions aren't supposed to be used directly.
+
+	* src/*.c: Drop libc wrapper; don't include xf86_ansic.h and add
+	includes now missing.
+
 2006-03-18  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon_driver.c: (RADEONRestoreMemMapRegisters),

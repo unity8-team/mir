@@ -48,9 +48,6 @@
 #ifndef _R128_REG_H_
 #define _R128_REG_H_
 
-#ifdef XFree86Module
-#include "xf86_ansic.h"
-#endif
 #include "compiler.h"
 
 				/* Memory mapped register access macros */

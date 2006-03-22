@@ -9,6 +9,8 @@
 #include "config.h"
 #endif
 
+#include <string.h>
+
 				/* Driver data structures */
 #include "r128.h"
 #include "r128_probe.h"

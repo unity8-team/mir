@@ -84,6 +84,8 @@
 #define R128_TRAPEZOIDS 0       /* Trapezoids don't work               */
 
 				/* Driver data structures */
+#include <errno.h>
+
 #include "r128.h"
 #include "r128_reg.h"
 #include "r128_probe.h"
