@@ -1,3 +1,8 @@
+2006-03-22  Kristian Høgsberg  <krh@redhat.com>
+
+	* src/*.c: Drop libc wrapper; don't include xf86_ansic.h and add
+	includes now missing.
+
 2006-03-10  Alan Hourihane  <alanh@fairlite.demon.co.uk>
 
 	* src/i830_cursor.c: (I830InitHWCursor), (I830ShowCursor),

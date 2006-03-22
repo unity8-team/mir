@@ -160,8 +160,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PRINT_MODE_INFO 0
 #endif
 
+#include <string.h>
+
 #include "xf86.h"
-#include "xf86_ansic.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"
 #include "xf86RAC.h"
