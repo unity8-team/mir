@@ -1,3 +1,14 @@
+2006-03-23  Roland Scheidegger  <rscheidegger_lists@hispeed.ch>
+	* src/radeon_reg.h:
+	* src/radeon_video.c: (RADEONResetVideo), (RADEONDisplayVideo),
+	(RADEONPutImage): Use programmable tap coefficients for (hopefully)
+	better video image quality when downscaling. Remove unnecessary code
+	programming the tap coefficients twice. Disable some code which is
+	supposed to improve filtering quality but causes very visible image
+	quality problems at least with rv250 when upscaling. Fix potentially
+	broken FOURCC_RGB16T format (untested if it was broken, untested if it
+	works now...). Change some magic numbers to (new) macro defines.
+
 2006-03-23  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon_driver.c: (RADEONRestoreMode),
