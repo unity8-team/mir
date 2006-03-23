@@ -932,9 +932,13 @@
 #       define  RADEON_EXCL_VERT_START_MASK        0x000003ff
 #       define  RADEON_EXCL_VERT_END_MASK          0x03ff0000
 #define RADEON_OV0_FILTER_CNTL              0x04A0
-#       define FILTER_PROGRAMMABLE_COEF            0x00000000
-#       define FILTER_HARDCODED_COEF               0x0000000f
-#       define FILTER_COEF_MASK                    0x0000000f
+#       define RADEON_FILTER_PROGRAMMABLE_COEF            0x0
+#       define RADEON_FILTER_HC_COEF_HORZ_Y               0x1
+#       define RADEON_FILTER_HC_COEF_HORZ_UV              0x2
+#       define RADEON_FILTER_HC_COEF_VERT_Y               0x4
+#       define RADEON_FILTER_HC_COEF_VERT_UV              0x8
+#       define RADEON_FILTER_HARDCODED_COEF               0xf
+#       define RADEON_FILTER_COEF_MASK                    0xf
 
 #define RADEON_OV0_FOUR_TAP_COEF_0          0x04B0
 #define RADEON_OV0_FOUR_TAP_COEF_1          0x04B4
@@ -1023,10 +1027,12 @@
 #       define  RADEON_SCALER_SOURCE_YVYU422       0x00000C00L
 #       define  RADEON_SCALER_ADAPTIVE_DEINT       0x00001000L
 #       define  RADEON_SCALER_TEMPORAL_DEINT       0x00002000L
+#       define  RADEON_SCALER_CRTC_SEL             0x00004000L
 #       define  RADEON_SCALER_SMART_SWITCH         0x00008000L
 #       define  RADEON_SCALER_BURST_PER_PLANE      0x007F0000L
 #       define  RADEON_SCALER_DOUBLE_BUFFER        0x01000000L
 #       define  RADEON_SCALER_DIS_LIMIT            0x08000000L
+#       define  RADEON_SCALER_LIN_TRANS_BYPASS     0x10000000L
 #       define  RADEON_SCALER_INT_EMU              0x20000000L
 #       define  RADEON_SCALER_ENABLE               0x40000000L
 #       define  RADEON_SCALER_SOFT_RESET           0x80000000L

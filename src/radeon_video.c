@@ -1123,9 +1123,7 @@ RADEONResetVideo(ScrnInfoPtr pScrn)
     OUTREG(RADEON_OV0_SCALE_CNTL, RADEON_SCALER_SOFT_RESET);
     OUTREG(RADEON_OV0_AUTO_FLIP_CNTL, 0);   /* maybe */
     OUTREG(RADEON_OV0_EXCLUSIVE_HORZ, 0);
-    /* FIXME: we are not actually using the tap coefficients we program (twice!)? */
-    OUTREG(RADEON_OV0_FILTER_CNTL, FILTER_HARDCODED_COEF);
-    OUTREG(RADEON_OV0_FILTER_CNTL, 0x0000000f);
+    OUTREG(RADEON_OV0_FILTER_CNTL, RADEON_FILTER_PROGRAMMABLE_COEF);
     OUTREG(RADEON_OV0_KEY_CNTL, RADEON_GRAPHIC_KEY_FN_EQ |
 				RADEON_VIDEO_KEY_FN_FALSE |
 				RADEON_CMP_MIX_OR);
@@ -2540,12 +2538,17 @@ RADEONDisplayVideo(
     /* the only place it is documented in is in ATI source code */
     /* we need twice as much space for 4 tap filtering.. */
     /* under special circumstances turn on 4 tap filtering */
-    if(!is_rgb && (step_by_y==1) && (step_by_uv==1) && (h_inc < (1<<12)) && (deinterlacing_method!=METHOD_WEAVE) 
+    /* disable this code for now as it has a DISASTROUS effect on image quality when upscaling
+       at least on rv250 (only as long as the drw_w*2 <=... requirement is still met of course) */
+#if 0
+    if(!is_rgb && (step_by_y==1) && (step_by_uv==1) && (h_inc < (1<<12))
+       && (deinterlacing_method!=METHOD_WEAVE)
        && (drw_w*2 <= pPriv->overlay_scaler_buffer_width)){
         step_by_y=0;
         step_by_uv=1;
         h_inc_uv = h_inc;
         }
+#endif
 
     /* keep everything in 16.16 */
 
@@ -2580,18 +2583,7 @@ RADEONDisplayVideo(
     if (info->accelOn) RADEON_SYNC(info, pScrn);
     while(!(INREG(RADEON_OV0_REG_LOAD_CNTL) & RADEON_REG_LD_CTL_LOCK_READBACK));
 
-    dsr=(double)(1<<0xC)/h_inc;
-    if(dsr<0.25)dsr=0.25;
-    if(dsr>1.0)dsr=1.0;
-    tap_set=(int)((dsr-0.25)*100);
-    for(i=0;i<5;i++){
-	    OUTREG(RADEON_OV0_FOUR_TAP_COEF_0+i*4, (TapCoeffs[tap_set].coeff[i][0] &0xf) | 
-	    	((TapCoeffs[tap_set].coeff[i][1] &0x7f)<<8) | 
-	    	((TapCoeffs[tap_set].coeff[i][2] &0x7f)<<16) | 
-	    	((TapCoeffs[tap_set].coeff[i][3] &0xf)<<24));
-		}
-
-    RADEONWaitForFifo(pScrn, 14);
+    RADEONWaitForFifo(pScrn, 10);
     OUTREG(RADEON_OV0_H_INC, h_inc | ((h_inc_uv >> 1) << 16));
     OUTREG(RADEON_OV0_STEP_BY, step_by_y | (step_by_uv << 8));
 
@@ -2630,7 +2622,7 @@ RADEONDisplayVideo(
                                       ((dstBox->y1*y_mult) << 16)));
         OUTREG(RADEON_OV1_Y_X_END,   ((dstBox->x2 + x_off) |
                                       ((dstBox->y2*y_mult) << 16)));
-        scaler_src = (1 << 14);
+        scaler_src = RADEON_SCALER_CRTC_SEL;
     } else {
 	OUTREG(RADEON_OV0_Y_X_START, ((dstBox->x1 + x_off) |
 				      (((dstBox->y1*y_mult) + y_off) << 16)));
@@ -2639,7 +2631,9 @@ RADEONDisplayVideo(
 	scaler_src = 0;
     }
 
-
+    /* program the tap coefficients for better downscaling quality.
+       Could do slightly better by using hardcoded coefficients for one axis
+       in case only the other axis is downscaled (see RADEON_OV0_FILTER_CNTL) */
     dsr=(double)(1<<0xC)/h_inc;
     if(dsr<0.25)dsr=0.25;
     if(dsr>1.0)dsr=1.0;
@@ -2676,31 +2670,26 @@ RADEONDisplayVideo(
         | RADEON_SCALER_ENABLE | RADEON_SCALER_SMART_SWITCH | (0x7f<<16) | scaler_src;
    switch(id){
         case FOURCC_UYVY:
-                OUTREG(RADEON_OV0_SCALE_CNTL, RADEON_SCALER_SOURCE_YVYU422 | scale_cntl);
-                break;
+		scale_cntl |= RADEON_SCALER_SOURCE_YVYU422;
         case FOURCC_RGB24:
         case FOURCC_RGBA32:
-                OUTREG(RADEON_OV0_SCALE_CNTL, RADEON_SCALER_SOURCE_32BPP | scale_cntl | 0x10000000);
-                break;
-        case FOURCC_RGBT16:
-                OUTREG(RADEON_OV0_SCALE_CNTL, RADEON_SCALER_SOURCE_16BPP 
-                        | 0x10000000 
-                        | scale_cntl);
-                break;
+		scale_cntl |= RADEON_SCALER_SOURCE_32BPP | RADEON_SCALER_LIN_TRANS_BYPASS;
+		break;
         case FOURCC_RGB16:
-                OUTREG(RADEON_OV0_SCALE_CNTL, RADEON_SCALER_SOURCE_16BPP 
-                        | 0x10000000 
-                        | scale_cntl);
-                break;
+		scale_cntl |= RADEON_SCALER_SOURCE_16BPP | RADEON_SCALER_LIN_TRANS_BYPASS;
+		break;
+        case FOURCC_RGBT16:
+		scale_cntl |= RADEON_SCALER_SOURCE_15BPP | RADEON_SCALER_LIN_TRANS_BYPASS;
+		break;
         case FOURCC_YUY2:
         case FOURCC_YV12:
         case FOURCC_I420:
         default:
-                OUTREG(RADEON_OV0_SCALE_CNTL,  RADEON_SCALER_SOURCE_VYUY422 
-                        | ((info->ChipFamily>=CHIP_FAMILY_R200) ? RADEON_SCALER_TEMPORAL_DEINT :0) 
-                        | scale_cntl);
-        }
-
+		scale_cntl |= RADEON_SCALER_SOURCE_VYUY422
+			| ((info->ChipFamily >= CHIP_FAMILY_R200) ? RADEON_SCALER_TEMPORAL_DEINT : 0);
+		break;
+    }
+    OUTREG(RADEON_OV0_SCALE_CNTL, scale_cntl);
     OUTREG(RADEON_OV0_REG_LOAD_CNTL, 0);
 }
 
@@ -2790,11 +2779,8 @@ RADEONPutImage(
    	dstPitch=(width*4+0x0f)&(~0x0f);
 	srcPitch=width*4;
 	break;
-   case FOURCC_RGBT16:
-   	dstPitch=(width*2+0x0f)&(~0x0f);
-	srcPitch=(width*2+3)&(~0x03);
-	break;
    case FOURCC_RGB16:
+   case FOURCC_RGBT16:
    	dstPitch=(width*2+0x0f)&(~0x0f);
 	srcPitch=(width*2+3)&(~0x03);
 	break;
