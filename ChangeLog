@@ -1,5 +1,7 @@
 2006-03-22  Kristian Høgsberg  <krh@redhat.com>
 
+	* src/Makefile.am (EXTRA_DIST): Add atipciids.h.
+
 	* src/theatre200.c: Convert use of xf86fopen() and other xf86
 	wrapped libc symbols to use libc symbols directly.  The xf86*
 	versions aren't supposed to be used directly.

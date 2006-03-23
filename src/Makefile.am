@@ -191,4 +191,5 @@ EXTRA_DIST = \
 	theatre200.h \
 	theatre_detect.h \
 	theatre.h \
-	theatre_reg.h
+	theatre_reg.h \
+	atipciids.h
