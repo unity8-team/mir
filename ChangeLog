@@ -1,3 +1,15 @@
+2006-03-23  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon_driver.c: (RADEONRestoreMode),
+	(RADEONInitCrtcRegisters), (RADEONInitCrtc2Registers):
+	Call RADEONRestoreCommonRegisters() before
+	RADEONRestoreCrtc2Registers() instead of after. I can't find any good
+	reason why we did it backward until now and it definitely causes
+	problems as the workaround for VT switch in
+	RADEONRestoreCommonRegisters() will break output to the secondary head
+	in various situations. Also does an unrelated minor update to a
+	comment.
+
 2006-03-22  Kristian Høgsberg  <krh@redhat.com>
 
 	* src/Makefile.am (EXTRA_DIST): Add atipciids.h.
