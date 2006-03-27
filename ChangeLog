@@ -1,3 +1,14 @@
+2006-03-27  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon_driver.c: (RADEONRestoreMemMapRegisters),
+	(RADEONInit):
+	Fix a regression of my latest fix that broke color tiling on some
+	setups. RADEONRestoreMemMapRegisters() must not clear CRTC_OFFSET_CNTL
+	and friends unconditionally but only when there is a map change or it
+	will clear them after the DRI updates the AGP location, thus turning
+	tiling back off on the CRTC.
+	Also remove a duplicate call to RADEONInitCommonRegisters().
+
 2006-03-23  Roland Scheidegger  <rscheidegger_lists@hispeed.ch>
 	* src/radeon_reg.h:
 	* src/radeon_video.c: (RADEONResetVideo), (RADEONDisplayVideo),

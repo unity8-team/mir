@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.107 2006/03/22 22:30:14 krh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.108 2006/03/23 01:37:15 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -6226,56 +6226,50 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	/* Reset the engine and HDP */
 	RADEONEngineReset(pScrn);
 
-	RADEONTRACE(("  All done.\n"));
-    }
-
-    RADEONTRACE(("Updating base addresses...\n"));
-
-    /* Make sure we have sane offsets before enabling, disable
-     * stereo and wait for offsets to catch up with hw
-     */
-    OUTREG(RADEON_CRTC_OFFSET_CNTL, RADEON_CRTC_OFFSET_FLIP_CNTL);
-    OUTREG(RADEON_CRTC_OFFSET, 0);
-    OUTREG(RADEON_CRTC_OFFSET_CNTL, 0);
-    OUTREG(RADEON_CUR_OFFSET, 0);
-    timeout = 0;
-    while(INREG(RADEON_CRTC_OFFSET) & RADEON_CRTC_OFFSET__GUI_TRIG_OFFSET) {
-        if (timeout++ > 1000000) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-	       "Timeout waiting for CRTC offset to update !\n");
-	    break;
-	}
-	usleep(1000);
-    }
-    OUTREG(RADEON_DISPLAY_BASE_ADDR, restore->display_base_addr);
-
-    if (info->HasCRTC2) {
-        /* Make sure we have sane offsets before enabling, disable
-	 * stereo and wait for offsets to catch up with hw
+	/* Make sure we have sane offsets before re-enabling the CRTCs, disable
+	 * stereo, clear offsets, and wait for offsets to catch up with hw
 	 */
-        OUTREG(RADEON_CRTC2_OFFSET_CNTL, RADEON_CRTC2_OFFSET_FLIP_CNTL);
-	OUTREG(RADEON_CRTC2_OFFSET, 0);
-	OUTREG(RADEON_CRTC2_OFFSET_CNTL, 0);
-	OUTREG(RADEON_CUR2_OFFSET, 0);
+
+	OUTREG(RADEON_CRTC_OFFSET_CNTL, RADEON_CRTC_OFFSET_FLIP_CNTL);
+	OUTREG(RADEON_CRTC_OFFSET, 0);
+	OUTREG(RADEON_CUR_OFFSET, 0);
 	timeout = 0;
-	while(INREG(RADEON_CRTC2_OFFSET) & RADEON_CRTC2_OFFSET__GUI_TRIG_OFFSET) {
+	while(INREG(RADEON_CRTC_OFFSET) & RADEON_CRTC_OFFSET__GUI_TRIG_OFFSET) {
 	    if (timeout++ > 1000000) {
-	        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		  "Timeout waiting for CRTC2 offset to update !\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Timeout waiting for CRTC offset to update !\n");
 		break;
 	    }
 	    usleep(1000);
 	}
-        OUTREG(RADEON_DISPLAY2_BASE_ADDR, restore->display2_base_addr);
+	if (info->HasCRTC2) {
+	    OUTREG(RADEON_CRTC2_OFFSET_CNTL, RADEON_CRTC2_OFFSET_FLIP_CNTL);
+	    OUTREG(RADEON_CRTC2_OFFSET, 0);
+	    OUTREG(RADEON_CUR2_OFFSET, 0);
+	    timeout = 0;
+	    while(INREG(RADEON_CRTC2_OFFSET) & RADEON_CRTC2_OFFSET__GUI_TRIG_OFFSET) {
+		if (timeout++ > 1000000) {
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			       "Timeout waiting for CRTC2 offset to update !\n");
+		    break;
+		}
+		usleep(1000);
+	    }
+	}
     }
 
+    RADEONTRACE(("Updating display base addresses...\n"));
+
+    OUTREG(RADEON_DISPLAY_BASE_ADDR, restore->display_base_addr);
+    if (info->HasCRTC2)
+        OUTREG(RADEON_DISPLAY2_BASE_ADDR, restore->display2_base_addr);
     OUTREG(RADEON_OV0_BASE_ADDR, restore->ov0_base_addr);
     (void)INREG(RADEON_OV0_BASE_ADDR);
 
     /* More paranoia delays, wait 100ms */
     usleep(100000);
 
-    RADEONTRACE(("Done updating base addresses.\n"));
+    RADEONTRACE(("Memory map updated.\n"));
  }
 
 static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
@@ -8572,7 +8566,6 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
 	    return FALSE;
 	RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, info->DisplayType != MT_CRT);
     } else if (info->MergedFB) {
-        RADEONInitCommonRegisters(save, info);
         if (!RADEONInitCrtcRegisters(pScrn, save, 
 			((RADEONMergedDisplayModePtr)mode->Private)->CRT1, info))
             return FALSE;
