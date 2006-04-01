@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.108 2006/03/23 01:37:15 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.109 2006-03-27 06:12:57 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -200,7 +200,8 @@ typedef enum {
     OPTION_VGA_ACCESS,
     OPTION_REVERSE_DDC,
     OPTION_LVDS_PROBE_PLL,
-    OPTION_ACCELMETHOD
+    OPTION_ACCELMETHOD,
+    OPTION_CONSTANTDPI
 } RADEONOpts;
 
 static const OptionInfoRec RADEONOptions[] = {
@@ -264,6 +265,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_REVERSE_DDC,    "ReverseDDC",       OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_LVDS_PROBE_PLL, "LVDSProbePLL",     OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_ACCELMETHOD,    "AccelMethod",      OPTV_STRING,  {0}, FALSE },
+    { OPTION_CONSTANTDPI,    "ConstantDPI",	 OPTV_BOOLEAN,	{0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -4359,10 +4361,13 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 				/* Set DPI */
     /* xf86SetDpi(pScrn, 0, 0); */
 
-    if(info->MergedFB)
+    if (info->MergedFB) {
 	RADEONMergedFBSetDpi(pScrn, info->CRT2pScrn, info->CRT2Position);
-    else
+    } else {
 	xf86SetDpi(pScrn, 0, 0);
+        info->RADEONDPIVX = pScrn->virtualX;
+        info->RADEONDPIVY = pScrn->virtualY;
+    }
 
 				/* Get ScreenInit function */
     if (!xf86LoadSubModule(pScrn, "fb")) return FALSE;
@@ -4822,7 +4827,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     const char *s;
 	 char* microc_path = NULL;
 	 char* microc_type = NULL;
-
+    MessageType from;
 
     RADEONTRACE(("RADEONPreInit\n"));
     if (pScrn->numEntities != 1) return FALSE;
@@ -5061,6 +5066,25 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	} else
 	    info->DispPriority = 1; 
     }
+
+    info->constantDPI = -1;
+    from = X_DEFAULT;
+    if (xf86GetOptValBool(info->Options, OPTION_CONSTANTDPI, &info->constantDPI)) {
+       from = X_CONFIG;
+    } else {
+       if (monitorResolution > 0) {
+	  info->constantDPI = TRUE;
+	  from = X_CMDLINE;
+	  xf86DrvMsg(pScrn->scrnIndex, from,
+		"\"-dpi %d\" given in command line, assuming \"ConstantDPI\" set\n",
+		monitorResolution);
+       } else {
+	  info->constantDPI = FALSE;
+       }
+    }
+    xf86DrvMsg(pScrn->scrnIndex, from,
+	"X server will %skeep DPI constant for all screen sizes\n",
+	info->constantDPI ? "" : "not ");
 
     if (xf86ReturnOptValBool(info->Options, OPTION_FBDEV, FALSE)) {
 	/* check for Linux framebuffer device */
@@ -8656,6 +8680,26 @@ static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode)
     return TRUE;
 }
 
+static void
+RADEONResetDPI(ScrnInfoPtr pScrn, Bool force)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+
+    if(force					||
+       (info->RADEONDPIVX != pScrn->virtualX)	||
+       (info->RADEONDPIVY != pScrn->virtualY)
+					  ) {
+
+       pScreen->mmWidth = (pScrn->virtualX * 254 + pScrn->xDpi * 5) / (pScrn->xDpi * 10);
+       pScreen->mmHeight = (pScrn->virtualY * 254 + pScrn->yDpi * 5) / (pScrn->yDpi * 10);
+
+       info->RADEONDPIVX = pScrn->virtualX;
+       info->RADEONDPIVY = pScrn->virtualY;
+
+    }
+}
+
 _X_EXPORT Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
     ScrnInfoPtr    pScrn       = xf86Screens[scrnIndex];
@@ -8740,8 +8784,11 @@ _X_EXPORT Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     /* Since RandR (indirectly) uses SwitchMode(), we need to
      * update our Xinerama info here, too, in case of resizing
      */
-    if(info->MergedFB) {
-       RADEONUpdateXineramaScreenInfo(pScrn);
+    if (info->MergedFB) {
+        RADEONMergedFBResetDpi(pScrn, FALSE);
+        RADEONUpdateXineramaScreenInfo(pScrn);
+    } else if(info->constantDPI) {
+       RADEONResetDPI(pScrn, FALSE);
     }
 
     return ret;

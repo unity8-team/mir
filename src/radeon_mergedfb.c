@@ -1741,119 +1741,125 @@ RADEONAdjustFrameMerged(int scrnIndex, int x, int y, int flags)
     RADEONDoAdjustFrame(pScrn1, pScrn2->frameX0, pScrn2->frameY0, TRUE);
 }
 
-void
-RADEONMergedFBSetDpi(ScrnInfoPtr pScrn1, ScrnInfoPtr pScrn2, RADEONScrn2Rel srel)
+static void
+RADEONMergedFBCalcDPI(ScrnInfoPtr pScrn1, ScrnInfoPtr pScrn2, RADEONScrn2Rel srel, Bool quiet)
 {
-   RADEONInfoPtr      info       = RADEONPTR(pScrn1);
-   MessageType from = X_DEFAULT;
-   xf86MonPtr DDC1 = (xf86MonPtr)(pScrn1->monitor->DDC);
-   xf86MonPtr DDC2 = (xf86MonPtr)(pScrn2->monitor->DDC);
-   int ddcWidthmm = 0, ddcHeightmm = 0;
-   const char *dsstr = "MergedFB: Display dimensions: (%d, %d) mm\n";
+    RADEONInfoPtr info = RADEONPTR(pScrn1);
+    MessageType from = X_DEFAULT;
+    xf86MonPtr DDC1 = (xf86MonPtr)(pScrn1->monitor->DDC);
+    xf86MonPtr DDC2 = (xf86MonPtr)(pScrn2->monitor->DDC);
+    int ddcWidthmm = 0, ddcHeightmm = 0;
+    const char *dsstr = "MergedFB: Display dimensions: %dx%d mm\n";
 
-   /* This sets the DPI for MergedFB mode. The problem is that
-    * this can never be exact, because the output devices may
-    * have different dimensions. This function tries to compromise
-    * through a few assumptions, and it just calculates an average DPI
-    * value for both monitors.
-    */
+    /* This sets the DPI for MergedFB mode. The problem is that
+     * this can never be exact, because the output devices may
+     * have different dimensions. This function tries to compromise
+     * through a few assumptions, and it just calculates an average
+     * DPI value for both monitors.
+     */
 
-   /* Given DisplaySize should regard BOTH monitors */
-   pScrn1->widthmm = pScrn1->monitor->widthmm;
-   pScrn1->heightmm = pScrn1->monitor->heightmm;
+    /* Copy user-given DisplaySize (which should regard BOTH monitors!) */
+    pScrn1->widthmm = pScrn1->monitor->widthmm;
+    pScrn1->heightmm = pScrn1->monitor->heightmm;
 
-   /* Get DDC display size; if only either CRT1 or CRT2 provided these,
-    * assume equal dimensions for both, otherwise add dimensions
-    */
-   if( (DDC1 && (DDC1->features.hsize > 0 && DDC1->features.vsize > 0)) &&
-       (DDC2 && (DDC2->features.hsize > 0 && DDC2->features.vsize > 0)) ) {
-      ddcWidthmm = max(DDC1->features.hsize, DDC2->features.hsize) * 10;
-      ddcHeightmm = max(DDC1->features.vsize, DDC2->features.vsize) * 10;
-      switch(srel) {
-      case radeonLeftOf:
-      case radeonRightOf:
-         ddcWidthmm = (DDC1->features.hsize + DDC2->features.hsize) * 10;
-	 break;
-      case radeonAbove:
-      case radeonBelow:
-         ddcHeightmm = (DDC1->features.vsize + DDC2->features.vsize) * 10;
-      default:
-	 break;
-      }
+    if(monitorResolution > 0) {
 
-   } else if(DDC1 && (DDC1->features.hsize > 0 && DDC1->features.vsize > 0)) {
-      ddcWidthmm = DDC1->features.hsize * 10;
-      ddcHeightmm = DDC1->features.vsize * 10;
-      switch(srel) {
-      case radeonLeftOf:
-      case radeonRightOf:
-         ddcWidthmm *= 2;
-	 break;
-      case radeonAbove:
-      case radeonBelow:
-         ddcHeightmm *= 2;
-      default:
-	 break;
-      }
-   } else if(DDC2 && (DDC2->features.hsize > 0 && DDC2->features.vsize > 0) ) {
-      ddcWidthmm = DDC2->features.hsize * 10;
-      ddcHeightmm = DDC2->features.vsize * 10;
-      switch(srel) {
-      case radeonLeftOf:
-      case radeonRightOf:
-         ddcWidthmm *= 2;
-	 break;
-      case radeonAbove:
-      case radeonBelow:
-         ddcHeightmm *= 2;
-      default:
-	 break;
-      }
-   }
+       /* Set command line given values (overrules given options) */
+       pScrn1->xDpi = monitorResolution;
+       pScrn1->yDpi = monitorResolution;
+       from = X_CMDLINE;
 
-   if(monitorResolution > 0) {
+    } else if(info->MergedFBXDPI) {
 
-      /* Set command line given values (overrules given options) */
-      pScrn1->xDpi = monitorResolution;
-      pScrn1->yDpi = monitorResolution;
-      from = X_CMDLINE;
+       /* Set option-wise given values (overrules DisplaySize config option) */
+       pScrn1->xDpi = info->MergedFBXDPI;
+       pScrn1->yDpi = info->MergedFBYDPI;
+       from = X_CONFIG;
 
-   } else if(info->MergedFBXDPI) {
+    } else if(pScrn1->widthmm > 0 || pScrn1->heightmm > 0) {
 
-      /* Set option-wise given values (overrule DisplaySize) */
-      pScrn1->xDpi = info->MergedFBXDPI;
-      pScrn1->yDpi = info->MergedFBYDPI;
-      from = X_CONFIG;
-
-   } else if(pScrn1->widthmm > 0 || pScrn1->heightmm > 0) {
-
-      /* Set values calculated from given DisplaySize */
-      from = X_CONFIG;
-      if(pScrn1->widthmm > 0) {
-	 pScrn1->xDpi = (int)((double)pScrn1->virtualX * 25.4 / pScrn1->widthmm);
-      }
-      if(pScrn1->heightmm > 0) {
-	 pScrn1->yDpi = (int)((double)pScrn1->virtualY * 25.4 / pScrn1->heightmm);
-      }
-      xf86DrvMsg(pScrn1->scrnIndex, from, dsstr, pScrn1->widthmm, pScrn1->heightmm);
+       /* Set values calculated from given DisplaySize */
+       from = X_CONFIG;
+       if(pScrn1->widthmm > 0) {
+	  pScrn1->xDpi = (int)((double)pScrn1->virtualX * 25.4 / pScrn1->widthmm);
+       }
+       if(pScrn1->heightmm > 0) {
+	  pScrn1->yDpi = (int)((double)pScrn1->virtualY * 25.4 / pScrn1->heightmm);
+       }
+       if(!quiet) {
+          xf86DrvMsg(pScrn1->scrnIndex, from, dsstr, pScrn1->widthmm, pScrn1->heightmm);
+       }
 
     } else if(ddcWidthmm && ddcHeightmm) {
 
-      /* Set values from DDC-provided display size */
-      from = X_PROBED;
-      xf86DrvMsg(pScrn1->scrnIndex, from, dsstr, ddcWidthmm, ddcHeightmm );
-      pScrn1->widthmm = ddcWidthmm;
-      pScrn1->heightmm = ddcHeightmm;
-      if(pScrn1->widthmm > 0) {
-	 pScrn1->xDpi = (int)((double)pScrn1->virtualX * 25.4 / pScrn1->widthmm);
-      }
-      if(pScrn1->heightmm > 0) {
-	 pScrn1->yDpi = (int)((double)pScrn1->virtualY * 25.4 / pScrn1->heightmm);
-      }
+       /* Set values from DDC-provided display size */
+
+       /* Get DDC display size; if only either CRT1 or CRT2 provided these,
+	* assume equal dimensions for both, otherwise add dimensions
+	*/
+       if( (DDC1 && (DDC1->features.hsize > 0 && DDC1->features.vsize > 0)) &&
+	   (DDC2 && (DDC2->features.hsize > 0 && DDC2->features.vsize > 0)) ) {
+	  ddcWidthmm = max(DDC1->features.hsize, DDC2->features.hsize) * 10;
+	  ddcHeightmm = max(DDC1->features.vsize, DDC2->features.vsize) * 10;
+	  switch(srel) {
+	  case radeonLeftOf:
+	  case radeonRightOf:
+	     ddcWidthmm = (DDC1->features.hsize + DDC2->features.hsize) * 10;
+	     break;
+	  case radeonAbove:
+	  case radeonBelow:
+	     ddcHeightmm = (DDC1->features.vsize + DDC2->features.vsize) * 10;
+	  default:
+	     break;
+	  }
+       } else if(DDC1 && (DDC1->features.hsize > 0 && DDC1->features.vsize > 0)) {
+	  ddcWidthmm = DDC1->features.hsize * 10;
+	  ddcHeightmm = DDC1->features.vsize * 10;
+	  switch(srel) {
+	  case radeonLeftOf:
+	  case radeonRightOf:
+	     ddcWidthmm *= 2;
+	     break;
+	  case radeonAbove:
+	  case radeonBelow:
+	     ddcHeightmm *= 2;
+	  default:
+	     break;
+          }
+       } else if(DDC2 && (DDC2->features.hsize > 0 && DDC2->features.vsize > 0) ) {
+	  ddcWidthmm = DDC2->features.hsize * 10;
+	  ddcHeightmm = DDC2->features.vsize * 10;
+	  switch(srel) {
+	  case radeonLeftOf:
+	  case radeonRightOf:
+	     ddcWidthmm *= 2;
+	     break;
+	  case radeonAbove:
+	  case radeonBelow:
+	     ddcHeightmm *= 2;
+	  default:
+	     break;
+	  }
+       }
+
+       from = X_PROBED;
+
+       if(!quiet) {
+          xf86DrvMsg(pScrn1->scrnIndex, from, dsstr, ddcWidthmm, ddcHeightmm);
+       }
+
+       pScrn1->widthmm = ddcWidthmm;
+       pScrn1->heightmm = ddcHeightmm;
+       if(pScrn1->widthmm > 0) {
+	  pScrn1->xDpi = (int)((double)pScrn1->virtualX * 25.4 / pScrn1->widthmm);
+       }
+       if(pScrn1->heightmm > 0) {
+	  pScrn1->yDpi = (int)((double)pScrn1->virtualY * 25.4 / pScrn1->heightmm);
+       }
 
     } else {
 
-      pScrn1->xDpi = pScrn1->yDpi = DEFAULT_DPI;
+       pScrn1->xDpi = pScrn1->yDpi = DEFAULT_DPI;
 
     }
 
@@ -1866,8 +1872,60 @@ RADEONMergedFBSetDpi(ScrnInfoPtr pScrn1, ScrnInfoPtr pScrn2, RADEONScrn2Rel srel
     pScrn2->xDpi = pScrn1->xDpi;
     pScrn2->yDpi = pScrn1->yDpi;
 
-    xf86DrvMsg(pScrn1->scrnIndex, from, "MergedFB: DPI set to (%d, %d)\n",
-	       pScrn1->xDpi, pScrn1->yDpi);
+    if(!quiet) {
+       xf86DrvMsg(pScrn1->scrnIndex, from, "MergedFB: DPI set to (%d, %d)\n",
+		pScrn1->xDpi, pScrn1->yDpi);
+    }
+}
+
+
+void
+RADEONMergedFBSetDpi(ScrnInfoPtr pScrn1, ScrnInfoPtr pScrn2, RADEONScrn2Rel srel)
+{
+    RADEONInfoPtr      info       = RADEONPTR(pScrn1);
+
+    RADEONMergedFBCalcDPI(pScrn1, pScrn2, srel, FALSE);
+
+    info->MergedDPISRel = srel;
+    info->RADEONMergedDPIVX = pScrn1->virtualX;
+    info->RADEONMergedDPIVY = pScrn1->virtualY;
+
+}
+
+void
+RADEONMergedFBResetDpi(ScrnInfoPtr pScrn, Bool force)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+    RADEONScrn2Rel srel = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2Position;
+
+    /* This does the same calculation for the DPI as
+     * the initial run. This means that an eventually
+     * given -dpi command line switch will lead to
+     * constant dpi values, regardless of the virtual
+     * screen size.
+     * I consider this consequent. If this is undesired,
+     * one should use the DisplaySize parameter in the
+     * config file instead of the command line switch.
+     * The DPI will be calculated then.
+     */
+
+    if(force						||
+       (info->MergedDPISRel != srel)			||
+       (info->RADEONMergedDPIVX != pScrn->virtualX)	||
+       (info->RADEONMergedDPIVY != pScrn->virtualY)
+						) {
+
+       RADEONMergedFBCalcDPI(pScrn, info->CRT2pScrn, srel, TRUE);
+
+       pScreen->mmWidth = (pScrn->virtualX * 254 + pScrn->xDpi * 5) / (pScrn->xDpi * 10);
+       pScreen->mmHeight = (pScrn->virtualY * 254 + pScrn->yDpi * 5) / (pScrn->yDpi * 10);
+
+       info->MergedDPISRel = srel;
+       info->RADEONMergedDPIVX = pScrn->virtualX;
+       info->RADEONMergedDPIVY = pScrn->virtualY;
+
+    }
 }
 
 /* radeon cursor helpers */

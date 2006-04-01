@@ -708,6 +708,11 @@ typedef struct {
     Bool                NonRect, HaveNonRect, HaveOffsRegions, MouseRestrictions;
     region              NonRectDead, OffDead1, OffDead2;
 
+    int			constantDPI; /* -1 = auto, 0 = off, 1 = on */
+    int			RADEONDPIVX, RADEONDPIVY;
+    RADEONScrn2Rel	MergedDPISRel;
+    int			RADEONMergedDPIVX, RADEONMergedDPIVY, RADEONMergedDPIRot;
+
     /* special handlings for DELL triple-head server */
     Bool		IsDellServer; 
 

@@ -107,6 +107,8 @@ RADEONUpdateXineramaScreenInfo(ScrnInfoPtr pScrn1);
 extern void
 RADEONMergedFBSetDpi(ScrnInfoPtr pScrn1, ScrnInfoPtr pScrn2, RADEONScrn2Rel srel);
 extern void
+RADEONMergedFBResetDpi(ScrnInfoPtr pScrn, Bool force);
+extern void
 RADEONRecalcDefaultVirtualSize(ScrnInfoPtr pScrn);
 
 /* needed by radeon_cursor.c */

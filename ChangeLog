@@ -1,3 +1,15 @@
+2006-04-01  Alex Deucher  <agd5f@yahoo.com>
+
+	* src/radeon.h:
+	* src/radeon_driver.c: (RADEONPreInitModes), (RADEONPreInit),
+	(RADEONResetDPI), (RADEONSwitchMode):
+	* src/radeon_mergedfb.c: (RADEONMergedFBCalcDPI),
+	(RADEONMergedFBSetDpi), (RADEONMergedFBResetDpi):
+	* src/radeon_mergedfb.h:
+	- Fix dpi when switching from clone to dualhead with MergedFB.
+	- Add ConstantDPI option to force a particlar dpi across mode changes
+	Both based on Thomas Winischhofer's sis code.
+
 2006-03-27  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon_driver.c: (RADEONRestoreMemMapRegisters),
