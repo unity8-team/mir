@@ -1,2 +1,8 @@
 Makefile
 Makefile.in
+ati.4
+ati.4x
+r128.4
+r128.4x
+radeon.4
+radeon.4x
