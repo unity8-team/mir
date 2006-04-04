@@ -1,3 +1,11 @@
+2006-04-04  Eric Anholt  <anholt@FreeBSD.org>
+
+	* man/ati.man:
+	* man/radeon.man:
+	Bug #5632: Fix up ati.4 to explain that it is a wrapper driver for the
+	other three.  While here, touch up radeon.4, and add an authors list
+	gleaned from checking copyright headers.
+
 2006-04-01  Alex Deucher  <agd5f@yahoo.com>
 
 	* src/radeon.h:

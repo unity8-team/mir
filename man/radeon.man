@@ -13,10 +13,11 @@ radeon \- ATI RADEON video driver
 .fi
 .SH DESCRIPTION
 .B radeon
-is a __xservername__ driver for ATI RADEON based video cards.  It contains
+is an __xservername__ driver for ATI RADEON based video cards.  It contains
 full support for 8, 15, 16 and 24 bit pixel depths, dual-head setup,
 flat panel, hardware 2D acceleration, hardware 3D acceleration
-(except R300 and R400 series cards), hardware cursor, XV extension, Xinerama extension.
+(experimental on R300 and R400 series cards), hardware cursor, XV extension,
+and the Xinerama extension.
 .SH SUPPORTED HARDWARE
 The
 .B radeon
@@ -162,9 +163,8 @@ Set AGP data transfer rate.
 others \-\- invalid
 .TP
 .BI "Option \*qAGPFastWrite\*q \*q" boolean \*q
-Enable AGP fast write.
-.br
-(used only when DRI is enabled)
+Enable AGP fast write.  Enabling this option is frequently the cause of
+instability. Used only when the DRI is enabled.
 .br
 The default is
 .B off.
@@ -605,4 +605,12 @@ The default is
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .SH AUTHORS
 .nf
-Authors include: ...
+Authors include:
+Rickard E. (Rik) Faith   \fIfaith@precisioninsight.com\fP
+Kevin E. Martin          \fIkem@freedesktop.org\fP
+Alan Hourihane           \fIalanh@fairlite.demon.co.uk\fP
+Marc Aurele La France    \fItsi@xfree86.org\fP
+Benjamin Herrenschmidt   \fIbenh@kernel.crashing.org\fP
+Alex Deucher             \fIalexdeucher@gmail.com\fP
+Bogdan D.                \fIbogdand@users.sourceforge.net\fP
+Eric Anholt              \fIeric@anholt.net\fP
