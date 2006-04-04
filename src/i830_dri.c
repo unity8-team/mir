@@ -64,6 +64,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"

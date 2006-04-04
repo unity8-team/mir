@@ -1,3 +1,11 @@
+2006-04-04  Kristian Høgsberg  <krh@redhat.com>
+
+	* src/i810_dri.c:
+	* src/i810_driver.c:
+	* src/i830_dri.c:
+	* src/i830_driver.c: Add more missing #include's, in particular
+	assert.h.
+
 2006-03-22  Kristian Høgsberg  <krh@redhat.com>
 
 	* src/*.c: Drop libc wrapper; don't include xf86_ansic.h and add

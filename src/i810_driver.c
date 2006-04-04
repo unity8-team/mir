@@ -62,6 +62,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <math.h>
 #include <string.h>
+#include <unistd.h>
 
 /*
  * These are X and server generic header files.

@@ -161,6 +161,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
