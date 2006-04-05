@@ -1,3 +1,11 @@
+2006-04-05  Dave Airlie  <airlied@linux.ie>
+
+	* src/i810_hwmc.c: (I810XvMCCreateContext),
+	(I810XvMCCreateSurface), (I810XvMCCreateSubpicture):
+	* src/i810_memory.c: (I810SetTiledMemory):
+	* src/i830_memory.c: (SetFence):
+	Fix some argument inversions in xf86DrvMsg function calls
+
 2006-04-04  Kristian Høgsberg  <krh@redhat.com>
 
 	* src/i810_dri.c:
