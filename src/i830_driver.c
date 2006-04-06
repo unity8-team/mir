@@ -3836,10 +3836,12 @@ RestoreHWState(ScrnInfoPtr pScrn)
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "Setting the original video mode instead of restoring\n\t"
 		 "the saved state\n");
+#if 0
       I830VESASetVBEMode(pScrn, pVesa->stateMode, NULL);
       if (!pVesa->useDefaultRefresh && pI830->useExtendedRefresh) {
          SetRefreshRate(pScrn, pVesa->stateMode, pVesa->stateRefresh);
       }
+#endif
    }
    if (pVesa->savedScanlinePitch)
        VBESetLogicalScanline(pVbe, pVesa->savedScanlinePitch);
