@@ -20,7 +20,6 @@ static struct i830SnapshotRec {
     DEFINEREG(DVOA),
     DEFINEREG(DVOB),
     DEFINEREG(DVOC),
-    DEFINEREG(DVO_ENABLE),
     DEFINEREG(DVOA_SRCDIM),
     DEFINEREG(DVOB_SRCDIM),
     DEFINEREG(DVOC_SRCDIM),
@@ -68,7 +67,9 @@ static struct i830SnapshotRec {
     DEFINEREG(VBLANK_B),
     DEFINEREG(VSYNC_B),
 
-    { 0, NULL, 0}
+    DEFINEREG(VCLK_DIVISOR_VGA0),
+    DEFINEREG(VCLK_DIVISOR_VGA1),
+    DEFINEREG(VCLK_POST_DIV),
 };
 #undef DEFINEREG
 #define NUM_I830_SNAPSHOTREGS (sizeof(i830_snapshot) / sizeof(i830_snapshot[0]))
@@ -88,6 +89,8 @@ void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     int i;
 
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Comparing regs before/after X's VT usage\n");
     for (i = 0; i < NUM_I830_SNAPSHOTREGS; i++) {
 	CARD32 val = INREG(i830_snapshot[i].reg);
 	if (i830_snapshot[i].regval != val) {

@@ -182,6 +182,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "shadow.h"
 #include "i830.h"
 #include "i830_display.h"
+#include "i830_debug.h"
 
 #ifdef XF86DRI
 #include "dri.h"
@@ -3545,6 +3546,8 @@ SaveHWState(ScrnInfoPtr pScrn)
 
    DPRINTF(PFX, "SaveHWState\n");
 
+   i830TakeRegSnapshot(pScrn);
+
    /* Save video mode information for native mode-setting. */
    pI830->saveDSPACNTR = INREG(DSPACNTR);
    pI830->saveDSPBCNTR = INREG(DSPBCNTR);
@@ -3762,6 +3765,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
 
    OUTREG(ADPA, pI830->saveADPA);
+
+   i830CompareRegsToSnapshot(pScrn);
 
    return TRUE;
 }
