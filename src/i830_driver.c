@@ -181,6 +181,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "vbeModes.h"
 #include "shadow.h"
 #include "i830.h"
+#include "i830_display.h"
 
 #ifdef XF86DRI
 #include "dri.h"
@@ -273,8 +274,10 @@ static void I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags);
 static Bool I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool I830BIOSSaveScreen(ScreenPtr pScreen, int unblack);
 static Bool I830BIOSEnterVT(int scrnIndex, int flags);
+#if 0
 static Bool I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode,
 			       VbeCRTCInfoBlock *block);
+#endif
 static CARD32 I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg);
 static Bool SetPipeAccess(ScrnInfoPtr pScrn);
 
@@ -3299,6 +3302,8 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       p = p->next;
    } while (p != NULL && p != pScrn->modes);
 
+   xf86SetCrtcForModes(pScrn, INTERLACE_HALVE_V);
+
    pScrn->currentMode = pScrn->modes;
 
 #ifndef USE_PITCHES
@@ -3891,6 +3896,7 @@ static void I830SetCloneVBERefresh(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock
    }
 }
 
+#if 0
 static Bool
 I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block)
 {
@@ -4038,6 +4044,7 @@ I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block)
 
    return ret;
 }
+#endif
 
 static Bool
 I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
@@ -4075,6 +4082,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 
    SetPipeAccess(pScrn);
 
+#if 0
    if (I830VESASetVBEMode(pScrn, mode, data->block) == FALSE) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Set VBE Mode failed!\n");
       return FALSE;
@@ -4102,6 +4110,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
       SetPipeAccess(pScrn);
       VBESetGetDACPaletteFormat(pVbe, 8);
    }
+#endif
 
    /* XXX Fix plane A with pipe A, and plane B with pipe B. */
    planeA = INREG(DSPACNTR);
@@ -4269,7 +4278,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
       }
    }
 
-#if 0
+#if 1
    /* Print out some CRTC/display information. */
    temp = INREG(HTOTAL_A);
    ErrorF("Horiz active: %d, Horiz total: %d\n", temp & 0x7ff,
@@ -4336,6 +4345,8 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
    temp = INREG(DSPBSIZE);
    ErrorF("Plane B size %d %d\n", temp & 0xffff, (temp & 0xffff0000) >> 16);
 #endif
+
+   i830SetMode(pScrn, pMode);
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode bandwidth is %d Mpixel/s\n",
 	      pMode->HDisplay * pMode->VDisplay * refresh / 1000000);
