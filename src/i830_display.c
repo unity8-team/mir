@@ -475,8 +475,10 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	     * screen.
 	     */
 	    /* XXX: Allow (auto-?) enabling of 8-to-6 dithering */
-	    OUTREG(PFIT_CONTROL, PFIT_ENABLE | VERT_AUTO_SCALE |
-		   HORIZ_AUTO_SCALE);
+	    OUTREG(PFIT_CONTROL, PFIT_ENABLE |
+		   VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
+		   VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR);
+
 	    i830SetLVDSPanelPower(pScrn, TRUE);
 	}
     }
