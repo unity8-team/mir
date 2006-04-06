@@ -2136,13 +2136,10 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    I830EntPtr pI830Ent = NULL;					
    int mem, memsize;
    int flags24;
-   int defmon = 0;
    int i, n;
-   int DDCclock = 0;
    char *s;
-   DisplayModePtr p, pMon;
    ClockRangePtr clockRanges;
-   pointer pDDCModule = NULL, pVBEModule = NULL;
+   pointer pVBEModule = NULL;
    Bool enable;
    const char *chipname;
    unsigned int ver;
@@ -2559,6 +2556,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    for (i = 0; i < MAX_OUTPUTS; i++) {
      if (pI830->output[i].MonInfo) {
        pScrn->monitor->DDC = pI830->output[i].MonInfo;
+       xf86SetDDCproperties(pScrn, pI830->output[i].MonInfo);
        break;
      }
    }
@@ -3159,16 +3157,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
         (pI830->pipe == 0 && pI830->operatingDevices & PIPE_LFP) )
    	vbeDoPanelID(pI830->pVbe);
 
-   pDDCModule = xf86LoadSubModule(pScrn, "ddc");
-
-   pI830->vesa->monitor = vbeDoEDID(pI830->pVbe, pDDCModule);
-
-   if ((pScrn->monitor->DDC = pI830->vesa->monitor) != NULL) {
-      xf86PrintEDID(pI830->vesa->monitor);
-      xf86SetDDCproperties(pScrn, pI830->vesa->monitor);
-   }
-   xf86UnloadSubModule(pDDCModule);
-
    /* XXX Move this to a header. */
 #define VIDEO_BIOS_SCRATCH 0x18
 
@@ -3202,34 +3190,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
 	      "Maximum space available for video modes: %d kByte\n", memsize);
 
-   /* By now, we should have had some monitor settings, but if not, we
-    * need to setup some defaults. These are used in common/xf86Modes.c
-    * so we'll use them here for GetModePool, and that's all. 
-    * We unset them after the call, so we can report 'defaults' as being
-    * used through the common layer.
-    */
-#define DEFAULT_HSYNC_LO 28
-#define DEFAULT_HSYNC_HI 33
-#define DEFAULT_VREFRESH_LO 43
-#define DEFAULT_VREFRESH_HI 72
-
-   if (pScrn->monitor->nHsync == 0) {
-      pScrn->monitor->hsync[0].lo = DEFAULT_HSYNC_LO;
-      pScrn->monitor->hsync[0].hi = DEFAULT_HSYNC_HI;
-      pScrn->monitor->nHsync = 1;
-      defmon |= 1;
-   }
-
-   if (pScrn->monitor->nVrefresh == 0) {
-      pScrn->monitor->vrefresh[0].lo = DEFAULT_VREFRESH_LO;
-      pScrn->monitor->vrefresh[0].hi = DEFAULT_VREFRESH_HI;
-      pScrn->monitor->nVrefresh = 1;
-      defmon |= 2;
-   }
-
-   DDCclock = I830UseDDC(pScrn);
-
-#if 1
    /*
      * Setup the ClockRanges, which describe what clock ranges are available,
      * and what sort of modes they can be used for.
@@ -3241,7 +3201,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
     clockRanges->clockIndex = -1;		/* programmable */
     clockRanges->interlaceAllowed = TRUE;	/* XXX check this */
     clockRanges->doubleScanAllowed = FALSE;	/* XXX check this */
-#endif
 
    /*
     * XXX DDC information: There's code in xf86ValidateModes
@@ -3269,38 +3228,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       PreInitCleanup(pScrn);
       return FALSE;
-   }
-
-   /* Only use this if we've got DDC available */
-   if (DDCclock > 0) {
-      p = pScrn->modes;
-      if (p == NULL)
-         return FALSE;
-      do {
-         int Clock = 100000000; /* incredible value */
-
-	 if (p->status == MODE_OK) {
-            for (pMon = pScrn->monitor->Modes; pMon != NULL; pMon = pMon->next) {
-               if ((pMon->HDisplay != p->HDisplay) ||
-                   (pMon->VDisplay != p->VDisplay) ||
-                   (pMon->Flags & (V_INTERLACE | V_DBLSCAN | V_CLKDIV2)))
-                   continue;
-
-               /* Find lowest supported Clock for this resolution */
-               if (Clock > pMon->Clock)
-                  Clock = pMon->Clock;
-            } 
-
-            if (Clock != 100000000 && DDCclock < 2550 && Clock / 1000.0 > DDCclock) {
-               ErrorF("(%s,%s) mode clock %gMHz exceeds DDC maximum %dMHz\n",
-		   p->name, pScrn->monitor->id,
-		   Clock/1000.0, DDCclock);
-               p->status = MODE_BAD;
-            } 
- 	 }
-         p = p->next;
-      } while (p != NULL && p != pScrn->modes);
-   }
+   }	
 
    xf86PruneDriverModes(pScrn);
 
