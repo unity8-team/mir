@@ -26,7 +26,7 @@
  */
 
 struct vbt_header {
-    char signature[20];			/**< Always 'BIOS_DATA_BLOCK' */
+    char signature[20];			/**< Always starts with 'VBT$' */
     CARD16 version;			/**< decimal */
     CARD16 header_size;			/**< in bytes */
     CARD16 vbt_size;			/**< in bytes */
@@ -37,14 +37,83 @@ struct vbt_header {
     CARD32 aim2_offset;			/**< from beginning of VBT */
     CARD32 aim3_offset;			/**< from beginning of VBT */
     CARD32 aim4_offset;			/**< from beginning of VBT */
-};
+} __attribute__((packed));
 
 struct bdb_header {
     char signature[16];			/**< Always 'BIOS_DATA_BLOCK' */
     CARD16 version;			/**< decimal */
     CARD16 header_size;			/**< in bytes */
     CARD16 bdb_size;			/**< in bytes */
-};
+} __attribute__((packed));
+
+#define LVDS_CAP_EDID			(1 << 6)
+#define LVDS_CAP_DITHER			(1 << 5)
+#define LVDS_CAP_PFIT_AUTO_RATIO	(1 << 4)
+#define LVDS_CAP_PFIT_GRAPHICS_MODE	(1 << 3)
+#define LVDS_CAP_PFIT_TEXT_MODE		(1 << 2)
+#define LVDS_CAP_PFIT_GRAPHICS		(1 << 1)
+#define LVDS_CAP_PFIT_TEXT		(1 << 0)
+struct lvds_bdb_1 {
+    CARD8 id;				/**< 40 */
+    CARD16 size;
+    CARD8 panel_type;
+    CARD8 reserved0;
+    CARD16 caps;
+} __attribute__((packed));
+
+struct lvds_bdb_2_fp_params {
+    CARD16 x_res;
+    CARD16 y_res;
+    CARD32 lvds_reg;
+    CARD32 lvds_reg_val;
+    CARD32 pp_on_reg;
+    CARD32 pp_on_reg_val;
+    CARD32 pp_off_reg;
+    CARD32 pp_off_reg_val;
+    CARD32 pp_cycle_reg;
+    CARD32 pp_cycle_reg_val;
+    CARD32 pfit_reg;
+    CARD32 pfit_reg_val;
+    CARD16 terminator;
+} __attribute__((packed));
+
+struct lvds_bdb_2_fp_edid_dtd {
+    CARD16 dclk;		/**< In 10khz */
+    CARD8 hactive;
+    CARD8 hblank;
+    CARD8 high_h;		/**< 7:4 = hactive 11:8, 3:0 = hblank 11:8 */
+    CARD8 vactive;
+    CARD8 vblank;
+    CARD8 high_v;		/**< 7:4 = vactive 11:8, 3:0 = vblank 11:8 */
+    CARD8 hsync_off;
+    CARD8 hsync_pulse_width;
+    CARD8 vsync_off;
+    CARD8 high_hsync_off;	/**< 7:6 = hsync off 9:8 */
+    CARD8 h_image;
+    CARD8 v_image;
+    CARD8 max_hv;
+    CARD8 h_border;
+    CARD8 v_border;
+    CARD8 flags;
+#define FP_EDID_FLAG_VSYNC_POSITIVE	(1 << 2)
+#define FP_EDID_FLAG_HSYNC_POSITIVE	(1 << 1)
+} __attribute__((packed));
+
+struct lvds_bdb_2_entry {
+    CARD16 fp_params_offset;		/**< From beginning of BDB */
+    CARD8 fp_params_size;
+    CARD16 fp_edid_dtd_offset;
+    CARD8 fp_edid_dtd_size;
+    CARD16 fp_edid_pid_offset;
+    CARD8 fp_edid_pid_size;
+} __attribute__((packed));
+
+struct lvds_bdb_2 {
+    CARD8 id;			/**< 41 */
+    CARD16 size;
+    CARD8 table_size;	/* not sure on this one */
+    struct lvds_bdb_2_entry panels[16];
+} __attribute__((packed));
 
 Bool
 i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn);

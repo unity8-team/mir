@@ -98,14 +98,16 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     struct vbt_header *vbt;
     struct bdb_header *bdb;
-    int vbt_off, bdb_block_off, block_size;
+    int vbt_off, bdb_off, bdb_block_off, block_size;
+    int panel_type = -1;
 
     if (!i830GetBIOS(pScrn))
 	return FALSE;
 
     vbt_off = INTEL_BIOS_16(0x1a);
     vbt = (struct vbt_header *)(pI830->VBIOS + vbt_off);
-    bdb = (struct bdb_header *)(pI830->VBIOS + vbt_off + vbt->bdb_offset);
+    bdb_off = vbt_off + vbt->bdb_offset;
+    bdb = (struct bdb_header *)(pI830->VBIOS + bdb_off);
 
     if (memcmp(bdb->signature, "BIOS_DATA_BLOCK ", 16) != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad BDB signature\n");
@@ -115,12 +117,31 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
     for (bdb_block_off = bdb->header_size; bdb_block_off < bdb->bdb_size;
 	 bdb_block_off += block_size)
     {
-	int start = vbt_off + vbt->bdb_offset + bdb_block_off;
+	int start = bdb_off + bdb_block_off;
 	int id;
+	struct lvds_bdb_1 *lvds1;
+	struct lvds_bdb_2 *lvds2;
+	struct lvds_bdb_2_fp_params *lvds2fpparam;
 
 	id = INTEL_BIOS_8(start);
 	block_size = INTEL_BIOS_16(start + 1) + 3;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found BDB block type %d\n", id);
+	switch (id) {
+	case 40:
+	    lvds1 = (struct lvds_bdb_1 *)(pI830->VBIOS + start);
+	    panel_type = lvds1->panel_type;
+	    break;
+	case 41:
+	    if (panel_type == -1)
+		break;
+	    lvds2 = (struct lvds_bdb_2 *)(pI830->VBIOS + start);
+	    lvds2fpparam = (struct lvds_bdb_2_fp_params *)(pI830->VBIOS +
+		bdb_off + lvds2->panels[panel_type].fp_params_offset);
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Found panel of size %dx%d in BIOS VBT tables\n",
+		       lvds2fpparam->x_res, lvds2fpparam->y_res);
+	    break;
+	}
     }
     return TRUE;
 }
