@@ -3905,6 +3905,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
    return TRUE;
 }
 
+#if 0
 static void I830SetCloneVBERefresh(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block, int refresh)
 {
    I830Ptr pI830 = I830PTR(pScrn);
@@ -3946,7 +3947,6 @@ static void I830SetCloneVBERefresh(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock
    }
 }
 
-#if 0
 static Bool
 I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block)
 {
@@ -4100,7 +4100,9 @@ static Bool
 I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+#if 0
    vbeInfoPtr pVbe = pI830->pVbe;
+#endif
    VbeModeInfoData *data = (VbeModeInfoData *) pMode->Private;
    int mode, i;
    CARD32 planeA, planeB, temp;
