@@ -434,6 +434,7 @@ typedef struct _I830Rec {
    int PanelXRes, PanelYRes;
 
    /* The BIOS's fixed timings for the LVDS */
+   int panel_fixed_clock;
    int panel_fixed_hactive;
    int panel_fixed_hblank;
    int panel_fixed_hsyncoff;

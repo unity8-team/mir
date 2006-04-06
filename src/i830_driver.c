@@ -2043,7 +2043,7 @@ i830SetModeToPanelParameters(ScrnInfoPtr pScrn, DisplayModePtr pMode)
    pMode->VTotal     = pI830->panel_fixed_vactive;
    pMode->VSyncStart = pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff;
    pMode->VSyncEnd   = pMode->VSyncStart + pI830->panel_fixed_vsyncwidth;
-   pMode->Clock      = 0; /* XXX */
+   pMode->Clock      = pI830->panel_fixed_clock;
 }
 
 /**

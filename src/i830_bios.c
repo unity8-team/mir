@@ -157,6 +157,7 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 	    /* Since lvds_bdb_2_fp_edid_dtd is just an EDID detailed timing
 	     * block, pull the contents out using EDID macros.
 	     */
+	    pI830->panel_fixed_clock = _PIXEL_CLOCK(timing_ptr) / 1000;
 	    pI830->panel_fixed_hactive = _H_ACTIVE(timing_ptr);
 	    pI830->panel_fixed_hblank = _H_BLANK(timing_ptr);
 	    pI830->panel_fixed_hsyncoff = _H_SYNC_OFF(timing_ptr);
