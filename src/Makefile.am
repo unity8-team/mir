@@ -46,6 +46,8 @@ i810_drv_la_SOURCES = \
          i830_accel.c \
          i830_common.h \
          i830_cursor.c \
+	 i830_debug.c \
+	 i830_debug.h \
          i830_dga.c \
 	 i830_display.c \
 	 i830_display.h \
