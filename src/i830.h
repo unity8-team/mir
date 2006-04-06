@@ -430,6 +430,9 @@ typedef struct _I830Rec {
    struct _I830OutputRec output[MAX_OUTPUTS];
    I830SDVOPtr sdvo;
 
+   /* Panel size pulled from the BIOS */
+   int PanelXRes, PanelYRes;
+
    /* The BIOS's fixed timings for the LVDS */
    int panel_fixed_hactive;
    int panel_fixed_hblank;

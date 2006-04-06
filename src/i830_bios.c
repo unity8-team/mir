@@ -102,6 +102,7 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
     struct bdb_header *bdb;
     int vbt_off, bdb_off, bdb_block_off, block_size;
     int panel_type = -1;
+    Bool found_panel_info = FALSE;
 
     if (!i830GetBIOS(pScrn))
 	return FALSE;
@@ -147,9 +148,11 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 	    timing_ptr = pI830->VBIOS + bdb_off +
 	        lvds2->panels[panel_type].fp_edid_dtd_offset;
 
+	    pI830->PanelXRes = fpparam->x_res;
+	    pI830->PanelYRes = fpparam->y_res;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Found panel of size %dx%d in BIOS VBT tables\n",
-		       fpparam->x_res, fpparam->y_res);
+		       pI830->PanelXRes, pI830->PanelYRes);
 
 	    /* Since lvds_bdb_2_fp_edid_dtd is just an EDID detailed timing
 	     * block, pull the contents out using EDID macros.
@@ -163,8 +166,11 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 	    pI830->panel_fixed_vblank = _V_BLANK(timing_ptr);
 	    pI830->panel_fixed_vsyncoff = _V_SYNC_OFF(timing_ptr);
 	    pI830->panel_fixed_vsyncwidth = _V_SYNC_WIDTH(timing_ptr);
+
+	    found_panel_info = TRUE;
 	    break;
 	}
     }
-    return TRUE;
+
+    return found_panel_info;
 }
