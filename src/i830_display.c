@@ -279,8 +279,20 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     dpll = DPLL_VCO_ENABLE | DPLL_VGA_MODE_DIS;
     dpll |= DPLLB_MODE_DAC_SERIAL; /* XXX: LVDS */
     dpll |= (1 << (p1 - 1)) << 16;
-    if (p2 == 5 || p2 == 7)
+    switch (p2) {
+    case 5:
 	dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
+	break;
+    case 7:
+	dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
+	break;
+    case 10:
+	dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
+	break;
+    case 14:
+	dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
+	break;
+    }
     dpll |= PLL_REF_INPUT_DREFCLK; /* XXX: TV/LVDS */
     dpll |= SDV0_DEFAULT_MULTIPLIER;
 
