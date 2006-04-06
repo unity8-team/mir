@@ -28,10 +28,12 @@
 #include "config.h"
 #endif
 
+#define _PARSE_EDID_
 #include "xf86.h"
 #include "xf86_ansic.h"
 #include "i830.h"
 #include "i830_bios.h"
+#include "edid.h"
 
 #define INTEL_BIOS_8(_addr)	(pI830->VBIOS[_addr])
 #define INTEL_BIOS_16(_addr)	(pI830->VBIOS[_addr] | \
@@ -121,7 +123,9 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 	int id;
 	struct lvds_bdb_1 *lvds1;
 	struct lvds_bdb_2 *lvds2;
-	struct lvds_bdb_2_fp_params *lvds2fpparam;
+	struct lvds_bdb_2_fp_params *fpparam;
+	struct lvds_bdb_2_fp_edid_dtd *fptiming;
+	CARD8 *timing_ptr;
 
 	id = INTEL_BIOS_8(start);
 	block_size = INTEL_BIOS_16(start + 1) + 3;
@@ -134,12 +138,31 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 	case 41:
 	    if (panel_type == -1)
 		break;
+
 	    lvds2 = (struct lvds_bdb_2 *)(pI830->VBIOS + start);
-	    lvds2fpparam = (struct lvds_bdb_2_fp_params *)(pI830->VBIOS +
+	    fpparam = (struct lvds_bdb_2_fp_params *)(pI830->VBIOS +
 		bdb_off + lvds2->panels[panel_type].fp_params_offset);
+	    fptiming = (struct lvds_bdb_2_fp_edid_dtd *)(pI830->VBIOS +
+		bdb_off + lvds2->panels[panel_type].fp_edid_dtd_offset);
+	    timing_ptr = pI830->VBIOS + bdb_off +
+	        lvds2->panels[panel_type].fp_edid_dtd_offset;
+
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Found panel of size %dx%d in BIOS VBT tables\n",
-		       lvds2fpparam->x_res, lvds2fpparam->y_res);
+		       fpparam->x_res, fpparam->y_res);
+
+	    /* Since lvds_bdb_2_fp_edid_dtd is just an EDID detailed timing
+	     * block, pull the contents out using EDID macros.
+	     */
+	    pI830->panel_fixed_hactive = _H_ACTIVE(timing_ptr);
+	    pI830->panel_fixed_hblank = _H_BLANK(timing_ptr);
+	    pI830->panel_fixed_hsyncoff = _H_SYNC_OFF(timing_ptr);
+	    pI830->panel_fixed_hsyncwidth = _H_SYNC_WIDTH(timing_ptr);
+
+	    pI830->panel_fixed_vactive = _V_ACTIVE(timing_ptr);
+	    pI830->panel_fixed_vblank = _V_BLANK(timing_ptr);
+	    pI830->panel_fixed_vsyncoff = _V_SYNC_OFF(timing_ptr);
+	    pI830->panel_fixed_vsyncwidth = _V_SYNC_WIDTH(timing_ptr);
 	    break;
 	}
     }

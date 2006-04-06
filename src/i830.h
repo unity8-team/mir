@@ -430,6 +430,16 @@ typedef struct _I830Rec {
    struct _I830OutputRec output[MAX_OUTPUTS];
    I830SDVOPtr sdvo;
 
+   /* The BIOS's fixed timings for the LVDS */
+   int panel_fixed_hactive;
+   int panel_fixed_hblank;
+   int panel_fixed_hsyncoff;
+   int panel_fixed_hsyncwidth;
+   int panel_fixed_vactive;
+   int panel_fixed_vblank;
+   int panel_fixed_vsyncoff;
+   int panel_fixed_vsyncwidth;
+
    unsigned char *VBIOS;
 
    CARD32 saveDSPACNTR;

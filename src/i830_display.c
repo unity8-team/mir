@@ -340,13 +340,37 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     vsync = (pMode->CrtcVSyncStart - 1) | ((pMode->CrtcVSyncEnd - 1) << 16);
     pipesrc = ((pMode->HDisplay - 1) << 16) | (pMode->VDisplay - 1);
     dspsize = ((pMode->VDisplay - 1) << 16) | (pMode->HDisplay - 1);
-    if (outputs & PIPE_LCD_ACTIVE) {
+    if (outputs & PIPE_LCD_ACTIVE && i830GetLVDSInfoFromBIOS(pScrn) &&
+	pI830->panel_fixed_hactive != 0)
+    {
 	/* To enable panel fitting, we need to set the pipe timings to that of
-	 * the screen at its full resolution.  So, pull the timings out of the
-	 * BIOS tables and drop them in here.
+	 * the screen at its full resolution.  So, drop the timings from the
+	 * BIOS VBT tables here.
 	 */
-	i830GetLVDSInfoFromBIOS(pScrn);
+	htot = (pI830->panel_fixed_hactive - 1) |
+		((pI830->panel_fixed_hactive + pI830->panel_fixed_hblank - 1)
+		 << 16);
+	hblank = (pI830->panel_fixed_hactive - 1) |
+		((pI830->panel_fixed_hactive + pI830->panel_fixed_hblank - 1)
+		 << 16);
+	hsync = (pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff - 1) |
+		((pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff +
+		  pI830->panel_fixed_hsyncwidth - 1) << 16);
+
+	vtot = (pI830->panel_fixed_vactive - 1) |
+		((pI830->panel_fixed_vactive + pI830->panel_fixed_vblank - 1)
+		 << 16);
+	vblank = (pI830->panel_fixed_vactive - 1) |
+		((pI830->panel_fixed_vactive + pI830->panel_fixed_vblank - 1)
+		 << 16);
+	vsync = (pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff - 1) |
+		((pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff +
+		  pI830->panel_fixed_vsyncwidth - 1) << 16);
     }
+#if 0
+    ErrorF("htot: 0x%08x, hblank: 0x%08x, hsync: 0x%08x\n", htot, hblank, hsync);
+    ErrorF("vtot: 0x%08x, vblank: 0x%08x, vsync: 0x%08x\n", vtot, vblank, vsync);
+#endif
 
     adpa = INREG(ADPA);
     adpa &= ~(ADPA_HSYNC_ACTIVE_HIGH | ADPA_VSYNC_ACTIVE_HIGH);
@@ -475,9 +499,9 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	     * screen.
 	     */
 	    /* XXX: Allow (auto-?) enabling of 8-to-6 dithering */
-	    OUTREG(PFIT_CONTROL, PFIT_ENABLE /*|
+	    OUTREG(PFIT_CONTROL, PFIT_ENABLE |
 		   VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
-		   VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR*/);
+		   VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR);
 	}
 
 	/* Then, turn the pipe on first */
