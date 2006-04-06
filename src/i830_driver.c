@@ -270,7 +270,7 @@ static OptionInfoRec I830BIOSOptions[] = {
 
 static void I830DisplayPowerManagementSet(ScrnInfoPtr pScrn,
 					  int PowerManagementMode, int flags);
-static void I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags);
+static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
 static Bool I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool I830BIOSSaveScreen(ScreenPtr pScreen, int unblack);
 static Bool I830BIOSEnterVT(int scrnIndex, int flags);
@@ -4850,18 +4850,14 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 }
 
 static void
-I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
+i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 {
-   ScrnInfoPtr pScrn;
+   ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830;
-   vbeInfoPtr pVbe;
-   unsigned long Start;
 
-   pScrn = xf86Screens[scrnIndex];
    pI830 = I830PTR(pScrn);
-   pVbe = pI830->pVbe;
 
-   DPRINTF(PFX, "I830BIOSAdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
+   DPRINTF(PFX, "i830AdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
 	   x, pI830->xoffset, y, pI830->yoffset);
 
    /* Sync the engine before adjust frame */
@@ -4870,31 +4866,9 @@ I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
       pI830->AccelInfoRec->NeedToSync = FALSE;
    }
 
-   if (I830IsPrimary(pScrn))
-      Start = pI830->FrontBuffer.Start;
-   else {
-      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-      Start = pI8301->FrontBuffer2.Start;
-   }
-
-   /* Sigh...
-    * It seems that there are quite a few Video BIOS' that get this wrong.
-    * So, we'll bypass the VBE call and hit the hardware directly.
-    */
-
-   if (pI830->Clone) {
-      if (!pI830->pipe == 0) {
-         OUTREG(DSPABASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
-      } else {
-         OUTREG(DSPBBASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
-      }
-   }
-
-   if (pI830->pipe == 0) {
-      OUTREG(DSPABASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
-   } else {
-      OUTREG(DSPBBASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
-   }
+   i830PipeSetBase(pScrn, pI830->pipe, x, y);
+   if (pI830->Clone)
+      i830PipeSetBase(pScrn, !pI830->pipe, x, y);
 }
 
 static void
@@ -5878,7 +5852,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
             xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			                       "Fixing display offsets.\n");
 
-            I830BIOSAdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
+            i830AdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
          }
       }
 
@@ -5903,7 +5877,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
 
          pI830->currentMode = NULL;
          I830BIOSSwitchMode(pScrn->pScreen->myNum, pScrn->currentMode, 0);
-         I830BIOSAdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
+         i830AdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
 
          if (xf86IsEntityShared(pScrn->entityList[0])) {
 	    ScrnInfoPtr pScrn2;
@@ -5922,7 +5896,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
 
             pI8302->currentMode = NULL;
             I830BIOSSwitchMode(pScrn2->pScreen->myNum, pScrn2->currentMode, 0);
-            I830BIOSAdjustFrame(pScrn2->pScreen->myNum, pScrn2->frameX0, pScrn2->frameY0, 0);
+            i830AdjustFrame(pScrn2->pScreen->myNum, pScrn2->frameX0, pScrn2->frameY0, 0);
 
  	    (*pScrn2->EnableDisableFBAccess) (pScrn2->pScreen->myNum, FALSE);
  	    (*pScrn2->EnableDisableFBAccess) (pScrn2->pScreen->myNum, TRUE);
@@ -5971,7 +5945,7 @@ I830InitpScrn(ScrnInfoPtr pScrn)
    pScrn->PreInit = I830BIOSPreInit;
    pScrn->ScreenInit = I830BIOSScreenInit;
    pScrn->SwitchMode = I830BIOSSwitchMode;
-   pScrn->AdjustFrame = I830BIOSAdjustFrame;
+   pScrn->AdjustFrame = i830AdjustFrame;
    pScrn->EnterVT = I830BIOSEnterVT;
    pScrn->LeaveVT = I830BIOSLeaveVT;
    pScrn->FreeScreen = I830BIOSFreeScreen;

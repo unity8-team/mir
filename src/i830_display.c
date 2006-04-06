@@ -231,6 +231,25 @@ i830WaitForVblank(ScrnInfoPtr pScreen)
     usleep(20000);
 }
 
+void
+i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    unsigned long Start;
+
+    if (I830IsPrimary(pScrn))
+	Start = pI830->FrontBuffer.Start;
+    else {
+	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
+	Start = pI8301->FrontBuffer2.Start;
+    }
+
+    if (pipe == 0)
+	OUTREG(DSPABASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+    else
+	OUTREG(DSPBBASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+}
+
 /**
  * Sets the given video mode on the given pipe.  Assumes that plane A feeds
  * pipe A, and plane B feeds pipe B.  Should not affect the other planes/pipes.
@@ -383,8 +402,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	OUTREG(DSPASTRIDE, pScrn->displayWidth * pI830->cpp);
 	OUTREG(DSPASIZE, dspsize);
 	OUTREG(DSPAPOS, 0);
-	/* XXX: Deal with adjustframe down here */
-	OUTREG(DSPABASE, 0); /* triggers update of display registers */
+	i830PipeSetBase(pScrn, pipe, pScrn->frameX0, pScrn->frameY0);
 	OUTREG(PIPEASRC, pipesrc);
 
 	/* Then, turn the pipe on first */
@@ -416,8 +434,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	OUTREG(DSPBSTRIDE, pScrn->displayWidth * pI830->cpp);
 	OUTREG(DSPBSIZE, dspsize);
 	OUTREG(DSPBPOS, 0);
-	/* XXX: Deal with adjustframe down here */
-	OUTREG(DSPBBASE, 0); /* triggers update of display registers */
+	i830PipeSetBase(pScrn, pipe, pScrn->frameX0, pScrn->frameY0);
 	OUTREG(PIPEBSRC, pipesrc);
 
 	/* Then, turn the pipe on first */
