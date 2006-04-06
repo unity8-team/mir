@@ -101,7 +101,9 @@ static void I830DRITransitionTo3d(ScreenPtr pScreen);
 static void I830DRITransitionMultiToSingle3d(ScreenPtr pScreen);
 static void I830DRITransitionSingleToMulti3d(ScreenPtr pScreen);
 
+#if 0
 static void I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf);
+#endif
 
 extern void GlxSetVisualConfigs(int nconfigs,
 				__GLXvisualConfig * configs,

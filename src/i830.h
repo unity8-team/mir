@@ -502,6 +502,12 @@ extern int I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh);
 extern Bool I830CheckModeSupport(ScrnInfoPtr pScrn, int x, int y, int mode);
 extern Bool I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode);
 extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
+extern Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
+extern Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
+extern Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation,
+			       int rate, RRScreenSizePtr pSize);
+extern Rotation I830GetRotation(ScreenPtr pScreen);
+extern Bool I830RandRInit(ScreenPtr pScreen, int rotation);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for
