@@ -19,8 +19,8 @@ i830PrintPll(char *prefix, int refclk, int m1, int m2, int n, int p1, int p2)
 }
 
 static Bool
-i830PllIsValid(ScrnInfoPtr pScrn, int refclk, int m1, int m2, int n, int p1,
-	       int p2)
+i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
+	       int n, int p1, int p2)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int p, m, vco, dotclock;
@@ -38,7 +38,7 @@ i830PllIsValid(ScrnInfoPtr pScrn, int refclk, int m1, int m2, int n, int p1,
 	max_m = 120;
 	min_n = 3;
 	max_n = 8;
-	if (0) { /* lvds */
+	if (outputs & PIPE_LCD_ACTIVE) {
 	    min_p = 7;
 	    max_p = 98;
 	}
@@ -51,7 +51,7 @@ i830PllIsValid(ScrnInfoPtr pScrn, int refclk, int m1, int m2, int n, int p1,
 	max_m = 130;
 	min_n = 4;
 	max_n = 8;
-	if (0) { /* lvds */
+	if (outputs & PIPE_LCD_ACTIVE) {
 	    min_n = 3;
 	    min_m = 88;
 	}
@@ -163,8 +163,8 @@ i830ReadAndReportPLL(ScrnInfoPtr pScrn)
 #endif
 
 static Bool
-i830FindBestPLL(ScrnInfoPtr pScrn, int target, int refclk, int *outm1,
-		int *outm2, int *outn, int *outp1, int *outp2)
+i830FindBestPLL(ScrnInfoPtr pScrn, int outputs, int target, int refclk,
+		int *outm1, int *outm2, int *outn, int *outp1, int *outp2)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int m1, m2, n, p1, p2;
@@ -183,18 +183,28 @@ i830FindBestPLL(ScrnInfoPtr pScrn, int target, int refclk, int *outm1,
 	max_m2 = 11;
     }
 
-    if (target < 200000)	/* XXX: LVDS */
-	p2 = 10;
-    else
-	p2 = 5;
+    if (outputs & PIPE_LCD_ACTIVE) {
+	if (target < 200000) /* XXX: Is this the right cutoff? */
+	    p2 = 14;
+	else
+	    p2 = 7;
+    } else {
+	if (target < 200000)
+	    p2 = 10;
+	else
+	    p2 = 5;
+    }
+
     for (m1 = min_m1; m1 <= max_m1; m1++) {
 	for (m2 = min_m2; m2 < max_m2; m2++) {
 	    for (n = 1; n <= 6; n++) {
 		for (p1 = 1; p1 <= 8; p1++) {
 		    int clock, this_err;
 
-		    if (!i830PllIsValid(pScrn, refclk, m1, m2, n, p1, p2))
+		    if (!i830PllIsValid(pScrn, outputs, refclk, m1, m2, n,
+					p1, p2)) {
 			continue;
+		    }
 
 		    clock = i830_clock(refclk, m1, m2, n, p1, p2);
 		    this_err = abs(clock - target);
@@ -235,10 +245,29 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     CARD32 pipesrc, dspsize, adpa;
     Bool ok;
     int refclk = 96000;
+    int outputs;
 
     ErrorF("Requested pix clock: %d\n", pMode->Clock);
 
-    ok = i830FindBestPLL(pScrn, pMode->Clock, refclk, &m1, &m2, &n, &p1, &p2);
+    if (pipe == 0)
+	outputs = pI830->operatingDevices & 0xff;
+    else
+	outputs = (pI830->operatingDevices >> 8) & 0xff;
+
+    if ((outputs & PIPE_LCD_ACTIVE) && (outputs & ~PIPE_LCD_ACTIVE)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Can't enable LVDS and non-LVDS on the same pipe\n");
+	return FALSE;
+    }
+    if (((outputs & PIPE_TV_ACTIVE) && (outputs & ~PIPE_TV_ACTIVE)) ||
+	((outputs & PIPE_TV2_ACTIVE) && (outputs & ~PIPE_TV2_ACTIVE))) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Can't enable a TV and any other output on the same pipe\n");
+	return FALSE;
+    }
+
+    ok = i830FindBestPLL(pScrn, outputs, pMode->Clock, refclk, &m1, &m2, &n,
+			 &p1, &p2);
     if (!ok) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Couldn't find PLL settings for mode!\n");
@@ -246,7 +275,11 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     }
 
     dpll = DPLL_VCO_ENABLE | DPLL_VGA_MODE_DIS;
-    dpll |= DPLLB_MODE_DAC_SERIAL; /* XXX: LVDS */
+    if (outputs & PIPE_LCD_ACTIVE)
+	dpll |= DPLLB_MODE_LVDS;
+    else
+	dpll |= DPLLB_MODE_DAC_SERIAL;
+
     dpll |= (1 << (p1 - 1)) << 16;
     switch (p2) {
     case 5:
@@ -262,7 +295,10 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
 	break;
     }
-    dpll |= PLL_REF_INPUT_DREFCLK; /* XXX: TV/LVDS */
+    if (outputs & (PIPE_TV_ACTIVE | PIPE_TV2_ACTIVE))
+	dpll |= PLL_REF_INPUT_TVCLKIN;
+    else
+	dpll |= PLL_REF_INPUT_DREFCLK;
     dpll |= SDV0_DEFAULT_MULTIPLIER;
 
     fp = (n << 16) | (m1 << 8) | m2;
@@ -287,7 +323,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
     i830PrintPll("chosen", refclk, m1, m2, n, p1, p2);
     ErrorF("clock settings for chosen look %s\n",
-	   i830PllIsValid(pScrn, refclk, m1, m2, n, p1, p2) ? "good" : "bad");
+	   i830PllIsValid(pScrn, outputs, refclk, m1, m2, n, p1, p2) ?
+			  "good" : "bad");
     ErrorF("clock regs: 0x%08x, 0x%08x\n", dpll, fp);
 
     dspcntr = DISPLAY_PLANE_ENABLE;
@@ -307,10 +344,20 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     default:
 	FatalError("unknown display bpp\n");
     }
-    if (pipe == 0)
+
+    adpa = ADPA_DAC_ENABLE;
+    if (pMode->Flags & V_PHSYNC)
+	adpa |= ADPA_HSYNC_ACTIVE_HIGH;
+    if (pMode->Flags & V_PVSYNC)
+	adpa |= ADPA_VSYNC_ACTIVE_HIGH;
+    
+    if (pipe == 0) {
 	dspcntr |= DISPPLANE_SEL_PIPE_A;
-    else
+	adpa |= ADPA_PIPE_A_SELECT;
+    } else {
 	dspcntr |= DISPPLANE_SEL_PIPE_B;
+	adpa |= ADPA_PIPE_B_SELECT;
+    }
 
     /* Set up display timings and PLLs for the pipe. */
     if (pipe == 0) {
@@ -380,6 +427,9 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	/* And then turn the plane on */
 	OUTREG(DSPBCNTR, dspcntr);
     }
+
+    if (outputs & PIPE_CRT_ACTIVE)
+	OUTREG(ADPA, adpa);
 
     return TRUE;
 }
