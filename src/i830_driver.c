@@ -544,41 +544,6 @@ GetAttachableDisplayDeviceList(ScrnInfoPtr pScrn)
    return pVbe->pInt10->cx & 0xffff;
 }
 
-static int
-BitToRefresh(int bits)
-{
-   int i;
-
-   for (i = 0; i < nrefreshes; i++)
-      if (bits & (1 << i))
-	 return i830refreshes[i];
-   return 0;
-}
-
-static int
-GetRefreshRate(ScrnInfoPtr pScrn, int mode, int *availRefresh)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-
-   DPRINTF(PFX, "GetRefreshRate\n");
-
-   /* Only 8-bit mode numbers are supported. */
-   if (mode & 0x100)
-      return 0;
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f05;
-   pVbe->pInt10->bx = (mode & 0xff) | 0x100;
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f05, pVbe->pInt10->ax)) {
-      if (availRefresh)
-         *availRefresh = pVbe->pInt10->bx;
-      return BitToRefresh(pVbe->pInt10->cx);
-   } else
-      return 0;
-}
-
 struct panelid {
 	short hsize;
 	short vsize;
@@ -591,28 +556,6 @@ struct panelid {
 	int rsvdoffscrnmemptr;
 	char reserved[14];
 };
-
-int 
-I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh)
-{
-   int i;
-
-   for (i = nrefreshes - 1; i >= 0; i--) {
-      /*
-       * Look for the highest value that the requested (refresh + 2) is
-       * greater than or equal to.
-       */
-      if (i830refreshes[i] <= (refresh + 2))
-	 break;
-   }
-   /* i can be 0 if the requested refresh was higher than the max. */
-   if (i == 0) {
-      if (refresh >= i830refreshes[nrefreshes - 1])
-         i = nrefreshes - 1;
-   }
-
-   return i;
-}
 
 static Bool
 SetBIOSPipe(ScrnInfoPtr pScrn, int pipe)
@@ -1538,8 +1481,6 @@ PreInitCleanup(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    if (I830IsPrimary(pScrn)) {
-      SetPipeAccess(pScrn);
-
       pI830->entityPrivate->pScrn_1 = NULL;
       if (pI830->LpRing)
          xfree(pI830->LpRing);
@@ -2740,8 +2681,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
 	      "Maximum frambuffer space: %d kByte\n", pScrn->videoRam);
 
-   SetPipeAccess(pScrn);
-
    /* XXX Move this to a header. */
 #define VIDEO_BIOS_SCRATCH 0x18
 
@@ -2963,7 +2902,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    pI830->displayWidth = pScrn->displayWidth;
 
-   SetPipeAccess(pScrn);
    I830PrintModes(pScrn);
 
    /* PreInit shouldn't leave any state changes, so restore this. */
@@ -3280,63 +3218,6 @@ SaveHWState(ScrnInfoPtr pScrn)
    vgaHWUnlock(hwp);
    vgaHWSave(pScrn, vgaReg, VGA_SR_ALL);
 
-   if (I830IsPrimary(pScrn) && pI830->pipe != pI830->origPipe)
-      SetBIOSPipe(pScrn, pI830->origPipe);
-   else
-      SetPipeAccess(pScrn);
-
-   pVesa = pI830->vesa;
-
-   /* Make sure we save at least this information in case of failure. */
-   VBEGetVBEMode(pVbe, &pVesa->stateMode);
-   pVesa->stateRefresh = GetRefreshRate(pScrn, pVesa->stateMode, NULL);
-   modeInfo = VBEGetModeInfo(pVbe, pVesa->stateMode);
-   pVesa->savedScanlinePitch = 0;
-   if (modeInfo) {
-      if (VBE_MODE_GRAPHICS(modeInfo)) {
-         VBEGetLogicalScanline(pVbe, &pVesa->savedScanlinePitch, NULL, NULL);
-      }
-      VBEFreeModeInfo(modeInfo);
-   }
-
-   pVesa = pI830->vesa;
-   /*
-    * This save/restore method doesn't work for 845G BIOS, or for some
-    * other platforms.  Enable it in all cases.
-    */
-   /*
-    * KW: This may have been because of the behaviour I've found on my
-    * board: The 'save' command actually modifies the interrupt
-    * registers, turning off the irq & breaking the kernel module
-    * behaviour.
-    */
-   if (!pI830->vbeRestoreWorkaround) {
-      CARD16 imr = INREG16(IMR);
-      CARD16 ier = INREG16(IER);
-      CARD16 hwstam = INREG16(HWSTAM);
-
-      if (!VBESaveRestore(pVbe, MODE_SAVE, &pVesa->state, &pVesa->stateSize,
-			  &pVesa->statePage)) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "SaveHWState: VBESaveRestore(MODE_SAVE) failed.\n");
-	 return FALSE;
-      }
-
-      OUTREG16(IMR, imr);
-      OUTREG16(IER, ier);
-      OUTREG16(HWSTAM, hwstam);
-   }
-
-   pVesa->savedPal = VBESetGetPaletteData(pVbe, FALSE, 0, 256,
-					     NULL, FALSE, FALSE);
-   if (!pVesa->savedPal) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "SaveHWState: VBESetGetPaletteData(GET) failed.\n");
-      return FALSE;
-   }
-
-   VBEGetDisplayStart(pVbe, &pVesa->x, &pVesa->y);
-
    return TRUE;
 }
 
@@ -3344,63 +3225,11 @@ static Bool
 RestoreHWState(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   vbeInfoPtr pVbe = pI830->pVbe;
    vgaHWPtr hwp = VGAHWPTR(pScrn);
    vgaRegPtr vgaReg = &hwp->SavedReg;
-   VESAPtr pVesa;
-   Bool restored = FALSE;
    CARD32 temp;
 
    DPRINTF(PFX, "RestoreHWState\n");
-
-   if (I830IsPrimary(pScrn) && pI830->pipe != pI830->origPipe)
-      SetBIOSPipe(pScrn, pI830->origPipe);
-   else
-      SetPipeAccess(pScrn);
-
-   pVesa = pI830->vesa;
-
-   if (pVesa->state && pVesa->stateSize) {
-      CARD16 imr = INREG16(IMR);
-      CARD16 ier = INREG16(IER);
-      CARD16 hwstam = INREG16(HWSTAM);
-
-      /* Make a copy of the state.  Don't rely on it not being touched. */
-      if (!pVesa->pstate) {
-	 pVesa->pstate = xalloc(pVesa->stateSize);
-	 if (pVesa->pstate)
-	    memcpy(pVesa->pstate, pVesa->state, pVesa->stateSize);
-      }
-      restored = VBESaveRestore(pVbe, MODE_RESTORE, &pVesa->state,
-				   &pVesa->stateSize, &pVesa->statePage);
-      if (!restored) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		    "RestoreHWState: VBESaveRestore failed.\n");
-      }
-      /* Copy back */
-      if (pVesa->pstate)
-	 memcpy(pVesa->state, pVesa->pstate, pVesa->stateSize);
-
-      OUTREG16(IMR, imr);
-      OUTREG16(IER, ier);
-      OUTREG16(HWSTAM, hwstam);
-   }
-   /* If that failed, restore the original mode. */
-   if (!restored) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Setting the original video mode instead of restoring\n\t"
-		 "the saved state\n");
-#if 0
-      I830VESASetVBEMode(pScrn, pVesa->stateMode, NULL);
-#endif
-   }
-   if (pVesa->savedScanlinePitch)
-       VBESetLogicalScanline(pVbe, pVesa->savedScanlinePitch);
-
-   if (pVesa->savedPal)
-      VBESetGetPaletteData(pVbe, TRUE, 0, 256, pVesa->savedPal, FALSE, TRUE);
-
-   VBESetDisplayStart(pVbe, pVesa->x, pVesa->y, TRUE);
 
    vgaHWRestore(pScrn, vgaReg, VGA_SR_ALL);
    vgaHWLock(hwp);
