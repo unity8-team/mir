@@ -1061,40 +1061,30 @@ SetDisplayDevices(ScrnInfoPtr pScrn, int devices)
    /* Disable LVDS */
    if (singlepipe & PIPE_LFP)  {
       /* LFP on PipeA is unlikely! */
-      OUTREG(PP_STATUS, INREG(PP_STATUS) & ~PP_ON);
-      OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
-      while ((INREG(PP_STATUS) & PP_ON) || (INREG(PP_CONTROL) & 1));
-      /* Fix up LVDS */
-      OUTREG(LVDS, (INREG(LVDS) & ~1<<30) | 0x80000300);
-      /* Enable LVDS */
-      OUTREG(PP_STATUS, INREG(PP_STATUS) | PP_ON);
-      OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
-      while (!(INREG(PP_STATUS) & PP_ON) && !(INREG(PP_CONTROL) & 1));
+      i830SetLVDSPanelPower(pScrn, FALSE);
+      temp = INREG(LVDS) & ~LVDS_PIPEB_SELECT;
+      temp |= LVDS_PORT_EN | LVDS_CLKA_POWER_UP;
+      OUTREG(LVDS, temp);
+      i830SetLVDSPanelPower(pScrn, TRUE);
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 	 	"Enabling LVDS directly. Pipe A.\n");
    } else
    if (singlepipe & (PIPE_LFP << 8))  {
-      OUTREG(PP_STATUS, INREG(PP_STATUS) & ~PP_ON);
-      OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
-      while ((INREG(PP_STATUS) & PP_ON) || (INREG(PP_CONTROL) & 1));
-      /* Fix up LVDS */
-      OUTREG(LVDS, (INREG(LVDS) | 1<<30) | 0x80000300);
-      /* Enable LVDS */
-      OUTREG(PP_STATUS, INREG(PP_STATUS) | PP_ON);
-      OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
-      while (!(INREG(PP_STATUS) & PP_ON) &&
-	     !(INREG(PP_CONTROL) & POWER_TARGET_ON));
+      i830SetLVDSPanelPower(pScrn, FALSE);
+      temp = INREG(LVDS) | LVDS_PIPEB_SELECT;
+      temp |= LVDS_PORT_EN | LVDS_CLKA_POWER_UP;
+      OUTREG(LVDS, temp);
+      i830SetLVDSPanelPower(pScrn, TRUE);
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 	 	"Enabling LVDS directly. Pipe B.\n");
    }
    else if (!(IS_I830(pI830) || IS_845G(pI830) || IS_I865G(pI830))) {
       if (!(devices & (PIPE_LFP | PIPE_LFP<<8))) {
-         OUTREG(PP_STATUS, INREG(PP_STATUS) & ~PP_ON);
-         OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
-         while ((INREG(PP_STATUS) & PP_ON) ||
-		(INREG(PP_CONTROL) & POWER_TARGET_ON));
+	 i830SetLVDSPanelPower(pScrn, FALSE);
          /* Fix up LVDS */
-         OUTREG(LVDS, (INREG(LVDS) | 1<<30) & ~0x80000300);
+	 temp = INREG(LVDS) | LVDS_PIPEB_SELECT;
+	 temp &= ~(LVDS_PORT_EN | LVDS_CLKA_POWER_UP);
+	 OUTREG(LVDS, temp);
          xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 	 	"Disabling LVDS directly.\n");
       }

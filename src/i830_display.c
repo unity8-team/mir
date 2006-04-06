@@ -338,3 +338,29 @@ i830DetectCRT(ScrnInfoPtr pScrn)
 
     return ((INREG(PORT_HOTPLUG_STAT) & CRT_HOTPLUG_INT_STATUS));
 }
+
+/**
+ * Sets the power state for the panel.
+ */
+void
+i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 pp_status, pp_control;
+
+    if (on) {
+	OUTREG(PP_STATUS, INREG(PP_STATUS) | PP_ON);
+	OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
+	do {
+	    pp_status = INREG(PP_STATUS);
+	    pp_control = INREG(PP_CONTROL);
+	} while (!(pp_status & PP_ON) && !(pp_control & POWER_TARGET_ON));
+    } else {
+	OUTREG(PP_STATUS, INREG(PP_STATUS) & ~PP_ON);
+	OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
+	do {
+	    pp_status = INREG(PP_STATUS);
+	    pp_control = INREG(PP_CONTROL);
+	} while ((pp_status & PP_ON) || (pp_control & POWER_TARGET_ON));
+    }
+}
