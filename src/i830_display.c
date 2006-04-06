@@ -166,97 +166,6 @@ i830FindBestPLL(int target, int refclk, int *outm1, int *outm2, int *outn,
     return (err != target);
 }
 
-/*
- * xf86SetModeCrtc
- *
- * Copied from xf86Mode.c because it's static there, and i830 likes to hand us
- * these hand-rolled modes.
- *
- * Initialises the Crtc parameters for a mode.  The initialisation includes
- * adjustments for interlaced and double scan modes.
- */
-static void
-xf86SetModeCrtc(DisplayModePtr p, int adjustFlags)
-{
-    if ((p == NULL) /* XXX: || ((p->type & M_T_CRTC_C) == M_T_BUILTIN)*/)
-	return;
-
-    p->CrtcHDisplay             = p->HDisplay;
-    p->CrtcHSyncStart           = p->HSyncStart;
-    p->CrtcHSyncEnd             = p->HSyncEnd;
-    p->CrtcHTotal               = p->HTotal;
-    p->CrtcHSkew                = p->HSkew;
-    p->CrtcVDisplay             = p->VDisplay;
-    p->CrtcVSyncStart           = p->VSyncStart;
-    p->CrtcVSyncEnd             = p->VSyncEnd;
-    p->CrtcVTotal               = p->VTotal;
-    if (p->Flags & V_INTERLACE) {
-	if (adjustFlags & INTERLACE_HALVE_V) {
-	    p->CrtcVDisplay         /= 2;
-	    p->CrtcVSyncStart       /= 2;
-	    p->CrtcVSyncEnd         /= 2;
-	    p->CrtcVTotal           /= 2;
-	}
-	/* Force interlaced modes to have an odd VTotal */
-	/* maybe we should only do this when INTERLACE_HALVE_V is set? */
-	p->CrtcVTotal |= 1;
-    }
-
-    if (p->Flags & V_DBLSCAN) {
-        p->CrtcVDisplay         *= 2;
-        p->CrtcVSyncStart       *= 2;
-        p->CrtcVSyncEnd         *= 2;
-        p->CrtcVTotal           *= 2;
-    }
-    if (p->VScan > 1) {
-        p->CrtcVDisplay         *= p->VScan;
-        p->CrtcVSyncStart       *= p->VScan;
-        p->CrtcVSyncEnd         *= p->VScan;
-        p->CrtcVTotal           *= p->VScan;
-    }
-    p->CrtcHAdjusted = FALSE;
-    p->CrtcVAdjusted = FALSE;
-
-    /*
-     * XXX
-     *
-     * The following is taken from VGA, but applies to other cores as well.
-     */
-    p->CrtcVBlankStart = min(p->CrtcVSyncStart, p->CrtcVDisplay);
-    p->CrtcVBlankEnd = max(p->CrtcVSyncEnd, p->CrtcVTotal);
-    if ((p->CrtcVBlankEnd - p->CrtcVBlankStart) >= 127) {
-        /* 
-         * V Blanking size must be < 127.
-         * Moving blank start forward is safer than moving blank end
-         * back, since monitors clamp just AFTER the sync pulse (or in
-         * the sync pulse), but never before.
-         */
-        p->CrtcVBlankStart = p->CrtcVBlankEnd - 127;
-	/*
-	 * If VBlankStart is now > VSyncStart move VBlankStart
-	 * to VSyncStart using the maximum width that fits into
-	 * VTotal.
-	 */
-	if (p->CrtcVBlankStart > p->CrtcVSyncStart) {
-	    p->CrtcVBlankStart = p->CrtcVSyncStart;
-	    p->CrtcVBlankEnd = min(p->CrtcHBlankStart + 127, p->CrtcVTotal);
-	}
-    }
-    p->CrtcHBlankStart = min(p->CrtcHSyncStart, p->CrtcHDisplay);
-    p->CrtcHBlankEnd = max(p->CrtcHSyncEnd, p->CrtcHTotal);
-
-    if ((p->CrtcHBlankEnd - p->CrtcHBlankStart) >= 63 * 8) {
-        /*
-         * H Blanking size must be < 63*8. Same remark as above.
-         */
-        p->CrtcHBlankStart = p->CrtcHBlankEnd - 63 * 8;
-	if (p->CrtcHBlankStart > p->CrtcHSyncStart) {
-	    p->CrtcHBlankStart = p->CrtcHSyncStart;
-	    p->CrtcHBlankEnd = min(p->CrtcHBlankStart + 63 * 8, p->CrtcHTotal);
-	}
-    }
-}
-
 void
 i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 {
@@ -267,8 +176,6 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     CARD32 pipesrc, dspsize;
     Bool ok;
     int refclk = 96000;
-
-    xf86SetModeCrtc(pMode, 0);
 
     ErrorF("Requested pix clock: %d\n", pMode->Clock);
 
