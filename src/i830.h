@@ -444,6 +444,8 @@ typedef struct _I830Rec {
    int panel_fixed_vsyncoff;
    int panel_fixed_vsyncwidth;
 
+   Bool panel_wants_dither;
+
    unsigned char *VBIOS;
 
    CARD32 saveDSPACNTR;

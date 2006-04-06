@@ -407,9 +407,9 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	break;
     case 16:
 	if (pScrn->depth == 15)
-	    dspcntr |= DISPPLANE_16BPP;
-	else
 	    dspcntr |= DISPPLANE_15_16BPP;
+	else
+	    dspcntr |= DISPPLANE_16BPP;
 	break;
     case 32:
 	dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
@@ -508,13 +508,18 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	OUTREG(PIPEBSRC, pipesrc);
 
 	if (outputs & PIPE_LCD_ACTIVE) {
+	    CARD32  pfit_control;
+	    
 	    /* Enable automatic panel scaling so that non-native modes fill the
 	     * screen.
 	     */
 	    /* XXX: Allow (auto-?) enabling of 8-to-6 dithering */
-	    OUTREG(PFIT_CONTROL, PFIT_ENABLE |
-		   VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
-		   VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR);
+	    pfit_control = (PFIT_ENABLE |
+			    VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
+			    VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR);
+	    if (pI830->panel_wants_dither)
+		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+	    OUTREG(PFIT_CONTROL, pfit_control);
 	}
 
 	/* Then, turn the pipe on first */

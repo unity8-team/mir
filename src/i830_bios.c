@@ -135,6 +135,8 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 	case 40:
 	    lvds1 = (struct lvds_bdb_1 *)(pI830->VBIOS + start);
 	    panel_type = lvds1->panel_type;
+	    if (lvds1->caps & LVDS_CAP_DITHER)
+		pI830->panel_wants_dither = TRUE;
 	    break;
 	case 41:
 	    if (panel_type == -1)
