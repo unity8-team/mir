@@ -697,6 +697,7 @@ I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh)
    return i;
 }
 
+#if 0
 static int
 SetRefreshRate(ScrnInfoPtr pScrn, int mode, int refresh)
 {
@@ -724,7 +725,6 @@ SetRefreshRate(ScrnInfoPtr pScrn, int mode, int refresh)
       return 0;
 }
 
-#if 0
 static Bool
 SetPowerStatus(ScrnInfoPtr pScrn, int mode)
 {
@@ -2075,6 +2075,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    int DDCclock = 0;
    char *s;
    DisplayModePtr p, pMon;
+   ClockRangePtr clockRanges;
    pointer pDDCModule = NULL, pVBEModule = NULL;
    Bool enable;
    const char *chipname;
@@ -3225,6 +3226,20 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    SetPipeAccess(pScrn);
    VBESetModeNames(pScrn->modePool);
 
+#if 0
+   /*
+     * Setup the ClockRanges, which describe what clock ranges are available,
+     * and what sort of modes they can be used for.
+     */
+    clockRanges = xnfcalloc(sizeof(ClockRange), 1);
+    clockRanges->next = NULL;
+    clockRanges->minClock = 12000;	/* XXX: Random number */
+    clockRanges->maxClock = 400000;	/* XXX: May be lower */
+    clockRanges->clockIndex = -1;		/* programmable */
+    clockRanges->interlaceAllowed = TRUE;	/* XXX check this */
+    clockRanges->doubleScanAllowed = FALSE;	/* XXX check this */
+#endif
+
    /*
     * XXX DDC information: There's code in xf86ValidateModes
     * (VBEValidateModes) to set monitor defaults based on DDC information
@@ -3235,12 +3250,23 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    /* XXX Need to get relevant modes and virtual parameters. */
    /* Do the mode validation without regard to special scanline pitches. */
    SetPipeAccess(pScrn);
+#if 1
    n = VBEValidateModes(pScrn, NULL, pScrn->display->modes, NULL,
 			NULL, 0, MAX_DISPLAY_PITCH, 1,
 			0, MAX_DISPLAY_HEIGHT,
 			pScrn->display->virtualX,
 			pScrn->display->virtualY,
 			memsize, LOOKUP_BEST_REFRESH);
+#else
+    n = xf86ValidateModes(pScrn, pScrn->monitor->Modes,
+			  pScrn->display->modes, clockRanges,
+			  NULL, 256, 4096,
+			  pScrn->bitsPerPixel, 128, 4096,
+			  pScrn->display->virtualX,
+			  pScrn->display->virtualY,
+			  pI830->FbMapSize,
+			  LOOKUP_BEST_REFRESH);
+#endif
    if (n <= 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       PreInitCleanup(pScrn);
@@ -3716,6 +3742,39 @@ SaveHWState(ScrnInfoPtr pScrn)
 
    DPRINTF(PFX, "SaveHWState\n");
 
+   /* Save video mode information for native mode-setting. */
+   pI830->saveDSPACNTR = INREG(DSPACNTR);
+   pI830->saveDSPBCNTR = INREG(DSPBCNTR);
+   pI830->savePIPEACONF = INREG(PIPEACONF);
+   pI830->savePIPEBCONF = INREG(PIPEBCONF);
+   pI830->savePIPEASRC = INREG(PIPEASRC);
+   pI830->savePIPEBSRC = INREG(PIPEBSRC);
+   pI830->saveFPA0 = INREG(FPA0);
+   pI830->saveFPA1 = INREG(FPA1);
+   pI830->saveDPLL_A = INREG(DPLL_A);
+   pI830->saveHTOTAL_A = INREG(HTOTAL_A);
+   pI830->saveHBLANK_A = INREG(HBLANK_A);
+   pI830->saveHSYNC_A = INREG(HSYNC_A);
+   pI830->saveVTOTAL_A = INREG(VTOTAL_A);
+   pI830->saveVBLANK_A = INREG(VBLANK_A);
+   pI830->saveVSYNC_A = INREG(VSYNC_A);
+   pI830->saveDSPASTRIDE = INREG(DSPASTRIDE);
+   pI830->saveDSPAPOS = INREG(DSPAPOS);
+   pI830->saveDSPABASE = INREG(DSPABASE);
+
+   pI830->saveFPB0 = INREG(FPB0);
+   pI830->saveFPB1 = INREG(FPB1);
+   pI830->saveDPLL_B = INREG(DPLL_B);
+   pI830->saveHTOTAL_B = INREG(HTOTAL_B);
+   pI830->saveHBLANK_B = INREG(HBLANK_B);
+   pI830->saveHSYNC_B = INREG(HSYNC_B);
+   pI830->saveVTOTAL_B = INREG(VTOTAL_B);
+   pI830->saveVBLANK_B = INREG(VBLANK_B);
+   pI830->saveVSYNC_B = INREG(VSYNC_B);
+   pI830->saveDSPBSTRIDE = INREG(DSPBSTRIDE);
+   pI830->saveDSPBPOS = INREG(DSPBPOS);
+   pI830->saveDSPBBASE = INREG(DSPBBASE);
+
    if (I830IsPrimary(pScrn) && pI830->pipe != pI830->origPipe)
       SetBIOSPipe(pScrn, pI830->origPipe);
    else
@@ -3788,6 +3847,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
    vgaRegPtr vgaReg = &hwp->SavedReg;
    VESAPtr pVesa;
    Bool restored = FALSE;
+   CARD32 temp;
 
    DPRINTF(PFX, "RestoreHWState\n");
 
@@ -3851,6 +3911,54 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
    vgaHWLock(hwp);
+
+   /* First, disable display planes */
+   temp = INREG(DSPACNTR);
+   OUTREG(DSPACNTR, temp & ~DISPLAY_PLANE_ENABLE);
+   temp = INREG(DSPBCNTR);
+   OUTREG(DSPBCNTR, temp & ~DISPLAY_PLANE_ENABLE);
+
+   /* Next, disable display pipes */
+   temp = INREG(PIPEACONF);
+   OUTREG(PIPEACONF, temp & ~PIPEACONF_ENABLE);
+   temp = INREG(PIPEBCONF);
+   OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
+
+   /* XXX: Wait for a vblank */
+   sleep(1);
+
+   OUTREG(FPA0, pI830->saveFPA0);
+   OUTREG(FPA1, pI830->saveFPA1);
+   OUTREG(DPLL_A, pI830->saveDPLL_A);
+   OUTREG(HTOTAL_A, pI830->saveHTOTAL_A);
+   OUTREG(HBLANK_A, pI830->saveHBLANK_A);
+   OUTREG(HSYNC_A, pI830->saveHSYNC_A);
+   OUTREG(VTOTAL_A, pI830->saveVTOTAL_A);
+   OUTREG(VBLANK_A, pI830->saveVBLANK_A);
+   OUTREG(VSYNC_A, pI830->saveVSYNC_A);
+   OUTREG(DSPASTRIDE, pI830->saveDSPASTRIDE);
+   OUTREG(DSPAPOS, pI830->saveDSPAPOS);
+   OUTREG(DSPABASE, pI830->saveDSPABASE);
+
+   OUTREG(FPB0, pI830->saveFPB0);
+   OUTREG(FPB1, pI830->saveFPB1);
+   OUTREG(DPLL_B, pI830->saveDPLL_B);
+   OUTREG(HTOTAL_B, pI830->saveHTOTAL_B);
+   OUTREG(HBLANK_B, pI830->saveHBLANK_B);
+   OUTREG(HSYNC_B, pI830->saveHSYNC_B);
+   OUTREG(VTOTAL_B, pI830->saveVTOTAL_B);
+   OUTREG(VBLANK_B, pI830->saveVBLANK_B);
+   OUTREG(VSYNC_B, pI830->saveVSYNC_B);
+   OUTREG(DSPBSTRIDE, pI830->saveDSPBSTRIDE);
+   OUTREG(DSPBPOS, pI830->saveDSPBPOS);
+   OUTREG(DSPBBASE, pI830->saveDSPBBASE);
+
+   OUTREG(DSPACNTR, pI830->saveDSPACNTR);
+   OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
+   OUTREG(PIPEACONF, pI830->savePIPEACONF);
+   OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
+   OUTREG(PIPEASRC, pI830->savePIPEASRC);
+   OUTREG(PIPEBSRC, pI830->savePIPEBSRC);
 
    return TRUE;
 }

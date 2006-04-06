@@ -377,6 +377,38 @@ typedef struct _I830Rec {
    Bool devicePresence;
 
    OsTimerPtr devicesTimer;
+
+   CARD32 saveDSPACNTR;
+   CARD32 saveDSPBCNTR;
+   CARD32 savePIPEACONF;
+   CARD32 savePIPEBCONF;
+   CARD32 savePIPEASRC;
+   CARD32 savePIPEBSRC;
+   CARD32 saveFPA0;
+   CARD32 saveFPA1;
+   CARD32 saveDPLL_A;
+   CARD32 saveHTOTAL_A;
+   CARD32 saveHBLANK_A;
+   CARD32 saveHSYNC_A;
+   CARD32 saveVTOTAL_A;
+   CARD32 saveVBLANK_A;
+   CARD32 saveVSYNC_A;
+   CARD32 saveDSPASTRIDE;
+   CARD32 saveDSPAPOS;
+   CARD32 saveDSPABASE;
+   CARD32 saveFPB0;
+   CARD32 saveFPB1;
+   CARD32 saveDPLL_B;
+   CARD32 saveHTOTAL_B;
+   CARD32 saveHBLANK_B;
+   CARD32 saveHSYNC_B;
+   CARD32 saveVTOTAL_B;
+   CARD32 saveVBLANK_B;
+   CARD32 saveVSYNC_B;
+   CARD32 saveDSPBSTRIDE;
+   CARD32 saveDSPBPOS;
+   CARD32 saveDSPBBASE;
+
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
