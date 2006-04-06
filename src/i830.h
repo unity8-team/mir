@@ -430,6 +430,8 @@ typedef struct _I830Rec {
    struct _I830OutputRec output[MAX_OUTPUTS];
    I830SDVOPtr sdvo;
 
+   unsigned char *VBIOS;
+
    CARD32 saveDSPACNTR;
    CARD32 saveDSPBCNTR;
    CARD32 savePIPEACONF;

@@ -340,6 +340,13 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     vsync = (pMode->CrtcVSyncStart - 1) | ((pMode->CrtcVSyncEnd - 1) << 16);
     pipesrc = ((pMode->HDisplay - 1) << 16) | (pMode->VDisplay - 1);
     dspsize = ((pMode->VDisplay - 1) << 16) | (pMode->HDisplay - 1);
+    if (outputs & PIPE_LCD_ACTIVE) {
+	/* To enable panel fitting, we need to set the pipe timings to that of
+	 * the screen at its full resolution.  So, pull the timings out of the
+	 * BIOS tables and drop them in here.
+	 */
+	i830GetLVDSInfoFromBIOS(pScrn);
+    }
 
     adpa = INREG(ADPA);
     adpa &= ~(ADPA_HSYNC_ACTIVE_HIGH | ADPA_VSYNC_ACTIVE_HIGH);
