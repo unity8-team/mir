@@ -85,6 +85,7 @@ extern const char *I810driSymbols[];
 extern const char *I810drmSymbols[];
 extern const char *I810shadowSymbols[];
 #endif
+extern const char *I810i2cSymbols[];
 
 extern void I830DPRINTF_stub(const char *filename, int line,
 			     const char *function, const char *fmt, ...);

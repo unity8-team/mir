@@ -154,6 +154,44 @@ typedef struct {
 #endif
 } I830EntRec, *I830EntPtr;
 
+/* store information about an Ixxx DVO */
+/* The i830->i865 use multiple DVOs with multiple i2cs */
+/* the i915, i945 have a single sDVO i2c bus - which is different */
+#define MAX_DVOS 4
+
+#define I830_I2C_BUS_DVO 1
+#define I830_I2C_BUS_SDVO 2
+
+#define I830_DVO_CHIP_NONE 0
+#define I830_DVO_CHIP_LVDS 1
+#define I830_DVO_CHIP_TMDS 2
+#define I830_DVO_CHIP_TVOUT 4
+
+struct _I830RegI2CDriver {
+   int type;
+   char *modulename;
+   char *fntablename;
+   int address;
+   const char **symbols;
+   void *devpriv;
+   pointer modhandle;
+};
+  
+struct _I830DVORec {
+   int bus_type;
+   int flags;
+   I2CBusPtr pI2CBus;
+   I2CBusPtr pDDCBus;
+   xf86MonPtr MonInfo;
+   struct _I830RegI2CDriver *i2c_drv;
+};
+
+typedef struct _I830SDVORec {
+   int found;
+   I2CDevRec d;
+   unsigned char sdvo_regs[20];
+} I830SDVORec, *I830SDVOPtr;
+
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
    unsigned char *FbBase;
@@ -373,6 +411,12 @@ typedef struct _I830Rec {
 
    OsTimerPtr devicesTimer;
 
+   int ddc2;
+   int num_dvos;
+
+   struct _I830DVORec dvos[MAX_DVOS];
+   I830SDVOPtr sdvo;
+
    CARD32 saveDSPACNTR;
    CARD32 saveDSPBCNTR;
    CARD32 savePIPEACONF;
@@ -506,6 +550,8 @@ extern Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation,
 			       int rate, RRScreenSizePtr pSize);
 extern Rotation I830GetRotation(ScreenPtr pScreen);
 extern Bool I830RandRInit(ScreenPtr pScreen, int rotation);
+extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
+			char *name);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for

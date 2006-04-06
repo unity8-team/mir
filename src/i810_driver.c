@@ -332,6 +332,12 @@ const char *I810shadowSymbols[] = {
     NULL
 };
 
+const char *I810i2cSymbols[] = {
+    "xf86CreateI2CBusRec",
+    "xf86I2CBusInit",
+    NULL
+};
+
 #ifndef I810_DEBUG
 int I810_DEBUG = (0
 /*     		  | DEBUG_ALWAYS_SYNC  */
