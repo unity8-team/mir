@@ -1061,36 +1061,38 @@ SetDisplayDevices(ScrnInfoPtr pScrn, int devices)
    /* Disable LVDS */
    if (singlepipe & PIPE_LFP)  {
       /* LFP on PipeA is unlikely! */
-      OUTREG(0x61200, INREG(0x61200) & ~0x80000000);
-      OUTREG(0x61204, INREG(0x61204) & ~0x00000001);
-      while ((INREG(0x61200) & 0x80000000) || (INREG(0x61204) & 1));
+      OUTREG(PP_STATUS, INREG(PP_STATUS) & ~PP_ON);
+      OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
+      while ((INREG(PP_STATUS) & PP_ON) || (INREG(PP_CONTROL) & 1));
       /* Fix up LVDS */
       OUTREG(LVDS, (INREG(LVDS) & ~1<<30) | 0x80000300);
       /* Enable LVDS */
-      OUTREG(0x61200, INREG(0x61200) | 0x80000000);
-      OUTREG(0x61204, INREG(0x61204) | 0x00000001);
-      while (!(INREG(0x61200) & 0x80000000) && !(INREG(0x61204) & 1));
+      OUTREG(PP_STATUS, INREG(PP_STATUS) | PP_ON);
+      OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
+      while (!(INREG(PP_STATUS) & PP_ON) && !(INREG(PP_CONTROL) & 1));
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 	 	"Enabling LVDS directly. Pipe A.\n");
    } else
    if (singlepipe & (PIPE_LFP << 8))  {
-      OUTREG(0x61200, INREG(0x61200) & ~0x80000000);
-      OUTREG(0x61204, INREG(0x61204) & ~0x00000001);
-      while ((INREG(0x61200) & 0x80000000) || (INREG(0x61204) & 1));
+      OUTREG(PP_STATUS, INREG(PP_STATUS) & ~PP_ON);
+      OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
+      while ((INREG(PP_STATUS) & PP_ON) || (INREG(PP_CONTROL) & 1));
       /* Fix up LVDS */
       OUTREG(LVDS, (INREG(LVDS) | 1<<30) | 0x80000300);
       /* Enable LVDS */
-      OUTREG(0x61200, INREG(0x61200) | 0x80000000);
-      OUTREG(0x61204, INREG(0x61204) | 0x00000001);
-      while (!(INREG(0x61200) & 0x80000000) && !(INREG(0x61204) & 1));
+      OUTREG(PP_STATUS, INREG(PP_STATUS) | PP_ON);
+      OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
+      while (!(INREG(PP_STATUS) & PP_ON) &&
+	     !(INREG(PP_CONTROL) & POWER_TARGET_ON));
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 	 	"Enabling LVDS directly. Pipe B.\n");
    }
    else if (!(IS_I830(pI830) || IS_845G(pI830) || IS_I865G(pI830))) {
       if (!(devices & (PIPE_LFP | PIPE_LFP<<8))) {
-         OUTREG(0x61200, INREG(0x61200) & ~0x80000000);
-         OUTREG(0x61204, INREG(0x61204) & ~0x00000001);
-         while ((INREG(0x61200) & 0x80000000) || (INREG(0x61204) & 1));
+         OUTREG(PP_STATUS, INREG(PP_STATUS) & ~PP_ON);
+         OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
+         while ((INREG(PP_STATUS) & PP_ON) ||
+		(INREG(PP_CONTROL) & POWER_TARGET_ON));
          /* Fix up LVDS */
          OUTREG(LVDS, (INREG(LVDS) | 1<<30) & ~0x80000300);
          xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
