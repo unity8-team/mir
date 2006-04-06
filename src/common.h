@@ -101,8 +101,8 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 
 /* BIOS debug macro */
 #define xf86ExecX86int10_wrapper(pInt, pScrn) do {			\
+   ErrorF("Executing (ax == 0x%x) BIOS call at %s:%d\n", pInt->ax, __FILE__, __LINE__);	\
    if (I810_DEBUG & DEBUG_VERBOSE_BIOS) {				\
-      ErrorF("\n\n\n\nExecuting (ax == 0x%x) BIOS call\n", pInt->ax);	\
       ErrorF("Checking Error state before execution\n");		\
       PrintErrorState(pScrn);						\
    }									\
