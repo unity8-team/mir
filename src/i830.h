@@ -389,6 +389,7 @@ typedef struct _I830Rec {
    CARD32 saveVBLANK_A;
    CARD32 saveVSYNC_A;
    CARD32 saveDSPASTRIDE;
+   CARD32 saveDSPASIZE;
    CARD32 saveDSPAPOS;
    CARD32 saveDSPABASE;
    CARD32 saveFPB0;
@@ -401,6 +402,7 @@ typedef struct _I830Rec {
    CARD32 saveVBLANK_B;
    CARD32 saveVSYNC_B;
    CARD32 saveDSPBSTRIDE;
+   CARD32 saveDSPBSIZE;
    CARD32 saveDSPBPOS;
    CARD32 saveDSPBBASE;
    CARD32 saveADPA;
