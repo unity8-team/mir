@@ -384,12 +384,12 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	temp = INREG(DSPACNTR);
 	OUTREG(DSPACNTR, temp & ~DISPLAY_PLANE_ENABLE);
 
+	/* Wait for vblank for the disable to take effect */
+	i830WaitForVblank(pScrn);
+
 	/* Next, disable display pipes */
 	temp = INREG(PIPEACONF);
 	OUTREG(PIPEACONF, temp & ~PIPEACONF_ENABLE);
-
-	/* Wait for vblank for the disable to take effect */
-	i830WaitForVblank(pScrn);
 
 	OUTREG(FPA0, fp);
 	OUTREG(DPLL_A, dpll);
@@ -416,12 +416,12 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	temp = INREG(DSPBCNTR);
 	OUTREG(DSPBCNTR, temp & ~DISPLAY_PLANE_ENABLE);
 
+	/* Wait for vblank for the disable to take effect */
+	i830WaitForVblank(pScrn);
+
 	/* Next, disable display pipes */
 	temp = INREG(PIPEBCONF);
 	OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
-
-	/* Wait for vblank for the disable to take effect */
-	i830WaitForVblank(pScrn);
 
 	OUTREG(FPB0, fp);
 	OUTREG(DPLL_B, dpll);
