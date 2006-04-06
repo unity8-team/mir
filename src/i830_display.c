@@ -7,9 +7,10 @@
 #include "i830.h"
 #include "i830_display.h"
 
+/** Returns the pixel clock for the given refclk and divisors. */
 static int i830_clock(int refclk, int m1, int m2, int n, int p1, int p2)
 {
-    return (refclk * (5 * (m1 + 2) + (m2 + 2)) / (n + 2)) / (p1 * p2);
+    return refclk * (5 * m1 + m2) / n / (p1 * p2);
 }
 
 static void
@@ -23,6 +24,13 @@ i830PrintPll(char *prefix, int refclk, int m1, int m2, int n, int p1, int p2)
 	   m1, m2, n, p1, p2);
 }
 
+/**
+ * Returns whether the given set of divisors are valid for a given refclk with
+ * the given outputs.
+ *
+ * The equation for these divisors would be:
+ * clk = refclk * (5 * m1 + m2) / n / (p1 * p2)
+ */
 static Bool
 i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
 	       int n, int p1, int p2)
@@ -62,9 +70,9 @@ i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
 	}
     }
 
-    p = p1 + p2;
-    m = 5 * (m1 + 2) + (m2 + 2);
-    vco = refclk * m / (n + 2);
+    p = p1 * p2;
+    m = 5 * m1 + m2;
+    vco = refclk * m / n;
     dotclock = i830_clock(refclk, m1, m2, n, p1, p2);
 
     if (p1 < 1 || p1 > 8)
@@ -79,7 +87,7 @@ i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
 	return FALSE;
     if (m < min_m || m > max_m)
 	return FALSE;
-    if (n + 2 < min_n || n + 2 > max_n)	/*XXX: Is the +2 right? */
+    if (n < min_n || n > max_n)
 	return FALSE;
     if (vco < 1400000 || vco > 2800000)
 	return FALSE;
@@ -167,6 +175,11 @@ i830ReadAndReportPLL(ScrnInfoPtr pScrn)
 }
 #endif
 
+/**
+ * Returns a set of divisors for the desired target clock with the given refclk,
+ * or FALSE.  Divisor values are the actual divisors for
+ * clk = refclk * (5 * m1 + m2) / n / (p1 * p2)
+ */
 static Bool
 i830FindBestPLL(ScrnInfoPtr pScrn, int outputs, int target, int refclk,
 		int *outm1, int *outm2, int *outn, int *outp1, int *outp2)
@@ -202,7 +215,7 @@ i830FindBestPLL(ScrnInfoPtr pScrn, int outputs, int target, int refclk,
 
     for (m1 = min_m1; m1 <= max_m1; m1++) {
 	for (m2 = min_m2; m2 < max_m2; m2++) {
-	    for (n = 1; n <= 6; n++) {
+	    for (n = 3; n <= 8; n++) {
 		for (p1 = 1; p1 <= 8; p1++) {
 		    int clock, this_err;
 
@@ -330,7 +343,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	dpll |= PLL_REF_INPUT_DREFCLK;
     dpll |= SDV0_DEFAULT_MULTIPLIER;
 
-    fp = (n << 16) | (m1 << 8) | m2;
+    fp = ((n - 2) << 16) | ((m1 - 2) << 8) | (m2 - 2);
 
     htot = (pMode->CrtcHDisplay - 1) | ((pMode->CrtcHTotal - 1) << 16);
     hblank = (pMode->CrtcHBlankStart - 1) | ((pMode->CrtcHBlankEnd - 1) << 16);
