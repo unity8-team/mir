@@ -403,6 +403,7 @@ typedef struct _I830Rec {
    CARD32 saveDSPBSTRIDE;
    CARD32 saveDSPBPOS;
    CARD32 saveDSPBBASE;
+   CARD32 saveADPA;
 
 } I830Rec;
 
