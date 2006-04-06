@@ -664,6 +664,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PP_CONTROL	0x61204
 # define POWER_TARGET_ON			(1 << 0)
 
+#define PFIT_CONTROL	0x61230
+# define PFIT_ENABLE				(1 << 31)
+# define VERT_INTERP_DISABLE			(0 << 10)
+# define VERT_INTERP_BILINEAR			(1 << 10)
+# define VERT_INTERP_MASK			(3 << 10)
+# define VERT_AUTO_SCALE			(1 << 9)
+# define HORIZ_INTERP_DISABLE			(0 << 6)
+# define HORIZ_INTERP_BILINEAR			(1 << 6)
+# define HORIZ_INTERP_MASK			(3 << 6)
+# define HORIZ_AUTO_SCALE			(1 << 5)
+# define PANEL_8TO6_DITHER_ENABLE		(1 << 3)
+
+#define PFIT_PGM_RATIOS	0x61234
+# define PFIT_VERT_SCALE_MASK			0xfff00000
+# define PFIT_HORIZ_SCALE_MASK			0x0000fff0
+
 #define DPLL_A		0x06014
 #define DPLL_B		0x06018
 # define DPLL_VCO_ENABLE			(1 << 31)

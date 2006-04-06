@@ -438,6 +438,17 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	temp = INREG(PIPEBCONF);
 	OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
 
+	if (outputs & PIPE_LCD_ACTIVE) {
+	    /* Disable the PLL before messing with LVDS enable */
+	    OUTREG(FPB0, fp & ~DPLL_VCO_ENABLE);
+
+	    /* LVDS must be powered on before PLL is enabled and before power
+	     * sequencing the panel.
+	     */
+	    temp = INREG(LVDS);
+	    OUTREG(LVDS, temp | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
+	}
+
 	OUTREG(FPB0, fp);
 	OUTREG(DPLL_B, dpll);
 	OUTREG(HTOTAL_B, htot);
@@ -459,8 +470,15 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	/* And then turn the plane on */
 	OUTREG(DSPBCNTR, dspcntr);
 
-	if (outputs & PIPE_LCD_ACTIVE)
+	if (outputs & PIPE_LCD_ACTIVE) {
+	    /* Enable automatic panel scaling so that non-native modes fill the
+	     * screen.
+	     */
+	    /* XXX: Allow (auto-?) enabling of 8-to-6 dithering */
+	    OUTREG(PFIT_CONTROL, PFIT_ENABLE | VERT_AUTO_SCALE |
+		   HORIZ_AUTO_SCALE);
 	    i830SetLVDSPanelPower(pScrn, TRUE);
+	}
     }
 
     if (outputs & PIPE_CRT_ACTIVE)
