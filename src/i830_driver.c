@@ -3197,38 +3197,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    DDCclock = I830UseDDC(pScrn);
 
-   /*
-    * Note: VBE modes (> 0x7f) won't work with Intel's extended BIOS
-    * functions. 
-    */
-   pScrn->modePool = I830GetModePool(pScrn, pI830->pVbe, pI830->vbeInfo);
-
-   if (!pScrn->modePool) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "No Video BIOS modes for chosen depth.\n");
-      PreInitCleanup(pScrn);
-      return FALSE;
-   }
-
-   /* This may look a little weird, but to notify that we're using the
-    * default hsync/vrefresh we need to unset what we just set .....
-    */
-   if (defmon & 1) {
-      pScrn->monitor->hsync[0].lo = 0;
-      pScrn->monitor->hsync[0].hi = 0;
-      pScrn->monitor->nHsync = 0;
-   }
-
-   if (defmon & 2) {
-      pScrn->monitor->vrefresh[0].lo = 0;
-      pScrn->monitor->vrefresh[0].hi = 0;
-      pScrn->monitor->nVrefresh = 0;
-   }
-
-   SetPipeAccess(pScrn);
-   VBESetModeNames(pScrn->modePool);
-
-#if 0
+#if 1
    /*
      * Setup the ClockRanges, which describe what clock ranges are available,
      * and what sort of modes they can be used for.
@@ -3249,26 +3218,21 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
     * there's code in vesa/vesa.c.
     */
 
-   /* XXX Need to get relevant modes and virtual parameters. */
-   /* Do the mode validation without regard to special scanline pitches. */
-   SetPipeAccess(pScrn);
-#if 1
-   n = VBEValidateModes(pScrn, NULL, pScrn->display->modes, NULL,
-			NULL, 0, MAX_DISPLAY_PITCH, 1,
-			0, MAX_DISPLAY_HEIGHT,
-			pScrn->display->virtualX,
-			pScrn->display->virtualY,
-			memsize, LOOKUP_BEST_REFRESH);
-#else
-    n = xf86ValidateModes(pScrn, pScrn->monitor->Modes,
-			  pScrn->display->modes, clockRanges,
-			  NULL, 256, 4096,
-			  pScrn->bitsPerPixel, 128, 4096,
-			  pScrn->display->virtualX,
-			  pScrn->display->virtualY,
-			  pI830->FbMapSize,
-			  LOOKUP_BEST_REFRESH);
-#endif
+   /* XXX minPitch, minHeight are random numbers. */
+   n = xf86ValidateModes(pScrn,
+			 pScrn->monitor->Modes, /* availModes */
+			 pScrn->display->modes, /* modeNames */
+			 clockRanges, /* clockRanges */
+			 NULL, /* linePitches */
+			 256, /* minPitch */
+			 MAX_DISPLAY_PITCH, /* maxPitch */
+			 64, /* pitchInc */
+			 pScrn->bitsPerPixel, /* minHeight */
+			 MAX_DISPLAY_HEIGHT, /* maxHeight */
+			 pScrn->display->virtualX, /* virtualX */
+			 pScrn->display->virtualY, /* virtualY */
+			 pI830->FbMapSize, /* apertureSize */
+			 LOOKUP_BEST_REFRESH /* strategy */);
    if (n <= 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       PreInitCleanup(pScrn);
@@ -3313,22 +3277,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       PreInitCleanup(pScrn);
       return FALSE;
    }
-
-   /* Now we check the VESA BIOS's displayWidth and reset if necessary */
-   p = pScrn->modes;
-   do {
-      VbeModeInfoData *data = (VbeModeInfoData *) p->Private;
-      VbeModeInfoBlock *modeInfo;
-
-      /* Get BytesPerScanline so we can reset displayWidth */
-      if ((modeInfo = VBEGetModeInfo(pI830->pVbe, data->mode))) {
-         if (pScrn->displayWidth < modeInfo->BytesPerScanline / pI830->cpp) {
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Correcting stride (%d -> %d)\n", pScrn->displayWidth, modeInfo->BytesPerScanline);
-	    pScrn->displayWidth = modeInfo->BytesPerScanline / pI830->cpp;
-	 }
-      } 
-      p = p->next;
-   } while (p != NULL && p != pScrn->modes);
 
    xf86SetCrtcForModes(pScrn, INTERLACE_HALVE_V);
 
