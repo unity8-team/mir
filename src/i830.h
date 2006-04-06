@@ -95,8 +95,6 @@ typedef struct _VESARec {
    CARD32 *savedPal;
    int savedScanlinePitch;
    xf86MonPtr monitor;
-   /* Don't try to set the refresh rate for any modes. */
-   Bool useDefaultRefresh;
    /* display start */
    int x, y;
 } VESARec, *VESAPtr;
@@ -336,9 +334,6 @@ typedef struct _I830Rec {
    Bool swfSaved;
    CARD32 saveSWF0;
    CARD32 saveSWF4;
-
-   /* Use BIOS call 0x5f05 to set the refresh rate. */
-   Bool useExtendedRefresh;
 
    Bool checkDevices;
    int monitorSwitch;

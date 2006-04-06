@@ -699,88 +699,6 @@ I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh)
 
 #if 0
 static int
-SetRefreshRate(ScrnInfoPtr pScrn, int mode, int refresh)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-   int i = I830GetBestRefresh(pScrn, refresh);
-
-   DPRINTF(PFX, "SetRefreshRate: mode 0x%x, refresh: %d\n", mode, refresh);
-
-   DPRINTF(PFX, "Setting refresh rate to %dHz for mode 0x%02x\n",
-	   i830refreshes[i], mode & 0xff);
-
-   /* Only 8-bit mode numbers are supported. */
-   if (mode & 0x100)
-      return 0;
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f05;
-   pVbe->pInt10->bx = mode & 0xff;
-
-   pVbe->pInt10->cx = 1 << i;
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f05, pVbe->pInt10->ax))
-      return i830refreshes[i];
-   else
-      return 0;
-}
-
-static Bool
-SetPowerStatus(ScrnInfoPtr pScrn, int mode)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f64;
-   pVbe->pInt10->bx = 0x0800 | mode;
-   pVbe->pInt10->cx = 0x0000;
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax))
-      return TRUE;
-  
-   return FALSE;
-}
-#endif
-
-static Bool
-GetModeSupport(ScrnInfoPtr pScrn, int modePipeA, int modePipeB,
-	       int devicesPipeA, int devicesPipeB, int *maxBandwidth,
-	       int *bandwidthPipeA, int *bandwidthPipeB)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-
-   DPRINTF(PFX, "GetModeSupport: modes 0x%x, 0x%x, devices: 0x%x, 0x%x\n",
-	   modePipeA, modePipeB, devicesPipeA, devicesPipeB);
-
-   /* Only 8-bit mode numbers are supported. */
-   if ((modePipeA & 0x100) || (modePipeB & 0x100))
-      return FALSE;
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f28;
-   pVbe->pInt10->bx = (modePipeA & 0xff) | ((modePipeB & 0xff) << 8);
-   if ((devicesPipeA & 0x80) || (devicesPipeB & 0x80))
-      pVbe->pInt10->cx = 0x8000;
-   else
-      pVbe->pInt10->cx = (devicesPipeA & 0xff) | ((devicesPipeB & 0xff) << 8);
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f28, pVbe->pInt10->ax)) {
-      if (maxBandwidth)
-	 *maxBandwidth = pVbe->pInt10->cx;
-      if (bandwidthPipeA)
-	 *bandwidthPipeA = pVbe->pInt10->dx & 0xffff;
-      /* XXX For XFree86 4.2.0 and earlier, ->dx is truncated to 16 bits. */
-      if (bandwidthPipeB)
-	 *bandwidthPipeB = (pVbe->pInt10->dx >> 16) & 0xffff;
-      return TRUE;
-   } else
-      return FALSE;
-}
-
-#if 0
-static int
 GetLFPCompMode(ScrnInfoPtr pScrn)
 {
    vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
@@ -3106,49 +3024,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    }
 #endif
 
-   pI830->useExtendedRefresh = FALSE;
-
-   if (xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone) {
-      int pipe =
-	  (pI830->operatingDevices >> PIPE_SHIFT(pI830->pipe)) & PIPE_ACTIVE_MASK;
-      if (pipe & ~PIPE_CRT_ACTIVE) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-		    "A non-CRT device is attached to pipe %c.\n"
-		    "\tNo refresh rate overrides will be attempted.\n",
-		    PIPE_NAME(pI830->pipe));
-	 pI830->vesa->useDefaultRefresh = TRUE;
-      }
-      /*
-       * Some desktop platforms might not have 0x5f05, so useExtendedRefresh
-       * would need to be set to FALSE for those cases.
-       */
-      if (!pI830->vesa->useDefaultRefresh) 
-	 pI830->useExtendedRefresh = TRUE;
-   } else {
-      for (i = 0; i < pI830->availablePipes; i++) {
-         int pipe =
-	  (pI830->operatingDevices >> PIPE_SHIFT(i)) & PIPE_ACTIVE_MASK;
-         if (pipe & ~PIPE_CRT_ACTIVE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-		    "A non-CRT device is attached to pipe %c.\n"
-		    "\tNo refresh rate overrides will be attempted.\n",
-		    PIPE_NAME(i));
-	    pI830->vesa->useDefaultRefresh = TRUE;
-         }
-         /*
-          * Some desktop platforms might not have 0x5f05, so useExtendedRefresh
-          * would need to be set to FALSE for those cases.
-          */
-         if (!pI830->vesa->useDefaultRefresh) 
-	    pI830->useExtendedRefresh = TRUE;
-      }
-   }
-
-   if (pI830->useExtendedRefresh && !pI830->vesa->useDefaultRefresh) {
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		 "Will use BIOS call 0x5f05 to set refresh rates for CRTs.\n");
-   }
-
    /*
     * Limit videoram available for mode selection to what the video
     * BIOS can see.
@@ -3402,18 +3277,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    SetPipeAccess(pScrn);
    I830PrintModes(pScrn);
-
-   if (!pI830->vesa->useDefaultRefresh) {
-      /*
-       * This sets the parameters for the VBE modes according to the best
-       * usable parameters from the Monitor sections modes (usually the
-       * default VESA modes), allowing for better than default refresh rates.
-       * This only works for VBE 3.0 and later.  Also, we only do this
-       * if there are no non-CRT devices attached.
-       */
-      SetPipeAccess(pScrn);
-      I830SetModeParameters(pScrn, pI830->pVbe);
-   }
 
    /* PreInit shouldn't leave any state changes, so restore this. */
    RestoreBIOSMemSize(pScrn);
@@ -3798,14 +3661,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    pVesa = pI830->vesa;
 
-   /*
-    * Workaround for text mode restoration with some flat panels.
-    * Temporarily program a 640x480 mode before switching back to
-    * text mode.
-    */
-   if (pVesa->useDefaultRefresh)
-      I830Set640x480(pScrn);
-
    if (pVesa->state && pVesa->stateSize) {
       CARD16 imr = INREG16(IMR);
       CARD16 ier = INREG16(IER);
@@ -3838,9 +3693,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
 		 "the saved state\n");
 #if 0
       I830VESASetVBEMode(pScrn, pVesa->stateMode, NULL);
-      if (!pVesa->useDefaultRefresh && pI830->useExtendedRefresh) {
-         SetRefreshRate(pScrn, pVesa->stateMode, pVesa->stateRefresh);
-      }
 #endif
    }
    if (pVesa->savedScanlinePitch)
@@ -3904,197 +3756,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    return TRUE;
 }
-
-#if 0
-static void I830SetCloneVBERefresh(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block, int refresh)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   DisplayModePtr p = NULL;
-   int RefreshRate;
-   int clock;
-
-   /* Search for our mode and get a refresh to match */
-   for (p = pScrn->monitor->Modes; p != NULL; p = p->next) {
-      if ((p->HDisplay != pI830->CloneHDisplay) ||
-          (p->VDisplay != pI830->CloneVDisplay) ||
-          (p->Flags & (V_INTERLACE | V_DBLSCAN | V_CLKDIV2)))
-         continue;
-      RefreshRate = ((double)(p->Clock * 1000) /
-                     (double)(p->HTotal * p->VTotal)) * 100;
-      /* we could probably do better here that 2Hz boundaries */
-      if (RefreshRate > (refresh - 200) && RefreshRate < (refresh + 200)) {
-         block->HorizontalTotal = p->HTotal;
-         block->HorizontalSyncStart = p->HSyncStart;
-         block->HorizontalSyncEnd = p->HSyncEnd;
-         block->VerticalTotal = p->VTotal;
-         block->VerticalSyncStart = p->VSyncStart;
-         block->VerticalSyncEnd = p->VSyncEnd;
-         block->Flags = ((p->Flags & V_NHSYNC) ? CRTC_NHSYNC : 0) |
-                        ((p->Flags & V_NVSYNC) ? CRTC_NVSYNC : 0);
-         block->PixelClock = p->Clock * 1000;
-         /* XXX May not have this. */
-         clock = VBEGetPixelClock(pI830->pVbe, mode, block->PixelClock);
-#ifdef DEBUG
-         ErrorF("Setting clock %.2fMHz, closest is %.2fMHz\n",
-                    (double)data->block->PixelClock / 1000000.0, 
-                    (double)clock / 1000000.0);
-#endif
-         if (clock)
-            block->PixelClock = clock;
-         block->RefreshRate = RefreshRate;
-         return;
-      }
-   }
-}
-
-static Bool
-I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   Bool ret = FALSE;
-   int Mon;
-
-   DPRINTF(PFX, "Setting mode 0x%.8x\n", mode);
-
-#if 0
-   /* Clear the framebuffer (could do this with VBIOS call) */
-   if (I830IsPrimary(pScrn))
-      memset(pI830->FbBase + pI830->FrontBuffer.Start, 0,
-	  pScrn->virtualY * pI830->displayWidth * pI830->cpp);
-   else
-      memset(pI830->FbBase + pI830->FrontBuffer2.Start, 0,
-	  pScrn->virtualY * pI830->displayWidth * pI830->cpp);
-#endif
-
-   if (pI830->Clone && pI830->CloneHDisplay && pI830->CloneVDisplay &&
-       !pI830->preinit && !pI830->closing) {
-      VbeCRTCInfoBlock newblock;
-      int newmode = mode;
-
-      if (pI830->pipe == 1)
-         Mon = pI830->MonType1;
-      else
-         Mon = pI830->MonType2;
-
-      SetBIOSPipe(pScrn, !pI830->pipe);
-
-      /* Now recheck refresh operations we can use */
-      pI830->useExtendedRefresh = FALSE;
-      pI830->vesa->useDefaultRefresh = FALSE;
-
-      if (Mon != PIPE_CRT) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "A non-CRT device is attached to Clone pipe %c.\n"
-		    "\tNo refresh rate overrides will be attempted (0x%x).\n",
-		    PIPE_NAME(!pI830->pipe), newmode);
-	 pI830->vesa->useDefaultRefresh = TRUE;
-      }
-      /*
-       * Some desktop platforms might not have 0x5f05, so useExtendedRefresh
-       * would need to be set to FALSE for those cases.
-       */
-      if (!pI830->vesa->useDefaultRefresh) 
-	 pI830->useExtendedRefresh = TRUE;
-
-      newmode |= 1 << 11;
-      if (pI830->vesa->useDefaultRefresh)
-            newmode &= ~(1 << 11);
-
-      if (!SetRefreshRate(pScrn, newmode, 60)) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "BIOS call 0x5f05 not supported on Clone Head, "
-		    "setting refresh with VBE 3 method.\n");
-	 pI830->useExtendedRefresh = FALSE;
-      }
-
-      if (!pI830->vesa->useDefaultRefresh) {
-         I830SetCloneVBERefresh(pScrn, newmode, &newblock, pI830->CloneRefresh * 100);
-
-         if (!VBESetVBEMode(pI830->pVbe, newmode, &newblock)) {
-            if (!VBESetVBEMode(pI830->pVbe, (newmode & ~(1 << 11)), NULL))
-               xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Failed to set mode for Clone head.\n");
-         } else {
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		 "Setting refresh on clone head with VBE 3 method.\n");
-            pI830->useExtendedRefresh = FALSE;
-         }
-      } else {
-         if (!VBESetVBEMode(pI830->pVbe, (newmode & ~(1 << 11)), NULL))
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Failed to set mode for Clone head.\n");
-      }
-
-      if (pI830->useExtendedRefresh && !pI830->vesa->useDefaultRefresh) {
-         if (!SetRefreshRate(pScrn, newmode, pI830->CloneRefresh))
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		    "Failed to set refresh rate to %dHz on Clone head.\n",
-		    pI830->CloneRefresh);
-         else
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Set refresh rate to %dHz on Clone head.\n",
-		    pI830->CloneRefresh);
-      }
-      SetPipeAccess(pScrn);
-   }
-
-   if (pI830->pipe == 0)
-      Mon = pI830->MonType1;
-   else
-      Mon = pI830->MonType2;
-
-   /* Now recheck refresh operations we can use */
-   pI830->useExtendedRefresh = FALSE;
-   pI830->vesa->useDefaultRefresh = FALSE;
-
-   if (Mon != PIPE_CRT)
-      pI830->vesa->useDefaultRefresh = TRUE;
-
-   mode |= 1 << 11;
-   if (pI830->vesa->useDefaultRefresh)
-      mode &= ~(1 << 11);
-   /*
-    * Some desktop platforms might not have 0x5f05, so useExtendedRefresh
-    * would need to be set to FALSE for those cases.
-    */
-   if (!pI830->vesa->useDefaultRefresh) 
-      pI830->useExtendedRefresh = TRUE;
-
-   if (!SetRefreshRate(pScrn, mode, 60)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "BIOS call 0x5f05 not supported, "
-		    "setting refresh with VBE 3 method.\n");
-      pI830->useExtendedRefresh = FALSE;
-   }
-
-   if (!pI830->vesa->useDefaultRefresh && block) {
-      ret = VBESetVBEMode(pI830->pVbe, mode, block);
-      if (!ret)
-         ret = VBESetVBEMode(pI830->pVbe, (mode & ~(1 << 11)), NULL);
-      else {
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		 "Setting refresh with VBE 3 method.\n");
-	 pI830->useExtendedRefresh = FALSE;
-      }
-   } else {
-      ret = VBESetVBEMode(pI830->pVbe, (mode & ~(1 << 11)), NULL);
-   }
-
-   /* Might as well bail now if we've failed */
-   if (!ret) return FALSE;
-
-   if (pI830->useExtendedRefresh && !pI830->vesa->useDefaultRefresh && block) {
-      if (!SetRefreshRate(pScrn, mode, block->RefreshRate / 100)) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		    "Failed to set refresh rate to %dHz.\n",
-		    block->RefreshRate / 100);
-	 pI830->useExtendedRefresh = FALSE;
-      }
-   }
-
-   return ret;
-}
-#endif
 
 static void
 InitRegisterRec(ScrnInfoPtr pScrn)
@@ -5085,9 +4746,6 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
 
    xf86PruneDriverModes(pScrn);
    I830PrintModes(pScrn);
-
-   if (!pI830->vesa->useDefaultRefresh)
-      I830SetModeParameters(pScrn, pI830->pVbe);
 
    /* Now check if the previously used mode is o.k. for the current monitor.
     * This allows VT switching to continue happily when not disconnecting
