@@ -157,40 +157,54 @@ typedef struct {
 /* store information about an Ixxx DVO */
 /* The i830->i865 use multiple DVOs with multiple i2cs */
 /* the i915, i945 have a single sDVO i2c bus - which is different */
-#define MAX_DVOS 4
+#define MAX_OUTPUTS 6
 
 #define I830_I2C_BUS_DVO 1
 #define I830_I2C_BUS_SDVO 2
+
+/* these are outputs from the chip - integrated only 
+   external chips are via DVO or SDVO output */
+#define I830_OUTPUT_UNUSED 0
+#define I830_OUTPUT_ANALOG 1
+#define I830_OUTPUT_DVO 2
+#define I830_OUTPUT_SDVO 3
+#define I830_OUTPUT_LVDS 4
+#define I830_OUTPUT_TVOUT 5
 
 #define I830_DVO_CHIP_NONE 0
 #define I830_DVO_CHIP_LVDS 1
 #define I830_DVO_CHIP_TMDS 2
 #define I830_DVO_CHIP_TVOUT 4
 
-struct _I830RegI2CDriver {
+struct _I830DVODriver {
    int type;
    char *modulename;
    char *fntablename;
    int address;
    const char **symbols;
+#if 0
+   I830I2CVidOutputRec *vid_rec;
+#endif
    void *devpriv;
    pointer modhandle;
 };
-  
-struct _I830DVORec {
-   int bus_type;
-   int flags;
-   I2CBusPtr pI2CBus;
-   I2CBusPtr pDDCBus;
-   xf86MonPtr MonInfo;
-   struct _I830RegI2CDriver *i2c_drv;
-};
 
-typedef struct _I830SDVORec {
+typedef struct _I830SDVODriver {
    int found;
    I2CDevRec d;
    unsigned char sdvo_regs[20];
 } I830SDVORec, *I830SDVOPtr;
+
+struct _I830OutputRec {
+   int type;
+   int pipe;
+   int flags;
+   xf86MonPtr MonInfo;
+   I2CBusPtr pI2CBus;
+   I2CBusPtr pDDCBus;
+   struct _I830DVODriver *i2c_drv;
+   struct _I830SDVODriver *sdvo_drv;
+};
 
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
@@ -412,9 +426,8 @@ typedef struct _I830Rec {
    OsTimerPtr devicesTimer;
 
    int ddc2;
-   int num_dvos;
-
-   struct _I830DVORec dvos[MAX_DVOS];
+   int num_outputs;
+   struct _I830OutputRec output[MAX_OUTPUTS];
    I830SDVOPtr sdvo;
 
    CARD32 saveDSPACNTR;
