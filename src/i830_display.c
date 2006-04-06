@@ -221,7 +221,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     int m1, m2, n, p1, p2;
     CARD32 dpll = 0, fp = 0, temp;
     CARD32 htot, hblank, hsync, vtot, vblank, vsync;
-    CARD32 pipesrc, dspsize;
+    CARD32 pipesrc, dspsize, adpa;
     Bool ok;
     int refclk = 96000;
 
@@ -262,6 +262,15 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     pipesrc = ((pMode->HDisplay - 1) << 16) | (pMode->VDisplay - 1);
     dspsize = ((pMode->VDisplay - 1) << 16) | (pMode->HDisplay - 1);
 
+    adpa = INREG(ADPA);
+    adpa &= ~(ADPA_HSYNC_ACTIVE_HIGH | ADPA_VSYNC_ACTIVE_HIGH);
+    adpa &= ~(ADPA_VSYNC_CNTL_DISABLE | ADPA_HSYNC_CNTL_DISABLE);
+    adpa |= ADPA_DAC_ENABLE;
+    if (pMode->Flags & V_PHSYNC)
+	adpa |= ADPA_HSYNC_ACTIVE_HIGH;
+    if (pMode->Flags & V_PVSYNC)
+	adpa |= ADPA_VSYNC_ACTIVE_HIGH;
+
     i830PrintPll("chosen", refclk, m1, m2, n, p1, p2);
     ErrorF("clock settings for chosen look %s\n",
 	   i830PllIsValid(pScrn, refclk, m1, m2, n, p1, p2) ? "good" : "bad");
@@ -296,6 +305,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     /*OUTREG(DSPAPOS, 0);*/
     OUTREG(PIPEASRC, pipesrc);
     OUTREG(DSPASIZE, dspsize);
+    OUTREG(ADPA, adpa);
 
     /* Turn pipes and planes back on */
     /*if (pI830->planeEnabled[0]) {*/
