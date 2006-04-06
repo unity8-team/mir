@@ -1,6 +1,7 @@
 #include "xf86.h"
 #include "xf86_ansic.h"
 #include "i830.h"
+#include "i830_display.h"
 
 static int i830_clock(int refclk, int m1, int m2, int n, int p1, int p2)
 {
@@ -284,6 +285,11 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 		   "Can't enable a TV and any other output on the same pipe\n");
 	return FALSE;
     }
+    if (pipe == 0 && (outputs & PIPE_LCD_ACTIVE)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Can't support LVDS on pipe A\n");
+	return FALSE;
+    }
 
     ok = i830FindBestPLL(pScrn, outputs, pMode->Clock, refclk, &m1, &m2, &n,
 			 &p1, &p2);
@@ -412,6 +418,11 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	/* And then turn the plane on */
 	OUTREG(DSPACNTR, dspcntr);
     } else {
+	/* Always make sure the LVDS is off before we play with DPLLs and pipe
+	 * configuration.
+	 */
+	i830SetLVDSPanelPower(pScrn, FALSE);
+
 	/* First, disable display planes */
 	temp = INREG(DSPBCNTR);
 	OUTREG(DSPBCNTR, temp & ~DISPLAY_PLANE_ENABLE);
@@ -443,6 +454,9 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
 	/* And then turn the plane on */
 	OUTREG(DSPBCNTR, dspcntr);
+
+	if (outputs & PIPE_LCD_ACTIVE)
+	    i830SetLVDSPanelPower(pScrn, TRUE);
     }
 
     if (outputs & PIPE_CRT_ACTIVE)
