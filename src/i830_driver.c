@@ -5272,7 +5272,7 @@ I830BIOSEnterVT(int scrnIndex, int flags)
    if (!pI830->starting)
       I830DetectMonitorChange(pScrn);
 	    
-   if (!I830SetMode(pScrn, pScrn->currentMode))
+   if (!i830SetMode(pScrn, pScrn->currentMode))
       return FALSE;
    
 #ifdef I830_XV
@@ -5342,7 +5342,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     * are rotating, we don't need to call the mode setup again.
     */
    if (pI830->currentMode != mode) {
-      if (!I830SetMode(pScrn, mode))
+      if (!i830SetMode(pScrn, mode))
          ret = FALSE;
    }
 
@@ -5363,7 +5363,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     * video mode here, as we'll have already re-instated the original rotation.
     */
    if (!ret) {
-      if (!I830SetMode(pScrn, pI830->currentMode)) {
+      if (!i830SetMode(pScrn, pI830->currentMode)) {
 	 xf86DrvMsg(scrnIndex, X_INFO,
 		    "Failed to restore previous mode (SwitchMode)\n");
       }
