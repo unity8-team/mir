@@ -397,14 +397,12 @@ typedef struct _I830Rec {
    /* These are indexed by the display types */
    Bool displayAttached[NumDisplayTypes];
    Bool displayPresent[NumDisplayTypes];
-   BoxRec displaySize[NumDisplayTypes];
 
    /* [0] is Pipe A, [1] is Pipe B. */
    int availablePipes;
    int pipeDevices[MAX_DISPLAY_PIPES];
    /* [0] is display plane A, [1] is display plane B. */
    Bool pipeEnabled[MAX_DISPLAY_PIPES];
-   BoxRec pipeDisplaySize[MAX_DISPLAY_PIPES];
    int planeEnabled[MAX_DISPLAY_PIPES];
 
    /* Driver phase/state information */

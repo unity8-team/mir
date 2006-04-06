@@ -1106,54 +1106,6 @@ PrintDisplayDeviceInfo(ScrnInfoPtr pScrn)
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "No active displays on Pipe %c.\n", PIPE_NAME(n));
       }
-
-      if (pI830->pipeDisplaySize[n].x2 != 0) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Lowest common panel size for pipe %c is %d x %d\n",
-		    PIPE_NAME(n), pI830->pipeDisplaySize[n].x2,
-		    pI830->pipeDisplaySize[n].y2);
-      } else if (pI830->pipeEnabled[n] && pipe & ~PIPE_CRT_ACTIVE) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "No display size information available for pipe %c.\n",
-		    PIPE_NAME(n));
-      }
-   }
-}
-
-static void
-GetPipeSizes(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int pipe, n;
-   DisplayType i;
-
-   DPRINTF(PFX, "GetPipeSizes\n");
-
-
-   for (n = 0; n < pI830->availablePipes; n++) {
-      pipe = (pI830->operatingDevices >> PIPE_SHIFT(n)) & PIPE_ACTIVE_MASK;
-      pI830->pipeDisplaySize[n].x1 = pI830->pipeDisplaySize[n].y1 = 0;
-      pI830->pipeDisplaySize[n].x2 = pI830->pipeDisplaySize[n].y2 = 4096;
-      for (i = 0; i < NumKnownDisplayTypes; i++) {
-         if (pipe & (1 << i) & PIPE_SIZED_DISP_MASK) {
-	    if (pI830->displaySize[i].x2 != 0) {
-	       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		          "Size of device %s is %d x %d\n",
-		          displayDevices[i],
-		          pI830->displaySize[i].x2,
-		          pI830->displaySize[i].y2);
-	       if (pI830->displaySize[i].x2 < pI830->pipeDisplaySize[n].x2)
-	          pI830->pipeDisplaySize[n].x2 = pI830->displaySize[i].x2;
-	       if (pI830->displaySize[i].y2 < pI830->pipeDisplaySize[n].y2)
-	          pI830->pipeDisplaySize[n].y2 = pI830->displaySize[i].y2;
-	    }
-         }
-      }
-
-      if (pI830->pipeDisplaySize[n].x2 == 4096)
-         pI830->pipeDisplaySize[n].x2 = 0;
-      if (pI830->pipeDisplaySize[n].y2 == 4096)
-         pI830->pipeDisplaySize[n].y2 = 0;
    }
 }
 
@@ -1172,16 +1124,15 @@ I830DetectDisplayDevice(ScrnInfoPtr pScrn)
 		  "\t\t Option \"DisplayInfo\" \"FALSE\"\n"
 		  "\t      to the Device section of your XF86Config file.\n");
       for (i = 0; i < NumKnownDisplayTypes; i++) {
+	 int unusedx, unusedy;
          if (GetDisplayInfo(pScrn, 1 << i, &pI830->displayAttached[i],
 			 &pI830->displayPresent[i],
-			 &pI830->displaySize[i].x2,
-			 &pI830->displaySize[i].y2)) {
+			 &unusedx, &unusedy)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Display Info: %s: attached: %s, present: %s, size: "
+		    "Display Info: %s: attached: %s, present: %s: "
 		    "(%d,%d)\n", displayDevices[i],
 		    BOOLTOSTRING(pI830->displayAttached[i]),
-		    BOOLTOSTRING(pI830->displayPresent[i]),
-		    pI830->displaySize[i].x2, pI830->displaySize[i].y2);
+		    BOOLTOSTRING(pI830->displayPresent[i]));
          }
       }
    }
@@ -1194,8 +1145,6 @@ I830DetectDisplayDevice(ScrnInfoPtr pScrn)
       else
 	 pI830->pipeEnabled[n] = FALSE;
    }
-
-   GetPipeSizes(pScrn);
 
    return TRUE;
 }
@@ -4946,32 +4895,6 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
 #endif /* 0 */
 }
 
-Bool
-I830CheckModeSupport(ScrnInfoPtr pScrn, int x, int y, int mode)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   Bool ret = TRUE;
-
-   if (pI830->Clone) {
-      if (pI830->pipeDisplaySize[0].x2 != 0) {
-	 if (x > pI830->pipeDisplaySize[0].x2 ||
-             y > pI830->pipeDisplaySize[0].y2) {
-	 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bad Clone Mode removing\n");
-		return FALSE;
-         }
-      }
-      if (pI830->pipeDisplaySize[1].x2 != 0) {
-	 if (x > pI830->pipeDisplaySize[1].x2 ||
-             y > pI830->pipeDisplaySize[1].y2) {
-	 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bad Clone Mode removing\n");
-		return FALSE;
-         }
-      }
-   }
-
-   return ret;
-}
-		
 /*
  * This gets called when gaining control of the VT, and from ScreenInit().
  */
