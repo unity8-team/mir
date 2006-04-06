@@ -658,27 +658,6 @@ SetPipeAccess(ScrnInfoPtr pScrn)
 }
 
 static Bool
-I830Set640x480(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int m = 0x30; /* 640x480 8bpp */
-
-   switch (pScrn->depth) {
-   case 15:
-	 m = 0x40;
-	 break;
-   case 16:
-	 m = 0x41;
-	 break;
-   case 24:
-	 m = 0x50;
-	 break;
-   }
-   m |= (1 << 15) | (1 << 14);
-   return VBESetVBEMode(pI830->pVbe, m, NULL);
-}
-
-static Bool
 GetBIOSVersion(ScrnInfoPtr pScrn, unsigned int *version)
 {
    vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
@@ -4542,7 +4521,7 @@ I830BIOSEnterVT(int scrnIndex, int flags)
       */
      /* Check Pipe conf registers or possibly HTOTAL/VTOTAL for 0x00000000)*/
       CARD32 temp = pI830->pipe ? INREG(PIPEBCONF) : INREG(PIPEACONF);
-      if (!I830Set640x480(pScrn) || !(temp & 0x80000000)) {
+      if (temp & 0x80000000) {
          xf86Int10InfoPtr pInt;
 
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
