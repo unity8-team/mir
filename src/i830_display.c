@@ -225,8 +225,8 @@ i830WaitForVblank(ScrnInfoPtr pScreen)
  * Sets the given video mode on the given pipe.  Assumes that plane A feeds
  * pipe A, and plane B feeds pipe B.  Should not affect the other planes/pipes.
  */
-void
-i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
+static Bool
+i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int m1, m2, n, p1, p2;
@@ -239,8 +239,11 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     ErrorF("Requested pix clock: %d\n", pMode->Clock);
 
     ok = i830FindBestPLL(pScrn, pMode->Clock, refclk, &m1, &m2, &n, &p1, &p2);
-    if (!ok)
-	FatalError("Couldn't find PLL settings for mode!\n");
+    if (!ok) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Couldn't find PLL settings for mode!\n");
+	return FALSE;
+    }
 
     dpll = DPLL_VCO_ENABLE | DPLL_VGA_MODE_DIS;
     dpll |= DPLLB_MODE_DAC_SERIAL; /* XXX: LVDS */
@@ -377,6 +380,76 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	/* And then turn the plane on */
 	OUTREG(DSPBCNTR, dspcntr);
     }
+
+    return TRUE;
+}
+
+/**
+ * This function sets the given mode on the active pipes.
+ */
+Bool
+i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    Bool ok = TRUE;
+    CARD32 planeA, planeB;
+#ifdef XF86DRI
+    Bool didLock = FALSE;
+#endif
+
+    DPRINTF(PFX, "i830SetMode\n");
+
+#ifdef XF86DRI
+    didLock = I830DRILock(pScrn);
+#endif
+
+    if (pI830->operatingDevices & 0xff) {
+	pI830->planeEnabled[0] = 1;
+    } else {
+	pI830->planeEnabled[0] = 0;
+    }
+
+    if (pI830->operatingDevices & 0xff00) {
+	pI830->planeEnabled[1] = 1;
+    } else {
+	pI830->planeEnabled[1] = 0;
+    }
+
+    if (pI830->planeEnabled[0]) {
+	ok = i830PipeSetMode(pScrn, pMode, 0);
+	if (!ok)
+	    goto done;
+    }
+    if (pI830->planeEnabled[1]) {
+	ok = i830PipeSetMode(pScrn, pMode, 1);
+	if (!ok)
+	    goto done;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode bandwidth is %d Mpixel/s\n",
+	       (int)(pMode->HDisplay * pMode->VDisplay *
+		     pMode->VRefresh / 1000000));
+
+    planeA = INREG(DSPACNTR);
+    planeB = INREG(DSPBCNTR);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Display plane A is now %s and connected to %s.\n",
+	       pI830->planeEnabled[0] ? "enabled" : "disabled",
+	       planeA & DISPPLANE_SEL_PIPE_MASK ? "Pipe B" : "Pipe A");
+    if (pI830->availablePipes == 2)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Display plane B is now %s and connected to %s.\n",
+		   pI830->planeEnabled[1] ? "enabled" : "disabled",
+		   planeB & DISPPLANE_SEL_PIPE_MASK ? "Pipe B" : "Pipe A");
+
+done:
+#ifdef XF86DRI
+    if (didLock)
+	I830DRIUnlock(pScrn);
+#endif
+
+    return ok;
 }
 
 Bool
