@@ -312,3 +312,19 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	OUTREG(DSPBCNTR, temp | DISPLAY_PLANE_ENABLE);
     }*/
 }
+
+Bool
+i830DetectCRT(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 temp;
+
+    temp = INREG(PORT_HOTPLUG_EN);
+    OUTREG(PORT_HOTPLUG_EN, temp | CRT_HOTPLUG_FORCE_DETECT);
+
+    /* Wait for the bit to clear to signal detection finished. */
+    while (INREG(PORT_HOTPLUG_EN) & CRT_HOTPLUG_FORCE_DETECT)
+	;
+
+    return ((INREG(PORT_HOTPLUG_STAT) & CRT_HOTPLUG_INT_STATUS));
+}
