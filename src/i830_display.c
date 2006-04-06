@@ -358,7 +358,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	    dspcntr |= DISPPLANE_15_16BPP;
 	break;
     case 32:
-	dspcntr |= DISPPLANE_32BPP;
+	dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
 	break;
     default:
 	FatalError("unknown display bpp\n");
