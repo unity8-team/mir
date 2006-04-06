@@ -214,13 +214,24 @@ i830FindBestPLL(ScrnInfoPtr pScrn, int target, int refclk, int *outm1,
     return (err != target);
 }
 
+static void
+i830WaitForVblank(ScrnInfoPtr pScreen)
+{
+    /* Wait for 20ms, i.e. one cycle at 50hz. */
+    usleep(20000);
+}
+
+/**
+ * Sets the given video mode on the given pipe.  Assumes that plane A feeds
+ * pipe A, and plane B feeds pipe B.  Should not affect the other planes/pipes.
+ */
 void
-i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
+i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int m1, m2, n, p1, p2;
     CARD32 dpll = 0, fp = 0, temp;
-    CARD32 htot, hblank, hsync, vtot, vblank, vsync;
+    CARD32 htot, hblank, hsync, vtot, vblank, vsync, dspcntr;
     CARD32 pipesrc, dspsize, adpa;
     Bool ok;
     int refclk = 96000;
@@ -276,51 +287,96 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	   i830PllIsValid(pScrn, refclk, m1, m2, n, p1, p2) ? "good" : "bad");
     ErrorF("clock regs: 0x%08x, 0x%08x\n", dpll, fp);
 
-    /* First, disable display planes */
-    temp = INREG(DSPACNTR);
-    OUTREG(DSPACNTR, temp & ~DISPLAY_PLANE_ENABLE);
-    temp = INREG(DSPBCNTR);
-    OUTREG(DSPBCNTR, temp & ~DISPLAY_PLANE_ENABLE);
+    dspcntr = DISPLAY_PLANE_ENABLE;
+    switch (pScrn->bitsPerPixel) {
+    case 8:
+	dspcntr |= DISPPLANE_8BPP | DISPPLANE_GAMMA_ENABLE;
+	break;
+    case 16:
+	if (pScrn->depth == 15)
+	    dspcntr |= DISPPLANE_16BPP;
+	else
+	    dspcntr |= DISPPLANE_15_16BPP;
+	break;
+    case 32:
+	dspcntr |= DISPPLANE_32BPP;
+	break;
+    default:
+	FatalError("unknown display bpp\n");
+    }
+    if (pipe == 0)
+	dspcntr |= DISPPLANE_SEL_PIPE_A;
+    else
+	dspcntr |= DISPPLANE_SEL_PIPE_B;
 
-    /* Next, disable display pipes */
-    temp = INREG(PIPEACONF);
-    OUTREG(PIPEACONF, temp & ~PIPEACONF_ENABLE);
-    temp = INREG(PIPEBCONF);
-    OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
+    /* Set up display timings and PLLs for the pipe. */
+    if (pipe == 0) {
+	/* First, disable display planes */
+	temp = INREG(DSPACNTR);
+	OUTREG(DSPACNTR, temp & ~DISPLAY_PLANE_ENABLE);
 
-    /* XXX: Wait for a vblank */
-    sleep(1);
+	/* Next, disable display pipes */
+	temp = INREG(PIPEACONF);
+	OUTREG(PIPEACONF, temp & ~PIPEACONF_ENABLE);
 
-    /* Set up display timings and PLLs for the pipe.  XXX: Choose pipe! */
-    OUTREG(FPA0, fp);
-    OUTREG(DPLL_A, dpll);
-    OUTREG(HTOTAL_A, htot);
-    OUTREG(HBLANK_A, hblank);
-    OUTREG(HSYNC_A, hsync);
-    OUTREG(VTOTAL_A, vtot);
-    OUTREG(VBLANK_A, vblank);
-    OUTREG(VSYNC_A, vsync);
-    OUTREG(DSPABASE, 0); /* XXX: Base placed elsewhere? */
-    /*OUTREG(DSPASTRIDE, pScrn->displayWidth);*/
-    /*OUTREG(DSPAPOS, 0);*/
-    OUTREG(PIPEASRC, pipesrc);
-    OUTREG(DSPASIZE, dspsize);
-    OUTREG(ADPA, adpa);
+	/* Wait for vblank for the disable to take effect */
+	i830WaitForVblank(pScrn);
 
-    /* Turn pipes and planes back on */
-    /*if (pI830->planeEnabled[0]) {*/
+	OUTREG(FPA0, fp);
+	OUTREG(DPLL_A, dpll);
+	OUTREG(HTOTAL_A, htot);
+	OUTREG(HBLANK_A, hblank);
+	OUTREG(HSYNC_A, hsync);
+	OUTREG(VTOTAL_A, vtot);
+	OUTREG(VBLANK_A, vblank);
+	OUTREG(VSYNC_A, vsync);
+	OUTREG(DSPASTRIDE, pScrn->displayWidth * pI830->cpp);
+	OUTREG(DSPASIZE, dspsize);
+	OUTREG(DSPAPOS, 0);
+	/* XXX: Deal with adjustframe down here */
+	OUTREG(DSPABASE, 0); /* triggers update of display registers */
+	OUTREG(PIPEASRC, pipesrc);
+
+	/* Then, turn the pipe on first */
 	temp = INREG(PIPEACONF);
 	OUTREG(PIPEACONF, temp | PIPEACONF_ENABLE);
-	temp = INREG(DSPACNTR);
-	OUTREG(DSPACNTR, temp | DISPLAY_PLANE_ENABLE);
-    /*}
 
-    if (pI830->planeEnabled[1]) {
+	/* And then turn the plane on */
+	OUTREG(DSPACNTR, dspcntr);
+    } else {
+	/* First, disable display planes */
+	temp = INREG(DSPBCNTR);
+	OUTREG(DSPBCNTR, temp & ~DISPLAY_PLANE_ENABLE);
+
+	/* Next, disable display pipes */
+	temp = INREG(PIPEBCONF);
+	OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
+
+	/* Wait for vblank for the disable to take effect */
+	i830WaitForVblank(pScrn);
+
+	OUTREG(FPB0, fp);
+	OUTREG(DPLL_B, dpll);
+	OUTREG(HTOTAL_B, htot);
+	OUTREG(HBLANK_B, hblank);
+	OUTREG(HSYNC_B, hsync);
+	OUTREG(VTOTAL_B, vtot);
+	OUTREG(VBLANK_B, vblank);
+	OUTREG(VSYNC_B, vsync);
+	OUTREG(DSPBSTRIDE, pScrn->displayWidth * pI830->cpp);
+	OUTREG(DSPBSIZE, dspsize);
+	OUTREG(DSPBPOS, 0);
+	/* XXX: Deal with adjustframe down here */
+	OUTREG(DSPBBASE, 0); /* triggers update of display registers */
+	OUTREG(PIPEBSRC, pipesrc);
+
+	/* Then, turn the pipe on first */
 	temp = INREG(PIPEBCONF);
 	OUTREG(PIPEBCONF, temp | PIPEBCONF_ENABLE);
-	temp = INREG(DSPBCNTR);
-	OUTREG(DSPBCNTR, temp | DISPLAY_PLANE_ENABLE);
-    }*/
+
+	/* And then turn the plane on */
+	OUTREG(DSPBCNTR, dspcntr);
+    }
 }
 
 Bool

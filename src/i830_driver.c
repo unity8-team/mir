@@ -4398,7 +4398,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
    ErrorF("Plane B size %d %d\n", temp & 0xffff, (temp & 0xffff0000) >> 16);
 #endif
 
-   i830SetMode(pScrn, pMode);
+   i830SetMode(pScrn, pMode, pI830->pipe);
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode bandwidth is %d Mpixel/s\n",
 	      pMode->HDisplay * pMode->VDisplay * refresh / 1000000);
