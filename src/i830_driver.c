@@ -614,42 +614,6 @@ I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh)
    return i;
 }
 
-#if 0
-static int
-GetLFPCompMode(ScrnInfoPtr pScrn)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-
-   DPRINTF(PFX, "GetLFPCompMode\n");
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f61;
-   pVbe->pInt10->bx = 0x100;
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f61, pVbe->pInt10->ax))
-      return pVbe->pInt10->cx & 0xffff;
-   else
-      return -1;
-}
-
-static Bool
-SetLFPCompMode(ScrnInfoPtr pScrn, int compMode)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-
-   DPRINTF(PFX, "SetLFPCompMode: compMode %d\n", compMode);
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f61;
-   pVbe->pInt10->bx = 0;
-   pVbe->pInt10->cx = compMode;
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   return Check5fStatus(pScrn, 0x5f61, pVbe->pInt10->ax);
-}
-#endif
-
 static int
 GetDisplayDevices(ScrnInfoPtr pScrn)
 {
@@ -4839,6 +4803,8 @@ I830BIOSLeaveVT(int scrnIndex, int flags)
 static Bool
 I830DetectMonitorChange(ScrnInfoPtr pScrn)
 {
+   return FALSE;
+#if 0 /* Disabled until we rewrite this natively */
    I830Ptr pI830 = I830PTR(pScrn);
    pointer pDDCModule = NULL;
    DisplayModePtr p, pMon;
@@ -4977,6 +4943,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
    }
 
    return TRUE;
+#endif /* 0 */
 }
 
 Bool

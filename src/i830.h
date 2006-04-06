@@ -570,10 +570,6 @@ extern void I830ReadAllRegisters(I830Ptr pI830, I830RegPtr i830Reg);
 extern void I830ChangeFrontbuffer(ScrnInfoPtr pScrn,int buffer);
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
-extern DisplayModePtr I830GetModePool(ScrnInfoPtr pScrn, vbeInfoPtr pVbe,
-					VbeInfoBlock *vbe);
-extern void I830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe);
-extern void I830UnsetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe);
 extern void I830PrintModes(ScrnInfoPtr pScrn);
 extern int I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh);
 extern Bool I830CheckModeSupport(ScrnInfoPtr pScrn, int x, int y, int mode);
