@@ -19,9 +19,43 @@ i830PrintPll(char *prefix, int refclk, int m1, int m2, int n, int p1, int p2)
 }
 
 static Bool
-i830PllIsValid(int refclk, int m1, int m2, int n, int p1, int p2)
+i830PllIsValid(ScrnInfoPtr pScrn, int refclk, int m1, int m2, int n, int p1,
+	       int p2)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
     int p, m, vco, dotclock;
+    int min_m1, max_m1, min_m2, max_m2, min_m, max_m, min_n, max_n;
+    int min_p, max_p;
+
+    min_p = 5;
+    max_p = 80;
+    if (pI830->PciInfo->chipType >= PCI_CHIP_I915_G) {
+	min_m1 = 10;
+	max_m1 = 20;
+	min_m2 = 5;
+	max_m2 = 9;
+	min_m = 70;
+	max_m = 120;
+	min_n = 3;
+	max_n = 8;
+	if (0) { /* lvds */
+	    min_p = 7;
+	    max_p = 98;
+	}
+    } else {
+	min_m1 = 16;
+	max_m1 = 24;
+	min_m2 = 7;
+	max_m2 = 11;
+	min_m = 90;
+	max_m = 130;
+	min_n = 4;
+	max_n = 8;
+	if (0) { /* lvds */
+	    min_n = 3;
+	    min_m = 88;
+	}
+    }
 
     p = p1 + p2;
     m = 5 * (m1 + 2) + (m2 + 2);
@@ -30,17 +64,17 @@ i830PllIsValid(int refclk, int m1, int m2, int n, int p1, int p2)
 
     if (p1 < 1 || p1 > 8)
 	return FALSE;
-    if (p < 5 || p > 80) /* XXX: 7-98 for LVDS */
+    if (p < min_p || p > max_p)
 	return FALSE;
-    if (m2 < 5 || m2 > 9)
+    if (m2 < min_m2 || m2 > max_m2)
 	return FALSE;
-    if (m1 < 10 || m1 > 20)
+    if (m1 < min_m1 || m1 > max_m1)
 	return FALSE;
     if (m1 <= m2)
 	return FALSE;
-    if (m < 70 || m > 120)
+    if (m < min_m || m > max_m)
 	return FALSE;
-    if (n + 2 < 3 || n + 2 > 8)	/*XXX: Is the +2 right? */
+    if (n + 2 < min_n || n + 2 > max_n)	/*XXX: Is the +2 right? */
 	return FALSE;
     if (vco < 1400000 || vco > 2800000)
 	return FALSE;
@@ -129,23 +163,37 @@ i830ReadAndReportPLL(ScrnInfoPtr pScrn)
 #endif
 
 static Bool
-i830FindBestPLL(int target, int refclk, int *outm1, int *outm2, int *outn,
-		int *outp1, int *outp2)
+i830FindBestPLL(ScrnInfoPtr pScrn, int target, int refclk, int *outm1,
+		int *outm2, int *outn, int *outp1, int *outp2)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
     int m1, m2, n, p1, p2;
     int err = target;
+    int min_m1, max_m1, min_m2, max_m2;
+
+    if (pI830->PciInfo->chipType >= PCI_CHIP_I915_G) {
+	min_m1 = 10;
+	max_m1 = 20;
+	min_m2 = 5;
+	max_m2 = 9;
+    } else {
+	min_m1 = 16;
+	max_m1 = 24;
+	min_m2 = 7;
+	max_m2 = 11;
+    }
 
     if (target < 200000)	/* XXX: LVDS */
 	p2 = 10;
     else
 	p2 = 5;
-    for (m1 = 10; m1 <= 20; m1++) {
-	for (m2 = 5; m2 < 9; m2++) {
+    for (m1 = min_m1; m1 <= max_m1; m1++) {
+	for (m2 = min_m2; m2 < max_m2; m2++) {
 	    for (n = 1; n <= 6; n++) {
 		for (p1 = 1; p1 <= 8; p1++) {
 		    int clock, this_err;
 
-		    if (!i830PllIsValid(refclk, m1, m2, n, p1, p2))
+		    if (!i830PllIsValid(pScrn, refclk, m1, m2, n, p1, p2))
 			continue;
 
 		    clock = i830_clock(refclk, m1, m2, n, p1, p2);
@@ -179,7 +227,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 
     ErrorF("Requested pix clock: %d\n", pMode->Clock);
 
-    ok = i830FindBestPLL(pMode->Clock, refclk, &m1, &m2, &n, &p1, &p2);
+    ok = i830FindBestPLL(pScrn, pMode->Clock, refclk, &m1, &m2, &n, &p1, &p2);
     if (!ok)
 	FatalError("Couldn't find PLL settings for mode!\n");
 
@@ -216,7 +264,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 
     i830PrintPll("chosen", refclk, m1, m2, n, p1, p2);
     ErrorF("clock settings for chosen look %s\n",
-	   i830PllIsValid(refclk, m1, m2, n, p1, p2) ? "good" : "bad");
+	   i830PllIsValid(pScrn, refclk, m1, m2, n, p1, p2) ? "good" : "bad");
     ErrorF("clock regs: 0x%08x, 0x%08x\n", dpll, fp);
 
     /* First, disable display planes */
