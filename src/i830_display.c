@@ -463,6 +463,16 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	i830PipeSetBase(pScrn, pipe, pScrn->frameX0, pScrn->frameY0);
 	OUTREG(PIPEBSRC, pipesrc);
 
+	if (outputs & PIPE_LCD_ACTIVE) {
+	    /* Enable automatic panel scaling so that non-native modes fill the
+	     * screen.
+	     */
+	    /* XXX: Allow (auto-?) enabling of 8-to-6 dithering */
+	    OUTREG(PFIT_CONTROL, PFIT_ENABLE /*|
+		   VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
+		   VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR*/);
+	}
+
 	/* Then, turn the pipe on first */
 	temp = INREG(PIPEBCONF);
 	OUTREG(PIPEBCONF, temp | PIPEBCONF_ENABLE);
@@ -471,14 +481,6 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	OUTREG(DSPBCNTR, dspcntr);
 
 	if (outputs & PIPE_LCD_ACTIVE) {
-	    /* Enable automatic panel scaling so that non-native modes fill the
-	     * screen.
-	     */
-	    /* XXX: Allow (auto-?) enabling of 8-to-6 dithering */
-	    OUTREG(PFIT_CONTROL, PFIT_ENABLE |
-		   VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
-		   VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR);
-
 	    i830SetLVDSPanelPower(pScrn, TRUE);
 	}
     }
