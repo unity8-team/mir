@@ -70,6 +70,7 @@ static struct i830SnapshotRec {
     DEFINEREG(VCLK_DIVISOR_VGA0),
     DEFINEREG(VCLK_DIVISOR_VGA1),
     DEFINEREG(VCLK_POST_DIV),
+    DEFINEREG(VGACNTRL),
 };
 #undef DEFINEREG
 #define NUM_I830_SNAPSHOTREGS (sizeof(i830_snapshot) / sizeof(i830_snapshot[0]))

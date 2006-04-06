@@ -837,6 +837,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DSPBPOS			0x7118C
 #define DSPBSIZE		0x71190
 
+#define VGACNTRL		0x71400
+# define VGA_DISP_DISABLE			(1 << 31)
+# define VGA_2X_MODE				(1 << 30)
+# define VGA_PIPE_B_SELECT			(1 << 29)
+
 /* Various masks for reserved bits, etc. */
 #define I830_FWATER1_MASK        (~((1<<11)|(1<<10)|(1<<9)|      \
         (1<<8)|(1<<26)|(1<<25)|(1<<24)|(1<<5)|(1<<4)|(1<<3)|    \
