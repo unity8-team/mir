@@ -614,81 +614,6 @@ I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh)
    return i;
 }
 
-static int
-GetDisplayDevices(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   vbeInfoPtr pVbe = pI830->pVbe;
-
-   DPRINTF(PFX, "GetDisplayDevices\n");
-
-#if 0
-   {
-      CARD32 temp;
-      ErrorF("ADPA is 0x%08x\n", INREG(ADPA));
-      ErrorF("DVOA is 0x%08x\n", INREG(DVOA));
-      ErrorF("DVOB is 0x%08x\n", INREG(DVOB));
-      ErrorF("DVOC is 0x%08x\n", INREG(DVOC));
-      ErrorF("LVDS is 0x%08x\n", INREG(LVDS));
-      temp = INREG(DVOA_SRCDIM);
-      ErrorF("DVOA_SRCDIM is 0x%08x (%d x %d)\n", temp,
-	     (temp >> 12) & 0xfff, temp & 0xfff);
-      temp = INREG(DVOB_SRCDIM);
-      ErrorF("DVOB_SRCDIM is 0x%08x (%d x %d)\n", temp,
-	     (temp >> 12) & 0xfff, temp & 0xfff);
-      temp = INREG(DVOC_SRCDIM);
-      ErrorF("DVOC_SRCDIM is 0x%08x (%d x %d)\n", temp,
-	     (temp >> 12) & 0xfff, temp & 0xfff);
-      ErrorF("SWF0 is 0x%08x\n", INREG(SWF0));
-      ErrorF("SWF4 is 0x%08x\n", INREG(SWF4));
-   }
-#endif
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f64;
-   pVbe->pInt10->bx = 0x100;
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax)) {
-      return pVbe->pInt10->cx & 0xffff;
-   } else {
-      if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G) /* FIXED CONFIG */
-         return PIPE_CRT;
-      else
-         return -1;
-   }
-}
-
-static int
-GetBIOSPipe(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   vbeInfoPtr pVbe = pI830->pVbe;
-   int pipe;
-
-   DPRINTF(PFX, "GetBIOSPipe:\n");
-
-   /* single pipe machines should always return Pipe A */
-   if (pI830->availablePipes == 1) return 0;
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f1c;
-   pVbe->pInt10->bx = 0x100;
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f1c, pVbe->pInt10->ax)) {
-      if (pI830->newPipeSwitch) {
-         pipe = ((pVbe->pInt10->bx & 0x0001));
-      } else {
-         pipe = ((pVbe->pInt10->cx & 0x0100) >> 8);
-      }
-      return pipe;
-   }
-
-   /* failed, assume pipe A */
-   return 0;
-}
-
 static Bool
 SetBIOSPipe(ScrnInfoPtr pScrn, int pipe)
 {
@@ -753,185 +678,6 @@ I830Set640x480(ScrnInfoPtr pScrn)
    return VBESetVBEMode(pI830->pVbe, m, NULL);
 }
 
-/* This is needed for SetDisplayDevices to work correctly on I915G.
- * Enable for all chipsets now as it has no bad side effects, apart
- * from slightly longer startup time.
- */
-#define I915G_WORKAROUND
-
-static Bool
-SetDisplayDevices(ScrnInfoPtr pScrn, int devices)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   vbeInfoPtr pVbe = pI830->pVbe;
-   CARD32 temp;
-   int singlepipe = 0;
-#ifdef I915G_WORKAROUND
-   int getmode1;
-   Bool setmode = FALSE;
-#endif
-
-   DPRINTF(PFX, "SetDisplayDevices: devices 0x%x\n", devices);
-
-   if (!pI830->specifiedMonitor)
-      return TRUE;
-
-#ifdef I915G_WORKAROUND
-   if (pI830->preinit)
-      setmode = TRUE;
-   if (pI830->leaving)
-      setmode = FALSE;
-   if (pI830->closing)
-      setmode = FALSE;
-
-   if (setmode) {
-      VBEGetVBEMode(pVbe, &getmode1);
-      I830Set640x480(pScrn);
-   }
-#endif
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f64;
-   pVbe->pInt10->bx = 0x1;
-   pVbe->pInt10->cx = devices;
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax)) {
-#ifdef I915G_WORKAROUND
-      if (setmode) {
-  	 VBESetVBEMode(pI830->pVbe, getmode1 | 1<<15, NULL);
-      }
-#endif
-      pI830->pipeEnabled[0] = (devices & 0xff) ? TRUE : FALSE;
-      pI830->pipeEnabled[1] = (devices & 0xff00) ? TRUE : FALSE;
-
-      return TRUE;
-   }
-
-#ifdef I915G_WORKAROUND
-   if (setmode)
-      VBESetVBEMode(pI830->pVbe, getmode1 | 1<<15, NULL);
-#endif
-
-   if (devices & 0xff) {
-      pVbe->pInt10->num = 0x10;
-      pVbe->pInt10->ax = 0x5f64;
-      pVbe->pInt10->bx = 0x1;
-      pVbe->pInt10->cx = devices & 0xff;
-
-      xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-      if (Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax)) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	 	"Successfully set display devices to 0x%x.\n",devices & 0xff);
-         singlepipe = devices & 0xff00; /* set alternate */
-      } else {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	 	"Failed to set display devices to 0x%x.\n",devices & 0xff);
-         singlepipe = devices;
-      }
-   } else
-      singlepipe = devices; 
-
-   if (singlepipe == devices && devices & 0xff00) {
-      pVbe->pInt10->num = 0x10;
-      pVbe->pInt10->ax = 0x5f64;
-      pVbe->pInt10->bx = 0x1;
-      pVbe->pInt10->cx = devices & 0xff00;
-
-      xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-      if (Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax)) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	 	"Successfully set display devices to 0x%x.\n",devices & 0xff00);
-         singlepipe = devices & 0xff; /* set alternate */
-      } else {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	 	"Failed to set display devices to 0x%x.\n",devices & 0xff00);
-         singlepipe = devices;
-      }
-   } 
-
-   /* LVDS doesn't exist on these */
-   if (IS_I830(pI830) || IS_845G(pI830) || IS_I865G(pI830))
-      singlepipe &= ~(PIPE_LFP | (PIPE_LFP<<8));
-
-   if (pI830->availablePipes == 1) 
-      singlepipe &= 0xFF;
-
-   /* Disable LVDS */
-   if (singlepipe & PIPE_LFP)  {
-      /* LFP on PipeA is unlikely! */
-      i830SetLVDSPanelPower(pScrn, FALSE);
-      temp = INREG(LVDS) & ~LVDS_PIPEB_SELECT;
-      temp |= LVDS_PORT_EN | LVDS_CLKA_POWER_UP;
-      OUTREG(LVDS, temp);
-      i830SetLVDSPanelPower(pScrn, TRUE);
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	 	"Enabling LVDS directly. Pipe A.\n");
-   } else
-   if (singlepipe & (PIPE_LFP << 8))  {
-      i830SetLVDSPanelPower(pScrn, FALSE);
-      temp = INREG(LVDS) | LVDS_PIPEB_SELECT;
-      temp |= LVDS_PORT_EN | LVDS_CLKA_POWER_UP;
-      OUTREG(LVDS, temp);
-      i830SetLVDSPanelPower(pScrn, TRUE);
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	 	"Enabling LVDS directly. Pipe B.\n");
-   }
-   else if (!(IS_I830(pI830) || IS_845G(pI830) || IS_I865G(pI830))) {
-      if (!(devices & (PIPE_LFP | PIPE_LFP<<8))) {
-	 i830SetLVDSPanelPower(pScrn, FALSE);
-         /* Fix up LVDS */
-	 temp = INREG(LVDS) | LVDS_PIPEB_SELECT;
-	 temp &= ~(LVDS_PORT_EN | LVDS_CLKA_POWER_UP);
-	 OUTREG(LVDS, temp);
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	 	"Disabling LVDS directly.\n");
-      }
-   }
-
-   /* Now try to program the registers directly if the BIOS failed. */
-   temp = INREG(ADPA);
-   temp &= ~(ADPA_DAC_ENABLE | ADPA_PIPE_SELECT_MASK);
-   temp &= ~(ADPA_VSYNC_CNTL_DISABLE | ADPA_HSYNC_CNTL_DISABLE);
-   /* Turn on ADPA */
-   if (singlepipe & PIPE_CRT)  {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	 	"Enabling ADPA directly. Pipe A.\n");
-      temp |= ADPA_DAC_ENABLE | ADPA_PIPE_A_SELECT;
-      OUTREG(ADPA, temp);
-   } else
-   if (singlepipe & (PIPE_CRT << 8)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	 	"Enabling ADPA directly. Pipe B.\n");
-      temp |= ADPA_DAC_ENABLE | ADPA_PIPE_B_SELECT;
-      OUTREG(ADPA, temp);
-   } 
-   else {
-      if (!(devices & (PIPE_CRT | PIPE_CRT<<8))) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	 	"Disabling ADPA directly.\n");
-         temp |= ADPA_VSYNC_CNTL_DISABLE | ADPA_HSYNC_CNTL_DISABLE;
-         OUTREG(ADPA, temp);
-      }
-   }
-
-   xf86DrvMsg(pScrn->scrnIndex, X_WARNING,"Writing config directly to SWF0.\n");
-   temp = INREG(SWF0);
-   OUTREG(SWF0, (temp & ~(0xffff)) | (devices & 0xffff));
-
-   if (GetDisplayDevices(pScrn) != devices) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "SetDisplayDevices failed with devices 0x%x instead of 0x%x\n",
-	         GetDisplayDevices(pScrn), devices);
-      return FALSE;
-   }
-
-   pI830->pipeEnabled[0] = (devices & 0xff) ? TRUE : FALSE;
-   pI830->pipeEnabled[1] = (devices & 0xff00) ? TRUE : FALSE;
-
-   return TRUE;
-}
-
 static Bool
 GetBIOSVersion(ScrnInfoPtr pScrn, unsigned int *version)
 {
@@ -972,52 +718,6 @@ GetDevicePresence(ScrnInfoPtr pScrn, Bool *required, int *attached,
 	 *attached = (pVbe->pInt10->cx >> 8) & 0xff;
       if (encoderPresent)
 	 *encoderPresent = pVbe->pInt10->cx & 0xff;
-      return TRUE;
-   } else
-      return FALSE;
-}
-
-static Bool
-GetDisplayInfo(ScrnInfoPtr pScrn, int device, Bool *attached, Bool *present,
-	       short *x, short *y)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-
-   DPRINTF(PFX, "GetDisplayInfo: device: 0x%x\n", device);
-
-   switch (device & 0xff) {
-   case 0x01:
-   case 0x02:
-   case 0x04:
-   case 0x08:
-   case 0x10:
-   case 0x20:
-      break;
-   default:
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "GetDisplayInfo: invalid device: 0x%x\n", device & 0xff);
-      return FALSE;
-   }
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f64;
-   pVbe->pInt10->bx = 0x300;
-   pVbe->pInt10->cx = device & 0xff;
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax)) {
-      if (attached)
-	 *attached = ((pVbe->pInt10->bx & 0x2) != 0);
-      if (present)
-	 *present = ((pVbe->pInt10->bx & 0x1) != 0);
-      if (pVbe->pInt10->cx != (device & 0xff)) {
-	 if (y) {
-	    *y = pVbe->pInt10->cx & 0xffff;
-	 }
-	 if (x) {
-	    *x = (pVbe->pInt10->cx >> 16) & 0xffff;
-	 }
-      }
       return TRUE;
    } else
       return FALSE;
@@ -1107,46 +807,6 @@ PrintDisplayDeviceInfo(ScrnInfoPtr pScrn)
 		    "No active displays on Pipe %c.\n", PIPE_NAME(n));
       }
    }
-}
-
-static Bool
-I830DetectDisplayDevice(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int pipe, n;
-   DisplayType i;
-   
-   /* This seems to lockup some Dell BIOS'. So it's on option to turn on */
-   if (pI830->displayInfo) {
-       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		  "Broken BIOSes cause the system to hang here.\n"
-		  "\t      If you encounter this problem please add \n"
-		  "\t\t Option \"DisplayInfo\" \"FALSE\"\n"
-		  "\t      to the Device section of your XF86Config file.\n");
-      for (i = 0; i < NumKnownDisplayTypes; i++) {
-	 int unusedx, unusedy;
-         if (GetDisplayInfo(pScrn, 1 << i, &pI830->displayAttached[i],
-			 &pI830->displayPresent[i],
-			 &unusedx, &unusedy)) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Display Info: %s: attached: %s, present: %s: "
-		    "(%d,%d)\n", displayDevices[i],
-		    BOOLTOSTRING(pI830->displayAttached[i]),
-		    BOOLTOSTRING(pI830->displayPresent[i]));
-         }
-      }
-   }
-
-   /* Check for active devices connected to each display pipe. */
-   for (n = 0; n < pI830->availablePipes; n++) {
-      pipe = ((pI830->operatingDevices >> PIPE_SHIFT(n)) & PIPE_ACTIVE_MASK);
-      if (pipe)
-	 pI830->pipeEnabled[n] = TRUE;
-      else
-	 pI830->pipeEnabled[n] = FALSE;
-   }
-
-   return TRUE;
 }
 
 static int
@@ -1680,6 +1340,7 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    }
 }
 
+#if 0
 static int
 I830UseDDC(ScrnInfoPtr pScrn)
 {
@@ -1744,6 +1405,7 @@ I830UseDDC(ScrnInfoPtr pScrn)
 
    return mon_range->max_clock;
 }
+#endif
 
 static void
 I830SetupOutputBusses(ScrnInfoPtr pScrn)
@@ -2624,7 +2286,50 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
             return FALSE;
       }
 
+      if (pI830->MonType1 != PIPE_NONE)
+	 pI830->pipe = 0;
+      else
+	 pI830->pipe = 1;
+
+      pI830->operatingDevices = (pI830->MonType2 << 8) | pI830->MonType1;
       pI830->specifiedMonitor = TRUE;
+   } else if (I830IsPrimary(pScrn)) {
+      /* Choose a default set of outputs to use based on what we've detected. */
+      if (i830GetLVDSInfoFromBIOS(pScrn)) {
+	 pI830->MonType2 |= PIPE_LFP;
+      }
+
+      for (i=0; i<pI830->num_outputs; i++) {
+	 if (pI830->output[i].MonInfo == NULL)
+	    continue;
+
+	 switch (pI830->output[i].type) {
+	 case I830_OUTPUT_ANALOG:
+	 case I830_OUTPUT_DVO:
+	    pI830->MonType1 |= PIPE_CRT;
+	    break;
+	 case I830_OUTPUT_LVDS:
+	    pI830->MonType2 |= PIPE_LFP;
+	    break;
+	 case I830_OUTPUT_SDVO:
+	    /* XXX DVO */
+	    break;
+	 case I830_OUTPUT_UNUSED:
+	    break;
+	 }
+      }
+
+      if (pI830->MonType1 != PIPE_NONE)
+	 pI830->pipe = 0;
+      else
+	 pI830->pipe = 1;
+      pI830->operatingDevices = (pI830->MonType2 << 8) | pI830->MonType1;
+   } else {
+      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
+      pI830->operatingDevices = pI8301->operatingDevices;
+      pI830->pipe = !pI8301->pipe;
+      pI830->MonType1 = pI8301->MonType1;
+      pI830->MonType2 = pI8301->MonType2;
    }
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_CLONE, FALSE)) {
@@ -2955,58 +2660,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       }
    }
 
-   /* Save old configuration of detected devices */
-   pI830->savedDevices = GetDisplayDevices(pScrn);
-
-   if (I830IsPrimary(pScrn)) {
-      pI830->pipe = pI830->origPipe = GetBIOSPipe(pScrn);
-
-      /* Override */
-      if (pI830->fixedPipe != -1) {
-         if (xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone) {
-            pI830->pipe = pI830->fixedPipe; 
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	        "Fixed Pipe setting primary to pipe %s.\n", 
-                	pI830->fixedPipe ? "B" : "A");
-         }
-      }
-      
-      /* If the monitors aren't setup, read from the current config */
-      if (pI830->MonType1 == PIPE_NONE && pI830->MonType2 == PIPE_NONE) {
-         pI830->MonType1 = pI830->savedDevices & 0xff;
-         pI830->MonType2 = (pI830->savedDevices & 0xff00) >> 8;
-      } else {
-         /* Here, we've switched pipes from our primary */
-         if (pI830->MonType1 == PIPE_NONE && pI830->pipe == 0)
-            pI830->pipe = 1;
-         if (pI830->MonType2 == PIPE_NONE && pI830->pipe == 1)
-            pI830->pipe = 0;
-      }
-   
-      pI830->operatingDevices = (pI830->MonType2 << 8) | pI830->MonType1;
-
-      if (!xf86IsEntityShared(pScrn->entityList[0]) && !pI830->Clone) {
-	  /* If we're not dual head or clone, turn off the second head,
-          * if monitorlayout is also specified. */
-
-         if (pI830->pipe == 0)
-            pI830->operatingDevices = pI830->MonType1;
-         else
-            pI830->operatingDevices = pI830->MonType2 << 8;
-      }
-
-      if (pI830->pipe != pI830->origPipe)
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	     "Primary Pipe has been switched from original pipe (%s to %s)\n",
-             pI830->origPipe ? "B" : "A", pI830->pipe ? "B" : "A");
-   } else {
-      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-      pI830->operatingDevices = pI8301->operatingDevices;
-      pI830->pipe = !pI8301->pipe;
-      pI830->MonType1 = pI8301->MonType1;
-      pI830->MonType2 = pI8301->MonType2;
-   }
-
    /* Buggy BIOS 3066 is known to cause this, so turn this off */
    if (pI830->bios_version == 3066) {
       pI830->displayInfo = FALSE;
@@ -3024,27 +2677,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    }
    xf86DrvMsg(pScrn->scrnIndex, from, "Display Info: %s.\n",
 	      pI830->displayInfo ? "enabled" : "disabled");
-
-   if (!I830DetectDisplayDevice(pScrn)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Couldn't detect display devices.\n");
-      PreInitCleanup(pScrn);
-      return FALSE;
-   }
-
-   if (I830IsPrimary(pScrn)) {
-      if (!SetDisplayDevices(pScrn, pI830->operatingDevices)) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
- 		 "Failed to switch to monitor configuration (0x%x)\n",
-                 pI830->operatingDevices);
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Please check the devices specified in your MonitorLayout\n");
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "is configured correctly.\n");
-         PreInitCleanup(pScrn);
-         return FALSE;
-      }
-   }
 
    PrintDisplayDeviceInfo(pScrn);
 
@@ -4718,35 +4350,12 @@ I830BIOSLeaveVT(int scrnIndex, int flags)
 
    ResetState(pScrn, TRUE);
 
-   if (I830IsPrimary(pScrn)) {
-      if (!SetDisplayDevices(pScrn, pI830->savedDevices)) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Failed to switch back to original display devices (0x%x)\n",
-		 pI830->savedDevices);
-      } else {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Successfully set original devices\n");
-      }
-   }
-
    RestoreHWState(pScrn);
    RestoreBIOSMemSize(pScrn);
    if (I830IsPrimary(pScrn))
       I830UnbindAGPMemory(pScrn);
    if (pI830->AccelInfoRec)
       pI830->AccelInfoRec->NeedToSync = FALSE;
-
-   /* DO IT AGAIN! AS IT SEEMS THAT SOME LFPs FLICKER OTHERWISE */
-   if (I830IsPrimary(pScrn)) {
-      if (!SetDisplayDevices(pScrn, pI830->savedDevices)) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Failed to switch back to original display devices (0x%x) (2)\n",
-		 pI830->savedDevices);
-      } else {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Successfully set original devices (2)\n");
-      }
-   }
 }
 
 static Bool
@@ -4951,13 +4560,6 @@ I830BIOSEnterVT(int scrnIndex, int flags)
             xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
 		"Re-POSTing via int10 failed, trying to continue.\n");
          }
-      }
-
-      /* Finally, re-setup the display devices */
-      if (!SetDisplayDevices(pScrn, pI830->operatingDevices)) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
- 		 "Failed to switch to configured display devices\n");
-         return FALSE;
       }
    }
 
@@ -5534,6 +5136,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
             pI830->cursorOn = on;
          }
 
+#if 0 /* Disable -- I'll need to look at this whole function later. */
          /* double check the display devices are what's configured and try
           * not to do it twice because of dual heads with the code above */
          if (!SetDisplayDevices(pScrn, temp)) {
@@ -5552,6 +5155,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
                }
             }
          }
+#endif
 
          pI8301->monitorSwitch = temp;
 	 pI8301->operatingDevices = temp;
