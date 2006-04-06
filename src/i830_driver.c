@@ -4326,7 +4326,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
       }
    }
 
-#if 1
+#if 0
    /* Print out some CRTC/display information. */
    temp = INREG(HTOTAL_A);
    ErrorF("Horiz active: %d, Horiz total: %d\n", temp & 0x7ff,
