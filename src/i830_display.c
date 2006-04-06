@@ -432,6 +432,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	adpa |= ADPA_PIPE_B_SELECT;
     }
 
+    OUTREG(VGACNTRL, VGA_DISP_DISABLE);
+
     /* Set up display timings and PLLs for the pipe. */
     if (pipe == 0) {
 	/* First, disable display planes */
