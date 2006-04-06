@@ -3749,7 +3749,15 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveDSPBPOS = INREG(DSPBPOS);
    pI830->saveDSPBBASE = INREG(DSPBBASE);
 
+   pI830->saveVCLK_DIVISOR_VGA0 = INREG(VCLK_DIVISOR_VGA0);
+   pI830->saveVCLK_DIVISOR_VGA1 = INREG(VCLK_DIVISOR_VGA1);
+   pI830->saveVCLK_POST_DIV = INREG(VCLK_POST_DIV);
+   pI830->saveVGACNTRL = INREG(VGACNTRL);
+
    pI830->saveADPA = INREG(ADPA);
+
+   vgaHWUnlock(hwp);
+   vgaHWSave(pScrn, vgaReg, VGA_SR_ALL);
 
    if (I830IsPrimary(pScrn) && pI830->pipe != pI830->origPipe)
       SetBIOSPipe(pScrn, pI830->origPipe);
@@ -3769,9 +3777,6 @@ SaveHWState(ScrnInfoPtr pScrn)
       }
       VBEFreeModeInfo(modeInfo);
    }
-
-   vgaHWUnlock(hwp);
-   vgaHWSave(pScrn, vgaReg, VGA_SR_FONTS);
 
    pVesa = pI830->vesa;
    /*
@@ -3876,7 +3881,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    VBESetDisplayStart(pVbe, pVesa->x, pVesa->y, TRUE);
 
-   vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
+   vgaHWRestore(pScrn, vgaReg, VGA_SR_ALL);
    vgaHWLock(hwp);
 
    /* First, disable display planes */
@@ -3924,9 +3929,14 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(DSPBBASE, pI830->saveDSPBBASE);
    OUTREG(PIPEBSRC, pI830->savePIPEBSRC);
 
+   OUTREG(VCLK_DIVISOR_VGA0, pI830->saveVCLK_DIVISOR_VGA0);
+   OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
+   OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
+
    OUTREG(PIPEACONF, pI830->savePIPEACONF);
    OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
 
+   OUTREG(VGACNTRL, pI830->saveVGACNTRL);
    OUTREG(DSPACNTR, pI830->saveDSPACNTR);
    OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
 
