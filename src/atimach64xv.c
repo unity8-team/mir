@@ -944,7 +944,8 @@ ATIMach64PutImage
     short         Height,
     Bool          Synchronise,
     RegionPtr     pClip,
-    pointer       Data
+    pointer       Data,
+    DrawablePtr   pDraw
 )
 {
     ATIPtr    pATI    = Data;

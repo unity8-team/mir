@@ -90,7 +90,8 @@ static void RADEONQueryBestSize(ScrnInfoPtr, Bool, short, short, short, short,
 			unsigned int *, unsigned int *, pointer);
 static int  RADEONPutImage(ScrnInfoPtr, short, short, short, short, short,
 			short, short, short, int, unsigned char*, short,
-			short, Bool, RegionPtr, pointer);
+			short, Bool, RegionPtr, pointer,
+			DrawablePtr);
 static int  RADEONQueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
 			unsigned short *,  int *, int *);
 static void RADEONFreeMemory(ScrnInfoPtr pScrn, void *mem_struct);
@@ -98,7 +99,7 @@ static void RADEONFreeMemory(ScrnInfoPtr pScrn, void *mem_struct);
 static void RADEONVideoTimerCallback(ScrnInfoPtr pScrn, Time now);
 static int RADEONPutVideo(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x, short drw_y,
                         short src_w, short src_h, short drw_w, short drw_h, 
-			RegionPtr clipBoxes, pointer data);
+			RegionPtr clipBoxes, pointer data, DrawablePtr pDraw);
 
 static void RADEON_board_setmisc(RADEONPortPrivPtr pPriv);
 static void RADEON_RT_SetEncoding(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
@@ -2704,7 +2705,8 @@ RADEONPutImage(
   int id, unsigned char* buf,
   short width, short height,
   Bool Sync,
-  RegionPtr clipBoxes, pointer data
+  RegionPtr clipBoxes, pointer data,
+  DrawablePtr pDraw
 ){
    RADEONInfoPtr info = RADEONPTR(pScrn);
    RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
@@ -3183,7 +3185,8 @@ RADEONPutVideo(
   short drw_x, short drw_y,
   short src_w, short src_h,
   short drw_w, short drw_h,
-  RegionPtr clipBoxes, pointer data
+  RegionPtr clipBoxes, pointer data,
+  DrawablePtr pDraw
 ){
    RADEONInfoPtr info = RADEONPTR(pScrn);
    RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;

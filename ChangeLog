@@ -1,3 +1,11 @@
+2006-04-07  Aaron Plattner  <aplattner@nvidia.com>
+
+	* src/atimach64xv.c: (ATIMach64PutImage):
+	* src/r128_video.c: (R128PutImage):
+	* src/radeon_video.c: (RADEONPutImage), (RADEONPutVideo):
+	Add a DrawablePtr argument to the XV functions to pave the way for
+	redirected video.
+
 2006-04-04  Eric Anholt  <anholt@FreeBSD.org>
 
 	* man/ati.man:

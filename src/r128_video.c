@@ -37,7 +37,7 @@ static void R128QueryBestSize(ScrnInfoPtr, Bool, short, short, short, short,
 			unsigned int *, unsigned int *, pointer);
 static int  R128PutImage(ScrnInfoPtr, short, short, short, short, short,
 			short, short, short, int, unsigned char*, short,
-			short, Bool, RegionPtr, pointer);
+			short, Bool, RegionPtr, pointer, DrawablePtr);
 static int  R128QueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
 			unsigned short *,  int *, int *);
 
@@ -771,7 +771,8 @@ R128PutImage(
   int id, unsigned char* buf,
   short width, short height,
   Bool Sync,
-  RegionPtr clipBoxes, pointer data
+  RegionPtr clipBoxes, pointer data,
+  DrawablePtr pDraw
 ){
    R128InfoPtr info = R128PTR(pScrn);
    R128PortPrivPtr pPriv = (R128PortPrivPtr)data;
