@@ -3,11 +3,12 @@
 #ifndef __RIVA_INCLUDE_H__
 #define __RIVA_INCLUDE_H__
 
+#include <string.h>
+
 /* All drivers should typically include these */
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"
-#include "xf86_ansic.h"
 #include "compiler.h"
 
 /* Drivers for PCI hardware need this */

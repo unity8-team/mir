@@ -7,8 +7,8 @@
 #define RIVA_NAME "RIVA128"
 #define RIVA_DRIVER_NAME "riva128"
 #define RIVA_MAJOR_VERSION 1
-#define RIVA_MINOR_VERSION 0
-#define RIVA_PATCHLEVEL 1
+#define RIVA_MINOR_VERSION 1
+#define RIVA_PATCHLEVEL 0
 
 #endif /* __RIVA_CONST_H__ */
           

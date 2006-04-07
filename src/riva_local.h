@@ -46,7 +46,6 @@
  * HW.  Put all affected includes, typdefs, etc. here so the riva_hw.* files
  * can stay generic in nature.
  */ 
-#include "xf86_ansic.h"
 #include "compiler.h"
 #include "xf86_OSproc.h"
 

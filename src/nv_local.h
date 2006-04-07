@@ -36,7 +36,7 @@
 |*     those rights set forth herein.                                        *|
 |*                                                                           *|
  \***************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_local.h,v 1.8 2003/07/31 20:24:29 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_local.h,v 1.8tsi Exp $ */
 
 #ifndef __NV_LOCAL_H__
 #define __NV_LOCAL_H__
@@ -46,7 +46,6 @@
  * HW.  Put all affected includes, typdefs, etc. here so the riva_hw.* files
  * can stay generic in nature.
  */ 
-#include "xf86_ansic.h"
 #include "compiler.h"
 #include "xf86_OSproc.h"
 
@@ -60,12 +59,12 @@ typedef unsigned int   U032;
 /*
  * HW access macros.  These assume memory-mapped I/O, and not normal I/O space.
  */
-#define NV_WR08(p,i,d)  MMIO_OUT8((volatile pointer)(p), (i), (d))
-#define NV_RD08(p,i)    MMIO_IN8((volatile pointer)(p), (i))
-#define NV_WR16(p,i,d)  MMIO_OUT16((volatile pointer)(p), (i), (d))
-#define NV_RD16(p,i)    MMIO_IN16((volatile pointer)(p), (i))
-#define NV_WR32(p,i,d)  MMIO_OUT32((volatile pointer)(p), (i), (d))
-#define NV_RD32(p,i)    MMIO_IN32((volatile pointer)(p), (i))
+#define NV_WR08(p,i,d)  MMIO_OUT8((pointer)(p), (i), (d))
+#define NV_RD08(p,i)    MMIO_IN8((pointer)(p), (i))
+#define NV_WR16(p,i,d)  MMIO_OUT16((pointer)(p), (i), (d))
+#define NV_RD16(p,i)    MMIO_IN16((pointer)(p), (i))
+#define NV_WR32(p,i,d)  MMIO_OUT32((pointer)(p), (i), (d))
+#define NV_RD32(p,i)    MMIO_IN32((pointer)(p), (i))
 
 /* VGA I/O is now always done through MMIO */
 #define VGA_WR08(p,i,d) NV_WR08(p,i,d)

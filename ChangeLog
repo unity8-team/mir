@@ -1,3 +1,15 @@
+2006-04-07  Adam Jackson  <ajax@freedesktop.org>
+
+	* configure.ac:
+	* src/nv_const.h:
+	* src/nv_include.h:
+	* src/nv_local.h:
+	* src/nv_video.c:
+	* src/riva_const.h:
+	* src/riva_include.h:
+	* src/riva_local.h:
+	Unlibcwrap.  Bump server version requirement.  Bump to 1.1.0.
+
 2006-03-27  Aaron Plattner  <aplattner@nvidia.com>
 
 	Bump version to 1.0.2.0 for release.
