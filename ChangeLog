@@ -1,3 +1,10 @@
+2006-04-07  Adam Jackson  <ajax@freedesktop.org>
+
+	* configure.ac:
+	Bump to 6.6.0 and release.  This module's versioning is completely
+	screwed, so until we split out mach64/r128/radeon please just
+	increment the package number whenever you make significant changes.
+
 2006-04-07  Aaron Plattner  <aplattner@nvidia.com>
 
 	* src/atimach64xv.c: (ATIMach64PutImage):
