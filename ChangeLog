@@ -1,3 +1,9 @@
+2006-04-07  Adam Jackson  <ajax@freedesktop.org>
+
+	* configure.ac:
+	* src/nv_const.h:
+	Bump to 1.1.1 for Xv changes.
+
 2006-04-07  Aaron Plattner  <aplattner@nvidia.com>
 
 	* src/nv_video.c: (NVPutImage):
