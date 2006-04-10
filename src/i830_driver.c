@@ -1702,7 +1702,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    char *s;
    ClockRangePtr clockRanges;
    pointer pVBEModule = NULL;
-   Bool enable;
+   Bool enable, has_lvds;
    const char *chipname;
    unsigned int ver;
    char v[5];
@@ -1845,6 +1845,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       pI830->pVbe = pI8301->pVbe;
    }
 
+   has_lvds = TRUE;
    switch (pI830->PciInfo->chipType) {
    case PCI_CHIP_I830_M:
       chipname = "830M";
@@ -1878,9 +1879,11 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       break;
    case PCI_CHIP_I865_G:
       chipname = "865G";
+      has_lvds = FALSE;
       break;
    case PCI_CHIP_I915_G:
       chipname = "915G";
+      has_lvds = FALSE;
       break;
    case PCI_CHIP_E7221_G:
       chipname = "E7221 (i915)";
@@ -1890,6 +1893,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       break;
    case PCI_CHIP_I945_G:
       chipname = "945G";
+      has_lvds = FALSE;
       break;
    case PCI_CHIP_I945_GM:
       chipname = "945GM";
@@ -2215,7 +2219,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       pI830->specifiedMonitor = TRUE;
    } else if (I830IsPrimary(pScrn)) {
       /* Choose a default set of outputs to use based on what we've detected. */
-      if (i830GetLVDSInfoFromBIOS(pScrn)) {
+      if (i830GetLVDSInfoFromBIOS(pScrn) && has_lvds) {
 	 pI830->MonType2 |= PIPE_LFP;
       }
 
