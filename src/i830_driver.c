@@ -4341,37 +4341,6 @@ I830BIOSEnterVT(int scrnIndex, int flags)
 	  pScrn->virtualY * pScrn->displayWidth * pI830->cpp);
 #endif
 
-   if (I830IsPrimary(pScrn)) {
-     /* 
-      * This is needed for restoring from ACPI modes (especially S3)
-      * so that we warmboot the Video BIOS. Some platforms have problems,
-      * warm booting when we don't need to, so check that we can call
-      * the Video BIOS with our saved devices, and only when that fails,
-      * we'll warm boot it.
-      */
-     /* Check Pipe conf registers or possibly HTOTAL/VTOTAL for 0x00000000)*/
-      CARD32 temp = pI830->pipe ? INREG(PIPEBCONF) : INREG(PIPEACONF);
-      if (temp & 0x80000000) {
-         xf86Int10InfoPtr pInt;
-
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-				"Detected resume, re-POSTing.\n");
-
-         pInt = xf86InitInt10(pI830->pEnt->index);
-
-         /* Now perform our warm boot */
-         if (pInt) {
-            pInt->num = 0xe6;
-            xf86ExecX86int10 (pInt);
-            xf86FreeInt10 (pInt);
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Re-POSTing via int10.\n");
-         } else {
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-		"Re-POSTing via int10 failed, trying to continue.\n");
-         }
-      }
-   }
-
    /* Setup for device monitoring status */
    pI830->monitorSwitch = pI830->toggleDevices = INREG(SWF0) & 0x0000FFFF;
 
