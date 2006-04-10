@@ -485,7 +485,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
 
    pI810DRI->regsSize = I810_REG_SIZE;
    if (drmAddMap(pI810->drmSubFD, (drm_handle_t) pI810->MMIOAddr,
-		 pI810DRI->regsSize, DRM_REGISTERS, 0, &pI810DRI->regs) < 0) {
+		 pI810DRI->regsSize, DRM_REGISTERS, 0, 
+		 (drmAddress) &pI810DRI->regs) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR, "[drm] drmAddMap(regs) failed\n");
       DRICloseScreen(pScreen);
       return FALSE;
@@ -526,7 +527,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
     * under the DRI.
     */
 
-   drmAgpAlloc(pI810->drmSubFD, 4096 * 1024, 1, NULL, &dcacheHandle);
+   drmAgpAlloc(pI810->drmSubFD, 4096 * 1024, 1, NULL, 
+	       (drmAddress) &dcacheHandle);
    pI810->dcacheHandle = dcacheHandle;
 
    xf86DrvMsg(pScreen->myNum, X_INFO, "[agp] dcacheHandle : 0x%x\n",
@@ -630,7 +632,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
 		 "[agp] GART: no dcache memory found\n");
    }
 
-   drmAgpAlloc(pI810->drmSubFD, back_size, 0, NULL, &agpHandle);
+   drmAgpAlloc(pI810->drmSubFD, back_size, 0, NULL, 
+	       (drmAddress) &agpHandle);
    pI810->backHandle = agpHandle;
 
    if (agpHandle != DRM_AGP_NO_HANDLE) {
@@ -656,7 +659,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
    }
 
    if (dcacheHandle == DRM_AGP_NO_HANDLE) {
-     drmAgpAlloc(pI810->drmSubFD, back_size, 0, NULL, &agpHandle);
+     drmAgpAlloc(pI810->drmSubFD, back_size, 0, NULL,
+		 (drmAddress) &agpHandle);
 
       pI810->zHandle = agpHandle;
 
@@ -685,7 +689,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
    /* Now allocate and bind the agp space.  This memory will include the
     * regular framebuffer as well as texture memory.
     */
-   drmAgpAlloc(pI810->drmSubFD, sysmem_size, 0, NULL, &agpHandle);
+   drmAgpAlloc(pI810->drmSubFD, sysmem_size, 0, NULL, 
+	       (drmAddress)&agpHandle);
    pI810->sysmemHandle = agpHandle;
    
    if (agpHandle != DRM_AGP_NO_HANDLE) {
@@ -728,7 +733,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
 	 pI810->MC.Size = 8 * 1024 * 1024;
 	 pI810->MC.Start = pI810->FbMapSize - 8 * 1024 * 1024;
       }
-      drmAgpAlloc(pI810->drmSubFD, pI810->MC.Size, 0, NULL, &agpHandle);
+      drmAgpAlloc(pI810->drmSubFD, pI810->MC.Size, 0, NULL,
+		  (drmAddress) &agpHandle);
       
       pI810->xvmcHandle = agpHandle;
 
@@ -753,7 +759,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
    }
 
    drmAgpAlloc(pI810->drmSubFD, 4096, 2,
-	       (unsigned long *)&pI810->CursorPhysical, &agpHandle);
+	       (unsigned long *)&pI810->CursorPhysical, 
+	       (drmAddress) &agpHandle);
 
    pI810->cursorHandle = agpHandle;
 
@@ -777,7 +784,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
    }
 
    drmAgpAlloc(pI810->drmSubFD, 16384, 2,
-	       (unsigned long *)&pI810->CursorARGBPhysical, &agpHandle);
+	       (unsigned long *)&pI810->CursorARGBPhysical,
+	       (drmAddress) &agpHandle);
 
    pI810->cursorARGBHandle = agpHandle;
 
@@ -855,7 +863,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
 
    if (drmAddMap(pI810->drmSubFD, (drm_handle_t) pI810->BackBuffer.Start,
 		 pI810->BackBuffer.Size, DRM_AGP, 0,
-		 &pI810DRI->backbuffer) < 0) {
+		 (drmAddress) &pI810DRI->backbuffer) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[drm] drmAddMap(backbuffer) failed.  Disabling DRI\n");
       DRICloseScreen(pScreen);
@@ -865,7 +873,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    pI810DRI->depthbufferSize = pI810->DepthBuffer.Size;
    if (drmAddMap(pI810->drmSubFD, (drm_handle_t) pI810->DepthBuffer.Start,
 		 pI810->DepthBuffer.Size, DRM_AGP, 0,
-		 &pI810DRI->depthbuffer) < 0) {
+		 (drmAddress) &pI810DRI->depthbuffer) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[drm] drmAddMap(depthbuffer) failed.  Disabling DRI.\n");
       DRICloseScreen(pScreen);
@@ -894,7 +902,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
       return FALSE;
    }
    if (drmAddMap(pI810->drmSubFD, (drm_handle_t) pI810->BufferMem.Start,
-		 pI810->BufferMem.Size, DRM_AGP, 0, &pI810->buffer_map) < 0) {
+		 pI810->BufferMem.Size, DRM_AGP, 0,
+		 (drmAddress) &pI810->buffer_map) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[drm] drmAddMap(buffer_map) failed.  Disabling DRI.\n");
       DRICloseScreen(pScreen);
@@ -905,7 +914,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
    pI810DRI->agp_buf_size = pI810->BufferMem.Size;
 
    if (drmAddMap(pI810->drmSubFD, (drm_handle_t) pI810->LpRing->mem.Start,
-		 pI810->LpRing->mem.Size, DRM_AGP, 0, &pI810->ring_map) < 0) {
+		 pI810->LpRing->mem.Size, DRM_AGP, 0, 
+		 (drmAddress) &pI810->ring_map) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[drm] drmAddMap(ring_map) failed.  Disabling DRI.\n");
       DRICloseScreen(pScreen);
@@ -933,7 +943,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
    I810AllocLow(&(pI810->TexMem), &(pI810->SysMem), pI810DRI->textureSize);
 
    if (drmAddMap(pI810->drmSubFD, (drm_handle_t) pI810->TexMem.Start,
-		 pI810->TexMem.Size, DRM_AGP, 0, &pI810DRI->textures) < 0) {
+		 pI810->TexMem.Size, DRM_AGP, 0, 
+		 (drmAddress) &pI810DRI->textures) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[drm] drmAddMap(textures) failed.  Disabling DRI.\n");
       DRICloseScreen(pScreen);

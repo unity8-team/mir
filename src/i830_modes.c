@@ -514,7 +514,7 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
     xf86ErrorFVerb(DEBUG_VERB,
 	    "	WinBSegment: 0x%x\n", mode->WinBSegment);
     xf86ErrorFVerb(DEBUG_VERB,
-	    "	WinFuncPtr: 0x%lx\n", mode->WinFuncPtr);
+		   "	WinFuncPtr: 0x%lx\n", (unsigned long)mode->WinFuncPtr);
     xf86ErrorFVerb(DEBUG_VERB,
 	    "	BytesPerScanline: %d\n", mode->BytesPerScanline);
     xf86ErrorFVerb(DEBUG_VERB,
@@ -557,7 +557,8 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
 	    "	DirectColorModeInfo: %d\n", mode->DirectColorModeInfo);
     if (major >= 2) {
 	xf86ErrorFVerb(DEBUG_VERB,
-		"	PhysBasePtr: 0x%lx\n", mode->PhysBasePtr);
+		       "	PhysBasePtr: 0x%lx\n", 
+		       (unsigned long)mode->PhysBasePtr);
 	if (major >= 3) {
 	    xf86ErrorFVerb(DEBUG_VERB,
 		    "	LinBytesPerScanLine: %d\n", mode->LinBytesPerScanLine);
@@ -582,7 +583,8 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
 	    xf86ErrorFVerb(DEBUG_VERB,
 		    "	LinRsvdFieldPosition: %d\n", mode->LinRsvdFieldPosition);
 	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	MaxPixelClock: %ld\n", mode->MaxPixelClock);
+			   "	MaxPixelClock: %ld\n", (unsigned long)
+			   mode->MaxPixelClock);
 	}
     }
 

@@ -362,10 +362,12 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    CARD32 temp = 0;
-   static Bool outsideViewport = FALSE;
    Bool hide = FALSE, show = FALSE;
    int oldx = x, oldy = y;
    int hotspotx = 0, hotspoty = 0;
+#if 0
+   static Bool outsideViewport = FALSE;
+#endif
 
    oldx += pScrn->frameX0; /* undo what xf86HWCurs did */
    oldy += pScrn->frameY0;
