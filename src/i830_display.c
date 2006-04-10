@@ -282,7 +282,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     CARD32 htot, hblank, hsync, vtot, vblank, vsync, dspcntr;
     CARD32 pipesrc, dspsize, adpa;
     Bool ok;
-    int refclk = 96000;
+    int refclk = 96000, pixel_clock;
     int outputs;
 
     ErrorF("Requested pix clock: %d\n", pMode->Clock);
@@ -309,7 +309,56 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	return FALSE;
     }
 
-    ok = i830FindBestPLL(pScrn, outputs, pMode->Clock, refclk, &m1, &m2, &n,
+    htot = (pMode->CrtcHDisplay - 1) | ((pMode->CrtcHTotal - 1) << 16);
+    hblank = (pMode->CrtcHBlankStart - 1) | ((pMode->CrtcHBlankEnd - 1) << 16);
+    hsync = (pMode->CrtcHSyncStart - 1) | ((pMode->CrtcHSyncEnd - 1) << 16);
+    vtot = (pMode->CrtcVDisplay - 1) | ((pMode->CrtcVTotal - 1) << 16);
+    vblank = (pMode->CrtcVBlankStart - 1) | ((pMode->CrtcVBlankEnd - 1) << 16);
+    vsync = (pMode->CrtcVSyncStart - 1) | ((pMode->CrtcVSyncEnd - 1) << 16);
+    pipesrc = ((pMode->HDisplay - 1) << 16) | (pMode->VDisplay - 1);
+    dspsize = ((pMode->VDisplay - 1) << 16) | (pMode->HDisplay - 1);
+    pixel_clock = pMode->Clock;
+    if (outputs & PIPE_LCD_ACTIVE && i830GetLVDSInfoFromBIOS(pScrn) &&
+	pI830->panel_fixed_hactive != 0)
+    {
+	/* To enable panel fitting, we need to set the pipe timings to that of
+	 * the screen at its full resolution.  So, drop the timings from the
+	 * BIOS VBT tables here.
+	 */
+	htot = (pI830->panel_fixed_hactive - 1) |
+		((pI830->panel_fixed_hactive + pI830->panel_fixed_hblank - 1)
+		 << 16);
+	hblank = (pI830->panel_fixed_hactive - 1) |
+		((pI830->panel_fixed_hactive + pI830->panel_fixed_hblank - 1)
+		 << 16);
+	hsync = (pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff - 1) |
+		((pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff +
+		  pI830->panel_fixed_hsyncwidth - 1) << 16);
+
+	vtot = (pI830->panel_fixed_vactive - 1) |
+		((pI830->panel_fixed_vactive + pI830->panel_fixed_vblank - 1)
+		 << 16);
+	vblank = (pI830->panel_fixed_vactive - 1) |
+		((pI830->panel_fixed_vactive + pI830->panel_fixed_vblank - 1)
+		 << 16);
+	vsync = (pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff - 1) |
+		((pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff +
+		  pI830->panel_fixed_vsyncwidth - 1) << 16);
+	/* Hack until we get better clone-mode modesetting.  If the mode to be
+	 * programmed is larger than the size of the panel, only display the
+	 * size of the panel.
+	 */
+	if (pMode->HDisplay > pI830->panel_fixed_hactive || 
+	    pMode->VDisplay > pI830->panel_fixed_vactive) {
+	    dspsize = ((pI830->panel_fixed_vactive - 1) << 16) |
+		      (pI830->panel_fixed_hactive - 1);
+	    pipesrc = ((pI830->panel_fixed_hactive - 1) << 16) |
+		      (pI830->panel_fixed_vactive - 1);
+	}
+	pixel_clock = pI830->panel_fixed_clock;
+    }
+
+    ok = i830FindBestPLL(pScrn, outputs, pixel_clock, refclk, &m1, &m2, &n,
 			 &p1, &p2);
     if (!ok) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -346,44 +395,15 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
     fp = ((n - 2) << 16) | ((m1 - 2) << 8) | (m2 - 2);
 
-    htot = (pMode->CrtcHDisplay - 1) | ((pMode->CrtcHTotal - 1) << 16);
-    hblank = (pMode->CrtcHBlankStart - 1) | ((pMode->CrtcHBlankEnd - 1) << 16);
-    hsync = (pMode->CrtcHSyncStart - 1) | ((pMode->CrtcHSyncEnd - 1) << 16);
-    vtot = (pMode->CrtcVDisplay - 1) | ((pMode->CrtcVTotal - 1) << 16);
-    vblank = (pMode->CrtcVBlankStart - 1) | ((pMode->CrtcVBlankEnd - 1) << 16);
-    vsync = (pMode->CrtcVSyncStart - 1) | ((pMode->CrtcVSyncEnd - 1) << 16);
-    pipesrc = ((pMode->HDisplay - 1) << 16) | (pMode->VDisplay - 1);
-    dspsize = ((pMode->VDisplay - 1) << 16) | (pMode->HDisplay - 1);
-    if (outputs & PIPE_LCD_ACTIVE && i830GetLVDSInfoFromBIOS(pScrn) &&
-	pI830->panel_fixed_hactive != 0)
-    {
-	/* To enable panel fitting, we need to set the pipe timings to that of
-	 * the screen at its full resolution.  So, drop the timings from the
-	 * BIOS VBT tables here.
-	 */
-	htot = (pI830->panel_fixed_hactive - 1) |
-		((pI830->panel_fixed_hactive + pI830->panel_fixed_hblank - 1)
-		 << 16);
-	hblank = (pI830->panel_fixed_hactive - 1) |
-		((pI830->panel_fixed_hactive + pI830->panel_fixed_hblank - 1)
-		 << 16);
-	hsync = (pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff - 1) |
-		((pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff +
-		  pI830->panel_fixed_hsyncwidth - 1) << 16);
-
-	vtot = (pI830->panel_fixed_vactive - 1) |
-		((pI830->panel_fixed_vactive + pI830->panel_fixed_vblank - 1)
-		 << 16);
-	vblank = (pI830->panel_fixed_vactive - 1) |
-		((pI830->panel_fixed_vactive + pI830->panel_fixed_vblank - 1)
-		 << 16);
-	vsync = (pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff - 1) |
-		((pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff +
-		  pI830->panel_fixed_vsyncwidth - 1) << 16);
-    }
-#if 0
-    ErrorF("htot: 0x%08x, hblank: 0x%08x, hsync: 0x%08x\n", htot, hblank, hsync);
-    ErrorF("vtot: 0x%08x, vblank: 0x%08x, vsync: 0x%08x\n", vtot, vblank, vsync);
+#if 1
+    ErrorF("hact: %d htot: %d hbstart: %d hbend: %d hsyncstart: %d hsyncend: %d\n",
+	(int)(htot & 0xffff) + 1, (int)(htot >> 16) + 1,
+	(int)(hblank & 0xffff) + 1, (int)(hblank >> 16) + 1,
+	(int)(hsync & 0xffff) + 1, (int)(hsync >> 16) + 1);
+    ErrorF("vact: %d vtot: %d vbstart: %d vbend: %d vsyncstart: %d vsyncend: %d\n",
+	(int)(vtot & 0xffff) + 1, (int)(vtot >> 16) + 1,
+	(int)(vblank & 0xffff) + 1, (int)(vblank >> 16) + 1,
+	(int)(vsync & 0xffff) + 1, (int)(vsync >> 16) + 1);
 #endif
 
     adpa = INREG(ADPA);
