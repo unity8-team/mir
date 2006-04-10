@@ -76,7 +76,8 @@ static void I810QueryBestSize(ScrnInfoPtr, Bool,
 	short, short, short, short, unsigned int *, unsigned int *, pointer);
 static int I810PutImage( ScrnInfoPtr, 
 	short, short, short, short, short, short, short, short,
-	int, unsigned char*, short, short, Bool, RegionPtr, pointer);
+	int, unsigned char*, short, short, Bool, RegionPtr, pointer,
+	DrawablePtr);
 static int I810QueryImageAttributes(ScrnInfoPtr, 
 	int, unsigned short *, unsigned short *,  int *, int *);
 
@@ -974,7 +975,8 @@ I810PutImage(
   int id, unsigned char* buf, 
   short width, short height, 
   Bool sync,
-  RegionPtr clipBoxes, pointer data
+  RegionPtr clipBoxes, pointer data,
+  DrawablePtr pDraw
 ){
     I810Ptr pI810 = I810PTR(pScrn);
     I810PortPrivPtr pPriv = (I810PortPrivPtr)data;

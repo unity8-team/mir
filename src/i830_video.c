@@ -108,7 +108,7 @@ static void I830QueryBestSize(ScrnInfoPtr, Bool,
 			      unsigned int *, pointer);
 static int I830PutImage(ScrnInfoPtr, short, short, short, short, short, short,
 			short, short, int, unsigned char *, short, short,
-			Bool, RegionPtr, pointer);
+			Bool, RegionPtr, pointer, DrawablePtr);
 static int I830QueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
 				    unsigned short *, int *, int *);
 
@@ -1876,7 +1876,8 @@ I830PutImage(ScrnInfoPtr pScrn,
 	     short drw_w, short drw_h,
 	     int id, unsigned char *buf,
 	     short width, short height,
-	     Bool sync, RegionPtr clipBoxes, pointer data)
+	     Bool sync, RegionPtr clipBoxes, pointer data,
+	     DrawablePtr pDraw)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
