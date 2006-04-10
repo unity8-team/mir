@@ -1,3 +1,9 @@
+2006-04-07  Adam Jackson  <ajax@freedesktop.org>
+
+	* configure.ac:
+	* src/i810.h:
+	Bump to 1.6.0.
+
 2006-04-07  Aaron Plattner  <aplattner@nvidia.com>
 
 	* src/i810_video.c: (I810PutImage):
