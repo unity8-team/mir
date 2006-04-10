@@ -1424,7 +1424,7 @@ void I830DetectMonitors(ScrnInfoPtr pScrn)
 	 pI830->output[i].MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex,
 						    pI830->output[i].pDDCBus);
 
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "DDC %s %d, %08X\n",
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "DDC %s %d, %08lX\n",
 		    output_type_names[pI830->output[i].type], i,
 		    pI830->output[i].pDDCBus->DriverPrivate.uval);
 	 xf86PrintEDID(pI830->output[i].MonInfo);
@@ -1445,7 +1445,7 @@ void I830DetectMonitors(ScrnInfoPtr pScrn)
 	    ret = I830I2CDetectDVOControllers(pScrn, pI830->output[i].pI2CBus,
 					      &pI830->output[i].i2c_drv);
 	    if (ret==TRUE) {
-	       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found i2c %s on %08X\n",
+	       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found i2c %s on %08lX\n",
 			  pI830->output[i].i2c_drv->modulename,
 			  pI830->output[i].pI2CBus->DriverPrivate.uval);
 	    }
@@ -3167,11 +3167,8 @@ static Bool
 SaveHWState(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   vbeInfoPtr pVbe = pI830->pVbe;
    vgaHWPtr hwp = VGAHWPTR(pScrn);
    vgaRegPtr vgaReg = &hwp->SavedReg;
-   VbeModeInfoBlock *modeInfo;
-   VESAPtr pVesa;
 
    DPRINTF(PFX, "SaveHWState\n");
 

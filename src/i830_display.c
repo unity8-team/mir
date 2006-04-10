@@ -5,6 +5,7 @@
 #include "xf86.h"
 #include "xf86_ansic.h"
 #include "i830.h"
+#include "i830_bios.h"
 #include "i830_display.h"
 
 /** Returns the pixel clock for the given refclk and divisors. */
@@ -398,7 +399,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     ErrorF("clock settings for chosen look %s\n",
 	   i830PllIsValid(pScrn, outputs, refclk, m1, m2, n, p1, p2) ?
 			  "good" : "bad");
-    ErrorF("clock regs: 0x%08x, 0x%08x\n", dpll, fp);
+    ErrorF("clock regs: 0x%08x, 0x%08x\n", (int)dpll, (int)fp);
 
     dspcntr = DISPLAY_PLANE_ENABLE;
     switch (pScrn->bitsPerPixel) {
