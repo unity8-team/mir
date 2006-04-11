@@ -1093,7 +1093,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 #ifdef XF86DRI
    if (!pI810->directRenderingDisabled) {
      pI810->allowPageFlip = enable;
-     if (pI810->allowPageFlip == enable)
+     if (pI810->allowPageFlip == TRUE)
      {
        if (!xf86LoadSubModule(pScrn, "shadowfb")) {
 	 pI810->allowPageFlip = 0;
