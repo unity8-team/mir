@@ -2107,9 +2107,9 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 #endif
 
    pI830->LinearAlloc = 0;
-   if (xf86GetOptValInteger(pI830->Options, OPTION_LINEARALLOC,
+   if (xf86GetOptValULong(pI830->Options, OPTION_LINEARALLOC,
 			    &(pI830->LinearAlloc))) {
-      xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Allocating %dKbytes of memory\n",
+      xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Allocating %luKbytes of memory\n",
 		 pI830->LinearAlloc);
    }
 
@@ -3252,6 +3252,8 @@ SaveHWState(ScrnInfoPtr pScrn)
 
    pI830->saveADPA = INREG(ADPA);
 
+   pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
+   
    vgaHWUnlock(hwp);
    vgaHWSave(pScrn, vgaReg, VGA_SR_ALL);
 
@@ -3316,6 +3318,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(DSPBBASE, pI830->saveDSPBBASE);
    OUTREG(PIPEBSRC, pI830->savePIPEBSRC);
 
+   OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
+   
    OUTREG(VCLK_DIVISOR_VGA0, pI830->saveVCLK_DIVISOR_VGA0);
    OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
    OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);

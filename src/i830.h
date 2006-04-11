@@ -268,7 +268,7 @@ typedef struct _I830Rec {
    I830MemRange *OverlayMem;
    I830MemRange LinearMem;
 #endif
-   unsigned int LinearAlloc;
+   unsigned long LinearAlloc;
   
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
    I830MemRange RotatedMem;
@@ -481,6 +481,7 @@ typedef struct _I830Rec {
    CARD32 saveVCLK_POST_DIV;
    CARD32 saveVGACNTRL;
    CARD32 saveADPA;
+   CARD32 savePFIT_CONTROL;
 
 } I830Rec;
 

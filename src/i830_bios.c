@@ -26,6 +26,7 @@
  */
 #ifdef HAVE_CONFIG_H
 #include "config.h"
+#undef VERSION	/* XXX edid.h has a VERSION too */
 #endif
 
 #define _PARSE_EDID_
