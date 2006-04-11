@@ -50,7 +50,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
-#include "xf86_ansic.h"
 #include "xf86.h"
 #include "xaarop.h"
 #include "i810.h"

@@ -64,10 +64,12 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
+#include <math.h>
+#include <string.h>
+
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"
-#include "xf86_ansic.h"
 #include "compiler.h"
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
@@ -106,7 +108,7 @@ static void I830QueryBestSize(ScrnInfoPtr, Bool,
 			      unsigned int *, pointer);
 static int I830PutImage(ScrnInfoPtr, short, short, short, short, short, short,
 			short, short, int, unsigned char *, short, short,
-			Bool, RegionPtr, pointer);
+			Bool, RegionPtr, pointer, DrawablePtr);
 static int I830QueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
 				    unsigned short *, int *, int *);
 
@@ -118,9 +120,9 @@ static Atom xvBrightness, xvContrast, xvColorKey, xvPipe, xvDoubleBuffer;
 static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 
 #define IMAGE_MAX_WIDTH		1920
-#define IMAGE_MAX_HEIGHT	1080
+#define IMAGE_MAX_HEIGHT	1088
 #define IMAGE_MAX_WIDTH_LEGACY	1024
-#define IMAGE_MAX_HEIGHT_LEGACY	1080
+#define IMAGE_MAX_HEIGHT_LEGACY	1088
 
 #if !VIDEO_DEBUG
 #define ErrorF Edummy
@@ -1874,7 +1876,8 @@ I830PutImage(ScrnInfoPtr pScrn,
 	     short drw_w, short drw_h,
 	     int id, unsigned char *buf,
 	     short width, short height,
-	     Bool sync, RegionPtr clipBoxes, pointer data)
+	     Bool sync, RegionPtr clipBoxes, pointer data,
+	     DrawablePtr pDraw)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pPriv = (I830PortPrivPtr) data;

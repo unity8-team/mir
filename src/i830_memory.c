@@ -54,8 +54,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
+#include <string.h>
+
 #include "xf86.h"
-#include "xf86_ansic.h"
 #include "xf86_OSproc.h"
 
 #include "i830.h"
@@ -1510,7 +1511,7 @@ SetFence(ScrnInfoPtr pScrn, int nr, unsigned int start, unsigned int pitch,
 	   nr, start, pitch, size / 1024);
 
    if (nr < 0 || nr > 7) {
-      xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "SetFence: fence %d out of range\n",nr);
       return;
    }
@@ -1523,21 +1524,21 @@ SetFence(ScrnInfoPtr pScrn, int nr, unsigned int start, unsigned int pitch,
    	fence_mask = ~I830_FENCE_START_MASK;
 
    if (start & fence_mask) {
-      xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "SetFence: %d: start (0x%08x) is not %s aligned\n",
 		 nr, start, (IS_I9XX(pI830)) ? "1MB" : "512k");
       return;
    }
 
    if (start % size) {
-      xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "SetFence: %d: start (0x%08x) is not size (%dk) aligned\n",
 		 nr, start, size / 1024);
       return;
    }
 
    if (pitch & 127) {
-      xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "SetFence: %d: pitch (%d) not a multiple of 128 bytes\n",
 		 nr, pitch);
       return;
@@ -1569,7 +1570,7 @@ SetFence(ScrnInfoPtr pScrn, int nr, unsigned int start, unsigned int pitch,
       		val |= I915G_FENCE_SIZE_64M;
       		break;
    	   default:
-      		xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "SetFence: %d: illegal size (%d kByte)\n", nr, size / 1024);
       		return;
    	}
@@ -1600,7 +1601,7 @@ SetFence(ScrnInfoPtr pScrn, int nr, unsigned int start, unsigned int pitch,
       		val |= FENCE_SIZE_64M;
       		break;
    	   default:
-      		xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "SetFence: %d: illegal size (%d kByte)\n", nr, size / 1024);
       		return;
    	}
@@ -1634,7 +1635,7 @@ SetFence(ScrnInfoPtr pScrn, int nr, unsigned int start, unsigned int pitch,
       val |= FENCE_PITCH_64;
       break;
    default:
-      xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "SetFence: %d: illegal pitch (%d)\n", nr, pitch);
       return;
    }

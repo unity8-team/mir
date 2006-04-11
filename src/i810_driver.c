@@ -60,11 +60,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * DGA
  */
 
+#include <math.h>
+#include <string.h>
+#include <unistd.h>
+
 /*
  * These are X and server generic header files.
  */
 #include "xf86.h"
-#include "xf86_ansic.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"
 #include "xf86RAC.h"
@@ -1224,21 +1227,24 @@ I810PrintErrorState(ScrnInfoPtr pScrn)
    I810Ptr pI810 = I810PTR(pScrn);
 
    ErrorF("pgetbl_ctl: 0x%lx pgetbl_err: 0x%lx\n",
-	  INREG(PGETBL_CTL), INREG(PGE_ERR));
+	  (unsigned long) INREG(PGETBL_CTL), (unsigned long) INREG(PGE_ERR));
 
-   ErrorF("ipeir: %lx iphdr: %lx\n", INREG(IPEIR), INREG(IPEHR));
+   ErrorF("ipeir: %lx iphdr: %lx\n", (unsigned long) INREG(IPEIR), 
+	  (unsigned long) INREG(IPEHR));
 
    ErrorF("LP ring tail: %lx head: %lx len: %lx start %lx\n",
-	  INREG(LP_RING + RING_TAIL),
-	  INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
-	  INREG(LP_RING + RING_LEN), INREG(LP_RING + RING_START));
+	  (unsigned long) INREG(LP_RING + RING_TAIL),
+	  (unsigned long) INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
+	  (unsigned long) INREG(LP_RING + RING_LEN), 
+	  (unsigned long) INREG(LP_RING + RING_START));
 
    ErrorF("eir: %x esr: %x emr: %x\n",
 	  INREG16(EIR), INREG16(ESR), INREG16(EMR));
 
    ErrorF("instdone: %x instpm: %x\n", INREG16(INST_DONE), INREG8(INST_PM));
 
-   ErrorF("memmode: %lx instps: %lx\n", INREG(MEMMODE), INREG(INST_PS));
+   ErrorF("memmode: %lx instps: %lx\n", (unsigned long) INREG(MEMMODE), 
+	  (unsigned long) INREG(INST_PS));
 
    ErrorF("hwstam: %x ier: %x imr: %x iir: %x\n",
 	  INREG16(HWSTAM), INREG16(IER), INREG16(IMR), INREG16(IIR));

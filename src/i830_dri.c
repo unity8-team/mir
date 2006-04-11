@@ -62,9 +62,12 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "xf86_ansic.h"
 #include "xf86Priv.h"
 
 #include "xf86PciInfo.h"
@@ -627,49 +630,49 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
                  sarea->front_size,
                  DRM_FRAME_BUFFER,  /*DRM_AGP,*/
                  0,
-                 &sarea->front_handle) < 0) {
+                 (drmAddress) &sarea->front_handle) < 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                  "[drm] drmAddMap(front_handle) failed. Disabling DRI\n");
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Front Buffer = 0x%08lx\n",
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Front Buffer = 0x%08x\n",
               sarea->front_handle);
 
    if (drmAddMap(pI830->drmSubFD,
                  (drm_handle_t)(sarea->back_offset + pI830->LinearAddr),
                  sarea->back_size, DRM_AGP, 0,
-                 &sarea->back_handle) < 0) {
+                 (drmAddress) &sarea->back_handle) < 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                  "[drm] drmAddMap(back_handle) failed. Disabling DRI\n");
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Back Buffer = 0x%08lx\n",
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Back Buffer = 0x%08x\n",
               sarea->back_handle);
 
    if (drmAddMap(pI830->drmSubFD,
                  (drm_handle_t)sarea->depth_offset + pI830->LinearAddr,
                  sarea->depth_size, DRM_AGP, 0,
-                 &sarea->depth_handle) < 0) {
+                 (drmAddress) &sarea->depth_handle) < 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                  "[drm] drmAddMap(depth_handle) failed. Disabling DRI\n");
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Depth Buffer = 0x%08lx\n",
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Depth Buffer = 0x%08x\n",
               sarea->depth_handle);
 
    if (drmAddMap(pI830->drmSubFD,
 		 (drm_handle_t)sarea->tex_offset + pI830->LinearAddr,
 		 sarea->tex_size, DRM_AGP, 0,
-		 &sarea->tex_handle) < 0) {
+		 (drmAddress) &sarea->tex_handle) < 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "[drm] drmAddMap(tex_handle) failed. Disabling DRI\n");
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] textures = 0x%08lx\n",
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] textures = 0x%08x\n",
 	      sarea->tex_handle);
 
    return TRUE;
@@ -738,24 +741,25 @@ I830DRIDoMappings(ScreenPtr pScreen)
    DPRINTF(PFX, "I830DRIDoMappings\n");
    pI830DRI->regsSize = I830_REG_SIZE;
    if (drmAddMap(pI830->drmSubFD, (drm_handle_t)pI830->MMIOAddr,
-		 pI830DRI->regsSize, DRM_REGISTERS, 0, &pI830DRI->regs) < 0) {
+		 pI830DRI->regsSize, DRM_REGISTERS, 0,
+		 (drmAddress) &pI830DRI->regs) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR, "[drm] drmAddMap(regs) failed\n");
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Registers = 0x%08lx\n",
+   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Registers = 0x%08x\n",
 	      pI830DRI->regs);
 
    if (drmAddMap(pI830->drmSubFD,
 		 (drm_handle_t)pI830->LpRing->mem.Start + pI830->LinearAddr,
 		 pI830->LpRing->mem.Size, DRM_AGP, 0,
-		 &pI830->ring_map) < 0) {
+		 (drmAddress) &pI830->ring_map) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[drm] drmAddMap(ring_map) failed. Disabling DRI\n");
       DRICloseScreen(pScreen);
       return FALSE;
    }
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] ring buffer = 0x%08lx\n",
+   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] ring buffer = 0x%08x\n",
 	      pI830->ring_map);
 
    if (!I830InitDma(pScrn)) {

@@ -160,8 +160,12 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PRINT_MODE_INFO 0
 #endif
 
+#include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
 #include "xf86.h"
-#include "xf86_ansic.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"
 #include "xf86RAC.h"
@@ -482,7 +486,7 @@ GetNextDisplayDeviceList(ScrnInfoPtr pScrn, int toggle)
       CARD32 VODA = (CARD32)((CARD32*)pVbe->memory)[i];
 
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Next ACPI _DGS [%d] 0x%lx\n",
-		i, VODA);
+		 i, (unsigned long) VODA);
 
       /* Check if it's a custom Video Output Device Attribute */
       if (!(VODA & 0x80000000)) 
@@ -539,7 +543,8 @@ GetAttachableDisplayDeviceList(ScrnInfoPtr pScrn)
 
    for (i=0; i<(pVbe->pInt10->cx & 0xff); i++)
         xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		"Attachable device 0x%lx.\n", ((CARD32*)pVbe->memory)[i]);
+		"Attachable device 0x%lx.\n", 
+		   (unsigned long) ((CARD32*)pVbe->memory)[i]);
 
    return pVbe->pInt10->cx & 0xffff;
 }
@@ -1411,7 +1416,7 @@ I830PreInitDDC(ScrnInfoPtr pScrn)
 void I830DetectMonitors(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   int i, ret;
+   int i;
 
    if (!pI830->ddc2)
       return;
@@ -1438,10 +1443,12 @@ void I830DetectMonitors(ScrnInfoPtr pScrn)
 		    pI830->output[i].pDDCBus->DriverPrivate.uval);
 	 xf86PrintEDID(pI830->output[i].MonInfo);
       
+#if 0
 	 /* if we are on an i2C bus > 0 and we see a monitor - try to
 	  * find a controller chip
 	  */
 	 if (pI830->output[i].MonInfo) {
+	    int ret;
 	    ret = I830I2CDetectDVOControllers(pScrn, pI830->output[i].pI2CBus,
 					      &pI830->output[i].i2c_drv);
 	    if (ret==TRUE) {
@@ -1450,6 +1457,7 @@ void I830DetectMonitors(ScrnInfoPtr pScrn)
 			  pI830->output[i].pI2CBus->DriverPrivate.uval);
 	    }
 	 }
+#endif
       break;
 #if 0
       case I830_OUTPUT_SDVO:
@@ -2573,7 +2581,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
     * or, at least it's meant to..... alas it doesn't seem to always work.
     */
    if (pI830->devicePresence) {
-      int req, att, enc;
+      int req=0, att=0, enc=0;
       GetDevicePresence(pScrn, &req, &att, &enc);
       for (i = 0; i < NumDisplayTypes; i++) {
          xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2980,9 +2988,26 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    }
 #endif
 
-   if (!xf86LoadSubModule(pScrn, "shadow")) {
-      PreInitCleanup(pScrn);
-      return FALSE;
+   /* rotation requires the newer libshadow */
+   if (I830IsPrimary(pScrn)) {
+      int errmaj, errmin;
+      pI830->shadowReq.majorversion = 1;
+      pI830->shadowReq.minorversion = 1;
+
+      if (!LoadSubModule(pScrn->module, "shadow", NULL, NULL, NULL,
+			       &pI830->shadowReq, &errmaj, &errmin)) {
+         pI830->shadowReq.minorversion = 0;
+         if (!LoadSubModule(pScrn->module, "shadow", NULL, NULL, NULL,
+			       &pI830->shadowReq, &errmaj, &errmin)) {
+            LoaderErrorMsg(NULL, "shadow", errmaj, errmin);
+	    return FALSE;
+         }
+      }
+   } else {
+      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
+      pI830->shadowReq.majorversion = pI8301->shadowReq.majorversion;
+      pI830->shadowReq.minorversion = pI8301->shadowReq.minorversion;
+      pI830->shadowReq.patchlevel = pI8301->shadowReq.patchlevel;
    }
    xf86LoaderReqSymLists(I810shadowSymbols, NULL);
 
@@ -3169,8 +3194,19 @@ SaveHWState(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
    vgaHWPtr hwp = VGAHWPTR(pScrn);
    vgaRegPtr vgaReg = &hwp->SavedReg;
+   CARD32 temp;
 
-   DPRINTF(PFX, "SaveHWState\n");
+   /*
+    * Print out the PIPEACONF and PIPEBCONF registers.
+    */
+   temp = INREG(PIPEACONF);
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PIPEACONF is 0x%08lx\n", 
+	      (unsigned long) temp);
+   if (pI830->availablePipes == 2) {
+      temp = INREG(PIPEBCONF);
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PIPEBCONF is 0x%08lx\n", 
+		 (unsigned long) temp);
+   }
 
    i830TakeRegSnapshot(pScrn);
 
@@ -3319,21 +3355,24 @@ I830PrintErrorState(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    ErrorF("pgetbl_ctl: 0x%lx pgetbl_err: 0x%lx\n",
-	  INREG(PGETBL_CTL), INREG(PGE_ERR));
+	  (unsigned long)INREG(PGETBL_CTL), (unsigned long)INREG(PGE_ERR));
 
-   ErrorF("ipeir: %lx iphdr: %lx\n", INREG(IPEIR), INREG(IPEHR));
+   ErrorF("ipeir: %lx iphdr: %lx\n", (unsigned long)INREG(IPEIR), 
+	  (unsigned long)INREG(IPEHR));
 
    ErrorF("LP ring tail: %lx head: %lx len: %lx start %lx\n",
-	  INREG(LP_RING + RING_TAIL),
-	  INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
-	  INREG(LP_RING + RING_LEN), INREG(LP_RING + RING_START));
+	  (unsigned long)INREG(LP_RING + RING_TAIL),
+	  (unsigned long)INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
+	  (unsigned long)INREG(LP_RING + RING_LEN), 
+	  (unsigned long)INREG(LP_RING + RING_START));
 
    ErrorF("eir: %x esr: %x emr: %x\n",
 	  INREG16(EIR), INREG16(ESR), INREG16(EMR));
 
    ErrorF("instdone: %x instpm: %x\n", INREG16(INST_DONE), INREG8(INST_PM));
 
-   ErrorF("memmode: %lx instps: %lx\n", INREG(MEMMODE), INREG(INST_PS));
+   ErrorF("memmode: %lx instps: %lx\n", (unsigned long)INREG(MEMMODE), 
+	  (unsigned long)INREG(INST_PS));
 
    ErrorF("hwstam: %x ier: %x imr: %x iir: %x\n",
 	  INREG16(HWSTAM), INREG16(IER), INREG16(IMR), INREG16(IIR));
@@ -4025,17 +4064,21 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->CloseScreen = pScreen->CloseScreen;
    pScreen->CloseScreen = I830BIOSCloseScreen;
 
-   /* Rotation */
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
-   xf86DisableRandR(); /* Disable built-in RandR extension */
-
-   shadowSetup(pScreen);
-   /* support all rotations */
-   I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
-   pI830->PointerMoved = pScrn->PointerMoved;
-   pScrn->PointerMoved = I830PointerMoved;
-   pI830->CreateScreenResources = pScreen->CreateScreenResources;
-   pScreen->CreateScreenResources = I830CreateScreenResources;
+   if (pI830->shadowReq.minorversion >= 1) {
+      /* Rotation */
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
+      xf86DisableRandR(); /* Disable built-in RandR extension */
+      shadowSetup(pScreen);
+      /* support all rotations */
+      I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
+      pI830->PointerMoved = pScrn->PointerMoved;
+      pScrn->PointerMoved = I830PointerMoved;
+      pI830->CreateScreenResources = pScreen->CreateScreenResources;
+      pScreen->CreateScreenResources = I830CreateScreenResources;
+   } else {
+      /* Rotation */
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "libshadow is version %d.%d.%d, required 1.1.0 or greater for rotation.\n",pI830->shadowReq.majorversion,pI830->shadowReq.minorversion,pI830->shadowReq.patchlevel);
+   }
 
    if (serverGeneration == 1)
       xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
@@ -4635,7 +4678,9 @@ I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen)
       pI830->used3D = NULL;
    }
 
-   pScrn->PointerMoved = pI830->PointerMoved;
+   if (pI830->shadowReq.minorversion >= 1)
+      pScrn->PointerMoved = pI830->PointerMoved;
+
    pScrn->vtSema = FALSE;
    pI830->closing = FALSE;
    pScreen->CloseScreen = pI830->CloseScreen;
@@ -4782,7 +4827,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
       /* this avoids several BIOS calls if possible */
       if (pI830->monitorSwitch != temp || pI830->monitorSwitch != pI830->toggleDevices) {
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Hotkey switch to 0x%lx.\n", temp);
+		    "Hotkey switch to 0x%lx.\n", (unsigned long) temp);
 
          if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
             (*pI830->AccelInfoRec->Sync)(pScrn);
@@ -4845,7 +4890,8 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
          } 
 
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Requested display devices 0x%lx.\n", temp);
+			"Requested display devices 0x%lx.\n", 
+		    (unsigned long) temp);
 
 
          /* If the BIOS doesn't flip between CRT, LFP and CRT+LFP we fake
@@ -4886,12 +4932,14 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
          if (temp == pI8301->lastDevice1 || temp == pI8301->lastDevice2) {
              temp = GetToggleList(pScrn, 1);
              xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Detected duplicate devices. Toggling (0x%lx)\n", temp);
+			"Detected duplicate devices. Toggling (0x%lx)\n", 
+			(unsigned long) temp);
          }
 
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 		"Detected display change operation (0x%x, 0x%x, 0x%lx).\n", 
-                pI8301->lastDevice1, pI8301->lastDevice2, temp);
+                pI8301->lastDevice1, pI8301->lastDevice2, 
+		    (unsigned long) temp);
 
          /* So that if we close on the wrong config, we restore correctly */
          pI830->specifiedMonitor = TRUE;
@@ -4923,10 +4971,12 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
                      (CountBits((temp & 0xff00) >> 8) > 1)) ) {
 	       temp = pI8301->lastDevice2 | pI8301->lastDevice1;
                xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Cloning failed, "
-                    "trying dual pipe clone mode (0x%lx)\n", temp);
+			  "trying dual pipe clone mode (0x%lx)\n", 
+			  (unsigned long) temp);
                if (!SetDisplayDevices(pScrn, temp))
                     xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Failed to switch "
- 		    "to configured display devices (0x%lx).\n", temp);
+ 		    "to configured display devices (0x%lx).\n", 
+			       (unsigned long) temp);
                else {
                  pI830->Clone = TRUE;
                  xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting Clone mode\n");

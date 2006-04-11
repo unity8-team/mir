@@ -277,7 +277,7 @@ static Bool
 i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    int m1, m2, n, p1, p2;
+    int m1 = 0, m2 = 0, n = 0, p1 = 0, p2 = 0;
     CARD32 dpll = 0, fp = 0, temp;
     CARD32 htot, hblank, hsync, vtot, vblank, vsync, dspcntr;
     CARD32 pipesrc, dspsize, adpa;

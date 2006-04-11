@@ -50,7 +50,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include "xf86.h"
-#include "xf86_ansic.h"
 #include "xf86_OSproc.h"
 
 #include "i810.h"
@@ -265,7 +264,7 @@ I810SetTiledMemory(ScrnInfoPtr pScrn, int nr, unsigned int start,
    CARD32 fence_mask = 0;
 
    if (nr < 0 || nr > 7) {
-      xf86DrvMsg(X_WARNING, pScrn->scrnIndex, "%s - fence %d out of range\n",
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "%s - fence %d out of range\n",
 		 "I810SetTiledMemory", nr);
       return;
    }
@@ -275,21 +274,21 @@ I810SetTiledMemory(ScrnInfoPtr pScrn, int nr, unsigned int start,
    fence_mask = ~FENCE_START_MASK;
 
    if (start & fence_mask) {
-      xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "%s %d: start (%x) is not 512k aligned\n",
 		 "I810SetTiledMemory", nr, start);
       return;
    }
 
    if (start % size) {
-      xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "%s %d: start (%x) is not size (%x) aligned\n",
 		 "I810SetTiledMemory", nr, start, size);
       return;
    }
 
    if (pitch & 127) {
-      xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "%s %d: pitch (%x) not a multiple of 128 bytes\n",
 		 "I810SetTiledMemory", nr, pitch);
       return;
@@ -320,7 +319,7 @@ I810SetTiledMemory(ScrnInfoPtr pScrn, int nr, unsigned int start,
       val |= FENCE_SIZE_32M;
       break;
    default:
-      xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "%s %d: illegal size (0x%x)\n", "I810SetTiledMemory", nr,
 		 size);
       return;
@@ -346,7 +345,7 @@ I810SetTiledMemory(ScrnInfoPtr pScrn, int nr, unsigned int start,
       val |= FENCE_PITCH_32;
       break;
    default:
-      xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		 "%s %d: illegal size (0x%x)\n", "I810SetTiledMemory", nr,
 		 size);
       return;

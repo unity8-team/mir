@@ -38,10 +38,11 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
+#include <string.h>
+
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"
-#include "xf86_ansic.h"
 #include "compiler.h"
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
@@ -210,12 +211,12 @@ void I810InitMC(ScreenPtr pScreen)
 
   /* Cursor is at a page boundary, Overlay regs are not, don't forget */
   if (drmAddMap(pI810->drmSubFD, (drm_handle_t)pI810->CursorStart,
-                4096, DRM_AGP, 0, &pI810->overlay_map) < 0) {
+                4096, DRM_AGP, 0, (drmAddress) &pI810->overlay_map) < 0) {
     xf86DrvMsg(pScreen->myNum, X_ERROR, "drmAddMap(overlay) failed\n");
     return;
   }
   if (drmAddMap(pI810->drmSubFD, (drm_handle_t)pI810->MC.Start,
-                pI810->MC.Size, DRM_AGP, 0, &pI810->mc_map) < 0) {
+                pI810->MC.Size, DRM_AGP, 0, (drmAddress) &pI810->mc_map) < 0) {
     xf86DrvMsg(pScreen->myNum, X_ERROR, "drmAddMap(MC) failed\n");
     return;
   }
@@ -245,14 +246,14 @@ int I810XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 
 
   if(!pI810->directRenderingEnabled) {
-    xf86DrvMsg(X_ERROR, pScrn->scrnIndex,
+    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
         "I810XvMCCreateContext: Cannot use XvMC without DRI!\n");
     return BadAlloc;
   }
 
   /* Context Already in use! */
   if(pI810->xvmcContext) {
-    xf86DrvMsg(X_WARNING, pScrn->scrnIndex,
+    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
         "I810XvMCCreateContext: 2 XvMC Contexts Attempted, not supported.\n");
     return BadAlloc;
   }
@@ -267,7 +268,7 @@ int I810XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 
   *num_priv = sizeof(I810XvMCCreateContextRec) >> 2;
   if(drmCreateContext(pI810->drmSubFD, &(contextRec->drmcontext) ) < 0) {
-    xf86DrvMsg(X_ERROR, pScrn->scrnIndex,
+    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
         "I810XvMCCreateContext: Unable to create DRMContext!\n");
     xfree(*priv);
     return BadAlloc;
@@ -299,7 +300,7 @@ int I810XvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
   *priv = (long *)xcalloc(2,sizeof(long));
 
   if(!*priv) {
-    xf86DrvMsg(X_ERROR, pScrn->scrnIndex,
+    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
         "I810XvMCCreateSurface: Unable to allocate memory!\n");
     *num_priv = 0;
     return BadAlloc;
@@ -345,7 +346,7 @@ int I810XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
   *priv = (long *)xcalloc(1,sizeof(long));
 
   if(!*priv) {
-    xf86DrvMsg(X_ERROR, pScrn->scrnIndex,
+    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
         "I810XvMCCreateSubpicture: Unable to allocate memory!\n");
     *num_priv = 0;
     return BadAlloc;

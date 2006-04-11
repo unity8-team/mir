@@ -39,7 +39,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _I810_H_
 #define _I810_H_
 
-#include "xf86_ansic.h"
 #include "compiler.h"
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
@@ -66,7 +65,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define I810_NAME "I810"
 #define I810_DRIVER_NAME "i810"
 #define I810_MAJOR_VERSION 1
-#define I810_MINOR_VERSION 5
+#define I810_MINOR_VERSION 6
 #define I810_PATCHLEVEL 0
 
 

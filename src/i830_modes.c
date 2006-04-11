@@ -38,8 +38,10 @@
 #include "config.h"
 #endif
 
+#include <stdio.h>
+#include <string.h>
+
 #include "xf86.h"
-#include "xf86_ansic.h"
 #include "i830.h"
 
 extern const int i830refreshes[];

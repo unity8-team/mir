@@ -1,3 +1,56 @@
+2006-04-07  Adam Jackson  <ajax@freedesktop.org>
+
+	* configure.ac:
+	* src/i810.h:
+	Bump to 1.6.0.
+
+2006-04-07  Aaron Plattner  <aplattner@nvidia.com>
+
+	* src/i810_video.c: (I810PutImage):
+	* src/i830_video.c: (I830PutImage):
+	Add a DrawablePtr argument to the XV functions to pave the way for
+	redirected video.
+
+2006-04-05  Dave Airlie  <airlied@linux.ie>
+
+	* src/i810_hwmc.c: (I810XvMCCreateContext),
+	(I810XvMCCreateSurface), (I810XvMCCreateSubpicture):
+	* src/i810_memory.c: (I810SetTiledMemory):
+	* src/i830_memory.c: (SetFence):
+	Fix some argument inversions in xf86DrvMsg function calls
+
+2006-04-04  Kristian Høgsberg  <krh@redhat.com>
+
+	* src/i810_dri.c:
+	* src/i810_driver.c:
+	* src/i830_dri.c:
+	* src/i830_driver.c: Add more missing #include's, in particular
+	assert.h.
+
+2006-03-22  Kristian Høgsberg  <krh@redhat.com>
+
+	* src/*.c: Drop libc wrapper; don't include xf86_ansic.h and add
+	includes now missing.
+
+2006-03-10  Alan Hourihane  <alanh@fairlite.demon.co.uk>
+
+	* src/i830_cursor.c: (I830InitHWCursor), (I830ShowCursor),
+	(I830HideCursor):
+	Enable gamma for hw cursor when ARGB cursor in use (Lukas Hejtmanek)
+
+2006-03-03  Alan Hourihane  <alanh@fairlite.demon.co.uk>
+
+	* configure.ac:
+	* src/i810.h:
+	* src/i830.h:
+	* src/i830_dri.h:
+	* src/i830_driver.c: (I830BIOSPreInit), (I830BIOSScreenInit),
+	(I830BIOSCloseScreen):
+	* src/i830_video.c:
+	Check the version of shadow being used and turn off rotation if
+	it isn't the right one.
+	Bump the Xvideo resolution support from 1920x1080 to 1920x1088.
+
 2006-02-20  Alan Hourihane  <alanh@fairlite.demon.co.uk>
 
 	* src/i830_rotate.c: (I915UpdateRotate), (I830UpdateRotate):
