@@ -66,10 +66,8 @@ i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
     I830Ptr pI830 = I830PTR(pScrn);
     int p, m, vco, dotclock;
     int min_m1, max_m1, min_m2, max_m2, min_m, max_m, min_n, max_n;
-    int min_p, max_p;
+    int min_p1, max_p1, min_p, max_p, min_vco, max_vco, min_dot, max_dot;
 
-    min_p = 5;
-    max_p = 80;
     if (pI830->PciInfo->chipType >= PCI_CHIP_I915_G) {
 	min_m1 = 10;
 	max_m1 = 20;
@@ -79,23 +77,36 @@ i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
 	max_m = 120;
 	min_n = 3;
 	max_n = 8;
+	min_p1 = 1;
+	max_p1 = 8;
 	if (outputs & PIPE_LCD_ACTIVE) {
 	    min_p = 7;
 	    max_p = 98;
+	} else {
+	    min_p = 5;
+	    max_p = 80;
 	}
+	min_vco = 1400000;
+	max_vco = 2800000;
+	min_dot = 20000;
+	max_dot = 400000;
     } else {
-	min_m1 = 16;
-	max_m1 = 24;
-	min_m2 = 7;
-	max_m2 = 11;
-	min_m = 90;
-	max_m = 130;
-	min_n = 4;
-	max_n = 8;
-	if (outputs & PIPE_LCD_ACTIVE) {
-	    min_n = 3;
-	    min_m = 88;
-	}
+	min_m1 = 18;
+	max_m1 = 26;
+	min_m2 = 6;
+	max_m2 = 16;
+	min_m = 96;
+	max_m = 140;
+	min_n = 3;
+	max_n = 16;
+	min_p1 = 2;
+	max_p1 = 18;
+	min_vco = 930000;
+	max_vco = 1400000;
+	min_dot = 20000;
+	max_dot = 350000;
+	min_p = 4;
+	max_p = 128;
     }
 
     p = p1 * p2;
@@ -103,7 +114,7 @@ i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
     vco = refclk * m / n;
     dotclock = i830_clock(refclk, m1, m2, n, p1, p2);
 
-    if (p1 < 1 || p1 > 8)
+    if (p1 < min_p1 || p1 > max_p1)
 	return FALSE;
     if (p < min_p || p > max_p)
 	return FALSE;
@@ -117,12 +128,12 @@ i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
 	return FALSE;
     if (n < min_n || n > max_n)
 	return FALSE;
-    if (vco < 1400000 || vco > 2800000)
+    if (vco < min_vco || vco > max_vco)
 	return FALSE;
     /* XXX: We may need to be checking "Dot clock" depending on the multiplier,
      * output, etc., rather than just a single range.
      */
-    if (dotclock < 20000 || dotclock > 400000)
+    if (dotclock < min_dot || dotclock > max_dot)
 	return FALSE;
 
     return TRUE;
@@ -215,36 +226,48 @@ i830FindBestPLL(ScrnInfoPtr pScrn, int outputs, int target, int refclk,
     I830Ptr pI830 = I830PTR(pScrn);
     int m1, m2, n, p1, p2;
     int err = target;
-    int min_m1, max_m1, min_m2, max_m2;
+    int min_m1, max_m1, min_m2, max_m2, min_n, max_n, min_p1, max_p1;
 
     if (pI830->PciInfo->chipType >= PCI_CHIP_I915_G) {
 	min_m1 = 10;
 	max_m1 = 20;
 	min_m2 = 5;
 	max_m2 = 9;
+	min_n = 3;
+	max_n = 8;
+	min_p1 = 1;
+	max_p1 = 8;
+	if (outputs & PIPE_LCD_ACTIVE) {
+	    if (target < 200000) /* XXX: Is this the right cutoff? */
+		p2 = 14;
+	    else
+		p2 = 7;
+	} else {
+	    if (target < 200000)
+		p2 = 10;
+	    else
+		p2 = 5;
+	}
     } else {
-	min_m1 = 16;
-	max_m1 = 24;
-	min_m2 = 7;
-	max_m2 = 11;
+	min_m1 = 18;
+	max_m1 = 26;
+	min_m2 = 6;
+	max_m2 = 16;
+	min_n = 3;
+	max_n = 16;
+	min_p1 = 2;
+	max_p1 = 18;
+	if (target < 165000)
+	    p2 = 4;
+	else
+	    p2 = 2;
     }
 
-    if (outputs & PIPE_LCD_ACTIVE) {
-	if (target < 200000) /* XXX: Is this the right cutoff? */
-	    p2 = 14;
-	else
-	    p2 = 7;
-    } else {
-	if (target < 200000)
-	    p2 = 10;
-	else
-	    p2 = 5;
-    }
 
     for (m1 = min_m1; m1 <= max_m1; m1++) {
 	for (m2 = min_m2; m2 < max_m2; m2++) {
-	    for (n = 3; n <= 8; n++) {
-		for (p1 = 1; p1 <= 8; p1++) {
+	    for (n = min_n; n <= max_n; n++) {
+		for (p1 = min_p1; p1 <= max_p1; p1++) {
 		    int clock, this_err;
 
 		    if (!i830PllIsValid(pScrn, outputs, refclk, m1, m2, n,
@@ -309,7 +332,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     CARD32 htot, hblank, hsync, vtot, vblank, vsync, dspcntr;
     CARD32 pipesrc, dspsize, adpa;
     Bool ok;
-    int refclk = 96000, pixel_clock;
+    int refclk, pixel_clock;
     int outputs;
 
     ErrorF("Requested pix clock: %d\n", pMode->Clock);
@@ -385,6 +408,11 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	pixel_clock = pI830->panel_fixed_clock;
     }
 
+    if (pI830->PciInfo->chipType >= PCI_CHIP_I915_G) {
+	refclk = 96000;
+    } else {
+	refclk = 48000;
+    }
     ok = i830FindBestPLL(pScrn, outputs, pixel_clock, refclk, &m1, &m2, &n,
 			 &p1, &p2);
     if (!ok) {
@@ -394,28 +422,34 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     }
 
     dpll = DPLL_VCO_ENABLE | DPLL_VGA_MODE_DIS;
-    if (outputs & PIPE_LCD_ACTIVE)
-	dpll |= DPLLB_MODE_LVDS;
-    else
-	dpll |= DPLLB_MODE_DAC_SERIAL;
-
-    dpll |= (1 << (p1 - 1)) << 16;
-    switch (p2) {
-    case 5:
-	dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
-	break;
-    case 7:
-	dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
-	break;
-    case 10:
-	dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
-	break;
-    case 14:
-	dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
-	break;
+    if (pI830->PciInfo->chipType >= PCI_CHIP_I915_G) {
+	if (outputs & PIPE_LCD_ACTIVE)
+	    dpll |= DPLLB_MODE_LVDS;
+	else
+	    dpll |= DPLLB_MODE_DAC_SERIAL;
+	dpll |= (1 << (p1 - 1)) << 16;
+	switch (p2) {
+	case 5:
+	    dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
+	    break;
+	case 7:
+	    dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
+	    break;
+	case 10:
+	    dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
+	    break;
+	case 14:
+	    dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
+	    break;
+	}
+    } else {
+	dpll |= (p1 - 2) << 16;
+	if (p2 == 4)
+	    dpll |= PLL_P2_DIVIDE_BY_4;
     }
+
     if (outputs & (PIPE_TV_ACTIVE | PIPE_TV2_ACTIVE))
-	dpll |= PLL_REF_INPUT_TVCLKIN;
+	dpll |= PLL_REF_INPUT_TVCLKINBC;
     else
 	dpll |= PLL_REF_INPUT_DREFCLK;
     dpll |= SDV0_DEFAULT_MULTIPLIER;

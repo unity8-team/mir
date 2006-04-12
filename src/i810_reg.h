@@ -705,16 +705,20 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define DPLL_DVO_HIGH_SPEED			(1 << 30)
 # define DPLL_SYNCLOCK_ENABLE			(1 << 29)
 # define DPLL_VGA_MODE_DIS			(1 << 28)
-# define DPLLB_MODE_DAC_SERIAL			(1 << 26)
-# define DPLLB_MODE_LVDS			(2 << 26)
-# define DPLL_DAC_SERIAL_P2_CLOCK_DIV_10	(0 << 24)
-# define DPLL_DAC_SERIAL_P2_CLOCK_DIV_5		(1 << 24)
-# define DPLLB_LVDS_P2_CLOCK_DIV_14		(0 << 24)
-# define DPLLB_LVDS_P2_CLOCK_DIV_7		(1 << 24)
-# define DPLL_P2_CLOCK_DIV_MASK			0x03000000
-# define DPLL_FPA01_P1_POST_DIV_MASK		0x00ff0000
+# define DPLLB_MODE_DAC_SERIAL			(1 << 26) /* i915 */
+# define DPLLB_MODE_LVDS			(2 << 26) /* i915 */
+# define DPLL_DAC_SERIAL_P2_CLOCK_DIV_10	(0 << 24) /* i915 */
+# define DPLL_DAC_SERIAL_P2_CLOCK_DIV_5		(1 << 24) /* i915 */
+# define DPLLB_LVDS_P2_CLOCK_DIV_14		(0 << 24) /* i915 */
+# define DPLLB_LVDS_P2_CLOCK_DIV_7		(1 << 24) /* i915 */
+# define DPLL_P2_CLOCK_DIV_MASK			0x03000000 /* i915 */
+# define DPLL_FPA01_P1_POST_DIV_MASK		0x00ff0000 /* i915 */
+# define PLL_P2_DIVIDE_BY_4			(1 << 23) /* i830, required in DVO non-gang */
+# define DPLL_FPA01_P1_POS_DIV_MASK_I830	0x001f0000 /* i830 */
+# define PLL_P1_DIVIDE_BY_TWO			(1 << 21) /* i830 */
 # define PLL_REF_INPUT_DREFCLK			(0 << 13)
-# define PLL_REF_INPUT_TVCLKIN			(2 << 13)
+# define PLL_REF_INPUT_TVCLKINA			(1 << 13) /* i830 */
+# define PLL_REF_INPUT_TVCLKINBC		(2 << 13)
 # define PLLB_REF_INPUT_SPREADSPECTRUMIN	(3 << 13)
 # define DISPLAY_RATE_SELECT_FPA1		(1 << 8)
 # define SDVO_MULTIPLIER_MASK			0x000000ff
