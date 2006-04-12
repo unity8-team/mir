@@ -1390,9 +1390,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
    /* When in dual head with different bpp setups we need to refresh the
     * color key, so let's reset the video parameters and refresh here */
-#if 0
    if (pI830->entityPrivate)
-#endif
       I830ResetVideo(pScrn);
 
    /* Ensure overlay is turned on with OVERLAY_ENABLE at 0 */
