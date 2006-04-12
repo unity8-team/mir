@@ -2256,6 +2256,12 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       else
 	 pI830->pipe = 1;
       pI830->operatingDevices = (pI830->MonType2 << 8) | pI830->MonType1;
+
+      if (pI830->MonType1 != 0 && pI830->MonType2 != 0) {
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+ 		    "Enabling clone mode by default\n");
+	 pI830->Clone = TRUE;
+      }
    } else {
       I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
       pI830->operatingDevices = pI8301->operatingDevices;
@@ -2296,13 +2302,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    if ((pI830->entityPrivate && I830IsPrimary(pScrn)) || pI830->Clone) {
-      if ((!xf86GetOptValString(pI830->Options, OPTION_MONITOR_LAYOUT))) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "You must have a MonitorLayout "
-	 		"defined for use in a DualHead or Clone setup.\n");
-         PreInitCleanup(pScrn);
-         return FALSE;
-      }
-         
       if (pI830->MonType1 == PIPE_NONE || pI830->MonType2 == PIPE_NONE) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Monitor 1 or Monitor 2 "
 	 		"cannot be type NONE in Dual or Clone setup.\n");
