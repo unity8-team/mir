@@ -368,8 +368,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     pipesrc = ((pMode->HDisplay - 1) << 16) | (pMode->VDisplay - 1);
     dspsize = ((pMode->VDisplay - 1) << 16) | (pMode->HDisplay - 1);
     pixel_clock = pMode->Clock;
-    if (outputs & PIPE_LCD_ACTIVE && i830GetLVDSInfoFromBIOS(pScrn) &&
-	pI830->panel_fixed_hactive != 0)
+    if (outputs & PIPE_LCD_ACTIVE && pI830->panel_fixed_hactive != 0)
     {
 	/* To enable panel fitting, we need to set the pipe timings to that of
 	 * the screen at its full resolution.  So, drop the timings from the

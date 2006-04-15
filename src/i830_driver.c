@@ -2139,6 +2139,13 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    pI830->MonType2 = PIPE_NONE;
    pI830->specifiedMonitor = FALSE;
 
+   /* Always check for LVDS info once at startup.  We hook in the BIOS data
+    * dumping here (this should be cleaner) and we get to rely on having the
+    * LVDS info later on.
+    */
+   if (!i830GetLVDSInfoFromBIOS(pScrn))
+      has_lvds = FALSE;
+
    if ((s = xf86GetOptValString(pI830->Options, OPTION_MONITOR_LAYOUT)) &&
       I830IsPrimary(pScrn)) {
       char *Mon1;
@@ -2227,7 +2234,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       pI830->specifiedMonitor = TRUE;
    } else if (I830IsPrimary(pScrn)) {
       /* Choose a default set of outputs to use based on what we've detected. */
-      if (i830GetLVDSInfoFromBIOS(pScrn) && has_lvds) {
+      if (has_lvds) {
 	 pI830->MonType2 |= PIPE_LFP;
       }
 
@@ -2743,7 +2750,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
        * rely on the scaler so that we can display any mode smaller than or the
        * same size as the panel.
        */
-      if (!i830GetLVDSInfoFromBIOS(pScrn)) {
+      if (!has_lvds) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "Unable to locate panel information in BIOS VBT tables\n");
          PreInitCleanup(pScrn);

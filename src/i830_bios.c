@@ -47,6 +47,27 @@
 /* XXX */
 #define INTEL_VBIOS_SIZE (64 * 1024)
 
+static void
+i830DumpBIOSToFile(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    const char *filename = "/tmp/xf86-video-intel-VBIOS";
+    FILE *f;
+
+    f = fopen(filename, "w");
+    if (f == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Couldn't open %s\n", filename);
+	return;
+    }
+    if (fwrite(pI830->VBIOS, INTEL_VBIOS_SIZE, 1, f) != 1) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Couldn't write BIOS data\n");
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Wrote BIOS contents to %s\n",
+	       filename);
+    fclose(f);
+}
+
 /**
  * Loads the Video BIOS and checks that the VBT exists.
  *
@@ -76,6 +97,7 @@ i830GetBIOS(ScrnInfoPtr pScrn)
 	xf86ReadPciBIOS(0, pI830->PciTag, 0, pI830->VBIOS, INTEL_VBIOS_SIZE);
     }
 
+    i830DumpBIOSToFile(pScrn);
     vbt_off = INTEL_BIOS_16(0x1a);
     if (vbt_off >= INTEL_VBIOS_SIZE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad VBT offset: 0x%x\n",
