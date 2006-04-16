@@ -173,6 +173,21 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 	    timing_ptr = pI830->VBIOS + bdb_off +
 	        lvds2->panels[panel_type].fp_edid_dtd_offset;
 
+	    if (fpparam->terminator != 0xffff) {
+		/* Apparently the offsets are wrong for some BIOSes, so we
+		 * try the other offsets if we find a bad terminator.
+		 */
+		fpparam = (struct lvds_bdb_2_fp_params *)(pI830->VBIOS +
+		    bdb_off + lvds2->panels[panel_type].fp_params_offset + 8);
+		fptiming = (struct lvds_bdb_2_fp_edid_dtd *)(pI830->VBIOS +
+		    bdb_off + lvds2->panels[panel_type].fp_edid_dtd_offset + 8);
+		timing_ptr = pI830->VBIOS + bdb_off +
+	            lvds2->panels[panel_type].fp_edid_dtd_offset + 8;
+
+		if (fpparam->terminator != 0xffff)
+		    continue;
+	    }
+
 	    pI830->PanelXRes = fpparam->x_res;
 	    pI830->PanelYRes = fpparam->y_res;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
