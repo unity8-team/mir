@@ -116,5 +116,6 @@ AC_OUTPUT([
 	Makefile
 	src/Makefile
 	src/xvmc/Makefile
+	src/bios_reader/Makefile
 	man/Makefile
 ])
