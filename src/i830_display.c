@@ -139,81 +139,6 @@ i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
     return TRUE;
 }
 
-#if 0
-int
-i830ReadAndReportPLL(ScrnInfoPtr pScrn)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 temp, dpll;
-    int refclk, m1, m2, n, p1, p2;
-
-    refclk = 96000;	/* XXX: The refclk may be 100000 for the LVDS */
-
-    dpll = INREG(DPLL_A);
-    switch ((dpll & DPLL_FPA01_P1_POST_DIV_MASK) >> 16) {
-    case 0x01:
-	p1 = 1;
-	break;
-    case 0x02:
-	p1 = 2;
-	break;
-    case 0x04:
-	p1 = 3;
-	break;
-    case 0x08:
-	p1 = 4;
-	break;
-    case 0x10:
-	p1 = 5;
-	break;
-    case 0x20:
-	p1 = 6;
-	break;
-    case 0x40:
-	p1 = 7;
-	break;
-    case 0x80:
-	p1 = 8;
-	break;
-    default:
-	FatalError("Unknown p1 clock div: 0x%x\n",
-		   dpll & DPLL_FPA01_P1_POST_DIV_MASK);
-    }
-
-    switch (dpll & DPLL_P2_CLOCK_DIV_MASK) {
-    case DPLL_DAC_SERIAL_P2_CLOCK_DIV_5:
-	p2 = 5;
-	break;
-    case DPLL_DAC_SERIAL_P2_CLOCK_DIV_10:
-	p2 = 10;
-	break;
-/* XXX:
-    case DPLLB_LVDS_P2_CLOCK_DIV_7:
-	p2 = 7;
-	break;
-    case DPLLB_LVDS_P2_CLOCK_DIV_14:
-	p2 = 14;
-	break;
-*/
-    default:
-	FatalError("Unknown p2 clock div: 0x%x\n", dpll & DPLL_P2_CLOCK_DIV_MASK);
-    }
-
-    if (dpll & DISPLAY_RATE_SELECT_FPA1)
-	temp = INREG(FPA1);
-    else
-	temp = INREG(FPA0);
-    n = (temp & FP_N_DIV_MASK) >> 16;
-    m1 = (temp & FP_M1_DIV_MASK) >> 8;
-    m2 = (temp & FP_M2_DIV_MASK);
-
-    i830PrintPll("FPA", refclk, m1, m2, n, p1, p2);
-    ErrorF("clock settings for FPA0 look %s\n",
-	   i830PllIsValid(refclk, m1, m2, n, p1, p2) ? "good" : "bad");
-    ErrorF("clock regs: 0x%08x, 0x%08x\n", dpll, temp);    
-}
-#endif
-
 /**
  * Returns a set of divisors for the desired target clock with the given refclk,
  * or FALSE.  Divisor values are the actual divisors for
@@ -466,19 +391,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	(int)(vsync & 0xffff) + 1, (int)(vsync >> 16) + 1);
 #endif
 
-    adpa = INREG(ADPA);
-    adpa &= ~(ADPA_HSYNC_ACTIVE_HIGH | ADPA_VSYNC_ACTIVE_HIGH);
-    adpa &= ~(ADPA_VSYNC_CNTL_DISABLE | ADPA_HSYNC_CNTL_DISABLE);
-    adpa |= ADPA_DAC_ENABLE;
-    if (pMode->Flags & V_PHSYNC)
-	adpa |= ADPA_HSYNC_ACTIVE_HIGH;
-    if (pMode->Flags & V_PVSYNC)
-	adpa |= ADPA_VSYNC_ACTIVE_HIGH;
-
     i830PrintPll("chosen", refclk, m1, m2, n, p1, p2);
-    ErrorF("clock settings for chosen look %s\n",
-	   i830PllIsValid(pScrn, outputs, refclk, m1, m2, n, p1, p2) ?
-			  "good" : "bad");
     ErrorF("clock regs: 0x%08x, 0x%08x\n", (int)dpll, (int)fp);
 
     dspcntr = DISPLAY_PLANE_ENABLE;
