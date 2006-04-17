@@ -97,7 +97,9 @@ i830GetBIOS(ScrnInfoPtr pScrn)
 	xf86ReadPciBIOS(0, pI830->PciTag, 0, pI830->VBIOS, INTEL_VBIOS_SIZE);
     }
 
-    i830DumpBIOSToFile(pScrn);
+    if (0)
+	i830DumpBIOSToFile(pScrn);
+
     vbt_off = INTEL_BIOS_16(0x1a);
     if (vbt_off >= INTEL_VBIOS_SIZE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad VBT offset: 0x%x\n",
