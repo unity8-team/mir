@@ -131,7 +131,7 @@ extern void I830DPRINTF_stub(const char *filename, int line,
    RecPtr->LpRing->space -= ringused;					\
    if (outring & 0x07)							\
       ErrorF("ADVANCE_LP_RING: "					\
-	     "outring (0x%x) isn't on a QWord boundary", outring);	\
+	     "outring (0x%x) isn't on a QWord boundary\n", outring);	\
    OUTREG(LP_RING + RING_TAIL, outring);				\
 } while (0)
 
