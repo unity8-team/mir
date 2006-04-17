@@ -68,7 +68,7 @@ i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
     int min_m1, max_m1, min_m2, max_m2, min_m, max_m, min_n, max_n;
     int min_p1, max_p1, min_p, max_p, min_vco, max_vco, min_dot, max_dot;
 
-    if (pI830->PciInfo->chipType >= PCI_CHIP_I915_G) {
+    if (IS_I9XX(pI830)) {
 	min_m1 = 10;
 	max_m1 = 20;
 	min_m2 = 5;
@@ -153,7 +153,7 @@ i830FindBestPLL(ScrnInfoPtr pScrn, int outputs, int target, int refclk,
     int err = target;
     int min_m1, max_m1, min_m2, max_m2, min_n, max_n, min_p1, max_p1;
 
-    if (pI830->PciInfo->chipType >= PCI_CHIP_I915_G) {
+    if (IS_I9XX(pI830)) {
 	min_m1 = 10;
 	max_m1 = 20;
 	min_m2 = 5;
@@ -332,7 +332,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	pixel_clock = pI830->panel_fixed_clock;
     }
 
-    if (pI830->PciInfo->chipType >= PCI_CHIP_I915_G) {
+    if (IS_I9XX(pI830)) {
 	refclk = 96000;
     } else {
 	refclk = 48000;
@@ -346,7 +346,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     }
 
     dpll = DPLL_VCO_ENABLE | DPLL_VGA_MODE_DIS;
-    if (pI830->PciInfo->chipType >= PCI_CHIP_I915_G) {
+    if (IS_I9XX(pI830)) {
 	if (outputs & PIPE_LCD_ACTIVE)
 	    dpll |= DPLLB_MODE_LVDS;
 	else
