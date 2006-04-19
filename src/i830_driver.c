@@ -1369,7 +1369,6 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
       pI830->output[i].type = I830_OUTPUT_LVDS;
       I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOC, "LVDSDDC_C");
       i++;
-      break;
    case PCI_CHIP_I915_G:
    case PCI_CHIP_I945_G:
       /* Set up SDVOB */
@@ -1380,7 +1379,7 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
 
       /* Set up SDVOC */
       pI830->output[i].type = I830_OUTPUT_SDVO;
-      I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "SDVOCTRL_E");
+      pI830->output[i].pI2CBus = pI830->output[i-1].pI2CBus;
       I830SDVOInit(pScrn, i, SDVOC);
       i++;
       break;

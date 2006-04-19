@@ -544,11 +544,13 @@ I830SDVOInit(ScrnInfoPtr pScrn, int output_index, CARD32 output_device)
     if (sdvo == NULL)
 	return NULL;
 
-    sdvo->d.DevName = "SDVO Controller";
-    if (output_device == SDVOB)
+    if (output_device == SDVOB) {
+	sdvo->d.DevName = "SDVO Controller B";
 	sdvo->d.SlaveAddr = 0x70;
-    else
+    } else {
+	sdvo->d.DevName = "SDVO Controller C";
 	sdvo->d.SlaveAddr = 0x72;
+    }
     sdvo->d.pI2CBus = pI830->output[output_index].pI2CBus;
     sdvo->d.DriverPrivate.ptr = sdvo;
     sdvo->output_device = output_device;
@@ -564,6 +566,7 @@ I830SDVOInit(ScrnInfoPtr pScrn, int output_index, CARD32 output_device)
     /* Read the regs to test if we can talk to the device */
     for (i = 0; i < 0x40; i++) {
 	if (!sReadByte(sdvo, i, &ch[i])) {
+	    xf86DestroyI2CDevRec(&sdvo->d, 0);
 	    xfree(sdvo);
 	    return NULL;
 	}
