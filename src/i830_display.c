@@ -571,6 +571,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 #ifdef XF86DRI
     Bool didLock = FALSE;
 #endif
+    int i;
 
     DPRINTF(PFX, "i830SetMode\n");
 
@@ -590,6 +591,11 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	pI830->planeEnabled[1] = 0;
     }
 
+    for (i = 0; i < pI830->num_outputs; i++) {
+	if (pI830->output[i].sdvo_drv && pI830->output[i].sdvo_drv->found)
+	    I830SDVOPreSetMode(pI830->output[i].sdvo_drv, pMode);
+    }
+
     if (pI830->planeEnabled[0]) {
 	ok = i830PipeSetMode(pScrn, pMode, 0);
 	if (!ok)
@@ -599,6 +605,10 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	ok = i830PipeSetMode(pScrn, pMode, 1);
 	if (!ok)
 	    goto done;
+    }
+    for (i = 0; i < pI830->num_outputs; i++) {
+	if (pI830->output[i].sdvo_drv && pI830->output[i].sdvo_drv->found)
+	    I830SDVOPostSetMode(pI830->output[i].sdvo_drv, pMode);
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode bandwidth is %d Mpixel/s\n",

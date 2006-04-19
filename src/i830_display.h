@@ -25,7 +25,14 @@
  *
  */
 
+/* i830_display.c */
 Bool i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
 Bool i830DetectCRT(ScrnInfoPtr pScrn);
 void i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on);
 void i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y);
+
+/* i830_sdvo.c */
+I830SDVOPtr I830SDVOInit(I2CBusPtr b);
+Bool I830I2CDetectSDVOController(ScrnInfoPtr pScrn, int output_index);
+Bool I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode);
+Bool I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode);

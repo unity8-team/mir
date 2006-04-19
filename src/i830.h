@@ -580,10 +580,6 @@ extern Bool I830RandRInit(ScreenPtr pScreen, int rotation);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
 
-/* i830_sdvo.c */
-extern I830SDVOPtr I830SDVOInit(I2CBusPtr b);
-extern Bool I830I2CDetectSDVOController(ScrnInfoPtr pScrn, int output_index);
-
 /*
  * 12288 is set as the maximum, chosen because it is enough for
  * 1920x1440@32bpp with a 2048 pixel line pitch with some to spare.
