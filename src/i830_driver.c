@@ -1339,7 +1339,6 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    int i = 0;
-   Bool ret;
 
    /* everyone has at least a single analog output */
    pI830->output[i].type = I830_OUTPUT_ANALOG;
@@ -1376,21 +1375,13 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
       /* Set up SDVOB */
       pI830->output[i].type = I830_OUTPUT_SDVO;
       I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "SDVOCTRL_E");
-
-      pI830->output[i].sdvo_drv = I830SDVOInit(pI830->output[i].pI2CBus);
-      ret = I830I2CDetectSDVOController(pScrn, i);
-      if (ret == TRUE)
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found sDVOB\n");
+      I830SDVOInit(pScrn, i, SDVOB);
       i++;
 
       /* Set up SDVOC */
       pI830->output[i].type = I830_OUTPUT_SDVO;
       I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "SDVOCTRL_E");
-
-      pI830->output[i].sdvo_drv = I830SDVOInit(pI830->output[i].pI2CBus);
-      ret = I830I2CDetectSDVOController(pScrn, i);
-      if (ret == TRUE)
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found sDVOC\n");
+      I830SDVOInit(pScrn, i, SDVOC);
       i++;
       break;
    }
@@ -1471,7 +1462,7 @@ void I830DetectMonitors(ScrnInfoPtr pScrn)
 #endif
       break;
       case I830_OUTPUT_SDVO:
-	 if (pI830->output[i].sdvo_drv->found) {
+	 if (pI830->output[i].sdvo_drv != NULL) {
 #if 0
 	    I830SDVOSetupDDC(pI830->output[i].sdvo_drv);
 

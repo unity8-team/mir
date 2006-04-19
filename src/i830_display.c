@@ -592,7 +592,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     }
 
     for (i = 0; i < pI830->num_outputs; i++) {
-	if (pI830->output[i].sdvo_drv && pI830->output[i].sdvo_drv->found)
+	if (pI830->output[i].sdvo_drv)
 	    I830SDVOPreSetMode(pI830->output[i].sdvo_drv, pMode);
     }
 
@@ -607,7 +607,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	    goto done;
     }
     for (i = 0; i < pI830->num_outputs; i++) {
-	if (pI830->output[i].sdvo_drv && pI830->output[i].sdvo_drv->found)
+	if (pI830->output[i].sdvo_drv)
 	    I830SDVOPostSetMode(pI830->output[i].sdvo_drv, pMode);
     }
 

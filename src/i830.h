@@ -189,9 +189,9 @@ struct _I830DVODriver {
 };
 
 typedef struct _I830SDVODriver {
-   int found;
    I2CDevRec d;
    unsigned char sdvo_regs[20];
+   CARD32 output_device;		/* SDVOB or SDVOC */
 } I830SDVORec, *I830SDVOPtr;
 
 struct _I830OutputRec {

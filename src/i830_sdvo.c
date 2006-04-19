@@ -23,6 +23,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "xf86.h"
 #include "xf86_ansic.h"
 #include "xf86_OSproc.h"
@@ -530,49 +533,43 @@ I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
 }
 
 I830SDVOPtr
-I830SDVOInit(I2CBusPtr b)
+I830SDVOInit(ScrnInfoPtr pScrn, int output_index, CARD32 output_device)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
     I830SDVOPtr sdvo;
+    int i;
+    unsigned char ch[0x40];
 
     sdvo = xcalloc(1, sizeof(I830SDVORec));
     if (sdvo == NULL)
 	return NULL;
 
     sdvo->d.DevName = "SDVO Controller";
-    sdvo->d.SlaveAddr = 0x39 << 1;
-    sdvo->d.pI2CBus = b;
-    sdvo->d.StartTimeout = b->StartTimeout;
-    sdvo->d.BitTimeout = b->BitTimeout;
-    sdvo->d.AcknTimeout = b->AcknTimeout;
-    sdvo->d.ByteTimeout = b->ByteTimeout;
+    if (output_device == SDVOB)
+	sdvo->d.SlaveAddr = 0x70;
+    else
+	sdvo->d.SlaveAddr = 0x72;
+    sdvo->d.pI2CBus = pI830->output[output_index].pI2CBus;
     sdvo->d.DriverPrivate.ptr = sdvo;
+    sdvo->output_device = output_device;
 
     if (!xf86I2CDevInit(&sdvo->d)) {
-	xf86DrvMsg(b->scrnIndex, X_ERROR,
-		   "Failed to initialize SDVO I2C device\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Failed to initialize SDVO I2C device %s\n",
+		   output_device == SDVOB ? "SDVOB" : "SDVOC");
 	xfree(sdvo);
 	return NULL;
     }
-    return sdvo;
-}
 
-Bool
-I830I2CDetectSDVOController(ScrnInfoPtr pScrn, int output_index)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    unsigned char ch[64];
-    int i;
-    I830SDVOPtr sdvo = pI830->output[output_index].sdvo_drv;
-
-    if (sdvo == NULL)
-	return FALSE;
-
+    /* Read the regs to test if we can talk to the device */
     for (i = 0; i < 0x40; i++) {
-	if (!sReadByte(sdvo, i, &ch[i]))
-	    return FALSE;
+	if (!sReadByte(sdvo, i, &ch[i])) {
+	    xfree(sdvo);
+	    return NULL;
+	}
     }
 
-    pI830->output[output_index].sdvo_drv->found = 1;
+    pI830->output[output_index].sdvo_drv = sdvo;
 
-    return TRUE;
+    return sdvo;
 }
