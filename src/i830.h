@@ -481,7 +481,18 @@ typedef struct _I830Rec {
    CARD32 saveVCLK_POST_DIV;
    CARD32 saveVGACNTRL;
    CARD32 saveADPA;
+   CARD32 saveLVDS;
+   CARD32 saveDVOA;
+   CARD32 saveDVOB;
+   CARD32 saveDVOC;
+   CARD32 savePP_ON;
+   CARD32 savePP_OFF;
+   CARD32 savePP_CONTROL;
+   CARD32 savePP_CYCLE;
    CARD32 savePFIT_CONTROL;
+   CARD32 savePaletteA[256];
+   CARD32 savePaletteB[256];
+   CARD32 saveSWF[17];
 
 } I830Rec;
 

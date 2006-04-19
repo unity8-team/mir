@@ -3201,6 +3201,7 @@ SaveHWState(ScrnInfoPtr pScrn)
    vgaHWPtr hwp = VGAHWPTR(pScrn);
    vgaRegPtr vgaReg = &hwp->SavedReg;
    CARD32 temp;
+   int i;
 
    /*
     * Print out the PIPEACONF and PIPEBCONF registers.
@@ -3218,11 +3219,8 @@ SaveHWState(ScrnInfoPtr pScrn)
 
    /* Save video mode information for native mode-setting. */
    pI830->saveDSPACNTR = INREG(DSPACNTR);
-   pI830->saveDSPBCNTR = INREG(DSPBCNTR);
    pI830->savePIPEACONF = INREG(PIPEACONF);
-   pI830->savePIPEBCONF = INREG(PIPEBCONF);
    pI830->savePIPEASRC = INREG(PIPEASRC);
-   pI830->savePIPEBSRC = INREG(PIPEBSRC);
    pI830->saveFPA0 = INREG(FPA0);
    pI830->saveFPA1 = INREG(FPA1);
    pI830->saveDPLL_A = INREG(DPLL_A);
@@ -3237,19 +3235,31 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveDSPAPOS = INREG(DSPAPOS);
    pI830->saveDSPABASE = INREG(DSPABASE);
 
-   pI830->saveFPB0 = INREG(FPB0);
-   pI830->saveFPB1 = INREG(FPB1);
-   pI830->saveDPLL_B = INREG(DPLL_B);
-   pI830->saveHTOTAL_B = INREG(HTOTAL_B);
-   pI830->saveHBLANK_B = INREG(HBLANK_B);
-   pI830->saveHSYNC_B = INREG(HSYNC_B);
-   pI830->saveVTOTAL_B = INREG(VTOTAL_B);
-   pI830->saveVBLANK_B = INREG(VBLANK_B);
-   pI830->saveVSYNC_B = INREG(VSYNC_B);
-   pI830->saveDSPBSTRIDE = INREG(DSPBSTRIDE);
-   pI830->saveDSPBSIZE = INREG(DSPBSIZE);
-   pI830->saveDSPBPOS = INREG(DSPBPOS);
-   pI830->saveDSPBBASE = INREG(DSPBBASE);
+   for(i= 0; i < 256; i++) {
+      pI830->savePaletteA[i] = INREG(PALETTE_A + (i << 2));
+   }
+
+   if(pI830->availablePipes == 2) {
+      pI830->savePIPEBCONF = INREG(PIPEBCONF);
+      pI830->savePIPEBSRC = INREG(PIPEBSRC);
+      pI830->saveDSPBCNTR = INREG(DSPBCNTR);
+      pI830->saveFPB0 = INREG(FPB0);
+      pI830->saveFPB1 = INREG(FPB1);
+      pI830->saveDPLL_B = INREG(DPLL_B);
+      pI830->saveHTOTAL_B = INREG(HTOTAL_B);
+      pI830->saveHBLANK_B = INREG(HBLANK_B);
+      pI830->saveHSYNC_B = INREG(HSYNC_B);
+      pI830->saveVTOTAL_B = INREG(VTOTAL_B);
+      pI830->saveVBLANK_B = INREG(VBLANK_B);
+      pI830->saveVSYNC_B = INREG(VSYNC_B);
+      pI830->saveDSPBSTRIDE = INREG(DSPBSTRIDE);
+      pI830->saveDSPBSIZE = INREG(DSPBSIZE);
+      pI830->saveDSPBPOS = INREG(DSPBPOS);
+      pI830->saveDSPBBASE = INREG(DSPBBASE);
+      for(i= 0; i < 256; i++) {
+         pI830->savePaletteB[i] = INREG(PALETTE_B + (i << 2));
+      }
+   }
 
    pI830->saveVCLK_DIVISOR_VGA0 = INREG(VCLK_DIVISOR_VGA0);
    pI830->saveVCLK_DIVISOR_VGA1 = INREG(VCLK_DIVISOR_VGA1);
@@ -3259,6 +3269,23 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveADPA = INREG(ADPA);
 
    pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
+   pI830->savePP_ON = INREG(LVDSPP_ON);
+   pI830->savePP_OFF = INREG(LVDSPP_OFF);
+   pI830->saveLVDS = INREG(LVDS);
+   pI830->savePP_CONTROL = INREG(PP_CONTROL);
+   pI830->savePP_CYCLE = INREG(PP_CYCLE);
+
+   pI830->saveDVOA = INREG(DVOA);
+   pI830->saveDVOB = INREG(DVOB);
+   pI830->saveDVOC = INREG(DVOC);
+
+   for(i = 0; i < 7; i++) {
+      pI830->saveSWF[i] = INREG(SWF0 + (i << 2));
+      pI830->saveSWF[i+7] = INREG(SWF00 + (i << 2));
+   }
+   pI830->saveSWF[14] = INREG(SWF30);
+   pI830->saveSWF[15] = INREG(SWF31);
+   pI830->saveSWF[16] = INREG(SWF32);
    
    vgaHWUnlock(hwp);
    vgaHWSave(pScrn, vgaReg, VGA_SR_ALL);
@@ -3273,6 +3300,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
    vgaHWPtr hwp = VGAHWPTR(pScrn);
    vgaRegPtr vgaReg = &hwp->SavedReg;
    CARD32 temp;
+   int i;
 
    DPRINTF(PFX, "RestoreHWState\n");
 
@@ -3294,6 +3322,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    /* XXX: Wait for a vblank */
    sleep(1);
 
+   i830SetLVDSPanelPower(pScrn, FALSE);
+
    OUTREG(FPA0, pI830->saveFPA0);
    OUTREG(FPA1, pI830->saveFPA1);
    OUTREG(DPLL_A, pI830->saveDPLL_A);
@@ -3308,22 +3338,33 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(DSPAPOS, pI830->saveDSPAPOS);
    OUTREG(DSPABASE, pI830->saveDSPABASE);
    OUTREG(PIPEASRC, pI830->savePIPEASRC);
+   for(i = 0; i < 256; i++) {
+         OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
+   }
 
-   OUTREG(FPB0, pI830->saveFPB0);
-   OUTREG(FPB1, pI830->saveFPB1);
-   OUTREG(DPLL_B, pI830->saveDPLL_B);
-   OUTREG(HTOTAL_B, pI830->saveHTOTAL_B);
-   OUTREG(HBLANK_B, pI830->saveHBLANK_B);
-   OUTREG(HSYNC_B, pI830->saveHSYNC_B);
-   OUTREG(VTOTAL_B, pI830->saveVTOTAL_B);
-   OUTREG(VBLANK_B, pI830->saveVBLANK_B);
-   OUTREG(VSYNC_B, pI830->saveVSYNC_B);
-   OUTREG(DSPBSTRIDE, pI830->saveDSPBSTRIDE);
-   OUTREG(DSPBSIZE, pI830->saveDSPBSIZE);
-   OUTREG(DSPBPOS, pI830->saveDSPBPOS);
-   OUTREG(DSPBBASE, pI830->saveDSPBBASE);
-   OUTREG(PIPEBSRC, pI830->savePIPEBSRC);
+   if(pI830->availablePipes == 2) {
+      OUTREG(FPB0, pI830->saveFPB0);
+      OUTREG(FPB1, pI830->saveFPB1);
+      OUTREG(DPLL_B, pI830->saveDPLL_B);
+      OUTREG(HTOTAL_B, pI830->saveHTOTAL_B);
+      OUTREG(HBLANK_B, pI830->saveHBLANK_B);
+      OUTREG(HSYNC_B, pI830->saveHSYNC_B);
+      OUTREG(VTOTAL_B, pI830->saveVTOTAL_B);
+      OUTREG(VBLANK_B, pI830->saveVBLANK_B);
+      OUTREG(VSYNC_B, pI830->saveVSYNC_B);
+      OUTREG(DSPBSTRIDE, pI830->saveDSPBSTRIDE);
+      OUTREG(DSPBSIZE, pI830->saveDSPBSIZE);
+      OUTREG(DSPBPOS, pI830->saveDSPBPOS);
+      OUTREG(DSPBBASE, pI830->saveDSPBBASE);
+      OUTREG(PIPEBSRC, pI830->savePIPEBSRC);
+      for(i= 0; i < 256; i++) {
+         OUTREG(PALETTE_B + (i << 2), pI830->savePaletteB[i]);
+      }
+   }
 
+   OUTREG(LVDSPP_ON, pI830->savePP_ON);
+   OUTREG(LVDSPP_OFF, pI830->savePP_OFF);
+   OUTREG(PP_CYCLE, pI830->savePP_CYCLE);
    OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
    
    OUTREG(VCLK_DIVISOR_VGA0, pI830->saveVCLK_DIVISOR_VGA0);
@@ -3338,6 +3379,20 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
 
    OUTREG(ADPA, pI830->saveADPA);
+   OUTREG(LVDS, pI830->saveLVDS);
+   OUTREG(DVOA, pI830->saveDVOA);
+   OUTREG(DVOB, pI830->saveDVOB);
+   OUTREG(DVOC, pI830->saveDVOC);
+   OUTREG(PP_CONTROL, pI830->savePP_CONTROL);
+
+   for(i = 0; i < 7; i++) {
+	   OUTREG(SWF0 + (i << 2), pI830->saveSWF[i]);
+	   OUTREG(SWF00 + (i << 2), pI830->saveSWF[i+7]);
+   }
+
+   OUTREG(SWF30, pI830->saveSWF[14]);
+   OUTREG(SWF31, pI830->saveSWF[15]);
+   OUTREG(SWF32, pI830->saveSWF[16]);
 
    i830CompareRegsToSnapshot(pScrn);
 

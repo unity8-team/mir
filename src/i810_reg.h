@@ -681,6 +681,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PP_CONTROL	0x61204
 # define POWER_TARGET_ON			(1 << 0)
 
+#define LVDSPP_ON       0x61208
+#define LVDSPP_OFF      0x6120c
+#define PP_CYCLE        0x61210
+
 #define PFIT_CONTROL	0x61230
 # define PFIT_ENABLE				(1 << 31)
 # define VERT_INTERP_DISABLE			(0 << 10)
