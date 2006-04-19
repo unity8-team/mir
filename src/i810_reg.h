@@ -745,6 +745,23 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define SDVOC_HOTPLUG_INT_STATUS		(1 << 7)
 # define SDVOB_HOTPLUG_INT_STATUS		(1 << 6)
 
+#define SDVOB			0x61140
+#define SDVOC			0x61160
+#define SDVO_ENABLE				(1 << 31)
+#define SDVO_PIPE_B_SELECT			(1 << 30)
+#define SDVO_STALL_SELECT			(1 << 29)
+#define SDVO_INTERRUPT_ENABLE			(1 << 26)
+/* Programmed value is multiplier - 1, up to 5x.  alv, gdg only */
+#define SDVO_PORT_MULTIPLY_MASK			(7 << 23)
+#define SDVO_PHASE_SELECT_MASK			(15 << 23)
+#define SDVO_PHASE_SELECT_DEFAULT		(6 << 23)
+#define SDVO_CLOCK_OUTPUT_INVERT		(1 << 18)
+#define SDVOC_GANG_MODE				(1 << 16)
+#define SDVO_BORDER_ENABLE			(1 << 7)
+#define SDVO_DETECTED				(1 << 2)
+/* Bits to be preserved when writing */
+#define SDVO_PRESERVE_MASK			(1 << 17)
+
 #define I830_HTOTAL_MASK 	0xfff0000
 #define I830_HACTIVE_MASK	0x7ff
 

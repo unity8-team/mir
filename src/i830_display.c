@@ -255,8 +255,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     int m1 = 0, m2 = 0, n = 0, p1 = 0, p2 = 0;
     CARD32 dpll = 0, fp = 0, temp;
     CARD32 htot, hblank, hsync, vtot, vblank, vsync, dspcntr;
-    CARD32 pipesrc, dspsize, adpa;
-    Bool ok;
+    CARD32 pipesrc, dspsize, adpa, sdvoc = 0;
+    Bool ok, is_sdvo;
     int refclk, pixel_clock;
     int outputs;
 
@@ -282,6 +282,14 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Can't support LVDS on pipe A\n");
 	return FALSE;
+    }
+    if ((outputs & PIPE_DFP_ACTIVE) || (outputs & PIPE_DFP2_ACTIVE)) {
+	/* We'll change how we control outputs soon, but to get the SDVO code up
+	 * and running, just check for these two possibilities.
+	 */
+	is_sdvo = TRUE;
+    } else {
+	is_sdvo = FALSE;
     }
 
     htot = (pMode->CrtcHDisplay - 1) | ((pMode->CrtcHTotal - 1) << 16);
@@ -377,6 +385,19 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     else
 	dpll |= PLL_REF_INPUT_DREFCLK;
     dpll |= SDV0_DEFAULT_MULTIPLIER;
+
+    if (is_sdvo) {
+	dpll |= DPLL_DVO_HIGH_SPEED;
+
+	ErrorF("DVOB: %08x\nDVOC: %08x\n", (int)INREG(SDVOB), (int)INREG(SDVOC));
+
+	sdvoc = INREG(SDVOC) & SDVO_PRESERVE_MASK;
+	sdvoc |= SDVO_ENABLE;
+	if (pipe == 1)
+	    sdvoc |= SDVO_PIPE_B_SELECT;
+	sdvoc |= SDVO_PHASE_SELECT_DEFAULT;
+	sdvoc |= SDVO_BORDER_ENABLE;
+    }
 
     fp = ((n - 2) << 16) | ((m1 - 2) << 8) | (m2 - 2);
 
@@ -532,6 +553,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
     if (outputs & PIPE_CRT_ACTIVE)
 	OUTREG(ADPA, adpa);
+    if (is_sdvo)
+	OUTREG(SDVOC, sdvoc);
 
     return TRUE;
 }

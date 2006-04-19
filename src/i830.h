@@ -202,7 +202,7 @@ struct _I830OutputRec {
    I2CBusPtr pI2CBus;
    I2CBusPtr pDDCBus;
    struct _I830DVODriver *i2c_drv;
-   struct _I830SDVODriver *sdvo_drv;
+   I830SDVOPtr sdvo_drv;
 };
 
 typedef struct _I830Rec {
@@ -579,6 +579,10 @@ extern Rotation I830GetRotation(ScreenPtr pScreen);
 extern Bool I830RandRInit(ScreenPtr pScreen, int rotation);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
+
+/* i830_sdvo.c */
+extern I830SDVOPtr I830SDVOInit(I2CBusPtr b);
+extern Bool I830I2CDetectSDVOController(ScrnInfoPtr pScrn, int output_index);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for
