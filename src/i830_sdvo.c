@@ -547,13 +547,13 @@ I830SDVOInit(I2CBusPtr b)
     sdvo->d.ByteTimeout = b->ByteTimeout;
     sdvo->d.DriverPrivate.ptr = sdvo;
 
-    if (!xf86I2CDevInit(&sdvo->d))
-	goto out;
+    if (!xf86I2CDevInit(&sdvo->d)) {
+	xf86DrvMsg(b->scrnIndex, X_ERROR,
+		   "Failed to initialize SDVO I2C device\n");
+	xfree(sdvo);
+	return NULL;
+    }
     return sdvo;
-
-out:
-    xfree(sdvo);
-    return NULL;
 }
 
 Bool
