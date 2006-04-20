@@ -395,8 +395,9 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	sdvoc |= SDVO_ENABLE;
 	if (pipe == 1)
 	    sdvoc |= SDVO_PIPE_B_SELECT;
-	sdvoc |= SDVO_PHASE_SELECT_DEFAULT;
+	//	sdvoc |= SDVO_PHASE_SELECT_DEFAULT;
 	sdvoc |= SDVO_BORDER_ENABLE;
+	OUTREG(SDVOC, INREG(SDVOC) & ~SDVO_ENABLE);
     }
 
     fp = ((n - 2) << 16) | ((m1 - 2) << 8) | (m2 - 2);
@@ -464,6 +465,10 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
 	OUTREG(FPA0, fp);
 	OUTREG(DPLL_A, dpll);
+
+	if (is_sdvo)
+	  OUTREG(SDVOC, sdvoc);
+
 	OUTREG(HTOTAL_A, htot);
 	OUTREG(HBLANK_A, hblank);
 	OUTREG(HSYNC_A, hsync);
@@ -553,8 +558,6 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
     if (outputs & PIPE_CRT_ACTIVE)
 	OUTREG(ADPA, adpa);
-    if (is_sdvo)
-	OUTREG(SDVOC, sdvoc);
 
     return TRUE;
 }
