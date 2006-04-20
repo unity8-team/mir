@@ -384,7 +384,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	dpll |= PLL_REF_INPUT_TVCLKINBC;
     else
 	dpll |= PLL_REF_INPUT_DREFCLK;
-    dpll |= SDV0_DEFAULT_MULTIPLIER;
+    dpll |= SDVO_DEFAULT_MULTIPLIER;
 
     if (is_sdvo) {
 	dpll |= DPLL_DVO_HIGH_SPEED;
