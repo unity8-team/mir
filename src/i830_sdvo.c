@@ -366,8 +366,8 @@ I830SDVOCreatePreferredInputTiming(I830SDVOPtr s, CARD16 clock, CARD16 width,
     s->sdvo_regs[SDVO_I2C_ARG_1] = (clock >> 8) & 0xff;
     s->sdvo_regs[SDVO_I2C_ARG_2] = width & 0xff;
     s->sdvo_regs[SDVO_I2C_ARG_3] = (width >> 8) & 0xff;
-    s->sdvo_regs[SDVO_I2C_ARG_4] = (height >> 8) & 0xff;
-    s->sdvo_regs[SDVO_I2C_ARG_5] = height & 0xff;  
+    s->sdvo_regs[SDVO_I2C_ARG_4] = height & 0xff;  
+    s->sdvo_regs[SDVO_I2C_ARG_5] = (height >> 8) & 0xff;
 
     I830SDVOWriteOutputs(s, 0);
     I830SDVOReadInputRegs(s);
