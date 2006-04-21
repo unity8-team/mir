@@ -1765,6 +1765,11 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
 	info->pciMemHandle = 0;
     }
 
+    if (info->pciGartBackup) {
+	xfree(info->pciGartBackup);
+	info->pciGartBackup = NULL;
+    }
+
     /* De-allocate all DRI resources */
     DRICloseScreen(pScreen);
 
@@ -2040,5 +2045,13 @@ void RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen)
       return;
 
     info->pciGartSize = RADEON_PCIGART_TABLE_SIZE;
+
+    /* allocate space to back up PCIEGART table */
+    info->pciGartBackup = xnfcalloc(1, info->pciGartSize);
+    if (info->pciGartBackup == NULL)
+      return;
+
     info->pciGartOffset = (info->FbMapSize - info->FbSecureSize);
+
+
 }

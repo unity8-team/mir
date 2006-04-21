@@ -1,3 +1,12 @@
+2006-04-21  Dave Airlie <airlied@linux.ie>
+
+	* src/radeon.h:
+	* src/radeon_dri.c: (RADEONDRICloseScreen),
+	(RADEONDRIAllocatePCIGARTTable):
+	* src/radeon_driver.c: (RADEONEnterVT), (RADEONLeaveVT):
+	Add support for backing up the PCIE GART table on VT switch.
+	This makes suspend/resume work a lot better on PCIE cards.
+
 2006-04-07  Adam Jackson  <ajax@freedesktop.org>
 
 	* configure.ac:

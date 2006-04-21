@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.109 2006-03-27 06:12:57 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.110 2006/04/01 23:02:40 agd5f Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -9004,6 +9004,12 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
 	RADEONRestoreSurfaces(pScrn, &info->ModeReg);
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
+    	if (info->cardType == CARD_PCIE && info->pKernelDRMVersion->version_minor >= 19 && info->FbSecureSize)
+    	{
+      		/* we need to backup the PCIE GART TABLE from fb memory */
+     	 memcpy(info->FB + info->pciGartOffset, info->pciGartBackup, info->pciGartSize);
+    	}
+
 	/* get the DRI back into shape after resume */
 	RADEONDRIResume(pScrn->pScreen);
 	RADEONAdjustMemMapRegisters(pScrn, &info->ModeReg);
@@ -9043,6 +9049,12 @@ _X_EXPORT void RADEONLeaveVT(int scrnIndex, int flags)
     if (RADEONPTR(pScrn)->directRenderingInited) {
 	DRILock(pScrn->pScreen, 0);
 	RADEONCP_STOP(pScrn, info);
+
+        if (info->cardType == CARD_PCIE && info->pKernelDRMVersion->version_minor >= 19 && info->FbSecureSize)
+        {
+            /* we need to backup the PCIE GART TABLE from fb memory */
+            memcpy(info->pciGartBackup, (info->FB + info->pciGartOffset), info->pciGartSize);
+        }
     }
 #endif
 
