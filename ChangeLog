@@ -1,5 +1,10 @@
 2006-04-21  Dave Airlie <airlied@linux.ie>
 
+	* src/radeon_driver.c: (RADEONRestoreMode):
+	Bugzilla 6672: fix interrupts on radeon since memmap changes 
+
+2006-04-21  Dave Airlie <airlied@linux.ie>
+
 	* src/radeon.h:
 	* src/radeon_dri.c: (RADEONDRICloseScreen),
 	(RADEONDRIAllocatePCIGARTTable):
