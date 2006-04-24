@@ -160,7 +160,7 @@ I830SDVOGetTrainedInputs(I830SDVOPtr s)
 }
 
 static Bool
-I830SDVOGetActiveOutputs(I830SDVOPtr s)
+I830SDVOGetActiveOutputs(I830SDVOPtr s, Bool *on_1, Bool *on_2)
 {
     memset(s->sdvo_regs, 0, 9);
 
@@ -168,6 +168,9 @@ I830SDVOGetActiveOutputs(I830SDVOPtr s)
 
     I830SDVOWriteOutputs(s, 0);
     I830SDVOReadInputRegs(s);
+
+    *on_1 = s->sdvo_regs[SDVO_I2C_ARG_0];
+    *on_2 = s->sdvo_regs[SDVO_I2C_ARG_1];
 
     return TRUE;
 }
@@ -221,39 +224,73 @@ I830SDVOSetTargetOutput(I830SDVOPtr s, Bool target_1, Bool target_2)
     return TRUE;
 }
 
-#if 0
-static Bool
-I830SDVOGetOutputTimingsPart1(I830SDVOPtr s)
+/* Fetches either input or output timings to *dtd, depending on cmd. */
+Bool
+I830SDVOGetTimings(I830SDVOPtr s, i830_sdvo_dtd *dtd, CARD8 cmd)
 {
     memset(s->sdvo_regs, 0, 9);
-
-    s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_GET_OUTPUT_TIMINGS_PART1;
-
-    /* XXX: No args */
-    s->sdvo_regs[0x07] = 0x0;
-
-    I830SDVOWriteOutputs(s, 0);
-    I830SDVOReadInputRegs(s);
-  
-    return TRUE;
-}
-
-static Bool
-I830SDVOGetOutputTimingsPart2(I830SDVOPtr s)
-{
-    memset(s->sdvo_regs, 0, 9);
-
-    s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_GET_OUTPUT_TIMINGS_PART2;
-
-    /* XXX: No args */
-    s->sdvo_regs[0x07] = 0x0;
-
+    s->sdvo_regs[SDVO_I2C_OPCODE] = cmd;
     I830SDVOWriteOutputs(s, 0);
     I830SDVOReadInputRegs(s);
 
+    dtd->clock = s->sdvo_regs[SDVO_I2C_RETURN_0] |
+		 (s->sdvo_regs[SDVO_I2C_RETURN_1] << 8);
+    dtd->h_active = s->sdvo_regs[SDVO_I2C_RETURN_2];
+    dtd->h_blank = s->sdvo_regs[SDVO_I2C_RETURN_3];
+    dtd->h_high = s->sdvo_regs[SDVO_I2C_RETURN_4];
+    dtd->v_active = s->sdvo_regs[SDVO_I2C_RETURN_5];
+    dtd->v_blank = s->sdvo_regs[SDVO_I2C_RETURN_6];
+    dtd->v_high = s->sdvo_regs[SDVO_I2C_RETURN_7];
+
+    memset(s->sdvo_regs, 0, 9);
+    s->sdvo_regs[SDVO_I2C_OPCODE] = cmd + 1;
+    I830SDVOWriteOutputs(s, 0);
+    I830SDVOReadInputRegs(s);
+
+    dtd->h_sync_off = s->sdvo_regs[SDVO_I2C_RETURN_0];
+    dtd->h_sync_width = s->sdvo_regs[SDVO_I2C_RETURN_1];
+    dtd->v_sync_off_width = s->sdvo_regs[SDVO_I2C_RETURN_2];
+    dtd->sync_off_width_high = s->sdvo_regs[SDVO_I2C_RETURN_3];
+    dtd->dtd_flags = s->sdvo_regs[SDVO_I2C_RETURN_4];
+    dtd->sdvo_flags = s->sdvo_regs[SDVO_I2C_RETURN_5];
+    dtd->v_sync_off_high = s->sdvo_regs[SDVO_I2C_RETURN_6];
+    dtd->reserved = s->sdvo_regs[SDVO_I2C_RETURN_7];
+
     return TRUE;
 }
-#endif
+
+/* Fetches either input or output timings to *dtd, depending on cmd. */
+Bool
+I830SDVOSetTimings(I830SDVOPtr s, i830_sdvo_dtd *dtd, CARD8 cmd)
+{
+    memset(s->sdvo_regs, 0, 9);
+    s->sdvo_regs[SDVO_I2C_OPCODE] = cmd;
+    s->sdvo_regs[SDVO_I2C_ARG_0] = dtd->clock & 0xff;
+    s->sdvo_regs[SDVO_I2C_ARG_1] = dtd->clock >> 8;
+    s->sdvo_regs[SDVO_I2C_ARG_2] = dtd->h_active;
+    s->sdvo_regs[SDVO_I2C_ARG_3] = dtd->h_blank;
+    s->sdvo_regs[SDVO_I2C_ARG_4] = dtd->h_high;
+    s->sdvo_regs[SDVO_I2C_ARG_5] = dtd->v_active;
+    s->sdvo_regs[SDVO_I2C_ARG_6] = dtd->v_blank;
+    s->sdvo_regs[SDVO_I2C_ARG_7] = dtd->v_high;
+    I830SDVOWriteOutputs(s, 8);
+    I830SDVOReadInputRegs(s);
+
+    memset(s->sdvo_regs, 0, 9);
+    s->sdvo_regs[SDVO_I2C_OPCODE] = cmd + 1;
+    s->sdvo_regs[SDVO_I2C_ARG_0] = dtd->h_sync_off;
+    s->sdvo_regs[SDVO_I2C_ARG_1] = dtd->h_sync_width;
+    s->sdvo_regs[SDVO_I2C_ARG_2] = dtd->v_sync_off_width;
+    s->sdvo_regs[SDVO_I2C_ARG_3] = dtd->sync_off_width_high;
+    s->sdvo_regs[SDVO_I2C_ARG_4] = dtd->dtd_flags;
+    s->sdvo_regs[SDVO_I2C_ARG_5] = dtd->sdvo_flags;
+    s->sdvo_regs[SDVO_I2C_ARG_6] = dtd->v_sync_off_high;
+    s->sdvo_regs[SDVO_I2C_ARG_7] = dtd->reserved;
+    I830SDVOWriteOutputs(s, 8);
+    I830SDVOReadInputRegs(s);
+
+    return TRUE;
+}
 
 static Bool
 I830SDVOSetTimingsPart1(I830SDVOPtr s, char cmd, CARD16 clock, CARD16 magic1,
@@ -391,6 +428,29 @@ I830SDVOGetPreferredInputTimingPart2(I830SDVOPtr s)
     return TRUE;
 }
 
+static int
+I830SDVOGetClockRateMult(I830SDVOPtr s)
+{
+    memset(s->sdvo_regs, 0, 9);
+
+    s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_GET_CLOCK_RATE_MULT;
+
+    I830SDVOWriteOutputs(s, 0);
+    I830SDVOReadInputRegs(s);
+
+    if (s->sdvo_regs[SDVO_CMD_GET_CLOCK_RATE_MULT] != SDVO_CMD_STATUS_SUCCESS) {
+	xf86DrvMsg(s->d.pI2CBus->scrnIndex, X_ERROR,
+		   "Couldn't get SDVO clock rate multiplier\n");
+	return SDVO_CLOCK_RATE_MULT_1X;
+    } else {
+	xf86DrvMsg(s->d.pI2CBus->scrnIndex, X_INFO,
+		   "Current clock rate multiplier: %d\n",
+		   s->sdvo_regs[SDVO_I2C_RETURN_0]);
+    }
+
+    return s->sdvo_regs[SDVO_I2C_RETURN_0];
+}
+
 static Bool
 I830SDVOSetClockRateMult(I830SDVOPtr s, CARD8 val)
 {
@@ -460,7 +520,6 @@ I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
     I830SDVOGetInputPixelClockRange(s, &clock_min, &clock_max);
     ErrorF("clock min/max: %d %d\n", clock_min, clock_max);
 
-    I830SDVOGetActiveOutputs(s);
     I830SDVOSetActiveOutputs(s, FALSE, FALSE);
 
     I830SDVOSetTargetOutput(s, TRUE, TRUE);
@@ -505,10 +564,68 @@ I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
 	ret = FALSE;
     }
 
-    I830SDVOGetActiveOutputs(s);
     I830SDVOSetActiveOutputs(s, TRUE, TRUE);
 
     return ret;
+}
+
+void
+i830SDVOSave(ScrnInfoPtr pScrn, int output_index)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830SDVOPtr sdvo = pI830->output[output_index].sdvo_drv;
+
+    sdvo->save_sdvo_mult = I830SDVOGetClockRateMult(sdvo);
+    I830SDVOGetActiveOutputs(sdvo, &sdvo->save_sdvo_active_1,
+			     &sdvo->save_sdvo_active_2);
+
+    I830SDVOSetTargetInput(sdvo, TRUE, FALSE);
+    I830SDVOGetTimings(sdvo, &sdvo->save_input_dtd_1,
+		       SDVO_CMD_GET_INPUT_TIMINGS_PART1);
+    I830SDVOSetTargetInput(sdvo, FALSE, TRUE);
+    I830SDVOGetTimings(sdvo, &sdvo->save_input_dtd_2,
+		       SDVO_CMD_GET_INPUT_TIMINGS_PART1);
+
+    I830SDVOSetTargetOutput(sdvo, TRUE, FALSE);
+    I830SDVOGetTimings(sdvo, &sdvo->save_output_dtd_1,
+		       SDVO_CMD_GET_OUTPUT_TIMINGS_PART1);
+    I830SDVOSetTargetOutput(sdvo, FALSE, TRUE);
+    I830SDVOGetTimings(sdvo, &sdvo->save_output_dtd_2,
+		       SDVO_CMD_GET_OUTPUT_TIMINGS_PART1);
+}
+
+void
+i830SDVOPreRestore(ScrnInfoPtr pScrn, int output_index)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830SDVOPtr sdvo = pI830->output[output_index].sdvo_drv;
+
+    I830SDVOSetActiveOutputs(sdvo, FALSE, FALSE);
+}
+
+void
+i830SDVOPostRestore(ScrnInfoPtr pScrn, int output_index)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830SDVOPtr sdvo = pI830->output[output_index].sdvo_drv;
+
+    I830SDVOSetTargetInput(sdvo, TRUE, FALSE);
+    I830SDVOSetTimings(sdvo, &sdvo->save_input_dtd_1,
+		       SDVO_CMD_SET_INPUT_TIMINGS_PART1);
+    I830SDVOSetTargetInput(sdvo, FALSE, TRUE);
+    I830SDVOSetTimings(sdvo, &sdvo->save_input_dtd_2,
+		       SDVO_CMD_SET_INPUT_TIMINGS_PART1);
+
+    I830SDVOSetTargetOutput(sdvo, TRUE, FALSE);
+    I830SDVOSetTimings(sdvo, &sdvo->save_output_dtd_1,
+		       SDVO_CMD_SET_OUTPUT_TIMINGS_PART1);
+    I830SDVOSetTargetOutput(sdvo, FALSE, TRUE);
+    I830SDVOSetTimings(sdvo, &sdvo->save_output_dtd_2,
+		       SDVO_CMD_SET_OUTPUT_TIMINGS_PART1);
+
+    I830SDVOSetClockRateMult(sdvo, sdvo->save_sdvo_mult);
+    I830SDVOSetActiveOutputs(sdvo, sdvo->save_sdvo_active_1,
+			     sdvo->save_sdvo_active_2);
 }
 
 static Bool

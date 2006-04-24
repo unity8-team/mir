@@ -3276,9 +3276,11 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->savePP_CONTROL = INREG(PP_CONTROL);
    pI830->savePP_CYCLE = INREG(PP_CYCLE);
 
-   pI830->saveDVOA = INREG(DVOA);
-   pI830->saveDVOB = INREG(DVOB);
-   pI830->saveDVOC = INREG(DVOC);
+   if (!IS_I9XX(pI830)) {
+      pI830->saveDVOA = INREG(DVOA);
+      pI830->saveDVOB = INREG(DVOB);
+      pI830->saveDVOC = INREG(DVOC);
+   }
 
    for(i = 0; i < 7; i++) {
       pI830->saveSWF[i] = INREG(SWF0 + (i << 2));
@@ -3287,7 +3289,15 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveSWF[14] = INREG(SWF30);
    pI830->saveSWF[15] = INREG(SWF31);
    pI830->saveSWF[16] = INREG(SWF32);
-   
+
+   for (i = 0; i < pI830->num_outputs; i++) {
+      if (pI830->output[i].type == I830_OUTPUT_SDVO &&
+	  pI830->output[i].sdvo_drv != NULL)
+      {
+	 i830SDVOSave(pScrn, i);
+      }
+   }
+
    vgaHWUnlock(hwp);
    vgaHWSave(pScrn, vgaReg, VGA_SR_ALL);
 
@@ -3324,6 +3334,14 @@ RestoreHWState(ScrnInfoPtr pScrn)
    sleep(1);
 
    i830SetLVDSPanelPower(pScrn, FALSE);
+
+   for (i = 0; i < pI830->num_outputs; i++) {
+      if (pI830->output[i].type == I830_OUTPUT_SDVO &&
+	  pI830->output[i].sdvo_drv != NULL)
+      {
+	 i830SDVOPreRestore(pScrn, i);
+      }
+   }
 
    OUTREG(FPA0, pI830->saveFPA0);
    OUTREG(FPA1, pI830->saveFPA1);
@@ -3381,9 +3399,20 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    OUTREG(ADPA, pI830->saveADPA);
    OUTREG(LVDS, pI830->saveLVDS);
-   OUTREG(DVOA, pI830->saveDVOA);
-   OUTREG(DVOB, pI830->saveDVOB);
-   OUTREG(DVOC, pI830->saveDVOC);
+   if (!IS_I9XX(pI830)) {
+      OUTREG(DVOA, pI830->saveDVOA);
+      OUTREG(DVOB, pI830->saveDVOB);
+      OUTREG(DVOC, pI830->saveDVOC);
+   }
+
+   for (i = 0; i < pI830->num_outputs; i++) {
+      if (pI830->output[i].type == I830_OUTPUT_SDVO &&
+	  pI830->output[i].sdvo_drv != NULL)
+      {
+	 i830SDVOPostRestore(pScrn, i);
+      }
+   }
+
    OUTREG(PP_CONTROL, pI830->savePP_CONTROL);
 
    for(i = 0; i < 7; i++) {
