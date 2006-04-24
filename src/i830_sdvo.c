@@ -438,7 +438,7 @@ I830SDVOGetClockRateMult(I830SDVOPtr s)
     I830SDVOWriteOutputs(s, 0);
     I830SDVOReadInputRegs(s);
 
-    if (s->sdvo_regs[SDVO_CMD_GET_CLOCK_RATE_MULT] != SDVO_CMD_STATUS_SUCCESS) {
+    if (s->sdvo_regs[SDVO_I2C_CMD_STATUS] != SDVO_CMD_STATUS_SUCCESS) {
 	xf86DrvMsg(s->d.pI2CBus->scrnIndex, X_ERROR,
 		   "Couldn't get SDVO clock rate multiplier\n");
 	return SDVO_CLOCK_RATE_MULT_1X;
@@ -592,6 +592,8 @@ i830SDVOSave(ScrnInfoPtr pScrn, int output_index)
     I830SDVOSetTargetOutput(sdvo, FALSE, TRUE);
     I830SDVOGetTimings(sdvo, &sdvo->save_output_dtd_2,
 		       SDVO_CMD_GET_OUTPUT_TIMINGS_PART1);
+
+    sdvo->save_SDVOX = INREG(sdvo->output_device);
 }
 
 void
@@ -624,6 +626,9 @@ i830SDVOPostRestore(ScrnInfoPtr pScrn, int output_index)
 		       SDVO_CMD_SET_OUTPUT_TIMINGS_PART1);
 
     I830SDVOSetClockRateMult(sdvo, sdvo->save_sdvo_mult);
+
+    OUTREG(sdvo->output_device, sdvo->save_SDVOX);
+
     I830SDVOSetActiveOutputs(sdvo, sdvo->save_sdvo_active_1,
 			     sdvo->save_sdvo_active_2);
 }
