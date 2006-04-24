@@ -757,11 +757,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SDVO_INTERRUPT_ENABLE			(1 << 26)
 /* Programmed value is multiplier - 1, up to 5x.  alv, gdg only */
 #define SDVO_PORT_MULTIPLY_MASK			(7 << 23)
-#define SDVO_PHASE_SELECT_MASK			(15 << 23)
-#define SDVO_PHASE_SELECT_DEFAULT		(6 << 23)
+#define SDVO_PHASE_SELECT_MASK			(15 << 19)
+#define SDVO_PHASE_SELECT_DEFAULT		(6 << 19)
 #define SDVO_CLOCK_OUTPUT_INVERT		(1 << 18)
 #define SDVOC_GANG_MODE				(1 << 16)
 #define SDVO_BORDER_ENABLE			(1 << 7)
+#define SDVOB_PCIE_CONCURRENCY			(1 << 3)
 #define SDVO_DETECTED				(1 << 2)
 /* Bits to be preserved when writing */
 #define SDVO_PRESERVE_MASK			(1 << 17)
