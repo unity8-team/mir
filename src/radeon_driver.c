@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.111 2006/04/21 00:34:43 airlied Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.112 2006/04/21 00:38:44 airlied Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -7806,13 +7806,21 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 			      ? RADEON_CRTC_INTERLACE_EN
 			      : 0));
 
+    /* Don't try to be smart and unconditionally enable the analog output
+     * for now as the dodgy code to handle it for the second head doesn't
+     * work. This will be correctly fixed when Alex' megapatch gets in that
+     * reworks the whole output mapping
+     */
+#if 0
     if ((info->DisplayType == MT_DFP) ||
 	(info->DisplayType == MT_LCD)) {
 	save->crtc_ext_cntl = RADEON_VGA_ATI_LINEAR | RADEON_XCRT_CNT_EN;
 	save->crtc_gen_cntl &= ~(RADEON_CRTC_DBL_SCAN_EN |
 				 RADEON_CRTC_CSYNC_EN |
 				 RADEON_CRTC_INTERLACE_EN);
-    } else {
+    } else
+#endif
+    {
 	save->crtc_ext_cntl = (RADEON_VGA_ATI_LINEAR |
 			       RADEON_XCRT_CNT_EN |
 			       RADEON_CRTC_CRT_ON);
@@ -7976,7 +7984,6 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 			       : 0));
 
     /* Turn CRT on in case the first head is a DFP */
-    save->crtc_ext_cntl |= RADEON_CRTC_CRT_ON;
     save->dac2_cntl = info->SavedReg.dac2_cntl;
     /* always let TVDAC drive CRT2, we don't support tvout yet */
     save->dac2_cntl |= RADEON_DAC2_DAC2_CLK_SEL;

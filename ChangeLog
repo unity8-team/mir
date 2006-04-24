@@ -1,3 +1,15 @@
+2006-04-24  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon_driver.c: (RADEONInitCrtcRegisters),
+	(RADEONInitCrtc2Registers):
+	Fix enabling of external VGA output on some cards with dual entity
+	setup instead of MergedFB. This was broken due to bogus manipulations
+	of a register between the 2 entities. This fix is a big "violent" in
+	that it always enables the analog output regardless of what is
+	plugged. It should work though (at the expense of some additional
+	power consumption). A proper fix should be easy to do once Alex gets
+	his output mapping rework in.
+
 2006-04-21  Dave Airlie <airlied@linux.ie>
 
 	* src/radeon_driver.c: (RADEONRestoreMode):
