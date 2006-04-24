@@ -131,12 +131,13 @@ I830SDVOSetControlBusSwitch(I830SDVOPtr s, CARD8 target)
 }
 
 static Bool
-I830SDVOSetTargetInput(I830SDVOPtr s)
+I830SDVOSetTargetInput(I830SDVOPtr s, Bool target_1, Bool target_2)
 {
-    /* write out 0x10 */
     memset(s->sdvo_regs, 0, 9);
 
     s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_SET_TARGET_INPUT;
+    s->sdvo_regs[SDVO_I2C_ARG_0] = target_1;
+    s->sdvo_regs[SDVO_I2C_ARG_1] = target_2;
 
     I830SDVOWriteOutputs(s, 1);
 
@@ -146,16 +147,12 @@ I830SDVOSetTargetInput(I830SDVOPtr s)
 }
 
 static Bool
-I830SDVOGetTrainedInputs(I830SDVOPtr s, int on)
+I830SDVOGetTrainedInputs(I830SDVOPtr s)
 {
     memset(s->sdvo_regs, 0, 9);
 
     s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_GET_TRAINED_INPUTS;
 
-    /* XXX: I don't believe we need to set anything here --anholt */
-    s->sdvo_regs[0x07] = on ? 0x80 : 0x00;
-    s->sdvo_regs[0x04] = on ? 0x80 : 0x00;
-
     I830SDVOWriteOutputs(s, 0);
     I830SDVOReadInputRegs(s);
 
@@ -163,15 +160,12 @@ I830SDVOGetTrainedInputs(I830SDVOPtr s, int on)
 }
 
 static Bool
-I830SDVOGetActiveOutputs(I830SDVOPtr s, int on)
+I830SDVOGetActiveOutputs(I830SDVOPtr s)
 {
     memset(s->sdvo_regs, 0, 9);
 
     s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_GET_ACTIVE_OUTPUTS;
 
-    s->sdvo_regs[0x07] = on ? 0x01 : 0x00;
-    s->sdvo_regs[0x03] = 0x1;
-
     I830SDVOWriteOutputs(s, 0);
     I830SDVOReadInputRegs(s);
 
@@ -179,15 +173,13 @@ I830SDVOGetActiveOutputs(I830SDVOPtr s, int on)
 }
 
 static Bool
-I830SDVOSetActiveOutputs(I830SDVOPtr s, int on)
+I830SDVOSetActiveOutputs(I830SDVOPtr s, Bool on_1, Bool on_2)
 {
     memset(s->sdvo_regs, 0, 9);
 
     s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_SET_ACTIVE_OUTPUTS;
-
-    /* XXX: This should be touching args 0,1, I believe.  --anholt */
-    s->sdvo_regs[0x07] = on ? 0x01 : 0x00;
-    s->sdvo_regs[0x03] = on ? 0x01 : 0x00;
+    s->sdvo_regs[SDVO_I2C_ARG_0] = on_1;
+    s->sdvo_regs[SDVO_I2C_ARG_1] = on_2;
 
     I830SDVOWriteOutputs(s, 2);
     I830SDVOReadInputRegs(s);
@@ -196,39 +188,34 @@ I830SDVOSetActiveOutputs(I830SDVOPtr s, int on)
 }
 
 static Bool
-I830SDVOGetInputPixelClockRange(I830SDVOPtr s, CARD16 clock, CARD16 height)
+I830SDVOGetInputPixelClockRange(I830SDVOPtr s, CARD16 *clock_min,
+				CARD16 *clock_max)
 {
     memset(s->sdvo_regs, 0, 9);
 
     s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_GET_INPUT_PIXEL_CLOCK_RANGE;
 
-    /* XXX: SDVO_CMD_GET_INPUT_PIXEL_CLOCK_RANGE shouldn't be taking args. */
-
-    /* set clock regs */
-    s->sdvo_regs[0x06] = (clock >> 8) & 0xff;
-    s->sdvo_regs[0x07] = clock & 0xff;
-
-    /* set height regs */
-    s->sdvo_regs[0x02] = (height >> 8) & 0xff;
-    s->sdvo_regs[0x03] = height & 0xff;
-
     I830SDVOWriteOutputs(s, 0);
     I830SDVOReadInputRegs(s);
+
+    *clock_min = s->sdvo_regs[SDVO_I2C_RETURN_0] |
+		 (s->sdvo_regs[SDVO_I2C_RETURN_1] << 8);
+    *clock_max = s->sdvo_regs[SDVO_I2C_RETURN_2] |
+		 (s->sdvo_regs[SDVO_I2C_RETURN_3] << 8);
 
     return TRUE;
 }
 
 static Bool
-I830SDVOSetTargetOutput(I830SDVOPtr s)
+I830SDVOSetTargetOutput(I830SDVOPtr s, Bool target_1, Bool target_2)
 {
     memset(s->sdvo_regs, 0, 9);
 
     s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_SET_TARGET_OUTPUT;
+    s->sdvo_regs[SDVO_I2C_ARG_0] = target_1;
+    s->sdvo_regs[SDVO_I2C_ARG_1] = target_2;
 
-    s->sdvo_regs[SDVO_I2C_ARG_0] = 0x1;	/* Enable */
-    s->sdvo_regs[SDVO_I2C_ARG_1] = 0x0; /* Disable */
-
-    I830SDVOWriteOutputs(s, 1);		/* XXX: Only write these two */
+    I830SDVOWriteOutputs(s, 1);
     I830SDVOReadInputRegs(s);
 
     return TRUE;
@@ -306,26 +293,6 @@ I830SDVOSetOutputTimingsPart1(I830SDVOPtr s, CARD16 clock, CARD16 magic1,
 {
     return I830SDVOSetTimingsPart1(s, SDVO_CMD_SET_OUTPUT_TIMINGS_PART1,
 				   clock, magic1, magic2, magic3);
-}
-
-static Bool
-I830SDVOGetPreferredInputTimingPart2(I830SDVOPtr s, CARD16 clock,
-				     CARD16 magic1, CARD16 magic2,
-				     CARD16 magic3)
-{
-    Bool ok;
-
-    /* XXX: This is a rather different command */
-    ok = I830SDVOSetTimingsPart1(s, SDVO_CMD_GET_PREFERRED_INPUT_TIMING_PART2,
-				 clock, magic1, magic2, magic3);
-
-    curr_table[3] = s->sdvo_regs[SDVO_I2C_RETURN_0] |
-		    (s->sdvo_regs[SDVO_I2C_RETURN_1] << 8);
-    curr_table[4] = s->sdvo_regs[SDVO_I2C_RETURN_2] |
-		    (s->sdvo_regs[SDVO_I2C_RETURN_3] << 8);
-    curr_table[5] = 0x1e;
-
-    return ok;
 }
 
 static Bool
@@ -408,6 +375,23 @@ I830SDVOGetPreferredInputTimingPart1(I830SDVOPtr s)
 }
 
 static Bool
+I830SDVOGetPreferredInputTimingPart2(I830SDVOPtr s)
+{
+    s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_GET_PREFERRED_INPUT_TIMING_PART2;
+
+    I830SDVOWriteOutputs(s, 0);
+    I830SDVOReadInputRegs(s);
+
+    curr_table[3] = s->sdvo_regs[SDVO_I2C_RETURN_0] |
+		    (s->sdvo_regs[SDVO_I2C_RETURN_1] << 8);
+    curr_table[4] = s->sdvo_regs[SDVO_I2C_RETURN_2] |
+		    (s->sdvo_regs[SDVO_I2C_RETURN_3] << 8);
+    curr_table[5] = 0x1e;
+
+    return TRUE;
+}
+
+static Bool
 I830SDVOSetClockRateMult(I830SDVOPtr s, CARD8 val)
 {
     memset(s->sdvo_regs, 0, 9);
@@ -432,6 +416,7 @@ I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
     CARD8 c16a[8];
     CARD8 c17a[8];
     CARD16 out_timings[6];
+    CARD16 clock_min, clock_max;
 
     /* do some mode translations */
     h_blank_len = mode->CrtcHBlankEnd - mode->CrtcHBlankStart;
@@ -471,40 +456,27 @@ I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
     out_timings[4] = c17a[5] | ((short)c17a[4] << 8);
     out_timings[5] = c17a[3] | ((short)c17a[2] << 8);
 
-    I830SDVOSetTargetInput(s);
-    I830SDVOGetInputPixelClockRange(s, clock, height);
+    I830SDVOSetTargetInput(s, TRUE, TRUE);
+    I830SDVOGetInputPixelClockRange(s, &clock_min, &clock_max);
+    ErrorF("clock min/max: %d %d\n", clock_min, clock_max);
 
-    I830SDVOGetActiveOutputs(s, 0);
-    I830SDVOSetActiveOutputs(s, 0);
+    I830SDVOGetActiveOutputs(s);
+    I830SDVOSetActiveOutputs(s, FALSE, FALSE);
 
-    I830SDVOSetTargetOutput(s);
+    I830SDVOSetTargetOutput(s, TRUE, TRUE);
     I830SDVOSetOutputTimingsPart1(s, clock, out_timings[0], out_timings[1],
 				  out_timings[2]);
-
-    I830SDVOSetTargetOutput(s);
     I830SDVOSetOutputTimingsPart2(s, out_timings[3], out_timings[4],
 				  out_timings[5]);
 
-    I830SDVOSetTargetInput(s);
-
     I830SDVOCreatePreferredInputTiming(s, clock, width, height);
-    I830SDVOSetTargetInput(s);
-
     I830SDVOGetPreferredInputTimingPart1(s);
-    I830SDVOSetTargetInput(s);
-
-    I830SDVOGetPreferredInputTimingPart2(s, clock, out_timings[0], out_timings[1],
-					 out_timings[2]);
-    I830SDVOSetTargetInput(s);
-
+    I830SDVOGetPreferredInputTimingPart2(s);
     I830SDVOSetInputTimingsPart1(s, clock, curr_table[0], curr_table[1],
 				 curr_table[2]);
-
-    I830SDVOSetTargetInput(s);
     I830SDVOSetInputTimingsPart2(s, curr_table[3], curr_table[4],
 				 out_timings[5]);
 
-    I830SDVOSetTargetInput(s);
     /*if (mode->PrivFlags & I830_MFLAG_DOUBLE)
 	I830SDVOSetClockRateMult(s, 0x02);
     else */
@@ -516,15 +488,13 @@ I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
 Bool
 I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
 {
-    int clock = mode->Clock/10, height=mode->CrtcVDisplay;
     Bool ret = TRUE;
 
     /* the BIOS writes out 6 commands post mode set */
     /* two 03s, 04 05, 10, 1d */
     /* these contain the height and mode clock / 10 by the looks of it */
 
-    I830SDVOGetTrainedInputs(s, 1);
-    I830SDVOGetTrainedInputs(s, 0);
+    I830SDVOGetTrainedInputs(s);
 
     /* THIS IS A DIRTY HACK - sometimes for some reason on startup
      * the BIOS doesn't find my DVI monitor -
@@ -535,11 +505,8 @@ I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
 	ret = FALSE;
     }
 
-    I830SDVOGetActiveOutputs(s, 1);
-    I830SDVOSetActiveOutputs(s, 1);
-
-    I830SDVOSetTargetInput(s);
-    I830SDVOGetInputPixelClockRange(s, clock, height);
+    I830SDVOGetActiveOutputs(s);
+    I830SDVOSetActiveOutputs(s, TRUE, TRUE);
 
     return ret;
 }
