@@ -100,21 +100,19 @@ I830SDVOReadInputRegs(I830SDVOPtr s)
     ErrorF("\n");
 }
 
+/* Sets the control bus switch to either point at one of the DDC buses or the
+ * PROM.  It resets from the DDC bus back to internal registers at the next I2C
+ * STOP.  PROM access is terminated by accessing an internal register.
+ */
 Bool
-I830SDVOSetupDDC(I830SDVOPtr s, int enable)
+I830SDVOSetControlBusSwitch(I830SDVOPtr s, CARD8 target)
 {
     memset(s->sdvo_regs, 0, 9);
 
     s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_SET_CONTROL_BUS_SWITCH;
-    s->sdvo_regs[SDVO_I2C_ARG_0] = SDVO_CONTROL_BUS_DDC2;
+    s->sdvo_regs[SDVO_I2C_ARG_0] = target;
 
     I830SDVOWriteOutputs(s, 7);
-
-    sReadByte(s, SDVO_I2C_CMD_STATUS, &s->sdvo_regs[SDVO_I2C_CMD_STATUS]);
-
-    ErrorF("SDVO: R: ");
-    ErrorF("%02X ", s->sdvo_regs[SDVO_I2C_CMD_STATUS]);
-    ErrorF("\n");
     return TRUE;
 }
 
@@ -532,6 +530,80 @@ I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
     return ret;
 }
 
+static Bool
+I830SDVODDCI2CGetByte(I2CDevPtr d, I2CByte *data, Bool last)
+{
+    I830SDVOPtr sdvo = d->pI2CBus->DriverPrivate.ptr;
+    I2CBusPtr i2cbus = sdvo->d.pI2CBus, savebus;
+    Bool ret;
+
+    savebus = d->pI2CBus;
+    d->pI2CBus = i2cbus;
+    ret = i2cbus->I2CGetByte(d, data, last);
+    d->pI2CBus = savebus;
+
+    return ret;
+}
+
+static Bool
+I830SDVODDCI2CPutByte(I2CDevPtr d, I2CByte c)
+{
+    I830SDVOPtr sdvo = d->pI2CBus->DriverPrivate.ptr;
+    I2CBusPtr i2cbus = sdvo->d.pI2CBus, savebus;
+    Bool ret;
+
+    savebus = d->pI2CBus;
+    d->pI2CBus = i2cbus;
+    ret = i2cbus->I2CPutByte(d, c);
+    d->pI2CBus = savebus;
+
+    return ret;
+}
+
+static Bool
+I830SDVODDCI2CStart(I2CBusPtr b, int timeout)
+{
+    I830SDVOPtr sdvo = b->DriverPrivate.ptr;
+    I2CBusPtr i2cbus = sdvo->d.pI2CBus;
+
+    I830SDVOSetControlBusSwitch(sdvo, SDVO_CONTROL_BUS_DDC1);
+    return i2cbus->I2CStart(i2cbus, timeout);
+}
+
+static void
+I830SDVODDCI2CStop(I2CDevPtr d)
+{
+    I830SDVOPtr sdvo = d->pI2CBus->DriverPrivate.ptr;
+    I2CBusPtr i2cbus = sdvo->d.pI2CBus, savebus;
+
+    savebus = d->pI2CBus;
+    d->pI2CBus = i2cbus;
+    i2cbus->I2CStop(d);
+    d->pI2CBus = savebus;
+}
+
+/* It's a shame that xf86i2c.c's I2CAddress() doesn't use the bus's pointers,
+ * so it's useless to us here.
+ */
+static Bool
+I830SDVODDCI2CAddress(I2CDevPtr d, I2CSlaveAddr addr)
+{
+    if (d->pI2CBus->I2CStart(d->pI2CBus, d->StartTimeout)) {
+	if (d->pI2CBus->I2CPutByte(d, addr & 0xFF)) {
+	    if ((addr & 0xF8) != 0xF0 &&
+		(addr & 0xFE) != 0x00)
+		return TRUE;
+
+	    if (d->pI2CBus->I2CPutByte(d, (addr >> 8) & 0xFF))
+		return TRUE;
+	}
+
+	d->pI2CBus->I2CStop(d);
+    }
+
+    return FALSE;
+}
+
 I830SDVOPtr
 I830SDVOInit(ScrnInfoPtr pScrn, int output_index, CARD32 output_device)
 {
@@ -539,6 +611,9 @@ I830SDVOInit(ScrnInfoPtr pScrn, int output_index, CARD32 output_device)
     I830SDVOPtr sdvo;
     int i;
     unsigned char ch[0x40];
+    I2CBusPtr i2cbus, ddcbus;
+
+    i2cbus = pI830->output[output_index].pI2CBus;
 
     sdvo = xcalloc(1, sizeof(I830SDVORec));
     if (sdvo == NULL)
@@ -551,7 +626,7 @@ I830SDVOInit(ScrnInfoPtr pScrn, int output_index, CARD32 output_device)
 	sdvo->d.DevName = "SDVO Controller C";
 	sdvo->d.SlaveAddr = 0x72;
     }
-    sdvo->d.pI2CBus = pI830->output[output_index].pI2CBus;
+    sdvo->d.pI2CBus = i2cbus;
     sdvo->d.DriverPrivate.ptr = sdvo;
     sdvo->output_device = output_device;
 
@@ -563,9 +638,38 @@ I830SDVOInit(ScrnInfoPtr pScrn, int output_index, CARD32 output_device)
 	return NULL;
     }
 
+    /* Set up our wrapper I2C bus for DDC.  It acts just like the regular I2C
+     * bus, except that it does the control bus switch to DDC mode before every
+     * Start.  While we only need to do it at Start after every Stop after a
+     * Start, extra attempts should be harmless.
+     */
+    ddcbus = xf86CreateI2CBusRec();
+    if (ddcbus == NULL) {
+	xf86DestroyI2CDevRec(&sdvo->d, 0);
+	xfree(sdvo);
+	return NULL;
+    }
+    ddcbus->BusName = "SDVO DDC Bus";
+    ddcbus->scrnIndex = i2cbus->scrnIndex;
+    ddcbus->I2CGetByte = I830SDVODDCI2CGetByte;
+    ddcbus->I2CPutByte = I830SDVODDCI2CPutByte;
+    ddcbus->I2CStart = I830SDVODDCI2CStart;
+    ddcbus->I2CStop = I830SDVODDCI2CStop;
+    ddcbus->I2CAddress = I830SDVODDCI2CAddress;
+    ddcbus->DriverPrivate.ptr = sdvo;
+    if (!xf86I2CBusInit(ddcbus)) {
+	xf86DestroyI2CDevRec(&sdvo->d, 0);
+	xfree(sdvo);
+	return NULL;
+    }
+
+    pI830->output[output_index].pDDCBus = ddcbus;
+
     /* Read the regs to test if we can talk to the device */
     for (i = 0; i < 0x40; i++) {
 	if (!sReadByte(sdvo, i, &ch[i])) {
+	    xf86DestroyI2CBusRec(pI830->output[output_index].pDDCBus, FALSE,
+		FALSE);
 	    xf86DestroyI2CDevRec(&sdvo->d, 0);
 	    xfree(sdvo);
 	    return NULL;
