@@ -2,6 +2,7 @@ Makefile
 Makefile.in
 *.la
 *.lo
+*.o
 aclocal.m4
 autom4te.cache
 compile
