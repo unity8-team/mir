@@ -64,18 +64,28 @@ I830SDVOWriteOutputs(I830SDVOPtr s, int num_out)
 {
     int i;
 
-    ErrorF("SDVO: W: ");
-    for (i = num_out; i <= SDVO_I2C_ARG_0; i++)
+    ErrorF("SDVO: W: %02X ", s->sdvo_regs[SDVO_I2C_OPCODE]);
+    for (i = SDVO_I2C_ARG_0; i > SDVO_I2C_ARG_0 - num_out; i--)
 	ErrorF("%02X ", s->sdvo_regs[i]);
     ErrorF("\n");
 
     /* blast the output regs */
-    for (i = SDVO_I2C_ARG_0; i >= num_out; i--) {
+    for (i = SDVO_I2C_ARG_0; i > SDVO_I2C_ARG_0 - num_out; i--) {
 	sWriteByte(s, i, s->sdvo_regs[i]);
     }
     /* blast the command reg */
     sWriteByte(s, SDVO_I2C_OPCODE, s->sdvo_regs[SDVO_I2C_OPCODE]);
 }
+
+static const char *cmd_status_names[] = {
+	"Power on",
+	"Success",
+	"Not supported",
+	"Invalid arg",
+	"Pending",
+	"Target not supported",
+	"Scaling not supported"
+};
 
 static void
 I830SDVOReadInputRegs(I830SDVOPtr s)
@@ -95,8 +105,12 @@ I830SDVOReadInputRegs(I830SDVOPtr s)
     sReadByte(s, SDVO_I2C_RETURN_4, &s->sdvo_regs[SDVO_I2C_RETURN_4]);
 
     ErrorF("SDVO: R: ");
-    for (i = SDVO_I2C_CMD_STATUS; i <= SDVO_I2C_RETURN_7; i++)
+    for (i = SDVO_I2C_RETURN_0; i <= SDVO_I2C_RETURN_7; i++)
 	ErrorF("%02X ", s->sdvo_regs[i]);
+    if (s->sdvo_regs[SDVO_I2C_CMD_STATUS] <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
+	ErrorF("(%s)", cmd_status_names[s->sdvo_regs[SDVO_I2C_CMD_STATUS]]);
+    else
+	ErrorF("(??? %d)", s->sdvo_regs[SDVO_I2C_CMD_STATUS]);
     ErrorF("\n");
 }
 
@@ -112,7 +126,7 @@ I830SDVOSetControlBusSwitch(I830SDVOPtr s, CARD8 target)
     s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_SET_CONTROL_BUS_SWITCH;
     s->sdvo_regs[SDVO_I2C_ARG_0] = target;
 
-    I830SDVOWriteOutputs(s, 7);
+    I830SDVOWriteOutputs(s, 1);
     return TRUE;
 }
 
@@ -124,7 +138,7 @@ I830SDVOSetTargetInput(I830SDVOPtr s)
 
     s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_SET_TARGET_INPUT;
 
-    I830SDVOWriteOutputs(s, 0);
+    I830SDVOWriteOutputs(s, 1);
 
     I830SDVOReadInputRegs(s);
 
@@ -175,7 +189,7 @@ I830SDVOSetActiveOutputs(I830SDVOPtr s, int on)
     s->sdvo_regs[0x07] = on ? 0x01 : 0x00;
     s->sdvo_regs[0x03] = on ? 0x01 : 0x00;
 
-    I830SDVOWriteOutputs(s, 0);
+    I830SDVOWriteOutputs(s, 2);
     I830SDVOReadInputRegs(s);
 
     return TRUE;
@@ -214,7 +228,7 @@ I830SDVOSetTargetOutput(I830SDVOPtr s)
     s->sdvo_regs[SDVO_I2C_ARG_0] = 0x1;	/* Enable */
     s->sdvo_regs[SDVO_I2C_ARG_1] = 0x0; /* Disable */
 
-    I830SDVOWriteOutputs(s, 0);		/* XXX: Only write these two */
+    I830SDVOWriteOutputs(s, 1);		/* XXX: Only write these two */
     I830SDVOReadInputRegs(s);
 
     return TRUE;
@@ -272,7 +286,7 @@ I830SDVOSetTimingsPart1(I830SDVOPtr s, char cmd, CARD16 clock, CARD16 magic1,
     s->sdvo_regs[SDVO_I2C_ARG_6] = magic1 & 0xff;
     s->sdvo_regs[SDVO_I2C_ARG_7] = (magic1 >> 8) & 0xff;
 
-    I830SDVOWriteOutputs(s, 0);
+    I830SDVOWriteOutputs(s, 8);
     I830SDVOReadInputRegs(s);
   
     return TRUE;
@@ -330,7 +344,7 @@ I830SDVOSetTimingsPart2(I830SDVOPtr s, CARD8 cmd, CARD16 magic4, CARD16 magic5,
     s->sdvo_regs[SDVO_I2C_ARG_4] = magic6 & 0xff;
     s->sdvo_regs[SDVO_I2C_ARG_5] = (magic6 >> 8) & 0xff;
 
-    I830SDVOWriteOutputs(s, 0);
+    I830SDVOWriteOutputs(s, 8);
     I830SDVOReadInputRegs(s);
   
     return TRUE;
@@ -367,7 +381,7 @@ I830SDVOCreatePreferredInputTiming(I830SDVOPtr s, CARD16 clock, CARD16 width,
     s->sdvo_regs[SDVO_I2C_ARG_4] = height & 0xff;  
     s->sdvo_regs[SDVO_I2C_ARG_5] = (height >> 8) & 0xff;
 
-    I830SDVOWriteOutputs(s, 0);
+    I830SDVOWriteOutputs(s, 7);
     I830SDVOReadInputRegs(s);
 
     return TRUE;
@@ -401,7 +415,7 @@ I830SDVOSetClockRateMult(I830SDVOPtr s, CARD8 val)
     s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_SET_CLOCK_RATE_MULT;
 
     s->sdvo_regs[SDVO_I2C_ARG_0] = val;
-    I830SDVOWriteOutputs(s, 0);
+    I830SDVOWriteOutputs(s, 1);
     I830SDVOReadInputRegs(s);
 
     return TRUE;
