@@ -1693,6 +1693,10 @@ static int i830ValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName)
    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	      "Total number of valid FP mode(s) found: %d\n", count);
 
+   /* Adjust the display pitch to fit the modes we've come up with. */
+   pScrn->displayWidth = MAX(pScrn->displayWidth, pScrn->virtualX);
+   pScrn->displayWidth = (pScrn->displayWidth + 63) & ~63;
+
    return count;
 }
 
