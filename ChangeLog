@@ -1,5 +1,11 @@
 2006-04-25  Aaron Plattner  <aplattner@nvidia.com>
 
+	* configure.ac:
+	* src/nv_const.h:
+	Bump to 1.1.2 for new product names.
+
+2006-04-25  Aaron Plattner  <aplattner@nvidia.com>
+
 	* src/nv_driver.c:
 	Add names for Quadro FX 5500, 3500, 1500, 560, 550, and 350.
 
