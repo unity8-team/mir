@@ -1,3 +1,8 @@
+2006-04-25  Aaron Plattner  <aplattner@nvidia.com>
+
+	* src/nv_driver.c:
+	Add names for Quadro FX 5500, 3500, 1500, 560, 550, and 350.
+
 2006-04-07  Adam Jackson  <ajax@freedesktop.org>
 
 	* configure.ac:

@@ -91,7 +91,7 @@ _X_EXPORT DriverRec NV = {
         0
 };
 
-/* Known cards as of 2006/01/12  */
+/* Known cards as of 2006/04/20  */
 
 static SymTabRec NVKnownChipsets[] =
 {
@@ -254,6 +254,7 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0147, "GeForce 6700 XL" },
   { 0x10DE0148, "GeForce Go 6600" },
   { 0x10DE0149, "GeForce Go 6600 GT" },
+  { 0x10DE014C, "Quadro FX 550" },
   { 0x10DE014E, "Quadro FX 540" },
   { 0x10DE014F, "GeForce 6200" },
 
@@ -298,11 +299,15 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0399, "GeForce Go 7600 GT"},
   { 0x10DE039A, "Quadro NVS 300M" },
   { 0x10DE039C, "Quadro FX 550M" },
+  { 0x10DE039E, "Quadro FX 560" },
 
   { 0x10DE0298, "GeForce Go 7900 GS" },
   { 0x10DE0299, "GeForce Go 7900 GTX" },
   { 0x10DE029A, "Quadro FX 2500M" },
   { 0x10DE029B, "Quadro FX 1500M" },
+  { 0x10DE029C, "Quadro FX 5500" },
+  { 0x10DE029D, "Quadro FX 3500" },
+  { 0x10DE029E, "Quadro FX 1500" },
 
   { 0x10DE0240, "GeForce 6150" },
   { 0x10DE0241, "GeForce 6150 LE" },
