@@ -183,10 +183,12 @@ else
         echo "no"
 fi 
 
+SAVE_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $XORG_CFLAGS"
 if test "x$have_exa_h" = xyes; then
-        AC_MSG_CHECKING([wether EXA version is at least 2.0.0])
+        AC_MSG_CHECKING([whether EXA version is at least 2.0.0])
         AC_PREPROC_IFELSE([AC_LANG_PROGRAM([[
-#include "${sdkdir}/exa.h"
+#include "exa.h"
 #if EXA_VERSION_MAJOR < 2
 #error OLD EXA!
 #endif
@@ -200,6 +202,7 @@ if test "x$have_exa_h" = xyes; then
                 echo "no."
         fi
 fi
+CPPFLAGS="$SAVE_CPPFLAGS"
 
 AM_CONDITIONAL(USE_EXA, test "x$USE_EXA" = xyes)
 

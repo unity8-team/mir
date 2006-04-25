@@ -1,3 +1,9 @@
+2006-04-25  Eric Anholt  <anholt@FreeBSD.org>
+
+	* configure.ac:
+	Use a CPPFLAGS with XORG_CFLAGS so that the exa test can actually find
+	its headers and not fail.  Also correct some nearby spelling.
+
 2006-04-24  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon_driver.c: (RADEONInitCrtcRegisters),
