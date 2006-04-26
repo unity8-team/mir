@@ -1,3 +1,12 @@
+2006-04-26  Eric Anholt  <anholt@FreeBSD.org>
+
+	* src/radeon_exa_render.c: (RADEONGetBlendCntl),
+	(R100CheckComposite), (R100PrepareComposite), (R200CheckComposite),
+	(R200PrepareComposite):
+	Add support for some component-alpha operations (InReverse, OutReverse)
+	necessary for testing upcoming general component alpha acceleration
+	assistance in EXA.  Tested with rendercheck on an r100.
+
 2006-04-25  Eric Anholt  <anholt@FreeBSD.org>
 
 	* configure.ac:

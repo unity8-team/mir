@@ -151,25 +151,36 @@ static Bool RADEONGetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
     return TRUE;
 }
 
-static CARD32 RADEONGetBlendCntl(int op, CARD32 dst_format)
+static CARD32 RADEONGetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
 {
-    CARD32 blendcntl = RadeonBlendOp[op].blend_cntl;
+    CARD32 sblend, dblend;
+
+    sblend = RadeonBlendOp[op].blend_cntl & RADEON_SRC_BLEND_MASK;
+    dblend = RadeonBlendOp[op].blend_cntl & RADEON_DST_BLEND_MASK;
+
     /* If there's no dst alpha channel, adjust the blend op so that we'll treat
      * it as always 1.
      */
     if (PICT_FORMAT_A(dst_format) == 0 && RadeonBlendOp[op].dst_alpha) {
-	if ((blendcntl & RADEON_SRC_BLEND_MASK) ==
-	    RADEON_SRC_BLEND_GL_DST_ALPHA) {
-	    blendcntl = (blendcntl & ~RADEON_SRC_BLEND_MASK) |
-			 RADEON_SRC_BLEND_GL_ONE;
-	} else if ((blendcntl & RADEON_SRC_BLEND_MASK) ==
-		 RADEON_SRC_BLEND_GL_ONE_MINUS_DST_ALPHA) {
-	    blendcntl = (blendcntl & ~RADEON_SRC_BLEND_MASK) |
-			 RADEON_SRC_BLEND_GL_ZERO;
+	if (sblend == RADEON_SRC_BLEND_GL_DST_ALPHA)
+	    sblend = RADEON_SRC_BLEND_GL_ONE;
+	else if (sblend == RADEON_SRC_BLEND_GL_ONE_MINUS_DST_ALPHA)
+	    sblend = RADEON_SRC_BLEND_GL_ZERO;
+    }
+
+    /* If the source alpha is being used, then we should only be in a case where
+     * the source blend factor is 0, and the source blend value is the mask
+     * channels multiplied by the source picture's alpha.
+     */
+    if (pMask && pMask->componentAlpha && RadeonBlendOp[op].src_alpha) {
+	if (dblend == RADEON_DST_BLEND_GL_SRC_ALPHA) {
+	    dblend = RADEON_DST_BLEND_GL_SRC_COLOR;
+	} else if (dblend == RADEON_DST_BLEND_GL_ONE_MINUS_SRC_ALPHA) {
+	    dblend = RADEON_DST_BLEND_GL_ONE_MINUS_SRC_COLOR;
 	}
     }
 
-    return blendcntl;
+    return sblend | dblend;
 }
 
 union intfloat {
@@ -296,12 +307,21 @@ static Bool R100CheckComposite(int op, PicturePtr pSrcPicture,
     /* Check for unsupported compositing operations. */
     if (op >= sizeof(RadeonBlendOp) / sizeof(RadeonBlendOp[0]))
 	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
-    if (pMaskPicture != NULL && pMaskPicture->componentAlpha &&
-	RadeonBlendOp[op].src_alpha)
-    {
-	RADEON_FALLBACK(("Component alpha not supported with source "
-			"alpha blending.\n"));
+
+    if (pMaskPicture != NULL && pMaskPicture->componentAlpha) {
+	/* Check if it's component alpha that relies on a source alpha and on
+	 * the source value.  We can only get one of those into the single
+	 * source value that we get to blend with.
+	 */
+	if (RadeonBlendOp[op].src_alpha &&
+	    (RadeonBlendOp[op].blend_cntl & RADEON_SRC_BLEND_MASK) !=
+	     RADEON_SRC_BLEND_GL_ZERO)
+	{
+	    RADEON_FALLBACK(("Component alpha not supported with source "
+			    "alpha and source value blending.\n"));
+	}
     }
+
     if (pDstPicture->pDrawable->width >= (1 << 11) ||
 	pDstPicture->pDrawable->height >= (1 << 11))
     {
@@ -313,9 +333,6 @@ static Bool R100CheckComposite(int op, PicturePtr pSrcPicture,
     if (!R100CheckCompositeTexture(pSrcPicture, 0))
 	return FALSE;
     if (pMaskPicture != NULL && !R100CheckCompositeTexture(pMaskPicture, 1))
-	return FALSE;
-
-    if (pDstPicture->componentAlpha)
 	return FALSE;
 
     if (!RADEONGetDestFormat(pDstPicture, &tmp1))
@@ -382,15 +399,20 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 
     /* IN operator: Multiply src by mask components or mask alpha.
      * BLEND_CTL_ADD is A * B + C.
-     * If a picture is a8, we have to explicitly zero its color values.
+     * If a source is a8, we have to explicitly zero its color values.
      * If the destination is a8, we have to route the alpha to red, I think.
+     * If we're doing component alpha where the source for blending is going to
+     * be the source alpha (and there's no source value used), we have to zero
+     * the source's color values.
      */
     cblend = RADEON_BLEND_CTL_ADD | RADEON_CLAMP_TX | RADEON_COLOR_ARG_C_ZERO;
     ablend = RADEON_BLEND_CTL_ADD | RADEON_CLAMP_TX | RADEON_ALPHA_ARG_C_ZERO;
 
-    if (pDstPicture->format == PICT_a8)
+    if (pDstPicture->format == PICT_a8 ||
+	(pMask && pMaskPicture->componentAlpha && RadeonBlendOp[op].src_alpha))
+    {
 	cblend |= RADEON_COLOR_ARG_A_T0_ALPHA;
-    else if (pSrcPicture->format == PICT_a8)
+    } else if (pSrcPicture->format == PICT_a8)
 	cblend |= RADEON_COLOR_ARG_A_ZERO;
     else
 	cblend |= RADEON_COLOR_ARG_A_T0_COLOR;
@@ -414,7 +436,8 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 				     RADEON_SE_VTX_FMT_ST0 |
 				     RADEON_SE_VTX_FMT_ST1);
     /* Op operator. */
-    blendcntl = RADEONGetBlendCntl(op, pDstPicture->format);
+    blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
+
     OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blendcntl);
     FINISH_ACCEL();
 
@@ -543,10 +566,20 @@ static Bool R200CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     /* Check for unsupported compositing operations. */
     if (op >= sizeof(RadeonBlendOp) / sizeof(RadeonBlendOp[0]))
 	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
-    if (pMaskPicture != NULL && pMaskPicture->componentAlpha &&
-	RadeonBlendOp[op].src_alpha)
-	RADEON_FALLBACK(("Component alpha not supported with source "
-			"alpha blending.\n"));
+
+    if (pMaskPicture != NULL && pMaskPicture->componentAlpha) {
+	/* Check if it's component alpha that relies on a source alpha and on
+	 * the source value.  We can only get one of those into the single
+	 * source value that we get to blend with.
+	 */
+	if (RadeonBlendOp[op].src_alpha &&
+	    (RadeonBlendOp[op].blend_cntl & RADEON_SRC_BLEND_MASK) !=
+	     RADEON_SRC_BLEND_GL_ZERO)
+	{
+	    RADEON_FALLBACK(("Component alpha not supported with source "
+			    "alpha and source value blending.\n"));
+	}
+    }
 
     if (!R200CheckCompositeTexture(pSrcPicture, 0))
 	return FALSE;
@@ -620,13 +653,18 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
      * BLEND_CTL_ADD is A * B + C.
      * If a picture is a8, we have to explicitly zero its color values.
      * If the destination is a8, we have to route the alpha to red, I think.
+     * If we're doing component alpha where the source for blending is going to
+     * be the source alpha (and there's no source value used), we have to zero
+     * the source's color values.
      */
     cblend = R200_TXC_OP_MADD | R200_TXC_ARG_C_ZERO;
     ablend = R200_TXA_OP_MADD | R200_TXA_ARG_C_ZERO;
 
-    if (pDstPicture->format == PICT_a8)
+    if (pDstPicture->format == PICT_a8 ||
+	(pMask && pMaskPicture->componentAlpha && RadeonBlendOp[op].src_alpha))
+    {
 	cblend |= R200_TXC_ARG_A_R0_ALPHA;
-    else if (pSrcPicture->format == PICT_a8)
+    } else if (pSrcPicture->format == PICT_a8)
 	cblend |= R200_TXC_ARG_A_ZERO;
     else
 	cblend |= R200_TXC_ARG_A_R0_COLOR;
@@ -652,7 +690,7 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 	R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
 
     /* Op operator. */
-    blendcntl = RADEONGetBlendCntl(op, pDstPicture->format);
+    blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
     OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blendcntl);
     FINISH_ACCEL();
 
