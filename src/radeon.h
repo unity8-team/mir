@@ -104,7 +104,6 @@ typedef struct _region {
 #define RADEON_DEBUG            1 /* Turn off debugging output               */
 #define RADEON_IDLE_RETRY      16 /* Fall out of idle loops after this count */
 #define RADEON_TIMEOUT    2000000 /* Fall out of wait loops after this count */
-#define RADEON_MMIOSIZE   0x80000
 
 /* Buffer are aligned on 4096 byte boundaries */
 #define RADEON_BUFFER_ALIGN 0x00000fff
@@ -346,6 +345,7 @@ typedef struct {
 
     CARD32            MemCntl;
     CARD32            BusCntl;
+    unsigned long     MMIOSize;         /* MMIO region physical address      */
     unsigned long     FbMapSize;        /* Size of frame buffer, in bytes    */
     unsigned long     FbSecureSize;     /* Size of secured fb area at end of
                                            framebuffer */

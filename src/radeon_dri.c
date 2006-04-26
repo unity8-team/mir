@@ -1025,7 +1025,7 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
 static Bool RADEONDRIMapInit(RADEONInfoPtr info, ScreenPtr pScreen)
 {
 				/* Map registers */
-    info->registerSize = RADEON_MMIOSIZE;
+    info->registerSize = info->MMIOSize;
     if (drmAddMap(info->drmFD, info->MMIOAddr, info->registerSize,
 		  DRM_REGISTERS, DRM_READ_ONLY, &info->registerHandle) < 0) {
 	return FALSE;

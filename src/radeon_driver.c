@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.112 2006/04/21 00:38:44 airlied Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.113 2006/04/24 07:44:52 benh Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -714,7 +714,7 @@ static Bool RADEONMapMMIO(ScrnInfoPtr pScrn)
 				   VIDMEM_MMIO | VIDMEM_READSIDEEFFECT,
 				   info->PciTag,
 				   info->MMIOAddr,
-				   RADEON_MMIOSIZE);
+				   info->MMIOSize);
     }
 
     if (!info->MMIO) return FALSE;
@@ -731,7 +731,7 @@ static Bool RADEONUnmapMMIO(ScrnInfoPtr pScrn)
     if (info->FBDev)
 	fbdevHWUnmapMMIO(pScrn);
     else {
-	xf86UnMapVidMem(pScrn->scrnIndex, info->MMIO, RADEON_MMIOSIZE);
+	xf86UnMapVidMem(pScrn->scrnIndex, info->MMIO, info->MMIOSize);
     }
     info->MMIO = NULL;
     return TRUE;
@@ -4849,6 +4849,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 			   info->PciInfo->device,
 			   info->PciInfo->func);
     info->MMIOAddr   = info->PciInfo->memBase[2] & 0xffffff00;
+    info->MMIOSize  = (1 << info->PciInfo->size[2]);
     if (info->pEnt->device->IOBase) {
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
 		   "MMIO address override, using 0x%08lx instead of 0x%08lx\n",
@@ -4860,7 +4861,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	goto fail1;
     }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "MMIO registers at 0x%08lx\n", info->MMIOAddr);
+	       "MMIO registers at 0x%08lx: size %dKB\n", info->MMIOAddr, info->MMIOSize / 1024);
 
     if(!RADEONMapMMIO(pScrn)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
