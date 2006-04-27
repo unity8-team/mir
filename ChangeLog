@@ -1,3 +1,10 @@
+2006-04-27  Aaron Plattner  <aplattner@nvidia.com>
+
+	* configure.ac:
+	* src/nv_video.c:
+	Determine whether PutImage hooks take a DrawablePtr by server version.
+	Remove dependency on xorg-server >= 1.0.99.901.
+
 2006-04-25  Aaron Plattner  <aplattner@nvidia.com>
 
 	* configure.ac:
