@@ -3,13 +3,18 @@
 #ifndef __NV_INCLUDE_H__
 #define __NV_INCLUDE_H__
 
+#if !USE_LIBC_WRAPPER
 #include <string.h>
 #include <math.h>
+#endif
 
 /* All drivers should typically include these */
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"
+#if USE_LIBC_WRAPPER
+#include "xf86_ansic.h"
+#endif
 #include "compiler.h"
 
 /* Drivers for PCI hardware need this */
