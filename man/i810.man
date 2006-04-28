@@ -204,6 +204,12 @@ Allows more memory for the offscreen allocator. This usually helps in
 situations where HDTV movies are required to play but not enough offscreen
 memory is usually available. Set this to 6144 for upto 1920x1080 HDTV support.
 Default 0KB (off).
+.TP
+.BI "Option \*qAccelMethod\*q \*q" string \*q
+Choose acceleration architecture, either "XAA" or "EXA".  XAA is the old
+(but stable) XFree86 based acceleration architecture.  EXA is a newer and
+simpler acceleration architecture designed to better accelerate the X Render
+extension.  Default: "XAA".
 
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
@@ -213,4 +219,5 @@ Jeff Hartmann, Mark Vojkovich, Alan Hourihane, H. J. Lu.  830M and 845G
 support reworked for XFree86 4.3 by David Dawes and Keith Whitwell.
 852GM, 855GM, and 865G support added by David Dawes and Keith Whitwell.
 915G and 915GM support added by Alan Hourihane and Keith Whitwell.
-Dual Head, Clone and lid status support added by Alan Hourihane.
+Dual Head, Clone and lid status support added by Alan Hourihane.  EXA support
+added by Jesse Barnes.

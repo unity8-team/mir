@@ -1830,8 +1830,6 @@ I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size)
    ScreenPtr pScreen;
    FBLinearPtr new_linear = NULL;
 
-   DPRINTF(PFX, "I830AllocateMemory\n");
-
    if (linear) {
       if (linear->size >= size)
 	 return linear;

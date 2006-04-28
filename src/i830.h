@@ -68,6 +68,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_dri.h"
 #endif
 
+#ifdef I830_USE_EXA
+#include "exa.h"
+Bool I830EXAInit(ScreenPtr pScreen);
+#endif
+
+#ifdef I830_USE_XAA
+Bool I830XAAInit(ScreenPtr pScreen);
+#endif
+
 #include "common.h"
 
 /* I830 Video BIOS support */
@@ -203,7 +212,9 @@ typedef struct _I830Rec {
    I830MemRange FrontBuffer2;
    I830MemRange Scratch;
    I830MemRange Scratch2;
-
+#ifdef I830_USE_EXA
+   I830MemRange Offscreen;
+#endif
    /* Regions allocated either from the above pools, or from agpgart. */
    I830MemRange	*CursorMem;
    I830MemRange	*CursorMemARGB;
@@ -279,12 +290,21 @@ typedef struct _I830Rec {
    I830RegRec SavedReg;
    I830RegRec ModeReg;
 
+   Bool useEXA;
    Bool noAccel;
    Bool SWCursor;
    Bool cursorOn;
+#ifdef I830_USE_XAA
    XAAInfoRecPtr AccelInfoRec;
+#endif
    xf86CursorInfoPtr CursorInfoRec;
    CloseScreenProcPtr CloseScreen;
+
+#ifdef I830_USE_EXA
+   unsigned int copy_src_pitch;
+   unsigned int copy_src_off;
+   ExaDriverPtr	EXADriverPtr;
+#endif
 
    I830WriteIndexedByteFunc writeControl;
    I830ReadIndexedByteFunc readControl;

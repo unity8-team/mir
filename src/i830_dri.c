@@ -1017,7 +1017,9 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
    }
 
    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
+#ifdef I830_USE_XAA
    pI830->AccelInfoRec->NeedToSync = TRUE;
+#endif
 }
 
 /* This routine is a modified form of XAADoBitBlt with the calls to
@@ -1178,8 +1180,9 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
       DEALLOCATE_LOCAL(pptNew1);
       DEALLOCATE_LOCAL(pboxNew1);
    }
-
+#ifdef I830_USE_XAA
    pI830->AccelInfoRec->NeedToSync = TRUE;
+#endif
 }
 
 /* Initialize the first context */
