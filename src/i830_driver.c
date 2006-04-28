@@ -5724,7 +5724,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 
    /* Sync the engine before mode switch */
 #ifdef I830_USE_XAA
-   if (!pI830->noAccel && !pI830->useEXA)
+   if (!pI830->noAccel && !pI830->useEXA) {
       (*pI830->AccelInfoRec->Sync)(pScrn);
       pI830->AccelInfoRec->NeedToSync = FALSE;
    }
