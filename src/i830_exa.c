@@ -357,54 +357,55 @@ I830EXAInit(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if(pI830->useEXA) {
-	if(!(pI830->EXADriverPtr = xnfcalloc(sizeof(ExaDriverRec), 1))) {
-	    pI830->noAccel = TRUE;
-	    return FALSE;
-	}
+    pI830->EXADriverPtr = exaDriverAlloc();
+    if (pI830->EXADriverPtr == NULL) {
+	pI830->noAccel = TRUE;
+	return FALSE;
     }
 
     pI830->bufferOffset = 0;
-    pI830->EXADriverPtr->card.memoryBase = pI830->FbBase;
-    pI830->EXADriverPtr->card.offScreenBase = pI830->Offscreen.Start;
-    pI830->EXADriverPtr->card.memorySize = pI830->Offscreen.Size;
+    pI830->EXADriverPtr->exa_major = 2;
+    pI830->EXADriverPtr->exa_minor = 0;
+    pI830->EXADriverPtr->memoryBase = pI830->FbBase;
+    pI830->EXADriverPtr->offScreenBase = pI830->Offscreen.Start;
+    pI830->EXADriverPtr->memorySize = pI830->Offscreen.Size;
 	   
-    if(pI830->EXADriverPtr->card.memorySize >
-       pI830->EXADriverPtr->card.offScreenBase)
-	pI830->EXADriverPtr->card.flags = EXA_OFFSCREEN_PIXMAPS;
+    if(pI830->EXADriverPtr->memorySize >
+       pI830->EXADriverPtr->offScreenBase)
+	pI830->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
     else {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Not enough video RAM for "
 		   "offscreen memory manager. Xv disabled\n");
 	/* disable Xv here... */
     }
 
-    pI830->EXADriverPtr->card.pixmapOffsetAlign = 256;
-    pI830->EXADriverPtr->card.pixmapPitchAlign = 64;
-    pI830->EXADriverPtr->card.maxX = 4095;
-    pI830->EXADriverPtr->card.maxY = 4095;
+    pI830->EXADriverPtr->pixmapOffsetAlign = 256;
+    pI830->EXADriverPtr->pixmapPitchAlign = 64;
+    pI830->EXADriverPtr->maxX = 4095;
+    pI830->EXADriverPtr->maxY = 4095;
 
     /* Sync */
-    pI830->EXADriverPtr->accel.WaitMarker = I830EXASync;
+    pI830->EXADriverPtr->WaitMarker = I830EXASync;
 
     /* Solid fill */
-    pI830->EXADriverPtr->accel.PrepareSolid = I830EXAPrepareSolid;
-    pI830->EXADriverPtr->accel.Solid = I830EXASolid;
-    pI830->EXADriverPtr->accel.DoneSolid = I830EXADoneSolid;
+    pI830->EXADriverPtr->PrepareSolid = I830EXAPrepareSolid;
+    pI830->EXADriverPtr->Solid = I830EXASolid;
+    pI830->EXADriverPtr->DoneSolid = I830EXADoneSolid;
 
     /* Copy */
-    pI830->EXADriverPtr->accel.PrepareCopy = I830EXAPrepareCopy;
-    pI830->EXADriverPtr->accel.Copy = I830EXACopy;
-    pI830->EXADriverPtr->accel.DoneCopy = I830EXADoneCopy;
+    pI830->EXADriverPtr->PrepareCopy = I830EXAPrepareCopy;
+    pI830->EXADriverPtr->Copy = I830EXACopy;
+    pI830->EXADriverPtr->DoneCopy = I830EXADoneCopy;
 #if 0
     /* Upload, download to/from Screen */
-    pI830->EXADriverPtr->accel.UploadToScreen = I830EXAUploadToScreen;
-    pI830->EXADriverPtr->accel.DownloadFromScreen = I830EXADownloadFromScreen;
+    pI830->EXADriverPtr->UploadToScreen = I830EXAUploadToScreen;
+    pI830->EXADriverPtr->DownloadFromScreen = I830EXADownloadFromScreen;
 
     /* Composite */
-    pI830->EXADriverPtr->accel.CheckComposite = I830EXACheckComposite;
-    pI830->EXADriverPtr->accel.PrepareComposite = I830EXAPrepareComposite;
-    pI830->EXADriverPtr->accel.Composite = I830EXAComposite;
-    pI830->EXADriverPtr->accel.DoneComposite = I830EXADoneComposite;
+    pI830->EXADriverPtr->CheckComposite = I830EXACheckComposite;
+    pI830->EXADriverPtr->PrepareComposite = I830EXAPrepareComposite;
+    pI830->EXADriverPtr->Composite = I830EXAComposite;
+    pI830->EXADriverPtr->DoneComposite = I830EXADoneComposite;
 #endif
 
     if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {

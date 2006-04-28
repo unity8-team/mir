@@ -3533,7 +3533,15 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
 #ifdef I830_USE_EXA
    if (!pI830->noAccel && pI830->useEXA) {
-      if (!xf86LoadSubModule(pScrn, "exa")) {
+      XF86ModReqInfo req;
+      int errmaj, errmin;
+
+      memset(&req, 0, sizeof(req));
+      req.majorversion = 2;
+      req.minorversion = 0;
+      if (!LoadSubModule(pScrn->module, "exa", NULL, NULL, NULL, &req,
+		&errmaj, &errmin)) {
+	 LoaderErrorMsg(NULL, "exa", errmaj, errmin);
 	 PreInitCleanup(pScrn);
 	 return FALSE;
       }
@@ -5387,8 +5395,10 @@ I830BIOSLeaveVT(int scrnIndex, int flags)
       pI830->AccelInfoRec->NeedToSync = FALSE;
 #endif
 #ifdef I830_USE_EXA
-   if (pI830->useEXA && pI830->EXADriverPtr)
-       pI830->EXADriverPtr->card.needsSync = TRUE;
+   if (pI830->useEXA && pI830->EXADriverPtr) {
+      ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+      exaMarkSync(pScreen);
+   }
 #endif
 
    /* DO IT AGAIN! AS IT SEEMS THAT SOME LFPs FLICKER OTHERWISE */
@@ -5732,7 +5742,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 #ifdef I830_USE_EXA
    if (!pI830->noAccel && pI830->useEXA) {
       ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-      (*pI830->EXADriverPtr->accel.WaitMarker)(pScreen, 0);
+      exaWaitSync(pScreen);
    }
 #endif
 
