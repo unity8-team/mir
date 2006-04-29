@@ -6122,13 +6122,14 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 		    "Hotkey switch to 0x%lx.\n", (unsigned long) temp);
 
-         if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
+#ifdef I830_USE_XAA
+         if (!pI830->useEXA && pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
             (*pI830->AccelInfoRec->Sync)(pScrn);
             pI830->AccelInfoRec->NeedToSync = FALSE;
             if (xf86IsEntityShared(pScrn->entityList[0]))
                pI8302->AccelInfoRec->NeedToSync = FALSE;
          }
-
+#endif
          GetAttachableDisplayDeviceList(pScrn);
          
 	 pI8301->lastDevice0 = pI8301->lastDevice1;
