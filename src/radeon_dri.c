@@ -1990,7 +1990,7 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen)
     RADEONChangeSurfaces(pScrn);
     RADEONEnablePageFlip(pScreen);
 
-    if (info->cursor_offset != 0)
+    if (info->cursor)
 	xf86ForceHWCursor (pScreen, TRUE);
 }
 
@@ -2028,7 +2028,7 @@ static void RADEONDRITransitionTo2d(ScreenPtr pScreen)
 
     RADEONChangeSurfaces(pScrn);
 
-    if (info->cursor_offset != 0)
+    if (info->cursor)
 	xf86ForceHWCursor (pScreen, FALSE);
 }
 
