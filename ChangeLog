@@ -1,5 +1,12 @@
 2006-04-29  Michel Dänzer  <michel@daenzer.net>
 
+	* src/radeon_driver.c: (RADEONInitDispBandwidth):
+	Bugzilla #1992 <https://bugs.freedesktop.org/show_bug.cgi?id=1992>
+	Patch #4988 <https://bugs.freedesktop.org/attachment.cgi?id=4988>:
+	Fix Option "DisplayPriority" "HIGH" for R300 family.
+
+2006-04-29  Michel Dänzer  <michel@daenzer.net>
+
 	* src/radeon_driver.c: (RADEONCloseScreen):
 	Properly de-initialize EXA driver data, so EXA can be initialized again
 	in the next generation.

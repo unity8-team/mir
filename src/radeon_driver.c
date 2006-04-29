@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.114 2006/04/26 08:38:47 airlied Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.115 2006/04/29 20:34:57 daenzer Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -7663,15 +7663,7 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     if (critical_point < temp) critical_point = temp;
     */
     if (info->DispPriority == 2) {
-	if (mode2) {
-	    /*??some R300 cards have problem with this set to 0, when CRTC2 is enabled.*/
-	    if (info->ChipFamily == CHIP_FAMILY_R300) 
-	        critical_point += 0x10;
-	    else
-	        critical_point = 0;
-	}
-	else
-	    critical_point = 0;
+	critical_point = 0;
     }
 
     /*
@@ -7679,6 +7671,11 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
       GRPH_CRITICAL_CNTL = 0 will thus force high priority all the time.
     */
     if (max_stop_req - critical_point < 4) critical_point = 0; 
+
+    if (critical_point == 0 && mode2 && info->ChipFamily == CHIP_FAMILY_R300) {
+	/* some R300 cards have problem with this set to 0, when CRTC2 is enabled.*/
+	critical_point = 0x10;
+    }
 
     temp = info->SavedReg.grph_buffer_cntl;
     temp &= ~(RADEON_GRPH_STOP_REQ_MASK);
@@ -7733,14 +7730,16 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
 					disp_latency) * disp_drain_rate2 + 0.5);
 
 	    if (info->DispPriority == 2) {
-		if (info->ChipFamily == CHIP_FAMILY_R300) 
-		    critical_point2 += 0x10;
-		else
-		    critical_point2 = 0;
+		critical_point2 = 0;
 	    }
 
 	    if (max_stop_req - critical_point2 < 4) critical_point2 = 0;
 
+	}
+
+	if (critical_point2 == 0 && info->ChipFamily == CHIP_FAMILY_R300) {
+	    /* some R300 cards have problem with this set to 0 */
+	    critical_point2 = 0x10;
 	}
 
 	OUTREG(RADEON_GRPH2_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
