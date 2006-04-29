@@ -1,3 +1,11 @@
+2006-04-29  Michel Dänzer  <michel@daenzer.net>
+
+	* src/radeon_dri.c: (RADEONInitVisualConfigs):
+	Prefer double-buffered visuals. As a consequence, the root window's
+	visual is double-buffered by default, which is desirable in a number of
+	situations, in particular when running a GLX compositing manager with
+	AIGLX.
+
 2006-04-27  Eric Anholt  <anholt@FreeBSD.org>
 
 	reviewed by: Michel Dänzer  <michel@daenzer.net>

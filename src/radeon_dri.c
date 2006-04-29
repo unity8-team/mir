@@ -129,7 +129,7 @@ static Bool RADEONInitVisualConfigs(ScreenPtr pScreen)
 	}
 
 	i = 0;
-	for (db = 0; db <= use_db; db++) {
+	for (db = use_db; db >= 0; db--) {
 	  for (accum = 0; accum <= RADEON_USE_ACCUM; accum++) {
 	    for (stencil = 0; stencil <= RADEON_USE_STENCIL; stencil++) {
 		pRADEONConfigPtrs[i] = &pRADEONConfigs[i];
@@ -212,7 +212,7 @@ static Bool RADEONInitVisualConfigs(ScreenPtr pScreen)
 	}
 
 	i = 0;
-	for (db = 0; db <= use_db; db++) {
+	for (db = use_db; db >= 0; db--) {
 	  for (accum = 0; accum <= RADEON_USE_ACCUM; accum++) {
 	    for (stencil = 0; stencil <= RADEON_USE_STENCIL; stencil++) {
 		pRADEONConfigPtrs[i] = &pRADEONConfigs[i];
