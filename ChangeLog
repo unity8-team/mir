@@ -1,5 +1,11 @@
 2006-04-29  Michel Dänzer  <michel@daenzer.net>
 
+	* src/radeon_driver.c: (RADEONCloseScreen):
+	Properly de-initialize EXA driver data, so EXA can be initialized again
+	in the next generation.
+
+2006-04-29  Michel Dänzer  <michel@daenzer.net>
+
 	* src/radeon_dri.c: (RADEONDRITransitionTo3d),
 	(RADEONDRITransitionTo2d):
 	Fix tests for (un)forcing HW cursor. The broken tests caused problems

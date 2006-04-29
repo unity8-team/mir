@@ -1,5 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_driver.c,v 1.117 2004/02/19 22:38:12 tsi Exp $ */
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.113 2006/04/24 07:44:52 benh Exp $ */
+/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.114 2006/04/26 08:38:47 airlied Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
@@ -9114,8 +9114,11 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
     RADEONTRACE(("Disposing accel...\n"));
 #ifdef USE_EXA
-    if (info->useEXA && info->accelOn)
+    if (info->exa) {
 	exaDriverFini(pScreen);
+	xfree(info->exa);
+	info->exa = NULL;
+    }
 #endif /* USE_EXA */
 #ifdef USE_XAA
     if (!info->useEXA) {
