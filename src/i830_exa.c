@@ -362,7 +362,8 @@ I830EXAInit(ScreenPtr pScreen)
 	pI830->noAccel = TRUE;
 	return FALSE;
     }
-
+    memset(pI830->EXADriverPtr, 0, sizeof(*pI830->EXADriverPtr));
+    
     pI830->bufferOffset = 0;
     pI830->EXADriverPtr->exa_major = 2;
     pI830->EXADriverPtr->exa_minor = 0;
@@ -409,6 +410,7 @@ I830EXAInit(ScreenPtr pScreen)
 #endif
 
     if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {
+	xfree(pI830->EXADriverPtr);
 	pI830->noAccel = TRUE;
 	return FALSE;
     }
