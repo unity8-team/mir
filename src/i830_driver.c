@@ -196,6 +196,7 @@ const char *I830exaSymbols[] = {
     "exaDriverFini",
     "exaOffscreenAlloc",
     "exaOffscreenFree",
+    "exaWaitSync",
     NULL
 };
 #endif
@@ -5257,11 +5258,18 @@ I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
 	   x, pI830->xoffset, y, pI830->yoffset);
 
    /* Sync the engine before adjust frame */
-   if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
+#ifdef I830_USE_XAA
+   if (!pI830->noAccel && !pI830->useEXA && pI830->AccelInfoRec->NeedToSync) {
       (*pI830->AccelInfoRec->Sync)(pScrn);
       pI830->AccelInfoRec->NeedToSync = FALSE;
    }
-
+#endif
+#ifdef I830_USE_EXA
+   if (!pI830->noAccel && pI830->useEXA) {
+	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+	exaWaitSync(pScreen);
+   }
+#endif
    if (I830IsPrimary(pScrn))
       Start = pI830->FrontBuffer.Start;
    else {
