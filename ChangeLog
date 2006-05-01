@@ -1,3 +1,22 @@
+2006-05-01  Michel Dänzer  <michel@tungstengraphics.com>
+
+	Bugzilla #6755 <https://bugs.freedesktop.org/show_bug.cgi?id=6755>
+	Patch #5536 <https://bugs.freedesktop.org/attachment.cgi?id=5536>:
+	* src/radeon.h:
+	* src/radeon_accel.c: (RADEONHostDataParams), (RADEONHostDataBlit),
+	(RADEONHostDataBlitCopyPass):
+	Change HostDataBlit interface to take dst_offset_pitch and coordinates
+	instead of just a destination pointer, as the latter is not sufficient
+	with tiling.
+	Also, use HW clipping to avoid overwriting destination data outside of
+	the specified width.
+	* src/radeon_exa_funcs.c: (RADEONUploadToScreen):
+	* src/radeon_render.c: (R100SetupTexture), (R200SetupTexture):
+	* src/radeon_video.c: (RADEONCopyData), (RADEONCopyRGB24Data),
+	(RADEONCopyMungedData):
+	Adapt to new HostDataBlit interface. This fixes corruption with
+	UploadToScreen to the front buffer (from exaPutImage).
+
 2006-04-29  Michel Dänzer  <michel@daenzer.net>
 
 	* src/radeon_driver.c: (RADEONInitDispBandwidth):

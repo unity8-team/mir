@@ -219,7 +219,7 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
     unsigned int   bpp	     = pDst->drawable.bitsPerPixel;
 #ifdef ACCEL_CP
     unsigned int   hpass;
-    CARD32	   buf_pitch;
+    CARD32	   buf_pitch, dst_pitch_off;
 #endif
 #if X_BYTE_ORDER == X_BIG_ENDIAN 
     unsigned char *RADEONMMIO = info->MMIO;
@@ -234,21 +234,21 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
 	return FALSE;
 
 #ifdef ACCEL_CP
-    if (info->directRenderingEnabled) {
+    if (info->directRenderingEnabled &&
+	RADEONGetPixmapOffsetPitch(pDst, &dst_pitch_off)) {
 	CARD8 *buf;
 	int cpp = bpp / 8;
 	ACCEL_PREAMBLE();
 
-	dst += (x * cpp) + (y * dst_pitch);
 	RADEON_SWITCH_TO_2D();
 	while ((buf = RADEONHostDataBlit(pScrn,
-					cpp, w, dst_pitch, &buf_pitch,
-					&dst, &h, &hpass)) != 0) {
-	    RADEONHostDataBlitCopyPass(pScrn, cpp, buf, (unsigned char *)src,
+					 cpp, w, dst_pitch_off, &buf_pitch,
+					 x, &y, (unsigned int*)&h, &hpass)) != 0) {
+	    RADEONHostDataBlitCopyPass(pScrn, cpp, buf, (CARD8 *)src,
 				       hpass, buf_pitch, src_pitch);
 	    src += hpass * src_pitch;
 	}
-	
+
 	exaMarkSync(pDst->drawable.pScreen);
 	return TRUE;
   }

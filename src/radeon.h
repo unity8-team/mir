@@ -799,9 +799,12 @@ extern void        RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard);
 extern void        RADEONCPReleaseIndirect(ScrnInfoPtr pScrn);
 extern int         RADEONCPStop(ScrnInfoPtr pScrn,  RADEONInfoPtr info);
 
-extern CARD8*      RADEONHostDataBlit(ScrnInfoPtr pScrn, unsigned int bpp,
-				      unsigned int w, CARD32 dstPitch,
-				      CARD32 *bufPitch, CARD8 **dst,
+extern void        RADEONHostDataParams(ScrnInfoPtr pScrn, CARD8 *dst,
+					CARD32 pitch, int cpp,
+					CARD32 *dstPitchOffset, int *x, int *y);
+extern CARD8*      RADEONHostDataBlit(ScrnInfoPtr pScrn, unsigned int cpp,
+				      unsigned int w, CARD32 dstPitchOff,
+				      CARD32 *bufPitch, int x, int *y,
 				      unsigned int *h, unsigned int *hpass);
 extern void        RADEONHostDataBlitCopyPass(ScrnInfoPtr pScrn,
 					      unsigned int bpp,

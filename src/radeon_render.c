@@ -383,9 +383,10 @@ static Bool FUNC_NAME(R100SetupTexture)(
     RADEONInfoPtr info = RADEONPTR(pScrn);
     CARD8 *dst;
     CARD32 tex_size = 0, txformat;
-    int dst_pitch, offset, size, i, tex_bytepp;
+    int dst_pitch, offset, size, tex_bytepp;
 #ifdef ACCEL_CP
-    CARD32 buf_pitch;
+    CARD32 buf_pitch, dst_pitch_off;
+    int x, y;
     unsigned int hpass;
     CARD8 *tmp_dst;
 #endif
@@ -430,11 +431,13 @@ static Bool FUNC_NAME(R100SetupTexture)(
 
 #ifdef ACCEL_CP
 
+    RADEONHostDataParams( pScrn, dst, dst_pitch, tex_bytepp, &dst_pitch_off, &x, &y );
+
     while ( height )
     {
     	tmp_dst = RADEONHostDataBlit( pScrn, tex_bytepp, width,
-				      dst_pitch, &buf_pitch,
-				      &dst, &height, &hpass);
+				      dst_pitch_off, &buf_pitch,
+				      x, &y, &height, &hpass );
 	RADEONHostDataBlitCopyPass( pScrn, tex_bytepp, tmp_dst, src,
 				    hpass, buf_pitch, src_pitch );
 	src += hpass * src_pitch;
@@ -445,12 +448,10 @@ static Bool FUNC_NAME(R100SetupTexture)(
 
 #else
 
-    i = height;
-
     if (info->accel->NeedToSync)
 	info->accel->Sync(pScrn);
 
-    while(i--) {
+    while (height--) {
 	memcpy(dst, src, width * tex_bytepp);
 	src += src_pitch;
 	dst += dst_pitch;
@@ -715,9 +716,10 @@ static Bool FUNC_NAME(R200SetupTexture)(
     RADEONInfoPtr info = RADEONPTR(pScrn);
     CARD8 *dst;
     CARD32 tex_size = 0, txformat;
-    int dst_pitch, offset, size, i, tex_bytepp;
+    int dst_pitch, offset, size, tex_bytepp;
 #ifdef ACCEL_CP
-    CARD32 buf_pitch;
+    CARD32 buf_pitch, dst_pitch_off;
+    int x, y;
     unsigned int hpass;
     CARD8 *tmp_dst;
 #endif
@@ -762,11 +764,13 @@ static Bool FUNC_NAME(R200SetupTexture)(
 
 #ifdef ACCEL_CP
 
+    RADEONHostDataParams( pScrn, dst, dst_pitch, tex_bytepp, &dst_pitch_off, &x, &y );
+
     while ( height )
     {
         tmp_dst = RADEONHostDataBlit( pScrn, tex_bytepp, width,
-				      dst_pitch, &buf_pitch,
-				      &dst, &height, &hpass );
+				      dst_pitch_off, &buf_pitch,
+				      x, &y, &height, &hpass );
 	RADEONHostDataBlitCopyPass( pScrn, tex_bytepp, tmp_dst, src,
 				    hpass, buf_pitch, src_pitch );
 	src += hpass * src_pitch;
@@ -777,11 +781,10 @@ static Bool FUNC_NAME(R200SetupTexture)(
 
 #else
 
-    i = height;
     if (info->accel->NeedToSync)
 	info->accel->Sync(pScrn);
 
-    while(i--) {
+    while (height--) {
 	memcpy(dst, src, width * tex_bytepp);
 	src += src_pitch;
 	dst += dst_pitch;

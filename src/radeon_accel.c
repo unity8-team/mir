@@ -604,6 +604,22 @@ void RADEONCPReleaseIndirect(ScrnInfoPtr pScrn)
 			&indirect, sizeof(drmRadeonIndirect));
 }
 
+/** \brief Calculate HostDataBlit parameters from pointer and pitch
+ *
+ * This is a helper for the trivial HostDataBlit users that don't need to worry
+ * about tiling etc.
+ */
+void
+RADEONHostDataParams(ScrnInfoPtr pScrn, CARD8 *dst, CARD32 pitch, int cpp,
+		     CARD32 *dstPitchOff, int *x, int *y)
+{
+    RADEONInfoPtr info = RADEONPTR( pScrn );
+    CARD32 dstOffs = dst - info->FB + info->fbLocation;
+
+    *dstPitchOff = pitch << 16 | (dstOffs & ~RADEON_BUFFER_ALIGN) >> 10;
+    *y = ( dstOffs & RADEON_BUFFER_ALIGN ) / pitch;
+    *x = ( ( dstOffs & RADEON_BUFFER_ALIGN ) - ( *y * pitch ) ) / cpp;
+}
 
 /* Set up a hostdata blit to transfer data from system memory to the
  * framebuffer. Returns the address where the data can be written to and sets
@@ -612,16 +628,17 @@ void RADEONCPReleaseIndirect(ScrnInfoPtr pScrn)
 CARD8*
 RADEONHostDataBlit(
     ScrnInfoPtr pScrn,
-    unsigned int bpp,
+    unsigned int cpp,
     unsigned int w,
-    CARD32 dstPitch,
+    CARD32 dstPitchOff,
     CARD32 *bufPitch,
-    CARD8* *dst,
+    int x,
+    int *y,
     unsigned int *h,
     unsigned int *hpass
 ){
     RADEONInfoPtr info = RADEONPTR( pScrn );
-    CARD32 format, dst_offs, dwords, x, y;
+    CARD32 format, dwords;
     CARD8 *ret;
     RING_LOCALS;
 
@@ -630,7 +647,7 @@ RADEONHostDataBlit(
 	return NULL;
     }
 
-    switch ( bpp )
+    switch ( cpp )
     {
     case 4:
 	format = RADEON_GMC_DST_32BPP;
@@ -638,17 +655,15 @@ RADEONHostDataBlit(
 	break;
     case 2:
 	format = RADEON_GMC_DST_16BPP;
-	w = (w + 1) & ~1;
-	*bufPitch = 2 * w;
+	*bufPitch = 2 * ((w + 1) & ~1);
 	break;
     case 1:
 	format = RADEON_GMC_DST_8BPP_CI;
-	w = (w + 3) & ~3;
-	*bufPitch = w;
+	*bufPitch = (w + 3) & ~3;
 	break;
     default:
 	xf86DrvMsg( pScrn->scrnIndex, X_ERROR,
-		    "%s: Unsupported bpp %d!\n", __func__, bpp );
+		    "%s: Unsupported cpp %d!\n", __func__, cpp );
 	return NULL;
     }
 
@@ -658,10 +673,10 @@ RADEONHostDataBlit(
      */
     if (info->ChipFamily < CHIP_FAMILY_R300) {
         BEGIN_RING(2);
-	if (bpp == 2)
+	if (cpp == 2)
 	    OUT_RING_REG(RADEON_RBBM_GUICNTL,
 			 RADEON_HOST_DATA_SWAP_HDW);
-	else if (bpp == 1)
+	else if (cpp == 1)
 	    OUT_RING_REG(RADEON_RBBM_GUICNTL,
 			 RADEON_HOST_DATA_SWAP_32BIT);
 	else
@@ -674,16 +689,13 @@ RADEONHostDataBlit(
     /*RADEON_PURGE_CACHE();
       RADEON_WAIT_UNTIL_IDLE();*/
 
-    dst_offs = *dst - info->FB + info->fbLocation;
-    *hpass = min( *h, ( ( RADEON_BUFFER_SIZE - 8 * 4 ) / *bufPitch ) );
+    *hpass = min( *h, ( ( RADEON_BUFFER_SIZE - 10 * 4 ) / *bufPitch ) );
     dwords = *hpass * *bufPitch / 4;
 
-    y = ( dst_offs & 1023 ) / dstPitch;
-    x = ( ( dst_offs & 1023 ) - ( y * dstPitch ) ) / bpp;
-
-    BEGIN_RING( dwords + 8 );
-    OUT_RING( CP_PACKET3( RADEON_CP_PACKET3_CNTL_HOSTDATA_BLT, dwords + 8 - 2 ) );
+    BEGIN_RING( dwords + 10 );
+    OUT_RING( CP_PACKET3( RADEON_CP_PACKET3_CNTL_HOSTDATA_BLT, dwords + 10 - 2 ) );
     OUT_RING( RADEON_GMC_DST_PITCH_OFFSET_CNTL
+	    | RADEON_GMC_DST_CLIPPING
 	    | RADEON_GMC_BRUSH_NONE
 	    | format
 	    | RADEON_GMC_SRC_DATATYPE_COLOR
@@ -691,11 +703,13 @@ RADEONHostDataBlit(
 	    | RADEON_DP_SRC_SOURCE_HOST_DATA
 	    | RADEON_GMC_CLR_CMP_CNTL_DIS
 	    | RADEON_GMC_WR_MSK_DIS );
-    OUT_RING( dstPitch << 16 | dst_offs >> 10 );
+    OUT_RING( dstPitchOff );
+    OUT_RING( (*y << 16) | x );
+    OUT_RING( ((*y + *hpass) << 16) | (x + w) );
     OUT_RING( 0xffffffff );
     OUT_RING( 0xffffffff );
-    OUT_RING( y << 16 | x );
-    OUT_RING( *hpass << 16 | w );
+    OUT_RING( *y << 16 | x );
+    OUT_RING( *hpass << 16 | (*bufPitch / cpp) );
     OUT_RING( dwords );
 
     ret = ( CARD8* )&__head[__count];
@@ -703,7 +717,7 @@ RADEONHostDataBlit(
     __count += dwords;
     ADVANCE_RING();
 
-    *dst += *hpass * dstPitch;
+    *y += *hpass;
     *h -= *hpass;
 
     return ret;
@@ -763,7 +777,7 @@ void RADEONCopySwap(CARD8 *dst, CARD8 *src, unsigned int size, int swap)
 void
 RADEONHostDataBlitCopyPass(
     ScrnInfoPtr pScrn,
-    unsigned int bpp,
+    unsigned int cpp,
     CARD8 *dst,
     CARD8 *src,
     unsigned int hpass,
@@ -780,7 +794,7 @@ RADEONHostDataBlitCopyPass(
     {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
         if (info->ChipFamily >= CHIP_FAMILY_R300) {
-	    switch(bpp) {
+	    switch(cpp) {
 	    case 1:
 		RADEONCopySwap(dst, src, hpass * dstPitch,
 			       RADEON_HOST_DATA_SWAP_32BIT);
@@ -801,7 +815,7 @@ RADEONHostDataBlitCopyPass(
 	{
 #if X_BYTE_ORDER == X_BIG_ENDIAN
             if (info->ChipFamily >= CHIP_FAMILY_R300) {
-		switch(bpp) {
+		switch(cpp) {
 		case 1:
 		    RADEONCopySwap(dst, src, minPitch,
 				   RADEON_HOST_DATA_SWAP_32BIT);

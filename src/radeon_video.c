@@ -2048,7 +2048,8 @@ RADEONCopyData(
     if ( info->directRenderingEnabled && info->DMAForXv )
     {
 	CARD8 *buf;
-	CARD32 bufPitch;
+	CARD32 bufPitch, dstPitchOff;
+	int x, y;
 	unsigned int hpass;
 
 	/* Get the byte-swapping right for big endian systems */
@@ -2058,8 +2059,10 @@ RADEONCopyData(
 	    bpp = 1;
 	}
 
-	while ( buf = RADEONHostDataBlit( pScrn, bpp, w, dstPitch,
-					  &bufPitch, &dst, &h, &hpass ) )
+	RADEONHostDataParams( pScrn, dst, dstPitch, bpp, &dstPitchOff, &x, &y );
+
+	while ( (buf = RADEONHostDataBlit( pScrn, bpp, w, dstPitchOff, &bufPitch,
+					   x, &y, &h, &hpass )) )
 	{
 	    RADEONHostDataBlitCopyPass( pScrn, bpp, buf, src, hpass, bufPitch,
 					srcPitch );
@@ -2140,14 +2143,17 @@ RADEONCopyRGB24Data(
 
     if ( info->directRenderingEnabled && info->DMAForXv )
     {
-	CARD32 bufPitch;
+	CARD32 bufPitch, dstPitchOff;
+	int x, y;
 	unsigned int hpass;
 
 	/* XXX Fix endian flip on R300 */
 
-	while ( dptr = ( CARD32* )RADEONHostDataBlit( pScrn, 4, w, dstPitch,
-						      &bufPitch, &dst, &h,
-						      &hpass ) )
+	RADEONHostDataParams( pScrn, dst, dstPitch, 4, &dstPitchOff, &x, &y );
+
+	while ( (dptr = ( CARD32* )RADEONHostDataBlit( pScrn, 4, w, dstPitch,
+						       &bufPitch, x, &y, &h,
+						       &hpass )) )
 	{
 	    for( j = 0; j < hpass; j++ )
 	    {
@@ -2215,13 +2221,16 @@ RADEONCopyMungedData(
     if ( info->directRenderingEnabled && info->DMAForXv )
     {
 	CARD8 *buf;
-	CARD32 y = 0, bufPitch;
+	CARD32 y = 0, bufPitch, dstPitchOff;
+	int blitX, blitY;
 	unsigned int hpass;
 
 	/* XXX Fix endian flip on R300 */
 
-	while ( buf = RADEONHostDataBlit( pScrn, 4, w/2, dstPitch,
-					  &bufPitch, &dst1, &h, &hpass ) )
+	RADEONHostDataParams( pScrn, dst1, dstPitch, 4, &dstPitchOff, &blitX, &blitY );
+
+	while ( (buf = RADEONHostDataBlit( pScrn, 4, w/2, dstPitchOff, &bufPitch,
+					   blitX, &blitY, &h, &hpass )) )
 	{
 	    while ( hpass-- )
 	    {
