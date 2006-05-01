@@ -245,8 +245,6 @@ typedef struct _I830Rec {
    long FbMapSize;
    long TotalVideoRam;
    I830MemRange StolenMemory;		/* pre-allocated memory */
-   long BIOSMemorySize;			/* min stolen pool size */
-   int BIOSMemSizeLoc;
 
    /* These change according to what has been allocated. */
    long FreeMemory;
@@ -383,12 +381,6 @@ typedef struct _I830Rec {
    vbeInfoPtr pVbe;
    VbeInfoBlock *vbeInfo;
    VESAPtr vesa;
-
-   Bool overrideBIOSMemSize;
-   int saveBIOSMemSize;
-   int newBIOSMemSize;
-   Bool useSWF1;
-   int saveSWF1;
 
    Bool swfSaved;
    CARD32 saveSWF0;
