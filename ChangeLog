@@ -1,3 +1,13 @@
+2006-05-03  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
+
+	* src/radeon_bios.c: (RADEONGetTMDSInfoFromBIOS):
+	* src/radeon_driver.c:
+	Enable decoding of version 4 TMDS PLL config tables, they actually
+	work, the problem in the comment only concerned pre-production cards
+	that Hui tested apparently. Also set back the default value to what it
+	was initially, fixes some more cards that don't have a proper table
+	(Mac Mini for example)
+
 2006-05-01  Michel Dänzer  <michel@tungstengraphics.com>
 
 	Bugzilla #6755 <https://bugs.freedesktop.org/show_bug.cgi?id=6755>
