@@ -91,7 +91,8 @@ i830GetBIOS(ScrnInfoPtr pScrn)
 	return FALSE;
 
     if (pI830->pVbe != NULL) {
-	memcpy(pI830->VBIOS, (void *)(pI830->pVbe->pInt10->BIOSseg << 4),
+	memcpy(pI830->VBIOS, xf86int10Addr(pI830->pVbe->pInt10,
+					   pI830->pVbe->pInt10->BIOSseg << 4),
 	       INTEL_VBIOS_SIZE);
     } else {
 	xf86ReadPciBIOS(0, pI830->PciTag, 0, pI830->VBIOS, INTEL_VBIOS_SIZE);
