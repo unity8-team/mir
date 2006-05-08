@@ -1,3 +1,11 @@
+2006-05-08  Michel Dänzer  <michel@tungstengraphics.com>
+
+	Bugzilla #4640 <https://bugs.freedesktop.org/show_bug.cgi?id=4640>
+	Patch #5273 <https://bugs.freedesktop.org/attachment.cgi?id=5273>:
+	* src/radeon_video.c: (RADEONQueryImageAttributes):
+	Add cases for FOURCC_RGBA32 and FOURCC_RGB24. This prevents clients from
+	receiving incorrect data sizes with these formats. (Jan Schmidt)
+
 2006-05-03  Benjamin Herrenschmidt  <benh@kernel.crashing.org>
 
 	* src/radeon_bios.c: (RADEONGetTMDSInfoFromBIOS):
