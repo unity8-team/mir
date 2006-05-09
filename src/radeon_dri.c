@@ -1094,24 +1094,18 @@ static void RADEONDRIGartHeapInit(RADEONInfoPtr info, ScreenPtr pScreen)
     drmRadeonMemInitHeap drmHeap;
 
     /* Start up the simple memory manager for GART space */
-    if (info->pKernelDRMVersion->version_minor >= 6) {
-	drmHeap.region = RADEON_MEM_REGION_GART;
-	drmHeap.start  = 0;
-	drmHeap.size   = info->gartTexMapSize;
+    drmHeap.region = RADEON_MEM_REGION_GART;
+    drmHeap.start  = 0;
+    drmHeap.size   = info->gartTexMapSize;
 
-	if (drmCommandWrite(info->drmFD, DRM_RADEON_INIT_HEAP,
-			    &drmHeap, sizeof(drmHeap))) {
-	    xf86DrvMsg(pScreen->myNum, X_ERROR,
-		       "[drm] Failed to initialize GART heap manager\n");
-	} else {
-	    xf86DrvMsg(pScreen->myNum, X_INFO,
-		       "[drm] Initialized kernel GART heap manager, %d\n",
-		       info->gartTexMapSize);
-	}
+    if (drmCommandWrite(info->drmFD, DRM_RADEON_INIT_HEAP,
+			&drmHeap, sizeof(drmHeap))) {
+	xf86DrvMsg(pScreen->myNum, X_ERROR,
+		   "[drm] Failed to initialize GART heap manager\n");
     } else {
 	xf86DrvMsg(pScreen->myNum, X_INFO,
-		   "[drm] Kernel module too old (1.%d) for GART heap manager\n",
-		   info->pKernelDRMVersion->version_minor);
+		   "[drm] Initialized kernel GART heap manager, %d\n",
+		   info->gartTexMapSize);
     }
 }
 
@@ -1296,11 +1290,8 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
     } else if (info->IsIGP) {
         req_minor = 10;
 	req_patch = 0;
-    } else if (info->ChipFamily >= CHIP_FAMILY_R200) {
-	req_minor = 5;
-	req_patch = 0;
-    } else {
-	req_minor = 3;
+    } else { /* Many problems have been reported with 1.7 in the 2.4 kernel */
+	req_minor = 8;
 	req_patch = 0;
     }
 

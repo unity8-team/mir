@@ -1,3 +1,10 @@
+2006-05-09  Michel Dänzer  <michel@tungstengraphics.com>
+
+	* src/radeon_dri.c: (RADEONDRIGartHeapInit), (RADEONDRIGetVersion):
+	Drop support for radeon DRM <= 1.7. The 2.4 kernel has version 1.7, and
+	various problems up to system hangs on X server startup have been
+	reported with that and DRI enabled.
+
 2006-05-08  Michel Dänzer  <michel@tungstengraphics.com>
 
 	Bugzilla #4640 <https://bugs.freedesktop.org/show_bug.cgi?id=4640>
