@@ -387,12 +387,6 @@ For example, Option "MetaModes" "1024x768-1024x768 800x600-1024x768 640x480-800x
 The default value is
 .B undefined.
 .TP
-.BI "Option \*qOverlayOnCRTC2\*q \*q" boolean \*q
-Force hardware overlay to clone head.
-.br
-The default value is
-.B off.
-.TP
 .BI "Option \*qMergedXinerama\*q \*q" boolean \*q
 Since merged framebuffer mode does not use Xinerama, apps are not able to intelligently
 place windows.  Merged framebuffer mode provides its own pseudo-Xinerama.  This allows
