@@ -6090,7 +6090,7 @@ I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen)
    }
 
    if (I830IsPrimary(pScrn)) {
-      I830GARTCloseScreen(scrnIndex);
+      xf86GARTCloseScreen(scrnIndex);
 
       xfree(pI830->LpRing);
       pI830->LpRing = NULL;

@@ -210,15 +210,15 @@ AllocFromAGP(ScrnInfoPtr pScrn, I830MemRange *result, long size,
 	 return 0;
 
       if (flags & NEED_PHYSICAL_ADDR) {
-	 result->Key = I830AllocateGARTMemory(pScrn->scrnIndex, size, 2,
+	 result->Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 2,
 					      &(result->Physical));
       } else {
          /* Due to a bug in agpgart in 2.6 kernels resulting in very poor
 	  * allocation performance we need to workaround it here...
 	  */
-	 result->Key = I830AllocateGARTMemory(pScrn->scrnIndex, size, 3, NULL);
+	 result->Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 3, NULL);
          if (result->Key == -1)
-	    result->Key = I830AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
+	    result->Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
       }
       if (result->Key == -1)
 	 return 0;
@@ -248,7 +248,7 @@ I830FreeVidMem(ScrnInfoPtr pScrn, I830MemRange *range)
       return;
 
    if (range->Key != -1)
-      I830DeallocateGARTMemory(pScrn->scrnIndex, range->Key);
+      xf86DeallocateGARTMemory(pScrn->scrnIndex, range->Key);
 
    if (range->Pool) {
       /* 
@@ -635,7 +635,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 	   BOOLTOSTRING(flags & ALLOC_INITIAL));
 
    if (!pI830->StolenOnly &&
-       (!I830AgpGARTSupported() || !I830AcquireGART(pScrn->scrnIndex))) {
+       (!xf86AgpGARTSupported() || !xf86AcquireGART(pScrn->scrnIndex))) {
       if (!dryrun) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "AGP GART support is either not available or cannot "
@@ -977,9 +977,9 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
        * allocation performance we need to workaround it here...
        */
       pI830->Dummy.Key = 
-           I830AllocateGARTMemory(pScrn->scrnIndex, size, 3, NULL);
+           xf86AllocateGARTMemory(pScrn->scrnIndex, size, 3, NULL);
       if (pI830->Dummy.Key == -1)
-         pI830->Dummy.Key = I830AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
+         pI830->Dummy.Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
       pI830->Dummy.Offset = 0;
    }
 #endif
@@ -1403,10 +1403,10 @@ I830DoPoolAllocation(ScrnInfoPtr pScrn, I830MemPool *pool)
        * allocation performance we need to workaround it here...
        */
       pool->Allocated.Key = 
-           I830AllocateGARTMemory(pScrn->scrnIndex, pool->Allocated.Size,
+           xf86AllocateGARTMemory(pScrn->scrnIndex, pool->Allocated.Size,
 				   3, NULL);
       if (pool->Allocated.Key == -1)
-         pool->Allocated.Key = I830AllocateGARTMemory(pScrn->scrnIndex, 
+         pool->Allocated.Key = xf86AllocateGARTMemory(pScrn->scrnIndex, 
 				   pool->Allocated.Size, 0, NULL);
       if (pool->Allocated.Key == -1) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Pool allocation failed\n");
@@ -1865,7 +1865,7 @@ BindMemRange(ScrnInfoPtr pScrn, I830MemRange *mem)
    if (mem->Key == -1)
       return TRUE;
 
-   return I830BindGARTMemory(pScrn->scrnIndex, mem->Key, mem->Offset);
+   return xf86BindGARTMemory(pScrn->scrnIndex, mem->Key, mem->Offset);
 }
 
 Bool
@@ -1880,8 +1880,8 @@ I830BindAGPMemory(ScrnInfoPtr pScrn)
    if (pI830->StolenOnly == TRUE)
       return TRUE;
 
-   if (I830AgpGARTSupported() && !pI830->GttBound) {
-      if (!I830AcquireGART(pScrn->scrnIndex))
+   if (xf86AgpGARTSupported() && !pI830->GttBound) {
+      if (!xf86AcquireGART(pScrn->scrnIndex))
 	 return FALSE;
 
 #if REMAP_RESERVED
@@ -1950,7 +1950,7 @@ UnbindMemRange(ScrnInfoPtr pScrn, I830MemRange *mem)
    if (mem->Key == -1)
       return TRUE;
 
-   return I830UnbindGARTMemory(pScrn->scrnIndex, mem->Key);
+   return xf86UnbindGARTMemory(pScrn->scrnIndex, mem->Key);
 }
 
 
@@ -1966,7 +1966,7 @@ I830UnbindAGPMemory(ScrnInfoPtr pScrn)
    if (pI830->StolenOnly == TRUE)
       return TRUE;
 
-   if (I830AgpGARTSupported() && pI830->GttBound) {
+   if (xf86AgpGARTSupported() && pI830->GttBound) {
 
 #if REMAP_RESERVED
       /* "unbind" the pre-allocated region. */
@@ -2019,7 +2019,7 @@ I830UnbindAGPMemory(ScrnInfoPtr pScrn)
 	    return FALSE;
       }
 #endif
-      if (!I830ReleaseGART(pScrn->scrnIndex))
+      if (!xf86ReleaseGART(pScrn->scrnIndex))
 	 return FALSE;
 
       pI830->GttBound = 0;
@@ -2034,10 +2034,10 @@ I830CheckAvailableMemory(ScrnInfoPtr pScrn)
    AgpInfoPtr agpinf;
    int maxPages;
 
-   if (!I830AgpGARTSupported() ||
-       !I830AcquireGART(pScrn->scrnIndex) ||
-       (agpinf = I830GetAGPInfo(pScrn->scrnIndex)) == NULL ||
-       !I830ReleaseGART(pScrn->scrnIndex))
+   if (!xf86AgpGARTSupported() ||
+       !xf86AcquireGART(pScrn->scrnIndex) ||
+       (agpinf = xf86GetAGPInfo(pScrn->scrnIndex)) == NULL ||
+       !xf86ReleaseGART(pScrn->scrnIndex))
       return -1;
 
    maxPages = agpinf->totalPages - agpinf->usedPages;
