@@ -150,6 +150,12 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
  *    09/2005 Alan Hourihane
  *        - Add Intel(R) 945GM support.
  *
+ *    10/2005 Alan Hourihane, Keith Whitwell, Brian Paul
+ *        - Added Rotation support
+ *
+ *    12/2005 Alan Hourihane
+ *        - Add Intel(R) Broadwater support.
+ *
  */
 
 #ifdef HAVE_CONFIG_H
