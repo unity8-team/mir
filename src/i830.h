@@ -194,6 +194,7 @@ typedef struct _I830SDVODriver {
    unsigned char sdvo_regs[20];
    CARD32 output_device;		/* SDVOB or SDVOC */
 
+   i830_sdvo_caps caps;
    int save_sdvo_mult;
    Bool save_sdvo_active_1, save_sdvo_active_2;
    i830_sdvo_dtd save_input_dtd_1, save_input_dtd_2;

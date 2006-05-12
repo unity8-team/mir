@@ -25,6 +25,17 @@
  *
  */
 
+typedef struct _i830_sdvo_caps {
+  CARD8 vendor_id;
+  CARD8 device_id;
+  CARD8 device_rev_id;
+  CARD8 sdvo_version_major;
+  CARD8 sdvo_version_minor;
+  CARD8 caps;
+  CARD8 output_0_supported;
+  CARD8 output_1_supported;
+} __attribute__((packed)) i830_sdvo_caps;
+
 typedef struct _i830_sdvo_dtd {
     CARD16 clock;
     CARD8 h_active;
