@@ -133,6 +133,7 @@ void
 I830Sync(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+   int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
    if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
       ErrorF("I830Sync\n");
@@ -147,13 +148,17 @@ I830Sync(ScrnInfoPtr pScrn)
 
    if (pI830->entityPrivate && !pI830->entityPrivate->RingRunning) return;
 
+   if (IS_BROADWATER(pI830))
+      flags = 0;
+
    /* Send a flush instruction and then wait till the ring is empty.
     * This is stronger than waiting for the blitter to finish as it also
     * flushes the internal graphics caches.
     */
+   
    {
       BEGIN_LP_RING(2);
-      OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
+      OUT_RING(MI_FLUSH | flags);
       OUT_RING(MI_NOOP);		/* pad to quadword */
       ADVANCE_LP_RING();
    }
@@ -168,9 +173,13 @@ void
 I830EmitFlush(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+   int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
+
+   if (IS_BROADWATER(pI830))
+      flags = 0;
 
    BEGIN_LP_RING(2);
-   OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
+   OUT_RING(MI_FLUSH | flags);
    OUT_RING(MI_NOOP);		/* pad to quadword */
    ADVANCE_LP_RING();
 }
@@ -439,6 +448,9 @@ I830SubsequentSolidFillRect(ScrnInfoPtr pScrn, int x, int y, int w, int h)
 
       ADVANCE_LP_RING();
    }
+
+   if (IS_BROADWATER(pI830))
+      I830EmitFlush(pScrn);
 }
 
 void
@@ -500,6 +512,9 @@ I830SubsequentScreenToScreenCopy(ScrnInfoPtr pScrn, int src_x1, int src_y1,
 
       ADVANCE_LP_RING();
    }
+
+   if (IS_BROADWATER(pI830))
+      I830EmitFlush(pScrn);
 }
 
 static void
@@ -574,6 +589,9 @@ I830SubsequentMono8x8PatternFillRect(ScrnInfoPtr pScrn, int pattx, int patty,
       OUT_RING(0);
       ADVANCE_LP_RING();
    }
+
+   if (IS_BROADWATER(pI830))
+      I830EmitFlush(pScrn);
 }
 
 static void
@@ -690,6 +708,9 @@ I830SubsequentColorExpandScanline(ScrnInfoPtr pScrn, int bufno)
     */
    pI830->BR[9] += pScrn->displayWidth * pI830->cpp;
    I830GetNextScanlineColorExpandBuffer(pScrn);
+
+   if (IS_BROADWATER(pI830))
+      I830EmitFlush(pScrn);
 }
 
 #if DO_SCANLINE_IMAGE_WRITE

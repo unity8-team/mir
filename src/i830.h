@@ -141,7 +141,7 @@ typedef struct {
 } I830RingBuffer;
 
 typedef struct {
-   unsigned int Fence[8];
+   unsigned int Fence[FENCE_NEW_NR * 2]; /* Broadwater has more fence regs */
 } I830RegRec, *I830RegPtr;
 
 typedef struct {
@@ -220,7 +220,6 @@ typedef struct _I830Rec {
 #endif
    unsigned int LinearAlloc;
   
-   XF86ModReqInfo shadowReq; /* to test for later libshadow */
    I830MemRange RotatedMem;
    I830MemRange RotatedMem2;
    Rotation rotation;
@@ -238,6 +237,12 @@ typedef struct _I830Rec {
    I830MemRange ContextMem;
    int drmMinor;
    Bool have3DWindows;
+
+   unsigned int front_tiled;
+   unsigned int back_tiled;
+   unsigned int depth_tiled;
+   unsigned int rotated_tiled;
+   unsigned int rotated2_tiled;
 #endif
 
    Bool NeedRingBufferLow;
@@ -377,6 +382,9 @@ typedef struct _I830Rec {
    Bool devicePresence;
 
    OsTimerPtr devicesTimer;
+
+   CARD32 savedAsurf;
+   CARD32 savedBsurf;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -448,8 +456,10 @@ extern long I830GetExcessMemoryAllocations(ScrnInfoPtr pScrn);
 extern Bool I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags);
 extern Bool I830DoPoolAllocation(ScrnInfoPtr pScrn, I830MemPool *pool);
 extern Bool I830FixupOffsets(ScrnInfoPtr pScrn);
-extern Bool I830BindGARTMemory(ScrnInfoPtr pScrn);
-extern Bool I830UnbindGARTMemory(ScrnInfoPtr pScrn);
+extern Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
+extern Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
+extern Bool I830BindGARTMemory(int screenNum, int key, unsigned long offset);
+extern Bool I830UnbindGARTMemory(int screenNum, int key);
 extern unsigned long I830AllocVidMem(ScrnInfoPtr pScrn, I830MemRange *result,
 				     I830MemPool *pool, long size,
 				     unsigned long alignment, int flags);
@@ -470,6 +480,19 @@ extern int I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh);
 extern Bool I830CheckModeSupport(ScrnInfoPtr pScrn, int x, int y, int mode);
 extern Bool I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode);
 extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
+
+/* AGP */
+extern Bool I830AgpGARTSupported(void);
+extern AgpInfoPtr I830GetAGPInfo(int screenNum);
+extern Bool I830AcquireGART(int screenNum);
+extern Bool I830ReleaseGART(int screenNum);
+extern int I830AllocateGARTMemory(int screenNum, unsigned long size, int type,
+				  unsigned long *physical);
+extern Bool I830DeallocateGARTMemory(int screenNum, int key);
+extern Bool I830BindGARTMemory(int screenNum, int key, unsigned long offset);
+extern Bool I830UnbindGARTMemory(int screenNum, int key);
+extern Bool I830EnableAGP(int screenNum, CARD32 mode);
+extern Bool I830GARTCloseScreen(int screenNum);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for

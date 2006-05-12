@@ -293,16 +293,78 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define STATE_VAR_UPDATE_DISABLE     0x02
 #define PAL_STIP_DISABLE             0x01
 
-#define INST_DONE                0x2090
-#define INST_PS                  0x20c4
 
 #define MEMMODE                  0x20dc
 
 
 /* Instruction parser error register.  p279
  */
+#if 0
 #define IPEIR                  0x2088
 #define IPEHR                  0x208C
+#define INST_DONE                0x2090
+#define INST_PS                  0x20c4
+#else
+#define IPEIR                  0x2064 /* brw */
+#define IPEHR                  0x2068 /* brw */
+#define INST_DONE              0x206c
+#define INST_PS                0x2070
+#define ACTHD                 0x2074
+#define DMA_FADD_P             0x2078
+#define INST_DONE_1              0x207c
+
+#define CACHE_MODE_0           0x2120
+#define CACHE_MODE_1           0x2124
+#define MI_ARB_STATE           0x20e4
+
+#define WIZ_CTL                0x7c00
+#define WIZ_CTL_SINGLE_SUBSPAN  (1<<6)
+#define WIZ_CTL_IGNORE_STALLS  (1<<5)
+
+#define SVG_WORK_CTL           0x7408
+
+#define TS_CTL                 0x7e00
+#define TS_MUX_ERR_CODE        (0<<8)
+#define TS_MUX_URB_0           (1<<8)
+#define TS_MUX_DISPATCH_ID_0   (10<<8)
+#define TS_MUX_ERR_CODE_VALID  (15<<8)
+#define TS_MUX_TID_0           (16<<8)
+#define TS_MUX_EUID_0          (18<<8)
+#define TS_MUX_FFID_0          (22<<8)
+#define TS_MUX_EOT             (26<<8)
+#define TS_MUX_SIDEBAND_0      (27<<8)
+#define TS_SNAP_ALL_CHILD      (1<<2)
+#define TS_SNAP_ALL_ROOT       (1<<1)
+#define TS_SNAP_ENABLE         (1<<0)
+
+#define TS_DEBUG_DATA          0x7e0c
+
+#define TD_CTL                 0x8000
+#define TD_CTL2                0x8004
+
+
+#define ECOSKPD 0x21d0
+#define EXCC    0x2028
+
+#endif
+
+/* Broadwater debug regs:
+ */
+#define IA_VERTICES_COUNT_QW   0x2310
+#define IA_PRIMITIVES_COUNT_QW 0x2318
+#define VS_INVOCATION_COUNT_QW 0x2320
+#define GS_INVOCATION_COUNT_QW 0x2328
+#define GS_PRIMITIVES_COUNT_QW 0x2330
+#define CL_INVOCATION_COUNT_QW 0x2338
+#define CL_PRIMITIVES_COUNT_QW 0x2340
+#define PS_INVOCATION_COUNT_QW 0x2348
+#define PS_DEPTH_COUNT_QW      0x2350
+#define TIMESTAMP_QW           0x2358
+#define CLKCMP_QW              0x2360
+
+
+
+
 
 
 /* General error reporting regs, p296
@@ -365,6 +427,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #define FENCE            0x2000
 #define FENCE_NR         8
+
+#define FENCE_NEW        0x3000
+#define FENCE_NEW_NR     16
+
+#define FENCE_LINEAR     0
+#define FENCE_XMAJOR	 1
+#define FENCE_YMAJOR  	 2
 
 #define I915G_FENCE_START_MASK	0x0ff00000
 
@@ -771,6 +840,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DSPASIZE		0x70190
 #define DSPBPOS			0x7118C
 #define DSPBSIZE		0x71190
+
+#define DSPASURF		0x7019C
+#define DSPATILEOFF		0x701A4
+
+#define DSPBSURF		0x7119C
+#define DSPBTILEOFF		0x711A4
 
 /* Various masks for reserved bits, etc. */
 #define I830_FWATER1_MASK        (~((1<<11)|(1<<10)|(1<<9)|      \

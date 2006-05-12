@@ -140,6 +140,7 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_I915_GM,		"915GM"},
    {PCI_CHIP_I945_G,		"945G"},
    {PCI_CHIP_I945_GM,		"945GM"},
+   {PCI_CHIP_BROADWATER,	"Broadwater"},
    {-1,				NULL}
 };
 
@@ -159,6 +160,7 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	RES_SHARED_VGA},
    {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	RES_SHARED_VGA},
    {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	RES_SHARED_VGA},
+   {PCI_CHIP_BROADWATER,	PCI_CHIP_BROADWATER,	RES_SHARED_VGA},
    {-1,				-1, RES_UNDEFINED }
 };
 
@@ -324,16 +326,24 @@ const char *I810driSymbols[] = {
    "DRICreatePCIBusID",
    NULL
 };
-#endif 
+
+#ifdef XF86DRI
+
+const char *I810shadowFBSymbols[] = {
+    "ShadowFBInit",
+    NULL
+};
 
 const char *I810shadowSymbols[] = {
     "shadowInit",
     "shadowSetup",
     "shadowAdd",
-    "shadowRemove",
-    "shadowUpdateRotatePacked",
     NULL
 };
+
+#endif
+
+#endif /* I830_ONLY */
 
 #ifndef I810_DEBUG
 int I810_DEBUG = (0
@@ -578,6 +588,7 @@ I810Probe(DriverPtr drv, int flags)
 	    case PCI_CHIP_I915_GM:
 	    case PCI_CHIP_I945_G:
 	    case PCI_CHIP_I945_GM:
+	    case PCI_CHIP_BROADWATER:
     	       xf86SetEntitySharable(usedChips[i]);
 
     	       /* Allocate an entity private if necessary */		

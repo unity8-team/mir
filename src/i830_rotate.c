@@ -680,13 +680,10 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	 0
    };
 
-   if (pI830->noAccel)
-	   func = LoaderSymbol("shadowUpdateRotatePacked");
+   if (IS_I9XX(pI830))
+      func = I915UpdateRotate;
    else
-	   if (IS_I9XX(pI830))
-		   func = I915UpdateRotate;
-	   else
-		   func = I830UpdateRotate;
+      func = I830UpdateRotate;
 
    if (I830IsPrimary(pScrn)) {
       pI8301 = pI830;
@@ -702,7 +699,13 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
       pScrn2 = pScrn;
    }
 
-   pI830->rotation = I830GetRotation(pScrn->pScreen);
+   if (xf86LoaderCheckSymbol("I830GetRotation")) {
+      Rotation (*I830GetRotation)(ScreenPtr pScreen) = NULL;
+      I830GetRotation = LoaderSymbol("I830GetRotation");
+      if (I830GetRotation) {
+         pI830->rotation = (*I830GetRotation)(pScrn->pScreen);
+      }
+   }   
 
    /* Check if we've still got the same orientation, or same mode */
    if (pI830->rotation == oldRotation && pI830->currentMode == mode)
@@ -716,6 +719,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
     * We grab the DRI lock when reallocating buffers to avoid DRI clients
     * getting bogus information.
     */
+
 #ifdef XF86DRI
    if (pI8301->directRenderingEnabled && reAllocate) {
       didLock = I830DRILock(pScrn1);
@@ -734,18 +738,19 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	 }
       }
       
+      
       if (pI8301->TexMem.Key != -1)
-         xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key);
+         I830UnbindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key);
       I830FreeVidMem(pScrn1, &(pI8301->TexMem));
       if (pI8301->StolenPool.Allocated.Key != -1) {
-         xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key);
-         xf86DeallocateGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key);
+         I830UnbindGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key);
+         I830DeallocateGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key);
       }
       if (pI8301->DepthBuffer.Key != -1)
-         xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->DepthBuffer.Key);
+         I830UnbindGARTMemory(pScrn1->scrnIndex, pI8301->DepthBuffer.Key);
       I830FreeVidMem(pScrn1, &(pI8301->DepthBuffer));
       if (pI8301->BackBuffer.Key != -1)
-         xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->BackBuffer.Key);
+         I830UnbindGARTMemory(pScrn1->scrnIndex, pI8301->BackBuffer.Key);
       I830FreeVidMem(pScrn1, &(pI8301->BackBuffer));
    }
 #endif
@@ -754,7 +759,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
       *pI830->used3D |= 1<<31; /* use high bit to denote new rotation occured */
 
       if (pI8301->RotatedMem.Key != -1)
-         xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem.Key);
+         I830UnbindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem.Key);
  
       I830FreeVidMem(pScrn1, &(pI8301->RotatedMem));
       memset(&(pI8301->RotatedMem), 0, sizeof(pI8301->RotatedMem));
@@ -762,7 +767,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
       if (pI830->entityPrivate) {
          if (pI8301->RotatedMem2.Key != -1)
-            xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem2.Key);
+            I830UnbindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem2.Key);
  
          I830FreeVidMem(pScrn1, &(pI8301->RotatedMem2));
          memset(&(pI8301->RotatedMem2), 0, sizeof(pI8301->RotatedMem2));
@@ -830,26 +835,27 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
             I830FixOffset(pScrn1, &(pI8301->RotatedMem2));
             if (pI8301->RotatedMem2.Key != -1)
-               xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem2.Key, pI8301->RotatedMem2.Offset);
+               I830BindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem2.Key, pI8301->RotatedMem2.Offset);
          }
       }
 
       if (pI8301->rotation != RR_Rotate_0) {
          if (!I830AllocateRotatedBuffer(pScrn1, 
-			      (pI8301->disableTiling ? ALLOC_NO_TILING : 0)))
+			      pI8301->disableTiling ? ALLOC_NO_TILING : 0))
             goto BAIL1;
 
          I830FixOffset(pScrn1, &(pI8301->RotatedMem));
          if (pI8301->RotatedMem.Key != -1)
-            xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem.Key, pI8301->RotatedMem.Offset);
+            I830BindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem.Key, pI8301->RotatedMem.Offset);
       }
    }
    
-   shadowRemove (pScrn->pScreen, NULL);
+   I830shadowUnset (pScrn->pScreen);
    if (pI830->rotation != RR_Rotate_0)
-      shadowAdd (pScrn->pScreen, 
+      I830shadowSet (pScrn->pScreen, 
                     (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen), 
-                    func, I830WindowLinear, pI830->rotation, 0);
+		    pI830->noAccel ? I830shadowUpdateRotatePacked : func, 
+                    I830WindowLinear, pI830->rotation, 0);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)
@@ -896,13 +902,13 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
       I830FixOffset(pScrn1, &(pI8301->DepthBuffer));
 
       if (pI8301->BackBuffer.Key != -1)
-         xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->BackBuffer.Key, pI8301->BackBuffer.Offset);
+         I830BindGARTMemory(pScrn1->scrnIndex, pI8301->BackBuffer.Key, pI8301->BackBuffer.Offset);
       if (pI8301->DepthBuffer.Key != -1)
-         xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->DepthBuffer.Key, pI8301->DepthBuffer.Offset);
+         I830BindGARTMemory(pScrn1->scrnIndex, pI8301->DepthBuffer.Key, pI8301->DepthBuffer.Offset);
       if (pI8301->StolenPool.Allocated.Key != -1)
-         xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key, pI8301->StolenPool.Allocated.Offset);
+         I830BindGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key, pI8301->StolenPool.Allocated.Offset);
       if (pI8301->TexMem.Key != -1)
-         xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key, pI8301->TexMem.Offset);
+         I830BindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key, pI8301->TexMem.Offset);
       I830SetupMemoryTiling(pScrn1);
       /* update fence registers */
       for (i = 0; i < 8; i++) 
@@ -990,7 +996,7 @@ BAIL3:
 BAIL2:
    if (pI8301->rotation != RR_Rotate_0) {
       if (pI8301->RotatedMem.Key != -1)
-         xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem.Key);
+         I830UnbindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem.Key);
   
       I830FreeVidMem(pScrn1, &(pI8301->RotatedMem));
       memset(&(pI8301->RotatedMem), 0, sizeof(pI8301->RotatedMem));
@@ -1000,7 +1006,7 @@ BAIL1:
    if (pI830->entityPrivate) {
       if (pI8302->rotation != RR_Rotate_0) {
          if (pI8301->RotatedMem.Key != -1)
-            xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem.Key);
+            I830UnbindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem.Key);
 
          I830FreeVidMem(pScrn1, &(pI8301->RotatedMem));
          memset(&(pI8301->RotatedMem), 0, sizeof(pI8301->RotatedMem));
@@ -1039,26 +1045,27 @@ BAIL0:
 
          I830FixOffset(pScrn1, &(pI8301->RotatedMem2));
          if (pI8301->RotatedMem2.Key != -1)
-            xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem2.Key, pI8301->RotatedMem2.Offset);
+            I830BindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem2.Key, pI8301->RotatedMem2.Offset);
       }
    }
 
    if (pI8301->rotation != RR_Rotate_0) {
       if (!I830AllocateRotatedBuffer(pScrn1, 
-			      (pI8301->disableTiling ? ALLOC_NO_TILING : 0)))
+			      pI8301->disableTiling ? ALLOC_NO_TILING : 0))
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 		    "Oh dear, the rotated buffer failed - badness\n");
 
       I830FixOffset(pScrn1, &(pI8301->RotatedMem));
       if (pI8301->RotatedMem.Key != -1)
-         xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem.Key, pI8301->RotatedMem.Offset);
+         I830BindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem.Key, pI8301->RotatedMem.Offset);
    }
 
-   shadowRemove (pScrn->pScreen, NULL);
+   I830shadowUnset (pScrn->pScreen);
    if (pI830->rotation != RR_Rotate_0)
-      shadowAdd (pScrn->pScreen, 
+      I830shadowSet (pScrn->pScreen, 
                     (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen), 
-                    func, I830WindowLinear, pI830->rotation, 0);
+		    pI830->noAccel ? I830shadowUpdateRotatePacked : func, 
+                    I830WindowLinear, pI830->rotation, 0);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)
@@ -1130,13 +1137,13 @@ BAIL0:
       I830FixOffset(pScrn1, &(pI8301->DepthBuffer));
 
       if (pI8301->BackBuffer.Key != -1)
-         xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->BackBuffer.Key, pI8301->BackBuffer.Offset);
+         I830BindGARTMemory(pScrn1->scrnIndex, pI8301->BackBuffer.Key, pI8301->BackBuffer.Offset);
       if (pI8301->DepthBuffer.Key != -1)
-         xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->DepthBuffer.Key, pI8301->DepthBuffer.Offset);
+         I830BindGARTMemory(pScrn1->scrnIndex, pI8301->DepthBuffer.Key, pI8301->DepthBuffer.Offset);
       if (pI8301->StolenPool.Allocated.Key != -1)
-         xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key, pI8301->StolenPool.Allocated.Offset);
+         I830BindGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key, pI8301->StolenPool.Allocated.Offset);
       if (pI8301->TexMem.Key != -1)
-         xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key, pI8301->TexMem.Offset);
+         I830BindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key, pI8301->TexMem.Offset);
       I830SetupMemoryTiling(pScrn1);
       /* update fence registers */
       for (i = 0; i < 8; i++) 

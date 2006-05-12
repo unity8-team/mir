@@ -185,6 +185,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "shadow.h"
 #include "i830.h"
 
+#ifdef HAS_MTRR_SUPPORT
+#include <asm/mtrr.h>
+#endif
+
 #ifdef XF86DRI
 #include "dri.h"
 #endif
@@ -204,6 +208,7 @@ static SymTabRec I830BIOSChipsets[] = {
    {PCI_CHIP_I915_GM,		"915GM"},
    {PCI_CHIP_I945_G,		"945G"},
    {PCI_CHIP_I945_GM,		"945GM"},
+   {PCI_CHIP_BROADWATER,	"Broadwater"},
    {-1,				NULL}
 };
 
@@ -217,6 +222,7 @@ static PciChipsets I830BIOSPciChipsets[] = {
    {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	RES_SHARED_VGA},
    {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	RES_SHARED_VGA},
    {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	RES_SHARED_VGA},
+   {PCI_CHIP_BROADWATER,	PCI_CHIP_BROADWATER,	RES_SHARED_VGA},
    {-1,				-1,			RES_UNDEFINED}
 };
 
@@ -272,7 +278,7 @@ static OptionInfoRec I830BIOSOptions[] = {
 
 static void I830DisplayPowerManagementSet(ScrnInfoPtr pScrn,
 					  int PowerManagementMode, int flags);
-static void I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags);
+static void I830AdjustFrame(int scrnIndex, int x, int y, int flags);
 static Bool I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool I830BIOSSaveScreen(ScreenPtr pScreen, int unblack);
 static Bool I830BIOSEnterVT(int scrnIndex, int flags);
@@ -471,7 +477,7 @@ GetNextDisplayDeviceList(ScrnInfoPtr pScrn, int toggle)
       CARD32 VODA = (CARD32)((CARD32*)pVbe->memory)[i];
 
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Next ACPI _DGS [%d] 0x%lx\n",
-		 i, (unsigned long) VODA);
+		i, VODA);
 
       /* Check if it's a custom Video Output Device Attribute */
       if (!(VODA & 0x80000000)) 
@@ -528,8 +534,7 @@ GetAttachableDisplayDeviceList(ScrnInfoPtr pScrn)
 
    for (i=0; i<(pVbe->pInt10->cx & 0xff); i++)
         xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		"Attachable device 0x%lx.\n", 
-		   (unsigned long) ((CARD32*)pVbe->memory)[i]);
+		"Attachable device 0x%lx.\n", ((CARD32*)pVbe->memory)[i]);
 
    return pVbe->pInt10->cx & 0xffff;
 }
@@ -1423,8 +1428,11 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
 
    /* We need to reduce the stolen size, by the GTT and the popup.
-    * The GTT varying according the the FbMapSize and the popup is 4KB */
-   range = (pI830->FbMapSize / (1024*1024)) + 4;
+    * The GTT varying according the the FbMapSize and the popup is 4KB. */
+   if (IS_BROADWATER(pI830))
+      range = 512 + 4; /* Fixed 512KB size for Broadwater */
+   else
+      range = (pI830->FbMapSize / MB(1)) + 4;
 
    if (IS_I85X(pI830) || IS_I865G(pI830) || IS_I9XX(pI830)) {
       switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
@@ -1470,6 +1478,12 @@ I830DetectMemory(ScrnInfoPtr pScrn)
 	 break;
       }
    }
+
+#if 0
+   /* And 64KB page aligned */
+   memsize &= ~0xFFFF;
+#endif
+
    if (memsize > 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		 "detected %d kB stolen memory.\n", memsize / 1024);
@@ -1841,7 +1855,7 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    unsigned char r, g, b;
    CARD32 val, temp;
    int palreg;
-   int dspreg, dspbase;
+   int dspreg, dspbase, dspsurf;
 
    DPRINTF(PFX, "I830LoadPalette: numColors: %d\n", numColors);
    pI830 = I830PTR(pScrn);
@@ -1850,10 +1864,12 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
       palreg = PALETTE_A;
       dspreg = DSPACNTR;
       dspbase = DSPABASE;
+      dspsurf = DSPASURF;
    } else {
       palreg = PALETTE_B;
       dspreg = DSPBCNTR;
       dspbase = DSPBBASE;
+      dspsurf = DSPBSURF;
    }
 
    /* To ensure gamma is enabled we need to turn off and on the plane */
@@ -1862,6 +1878,8 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    OUTREG(dspbase, INREG(dspbase));
    OUTREG(dspreg, temp | DISPPLANE_GAMMA_ENABLE);
    OUTREG(dspbase, INREG(dspbase));
+   if (IS_BROADWATER(pI830)) 
+      OUTREG(dspsurf, INREG(dspsurf));
 
    /* It seems that an initial read is needed. */
    temp = INREG(palreg);
@@ -2085,6 +2103,23 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    if (pScrn->numEntities != 1)
       return FALSE;
 
+   if (!xf86LoadSubModule(pScrn, "intel_acpi"))
+      return FALSE;
+
+   /* try to load the video kernel module now */
+   xf86LoadKernelModule("video");
+
+   if (xf86LoaderCheckSymbol("I830ACPIOpen")) {
+      void (*acpiOpen)(void) = NULL;
+
+      acpiOpen = LoaderSymbol("I830ACPIOpen");
+
+      if (acpiOpen) {
+         ErrorF("Opening ACPI\n");
+         (*acpiOpen)();
+      }
+   }
+
    /* Load int10 module */
    if (!xf86LoadSubModule(pScrn, "int10"))
       return FALSE;
@@ -2268,6 +2303,9 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       break;
    case PCI_CHIP_I945_GM:
       chipname = "945GM";
+      break;
+   case PCI_CHIP_BROADWATER:
+      chipname = "Broadwater";
       break;
    default:
       chipname = "unknown chipset";
@@ -2889,7 +2927,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
     * or, at least it's meant to..... alas it doesn't seem to always work.
     */
    if (pI830->devicePresence) {
-      int req=0, att=0, enc=0;
+      int req, att, enc;
       GetDevicePresence(pScrn, &req, &att, &enc);
       for (i = 0; i < NumDisplayTypes; i++) {
          xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -3035,6 +3073,9 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    else
       pI830->CursorNeedsPhysical = FALSE;
 
+   if (IS_BROADWATER(pI830))
+      pI830->CursorNeedsPhysical = FALSE;
+
    /* Force ring buffer to be in low memory for all chipsets */
    pI830->NeedRingBufferLow = TRUE;
 
@@ -3075,6 +3116,47 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 	      "Maximum frambuffer space: %d kByte\n", pScrn->videoRam);
 
    SetPipeAccess(pScrn);
+
+   /* 
+    * Using the installation script we need to find out if we've just been
+    * installed, and if so, default to the native panel resolutions, otherwise
+    * we'll default to whatever existed or the default monitor settings
+    * that's inbuilt into the Xserver.
+    */
+   {
+	FILE *f;
+   	if ((f = fopen("/tmp/.newinstallation", "r"))) {
+		char data[2];
+		fgets(data, 2, f);
+		if (data[0] == 48) { /* First time */
+			/* Ignore our monitors horizsync and vertrefresh 
+	 		 * settings when we've detected a new installation 
+			 * and we're on a flat panel, therefore we should
+	 		 * start with the native panels resolution 
+	 		 */
+#if 0
+   			if ((pI830->pipe == 1) && 
+			    (pI830->operatingDevices & (PIPE_LFP << 8))) {
+#else
+			/* Changed this to only work on LFP only systems
+			 * as the other devices may not support the LFP's
+			 * resolution.
+			 */
+   			if ((pI830->pipe == 1) && 
+			    (pI830->operatingDevices == (PIPE_LFP << 8))) {
+#endif
+   	    			pScrn->monitor->nHsync = 0;
+   	    			pScrn->monitor->nVrefresh = 0;
+   				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	      				"Detected new installation of driver, defaulting to LFP panel size.\n");
+			}
+		}
+		fclose(f);
+		f = fopen("/tmp/.newinstallation", "w");
+		fputc(49, f);
+		fclose(f);
+   	}
+   }
 
    /* Check we have an LFP connected, before trying to
     * read PanelID information. */
@@ -3620,8 +3702,15 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
       pI830->entityPrivate->RingRunning = 0;
 
    /* Reset the fence registers to 0 */
-   for (i = 0; i < 8; i++)
-      OUTREG(FENCE + i * 4, 0);
+   if (IS_BROADWATER(pI830)) {
+      for (i = 0; i < FENCE_NEW_NR; i++) {
+	 OUTREG(FENCE_NEW + i * 8, 0);
+	 OUTREG(FENCE_NEW + 4 + i * 8, 0);
+      }
+   } else {
+      for (i = 0; i < FENCE_NR; i++)
+         OUTREG(FENCE + i * 4, 0);
+   }
 
    /* Flush the ring buffer (if enabled), then disable it. */
    if (pI830->AccelInfoRec != NULL && flush) {
@@ -3651,10 +3740,21 @@ SetFenceRegs(ScrnInfoPtr pScrn)
 
    if (!I830IsPrimary(pScrn)) return;
 
-   for (i = 0; i < 8; i++) {
-      OUTREG(FENCE + i * 4, pI830->ModeReg.Fence[i]);
-      if (I810_DEBUG & DEBUG_VERBOSE_VGA)
-	 ErrorF("Fence Register : %x\n", pI830->ModeReg.Fence[i]);
+   if (IS_BROADWATER(pI830)) {
+      for (i = 0; i < FENCE_NEW_NR; i++) {
+         OUTREG(FENCE_NEW + i * 8, pI830->ModeReg.Fence[i]);
+         OUTREG(FENCE_NEW + 4 + i * 8, pI830->ModeReg.Fence[i+FENCE_NEW_NR]);
+         if (I810_DEBUG & DEBUG_VERBOSE_VGA) {
+	    ErrorF("Fence Start Register : %x\n", pI830->ModeReg.Fence[i]);
+	    ErrorF("Fence End Register : %x\n", pI830->ModeReg.Fence[i+FENCE_NEW_NR]);
+         }
+      }
+   } else {
+      for (i = 0; i < FENCE_NR; i++) {
+         OUTREG(FENCE + i * 4, pI830->ModeReg.Fence[i]);
+         if (I810_DEBUG & DEBUG_VERBOSE_VGA)
+	    ErrorF("Fence Register : %x\n", pI830->ModeReg.Fence[i]);
+      }
    }
 }
 
@@ -3755,6 +3855,12 @@ SaveHWState(ScrnInfoPtr pScrn)
    vgaHWSave(pScrn, vgaReg, VGA_SR_FONTS);
 
    pVesa = pI830->vesa;
+
+   if (IS_BROADWATER(pI830)) {
+      pI830->savedAsurf = INREG(DSPASURF);
+      pI830->savedBsurf = INREG(DSPBSURF);
+   }
+
    /*
     * This save/restore method doesn't work for 845G BIOS, or for some
     * other platforms.  Enable it in all cases.
@@ -3864,6 +3970,11 @@ RestoreHWState(ScrnInfoPtr pScrn)
       VBESetGetPaletteData(pVbe, TRUE, 0, 256, pVesa->savedPal, FALSE, TRUE);
 
    VBESetDisplayStart(pVbe, pVesa->x, pVesa->y, TRUE);
+
+   if (IS_BROADWATER(pI830)) {
+      OUTREG(DSPASURF, pI830->savedAsurf);
+      OUTREG(DSPBSURF, pI830->savedBsurf);
+   }
 
    vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
    vgaHWLock(hwp);
@@ -4096,6 +4207,25 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 
    SetPipeAccess(pScrn);
 
+#if 0
+   { /* BROADWATER ENABLE TILING */
+      planeA = INREG(DSPACNTR) | 1<<10;
+      OUTREG(DSPACNTR, planeA);
+      /* flush the change. */
+      temp = INREG(DSPABASE);
+      OUTREG(DSPABASE, temp);
+   }
+#else
+   { /* BROADWATER DISABLE TILING */
+      planeA = INREG(DSPACNTR) & ~1<<10;
+      OUTREG(DSPACNTR, planeA);
+      /* flush the change. */
+      temp = INREG(DSPABASE);
+      OUTREG(DSPABASE, temp);
+      OUTREG(DSPASURF, INREG(DSPASURF));
+   }
+#endif
+
    if (I830VESASetVBEMode(pScrn, mode, data->block) == FALSE) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Set VBE Mode failed!\n");
       return FALSE;
@@ -4160,6 +4290,10 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
       /* flush the change. */
       temp = INREG(DSPABASE);
       OUTREG(DSPABASE, temp);
+      if (IS_BROADWATER(pI830)) {
+         temp = INREG(DSPASURF);
+         OUTREG(DSPASURF, temp);
+      }
    }
    if (pI830->planeEnabled[1]) {
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Enabling plane B.\n");
@@ -4170,6 +4304,10 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
       /* flush the change. */
       temp = INREG(DSPBADDR);
       OUTREG(DSPBADDR, temp);
+      if (IS_BROADWATER(pI830)) {
+         temp = INREG(DSPBSURF);
+         OUTREG(DSPBSURF, temp);
+      }
    }
 
    planeA = INREG(DSPACNTR);
@@ -4202,6 +4340,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
          CARD32 stridereg = !pI830->pipe ? DSPASTRIDE : DSPBSTRIDE;
          CARD32 basereg = !pI830->pipe ? DSPABASE : DSPBBASE;
          CARD32 sizereg = !pI830->pipe ? DSPASIZE : DSPBSIZE;
+         CARD32 surfreg = !pI830->pipe ? DSPASURF : DSPBSURF;
          I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
 
          temp = INREG(stridereg);
@@ -4215,12 +4354,17 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
          /* Trigger update */
          temp = INREG(basereg);
          OUTREG(basereg, temp);
+         if (IS_BROADWATER(pI830)) {
+            temp = INREG(surfreg);
+            OUTREG(surfreg, temp);
+         }
 
          if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2) {
             I830Ptr pI8302 = I830PTR(pI830->entityPrivate->pScrn_2);
             stridereg = pI830->pipe ? DSPASTRIDE : DSPBSTRIDE;
             basereg = pI830->pipe ? DSPABASE : DSPBBASE;
             sizereg = pI830->pipe ? DSPASIZE : DSPBSIZE;
+            surfreg = pI830->pipe ? DSPASURF : DSPBSURF;
 
             temp = INREG(stridereg);
             if (temp / pI8302->cpp != (CARD32)(pI8302->displayWidth)) {
@@ -4233,11 +4377,16 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
             /* Trigger update */
             temp = INREG(basereg);
             OUTREG(basereg, temp);
+            if (IS_BROADWATER(pI830)) {
+               temp = INREG(surfreg);
+               OUTREG(surfreg, temp);
+            }
          }
       } else {
          CARD32 stridereg = pI830->pipe ? DSPASTRIDE : DSPBSTRIDE;
          CARD32 basereg = pI830->pipe ? DSPABASE : DSPBBASE;
          CARD32 sizereg = pI830->pipe ? DSPASIZE : DSPBSIZE;
+         CARD32 surfreg = pI830->pipe ? DSPASURF : DSPBSURF;
          I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
          I830Ptr pI8302 = I830PTR(pI830->entityPrivate->pScrn_2);
 
@@ -4252,10 +4401,15 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
          /* Trigger update */
          temp = INREG(basereg);
          OUTREG(basereg, temp);
+         if (IS_BROADWATER(pI830)) {
+            temp = INREG(surfreg);
+            OUTREG(surfreg, temp);
+         }
 
          stridereg = !pI830->pipe ? DSPASTRIDE : DSPBSTRIDE;
          basereg = !pI830->pipe ? DSPABASE : DSPBBASE;
          sizereg = !pI830->pipe ? DSPASIZE : DSPBSIZE;
+         surfreg = !pI830->pipe ? DSPASURF : DSPBSURF;
 
          temp = INREG(stridereg);
          if (temp / pI8302->cpp != ((CARD32)pI8302->displayWidth)) {
@@ -4268,12 +4422,17 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
          /* Trigger update */
          temp = INREG(basereg);
          OUTREG(basereg, temp);
+         if (IS_BROADWATER(pI830)) {
+            temp = INREG(surfreg);
+            OUTREG(surfreg, temp);
+         }
       }
    } else {
       for (i = 0; i < pI830->availablePipes; i++) {
          CARD32 stridereg = i ? DSPBSTRIDE : DSPASTRIDE;
          CARD32 basereg = i ? DSPBBASE : DSPABASE;
          CARD32 sizereg = i ? DSPBSIZE : DSPASIZE;
+         CARD32 surfreg = i ? DSPBSURF : DSPASURF;
 
          if (!pI830->planeEnabled[i])
 	    continue;
@@ -4286,9 +4445,12 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	    OUTREG(stridereg, pI830->displayWidth * pI830->cpp);
          }
          OUTREG(sizereg, (pMode->HDisplay - 1) | ((pMode->VDisplay - 1) << 16));
-	 /* Trigger update */
 	 temp = INREG(basereg);
 	 OUTREG(basereg, temp);
+         if (IS_BROADWATER(pI830)) {
+            temp = INREG(surfreg);
+            OUTREG(surfreg, temp);
+         }
       }
    }
 
@@ -4391,6 +4553,10 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
    SetHWOperatingState(pScrn);
 #endif
 
+#if 0
+   I830PrintErrorState(pScrn);
+#endif
+
 #ifdef XF86DRI
    if (didLock)
       I830DRIUnlock(pScrn);
@@ -4421,27 +4587,51 @@ I830PrintErrorState(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    ErrorF("pgetbl_ctl: 0x%lx pgetbl_err: 0x%lx\n",
-	  (unsigned long)INREG(PGETBL_CTL), (unsigned long)INREG(PGE_ERR));
+	  INREG(PGETBL_CTL), INREG(PGE_ERR));
 
-   ErrorF("ipeir: %lx iphdr: %lx\n", (unsigned long)INREG(IPEIR), 
-	  (unsigned long)INREG(IPEHR));
+   ErrorF("ipeir: %lx iphdr: %lx\n", INREG(IPEIR), INREG(IPEHR));
 
    ErrorF("LP ring tail: %lx head: %lx len: %lx start %lx\n",
-	  (unsigned long)INREG(LP_RING + RING_TAIL),
-	  (unsigned long)INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
-	  (unsigned long)INREG(LP_RING + RING_LEN), 
-	  (unsigned long)INREG(LP_RING + RING_START));
+	  INREG(LP_RING + RING_TAIL),
+	  INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
+	  INREG(LP_RING + RING_LEN), INREG(LP_RING + RING_START));
 
-   ErrorF("eir: %x esr: %x emr: %x\n",
-	  INREG16(EIR), INREG16(ESR), INREG16(EMR));
+   ErrorF("Err ID (eir): %x Err Status (esr): %x Err Mask (emr): %x\n",
+	  INREG(EIR), INREG(ESR), INREG(EMR));
 
-   ErrorF("instdone: %x instpm: %x\n", INREG16(INST_DONE), INREG8(INST_PM));
+   ErrorF("instdone: %x instdone_1: %x\n", INREG(INST_DONE), INREG(INST_DONE_1));
+   ErrorF("instpm: %x\n", INREG(INST_PM));
 
-   ErrorF("memmode: %lx instps: %lx\n", (unsigned long)INREG(MEMMODE), 
-	  (unsigned long)INREG(INST_PS));
+   ErrorF("memmode: %lx instps: %lx\n", INREG(MEMMODE), INREG(INST_PS));
 
-   ErrorF("hwstam: %x ier: %x imr: %x iir: %x\n",
-	  INREG16(HWSTAM), INREG16(IER), INREG16(IMR), INREG16(IIR));
+   ErrorF("HW Status mask (hwstam): %x\nIRQ enable (ier): %x imr: %x iir: %x\n",
+	  INREG(HWSTAM), INREG(IER), INREG(IMR), INREG(IIR));
+
+   ErrorF("acthd: %lx dma_fadd_p: %lx\n", INREG(ACTHD), INREG(DMA_FADD_P));
+   ErrorF("ecoskpd: %lx excc: %lx\n", INREG(ECOSKPD), INREG(EXCC));
+
+   ErrorF("cache_mode: %x/%x\n", INREG(CACHE_MODE_0), INREG(CACHE_MODE_1));
+   ErrorF("mi_arb_state: %x\n", INREG(MI_ARB_STATE));
+
+   ErrorF("IA_VERTICES_COUNT_QW %x/%x\n", INREG(IA_VERTICES_COUNT_QW), INREG(IA_VERTICES_COUNT_QW+4));
+   ErrorF("IA_PRIMITIVES_COUNT_QW %x/%x\n", INREG(IA_PRIMITIVES_COUNT_QW), INREG(IA_PRIMITIVES_COUNT_QW+4));
+
+   ErrorF("VS_INVOCATION_COUNT_QW %x/%x\n", INREG(VS_INVOCATION_COUNT_QW), INREG(VS_INVOCATION_COUNT_QW+4));
+
+   ErrorF("GS_INVOCATION_COUNT_QW %x/%x\n", INREG(GS_INVOCATION_COUNT_QW), INREG(GS_INVOCATION_COUNT_QW+4));
+   ErrorF("GS_PRIMITIVES_COUNT_QW %x/%x\n", INREG(GS_PRIMITIVES_COUNT_QW), INREG(GS_PRIMITIVES_COUNT_QW+4));
+
+   ErrorF("CL_INVOCATION_COUNT_QW %x/%x\n", INREG(CL_INVOCATION_COUNT_QW), INREG(CL_INVOCATION_COUNT_QW+4));
+   ErrorF("CL_PRIMITIVES_COUNT_QW %x/%x\n", INREG(CL_PRIMITIVES_COUNT_QW), INREG(CL_PRIMITIVES_COUNT_QW+4));
+
+   ErrorF("PS_INVOCATION_COUNT_QW %x/%x\n", INREG(PS_INVOCATION_COUNT_QW), INREG(PS_INVOCATION_COUNT_QW+4));
+   ErrorF("PS_DEPTH_COUNT_QW %x/%x\n", INREG(PS_DEPTH_COUNT_QW), INREG(PS_DEPTH_COUNT_QW+4));
+
+   ErrorF("WIZ_CTL %x\n", INREG(WIZ_CTL));
+   ErrorF("TS_CTL %x  TS_DEBUG_DATA %x\n", INREG(TS_CTL), INREG(TS_DEBUG_DATA));
+   ErrorF("TD_CTL %x / %x\n", INREG(TD_CTL), INREG(TD_CTL2));
+
+   
 }
 
 #ifdef I830DEBUG
@@ -4670,7 +4860,8 @@ I830CreateScreenResources (ScreenPtr pScreen)
    if (!(*pScreen->CreateScreenResources)(pScreen))
       return FALSE;
 
-   if (pI830->rotation != RR_Rotate_0) {
+   if (xf86LoaderCheckSymbol("I830RandRSetConfig") && pI830->rotation != RR_Rotate_0) {
+      Rotation (*I830RandRSetConfig)(ScreenPtr pScreen, Rotation rr, int rate, RRScreenSizePtr pSize) = NULL;
       RRScreenSize p;
       Rotation requestedRotation = pI830->rotation;
 
@@ -4682,9 +4873,12 @@ I830CreateScreenResources (ScreenPtr pScreen)
       p.mmWidth = pScreen->mmWidth;
       p.mmHeight = pScreen->mmHeight;
 
-      pI830->starting = TRUE; /* abuse this for dual head & rotation */
-      I830RandRSetConfig (pScreen, requestedRotation, 0, &p);
-      pI830->starting = FALSE;
+      I830RandRSetConfig = LoaderSymbol("I830RandRSetConfig");
+      if (I830RandRSetConfig) {
+         pI830->starting = TRUE; /* abuse this for dual head & rotation */
+   	 (*I830RandRSetConfig) (pScreen, requestedRotation, 0, &p);
+         pI830->starting = FALSE;
+      }
    } 
 
    return TRUE;
@@ -4778,6 +4972,47 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       memset(&(pI830->RotatedMem2), 0, sizeof(pI830->RotatedMem2));
       pI830->RotatedMem2.Key = -1;
    }
+
+#ifdef HAS_MTRR_SUPPORT
+   {
+      int fd;
+      struct mtrr_gentry gentry;
+      struct mtrr_sentry sentry;
+
+      if ( ( fd = open ("/proc/mtrr", O_RDONLY, 0) ) != -1 ) {
+         for (gentry.regnum = 0; ioctl (fd, MTRRIOC_GET_ENTRY, &gentry) == 0;
+	      ++gentry.regnum) {
+
+	    if (gentry.size < 1) {
+	       /* DISABLED */
+	       continue;
+	    }
+
+            /* Check the MTRR range is one we like and if not - remove it.
+             * The Xserver common layer will then setup the right range
+             * for us.
+             */
+	    if (gentry.base == pI830->LinearAddr && 
+	        gentry.size < pI830->FbMapSize) {
+
+               xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		  "Removing bad MTRR range (base 0x%lx, size 0x%x)\n",
+		  gentry.base, gentry.size);
+
+    	       sentry.base = gentry.base;
+               sentry.size = gentry.size;
+               sentry.type = gentry.type;
+
+               if (ioctl (fd, MTRRIOC_DEL_ENTRY, &sentry) == -1) {
+                  xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		     "Failed to remove bad MTRR range\n");
+               }
+	    }
+         }
+         close(fd);
+      }
+   }
+#endif
 
    if (xf86IsEntityShared(pScrn->entityList[0])) {
       /* PreInit failed on the second head, so make sure we turn it off */
@@ -5130,21 +5365,44 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->CloseScreen = pScreen->CloseScreen;
    pScreen->CloseScreen = I830BIOSCloseScreen;
 
-   if (pI830->shadowReq.minorversion >= 1) {
-      /* Rotation */
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
-      xf86DisableRandR(); /* Disable built-in RandR extension */
-      shadowSetup(pScreen);
-      /* support all rotations */
-      I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
-      pI830->PointerMoved = pScrn->PointerMoved;
-      pScrn->PointerMoved = I830PointerMoved;
-      pI830->CreateScreenResources = pScreen->CreateScreenResources;
-      pScreen->CreateScreenResources = I830CreateScreenResources;
-   } else {
-      /* Rotation */
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "libshadow is version %d.%d.%d, required 1.1.0 or greater for rotation.\n",pI830->shadowReq.majorversion,pI830->shadowReq.minorversion,pI830->shadowReq.patchlevel);
+#if 1 /* ROTATION */
+   {
+      Bool init = TRUE;
+
+      if (!xf86LoadSubModule(pScrn, "intel_randr"))
+         init = FALSE;
+
+#if 0
+      if (!xf86LoadSubModule(pScrn, "i830_damage"))
+         init = FALSE;
+
+      if (!xf86LoadSubModule(pScrn, "i830_shadow"))
+         init = FALSE;
+#endif
+
+      if (init && xf86LoaderCheckSymbol("I830RandRInit")) {
+         Bool (*I830RandRInit)(ScreenPtr pScreen, int rotation) = NULL;
+
+         I830RandRInit = LoaderSymbol("I830RandRInit");
+
+         if (I830RandRInit) {
+            xf86DisableRandR(); /* Disable built-in RandR extension */
+	    I830shadowSetup(pScreen);
+            if (IS_BROADWATER(pI830))
+               /* only 0 degrees for Broadwater */
+               (*I830RandRInit)(pScreen, RR_Rotate_0);
+            else
+            	/* support all rotations */
+               (*I830RandRInit)(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
+      	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Intel: RandR enabled, ignore the following RandR disabled message.\n");
+	    pI830->PointerMoved = pScrn->PointerMoved;
+	    pScrn->PointerMoved = I830PointerMoved;
+	    pI830->CreateScreenResources = pScreen->CreateScreenResources;
+            pScreen->CreateScreenResources = I830CreateScreenResources;
+         }
+      }
    }
+#endif
 
    if (serverGeneration == 1)
       xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
@@ -5152,6 +5410,36 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #ifdef I830DEBUG
    I830_dump_registers(pScrn);
 #endif
+
+   /* turn off clock gating */
+   /* XXX: How much of this is needed for BRW?  I am currently turning
+    * off everything.
+    */
+#if 1
+   /* A0
+    */
+   if (IS_BROADWATER(pI830)) {
+      OUTREG(0x6204, 0x70804000);
+      OUTREG(0x6208, 0x00000001);
+   }
+#else
+   /* C0 ?
+    */
+   if (IS_BROADWATER(pI830)) {
+      OUTREG(0x6204, (1<<23));
+      OUTREG(0x6208, 0x0);
+   }
+#endif
+
+   /* Enable DAP stateless accesses.  
+    * Required for all broadwater steppings.
+    */
+   if (IS_BROADWATER(pI830)) {
+      ErrorF("SVG_WORK_CTL before %x\n", INREG(SVG_WORK_CTL));
+      OUTREG(SVG_WORK_CTL, 0x00000010);
+      ErrorF("SVG_WORK_CTL after %x\n", INREG(SVG_WORK_CTL));
+   }
+
 
    pI830->starting = FALSE;
    pI830->closing = FALSE;
@@ -5161,7 +5449,7 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 }
 
 static void
-I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
+I830AdjustFrame(int scrnIndex, int x, int y, int flags)
 {
    ScrnInfoPtr pScrn;
    I830Ptr pI830;
@@ -5172,7 +5460,7 @@ I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
    pI830 = I830PTR(pScrn);
    pVbe = pI830->pVbe;
 
-   DPRINTF(PFX, "I830BIOSAdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
+   DPRINTF(PFX, "I830AdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
 	   x, pI830->xoffset, y, pI830->yoffset);
 
    /* Sync the engine before adjust frame */
@@ -5195,16 +5483,36 @@ I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
 
    if (pI830->Clone) {
       if (!pI830->pipe == 0) {
-         OUTREG(DSPABASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+         if (!IS_BROADWATER(pI830)) {
+            OUTREG(DSPABASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+         } else {
+            OUTREG(DSPABASE, 0);
+            OUTREG(DSPASURF, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+         }
       } else {
-         OUTREG(DSPBBASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+         if (!IS_BROADWATER(pI830)) {
+            OUTREG(DSPBBASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+         } else {
+            OUTREG(DSPBBASE, 0);
+            OUTREG(DSPBSURF, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+         }
       }
    }
 
    if (pI830->pipe == 0) {
-      OUTREG(DSPABASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+      if (!IS_BROADWATER(pI830)) {
+         OUTREG(DSPABASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+      } else {
+         OUTREG(DSPABASE, 0);
+         OUTREG(DSPASURF, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+      }
    } else {
-      OUTREG(DSPBBASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+      if (!IS_BROADWATER(pI830)) {
+         OUTREG(DSPBBASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+      } else {
+         OUTREG(DSPBBASE, 0);
+         OUTREG(DSPBSURF, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+      }
    }
 }
 
@@ -5665,7 +5973,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     * The extra WindowTable check detects a rotation at startup.
     */
    if ( (!WindowTable[pScrn->scrnIndex] || pspix->devPrivate.ptr == NULL) &&
-         !pI830->DGAactive ) {
+         !pI830->DGAactive && (pScrn->PointerMoved == pI830->PointerMoved) ) {
       if (!I830Rotate(pScrn, mode))
          ret = FALSE;
    }
@@ -5701,7 +6009,7 @@ I830BIOSSaveScreen(ScreenPtr pScreen, int mode)
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
    Bool on = xf86IsUnblank(mode);
-   CARD32 temp, ctrl, base;
+   CARD32 temp, ctrl, base, surf;
 
    DPRINTF(PFX, "I830BIOSSaveScreen: %d, on is %s\n", mode, BOOLTOSTRING(on));
 
@@ -5709,9 +6017,11 @@ I830BIOSSaveScreen(ScreenPtr pScreen, int mode)
       if (pI830->pipe == 0) {
 	 ctrl = DSPACNTR;
 	 base = DSPABASE;
+	 surf = DSPASURF;
       } else {
 	 ctrl = DSPBCNTR;
 	 base = DSPBADDR;
+	 surf = DSPBSURF;
       }
       if (pI830->planeEnabled[pI830->pipe]) {
 	 temp = INREG(ctrl);
@@ -5723,6 +6033,10 @@ I830BIOSSaveScreen(ScreenPtr pScreen, int mode)
 	 /* Flush changes */
 	 temp = INREG(base);
 	 OUTREG(base, temp);
+	 if (IS_BROADWATER(pI830)) {
+            temp = INREG(surf);
+            OUTREG(surf, temp);
+         }
       }
 
       if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn) {
@@ -5841,7 +6155,7 @@ I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen)
    }
 
    if (I830IsPrimary(pScrn)) {
-      xf86GARTCloseScreen(scrnIndex);
+      I830GARTCloseScreen(scrnIndex);
 
       xfree(pI830->LpRing);
       pI830->LpRing = NULL;
@@ -5857,9 +6171,7 @@ I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen)
       pI830->used3D = NULL;
    }
 
-   if (pI830->shadowReq.minorversion >= 1)
-      pScrn->PointerMoved = pI830->PointerMoved;
-
+   pScrn->PointerMoved = pI830->PointerMoved;
    pScrn->vtSema = FALSE;
    pI830->closing = FALSE;
    pScreen->CloseScreen = pI830->CloseScreen;
@@ -6187,16 +6499,23 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
             offset = pI8301->FrontBuffer2.Start + ((pScrn->frameY0 * pI830->displayWidth + pScrn->frameX0) * pI830->cpp);
 	 }
 
-         if (pI830->pipe == 0)
-            adjust = INREG(DSPABASE);
-         else 
-            adjust = INREG(DSPBBASE);
+         if (IS_BROADWATER(pI830)) {
+            if (pI830->pipe == 0)
+               adjust = INREG(DSPASURF);
+            else 
+               adjust = INREG(DSPBSURF);
+         } else {
+            if (pI830->pipe == 0)
+               adjust = INREG(DSPABASE);
+            else 
+               adjust = INREG(DSPBBASE);
+         }
 
          if (adjust != offset) {
             xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			                       "Fixing display offsets.\n");
 
-            I830BIOSAdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
+            I830AdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
          }
       }
 
@@ -6221,7 +6540,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
 
          pI830->currentMode = NULL;
          I830BIOSSwitchMode(pScrn->pScreen->myNum, pScrn->currentMode, 0);
-         I830BIOSAdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
+         I830AdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
 
          if (xf86IsEntityShared(pScrn->entityList[0])) {
 	    ScrnInfoPtr pScrn2;
@@ -6240,7 +6559,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
 
             pI8302->currentMode = NULL;
             I830BIOSSwitchMode(pScrn2->pScreen->myNum, pScrn2->currentMode, 0);
-            I830BIOSAdjustFrame(pScrn2->pScreen->myNum, pScrn2->frameX0, pScrn2->frameY0, 0);
+            I830AdjustFrame(pScrn2->pScreen->myNum, pScrn2->frameX0, pScrn2->frameY0, 0);
 
  	    (*pScrn2->EnableDisableFBAccess) (pScrn2->pScreen->myNum, FALSE);
  	    (*pScrn2->EnableDisableFBAccess) (pScrn2->pScreen->myNum, TRUE);
@@ -6289,7 +6608,7 @@ I830InitpScrn(ScrnInfoPtr pScrn)
    pScrn->PreInit = I830BIOSPreInit;
    pScrn->ScreenInit = I830BIOSScreenInit;
    pScrn->SwitchMode = I830BIOSSwitchMode;
-   pScrn->AdjustFrame = I830BIOSAdjustFrame;
+   pScrn->AdjustFrame = I830AdjustFrame;
    pScrn->EnterVT = I830BIOSEnterVT;
    pScrn->LeaveVT = I830BIOSLeaveVT;
    pScrn->FreeScreen = I830BIOSFreeScreen;
