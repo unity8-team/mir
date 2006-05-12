@@ -444,12 +444,13 @@ I830CheckDRIAvailable(ScrnInfoPtr pScrn)
       int major, minor, patch;
 
       DRIQueryVersion(&major, &minor, &patch);
-      if (major != 4 || minor < 0) {
+      if (major != DRIINFO_MAJOR_VERSION || minor < DRIINFO_MINOR_VERSION) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "[dri] %s failed because of a version mismatch.\n"
-		    "[dri] libDRI version is %d.%d.%d but version 4.0.x is needed.\n"
+		    "[dri] libDRI version is %d.%d.%d but version %d.%d.x is needed.\n"
 		    "[dri] Disabling DRI.\n",
-		    "I830CheckDRIAvailable", major, minor, patch);
+		    "I830CheckDRIAvailable", major, minor, patch,
+		     DRIINFO_MAJOR_VERSION, DRIINFO_MINOR_VERSION);
 	 return FALSE;
       }
    }
@@ -495,10 +496,10 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	      ((pciConfigPtr) pI830->PciInfo->thisCard)->devnum,
 	      ((pciConfigPtr) pI830->PciInfo->thisCard)->funcnum);
    }
-   pDRIInfo->ddxDriverMajorVersion = INTEL_MAJOR_VERSION;
-   pDRIInfo->ddxDriverMinorVersion = INTEL_MINOR_VERSION;
-   pDRIInfo->ddxDriverPatchVersion = INTEL_PATCHLEVEL;
-   pDRIInfo->frameBufferPhysicalAddress = pI830->LinearAddr +
+   pDRIInfo->ddxDriverMajorVersion = I830_MAJOR_VERSION;
+   pDRIInfo->ddxDriverMinorVersion = I830_MINOR_VERSION;
+   pDRIInfo->ddxDriverPatchVersion = I830_PATCHLEVEL;
+   pDRIInfo->frameBufferPhysicalAddress = (pointer) pI830->LinearAddr +
 					  pI830->FrontBuffer.Start;
 #if 0
    pDRIInfo->frameBufferSize = ROUND_TO_PAGE(pScrn->displayWidth *
@@ -542,8 +543,6 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->InitBuffers = I830DRIInitBuffers;
    pDRIInfo->MoveBuffers = I830DRIMoveBuffers;
    pDRIInfo->bufferRequests = DRI_ALL_WINDOWS;
-   pDRIInfo->OpenFullScreen = I830DRIOpenFullScreen;
-   pDRIInfo->CloseFullScreen = I830DRICloseFullScreen;
    pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
    pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
    pDRIInfo->TransitionSingleToMulti3D = I830DRITransitionSingleToMulti3d;
