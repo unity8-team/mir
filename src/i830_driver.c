@@ -3112,47 +3112,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    SetPipeAccess(pScrn);
 
-   /* 
-    * Using the installation script we need to find out if we've just been
-    * installed, and if so, default to the native panel resolutions, otherwise
-    * we'll default to whatever existed or the default monitor settings
-    * that's inbuilt into the Xserver.
-    */
-   {
-	FILE *f;
-   	if ((f = fopen("/tmp/.newinstallation", "r"))) {
-		char data[2];
-		fgets(data, 2, f);
-		if (data[0] == 48) { /* First time */
-			/* Ignore our monitors horizsync and vertrefresh 
-	 		 * settings when we've detected a new installation 
-			 * and we're on a flat panel, therefore we should
-	 		 * start with the native panels resolution 
-	 		 */
-#if 0
-   			if ((pI830->pipe == 1) && 
-			    (pI830->operatingDevices & (PIPE_LFP << 8))) {
-#else
-			/* Changed this to only work on LFP only systems
-			 * as the other devices may not support the LFP's
-			 * resolution.
-			 */
-   			if ((pI830->pipe == 1) && 
-			    (pI830->operatingDevices == (PIPE_LFP << 8))) {
-#endif
-   	    			pScrn->monitor->nHsync = 0;
-   	    			pScrn->monitor->nVrefresh = 0;
-   				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	      				"Detected new installation of driver, defaulting to LFP panel size.\n");
-			}
-		}
-		fclose(f);
-		f = fopen("/tmp/.newinstallation", "w");
-		fputc(49, f);
-		fclose(f);
-   	}
-   }
-
    /* Check we have an LFP connected, before trying to
     * read PanelID information. */
    if ( (pI830->pipe == 1 && pI830->operatingDevices & (PIPE_LFP << 8)) ||
