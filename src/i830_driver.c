@@ -2110,22 +2110,10 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    if (pScrn->numEntities != 1)
       return FALSE;
 
-   if (!xf86LoadSubModule(pScrn, "intel_acpi"))
-      return FALSE;
-
    /* try to load the video kernel module now */
    xf86LoadKernelModule("video");
 
-   if (xf86LoaderCheckSymbol("I830ACPIOpen")) {
-      void (*acpiOpen)(void) = NULL;
-
-      acpiOpen = LoaderSymbol("I830ACPIOpen");
-
-      if (acpiOpen) {
-         ErrorF("Opening ACPI\n");
-         (*acpiOpen)();
-      }
-   }
+   I830ACPIOpen();
 
    /* Load int10 module */
    if (!xf86LoadSubModule(pScrn, "int10"))

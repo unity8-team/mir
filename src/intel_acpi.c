@@ -1,3 +1,7 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifndef XFree86LOADER
 #include <fcntl.h>
 #include <errno.h>
@@ -5,7 +9,8 @@
 #endif
 #include <sys/un.h>
 #include <sys/socket.h>
-#include "X.h"
+#include <sys/fcntl.h>
+#include <sys/errno.h>
 #include "os.h"
 #include "xf86.h"
 #include "xf86Priv.h"
@@ -184,48 +189,3 @@ I830CloseACPI(void)
 	I830ACPIihPtr = NULL;
     }
 }
-
-#ifdef XFree86LOADER
-static MODULESETUPPROTO(intel_acpiSetup);
-
-static XF86ModuleVersionInfo intel_acpiVersRec =
-{
-	"intel_acpi",
-	"Tungsten Graphics, Inc",
-	MODINFOSTRING1,
-	MODINFOSTRING2,
-	XF86_VERSION_CURRENT,
-	INTEL_MAJOR_VERSION, INTEL_MINOR_VERSION, INTEL_PATCHLEVEL,
-	ABI_CLASS_EXTENSION,
-	ABI_EXTENSION_VERSION,
-	MOD_CLASS_EXTENSION,
-	{0,0,0,0}
-};
-
-XF86ModuleData intel_acpiModuleData = { &intel_acpiVersRec, intel_acpiSetup, NULL };
-
-ModuleInfoRec INTELACPI = {
-    1,
-    "INTELACPI",
-    NULL,
-    0,
-    NULL,
-};
-
-/*ARGSUSED*/
-static pointer
-intel_acpiSetup(pointer Module, pointer Options, int *ErrorMajor, int *ErrorMinor)
-{
-    static Bool Initialised = FALSE;
-
-    if (!Initialised) {
-	Initialised = TRUE;
-#ifndef REMOVE_LOADER_CHECK_MODULE_INFO
-	if (xf86LoaderCheckSymbol("xf86AddModuleInfo"))
-#endif
-	xf86AddModuleInfo(&INTELACPI, Module);
-    }
-
-    return (pointer)TRUE;
-}
-#endif
