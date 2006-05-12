@@ -702,13 +702,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
       pScrn2 = pScrn;
    }
 
-   if (xf86LoaderCheckSymbol("I830GetRotation")) {
-      Rotation (*I830GetRotation)(ScreenPtr pScreen) = NULL;
-      I830GetRotation = LoaderSymbol("I830GetRotation");
-      if (I830GetRotation) {
-         pI830->rotation = (*I830GetRotation)(pScrn->pScreen);
-      }
-   }   
+   pI830->rotation = I830GetRotation(pScrn->pScreen);
 
    /* Check if we've still got the same orientation, or same mode */
    if (pI830->rotation == oldRotation && pI830->currentMode == mode)
@@ -853,12 +847,11 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
       }
    }
    
-   I830shadowUnset (pScrn->pScreen);
+   shadowRemove (pScrn->pScreen, NULL);
    if (pI830->rotation != RR_Rotate_0)
-      I830shadowSet (pScrn->pScreen, 
-                    (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen), 
-		    pI830->noAccel ? I830shadowUpdateRotatePacked : func, 
-                    I830WindowLinear, pI830->rotation, 0);
+      shadowAdd (pScrn->pScreen, 
+		 (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen),
+		 func, I830WindowLinear, pI830->rotation, 0);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)
@@ -1063,12 +1056,11 @@ BAIL0:
          I830BindGARTMemory(pScrn1->scrnIndex, pI8301->RotatedMem.Key, pI8301->RotatedMem.Offset);
    }
 
-   I830shadowUnset (pScrn->pScreen);
+   shadowRemove (pScrn->pScreen, NULL);
    if (pI830->rotation != RR_Rotate_0)
-      I830shadowSet (pScrn->pScreen, 
-                    (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen), 
-		    pI830->noAccel ? I830shadowUpdateRotatePacked : func, 
-                    I830WindowLinear, pI830->rotation, 0);
+      shadowAdd (pScrn->pScreen, 
+		 (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen),
+		 func, I830WindowLinear, pI830->rotation, 0);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)

@@ -974,8 +974,7 @@ I830DRIFinishScreenInit(ScreenPtr pScreen)
     */
 #if 0
    if (pI830->allowPageFlip && pI830->drmMinor >= 1) {
-      I830shadowSetup(pScreen);
-      I830shadowAdd(pScreen, 0, I830DRIShadowUpdate, 0, 0, 0);
+      shadowAdd(pScreen, 0, I830DRIShadowUpdate, 0, 0, 0);
    }
    else
 #endif
