@@ -47,6 +47,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _I830_H_
 #define _I830_H_
 
+#include "xf86_OSproc.h"
 #include "compiler.h"
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
@@ -220,6 +221,7 @@ typedef struct _I830Rec {
 #endif
    unsigned int LinearAlloc;
   
+   XF86ModReqInfo shadowReq; /* to test for later libshadow */
    I830MemRange RotatedMem;
    I830MemRange RotatedMem2;
    Rotation rotation;

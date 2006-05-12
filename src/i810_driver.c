@@ -327,21 +327,12 @@ const char *I810driSymbols[] = {
    NULL
 };
 
-#ifdef XF86DRI
-
-const char *I810shadowFBSymbols[] = {
-    "ShadowFBInit",
-    NULL
-};
-
 const char *I810shadowSymbols[] = {
     "shadowInit",
     "shadowSetup",
     "shadowAdd",
     NULL
 };
-
-#endif
 
 #endif /* I830_ONLY */
 

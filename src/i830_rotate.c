@@ -680,10 +680,13 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	 0
    };
 
-   if (IS_I9XX(pI830))
-      func = I915UpdateRotate;
+   if (pI830->noAccel)
+      func = LoaderSymbol("shadowUpdateRotatePacked");
    else
-      func = I830UpdateRotate;
+      if (IS_I9XX(pI830))
+	 func = I915UpdateRotate;
+      else
+	 func = I830UpdateRotate;
 
    if (I830IsPrimary(pScrn)) {
       pI8301 = pI830;

@@ -13,11 +13,13 @@
 #include <sys/types.h>
 #include <linux/agpgart.h>
 #elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/agpio.h>
+#include <sys/errno.h>
+#include <sys/fcntl.h>
 #endif
 
-#include "X.h"
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "i830.h"

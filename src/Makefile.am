@@ -44,6 +44,7 @@ i810_drv_la_SOURCES = \
          i810_video.c \
          i810_wmark.c \
          i830_accel.c \
+         i830_agp.c \
          i830_common.h \
          i830_cursor.c \
          i830_dga.c \
@@ -54,7 +55,9 @@ i810_drv_la_SOURCES = \
          i830_modes.c \
          i830_video.c \
          i830_rotate.c \
-	 i830_randr.c
+	 i830_randr.c \
+	 intel_randr.c \
+	 intel_acpi.c
 
 if DRI
 i810_drv_la_SOURCES += \
