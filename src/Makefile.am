@@ -56,7 +56,6 @@ i810_drv_la_SOURCES = \
          i830_video.c \
          i830_rotate.c \
 	 i830_randr.c \
-	 intel_randr.c \
 	 intel_acpi.c
 
 if DRI
