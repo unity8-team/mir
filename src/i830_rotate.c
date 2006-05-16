@@ -292,7 +292,7 @@ I915UpdateRotate (ScreenPtr      pScreen,
 	       ENABLE_POINT_RASTER_RULE | OGL_POINT_RASTER_RULE);
 
       OUT_RING(STATE3D_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 1);
-      OUT_RING(0x00000000);
+      OUT_RING(0x00000000); /* texture coordinate wrap */
 
       /* flush map & render cache */
       OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
@@ -325,10 +325,22 @@ I915UpdateRotate (ScreenPtr      pScreen,
 
       OUT_RING(STATE3D_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
 	       I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 4);
-      OUT_RING(0xfffffff0);
-      OUT_RING(0x00902c80);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00020216);
+      OUT_RING(S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D) |
+	       S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(2, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(3, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(4, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT));
+      OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
+	       S4_CULLMODE_NONE | S4_VFMT_SPEC_FOG | S4_VFMT_COLOR |
+	       S4_VFMT_XYZW);
+      OUT_RING(0x00000000); /* S5 -- enable bits */
+      OUT_RING((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
+	       (2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
+	       (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) | S6_COLOR_WRITE_ENABLE |
+	       (2 << S6_TRISTRIP_PV_SHIFT));
 
       OUT_RING(STATE3D_INDEPENDENT_ALPHA_BLEND |
 	       IAB_MODIFY_ENABLE |
@@ -387,7 +399,7 @@ I915UpdateRotate (ScreenPtr      pScreen,
          OUT_RING(pI8301->FrontBuffer2.Start);
 
       /* Set the entire frontbuffer up as a texture */
-      OUT_RING(STATE3D_MAP_STATE);
+      OUT_RING(STATE3D_MAP_STATE | 3);
       OUT_RING(0x00000001);	/* texture map #1 */
 
       if (I830IsPrimary(pScrn)) 
