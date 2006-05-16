@@ -2195,7 +2195,11 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       break;
    }
 
-   /* XXX: Dirty dri/rotate state  */
+   /* Tell the rotation code that we have stomped its invariant state by
+    * setting a high bit.  We don't use any invariant 3D state for video, so we
+    * don't have to worry about it ourselves.
+    */
+   *pI830->used3D |= 1 << 30;
 
    BEGIN_LP_RING(44);
 
