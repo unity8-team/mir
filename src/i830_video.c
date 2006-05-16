@@ -864,7 +864,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
       pPriv->videoStatus = 0;
       pPriv->linear = NULL;
       pPriv->currentBuf = 0;
-      pPriv->doubleBuffer = 1;
+      pPriv->doubleBuffer = 0;
 
       /* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
       REGION_NULL(pScreen, &pPriv->clip);
@@ -2570,6 +2570,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
       ADVANCE_LP_RING();
    }
+
+   if (pI830->AccelInfoRec)
+      pI830->AccelInfoRec->NeedToSync = TRUE;
 }
 
 static FBLinearPtr
@@ -2804,6 +2807,17 @@ I830PutImage(ScrnInfoPtr pScrn,
    top = y1 >> 16;
    left = (x1 >> 16) & ~1;
    npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
+
+   if (pPriv->textured) {
+      /* For textured video, we don't double buffer, and instead just wait for
+       * acceleration to finish before writing the new video data into
+       * framebuffer.
+       */
+      if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
+	 (*pI830->AccelInfoRec->Sync)(pScrn);
+	 pI830->AccelInfoRec->NeedToSync = FALSE;
+      }
+   }
 
    switch (id) {
    case FOURCC_YV12:
