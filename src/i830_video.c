@@ -1947,7 +1947,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    I830Ptr pI830 = I830PTR(pScrn);
    CARD32 format, ms3, s2;
    BoxPtr pbox;
-   int nbox, dwords, dxo, dyo;
+   int nbox, dxo, dyo;
    Bool planar;
 
    ErrorF("I915DisplayVideo: %dx%d (pitch %d)\n", width, height,
@@ -1970,12 +1970,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    /* XXX: Dirty dri/rotate state  */
 
-   if (planar)
-      dwords = 94;
-   else
-      dwords = 64;
-
-   BEGIN_LP_RING(dwords);
+   BEGIN_LP_RING(44);
 
    /* invarient state */
    OUT_RING(MI_NOOP);
@@ -2082,8 +2077,10 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_RING(BUFFERID_COLOR_BACK | BUFFER_USE_FENCES |
 	    (((pI830->displayWidth * pI830->cpp) / 4) << 2));
    OUT_RING(pI830->bufferOffset);
+   ADVANCE_LP_RING();
 
    if (!planar) {
+      BEGIN_LP_RING(20);
       /* fragment program - texture blend replace. */
       OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | 8);
       OUT_DCL(S, 0);
@@ -2115,7 +2112,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	 ms3 |= MS3_USE_FENCE_REGS;
       OUT_RING(ms3);
       OUT_RING(((video_pitch / 4) - 1) << 21);
+      ADVANCE_LP_RING();
    } else {
+      BEGIN_LP_RING(50);
       /* For the planar formats, we set up three samplers -- one for each plane.
        * Each plane is in a Y8 format, but the sampler converts this into a
        * packed format.  We have to use a magic pixel shader, where we load
@@ -2187,9 +2186,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
       OUT_RING(ms3);
       OUT_RING(((video_pitch / 4) - 1) << 21);
+      ADVANCE_LP_RING();
    }
-
-   ADVANCE_LP_RING();
    
    {
       BEGIN_LP_RING(2);
