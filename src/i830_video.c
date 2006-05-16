@@ -84,8 +84,6 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dixstruct.h"
 #include "fourcc.h"
 
-#define USE_TEXTURED_VIDEO
-
 #ifndef USE_USLEEP_FOR_VIDEO
 #define USE_USLEEP_FOR_VIDEO 0
 #endif
@@ -101,7 +99,8 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 static void I830InitOffscreenImages(ScreenPtr);
 
-static XF86VideoAdaptorPtr I830SetupImageVideo(ScreenPtr);
+static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr);
+static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr);
 static void I830StopVideo(ScrnInfoPtr, pointer, Bool);
 static int I830SetPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 static int I830GetPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
@@ -111,8 +110,10 @@ static void I830QueryBestSize(ScrnInfoPtr, Bool,
 static int I830PutImage(ScrnInfoPtr, short, short, short, short, short, short,
 			short, short, int, unsigned char *, short, short,
 			Bool, RegionPtr, pointer, DrawablePtr);
-static int I830QueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
-				    unsigned short *, int *, int *);
+static int I830QueryImageAttributesOverlay(ScrnInfoPtr, int, unsigned short *,
+					   unsigned short *, int *, int *);
+static int I830QueryImageAttributesTextured(ScrnInfoPtr, int, unsigned short *,
+					    unsigned short *, int *, int *);
 
 static void I830BlockHandler(int, pointer, pointer, pointer);
 
@@ -288,6 +289,12 @@ static XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
    {XvSettable | XvGettable, 0, 1, "XV_DOUBLE_BUFFER"}
 };
 
+#define NUM_TEXTURED_ATTRIBUTES 2
+static XF86AttributeRec TexturedAttributes[NUM_ATTRIBUTES] = {
+   {XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
+   {XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
+};
+
 #define GAMMA_ATTRIBUTES 6
 static XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
    {XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA0"},
@@ -396,6 +403,7 @@ typedef struct {
    Bool overlayOK;
    int oneLineMode;
    int scaleRatio;
+   Bool textured;
 } I830PortPrivRec, *I830PortPrivPtr;
 
 #define GET_PORT_PRIVATE(pScrn) \
@@ -426,8 +434,9 @@ void
 I830InitVideo(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
    XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
-   XF86VideoAdaptorPtr newAdaptor = NULL;
+   XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
    int num_adaptors;
 
    DPRINTF(PFX, "I830InitVideo\n");
@@ -446,35 +455,54 @@ I830InitVideo(ScreenPtr pScreen)
    }
 #endif
 
+   num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
+   /* Give our adaptor list enough space for the overlay and/or texture video
+    * adaptors.
+    */
+   newAdaptors = xalloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
+   if (newAdaptors == NULL)
+      return;
+
+   memcpy(newAdaptors, adaptors, num_adaptors * sizeof(XF86VideoAdaptorPtr));
+   adaptors = newAdaptors;
+
+   /* Add the adaptors supported by our hardware.  First, set up the atoms
+    * that will be used by both output adaptors.
+    */
+   xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
+   xvContrast = MAKE_ATOM("XV_CONTRAST");
+
+   /* Set up overlay video if we can do it at this depth. */
    if (pScrn->bitsPerPixel != 8) {
-      newAdaptor = I830SetupImageVideo(pScreen);
+      overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
+      if (overlayAdaptor != NULL) {
+	 adaptors[num_adaptors++] = overlayAdaptor;
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up overlay video\n");
+      } else {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Failed to set up overlay video\n");
+      }
       I830InitOffscreenImages(pScreen);
    }
 
-   num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
-
-   if (newAdaptor) {
-      if (!num_adaptors) {
-	 num_adaptors = 1;
-	 adaptors = &newAdaptor;
+   /* Set up textured video if we can do it at this depth and we are on
+    * supported hardware.
+    */
+   if (pScrn->bitsPerPixel >= 16 && IS_I9XX(pI830)) {
+      texturedAdaptor = I830SetupImageVideoTextured(pScreen);
+      if (texturedAdaptor != NULL) {
+	 adaptors[num_adaptors++] = texturedAdaptor;
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
       } else {
-	 newAdaptors =			/* need to free this someplace */
-	       xalloc((num_adaptors + 1) * sizeof(XF86VideoAdaptorPtr *));
-	 if (newAdaptors) {
-	    memcpy(newAdaptors, adaptors, num_adaptors *
-		   sizeof(XF86VideoAdaptorPtr));
-	    newAdaptors[num_adaptors] = newAdaptor;
-	    adaptors = newAdaptors;
-	    num_adaptors++;
-	 }
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Failed to set up textured video\n");
       }
    }
 
    if (num_adaptors)
       xf86XVScreenInit(pScreen, adaptors, num_adaptors);
 
-   if (newAdaptors)
-      xfree(newAdaptors);
+   xfree(adaptors);
 }
 
 static void
@@ -644,7 +672,7 @@ I830UpdateGamma(ScrnInfoPtr pScrn)
 }
 
 static XF86VideoAdaptorPtr
-I830SetupImageVideo(ScreenPtr pScreen)
+I830SetupImageVideoOverlay(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
@@ -652,7 +680,7 @@ I830SetupImageVideo(ScreenPtr pScreen)
    I830PortPrivPtr pPriv;
    XF86AttributePtr att;
 
-   DPRINTF(PFX, "I830SetupImageVideo\n");
+   DPRINTF(PFX, "I830SetupImageVideoOverlay\n");
 
    if (!(adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec) +
 			 sizeof(I830PortPrivRec) + sizeof(DevUnion))))
@@ -705,8 +733,9 @@ I830SetupImageVideo(ScreenPtr pScreen)
    adapt->GetPortAttribute = I830GetPortAttribute;
    adapt->QueryBestSize = I830QueryBestSize;
    adapt->PutImage = I830PutImage;
-   adapt->QueryImageAttributes = I830QueryImageAttributes;
+   adapt->QueryImageAttributes = I830QueryImageAttributesOverlay;
 
+   pPriv->textured = FALSE;
    pPriv->colorKey = pI830->colorKey & ((1 << pScrn->depth) - 1);
    pPriv->videoStatus = 0;
    pPriv->brightness = 0;
@@ -744,8 +773,6 @@ I830SetupImageVideo(ScreenPtr pScreen)
    pScreen->BlockHandler = I830BlockHandler;
 
    xvColorKey = MAKE_ATOM("XV_COLORKEY");
-   xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
-   xvContrast = MAKE_ATOM("XV_CONTRAST");
    xvDoubleBuffer = MAKE_ATOM("XV_DOUBLE_BUFFER");
 
    /* Allow the pipe to be switched from pipe A to B when in clone mode */
@@ -764,6 +791,86 @@ I830SetupImageVideo(ScreenPtr pScreen)
    I830ResetVideo(pScrn);
 
    I830UpdateGamma(pScrn);
+
+   return adapt;
+}
+
+static XF86VideoAdaptorPtr
+I830SetupImageVideoTextured(ScreenPtr pScreen)
+{
+   XF86VideoAdaptorPtr adapt;
+   XF86VideoEncodingPtr encoding;
+   XF86AttributePtr attrs;
+   I830PortPrivPtr portPrivs;
+   DevUnion *devUnions;
+   int nports = 16, i;
+   int nAttributes;
+
+   DPRINTF(PFX, "I830SetupImageVideoOverlay\n");
+
+   nAttributes = NUM_TEXTURED_ATTRIBUTES;
+
+   adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec));
+   portPrivs = xcalloc(nports, sizeof(I830PortPrivRec));
+   devUnions = xcalloc(nports, sizeof(DevUnion));
+   encoding = xcalloc(1, sizeof(XF86VideoEncodingRec));
+   attrs = xcalloc(nAttributes, sizeof(XF86AttributeRec));
+   if (adapt == NULL || portPrivs == NULL || devUnions == NULL ||
+       encoding == NULL || attrs == NULL)
+   {
+      xfree(adapt);
+      xfree(portPrivs);
+      xfree(devUnions);
+      xfree(encoding);
+      xfree(attrs);
+      return NULL;
+   }
+
+   adapt->type = XvWindowMask | XvInputMask | XvImageMask;
+   adapt->flags = 0;
+   adapt->name = "Intel(R) Textured Video";
+   adapt->nEncodings = 1;
+   adapt->pEncodings = encoding;
+   adapt->pEncodings[0].id = 0;
+   adapt->pEncodings[0].name = "XV_IMAGE";
+   adapt->pEncodings[0].width = 2048;
+   adapt->pEncodings[0].height = 2048;
+   adapt->pEncodings[0].rate.numerator = 1;
+   adapt->pEncodings[0].rate.denominator = 1;
+   adapt->nFormats = NUM_FORMATS;
+   adapt->pFormats = Formats;
+   adapt->nPorts = nports;
+   adapt->pPortPrivates = devUnions;
+   adapt->nAttributes = nAttributes;
+   adapt->pAttributes = attrs;
+   memcpy(attrs, TexturedAttributes, nAttributes * sizeof(XF86AttributeRec));
+   adapt->nImages = NUM_IMAGES;
+   adapt->pImages = Images;
+   adapt->PutVideo = NULL;
+   adapt->PutStill = NULL;
+   adapt->GetVideo = NULL;
+   adapt->GetStill = NULL;
+   adapt->StopVideo = I830StopVideo;
+   adapt->SetPortAttribute = I830SetPortAttribute;
+   adapt->GetPortAttribute = I830GetPortAttribute;
+   adapt->QueryBestSize = I830QueryBestSize;
+   adapt->PutImage = I830PutImage;
+   adapt->QueryImageAttributes = I830QueryImageAttributesTextured;
+
+   for (i = 0; i < nports; i++) {
+      I830PortPrivPtr pPriv = &portPrivs[i];
+
+      pPriv->textured = TRUE;
+      pPriv->videoStatus = 0;
+      pPriv->linear = NULL;
+      pPriv->currentBuf = 0;
+      pPriv->doubleBuffer = 1;
+
+      /* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
+      REGION_NULL(pScreen, &pPriv->clip);
+
+      adapt->pPortPrivates[i].ptr = (pointer) (pPriv);
+   }
 
    return adapt;
 }
@@ -805,6 +912,9 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
    I830OverlayRegPtr overlay =
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
 
+   if (pPriv->textured)
+      return;
+
    DPRINTF(PFX, "I830StopVideo\n");
 
    REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
@@ -843,6 +953,14 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
    I830Ptr pI830 = I830PTR(pScrn);
    I830OverlayRegPtr overlay =
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
+
+   if (pPriv->textured) {
+      /* XXX: Currently the brightness/saturation attributes aren't hooked up.
+       * However, apps expect them to be there, and the spec seems to let us
+       * sneak out of actually implementing them for now.
+       */
+      return Success;
+   }
 
    if (attribute == xvBrightness) {
       if ((value < -128) || (value > 127))
@@ -996,13 +1114,12 @@ I830QueryBestSize(ScrnInfoPtr pScrn,
 }
 
 static void
-I830CopyPackedData(ScrnInfoPtr pScrn,
+I830CopyPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 		   unsigned char *buf,
 		   int srcPitch,
 		   int dstPitch, int top, int left, int h, int w)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
    unsigned char *src, *dst;
    int i,j;
    unsigned char *s;
@@ -1093,12 +1210,12 @@ I830CopyPackedData(ScrnInfoPtr pScrn,
 /* Copies planar data in *buf to UYVY-packed data in the screen atYBufXOffset.
  */
 static void
-I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
+I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
+			   unsigned char *buf, int srcPitch,
 			   int srcPitch2, int dstPitch, int srcH,
 			   int top, int left, int h, int w, int id)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
    CARD8 *dst1, *srcy, *srcu, *srcv;
    int y;
 
@@ -1150,12 +1267,12 @@ I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
 }
 
 static void
-I830CopyPlanarData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
+I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
+		   unsigned char *buf, int srcPitch,
 		   int srcPitch2, int dstPitch, int srcH, int top, int left,
 		   int h, int w, int id)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
    int i, j = 0;
    unsigned char *src1, *src2, *src3, *dst1, *dst2, *dst3;
    unsigned char *s;
@@ -2046,7 +2163,6 @@ do {									\
 	    (SRC_W << A2_SRC1_CHANNEL_W_SHIFT));			\
 } while (0)
 
-#ifdef USE_TEXTURED_VIDEO
 static void
 I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 RegionPtr dstRegion,
@@ -2455,7 +2571,6 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       ADVANCE_LP_RING();
    }
 }
-#endif /* USE_TEXTURED_VIDEO */
 
 static FBLinearPtr
 I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size)
@@ -2529,7 +2644,7 @@ I830PutImage(ScrnInfoPtr pScrn,
    I830OverlayRegPtr overlay =
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
    INT32 x1, x2, y1, y2;
-   int srcPitch, srcPitch2 = 0, dstPitch;
+   int srcPitch, srcPitch2 = 0, dstPitch, destId;
    int top, left, npixels, nlines, size, loops;
    BoxRec dstBox;
 
@@ -2575,11 +2690,15 @@ I830PutImage(ScrnInfoPtr pScrn,
 			      width, height))
       return Success;
 
+   destId = id;
    switch (id) {
    case FOURCC_YV12:
    case FOURCC_I420:
       srcPitch = (width + 3) & ~3;
       srcPitch2 = ((width >> 1) + 3) & ~3;
+      if (pPriv->textured) {
+	 destId = FOURCC_YUY2;
+      }
       break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
@@ -2588,8 +2707,7 @@ I830PutImage(ScrnInfoPtr pScrn,
       break;
    }
 
-   switch (id) {
-#ifndef USE_TEXTURED_VIDEO
+   switch (destId) {
    case FOURCC_YV12:
    case FOURCC_I420:
 #if 1
@@ -2610,13 +2728,6 @@ I830PutImage(ScrnInfoPtr pScrn,
       }
 #endif
       break;
-#else /* USE_TEXTURED_VIDEO */
-   case FOURCC_YV12:
-   case FOURCC_I420:
-      /* If we're doing textured video, then we're going to pack the data as
-       * UYVY in framebuffer, so allocate and align the memory that way.
-       */
-#endif
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
@@ -2670,7 +2781,9 @@ I830PutImage(ScrnInfoPtr pScrn,
 
    /* Make sure this buffer isn't in use */
    loops = 0;
-   if (*pI830->overlayOn && pPriv->doubleBuffer && (overlay->OCMD & OVERLAY_ENABLE)) {
+   if (!pPriv->textured && *pI830->overlayOn && pPriv->doubleBuffer &&
+       (overlay->OCMD & OVERLAY_ENABLE))
+   {
       while (loops < 1000000) {
 #if USE_USLEEP_FOR_VIDEO
          usleep(10);
@@ -2704,39 +2817,38 @@ I830PutImage(ScrnInfoPtr pScrn,
    case FOURCC_I420:
       top &= ~1;
       nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
-#ifdef USE_TEXTURED_VIDEO
-      I830CopyPlanarToPackedData(pScrn, buf, srcPitch, srcPitch2, dstPitch,
-				 height, top, left, nlines, npixels, id);
-      /* Our data is now in this forat, either way. */
-      id = FOURCC_YUY2;
-#else
-      I830CopyPlanarData(pScrn, buf, srcPitch, srcPitch2, dstPitch, height, top, left,
-			 nlines, npixels, id);
-#endif
+      if (pPriv->textured) {
+	 I830CopyPlanarToPackedData(pScrn, pPriv, buf, srcPitch, srcPitch2,
+				    dstPitch, height, top, left, nlines,
+				    npixels, id);
+      } else {
+	 I830CopyPlanarData(pScrn, pPriv, buf, srcPitch, srcPitch2, dstPitch,
+			    height, top, left, nlines, npixels, id);
+      }
       break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
       nlines = ((y2 + 0xffff) >> 16) - top;
-      I830CopyPackedData(pScrn, buf, srcPitch, dstPitch, top, left, nlines,
-			 npixels);
+      I830CopyPackedData(pScrn, pPriv, buf, srcPitch, dstPitch, top, left,
+			 nlines, npixels);
       break;
    }
 
-#ifndef USE_TEXTURED_VIDEO
-   /* update cliplist */
-   if (!RegionsEqual(&pPriv->clip, clipBoxes)) {
-      REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
-      xf86XVFillKeyHelper(pScreen, pPriv->colorKey, clipBoxes);
-   }
+   if (!pPriv->textured) {
+      /* update cliplist */
+      if (!RegionsEqual(&pPriv->clip, clipBoxes)) {
+ 	REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
+	 xf86XVFillKeyHelper(pScreen, pPriv->colorKey, clipBoxes);
+      }
 
-   I830DisplayVideo(pScrn, id, width, height, dstPitch,
-		    x1, y1, x2, y2, &dstBox, src_w, src_h, drw_w, drw_h);
-#else
-   I915DisplayVideoTextured(pScrn, pPriv, id, clipBoxes, width, height,
-			    dstPitch,
-			    x1, y1, x2, y2, src_w, src_h, drw_w, drw_h, pDraw);
-#endif
+      I830DisplayVideo(pScrn, destId, width, height, dstPitch,
+		       x1, y1, x2, y2, &dstBox, src_w, src_h, drw_w, drw_h);
+   } else {
+      I915DisplayVideoTextured(pScrn, pPriv, destId, clipBoxes, width, height,
+			       dstPitch, x1, y1, x2, y2,
+			       src_w, src_h, drw_w, drw_h, pDraw);
+   }
    pPriv->videoStatus = CLIENT_VIDEO_ON;
 
    return Success;
@@ -2746,23 +2858,25 @@ static int
 I830QueryImageAttributes(ScrnInfoPtr pScrn,
 			 int id,
 			 unsigned short *w, unsigned short *h,
-			 int *pitches, int *offsets)
+			 int *pitches, int *offsets, Bool textured)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    int size, tmp;
 
    ErrorF("I830QueryImageAttributes: w is %d, h is %d\n", *w, *h);
 
-   if (IS_845G(pI830) || IS_I830(pI830)) {
-   if (*w > IMAGE_MAX_WIDTH_LEGACY)
-      *w = IMAGE_MAX_WIDTH_LEGACY;
-   if (*h > IMAGE_MAX_HEIGHT_LEGACY)
-      *h = IMAGE_MAX_HEIGHT_LEGACY;
-   } else {
-   if (*w > IMAGE_MAX_WIDTH)
-      *w = IMAGE_MAX_WIDTH;
-   if (*h > IMAGE_MAX_HEIGHT)
-      *h = IMAGE_MAX_HEIGHT;
+   if (!textured) {
+      if (IS_845G(pI830) || IS_I830(pI830)) {
+	 if (*w > IMAGE_MAX_WIDTH_LEGACY)
+	    *w = IMAGE_MAX_WIDTH_LEGACY;
+	 if (*h > IMAGE_MAX_HEIGHT_LEGACY)
+	    *h = IMAGE_MAX_HEIGHT_LEGACY;
+      } else {
+	 if (*w > IMAGE_MAX_WIDTH)
+	    *w = IMAGE_MAX_WIDTH;
+	 if (*h > IMAGE_MAX_HEIGHT)
+	    *h = IMAGE_MAX_HEIGHT;
+      }
    }
 
    *w = (*w + 1) & ~1;
@@ -2813,6 +2927,24 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
    }
 
    return size;
+}
+
+static int
+I830QueryImageAttributesOverlay(ScrnInfoPtr pScrn,
+				int id,
+				unsigned short *w, unsigned short *h,
+				int *pitches, int *offsets)
+{
+   return I830QueryImageAttributes(pScrn, id, w, h, pitches, offsets, FALSE);
+}
+
+static int
+I830QueryImageAttributesTextured(ScrnInfoPtr pScrn,
+				 int id,
+				 unsigned short *w, unsigned short *h,
+				 int *pitches, int *offsets)
+{
+   return I830QueryImageAttributes(pScrn, id, w, h, pitches, offsets, TRUE);
 }
 
 static void
