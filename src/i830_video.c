@@ -1090,6 +1090,65 @@ I830CopyPackedData(ScrnInfoPtr pScrn,
    }
 }
 
+/* Copies planar data in *buf to UYVY-packed data in the screen atYBufXOffset.
+ */
+static void
+I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
+			   int srcPitch2, int dstPitch, int srcH,
+			   int top, int left, int h, int w, int id)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
+   unsigned char *dst1, *srcy, *srcu, *srcv;
+   int y;
+
+   if (pPriv->currentBuf == 0)
+      dst1 = pI830->FbBase + pPriv->YBuf0offset;
+   else
+      dst1 = pI830->FbBase + pPriv->YBuf1offset;
+
+   srcy = buf;
+   if (id == FOURCC_YV12) {
+      srcv = buf + (srcH * srcPitch) + ((top * srcPitch) >> 2) + (left >> 1);
+      srcu = buf + (srcH * srcPitch) + ((srcH >> 1) * srcPitch2) +
+	    ((top * srcPitch) >> 2) + (left >> 1);
+   } else {
+      srcu = buf + (srcH * srcPitch) + ((top * srcPitch) >> 2) + (left >> 1);
+      srcv = buf + (srcH * srcPitch) + ((srcH >> 1) * srcPitch2) +
+	    ((top * srcPitch) >> 2) + (left >> 1);
+   }
+
+   for (y = 0; y < h; y++) {
+      unsigned char *dst = dst1;
+      unsigned char *sy = srcy;
+      unsigned char *su = srcu;
+      unsigned char *sv = srcv;
+      int i;
+
+      i = w;
+      while(i > 4) {
+	 dst[0] = sy[0] | (sy[1] << 16) | (sv[0] << 8) | (su[0] << 24);
+	 dst[1] = sy[2] | (sy[3] << 16) | (sv[1] << 8) | (su[1] << 24);
+	 dst[2] = sy[4] | (sy[5] << 16) | (sv[2] << 8) | (su[2] << 24);
+	 dst[3] = sy[6] | (sy[7] << 16) | (sv[3] << 8) | (su[3] << 24);
+	 dst += 4; su += 4; sv += 4; sy += 8;
+	 i -= 4;
+      }
+      while(i--) {
+	 dst[0] = sy[0] | (sy[1] << 16) | (sv[0] << 8) | (su[0] << 24);
+	 dst++; su++; sv++;
+	 sy += 2;
+      }
+
+      dst1 += dstPitch;
+      srcy += srcPitch;
+      if (y & 1) {
+	 srcu += srcPitch2;
+	 srcv += srcPitch2;
+      }	
+   }
+}
+
 static void
 I830CopyPlanarData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
 		   int srcPitch2, int dstPitch, int srcH, int top, int left,
@@ -2521,6 +2580,18 @@ I830PutImage(ScrnInfoPtr pScrn,
    case FOURCC_I420:
       srcPitch = (width + 3) & ~3;
       srcPitch2 = ((width >> 1) + 3) & ~3;
+      break;
+   case FOURCC_UYVY:
+   case FOURCC_YUY2:
+   default:
+      srcPitch = width << 1;
+      break;
+   }
+
+   switch (id) {
+#ifndef USE_TEXTURED_VIDEO
+   case FOURCC_YV12:
+   case FOURCC_I420:
 #if 1
       if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
          dstPitch = ((height / 2) + 63) & ~63;
@@ -2539,10 +2610,16 @@ I830PutImage(ScrnInfoPtr pScrn,
       }
 #endif
       break;
+#else /* USE_TEXTURED_VIDEO */
+   case FOURCC_YV12:
+   case FOURCC_I420:
+      /* If we're doing textured video, then we're going to pack the data as
+       * UYVY in framebuffer, so allocate and align the memory that way.
+       */
+#endif
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
-      srcPitch = width << 1;
 #if 1
       if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
          dstPitch = ((height << 1) + 63) & ~63;
@@ -2627,8 +2704,15 @@ I830PutImage(ScrnInfoPtr pScrn,
    case FOURCC_I420:
       top &= ~1;
       nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
+#ifdef USE_TEXTURED_VIDEO
+      I830CopyPlanarToPackedData(pScrn, buf, srcPitch, srcPitch2, dstPitch,
+				 height, top, left, nlines, npixels, id);
+      /* Our data is now in this forat, either way. */
+      id = FOURCC_UYVY;
+#else
       I830CopyPlanarData(pScrn, buf, srcPitch, srcPitch2, dstPitch, height, top, left,
 			 nlines, npixels, id);
+#endif
       break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
