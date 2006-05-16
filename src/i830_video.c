@@ -2647,6 +2647,7 @@ I830PutImage(ScrnInfoPtr pScrn,
    int srcPitch, srcPitch2 = 0, dstPitch, destId;
    int top, left, npixels, nlines, size, loops;
    BoxRec dstBox;
+   int pitchAlignMask;
 
    DPRINTF(PFX, "I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
 	   "width %d, height %d\n", src_x, src_y, src_w, src_h, drw_x, drw_y,
@@ -2707,47 +2708,39 @@ I830PutImage(ScrnInfoPtr pScrn,
       break;
    }
 
+   /* Only needs to be DWORD-aligned for textured on i915, but overlay has
+    * stricter requirements.
+    */
+   if (pPriv->textured) {
+      pitchAlignMask = 3;
+   } else {
+      pitchAlignMask = 63;
+   }
+
+   /* Determine the desired destination pitch (representing the chroma's pitch,
+    * in the planar case.
+    */
    switch (destId) {
    case FOURCC_YV12:
    case FOURCC_I420:
-#if 1
       if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-         dstPitch = ((height / 2) + 63) & ~63;
+         dstPitch = ((height / 2) + pitchAlignMask) & ~pitchAlignMask;
          size = dstPitch * width * 3;
       } else {
-         dstPitch = ((width / 2) + 63) & ~63;	/* of chroma */
+         dstPitch = ((width / 2) + pitchAlignMask) & ~pitchAlignMask;
          size = dstPitch * height * 3;
       }
-#else
-      if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-         dstPitch = ((height / 2) + 511) & ~511;
-         size = dstPitch * width * 3;
-      } else {
-         dstPitch = ((width / 2) + 511) & ~511;	/* of chroma */
-         size = dstPitch * height * 3;
-      }
-#endif
       break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
-#if 1
       if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-         dstPitch = ((height << 1) + 63) & ~63;
+         dstPitch = ((height << 1) + pitchAlignMask) & ~pitchAlignMask;
          size = dstPitch * width;
       } else {
-         dstPitch = ((width << 1) + 63) & ~63;	/* of chroma */
+         dstPitch = ((width << 1) + pitchAlignMask) & ~pitchAlignMask;
          size = dstPitch * height;
       }
-#else
-      if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-         dstPitch = ((height << 1) + 511) & ~511;
-         size = dstPitch * width;
-      } else {
-         dstPitch = ((width << 1) + 511) & ~511;	/* of chroma */
-         size = dstPitch * height;
-      }
-#endif
       break;
    }
    ErrorF("srcPitch: %d, dstPitch: %d, size: %d\n", srcPitch, dstPitch, size);
