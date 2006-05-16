@@ -1913,6 +1913,28 @@ static void draw_poly(CARD32 *vb,
    }
 }
 
+#define OUT_DCL(type, nr) do {						\
+   CARD32 chans = 0;							\
+   if (REG_TYPE_##type == REG_TYPE_T)					\
+      chans = D0_CHANNEL_ALL;						\
+   OUT_RING(D0_DCL |							\
+	    (REG_TYPE_##type << D0_TYPE_SHIFT) | (nr << D0_NR_SHIFT) |	\
+	    chans);							\
+   OUT_RING(0x00000000);						\
+   OUT_RING(0x00000000);						\
+} while (0)
+
+#define OUT_TEXLD(dest_type, dest_nr, sampler_nr, addr_type, addr_nr)	\
+do {									\
+      OUT_RING(T0_TEXLD |						\
+	       (REG_TYPE_##dest_type << T0_DEST_TYPE_SHIFT) |		\
+	       (dest_nr << T0_DEST_NR_SHIFT) |				\
+	       (sampler_nr << T0_SAMPLER_NR_SHIFT));			\
+      OUT_RING((REG_TYPE_##addr_type << T1_ADDRESS_REG_TYPE_SHIFT) |	\
+	       (addr_nr << T1_ADDRESS_REG_NR_SHIFT));			\
+      OUT_RING(0x00000000);						\
+} while (0)
+
 #ifdef USE_TEXTURED_VIDEO
 static void
 I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
@@ -2064,20 +2086,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    if (!planar) {
       /* fragment program - texture blend replace. */
       OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | 8);
-      OUT_RING(D0_DCL | (REG_TYPE_S << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT));
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-
-      OUT_RING(D0_DCL | (REG_TYPE_T << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT) |
-	       D0_CHANNEL_ALL);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-
-      OUT_RING(T0_TEXLD | (REG_TYPE_OC << T0_DEST_TYPE_SHIFT) |
-	       (0 << T0_SAMPLER_NR_SHIFT));
-      OUT_RING((REG_TYPE_T << T1_ADDRESS_REG_TYPE_SHIFT) |
-	       (0 << T1_ADDRESS_REG_NR_SHIFT));
-      OUT_RING(0x00000000);
+      OUT_DCL(S, 0);
+      OUT_DCL(T, 0);
+      OUT_TEXLD(OC, 0, 0, T, 0);
       /* End fragment program */
 
       OUT_RING(STATE3D_SAMPLER_STATE | 3);
@@ -2114,47 +2125,18 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       /* fragment program - texture blend replace. */
       OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | 26);
       /* Declare samplers */
-      OUT_RING(D0_DCL | (REG_TYPE_S << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT));
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING(D0_DCL | (REG_TYPE_S << D0_TYPE_SHIFT) | (1 << D0_NR_SHIFT));
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING(D0_DCL | (REG_TYPE_S << D0_TYPE_SHIFT) | (2 << D0_NR_SHIFT));
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
+      OUT_DCL(S, 0);
+      OUT_DCL(S, 1);
+      OUT_DCL(S, 2);
+      OUT_DCL(T, 0);
+      OUT_DCL(T, 1);
 
-      /* Declare coordinate sources */
-      OUT_RING(D0_DCL | (REG_TYPE_T << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT) |
-	       D0_CHANNEL_ALL);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING(D0_DCL | (REG_TYPE_T << D0_TYPE_SHIFT) | (1 << D0_NR_SHIFT) |
-	       D0_CHANNEL_ALL);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-
-      /* Load each sampler in turn.  Y (sampler 0) gets the coords with
-       * doubled width.
+      /* Load each sampler in turn.  Y (sampler 0) gets the un-halved coords
+       * from t1.
        */
-      OUT_RING(T0_TEXLD |
-	       (REG_TYPE_R << T0_DEST_TYPE_SHIFT) | (0 << T0_DEST_NR_SHIFT) |
-	       (0 << T0_SAMPLER_NR_SHIFT));
-      OUT_RING((REG_TYPE_T << T1_ADDRESS_REG_TYPE_SHIFT) |
-	       (1 << T1_ADDRESS_REG_NR_SHIFT));
-      OUT_RING(0x00000000);
-      OUT_RING(T0_TEXLD |
-	       (REG_TYPE_R << T0_DEST_TYPE_SHIFT) | (0 << T0_DEST_NR_SHIFT) |
-	       (1 << T0_SAMPLER_NR_SHIFT));
-      OUT_RING((REG_TYPE_T << T1_ADDRESS_REG_TYPE_SHIFT) |
-	       (0 << T1_ADDRESS_REG_NR_SHIFT));
-      OUT_RING(0x00000000);
-      OUT_RING(T0_TEXLD |
-	       (REG_TYPE_R << T0_DEST_TYPE_SHIFT) | (0 << T0_DEST_NR_SHIFT) |
-	       (2 << T0_SAMPLER_NR_SHIFT));
-      OUT_RING((REG_TYPE_T << T1_ADDRESS_REG_TYPE_SHIFT) |
-	       (0 << T1_ADDRESS_REG_NR_SHIFT));
-      OUT_RING(0x00000000);
+      OUT_TEXLD(R, 0, 0, T, 1);
+      OUT_TEXLD(R, 0, 1, T, 0);
+      OUT_TEXLD(R, 0, 2, T, 0);
 
       /* Move the temporary to the destination */
       OUT_RING(A0_MOV | A0_DEST_CHANNEL_ALL |
