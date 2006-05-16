@@ -1872,12 +1872,18 @@ typedef union {
 
 static void draw_poly(CARD32 *vb,
                       float verts[][2],
-                      float texcoords[][2])
+                      float texcoords[][2],
+		      float texcoords2[][2])
 {
-   int vertex_size = 8;
+   int vertex_size;
    intelVertex tmp;
    int i, k;
 
+   if (texcoords2 != NULL)
+      vertex_size = 10;
+   else
+      vertex_size = 8;
+   
    /* initial constant vertex fields */
    tmp.v.z = 1.0;
    tmp.v.w = 1.0; 
@@ -1895,6 +1901,10 @@ static void draw_poly(CARD32 *vb,
       tmp.v.y = verts[k][1];
       tmp.v.u0 = texcoords[k][0];
       tmp.v.v0 = texcoords[k][1];
+      if (texcoords2 != NULL) {
+	 tmp.v.u1 = texcoords2[k][0];
+	 tmp.v.v1 = texcoords2[k][1];
+      }
 
       for (i = 0 ; i < vertex_size ; i++)
          vb[i] = tmp.ui[i];
@@ -1905,22 +1915,46 @@ static void draw_poly(CARD32 *vb,
 
 #ifdef USE_TEXTURED_VIDEO
 static void
-I915DisplayVideoTextured(ScrnInfoPtr pScrn, int id, RegionPtr dstRegion,
-		 short width, short height, int video_offset,
-		 int video_pitch, int x1, int y1, int x2, int y2,
-		 short src_w, short src_h, short drw_w, short drw_h,
-		 DrawablePtr pDraw)
+I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
+			 RegionPtr dstRegion,
+			 short width, short height, int video_pitch,
+			 int x1, int y1, int x2, int y2,
+			 short src_w, short src_h, short drw_w, short drw_h,
+			 DrawablePtr pDraw)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 format, ms3;
+   CARD32 format, ms3, s2;
    BoxPtr pbox;
-   int nbox, dxo, dyo;
+   int nbox, dwords, dxo, dyo;
+   Bool planar;
 
    ErrorF("I915DisplayVideo: %dx%d (pitch %d)\n", width, height,
 	  video_pitch);
 
+   switch (id) {
+   case FOURCC_UYVY:
+   case FOURCC_YUY2:
+      planar = FALSE;
+      break;
+   case FOURCC_YV12:
+   case FOURCC_I420:
+      planar = TRUE;
+      break;
+   default:
+      ErrorF("Unknown format 0x%x\n", id);
+      planar = FALSE;
+      break;
+   }
+
    /* XXX: Dirty dri/rotate state  */
-   BEGIN_LP_RING(64);
+
+   if (planar)
+      dwords = 94;
+   else
+      dwords = 64;
+
+   BEGIN_LP_RING(dwords);
+
    /* invarient state */
    OUT_RING(MI_NOOP);
    OUT_RING(STATE3D_ANTI_ALIASING |
@@ -1947,7 +1981,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, int id, RegionPtr dstRegion,
 	    ENABLE_POINT_RASTER_RULE | OGL_POINT_RASTER_RULE);
 
    OUT_RING(STATE3D_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 1);
-   OUT_RING(0x00000000);
+   OUT_RING(0x00000000); /* texture coordinate wrap */
 
    /* flush map & render cache */
    OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
@@ -1980,10 +2014,25 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, int id, RegionPtr dstRegion,
 
    OUT_RING(STATE3D_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
 	    I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 4);
-   OUT_RING(0xfffffff0);
-   OUT_RING(0x00902c80);
-   OUT_RING(0x00000000);
-   OUT_RING(0x00020216);
+   s2 = S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D);
+   if (planar)
+      s2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_2D);
+   else
+      s2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT);
+   s2 |= S2_TEXCOORD_FMT(2, TEXCOORDFMT_NOT_PRESENT) |
+      S2_TEXCOORD_FMT(3, TEXCOORDFMT_NOT_PRESENT) |
+      S2_TEXCOORD_FMT(4, TEXCOORDFMT_NOT_PRESENT) |
+      S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
+      S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
+      S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT);
+   OUT_RING(s2);
+   OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
+	    S4_CULLMODE_NONE | S4_VFMT_SPEC_FOG | S4_VFMT_COLOR | S4_VFMT_XYZW);
+   OUT_RING(0x00000000); /* S5 - enable bits */
+   OUT_RING((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
+	    (2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
+	    (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) | S6_COLOR_WRITE_ENABLE |
+	    (2 << S6_TRISTRIP_PV_SHIFT));
 
    OUT_RING(STATE3D_INDEPENDENT_ALPHA_BLEND |
 	    IAB_MODIFY_ENABLE |
@@ -2006,57 +2055,158 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, int id, RegionPtr dstRegion,
    OUT_RING(STATE3D_STIPPLE);
    OUT_RING(0x00000000);
 
-   /* fragment program - texture blend replace*/
-   OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | 8);
-   OUT_RING(D0_DCL | (REG_TYPE_S << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT));
-   OUT_RING(0x00000000);
-   OUT_RING(0x00000000);
-
-   OUT_RING(D0_DCL | (REG_TYPE_T << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT) |
-	    D0_CHANNEL_ALL);
-   OUT_RING(0x00000000);
-   OUT_RING(0x00000000);
-
-   OUT_RING(T0_TEXLD | (REG_TYPE_OC << T0_DEST_TYPE_SHIFT) |
-	    (0 << T0_SAMPLER_NR_SHIFT));
-   OUT_RING((REG_TYPE_T << T1_ADDRESS_REG_TYPE_SHIFT) |
-	    (0 << T1_ADDRESS_REG_NR_SHIFT));
-   OUT_RING(0x00000000);
-   /* End fragment program */
-
-   OUT_RING(STATE3D_SAMPLER_STATE | 3);
-   OUT_RING(0x00000001);
-   OUT_RING(SS2_COLORSPACE_CONVERSION);
-   OUT_RING(0x00000000);
-   OUT_RING(0x00000000);
-
    /* front buffer, pitch, offset */
    OUT_RING(STATE3D_BUFFER_INFO);
    OUT_RING(BUFFERID_COLOR_BACK | BUFFER_USE_FENCES |
 	    (((pI830->displayWidth * pI830->cpp) / 4) << 2));
    OUT_RING(pI830->bufferOffset);
 
-   /* Set the entire frontbuffer up as a texture */
-   OUT_RING(STATE3D_MAP_STATE);
-   OUT_RING(0x00000001);	/* texture map #1 */
-   OUT_RING(video_offset);
+   if (!planar) {
+      /* fragment program - texture blend replace. */
+      OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | 8);
+      OUT_RING(D0_DCL | (REG_TYPE_S << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT));
+      OUT_RING(0x00000000);
+      OUT_RING(0x00000000);
 
-   ms3 = MAPSURF_422;
-   switch (id) {
-   case FOURCC_YUY2:
-      ms3 |= MT_422_YCRCB_NORMAL;
-      break;
-   case FOURCC_UYVY:
-      ms3 |= MT_422_YCRCB_SWAPY;
-      break;
+      OUT_RING(D0_DCL | (REG_TYPE_T << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT) |
+	       D0_CHANNEL_ALL);
+      OUT_RING(0x00000000);
+      OUT_RING(0x00000000);
+
+      OUT_RING(T0_TEXLD | (REG_TYPE_OC << T0_DEST_TYPE_SHIFT) |
+	       (0 << T0_SAMPLER_NR_SHIFT));
+      OUT_RING((REG_TYPE_T << T1_ADDRESS_REG_TYPE_SHIFT) |
+	       (0 << T1_ADDRESS_REG_NR_SHIFT));
+      OUT_RING(0x00000000);
+      /* End fragment program */
+
+      OUT_RING(STATE3D_SAMPLER_STATE | 3);
+      OUT_RING(0x00000001);
+      OUT_RING(SS2_COLORSPACE_CONVERSION);
+      OUT_RING(0x00000000);
+      OUT_RING(0x00000000);
+
+      OUT_RING(STATE3D_MAP_STATE | 3);
+      OUT_RING(0x00000001);	/* texture map #1 */
+      OUT_RING(pPriv->YBuf0offset);
+      ms3 = MAPSURF_422;
+      switch (id) {
+      case FOURCC_YUY2:
+	 ms3 |= MT_422_YCRCB_NORMAL;
+	 break;
+      case FOURCC_UYVY:
+	 ms3 |= MT_422_YCRCB_SWAPY;
+	 break;
+      }
+      ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
+      ms3 |= (width - 1) << MS3_WIDTH_SHIFT;
+      if (!pI830->disableTiling)
+	 ms3 |= MS3_USE_FENCE_REGS;
+      OUT_RING(ms3);
+      OUT_RING(((video_pitch / 4) - 1) << 21);
+   } else {
+      /* For the planar formats, we set up three samplers -- one for each plane.
+       * Each plane is in a Y8 format, but the sampler converts this into a
+       * packed format.  We have to use a magic pixel shader, where we load
+       * each sampler into a temporary in turn, and then move that temporary
+       * into the real destination.
+       */
+      /* fragment program - texture blend replace. */
+      OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | 26);
+      /* Declare samplers */
+      OUT_RING(D0_DCL | (REG_TYPE_S << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT));
+      OUT_RING(0x00000000);
+      OUT_RING(0x00000000);
+      OUT_RING(D0_DCL | (REG_TYPE_S << D0_TYPE_SHIFT) | (1 << D0_NR_SHIFT));
+      OUT_RING(0x00000000);
+      OUT_RING(0x00000000);
+      OUT_RING(D0_DCL | (REG_TYPE_S << D0_TYPE_SHIFT) | (2 << D0_NR_SHIFT));
+      OUT_RING(0x00000000);
+      OUT_RING(0x00000000);
+
+      /* Declare coordinate sources */
+      OUT_RING(D0_DCL | (REG_TYPE_T << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT) |
+	       D0_CHANNEL_ALL);
+      OUT_RING(0x00000000);
+      OUT_RING(0x00000000);
+      OUT_RING(D0_DCL | (REG_TYPE_T << D0_TYPE_SHIFT) | (1 << D0_NR_SHIFT) |
+	       D0_CHANNEL_ALL);
+      OUT_RING(0x00000000);
+      OUT_RING(0x00000000);
+
+      /* Load each sampler in turn.  Y (sampler 0) gets the coords with
+       * doubled width.
+       */
+      OUT_RING(T0_TEXLD |
+	       (REG_TYPE_R << T0_DEST_TYPE_SHIFT) | (0 << T0_DEST_NR_SHIFT) |
+	       (0 << T0_SAMPLER_NR_SHIFT));
+      OUT_RING((REG_TYPE_T << T1_ADDRESS_REG_TYPE_SHIFT) |
+	       (1 << T1_ADDRESS_REG_NR_SHIFT));
+      OUT_RING(0x00000000);
+      OUT_RING(T0_TEXLD |
+	       (REG_TYPE_R << T0_DEST_TYPE_SHIFT) | (0 << T0_DEST_NR_SHIFT) |
+	       (1 << T0_SAMPLER_NR_SHIFT));
+      OUT_RING((REG_TYPE_T << T1_ADDRESS_REG_TYPE_SHIFT) |
+	       (0 << T1_ADDRESS_REG_NR_SHIFT));
+      OUT_RING(0x00000000);
+      OUT_RING(T0_TEXLD |
+	       (REG_TYPE_R << T0_DEST_TYPE_SHIFT) | (0 << T0_DEST_NR_SHIFT) |
+	       (2 << T0_SAMPLER_NR_SHIFT));
+      OUT_RING((REG_TYPE_T << T1_ADDRESS_REG_TYPE_SHIFT) |
+	       (0 << T1_ADDRESS_REG_NR_SHIFT));
+      OUT_RING(0x00000000);
+
+      /* Move the temporary to the destination */
+      OUT_RING(A0_MOV | A0_DEST_CHANNEL_ALL |
+	       (REG_TYPE_OC << A0_DEST_TYPE_SHIFT) | (0 << A0_DEST_NR_SHIFT) |
+	       (REG_TYPE_R << A0_SRC0_TYPE_SHIFT) | (0 << A0_SRC0_NR_SHIFT));
+      OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |
+	       (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |
+	       (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |
+	       (SRC_W << A1_SRC0_CHANNEL_W_SHIFT));
+      OUT_RING(0);
+      /* End fragment program */
+
+      OUT_RING(STATE3D_SAMPLER_STATE | 9);
+      OUT_RING(0x00000007);
+      /* sampler 0 */
+      OUT_RING(SS2_COLORSPACE_CONVERSION | SS2_PLANAR_TO_PACKED_ENABLE);
+      OUT_RING(0x00000000);
+      OUT_RING(0x00000000);
+      /* sampler 1 */
+      OUT_RING(SS2_COLORSPACE_CONVERSION | SS2_PLANAR_TO_PACKED_ENABLE);
+      OUT_RING(0x00000000);
+      OUT_RING(0x00000000);
+      /* sampler 2 */
+      OUT_RING(SS2_COLORSPACE_CONVERSION | SS2_PLANAR_TO_PACKED_ENABLE);
+      OUT_RING(0x00000000);
+      OUT_RING(0x00000000);
+
+      OUT_RING(STATE3D_MAP_STATE | 9);
+      OUT_RING(0x00000007);
+
+      OUT_RING(pPriv->YBuf0offset);
+      ms3 = MAPSURF_8BIT | MT_8BIT_I8;
+      ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
+      ms3 |= (width - 1) << MS3_WIDTH_SHIFT;
+      OUT_RING(ms3);
+      OUT_RING(((video_pitch * 2 / 4) - 1) << 21);
+
+      OUT_RING(pPriv->UBuf0offset);
+      ms3 = MAPSURF_8BIT | MT_8BIT_I8;
+      ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
+      ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
+      OUT_RING(ms3);
+      OUT_RING(((video_pitch / 4) - 1) << 21);
+
+      OUT_RING(pPriv->VBuf0offset);
+      ms3 = MAPSURF_8BIT | MT_8BIT_I8;
+      ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
+      ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
+      OUT_RING(ms3);
+      OUT_RING(((video_pitch / 4) - 1) << 21);
    }
-   ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
-   ms3 |= (width - 1) << MS3_WIDTH_SHIFT;
-   if (!pI830->disableTiling)
-      ms3 |= MS3_USE_FENCE_REGS;
 
-   OUT_RING(ms3);
-   OUT_RING(((video_pitch / 4) - 1) << 21);
    ADVANCE_LP_RING();
    
    {
@@ -2079,15 +2229,21 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, int id, RegionPtr dstRegion,
       int box_y2 = pbox->y2;
       int j;
       float src_scale_x, src_scale_y;
-      CARD32 vb[32];
-      float verts[4][2], tex[4][2];
+      CARD32 vb[40];
+      float verts[4][2], tex[4][2], tex2[4][2];
+      int vert_data_count;
 
       pbox++;
 
       src_scale_x = (float)src_w / (float)drw_w;
       src_scale_y  = (float)src_h / (float)drw_h;
 
-      BEGIN_LP_RING(40);
+      if (!planar)
+	 vert_data_count = 32;
+      else
+	 vert_data_count = 40;
+
+      BEGIN_LP_RING(vert_data_count + 8);
       OUT_RING(MI_NOOP);
       OUT_RING(MI_NOOP);
       OUT_RING(MI_NOOP);
@@ -2097,24 +2253,48 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, int id, RegionPtr dstRegion,
       OUT_RING(MI_NOOP);
 
       /* vertex data */
-      OUT_RING(PRIMITIVE3D | PRIM3D_INLINE | PRIM3D_TRIFAN | (32 - 1));
+      OUT_RING(PRIMITIVE3D | PRIM3D_INLINE | PRIM3D_TRIFAN |
+	       (vert_data_count - 1));
       verts[0][0] = box_x1; verts[0][1] = box_y1;
       verts[1][0] = box_x2; verts[1][1] = box_y1;
       verts[2][0] = box_x2; verts[2][1] = box_y2;
       verts[3][0] = box_x1; verts[3][1] = box_y2;
-      tex[0][0] = (box_x1 - dxo) * src_scale_x;
-      tex[0][1] = (box_y1 - dyo) * src_scale_y;
-      tex[1][0] = (box_x2 - dxo) * src_scale_x;
-      tex[1][1] = (box_y1 - dyo) * src_scale_y;
-      tex[2][0] = (box_x2 - dxo) * src_scale_x;
-      tex[2][1] = (box_y2 - dyo) * src_scale_y;
-      tex[3][0] = (box_x1 - dxo) * src_scale_x;
-      tex[3][1] = (box_y2 - dyo) * src_scale_y;
 
-      /* emit vertex buffer */
-      draw_poly(vb, verts, tex);
-      for (j = 0; j < 32; j++)
-         OUT_RING(vb[j]);
+      if (!planar) {
+	 tex[0][0] = (box_x1 - dxo) * src_scale_x;
+	 tex[0][1] = (box_y1 - dyo) * src_scale_y;
+	 tex[1][0] = (box_x2 - dxo) * src_scale_x;
+	 tex[1][1] = (box_y1 - dyo) * src_scale_y;
+	 tex[2][0] = (box_x2 - dxo) * src_scale_x;
+	 tex[2][1] = (box_y2 - dyo) * src_scale_y;
+	 tex[3][0] = (box_x1 - dxo) * src_scale_x;
+	 tex[3][1] = (box_y2 - dyo) * src_scale_y;
+	 /* emit vertex buffer */
+	 draw_poly(vb, verts, tex, NULL);
+	 for (j = 0; j < vert_data_count; j++)
+	    OUT_RING(vb[j]);
+      } else {
+	 tex[0][0] = (box_x1 - dxo) * src_scale_x / 2.0;
+	 tex[0][1] = (box_y1 - dyo) * src_scale_y / 2.0;
+	 tex[1][0] = (box_x2 - dxo) * src_scale_x / 2.0;
+	 tex[1][1] = (box_y1 - dyo) * src_scale_y / 2.0;
+	 tex[2][0] = (box_x2 - dxo) * src_scale_x / 2.0;
+	 tex[2][1] = (box_y2 - dyo) * src_scale_y / 2.0;
+	 tex[3][0] = (box_x1 - dxo) * src_scale_x / 2.0;
+	 tex[3][1] = (box_y2 - dyo) * src_scale_y / 2.0;
+	 tex2[0][0] = (box_x1 - dxo) * src_scale_x;
+	 tex2[0][1] = (box_y1 - dyo) * src_scale_y;
+	 tex2[1][0] = (box_x2 - dxo) * src_scale_x;
+	 tex2[1][1] = (box_y1 - dyo) * src_scale_y;
+	 tex2[2][0] = (box_x2 - dxo) * src_scale_x;
+	 tex2[2][1] = (box_y2 - dyo) * src_scale_y;
+	 tex2[3][0] = (box_x1 - dxo) * src_scale_x;
+	 tex2[3][1] = (box_y2 - dyo) * src_scale_y;
+	 /* emit vertex buffer */
+	 draw_poly(vb, verts, tex, tex2);
+	 for (j = 0; j < vert_data_count; j++)
+	    OUT_RING(vb[j]);
+      }
 
       ADVANCE_LP_RING();
    }
@@ -2372,8 +2552,8 @@ I830PutImage(ScrnInfoPtr pScrn,
    I830DisplayVideo(pScrn, id, width, height, dstPitch,
 		    x1, y1, x2, y2, &dstBox, src_w, src_h, drw_w, drw_h);
 #else
-   I915DisplayVideoTextured(pScrn, id, clipBoxes, width, height,
-			    pPriv->YBuf0offset, dstPitch,
+   I915DisplayVideoTextured(pScrn, pPriv, id, clipBoxes, width, height,
+			    dstPitch,
 			    x1, y1, x2, y2, src_w, src_h, drw_w, drw_h, pDraw);
 #endif
    pPriv->videoStatus = CLIENT_VIDEO_ON;
