@@ -1040,7 +1040,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MS4_VOLUME_DEPTH_SHIFT          0    
 #define MS4_VOLUME_DEPTH_MASK           (0xff<<0)
 
-#define STATE3D_SAMPLER_STATE		(CMD_3D | (0x1d<<24)|(0x01<<16)
+#define STATE3D_SAMPLER_STATE		(CMD_3D | (0x1d<<24)|(0x01<<16))
 
 #define SS1_MAPMASK_SHIFT               0
 #define SS1_MAPMASK_MASK                (0x8fff<<0)

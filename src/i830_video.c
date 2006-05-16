@@ -1,4 +1,4 @@
-#define VIDEO_DEBUG 0
+#define VIDEO_DEBUG 1
 /***************************************************************************
  
 Copyright 2000 Intel Corporation.  All Rights Reserved. 
@@ -83,6 +83,8 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xaalocal.h"
 #include "dixstruct.h"
 #include "fourcc.h"
+
+#define USE_TEXTURED_VIDEO
 
 #ifndef USE_USLEEP_FOR_VIDEO
 #define USE_USLEEP_FOR_VIDEO 0
@@ -1847,6 +1849,278 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    OVERLAY_UPDATE;
 }
 
+/* Doesn't matter on the order for our purposes */
+typedef struct {
+   unsigned char red, green, blue, alpha;
+} intel_color_t;
+
+/* Vertex format */
+typedef union {
+   struct {
+      float x, y, z, w;
+      intel_color_t color;
+      intel_color_t specular;
+      float u0, v0;
+      float u1, v1;
+      float u2, v2;
+      float u3, v3;
+   } v;
+   float f[24];
+   unsigned int  ui[24];
+   unsigned char ub4[24][4];
+} intelVertex, *intelVertexPtr;
+
+static void draw_poly(CARD32 *vb,
+                      float verts[][2],
+                      float texcoords[][2])
+{
+   int vertex_size = 8;
+   intelVertex tmp;
+   int i, k;
+
+   /* initial constant vertex fields */
+   tmp.v.z = 1.0;
+   tmp.v.w = 1.0; 
+   tmp.v.color.red = 255;
+   tmp.v.color.green = 255;
+   tmp.v.color.blue = 255;
+   tmp.v.color.alpha = 255;
+   tmp.v.specular.red = 0;
+   tmp.v.specular.green = 0;
+   tmp.v.specular.blue = 0;
+   tmp.v.specular.alpha = 0;
+
+   for (k = 0; k < 4; k++) {
+      tmp.v.x = verts[k][0];
+      tmp.v.y = verts[k][1];
+      tmp.v.u0 = texcoords[k][0];
+      tmp.v.v0 = texcoords[k][1];
+
+      for (i = 0 ; i < vertex_size ; i++)
+         vb[i] = tmp.ui[i];
+
+      vb += vertex_size;
+   }
+}
+
+#ifdef USE_TEXTURED_VIDEO
+static void
+I915DisplayVideoTextured(ScrnInfoPtr pScrn, int id, RegionPtr dstRegion,
+		 short width, short height, int video_offset,
+		 int video_pitch, int x1, int y1, int x2, int y2,
+		 short src_w, short src_h, short drw_w, short drw_h,
+		 DrawablePtr pDraw)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   CARD32 format, ms3;
+   BoxPtr pbox;
+   int nbox, dxo, dyo;
+
+   ErrorF("I915DisplayVideo: %dx%d (pitch %d)\n", width, height,
+	  video_pitch);
+
+   /* XXX: Dirty dri/rotate state  */
+   BEGIN_LP_RING(64);
+   /* invarient state */
+   OUT_RING(MI_NOOP);
+   OUT_RING(STATE3D_ANTI_ALIASING |
+	    LINE_CAP_WIDTH_MODIFY | LINE_CAP_WIDTH_1_0 |
+	    LINE_WIDTH_MODIFY | LINE_WIDTH_1_0);
+
+   OUT_RING(STATE3D_DFLT_DIFFUSE_CMD);
+   OUT_RING(0x00000000);
+
+   OUT_RING(STATE3D_DFLT_SPEC_CMD);
+   OUT_RING(0x00000000);
+
+   OUT_RING(STATE3D_DFLT_Z_CMD);
+   OUT_RING(0x00000000);
+
+   OUT_RING(STATE3D_COORD_SET_BINDINGS | CSB_TCB(0, 0) | CSB_TCB(1, 1) |
+	    CSB_TCB(2,2) | CSB_TCB(3,3) | CSB_TCB(4,4) | CSB_TCB(5,5) |
+	    CSB_TCB(6,6) | CSB_TCB(7,7));
+
+   OUT_RING(STATE3D_RASTERIZATION_RULES |
+	    ENABLE_TRI_FAN_PROVOKE_VRTX | TRI_FAN_PROVOKE_VRTX(2) |
+	    ENABLE_LINE_STRIP_PROVOKE_VRTX | LINE_STRIP_PROVOKE_VRTX(1) |
+	    ENABLE_TEXKILL_3D_4D | TEXKILL_4D |
+	    ENABLE_POINT_RASTER_RULE | OGL_POINT_RASTER_RULE);
+
+   OUT_RING(STATE3D_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 1);
+   OUT_RING(0x00000000);
+
+   /* flush map & render cache */
+   OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
+   OUT_RING(0x00000000);
+
+   /* draw rect -- just clipping */
+   OUT_RING(STATE3D_DRAWING_RECTANGLE);
+   OUT_RING(0x00000000);	/* flags */
+   OUT_RING(0x00000000);	/* ymin, xmin */
+   OUT_RING((pScrn->virtualX - 1) | (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+   OUT_RING(0x00000000);	/* yorigin, xorigin */
+   OUT_RING(MI_NOOP);
+
+   /* scissor */
+   OUT_RING(STATE3D_SCISSOR_ENABLE | DISABLE_SCISSOR_RECT);
+   OUT_RING(STATE3D_SCISSOR_RECTANGLE);
+   OUT_RING(0x00000000);	/* ymin, xmin */
+   OUT_RING(0x00000000);	/* ymax, xmax */
+
+   OUT_RING(0x7c000003);	/* unknown command */
+   OUT_RING(0x7d070000);
+   OUT_RING(0x00000000);
+   OUT_RING(0x68000002);
+
+   /* context setup */
+   OUT_RING(STATE3D_MODES_4 |
+	    ENABLE_LOGIC_OP_FUNC | LOGIC_OP_FUNC(LOGICOP_COPY) |
+	    ENABLE_STENCIL_WRITE_MASK | STENCIL_WRITE_MASK(0xff) |
+	    ENABLE_STENCIL_TEST_MASK | STENCIL_TEST_MASK(0xff));
+
+   OUT_RING(STATE3D_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
+	    I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 4);
+   OUT_RING(0xfffffff0);
+   OUT_RING(0x00902c80);
+   OUT_RING(0x00000000);
+   OUT_RING(0x00020216);
+
+   OUT_RING(STATE3D_INDEPENDENT_ALPHA_BLEND |
+	    IAB_MODIFY_ENABLE |
+	    IAB_MODIFY_FUNC | (BLENDFUNC_ADD << IAB_FUNC_SHIFT) |
+	    IAB_MODIFY_SRC_FACTOR | (BLENDFACT_ONE << IAB_SRC_FACTOR_SHIFT) |
+	    IAB_MODIFY_DST_FACTOR | (BLENDFACT_ZERO << IAB_DST_FACTOR_SHIFT));
+
+   OUT_RING(STATE3D_CONST_BLEND_COLOR);
+   OUT_RING(0x00000000);
+
+   OUT_RING(STATE3D_DEST_BUFFER_VARIABLES);
+   if (pI830->cpp == 2)
+      format = COLR_BUF_RGB565;
+   else
+      format = COLR_BUF_ARGB8888 | DEPTH_FRMT_24_FIXED_8_OTHER;
+
+   OUT_RING(LOD_PRECLAMP_OGL |
+     DSTORG_HORIZ_BIAS(0x80) | DSTORG_VERT_BIAS(0x80) | format);
+
+   OUT_RING(STATE3D_STIPPLE);
+   OUT_RING(0x00000000);
+
+   /* fragment program - texture blend replace*/
+   OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | 8);
+   OUT_RING(D0_DCL | (REG_TYPE_S << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT));
+   OUT_RING(0x00000000);
+   OUT_RING(0x00000000);
+
+   OUT_RING(D0_DCL | (REG_TYPE_T << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT) |
+	    D0_CHANNEL_ALL);
+   OUT_RING(0x00000000);
+   OUT_RING(0x00000000);
+
+   OUT_RING(T0_TEXLD | (REG_TYPE_OC << T0_DEST_TYPE_SHIFT) |
+	    (0 << T0_SAMPLER_NR_SHIFT));
+   OUT_RING((REG_TYPE_T << T1_ADDRESS_REG_TYPE_SHIFT) |
+	    (0 << T1_ADDRESS_REG_NR_SHIFT));
+   OUT_RING(0x00000000);
+   /* End fragment program */
+
+   OUT_RING(STATE3D_SAMPLER_STATE | 3);
+   OUT_RING(0x00000001);
+   OUT_RING(SS2_COLORSPACE_CONVERSION);
+   OUT_RING(0x00000000);
+   OUT_RING(0x00000000);
+
+   /* front buffer, pitch, offset */
+   OUT_RING(STATE3D_BUFFER_INFO);
+   OUT_RING(BUFFERID_COLOR_BACK | BUFFER_USE_FENCES |
+	    (((pI830->displayWidth * pI830->cpp) / 4) << 2));
+   OUT_RING(pI830->bufferOffset);
+
+   /* Set the entire frontbuffer up as a texture */
+   OUT_RING(STATE3D_MAP_STATE);
+   OUT_RING(0x00000001);	/* texture map #1 */
+   OUT_RING(video_offset);
+
+   ms3 = MAPSURF_422;
+   switch (id) {
+   case FOURCC_YUY2:
+      ms3 |= MT_422_YCRCB_NORMAL;
+      break;
+   case FOURCC_UYVY:
+      ms3 |= MT_422_YCRCB_SWAPY;
+      break;
+   }
+   ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
+   ms3 |= (width - 1) << MS3_WIDTH_SHIFT;
+   if (!pI830->disableTiling)
+      ms3 |= MS3_USE_FENCE_REGS;
+
+   OUT_RING(ms3);
+   OUT_RING(((video_pitch / 4) - 1) << 21);
+   ADVANCE_LP_RING();
+   
+   {
+      BEGIN_LP_RING(2);
+      OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
+      OUT_RING(0x00000000);
+      ADVANCE_LP_RING();
+   }
+
+   dxo = dstRegion->extents.x1;
+   dyo = dstRegion->extents.y1;
+
+   pbox = REGION_RECTS(dstRegion);
+   nbox = REGION_NUM_RECTS(dstRegion);
+   while (nbox--)
+   {
+      int box_x1 = pbox->x1;
+      int box_y1 = pbox->y1;
+      int box_x2 = pbox->x2;
+      int box_y2 = pbox->y2;
+      int j;
+      float src_scale_x, src_scale_y;
+      CARD32 vb[32];
+      float verts[4][2], tex[4][2];
+
+      pbox++;
+
+      src_scale_x = (float)src_w / (float)drw_w;
+      src_scale_y  = (float)src_h / (float)drw_h;
+
+      BEGIN_LP_RING(40);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+
+      /* vertex data */
+      OUT_RING(PRIMITIVE3D | PRIM3D_INLINE | PRIM3D_TRIFAN | (32 - 1));
+      verts[0][0] = box_x1; verts[0][1] = box_y1;
+      verts[1][0] = box_x2; verts[1][1] = box_y1;
+      verts[2][0] = box_x2; verts[2][1] = box_y2;
+      verts[3][0] = box_x1; verts[3][1] = box_y2;
+      tex[0][0] = (box_x1 - dxo) * src_scale_x;
+      tex[0][1] = (box_y1 - dyo) * src_scale_y;
+      tex[1][0] = (box_x2 - dxo) * src_scale_x;
+      tex[1][1] = (box_y1 - dyo) * src_scale_y;
+      tex[2][0] = (box_x2 - dxo) * src_scale_x;
+      tex[2][1] = (box_y2 - dyo) * src_scale_y;
+      tex[3][0] = (box_x1 - dxo) * src_scale_x;
+      tex[3][1] = (box_y2 - dyo) * src_scale_y;
+
+      /* emit vertex buffer */
+      draw_poly(vb, verts, tex);
+      for (j = 0; j < 32; j++)
+         OUT_RING(vb[j]);
+
+      ADVANCE_LP_RING();
+   }
+}
+#endif /* USE_TEXTURED_VIDEO */
+
 static FBLinearPtr
 I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size)
 {
@@ -1889,6 +2163,19 @@ I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size)
    return new_linear;
 }
 
+/*
+ * The source rectangle of the video is defined by (src_x, src_y, src_w, src_h).
+ * The dest rectangle of the video is defined by (drw_x, drw_y, drw_w, drw_h).
+ * id is a fourcc code for the format of the video.
+ * buf is the pointer to the source data in system memory.
+ * width and height are the w/h of the source data.
+ * If "sync" is TRUE, then we must be finished with *buf at the point of return
+ * (which we always are).
+ * clipBoxes is the clipping region in screen space.
+ * data is a pointer to our port private.
+ * pDraw is a Drawable, which might not be the screen in the case of
+ * compositing.  It's a new argument to the function in the 1.1 server.
+ */
 static int
 I830PutImage(ScrnInfoPtr pScrn,
 	     short src_x, short src_y,
@@ -2075,6 +2362,7 @@ I830PutImage(ScrnInfoPtr pScrn,
       break;
    }
 
+#ifndef USE_TEXTURED_VIDEO
    /* update cliplist */
    if (!RegionsEqual(&pPriv->clip, clipBoxes)) {
       REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
@@ -2083,7 +2371,11 @@ I830PutImage(ScrnInfoPtr pScrn,
 
    I830DisplayVideo(pScrn, id, width, height, dstPitch,
 		    x1, y1, x2, y2, &dstBox, src_w, src_h, drw_w, drw_h);
-
+#else
+   I915DisplayVideoTextured(pScrn, id, clipBoxes, width, height,
+			    pPriv->YBuf0offset, dstPitch,
+			    x1, y1, x2, y2, src_w, src_h, drw_w, drw_h, pDraw);
+#endif
    pPriv->videoStatus = CLIENT_VIDEO_ON;
 
    return Success;
