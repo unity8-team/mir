@@ -99,7 +99,8 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 static void I830InitOffscreenImages(ScreenPtr);
 
-static XF86VideoAdaptorPtr I830SetupImageVideo(ScreenPtr);
+static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr);
+static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr);
 static void I830StopVideo(ScrnInfoPtr, pointer, Bool);
 static int I830SetPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 static int I830GetPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
@@ -109,8 +110,10 @@ static void I830QueryBestSize(ScrnInfoPtr, Bool,
 static int I830PutImage(ScrnInfoPtr, short, short, short, short, short, short,
 			short, short, int, unsigned char *, short, short,
 			Bool, RegionPtr, pointer, DrawablePtr);
-static int I830QueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
-				    unsigned short *, int *, int *);
+static int I830QueryImageAttributesOverlay(ScrnInfoPtr, int, unsigned short *,
+					   unsigned short *, int *, int *);
+static int I830QueryImageAttributesTextured(ScrnInfoPtr, int, unsigned short *,
+					    unsigned short *, int *, int *);
 
 static void I830BlockHandler(int, pointer, pointer, pointer);
 
@@ -286,6 +289,12 @@ static XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
    {XvSettable | XvGettable, 0, 1, "XV_DOUBLE_BUFFER"}
 };
 
+#define NUM_TEXTURED_ATTRIBUTES 2
+static XF86AttributeRec TexturedAttributes[NUM_ATTRIBUTES] = {
+   {XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
+   {XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
+};
+
 #define GAMMA_ATTRIBUTES 6
 static XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
    {XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA0"},
@@ -394,6 +403,7 @@ typedef struct {
    Bool overlayOK;
    int oneLineMode;
    int scaleRatio;
+   Bool textured;
 } I830PortPrivRec, *I830PortPrivPtr;
 
 #define GET_PORT_PRIVATE(pScrn) \
@@ -424,8 +434,9 @@ void
 I830InitVideo(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
    XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
-   XF86VideoAdaptorPtr newAdaptor = NULL;
+   XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
    int num_adaptors;
 
    DPRINTF(PFX, "I830InitVideo\n");
@@ -444,35 +455,54 @@ I830InitVideo(ScreenPtr pScreen)
    }
 #endif
 
+   num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
+   /* Give our adaptor list enough space for the overlay and/or texture video
+    * adaptors.
+    */
+   newAdaptors = xalloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
+   if (newAdaptors == NULL)
+      return;
+
+   memcpy(newAdaptors, adaptors, num_adaptors * sizeof(XF86VideoAdaptorPtr));
+   adaptors = newAdaptors;
+
+   /* Add the adaptors supported by our hardware.  First, set up the atoms
+    * that will be used by both output adaptors.
+    */
+   xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
+   xvContrast = MAKE_ATOM("XV_CONTRAST");
+
+   /* Set up overlay video if we can do it at this depth. */
    if (pScrn->bitsPerPixel != 8) {
-      newAdaptor = I830SetupImageVideo(pScreen);
+      overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
+      if (overlayAdaptor != NULL) {
+	 adaptors[num_adaptors++] = overlayAdaptor;
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up overlay video\n");
+      } else {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Failed to set up overlay video\n");
+      }
       I830InitOffscreenImages(pScreen);
    }
 
-   num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
-
-   if (newAdaptor) {
-      if (!num_adaptors) {
-	 num_adaptors = 1;
-	 adaptors = &newAdaptor;
+   /* Set up textured video if we can do it at this depth and we are on
+    * supported hardware.
+    */
+   if (pScrn->bitsPerPixel >= 16 && IS_I9XX(pI830)) {
+      texturedAdaptor = I830SetupImageVideoTextured(pScreen);
+      if (texturedAdaptor != NULL) {
+	 adaptors[num_adaptors++] = texturedAdaptor;
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
       } else {
-	 newAdaptors =			/* need to free this someplace */
-	       xalloc((num_adaptors + 1) * sizeof(XF86VideoAdaptorPtr *));
-	 if (newAdaptors) {
-	    memcpy(newAdaptors, adaptors, num_adaptors *
-		   sizeof(XF86VideoAdaptorPtr));
-	    newAdaptors[num_adaptors] = newAdaptor;
-	    adaptors = newAdaptors;
-	    num_adaptors++;
-	 }
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Failed to set up textured video\n");
       }
    }
 
    if (num_adaptors)
       xf86XVScreenInit(pScreen, adaptors, num_adaptors);
 
-   if (newAdaptors)
-      xfree(newAdaptors);
+   xfree(adaptors);
 }
 
 static void
@@ -644,7 +674,7 @@ I830UpdateGamma(ScrnInfoPtr pScrn)
 }
 
 static XF86VideoAdaptorPtr
-I830SetupImageVideo(ScreenPtr pScreen)
+I830SetupImageVideoOverlay(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
@@ -652,7 +682,7 @@ I830SetupImageVideo(ScreenPtr pScreen)
    I830PortPrivPtr pPriv;
    XF86AttributePtr att;
 
-   DPRINTF(PFX, "I830SetupImageVideo\n");
+   DPRINTF(PFX, "I830SetupImageVideoOverlay\n");
 
    if (!(adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec) +
 			 sizeof(I830PortPrivRec) + sizeof(DevUnion))))
@@ -705,8 +735,9 @@ I830SetupImageVideo(ScreenPtr pScreen)
    adapt->GetPortAttribute = I830GetPortAttribute;
    adapt->QueryBestSize = I830QueryBestSize;
    adapt->PutImage = I830PutImage;
-   adapt->QueryImageAttributes = I830QueryImageAttributes;
+   adapt->QueryImageAttributes = I830QueryImageAttributesOverlay;
 
+   pPriv->textured = FALSE;
    pPriv->colorKey = pI830->colorKey & ((1 << pScrn->depth) - 1);
    pPriv->videoStatus = 0;
    pPriv->brightness = 0;
@@ -744,8 +775,6 @@ I830SetupImageVideo(ScreenPtr pScreen)
    pScreen->BlockHandler = I830BlockHandler;
 
    xvColorKey = MAKE_ATOM("XV_COLORKEY");
-   xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
-   xvContrast = MAKE_ATOM("XV_CONTRAST");
    xvDoubleBuffer = MAKE_ATOM("XV_DOUBLE_BUFFER");
 
    /* Allow the pipe to be switched from pipe A to B when in clone mode */
@@ -764,6 +793,86 @@ I830SetupImageVideo(ScreenPtr pScreen)
    I830ResetVideo(pScrn);
 
    I830UpdateGamma(pScrn);
+
+   return adapt;
+}
+
+static XF86VideoAdaptorPtr
+I830SetupImageVideoTextured(ScreenPtr pScreen)
+{
+   XF86VideoAdaptorPtr adapt;
+   XF86VideoEncodingPtr encoding;
+   XF86AttributePtr attrs;
+   I830PortPrivPtr portPrivs;
+   DevUnion *devUnions;
+   int nports = 16, i;
+   int nAttributes;
+
+   DPRINTF(PFX, "I830SetupImageVideoOverlay\n");
+
+   nAttributes = NUM_TEXTURED_ATTRIBUTES;
+
+   adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec));
+   portPrivs = xcalloc(nports, sizeof(I830PortPrivRec));
+   devUnions = xcalloc(nports, sizeof(DevUnion));
+   encoding = xcalloc(1, sizeof(XF86VideoEncodingRec));
+   attrs = xcalloc(nAttributes, sizeof(XF86AttributeRec));
+   if (adapt == NULL || portPrivs == NULL || devUnions == NULL ||
+       encoding == NULL || attrs == NULL)
+   {
+      xfree(adapt);
+      xfree(portPrivs);
+      xfree(devUnions);
+      xfree(encoding);
+      xfree(attrs);
+      return NULL;
+   }
+
+   adapt->type = XvWindowMask | XvInputMask | XvImageMask;
+   adapt->flags = 0;
+   adapt->name = "Intel(R) Textured Video";
+   adapt->nEncodings = 1;
+   adapt->pEncodings = encoding;
+   adapt->pEncodings[0].id = 0;
+   adapt->pEncodings[0].name = "XV_IMAGE";
+   adapt->pEncodings[0].width = 2048;
+   adapt->pEncodings[0].height = 2048;
+   adapt->pEncodings[0].rate.numerator = 1;
+   adapt->pEncodings[0].rate.denominator = 1;
+   adapt->nFormats = NUM_FORMATS;
+   adapt->pFormats = Formats;
+   adapt->nPorts = nports;
+   adapt->pPortPrivates = devUnions;
+   adapt->nAttributes = nAttributes;
+   adapt->pAttributes = attrs;
+   memcpy(attrs, TexturedAttributes, nAttributes * sizeof(XF86AttributeRec));
+   adapt->nImages = NUM_IMAGES;
+   adapt->pImages = Images;
+   adapt->PutVideo = NULL;
+   adapt->PutStill = NULL;
+   adapt->GetVideo = NULL;
+   adapt->GetStill = NULL;
+   adapt->StopVideo = I830StopVideo;
+   adapt->SetPortAttribute = I830SetPortAttribute;
+   adapt->GetPortAttribute = I830GetPortAttribute;
+   adapt->QueryBestSize = I830QueryBestSize;
+   adapt->PutImage = I830PutImage;
+   adapt->QueryImageAttributes = I830QueryImageAttributesTextured;
+
+   for (i = 0; i < nports; i++) {
+      I830PortPrivPtr pPriv = &portPrivs[i];
+
+      pPriv->textured = TRUE;
+      pPriv->videoStatus = 0;
+      pPriv->linear = NULL;
+      pPriv->currentBuf = 0;
+      pPriv->doubleBuffer = 0;
+
+      /* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
+      REGION_NULL(pScreen, &pPriv->clip);
+
+      adapt->pPortPrivates[i].ptr = (pointer) (pPriv);
+   }
 
    return adapt;
 }
@@ -805,6 +914,9 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
    I830OverlayRegPtr overlay =
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
 
+   if (pPriv->textured)
+      return;
+
    DPRINTF(PFX, "I830StopVideo\n");
 
    REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
@@ -843,6 +955,14 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
    I830Ptr pI830 = I830PTR(pScrn);
    I830OverlayRegPtr overlay =
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
+
+   if (pPriv->textured) {
+      /* XXX: Currently the brightness/saturation attributes aren't hooked up.
+       * However, apps expect them to be there, and the spec seems to let us
+       * sneak out of actually implementing them for now.
+       */
+      return Success;
+   }
 
    if (attribute == xvBrightness) {
       if ((value < -128) || (value > 127))
@@ -996,13 +1116,12 @@ I830QueryBestSize(ScrnInfoPtr pScrn,
 }
 
 static void
-I830CopyPackedData(ScrnInfoPtr pScrn,
+I830CopyPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 		   unsigned char *buf,
 		   int srcPitch,
 		   int dstPitch, int top, int left, int h, int w)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
    unsigned char *src, *dst;
    int i,j;
    unsigned char *s;
@@ -1090,13 +1209,72 @@ I830CopyPackedData(ScrnInfoPtr pScrn,
    }
 }
 
+/* Copies planar data in *buf to UYVY-packed data in the screen atYBufXOffset.
+ */
 static void
-I830CopyPlanarData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
+I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
+			   unsigned char *buf, int srcPitch,
+			   int srcPitch2, int dstPitch, int srcH,
+			   int top, int left, int h, int w, int id)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   CARD8 *dst1, *srcy, *srcu, *srcv;
+   int y;
+
+   if (pPriv->currentBuf == 0)
+      dst1 = pI830->FbBase + pPriv->YBuf0offset;
+   else
+      dst1 = pI830->FbBase + pPriv->YBuf1offset;
+
+   srcy = buf + (top * srcPitch) + left;
+   if (id == FOURCC_YV12) {
+      srcu = buf + (srcH * srcPitch) + ((top / 2) * srcPitch2) + (left / 2);
+      srcv = buf + (srcH * srcPitch) + ((srcH / 2) * srcPitch2) +
+	    ((top / 2) * srcPitch2) + (left / 2);
+   } else {
+      srcv = buf + (srcH * srcPitch) + ((top / 2) * srcPitch2) + (left / 2);
+      srcu = buf + (srcH * srcPitch) + ((srcH / 2) * srcPitch2) +
+	    ((top / 2) * srcPitch2) + (left / 2);
+   }
+
+   for (y = 0; y < h; y++) {
+      CARD32 *dst = (CARD32 *)dst1;
+      CARD8 *sy = srcy;
+      CARD8 *su = srcu;
+      CARD8 *sv = srcv;
+      int i;
+
+      i = w / 2;
+      while(i > 4) {
+	 dst[0] = sy[0] | (sy[1] << 16) | (sv[0] << 8) | (su[0] << 24);
+	 dst[1] = sy[2] | (sy[3] << 16) | (sv[1] << 8) | (su[1] << 24);
+	 dst[2] = sy[4] | (sy[5] << 16) | (sv[2] << 8) | (su[2] << 24);
+	 dst[3] = sy[6] | (sy[7] << 16) | (sv[3] << 8) | (su[3] << 24);
+	 dst += 4; su += 4; sv += 4; sy += 8;
+	 i -= 4;
+      }
+      while(i--) {
+	 dst[0] = sy[0] | (sy[1] << 16) | (sv[0] << 8) | (su[0] << 24);
+	 dst++; su++; sv++;
+	 sy += 2;
+      }
+
+      dst1 += dstPitch;
+      srcy += srcPitch;
+      if (y & 1) {
+	 srcu += srcPitch2;
+	 srcv += srcPitch2;
+      }	
+   }
+}
+
+static void
+I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
+		   unsigned char *buf, int srcPitch,
 		   int srcPitch2, int dstPitch, int srcH, int top, int left,
 		   int h, int w, int id)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
    int i, j = 0;
    unsigned char *src1, *src2, *src3, *dst1, *dst2, *dst3;
    unsigned char *s;
@@ -1866,6 +2044,569 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    OVERLAY_UPDATE;
 }
 
+/* Doesn't matter on the order for our purposes */
+typedef struct {
+   unsigned char red, green, blue, alpha;
+} intel_color_t;
+
+/* Vertex format */
+typedef union {
+   struct {
+      float x, y, z, w;
+      intel_color_t color;
+      intel_color_t specular;
+      float u0, v0;
+      float u1, v1;
+      float u2, v2;
+      float u3, v3;
+   } v;
+   float f[24];
+   unsigned int  ui[24];
+   unsigned char ub4[24][4];
+} intelVertex, *intelVertexPtr;
+
+static void draw_poly(CARD32 *vb,
+                      float verts[][2],
+                      float texcoords[][2],
+		      float texcoords2[][2])
+{
+   int vertex_size;
+   intelVertex tmp;
+   int i, k;
+
+   if (texcoords2 != NULL)
+      vertex_size = 10;
+   else
+      vertex_size = 8;
+   
+   /* initial constant vertex fields */
+   tmp.v.z = 1.0;
+   tmp.v.w = 1.0; 
+   tmp.v.color.red = 255;
+   tmp.v.color.green = 255;
+   tmp.v.color.blue = 255;
+   tmp.v.color.alpha = 255;
+   tmp.v.specular.red = 0;
+   tmp.v.specular.green = 0;
+   tmp.v.specular.blue = 0;
+   tmp.v.specular.alpha = 0;
+
+   for (k = 0; k < 4; k++) {
+      tmp.v.x = verts[k][0];
+      tmp.v.y = verts[k][1];
+      tmp.v.u0 = texcoords[k][0];
+      tmp.v.v0 = texcoords[k][1];
+      if (texcoords2 != NULL) {
+	 tmp.v.u1 = texcoords2[k][0];
+	 tmp.v.v1 = texcoords2[k][1];
+      }
+
+      for (i = 0 ; i < vertex_size ; i++)
+         vb[i] = tmp.ui[i];
+
+      vb += vertex_size;
+   }
+}
+
+union intfloat {
+   CARD32 ui;
+   float f;
+};
+
+#define OUT_RING_F(x) do {						\
+   union intfloat _tmp;							\
+   _tmp.f = x;								\
+   OUT_RING(_tmp.ui);							\
+} while (0)
+
+#define OUT_DCL(type, nr) do {						\
+   CARD32 chans = 0;							\
+   if (REG_TYPE_##type == REG_TYPE_T)					\
+      chans = D0_CHANNEL_ALL;						\
+   else if (REG_TYPE_##type != REG_TYPE_S)				\
+      FatalError("wrong reg type %d to declare\n", REG_TYPE_##type);	\
+   OUT_RING(D0_DCL |							\
+	    (REG_TYPE_##type << D0_TYPE_SHIFT) | (nr << D0_NR_SHIFT) |	\
+	    chans);							\
+   OUT_RING(0x00000000);						\
+   OUT_RING(0x00000000);						\
+} while (0)
+
+#define OUT_TEXLD(dest_type, dest_nr, sampler_nr, addr_type, addr_nr)	\
+do {									\
+      OUT_RING(T0_TEXLD |						\
+	       (REG_TYPE_##dest_type << T0_DEST_TYPE_SHIFT) |		\
+	       (dest_nr << T0_DEST_NR_SHIFT) |				\
+	       (sampler_nr << T0_SAMPLER_NR_SHIFT));			\
+      OUT_RING((REG_TYPE_##addr_type << T1_ADDRESS_REG_TYPE_SHIFT) |	\
+	       (addr_nr << T1_ADDRESS_REG_NR_SHIFT));			\
+      OUT_RING(0x00000000);						\
+} while (0)
+
+/* Move the dest_chan from src0 to dest, leaving the other channels alone */
+#define OUT_MOV_TO_CHANNEL(dest_type, dest_nr, src0_type, src0_nr,	\
+			   dest_chan)					\
+do {									\
+   OUT_RING(A0_MOV | A0_DEST_CHANNEL_##dest_chan |			\
+	    (REG_TYPE_##dest_type << A0_DEST_TYPE_SHIFT) |		\
+	    (dest_nr << A0_DEST_NR_SHIFT) |				\
+	    (REG_TYPE_##src0_type << A0_SRC0_TYPE_SHIFT) |		\
+	    (src0_nr << A0_SRC0_NR_SHIFT));				\
+   OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |			\
+	    (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |			\
+	    (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |			\
+	    (SRC_W << A1_SRC0_CHANNEL_W_SHIFT));			\
+   OUT_RING(0);								\
+} while (0)
+
+/* Dot3-product src0 and src1, storing the result in dest_chan of the dest.
+ * Saturates, in case we have out-of-range YUV values.
+ */
+#define OUT_DP3_TO_CHANNEL(dest_type, dest_nr, src0_type, src0_nr,	\
+			   src1_type, src1_nr, dest_chan)		\
+do {									\
+   OUT_RING(A0_DP3 | A0_DEST_CHANNEL_##dest_chan | A0_DEST_SATURATE |	\
+	    (REG_TYPE_##dest_type << A0_DEST_TYPE_SHIFT) |		\
+	    (dest_nr << A0_DEST_NR_SHIFT) |				\
+	    (REG_TYPE_##src0_type << A0_SRC0_TYPE_SHIFT) |		\
+	    (src0_nr << A0_SRC0_NR_SHIFT));				\
+   OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |			\
+	    (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |			\
+	    (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |			\
+	    (SRC_W << A1_SRC0_CHANNEL_W_SHIFT) |			\
+	    (REG_TYPE_##src1_type << A1_SRC1_TYPE_SHIFT) |		\
+	    (src1_nr << A1_SRC1_TYPE_SHIFT) |				\
+	    (SRC_X << A1_SRC1_CHANNEL_X_SHIFT) |			\
+	    (SRC_Y << A1_SRC1_CHANNEL_Y_SHIFT));			\
+   OUT_RING((SRC_Z << A2_SRC1_CHANNEL_Z_SHIFT) |			\
+	    (SRC_W << A2_SRC1_CHANNEL_W_SHIFT));			\
+} while (0)
+
+static void
+I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
+			 RegionPtr dstRegion,
+			 short width, short height, int video_pitch,
+			 int x1, int y1, int x2, int y2,
+			 short src_w, short src_h, short drw_w, short drw_h,
+			 DrawablePtr pDraw)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   CARD32 format, ms3, s2;
+   BoxPtr pbox;
+   int nbox, dxo, dyo;
+   Bool planar;
+
+   ErrorF("I915DisplayVideo: %dx%d (pitch %d)\n", width, height,
+	  video_pitch);
+
+   switch (id) {
+   case FOURCC_UYVY:
+   case FOURCC_YUY2:
+      planar = FALSE;
+      break;
+   case FOURCC_YV12:
+   case FOURCC_I420:
+      planar = TRUE;
+      break;
+   default:
+      ErrorF("Unknown format 0x%x\n", id);
+      planar = FALSE;
+      break;
+   }
+
+   /* Tell the rotation code that we have stomped its invariant state by
+    * setting a high bit.  We don't use any invariant 3D state for video, so we
+    * don't have to worry about it ourselves.
+    */
+   *pI830->used3D |= 1 << 30;
+
+   BEGIN_LP_RING(44);
+
+   /* invarient state */
+   OUT_RING(MI_NOOP);
+   OUT_RING(STATE3D_ANTI_ALIASING |
+	    LINE_CAP_WIDTH_MODIFY | LINE_CAP_WIDTH_1_0 |
+	    LINE_WIDTH_MODIFY | LINE_WIDTH_1_0);
+
+   OUT_RING(STATE3D_DFLT_DIFFUSE_CMD);
+   OUT_RING(0x00000000);
+
+   OUT_RING(STATE3D_DFLT_SPEC_CMD);
+   OUT_RING(0x00000000);
+
+   OUT_RING(STATE3D_DFLT_Z_CMD);
+   OUT_RING(0x00000000);
+
+   OUT_RING(STATE3D_COORD_SET_BINDINGS | CSB_TCB(0, 0) | CSB_TCB(1, 1) |
+	    CSB_TCB(2,2) | CSB_TCB(3,3) | CSB_TCB(4,4) | CSB_TCB(5,5) |
+	    CSB_TCB(6,6) | CSB_TCB(7,7));
+
+   OUT_RING(STATE3D_RASTERIZATION_RULES |
+	    ENABLE_TRI_FAN_PROVOKE_VRTX | TRI_FAN_PROVOKE_VRTX(2) |
+	    ENABLE_LINE_STRIP_PROVOKE_VRTX | LINE_STRIP_PROVOKE_VRTX(1) |
+	    ENABLE_TEXKILL_3D_4D | TEXKILL_4D |
+	    ENABLE_POINT_RASTER_RULE | OGL_POINT_RASTER_RULE);
+
+   OUT_RING(STATE3D_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 1);
+   OUT_RING(0x00000000); /* texture coordinate wrap */
+
+   /* flush map & render cache */
+   OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
+   OUT_RING(0x00000000);
+
+   /* draw rect -- just clipping */
+   OUT_RING(STATE3D_DRAWING_RECTANGLE);
+   OUT_RING(0x00000000);	/* flags */
+   OUT_RING(0x00000000);	/* ymin, xmin */
+   OUT_RING((pScrn->virtualX - 1) | (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+   OUT_RING(0x00000000);	/* yorigin, xorigin */
+   OUT_RING(MI_NOOP);
+
+   /* scissor */
+   OUT_RING(STATE3D_SCISSOR_ENABLE | DISABLE_SCISSOR_RECT);
+   OUT_RING(STATE3D_SCISSOR_RECTANGLE);
+   OUT_RING(0x00000000);	/* ymin, xmin */
+   OUT_RING(0x00000000);	/* ymax, xmax */
+
+   OUT_RING(0x7c000003);	/* unknown command */
+   OUT_RING(0x7d070000);
+   OUT_RING(0x00000000);
+   OUT_RING(0x68000002);
+
+   /* context setup */
+   OUT_RING(STATE3D_MODES_4 |
+	    ENABLE_LOGIC_OP_FUNC | LOGIC_OP_FUNC(LOGICOP_COPY) |
+	    ENABLE_STENCIL_WRITE_MASK | STENCIL_WRITE_MASK(0xff) |
+	    ENABLE_STENCIL_TEST_MASK | STENCIL_TEST_MASK(0xff));
+
+   OUT_RING(STATE3D_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
+	    I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 4);
+   s2 = S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D);
+   if (planar)
+      s2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_2D);
+   else
+      s2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT);
+   s2 |= S2_TEXCOORD_FMT(2, TEXCOORDFMT_NOT_PRESENT) |
+      S2_TEXCOORD_FMT(3, TEXCOORDFMT_NOT_PRESENT) |
+      S2_TEXCOORD_FMT(4, TEXCOORDFMT_NOT_PRESENT) |
+      S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
+      S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
+      S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT);
+   OUT_RING(s2);
+   OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
+	    S4_CULLMODE_NONE | S4_VFMT_SPEC_FOG | S4_VFMT_COLOR | S4_VFMT_XYZW);
+   OUT_RING(0x00000000); /* S5 - enable bits */
+   OUT_RING((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
+	    (2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
+	    (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) | S6_COLOR_WRITE_ENABLE |
+	    (2 << S6_TRISTRIP_PV_SHIFT));
+
+   OUT_RING(STATE3D_INDEPENDENT_ALPHA_BLEND |
+	    IAB_MODIFY_ENABLE |
+	    IAB_MODIFY_FUNC | (BLENDFUNC_ADD << IAB_FUNC_SHIFT) |
+	    IAB_MODIFY_SRC_FACTOR | (BLENDFACT_ONE << IAB_SRC_FACTOR_SHIFT) |
+	    IAB_MODIFY_DST_FACTOR | (BLENDFACT_ZERO << IAB_DST_FACTOR_SHIFT));
+
+   OUT_RING(STATE3D_CONST_BLEND_COLOR);
+   OUT_RING(0x00000000);
+
+   OUT_RING(STATE3D_DEST_BUFFER_VARIABLES);
+   if (pI830->cpp == 2)
+      format = COLR_BUF_RGB565;
+   else
+      format = COLR_BUF_ARGB8888 | DEPTH_FRMT_24_FIXED_8_OTHER;
+
+   OUT_RING(LOD_PRECLAMP_OGL |
+     DSTORG_HORIZ_BIAS(0x80) | DSTORG_VERT_BIAS(0x80) | format);
+
+   OUT_RING(STATE3D_STIPPLE);
+   OUT_RING(0x00000000);
+
+   /* front buffer, pitch, offset */
+   OUT_RING(STATE3D_BUFFER_INFO);
+   OUT_RING(BUFFERID_COLOR_BACK | BUFFER_USE_FENCES |
+	    (((pI830->displayWidth * pI830->cpp) / 4) << 2));
+   OUT_RING(pI830->bufferOffset);
+   ADVANCE_LP_RING();
+
+   if (!planar) {
+      BEGIN_LP_RING(20);
+      /* fragment program - texture blend replace. */
+      OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | 8);
+      OUT_DCL(S, 0);
+      OUT_DCL(T, 0);
+      OUT_TEXLD(OC, 0, 0, T, 0);
+      /* End fragment program */
+
+      OUT_RING(STATE3D_SAMPLER_STATE | 3);
+      OUT_RING(0x00000001);
+      OUT_RING(SS2_COLORSPACE_CONVERSION |
+	       (FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
+	       (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
+      OUT_RING((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
+	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT));
+      OUT_RING(0x00000000);
+
+      OUT_RING(STATE3D_MAP_STATE | 3);
+      OUT_RING(0x00000001);	/* texture map #1 */
+      OUT_RING(pPriv->YBuf0offset);
+      ms3 = MAPSURF_422;
+      switch (id) {
+      case FOURCC_YUY2:
+	 ms3 |= MT_422_YCRCB_NORMAL;
+	 break;
+      case FOURCC_UYVY:
+	 ms3 |= MT_422_YCRCB_SWAPY;
+	 break;
+      }
+      ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
+      ms3 |= (width - 1) << MS3_WIDTH_SHIFT;
+      if (!pI830->disableTiling)
+	 ms3 |= MS3_USE_FENCE_REGS;
+      OUT_RING(ms3);
+      OUT_RING(((video_pitch / 4) - 1) << 21);
+      ADVANCE_LP_RING();
+   } else {
+      BEGIN_LP_RING(1 + 18 + (1 + 3*16) + 11 + 11);
+      OUT_RING(MI_NOOP);
+      /* For the planar formats, we set up three samplers -- one for each plane,
+       * in a Y8 format.  Because I couldn't get the special PLANAR_TO_PACKED
+       * shader setup to work, I did the manual pixel shader:
+       *
+       * y' = y - .0625
+       * u' = u - .5
+       * v' = v - .5;
+       *
+       * r = 1.1643 * y' + 0.0     * u' + 1.5958  * v'
+       * g = 1.1643 * y' - 0.39173 * u' - 0.81290 * v'
+       * b = 1.1643 * y' + 2.017   * u' + 0.0     * v'
+       *
+       * register assignment:
+       * r0 = (y',u',v',0)
+       * r1 = (y,y,y,y)
+       * r2 = (u,u,u,u)
+       * r3 = (v,v,v,v)
+       * OC = (r,g,b,1)
+       */
+      OUT_RING(STATE3D_PIXEL_SHADER_CONSTANTS | 16);
+      OUT_RING(0x000000f);	/* constants 0-3 */
+      /* constant 0: normalization offsets */
+      OUT_RING_F(-0.0625);
+      OUT_RING_F(-0.5);
+      OUT_RING_F(-0.5);
+      OUT_RING_F(0.0);
+      /* constant 1: r coefficients*/
+      OUT_RING_F(1.1643);
+      OUT_RING_F(0.0);
+      OUT_RING_F(1.5958);
+      OUT_RING_F(0.0);
+      /* constant 2: g coefficients */
+      OUT_RING_F(1.1643);
+      OUT_RING_F(-0.39173);
+      OUT_RING_F(-0.81290);
+      OUT_RING_F(0.0);
+      /* constant 3: b coefficients */
+      OUT_RING_F(1.1643);
+      OUT_RING_F(2.017);
+      OUT_RING_F(0.0);
+      OUT_RING_F(0.0);
+
+      OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | (3 * 16 - 1));
+      /* Declare samplers */
+      OUT_DCL(S, 0);
+      OUT_DCL(S, 1);
+      OUT_DCL(S, 2);
+      OUT_DCL(T, 0);
+      OUT_DCL(T, 1);
+
+      /* Load samplers to temporaries.  Y (sampler 0) gets the un-halved coords
+       * from t1.
+       */
+      OUT_TEXLD(R, 1, 0, T, 1);
+      OUT_TEXLD(R, 2, 1, T, 0);
+      OUT_TEXLD(R, 3, 2, T, 0);
+
+      /* Move the sampled YUV data in R[123] to the first 3 channels of R0. */
+      OUT_MOV_TO_CHANNEL(R, 0, R, 1, X);
+      OUT_MOV_TO_CHANNEL(R, 0, R, 2, Y);
+      OUT_MOV_TO_CHANNEL(R, 0, R, 3, Z);
+
+      /* Normalize the YUV data */
+      OUT_RING(A0_ADD | A0_DEST_CHANNEL_ALL |
+	       (REG_TYPE_R << A0_DEST_TYPE_SHIFT) | (0 << A0_DEST_NR_SHIFT) |				\
+	       (REG_TYPE_R << A0_SRC0_TYPE_SHIFT) | (0 << A0_SRC0_NR_SHIFT));
+      OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |
+	       (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |
+	       (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |
+	       (SRC_W << A1_SRC0_CHANNEL_W_SHIFT) |
+	       (REG_TYPE_CONST << A1_SRC1_TYPE_SHIFT) | (0 << A1_SRC1_NR_SHIFT) |
+	       (SRC_X << A1_SRC1_CHANNEL_X_SHIFT) |
+	       (SRC_Y << A1_SRC1_CHANNEL_Y_SHIFT));
+      OUT_RING((SRC_Z << A2_SRC1_CHANNEL_Z_SHIFT) |
+	       (SRC_W << A2_SRC1_CHANNEL_W_SHIFT));
+
+      /* dot-product the YUV data in R0 by the vectors of coefficients for
+       * calculating R, G, and B, storing the results in the R, G, or B channels
+       * of the output color.
+       */
+      OUT_DP3_TO_CHANNEL(OC, 0, R, 0, CONST, 1, X);
+      OUT_DP3_TO_CHANNEL(OC, 0, R, 0, CONST, 2, Y);
+      OUT_DP3_TO_CHANNEL(OC, 0, R, 0, CONST, 3, Z);
+
+      /* Set alpha of the output to 1.0, by wiring W to 1 and not actually using
+       * the source.
+       */
+      OUT_RING(A0_MOV | A0_DEST_CHANNEL_W |
+	       (REG_TYPE_OC << A0_DEST_TYPE_SHIFT) | (0 << A0_DEST_NR_SHIFT) |
+	       (REG_TYPE_OC << A0_SRC0_TYPE_SHIFT) | (0 << A0_SRC0_NR_SHIFT));
+      OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |
+	       (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |
+	       (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |
+	       (SRC_ONE << A1_SRC0_CHANNEL_W_SHIFT));
+      OUT_RING(0);
+      /* End fragment program */
+
+      OUT_RING(STATE3D_SAMPLER_STATE | 9);
+      OUT_RING(0x00000007);
+      /* sampler 0 */
+      OUT_RING(0x00000000);
+      OUT_RING((FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
+	       (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
+      OUT_RING((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
+	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT));
+      /* sampler 1 */
+      OUT_RING(0x00000000);
+      OUT_RING((FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
+	       (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
+      OUT_RING((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
+	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT));
+      /* sampler 2 */
+      OUT_RING(0x00000000);
+      OUT_RING((FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
+	       (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
+      OUT_RING((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
+	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT));
+
+      OUT_RING(STATE3D_MAP_STATE | 9);
+      OUT_RING(0x00000007);
+
+      OUT_RING(pPriv->YBuf0offset);
+      ms3 = MAPSURF_8BIT | MT_8BIT_I8;
+      ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
+      ms3 |= (width - 1) << MS3_WIDTH_SHIFT;
+      OUT_RING(ms3);
+      OUT_RING(((video_pitch * 2 / 4) - 1) << 21);
+
+      OUT_RING(pPriv->UBuf0offset);
+      ms3 = MAPSURF_8BIT | MT_8BIT_I8;
+      ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
+      ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
+      OUT_RING(ms3);
+      OUT_RING(((video_pitch / 4) - 1) << 21);
+
+      OUT_RING(pPriv->VBuf0offset);
+      ms3 = MAPSURF_8BIT | MT_8BIT_I8;
+      ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
+      ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
+      OUT_RING(ms3);
+      OUT_RING(((video_pitch / 4) - 1) << 21);
+      ADVANCE_LP_RING();
+   }
+   
+   {
+      BEGIN_LP_RING(2);
+      OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
+      OUT_RING(0x00000000);
+      ADVANCE_LP_RING();
+   }
+
+   dxo = dstRegion->extents.x1;
+   dyo = dstRegion->extents.y1;
+
+   pbox = REGION_RECTS(dstRegion);
+   nbox = REGION_NUM_RECTS(dstRegion);
+   while (nbox--)
+   {
+      int box_x1 = pbox->x1;
+      int box_y1 = pbox->y1;
+      int box_x2 = pbox->x2;
+      int box_y2 = pbox->y2;
+      int j;
+      float src_scale_x, src_scale_y;
+      CARD32 vb[40];
+      float verts[4][2], tex[4][2], tex2[4][2];
+      int vert_data_count;
+
+      pbox++;
+
+      src_scale_x = (float)src_w / (float)drw_w;
+      src_scale_y  = (float)src_h / (float)drw_h;
+
+      if (!planar)
+	 vert_data_count = 32;
+      else
+	 vert_data_count = 40;
+
+      BEGIN_LP_RING(vert_data_count + 8);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+
+      /* vertex data */
+      OUT_RING(PRIMITIVE3D | PRIM3D_INLINE | PRIM3D_TRIFAN |
+	       (vert_data_count - 1));
+      verts[0][0] = box_x1; verts[0][1] = box_y1;
+      verts[1][0] = box_x2; verts[1][1] = box_y1;
+      verts[2][0] = box_x2; verts[2][1] = box_y2;
+      verts[3][0] = box_x1; verts[3][1] = box_y2;
+
+      if (!planar) {
+	 tex[0][0] = (box_x1 - dxo) * src_scale_x;
+	 tex[0][1] = (box_y1 - dyo) * src_scale_y;
+	 tex[1][0] = (box_x2 - dxo) * src_scale_x;
+	 tex[1][1] = (box_y1 - dyo) * src_scale_y;
+	 tex[2][0] = (box_x2 - dxo) * src_scale_x;
+	 tex[2][1] = (box_y2 - dyo) * src_scale_y;
+	 tex[3][0] = (box_x1 - dxo) * src_scale_x;
+	 tex[3][1] = (box_y2 - dyo) * src_scale_y;
+	 /* emit vertex buffer */
+	 draw_poly(vb, verts, tex, NULL);
+	 for (j = 0; j < vert_data_count; j++)
+	    OUT_RING(vb[j]);
+      } else {
+	 tex[0][0] = (box_x1 - dxo) * src_scale_x / 2.0;
+	 tex[0][1] = (box_y1 - dyo) * src_scale_y / 2.0;
+	 tex[1][0] = (box_x2 - dxo) * src_scale_x / 2.0;
+	 tex[1][1] = (box_y1 - dyo) * src_scale_y / 2.0;
+	 tex[2][0] = (box_x2 - dxo) * src_scale_x / 2.0;
+	 tex[2][1] = (box_y2 - dyo) * src_scale_y / 2.0;
+	 tex[3][0] = (box_x1 - dxo) * src_scale_x / 2.0;
+	 tex[3][1] = (box_y2 - dyo) * src_scale_y / 2.0;
+	 tex2[0][0] = (box_x1 - dxo) * src_scale_x;
+	 tex2[0][1] = (box_y1 - dyo) * src_scale_y;
+	 tex2[1][0] = (box_x2 - dxo) * src_scale_x;
+	 tex2[1][1] = (box_y1 - dyo) * src_scale_y;
+	 tex2[2][0] = (box_x2 - dxo) * src_scale_x;
+	 tex2[2][1] = (box_y2 - dyo) * src_scale_y;
+	 tex2[3][0] = (box_x1 - dxo) * src_scale_x;
+	 tex2[3][1] = (box_y2 - dyo) * src_scale_y;
+	 /* emit vertex buffer */
+	 draw_poly(vb, verts, tex, tex2);
+	 for (j = 0; j < vert_data_count; j++)
+	    OUT_RING(vb[j]);
+      }
+
+      ADVANCE_LP_RING();
+   }
+
+   if (pI830->AccelInfoRec)
+      pI830->AccelInfoRec->NeedToSync = TRUE;
+}
+
 static FBLinearPtr
 I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size)
 {
@@ -1908,6 +2649,19 @@ I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size)
    return new_linear;
 }
 
+/*
+ * The source rectangle of the video is defined by (src_x, src_y, src_w, src_h).
+ * The dest rectangle of the video is defined by (drw_x, drw_y, drw_w, drw_h).
+ * id is a fourcc code for the format of the video.
+ * buf is the pointer to the source data in system memory.
+ * width and height are the w/h of the source data.
+ * If "sync" is TRUE, then we must be finished with *buf at the point of return
+ * (which we always are).
+ * clipBoxes is the clipping region in screen space.
+ * data is a pointer to our port private.
+ * pDraw is a Drawable, which might not be the screen in the case of
+ * compositing.  It's a new argument to the function in the 1.1 server.
+ */
 static int
 I830PutImage(ScrnInfoPtr pScrn,
 	     short src_x, short src_y,
@@ -1925,9 +2679,10 @@ I830PutImage(ScrnInfoPtr pScrn,
    I830OverlayRegPtr overlay =
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
    INT32 x1, x2, y1, y2;
-   int srcPitch, srcPitch2 = 0, dstPitch;
+   int srcPitch, srcPitch2 = 0, dstPitch, destId;
    int top, left, npixels, nlines, size, loops;
    BoxRec dstBox;
+   int pitchAlignMask;
 
    DPRINTF(PFX, "I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
 	   "width %d, height %d\n", src_x, src_y, src_w, src_h, drw_x, drw_y,
@@ -1971,50 +2726,59 @@ I830PutImage(ScrnInfoPtr pScrn,
 			      width, height))
       return Success;
 
+   destId = id;
    switch (id) {
    case FOURCC_YV12:
    case FOURCC_I420:
       srcPitch = (width + 3) & ~3;
       srcPitch2 = ((width >> 1) + 3) & ~3;
-#if 1
-      if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-         dstPitch = ((height / 2) + 63) & ~63;
-         size = dstPitch * width * 3;
-      } else {
-         dstPitch = ((width / 2) + 63) & ~63;	/* of chroma */
-         size = dstPitch * height * 3;
+      if (pPriv->textured) {
+	 destId = FOURCC_YUY2;
       }
-#else
-      if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-         dstPitch = ((height / 2) + 255) & ~255;
-         size = dstPitch * width * 3;
-      } else {
-         dstPitch = ((width / 2) + 255) & ~255;	/* of chroma */
-         size = dstPitch * height * 3;
-      }
-#endif
       break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
       srcPitch = width << 1;
-#if 1
+      break;
+   }
+
+   /* Only needs to be DWORD-aligned for textured on i915, but overlay has
+    * stricter requirements.
+    */
+   if (pPriv->textured) {
+      pitchAlignMask = 3;
+   } else {
+      if (IS_BROADWATER(pI830)) {
+	 pitchAlignMask = 255;
+      else
+	 pitchAlignMask = 63;
+   }
+
+   /* Determine the desired destination pitch (representing the chroma's pitch,
+    * in the planar case.
+    */
+   switch (destId) {
+   case FOURCC_YV12:
+   case FOURCC_I420:
       if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-         dstPitch = ((height << 1) + 63) & ~63;
+         dstPitch = ((height / 2) + pitchAlignMask) & ~pitchAlignMask;
+         size = dstPitch * width * 3;
+      } else {
+         dstPitch = ((width / 2) + pitchAlignMask) & ~pitchAlignMask;
+         size = dstPitch * height * 3;
+      }
+      break;
+   case FOURCC_UYVY:
+   case FOURCC_YUY2:
+   default:
+      if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
+         dstPitch = ((height << 1) + pitchAlignMask) & ~pitchAlignMask;
          size = dstPitch * width;
       } else {
-         dstPitch = ((width << 1) + 63) & ~63;	/* of chroma */
+         dstPitch = ((width << 1) + pitchAlignMask) & ~pitchAlignMask;
          size = dstPitch * height;
       }
-#else
-      if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-         dstPitch = ((height << 1) + 255) & ~255;
-         size = dstPitch * width;
-      } else {
-         dstPitch = ((width << 1) + 255) & ~255;	/* of chroma */
-         size = dstPitch * height;
-      }
-#endif
       break;
    }
    ErrorF("srcPitch: %d, dstPitch: %d, size: %d\n", srcPitch, dstPitch, size);
@@ -2052,7 +2816,9 @@ I830PutImage(ScrnInfoPtr pScrn,
 
    /* Make sure this buffer isn't in use */
    loops = 0;
-   if (*pI830->overlayOn && pPriv->doubleBuffer && (overlay->OCMD & OVERLAY_ENABLE)) {
+   if (!pPriv->textured && *pI830->overlayOn && pPriv->doubleBuffer &&
+       (overlay->OCMD & OVERLAY_ENABLE))
+   {
       while (loops < 1000000) {
 #if USE_USLEEP_FOR_VIDEO
          usleep(10);
@@ -2081,32 +2847,54 @@ I830PutImage(ScrnInfoPtr pScrn,
    left = (x1 >> 16) & ~1;
    npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
 
+   if (pPriv->textured) {
+      /* For textured video, we don't double buffer, and instead just wait for
+       * acceleration to finish before writing the new video data into
+       * framebuffer.
+       */
+      if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
+	 (*pI830->AccelInfoRec->Sync)(pScrn);
+	 pI830->AccelInfoRec->NeedToSync = FALSE;
+      }
+   }
+
    switch (id) {
    case FOURCC_YV12:
    case FOURCC_I420:
       top &= ~1;
       nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
-      I830CopyPlanarData(pScrn, buf, srcPitch, srcPitch2, dstPitch, height, top, left,
-			 nlines, npixels, id);
+      if (pPriv->textured) {
+	 I830CopyPlanarToPackedData(pScrn, pPriv, buf, srcPitch, srcPitch2,
+				    dstPitch, height, top, left, nlines,
+				    npixels, id);
+      } else {
+	 I830CopyPlanarData(pScrn, pPriv, buf, srcPitch, srcPitch2, dstPitch,
+			    height, top, left, nlines, npixels, id);
+      }
       break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
       nlines = ((y2 + 0xffff) >> 16) - top;
-      I830CopyPackedData(pScrn, buf, srcPitch, dstPitch, top, left, nlines,
-			 npixels);
+      I830CopyPackedData(pScrn, pPriv, buf, srcPitch, dstPitch, top, left,
+			 nlines, npixels);
       break;
    }
 
-   /* update cliplist */
-   if (!RegionsEqual(&pPriv->clip, clipBoxes)) {
-      REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
-      xf86XVFillKeyHelper(pScreen, pPriv->colorKey, clipBoxes);
+   if (!pPriv->textured) {
+      /* update cliplist */
+      if (!RegionsEqual(&pPriv->clip, clipBoxes)) {
+ 	REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
+	 xf86XVFillKeyHelper(pScreen, pPriv->colorKey, clipBoxes);
+      }
+
+      I830DisplayVideo(pScrn, destId, width, height, dstPitch,
+		       x1, y1, x2, y2, &dstBox, src_w, src_h, drw_w, drw_h);
+   } else {
+      I915DisplayVideoTextured(pScrn, pPriv, destId, clipBoxes, width, height,
+			       dstPitch, x1, y1, x2, y2,
+			       src_w, src_h, drw_w, drw_h, pDraw);
    }
-
-   I830DisplayVideo(pScrn, id, width, height, dstPitch,
-		    x1, y1, x2, y2, &dstBox, src_w, src_h, drw_w, drw_h);
-
    pPriv->videoStatus = CLIENT_VIDEO_ON;
 
    return Success;
@@ -2116,23 +2904,25 @@ static int
 I830QueryImageAttributes(ScrnInfoPtr pScrn,
 			 int id,
 			 unsigned short *w, unsigned short *h,
-			 int *pitches, int *offsets)
+			 int *pitches, int *offsets, Bool textured)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    int size, tmp;
 
    ErrorF("I830QueryImageAttributes: w is %d, h is %d\n", *w, *h);
 
-   if (IS_845G(pI830) || IS_I830(pI830)) {
-   if (*w > IMAGE_MAX_WIDTH_LEGACY)
-      *w = IMAGE_MAX_WIDTH_LEGACY;
-   if (*h > IMAGE_MAX_HEIGHT_LEGACY)
-      *h = IMAGE_MAX_HEIGHT_LEGACY;
-   } else {
-   if (*w > IMAGE_MAX_WIDTH)
-      *w = IMAGE_MAX_WIDTH;
-   if (*h > IMAGE_MAX_HEIGHT)
-      *h = IMAGE_MAX_HEIGHT;
+   if (!textured) {
+      if (IS_845G(pI830) || IS_I830(pI830)) {
+	 if (*w > IMAGE_MAX_WIDTH_LEGACY)
+	    *w = IMAGE_MAX_WIDTH_LEGACY;
+	 if (*h > IMAGE_MAX_HEIGHT_LEGACY)
+	    *h = IMAGE_MAX_HEIGHT_LEGACY;
+      } else {
+	 if (*w > IMAGE_MAX_WIDTH)
+	    *w = IMAGE_MAX_WIDTH;
+	 if (*h > IMAGE_MAX_HEIGHT)
+	    *h = IMAGE_MAX_HEIGHT;
+      }
    }
 
    *w = (*w + 1) & ~1;
@@ -2183,6 +2973,24 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
    }
 
    return size;
+}
+
+static int
+I830QueryImageAttributesOverlay(ScrnInfoPtr pScrn,
+				int id,
+				unsigned short *w, unsigned short *h,
+				int *pitches, int *offsets)
+{
+   return I830QueryImageAttributes(pScrn, id, w, h, pitches, offsets, FALSE);
+}
+
+static int
+I830QueryImageAttributesTextured(ScrnInfoPtr pScrn,
+				 int id,
+				 unsigned short *w, unsigned short *h,
+				 int *pitches, int *offsets)
+{
+   return I830QueryImageAttributes(pScrn, id, w, h, pitches, offsets, TRUE);
 }
 
 static void

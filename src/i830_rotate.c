@@ -214,6 +214,7 @@ I915UpdateRotate (ScreenPtr      pScreen,
    drm_context_t myContext = 0;
 #endif
    Bool didLock = FALSE;
+   CARD32 format;
 
    if (I830IsPrimary(pScrn)) {
       pI8301 = pI830;
@@ -267,86 +268,139 @@ I915UpdateRotate (ScreenPtr      pScreen,
       BEGIN_LP_RING(64);
       /* invarient state */
       OUT_RING(MI_NOOP);
-      OUT_RING(0x66014140);
-      OUT_RING(0x7d990000);
+      OUT_RING(STATE3D_ANTI_ALIASING |
+	       LINE_CAP_WIDTH_MODIFY | LINE_CAP_WIDTH_1_0 |
+	       LINE_WIDTH_MODIFY | LINE_WIDTH_1_0);
+
+      OUT_RING(STATE3D_DFLT_DIFFUSE_CMD);
       OUT_RING(0x00000000);
-      OUT_RING(0x7d9a0000);
+
+      OUT_RING(STATE3D_DFLT_SPEC_CMD);
       OUT_RING(0x00000000);
-      OUT_RING(0x7d980000);
+
+      OUT_RING(STATE3D_DFLT_Z_CMD);
       OUT_RING(0x00000000);
-      OUT_RING(0x76fac688);
-      OUT_RING(0x6700a770);
-      OUT_RING(0x7d040081);
-      OUT_RING(0x00000000);
+
+      OUT_RING(STATE3D_COORD_SET_BINDINGS | CSB_TCB(0, 0) | CSB_TCB(1, 1) |
+	       CSB_TCB(2,2) | CSB_TCB(3,3) | CSB_TCB(4,4) | CSB_TCB(5,5) |
+	       CSB_TCB(6,6) | CSB_TCB(7,7));
+
+      OUT_RING(STATE3D_RASTERIZATION_RULES |
+	       ENABLE_TRI_FAN_PROVOKE_VRTX | TRI_FAN_PROVOKE_VRTX(2) |
+	       ENABLE_LINE_STRIP_PROVOKE_VRTX | LINE_STRIP_PROVOKE_VRTX(1) |
+	       ENABLE_TEXKILL_3D_4D | TEXKILL_4D |
+	       ENABLE_POINT_RASTER_RULE | OGL_POINT_RASTER_RULE);
+
+      OUT_RING(STATE3D_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 1);
+      OUT_RING(0x00000000); /* texture coordinate wrap */
+
       /* flush map & render cache */
       OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
       OUT_RING(0x00000000);
+
       /* draw rect */
-      OUT_RING(0x7d800003);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING((pScrn->virtualX - 1) | (pScrn->virtualY - 1) << 16);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
+      OUT_RING(STATE3D_DRAWING_RECTANGLE);
+      OUT_RING(0x00000000);	/* flags */
+      OUT_RING(0x00000000);	/* ymin, xmin */
+      OUT_RING((pScrn->virtualX - 1) | (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+      OUT_RING(0x00000000);	/* yorigin, xorigin */
+      OUT_RING(MI_NOOP);
+
       /* scissor */
-      OUT_RING(0x7c800002);
-      OUT_RING(0x7d810001);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING(0x7c000003);
+      OUT_RING(STATE3D_SCISSOR_ENABLE | DISABLE_SCISSOR_RECT);
+      OUT_RING(STATE3D_SCISSOR_RECTANGLE);
+      OUT_RING(0x00000000);	/* ymin, xmin */
+      OUT_RING(0x00000000);	/* ymax, xmax */
+
+      OUT_RING(0x7c000003);	/* unknown command */
       OUT_RING(0x7d070000);
       OUT_RING(0x00000000);
       OUT_RING(0x68000002);
+
       /* context setup */
-      OUT_RING(0x6db3ffff);
-      OUT_RING(0x7d040744);
-      OUT_RING(0xfffffff0);
-      OUT_RING(0x00902c80);
+      OUT_RING(STATE3D_MODES_4 |
+	       ENABLE_LOGIC_OP_FUNC | LOGIC_OP_FUNC(LOGICOP_COPY) |
+	       ENABLE_STENCIL_WRITE_MASK | STENCIL_WRITE_MASK(0xff) |
+	       ENABLE_STENCIL_TEST_MASK | STENCIL_TEST_MASK(0xff));
+
+      OUT_RING(STATE3D_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
+	       I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 4);
+      OUT_RING(S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D) |
+	       S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(2, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(3, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(4, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT));
+      OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
+	       S4_CULLMODE_NONE | S4_VFMT_SPEC_FOG | S4_VFMT_COLOR |
+	       S4_VFMT_XYZW);
+      OUT_RING(0x00000000); /* S5 -- enable bits */
+      OUT_RING((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
+	       (2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
+	       (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) | S6_COLOR_WRITE_ENABLE |
+	       (2 << S6_TRISTRIP_PV_SHIFT));
+
+      OUT_RING(STATE3D_INDEPENDENT_ALPHA_BLEND |
+	       IAB_MODIFY_ENABLE |
+	       IAB_MODIFY_FUNC | (BLENDFUNC_ADD << IAB_FUNC_SHIFT) |
+	       IAB_MODIFY_SRC_FACTOR | (BLENDFACT_ONE << IAB_SRC_FACTOR_SHIFT) |
+	       IAB_MODIFY_DST_FACTOR | (BLENDFACT_ZERO << IAB_DST_FACTOR_SHIFT));
+
+      OUT_RING(STATE3D_CONST_BLEND_COLOR);
       OUT_RING(0x00000000);
-      OUT_RING(0x00020216);
-      OUT_RING(0x6ba008a1);
-      OUT_RING(0x7d880000);
-      OUT_RING(0x00000000);
-      /* dv0 */
-      OUT_RING(0x7d850000);
-      /* dv1 */
+
+      OUT_RING(STATE3D_DEST_BUFFER_VARIABLES);
       if (pI830->cpp == 1)
-         OUT_RING(0x10880000);
+	 format = COLR_BUF_8BIT;
       else if (pI830->cpp == 2)
-            OUT_RING(0x10880200);
-         else
-            OUT_RING(0x10880308);
-      /* stipple */
-      OUT_RING(0x7d830000);
+	 format = COLR_BUF_RGB565;
+      else
+	 format = COLR_BUF_ARGB8888 | DEPTH_FRMT_24_FIXED_8_OTHER;
+
+      OUT_RING(LOD_PRECLAMP_OGL |
+	       DSTORG_HORIZ_BIAS(0x80) | DSTORG_VERT_BIAS(0x80) | format);
+
+      OUT_RING(STATE3D_STIPPLE);
       OUT_RING(0x00000000);
+
       /* fragment program - texture blend replace*/
-      OUT_RING(0x7d050008);
-      OUT_RING(0x19180000);
+      OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | 8);
+      OUT_RING(D0_DCL | (REG_TYPE_S << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT));
       OUT_RING(0x00000000);
       OUT_RING(0x00000000);
-      OUT_RING(0x19083c00);
+
+      OUT_RING(D0_DCL | (REG_TYPE_T << D0_TYPE_SHIFT) | (0 << D0_NR_SHIFT) |
+	       D0_CHANNEL_ALL);
       OUT_RING(0x00000000);
       OUT_RING(0x00000000);
-      OUT_RING(0x15200000);
-      OUT_RING(0x01000000);
+
+      OUT_RING(T0_TEXLD | (REG_TYPE_OC << T0_DEST_TYPE_SHIFT) |
+	       (0 << T0_SAMPLER_NR_SHIFT));
+      OUT_RING((REG_TYPE_T << T1_ADDRESS_REG_TYPE_SHIFT) |
+	       (0 << T1_ADDRESS_REG_NR_SHIFT));
       OUT_RING(0x00000000);
-      /* texture sampler state */
-      OUT_RING(0x7d010003);
+      /* End fragment program */
+
+      OUT_RING(STATE3D_SAMPLER_STATE | 3);
       OUT_RING(0x00000001);
       OUT_RING(0x00000000);
       OUT_RING(0x00000000);
       OUT_RING(0x00000000);
+
       /* front buffer, pitch, offset */
-      OUT_RING(0x7d8e0001);
-      OUT_RING(0x03800000 | (((pI830->displayWidth * pI830->cpp) / 4) << 2));
+      OUT_RING(STATE3D_BUFFER_INFO);
+      OUT_RING(BUFFERID_COLOR_BACK | BUFFER_USE_FENCES |
+          (((pI830->displayWidth * pI830->cpp) / 4) << 2));
       if (I830IsPrimary(pScrn))
          OUT_RING(pI830->FrontBuffer.Start);
       else 
          OUT_RING(pI8301->FrontBuffer2.Start);
 
       /* Set the entire frontbuffer up as a texture */
-      OUT_RING(0x7d000003);
-      OUT_RING(0x00000001);
+      OUT_RING(STATE3D_MAP_STATE | 3);
+      OUT_RING(0x00000001);	/* texture map #1 */
 
       if (I830IsPrimary(pScrn)) 
          OUT_RING(pI830->RotatedMem.Start);
@@ -356,15 +410,15 @@ I915UpdateRotate (ScreenPtr      pScreen,
       if (pI830->disableTiling)
          use_fence = 0;
       else
-         use_fence = 4;
+         use_fence = MS3_USE_FENCE_REGS;
       
       if (pI830->cpp == 1)
-         use_fence |= 0x80; /* MAPSURF_8BIT */
+         use_fence |= MAPSURF_8BIT;
       else
       if (pI830->cpp == 2)
-         use_fence |= 0x100; /* MAPSURF_16BIT */
+         use_fence |= MAPSURF_16BIT;
       else
-         use_fence |= 0x180; /* MAPSURF_32BIT */
+         use_fence |= MAPSURF_32BIT;
       OUT_RING(use_fence | (pScreen->height - 1) << 21 | (pScreen->width - 1) << 10);
       OUT_RING(((((pScrn->displayWidth * pI830->cpp) / 4) - 1) << 21));
       ADVANCE_LP_RING();
@@ -395,7 +449,7 @@ I915UpdateRotate (ScreenPtr      pScreen,
       OUT_RING(MI_NOOP);
 
       /* vertex data */
-      OUT_RING(0x7f0c001f);
+      OUT_RING(PRIMITIVE3D | PRIM3D_INLINE | PRIM3D_TRIFAN | (32 - 1));
       verts[0][0] = box_x1; verts[0][1] = box_y1;
       verts[1][0] = box_x2; verts[1][1] = box_y1;
       verts[2][0] = box_x2; verts[2][1] = box_y2;
@@ -520,15 +574,15 @@ I830UpdateRotate (ScreenPtr      pScreen,
       OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
       OUT_RING(0x00000000);
       /* draw rect */
-      OUT_RING(0x7d800003);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING((pScrn->virtualX - 1) | (pScrn->virtualY - 1) << 16);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
+      OUT_RING(STATE3D_DRAWING_RECTANGLE);
+      OUT_RING(0x00000000);	/* flags */
+      OUT_RING(0x00000000);	/* ymin, xmin */
+      OUT_RING((pScrn->virtualX - 1) | (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+      OUT_RING(0x00000000);	/* yorigin, xorigin */
+      OUT_RING(MI_NOOP);
 
       /* front buffer */
-      OUT_RING(0x7d8e0001);
+      OUT_RING(STATE3D_BUFFER_INFO);
       OUT_RING(0x03800000 | (((pI830->displayWidth * pI830->cpp) / 4) << 2));
       if (I830IsPrimary(pScrn))
 	 OUT_RING(pI830->FrontBuffer.Start);
