@@ -1099,7 +1099,7 @@ I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
 {
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
-   unsigned char *dst1, *srcy, *srcu, *srcv;
+   CARD8 *dst1, *srcy, *srcu, *srcv;
    int y;
 
    if (pPriv->currentBuf == 0)
@@ -1109,20 +1109,20 @@ I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
 
    srcy = buf;
    if (id == FOURCC_YV12) {
-      srcv = buf + (srcH * srcPitch) + ((top * srcPitch) >> 2) + (left >> 1);
-      srcu = buf + (srcH * srcPitch) + ((srcH >> 1) * srcPitch2) +
-	    ((top * srcPitch) >> 2) + (left >> 1);
-   } else {
       srcu = buf + (srcH * srcPitch) + ((top * srcPitch) >> 2) + (left >> 1);
       srcv = buf + (srcH * srcPitch) + ((srcH >> 1) * srcPitch2) +
+	    ((top * srcPitch) >> 2) + (left >> 1);
+   } else {
+      srcv = buf + (srcH * srcPitch) + ((top * srcPitch) >> 2) + (left >> 1);
+      srcu = buf + (srcH * srcPitch) + ((srcH >> 1) * srcPitch2) +
 	    ((top * srcPitch) >> 2) + (left >> 1);
    }
 
    for (y = 0; y < h; y++) {
-      unsigned char *dst = dst1;
-      unsigned char *sy = srcy;
-      unsigned char *su = srcu;
-      unsigned char *sv = srcv;
+      CARD32 *dst = (CARD32 *)dst1;
+      CARD8 *sy = srcy;
+      CARD8 *su = srcu;
+      CARD8 *sv = srcv;
       int i;
 
       i = w / 2;
@@ -2708,7 +2708,7 @@ I830PutImage(ScrnInfoPtr pScrn,
       I830CopyPlanarToPackedData(pScrn, buf, srcPitch, srcPitch2, dstPitch,
 				 height, top, left, nlines, npixels, id);
       /* Our data is now in this forat, either way. */
-      id = FOURCC_UYVY;
+      id = FOURCC_YUY2;
 #else
       I830CopyPlanarData(pScrn, buf, srcPitch, srcPitch2, dstPitch, height, top, left,
 			 nlines, npixels, id);
