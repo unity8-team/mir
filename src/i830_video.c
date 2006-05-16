@@ -1125,7 +1125,7 @@ I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
       unsigned char *sv = srcv;
       int i;
 
-      i = w;
+      i = w / 2;
       while(i > 4) {
 	 dst[0] = sy[0] | (sy[1] << 16) | (sv[0] << 8) | (su[0] << 24);
 	 dst[1] = sy[2] | (sy[3] << 16) | (sv[1] << 8) | (su[1] << 24);
