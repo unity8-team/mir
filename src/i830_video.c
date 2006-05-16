@@ -1913,10 +1913,23 @@ static void draw_poly(CARD32 *vb,
    }
 }
 
+union intfloat {
+   CARD32 ui;
+   float f;
+};
+
+#define OUT_RING_F(x) do {						\
+   union intfloat _tmp;							\
+   _tmp.f = x;								\
+   OUT_RING(_tmp.ui);							\
+} while (0)
+
 #define OUT_DCL(type, nr) do {						\
    CARD32 chans = 0;							\
    if (REG_TYPE_##type == REG_TYPE_T)					\
       chans = D0_CHANNEL_ALL;						\
+   else if (REG_TYPE_##type != REG_TYPE_S)				\
+      FatalError("wrong reg type %d to declare\n", REG_TYPE_##type);	\
    OUT_RING(D0_DCL |							\
 	    (REG_TYPE_##type << D0_TYPE_SHIFT) | (nr << D0_NR_SHIFT) |	\
 	    chans);							\
@@ -1933,6 +1946,45 @@ do {									\
       OUT_RING((REG_TYPE_##addr_type << T1_ADDRESS_REG_TYPE_SHIFT) |	\
 	       (addr_nr << T1_ADDRESS_REG_NR_SHIFT));			\
       OUT_RING(0x00000000);						\
+} while (0)
+
+/* Move the dest_chan from src0 to dest, leaving the other channels alone */
+#define OUT_MOV_TO_CHANNEL(dest_type, dest_nr, src0_type, src0_nr,	\
+			   dest_chan)					\
+do {									\
+   OUT_RING(A0_MOV | A0_DEST_CHANNEL_##dest_chan |			\
+	    (REG_TYPE_##dest_type << A0_DEST_TYPE_SHIFT) |		\
+	    (dest_nr << A0_DEST_NR_SHIFT) |				\
+	    (REG_TYPE_##src0_type << A0_SRC0_TYPE_SHIFT) |		\
+	    (src0_nr << A0_SRC0_NR_SHIFT));				\
+   OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |			\
+	    (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |			\
+	    (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |			\
+	    (SRC_W << A1_SRC0_CHANNEL_W_SHIFT));			\
+   OUT_RING(0);								\
+} while (0)
+
+/* Dot3-product src0 and src1, storing the result in dest_chan of the dest.
+ * Saturates, in case we have out-of-range YUV values.
+ */
+#define OUT_DP3_TO_CHANNEL(dest_type, dest_nr, src0_type, src0_nr,	\
+			   src1_type, src1_nr, dest_chan)		\
+do {									\
+   OUT_RING(A0_DP3 | A0_DEST_CHANNEL_##dest_chan | A0_DEST_SATURATE |	\
+	    (REG_TYPE_##dest_type << A0_DEST_TYPE_SHIFT) |		\
+	    (dest_nr << A0_DEST_NR_SHIFT) |				\
+	    (REG_TYPE_##src0_type << A0_SRC0_TYPE_SHIFT) |		\
+	    (src0_nr << A0_SRC0_NR_SHIFT));				\
+   OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |			\
+	    (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |			\
+	    (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |			\
+	    (SRC_W << A1_SRC0_CHANNEL_W_SHIFT) |			\
+	    (REG_TYPE_##src1_type << A1_SRC1_TYPE_SHIFT) |		\
+	    (src1_nr << A1_SRC1_TYPE_SHIFT) |				\
+	    (SRC_X << A1_SRC1_CHANNEL_X_SHIFT) |			\
+	    (SRC_Y << A1_SRC1_CHANNEL_Y_SHIFT));			\
+   OUT_RING((SRC_Z << A2_SRC1_CHANNEL_Z_SHIFT) |			\
+	    (SRC_W << A2_SRC1_CHANNEL_W_SHIFT));			\
 } while (0)
 
 #ifdef USE_TEXTURED_VIDEO
@@ -2114,15 +2166,51 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_RING(((video_pitch / 4) - 1) << 21);
       ADVANCE_LP_RING();
    } else {
-      BEGIN_LP_RING(50);
-      /* For the planar formats, we set up three samplers -- one for each plane.
-       * Each plane is in a Y8 format, but the sampler converts this into a
-       * packed format.  We have to use a magic pixel shader, where we load
-       * each sampler into a temporary in turn, and then move that temporary
-       * into the real destination.
+      BEGIN_LP_RING(1 + 18 + (1 + 3*16) + 11 + 11);
+      OUT_RING(MI_NOOP);
+      /* For the planar formats, we set up three samplers -- one for each plane,
+       * in a Y8 format.  Because I couldn't get the special PLANAR_TO_PACKED
+       * shader setup to work, I did the manual pixel shader:
+       *
+       * y' = y - .0625
+       * u' = u - .5
+       * v' = v - .5;
+       *
+       * r = 1.1643 * y' + 0.0     * u' + 1.5958  * v'
+       * g = 1.1643 * y' - 0.39173 * u' - 0.81290 * v'
+       * b = 1.1643 * y' + 2.017   * u' + 0.0     * v'
+       *
+       * register assignment:
+       * r0 = (y',u',v',0)
+       * r1 = (y,y,y,y)
+       * r2 = (u,u,u,u)
+       * r3 = (v,v,v,v)
+       * OC = (r,g,b,1)
        */
-      /* fragment program - texture blend replace. */
-      OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | 26);
+      OUT_RING(STATE3D_PIXEL_SHADER_CONSTANTS | 16);
+      OUT_RING(0x000000f);	/* constants 0-3 */
+      /* constant 0: normalization offsets */
+      OUT_RING_F(-0.0625);
+      OUT_RING_F(-0.5);
+      OUT_RING_F(-0.5);
+      OUT_RING_F(0.0);
+      /* constant 1: r coefficients*/
+      OUT_RING_F(1.1643);
+      OUT_RING_F(0.0);
+      OUT_RING_F(1.5958);
+      OUT_RING_F(0.0);
+      /* constant 2: g coefficients */
+      OUT_RING_F(1.1643);
+      OUT_RING_F(-0.39173);
+      OUT_RING_F(-0.81290);
+      OUT_RING_F(0.0);
+      /* constant 3: b coefficients */
+      OUT_RING_F(1.1643);
+      OUT_RING_F(2.017);
+      OUT_RING_F(0.0);
+      OUT_RING_F(0.0);
+
+      OUT_RING(STATE3D_PIXEL_SHADER_PROGRAM | (3 * 16 - 1));
       /* Declare samplers */
       OUT_DCL(S, 0);
       OUT_DCL(S, 1);
@@ -2130,36 +2218,65 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_DCL(T, 0);
       OUT_DCL(T, 1);
 
-      /* Load each sampler in turn.  Y (sampler 0) gets the un-halved coords
+      /* Load samplers to temporaries.  Y (sampler 0) gets the un-halved coords
        * from t1.
        */
-      OUT_TEXLD(R, 0, 0, T, 1);
-      OUT_TEXLD(R, 0, 1, T, 0);
-      OUT_TEXLD(R, 0, 2, T, 0);
+      OUT_TEXLD(R, 1, 0, T, 1);
+      OUT_TEXLD(R, 2, 1, T, 0);
+      OUT_TEXLD(R, 3, 2, T, 0);
 
-      /* Move the temporary to the destination */
-      OUT_RING(A0_MOV | A0_DEST_CHANNEL_ALL |
-	       (REG_TYPE_OC << A0_DEST_TYPE_SHIFT) | (0 << A0_DEST_NR_SHIFT) |
+      /* Move the sampled YUV data in R[123] to the first 3 channels of R0. */
+      OUT_MOV_TO_CHANNEL(R, 0, R, 1, X);
+      OUT_MOV_TO_CHANNEL(R, 0, R, 2, Y);
+      OUT_MOV_TO_CHANNEL(R, 0, R, 3, Z);
+
+      /* Normalize the YUV data */
+      OUT_RING(A0_ADD | A0_DEST_CHANNEL_ALL |
+	       (REG_TYPE_R << A0_DEST_TYPE_SHIFT) | (0 << A0_DEST_NR_SHIFT) |				\
 	       (REG_TYPE_R << A0_SRC0_TYPE_SHIFT) | (0 << A0_SRC0_NR_SHIFT));
       OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |
 	       (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |
 	       (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |
-	       (SRC_W << A1_SRC0_CHANNEL_W_SHIFT));
+	       (SRC_W << A1_SRC0_CHANNEL_W_SHIFT) |
+	       (REG_TYPE_CONST << A1_SRC1_TYPE_SHIFT) | (0 << A1_SRC1_NR_SHIFT) |
+	       (SRC_X << A1_SRC1_CHANNEL_X_SHIFT) |
+	       (SRC_Y << A1_SRC1_CHANNEL_Y_SHIFT));
+      OUT_RING((SRC_Z << A2_SRC1_CHANNEL_Z_SHIFT) |
+	       (SRC_W << A2_SRC1_CHANNEL_W_SHIFT));
+
+      /* dot-product the YUV data in R0 by the vectors of coefficients for
+       * calculating R, G, and B, storing the results in the R, G, or B channels
+       * of the output color.
+       */
+      OUT_DP3_TO_CHANNEL(OC, 0, R, 0, CONST, 1, X);
+      OUT_DP3_TO_CHANNEL(OC, 0, R, 0, CONST, 2, Y);
+      OUT_DP3_TO_CHANNEL(OC, 0, R, 0, CONST, 3, Z);
+
+      /* Set alpha of the output to 1.0, by wiring W to 1 and not actually using
+       * the source.
+       */
+      OUT_RING(A0_MOV | A0_DEST_CHANNEL_W |
+	       (REG_TYPE_OC << A0_DEST_TYPE_SHIFT) | (0 << A0_DEST_NR_SHIFT) |
+	       (REG_TYPE_OC << A0_SRC0_TYPE_SHIFT) | (0 << A0_SRC0_NR_SHIFT));
+      OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |
+	       (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |
+	       (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |
+	       (SRC_ONE << A1_SRC0_CHANNEL_W_SHIFT));
       OUT_RING(0);
       /* End fragment program */
 
       OUT_RING(STATE3D_SAMPLER_STATE | 9);
       OUT_RING(0x00000007);
       /* sampler 0 */
-      OUT_RING(SS2_COLORSPACE_CONVERSION | SS2_PLANAR_TO_PACKED_ENABLE);
+      OUT_RING(0x00000000);
       OUT_RING(0x00000000);
       OUT_RING(0x00000000);
       /* sampler 1 */
-      OUT_RING(SS2_COLORSPACE_CONVERSION | SS2_PLANAR_TO_PACKED_ENABLE);
+      OUT_RING(0x00000000);
       OUT_RING(0x00000000);
       OUT_RING(0x00000000);
       /* sampler 2 */
-      OUT_RING(SS2_COLORSPACE_CONVERSION | SS2_PLANAR_TO_PACKED_ENABLE);
+      OUT_RING(0x00000000);
       OUT_RING(0x00000000);
       OUT_RING(0x00000000);
 
