@@ -1107,15 +1107,15 @@ I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, unsigned char *buf, int srcPitch,
    else
       dst1 = pI830->FbBase + pPriv->YBuf1offset;
 
-   srcy = buf;
+   srcy = buf + (top * srcPitch) + left;
    if (id == FOURCC_YV12) {
-      srcu = buf + (srcH * srcPitch) + ((top * srcPitch) >> 2) + (left >> 1);
-      srcv = buf + (srcH * srcPitch) + ((srcH >> 1) * srcPitch2) +
-	    ((top * srcPitch) >> 2) + (left >> 1);
+      srcu = buf + (srcH * srcPitch) + ((top / 2) * srcPitch2) + (left / 2);
+      srcv = buf + (srcH * srcPitch) + ((srcH / 2) * srcPitch2) +
+	    ((top / 2) * srcPitch2) + (left / 2);
    } else {
-      srcv = buf + (srcH * srcPitch) + ((top * srcPitch) >> 2) + (left >> 1);
-      srcu = buf + (srcH * srcPitch) + ((srcH >> 1) * srcPitch2) +
-	    ((top * srcPitch) >> 2) + (left >> 1);
+      srcv = buf + (srcH * srcPitch) + ((top / 2) * srcPitch2) + (left / 2);
+      srcu = buf + (srcH * srcPitch) + ((srcH / 2) * srcPitch2) +
+	    ((top / 2) * srcPitch2) + (left / 2);
    }
 
    for (y = 0; y < h; y++) {
