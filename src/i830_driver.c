@@ -2293,6 +2293,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       from = X_CONFIG;
       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ChipID override: 0x%04X\n",
 		 pI830->pEnt->device->chipID);
+      pI830->PciInfo->chipType = pI830->pEnt->device->chipID;
    } else {
       from = X_PROBED;
       pScrn->chipset = (char *)xf86TokenToString(I830BIOSChipsets,
