@@ -872,6 +872,10 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 		       "offscreen memory.  Not enough VRAM?\n");
 	 }
 	 return FALSE;
+      } else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Successful allocate "
+		       "offscreen memory at 0x%lx, size %d KB\n", 
+			pI830->Offscreen.Start, pI830->Offscreen.Size/1024);
       }
 #endif
    } else {
