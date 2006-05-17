@@ -473,7 +473,7 @@ I830InitVideo(ScreenPtr pScreen)
    xvContrast = MAKE_ATOM("XV_CONTRAST");
 
    /* Set up overlay video if we can do it at this depth. */
-   if (pScrn->bitsPerPixel != 8) {
+   if (!IS_BROADWATER(pI830) && pScrn->bitsPerPixel != 8) {
       overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
       if (overlayAdaptor != NULL) {
 	 adaptors[num_adaptors++] = overlayAdaptor;
