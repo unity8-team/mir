@@ -48,7 +48,7 @@ do {							\
 	return FALSE;					\
 } while(0)
 #else
-#define I830FALLBACK(x) { return FALSE; }
+#define I830FALLBACK(s, arg...) { return FALSE; }
 #endif
 
 int I830CopyROP[16] =
