@@ -37,6 +37,20 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830.h"
 #include "i810_reg.h"
 
+#ifdef I830DEBUG
+#define DEBUG_I830FALLBACK 0
+#endif
+
+#ifdef DEBUG_I830FALLBACK
+#define I830FALLBACK(s, arg...)				\
+do {							\
+	DPRINTF(PFX, "EXA fallback: " s "\n", ##arg); 	\
+	return FALSE;					\
+} while(0)
+#else
+#define I830FALLBACK(x) { return FALSE; }
+#endif
+
 int I830CopyROP[16] =
 {
    ROP_0,               /* GXclear */
@@ -136,15 +150,15 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
     unsigned long offset, pitch;
 
     if (planemask != (Pixel)~0 && !EXA_PM_IS_SOLID(pPixmap, planemask))
-	return FALSE;
+	I830FALLBACK("planemask is not solid");
 
     offset = exaGetPixmapOffset(pPixmap);
     pitch = exaGetPixmapPitch(pPixmap);
 
     if ( offset % pI830->EXADriverPtr->pixmapOffsetAlign != 0)
-	return FALSE;
+	I830FALLBACK("pixmap offset not aligned");
     if ( pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
-	return FALSE;
+	I830FALLBACK("pixmap pitch not aligned");
 
     pI830->BR[13] = pitch;
     pI830->BR[13] |= I830PatternROP[alu] << 16;
@@ -221,7 +235,7 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
     I830Ptr pI830 = I830PTR(pScrn);
 
     if (planemask != (Pixel)~0 && !EXA_PM_IS_SOLID(pScrPixmap, planemask))
-	return FALSE;
+	I830FALLBACK("planemask is not solid");
 
     pI830->copy_src_pitch = exaGetPixmapPitch(pSrcPixmap);
     pI830->copy_src_off = exaGetPixmapOffset(pSrcPixmap);
