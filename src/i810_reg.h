@@ -1632,8 +1632,26 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define STATE3D_DRAWING_RECTANGLE_BRW	(CMD_3D | (0x01<<24) | (0x00<<16))
 
-#define PRIMITIVE3D_BRW			(CMD_3D | (0x03<<27) | (0x08<<16))
-#define PRIM3D_BRW_POINTLIST		0x0
+#define STATE3D_BASE_ADDRESS		(CMD_3D | (0x01<<24) | (0x01<<16))
+#define BASE_ADDRESS_MODIFY		(1 << 0)
+
+#define STATE3D_PIPELINED_POINTERS	(CMD_3D | (0x00<<24) | (0x00<<16))
+
+#define STATE3D_VERTEX_BUFFERS	(CMD_3D | (0x03<<27) | (0x00<<24) | (0x08<<16))
+#define VB0_BUFFER_INDEX_SHIFT		27
+#define VB0_VERTEXDATA			(0 << 26)
+#define VB0_INSTANCEDATA		(1 << 26)
+#define VB0_BUFFER_PITCH_SHIFT		0
+
+#define STATE3D_VERTEX_ELEMENTS		(CMD_3D | (0x00<<24) | (0x09<<16))
+#define VE0_VERTEX_BUFFER_INDEX_SHIFT	27
+#define VE0_VALID			(1 << 26)
+#define VE0_FORMAT_SHIFT		16
+#define VE0_OFFSET_SHIFT		0
+
+#define PRIMITIVE3D_BRW		(CMD_3D | (0x03<<27) | (0x03<<24) | (0x08<<16))
+/* Primitive types are in brw_defines.h */
+#define P3D0_TOPO_SHIFT			10
 /* End regs for broadwater */
 
 

@@ -2115,6 +2115,14 @@ union intfloat {
    float f;
 };
 
+static inline CARD32 float_as_int(float f)
+{
+   union intfloat tmp;
+
+   tmp.f = f;
+   return tmp.ui;
+}
+
 #define OUT_RING_F(x) do {						\
    union intfloat _tmp;							\
    _tmp.f = x;								\
@@ -2632,6 +2640,9 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    struct brw_surface_state *src_surf_state;
    struct brw_sampler_state *src_sampler_state;
    struct brw_cc_unit_state *cc_state;
+   struct brw_vs_unit_state *vs_state;
+   CARD32 *vb;
+   Bool first_output = TRUE;
 
    ErrorF("BroadwaterDisplayVideoTextured: %dx%d (pitch %d)\n", width, height,
 	  video_pitch);
@@ -2662,8 +2673,8 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     * here, but we should have synced the 3D engine if we've reached this point.
     */
 
-   /* XXX: Allocate space for our state buffers, and set up the state structure
-    * pointers.
+   /* XXX: Allocate space for our state buffers and vb, and set up the state
+    * structure pointers.
     */
 
    /* Set up the state buffer for the destination surface */
@@ -2703,11 +2714,14 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    src_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
    src_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 
+   /* Set up the vertex shader to be disabled (passthrough) */
+   memset(vs_state, 0, sizeof(*vs_state));
+   vs_state->vs6.vs_enable = FALSE;
+
    /* XXX: Set up binding table state */
    /* XXX: Set up the VF for however we send our prims */
    /* XXX: Set up the SF kernel to do coord interp */
    /* XXX: Set up the SF state */
-   /* XXX: Set up the clipper to do nothing for us, I think */
 
    /* XXX: Set up the PS kernel (dispatched by WM) for convertiny YUV to RGB.
     * The 3D driver does this as:
@@ -2737,7 +2751,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    OUT_RING(STATE3D_URB_FENCE |
 	    UF0_CS_REALLOC |
-	    UF0_VFE_REALLOC |
 	    UF0_SF_REALLOC |
 	    UF0_CLIP_REALLOC |
 	    UF0_GS_REALLOC |
@@ -2746,14 +2759,50 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	    ((urb_gs_start + urb_gs_size) << UF1_GS_FENCE_SHIFT) |
 	    ((urb_vs_start + urb_vs_size) << UF1_VS_FENCE_SHIFT));
    OUT_RING(((urb_cs_start + urb_cs_size) << UF2_CS_FENCE_SHIFT) |
-	    ((urb_vfe_start + urb_vfe_size) << UF2_VFE_FENCE_SHIFT) |
 	    ((urb_sf_start + urb_sf_size) << UF2_SF_FENCE_SHIFT));
+
+   OUT_RING(STATE3D_BASE_ADDRESS | 4);
+   OUT_RING(XXX | BASE_ADDRESS_MODIFY); /* general state base addr, 4k align */
+   OUT_RING(XXX | BASE_ADDRESS_MODIFY); /* surf state base addr, 4k align */
+   OUT_RING(0); /* media base addr, don't care */
+   OUT_RING(0); /* general state max addr, disabled */
+   OUT_RING(0); /* media object state max addr, disabled */
+
+   OUT_RING(STATE3D_PIPELINED_POINTERS | 5);
+   OUT_RING((char *)vs_state - general_state_base); /* 32 byte aligned */
+   OUT_RING(0); /* disable GS, resulting in passthrough */
+   OUT_RING(0); /* disable CLIP, resulting in passthrough */
+   OUT_RING((char *)sf_state - general_state_base); /* 32 byte aligned */
+   OUT_RING((char *)wm_state - general_state_base); /* 32 byte aligned */
+   OUT_RING((char *)color_calc_state - general_state_base); /* 64 byte aligned */
 
    OUT_RING(STATE3D_DRAWING_RECTANGLE_BRW | 2);
    OUT_RING(0x00000000);	/* ymin, xmin */
    OUT_RING((pScrn->virtualX - 1) |
 	    (pScrn->virtualY - 1) << 16); /* ymax, xmax */
    OUT_RING(0x00000000);	/* yorigin, xorigin */
+
+   OUT_RING(STATE3D_VERTEX_BUFFERS | 2);
+   OUT_RING((0 << VB0_BUFFER_INDEX_SHIFT) |
+	    VB0_VERTEXDATA |
+	    (16 << VB0_BUFFER_PITCH_SHIFT));
+   OUT_RING(vb - pScrn->fbOffset);
+   OUT_RING(0xffffffff); /* Max index -- don't care */
+
+   /* Set up our vertex elements, sourced from the single vertex buffer. */
+   OUT_RING(STATE3D_VERTEX_ELEMENTS | XXX);
+   /* offset 0: X,Y */
+   OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+	    VE0_VALID |
+	    (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+	    (0 << VE0_OFFSET_SHIFT));
+   /* offset 8: S0, S1 */
+   OUT_RING(0);
+   OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+	    VE0_VALID |
+	    (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+	    (8 << VE0_OFFSET_SHIFT));
+   OUT_RING(0);
 
    /* XXX: Set the locations of the sampler/surface/etc. state */
 
@@ -2764,7 +2813,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    dxo = dstRegion->extents.x1;
    dyo = dstRegion->extents.y1;
 
-#if 0
    pbox = REGION_RECTS(dstRegion);
    nbox = REGION_NUM_RECTS(dstRegion);
    while (nbox--)
@@ -2773,11 +2821,15 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       int box_y1 = pbox->y1;
       int box_x2 = pbox->x2;
       int box_y2 = pbox->y2;
-      int j;
+      int i;
       float src_scale_x, src_scale_y;
       CARD32 vb[40];
       float verts[4][2], tex[4][2], tex2[4][2];
       int vert_data_count;
+
+      if (!first_output) {
+	 /* XXX: idle */
+      }
 
       pbox++;
 
@@ -2789,62 +2841,46 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       else
 	 vert_data_count = 40;
 
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+
+      vb[i++] = box_x1;
+      vb[i++] = box_y1;
+      vb[i++] = box_x1 - dxo;
+      vb[i++] = box_y1 - dyo;
+
+      vb[i++] = box_x2;
+      vb[i++] = box_y1;
+      vb[i++] = box_x2 - dxo;
+      vb[i++] = box_y1 - dyo;
+
+      vb[i++] = box_x2;
+      vb[i++] = box_y2;
+      vb[i++] = box_x2 - dxo;
+      vb[i++] = box_y2 - dyo;
+
+      vb[i++] = box_x1;
+      vb[i++] = box_y2;
+      vb[i++] = box_x1 - dxo;
+      vb[i++] = box_y2 - dyo;
+
       BEGIN_LP_RING(vert_data_count + 8);
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-
-      /* vertex data */
-      OUT_RING(PRIMITIVE3D | PRIM3D_INLINE | PRIM3D_TRIFAN |
-	       (vert_data_count - 1));
-      verts[0][0] = box_x1; verts[0][1] = box_y1;
-      verts[1][0] = box_x2; verts[1][1] = box_y1;
-      verts[2][0] = box_x2; verts[2][1] = box_y2;
-      verts[3][0] = box_x1; verts[3][1] = box_y2;
-
-      if (!planar) {
-	 tex[0][0] = (box_x1 - dxo) * src_scale_x;
-	 tex[0][1] = (box_y1 - dyo) * src_scale_y;
-	 tex[1][0] = (box_x2 - dxo) * src_scale_x;
-	 tex[1][1] = (box_y1 - dyo) * src_scale_y;
-	 tex[2][0] = (box_x2 - dxo) * src_scale_x;
-	 tex[2][1] = (box_y2 - dyo) * src_scale_y;
-	 tex[3][0] = (box_x1 - dxo) * src_scale_x;
-	 tex[3][1] = (box_y2 - dyo) * src_scale_y;
-	 /* emit vertex buffer */
-	 draw_poly(vb, verts, tex, NULL);
-	 for (j = 0; j < vert_data_count; j++)
-	    OUT_RING(vb[j]);
-      } else {
-	 tex[0][0] = (box_x1 - dxo) * src_scale_x / 2.0;
-	 tex[0][1] = (box_y1 - dyo) * src_scale_y / 2.0;
-	 tex[1][0] = (box_x2 - dxo) * src_scale_x / 2.0;
-	 tex[1][1] = (box_y1 - dyo) * src_scale_y / 2.0;
-	 tex[2][0] = (box_x2 - dxo) * src_scale_x / 2.0;
-	 tex[2][1] = (box_y2 - dyo) * src_scale_y / 2.0;
-	 tex[3][0] = (box_x1 - dxo) * src_scale_x / 2.0;
-	 tex[3][1] = (box_y2 - dyo) * src_scale_y / 2.0;
-	 tex2[0][0] = (box_x1 - dxo) * src_scale_x;
-	 tex2[0][1] = (box_y1 - dyo) * src_scale_y;
-	 tex2[1][0] = (box_x2 - dxo) * src_scale_x;
-	 tex2[1][1] = (box_y1 - dyo) * src_scale_y;
-	 tex2[2][0] = (box_x2 - dxo) * src_scale_x;
-	 tex2[2][1] = (box_y2 - dyo) * src_scale_y;
-	 tex2[3][0] = (box_x1 - dxo) * src_scale_x;
-	 tex2[3][1] = (box_y2 - dyo) * src_scale_y;
-	 /* emit vertex buffer */
-	 draw_poly(vb, verts, tex, tex2);
-	 for (j = 0; j < vert_data_count; j++)
-	    OUT_RING(vb[j]);
-      }
+      OUT_RING(PRIMITIVE3D_BRW | (_3DPRIM_TRIFAN << P3D0_TOPO_SHIFT) | 4);
+      OUT_RING(4); /* vertex count per instance */
+      OUT_RING(0); /* start vertex offset */
+      OUT_RING(1); /* single instance */
+      OUT_RING(0); /* start instance location */
+      OUT_RING(0); /* index buffer offset, ignored */
 
       ADVANCE_LP_RING();
+
+      first_output = FALSE;
    }
-#endif
 
    if (pI830->AccelInfoRec)
       pI830->AccelInfoRec->NeedToSync = TRUE;
