@@ -1594,6 +1594,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MI_WRITE_DIRTY_STATE		(1<<4)
 #define MI_END_SCENE			(1<<3)
 #define MI_INHIBIT_RENDER_CACHE_FLUSH	(1<<2)
+#define MI_STATE_INSTRUCTION_CACHE_FLUSH (1<<1)
 #define MI_INVALIDATE_MAP_CACHE		(1<<0)
 
 /* Noop */
@@ -1607,6 +1608,33 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ENABLE_FOG_SOURCE	(1<<27)
 #define ENABLE_FOG_CONST	(1<<24)
 #define ENABLE_FOG_DENSITY	(1<<23)
+
+/*
+ * New regs for broadwater -- we need to split this file up sensibly somehow.
+ */
+#define STATE3D_PIPELINE_SELECT		(CMD_3D | (0x01<<24) | (0x04<<16))
+#define PIPELINE_SELECT_3D		0
+#define PIPELINE_SELECT_MEDIA		1
+
+#define STATE3D_URB_FENCE		(CMD_3D | (0x00<<24) | (0x00<<16))
+#define UF0_CS_REALLOC			(1 << 13)
+#define UF0_VFE_REALLOC			(1 << 12)
+#define UF0_SF_REALLOC			(1 << 11)
+#define UF0_CLIP_REALLOC		(1 << 10)
+#define UF0_GS_REALLOC			(1 << 9)
+#define UF0_VS_REALLOC			(1 << 8)
+#define UF1_CLIP_FENCE_SHIFT		20
+#define UF1_GS_FENCE_SHIFT		10
+#define UF1_VS_FENCE_SHIFT		0
+#define UF2_CS_FENCE_SHIFT		20
+#define UF2_VFE_FENCE_SHIFT		10
+#define UF2_SF_FENCE_SHIFT		0
+
+#define STATE3D_DRAWING_RECTANGLE_BRW	(CMD_3D | (0x01<<24) | (0x00<<16))
+
+#define PRIMITIVE3D_BRW			(CMD_3D | (0x03<<27) | (0x08<<16))
+#define PRIM3D_BRW_POINTLIST		0x0
+/* End regs for broadwater */
 
 
 #define MAX_DISPLAY_PIPES	2

@@ -83,6 +83,8 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xaalocal.h"
 #include "dixstruct.h"
 #include "fourcc.h"
+#include "brw_defines.h"
+#include "brw_structs.h"
 
 #ifndef USE_USLEEP_FOR_VIDEO
 #define USE_USLEEP_FOR_VIDEO 0
@@ -488,7 +490,7 @@ I830InitVideo(ScreenPtr pScreen)
    /* Set up textured video if we can do it at this depth and we are on
     * supported hardware.
     */
-   if (pScrn->bitsPerPixel >= 16 && IS_I9XX(pI830)) {
+   if (pScrn->bitsPerPixel >= 16 && IS_I9XX(pI830) || IS_BROADWATER(pI830)) {
       texturedAdaptor = I830SetupImageVideoTextured(pScreen);
       if (texturedAdaptor != NULL) {
 	 adaptors[num_adaptors++] = texturedAdaptor;
@@ -2607,6 +2609,247 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       pI830->AccelInfoRec->NeedToSync = TRUE;
 }
 
+static void
+BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
+			       RegionPtr dstRegion,
+			       short width, short height, int video_pitch,
+			       int x1, int y1, int x2, int y2,
+			       short src_w, short src_h,
+			       short drw_w, short drw_h,
+			       DrawablePtr pDraw)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   CARD32 format, ms3, s2;
+   BoxPtr pbox;
+   int nbox, dxo, dyo;
+   Bool planar;
+   int urb_vs_start, urb_vs_size;
+   int urb_gs_start, urb_gs_size;
+   int urb_clip_start, urb_clip_size;
+   int urb_sf_start, urb_sf_size;
+   int urb_cs_start, urb_cs_size;
+   struct brw_surface_state *dest_surf_state;
+   struct brw_surface_state *src_surf_state;
+   struct brw_sampler_state *src_sampler_state;
+   struct brw_cc_unit_state *cc_state;
+
+   ErrorF("BroadwaterDisplayVideoTextured: %dx%d (pitch %d)\n", width, height,
+	  video_pitch);
+
+   assert((id == FOURCC_UYVY) || (id == FOURCC_YUY2));
+
+   /* Tell the rotation code that we have stomped its invariant state by
+    * setting a high bit.  We don't use any invariant 3D state for video, so we
+    * don't have to worry about it ourselves.
+    */
+   *pI830->used3D |= 1 << 30;
+
+   /* Set up a default static partitioning of the URB, which is supposed to
+    * allow anything we would want to do, at potentially lower performance.
+    */
+   urb_vs_start = 0;
+   urb_vs_size = 8 * 5;
+   urb_gs_start = urb_vs_start + urb_vs_size;
+   urb_gs_size = 4 * 5;
+   urb_clip_start = urb_gs_start + urb_gs_size;
+   urb_clip_size = 6 * 5;
+   urb_sf_start = urb_clip_start + urb_clip_size;
+   urb_sf_size = 8 * 11;
+   urb_cs_start = urb_sf_start + urb_sf_size;
+   urb_cs_size = 2 * 32;
+
+   /* We'll be poking the state buffers that could be in use by the 3d hardware
+    * here, but we should have synced the 3D engine if we've reached this point.
+    */
+
+   /* XXX: Allocate space for our state buffers, and set up the state structure
+    * pointers.
+    */
+
+   /* Set up the state buffer for the destination surface */
+   memset(dest_surf_state, 0, sizeof(*dest_surf_state));
+   dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
+   if (pI830->cpp == 2) {
+      dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
+   } else {
+      dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B8G8R8X8_UNORM;
+   }
+   dest_surf_state->ss1.base_addr = pI830->bufferOffset;
+   dest_surf_state->ss2.width = pScrn->virtualX - 1;
+   dest_surf_state->ss2.height = pScrn->virtualY - 1;
+   dest_surf_state->ss3.pitch = pI830->displayWidth * pI830->cpp;
+
+   /* Set up the source surface state buffer */
+   memset(src_surf_state, 0, sizeof(*src_surf_state));
+   src_surf_state->ss0.surface_type = BRW_SURFACE_2D;
+   switch (id) {
+   case FOURCC_YUY2:
+      src_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_YCRCB_NORMAL;
+      break;
+   case FOURCC_UYVY:
+      src_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_YCRCB_SWAPY;
+      break;
+   }
+   src_surf_state->ss1.base_addr = pPriv->YBuf0offset;
+   src_surf_state->ss2.width = width;
+   src_surf_state->ss2.height = height;
+   src_surf_state->ss3.pitch = video_pitch - 1;
+
+   /* Set up the packed YUV source sampler.  Doesn't do colorspace conversion.
+    */
+   memset(src_sampler_state, 0, sizeof(*src_sampler_state));
+   src_sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR;
+   src_sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
+   src_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+   src_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+
+   /* XXX: Set up binding table state */
+   /* XXX: Set up the VF for however we send our prims */
+   /* XXX: Set up the SF kernel to do coord interp */
+   /* XXX: Set up the SF state */
+   /* XXX: Set up the clipper to do nothing for us, I think */
+
+   /* XXX: Set up the PS kernel (dispatched by WM) for convertiny YUV to RGB.
+    * The 3D driver does this as:
+    *
+	 CONST C0 = { -.5, -.0625,  -.5, 1.164 }
+	 CONST C1 = { 1.596, -0.813, 2.018, -.391 }
+	 UYV     = TEX ...
+	 UYV.xyz = ADD UYV,     C0
+	 UYV.y   = MUL UYV.y,   C0.w
+	 RGB.xyz = MAD UYV.xxz, C1,   UYV.y
+	 RGB.y   = MAD UYV.z,   C1.w, RGB.y
+    *
+    */
+
+   /* XXX: Set up the WM state. */
+
+   /* XXX: Set up CC_VIEWPORT, though we really don't care about its behavior.
+    */
+
+   memset(cc_state, 0, sizeof(*cc_state));
+   /* XXX: Set pointer to CC_VIEWPORT */
+
+   BEGIN_LP_RING(XXX);
+   OUT_RING(MI_FLUSH | MI_STATE_INSTRUCTION_CACHE_FLUSH);
+
+   OUT_RING(STATE3D_PIPELINE_SELECT | PIPELINE_SELECT_3D);
+
+   OUT_RING(STATE3D_URB_FENCE |
+	    UF0_CS_REALLOC |
+	    UF0_VFE_REALLOC |
+	    UF0_SF_REALLOC |
+	    UF0_CLIP_REALLOC |
+	    UF0_GS_REALLOC |
+	    UF0_VS_REALLOC);
+   OUT_RING(((urb_clip_start + urb_clip_size) << UF1_CLIP_FENCE_SHIFT) |
+	    ((urb_gs_start + urb_gs_size) << UF1_GS_FENCE_SHIFT) |
+	    ((urb_vs_start + urb_vs_size) << UF1_VS_FENCE_SHIFT));
+   OUT_RING(((urb_cs_start + urb_cs_size) << UF2_CS_FENCE_SHIFT) |
+	    ((urb_vfe_start + urb_vfe_size) << UF2_VFE_FENCE_SHIFT) |
+	    ((urb_sf_start + urb_sf_size) << UF2_SF_FENCE_SHIFT));
+
+   OUT_RING(STATE3D_DRAWING_RECTANGLE_BRW | 2);
+   OUT_RING(0x00000000);	/* ymin, xmin */
+   OUT_RING((pScrn->virtualX - 1) |
+	    (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+   OUT_RING(0x00000000);	/* yorigin, xorigin */
+
+   /* XXX: Set the locations of the sampler/surface/etc. state */
+
+   ADVANCE_LP_RING();
+
+   /* XXX: Finally, emit some prims */
+
+   dxo = dstRegion->extents.x1;
+   dyo = dstRegion->extents.y1;
+
+#if 0
+   pbox = REGION_RECTS(dstRegion);
+   nbox = REGION_NUM_RECTS(dstRegion);
+   while (nbox--)
+   {
+      int box_x1 = pbox->x1;
+      int box_y1 = pbox->y1;
+      int box_x2 = pbox->x2;
+      int box_y2 = pbox->y2;
+      int j;
+      float src_scale_x, src_scale_y;
+      CARD32 vb[40];
+      float verts[4][2], tex[4][2], tex2[4][2];
+      int vert_data_count;
+
+      pbox++;
+
+      src_scale_x = (float)src_w / (float)drw_w;
+      src_scale_y  = (float)src_h / (float)drw_h;
+
+      if (!planar)
+	 vert_data_count = 32;
+      else
+	 vert_data_count = 40;
+
+      BEGIN_LP_RING(vert_data_count + 8);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+      OUT_RING(MI_NOOP);
+
+      /* vertex data */
+      OUT_RING(PRIMITIVE3D | PRIM3D_INLINE | PRIM3D_TRIFAN |
+	       (vert_data_count - 1));
+      verts[0][0] = box_x1; verts[0][1] = box_y1;
+      verts[1][0] = box_x2; verts[1][1] = box_y1;
+      verts[2][0] = box_x2; verts[2][1] = box_y2;
+      verts[3][0] = box_x1; verts[3][1] = box_y2;
+
+      if (!planar) {
+	 tex[0][0] = (box_x1 - dxo) * src_scale_x;
+	 tex[0][1] = (box_y1 - dyo) * src_scale_y;
+	 tex[1][0] = (box_x2 - dxo) * src_scale_x;
+	 tex[1][1] = (box_y1 - dyo) * src_scale_y;
+	 tex[2][0] = (box_x2 - dxo) * src_scale_x;
+	 tex[2][1] = (box_y2 - dyo) * src_scale_y;
+	 tex[3][0] = (box_x1 - dxo) * src_scale_x;
+	 tex[3][1] = (box_y2 - dyo) * src_scale_y;
+	 /* emit vertex buffer */
+	 draw_poly(vb, verts, tex, NULL);
+	 for (j = 0; j < vert_data_count; j++)
+	    OUT_RING(vb[j]);
+      } else {
+	 tex[0][0] = (box_x1 - dxo) * src_scale_x / 2.0;
+	 tex[0][1] = (box_y1 - dyo) * src_scale_y / 2.0;
+	 tex[1][0] = (box_x2 - dxo) * src_scale_x / 2.0;
+	 tex[1][1] = (box_y1 - dyo) * src_scale_y / 2.0;
+	 tex[2][0] = (box_x2 - dxo) * src_scale_x / 2.0;
+	 tex[2][1] = (box_y2 - dyo) * src_scale_y / 2.0;
+	 tex[3][0] = (box_x1 - dxo) * src_scale_x / 2.0;
+	 tex[3][1] = (box_y2 - dyo) * src_scale_y / 2.0;
+	 tex2[0][0] = (box_x1 - dxo) * src_scale_x;
+	 tex2[0][1] = (box_y1 - dyo) * src_scale_y;
+	 tex2[1][0] = (box_x2 - dxo) * src_scale_x;
+	 tex2[1][1] = (box_y1 - dyo) * src_scale_y;
+	 tex2[2][0] = (box_x2 - dxo) * src_scale_x;
+	 tex2[2][1] = (box_y2 - dyo) * src_scale_y;
+	 tex2[3][0] = (box_x1 - dxo) * src_scale_x;
+	 tex2[3][1] = (box_y2 - dyo) * src_scale_y;
+	 /* emit vertex buffer */
+	 draw_poly(vb, verts, tex, tex2);
+	 for (j = 0; j < vert_data_count; j++)
+	    OUT_RING(vb[j]);
+      }
+
+      ADVANCE_LP_RING();
+   }
+#endif
+
+   if (pI830->AccelInfoRec)
+      pI830->AccelInfoRec->NeedToSync = TRUE;
+}
+
 static FBLinearPtr
 I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size)
 {
@@ -2749,7 +2992,7 @@ I830PutImage(ScrnInfoPtr pScrn,
    if (pPriv->textured) {
       pitchAlignMask = 3;
    } else {
-      if (IS_BROADWATER(pI830)) {
+      if (IS_BROADWATER(pI830))
 	 pitchAlignMask = 255;
       else
 	 pitchAlignMask = 63;
