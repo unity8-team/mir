@@ -133,11 +133,20 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
+    unsigned long offset, pitch;
 
     if (planemask != (Pixel)~0 && !EXA_PM_IS_SOLID(pPixmap, planemask))
 	return FALSE;
 
-    pI830->BR[13] = exaGetPixmapPitch(pPixmap);
+    offset = exaGetPixmapOffset(pPixmap);
+    pitch = exaGetPixmapPitch(pPixmap);
+
+    if ( offset % pI830->EXADriverPtr->pixmapOffsetAlign != 0)
+	return FALSE;
+    if ( pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
+	return FALSE;
+
+    pI830->BR[13] = pitch;
     pI830->BR[13] |= I830PatternROP[alu] << 16;
 
     pI830->BR[16] = fg;
@@ -165,8 +174,10 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     int h, w;
-    unsigned int offset;
+    unsigned long offset;
 
+    /* pixmap's offset and pitch is aligned, 
+       otherwise it falls back in PrepareSolid */
     offset = exaGetPixmapOffset(pPixmap) + y1 * exaGetPixmapPitch(pPixmap) +
 	x1 * (pPixmap->drawable.bitsPerPixel / 8);
     
