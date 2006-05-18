@@ -169,8 +169,8 @@ I830SDVOGetActiveOutputs(I830SDVOPtr s, Bool *on_1, Bool *on_2)
     I830SDVOWriteOutputs(s, 0);
     I830SDVOReadInputRegs(s);
 
-    *on_1 = s->sdvo_regs[SDVO_I2C_ARG_0];
-    *on_2 = s->sdvo_regs[SDVO_I2C_ARG_1];
+    *on_1 = s->sdvo_regs[SDVO_I2C_RETURN_0];
+    *on_2 = s->sdvo_regs[SDVO_I2C_RETURN_1];
 
     return TRUE;
 }
