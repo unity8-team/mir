@@ -394,7 +394,7 @@ I830EXAInit(ScreenPtr pScreen)
     pI830->EXADriverPtr->exa_minor = 0;
     pI830->EXADriverPtr->memoryBase = pI830->FbBase;
     pI830->EXADriverPtr->offScreenBase = pI830->Offscreen.Start;
-    pI830->EXADriverPtr->memorySize = pScrn->videoRam*1024;
+    pI830->EXADriverPtr->memorySize = pI830->Offscreen.End;
 	   
     if(pI830->EXADriverPtr->memorySize >
        pI830->EXADriverPtr->offScreenBase)
