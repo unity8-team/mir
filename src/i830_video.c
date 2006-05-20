@@ -119,6 +119,9 @@ static int I830QueryImageAttributesTextured(ScrnInfoPtr, int, unsigned short *,
 
 static void I830BlockHandler(int, pointer, pointer, pointer);
 
+static FBLinearPtr
+I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size);
+
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
 static Atom xvBrightness, xvContrast, xvColorKey, xvPipe, xvDoubleBuffer;
@@ -2115,14 +2118,6 @@ union intfloat {
    float f;
 };
 
-static inline CARD32 float_as_int(float f)
-{
-   union intfloat tmp;
-
-   tmp.f = f;
-   return tmp.ui;
-}
-
 #define OUT_RING_F(x) do {						\
    union intfloat _tmp;							\
    _tmp.f = x;								\
@@ -2643,8 +2638,17 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    struct brw_sf_unit_state *sf_state;
    struct brw_wm_unit_state *wm_state;
    struct brw_cc_unit_state *cc_state;
-   CARD32 *vb, *cc_viewport, *binding_table;
+   struct brw_cc_viewport *cc_viewport;
+   CARD32 *vb, *binding_table;
    Bool first_output = TRUE;
+   int surf_state_base_offset, general_state_base_offset;
+   int dest_surf_offset, src_surf_offset, src_sampler_offset, vs_offset;
+   int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
+   int binding_table_offset;
+   int next_offset, total_state_size;
+   int vb_size = (4 * 4) * 4; /* 4 DWORDS per vertex */
+   FBLinearPtr state_area;
+   char *state_base;
 
    ErrorF("BroadwaterDisplayVideoTextured: %dx%d (pitch %d)\n", width, height,
 	  video_pitch);
@@ -2656,6 +2660,66 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     * don't have to worry about it ourselves.
     */
    *pI830->used3D |= 1 << 30;
+
+   next_offset = 0;
+
+   /* Set up our layout of state in framebuffer.  First the general state: */
+   vs_offset = ALIGN(next_offset, 64);
+   general_state_base_offset = vs_offset;
+   next_offset = vs_offset + sizeof(*vs_state);
+   sf_offset = ALIGN(next_offset, 32);
+   next_offset = sf_offset + sizeof(*sf_state);
+   wm_offset = ALIGN(next_offset, 32);
+   next_offset = wm_offset + sizeof(*wm_state);
+   cc_offset = ALIGN(next_offset, 32);
+   next_offset = cc_offset + sizeof(*cc_state);
+
+   /* XXX: Add space for SF and PS kernels */
+
+   cc_viewport_offset = ALIGN(next_offset, 32);
+   next_offset = cc_viewport_offset + sizeof(*cc_viewport);
+
+   src_sampler_offset = ALIGN(next_offset, 32);
+   next_offset = src_sampler_offset + sizeof(*src_sampler_state);
+
+   /* Align VB to native size of elements, for safety */
+   vb_offset = ALIGN(next_offset, 8);
+   next_offset = vb_offset + vb_size;
+
+   /* And then the general state: */
+   dest_surf_offset = ALIGN(next_offset, 32);
+   surf_state_base_offset = dest_surf_offset;
+   next_offset = dest_surf_offset + sizeof(*dest_surf_state);
+   src_surf_offset = ALIGN(next_offset, 32);
+   next_offset = src_surf_offset + sizeof(*src_surf_state);
+   binding_table_offset = ALIGN(next_offset, 32);
+   next_offset = binding_table_offset + (2 * 4);
+
+   /* Allocate an area in framebuffer for our state layout we just set up */
+   total_state_size = next_offset;
+   state_area = I830AllocateMemory(pScrn, NULL, (total_state_size + 32) /
+				   pI830->cpp);
+   if (state_area == NULL) {
+      ErrorF("Failed to allocate %d bytes for state\n", total_state_size);
+      return;
+   }
+
+   state_base = (char *)(pI830->FrontBuffer.Start + pPriv->linear->offset *
+			 pI830->cpp);
+   /* Set up our pointers to state structures in framebuffer.  It would probably
+    * be a good idea to fill these structures out in system memory and then dump
+    * them there, instead.
+    */
+   vs_state = (void *)(state_base + vs_offset);
+   sf_state = (void *)(state_base + sf_offset);
+   wm_state = (void *)(state_base + wm_offset);
+   cc_state = (void *)(state_base + cc_offset);
+   cc_viewport = (void *)(state_base + cc_viewport_offset);
+   dest_surf_state = (void *)(state_base + dest_surf_offset);
+   src_surf_state = (void *)(state_base + src_surf_offset);
+   src_sampler_state = (void *)(state_base + src_sampler_offset);
+   binding_table = (void *)(state_base + binding_table_offset);
+   vb = (void *)(state_base + vb_offset);
 
    /* Set up a default static partitioning of the URB, which is supposed to
     * allow anything we would want to do, at potentially lower performance.
@@ -2672,11 +2736,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    urb_cs_size = 2 * 32;
 
    /* We'll be poking the state buffers that could be in use by the 3d hardware
-    * here, but we should have synced the 3D engine if we've reached this point.
-    */
-
-   /* XXX: Allocate space for our state buffers and vb, and set up the state
-    * structure pointers.
+    * here, but we should have synced the 3D engine already in I830PutImage.
     */
 
    /* Set up the state buffer for the destination surface */
@@ -2710,8 +2770,8 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    /* Set up a binding table for our two surfaces.  Only the PS will use it */
    /* XXX: are these offset from the right place? */
-   binding_table[0] = (CARD32)((char *)dest_surf_state - pScrn->fbOffset);
-   binding_table[1] = (CARD32)((char *)src_surf_state - pScrn->fbOffset);
+   binding_table[0] = dest_surf_state_offset - surf_state_base_offset;
+   binding_table[1] = src_surf_state_offset - surf_state_base_offset;
 
    /* Set up the packed YUV source sampler.  Doesn't do colorspace conversion.
     */
@@ -2768,18 +2828,18 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    wm_state->thread3.urb_entry_read_length = XXX;
    wm_state->thread3.const_urb_entry_read_length = XXX;
    wm_state->wm4.sampler_state_pointer =
-	((CARD8 *)src_sampler_state - general_state_base) >> 5;
+	(src_sampler_offset - general_state_base_offset) >> 5;
    wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
    wm_state->wm5.max_threads = 31;
    wm_state->wm5.thread_dispatch_enable = 1;
    wm_state->wm5.enable_16_pix = 1;
 
-   cc_viewport[0] = float_as_int(0.0);
-   cc_viewport[1] = float_as_int(0.0);
+   cc_viewport->min_depth = 0.0;
+   cc_viewport->max_depth = 0.0;
 
    memset(cc_state, 0, sizeof(*cc_state));
    cc_state->cc4.cc_viewport_state_offset =
-	((char *)cc_viewport - general_state_base) >> 5;
+	(cc_viewport_offset - general_state_base_offset) >> 5;
 
    BEGIN_LP_RING(XXX);
    OUT_RING(MI_FLUSH | MI_STATE_INSTRUCTION_CACHE_FLUSH);
@@ -2800,20 +2860,22 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    /* Set the general and surface state base addresses */
    OUT_RING(STATE3D_BASE_ADDRESS | 4);
-   OUT_RING((general_state_base - pScrn->fbOffset) | BASE_ADDRESS_MODIFY);
-   OUT_RING((surf_state_base - pScrn->fbOffset) | BASE_ADDRESS_MODIFY);
+   OUT_RING((pPriv->linear->offset * pI830->cpp + general_state_base_offset) |
+	    BASE_ADDRESS_MODIFY);
+   OUT_RING((pPriv->linear->offset * pI830->cpp + surf_state_base_offset) |
+	    BASE_ADDRESS_MODIFY);
    OUT_RING(0); /* media base addr, don't care */
    OUT_RING(0); /* general state max addr, disabled */
    OUT_RING(0); /* media object state max addr, disabled */
 
    /* Set the pointers to the 3d pipeline state */
    OUT_RING(STATE3D_PIPELINED_POINTERS | 5);
-   OUT_RING((char *)vs_state - general_state_base); /* 32 byte aligned */
+   OUT_RING(vs_offset - general_state_base_offset); /* 32 byte aligned */
    OUT_RING(0); /* disable GS, resulting in passthrough */
    OUT_RING(0); /* disable CLIP, resulting in passthrough */
-   OUT_RING((char *)sf_state - general_state_base); /* 32 byte aligned */
-   OUT_RING((char *)wm_state - general_state_base); /* 32 byte aligned */
-   OUT_RING((char *)cc_state - general_state_base); /* 64 byte aligned */
+   OUT_RING(sf_offset - general_state_base_offset); /* 32 byte aligned */
+   OUT_RING(wm_offset - general_state_base_offset); /* 32 byte aligned */
+   OUT_RING(cc_offset - general_state_base_offset); /* 64 byte aligned */
 
    /* Only the PS uses the binding table */
    OUT_RING(STATE3D_BINDING_TABLE_POINTERS | 4);
@@ -2821,7 +2883,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_RING(0); /* gs */
    OUT_RING(0); /* clip */
    OUT_RING(0); /* sf */
-   OUT_RING((char *)binding_table - surf_state_base); /* ps */
+   OUT_RING(binding_table_offset - surf_state_base_offset); /* ps */
 
    /* The drawing rectangle clipping is always on.  Set it to values that
     * shouldn't do any clipping.
@@ -2837,7 +2899,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_RING((0 << VB0_BUFFER_INDEX_SHIFT) |
 	    VB0_VERTEXDATA |
 	    (16 << VB0_BUFFER_PITCH_SHIFT));
-   OUT_RING((CARD32)((char *)vb - pScrn->fbOffset));
+   OUT_RING(pPriv->linear->offset * pI830->cpp + vb_offset);
    OUT_RING(0xffffffff); /* Max index -- don't care */
 
    /* Set up our vertex elements, sourced from the single vertex buffer. */
@@ -2936,6 +2998,8 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
       first_output = FALSE;
    }
+
+   xf86FreeOffscreenLinear(state_area);
 
    if (pI830->AccelInfoRec)
       pI830->AccelInfoRec->NeedToSync = TRUE;
