@@ -2945,7 +2945,13 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       int vert_data_count;
 
       if (!first_output) {
-	 /* XXX: idle */
+	 /* Since we use the same little vertex buffer over and over, sync for
+	  * subsequent rectangles.
+	  */
+	 if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
+	    (*pI830->AccelInfoRec->Sync)(pScrn);
+	    pI830->AccelInfoRec->NeedToSync = FALSE;
+	 }
       }
 
       pbox++;
