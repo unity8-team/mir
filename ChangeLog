@@ -1,3 +1,10 @@
+2006-05-21  Michel Dänzer  <michel@tungstengraphics.com>
+
+	* configure.ac:
+	* src/ativersion.h:
+	Derive ATI_VERSION_{MAJOR,MINOR,PATCH} from package version in order to
+	hopefully confuse bug triagers a little less.
+
 2006-05-09  Alex Deucher  <agd5f@yahoo.com>
 
 	* man/radeon.man:

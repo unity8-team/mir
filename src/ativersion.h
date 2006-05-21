@@ -26,9 +26,6 @@
 
 #undef  ATI_NAME
 #undef  ATI_DRIVER_NAME
-#undef  ATI_VERSION_MAJOR
-#undef  ATI_VERSION_MINOR
-#undef  ATI_VERSION_PATCH
 #undef  ATI_VERSION_CURRENT
 #undef  ATI_VERSION_EVALUATE
 #undef  ATI_VERSION_STRINGIFY
@@ -36,10 +33,6 @@
 
 #define ATI_NAME          "ATI"
 #define ATI_DRIVER_NAME   "ati"
-
-#define ATI_VERSION_MAJOR 6
-#define ATI_VERSION_MINOR 5
-#define ATI_VERSION_PATCH 7
 
 #ifndef ATI_VERSION_EXTRA
 #define ATI_VERSION_EXTRA ""
