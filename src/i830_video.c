@@ -2025,70 +2025,6 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    OVERLAY_UPDATE;
 }
 
-/* Doesn't matter on the order for our purposes */
-typedef struct {
-   unsigned char red, green, blue, alpha;
-} intel_color_t;
-
-/* Vertex format */
-typedef union {
-   struct {
-      float x, y, z, w;
-      intel_color_t color;
-      intel_color_t specular;
-      float u0, v0;
-      float u1, v1;
-      float u2, v2;
-      float u3, v3;
-   } v;
-   float f[24];
-   unsigned int  ui[24];
-   unsigned char ub4[24][4];
-} intelVertex, *intelVertexPtr;
-
-static void draw_poly(CARD32 *vb,
-                      float verts[][2],
-                      float texcoords[][2],
-		      float texcoords2[][2])
-{
-   int vertex_size;
-   intelVertex tmp;
-   int i, k;
-
-   if (texcoords2 != NULL)
-      vertex_size = 10;
-   else
-      vertex_size = 8;
-   
-   /* initial constant vertex fields */
-   tmp.v.z = 1.0;
-   tmp.v.w = 1.0; 
-   tmp.v.color.red = 255;
-   tmp.v.color.green = 255;
-   tmp.v.color.blue = 255;
-   tmp.v.color.alpha = 255;
-   tmp.v.specular.red = 0;
-   tmp.v.specular.green = 0;
-   tmp.v.specular.blue = 0;
-   tmp.v.specular.alpha = 0;
-
-   for (k = 0; k < 4; k++) {
-      tmp.v.x = verts[k][0];
-      tmp.v.y = verts[k][1];
-      tmp.v.u0 = texcoords[k][0];
-      tmp.v.v0 = texcoords[k][1];
-      if (texcoords2 != NULL) {
-	 tmp.v.u1 = texcoords2[k][0];
-	 tmp.v.v1 = texcoords2[k][1];
-      }
-
-      for (i = 0 ; i < vertex_size ; i++)
-         vb[i] = tmp.ui[i];
-
-      vb += vertex_size;
-   }
-}
-
 union intfloat {
    CARD32 ui;
    float f;
@@ -2275,7 +2211,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT);
    OUT_RING(s2);
    OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
-	    S4_CULLMODE_NONE | S4_VFMT_SPEC_FOG | S4_VFMT_COLOR | S4_VFMT_XYZW);
+	    S4_CULLMODE_NONE | S4_VFMT_XY);
    OUT_RING(0x00000000); /* S5 - enable bits */
    OUT_RING((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
 	    (2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
@@ -2512,10 +2448,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       int box_y1 = pbox->y1;
       int box_x2 = pbox->x2;
       int box_y2 = pbox->y2;
-      int j;
       float src_scale_x, src_scale_y;
-      CARD32 vb[40];
-      float verts[4][2], tex[4][2], tex2[4][2];
       int vert_data_count;
 
       pbox++;
@@ -2524,9 +2457,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       src_scale_y  = (float)src_h / (float)drw_h;
 
       if (!planar)
-	 vert_data_count = 32;
+	 vert_data_count = 12;
       else
-	 vert_data_count = 40;
+	 vert_data_count = 18;
 
       BEGIN_LP_RING(vert_data_count + 8);
       OUT_RING(MI_NOOP);
@@ -2537,48 +2470,49 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_RING(MI_NOOP);
       OUT_RING(MI_NOOP);
 
-      /* vertex data */
-      OUT_RING(PRIMITIVE3D | PRIM3D_INLINE | PRIM3D_TRIFAN |
+      /* vertex data - rect list consists of bottom right, bottom left, and top
+       * left vertices.
+       */
+      OUT_RING(PRIMITIVE3D | PRIM3D_INLINE | PRIM3D_RECTLIST |
 	       (vert_data_count - 1));
-      verts[0][0] = box_x1; verts[0][1] = box_y1;
-      verts[1][0] = box_x2; verts[1][1] = box_y1;
-      verts[2][0] = box_x2; verts[2][1] = box_y2;
-      verts[3][0] = box_x1; verts[3][1] = box_y2;
 
+      /* bottom right */
+      OUT_RING_F(box_x2);
+      OUT_RING_F(box_y2);
       if (!planar) {
-	 tex[0][0] = (box_x1 - dxo) * src_scale_x;
-	 tex[0][1] = (box_y1 - dyo) * src_scale_y;
-	 tex[1][0] = (box_x2 - dxo) * src_scale_x;
-	 tex[1][1] = (box_y1 - dyo) * src_scale_y;
-	 tex[2][0] = (box_x2 - dxo) * src_scale_x;
-	 tex[2][1] = (box_y2 - dyo) * src_scale_y;
-	 tex[3][0] = (box_x1 - dxo) * src_scale_x;
-	 tex[3][1] = (box_y2 - dyo) * src_scale_y;
-	 /* emit vertex buffer */
-	 draw_poly(vb, verts, tex, NULL);
-	 for (j = 0; j < vert_data_count; j++)
-	    OUT_RING(vb[j]);
+	 OUT_RING_F((box_x2 - dxo) * src_scale_x);
+	 OUT_RING_F((box_y2 - dyo) * src_scale_y);
       } else {
-	 tex[0][0] = (box_x1 - dxo) * src_scale_x / 2.0;
-	 tex[0][1] = (box_y1 - dyo) * src_scale_y / 2.0;
-	 tex[1][0] = (box_x2 - dxo) * src_scale_x / 2.0;
-	 tex[1][1] = (box_y1 - dyo) * src_scale_y / 2.0;
-	 tex[2][0] = (box_x2 - dxo) * src_scale_x / 2.0;
-	 tex[2][1] = (box_y2 - dyo) * src_scale_y / 2.0;
-	 tex[3][0] = (box_x1 - dxo) * src_scale_x / 2.0;
-	 tex[3][1] = (box_y2 - dyo) * src_scale_y / 2.0;
-	 tex2[0][0] = (box_x1 - dxo) * src_scale_x;
-	 tex2[0][1] = (box_y1 - dyo) * src_scale_y;
-	 tex2[1][0] = (box_x2 - dxo) * src_scale_x;
-	 tex2[1][1] = (box_y1 - dyo) * src_scale_y;
-	 tex2[2][0] = (box_x2 - dxo) * src_scale_x;
-	 tex2[2][1] = (box_y2 - dyo) * src_scale_y;
-	 tex2[3][0] = (box_x1 - dxo) * src_scale_x;
-	 tex2[3][1] = (box_y2 - dyo) * src_scale_y;
-	 /* emit vertex buffer */
-	 draw_poly(vb, verts, tex, tex2);
-	 for (j = 0; j < vert_data_count; j++)
-	    OUT_RING(vb[j]);
+	 OUT_RING_F((box_x2 - dxo) * src_scale_x / 2.0);
+	 OUT_RING_F((box_y2 - dyo) * src_scale_y / 2.0);
+	 OUT_RING_F((box_x2 - dxo) * src_scale_x);
+	 OUT_RING_F((box_y2 - dyo) * src_scale_y);
+      }
+
+      /* bottom left */
+      OUT_RING_F(box_x1);
+      OUT_RING_F(box_y2);
+      if (!planar) {
+	 OUT_RING_F((box_x1 - dxo) * src_scale_x);
+	 OUT_RING_F((box_y2 - dyo) * src_scale_y);
+      } else {
+	 OUT_RING_F((box_x1 - dxo) * src_scale_x / 2.0);
+	 OUT_RING_F((box_y2 - dyo) * src_scale_y / 2.0);
+	 OUT_RING_F((box_x1 - dxo) * src_scale_x);
+	 OUT_RING_F((box_y2 - dyo) * src_scale_y);
+      }
+
+      /* top left */
+      OUT_RING_F(box_x1);
+      OUT_RING_F(box_y1);
+      if (!planar) {
+	 OUT_RING_F((box_x1 - dxo) * src_scale_x);
+	 OUT_RING_F((box_y1 - dyo) * src_scale_y);
+      } else {
+	 OUT_RING_F((box_x1 - dxo) * src_scale_x / 2.0);
+	 OUT_RING_F((box_y1 - dyo) * src_scale_y / 2.0);
+	 OUT_RING_F((box_x1 - dxo) * src_scale_x);
+	 OUT_RING_F((box_y1 - dyo) * src_scale_y);
       }
 
       ADVANCE_LP_RING();
