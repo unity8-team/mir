@@ -80,10 +80,10 @@ extern const char *I810ddcSymbols[];
 extern const char *I810fbSymbols[];
 extern const char *I810xaaSymbols[];
 extern const char *I810shadowFBSymbols[];
+extern const char *I810shadowSymbols[];
 #ifdef XF86DRI
 extern const char *I810driSymbols[];
 extern const char *I810drmSymbols[];
-extern const char *I810shadowSymbols[];
 #endif
 extern const char *I810i2cSymbols[];
 
@@ -132,7 +132,7 @@ extern void I830DPRINTF_stub(const char *filename, int line,
    RecPtr->LpRing->space -= ringused;					\
    if (outring & 0x07)							\
       ErrorF("ADVANCE_LP_RING: "					\
-	     "outring (0x%x) isn't on a QWord boundary", outring);	\
+	     "outring (0x%x) isn't on a QWord boundary\n", outring);	\
    OUTREG(LP_RING + RING_TAIL, outring);				\
 } while (0)
 

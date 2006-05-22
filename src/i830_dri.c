@@ -773,6 +773,9 @@ I830DRIDoMappings(ScreenPtr pScreen)
    sarea->depth_handle = 0;
    sarea->tex_handle = 0;
 
+   /* Assign pScreen */
+   pScrn->pScreen = pScreen;
+
    /* Need to initialize pScreen now to let RandR know. */
    pScrn->pScreen->width = pScrn->virtualX;
    pScrn->pScreen->height = pScrn->virtualY;

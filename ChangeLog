@@ -1,3 +1,8 @@
+2006-05-01  Matthieu Herrb <matthieu.herrb@laas.fr>
+
+	* src/common.h:
+	Fix build on non-dri systems.
+
 2006-04-07  Adam Jackson  <ajax@freedesktop.org>
 
 	* configure.ac:
