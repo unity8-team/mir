@@ -4258,27 +4258,30 @@ I830BIOSSaveScreen(ScreenPtr pScreen, int mode)
    I830Ptr pI830 = I830PTR(pScrn);
    Bool on = xf86IsUnblank(mode);
    CARD32 temp, ctrl, base;
+   int i;
 
    DPRINTF(PFX, "I830BIOSSaveScreen: %d, on is %s\n", mode, BOOLTOSTRING(on));
 
    if (pScrn->vtSema) {
-      if (pI830->pipe == 0) {
-	 ctrl = DSPACNTR;
-	 base = DSPABASE;
-      } else {
-	 ctrl = DSPBCNTR;
-	 base = DSPBADDR;
-      }
-      if (pI830->planeEnabled[pI830->pipe]) {
-	 temp = INREG(ctrl);
-	 if (on)
-	    temp |= DISPLAY_PLANE_ENABLE;
-	 else
-	    temp &= ~DISPLAY_PLANE_ENABLE;
-	 OUTREG(ctrl, temp);
-	 /* Flush changes */
-	 temp = INREG(base);
-	 OUTREG(base, temp);
+      for (i = 0; i < pI830->availablePipes; i++) {
+        if (i == 0) {
+	    ctrl = DSPACNTR;
+	    base = DSPABASE;
+        } else {
+	    ctrl = DSPBCNTR;
+	    base = DSPBADDR;
+        }
+        if (pI830->planeEnabled[i]) {
+	   temp = INREG(ctrl);
+	   if (on)
+	      temp |= DISPLAY_PLANE_ENABLE;
+	   else
+	      temp &= ~DISPLAY_PLANE_ENABLE;
+	   OUTREG(ctrl, temp);
+	   /* Flush changes */
+	   temp = INREG(base);
+	   OUTREG(base, temp);
+        }
       }
 
       if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn) {
@@ -4292,63 +4295,91 @@ I830BIOSSaveScreen(ScreenPtr pScreen, int mode)
    return TRUE;
 }
 
+static void
+I830DPMSCRT(ScrnInfoPtr pScrn, int mode)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   CARD32 temp;
+   
+   temp = INREG(ADPA);
+   temp &= ~(ADPA_HSYNC_CNTL_DISABLE|ADPA_VSYNC_CNTL_DISABLE);
+   switch(mode) {
+   case DPMSModeOn:
+      break;
+   case DPMSModeStandby:
+      temp |= ADPA_HSYNC_CNTL_DISABLE;
+      break;
+   case DPMSModeSuspend:
+      temp |= ADPA_VSYNC_CNTL_DISABLE;
+      break;
+   case DPMSModeOff:
+      temp |= ADPA_HSYNC_CNTL_DISABLE|ADPA_VSYNC_CNTL_DISABLE;
+      break;
+   }
+   OUTREG(ADPA, temp);
+}
+
+static void
+I830DPMSLVDS(ScrnInfoPtr pScrn, int mode)
+{
+   if (mode == DPMSModeOn)
+      i830SetLVDSPanelPower(pScrn, TRUE);
+   else
+      i830SetLVDSPanelPower(pScrn, FALSE);
+}
+
 /* Use the VBE version when available. */
 static void
 I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
 			      int flags)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   vbeInfoPtr pVbe = pI830->pVbe;
+   int i;
+   CARD32 temp, ctrl, base;
 
-   if (pI830->Clone) {
-      SetBIOSPipe(pScrn, !pI830->pipe);
-      if (xf86LoaderCheckSymbol("VBEDPMSSet")) {
-         VBEDPMSSet(pVbe, PowerManagementMode);
+   for (i = 0; i < pI830->availablePipes; i++) {
+      if (i == 0) {
+         ctrl = DSPACNTR;
+         base = DSPABASE;
       } else {
-         pVbe->pInt10->num = 0x10;
-         pVbe->pInt10->ax = 0x4f10;
-         pVbe->pInt10->bx = 0x01;
-
-         switch (PowerManagementMode) {
-         case DPMSModeOn:
-	    break;
-         case DPMSModeStandby:
-	    pVbe->pInt10->bx |= 0x0100;
-	    break;
-         case DPMSModeSuspend:
-	    pVbe->pInt10->bx |= 0x0200;
-	    break;
-         case DPMSModeOff:
-	    pVbe->pInt10->bx |= 0x0400;
-	    break;
-         }
-         xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
+         ctrl = DSPBCNTR;
+         base = DSPBADDR;
+      }
+      if (pI830->planeEnabled[i]) {
+	   temp = INREG(ctrl);
+	   if (PowerManagementMode == DPMSModeOn)
+	      temp |= DISPLAY_PLANE_ENABLE;
+	   else
+	      temp &= ~DISPLAY_PLANE_ENABLE;
+	   OUTREG(ctrl, temp);
+	   /* Flush changes */
+	   temp = INREG(base);
+	   OUTREG(base, temp);
       }
    }
 
-   SetPipeAccess(pScrn);
+   if (pI830->operatingDevices & (PIPE_CRT_ACTIVE | (PIPE_CRT_ACTIVE<<8))) {
+      I830DPMSCRT(pScrn, PowerManagementMode);
+   }
 
-   if (xf86LoaderCheckSymbol("VBEDPMSSet")) {
-      VBEDPMSSet(pVbe, PowerManagementMode);
-   } else {
-      pVbe->pInt10->num = 0x10;
-      pVbe->pInt10->ax = 0x4f10;
-      pVbe->pInt10->bx = 0x01;
+   if (pI830->operatingDevices & (PIPE_LCD_ACTIVE | (PIPE_LCD_ACTIVE<<8))) {
+      I830DPMSLVDS(pScrn, PowerManagementMode);
+   }
 
-      switch (PowerManagementMode) {
-      case DPMSModeOn:
-	 break;
-      case DPMSModeStandby:
-	 pVbe->pInt10->bx |= 0x0100;
-	 break;
-      case DPMSModeSuspend:
-	 pVbe->pInt10->bx |= 0x0200;
-	 break;
-      case DPMSModeOff:
-	 pVbe->pInt10->bx |= 0x0400;
-	 break;
-      }
-      xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
+   if (pI830->operatingDevices & (PIPE_DFP_ACTIVE | (PIPE_DFP_ACTIVE<<8))) {
+      /* TBD */
+   }
+
+   if (pI830->operatingDevices & (PIPE_DFP2_ACTIVE | (PIPE_DFP2_ACTIVE<<8))) {
+      /* TBD */
+   }
+
+   if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn) {
+      if (PowerManagementMode == DPMSModeOn)
+         pI830->CursorInfoRec->ShowCursor(pScrn);
+      else
+         pI830->CursorInfoRec->HideCursor(pScrn);
+      pI830->cursorOn = TRUE;
    }
 }
 
