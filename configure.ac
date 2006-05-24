@@ -26,6 +26,16 @@ AC_INIT([xf86-video-nv],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-nv)
 
+AC_DEFINE_UNQUOTED([NV_MAJOR_VERSION],
+                   [$(echo $PACKAGE_VERSION | sed -e 's/^\([[0-9]]\)\.[[0-9]]\.[[0-9]]/\1/')],
+                   [Major version])
+AC_DEFINE_UNQUOTED([NV_MINOR_VERSION],
+                   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]\.\([[0-9]]\)\.[[0-9]]/\1/')],
+                   [Minor version])
+AC_DEFINE_UNQUOTED([NV_PATCHLEVEL],
+                   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]\.[[0-9]]\.\([[0-9]]\)/\1/')],
+                   [Patch version])
+
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_CONFIG_HEADER([config.h])
 AC_CONFIG_AUX_DIR(.)

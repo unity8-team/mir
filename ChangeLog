@@ -1,3 +1,14 @@
+2006-05-24  Aaron Plattner  <aplattner@nvidia.com>
+
+	* configure.ac:
+	* src/nv_const.h:
+	* src/riva_const.h:
+	Derive the module version numbers from the package version.  This idea was
+	lifted from Michel Dänzer's similar code in xf86-video-ati.
+
+	* src/riva_driver.c:
+	Make the riva and nv driver versions match.
+
 2006-04-27  Aaron Plattner  <aplattner@nvidia.com>
 
 	* configure.ac:
