@@ -113,8 +113,10 @@ I830HandlePMEvents(int fd, pointer data)
     pmEvent events[MAX_NO_EVENTS];
     int i,j,n;
 
+#if 0
     if (!I830ACPIGetEventFromOs)
 	return;
+#endif
 
     if ((n = I830ACPIGetEventFromOs(fd,events,MAX_NO_EVENTS))) {
 	do {

@@ -2612,6 +2612,54 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       pI830->AccelInfoRec->NeedToSync = TRUE;
 }
 
+static const struct brw_instruction sf_kernel_static[] = {
+   {
+      header: {
+	 opcode: BRW_OPCODE_SEND
+      },
+      bits1: { da1: {
+	 dest_reg_file: BRW_MESSAGE_REGISTER_FILE,
+	 dest_reg_type: BRW_REGISTER_TYPE_D,
+	 src0_reg_file: BRW_IMMEDIATE_VALUE,
+	 src1_reg_file: BRW_ARCHITECTURE_REGISTER_FILE,
+	 src1_reg_type: BRW_REGISTER_TYPE_D,
+	 dest_subreg_nr: 0,
+	 dest_reg_nr: 0,
+	 dest_horiz_stride: 1,
+	 dest_address_mode: BRW_ADDRESS_DIRECT
+      } },
+      bits2: { da1: {
+      } },
+      bits3: { generic: {
+	 end_of_thread: 1
+      } }
+   }
+};
+
+static const struct brw_instruction ps_kernel_static[] = {
+    {
+	header: {
+	    opcode: BRW_OPCODE_SEND
+	},
+	bits1: { da1: {
+	    dest_reg_file: BRW_MESSAGE_REGISTER_FILE,
+	    dest_reg_type: BRW_REGISTER_TYPE_D,
+	    src0_reg_file: BRW_IMMEDIATE_VALUE,
+	    src1_reg_file: BRW_ARCHITECTURE_REGISTER_FILE,
+	    src1_reg_type: BRW_REGISTER_TYPE_D,
+	    dest_subreg_nr: 0,
+	    dest_reg_nr: 0,
+	    dest_horiz_stride: 1,
+	    dest_address_mode: BRW_ADDRESS_DIRECT
+	} },
+	bits2: { da1: {
+	} },
+	bits3: { generic: {
+	    end_of_thread: 1
+	} }
+    }
+};
+
 static void
 BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			       RegionPtr dstRegion,
@@ -2639,11 +2687,14 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    struct brw_wm_unit_state *wm_state;
    struct brw_cc_unit_state *cc_state;
    struct brw_cc_viewport *cc_viewport;
+   struct brw_instruction *sf_kernel;
+   struct brw_instruction *ps_kernel;
    CARD32 *vb, *binding_table;
    Bool first_output = TRUE;
    int surf_state_base_offset, general_state_base_offset;
    int dest_surf_offset, src_surf_offset, src_sampler_offset, vs_offset;
    int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
+   int sf_kernel_offset, ps_kernel_offset;
    int binding_table_offset;
    int next_offset, total_state_size;
    int vb_size = (4 * 4) * 4; /* 4 DWORDS per vertex */
@@ -2674,8 +2725,11 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    cc_offset = ALIGN(next_offset, 32);
    next_offset = cc_offset + sizeof(*cc_state);
 
-   /* XXX: Add space for SF and PS kernels */
-
+   sf_kernel_offset = ALIGN(next_offset, 64);
+   next_offset = sf_kernel_offset + sizeof (sf_kernel_static);
+   ps_kernel_offset = ALIGN(next_offset, 64);
+   next_offset = ps_kernel_offset + sizeof (ps_kernel_static);
+   
    cc_viewport_offset = ALIGN(next_offset, 32);
    next_offset = cc_viewport_offset + sizeof(*cc_viewport);
 
@@ -2714,6 +2768,8 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    sf_state = (void *)(state_base + sf_offset);
    wm_state = (void *)(state_base + wm_offset);
    cc_state = (void *)(state_base + cc_offset);
+   sf_kernel = (void *)(state_base + sf_kernel_offset);
+   ps_kernel = (void *)(state_base + ps_kernel_offset);
    cc_viewport = (void *)(state_base + cc_viewport_offset);
    dest_surf_state = (void *)(state_base + dest_surf_offset);
    src_surf_state = (void *)(state_base + src_surf_offset);
@@ -2801,12 +2857,12 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 				       2) - 1;
    sf_state->sf5.viewport_transform = FALSE; /* skip viewport */
    sf_state->sf6.cull_mode = BRW_CULLMODE_BOTH;
-   sf_state->sf6.scissor =
+   sf_state->sf6.scissor = XXX;
    sf_state->sf6.dest_org_vbias = 0x8;
    sf_state->sf6.dest_org_hbias = 0x8;
    sf_state->sf7.trifan_pv = 2;
 
-   /* XXX: Set up the PS kernel (dispatched by WM) for convertiny YUV to RGB.
+   /* XXX: Set up the PS kernel (dispatched by WM) for converting YUV to RGB.
     * The 3D driver does this as:
     *
 	 CONST C0 = { -.5, -.0625,  -.5, 1.164 }
@@ -2841,7 +2897,10 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    cc_state->cc4.cc_viewport_state_offset =
 	(cc_viewport_offset - general_state_base_offset) >> 5;
 
-   BEGIN_LP_RING(XXX);
+   memcpy (sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
+   memcpy (ps_kernel, ps_kernel_static, sizeof (ps_kernel_static));
+   
+   BEGIN_LP_RING(17);
    OUT_RING(MI_FLUSH | MI_STATE_INSTRUCTION_CACHE_FLUSH);
 
    OUT_RING(STATE3D_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -2974,23 +3033,23 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
       vb[i++] = box_x1;
       vb[i++] = box_y1;
-      vb[i++] = box_x1 - dxo;
-      vb[i++] = box_y1 - dyo;
+      vb[i++] = (box_x1 - dxo) * src_scale_x;
+      vb[i++] = (box_y1 - dyo) * src_scale_y;
 
       vb[i++] = box_x2;
       vb[i++] = box_y1;
-      vb[i++] = box_x2 - dxo;
-      vb[i++] = box_y1 - dyo;
+      vb[i++] = (box_x2 - dxo) * src_scale_x;
+      vb[i++] = (box_y1 - dyo) * src_scale_y;
 
       vb[i++] = box_x2;
       vb[i++] = box_y2;
-      vb[i++] = box_x2 - dxo;
-      vb[i++] = box_y2 - dyo;
+      vb[i++] = (box_x2 - dxo) * src_scale_x;
+      vb[i++] = (box_y2 - dyo) * src_scale_y;
 
       vb[i++] = box_x1;
       vb[i++] = box_y2;
-      vb[i++] = box_x1 - dxo;
-      vb[i++] = box_y2 - dyo;
+      vb[i++] = (box_x1 - dxo) * src_scale_x;
+      vb[i++] = (box_y2 - dyo) * src_scale_y;
 
       BEGIN_LP_RING(XXX);
       OUT_RING(PRIMITIVE3D_BRW | (_3DPRIM_TRIFAN << P3D0_TOPO_SHIFT) | 4);
