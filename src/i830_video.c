@@ -2612,52 +2612,106 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       pI830->AccelInfoRec->NeedToSync = TRUE;
 }
 
-static const struct brw_instruction sf_kernel_static[] = {
-   {
-      header: {
-	 opcode: BRW_OPCODE_SEND
-      },
-      bits1: { da1: {
-	 dest_reg_file: BRW_MESSAGE_REGISTER_FILE,
-	 dest_reg_type: BRW_REGISTER_TYPE_D,
-	 src0_reg_file: BRW_IMMEDIATE_VALUE,
-	 src1_reg_file: BRW_ARCHITECTURE_REGISTER_FILE,
-	 src1_reg_type: BRW_REGISTER_TYPE_D,
-	 dest_subreg_nr: 0,
-	 dest_reg_nr: 0,
-	 dest_horiz_stride: 1,
-	 dest_address_mode: BRW_ADDRESS_DIRECT
-      } },
-      bits2: { da1: {
-      } },
-      bits3: { generic: {
-	 end_of_thread: 1
-      } }
-   }
+/*
+ * this program computes dA/dx and dA/dy for the texture coordinates along
+ * with the base texture coordinate. It was extracted from the Mesa driver
+ */
+
+#define SF_KERNEL_NUM_GRF   10
+
+static const CARD32 sf_kernel_static[][4] = {
+/*    send   0 (1) g6<1>F g1.8<0,1,0>F math mlen 1 rlen 1 { align1 +  } */
+    { 0x00000031, 0x20c01fbd, 0x00000028, 0x01110081 },
+/*    mov (2) g3.8<1>F g2<2,2,1>F { align1 +  } */
+    { 0x00200001, 0x206803bd, 0x00450040, 0x00000000 },
+/*    mov (2) g4.8<1>F g2.8<2,2,1>F { align1 +  } */
+    { 0x00200001, 0x208803bd, 0x00450048, 0x00000000 },
+/*    mov (2) g5.8<1>F g2.16<2,2,1>F { align1 +  } */
+    { 0x00200001, 0x20a803bd, 0x00450050, 0x00000000 },
+/*    mov (1) a48<1>UW 240 { align1 +  } */
+    { 0x00000001, 0x26002168, 0x00000000, 0x000000f0 },
+/*    mul (8) g3<1>F g3<8,8,1>F g2.4<0,1,0>F { align1 predreg+  } */
+    { 0x00610041, 0x206077bd, 0x008d0060, 0x00000044 },
+/*    mul (8) g4<1>F g4<8,8,1>F g2.12<0,1,0>F { align1 predreg+  } */
+    { 0x00610041, 0x208077bd, 0x008d0080, 0x0000004c },
+/*    mul (8) g5<1>F g5<8,8,1>F g2.20<0,1,0>F { align1 predreg+  } */
+    { 0x00610041, 0x20a077bd, 0x008d00a0, 0x00000054 },
+/*    add (8) g7<1>F g4<8,8,1>F g3<8,8,1>F { align1 +  } */
+    { 0x00600040, 0x20e077bd, 0x008d0080, 0x008d4060 },
+/*    add (8) g8<1>F g5<8,8,1>F g3<8,8,1>F { align1 +  } */
+    { 0x00600040, 0x210077bd, 0x008d00a0, 0x008d4060 },
+/*    mul (8) a0<1>F g7<8,8,1>F g1.24<0,1,0>F { align1 +  } */
+    { 0x00600041, 0x200077bc, 0x008d00e0, 0x00000038 },
+/*    mac (8) g9<1>F g8<8,8,1>F g1.20<0,1,0>F { align1 +  } */
+    { 0x00600048, 0x212077bd, 0x008d0100, 0x00004034 },
+/*    mul (8) m1<1>F g9<8,8,1>F g6<0,1,0>F { align1 +  } */
+    { 0x00600041, 0x202077be, 0x008d0120, 0x000000c0 },
+/*    mul (8) a0<1>F g8<8,8,1>F g1.12<0,1,0>F { align1 +  } */
+    { 0x00600041, 0x200077bc, 0x008d0100, 0x0000002c },
+/*    mac (8) g9<1>F g7<8,8,1>F g1.16<0,1,0>F { align1 +  } */
+    { 0x00600048, 0x212077bd, 0x008d00e0, 0x00004030 },
+/*    mul (8) m2<1>F g9<8,8,1>F g6<0,1,0>F { align1 +  } */
+    { 0x00600041, 0x204077be, 0x008d0120, 0x000000c0 },
+/*    mov (8) m3<1>F g3<8,8,1>F { align1 +  } */
+    { 0x00600001, 0x206003be, 0x008d0060, 0x00000000 },
+/*    send   0 (8) a0<1>F g0<8,8,1>F urb mlen 4 rlen 0 write +0 transpose used complete EOT{ align1 +  } */
+    { 0x00600031, 0x20001fbc, 0x008d0000, 0x8640c800 },
+/*    nop (4) g0<1>UD { align1 +  } */
+    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
 };
 
-static const struct brw_instruction ps_kernel_static[] = {
-    {
-	header: {
-	    opcode: BRW_OPCODE_SEND
-	},
-	bits1: { da1: {
-	    dest_reg_file: BRW_MESSAGE_REGISTER_FILE,
-	    dest_reg_type: BRW_REGISTER_TYPE_D,
-	    src0_reg_file: BRW_IMMEDIATE_VALUE,
-	    src1_reg_file: BRW_ARCHITECTURE_REGISTER_FILE,
-	    src1_reg_type: BRW_REGISTER_TYPE_D,
-	    dest_subreg_nr: 0,
-	    dest_reg_nr: 0,
-	    dest_horiz_stride: 1,
-	    dest_address_mode: BRW_ADDRESS_DIRECT
-	} },
-	bits2: { da1: {
-	} },
-	bits3: { generic: {
-	    end_of_thread: 1
-	} }
-    }
+#define PS_KERNEL_NUM_GRF   10
+
+static const CARD32 ps_kernel_static[][4] = {
+/*    mov (8) m2<1>F g2<16,16,1>UW { align1 +  } */
+   { 0x00600001, 0x2040013e, 0x00b10040, 0x00000000 },
+/*    mov (8) m6<1>F g3<16,16,1>UW { align1 sechalf +  } */
+   { 0x00601001, 0x20c0013e, 0x00b10060, 0x00000000 },
+/*    mov (8) m3<1>F g3<16,16,1>UW { align1 +  } */
+   { 0x00600001, 0x2060013e, 0x00b10060, 0x00000000 },
+/*    mov (8) m7<1>F g4<16,16,1>UW { align1 sechalf +  } */
+   { 0x00601001, 0x20e0013e, 0x00b10080, 0x00000000 },
+/*    mov (8) m4<1>F g4<16,16,1>UW { align1 +  } */
+   { 0x00600001, 0x2080013e, 0x00b10080, 0x00000000 },
+/*    mov (8) m8<1>F g5<16,16,1>UW { align1 sechalf +  } */
+   { 0x00601001, 0x2100013e, 0x00b100a0, 0x00000000 },
+/*    mov (8) m5<1>F g5<16,16,1>UW { align1 +  } */
+   { 0x00600001, 0x20a0013e, 0x00b100a0, 0x00000000 },
+/*    mov (8) m9<1>F g6<16,16,1>UW { align1 sechalf +  } */
+   { 0x00601001, 0x2120013e, 0x00b100c0, 0x00000000 },
+/*    mov (8) m1<1>F g1<8,8,1>F { align1 mask_disable +  } */
+   { 0x00600201, 0x202003be, 0x008d0020, 0x00000000 },
+/*    send   0 (16) a0<1>UW g0<8,8,1>UW write mlen 10 rlen 0 EOT{ align1 +  } */   { 0x00800031, 0x20001d28, 0x008d0000, 0x85a04800 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
 };
 
 static void
@@ -2826,8 +2880,8 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    /* Set up a binding table for our two surfaces.  Only the PS will use it */
    /* XXX: are these offset from the right place? */
-   binding_table[0] = dest_surf_state_offset - surf_state_base_offset;
-   binding_table[1] = src_surf_state_offset - surf_state_base_offset;
+   binding_table[0] = dest_surf_offset - surf_state_base_offset;
+   binding_table[1] = src_surf_offset - surf_state_base_offset;
 
    /* Set up the packed YUV source sampler.  Doesn't do colorspace conversion.
     */
@@ -2841,23 +2895,23 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    memset(vs_state, 0, sizeof(*vs_state));
    vs_state->vs6.vs_enable = FALSE;
 
-   /* XXX: Set up the SF kernel to do coord interp: for each attribute,
+   /* Set up the SF kernel to do coord interp: for each attribute,
     * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
     * back to SF which then hands pixels off to WM.
     */
 
    memset(sf_state, 0, sizeof(*sf_state));
-   sf_state->thread0.kernel_start_pointer = XXX;
-   sf_state->thread0.grf_reg_count = XXX;
-   sf_state->thread1.single_program_flow = XXX;
-   sf_state->thread2.scratch_space_base_pointer = XXX; /* 1k aligned */
+   sf_state->thread0.kernel_start_pointer = sf_kernel_offset - general_state_base_offset;
+   sf_state->thread0.grf_reg_count = ((SF_KERNEL_NUM_GRF + 15) / 16) - 1;
+   sf_state->thread1.single_program_flow = 1; /* XXX */
+   sf_state->thread2.scratch_space_base_pointer = 0; /* XXX 1k aligned */
    sf_state->thread4.nr_urb_entries = 8;
    sf_state->thread4.urb_entry_allocation_size = 11;
    sf_state->thread4.max_threads = MIN(12, sf_state->thread4.nr_urb_entries /
 				       2) - 1;
    sf_state->sf5.viewport_transform = FALSE; /* skip viewport */
    sf_state->sf6.cull_mode = BRW_CULLMODE_BOTH;
-   sf_state->sf6.scissor = XXX;
+   sf_state->sf6.scissor = 0; /* XXX */
    sf_state->sf6.dest_org_vbias = 0x8;
    sf_state->sf6.dest_org_hbias = 0x8;
    sf_state->sf7.trifan_pv = 2;
@@ -2875,18 +2929,18 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     *
     */
 
-   wm_state->thread0.kernel_start_pointer = XXX;
-   wm_state->thread0.grf_reg_count = XXX;
+   wm_state->thread0.kernel_start_pointer = ps_kernel_offset - general_state_base_offset;
+   wm_state->thread0.grf_reg_count = ((PS_KERNEL_NUM_GRF + 15) / 16) - 1;
    wm_state->thread1.binding_table_entry_count = 2;
-   wm_state->thread2.scratch_space_base_pointer = XXX;
-   wm_state->thread2.per_thread_scratch_space = XXX;
-   wm_state->thread3.dispatch_grf_start_reg = XXX;
-   wm_state->thread3.urb_entry_read_length = XXX;
-   wm_state->thread3.const_urb_entry_read_length = XXX;
+   wm_state->thread2.scratch_space_base_pointer = 0; /* XXX */
+   wm_state->thread2.per_thread_scratch_space = 0; /* XXX */
+   wm_state->thread3.dispatch_grf_start_reg = 0; /* XXX */
+   wm_state->thread3.urb_entry_read_length = 4; /* XXX */
+   wm_state->thread3.const_urb_entry_read_length = 0; /* XXX */
    wm_state->wm4.sampler_state_pointer =
 	(src_sampler_offset - general_state_base_offset) >> 5;
    wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
-   wm_state->wm5.max_threads = 31;
+   wm_state->wm5.max_threads = 0;
    wm_state->wm5.thread_dispatch_enable = 1;
    wm_state->wm5.enable_16_pix = 1;
 
@@ -2962,7 +3016,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_RING(0xffffffff); /* Max index -- don't care */
 
    /* Set up our vertex elements, sourced from the single vertex buffer. */
-   OUT_RING(STATE3D_VERTEX_ELEMENTS | XXX);
+   OUT_RING(STATE3D_VERTEX_ELEMENTS | 3);
    /* offset 0: X,Y -> {X, Y, 0.0, 0.0} */
    OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
 	    VE0_VALID |
@@ -3051,7 +3105,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       vb[i++] = (box_x1 - dxo) * src_scale_x;
       vb[i++] = (box_y2 - dyo) * src_scale_y;
 
-      BEGIN_LP_RING(XXX);
+      BEGIN_LP_RING(6);
       OUT_RING(PRIMITIVE3D_BRW | (_3DPRIM_TRIFAN << P3D0_TOPO_SHIFT) | 4);
       OUT_RING(4); /* vertex count per instance */
       OUT_RING(0); /* start vertex offset */
