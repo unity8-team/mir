@@ -2623,7 +2623,6 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 #define SF_MAX_THREADS	   
 
 static const CARD32 sf_kernel_static[][4] = {
-#if 0
 /*    send   0 (1) g6<1>F g1.8<0,1,0>F math mlen 1 rlen 1 { align1 +  } */
     { 0x00000031, 0x20c01fbd, 0x00000028, 0x01110081 },
 /*    mov (2) g3.8<1>F g2<2,2,1>F { align1 +  } */
@@ -2658,7 +2657,6 @@ static const CARD32 sf_kernel_static[][4] = {
     { 0x00600041, 0x204077be, 0x008d0120, 0x000000c0 },
 /*    mov (8) m3<1>F g3<8,8,1>F { align1 +  } */
     { 0x00600001, 0x206003be, 0x008d0060, 0x00000000 },
-#endif
 /*    send   0 (8) a0<1>F g0<8,8,1>F urb mlen 4 rlen 0 write +0 transpose used complete EOT{ align1 +  } */
     { 0x00600031, 0x20001fbc, 0x008d0000, 0x8640c800 },
 /*    nop (4) g0<1>UD { align1 +  } */
@@ -2870,7 +2868,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    } else {
       dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B8G8R8X8_UNORM;
    }
-   dest_surf_state->ss1.base_addr = pI830->bufferOffset;
+   dest_surf_state->ss1.base_addr = pI830->FrontBuffer.Start;
    dest_surf_state->ss2.width = pScrn->virtualX - 1;
    dest_surf_state->ss2.height = pScrn->virtualY - 1;
    dest_surf_state->ss3.pitch = pI830->displayWidth * pI830->cpp;
@@ -2923,11 +2921,11 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    sf_state->thread4.urb_entry_allocation_size = 11;
    sf_state->thread4.max_threads = WM_MAX_THREADS - 1;
    sf_state->sf5.viewport_transform = FALSE; /* skip viewport */
-   sf_state->sf6.cull_mode = BRW_CULLMODE_BOTH;
+   sf_state->sf6.cull_mode = BRW_CULLMODE_NONE;
    sf_state->sf6.scissor = 0; /* XXX */
    sf_state->sf6.dest_org_vbias = 0x8;
    sf_state->sf6.dest_org_hbias = 0x8;
-   sf_state->sf7.trifan_pv = 2;
+   sf_state->sf7.trifan_pv = 0;
 
    /* XXX: Set up the PS kernel (dispatched by WM) for converting YUV to RGB.
     * The 3D driver does this as:
@@ -2944,6 +2942,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    wm_state->thread0.kernel_start_pointer = state_base_offset + ps_kernel_offset;
    wm_state->thread0.grf_reg_count = ((PS_KERNEL_NUM_GRF + 15) / 16) - 1;
+   wm_state->thread1.single_program_flow = 1; /* XXX */
    wm_state->thread1.binding_table_entry_count = 2;
    wm_state->thread2.scratch_space_base_pointer = 0; /* XXX */
    wm_state->thread2.per_thread_scratch_space = 0; /* XXX */
@@ -2955,12 +2954,21 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    wm_state->wm5.max_threads = 0;
    wm_state->wm5.thread_dispatch_enable = 1;
    wm_state->wm5.enable_16_pix = 1;
+   wm_state->wm5.enable_8_pix = 0;
 
    cc_viewport->min_depth = 0.0;
    cc_viewport->max_depth = 0.0;
 
    memset(cc_state, 0, sizeof(*cc_state));
+   cc_state->cc0.stencil_enable = 0;   /* disable stencil */
+   cc_state->cc2.depth_test = 0;       /* disable depth test */
+   cc_state->cc2.logicop_enable = 1;   /* enable logic op */
+   cc_state->cc3.ia_blend_enable = 0;  /* blend alpha just like colors */
+   cc_state->cc3.blend_enable = 0;     /* disable color blend */
+   cc_state->cc3.alpha_test = 0;       /* disable alpha test */
    cc_state->cc4.cc_viewport_state_offset = (state_base_offset + cc_viewport_offset) >> 5;
+   cc_state->cc5.dither_enable = 0;    /* disable dither */
+   cc_state->cc5.logicop_func = 0xf;   /* WHITE */
 
    memcpy (sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
    memcpy (ps_kernel, ps_kernel_static, sizeof (ps_kernel_static));
@@ -3058,10 +3066,10 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    nbox = REGION_NUM_RECTS(dstRegion);
    while (nbox--)
    {
-      int box_x1 = pbox->x1 - pbox->x1;
-      int box_y1 = pbox->y1 - pbox->y1;
-      int box_x2 = pbox->x2 - pbox->x1;
-      int box_y2 = pbox->y2 - pbox->y1;
+      int box_x1 = pbox->x1;
+      int box_y1 = pbox->y1;
+      int box_x2 = pbox->x2;
+      int box_y2 = pbox->y2;
       int i;
       float src_scale_x, src_scale_y;
       CARD32 vb[40];
