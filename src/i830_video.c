@@ -66,6 +66,7 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <math.h>
 #include <string.h>
+#include <assert.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -2714,6 +2715,9 @@ static const CARD32 ps_kernel_static[][4] = {
    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
 };
 
+#define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+
 static void
 BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			       RegionPtr dstRegion,
@@ -2812,7 +2816,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       return;
    }
 
-   state_base = (char *)(pI830->FrontBuffer.Start + pPriv->linear->offset *
+   state_base = (char *)(pI830->FbBase + pPriv->linear->offset *
 			 pI830->cpp);
    /* Set up our pointers to state structures in framebuffer.  It would probably
     * be a good idea to fill these structures out in system memory and then dump
@@ -2954,7 +2958,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    memcpy (sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
    memcpy (ps_kernel, ps_kernel_static, sizeof (ps_kernel_static));
    
-   BEGIN_LP_RING(17);
+   BEGIN_LP_RING(38);
    OUT_RING(MI_FLUSH | MI_STATE_INSTRUCTION_CACHE_FLUSH);
 
    OUT_RING(STATE3D_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -3038,6 +3042,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	    (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT) |
 	    (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
 
+   OUT_RING(0);			/* pad to quadword */
    ADVANCE_LP_RING();
 
    dxo = dstRegion->extents.x1;
@@ -3085,6 +3090,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_RING(MI_NOOP);
       OUT_RING(MI_NOOP);
 
+      i = 0;
       vb[i++] = box_x1;
       vb[i++] = box_y1;
       vb[i++] = (box_x1 - dxo) * src_scale_x;
@@ -3407,6 +3413,10 @@ I830PutImage(ScrnInfoPtr pScrn,
 
       I830DisplayVideo(pScrn, destId, width, height, dstPitch,
 		       x1, y1, x2, y2, &dstBox, src_w, src_h, drw_w, drw_h);
+   } else if (IS_BROADWATER(pI830)) {
+      BroadwaterDisplayVideoTextured (pScrn, pPriv, destId, clipBoxes, width, height,
+				      dstPitch, x1, y1, x2, y2,
+				      src_w, src_h, drw_w, drw_h, pDraw);
    } else {
       I915DisplayVideoTextured(pScrn, pPriv, destId, clipBoxes, width, height,
 			       dstPitch, x1, y1, x2, y2,
