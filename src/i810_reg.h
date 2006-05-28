@@ -1596,6 +1596,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MI_INHIBIT_RENDER_CACHE_FLUSH	(1<<2)
 #define MI_STATE_INSTRUCTION_CACHE_FLUSH (1<<1)
 #define MI_INVALIDATE_MAP_CACHE		(1<<0)
+/* broadwater flush bits */
+#define BRW_MI_GLOBAL_SNAPSHOT_RESET   (1 << 3)
 
 /* Noop */
 #define MI_NOOP				0x00
@@ -1678,6 +1680,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define BRW_CLIP_DISABLE	       0
 #define BRW_CLIP_ENABLE		       1
 
+/* for BRW_PIPE_CONTROL */
+#define BRW_PIPE_CONTROL_NOWRITE       (0 << 14)
+#define BRW_PIPE_CONTROL_WRITE_QWORD   (1 << 14)
+#define BRW_PIPE_CONTROL_WRITE_DEPTH   (2 << 14)
+#define BRW_PIPE_CONTROL_WRITE_TIME    (3 << 14)
+#define BRW_PIPE_CONTROL_DEPTH_STALL   (1 << 13)
+#define BRW_PIPE_CONTROL_WC_FLUSH      (1 << 12)
+#define BRW_PIPE_CONTROL_IS_FLUSH      (1 << 11)
+#define BRW_PIPE_CONTROL_NOTIFY_ENABLE (1 << 8)
+#define BRW_PIPE_CONTROL_GLOBAL_GTT    (1 << 2)
+#define BRW_PIPE_CONTROL_LOCAL_PGTT    (0 << 2)
+
 /* VERTEX_BUFFER_STATE Structure */
 #define VB0_BUFFER_INDEX_SHIFT		27
 #define VB0_VERTEXDATA			(0 << 26)
@@ -1700,6 +1714,37 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define BRW_3DPRIMITIVE_VERTEX_RANDOM	  (1 << 15)
 /* Primitive types are in brw_defines.h */
 #define BRW_3DPRIMITIVE_TOPOLOGY_SHIFT	  10
+
+#define BRW_SVG_CTL		       0x7400
+
+#define BRW_SVG_CTL_GS_BA	       (0 << 8)
+#define BRW_SVG_CTL_SS_BA	       (1 << 8)
+#define BRW_SVG_CTL_IO_BA	       (2 << 8)
+#define BRW_SVG_CTL_GS_AUB	       (3 << 8)
+#define BRW_SVG_CTL_IO_AUB	       (4 << 8)
+#define BRW_SVG_CTL_SIP		       (5 << 8)
+
+#define BRW_SVG_RDATA		       0x7404
+#define BRW_SVG_WORK_CTL	       0x7408
+
+#define BRW_VF_CTL		       0x7500
+
+#define BRW_VF_CTL_SNAPSHOT_COMPLETE		   (1 << 31)
+#define BRW_VF_CTL_SNAPSHOT_MUX_SELECT_THREADID	   (0 << 8)
+#define BRW_VF_CTL_SNAPSHOT_MUX_SELECT_VF_DEBUG	   (1 << 8)
+#define BRW_VF_CTL_SNAPSHOT_TYPE_VERTEX_SEQUENCE   (0 << 4)
+#define BRW_VF_CTL_SNAPSHOT_TYPE_VERTEX_INDEX	   (1 << 4)
+#define BRW_VF_CTL_SKIP_INITIAL_PRIMITIVES	   (1 << 3)
+#define BRW_VF_CTL_MAX_PRIMITIVES_LIMIT_ENABLE	   (1 << 2)
+#define BRW_VF_CTL_VERTEX_RANGE_LIMIT_ENABLE	   (1 << 1)
+#define BRW_VF_CTL_SNAPSHOT_ENABLE	     	   (1 << 0)
+
+#define BRW_VF_STRG_VAL		       0x7504
+#define BRW_VF_STR_VL_OVR	       0x7508
+#define BRW_VF_VC_OVR		       0x750c
+#define BRW_VF_STR_PSKIP	       0x7510
+#define BRW_VF_MAX_PRIM		       0x7514
+#define BRW_VF_RDATA		       0x7518
 
 /* End regs for broadwater */
 

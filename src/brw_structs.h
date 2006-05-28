@@ -923,7 +923,8 @@ struct brw_surface_state
       GLuint cube_neg_y:1; 
       GLuint cube_pos_x:1; 
       GLuint cube_neg_x:1; 
-      GLuint pad:4;
+      GLuint pad:3;
+      GLuint render_cache_read_mode:1;
       GLuint mipmap_layout_mode:1; 
       GLuint vert_line_stride_ofs:1; 
       GLuint vert_line_stride:1; 
@@ -943,7 +944,7 @@ struct brw_surface_state
    } ss1;
    
    struct {
-      GLuint pad:2;
+      GLuint render_target_rotation:2;
       GLuint mip_count:4; 
       GLuint width:13; 
       GLuint height:13; 

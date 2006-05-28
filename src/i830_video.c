@@ -2620,7 +2620,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
 #define SF_KERNEL_NUM_GRF  10
 #define SF_KERNEL_NUM_URB  8
-#define SF_MAX_THREADS	   
+#define SF_MAX_THREADS	   1
 
 static const CARD32 sf_kernel_static[][4] = {
 /*    send   0 (1) g6<1>F g1.8<0,1,0>F math mlen 1 rlen 1 { align1 +  } */
@@ -2679,7 +2679,7 @@ static const CARD32 sf_kernel_static[][4] = {
 
 #define PS_KERNEL_NUM_GRF   10
 #define PS_KERNEL_NUM_URB   8
-#define WM_MAX_THREADS	MIN(12, PS_KERNEL_NUM_URB / 2)
+#define PS_MAX_THREADS	   1 /* MIN(12, PS_KERNEL_NUM_URB / 2) */
 
 static const CARD32 ps_kernel_static[][4] = {
 /*    mov (8) m2<1>F g2<16,16,1>UW { align1 +  } */
@@ -2723,6 +2723,43 @@ static const CARD32 ps_kernel_static[][4] = {
 #define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
+#define WM_BINDING_TABLE_ENTRIES    2
+
+static CARD32 float_to_uint (float f) {
+   union {CARD32 i; float f;} x;
+   x.f = f;
+   return x.i;
+}
+
+static struct {
+   CARD32   svg_ctl;
+   char	    *name;
+} svg_ctl_bits[] = {
+   { BRW_SVG_CTL_GS_BA, "General State Base Address" },
+   { BRW_SVG_CTL_SS_BA, "Surface State Base Address" },
+   { BRW_SVG_CTL_IO_BA, "Indirect Object Base Address" },
+   { BRW_SVG_CTL_GS_AUB, "Generate State Access Upper Bound" },
+   { BRW_SVG_CTL_IO_AUB, "Indirect Object Access Upper Bound" },
+   { BRW_SVG_CTL_SIP, "System Instruction Pointer" },
+   { 0, 0 },
+};
+
+static void
+brw_debug (ScrnInfoPtr pScrn, char *when)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   int	    i;
+   CARD32   v;
+   
+   I830Sync (pScrn);
+   ErrorF("brw_debug: %s\n", when);
+   for (i = 0; svg_ctl_bits[i].name; i++) {
+      OUTREG(BRW_SVG_CTL, svg_ctl_bits[i].svg_ctl);
+      v = INREG(BRW_SVG_RDATA);
+      ErrorF("\t%34.34s: 0x%08x\n", svg_ctl_bits[i].name, v);
+   }
+}
+
 static void
 BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			       RegionPtr dstRegion,
@@ -2765,9 +2802,15 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    char *state_base;
    int state_base_offset;
 
+#if 0
    ErrorF("BroadwaterDisplayVideoTextured: %dx%d (pitch %d)\n", width, height,
 	  video_pitch);
+#endif
 
+   /* enable debug */
+   OUTREG (INST_PM,
+	   (1 << (16 + 4)) |
+	   (1 << 4));
    assert((id == FOURCC_UYVY) || (id == FOURCC_YUY2));
 
    /* Tell the rotation code that we have stomped its invariant state by
@@ -2786,7 +2829,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    wm_offset = ALIGN(next_offset, 32);
    next_offset = wm_offset + sizeof(*wm_state);
    wm_scratch_offset = ALIGN(next_offset, 1024);
-   next_offset = wm_scratch_offset + 1024 * WM_MAX_THREADS;
+   next_offset = wm_scratch_offset + 1024 * PS_MAX_THREADS;
    cc_offset = ALIGN(next_offset, 32);
    next_offset = cc_offset + sizeof(*cc_state);
 
@@ -2811,7 +2854,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    src_surf_offset = ALIGN(next_offset, 32);
    next_offset = src_surf_offset + sizeof(*src_surf_state);
    binding_table_offset = ALIGN(next_offset, 32);
-   next_offset = binding_table_offset + (2 * 4);
+   next_offset = binding_table_offset + (WM_BINDING_TABLE_ENTRIES * 4);
 
    /* Allocate an area in framebuffer for our state layout we just set up */
    total_state_size = next_offset;
@@ -2845,37 +2888,83 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    /* Set up a default static partitioning of the URB, which is supposed to
     * allow anything we would want to do, at potentially lower performance.
     */
+#define URB_VS_ENTRIES	      8
+#define URB_VS_ENTRY_SIZE     5
+   
+#define URB_GS_ENTRIES	      4
+#define URB_GS_ENTRY_SIZE     5
+   
+#define URB_CLIP_ENTRIES      6
+#define URB_CLIP_ENTRY_SIZE   5
+   
+#define URB_SF_ENTRIES	      8
+#define URB_SF_ENTRY_SIZE     11
+
+#define URB_CS_ENTRIES	      2
+#define URB_CS_ENTRY_SIZE     32
+   
    urb_vs_start = 0;
-   urb_vs_size = 8 * 5;
+   urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
    urb_gs_start = urb_vs_start + urb_vs_size;
-   urb_gs_size = 4 * 5;
+   urb_gs_size = URB_GS_ENTRIES * URB_GS_ENTRY_SIZE;
    urb_clip_start = urb_gs_start + urb_gs_size;
-   urb_clip_size = 6 * 5;
+   urb_clip_size = URB_CLIP_ENTRIES * URB_CLIP_ENTRY_SIZE;
    urb_sf_start = urb_clip_start + urb_clip_size;
-   urb_sf_size = 8 * 11;
+   urb_sf_size = URB_SF_ENTRIES * URB_SF_ENTRY_SIZE;
    urb_cs_start = urb_sf_start + urb_sf_size;
-   urb_cs_size = 2 * 32;
+   urb_cs_size = URB_CS_ENTRIES * URB_CS_ENTRY_SIZE;
 
    /* We'll be poking the state buffers that could be in use by the 3d hardware
     * here, but we should have synced the 3D engine already in I830PutImage.
     */
 
+   memset (cc_viewport, 0, sizeof (*cc_viewport));
+   cc_viewport->min_depth = -1.e35;
+   cc_viewport->max_depth = 1.e35;
+
+   /* Color calculator state */
+   memset(cc_state, 0, sizeof(*cc_state));
+   cc_state->cc0.stencil_enable = 0;   /* disable stencil */
+   cc_state->cc2.depth_test = 0;       /* disable depth test */
+   cc_state->cc2.logicop_enable = 1;   /* enable logic op */
+   cc_state->cc3.ia_blend_enable = 0;  /* blend alpha just like colors */
+   cc_state->cc3.blend_enable = 0;     /* disable color blend */
+   cc_state->cc3.alpha_test = 0;       /* disable alpha test */
+   cc_state->cc4.cc_viewport_state_offset = (state_base_offset + cc_viewport_offset) >> 5;
+   cc_state->cc5.dither_enable = 0;    /* disable dither */
+   cc_state->cc5.logicop_func = 0xc;   /* COPYPEN */
+   cc_state->cc5.statistics_enable = 1;
+
    /* Set up the state buffer for the destination surface */
    memset(dest_surf_state, 0, sizeof(*dest_surf_state));
    dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
+   dest_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
    if (pI830->cpp == 2) {
       dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
    } else {
       dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B8G8R8X8_UNORM;
    }
+   dest_surf_state->ss0.writedisable_alpha = 0;
+   dest_surf_state->ss0.writedisable_red = 0;
+   dest_surf_state->ss0.writedisable_green = 0;
+   dest_surf_state->ss0.writedisable_blue = 0;
+   dest_surf_state->ss0.color_blend = 1;
+   dest_surf_state->ss0.vert_line_stride = 0;
+   dest_surf_state->ss0.vert_line_stride_ofs = 0;
+   dest_surf_state->ss0.mipmap_layout_mode = 0;
+   dest_surf_state->ss0.render_cache_read_mode = 0;
+   
    dest_surf_state->ss1.base_addr = pI830->FrontBuffer.Start;
-   dest_surf_state->ss2.width = pScrn->virtualX - 1;
    dest_surf_state->ss2.height = pScrn->virtualY - 1;
-   dest_surf_state->ss3.pitch = pI830->displayWidth * pI830->cpp;
+   dest_surf_state->ss2.width = pScrn->virtualX - 1;
+   dest_surf_state->ss2.mip_count = 0;
+   dest_surf_state->ss2.render_target_rotation = 0;
+   dest_surf_state->ss3.pitch = (pI830->displayWidth * pI830->cpp) - 1;
 
    /* Set up the source surface state buffer */
    memset(src_surf_state, 0, sizeof(*src_surf_state));
    src_surf_state->ss0.surface_type = BRW_SURFACE_2D;
+   src_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
    switch (id) {
    case FOURCC_YUY2:
       src_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_YCRCB_NORMAL;
@@ -2884,9 +2973,21 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       src_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_YCRCB_SWAPY;
       break;
    }
+   src_surf_state->ss0.writedisable_alpha = 0;
+   src_surf_state->ss0.writedisable_red = 0;
+   src_surf_state->ss0.writedisable_green = 0;
+   src_surf_state->ss0.writedisable_blue = 0;
+   src_surf_state->ss0.color_blend = 1;
+   src_surf_state->ss0.vert_line_stride = 0;
+   src_surf_state->ss0.vert_line_stride_ofs = 0;
+   src_surf_state->ss0.mipmap_layout_mode = 0;
+   src_surf_state->ss0.render_cache_read_mode = 0;
+   
    src_surf_state->ss1.base_addr = pPriv->YBuf0offset;
-   src_surf_state->ss2.width = width;
-   src_surf_state->ss2.height = height;
+   src_surf_state->ss2.width = width - 1;
+   src_surf_state->ss2.height = height - 1;
+   src_surf_state->ss2.mip_count = 0;
+   src_surf_state->ss2.render_target_rotation = 0;
    src_surf_state->ss3.pitch = video_pitch - 1;
 
    /* Set up a binding table for our two surfaces.  Only the PS will use it */
@@ -2899,33 +3000,43 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    memset(src_sampler_state, 0, sizeof(*src_sampler_state));
    src_sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR;
    src_sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
+   src_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
    src_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
    src_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 
    /* Set up the vertex shader to be disabled (passthrough) */
    memset(vs_state, 0, sizeof(*vs_state));
-   vs_state->vs6.vs_enable = FALSE;
+   vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
+   vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
+   vs_state->thread4.stats_enable = 1;
+   vs_state->vs6.vs_enable = 0;
+   vs_state->vs6.vert_cache_disable = 1;
 
    /* Set up the SF kernel to do coord interp: for each attribute,
     * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
     * back to SF which then hands pixels off to WM.
     */
 
+   memcpy (sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
    memset(sf_state, 0, sizeof(*sf_state));
    sf_state->thread0.kernel_start_pointer = state_base_offset + sf_kernel_offset;
-   sf_state->thread0.grf_reg_count = ((SF_KERNEL_NUM_GRF + 15) / 16) - 1;
+   sf_state->thread0.grf_reg_count = ((SF_KERNEL_NUM_GRF & ~15) / 16);
    sf_state->thread1.single_program_flow = 1; /* XXX */
    sf_state->thread2.per_thread_scratch_space = 0;
    sf_state->thread2.scratch_space_base_pointer = 0; /* not used in our kernel */
-   sf_state->thread4.nr_urb_entries = SF_KERNEL_NUM_URB;
-   sf_state->thread4.urb_entry_allocation_size = 11;
-   sf_state->thread4.max_threads = WM_MAX_THREADS - 1;
+   sf_state->thread3.urb_entry_read_length = 4; /* XXX */
+   sf_state->thread3.dispatch_grf_start_reg = 3; /* XXX */
+   sf_state->thread3.urb_entry_read_offset = 1; /* XXX */
+   sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
+   sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
+   sf_state->thread4.max_threads = MIN(12, URB_SF_ENTRIES / 2) - 1;
+   sf_state->thread4.stats_enable = 1;
    sf_state->sf5.viewport_transform = FALSE; /* skip viewport */
    sf_state->sf6.cull_mode = BRW_CULLMODE_NONE;
-   sf_state->sf6.scissor = 0; /* XXX */
+   sf_state->sf6.scissor = 0;
+   sf_state->sf7.trifan_pv = 2;
    sf_state->sf6.dest_org_vbias = 0x8;
    sf_state->sf6.dest_org_hbias = 0x8;
-   sf_state->sf7.trifan_pv = 0;
 
    /* XXX: Set up the PS kernel (dispatched by WM) for converting YUV to RGB.
     * The 3D driver does this as:
@@ -2940,8 +3051,10 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     *
     */
 
+   memcpy (ps_kernel, ps_kernel_static, sizeof (ps_kernel_static));
+   memset (wm_state, 0, sizeof (*wm_state));
    wm_state->thread0.kernel_start_pointer = state_base_offset + ps_kernel_offset;
-   wm_state->thread0.grf_reg_count = ((PS_KERNEL_NUM_GRF + 15) / 16) - 1;
+   wm_state->thread0.grf_reg_count = ((PS_KERNEL_NUM_GRF & ~15) / 16);
    wm_state->thread1.single_program_flow = 1; /* XXX */
    wm_state->thread1.binding_table_entry_count = 2;
    wm_state->thread2.scratch_space_base_pointer = 0; /* XXX */
@@ -2949,35 +3062,105 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    wm_state->thread3.dispatch_grf_start_reg = 0; /* XXX */
    wm_state->thread3.urb_entry_read_length = 4; /* XXX */
    wm_state->thread3.const_urb_entry_read_length = 0; /* XXX */
+   wm_state->thread3.urb_entry_read_offset = 0; /* XXX */
+   wm_state->wm4.stats_enable = 1;
    wm_state->wm4.sampler_state_pointer = (state_base_offset + src_sampler_offset) >> 5;
    wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
-   wm_state->wm5.max_threads = 0;
+   wm_state->wm5.max_threads = 0;   /* XXX should be PS_MAX_THREADS */
    wm_state->wm5.thread_dispatch_enable = 1;
    wm_state->wm5.enable_16_pix = 1;
    wm_state->wm5.enable_8_pix = 0;
+   wm_state->wm5.early_depth_test = 1;
 
-   cc_viewport->min_depth = 0.0;
-   cc_viewport->max_depth = 0.0;
-
-   memset(cc_state, 0, sizeof(*cc_state));
-   cc_state->cc0.stencil_enable = 0;   /* disable stencil */
-   cc_state->cc2.depth_test = 0;       /* disable depth test */
-   cc_state->cc2.logicop_enable = 1;   /* enable logic op */
-   cc_state->cc3.ia_blend_enable = 0;  /* blend alpha just like colors */
-   cc_state->cc3.blend_enable = 0;     /* disable color blend */
-   cc_state->cc3.alpha_test = 0;       /* disable alpha test */
-   cc_state->cc4.cc_viewport_state_offset = (state_base_offset + cc_viewport_offset) >> 5;
-   cc_state->cc5.dither_enable = 0;    /* disable dither */
-   cc_state->cc5.logicop_func = 0xf;   /* WHITE */
-
-   memcpy (sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
-   memcpy (ps_kernel, ps_kernel_static, sizeof (ps_kernel_static));
+   {
+      BEGIN_LP_RING(2);
+      OUT_RING(MI_FLUSH | 
+	       MI_STATE_INSTRUCTION_CACHE_FLUSH |
+	       /* BRW_MI_GLOBAL_SNAPSHOT_RESET */ 0);
+      OUT_RING(MI_NOOP);
+      ADVANCE_LP_RING();
+   }
    
-   BEGIN_LP_RING(38);
-   OUT_RING(MI_FLUSH | MI_STATE_INSTRUCTION_CACHE_FLUSH);
-
+/*    brw_debug (pScrn, "before base address modify"); */
+   { BEGIN_LP_RING(12);
+   /* Match Mesa driver setup */
    OUT_RING(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 
+   /* Mesa does this. Who knows... */
+   OUT_RING(BRW_CS_URB_STATE | 0);
+   OUT_RING((0 << 4) |	/* URB Entry Allocation Size */
+	    (0 << 0));	/* Number of URB Entries */
+   
+   /* Zero out the two base address registers so all offsets are absolute */
+   OUT_RING(BRW_STATE_BASE_ADDRESS | 4);
+   OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* Generate state base address */
+   OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* Surface state base address */
+   OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* media base addr, don't care */
+   OUT_RING(0x10000000 | BASE_ADDRESS_MODIFY);  /* general state max addr, disabled */
+   OUT_RING(1); /* media object state max addr, disabled */
+
+   /* Set system instruction pointer to zero */
+   OUT_RING(BRW_STATE_SIP | 0);
+   OUT_RING(0);			       /* system instruction pointer */
+      
+   OUT_RING(MI_NOOP);
+   ADVANCE_LP_RING(); }
+   
+/*   brw_debug (pScrn, "after base address modify"); */
+
+   { BEGIN_LP_RING(42);
+   /* Enable VF statistics */
+   OUT_RING(BRW_3DSTATE_VF_STATISTICS | 1);
+   
+   /* Pipe control */
+   OUT_RING(BRW_PIPE_CONTROL |
+	    BRW_PIPE_CONTROL_NOWRITE |
+	    BRW_PIPE_CONTROL_IS_FLUSH |
+	    2);
+   OUT_RING(0);			       /* Destination address */
+   OUT_RING(0);			       /* Immediate data low DW */
+   OUT_RING(0);			       /* Immediate data high DW */
+
+   /* Binding table pointers */
+   OUT_RING(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
+   OUT_RING(0); /* vs */
+   OUT_RING(0); /* gs */
+   OUT_RING(0); /* clip */
+   OUT_RING(0); /* sf */
+   /* Only the PS uses the binding table */
+   OUT_RING(state_base_offset + binding_table_offset); /* ps */
+   
+   /* Blend constant color (magenta is fun) */
+   OUT_RING(BRW_3DSTATE_CONSTANT_COLOR | 3);
+   OUT_RING(float_to_uint (1.0));
+   OUT_RING(float_to_uint (0.0));
+   OUT_RING(float_to_uint (1.0));
+   OUT_RING(float_to_uint (1.0));
+   
+   /* The drawing rectangle clipping is always on.  Set it to values that
+    * shouldn't do any clipping.
+    */
+   OUT_RING(BRW_3DSTATE_DRAWING_RECTANGLE | 2);	/* XXX 3 for BLC or CTG */
+   OUT_RING(0x00000000);	/* ymin, xmin */
+   OUT_RING((pScrn->virtualX - 1) |
+	    (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+   OUT_RING(0x00000000);	/* yorigin, xorigin */
+
+   /* skip the depth buffer */
+   /* skip the polygon stipple */
+   /* skip the polygon stipple offset */
+   /* skip the line stipple */
+   
+   /* Set the pointers to the 3d pipeline state */
+   OUT_RING(BRW_3DSTATE_PIPELINED_POINTERS | 5);
+   OUT_RING(state_base_offset + vs_offset);  /* 32 byte aligned */
+   OUT_RING(BRW_GS_DISABLE);		     /* disable GS, resulting in passthrough */
+   OUT_RING(BRW_CLIP_DISABLE);		     /* disable CLIP, resulting in passthrough */
+   OUT_RING(state_base_offset + sf_offset);  /* 32 byte aligned */
+   OUT_RING(state_base_offset + wm_offset);  /* 32 byte aligned */
+   OUT_RING(state_base_offset + cc_offset);  /* 64 byte aligned */
+
+   /* URB fence */
    OUT_RING(BRW_URB_FENCE |
 	    UF0_CS_REALLOC |
 	    UF0_SF_REALLOC |
@@ -2991,73 +3174,44 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_RING(((urb_cs_start + urb_cs_size) << UF2_CS_FENCE_SHIFT) |
 	    ((urb_sf_start + urb_sf_size) << UF2_SF_FENCE_SHIFT));
 
-   /* Zero out the two base address registers so all offsets are absolute */
-   OUT_RING(BRW_STATE_BASE_ADDRESS | 4);
-   OUT_RING(0 | BASE_ADDRESS_MODIFY);	/* Generate state base address */
-   OUT_RING(0 | BASE_ADDRESS_MODIFY);	/* Surface state base address */
-   OUT_RING(0); /* media base addr, don't care */
-   OUT_RING(0); /* general state max addr, disabled */
-   OUT_RING(0); /* media object state max addr, disabled */
-
-   /* Set the pointers to the 3d pipeline state */
-   OUT_RING(BRW_3DSTATE_PIPELINED_POINTERS | 5);
-   OUT_RING(state_base_offset + vs_offset);  /* 32 byte aligned */
-   OUT_RING(BRW_GS_DISABLE);		     /* disable GS, resulting in passthrough */
-   OUT_RING(BRW_CLIP_DISABLE);		     /* disable CLIP, resulting in passthrough */
-   OUT_RING(state_base_offset + sf_offset);  /* 32 byte aligned */
-   OUT_RING(state_base_offset + wm_offset);  /* 32 byte aligned */
-   OUT_RING(state_base_offset + cc_offset);  /* 64 byte aligned */
-
-   /* Only the PS uses the binding table */
-   OUT_RING(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
-   OUT_RING(0); /* vs */
-   OUT_RING(0); /* gs */
-   OUT_RING(0); /* clip */
-   OUT_RING(0); /* sf */
-   OUT_RING(state_base_offset + binding_table_offset); /* ps */
-
-   /* The drawing rectangle clipping is always on.  Set it to values that
-    * shouldn't do any clipping.
-    */
-   OUT_RING(BRW_3DSTATE_DRAWING_RECTANGLE | 2);	/* XXX 3 for BLC or CTG */
-   OUT_RING(0x00000000);	/* ymin, xmin */
-   OUT_RING((pScrn->virtualX - 1) |
-	    (pScrn->virtualY - 1) << 16); /* ymax, xmax */
-   OUT_RING(0x00000000);	/* yorigin, xorigin */
-
+   /* Constant buffer state */
+   OUT_RING(BRW_CS_URB_STATE | 0);
+   OUT_RING(((URB_CS_ENTRY_SIZE - 1) << 4) | /* URB Entry Allocation Size */
+	    (URB_CS_ENTRIES << 0));	     /* Number of URB Entries */
+   
    /* Set up the pointer to our vertex buffer */
    OUT_RING(BRW_3DSTATE_VERTEX_BUFFERS | 2);
    OUT_RING((0 << VB0_BUFFER_INDEX_SHIFT) |
 	    VB0_VERTEXDATA |
 	    ((4 * 4) << VB0_BUFFER_PITCH_SHIFT)); /* four 32-bit floats per vertex */
    OUT_RING(state_base_offset + vb_offset);
-   OUT_RING(4); /* four corners to our rectangle */
+   OUT_RING(3); /* four corners to our rectangle */
 
    /* Set up our vertex elements, sourced from the single vertex buffer. */
    OUT_RING(BRW_3DSTATE_VERTEX_ELEMENTS | 3);
-   /* offset 0: X,Y -> {X, Y, 0.0, 0.0} */
+   /* offset 0: X,Y -> {X, Y, 1.0, 1.0} */
    OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
 	    VE0_VALID |
 	    (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
 	    (0 << VE0_OFFSET_SHIFT));
    OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
 	    (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT) |
+	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
 	    (0 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
-   /* offset 8: S0, T0 -> {S0, T0, 0.0, 0.0} */
+   /* offset 8: S0, T0 -> {S0, T0, 1.0, 1.0} */
    OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
 	    VE0_VALID |
 	    (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
 	    (8 << VE0_OFFSET_SHIFT));
    OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
 	    (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT) |
+	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
 	    (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
 
-   OUT_RING(0);			/* pad to quadword */
-   ADVANCE_LP_RING();
+   OUT_RING(MI_NOOP);			/* pad to quadword */
+   ADVANCE_LP_RING(); }
 
    dxo = dstRegion->extents.x1;
    dyo = dstRegion->extents.y1;
@@ -3072,9 +3226,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       int box_y2 = pbox->y2;
       int i;
       float src_scale_x, src_scale_y;
-      CARD32 vb[40];
-      float verts[4][2], tex[4][2], tex2[4][2];
-      int vert_data_count;
 
       if (!first_output) {
 	 /* Since we use the same little vertex buffer over and over, sync for
@@ -3091,30 +3242,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       src_scale_x = (float)src_w / (float)drw_w;
       src_scale_y  = (float)src_h / (float)drw_h;
 
-      if (!planar)
-	 vert_data_count = 32;
-      else
-	 vert_data_count = 40;
-
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-      OUT_RING(MI_NOOP);
-
       i = 0;
-      vb[i++] = box_x1;
-      vb[i++] = box_y1;
-      vb[i++] = (box_x1 - dxo) * src_scale_x;
-      vb[i++] = (box_y1 - dyo) * src_scale_y;
-
-      vb[i++] = box_x2;
-      vb[i++] = box_y1;
-      vb[i++] = (box_x2 - dxo) * src_scale_x;
-      vb[i++] = (box_y1 - dyo) * src_scale_y;
-
       vb[i++] = box_x2;
       vb[i++] = box_y2;
       vb[i++] = (box_x2 - dxo) * src_scale_x;
@@ -3125,27 +3253,51 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       vb[i++] = (box_x1 - dxo) * src_scale_x;
       vb[i++] = (box_y2 - dyo) * src_scale_y;
 
+      vb[i++] = box_x1;
+      vb[i++] = box_y1;
+      vb[i++] = (box_x1 - dxo) * src_scale_x;
+      vb[i++] = (box_y1 - dyo) * src_scale_y;
+
+      OUTREG(BRW_VF_CTL,
+	     BRW_VF_CTL_SNAPSHOT_MUX_SELECT_THREADID |
+	     BRW_VF_CTL_SNAPSHOT_TYPE_VERTEX_INDEX |
+	     BRW_VF_CTL_SNAPSHOT_ENABLE);
+      OUTREG(BRW_VF_STRG_VAL, 0);
+      
       BEGIN_LP_RING(6);
       OUT_RING(BRW_3DPRIMITIVE | 
 	       BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
-	       (_3DPRIM_TRIFAN << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) | 
-	       (0 << 9) |
+	       (_3DPRIM_TRILIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) | 
+	       (0 << 9) |  /* CTG - indirect vertex count */
 	       4);
-      OUT_RING(4); /* vertex count per instance XXX should this be 3 or 6? */
+      OUT_RING(3); /* vertex count per instance */
       OUT_RING(0); /* start vertex offset */
       OUT_RING(1); /* single instance */
       OUT_RING(0); /* start instance location */
       OUT_RING(0); /* index buffer offset, ignored */
-
       ADVANCE_LP_RING();
 
+      int   j;
+      CARD32	  ctl = 0;
+      
+      for (j = 0; j < 100000; j++) {
+	ctl = INREG(BRW_VF_CTL);
+	 if (ctl & BRW_VF_CTL_SNAPSHOT_COMPLETE)
+	    break;
+      }
+      CARD32	  rdata = INREG(BRW_VF_RDATA);
+
+      ErrorF ("VF_CTL: 0x%08x VF_RDATA: 0x%08x\n", ctl, rdata);
+
       first_output = FALSE;
+      if (pI830->AccelInfoRec)
+	 pI830->AccelInfoRec->NeedToSync = TRUE;
    }
 
-   xf86FreeOffscreenLinear(state_area);
-
    if (pI830->AccelInfoRec)
-      pI830->AccelInfoRec->NeedToSync = TRUE;
+      (*pI830->AccelInfoRec->Sync)(pScrn);
+/*   I830PrintErrorState (pScrn); */
+   xf86FreeOffscreenLinear(state_area);
 }
 
 static FBLinearPtr
@@ -3322,7 +3474,9 @@ I830PutImage(ScrnInfoPtr pScrn,
       }
       break;
    }
+#if 0
    ErrorF("srcPitch: %d, dstPitch: %d, size: %d\n", srcPitch, dstPitch, size);
+#endif
 
    /* size is multiplied by 2 because we have two buffers that are flipping */
    pPriv->linear = I830AllocateMemory(pScrn, pPriv->linear,
@@ -3454,7 +3608,9 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
    I830Ptr pI830 = I830PTR(pScrn);
    int size, tmp;
 
+#if 0
    ErrorF("I830QueryImageAttributes: w is %d, h is %d\n", *w, *h);
+#endif
 
    if (!textured) {
       if (IS_845G(pI830) || IS_I830(pI830)) {
