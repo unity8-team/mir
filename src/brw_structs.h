@@ -658,7 +658,21 @@ struct brw_cc_unit_state
 struct brw_sf_unit_state
 {
    struct thread0 thread0;
-   struct thread1 thread1;
+   struct {
+      GLuint pad0:7;
+      GLuint sw_exception_enable:1; 
+      GLuint pad1:3;
+      GLuint mask_stack_exception_enable:1; 
+      GLuint pad2:1;
+      GLuint illegal_op_exception_enable:1; 
+      GLuint pad3:2;
+      GLuint floating_point_mode:1; 
+      GLuint thread_priority:1; 
+      GLuint binding_table_entry_count:8; 
+      GLuint pad4:5;
+      GLuint single_program_flow:1; 
+   } sf1;
+   
    struct thread2 thread2;
    struct thread3 thread3;
 
