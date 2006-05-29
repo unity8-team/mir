@@ -2732,7 +2732,6 @@ static const CARD32 sf_kernel_static[][4] = {
 #define PS_MAX_THREADS	   1 /* MIN(12, PS_KERNEL_NUM_URB / 2) */
 
 static const CARD32 ps_kernel_static[][4] = {
-#if 1
 /*    mov (8) m2<1>F g2<16,16,1>UW { align1 +  } */
    { 0x00600001, 0x2040013e, 0x00b10040, 0x00000000 },
 /*    mov (8) m6<1>F g3<16,16,1>UW { align1 sechalf +  } */
@@ -2751,9 +2750,6 @@ static const CARD32 ps_kernel_static[][4] = {
    { 0x00601001, 0x2120013e, 0x00b100c0, 0x00000000 },
 /*    mov (8) m1<1>F g1<8,8,1>F { align1 mask_disable +  } */
    { 0x00600201, 0x202003be, 0x008d0020, 0x00000000 },
-#endif
-/*    wait (1) a0<1>UW a145<0,1,0>UW { align1 +  } */
-    { 0x00000030, 0x20000108, 0x00001220, 0x00000000 },
 /*    send   0 (16) a0<1>UW g0<8,8,1>UW write mlen 10 rlen 0 EOT{ align1 +  } */
    { 0x00800031, 0x20001d28, 0x008d0000, 0x85a04800 },
 /*    nop (4) g0<1>UD { align1 +  } */
@@ -3169,7 +3165,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    wm_state->thread0.kernel_start_pointer = 
 	    (state_base_offset + ps_kernel_offset) >> 6;
    wm_state->thread0.grf_reg_count = ((PS_KERNEL_NUM_GRF & ~15) / 16);
-   wm_state->thread1.single_program_flow = 1; /* XXX */
+   wm_state->thread1.single_program_flow = 0; /* XXX */
    wm_state->thread1.binding_table_entry_count = 2;
    wm_state->thread2.scratch_space_base_pointer = 0; /* XXX */
    wm_state->thread2.per_thread_scratch_space = 0; /* XXX */
@@ -3351,6 +3347,10 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	 }
       }
 
+      /* just paint 4 pixels */
+      box_x2 = box_x1 + 2;
+      box_y2 = box_y1 + 2;
+
       pbox++;
 
       src_scale_x = (float)src_w / (float)drw_w;
@@ -3384,7 +3384,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	     BRW_VF_CTL_SNAPSHOT_ENABLE);
       OUTREG(BRW_VF_STRG_VAL, 0);
       
-#if 1
+#if 0
       OUTREG(BRW_VS_CTL,
 	     BRW_VS_CTL_SNAPSHOT_ALL_THREADS |
 	     BRW_VS_CTL_SNAPSHOT_MUX_VALID_COUNT |
@@ -3417,7 +3417,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       BEGIN_LP_RING(6);
       OUT_RING(BRW_3DPRIMITIVE | 
 	       BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
-	       (_3DPRIM_TRILIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) | 
+	       (_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) | 
 	       (0 << 9) |  /* CTG - indirect vertex count */
 	       4);
       OUT_RING(3); /* vertex count per instance */
@@ -3440,7 +3440,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUTREG(BRW_VF_CTL, 0);
       ErrorF ("VF_CTL: 0x%08x VF_RDATA: 0x%08x\n", ctl, rdata);
 
-#if 1
+#if 0
       for (j = 0; j < 1000000; j++) {
 	ctl = INREG(BRW_VS_CTL);
 	 if (ctl & BRW_VS_CTL_SNAPSHOT_COMPLETE)
@@ -3457,6 +3457,13 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       }
       
       OUTREG(BRW_VS_CTL, 0);
+      for (j = 0; j < 32; j += 8)
+	 ErrorF (" vs_scratch(%2d): %02x %02x %02x %02x  %02x %02x %02x %02x\n",
+		 j,
+		 vs_scratch[j+0], vs_scratch[j+1],
+		 vs_scratch[j+2], vs_scratch[j+3], 
+		 vs_scratch[j+4], vs_scratch[j+5],
+		 vs_scratch[j+6], vs_scratch[j+7]);
 #endif
 
       for (j = 0; j < 1000000; j++) {
@@ -3499,13 +3506,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	      INREG(BRW_EU_ATT_1), INREG(BRW_EU_ATT_0),
 	      INREG(BRW_EU_ATT_DATA_1), INREG(BRW_EU_ATT_DATA_0));
 
-      for (j = 0; j < 32; j += 8)
-	 ErrorF (" vs_scratch(%2d): %02x %02x %02x %02x  %02x %02x %02x %02x\n",
-		 j,
-		 vs_scratch[j+0], vs_scratch[j+1],
-		 vs_scratch[j+2], vs_scratch[j+3], 
-		 vs_scratch[j+4], vs_scratch[j+5],
-		 vs_scratch[j+6], vs_scratch[j+7]);
 #if 0
       for (j = 0; j < 256; j++) {
 	 OUTREG(BRW_TD_CTL, j << BRW_TD_CTL_MUX_SHIFT);
