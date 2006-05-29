@@ -2632,27 +2632,35 @@ static const CARD32 sip_kernel_static[][4] = {
     { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
 /*    nop (4) g0<1>UD { align1 +  } */
     { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
 };
    
 static const CARD32 vs_kernel_static[][4] = {
-/*    wait (1) a0<1>UW a145<0,1,0>UW { align1 +  } */
-    { 0x00000030, 0x20000108, 0x00001220, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-    { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+   /*    mov (8) m1<1>F g1<8,8,1>F { align1 +  } */
+   { 0x00600001, 0x202003be, 0x008d0020, 0x00000000 },
+   /*    mov (1) g0.8<1>D 0 { align1 mask_disable +  } */
+   { 0x00000201, 0x200810e5, 0x00000000, 0x00000000 },
+   /*    send   0 (8) a0<1>UW g0<8,8,1>F write mlen 3 rlen 0 { align1 +  } */
+   { 0x00600031, 0x20001fa8, 0x008d0000, 0x053003ff },
+   /*    send   0 (8) a0<1>F g0<8,8,1>F urb mlen 2 rlen 0 write +0 noswizzle used complete EOT{ align1 +  } */
+   { 0x00600031, 0x20001fbc, 0x008d0000, 0x8620c000 },
+   /*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+   /*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+   /*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+   /*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+   /*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+   /*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+   /*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+   /*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
 };
    
 /*
@@ -2665,9 +2673,6 @@ static const CARD32 vs_kernel_static[][4] = {
 #define SF_MAX_THREADS	   1
 
 static const CARD32 sf_kernel_static[][4] = {
-/*    wait (1) a0<1>UW a145<0,1,0>UW { align1 +  } */
-    { 0x00000030, 0x20000108, 0x00001220, 0x00000000 },
-#if 0
 /*    send   0 (1) g6<1>F g1.8<0,1,0>F math mlen 1 rlen 1 { align1 +  } */
     { 0x00000031, 0x20c01fbd, 0x00000028, 0x01110081 },
 /*    mov (2) g3.8<1>F g2<2,2,1>F { align1 +  } */
@@ -2702,7 +2707,6 @@ static const CARD32 sf_kernel_static[][4] = {
     { 0x00600041, 0x204077be, 0x008d0120, 0x000000c0 },
 /*    mov (8) m3<1>F g3<8,8,1>F { align1 +  } */
     { 0x00600001, 0x206003be, 0x008d0060, 0x00000000 },
-#endif
 /*    send   0 (8) a0<1>F g0<8,8,1>F urb mlen 4 rlen 0 write +0 transpose used complete EOT{ align1 +  } */
     { 0x00600031, 0x20001fbc, 0x008d0000, 0x8640c800 },
 /*    nop (4) g0<1>UD { align1 +  } */
@@ -2728,7 +2732,7 @@ static const CARD32 sf_kernel_static[][4] = {
 #define PS_MAX_THREADS	   1 /* MIN(12, PS_KERNEL_NUM_URB / 2) */
 
 static const CARD32 ps_kernel_static[][4] = {
-#if 0
+#if 1
 /*    mov (8) m2<1>F g2<16,16,1>UW { align1 +  } */
    { 0x00600001, 0x2040013e, 0x00b10040, 0x00000000 },
 /*    mov (8) m6<1>F g3<16,16,1>UW { align1 sechalf +  } */
@@ -2748,6 +2752,8 @@ static const CARD32 ps_kernel_static[][4] = {
 /*    mov (8) m1<1>F g1<8,8,1>F { align1 mask_disable +  } */
    { 0x00600201, 0x202003be, 0x008d0020, 0x00000000 },
 #endif
+/*    wait (1) a0<1>UW a145<0,1,0>UW { align1 +  } */
+    { 0x00000030, 0x20000108, 0x00001220, 0x00000000 },
 /*    send   0 (16) a0<1>UW g0<8,8,1>UW write mlen 10 rlen 0 EOT{ align1 +  } */
    { 0x00800031, 0x20001d28, 0x008d0000, 0x85a04800 },
 /*    nop (4) g0<1>UD { align1 +  } */
@@ -2839,7 +2845,8 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    struct brw_instruction *sf_kernel;
    struct brw_instruction *ps_kernel;
    struct brw_instruction *sip_kernel;
-   CARD32 *vb, *binding_table;
+   float *vb;
+    CARD32 *binding_table;
    Bool first_output = TRUE;
    int dest_surf_offset, src_surf_offset, src_sampler_offset, vs_offset;
    int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
@@ -2852,6 +2859,15 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    FBLinearPtr state_area;
    char *state_base;
    int state_base_offset;
+
+    int vs_scratch_offset;
+#define VS_SCRATCH_SIZE	1024
+#define VS_SCRATCH_NUM (VS_SCRATCH_SIZE / sizeof (float))
+    char *vs_scratch;
+    int vs_scratch_surface_state_offset;
+    struct brw_surface_state *vs_scratch_surface_state;
+    int vs_binding_table_offset;
+    CARD32 *vs_binding_table;
 
 #if 0
    ErrorF("BroadwaterDisplayVideoTextured: %dx%d (pitch %d)\n", width, height,
@@ -2894,6 +2910,12 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    next_offset = sip_kernel_offset + sizeof (sip_kernel_static);
    vs_kernel_offset = ALIGN(next_offset, 64);
    next_offset = vs_kernel_offset + sizeof (vs_kernel_static);
+   vs_scratch_offset = ALIGN(next_offset, 1024);
+   next_offset = vs_scratch_offset + VS_SCRATCH_SIZE;
+   vs_scratch_surface_state_offset = ALIGN(next_offset, 32);
+   next_offset = vs_scratch_surface_state_offset + sizeof (struct brw_surface_state);
+   vs_binding_table_offset = ALIGN(next_offset, 32);
+   next_offset = vs_binding_table_offset + 1 * 4;
    
    cc_viewport_offset = ALIGN(next_offset, 32);
    next_offset = cc_viewport_offset + sizeof(*cc_viewport);
@@ -2936,7 +2958,12 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    sf_kernel = (void *)(state_base + sf_kernel_offset);
    ps_kernel = (void *)(state_base + ps_kernel_offset);
    sip_kernel = (void *)(state_base + sip_kernel_offset);
-cc_viewport = (void *)(state_base + cc_viewport_offset);
+   vs_kernel = (void *)(state_base + vs_kernel_offset);
+   vs_scratch = (void *)(state_base + vs_scratch_offset);
+   vs_scratch_surface_state = (void *)(state_base + vs_scratch_surface_state_offset);
+   vs_binding_table = (void *)(state_base + vs_binding_table_offset);
+   
+   cc_viewport = (void *)(state_base + cc_viewport_offset);
    dest_surf_state = (void *)(state_base + dest_surf_offset);
    src_surf_state = (void *)(state_base + src_surf_offset);
    src_sampler_state = (void *)(state_base + src_sampler_offset);
@@ -3066,9 +3093,19 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
    src_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 
    /* Set up the vertex shader to be disabled (passthrough) */
+   vs_binding_table[0] = state_base_offset + vs_scratch_surface_state_offset;
+   memset (vs_scratch_surface_state, 0, sizeof (*vs_scratch_surface_state));
+   vs_scratch_surface_state->ss0.surface_type = BRW_SURFACE_BUFFER;
+   vs_scratch_surface_state->ss0.surface_format = BRW_SURFACEFORMAT_R32_FLOAT;
+   vs_scratch_surface_state->ss1.base_addr = state_base_offset + vs_scratch_offset;
+   vs_scratch_surface_state->ss2.height = (VS_SCRATCH_NUM - 1) >> 7;
+   vs_scratch_surface_state->ss2.width = (VS_SCRATCH_NUM - 1) & 0x7f;
+   vs_scratch_surface_state->ss3.pitch = 3;
+   
    memcpy(vs_kernel, vs_kernel_static, sizeof (vs_kernel_static));
    
    memset(vs_state, 0, sizeof(*vs_state));
+   ErrorF ("vs kernel: 0x%08x\n", state_base_offset + vs_kernel_offset);
    vs_state->thread0.kernel_start_pointer =
 	    (state_base_offset + vs_kernel_offset) >> 6;
    vs_state->thread0.grf_reg_count = 1;
@@ -3076,7 +3113,7 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
    vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
    vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
    vs_state->thread4.stats_enable = 1;
-   vs_state->vs6.vs_enable = 1;
+   vs_state->vs6.vs_enable = 0;
    vs_state->vs6.vert_cache_disable = 1;
 
    /* Set up the SF kernel to do coord interp: for each attribute,
@@ -3174,7 +3211,7 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
    OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* Surface state base address */
    OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* media base addr, don't care */
    OUT_RING(0x10000000 | BASE_ADDRESS_MODIFY);  /* general state max addr, disabled */
-   OUT_RING(1); /* media object state max addr, disabled */
+   OUT_RING(0x10000000 | BASE_ADDRESS_MODIFY);  /* media object state max addr, disabled */
 
    /* Set system instruction pointer */
    OUT_RING(BRW_STATE_SIP | 0);
@@ -3200,7 +3237,7 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
 
    /* Binding table pointers */
    OUT_RING(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
-   OUT_RING(0); /* vs */
+   OUT_RING(state_base_offset + vs_binding_table_offset); /* vs */
    OUT_RING(0); /* gs */
    OUT_RING(0); /* clip */
    OUT_RING(0); /* sf */
@@ -3271,8 +3308,8 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
 	    VE0_VALID |
 	    (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
 	    (0 << VE0_OFFSET_SHIFT));
-   OUT_RING((BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_0_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_1_SHIFT) |
+   OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+	    (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
 	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
 	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
 	    (0 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
@@ -3320,21 +3357,23 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
       src_scale_y  = (float)src_h / (float)drw_h;
 
       i = 0;
-      vb[i++] = box_x2;
-      vb[i++] = box_y2;
+      vb[i++] = (float) box_x2;
+      vb[i++] = (float) box_y2;
       vb[i++] = (box_x2 - dxo) * src_scale_x;
       vb[i++] = (box_y2 - dyo) * src_scale_y;
 
-      vb[i++] = box_x1;
-      vb[i++] = box_y2;
+      vb[i++] = (float) box_x1;
+      vb[i++] = (float) box_y2;
       vb[i++] = (box_x1 - dxo) * src_scale_x;
       vb[i++] = (box_y2 - dyo) * src_scale_y;
 
-      vb[i++] = box_x1;
-      vb[i++] = box_y1;
+      vb[i++] = (float) box_x1;
+      vb[i++] = (float) box_y1;
       vb[i++] = (box_x1 - dxo) * src_scale_x;
       vb[i++] = (box_y1 - dyo) * src_scale_y;
 
+      memset (vs_scratch, 1, VS_SCRATCH_SIZE);
+      
       ErrorF ("before EU_ATT 0x%08x%08x EU_ATT_DATA 0x%08x%08x\n",
 	      INREG(BRW_EU_ATT_1), INREG(BRW_EU_ATT_0),
 	      INREG(BRW_EU_ATT_DATA_1), INREG(BRW_EU_ATT_DATA_0));
@@ -3345,7 +3384,7 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
 	     BRW_VF_CTL_SNAPSHOT_ENABLE);
       OUTREG(BRW_VF_STRG_VAL, 0);
       
-#if 0
+#if 1
       OUTREG(BRW_VS_CTL,
 	     BRW_VS_CTL_SNAPSHOT_ALL_THREADS |
 	     BRW_VS_CTL_SNAPSHOT_MUX_VALID_COUNT |
@@ -3367,19 +3406,13 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
       OUTREG(BRW_WIZ_STRG_VAL,
 	     (box_x1) | (box_y1 << 16));
       
+#if 0
       OUTREG(BRW_TS_CTL,
 	     BRW_TS_CTL_SNAPSHOT_MESSAGE_ERROR |
 	     BRW_TS_CTL_SNAPSHOT_ALL_CHILD_THREADS |
 	     BRW_TS_CTL_SNAPSHOT_ALL_ROOT_THREADS |
 	     BRW_TS_CTL_SNAPSHOT_ENABLE);
-
-      { static int first = 1;
-	 if (first)
-	    first = 0;
-	 else
-	    OUTREG(BRW_TD_CTL,
-		   BRW_TD_CTL_FORCE_EXTERNAL_HALT);
-      }
+#endif
 
       BEGIN_LP_RING(6);
       OUT_RING(BRW_3DPRIMITIVE | 
@@ -3394,7 +3427,7 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
       OUT_RING(0); /* index buffer offset, ignored */
       ADVANCE_LP_RING();
 
-      int   j;
+      int   j, k;
       CARD32	  ctl = 0, rdata;
       
       for (j = 0; j < 100000; j++) {
@@ -3407,7 +3440,7 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
       OUTREG(BRW_VF_CTL, 0);
       ErrorF ("VF_CTL: 0x%08x VF_RDATA: 0x%08x\n", ctl, rdata);
 
-#if 0
+#if 1
       for (j = 0; j < 1000000; j++) {
 	ctl = INREG(BRW_VS_CTL);
 	 if (ctl & BRW_VS_CTL_SNAPSHOT_COMPLETE)
@@ -3415,8 +3448,15 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
       }
 
       rdata = INREG(BRW_VS_RDATA);
+      for (k = 0; k <= 3; k++) {
+	 OUTREG(BRW_VS_CTL,
+		BRW_VS_CTL_SNAPSHOT_COMPLETE |
+		(k << 8));
+	 rdata = INREG(BRW_VS_RDATA);
+	 ErrorF ("VS_CTL: 0x%08x VS_RDATA(%d): 0x%08x\n", ctl, k, rdata);
+      }
+      
       OUTREG(BRW_VS_CTL, 0);
-      ErrorF ("VS_CTL: 0x%08x VS_RDATA: 0x%08x\n", ctl, rdata);
 #endif
 
       for (j = 0; j < 1000000; j++) {
@@ -3424,8 +3464,6 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
 	 if (ctl & BRW_SF_CTL_SNAPSHOT_COMPLETE)
 	    break;
       }
-
-      int   k;
 
       for (k = 0; k <= 7; k++) {
 	 OUTREG(BRW_SF_CTL,
@@ -3461,11 +3499,20 @@ cc_viewport = (void *)(state_base + cc_viewport_offset);
 	      INREG(BRW_EU_ATT_1), INREG(BRW_EU_ATT_0),
 	      INREG(BRW_EU_ATT_DATA_1), INREG(BRW_EU_ATT_DATA_0));
 
+      for (j = 0; j < 32; j += 8)
+	 ErrorF (" vs_scratch(%2d): %02x %02x %02x %02x  %02x %02x %02x %02x\n",
+		 j,
+		 vs_scratch[j+0], vs_scratch[j+1],
+		 vs_scratch[j+2], vs_scratch[j+3], 
+		 vs_scratch[j+4], vs_scratch[j+5],
+		 vs_scratch[j+6], vs_scratch[j+7]);
+#if 0
       for (j = 0; j < 256; j++) {
 	 OUTREG(BRW_TD_CTL, j << BRW_TD_CTL_MUX_SHIFT);
 	 rdata = INREG(BRW_TD_RDATA);
 	 ErrorF ("TD_RDATA(%d): 0x%08x\n", j, rdata);
       }
+#endif
       first_output = FALSE;
       if (pI830->AccelInfoRec)
 	 pI830->AccelInfoRec->NeedToSync = TRUE;
