@@ -2727,29 +2727,29 @@ static const CARD32 sf_kernel_static[][4] = {
     { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
 };
 
-#define PS_KERNEL_NUM_GRF   10
+#define PS_KERNEL_NUM_GRF   20
 #define PS_KERNEL_NUM_URB   8
 #define PS_MAX_THREADS	   1 /* MIN(12, PS_KERNEL_NUM_URB / 2) */
 
 static const CARD32 ps_kernel_static[][4] = {
-/*    mov (8) m2<1>F g2<16,16,1>UW { align1 +  } */
-   { 0x00600001, 0x2040013e, 0x00b10040, 0x00000000 },
-/*    mov (8) m6<1>F g3<16,16,1>UW { align1 sechalf +  } */
-   { 0x00601001, 0x20c0013e, 0x00b10060, 0x00000000 },
-/*    mov (8) m3<1>F g3<16,16,1>UW { align1 +  } */
-   { 0x00600001, 0x2060013e, 0x00b10060, 0x00000000 },
-/*    mov (8) m7<1>F g4<16,16,1>UW { align1 sechalf +  } */
-   { 0x00601001, 0x20e0013e, 0x00b10080, 0x00000000 },
-/*    mov (8) m4<1>F g4<16,16,1>UW { align1 +  } */
-   { 0x00600001, 0x2080013e, 0x00b10080, 0x00000000 },
-/*    mov (8) m8<1>F g5<16,16,1>UW { align1 sechalf +  } */
-   { 0x00601001, 0x2100013e, 0x00b100a0, 0x00000000 },
-/*    mov (8) m5<1>F g5<16,16,1>UW { align1 +  } */
-   { 0x00600001, 0x20a0013e, 0x00b100a0, 0x00000000 },
-/*    mov (8) m9<1>F g6<16,16,1>UW { align1 sechalf +  } */
-   { 0x00601001, 0x2120013e, 0x00b100c0, 0x00000000 },
-/*    mov (8) m1<1>F g1<8,8,1>F { align1 mask_disable +  } */
-   { 0x00600201, 0x202003be, 0x008d0020, 0x00000000 },
+/*    mov (8) m2<1>F 1{ align1 +  } */
+   { 0x00600001, 0x204073fe, 0x00000000, 0x3f800000 },
+/*    mov (8) m3<1>F 0.5{ align1 +  } */
+   { 0x00600001, 0x206073fe, 0x00000000, 0x3f000000 },
+/*    mov (8) m4<1>F 0.75{ align1 +  } */
+   { 0x00600001, 0x208073fe, 0x00000000, 0x3f400000 },
+/*    mov (8) m5<1>F 1{ align1 +  } */
+   { 0x00600001, 0x20a073fe, 0x00000000, 0x3f800000 },
+/*    mov (8) m6<1>F 1{ align1 +  } */
+   { 0x00600001, 0x20c073fe, 0x00000000, 0x3f800000 },
+/*    mov (8) m7<1>F 0.5{ align1 +  } */
+   { 0x00600001, 0x20e073fe, 0x00000000, 0x3f000000 },
+/*    mov (8) m8<1>F 0.75{ align1 +  } */
+   { 0x00600001, 0x210073fe, 0x00000000, 0x3f400000 },
+/*    mov (8) m9<1>F 1{ align1 +  } */
+   { 0x00600001, 0x212073fe, 0x00000000, 0x3f800000 },
+/*    mov (8) m1<1>UD g1<8,8,1>UD { align1 mask_disable +  } */
+   { 0x00600201, 0x20200022, 0x008d0020, 0x00000000 },
 /*    send   0 (16) a0<1>UW g0<8,8,1>UW write mlen 10 rlen 0 EOT{ align1 +  } */
    { 0x00800031, 0x20001d28, 0x008d0000, 0x85a04800 },
 /*    nop (4) g0<1>UD { align1 +  } */
@@ -3008,13 +3008,16 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    cc_state->cc0.stencil_enable = 0;   /* disable stencil */
    cc_state->cc2.depth_test = 0;       /* disable depth test */
    cc_state->cc2.logicop_enable = 1;   /* enable logic op */
-   cc_state->cc3.ia_blend_enable = 0;  /* blend alpha just like colors */
+   cc_state->cc3.ia_blend_enable = 1;  /* blend alpha just like colors */
    cc_state->cc3.blend_enable = 0;     /* disable color blend */
    cc_state->cc3.alpha_test = 0;       /* disable alpha test */
    cc_state->cc4.cc_viewport_state_offset = (state_base_offset + cc_viewport_offset) >> 5;
    cc_state->cc5.dither_enable = 0;    /* disable dither */
-   cc_state->cc5.logicop_func = 0xc;   /* COPYPEN */
+   cc_state->cc5.logicop_func = 0xc;   /* WHITE */
    cc_state->cc5.statistics_enable = 1;
+   cc_state->cc5.ia_blend_function = BRW_BLENDFUNCTION_ADD;
+   cc_state->cc5.ia_src_blend_factor = BRW_BLENDFACTOR_ONE;
+   cc_state->cc5.ia_dest_blend_factor = BRW_BLENDFACTOR_ONE;
 
    /* Upload system kernel */
    memcpy (sip_kernel, sip_kernel_static, sizeof (sip_kernel_static));
@@ -3165,17 +3168,18 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    wm_state->thread0.kernel_start_pointer = 
 	    (state_base_offset + ps_kernel_offset) >> 6;
    wm_state->thread0.grf_reg_count = ((PS_KERNEL_NUM_GRF & ~15) / 16);
-   wm_state->thread1.single_program_flow = 0; /* XXX */
+   wm_state->thread1.single_program_flow = 1; /* XXX */
    wm_state->thread1.binding_table_entry_count = 2;
    wm_state->thread2.scratch_space_base_pointer = 0; /* XXX */
    wm_state->thread2.per_thread_scratch_space = 0; /* XXX */
-   wm_state->thread3.dispatch_grf_start_reg = 0; /* XXX */
-   wm_state->thread3.urb_entry_read_length = 4; /* XXX */
+   wm_state->thread3.dispatch_grf_start_reg = 10; /* XXX */
+   wm_state->thread3.urb_entry_read_length = 2; /* XXX */
    wm_state->thread3.const_urb_entry_read_length = 0; /* XXX */
+   wm_state->thread3.const_urb_entry_read_offset = 0; /* XXX */
    wm_state->thread3.urb_entry_read_offset = 0; /* XXX */
    wm_state->wm4.stats_enable = 1;
    wm_state->wm4.sampler_state_pointer = (state_base_offset + src_sampler_offset) >> 5;
-   wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
+   wm_state->wm4.sampler_count = 0; /* XXX 1-4 samplers used */
    wm_state->wm5.max_threads = 0;   /* XXX should be PS_MAX_THREADS */
    wm_state->wm5.thread_dispatch_enable = 1;
    wm_state->wm5.enable_16_pix = 1;
@@ -3326,6 +3330,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    dxo = dstRegion->extents.x1;
    dyo = dstRegion->extents.y1;
 
+   ErrorF ("region origin %d, %d\n", dxo, dyo);
    pbox = REGION_RECTS(dstRegion);
    nbox = REGION_NUM_RECTS(dstRegion);
    while (nbox--)
@@ -3347,30 +3352,26 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	 }
       }
 
-      /* just paint 4 pixels */
-      box_x2 = box_x1 + 2;
-      box_y2 = box_y1 + 2;
-
       pbox++;
 
       src_scale_x = (float)src_w / (float)drw_w;
       src_scale_y  = (float)src_h / (float)drw_h;
 
       i = 0;
-      vb[i++] = (float) box_x2;
-      vb[i++] = (float) box_y2;
       vb[i++] = (box_x2 - dxo) * src_scale_x;
       vb[i++] = (box_y2 - dyo) * src_scale_y;
-
-      vb[i++] = (float) box_x1;
+      vb[i++] = (float) box_x2;
       vb[i++] = (float) box_y2;
+
       vb[i++] = (box_x1 - dxo) * src_scale_x;
       vb[i++] = (box_y2 - dyo) * src_scale_y;
-
       vb[i++] = (float) box_x1;
-      vb[i++] = (float) box_y1;
+      vb[i++] = (float) box_y2;
+
       vb[i++] = (box_x1 - dxo) * src_scale_x;
       vb[i++] = (box_y1 - dyo) * src_scale_y;
+      vb[i++] = (float) box_x1;
+      vb[i++] = (float) box_y1;
 
       memset (vs_scratch, 1, VS_SCRATCH_SIZE);
       
