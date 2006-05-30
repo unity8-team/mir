@@ -2673,6 +2673,69 @@ static const CARD32 vs_kernel_static[][4] = {
 #define SF_MAX_THREADS	   1
 
 static const CARD32 sf_kernel_static[][4] = {
+#if 1
+/*    send   0 (4) g6<1>F g1.12<4,4,1>F math mlen 1 rlen 1 { align1 +  } */
+   { 0x00400031, 0x20c01fbd, 0x0069002c, 0x01110081 },
+/*    add (8) g7<1>F g4<8,8,1>F g3<8,8,1>F { align1 +  } */
+   { 0x00600040, 0x20e077bd, 0x008d0080, 0x008d4060 },
+/*    mul (1) g7<1>F g7<0,1,0>F g6<0,1,0>F { align1 +  } */
+   { 0x00000041, 0x20e077bd, 0x000000e0, 0x000000c0 },
+/*    mov (1) g7.4<1>F g6.12<0,1,0>F { align1 +  } */
+   { 0x00000001, 0x20e403bd, 0x000000cc, 0x00000000 },
+/*    mov (8) m1<1>F g7<0,1,0>F { align1 +  } */
+   { 0x00600001, 0x202003be, 0x000000e0, 0x00000000 },
+/*    mov (8) m2<1>F g7.4<0,1,0>F { align1 +  } */
+   { 0x00600001, 0x204003be, 0x000000e4, 0x00000000 },
+/*    mov (8) m3<1>F g3<8,8,1>F { align1 +  } */
+   { 0x00600001, 0x206003be, 0x008d0060, 0x00000000 },
+/*    send   0 (8) a0<1>F g0<8,8,1>F urb mlen 4 rlen 0 write +0 noswizzle used complete EOT{ align1 +  } */
+   { 0x00600031, 0x20001fbc, 0x008d0000, 0x8640c000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+
+#endif
+#if 0
+/*    mov (8) m1<1>F 0.00138889{ align1 +  } */
+   { 0x00600001, 0x202073fe, 0x00000000, 0x3ab60b61 },
+/*    mov (8) m2<1>F 0.00208333{ align1 +  } */
+   { 0x00600001, 0x204073fe, 0x00000000, 0x3b088889 },
+/*    mov (8) m3<1>F g3<8,8,1>F { align1 +  } */
+   { 0x00600001, 0x206003be, 0x008d0060, 0x00000000 },
+/*    send   0 (8) a0<1>F g0<8,8,1>F urb mlen 4 rlen 0 write +0 noswizzle used complete EOT{ align1 +  } */
+   { 0x00600031, 0x20001fbc, 0x008d0000, 0x8640c000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+/*    nop (4) g0<1>UD { align1 +  } */
+   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+#endif
+
+#if 0
 /*    send   0 (1) g6<1>F g1.8<0,1,0>F math mlen 1 rlen 1 { align1 +  } */
     { 0x00000031, 0x20c01fbd, 0x00000028, 0x01110081 },
 /*    mov (2) g3.8<1>F g2<2,2,1>F { align1 +  } */
@@ -2725,27 +2788,58 @@ static const CARD32 sf_kernel_static[][4] = {
     { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
 /*    nop (4) g0<1>UD { align1 +  } */
     { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+#endif
 };
+
+/*
+ * Ok, this kernel picks up the required data flow values in g0 and g1
+ * and passes those along in m0 and m1. In m2-m9, it sticks constant
+ * values (bright pink).
+ */
+
+/*
+ * I am reasonably sure these values are bogus
+ * but, they do appear to work. Learning precisely what
+ * values belong here should improve performance by
+ * increasing the number of threads that will be able to run
+ * in parallel.
+ */
 
 #define PS_KERNEL_NUM_GRF   20
 #define PS_KERNEL_NUM_URB   8
 #define PS_MAX_THREADS	   1 /* MIN(12, PS_KERNEL_NUM_URB / 2) */
 
 static const CARD32 ps_kernel_static[][4] = {
-/*    mov (8) m2<1>F 1{ align1 +  } */
-   { 0x00600001, 0x204073fe, 0x00000000, 0x3f800000 },
-/*    mov (8) m3<1>F 0.5{ align1 +  } */
-   { 0x00600001, 0x206073fe, 0x00000000, 0x3f000000 },
-/*    mov (8) m4<1>F 0.75{ align1 +  } */
-   { 0x00600001, 0x208073fe, 0x00000000, 0x3f400000 },
+/*    mov (8) g2<1>F g1.8<0,1,0>UW { align1 +  } */
+   { 0x00600001, 0x2040013d, 0x00000028, 0x00000000 },
+/*    add (8) g2<1>F g2<8,8,1>F g1<0,1,0>F { align1 +  } */
+   { 0x00600040, 0x204077bd, 0x008d0040, 0x00004020 },
+/*    mul (8) g2<1>F g2<8,8,1>F g10<0,1,0>F { align1 +  } */
+   { 0x00600041, 0x204077bd, 0x008d0040, 0x00000140 },
+/*    add (8) g2<1>F g2<8,8,1>F g12<0,1,0>F { align1 +  } */
+   { 0x00600040, 0x204077bd, 0x008d0040, 0x00000180 },
+/*    mov (8) g3<1>F g1.10<0,1,0>UW { align1 +  } */
+   { 0x00600001, 0x2060013d, 0x0000002a, 0x00000000 },
+/*    add (8) g3<1>F g3<8,8,1>F g1.4<0,1,0>F { align1 +  } */
+   { 0x00600040, 0x206077bd, 0x008d0060, 0x00004024 },
+/*    mul (8) g3<1>F g3<8,8,1>F g11<0,1,0>F { align1 +  } */
+   { 0x00600041, 0x206077bd, 0x008d0060, 0x00000160 },
+/*    add (8) g3<1>F g3<8,8,1>F g12.4<0,1,0>F { align1 +  } */
+   { 0x00600040, 0x206077bd, 0x008d0060, 0x00000184 },
+/*    mov (8) m2<1>F g2<8,8,1>F { align1 +  } */
+   { 0x00600001, 0x204003be, 0x008d0040, 0x00000000 },
+/*    mov (8) m3<1>F g3<8,8,1>F { align1 +  } */
+   { 0x00600001, 0x206003be, 0x008d0060, 0x00000000 },
+/*    mov (8) m4<1>F 0{ align1 +  } */
+   { 0x00600001, 0x208073fe, 0x00000000, 0x00000000 },
 /*    mov (8) m5<1>F 1{ align1 +  } */
    { 0x00600001, 0x20a073fe, 0x00000000, 0x3f800000 },
-/*    mov (8) m6<1>F 1{ align1 +  } */
-   { 0x00600001, 0x20c073fe, 0x00000000, 0x3f800000 },
-/*    mov (8) m7<1>F 0.5{ align1 +  } */
-   { 0x00600001, 0x20e073fe, 0x00000000, 0x3f000000 },
-/*    mov (8) m8<1>F 0.75{ align1 +  } */
-   { 0x00600001, 0x210073fe, 0x00000000, 0x3f400000 },
+/*    mov (8) m6<1>F g2<8,8,1>F { align1 +  } */
+   { 0x00600001, 0x20c003be, 0x008d0040, 0x00000000 },
+/*    mov (8) m7<1>F g3<8,8,1>F { align1 +  } */
+   { 0x00600001, 0x20e003be, 0x008d0060, 0x00000000 },
+/*    mov (8) m8<1>F 0{ align1 +  } */
+   { 0x00600001, 0x210073fe, 0x00000000, 0x00000000 },
 /*    mov (8) m9<1>F 1{ align1 +  } */
    { 0x00600001, 0x212073fe, 0x00000000, 0x3f800000 },
 /*    mov (8) m1<1>UD g1<8,8,1>UD { align1 mask_disable +  } */
@@ -2809,6 +2903,10 @@ brw_debug (ScrnInfoPtr pScrn, char *when)
       ErrorF("\t%34.34s: 0x%08x\n", svg_ctl_bits[i].name, v);
    }
 }
+
+#define WATCH_SF 0
+#define WATCH_WIZ 0
+#define WATCH_STATS 0
 
 static void
 BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
@@ -2874,7 +2972,9 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUTREG (INST_PM,
 	   (1 << (16 + 4)) |
 	   (1 << 4));
+#if 0
    ErrorF ("INST_PM 0x%08x\n", INREG(INST_PM));
+#endif
    
    assert((id == FOURCC_UYVY) || (id == FOURCC_YUY2));
 
@@ -3051,7 +3151,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    /* Set up the source surface state buffer */
    memset(src_surf_state, 0, sizeof(*src_surf_state));
    src_surf_state->ss0.surface_type = BRW_SURFACE_2D;
-   src_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
+/*   src_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32; */
    switch (id) {
    case FOURCC_YUY2:
       src_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_YCRCB_NORMAL;
@@ -3104,7 +3204,9 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    memcpy(vs_kernel, vs_kernel_static, sizeof (vs_kernel_static));
    
    memset(vs_state, 0, sizeof(*vs_state));
+#if 0
    ErrorF ("vs kernel: 0x%08x\n", state_base_offset + vs_kernel_offset);
+#endif
    vs_state->thread0.kernel_start_pointer =
 	    (state_base_offset + vs_kernel_offset) >> 6;
    vs_state->thread0.grf_reg_count = 1;
@@ -3122,25 +3224,29 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    memcpy (sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
    memset(sf_state, 0, sizeof(*sf_state));
+#if 0
    ErrorF ("sf kernel: 0x%08x\n", state_base_offset + sf_kernel_offset);
+#endif
    sf_state->thread0.kernel_start_pointer = 
 	       (state_base_offset + sf_kernel_offset) >> 6;
    sf_state->thread0.grf_reg_count = ((SF_KERNEL_NUM_GRF & ~15) / 16);
    sf_state->sf1.single_program_flow = 1; /* XXX */
    sf_state->sf1.binding_table_entry_count = 0;
    sf_state->sf1.thread_priority = 0;
-   sf_state->sf1.floating_point_mode = 1; /* Mesa does this */
+   sf_state->sf1.floating_point_mode = 0; /* Mesa does this */
    sf_state->sf1.illegal_op_exception_enable = 1;
    sf_state->sf1.mask_stack_exception_enable = 1;
    sf_state->sf1.sw_exception_enable = 1;
    sf_state->thread2.per_thread_scratch_space = 0;
    sf_state->thread2.scratch_space_base_pointer = 0; /* not used in our kernel */
-   sf_state->thread3.urb_entry_read_length = 1; /* XXX */
-   sf_state->thread3.urb_entry_read_offset = 1; /* XXX */
-   sf_state->thread3.dispatch_grf_start_reg = 3; /* XXX */
-   sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
-   sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
+   sf_state->thread3.const_urb_entry_read_length = 0; /* no const URBs */
+   sf_state->thread3.const_urb_entry_read_offset = 0; /* no const URBs */
+   sf_state->thread3.urb_entry_read_length = 1; /* 1 URB per vertex */
+   sf_state->thread3.urb_entry_read_offset = 0;
+   sf_state->thread3.dispatch_grf_start_reg = 3;
    sf_state->thread4.max_threads = MIN(12, URB_SF_ENTRIES / 2) - 1;
+   sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
+   sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
    sf_state->thread4.stats_enable = 1;
    sf_state->sf5.viewport_transform = FALSE; /* skip viewport */
    sf_state->sf6.cull_mode = BRW_CULLMODE_NONE;
@@ -3163,7 +3269,9 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     */
 
    memcpy (ps_kernel, ps_kernel_static, sizeof (ps_kernel_static));
+#if 0
    ErrorF ("ps kernel: 0x%08x\n", state_base_offset + ps_kernel_offset);
+#endif
    memset (wm_state, 0, sizeof (*wm_state));
    wm_state->thread0.kernel_start_pointer = 
 	    (state_base_offset + ps_kernel_offset) >> 6;
@@ -3173,13 +3281,13 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    wm_state->thread2.scratch_space_base_pointer = 0; /* XXX */
    wm_state->thread2.per_thread_scratch_space = 0; /* XXX */
    wm_state->thread3.dispatch_grf_start_reg = 10; /* XXX */
-   wm_state->thread3.urb_entry_read_length = 2; /* XXX */
+   wm_state->thread3.urb_entry_read_length = 3; /* XXX */
    wm_state->thread3.const_urb_entry_read_length = 0; /* XXX */
    wm_state->thread3.const_urb_entry_read_offset = 0; /* XXX */
    wm_state->thread3.urb_entry_read_offset = 0; /* XXX */
    wm_state->wm4.stats_enable = 1;
    wm_state->wm4.sampler_state_pointer = (state_base_offset + src_sampler_offset) >> 5;
-   wm_state->wm4.sampler_count = 0; /* XXX 1-4 samplers used */
+   wm_state->wm4.sampler_count = 1; /* XXX 1-4 samplers used */
    wm_state->wm5.max_threads = 0;   /* XXX should be PS_MAX_THREADS */
    wm_state->wm5.thread_dispatch_enable = 1;
    wm_state->wm5.enable_16_pix = 1;
@@ -3330,7 +3438,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    dxo = dstRegion->extents.x1;
    dyo = dstRegion->extents.y1;
 
-   ErrorF ("region origin %d, %d\n", dxo, dyo);
    pbox = REGION_RECTS(dstRegion);
    nbox = REGION_NUM_RECTS(dstRegion);
    while (nbox--)
@@ -3354,8 +3461,9 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
       pbox++;
 
-      src_scale_x = (float)src_w / (float)drw_w;
-      src_scale_y  = (float)src_h / (float)drw_h;
+      /* Use normalized texture coordinates */
+      src_scale_x = (float)1.0 / (float)drw_w;
+      src_scale_y  = (float)1.0 / (float)drw_h;
 
       i = 0;
       vb[i++] = (box_x2 - dxo) * src_scale_x;
@@ -3373,8 +3481,11 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       vb[i++] = (float) box_x1;
       vb[i++] = (float) box_y1;
 
+#if 0
       memset (vs_scratch, 1, VS_SCRATCH_SIZE);
+#endif
       
+#if 0
       ErrorF ("before EU_ATT 0x%08x%08x EU_ATT_DATA 0x%08x%08x\n",
 	      INREG(BRW_EU_ATT_1), INREG(BRW_EU_ATT_0),
 	      INREG(BRW_EU_ATT_DATA_1), INREG(BRW_EU_ATT_DATA_0));
@@ -3384,6 +3495,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	     BRW_VF_CTL_SNAPSHOT_TYPE_VERTEX_INDEX |
 	     BRW_VF_CTL_SNAPSHOT_ENABLE);
       OUTREG(BRW_VF_STRG_VAL, 0);
+#endif
       
 #if 0
       OUTREG(BRW_VS_CTL,
@@ -3394,18 +3506,22 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUTREG(BRW_VS_STRG_VAL, 0);
 #endif
       
+#if WATCH_SF
       OUTREG(BRW_SF_CTL,
 	     BRW_SF_CTL_SNAPSHOT_MUX_VERTEX_COUNT |
 	     BRW_SF_CTL_SNAPSHOT_ALL_THREADS |
 	     BRW_SF_CTL_THREAD_SNAPSHOT_ENABLE);
       OUTREG(BRW_SF_STRG_VAL, 0);
-      
+#endif
+
+#if WATCH_WIZ
       OUTREG(BRW_WIZ_CTL,
 	     BRW_WIZ_CTL_SNAPSHOT_MUX_SUBSPAN_INSTANCE |
 	     BRW_WIZ_CTL_SNAPSHOT_ALL_THREADS |
 	     BRW_WIZ_CTL_SNAPSHOT_ENABLE);
       OUTREG(BRW_WIZ_STRG_VAL,
 	     (box_x1) | (box_y1 << 16));
+#endif
       
 #if 0
       OUTREG(BRW_TS_CTL,
@@ -3431,6 +3547,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       int   j, k;
       CARD32	  ctl = 0, rdata;
       
+#if 0
       for (j = 0; j < 100000; j++) {
 	ctl = INREG(BRW_VF_CTL);
 	 if (ctl & BRW_VF_CTL_SNAPSHOT_COMPLETE)
@@ -3440,6 +3557,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       rdata = INREG(BRW_VF_RDATA);
       OUTREG(BRW_VF_CTL, 0);
       ErrorF ("VF_CTL: 0x%08x VF_RDATA: 0x%08x\n", ctl, rdata);
+#endif
 
 #if 0
       for (j = 0; j < 1000000; j++) {
@@ -3467,6 +3585,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 		 vs_scratch[j+6], vs_scratch[j+7]);
 #endif
 
+#if WATCH_SF
       for (j = 0; j < 1000000; j++) {
 	ctl = INREG(BRW_SF_CTL);
 	 if (ctl & BRW_SF_CTL_SNAPSHOT_COMPLETE)
@@ -3482,7 +3601,9 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       }
       
       OUTREG(BRW_SF_CTL, 0);
+#endif
 
+#if WATCH_WIZ
       for (j = 0; j < 100000; j++) {
 	ctl = INREG(BRW_WIZ_CTL);
 	 if (ctl & BRW_WIZ_CTL_SNAPSHOT_COMPLETE)
@@ -3492,7 +3613,9 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       rdata = INREG(BRW_WIZ_RDATA);
       OUTREG(BRW_WIZ_CTL, 0);
       ErrorF ("WIZ_CTL: 0x%08x WIZ_RDATA: 0x%08x\n", ctl, rdata);
+#endif
       
+#if 0
       for (j = 0; j < 100000; j++) {
 	ctl = INREG(BRW_TS_CTL);
 	 if (ctl & BRW_TS_CTL_SNAPSHOT_COMPLETE)
@@ -3506,6 +3629,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       ErrorF ("after EU_ATT 0x%08x%08x EU_ATT_DATA 0x%08x%08x\n",
 	      INREG(BRW_EU_ATT_1), INREG(BRW_EU_ATT_0),
 	      INREG(BRW_EU_ATT_DATA_1), INREG(BRW_EU_ATT_DATA_0));
+#endif
 
 #if 0
       for (j = 0; j < 256; j++) {
@@ -3521,7 +3645,9 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    if (pI830->AccelInfoRec)
       (*pI830->AccelInfoRec->Sync)(pScrn);
+#if WATCH_STATS
    I830PrintErrorState (pScrn);
+#endif
    xf86FreeOffscreenLinear(state_area);
 }
 
