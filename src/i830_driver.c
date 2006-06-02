@@ -5279,7 +5279,7 @@ I830BIOSLeaveVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
-      I830DRILock(pScrn);
+      DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
       
       drmCtlUninstHandler(pI830->drmSubFD);
    }
@@ -5611,7 +5611,7 @@ I830BIOSEnterVT(int scrnIndex, int flags)
 	 DO_RING_IDLE();
 
 	 DPRINTF(PFX, "calling dri unlock\n");
-	 I830DRIUnlock(pScrn);
+	 DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
       }
       pI830->LockHeld = 0;
    }
