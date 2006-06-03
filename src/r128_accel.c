@@ -221,6 +221,9 @@ void R128WaitForIdle(ScrnInfoPtr pScrn)
 		   INREG(R128_GUI_PROBE)));
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Idle timed out, resetting engine...\n");
+#ifdef XF86DRI
+        R128CCE_STOP(pScrn, info);
+#endif
 	R128EngineReset(pScrn);
 #ifdef XF86DRI
 	R128CCE_RESET(pScrn, info);
