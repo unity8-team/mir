@@ -748,6 +748,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define TV_HOTPLUG_INT_STATUS			(1 << 10)
 # define SDVOC_HOTPLUG_INT_STATUS		(1 << 7)
 # define SDVOB_HOTPLUG_INT_STATUS		(1 << 6)
+#define SDVOB_PRESERVE_MASK			((1 << 17) | (1 << 16) | (1 << 14))
 
 #define SDVOB			0x61140
 #define SDVOC			0x61160
@@ -765,7 +766,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SDVOB_PCIE_CONCURRENCY			(1 << 3)
 #define SDVO_DETECTED				(1 << 2)
 /* Bits to be preserved when writing */
-#define SDVO_PRESERVE_MASK			(1 << 17)
+#define SDVOC_PRESERVE_MASK			(1 << 17)
 
 #define I830_HTOTAL_MASK 	0xfff0000
 #define I830_HACTIVE_MASK	0x7ff

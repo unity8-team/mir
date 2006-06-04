@@ -139,7 +139,7 @@ I830SDVOSetTargetInput(I830SDVOPtr s, Bool target_1, Bool target_2)
     s->sdvo_regs[SDVO_I2C_ARG_0] = target_1;
     s->sdvo_regs[SDVO_I2C_ARG_1] = target_2;
 
-    I830SDVOWriteOutputs(s, 1);
+    I830SDVOWriteOutputs(s, 2);
 
     I830SDVOReadInputRegs(s);
 
@@ -218,7 +218,7 @@ I830SDVOSetTargetOutput(I830SDVOPtr s, Bool target_1, Bool target_2)
     s->sdvo_regs[SDVO_I2C_ARG_0] = target_1;
     s->sdvo_regs[SDVO_I2C_ARG_1] = target_2;
 
-    I830SDVOWriteOutputs(s, 1);
+    I830SDVOWriteOutputs(s, 2);
     I830SDVOReadInputRegs(s);
 
     return TRUE;
@@ -259,7 +259,7 @@ I830SDVOGetTimings(I830SDVOPtr s, i830_sdvo_dtd *dtd, CARD8 cmd)
     return TRUE;
 }
 
-/* Fetches either input or output timings to *dtd, depending on cmd. */
+/* Sets either input or output timings to *dtd, depending on cmd. */
 Bool
 I830SDVOSetTimings(I830SDVOPtr s, i830_sdvo_dtd *dtd, CARD8 cmd)
 {
@@ -286,7 +286,7 @@ I830SDVOSetTimings(I830SDVOPtr s, i830_sdvo_dtd *dtd, CARD8 cmd)
     s->sdvo_regs[SDVO_I2C_ARG_5] = dtd->sdvo_flags;
     s->sdvo_regs[SDVO_I2C_ARG_6] = dtd->v_sync_off_high;
     s->sdvo_regs[SDVO_I2C_ARG_7] = dtd->reserved;
-    I830SDVOWriteOutputs(s, 8);
+    I830SDVOWriteOutputs(s, 7);
     I830SDVOReadInputRegs(s);
 
     return TRUE;
@@ -477,6 +477,7 @@ I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
     CARD8 c17a[8];
     CARD16 out_timings[6];
     CARD16 clock_min, clock_max;
+    Bool out1, out2;
 
     /* do some mode translations */
     h_blank_len = mode->CrtcHBlankEnd - mode->CrtcHBlankStart;
@@ -516,30 +517,41 @@ I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
     out_timings[4] = c17a[5] | ((short)c17a[4] << 8);
     out_timings[5] = c17a[3] | ((short)c17a[2] << 8);
 
-    I830SDVOSetTargetInput(s, TRUE, TRUE);
+    I830SDVOSetTargetInput(s, FALSE, FALSE);
     I830SDVOGetInputPixelClockRange(s, &clock_min, &clock_max);
     ErrorF("clock min/max: %d %d\n", clock_min, clock_max);
 
+    I830SDVOGetActiveOutputs(s, &out1, &out2);
+    
     I830SDVOSetActiveOutputs(s, FALSE, FALSE);
 
-    I830SDVOSetTargetOutput(s, TRUE, TRUE);
+    I830SDVOSetTargetOutput(s, TRUE, FALSE);
     I830SDVOSetOutputTimingsPart1(s, clock, out_timings[0], out_timings[1],
 				  out_timings[2]);
     I830SDVOSetOutputTimingsPart2(s, out_timings[3], out_timings[4],
 				  out_timings[5]);
 
+    I830SDVOSetTargetInput (s, FALSE, FALSE);
+    
     I830SDVOCreatePreferredInputTiming(s, clock, width, height);
     I830SDVOGetPreferredInputTimingPart1(s);
     I830SDVOGetPreferredInputTimingPart2(s);
+    
+    I830SDVOSetTargetInput (s, FALSE, FALSE);
+    
     I830SDVOSetInputTimingsPart1(s, clock, curr_table[0], curr_table[1],
 				 curr_table[2]);
     I830SDVOSetInputTimingsPart2(s, curr_table[3], curr_table[4],
 				 out_timings[5]);
 
-    /*if (mode->PrivFlags & I830_MFLAG_DOUBLE)
-	I830SDVOSetClockRateMult(s, 0x02);
-    else */
-	I830SDVOSetClockRateMult(s, 0x01);
+    I830SDVOSetTargetInput (s, FALSE, FALSE);
+    
+    if (clock >= 10000)
+	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_1X);
+    else if (clock >= 5000)
+	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_2X);
+    else
+	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_4X);
 
     return TRUE;
 }
@@ -548,6 +560,7 @@ Bool
 I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
 {
     Bool ret = TRUE;
+    Bool out1, out2;
 
     /* the BIOS writes out 6 commands post mode set */
     /* two 03s, 04 05, 10, 1d */
@@ -564,7 +577,9 @@ I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
 	ret = FALSE;
     }
 
-    I830SDVOSetActiveOutputs(s, TRUE, TRUE);
+    I830SDVOGetActiveOutputs (s, &out1, &out2);
+    I830SDVOSetActiveOutputs(s, TRUE, FALSE);
+    I830SDVOSetTargetInput (s, FALSE, FALSE);
 
     return ret;
 }
@@ -580,7 +595,7 @@ i830SDVOSave(ScrnInfoPtr pScrn, int output_index)
 			     &sdvo->save_sdvo_active_2);
 
     if (sdvo->caps.caps & 0x1) {
-       I830SDVOSetTargetInput(sdvo, TRUE, FALSE);
+       I830SDVOSetTargetInput(sdvo, FALSE, FALSE);
        I830SDVOGetTimings(sdvo, &sdvo->save_input_dtd_1,
 			  SDVO_CMD_GET_INPUT_TIMINGS_PART1);
     }
@@ -622,7 +637,7 @@ i830SDVOPostRestore(ScrnInfoPtr pScrn, int output_index)
     I830SDVOPtr sdvo = pI830->output[output_index].sdvo_drv;
 
     if (sdvo->caps.caps & 0x1) {
-       I830SDVOSetTargetInput(sdvo, TRUE, FALSE);
+       I830SDVOSetTargetInput(sdvo, FALSE, FALSE);
        I830SDVOSetTimings(sdvo, &sdvo->save_input_dtd_1,
 			  SDVO_CMD_SET_INPUT_TIMINGS_PART1);
     }
@@ -829,4 +844,54 @@ I830SDVOInit(ScrnInfoPtr pScrn, int output_index, CARD32 output_device)
 	       sdvo->caps.output_1_supported ? 'Y' : 'N');
 
     return sdvo;
+}
+
+static void
+I830DumpSDVOCmd (I830SDVOPtr s, int opcode)
+{
+    memset (s->sdvo_regs, 0, sizeof (s->sdvo_regs));
+    s->sdvo_regs[SDVO_I2C_OPCODE] = opcode;
+    I830SDVOWriteOutputs (s, 0);
+    I830SDVOReadInputRegs (s);
+}
+
+static void
+I830DumpOneSDVO (I830SDVOPtr s)
+{
+    ErrorF ("Dump %s\n", s->d.DevName);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_DEVICE_CAPS);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_FIRMWARE_REV);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_TRAINED_INPUTS);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_ACTIVE_OUTPUTS);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_IN_OUT_MAP);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_ATTACHED_DISPLAYS);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_HOT_PLUG_SUPPORT);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_ACTIVE_HOT_PLUG);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_INTR_EVENT_SOURCE);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_INPUT_TIMINGS_PART1);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_INPUT_TIMINGS_PART2);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_OUTPUT_TIMINGS_PART1);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_OUTPUT_TIMINGS_PART2);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_PREFERRED_INPUT_TIMING_PART1);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_PREFERRED_INPUT_TIMING_PART2);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_INPUT_PIXEL_CLOCK_RANGE);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_OUTPUT_PIXEL_CLOCK_RANGE);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_SUPPORTED_CLOCK_RATE_MULTS);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_CLOCK_RATE_MULT);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_SUPPORTED_TV_FORMATS);
+    I830DumpSDVOCmd (s, SDVO_CMD_GET_TV_FORMAT);
+}
+		 
+void
+I830DumpSDVO (ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830SDVOPtr	s;
+    int	i;
+
+    for (i = 0; i < 4; i++) {
+	s = pI830->output[i].sdvo_drv;
+	if (s)
+	    I830DumpOneSDVO (s);
+    }
 }
