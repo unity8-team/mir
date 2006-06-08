@@ -728,8 +728,9 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
     mode &= ~RADEON_AGP_MODE_MASK;
     if ((mode & RADEON_AGPv3_MODE) &&
 	(INREG(RADEON_AGP_STATUS) & RADEON_AGPv3_MODE)) {
+	/* only set one mode bit for AGPv3 */
 	switch (info->agpMode) {
-	case 8:          mode |= RADEON_AGPv3_8X_MODE;
+	case 8:          mode |= RADEON_AGPv3_8X_MODE; break;
 	case 4: default: mode |= RADEON_AGPv3_4X_MODE;
 	}
 	/*TODO: need to take care of other bits valid for v3 mode

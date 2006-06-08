@@ -1,3 +1,9 @@
+2006-06-08  Michel Dänzer  <michel@tungstengraphics.com>
+
+	* src/radeon_dri.c: (RADEONSetAgpMode):
+	Bug #5678: Fix setting of transfer mode for AGPv3 devices
+	(Tilman Sauerbeck).
+
 2006-06-03  Daniel Stone  <daniel@freedesktop.org>
 
 	* src/r128_accel.c:
