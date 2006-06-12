@@ -4748,28 +4748,6 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    hwp = VGAHWPTR(pScrn);
 
    pScrn->displayWidth = pI830->displayWidth;
-   switch (pI830->InitialRotation) {
-      case 0:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 0 degrees\n");
-         pI830->rotation = RR_Rotate_0;
-         break;
-      case 90:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 90 degrees\n");
-         pI830->rotation = RR_Rotate_90;
-         break;
-      case 180:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 180 degrees\n");
-         pI830->rotation = RR_Rotate_180;
-         break;
-      case 270:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 270 degrees\n");
-         pI830->rotation = RR_Rotate_270;
-         break;
-      default:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bad rotation setting - defaulting to 0 degrees\n");
-         pI830->rotation = RR_Rotate_0;
-         break;
-   }
 
    if (I830IsPrimary(pScrn)) {
       /* Rotated Buffer */
@@ -5157,6 +5135,29 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->starting = FALSE;
    pI830->closing = FALSE;
    pI830->suspended = FALSE;
+
+   switch (pI830->InitialRotation) {
+      case 0:
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 0 degrees\n");
+         pI830->rotation = RR_Rotate_0;
+         break;
+      case 90:
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 90 degrees\n");
+         pI830->rotation = RR_Rotate_90;
+         break;
+      case 180:
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 180 degrees\n");
+         pI830->rotation = RR_Rotate_180;
+         break;
+      case 270:
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 270 degrees\n");
+         pI830->rotation = RR_Rotate_270;
+         break;
+      default:
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bad rotation setting - defaulting to 0 degrees\n");
+         pI830->rotation = RR_Rotate_0;
+         break;
+   }
 
    return TRUE;
 }
