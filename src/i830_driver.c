@@ -952,7 +952,28 @@ I830Set640x480(ScrnInfoPtr pScrn)
 	 break;
    }
    m |= (1 << 15) | (1 << 14);
-   return VBESetVBEMode(pI830->pVbe, m, NULL);
+   if (VBESetVBEMode(pI830->pVbe, m, NULL))
+	   return TRUE;
+
+   /* if the first failed, let's try the next - usually 800x600 */
+   m = 0x31;
+
+   switch (pScrn->depth) {
+   case 15:
+	 m = 0x42;
+	 break;
+   case 16:
+	 m = 0x43;
+	 break;
+   case 24:
+	 m = 0x51;
+	 break;
+   }
+   m |= (1 << 15) | (1 << 14);
+   if (VBESetVBEMode(pI830->pVbe, m, NULL))
+	   return TRUE;
+
+   return FALSE;
 }
 
 /* This is needed for SetDisplayDevices to work correctly on I915G.
@@ -5535,9 +5556,7 @@ I830BIOSEnterVT(int scrnIndex, int flags)
       * the Video BIOS with our saved devices, and only when that fails,
       * we'll warm boot it.
       */
-     /* Check Pipe conf registers or possibly HTOTAL/VTOTAL for 0x00000000)*/
-      CARD32 temp = pI830->pipe ? INREG(PIPEBCONF) : INREG(PIPEACONF);
-      if (!I830Set640x480(pScrn) || !(temp & 0x80000000)) {
+      if (!I830Set640x480(pScrn)) {
          xf86Int10InfoPtr pInt;
 
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
