@@ -956,17 +956,14 @@ I830Set640x480(ScrnInfoPtr pScrn)
 	   return TRUE;
 
    /* if the first failed, let's try the next - usually 800x600 */
-   m = 0x31;
-
+   m = 0x32;
    switch (pScrn->depth) {
    case 15:
+   case 16:
 	 m = 0x42;
 	 break;
-   case 16:
-	 m = 0x43;
-	 break;
    case 24:
-	 m = 0x51;
+	 m = 0x52;
 	 break;
    }
    m |= (1 << 15) | (1 << 14);
