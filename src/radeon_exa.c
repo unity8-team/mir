@@ -262,7 +262,7 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 offset = exaGetPixmapOffset(pPix);
-    int bpp, soff;
+    int soff;
 
     /* Front buffer is always set with proper swappers */
     if (offset == 0)
