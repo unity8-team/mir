@@ -1,5 +1,7 @@
+*~
 *.la
 *.lo
+.#*
 .deps
 .libs
 Makefile
@@ -17,6 +19,8 @@ config.status
 config.sub
 configure
 configure.lineno
+cscope.files
+cscope.out
 depcomp
 install-sh
 libtool
