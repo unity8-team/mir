@@ -38,6 +38,9 @@
 #ifndef _RADEON_H_
 #define _RADEON_H_
 
+#include <stdlib.h>		/* For abs() */
+#include <unistd.h>		/* For usleep() */
+
 #include "xf86str.h"
 #include "compiler.h"
 #include "xf86fbman.h"
