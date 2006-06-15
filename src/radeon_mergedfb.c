@@ -347,8 +347,6 @@ RADEONGenerateModeListFromLargestModes(ScrnInfoPtr pScrn,
     DisplayModePtr mode3 = NULL;
     DisplayModePtr mode4 = NULL;
     DisplayModePtr result = NULL;
-    int p = 0;
-    int count = 0;
 
     info->AtLeastOneNonClone = FALSE;
 

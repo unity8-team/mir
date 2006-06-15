@@ -177,8 +177,7 @@ ATIProbeAndSetActiveDisplays
     xf86LoaderRefSymLists(vbeSymbols, NULL);
 
     if (xf86GetVerbosity() > 3) {
-	xf86ErrorFVerb(4, "\n Before TV-Out queries\n\n",
-		       pScreenInfo->currentMode->name);
+	xf86ErrorFVerb(4, "\n Before TV-Out queries\n\n");
 	ATIPrintRegisters(pATI);
     }
 

@@ -134,8 +134,8 @@ RADEONCursorAllocEXA(ScreenPtr pScreen)
 	info->cursor_offset = 0;
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Using hardware cursor\n",
-		   info->cursor_offset = info->cursorArea->offset);
+		   "Using hardware cursor\n");
+        info->cursor_offset = info->cursorArea->offset;
 
 	RADEONCTRACE(("%s (0x%08x-0x%08x)\n", __func__,
 		      info->cursor_offset,
@@ -357,9 +357,6 @@ static Bool RADEONUseHWCursor(ScreenPtr pScreen, CursorPtr pCurs)
 
 static Bool RADEONUseHWCursorARGB (ScreenPtr pScreen, CursorPtr pCurs)
 {
-    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
-    RADEONInfoPtr  info  = RADEONPTR(pScrn);
-
     if (RADEONUseHWCursor(pScreen, pCurs) &&
 	pCurs->bits->height <= CURSOR_HEIGHT && pCurs->bits->width <= CURSOR_WIDTH)
 	return TRUE;
