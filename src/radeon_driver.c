@@ -2301,7 +2301,7 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    unsigned long agp_size, agp_base, mem_size;
+    unsigned long mem_size;
 
     /* Default to existing values */
     info->mc_fb_location = INREG(RADEON_MC_FB_LOCATION);
@@ -2366,8 +2366,6 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 
     RADEONTRACE(("RADEONInitMemoryMap() : \n"));
     RADEONTRACE(("  mem_size         : 0x%08lx\n", mem_size));
-    RADEONTRACE(("  agp_size         : 0x%08lx\n", agp_size));
-    RADEONTRACE(("  agp_base         : 0x%08lx\n", agp_base));
     RADEONTRACE(("  MC_FB_LOCATION   : 0x%08lx\n", info->mc_fb_location));
     RADEONTRACE(("  MC_AGP_LOCATION  : 0x%08lx\n", info->mc_agp_location));
 }
@@ -2421,8 +2419,6 @@ static CARD32 RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     EntityInfoPtr  pEnt   = info->pEnt;
-    GDevPtr        dev    = pEnt->device;
-    MessageType    from;
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32	   aper_size = INREG(RADEON_CONFIG_APER_SIZE) / 1024;
 
@@ -8834,7 +8830,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    int            reg, Base, regcntl, crtcoffsetcntl, xytilereg, crtcxytile;
+    int            reg, Base, regcntl, crtcoffsetcntl, xytilereg, crtcxytile = 0;
 #ifdef XF86DRI
     RADEONSAREAPrivPtr pSAREAPriv;
     XF86DRISAREAPtr pSAREA;

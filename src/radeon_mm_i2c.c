@@ -118,7 +118,6 @@ static void RADEON_I2C_Halt (ScrnInfoPtr pScrn)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD8    reg;
-    long counter = 0;
 
     /* reset status flags */
     RADEONWaitForIdleMMIO(pScrn);
@@ -304,6 +303,7 @@ static Bool R200_I2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
     return TRUE;
 }
 
+#if 0
 static Bool RADEONProbeAddress(I2CBusPtr b, I2CSlaveAddr addr)
 {
      I2CByte a;
@@ -316,6 +316,7 @@ static Bool RADEONProbeAddress(I2CBusPtr b, I2CSlaveAddr addr)
      
      return I2C_WriteRead(&d, NULL, 0, &a, 1);
 }
+#endif
 
 #define I2C_CLOCK_FREQ     (60000.0)
 
@@ -378,8 +379,6 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     double nm;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONPLLPtr  pll = &(info->pll);
-    int i;
-    unsigned char *RADEONMMIO = info->MMIO;
 
     pPriv->i2c = NULL;
     pPriv->fi1236 = NULL;

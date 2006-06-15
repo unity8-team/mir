@@ -1197,7 +1197,6 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
     int            major, minor, patch, fd;
     int		   req_minor, req_patch;
     char           *busId;
-    drmVersionPtr  libVersion;
 
     /* Check that the GLX, DRI, and DRM modules have been loaded by testing
      * for known symbols in each module.
@@ -1332,7 +1331,6 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     RADEONInfoPtr  info    = RADEONPTR(pScrn);
     DRIInfoPtr     pDRIInfo;
     RADEONDRIPtr   pRADEONDRI;
-    drmVersionPtr  version;
 
     info->DRICloseScreen = NULL;
 
