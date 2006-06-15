@@ -33,6 +33,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 /* Driver data structures */
 #include "ati.h"
@@ -681,7 +682,6 @@ static Bool ATIDRISetAgpMode( ScreenPtr pScreen )
 
    if (pATI->OptionAGPSize) {
       switch (pATI->OptionAGPSize) {
-      case 256:
       case 128:
       case  64:
       case  32:
@@ -775,8 +775,7 @@ static Bool ATIDRIAgpInit( ScreenPtr pScreen )
       if (pATI->OptionBufferSize > 2) {
 	 xf86DrvMsg( pScreen->myNum, X_WARNING, "[agp] Illegal DMA buffers size: %d MB\n",
 		     pATI->OptionBufferSize );
-	 xf86DrvMsg( pScreen->myNum, X_WARNING, "[agp] Clamping DMA buffers size to 2 MB\n",
-		     pATI->OptionBufferSize );
+	 xf86DrvMsg( pScreen->myNum, X_WARNING, "[agp] Clamping DMA buffers size to 2 MB\n");
 	 pATIDRIServer->bufferSize = 2;
       } else {
 	 pATIDRIServer->bufferSize = pATI->OptionBufferSize;
@@ -817,7 +816,7 @@ static Bool ATIDRIAgpInit( ScreenPtr pScreen )
       return FALSE;
    }
    xf86DrvMsg( pScreen->myNum, X_INFO,
-	       "[agp] ring handle = 0x%08lx\n",
+	       "[agp] ring handle = 0x%08x\n",
 	       pATIDRIServer->ringHandle );
 
    if ( drmMap( pATI->drmFD, pATIDRIServer->ringHandle,
@@ -838,7 +837,7 @@ static Bool ATIDRIAgpInit( ScreenPtr pScreen )
       return FALSE;
    }
    xf86DrvMsg( pScreen->myNum, X_INFO,
-	       "[agp] vertex buffers handle = 0x%08lx\n",
+	       "[agp] vertex buffers handle = 0x%08x\n",
 	       pATIDRIServer->bufferHandle );
 
    if ( drmMap( pATI->drmFD, pATIDRIServer->bufferHandle,
@@ -859,7 +858,7 @@ static Bool ATIDRIAgpInit( ScreenPtr pScreen )
       return FALSE;
    }
    xf86DrvMsg(pScreen->myNum, X_INFO,
-	      "[agp] AGP texture region handle = 0x%08lx\n",
+	      "[agp] AGP texture region handle = 0x%08x\n",
 	      pATIDRIServer->agpTexHandle);
 
    if (drmMap(pATI->drmFD, pATIDRIServer->agpTexHandle, pATIDRIServer->agpTexMapSize,
@@ -928,7 +927,7 @@ static Bool ATIDRIMapInit( ScreenPtr pScreen )
       return FALSE;
    }
    xf86DrvMsg( pScreen->myNum, X_INFO,
-	       "[drm] register handle = 0x%08lx\n",
+	       "[drm] register handle = 0x%08x\n",
 	       pATIDRIServer->regsHandle );
 
    return TRUE;
@@ -1023,7 +1022,7 @@ static Bool ATIDRIMapBuffers( ScreenPtr pScreen )
    xf86DrvMsg( pScreen->myNum, X_INFO,
 	       "[drm] Mapped %d DMA buffers at 0x%08lx\n",
 	       pATIDRIServer->drmBuffers->count,
-	       pATIDRIServer->drmBuffers->list->address );
+	       (unsigned long)pATIDRIServer->drmBuffers->list->address );
 
    return TRUE;
 }
@@ -1061,8 +1060,7 @@ static Bool ATIDRIIrqInit( ScreenPtr pScreen )
 		    pATI->irq);
       else {
 	 xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO,
-		    "[drm] Falling back to irq-free operation\n",
-		    pATI->irq);
+		    "[drm] Falling back to irq-free operation\n");
 	 return FALSE;
       }
    }
@@ -1152,7 +1150,7 @@ Bool ATIDRIScreenInit( ScreenPtr pScreen )
    pDRIInfo->ddxDriverMajorVersion = ATI_VERSION_MAJOR;
    pDRIInfo->ddxDriverMinorVersion = ATI_VERSION_MINOR;
    pDRIInfo->ddxDriverPatchVersion = ATI_VERSION_PATCH;
-   pDRIInfo->frameBufferPhysicalAddress = pATI->LinearBase;
+   pDRIInfo->frameBufferPhysicalAddress = (void *)pATI->LinearBase;
    pDRIInfo->frameBufferSize = pATI->LinearSize;
    pDRIInfo->frameBufferStride = (pScreenInfo->displayWidth *
 				  pATI->FBBytesPerPixel);
@@ -1317,8 +1315,7 @@ Bool ATIDRIScreenInit( ScreenPtr pScreen )
 	 if (pATI->OptionBufferSize > 2) {
 	    xf86DrvMsg( pScreen->myNum, X_WARNING, "[pci] Illegal DMA buffers size: %d MB\n",
 			pATI->OptionBufferSize );
-	    xf86DrvMsg( pScreen->myNum, X_WARNING, "[pci] Clamping DMA buffers size to 2 MB\n",
-			pATI->OptionBufferSize );
+	    xf86DrvMsg( pScreen->myNum, X_WARNING, "[pci] Clamping DMA buffers size to 2 MB\n");
 	    pATIDRIServer->bufferSize = 2;
 	 } else {
 	    pATIDRIServer->bufferSize = pATI->OptionBufferSize;
@@ -1462,8 +1459,6 @@ void ATIDRIResume( ScreenPtr pScreen )
    ScrnInfoPtr pScreenInfo = xf86Screens[pScreen->myNum];
    ATIPtr pATI = ATIPTR(pScreenInfo);
    ATIDRIServerInfoPtr pATIDRIServer = pATI->pDRIServerInfo;
-
-   int ret;
 
    xf86DrvMsg( pScreen->myNum, X_INFO,
 		 "[RESUME] Attempting to re-init Mach64 hardware.\n");
