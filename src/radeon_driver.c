@@ -93,6 +93,7 @@
 
 				/* X and server generic header files */
 #include "xf86.h"
+#include "xf86_ansic.h"		/* For xf86getsecs() */
 #include "xf86_OSproc.h"
 #include "xf86RAC.h"
 #include "xf86Resources.h"
@@ -4466,9 +4467,9 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 
 static Bool RADEONPreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
 {
+#if !defined(__powerpc__)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
-#if !defined(__powerpc__)
     if (xf86LoadSubModule(pScrn, "int10")) {
 	xf86LoaderReqSymLists(int10Symbols, NULL);
 	xf86DrvMsg(pScrn->scrnIndex,X_INFO,"initializing int10\n");
@@ -6217,8 +6218,8 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "Timeout trying to update memory controller settings !\n");
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "MC_STATUS = 0x%08lx (on entry = 0x%08lx)\n",
-		    INREG(RADEON_MC_STATUS), old_mc_status);
+			   "MC_STATUS = 0x%08x (on entry = 0x%08x)\n",
+			   INREG(RADEON_MC_STATUS), (unsigned int)old_mc_status);
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "You will probably crash now ... \n");
 		/* Nothing we can do except maybe try to kill the server,
@@ -7692,8 +7693,8 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     OUTREG(RADEON_GRPH_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
 				     (critical_point << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
 
-    RADEONTRACE(("GRPH_BUFFER_CNTL from %lx to %lx\n",
-	       info->SavedReg.grph_buffer_cntl, INREG(RADEON_GRPH_BUFFER_CNTL)));
+    RADEONTRACE(("GRPH_BUFFER_CNTL from %x to %x\n",
+		 (unsigned int)info->SavedReg.grph_buffer_cntl, INREG(RADEON_GRPH_BUFFER_CNTL)));
 
     if (mode2) {
 	stop_req = mode2->HDisplay * info2->CurrentLayout.pixel_bytes / 16;
@@ -7740,8 +7741,8 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
 	OUTREG(RADEON_GRPH2_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
 					  (critical_point2 << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
 
-	RADEONTRACE(("GRPH2_BUFFER_CNTL from %lx to %lx\n",
-		     info->SavedReg.grph2_buffer_cntl, INREG(RADEON_GRPH2_BUFFER_CNTL)));
+	RADEONTRACE(("GRPH2_BUFFER_CNTL from %x to %x\n",
+		     (unsigned int)info->SavedReg.grph2_buffer_cntl, INREG(RADEON_GRPH2_BUFFER_CNTL)));
     }
 }   
 

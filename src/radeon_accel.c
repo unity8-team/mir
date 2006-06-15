@@ -133,7 +133,7 @@ void RADEONWaitForFifoFunction(ScrnInfoPtr pScrn, int entries)
 		INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK;
 	    if (info->fifo_slots >= entries) return;
 	}
-	RADEONTRACE(("FIFO timed out: %ld entries, stat=0x%08lx\n",
+	RADEONTRACE(("FIFO timed out: %u entries, stat=0x%08x\n",
 		     INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
 		     INREG(RADEON_RBBM_STATUS)));
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -164,7 +164,7 @@ void RADEONEngineFlush(ScrnInfoPtr pScrn)
 	    break;
     }
     if (i == RADEON_TIMEOUT) {
-	RADEONTRACE(("DC flush timeout: %lx\n",
+	RADEONTRACE(("DC flush timeout: %x\n",
 		    INREG(RADEON_RB3D_DSTCACHE_CTLSTAT)));
     }
 }

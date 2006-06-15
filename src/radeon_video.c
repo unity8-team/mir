@@ -2726,9 +2726,6 @@ RADEONPutImage(
    int top, left, npixels, nlines, bpp;
    BoxRec dstBox;
    CARD32 tmp;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-   unsigned char *RADEONMMIO = info->MMIO;
-#endif
 
    /*
     * s2offset, s3offset - byte offsets into U and V plane of the
