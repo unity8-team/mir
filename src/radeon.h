@@ -892,7 +892,7 @@ do {									\
 #define BEGIN_RING(n) do {						\
     if (RADEON_VERBOSE) {						\
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,				\
-		   "BEGIN_RING(%d) in %s\n", n, __FUNCTION__);		\
+		   "BEGIN_RING(%d) in %s\n", (unsigned int)n, __FUNCTION__);\
     }									\
     if (++info->dma_begin_count != 1) {					\
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,				\
