@@ -2,6 +2,7 @@
 #include "config.h"
 #endif
 
+#include <unistd.h>
 #include "xf86.h"
 #include "generic_bus.h"
 #include "theatre.h"
@@ -1795,7 +1796,7 @@ void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
     	counter++;
 	}
     dwTempContrast = ReadRT_fld (fld_LP_CONTRAST);
-    if(counter>=10000)xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre: timeout waiting for line count (%d)\n", ReadRT_fld (fld_VS_LINE_COUNT));
+    if(counter>=10000)xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre: timeout waiting for line count (%ld)\n", ReadRT_fld (fld_VS_LINE_COUNT));
 
 
     WriteRT_fld (fld_LP_CONTRAST, 0x0);
@@ -1850,7 +1851,7 @@ void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
     	counter++;
 	}
     WriteRT_fld (fld_LP_CONTRAST, dwTempContrast);
-    if(counter>=10000)xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre: timeout waiting for line count (%d)\n", ReadRT_fld (fld_VS_LINE_COUNT));
+    if(counter>=10000)xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre: timeout waiting for line count (%ld)\n", ReadRT_fld (fld_VS_LINE_COUNT));
 
 
 
@@ -1941,7 +1942,7 @@ void DumpRageTheatreRegs(TheatrePtr t)
     for(i=0;i<0x900;i+=4)
     {
        RT_regr(i, &data);
-       xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "register 0x%04x is equal to 0x%08x\n", i, data);
+       xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "register 0x%04x is equal to 0x%08lx\n", i, data);
     }   
 
 }
@@ -2141,21 +2142,18 @@ void DumpRageTheatreRegsByName(TheatrePtr t)
     { "Y_FALL_CNTL             ", 0x01cc },
     { "Y_RISE_CNTL             ", 0x01d0 },
     { "Y_SAW_TOOTH_CNTL        ", 0x01d4 },
-    {NULL, NULL}
+    {NULL, 0}
     };
 
     for(i=0; rt_reg_list[i].name!=NULL;i++){
         RT_regr(rt_reg_list[i].addr, &data);
-        xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "register (0x%04x) %s is equal to 0x%08x\n", rt_reg_list[i].addr, rt_reg_list[i].name, data);
+        xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "register (0x%04lx) %s is equal to 0x%08lx\n", rt_reg_list[i].addr, rt_reg_list[i].name, data);
     	}
 
 }
 
 void ResetTheatreRegsForNoTVout(TheatrePtr t)
 {
-    int i;
-    CARD32 data;
-    
      RT_regw(VIP_CLKOUT_CNTL, 0x0); 
      RT_regw(VIP_HCOUNT, 0x0); 
      RT_regw(VIP_VCOUNT, 0x0); 
@@ -2170,9 +2168,6 @@ void ResetTheatreRegsForNoTVout(TheatrePtr t)
 
 void ResetTheatreRegsForTVout(TheatrePtr t)
 {
-    int i;
-    CARD32 data;
-    
 /*    RT_regw(VIP_HW_DEBUG, 0x200);   */
 /*     RT_regw(VIP_INT_CNTL, 0x0); 
      RT_regw(VIP_GPIO_INOUT, 0x10090000); 
@@ -2187,7 +2182,7 @@ void ResetTheatreRegsForTVout(TheatrePtr t)
      RT_regw(VIP_VCOUNT, 0x151);
 #endif
      RT_regw(VIP_DFCOUNT, 0x01); 
-/*     RT_regw(VIP_CLOCK_SEL_CNTL, 0xb7);  /* versus 0x237 <-> 0x2b7 */
+/*     RT_regw(VIP_CLOCK_SEL_CNTL, 0xb7);   versus 0x237 <-> 0x2b7 */
      RT_regw(VIP_CLOCK_SEL_CNTL, 0x2b7);  /* versus 0x237 <-> 0x2b7 */
      RT_regw(VIP_VIN_PLL_CNTL, 0x60a6039);
 /*     RT_regw(VIP_PLL_CNTL1, 0xacacac74); */

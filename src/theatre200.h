@@ -62,14 +62,14 @@
 #define ERROR_3(str,param1,param2,param3) xf86DrvMsg(screen, X_ERROR, str, param1, param2, param3)
 #define DEBUG_3(str,param1,param2,param3) xf86DrvMsg(screen, X_INFO, str, param1, param2, param3) 
 #else
-#define ERROR_0(str)
-#define DEBUG_0(str)
-#define ERROR(str,param1)
-#define DEBUG(str,param1)
-#define ERROR_2(str,param1,param2)
-#define DEBUG_2(str,param1,param2)
-#define ERROR_3(str,param1,param2,param3)
-#define DEBUG_3(str,param1,param2,param3)
+#define ERROR_0(str) (void)screen
+#define DEBUG_0(str) (void)screen
+#define ERROR(str,param1) (void)screen
+#define DEBUG(str,param1) (void)screen
+#define ERROR_2(str,param1,param2) (void)screen
+#define DEBUG_2(str,param1,param2) (void)screen
+#define ERROR_3(str,param1,param2,param3) (void)screen
+#define DEBUG_3(str,param1,param2,param3) (void)screen
 #endif
 
 
