@@ -2418,7 +2418,6 @@ static void RADEONGetVRamType(ScrnInfoPtr pScrn)
 static CARD32 RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
-    EntityInfoPtr  pEnt   = info->pEnt;
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32	   aper_size = INREG(RADEON_CONFIG_APER_SIZE) / 1024;
 
