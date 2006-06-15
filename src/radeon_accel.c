@@ -785,7 +785,9 @@ RADEONHostDataBlitCopyPass(
     unsigned int srcPitch
 ){
 
+#if X_BYTE_ORDER == X_BIG_ENDIAN
     RADEONInfoPtr info = RADEONPTR( pScrn );
+#endif
 
     /* RADEONHostDataBlitCopy can return NULL ! */
     if( (dst==NULL) || (src==NULL)) return;
@@ -828,7 +830,9 @@ RADEONHostDataBlitCopyPass(
 	    }
 #endif
 	    memcpy( dst, src, minPitch );
+#if X_BYTE_ORDER == X_BIG_ENDIAN
 	next:
+#endif
 	    src += srcPitch;
 	    dst += dstPitch;
 	}

@@ -38,6 +38,7 @@
 #ifndef _R128_H_
 #define _R128_H_
 
+#include <unistd.h>
 #include "xf86str.h"
 
 				/* PCI support */

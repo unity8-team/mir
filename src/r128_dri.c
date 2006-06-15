@@ -33,6 +33,7 @@
 #endif
 
 #include <string.h>
+#include <stdio.h>
 
 /*
  * Authors:
@@ -1036,7 +1037,7 @@ Bool R128DRIScreenInit(ScreenPtr pScreen)
     pDRIInfo->ddxDriverMajorVersion      = R128_VERSION_MAJOR;
     pDRIInfo->ddxDriverMinorVersion      = R128_VERSION_MINOR;
     pDRIInfo->ddxDriverPatchVersion      = R128_VERSION_PATCH;
-    pDRIInfo->frameBufferPhysicalAddress = info->LinearAddr;
+    pDRIInfo->frameBufferPhysicalAddress = (void *)info->LinearAddr;
     pDRIInfo->frameBufferSize            = info->FbMapSize;
     pDRIInfo->frameBufferStride          = (pScrn->displayWidth *
 					    info->CurrentLayout.pixel_bytes);
