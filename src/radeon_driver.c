@@ -745,7 +745,7 @@ static Bool RADEONMapFB(ScrnInfoPtr pScrn)
     if (info->FBDev) {
 	info->FB = fbdevHWMapVidmem(pScrn);
     } else {
-	RADEONTRACE(("Map: 0x%08x, 0x%08x\n", info->LinearAddr, info->FbMapSize));
+	RADEONTRACE(("Map: 0x%08lx, 0x%08lx\n", info->LinearAddr, info->FbMapSize));
 	info->FB = xf86MapPciMem(pScrn->scrnIndex,
 				 VIDMEM_FRAMEBUFFER,
 				 info->PciTag,
@@ -2418,7 +2418,6 @@ static void RADEONGetVRamType(ScrnInfoPtr pScrn)
 static CARD32 RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
-    EntityInfoPtr  pEnt   = info->pEnt;
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32	   aper_size = INREG(RADEON_CONFIG_APER_SIZE) / 1024;
 
@@ -2430,7 +2429,7 @@ static CARD32 RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
     if (info->directRenderingEnabled &&
 	info->pKernelDRMVersion->version_minor < 23) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "[dri] limiting video memory to one aperture of %dK\n",
+		   "[dri] limiting video memory to one aperture of %ldK\n",
 		   aper_size);
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "[dri] detected radeon kernel module version 1.%d but"
@@ -2521,8 +2520,8 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
 	    accessible = bar_size;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Detected total video RAM=%dK, accessible=%dK "
-		   "(PCI BAR=%dK)\n",
+	       "Detected total video RAM=%dK, accessible=%ldK "
+		   "(PCI BAR=%ldK)\n",
 	       pScrn->videoRam, accessible, bar_size);
 	if (pScrn->videoRam > accessible)
 	    pScrn->videoRam = accessible;
@@ -4857,7 +4856,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	goto fail1;
     }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "MMIO registers at 0x%08lx: size %dKB\n", info->MMIOAddr, info->MMIOSize / 1024);
+	       "MMIO registers at 0x%08lx: size %ldKB\n", info->MMIOAddr, info->MMIOSize / 1024);
 
     if(!RADEONMapMMIO(pScrn)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -5608,7 +5607,7 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
 	       info->depthOffset);
     if (info->cardType==CARD_PCIE)
     	xf86DrvMsg(scrnIndex, X_INFO,
-	           "Will use %d kb for PCI GART table at offset 0x%x\n",
+	           "Will use %d kb for PCI GART table at offset 0x%lx\n",
 		   info->pciGartSize/1024, info->pciGartOffset);
     xf86DrvMsg(scrnIndex, X_INFO,
 	       "Will use %d kb for textures at offset 0x%x\n",
@@ -5700,7 +5699,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     char*          s;
 #endif
 
-    RADEONTRACE(("RADEONScreenInit %x %d\n",
+    RADEONTRACE(("RADEONScreenInit %lx %ld\n",
 		 pScrn->memPhysBase, pScrn->fbOffset));
 
     info->accelOn      = FALSE;
@@ -5928,7 +5927,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 				 &(info->textureSize))) {
 	    if (info->textureSize < 0 || info->textureSize > 100) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Illegal texture memory percentage: %dx, setting to default 50%\n",
+			   "Illegal texture memory percentage: %dx, setting to default 50%%\n",
 			   info->textureSize);
 		info->textureSize = 50;
 	    }
@@ -6154,7 +6153,7 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    int i, timeout;
+    int timeout;
 
     RADEONTRACE(("RADEONRestoreMemMapRegisters() : \n"));
     RADEONTRACE(("  MC_FB_LOCATION   : 0x%08lx\n", restore->mc_fb_location));
@@ -6218,7 +6217,7 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "Timeout trying to update memory controller settings !\n");
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "MC_STATUS = 0x%08x (on entry = 0x%08x)\n",
+		    "MC_STATUS = 0x%08lx (on entry = 0x%08lx)\n",
 		    INREG(RADEON_MC_STATUS), old_mc_status);
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "You will probably crash now ... \n");
@@ -6400,7 +6399,7 @@ static void RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    RADEONTRACE(("Programming CRTC1, offset: 0x%08x\n",
+    RADEONTRACE(("Programming CRTC1, offset: 0x%08lx\n",
 		 restore->crtc_offset));
 
     /* We prevent the CRTC from hitting the memory controller until
@@ -6448,7 +6447,7 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32	   crtc2_gen_cntl;
 
-    RADEONTRACE(("Programming CRTC2, offset: 0x%08x\n",
+    RADEONTRACE(("Programming CRTC2, offset: 0x%08lx\n",
 		 restore->crtc2_offset));
 
     crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL) &
@@ -6693,7 +6692,7 @@ static void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
 	      | RADEON_PPLL_ATOMIC_UPDATE_EN
 	      | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN));
 
-    RADEONTRACE(("Wrote: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
+    RADEONTRACE(("Wrote: 0x%08x 0x%08x 0x%08lx (0x%08x)\n",
 	       restore->ppll_ref_div,
 	       restore->ppll_div_3,
 	       restore->htotal_cntl,
@@ -6752,12 +6751,12 @@ static void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
 	      | RADEON_P2PLL_ATOMIC_UPDATE_EN
 	      | RADEON_P2PLL_VGA_ATOMIC_UPDATE_EN));
 
-    RADEONTRACE(("Wrote: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
+    RADEONTRACE(("Wrote: 0x%08lx 0x%08lx 0x%08lx (0x%08x)\n",
 	       restore->p2pll_ref_div,
 	       restore->p2pll_div_0,
 	       restore->htotal_cntl2,
 	       INPLL(pScrn, RADEON_P2PLL_CNTL)));
-    RADEONTRACE(("Wrote: rd=%d, fd=%d, pd=%d\n",
+    RADEONTRACE(("Wrote: rd=%ld, fd=%ld, pd=%ld\n",
 	       restore->p2pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
 	       restore->p2pll_div_0 & RADEON_P2PLL_FB0_DIV_MASK,
 	       (restore->p2pll_div_0 & RADEON_P2PLL_POST0_DIV_MASK) >>16));
@@ -7190,7 +7189,7 @@ static void RADEONSavePLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->ppll_div_3   = INPLL(pScrn, RADEON_PPLL_DIV_3);
     save->htotal_cntl  = INPLL(pScrn, RADEON_HTOTAL_CNTL);
 
-    RADEONTRACE(("Read: 0x%08x 0x%08x 0x%08x\n",
+    RADEONTRACE(("Read: 0x%08x 0x%08x 0x%08lx\n",
 		 save->ppll_ref_div,
 		 save->ppll_div_3,
 		 save->htotal_cntl));
@@ -7207,11 +7206,11 @@ static void RADEONSavePLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->p2pll_div_0   = INPLL(pScrn, RADEON_P2PLL_DIV_0);
     save->htotal_cntl2  = INPLL(pScrn, RADEON_HTOTAL2_CNTL);
 
-    RADEONTRACE(("Read: 0x%08x 0x%08x 0x%08x\n",
+    RADEONTRACE(("Read: 0x%08lx 0x%08lx 0x%08lx\n",
 		 save->p2pll_ref_div,
 		 save->p2pll_div_0,
 		 save->htotal_cntl2));
-    RADEONTRACE(("Read: rd=%d, fd=%d, pd=%d\n",
+    RADEONTRACE(("Read: rd=%ld, fd=%ld, pd=%ld\n",
 		 save->p2pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
 		 save->p2pll_div_0 & RADEON_P2PLL_FB0_DIV_MASK,
 		 (save->p2pll_div_0 & RADEON_P2PLL_POST0_DIV_MASK) >> 16));
@@ -7693,7 +7692,7 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     OUTREG(RADEON_GRPH_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
 				     (critical_point << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
 
-    RADEONTRACE(("GRPH_BUFFER_CNTL from %x to %x\n",
+    RADEONTRACE(("GRPH_BUFFER_CNTL from %lx to %lx\n",
 	       info->SavedReg.grph_buffer_cntl, INREG(RADEON_GRPH_BUFFER_CNTL)));
 
     if (mode2) {
@@ -7741,7 +7740,7 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
 	OUTREG(RADEON_GRPH2_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
 					  (critical_point2 << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
 
-	RADEONTRACE(("GRPH2_BUFFER_CNTL from %x to %x\n",
+	RADEONTRACE(("GRPH2_BUFFER_CNTL from %lx to %lx\n",
 		     info->SavedReg.grph2_buffer_cntl, INREG(RADEON_GRPH2_BUFFER_CNTL)));
     }
 }   
@@ -7934,7 +7933,7 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	save->tv_dac_cntl |= (0x03 | (2<<8) | (0x58<<16));
     }
 
-    RADEONTRACE(("Pitch = %d bytes (virtualX = %d, displayWidth = %d)\n",
+    RADEONTRACE(("Pitch = %ld bytes (virtualX = %d, displayWidth = %d)\n",
 		 save->crtc_pitch, pScrn->virtualX,
 		 info->CurrentLayout.displayWidth));
     return TRUE;
@@ -8139,7 +8138,7 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     }
 #endif
 
-    RADEONTRACE(("Pitch = %d bytes (virtualX = %d, displayWidth = %d)\n",
+    RADEONTRACE(("Pitch = %ld bytes (virtualX = %d, displayWidth = %d)\n",
 		 save->crtc2_pitch, pScrn->virtualX,
 		 info->CurrentLayout.displayWidth));
 
@@ -8312,7 +8311,7 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
 		    save->tmds_pll_cntl = (orig->tmds_pll_cntl & 0xfff00000) | tmp;
 	    } else save->tmds_pll_cntl = tmp;
 
-	    RADEONTRACE(("TMDS_PLL from %x to %x\n", 
+	    RADEONTRACE(("TMDS_PLL from %lx to %lx\n", 
 			 orig->tmds_pll_cntl, 
 			 save->tmds_pll_cntl));
 
@@ -8444,7 +8443,7 @@ static void RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONInfoPtr info,
 				     pll->reference_freq);
     save->post_div       = post_div->divider;
 
-    RADEONTRACE(("dc=%d, of=%d, fd=%d, pd=%d\n",
+    RADEONTRACE(("dc=%ld, of=%ld, fd=%d, pd=%d\n",
 	       save->dot_clock_freq,
 	       save->pll_output_freq,
 	       save->feedback_div,
@@ -8506,7 +8505,7 @@ static void RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				       pll->reference_freq);
     save->post_div_2       = post_div->divider;
 
-    RADEONTRACE(("dc=%d, of=%d, fd=%d, pd=%d\n",
+    RADEONTRACE(("dc=%ld, of=%ld, fd=%d, pd=%d\n",
 	       save->dot_clock_freq_2,
 	       save->pll_output_freq_2,
 	       save->feedback_div_2,

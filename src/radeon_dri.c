@@ -816,7 +816,7 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	return FALSE;
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	       "[agp] %d kB allocated with handle 0x%08lx\n",
+	       "[agp] %d kB allocated with handle 0x%08x\n",
 	       info->gartSize*1024, info->agpMemHandle);
 
     if (drmAgpBind(info->drmFD,
@@ -925,7 +925,7 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	return FALSE;
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	       "[pci] %d kB allocated with handle 0x%08lx\n",
+	       "[pci] %d kB allocated with handle 0x%08x\n",
 	       info->gartSize*1024, info->pciMemHandle);
 
     RADEONDRIInitGARTValues(info);
@@ -1032,7 +1032,7 @@ static Bool RADEONDRIMapInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	return FALSE;
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	       "[drm] register handle = 0x%08lx\n", info->registerHandle);
+	       "[drm] register handle = 0x%08x\n", info->registerHandle);
 
     return TRUE;
 }
