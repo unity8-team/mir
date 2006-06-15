@@ -541,20 +541,20 @@ typedef struct {
     drm_handle_t         ringHandle;       /* Handle from drmAddMap */
     drmSize           ringMapSize;      /* Size of map */
     int               ringSize;         /* Size of ring (in MB) */
-    unsigned char     *ring;            /* Map */
+    drmAddress        ring;             /* Map */
     int               ringSizeLog2QW;
 
     unsigned long     ringReadOffset;   /* Offset into GART space */
     drm_handle_t         ringReadPtrHandle; /* Handle from drmAddMap */
     drmSize           ringReadMapSize;  /* Size of map */
-    unsigned char     *ringReadPtr;     /* Map */
+    drmAddress        ringReadPtr;      /* Map */
 
 				/* CP vertex/indirect buffer data */
     unsigned long     bufStart;         /* Offset into GART space */
     drm_handle_t         bufHandle;        /* Handle from drmAddMap */
     drmSize           bufMapSize;       /* Size of map */
     int               bufSize;          /* Size of buffers (in MB) */
-    unsigned char     *buf;             /* Map */
+    drmAddress        buf;              /* Map */
     int               bufNumBufs;       /* Number of buffers */
     drmBufMapPtr      buffers;          /* Buffer map */
 
@@ -563,7 +563,7 @@ typedef struct {
     drm_handle_t         gartTexHandle;     /* Handle from drmAddMap */
     drmSize           gartTexMapSize;    /* Size of map */
     int               gartTexSize;       /* Size of GART tex space (in MB) */
-    unsigned char     *gartTex;          /* Map */
+    drmAddress        gartTex;           /* Map */
     int               log2GARTTexGran;
 
 				/* CP accleration */

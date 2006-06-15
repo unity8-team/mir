@@ -2159,10 +2159,9 @@ RADEONCopyRGB24Data(
 	    {
 		sptr = src;
 
-		for ( i = 0 ; i < w; i++ )
+		for ( i = 0 ; i < w; i++, sptr += 3 )
 		{
-		    *dptr++ = ( ( *sptr++ ) << 24 ) | ( ( *sptr++ ) << 16 ) |
-			      ( *sptr++ );
+		    *dptr++ = (sptr[0] << 24) | (sptr[1] << 16) | sptr[2];
 		}
 
 		src += hpass * srcPitch;

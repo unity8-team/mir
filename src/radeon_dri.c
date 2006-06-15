@@ -837,7 +837,7 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	       "[agp] ring handle = 0x%08x\n", info->ringHandle);
 
     if (drmMap(info->drmFD, info->ringHandle, info->ringMapSize,
-	       (drmAddressPtr)&info->ring) < 0) {
+	       &info->ring) < 0) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR, "[agp] Could not map ring\n");
 	return FALSE;
     }
@@ -856,7 +856,7 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	       info->ringReadPtrHandle);
 
     if (drmMap(info->drmFD, info->ringReadPtrHandle, info->ringReadMapSize,
-	       (drmAddressPtr)&info->ringReadPtr) < 0) {
+	       &info->ringReadPtr) < 0) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 		   "[agp] Could not map ring read ptr\n");
 	return FALSE;
@@ -876,7 +876,7 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	       info->bufHandle);
 
     if (drmMap(info->drmFD, info->bufHandle, info->bufMapSize,
-	       (drmAddressPtr)&info->buf) < 0) {
+	       &info->buf) < 0) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 		   "[agp] Could not map vertex/indirect buffers\n");
 	return FALSE;
@@ -896,7 +896,7 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	       info->gartTexHandle);
 
     if (drmMap(info->drmFD, info->gartTexHandle, info->gartTexMapSize,
-	       (drmAddressPtr)&info->gartTex) < 0) {
+	       &info->gartTex) < 0) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 		   "[agp] Could not map GART texture map\n");
 	return FALSE;
@@ -940,7 +940,7 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	       "[pci] ring handle = 0x%08x\n", info->ringHandle);
 
     if (drmMap(info->drmFD, info->ringHandle, info->ringMapSize,
-	       (drmAddressPtr)&info->ring) < 0) {
+	       &info->ring) < 0) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR, "[pci] Could not map ring\n");
 	return FALSE;
     }
@@ -962,7 +962,7 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	       info->ringReadPtrHandle);
 
     if (drmMap(info->drmFD, info->ringReadPtrHandle, info->ringReadMapSize,
-	       (drmAddressPtr)&info->ringReadPtr) < 0) {
+	       &info->ringReadPtr) < 0) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 		   "[pci] Could not map ring read ptr\n");
 	return FALSE;
@@ -985,7 +985,7 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	       info->bufHandle);
 
     if (drmMap(info->drmFD, info->bufHandle, info->bufMapSize,
-	       (drmAddressPtr)&info->buf) < 0) {
+	       &info->buf) < 0) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 		   "[pci] Could not map vertex/indirect buffers\n");
 	return FALSE;
@@ -1008,7 +1008,7 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	       info->gartTexHandle);
 
     if (drmMap(info->drmFD, info->gartTexHandle, info->gartTexMapSize,
-	       (drmAddressPtr)&info->gartTex) < 0) {
+	       &info->gartTex) < 0) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 		   "[pci] Could not map GART texture map\n");
 	return FALSE;
