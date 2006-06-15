@@ -196,6 +196,7 @@
 #include "config.h"
 #endif
 
+#include <stdlib.h>
 #include "ati.h"
 #include "atiadapter.h"
 #include "atichip.h"

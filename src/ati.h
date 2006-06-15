@@ -24,6 +24,7 @@
 #ifndef ___ATI_H___
 #define ___ATI_H___ 1
 
+#include <unistd.h>
 #include "xf86Pci.h"
 #include "atipciids.h"
 

@@ -26,6 +26,7 @@
 #endif
 
 #include <string.h>
+#include <ctype.h>
 
 #include "ati.h"
 #include "atiadapter.h"
