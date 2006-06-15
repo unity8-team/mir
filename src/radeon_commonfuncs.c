@@ -171,7 +171,7 @@ void FUNC_NAME(RADEONWaitForIdle)(ScrnInfoPtr pScrn)
 		return;
 	    }
 	}
-	RADEONTRACE(("Idle timed out: %d entries, stat=0x%08x\n",
+	RADEONTRACE(("Idle timed out: %ld entries, stat=0x%08lx\n",
 		     INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
 		     INREG(RADEON_RBBM_STATUS)));
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
