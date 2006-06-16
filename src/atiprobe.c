@@ -1008,10 +1008,13 @@ ATIProbe
     int                    Chipset;
     ATIChipType            Chip;
 
+#ifndef AVOID_NON_PCI
+    ATIPtr                 pMach64[3] = {NULL, NULL, NULL};
+#endif
+
 #ifndef AVOID_CPIO
 
     ATIPtr                 pVGA = NULL, p8514 = NULL;
-    ATIPtr                 pMach64[3] = {NULL, NULL, NULL};
     pciConfigPtr           *xf86PciInfo = xf86GetPciConfigInfo();
     PortPtr                PCIPorts = NULL;
     int                    nPCIPort = 0;
