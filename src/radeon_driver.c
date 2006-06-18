@@ -162,6 +162,9 @@ typedef enum {
     OPTION_XV_DMA,
     OPTION_FBTEX_PERCENT,
     OPTION_DEPTH_BITS,
+#ifdef USE_EXA
+    OPTION_ACCEL_DFS,
+#endif
 #endif
     OPTION_PANEL_OFF,
     OPTION_DDC_MODE,
@@ -227,6 +230,9 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_XV_DMA,         "DMAForXv",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_FBTEX_PERCENT,  "FBTexPercent",     OPTV_INTEGER, {0}, FALSE },
     { OPTION_DEPTH_BITS,     "DepthBits",        OPTV_INTEGER, {0}, FALSE },
+#ifdef USE_EXA
+    { OPTION_ACCEL_DFS,      "AccelDFS",         OPTV_BOOLEAN, {0}, FALSE },
+#endif
 #endif
     { OPTION_PANEL_OFF,      "PanelOff",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DDC_MODE,       "DDCMode",          OPTV_BOOLEAN, {0}, FALSE },
@@ -5941,21 +5947,36 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 #ifdef USE_EXA
     if (info->useEXA) {
 #ifdef XF86DRI
-	/* Reserve approx. half of offscreen memory for local textures by
-	 * default, can be overridden with Option "FBTexPercent".
-	 * Round down to a whole number of texture regions.
-	 */
-	info->textureSize = 50;
+	MessageType from = X_DEFAULT;
 
-	if (xf86GetOptValInteger(info->Options, OPTION_FBTEX_PERCENT,
-				 &(info->textureSize))) {
-	    if (info->textureSize < 0 || info->textureSize > 100) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Illegal texture memory percentage: %dx, setting to default 50%%\n",
-			   info->textureSize);
-		info->textureSize = 50;
+	if (hasDRI) {
+	    info->accelDFS = info->cardType != CARD_AGP;
+
+	    if (xf86GetOptValInteger(info->Options, OPTION_ACCEL_DFS,
+				     &info->accelDFS)) {
+		from = X_CONFIG;
+	    }
+
+	    /* Reserve approx. half of offscreen memory for local textures by
+	     * default, can be overridden with Option "FBTexPercent".
+	     * Round down to a whole number of texture regions.
+	     */
+	    info->textureSize = 50;
+
+	    if (xf86GetOptValInteger(info->Options, OPTION_FBTEX_PERCENT,
+				     &(info->textureSize))) {
+		if (info->textureSize < 0 || info->textureSize > 100) {
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			       "Illegal texture memory percentage: %dx, setting to default 50%%\n",
+			       info->textureSize);
+		    info->textureSize = 50;
+		}
 	    }
 	}
+
+	xf86DrvMsg(pScrn->scrnIndex, from,
+		   "%ssing accelerated EXA DownloadFromScreen hook\n",
+		   info->accelDFS ? "U" : "Not u");
 #endif /* XF86DRI */
 
 	if (!RADEONSetupMemEXA(pScreen))
@@ -6349,6 +6370,26 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	    /* If MC_FB_LOCATION was changed, adjust the various offsets */
 	    if (fb_loc_changed)
 		    RADEONRestoreMemMapRegisters(pScrn, save);
+    }
+
+    if (info->accelDFS)
+    {
+	drmRadeonGetParam gp;
+	int gart_base;
+
+	memset(&gp, 0, sizeof(gp));
+	gp.param = RADEON_PARAM_GART_BASE;
+	gp.value = &gart_base;
+
+	if (drmCommandWriteRead(info->drmFD, DRM_RADEON_GETPARAM, &gp,
+				sizeof(gp)) < 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to determine GART area MC location, not using "
+		       "accelerated DownloadFromScreen hook!\n");
+	    info->accelDFS = FALSE;
+	} else {
+	    info->gartLocation = gart_base;
+	}
     }
 }
 

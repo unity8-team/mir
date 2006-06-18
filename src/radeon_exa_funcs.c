@@ -1,6 +1,7 @@
 /*
  * Copyright 2005 Eric Anholt
  * Copyright 2005 Benjamin Herrenschmidt
+ * Copyright 2006 Tungsten Graphics, Inc.
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,6 +27,7 @@
  *    Eric Anholt <anholt@FreeBSD.org>
  *    Zack Rusin <zrusin@trolltech.com>
  *    Benjamin Herrenschmidt <benh@kernel.crashing.org>
+ *    Michel Dänzer <michel@tungstengraphics.com>
  *
  */
 
@@ -287,27 +289,141 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
     return TRUE;
 }
 
+#ifdef ACCEL_CP
+/* Emit blit with arbitrary source and destination offsets and pitches */
+static void
+RADEONBlitChunk(ScrnInfoPtr pScrn, CARD32 datatype, CARD32 src_pitch_offset,
+		CARD32 dst_pitch_offset, int srcX, int srcY, int dstX, int dstY,
+		int w, int h)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    ACCEL_PREAMBLE();
+
+    BEGIN_ACCEL(6);
+    OUT_ACCEL_REG(RADEON_DP_GUI_MASTER_CNTL,
+		  RADEON_GMC_DST_PITCH_OFFSET_CNTL |
+		  RADEON_GMC_SRC_PITCH_OFFSET_CNTL |
+		  RADEON_GMC_BRUSH_NONE |
+		  (datatype << 8) |
+		  RADEON_GMC_SRC_DATATYPE_COLOR |
+		  RADEON_ROP3_S |
+		  RADEON_DP_SRC_SOURCE_MEMORY |
+		  RADEON_GMC_CLR_CMP_CNTL_DIS |
+		  RADEON_GMC_WR_MSK_DIS);
+    OUT_ACCEL_REG(RADEON_SRC_PITCH_OFFSET, src_pitch_offset);
+    OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
+    OUT_ACCEL_REG(RADEON_SRC_Y_X, (srcY << 16) | srcX);
+    OUT_ACCEL_REG(RADEON_DST_Y_X, (dstY << 16) | dstX);
+    OUT_ACCEL_REG(RADEON_DST_HEIGHT_WIDTH, (h << 16) | w);
+    FINISH_ACCEL();
+}
+#endif
+
 static Bool
 FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 				    char *dst, int dst_pitch)
 {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
+#if defined(ACCEL_CP) || X_BYTE_ORDER == X_BIG_ENDIAN
     RINFO_FROM_SCREEN(pSrc->drawable.pScreen);
+#endif
+#if X_BYTE_ORDER == X_BIG_ENDIAN
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned int swapper = info->ModeReg.surface_cntl &
 	    ~(RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP |
 	      RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP);
 #endif
-    unsigned char *src	     = pSrc->devPrivate.ptr;
+    CARD8	  *src	     = pSrc->devPrivate.ptr;
     int		   src_pitch = exaGetPixmapPitch(pSrc);
     int		   bpp	     = pSrc->drawable.bitsPerPixel;
+#ifdef ACCEL_CP
+    CARD32 datatype, src_pitch_offset, scratch_pitch = (w * bpp/8 + 63) & ~63, scratch_off = 0;
+    drmBufPtr scratch;
+#endif
 
     TRACE;
 
+#ifdef ACCEL_CP
     /*
-     * This is currently done without DMA until I have ironed out the
-     * various endian issues with R300 among others
+     * Try to accelerate download. Use an indirect buffer as scratch space,
+     * blitting the bits to one half while copying them out of the other one and
+     * then swapping the halves.
      */
+    if (info->accelDFS && bpp != 24 && RADEONGetDatatypeBpp(bpp, &datatype) &&
+	RADEONGetPixmapOffsetPitch(pSrc, &src_pitch_offset) &&
+	(scratch = RADEONCPGetBuffer(pScrn)))
+    {
+	int swap = RADEON_HOST_DATA_SWAP_NONE, wpass = w * bpp / 8;
+	int hpass = min(h, scratch->total/2 / scratch_pitch);
+	CARD32 scratch_pitch_offset = scratch_pitch << 16
+				    | (info->gartLocation + info->bufStart
+				       + scratch->idx * scratch->total) >> 10;
+	drmRadeonIndirect indirect;
+	ACCEL_PREAMBLE();
+
+	RADEON_SWITCH_TO_2D();
+
+	/* Kick the first blit as early as possible */
+	RADEONBlitChunk(pScrn, datatype, src_pitch_offset, scratch_pitch_offset,
+			x, y, 0, 0, w, hpass);
+	FLUSH_RING();
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	switch (bpp) {
+	case 16:
+	  swap = RADEON_HOST_DATA_SWAP_16BIT;
+	  break;
+	case 32:
+	  swap = RADEON_HOST_DATA_SWAP_32BIT;
+	  break;
+	}
+#endif
+
+	while (h) {
+	    int oldhpass = hpass;
+
+	    src = (CARD8*)scratch->address + scratch_off;
+
+	    y += oldhpass;
+	    h -= oldhpass;
+	    hpass = min(h, scratch->total/2 / scratch_pitch);
+
+	    /* Prepare next blit if anything's left */
+	    if (hpass) {
+		scratch_off = scratch->total/2 - scratch_off;
+		RADEONBlitChunk(pScrn, datatype, src_pitch_offset, scratch_pitch_offset + (scratch_off >> 10),
+				x, y, 0, 0, w, hpass);
+	    }
+
+	    /* Wait for previous blit to complete */
+	    RADEONWaitForIdleMMIO(pScrn);
+
+	    /* Kick next blit */
+	    if (hpass)
+		FLUSH_RING();
+
+	    /* Copy out data from previous blit */
+	    if (wpass == scratch_pitch && wpass == dst_pitch) {
+		RADEONCopySwap((CARD8*)dst, src, wpass * oldhpass, swap);
+		dst += dst_pitch * oldhpass;
+	    } else while (oldhpass--) {
+		RADEONCopySwap((CARD8*)dst, src, wpass, swap);
+		src += scratch_pitch;
+		dst += dst_pitch;
+	    }
+	}
+
+	indirect.idx = scratch->idx;
+	indirect.start = indirect.end = 0;
+	indirect.discard = 1;
+
+	drmCommandWriteRead(info->drmFD, DRM_RADEON_INDIRECT,
+			    &indirect, sizeof(drmRadeonIndirect));
+
+	return TRUE;
+    }
+#endif
+
+    /* Can't accelerate download */
     exaWaitSync(pSrc->drawable.pScreen);
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN

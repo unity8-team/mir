@@ -334,7 +334,8 @@ typedef struct {
     unsigned long     LinearAddr;       /* Frame buffer physical address     */
     unsigned long     MMIOAddr;         /* MMIO region physical address      */
     unsigned long     BIOSAddr;         /* BIOS physical address             */
-    unsigned int      fbLocation;
+    CARD32            fbLocation;
+    CARD32            gartLocation;
     CARD32            mc_fb_location;
     CARD32            mc_agp_location;
 
@@ -416,6 +417,9 @@ typedef struct {
 #define EXA_ENGINEMODE_UNKNOWN 0
 #define EXA_ENGINEMODE_2D      1
 #define EXA_ENGINEMODE_3D      2
+#ifdef XF86DRI
+    Bool              accelDFS;
+#endif
 #endif
 #ifdef USE_XAA
     XAAInfoRecPtr     accel;
