@@ -163,10 +163,12 @@ static Bool RADEONInitVisualConfigs(ScreenPtr pScreen)
 		pConfigs[i].stereo             = FALSE;
 		pConfigs[i].bufferSize         = 16;
 		pConfigs[i].depthSize          = info->depthBits;
-		if (stencil)
+		if (pConfigs[i].depthSize == 24 ? (RADEON_USE_STENCIL - stencil)
+						: stencil) {
 		    pConfigs[i].stencilSize    = 8;
-		else
+		} else {
 		    pConfigs[i].stencilSize    = 0;
+		}
 		pConfigs[i].auxBuffers         = 0;
 		pConfigs[i].level              = 0;
 		if (accum ||
@@ -247,7 +249,8 @@ static Bool RADEONInitVisualConfigs(ScreenPtr pScreen)
 		pConfigs[i].stereo             = FALSE;
 		pConfigs[i].bufferSize         = 32;
 		pConfigs[i].depthSize          = info->depthBits;
-		if (stencil) {
+		if (pConfigs[i].depthSize == 24 ? (RADEON_USE_STENCIL - stencil)
+						: stencil) {
 		    pConfigs[i].stencilSize    = 8;
 		} else {
 		    pConfigs[i].stencilSize    = 0;
