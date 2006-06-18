@@ -161,6 +161,7 @@ typedef enum {
     OPTION_NO_BACKBUFFER,
     OPTION_XV_DMA,
     OPTION_FBTEX_PERCENT,
+    OPTION_DEPTH_BITS,
 #endif
     OPTION_PANEL_OFF,
     OPTION_DDC_MODE,
@@ -225,6 +226,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_NO_BACKBUFFER,  "NoBackBuffer",     OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_XV_DMA,         "DMAForXv",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_FBTEX_PERCENT,  "FBTexPercent",     OPTV_INTEGER, {0}, FALSE },
+    { OPTION_DEPTH_BITS,     "DepthBits",        OPTV_INTEGER, {0}, FALSE },
 #endif
     { OPTION_PANEL_OFF,      "PanelOff",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DDC_MODE,       "DDCMode",          OPTV_BOOLEAN, {0}, FALSE },
@@ -5364,6 +5366,7 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     int            cpp = info->CurrentLayout.pixel_bytes;
+    int            depthCpp = (info->depthBits - 8) / 4;
     int            width_bytes = pScrn->displayWidth * cpp;
     int            bufferSize;
     int            depthSize;
@@ -5394,7 +5397,7 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
      */
     info->depthPitch = (pScrn->displayWidth + 31) & ~31;
     depthSize = ((((pScrn->virtualY + 15) & ~15) * info->depthPitch
-		  * cpp + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
+		  * depthCpp + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
 
     switch (info->CPMode) {
     case RADEON_DEFAULT_CP_PIO_MODE:
@@ -5620,7 +5623,7 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
     info->backPitchOffset = (((info->backPitch * cpp / 64) << 22) |
 			     ((info->backOffset + info->fbLocation) >> 10));
 
-    info->depthPitchOffset = (((info->depthPitch * cpp / 64) << 22) |
+    info->depthPitchOffset = (((info->depthPitch * depthCpp / 64) << 22) |
 			      ((info->depthOffset + info->fbLocation) >> 10));
     return TRUE;
 }
@@ -5755,6 +5758,26 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     miSetPixmapDepths ();
 
 #ifdef XF86DRI
+    if (info->directRenderingEnabled) {
+	MessageType from;
+
+	info->depthBits = pScrn->depth;
+
+	from = xf86GetOptValInteger(info->Options, OPTION_DEPTH_BITS,
+				    &info->depthBits)
+	     ? X_CONFIG : X_DEFAULT;
+
+	if (info->depthBits != 16 && info->depthBits != 24) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Value for Option \"DepthBits\" must be 16 or 24\n");
+	    info->depthBits = pScrn->depth;
+	    from = X_DEFAULT;
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, from,
+		   "Using %d bit depth buffer\n", info->depthBits);
+    }
+
     /* Setup DRI after visuals have been established, but before fbScreenInit is
      * called.  fbScreenInit will eventually call the driver's InitGLXVisuals
      * call back. */
@@ -6810,9 +6833,13 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
   
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     int cpp = info->CurrentLayout.pixel_bytes;
+    int depthCpp = (info->depthBits - 8) / 4;
     /* depth/front/back pitch must be identical (and the same as displayWidth) */
     int width_bytes = pScrn->displayWidth * cpp;
     int bufferSize = ((((pScrn->virtualY + 15) & ~15) * width_bytes
+        + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
+    int depth_width_bytes = pScrn->displayWidth * depthCpp;
+    int depthBufferSize = ((((pScrn->virtualY + 15) & ~15) * depth_width_bytes
         + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
     unsigned int depth_pattern, color_pattern, swap_pattern;
 
@@ -6833,19 +6860,19 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 #endif
     if (info->ChipFamily < CHIP_FAMILY_R200) {
 	color_pattern = RADEON_SURF_TILE_COLOR_MACRO;
-	if (cpp == 2)
+	if (depthCpp == 2)
 	    depth_pattern = RADEON_SURF_TILE_DEPTH_16BPP;
 	else
 	    depth_pattern = RADEON_SURF_TILE_DEPTH_32BPP;
     } else if (IS_R300_VARIANT) {
        color_pattern = R300_SURF_TILE_COLOR_MACRO;
-       if (cpp == 2)
+       if (depthCpp == 2)
            depth_pattern = R300_SURF_TILE_COLOR_MACRO;
        else
            depth_pattern = R300_SURF_TILE_COLOR_MACRO | R300_SURF_TILE_DEPTH_32BPP;
     } else {
 	color_pattern = R200_SURF_TILE_COLOR_MACRO;
-	if (cpp == 2)
+	if (depthCpp == 2)
 	    depth_pattern = R200_SURF_TILE_DEPTH_16BPP;
 	else
 	    depth_pattern = R200_SURF_TILE_DEPTH_32BPP;
@@ -6904,12 +6931,12 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	    (info->ChipFamily != CHIP_FAMILY_RS100) ||
 	    (info->ChipFamily != CHIP_FAMILY_RS200))) {
 	    drmRadeonSurfaceAlloc drmsurfalloc;
-	    drmsurfalloc.size = bufferSize;
+	    drmsurfalloc.size = depthBufferSize;
 	    drmsurfalloc.address = info->depthOffset;
             if (IS_R300_VARIANT)
-                drmsurfalloc.flags = swap_pattern | (width_bytes / 8) | depth_pattern;
+                drmsurfalloc.flags = swap_pattern | (depth_width_bytes / 8) | depth_pattern;
             else
-                drmsurfalloc.flags = swap_pattern | (width_bytes / 16) | depth_pattern;
+                drmsurfalloc.flags = swap_pattern | (depth_width_bytes / 16) | depth_pattern;
 	    retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_ALLOC,
 		&drmsurfalloc, sizeof(drmsurfalloc));
 	    if (retvalue < 0)

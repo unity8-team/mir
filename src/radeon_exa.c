@@ -367,6 +367,7 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int cpp = info->CurrentLayout.pixel_bytes;
+    int depthCpp = (info->depthBits - 8) / 4;
     int l;
     int next, screen_size;
     int byteStride = pScrn->displayWidth * cpp;
@@ -435,7 +436,7 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 	 * handle tiling.
 	 */
 	info->depthPitch = RADEON_ALIGN(pScrn->displayWidth, 32);
-	depth_size = RADEON_ALIGN(pScrn->virtualY, 16) * info->depthPitch * cpp;
+	depth_size = RADEON_ALIGN(pScrn->virtualY, 16) * info->depthPitch * depthCpp;
 	next = RADEON_ALIGN(info->exa->offScreenBase, RADEON_BUFFER_ALIGN);
 	if (next + depth_size <= info->exa->memorySize)
 	{

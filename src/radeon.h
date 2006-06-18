@@ -584,6 +584,7 @@ typedef struct {
     int               backPitch;
     int               depthOffset;
     int               depthPitch;
+    int               depthBits;
     int               textureOffset;
     int               textureSize;
     int               log2TexGran;

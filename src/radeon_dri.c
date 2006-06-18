@@ -162,14 +162,15 @@ static Bool RADEONInitVisualConfigs(ScreenPtr pScreen)
 		    pConfigs[i].doubleBuffer   = FALSE;
 		pConfigs[i].stereo             = FALSE;
 		pConfigs[i].bufferSize         = 16;
-		pConfigs[i].depthSize          = 16;
+		pConfigs[i].depthSize          = info->depthBits;
 		if (stencil)
 		    pConfigs[i].stencilSize    = 8;
 		else
 		    pConfigs[i].stencilSize    = 0;
 		pConfigs[i].auxBuffers         = 0;
 		pConfigs[i].level              = 0;
-		if (accum || stencil) {
+		if (accum ||
+		    (pConfigs[i].stencilSize && pConfigs[i].depthSize == 16)) {
 		   pConfigs[i].visualRating    = GLX_SLOW_CONFIG;
 		} else {
 		   pConfigs[i].visualRating    = GLX_NONE;
@@ -245,16 +246,16 @@ static Bool RADEONInitVisualConfigs(ScreenPtr pScreen)
 		    pConfigs[i].doubleBuffer   = FALSE;
 		pConfigs[i].stereo             = FALSE;
 		pConfigs[i].bufferSize         = 32;
+		pConfigs[i].depthSize          = info->depthBits;
 		if (stencil) {
-		    pConfigs[i].depthSize      = 24;
 		    pConfigs[i].stencilSize    = 8;
 		} else {
-		    pConfigs[i].depthSize      = 24;
 		    pConfigs[i].stencilSize    = 0;
 		}
 		pConfigs[i].auxBuffers         = 0;
 		pConfigs[i].level              = 0;
-		if (accum) {
+		if (accum ||
+		    (pConfigs[i].stencilSize && pConfigs[i].depthSize == 16)) {
 		   pConfigs[i].visualRating    = GLX_SLOW_CONFIG;
 		} else {
 		   pConfigs[i].visualRating    = GLX_NONE;
@@ -1061,14 +1062,14 @@ static int RADEONDRIKernelInit(RADEONInfoPtr info, ScreenPtr pScreen)
     drmInfo.usec_timeout        = info->CPusecTimeout;
 
     drmInfo.fb_bpp              = info->CurrentLayout.pixel_code;
-    drmInfo.depth_bpp           = info->CurrentLayout.pixel_code;
+    drmInfo.depth_bpp           = (info->depthBits - 8) * 2;
 
     drmInfo.front_offset        = info->frontOffset;
     drmInfo.front_pitch         = info->frontPitch * cpp;
     drmInfo.back_offset         = info->backOffset;
     drmInfo.back_pitch          = info->backPitch * cpp;
     drmInfo.depth_offset        = info->depthOffset;
-    drmInfo.depth_pitch         = info->depthPitch * cpp;
+    drmInfo.depth_pitch         = info->depthPitch * drmInfo.depth_bpp / 8;
 
     drmInfo.fb_offset           = info->fbHandle;
     drmInfo.mmio_offset         = info->registerHandle;

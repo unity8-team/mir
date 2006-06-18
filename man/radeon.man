@@ -518,6 +518,14 @@ reserved for textures to the amount specified roughly.
 Default:
 .B 50.
 .TP
+.BI "Option \*qDepthBits\*q \*q" integer \*q
+Precision in bits per pixel of the shared depth buffer used for 3D acceleration.
+Valid values are 16 and 24. When this is 24, there will also be a hardware
+accelerated stencil buffer, but the combined depth/stencil buffer will take up
+twice as much video RAM as when it's 16.
+Default:
+.B The same as the screen depth.
+.TP
 .BI "Option \*qDMAForXv\*q \*q" boolean \*q
 Try or don't try to use DMA for Xv image transfers. This will reduce CPU
 usage when playing big videos like DVDs, but may cause instabilities.
