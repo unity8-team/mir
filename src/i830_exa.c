@@ -51,7 +51,7 @@ do {							\
 #define I830FALLBACK(s, arg...) { return FALSE; }
 #endif
 
-int I830CopyROP[16] =
+const int I830CopyROP[16] =
 {
    ROP_0,               /* GXclear */
    ROP_DSa,             /* GXand */
@@ -71,7 +71,7 @@ int I830CopyROP[16] =
    ROP_1                /* GXset */
 };
 
-static int I830PatternROP[16] =
+const int I830PatternROP[16] =
 {
     ROP_0,
     ROP_DPa,

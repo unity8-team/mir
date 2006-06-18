@@ -208,10 +208,7 @@ I830RefreshRing(ScrnInfoPtr pScrn)
    pI830->LpRing->space = pI830->LpRing->head - (pI830->LpRing->tail + 8);
    if (pI830->LpRing->space < 0)
       pI830->LpRing->space += pI830->LpRing->mem.Size;
-#ifdef I830_USE_XAA
-   if (pI830->AccelInfoRec)
-      pI830->AccelInfoRec->NeedToSync = TRUE;
-#endif
+   i830MarkSync(pScrn);
 }
 
 /* The following function sets up the supported acceleration. Call it

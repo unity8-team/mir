@@ -92,6 +92,11 @@ static void I830SubsequentImageWriteScanline(ScrnInfoPtr pScrn, int bufno);
 #endif
 static void I830RestoreAccelState(ScrnInfoPtr pScrn);
 
+#ifdef I830_USE_EXA
+extern const int I830PatternROP[16];
+extern const int I830CopyROP[16];
+#endif
+
 Bool
 I830XAAInit(ScreenPtr pScreen)
 {
@@ -235,8 +240,17 @@ I830SetupForSolidFill(ScrnInfoPtr pScrn, int color, int rop,
 	ErrorF("I830SetupForFillRectSolid color: %x rop: %x mask: %x\n",
 	       color, rop, planemask);
 
+#ifdef I830_USE_EXA
+    /* This function gets used by I830DRIInitBuffers(), and we might not have
+     * XAAGetPatternROP() available.  So just use the ROPs from our EXA code
+     * if available.
+     */
+    pI830->BR[13] = ((I830PatternROP[rop] << 16) |
+		     (pScrn->displayWidth * pI830->cpp));
+#else
     pI830->BR[13] = ((XAAGetPatternROP(rop) << 16) |
 		     (pScrn->displayWidth * pI830->cpp));
+#endif
 
     pI830->BR[16] = color;
 
@@ -291,7 +305,15 @@ I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir, int ydir, int rop,
 	       xdir, ydir, rop, planemask, transparency_color);
 
     pI830->BR[13] = (pScrn->displayWidth * pI830->cpp);
+#ifdef I830_USE_EXA
+    /* This function gets used by I830DRIInitBuffers(), and we might not have
+     * XAAGetCopyROP() available.  So just use the ROPs from our EXA code
+     * if available.
+     */
+    pI830->BR[13] |= I830CopyROP[rop] << 16;
+#else
     pI830->BR[13] |= XAAGetCopyROP(rop) << 16;
+#endif
 
     switch (pScrn->bitsPerPixel) {
     case 8:

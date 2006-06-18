@@ -5258,18 +5258,8 @@ I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
 	   x, pI830->xoffset, y, pI830->yoffset);
 
    /* Sync the engine before adjust frame */
-#ifdef I830_USE_XAA
-   if (!pI830->noAccel && !pI830->useEXA && pI830->AccelInfoRec->NeedToSync) {
-      (*pI830->AccelInfoRec->Sync)(pScrn);
-      pI830->AccelInfoRec->NeedToSync = FALSE;
-   }
-#endif
-#ifdef I830_USE_EXA
-   if (!pI830->noAccel && pI830->useEXA) {
-	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-	exaWaitSync(pScreen);
-   }
-#endif
+   i830WaitSync(pScrn);
+
    if (I830IsPrimary(pScrn))
       Start = pI830->FrontBuffer.Start;
    else {
@@ -5398,15 +5388,10 @@ I830BIOSLeaveVT(int scrnIndex, int flags)
    RestoreBIOSMemSize(pScrn);
    if (I830IsPrimary(pScrn))
       I830UnbindAGPMemory(pScrn);
+
 #ifdef I830_USE_XAA
    if (!pI830->useEXA && pI830->AccelInfoRec)
       pI830->AccelInfoRec->NeedToSync = FALSE;
-#endif
-#ifdef I830_USE_EXA
-   if (pI830->useEXA && pI830->EXADriverPtr) {
-      ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-      exaMarkSync(pScreen);
-   }
 #endif
 
    /* DO IT AGAIN! AS IT SEEMS THAT SOME LFPs FLICKER OTHERWISE */
@@ -5741,18 +5726,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 #endif
 
    /* Sync the engine before mode switch */
-#ifdef I830_USE_XAA
-   if (!pI830->noAccel && !pI830->useEXA) {
-      (*pI830->AccelInfoRec->Sync)(pScrn);
-      pI830->AccelInfoRec->NeedToSync = FALSE;
-   }
-#endif
-#ifdef I830_USE_EXA
-   if (!pI830->noAccel && pI830->useEXA) {
-      ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-      exaWaitSync(pScreen);
-   }
-#endif
+   i830WaitSync(pScrn);
 
    /* Check if our currentmode is about to change. We do this so if we
     * are rotating, we don't need to call the mode setup again.
@@ -6122,14 +6096,8 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 		    "Hotkey switch to 0x%lx.\n", (unsigned long) temp);
 
-#ifdef I830_USE_XAA
-         if (!pI830->useEXA && pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-            (*pI830->AccelInfoRec->Sync)(pScrn);
-            pI830->AccelInfoRec->NeedToSync = FALSE;
-            if (xf86IsEntityShared(pScrn->entityList[0]))
-               pI8302->AccelInfoRec->NeedToSync = FALSE;
-         }
-#endif
+	 i830WaitSync(pScrn);
+
          GetAttachableDisplayDeviceList(pScrn);
          
 	 pI8301->lastDevice0 = pI8301->lastDevice1;
@@ -6396,6 +6364,42 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
 
   
    return 1000;
+}
+
+void
+i830WaitSync(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+#ifdef I830_USE_XAA
+   if (!pI830->noAccel && !pI830->useEXA && pI830->AccelInfoRec->NeedToSync) {
+      (*pI830->AccelInfoRec->Sync)(pScrn);
+      pI830->AccelInfoRec->NeedToSync = FALSE;
+   }
+#endif
+#ifdef I830_USE_EXA
+   if (!pI830->noAccel && pI830->useEXA && pI830->EXADriverPtr) {
+	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+	exaWaitSync(pScreen);
+   }
+#endif
+}
+
+void
+i830MarkSync(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+#ifdef I830_USE_XAA
+   if (!pI830->useEXA && pI830->AccelInfoRec)
+      pI830->AccelInfoRec->NeedToSync = FALSE;
+#endif
+#ifdef I830_USE_EXA
+   if (pI830->useEXA && pI830->EXADriverPtr) {
+      ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+      exaMarkSync(pScreen);
+   }
+#endif
 }
 
 void

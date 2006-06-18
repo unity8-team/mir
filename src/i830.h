@@ -491,6 +491,8 @@ extern Bool I830CheckModeSupport(ScrnInfoPtr pScrn, int x, int y, int mode);
 extern Bool I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode);
 extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 
+extern void i830MarkSync(ScrnInfoPtr pScrn);
+extern void i830WaitSync(ScrnInfoPtr pScrn);
 /*
  * 12288 is set as the maximum, chosen because it is enough for
  * 1920x1440@32bpp with a 2048 pixel line pitch with some to spare.

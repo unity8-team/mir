@@ -979,7 +979,6 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
 {
    ScreenPtr pScreen = pWin->drawable.pScreen;
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I830Ptr pI830 = I830PTR(pScrn);
    BoxPtr pbox = REGION_RECTS(prgn);
    int nbox = REGION_NUM_RECTS(prgn);
 
@@ -1017,9 +1016,7 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
    }
 
    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
-#ifdef I830_USE_XAA
-   pI830->AccelInfoRec->NeedToSync = TRUE;
-#endif
+   i830MarkSync(pScrn);
 }
 
 /* This routine is a modified form of XAADoBitBlt with the calls to
@@ -1033,7 +1030,6 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 {
    ScreenPtr pScreen = pParent->drawable.pScreen;
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I830Ptr pI830 = I830PTR(pScrn);
    BoxPtr pboxTmp, pboxNext, pboxBase;
    DDXPointPtr pptTmp, pptNew2;
    int xdir, ydir;
@@ -1180,9 +1176,7 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
       DEALLOCATE_LOCAL(pptNew1);
       DEALLOCATE_LOCAL(pboxNew1);
    }
-#ifdef I830_USE_XAA
-   pI830->AccelInfoRec->NeedToSync = TRUE;
-#endif
+   i830MarkSync(pScrn);
 }
 
 /* Initialize the first context */
