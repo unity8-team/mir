@@ -959,21 +959,26 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
       }
    }
 
-   /* Don't allow pixmap cache or offscreen pixmaps when rotated */
-   /* XAA needs some serious fixing for this to happen */
-   if (pI830->rotation == RR_Rotate_0) {
-      pI830->AccelInfoRec->Flags = LINEAR_FRAMEBUFFER | OFFSCREEN_PIXMAPS | PIXMAP_CACHE;
-      pI830->AccelInfoRec->UsingPixmapCache = TRUE;
-      /* funny as it seems this will enable XAA's createpixmap */
-      pI830->AccelInfoRec->maxOffPixWidth = 0;
-      pI830->AccelInfoRec->maxOffPixHeight = 0;
-   } else {
-      pI830->AccelInfoRec->Flags = LINEAR_FRAMEBUFFER;
-      pI830->AccelInfoRec->UsingPixmapCache = FALSE;
-      /* funny as it seems this will disable XAA's createpixmap */
-      pI830->AccelInfoRec->maxOffPixWidth = 1;
-      pI830->AccelInfoRec->maxOffPixHeight = 1;
+#ifdef I830_USE_XAA
+   if (pI830->AccelInfoRec != NULL) {
+      /* Don't allow pixmap cache or offscreen pixmaps when rotated */
+      /* XAA needs some serious fixing for this to happen */
+      if (pI830->rotation == RR_Rotate_0) {
+	 pI830->AccelInfoRec->Flags = LINEAR_FRAMEBUFFER | OFFSCREEN_PIXMAPS |
+				      PIXMAP_CACHE;
+	 pI830->AccelInfoRec->UsingPixmapCache = TRUE;
+	 /* funny as it seems this will enable XAA's createpixmap */
+	 pI830->AccelInfoRec->maxOffPixWidth = 0;
+	 pI830->AccelInfoRec->maxOffPixHeight = 0;
+      } else {
+	 pI830->AccelInfoRec->Flags = LINEAR_FRAMEBUFFER;
+	 pI830->AccelInfoRec->UsingPixmapCache = FALSE;
+	 /* funny as it seems this will disable XAA's createpixmap */
+	 pI830->AccelInfoRec->maxOffPixWidth = 1;
+	 pI830->AccelInfoRec->maxOffPixHeight = 1;
+      }
    }
+#endif
 
    return TRUE;
 
