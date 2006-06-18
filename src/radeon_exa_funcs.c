@@ -56,8 +56,6 @@
 
 #include "exa.h"
 
-#include "fbdevhw.h"
-
 static void
 FUNC_NAME(RADEONSync)(ScreenPtr pScreen, int marker)
 {
