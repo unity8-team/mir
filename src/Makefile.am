@@ -54,7 +54,11 @@ i810_drv_la_SOURCES = \
          i830_modes.c \
          i830_video.c \
          i830_rotate.c \
-	 i830_randr.c
+	 i830_randr.c \
+	 i830_3d.c \
+	 i830_reg.h \
+	 i915_3d.c \
+	 i915_reg.h
 
 if DRI
 i810_drv_la_SOURCES += \

@@ -5107,12 +5107,13 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 #endif
 
+   /* Setup 3D engine, needed for rotation too */
+   IntelEmitInvarientState(pScrn);
+
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled) {
       pI830->directRenderingOpen = TRUE;
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Enabled\n");
-      /* Setup 3D engine */
-      I830EmitInvarientState(pScrn);
    } else {
       if (driDisabled)
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Disabled\n");
@@ -5622,7 +5623,6 @@ I830BIOSEnterVT(int scrnIndex, int flags)
       if (!pI830->starting) {
 	 I830DRIResume(screenInfo.screens[scrnIndex]);
       
-	 I830EmitInvarientState(pScrn);
 	 I830RefreshRing(pScrn);
 	 I830Sync(pScrn);
 	 DO_RING_IDLE();
@@ -5633,6 +5633,9 @@ I830BIOSEnterVT(int scrnIndex, int flags)
       pI830->LockHeld = 0;
    }
 #endif
+
+   /* Needed for rotation */
+   IntelEmitInvarientState(pScrn);
 
    if (pI830->checkDevices)
       pI830->devicesTimer = TimerSet(NULL, 0, 1000, I830CheckDevicesTimer, pScrn);
