@@ -21,4 +21,10 @@
 AUTOMAKE_OPTIONS = foreign
 SUBDIRS = src man
 
-EXTRA_DIST = README.NV1
+EXTRA_DIST = README.NV1 ChangeLog
+
+# Always regenerate the changelog
+CLEANFILES = ChangeLog
+ChangeLog: FORCE
+	git-log > ChangeLog
+FORCE:
