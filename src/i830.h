@@ -546,6 +546,7 @@ extern void I830DRIUnmapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
 extern Bool I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
 extern void I830DRIUnlock(ScrnInfoPtr pScrn);
 extern Bool I830DRILock(ScrnInfoPtr pScrn);
+extern Bool I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on);
 #endif
 
 extern Bool I830AccelInit(ScreenPtr pScreen);

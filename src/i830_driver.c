@@ -2976,6 +2976,9 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    DPRINTF(PFX, "RestoreHWState\n");
 
+#ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, FALSE);
+#endif
    vgaHWRestore(pScrn, vgaReg, VGA_SR_ALL);
    vgaHWLock(hwp);
 

@@ -631,6 +631,9 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 		   pI830->planeEnabled[1] ? "enabled" : "disabled",
 		   planeB & DISPPLANE_SEL_PIPE_MASK ? "Pipe B" : "Pipe A");
 
+#ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, TRUE);
+#endif
 done:
 #ifdef XF86DRI
     if (didLock)
