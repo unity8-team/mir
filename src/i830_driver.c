@@ -3826,6 +3826,9 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    DPRINTF(PFX, "RestoreHWState\n");
 
+#ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, FALSE);
+#endif
    if (I830IsPrimary(pScrn) && pI830->pipe != pI830->origPipe)
       SetBIOSPipe(pScrn, pI830->origPipe);
    else
@@ -4410,6 +4413,9 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
    SetHWOperatingState(pScrn);
 #endif
 
+#ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, TRUE);
+#endif
 #ifdef XF86DRI
    if (didLock)
       I830DRIUnlock(pScrn);
