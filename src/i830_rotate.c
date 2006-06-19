@@ -574,9 +574,9 @@ I830UpdateRotate (ScreenPtr      pScreen,
 	 OUT_RING(pI8301->RotatedMem2.Start | use_fence);
 
       if (pI830->cpp == 1)
-         OUT_RING(0x00 | (pScreen->height - 1) << 21 | (pScreen->width - 1) << 10);
-      else if (pI830->cpp == 2)
          OUT_RING(0x40 | (pScreen->height - 1) << 21 | (pScreen->width - 1) << 10);
+      else if (pI830->cpp == 2)
+         OUT_RING(0x80 | (pScreen->height - 1) << 21 | (pScreen->width - 1) << 10);
       else
          OUT_RING(0xc0 | (pScreen->height - 1) << 21 | (pScreen->width - 1) << 10);
 

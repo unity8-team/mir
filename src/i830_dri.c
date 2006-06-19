@@ -1179,13 +1179,15 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
    i830MarkSync(pScrn);
 }
 
+extern I830EmitInvarientState(ScrnInfoPtr pScrn);
+extern I915EmitInvarientState(ScrnInfoPtr pScrn);
+
 /* Initialize the first context */
 void
-I830EmitInvarientState(ScrnInfoPtr pScrn)
+IntelEmitInvarientState(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    CARD32 ctx_addr;
-
 
    ctx_addr = pI830->ContextMem.Start;
    /* Align to a 2k boundry */
@@ -1199,6 +1201,11 @@ I830EmitInvarientState(ScrnInfoPtr pScrn)
 	       CTXT_PALETTE_SAVE_DISABLE | CTXT_PALETTE_RESTORE_DISABLE);
       ADVANCE_LP_RING();
    }
+
+   if (IS_I9XX(pI830))
+      I915EmitInvarientState(pScrn);
+   else
+      I830EmitInvarientState(pScrn);
 }
 
 /* Use callbacks from dri.c to support pageflipping mode for a single
