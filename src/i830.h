@@ -420,6 +420,7 @@ typedef struct _I830Rec {
    Bool devicePresence;
 
    OsTimerPtr devicesTimer;
+   int MaxClock;
 
    int ddc2;
    int num_outputs;
@@ -593,6 +594,7 @@ extern Rotation I830GetRotation(ScreenPtr pScreen);
 extern Bool I830RandRInit(ScreenPtr pScreen, int rotation);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
+int I830xf86ValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for
