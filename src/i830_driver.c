@@ -2925,6 +2925,17 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveLVDS = INREG(LVDS);
    pI830->savePP_CONTROL = INREG(PP_CONTROL);
    pI830->savePP_CYCLE = INREG(PP_CYCLE);
+   pI830->saveBLC_PWM_CTL = INREG(BLC_PWM_CTL);
+   pI830->backlight_duty_cycle = (pI830->saveBLC_PWM_CTL & 
+				  BACKLIGHT_DUTY_CYCLE_MASK);
+   /*
+    * If the light is off at server startup, just make it full brightness
+    */
+   if (!pI830->backlight_duty_cycle)
+      pI830->backlight_duty_cycle = ((pI830->saveBLC_PWM_CTL &
+				      BACKLIGHT_MODULATION_FREQ_MASK) >>
+				     BACKLIGHT_MODULATION_FREQ_SHIFT);
+    
 
    if (!IS_I9XX(pI830)) {
       pI830->saveDVOA = INREG(DVOA);
@@ -3031,6 +3042,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
       }
    }
 
+   OUTREG(BLC_PWM_CTL, pI830->saveBLC_PWM_CTL);
    OUTREG(LVDSPP_ON, pI830->savePP_ON);
    OUTREG(LVDSPP_OFF, pI830->savePP_OFF);
    OUTREG(PP_CYCLE, pI830->savePP_CYCLE);

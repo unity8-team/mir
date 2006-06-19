@@ -440,6 +440,8 @@ typedef struct _I830Rec {
    int panel_fixed_vsyncoff;
    int panel_fixed_vsyncwidth;
 
+   int backlight_duty_cycle;  /* restore backlight to this value */
+   
    Bool panel_wants_dither;
 
    unsigned char *VBIOS;
@@ -493,6 +495,7 @@ typedef struct _I830Rec {
    CARD32 savePaletteA[256];
    CARD32 savePaletteB[256];
    CARD32 saveSWF[17];
+   CARD32 saveBLC_PWM_CTL;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))

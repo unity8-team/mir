@@ -664,7 +664,14 @@ i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 pp_status, pp_control;
+    CARD32 blc_pwm_ctl;
+    int backlight_duty_cycle;
 
+    blc_pwm_ctl = INREG (BLC_PWM_CTL);
+    backlight_duty_cycle = blc_pwm_ctl & BACKLIGHT_DUTY_CYCLE_MASK;
+    if (backlight_duty_cycle)
+        pI830->backlight_duty_cycle = backlight_duty_cycle;
+    
     if (on) {
 	OUTREG(PP_STATUS, INREG(PP_STATUS) | PP_ON);
 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
@@ -672,7 +679,13 @@ i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on)
 	    pp_status = INREG(PP_STATUS);
 	    pp_control = INREG(PP_CONTROL);
 	} while (!(pp_status & PP_ON) && !(pp_control & POWER_TARGET_ON));
+	OUTREG(BLC_PWM_CTL,
+	       (blc_pwm_ctl & ~BACKLIGHT_DUTY_CYCLE_MASK) |
+	       pI830->backlight_duty_cycle);
     } else {
+	OUTREG(BLC_PWM_CTL,
+	       (blc_pwm_ctl & ~BACKLIGHT_DUTY_CYCLE_MASK));
+	       
 	OUTREG(PP_STATUS, INREG(PP_STATUS) & ~PP_ON);
 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
 	do {
