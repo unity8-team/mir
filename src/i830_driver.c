@@ -261,7 +261,6 @@ static OptionInfoRec I830BIOSOptions[] = {
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VBE_RESTORE,	"VBERestore",	OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_DISPLAY_INFO,"DisplayInfo",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_DEVICE_PRESENCE,"DevicePresence",OPTV_BOOLEAN,{0},	FALSE},
    {OPTION_MONITOR_LAYOUT, "MonitorLayout", OPTV_ANYSTR,{0},	FALSE},
    {OPTION_CLONE,	"Clone",	OPTV_BOOLEAN,	{0},	FALSE},
@@ -2251,24 +2250,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 	    BOOLTOSTRING(((1<<i) & enc)>>i));
       }
    }
-
-   /* Buggy BIOS 3066 is known to cause this, so turn this off */
-   if (pI830->bios_version == 3066) {
-      pI830->displayInfo = FALSE;
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Detected Broken Video BIOS, turning off displayInfo.\n");
-   } else
-      pI830->displayInfo = TRUE;
-   from = X_DEFAULT;
-   if (!xf86ReturnOptValBool(pI830->Options, OPTION_DISPLAY_INFO, TRUE)) {
-      pI830->displayInfo = FALSE;
-      from = X_CONFIG;
-   }
-   if (xf86ReturnOptValBool(pI830->Options, OPTION_DISPLAY_INFO, FALSE)) {
-      pI830->displayInfo = TRUE;
-      from = X_CONFIG;
-   }
-   xf86DrvMsg(pScrn->scrnIndex, from, "Display Info: %s.\n",
-	      pI830->displayInfo ? "enabled" : "disabled");
 
    PrintDisplayDeviceInfo(pScrn);
 

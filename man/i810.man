@@ -179,12 +179,6 @@ NOTE: Using this option may cause text mode to be restored incorrectly,
 and thus should be used with caution.
 Default: disabled.
 .TP
-.BI "Option \*qDisplayInfo\*q \*q" boolean \*q
-It has been found that a certain BIOS call can lockup the Xserver because
-of a problem in the Video BIOS. The log file will identify if you are
-suffering from this problem and tell you to turn this option off.
-Default: enabled
-.TP
 .BI "Option \*qDevicePresence\*q \*q" boolean \*q
 Tell the driver to perform an active detect of the currently connected
 monitors. This option is useful if the monitor was not connected when
