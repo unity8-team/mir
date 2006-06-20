@@ -1952,25 +1952,16 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 	 pI830->MonType2 |= PIPE_LFP;
       }
 
-      for (i=0; i<pI830->num_outputs; i++) {
-	 if (pI830->output[i].MonInfo == NULL)
-	    continue;
-
-	 switch (pI830->output[i].type) {
-	 case I830_OUTPUT_ANALOG:
-	 case I830_OUTPUT_DVO:
-	    pI830->MonType1 |= PIPE_CRT;
-	    break;
-	 case I830_OUTPUT_LVDS:
-	    pI830->MonType2 |= PIPE_LFP;
-	    break;
-	 case I830_OUTPUT_SDVO:
-	    /* XXX DVO */
-	    break;
-	 case I830_OUTPUT_UNUSED:
-	    break;
-	 }
+      if (i830DetectCRT(pScrn, TRUE)) {
+	 pI830->MonType1 |= PIPE_CRT;
       }
+
+      /* And, if we haven't found anything (including CRT through DDC), assume
+       * that there's a CRT and that the user has set up some appropriate modes
+       * or something.
+       */
+      if (pI830->MonType1 == PIPE_NONE && pI830->MonType2 == PIPE_NONE)
+	 pI830->MonType1 |= PIPE_CRT;
 
       if (pI830->MonType1 != PIPE_NONE)
 	 pI830->pipe = 0;
