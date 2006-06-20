@@ -411,6 +411,9 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	(int)(vtot & 0xffff) + 1, (int)(vtot >> 16) + 1,
 	(int)(vblank & 0xffff) + 1, (int)(vblank >> 16) + 1,
 	(int)(vsync & 0xffff) + 1, (int)(vsync >> 16) + 1);
+    ErrorF("pipesrc: %dx%d, dspsize: %dx%d\n",
+	(int)(pipesrc >> 16) + 1, (int)(pipesrc & 0xffff) + 1,
+	(int)(dspsize & 0xffff) + 1, (int)(dspsize >> 16) + 1);
 #endif
 
     i830PrintPll("chosen", refclk, m1, m2, n, p1, p2);
