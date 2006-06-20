@@ -157,7 +157,9 @@
 #define SDVO_CMD_SET_CLOCK_RATE_MULT			0x21
 # define SDVO_CLOCK_RATE_MULT_1X				(1 << 0)
 # define SDVO_CLOCK_RATE_MULT_2X				(1 << 1)
+# define SDVO_CLOCK_RATE_MULT_3X				(1 << 2)
 # define SDVO_CLOCK_RATE_MULT_4X				(1 << 3)
+# define SDVO_CLOCK_RATE_MULT_5X				(1 << 4)
 
 #define SDVO_CMD_GET_SUPPORTED_TV_FORMATS		0x27
 

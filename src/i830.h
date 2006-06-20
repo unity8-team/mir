@@ -419,6 +419,7 @@ typedef struct _I830Rec {
    Bool devicePresence;
 
    OsTimerPtr devicesTimer;
+   int MaxClock;
 
    int ddc2;
    int num_outputs;
@@ -439,6 +440,8 @@ typedef struct _I830Rec {
    int panel_fixed_vsyncoff;
    int panel_fixed_vsyncwidth;
 
+   int backlight_duty_cycle;  /* restore backlight to this value */
+   
    Bool panel_wants_dither;
 
    unsigned char *VBIOS;
@@ -492,6 +495,7 @@ typedef struct _I830Rec {
    CARD32 savePaletteA[256];
    CARD32 savePaletteB[256];
    CARD32 saveSWF[17];
+   CARD32 saveBLC_PWM_CTL;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -542,6 +546,7 @@ extern void I830DRIUnmapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
 extern Bool I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
 extern void I830DRIUnlock(ScrnInfoPtr pScrn);
 extern Bool I830DRILock(ScrnInfoPtr pScrn);
+extern Bool I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on);
 #endif
 
 extern Bool I830AccelInit(ScreenPtr pScreen);
@@ -588,6 +593,7 @@ extern Rotation I830GetRotation(ScreenPtr pScreen);
 extern Bool I830RandRInit(ScreenPtr pScreen, int rotation);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
+int I830xf86ValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for

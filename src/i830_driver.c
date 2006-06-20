@@ -2358,14 +2358,17 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
 	      "Maximum space available for video modes: %d kByte\n", memsize);
 
+     pI830->MaxClock = 300000;
+
    /*
      * Setup the ClockRanges, which describe what clock ranges are available,
      * and what sort of modes they can be used for.
      */
     clockRanges = xnfcalloc(sizeof(ClockRange), 1);
     clockRanges->next = NULL;
-    clockRanges->minClock = 12000;	/* XXX: Random number */
-    clockRanges->maxClock = 400000;	/* XXX: May be lower */
+    /* 25MHz appears to be the smallest that works. */
+    clockRanges->minClock = 25000;
+    clockRanges->maxClock = pI830->MaxClock;
     clockRanges->clockIndex = -1;		/* programmable */
     clockRanges->interlaceAllowed = TRUE;	/* XXX check this */
     clockRanges->doubleScanAllowed = FALSE;	/* XXX check this */
@@ -2384,16 +2387,17 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       }
       n = i830ValidateFPModes(pScrn, pScrn->display->modes);
    } else {
+      I830xf86ValidateDDCModes(pScrn, pScrn->display->modes);
       /* XXX minPitch, minHeight are random numbers. */
       n = xf86ValidateModes(pScrn,
 			    pScrn->monitor->Modes, /* availModes */
 			    pScrn->display->modes, /* modeNames */
 			    clockRanges, /* clockRanges */
 			    NULL, /* linePitches */
-			    256, /* minPitch */
+			    320, /* minPitch */
 			    MAX_DISPLAY_PITCH, /* maxPitch */
-			    64, /* pitchInc */
-			    pScrn->bitsPerPixel, /* minHeight */
+			    64 * pScrn->bitsPerPixel, /* pitchInc */
+			    200, /* minHeight */
 			    MAX_DISPLAY_HEIGHT, /* maxHeight */
 			    pScrn->display->virtualX, /* virtualX */
 			    pScrn->display->virtualY, /* virtualY */
@@ -2416,6 +2420,24 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    xf86SetCrtcForModes(pScrn, INTERLACE_HALVE_V);
 
+   /*
+    * Fix up modes to make hblank start at hsync start.
+    * I don't know why the xf86 code mangles this...
+    */
+    {
+	DisplayModePtr	p;
+
+	for (p = pScrn->modes; p;) {
+	    xf86DrvMsg (pScrn->scrnIndex,
+			X_INFO, "move blank start from %d to %d\n",
+			p->CrtcHBlankStart, p->CrtcHDisplay);
+	    p->CrtcHBlankStart = p->CrtcHDisplay;
+	    p = p->next;
+	    if (p == pScrn->modes)
+		break;
+	}
+    }
+   
    pScrn->currentMode = pScrn->modes;
 
 #ifndef USE_PITCHES
@@ -2897,6 +2919,17 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveLVDS = INREG(LVDS);
    pI830->savePP_CONTROL = INREG(PP_CONTROL);
    pI830->savePP_CYCLE = INREG(PP_CYCLE);
+   pI830->saveBLC_PWM_CTL = INREG(BLC_PWM_CTL);
+   pI830->backlight_duty_cycle = (pI830->saveBLC_PWM_CTL & 
+				  BACKLIGHT_DUTY_CYCLE_MASK);
+   /*
+    * If the light is off at server startup, just make it full brightness
+    */
+   if (!pI830->backlight_duty_cycle)
+      pI830->backlight_duty_cycle = ((pI830->saveBLC_PWM_CTL &
+				      BACKLIGHT_MODULATION_FREQ_MASK) >>
+				     BACKLIGHT_MODULATION_FREQ_SHIFT);
+    
 
    if (!IS_I9XX(pI830)) {
       pI830->saveDVOA = INREG(DVOA);
@@ -2937,6 +2970,9 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    DPRINTF(PFX, "RestoreHWState\n");
 
+#ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, FALSE);
+#endif
    vgaHWRestore(pScrn, vgaReg, VGA_SR_ALL);
    vgaHWLock(hwp);
 
@@ -3003,6 +3039,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
       }
    }
 
+   OUTREG(BLC_PWM_CTL, pI830->saveBLC_PWM_CTL);
    OUTREG(LVDSPP_ON, pI830->savePP_ON);
    OUTREG(LVDSPP_OFF, pI830->savePP_OFF);
    OUTREG(PP_CYCLE, pI830->savePP_CYCLE);

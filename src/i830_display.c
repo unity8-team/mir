@@ -34,6 +34,7 @@
 #include "i830.h"
 #include "i830_bios.h"
 #include "i830_display.h"
+#include "i830_debug.h"
 
 /** Returns the pixel clock for the given refclk and divisors. */
 static int i830_clock(int refclk, int m1, int m2, int n, int p1, int p2)
@@ -255,7 +256,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     int m1 = 0, m2 = 0, n = 0, p1 = 0, p2 = 0;
     CARD32 dpll = 0, fp = 0, temp;
     CARD32 htot, hblank, hsync, vtot, vblank, vsync, dspcntr;
-    CARD32 pipesrc, dspsize, adpa, sdvoc = 0;
+    CARD32 pipesrc, dspsize, adpa;
+    CARD32 sdvob = 0, sdvoc= 0;
     Bool ok, is_sdvo;
     int refclk, pixel_clock;
     int outputs;
@@ -391,13 +393,14 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
 	ErrorF("DVOB: %08x\nDVOC: %08x\n", (int)INREG(SDVOB), (int)INREG(SDVOC));
 
-	sdvoc = INREG(SDVOC) & SDVO_PRESERVE_MASK;
-	sdvoc |= SDVO_ENABLE;
+        sdvob = INREG(SDVOB) & SDVOB_PRESERVE_MASK;
+	sdvoc = INREG(SDVOC) & SDVOC_PRESERVE_MASK;
+	sdvob |= SDVO_ENABLE | (9 << 19) | SDVO_BORDER_ENABLE;
+	sdvoc |= 9 << 19;
 	if (pipe == 1)
-	    sdvoc |= SDVO_PIPE_B_SELECT;
-	//	sdvoc |= SDVO_PHASE_SELECT_DEFAULT;
-	sdvoc |= SDVO_BORDER_ENABLE;
+	    sdvob |= SDVO_PIPE_B_SELECT;
 	OUTREG(SDVOC, INREG(SDVOC) & ~SDVO_ENABLE);
+	OUTREG(SDVOB, INREG(SDVOB) & ~SDVO_ENABLE);
     }
 
     fp = ((n - 2) << 16) | ((m1 - 2) << 8) | (m2 - 2);
@@ -437,7 +440,10 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	FatalError("unknown display bpp\n");
     }
 
-    adpa = ADPA_DAC_ENABLE;
+    if (is_sdvo)
+	adpa = ADPA_DAC_DISABLE;
+    else
+	adpa = ADPA_DAC_ENABLE;
     if (pMode->Flags & V_PHSYNC)
 	adpa |= ADPA_HSYNC_ACTIVE_HIGH;
     if (pMode->Flags & V_PVSYNC)
@@ -469,9 +475,6 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	OUTREG(FPA0, fp);
 	OUTREG(DPLL_A, dpll);
 
-	if (is_sdvo)
-	  OUTREG(SDVOC, sdvoc);
-
 	OUTREG(HTOTAL_A, htot);
 	OUTREG(HBLANK_A, hblank);
 	OUTREG(HSYNC_A, hsync);
@@ -490,6 +493,11 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
 	/* And then turn the plane on */
 	OUTREG(DSPACNTR, dspcntr);
+
+	if (is_sdvo) {
+	  OUTREG(SDVOB, sdvob);
+	  OUTREG(SDVOC, sdvoc);
+	}
     } else {
 	/* Always make sure the LVDS is off before we play with DPLLs and pipe
 	 * configuration.
@@ -634,12 +642,17 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 		   pI830->planeEnabled[1] ? "enabled" : "disabled",
 		   planeB & DISPPLANE_SEL_PIPE_MASK ? "Pipe B" : "Pipe A");
 
+#ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, TRUE);
+#endif
 done:
 #ifdef XF86DRI
     if (didLock)
 	I830DRIUnlock(pScrn);
 #endif
 
+    i830DumpRegs (pScrn);
+    I830DumpSDVO (pScrn);
     return ok;
 }
 
@@ -798,7 +811,14 @@ i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 pp_status, pp_control;
+    CARD32 blc_pwm_ctl;
+    int backlight_duty_cycle;
 
+    blc_pwm_ctl = INREG (BLC_PWM_CTL);
+    backlight_duty_cycle = blc_pwm_ctl & BACKLIGHT_DUTY_CYCLE_MASK;
+    if (backlight_duty_cycle)
+        pI830->backlight_duty_cycle = backlight_duty_cycle;
+    
     if (on) {
 	OUTREG(PP_STATUS, INREG(PP_STATUS) | PP_ON);
 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
@@ -806,7 +826,13 @@ i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on)
 	    pp_status = INREG(PP_STATUS);
 	    pp_control = INREG(PP_CONTROL);
 	} while (!(pp_status & PP_ON) && !(pp_control & POWER_TARGET_ON));
+	OUTREG(BLC_PWM_CTL,
+	       (blc_pwm_ctl & ~BACKLIGHT_DUTY_CYCLE_MASK) |
+	       pI830->backlight_duty_cycle);
     } else {
+	OUTREG(BLC_PWM_CTL,
+	       (blc_pwm_ctl & ~BACKLIGHT_DUTY_CYCLE_MASK));
+	       
 	OUTREG(PP_STATUS, INREG(PP_STATUS) & ~PP_ON);
 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
 	do {

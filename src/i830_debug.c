@@ -35,7 +35,7 @@
 
 /* XXX: What was the syntax for sticking quotes around the "reg" argument? */
 #define DEFINEREG(reg) \
-	{ reg, NULL, 0 }
+	{ reg, #reg, 0 }
 
 static struct i830SnapshotRec {
     int reg;
@@ -127,5 +127,16 @@ void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn)
 		       i830_snapshot[i].reg, i830_snapshot[i].name,
 		       (int)i830_snapshot[i].regval, (int)val);
 	}
+    }
+}
+
+void i830DumpRegs (ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int i;
+
+    for (i = 0; i < NUM_I830_SNAPSHOTREGS; i++) {
+	xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "%10.10s: 0x%08x\n",
+		    i830_snapshot[i].name, (unsigned int) INREG(i830_snapshot[i].reg));
     }
 }
