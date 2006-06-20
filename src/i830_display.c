@@ -643,20 +643,109 @@ done:
     return ok;
 }
 
+/**
+ * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect CRT presence.
+ *
+ * Only for I945G/GM.
+ */
+static Bool
+i830HotplugDetectCRT(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 temp;
+    const int timeout_ms = 1000;
+    int starttime, curtime;
+
+    temp = INREG(PORT_HOTPLUG_EN);
+
+    OUTREG(PORT_HOTPLUG_EN, temp | CRT_HOTPLUG_FORCE_DETECT | (1 << 5));
+
+    for (curtime = starttime = GetTimeInMillis();
+	 (curtime - starttime) < timeout_ms; curtime = GetTimeInMillis())
+    {
+	if ((INREG(PORT_HOTPLUG_EN) & CRT_HOTPLUG_FORCE_DETECT) == 0)
+	    break;
+    }
+
+    if ((INREG(PORT_HOTPLUG_STAT) & CRT_HOTPLUG_MONITOR_MASK) ==
+	CRT_HOTPLUG_MONITOR_COLOR)
+    {
+	return TRUE;
+    } else {
+	return FALSE;
+    }
+}
+
+/**
+ * Detects CRT presence by checking for load.
+ *
+ * Requires that the current pipe's DPLL is active.  This will cause flicker
+ * on the CRT, so it should not be used while the display is being used.  Only
+ * color (not monochrome) displays are detected.
+ */
+static Bool
+i830LoadDetectCRT(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 adpa, pipeconf;
+    CARD8 st00;
+    int pipeconf_reg, bclrpat_reg, dpll_reg;
+    int pipe;
+
+    pipe = pI830->pipe;
+    if (pipe == 0) {
+	bclrpat_reg = BCLRPAT_A;
+	pipeconf_reg = PIPEACONF;
+	dpll_reg = DPLL_A;
+    } else {
+	bclrpat_reg = BCLRPAT_B;
+	pipeconf_reg = PIPEBCONF;
+	dpll_reg = DPLL_B;
+    }
+
+    /* Don't try this if the DPLL isn't running. */
+    if (!(INREG(dpll_reg) & DPLL_VCO_ENABLE))
+	return FALSE;
+
+    adpa = INREG(ADPA);
+
+    /* Enable CRT output if disabled. */
+    if (!(adpa & ADPA_DAC_ENABLE)) {
+	OUTREG(ADPA, adpa | ADPA_DAC_ENABLE |
+	       ((pipe == 1) ? ADPA_PIPE_B_SELECT : 0));
+    }
+
+    /* Set the border color to red, green.  Maybe we should save/restore this
+     * reg.
+     */
+    OUTREG(bclrpat_reg, 0x00500050);
+
+    /* Force the border color through the active region */
+    pipeconf = INREG(pipeconf_reg);
+    OUTREG(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
+
+    /* Read the ST00 VGA status register */
+    st00 = pI830->readStandard(pI830, 0x3c2);
+
+    /* Restore previous settings */
+    OUTREG(pipeconf_reg, pipeconf);
+    OUTREG(ADPA, adpa);
+
+    if (st00 & (1 << 4))
+	return TRUE;
+    else
+	return FALSE;
+}
+
 Bool
 i830DetectCRT(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 temp;
 
-    temp = INREG(PORT_HOTPLUG_EN);
-    OUTREG(PORT_HOTPLUG_EN, temp | CRT_HOTPLUG_FORCE_DETECT);
+    if (IS_I945G(pI830) || IS_I945GM(pI830))
+	return i830HotplugDetectCRT(pScrn);
 
-    /* Wait for the bit to clear to signal detection finished. */
-    while (INREG(PORT_HOTPLUG_EN) & CRT_HOTPLUG_FORCE_DETECT)
-	;
-
-    return ((INREG(PORT_HOTPLUG_STAT) & CRT_HOTPLUG_INT_STATUS));
+    return i830LoadDetectCRT(pScrn);
 }
 
 /**
