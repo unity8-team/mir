@@ -4545,6 +4545,20 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
    ScrnInfoPtr pScrn = (ScrnInfoPtr) arg;
    I830Ptr pI830 = I830PTR(pScrn);
    int cloned = 0;
+#if 0
+   Bool found_crt;
+   int start, finish;
+
+   if (!pScrn->vtSema)
+      return 1000;
+
+   start = GetTimeInMillis();
+   found_crt = i830DetectCRT(pScrn, FALSE);
+   finish = GetTimeInMillis();
+
+   xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Detected CRT as %s in %dms\n",
+	      found_crt ? "connected" : "disconnected", finish - start);
+#endif
 
    if (pScrn->vtSema) {
       /* Check for monitor lid being closed/opened and act accordingly */
