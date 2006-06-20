@@ -737,15 +737,57 @@ i830LoadDetectCRT(ScrnInfoPtr pScrn)
 	return FALSE;
 }
 
+/**
+ * Detects CRT presence by probing for a response on the DDC address.
+ *
+ * This takes approximately 5ms in testing on an i915GM, with CRT connected or
+ * not.
+ */
 Bool
-i830DetectCRT(ScrnInfoPtr pScrn)
+i830DDCDetectCRT(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    struct _I830OutputRec *output;
+
+    output = &pI830->output[0];
+    /* CRT should always be at 0, but check anyway */
+    if (output->type != I830_OUTPUT_ANALOG)
+	return FALSE;
+
+    return xf86I2CProbeAddress(output->pDDCBus, 0x00A0);
+}
+
+/**
+ * Attempts to detect CRT presence through any method available.
+ *
+ * @param allow_disturb enables detection methods that may cause flickering
+ *        on active displays.
+ */
+Bool
+i830DetectCRT(ScrnInfoPtr pScrn, Bool allow_disturb)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    Bool found_ddc;
 
     if (IS_I945G(pI830) || IS_I945GM(pI830))
 	return i830HotplugDetectCRT(pScrn);
 
-    return i830LoadDetectCRT(pScrn);
+    found_ddc = i830DDCDetectCRT(pScrn);
+    if (found_ddc)
+	return TRUE;
+
+    /* Use the load-detect method if we're not currently outputting to the CRT,
+     * or we don't care.
+     *
+     * Actually, the method is unreliable currently.  We need to not share a
+     * pipe, as it seems having other outputs on that pipe will result in a
+     * false positive.
+     */
+    if (0 && (allow_disturb || !(INREG(ADPA) & !ADPA_DAC_ENABLE))) {
+	return i830LoadDetectCRT(pScrn);
+    }
+
+    return FALSE;
 }
 
 /**
