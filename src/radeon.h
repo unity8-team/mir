@@ -789,6 +789,13 @@ extern void        R300CGWorkaround(ScrnInfoPtr pScrn);
 extern void        RADEONPllErrataAfterIndex(RADEONInfoPtr info);
 extern void        RADEONPllErrataAfterData(RADEONInfoPtr info);
 
+extern Bool        RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10);
+extern Bool        RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn);
+extern Bool        RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn);
+extern Bool        RADEONGetLVDSInfoFromBIOS (ScrnInfoPtr pScrn);
+extern Bool        RADEONGetTMDSInfoFromBIOS (ScrnInfoPtr pScrn);
+extern Bool        RADEONGetHardCodedEDIDFromBIOS (ScrnInfoPtr pScrn);
+
 #ifdef XF86DRI
 #ifdef USE_XAA
 extern void        RADEONAccelInitCP(ScreenPtr pScreen, XAAInfoRecPtr a);
@@ -822,13 +829,6 @@ extern void        RADEONHostDataBlitCopyPass(ScrnInfoPtr pScrn,
 					      unsigned int srcPitch);
 extern void        RADEONCopySwap(CARD8 *dst, CARD8 *src, unsigned int size,
 				  int swap);
-
-extern Bool        RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10);
-extern Bool        RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetLVDSInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetTMDSInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetHardCodedEDIDFromBIOS (ScrnInfoPtr pScrn);
 
 #define RADEONCP_START(pScrn, info)					\
 do {									\

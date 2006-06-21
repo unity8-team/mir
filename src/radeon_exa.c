@@ -197,7 +197,7 @@ static Bool RADEONPrepareAccess(PixmapPtr pPix, int index)
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 offset = exaGetPixmapOffset(pPix);
-    int bpp, rc, soff;
+    int bpp, soff;
     CARD32 size, flags;
 
     /* Front buffer is always set with proper swappers */
@@ -231,6 +231,7 @@ static Bool RADEONPrepareAccess(PixmapPtr pPix, int index)
 #if defined(XF86DRI)
     if (info->directRenderingEnabled && info->allowColorTiling) {
 	drmRadeonSurfaceAlloc drmsurfalloc;
+	int rc;
 
         drmsurfalloc.address = offset;
         drmsurfalloc.size = size;
@@ -367,9 +368,7 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int cpp = info->CurrentLayout.pixel_bytes;
-    int depthCpp = (info->depthBits - 8) / 4;
-    int l;
-    int next, screen_size;
+    int screen_size;
     int byteStride = pScrn->displayWidth * cpp;
 
     if (info->exa != NULL) {
@@ -401,7 +400,7 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 
 #if defined(XF86DRI)
     if (info->directRenderingEnabled) {
-	int depth_size;
+	int depthCpp = (info->depthBits - 8) / 4, l, next, depth_size;
 
 	info->frontOffset = 0;
 	info->frontPitch = pScrn->displayWidth;

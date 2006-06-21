@@ -135,7 +135,10 @@ static int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode);
 static void RADEONUpdatePanelSize(ScrnInfoPtr pScrn);
 static void RADEONSaveMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+
+#ifdef XF86DRI
 static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+#endif
 
 /* psuedo xinerama support */
 
@@ -6337,6 +6340,7 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
     RADEONTRACE(("Memory map updated.\n"));
  }
 
+#ifdef XF86DRI
 static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
@@ -6392,6 +6396,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	}
     }
 }
+#endif
 
 /* Write common registers */
 static void RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
@@ -6874,15 +6879,11 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
   
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     int cpp = info->CurrentLayout.pixel_bytes;
-    int depthCpp = (info->depthBits - 8) / 4;
     /* depth/front/back pitch must be identical (and the same as displayWidth) */
     int width_bytes = pScrn->displayWidth * cpp;
     int bufferSize = ((((pScrn->virtualY + 15) & ~15) * width_bytes
         + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
-    int depth_width_bytes = pScrn->displayWidth * depthCpp;
-    int depthBufferSize = ((((pScrn->virtualY + 15) & ~15) * depth_width_bytes
-        + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
-    unsigned int depth_pattern, color_pattern, swap_pattern;
+    unsigned int color_pattern, swap_pattern;
 
     if (!info->allowColorTiling)
 	return;
@@ -6901,28 +6902,21 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 #endif
     if (info->ChipFamily < CHIP_FAMILY_R200) {
 	color_pattern = RADEON_SURF_TILE_COLOR_MACRO;
-	if (depthCpp == 2)
-	    depth_pattern = RADEON_SURF_TILE_DEPTH_16BPP;
-	else
-	    depth_pattern = RADEON_SURF_TILE_DEPTH_32BPP;
     } else if (IS_R300_VARIANT) {
        color_pattern = R300_SURF_TILE_COLOR_MACRO;
-       if (depthCpp == 2)
-           depth_pattern = R300_SURF_TILE_COLOR_MACRO;
-       else
-           depth_pattern = R300_SURF_TILE_COLOR_MACRO | R300_SURF_TILE_DEPTH_32BPP;
     } else {
 	color_pattern = R200_SURF_TILE_COLOR_MACRO;
-	if (depthCpp == 2)
-	    depth_pattern = R200_SURF_TILE_DEPTH_16BPP;
-	else
-	    depth_pattern = R200_SURF_TILE_DEPTH_32BPP;
     }   
 #ifdef XF86DRI
     if (info->directRenderingInited) {
 	drmRadeonSurfaceFree drmsurffree;
 	drmRadeonSurfaceAlloc drmsurfalloc;
 	int retvalue;
+	int depthCpp = (info->depthBits - 8) / 4;
+	int depth_width_bytes = pScrn->displayWidth * depthCpp;
+	int depthBufferSize = ((((pScrn->virtualY + 15) & ~15) * depth_width_bytes
+				+ RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
+	unsigned int depth_pattern;
 
 	drmsurffree.address = info->frontOffset;
 	retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_FREE,
@@ -6965,6 +6959,23 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	    if (retvalue < 0)
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "drm: could not allocate surface for back buffer!\n");
+	}
+
+	if (info->ChipFamily < CHIP_FAMILY_R200) {
+	    if (depthCpp == 2)
+		depth_pattern = RADEON_SURF_TILE_DEPTH_16BPP;
+	    else
+		depth_pattern = RADEON_SURF_TILE_DEPTH_32BPP;
+	} else if (IS_R300_VARIANT) {
+	    if (depthCpp == 2)
+		depth_pattern = R300_SURF_TILE_COLOR_MACRO;
+	    else
+		depth_pattern = R300_SURF_TILE_COLOR_MACRO | R300_SURF_TILE_DEPTH_32BPP;
+	} else {
+	    if (depthCpp == 2)
+		depth_pattern = R200_SURF_TILE_DEPTH_16BPP;
+	    else
+		depth_pattern = R200_SURF_TILE_DEPTH_32BPP;
 	}
 
 	/* rv100 and probably the derivative igps don't have depth tiling on all the time? */

@@ -2109,6 +2109,7 @@ RADEONCopyData(
     }
 }
 
+#ifdef XF86DRI
 static void RADEON_420_422(
     unsigned int *d,
     unsigned char *s1,
@@ -2123,7 +2124,7 @@ static void RADEON_420_422(
 	n--;
     }
 }
-
+#endif
 
 static void
 RADEONCopyRGB24Data(
