@@ -1182,35 +1182,6 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
    pI830->AccelInfoRec->NeedToSync = TRUE;
 }
 
-extern I830EmitInvarientState(ScrnInfoPtr pScrn);
-extern I915EmitInvarientState(ScrnInfoPtr pScrn);
-
-/* Initialize the first context */
-void
-IntelEmitInvarientState(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 ctx_addr;
-
-   ctx_addr = pI830->ContextMem.Start;
-   /* Align to a 2k boundry */
-   ctx_addr = ((ctx_addr + 2048 - 1) / 2048) * 2048;
-
-   {
-      BEGIN_LP_RING(2);
-      OUT_RING(MI_SET_CONTEXT);
-      OUT_RING(ctx_addr |
-	       CTXT_NO_RESTORE |
-	       CTXT_PALETTE_SAVE_DISABLE | CTXT_PALETTE_RESTORE_DISABLE);
-      ADVANCE_LP_RING();
-   }
-
-   if (IS_I9XX(pI830))
-      I915EmitInvarientState(pScrn);
-   else
-      I830EmitInvarientState(pScrn);
-}
-
 /* Use callbacks from dri.c to support pageflipping mode for a single
  * 3d context without need for any specific full-screen extension.
  *

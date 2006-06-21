@@ -30,7 +30,6 @@
 #endif
 
 #include "i830.h"
-#include "i830_dri.h"
 
 #include "i830_reg.h"
 

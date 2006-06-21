@@ -395,6 +395,8 @@ extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
 extern Bool I830CursorInit(ScreenPtr pScreen);
 extern void IntelEmitInvarientState(ScrnInfoPtr pScrn);
+extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
+extern void I915EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 
 extern void I830RefreshRing(ScrnInfoPtr pScrn);
