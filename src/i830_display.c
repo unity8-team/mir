@@ -259,7 +259,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     CARD32 pipesrc, dspsize, adpa;
     CARD32 sdvob = 0, sdvoc= 0;
     Bool ok, is_sdvo;
-    int refclk, pixel_clock;
+    int refclk, pixel_clock, sdvo_pixel_multiply;
     int outputs;
 
     ErrorF("Requested pix clock: %d\n", pMode->Clock);
@@ -342,6 +342,22 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	pixel_clock = pI830->panel_fixed_clock;
     }
 
+    if (pMode->Clock >= 100000)
+	sdvo_pixel_multiply = 1;
+    else if (pMode->Clock >= 50000)
+	sdvo_pixel_multiply = 2;
+    else
+	sdvo_pixel_multiply = 4;
+
+    /* In SDVO, we need to keep the clock on the bus between 1Ghz and 2Ghz.
+     * The clock on the bus is 10 times the pixel clock normally.  If that
+     * would be too low, we run the DPLL at a multiple of the pixel clock, and
+     * tell the SDVO device the multiplier so it can throw away the dummy bytes.
+     */
+    if (is_sdvo) {
+	pixel_clock *= sdvo_pixel_multiply;
+    }
+
     if (IS_I9XX(pI830)) {
 	refclk = 96000;
     } else {
@@ -386,7 +402,6 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	dpll |= PLL_REF_INPUT_TVCLKINBC;
     else
 	dpll |= PLL_REF_INPUT_DREFCLK;
-    dpll |= SDVO_DEFAULT_MULTIPLIER;
 
     if (is_sdvo) {
 	dpll |= DPLL_DVO_HIGH_SPEED;
@@ -399,6 +414,12 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	sdvoc |= 9 << 19;
 	if (pipe == 1)
 	    sdvob |= SDVO_PIPE_B_SELECT;
+
+	if (IS_I945G(pI830) || IS_I945GM(pI830))
+	    dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
+	else
+	    sdvob |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
+
 	OUTREG(SDVOC, INREG(SDVOC) & ~SDVO_ENABLE);
 	OUTREG(SDVOB, INREG(SDVOB) & ~SDVO_ENABLE);
     }
