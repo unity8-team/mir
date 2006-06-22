@@ -63,3 +63,6 @@ i830SDVOPreRestore(ScrnInfoPtr pScrn, int output_index);
 
 void
 i830SDVOPostRestore(ScrnInfoPtr pScrn, int output_index);
+
+Bool
+I830DetectSDVODisplays(ScrnInfoPtr pScrn, int output_index);

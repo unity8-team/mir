@@ -514,11 +514,6 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
 	/* And then turn the plane on */
 	OUTREG(DSPACNTR, dspcntr);
-
-	if (is_sdvo) {
-	  OUTREG(SDVOB, sdvob);
-	  OUTREG(SDVOC, sdvoc);
-	}
     } else {
 	/* Always make sure the LVDS is off before we play with DPLLs and pipe
 	 * configuration.
@@ -590,6 +585,11 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
     if (outputs & PIPE_CRT_ACTIVE)
 	OUTREG(ADPA, adpa);
+
+    if (is_sdvo) {
+	OUTREG(SDVOB, sdvob);
+	OUTREG(SDVOC, sdvoc);
+    }
 
     return TRUE;
 }

@@ -1841,7 +1841,12 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    I830DetectMonitors(pScrn);
 
-   for (i = 0; i < MAX_OUTPUTS; i++) {
+   /* Walk from the end so we'll happen to hit SDVO first, if we found some. An
+    * SDVO device is probably a DFP, and so probably pickier than (say) a CRT
+    * that we might find early in the list.  This hackery will go away when we
+    * start doing independent per-head mode selection.
+    */
+   for (i = MAX_OUTPUTS - 1; i >= 0; i--) {
      if (pI830->output[i].MonInfo) {
        pScrn->monitor->DDC = pI830->output[i].MonInfo;
        xf86SetDDCproperties(pScrn, pI830->output[i].MonInfo);
@@ -1954,6 +1959,23 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
       if (i830DetectCRT(pScrn, TRUE)) {
 	 pI830->MonType1 |= PIPE_CRT;
+      }
+
+      /* Check for attached SDVO outputs.  Assume that they're flat panels for
+       * now.  Though really, it's just a name at the moment, since we don't
+       * treat different SDVO outputs differently.
+       */
+      for (i = 0; i < MAX_OUTPUTS; i++) {
+	 if (pI830->output[i].type == I830_OUTPUT_SDVO &&
+	     pI830->output[i].sdvo_drv != NULL) {
+	    if (!I830DetectSDVODisplays(pScrn, i))
+	       continue;
+
+	    if (pI830->MonType1 == PIPE_NONE)
+	       pI830->MonType1 |= PIPE_DFP;
+	    else if (pI830->MonType2 == PIPE_NONE)
+	       pI830->MonType2 |= PIPE_DFP;
+	 }
       }
 
       /* And, if we haven't found anything (including CRT through DDC), assume
@@ -4584,17 +4606,31 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
    int cloned = 0;
 #if 0
    Bool found_crt;
-   int start, finish;
+   int start, finish, i;
 
    if (!pScrn->vtSema)
       return 1000;
 
    start = GetTimeInMillis();
-   found_crt = i830DetectCRT(pScrn, FALSE);
+   found_crt = i830DetectCRT(pScrn, FALSE);   
    finish = GetTimeInMillis();
-
    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Detected CRT as %s in %dms\n",
 	      found_crt ? "connected" : "disconnected", finish - start);
+
+   for (i = 0; i < MAX_OUTPUTS; i++) {
+      Bool found_sdvo = TRUE;
+
+      if (pI830->output[i].type != I830_OUTPUT_SDVO ||
+	  pI830->output[i].sdvo_drv == NULL)
+      {
+	 continue;
+      }
+      start = GetTimeInMillis();
+      found_sdvo = I830DetectSDVODisplays(pScrn, i);   
+      finish = GetTimeInMillis();
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Detected SDVO as %s in %dms\n",
+		 found_sdvo ? "connected" : "disconnected", finish - start);
+   }
 #endif
 
    if (pScrn->vtSema) {

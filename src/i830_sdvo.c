@@ -947,3 +947,29 @@ I830DumpSDVO (ScrnInfoPtr pScrn)
 	    I830DumpOneSDVO (s);
     }
 }
+
+/**
+ * Asks the SDVO device if any displays are currently connected.
+ *
+ * This interface will need to be augmented, since we could potentially have
+ * multiple displays connected, and the caller will also probably want to know
+ * what type of display is connected.  But this is enough for the moment.
+ *
+ * Takes 14ms on average on my i945G.
+ */
+Bool
+I830DetectSDVODisplays(ScrnInfoPtr pScrn, int output_index)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830SDVOPtr s = pI830->output[output_index].sdvo_drv;
+
+    s->sdvo_regs[SDVO_I2C_OPCODE] = SDVO_CMD_GET_ATTACHED_DISPLAYS;
+    I830SDVOWriteOutputs(s, 0);
+    I830SDVOReadInputRegs(s);
+
+    if (s->sdvo_regs[SDVO_I2C_CMD_STATUS] != SDVO_CMD_STATUS_SUCCESS)
+	return FALSE;
+
+    return (s->sdvo_regs[SDVO_I2C_RETURN_0] != 0 ||
+	    s->sdvo_regs[SDVO_I2C_RETURN_1] != 0);
+}
