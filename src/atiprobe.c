@@ -997,16 +997,19 @@ ATIProbe
     ATIPtr                 pATI, *ATIPtrs = NULL;
     GDevPtr                *GDevs, pGDev;
     pciVideoPtr            pVideo, *xf86PciVideoInfo = xf86GetPciVideoInfo();
-    pciConfigPtr           pPCI;
     ATIGDev                *ATIGDevs = NULL, *pATIGDev;
     ScrnInfoPtr            pScreenInfo;
-    CARD32                 PciReg;
     Bool                   ProbeSuccess = FALSE;
     Bool                   DoRage128 = FALSE, DoRadeon = FALSE;
     int                    i, j, k;
     int                    nGDev, nATIGDev = -1, nATIPtr = 0;
     int                    Chipset;
     ATIChipType            Chip;
+
+#if !defined(AVOID_NON_PCI) || !defined(AVOID_CPIO)
+    pciConfigPtr           pPCI;
+    CARD32                 PciReg;
+#endif /* AVOID_NON_PCI || AVOID_CPIO */
 
 #ifndef AVOID_NON_PCI
     ATIPtr                 pMach64[3] = {NULL, NULL, NULL};
