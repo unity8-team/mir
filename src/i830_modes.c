@@ -332,6 +332,171 @@ DisplayModePtr I830xf86DDCModes(ScrnInfoPtr pScrn)
     return first;
 }
 
+static void
+i830SetModeToPanelParameters(ScrnInfoPtr pScrn, DisplayModePtr pMode)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+   pMode->HTotal     = pI830->panel_fixed_hactive;
+   pMode->HSyncStart = pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff;
+   pMode->HSyncEnd   = pMode->HSyncStart + pI830->panel_fixed_hsyncwidth;
+   pMode->VTotal     = pI830->panel_fixed_vactive;
+   pMode->VSyncStart = pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff;
+   pMode->VSyncEnd   = pMode->VSyncStart + pI830->panel_fixed_vsyncwidth;
+   pMode->Clock      = pI830->panel_fixed_clock;
+}
+
+/**
+ * This function returns a default mode for flat panels using the timing
+ * information provided by the BIOS.
+ */
+static DisplayModePtr i830FPNativeMode(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   DisplayModePtr  new;
+   char            stmp[32];
+
+   if (pI830->PanelXRes == 0 || pI830->PanelYRes == 0)
+      return NULL;
+
+   /* Add native panel size */
+   new             = xnfcalloc(1, sizeof (DisplayModeRec));
+   sprintf(stmp, "%dx%d", pI830->PanelXRes, pI830->PanelYRes);
+   new->name       = xnfalloc(strlen(stmp) + 1);
+   strcpy(new->name, stmp);
+   new->HDisplay   = pI830->PanelXRes;
+   new->VDisplay   = pI830->PanelYRes;
+   i830SetModeToPanelParameters(pScrn, new);
+   new->type       = M_T_USERDEF;
+
+   pScrn->virtualX = MAX(pScrn->virtualX, pI830->PanelXRes);
+   pScrn->virtualY = MAX(pScrn->virtualY, pI830->PanelYRes);
+   pScrn->display->virtualX = pScrn->virtualX;
+   pScrn->display->virtualY = pScrn->virtualY;
+
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	      "No valid mode specified, force to native mode\n");
+
+   return new;
+}
+
+/* FP mode validation routine for using panel fitting.
+ */
+int
+i830ValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   DisplayModePtr  last       = NULL;
+   DisplayModePtr  new        = NULL;
+   DisplayModePtr  first      = NULL;
+   DisplayModePtr  p, tmp;
+   int             count      = 0;
+   int             i, width, height;
+
+   pScrn->virtualX = pScrn->display->virtualX;
+   pScrn->virtualY = pScrn->display->virtualY;
+
+   /* We have a flat panel connected to the primary display, and we
+    * don't have any DDC info.
+    */
+   for (i = 0; ppModeName[i] != NULL; i++) {
+
+      if (sscanf(ppModeName[i], "%dx%d", &width, &height) != 2)
+	 continue;
+
+      /* Note: We allow all non-standard modes as long as they do not
+       * exceed the native resolution of the panel.  Since these modes
+       * need the internal RMX unit in the video chips (and there is
+       * only one per card), this will only apply to the primary head.
+       */
+      if (width < 320 || width > pI830->PanelXRes ||
+	 height < 200 || height > pI830->PanelYRes) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Mode %s is out of range.\n",
+ 		    ppModeName[i]);
+	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "Valid modes must be between 320x200-%dx%d\n",
+		    pI830->PanelXRes, pI830->PanelYRes);
+	 continue;
+      }
+
+      new             = xnfcalloc(1, sizeof(DisplayModeRec));
+      new->name       = xnfalloc(strlen(ppModeName[i]) + 1);
+      strcpy(new->name, ppModeName[i]);
+      new->HDisplay   = width;
+      new->VDisplay   = height;
+      new->type      |= M_T_USERDEF;
+
+      i830SetModeToPanelParameters(pScrn, new);
+
+      new->next       = NULL;
+      new->prev       = last;
+
+      if (last)
+	 last->next = new;
+      last = new;
+      if (!first)
+	 first = new;
+
+      pScrn->display->virtualX = pScrn->virtualX = MAX(pScrn->virtualX, width);
+      pScrn->display->virtualY = pScrn->virtualY = MAX(pScrn->virtualY, height);
+      count++;
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		 "Valid mode using panel fitting: %s\n", new->name);
+   }
+
+   /* If all else fails, add the native mode */
+   if (!count) {
+      first = last = i830FPNativeMode(pScrn);
+      if (first)
+	 count = 1;
+   }
+
+   /* add in all default vesa modes smaller than panel size, used for randr*/
+   for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
+      if ((p->HDisplay <= pI830->PanelXRes) && (p->VDisplay <= pI830->PanelYRes)) {
+	 tmp = first;
+	 while (tmp) {
+	    if ((p->HDisplay == tmp->HDisplay) && (p->VDisplay == tmp->VDisplay)) break;
+	       tmp = tmp->next;
+	 }
+	 if (!tmp) {
+	    new             = xnfcalloc(1, sizeof(DisplayModeRec));
+	    new->name       = xnfalloc(strlen(p->name) + 1);
+	    strcpy(new->name, p->name);
+	    new->HDisplay   = p->HDisplay;
+	    new->VDisplay   = p->VDisplay;
+	    i830SetModeToPanelParameters(pScrn, new);
+	    new->type      |= M_T_DEFAULT;
+
+	    new->next       = NULL;
+	    new->prev       = last;
+
+	    if (last)
+	       last->next = new;
+	    last = new;
+	    if (!first)
+	       first = new;
+	 }
+      }
+   }
+
+   /* Close the doubly-linked mode list, if we found any usable modes */
+   if (last) {
+      last->next   = first;
+      first->prev  = last;
+      pScrn->modes = first;
+   }
+
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	      "Total number of valid FP mode(s) found: %d\n", count);
+
+   /* Adjust the display pitch to fit the modes we've come up with. */
+   pScrn->displayWidth = MAX(pScrn->displayWidth, pScrn->virtualX);
+   pScrn->displayWidth = (pScrn->displayWidth + 63) & ~63;
+
+   return count;
+}
+
 /* XFree86's xf86ValidateModes routine doesn't work well with DDC modes,
  * so here is our own validation routine.
  */

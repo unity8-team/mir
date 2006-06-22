@@ -594,6 +594,7 @@ extern Bool I830RandRInit(ScreenPtr pScreen, int rotation);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
 int I830xf86ValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName);
+int i830ValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for
