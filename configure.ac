@@ -186,8 +186,12 @@ AC_DEFINE(USE_XAA, 1, [Build support for XAA])
 AC_MSG_CHECKING([whether to enable EXA support])
 if test "x$EXA" = xyes; then
         AC_MSG_RESULT(yes)
-        AC_CHECK_FILE([${sdkdir}/exa.h],
-                      [have_exa_h="yes"], [have_exa_h="no"])
+
+        SAVE_CPPFLAGS="$CPPFLAGS"
+        CPPFLAGS="$CPPFLAGS $XORG_CFLAGS"
+        AC_CHECK_HEADER(exa.h,
+                       [have_exa_h="yes"], [have_exa_h="no"])
+        CPPFLAGS="$SAVE_CPPFLAGS"
 else
         AC_MSG_RESULT(no)
 fi 
