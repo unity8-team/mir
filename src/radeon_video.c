@@ -30,13 +30,6 @@
 #include "msp3430.h"
 #include "tda9885.h"
 
-#ifdef USE_EXA
-/* FIXME : the video code hasn't been ported so this is a hack to make
- * it compile at all without too much ifdefing */
-#include "xaa.h"
-#include "xf86fbman.h"
-#endif
-
 #define OFF_DELAY       250  /* milliseconds */
 #define FREE_DELAY      15000
 
