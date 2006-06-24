@@ -399,9 +399,10 @@ typedef struct _I830Rec {
 
    /* [0] is Pipe A, [1] is Pipe B. */
    int availablePipes;
-   int pipeDevices[MAX_DISPLAY_PIPES];
    /* [0] is display plane A, [1] is display plane B. */
    int planeEnabled[MAX_DISPLAY_PIPES];
+   xf86MonPtr pipeMon[MAX_DISPLAY_PIPES];
+   DisplayModePtr pipeModes[MAX_DISPLAY_PIPES];
 
    /* Driver phase/state information */
    Bool preinit;
@@ -593,8 +594,12 @@ extern Rotation I830GetRotation(ScreenPtr pScreen);
 extern Bool I830RandRInit(ScreenPtr pScreen, int rotation);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
-int I830xf86ValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName);
-int i830ValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName);
+/* i830_modes.c */
+int I830ValidateXF86ModeList(ScrnInfoPtr pScrn);
+
+/* i830_gtf.c */
+DisplayModePtr i830GetGTF(int h_pixels, int v_lines, float freq,
+			  int interlaced, int margins);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for

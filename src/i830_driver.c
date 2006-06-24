@@ -1258,7 +1258,6 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    int flags24;
    int i, n;
    char *s;
-   ClockRangePtr clockRanges;
    pointer pVBEModule = NULL;
    Bool enable, has_lvds;
    const char *chipname;
@@ -2218,50 +2217,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
      pI830->MaxClock = 300000;
 
-   /*
-     * Setup the ClockRanges, which describe what clock ranges are available,
-     * and what sort of modes they can be used for.
-     */
-    clockRanges = xnfcalloc(sizeof(ClockRange), 1);
-    clockRanges->next = NULL;
-    /* 25MHz appears to be the smallest that works. */
-    clockRanges->minClock = 25000;
-    clockRanges->maxClock = pI830->MaxClock;
-    clockRanges->clockIndex = -1;		/* programmable */
-    clockRanges->interlaceAllowed = TRUE;	/* XXX check this */
-    clockRanges->doubleScanAllowed = FALSE;	/* XXX check this */
-
-   if ( (pI830->pipe == 1 && pI830->operatingDevices & (PIPE_LFP << 8)) ||
-        (pI830->pipe == 0 && pI830->operatingDevices & PIPE_LFP) ) {
-      /* If we're outputting to an LFP, use the LFP mode validation that will
-       * rely on the scaler so that we can display any mode smaller than or the
-       * same size as the panel.
-       */
-      if (!has_lvds) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Unable to locate panel information in BIOS VBT tables\n");
-         PreInitCleanup(pScrn);
-	 return FALSE;
-      }
-      n = i830ValidateFPModes(pScrn, pScrn->display->modes);
-   } else {
-      I830xf86ValidateDDCModes(pScrn, pScrn->display->modes);
-      /* XXX minPitch, minHeight are random numbers. */
-      n = xf86ValidateModes(pScrn,
-			    pScrn->monitor->Modes, /* availModes */
-			    pScrn->display->modes, /* modeNames */
-			    clockRanges, /* clockRanges */
-			    NULL, /* linePitches */
-			    320, /* minPitch */
-			    MAX_DISPLAY_PITCH, /* maxPitch */
-			    64 * pScrn->bitsPerPixel, /* pitchInc */
-			    200, /* minHeight */
-			    MAX_DISPLAY_HEIGHT, /* maxHeight */
-			    pScrn->display->virtualX, /* virtualX */
-			    pScrn->display->virtualY, /* virtualY */
-			    pI830->FbMapSize, /* apertureSize */
-			    LOOKUP_BEST_REFRESH /* strategy */);
-   }
+   n = I830ValidateXF86ModeList(pScrn);
    if (n <= 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       PreInitCleanup(pScrn);
