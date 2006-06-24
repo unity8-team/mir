@@ -51,6 +51,7 @@
 #endif
 #endif
 
+#include <errno.h>
 #include <string.h>
 
 #include "radeon.h"
@@ -379,7 +380,7 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 #endif
 
 	while (h) {
-	    int oldhpass = hpass;
+	    int oldhpass = hpass, i = 0;
 
 	    src = (CARD8*)scratch->address + scratch_off;
 
@@ -394,8 +395,19 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 				x, y, 0, 0, w, hpass);
 	    }
 
-	    /* Wait for previous blit to complete */
-	    RADEONWaitForIdleMMIO(pScrn);
+	    /*
+	     * Wait for previous blit to complete.
+	     *
+	     * XXX: Doing here essentially the same things this ioctl does in
+	     * the DRM results in corruption with 'small' transfers, apparently
+	     * because the data doesn't actually land in system RAM before the
+	     * memcpy. I suspect the ioctl helps mostly due to its latency; what
+	     * we'd really need is a way to reliably wait for the host interface
+	     * to be done with pushing the data to the host.
+	     */
+	    while ((drmCommandNone(info->drmFD, DRM_RADEON_CP_IDLE) == -EBUSY)
+		   && (i++ < RADEON_TIMEOUT))
+		;
 
 	    /* Kick next blit */
 	    if (hpass)
