@@ -262,6 +262,44 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     int refclk, pixel_clock, sdvo_pixel_multiply;
     int outputs;
 
+    assert(pMode->VRefresh != 0.0);
+    /* If we've got a list of modes probed for the device, find the best match
+     * in there to the requested mode.
+     */
+    if (pI830->pipeModes[pipe] != NULL) {
+	DisplayModePtr pBest = NULL, pScan;
+
+	assert(pScan->VRefresh != 0.0);
+	for (pScan = pI830->pipeModes[pipe]; pScan != NULL; pScan = pScan->next)
+	{
+	    /* Reject if it's larger than the desired mode. */
+	    if (pScan->HDisplay > pMode->HDisplay ||
+		pScan->VDisplay > pMode->VDisplay)
+	    {
+		continue;
+	    }
+	    if (pBest == NULL) {
+		pBest = pScan;
+	        continue;
+	    }
+	    /* Find if it's closer than the current best option */
+	    if (abs(pScan->VRefresh - pMode->VRefresh) >
+		abs(pBest->VRefresh - pMode->VRefresh))
+	    {
+		continue;
+	    }
+	}
+	if (pBest != NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Choosing pipe's mode %p (%dx%dx%.1f) instead of xf86 "
+		       "mode %p (%dx%dx%.1f)\n", pBest,
+		       pBest->HDisplay, pBest->VDisplay, pBest->VRefresh,
+		       pMode,
+		       pMode->HDisplay, pMode->VDisplay, pMode->VRefresh);
+	    pMode = pBest;
+	}
+    }
+
     ErrorF("Requested pix clock: %d\n", pMode->Clock);
 
     if (pipe == 0)

@@ -1,6 +1,7 @@
 #define DEBUG_VERB 2
 /*
  * Copyright © 2002 David Dawes
+ * Copyright © 2006 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,6 +27,7 @@
  * the author(s).
  *
  * Authors: David Dawes <dawes@xfree86.org>
+ *	    Eric Anholt <eric.anholt@intel.com>
  *
  * $XFree86: xc/programs/Xserver/hw/xfree86/os-support/vbe/vbeModes.c,v 1.6 2002/11/02 01:38:25 dawes Exp $
  */
@@ -195,6 +197,30 @@ I830xf86SortModes(DisplayModePtr *new, DisplayModePtr *first,
 	(*new)->next = NULL;
 	*last = *new;
     }
+}
+
+/**
+ * Calculates the vertical refresh of a mode.
+ *
+ * Taken directly from xf86Mode.c, and should be put back there --Eric Anholt
+ */
+static double
+I830ModeVRefresh(DisplayModePtr mode)
+{
+    double refresh = 0.0;
+
+    if (mode->VRefresh > 0.0)
+	refresh = mode->VRefresh;
+    else if (mode->HTotal > 0 && mode->VTotal > 0) {
+	refresh = mode->Clock * 1000.0 / mode->HTotal / mode->VTotal;
+	if (mode->Flags & V_INTERLACE)
+	    refresh *= 2.0;
+	if (mode->Flags & V_DBLSCAN)
+	    refresh /= 2.0;
+	if (mode->VScan > 1)
+	    refresh /= (float)(mode->VScan);
+    }
+    return refresh;
 }
 
 DisplayModePtr I830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
@@ -552,6 +578,97 @@ I830InjectProbedModes(ScrnInfoPtr pScrn, DisplayModePtr modeList,
     return count;
 }
 
+/*
+ * I830xf86SetModeCrtc
+ *
+ * Initialises the Crtc parameters for a mode.  The initialisation includes
+ * adjustments for interlaced and double scan modes.
+ *
+ * Taken directly from xf86Mode.c:xf86SetModeCrtc -- Eric Anholt
+ *   (and it should be put back there!)
+ */
+static void
+I830xf86SetModeCrtc(DisplayModePtr p, int adjustFlags)
+{
+    if ((p == NULL) || ((p->type & M_T_CRTC_C) == M_T_BUILTIN))
+	return;
+
+    p->CrtcHDisplay             = p->HDisplay;
+    p->CrtcHSyncStart           = p->HSyncStart;
+    p->CrtcHSyncEnd             = p->HSyncEnd;
+    p->CrtcHTotal               = p->HTotal;
+    p->CrtcHSkew                = p->HSkew;
+    p->CrtcVDisplay             = p->VDisplay;
+    p->CrtcVSyncStart           = p->VSyncStart;
+    p->CrtcVSyncEnd             = p->VSyncEnd;
+    p->CrtcVTotal               = p->VTotal;
+    if (p->Flags & V_INTERLACE) {
+	if (adjustFlags & INTERLACE_HALVE_V) {
+	    p->CrtcVDisplay         /= 2;
+	    p->CrtcVSyncStart       /= 2;
+	    p->CrtcVSyncEnd         /= 2;
+	    p->CrtcVTotal           /= 2;
+	}
+	/* Force interlaced modes to have an odd VTotal */
+	/* maybe we should only do this when INTERLACE_HALVE_V is set? */
+	p->CrtcVTotal |= 1;
+    }
+
+    if (p->Flags & V_DBLSCAN) {
+        p->CrtcVDisplay         *= 2;
+        p->CrtcVSyncStart       *= 2;
+        p->CrtcVSyncEnd         *= 2;
+        p->CrtcVTotal           *= 2;
+    }
+    if (p->VScan > 1) {
+        p->CrtcVDisplay         *= p->VScan;
+        p->CrtcVSyncStart       *= p->VScan;
+        p->CrtcVSyncEnd         *= p->VScan;
+        p->CrtcVTotal           *= p->VScan;
+    }
+    p->CrtcHAdjusted = FALSE;
+    p->CrtcVAdjusted = FALSE;
+
+    /*
+     * XXX
+     *
+     * The following is taken from VGA, but applies to other cores as well.
+     */
+    p->CrtcVBlankStart = min(p->CrtcVSyncStart, p->CrtcVDisplay);
+    p->CrtcVBlankEnd = max(p->CrtcVSyncEnd, p->CrtcVTotal);
+    if ((p->CrtcVBlankEnd - p->CrtcVBlankStart) >= 127) {
+        /* 
+         * V Blanking size must be < 127.
+         * Moving blank start forward is safer than moving blank end
+         * back, since monitors clamp just AFTER the sync pulse (or in
+         * the sync pulse), but never before.
+         */
+        p->CrtcVBlankStart = p->CrtcVBlankEnd - 127;
+	/*
+	 * If VBlankStart is now > VSyncStart move VBlankStart
+	 * to VSyncStart using the maximum width that fits into
+	 * VTotal.
+	 */
+	if (p->CrtcVBlankStart > p->CrtcVSyncStart) {
+	    p->CrtcVBlankStart = p->CrtcVSyncStart;
+	    p->CrtcVBlankEnd = min(p->CrtcHBlankStart + 127, p->CrtcVTotal);
+	}
+    }
+    p->CrtcHBlankStart = min(p->CrtcHSyncStart, p->CrtcHDisplay);
+    p->CrtcHBlankEnd = max(p->CrtcHSyncEnd, p->CrtcHTotal);
+
+    if ((p->CrtcHBlankEnd - p->CrtcHBlankStart) >= 63 * 8) {
+        /*
+         * H Blanking size must be < 63*8. Same remark as above.
+         */
+        p->CrtcHBlankStart = p->CrtcHBlankEnd - 63 * 8;
+	if (p->CrtcHBlankStart > p->CrtcHSyncStart) {
+	    p->CrtcHBlankStart = p->CrtcHSyncStart;
+	    p->CrtcHBlankEnd = min(p->CrtcHBlankStart + 63 * 8, p->CrtcHTotal);
+	}
+    }
+}
+
 /**
  * Performs probing of modes available on the output connected to the given
  * pipe.
@@ -567,6 +684,7 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
     int output_index = -1;
     int i;
     int outputs;
+    DisplayModePtr pMode;
 
     while (pI830->pipeModes[pipe] != NULL)
 	xf86DeleteMode(&pI830->pipeModes[pipe], pI830->pipeModes[pipe]);
@@ -609,24 +727,106 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
 					       pI830->output[output_index].pDDCBus);
 	pI830->pipeModes[pipe] = I830GetDDCModes(pScrn,
 						 pI830->pipeMon[pipe]);
+
+	for (pMode = pI830->pipeModes[pipe]; pMode != NULL; pMode = pMode->next)
+	{
+	    I830xf86SetModeCrtc(pMode, INTERLACE_HALVE_V);
+	    pMode->VRefresh = I830ModeVRefresh(pMode);
+	}
     } else {
 	ErrorF("don't know how to get modes for this device.\n");
+    }
+
+    /* Set the vertical refresh, which is used by the choose-best-mode-per-pipe
+     * code later on.
+     */
+    for (pMode = pI830->pipeModes[pipe]; pMode != NULL; pMode = pMode->next) {
+	pMode->VRefresh = I830ModeVRefresh(pMode);
     }
 }
 
 /**
+ * This function removes a mode from a list of modes.  It should probably be
+ * moved to xf86Mode.c
+ *
+ * There are different types of mode lists:
+ *
+ *  - singly linked linear lists, ending in NULL
+ *  - doubly linked linear lists, starting and ending in NULL
+ *  - doubly linked circular lists
+ *
+ */
+
+static void
+I830xf86DeleteModeFromList(DisplayModePtr *modeList, DisplayModePtr mode)
+{
+    /* Catch the easy/insane cases */
+    if (modeList == NULL || *modeList == NULL || mode == NULL)
+	return;
+
+    /* If the mode is at the start of the list, move the start of the list */
+    if (*modeList == mode)
+	*modeList = mode->next;
+
+    /* If mode is the only one on the list, set the list to NULL */
+    if ((mode == mode->prev) && (mode == mode->next)) {
+	*modeList = NULL;
+    } else {
+	if ((mode->prev != NULL) && (mode->prev->next == mode))
+	    mode->prev->next = mode->next;
+	if ((mode->next != NULL) && (mode->next->prev == mode))
+	    mode->next->prev = mode->prev;
+    }
+}
+    
+/**
  * Probes for video modes on attached otuputs, and assembles a list to insert
  * into pScrn.
+ *
+ * \param first_time indicates that the memory layout has already been set up,
+ * 	  so displayWidth, virtualX, and virtualY shouldn't be touched.
+ *
+ * A SetMode must follow this call in order for operatingDevices to match the
+ * hardware's state, in case we detect a new output device.  
  */
 int
-I830ValidateXF86ModeList(ScrnInfoPtr pScrn)
+I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     ClockRangePtr clockRanges;
     int n, pipe;
+    DisplayModePtr saved_mode;
+    int saved_virtualX = 0, saved_virtualY = 0, saved_displayWidth = 0;
 
     for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++) {
 	I830ReprobePipeModeList(pScrn, pipe);
+    }
+
+    /* If we've got a spare pipe, try to detect if a new CRT has been plugged
+     * in.
+     */
+    if ((pI830->operatingDevices & (PIPE_CRT | (PIPE_CRT << 8))) == 0) {
+	if ((pI830->operatingDevices & 0xff) == PIPE_NONE) {
+	    pI830->operatingDevices |= PIPE_CRT;
+	    I830ReprobePipeModeList(pScrn, 0);
+	    if (pI830->pipeModes[0] == NULL) {
+		/* No new output found. */
+		pI830->operatingDevices &= ~PIPE_CRT;
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Enabled new CRT on pipe A\n");
+	    }
+	} else if (((pI830->operatingDevices >> 8) & 0xff) == PIPE_NONE) {
+	    pI830->operatingDevices |= PIPE_CRT << 8;
+	    I830ReprobePipeModeList(pScrn, 1);
+	    if (pI830->pipeModes[1] == NULL) {
+		/* No new output found. */
+		pI830->operatingDevices &= ~(PIPE_CRT << 8);
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Enabled new CRT on pipe B\n");
+	    }
+	}
     }
 
     /* XXX: Clean out modes previously injected by our driver */
@@ -652,23 +852,79 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn)
     clockRanges->interlaceAllowed = TRUE;	/* XXX check this */
     clockRanges->doubleScanAllowed = FALSE;	/* XXX check this */
 
+    /* Remove the current mode from the modelist if we're re-validating, so we
+     * can find a new mode to map ourselves to afterwards.
+     */
+    saved_mode = pI830->currentMode;
+    if (saved_mode != NULL) {
+	I830xf86DeleteModeFromList(&pScrn->modes, saved_mode);
+    }
+
+    if (!first_time) {
+	saved_virtualX = pScrn->virtualX;
+	saved_virtualY = pScrn->virtualY;
+	saved_displayWidth = pScrn->displayWidth;
+    }
+
     /* Take the pScrn->monitor->Modes we've accumulated and validate them into
      * pScrn->modes.
+     * XXX: Should set up a scrp->monitor->DDC covering the union of the
+     *      capabilities of our pipes.
      */
     n = xf86ValidateModes(pScrn,
 			  pScrn->monitor->Modes, /* availModes */
 			  pScrn->display->modes, /* modeNames */
 			  clockRanges, /* clockRanges */
-			  NULL, /* linePitches */
+			  !first_time ? &pScrn->displayWidth : NULL, /* linePitches */
 			  320, /* minPitch */
 			  MAX_DISPLAY_PITCH, /* maxPitch */
 			  64 * pScrn->bitsPerPixel, /* pitchInc */
 			  200, /* minHeight */
 			  MAX_DISPLAY_HEIGHT, /* maxHeight */
-			  pScrn->display->virtualX, /* virtualX */
-			  pScrn->display->virtualY, /* virtualY */
+			  pScrn->virtualX, /* virtualX */
+			  pScrn->virtualY, /* virtualY */
 			  pI830->FbMapSize, /* apertureSize */
 			  LOOKUP_BEST_REFRESH /* strategy */);
 
+    if (!first_time) {
+	/* Restore things that may have been damaged by xf86ValidateModes. */
+	pScrn->virtualX = saved_virtualX;
+	pScrn->virtualY = saved_virtualY;
+	pScrn->displayWidth = saved_displayWidth;
+    }
+
+    /* Need to do xf86CrtcForModes so any user-configured modes are valid for
+     * non-LVDS.
+     */
+    xf86SetCrtcForModes(pScrn, INTERLACE_HALVE_V);
+
+    xf86PruneDriverModes(pScrn);
+
+    /* Try to find the closest equivalent of the previous mode pointer to switch
+     * to.
+     */
+    if (saved_mode != NULL) {
+	DisplayModePtr pBestMode = NULL, pMode;
+
+	/* XXX: Is finding a matching x/y res enough?  probably not. */
+	for (pMode = pScrn->modes; ; pMode = pMode->next) {
+	    if (pMode->HDisplay == saved_mode->HDisplay &&
+		pMode->VDisplay == saved_mode->VDisplay)
+	    {
+		ErrorF("found matching mode %p\n", pMode);
+		pBestMode = pMode;
+	    }
+	    if (pMode->next == pScrn->modes)
+		break;
+	}
+
+	if (pBestMode != NULL)
+		xf86SwitchMode(pScrn->pScreen, pBestMode);
+	else
+		FatalError("No suitable modes after re-probe\n");
+
+	xfree(saved_mode->name);
+	xfree(saved_mode);
+    }
     return n;
 }

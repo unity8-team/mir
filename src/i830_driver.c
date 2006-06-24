@@ -2217,22 +2217,18 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
      pI830->MaxClock = 300000;
 
-   n = I830ValidateXF86ModeList(pScrn);
+   n = I830ValidateXF86ModeList(pScrn, TRUE);
    if (n <= 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       PreInitCleanup(pScrn);
       return FALSE;
    }	
 
-   xf86PruneDriverModes(pScrn);
-
    if (pScrn->modes == NULL) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes.\n");
       PreInitCleanup(pScrn);
       return FALSE;
    }
-
-   xf86SetCrtcForModes(pScrn, INTERLACE_HALVE_V);
 
    /*
     * Fix up modes to make hblank start at hsync start.

@@ -79,6 +79,9 @@ I830RandRGetInfo (ScreenPtr pScreen, Rotation *rotations)
 	randrp->virtualY = scrp->virtualY;
     }
 
+    /* Re-probe the outputs for new monitors or modes */
+    I830ValidateXF86ModeList(scrp, FALSE);
+
     for (mode = scrp->modes; ; mode = mode->next)
     {
 	int refresh = I830RandRModeRefresh (mode);

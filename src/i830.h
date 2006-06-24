@@ -595,7 +595,7 @@ extern Bool I830RandRInit(ScreenPtr pScreen, int rotation);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
 /* i830_modes.c */
-int I830ValidateXF86ModeList(ScrnInfoPtr pScrn);
+int I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time);
 
 /* i830_gtf.c */
 DisplayModePtr i830GetGTF(int h_pixels, int v_lines, float freq,
