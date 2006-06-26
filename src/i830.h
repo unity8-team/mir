@@ -394,7 +394,9 @@ extern void I830PrintErrorState(ScrnInfoPtr pScrn);
 extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
 extern Bool I830CursorInit(ScreenPtr pScreen);
+extern void IntelEmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
+extern void I915EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 
 extern void I830RefreshRing(ScrnInfoPtr pScrn);
@@ -427,6 +429,7 @@ extern void I830DRIUnmapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
 extern Bool I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
 extern void I830DRIUnlock(ScrnInfoPtr pScrn);
 extern Bool I830DRILock(ScrnInfoPtr pScrn);
+extern Bool I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on);
 #endif
 
 extern Bool I830AccelInit(ScreenPtr pScreen);

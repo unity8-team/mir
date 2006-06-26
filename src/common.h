@@ -39,13 +39,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _INTEL_COMMON_H_
 #define _INTEL_COMMON_H_
 
-#ifdef __GNUC__
+/* Provide substitutes for gcc's __FUNCTION__ on other compilers */
+#ifndef __GNUC__
+# if defined(__STDC__) && (__STDC_VERSION__>=199901L) /* C99 */
+#  define __FUNCTION__ __func__
+# else
+#  define __FUNCTION__ ""
+# endif
+#endif
+
+
 #define PFX __FILE__,__LINE__,__FUNCTION__
 #define FUNCTION_NAME __FUNCTION__
-#else
-#define PFX __FILE__,__LINE__,""
-#define FUNCTION_NAME ""
-#endif
 
 #ifdef I830DEBUG
 #define MARKER() ErrorF("\n### %s:%d: >>> %s <<< ###\n\n", \
