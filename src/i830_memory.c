@@ -874,7 +874,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 	 return FALSE;
       } else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Successful allocate "
-		       "offscreen memory at 0x%lx, size %d KB\n", 
+		       "offscreen memory at 0x%lx, size %ld KB\n", 
 			pI830->Offscreen.Start, pI830->Offscreen.Size/1024);
       }
 #endif
