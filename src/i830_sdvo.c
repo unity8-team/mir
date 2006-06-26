@@ -31,6 +31,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86_OSproc.h"
 #include "compiler.h"
 #include "i830.h"
+#include "i830_display.h"
 #include "i830_sdvo_regs.h"
 
 CARD16 curr_table[6];
@@ -170,7 +171,7 @@ I830SDVOReadInputRegs(I830SDVOPtr s)
  * PROM.  It resets from the DDC bus back to internal registers at the next I2C
  * STOP.  PROM access is terminated by accessing an internal register.
  */
-Bool
+static Bool
 I830SDVOSetControlBusSwitch(I830SDVOPtr s, CARD8 target)
 {
     memset(s->sdvo_regs, 0, 9);
@@ -277,7 +278,7 @@ I830SDVOSetTargetOutput(I830SDVOPtr s, Bool target_1, Bool target_2)
 }
 
 /* Fetches either input or output timings to *dtd, depending on cmd. */
-Bool
+static Bool
 I830SDVOGetTimings(I830SDVOPtr s, i830_sdvo_dtd *dtd, CARD8 cmd)
 {
     memset(s->sdvo_regs, 0, 9);
@@ -312,7 +313,7 @@ I830SDVOGetTimings(I830SDVOPtr s, i830_sdvo_dtd *dtd, CARD8 cmd)
 }
 
 /* Sets either input or output timings to *dtd, depending on cmd. */
-Bool
+static Bool
 I830SDVOSetTimings(I830SDVOPtr s, i830_sdvo_dtd *dtd, CARD8 cmd)
 {
     memset(s->sdvo_regs, 0, 9);

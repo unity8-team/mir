@@ -919,7 +919,7 @@ i830LoadDetectCRT(ScrnInfoPtr pScrn)
  * This takes approximately 5ms in testing on an i915GM, with CRT connected or
  * not.
  */
-Bool
+static Bool
 i830DDCDetectCRT(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);

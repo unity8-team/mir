@@ -32,8 +32,8 @@
 #include "xf86.h"
 #include "xf86_ansic.h"
 #include "i830.h"
+#include "i830_debug.h"
 
-/* XXX: What was the syntax for sticking quotes around the "reg" argument? */
 #define DEFINEREG(reg) \
 	{ reg, #reg, 0 }
 

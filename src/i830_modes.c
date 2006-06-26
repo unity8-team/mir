@@ -181,7 +181,7 @@ I830DuplicateMode(DisplayModePtr pMode)
 /* This function will sort all modes according to their resolution.
  * Highest resolution first.
  */
-void
+static void
 I830xf86SortModes(DisplayModePtr new, DisplayModePtr *first,
 	      DisplayModePtr *last)
 {
@@ -246,7 +246,8 @@ I830GetVESAEstablishedMode(ScrnInfoPtr pScrn, int i)
     return NULL;
 }
 
-DisplayModePtr I830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
+static DisplayModePtr
+I830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 {
     DisplayModePtr  last  = NULL;
     DisplayModePtr  new   = NULL;
@@ -438,7 +439,7 @@ i830FPNativeMode(ScrnInfoPtr pScrn)
  *
  * \return doubly-linked list of modes.
  */
-DisplayModePtr
+static DisplayModePtr
 i830GetLVDSModes(ScrnInfoPtr pScrn, char **ppModeName)
 {
    I830Ptr pI830 = I830PTR(pScrn);
@@ -541,7 +542,7 @@ i830GetLVDSModes(ScrnInfoPtr pScrn, char **ppModeName)
  * it into the doubly-linked modeList.  We don't need to filter, because the
  * eventual call to xf86ValidateModes will do this for us.  I think.
  */
-int
+static int
 I830InjectProbedModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
 		      DisplayModePtr addModes)
 {

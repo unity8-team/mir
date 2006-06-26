@@ -1101,7 +1101,7 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
    pI830->num_outputs = i;
 }
 
-void 
+static void 
 I830PreInitDDC(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
@@ -1128,7 +1128,8 @@ I830PreInitDDC(ScrnInfoPtr pScrn)
    }
 }
 
-void I830DetectMonitors(ScrnInfoPtr pScrn)
+static void
+I830DetectMonitors(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    int i;
