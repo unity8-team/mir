@@ -637,6 +637,111 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     return TRUE;
 }
 
+static void
+i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int outputsA, outputsB;
+
+    return;
+
+    outputsA = pI830->operatingDevices & 0xff;
+    outputsB = (pI830->operatingDevices >> 8) & 0xff;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling unused functions\n");
+
+    /* First, disable the unused outputs */
+    if ((outputsA & PIPE_CRT_ACTIVE) == 0 &&
+	(outputsB & PIPE_CRT_ACTIVE) == 0)
+    {
+	CARD32 adpa = INREG(adpa);
+
+	if (adpa & ADPA_DAC_ENABLE) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling CRT output\n");
+	    OUTREG(ADPA, adpa & ~ADPA_DAC_ENABLE);
+	}
+    }
+
+    if ((outputsB & PIPE_LCD_ACTIVE) == 0) {
+	CARD32 pp_status = INREG(PP_STATUS);
+
+	if (pp_status & PP_ON) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling LVDS output\n");
+	    i830SetLVDSPanelPower(pScrn, FALSE);
+	}
+    }
+
+    if (IS_I9XX(pI830) && ((outputsA & PIPE_DFP_ACTIVE) == 0 &&
+	(outputsB & PIPE_DFP_ACTIVE) == 0))
+    {
+	CARD32 sdvob = INREG(SDVOB);
+	CARD32 sdvoc = INREG(SDVOC);
+
+	if (sdvob & SDVO_ENABLE) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling SDVOB output\n");
+	    OUTREG(SDVOB, sdvob & ~SDVO_ENABLE);
+	}
+	if (sdvoc & SDVO_ENABLE) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling SDVOC output\n");
+	    OUTREG(SDVOC, sdvoc & ~SDVO_ENABLE);
+	}
+    }
+
+    /* Now, any unused plane, pipe, and DPLL (FIXME: except for DVO, i915
+     * internal TV) should have no outputs trying to pull data out of it, so
+     * we're ready to turn those off.
+     */
+    if (!pI830->planeEnabled[0]) {
+	CARD32 dspcntr, pipeconf, dpll;
+
+	dspcntr = INREG(DSPACNTR);
+	if (dspcntr & DISPLAY_PLANE_ENABLE) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling plane A\n");
+	    OUTREG(DSPACNTR, dspcntr & ~DISPLAY_PLANE_ENABLE);
+
+	    /* Wait for vblank for the disable to take effect */
+	    i830WaitForVblank(pScrn);
+	}
+
+	pipeconf = INREG(PIPEACONF);
+	if (pipeconf & PIPEACONF_ENABLE) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling pipe A\n");
+	   OUTREG(PIPEACONF, pipeconf & ~PIPEACONF_ENABLE);
+	}
+
+	dpll = INREG(DPLL_A);
+	if (dpll & DPLL_VCO_ENABLE) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling DPLL A\n");
+	    OUTREG(DPLL_A, dpll & ~DPLL_VCO_ENABLE);
+	}
+    }
+
+    if (!pI830->planeEnabled[1]) {
+	CARD32 dspcntr, pipeconf, dpll;
+
+	dspcntr = INREG(DSPBCNTR);
+	if (dspcntr & DISPLAY_PLANE_ENABLE) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling plane B\n");
+	    OUTREG(DSPBCNTR, dspcntr & ~DISPLAY_PLANE_ENABLE);
+
+	    /* Wait for vblank for the disable to take effect */
+	    i830WaitForVblank(pScrn);
+	}
+
+	pipeconf = INREG(PIPEBCONF);
+	if (pipeconf & PIPEBCONF_ENABLE) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling pipe B\n");
+	   OUTREG(PIPEBCONF, pipeconf & ~PIPEBCONF_ENABLE);
+	}
+
+	dpll = INREG(DPLL_B);
+	if (dpll & DPLL_VCO_ENABLE) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling DPLL B\n");
+	    OUTREG(DPLL_B, dpll & ~DPLL_VCO_ENABLE);
+	}
+    }
+}
+
 /**
  * This function sets the given mode on the active pipes.
  */
@@ -692,6 +797,8 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode bandwidth is %d Mpixel/s\n",
 	       (int)(pMode->HDisplay * pMode->VDisplay *
 		     pMode->VRefresh / 1000000));
+
+    i830DisableUnusedFunctions(pScrn);
 
     planeA = INREG(DSPACNTR);
     planeB = INREG(DSPBCNTR);
