@@ -285,31 +285,38 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	        continue;
 	    }
 	    /* Find if it's closer than the current best option */
-	    if (abs(pScan->VRefresh - pMode->VRefresh) >
-		abs(pBest->VRefresh - pMode->VRefresh))
+	    if ((pScan->HDisplay >= pBest->HDisplay && 
+		pScan->HDisplay >= pBest->HDisplay) ||
+		(fabs(pScan->VRefresh - pMode->VRefresh) <
+		fabs(pBest->VRefresh - pMode->VRefresh)))
 	    {
-		continue;
+		pBest = pScan;
 	    }
 	}
 	if (pBest != NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Choosing pipe's mode %p (%dx%dx%.1f) instead of xf86 "
-		       "mode %p (%dx%dx%.1f)\n", pBest,
+		       "Choosing pipe %d's mode %dx%d@%.1f instead of xf86 "
+		       "mode %dx%d@%.1f\n", pipe,
 		       pBest->HDisplay, pBest->VDisplay, pBest->VRefresh,
-		       pMode,
 		       pMode->HDisplay, pMode->VDisplay, pMode->VRefresh);
 	    pMode = pBest;
 	}
     }
-    if (I830ModesEqual(&pI830->pipeCurMode[pipe], pMode))
-	return TRUE;
-
-    ErrorF("Requested pix clock: %d\n", pMode->Clock);
-
     if (pipe == 0)
 	outputs = pI830->operatingDevices & 0xff;
     else
 	outputs = (pI830->operatingDevices >> 8) & 0xff;
+
+    if (outputs & PIPE_LCD_ACTIVE) {
+	if (I830ModesEqual(&pI830->pipeCurMode[pipe], pMasterMode))
+	    return TRUE;
+    } else {
+	if (I830ModesEqual(&pI830->pipeCurMode[pipe], pMode))
+	    return TRUE;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Requested pix clock: %d\n",
+	       pMode->Clock);
 
     if ((outputs & PIPE_LCD_ACTIVE) && (outputs & ~PIPE_LCD_ACTIVE)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -622,7 +629,11 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	OUTREG(SDVOC, sdvoc);
     }
 
-    pI830->pipeCurMode[pipe] = *pMode;
+    if (outputs & PIPE_LCD_ACTIVE) {
+	pI830->pipeCurMode[pipe] = *pMasterMode;
+    } else {
+	pI830->pipeCurMode[pipe] = *pMode;
+    }
 
     return TRUE;
 }

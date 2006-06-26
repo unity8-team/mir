@@ -606,6 +606,7 @@ Bool I830RandRInit(ScreenPtr pScreen, int rotation);
 Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
 			RRScreenSizePtr pSize);
 Rotation I830GetRotation(ScreenPtr pScreen);
+void I830GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for

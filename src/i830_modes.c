@@ -43,12 +43,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 
 #include "xf86.h"
 #include "i830.h"
 #include "i830_xf86Modes.h"
-
-#include <math.h>
+#include <randrstr.h>
 
 #define rint(x) floor(x)
 
@@ -415,11 +415,6 @@ i830FPNativeMode(ScrnInfoPtr pScrn)
 
    new->type       = M_T_USERDEF;
 
-   pScrn->virtualX = MAX(pScrn->virtualX, pI830->PanelXRes);
-   pScrn->virtualY = MAX(pScrn->virtualY, pI830->PanelYRes);
-   pScrn->display->virtualX = pScrn->virtualX;
-   pScrn->display->virtualY = pScrn->virtualY;
-
    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	      "No valid mode specified, force to native mode\n");
 
@@ -449,9 +444,6 @@ i830GetLVDSModes(ScrnInfoPtr pScrn, char **ppModeName)
    DisplayModePtr  p, tmp;
    int             count      = 0;
    int             i, width, height;
-
-   pScrn->virtualX = pScrn->display->virtualX;
-   pScrn->virtualY = pScrn->display->virtualY;
 
    /* We have a flat panel connected to the primary display, and we
     * don't have any DDC info.
@@ -733,6 +725,7 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
     DisplayModePtr saved_mode, availModes = NULL;
     int saved_virtualX = 0, saved_virtualY = 0, saved_displayWidth = 0;
     Bool pipes_reconfigured = FALSE;
+    int originalVirtualX, originalVirtualY;
 
     for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++) {
 	I830ReprobePipeModeList(pScrn, pipe);
@@ -810,6 +803,8 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 	saved_displayWidth = pScrn->displayWidth;
     }
 
+    I830GetOriginalVirtualSize(pScrn, &originalVirtualX, &originalVirtualY);
+
     /* Take the pScrn->monitor->Modes we've accumulated and validate them into
      * pScrn->modes.
      * XXX: Should set up a scrp->monitor->DDC covering the union of the
@@ -825,8 +820,8 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 			  64 * pScrn->bitsPerPixel, /* pitchInc */
 			  200, /* minHeight */
 			  MAX_DISPLAY_HEIGHT, /* maxHeight */
-			  pScrn->virtualX, /* virtualX */
-			  pScrn->virtualY, /* virtualY */
+			  originalVirtualX, /* virtualX maximum */
+			  originalVirtualY, /* virtualY maximum */
 			  pI830->FbMapSize, /* apertureSize */
 			  LOOKUP_BEST_REFRESH /* strategy */);
 

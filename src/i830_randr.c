@@ -35,6 +35,7 @@
 #include <randrstr.h>
 
 #include "i830.h"
+#include "i830_xf86Modes.h"
 
 typedef struct _i830RandRInfo {
     int				    virtualX;
@@ -100,9 +101,13 @@ I830RandRGetInfo (ScreenPtr pScreen, Rotation *rotations)
 	if (!pSize)
 	    return FALSE;
 	RRRegisterRate (pScreen, pSize, refresh);
-	if (mode == scrp->currentMode &&
-	    mode->HDisplay == scrp->virtualX && mode->VDisplay == scrp->virtualY)
+
+	if (I830ModesEqual(mode, scrp->currentMode) &&
+	    mode->HDisplay == scrp->virtualX &&
+	    mode->VDisplay == scrp->virtualY)
+	{
 	    RRSetCurrentConfig (pScreen, randrp->rotation, refresh, pSize);
+	}
 	if (mode->next == scrp->modes)
 	    break;
     }
@@ -116,7 +121,6 @@ I830RandRGetInfo (ScreenPtr pScreen, Rotation *rotations)
     if (scrp->currentMode->HDisplay != randrp->virtualX ||
 	scrp->currentMode->VDisplay != randrp->virtualY)
     {
-	mode = scrp->modes;
 	pSize = RRRegisterSize (pScreen,
 				randrp->virtualX, randrp->virtualY,
 				randrp->mmWidth,
@@ -164,6 +168,7 @@ I830RandRSetMode (ScreenPtr	    pScreen,
 	scrp->virtualX = mode->HDisplay;
 	scrp->virtualY = mode->VDisplay;
     }
+
     if(randrp->rotation & (RR_Rotate_90 | RR_Rotate_270))
     {
 	/* If the screen is rotated 90 or 270 degrees, swap the sizes. */
@@ -355,4 +360,22 @@ I830RandRInit (ScreenPtr    pScreen, int rotation)
     pScreen->devPrivates[i830RandRIndex].ptr = randrp;
 
     return TRUE;
+}
+
+void
+I830GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y)
+{
+    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+
+    if (i830RandRGeneration != serverGeneration ||
+	XF86RANDRINFO(pScreen)->virtualX == -1)
+    {
+	*x = pScrn->virtualX;
+	*y = pScrn->virtualY;
+    } else {
+	XF86RandRInfoPtr randrp = XF86RANDRINFO(pScreen);
+
+	*x = randrp->virtualX;
+	*y = randrp->virtualY;
+    }
 }
