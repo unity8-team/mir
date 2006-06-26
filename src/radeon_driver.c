@@ -133,6 +133,7 @@ static void RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 static void RADEONGetMergedFBOptions(ScrnInfoPtr pScrn);
 static int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode);
+static void RADEONForceSomeClocks(ScrnInfoPtr pScrn);
 static void RADEONUpdatePanelSize(ScrnInfoPtr pScrn);
 static void RADEONSaveMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 
@@ -5738,6 +5739,9 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
         }
     }
 
+    if ((!info->IsSecondary) && (IS_R300_VARIANT || IS_RV100_VARIANT))
+      RADEONForceSomeClocks(pScrn);
+
     if (info->allowColorTiling && (pScrn->virtualX > info->MaxSurfaceWidth)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Color tiling not supported with virtual x resolutions larger than %d, disabling\n",
@@ -9749,6 +9753,18 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 	  info->MergedFB = FALSE;
        }
     }
+}
+
+static void RADEONForceSomeClocks(ScrnInfoPtr pScrn)
+{
+    /* It appears from r300 and rv100 may need some clocks forced-on */
+     RADEONInfoPtr info        = RADEONPTR(pScrn);
+     unsigned char *RADEONMMIO = info->MMIO;
+     CARD32 tmp;
+
+     tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
+     tmp |= RADEON_SCLK_FORCE_CP | RADEON_SCLK_FORCE_VIP;
+     OUTPLL(pScrn, RADEON_SCLK_CNTL, tmp);
 }
 
 static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
