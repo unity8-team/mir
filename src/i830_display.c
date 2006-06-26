@@ -633,8 +633,6 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     int outputsA, outputsB;
 
-    return;
-
     outputsA = pI830->operatingDevices & 0xff;
     outputsB = (pI830->operatingDevices >> 8) & 0xff;
 
@@ -644,7 +642,7 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
     if ((outputsA & PIPE_CRT_ACTIVE) == 0 &&
 	(outputsB & PIPE_CRT_ACTIVE) == 0)
     {
-	CARD32 adpa = INREG(adpa);
+	CARD32 adpa = INREG(ADPA);
 
 	if (adpa & ADPA_DAC_ENABLE) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling CRT output\n");
@@ -704,6 +702,8 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling DPLL A\n");
 	    OUTREG(DPLL_A, dpll & ~DPLL_VCO_ENABLE);
 	}
+
+	memset(&pI830->pipeCurMode[0], 0, sizeof(pI830->pipeCurMode[0]));
     }
 
     if (!pI830->planeEnabled[1]) {
@@ -729,6 +729,8 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling DPLL B\n");
 	    OUTREG(DPLL_B, dpll & ~DPLL_VCO_ENABLE);
 	}
+
+	memset(&pI830->pipeCurMode[1], 0, sizeof(pI830->pipeCurMode[1]));
     }
 }
 

@@ -603,7 +603,9 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
     int i;
     int outputs;
     DisplayModePtr pMode;
+    Bool had_modes;
 
+    had_modes = (pI830->pipeModes[pipe] != NULL);
     while (pI830->pipeModes[pipe] != NULL)
 	xf86DeleteMode(&pI830->pipeModes[pipe], pI830->pipeModes[pipe]);
 
@@ -649,6 +651,14 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
 	for (pMode = pI830->pipeModes[pipe]; pMode != NULL; pMode = pMode->next)
 	{
 	    I830xf86SetModeCrtc(pMode, INTERLACE_HALVE_V);
+	}
+	if (had_modes && pI830->pipeModes[pipe] == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Failed to DDC pipe %d, disabling output\n", pipe);
+	    if (pipe == 0)
+		pI830->operatingDevices &= ~0x00ff;
+	    else
+		pI830->operatingDevices &= ~0xff00;
 	}
     } else {
 	ErrorF("don't know how to get modes for this device.\n");
