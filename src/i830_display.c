@@ -262,6 +262,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     Bool ok, is_sdvo;
     int refclk, pixel_clock, sdvo_pixel_multiply;
     int outputs;
+    DisplayModePtr pMasterMode = pMode;
 
     assert(pMode->VRefresh != 0.0);
     /* If we've got a list of modes probed for the device, find the best match
@@ -341,8 +342,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     vtot = (pMode->CrtcVDisplay - 1) | ((pMode->CrtcVTotal - 1) << 16);
     vblank = (pMode->CrtcVBlankStart - 1) | ((pMode->CrtcVBlankEnd - 1) << 16);
     vsync = (pMode->CrtcVSyncStart - 1) | ((pMode->CrtcVSyncEnd - 1) << 16);
-    pipesrc = ((pMode->HDisplay - 1) << 16) | (pMode->VDisplay - 1);
-    dspsize = ((pMode->VDisplay - 1) << 16) | (pMode->HDisplay - 1);
+    pipesrc = ((pMasterMode->HDisplay - 1) << 16) | (pMasterMode->VDisplay - 1);
+    dspsize = ((pMasterMode->VDisplay - 1) << 16) | (pMasterMode->HDisplay - 1);
     pixel_clock = pMode->Clock;
     if (outputs & PIPE_LCD_ACTIVE && pI830->panel_fixed_hactive != 0)
     {
@@ -369,17 +370,6 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	vsync = (pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff - 1) |
 		((pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff +
 		  pI830->panel_fixed_vsyncwidth - 1) << 16);
-	/* Hack until we get better clone-mode modesetting.  If the mode to be
-	 * programmed is larger than the size of the panel, only display the
-	 * size of the panel.
-	 */
-	if (pMode->HDisplay > pI830->panel_fixed_hactive || 
-	    pMode->VDisplay > pI830->panel_fixed_vactive) {
-	    dspsize = ((pI830->panel_fixed_vactive - 1) << 16) |
-		      (pI830->panel_fixed_hactive - 1);
-	    pipesrc = ((pI830->panel_fixed_hactive - 1) << 16) |
-		      (pI830->panel_fixed_vactive - 1);
-	}
 	pixel_clock = pI830->panel_fixed_clock;
     }
 
