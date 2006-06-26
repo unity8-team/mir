@@ -89,6 +89,18 @@ if test x$DRI = xauto; then
 fi
 AC_MSG_RESULT([$DRI])
 
+dnl Use lots of warning flags with GCC
+
+WARN_CFLAGS=""
+
+if test "x$GCC" = "xyes"; then
+	WARN_CFLAGS="-Wall -Wpointer-arith -Wstrict-prototypes \
+	-Wmissing-prototypes -Wmissing-declarations \
+	-Wnested-externs -fno-strict-aliasing"
+fi
+
+CFLAGS="$CFLAGS $WARN_CFLAGS"
+
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
         PKG_CHECK_MODULES(DRI, [libdrm >= 2.0 xf86driproto])
