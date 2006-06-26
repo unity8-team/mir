@@ -25,47 +25,16 @@
  *
  */
 
-typedef struct _i830_sdvo_caps {
-  CARD8 vendor_id;
-  CARD8 device_id;
-  CARD8 device_rev_id;
-  CARD8 sdvo_version_major;
-  CARD8 sdvo_version_minor;
-  CARD8 caps;
-  CARD8 output_0_supported;
-  CARD8 output_1_supported;
-} __attribute__((packed)) i830_sdvo_caps;
-
-typedef struct _i830_sdvo_dtd {
-    CARD16 clock;
-    CARD8 h_active;
-    CARD8 h_blank;
-    CARD8 h_high;
-    CARD8 v_active;
-    CARD8 v_blank;
-    CARD8 v_high;
-
-    CARD8 h_sync_off;
-    CARD8 h_sync_width;
-    CARD8 v_sync_off_width;
-    CARD8 sync_off_width_high;
-    CARD8 dtd_flags;
-    CARD8 sdvo_flags;
-    CARD8 v_sync_off_high;
-    CARD8 reserved;
-} __attribute__((packed)) i830_sdvo_dtd;
+double
+I830ModeVRefresh(DisplayModePtr mode);
 
 void
-i830SDVOSave(ScrnInfoPtr pScrn, int output_index);
-
-void
-i830SDVOPreRestore(ScrnInfoPtr pScrn, int output_index);
-
-void
-i830SDVOPostRestore(ScrnInfoPtr pScrn, int output_index);
+I830xf86SetModeCrtc(DisplayModePtr p, int adjustFlags);
 
 Bool
-I830DetectSDVODisplays(ScrnInfoPtr pScrn, int output_index);
+I830ModesEqual(DisplayModePtr pMode1, DisplayModePtr pMode2);
 
 void
-I830DumpSDVO(ScrnInfoPtr pScrn);
+PrintModeline(int scrnIndex,DisplayModePtr mode);
+
+extern DisplayModeRec I830xf86DefaultModes[];

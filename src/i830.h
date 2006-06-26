@@ -403,6 +403,7 @@ typedef struct _I830Rec {
    int planeEnabled[MAX_DISPLAY_PIPES];
    xf86MonPtr pipeMon[MAX_DISPLAY_PIPES];
    DisplayModePtr pipeModes[MAX_DISPLAY_PIPES];
+   DisplayModeRec pipeCurMode[MAX_DISPLAY_PIPES];
 
    /* Driver phase/state information */
    Bool preinit;

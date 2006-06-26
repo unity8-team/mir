@@ -35,6 +35,7 @@
 #include "i830_bios.h"
 #include "i830_display.h"
 #include "i830_debug.h"
+#include "i830_xf86Modes.h"
 
 /** Returns the pixel clock for the given refclk and divisors. */
 static int i830_clock(int refclk, int m1, int m2, int n, int p1, int p2)
@@ -299,6 +300,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	    pMode = pBest;
 	}
     }
+    if (I830ModesEqual(&pI830->pipeCurMode[pipe], pMode))
+	return TRUE;
 
     ErrorF("Requested pix clock: %d\n", pMode->Clock);
 
@@ -628,6 +631,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	OUTREG(SDVOB, sdvob);
 	OUTREG(SDVOC, sdvoc);
     }
+
+    pI830->pipeCurMode[pipe] = *pMode;
 
     return TRUE;
 }

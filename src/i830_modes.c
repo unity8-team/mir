@@ -42,9 +42,11 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "xf86.h"
 #include "i830.h"
+#include "i830_xf86Modes.h"
 
 #include <math.h>
 
@@ -91,6 +93,8 @@ static struct
     {720, 400, 88},
     {720, 400, 70},
 };
+
+#define DEBUG_REPROBE 1
 
 extern const int i830refreshes[];
 
@@ -157,6 +161,23 @@ I830PrintModes(ScrnInfoPtr scrp)
     } while (p != NULL && p != scrp->modes);
 }
 
+/**
+ * Allocates and returns a copy of pMode, including pointers within pMode.
+ */
+static DisplayModePtr
+I830DuplicateMode(DisplayModePtr pMode)
+{
+    DisplayModePtr pNew;
+
+    pNew = xnfalloc(sizeof(DisplayModeRec));
+    *pNew = *pMode;
+    pNew->next = NULL;
+    pNew->prev = NULL;
+    pNew->name = xnfstrdup(pMode->name);
+
+    return pNew;
+}
+
 /* This function will sort all modes according to their resolution.
  * Highest resolution first.
  */
@@ -200,32 +221,31 @@ I830xf86SortModes(DisplayModePtr *new, DisplayModePtr *first,
 }
 
 /**
- * Calculates the vertical refresh of a mode.
+ * Gets a new pointer to a VESA established mode.
  *
- * Taken directly from xf86Mode.c, and should be put back there --Eric Anholt
+ * \param i index into the VESA established modes table.
  */
-static double
-I830ModeVRefresh(DisplayModePtr mode)
+static DisplayModePtr
+I830GetVESAEstablishedMode(ScrnInfoPtr pScrn, int i)
 {
-    double refresh = 0.0;
+    DisplayModePtr pMode;
 
-    if (mode->VRefresh > 0.0)
-	refresh = mode->VRefresh;
-    else if (mode->HTotal > 0 && mode->VTotal > 0) {
-	refresh = mode->Clock * 1000.0 / mode->HTotal / mode->VTotal;
-	if (mode->Flags & V_INTERLACE)
-	    refresh *= 2.0;
-	if (mode->Flags & V_DBLSCAN)
-	    refresh /= 2.0;
-	if (mode->VScan > 1)
-	    refresh /= (float)(mode->VScan);
+    for (pMode = I830xf86DefaultModes; pMode->name != NULL; pMode = pMode->next)
+    {
+	if (pMode->HDisplay == est_timings[i].hsize &&
+	    pMode->VDisplay == est_timings[i].vsize &&
+	    fabs(I830ModeVRefresh(pMode) - est_timings[i].refresh) < 1.0)
+	{
+	    DisplayModePtr pNew = I830DuplicateMode(pMode);
+	    pNew->VRefresh = I830ModeVRefresh(pMode);
+	    return pNew;
+	}
     }
-    return refresh;
+    return NULL;
 }
 
 DisplayModePtr I830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 {
-    DisplayModePtr  p;
     DisplayModePtr  last  = NULL;
     DisplayModePtr  new   = NULL;
     DisplayModePtr  first = NULL;
@@ -289,7 +309,16 @@ DisplayModePtr I830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
     for (j = 0; j < 8; j++) {
         if (ddc->timings2[j].hsize == 0 || ddc->timings2[j].vsize == 0)
                continue;
+#if 1
+	new = i830GetGTF(ddc->timings2[j].hsize, ddc->timings2[j].vsize,
+			 ddc->timings2[j].refresh, FALSE, FALSE);
+	new->status = MODE_OK;
+	new->type |= M_T_DEFAULT;
+
+	I830xf86SortModes(&new, &first, &last);
+#else
 	for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
+
 	    /* Ignore all double scan modes */
 	    if ((ddc->timings2[j].hsize == p->HDisplay) &&
 		(ddc->timings2[j].vsize == p->VDisplay)) {
@@ -318,39 +347,27 @@ DisplayModePtr I830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 		}
 	    }
 	}
+#endif
     }
 
     /* Search thru established modes from EDID */
     tmp = (ddc->timings1.t1 << 8) | ddc->timings1.t2;
     for (j = 0; j < 16; j++) {
 	if (tmp & (1 << j)) {
-	    for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
-		if ((est_timings[j].hsize == p->HDisplay) &&
-		    (est_timings[j].vsize == p->VDisplay)) {
-		    float  refresh =
-			(float)p->Clock * 1000.0 / p->HTotal / p->VTotal;
-		    float err = (float)est_timings[j].refresh - refresh;
+	    DisplayModePtr pNew;
 
-		    if (err < 1.0) {
-			/* Is this good enough? */
-			new = xnfcalloc(1, sizeof (DisplayModeRec));
-			memcpy(new, p, sizeof(DisplayModeRec));
-			new->name = xnfalloc(strlen(p->name) + 1);
-			strcpy(new->name, p->name);
-			new->status = MODE_OK;
-			new->type   = M_T_DEFAULT;
+	    pNew = I830GetVESAEstablishedMode(pScrn, j);
+	    assert(pNew != NULL); /* We'd better have all the est. modes. */
 
-			count++;
+	    new->status = MODE_OK;
+	    new->type = M_T_DEFAULT;
 
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "Valid Mode from established timing "
-				   "table: %s\n", new->name);
+	    count++;
 
-			I830xf86SortModes(&new, &first, &last);
-			break;
-		    }
-		}
-	    }
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Valid Mode from established "
+		       "timing table: %s\n", new->name);
+
+	    I830xf86SortModes(&new, &first, &last);
 	}
     }
 
@@ -512,23 +529,6 @@ i830GetLVDSModes(ScrnInfoPtr pScrn, char **ppModeName)
 }
 
 /**
- * Allocates and returns a copy of pMode, including pointers within pMode.
- */
-static DisplayModePtr
-I830DuplicateMode(DisplayModePtr pMode)
-{
-    DisplayModePtr pNew;
-
-    pNew = xnfalloc(sizeof(DisplayModeRec));
-    *pNew = *pMode;
-    pNew->next = NULL;
-    pNew->prev = NULL;
-    pNew->name = xnfstrdup(pMode->name);
-
-    return pNew;
-}
-
-/**
  * Injects a list of probed modes into another mode list.
  *
  * Take the doubly-linked list of modes we've probed for the device, and injects
@@ -536,11 +536,11 @@ I830DuplicateMode(DisplayModePtr pMode)
  * eventual call to xf86ValidateModes will do this for us.  I think.
  */
 int
-I830InjectProbedModes(ScrnInfoPtr pScrn, DisplayModePtr modeList,
-		      char **ppModeName, DisplayModePtr addModes)
+I830InjectProbedModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
+		      DisplayModePtr addModes)
 {
-    DisplayModePtr  last = modeList;
-    DisplayModePtr  first = modeList;
+    DisplayModePtr  last = *modeList;
+    DisplayModePtr  first = *modeList;
     DisplayModePtr  addMode;
     int count = 0;
 
@@ -551,12 +551,14 @@ I830InjectProbedModes(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 	 */
 
 	pNew = I830DuplicateMode(addMode);
+#if 0
 	/* If the user didn't specify any modes, mark all modes as M_T_USERDEF
 	 * so that we can cycle through them, etc.  XXX: really need to?
 	 */
-	if (ppModeName[0] == NULL) {
+	if (pScrn->display->modes[0] == NULL) {
 	    pNew->type |= M_T_USERDEF;
 	}
+#endif
 
 	/* Insert pNew into modeList */
 	if (last) {
@@ -571,102 +573,12 @@ I830InjectProbedModes(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 
 	count++;
     }
+    *modeList = first;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Injected %d modes detected from the monitor\n", count);
 
     return count;
-}
-
-/*
- * I830xf86SetModeCrtc
- *
- * Initialises the Crtc parameters for a mode.  The initialisation includes
- * adjustments for interlaced and double scan modes.
- *
- * Taken directly from xf86Mode.c:xf86SetModeCrtc -- Eric Anholt
- *   (and it should be put back there!)
- */
-static void
-I830xf86SetModeCrtc(DisplayModePtr p, int adjustFlags)
-{
-    if ((p == NULL) || ((p->type & M_T_CRTC_C) == M_T_BUILTIN))
-	return;
-
-    p->CrtcHDisplay             = p->HDisplay;
-    p->CrtcHSyncStart           = p->HSyncStart;
-    p->CrtcHSyncEnd             = p->HSyncEnd;
-    p->CrtcHTotal               = p->HTotal;
-    p->CrtcHSkew                = p->HSkew;
-    p->CrtcVDisplay             = p->VDisplay;
-    p->CrtcVSyncStart           = p->VSyncStart;
-    p->CrtcVSyncEnd             = p->VSyncEnd;
-    p->CrtcVTotal               = p->VTotal;
-    if (p->Flags & V_INTERLACE) {
-	if (adjustFlags & INTERLACE_HALVE_V) {
-	    p->CrtcVDisplay         /= 2;
-	    p->CrtcVSyncStart       /= 2;
-	    p->CrtcVSyncEnd         /= 2;
-	    p->CrtcVTotal           /= 2;
-	}
-	/* Force interlaced modes to have an odd VTotal */
-	/* maybe we should only do this when INTERLACE_HALVE_V is set? */
-	p->CrtcVTotal |= 1;
-    }
-
-    if (p->Flags & V_DBLSCAN) {
-        p->CrtcVDisplay         *= 2;
-        p->CrtcVSyncStart       *= 2;
-        p->CrtcVSyncEnd         *= 2;
-        p->CrtcVTotal           *= 2;
-    }
-    if (p->VScan > 1) {
-        p->CrtcVDisplay         *= p->VScan;
-        p->CrtcVSyncStart       *= p->VScan;
-        p->CrtcVSyncEnd         *= p->VScan;
-        p->CrtcVTotal           *= p->VScan;
-    }
-    p->CrtcHAdjusted = FALSE;
-    p->CrtcVAdjusted = FALSE;
-
-    /*
-     * XXX
-     *
-     * The following is taken from VGA, but applies to other cores as well.
-     */
-    p->CrtcVBlankStart = min(p->CrtcVSyncStart, p->CrtcVDisplay);
-    p->CrtcVBlankEnd = max(p->CrtcVSyncEnd, p->CrtcVTotal);
-    if ((p->CrtcVBlankEnd - p->CrtcVBlankStart) >= 127) {
-        /* 
-         * V Blanking size must be < 127.
-         * Moving blank start forward is safer than moving blank end
-         * back, since monitors clamp just AFTER the sync pulse (or in
-         * the sync pulse), but never before.
-         */
-        p->CrtcVBlankStart = p->CrtcVBlankEnd - 127;
-	/*
-	 * If VBlankStart is now > VSyncStart move VBlankStart
-	 * to VSyncStart using the maximum width that fits into
-	 * VTotal.
-	 */
-	if (p->CrtcVBlankStart > p->CrtcVSyncStart) {
-	    p->CrtcVBlankStart = p->CrtcVSyncStart;
-	    p->CrtcVBlankEnd = min(p->CrtcHBlankStart + 127, p->CrtcVTotal);
-	}
-    }
-    p->CrtcHBlankStart = min(p->CrtcHSyncStart, p->CrtcHDisplay);
-    p->CrtcHBlankEnd = max(p->CrtcHSyncEnd, p->CrtcHTotal);
-
-    if ((p->CrtcHBlankEnd - p->CrtcHBlankStart) >= 63 * 8) {
-        /*
-         * H Blanking size must be < 63*8. Same remark as above.
-         */
-        p->CrtcHBlankStart = p->CrtcHBlankEnd - 63 * 8;
-	if (p->CrtcHBlankStart > p->CrtcHSyncStart) {
-	    p->CrtcHBlankStart = p->CrtcHSyncStart;
-	    p->CrtcHBlankEnd = min(p->CrtcHBlankStart + 63 * 8, p->CrtcHTotal);
-	}
-    }
 }
 
 /**
@@ -740,14 +652,21 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
     /* Set the vertical refresh, which is used by the choose-best-mode-per-pipe
      * code later on.
      */
+#ifdef DEBUG_REPROBE
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Printing probed modes for pipe %d\n",
+	       pipe);
+#endif
     for (pMode = pI830->pipeModes[pipe]; pMode != NULL; pMode = pMode->next) {
 	pMode->VRefresh = I830ModeVRefresh(pMode);
+#ifdef DEBUG_REPROBE
+	PrintModeline(pScrn->scrnIndex, pMode);
+#endif
     }
 }
 
 /**
  * This function removes a mode from a list of modes.  It should probably be
- * moved to xf86Mode.c
+ * moved to xf86Mode.c.
  *
  * There are different types of mode lists:
  *
@@ -795,8 +714,9 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
     I830Ptr pI830 = I830PTR(pScrn);
     ClockRangePtr clockRanges;
     int n, pipe;
-    DisplayModePtr saved_mode;
+    DisplayModePtr saved_mode, availModes;
     int saved_virtualX = 0, saved_virtualY = 0, saved_displayWidth = 0;
+    Bool pipes_reconfigured = FALSE;
 
     for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++) {
 	I830ReprobePipeModeList(pScrn, pipe);
@@ -815,6 +735,9 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 	    } else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Enabled new CRT on pipe A\n");
+		pipes_reconfigured = TRUE;
+		/* Clear the current mode, so we reprogram the pipe for sure. */
+		memset(&pI830->pipeCurMode[0], 0, sizeof(pI830->pipeCurMode[0]));
 	    }
 	} else if (((pI830->operatingDevices >> 8) & 0xff) == PIPE_NONE) {
 	    pI830->operatingDevices |= PIPE_CRT << 8;
@@ -825,19 +748,24 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 	    } else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Enabled new CRT on pipe B\n");
+		pipes_reconfigured = TRUE;
+		/* Clear the current mode, so we reprogram the pipe for sure. */
+		memset(&pI830->pipeCurMode[1], 0, sizeof(pI830->pipeCurMode[1]));
 	    }
 	}
     }
 
-    /* XXX: Clean out modes previously injected by our driver */
-
+    /* Start by injecting the XFree86 default modes and user-configured
+     * modelines.  XXX: This actually isn't of use if we've got any DDC, as DDC
+     * currently has higher priority than the validated modelist.  We need to
+     * deal with that.
+     */
+    I830InjectProbedModes(pScrn, &availModes, pScrn->monitor->Modes);
     if (pI830->pipeModes[0] != NULL) {
-	I830InjectProbedModes(pScrn, pScrn->monitor->Modes,
-			      pScrn->display->modes, pI830->pipeModes[0]);
+	I830InjectProbedModes(pScrn, &availModes, pI830->pipeModes[0]);
     }
     if (pI830->pipeModes[1] != NULL) {
-	I830InjectProbedModes(pScrn, pScrn->monitor->Modes,
-			      pScrn->display->modes, pI830->pipeModes[1]);
+	I830InjectProbedModes(pScrn, &availModes, pI830->pipeModes[1]);
     }
 
    /*
@@ -872,7 +800,7 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
      *      capabilities of our pipes.
      */
     n = xf86ValidateModes(pScrn,
-			  pScrn->monitor->Modes, /* availModes */
+			  availModes, /* availModes */
 			  pScrn->display->modes, /* modeNames */
 			  clockRanges, /* clockRanges */
 			  !first_time ? &pScrn->displayWidth : NULL, /* linePitches */
@@ -885,6 +813,12 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 			  pScrn->virtualY, /* virtualY */
 			  pI830->FbMapSize, /* apertureSize */
 			  LOOKUP_BEST_REFRESH /* strategy */);
+
+    /* availModes is of no more use as xf86ValidateModes has duplicated and
+     * saved everything it needs.
+     */
+    while (availModes != NULL)
+	xf86DeleteMode(&availModes, availModes);
 
     if (!first_time) {
 	/* Restore things that may have been damaged by xf86ValidateModes. */
@@ -899,6 +833,19 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
     xf86SetCrtcForModes(pScrn, INTERLACE_HALVE_V);
 
     xf86PruneDriverModes(pScrn);
+
+#if DEBUG_REPROBE
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Modes post revalidate\n");
+    do {
+	DisplayModePtr pMode;
+
+	for (pMode = pScrn->modes; ; pMode = pMode->next) {
+	    PrintModeline(pScrn->scrnIndex, pMode);
+	    if (pMode->next == pScrn->modes)
+		break;
+	}
+    } while (0);
+#endif
 
     /* Try to find the closest equivalent of the previous mode pointer to switch
      * to.
@@ -926,5 +873,23 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 	xfree(saved_mode->name);
 	xfree(saved_mode);
     }
+
+    /* If we've enabled/disabled some pipes, we need to reset cloning mode
+     * support.
+     */
+    if (pipes_reconfigured) {
+	if ((pI830->operatingDevices & 0x00ff) &&
+	    (pI830->operatingDevices & 0xff00))
+	{
+	    pI830->Clone = TRUE;
+	} else {
+	    pI830->Clone = FALSE;
+	}
+
+	/* If HW cursor currently showing, reset cursor state */
+	if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn)
+	    pI830->CursorInfoRec->ShowCursor(pScrn);
+    }
+
     return n;
 }
