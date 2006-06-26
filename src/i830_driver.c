@@ -3908,6 +3908,9 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    DPRINTF(PFX, "RestoreHWState\n");
 
+#ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, FALSE);
+#endif
    if (I830IsPrimary(pScrn) && pI830->pipe != pI830->origPipe)
       SetBIOSPipe(pScrn, pI830->origPipe);
    else
@@ -4493,6 +4496,9 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 #endif
 
 #ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, TRUE);
+#endif
+#ifdef XF86DRI
    if (didLock)
       I830DRIUnlock(pScrn);
 #endif
@@ -4829,6 +4835,32 @@ I830InitFBManager(
    REGION_UNINIT(pScreen, &FullRegion);
     
    return ret;
+}
+
+/* Initialize the first context */
+void
+IntelEmitInvarientState(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   CARD32 ctx_addr;
+
+   ctx_addr = pI830->ContextMem.Start;
+   /* Align to a 2k boundry */
+   ctx_addr = ((ctx_addr + 2048 - 1) / 2048) * 2048;
+
+   {
+      BEGIN_LP_RING(2);
+      OUT_RING(MI_SET_CONTEXT);
+      OUT_RING(ctx_addr |
+	       CTXT_NO_RESTORE |
+	       CTXT_PALETTE_SAVE_DISABLE | CTXT_PALETTE_RESTORE_DISABLE);
+      ADVANCE_LP_RING();
+   }
+
+   if (IS_I9XX(pI830))
+      I915EmitInvarientState(pScrn);
+   else
+      I830EmitInvarientState(pScrn);
 }
 
 static Bool

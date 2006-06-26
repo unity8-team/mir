@@ -415,6 +415,8 @@ extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
 extern Bool I830CursorInit(ScreenPtr pScreen);
 extern void IntelEmitInvarientState(ScrnInfoPtr pScrn);
+extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
+extern void I915EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 
 extern void I830RefreshRing(ScrnInfoPtr pScrn);
@@ -447,6 +449,7 @@ extern void I830DRIUnmapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
 extern Bool I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
 extern void I830DRIUnlock(ScrnInfoPtr pScrn);
 extern Bool I830DRILock(ScrnInfoPtr pScrn);
+extern Bool I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on);
 #endif
 
 extern Bool I830AccelInit(ScreenPtr pScreen);
@@ -493,6 +496,17 @@ extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 
 extern void i830MarkSync(ScrnInfoPtr pScrn);
 extern void i830WaitSync(ScrnInfoPtr pScrn);
+
+/* i830_memory.c */
+Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
+Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
+
+/* i830_randr.c */
+Bool I830RandRInit(ScreenPtr pScreen, int rotation);
+Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
+			RRScreenSizePtr pSize);
+Rotation I830GetRotation(ScreenPtr pScreen);
+
 /*
  * 12288 is set as the maximum, chosen because it is enough for
  * 1920x1440@32bpp with a 2048 pixel line pitch with some to spare.
