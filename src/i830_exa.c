@@ -149,7 +149,7 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned long offset, pitch;
 
-    if (planemask != (Pixel)~0 && !EXA_PM_IS_SOLID(pPixmap, planemask))
+    if (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
 
     offset = exaGetPixmapOffset(pPixmap);
@@ -234,7 +234,7 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (planemask != (Pixel)~0 && !EXA_PM_IS_SOLID(pSrcPixmap, planemask))
+    if (!EXA_PM_IS_SOLID(&pSrcPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
 
     pI830->copy_src_pitch = exaGetPixmapPitch(pSrcPixmap);
