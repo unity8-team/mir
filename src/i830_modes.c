@@ -182,41 +182,43 @@ I830DuplicateMode(DisplayModePtr pMode)
  * Highest resolution first.
  */
 void
-I830xf86SortModes(DisplayModePtr *new, DisplayModePtr *first,
+I830xf86SortModes(DisplayModePtr new, DisplayModePtr *first,
 	      DisplayModePtr *last)
 {
     DisplayModePtr  p;
 
     p = *last;
     while (p) {
-	if ((((*new)->HDisplay < p->HDisplay) &&
-	     ((*new)->VDisplay < p->VDisplay)) ||
-	    (((*new)->HDisplay == p->HDisplay) &&
-	     ((*new)->VDisplay == p->VDisplay) &&
-	     ((*new)->Clock < p->Clock))) {
+	if (((new->HDisplay < p->HDisplay) &&
+	     (new->VDisplay < p->VDisplay)) ||
+	    ((new->HDisplay == p->HDisplay) &&
+	     (new->VDisplay == p->VDisplay) &&
+	     (new->Clock < p->Clock))) {
 
-	    if (p->next) p->next->prev = *new;
-	    (*new)->prev = p;
-	    (*new)->next = p->next;
-	    p->next = *new;
-	    if (!((*new)->next)) *last = *new;
+	    if (p->next) 
+		p->next->prev = new;
+	    new->prev = p;
+	    new->next = p->next;
+	    p->next = new;
+	    if (!(new->next))
+		*last = new;
 	    break;
 	}
 	if (!p->prev) {
-	    (*new)->prev = NULL;
-	    (*new)->next = p;
-	    p->prev = *new;
-	    *first = *new;
+	    new->prev = NULL;
+	    new->next = p;
+	    p->prev = new;
+	    *first = new;
 	    break;
 	}
 	p = p->prev;
     }
 
     if (!*first) {
-	*first = *new;
-	(*new)->prev = NULL;
-	(*new)->next = NULL;
-	*last = *new;
+	*first = new;
+	new->prev = NULL;
+	new->next = NULL;
+	*last = new;
     }
 }
 
@@ -230,7 +232,7 @@ I830GetVESAEstablishedMode(ScrnInfoPtr pScrn, int i)
 {
     DisplayModePtr pMode;
 
-    for (pMode = I830xf86DefaultModes; pMode->name != NULL; pMode = pMode->next)
+    for (pMode = I830xf86DefaultModes; pMode->name != NULL; pMode++)
     {
 	if (pMode->HDisplay == est_timings[i].hsize &&
 	    pMode->VDisplay == est_timings[i].vsize &&
@@ -301,7 +303,7 @@ DisplayModePtr I830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 		       new->HTotal, new->HSyncStart, new->HSyncEnd,
 		       new->VTotal, new->VSyncStart, new->VSyncEnd);
 
-	    I830xf86SortModes(&new, &first, &last);
+	    I830xf86SortModes(new, &first, &last);
 	}
     }
 
@@ -315,7 +317,11 @@ DisplayModePtr I830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 	new->status = MODE_OK;
 	new->type |= M_T_DEFAULT;
 
-	I830xf86SortModes(&new, &first, &last);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Valid Mode from standard timing table: %s\n",
+		   new->name);
+
+	I830xf86SortModes(new, &first, &last);
 #else
 	for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
 
@@ -342,7 +348,7 @@ DisplayModePtr I830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 			       "Valid Mode from standard timing table: %s\n",
 			       new->name);
 
-		    I830xf86SortModes(&new, &first, &last);
+		    I830xf86SortModes(new, &first, &last);
 		    break;
 		}
 	    }
@@ -354,11 +360,11 @@ DisplayModePtr I830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
     tmp = (ddc->timings1.t1 << 8) | ddc->timings1.t2;
     for (j = 0; j < 16; j++) {
 	if (tmp & (1 << j)) {
-	    DisplayModePtr pNew;
-
-	    pNew = I830GetVESAEstablishedMode(pScrn, j);
-	    assert(pNew != NULL); /* We'd better have all the est. modes. */
-
+	    new = I830GetVESAEstablishedMode(pScrn, j);
+	    if (new == NULL) {
+		ErrorF("Couldn't get established mode %d\n", j);
+		continue;
+	    }
 	    new->status = MODE_OK;
 	    new->type = M_T_DEFAULT;
 
@@ -367,7 +373,7 @@ DisplayModePtr I830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Valid Mode from established "
 		       "timing table: %s\n", new->name);
 
-	    I830xf86SortModes(&new, &first, &last);
+	    I830xf86SortModes(new, &first, &last);
 	}
     }
 
@@ -643,7 +649,6 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
 	for (pMode = pI830->pipeModes[pipe]; pMode != NULL; pMode = pMode->next)
 	{
 	    I830xf86SetModeCrtc(pMode, INTERLACE_HALVE_V);
-	    pMode->VRefresh = I830ModeVRefresh(pMode);
 	}
     } else {
 	ErrorF("don't know how to get modes for this device.\n");
@@ -714,7 +719,7 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
     I830Ptr pI830 = I830PTR(pScrn);
     ClockRangePtr clockRanges;
     int n, pipe;
-    DisplayModePtr saved_mode, availModes;
+    DisplayModePtr saved_mode, availModes = NULL;
     int saved_virtualX = 0, saved_virtualY = 0, saved_displayWidth = 0;
     Bool pipes_reconfigured = FALSE;
 
