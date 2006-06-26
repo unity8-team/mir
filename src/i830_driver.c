@@ -3954,10 +3954,13 @@ I830BIOSEnterVT(int scrnIndex, int flags)
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
+   /* Mark that we'll need to re-set the mode for sure */
+   memset(pI830->pipeCurMode, 0, sizeof(pI830->pipeCurMode));
+
    /* Detect monitor change and switch to suitable mode */
    if (!pI830->starting)
       I830DetectMonitorChange(pScrn);
-	    
+
    if (!i830SetMode(pScrn, pScrn->currentMode))
       return FALSE;
    
