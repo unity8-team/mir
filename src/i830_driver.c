@@ -1701,6 +1701,18 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    if (!i830GetLVDSInfoFromBIOS(pScrn))
       has_lvds = FALSE;
 
+   /* If the panel sequencing, status, and control registers are all zero,
+    * assume there's no panel attached.  This is the case on the Mac mini,
+    * which is an i945GM but has no LVDS.  If we tried to power something on
+    * with zeroed panel sequencing registers, it probably wouldn't be a good
+    * thing anyway.
+    */
+   if (INREG(PP_STATUS) == 0 && INREG(PP_CONTROL) == 0 &&
+       INREG(LVDSPP_ON) == 0 && INREG(LVDSPP_OFF) == 0)
+   {
+      has_lvds = FALSE;
+   }
+
    if ((s = xf86GetOptValString(pI830->Options, OPTION_MONITOR_LAYOUT)) &&
       I830IsPrimary(pScrn)) {
       char *Mon1;
