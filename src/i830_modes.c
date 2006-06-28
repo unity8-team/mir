@@ -587,56 +587,6 @@ i830DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
     return first;
 }
 
-/**
- * Duplicates and appends a list of modes to a mode list.
- *
- * Take the doubly-linked list of modes we've probed for the device, and injects
- * it into the doubly-linked modeList.  We don't need to filter, because the
- * eventual call to xf86ValidateModes will do this for us.  I think.
- */
-static int
-i830InjectModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
-		DisplayModePtr addModes)
-{
-    DisplayModePtr  last = *modeList;
-    DisplayModePtr  first = *modeList;
-    DisplayModePtr  addMode;
-    int count = 0;
-
-    for (addMode = addModes; addMode != NULL; addMode = addMode->next) {
-	DisplayModePtr pNew;
-
-	pNew = I830DuplicateMode(addMode);
-#if 0
-	/* If the user didn't specify any modes, mark all modes as M_T_USERDEF
-	 * so that we can cycle through them, etc.  XXX: really need to?
-	 */
-	if (pScrn->display->modes[0] == NULL) {
-	    pNew->type |= M_T_USERDEF;
-	}
-#endif
-
-	/* Insert pNew into modeList */
-	if (last) {
-	    last->next = pNew;
-	    pNew->prev = last;
-	} else {
-	    first = pNew;
-	    pNew->prev = NULL;
-	}
-	pNew->next = NULL;
-	last = pNew;
-
-	count++;
-    }
-    *modeList = first;
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Injected %d modes detected from the monitor\n", count);
-
-    return count;
-}
-
 static MonPtr
 i830GetDDCMonitor(ScrnInfoPtr pScrn, I2CBusPtr pDDCBus)
 {
@@ -1037,9 +987,9 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
      * care about enough to make some sort of unioned list.
      */
     if (pI830->pipeMon[1] != NULL) {
-	i830InjectModes(pScrn, &pScrn->modes, pI830->pipeMon[1]->Modes);
+	pScrn->modes = i830DuplicateModes(pScrn, pI830->pipeMon[1]->Modes);
     } else {
-	i830InjectModes(pScrn, &pScrn->modes, pI830->pipeMon[0]->Modes);
+	pScrn->modes = i830DuplicateModes(pScrn, pI830->pipeMon[0]->Modes);
     }
     if (pScrn->modes == NULL) {
 	FatalError("No modes found\n");
