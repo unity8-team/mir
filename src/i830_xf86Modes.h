@@ -26,7 +26,10 @@
  */
 
 double
-I830ModeVRefresh(DisplayModePtr mode);
+i830xf86ModeHSync(DisplayModePtr mode);
+
+double
+i830xf86ModeVRefresh(DisplayModePtr mode);
 
 void
 I830xf86SetModeCrtc(DisplayModePtr p, int adjustFlags);
@@ -45,6 +48,10 @@ i830xf86ValidateModesClocks(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 void
 i830xf86ValidateModesSize(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 			  int maxX, int maxY, int maxPitch);
+
+void
+i830xf86ValidateModesSync(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+			  MonPtr mon);
 
 void
 i830xf86PruneInvalidModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,

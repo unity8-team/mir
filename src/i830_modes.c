@@ -237,10 +237,10 @@ I830GetVESAEstablishedMode(ScrnInfoPtr pScrn, int i)
     {
 	if (pMode->HDisplay == est_timings[i].hsize &&
 	    pMode->VDisplay == est_timings[i].vsize &&
-	    fabs(I830ModeVRefresh(pMode) - est_timings[i].refresh) < 1.0)
+	    fabs(i830xf86ModeVRefresh(pMode) - est_timings[i].refresh) < 1.0)
 	{
 	    DisplayModePtr pNew = I830DuplicateMode(pMode);
-	    pNew->VRefresh = I830ModeVRefresh(pMode);
+	    pNew->VRefresh = i830xf86ModeVRefresh(pMode);
 	    return pNew;
 	}
     }
@@ -523,16 +523,80 @@ i830GetLVDSModes(ScrnInfoPtr pScrn, char **ppModeName)
    return first;
 }
 
+static DisplayModePtr
+i830GetModeListTail(DisplayModePtr pModeList)
+{
+    DisplayModePtr last;
+
+    if (pModeList == NULL)
+	return NULL;
+
+    for (last = pModeList; last->next != NULL; last = last->next)
+	;
+
+    return last;
+}
+
 /**
- * Injects a list of probed modes into another mode list.
+ * Appends a list of modes to another mode list, without duplication.
+ */
+static void
+i830AppendModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
+		DisplayModePtr addModes)
+{
+    DisplayModePtr first = *modeList;
+    DisplayModePtr last = i830GetModeListTail(first);
+
+    if (first == NULL) {
+	*modeList = addModes;
+    } else {
+	last->next = addModes;
+	addModes->prev = last;
+    }
+}
+
+/**
+ * Duplicates every mode in the given list and returns a pointer to the first
+ * mode.
+ *
+ * \param modeList doubly-linked mode list
+ */
+static DisplayModePtr
+i830DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
+{
+    DisplayModePtr first = NULL, last = NULL;
+    DisplayModePtr mode;
+
+    for (mode = modeList; mode != NULL; mode = mode->next) {
+	DisplayModePtr new;
+
+	new = I830DuplicateMode(mode);
+
+	/* Insert pNew into modeList */
+	if (last) {
+	    last->next = new;
+	    new->prev = last;
+	} else {
+	    first = new;
+	    new->prev = NULL;
+	}
+	new->next = NULL;
+	last = new;
+    }
+
+    return first;
+}
+
+/**
+ * Duplicates and appends a list of modes to a mode list.
  *
  * Take the doubly-linked list of modes we've probed for the device, and injects
  * it into the doubly-linked modeList.  We don't need to filter, because the
  * eventual call to xf86ValidateModes will do this for us.  I think.
  */
 static int
-I830InjectProbedModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
-		      DisplayModePtr addModes)
+i830InjectModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
+		DisplayModePtr addModes)
 {
     DisplayModePtr  last = *modeList;
     DisplayModePtr  first = *modeList;
@@ -573,25 +637,12 @@ I830InjectProbedModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
     return count;
 }
 
-static DisplayModePtr
-i830GetModeListTail(DisplayModePtr pModeList)
-{
-    DisplayModePtr last;
-
-    if (pModeList == NULL)
-	return NULL;
-
-    for (last = pModeList; last->next != NULL; last = last->next)
-	;
-
-    return last;
-}
-
 static MonPtr
 i830GetDDCMonitor(ScrnInfoPtr pScrn, I2CBusPtr pDDCBus)
 {
     xf86MonPtr ddc;
     MonPtr mon;
+    DisplayModePtr userModes;
     int i;
 
     ddc = xf86DoEDID_DDC2(pScrn->scrnIndex, pDDCBus);
@@ -601,7 +652,6 @@ i830GetDDCMonitor(ScrnInfoPtr pScrn, I2CBusPtr pDDCBus)
 
     mon = xnfcalloc(1, sizeof(*mon));
     mon->Modes = i830GetDDCModes(pScrn, ddc);
-    mon->Last = i830GetModeListTail(mon->Modes);
     mon->DDC = ddc;
 
     for (i = 0; i < DET_TIMINGS; i++) {
@@ -624,6 +674,22 @@ i830GetDDCMonitor(ScrnInfoPtr pScrn, I2CBusPtr pDDCBus)
 	}
     }
 
+    /* Add in VESA standard and user modelines, and do additional validation
+     * on them beyond what pipe config will do (x/y/pitch, clocks, flags)
+     */
+    userModes = i830DuplicateModes(pScrn, pScrn->monitor->Modes);
+
+    i830xf86ValidateModesSync(pScrn, userModes, mon);
+    if (ddc->features.hsize > 0 && ddc->features.vsize > 0) {
+	i830xf86ValidateModesSize(pScrn, userModes, ddc->features.hsize,
+				  ddc->features.vsize, -1);
+    }
+    i830xf86PruneInvalidModes(pScrn, &userModes, TRUE);
+
+    i830AppendModes(pScrn, &mon->Modes, userModes);
+
+    mon->Last = i830GetModeListTail(mon->Modes);
+
     return mon;
 }
 
@@ -643,6 +709,7 @@ static MonPtr
 i830GetConfiguredMonitor(ScrnInfoPtr pScrn)
 {
     MonPtr mon;
+    DisplayModePtr userModes;
 
     mon = xnfcalloc(1, sizeof(*mon));
     memcpy(mon, pScrn->monitor, sizeof(*mon));
@@ -653,6 +720,17 @@ i830GetConfiguredMonitor(ScrnInfoPtr pScrn)
 	mon->vendor = xnfstrdup(pScrn->monitor->vendor);
     if (pScrn->monitor->model != NULL)
 	mon->model = xnfstrdup(pScrn->monitor->model);
+
+    /* Add in VESA standard and user modelines, and do additional validation
+     * on them beyond what pipe config will do (x/y/pitch, clocks, flags)
+     */
+    userModes = i830DuplicateModes(pScrn, pScrn->monitor->Modes);
+    i830xf86ValidateModesSync(pScrn, userModes, mon);
+    i830xf86PruneInvalidModes(pScrn, &userModes, FALSE);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "prune 1\n");
+    i830AppendModes(pScrn, &mon->Modes, userModes);
+
+    mon->Last = i830GetModeListTail(mon->Modes);
 
     return mon;
 }
@@ -776,8 +854,7 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
 	    /* The code to choose the best mode per pipe later on will require
 	     * VRefresh to be set.
 	     */
-
-	    pMode->VRefresh = I830ModeVRefresh(pMode);
+	    pMode->VRefresh = i830xf86ModeVRefresh(pMode);
 	    I830xf86SetModeCrtc(pMode, INTERLACE_HALVE_V);
 #ifdef DEBUG_REPROBE
 	    PrintModeline(pScrn->scrnIndex, pMode);
@@ -960,9 +1037,9 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
      * care about enough to make some sort of unioned list.
      */
     if (pI830->pipeMon[1] != NULL) {
-	I830InjectProbedModes(pScrn, &pScrn->modes, pI830->pipeMon[1]->Modes);
+	i830InjectModes(pScrn, &pScrn->modes, pI830->pipeMon[1]->Modes);
     } else {
-	I830InjectProbedModes(pScrn, &pScrn->modes, pI830->pipeMon[0]->Modes);
+	i830InjectModes(pScrn, &pScrn->modes, pI830->pipeMon[0]->Modes);
     }
     if (pScrn->modes == NULL) {
 	FatalError("No modes found\n");

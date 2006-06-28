@@ -44,13 +44,32 @@
  * there but we still want to use.  We need to come up with better API here.
  */
 
+
 /**
- * Calculates the vertical refresh of a mode.
+ * Calculates the horizontal sync rate of a mode.
  *
  * Exact copy of xf86Mode.c's.
  */
 double
-I830ModeVRefresh(DisplayModePtr mode)
+i830xf86ModeHSync(DisplayModePtr mode)
+{
+    double hsync = 0.0;
+    
+    if (mode->HSync > 0.0)
+	    hsync = mode->HSync;
+    else if (mode->HTotal > 0)
+	    hsync = (float)mode->Clock / (float)mode->HTotal;
+
+    return hsync;
+}
+
+/**
+ * Calculates the vertical refresh rate of a mode.
+ *
+ * Exact copy of xf86Mode.c's.
+ */
+double
+i830xf86ModeVRefresh(DisplayModePtr mode)
 {
     double refresh = 0.0;
 
@@ -284,6 +303,51 @@ i830xf86ValidateModesSize(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 
 	if (maxY > 0 && mode->VDisplay > maxY)
 	    mode->status = MODE_VIRTUAL_Y;
+
+	if (mode->next == modeList)
+	    break;
+    }
+}
+
+/**
+ * Marks as bad any modes that aren't supported by the given monitor's
+ * hsync and vrefresh ranges.
+ *
+ * \param modeList doubly-linked or circular list of modes.
+ *
+ * This is not in xf86Modes.c, but would be part of the proposed new API.
+ */
+void
+i830xf86ValidateModesSync(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+			  MonPtr mon)
+{
+    DisplayModePtr mode;
+
+    for (mode = modeList; mode != NULL; mode = mode->next) {
+	Bool bad;
+	int i;
+
+	bad = TRUE;
+	for (i = 0; i < mon->nHsync; i++) {
+	    if (i830xf86ModeHSync(mode) >= mon->hsync[i].lo &&
+		i830xf86ModeHSync(mode) <= mon->hsync[i].hi)
+	    {
+		bad = FALSE;
+	    }
+	}
+	if (bad)
+	    mode->status = MODE_HSYNC;
+
+	bad = TRUE;
+	for (i = 0; i < mon->nVrefresh; i++) {
+	    if (i830xf86ModeVRefresh(mode) >= mon->vrefresh[i].lo &&
+		i830xf86ModeVRefresh(mode) <= mon->vrefresh[i].hi)
+	    {
+		bad = FALSE;
+	    }
+	}
+	if (bad)
+	    mode->status = MODE_VSYNC;
 
 	if (mode->next == modeList)
 	    break;
