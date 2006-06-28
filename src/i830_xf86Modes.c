@@ -238,6 +238,126 @@ PrintModeline(int scrnIndex,DisplayModePtr mode)
     xfree(flags);
 }
 
+/**
+ * Marks as bad any modes with unsupported flags.
+ *
+ * \param modeList doubly-linked or circular list of modes.
+ * \param flags flags supported by the driver.
+ *
+ * \bug only V_INTERLACE and V_DBLSCAN are supported.  Is that enough?
+ *
+ * This is not in xf86Modes.c, but would be part of the proposed new API.
+ */
+void
+i830xf86ValidateModesFlags(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+			    int flags)
+{
+    DisplayModePtr mode;
+
+    for (mode = modeList; mode != NULL; mode = mode->next) {
+	if (mode->Flags & V_INTERLACE && !(flags & V_INTERLACE))
+	    mode->status = MODE_NO_INTERLACE;
+	if (mode->Flags & V_DBLSCAN && !(flags & V_DBLSCAN))
+	    mode->status = MODE_NO_DBLESCAN;
+    }
+}
+
+/**
+ * Marks as bad any modes extending beyond the given max X, Y, or pitch.
+ *
+ * \param modeList doubly-linked or circular list of modes.
+ *
+ * This is not in xf86Modes.c, but would be part of the proposed new API.
+ */
+void
+i830xf86ValidateModesSize(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+			  int maxX, int maxY, int maxPitch)
+{
+    DisplayModePtr mode;
+
+    for (mode = modeList; mode != NULL; mode = mode->next) {
+	if (maxPitch > 0 && mode->HDisplay > maxPitch)
+	    mode->status = MODE_BAD_WIDTH;
+
+	if (maxX > 0 && mode->HDisplay > maxX)
+	    mode->status = MODE_VIRTUAL_X;
+
+	if (maxY > 0 && mode->VDisplay > maxY)
+	    mode->status = MODE_VIRTUAL_Y;
+
+	if (mode->next == modeList)
+	    break;
+    }
+}
+
+/**
+ * Marks as bad any modes extending beyond outside of the given clock ranges.
+ *
+ * \param modeList doubly-linked or circular list of modes.
+ * \param min pointer to minimums of clock ranges
+ * \param max pointer to maximums of clock ranges
+ * \param n_ranges number of ranges.
+ *
+ * This is not in xf86Modes.c, but would be part of the proposed new API.
+ */
+void
+i830xf86ValidateModesClocks(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+			    int *min, int *max, int n_ranges)
+{
+    DisplayModePtr mode;
+    int i;
+
+    for (mode = modeList; mode != NULL; mode = mode->next) {
+	Bool good = FALSE;
+	for (i = 0; i < n_ranges; i++) {
+	    if (mode->Clock >= min[i] && mode->Clock <= max[i]) {
+		good = TRUE;
+		break;
+	    }
+	}
+	if (!good)
+	    mode->status = MODE_CLOCK_RANGE;
+    }
+}
+
+/**
+ * Frees any modes from the list with a status other than MODE_OK.
+ *
+ * \param modeList pointer to a doubly-linked or circular list of modes.
+ * \param verbose determines whether the reason for mode invalidation is
+ *	  printed.
+ *
+ * This is not in xf86Modes.c, but would be part of the proposed new API.
+ */
+void
+i830xf86PruneInvalidModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
+			  Bool verbose)
+{
+    DisplayModePtr mode;
+
+    for (mode = *modeList; mode != NULL;) {
+	DisplayModePtr next = mode->next;
+
+	if (mode->status != MODE_OK) {
+	    if (verbose) {
+		char *type = "";
+		if (mode->type & M_T_BUILTIN)
+		    type = "built-in ";
+		else if (mode->type & M_T_DEFAULT)
+		    type = "default ";
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Not using %smode \"%s\" (%s)\n", type, mode->name,
+			   xf86ModeStatusToString(mode->status));
+	    }
+	    xf86DeleteMode(modeList, mode);
+	}
+
+	if (next == *modeList)
+	    break;
+	mode = next;
+    }
+}
+
 #define MODEPREFIX(name) NULL, NULL, name, MODE_OK, M_T_DEFAULT
 #define MODESUFFIX       0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,FALSE,FALSE,0,NULL,0,0.0,0.0
 

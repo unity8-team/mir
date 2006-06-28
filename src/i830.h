@@ -227,6 +227,10 @@ typedef struct _I830Rec {
    int fixedPipe;
 
    DisplayModePtr currentMode;
+   /* Mode saved during randr reprobe, which will need to be freed at the point
+    * of the next SwitchMode, when we lose this last reference to it.
+    */
+   DisplayModePtr savedCurrentMode;
 
    Bool Clone;
    int CloneRefresh;
@@ -401,8 +405,7 @@ typedef struct _I830Rec {
    int availablePipes;
    /* [0] is display plane A, [1] is display plane B. */
    int planeEnabled[MAX_DISPLAY_PIPES];
-   xf86MonPtr pipeMon[MAX_DISPLAY_PIPES];
-   DisplayModePtr pipeModes[MAX_DISPLAY_PIPES];
+   MonPtr pipeMon[MAX_DISPLAY_PIPES];
    DisplayModeRec pipeCurMode[MAX_DISPLAY_PIPES];
 
    /* Driver phase/state information */

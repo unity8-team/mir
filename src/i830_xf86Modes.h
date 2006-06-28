@@ -35,6 +35,26 @@ Bool
 I830ModesEqual(DisplayModePtr pMode1, DisplayModePtr pMode2);
 
 void
+i830xf86ValidateModesFlags(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+			    int flags);
+
+void
+i830xf86ValidateModesClocks(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+			    int *min, int *max, int n_ranges);
+
+void
+i830xf86ValidateModesSize(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+			  int maxX, int maxY, int maxPitch);
+
+void
+i830xf86PruneInvalidModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
+			  Bool verbose);
+
+void
+i830xf86ValidateModesFlags(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+			    int flags);
+
+void
 PrintModeline(int scrnIndex,DisplayModePtr mode);
 
 extern DisplayModeRec I830xf86DefaultModes[];

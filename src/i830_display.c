@@ -268,11 +268,12 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     /* If we've got a list of modes probed for the device, find the best match
      * in there to the requested mode.
      */
-    if (pI830->pipeModes[pipe] != NULL) {
+    if (pI830->pipeMon[pipe] != NULL) {
 	DisplayModePtr pBest = NULL, pScan;
 
 	assert(pScan->VRefresh != 0.0);
-	for (pScan = pI830->pipeModes[pipe]; pScan != NULL; pScan = pScan->next)
+	for (pScan = pI830->pipeMon[pipe]->Modes; pScan != NULL;
+	     pScan = pScan->next)
 	{
 	    /* Reject if it's larger than the desired mode. */
 	    if (pScan->HDisplay > pMode->HDisplay ||
@@ -284,9 +285,20 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 		pBest = pScan;
 	        continue;
 	    }
-	    /* Find if it's closer than the current best option */
-	    if ((pScan->HDisplay >= pBest->HDisplay && 
-		pScan->HDisplay >= pBest->HDisplay) ||
+	    /* Find if it's closer to the right size than the current best
+	     * option.
+	     */
+	    if (pScan->HDisplay >= pBest->HDisplay && 
+		pScan->VDisplay >= pBest->VDisplay)
+	    {
+		pBest = pScan;
+		continue;
+	    }
+	    /* Find if it's still closer to the right refresh than the current
+	     * best resolution.
+	     */
+	    if (pScan->HDisplay == pBest->HDisplay && 
+		pScan->VDisplay == pBest->VDisplay &&
 		(fabs(pScan->VRefresh - pMode->VRefresh) <
 		fabs(pBest->VRefresh - pMode->VRefresh)))
 	    {
@@ -800,6 +812,29 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode bandwidth is %d Mpixel/s\n",
 	       (int)(pMode->HDisplay * pMode->VDisplay *
 		     pMode->VRefresh / 1000000));
+
+    if (pI830->savedCurrentMode) {
+	/* We're done with the currentMode that the last randr probe had left
+	 * behind, so free it.
+	 */
+	xfree(pI830->savedCurrentMode->name);
+	xfree(pI830->savedCurrentMode);
+	    
+	/* If we might have enabled/disabled some pipes, we need to reset
+	 * cloning mode support.
+	 */
+	if ((pI830->operatingDevices & 0x00ff) &&
+	    (pI830->operatingDevices & 0xff00))
+	{
+	    pI830->Clone = TRUE;
+	} else {
+	    pI830->Clone = FALSE;
+	}
+
+	/* If HW cursor currently showing, reset cursor state */
+	if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn)
+	    pI830->CursorInfoRec->ShowCursor(pScrn);
+    }
 
     i830DisableUnusedFunctions(pScrn);
 
