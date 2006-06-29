@@ -1377,8 +1377,10 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
 
 static Bool R128PreInitDDC(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 {
+#if !defined(__powerpc__) && !defined(__alpha__)
     R128InfoPtr   info = R128PTR(pScrn);
     vbeInfoPtr pVbe;
+#endif
 
     if (!xf86LoadSubModule(pScrn, "ddc")) return FALSE;
     xf86LoaderReqSymLists(ddcSymbols, NULL);
