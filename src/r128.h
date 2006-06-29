@@ -338,7 +338,7 @@ typedef struct {
     Bool              IsPCI;            /* Current card is a PCI card */
     drmSize           pciSize;
     drm_handle_t         pciMemHandle;
-    unsigned char     *PCI;             /* Map */
+    drmAddress        PCI;              /* Map */
 
     Bool              allowPageFlip;    /* Enable 3d page flipping */
     Bool              have3DWindows;    /* Are there any 3d clients? */
@@ -347,7 +347,7 @@ typedef struct {
     drmSize           agpSize;
     drm_handle_t         agpMemHandle;     /* Handle from drmAgpAlloc */
     unsigned long     agpOffset;
-    unsigned char     *AGP;             /* Map */
+    drmAddress        AGP;              /* Map */
     int               agpMode;
 
     Bool              CCEInUse;         /* CCE is currently active */
@@ -361,20 +361,20 @@ typedef struct {
     drm_handle_t         ringHandle;       /* Handle from drmAddMap */
     drmSize           ringMapSize;      /* Size of map */
     int               ringSize;         /* Size of ring (in MB) */
-    unsigned char     *ring;            /* Map */
+    drmAddress        ring;             /* Map */
     int               ringSizeLog2QW;
 
     unsigned long     ringReadOffset;   /* Offset into AGP space */
     drm_handle_t         ringReadPtrHandle; /* Handle from drmAddMap */
     drmSize           ringReadMapSize;  /* Size of map */
-    unsigned char     *ringReadPtr;     /* Map */
+    drmAddress        ringReadPtr;      /* Map */
 
 				/* CCE vertex/indirect buffer data */
     unsigned long     bufStart;        /* Offset into AGP space */
     drm_handle_t         bufHandle;       /* Handle from drmAddMap */
     drmSize           bufMapSize;      /* Size of map */
     int               bufSize;         /* Size of buffers (in MB) */
-    unsigned char     *buf;            /* Map */
+    drmAddress        buf;             /* Map */
     int               bufNumBufs;      /* Number of buffers */
     drmBufMapPtr      buffers;         /* Buffer map */
 
@@ -383,7 +383,7 @@ typedef struct {
     drm_handle_t         agpTexHandle;     /* Handle from drmAddMap */
     drmSize           agpTexMapSize;    /* Size of map */
     int               agpTexSize;       /* Size of AGP tex space (in MB) */
-    unsigned char     *agpTex;          /* Map */
+    drmAddress        agpTex;           /* Map */
     int               log2AGPTexGran;
 
 				/* CCE 2D accleration */
