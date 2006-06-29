@@ -9758,8 +9758,6 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 static void RADEONForceSomeClocks(ScrnInfoPtr pScrn)
 {
     /* It appears from r300 and rv100 may need some clocks forced-on */
-     RADEONInfoPtr info        = RADEONPTR(pScrn);
-     unsigned char *RADEONMMIO = info->MMIO;
      CARD32 tmp;
 
      tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
