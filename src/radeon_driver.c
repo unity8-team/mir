@@ -6380,6 +6380,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 		    RADEONRestoreMemMapRegisters(pScrn, save);
     }
 
+#ifdef USE_EXA
     if (info->accelDFS)
     {
 	drmRadeonGetParam gp;
@@ -6399,6 +6400,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	    info->gartLocation = gart_base;
 	}
     }
+#endif /* USE_EXA */
 }
 #endif
 
