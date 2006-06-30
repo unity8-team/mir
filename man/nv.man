@@ -1,4 +1,4 @@
-.\" $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv.man,v 1.29 2006/01/21 01:17:59 mvojkovi Exp $ 
+.\" $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv.man,v 1.30 2006/06/16 00:19:32 mvojkovi Exp $ 
 .\" shorthand for double quote that works everywhere.
 .ds q \N'34'
 .TH NV __drivermansuffix__ __vendorversion__
@@ -24,7 +24,7 @@ the Riva128 which only supports TrueColor in the higher depths.
 .SH SUPPORTED HARDWARE
 The
 .B nv
-driver supports PCI and AGP video cards based on the following NVIDIA chips:
+driver supports PCI, PCI-Express and AGP video cards based on the following NVIDIA chips:
 .TP 22
 .B RIVA 128
 NV3
@@ -78,13 +78,12 @@ Enable or disable the HW cursor.  Default: on.
 Disable or enable acceleration.  Default: acceleration is enabled.
 .TP
 .BI "Option \*qUseFBDev\*q \*q" boolean \*q
-Enable or disable use of on OS-specific fb interface (and is not supported
+Enable or disable use of an OS-specific fb interface (and is not supported
 on all OSs).  See fbdevhw(__drivermansuffix__) for further information.
 Default: off.
 .TP
 .BI "Option \*qCrtcNumber\*q \*q" integer \*q
-GeForce2 MX, nForce2, Quadro4, GeForce4, Quadro FX and GeForce FX 
-may have two video outputs.  
+Many graphics cards with NVIDIA chips have two video outputs.  
 The driver attempts to autodetect
 which one the monitor is connected to.  In the case that autodetection picks
 the wrong one, this option may be used to force usage of a particular output. 
@@ -95,22 +94,21 @@ Default: autodetected.
 The driver usually can autodetect the presence of a digital flat panel.  In
 the case that this fails, this option can be used to force the driver to 
 treat the attached device as a digital flat panel.  With this 
-driver, a digital flat panel will only work if it was POSTed by the BIOS, 
-that is, the
-machine must have booted to the panel.  If you have a dual head card
+driver, a digital flat panel will work only if it was POSTed by the BIOS, 
+that is, the computer
+must have booted to the panel.  If you have a dual head card
 you may also need to set the option CrtcNumber described above.
-Default: off.
+Default: autodetected.
 .TP
 .BI "Option \*qFPDither\*q \*q" boolean \*q
 Many digital flat panels (particularly ones on laptops) have only 6 bits 
 per component color resolution.
 This option tells the driver to dither from 8 bits per component to 6 before
-the flat panel truncates it. This is only supported in depth 24 on GeForce2 MX, 
-nForce2, GeForce4, Quadro4, Geforce FX and Quadro FX.
+the flat panel truncates it. 
 Default: off.
 .TP
 .BI "Option \*qFPScale\*q \*q" boolean \*q 
-Supported only on GeForce4, Quadro4, Geforce FX and Quadro FX.  This option 
+Supported only on GeForce4 and newer chips, this option
 tells to the driver to scale lower resolutions up to the flat panel's native
 resolution.  Default: on.
 .TP 

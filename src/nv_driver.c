@@ -29,7 +29,7 @@
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
    <jpaana@s2.org> */
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.142 2006/01/23 18:35:53 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.144 2006/06/16 00:19:32 mvojkovi Exp $ */
 
 #include "nv_include.h"
 
@@ -91,7 +91,7 @@ _X_EXPORT DriverRec NV = {
         0
 };
 
-/* Known cards as of 2006/04/20  */
+/* Known cards as of 2006/06/16 */
 
 static SymTabRec NVKnownChipsets[] =
 {
@@ -228,6 +228,7 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0041, "GeForce 6800" },
   { 0x10DE0042, "GeForce 6800 LE" },
   { 0x10DE0043, "GeForce 6800 XE" },
+  { 0x10DE0044, "GeForce 6800 XT" },
   { 0x10DE0045, "GeForce 6800 GT" },
   { 0x10DE0046, "GeForce 6800 GT" },
   { 0x10DE0047, "GeForce 6800 GS" },
@@ -255,6 +256,7 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0148, "GeForce Go 6600" },
   { 0x10DE0149, "GeForce Go 6600 GT" },
   { 0x10DE014C, "Quadro FX 550" },
+  { 0x10DE014D, "Quadro FX 550" },
   { 0x10DE014E, "Quadro FX 540" },
   { 0x10DE014F, "GeForce 6200" },
 
@@ -275,6 +277,7 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE0218, "GeForce 6800 XT" },
 
   { 0x10DE0221, "GeForce 6200" },
+  { 0x10DE0222, "GeForce 6200 A-LE" },
 
   { 0x10DE0090, "GeForce 7800 GTX" },
   { 0x10DE0091, "GeForce 7800 GTX" },
@@ -286,21 +289,34 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE009D, "Quadro FX 4500" },
 
   { 0x10DE01D1, "GeForce 7300 LE" },
+  { 0x10DE01D3, "GeForce 7300 SE" },
   { 0x10DE01D6, "GeForce Go 7200" },
   { 0x10DE01D7, "GeForce Go 7300" },
   { 0x10DE01D8, "GeForce Go 7400" },
+  { 0x10DE01D9, "GeForce Go 7400 GS" },
   { 0x10DE01DA, "Quadro NVS 110M" },
   { 0x10DE01DB, "Quadro NVS 120M" },
   { 0x10DE01DC, "Quadro FX 350M" },
+  { 0x10DE01DD, "GeForce 7500 LE" },
   { 0x10DE01DE, "Quadro FX 350" },
   { 0x10DE01DF, "GeForce 7300 GS" },
 
+  { 0x10DE0391, "GeForce 7600 GT" },
+  { 0x10DE0392, "GeForce 7600 GS" },
+  { 0x10DE0393, "GeForce 7300 GT" },
+  { 0x10DE0394, "GeForce 7600 LE" },
+  { 0x10DE0395, "GeForce 7300 GT" },
+  { 0x10DE0397, "GeForce Go 7700" },
   { 0x10DE0398, "GeForce Go 7600" },
   { 0x10DE0399, "GeForce Go 7600 GT"},
   { 0x10DE039A, "Quadro NVS 300M" },
+  { 0x10DE039B, "GeForce Go 7900 SE" },
   { 0x10DE039C, "Quadro FX 550M" },
   { 0x10DE039E, "Quadro FX 560" },
 
+  { 0x10DE0290, "GeForce 7900 GTX" },
+  { 0x10DE0291, "GeForce 7900 GT" },
+  { 0x10DE0292, "GeForce 7900 GS" },
   { 0x10DE0298, "GeForce Go 7900 GS" },
   { 0x10DE0299, "GeForce Go 7900 GTX" },
   { 0x10DE029A, "Quadro FX 2500M" },
@@ -308,6 +324,7 @@ static SymTabRec NVKnownChipsets[] =
   { 0x10DE029C, "Quadro FX 5500" },
   { 0x10DE029D, "Quadro FX 3500" },
   { 0x10DE029E, "Quadro FX 1500" },
+  { 0x10DE029F, "Quadro FX 4500 X2" },
 
   { 0x10DE0240, "GeForce 6150" },
   { 0x10DE0241, "GeForce 6150 LE" },
@@ -672,8 +689,11 @@ NVProbe(DriverPtr drv, int flags)
             int pciid = ((*ppPci)->vendor << 16) | (*ppPci)->chipType;
             int token = pciid;
 
-            if((token & 0xfff0) == 0x00F0) 
+            if(((token & 0xfff0) == 0x00F0) ||
+               ((token & 0xfff0) == 0x02E0))
+            {
                 token = NVGetPCIXpressChip(*ppPci);
+            }
 
             while(nvchips->name) {
                if(token == nvchips->token)
@@ -713,6 +733,7 @@ NVProbe(DriverPtr drv, int flags)
                case 0x0240:
                case 0x0290:
                case 0x0390:
+               case 0x03D0:
                    NVChipsets[numUsed].token = pciid;
                    NVChipsets[numUsed].name = "Unknown NVIDIA chip";
                    NVPciChipsets[numUsed].numChipset = pciid;
@@ -1069,8 +1090,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	from = X_PROBED;
 	pNv->Chipset = (pNv->PciInfo->vendor << 16) | pNv->PciInfo->chipType;
 
-        if((pNv->Chipset & 0xfff0) == 0x00F0)
+        if(((pNv->Chipset & 0xfff0) == 0x00F0) ||
+           ((pNv->Chipset & 0xfff0) == 0x02E0))
+        {
             pNv->Chipset = NVGetPCIXpressChip(pNv->PciInfo);
+        }
 
 	pScrn->chipset = (char *)xf86TokenToString(NVKnownChipsets, 
                                                    pNv->Chipset);
@@ -1429,6 +1453,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     case 0x0290:   /* GeForce 7900 */
     case 0x0390:   /* GeForce 7600 */
     case 0x0240:   /* GeForce 6100 */
+    case 0x03D0:
          pNv->Architecture =  NV_ARCH_40;
          break;
     default:

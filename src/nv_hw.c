@@ -36,7 +36,7 @@
 |*     those rights set forth herein.                                        *|
 |*                                                                           *|
  \***************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.20 2006/01/21 01:17:59 mvojkovi Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.21 2006/06/16 00:19:33 mvojkovi Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -882,8 +882,10 @@ void NVCalcStateExt (
         case NV_ARCH_20:
         case NV_ARCH_30:
         default:
-            if((pNv->Chipset & 0xfff0) == 0x0240) {
-                state->arbitration0 = 256; 
+            if(((pNv->Chipset & 0xfff0) == 0x0240) ||
+               ((pNv->Chipset & 0xfff0) == 0x03D0))
+            {
+                state->arbitration0 = 128; 
                 state->arbitration1 = 0x0480; 
             } else
             if(((pNv->Chipset & 0xffff) == 0x01A0) ||
@@ -957,7 +959,8 @@ void NVLoadStateExt (
         if(((pNv->Chipset & 0xfff0) == 0x0090) ||
            ((pNv->Chipset & 0xfff0) == 0x01D0) ||
            ((pNv->Chipset & 0xfff0) == 0x0290) ||
-           ((pNv->Chipset & 0xfff0) == 0x0390))
+           ((pNv->Chipset & 0xfff0) == 0x0390) ||
+           ((pNv->Chipset & 0xfff0) == 0x03D0))
         {
            regions = 15;
         }
@@ -1213,6 +1216,7 @@ void NVLoadStateExt (
               case 0x0160:
               case 0x01D0:
               case 0x0240:
+              case 0x03D0:
                  pNv->PMC[0x1700/4] = pNv->PFB[0x020C/4];
                  pNv->PMC[0x1704/4] = 0;
                  pNv->PMC[0x1708/4] = 0;
@@ -1291,7 +1295,8 @@ void NVLoadStateExt (
               if(((pNv->Chipset & 0xfff0) == 0x0090) ||
                  ((pNv->Chipset & 0xfff0) == 0x01D0) ||
                  ((pNv->Chipset & 0xfff0) == 0x0290) ||
-                 ((pNv->Chipset & 0xfff0) == 0x0390))
+                 ((pNv->Chipset & 0xfff0) == 0x0390) ||
+                 ((pNv->Chipset & 0xfff0) == 0x03D0))
               {
                  for(i = 0; i < 60; i++) {
                    pNv->PGRAPH[(0x0D00/4) + i] = pNv->PFB[(0x0600/4) + i];
