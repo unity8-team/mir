@@ -295,8 +295,7 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
 do {									\
         /*if (info->engineMode == EXA_ENGINEMODE_2D)*/                      \
             /*break;*/                                                      \
-	BEGIN_ACCEL(2);							\
-	OUT_ACCEL_REG(RADEON_RB2D_DSTCACHE_CTLSTAT,  RADEON_RB2D_DC_FLUSH); \
+	BEGIN_ACCEL(1);							\
 	OUT_ACCEL_REG(RADEON_WAIT_UNTIL,				\
 		RADEON_WAIT_HOST_IDLECLEAN |				\
 		RADEON_WAIT_3D_IDLECLEAN);				\
@@ -308,8 +307,7 @@ do {									\
 do {									\
         /*if (info->engineMode == EXA_ENGINEMODE_3D)*/                      \
             /*break;*/                                                      \
-	BEGIN_ACCEL(2);							\
-	OUT_ACCEL_REG(RADEON_RB2D_DSTCACHE_CTLSTAT,  RADEON_RB2D_DC_FLUSH); \
+	BEGIN_ACCEL(1);							\
 	OUT_ACCEL_REG(RADEON_WAIT_UNTIL,				\
 		RADEON_WAIT_HOST_IDLECLEAN |				\
 		RADEON_WAIT_2D_IDLECLEAN |				\
