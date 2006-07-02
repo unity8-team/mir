@@ -2024,14 +2024,7 @@ RADEONSetCursorPositionMerged(ScrnInfoPtr pScrn, int x, int y)
     OUTREG(RADEON_CUR_HORZ_VERT_POSN, (RADEON_CUR_LOCK
 				   | ((xorigin ? 0 : x1) << 16)
 				   | (yorigin ? 0 : y1)));
-#ifdef USE_EXA
-    if (info->useEXA)
-	OUTREG(RADEON_CUR_OFFSET, info->cursor_offset + yorigin * stride);
-#endif /* USE_EXA */
-#ifdef USE_XAA
-    if (!info->useEXA)
-	OUTREG(RADEON_CUR_OFFSET, info->cursor_offset + yorigin * stride);
-#endif /* USE_XAA */
+    OUTREG(RADEON_CUR_OFFSET, info->cursor_offset + yorigin * stride);
 		/* cursor2 */
     OUTREG(RADEON_CUR2_HORZ_VERT_OFF,  (RADEON_CUR2_LOCK
 				    | (xorigin << 16)
@@ -2039,14 +2032,7 @@ RADEONSetCursorPositionMerged(ScrnInfoPtr pScrn, int x, int y)
     OUTREG(RADEON_CUR2_HORZ_VERT_POSN, (RADEON_CUR2_LOCK
 				    | ((xorigin ? 0 : x2) << 16)
 				    | (yorigin ? 0 : y2)));
-#ifdef USE_EXA
-    if (info->useEXA)
-	OUTREG(RADEON_CUR2_OFFSET, info->cursor_offset + yorigin * stride);
-#endif /* USE_EXA */
-#ifdef USE_XAA
-    if (!info->useEXA)
-	OUTREG(RADEON_CUR2_OFFSET, info->cursor_offset + yorigin * stride);
-#endif /* USE_XAA */
+    OUTREG(RADEON_CUR2_OFFSET, info->cursor_offset + yorigin * stride);
 }
 
 /* radeon Xv helpers */
