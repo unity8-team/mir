@@ -71,7 +71,9 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen);
 static void RADEONDRITransitionMultiToSingle3d(ScreenPtr pScreen);
 static void RADEONDRITransitionSingleToMulti3d(ScreenPtr pScreen);
 
+#ifdef USE_XAA
 static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
+#endif
 
 /* Initialize the visual configs that are supported by the hardware.
  * These are combined with the visual configs that the indirect
@@ -453,6 +455,8 @@ static void RADEONDRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
     }
 }
 
+#ifdef USE_XAA
+
 /* The Radeon has depth tiling on all the time. Rely on surface regs to
  * translate the addresses (only works if allowColorTiling is true).
  */
@@ -512,6 +516,8 @@ static void RADEONScreenToScreenCopyDepth(ScrnInfoPtr pScrn,
 	break;
     }
 }
+
+#endif /* USE_XAA */
 
 /* Initialize the state of the back and depth buffers */
 static void RADEONDRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 indx)
@@ -1625,6 +1631,7 @@ void RADEONDRIInitPageFlip(ScreenPtr pScreen)
     ScrnInfoPtr         pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr       info  = RADEONPTR(pScrn);
 
+#ifdef USE_XAA
    /* Have shadowfb run only while there is 3d active. This must happen late,
      * after XAAInit has been called 
      */
@@ -1636,7 +1643,9 @@ void RADEONDRIInitPageFlip(ScreenPtr pScreen)
 	} else
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "ShadowFB initialized for Page Flipping\n");
-    } else {
+    } else
+#endif /* USE_XAA */
+    {
        info->allowPageFlip = 0;
     }
 }
@@ -1791,6 +1800,8 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
     }
 }
 
+#ifdef USE_XAA
+
 /* Use callbacks from dri.c to support pageflipping mode for a single
  * 3d context without need for any specific full-screen extension.
  *
@@ -1826,7 +1837,6 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     if (!pSAREAPriv->pfAllowPageFlip && pSAREAPriv->pfCurrentPage == 0)
 	return;
 
-#ifdef USE_XAA
     /* XXX: implement for EXA */
     /* pretty much a hack. */
 
@@ -1852,16 +1862,17 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 	}
     }
     info->dst_pitch_offset &= ~RADEON_DST_TILE_MACRO;
-#endif /* USE_XAA */
 }
+
+#endif /* USE_XAA */
 
 static void RADEONEnablePageFlip(ScreenPtr pScreen)
 {
+#ifdef USE_XAA
     ScrnInfoPtr         pScrn      = xf86Screens[pScreen->myNum];
     RADEONInfoPtr       info       = RADEONPTR(pScrn);
     RADEONSAREAPrivPtr  pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
-#ifdef USE_XAA
     /* XXX: Fix in EXA case */
     if (info->allowPageFlip) {
         /* pretty much a hack. */
@@ -1912,10 +1923,10 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen)
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+#ifdef USE_XAA
     FBAreaPtr      fbarea;
     int            width, height;
 
-#ifdef USE_XAA
     /* EXA allocates these areas up front, so it doesn't do the following
      * stuff.
      */

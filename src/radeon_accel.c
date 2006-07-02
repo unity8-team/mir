@@ -96,6 +96,7 @@
 #include "xf86.h"
 
 
+#ifdef USE_XAA
 static struct {
     int rop;
     int pattern;
@@ -117,6 +118,7 @@ static struct {
     { RADEON_ROP3_DSan, RADEON_ROP3_DPan }, /* GXnand         */
     { RADEON_ROP3_ONE,  RADEON_ROP3_ONE  }  /* GXset          */
 };
+#endif
 
 /* The FIFO has 64 slots.  This routines waits until at least `entries'
  * of these slots are empty.

@@ -5650,7 +5650,9 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 		 pScrn->memPhysBase, pScrn->fbOffset));
 
     info->accelOn      = FALSE;
+#ifdef USE_XAA
     info->accel        = NULL;
+#endif
     pScrn->fbOffset    = 0;
     if (info->IsSecondary) pScrn->fbOffset = pScrn->videoRam * 1024;
     if (!RADEONMapMem(pScrn)) return FALSE;
