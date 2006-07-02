@@ -3025,8 +3025,9 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 		   "Option ShowCache enabled\n");
 
 #ifdef RENDER
-    info->RenderAccel = xf86ReturnOptValBool (info->Options,
-					      OPTION_RENDER_ACCEL, TRUE);
+    info->RenderAccel = xf86ReturnOptValBool(info->Options, OPTION_RENDER_ACCEL,
+					     info->Chipset != PCI_CHIP_RN50_515E &&
+					     info->Chipset != PCI_CHIP_RN50_5969);
 #endif
 
     return TRUE;
