@@ -293,25 +293,34 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
 
 #define RADEON_SWITCH_TO_2D()						\
 do {									\
-        /*if (info->engineMode == EXA_ENGINEMODE_2D)*/                      \
-            /*break;*/                                                      \
 	BEGIN_ACCEL(1);							\
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL,				\
-		RADEON_WAIT_HOST_IDLECLEAN |				\
-		RADEON_WAIT_3D_IDLECLEAN);				\
+	CARD32 wait_until = 0;			\
+	switch (info->engineMode) {					\
+	case EXA_ENGINEMODE_UNKNOWN:					\
+	    wait_until |= RADEON_WAIT_HOST_IDLECLEAN | RADEON_WAIT_2D_IDLECLEAN;	\
+	case EXA_ENGINEMODE_3D:						\
+	    wait_until |= RADEON_WAIT_3D_IDLECLEAN;			\
+	case EXA_ENGINEMODE_2D:						\
+	    break;							\
+	}								\
+	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, wait_until);			\
 	FINISH_ACCEL();							\
         info->engineMode = EXA_ENGINEMODE_2D;                           \
 } while (0);
 
 #define RADEON_SWITCH_TO_3D()						\
 do {									\
-        /*if (info->engineMode == EXA_ENGINEMODE_3D)*/                      \
-            /*break;*/                                                      \
 	BEGIN_ACCEL(1);							\
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL,				\
-		RADEON_WAIT_HOST_IDLECLEAN |				\
-		RADEON_WAIT_2D_IDLECLEAN |				\
-		RADEON_WAIT_3D_IDLECLEAN);				\
+	CARD32 wait_until = 0;			\
+	switch (info->engineMode) {					\
+	case EXA_ENGINEMODE_UNKNOWN:					\
+	    wait_until |= RADEON_WAIT_HOST_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN;	\
+	case EXA_ENGINEMODE_2D:						\
+	    wait_until |= RADEON_WAIT_2D_IDLECLEAN;			\
+	case EXA_ENGINEMODE_3D:						\
+	    break;							\
+	}								\
+	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, wait_until);			\
 	FINISH_ACCEL();							\
         info->engineMode = EXA_ENGINEMODE_3D;                           \
 } while (0);

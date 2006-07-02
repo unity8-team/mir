@@ -431,6 +431,10 @@ static void RADEONLeaveServer(ScreenPtr pScreen)
 
 	info->CPInUse = FALSE;
     }
+
+#ifdef USE_EXA
+    info->engineMode = EXA_ENGINEMODE_UNKNOWN;
+#endif
 }
 
 /* Contexts can be swapped by the X server if necessary.  This callback

@@ -65,6 +65,8 @@ FUNC_NAME(RADEONSync)(ScreenPtr pScreen, int marker)
     TRACE;
 
     FUNC_NAME(RADEONWaitForIdle)(xf86Screens[pScreen->myNum]);
+
+    RADEONPTR(xf86Screens[pScreen->myNum])->engineMode = EXA_ENGINEMODE_UNKNOWN;
 }
 
 static Bool
