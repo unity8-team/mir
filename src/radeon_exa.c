@@ -398,6 +398,19 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 	       "Will use %d kb for front buffer at offset 0x%08x\n",
 	       screen_size / 1024, 0);
 
+    /* Reserve static area for hardware cursor */
+    if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
+	int cursor_size = 64 * 4 * 64;
+
+	info->cursor_offset = info->exa->offScreenBase;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Will use %d kb for hardware cursor at offset 0x%08x\n",
+		   cursor_size / 1024, (unsigned int)info->cursor_offset);
+
+	info->exa->offScreenBase += cursor_size;
+    }
+
 #if defined(XF86DRI)
     if (info->directRenderingEnabled) {
 	int depthCpp = (info->depthBits - 8) / 4, l, next, depth_size;

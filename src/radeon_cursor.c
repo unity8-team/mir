@@ -106,45 +106,6 @@ static CARD32 mono_cursor_color[] = {
 #endif
 
 
-#ifdef USE_EXA
-static void
-RADEONCursorSave(ScreenPtr pScreen, ExaOffscreenArea *area)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-
-    info->cursorArea = NULL;
-    info->cursor_offset = 0;
-}
-
-static void
-RADEONCursorAllocEXA(ScreenPtr pScreen)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-
-    info->cursorArea = exaOffscreenAlloc(pScreen,
-					 CURSOR_WIDTH * 4 * CURSOR_HEIGHT,
-					 128, TRUE, RADEONCursorSave, info);
-
-    if (!info->cursorArea) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Hardware cursor temporarily disabled"
-		   " due to insufficient offscreen memory\n");
-	info->cursor_offset = 0;
-    } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Using hardware cursor\n");
-        info->cursor_offset = info->cursorArea->offset;
-
-	RADEONCTRACE(("%s (0x%08x-0x%08x)\n", __func__,
-		      info->cursor_offset,
-		      info->cursor_offset + info->cursorArea->size));
-    }
-}
-#endif
-
-
 /* Set cursor foreground and background colors */
 static void RADEONSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 {
@@ -154,9 +115,6 @@ static void RADEONSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
     CURSOR_SWAPPING_DECL_MMIO
 
     RADEONCTRACE(("RADEONSetCursorColors\n"));
-
-    if (info->cursor_offset == 0)
-	return;
 
 #ifdef ARGB_CURSOR
     /* Don't recolour cursors set with SetCursorARGB. */
@@ -199,9 +157,6 @@ static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
     int                yorigin    = 0;
     int                total_y    = pScrn->frameY1 - pScrn->frameY0;
     int		       stride     = 256;
-
-    if (info->cursor_offset == 0)
-	return;
 
     if(info->MergedFB) {
        RADEONCTRACE(("RADEONSetCursorPositionMerged\n"));
@@ -254,9 +209,6 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
     CARD32         save2      = 0;
     CARD8	   chunk;
     CARD32         i, j;
-
-    if (info->cursor_offset == 0)
-	return;
 
     RADEONCTRACE(("RADEONLoadCursorImage (at %x)\n", info->cursor_offset));
 
@@ -342,14 +294,7 @@ static Bool RADEONUseHWCursor(ScreenPtr pScreen, CursorPtr pCurs)
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
- #ifdef USE_EXA
-    if (!info->cursor_offset && info->useEXA && info->cursor)
-    {
-	RADEONCursorAllocEXA(pScreen);
-    }
-#endif
-
-    return info->cursor_offset ? TRUE : FALSE;
+    return info->cursor ? TRUE : FALSE;
 }
 
 #ifdef ARGB_CURSOR
@@ -375,9 +320,6 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
     CARD32	  *i;
 
     RADEONCTRACE(("RADEONLoadCursorARGB\n"));
-
-    if (info->cursor_offset == 0)
-	return;
 
     if (!info->IsSecondary) {
 	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
@@ -474,11 +416,6 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
     width_bytes		      = width * (pScrn->bitsPerPixel / 8);
     height                    = (size_bytes + width_bytes - 1) / width_bytes;
 
-#ifdef USE_EXA
-    if (info->useEXA) {
-	RADEONCursorAllocEXA(pScreen);
-    }
-#endif /* USE_EXA */
 #ifdef USE_XAA
     if (!info->useEXA) {
 	FBAreaPtr          fbarea;
