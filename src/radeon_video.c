@@ -2418,7 +2418,7 @@ RADEONDisplayVideo(
 ){
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    int v_inc, h_inc, h_inc_uv, step_by_y, step_by_uv, tmp;
+    CARD32 v_inc, h_inc, h_inc_uv, step_by_y, step_by_uv, tmp;
     double h_inc_d;
     int p1_h_accum_init, p23_h_accum_init;
     int p1_v_accum_init;
