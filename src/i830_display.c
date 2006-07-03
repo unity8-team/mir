@@ -361,8 +361,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     vtot = (pMode->CrtcVDisplay - 1) | ((pMode->CrtcVTotal - 1) << 16);
     vblank = (pMode->CrtcVBlankStart - 1) | ((pMode->CrtcVBlankEnd - 1) << 16);
     vsync = (pMode->CrtcVSyncStart - 1) | ((pMode->CrtcVSyncEnd - 1) << 16);
-    pipesrc = ((pMasterMode->HDisplay - 1) << 16) | (pMasterMode->VDisplay - 1);
-    dspsize = ((pMasterMode->VDisplay - 1) << 16) | (pMasterMode->HDisplay - 1);
+    pipesrc = ((pMode->HDisplay - 1) << 16) | (pMode->VDisplay - 1);
+    dspsize = ((pMode->VDisplay - 1) << 16) | (pMode->HDisplay - 1);
     pixel_clock = pMode->Clock;
     if (outputs & PIPE_LCD_ACTIVE && pI830->panel_fixed_hactive != 0)
     {
@@ -390,6 +390,15 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 		((pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff +
 		  pI830->panel_fixed_vsyncwidth - 1) << 16);
 	pixel_clock = pI830->panel_fixed_clock;
+
+	if (pMasterMode->HDisplay <= pI830->panel_fixed_hactive &&
+	    pMasterMode->HDisplay <= pI830->panel_fixed_vactive)
+	{
+	    pipesrc = ((pMasterMode->HDisplay - 1) << 16) |
+		       (pMasterMode->VDisplay - 1);
+	    dspsize = ((pMasterMode->VDisplay - 1) << 16) |
+		       (pMasterMode->HDisplay - 1);
+	}
     }
 
     if (pMode->Clock >= 100000)
