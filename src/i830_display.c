@@ -828,6 +828,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	 */
 	xfree(pI830->savedCurrentMode->name);
 	xfree(pI830->savedCurrentMode);
+	pI830->savedCurrentMode = NULL;
 	    
 	/* If we might have enabled/disabled some pipes, we need to reset
 	 * cloning mode support.
