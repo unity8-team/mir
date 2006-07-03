@@ -4414,11 +4414,30 @@ static Bool RADEONPreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
 {
 #if !defined(__powerpc__)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 fp2_gen_ctl_save   = 0;
 
     if (xf86LoadSubModule(pScrn, "int10")) {
 	xf86LoaderReqSymLists(int10Symbols, NULL);
+
+	/* The VGA BIOS on the RV100/QY cannot be read when the digital output
+	 * is enabled.  Clear and restore FP2_ON around int10 to avoid this.
+	 */
+	if (info->PciInfo->chipType == PCI_CHIP_RV100_QY) {
+	    fp2_gen_ctl_save = INREG(RADEON_FP2_GEN_CNTL);
+	    if (fp2_gen_ctl_save & RADEON_FP2_ON) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "disabling digital out\n");
+		OUTREG(RADEON_FP2_GEN_CNTL, fp2_gen_ctl_save & ~RADEON_FP2_ON);
+	    }
+	}
+	
 	xf86DrvMsg(pScrn->scrnIndex,X_INFO,"initializing int10\n");
 	*ppInt10 = xf86InitInt10(info->pEnt->index);
+
+	if (fp2_gen_ctl_save & RADEON_FP2_ON) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "re-enabling digital out\n");
+	    OUTREG(RADEON_FP2_GEN_CNTL, fp2_gen_ctl_save);	
+	}
     }
 #endif
     return TRUE;
