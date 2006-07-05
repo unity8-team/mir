@@ -275,12 +275,19 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	for (pScan = pI830->pipeMon[pipe]->Modes; pScan != NULL;
 	     pScan = pScan->next)
 	{
+	    /* If there's an exact match, we're done. */
+	    if (I830ModesEqual(pScan, pMode)) {
+		pBest = pMode;
+		break;
+	    }
+
 	    /* Reject if it's larger than the desired mode. */
 	    if (pScan->HDisplay > pMode->HDisplay ||
 		pScan->VDisplay > pMode->VDisplay)
 	    {
 		continue;
 	    }
+
 	    if (pBest == NULL) {
 		pBest = pScan;
 	        continue;
@@ -288,8 +295,10 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	    /* Find if it's closer to the right size than the current best
 	     * option.
 	     */
-	    if (pScan->HDisplay >= pBest->HDisplay && 
-		pScan->VDisplay >= pBest->VDisplay)
+	    if ((pScan->HDisplay > pBest->HDisplay && 
+		pScan->VDisplay >= pBest->VDisplay) ||
+	        (pScan->HDisplay >= pBest->HDisplay && 
+		pScan->VDisplay > pBest->VDisplay))
 	    {
 		pBest = pScan;
 		continue;
