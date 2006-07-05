@@ -733,7 +733,9 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
 	    }
 	    break;
 	case I830_OUTPUT_SDVO:
-	    if (outputs & PIPE_DFP) {
+	    if (outputs & PIPE_DFP &&
+		pI830->output[i].sdvo_drv != NULL)
+	    {
 		output_index = i;
 	    }
 	    break;
