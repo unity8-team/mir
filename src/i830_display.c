@@ -258,8 +258,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     CARD32 dpll = 0, fp = 0, temp;
     CARD32 htot, hblank, hsync, vtot, vblank, vsync, dspcntr;
     CARD32 pipesrc, dspsize, adpa;
-    CARD32 sdvob = 0, sdvoc= 0;
-    Bool ok, is_sdvo;
+    CARD32 sdvob = 0, sdvoc = 0, dvo = 0;
+    Bool ok, is_sdvo, is_dvo;
     int refclk, pixel_clock, sdvo_pixel_multiply;
     int outputs;
     DisplayModePtr pMasterMode = pMode;
@@ -359,9 +359,16 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	/* We'll change how we control outputs soon, but to get the SDVO code up
 	 * and running, just check for these two possibilities.
 	 */
-	is_sdvo = TRUE;
+	if (IS_I9XX(pI830)) {
+	    is_sdvo = TRUE;
+	    is_dvo = FALSE;
+	} else {
+	    is_dvo = TRUE;
+	    is_sdvo = FALSE;
+	}
     } else {
 	is_sdvo = FALSE;
+	is_dvo = FALSE;
     }
 
     htot = (pMode->CrtcHDisplay - 1) | ((pMode->CrtcHTotal - 1) << 16);
@@ -470,6 +477,27 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	dpll |= PLL_REF_INPUT_TVCLKINBC;
     else
 	dpll |= PLL_REF_INPUT_DREFCLK;
+
+    if (is_dvo) {
+	dpll |= DPLL_DVO_HIGH_SPEED;
+
+	/* Save the data order, since I don't know what it should be set to. */
+	dvo = INREG(DVOB) & (DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
+	dvo |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE;
+
+	if (pipe == 1)
+	    dvo |= DVO_PIPE_B_SELECT;
+
+	if (pMode->Flags & V_PHSYNC)
+	    dvo |= DVO_HSYNC_ACTIVE_HIGH;
+	if (pMode->Flags & V_PVSYNC)
+	    dvo |= DVO_VSYNC_ACTIVE_HIGH;
+
+	if (IS_I865G(pI830))
+	    dvo |= DVO_OUTPUT_SOURCE_SIZE_PIXELS;
+
+	OUTREG(DVOB, dvo & ~DVO_ENABLE);
+    }
 
     if (is_sdvo) {
 	dpll |= DPLL_DVO_HIGH_SPEED;
@@ -653,6 +681,15 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
     if (outputs & PIPE_CRT_ACTIVE)
 	OUTREG(ADPA, adpa);
+
+    if (is_dvo) {
+	OUTREG(DVOB_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
+	    (pMode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));
+	/* OUTREG(DVOC_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
+	    (pMode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT)); */
+	OUTREG(DVOB, dvo);
+	/* OUTREG(DVOC, dvoc); */
+    }
 
     if (is_sdvo) {
 	OUTREG(SDVOB, sdvob);
