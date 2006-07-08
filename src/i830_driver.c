@@ -1061,30 +1061,14 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
    I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOA, "CRTDDC_A");
    i++;
 
-   /* need to add the output busses for each device 
-    * - this function is very incomplete
-    * - i915GM has LVDS and TVOUT for example
-    */
-   switch(pI830->PciInfo->chipType) {
-   case PCI_CHIP_I830_M:
-   case PCI_CHIP_845_G:
-   case PCI_CHIP_I855_GM:
-   case PCI_CHIP_I865_G:
-      pI830->output[i].type = I830_OUTPUT_DVO;
-      I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOD, "DVODDC_D");
-      I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");
-      i++;
-      break;
-   case PCI_CHIP_E7221_G:
-      /* ??? */
-      break;
-   case PCI_CHIP_I915_GM:
-   case PCI_CHIP_I945_GM:
+   if (IS_MOBILE(pI830) && !IS_I830(pI830)) {
+      /* Set up integrated LVDS */
       pI830->output[i].type = I830_OUTPUT_LVDS;
       I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOC, "LVDSDDC_C");
       i++;
-   case PCI_CHIP_I915_G:
-   case PCI_CHIP_I945_G:
+   }
+
+   if (IS_I9XX(pI830)) {
       /* Set up SDVOB */
       pI830->output[i].type = I830_OUTPUT_SDVO;
       I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "SDVOCTRL_E");
@@ -1096,7 +1080,12 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
       pI830->output[i].pI2CBus = pI830->output[i-1].pI2CBus;
       I830SDVOInit(pScrn, i, SDVOC);
       i++;
-      break;
+   } else {
+      /* set up DVO */
+      pI830->output[i].type = I830_OUTPUT_DVO;
+      I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOD, "DVODDC_D");
+      I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");
+      i++;
    }
    pI830->num_outputs = i;
 }
