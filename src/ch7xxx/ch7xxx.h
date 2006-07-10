@@ -28,6 +28,4 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define CH7xxx_ADDR_1 0x76
 
-#define CH7xxx_SYMBOL_LIST "CH7xxxVidOutput"
-
 #endif

@@ -35,10 +35,12 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "ch7xxx/ch7xxx.h"
 
 static const char *SIL164Symbols[] = {
-    SIL164_SYMBOL_LIST
+    "Sil164VidOutput",
+    NULL
 };
 static const char *CH7xxxSymbols[] = {
-    CH7xxx_SYMBOL_LIST
+    "CH7xxxVidOutput",
+    NULL
 };
 
 /* driver list */
