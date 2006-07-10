@@ -70,6 +70,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "common.h"
 #include "i830_sdvo.h"
+#include "i2c_vid.h"
 
 /* I830 Video BIOS support */
 
@@ -182,10 +183,8 @@ struct _I830DVODriver {
    char *fntablename;
    int address;
    const char **symbols;
-#if 0
    I830I2CVidOutputRec *vid_rec;
-#endif
-   void *devpriv;
+   void *dev_priv;
    pointer modhandle;
 };
 
@@ -592,6 +591,10 @@ extern Bool I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode);
 extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
+
+/* i830_dvo.c */
+Bool I830I2CDetectDVOControllers(ScrnInfoPtr pScrn, I2CBusPtr pI2CBus,
+				 struct _I830DVODriver **retdrv);
 
 /* i830_memory.c */
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);

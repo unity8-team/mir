@@ -1053,6 +1053,7 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    int i = 0;
+   Bool ret;
 
    /* everyone has at least a single analog output */
    pI830->output[i].type = I830_OUTPUT_ANALOG;
@@ -1085,6 +1086,21 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
       pI830->output[i].type = I830_OUTPUT_DVO;
       I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOD, "DVODDC_D");
       I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");
+
+      /* if we are on an i2C bus > 0 and we see a monitor - try to
+       * find a controller chip
+       */
+      if (pI830->output[i].MonInfo) {
+	int ret;
+	ret = I830I2CDetectDVOControllers(pScrn, pI830->output[i].pI2CBus,
+					  &pI830->output[i].i2c_drv);
+	if (ret==TRUE) {
+	  xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found i2c %s on %08lX\n",
+		     pI830->output[i].i2c_drv->modulename,
+		     pI830->output[i].pI2CBus->DriverPrivate.uval);
+	}
+      }
+
       i++;
    }
    pI830->num_outputs = i;
@@ -1147,22 +1163,6 @@ I830DetectMonitors(ScrnInfoPtr pScrn)
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "DDC DVO %d, %08lX\n", i,
 		    pI830->output[i].pDDCBus->DriverPrivate.uval);
 	 xf86PrintEDID(pI830->output[i].MonInfo);
-
-#if 0      
-	 /* if we are on an i2C bus > 0 and we see a monitor - try to
-	  * find a controller chip
-	  */
-	 if (pI830->output[i].MonInfo) {
-	    int ret;
-	    ret = I830I2CDetectDVOControllers(pScrn, pI830->output[i].pI2CBus,
-					      &pI830->output[i].i2c_drv);
-	    if (ret==TRUE) {
-	       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found i2c %s on %08lX\n",
-			  pI830->output[i].i2c_drv->modulename,
-			  pI830->output[i].pI2CBus->DriverPrivate.uval);
-	    }
-	 }
-#endif
       break;
       case I830_OUTPUT_SDVO:
 	 if (pI830->output[i].sdvo_drv != NULL) {
@@ -2758,6 +2758,12 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveSWF[16] = INREG(SWF32);
 
    for (i = 0; i < pI830->num_outputs; i++) {
+      if (pI830->output[i].type == I830_OUTPUT_DVO &&
+	  pI830->output[i].i2c_drv != NULL)
+      {
+	 pI830->output[i].i2c_drv->vid_rec->SaveRegs(
+	    pI830->output[i].i2c_drv->dev_priv);
+      }
       if (pI830->output[i].type == I830_OUTPUT_SDVO &&
 	  pI830->output[i].sdvo_drv != NULL)
       {
@@ -2877,6 +2883,12 @@ RestoreHWState(ScrnInfoPtr pScrn)
    }
 
    for (i = 0; i < pI830->num_outputs; i++) {
+      if (pI830->output[i].type == I830_OUTPUT_DVO &&
+	  pI830->output[i].i2c_drv != NULL)
+      {
+	 pI830->output[i].i2c_drv->vid_rec->RestoreRegs(
+	    pI830->output[i].i2c_drv->dev_priv);
+      }
       if (pI830->output[i].type == I830_OUTPUT_SDVO &&
 	  pI830->output[i].sdvo_drv != NULL)
       {
