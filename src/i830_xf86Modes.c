@@ -249,11 +249,12 @@ PrintModeline(int scrnIndex,DisplayModePtr mode)
     if (mode->Flags & V_CLKDIV2) add(&flags, "vclk/2");
 #endif
     xf86DrvMsg(scrnIndex, X_ERROR,
-		   "Modeline \"%s\"x%.01f  %6.2f  %i %i %i %i  %i %i %i %i%s\n",
+		   "Modeline \"%s\"x%.01f  %6.2f  %i %i %i %i  %i %i %i %i%s "
+		   "(%.01f kHz)\n",
 		   mode->name, mode->VRefresh, mode->Clock/1000., mode->HDisplay,
 		   mode->HSyncStart, mode->HSyncEnd, mode->HTotal,
 		   mode->VDisplay, mode->VSyncStart, mode->VSyncEnd,
-		   mode->VTotal, flags);
+		   mode->VTotal, flags, i830xf86ModeHSync(mode));
     xfree(flags);
 }
 
@@ -400,7 +401,7 @@ i830xf86PruneInvalidModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
     DisplayModePtr mode;
 
     for (mode = *modeList; mode != NULL;) {
-	DisplayModePtr next = mode->next;
+	DisplayModePtr next = mode->next, first = *modeList;
 
 	if (mode->status != MODE_OK) {
 	    if (verbose) {
@@ -416,7 +417,7 @@ i830xf86PruneInvalidModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
 	    xf86DeleteMode(modeList, mode);
 	}
 
-	if (next == *modeList)
+	if (next == first)
 	    break;
 	mode = next;
     }
