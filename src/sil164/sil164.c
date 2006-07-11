@@ -37,8 +37,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sil164.h"
 #include "sil164_reg.h"
 
+static void
+sil164PrintRegs(I2CDevPtr d);
+static void
+sil164Power(I2CDevPtr d, Bool On);
+
 static Bool
-sil164ReadByte(SIL164Ptr sil, int addr, unsigned char *ch)
+sil164ReadByte(SIL164Ptr sil, int addr, CARD8 *ch)
 {
     if (!xf86I2CReadByte(&(sil->d), addr, ch)) {
 	xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_ERROR,
@@ -50,7 +55,7 @@ sil164ReadByte(SIL164Ptr sil, int addr, unsigned char *ch)
 }
 
 static Bool
-sil164WriteByte(SIL164Ptr sil, int addr, unsigned char ch)
+sil164WriteByte(SIL164Ptr sil, int addr, CARD8 ch)
 {
     if (!xf86I2CWriteByte(&(sil->d), addr, ch)) {
 	xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_ERROR,
@@ -138,6 +143,15 @@ sil164Mode(I2CDevPtr d, DisplayModePtr mode)
 {
     SIL164Ptr sil = SILPTR(d);
 
+    sil164Power(d, TRUE);
+    sil164PrintRegs(d);
+
+    /* recommended programming sequence from doc */
+    /*sil164WriteByte(sil, 0x08, 0x30);
+      sil164WriteByte(sil, 0x09, 0x00);
+      sil164WriteByte(sil, 0x0a, 0x90);
+      sil164WriteByte(sil, 0x0c, 0x89);
+      sil164WriteByte(sil, 0x08, 0x31);*/
     /* don't do much */
     return;
 }
@@ -168,6 +182,20 @@ static void
 sil164PrintRegs(I2CDevPtr d)
 {
     SIL164Ptr sil = SILPTR(d);
+    CARD8 val;
+
+    sil164ReadByte(sil, SIL164_FREQ_LO, &val);
+    xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_INFO, "SIL164_FREQ_LO: 0x%02x\n",
+	       val);
+    sil164ReadByte(sil, SIL164_FREQ_HI, &val);
+    xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_INFO, "SIL164_FREQ_HI: 0x%02x\n",
+	       val);
+    sil164ReadByte(sil, SIL164_REG8, &val);
+    xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_INFO, "SIL164_REG8: 0x%02x\n", val);
+    sil164ReadByte(sil, SIL164_REG9, &val);
+    xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_INFO, "SIL164_REG9: 0x%02x\n", val);
+    sil164ReadByte(sil, SIL164_REGC, &val);
+    xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_INFO, "SIL164_REGC: 0x%02x\n", val);
 }
 
 static void
