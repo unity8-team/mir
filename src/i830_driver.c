@@ -955,6 +955,8 @@ I830Set640x480(ScrnInfoPtr pScrn)
    if (VBESetVBEMode(pI830->pVbe, m, NULL))
 	   return TRUE;
 
+   ErrorF("Set640x480 failed1\n");
+
    /* if the first failed, let's try the next - usually 800x600 */
    m = 0x32;
    switch (pScrn->depth) {
@@ -969,6 +971,8 @@ I830Set640x480(ScrnInfoPtr pScrn)
    m |= (1 << 15) | (1 << 14);
    if (VBESetVBEMode(pI830->pVbe, m, NULL))
 	   return TRUE;
+
+   ErrorF("Set640x480 failed2\n");
 
    return FALSE;
 }
@@ -5572,6 +5576,10 @@ I830BIOSEnterVT(int scrnIndex, int flags)
 
    pI830->leaving = FALSE;
 
+   /* Detect monitor change and switch to suitable mode */
+   if (!pI830->starting)
+      I830DetectMonitorChange(pScrn);
+
 #if 1
    /* Clear the framebuffer */
    memset(pI830->FbBase + pScrn->fbOffset, 0,
@@ -5630,9 +5638,11 @@ I830BIOSEnterVT(int scrnIndex, int flags)
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
+#if 0
    /* Detect monitor change and switch to suitable mode */
    if (!pI830->starting)
       I830DetectMonitorChange(pScrn);
+#endif
 	    
    if (!I830VESASetMode(pScrn, pScrn->currentMode))
       return FALSE;
@@ -5718,7 +5728,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     * The extra WindowTable check detects a rotation at startup.
     */
    if ( (!WindowTable[pScrn->scrnIndex] || pspix->devPrivate.ptr == NULL) &&
-         !pI830->DGAactive ) {
+         !pI830->DGAactive && (pScrn->PointerMoved == I830PointerMoved) ) {
       if (!I830Rotate(pScrn, mode))
          ret = FALSE;
    }
