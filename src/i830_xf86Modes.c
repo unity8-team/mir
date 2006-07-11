@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 4 -*- */
 /* $XdotOrg: xserver/xorg/hw/xfree86/common/xf86Mode.c,v 1.10 2006/03/07 16:00:57 libv Exp $ */
 /* $XFree86: xc/programs/Xserver/hw/xfree86/common/xf86Mode.c,v 1.69 2003/10/08 14:58:28 dawes Exp $ */
 /*
@@ -85,6 +86,22 @@ i830xf86ModeVRefresh(DisplayModePtr mode)
 	    refresh /= (float)(mode->VScan);
     }
     return refresh;
+}
+
+/**
+ * Sets a default mode name of <width>x<height>x<refresh> on a mode.
+ *
+ * The refresh rate doesn't contain decimals, as that's expected to be
+ * unimportant from the user's perspective for non-custom modelines.
+ */
+void
+i830xf86SetModeDefaultName(DisplayModePtr mode)
+{
+    if (mode->name != NULL)
+	xfree(mode->name);
+
+    mode->name = XNFprintf("%dx%dx%.0f", mode->HDisplay, mode->VDisplay,
+			   i830xf86ModeVRefresh(mode));
 }
 
 /*
@@ -384,6 +401,45 @@ i830xf86ValidateModesClocks(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 	    mode->status = MODE_CLOCK_RANGE;
     }
 }
+
+/**
+ * If the user has specified a set of mode names to use, mark as bad any modes
+ * not listed.
+ *
+ * The user mode names specified are prefixes to names of modes, so "1024x768"
+ * will match modes named "1024x768", "1024x768x75", "1024x768-good", but
+ * "1024x768x75" would only match "1024x768x75" from that list.
+ *
+ * MODE_BAD is used as the rejection flag, for lack of a better flag.
+ *
+ * \param modeList doubly-linked or circular list of modes.
+ *
+ * This is not in xf86Modes.c, but would be part of the proposed new API.
+ */
+void
+i830xf86ValidateModesUserConfig(ScrnInfoPtr pScrn, DisplayModePtr modeList)
+{
+    DisplayModePtr mode;
+
+    if (pScrn->display->modes[0] == NULL)
+	return;
+
+    for (mode = modeList; mode != NULL; mode = mode->next) {
+	int i;
+	Bool good = FALSE;
+
+	for (i = 0; pScrn->display->modes[i] != NULL; i++) {
+	    if (strncmp(pScrn->display->modes[i], mode->name,
+			strlen(pScrn->display->modes[i])) == 0) {
+		good = TRUE;
+		break;
+	    }
+	}
+	if (!good)
+	    mode->status = MODE_BAD;
+    }
+}
+
 
 /**
  * Frees any modes from the list with a status other than MODE_OK.

@@ -45,6 +45,7 @@
 #include "vbe.h"
 #include "vbeModes.h"
 #include "i830.h"
+#include "i830_xf86Modes.h"
 
 #include <math.h>
 
@@ -97,7 +98,6 @@ i830GetGTF(int h_pixels, int v_lines, float freq, int interlaced, int margins)
     float h_sync;
     float h_front_porch;
     float v_odd_front_porch_lines;
-    char modename[20];
     DisplayModePtr m;
 
     m = xnfcalloc(sizeof(DisplayModeRec), 1);
@@ -349,8 +349,7 @@ i830GetGTF(int h_pixels, int v_lines, float freq, int interlaced, int margins)
     m->HSync = h_freq;
     m->VRefresh = v_frame_rate /* freq */;
 
-    snprintf(modename, sizeof(modename), "%dx%d", m->HDisplay,m->VDisplay);
-    m->name = xnfstrdup(modename);
+    i830xf86SetModeDefaultName(m);
 
     return (m);
 }

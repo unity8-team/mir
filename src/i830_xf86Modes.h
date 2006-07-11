@@ -32,6 +32,9 @@ double
 i830xf86ModeVRefresh(DisplayModePtr mode);
 
 void
+i830xf86SetModeDefaultName(DisplayModePtr mode);
+
+void
 I830xf86SetModeCrtc(DisplayModePtr p, int adjustFlags);
 
 Bool
@@ -60,6 +63,9 @@ i830xf86PruneInvalidModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
 void
 i830xf86ValidateModesFlags(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 			    int flags);
+
+void
+i830xf86ValidateModesUserConfig(ScrnInfoPtr pScrn, DisplayModePtr modeList);
 
 void
 PrintModeline(int scrnIndex,DisplayModePtr mode);

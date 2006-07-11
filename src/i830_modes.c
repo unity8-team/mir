@@ -176,7 +176,11 @@ I830DuplicateMode(DisplayModePtr pMode)
     *pNew = *pMode;
     pNew->next = NULL;
     pNew->prev = NULL;
-    pNew->name = xnfstrdup(pMode->name);
+    if (pNew->name == NULL) {
+	i830xf86SetModeDefaultName(pMode);
+    } else {
+	pNew->name = xnfstrdup(pMode->name);
+    }
 
     return pNew;
 }
@@ -242,6 +246,7 @@ I830GetVESAEstablishedMode(ScrnInfoPtr pScrn, int i)
 	    fabs(i830xf86ModeVRefresh(pMode) - est_timings[i].refresh) < 1.0)
 	{
 	    DisplayModePtr pNew = I830DuplicateMode(pMode);
+	    i830xf86SetModeDefaultName(pNew);
 	    pNew->VRefresh = i830xf86ModeVRefresh(pMode);
 	    return pNew;
 	}
@@ -257,7 +262,6 @@ i830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
     DisplayModePtr  first = NULL;
     int             count = 0;
     int             j, tmp;
-    char            stmp[32];
 
     if (ddc == NULL)
 	return NULL;
@@ -276,10 +280,6 @@ i830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 	    new->HDisplay   = d_timings->h_active;
 	    new->VDisplay   = d_timings->v_active;
 
-	    sprintf(stmp, "%dx%d", new->HDisplay, new->VDisplay);
-	    new->name       = xnfalloc(strlen(stmp) + 1);
-	    strcpy(new->name, stmp);
-
 	    new->HTotal     = new->HDisplay + d_timings->h_blanking;
 	    new->HSyncStart = new->HDisplay + d_timings->h_sync_off;
 	    new->HSyncEnd   = new->HSyncStart + d_timings->h_sync_width;
@@ -290,6 +290,8 @@ i830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 	    new->Flags      = (d_timings->interlaced ? V_INTERLACE : 0);
 	    new->status     = MODE_OK;
 	    new->type       = M_T_DEFAULT;
+
+	    i830xf86SetModeDefaultName(new);
 
 	    if (d_timings->sync == 3) {
 		switch (d_timings->misc) {
@@ -805,6 +807,11 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
 				    &minclock, &maxclock, 1);
 
 	i830xf86PruneInvalidModes(pScrn, &pI830->pipeMon[pipe]->Modes, TRUE);
+
+	/* silently prune modes down to ones matching the user's configuration.
+	 */
+	i830xf86ValidateModesUserConfig(pScrn, pI830->pipeMon[pipe]->Modes);
+	i830xf86PruneInvalidModes(pScrn, &pI830->pipeMon[pipe]->Modes, FALSE);
 
 	for (pMode = pI830->pipeMon[pipe]->Modes; pMode != NULL;
 	     pMode = pMode->next)
