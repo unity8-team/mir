@@ -1,3 +1,4 @@
+
 #define DEBUG_VERB 2
 /*
  * Copyright © 2002 David Dawes
@@ -659,7 +660,6 @@ static MonPtr
 i830GetConfiguredMonitor(ScrnInfoPtr pScrn)
 {
     MonPtr mon;
-    DisplayModePtr userModes;
 
     mon = xnfcalloc(1, sizeof(*mon));
     memcpy(mon, pScrn->monitor, sizeof(*mon));
@@ -671,15 +671,12 @@ i830GetConfiguredMonitor(ScrnInfoPtr pScrn)
     if (pScrn->monitor->model != NULL)
 	mon->model = xnfstrdup(pScrn->monitor->model);
 
-    /* Add in VESA standard and user modelines, and do additional validation
+    /* Use VESA standard and user modelines, and do additional validation
      * on them beyond what pipe config will do (x/y/pitch, clocks, flags)
      */
-    userModes = i830DuplicateModes(pScrn, pScrn->monitor->Modes);
-    i830xf86ValidateModesSync(pScrn, userModes, mon);
-    i830xf86PruneInvalidModes(pScrn, &userModes, FALSE);
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "prune 1\n");
-    i830AppendModes(pScrn, &mon->Modes, userModes);
-
+    mon->Modes = i830DuplicateModes(pScrn, pScrn->monitor->Modes);
+    i830xf86ValidateModesSync(pScrn, mon->Modes, mon);
+    i830xf86PruneInvalidModes(pScrn, &mon->Modes, TRUE);
     mon->Last = i830GetModeListTail(mon->Modes);
 
     return mon;
