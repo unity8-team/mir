@@ -231,6 +231,8 @@ typedef struct _I830Rec {
     */
    DisplayModePtr savedCurrentMode;
 
+   Bool gammaEnabled[MAX_DISPLAY_PIPES];
+
    Bool Clone;
    int CloneRefresh;
    int CloneHDisplay;

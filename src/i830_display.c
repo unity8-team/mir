@@ -476,7 +476,9 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
     if (outputs & (PIPE_TV_ACTIVE | PIPE_TV2_ACTIVE))
 	dpll |= PLL_REF_INPUT_TVCLKINBC;
-    else
+    else if (outputs & (PIPE_LCD_ACTIVE))
+	dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
+    else	
 	dpll |= PLL_REF_INPUT_DREFCLK;
 
     if (is_dvo) {
@@ -554,6 +556,10 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	break;
     default:
 	FatalError("unknown display bpp\n");
+    }
+
+    if (pI830->gammaEnabled[pipe]) {
+ 	dspcntr |= DISPPLANE_GAMMA_ENABLE;
     }
 
     if (is_sdvo)

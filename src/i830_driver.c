@@ -870,8 +870,6 @@ I830UnmapMem(ScrnInfoPtr pScrn)
    return TRUE;
 }
 
-static CARD32 val8[256];
-
 static void
 I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 		LOCO * colors, VisualPtr pVisual)
@@ -882,33 +880,41 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    CARD32 val, temp;
    int palreg;
    int dspreg, dspbase;
+   int p;
 
    DPRINTF(PFX, "I830LoadPalette: numColors: %d\n", numColors);
    pI830 = I830PTR(pScrn);
 
-   if (pI830->pipe == 0) {
-      palreg = PALETTE_A;
-      dspreg = DSPACNTR;
-      dspbase = DSPABASE;
-   } else {
-      palreg = PALETTE_B;
-      dspreg = DSPBCNTR;
-      dspbase = DSPBBASE;
-   }
+   for(p=0; p < pI830->availablePipes; p++) {
 
-   /* To ensure gamma is enabled we need to turn off and on the plane */
-   temp = INREG(dspreg);
-   OUTREG(dspreg, temp & ~(1<<31));
-   OUTREG(dspbase, INREG(dspbase));
-   OUTREG(dspreg, temp | DISPPLANE_GAMMA_ENABLE);
-   OUTREG(dspbase, INREG(dspbase));
+      if (p == 0) {
+         palreg = PALETTE_A;
+         dspreg = DSPACNTR;
+         dspbase = DSPABASE;
+      } else {
+         palreg = PALETTE_B;
+         dspreg = DSPBCNTR;
+         dspbase = DSPBBASE;
+      }
 
-   /* It seems that an initial read is needed. */
-   temp = INREG(palreg);
+      if (pI830->planeEnabled[p] == 0)
+	 continue;  
 
-   switch(pScrn->depth) {
-   case 15:
-      for (i = 0; i < numColors; i++) {
+      pI830->gammaEnabled[p] = 1;
+      
+      /* To ensure gamma is enabled we need to turn off and on the plane */
+      temp = INREG(dspreg);
+      OUTREG(dspreg, temp & ~(1<<31));
+      OUTREG(dspbase, INREG(dspbase));
+      OUTREG(dspreg, temp | DISPPLANE_GAMMA_ENABLE);
+      OUTREG(dspbase, INREG(dspbase));
+
+      /* It seems that an initial read is needed. */
+      temp = INREG(palreg);
+
+      switch(pScrn->depth) {
+      case 15:
+        for (i = 0; i < numColors; i++) {
          index = indices[i];
          r = colors[index].red;
          g = colors[index].green;
@@ -917,10 +923,10 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
          for (j = 0; j < 8; j++) {
 	    OUTREG(palreg + index * 32 + (j * 4), val);
          }
-      }
+        }
       break;
-   case 16:
-      for (i = 0; i < numColors; i++) {
+      case 16:
+        for (i = 0; i < numColors; i++) {
          index = indices[i];
 	 r   = colors[index / 2].red;
 	 g   = colors[index].green;
@@ -943,42 +949,24 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 	    OUTREG(palreg + index * 32 + 8, val);
 	    OUTREG(palreg + index * 32 + 12, val);
 	 }
-      }
-      break;
-   default:
-#if 1
-      /* Dual head 8bpp modes seem to squish the primary's cmap - reload */
-      if (I830IsPrimary(pScrn) && xf86IsEntityShared(pScrn->entityList[0]) &&
-          pScrn->depth == 8) {
-         for(i = 0; i < numColors; i++) {
-	    index = indices[i];
-	    r = colors[index].red;
-	    g = colors[index].green;
-	    b = colors[index].blue;
-	    val8[index] = (r << 16) | (g << 8) | b;
         }
-      }
-#endif
-      for(i = 0; i < numColors; i++) {
+        break;
+      default:
+        for(i = 0; i < numColors; i++) {
 	 index = indices[i];
 	 r = colors[index].red;
 	 g = colors[index].green;
 	 b = colors[index].blue;
 	 val = (r << 16) | (g << 8) | b;
 	 OUTREG(palreg + index * 4, val);
-#if 1
-         /* Dual head 8bpp modes seem to squish the primary's cmap - reload */
-         if (!I830IsPrimary(pScrn) && xf86IsEntityShared(pScrn->entityList[0]) &&
-             pScrn->depth == 8) {
-  	    if (palreg == PALETTE_A)
-	       OUTREG(PALETTE_B + index * 4, val8[index]);
-	    else
-	       OUTREG(PALETTE_A + index * 4, val8[index]);
-         }
-#endif
-      }
-      break;
+        }
+        break;
+     }
    }
+   
+   /* Enable gamma for Cursor if ARGB */
+   if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn)
+      pI830->CursorInfoRec->ShowCursor(pScrn);
 }
 
 #if 0
