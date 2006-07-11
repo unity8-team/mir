@@ -1,3 +1,5 @@
+/* -*- c-basic-offset: 4 -*- */
+
 #ifdef HAVE_XORG_CONFIG_H
 #include <xorg-config.h>
 #endif
@@ -10,8 +12,7 @@
 
 static MODULESETUPPROTO(sil164Setup);
 
-static XF86ModuleVersionInfo sil164VersRec = 
-  {
+static XF86ModuleVersionInfo sil164VersRec = {
     "sil164",
     MODULEVENDORSTRING,
     MODINFOSTRING1,
@@ -22,15 +23,16 @@ static XF86ModuleVersionInfo sil164VersRec =
     ABI_VIDEODRV_VERSION,
     MOD_CLASS_NONE,
     { 0,0,0,0 }
-  };
+};
 
 _X_EXPORT XF86ModuleData sil164ModuleData = {
-  &sil164VersRec,
-  sil164Setup,
-  NULL
+    &sil164VersRec,
+    sil164Setup,
+    NULL
 };
 
 static pointer
-sil164Setup(pointer module, pointer opts, int *errmaj, int *errmin) {
-  return (pointer)1;
+sil164Setup(pointer module, pointer opts, int *errmaj, int *errmin)
+{
+    return (pointer)1;
 }

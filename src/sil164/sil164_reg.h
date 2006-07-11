@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 4 -*- */
 /**************************************************************************
 
  Copyright 2006 Dave Airlie <airlied@linux.ie>
@@ -57,17 +58,17 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SIL164_REGC 0x0c
 
 typedef struct _Sil164SaveRec {
-  CARD8 freq_lo;
-  CARD8 freq_hi;
-  CARD8 reg8;
-  CARD8 reg9;
-  CARD8 regc;
+    CARD8 freq_lo;
+    CARD8 freq_hi;
+    CARD8 reg8;
+    CARD8 reg9;
+    CARD8 regc;
 } SIL164SaveRec;
 
 typedef struct {
-  I2CDevRec d;
-  SIL164SaveRec SavedReg;
-  SIL164SaveRec ModeReg;
+    I2CDevRec d;
+    SIL164SaveRec SavedReg;
+    SIL164SaveRec ModeReg;
 } SIL164Rec, *SIL164Ptr;
 
 #define SILPTR(d) ((SIL164Ptr)(d->DriverPrivate.ptr))
