@@ -124,8 +124,6 @@ out:
 static Bool
 sil164Init(I2CDevPtr d)
 {
-    SIL164Ptr sil = SILPTR(d);
-
     /* not much to do */
     return TRUE;
 }
@@ -133,16 +131,12 @@ sil164Init(I2CDevPtr d)
 static ModeStatus
 sil164ModeValid(I2CDevPtr d, DisplayModePtr mode)
 {
-    SIL164Ptr sil = SILPTR(d);
-
     return MODE_OK;
 }
 
 static void
 sil164Mode(I2CDevPtr d, DisplayModePtr mode)
 {
-    SIL164Ptr sil = SILPTR(d);
-
     sil164Power(d, TRUE);
     sil164PrintRegs(d);
 
