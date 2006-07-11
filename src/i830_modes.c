@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 4 -*- */
 
 #define DEBUG_VERB 2
 /*
@@ -547,6 +548,9 @@ i830AppendModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
 {
     DisplayModePtr first = *modeList;
     DisplayModePtr last = i830GetModeListTail(first);
+
+    if (addModes == NULL)
+      return;
 
     if (first == NULL) {
 	*modeList = addModes;
