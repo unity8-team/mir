@@ -116,7 +116,7 @@ static void I830BlockHandler(int, pointer, pointer, pointer);
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
-static Atom xvBrightness, xvContrast, xvColorKey, xvPipe, xvDoubleBuffer;
+static Atom xvBrightness, xvContrast, xvSaturation, xvColorKey, xvPipe, xvDoubleBuffer;
 static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 
 #define IMAGE_MAX_WIDTH		1920
@@ -278,11 +278,12 @@ static XF86AttributeRec CloneAttributes[CLONE_ATTRIBUTES] = {
    {XvSettable | XvGettable, 0, 1, "XV_PIPE"}
 };
 
-#define NUM_ATTRIBUTES 4
+#define NUM_ATTRIBUTES 5
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
    {XvSettable | XvGettable, 0, (1 << 24) - 1, "XV_COLORKEY"},
    {XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
    {XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
+   {XvSettable | XvGettable, 0, 1023, "XV_SATURATION"},
    {XvSettable | XvGettable, 0, 1, "XV_DOUBLE_BUFFER"}
 };
 
@@ -373,6 +374,7 @@ typedef struct {
 
    int brightness;
    int contrast;
+   int saturation;
    int pipe;
    int doubleBuffer;
 
@@ -500,7 +502,7 @@ I830ResetVideo(ScrnInfoPtr pScrn)
    overlay->SWIDTHSW = 0;
    overlay->SHEIGHT = 0;
    overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
-   overlay->OCLRC1 = 0x00000080;	/* saturation: bypass */
+   overlay->OCLRC1 = pPriv->saturation;
    overlay->AWINPOS = 0;
    overlay->AWINSZ = 0;
    overlay->FASTHSCALE = 0;
@@ -709,6 +711,7 @@ I830SetupImageVideo(ScreenPtr pScreen)
    pPriv->videoStatus = 0;
    pPriv->brightness = 0;
    pPriv->contrast = 64;
+   pPriv->saturation = 128;
    pPriv->pipe = pI830->pipe; /* default to current pipe */
    pPriv->linear = NULL;
    pPriv->currentBuf = 0;
@@ -744,6 +747,7 @@ I830SetupImageVideo(ScreenPtr pScreen)
    xvColorKey = MAKE_ATOM("XV_COLORKEY");
    xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
    xvContrast = MAKE_ATOM("XV_CONTRAST");
+   xvSaturation = MAKE_ATOM("XV_SATURATION");
    xvDoubleBuffer = MAKE_ATOM("XV_DOUBLE_BUFFER");
 
    /* Allow the pipe to be switched from pipe A to B when in clone mode */
@@ -864,6 +868,16 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 #if 1
       OVERLAY_OFF;
 #endif
+   } else if (attribute == xvSaturation) {
+      if ((value < 0) || (value > 1023))
+	 return BadValue;
+      pPriv->saturation = value;
+      overlay->OCLRC1 = pPriv->saturation;
+      overlay->OCMD &= ~OVERLAY_ENABLE;
+      OVERLAY_UPDATE;
+#if 1
+      OVERLAY_OFF;
+#endif
    } else if (pI830->Clone && attribute == xvPipe) {
       if ((value < 0) || (value > 1))
          return BadValue;
@@ -953,6 +967,8 @@ I830GetPortAttribute(ScrnInfoPtr pScrn,
       *value = pPriv->brightness;
    } else if (attribute == xvContrast) {
       *value = pPriv->contrast;
+   } else if (attribute == xvSaturation) {
+      *value = pPriv->saturation;
    } else if (pI830->Clone && attribute == xvPipe) {
       *value = pPriv->pipe;
    } else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
