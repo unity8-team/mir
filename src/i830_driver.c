@@ -1087,18 +1087,12 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
       I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOD, "DVODDC_D");
       I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");
 
-      /* if we are on an i2C bus > 0 and we see a monitor - try to
-       * find a controller chip
-       */
-      if (pI830->output[i].MonInfo) {
-	int ret;
-	ret = I830I2CDetectDVOControllers(pScrn, pI830->output[i].pI2CBus,
-					  &pI830->output[i].i2c_drv);
-	if (ret==TRUE) {
-	  xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found i2c %s on %08lX\n",
-		     pI830->output[i].i2c_drv->modulename,
-		     pI830->output[i].pI2CBus->DriverPrivate.uval);
-	}
+      ret = I830I2CDetectDVOControllers(pScrn, pI830->output[i].pI2CBus,
+					&pI830->output[i].i2c_drv);
+      if (ret == TRUE) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found i2c %s on %08lX\n",
+		    pI830->output[i].i2c_drv->modulename,
+		    pI830->output[i].pI2CBus->DriverPrivate.uval);
       }
 
       i++;

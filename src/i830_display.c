@@ -482,8 +482,9 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	dpll |= DPLL_DVO_HIGH_SPEED;
 
 	/* Save the data order, since I don't know what it should be set to. */
-	dvo = INREG(DVOB) & (DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
-	dvo |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE;
+	dvo = INREG(DVOC) & (DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
+	dvo |= DVO_ENABLE;
+	dvo |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE | DVO_BLANK_ACTIVE_HIGH;
 
 	if (pipe == 1)
 	    dvo |= DVO_PIPE_B_SELECT;
@@ -493,10 +494,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	if (pMode->Flags & V_PVSYNC)
 	    dvo |= DVO_VSYNC_ACTIVE_HIGH;
 
-	if (IS_I865G(pI830))
-	    dvo |= DVO_OUTPUT_SOURCE_SIZE_PIXELS;
-
-	OUTREG(DVOB, dvo & ~DVO_ENABLE);
+	OUTREG(DVOC, dvo & ~DVO_ENABLE);
     }
 
     if (is_sdvo) {
@@ -683,12 +681,12 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	OUTREG(ADPA, adpa);
 
     if (is_dvo) {
-	OUTREG(DVOB_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
+	/*OUTREG(DVOB_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
+	    (pMode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));*/
+	OUTREG(DVOC_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
 	    (pMode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));
-	/* OUTREG(DVOC_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
-	    (pMode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT)); */
-	OUTREG(DVOB, dvo);
-	/* OUTREG(DVOC, dvoc); */
+	/*OUTREG(DVOB, dvo);*/
+	OUTREG(DVOC, dvo);
     }
 
     if (is_sdvo) {
