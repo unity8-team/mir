@@ -104,7 +104,9 @@ static void I830DRITransitionTo3d(ScreenPtr pScreen);
 static void I830DRITransitionMultiToSingle3d(ScreenPtr pScreen);
 static void I830DRITransitionSingleToMulti3d(ScreenPtr pScreen);
 
+#if 0
 static void I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf);
+#endif
 
 extern void GlxSetVisualConfigs(int nconfigs,
 				__GLXvisualConfig * configs,
@@ -487,7 +489,7 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->ddxDriverMinorVersion = I830_MINOR_VERSION;
    pDRIInfo->ddxDriverPatchVersion = I830_PATCHLEVEL;
 #if 1 /* temporary until this gets removed from the libdri layer */
-   pDRIInfo->frameBufferPhysicalAddress = (pointer) pI830->LinearAddr +
+   pDRIInfo->frameBufferPhysicalAddress = (char *) pI830->LinearAddr +
 					  pI830->FrontBuffer.Start;
    pDRIInfo->frameBufferSize = ROUND_TO_PAGE(pScrn->displayWidth *
 					     pScrn->virtualY * pI830->cpp);
@@ -635,7 +637,7 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
       return FALSE;
    }
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Front Buffer = 0x%08x\n",
-              sarea->front_handle);
+              (int)sarea->front_handle);
 
    if (drmAddMap(pI830->drmSubFD,
                  (drm_handle_t)(sarea->back_offset + pI830->LinearAddr),
@@ -647,7 +649,7 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
       return FALSE;
    }
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Back Buffer = 0x%08x\n",
-              sarea->back_handle);
+              (int)sarea->back_handle);
 
    if (drmAddMap(pI830->drmSubFD,
                  (drm_handle_t)sarea->depth_offset + pI830->LinearAddr,
@@ -659,7 +661,7 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
       return FALSE;
    }
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Depth Buffer = 0x%08x\n",
-              sarea->depth_handle);
+              (int)sarea->depth_handle);
 
    if (drmAddMap(pI830->drmSubFD,
 		 (drm_handle_t)sarea->tex_offset + pI830->LinearAddr,
@@ -671,7 +673,7 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
       return FALSE;
    }
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] textures = 0x%08x\n",
-	      sarea->tex_handle);
+	      (int)sarea->tex_handle);
 
    return TRUE;
 }
@@ -746,7 +748,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
       return FALSE;
    }
    xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Registers = 0x%08x\n",
-	      pI830DRI->regs);
+	      (int)pI830DRI->regs);
 
    if (drmAddMap(pI830->drmSubFD,
 		 (drm_handle_t)pI830->LpRing->mem.Start + pI830->LinearAddr,
@@ -758,7 +760,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
       return FALSE;
    }
    xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] ring buffer = 0x%08x\n",
-	      pI830->ring_map);
+	      (int)pI830->ring_map);
 
    if (!I830InitDma(pScrn)) {
       DRICloseScreen(pScreen);

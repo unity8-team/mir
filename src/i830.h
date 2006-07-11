@@ -474,6 +474,16 @@ extern Bool I830CheckModeSupport(ScrnInfoPtr pScrn, int x, int y, int mode);
 extern Bool I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode);
 extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 
+/* i830_memory.c */
+Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
+Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
+
+/* i830_randr.c */
+Bool I830RandRInit(ScreenPtr pScreen, int rotation);
+Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
+			RRScreenSizePtr pSize);
+Rotation I830GetRotation(ScreenPtr pScreen);
+
 /*
  * 12288 is set as the maximum, chosen because it is enough for
  * 1920x1440@32bpp with a 2048 pixel line pitch with some to spare.
