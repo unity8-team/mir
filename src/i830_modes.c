@@ -493,7 +493,7 @@ i830GetLVDSModes(ScrnInfoPtr pScrn, char **ppModeName)
    /* If the user hasn't specified modes, add the native mode */
    if (!count) {
       new = i830FPNativeMode(pScrn);
-      if (first) {
+      if (new) {
 	 I830xf86SortModes(new, &first, &last);
 	 count = 1;
       }
