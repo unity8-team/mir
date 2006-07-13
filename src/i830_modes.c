@@ -198,6 +198,7 @@ I830xf86SortModes(DisplayModePtr new, DisplayModePtr *first,
     while (p) {
 	if (((new->HDisplay < p->HDisplay) &&
 	     (new->VDisplay < p->VDisplay)) ||
+	    ((new->HDisplay * new->VDisplay) < (p->HDisplay * p->VDisplay)) ||
 	    ((new->HDisplay == p->HDisplay) &&
 	     (new->VDisplay == p->VDisplay) &&
 	     (new->Clock < p->Clock))) {
