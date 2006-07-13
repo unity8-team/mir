@@ -293,8 +293,8 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
 
 #define RADEON_SWITCH_TO_2D()						\
 do {									\
-	BEGIN_ACCEL(1);							\
 	CARD32 wait_until = 0;			\
+	BEGIN_ACCEL(1);							\
 	switch (info->engineMode) {					\
 	case EXA_ENGINEMODE_UNKNOWN:					\
 	    wait_until |= RADEON_WAIT_HOST_IDLECLEAN | RADEON_WAIT_2D_IDLECLEAN;	\
@@ -310,8 +310,8 @@ do {									\
 
 #define RADEON_SWITCH_TO_3D()						\
 do {									\
-	BEGIN_ACCEL(1);							\
 	CARD32 wait_until = 0;			\
+	BEGIN_ACCEL(1);							\
 	switch (info->engineMode) {					\
 	case EXA_ENGINEMODE_UNKNOWN:					\
 	    wait_until |= RADEON_WAIT_HOST_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN;	\
