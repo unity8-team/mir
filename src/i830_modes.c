@@ -895,7 +895,7 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
     Bool pipes_reconfigured = FALSE;
     int originalVirtualX, originalVirtualY;
 
-    for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++) {
+    for (pipe = 0; pipe < pI830->availablePipes; pipe++) {
 	I830ReprobePipeModeList(pScrn, pipe);
     }
 
@@ -944,7 +944,7 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 	/* Set up a virtual size that will cover any clone mode we'd want to set
 	 * for either of the two pipes.
 	 */
-	for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++) {
+	for (pipe = 0; pipe < pI830->availablePipes; pipe++) {
 	    MonPtr mon = pI830->pipeMon[pipe];
 	    DisplayModePtr mode;
 
@@ -969,7 +969,7 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
      * initially.
      */
     if (!first_time) {
-	for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++) {
+	for (pipe = 0; pipe < pI830->availablePipes; pipe++) {
 	    MonPtr mon = pI830->pipeMon[pipe];
 	    DisplayModePtr mode;
 
