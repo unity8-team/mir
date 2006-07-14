@@ -60,7 +60,9 @@ i810_drv_la_SOURCES = \
 	 i915_3d.c \
 	 i915_reg.h \
 	 i830_exa.c \
-	 i830_xaa.c
+	 i830_xaa.c \
+	 i830_exa_render.c \
+	 i915_exa_render.c
 
 if DRI
 i810_drv_la_SOURCES += \

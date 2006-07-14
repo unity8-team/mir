@@ -161,6 +161,9 @@
 #define COLR_BUF_RGB555 		(1<<8)
 #define COLR_BUF_RGB565 		(2<<8)
 #define COLR_BUF_ARGB8888		(3<<8)
+#define COLR_BUF_ARGB4444		(8<<8)
+#define COLR_BUF_ARGB1555		(9<<8)
+#define COLR_BUF_ARGB2AAA		(0xa<<8)
 #define DEPTH_FRMT_16_FIXED		0
 #define DEPTH_FRMT_16_FLOAT		(1<<2)
 #define DEPTH_FRMT_24_FIXED_8_OTHER	(2<<2)

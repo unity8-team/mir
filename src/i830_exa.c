@@ -36,9 +36,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xaarop.h"
 #include "i830.h"
 #include "i810_reg.h"
+#include "i830_reg.h"
 
 #ifdef I830DEBUG
-#define DEBUG_I830FALLBACK 0
+#define DEBUG_I830FALLBACK 1
 #endif
 
 #ifdef DEBUG_I830FALLBACK
@@ -48,8 +49,14 @@ do {							\
 	return FALSE;					\
 } while(0)
 #else
-#define I830FALLBACK(s, arg...) { return FALSE; }
+#define I830FALLBACK(s, arg...) 			\
+do { 							\
+	return FALSE;					\
+} while(0) 
 #endif
+
+float scale_units[2][2];
+int draw_coords[3][2];
 
 const int I830CopyROP[16] =
 {
@@ -91,11 +98,32 @@ const int I830PatternROP[16] =
     ROP_1
 };
 
-void i830ScratchSave(ScreenPtr pScreen, ExaOffscreenArea *area);
-Bool i830UploadToScreen(PixmapPtr pDst, char *src, int src_pitch);
-Bool i830UploadToScratch(PixmapPtr pSrc, PixmapPtr pDst);
+/* move to common.h */
+union intfloat {
+	float f;
+	unsigned int ui;
+};
+
+#define OUT_RING_F(x) do {			\
+	union intfloat tmp;			\
+	tmp.f = (float)(x);			\
+	OUT_RING(tmp.ui);			\
+} while(0)				
+
+Bool is_transform[2];
+PictTransform *transform[2];
+
+Bool i830UploadToScreen(PixmapPtr pDst, int x, int y, int w, int h, 
+			    char *src, int src_pitch);
 Bool i830DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 			    char *dst, int dst_pitch);
+
+extern Bool I830EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+extern Bool I830EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
+				PixmapPtr, PixmapPtr, PixmapPtr);
+extern Bool I915EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+extern Bool I915EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
+				PixmapPtr, PixmapPtr, PixmapPtr);
 
 /**
  * I830EXASync - wait for a command to finish
@@ -295,27 +323,69 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 static void
 I830EXADoneCopy(PixmapPtr pDstPixmap)
 {
-    return;
+    	return;
 }
 
-#if 0 /* Not done (or even started for that matter) */
+//#define UPLOAD_USE_BLIT 1
+
 static Bool
-I830EXAUploadToScreen(PixmapPtr pDst, char *src, int src_pitch)
+I830EXAUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h, 
+		char *src, int src_pitch)
 {
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned char *dst = pDst->devPrivate.ptr;
     int dst_pitch = exaGetPixmapPitch(pDst);
-    int size = src_pitch < dst_pitch ? src_pitch : dst_pitch;
-    int h = pDst->drawable.height;
+    int dst_offset = exaGetPixmapOffset(pDst);
+    unsigned char *dst;
 
     I830Sync(pScrn);
 
+    ErrorF("Up->Screen: dst offset 0x%x, dst pitch %d, x %d, y %d, src %p, src pitch %d\n",
+		dst_offset, dst_pitch, x, y, src, src_pitch);
+#ifndef UPLOAD_USE_BLIT
+    dst = pI830->FbBase + dst_offset + y*dst_pitch + 
+		x* (pDst->drawable.bitsPerPixel/8);
+    w *= pDst->drawable.bitsPerPixel/8;
     while(h--) {
-	i830MemCopyToVideoRam(pI830, dst, (unsigned char *)src, size);
+	memcpy(dst, src, w);
 	src += src_pitch;
 	dst += dst_pitch;
     }
+#else
+    /* setup blit engine to copy one pixel data by one */
+    {
+	int x1, x2, y1, y2, i, j;
+	CARD32 d, len, *srcp;
+	x1 = x;
+	y1 = y;
+	x2 = x + w;
+	y2 = y + h;
+
+	len = (w * (pDst->drawable.bitsPerPixel/8)) >> 2;
+
+	pI830->BR[13] = (1 << 24) | (1 << 25);
+	pI830->BR[13] |= I830CopyROP[GXcopy]<<16;
+	pI830->BR[13] |= dst_pitch & 0xffff;
+	for (i = 0; i < h; i++) {
+		srcp = (CARD32*)src;
+		for ( j = len; j > 0; j--) {
+			d = *srcp;
+			BEGIN_LP_RING(6);
+			OUT_RING(XY_COLOR_BLT_CMD | XY_COLOR_BLT_WRITE_ALPHA | 
+				XY_COLOR_BLT_WRITE_RGB);
+			OUT_RING(pI830->BR[13]);
+			OUT_RING((y1 << 16) | x1);
+			OUT_RING((y2 << 16) | x2);
+			OUT_RING(dst_offset);
+			OUT_RING(d);
+			ADVANCE_LP_RING();
+			srcp++;
+		}
+		src += src_pitch;
+	}
+
+    }
+#endif
 
     return TRUE;
 }
@@ -326,14 +396,18 @@ I830EXADownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrc->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned char *src = pSrc->devPrivate.ptr;
     int src_pitch = exaGetPixmapPitch(pSrc);
-    int size = src_pitch < dst_pitch ? src_pitch : dst_pitch;
+    int src_offset = exaGetPixmapOffset(pSrc);
+    unsigned char *src = pI830->FbBase + src_offset + y*src_pitch +
+		x*(pSrc->drawable.bitsPerPixel/8);
 
     I830Sync(pScrn);
 
+    ErrorF("Screen->Mem: src offset 0x%x, src %p, src pitch %d, x %d, y %d, dst %p, dst_pitch %d\n",
+	src_offset, src, src_pitch, x, y, dst, dst_pitch);
+    w *= pSrc->drawable.bitsPerPixel/8;
     while(h--) {
-	i830MemCopyFromVideoRam(pI830, (unsigned char *)dst, src, size);
+	memcpy(dst, src, w);
 	src += src_pitch;
 	dst += dst_pitch;
     }
@@ -341,40 +415,145 @@ I830EXADownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     return TRUE;
 }
 
-static Bool
-I830EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
-		      PicturePtr pDstPicture)
-{
-    return FALSE; /* no Composite yet */
-}
-
-static Bool
-I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
-			PicturePtr pMaskPicture, PicturePtr pDstPicture,
-			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
-{
-    return FALSE; /* no Composite yet */
-}
-
 static void
-I830EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
-		 int dstX, int dstY, int width, int height)
+IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
+		 int dstX, int dstY, int w, int h)
 {
-    return; /* no Composite yet */
-}
+	/* should be same like I830Composite */
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    int srcXend, srcYend, maskXend, maskYend;
+    PictVector v;
+    int pMask = 1;
 
-static void
-I830EXADoneComposite(PixmapPtr pDst)
-{
-    return; /* no Composite yet */
-}
+ErrorF("Composite: srcX %d, srcY %d\n\t maskX %d, maskY %d\n\t"
+	     "dstX %d, dstY %d\n\twidth %d, height %d\n\t"
+	     "src_scale_x %f, src_scale_y %f, mask_scale_x %f, mask_scale_y %f\n""\tdx0 %d, dy0 %x, dx1 %d dy1 %x\n", 
+		srcX, srcY, maskX, maskY, dstX, dstY, w, h,
+		scale_units[0][0], scale_units[0][1], 
+		scale_units[1][0], scale_units[1][1],
+		draw_coords[0][0], draw_coords[0][1], 
+		draw_coords[1][0], draw_coords[1][1]);
+
+    if (scale_units[1][0] == -1 || scale_units[1][1] == -1) {
+	ErrorF("mask is null\n");
+	pMask = 0;
+    }
+
+    srcXend = srcX + w;
+    srcYend = srcY + h;
+    maskXend = maskX + w;
+    maskYend = maskY + h;
+    if (is_transform[0]) {
+        v.vector[0] = IntToxFixed(srcX);
+        v.vector[1] = IntToxFixed(srcY);
+        v.vector[2] = xFixed1;
+        PictureTransformPoint(transform[0], &v);
+        srcX = xFixedToInt(v.vector[0]);
+        srcY = xFixedToInt(v.vector[1]);
+        v.vector[0] = IntToxFixed(srcXend);
+        v.vector[1] = IntToxFixed(srcYend);
+        v.vector[2] = xFixed1;
+        PictureTransformPoint(transform[0], &v);
+        srcXend = xFixedToInt(v.vector[0]);
+        srcYend = xFixedToInt(v.vector[1]);
+    }
+    if (is_transform[1]) {
+        v.vector[0] = IntToxFixed(maskX);
+        v.vector[1] = IntToxFixed(maskY);
+        v.vector[2] = xFixed1;
+        PictureTransformPoint(transform[1], &v);
+        maskX = xFixedToInt(v.vector[0]);
+        maskY = xFixedToInt(v.vector[1]);
+        v.vector[0] = IntToxFixed(maskXend);
+        v.vector[1] = IntToxFixed(maskYend);
+        v.vector[2] = xFixed1;
+        PictureTransformPoint(transform[1], &v);
+        maskXend = xFixedToInt(v.vector[0]);
+        maskYend = xFixedToInt(v.vector[1]);
+    }
+DPRINTF(PFX, "After transform: srcX %d, srcY %d,srcXend %d, srcYend %d\n\t"
+		"maskX %d, maskY %d, maskXend %d, maskYend %d\n\t"
+		"dstX %d, dstY %d\n", srcX, srcY, srcXend, srcYend,
+		maskX, maskY, maskXend, maskYend, dstX, dstY);
+
+    draw_coords[0][0] -= draw_coords[2][0];
+    draw_coords[0][1] -= draw_coords[2][1];
+    if (pMask) {
+	draw_coords[1][0] -= draw_coords[2][0];
+	draw_coords[1][1] -= draw_coords[2][1];
+    }
+
+    {
+	int vertex_count; 
+
+	if (pMask)
+		vertex_count = 4*6;
+	else
+		vertex_count = 4*4;
+
+	BEGIN_LP_RING(6+vertex_count);
+
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_NOOP);
+
+	OUT_RING(PRIM3D_INLINE | PRIM3D_TRIFAN | (vertex_count-1));
+
+	OUT_RING(dstX);
+	OUT_RING(dstY);
+	OUT_RING_F(((srcX - draw_coords[0][0]) / scale_units[0][0]));
+	OUT_RING_F(((srcY - draw_coords[0][1]) / scale_units[0][1]));
+	if (pMask) {
+		OUT_RING_F(((maskX - draw_coords[1][0]) / scale_units[1][0]));
+		OUT_RING_F(((maskY - draw_coords[1][1]) / scale_units[1][1]));
+	}
+
+	OUT_RING(dstX);
+	OUT_RING((dstY+h));
+	OUT_RING_F(((srcX - draw_coords[0][0]) / scale_units[0][0]));
+	OUT_RING_F(((srcYend - draw_coords[0][1]) / scale_units[0][1]));
+	if (pMask) {
+		OUT_RING_F(((maskX - draw_coords[1][0]) / scale_units[1][0]));
+		OUT_RING_F(((maskYend - draw_coords[1][1]) / scale_units[1][1]));
+	}
+
+	OUT_RING((dstX+w));
+	OUT_RING((dstY+h));
+	OUT_RING_F(((srcXend - draw_coords[0][0]) / scale_units[0][0]));
+	OUT_RING_F(((srcYend - draw_coords[0][1]) / scale_units[0][1]));
+	if (pMask) {
+		OUT_RING_F(((maskXend - draw_coords[1][0]) / scale_units[1][0]));
+		OUT_RING_F(((maskYend - draw_coords[1][1]) / scale_units[1][1]));
+	}
+
+	OUT_RING((dstX+w));
+	OUT_RING((dstY));
+	OUT_RING_F(((srcXend - draw_coords[0][0]) / scale_units[0][0]));
+	OUT_RING_F(((srcY - draw_coords[0][1]) / scale_units[0][1]));
+	if (pMask) {
+		OUT_RING_F(((maskXend - draw_coords[1][0]) / scale_units[1][0]));
+		OUT_RING_F(((maskY - draw_coords[1][1]) / scale_units[1][1]));
+	}
+	ADVANCE_LP_RING();
+    }
+#ifdef I830DEBUG
+    ErrorF("sync after 3dprimitive");
+    I830Sync(pScrn);
 #endif
 
+}
+
+static void
+IntelEXADoneComposite(PixmapPtr pDst)
+{
+    return; 
+}
 /*
  * TODO:
  *   - Dual head?
- *   - Upload/Download
- *   - Composite
  */
 Bool
 I830EXAInit(ScreenPtr pScreen)
@@ -396,6 +575,12 @@ I830EXAInit(ScreenPtr pScreen)
     pI830->EXADriverPtr->offScreenBase = pI830->Offscreen.Start;
     pI830->EXADriverPtr->memorySize = pI830->Offscreen.End;
 	   
+    DPRINTF(PFX, "EXA Mem: memoryBase 0x%x, end 0x%x, offscreen base 0x%x, memorySize 0x%x\n",
+		pI830->EXADriverPtr->memoryBase,
+		pI830->EXADriverPtr->memoryBase + pI830->EXADriverPtr->memorySize,
+		pI830->EXADriverPtr->offScreenBase,
+		pI830->EXADriverPtr->memorySize);
+
     if(pI830->EXADriverPtr->memorySize >
        pI830->EXADriverPtr->offScreenBase)
 	pI830->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
@@ -422,17 +607,23 @@ I830EXAInit(ScreenPtr pScreen)
     pI830->EXADriverPtr->PrepareCopy = I830EXAPrepareCopy;
     pI830->EXADriverPtr->Copy = I830EXACopy;
     pI830->EXADriverPtr->DoneCopy = I830EXADoneCopy;
-#if 0
-    /* Upload, download to/from Screen */
-    pI830->EXADriverPtr->UploadToScreen = I830EXAUploadToScreen;
-    pI830->EXADriverPtr->DownloadFromScreen = I830EXADownloadFromScreen;
 
     /* Composite */
-    pI830->EXADriverPtr->CheckComposite = I830EXACheckComposite;
-    pI830->EXADriverPtr->PrepareComposite = I830EXAPrepareComposite;
-    pI830->EXADriverPtr->Composite = I830EXAComposite;
-    pI830->EXADriverPtr->DoneComposite = I830EXADoneComposite;
-#endif
+    if (IS_I9XX(pI830)) {   		
+	pI830->EXADriverPtr->CheckComposite = I915EXACheckComposite;
+   	pI830->EXADriverPtr->PrepareComposite = I915EXAPrepareComposite;
+    	pI830->EXADriverPtr->Composite = IntelEXAComposite;
+    	pI830->EXADriverPtr->DoneComposite = IntelEXADoneComposite;
+    } else if (IS_I865G(pI830) || IS_I855(pI830) || IS_845G(pI830) || IS_I830(pI830)) { 
+    	pI830->EXADriverPtr->CheckComposite = I830EXACheckComposite;
+    	pI830->EXADriverPtr->PrepareComposite = I830EXAPrepareComposite;
+    	pI830->EXADriverPtr->Composite = IntelEXAComposite;
+    	pI830->EXADriverPtr->DoneComposite = IntelEXADoneComposite;
+    }
+
+    /* Upload, download to/from Screen, experimental!! */
+    pI830->EXADriverPtr->UploadToScreen = I830EXAUploadToScreen;
+    pI830->EXADriverPtr->DownloadFromScreen = I830EXADownloadFromScreen;
 
     if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {
 	xfree(pI830->EXADriverPtr);

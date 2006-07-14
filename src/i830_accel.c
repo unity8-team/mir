@@ -110,6 +110,9 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 #ifdef I830_USE_XAA
 	 pI830->AccelInfoRec = NULL;	/* Stops recursive behavior */
 #endif
+#ifdef I830_USE_EXA
+	 pI830->EXADriverPtr = NULL;
+#endif
 	 FatalError("lockup\n");
       }
 
