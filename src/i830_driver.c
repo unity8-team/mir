@@ -2754,7 +2754,7 @@ SaveHWState(ScrnInfoPtr pScrn)
    }
 
    vgaHWUnlock(hwp);
-   vgaHWSave(pScrn, vgaReg, VGA_SR_ALL);
+   vgaHWSave(pScrn, vgaReg, VGA_SR_FONTS);
 
    return TRUE;
 }
@@ -2773,7 +2773,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
 #ifdef XF86DRI
    I830DRISetVBlankInterrupt (pScrn, FALSE);
 #endif
-   vgaHWRestore(pScrn, vgaReg, VGA_SR_ALL);
+   vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
    vgaHWLock(hwp);
 
    /* First, disable display planes */
