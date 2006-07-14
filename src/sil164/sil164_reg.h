@@ -58,8 +58,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SIL164_REGC 0x0c
 
 typedef struct _Sil164SaveRec {
-    CARD8 freq_lo;
-    CARD8 freq_hi;
     CARD8 reg8;
     CARD8 reg9;
     CARD8 regc;

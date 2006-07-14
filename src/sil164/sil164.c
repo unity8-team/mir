@@ -197,12 +197,6 @@ sil164SaveRegs(I2CDevPtr d)
 {
     SIL164Ptr sil = SILPTR(d);
 
-    if (!sil164ReadByte(sil, SIL164_FREQ_LO, &sil->SavedReg.freq_lo))
-	return;
-
-    if (!sil164ReadByte(sil, SIL164_FREQ_HI, &sil->SavedReg.freq_hi))
-	return;
-
     if (!sil164ReadByte(sil, SIL164_REG8, &sil->SavedReg.reg8))
 	return;
 
@@ -215,6 +209,20 @@ sil164SaveRegs(I2CDevPtr d)
     return;
 }
 
+static void
+sil164RestoreRegs(I2CDevPtr d)
+{
+    SIL164Ptr sil = SILPTR(d);
+
+    /* Restore it powered down initially */
+    sil164WriteByte(sil, SIL164_REG8, sil->SavedReg.reg8 & ~0x1);
+
+    sil164WriteByte(sil, SIL164_REG9, sil->SavedReg.reg9);
+    sil164WriteByte(sil, SIL164_REGC, sil->SavedReg.regc);
+    sil164WriteByte(sil, SIL164_REG8, sil->SavedReg.reg8);
+}
+
+
 I830I2CVidOutputRec SIL164VidOutput = {
     sil164Detect,
     sil164Init,
@@ -223,5 +231,5 @@ I830I2CVidOutputRec SIL164VidOutput = {
     sil164Power,
     sil164PrintRegs,
     sil164SaveRegs,
-    NULL,
+    sil164RestoreRegs,
 };
