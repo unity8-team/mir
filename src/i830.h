@@ -141,7 +141,7 @@ typedef struct {
 } I830RingBuffer;
 
 typedef struct {
-   unsigned int Fence[8];
+   unsigned int Fence[FENCE_NEW_NR * 2]; /* i965 has more fence regs */
 } I830RegRec, *I830RegPtr;
 
 typedef struct {
@@ -230,14 +230,20 @@ typedef struct _I830Rec {
    CreateScreenResourcesProcPtr    CreateScreenResources;
    int *used3D;
 
+   I830MemRange ContextMem;
 #ifdef XF86DRI
    I830MemRange BackBuffer;
    I830MemRange DepthBuffer;
    I830MemRange TexMem;
    int TexGranularity;
-   I830MemRange ContextMem;
    int drmMinor;
    Bool have3DWindows;
+
+   unsigned int front_tiled;
+   unsigned int back_tiled;
+   unsigned int depth_tiled;
+   unsigned int rotated_tiled;
+   unsigned int rotated2_tiled;
 #endif
 
    Bool NeedRingBufferLow;
@@ -377,6 +383,9 @@ typedef struct _I830Rec {
    Bool devicePresence;
 
    OsTimerPtr devicesTimer;
+
+   CARD32 savedAsurf;
+   CARD32 savedBsurf;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
