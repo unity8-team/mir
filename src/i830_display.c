@@ -476,8 +476,10 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
     if (outputs & (PIPE_TV_ACTIVE | PIPE_TV2_ACTIVE))
 	dpll |= PLL_REF_INPUT_TVCLKINBC;
+#if 0    
     else if (outputs & (PIPE_LCD_ACTIVE))
 	dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
+#endif
     else	
 	dpll |= PLL_REF_INPUT_DREFCLK;
 
