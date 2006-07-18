@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 3 -*- */
 /**************************************************************************
 
 Copyright 2005 Tungsten Graphics, Inc., Cedar Park, Texas.
@@ -58,6 +59,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "i830.h"
 #include "i915_reg.h"
+#include "i915_3d.h"
 
 #ifdef XF86DRI
 #include "dri.h"
@@ -260,12 +262,13 @@ I915UpdateRotate (ScreenPtr      pScreen,
 #endif
 
    if (updateInvarient) {
+      FS_LOCALS(3);
       *pI830->used3D = pScrn->scrnIndex;
 #ifdef XF86DRI
       if (sarea)
          sarea->ctxOwner = myContext;
 #endif
-      BEGIN_LP_RING(64);
+      BEGIN_LP_RING(54);
       /* invarient state */
       OUT_RING(MI_NOOP);
       OUT_RING(_3DSTATE_AA_CMD |
@@ -373,18 +376,6 @@ I915UpdateRotate (ScreenPtr      pScreen,
       OUT_RING(_3DSTATE_STIPPLE);
       OUT_RING(0x00000000);
 
-      /* fragment program - texture blend replace*/
-      OUT_RING(0x7d050008);
-      OUT_RING(0x19180000);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING(0x19083c00);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING(0x15200000);
-      OUT_RING(0x01000000);
-      OUT_RING(0x00000000);
-
       /* texture sampler state */
       OUT_RING(_3DSTATE_SAMPLER_STATE | 3);
       OUT_RING(0x00000001);
@@ -425,6 +416,13 @@ I915UpdateRotate (ScreenPtr      pScreen,
       OUT_RING(use_fence | (pScreen->height - 1) << 21 | (pScreen->width - 1) << 10);
       OUT_RING(((((pScrn->displayWidth * pI830->cpp) / 4) - 1) << 21));
       ADVANCE_LP_RING();
+
+      /* fragment program - texture blend replace*/
+      FS_BEGIN();
+      i915_fs_dcl(FS_S0);
+      i915_fs_dcl(FS_T0);
+      i915_fs_texld(FS_OC, FS_S0, FS_T0);
+      FS_END();
    }
    
    {
