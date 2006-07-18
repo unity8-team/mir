@@ -230,12 +230,12 @@ typedef struct _I830Rec {
    CreateScreenResourcesProcPtr    CreateScreenResources;
    int *used3D;
 
+   I830MemRange ContextMem;
 #ifdef XF86DRI
    I830MemRange BackBuffer;
    I830MemRange DepthBuffer;
    I830MemRange TexMem;
    int TexGranularity;
-   I830MemRange ContextMem;
    int drmMinor;
    Bool have3DWindows;
 #endif
@@ -394,7 +394,9 @@ extern void I830PrintErrorState(ScrnInfoPtr pScrn);
 extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
 extern Bool I830CursorInit(ScreenPtr pScreen);
+extern void IntelEmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
+extern void I915EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 
 extern void I830RefreshRing(ScrnInfoPtr pScrn);
@@ -427,6 +429,7 @@ extern void I830DRIUnmapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
 extern Bool I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
 extern void I830DRIUnlock(ScrnInfoPtr pScrn);
 extern Bool I830DRILock(ScrnInfoPtr pScrn);
+extern Bool I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on);
 #endif
 
 extern Bool I830AccelInit(ScreenPtr pScreen);
@@ -470,6 +473,16 @@ extern int I830GetBestRefresh(ScrnInfoPtr pScrn, int refresh);
 extern Bool I830CheckModeSupport(ScrnInfoPtr pScrn, int x, int y, int mode);
 extern Bool I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode);
 extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
+
+/* i830_memory.c */
+Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
+Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
+
+/* i830_randr.c */
+Bool I830RandRInit(ScreenPtr pScreen, int rotation);
+Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
+			RRScreenSizePtr pSize);
+Rotation I830GetRotation(ScreenPtr pScreen);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for

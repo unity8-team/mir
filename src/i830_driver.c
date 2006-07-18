@@ -952,7 +952,25 @@ I830Set640x480(ScrnInfoPtr pScrn)
 	 break;
    }
    m |= (1 << 15) | (1 << 14);
-   return VBESetVBEMode(pI830->pVbe, m, NULL);
+   if (VBESetVBEMode(pI830->pVbe, m, NULL))
+	   return TRUE;
+
+   /* if the first failed, let's try the next - usually 800x600 */
+   m = 0x32;
+   switch (pScrn->depth) {
+   case 15:
+   case 16:
+	 m = 0x42;
+	 break;
+   case 24:
+	 m = 0x52;
+	 break;
+   }
+   m |= (1 << 15) | (1 << 14);
+   if (VBESetVBEMode(pI830->pVbe, m, NULL))
+	   return TRUE;
+
+   return FALSE;
 }
 
 /* This is needed for SetDisplayDevices to work correctly on I915G.
@@ -2293,6 +2311,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       from = X_CONFIG;
       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ChipID override: 0x%04X\n",
 		 pI830->pEnt->device->chipID);
+      pI830->PciInfo->chipType = pI830->pEnt->device->chipID;
    } else {
       from = X_PROBED;
       pScrn->chipset = (char *)xf86TokenToString(I830BIOSChipsets,
@@ -3807,6 +3826,9 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    DPRINTF(PFX, "RestoreHWState\n");
 
+#ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, FALSE);
+#endif
    if (I830IsPrimary(pScrn) && pI830->pipe != pI830->origPipe)
       SetBIOSPipe(pScrn, pI830->origPipe);
    else
@@ -4392,6 +4414,9 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 #endif
 
 #ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, TRUE);
+#endif
+#ifdef XF86DRI
    if (didLock)
       I830DRIUnlock(pScrn);
 #endif
@@ -4730,6 +4755,32 @@ I830InitFBManager(
    return ret;
 }
 
+/* Initialize the first context */
+void
+IntelEmitInvarientState(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   CARD32 ctx_addr;
+
+   ctx_addr = pI830->ContextMem.Start;
+   /* Align to a 2k boundry */
+   ctx_addr = ((ctx_addr + 2048 - 1) / 2048) * 2048;
+
+   {
+      BEGIN_LP_RING(2);
+      OUT_RING(MI_SET_CONTEXT);
+      OUT_RING(ctx_addr |
+	       CTXT_NO_RESTORE |
+	       CTXT_PALETTE_SAVE_DISABLE | CTXT_PALETTE_RESTORE_DISABLE);
+      ADVANCE_LP_RING();
+   }
+
+   if (IS_I9XX(pI830))
+      I915EmitInvarientState(pScrn);
+   else
+      I830EmitInvarientState(pScrn);
+}
+
 static Bool
 I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
@@ -4747,28 +4798,6 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    hwp = VGAHWPTR(pScrn);
 
    pScrn->displayWidth = pI830->displayWidth;
-   switch (pI830->InitialRotation) {
-      case 0:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 0 degrees\n");
-         pI830->rotation = RR_Rotate_0;
-         break;
-      case 90:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 90 degrees\n");
-         pI830->rotation = RR_Rotate_90;
-         break;
-      case 180:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 180 degrees\n");
-         pI830->rotation = RR_Rotate_180;
-         break;
-      case 270:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 270 degrees\n");
-         pI830->rotation = RR_Rotate_270;
-         break;
-      default:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bad rotation setting - defaulting to 0 degrees\n");
-         pI830->rotation = RR_Rotate_0;
-         break;
-   }
 
    if (I830IsPrimary(pScrn)) {
       /* Rotated Buffer */
@@ -5110,12 +5139,13 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 #endif
 
+   /* Setup 3D engine, needed for rotation too */
+   IntelEmitInvarientState(pScrn);
+
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled) {
       pI830->directRenderingOpen = TRUE;
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Enabled\n");
-      /* Setup 3D engine */
-      I830EmitInvarientState(pScrn);
    } else {
       if (driDisabled)
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Disabled\n");
@@ -5156,6 +5186,29 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->starting = FALSE;
    pI830->closing = FALSE;
    pI830->suspended = FALSE;
+
+   switch (pI830->InitialRotation) {
+      case 0:
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 0 degrees\n");
+         pI830->rotation = RR_Rotate_0;
+         break;
+      case 90:
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 90 degrees\n");
+         pI830->rotation = RR_Rotate_90;
+         break;
+      case 180:
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 180 degrees\n");
+         pI830->rotation = RR_Rotate_180;
+         break;
+      case 270:
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 270 degrees\n");
+         pI830->rotation = RR_Rotate_270;
+         break;
+      default:
+         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bad rotation setting - defaulting to 0 degrees\n");
+         pI830->rotation = RR_Rotate_0;
+         break;
+   }
 
    return TRUE;
 }
@@ -5278,7 +5331,7 @@ I830BIOSLeaveVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
-      I830DRILock(pScrn);
+      DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
       
       drmCtlUninstHandler(pI830->drmSubFD);
    }
@@ -5533,9 +5586,7 @@ I830BIOSEnterVT(int scrnIndex, int flags)
       * the Video BIOS with our saved devices, and only when that fails,
       * we'll warm boot it.
       */
-     /* Check Pipe conf registers or possibly HTOTAL/VTOTAL for 0x00000000)*/
-      CARD32 temp = pI830->pipe ? INREG(PIPEBCONF) : INREG(PIPEACONF);
-      if (!I830Set640x480(pScrn) || !(temp & 0x80000000)) {
+      if (!I830Set640x480(pScrn)) {
          xf86Int10InfoPtr pInt;
 
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
@@ -5604,17 +5655,19 @@ I830BIOSEnterVT(int scrnIndex, int flags)
       if (!pI830->starting) {
 	 I830DRIResume(screenInfo.screens[scrnIndex]);
       
-	 I830EmitInvarientState(pScrn);
 	 I830RefreshRing(pScrn);
 	 I830Sync(pScrn);
 	 DO_RING_IDLE();
 
 	 DPRINTF(PFX, "calling dri unlock\n");
-	 I830DRIUnlock(pScrn);
+	 DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
       }
       pI830->LockHeld = 0;
    }
 #endif
+
+   /* Needed for rotation */
+   IntelEmitInvarientState(pScrn);
 
    if (pI830->checkDevices)
       pI830->devicesTimer = TimerSet(NULL, 0, 1000, I830CheckDevicesTimer, pScrn);
@@ -5665,7 +5718,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     * The extra WindowTable check detects a rotation at startup.
     */
    if ( (!WindowTable[pScrn->scrnIndex] || pspix->devPrivate.ptr == NULL) &&
-         !pI830->DGAactive ) {
+         !pI830->DGAactive && (pScrn->PointerMoved == I830PointerMoved) ) {
       if (!I830Rotate(pScrn, mode))
          ret = FALSE;
    }

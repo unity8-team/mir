@@ -313,7 +313,6 @@ I830RandRInit (ScreenPtr    pScreen, int rotation)
 {
     rrScrPrivPtr	rp;
     XF86RandRInfoPtr	randrp;
-    ScrnInfoPtr		scrp = XF86SCRNINFO(pScreen);
     
 #ifdef PANORAMIX
     /* XXX disable RandR when using Xinerama */
