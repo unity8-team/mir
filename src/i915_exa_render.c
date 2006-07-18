@@ -231,8 +231,8 @@ static Bool I915CheckCompositeTexture(PicturePtr pPict, int unit)
                          (int)pPict->format);
 
     /* FIXME: fix repeat support */
-    if (pPict->repeat && ((w&(w-1)) != 0) && ((h&(h-1)) != 0))
-	I830FALLBACK("repeat non log2 aligned!\n");
+    if (pPict->repeat) 
+	I830FALLBACK("repeat not support now!\n");
 
     if (pPict->filter != PictFilterNearest &&
         pPict->filter != PictFilterBilinear)

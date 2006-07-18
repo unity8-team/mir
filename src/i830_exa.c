@@ -340,8 +340,10 @@ I830EXAUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
 
     I830Sync(pScrn);
 
+#ifdef I830DEBUG
     ErrorF("Up->Screen: dst offset 0x%x, dst pitch %d, x %d, y %d, src %p, src pitch %d\n",
 		dst_offset, dst_pitch, x, y, src, src_pitch);
+#endif
 #ifndef UPLOAD_USE_BLIT
     dst = pI830->FbBase + dst_offset + y*dst_pitch + 
 		x* (pDst->drawable.bitsPerPixel/8);
@@ -403,8 +405,10 @@ I830EXADownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 
     I830Sync(pScrn);
 
+#ifdef I830DEBUG
     ErrorF("Screen->Mem: src offset 0x%x, src %p, src pitch %d, x %d, y %d, dst %p, dst_pitch %d\n",
 	src_offset, src, src_pitch, x, y, dst, dst_pitch);
+#endif
     w *= pSrc->drawable.bitsPerPixel/8;
     while(h--) {
 	memcpy(dst, src, w);
@@ -426,7 +430,7 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     PictVector v;
     int pMask = 1;
 
-ErrorF("Composite: srcX %d, srcY %d\n\t maskX %d, maskY %d\n\t"
+    DPRINTF(PFX, "Composite: srcX %d, srcY %d\n\t maskX %d, maskY %d\n\t"
 	     "dstX %d, dstY %d\n\twidth %d, height %d\n\t"
 	     "src_scale_x %f, src_scale_y %f, mask_scale_x %f, mask_scale_y %f\n""\tdx0 %d, dy0 %x, dx1 %d dy1 %x\n", 
 		srcX, srcY, maskX, maskY, dstX, dstY, w, h,
@@ -472,7 +476,7 @@ ErrorF("Composite: srcX %d, srcY %d\n\t maskX %d, maskY %d\n\t"
         maskXend = xFixedToInt(v.vector[0]);
         maskYend = xFixedToInt(v.vector[1]);
     }
-DPRINTF(PFX, "After transform: srcX %d, srcY %d,srcXend %d, srcYend %d\n\t"
+    DPRINTF(PFX, "After transform: srcX %d, srcY %d,srcXend %d, srcYend %d\n\t"
 		"maskX %d, maskY %d, maskXend %d, maskYend %d\n\t"
 		"dstX %d, dstY %d\n", srcX, srcY, srcXend, srcYend,
 		maskX, maskY, maskXend, maskYend, dstX, dstY);
