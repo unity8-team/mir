@@ -37,6 +37,7 @@
 #include "i830.h"
 #include "i830_video.h"
 #include "i915_reg.h"
+#include "i915_3d.h"
 
 union intfloat {
    CARD32 ui;
@@ -49,68 +50,6 @@ union intfloat {
    OUT_RING(_tmp.ui);							\
 } while (0)
 
-#define OUT_DCL(type, nr) do {						\
-   CARD32 chans = 0;							\
-   if (REG_TYPE_##type == REG_TYPE_T)					\
-      chans = D0_CHANNEL_ALL;						\
-   else if (REG_TYPE_##type != REG_TYPE_S)				\
-      FatalError("wrong reg type %d to declare\n", REG_TYPE_##type);	\
-   OUT_RING(D0_DCL |							\
-	    (REG_TYPE_##type << D0_TYPE_SHIFT) | (nr << D0_NR_SHIFT) |	\
-	    chans);							\
-   OUT_RING(0x00000000);						\
-   OUT_RING(0x00000000);						\
-} while (0)
-
-#define OUT_TEXLD(dest_type, dest_nr, sampler_nr, addr_type, addr_nr)	\
-do {									\
-      OUT_RING(T0_TEXLD |						\
-	       (REG_TYPE_##dest_type << T0_DEST_TYPE_SHIFT) |		\
-	       (dest_nr << T0_DEST_NR_SHIFT) |				\
-	       (sampler_nr << T0_SAMPLER_NR_SHIFT));			\
-      OUT_RING((REG_TYPE_##addr_type << T1_ADDRESS_REG_TYPE_SHIFT) |	\
-	       (addr_nr << T1_ADDRESS_REG_NR_SHIFT));			\
-      OUT_RING(0x00000000);						\
-} while (0)
-
-/* Move the dest_chan from src0 to dest, leaving the other channels alone */
-#define OUT_MOV_TO_CHANNEL(dest_type, dest_nr, src0_type, src0_nr,	\
-			   dest_chan)					\
-do {									\
-   OUT_RING(A0_MOV | A0_DEST_CHANNEL_##dest_chan |			\
-	    (REG_TYPE_##dest_type << A0_DEST_TYPE_SHIFT) |		\
-	    (dest_nr << A0_DEST_NR_SHIFT) |				\
-	    (REG_TYPE_##src0_type << A0_SRC0_TYPE_SHIFT) |		\
-	    (src0_nr << A0_SRC0_NR_SHIFT));				\
-   OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |			\
-	    (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |			\
-	    (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |			\
-	    (SRC_W << A1_SRC0_CHANNEL_W_SHIFT));			\
-   OUT_RING(0);								\
-} while (0)
-
-/* Dot3-product src0 and src1, storing the result in dest_chan of the dest.
- * Saturates, in case we have out-of-range YUV values.
- */
-#define OUT_DP3_TO_CHANNEL(dest_type, dest_nr, src0_type, src0_nr,	\
-			   src1_type, src1_nr, dest_chan)		\
-do {									\
-   OUT_RING(A0_DP3 | A0_DEST_CHANNEL_##dest_chan | A0_DEST_SATURATE |	\
-	    (REG_TYPE_##dest_type << A0_DEST_TYPE_SHIFT) |		\
-	    (dest_nr << A0_DEST_NR_SHIFT) |				\
-	    (REG_TYPE_##src0_type << A0_SRC0_TYPE_SHIFT) |		\
-	    (src0_nr << A0_SRC0_NR_SHIFT));				\
-   OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |			\
-	    (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |			\
-	    (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |			\
-	    (SRC_W << A1_SRC0_CHANNEL_W_SHIFT) |			\
-	    (REG_TYPE_##src1_type << A1_SRC1_TYPE_SHIFT) |		\
-	    (src1_nr << A1_SRC1_TYPE_SHIFT) |				\
-	    (SRC_X << A1_SRC1_CHANNEL_X_SHIFT) |			\
-	    (SRC_Y << A1_SRC1_CHANNEL_Y_SHIFT));			\
-   OUT_RING((SRC_Z << A2_SRC1_CHANNEL_Z_SHIFT) |			\
-	    (SRC_W << A2_SRC1_CHANNEL_W_SHIFT));			\
-} while (0)
 
 void
 I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
@@ -261,14 +200,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    ADVANCE_LP_RING();
 
    if (!planar) {
-      BEGIN_LP_RING(20);
-      /* fragment program - texture blend replace. */
-      OUT_RING(_3DSTATE_PIXEL_SHADER_PROGRAM | 8);
-      OUT_DCL(S, 0);
-      OUT_DCL(T, 0);
-      OUT_TEXLD(OC, 0, 0, T, 0);
-      /* End fragment program */
+      FS_LOCALS(3);
 
+      BEGIN_LP_RING(10);
       OUT_RING(_3DSTATE_SAMPLER_STATE | 3);
       OUT_RING(0x00000001);
       OUT_RING(SS2_COLORSPACE_CONVERSION |
@@ -297,8 +231,16 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_RING(ms3);
       OUT_RING(((video_pitch / 4) - 1) << 21);
       ADVANCE_LP_RING();
+
+      FS_BEGIN();
+      i915_fs_dcl(FS_S0);
+      i915_fs_dcl(FS_T0);
+      i915_fs_texld(FS_OC, FS_S0, FS_T0);
+      FS_END();
    } else {
-      BEGIN_LP_RING(1 + 18 + (1 + 3*16) + 11 + 11);
+      FS_LOCALS(16);
+
+      BEGIN_LP_RING(1 + 18 + 11 + 11);
       OUT_RING(MI_NOOP);
       /* For the planar formats, we set up three samplers -- one for each plane,
        * in a Y8 format.  Because I couldn't get the special PLANAR_TO_PACKED
@@ -341,61 +283,6 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_RING_F(2.017);
       OUT_RING_F(0.0);
       OUT_RING_F(0.0);
-
-      OUT_RING(_3DSTATE_PIXEL_SHADER_PROGRAM | (3 * 16 - 1));
-      /* Declare samplers */
-      OUT_DCL(S, 0);
-      OUT_DCL(S, 1);
-      OUT_DCL(S, 2);
-      OUT_DCL(T, 0);
-      OUT_DCL(T, 1);
-
-      /* Load samplers to temporaries.  Y (sampler 0) gets the un-halved coords
-       * from t1.
-       */
-      OUT_TEXLD(R, 1, 0, T, 1);
-      OUT_TEXLD(R, 2, 1, T, 0);
-      OUT_TEXLD(R, 3, 2, T, 0);
-
-      /* Move the sampled YUV data in R[123] to the first 3 channels of R0. */
-      OUT_MOV_TO_CHANNEL(R, 0, R, 1, X);
-      OUT_MOV_TO_CHANNEL(R, 0, R, 2, Y);
-      OUT_MOV_TO_CHANNEL(R, 0, R, 3, Z);
-
-      /* Normalize the YUV data */
-      OUT_RING(A0_ADD | A0_DEST_CHANNEL_ALL |
-	       (REG_TYPE_R << A0_DEST_TYPE_SHIFT) | (0 << A0_DEST_NR_SHIFT) |				\
-	       (REG_TYPE_R << A0_SRC0_TYPE_SHIFT) | (0 << A0_SRC0_NR_SHIFT));
-      OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |
-	       (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |
-	       (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |
-	       (SRC_W << A1_SRC0_CHANNEL_W_SHIFT) |
-	       (REG_TYPE_CONST << A1_SRC1_TYPE_SHIFT) | (0 << A1_SRC1_NR_SHIFT) |
-	       (SRC_X << A1_SRC1_CHANNEL_X_SHIFT) |
-	       (SRC_Y << A1_SRC1_CHANNEL_Y_SHIFT));
-      OUT_RING((SRC_Z << A2_SRC1_CHANNEL_Z_SHIFT) |
-	       (SRC_W << A2_SRC1_CHANNEL_W_SHIFT));
-
-      /* dot-product the YUV data in R0 by the vectors of coefficients for
-       * calculating R, G, and B, storing the results in the R, G, or B channels
-       * of the output color.
-       */
-      OUT_DP3_TO_CHANNEL(OC, 0, R, 0, CONST, 1, X);
-      OUT_DP3_TO_CHANNEL(OC, 0, R, 0, CONST, 2, Y);
-      OUT_DP3_TO_CHANNEL(OC, 0, R, 0, CONST, 3, Z);
-
-      /* Set alpha of the output to 1.0, by wiring W to 1 and not actually using
-       * the source.
-       */
-      OUT_RING(A0_MOV | A0_DEST_CHANNEL_W |
-	       (REG_TYPE_OC << A0_DEST_TYPE_SHIFT) | (0 << A0_DEST_NR_SHIFT) |
-	       (REG_TYPE_OC << A0_SRC0_TYPE_SHIFT) | (0 << A0_SRC0_NR_SHIFT));
-      OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) |
-	       (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |
-	       (SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) |
-	       (SRC_ONE << A1_SRC0_CHANNEL_W_SHIFT));
-      OUT_RING(0);
-      /* End fragment program */
 
       OUT_RING(_3DSTATE_SAMPLER_STATE | 9);
       OUT_RING(0x00000007);
@@ -442,6 +329,48 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_RING(ms3);
       OUT_RING(((video_pitch / 4) - 1) << 21);
       ADVANCE_LP_RING();
+
+      FS_BEGIN();
+      /* Declare samplers */
+      i915_fs_dcl(FS_S0);
+      i915_fs_dcl(FS_S1);
+      i915_fs_dcl(FS_S2);
+      i915_fs_dcl(FS_T0);
+      i915_fs_dcl(FS_T1);
+
+      /* Load samplers to temporaries.  Y (sampler 0) gets the un-halved coords-
+       * from t1.
+       */
+      i915_fs_texld(FS_R1, FS_S0, FS_T1);
+      i915_fs_texld(FS_R2, FS_S1, FS_T0);
+      i915_fs_texld(FS_R3, FS_S2, FS_T0);
+
+      /* Move the sampled YUV data in R[123] to the first 3 channels of R0. */
+      i915_fs_mov_masked(FS_R0, MASK_X, i915_fs_operand_reg(FS_R1));
+      i915_fs_mov_masked(FS_R0, MASK_Y, i915_fs_operand_reg(FS_R2));
+      i915_fs_mov_masked(FS_R0, MASK_Z, i915_fs_operand_reg(FS_R3));
+
+      /* Normalize the YUV data */
+      i915_fs_add(FS_R0, i915_fs_operand_reg(FS_R0),
+                 i915_fs_operand_reg(FS_C0));
+      /* dot-product the YUV data in R0 by the vectors of coefficients for
+       * calculating R, G, and B, storing the results in the R, G, or B channels
+       * of the output color.
+       */
+      i915_fs_dp3_masked(FS_OC, MASK_X | MASK_SATURATE,
+                        i915_fs_operand_reg(FS_R0),
+-                        i915_fs_operand_reg(FS_C1));
+      i915_fs_dp3_masked(FS_OC, MASK_Y | MASK_SATURATE,
+                        i915_fs_operand_reg(FS_R0),
+                        i915_fs_operand_reg(FS_C2));
+      i915_fs_dp3_masked(FS_OC, MASK_Z | MASK_SATURATE,
+                        i915_fs_operand_reg(FS_R0),
+                        i915_fs_operand_reg(FS_C3));
+      /* Set alpha of the output to 1.0, by wiring W to 1 and not actually using
+       * the source.
+       */
+      i915_fs_mov_masked(FS_OC, MASK_W, i915_fs_operand_one());
+      FS_END();
    }
    
    {
