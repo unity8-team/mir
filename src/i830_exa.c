@@ -55,7 +55,7 @@ do { 							\
 } while(0) 
 #endif
 
-float scale_units[2][2];
+float scale_units[3][2];
 int draw_coords[3][2];
 
 const int I830CopyROP[16] =
@@ -101,7 +101,7 @@ const int I830PatternROP[16] =
 /* move to common.h */
 union intfloat {
 	float f;
-	unsigned int ui;
+	CARD32 ui;
 };
 
 #define OUT_RING_F(x) do {			\
@@ -429,6 +429,7 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     int srcXend, srcYend, maskXend, maskYend;
     PictVector v;
     int pMask = 1;
+    float src_scale_x, src_scale_y, mask_scale_x, mask_scale_y;
 
     DPRINTF(PFX, "Composite: srcX %d, srcY %d\n\t maskX %d, maskY %d\n\t"
 	     "dstX %d, dstY %d\n\twidth %d, height %d\n\t"
@@ -483,9 +484,14 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     draw_coords[0][0] -= draw_coords[2][0];
     draw_coords[0][1] -= draw_coords[2][1];
+    src_scale_x = (float)scale_units[0][0] / (float)scale_units[2][0];
+    src_scale_y = (float)scale_units[0][1] / (float)scale_units[2][1];
+
     if (pMask) {
 	draw_coords[1][0] -= draw_coords[2][0];
 	draw_coords[1][1] -= draw_coords[2][1];
+	mask_scale_x = (float)scale_units[1][0] / (float)scale_units[2][0];
+	mask_scale_y = (float)scale_units[1][1] / (float)scale_units[2][1];
     }
 
     {
@@ -506,40 +512,40 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
 	OUT_RING(PRIM3D_INLINE | PRIM3D_TRIFAN | (vertex_count-1));
 
-	OUT_RING(dstX);
-	OUT_RING(dstY);
-	OUT_RING_F(((srcX - draw_coords[0][0]) / scale_units[0][0]));
-	OUT_RING_F(((srcY - draw_coords[0][1]) / scale_units[0][1]));
+	OUT_RING_F(dstX);
+	OUT_RING_F(dstY);
+	OUT_RING_F(((srcX - draw_coords[0][0]) * src_scale_x));
+	OUT_RING_F(((srcY - draw_coords[0][1]) * src_scale_y));
 	if (pMask) {
-		OUT_RING_F(((maskX - draw_coords[1][0]) / scale_units[1][0]));
-		OUT_RING_F(((maskY - draw_coords[1][1]) / scale_units[1][1]));
+		OUT_RING_F(((maskX - draw_coords[1][0]) * mask_scale_x));
+		OUT_RING_F(((maskY - draw_coords[1][1]) * mask_scale_y));
 	}
 
-	OUT_RING(dstX);
-	OUT_RING((dstY+h));
-	OUT_RING_F(((srcX - draw_coords[0][0]) / scale_units[0][0]));
-	OUT_RING_F(((srcYend - draw_coords[0][1]) / scale_units[0][1]));
+	OUT_RING_F(dstX);
+	OUT_RING_F((dstY+h));
+	OUT_RING_F(((srcX - draw_coords[0][0]) * src_scale_x));
+	OUT_RING_F(((srcYend - draw_coords[0][1]) * src_scale_y));
 	if (pMask) {
-		OUT_RING_F(((maskX - draw_coords[1][0]) / scale_units[1][0]));
-		OUT_RING_F(((maskYend - draw_coords[1][1]) / scale_units[1][1]));
+		OUT_RING_F(((maskX - draw_coords[1][0]) * mask_scale_x));
+		OUT_RING_F(((maskYend - draw_coords[1][1]) * mask_scale_y));
 	}
 
-	OUT_RING((dstX+w));
-	OUT_RING((dstY+h));
-	OUT_RING_F(((srcXend - draw_coords[0][0]) / scale_units[0][0]));
-	OUT_RING_F(((srcYend - draw_coords[0][1]) / scale_units[0][1]));
+	OUT_RING_F((dstX+w));
+	OUT_RING_F((dstY+h));
+	OUT_RING_F(((srcXend - draw_coords[0][0]) * src_scale_x));
+	OUT_RING_F(((srcYend - draw_coords[0][1]) * src_scale_y));
 	if (pMask) {
-		OUT_RING_F(((maskXend - draw_coords[1][0]) / scale_units[1][0]));
-		OUT_RING_F(((maskYend - draw_coords[1][1]) / scale_units[1][1]));
+		OUT_RING_F(((maskXend - draw_coords[1][0]) * mask_scale_x));
+		OUT_RING_F(((maskYend - draw_coords[1][1]) * mask_scale_y));
 	}
 
-	OUT_RING((dstX+w));
-	OUT_RING((dstY));
-	OUT_RING_F(((srcXend - draw_coords[0][0]) / scale_units[0][0]));
-	OUT_RING_F(((srcY - draw_coords[0][1]) / scale_units[0][1]));
+	OUT_RING_F((dstX+w));
+	OUT_RING_F((dstY));
+	OUT_RING_F(((srcXend - draw_coords[0][0]) * src_scale_x));
+	OUT_RING_F(((srcY - draw_coords[0][1]) * src_scale_y));
 	if (pMask) {
-		OUT_RING_F(((maskXend - draw_coords[1][0]) / scale_units[1][0]));
-		OUT_RING_F(((maskY - draw_coords[1][1]) / scale_units[1][1]));
+		OUT_RING_F(((maskXend - draw_coords[1][0]) * mask_scale_x));
+		OUT_RING_F(((maskY - draw_coords[1][1]) * mask_scale_y));
 	}
 	ADVANCE_LP_RING();
     }

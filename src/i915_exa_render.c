@@ -408,6 +408,8 @@ ErrorF("i915 prepareComposite\n");
     dst_pitch = exaGetPixmapPitch(pDst);
     draw_coords[2][0] = pDst->drawable.x;
     draw_coords[2][1] = pDst->drawable.y;
+    scale_units[2][0] = pDst->drawable.width;
+    scale_units[2][1] = pDst->drawable.height;
     
     I915DefCtxSetup(pScrn);
 
@@ -446,7 +448,7 @@ ErrorF("i915 prepareComposite\n");
 	
 	/* XXX:S3? define vertex format with tex coord sets number*/
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1|I1_LOAD_S(2)|I1_LOAD_S(3)|
-		I1_LOAD_S(4)|1);
+		I1_LOAD_S(4)|3);
 	ss2 = S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D);
 	if (pMask)
 		ss2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_2D);
@@ -538,7 +540,7 @@ ErrorF("i915 prepareComposite\n");
 	blendctl = I915GetBlendCntl(op, pMaskPicture, pDstPicture->format);
 
 	BEGIN_LP_RING(2);
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(6) | 0);
+	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(6) | 1);
 	ss6 = S6_CBUF_BLEND_ENABLE | S6_COLOR_WRITE_ENABLE;
 	OUT_RING(ss6 | (0 << S6_CBUF_BLEND_FUNC_SHIFT) | blendctl);
 	ADVANCE_LP_RING();
