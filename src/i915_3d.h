@@ -350,8 +350,16 @@ _i915_fs_arith(int cmd, int dest_reg,
     return op;
 }
 
+/** Move operand0 to dest_reg */
+#define i915_fs_mov(dest_reg, operand0)					\
+do {									\
+    FS_OUT(i915_fs_arith(MOV, dest_reg, operand0,			\
+			 i915_fs_operand_none(),			\
+			 i915_fs_operand_none()));			\
+} while (0)
+
 /**
- * Move the values in operand0 to the dest reg with the masking/saturation
+ * Move the value in operand0 to the dest reg with the masking/saturation
  * specified.
  */
 #define i915_fs_mov_masked(dest_reg, dest_mask, operand0)		\

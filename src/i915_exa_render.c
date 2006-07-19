@@ -422,36 +422,40 @@ ErrorF("i915 prepareComposite\n");
 	ADVANCE_LP_RING();
     }
 
-	/* For (src In mask) operation */
-	/* IN operator: Multiply src by mask components or mask alpha.*/
-	/* TEXBLENDOP_MODULE: arg1*arg2 */
-
-	/* LOAD_IMMEDIATE_1 ss6 ??*/
-
-	/****
-	   shader program prototype:
-		dcl t0.xy
-		dcl t1.xy
-		dcl_2d s0   
-		dcl_2d s1
-		texld t0, s0
-		texld t1, s1
-		mul oC, t0, t1 ()
-	***/
     FS_BEGIN();
 
-    if (!pMask) {
-	i915_fs_dcl(FS_S0);
-	i915_fs_dcl(FS_T0);
-	i915_fs_texld(FS_OC, FS_S0, FS_T0);
-    } else {
-	i915_fs_dcl(FS_S0);
+    /* Declare the registers necessary for our program.  I don't think the
+     * S then T ordering is necessary.
+     */
+    i915_fs_dcl(FS_S0);
+    if (pMask)
 	i915_fs_dcl(FS_S1);
-	i915_fs_dcl(FS_T0);
+    i915_fs_dcl(FS_T0);
+    if (pMask)
 	i915_fs_dcl(FS_T1);
-	i915_fs_texld(FS_R0, FS_S0, FS_T0);
-	i915_fs_texld(FS_R1, FS_S1, FS_T1);
 
+    /* Load the pSrcPicture texel */
+    i915_fs_texld(FS_R0, FS_S0, FS_T0);
+    /* If the texture lacks an alpha channel, force the alpha to 1. */
+    if (PICT_FORMAT_A(pSrcPicture->format) == 0)
+	i915_fs_mov_masked(FS_R0, MASK_W, i915_fs_operand_one());
+
+    if (!pMask) {
+	/* No mask, so move to output color */
+	i915_fs_mov(FS_OC, i915_fs_operand_reg(FS_R0));
+    } else {
+	/* Load the pMaskPicture texel */
+	i915_fs_texld(FS_R1, FS_S1, FS_T1);
+	/* If the texture lacks an alpha channel, force the alpha to 1. */
+	if (PICT_FORMAT_A(pMaskPicture->format) == 0)
+	    i915_fs_mov_masked(FS_R1, MASK_W, i915_fs_operand_one());
+
+	/* If component alpha is set in the mask, then we need to provide
+	 * the source alpha component (channelwise multiplication) as the
+	 * output color.  If it isn't set, then we need to provide the
+	 * source value component, which is the multipliction of the source
+	 * by the mask alpha.
+	 */
 	if (pMaskPicture->componentAlpha && pDstPicture->format != PICT_a8) {
 	    i915_fs_mul(FS_OC, i915_fs_operand_reg(FS_R0),
 			i915_fs_operand_reg(FS_R1));
