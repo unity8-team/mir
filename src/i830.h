@@ -241,12 +241,12 @@ typedef struct _I830Rec {
    CreateScreenResourcesProcPtr    CreateScreenResources;
    int *used3D;
 
+   I830MemRange ContextMem;
 #ifdef XF86DRI
    I830MemRange BackBuffer;
    I830MemRange DepthBuffer;
    I830MemRange TexMem;
    int TexGranularity;
-   I830MemRange ContextMem;
    int drmMinor;
    Bool have3DWindows;
 #endif

@@ -58,6 +58,7 @@ i810_drv_la_SOURCES = \
 	 i830_3d.c \
 	 i830_reg.h \
 	 i915_3d.c \
+	 i915_3d.h \
 	 i915_reg.h \
 	 i830_exa.c \
 	 i830_xaa.c \

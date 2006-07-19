@@ -5797,7 +5797,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     * The extra WindowTable check detects a rotation at startup.
     */
    if ( (!WindowTable[pScrn->scrnIndex] || pspix->devPrivate.ptr == NULL) &&
-         !pI830->DGAactive ) {
+         !pI830->DGAactive && (pScrn->PointerMoved == I830PointerMoved) ) {
       if (!I830Rotate(pScrn, mode))
          ret = FALSE;
    }
