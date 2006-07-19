@@ -270,13 +270,13 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	BEGIN_LP_RING(6);
 	OUT_RING(_3DSTATE_MAP_STATE | 3);
 	OUT_RING(1<<unit);
-	OUT_RING(offset&MS2_ADDRESS_MASK);
+	OUT_RING(offset); /* Must be 4-byte aligned */
 	ms3 = (pPix->drawable.height << MS3_HEIGHT_SHIFT) | 
 		(pPix->drawable.width << MS3_WIDTH_SHIFT) | format;
 	if (!pI830->disableTiling)
 		ms3 |= MS3_USE_FENCE_REGS;
 	OUT_RING(ms3); 
-	OUT_RING(pitch<<MS4_PITCH_SHIFT);
+	OUT_RING(((pitch / 4) - 1) << MS4_PITCH_SHIFT);
 	OUT_RING(0);
 	ADVANCE_LP_RING();
      }

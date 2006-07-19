@@ -688,7 +688,9 @@
 
 
 
-/* p207 */
+/* p207.
+ * The DWORD count is 3 times the number of bits set in MS1_MAPMASK_MASK
+ */
 #define _3DSTATE_MAP_STATE               (CMD_3D|(0x1d<<24)|(0x0<<16))
 
 #define MS1_MAPMASK_SHIFT               0
@@ -755,6 +757,7 @@
 #define MS3_TILED_SURFACE             (1<<1)
 #define MS3_TILE_WALK                 (1<<0)
 
+/* The pitch is the pitch measured in DWORDS, minus 1 */
 #define MS4_PITCH_SHIFT                 21
 #define MS4_CUBE_FACE_ENA_NEGX          (1<<20)
 #define MS4_CUBE_FACE_ENA_POSX          (1<<19)
@@ -771,7 +774,9 @@
 #define MS4_VOLUME_DEPTH_SHIFT          0    
 #define MS4_VOLUME_DEPTH_MASK           (0xff<<0)
 
-/* p244 */
+/* p244.
+ * The DWORD count is 3 times the number of bits set in SS1_MAPMASK_MASK.
+ */
 #define _3DSTATE_SAMPLER_STATE         (CMD_3D|(0x1d<<24)|(0x1<<16))
 
 #define SS1_MAPMASK_SHIFT               0
