@@ -436,13 +436,13 @@ do {									\
 
 #define FS_END()							\
 do {									\
-    int _i;								\
-    BEGIN_LP_RING(_cur_shader_commands * 3 + 1);			\
+    int _i, _pad = (_cur_shader_commands & 0x1) ? 0 : 1;		\
+    BEGIN_LP_RING(_cur_shader_commands * 3 + 1 + _pad);			\
     OUT_RING(_3DSTATE_PIXEL_SHADER_PROGRAM |				\
 	     (_cur_shader_commands * 3 - 1));				\
     for (_i = 0; _i < _cur_shader_commands * 3; _i++)			\
 	OUT_RING(_shader_buf[_i]);					\
-    if ((_cur_shader_commands & 0x1) == 0)				\
+    if (_pad != 0)							\
 	OUT_RING(MI_NOOP);						\
     ADVANCE_LP_RING();							\
 } while (0);
