@@ -260,9 +260,9 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 
     {
 	CARD32 ms3;
-	if (pI830->cpp == 1)
+	if (pPix->drawable.bitsPerPixel == 8)
 		format |= MAPSURF_8BIT;
-	else if (pI830->cpp == 2)
+	else if (pPix->drawable.bitsPerPixel == 16)
 		format |= MAPSURF_16BIT;
 	else
 		format |= MAPSURF_32BIT;
