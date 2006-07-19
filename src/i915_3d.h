@@ -434,5 +434,7 @@ do {									\
 	     (_cur_shader_commands * 3 - 1));				\
     for (_i = 0; _i < _cur_shader_commands * 3; _i++)			\
 	OUT_RING(_shader_buf[_i]);					\
+    if ((_cur_shader_commands & 0x1) == 0)				\
+	OUT_RING(MI_NOOP);						\
     ADVANCE_LP_RING();							\
 } while (0);
