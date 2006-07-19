@@ -77,9 +77,7 @@ void I915EmitInvarientState( ScrnInfoPtr pScrn )
 
    /* Need to initialize this to zero.
     */
-   OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | 
-	     I1_LOAD_S(3) |
-	     (1));
+   OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 0);
    OUT_RING(0);
  
    /* XXX: Use this */
