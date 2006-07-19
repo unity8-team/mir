@@ -271,8 +271,8 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	OUT_RING(_3DSTATE_MAP_STATE | 3);
 	OUT_RING(1<<unit);
 	OUT_RING(offset); /* Must be 4-byte aligned */
-	ms3 = (pPix->drawable.height << MS3_HEIGHT_SHIFT) | 
-		(pPix->drawable.width << MS3_WIDTH_SHIFT) | format;
+	ms3 = ((pPix->drawable.height - 1) << MS3_HEIGHT_SHIFT) | 
+		((pPix->drawable.width - 1) << MS3_WIDTH_SHIFT) | format;
 	if (!pI830->disableTiling)
 		ms3 |= MS3_USE_FENCE_REGS;
 	OUT_RING(ms3); 
