@@ -1,3 +1,5 @@
+/* -*- c-basic-offset: 4 -*- */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -5,6 +7,7 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i915_reg.h"
+#include "i915_3d.h"
 
 #ifdef I830DEBUG
 #define DEBUG_I830FALLBACK 1
@@ -36,7 +39,8 @@ struct formatinfo {
 struct blendinfo {
     Bool dst_alpha;
     Bool src_alpha;
-    CARD32 blend_cntl;
+    CARD32 src_blend;
+    CARD32 dst_blend;
 };
 
 extern Bool
@@ -48,96 +52,33 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 			PicturePtr pMaskPicture, PicturePtr pDstPicture,
 			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
 
-/* copy from Eric's texture-video branch, move to header.. */
-#define OUT_DCL(type, nr) do {                                          \
-   CARD32 chans = 0;                                                    \
-   if (REG_TYPE_##type == REG_TYPE_T)                                   \
-      chans = D0_CHANNEL_ALL;                                           \
-   else if (REG_TYPE_##type != REG_TYPE_S)                              \
-      FatalError("wrong reg type %d to declare\n", REG_TYPE_##type);    \
-   OUT_RING(D0_DCL |                                                    \
-            (REG_TYPE_##type << D0_TYPE_SHIFT) | (nr << D0_NR_SHIFT) |  \
-            chans);                                                     \
-   OUT_RING(0x00000000);                                                \
-   OUT_RING(0x00000000);                                                \
-} while (0)
-
-#define OUT_TEXLD(dest_type, dest_nr, sampler_nr, addr_type, addr_nr)   \
-do {                                                                    \
-      OUT_RING(T0_TEXLD |                                               \
-               (REG_TYPE_##dest_type << T0_DEST_TYPE_SHIFT) |           \
-               (dest_nr << T0_DEST_NR_SHIFT) |                          \
-               (sampler_nr << T0_SAMPLER_NR_SHIFT));                    \
-      OUT_RING((REG_TYPE_##addr_type << T1_ADDRESS_REG_TYPE_SHIFT) |    \
-               (addr_nr << T1_ADDRESS_REG_NR_SHIFT));                   \
-      OUT_RING(0x00000000);                                             \
-} while (0)
-
-/* XXX: It seems that offset of 915's blendfactor in Load_immediate_1
-   is _different_ with i830, so I should just define plain value
-   and use it with shift bits*/
-
-#define I915_SRC_BLENDFACTOR_ZERO 		(1 << 8)
-#define I915_SRC_BLENDFACTOR_ONE 		(2 << 8)
-#define I915_SRC_BLENDFACTOR_SRC_COLOR		(3 << 8)
-#define I915_SRC_BLENDFACTOR_INV_SRC_COLOR	(4 << 8)
-#define I915_SRC_BLENDFACTOR_SRC_ALPHA		(5 << 8)
-#define I915_SRC_BLENDFACTOR_INV_SRC_ALPHA	(6 << 8)
-#define I915_SRC_BLENDFACTOR_DST_ALPHA		(7 << 8)
-#define I915_SRC_BLENDFACTOR_INV_DST_ALPHA	(8 << 8)
-#define I915_SRC_BLENDFACTOR_DST_COLOR		(9 << 8)
-#define I915_SRC_BLENDFACTOR_INV_DST_COLOR	(0xa << 8)
-#define I915_SRC_BLENDFACTOR_SRC_ALPHA_SATURATE (0xb << 8)
-#define I915_SRC_BLENDFACTOR_CONST_COLOR	(0xc << 8)
-#define I915_SRC_BLENDFACTOR_INV_CONST_COLOR	(0xd << 8)
-#define I915_SRC_BLENDFACTOR_CONST_ALPHA	(0xe << 8)
-#define I915_SRC_BLENDFACTOR_INV_CONST_ALPHA	(0xf << 8)
-#define I915_SRC_BLENDFACTOR_MASK		(0xf << 8)
-
-#define I915_DST_BLENDFACTOR_ZERO 		(1 << 4)
-#define I915_DST_BLENDFACTOR_ONE 		(2 << 4)
-#define I915_DST_BLENDFACTOR_SRC_COLOR		(3 << 4)
-#define I915_DST_BLENDFACTOR_INV_SRC_COLOR	(4 << 4)
-#define I915_DST_BLENDFACTOR_SRC_ALPHA		(5 << 4)
-#define I915_DST_BLENDFACTOR_INV_SRC_ALPHA	(6 << 4)
-#define I915_DST_BLENDFACTOR_DST_ALPHA		(7 << 4)
-#define I915_DST_BLENDFACTOR_INV_DST_ALPHA	(8 << 4)
-#define I915_DST_BLENDFACTOR_DST_COLOR		(9 << 4)
-#define I915_DST_BLENDFACTOR_INV_DST_COLOR	(0xa << 4)
-#define I915_DST_BLENDFACTOR_SRC_ALPHA_SATURATE (0xb << 4)
-#define I915_DST_BLENDFACTOR_CONST_COLOR	(0xc << 4)
-#define I915_DST_BLENDFACTOR_INV_CONST_COLOR	(0xd << 4)
-#define I915_DST_BLENDFACTOR_CONST_ALPHA	(0xe << 4)
-#define I915_DST_BLENDFACTOR_INV_CONST_ALPHA	(0xf << 4)
-#define I915_DST_BLENDFACTOR_MASK		(0xf << 4)
-
 static struct blendinfo I915BlendOp[] = { 
     /* Clear */
-    {0, 0, I915_SRC_BLENDFACTOR_ZERO           | I915_DST_BLENDFACTOR_ZERO},
+    {0, 0, BLENDFACT_ZERO,          BLENDFACT_ZERO},
     /* Src */
-    {0, 0, I915_SRC_BLENDFACTOR_ONE            | I915_DST_BLENDFACTOR_ZERO},
+    {0, 0, BLENDFACT_ONE,           BLENDFACT_ZERO},
     /* Dst */
-    {0, 0, I915_SRC_BLENDFACTOR_ZERO           | I915_DST_BLENDFACTOR_ONE},
+    {0, 0, BLENDFACT_ZERO,          BLENDFACT_ONE},
     /* Over */
-    {0, 1, I915_SRC_BLENDFACTOR_ONE            | I915_DST_BLENDFACTOR_INV_SRC_ALPHA},
+    {0, 1, BLENDFACT_ONE,           BLENDFACT_INV_SRC_ALPHA},
     /* OverReverse */
-    {1, 0, I915_SRC_BLENDFACTOR_INV_DST_ALPHA | I915_DST_BLENDFACTOR_ONE},
+    {1, 0, BLENDFACT_INV_DST_ALPHA, BLENDFACT_ONE},
     /* In */
-    {1, 0, I915_SRC_BLENDFACTOR_DST_ALPHA     | I915_DST_BLENDFACTOR_ZERO},
+    {1, 0, BLENDFACT_DST_ALPHA,     BLENDFACT_ZERO},
     /* InReverse */
-    {0, 1, I915_SRC_BLENDFACTOR_ZERO           | I915_DST_BLENDFACTOR_SRC_ALPHA},
+    {0, 1, BLENDFACT_ZERO,          BLENDFACT_SRC_ALPHA},
     /* Out */
-    {1, 0, I915_SRC_BLENDFACTOR_INV_DST_ALPHA | I915_DST_BLENDFACTOR_ZERO},
+    {1, 0, BLENDFACT_INV_DST_ALPHA, BLENDFACT_ZERO},
     /* OutReverse */
-    {0, 1, I915_SRC_BLENDFACTOR_ZERO           | I915_DST_BLENDFACTOR_INV_SRC_ALPHA},
+    {0, 1, BLENDFACT_ZERO,          BLENDFACT_INV_SRC_ALPHA},
     /* Atop */
-    {1, 1, I915_SRC_BLENDFACTOR_DST_ALPHA     | I915_DST_BLENDFACTOR_INV_SRC_ALPHA},
+    {1, 1, BLENDFACT_DST_ALPHA,     BLENDFACT_INV_SRC_ALPHA},
     /* AtopReverse */
-    {1, 1, I915_SRC_BLENDFACTOR_INV_DST_ALPHA | I915_DST_BLENDFACTOR_SRC_ALPHA},
+    {1, 1, BLENDFACT_INV_DST_ALPHA, BLENDFACT_SRC_ALPHA},
     /* Xor */
-    {1, 1, I915_SRC_BLENDFACTOR_INV_DST_ALPHA | I915_DST_BLENDFACTOR_INV_SRC_ALPHA},
+    {1, 1, BLENDFACT_INV_DST_ALPHA, BLENDFACT_INV_SRC_ALPHA},
     /* Add */
-    {0, 0, I915_SRC_BLENDFACTOR_ONE            | I915_DST_BLENDFACTOR_ONE},
+    {0, 0, BLENDFACT_ONE,           BLENDFACT_ONE},
 };
 
 static struct formatinfo I915TexFormats[] = {
@@ -155,17 +96,17 @@ static CARD32 I915GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
 {
     CARD32 sblend, dblend;
 
-    sblend = I915BlendOp[op].blend_cntl & I915_SRC_BLENDFACTOR_MASK;
-    dblend = I915BlendOp[op].blend_cntl & I915_DST_BLENDFACTOR_MASK;
+    sblend = I915BlendOp[op].src_blend;
+    dblend = I915BlendOp[op].dst_blend;
 
     /* If there's no dst alpha channel, adjust the blend op so that we'll treat
      * it as always 1.
      */
     if (PICT_FORMAT_A(dst_format) == 0 && I915BlendOp[op].dst_alpha) {
-        if (sblend == I915_SRC_BLENDFACTOR_DST_ALPHA)
-            sblend = I915_SRC_BLENDFACTOR_ONE;
-        else if (sblend == I915_SRC_BLENDFACTOR_INV_DST_ALPHA)
-            sblend = I915_SRC_BLENDFACTOR_ZERO;
+        if (sblend == BLENDFACT_DST_ALPHA)
+            sblend = BLENDFACT_ONE;
+        else if (sblend == BLENDFACT_INV_DST_ALPHA)
+            sblend = BLENDFACT_ZERO;
     }
 
     /* If the source alpha is being used, then we should only be in a case where
@@ -173,14 +114,15 @@ static CARD32 I915GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
      * channels multiplied by the source picture's alpha.
      */
     if (pMask && pMask->componentAlpha && I915BlendOp[op].src_alpha) {
-        if (dblend == I915_DST_BLENDFACTOR_SRC_ALPHA) {
-            dblend = I915_DST_BLENDFACTOR_SRC_COLOR;
-        } else if (dblend == I915_DST_BLENDFACTOR_INV_SRC_ALPHA) {
-            dblend = I915_DST_BLENDFACTOR_INV_SRC_COLOR;
+        if (dblend == BLENDFACT_SRC_ALPHA) {
+	    dblend = BLENDFACT_SRC_COLR;
+        } else if (dblend == BLENDFACT_INV_SRC_ALPHA) {
+	    dblend = BLENDFACT_INV_SRC_COLR;
         }
     }
 
-    return sblend | dblend;
+    return (sblend <<S6_CBUF_SRC_BLEND_FACT_SHIFT) |
+	(dblend <<S6_CBUF_DST_BLEND_FACT_SHIFT);
 }
 
 static Bool I915GetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
@@ -257,8 +199,7 @@ I915EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
          * source value that we get to blend with.
          */
         if (I915BlendOp[op].src_alpha &&
-            (I915BlendOp[op].blend_cntl & I915_SRC_BLENDFACTOR_MASK) !=
-             I915_SRC_BLENDFACTOR_ZERO)
+            (I915BlendOp[op].src_blend != BLENDFACT_ZERO))
             	I830FALLBACK("Component alpha not supported with source "
                             "alpha and source value blending.\n");
     }
@@ -410,6 +351,7 @@ ErrorF("i915 prepareComposite\n");
     draw_coords[2][1] = pDst->drawable.y;
     scale_units[2][0] = pDst->drawable.width;
     scale_units[2][1] = pDst->drawable.height;
+    FS_LOCALS(20);
     
     I915DefCtxSetup(pScrn);
 
@@ -426,6 +368,7 @@ ErrorF("i915 prepareComposite\n");
 
     {
 	CARD32 ss2;
+
 	BEGIN_LP_RING(24);
 	/*color buffer*/
 	OUT_RING(_3DSTATE_BUF_INFO_CMD);
@@ -495,46 +438,30 @@ ErrorF("i915 prepareComposite\n");
 		texld t1, s1
 		mul oC, t0, t1 ()
 	***/
+    FS_BEGIN();
+
     if (!pMask) {
-	BEGIN_LP_RING(1+3+3+3);
-	OUT_RING(_3DSTATE_PIXEL_SHADER_PROGRAM |(3*3-1));
-	OUT_DCL(S, 0);
-	OUT_DCL(T, 0);
-	OUT_TEXLD(OC, 0, 0, T, 0);
-	ADVANCE_LP_RING();
+	i915_fs_dcl(FS_S0);
+	i915_fs_dcl(FS_T0);
+	i915_fs_texld(FS_OC, FS_S0, FS_T0);
     } else {
-	BEGIN_LP_RING(1+3*6+3);
-	OUT_RING(_3DSTATE_PIXEL_SHADER_PROGRAM |(3*7-1));
-	OUT_DCL(S, 0);
-	OUT_DCL(S, 1);
-	OUT_DCL(T, 0);
-	OUT_DCL(T, 1);
-	OUT_TEXLD(R, 0, 0, T, 0);
-	OUT_TEXLD(R, 1, 1, T, 1);
+	i915_fs_dcl(FS_S0);
+	i915_fs_dcl(FS_S1);
+	i915_fs_dcl(FS_T0);
+	i915_fs_dcl(FS_T1);
+	i915_fs_texld(FS_R0, FS_S0, FS_T0);
+	i915_fs_texld(FS_R1, FS_S1, FS_T1);
+
 	if (pMaskPicture->componentAlpha && pDstPicture->format != PICT_a8) {
-		/* then just mul */
-		OUT_RING(A0_MUL | (REG_TYPE_OC << A0_DEST_TYPE_SHIFT) | 
-			(0 << A0_DEST_NR_SHIFT) | A0_DEST_CHANNEL_ALL | 
-			(REG_TYPE_R << A0_SRC0_TYPE_SHIFT) | (0 << A0_SRC0_NR_SHIFT));
-		OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT)|(SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT)|
-			(SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT)|(SRC_W << A1_SRC0_CHANNEL_W_SHIFT)|
-			(REG_TYPE_R << A1_SRC1_TYPE_SHIFT) | (1 << A1_SRC1_NR_SHIFT) |
-			(SRC_X << A1_SRC1_CHANNEL_X_SHIFT) | (SRC_Y << A1_SRC1_CHANNEL_Y_SHIFT));
-		OUT_RING((SRC_Z << A2_SRC1_CHANNEL_Z_SHIFT) | (SRC_W << A2_SRC1_CHANNEL_W_SHIFT));
+	    i915_fs_mul(FS_OC, i915_fs_operand_reg(FS_R0),
+			i915_fs_operand_reg(FS_R1));
 	} else {
-		/* we should duplicate R1's w for all channel, Arithemic can choose channel to use! */
-		OUT_RING(A0_MUL | (REG_TYPE_OC << A0_DEST_TYPE_SHIFT) |
-			(0 << A0_DEST_NR_SHIFT) | A0_DEST_CHANNEL_ALL |
-			(REG_TYPE_R << A0_SRC0_TYPE_SHIFT) | (0 << A0_SRC0_NR_SHIFT));
-		OUT_RING((SRC_X << A1_SRC0_CHANNEL_X_SHIFT) | (SRC_Y << A1_SRC0_CHANNEL_Y_SHIFT) |
-			(SRC_Z << A1_SRC0_CHANNEL_Z_SHIFT) | (SRC_W << A1_SRC0_CHANNEL_W_SHIFT) |
-			(REG_TYPE_R << A1_SRC1_TYPE_SHIFT) | (1 << A1_SRC1_NR_SHIFT) |
-			(SRC_W << A1_SRC1_CHANNEL_X_SHIFT) | (SRC_W << A1_SRC1_CHANNEL_Y_SHIFT));
-		OUT_RING((SRC_W << A2_SRC1_CHANNEL_Z_SHIFT) | (SRC_W << A2_SRC1_CHANNEL_W_SHIFT));
+	    i915_fs_mul(FS_OC, i915_fs_operand_reg(FS_R0),
+			i915_fs_operand(FS_R1, W, W, W, W));
 	}
-	ADVANCE_LP_RING();
     }
-		
+    FS_END();
+
     {
 	CARD32 ss6;
 	blendctl = I915GetBlendCntl(op, pMaskPicture, pDstPicture->format);

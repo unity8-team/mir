@@ -375,6 +375,13 @@ do {									\
 			 i915_fs_operand_none()));			\
 } while (0)
 
+/** Add operand0 and operand1 and put the result in dest_reg */
+#define i915_fs_mul(dest_reg, operand0, operand1)			\
+do {									\
+    FS_OUT(i915_fs_arith(MUL, dest_reg, operand0, operand1,		\
+			 i915_fs_operand_none()));			\
+} while (0)
+
 /**
  * Perform a 3-component dot-product of operand0 and operand1 and put the
  * resulting scalar in the channels of dest_reg specified by the dest_mask.
