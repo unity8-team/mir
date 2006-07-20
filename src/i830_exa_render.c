@@ -31,7 +31,8 @@ extern PictTransform *transform[2];
 struct blendinfo {
     Bool dst_alpha;
     Bool src_alpha;
-    CARD32 blend_cntl;
+    CARD32 src_blend;
+    CARD32 dst_blend;
 };
 
 struct formatinfo {
@@ -48,41 +49,6 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 			PicturePtr pMaskPicture, PicturePtr pDstPicture,
 			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
 
-/* I830's Blend factor definition, LOAD_STATE_IMMEDIATE_1 */
-/* move to header...*/
-#define I830_SRC_BLENDFACTOR_ZERO 		(1 << 4)
-#define I830_SRC_BLENDFACTOR_ONE 		(2 << 4)
-#define I830_SRC_BLENDFACTOR_SRC_COLOR		(3 << 4)
-#define I830_SRC_BLENDFACTOR_INV_SRC_COLOR	(4 << 4)
-#define I830_SRC_BLENDFACTOR_SRC_ALPHA		(5 << 4)
-#define I830_SRC_BLENDFACTOR_INV_SRC_ALPHA	(6 << 4)
-#define I830_SRC_BLENDFACTOR_DST_ALPHA		(7 << 4)
-#define I830_SRC_BLENDFACTOR_INV_DST_ALPHA	(8 << 4)
-#define I830_SRC_BLENDFACTOR_DST_COLOR		(9 << 4)
-#define I830_SRC_BLENDFACTOR_INV_DST_COLOR	(0xa << 4)
-#define I830_SRC_BLENDFACTOR_SRC_ALPHA_SATURATE (0xb << 4)
-#define I830_SRC_BLENDFACTOR_CONST_COLOR	(0xc << 4)
-#define I830_SRC_BLENDFACTOR_INV_CONST_COLOR	(0xd << 4)
-#define I830_SRC_BLENDFACTOR_CONST_ALPHA	(0xe << 4)
-#define I830_SRC_BLENDFACTOR_INV_CONST_ALPHA	(0xf << 4)
-#define I830_SRC_BLENDFACTOR_MASK		(0xf << 4)
-
-#define I830_DST_BLENDFACTOR_ZERO 		(1)
-#define I830_DST_BLENDFACTOR_ONE 		(2)
-#define I830_DST_BLENDFACTOR_SRC_COLOR		(3)
-#define I830_DST_BLENDFACTOR_INV_SRC_COLOR	(4)
-#define I830_DST_BLENDFACTOR_SRC_ALPHA		(5)
-#define I830_DST_BLENDFACTOR_INV_SRC_ALPHA	(6)
-#define I830_DST_BLENDFACTOR_DST_ALPHA		(7)
-#define I830_DST_BLENDFACTOR_INV_DST_ALPHA	(8)
-#define I830_DST_BLENDFACTOR_DST_COLOR		(9)
-#define I830_DST_BLENDFACTOR_INV_DST_COLOR	(0xa)
-#define I830_DST_BLENDFACTOR_SRC_ALPHA_SATURATE (0xb)
-#define I830_DST_BLENDFACTOR_CONST_COLOR	(0xc)
-#define I830_DST_BLENDFACTOR_INV_CONST_COLOR	(0xd)
-#define I830_DST_BLENDFACTOR_CONST_ALPHA	(0xe)
-#define I830_DST_BLENDFACTOR_INV_CONST_ALPHA	(0xf)
-#define I830_DST_BLENDFACTOR_MASK		(0xf)
 
 #define TB0C_LAST_STAGE	(1 << 31)
 #define TB0C_RESULT_SCALE_1X		(0 << 29)
@@ -132,38 +98,34 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 #define TB0A_ARG1_SEL_TEXEL1		(7 << 6)
 #define TB0A_ARG1_SEL_TEXEL2		(8 << 6)
 #define TB0A_ARG1_SEL_TEXEL3		(9 << 6)
-#define TB0A_ARG0_SEL_XXX
-
-/* end */
-
 
 static struct blendinfo I830BlendOp[] = { 
     /* Clear */
-    {0, 0, I830_SRC_BLENDFACTOR_ZERO           | I830_DST_BLENDFACTOR_ZERO},
+    {0, 0, BLENDFACTOR_ZERO, 		BLENDFACTOR_ZERO},
     /* Src */
-    {0, 0, I830_SRC_BLENDFACTOR_ONE            | I830_DST_BLENDFACTOR_ZERO},
+    {0, 0, BLENDFACTOR_ONE, 		BLENDFACTOR_ZERO},
     /* Dst */
-    {0, 0, I830_SRC_BLENDFACTOR_ZERO           | I830_DST_BLENDFACTOR_ONE},
+    {0, 0, BLENDFACTOR_ZERO,		BLENDFACTOR_ONE},
     /* Over */
-    {0, 1, I830_SRC_BLENDFACTOR_ONE            | I830_DST_BLENDFACTOR_INV_SRC_ALPHA},
+    {0, 1, BLENDFACTOR_ONE,		BLENDFACTOR_INV_SRC_ALPHA},
     /* OverReverse */
-    {1, 0, I830_SRC_BLENDFACTOR_INV_DST_ALPHA | I830_DST_BLENDFACTOR_ONE},
+    {1, 0, BLENDFACTOR_INV_DST_ALPHA,	BLENDFACTOR_ONE},
     /* In */
-    {1, 0, I830_SRC_BLENDFACTOR_DST_ALPHA     | I830_DST_BLENDFACTOR_ZERO},
+    {1, 0, BLENDFACTOR_DST_ALPHA,	BLENDFACTOR_ZERO},
     /* InReverse */
-    {0, 1, I830_SRC_BLENDFACTOR_ZERO           | I830_DST_BLENDFACTOR_SRC_ALPHA},
+    {0, 1, BLENDFACTOR_ZERO,		BLENDFACTOR_SRC_ALPHA},
     /* Out */
-    {1, 0, I830_SRC_BLENDFACTOR_INV_DST_ALPHA | I830_DST_BLENDFACTOR_ZERO},
+    {1, 0, BLENDFACTOR_INV_DST_ALPHA,	BLENDFACTOR_ZERO},
     /* OutReverse */
-    {0, 1, I830_SRC_BLENDFACTOR_ZERO           | I830_DST_BLENDFACTOR_INV_SRC_ALPHA},
+    {0, 1, BLENDFACTOR_ZERO,		BLENDFACTOR_INV_SRC_ALPHA},
     /* Atop */
-    {1, 1, I830_SRC_BLENDFACTOR_DST_ALPHA     | I830_DST_BLENDFACTOR_INV_SRC_ALPHA},
+    {1, 1, BLENDFACTOR_DST_ALPHA,	BLENDFACTOR_INV_SRC_ALPHA},
     /* AtopReverse */
-    {1, 1, I830_SRC_BLENDFACTOR_INV_DST_ALPHA | I830_DST_BLENDFACTOR_SRC_ALPHA},
+    {1, 1, BLENDFACTOR_INV_DST_ALPHA,	BLENDFACTOR_SRC_ALPHA},
     /* Xor */
-    {1, 1, I830_SRC_BLENDFACTOR_INV_DST_ALPHA | I830_DST_BLENDFACTOR_INV_SRC_ALPHA},
+    {1, 1, BLENDFACTOR_INV_DST_ALPHA,	BLENDFACTOR_INV_SRC_ALPHA},
     /* Add */
-    {0, 0, I830_SRC_BLENDFACTOR_ONE            | I830_DST_BLENDFACTOR_ONE},
+    {0, 0, BLENDFACTOR_ONE, 		BLENDFACTOR_ONE},
 };
 
 
@@ -213,17 +175,17 @@ static CARD32 I830GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
 {
     CARD32 sblend, dblend;
 
-    sblend = I830BlendOp[op].blend_cntl & I830_SRC_BLENDFACTOR_MASK;
-    dblend = I830BlendOp[op].blend_cntl & I830_DST_BLENDFACTOR_MASK;
+    sblend = I830BlendOp[op].src_blend;
+    dblend = I830BlendOp[op].dst_blend;
 
     /* If there's no dst alpha channel, adjust the blend op so that we'll treat
      * it as always 1.
      */
     if (PICT_FORMAT_A(dst_format) == 0 && I830BlendOp[op].dst_alpha) {
-        if (sblend == I830_SRC_BLENDFACTOR_DST_ALPHA)
-            sblend = I830_SRC_BLENDFACTOR_ONE;
-        else if (sblend == I830_SRC_BLENDFACTOR_INV_DST_ALPHA)
-            sblend = I830_SRC_BLENDFACTOR_ZERO;
+        if (sblend == BLENDFACTOR_DST_ALPHA)
+            sblend = BLENDFACTOR_ONE;
+        else if (sblend == BLENDFACTOR_INV_DST_ALPHA)
+            sblend = BLENDFACTOR_ZERO;
     }
 
     /* If the source alpha is being used, then we should only be in a case where
@@ -231,14 +193,15 @@ static CARD32 I830GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
      * channels multiplied by the source picture's alpha.
      */
     if (pMask && pMask->componentAlpha && I830BlendOp[op].src_alpha) {
-        if (dblend == I830_DST_BLENDFACTOR_SRC_ALPHA) {
-            dblend = I830_DST_BLENDFACTOR_SRC_COLOR;
-        } else if (dblend == I830_DST_BLENDFACTOR_INV_SRC_ALPHA) {
-            dblend = I830_DST_BLENDFACTOR_INV_SRC_COLOR;
+        if (dblend == BLENDFACTOR_SRC_ALPHA) {
+            dblend = BLENDFACTOR_SRC_COLR;
+        } else if (dblend == BLENDFACTOR_INV_SRC_ALPHA) {
+            dblend = BLENDFACTOR_INV_SRC_COLR;
         }
     }
 
-    return sblend | dblend;
+    return (sblend << S8_SRC_BLEND_FACTOR_SHIFT) | 
+		(dblend << S8_DST_BLEND_FACTOR_SHIFT);
 }
 
 static Bool I830CheckCompositeTexture(PicturePtr pPict, int unit)
@@ -386,8 +349,7 @@ I830EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
          * source value that we get to blend with.
          */
         if (I830BlendOp[op].src_alpha &&
-            (I830BlendOp[op].blend_cntl & I830_SRC_BLENDFACTOR_MASK) !=
-             I830_SRC_BLENDFACTOR_ZERO)
+            (I830BlendOp[op].src_blend != BLENDFACTOR_ZERO))
             	I830FALLBACK("Component alpha not supported with source "
                             "alpha and source value blending.\n");
     }
