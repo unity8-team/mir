@@ -365,25 +365,6 @@ I830EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
     return TRUE;
 }
 
-
-static void
-I830DefCtxSetup(ScrnInfoPtr pScrn)
-{
-	/* coord binding */
-	CARD32 mcb;
-    	I830Ptr pI830 = I830PTR(pScrn);
-
-	BEGIN_LP_RING(2);
-	OUT_RING(_3DSTATE_MAP_COORD_SETBIND_CMD);
-	mcb = TEXBIND_SET3(TEXCOORDSRC_VTXSET_3);
-	mcb |= TEXBIND_SET2(TEXCOORDSRC_VTXSET_2);
-	mcb |= TEXBIND_SET1(TEXCOORDSRC_VTXSET_1);
-	mcb |= TEXBIND_SET0(TEXCOORDSRC_VTXSET_0);
-	OUT_RING(mcb);
-	ADVANCE_LP_RING();
-}
-
-
 Bool
 I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 			PicturePtr pMaskPicture, PicturePtr pDstPicture,
@@ -400,8 +381,6 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     draw_coords[2][0] = pDst->drawable.x;
     draw_coords[2][1] = pDst->drawable.y;
     
-    I830DefCtxSetup(pScrn);
-
     if (!I830TextureSetup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
     if (pMask != NULL) {
