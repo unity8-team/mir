@@ -318,20 +318,6 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     return TRUE;
 }
 
-static void
-I915DefCtxSetup(ScrnInfoPtr pScrn)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    BEGIN_LP_RING(2);
-    /* set default texture binding, may be in prepare better */
-    OUT_RING(_3DSTATE_COORD_SET_BINDINGS | CSB_TCB(0,0) | CSB_TCB(1,1) |
-	CSB_TCB(2,2) | CSB_TCB(3,3) | CSB_TCB(4,4) | CSB_TCB(5,5) |
-	CSB_TCB(6,6) | CSB_TCB(7,7));
-    OUT_RING(0);
-    ADVANCE_LP_RING();
-}
-
 Bool
 I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 			PicturePtr pMaskPicture, PicturePtr pDstPicture,
@@ -353,8 +339,6 @@ ErrorF("i915 prepareComposite\n");
     scale_units[2][1] = pDst->drawable.height;
     FS_LOCALS(20);
     
-    I915DefCtxSetup(pScrn);
-
     if (!I915TextureSetup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
     if (pMask != NULL) {
