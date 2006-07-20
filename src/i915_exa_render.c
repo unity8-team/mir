@@ -221,7 +221,7 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 format, offset, pitch, filter;
     int w, h, i;
-    CARD32 wrap_mode = TEXCOORDMODE_CLAMP_EDGE; 
+    CARD32 wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
 
     offset = exaGetPixmapOffset(pPix);
     pitch = exaGetPixmapPitch(pPix);
@@ -239,8 +239,8 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     format = I915TexFormats[i].card_fmt;
 
     if (pPict->repeat) 
-	wrap_mode = TEXCOORDMODE_WRAP; /* XXX:correct ? */
-    
+	wrap_mode = TEXCOORDMODE_WRAP;
+
     switch (pPict->filter) {
     case PictFilterNearest:
         filter = (FILTER_NEAREST << SS2_MAG_FILTER_SHIFT) | 
@@ -289,12 +289,12 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	ss2 |= filter;
 	OUT_RING(ss2);
 	/* repeat? */
-	ss3 = TEXCOORDMODE_WRAP << SS3_TCX_ADDR_MODE_SHIFT;
-	ss3 |= (TEXCOORDMODE_WRAP << SS3_TCY_ADDR_MODE_SHIFT);
+	ss3 = wrap_mode << SS3_TCX_ADDR_MODE_SHIFT;
+	ss3 |= wrap_mode << SS3_TCY_ADDR_MODE_SHIFT;
 	ss3 |= SS3_NORMALIZED_COORDS;
 	ss3 |= (unit << SS3_TEXTUREMAP_INDEX_SHIFT);
 	OUT_RING(ss3);
-	OUT_RING(0x00000000); /* default color */
+	OUT_RING(0x00000000); /* border color */
 	OUT_RING(0);
 
 	ADVANCE_LP_RING();
