@@ -506,8 +506,8 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
 	OUT_RING(PRIM3D_INLINE | PRIM3D_TRIFAN | (vertex_count-1));
 
-	OUT_RING(dstX);
-	OUT_RING(dstY);
+	OUT_RING_F(dstX);
+	OUT_RING_F(dstY);
 	OUT_RING_F(((srcX - draw_coords[0][0]) / scale_units[0][0]));
 	OUT_RING_F(((srcY - draw_coords[0][1]) / scale_units[0][1]));
 	if (pMask) {
@@ -515,8 +515,8 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		OUT_RING_F(((maskY - draw_coords[1][1]) / scale_units[1][1]));
 	}
 
-	OUT_RING(dstX);
-	OUT_RING((dstY+h));
+	OUT_RING_F(dstX);
+	OUT_RING_F((dstY+h));
 	OUT_RING_F(((srcX - draw_coords[0][0]) / scale_units[0][0]));
 	OUT_RING_F(((srcYend - draw_coords[0][1]) / scale_units[0][1]));
 	if (pMask) {
@@ -524,8 +524,8 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		OUT_RING_F(((maskYend - draw_coords[1][1]) / scale_units[1][1]));
 	}
 
-	OUT_RING((dstX+w));
-	OUT_RING((dstY+h));
+	OUT_RING_F((dstX+w));
+	OUT_RING_F((dstY+h));
 	OUT_RING_F(((srcXend - draw_coords[0][0]) / scale_units[0][0]));
 	OUT_RING_F(((srcYend - draw_coords[0][1]) / scale_units[0][1]));
 	if (pMask) {
@@ -533,8 +533,8 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		OUT_RING_F(((maskYend - draw_coords[1][1]) / scale_units[1][1]));
 	}
 
-	OUT_RING((dstX+w));
-	OUT_RING((dstY));
+	OUT_RING_F((dstX+w));
+	OUT_RING_F((dstY));
 	OUT_RING_F(((srcXend - draw_coords[0][0]) / scale_units[0][0]));
 	OUT_RING_F(((srcY - draw_coords[0][1]) / scale_units[0][1]));
 	if (pMask) {
