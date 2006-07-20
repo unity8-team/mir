@@ -88,7 +88,7 @@ static struct formatinfo I915TexFormats[] = {
         {PICT_r5g6b5,   MT_16BIT_RGB565   },
         {PICT_a1r5g5b5, MT_16BIT_ARGB1555 },
         {PICT_x1r5g5b5, MT_16BIT_ARGB1555 },
-        {PICT_a8,       MT_8BIT_I8 	  },
+        {PICT_a8,       MT_8BIT_A8 	  },
 };
 
 static CARD32 I915GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
