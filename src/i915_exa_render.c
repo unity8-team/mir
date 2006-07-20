@@ -27,7 +27,6 @@ do { 							\
 #endif
 
 extern float scale_units[2][2];
-extern int draw_coords[3][2];
 extern Bool is_transform[2];
 extern PictTransform *transform[2];
 
@@ -230,8 +229,6 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     h = pPict->pDrawable->height;
     scale_units[unit][0] = pPix->drawable.width;
     scale_units[unit][1] = pPix->drawable.height;
-    draw_coords[unit][0] = pPix->drawable.x;
-    draw_coords[unit][1] = pPix->drawable.y;
 
     for (i = 0; i < sizeof(I915TexFormats) / sizeof(I915TexFormats[0]); i++) {
         if (I915TexFormats[i].fmt == pPict->format)
@@ -333,8 +330,6 @@ ErrorF("i915 prepareComposite\n");
     I915GetDestFormat(pDstPicture, &dst_format);
     dst_offset = exaGetPixmapOffset(pDst);
     dst_pitch = exaGetPixmapPitch(pDst);
-    draw_coords[2][0] = pDst->drawable.x;
-    draw_coords[2][1] = pDst->drawable.y;
     scale_units[2][0] = pDst->drawable.width;
     scale_units[2][1] = pDst->drawable.height;
     FS_LOCALS(20);

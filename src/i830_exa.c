@@ -56,7 +56,6 @@ do { 							\
 #endif
 
 float scale_units[2][2];
-int draw_coords[3][2];
 
 const int I830CopyROP[16] =
 {
@@ -431,13 +430,12 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     int pMask = 1;
 
     DPRINTF(PFX, "Composite: srcX %d, srcY %d\n\t maskX %d, maskY %d\n\t"
-	     "dstX %d, dstY %d\n\twidth %d, height %d\n\t"
-	     "src_scale_x %f, src_scale_y %f, mask_scale_x %f, mask_scale_y %f\n""\tdx0 %d, dy0 %x, dx1 %d dy1 %x\n", 
-		srcX, srcY, maskX, maskY, dstX, dstY, w, h,
-		scale_units[0][0], scale_units[0][1], 
-		scale_units[1][0], scale_units[1][1],
-		draw_coords[0][0], draw_coords[0][1], 
-		draw_coords[1][0], draw_coords[1][1]);
+	    "dstX %d, dstY %d\n\twidth %d, height %d\n\t"
+	    "src_scale_x %f, src_scale_y %f, "
+	    "mask_scale_x %f, mask_scale_y %f\n",
+	    srcX, srcY, maskX, maskY, dstX, dstY, w, h,
+	    scale_units[0][0], scale_units[0][1],
+	    scale_units[1][0], scale_units[1][1]);
 
     if (scale_units[1][0] == -1 || scale_units[1][1] == -1) {
 	ErrorF("mask is null\n");
@@ -481,13 +479,6 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		"dstX %d, dstY %d\n", srcX, srcY, srcXend, srcYend,
 		maskX, maskY, maskXend, maskYend, dstX, dstY);
 
-    draw_coords[0][0] -= draw_coords[2][0];
-    draw_coords[0][1] -= draw_coords[2][1];
-    if (pMask) {
-	draw_coords[1][0] -= draw_coords[2][0];
-	draw_coords[1][1] -= draw_coords[2][1];
-    }
-
     {
 	int vertex_count; 
 
@@ -508,38 +499,38 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
 	OUT_RING_F(dstX);
 	OUT_RING_F(dstY);
-	OUT_RING_F(((srcX - draw_coords[0][0]) / scale_units[0][0]));
-	OUT_RING_F(((srcY - draw_coords[0][1]) / scale_units[0][1]));
+	OUT_RING_F(srcX / scale_units[0][0]);
+	OUT_RING_F(srcY / scale_units[0][1]);
 	if (pMask) {
-		OUT_RING_F(((maskX - draw_coords[1][0]) / scale_units[1][0]));
-		OUT_RING_F(((maskY - draw_coords[1][1]) / scale_units[1][1]));
+		OUT_RING_F(maskX / scale_units[1][0]);
+		OUT_RING_F(maskY / scale_units[1][1]);
 	}
 
 	OUT_RING_F(dstX);
-	OUT_RING_F((dstY+h));
-	OUT_RING_F(((srcX - draw_coords[0][0]) / scale_units[0][0]));
-	OUT_RING_F(((srcYend - draw_coords[0][1]) / scale_units[0][1]));
+	OUT_RING_F(dstY + h);
+	OUT_RING_F(srcX / scale_units[0][0]);
+	OUT_RING_F(srcYend / scale_units[0][1]);
 	if (pMask) {
-		OUT_RING_F(((maskX - draw_coords[1][0]) / scale_units[1][0]));
-		OUT_RING_F(((maskYend - draw_coords[1][1]) / scale_units[1][1]));
+		OUT_RING_F(maskX / scale_units[1][0]);
+		OUT_RING_F(maskYend / scale_units[1][1]);
 	}
 
-	OUT_RING_F((dstX+w));
-	OUT_RING_F((dstY+h));
-	OUT_RING_F(((srcXend - draw_coords[0][0]) / scale_units[0][0]));
-	OUT_RING_F(((srcYend - draw_coords[0][1]) / scale_units[0][1]));
+	OUT_RING_F(dstX + w);
+	OUT_RING_F(dstY + h);
+	OUT_RING_F(srcXend / scale_units[0][0]);
+	OUT_RING_F(srcYend / scale_units[0][1]);
 	if (pMask) {
-		OUT_RING_F(((maskXend - draw_coords[1][0]) / scale_units[1][0]));
-		OUT_RING_F(((maskYend - draw_coords[1][1]) / scale_units[1][1]));
+		OUT_RING_F(maskXend / scale_units[1][0]);
+		OUT_RING_F(maskYend / scale_units[1][1]);
 	}
 
-	OUT_RING_F((dstX+w));
-	OUT_RING_F((dstY));
-	OUT_RING_F(((srcXend - draw_coords[0][0]) / scale_units[0][0]));
-	OUT_RING_F(((srcY - draw_coords[0][1]) / scale_units[0][1]));
+	OUT_RING_F(dstX + w);
+	OUT_RING_F(dstY);
+	OUT_RING_F(srcXend / scale_units[0][0]);
+	OUT_RING_F(srcY / scale_units[0][1]);
 	if (pMask) {
-		OUT_RING_F(((maskXend - draw_coords[1][0]) / scale_units[1][0]));
-		OUT_RING_F(((maskY - draw_coords[1][1]) / scale_units[1][1]));
+		OUT_RING_F(maskXend / scale_units[1][0]);
+		OUT_RING_F(maskY / scale_units[1][1]);
 	}
 	ADVANCE_LP_RING();
     }

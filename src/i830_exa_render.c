@@ -24,7 +24,6 @@ do { 							\
 #endif
 
 extern float scale_units[2][2];
-extern int draw_coords[3][2];
 extern Bool is_transform[2];
 extern PictTransform *transform[2];
 
@@ -249,8 +248,6 @@ I830TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     h = pPict->pDrawable->height;
     scale_units[unit][0] = pPix->drawable.width;
     scale_units[unit][1] = pPix->drawable.height;
-    draw_coords[unit][0] = pPix->drawable.x;
-    draw_coords[unit][1] = pPix->drawable.y;
 
     for (i = 0; i < sizeof(I830TexFormats) / sizeof(I830TexFormats[0]); i++) {
         if (I830TexFormats[i].fmt == pPict->format)
@@ -378,9 +375,7 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     I830GetDestFormat(pDstPicture, &dst_format);
     dst_offset = exaGetPixmapOffset(pDst);
     dst_pitch = exaGetPixmapPitch(pDst);
-    draw_coords[2][0] = pDst->drawable.x;
-    draw_coords[2][1] = pDst->drawable.y;
-    
+
     if (!I830TextureSetup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
     if (pMask != NULL) {
