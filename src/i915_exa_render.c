@@ -348,7 +348,7 @@ ErrorF("i915 prepareComposite\n");
     {
 	CARD32 ss2;
 
-	BEGIN_LP_RING(24);
+	BEGIN_LP_RING(26);
 	/*color buffer*/
 	OUT_RING(_3DSTATE_BUF_INFO_CMD);
 	OUT_RING(BUF_3D_ID_COLOR_BACK| BUF_3D_PITCH(dst_pitch)); /* fence, tile? */
@@ -369,8 +369,8 @@ ErrorF("i915 prepareComposite\n");
 	OUT_RING(0);
 	
 	/* XXX:S3? define vertex format with tex coord sets number*/
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
-		 I1_LOAD_S(3) | I1_LOAD_S(4) | 2);
+	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | 
+		 I1_LOAD_S(3) | I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 4);
 	ss2 = S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D);
 	if (pMask)
 		ss2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_2D);
@@ -383,9 +383,13 @@ ErrorF("i915 prepareComposite\n");
 	ss2 |= S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT);
 	ss2 |= S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT);
 	OUT_RING(ss2);
-	OUT_RING(0x00000000); /*XXX: does ss3 needed? */
+	OUT_RING(0x00000000); /* Disable texture coordinate wrap-shortest */
 	OUT_RING((1<<S4_POINT_WIDTH_SHIFT)|S4_LINE_WIDTH_ONE| 
 		S4_CULLMODE_NONE| S4_VFMT_XY);  
+	blendctl = I915GetBlendCntl(op, pMaskPicture, pDstPicture->format);
+	OUT_RING(0x00000000); /* Disable stencil buffer */
+	OUT_RING(S6_CBUF_BLEND_ENABLE | S6_COLOR_WRITE_ENABLE |
+		 (BLENDFUNC_ADD << S6_CBUF_BLEND_FUNC_SHIFT) | blendctl);
 
 	/* issue a flush */
 	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
@@ -444,17 +448,6 @@ ErrorF("i915 prepareComposite\n");
 	}
     }
     FS_END();
-
-    {
-	CARD32 ss6;
-	blendctl = I915GetBlendCntl(op, pMaskPicture, pDstPicture->format);
-
-	BEGIN_LP_RING(2);
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(6) | 0);
-	ss6 = S6_CBUF_BLEND_ENABLE | S6_COLOR_WRITE_ENABLE;
-	OUT_RING(ss6 | (0 << S6_CBUF_BLEND_FUNC_SHIFT) | blendctl);
-	ADVANCE_LP_RING();
-    }
 
 #ifdef I830DEBUG
     ErrorF("try to sync to show any errors...");
