@@ -315,9 +315,9 @@ I830TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     }
 
     {
-	if (pI830->cpp == 1)
+	if (pPix->drawable.bitsPerPixel == 8)
 		format |= MAP_SURFACE_8BIT;
-	else if (pI830->cpp == 2)
+	else if (pPix->drawable.bitsPerPixel == 16)
 		format |= MAP_SURFACE_16BIT;
 	else
 		format |= MAP_SURFACE_32BIT;
@@ -325,9 +325,10 @@ I830TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	BEGIN_LP_RING(6);
 	OUT_RING(_3DSTATE_MAP_INFO_CMD);
 	OUT_RING(format | TEXMAP_INDEX(unit) | MAP_FORMAT_2D);
-	OUT_RING((pPix->drawable.height<<16)|pPix->drawable.width); /* height, width */
-	OUT_RING(offset<<2); /* map address */
-	OUT_RING(pitch<<2); /* map pitch */
+	OUT_RING(((pPix->drawable.height - 1) << 16) |
+		(pPix->drawable.width - 1)); /* height, width */
+	OUT_RING(offset); /* map address */
+	OUT_RING(((pitch / 4) - 1) << 2); /* map pitch */
 	OUT_RING(0);
 	ADVANCE_LP_RING();
      }
@@ -336,8 +337,9 @@ I830TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	BEGIN_LP_RING(2);
 	/* coord sets */
 	OUT_RING(_3DSTATE_MAP_COORD_SET_CMD | TEXCOORD_SET(unit) | 
-		ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL | /*XXX, check this, and fix vertex tex coord*/
-		TEXCOORDTYPE_CARTESIAN | ENABLE_ADDR_V_CNTL | TEXCOORD_ADDR_V_MODE(wrap_mode) |
+		ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL | 
+		TEXCOORDTYPE_CARTESIAN | ENABLE_ADDR_V_CNTL | 
+		TEXCOORD_ADDR_V_MODE(wrap_mode) |
 		ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
 	OUT_RING(MI_NOOP);
 
@@ -453,7 +455,7 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 
 	CARD32 cblend, ablend, blendctl, vf2;
 
-	BEGIN_LP_RING(22);
+	BEGIN_LP_RING(22+6);
 	
 	/*color buffer*/
 	OUT_RING(_3DSTATE_BUF_INFO_CMD);
@@ -464,6 +466,8 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	OUT_RING(_3DSTATE_DST_BUF_VARS_CMD);
 	OUT_RING(dst_format);
 
+      	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
+      	OUT_RING(MI_NOOP);		/* pad to quadword */
 	/* defaults */
 	OUT_RING(_3DSTATE_DFLT_Z_CMD);
 	OUT_RING(0);
@@ -474,18 +478,19 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	OUT_RING(_3DSTATE_DFLT_SPEC_CMD);
 	OUT_RING(0);
 	
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1|I1_LOAD_S(3)|0);
-	OUT_RING((1<<S3_POINT_WIDTH_SHIFT) | (2<<S3_LINE_WIDTH_SHIFT) | S3_CULLMODE_NONE| S3_VERTEXHAS_XY);  
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1|I1_LOAD_S(2)|0);
+	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 0);
+	OUT_RING((1 << S3_POINT_WIDTH_SHIFT) | (2 << S3_LINE_WIDTH_SHIFT) | 
+		S3_CULLMODE_NONE | S3_VERTEXHAS_XY);  
+	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | 0);
 	if (pMask)
-		vf2 = 2 << 12; /* 2 texture coord sets */
+	    vf2 = 2 << 12; /* 2 texture coord sets */
 	else
-		vf2 = 1 << 12;
+	    vf2 = 1 << 12;
 	vf2 |= (TEXCOORDFMT_2D << 16);
 	if (pMask)
-		vf2 |= (TEXCOORDFMT_2D << 18);
+	    vf2 |= (TEXCOORDFMT_2D << 18);
 	else
-		vf2 |= (TEXCOORDFMT_1D << 18);
+	    vf2 |= (TEXCOORDFMT_1D << 18);
 		
 	vf2 |= (TEXCOORDFMT_1D << 20);
 	vf2 |= (TEXCOORDFMT_1D << 22);
@@ -495,21 +500,24 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	vf2 |= (TEXCOORDFMT_1D << 30);
 	OUT_RING(vf2);
 
+      	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
+      	OUT_RING(MI_NOOP);		/* pad to quadword */
 	/* For (src In mask) operation */
 	/* IN operator: Multiply src by mask components or mask alpha.*/
 	/* TEXBLENDOP_MODULE: arg1*arg2 */
 	cblend = TB0C_LAST_STAGE | TB0C_RESULT_SCALE_1X | TB0C_OP_MODULE |
 		 TB0C_OUTPUT_WRITE_CURRENT;  
-	ablend = TB0A_RESULT_SCALE_1X | TB0A_OP_MODULE | TB0A_OUTPUT_WRITE_CURRENT;
+	ablend = TB0A_RESULT_SCALE_1X | TB0A_OP_MODULE | 
+		 TB0A_OUTPUT_WRITE_CURRENT;
 	
 	cblend |= TB0C_ARG1_SEL_TEXEL0;
 	ablend |= TB0A_ARG1_SEL_TEXEL0;
 	if (pMask) {
-		if (pMaskPicture->componentAlpha && pDstPicture->format != PICT_a8)
-			cblend |= TB0C_ARG2_SEL_TEXEL1;
-		else
-			cblend |= (TB0C_ARG2_SEL_TEXEL1 | TB0C_ARG2_REPLICATE_ALPHA);
-		ablend |= TB0A_ARG2_SEL_TEXEL1;
+	    if (pMaskPicture->componentAlpha && pDstPicture->format != PICT_a8)
+		cblend |= TB0C_ARG2_SEL_TEXEL1;
+	    else
+		cblend |= (TB0C_ARG2_SEL_TEXEL1 | TB0C_ARG2_REPLICATE_ALPHA);
+	    ablend |= TB0A_ARG2_SEL_TEXEL1;
 	} else {
 		cblend |= TB0C_ARG2_SEL_ONE;
 		ablend |= TB0A_ARG2_SEL_ONE;		
@@ -519,6 +527,9 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	OUT_RING(cblend);
 	OUT_RING(ablend);
 	OUT_RING(0);
+
+      	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
+      	OUT_RING(MI_NOOP);		/* pad to quadword */
 
 	blendctl = I830GetBlendCntl(op, pMaskPicture, pDstPicture->format);
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(8) | 0);
