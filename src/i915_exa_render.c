@@ -138,9 +138,16 @@ static Bool I915GetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
     case PICT_x1r5g5b5:
         *dst_format = COLR_BUF_ARGB1555;
         break;
+    /* COLR_BUF_8BIT is special for YUV surfaces.  While we may end up being
+     * able to use it depending on how the hardware implements it, disable it
+     * for now while we don't know what exactly it does (what channel does it
+     * read from?
+     */
+    /*
     case PICT_a8:
         *dst_format = COLR_BUF_8BIT;
         break;
+    */
     case PICT_a4r4g4b4:
     case PICT_x4r4g4b4:
 	*dst_format = COLR_BUF_ARGB4444;
@@ -171,9 +178,9 @@ static Bool I915CheckCompositeTexture(PicturePtr pPict, int unit)
         I830FALLBACK("Unsupported picture format 0x%x\n",
                          (int)pPict->format);
 
-    /* FIXME: fix repeat support */
-    if (pPict->repeat) 
-	I830FALLBACK("repeat not support now!\n");
+    if (pPict->repeat && pPict->repeatType != RepeatNormal)
+	I830FALLBACK("extended repeat (%d) not supported\n",
+		     pPict->repeatType);
 
     if (pPict->filter != PictFilterNearest &&
         pPict->filter != PictFilterBilinear)
