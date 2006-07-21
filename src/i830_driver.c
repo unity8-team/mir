@@ -6425,7 +6425,8 @@ i830WaitSync(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
 #ifdef I830_USE_XAA
-   if (!pI830->noAccel && !pI830->useEXA && pI830->AccelInfoRec->NeedToSync) {
+   if (!pI830->noAccel && !pI830->useEXA && pI830->AccelInfoRec 
+	&& pI830->AccelInfoRec->NeedToSync) {
       (*pI830->AccelInfoRec->Sync)(pScrn);
       pI830->AccelInfoRec->NeedToSync = FALSE;
    }
