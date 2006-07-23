@@ -2435,6 +2435,7 @@
 #       define R200_TXFORMAT_DXT1		(12 << 0)
 #       define R200_TXFORMAT_DXT23		(14 << 0)
 #       define R200_TXFORMAT_DXT45		(15 << 0)
+#       define R200_TXFORMAT_ABGR8888		(22 << 0)
 #       define R200_TXFORMAT_FORMAT_MASK	(31 <<	0)
 #       define R200_TXFORMAT_FORMAT_SHIFT	0
 #       define R200_TXFORMAT_ALPHA_IN_MAP	(1 << 6)
