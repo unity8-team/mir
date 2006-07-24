@@ -325,8 +325,6 @@ I830EXADoneCopy(PixmapPtr pDstPixmap)
     	return;
 }
 
-//#define UPLOAD_USE_BLIT 1
-
 static Bool
 I830EXAUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h, 
 		char *src, int src_pitch)
@@ -343,7 +341,6 @@ I830EXAUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
     ErrorF("Up->Screen: dst offset 0x%x, dst pitch %d, x %d, y %d, src %p, src pitch %d\n",
 		dst_offset, dst_pitch, x, y, src, src_pitch);
 #endif
-#ifndef UPLOAD_USE_BLIT
     dst = pI830->FbBase + dst_offset + y*dst_pitch + 
 		x* (pDst->drawable.bitsPerPixel/8);
     w *= pDst->drawable.bitsPerPixel/8;
@@ -352,41 +349,6 @@ I830EXAUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
 	src += src_pitch;
 	dst += dst_pitch;
     }
-#else
-    /* setup blit engine to copy one pixel data by one */
-    {
-	int x1, x2, y1, y2, i, j;
-	CARD32 d, len, *srcp;
-	x1 = x;
-	y1 = y;
-	x2 = x + w;
-	y2 = y + h;
-
-	len = (w * (pDst->drawable.bitsPerPixel/8)) >> 2;
-
-	pI830->BR[13] = (1 << 24) | (1 << 25);
-	pI830->BR[13] |= I830CopyROP[GXcopy]<<16;
-	pI830->BR[13] |= dst_pitch & 0xffff;
-	for (i = 0; i < h; i++) {
-		srcp = (CARD32*)src;
-		for ( j = len; j > 0; j--) {
-			d = *srcp;
-			BEGIN_LP_RING(6);
-			OUT_RING(XY_COLOR_BLT_CMD | XY_COLOR_BLT_WRITE_ALPHA | 
-				XY_COLOR_BLT_WRITE_RGB);
-			OUT_RING(pI830->BR[13]);
-			OUT_RING((y1 << 16) | x1);
-			OUT_RING((y2 << 16) | x2);
-			OUT_RING(dst_offset);
-			OUT_RING(d);
-			ADVANCE_LP_RING();
-			srcp++;
-		}
-		src += src_pitch;
-	}
-
-    }
-#endif
 
     return TRUE;
 }
