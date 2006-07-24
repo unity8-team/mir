@@ -359,7 +359,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
        */
       i915_fs_dp3_masked(FS_OC, MASK_X | MASK_SATURATE,
                         i915_fs_operand_reg(FS_R0),
--                        i915_fs_operand_reg(FS_C1));
+                        i915_fs_operand_reg(FS_C1));
       i915_fs_dp3_masked(FS_OC, MASK_Y | MASK_SATURATE,
                         i915_fs_operand_reg(FS_R0),
                         i915_fs_operand_reg(FS_C2));
