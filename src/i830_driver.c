@@ -178,10 +178,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <X11/extensions/randr.h>
 #include "fb.h"
 #include "miscstruct.h"
+#include "dixstruct.h"
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
 #include "vbe.h"
-#include "vbeModes.h"
 #include "shadow.h"
 #include "i830.h"
 
@@ -244,7 +244,13 @@ typedef enum {
    OPTION_CHECKDEVICES,
    OPTION_FIXEDPIPE,
    OPTION_ROTATE,
-   OPTION_LINEARALLOC
+   OPTION_LINEARALLOC,
+   OPTION_MERGEDFB,
+   OPTION_METAMODES,
+   OPTION_SECONDHSYNC,
+   OPTION_SECONDVREFRESH,
+   OPTION_SECONDPOSITION,
+   OPTION_INTELXINERAMA
 } I830Opts;
 
 static OptionInfoRec I830BIOSOptions[] = {
@@ -266,6 +272,12 @@ static OptionInfoRec I830BIOSOptions[] = {
    {OPTION_FIXEDPIPE,   "FixedPipe",    OPTV_ANYSTR, 	{0},	FALSE},
    {OPTION_ROTATE,      "Rotate",       OPTV_ANYSTR,    {0},    FALSE},
    {OPTION_LINEARALLOC, "LinearAlloc",  OPTV_INTEGER,   {0},    FALSE},
+   {OPTION_MERGEDFB, 	"MergedFB",	OPTV_BOOLEAN,	{0},	FALSE},
+   {OPTION_METAMODES, 	"MetaModes",	OPTV_STRING,	{0},	FALSE},
+   {OPTION_SECONDHSYNC,	"SecondMonitorHorizSync",OPTV_STRING,	{0}, FALSE },
+   {OPTION_SECONDVREFRESH,"SecondMonitorVertRefresh",OPTV_STRING,{0}, FALSE },
+   {OPTION_SECONDPOSITION,"SecondPosition",OPTV_STRING,	{0},	FALSE },
+   {OPTION_INTELXINERAMA,"MergedXinerama",OPTV_BOOLEAN,	{0},	TRUE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -283,8 +295,23 @@ static Bool SetPipeAccess(ScrnInfoPtr pScrn);
 
 extern int I830EntityIndex;
 
+static Bool 		I830noPanoramiXExtension = TRUE;
+static int		I830XineramaNumScreens = 0;
+static I830XineramaData	*I830XineramadataPtr = NULL;
+static int		I830XineramaGeneration;
+
+static int I830ProcXineramaQueryVersion(ClientPtr client);
+static int I830ProcXineramaGetState(ClientPtr client);
+static int I830ProcXineramaGetScreenCount(ClientPtr client);
+static int I830ProcXineramaGetScreenSize(ClientPtr client);
+static int I830ProcXineramaIsActive(ClientPtr client);
+static int I830ProcXineramaQueryScreens(ClientPtr client);
+static int I830SProcXineramaDispatch(ClientPtr client);
+
 /* temporary */
 extern void xf86SetCursor(ScreenPtr pScreen, CursorPtr pCurs, int x, int y);
+
+static const char *SecondMonitorName = "MergedFBMonitor";
 
 
 #ifdef I830DEBUG
@@ -354,11 +381,9 @@ I830BIOSFreeRec(ScrnInfoPtr pScrn)
    if (mode) {
       do {
 	 if (mode->Private) {
-	    VbeModeInfoData *data = (VbeModeInfoData *) mode->Private;
+	    I830ModePrivatePtr mp = (I830ModePrivatePtr) mode->Private;
 
-	    if (data->block)
-	       xfree(data->block);
-	    xfree(data);
+	    xfree(mp);
 	    mode->Private = NULL;
 	 }
 	 mode = mode->next;
@@ -373,14 +398,1619 @@ I830BIOSFreeRec(ScrnInfoPtr pScrn)
    }
 
    pVesa = pI830->vesa;
-   if (pVesa->monitor)
-      xfree(pVesa->monitor);
    if (pVesa->savedPal)
       xfree(pVesa->savedPal);
    xfree(pVesa);
 
    xfree(pScrn->driverPrivate);
    pScrn->driverPrivate = NULL;
+}
+
+static Bool
+InRegion(int x, int y, region r)
+{
+    return (r.x0 <= x) && (x <= r.x1) && (r.y0 <= y) && (y <= r.y1);
+}
+
+static int
+I830StrToRanges(range *r, char *s, int max)
+{
+   float num = 0.0;
+   int rangenum = 0;
+   Bool gotdash = FALSE;
+   Bool nextdash = FALSE;
+   char *strnum = NULL;
+   do {
+      switch(*s) {
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+      case '.':
+         if(strnum == NULL) {
+            strnum = s;
+            gotdash = nextdash;
+            nextdash = FALSE;
+         }
+         break;
+      case '-':
+      case ' ':
+      case 0:
+         if(strnum == NULL) break;
+         sscanf(strnum, "%f", &num);
+	 strnum = NULL;
+         if(gotdash) {
+            r[rangenum - 1].hi = num;
+         } else {
+            r[rangenum].lo = num;
+            r[rangenum].hi = num;
+            rangenum++;
+         }
+         if(*s == '-') nextdash = (rangenum != 0);
+	 else if(rangenum >= max) return rangenum;
+         break;
+      default:
+         return 0;
+      }
+
+   } while(*(s++) != 0);
+
+   return rangenum;
+}
+
+/* Calculate the vertical refresh rate from a mode */
+static float
+I830CalcVRate(DisplayModePtr mode)
+{
+   float hsync, refresh = 0;
+
+   if(mode->HSync > 0.0)
+       	hsync = mode->HSync;
+   else if(mode->HTotal > 0)
+       	hsync = (float)mode->Clock / (float)mode->HTotal;
+   else
+       	hsync = 0.0;
+
+   if(mode->VTotal > 0)
+       	refresh = hsync * 1000.0 / mode->VTotal;
+
+   if(mode->Flags & V_INTERLACE)
+       	refresh *= 2.0;
+
+   if(mode->Flags & V_DBLSCAN)
+       	refresh /= 2.0;
+
+   if(mode->VScan > 1)
+        refresh /= mode->VScan;
+
+   if(mode->VRefresh > 0.0)
+	refresh = mode->VRefresh;
+
+   if(hsync == 0.0 || refresh == 0.0) return 0.0;
+
+   return refresh;
+}
+
+/* Copy and link two modes (i, j) for mergedfb mode
+ * (Code base taken from mga driver)
+ *
+ * - Copy mode i, merge j to copy of i, link the result to dest
+ * - Link i and j in private record.
+ * - If dest is NULL, return value is copy of i linked to itself.
+ * - For mergedfb auto-config, we only check the dimension
+ *   against virtualX/Y, if they were user-provided.
+ * - No special treatment required for CRTxxOffs.
+ * - Provide fake dotclock in order to distinguish between similar
+ *   looking MetaModes (for RandR and VidMode extensions)
+ * - Set unique VRefresh of dest mode for RandR
+ */
+static DisplayModePtr
+I830CopyModeNLink(ScrnInfoPtr pScrn, DisplayModePtr dest,
+                 DisplayModePtr i, DisplayModePtr j,
+		 int pos)
+{
+    DisplayModePtr mode;
+    int dx = 0,dy = 0;
+
+    if(!((mode = xalloc(sizeof(DisplayModeRec))))) return dest;
+    memcpy(mode, i, sizeof(DisplayModeRec));
+    if(!((mode->Private = xalloc(sizeof(I830ModePrivateRec))))) {
+       xfree(mode);
+       return dest;
+    }
+    ((I830ModePrivatePtr)mode->Private)->merged.First = i;
+    ((I830ModePrivatePtr)mode->Private)->merged.Second = j;
+    ((I830ModePrivatePtr)mode->Private)->merged.SecondPosition = pos;
+    if (((I830ModePrivatePtr)i->Private)->vbeData.mode > 0x30) {
+       ((I830ModePrivatePtr)mode->Private)->vbeData.mode = ((I830ModePrivatePtr)i->Private)->vbeData.mode;
+       ((I830ModePrivatePtr)mode->Private)->vbeData.data = ((I830ModePrivatePtr)i->Private)->vbeData.data;
+    } else {
+       ((I830ModePrivatePtr)mode->Private)->vbeData.mode = ((I830ModePrivatePtr)j->Private)->vbeData.mode;
+       ((I830ModePrivatePtr)mode->Private)->vbeData.data = ((I830ModePrivatePtr)j->Private)->vbeData.data;
+    }
+    mode->PrivSize = sizeof(I830ModePrivateRec);
+
+    switch(pos) {
+    case PosLeftOf:
+    case PosRightOf:
+       if(!(pScrn->display->virtualX)) {
+          dx = i->HDisplay + j->HDisplay;
+       } else {
+          dx = min(pScrn->virtualX, i->HDisplay + j->HDisplay);
+       }
+       dx -= mode->HDisplay;
+       if(!(pScrn->display->virtualY)) {
+          dy = max(i->VDisplay, j->VDisplay);
+       } else {
+          dy = min(pScrn->virtualY, max(i->VDisplay, j->VDisplay));
+       }
+       dy -= mode->VDisplay;
+       break;
+    case PosAbove:
+    case PosBelow:
+       if(!(pScrn->display->virtualY)) {
+          dy = i->VDisplay + j->VDisplay;
+       } else {
+          dy = min(pScrn->virtualY, i->VDisplay + j->VDisplay);
+       }
+       dy -= mode->VDisplay;
+       if(!(pScrn->display->virtualX)) {
+          dx = max(i->HDisplay, j->HDisplay);
+       } else {
+          dx = min(pScrn->virtualX, max(i->HDisplay, j->HDisplay));
+       }
+       dx -= mode->HDisplay;
+       break;
+    }
+    mode->HDisplay += dx;
+    mode->HSyncStart += dx;
+    mode->HSyncEnd += dx;
+    mode->HTotal += dx;
+    mode->VDisplay += dy;
+    mode->VSyncStart += dy;
+    mode->VSyncEnd += dy;
+    mode->VTotal += dy;
+
+    mode->type = M_T_DEFAULT;
+
+    /* Set up as user defined (ie fake that the mode has been named in the
+     * Modes-list in the screen section; corrects cycling with CTRL-ALT-[-+]
+     * when source mode has not been listed there.)
+     */
+    mode->type |= M_T_USERDEF;
+
+    /* Set the VRefresh field (in order to make RandR use it for the rates). We
+     * simply set this to the refresh rate for the First mode (since Second will
+     * mostly be LCD or TV anyway).
+     */
+    mode->VRefresh = I830CalcVRate(i);
+
+    if( ((mode->HDisplay * ((pScrn->bitsPerPixel + 7) / 8) * mode->VDisplay) > (pScrn->videoRam * 1024)) ||
+	(mode->HDisplay > 4088) ||
+	(mode->VDisplay > 4096) ) {
+
+       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		"Skipped \"%s\" (%dx%d), not enough video RAM or beyond hardware specs\n",
+		mode->name, mode->HDisplay, mode->VDisplay);
+       xfree(mode->Private);
+       xfree(mode);
+
+       return dest;
+    }
+
+    /* Now see if the resulting mode would be discarded as a "size" by the
+     * RandR extension, and increase its clock by 1000 in case it does.
+     */
+    if(dest) {
+       DisplayModePtr t = dest;
+       do {
+          if((t->HDisplay == mode->HDisplay) &&
+	     (t->VDisplay == mode->VDisplay) &&
+	     ((int)(t->VRefresh + .5) == (int)(mode->VRefresh + .5))) {
+	     mode->VRefresh += 1000.0;
+	  }
+	  t = t->next;
+       } while((t) && (t != dest));
+    }
+
+    /* Provide a fake but unique DotClock in order to trick the vidmode
+     * extension to allow selecting among a number of modes whose merged result
+     * looks identical but consists of different modes for First and Second
+     */
+    mode->Clock = (int)(mode->VRefresh * 1000.0);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	"Merged \"%s\" (%dx%d) and \"%s\" (%dx%d) to %dx%d (%d)\n",
+	i->name, i->HDisplay, i->VDisplay, j->name, j->HDisplay, j->VDisplay,
+	mode->HDisplay, mode->VDisplay, (int)mode->VRefresh);
+
+    mode->next = mode;
+    mode->prev = mode;
+
+    if(dest) {
+       mode->next = dest->next; 	/* Insert node after "dest" */
+       dest->next->prev = mode;
+       mode->prev = dest;
+       dest->next = mode;
+    }
+
+    return mode;
+}
+
+/* Helper function to find a mode from a given name
+ * (Code base taken from mga driver)
+ */
+static DisplayModePtr
+I830GetModeFromName(char* str, DisplayModePtr i)
+{
+    DisplayModePtr c = i;
+    if(!i) return NULL;
+    do {
+       if(strcmp(str, c->name) == 0) return c;
+       c = c->next;
+    } while(c != i);
+    return NULL;
+}
+
+static DisplayModePtr
+I830FindWidestTallestMode(DisplayModePtr i, Bool tallest)
+{
+    DisplayModePtr c = i, d = NULL;
+    int max = 0;
+    if(!i) return NULL;
+    do {
+       if(tallest) {
+          if(c->VDisplay > max) {
+	     max = c->VDisplay;
+	     d = c;
+          }
+       } else {
+          if(c->HDisplay > max) {
+	     max = c->HDisplay;
+	     d = c;
+          }
+       }
+       c = c->next;
+    } while(c != i);
+    return d;
+}
+
+static void
+I830FindWidestTallestCommonMode(DisplayModePtr i, DisplayModePtr j, Bool tallest,
+				DisplayModePtr *a, DisplayModePtr *b)
+{
+    DisplayModePtr c = i, d;
+    int max = 0;
+    Bool foundone;
+
+    (*a) = (*b) = NULL;
+
+    if(!i || !j) return;
+
+    do {
+       d = j;
+       foundone = FALSE;
+       do {
+	  if( (c->HDisplay == d->HDisplay) &&
+	      (c->VDisplay == d->VDisplay) ) {
+	     foundone = TRUE;
+	     break;
+	  }
+	  d = d->next;
+       } while(d != j);
+       if(foundone) {
+	  if(tallest) {
+	     if(c->VDisplay > max) {
+		max = c->VDisplay;
+		(*a) = c;
+		(*b) = d;
+	     }
+	  } else {
+	     if(c->HDisplay > max) {
+		max = c->HDisplay;
+		(*a) = c;
+		(*b) = d;
+	     }
+	  }
+       }
+       c = c->next;
+    } while(c != i);
+}
+
+static DisplayModePtr
+I830GenerateModeListFromLargestModes(ScrnInfoPtr pScrn,
+		    DisplayModePtr i, DisplayModePtr j,
+		    int pos)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    DisplayModePtr mode1 = NULL;
+    DisplayModePtr mode2 = NULL;
+    DisplayModePtr mode3 = NULL;
+    DisplayModePtr mode4 = NULL;
+    DisplayModePtr result = NULL;
+
+    /* Now build a default list of MetaModes.
+     * - Non-clone: If the user enabled NonRectangular, we use the
+     * largest mode for each First and Second. If not, we use the largest
+     * common mode for First and Second (if available). Additionally, and
+     * regardless if the above, we produce a clone mode consisting of
+     * the largest common mode (if available) in order to use DGA.
+     * - Clone: If the (global) SecondPosition is Clone, we use the
+     * largest common mode if available, otherwise the first two modes
+     * in each list.
+     */
+
+    switch(pos) {
+    case PosLeftOf:
+    case PosRightOf:
+       mode1 = I830FindWidestTallestMode(i, FALSE);
+       mode2 = I830FindWidestTallestMode(j, FALSE);
+       I830FindWidestTallestCommonMode(i, j, FALSE, &mode3, &mode4);
+       break;
+    case PosAbove:
+    case PosBelow:
+       mode1 = I830FindWidestTallestMode(i, TRUE);
+       mode2 = I830FindWidestTallestMode(j, TRUE);
+       I830FindWidestTallestCommonMode(i, j, TRUE, &mode3, &mode4);
+       break;
+    }
+
+    if(mode3 && mode4 && !pI830->NonRect) {
+       mode1 = mode3;
+       mode2 = mode2;
+    }
+
+    if(mode1 && mode2) {
+       result = I830CopyModeNLink(pScrn, result, mode1, mode2, pos);
+    }
+
+    return result;
+}
+
+/* Generate the merged-fb mode modelist
+ * (Taken from mga driver)
+ */
+static DisplayModePtr
+I830GenerateModeListFromMetaModes(ScrnInfoPtr pScrn, char* str,
+		    DisplayModePtr i, DisplayModePtr j,
+		    int pos)
+{
+    char* strmode = str;
+    char modename[256];
+    Bool gotdash = FALSE;
+    char gotsep = 0;
+    int p; 
+    DisplayModePtr mode1 = NULL;
+    DisplayModePtr mode2 = NULL;
+    DisplayModePtr result = NULL;
+    int myslen;
+
+    do {
+        switch(*str) {
+        case 0:
+        case '-':
+	case '+':
+        case ' ':
+	case ',':
+	case ';':
+           if(strmode != str) {
+
+              myslen = str - strmode;
+              if(myslen > 255) myslen = 255;
+  	      strncpy(modename, strmode, myslen);
+  	      modename[myslen] = 0;
+
+              if(gotdash) {
+                 if(mode1 == NULL) {
+  	             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+  	                        "Error parsing MetaModes parameter\n");
+  	             return NULL;
+  	         }
+                 mode2 = I830GetModeFromName(modename, j);
+                 if(!mode2) {
+                    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                        "Mode \"%s\" is not a supported mode for Second\n", modename);
+                    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                        "\t(Skipping metamode \"%s%c%s\")\n", mode1->name, gotsep, modename);
+                    mode1 = NULL;
+		    gotsep = 0;
+                 }
+              } else {
+                 mode1 = I830GetModeFromName(modename, i);
+                 if(!mode1) {
+                    char* tmps = str;
+                    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                        "Mode \"%s\" is not a supported mode for First\n", modename);
+                    while(*tmps == ' ' || *tmps == ';') tmps++;
+                    /* skip the next mode */
+  	            if(*tmps == '-' || *tmps == '+' || *tmps == ',') {
+                       tmps++;
+		       /* skip spaces */
+		       while(*tmps == ' ' || *tmps == ';') tmps++;
+		       /* skip modename */
+		       while(*tmps && *tmps != ' ' && *tmps != ';' && *tmps != '-' && *tmps != '+' && *tmps != ',') tmps++;
+  	               myslen = tmps - strmode;
+  	               if(myslen > 255) myslen = 255;
+  	               strncpy(modename,strmode,myslen);
+  	               modename[myslen] = 0;
+                       str = tmps - 1;
+                    }
+                    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                        "\t(Skipping metamode \"%s\")\n", modename);
+                    mode1 = NULL;
+		    gotsep = 0;
+                 }
+              }
+              gotdash = FALSE;
+           }
+           strmode = str + 1;
+           gotdash |= (*str == '-' || *str == '+' || *str == ',');
+	   if (*str == '-' || *str == '+' || *str == ',')
+  	      gotsep = *str;
+
+           if(*str != 0) break;
+	   /* Fall through otherwise */
+
+        default:
+           if(!gotdash && mode1) {
+              p = pos ;
+              if(!mode2) {
+                 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                     "Mode \"%s\" is not a supported mode for Second\n", mode1->name);
+                 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                     "\t(Skipping metamode \"%s\")\n", modename);
+                 mode1 = NULL;
+              } else {
+                 result = I830CopyModeNLink(pScrn, result, mode1, mode2, p);
+                 mode1 = NULL;
+                 mode2 = NULL;
+              }
+	      gotsep = 0;
+           }
+           break;
+
+        }
+
+    } while(*(str++) != 0);
+     
+    return result;
+}
+
+static DisplayModePtr
+I830GenerateModeList(ScrnInfoPtr pScrn, char* str,
+		    DisplayModePtr i, DisplayModePtr j,
+		    int pos)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+   if(str != NULL) {
+      return(I830GenerateModeListFromMetaModes(pScrn, str, i, j, pos));
+   } else {
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	"No MetaModes given, linking %s modes by default\n",
+	   (pI830->NonRect ?
+		(((pos == PosLeftOf) || (pos == PosRightOf)) ? "widest" :  "tallest")
+		:
+		(((pos == PosLeftOf) || (pos == PosRightOf)) ? "widest common" :  "tallest common")) );
+      return(I830GenerateModeListFromLargestModes(pScrn, i, j, pos));
+   }
+}
+
+static void
+I830RecalcDefaultVirtualSize(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    DisplayModePtr mode, bmode;
+    int maxh, maxv;
+    static const char *str = "MergedFB: Virtual %s %d\n";
+    static const char *errstr = "Virtual %s to small for given SecondPosition offset\n";
+
+    mode = bmode = pScrn->modes;
+    maxh = maxv = 0;
+    do {
+       if(mode->HDisplay > maxh) maxh = mode->HDisplay;
+       if(mode->VDisplay > maxv) maxv = mode->VDisplay;
+       mode = mode->next;
+    } while(mode != bmode);
+
+    maxh += pI830->FirstXOffs + pI830->SecondXOffs;
+    maxv += pI830->FirstYOffs + pI830->SecondYOffs;
+
+    if(!(pScrn->display->virtualX)) {
+       if(maxh > 4088) {
+	  xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		"Virtual width with SecondPosition offset beyond hardware specs\n");
+	  pI830->FirstXOffs = pI830->SecondXOffs = 0;
+	  maxh -= (pI830->FirstXOffs + pI830->SecondXOffs);
+       }
+       pScrn->virtualX = maxh;
+       pScrn->displayWidth = maxh;
+       xf86DrvMsg(pScrn->scrnIndex, X_PROBED, str, "width", maxh);
+    } else {
+       if(maxh < pScrn->display->virtualX) {
+	  xf86DrvMsg(pScrn->scrnIndex, X_ERROR, errstr, "width");
+	  pI830->FirstXOffs = pI830->SecondXOffs = 0;
+       }
+    }
+
+    if(!(pScrn->display->virtualY)) {
+       pScrn->virtualY = maxv;
+       xf86DrvMsg(pScrn->scrnIndex, X_PROBED, str, "height", maxv);
+    } else {
+       if(maxv < pScrn->display->virtualY) {
+	  xf86DrvMsg(pScrn->scrnIndex, X_ERROR, errstr, "height");
+	  pI830->FirstYOffs = pI830->SecondYOffs = 0;
+       }
+    }
+}
+
+#define SDMPTR(x) ((I830ModePrivatePtr)x->currentMode->Private)->merged
+#define CDMPTR    ((I830ModePrivatePtr)pI830->currentMode->Private)->merged
+
+#define BOUND(test,low,hi) 			\
+    {						\
+	if((test) < (low)) (test) = (low);	\
+	if((test) > (hi))  (test) = (hi);	\
+    }
+
+#define REBOUND(low,hi,test)		\
+    {					\
+	if((test) < (low)) {		\
+		(hi) += (test)-(low);	\
+		(low) = (test); 	\
+	}				\
+	if((test) > (hi)) {		\
+		(low) += (test)-(hi);	\
+		(hi) = (test); 		\
+	}				\
+    }
+
+
+static void
+I830MergedPointerMoved(int scrnIndex, int x, int y)
+{
+  ScrnInfoPtr	pScrn1 = xf86Screens[scrnIndex];
+  I830Ptr	pI830 = I830PTR(pScrn1);
+  ScrnInfoPtr	pScrn2 = pI830->pScrn_2;
+  region	out, in1, in2, f2, f1;
+  int		deltax, deltay;
+  int		temp1, temp2;
+  int		old1x0, old1y0, old2x0, old2y0;
+  int		FirstXOffs = 0, FirstYOffs = 0, SecondXOffs = 0, SecondYOffs = 0;
+  int		HVirt = pScrn1->virtualX;
+  int		VVirt = pScrn1->virtualY;
+  int		sigstate;
+  Bool		doit = FALSE, HaveNonRect = FALSE, HaveOffsRegions = FALSE;
+  int           pos = ((I830MergedDisplayModePtr)pI830->currentMode->Private)->SecondPosition;
+
+  if(pI830->DGAactive) {
+     return;
+     /* DGA: There is no cursor and no panning while DGA is active. */
+  } else {
+     FirstXOffs = pI830->FirstXOffs;
+     FirstYOffs = pI830->FirstYOffs;
+     SecondXOffs = pI830->SecondXOffs;
+     SecondYOffs = pI830->SecondYOffs;
+     HaveNonRect = pI830->HaveNonRect;
+     HaveOffsRegions = pI830->HaveOffsRegions;
+  }
+
+  /* Check if the pointer is inside our dead areas */
+  if((pI830->MouseRestrictions) && !I830noPanoramiXExtension) {
+     if(HaveNonRect) {
+	if(InRegion(x, y, pI830->NonRectDead)) {
+	   switch(pos) {
+	   case PosLeftOf:
+	   case PosRightOf: y = pI830->NonRectDead.y0 - 1;
+			    doit = TRUE;
+			    break;
+	   case PosAbove:
+	   case PosBelow:   x = pI830->NonRectDead.x0 - 1;
+			    doit = TRUE;
+	   default:	    break;
+	   }
+	}
+     }
+     if(HaveOffsRegions) {
+	if(InRegion(x, y, pI830->OffDead1)) {
+	   switch(pos) {
+	   case PosLeftOf:
+	   case PosRightOf: y = pI830->OffDead1.y1;
+			    doit = TRUE;
+			    break;
+	   case PosAbove:
+	   case PosBelow:   x = pI830->OffDead1.x1;
+			    doit = TRUE;
+	   default:	    break;
+	   }
+	} else if(InRegion(x, y, pI830->OffDead2)) {
+	   switch(pos) {
+	   case PosLeftOf:
+	   case PosRightOf: y = pI830->OffDead2.y0 - 1;
+			    doit = TRUE;
+			    break;
+	   case PosAbove:
+	   case PosBelow:   x = pI830->OffDead2.x0 - 1;
+			    doit = TRUE;
+	   default:	    break;
+	   }
+	}
+     }
+     if(doit) {
+	UpdateCurrentTime();
+	sigstate = xf86BlockSIGIO();
+	miPointerAbsoluteCursor(x, y, currentTime.milliseconds);
+	xf86UnblockSIGIO(sigstate);
+	return;
+     }
+  }
+
+  f1.x0 = old1x0 = pI830->FirstframeX0;
+  f1.x1 = pI830->FirstframeX1;
+  f1.y0 = old1y0 = pI830->FirstframeY0;
+  f1.y1 = pI830->FirstframeY1;
+  f2.x0 = old2x0 = pScrn2->frameX0;
+  f2.x1 = pScrn2->frameX1;
+  f2.y0 = old2y0 = pScrn2->frameY0;
+  f2.y1 = pScrn2->frameY1;
+
+  /* Define the outer region. Crossing this causes all frames to move */
+  out.x0 = pScrn1->frameX0;
+  out.x1 = pScrn1->frameX1;
+  out.y0 = pScrn1->frameY0;
+  out.y1 = pScrn1->frameY1;
+
+  /*
+   * Define the inner sliding window. Being outsize both frames but
+   * inside the outer clipping window will slide corresponding frame
+   */
+  in1 = out;
+  in2 = out;
+  switch(pos) {
+     case PosLeftOf:
+        in1.x0 = f1.x0;
+        in2.x1 = f2.x1;
+        break;
+     case PosRightOf:
+        in1.x1 = f1.x1;
+        in2.x0 = f2.x0;
+        break;
+     case PosBelow:
+        in1.y1 = f1.y1;
+        in2.y0 = f2.y0;
+        break;
+     case PosAbove:
+        in1.y0 = f1.y0;
+        in2.y1 = f2.y1;
+        break;
+  }
+
+  deltay = 0;
+  deltax = 0;
+
+  if(InRegion(x, y, out)) {	/* inside outer region */
+
+     if(InRegion(x, y, in1) && !InRegion(x, y, f1)) {
+	REBOUND(f1.x0, f1.x1, x);
+	REBOUND(f1.y0, f1.y1, y);
+	deltax = 1;
+     }
+     if(InRegion(x, y, in2) && !InRegion(x, y, f2)) {
+	REBOUND(f2.x0, f2.x1, x);
+	REBOUND(f2.y0, f2.y1, y);
+	deltax = 1;
+     }
+
+  } else {			/* outside outer region */
+
+     if(out.x0 > x) {
+	deltax = x - out.x0;
+     }
+     if(out.x1 < x) {
+	deltax = x - out.x1;
+     }
+     if(deltax) {
+	pScrn1->frameX0 += deltax;
+	pScrn1->frameX1 += deltax;
+	f1.x0 += deltax;
+	f1.x1 += deltax;
+	f2.x0 += deltax;
+	f2.x1 += deltax;
+     }
+
+     if(out.y0 > y) {
+	deltay = y - out.y0;
+     }
+     if(out.y1 < y) {
+	deltay = y - out.y1;
+     }
+     if(deltay) {
+	pScrn1->frameY0 += deltay;
+	pScrn1->frameY1 += deltay;
+	f1.y0 += deltay;
+	f1.y1 += deltay;
+	f2.y0 += deltay;
+	f2.y1 += deltay;
+     }
+
+     switch(pos) {
+	case PosLeftOf:
+	   if(x >= f1.x0) { REBOUND(f1.y0, f1.y1, y); }
+	   if(x <= f2.x1) { REBOUND(f2.y0, f2.y1, y); }
+	   break;
+	case PosRightOf:
+	   if(x <= f1.x1) { REBOUND(f1.y0, f1.y1, y); }
+	   if(x >= f2.x0) { REBOUND(f2.y0, f2.y1, y); }
+	   break;
+	case PosBelow:
+	   if(y <= f1.y1) { REBOUND(f1.x0, f1.x1, x); }
+	   if(y >= f2.y0) { REBOUND(f2.x0, f2.x1, x); }
+	   break;
+	case PosAbove:
+	   if(y >= f1.y0) { REBOUND(f1.x0, f1.x1, x); }
+	   if(y <= f2.y1) { REBOUND(f2.x0, f2.x1, x); }
+	   break;
+     }
+
+  }
+
+  if(deltax || deltay) {
+     pI830->FirstframeX0 = f1.x0;
+     pI830->FirstframeY0 = f1.y0;
+     pScrn2->frameX0 = f2.x0;
+     pScrn2->frameY0 = f2.y0;
+
+     switch(pos) {
+	case PosLeftOf:
+	case PosRightOf:
+	   if(FirstYOffs || SecondYOffs || HaveNonRect) {
+	      if(pI830->FirstframeY0 != old1y0) {
+	         if(pI830->FirstframeY0 < FirstYOffs)
+	            pI830->FirstframeY0 = FirstYOffs;
+
+	         temp1 = pI830->FirstframeY0 + CDMPTR.First->VDisplay;
+	         temp2 = min((VVirt - SecondYOffs), (FirstYOffs + pI830->MBXNR1YMAX));
+	         if(temp1 > temp2)
+	            pI830->FirstframeY0 -= (temp1 - temp2);
+	      }
+	      if(pScrn2->frameY0 != old2y0) {
+	         if(pScrn2->frameY0 < SecondYOffs)
+	            pScrn2->frameY0 = SecondYOffs;
+
+	         temp1 = pScrn2->frameY0 + CDMPTR.Second->VDisplay;
+	         temp2 = min((VVirt - FirstYOffs), (SecondYOffs + pI830->MBXNR2YMAX));
+	         if(temp1 > temp2)
+	            pScrn2->frameY0 -= (temp1 - temp2);
+	      }
+	   }
+	   break;
+	case PosBelow:
+	case PosAbove:
+	   if(FirstXOffs || SecondXOffs || HaveNonRect) {
+	      if(pI830->FirstframeX0 != old1x0) {
+	         if(pI830->FirstframeX0 < FirstXOffs)
+	            pI830->FirstframeX0 = FirstXOffs;
+
+	         temp1 = pI830->FirstframeX0 + CDMPTR.First->HDisplay;
+	         temp2 = min((HVirt - SecondXOffs), (FirstXOffs + pI830->MBXNR1XMAX));
+	         if(temp1 > temp2)
+	            pI830->FirstframeX0 -= (temp1 - temp2);
+	      }
+	      if(pScrn2->frameX0 != old2x0) {
+	         if(pScrn2->frameX0 < SecondXOffs)
+	            pScrn2->frameX0 = SecondXOffs;
+
+	         temp1 = pScrn2->frameX0 + CDMPTR.Second->HDisplay;
+	         temp2 = min((HVirt - FirstXOffs), (SecondXOffs + pI830->MBXNR2XMAX));
+	         if(temp1 > temp2)
+	            pScrn2->frameX0 -= (temp1 - temp2);
+	      }
+	   }
+	   break;
+     }
+
+     pI830->FirstframeX1 = pI830->FirstframeX0 + CDMPTR.First->HDisplay - 1;
+     pI830->FirstframeY1 = pI830->FirstframeY0 + CDMPTR.First->VDisplay - 1;
+     pScrn2->frameX1   = pScrn2->frameX0   + CDMPTR.Second->HDisplay - 1;
+     pScrn2->frameY1   = pScrn2->frameY0   + CDMPTR.Second->VDisplay - 1;
+
+     /* No need to update pScrn1->frame?1, done above */
+    if (!pI830->pipe == 0) {
+       OUTREG(DSPABASE, pI830->FrontBuffer.Start + ((pI830->FirstframeY0 * pScrn1->displayWidth + pI830->FirstframeX0) * pI830->cpp));
+       OUTREG(DSPBBASE, pI830->FrontBuffer.Start + ((pScrn2->frameY0 * pScrn1->displayWidth + pScrn2->frameX0) * pI830->cpp));
+    } else {
+       OUTREG(DSPBBASE, pI830->FrontBuffer.Start + ((pI830->FirstframeY0 * pScrn1->displayWidth + pI830->FirstframeX0) * pI830->cpp));
+       OUTREG(DSPABASE, pI830->FrontBuffer.Start + ((pScrn2->frameY0 * pScrn1->displayWidth + pScrn2->frameX0) * pI830->cpp));
+    }
+  }
+}
+
+static void
+I830AdjustFrameMerged(int scrnIndex, int x, int y, int flags)
+{
+    ScrnInfoPtr pScrn1 = xf86Screens[scrnIndex];
+    I830Ptr pI830 = I830PTR(pScrn1);
+    ScrnInfoPtr pScrn2 = pI830->pScrn_2;
+    int HTotal = pI830->currentMode->HDisplay;
+    int VTotal = pI830->currentMode->VDisplay;
+    int HMax = HTotal;
+    int VMax = VTotal;
+    int HVirt = pScrn1->virtualX;
+    int VVirt = pScrn1->virtualY;
+    int x1 = x, x2 = x;
+    int y1 = y, y2 = y;
+    int FirstXOffs = 0, FirstYOffs = 0, SecondXOffs = 0, SecondYOffs = 0;
+    int MBXNR1XMAX = 65536, MBXNR1YMAX = 65536, MBXNR2XMAX = 65536, MBXNR2YMAX = 65536;
+
+    if(pI830->DGAactive) {
+       HVirt = pScrn1->displayWidth;
+       VVirt = pScrn1->virtualY;
+    } else {
+       FirstXOffs = pI830->FirstXOffs;
+       FirstYOffs = pI830->FirstYOffs;
+       SecondXOffs = pI830->SecondXOffs;
+       SecondYOffs = pI830->SecondYOffs;
+       MBXNR1XMAX = pI830->MBXNR1XMAX;
+       MBXNR1YMAX = pI830->MBXNR1YMAX;
+       MBXNR2XMAX = pI830->MBXNR2XMAX;
+       MBXNR2YMAX = pI830->MBXNR2YMAX;
+    }
+
+    BOUND(x, 0, HVirt - HTotal);
+    BOUND(y, 0, VVirt - VTotal);
+    BOUND(x1, FirstXOffs, min(HVirt, MBXNR1XMAX + FirstXOffs) - min(HTotal, MBXNR1XMAX) - SecondXOffs);
+    BOUND(y1, FirstYOffs, min(VVirt, MBXNR1YMAX + FirstYOffs) - min(VTotal, MBXNR1YMAX) - SecondYOffs);
+    BOUND(x2, SecondXOffs, min(HVirt, MBXNR2XMAX + SecondXOffs) - min(HTotal, MBXNR2XMAX) - FirstXOffs);
+    BOUND(y2, SecondYOffs, min(VVirt, MBXNR2YMAX + SecondYOffs) - min(VTotal, MBXNR2YMAX) - FirstYOffs);
+
+    switch(SDMPTR(pScrn1).SecondPosition) {
+        case PosLeftOf:
+            pScrn2->frameX0 = x2;
+            BOUND(pScrn2->frameY0,   y2, y2 + min(VMax, MBXNR2YMAX) - CDMPTR.Second->VDisplay);
+            pI830->FirstframeX0 = x1 + CDMPTR.Second->HDisplay;
+            BOUND(pI830->FirstframeY0, y1, y1 + min(VMax, MBXNR1YMAX) - CDMPTR.First->VDisplay);
+            break;
+        case PosRightOf:
+            pI830->FirstframeX0 = x1;
+            BOUND(pI830->FirstframeY0, y1, y1 + min(VMax, MBXNR1YMAX) - CDMPTR.First->VDisplay);
+            pScrn2->frameX0 = x2 + CDMPTR.First->HDisplay;
+            BOUND(pScrn2->frameY0,   y2, y2 + min(VMax, MBXNR2YMAX) - CDMPTR.Second->VDisplay);
+            break;
+        case PosAbove:
+            BOUND(pScrn2->frameX0,   x2, x2 + min(HMax, MBXNR2XMAX) - CDMPTR.Second->HDisplay);
+            pScrn2->frameY0 = y2;
+            BOUND(pI830->FirstframeX0, x1, x1 + min(HMax, MBXNR1XMAX) - CDMPTR.First->HDisplay);
+            pI830->FirstframeY0 = y1 + CDMPTR.Second->VDisplay;
+            break;
+        case PosBelow:
+            BOUND(pI830->FirstframeX0, x1, x1 + min(HMax, MBXNR1XMAX) - CDMPTR.First->HDisplay);
+            pI830->FirstframeY0 = y1;
+            BOUND(pScrn2->frameX0,   x2, x2 + min(HMax, MBXNR2XMAX) - CDMPTR.Second->HDisplay);
+            pScrn2->frameY0 = y2 + CDMPTR.First->VDisplay;
+            break;
+    }
+
+    BOUND(pI830->FirstframeX0, 0, HVirt - CDMPTR.First->HDisplay);
+    BOUND(pI830->FirstframeY0, 0, VVirt - CDMPTR.First->VDisplay);
+    BOUND(pScrn2->frameX0,   0, HVirt - CDMPTR.Second->HDisplay);
+    BOUND(pScrn2->frameY0,   0, VVirt - CDMPTR.Second->VDisplay);
+
+    pScrn1->frameX0 = x;
+    pScrn1->frameY0 = y;
+
+    pI830->FirstframeX1 = pI830->FirstframeX0 + CDMPTR.First->HDisplay - 1;
+    pI830->FirstframeY1 = pI830->FirstframeY0 + CDMPTR.First->VDisplay - 1;
+    pScrn2->frameX1   = pScrn2->frameX0   + CDMPTR.Second->HDisplay - 1;
+    pScrn2->frameY1   = pScrn2->frameY0   + CDMPTR.Second->VDisplay - 1;
+
+    pScrn1->frameX1   = pScrn1->frameX0   + pI830->currentMode->HDisplay  - 1;
+    pScrn1->frameY1   = pScrn1->frameY0   + pI830->currentMode->VDisplay  - 1;
+    pScrn1->frameX1 += FirstXOffs + SecondXOffs;
+    pScrn1->frameY1 += FirstYOffs + SecondYOffs;
+
+    if (!pI830->pipe == 0) {
+       OUTREG(DSPABASE, pI830->FrontBuffer.Start + ((pI830->FirstframeY0 * pScrn1->displayWidth + pI830->FirstframeX0) * pI830->cpp));
+       OUTREG(DSPBBASE, pI830->FrontBuffer.Start + ((pScrn2->frameY0 * pScrn1->displayWidth + pScrn2->frameX0) * pI830->cpp));
+    } else {
+       OUTREG(DSPBBASE, pI830->FrontBuffer.Start + ((pI830->FirstframeY0 * pScrn1->displayWidth + pI830->FirstframeX0) * pI830->cpp));
+       OUTREG(DSPABASE, pI830->FrontBuffer.Start + ((pScrn2->frameY0 * pScrn1->displayWidth + pScrn2->frameX0) * pI830->cpp));
+    }
+}
+
+/* Pseudo-Xinerama extension for MergedFB mode */
+static void
+I830UpdateXineramaScreenInfo(ScrnInfoPtr pScrn1)
+{
+    I830Ptr pI830 = I830PTR(pScrn1);
+    int scrnnum1 = 0, scrnnum2 = 1;
+    int x1=0, x2=0, y1=0, y2=0, h1=0, h2=0, w1=0, w2=0;
+    int realvirtX, realvirtY;
+    DisplayModePtr currentMode, firstMode;
+    Bool infochanged = FALSE;
+    Bool usenonrect = pI830->NonRect;
+    const char *rectxine = "\t... setting up rectangular Xinerama layout\n";
+
+    pI830->MBXNR1XMAX = pI830->MBXNR1YMAX = pI830->MBXNR2XMAX = pI830->MBXNR2YMAX = 65536;
+    pI830->HaveNonRect = pI830->HaveOffsRegions = FALSE;
+
+    if(!pI830->MergedFB) return;
+
+    if(I830noPanoramiXExtension) return;
+
+    if(!I830XineramadataPtr) return;
+
+    if(pI830->SecondIsScrn0) {
+       scrnnum1 = 1;
+       scrnnum2 = 0;
+    }
+
+    /* Attention: Usage of RandR may lead to virtual X and Y dimensions
+     * actually smaller than our MetaModes. To avoid this, we calculate
+     * the max* fields here (and not somewhere else, like in CopyNLink)
+     *
+     * *** Note: RandR is disabled if one of CRTxxOffs is non-zero.
+     */
+
+    /* "Real" virtual: Virtual without the Offset */
+    realvirtX = pScrn1->virtualX - pI830->FirstXOffs - pI830->SecondXOffs;
+    realvirtY = pScrn1->virtualY - pI830->FirstYOffs - pI830->SecondYOffs;
+
+    if((pI830->I830XineramaVX != pScrn1->virtualX) || (pI830->I830XineramaVY != pScrn1->virtualY)) {
+
+       if(!(pScrn1->modes)) return;
+
+       pI830->maxFirst_X1 = pI830->maxFirst_X2 = 0;
+       pI830->maxFirst_Y1 = pI830->maxFirst_Y2 = 0;
+       pI830->maxSecond_X1 = pI830->maxSecond_X2 = 0;
+       pI830->maxSecond_Y1 = pI830->maxSecond_Y2 = 0;
+
+       currentMode = firstMode = pScrn1->modes;
+
+       do {
+
+          DisplayModePtr p = currentMode->next;
+          DisplayModePtr i = ((I830ModePrivatePtr)currentMode->Private)->merged.First;
+          DisplayModePtr j = ((I830ModePrivatePtr)currentMode->Private)->merged.Second;
+          int pos = ((I830ModePrivatePtr)currentMode->Private)->merged.SecondPosition;
+
+          if((currentMode->HDisplay <= realvirtX) && (currentMode->VDisplay <= realvirtY) &&
+	     (i->HDisplay <= realvirtX) && (j->HDisplay <= realvirtX) &&
+	     (i->VDisplay <= realvirtY) && (j->VDisplay <= realvirtY)) {
+
+		if(pI830->maxFirst_X1 == i->HDisplay) {
+		   if(pI830->maxFirst_X2 < j->HDisplay) {
+		      pI830->maxFirst_X2 = j->HDisplay;   /* Widest Second mode displayed with widest CRT1 mode */
+		   }
+		} else if(pI830->maxFirst_X1 < i->HDisplay) {
+		   pI830->maxFirst_X1 = i->HDisplay;      /* Widest CRT1 mode */
+		   pI830->maxFirst_X2 = j->HDisplay;
+		}
+		if(pI830->maxSecond_X2 == j->HDisplay) {
+		   if(pI830->maxSecond_X1 < i->HDisplay) {
+		      pI830->maxSecond_X1 = i->HDisplay;   /* Widest First mode displayed with widest Second mode */
+		   }
+		} else if(pI830->maxSecond_X2 < j->HDisplay) {
+		   pI830->maxSecond_X2 = j->HDisplay;      /* Widest Second mode */
+		   pI830->maxSecond_X1 = i->HDisplay;
+		}
+		if(pI830->maxFirst_Y1 == i->VDisplay) {   /* Same as above, but tallest instead of widest */
+		   if(pI830->maxFirst_Y2 < j->VDisplay) {
+		      pI830->maxFirst_Y2 = j->VDisplay;
+		   }
+		} else if(pI830->maxFirst_Y1 < i->VDisplay) {
+		   pI830->maxFirst_Y1 = i->VDisplay;
+		   pI830->maxFirst_Y2 = j->VDisplay;
+		}
+		if(pI830->maxSecond_Y2 == j->VDisplay) {
+		   if(pI830->maxSecond_Y1 < i->VDisplay) {
+		      pI830->maxSecond_Y1 = i->VDisplay;
+		   }
+		} else if(pI830->maxSecond_Y2 < j->VDisplay) {
+		   pI830->maxSecond_Y2 = j->VDisplay;
+		   pI830->maxSecond_Y1 = i->VDisplay;
+		}
+	  }
+	  currentMode = p;
+
+       } while((currentMode) && (currentMode != firstMode));
+
+       pI830->I830XineramaVX = pScrn1->virtualX;
+       pI830->I830XineramaVY = pScrn1->virtualY;
+       infochanged = TRUE;
+
+    }
+
+    if((usenonrect) && pI830->maxFirst_X1) {
+       switch(pI830->SecondPosition) {
+       case PosLeftOf:
+       case PosRightOf:
+	  if((pI830->maxFirst_Y1 != realvirtY) && (pI830->maxSecond_Y2 != realvirtY)) {
+	     usenonrect = FALSE;
+	  }
+	  break;
+       case PosAbove:
+       case PosBelow:
+	  if((pI830->maxFirst_X1 != realvirtX) && (pI830->maxSecond_X2 != realvirtX)) {
+	     usenonrect = FALSE;
+	  }
+	  break;
+       }
+       if(infochanged && !usenonrect) {
+	  xf86DrvMsg(pScrn1->scrnIndex, X_INFO,
+			"Virtual screen size does not match maximum display modes...\n");
+	  xf86DrvMsg(pScrn1->scrnIndex, X_INFO, rectxine);
+
+       }
+    } else if(infochanged && usenonrect) {
+       usenonrect = FALSE;
+       xf86DrvMsg(pScrn1->scrnIndex, X_INFO,
+		"Only clone modes available for this virtual screen size...\n");
+       xf86DrvMsg(pScrn1->scrnIndex, X_INFO, rectxine);
+    }
+
+    if(pI830->maxFirst_X1) {		/* Means we have at least one non-clone mode */
+       switch(pI830->SecondPosition) {
+       case PosLeftOf:
+	  x1 = min(pI830->maxFirst_X2, pScrn1->virtualX - pI830->maxFirst_X1);
+	  if(x1 < 0) x1 = 0;
+	  y1 = pI830->FirstYOffs;
+	  w1 = pScrn1->virtualX - x1;
+	  h1 = realvirtY;
+	  if((usenonrect) && (pI830->maxFirst_Y1 != realvirtY)) {
+	     h1 = pI830->MBXNR1YMAX = pI830->maxFirst_Y1;
+	     pI830->NonRectDead.x0 = x1;
+	     pI830->NonRectDead.x1 = x1 + w1 - 1;
+	     pI830->NonRectDead.y0 = y1 + h1;
+	     pI830->NonRectDead.y1 = pScrn1->virtualY - 1;
+	     pI830->HaveNonRect = TRUE;
+	  }
+	  x2 = 0;
+	  y2 = pI830->SecondYOffs;
+	  w2 = max(pI830->maxSecond_X2, pScrn1->virtualX - pI830->maxSecond_X1);
+	  if(w2 > pScrn1->virtualX) w2 = pScrn1->virtualX;
+	  h2 = realvirtY;
+	  if((usenonrect) && (pI830->maxSecond_Y2 != realvirtY)) {
+	     h2 = pI830->MBXNR2YMAX = pI830->maxSecond_Y2;
+	     pI830->NonRectDead.x0 = x2;
+	     pI830->NonRectDead.x1 = x2 + w2 - 1;
+	     pI830->NonRectDead.y0 = y2 + h2;
+	     pI830->NonRectDead.y1 = pScrn1->virtualY - 1;
+	     pI830->HaveNonRect = TRUE;
+	  }
+	  break;
+       case PosRightOf:
+	  x1 = 0;
+	  y1 = pI830->FirstYOffs;
+	  w1 = max(pI830->maxFirst_X1, pScrn1->virtualX - pI830->maxFirst_X2);
+	  if(w1 > pScrn1->virtualX) w1 = pScrn1->virtualX;
+	  h1 = realvirtY;
+	  if((usenonrect) && (pI830->maxFirst_Y1 != realvirtY)) {
+	     h1 = pI830->MBXNR1YMAX = pI830->maxFirst_Y1;
+	     pI830->NonRectDead.x0 = x1;
+	     pI830->NonRectDead.x1 = x1 + w1 - 1;
+	     pI830->NonRectDead.y0 = y1 + h1;
+	     pI830->NonRectDead.y1 = pScrn1->virtualY - 1;
+	     pI830->HaveNonRect = TRUE;
+	  }
+	  x2 = min(pI830->maxSecond_X1, pScrn1->virtualX - pI830->maxSecond_X2);
+	  if(x2 < 0) x2 = 0;
+	  y2 = pI830->SecondYOffs;
+	  w2 = pScrn1->virtualX - x2;
+	  h2 = realvirtY;
+	  if((usenonrect) && (pI830->maxSecond_Y2 != realvirtY)) {
+	     h2 = pI830->MBXNR2YMAX = pI830->maxSecond_Y2;
+	     pI830->NonRectDead.x0 = x2;
+	     pI830->NonRectDead.x1 = x2 + w2 - 1;
+	     pI830->NonRectDead.y0 = y2 + h2;
+	     pI830->NonRectDead.y1 = pScrn1->virtualY - 1;
+	     pI830->HaveNonRect = TRUE;
+	  }
+	  break;
+       case PosAbove:
+	  x1 = pI830->FirstXOffs;
+	  y1 = min(pI830->maxFirst_Y2, pScrn1->virtualY - pI830->maxFirst_Y1);
+	  if(y1 < 0) y1 = 0;
+	  w1 = realvirtX;
+	  h1 = pScrn1->virtualY - y1;
+	  if((usenonrect) && (pI830->maxFirst_X1 != realvirtX)) {
+	     w1 = pI830->MBXNR1XMAX = pI830->maxFirst_X1;
+	     pI830->NonRectDead.x0 = x1 + w1;
+	     pI830->NonRectDead.x1 = pScrn1->virtualX - 1;
+	     pI830->NonRectDead.y0 = y1;
+	     pI830->NonRectDead.y1 = y1 + h1 - 1;
+	     pI830->HaveNonRect = TRUE;
+	  }
+	  x2 = pI830->SecondXOffs;
+	  y2 = 0;
+	  w2 = realvirtX;
+	  h2 = max(pI830->maxSecond_Y2, pScrn1->virtualY - pI830->maxSecond_Y1);
+	  if(h2 > pScrn1->virtualY) h2 = pScrn1->virtualY;
+	  if((usenonrect) && (pI830->maxSecond_X2 != realvirtX)) {
+	     w2 = pI830->MBXNR2XMAX = pI830->maxSecond_X2;
+	     pI830->NonRectDead.x0 = x2 + w2;
+	     pI830->NonRectDead.x1 = pScrn1->virtualX - 1;
+	     pI830->NonRectDead.y0 = y2;
+	     pI830->NonRectDead.y1 = y2 + h2 - 1;
+	     pI830->HaveNonRect = TRUE;
+	  }
+	  break;
+       case PosBelow:
+	  x1 = pI830->FirstXOffs;
+	  y1 = 0;
+	  w1 = realvirtX;
+	  h1 = max(pI830->maxFirst_Y1, pScrn1->virtualY - pI830->maxFirst_Y2);
+	  if(h1 > pScrn1->virtualY) h1 = pScrn1->virtualY;
+	  if((usenonrect) && (pI830->maxFirst_X1 != realvirtX)) {
+	     w1 = pI830->MBXNR1XMAX = pI830->maxFirst_X1;
+	     pI830->NonRectDead.x0 = x1 + w1;
+	     pI830->NonRectDead.x1 = pScrn1->virtualX - 1;
+	     pI830->NonRectDead.y0 = y1;
+	     pI830->NonRectDead.y1 = y1 + h1 - 1;
+	     pI830->HaveNonRect = TRUE;
+	  }
+	  x2 = pI830->SecondXOffs;
+	  y2 = min(pI830->maxSecond_Y1, pScrn1->virtualY - pI830->maxSecond_Y2);
+	  if(y2 < 0) y2 = 0;
+	  w2 = realvirtX;
+	  h2 = pScrn1->virtualY - y2;
+	  if((usenonrect) && (pI830->maxSecond_X2 != realvirtX)) {
+	     w2 = pI830->MBXNR2XMAX = pI830->maxSecond_X2;
+	     pI830->NonRectDead.x0 = x2 + w2;
+	     pI830->NonRectDead.x1 = pScrn1->virtualX - 1;
+	     pI830->NonRectDead.y0 = y2;
+	     pI830->NonRectDead.y1 = y2 + h2 - 1;
+	     pI830->HaveNonRect = TRUE;
+	  }
+       default:
+	  break;
+       }
+
+       switch(pI830->SecondPosition) {
+       case PosLeftOf:
+       case PosRightOf:
+	  if(pI830->FirstYOffs) {
+	     pI830->OffDead1.x0 = x1;
+	     pI830->OffDead1.x1 = x1 + w1 - 1;
+	     pI830->OffDead1.y0 = 0;
+	     pI830->OffDead1.y1 = y1 - 1;
+	     pI830->OffDead2.x0 = x2;
+	     pI830->OffDead2.x1 = x2 + w2 - 1;
+	     pI830->OffDead2.y0 = y2 + h2;
+	     pI830->OffDead2.y1 = pScrn1->virtualY - 1;
+	     pI830->HaveOffsRegions = TRUE;
+	  } else if(pI830->SecondYOffs) {
+	     pI830->OffDead1.x0 = x2;
+	     pI830->OffDead1.x1 = x2 + w2 - 1;
+	     pI830->OffDead1.y0 = 0;
+	     pI830->OffDead1.y1 = y2 - 1;
+	     pI830->OffDead2.x0 = x1;
+	     pI830->OffDead2.x1 = x1 + w1 - 1;
+	     pI830->OffDead2.y0 = y1 + h1;
+	     pI830->OffDead2.y1 = pScrn1->virtualY - 1;
+	     pI830->HaveOffsRegions = TRUE;
+	  }
+	  break;
+       case PosAbove:
+       case PosBelow:
+	  if(pI830->FirstXOffs) {
+	     pI830->OffDead1.x0 = x2 + w2;
+	     pI830->OffDead1.x1 = pScrn1->virtualX - 1;
+	     pI830->OffDead1.y0 = y2;
+	     pI830->OffDead1.y1 = y2 + h2 - 1;
+	     pI830->OffDead2.x0 = 0;
+	     pI830->OffDead2.x1 = x1 - 1;
+	     pI830->OffDead2.y0 = y1;
+	     pI830->OffDead2.y1 = y1 + h1 - 1;
+	     pI830->HaveOffsRegions = TRUE;
+	  } else if(pI830->SecondXOffs) {
+	     pI830->OffDead1.x0 = x1 + w1;
+	     pI830->OffDead1.x1 = pScrn1->virtualX - 1;
+	     pI830->OffDead1.y0 = y1;
+	     pI830->OffDead1.y1 = y1 + h1 - 1;
+	     pI830->OffDead2.x0 = 0;
+	     pI830->OffDead2.x1 = x2 - 1;
+	     pI830->OffDead2.y0 = y2;
+	     pI830->OffDead2.y1 = y2 + h2 - 1;
+	     pI830->HaveOffsRegions = TRUE;
+	  }
+       default:
+	  break;
+       }
+
+    }
+
+    I830XineramadataPtr[scrnnum1].x = x1;
+    I830XineramadataPtr[scrnnum1].y = y1;
+    I830XineramadataPtr[scrnnum1].width = w1;
+    I830XineramadataPtr[scrnnum1].height = h1;
+    I830XineramadataPtr[scrnnum2].x = x2;
+    I830XineramadataPtr[scrnnum2].y = y2;
+    I830XineramadataPtr[scrnnum2].width = w2;
+    I830XineramadataPtr[scrnnum2].height = h2;
+
+    if(infochanged) {
+       xf86DrvMsg(pScrn1->scrnIndex, X_INFO,
+	  "Pseudo-Xinerama: First (Screen %d) (%d,%d)-(%d,%d)\n",
+	  scrnnum1, x1, y1, w1+x1-1, h1+y1-1);
+       xf86DrvMsg(pScrn1->scrnIndex, X_INFO,
+	  "Pseudo-Xinerama: Second (Screen %d) (%d,%d)-(%d,%d)\n",
+	  scrnnum2, x2, y2, w2+x2-1, h2+y2-1);
+       if(pI830->HaveNonRect) {
+	  xf86DrvMsg(pScrn1->scrnIndex, X_INFO,
+		"Pseudo-Xinerama: Inaccessible area (%d,%d)-(%d,%d)\n",
+		pI830->NonRectDead.x0, pI830->NonRectDead.y0,
+		pI830->NonRectDead.x1, pI830->NonRectDead.y1);
+       }
+       if(pI830->HaveOffsRegions) {
+	  xf86DrvMsg(pScrn1->scrnIndex, X_INFO,
+		"Pseudo-Xinerama: Inaccessible offset area (%d,%d)-(%d,%d)\n",
+		pI830->OffDead1.x0, pI830->OffDead1.y0,
+		pI830->OffDead1.x1, pI830->OffDead1.y1);
+	  xf86DrvMsg(pScrn1->scrnIndex, X_INFO,
+		"Pseudo-Xinerama: Inaccessible offset area (%d,%d)-(%d,%d)\n",
+		pI830->OffDead2.x0, pI830->OffDead2.y0,
+		pI830->OffDead2.x1, pI830->OffDead2.y1);
+       }
+       if(pI830->HaveNonRect || pI830->HaveOffsRegions) {
+	  xf86DrvMsg(pScrn1->scrnIndex, X_INFO,
+		"Mouse restriction for inaccessible areas is %s\n",
+		pI830->MouseRestrictions ? "enabled" : "disabled");
+       }
+    }
+}
+
+/* Proc */
+
+int
+I830ProcXineramaQueryVersion(ClientPtr client)
+{
+    xPanoramiXQueryVersionReply	  rep;
+    register int		  n;
+
+    REQUEST_SIZE_MATCH(xPanoramiXQueryVersionReq);
+    rep.type = X_Reply;
+    rep.length = 0;
+    rep.sequenceNumber = client->sequence;
+    rep.majorVersion = 1;
+    rep.minorVersion = 0;
+    if(client->swapped) {
+        swaps(&rep.sequenceNumber, n);
+        swapl(&rep.length, n);
+        swaps(&rep.majorVersion, n);
+        swaps(&rep.minorVersion, n);
+    }
+    WriteToClient(client, sizeof(xPanoramiXQueryVersionReply), (char *)&rep);
+    return (client->noClientException);
+}
+
+int
+I830ProcXineramaGetState(ClientPtr client)
+{
+    REQUEST(xPanoramiXGetStateReq);
+    WindowPtr			pWin;
+    xPanoramiXGetStateReply	rep;
+    register int		n;
+
+    REQUEST_SIZE_MATCH(xPanoramiXGetStateReq);
+    pWin = LookupWindow(stuff->window, client);
+    if(!pWin) return BadWindow;
+
+    rep.type = X_Reply;
+    rep.length = 0;
+    rep.sequenceNumber = client->sequence;
+    rep.state = !I830noPanoramiXExtension;
+    if(client->swapped) {
+       swaps (&rep.sequenceNumber, n);
+       swapl (&rep.length, n);
+       swaps (&rep.state, n);
+    }
+    WriteToClient(client, sizeof(xPanoramiXGetStateReply), (char *)&rep);
+    return client->noClientException;
+}
+
+int
+I830ProcXineramaGetScreenCount(ClientPtr client)
+{
+    REQUEST(xPanoramiXGetScreenCountReq);
+    WindowPtr				pWin;
+    xPanoramiXGetScreenCountReply	rep;
+    register int			n;
+
+    REQUEST_SIZE_MATCH(xPanoramiXGetScreenCountReq);
+    pWin = LookupWindow(stuff->window, client);
+    if(!pWin) return BadWindow;
+
+    rep.type = X_Reply;
+    rep.length = 0;
+    rep.sequenceNumber = client->sequence;
+    rep.ScreenCount = I830XineramaNumScreens;
+    if(client->swapped) {
+       swaps(&rep.sequenceNumber, n);
+       swapl(&rep.length, n);
+       swaps(&rep.ScreenCount, n);
+    }
+    WriteToClient(client, sizeof(xPanoramiXGetScreenCountReply), (char *)&rep);
+    return client->noClientException;
+}
+
+int
+I830ProcXineramaGetScreenSize(ClientPtr client)
+{
+    REQUEST(xPanoramiXGetScreenSizeReq);
+    WindowPtr				pWin;
+    xPanoramiXGetScreenSizeReply	rep;
+    register int			n;
+
+    REQUEST_SIZE_MATCH(xPanoramiXGetScreenSizeReq);
+    pWin = LookupWindow (stuff->window, client);
+    if(!pWin)  return BadWindow;
+
+    rep.type = X_Reply;
+    rep.length = 0;
+    rep.sequenceNumber = client->sequence;
+    rep.width  = I830XineramadataPtr[stuff->screen].width;
+    rep.height = I830XineramadataPtr[stuff->screen].height;
+    if(client->swapped) {
+       swaps(&rep.sequenceNumber, n);
+       swapl(&rep.length, n);
+       swaps(&rep.width, n);
+       swaps(&rep.height, n);
+    }
+    WriteToClient(client, sizeof(xPanoramiXGetScreenSizeReply), (char *)&rep);
+    return client->noClientException;
+}
+
+int
+I830ProcXineramaIsActive(ClientPtr client)
+{
+    xXineramaIsActiveReply	rep;
+
+    REQUEST_SIZE_MATCH(xXineramaIsActiveReq);
+
+    rep.type = X_Reply;
+    rep.length = 0;
+    rep.sequenceNumber = client->sequence;
+    rep.state = !I830noPanoramiXExtension;
+    if(client->swapped) {
+	register int n;
+	swaps(&rep.sequenceNumber, n);
+	swapl(&rep.length, n);
+	swapl(&rep.state, n);
+    }
+    WriteToClient(client, sizeof(xXineramaIsActiveReply), (char *) &rep);
+    return client->noClientException;
+}
+
+int
+I830ProcXineramaQueryScreens(ClientPtr client)
+{
+    xXineramaQueryScreensReply	rep;
+
+    REQUEST_SIZE_MATCH(xXineramaQueryScreensReq);
+
+    rep.type = X_Reply;
+    rep.sequenceNumber = client->sequence;
+    rep.number = (I830noPanoramiXExtension) ? 0 : I830XineramaNumScreens;
+    rep.length = rep.number * sz_XineramaScreenInfo >> 2;
+    if(client->swapped) {
+       register int n;
+       swaps(&rep.sequenceNumber, n);
+       swapl(&rep.length, n);
+       swapl(&rep.number, n);
+    }
+    WriteToClient(client, sizeof(xXineramaQueryScreensReply), (char *)&rep);
+
+    if(!I830noPanoramiXExtension) {
+       xXineramaScreenInfo scratch;
+       int i;
+
+       for(i = 0; i < I830XineramaNumScreens; i++) {
+	  scratch.x_org  = I830XineramadataPtr[i].x;
+	  scratch.y_org  = I830XineramadataPtr[i].y;
+	  scratch.width  = I830XineramadataPtr[i].width;
+	  scratch.height = I830XineramadataPtr[i].height;
+	  if(client->swapped) {
+	     register int n;
+	     swaps(&scratch.x_org, n);
+	     swaps(&scratch.y_org, n);
+	     swaps(&scratch.width, n);
+	     swaps(&scratch.height, n);
+	  }
+	  WriteToClient(client, sz_XineramaScreenInfo, (char *)&scratch);
+       }
+    }
+
+    return client->noClientException;
+}
+
+static int
+I830ProcXineramaDispatch(ClientPtr client)
+{
+    REQUEST(xReq);
+    switch (stuff->data) {
+	case X_PanoramiXQueryVersion:
+	     return I830ProcXineramaQueryVersion(client);
+	case X_PanoramiXGetState:
+	     return I830ProcXineramaGetState(client);
+	case X_PanoramiXGetScreenCount:
+	     return I830ProcXineramaGetScreenCount(client);
+	case X_PanoramiXGetScreenSize:
+	     return I830ProcXineramaGetScreenSize(client);
+	case X_XineramaIsActive:
+	     return I830ProcXineramaIsActive(client);
+	case X_XineramaQueryScreens:
+	     return I830ProcXineramaQueryScreens(client);
+    }
+    return BadRequest;
+}
+
+/* SProc */
+
+static int
+I830SProcXineramaQueryVersion (ClientPtr client)
+{
+    REQUEST(xPanoramiXQueryVersionReq);
+    register int n;
+    swaps(&stuff->length,n);
+    REQUEST_SIZE_MATCH (xPanoramiXQueryVersionReq);
+    return I830ProcXineramaQueryVersion(client);
+}
+
+static int
+I830SProcXineramaGetState(ClientPtr client)
+{
+    REQUEST(xPanoramiXGetStateReq);
+    register int n;
+    swaps (&stuff->length, n);
+    REQUEST_SIZE_MATCH(xPanoramiXGetStateReq);
+    return I830ProcXineramaGetState(client);
+}
+
+static int
+I830SProcXineramaGetScreenCount(ClientPtr client)
+{
+    REQUEST(xPanoramiXGetScreenCountReq);
+    register int n;
+    swaps (&stuff->length, n);
+    REQUEST_SIZE_MATCH(xPanoramiXGetScreenCountReq);
+    return I830ProcXineramaGetScreenCount(client);
+}
+
+static int
+I830SProcXineramaGetScreenSize(ClientPtr client)
+{
+    REQUEST(xPanoramiXGetScreenSizeReq);
+    register int n;
+    swaps (&stuff->length, n);
+    REQUEST_SIZE_MATCH(xPanoramiXGetScreenSizeReq);
+    return I830ProcXineramaGetScreenSize(client);
+}
+
+static int
+I830SProcXineramaIsActive(ClientPtr client)
+{
+    REQUEST(xXineramaIsActiveReq);
+    register int n;
+    swaps (&stuff->length, n);
+    REQUEST_SIZE_MATCH(xXineramaIsActiveReq);
+    return I830ProcXineramaIsActive(client);
+}
+
+static int
+I830SProcXineramaQueryScreens(ClientPtr client)
+{
+    REQUEST(xXineramaQueryScreensReq);
+    register int n;
+    swaps (&stuff->length, n);
+    REQUEST_SIZE_MATCH(xXineramaQueryScreensReq);
+    return I830ProcXineramaQueryScreens(client);
+}
+
+int
+I830SProcXineramaDispatch(ClientPtr client)
+{
+    REQUEST(xReq);
+    switch (stuff->data) {
+	case X_PanoramiXQueryVersion:
+	     return I830SProcXineramaQueryVersion(client);
+	case X_PanoramiXGetState:
+	     return I830SProcXineramaGetState(client);
+	case X_PanoramiXGetScreenCount:
+	     return I830SProcXineramaGetScreenCount(client);
+	case X_PanoramiXGetScreenSize:
+	     return I830SProcXineramaGetScreenSize(client);
+	case X_XineramaIsActive:
+	     return I830SProcXineramaIsActive(client);
+	case X_XineramaQueryScreens:
+	     return I830SProcXineramaQueryScreens(client);
+    }
+    return BadRequest;
+}
+
+static void
+I830XineramaResetProc(ExtensionEntry* extEntry)
+{
+    /* Called by CloseDownExtensions() */
+    if(I830XineramadataPtr) {
+       Xfree(I830XineramadataPtr);
+       I830XineramadataPtr = NULL;
+    }
+}
+
+static void
+I830XineramaExtensionInit(ScrnInfoPtr pScrn)
+{
+    I830Ptr	pI830 = I830PTR(pScrn);
+    Bool	success = FALSE;
+
+    if(!(I830XineramadataPtr)) {
+
+       if(!pI830->MergedFB) {
+	  I830noPanoramiXExtension = TRUE;
+	  pI830->MouseRestrictions = FALSE;
+	  return;
+       }
+
+#ifdef PANORAMIX
+       if(!noPanoramiXExtension) {
+	  xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	     "Xinerama active, not initializing Intel Pseudo-Xinerama\n");
+	  I830noPanoramiXExtension = TRUE;
+	  pI830->MouseRestrictions = FALSE;
+	  return;
+       }
+#endif
+
+       if(I830noPanoramiXExtension) {
+	  xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	      "Intel Pseudo-Xinerama disabled\n");
+	  pI830->MouseRestrictions = FALSE;
+	  return;
+       }
+
+       I830XineramaNumScreens = 2;
+
+       while(I830XineramaGeneration != serverGeneration) {
+
+	  pI830->XineramaExtEntry = AddExtension(PANORAMIX_PROTOCOL_NAME, 0,0,
+					I830ProcXineramaDispatch,
+					I830SProcXineramaDispatch,
+					I830XineramaResetProc,
+					StandardMinorOpcode);
+
+	  if(!pI830->XineramaExtEntry) break;
+
+	  if(!(I830XineramadataPtr = (I830XineramaData *)
+	        xcalloc(I830XineramaNumScreens, sizeof(I830XineramaData)))) break;
+
+	  I830XineramaGeneration = serverGeneration;
+	  success = TRUE;
+       }
+
+       if(!success) {
+          xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+	      "Failed to initialize Intel Pseudo-Xinerama extension\n");
+	  I830noPanoramiXExtension = TRUE;
+	  pI830->MouseRestrictions = FALSE;
+	  return;
+       }
+
+       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	  "Intel Pseudo-Xinerama extension initialized\n");
+
+       pI830->I830XineramaVX = 0;
+       pI830->I830XineramaVY = 0;
+
+    }
+
+    I830UpdateXineramaScreenInfo(pScrn);
+
 }
 
 static void
@@ -926,7 +2556,7 @@ SetPipeAccess(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    /* Don't try messing with the pipe, unless we're dual head */
-   if (xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone || pI830->origPipe != pI830->pipe) {
+   if (xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone || pI830->MergedFB || pI830->origPipe != pI830->pipe) {
       if (!SetBIOSPipe(pScrn, pI830->pipe))
          return FALSE;
    }
@@ -951,9 +2581,11 @@ I830Set640x480(ScrnInfoPtr pScrn)
 	 m = 0x50;
 	 break;
    }
+
    m |= (1 << 15) | (1 << 14);
    if (VBESetVBEMode(pI830->pVbe, m, NULL))
 	   return TRUE;
+
 
    /* if the first failed, let's try the next - usually 800x600 */
    m = 0x32;
@@ -967,6 +2599,7 @@ I830Set640x480(ScrnInfoPtr pScrn)
 	 break;
    }
    m |= (1 << 15) | (1 << 14);
+
    if (VBESetVBEMode(pI830->pVbe, m, NULL))
 	   return TRUE;
 
@@ -1262,7 +2895,7 @@ static const char *displayDevices[] = {
    "TV",
    "DFP (digital flat panel)",
    "LFP (local flat panel)",
-   "CRT2 (second CRT)",
+   "Second (second CRT)",
    "TV2 (second TV)",
    "DFP2 (second digital flat panel)",
    "LFP2 (second local flat panel)",
@@ -2094,6 +3727,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    int DDCclock = 0;
    char *s;
    DisplayModePtr p, pMon;
+   xf86MonPtr monitor = NULL;
    pointer pDDCModule = NULL, pVBEModule = NULL;
    Bool enable;
    const char *chipname;
@@ -2505,6 +4139,12 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
          pI830->fixedPipe = 1;
    }
 
+   pI830->MergedFB =
+      xf86ReturnOptValBool(pI830->Options, OPTION_MERGEDFB, FALSE);
+
+   pI830->IntelXinerama =
+      xf86ReturnOptValBool(pI830->Options, OPTION_INTELXINERAMA, TRUE);
+
    pI830->MonType1 = PIPE_NONE;
    pI830->MonType2 = PIPE_NONE;
    pI830->specifiedMonitor = FALSE;
@@ -2531,7 +4171,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
                pI830->MonType1 |= PIPE_DFP;
             else if (strcmp(sub, "LFP") == 0)
                pI830->MonType1 |= PIPE_LFP;
-            else if (strcmp(sub, "CRT2") == 0)
+            else if (strcmp(sub, "Second") == 0)
                pI830->MonType1 |= PIPE_CRT2;
             else if (strcmp(sub, "TV2") == 0)
                pI830->MonType1 |= PIPE_TV2;
@@ -2560,7 +4200,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
                pI830->MonType2 |= PIPE_DFP;
             else if (strcmp(sub, "LFP") == 0)
                pI830->MonType2 |= PIPE_LFP;
-            else if (strcmp(sub, "CRT2") == 0)
+            else if (strcmp(sub, "Second") == 0)
                pI830->MonType2 |= PIPE_CRT2;
             else if (strcmp(sub, "TV2") == 0)
                pI830->MonType2 |= PIPE_TV2;
@@ -2591,7 +4231,8 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       pI830->specifiedMonitor = TRUE;
    }
 
-   if (xf86ReturnOptValBool(pI830->Options, OPTION_CLONE, FALSE)) {
+   if (!pI830->MergedFB &&
+       xf86ReturnOptValBool(pI830->Options, OPTION_CLONE, FALSE)) {
       if (pI830->availablePipes == 1) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
  		 "Can't enable Clone Mode because this is a single pipe device\n");
@@ -2622,17 +4263,18 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       return FALSE;
    }
 
-   if ((pI830->entityPrivate && I830IsPrimary(pScrn)) || pI830->Clone) {
+   if ((pI830->entityPrivate && I830IsPrimary(pScrn)) || pI830->Clone ||
+	pI830->MergedFB) {
       if ((!xf86GetOptValString(pI830->Options, OPTION_MONITOR_LAYOUT))) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "You must have a MonitorLayout "
-	 		"defined for use in a DualHead or Clone setup.\n");
+	 		"defined for use in a DualHead, Clone or MergedFB setup.\n");
          PreInitCleanup(pScrn);
          return FALSE;
       }
          
       if (pI830->MonType1 == PIPE_NONE || pI830->MonType2 == PIPE_NONE) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Monitor 1 or Monitor 2 "
-	 		"cannot be type NONE in Dual or Clone setup.\n");
+	 		"cannot be type NONE in DualHead, Clone or MergedFB setup.\n");
          PreInitCleanup(pScrn);
          return FALSE;
       }
@@ -2860,6 +4502,80 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    }
 #endif
 
+   if (pI830->MergedFB) {
+      pI830->pScrn_2 = xalloc(sizeof(ScrnInfoRec));
+
+      if(!pI830->pScrn_2) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Failed to allocate memory for MergedFB mode. Disabling.\n");
+	 pI830->MergedFB = FALSE;
+      } else {
+         memcpy(pI830->pScrn_2, pScrn, sizeof(ScrnInfoRec));
+      }
+      if((s = (char *)xf86GetOptValString(pI830->Options, OPTION_SECONDPOSITION))) {
+	 int result;
+	 int ival;
+	 Bool valid = FALSE;
+	 char *tempstr = xalloc(strlen(s) + 1);
+	 result = sscanf(s, "%s %d", tempstr, &ival);
+	 if(result >= 1) {
+ 	    if(!xf86NameCmp(tempstr,"LeftOf")) {
+	       pI830->SecondPosition = PosLeftOf;
+	       valid = TRUE;
+	       if(result == 2) {
+	          if(ival < 0) pI830->FirstYOffs = -ival;
+	          else pI830->SecondYOffs = ival;
+	       }
+	       pI830->SecondIsScrn0 = TRUE;
+	    } else if(!xf86NameCmp(tempstr,"RightOf")) {
+	       pI830->SecondPosition = PosRightOf;
+	       valid = TRUE;
+	       if(result == 2) {
+	          if(ival < 0) pI830->FirstYOffs = -ival;
+	          else pI830->SecondYOffs = ival;
+	       }
+	       pI830->SecondIsScrn0 = FALSE;
+ 	    } else if(!xf86NameCmp(tempstr,"Above")) {
+	       pI830->SecondPosition = PosAbove;
+	       valid = TRUE;
+	       if(result == 2) {
+	          if(ival < 0) pI830->FirstXOffs = -ival;
+	          else pI830->SecondXOffs = ival;
+	       }
+	       pI830->SecondIsScrn0 = FALSE;
+	    } else if(!xf86NameCmp(tempstr,"Below")) {
+	       pI830->SecondPosition = PosBelow;
+  	       valid = TRUE;
+	       if(result == 2) {
+	          if(ival < 0) pI830->FirstXOffs = -ival;
+	          else pI830->SecondXOffs = ival;
+	       }
+	       pI830->SecondIsScrn0 = TRUE;
+	    }
+         }
+         if(!valid) {
+  	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "Valid parameters are: \"RightOf\", \"LeftOf\", \"Above\" or \"Below\"\n");
+         }
+         xfree(tempstr);
+      }
+      if((s = (char *)xf86GetOptValString(pI830->Options, OPTION_METAMODES))) {
+         pI830->MetaModes = xalloc(strlen(s) + 1);
+	 if(pI830->MetaModes) 
+	    memcpy(pI830->MetaModes, s, strlen(s) + 1);
+      }
+      if((s = (char *)xf86GetOptValString(pI830->Options, OPTION_SECONDHSYNC))) {
+         pI830->SecondHSync = xalloc(strlen(s) + 1);
+	 if(pI830->SecondHSync)
+	    memcpy(pI830->SecondHSync, s, strlen(s) + 1);
+      }
+      if((s = (char *)xf86GetOptValString(pI830->Options, OPTION_SECONDVREFRESH))) {
+	 pI830->SecondVRefresh = xalloc(strlen(s) + 1);
+	 if(pI830->SecondVRefresh) 
+	    memcpy(pI830->SecondVRefresh, s, strlen(s) + 1);
+      }
+   }
+
+
    /*
     * If the driver can do gamma correction, it should call xf86SetGamma() here.
     */
@@ -2927,7 +4643,8 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
       /* Override */
       if (pI830->fixedPipe != -1) {
-         if (xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone) {
+         if (xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone || 
+	     pI830->MergedFB) {
             pI830->pipe = pI830->fixedPipe; 
             xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	        "Fixed Pipe setting primary to pipe %s.\n", 
@@ -2949,9 +4666,11 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    
       pI830->operatingDevices = (pI830->MonType2 << 8) | pI830->MonType1;
 
-      if (!xf86IsEntityShared(pScrn->entityList[0]) && !pI830->Clone) {
-	  /* If we're not dual head or clone, turn off the second head,
-          * if monitorlayout is also specified. */
+      if (!xf86IsEntityShared(pScrn->entityList[0]) && !pI830->Clone &&
+	  !pI830->MergedFB) {
+	  /* If we're not dual head, clone or mergedfb, turn off the
+           * second head if monitorlayout is also specified. 
+	   */
 
          if (pI830->pipe == 0)
             pI830->operatingDevices = pI830->MonType1;
@@ -3103,12 +4822,74 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    pDDCModule = xf86LoadSubModule(pScrn, "ddc");
 
-   pI830->vesa->monitor = vbeDoEDID(pI830->pVbe, pDDCModule);
+   monitor = vbeDoEDID(pI830->pVbe, pDDCModule);
 
-   if ((pScrn->monitor->DDC = pI830->vesa->monitor) != NULL) {
-      xf86PrintEDID(pI830->vesa->monitor);
-      xf86SetDDCproperties(pScrn, pI830->vesa->monitor);
+   if ((pScrn->monitor->DDC = monitor) != NULL) {
+      xf86PrintEDID(monitor);
+      xf86SetDDCproperties(pScrn, monitor);
    }
+
+   if(pI830->MergedFB) {
+      pI830->pScrn_2->monitor = xalloc(sizeof(MonRec));
+      if(pI830->pScrn_2->monitor) {
+	 DisplayModePtr tempm = NULL, currentm = NULL, newm = NULL;
+	 memcpy(pI830->pScrn_2->monitor, pScrn->monitor, sizeof(MonRec));
+	 pI830->pScrn_2->monitor->DDC = NULL;
+	 pI830->pScrn_2->monitor->Modes = NULL;
+	 pI830->pScrn_2->monitor->id = (char *)SecondMonitorName;
+	 tempm = pScrn->monitor->Modes;
+	 while(tempm) {
+	    if(!(newm = xalloc(sizeof(DisplayModeRec)))) break;
+	    memcpy(newm, tempm, sizeof(DisplayModeRec));
+	    if(!(newm->name = xalloc(strlen(tempm->name) + 1))) {
+	       xfree(newm);
+	       break;
+	    }
+	    strcpy(newm->name, tempm->name);
+	    if(!pI830->pScrn_2->monitor->Modes) 
+	       pI830->pScrn_2->monitor->Modes = newm;
+	    if(currentm) {
+	       currentm->next = newm;
+	       newm->prev = currentm;
+	    }
+	    currentm = newm;
+	    tempm = tempm->next;
+	 }
+	 if(pI830->SecondHSync) {
+	    pI830->pScrn_2->monitor->nHsync =
+	    	I830StrToRanges(pI830->pScrn_2->monitor->hsync, pI830->SecondHSync, MAX_HSYNC);
+	 }
+	 if(pI830->SecondVRefresh) {
+	    pI830->pScrn_2->monitor->nVrefresh =
+		I830StrToRanges(pI830->pScrn_2->monitor->vrefresh, pI830->SecondVRefresh, MAX_VREFRESH);
+	 }
+         SetBIOSPipe(pScrn, !pI830->pipe);
+         pI830->pVbe->ddc = DDC_UNCHECKED;
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"Probing DDC data for second head\n");
+	 if((monitor = vbeDoEDID(pI830->pVbe, pDDCModule))) {
+	    xf86PrintEDID(monitor);
+	    xf86SetDDCproperties(pI830->pScrn_2, monitor);
+	    pI830->pScrn_2->monitor->DDC = monitor;
+	    /* use DDC data if no ranges in config file */
+	    if(!pI830->SecondHSync) {
+	       pI830->pScrn_2->monitor->nHsync = 0;
+	    }
+	    if(!pI830->SecondVRefresh) {
+	       pI830->pScrn_2->monitor->nVrefresh = 0;
+	    }
+	 }
+	 SetPipeAccess(pScrn);
+      } else {
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+	      "Failed to allocate memory for second monitor.\n");
+	 if(pI830->pScrn_2) 
+            xfree(pI830->pScrn_2);
+	 pI830->pScrn_2 = NULL;
+	 pI830->MergedFB = FALSE;
+      }
+   }
+
    xf86UnloadSubModule(pDDCModule);
 
    /* XXX Move this to a header. */
@@ -3135,7 +4916,8 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    pI830->useExtendedRefresh = FALSE;
 
-   if (xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone) {
+   if (xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone || 
+       pI830->MergedFB) {
       int pipe =
 	  (pI830->operatingDevices >> PIPE_SHIFT(pI830->pipe)) & PIPE_ACTIVE_MASK;
       if (pipe & ~PIPE_CRT_ACTIVE) {
@@ -3227,6 +5009,21 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       return FALSE;
    }
 
+   if (pI830->MergedFB) {
+      SetBIOSPipe(pScrn, !pI830->pipe);
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		 "Retrieving mode pool for second head.\n");
+      pI830->pScrn_2->modePool = I830GetModePool(pI830->pScrn_2, pI830->pVbe, pI830->vbeInfo);
+
+      if (!pI830->pScrn_2->modePool) {
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		 "No Video BIOS modes for chosen depth.\n");
+         PreInitCleanup(pScrn);
+         return FALSE;
+      }
+      SetPipeAccess(pScrn);
+   }
+
    /* This may look a little weird, but to notify that we're using the
     * default hsync/vrefresh we need to unset what we just set .....
     */
@@ -3244,6 +5041,9 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    SetPipeAccess(pScrn);
    VBESetModeNames(pScrn->modePool);
+   if (pI830->MergedFB)
+      VBESetModeNames(pI830->pScrn_2->modePool);
+
 
    /*
     * XXX DDC information: There's code in xf86ValidateModes
@@ -3265,6 +5065,20 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       PreInitCleanup(pScrn);
       return FALSE;
+   }
+
+   if (pI830->MergedFB) {
+      n = VBEValidateModes(pI830->pScrn_2, NULL, pI830->pScrn_2->display->modes, NULL,
+			NULL, 0, MAX_DISPLAY_PITCH, 1,
+			0, MAX_DISPLAY_HEIGHT,
+			pScrn->display->virtualX,
+			pScrn->display->virtualY,
+			memsize, LOOKUP_BEST_REFRESH);
+      if (n <= 0) {
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
+         PreInitCleanup(pScrn);
+         return FALSE;
+      }
    }
 
    /* Only use this if we've got DDC available */
@@ -3306,14 +5120,43 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       return FALSE;
    }
 
+   if (pI830->MergedFB) {
+      DisplayModePtr old_modes;
+      DisplayModePtr cur_mode;
+
+      xf86PruneDriverModes(pI830->pScrn_2);
+
+      if (pI830->pScrn_2->modes == NULL) {
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes.\n");
+         PreInitCleanup(pScrn);
+         return FALSE;
+      }
+
+      old_modes = pScrn->modes;
+      cur_mode = pScrn->currentMode;
+
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "MergedFB: Generating mode list\n");
+
+      pScrn->modes = I830GenerateModeList(pScrn, pI830->MetaModes,
+					  old_modes, pI830->pScrn_2->modes,
+					  pI830->SecondPosition);
+
+      if(!pScrn->modes) {
+          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes. Disabling MergedFB.\n");
+	  pScrn->modes = old_modes;
+	  pScrn->currentMode = cur_mode;
+	  pI830->MergedFB = FALSE;
+      }
+   }
+
    /* Now we check the VESA BIOS's displayWidth and reset if necessary */
    p = pScrn->modes;
    do {
-      VbeModeInfoData *data = (VbeModeInfoData *) p->Private;
+      I830ModePrivatePtr mp = (I830ModePrivatePtr) p->Private;
       VbeModeInfoBlock *modeInfo;
 
       /* Get BytesPerScanline so we can reset displayWidth */
-      if ((modeInfo = VBEGetModeInfo(pI830->pVbe, data->mode))) {
+      if ((modeInfo = VBEGetModeInfo(pI830->pVbe, mp->vbeData.mode))) {
          if (pScrn->displayWidth < modeInfo->BytesPerScanline / pI830->cpp) {
             xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Correcting stride (%d -> %d)\n", pScrn->displayWidth, modeInfo->BytesPerScanline);
 	    pScrn->displayWidth = modeInfo->BytesPerScanline / pI830->cpp;
@@ -3323,6 +5166,18 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    } while (p != NULL && p != pScrn->modes);
 
    pScrn->currentMode = pScrn->modes;
+
+   if (pI830->MergedFB) {
+      /* If no virtual dimension was given by the user,
+       * calculate a sane one now. Adapts pScrn->virtualX,
+       * pScrn->virtualY and pScrn->displayWidth.
+       */
+      I830RecalcDefaultVirtualSize(pScrn);
+
+      pScrn->modes = pScrn->modes->next;  /* We get the last from GenerateModeList(), skip to first */
+      pScrn->currentMode = pScrn->modes;
+      pI830->currentMode = pScrn->currentMode;
+   }
 
 #ifndef USE_PITCHES
 #define USE_PITCHES 1
@@ -3953,7 +5808,8 @@ I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block)
 	  pScrn->virtualY * pI830->displayWidth * pI830->cpp);
 #endif
 
-   if (pI830->Clone && pI830->CloneHDisplay && pI830->CloneVDisplay &&
+   if (pI830->Clone && 
+	pI830->CloneHDisplay && pI830->CloneVDisplay &&
        !pI830->preinit && !pI830->closing) {
       VbeCRTCInfoBlock newblock;
       int newmode = mode;
@@ -4087,7 +5943,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    vbeInfoPtr pVbe = pI830->pVbe;
-   VbeModeInfoData *data = (VbeModeInfoData *) pMode->Private;
+   I830ModePrivatePtr mp = (I830ModePrivatePtr) pMode->Private;
    int mode, i;
    CARD32 planeA, planeB, temp;
    int refresh = 60;
@@ -4098,13 +5954,13 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
    DPRINTF(PFX, "I830VESASetMode\n");
 
    /* Always Enable Linear Addressing */
-   mode = data->mode | (1 << 15) | (1 << 14);
+   mode = mp->vbeData.mode | (1 << 15) | (1 << 14);
 
 #ifdef XF86DRI
    didLock = I830DRILock(pScrn);
 #endif
 
-   if (pI830->Clone) {
+   if (pI830->Clone || pI830->MergedFB) {
       pI830->CloneHDisplay = pMode->HDisplay;
       pI830->CloneVDisplay = pMode->VDisplay;
    }
@@ -4118,9 +5974,24 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 
    SetPipeAccess(pScrn);
 
-   if (I830VESASetVBEMode(pScrn, mode, data->block) == FALSE) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Set VBE Mode failed!\n");
-      return FALSE;
+   if (!pI830->MergedFB) {
+      if (I830VESASetVBEMode(pScrn, mode, mp->vbeData.block) == FALSE) {
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Set VBE Mode failed!\n");
+         return FALSE;
+      }
+   }else {
+      I830ModePrivatePtr s = (I830ModePrivatePtr)mp->merged.Second->Private;
+      I830ModePrivatePtr f = (I830ModePrivatePtr)mp->merged.First->Private;
+      SetBIOSPipe(pScrn, !pI830->pipe);
+      if (I830VESASetVBEMode(pScrn, (f->vbeData.mode | 1<<15 | 1<<14), f->vbeData.block) == FALSE) {
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Set VBE Mode failed!\n");
+         return FALSE;
+      }
+      SetPipeAccess(pScrn);
+      if (I830VESASetVBEMode(pScrn, (s->vbeData.mode | 1<<15 | 1<<14), s->vbeData.block) == FALSE) {
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Set VBE Mode failed!\n");
+         return FALSE;
+      }
    }
 
    /*
@@ -4128,8 +5999,8 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     * memory than it's aware of.  We check for this later, and set it
     * explicitly if necessary.
     */
-   if (data->data->XResolution != pI830->displayWidth) {
-      if (pI830->Clone) {
+   if (mp->vbeData.data->XResolution != pI830->displayWidth) {
+      if (pI830->Clone || pI830->MergedFB) {
          SetBIOSPipe(pScrn, !pI830->pipe);
          VBESetLogicalScanline(pVbe, pI830->displayWidth);
       }
@@ -4138,7 +6009,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
    }
 
    if (pScrn->bitsPerPixel >= 8 && pI830->vbeInfo->Capabilities[0] & 0x01) {
-      if (pI830->Clone) {
+      if (pI830->Clone || pI830->MergedFB) {
          SetBIOSPipe(pScrn, !pI830->pipe);
          VBESetGetDACPaletteFormat(pVbe, 8);
       }
@@ -4307,7 +6178,16 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 		    (int)(temp / pI830->cpp), pI830->displayWidth);
 	    OUTREG(stridereg, pI830->displayWidth * pI830->cpp);
          }
-         OUTREG(sizereg, (pMode->HDisplay - 1) | ((pMode->VDisplay - 1) << 16));
+
+#if 0
+	 if (pI830->MergedFB) {
+            if (i == 0)
+               OUTREG(sizereg, (CDMPTR.First->HDisplay - 1) | ((CDMPTR.First->VDisplay - 1) << 16));
+	    else 
+               OUTREG(sizereg, (CDMPTR.Second->HDisplay - 1) | ((CDMPTR.Second->VDisplay - 1) << 16));
+         } else
+            OUTREG(sizereg, (pMode->HDisplay - 1) | ((pMode->VDisplay - 1) << 16));
+#endif
 	 /* Trigger update */
 	 temp = INREG(basereg);
 	 OUTREG(basereg, temp);
@@ -5160,7 +7040,7 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->CloseScreen = pScreen->CloseScreen;
    pScreen->CloseScreen = I830BIOSCloseScreen;
 
-   if (pI830->shadowReq.minorversion >= 1) {
+   if (!pI830->MergedFB && pI830->shadowReq.minorversion >= 1) {
       /* Rotation */
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
       xf86DisableRandR(); /* Disable built-in RandR extension */
@@ -5174,6 +7054,24 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    } else {
       /* Rotation */
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "libshadow is version %d.%d.%d, required 1.1.0 or greater for rotation.\n",pI830->shadowReq.majorversion,pI830->shadowReq.minorversion,pI830->shadowReq.patchlevel);
+   }
+
+   if (pI830->MergedFB) {
+      pI830->PointerMoved = pScrn->PointerMoved;
+      pScrn->PointerMoved = I830MergedPointerMoved;
+
+      if(pI830->IntelXinerama) {
+	  I830noPanoramiXExtension = FALSE;
+	  I830XineramaExtensionInit(pScrn);
+	  if(!I830noPanoramiXExtension) {
+	     if(pI830->HaveNonRect) {
+		/* Reset the viewport (now eventually non-recangular) */
+		I830BIOSAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+	     }
+	  }
+      } else {
+	  pI830->MouseRestrictions = FALSE;
+      }
    }
 
    if (serverGeneration == 1)
@@ -5232,6 +7130,11 @@ I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
    if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
       (*pI830->AccelInfoRec->Sync)(pScrn);
       pI830->AccelInfoRec->NeedToSync = FALSE;
+   }
+
+   if (pI830->MergedFB) {
+      I830AdjustFrameMerged(scrnIndex, x, y, flags);
+      return;
    }
 
    if (I830IsPrimary(pScrn))
@@ -5316,7 +7219,7 @@ I830BIOSLeaveVT(int scrnIndex, int flags)
    I830VideoSwitchModeBefore(pScrn, NULL);
 #endif
 
-   if (pI830->Clone) {
+   if (pI830->Clone || pI830->MergedFB) {
       /* Ensure we don't try and setup modes on a clone head */
       pI830->CloneHDisplay = 0;
       pI830->CloneVDisplay = 0;
@@ -5389,6 +7292,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
    int displayWidth = pScrn->displayWidth;
    int curHDisplay = pScrn->currentMode->HDisplay;
    int curVDisplay = pScrn->currentMode->VDisplay;
+   xf86MonPtr monitor = NULL;
 
    DPRINTF(PFX, "Detect Monitor Change\n");
    
@@ -5396,13 +7300,11 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
 
    /* Re-read EDID */
    pDDCModule = xf86LoadSubModule(pScrn, "ddc");
-   if (pI830->vesa->monitor)
-      xfree(pI830->vesa->monitor);
-   pI830->vesa->monitor = vbeDoEDID(pI830->pVbe, pDDCModule);
+   monitor = vbeDoEDID(pI830->pVbe, pDDCModule);
    xf86UnloadSubModule(pDDCModule);
-   if ((pScrn->monitor->DDC = pI830->vesa->monitor) != NULL) {
-      xf86PrintEDID(pI830->vesa->monitor);
-      xf86SetDDCproperties(pScrn, pI830->vesa->monitor);
+   if ((pScrn->monitor->DDC = monitor) != NULL) {
+      xf86PrintEDID(monitor);
+      xf86SetDDCproperties(pScrn, monitor);
    } else 
       /* No DDC, so get out of here, and continue to use the current settings */
       return FALSE; 
@@ -5745,6 +7647,13 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 #endif
    }
 
+   /* Since RandR (indirectly) uses SwitchMode(), we need to
+    * update our Xinerama info here, too, in case of resizing
+    */
+   if(pI830->MergedFB) {
+      I830UpdateXineramaScreenInfo(pScrn);
+   }
+
    return ret;
 }
 
@@ -5797,7 +7706,7 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
    I830Ptr pI830 = I830PTR(pScrn);
    vbeInfoPtr pVbe = pI830->pVbe;
 
-   if (pI830->Clone) {
+   if (pI830->Clone || pI830->MergedFB) {
       SetBIOSPipe(pScrn, !pI830->pipe);
       if (xf86LoaderCheckSymbol("VBEDPMSSet")) {
          VBEDPMSSet(pVbe, PowerManagementMode);
@@ -6256,7 +8165,6 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
       if (fixup) {
          ScreenPtr   pCursorScreen;
          int x = 0, y = 0;
-
 
          pCursorScreen = miPointerCurrentScreen();
          if (pScrn->pScreen == pCursorScreen)

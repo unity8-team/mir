@@ -42,8 +42,6 @@
 #include <string.h>
 
 #include "xf86.h"
-#include "vbe.h"
-#include "vbeModes.h"
 #include "i830.h"
 
 #include <math.h>
@@ -363,7 +361,11 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
     CARD16 major, minor;
     VbeModeInfoBlock *mode;
     DisplayModePtr p = NULL, pMode = NULL;
+#if 0
     VbeModeInfoData *data;
+#else
+    I830ModePrivatePtr data;
+#endif
     Bool modeOK = FALSE;
     ModeStatus status = MODE_OK;
 
@@ -602,12 +604,21 @@ CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
     pMode->HDisplay = mode->XResolution;
     pMode->VDisplay = mode->YResolution;
 
+#if 0
     data = xnfcalloc(sizeof(VbeModeInfoData), 1);
     data->mode = id;
     data->data = mode;
     pMode->PrivSize = sizeof(VbeModeInfoData);
     pMode->Private = (INT32*)data;
+#else
+    data = xnfcalloc(sizeof(I830ModePrivateRec), 1);
+    data->vbeData.mode = id;
+    data->vbeData.data = mode;
+    pMode->PrivSize = sizeof(I830ModePrivateRec);
+    pMode->Private = (INT32*)data;
+#endif
     pMode->next = NULL;
+
     return pMode;
 }
 
@@ -664,50 +675,49 @@ void
 I830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe)
 {
     DisplayModePtr pMode;
-    VbeModeInfoData *data;
+    I830ModePrivatePtr mp;
 
     pMode = pScrn->modes;
     do {
 	int clock;
 
-	data = (VbeModeInfoData*)pMode->Private;
-	data->block = xcalloc(sizeof(VbeCRTCInfoBlock), 1);
-	data->block->HorizontalTotal = pMode->HTotal;
-	data->block->HorizontalSyncStart = pMode->HSyncStart;
-	data->block->HorizontalSyncEnd = pMode->HSyncEnd;
-	data->block->VerticalTotal = pMode->VTotal;
-	data->block->VerticalSyncStart = pMode->VSyncStart;
-	data->block->VerticalSyncEnd = pMode->VSyncEnd;
-	data->block->Flags = ((pMode->Flags & V_NHSYNC) ? CRTC_NHSYNC : 0) |
+	mp->vbeData.block = xcalloc(sizeof(VbeCRTCInfoBlock), 1);
+	mp->vbeData.block->HorizontalTotal = pMode->HTotal;
+	mp->vbeData.block->HorizontalSyncStart = pMode->HSyncStart;
+	mp->vbeData.block->HorizontalSyncEnd = pMode->HSyncEnd;
+	mp->vbeData.block->VerticalTotal = pMode->VTotal;
+	mp->vbeData.block->VerticalSyncStart = pMode->VSyncStart;
+	mp->vbeData.block->VerticalSyncEnd = pMode->VSyncEnd;
+	mp->vbeData.block->Flags = ((pMode->Flags & V_NHSYNC) ? CRTC_NHSYNC : 0) |
 				 ((pMode->Flags & V_NVSYNC) ? CRTC_NVSYNC : 0);
-	data->block->PixelClock = pMode->Clock * 1000;
+	mp->vbeData.block->PixelClock = pMode->Clock * 1000;
 	/* XXX May not have this. */
-	clock = VBEGetPixelClock(pVbe, data->mode, data->block->PixelClock);
+	clock = VBEGetPixelClock(pVbe, mp->vbeData.mode, mp->vbeData.block->PixelClock);
 	if (clock)
-	    data->block->PixelClock = clock;
+	    mp->vbeData.block->PixelClock = clock;
 #ifdef DEBUG
 	ErrorF("Setting clock %.2fMHz, closest is %.2fMHz\n",
-		(double)data->block->PixelClock / 1000000.0, 
+		(double)mp->vbeData.block->PixelClock / 1000000.0, 
 		(double)clock / 1000000.0);
 #endif
-	data->mode |= (1 << 11);
+	mp->vbeData.mode |= (1 << 11);
 	if (pMode->VRefresh != 0) {
-	    data->block->RefreshRate = pMode->VRefresh * 100;
+	    mp->vbeData.block->RefreshRate = pMode->VRefresh * 100;
 	} else {
-	    data->block->RefreshRate = (int)(((double)(data->block->PixelClock)/
+	    mp->vbeData.block->RefreshRate = (int)(((double)(mp->vbeData.block->PixelClock)/
                        (double)(pMode->HTotal * pMode->VTotal)) * 100);
 	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Attempting to use %2.2fHz refresh for mode \"%s\" (%x)\n",
-		       (float)(((double)(data->block->PixelClock) / (double)(pMode->HTotal * pMode->VTotal))), pMode->name, data->mode);
+		       (float)(((double)(mp->vbeData.block->PixelClock) / (double)(pMode->HTotal * pMode->VTotal))), pMode->name, mp->vbeData.mode);
 #ifdef DEBUG
 	ErrorF("Video Modeline: ID: 0x%x Name: %s %i %i %i %i - "
 	       "  %i %i %i %i %.2f MHz Refresh: %.2f Hz\n",
-	       data->mode, pMode->name, pMode->HDisplay, pMode->HSyncStart,
+	       mp->vbeData.mode, pMode->name, pMode->HDisplay, pMode->HSyncStart,
 	       pMode->HSyncEnd, pMode->HTotal, pMode->VDisplay,
 	       pMode->VSyncStart,pMode->VSyncEnd,pMode->VTotal,
-	       (double)data->block->PixelClock/1000000.0,
-	       (double)data->block->RefreshRate/100);
+	       (double)mp->vbeData.block->PixelClock/1000000.0,
+	       (double)mp->vbeData.block->RefreshRate/100);
 #endif
 	pMode = pMode->next;
     } while (pMode != pScrn->modes);
