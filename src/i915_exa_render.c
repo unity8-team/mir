@@ -446,7 +446,8 @@ ErrorF("i915 prepareComposite\n");
 	OUT_RING(_3DSTATE_DRAW_RECT_CMD);
 	OUT_RING(0x00000000);
 	OUT_RING(0x00000000);  /* ymin, xmin*/
-	OUT_RING(DRAW_YMAX(pScrn->virtualY-1) | DRAW_XMAX(pScrn->virtualX-1));
+	OUT_RING(DRAW_YMAX(pDst->drawable.height - 1) |
+		 DRAW_XMAX(pDst->drawable.width - 1));
 	OUT_RING(0x00000000);  /* yorig, xorig (relate to color buffer?)*/
 	OUT_RING(MI_NOOP);
 	ADVANCE_LP_RING();
