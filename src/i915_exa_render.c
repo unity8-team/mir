@@ -393,13 +393,13 @@ ErrorF("i915 prepareComposite\n");
 
 	/* XXX: defaults */
 	OUT_RING(_3DSTATE_DFLT_Z_CMD);
-	OUT_RING(MI_NOOP);
+	OUT_RING(0x00000000);
 
 	OUT_RING(_3DSTATE_DFLT_DIFFUSE_CMD);
-	OUT_RING(MI_NOOP);
+	OUT_RING(0x00000000);
 
 	OUT_RING(_3DSTATE_DFLT_SPEC_CMD);
-	OUT_RING(MI_NOOP);
+	OUT_RING(0x00000000);
 	
 	/* XXX:S3? define vertex format with tex coord sets number*/
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | 
