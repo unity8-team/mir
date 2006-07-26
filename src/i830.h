@@ -246,7 +246,7 @@ typedef struct _I830Rec {
    I830MemRange *OverlayMem;
    I830MemRange LinearMem;
 #endif
-   unsigned int LinearAlloc;
+   int LinearAlloc;
 
    Bool MergedFB;
    ScrnInfoPtr pScrn_2;

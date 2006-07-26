@@ -675,7 +675,7 @@ void
 I830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe)
 {
     DisplayModePtr pMode;
-    I830ModePrivatePtr mp;
+    I830ModePrivatePtr mp = NULL;
 
     pMode = pScrn->modes;
     do {
