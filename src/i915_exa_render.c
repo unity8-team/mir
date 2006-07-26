@@ -55,6 +55,8 @@ do { 							\
 extern float scale_units[2][2];
 extern Bool is_transform[2];
 extern PictTransform *transform[2];
+static CARD32 mapstate[6];
+static CARD32 samplerstate[6];
 
 struct formatinfo {
     int fmt;
@@ -288,50 +290,27 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
         I830FALLBACK("Bad filter 0x%x\n", pPict->filter);
     }
 
-    {
-	CARD32 ms3;
-	if (pPix->drawable.bitsPerPixel == 8)
-		format |= MAPSURF_8BIT;
-	else if (pPix->drawable.bitsPerPixel == 16)
-		format |= MAPSURF_16BIT;
-	else
-		format |= MAPSURF_32BIT;
+    if (pPix->drawable.bitsPerPixel == 8)
+	format |= MAPSURF_8BIT;
+    else if (pPix->drawable.bitsPerPixel == 16)
+	format |= MAPSURF_16BIT;
+    else
+	format |= MAPSURF_32BIT;
 
-	BEGIN_LP_RING(6);
-	OUT_RING(_3DSTATE_MAP_STATE | 3);
-	OUT_RING(1<<unit);
-	OUT_RING(offset); /* Must be 4-byte aligned */
-	ms3 = ((pPix->drawable.height - 1) << MS3_HEIGHT_SHIFT) | 
-		((pPix->drawable.width - 1) << MS3_WIDTH_SHIFT) | format;
-	if (!pI830->disableTiling)
-		ms3 |= MS3_USE_FENCE_REGS;
-	OUT_RING(ms3); 
-	OUT_RING(((pitch / 4) - 1) << MS4_PITCH_SHIFT);
-	OUT_RING(MI_NOOP);
-	ADVANCE_LP_RING();
-     }
+    mapstate[unit * 3 + 0] = offset;
+    mapstate[unit * 3 + 1] = format |
+	((pPix->drawable.height - 1) << MS3_HEIGHT_SHIFT) |
+	((pPix->drawable.width - 1) << MS3_WIDTH_SHIFT);
+    if (!pI830->disableTiling)
+	samplerstate[unit * 3 + 1] |= MS3_USE_FENCE_REGS;
+    mapstate[unit * 3 + 2] = ((pitch / 4) - 1) << MS4_PITCH_SHIFT;
 
-     {
-	CARD32 ss2, ss3;
-	BEGIN_LP_RING(6);
-	/* max & min mip level ? or base mip level? */
-
-	OUT_RING(_3DSTATE_SAMPLER_STATE | 3);
-	OUT_RING(1<<unit);
-	ss2 = (MIPFILTER_NONE << SS2_MIP_FILTER_SHIFT);
-	ss2 |= filter;
-	OUT_RING(ss2);
-	/* repeat? */
-	ss3 = wrap_mode << SS3_TCX_ADDR_MODE_SHIFT;
-	ss3 |= wrap_mode << SS3_TCY_ADDR_MODE_SHIFT;
-	ss3 |= SS3_NORMALIZED_COORDS;
-	ss3 |= (unit << SS3_TEXTUREMAP_INDEX_SHIFT);
-	OUT_RING(ss3);
-	OUT_RING(0x00000000); /* border color */
-	OUT_RING(MI_NOOP);
-
-	ADVANCE_LP_RING();
-    }
+    samplerstate[unit * 3 + 0] = (MIPFILTER_NONE << SS2_MIP_FILTER_SHIFT) | filter;
+    samplerstate[unit * 3 + 1] = SS3_NORMALIZED_COORDS;
+    samplerstate[unit * 3 + 1] |= wrap_mode << SS3_TCX_ADDR_MODE_SHIFT;
+    samplerstate[unit * 3 + 1] |= wrap_mode << SS3_TCY_ADDR_MODE_SHIFT;
+    samplerstate[unit * 3 + 1] |= unit << SS3_TEXTUREMAP_INDEX_SHIFT;
+    samplerstate[unit * 3 + 2] = 0x00000000; /* border color */
 
     if (pPict->transform != 0) {
         is_transform[unit] = TRUE;
@@ -378,6 +357,41 @@ ErrorF("i915 prepareComposite\n");
 	scale_units[1][1] = -1;
     }
 
+    if (pMask == NULL) {
+	BEGIN_LP_RING(10);
+	OUT_RING(_3DSTATE_MAP_STATE | 3);
+	OUT_RING(0x00000001); /* map 0 */
+	OUT_RING(mapstate[0]);
+	OUT_RING(mapstate[1]);
+	OUT_RING(mapstate[2]);
+
+	OUT_RING(_3DSTATE_SAMPLER_STATE | 3);
+	OUT_RING(0x00000001); /* sampler 0 */
+	OUT_RING(samplerstate[0]);
+	OUT_RING(samplerstate[1]);
+	OUT_RING(samplerstate[2]);
+	ADVANCE_LP_RING();
+    } else {
+	BEGIN_LP_RING(16);
+	OUT_RING(_3DSTATE_MAP_STATE | 6);
+	OUT_RING(0x00000003); /* map 0,1 */
+	OUT_RING(mapstate[0]);
+	OUT_RING(mapstate[1]);
+	OUT_RING(mapstate[2]);
+	OUT_RING(mapstate[3]);
+	OUT_RING(mapstate[4]);
+	OUT_RING(mapstate[5]);
+
+	OUT_RING(_3DSTATE_SAMPLER_STATE | 6);
+	OUT_RING(0x00000003); /* sampler 0,1 */
+	OUT_RING(samplerstate[0]);
+	OUT_RING(samplerstate[1]);
+	OUT_RING(samplerstate[2]);
+	OUT_RING(samplerstate[3]);
+	OUT_RING(samplerstate[4]);
+	OUT_RING(samplerstate[5]);
+	ADVANCE_LP_RING();
+    }
     {
 	CARD32 ss2;
 
