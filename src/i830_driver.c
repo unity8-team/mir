@@ -3724,7 +3724,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    int flags24;
    int defmon = 0;
    int i, n;
-   int DDCclock = 0;
+   int DDCclock = 0, DDCclock2 = 0;
    char *s;
    DisplayModePtr p, pMon;
    xf86MonPtr monitor = NULL;
@@ -4996,6 +4996,9 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    DDCclock = I830UseDDC(pScrn);
 
+   if (pI830->MergedFB)
+      DDCclock2 = I830UseDDC(pI830->pScrn_2);
+
    /*
     * Note: VBE modes (> 0x7f) won't work with Intel's extended BIOS
     * functions. 
@@ -5110,6 +5113,38 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
  	 }
          p = p->next;
       } while (p != NULL && p != pScrn->modes);
+   }
+
+
+   /* Only use this if we've got DDC available */
+   if (DDCclock2 > 0) {
+      p = pI830->pScrn_2->modes;
+      if (p == NULL)
+         return FALSE;
+      do {
+         int Clock = 100000000; /* incredible value */
+
+	 if (p->status == MODE_OK) {
+            for (pMon = pI830->pScrn_2->monitor->Modes; pMon != NULL; pMon = pMon->next) {
+               if ((pMon->HDisplay != p->HDisplay) ||
+                   (pMon->VDisplay != p->VDisplay) ||
+                   (pMon->Flags & (V_INTERLACE | V_DBLSCAN | V_CLKDIV2)))
+                   continue;
+
+               /* Find lowest supported Clock for this resolution */
+               if (Clock > pMon->Clock)
+                  Clock = pMon->Clock;
+            } 
+
+            if (Clock != 100000000 && DDCclock2 < 2550 && Clock / 1000.0 > DDCclock2) {
+               ErrorF("(%s,%s) mode clock %gMHz exceeds DDC maximum %dMHz\n",
+		   p->name, pI830->pScrn_2->monitor->id,
+		   Clock/1000.0, DDCclock2);
+               p->status = MODE_BAD;
+            } 
+ 	 }
+         p = p->next;
+      } while (p != NULL && p != pI830->pScrn_2->modes);
    }
 
    xf86PruneDriverModes(pScrn);

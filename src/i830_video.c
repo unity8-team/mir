@@ -1400,6 +1400,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    unsigned int swidth;
    unsigned int mask, shift, offsety, offsetu;
    int tmp;
+   BoxRec dstBox2;
 
    ErrorF("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
 	   dstPitch);
@@ -1411,21 +1412,24 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    CompareOverlay(pI830, (CARD32 *) overlay, 0x100);
 #endif
 
-   /* When in dual head with different bpp setups we need to refresh the
-    * color key, so let's reset the video parameters and refresh here */
-   if (pI830->entityPrivate)
-      I830ResetVideo(pScrn);
-
-   /* Ensure overlay is turned on with OVERLAY_ENABLE at 0 */
-   if (!*pI830->overlayOn)
-      OVERLAY_UPDATE;
-
    switch (pI830->rotation) {
 	case RR_Rotate_0:
-		dstBox->x1 -= pScrn->frameX0;
-		dstBox->x2 -= pScrn->frameX0;
-		dstBox->y1 -= pScrn->frameY0;
-		dstBox->y2 -= pScrn->frameY0;
+                if (pI830->MergedFB) {
+		   memcpy(&dstBox2, dstBox, sizeof(BoxRec));
+		   dstBox->x1 -= pI830->FirstframeX0;
+		   dstBox->x2 -= pI830->FirstframeX0;
+		   dstBox->y1 -= pI830->FirstframeY0;
+		   dstBox->y2 -= pI830->FirstframeY0;
+		   dstBox2.x1 -= pI830->pScrn_2->frameX0;
+		   dstBox2.x2 -= pI830->pScrn_2->frameX0;
+		   dstBox2.y1 -= pI830->pScrn_2->frameY0;
+		   dstBox2.y2 -= pI830->pScrn_2->frameY0;
+                } else {
+		   dstBox->x1 -= pScrn->frameX0;
+		   dstBox->x2 -= pScrn->frameX0;
+		   dstBox->y1 -= pScrn->frameY0;
+		   dstBox->y2 -= pScrn->frameY0;
+                }
 		break;
 	case RR_Rotate_90:
 		tmp = dstBox->x1;
@@ -1458,6 +1462,72 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 		dstBox->x2 = tmp;
 		break;
    }
+
+   if (pI830->MergedFB) {
+      I830ModePrivatePtr mp = (I830ModePrivatePtr)pScrn->currentMode->Private;
+      int w1, h1, w2, h2;
+
+      /* Clip the video to the independent modes of the merged screens */
+      if (dstBox->x1 > mp->merged.First->HDisplay) dstBox->x1 = mp->merged.First->HDisplay - 1;
+      if (dstBox->x2 > mp->merged.First->HDisplay) dstBox->x2 = mp->merged.First->HDisplay - 1;
+      if (dstBox2.x1 > mp->merged.Second->HDisplay) dstBox2.x1 = mp->merged.Second->HDisplay - 1;
+      if (dstBox2.x2 > mp->merged.Second->HDisplay) dstBox2.x2 = mp->merged.Second->HDisplay - 1;
+      if (dstBox->y1 > mp->merged.First->VDisplay) dstBox->y1 = mp->merged.First->VDisplay - 1;
+      if (dstBox->y2 > mp->merged.First->VDisplay) dstBox->y2 = mp->merged.First->VDisplay - 1;
+      if (dstBox2.y1 > mp->merged.Second->VDisplay) dstBox2.y1 = mp->merged.Second->VDisplay - 1;
+      if (dstBox2.y2 > mp->merged.Second->VDisplay) dstBox2.y2 = mp->merged.Second->VDisplay - 1;
+      if (dstBox->y1 < 0) dstBox->y1 = 0;
+      if (dstBox->y2 < 0) dstBox->y2 = 0;
+      if (dstBox->x1 < 0) dstBox->x1 = 0;
+      if (dstBox->x2 < 0) dstBox->x2 = 0;
+      if (dstBox2.y1 < 0) dstBox2.y1 = 0;
+      if (dstBox2.y2 < 0) dstBox2.y2 = 0;
+      if (dstBox2.x1 < 0) dstBox2.x1 = 0;
+      if (dstBox2.x2 < 0) dstBox2.x2 = 0;
+
+      w1 = dstBox->x2 - dstBox->x1;
+      w2 = dstBox2.x2 - dstBox2.x1;
+      h1 = dstBox->y2 - dstBox->y1;
+      h2 = dstBox2.y2 - dstBox2.y1;
+
+      switch (pI830->SecondPosition) {
+         case PosRightOf:
+         case PosBelow:
+            if ((w2 > 0 && w1 == 0) ||
+                (h2 > 0 && h1 == 0)) {
+               pPriv->pipe = pI830->pipe;
+               dstBox->x1 = dstBox2.x1;
+               dstBox->y1 = dstBox2.y1;
+               dstBox->x2 = dstBox2.x2;
+               dstBox->y2 = dstBox2.y2;
+            } else 
+               pPriv->pipe = !pI830->pipe;
+            break;
+         case PosLeftOf:
+         case PosAbove:
+            if ((w1 > 0 && w2 == 0) ||
+                (h1 > 0 && h2 == 0)) { 
+               pPriv->pipe = !pI830->pipe;
+            } else {
+               pPriv->pipe = pI830->pipe;
+               dstBox->x1 = dstBox2.x1;
+               dstBox->y1 = dstBox2.y1;
+               dstBox->x2 = dstBox2.x2;
+               dstBox->y2 = dstBox2.y2;
+            }
+            break;
+      }
+   }
+
+   /* When in dual head with different bpp setups we need to refresh the
+    * color key, so let's reset the video parameters and refresh here.
+    * In MergedFB mode, we may need to flip pipes too. */
+   if (pI830->entityPrivate || pI830->MergedFB)
+      I830ResetVideo(pScrn);
+
+   /* Ensure overlay is turned on with OVERLAY_ENABLE at 0 */
+   if (!*pI830->overlayOn)
+      OVERLAY_UPDATE;
 
    /* Fix up the dstBox if outside the visible screen */
    {
@@ -1522,7 +1592,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       /* Keep the engine happy and clip to the real vertical size just
        * in case an LFP is in use and it's not at it's native resolution.
        */
-      int vactive = pI830->pipe ? (INREG(VTOTAL_B) & 0x7FF) : (INREG(VTOTAL_A) & 0x7FF);
+      int vactive = pPriv->pipe ? (INREG(VTOTAL_B) & 0x7FF) : (INREG(VTOTAL_A) & 0x7FF);
 
       vactive += 1;
 
@@ -2553,10 +2623,10 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
    /* Check we have an LFP connected */
    if ((pPriv->pipe == 1 && pI830->operatingDevices & (PIPE_LFP << 8)) ||
        (pPriv->pipe == 0 && pI830->operatingDevices & PIPE_LFP) ) {
-      size = pI830->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
+      size = pPriv->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
       hsize = (size >> 16) & 0x7FF;
       vsize = size & 0x7FF;
-      active = pI830->pipe ? (INREG(VTOTAL_B) & 0x7FF) : (INREG(VTOTAL_A) & 0x7FF);
+      active = pPriv->pipe ? (INREG(VTOTAL_B) & 0x7FF) : (INREG(VTOTAL_A) & 0x7FF);
 
       if (vsize < active && hsize > 1024)
          I830SetOneLineModeRatio(pScrn);
