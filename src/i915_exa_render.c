@@ -307,7 +307,7 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 		ms3 |= MS3_USE_FENCE_REGS;
 	OUT_RING(ms3); 
 	OUT_RING(((pitch / 4) - 1) << MS4_PITCH_SHIFT);
-	OUT_RING(0);
+	OUT_RING(MI_NOOP);
 	ADVANCE_LP_RING();
      }
 
@@ -328,7 +328,7 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	ss3 |= (unit << SS3_TEXTUREMAP_INDEX_SHIFT);
 	OUT_RING(ss3);
 	OUT_RING(0x00000000); /* border color */
-	OUT_RING(0);
+	OUT_RING(MI_NOOP);
 
 	ADVANCE_LP_RING();
     }
@@ -393,13 +393,13 @@ ErrorF("i915 prepareComposite\n");
 
 	/* XXX: defaults */
 	OUT_RING(_3DSTATE_DFLT_Z_CMD);
-	OUT_RING(0);
+	OUT_RING(MI_NOOP);
 
 	OUT_RING(_3DSTATE_DFLT_DIFFUSE_CMD);
-	OUT_RING(0);
+	OUT_RING(MI_NOOP);
 
 	OUT_RING(_3DSTATE_DFLT_SPEC_CMD);
-	OUT_RING(0);
+	OUT_RING(MI_NOOP);
 	
 	/* XXX:S3? define vertex format with tex coord sets number*/
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | 
@@ -426,7 +426,7 @@ ErrorF("i915 prepareComposite\n");
 
 	/* issue a flush */
 	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
-	OUT_RING(0);
+	OUT_RING(MI_NOOP);
 
 	/* draw rect is unconditional */
 	OUT_RING(_3DSTATE_DRAW_RECT_CMD);
@@ -434,7 +434,7 @@ ErrorF("i915 prepareComposite\n");
 	OUT_RING(0x00000000);  /* ymin, xmin*/
 	OUT_RING(DRAW_YMAX(pScrn->virtualY-1) | DRAW_XMAX(pScrn->virtualX-1));
 	OUT_RING(0x00000000);  /* yorig, xorig (relate to color buffer?)*/
-	OUT_RING(0);
+	OUT_RING(MI_NOOP);
 	ADVANCE_LP_RING();
     }
 
