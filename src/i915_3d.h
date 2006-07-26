@@ -33,7 +33,7 @@
 #define MASK_Y			0x2
 #define MASK_Z			0x4
 #define MASK_W			0x8
-#define MASK_XYZ		(MASK_X | MASK_Y | MASK_W)
+#define MASK_XYZ		(MASK_X | MASK_Y | MASK_Z)
 #define MASK_XYZW		(MASK_XYZ | MASK_W)
 #define MASK_SATURATE		0x10
 
@@ -398,7 +398,7 @@ do {									\
 do {									\
     struct i915_fs_op op;						\
 									\
-    op = i915_fs_arith(DP3, dest_reg, operand0, i915_fs_operand_none(),	\
+    op = i915_fs_arith(DP3, dest_reg, operand0, operand1,		\
 		       i915_fs_operand_none());				\
     op.ui[0] &= ~A0_DEST_CHANNEL_ALL;					\
     op.ui[0] |= ((dest_mask) & ~MASK_SATURATE) << A0_DEST_CHANNEL_SHIFT; \
