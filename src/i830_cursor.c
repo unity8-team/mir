@@ -432,8 +432,8 @@ I830SetCursorPositionMerged(ScrnInfoPtr pScrn, int x, int y)
    temp2 |= ((x2 & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
    temp2 |= ((y2 & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
 
-   OUTREG(CURSOR_A_POSITION, temp2);
-   OUTREG(CURSOR_B_POSITION, temp);
+   OUTREG(CURSOR_A_POSITION, temp);
+   OUTREG(CURSOR_B_POSITION, temp2);
 
    if (pI830->cursorOn) {
       if (hide)

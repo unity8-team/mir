@@ -742,9 +742,6 @@ I830GenerateModeListFromLargestModes(ScrnInfoPtr pScrn,
      * common mode for First and Second (if available). Additionally, and
      * regardless if the above, we produce a clone mode consisting of
      * the largest common mode (if available) in order to use DGA.
-     * - Clone: If the (global) SecondPosition is Clone, we use the
-     * largest common mode if available, otherwise the first two modes
-     * in each list.
      */
 
     switch(pos) {
@@ -1222,7 +1219,7 @@ I830MergedPointerMoved(int scrnIndex, int x, int y)
      pScrn2->frameY1   = pScrn2->frameY0   + CDMPTR.Second->VDisplay - 1;
 
      /* No need to update pScrn1->frame?1, done above */
-    if (!pI830->pipe == 0) {
+    if (pI830->pipe == 0) {
        OUTREG(DSPABASE, pI830->FrontBuffer.Start + ((pI830->FirstframeY0 * pScrn1->displayWidth + pI830->FirstframeX0) * pI830->cpp));
        OUTREG(DSPBBASE, pI830->FrontBuffer.Start + ((pScrn2->frameY0 * pScrn1->displayWidth + pScrn2->frameX0) * pI830->cpp));
     } else {
@@ -5150,8 +5147,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    if (pI830->MergedFB) {
-      DisplayModePtr old_modes;
-      DisplayModePtr cur_mode;
+      DisplayModePtr old_modes, cur_mode;
 
       xf86PruneDriverModes(pI830->pScrn_2);
 
@@ -5915,12 +5911,18 @@ I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode, VbeCRTCInfoBlock * block)
    else
       Mon = pI830->MonType2;
 
+
    /* Now recheck refresh operations we can use */
    pI830->useExtendedRefresh = FALSE;
    pI830->vesa->useDefaultRefresh = FALSE;
 
-   if (Mon != PIPE_CRT)
+   if (Mon != PIPE_CRT) {
+      xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
+		    "A non-CRT device is attached to pipe %c.\n"
+		    "\tNo refresh rate overrides will be attempted.\n",
+		    PIPE_NAME(pI830->pipe));
       pI830->vesa->useDefaultRefresh = TRUE;
+   }
 
    mode |= 1 << 11;
    if (pI830->vesa->useDefaultRefresh)
@@ -6011,13 +6013,24 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
    }else {
       I830ModePrivatePtr s = (I830ModePrivatePtr)mp->merged.Second->Private;
       I830ModePrivatePtr f = (I830ModePrivatePtr)mp->merged.First->Private;
+      int pipe = pI830->pipe; /* save current pipe */
+
       SetBIOSPipe(pScrn, !pI830->pipe);
-      if (I830VESASetVBEMode(pScrn, (f->vbeData.mode | 1<<15 | 1<<14), f->vbeData.block) == FALSE) {
+
+      pI830->pipe = !pI830->pipe;
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting mode on Pipe %s.\n", pI830->pipe ? "B" : "A");
+
+      if (I830VESASetVBEMode(pScrn, (s->vbeData.mode | 1<<15 | 1<<14), s->vbeData.block) == FALSE) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Set VBE Mode failed!\n");
          return FALSE;
       }
+
+      pI830->pipe = pipe; /* restore current pipe */
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting mode on Pipe %s.\n", pI830->pipe ? "B" : "A");
+
       SetPipeAccess(pScrn);
-      if (I830VESASetVBEMode(pScrn, (s->vbeData.mode | 1<<15 | 1<<14), s->vbeData.block) == FALSE) {
+
+      if (I830VESASetVBEMode(pScrn, (f->vbeData.mode | 1<<15 | 1<<14), f->vbeData.block) == FALSE) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Set VBE Mode failed!\n");
          return FALSE;
       }
@@ -7170,7 +7183,7 @@ I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
    if (pI830->MergedFB) {
       I830AdjustFrameMerged(scrnIndex, x, y, flags);
 
-      if (!pI830->pipe == 0) {
+      if (pI830->pipe == 0) {
          OUTREG(DSPABASE, pI830->FrontBuffer.Start + ((pI830->FirstframeY0 * pScrn->displayWidth + pI830->FirstframeX0) * pI830->cpp));
          OUTREG(DSPBBASE, pI830->FrontBuffer.Start + ((pI830->pScrn_2->frameY0 * pScrn->displayWidth + pI830->pScrn_2->frameX0) * pI830->cpp));
       } else {
@@ -7344,21 +7357,29 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
 
    /* Re-read EDID */
    pDDCModule = xf86LoadSubModule(pScrn, "ddc");
+
+   if (pI830->MergedFB) {
+      SetBIOSPipe(pScrn, !pI830->pipe);
+      monitor = vbeDoEDID(pI830->pVbe, pDDCModule);
+      if ((pI830->pScrn_2->monitor->DDC = monitor) != NULL) {
+         xf86PrintEDID(monitor);
+         xf86SetDDCproperties(pScrn, monitor);
+      } 
+      SetPipeAccess(pScrn);
+   }
+
    monitor = vbeDoEDID(pI830->pVbe, pDDCModule);
    xf86UnloadSubModule(pDDCModule);
    if ((pScrn->monitor->DDC = monitor) != NULL) {
       xf86PrintEDID(monitor);
       xf86SetDDCproperties(pScrn, monitor);
-   } else 
-      /* No DDC, so get out of here, and continue to use the current settings */
-      return FALSE; 
+   } 
 
-   if (!(DDCclock = I830UseDDC(pScrn)))
-      return FALSE;
+   DDCclock = I830UseDDC(pScrn);
 
+   /* Check if DDC exists on the second head, if not don't abort. */
    if (pI830->MergedFB)
-      if (!(DDCclock2 = I830UseDDC(pScrn)))
-         return FALSE;
+      DDCclock2 = I830UseDDC(pI830->pScrn_2);
 
    /* Revalidate the modes */
 
@@ -7378,7 +7399,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
       return FALSE;
    }
 
-   if (pI830->MergedFB) {
+   if (pI830->MergedFB && DDCclock2 > 0) {
       SetBIOSPipe(pScrn, !pI830->pipe);
       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		 "Retrieving mode pool for second head.\n");
@@ -7394,7 +7415,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
    }
 
    VBESetModeNames(pScrn->modePool);
-   if (pI830->MergedFB)
+   if (pI830->MergedFB && DDCclock2 > 0)
       VBESetModeNames(pI830->pScrn_2->modePool);
 
    if (pScrn->videoRam > (pI830->vbeInfo->TotalMemory * 64))
@@ -7409,7 +7430,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
 			pScrn->display->virtualY,
 			memsize, LOOKUP_BEST_REFRESH);
 
-   if (pI830->MergedFB) {
+   if (pI830->MergedFB && DDCclock2 > 0) {
       VBEValidateModes(pI830->pScrn_2, pI830->pScrn_2->monitor->Modes, 
 		        pI830->pScrn_2->display->modes, NULL,
 			NULL, 0, MAX_DISPLAY_PITCH, 1,
@@ -7450,7 +7471,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
    }
 
    /* Only use this if we've got DDC available */
-   if (DDCclock2 > 0) {
+   if (pI830->MergedFB && DDCclock2 > 0) {
       p = pI830->pScrn_2->modes;
       if (p == NULL)
          return FALSE;
@@ -7484,10 +7505,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
 
    xf86PruneDriverModes(pScrn);
 
-   if (pI830->MergedFB) {
-      DisplayModePtr old_modes;
-      DisplayModePtr cur_mode;
-
+   if (pI830->MergedFB && DDCclock2 > 0) {
       xf86PruneDriverModes(pI830->pScrn_2);
 
       if (pI830->pScrn_2->modes == NULL) {
@@ -7495,6 +7513,10 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
          PreInitCleanup(pScrn);
          return FALSE;
       }
+   }
+
+   if (pI830->MergedFB) {
+      DisplayModePtr old_modes, cur_mode;
 
       old_modes = pScrn->modes;
       cur_mode = pScrn->currentMode;
