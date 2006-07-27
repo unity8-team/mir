@@ -1495,21 +1495,21 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
          case PosBelow:
             if ((w2 > 0 && w1 == 0) ||
                 (h2 > 0 && h1 == 0)) {
-               pPriv->pipe = pI830->pipe;
+               pPriv->pipe = !pI830->pipe;
                dstBox->x1 = dstBox2.x1;
                dstBox->y1 = dstBox2.y1;
                dstBox->x2 = dstBox2.x2;
                dstBox->y2 = dstBox2.y2;
             } else 
-               pPriv->pipe = !pI830->pipe;
+               pPriv->pipe = pI830->pipe;
             break;
          case PosLeftOf:
          case PosAbove:
             if ((w1 > 0 && w2 == 0) ||
                 (h1 > 0 && h2 == 0)) { 
-               pPriv->pipe = !pI830->pipe;
-            } else {
                pPriv->pipe = pI830->pipe;
+            } else {
+               pPriv->pipe = !pI830->pipe;
                dstBox->x1 = dstBox2.x1;
                dstBox->y1 = dstBox2.y1;
                dstBox->x2 = dstBox2.x2;
