@@ -117,20 +117,21 @@
 
 
 /*
- * ATII2CAddress --
+ * ATII2CStart --
  *
- * This function puts a Start bit and an 8-bit address on the I2C bus.
+ * This function puts a start signal on the I2C bus.
  */
 static Bool
-ATII2CAddress
+ATII2CStart
 (
-    I2CDevPtr    pI2CDev,
-    I2CSlaveAddr Address
+    I2CBusPtr pI2CBus,
+    int       timeout
 )
 {
-    I2CBusPtr pI2CBus = pI2CDev->pI2CBus;
     ATII2CPtr pATII2C = pI2CBus->DriverPrivate.ptr;
     ATIPtr    pATI    = pATII2C->pATI;
+
+    (void)timeout;
 
     /*
      * Set I2C line directions to out-bound.  SCL will remain out-bound until
@@ -147,6 +148,23 @@ ATII2CAddress
     ATII2CSCLBitOn;
     ATII2CSDABitOff;
     ATII2CSCLBitOff;
+
+    return TRUE;
+}
+
+/*
+ * ATII2CAddress --
+ *
+ * This function puts an 8-bit address on the I2C bus.
+ */
+static Bool
+ATII2CAddress
+(
+    I2CDevPtr    pI2CDev,
+    I2CSlaveAddr Address
+)
+{
+    I2CBusPtr pI2CBus = pI2CDev->pI2CBus;
 
     /* Send low byte of device address */
     if ((*pI2CBus->I2CPutByte)(pI2CDev, (I2CByte)Address))
@@ -318,6 +336,7 @@ ATICreateI2CBusRec
     pI2CBus->scrnIndex         = iScreen;
 
     pI2CBus->I2CAddress        = ATII2CAddress;
+    pI2CBus->I2CStart          = ATII2CStart;
     pI2CBus->I2CStop           = ATII2CStop;
     pI2CBus->I2CPutByte        = ATII2CPutByte;
     pI2CBus->I2CGetByte        = ATII2CGetByte;
