@@ -481,6 +481,18 @@ ATIMach64SubsequentScreenToScreenCopy
     outf(SRC_WIDTH1, w);
     outf(DST_Y_X, SetWord(xDst, 1) | SetWord(yDst, 0));
     outf(DST_HEIGHT_WIDTH, SetWord(w, 1) | SetWord(h, 0));
+
+    /*
+     * On VTB's and later, the engine will randomly not wait for a copy
+     * operation to commit its results to video memory before starting the next
+     * one.  The probability of such occurrences increases with GUI_WB_FLUSH
+     * (or GUI_WB_FLUSH_P) setting, bitsPerPixel and/or CRTC clock.  This
+     * would point to some kind of video memory bandwidth problem were it noti
+     * for the fact that the problem occurs less often (but still occurs) when
+     * copying larger rectangles.
+     */
+    if ((pATI->Chip >= ATI_CHIP_264VTB) && !pATI->OptionDevel)
+        ATIMach64Sync(pScreenInfo);
 }
 
 /*
