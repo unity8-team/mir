@@ -7088,22 +7088,6 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->CloseScreen = pScreen->CloseScreen;
    pScreen->CloseScreen = I830BIOSCloseScreen;
 
-   if (!pI830->MergedFB && pI830->shadowReq.minorversion >= 1) {
-      /* Rotation */
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
-      xf86DisableRandR(); /* Disable built-in RandR extension */
-      shadowSetup(pScreen);
-      /* support all rotations */
-      I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
-      pI830->PointerMoved = pScrn->PointerMoved;
-      pScrn->PointerMoved = I830PointerMoved;
-      pI830->CreateScreenResources = pScreen->CreateScreenResources;
-      pScreen->CreateScreenResources = I830CreateScreenResources;
-   } else {
-      /* Rotation */
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "libshadow is version %d.%d.%d, required 1.1.0 or greater for rotation.\n",pI830->shadowReq.majorversion,pI830->shadowReq.minorversion,pI830->shadowReq.patchlevel);
-   }
-
    if (pI830->MergedFB) {
       pI830->PointerMoved = pScrn->PointerMoved;
       pScrn->PointerMoved = I830MergedPointerMoved;
@@ -7120,6 +7104,20 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       } else {
 	  pI830->MouseRestrictions = FALSE;
       }
+   } else if (pI830->shadowReq.minorversion >= 1) {
+      /* Rotation */
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
+      xf86DisableRandR(); /* Disable built-in RandR extension */
+      shadowSetup(pScreen);
+      /* support all rotations */
+      I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
+      pI830->PointerMoved = pScrn->PointerMoved;
+      pScrn->PointerMoved = I830PointerMoved;
+      pI830->CreateScreenResources = pScreen->CreateScreenResources;
+      pScreen->CreateScreenResources = I830CreateScreenResources;
+   } else {
+      /* Rotation */
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "libshadow is version %d.%d.%d, required 1.1.0 or greater for rotation.\n",pI830->shadowReq.majorversion,pI830->shadowReq.minorversion,pI830->shadowReq.patchlevel);
    }
 
    if (serverGeneration == 1)

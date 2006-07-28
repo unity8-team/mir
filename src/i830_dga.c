@@ -99,6 +99,31 @@ I830DGAInit(ScreenPtr pScreen)
 
    while (pMode) {
 
+	if(pI830->MergedFB) {
+	   Bool nogood = FALSE;
+	   /* Filter out all meta modes that would require driver-side panning */
+	   switch(((I830ModePrivatePtr)pMode->Private)->merged.SecondPosition) {
+	   case PosRightOf:
+	   case PosLeftOf:
+	      if( (((I830ModePrivatePtr)pMode->Private)->merged.First->VDisplay !=
+		   ((I830ModePrivatePtr)pMode->Private)->merged.Second->VDisplay)	||
+		  (((I830ModePrivatePtr)pMode->Private)->merged.First->VDisplay != pMode->VDisplay) )
+		 nogood = TRUE;
+	      break;
+	   default:
+	      if( (((I830ModePrivatePtr)pMode->Private)->merged.First->HDisplay !=
+		   ((I830ModePrivatePtr)pMode->Private)->merged.Second->HDisplay)	||
+		  (((I830ModePrivatePtr)pMode->Private)->merged.First->HDisplay != pMode->HDisplay) )
+		 nogood = TRUE;
+	   }
+	   if(nogood) {
+	      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"DGA: MetaMode %dx%d not suitable for DGA, skipping\n",
+			pMode->HDisplay, pMode->VDisplay);
+	      goto mode_nogood;
+	   }
+	}
+
       newmodes = xrealloc(modes, (num + 1) * sizeof(DGAModeRec));
 
       if (!newmodes) {
@@ -155,6 +180,7 @@ I830DGAInit(ScreenPtr pScreen)
       currentMode->maxViewportY = currentMode->imageHeight -
 	    currentMode->viewportHeight;
 
+mode_nogood:
       pMode = pMode->next;
       if (pMode == firstMode)
 	 break;
