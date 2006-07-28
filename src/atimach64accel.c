@@ -131,6 +131,7 @@ ATIMach64ValidateClip
 }
 
 static __inline__ void TestRegisterCachingDP(ScrnInfoPtr pScreenInfo);
+static __inline__ void TestRegisterCachingXV(ScrnInfoPtr pScreenInfo);
 
 /*
  * ATIMach64Sync --
@@ -221,58 +222,7 @@ ATIMach64Sync
             TestRegisterCaching(CLR_CMP_CLR);
             TestRegisterCaching(CLR_CMP_MSK);
 
-	    if (pATI->Block1Base)
-            {
-                TestRegisterCaching(OVERLAY_Y_X_START);
-                TestRegisterCaching(OVERLAY_Y_X_END);
-
-                TestRegisterCaching(OVERLAY_GRAPHICS_KEY_CLR);
-                TestRegisterCaching(OVERLAY_GRAPHICS_KEY_MSK);
-
-                TestRegisterCaching(OVERLAY_KEY_CNTL);
-
-                TestRegisterCaching(OVERLAY_SCALE_INC);
-                TestRegisterCaching(OVERLAY_SCALE_CNTL);
-
-                TestRegisterCaching(SCALER_HEIGHT_WIDTH);
-
-                TestRegisterCaching(SCALER_TEST);
-
-                TestRegisterCaching(VIDEO_FORMAT);
-   
-                if (pATI->Chip < ATI_CHIP_264VTB)
-                {
-                    TestRegisterCaching(BUF0_OFFSET);
-                    TestRegisterCaching(BUF0_PITCH);
-                    TestRegisterCaching(BUF1_OFFSET);
-                    TestRegisterCaching(BUF1_PITCH);
-                }
-                else
-                {
-                    TestRegisterCaching(SCALER_BUF0_OFFSET);
-                    TestRegisterCaching(SCALER_BUF1_OFFSET);
-                    TestRegisterCaching(SCALER_BUF_PITCH);
-
-                    TestRegisterCaching(OVERLAY_EXCLUSIVE_HORZ);
-                    TestRegisterCaching(OVERLAY_EXCLUSIVE_VERT);
-  
-                    if (pATI->Chip >= ATI_CHIP_264GTPRO)
-                    {
-                        TestRegisterCaching(SCALER_COLOUR_CNTL);
-  
-                        TestRegisterCaching(SCALER_H_COEFF0);
-                        TestRegisterCaching(SCALER_H_COEFF1);
-                        TestRegisterCaching(SCALER_H_COEFF2);
-                        TestRegisterCaching(SCALER_H_COEFF3);
-                        TestRegisterCaching(SCALER_H_COEFF4);
-
-                        TestRegisterCaching(SCALER_BUF0_OFFSET_U);
-                        TestRegisterCaching(SCALER_BUF0_OFFSET_V);
-                        TestRegisterCaching(SCALER_BUF1_OFFSET_U);
-                        TestRegisterCaching(SCALER_BUF1_OFFSET_V);
-                    }
-                }
-    	    }
+	    TestRegisterCachingXV(pScreenInfo);
          }
 	pATI->NeedDRISync = FALSE;
 
@@ -291,58 +241,7 @@ ATIMach64Sync
          */
         TestRegisterCachingDP(pScreenInfo);
 
-        if (pATI->Block1Base)
-        {
-            TestRegisterCaching(OVERLAY_Y_X_START);
-            TestRegisterCaching(OVERLAY_Y_X_END);
-
-            TestRegisterCaching(OVERLAY_GRAPHICS_KEY_CLR);
-            TestRegisterCaching(OVERLAY_GRAPHICS_KEY_MSK);
-
-            TestRegisterCaching(OVERLAY_KEY_CNTL);
-
-            TestRegisterCaching(OVERLAY_SCALE_INC);
-            TestRegisterCaching(OVERLAY_SCALE_CNTL);
-
-            TestRegisterCaching(SCALER_HEIGHT_WIDTH);
-
-            TestRegisterCaching(SCALER_TEST);
-
-            TestRegisterCaching(VIDEO_FORMAT);
-
-            if (pATI->Chip < ATI_CHIP_264VTB)
-            {
-                TestRegisterCaching(BUF0_OFFSET);
-                TestRegisterCaching(BUF0_PITCH);
-                TestRegisterCaching(BUF1_OFFSET);
-                TestRegisterCaching(BUF1_PITCH);
-            }
-            else
-            {
-                TestRegisterCaching(SCALER_BUF0_OFFSET);
-                TestRegisterCaching(SCALER_BUF1_OFFSET);
-                TestRegisterCaching(SCALER_BUF_PITCH);
-
-                TestRegisterCaching(OVERLAY_EXCLUSIVE_HORZ);
-                TestRegisterCaching(OVERLAY_EXCLUSIVE_VERT);
-
-                if (pATI->Chip >= ATI_CHIP_264GTPRO)
-                {
-                    TestRegisterCaching(SCALER_COLOUR_CNTL);
-
-                    TestRegisterCaching(SCALER_H_COEFF0);
-                    TestRegisterCaching(SCALER_H_COEFF1);
-                    TestRegisterCaching(SCALER_H_COEFF2);
-                    TestRegisterCaching(SCALER_H_COEFF3);
-                    TestRegisterCaching(SCALER_H_COEFF4);
-
-                    TestRegisterCaching(SCALER_BUF0_OFFSET_U);
-                    TestRegisterCaching(SCALER_BUF0_OFFSET_V);
-                    TestRegisterCaching(SCALER_BUF1_OFFSET_U);
-                    TestRegisterCaching(SCALER_BUF1_OFFSET_V);
-                }
-            }
-        }
+        TestRegisterCachingXV(pScreenInfo);
       }
     }
 
@@ -397,6 +296,65 @@ TestRegisterCachingDP(ScrnInfoPtr pScreenInfo)
     TestRegisterCaching(CLR_CMP_CLR);
     TestRegisterCaching(CLR_CMP_MSK);
     TestRegisterCaching(CLR_CMP_CNTL);
+}
+
+static __inline__ void
+TestRegisterCachingXV(ScrnInfoPtr pScreenInfo)
+{
+    ATIPtr pATI = ATIPTR(pScreenInfo);
+
+    if (!pATI->Block1Base)
+        return;
+
+    TestRegisterCaching(OVERLAY_Y_X_START);
+    TestRegisterCaching(OVERLAY_Y_X_END);
+
+    TestRegisterCaching(OVERLAY_GRAPHICS_KEY_CLR);
+    TestRegisterCaching(OVERLAY_GRAPHICS_KEY_MSK);
+
+    TestRegisterCaching(OVERLAY_KEY_CNTL);
+
+    TestRegisterCaching(OVERLAY_SCALE_INC);
+    TestRegisterCaching(OVERLAY_SCALE_CNTL);
+
+    TestRegisterCaching(SCALER_HEIGHT_WIDTH);
+
+    TestRegisterCaching(SCALER_TEST);
+
+    TestRegisterCaching(VIDEO_FORMAT);
+
+    if (pATI->Chip < ATI_CHIP_264VTB)
+    {
+        TestRegisterCaching(BUF0_OFFSET);
+        TestRegisterCaching(BUF0_PITCH);
+        TestRegisterCaching(BUF1_OFFSET);
+        TestRegisterCaching(BUF1_PITCH);
+
+        return;
+    }
+
+    TestRegisterCaching(SCALER_BUF0_OFFSET);
+    TestRegisterCaching(SCALER_BUF1_OFFSET);
+    TestRegisterCaching(SCALER_BUF_PITCH);
+
+    TestRegisterCaching(OVERLAY_EXCLUSIVE_HORZ);
+    TestRegisterCaching(OVERLAY_EXCLUSIVE_VERT);
+
+    if (pATI->Chip < ATI_CHIP_264GTPRO)
+        return;
+
+    TestRegisterCaching(SCALER_COLOUR_CNTL);
+
+    TestRegisterCaching(SCALER_H_COEFF0);
+    TestRegisterCaching(SCALER_H_COEFF1);
+    TestRegisterCaching(SCALER_H_COEFF2);
+    TestRegisterCaching(SCALER_H_COEFF3);
+    TestRegisterCaching(SCALER_H_COEFF4);
+
+    TestRegisterCaching(SCALER_BUF0_OFFSET_U);
+    TestRegisterCaching(SCALER_BUF0_OFFSET_V);
+    TestRegisterCaching(SCALER_BUF1_OFFSET_U);
+    TestRegisterCaching(SCALER_BUF1_OFFSET_V);
 }
 
 /*
