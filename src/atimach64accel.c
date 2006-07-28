@@ -245,16 +245,32 @@ ATIMach64Sync
       }
     }
 
+    if (pATI->pXAAInfo)
+        pATI->pXAAInfo->NeedToSync = FALSE;
+
+    if (pATI->Chip >= ATI_CHIP_264VTB)
+    {
+        /*
+         * Flush the read-back cache (by turning on INVALIDATE_RB_CACHE),
+         * otherwise the host might get stale data when reading through the
+         * aperture.
+         */
+        outr(MEM_BUF_CNTL, pATI->NewHW.mem_buf_cntl);
+    }
+
     /*
+     * Note:
+     * Before actually invalidating the read-back cache, the mach64 driver
+     * was using the trick below which is buggy. The code is left here for
+     * reference, DRI uses this trick and needs updating.
+     *
      * For VTB's and later, the first CPU read of the framebuffer will return
      * zeroes, so do it here.  This appears to be due to some kind of engine
      * caching of framebuffer data I haven't found any way of disabling, or
      * otherwise circumventing.  Thanks to Mark Vojkovich for the suggestion.
+     *
+     * pATI = *(volatile ATIPtr *)pATI->pMemory;
      */
-    if (pATI->pXAAInfo)
-      pATI->pXAAInfo->NeedToSync = FALSE;
-
-    pATI = *(volatile ATIPtr *)pATI->pMemory;
 }
 
 static __inline__ void

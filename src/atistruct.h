@@ -110,7 +110,7 @@ typedef struct _ATIHWRec
     /* Mach64 CPIO registers */
     CARD32 crtc_h_total_disp, crtc_h_sync_strt_wid,
            crtc_v_total_disp, crtc_v_sync_strt_wid,
-           crtc_off_pitch, crtc_gen_cntl, dsp_config, dsp_on_off,
+           crtc_off_pitch, crtc_gen_cntl, dsp_config, dsp_on_off, mem_buf_cntl,
            ovr_clr, ovr_wid_left_right, ovr_wid_top_bottom,
            cur_clr0, cur_clr1, cur_offset,
            cur_horz_vert_posn, cur_horz_vert_off,

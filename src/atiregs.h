@@ -692,6 +692,19 @@
 /*	?				0xf8000000ul */
 #define TIMER_CONFIG		BlockIOTag(0x0au)	/* VTB/GTB/LT */
 #define MEM_BUF_CNTL		BlockIOTag(0x0bu)	/* VTB/GTB/LT */
+#define Z_WB_FLUSH			0x00000007ul
+#define Z_WB_FLUSH_P			0x0000000ful	/* GTPro */
+#define VID_WB_FLUSH_P			0x000000f0ul	/* GTPro */
+#define VID_WB_FLUSH_MSB		0x00000100ul
+#define GUI_WB_FLUSH_P			0x00001f00ul	/* GTPro */
+#define HST_WB_FLUSH_P			0x0000e000ul	/* GTPro */
+#define SCL_MIN_BURST_LEN		0x001f0000ul
+#define SCL_THRESH			0x003f0000ul	/* GTPro */
+/*	?				0x00400000ul */
+#define INVALIDATE_RB_CACHE		0x00800000ul
+#define HST_WB_FLUSH			0x03000000ul
+#define VID_WB_FLUSH			0x1c000000ul
+#define GUI_WB_FLUSH			0xe0000000ul
 #define SHARED_CNTL		BlockIOTag(0x0cu)	/* VTB/GTB/LT */
 #define SHARED_MEM_CONFIG	BlockIOTag(0x0du)	/* VTB/GTB/LT */
 #define MEM_ADDR_CONFIG		BlockIOTag(0x0du)	/* GTPro */
