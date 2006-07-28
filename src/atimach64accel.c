@@ -130,6 +130,8 @@ ATIMach64ValidateClip
     }
 }
 
+static __inline__ void TestRegisterCachingDP(ScrnInfoPtr pScreenInfo);
+
 /*
  * ATIMach64Sync --
  *
@@ -287,40 +289,7 @@ ATIMach64Sync
          * For debugging purposes, attempt to verify that each cached register
          * should actually be cached.
          */
-        TestRegisterCaching(SRC_CNTL);
-
-        TestRegisterCaching(HOST_CNTL);
-
-        TestRegisterCaching(PAT_REG0);
-        TestRegisterCaching(PAT_REG1);
-        TestRegisterCaching(PAT_CNTL);
-
-        if (RegisterIsCached(SC_LEFT_RIGHT) &&  /* Special case */
-            (CacheSlot(SC_LEFT_RIGHT) !=
-             (SetWord(inm(SC_RIGHT), 1) | SetWord(inm(SC_LEFT), 0))))
-        {
-            UncacheRegister(SC_LEFT_RIGHT);
-            xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
-                "SC_LEFT_RIGHT write cache disabled!\n");
-        }
-
-        if (RegisterIsCached(SC_TOP_BOTTOM) &&  /* Special case */
-            (CacheSlot(SC_TOP_BOTTOM) !=
-             (SetWord(inm(SC_BOTTOM), 1) | SetWord(inm(SC_TOP), 0))))
-        {
-            UncacheRegister(SC_TOP_BOTTOM);
-            xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
-                "SC_TOP_BOTTOM write cache disabled!\n");
-        }
-
-        TestRegisterCaching(DP_BKGD_CLR);
-        TestRegisterCaching(DP_FRGD_CLR);
-        TestRegisterCaching(DP_WRITE_MASK);
-        TestRegisterCaching(DP_MIX);
-
-        TestRegisterCaching(CLR_CMP_CLR);
-        TestRegisterCaching(CLR_CMP_MSK);
-        TestRegisterCaching(CLR_CMP_CNTL);
+        TestRegisterCachingDP(pScreenInfo);
 
         if (pATI->Block1Base)
         {
@@ -387,6 +356,47 @@ ATIMach64Sync
       pATI->pXAAInfo->NeedToSync = FALSE;
 
     pATI = *(volatile ATIPtr *)pATI->pMemory;
+}
+
+static __inline__ void
+TestRegisterCachingDP(ScrnInfoPtr pScreenInfo)
+{
+    ATIPtr pATI = ATIPTR(pScreenInfo);
+
+    TestRegisterCaching(SRC_CNTL);
+
+    TestRegisterCaching(HOST_CNTL);
+
+    TestRegisterCaching(PAT_REG0);
+    TestRegisterCaching(PAT_REG1);
+    TestRegisterCaching(PAT_CNTL);
+
+    if (RegisterIsCached(SC_LEFT_RIGHT) &&      /* Special case */
+        (CacheSlot(SC_LEFT_RIGHT) !=
+         (SetWord(inm(SC_RIGHT), 1) | SetWord(inm(SC_LEFT), 0))))
+    {
+        UncacheRegister(SC_LEFT_RIGHT);
+        xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
+            "SC_LEFT_RIGHT write cache disabled!\n");
+    }
+
+    if (RegisterIsCached(SC_TOP_BOTTOM) &&      /* Special case */
+        (CacheSlot(SC_TOP_BOTTOM) !=
+         (SetWord(inm(SC_BOTTOM), 1) | SetWord(inm(SC_TOP), 0))))
+    {
+        UncacheRegister(SC_TOP_BOTTOM);
+        xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
+            "SC_TOP_BOTTOM write cache disabled!\n");
+    }
+
+    TestRegisterCaching(DP_BKGD_CLR);
+    TestRegisterCaching(DP_FRGD_CLR);
+    TestRegisterCaching(DP_WRITE_MASK);
+    TestRegisterCaching(DP_MIX);
+
+    TestRegisterCaching(CLR_CMP_CLR);
+    TestRegisterCaching(CLR_CMP_MSK);
+    TestRegisterCaching(CLR_CMP_CNTL);
 }
 
 /*
