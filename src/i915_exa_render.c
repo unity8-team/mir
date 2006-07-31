@@ -109,14 +109,14 @@ static struct blendinfo I915BlendOp[] = {
 };
 
 static struct formatinfo I915TexFormats[] = {
-        {PICT_a8r8g8b8, MT_32BIT_ARGB8888 },
-        {PICT_x8r8g8b8, MT_32BIT_XRGB8888 },
-        {PICT_a8b8g8r8, MT_32BIT_ABGR8888 },
-        {PICT_x8b8g8r8, MT_32BIT_XBGR8888 },
-        {PICT_r5g6b5,   MT_16BIT_RGB565   },
-        {PICT_a1r5g5b5, MT_16BIT_ARGB1555 },
-        {PICT_x1r5g5b5, MT_16BIT_ARGB1555 },
-        {PICT_a8,       MT_8BIT_A8 	  },
+        {PICT_a8r8g8b8, MAPSURF_32BIT | MT_32BIT_ARGB8888 },
+        {PICT_x8r8g8b8, MAPSURF_32BIT | MT_32BIT_XRGB8888 },
+        {PICT_a8b8g8r8, MAPSURF_32BIT | MT_32BIT_ABGR8888 },
+        {PICT_x8b8g8r8, MAPSURF_32BIT | MT_32BIT_XBGR8888 },
+        {PICT_r5g6b5,   MAPSURF_16BIT | MT_16BIT_RGB565   },
+        {PICT_a1r5g5b5, MAPSURF_16BIT | MT_16BIT_ARGB1555 },
+        {PICT_x1r5g5b5, MAPSURF_16BIT | MT_16BIT_ARGB1555 },
+        {PICT_a8,       MAPSURF_8BIT | MT_8BIT_A8 	  },
 };
 
 static CARD32 I915GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
@@ -288,13 +288,6 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	filter = 0;
         I830FALLBACK("Bad filter 0x%x\n", pPict->filter);
     }
-
-    if (pPix->drawable.bitsPerPixel == 8)
-	format |= MAPSURF_8BIT;
-    else if (pPix->drawable.bitsPerPixel == 16)
-	format |= MAPSURF_16BIT;
-    else
-	format |= MAPSURF_32BIT;
 
     mapstate[unit * 3 + 0] = offset;
     mapstate[unit * 3 + 1] = format |
