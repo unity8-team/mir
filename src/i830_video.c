@@ -2891,7 +2891,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     * allow anything we would want to do, at potentially lower performance.
     */
 #define URB_VS_ENTRIES	      8
-#define URB_VS_ENTRY_SIZE     5
+#define URB_VS_ENTRY_SIZE     1
    
 #define URB_GS_ENTRIES	      4
 #define URB_GS_ENTRY_SIZE     5
