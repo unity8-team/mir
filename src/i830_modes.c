@@ -638,10 +638,6 @@ i830GetDDCMonitor(ScrnInfoPtr pScrn, I2CBusPtr pDDCBus)
     userModes = i830DuplicateModes(pScrn, pScrn->monitor->Modes);
 
     i830xf86ValidateModesSync(pScrn, userModes, mon);
-    if (ddc->features.hsize > 0 && ddc->features.vsize > 0) {
-	i830xf86ValidateModesSize(pScrn, userModes, ddc->features.hsize,
-				  ddc->features.vsize, -1);
-    }
     i830xf86PruneInvalidModes(pScrn, &userModes, TRUE);
 
     i830AppendModes(pScrn, &mon->Modes, userModes);
