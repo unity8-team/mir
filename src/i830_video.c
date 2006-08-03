@@ -2902,8 +2902,8 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 #define URB_GS_ENTRIES	      0
 #define URB_GS_ENTRY_SIZE     0
    
-#define URB_CLIP_ENTRIES      6
-#define URB_CLIP_ENTRY_SIZE   5
+#define URB_CLIP_ENTRIES      0
+#define URB_CLIP_ENTRY_SIZE   0
    
 #define URB_SF_ENTRIES	      8
 #define URB_SF_ENTRY_SIZE     11
