@@ -2905,8 +2905,13 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 #define URB_CLIP_ENTRIES      0
 #define URB_CLIP_ENTRY_SIZE   0
    
-#define URB_SF_ENTRIES	      8
-#define URB_SF_ENTRY_SIZE     11
+   /* The SF kernel we use outputs only 4 256-bit registers, leading to an
+    * entry size of 2 512-bit URBs.  We don't need to have many entries to
+    * output as we're generally working on large rectangles and don't care
+    * about having WM threads running on different rectangles simultaneously.
+    */
+#define URB_SF_ENTRIES	      1
+#define URB_SF_ENTRY_SIZE     2
 
 #define URB_CS_ENTRIES	      0
 #define URB_CS_ENTRY_SIZE     0
