@@ -3147,8 +3147,8 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    wm_state->thread1.binding_table_entry_count = 2;
    wm_state->thread2.scratch_space_base_pointer = 0; /* XXX */
    wm_state->thread2.per_thread_scratch_space = 0; /* XXX */
-   wm_state->thread3.dispatch_grf_start_reg = 10; /* XXX */
-   wm_state->thread3.urb_entry_read_length = 3; /* XXX */
+   wm_state->thread3.dispatch_grf_start_reg = 3; /* XXX */
+   wm_state->thread3.urb_entry_read_length = 1; /* XXX */
    wm_state->thread3.const_urb_entry_read_length = 0; /* XXX */
    wm_state->thread3.const_urb_entry_read_offset = 0; /* XXX */
    wm_state->thread3.urb_entry_read_offset = 0; /* XXX */
