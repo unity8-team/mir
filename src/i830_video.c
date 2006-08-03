@@ -2641,33 +2641,6 @@ static const CARD32 sip_kernel_static[][4] = {
     { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
 };
    
-static const CARD32 vs_kernel_static[][4] = {
-   /*    mov (8) m1<1>F g1<8,8,1>F { align1 +  } */
-   { 0x00600001, 0x202003be, 0x008d0020, 0x00000000 },
-   /*    mov (1) g0.8<1>D 0 { align1 mask_disable +  } */
-   { 0x00000201, 0x200810e5, 0x00000000, 0x00000000 },
-   /*    send   0 (8) a0<1>UW g0<8,8,1>F write mlen 3 rlen 0 { align1 +  } */
-   { 0x00600031, 0x20001fa8, 0x008d0000, 0x053003ff },
-   /*    send   0 (8) a0<1>F g0<8,8,1>F urb mlen 2 rlen 0 write +0 noswizzle used complete EOT{ align1 +  } */
-   { 0x00600031, 0x20001fbc, 0x008d0000, 0x8620c000 },
-   /*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-   /*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-   /*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-   /*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-   /*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-   /*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-   /*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-   /*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-};
-   
 /*
  * this program computes dA/dx and dA/dy for the texture coordinates along
  * with the base texture coordinate. It was extracted from the Mesa driver
@@ -2807,7 +2780,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    struct brw_wm_unit_state *wm_state;
    struct brw_cc_unit_state *cc_state;
    struct brw_cc_viewport *cc_viewport;
-   struct brw_instruction *vs_kernel;
    struct brw_instruction *sf_kernel;
    struct brw_instruction *ps_kernel;
    struct brw_instruction *sip_kernel;
@@ -2817,22 +2789,12 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    int dest_surf_offset, src_surf_offset, src_sampler_offset, vs_offset;
    int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
    int wm_scratch_offset;
-   int vs_kernel_offset;
    int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
    int binding_table_offset;
    int next_offset, total_state_size;
    int vb_size = (4 * 4) * 4; /* 4 DWORDS per vertex */
    char *state_base;
    int state_base_offset;
-
-    int vs_scratch_offset;
-#define VS_SCRATCH_SIZE	1024
-#define VS_SCRATCH_NUM (VS_SCRATCH_SIZE / sizeof (float))
-    char *vs_scratch;
-    int vs_scratch_surface_state_offset;
-    struct brw_surface_state *vs_scratch_surface_state;
-    int vs_binding_table_offset;
-    CARD32 *vs_binding_table;
 
 #if 0
    ErrorF("BroadwaterDisplayVideoTextured: %dx%d (pitch %d)\n", width, height,
@@ -2875,15 +2837,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    next_offset = ps_kernel_offset + sizeof (ps_kernel_static);
    sip_kernel_offset = ALIGN(next_offset, 64);
    next_offset = sip_kernel_offset + sizeof (sip_kernel_static);
-   vs_kernel_offset = ALIGN(next_offset, 64);
-   next_offset = vs_kernel_offset + sizeof (vs_kernel_static);
-   vs_scratch_offset = ALIGN(next_offset, 1024);
-   next_offset = vs_scratch_offset + VS_SCRATCH_SIZE;
-   vs_scratch_surface_state_offset = ALIGN(next_offset, 32);
-   next_offset = vs_scratch_surface_state_offset + sizeof (struct brw_surface_state);
-   vs_binding_table_offset = ALIGN(next_offset, 32);
-   next_offset = vs_binding_table_offset + 1 * 4;
-   
    cc_viewport_offset = ALIGN(next_offset, 32);
    next_offset = cc_viewport_offset + sizeof(*cc_viewport);
 
@@ -2926,10 +2879,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    sf_kernel = (void *)(state_base + sf_kernel_offset);
    ps_kernel = (void *)(state_base + ps_kernel_offset);
    sip_kernel = (void *)(state_base + sip_kernel_offset);
-   vs_kernel = (void *)(state_base + vs_kernel_offset);
-   vs_scratch = (void *)(state_base + vs_scratch_offset);
-   vs_scratch_surface_state = (void *)(state_base + vs_scratch_surface_state_offset);
-   vs_binding_table = (void *)(state_base + vs_binding_table_offset);
    
    cc_viewport = (void *)(state_base + cc_viewport_offset);
    dest_surf_state = (void *)(state_base + dest_surf_offset);
@@ -3064,30 +3013,8 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    src_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 
    /* Set up the vertex shader to be disabled (passthrough) */
-   vs_binding_table[0] = state_base_offset + vs_scratch_surface_state_offset;
-   memset (vs_scratch_surface_state, 0, sizeof (*vs_scratch_surface_state));
-   vs_scratch_surface_state->ss0.surface_type = BRW_SURFACE_BUFFER;
-   vs_scratch_surface_state->ss0.surface_format = BRW_SURFACEFORMAT_R32_FLOAT;
-   vs_scratch_surface_state->ss1.base_addr = state_base_offset + vs_scratch_offset;
-   vs_scratch_surface_state->ss2.height = (VS_SCRATCH_NUM - 1) >> 7;
-   vs_scratch_surface_state->ss2.width = (VS_SCRATCH_NUM - 1) & 0x7f;
-   vs_scratch_surface_state->ss3.pitch = 3;
-   
-   memcpy(vs_kernel, vs_kernel_static, sizeof (vs_kernel_static));
-   
    memset(vs_state, 0, sizeof(*vs_state));
-#if 0
-   ErrorF ("vs kernel: 0x%08x\n", state_base_offset + vs_kernel_offset);
-#endif
-   vs_state->thread0.kernel_start_pointer =
-	    (state_base_offset + vs_kernel_offset) >> 6;
-   vs_state->thread0.grf_reg_count = 1;
-   vs_state->thread1.single_program_flow = 1;
-   vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
-   vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
-   vs_state->thread4.stats_enable = 1;
    vs_state->vs6.vs_enable = 0;
-   vs_state->vs6.vert_cache_disable = 1;
 
    /* Set up the SF kernel to do coord interp: for each attribute,
     * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
@@ -3217,7 +3144,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    /* Binding table pointers */
    OUT_RING(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
-   OUT_RING(state_base_offset + vs_binding_table_offset); /* vs */
+   OUT_RING(0); /* vs */
    OUT_RING(0); /* gs */
    OUT_RING(0); /* clip */
    OUT_RING(0); /* sf */
@@ -3354,10 +3281,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       vb[i++] = (float) box_y1;
 
 #if 0
-      memset (vs_scratch, 1, VS_SCRATCH_SIZE);
-#endif
-      
-#if 0
       ErrorF ("before EU_ATT 0x%08x%08x EU_ATT_DATA 0x%08x%08x\n",
 	      INREG(BRW_EU_ATT_1), INREG(BRW_EU_ATT_0),
 	      INREG(BRW_EU_ATT_DATA_1), INREG(BRW_EU_ATT_DATA_0));
@@ -3448,13 +3371,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       }
       
       OUTREG(BRW_VS_CTL, 0);
-      for (j = 0; j < 32; j += 8)
-	 ErrorF (" vs_scratch(%2d): %02x %02x %02x %02x  %02x %02x %02x %02x\n",
-		 j,
-		 vs_scratch[j+0], vs_scratch[j+1],
-		 vs_scratch[j+2], vs_scratch[j+3], 
-		 vs_scratch[j+4], vs_scratch[j+5],
-		 vs_scratch[j+6], vs_scratch[j+7]);
 #endif
 
 #if WATCH_SF
