@@ -133,6 +133,11 @@ static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 #define IMAGE_MAX_WIDTH_LEGACY	1024
 #define IMAGE_MAX_HEIGHT_LEGACY	1080
 
+/*
+ * Broadwater requires a bit of extra video memory for state information
+ */
+#define BRW_LINEAR_EXTRA	(32*1024)
+
 #if !VIDEO_DEBUG
 #define ErrorF Edummy
 static void
@@ -2817,7 +2822,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    int binding_table_offset;
    int next_offset, total_state_size;
    int vb_size = (4 * 4) * 4; /* 4 DWORDS per vertex */
-   FBLinearPtr state_area;
    char *state_base;
    int state_base_offset;
 
@@ -2900,15 +2904,16 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    /* Allocate an area in framebuffer for our state layout we just set up */
    total_state_size = next_offset;
-   state_area = I830AllocateMemory(pScrn, NULL, (total_state_size + 64) /
-				   pI830->cpp);
-   if (state_area == NULL) {
-      ErrorF("Failed to allocate %d bytes for state\n", total_state_size);
-      return;
-   }
+   assert (total_state_size < BRW_LINEAR_EXTRA);
 
-   state_base_offset = pI830->FrontBuffer.Start + pPriv->linear->offset * pI830->cpp;
+   /*
+    * Use the extra space allocated at the end of the Xv buffer
+    */
+   state_base_offset = (pPriv->YBuf0offset + 
+			pPriv->linear->size * pI830->cpp -
+			BRW_LINEAR_EXTRA);
    state_base_offset = ALIGN(state_base_offset, 64);
+
    state_base = (char *)(pI830->FbBase + state_base_offset);
    /* Set up our pointers to state structures in framebuffer.  It would probably
     * be a good idea to fill these structures out in system memory and then dump
@@ -3515,7 +3520,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 #if WATCH_STATS
    I830PrintErrorState (pScrn);
 #endif
-   xf86FreeOffscreenLinear(state_area);
 }
 
 static FBLinearPtr
@@ -3594,6 +3598,7 @@ I830PutImage(ScrnInfoPtr pScrn,
    int top, left, npixels, nlines, size, loops;
    BoxRec dstBox;
    int pitchAlignMask;
+   int extraLinear;
 
    DPRINTF(PFX, "I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
 	   "width %d, height %d\n", src_x, src_y, src_w, src_h, drw_x, drw_y,
@@ -3696,9 +3701,14 @@ I830PutImage(ScrnInfoPtr pScrn,
    ErrorF("srcPitch: %d, dstPitch: %d, size: %d\n", srcPitch, dstPitch, size);
 #endif
 
+   if (IS_BROADWATER(pI830))
+      extraLinear = BRW_LINEAR_EXTRA;
+   else
+      extraLinear = 0;
+
    /* size is multiplied by 2 because we have two buffers that are flipping */
    pPriv->linear = I830AllocateMemory(pScrn, pPriv->linear,
-		   (pPriv->doubleBuffer ? size * 2 : size) / pI830->cpp);
+		   extraLinear + (pPriv->doubleBuffer ? size * 2 : size) / pI830->cpp);
 
    if(!pPriv->linear || pPriv->linear->offset < (pScrn->virtualX * pScrn->virtualY))
       return BadAlloc;
