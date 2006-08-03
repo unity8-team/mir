@@ -2891,10 +2891,12 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    binding_table = (void *)(state_base + binding_table_offset);
    vb = (void *)(state_base + vb_offset);
 
-   /* Set up a default static partitioning of the URB, which is supposed to
-    * allow anything we would want to do, at potentially lower performance.
+   /* For 3D, the VS must have 8, 12, 16, 24, or 32 VUEs allocated to it.
+    * A VUE consists of a 256-bit vertex header followed by the vertex data,
+    * which in our case is 4 floats (128 bits), thus a single 512-bit URB
+    * entry.
     */
-#define URB_VS_ENTRIES	      3
+#define URB_VS_ENTRIES	      8
 #define URB_VS_ENTRY_SIZE     1
    
 #define URB_GS_ENTRIES	      0
@@ -3018,7 +3020,10 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    /* Set up the vertex shader to be disabled (passthrough) */
    memset(vs_state, 0, sizeof(*vs_state));
+   vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
+   vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
    vs_state->vs6.vs_enable = 0;
+   vs_state->vs6.vert_cache_disable = 1;
 
    /* Set up the SF kernel to do coord interp: for each attribute,
     * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
