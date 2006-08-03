@@ -2695,7 +2695,7 @@ static const CARD32 sf_kernel_static[][4] = {
 
 /* Our PS kernel uses less than 32 GRF registers (about 20) */
 #define PS_KERNEL_NUM_GRF   32
-#define PS_MAX_THREADS	   1
+#define PS_MAX_THREADS	   32
 
 #define BRW_GRF_BLOCKS(nreg)	((nreg + 15) / 16 - 1)
 
