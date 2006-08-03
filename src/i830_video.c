@@ -2643,16 +2643,12 @@ static const CARD32 sip_kernel_static[][4] = {
    
 /*
  * this program computes dA/dx and dA/dy for the texture coordinates along
- * with the base texture coordinate. It was extracted from the Mesa driver
+ * with the base texture coordinate. It was extracted from the Mesa driver.
+ * It uses about 10 GRF registers.
  */
 
-#define SF_KERNEL_NUM_GRF  10
-#define SF_KERNEL_NUM_URB  8
-#if 0
-#define SF_MAX_THREADS	   MIN(12, URB_SF_ENTRIES / 2)
-#else
+#define SF_KERNEL_NUM_GRF  16
 #define SF_MAX_THREADS	   1
-#endif
 
 static const CARD32 sf_kernel_static[][4] = {
 /*    send   0 (1) g6<1>F g1.12<0,1,0>F math mlen 1 rlen 1 { align1 +  } */
@@ -2697,17 +2693,11 @@ static const CARD32 sf_kernel_static[][4] = {
  * values (bright pink).
  */
 
-/*
- * I am reasonably sure these values are bogus
- * but, they do appear to work. Learning precisely what
- * values belong here should improve performance by
- * increasing the number of threads that will be able to run
- * in parallel.
- */
+/* Our PS kernel uses less than 32 GRF registers (about 20) */
+#define PS_KERNEL_NUM_GRF   32
+#define PS_MAX_THREADS	   1
 
-#define PS_KERNEL_NUM_GRF   20
-#define PS_KERNEL_NUM_URB   8
-#define PS_MAX_THREADS	   1 /* MIN(12, PS_KERNEL_NUM_URB / 2) */
+#define BRW_GRF_BLOCKS(nreg)	((nreg + 15) / 16 - 1)
 
 static const CARD32 ps_kernel_static[][4] = {
 #include "wm_prog.h"
@@ -3042,7 +3032,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 #endif
    sf_state->thread0.kernel_start_pointer = 
 	       (state_base_offset + sf_kernel_offset) >> 6;
-   sf_state->thread0.grf_reg_count = ((SF_KERNEL_NUM_GRF & ~15) / 16);
+   sf_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
    sf_state->sf1.single_program_flow = 1; /* XXX */
    sf_state->sf1.binding_table_entry_count = 0;
    sf_state->sf1.thread_priority = 0;
@@ -3088,7 +3078,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    memset (wm_state, 0, sizeof (*wm_state));
    wm_state->thread0.kernel_start_pointer = 
 	    (state_base_offset + ps_kernel_offset) >> 6;
-   wm_state->thread0.grf_reg_count = ((PS_KERNEL_NUM_GRF & ~15) / 16);
+   wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
    wm_state->thread1.single_program_flow = 1; /* XXX */
    wm_state->thread1.binding_table_entry_count = 2;
    wm_state->thread2.scratch_space_base_pointer = 0; /* XXX */
@@ -3101,7 +3091,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    wm_state->wm4.stats_enable = 1;
    wm_state->wm4.sampler_state_pointer = (state_base_offset + src_sampler_offset) >> 5;
    wm_state->wm4.sampler_count = 1; /* XXX 1-4 samplers used */
-   wm_state->wm5.max_threads = 0;   /* XXX should be PS_MAX_THREADS */
+   wm_state->wm5.max_threads = PS_MAX_THREADS - 1;
    wm_state->wm5.thread_dispatch_enable = 1;
    wm_state->wm5.enable_16_pix = 1;
    wm_state->wm5.enable_8_pix = 0;
