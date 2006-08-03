@@ -3081,8 +3081,12 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
    wm_state->thread1.single_program_flow = 1; /* XXX */
    wm_state->thread1.binding_table_entry_count = 2;
-   wm_state->thread2.scratch_space_base_pointer = 0; /* XXX */
-   wm_state->thread2.per_thread_scratch_space = 0; /* XXX */
+   /* Though we never use the scratch space in our WM kernel, it has to be
+    * set, and the minimum allocation is 1024 bytes.
+    */
+   wm_state->thread2.scratch_space_base_pointer = (state_base_offset +
+						   wm_scratch_offset) >> 10;
+   wm_state->thread2.per_thread_scratch_space = 0; /* 1024 bytes */
    wm_state->thread3.dispatch_grf_start_reg = 3; /* XXX */
    wm_state->thread3.urb_entry_read_length = 1; /* XXX */
    wm_state->thread3.const_urb_entry_read_length = 0; /* XXX */
