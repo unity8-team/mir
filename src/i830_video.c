@@ -2890,7 +2890,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    /* Set up a default static partitioning of the URB, which is supposed to
     * allow anything we would want to do, at potentially lower performance.
     */
-#define URB_VS_ENTRIES	      8
+#define URB_VS_ENTRIES	      3
 #define URB_VS_ENTRY_SIZE     1
    
 #define URB_GS_ENTRIES	      0
