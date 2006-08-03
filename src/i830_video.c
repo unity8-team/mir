@@ -2648,7 +2648,11 @@ static const CARD32 sip_kernel_static[][4] = {
 
 #define SF_KERNEL_NUM_GRF  10
 #define SF_KERNEL_NUM_URB  8
+#if 0
+#define SF_MAX_THREADS	   MIN(12, URB_SF_ENTRIES / 2)
+#else
 #define SF_MAX_THREADS	   1
+#endif
 
 static const CARD32 sf_kernel_static[][4] = {
 /*    send   0 (1) g6<1>F g1.12<0,1,0>F math mlen 1 rlen 1 { align1 +  } */
@@ -3043,7 +3047,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    sf_state->thread3.urb_entry_read_length = 1; /* 1 URB per vertex */
    sf_state->thread3.urb_entry_read_offset = 0;
    sf_state->thread3.dispatch_grf_start_reg = 3;
-   sf_state->thread4.max_threads = MIN(12, URB_SF_ENTRIES / 2) - 1;
+   sf_state->thread4.max_threads = SF_MAX_THREADS - 1;
    sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
    sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
    sf_state->thread4.stats_enable = 1;
