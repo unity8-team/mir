@@ -2704,7 +2704,7 @@ static const CARD32 sf_kernel_static[][4] = {
 
 /* Our PS kernel uses less than 32 GRF registers (about 20) */
 #define PS_KERNEL_NUM_GRF   32
-#define PS_MAX_THREADS	   1
+#define PS_MAX_THREADS	   32
 
 #define BRW_GRF_BLOCKS(nreg)	((nreg + 15) / 16 - 1)
 
@@ -3067,19 +3067,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    sf_state->sf6.dest_org_vbias = 0x8;
    sf_state->sf6.dest_org_hbias = 0x8;
 
-   /* XXX: Set up the PS kernel (dispatched by WM) for converting YUV to RGB.
-    * The 3D driver does this as:
-    *
-	 CONST C0 = { -.5, -.0625,  -.5, 1.164 }
-	 CONST C1 = { 1.596, -0.813, 2.018, -.391 }
-	 UYV     = TEX ...
-	 UYV.xyz = ADD UYV,     C0
-	 UYV.y   = MUL UYV.y,   C0.w
-	 RGB.xyz = MAD UYV.xxz, C1,   UYV.y
-	 RGB.y   = MAD UYV.z,   C1.w, RGB.y
-    *
-    */
-
    memcpy (ps_kernel, ps_kernel_static, sizeof (ps_kernel_static));
 #if 0
    ErrorF ("ps kernel: 0x%08x\n", state_base_offset + ps_kernel_offset);
@@ -3097,13 +3084,13 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 						   wm_scratch_offset) >> 10;
    wm_state->thread2.per_thread_scratch_space = 0; /* 1024 bytes */
    wm_state->thread3.dispatch_grf_start_reg = 3; /* XXX */
+   wm_state->thread3.const_urb_entry_read_length = 0;
+   wm_state->thread3.const_urb_entry_read_offset = 0;
    wm_state->thread3.urb_entry_read_length = 1; /* XXX */
-   wm_state->thread3.const_urb_entry_read_length = 0; /* XXX */
-   wm_state->thread3.const_urb_entry_read_offset = 0; /* XXX */
    wm_state->thread3.urb_entry_read_offset = 0; /* XXX */
    wm_state->wm4.stats_enable = 1;
    wm_state->wm4.sampler_state_pointer = (state_base_offset + src_sampler_offset) >> 5;
-   wm_state->wm4.sampler_count = 1; /* XXX 1-4 samplers used */
+   wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
    wm_state->wm5.max_threads = PS_MAX_THREADS - 1;
    wm_state->wm5.thread_dispatch_enable = 1;
    wm_state->wm5.enable_16_pix = 1;
