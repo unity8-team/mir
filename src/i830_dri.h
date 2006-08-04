@@ -18,42 +18,12 @@ typedef struct _I830DRIRec {
    drm_handle_t regs;
    drmSize regsSize;
 
-   drmSize backbufferSize;
-   drm_handle_t backbuffer;
-
-   drmSize depthbufferSize;
-   drm_handle_t depthbuffer;
-
-   drmSize rotatedSize;
-   drm_handle_t rotatedbuffer;
-
-   drm_handle_t textures;
-   int textureSize;
-
-   drm_handle_t agp_buffers;
-   drmSize agp_buf_size;
-
    int deviceID;
    int width;
    int height;
    int mem;
    int cpp;
    int bitsPerPixel;
-
-   int fbOffset;
-   int fbStride;
-
-   int backOffset;
-   int backPitch;
-
-   int depthOffset;
-   int depthPitch;
-
-   int rotatedOffset;
-   int rotatedPitch;
-
-   int logTextureGranularity;
-   int textureOffset;
 
    int irq;
    int sarea_priv_offset;

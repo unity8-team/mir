@@ -157,7 +157,10 @@ Edummy(const char *dummy, ...)
 	 OUT_RING(MI_NOOP);						\
 	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);		\
       }									\
-      OUT_RING(pI830->OverlayMem->Physical | OFC_UPDATE); 		\
+      if (IS_I965G(pI830)) 					\
+         OUT_RING(pI830->OverlayMem->Start | OFC_UPDATE); 		\
+      else								\
+	 OUT_RING(pI830->OverlayMem->Physical | OFC_UPDATE);		\
       ADVANCE_LP_RING();						\
       ErrorF("OVERLAY_UPDATE\n");					\
    } while(0)
@@ -172,11 +175,17 @@ Edummy(const char *dummy, ...)
 	 OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);	\
 	 OUT_RING(MI_NOOP);						\
 	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);		\
-         OUT_RING(pI830->OverlayMem->Physical | OFC_UPDATE); 		\
+         if (IS_I965G(pI830)) 					\
+            OUT_RING(pI830->OverlayMem->Start | OFC_UPDATE); 		\
+         else								\
+	    OUT_RING(pI830->OverlayMem->Physical | OFC_UPDATE);		\
 	 OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);	\
 	 OUT_RING(MI_NOOP);						\
 	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_OFF);		\
-         OUT_RING(pI830->OverlayMem->Physical | OFC_UPDATE); 		\
+         if (IS_I965G(pI830)) 					\
+            OUT_RING(pI830->OverlayMem->Start | OFC_UPDATE); 		\
+         else								\
+	    OUT_RING(pI830->OverlayMem->Physical | OFC_UPDATE);		\
 	 OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);	\
 	 OUT_RING(MI_NOOP);						\
 	 ADVANCE_LP_RING();						\
@@ -334,18 +343,18 @@ typedef struct {
    CARD32 OCONFIG;
    CARD32 OCMD;
    CARD32 RESERVED1;			/* 0x6C */
-   CARD32 AWINPOS;
-   CARD32 AWINSZ;
-   CARD32 RESERVED2;			/* 0x78 */
-   CARD32 RESERVED3;			/* 0x7C */
-   CARD32 RESERVED4;			/* 0x80 */
-   CARD32 RESERVED5;			/* 0x84 */
-   CARD32 RESERVED6;			/* 0x88 */
-   CARD32 RESERVED7;			/* 0x8C */
-   CARD32 RESERVED8;			/* 0x90 */
-   CARD32 RESERVED9;			/* 0x94 */
-   CARD32 RESERVEDA;			/* 0x98 */
-   CARD32 RESERVEDB;			/* 0x9C */
+   CARD32 OSTART_0Y; 		/* for i965 */
+   CARD32 OSTART_1Y;		/* for i965 */
+   CARD32 OSTART_0U;
+   CARD32 OSTART_0V;
+   CARD32 OSTART_1U;
+   CARD32 OSTART_1V;
+   CARD32 OTILEOFF_0Y;
+   CARD32 OTILEOFF_1Y;
+   CARD32 OTILEOFF_0U;
+   CARD32 OTILEOFF_0V;
+   CARD32 OTILEOFF_1U;
+   CARD32 OTILEOFF_1V;
    CARD32 FASTHSCALE;			/* 0xA0 */
    CARD32 UVSCALEV;			/* 0xA4 */
 
@@ -501,8 +510,10 @@ I830ResetVideo(ScrnInfoPtr pScrn)
    overlay->SHEIGHT = 0;
    overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
    overlay->OCLRC1 = 0x00000080;	/* saturation: bypass */
+#if 0
    overlay->AWINPOS = 0;
    overlay->AWINSZ = 0;
+#endif
    overlay->FASTHSCALE = 0;
 
    /*
@@ -1647,14 +1658,31 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 			dstBox->x2, dstBox->y2);
 
    /* buffer locations */
-   overlay->OBUF_0Y = pPriv->YBuf0offset;
-   overlay->OBUF_0U = pPriv->UBuf0offset;
-   overlay->OBUF_0V = pPriv->VBuf0offset;
-
-   if(pPriv->doubleBuffer) {
-      overlay->OBUF_1Y = pPriv->YBuf1offset;
-      overlay->OBUF_1U = pPriv->UBuf1offset;
-      overlay->OBUF_1V = pPriv->VBuf1offset;
+   if (IS_I965G(pI830))
+   {
+      overlay->OBUF_0Y = 0;
+      overlay->OBUF_0U = 0;
+      overlay->OBUF_0V = 0;
+      overlay->OSTART_0Y = pPriv->YBuf0offset;
+      overlay->OSTART_0U = pPriv->UBuf0offset;
+      overlay->OSTART_0V = pPriv->VBuf0offset;
+      if(pPriv->doubleBuffer) {
+         overlay->OBUF_1Y = 0;
+         overlay->OBUF_1U = 0;
+         overlay->OBUF_1V = 0;
+         overlay->OSTART_1Y = pPriv->YBuf1offset;
+         overlay->OSTART_1U = pPriv->UBuf1offset;
+         overlay->OSTART_1V = pPriv->VBuf1offset;
+      }
+   } else {
+      overlay->OBUF_0Y = pPriv->YBuf0offset;
+      overlay->OBUF_0U = pPriv->UBuf0offset;
+      overlay->OBUF_0V = pPriv->VBuf0offset;
+      if(pPriv->doubleBuffer) {
+         overlay->OBUF_1Y = pPriv->YBuf1offset;
+         overlay->OBUF_1U = pPriv->UBuf1offset;
+         overlay->OBUF_1V = pPriv->VBuf1offset;
+      }
    }
 
    ErrorF("Buffers: Y0: 0x%lx, U0: 0x%lx, V0: 0x%lx\n", overlay->OBUF_0Y,
@@ -1967,10 +1995,10 @@ I830PutImage(ScrnInfoPtr pScrn,
       }
 #else
       if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-         dstPitch = ((height / 2) + 511) & ~511;
+         dstPitch = ((height / 2) + 255) & ~255;
          size = dstPitch * width * 3;
       } else {
-         dstPitch = ((width / 2) + 511) & ~511;	/* of chroma */
+         dstPitch = ((width / 2) + 255) & ~255;	/* of chroma */
          size = dstPitch * height * 3;
       }
 #endif
@@ -1989,10 +2017,10 @@ I830PutImage(ScrnInfoPtr pScrn,
       }
 #else
       if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-         dstPitch = ((height << 1) + 511) & ~511;
+         dstPitch = ((height << 1) + 255) & ~255;
          size = dstPitch * width;
       } else {
-         dstPitch = ((width << 1) + 511) & ~511;	/* of chroma */
+         dstPitch = ((width << 1) + 255) & ~255;	/* of chroma */
          size = dstPitch * height;
       }
 #endif
@@ -2526,27 +2554,29 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
       }
    }
 
-   if (pPriv->pipe == 0) {
-      if (INREG(PIPEACONF) & PIPEACONF_DOUBLE_WIDE) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	   "Disabling XVideo output because Pipe A is in double-wide mode.\n");
-         pPriv->overlayOK = FALSE;
-      } else if (!pPriv->overlayOK) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	   "Re-enabling XVideo output because Pipe A is now in single-wide mode.\n");
-         pPriv->overlayOK = TRUE;
+   if (!IS_I965G(pI830)) {
+      if (pPriv->pipe == 0) {
+         if (INREG(PIPEACONF) & PIPEACONF_DOUBLE_WIDE) {
+            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+	    "Disabling XVideo output because Pipe A is in double-wide mode.\n");
+            pPriv->overlayOK = FALSE;
+         } else if (!pPriv->overlayOK) {
+            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+	    "Re-enabling XVideo output because Pipe A is now in single-wide mode.\n");
+            pPriv->overlayOK = TRUE;
+         }
       }
-   }
 
-   if (pPriv->pipe == 1) {
-      if (INREG(PIPEBCONF) & PIPEBCONF_DOUBLE_WIDE) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	   "Disabling XVideo output because Pipe B is in double-wide mode.\n");
-         pPriv->overlayOK = FALSE;
-      } else if (!pPriv->overlayOK) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	   "Re-enabling XVideo output because Pipe B is now in single-wide mode.\n");
-         pPriv->overlayOK = TRUE;
+      if (pPriv->pipe == 1) {
+         if (INREG(PIPEBCONF) & PIPEBCONF_DOUBLE_WIDE) {
+            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+   	    "Disabling XVideo output because Pipe B is in double-wide mode.\n");
+            pPriv->overlayOK = FALSE;
+         } else if (!pPriv->overlayOK) {
+            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+	    "Re-enabling XVideo output because Pipe B is now in single-wide mode.\n");
+            pPriv->overlayOK = TRUE;
+         }
       }
    }
 

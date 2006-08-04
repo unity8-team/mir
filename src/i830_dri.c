@@ -83,6 +83,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 static char I830KernelDriverName[] = "i915";
 static char I830ClientDriverName[] = "i915";
+static char I965ClientDriverName[] = "i965";
 
 static Bool I830InitVisualConfigs(ScreenPtr pScreen);
 static Bool I830CreateContext(ScreenPtr pScreen, VisualPtr visual,
@@ -475,7 +476,11 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pI830->LockHeld = 0;
 
    pDRIInfo->drmDriverName = I830KernelDriverName;
-   pDRIInfo->clientDriverName = I830ClientDriverName;
+   if (IS_I965G(pI830))
+      pDRIInfo->clientDriverName = I965ClientDriverName;
+   else 
+      pDRIInfo->clientDriverName = I830ClientDriverName;
+
    if (xf86LoaderCheckSymbol("DRICreatePCIBusID")) {
       pDRIInfo->busIdString = DRICreatePCIBusID(pI830->PciInfo);
    } else {
@@ -488,7 +493,7 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->ddxDriverMajorVersion = I830_MAJOR_VERSION;
    pDRIInfo->ddxDriverMinorVersion = I830_MINOR_VERSION;
    pDRIInfo->ddxDriverPatchVersion = I830_PATCHLEVEL;
-#if 1 /* temporary until this gets removed from the libdri layer */
+#if 1 /* Remove this soon - see bug 5714 */
    pDRIInfo->frameBufferPhysicalAddress = (char *) pI830->LinearAddr +
 					  pI830->FrontBuffer.Start;
    pDRIInfo->frameBufferSize = ROUND_TO_PAGE(pScrn->displayWidth *
@@ -623,12 +628,17 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    ScreenPtr pScreen = pScrn->pScreen;
    I830Ptr pI830 = I830PTR(pScrn);
 
+#if 1 /* Remove this soon - see bug 5714 */
+   pI830->pDRIInfo->frameBufferSize = ROUND_TO_PAGE(pScrn->displayWidth *
+					     pScrn->virtualY * pI830->cpp);
+#endif
+
    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
               "[drm] Mapping front buffer\n");
    if (drmAddMap(pI830->drmSubFD,
                  (drm_handle_t)(sarea->front_offset + pI830->LinearAddr),
                  sarea->front_size,
-                 DRM_FRAME_BUFFER,  /*DRM_AGP,*/
+		 DRM_AGP,
                  0,
                  (drmAddress) &sarea->front_handle) < 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -684,12 +694,10 @@ I830DRIUnmapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-#if 1
    if (sarea->front_handle) {
       drmRmMap(pI830->drmSubFD, sarea->front_handle);
       sarea->front_handle = 0;
    }
-#endif
    if (sarea->back_handle) {
       drmRmMap(pI830->drmSubFD, sarea->back_handle);
       sarea->back_handle = 0;
@@ -785,7 +793,6 @@ I830DRIDoMappings(ScreenPtr pScreen)
       /* screen mappings probably failed */
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[drm] drmAddMap(screen mappings) failed. Disabling DRI\n");
-      DRICloseScreen(pScreen);
       return FALSE;
    }
 
@@ -823,9 +830,6 @@ I830DRIDoMappings(ScreenPtr pScreen)
    pI830DRI->height = pScrn->virtualY;
    pI830DRI->mem = pScrn->videoRam * 1024;
    pI830DRI->cpp = pI830->cpp;
-
-   pI830DRI->fbOffset = pI830->FrontBuffer.Start;
-   pI830DRI->fbStride = pI830->backPitch;
 
    pI830DRI->bitsPerPixel = pScrn->bitsPerPixel;
 
@@ -1166,8 +1170,10 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
       I830SelectBuffer(pScrn, I830_SELECT_BACK);
       I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
-      I830SelectBuffer(pScrn, I830_SELECT_DEPTH);
-      I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
+      if (!IS_I965G(pI830)) {
+         I830SelectBuffer(pScrn, I830_SELECT_DEPTH);
+         I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
+      }
    }
    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
    I830EmitFlush(pScrn);
@@ -1362,6 +1368,14 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 
    I830DRIUnmapScreenRegions(pScrn, sarea);
 
+   sarea->front_tiled = pI830->front_tiled;
+   sarea->back_tiled = pI830->back_tiled;
+   sarea->depth_tiled = pI830->depth_tiled;
+   sarea->rotated_tiled = pI830->rotated_tiled;
+#if 0
+   sarea->rotated2_tiled = pI830->rotated2_tiled;
+#endif
+
    if (pI830->rotation == RR_Rotate_0) {
       sarea->front_offset = pI830->FrontBuffer.Start;
       /* Don't use FrontBuffer.Size here as it includes the pixmap cache area
@@ -1421,7 +1435,8 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 
    success = I830DRIMapScreenRegions(pScrn, sarea);
 
-   I830InitTextureHeap(pScrn, sarea);
+   if (success)
+      I830InitTextureHeap(pScrn, sarea);
 
    return success;
 }

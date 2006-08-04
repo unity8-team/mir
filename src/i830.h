@@ -141,7 +141,7 @@ typedef struct {
 } I830RingBuffer;
 
 typedef struct {
-   unsigned int Fence[8];
+   unsigned int Fence[FENCE_NEW_NR * 2];
 } I830RegRec, *I830RegPtr;
 
 typedef struct {
@@ -238,6 +238,12 @@ typedef struct _I830Rec {
    int TexGranularity;
    int drmMinor;
    Bool have3DWindows;
+
+   unsigned int front_tiled;
+   unsigned int back_tiled;
+   unsigned int depth_tiled;
+   unsigned int rotated_tiled;
+   unsigned int rotated2_tiled;
 #endif
 
    Bool NeedRingBufferLow;
@@ -377,6 +383,9 @@ typedef struct _I830Rec {
    Bool devicePresence;
 
    OsTimerPtr devicesTimer;
+
+   CARD32 savedAsurf;
+   CARD32 savedBsurf;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))

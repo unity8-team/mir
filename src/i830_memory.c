@@ -498,7 +498,7 @@ I830AllocateRotatedBuffer(ScrnInfoPtr pScrn, int flags)
    alloced = 0;
    if (tileable) {
       align = GetBestTileAlignment(size);
-      for (align = GetBestTileAlignment(size); align >= KB(512); align >>= 1) {
+      for (align = GetBestTileAlignment(size); align >= (IS_I9XX(pI830) ? MB(1) : KB(512)); align >>= 1) {
 	 alloced = I830AllocVidMem(pScrn, &(pI830->RotatedMem),
 				   &(pI830->StolenPool), size, align,
 				   flags | FROM_ANYWHERE | ALLOCATE_AT_TOP |
@@ -563,7 +563,7 @@ I830AllocateRotated2Buffer(ScrnInfoPtr pScrn, int flags)
    alloced = 0;
    if (tileable) {
       align = GetBestTileAlignment(size);
-      for (align = GetBestTileAlignment(size); align >= KB(512); align >>= 1) {
+      for (align = GetBestTileAlignment(size); align >= (IS_I9XX(pI830) ? MB(1) : KB(512)); align >>= 1) {
 	 alloced = I830AllocVidMem(pScrn, &(pI830->RotatedMem2),
 				   &(pI830->StolenPool), size, align,
 				   flags | FROM_ANYWHERE | ALLOCATE_AT_TOP |
@@ -731,7 +731,10 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
          tileable = !(flags & ALLOC_NO_TILING) && pI8302->allowPageFlip &&
 		 IsTileable(pI830Ent->pScrn_2->displayWidth * pI8302->cpp);
          if (tileable) {
-	    align = KB(512);
+            if (IS_I9XX(pI830))
+               align = MB(1);
+            else
+	       align = KB(512);
 	    alignflags = ALIGN_BOTH_ENDS;
          } else {
 	    align = KB(64);
@@ -823,7 +826,10 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
       tileable = !(flags & ALLOC_NO_TILING) && pI830->allowPageFlip &&
 		 IsTileable(pScrn->displayWidth * pI830->cpp);
       if (tileable) {
-	 align = KB(512);
+         if (IS_I9XX(pI830))
+            align = MB(1);
+         else
+	    align = KB(512);
 	 alignflags = ALIGN_BOTH_ENDS;
       } else {
 	 align = KB(64);
@@ -909,7 +915,10 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 	 tileable = !(flags & ALLOC_NO_TILING) && pI830->allowPageFlip &&
 		 IsTileable(pScrn->displayWidth * pI830->cpp);
 	 if (tileable) {
-	    align = KB(512);
+            if (IS_I9XX(pI830))
+               align = MB(1);
+            else
+	       align = KB(512);
 	    alignflags = ALIGN_BOTH_ENDS;
 	 } else {
 	    align = KB(64);
@@ -1147,7 +1156,7 @@ I830AllocateBackBuffer(ScrnInfoPtr pScrn, const int flags)
    alloced = 0;
    if (tileable) {
       align = GetBestTileAlignment(size);
-      for (align = GetBestTileAlignment(size); align >= KB(512); align >>= 1) {
+      for (align = GetBestTileAlignment(size); align >= (IS_I9XX(pI830) ? MB(1) : KB(512)); align >>= 1) {
 	 alloced = I830AllocVidMem(pScrn, &(pI830->BackBuffer),
 				   &(pI830->StolenPool), size, align,
 				   flags | FROM_ANYWHERE | ALLOCATE_AT_TOP |
@@ -1210,7 +1219,7 @@ I830AllocateDepthBuffer(ScrnInfoPtr pScrn, const int flags)
    alloced = 0;
    if (tileable) {
       align = GetBestTileAlignment(size);
-      for (align = GetBestTileAlignment(size); align >= KB(512); align >>= 1) {
+      for (align = GetBestTileAlignment(size); align >= (IS_I9XX(pI830) ? MB(1) : KB(512)); align >>= 1) {
 	 alloced = I830AllocVidMem(pScrn, &(pI830->DepthBuffer),
 				   &(pI830->StolenPool), size, align,
 				   flags | FROM_ANYWHERE | ALLOCATE_AT_TOP |
@@ -1644,7 +1653,7 @@ SetFence(ScrnInfoPtr pScrn, int nr, unsigned int start, unsigned int pitch,
 }
 
 static Bool
-MakeTiles(ScrnInfoPtr pScrn, I830MemRange *pMem)
+MakeTiles(ScrnInfoPtr pScrn, I830MemRange *pMem, unsigned int fence)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    int pitch, ntiles, i;
@@ -1662,6 +1671,31 @@ MakeTiles(ScrnInfoPtr pScrn, I830MemRange *pMem)
    }
 
    pitch = pScrn->displayWidth * pI830->cpp;
+
+   if (IS_I965G(pI830)) {
+      I830RegPtr i830Reg = &pI830->ModeReg;
+
+      switch (fence) {
+         case FENCE_XMAJOR:
+            i830Reg->Fence[nextTile] = (((pitch / 128) - 1) << 2) | pMem->Start | 1;
+            break;
+         case FENCE_YMAJOR:
+            /* YMajor can be 128B aligned but the current code dictates
+             * otherwise. This isn't a problem apart from memory waste.
+             * FIXME */
+            i830Reg->Fence[nextTile] = (((pitch / 128) - 1) << 2) | pMem->Start | 1;
+	    i830Reg->Fence[nextTile] |= (1<<1);
+            break;
+         default:
+         case FENCE_LINEAR:
+            break;
+      }
+
+      i830Reg->Fence[nextTile+FENCE_NEW_NR] = pMem->End;
+      nextTile++;
+      return TRUE;
+   }
+
    /*
     * Simply try to break the region up into at most four pieces of size
     * equal to the alignment.
@@ -1703,20 +1737,27 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
       return;
    }
 
+   pI830->front_tiled = FENCE_LINEAR;
+   pI830->back_tiled = FENCE_LINEAR;
+   pI830->depth_tiled = FENCE_LINEAR;
+   pI830->rotated_tiled = FENCE_LINEAR;
+   pI830->rotated2_tiled = FENCE_LINEAR;
+
    if (pI830->allowPageFlip) {
       if (pI830->allowPageFlip && pI830->FrontBuffer.Alignment >= KB(512)) {
-	 if (MakeTiles(pScrn, &(pI830->FrontBuffer))) {
+	 if (MakeTiles(pScrn, &(pI830->FrontBuffer), FENCE_XMAJOR)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Activating tiled memory for the FRONT buffer\n");
+		       "Activating tiled memory for the front buffer\n");
+            pI830->front_tiled = FENCE_XMAJOR;
 	 } else {
 	    pI830->allowPageFlip = FALSE;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "MakeTiles failed for the FRONT buffer\n");
+		       "MakeTiles failed for the front buffer\n");
 	 }
       } else {
 	 pI830->allowPageFlip = FALSE;
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		 "Alignment bad for the FRONT buffer\n");
+		 "Alignment bad for the front buffer\n");
       }
    }
 
@@ -1727,9 +1768,10 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
     * value.
     */
    if (pI830->BackBuffer.Alignment >= KB(512)) {
-      if (MakeTiles(pScrn, &(pI830->BackBuffer))) {
+      if (MakeTiles(pScrn, &(pI830->BackBuffer), FENCE_XMAJOR)) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "Activating tiled memory for the back buffer.\n");
+         pI830->back_tiled = FENCE_XMAJOR;
       } else {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "MakeTiles failed for the back buffer.\n");
@@ -1738,9 +1780,10 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
    }
 
    if (pI830->DepthBuffer.Alignment >= KB(512)) {
-      if (MakeTiles(pScrn, &(pI830->DepthBuffer))) {
+      if (MakeTiles(pScrn, &(pI830->DepthBuffer), FENCE_YMAJOR)) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Activating tiled memory for the depth buffer.\n");
+	 	    "Activating tiled memory for the depth buffer.\n");
+         pI830->depth_tiled = FENCE_YMAJOR;
       } else {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "MakeTiles failed for the depth buffer.\n");
@@ -1748,9 +1791,10 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
    }
 	
    if (pI830->RotatedMem.Alignment >= KB(512)) {
-      if (MakeTiles(pScrn, &(pI830->RotatedMem))) {
+      if (MakeTiles(pScrn, &(pI830->RotatedMem), FENCE_XMAJOR)) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "Activating tiled memory for the rotated buffer.\n");
+         pI830->rotated_tiled = FENCE_XMAJOR;
       } else {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "MakeTiles failed for the rotated buffer.\n");
@@ -1759,9 +1803,10 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
 
 #if 0
    if (pI830->RotatedMem2.Alignment >= KB(512)) {
-      if (MakeTiles(pScrn, &(pI830->RotatedMem2))) {
+      if (MakeTiles(pScrn, &(pI830->RotatedMem2), FENCE_XMAJOR)) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "Activating tiled memory for the rotated2 buffer.\n");
+         pI830->rotated2_tiled = FENCE_XMAJOR;
       } else {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "MakeTiles failed for the rotated buffer.\n");
