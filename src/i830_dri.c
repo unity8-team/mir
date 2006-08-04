@@ -664,21 +664,26 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 					     pScrn->virtualY * pI830->cpp);
 #endif
 
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-              "[drm] Mapping front buffer\n");
-   if (drmAddMap(pI830->drmSubFD,
-                 (drm_handle_t)(sarea->front_offset + pI830->LinearAddr),
-                 sarea->front_size,
-		 DRM_AGP,
-                 0,
-                 (drmAddress) &sarea->front_handle) < 0) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                 "[drm] drmAddMap(front_handle) failed. Disabling DRI\n");
-      DRICloseScreen(pScreen);
-      return FALSE;
+   /* The I965G isn't ready for the front buffer mapping to be moved around,
+    * because of issues with rmmap, it seems.
+    */
+   if (!IS_I965G(pI830)) {
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		 "[drm] Mapping front buffer\n");
+      if (drmAddMap(pI830->drmSubFD,
+		    (drm_handle_t)(sarea->front_offset + pI830->LinearAddr),
+		    sarea->front_size,
+		    DRM_AGP,
+		    0,
+		    (drmAddress) &sarea->front_handle) < 0) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "[drm] drmAddMap(front_handle) failed. Disabling DRI\n");
+	 DRICloseScreen(pScreen);
+	 return FALSE;
+      }
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Front Buffer = 0x%08x\n",
+		 (int)sarea->front_handle);
    }
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Front Buffer = 0x%08x\n",
-              (int)sarea->front_handle);
 
    if (drmAddMap(pI830->drmSubFD,
                  (drm_handle_t)(sarea->back_offset + pI830->LinearAddr),
