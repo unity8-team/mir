@@ -858,7 +858,10 @@ I830SDVOInit(ScrnInfoPtr pScrn, int output_index, CARD32 output_device)
 	xfree(sdvo);
 	return NULL;
     }
-    ddcbus->BusName = "SDVO DDC Bus";
+    if (output_device == SDVOB)
+        ddcbus->BusName = "SDVOB DDC Bus";
+    else
+        ddcbus->BusName = "SDVOC DDC Bus";
     ddcbus->scrnIndex = i2cbus->scrnIndex;
     ddcbus->I2CGetByte = I830SDVODDCI2CGetByte;
     ddcbus->I2CPutByte = I830SDVODDCI2CPutByte;
