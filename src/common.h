@@ -130,13 +130,17 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 
 #define ADVANCE_LP_RING() do {						\
    if (ringused > needed)          \
-      ErrorF("%s: ADVANCE_LP_RING: exceeded allocation %d/%d\n ",      \
-	     __FUNCTION__, ringused, needed);     \
+      FatalError("%s: ADVANCE_LP_RING: exceeded allocation %d/%d\n ",	\
+	     __FUNCTION__, ringused, needed);   			\
+   else if (ringused < needed)						\
+      FatalError("%s: ADVANCE_LP_RING: under-used allocation %d/%d\n ",	\
+	     __FUNCTION__, ringused, needed);   			\
    RecPtr->LpRing->tail = outring;					\
    RecPtr->LpRing->space -= ringused;					\
    if (outring & 0x07)							\
-      ErrorF("ADVANCE_LP_RING: "					\
-	     "outring (0x%x) isn't on a QWord boundary\n", outring);	\
+      FatalError("%s: ADVANCE_LP_RING: "					\
+	     "outring (0x%x) isn't on a QWord boundary\n",		\
+	     __FUNCTION__, outring);					\
    OUTREG(LP_RING + RING_TAIL, outring);				\
 } while (0)
 

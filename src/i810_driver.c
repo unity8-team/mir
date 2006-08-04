@@ -332,16 +332,15 @@ const char *I810driSymbols[] = {
    "DRICreatePCIBusID",
    NULL
 };
-#endif 
 
 const char *I810shadowSymbols[] = {
     "shadowInit",
     "shadowSetup",
     "shadowAdd",
-    "shadowRemove",
-    "shadowUpdateRotatePacked",
     NULL
 };
+
+#endif /* I830_ONLY */
 
 #ifndef I810_DEBUG
 int I810_DEBUG = (0

@@ -168,6 +168,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -189,6 +190,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "vbeModes.h"
 #include "shadow.h"
 #include "i830.h"
+
+#ifdef HAS_MTRR_SUPPORT
+#include <asm/mtrr.h>
+#endif
 
 #ifdef XF86DRI
 #include "dri.h"
@@ -484,7 +489,7 @@ GetNextDisplayDeviceList(ScrnInfoPtr pScrn, int toggle)
       CARD32 VODA = (CARD32)((CARD32*)pVbe->memory)[i];
 
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Next ACPI _DGS [%d] 0x%lx\n",
-		 i, (unsigned long) VODA);
+		i, VODA);
 
       /* Check if it's a custom Video Output Device Attribute */
       if (!(VODA & 0x80000000)) 
@@ -541,8 +546,7 @@ GetAttachableDisplayDeviceList(ScrnInfoPtr pScrn)
 
    for (i=0; i<(pVbe->pInt10->cx & 0xff); i++)
         xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		"Attachable device 0x%lx.\n", 
-		   (unsigned long) ((CARD32*)pVbe->memory)[i]);
+		"Attachable device 0x%lx.\n", ((CARD32*)pVbe->memory)[i]);
 
    return pVbe->pInt10->cx & 0xffff;
 }
@@ -1504,6 +1508,12 @@ I830DetectMemory(ScrnInfoPtr pScrn)
 	 break;
       }
    }
+
+#if 0
+   /* And 64KB page aligned */
+   memsize &= ~0xFFFF;
+#endif
+
    if (memsize > 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		 "detected %d kB stolen memory.\n", memsize / 1024);
@@ -2938,7 +2948,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
     * or, at least it's meant to..... alas it doesn't seem to always work.
     */
    if (pI830->devicePresence) {
-      int req=0, att=0, enc=0;
+      int req, att, enc;
       GetDevicePresence(pScrn, &req, &att, &enc);
       for (i = 0; i < NumDisplayTypes; i++) {
          xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -4866,7 +4876,8 @@ I830CreateScreenResources (ScreenPtr pScreen)
    if (!(*pScreen->CreateScreenResources)(pScreen))
       return FALSE;
 
-   if (pI830->rotation != RR_Rotate_0) {
+   if (xf86LoaderCheckSymbol("I830RandRSetConfig") && pI830->rotation != RR_Rotate_0) {
+      Rotation (*I830RandRSetConfig)(ScreenPtr pScreen, Rotation rr, int rate, RRScreenSizePtr pSize) = NULL;
       RRScreenSize p;
       Rotation requestedRotation = pI830->rotation;
 
@@ -4878,9 +4889,12 @@ I830CreateScreenResources (ScreenPtr pScreen)
       p.mmWidth = pScreen->mmWidth;
       p.mmHeight = pScreen->mmHeight;
 
-      pI830->starting = TRUE; /* abuse this for dual head & rotation */
-      I830RandRSetConfig (pScreen, requestedRotation, 0, &p);
-      pI830->starting = FALSE;
+      I830RandRSetConfig = LoaderSymbol("I830RandRSetConfig");
+      if (I830RandRSetConfig) {
+         pI830->starting = TRUE; /* abuse this for dual head & rotation */
+   	 (*I830RandRSetConfig) (pScreen, requestedRotation, 0, &p);
+         pI830->starting = FALSE;
+      }
    } 
 
    return TRUE;
@@ -4984,6 +4998,47 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       memset(&(pI830->RotatedMem2), 0, sizeof(pI830->RotatedMem2));
       pI830->RotatedMem2.Key = -1;
    }
+
+#ifdef HAS_MTRR_SUPPORT
+   {
+      int fd;
+      struct mtrr_gentry gentry;
+      struct mtrr_sentry sentry;
+
+      if ( ( fd = open ("/proc/mtrr", O_RDONLY, 0) ) != -1 ) {
+         for (gentry.regnum = 0; ioctl (fd, MTRRIOC_GET_ENTRY, &gentry) == 0;
+	      ++gentry.regnum) {
+
+	    if (gentry.size < 1) {
+	       /* DISABLED */
+	       continue;
+	    }
+
+            /* Check the MTRR range is one we like and if not - remove it.
+             * The Xserver common layer will then setup the right range
+             * for us.
+             */
+	    if (gentry.base == pI830->LinearAddr && 
+	        gentry.size < pI830->FbMapSize) {
+
+               xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		  "Removing bad MTRR range (base 0x%lx, size 0x%x)\n",
+		  gentry.base, gentry.size);
+
+    	       sentry.base = gentry.base;
+               sentry.size = gentry.size;
+               sentry.type = gentry.type;
+
+               if (ioctl (fd, MTRRIOC_DEL_ENTRY, &sentry) == -1) {
+                  xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		     "Failed to remove bad MTRR range\n");
+               }
+	    }
+         }
+         close(fd);
+      }
+   }
+#endif
 
    if (xf86IsEntityShared(pScrn->entityList[0])) {
       /* PreInit failed on the second head, so make sure we turn it off */
@@ -5343,7 +5398,11 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       xf86DisableRandR(); /* Disable built-in RandR extension */
       shadowSetup(pScreen);
       /* support all rotations */
-      I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
+      if (IS_I965G(pI830)) {
+	 I830RandRInit(pScreen, RR_Rotate_0); /* only 0 degrees for I965G */
+      } else {
+	 I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
+      }
       pI830->PointerMoved = pScrn->PointerMoved;
       pScrn->PointerMoved = I830PointerMoved;
       pI830->CreateScreenResources = pScreen->CreateScreenResources;
@@ -6139,9 +6198,7 @@ I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen)
       pI830->used3D = NULL;
    }
 
-   if (pI830->shadowReq.minorversion >= 1)
-      pScrn->PointerMoved = pI830->PointerMoved;
-
+   pScrn->PointerMoved = pI830->PointerMoved;
    pScrn->vtSema = FALSE;
    pI830->closing = FALSE;
    pScreen->CloseScreen = pI830->CloseScreen;

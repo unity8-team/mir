@@ -213,7 +213,12 @@ AllocFromAGP(ScrnInfoPtr pScrn, I830MemRange *result, long size,
 	 result->Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 2,
 					      &(result->Physical));
       } else {
-	 result->Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
+         /* Due to a bug in agpgart in 2.6 kernels resulting in very poor
+	  * allocation performance we need to workaround it here...
+	  */
+	 result->Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 3, NULL);
+         if (result->Key == -1)
+	    result->Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
       }
       if (result->Key == -1)
 	 return 0;
@@ -673,6 +678,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
          memset(&(pI830->FrontBuffer2), 0, sizeof(pI830->FrontBuffer2));
          pI830->FrontBuffer2.Key = -1;
 
+#if 1 /* ROTATION */
          pI830->FbMemBox2.x1 = 0;
          pI830->FbMemBox2.x2 = pI830Ent->pScrn_2->displayWidth;
          pI830->FbMemBox2.y1 = 0;
@@ -680,6 +686,12 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
             pI830->FbMemBox2.y2 = pI830Ent->pScrn_2->virtualX;
          else
             pI830->FbMemBox2.y2 = pI830Ent->pScrn_2->virtualY;
+#else
+         pI830->FbMemBox2.x1 = 0;
+         pI830->FbMemBox2.x2 = pI830Ent->pScrn_2->displayWidth;
+         pI830->FbMemBox2.y1 = 0;
+         pI830->FbMemBox2.y2 = pI830Ent->pScrn_2->virtualY;
+#endif
 
          /*
           * Calculate how much framebuffer memory to allocate.  For the
@@ -741,12 +753,16 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 	    alignflags = 0;
          }
 
+#if 1 /* ROTATION */
          if (pI830Ent->pScrn_2->virtualX > pI830Ent->pScrn_2->virtualY)
             size = lineSize * (pI830Ent->pScrn_2->virtualX + cacheLines);
          else 
             size = lineSize * (pI830Ent->pScrn_2->virtualY + cacheLines);
          size = ROUND_TO_PAGE(size);
-
+#else
+         size = lineSize * (pI830Ent->pScrn_2->virtualY + cacheLines);
+         size = ROUND_TO_PAGE(size);
+#endif
          xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 		     "%sSecondary framebuffer allocation size: %ld kByte\n", s,
 		     size / 1024);
@@ -768,6 +784,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
       memset(&(pI830->FrontBuffer), 0, sizeof(pI830->FrontBuffer));
       pI830->FrontBuffer.Key = -1;
 
+#if 1 /* ROTATION */
       pI830->FbMemBox.x1 = 0;
       pI830->FbMemBox.x2 = pScrn->displayWidth;
       pI830->FbMemBox.y1 = 0;
@@ -775,6 +792,12 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
          pI830->FbMemBox.y2 = pScrn->virtualX;
       else
          pI830->FbMemBox.y2 = pScrn->virtualY;
+#else
+      pI830->FbMemBox.x1 = 0;
+      pI830->FbMemBox.x2 = pScrn->displayWidth;
+      pI830->FbMemBox.y1 = 0;
+      pI830->FbMemBox.y2 = pScrn->virtualY;
+#endif
 
       /*
        * Calculate how much framebuffer memory to allocate.  For the
@@ -836,12 +859,16 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 	 alignflags = 0;
       }
 
+#if 1 /* ROTATION */
       if (pScrn->virtualX > pScrn->virtualY)
          size = lineSize * (pScrn->virtualX + cacheLines);
       else 
          size = lineSize * (pScrn->virtualY + cacheLines);
       size = ROUND_TO_PAGE(size);
-
+#else
+      size = lineSize * (pScrn->virtualY + cacheLines);
+      size = ROUND_TO_PAGE(size);
+#endif
       xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 		     "%sInitial framebuffer allocation size: %ld kByte\n", s,
 		     size / 1024);
@@ -946,7 +973,13 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
     */
    if (!dryrun) {
       memset(&(pI830->Dummy), 0, sizeof(pI830->Dummy));
-      pI830->Dummy.Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
+      /* Due to a bug in agpgart in 2.6 kernels resulting in very poor
+       * allocation performance we need to workaround it here...
+       */
+      pI830->Dummy.Key = 
+           xf86AllocateGARTMemory(pScrn->scrnIndex, size, 3, NULL);
+      if (pI830->Dummy.Key == -1)
+         pI830->Dummy.Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
       pI830->Dummy.Offset = 0;
    }
 #endif
@@ -1366,7 +1399,14 @@ I830DoPoolAllocation(ScrnInfoPtr pScrn, I830MemPool *pool)
 
    if (pool->Total.Size > pool->Fixed.Size) {
       pool->Allocated.Size = pool->Total.Size - pool->Fixed.Size;
-      pool->Allocated.Key = xf86AllocateGARTMemory(pScrn->scrnIndex, 
+      /* Due to a bug in agpgart in 2.6 kernels resulting in very poor
+       * allocation performance we need to workaround it here...
+       */
+      pool->Allocated.Key = 
+           xf86AllocateGARTMemory(pScrn->scrnIndex, pool->Allocated.Size,
+				   3, NULL);
+      if (pool->Allocated.Key == -1)
+         pool->Allocated.Key = xf86AllocateGARTMemory(pScrn->scrnIndex, 
 				   pool->Allocated.Size, 0, NULL);
       if (pool->Allocated.Key == -1) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Pool allocation failed\n");

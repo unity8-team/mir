@@ -47,6 +47,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _I830_H_
 #define _I830_H_
 
+#include "xf86_OSproc.h"
 #include "compiler.h"
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
@@ -460,8 +461,8 @@ extern long I830GetExcessMemoryAllocations(ScrnInfoPtr pScrn);
 extern Bool I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags);
 extern Bool I830DoPoolAllocation(ScrnInfoPtr pScrn, I830MemPool *pool);
 extern Bool I830FixupOffsets(ScrnInfoPtr pScrn);
-extern Bool I830BindGARTMemory(ScrnInfoPtr pScrn);
-extern Bool I830UnbindGARTMemory(ScrnInfoPtr pScrn);
+extern Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
+extern Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
 extern unsigned long I830AllocVidMem(ScrnInfoPtr pScrn, I830MemRange *result,
 				     I830MemPool *pool, long size,
 				     unsigned long alignment, int flags);
