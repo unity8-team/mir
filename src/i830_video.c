@@ -1,4 +1,4 @@
-#define VIDEO_DEBUG 1
+#define VIDEO_DEBUG 0
 /***************************************************************************
  
 Copyright 2000 Intel Corporation.  All Rights Reserved. 
