@@ -144,6 +144,19 @@ const char *ATIshadowfbSymbols[] =
     NULL
 };
 
+#ifdef USE_EXA
+const char *ATIexaSymbols[] =
+{
+    "exaDriverAlloc",
+    "exaDriverInit",
+    "exaDriverFini",
+    "exaOffscreenAlloc",
+    "exaOffscreenFree",
+    NULL
+};
+#endif
+
+#ifdef USE_XAA
 const char *ATIxaaSymbols[] =
 {
     "XAACreateInfoRec",
@@ -151,6 +164,7 @@ const char *ATIxaaSymbols[] =
     "XAAInit",
     NULL
 };
+#endif
 
 const char *ATIramdacSymbols[] =
 {
@@ -205,19 +219,11 @@ ATILoadModules
     ATIPtr      pATI
 )
 {
+    pointer fbPtr = NULL;
+
     /* Load shadow frame buffer code if needed */
     if (pATI->OptionShadowFB &&
         !ATILoadModule(pScreenInfo, "shadowfb", ATIshadowfbSymbols))
-        return NULL;
-
-    /* Load XAA if needed */
-    if (pATI->OptionAccel &&
-        !ATILoadModule(pScreenInfo, "xaa", ATIxaaSymbols))
-        return NULL;
-
-    /* Load ramdac module if needed */
-    if ((pATI->Cursor > ATI_CURSOR_SOFTWARE) &&
-        !ATILoadModule(pScreenInfo, "ramdac", ATIramdacSymbols))
         return NULL;
 
     /* Load depth-specific entry points */
@@ -227,10 +233,12 @@ ATILoadModules
 #ifndef AVOID_CPIO
 
         case 1:
-            return ATILoadModule(pScreenInfo, "xf1bpp", ATIxf1bppSymbols);
+            fbPtr = ATILoadModule(pScreenInfo, "xf1bpp", ATIxf1bppSymbols);
+            break;
 
         case 4:
-            return ATILoadModule(pScreenInfo, "xf4bpp", ATIxf4bppSymbols);
+            fbPtr = ATILoadModule(pScreenInfo, "xf4bpp", ATIxf4bppSymbols);
+            break;
 
 #endif /* AVOID_CPIO */
 
@@ -238,11 +246,48 @@ ATILoadModules
         case 16:
         case 24:
         case 32:
-            return ATILoadModule(pScreenInfo, "fb", ATIfbSymbols);
+            fbPtr = ATILoadModule(pScreenInfo, "fb", ATIfbSymbols);
+            break;
 
         default:
             return NULL;
     }
+    if (!fbPtr)
+        return NULL;
+
+    /* Load ramdac module if needed */
+    if ((pATI->Cursor > ATI_CURSOR_SOFTWARE) &&
+        !ATILoadModule(pScreenInfo, "ramdac", ATIramdacSymbols))
+        return NULL;
+
+#ifdef USE_EXA
+    /* Load EXA if needed */
+    if (pATI->useEXA && pATI->OptionAccel)
+    {
+        /* Cannot use ATILoadModule(), because of version checking */
+        XF86ModReqInfo req;
+        int errmaj, errmin;
+
+        memset(&req, 0, sizeof(XF86ModReqInfo));
+        req.majorversion = 2;
+        req.minorversion = 0;
+        if (!LoadSubModule(pScreenInfo->module, "exa", NULL, NULL, NULL, &req,
+            &errmaj, &errmin))
+        {
+            LoaderErrorMsg(NULL, "exa", errmaj, errmin);
+            return NULL;
+        }
+        xf86LoaderReqSymLists(ATIexaSymbols, NULL);
+    }
+#endif
+#ifdef USE_XAA
+    /* Load XAA if needed */
+    if (!pATI->useEXA && pATI->OptionAccel &&
+        !ATILoadModule(pScreenInfo, "xaa", ATIxaaSymbols))
+        return NULL;
+#endif
+
+    return fbPtr;
 }
 
 #endif /* XFree86LOADER */

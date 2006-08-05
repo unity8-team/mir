@@ -79,7 +79,7 @@
 /*
  * X-to-Mach64 mix translation table.
  */
-static CARD8 ATIMach64ALU[16] =
+CARD8 ATIMach64ALU[16] =
 {
     MIX_0,                       /* GXclear */
     MIX_AND,                     /* GXand */
@@ -105,7 +105,7 @@ static CARD8 ATIMach64ALU[16] =
  * This function ensures the current scissor settings do not interfere with
  * the current draw request.
  */
-static void
+void
 ATIMach64ValidateClip
 (
     ATIPtr pATI,
@@ -162,6 +162,7 @@ ATIMach64Sync
 	    UncacheRegister(DP_BKGD_CLR);
 	    UncacheRegister(DP_FRGD_CLR);
 	    UncacheRegister(DP_WRITE_MASK);
+	    UncacheRegister(DP_PIX_WIDTH);
 	    UncacheRegister(DP_MIX);
 	    UncacheRegister(CLR_CMP_CNTL);
 	}
@@ -207,6 +208,7 @@ ATIMach64Sync
 	    CacheRegister(DP_BKGD_CLR);
 	    CacheRegister(DP_FRGD_CLR);
 	    CacheRegister(DP_WRITE_MASK);
+	    CacheRegister(DP_PIX_WIDTH);
 	    CacheRegister(DP_MIX);
 	    CacheRegister(CLR_CMP_CNTL);
 	}
@@ -245,8 +247,14 @@ ATIMach64Sync
       }
     }
 
+#ifdef USE_EXA
+    /* EXA sets pEXA->needsSync to FALSE on its own */
+#endif
+
+#ifdef USE_XAA
     if (pATI->pXAAInfo)
         pATI->pXAAInfo->NeedToSync = FALSE;
+#endif
 
     if (pATI->Chip >= ATI_CHIP_264VTB)
     {
@@ -307,6 +315,7 @@ TestRegisterCachingDP(ScrnInfoPtr pScreenInfo)
     TestRegisterCaching(DP_BKGD_CLR);
     TestRegisterCaching(DP_FRGD_CLR);
     TestRegisterCaching(DP_WRITE_MASK);
+    TestRegisterCaching(DP_PIX_WIDTH);
     TestRegisterCaching(DP_MIX);
 
     TestRegisterCaching(CLR_CMP_CLR);
@@ -373,6 +382,7 @@ TestRegisterCachingXV(ScrnInfoPtr pScreenInfo)
     TestRegisterCaching(SCALER_BUF1_OFFSET_V);
 }
 
+#ifdef USE_XAA
 /*
  * ATIMach64SetupForScreenToScreenCopy --
  *
@@ -1031,3 +1041,4 @@ ATIMach64AccelInit
 
     return ATIMach64MaxY;
 }
+#endif /* USE_XAA */

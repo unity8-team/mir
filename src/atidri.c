@@ -293,9 +293,9 @@ static void ATIEnterServer( ScreenPtr pScreen )
    ScrnInfoPtr pScreenInfo = xf86Screens[pScreen->myNum];
    ATIPtr pATI = ATIPTR(pScreenInfo);
 
-   if ( pATI->directRenderingEnabled && pATI->pXAAInfo ) { 
-      pATI->pXAAInfo->NeedToSync = TRUE;
-      pATI->NeedDRISync = TRUE;
+   if ( pATI->directRenderingEnabled ) { 
+      ATIDRIMarkSyncInt(pScreenInfo);
+      ATIDRIMarkSyncExt(pScreenInfo);
    }
 }
 
@@ -333,6 +333,7 @@ static void ATIDRISwapContext( ScreenPtr pScreen,
    }
 }
 
+#ifdef USE_XAA
 static void ATIDRITransitionTo2d(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScreenInfo = xf86Screens[pScreen->myNum];
@@ -400,10 +401,49 @@ static void ATIDRITransitionTo3d(ScreenPtr pScreen)
 
    pATI->have3DWindows = TRUE;
 }
+#endif /* USE_XAA */
+
+#ifdef USE_EXA
+static void ATIDRITransitionTo2d_EXA(ScreenPtr pScreen)
+{
+   ScrnInfoPtr pScreenInfo = xf86Screens[pScreen->myNum];
+   ATIPtr pATI = ATIPTR(pScreenInfo);
+#if 0
+   ATIDRIServerInfoPtr pATIDRIServer = pATI->pDRIServerInfo;
+
+   exaEnableDisableFBAccess(pScreen->myNum, FALSE);
+
+   pATI->pExa->offScreenBase = pATIDRIServer->backOffset;
+
+   exaEnableDisableFBAccess(pScreen->myNum, TRUE);
+#endif
+
+   pATI->have3DWindows = FALSE;
+}
+
+static void ATIDRITransitionTo3d_EXA(ScreenPtr pScreen)
+{
+   ScrnInfoPtr pScreenInfo = xf86Screens[pScreen->myNum];
+   ATIPtr pATI = ATIPTR(pScreenInfo);
+#if 0
+   ATIDRIServerInfoPtr pATIDRIServer = pATI->pDRIServerInfo;
+
+   exaEnableDisableFBAccess(pScreen->myNum, FALSE);
+
+   pATI->pExa->offScreenBase = pATIDRIServer->textureOffset +
+			       pATIDRIServer->textureSize;
+
+   exaEnableDisableFBAccess(pScreen->myNum, TRUE);
+#endif
+
+   pATI->have3DWindows = TRUE;
+}
+#endif /* USE_EXA */
 
 /* Initialize the state of the back and depth buffers. */
 static void ATIDRIInitBuffers( WindowPtr pWin, RegionPtr prgn, CARD32 indx )
 {
+#ifdef USE_XAA
    ScreenPtr   pScreen = pWin->drawable.pScreen;
    ScrnInfoPtr pScreenInfo   = xf86Screens[pScreen->myNum];
    ATIPtr pATI = ATIPTR(pScreenInfo);
@@ -454,7 +494,8 @@ static void ATIDRIInitBuffers( WindowPtr pWin, RegionPtr prgn, CARD32 indx )
 					      pbox->x2 - pbox->x1,
 					      pbox->y2 - pbox->y1);
 
-   pXAAInfo->NeedToSync = TRUE;
+   ATIDRIMarkSyncInt(pScreenInfo);
+#endif
 }
 
 /* Copy the back and depth buffers when the X server moves a window.
@@ -469,6 +510,7 @@ static void ATIDRIInitBuffers( WindowPtr pWin, RegionPtr prgn, CARD32 indx )
 static void ATIDRIMoveBuffers( WindowPtr pWin, DDXPointRec ptOldOrg,
 			       RegionPtr prgnSrc, CARD32 indx )
 {
+#ifdef USE_XAA
     ScreenPtr pScreen = pWin->drawable.pScreen;
     ScrnInfoPtr pScreenInfo = xf86Screens[pScreen->myNum];
     ATIPtr pATI = ATIPTR(pScreenInfo);
@@ -632,7 +674,8 @@ static void ATIDRIMoveBuffers( WindowPtr pWin, DDXPointRec ptOldOrg,
     DEALLOCATE_LOCAL(pptNew1);
     DEALLOCATE_LOCAL(pboxNew1);
 
-    pXAAInfo->NeedToSync = TRUE;
+    ATIDRIMarkSyncInt(pScreenInfo);
+#endif
 }
 
 /* Compute log base 2 of val. */
@@ -1204,8 +1247,18 @@ Bool ATIDRIScreenInit( ScreenPtr pScreen )
    pDRIInfo->SwapContext	= ATIDRISwapContext;
    pDRIInfo->InitBuffers	= ATIDRIInitBuffers;
    pDRIInfo->MoveBuffers	= ATIDRIMoveBuffers;
-   pDRIInfo->TransitionTo2d     = ATIDRITransitionTo2d;
-   pDRIInfo->TransitionTo3d     = ATIDRITransitionTo3d;
+#ifdef USE_XAA
+   if (!pATI->useEXA) {
+      pDRIInfo->TransitionTo2d  = ATIDRITransitionTo2d;
+      pDRIInfo->TransitionTo3d  = ATIDRITransitionTo3d;
+   }
+#endif /* USE_XAA */
+#ifdef USE_EXA
+   if (pATI->useEXA) {
+      pDRIInfo->TransitionTo2d  = ATIDRITransitionTo2d_EXA;
+      pDRIInfo->TransitionTo3d  = ATIDRITransitionTo3d_EXA;
+   }
+#endif /* USE_EXA */
    pDRIInfo->bufferRequests	= DRI_ALL_WINDOWS;
 
    pDRIInfo->createDummyCtx     = TRUE;

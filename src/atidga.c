@@ -188,6 +188,8 @@ ATIDGAFillRect
 )
 {
     ATIPtr        pATI     = ATIPTR(pScreenInfo);
+/*FIXME : use EXA if available */
+#ifdef USE_XAA
     XAAInfoRecPtr pXAAInfo = pATI->pXAAInfo;
 
     (*pXAAInfo->SetupForSolidFill)(pScreenInfo, (int)colour, GXcopy,
@@ -196,6 +198,7 @@ ATIDGAFillRect
 
     if (pScreenInfo->bitsPerPixel == pATI->bitsPerPixel)
         SET_SYNC_FLAG(pXAAInfo);
+#endif
 }
 
 /*
@@ -217,6 +220,8 @@ ATIDGABlitRect
 )
 {
     ATIPtr        pATI     = ATIPTR(pScreenInfo);
+/*FIXME : use EXA if available */
+#ifdef USE_XAA
     XAAInfoRecPtr pXAAInfo = pATI->pXAAInfo;
     int           xdir     = ((xSrc < xDst) && (ySrc == yDst)) ? -1 : 1;
     int           ydir     = (ySrc < yDst) ? -1 : 1;
@@ -228,6 +233,7 @@ ATIDGABlitRect
 
     if (pScreenInfo->bitsPerPixel == pATI->bitsPerPixel)
         SET_SYNC_FLAG(pXAAInfo);
+#endif
 }
 
 /*
@@ -250,6 +256,8 @@ ATIDGABlitTransRect
 )
 {
     ATIPtr        pATI     = ATIPTR(pScreenInfo);
+/*FIXME : use EXA if available */
+#ifdef USE_XAA
     XAAInfoRecPtr pXAAInfo = pATI->pXAAInfo;
     int           xdir     = ((xSrc < xDst) && (ySrc == yDst)) ? -1 : 1;
     int           ydir     = (ySrc < yDst) ? -1 : 1;
@@ -266,6 +274,7 @@ ATIDGABlitTransRect
 
     if (pScreenInfo->bitsPerPixel == pATI->bitsPerPixel)
         SET_SYNC_FLAG(pXAAInfo);
+#endif
 }
 
 /*
@@ -335,8 +344,10 @@ ATIDGAAddModes
                     pDGAMode->flags |= DGA_PIXMAP_AVAILABLE;
                     pDGAMode->address = pATI->pMemory;
 
+#ifdef USE_XAA
                     if (pATI->pXAAInfo)
                         pDGAMode->flags &= ~DGA_CONCURRENT_ACCESS;
+#endif
                 }
                 if ((pMode->Flags & V_DBLSCAN) || (pMode->VScan > 1))
                     pDGAMode->flags |= DGA_DOUBLESCAN;
@@ -397,7 +408,9 @@ ATIDGAInit
     ATIPtr      pATI
 )
 {
+#ifdef USE_XAA
     XAAInfoRecPtr pXAAInfo;
+#endif
     int           flags;
 
     if (!pATI->nDGAMode)
@@ -422,6 +435,7 @@ ATIDGAInit
         pATI->ATIDGAFunctions.GetViewport     = ATIDGAGetViewport;
 
         flags = 0;
+#ifdef USE_XAA
         if ((pXAAInfo = pATI->pXAAInfo))
         {
             pATI->ATIDGAFunctions.Sync = pXAAInfo->Sync;
@@ -439,6 +453,7 @@ ATIDGAInit
                 pATI->ATIDGAFunctions.BlitTransRect = ATIDGABlitTransRect;
             }
         }
+#endif
         if (!flags)
             flags = DGA_CONCURRENT_ACCESS;
 

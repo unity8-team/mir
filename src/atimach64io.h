@@ -206,6 +206,10 @@ extern void ATIMach64PollEngineStatus(ATIPtr);
 
 #ifdef XF86DRI_DEVEL
  
+/*
+ * DRI Sync and Lock definitions.
+ */
+
 #define ATIDRIWaitForIdle(_pATI)                                \
 do {                                                            \
     ATIDRIServerInfoPtr pATIDRIServer = _pATI->pDRIServerInfo;  \
@@ -226,6 +230,53 @@ do {                                                            \
     }                                                           \
 } while (0)
 
+/*
+ * Set upon DRISwapContext and when DRI accesses the GPU engine
+ * from within the server, see DRIInitBuffers/DRIMoveBuffers.
+ *
+ * Forces the EXA/XAA software paths to sync before accessing the FB memory.
+ */
+static __inline__ void ATIDRIMarkSyncInt(ScrnInfoPtr _pScrInfo)
+{
+    ATIPtr _pATI=ATIPTR(_pScrInfo);
+#ifdef USE_EXA
+    if (_pATI->useEXA)
+        exaMarkSync(_pScrInfo->pScreen);
+#endif
+#ifdef USE_XAA
+    if (!_pATI->useEXA)
+        SET_SYNC_FLAG(_pATI->pXAAInfo); /* NeedToSync = TRUE */
+#endif
+}
+
+/*
+ * Set upon DRISwapContext and when the server acquires the DRI lock.
+ *
+ * Forces the EXA/XAA accelerated paths to sync before accessing the GPU engine.
+ */
+static __inline__ void ATIDRIMarkSyncExt(ScrnInfoPtr _pScrInfo)
+{
+    ATIPtr _pATI=ATIPTR(_pScrInfo);
+    _pATI->NeedDRISync = TRUE;
+}
+
+static __inline__ void ATIDRISync(ScrnInfoPtr _pScrInfo)
+{
+    ATIPtr _pATI=ATIPTR(_pScrInfo);
+#ifdef USE_EXA
+    if (_pATI->directRenderingEnabled && _pATI->pExa)
+    {
+        if (_pATI->NeedDRISync) exaWaitSync(_pScrInfo->pScreen);
+    }
+#endif
+#ifdef USE_XAA
+    if (_pATI->directRenderingEnabled && _pATI->pXAAInfo)
+    {
+        if (_pATI->NeedDRISync) (*_pATI->pXAAInfo->Sync)(_pScrInfo);
+    }
+#endif
+}
+
 #define ATIDRILock(_pScrInfo)                   \
 do                                              \
 {                                               \
@@ -233,7 +284,7 @@ do                                              \
     if (_pATI->directRenderingEnabled)          \
     {                                           \
         DRILock(_pScrInfo->pScreen, 0);         \
-        pATI->NeedDRISync = TRUE;               \
+        ATIDRIMarkSyncExt(_pScrInfo);           \
     }                                           \
 } while (0)
                                                                                 
@@ -247,16 +298,6 @@ do                                              \
     }                                           \
 } while (0)
 
-#define ATIDRISync(_pScrInfo)                                                   \
-do                                                                              \
-{                                                                               \
-    ATIPtr _pATI=ATIPTR(_pScrInfo);                                             \
-    if (_pATI->directRenderingEnabled && _pATI->pXAAInfo)                       \
-    {                                                                           \
-        if (_pATI->NeedDRISync) (*_pATI->pXAAInfo->Sync)(_pScrInfo);            \
-    }                                                                           \
-} while (0)
-                                                                                               
 #else /* XF86DRI_DEVEL */
 
                                                                                                
@@ -367,5 +408,12 @@ extern void ATIMach64AccessPLLReg(ATIPtr, const CARD8, const Bool);
     } while (0)
 
 #endif
+
+/*
+ * Return the MMIO address of register, used for HOST_DATA_X only.
+ */
+#define ATIHostDataAddr(_Register)                             \
+    ((CARD8 *)pATI->pBlock[GetBits(_Register, BLOCK_SELECT)] + \
+              ((_Register) & MM_IO_SELECT))
 
 #endif /* ___ATIMACH64IO_H___ */

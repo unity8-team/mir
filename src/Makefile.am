@@ -42,6 +42,7 @@ ATIMISC_DGA_SOURCES = atidga.c
 endif
 
 if USE_EXA
+ATIMISC_EXA_SOURCES = atimach64exa.c
 RADEON_EXA_SOURCES = radeon_exa.c
 endif
 
@@ -65,7 +66,7 @@ atimisc_drv_la_SOURCES = \
 	atimach64i2c.c atimach64io.c atimach64xv.c atimode.c atipreinit.c \
 	atiprint.c atirgb514.c atiscreen.c atituner.c atiutil.c ativalid.c \
 	atixv.c atiload.c atimisc.c $(ATIMISC_DRI_SRCS) $(ATIMISC_DGA_SOURCES) \
-	$(ATIMISC_CPIO_SOURCES)
+	$(ATIMISC_CPIO_SOURCES) $(ATIMISC_EXA_SOURCES)
 
 r128_drv_la_LTLIBRARIES = r128_drv.la
 r128_drv_la_LDFLAGS = -module -avoid-version

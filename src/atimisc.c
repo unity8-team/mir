@@ -127,7 +127,19 @@ ATISetup
 
             ATIfbSymbols,
             ATIshadowfbSymbols,
+
+#ifdef USE_EXA
+
+            ATIexaSymbols,
+
+#endif /* USE_EXA */
+
+#ifdef USE_XAA
+
             ATIxaaSymbols,
+
+#endif /* USE_XAA */
+
             ATIramdacSymbols,
             ATIi2cSymbols,
             NULL);

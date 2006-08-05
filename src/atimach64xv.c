@@ -501,6 +501,25 @@ ATIMach64GetPortAttribute
     return Success;
 }
 
+static pointer
+ATIMach64XVMemAlloc
+(
+    ScreenPtr pScreen,
+    pointer   pVideo,
+    int       size,
+    int       *offset,
+    ATIPtr    pATI
+);
+
+static void
+ATIMach64XVMemFree
+(
+    ScreenPtr pScreen,
+    pointer   pVideo,
+    ATIPtr    pATI
+);
+
+#ifdef USE_XAA
 /*
  * ATIMach64RemoveLinearCallback --
  *
@@ -519,6 +538,7 @@ ATIMach64RemoveLinearCallback
     pATI->pXVBuffer = NULL;
     outf(OVERLAY_SCALE_CNTL, SCALE_EN);
 }
+#endif /* USE_XAA */
 
 /*
  * ATIMach64StopVideo --
@@ -543,19 +563,23 @@ ATIMach64StopVideo
 
     REGION_EMPTY(pScreen, &pATI->VideoClip);
 
-    if (!Cleanup)
+#ifdef USE_XAA
+    if (!pATI->useEXA && !Cleanup)
     {
         /*
          * Free offscreen buffer if/when its allocation is needed by XAA's
          * pixmap cache.
          */
-        if (pATI->pXVBuffer)
-            pATI->pXVBuffer->RemoveLinearCallback =
+        FBLinearPtr linear = (FBLinearPtr)pATI->pXVBuffer;
+        if (linear)
+            linear->RemoveLinearCallback =
                 ATIMach64RemoveLinearCallback;
         return;
     }
+#endif /* USE_XAA */
 
-    pATI->pXVBuffer = ATIResizeOffscreenLinear(pScreen, pATI->pXVBuffer, 0);
+    ATIMach64XVMemFree(pScreen, pATI->pXVBuffer, pATI);
+    pATI->pXVBuffer = NULL;
     outf(OVERLAY_SCALE_CNTL, SCALE_EN);
 }
 
@@ -956,6 +980,7 @@ ATIMach64PutImage
     int       SrcTop, SrcLeft, DstWidth, DstHeight;
     int       Top, Bottom, Left, Right, nLine, nPixel, Offset;
     int       OffsetV, OffsetU;
+    int       XVOffset;
     int       tmp;
     CARD8     *pDst;
 
@@ -981,11 +1006,11 @@ ATIMach64PutImage
      */
     DstPitch = /* bytes */
         (DstWidth + DstWidth + 15) & ~15;
-    DstSize =  /* pixels */
-        ((DstPitch * DstHeight) + pATI->AdjustDepth - 1) / pATI->AdjustDepth;
+    DstSize =  /* bytes */
+        (DstPitch * DstHeight);
 
-    pATI->pXVBuffer = ATIResizeOffscreenLinear(pScreen, pATI->pXVBuffer,
-        (pATI->DoubleBuffer + 1) * DstSize);
+    pATI->pXVBuffer = ATIMach64XVMemAlloc(pScreen, pATI->pXVBuffer,
+        (pATI->DoubleBuffer + 1) * DstSize, &XVOffset, pATI);
 
     if (!pATI->pXVBuffer)
     {
@@ -993,7 +1018,7 @@ ATIMach64PutImage
             return BadAlloc;
 
         pATI->pXVBuffer =
-            ATIResizeOffscreenLinear(pScreen, pATI->pXVBuffer, DstSize);
+            ATIMach64XVMemAlloc(pScreen, pATI->pXVBuffer, DstSize, &XVOffset, pATI);
 
         if (!pATI->pXVBuffer)
             return BadAlloc;
@@ -1012,8 +1037,7 @@ ATIMach64PutImage
     /* Synchronise video memory accesses */
     ATIMach64Sync(pScreenInfo);
 
-    Offset = (pATI->pXVBuffer->offset * pATI->AdjustDepth) +
-             (pATI->CurrentBuffer * DstSize * pATI->AdjustDepth);
+    Offset = XVOffset + pATI->CurrentBuffer * DstSize;
     pDst = pATI->pMemoryLE;
     pDst += Offset;
 
@@ -1113,6 +1137,7 @@ ATIMach64AllocateSurface
 {
     ScreenPtr pScreen;
     ATIPtr    pATI = ATIPTR(pScreenInfo);
+    int       XVOffset;
 
     if (pATI->ActiveSurface)
         return BadAlloc;
@@ -1126,13 +1151,12 @@ ATIMach64AllocateSurface
 
     pScreen = pScreenInfo->pScreen;
 
-    pATI->pXVBuffer = ATIResizeOffscreenLinear(pScreen, pATI->pXVBuffer,
-        ((Height * pATI->SurfacePitch) + pATI->AdjustDepth - 1) /
-        pATI->AdjustDepth);
+    pATI->pXVBuffer = ATIMach64XVMemAlloc(pScreen, pATI->pXVBuffer,
+        Height * pATI->SurfacePitch, &XVOffset, pATI);
     if (!pATI->pXVBuffer)
         return BadAlloc;
 
-    pATI->SurfaceOffset = pATI->pXVBuffer->offset * pATI->AdjustDepth;
+    pATI->SurfaceOffset = XVOffset;
 
     pSurface->pScrn = pScreenInfo;
     pSurface->id = ImageID;
@@ -1167,8 +1191,8 @@ ATIMach64FreeSurface
         return Success;
 
     outf(OVERLAY_SCALE_CNTL, SCALE_EN);
-    pATI->pXVBuffer = ATIResizeOffscreenLinear(pSurface->pScrn->pScreen,
-        pATI->pXVBuffer, 0);
+    ATIMach64XVMemFree(pSurface->pScrn->pScreen, pATI->pXVBuffer, pATI);
+    pATI->pXVBuffer = NULL;
     pATI->ActiveSurface = FALSE;
 
     return Success;
@@ -1498,3 +1522,84 @@ ATIMach64CloseXVideo
 
     REGION_UNINIT(pScreen, &pATI->VideoClip);
 }
+
+static pointer
+ATIMach64XVMemAlloc
+(
+    ScreenPtr pScreen,
+    pointer   pVideo,
+    int       size,
+    int       *offset,
+    ATIPtr    pATI
+)
+{
+#ifdef USE_EXA
+    if (pATI->useEXA) {
+        ExaOffscreenArea *area = (ExaOffscreenArea *)pVideo;
+
+        if (area != NULL) {
+            if (area->size >= size) {
+                *offset = area->offset;
+                return area;
+            }
+
+            exaOffscreenFree(pScreen, area);
+        }
+
+        area = exaOffscreenAlloc(pScreen, size, 64, TRUE, NULL, NULL);
+        if (area != NULL) {
+            *offset = area->offset;
+            return area;
+        }
+    }
+#endif /* USE_EXA */
+
+#ifdef USE_XAA
+    if (!pATI->useEXA) {
+        FBLinearPtr linear = (FBLinearPtr)pVideo;
+        int cpp = pATI->AdjustDepth;
+
+        /* XAA allocates in units of pixels at the screen bpp, so adjust size
+         * appropriately.
+         */
+        size = (size + cpp - 1) / cpp;
+
+        linear = ATIResizeOffscreenLinear(pScreen, linear, size);
+        if (linear != NULL) {
+            *offset = linear->offset * cpp;
+            return linear;
+        }
+    }
+#endif /* USE_XAA */
+
+    *offset = 0;
+    return NULL;
+}
+
+static void
+ATIMach64XVMemFree
+(
+    ScreenPtr pScreen,
+    pointer   pVideo,
+    ATIPtr    pATI
+)
+{
+#ifdef USE_EXA
+    if (pATI->useEXA) {
+        ExaOffscreenArea *area = (ExaOffscreenArea *)pVideo;
+
+        if (area != NULL)
+            exaOffscreenFree(pScreen, area);
+    }
+#endif /* USE_EXA */
+
+#ifdef USE_XAA
+    if (!pATI->useEXA) {
+        FBLinearPtr linear = (FBLinearPtr)pVideo;
+
+        if (linear != NULL)
+            ATIResizeOffscreenLinear(pScreen, linear, 0);
+    }
+#endif /* USE_XAA */
+}
+

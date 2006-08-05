@@ -33,6 +33,7 @@
 #include "atimach64accel.h"
 #include "atistruct.h"
 
+#ifdef USE_XAA
 /*
  * ATIInitializeAcceleration --
  *
@@ -144,3 +145,4 @@ ATIResizeOffscreenLinear
 
     return pLinear;
 }
+#endif /* USE_XAA */

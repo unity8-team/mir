@@ -854,9 +854,7 @@ ATIMach64Set
         outf(HOST_CNTL, pATIHW->host_cntl);
 
         /* Set host transfer window address and size clamp */
-        pATI->pHOST_DATA =
-            (CARD8 *)pATI->pBlock[GetBits(HOST_DATA_0, BLOCK_SELECT)] +
-            (HOST_DATA_0 & MM_IO_SELECT);
+        pATI->pHOST_DATA = ATIHostDataAddr(HOST_DATA_0);
         pATI->nHostFIFOEntries = pATI->nFIFOEntries >> 1;
         if (pATI->nHostFIFOEntries > 16)
             pATI->nHostFIFOEntries = 16;
@@ -980,6 +978,7 @@ ATIMach64Set
             CacheRegister(DP_BKGD_CLR);
             CacheRegister(DP_FRGD_CLR);
             CacheRegister(DP_WRITE_MASK);
+            CacheRegister(DP_PIX_WIDTH);
             CacheRegister(DP_MIX);
 
             CacheRegister(CLR_CMP_CLR);

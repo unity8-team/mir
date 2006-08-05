@@ -329,6 +329,10 @@ ATIScreenInit
 
 #endif /* AVOID_CPIO */
 
+#ifdef USE_XAA
+
+    if (!pATI->useEXA) {
+
 	/* Memory manager setup */
 
 #ifdef XF86DRI_DEVEL
@@ -509,6 +513,21 @@ ATIScreenInit
     if (!ATIInitializeAcceleration(pScreen, pScreenInfo, pATI))
         return FALSE;
 
+    }
+
+#endif /* USE_XAA */
+
+#ifdef USE_EXA
+
+    if (pATI->useEXA) {
+        /* EXA setups both memory manager and acceleration here */
+
+        if (pATI->OptionAccel && !ATIMach64ExaInit(pScreen))
+            return FALSE;
+    }
+
+#endif /* USE_EXA */
+
 #ifndef AVOID_DGA
 
     /* Initialise DGA support */
@@ -623,11 +642,21 @@ ATICloseScreen
 
     ATICloseXVideo(pScreen, pScreenInfo, pATI);
 
+#ifdef USE_EXA
+    if (pATI->pExa)
+    {
+        exaDriverFini(pScreen);
+        xfree(pATI->pExa);
+        pATI->pExa = NULL;
+    }
+#endif
+#ifdef USE_XAA
     if (pATI->pXAAInfo)
     {
         XAADestroyInfoRec(pATI->pXAAInfo);
         pATI->pXAAInfo = NULL;
     }
+#endif
 
     if ((pScreen->CloseScreen = pATI->CloseScreen))
     {
@@ -645,9 +674,14 @@ ATICloseScreen
 
     ATILeaveGraphics(pScreenInfo, pATI);
 
-    xfree(pATI->ExpansionBitmapScanlinePtr[1]);
-    pATI->ExpansionBitmapScanlinePtr[0] =
+#ifdef USE_XAA
+    if (!pATI->useEXA)
+    {
+        xfree(pATI->ExpansionBitmapScanlinePtr[1]);
+        pATI->ExpansionBitmapScanlinePtr[0] = NULL;
         pATI->ExpansionBitmapScanlinePtr[1] = NULL;
+    }
+#endif
 
     xfree(pATI->pShadow);
     pATI->pShadow = NULL;

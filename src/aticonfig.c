@@ -153,6 +153,7 @@ ATIProcessOptions
 #   define ProbeClocks   PublicOption[ATI_OPTION_PROBE_CLOCKS].value.bool
 #   define ShadowFB      PublicOption[ATI_OPTION_SHADOW_FB].value.bool
 #   define SWCursor      PublicOption[ATI_OPTION_SWCURSOR].value.bool
+#   define AccelMethod   PublicOption[ATI_OPTION_ACCELMETHOD].value.str
 #   define LCDSync       PrivateOption[ATI_OPTION_LCDSYNC].value.bool
 
 #   define ReferenceClock \
@@ -338,6 +339,27 @@ ATIProcessOptions
                 pATI->ReferenceDenominator = 1;
                 break;
         }
+    }
+
+    pATI->useEXA = FALSE;
+    if (pATI->OptionAccel)
+    {
+        MessageType from = X_DEFAULT;
+#if defined(USE_EXA)
+#if defined(USE_XAA)
+        if (AccelMethod != NULL)
+        {
+            from = X_CONFIG;
+            if (xf86NameCmp(AccelMethod, "EXA") == 0)
+                pATI->useEXA = TRUE;
+        }
+#else /* USE_XAA */
+        pATI->useEXA = TRUE;
+#endif /* !USE_XAA */
+#endif /* USE_EXA */
+        xf86DrvMsg(pScreenInfo->scrnIndex, from,
+            "Using %s acceleration architecture\n",
+            pATI->useEXA ? "EXA" : "XAA");
     }
 
     xfree(PublicOption);

@@ -47,7 +47,20 @@ extern const char *ATIint10Symbols[], *ATIddcSymbols[], *ATIvbeSymbols[],
  
 #endif /* XF86DRI_DEVEL */
 
-                  *ATIfbSymbols[], *ATIshadowfbSymbols[], *ATIxaaSymbols[],
+                  *ATIfbSymbols[], *ATIshadowfbSymbols[],
+
+#ifdef USE_EXA
+ 
+                  *ATIexaSymbols[],
+
+#endif /* USE_EXA */
+
+#ifdef USE_XAA
+ 
+                  *ATIxaaSymbols[],
+
+#endif /* USE_XAA */
+
                   *ATIramdacSymbols[], *ATIi2cSymbols[];
 
 extern pointer ATILoadModule(ScrnInfoPtr, const char *, const char **);
