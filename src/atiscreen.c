@@ -125,6 +125,235 @@ ATIMinBits
     for (bits = 0; val; val >>= 1, ++bits);
     return bits;
 }
+
+#ifdef USE_XAA
+static Bool
+ATIMach64SetupMemXAA_NoDRI
+(
+    int       iScreen,
+    ScreenPtr pScreen
+)
+{
+    ScrnInfoPtr  pScreenInfo = xf86Screens[iScreen];
+    ATIPtr       pATI        = ATIPTR(pScreenInfo);
+
+    int maxScanlines = ATIMach64MaxY;
+    int maxPixelArea, PixelArea;
+
+#ifndef AVOID_CPIO
+
+    if (!pATI->BankInfo.BankSize)
+
+#endif /* AVOID_CPIO */
+    {
+        /*
+         * Note:  If PixelArea exceeds the engine's maximum, the excess is
+         *        never used, even though it would be useful for such things
+         *        as XVideo buffers.
+         */
+        maxPixelArea = maxScanlines * pScreenInfo->displayWidth;
+        PixelArea = pScreenInfo->videoRam * 1024 * 8 / pATI->bitsPerPixel;
+        if (PixelArea > maxPixelArea)
+            PixelArea = maxPixelArea;
+        xf86InitFBManagerArea(pScreen, PixelArea, 2);
+    }
+
+    return TRUE;
+}
+
+#ifdef XF86DRI_DEVEL
+/*
+ * Memory layour for XAA with DRI (no local_textures):
+ * | front  | pixmaps, xv | back   | depth  | textures | c |
+ *
+ * 1024x768@16bpp with 8 MB:
+ * | 1.5 MB | ~3.5 MB     | 1.5 MB | 1.5 MB | 0        | c |
+ *
+ * 1024x768@32bpp with 8 MB:
+ * | 3.0 MB | ~0.5 MB     | 3.0 MB | 1.5 MB | 0        | c |
+ *
+ * "c" is the hw cursor which occupies 1KB
+ */
+static Bool
+ATIMach64SetupMemXAA
+(
+    int       iScreen,
+    ScreenPtr pScreen
+)
+{
+	ScrnInfoPtr  pScreenInfo = xf86Screens[iScreen];
+	ATIPtr       pATI        = ATIPTR(pScreenInfo);
+
+	ATIDRIServerInfoPtr pATIDRIServer = pATI->pDRIServerInfo;
+	int cpp = pATI->bitsPerPixel >> 3;
+	int widthBytes = pScreenInfo->displayWidth * cpp;
+	int zWidthBytes = pScreenInfo->displayWidth * 2; /* always 16-bit z-buffer */
+	int fbSize = pScreenInfo->videoRam * 1024;
+	int bufferSize = pScreenInfo->virtualY * widthBytes;
+	int zBufferSize = pScreenInfo->virtualY * zWidthBytes;
+	int offscreenBytes, total, scanlines;
+
+	pATIDRIServer->fbX = 0;
+	pATIDRIServer->fbY = 0;
+	pATIDRIServer->frontOffset = 0;
+	pATIDRIServer->frontPitch = pScreenInfo->displayWidth;
+
+	/* Calculate memory remaining for pixcache and textures after 
+	 * front, back, and depth buffers
+	 */
+	offscreenBytes = fbSize - ( 2 * bufferSize + zBufferSize );
+
+	if ( !pATIDRIServer->IsPCI && !pATI->OptionLocalTextures ) {
+	    /* Don't allocate a local texture heap for AGP unless requested */
+	    pATIDRIServer->textureSize = 0;
+	} else {
+	    int l, maxPixcache;
+
+#ifdef XvExtension
+
+	    int xvBytes;
+
+	    /* Try for enough pixmap cache for DVD and a full viewport
+	     */
+	    xvBytes = 720*480*cpp; /* enough for single-buffered DVD */
+	    maxPixcache = xvBytes > bufferSize ? xvBytes : bufferSize;
+
+#else /* XvExtension */
+
+	    /* Try for one viewport */
+	    maxPixcache = bufferSize;
+
+#endif /* XvExtension */
+
+	    pATIDRIServer->textureSize = offscreenBytes - maxPixcache;
+
+	    /* If that gives us less than half the offscreen mem available for textures, split 
+	     * the available mem between textures and pixmap cache
+	     */
+	    if (pATIDRIServer->textureSize < (offscreenBytes/2)) {
+		pATIDRIServer->textureSize = offscreenBytes/2;
+	    }
+
+	    if (pATIDRIServer->textureSize <= 0)
+		pATIDRIServer->textureSize = 0;
+
+	    l = ATIMinBits((pATIDRIServer->textureSize-1) / MACH64_NR_TEX_REGIONS);
+	    if (l < MACH64_LOG_TEX_GRANULARITY) l = MACH64_LOG_TEX_GRANULARITY;
+
+	    /* Round the texture size up to the nearest whole number of
+	     * texture regions.  Again, be greedy about this, don't round
+	     * down.
+	     */
+	    pATIDRIServer->logTextureGranularity = l;
+	    pATIDRIServer->textureSize =
+		(pATIDRIServer->textureSize >> l) << l;
+	}
+
+	total = fbSize - pATIDRIServer->textureSize;
+	scanlines = total / widthBytes;
+	if (scanlines > ATIMach64MaxY) scanlines = ATIMach64MaxY;
+
+	/* Recalculate the texture offset and size to accomodate any
+	 * rounding to a whole number of scanlines.
+	 * FIXME: Is this actually needed?
+	 */
+	pATIDRIServer->textureOffset = scanlines * widthBytes;
+	pATIDRIServer->textureSize = fbSize - pATIDRIServer->textureOffset;
+
+	/* Set a minimum usable local texture heap size.  This will fit
+	 * two 256x256 textures.  We check this after any rounding of
+	 * the texture area.
+	 */
+	if (pATIDRIServer->textureSize < 256*256 * cpp * 2) {
+	    pATIDRIServer->textureOffset = 0;
+	    pATIDRIServer->textureSize = 0;
+	    scanlines = fbSize / widthBytes;
+	    if (scanlines > ATIMach64MaxY) scanlines = ATIMach64MaxY;
+	}
+
+	pATIDRIServer->depthOffset = scanlines * widthBytes - zBufferSize;
+	pATIDRIServer->depthPitch = pScreenInfo->displayWidth;
+	pATIDRIServer->depthY = pATIDRIServer->depthOffset/widthBytes;
+	pATIDRIServer->depthX =  (pATIDRIServer->depthOffset - 
+				  (pATIDRIServer->depthY * widthBytes)) / cpp;
+
+	pATIDRIServer->backOffset = pATIDRIServer->depthOffset - bufferSize;
+	pATIDRIServer->backPitch = pScreenInfo->displayWidth;
+	pATIDRIServer->backY = pATIDRIServer->backOffset/widthBytes;
+	pATIDRIServer->backX =  (pATIDRIServer->backOffset - 
+				  (pATIDRIServer->backY * widthBytes)) / cpp;
+
+	scanlines = fbSize / widthBytes;
+	if (scanlines > ATIMach64MaxY) scanlines = ATIMach64MaxY;
+
+	if ( pATIDRIServer->IsPCI && pATIDRIServer->textureSize == 0 ) {
+	    xf86DrvMsg(iScreen, X_WARNING,
+		       "Not enough memory for local textures, disabling DRI\n");
+	    ATIDRICloseScreen(pScreen);
+	    pATI->directRenderingEnabled = FALSE;
+	} else {
+	    BoxRec ScreenArea;
+
+	    ScreenArea.x1 = 0;
+	    ScreenArea.y1 = 0;
+	    ScreenArea.x2 = pATI->displayWidth;
+	    ScreenArea.y2 = scanlines;
+
+	    if (!xf86InitFBManager(pScreen, &ScreenArea)) {
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
+			   "Memory manager initialization to (%d,%d) (%d,%d) failed\n",
+			   ScreenArea.x1, ScreenArea.y1,
+			   ScreenArea.x2, ScreenArea.y2);
+		return FALSE;
+	    } else {
+		int width, height;
+
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO,
+			   "Memory manager initialized to (%d,%d) (%d,%d)\n",
+			   ScreenArea.x1, ScreenArea.y1, ScreenArea.x2, ScreenArea.y2);
+
+		if (xf86QueryLargestOffscreenArea(pScreen, &width, &height, 0, 0, 0)) {
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO,
+			       "Largest offscreen area available: %d x %d\n",
+			       width, height);
+
+		    /* lines in offscreen area needed for depth buffer and textures */
+		    pATI->depthTexLines = scanlines
+			- pATIDRIServer->depthOffset / widthBytes;
+		    pATI->backLines     = scanlines
+			- pATIDRIServer->backOffset / widthBytes
+			- pATI->depthTexLines;
+		    pATI->depthTexArea  = NULL;
+		    pATI->backArea      = NULL;
+		} else {
+		    xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR, 
+			       "Unable to determine largest offscreen area available\n");
+		    return FALSE;
+		}
+
+	    }
+
+	    xf86DrvMsg(iScreen, X_INFO, "Will use %d kB of offscreen memory for XAA\n", 
+		       (offscreenBytes - pATIDRIServer->textureSize)/1024);
+
+	    xf86DrvMsg(iScreen, X_INFO, "Will use back buffer at offset 0x%x\n",
+		       pATIDRIServer->backOffset);
+
+	    xf86DrvMsg(iScreen, X_INFO, "Will use depth buffer at offset 0x%x\n",
+		       pATIDRIServer->depthOffset);
+
+	    if (pATIDRIServer->textureSize > 0) {
+		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO,
+			   "Will use %d kB for local textures at offset 0x%x\n",
+			   pATIDRIServer->textureSize/1024,
+			   pATIDRIServer->textureOffset);
+	    }
+	}
+
+	return TRUE;
+}
+#endif /* XF86DRI_DEVEL */
+#endif /* USE_XAA */
   	 
 /*
  * ATIScreenInit --
@@ -144,9 +373,6 @@ ATIScreenInit
     ATIPtr       pATI        = ATIPTR(pScreenInfo);
     pointer      pFB;
     int          VisualMask;
-#ifdef XF86DRI_DEVEL
-    BoxRec       ScreenArea;
-#endif
 
     /* Set video hardware state */
     if (!ATIEnterGraphics(pScreen, pScreenInfo, pATI))
@@ -333,183 +559,23 @@ ATIScreenInit
 
     if (!pATI->useEXA) {
 
-	/* Memory manager setup */
+    /* Memory manager setup */
 
 #ifdef XF86DRI_DEVEL
-
     if (pATI->directRenderingEnabled)
     {
-	ATIDRIServerInfoPtr pATIDRIServer = pATI->pDRIServerInfo;
-	int cpp = pATI->bitsPerPixel >> 3;
-	int widthBytes = pScreenInfo->displayWidth * cpp;
-	int zWidthBytes = pScreenInfo->displayWidth * 2; /* always 16-bit z-buffer */
-	int fbSize = pScreenInfo->videoRam * 1024;
-	int bufferSize = pScreenInfo->virtualY * widthBytes;
-	int zBufferSize = pScreenInfo->virtualY * zWidthBytes;
-	int offscreenBytes, total, scanlines;
-
-	pATIDRIServer->fbX = 0;
-	pATIDRIServer->fbY = 0;
-	pATIDRIServer->frontOffset = 0;
-	pATIDRIServer->frontPitch = pScreenInfo->displayWidth;
-
-	/* Calculate memory remaining for pixcache and textures after 
-	 * front, back, and depth buffers
-	 */
-	offscreenBytes = fbSize - ( 2 * bufferSize + zBufferSize );
-
-	if ( !pATIDRIServer->IsPCI && !pATI->OptionLocalTextures ) {
-	    /* Don't allocate a local texture heap for AGP unless requested */
-	    pATIDRIServer->textureSize = 0;
-	} else {
-	    int l, maxPixcache;
-
-#ifdef XvExtension
-
-	    int xvBytes;
-
-	    /* Try for enough pixmap cache for DVD and a full viewport
-	     */
-	    xvBytes = 720*480*cpp; /* enough for single-buffered DVD */
-	    maxPixcache = xvBytes > bufferSize ? xvBytes : bufferSize;
-
-#else /* XvExtension */
-
-	    /* Try for one viewport */
-	    maxPixcache = bufferSize;
-
-#endif /* XvExtension */
-
-	    pATIDRIServer->textureSize = offscreenBytes - maxPixcache;
-
-	    /* If that gives us less than half the offscreen mem available for textures, split 
-	     * the available mem between textures and pixmap cache
-	     */
-	    if (pATIDRIServer->textureSize < (offscreenBytes/2)) {
-		pATIDRIServer->textureSize = offscreenBytes/2;
-	    }
-
-	    if (pATIDRIServer->textureSize <= 0)
-		pATIDRIServer->textureSize = 0;
-
-	    l = ATIMinBits((pATIDRIServer->textureSize-1) / MACH64_NR_TEX_REGIONS);
-	    if (l < MACH64_LOG_TEX_GRANULARITY) l = MACH64_LOG_TEX_GRANULARITY;
-
-	    /* Round the texture size up to the nearest whole number of
-	     * texture regions.  Again, be greedy about this, don't round
-	     * down.
-	     */
-	    pATIDRIServer->logTextureGranularity = l;
-	    pATIDRIServer->textureSize =
-		(pATIDRIServer->textureSize >> l) << l;
-	}
-
-	total = fbSize - pATIDRIServer->textureSize;
-	scanlines = total / widthBytes;
-	if (scanlines > ATIMach64MaxY) scanlines = ATIMach64MaxY;
-
-	/* Recalculate the texture offset and size to accomodate any
-	 * rounding to a whole number of scanlines.
-	 * FIXME: Is this actually needed?
-	 */
-	pATIDRIServer->textureOffset = scanlines * widthBytes;
-	pATIDRIServer->textureSize = fbSize - pATIDRIServer->textureOffset;
-
-	/* Set a minimum usable local texture heap size.  This will fit
-	 * two 256x256 textures.  We check this after any rounding of
-	 * the texture area.
-	 */
-	if (pATIDRIServer->textureSize < 256*256 * cpp * 2) {
-	    pATIDRIServer->textureOffset = 0;
-	    pATIDRIServer->textureSize = 0;
-	    scanlines = fbSize / widthBytes;
-	    if (scanlines > ATIMach64MaxY) scanlines = ATIMach64MaxY;
-	}
-
-	pATIDRIServer->depthOffset = scanlines * widthBytes - zBufferSize;
-	pATIDRIServer->depthPitch = pScreenInfo->displayWidth;
-	pATIDRIServer->depthY = pATIDRIServer->depthOffset/widthBytes;
-	pATIDRIServer->depthX =  (pATIDRIServer->depthOffset - 
-				  (pATIDRIServer->depthY * widthBytes)) / cpp;
-
-	pATIDRIServer->backOffset = pATIDRIServer->depthOffset - bufferSize;
-	pATIDRIServer->backPitch = pScreenInfo->displayWidth;
-	pATIDRIServer->backY = pATIDRIServer->backOffset/widthBytes;
-	pATIDRIServer->backX =  (pATIDRIServer->backOffset - 
-				  (pATIDRIServer->backY * widthBytes)) / cpp;
-
-	scanlines = fbSize / widthBytes;
-	if (scanlines > ATIMach64MaxY) scanlines = ATIMach64MaxY;
-
-	if ( pATIDRIServer->IsPCI && pATIDRIServer->textureSize == 0 ) {
-	    xf86DrvMsg(iScreen, X_WARNING,
-		       "Not enough memory for local textures, disabling DRI\n");
-	    ATIDRICloseScreen(pScreen);
-	    pATI->directRenderingEnabled = FALSE;
-	} else {
-
-	    ScreenArea.x1 = 0;
-	    ScreenArea.y1 = 0;
-	    ScreenArea.x2 = pATI->displayWidth;
-	    ScreenArea.y2 = scanlines;
-
-	    if (!xf86InitFBManager(pScreen, &ScreenArea)) {
-		xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
-			   "Memory manager initialization to (%d,%d) (%d,%d) failed\n",
-			   ScreenArea.x1, ScreenArea.y1,
-			   ScreenArea.x2, ScreenArea.y2);
-		return FALSE;
-	    } else {
-		int width, height;
-
-		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO,
-			   "Memory manager initialized to (%d,%d) (%d,%d)\n",
-			   ScreenArea.x1, ScreenArea.y1, ScreenArea.x2, ScreenArea.y2);
-
-		if (xf86QueryLargestOffscreenArea(pScreen, &width, &height, 0, 0, 0)) {
-		    xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO,
-			       "Largest offscreen area available: %d x %d\n",
-			       width, height);
-
-		    /* lines in offscreen area needed for depth buffer and textures */
-		    pATI->depthTexLines = scanlines
-			- pATIDRIServer->depthOffset / widthBytes;
-		    pATI->backLines     = scanlines
-			- pATIDRIServer->backOffset / widthBytes
-			- pATI->depthTexLines;
-		    pATI->depthTexArea  = NULL;
-		    pATI->backArea      = NULL;
-		} else {
-		    xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR, 
-			       "Unable to determine largest offscreen area available\n");
-		    return FALSE;
-		}
-
-	    }
-
-	    xf86DrvMsg(iScreen, X_INFO, "Will use %d kB of offscreen memory for XAA\n", 
-		       (offscreenBytes - pATIDRIServer->textureSize)/1024);
-
-	    xf86DrvMsg(iScreen, X_INFO, "Will use back buffer at offset 0x%x\n",
-		       pATIDRIServer->backOffset);
-
-	    xf86DrvMsg(iScreen, X_INFO, "Will use depth buffer at offset 0x%x\n",
-		       pATIDRIServer->depthOffset);
-
-	    if (pATIDRIServer->textureSize > 0) {
-		xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO,
-			   "Will use %d kB for local textures at offset 0x%x\n",
-			   pATIDRIServer->textureSize/1024,
-			   pATIDRIServer->textureOffset);
-	    }
-	}
+        if (!ATIMach64SetupMemXAA(iScreen, pScreen))
+            return FALSE;
+    }
+    else
+#endif /* XF86DRI_DEVEL */
+    {
+        if (!ATIMach64SetupMemXAA_NoDRI(iScreen, pScreen))
+            return FALSE;
     }
 
-#endif /* XF86DRI_DEVEL */
-
     /* Setup acceleration */
-    /* If direct rendering is not enabled, the framebuffer memory 
-     * manager is initialized by this function call */
+
     if (!ATIInitializeAcceleration(pScreen, pScreenInfo, pATI))
         return FALSE;
 

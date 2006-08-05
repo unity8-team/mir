@@ -48,8 +48,6 @@ ATIInitializeAcceleration
     ATIPtr      pATI
 )
 {
-    int maxScanlines = 32767, maxPixelArea, PixelArea;
-
     if (pATI->OptionAccel)
     {
         if (!(pATI->pXAAInfo = XAACreateInfoRec()))
@@ -58,37 +56,12 @@ ATIInitializeAcceleration
         switch (pATI->Adapter)
         {
             case ATI_ADAPTER_MACH64:
-                maxScanlines = ATIMach64AccelInit(pATI, pATI->pXAAInfo);
+                ATIMach64AccelInit(pATI, pATI->pXAAInfo);
                 break;
 
             default:
                 break;
         }
-    }
-
-#ifndef AVOID_CPIO
-
-    if (!pATI->BankInfo.BankSize)
-
-#endif /* AVOID_CPIO */
-
-#ifdef XF86DRI_DEVEL
-
-        /* If DRI is enabled, we've already set up the FB manager in ATIScreenInit */
-        if (!pATI->directRenderingEnabled)
-
-#endif /* XF86DRI */
-    {
-        /*
-         * Note:  If PixelArea exceeds the engine's maximum, the excess is
-         *        never used, even though it would be useful for such things
-         *        as XVideo buffers.
-         */
-        maxPixelArea = maxScanlines * pScreenInfo->displayWidth;
-        PixelArea = pScreenInfo->videoRam * 1024 * 8 / pATI->bitsPerPixel;
-        if (PixelArea > maxPixelArea)
-            PixelArea = maxPixelArea;
-        xf86InitFBManagerArea(pScreen, PixelArea, 2);
     }
 
     if (!pATI->OptionAccel || XAAInit(pScreen, pATI->pXAAInfo))
