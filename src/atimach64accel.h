@@ -29,8 +29,8 @@
 #include "xaa.h"
 #include "exa.h"
 
-#define ATIMach64MaxX  8191
-#define ATIMach64MaxY 32767
+#define ATIMach64MaxX  4095
+#define ATIMach64MaxY 16383
 
 #ifdef USE_EXA
 extern Bool ATIMach64ExaInit(ScreenPtr);

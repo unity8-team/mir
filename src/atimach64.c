@@ -84,7 +84,6 @@ ATIMach64PreInit
 )
 {
     CARD32 bus_cntl, config_cntl;
-    int    tmp;
 
 #ifndef AVOID_CPIO
 
@@ -258,12 +257,29 @@ ATIMach64PreInit
         pATIHW->src_cntl = SRC_LINE_X_DIR;
 
         /* Initialise scissor, allowing for offscreen areas */
-        pATIHW->sc_right = (pATI->displayWidth * pATI->XModifier) - 1;
-        tmp = pATI->displayWidth * pATI->bitsPerPixel;
-        tmp = (((pScreenInfo->videoRam * (1024 * 8)) + tmp - 1) / tmp) - 1;
-        if (tmp > ATIMach64MaxY)
-            tmp = ATIMach64MaxY;
-        pATIHW->sc_bottom = tmp;
+#ifdef USE_XAA
+        if (!pATI->useEXA)
+        {
+            int width, height, total;
+
+            pATIHW->sc_right = (pATI->displayWidth * pATI->XModifier) - 1;
+            width = pATI->displayWidth * pATI->bitsPerPixel;
+            total = pScreenInfo->videoRam * (1024 * 8);
+            height = (total + width - 1) / width;
+            if (height > ATIMach64MaxY + 1)
+                height = ATIMach64MaxY + 1;
+            pATIHW->sc_bottom = height - 1;
+        }
+#endif /* USE_XAA */
+
+#ifdef USE_EXA
+        if (pATI->useEXA)
+        {
+            pATIHW->sc_right = ATIMach64MaxX;
+            pATIHW->sc_bottom = ATIMach64MaxY;
+        }
+#endif /* USE_EXA */
+
         pATI->sc_left_right = SetWord(pATI->NewHW.sc_right, 1) |
             SetWord(pATI->NewHW.sc_left, 0);
         pATI->sc_top_bottom = SetWord(pATI->NewHW.sc_bottom, 1) |
