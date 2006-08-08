@@ -285,7 +285,7 @@ static OptionInfoRec I830BIOSOptions[] = {
 
 static void I830DisplayPowerManagementSet(ScrnInfoPtr pScrn,
 					  int PowerManagementMode, int flags);
-static void I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags);
+static void I830AdjustFrame(int scrnIndex, int x, int y, int flags);
 static Bool I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool I830BIOSSaveScreen(ScreenPtr pScreen, int unblack);
 static Bool I830BIOSEnterVT(int scrnIndex, int flags);
@@ -7171,7 +7171,7 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	  if(!I830noPanoramiXExtension) {
 	     if(pI830->HaveNonRect) {
 		/* Reset the viewport (now eventually non-recangular) */
-		I830BIOSAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+		I830AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 	     }
 	  }
       } else {
@@ -7231,7 +7231,7 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 }
 
 static void
-I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
+I830AdjustFrame(int scrnIndex, int x, int y, int flags)
 {
    ScrnInfoPtr pScrn;
    I830Ptr pI830;
@@ -7242,7 +7242,7 @@ I830BIOSAdjustFrame(int scrnIndex, int x, int y, int flags)
    pI830 = I830PTR(pScrn);
    pVbe = pI830->pVbe;
 
-   DPRINTF(PFX, "I830BIOSAdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
+   DPRINTF(PFX, "I830AdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
 	   x, pI830->xoffset, y, pI830->yoffset);
 
    /* Sync the engine before adjust frame */
@@ -7430,6 +7430,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
    pDDCModule = xf86LoadSubModule(pScrn, "ddc");
 
    if (pI830->MergedFB) {
+      pI830->pVbe->ddc = DDC_UNCHECKED;
       SetBIOSPipe(pScrn, !pI830->pipe);
       monitor = vbeDoEDID(pI830->pVbe, pDDCModule);
       if ((pI830->pScrn_2->monitor->DDC = monitor) != NULL) {
@@ -7439,6 +7440,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
       SetPipeAccess(pScrn);
    }
 
+   pI830->pVbe->ddc = DDC_UNCHECKED;
    monitor = vbeDoEDID(pI830->pVbe, pDDCModule);
    xf86UnloadSubModule(pDDCModule);
    if ((pScrn->monitor->DDC = monitor) != NULL) {
@@ -7470,7 +7472,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
       return FALSE;
    }
 
-   if (pI830->MergedFB && DDCclock2 > 0) {
+   if (pI830->MergedFB) {
       SetBIOSPipe(pScrn, !pI830->pipe);
       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		 "Retrieving mode pool for second head.\n");
@@ -7486,7 +7488,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
    }
 
    VBESetModeNames(pScrn->modePool);
-   if (pI830->MergedFB && DDCclock2 > 0)
+   if (pI830->MergedFB)
       VBESetModeNames(pI830->pScrn_2->modePool);
 
    if (pScrn->videoRam > (pI830->vbeInfo->TotalMemory * 64))
@@ -7501,7 +7503,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
 			pScrn->display->virtualY,
 			memsize, LOOKUP_BEST_REFRESH);
 
-   if (pI830->MergedFB && DDCclock2 > 0) {
+   if (pI830->MergedFB) {
       VBEValidateModes(pI830->pScrn_2, pI830->pScrn_2->monitor->Modes, 
 		        pI830->pScrn_2->display->modes, NULL,
 			NULL, 0, MAX_DISPLAY_PITCH, 1,
@@ -7572,19 +7574,10 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
       } while (p != NULL && p != pI830->pScrn_2->modes);
    }
 
-   pScrn->displayWidth = displayWidth; /* restore old displayWidth */
-
    xf86PruneDriverModes(pScrn);
 
-   if (pI830->MergedFB && DDCclock2 > 0) {
+   if (pI830->MergedFB)
       xf86PruneDriverModes(pI830->pScrn_2);
-
-      if (pI830->pScrn_2->modes == NULL) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes.\n");
-         PreInitCleanup(pScrn);
-         return FALSE;
-      }
-   }
 
    if (pI830->MergedFB) {
       DisplayModePtr old_modes, cur_mode;
@@ -7606,8 +7599,6 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
       }
    }
 
-   I830PrintModes(pScrn);
-
    if (!pI830->vesa->useDefaultRefresh)
       I830SetModeParameters(pScrn, pI830->pVbe);
 
@@ -7616,6 +7607,21 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
     * and reconnecting monitors */
 
    pScrn->currentMode = pScrn->modes;
+
+   if (pI830->MergedFB) {
+      /* If no virtual dimension was given by the user,
+       * calculate a sane one now. Adapts pScrn->virtualX,
+       * pScrn->virtualY and pScrn->displayWidth.
+       */
+      I830RecalcDefaultVirtualSize(pScrn);
+
+      pScrn->modes = pScrn->modes->next;  /* We get the last from GenerateModeList(), skip to first */
+      pScrn->currentMode = pScrn->modes;
+      pI830->currentMode = pScrn->currentMode;
+   }
+
+   pScrn->displayWidth = displayWidth; /* restore old displayWidth */
+
    p = pScrn->modes;
    if (p == NULL)
       return FALSE;
@@ -7627,6 +7633,8 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
 	}
       p = p->next;
    } while (p != NULL && p != pScrn->modes);
+
+   I830PrintModes(pScrn);
 
    /* Now readjust for panning if necessary */
    {
@@ -7765,13 +7773,8 @@ I830BIOSEnterVT(int scrnIndex, int flags)
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
-#if 0
-   /* Disable this as it's clunky, and doesn't always work.
-    * The modesetting branch will deal with hotplug displays much better.
-    */
    if (!pI830->starting)
       I830DetectMonitorChange(pScrn);
-#endif
 	    
    if (!I830VESASetMode(pScrn, pScrn->currentMode))
       return FALSE;
@@ -8395,7 +8398,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
             xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			                       "Fixing display offsets.\n");
 
-            I830BIOSAdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
+            I830AdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
          }
       }
 
@@ -8419,7 +8422,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
 
          pI830->currentMode = NULL;
          I830BIOSSwitchMode(pScrn->pScreen->myNum, pScrn->currentMode, 0);
-         I830BIOSAdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
+         I830AdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
 
          if (xf86IsEntityShared(pScrn->entityList[0])) {
 	    ScrnInfoPtr pScrn2;
@@ -8438,7 +8441,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
 
             pI8302->currentMode = NULL;
             I830BIOSSwitchMode(pScrn2->pScreen->myNum, pScrn2->currentMode, 0);
-            I830BIOSAdjustFrame(pScrn2->pScreen->myNum, pScrn2->frameX0, pScrn2->frameY0, 0);
+            I830AdjustFrame(pScrn2->pScreen->myNum, pScrn2->frameX0, pScrn2->frameY0, 0);
 
  	    (*pScrn2->EnableDisableFBAccess) (pScrn2->pScreen->myNum, FALSE);
  	    (*pScrn2->EnableDisableFBAccess) (pScrn2->pScreen->myNum, TRUE);
@@ -8487,7 +8490,7 @@ I830InitpScrn(ScrnInfoPtr pScrn)
    pScrn->PreInit = I830BIOSPreInit;
    pScrn->ScreenInit = I830BIOSScreenInit;
    pScrn->SwitchMode = I830BIOSSwitchMode;
-   pScrn->AdjustFrame = I830BIOSAdjustFrame;
+   pScrn->AdjustFrame = I830AdjustFrame;
    pScrn->EnterVT = I830BIOSEnterVT;
    pScrn->LeaveVT = I830BIOSLeaveVT;
    pScrn->FreeScreen = I830BIOSFreeScreen;
