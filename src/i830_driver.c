@@ -7765,9 +7765,13 @@ I830BIOSEnterVT(int scrnIndex, int flags)
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
-   /* Detect monitor change and switch to suitable mode */
+#if 0
+   /* Disable this as it's clunky, and doesn't always work.
+    * The modesetting branch will deal with hotplug displays much better.
+    */
    if (!pI830->starting)
       I830DetectMonitorChange(pScrn);
+#endif
 	    
    if (!I830VESASetMode(pScrn, pScrn->currentMode))
       return FALSE;
