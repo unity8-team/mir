@@ -3486,6 +3486,79 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    DPRINTF(PFX, "I830LoadPalette: numColors: %d\n", numColors);
    pI830 = I830PTR(pScrn);
 
+   if (pI830->Clone || pI830->MergedFB) {
+      if (!pI830->pipe == 0) {
+         palreg = PALETTE_A;
+         dspreg = DSPACNTR;
+         dspbase = DSPABASE;
+      } else {
+         palreg = PALETTE_B;
+         dspreg = DSPBCNTR;
+         dspbase = DSPBBASE;
+      }
+   
+      /* To ensure gamma is enabled we need to turn off and on the plane */
+      temp = INREG(dspreg);
+      OUTREG(dspreg, temp & ~(1<<31));
+      OUTREG(dspbase, INREG(dspbase));
+      OUTREG(dspreg, temp | DISPPLANE_GAMMA_ENABLE);
+      OUTREG(dspbase, INREG(dspbase));
+
+      /* It seems that an initial read is needed. */
+      temp = INREG(palreg);
+
+      switch(pScrn->depth) {
+      case 15:
+       for (i = 0; i < numColors; i++) {
+         index = indices[i];
+         r = colors[index].red;
+         g = colors[index].green;
+         b = colors[index].blue;
+	 val = (r << 16) | (g << 8) | b;
+         for (j = 0; j < 8; j++) {
+	    OUTREG(palreg + index * 32 + (j * 4), val);
+         }
+       }
+       break;
+      case 16:
+       for (i = 0; i < numColors; i++) {
+         index = indices[i];
+	 r   = colors[index / 2].red;
+	 g   = colors[index].green;
+	 b   = colors[index / 2].blue;
+
+	 val = (r << 16) | (g << 8) | b;
+	 OUTREG(palreg + index * 16, val);
+	 OUTREG(palreg + index * 16 + 4, val);
+	 OUTREG(palreg + index * 16 + 8, val);
+	 OUTREG(palreg + index * 16 + 12, val);
+
+   	 if (index <= 31) {
+            r   = colors[index].red;
+	    g   = colors[(index * 2) + 1].green;
+	    b   = colors[index].blue;
+
+	    val = (r << 16) | (g << 8) | b;
+	    OUTREG(palreg + index * 32, val);
+	    OUTREG(palreg + index * 32 + 4, val);
+	    OUTREG(palreg + index * 32 + 8, val);
+	    OUTREG(palreg + index * 32 + 12, val);
+	 }
+       }
+       break;
+      default:
+       for(i = 0; i < numColors; i++) {
+	 index = indices[i];
+	 r = colors[index].red;
+	 g = colors[index].green;
+	 b = colors[index].blue;
+	 val = (r << 16) | (g << 8) | b;
+	 OUTREG(palreg + index * 4, val);
+       }
+       break;
+      }
+   }
+
    if (pI830->pipe == 0) {
       palreg = PALETTE_A;
       dspreg = DSPACNTR;

@@ -116,9 +116,10 @@ I830InitHWCursor(ScrnInfoPtr pScrn)
       temp = INREG(CURSOR_CONTROL);
       temp &= ~(CURSOR_FORMAT_MASK | CURSOR_GAMMA_ENABLE |
 		CURSOR_ENABLE  | CURSOR_STRIDE_MASK);
-      temp |= (CURSOR_FORMAT_3C);
       if (pI830->CursorIsARGB)
-         temp |= CURSOR_GAMMA_ENABLE;
+         temp |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
+      else 
+         temp |= CURSOR_FORMAT_3C;
       /* This initialises the format and leave the cursor disabled. */
       OUTREG(CURSOR_CONTROL, temp);
       /* Need to set address and size after disabling. */
@@ -588,7 +589,7 @@ I830ShowCursor(ScrnInfoPtr pScrn)
       temp = INREG(CURSOR_A_CONTROL);
       temp &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT | MCURSOR_GAMMA_ENABLE);
       if (pI830->CursorIsARGB)
-         temp |= CURSOR_MODE_64_ARGB_AX;
+         temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
       else
          temp |= CURSOR_MODE_64_4C_AX;
       temp |= (pI830->pipe << 28); /* Connect to correct pipe */
