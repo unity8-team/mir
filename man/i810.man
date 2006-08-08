@@ -17,30 +17,29 @@ i810 \- Intel 8xx integrated graphics chipsets
 is an __xservername__ driver for Intel integrated graphics chipsets.
 The driver supports depths 8, 15, 16 and 24.  All visual types are
 supported in depth 8.  For the i810/i815 other depths support the
-TrueColor and DirectColor visuals.  For the 830M and later, only the
+TrueColor and DirectColor visuals.  For the i830M and later, only the
 TrueColor visual is supported for depths greater than 8.  The driver
 supports hardware accelerated 3D via the Direct Rendering Infrastructure
 (DRI), but only in depth 16 for the i810/i815 and depths 16 and 24 for
 the 830M and later.
 .SH SUPPORTED HARDWARE
 .B i810
-supports the i810, i810-DC100, i810e, i815, 830M, 845G, 852GM, 855GM,
-865G, 915G and 915GM chipsets.
+supports the i810, i810-DC100, i810e, i815, i830M, 845G, 852GM, 855GM,
+865G, 915G, 915GM, 945G, 945GM, 965G, 965Q and 946GZ chipsets.
 
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
 details.  This section only covers configuration details specific to this
 driver.
 .PP
-The Intel 8xx family of integrated graphics chipsets has a unified memory
-architecture and uses system memory for video ram.  For the i810 and
+The Intel 8xx and 9xx families of integrated graphics chipsets has a unified
+memory architecture and uses system memory for video ram.  For the i810 and
 i815 family of chipset, operating system support for allocating system
-memory for video use is required in order to use this driver.  For the
-830M and later, this is required in order for the driver to use more
-video ram than has been pre-allocated at boot time by the BIOS.  This
-is usually achieved with an "agpgart" or "agp" kernel driver.  Linux,
-and recent versions of FreeBSD, OpenBSD and NetBSD have such kernel
-drivers available.
+memory for video use is required in order to use this driver.  For the 830M
+and later, this is required in order for the driver to use more video ram
+than has been pre-allocated at boot time by the BIOS.  This is usually
+achieved with an "agpgart" or "agp" kernel driver.  Linux, and recent
+versions of FreeBSD, OpenBSD and NetBSD have such kernel drivers available.
 .PP
 By default 8 Megabytes
 of system memory are used for graphics.  For the 830M and later, the
@@ -208,9 +207,11 @@ Default 0KB (off).
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .SH AUTHORS
-Authors include: Keith Whitwell, and also Jonathan Bian, Matthew J Sottek, 
+Authors include: Keith Whitwell, and also Jonathan Bian, Matthew J Sottek,
 Jeff Hartmann, Mark Vojkovich, Alan Hourihane, H. J. Lu.  830M and 845G
-support reworked for XFree86 4.3 by David Dawes and Keith Whitwell.
-852GM, 855GM, and 865G support added by David Dawes and Keith Whitwell.
-915G and 915GM support added by Alan Hourihane and Keith Whitwell.
-Dual Head, Clone and lid status support added by Alan Hourihane.
+support reworked for XFree86 4.3 by David Dawes and Keith Whitwell.  852GM,
+855GM, and 865G support added by David Dawes and Keith Whitwell.  915G,
+915GM, 945G, 945GM, 965G, 965Q and 946GZ support added by Alan Hourihane and
+Keith Whitwell.  Dual Head, Clone and lid status support added by Alan
+Hourihane. Textured video support for 915G and later chips added by Keith
+Packard and Eric Anholt.
