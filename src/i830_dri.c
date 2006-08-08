@@ -1390,9 +1390,6 @@ I830DRITransitionTo2d(ScreenPtr pScreen)
 
    pI830->have3DWindows = 0;
 
-   
-   I830PrintErrorState(pScrn);
-      
 }
 
 
