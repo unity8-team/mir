@@ -2960,7 +2960,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    if (pI830->cpp == 2) {
       dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
    } else {
-      dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B8G8R8X8_UNORM;
+      dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B8G8R8A8_UNORM;
    }
    dest_surf_state->ss0.writedisable_alpha = 0;
    dest_surf_state->ss0.writedisable_red = 0;
@@ -3628,7 +3628,9 @@ I830PutImage(ScrnInfoPtr pScrn,
 
    /* size is multiplied by 2 because we have two buffers that are flipping */
    pPriv->linear = I830AllocateMemory(pScrn, pPriv->linear,
-		   extraLinear + (pPriv->doubleBuffer ? size * 2 : size) / pI830->cpp);
+				      (extraLinear +
+				       (pPriv->doubleBuffer ? size * 2 : size)) /
+				      pI830->cpp);
 
    if(!pPriv->linear || pPriv->linear->offset < (pScrn->virtualX * pScrn->virtualY))
       return BadAlloc;
