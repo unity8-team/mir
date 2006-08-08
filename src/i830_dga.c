@@ -279,12 +279,25 @@ static void
 I830_Sync(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+   int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
    MARKER();
 
-   if (pI830->AccelInfoRec) {
-      (*pI830->AccelInfoRec->Sync) (pScrn);
-   }
+   if (pI830->noAccel) 
+      return;
+
+   if (IS_I965G(pI830))
+      flags = 0;
+
+   BEGIN_LP_RING(2);
+   OUT_RING(MI_FLUSH | flags);
+   OUT_RING(MI_NOOP);		/* pad to quadword */
+   ADVANCE_LP_RING();
+
+   I830WaitLpRing(pScrn, pI830->LpRing->mem.Size - 8, 0);
+
+   pI830->LpRing->space = pI830->LpRing->mem.Size - 8;
+   pI830->nextColorExpandBuf = 0;
 }
 
 static void

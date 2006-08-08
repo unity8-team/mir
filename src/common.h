@@ -130,13 +130,17 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 
 #define ADVANCE_LP_RING() do {						\
    if (ringused > needed)          \
-      ErrorF("%s: ADVANCE_LP_RING: exceeded allocation %d/%d\n ",      \
-	     __FUNCTION__, ringused, needed);     \
+      FatalError("%s: ADVANCE_LP_RING: exceeded allocation %d/%d\n ",	\
+	     __FUNCTION__, ringused, needed);   			\
+   else if (ringused < needed)						\
+      FatalError("%s: ADVANCE_LP_RING: under-used allocation %d/%d\n ",	\
+	     __FUNCTION__, ringused, needed);   			\
    RecPtr->LpRing->tail = outring;					\
    RecPtr->LpRing->space -= ringused;					\
    if (outring & 0x07)							\
-      ErrorF("ADVANCE_LP_RING: "					\
-	     "outring (0x%x) isn't on a QWord boundary\n", outring);	\
+      FatalError("%s: ADVANCE_LP_RING: "					\
+	     "outring (0x%x) isn't on a QWord boundary\n",		\
+	     __FUNCTION__, outring);					\
    OUTREG(LP_RING + RING_TAIL, outring);				\
 } while (0)
 
@@ -277,6 +281,26 @@ extern int I810_DEBUG;
 #define PCI_CHIP_I945_GM_BRIDGE 0x27A0
 #endif
 
+#ifndef PCI_CHIP_I965_G_1
+#define PCI_CHIP_I965_G_1		0x2982
+#define PCI_CHIP_I965_G_1_BRIDGE 	0x2980
+#endif
+
+#ifndef PCI_CHIP_I965_Q
+#define PCI_CHIP_I965_Q		0x2992
+#define PCI_CHIP_I965_Q_BRIDGE 	0x2990
+#endif
+
+#ifndef PCI_CHIP_I965_G
+#define PCI_CHIP_I965_G		0x29A2
+#define PCI_CHIP_I965_G_BRIDGE 	0x29A0
+#endif
+
+#ifndef PCI_CHIP_I946_GZ
+#define PCI_CHIP_I946_GZ		0x2972
+#define PCI_CHIP_I946_GZ_BRIDGE 	0x2970
+#endif
+
 #define IS_I810(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I810 ||	\
 			pI810->PciInfo->chipType == PCI_CHIP_I810_DC100 || \
 			pI810->PciInfo->chipType == PCI_CHIP_I810_E)
@@ -292,7 +316,8 @@ extern int I810_DEBUG;
 #define IS_I915GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I915_GM)
 #define IS_I945G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_G)
 #define IS_I945GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_GM)
-#define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810))
+#define IS_I965G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_G || pI810->PciInfo->chipType == PCI_CHIP_I965_G_1 || pI810->PciInfo->chipType == PCI_CHIP_I965_Q || pI810->PciInfo->chipType == PCI_CHIP_I946_GZ)
+#define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810))
 
 #define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810))
 

@@ -217,6 +217,7 @@ I915UpdateRotate (ScreenPtr      pScreen,
    drm_context_t myContext = 0;
 #endif
    Bool didLock = FALSE;
+   CARD32 format;
 
    if (I830IsPrimary(pScrn)) {
       pI8301 = pI830;
@@ -404,7 +405,7 @@ I915UpdateRotate (ScreenPtr      pScreen,
       if (pI830->disableTiling)
          use_fence = 0;
       else
-         use_fence = 4;
+         use_fence = MS3_USE_FENCE_REGS;
       
       if (pI830->cpp == 1)
 	 use_fence |= MAPSURF_8BIT;
@@ -575,15 +576,15 @@ I830UpdateRotate (ScreenPtr      pScreen,
       OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
       OUT_RING(0x00000000);
       /* draw rect */
-      OUT_RING(0x7d800003);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING((pScrn->virtualX - 1) | (pScrn->virtualY - 1) << 16);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
+      OUT_RING(STATE3D_DRAWING_RECTANGLE);
+      OUT_RING(0x00000000);	/* flags */
+      OUT_RING(0x00000000);	/* ymin, xmin */
+      OUT_RING((pScrn->virtualX - 1) | (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+      OUT_RING(0x00000000);	/* yorigin, xorigin */
+      OUT_RING(MI_NOOP);
 
       /* front buffer */
-      OUT_RING(0x7d8e0001);
+      OUT_RING(STATE3D_BUFFER_INFO);
       OUT_RING(0x03800000 | (((pI830->displayWidth * pI830->cpp) / 4) << 2));
       if (I830IsPrimary(pScrn))
 	 OUT_RING(pI830->FrontBuffer.Start);
@@ -736,12 +737,12 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
    };
 
    if (pI830->noAccel)
-	   func = LoaderSymbol("shadowUpdateRotatePacked");
+      func = LoaderSymbol("shadowUpdateRotatePacked");
    else
-	   if (IS_I9XX(pI830))
-		   func = I915UpdateRotate;
-	   else
-		   func = I830UpdateRotate;
+      if (IS_I9XX(pI830))
+	 func = I915UpdateRotate;
+      else
+	 func = I830UpdateRotate;
 
    if (I830IsPrimary(pScrn)) {
       pI8301 = pI830;
@@ -771,6 +772,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
     * We grab the DRI lock when reallocating buffers to avoid DRI clients
     * getting bogus information.
     */
+
 #ifdef XF86DRI
    if (pI8301->directRenderingEnabled && reAllocate) {
       didLock = I830DRILock(pScrn1);
@@ -788,6 +790,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
 		       "[dri] I830 destroy heap failed\n");
 	 }
       }
+      
       
       if (pI8301->TexMem.Key != -1)
          xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key);
@@ -891,7 +894,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
       if (pI8301->rotation != RR_Rotate_0) {
          if (!I830AllocateRotatedBuffer(pScrn1, 
-			      (pI8301->disableTiling ? ALLOC_NO_TILING : 0)))
+			      pI8301->disableTiling ? ALLOC_NO_TILING : 0))
             goto BAIL1;
 
          I830FixOffset(pScrn1, &(pI8301->RotatedMem));
@@ -903,8 +906,8 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
    shadowRemove (pScrn->pScreen, NULL);
    if (pI830->rotation != RR_Rotate_0)
       shadowAdd (pScrn->pScreen, 
-                    (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen), 
-                    func, I830WindowLinear, pI830->rotation, 0);
+		 (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen),
+		 func, I830WindowLinear, pI830->rotation, 0);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)
@@ -1100,7 +1103,7 @@ BAIL0:
 
    if (pI8301->rotation != RR_Rotate_0) {
       if (!I830AllocateRotatedBuffer(pScrn1, 
-			      (pI8301->disableTiling ? ALLOC_NO_TILING : 0)))
+			      pI8301->disableTiling ? ALLOC_NO_TILING : 0))
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 		    "Oh dear, the rotated buffer failed - badness\n");
 
@@ -1112,8 +1115,8 @@ BAIL0:
    shadowRemove (pScrn->pScreen, NULL);
    if (pI830->rotation != RR_Rotate_0)
       shadowAdd (pScrn->pScreen, 
-                    (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen), 
-                    func, I830WindowLinear, pI830->rotation, 0);
+		 (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen),
+		 func, I830WindowLinear, pI830->rotation, 0);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)

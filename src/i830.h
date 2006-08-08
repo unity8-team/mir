@@ -47,6 +47,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _I830_H_
 #define _I830_H_
 
+#include "xf86_OSproc.h"
 #include "compiler.h"
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
@@ -146,7 +147,7 @@ typedef struct {
 } I830RingBuffer;
 
 typedef struct {
-   unsigned int Fence[8];
+   unsigned int Fence[FENCE_NEW_NR * 2];
 } I830RegRec, *I830RegPtr;
 
 typedef struct {
@@ -284,6 +285,12 @@ typedef struct _I830Rec {
    int TexGranularity;
    int drmMinor;
    Bool have3DWindows;
+
+   unsigned int front_tiled;
+   unsigned int back_tiled;
+   unsigned int depth_tiled;
+   unsigned int rotated_tiled;
+   unsigned int rotated2_tiled;
 #endif
 
    Bool NeedRingBufferLow;
@@ -423,6 +430,9 @@ typedef struct _I830Rec {
    Bool devicePresence;
 
    OsTimerPtr devicesTimer;
+
+   CARD32 savedAsurf;
+   CARD32 savedBsurf;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -497,8 +507,8 @@ extern long I830GetExcessMemoryAllocations(ScrnInfoPtr pScrn);
 extern Bool I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags);
 extern Bool I830DoPoolAllocation(ScrnInfoPtr pScrn, I830MemPool *pool);
 extern Bool I830FixupOffsets(ScrnInfoPtr pScrn);
-extern Bool I830BindGARTMemory(ScrnInfoPtr pScrn);
-extern Bool I830UnbindGARTMemory(ScrnInfoPtr pScrn);
+extern Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
+extern Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
 extern unsigned long I830AllocVidMem(ScrnInfoPtr pScrn, I830MemRange *result,
 				     I830MemPool *pool, long size,
 				     unsigned long alignment, int flags);
