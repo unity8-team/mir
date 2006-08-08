@@ -54,6 +54,7 @@ AC_ARG_ENABLE(dri, AC_HELP_STRING([--disable-dri],
 
 
 # Checks for extensions
+XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
 XORG_DRIVER_CHECK_EXT(RENDER, renderproto)
 XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
