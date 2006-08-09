@@ -31,6 +31,9 @@ i810_drv_la_LDFLAGS = -module -avoid-version
 i810_drv_ladir = @moduledir@/drivers
 
 i810_drv_la_SOURCES = \
+         brw_defines.h \
+         brw_structs.h \
+         wm_prog.h \
          common.h \
          i810_accel.c \
          i810_common.h \
