@@ -5,7 +5,7 @@
 <article>
 <title>Information for Intel graphics driver users
 <author>Eric Anholt
-<date>206-08-04
+<date>2006-08-04
 <toc>
 
 <sect>Introduction
@@ -84,7 +84,7 @@ for information on configuration options.
   <item>Many systems with Intel graphics have issues with setting video modes
 at larger than some small maximum resolution.  This is not fixed in the current
 release, but is being actively worked on in the modesetting branch.
-  <item>Bug #5774: Some systems have issues with VT switching.  This should
+  <item>Bug #5795: Some systems have issues with VT switching.  This should
 be fixed with the modesetting brach integration.
   <item>Bug #5817: Hotkey switching from LVDS to CRT breaks CRT output.  This
 is a known issue, but will not be fixed in the current release.
