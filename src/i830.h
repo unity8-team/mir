@@ -447,6 +447,7 @@ extern int I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis);
 extern void I830SetPIOAccess(I830Ptr pI830);
 extern void I830SetMMIOAccess(I830Ptr pI830);
 extern void I830PrintErrorState(ScrnInfoPtr pScrn);
+extern void I965PrintErrorState(ScrnInfoPtr pScrn);
 extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
 extern Bool I830CursorInit(ScreenPtr pScreen);

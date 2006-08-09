@@ -2191,6 +2191,7 @@ static CARD32 float_to_uint (float f) {
    return x.i;
 }
 
+#if 0
 static struct {
    CARD32   svg_ctl;
    char	    *name;
@@ -2219,6 +2220,7 @@ brw_debug (ScrnInfoPtr pScrn, char *when)
       ErrorF("\t%34.34s: 0x%08x\n", svg_ctl_bits[i].name, v);
    }
 }
+#endif
 
 #define WATCH_SF 0
 #define WATCH_WIZ 0
@@ -2234,10 +2236,8 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			       DrawablePtr pDraw)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 format, ms3, s2;
    BoxPtr pbox;
    int nbox, dxo, dyo;
-   Bool planar;
    int urb_vs_start, urb_vs_size;
    int urb_gs_start, urb_gs_size;
    int urb_clip_start, urb_clip_size;
@@ -2811,9 +2811,6 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_RING(0); /* index buffer offset, ignored */
       ADVANCE_LP_RING();
 
-      int   j, k;
-      CARD32	  ctl = 0, rdata;
-      
 #if 0
       for (j = 0; j < 100000; j++) {
 	ctl = INREG(BRW_VF_CTL);

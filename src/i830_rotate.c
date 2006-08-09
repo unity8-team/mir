@@ -217,7 +217,6 @@ I915UpdateRotate (ScreenPtr      pScreen,
    drm_context_t myContext = 0;
 #endif
    Bool didLock = FALSE;
-   CARD32 format;
 
    if (I830IsPrimary(pScrn)) {
       pI8301 = pI830;

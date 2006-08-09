@@ -6614,39 +6614,52 @@ I965PrintErrorState(ScrnInfoPtr pScrn)
 	  INREG(LP_RING + RING_LEN), INREG(LP_RING + RING_START));
 
    ErrorF("Err ID (eir): %x Err Status (esr): %x Err Mask (emr): %x\n",
-	  INREG(EIR), INREG(ESR), INREG(EMR));
+	  (int)INREG(EIR), (int)INREG(ESR), (int)INREG(EMR));
 
-   ErrorF("instdone: %x instdone_1: %x\n", INREG(INST_DONE_I965), INREG(INST_DONE_1));
-   ErrorF("instpm: %x\n", INREG(INST_PM));
+   ErrorF("instdone: %x instdone_1: %x\n", (int)INREG(INST_DONE_I965),
+	  (int)INREG(INST_DONE_1));
+   ErrorF("instpm: %x\n", (int)INREG(INST_PM));
 
    ErrorF("memmode: %lx instps: %lx\n", INREG(MEMMODE), INREG(INST_PS_I965));
 
    ErrorF("HW Status mask (hwstam): %x\nIRQ enable (ier): %x imr: %x iir: %x\n",
-	  INREG(HWSTAM), INREG(IER), INREG(IMR), INREG(IIR));
+	  (int)INREG(HWSTAM), (int)INREG(IER), (int)INREG(IMR),
+	  (int)INREG(IIR));
 
    ErrorF("acthd: %lx dma_fadd_p: %lx\n", INREG(ACTHD), INREG(DMA_FADD_P));
    ErrorF("ecoskpd: %lx excc: %lx\n", INREG(ECOSKPD), INREG(EXCC));
 
-   ErrorF("cache_mode: %x/%x\n", INREG(CACHE_MODE_0), INREG(CACHE_MODE_1));
-   ErrorF("mi_arb_state: %x\n", INREG(MI_ARB_STATE));
+   ErrorF("cache_mode: %x/%x\n", (int)INREG(CACHE_MODE_0),
+	  (int)INREG(CACHE_MODE_1));
+   ErrorF("mi_arb_state: %x\n", (int)INREG(MI_ARB_STATE));
 
-   ErrorF("IA_VERTICES_COUNT_QW %x/%x\n", INREG(IA_VERTICES_COUNT_QW), INREG(IA_VERTICES_COUNT_QW+4));
-   ErrorF("IA_PRIMITIVES_COUNT_QW %x/%x\n", INREG(IA_PRIMITIVES_COUNT_QW), INREG(IA_PRIMITIVES_COUNT_QW+4));
+   ErrorF("IA_VERTICES_COUNT_QW %x/%x\n", (int)INREG(IA_VERTICES_COUNT_QW),
+	  (int)INREG(IA_VERTICES_COUNT_QW+4));
+   ErrorF("IA_PRIMITIVES_COUNT_QW %x/%x\n", (int)INREG(IA_PRIMITIVES_COUNT_QW),
+	  (int)INREG(IA_PRIMITIVES_COUNT_QW+4));
 
-   ErrorF("VS_INVOCATION_COUNT_QW %x/%x\n", INREG(VS_INVOCATION_COUNT_QW), INREG(VS_INVOCATION_COUNT_QW+4));
+   ErrorF("VS_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(VS_INVOCATION_COUNT_QW),
+	  (int)INREG(VS_INVOCATION_COUNT_QW+4));
 
-   ErrorF("GS_INVOCATION_COUNT_QW %x/%x\n", INREG(GS_INVOCATION_COUNT_QW), INREG(GS_INVOCATION_COUNT_QW+4));
-   ErrorF("GS_PRIMITIVES_COUNT_QW %x/%x\n", INREG(GS_PRIMITIVES_COUNT_QW), INREG(GS_PRIMITIVES_COUNT_QW+4));
+   ErrorF("GS_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(GS_INVOCATION_COUNT_QW),
+	  (int)INREG(GS_INVOCATION_COUNT_QW+4));
+   ErrorF("GS_PRIMITIVES_COUNT_QW %x/%x\n", (int)INREG(GS_PRIMITIVES_COUNT_QW),
+	  (int)INREG(GS_PRIMITIVES_COUNT_QW+4));
 
-   ErrorF("CL_INVOCATION_COUNT_QW %x/%x\n", INREG(CL_INVOCATION_COUNT_QW), INREG(CL_INVOCATION_COUNT_QW+4));
-   ErrorF("CL_PRIMITIVES_COUNT_QW %x/%x\n", INREG(CL_PRIMITIVES_COUNT_QW), INREG(CL_PRIMITIVES_COUNT_QW+4));
+   ErrorF("CL_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(CL_INVOCATION_COUNT_QW),
+	  (int)INREG(CL_INVOCATION_COUNT_QW+4));
+   ErrorF("CL_PRIMITIVES_COUNT_QW %x/%x\n", (int)INREG(CL_PRIMITIVES_COUNT_QW),
+	  (int)INREG(CL_PRIMITIVES_COUNT_QW+4));
 
-   ErrorF("PS_INVOCATION_COUNT_QW %x/%x\n", INREG(PS_INVOCATION_COUNT_QW), INREG(PS_INVOCATION_COUNT_QW+4));
-   ErrorF("PS_DEPTH_COUNT_QW %x/%x\n", INREG(PS_DEPTH_COUNT_QW), INREG(PS_DEPTH_COUNT_QW+4));
+   ErrorF("PS_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(PS_INVOCATION_COUNT_QW),
+	  (int)INREG(PS_INVOCATION_COUNT_QW+4));
+   ErrorF("PS_DEPTH_COUNT_QW %x/%x\n", (int)INREG(PS_DEPTH_COUNT_QW),
+	  (int)INREG(PS_DEPTH_COUNT_QW+4));
 
-   ErrorF("WIZ_CTL %x\n", INREG(WIZ_CTL));
-   ErrorF("TS_CTL %x  TS_DEBUG_DATA %x\n", INREG(TS_CTL), INREG(TS_DEBUG_DATA));
-   ErrorF("TD_CTL %x / %x\n", INREG(TD_CTL), INREG(TD_CTL2));
+   ErrorF("WIZ_CTL %x\n", (int)INREG(WIZ_CTL));
+   ErrorF("TS_CTL %x  TS_DEBUG_DATA %x\n", (int)INREG(TS_CTL),
+	  (int)INREG(TS_DEBUG_DATA));
+   ErrorF("TD_CTL %x / %x\n", (int)INREG(TD_CTL), (int)INREG(TD_CTL2));
 
    
 }
