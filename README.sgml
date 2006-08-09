@@ -69,7 +69,7 @@ section of your xorg.conf file are:
 </verb>
 
 In order to use most resolutions, it is necessary to install the
-'agpgart.o' module.  You will probably have to compile the module yourself
+"agpgart.o" module.  You will probably have to compile the module yourself
 (see the notes in the module).
 
 <sect>Driver Options
