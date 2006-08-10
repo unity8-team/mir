@@ -1,6 +1,6 @@
   Information for Intel graphics driver users
   Eric Anholt
-  206-08-04
+  2006-08-04
   ____________________________________________________________
 
   Table of Contents
@@ -117,7 +117,7 @@
      fixed in the current release, but is being actively worked on in
      the modesetting branch.
 
-  +o  Bug #5774: Some systems have issues with VT switching.  This should
+  +o  Bug #5795: Some systems have issues with VT switching.  This should
      be fixed with the modesetting brach integration.
 
   +o  Bug #5817: Hotkey switching from LVDS to CRT breaks CRT output.
