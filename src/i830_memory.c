@@ -209,17 +209,12 @@ AllocFromAGP(ScrnInfoPtr pScrn, I830MemRange *result, long size,
       if (newApStart > newApEnd)
 	 return 0;
 
-      if (flags & NEED_PHYSICAL_ADDR) {
+      if (flags & NEED_PHYSICAL_ADDR) 
 	 result->Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 2,
 					      &(result->Physical));
-      } else {
-         /* Due to a bug in agpgart in 2.6 kernels resulting in very poor
-	  * allocation performance we need to workaround it here...
-	  */
-	 result->Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 3, NULL);
-         if (result->Key == -1)
-	    result->Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
-      }
+      else 
+	 result->Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
+
       if (result->Key == -1)
 	 return 0;
    }
@@ -973,13 +968,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
     */
    if (!dryrun) {
       memset(&(pI830->Dummy), 0, sizeof(pI830->Dummy));
-      /* Due to a bug in agpgart in 2.6 kernels resulting in very poor
-       * allocation performance we need to workaround it here...
-       */
-      pI830->Dummy.Key = 
-           xf86AllocateGARTMemory(pScrn->scrnIndex, size, 3, NULL);
-      if (pI830->Dummy.Key == -1)
-         pI830->Dummy.Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
+      pI830->Dummy.Key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
       pI830->Dummy.Offset = 0;
    }
 #endif
@@ -1399,14 +1388,7 @@ I830DoPoolAllocation(ScrnInfoPtr pScrn, I830MemPool *pool)
 
    if (pool->Total.Size > pool->Fixed.Size) {
       pool->Allocated.Size = pool->Total.Size - pool->Fixed.Size;
-      /* Due to a bug in agpgart in 2.6 kernels resulting in very poor
-       * allocation performance we need to workaround it here...
-       */
-      pool->Allocated.Key = 
-           xf86AllocateGARTMemory(pScrn->scrnIndex, pool->Allocated.Size,
-				   3, NULL);
-      if (pool->Allocated.Key == -1)
-         pool->Allocated.Key = xf86AllocateGARTMemory(pScrn->scrnIndex, 
+      pool->Allocated.Key = xf86AllocateGARTMemory(pScrn->scrnIndex, 
 				   pool->Allocated.Size, 0, NULL);
       if (pool->Allocated.Key == -1) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Pool allocation failed\n");
