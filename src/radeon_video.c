@@ -409,7 +409,7 @@ typedef struct tagREF_TRANSFORM
 } REF_TRANSFORM;
 
 /* Parameters for ITU-R BT.601 and ITU-R BT.709 colour spaces */
-REF_TRANSFORM trans[2] =
+static REF_TRANSFORM trans[2] =
 {
     {1.1678, 0.0, 1.6007, -0.3929, -0.8154, 2.0232, 0.0}, /* BT.601 */
     {1.1678, 0.0, 1.7980, -0.2139, -0.5345, 2.1186, 0.0}  /* BT.709 */
@@ -477,7 +477,7 @@ typedef struct tagGAMMA_CURVE_R200
 
 
 /* Preset gammas */
-GAMMA_CURVE_R100 gamma_curve_r100[8] = 
+static GAMMA_CURVE_R100 gamma_curve_r100[8] = 
 {
 	/* Gamma 1.0 */
 	{0x100, 0x0, 
@@ -545,7 +545,7 @@ GAMMA_CURVE_R100 gamma_curve_r100[8] =
 	 0.9135}
 };
 
-GAMMA_CURVE_R200 gamma_curve_r200[8] =
+static GAMMA_CURVE_R200 gamma_curve_r200[8] =
  {
 	/* Gamma 1.0 */
       {0x00000040, 0x00000000,
