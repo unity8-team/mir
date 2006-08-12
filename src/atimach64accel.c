@@ -163,7 +163,6 @@ ATIMach64Sync
 	    UncacheRegister(SC_TOP_BOTTOM);
 	    UncacheRegister(DP_BKGD_CLR);
 	    UncacheRegister(DP_FRGD_CLR);
-	    UncacheRegister(DP_WRITE_MASK);
 	    UncacheRegister(DP_PIX_WIDTH);
 	    UncacheRegister(DP_MIX);
 	    UncacheRegister(CLR_CMP_CNTL);
@@ -218,7 +217,6 @@ ATIMach64Sync
 	    CacheRegister(SC_TOP_BOTTOM);
 	    CacheRegister(DP_BKGD_CLR);
 	    CacheRegister(DP_FRGD_CLR);
-	    CacheRegister(DP_WRITE_MASK);
 	    CacheRegister(DP_PIX_WIDTH);
 	    CacheRegister(DP_MIX);
 	    CacheRegister(CLR_CMP_CNTL);
@@ -331,7 +329,6 @@ TestRegisterCachingDP(ScrnInfoPtr pScreenInfo)
 
     TestRegisterCaching(DP_BKGD_CLR);
     TestRegisterCaching(DP_FRGD_CLR);
-    TestRegisterCaching(DP_WRITE_MASK);
     TestRegisterCaching(DP_PIX_WIDTH);
     TestRegisterCaching(DP_MIX);
 

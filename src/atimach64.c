@@ -1040,7 +1040,6 @@ ATIMach64Set
 
             CacheRegister(DP_BKGD_CLR);
             CacheRegister(DP_FRGD_CLR);
-            CacheRegister(DP_WRITE_MASK);
             CacheRegister(DP_PIX_WIDTH);
             CacheRegister(DP_MIX);
 
