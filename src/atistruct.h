@@ -147,6 +147,8 @@ typedef struct _ATIHWRec
     CARD32 clr_cmp_clr, clr_cmp_msk, clr_cmp_cntl;
     CARD32 context_mask, context_load_cntl;
 
+    CARD32 scale_3d_cntl, tex_size_pitch, tex_cntl, tex_offset;
+
     /* Mach64 MMIO Block 1 registers */
     CARD32 overlay_y_x_start, overlay_y_x_end, overlay_graphics_key_clr,
            overlay_graphics_key_msk, overlay_key_cntl, overlay_scale_inc,

@@ -483,6 +483,15 @@ ATIMach64Save
         pATIHW->src_height2 = inm(SRC_HEIGHT2);
         pATIHW->src_cntl = inm(SRC_CNTL);
 
+        if (pATI->Chip >= ATI_CHIP_264GTPRO)
+        {
+            CARD32 offset = TEX_LEVEL(inm(TEX_SIZE_PITCH));
+
+            /* Save 3D control & texture registers */
+            pATIHW->tex_offset = inm(TEX_0_OFF + offset);
+            pATIHW->scale_3d_cntl = inm(SCALE_3D_CNTL);
+        }
+
         /* Save host data register */
         pATIHW->host_cntl = inm(HOST_CNTL);
 
@@ -513,6 +522,13 @@ ATIMach64Save
 
         /* Save context */
         pATIHW->context_mask = inm(CONTEXT_MASK);
+
+        if (pATI->Chip >= ATI_CHIP_264GTPRO)
+        {
+            /* Save texture setup registers */
+            pATIHW->tex_size_pitch = inm(TEX_SIZE_PITCH);
+            pATIHW->tex_cntl = inm(TEX_CNTL);
+        }
 
         if (pATI->Block1Base)
         {
@@ -853,6 +869,14 @@ ATIMach64Set
         outf(DST_BRES_DEC, pATIHW->dst_bres_dec);
         outf(DST_CNTL, pATIHW->dst_cntl);
 
+        if (pATI->Chip >= ATI_CHIP_264GTPRO)
+        {
+            /* Load ROP unit registers */
+            ATIMach64WaitForFIFO(pATI, 2);
+            outf(Z_CNTL, 0);
+            outf(ALPHA_TST_CNTL, 0);
+        }
+
         /* Load source registers */
         ATIMach64WaitForFIFO(pATI, 6);
         outf(SRC_OFF_PITCH, pATIHW->src_off_pitch);
@@ -864,6 +888,16 @@ ATIMach64Set
         outf(SRC_HEIGHT2_WIDTH2,
             SetWord(pATIHW->src_width2, 1) | SetWord(pATIHW->src_height2, 0));
         outf(SRC_CNTL, pATIHW->src_cntl);
+
+        if (pATI->Chip >= ATI_CHIP_264GTPRO)
+        {
+            CARD32 offset = TEX_LEVEL(pATIHW->tex_size_pitch);
+
+            /* Load 3D control & texture registers */
+            ATIMach64WaitForFIFO(pATI, 2);
+            outf(TEX_0_OFF + offset, pATIHW->tex_offset);
+            outf(SCALE_3D_CNTL, pATIHW->scale_3d_cntl);
+        }
 
         /* Load host data register */
         ATIMach64WaitForFIFO(pATI, 1);
@@ -911,6 +945,14 @@ ATIMach64Set
         /* Load context mask */
         ATIMach64WaitForFIFO(pATI, 1);
         outf(CONTEXT_MASK, pATIHW->context_mask);
+
+        if (pATI->Chip >= ATI_CHIP_264GTPRO)
+        {
+            /* Load texture setup registers */
+            ATIMach64WaitForFIFO(pATI, 2);
+            outf(TEX_SIZE_PITCH, pATIHW->tex_size_pitch);
+            outf(TEX_CNTL, pATIHW->tex_cntl);
+        }
 
         if (pATI->Block1Base)
         {
@@ -982,6 +1024,11 @@ ATIMach64Set
 
             CacheRegister(SRC_CNTL);
 
+            if (pATI->Chip >= ATI_CHIP_264GTPRO)
+            {
+                CacheRegister(SCALE_3D_CNTL);
+            }
+
             CacheRegister(HOST_CNTL);
 
             CacheRegister(PAT_REG0);
@@ -1000,6 +1047,11 @@ ATIMach64Set
             CacheRegister(CLR_CMP_CLR);
             CacheRegister(CLR_CMP_MSK);
             CacheRegister(CLR_CMP_CNTL);
+
+            if (pATI->Chip >= ATI_CHIP_264GTPRO)
+            {
+                CacheRegister(TEX_SIZE_PITCH);
+            }
 
             if (pATI->Block1Base)
             {

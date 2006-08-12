@@ -151,10 +151,12 @@ ATIMach64Sync
     if ( pATI->directRenderingEnabled && pATI->NeedDRISync )
     {
 	ATIHWPtr pATIHW = &pATI->NewHW;
+	CARD32 offset;
 
 	if (pATI->OptionMMIOCache) {
 	    /* "Invalidate" the MMIO cache so the cache slots get updated */
 	    UncacheRegister(SRC_CNTL);
+	    UncacheRegister(SCALE_3D_CNTL);
 	    UncacheRegister(HOST_CNTL);
 	    UncacheRegister(PAT_CNTL);
 	    UncacheRegister(SC_LEFT_RIGHT);
@@ -165,6 +167,7 @@ ATIMach64Sync
 	    UncacheRegister(DP_PIX_WIDTH);
 	    UncacheRegister(DP_MIX);
 	    UncacheRegister(CLR_CMP_CNTL);
+	    UncacheRegister(TEX_SIZE_PITCH);
 	}
 
 	ATIDRIWaitForIdle(pATI);
@@ -185,12 +188,19 @@ ATIMach64Sync
 	outf( DP_MIX, pATIHW->dp_mix );
 	outf( DP_FRGD_CLR,  pATIHW->dp_frgd_clr );
 	outf( DP_WRITE_MASK, pATIHW->dp_write_mask );
-	
 	outf( DP_PIX_WIDTH, pATIHW->dp_pix_width );
+
 	outf( CLR_CMP_CNTL, pATIHW->clr_cmp_cntl );
+
+	offset = TEX_LEVEL(pATIHW->tex_size_pitch);
+
+	ATIMach64WaitForFIFO(pATI, 6);
 	outf( ALPHA_TST_CNTL, 0 );
 	outf( Z_CNTL, 0 );
-	outf( SCALE_3D_CNTL, 0 );
+	outf( SCALE_3D_CNTL, pATIHW->scale_3d_cntl );
+	outf( TEX_0_OFF + offset, pATIHW->tex_offset );
+	outf( TEX_SIZE_PITCH, pATIHW->tex_size_pitch );
+	outf( TEX_CNTL, pATIHW->tex_cntl );
 
 	ATIMach64WaitForFIFO(pATI, 2);
 	outf( SC_LEFT_RIGHT,
@@ -201,6 +211,7 @@ ATIMach64Sync
 	if (pATI->OptionMMIOCache) {
 	    /* Now that the cache slots reflect the register state, re-enable MMIO cache */
 	    CacheRegister(SRC_CNTL);
+	    CacheRegister(SCALE_3D_CNTL);
 	    CacheRegister(HOST_CNTL);
 	    CacheRegister(PAT_CNTL);
 	    CacheRegister(SC_LEFT_RIGHT);
@@ -211,6 +222,7 @@ ATIMach64Sync
 	    CacheRegister(DP_PIX_WIDTH);
 	    CacheRegister(DP_MIX);
 	    CacheRegister(CLR_CMP_CNTL);
+	    CacheRegister(TEX_SIZE_PITCH);
 	}
 
 	ATIMach64WaitForIdle(pATI);
@@ -288,6 +300,11 @@ TestRegisterCachingDP(ScrnInfoPtr pScreenInfo)
 
     TestRegisterCaching(SRC_CNTL);
 
+    if (pATI->Chip >= ATI_CHIP_264GTPRO)
+    {
+        TestRegisterCaching(SCALE_3D_CNTL);
+    }
+
     TestRegisterCaching(HOST_CNTL);
 
     TestRegisterCaching(PAT_REG0);
@@ -321,6 +338,11 @@ TestRegisterCachingDP(ScrnInfoPtr pScreenInfo)
     TestRegisterCaching(CLR_CMP_CLR);
     TestRegisterCaching(CLR_CMP_MSK);
     TestRegisterCaching(CLR_CMP_CNTL);
+
+    if (pATI->Chip >= ATI_CHIP_264GTPRO)
+    {
+        TestRegisterCaching(TEX_SIZE_PITCH);
+    }
 }
 
 static __inline__ void
