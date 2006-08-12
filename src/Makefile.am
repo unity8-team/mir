@@ -138,6 +138,7 @@ EXTRA_DIST = \
 	atimach64.h \
 	atimach64i2c.h \
 	atimach64io.h \
+	atimach64render.c \
 	atimach64xv.h \
 	atimode.h \
 	atimodule.h \

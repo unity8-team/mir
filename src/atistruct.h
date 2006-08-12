@@ -176,6 +176,38 @@ typedef struct _ATIHWRec
 
 } ATIHWRec;
 
+#ifdef USE_EXA
+/*
+ * Card engine state for communication across RENDER acceleration hooks.
+ */
+typedef struct _Mach64ContextRegs3D
+{
+    CARD32	dp_mix;
+    CARD32	dp_src;
+    CARD32	dp_write_mask;
+    CARD32	dp_pix_width;
+    CARD32	dst_pitch_offset;
+
+    CARD32	scale_3d_cntl;
+
+    CARD32	tex_cntl;
+    CARD32	tex_size_pitch;
+    CARD32	tex_offset;
+
+    int		tex_width;	/* src/mask texture width (pixels) */
+    int		tex_height;	/* src/mask texture height (pixels) */
+
+    Bool	frag_src;	/* solid src uses fragment color */
+    Bool	frag_mask;	/* solid mask uses fragment color */
+    CARD32	frag_color;	/* solid src/mask color */
+
+    Bool	color_alpha;	/* the alpha value is contained in the color
+				   channels instead of the alpha channel */
+
+    PictTransform *transform;
+} Mach64ContextRegs3D;
+#endif /* USE_EXA */
+
 /*
  * This structure defines the driver's private area.
  */
@@ -317,6 +349,10 @@ typedef struct _ATIRec
 #ifdef USE_XAA
     CARD32 *ExpansionBitmapScanlinePtr[2];
     int ExpansionBitmapWidth;
+#endif
+#ifdef USE_EXA
+    Bool RenderAccelEnabled;
+    Mach64ContextRegs3D m3d;
 #endif
 
     /*

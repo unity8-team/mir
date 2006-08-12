@@ -2751,4 +2751,132 @@
 /*	?				0x06u */
 /*	?				0x07u */
 
+/* 3D Engine for render acceleration (from Mach64 DRI driver) */
+
+/* SCALE_3D_CNTL */
+#define MACH64_SCALE_PIX_EXPAND_ZERO_EXTEND	(0 << 0)
+#define MACH64_SCALE_PIX_EXPAND_DYNAMIC_RANGE	(1 << 0)
+#define MACH64_SCALE_DITHER_ERROR_DIFFUSE	(0 << 1)
+#define MACH64_SCALE_DITHER_2D_TABLE		(1 << 1)
+#define MACH64_DITHER_EN			(1 << 2)
+#define MACH64_DITHER_INIT_CURRENT		(O << 3)
+#define MACH64_DITHER_INIT_RESET		(1 << 3)
+#define MACH64_ROUND_EN				(1 << 4)
+
+#define MACH64_TEX_CACHE_DIS			(1 << 5)
+
+#define MACH64_SCALE_3D_FCN_MASK		(3 << 6)
+#define MACH64_SCALE_3D_FCN_NOP			(0 << 6)
+#define MACH64_SCALE_3D_FCN_SCALE		(1 << 6)
+#define MACH64_SCALE_3D_FCN_TEXTURE		(2 << 6)
+#define MACH64_SCALE_3D_FCN_SHADE		(3 << 6)
+#define MACH64_TEXTURE_DISABLE			(1 << 6)
+
+#define MACH64_EDGE_ANTI_ALIAS			(1 << 8)
+#define MACH64_TEX_CACHE_SPLIT			(1 << 9)
+#define MACH64_APPLE_YUV_MODE			(1 << 10)
+
+#define MACH64_ALPHA_FOG_EN_MASK		(3 << 11)
+#define MACH64_ALPHA_FOG_DIS			(0 << 11)
+#define MACH64_ALPHA_FOG_EN_ALPHA		(1 << 11)
+#define MACH64_ALPHA_FOG_EN_FOG			(2 << 11)
+
+#define MACH64_ALPHA_BLEND_SAT			(1 << 13)
+#define MACH64_RED_DITHER_MAX			(1 << 14)
+#define MACH64_SIGNED_DST_CLAMP			(1 << 15)
+
+#define MACH64_ALPHA_BLEND_SRC_MASK		(7 << 16)
+#define MACH64_ALPHA_BLEND_SRC_ZERO		(0 << 16)
+#define MACH64_ALPHA_BLEND_SRC_ONE		(1 << 16)
+#define MACH64_ALPHA_BLEND_SRC_DSTCOLOR		(2 << 16)
+#define MACH64_ALPHA_BLEND_SRC_INVDSTCOLOR	(3 << 16)
+#define MACH64_ALPHA_BLEND_SRC_SRCALPHA		(4 << 16)
+#define MACH64_ALPHA_BLEND_SRC_INVSRCALPHA	(5 << 16)
+#define MACH64_ALPHA_BLEND_SRC_DSTALPHA		(6 << 16)
+#define MACH64_ALPHA_BLEND_SRC_INVDSTALPHA	(7 << 16)
+#define MACH64_ALPHA_BLEND_DST_MASK		(7 << 19)
+#define MACH64_ALPHA_BLEND_DST_ZERO		(0 << 19)
+#define MACH64_ALPHA_BLEND_DST_ONE		(1 << 19)
+#define MACH64_ALPHA_BLEND_DST_SRCCOLOR		(2 << 19)
+#define MACH64_ALPHA_BLEND_DST_INVSRCCOLOR	(3 << 19)
+#define MACH64_ALPHA_BLEND_DST_SRCALPHA		(4 << 19)
+#define MACH64_ALPHA_BLEND_DST_INVSRCALPHA	(5 << 19)
+#define MACH64_ALPHA_BLEND_DST_DSTALPHA		(6 << 19)
+#define MACH64_ALPHA_BLEND_DST_INVDSTALPHA	(7 << 19)
+
+#define MACH64_TEX_LIGHT_FCN_MASK		(3 << 22)
+#define MACH64_TEX_LIGHT_FCN_REPLACE		(0 << 22)
+#define MACH64_TEX_LIGHT_FCN_MODULATE		(1 << 22)
+#define MACH64_TEX_LIGHT_FCN_ALPHA_DECAL	(2 << 22)
+
+#define MACH64_MIP_MAP_DISABLE			(1 << 24)
+
+#define MACH64_BILINEAR_TEX_EN			(1 << 25)
+#define MACH64_TEX_BLEND_FCN_MASK		(3 << 26)
+#define MACH64_TEX_BLEND_FCN_NEAREST		(0 << 26)
+#define MACH64_TEX_BLEND_FCN_LINEAR		(2 << 26)
+#define MACH64_TEX_BLEND_FCN_TRILINEAR		(3 << 26)
+
+#define MACH64_TEX_AMASK_AEN			(1 << 28)
+#define MACH64_TEX_AMASK_BLEND_EDGE		(1 << 29)
+#define MACH64_TEX_MAP_AEN			(1 << 30)
+#define MACH64_SRC_3D_HOST_FIFO			(1 << 31)
+
+/* TEX_CNTL */
+#define MACH64_LOD_BIAS_SHIFT			0
+#define MACH64_LOD_BIAS_MASK			(0xf << 0)
+#define MACH64_COMP_FACTOR_SHIFT		4
+#define MACH64_COMP_FACTOR_MASK			(0xf << 4)
+
+#define MACH64_TEXTURE_COMPOSITE		(1 << 8)
+
+#define MACH64_COMP_COMBINE_BLEND		(0 << 9)
+#define MACH64_COMP_COMBINE_MODULATE		(1 << 9)
+#define MACH64_COMP_BLEND_NEAREST		(0 << 11)
+#define MACH64_COMP_BLEND_BILINEAR		(1 << 11)
+#define MACH64_COMP_FILTER_NEAREST		(0 << 12)
+#define MACH64_COMP_FILTER_BILINEAR		(1 << 12)
+#define MACH64_COMP_ALPHA			(1 << 13)
+
+#define MACH64_TEXTURE_TILING			(1 << 14)
+#define MACH64_COMPOSITE_TEX_TILING		(1 << 15)
+#define MACH64_TEX_COLLISION_DISABLE		(1 << 16)
+
+#define MACH64_TEXTURE_CLAMP_S			(1 << 17)
+#define MACH64_TEXTURE_CLAMP_T			(1 << 18)
+#define MACH64_TEX_ST_MULT_W			(0 << 19)
+#define MACH64_TEX_ST_DIRECT			(1 << 19)
+#define MACH64_TEX_SRC_LOCAL			(0 << 20)
+#define MACH64_TEX_SRC_AGP			(1 << 20)
+#define MACH64_TEX_UNCOMPRESSED			(0 << 21)
+#define MACH64_TEX_VQ_COMPRESSED		(1 << 21)
+#define MACH64_COMP_TEX_UNCOMPRESSED		(0 << 22)
+#define MACH64_COMP_TEX_VQ_COMPRESSED		(1 << 22)
+#define MACH64_TEX_CACHE_FLUSH			(1 << 23)
+#define MACH64_SEC_TEX_CLAMP_S			(1 << 24)
+#define MACH64_SEC_TEX_CLAMP_T			(1 << 25)
+#define MACH64_TEX_WRAP_S			(1 << 28)
+#define MACH64_TEX_WRAP_T			(1 << 29)
+#define MACH64_TEX_CACHE_SIZE_4K		(1 << 30)
+#define MACH64_TEX_CACHE_SIZE_2K		(1 << 30)
+#define MACH64_SECONDARY_STW			(1 << 31)
+
+/* DP_PIX_WIDTH (superset of PIX_WIDTH_?BPP) */
+#define MACH64_DATATYPE_CI8                             2
+#define MACH64_DATATYPE_ARGB1555                        3
+#define MACH64_DATATYPE_RGB565                          4
+#define MACH64_DATATYPE_ARGB8888                        6
+#define MACH64_DATATYPE_RGB332                          7
+#define MACH64_DATATYPE_Y8                              8
+#define MACH64_DATATYPE_RGB8                            9
+#define MACH64_DATATYPE_VYUY422                         11
+#define MACH64_DATATYPE_YVYU422                         12
+#define MACH64_DATATYPE_AYUV444                         14
+#define MACH64_DATATYPE_ARGB4444                        15
+
+/* Extract texture level from TEX_SIZE_PITCH and shift appropriately for
+ * addition to TEX_0_OFF.
+ */
+#define TEX_LEVEL(_tex_size_pitch) (((_tex_size_pitch) & 0xf0) >> 2)
+
 #endif /* ___ATIREGS_H___ */

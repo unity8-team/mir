@@ -441,6 +441,8 @@ Mach64DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     return TRUE;
 }
 
+#include "atimach64render.c"
+
 /* Compute log base 2 of val. */
 static __inline__ int Mach64Log2(int val)
 {
@@ -672,6 +674,26 @@ Bool ATIMach64ExaInit(ScreenPtr pScreen)
      */
     pExa->UploadToScreen = Mach64UploadToScreen;
     pExa->DownloadFromScreen = Mach64DownloadFromScreen;
+
+    if (pATI->RenderAccelEnabled) {
+	if (pATI->Chip >= ATI_CHIP_264GTPRO) {
+	    /* 3D Rage Pro does not support NPOT textures. */
+	    pExa->flags |= EXA_OFFSCREEN_ALIGN_POT;
+
+	    pExa->CheckComposite = Mach64CheckComposite;
+	    pExa->PrepareComposite = Mach64PrepareComposite;
+	    pExa->Composite = Mach64Composite;
+	    pExa->DoneComposite = Mach64DoneComposite;
+	} else {
+	    xf86DrvMsg(pScreen->myNum, X_INFO,
+		       "Render acceleration is not supported for ATI chips "
+		       "earlier than the ATI 3D Rage Pro.\n");
+	    pATI->RenderAccelEnabled = FALSE;
+	}
+    }
+
+    xf86DrvMsg(pScreen->myNum, X_INFO, "Render acceleration %s\n",
+	       pATI->RenderAccelEnabled ? "enabled" : "disabled");
 
     if (!exaDriverInit(pScreen, pATI->pExa)) {
 	xfree(pATI->pExa);

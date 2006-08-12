@@ -154,6 +154,7 @@ ATIProcessOptions
 #   define ShadowFB      PublicOption[ATI_OPTION_SHADOW_FB].value.bool
 #   define SWCursor      PublicOption[ATI_OPTION_SWCURSOR].value.bool
 #   define AccelMethod   PublicOption[ATI_OPTION_ACCELMETHOD].value.str
+#   define RenderAccel   PublicOption[ATI_OPTION_RENDER_ACCEL].value.bool
 #   define LCDSync       PrivateOption[ATI_OPTION_LCDSYNC].value.bool
 
 #   define ReferenceClock \
@@ -360,6 +361,12 @@ ATIProcessOptions
         xf86DrvMsg(pScreenInfo->scrnIndex, from,
             "Using %s acceleration architecture\n",
             pATI->useEXA ? "EXA" : "XAA");
+
+        pATI->RenderAccelEnabled = FALSE;
+#if defined(USE_EXA)
+        if (pATI->useEXA && RenderAccel)
+            pATI->RenderAccelEnabled = TRUE;
+#endif
     }
 
     xfree(PublicOption);
