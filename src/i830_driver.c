@@ -4398,7 +4398,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    /*
     * Let's setup the mobile systems to check the lid status
     */
-   if (IS_MOBILE(pI830)) {
+   if (IS_MOBILE(pI830) && !pI830->MergedFB) {
       pI830->checkDevices = TRUE;
 
       if (!xf86ReturnOptValBool(pI830->Options, OPTION_CHECKDEVICES, TRUE)) {
