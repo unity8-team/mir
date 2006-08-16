@@ -2709,7 +2709,7 @@ SetDisplayDevices(ScrnInfoPtr pScrn, int devices)
    } 
 
    /* LVDS doesn't exist on these */
-   if (IS_I830(pI830) || IS_845G(pI830) || IS_I865G(pI830))
+   if (IS_I830(pI830) || IS_845G(pI830) || IS_I865G(pI830) || IS_I915G(pI830) || IS_I945G(pI830) || IS_I965G(pI830))
       singlepipe &= ~(PIPE_LFP | (PIPE_LFP<<8));
 
    if (pI830->availablePipes == 1) 
