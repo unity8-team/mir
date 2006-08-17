@@ -2288,6 +2288,15 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     */
    *pI830->used3D |= 1 << 30;
 
+#ifdef XF86DRI
+   /* Tell the DRI that we're smashing its state. */
+   if (pI830->directRenderingEnabled) {
+     drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+
+     pSAREAPriv->ctxOwner = DRIGetContext(pScrn->pScreen);
+   }
+#endif /* XF86DRI */
+
    next_offset = 0;
 
    /* Set up our layout of state in framebuffer.  First the general state: */
