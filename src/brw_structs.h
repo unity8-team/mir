@@ -28,6 +28,8 @@
 #ifndef BRW_STRUCTS_H
 #define BRW_STRUCTS_H
 
+#include <GL/gl.h>
+
 /* Command packets:
  */
 struct header 

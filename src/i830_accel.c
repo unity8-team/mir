@@ -395,6 +395,7 @@ I830AccelInit(ScreenPtr pScreen)
    return XAAInit(pScreen, infoPtr);
 }
 
+#ifdef XF86DRI
 static unsigned int
 CheckTiling(ScrnInfoPtr pScrn)
 {
@@ -416,6 +417,9 @@ CheckTiling(ScrnInfoPtr pScrn)
 
    return tiled;
 }
+#else
+#define CheckTiling(pScrn) 0
+#endif
 
 void
 I830SetupForSolidFill(ScrnInfoPtr pScrn, int color, int rop,

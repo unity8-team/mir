@@ -333,14 +333,14 @@ const char *I810driSymbols[] = {
    NULL
 };
 
+#endif /* I830_ONLY */
+
 const char *I810shadowSymbols[] = {
     "shadowInit",
     "shadowSetup",
     "shadowAdd",
     NULL
 };
-
-#endif /* I830_ONLY */
 
 #ifndef I810_DEBUG
 int I810_DEBUG = (0
@@ -408,9 +408,9 @@ i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
 #ifdef XF86DRI
 			I810drmSymbols,
 			I810driSymbols,
+#endif
 			I810shadowSymbols,
 			I810shadowFBSymbols,
-#endif
 			I810vbeSymbols, vbeOptionalSymbols,
 			I810ddcSymbols, I810int10Symbols, NULL);
 
