@@ -28,45 +28,43 @@
 #ifndef BRW_STRUCTS_H
 #define BRW_STRUCTS_H
 
-#include <GL/gl.h>
-
 /* Command packets:
  */
 struct header 
 {
-   GLuint length:16; 
-   GLuint opcode:16; 
+   unsigned int length:16; 
+   unsigned int opcode:16; 
 } bits;
 
 
 union header_union
 {
    struct header bits;
-   GLuint dword;
+   unsigned int dword;
 };
 
 struct brw_3d_control
 {   
    struct 
    {
-      GLuint length:8;
-      GLuint notify_enable:1;
-      GLuint pad:3;
-      GLuint wc_flush_enable:1; 
-      GLuint depth_stall_enable:1; 
-      GLuint operation:2; 
-      GLuint opcode:16; 
+      unsigned int length:8;
+      unsigned int notify_enable:1;
+      unsigned int pad:3;
+      unsigned int wc_flush_enable:1; 
+      unsigned int depth_stall_enable:1; 
+      unsigned int operation:2; 
+      unsigned int opcode:16; 
    } header;
    
    struct
    {
-      GLuint pad:2;
-      GLuint dest_addr_type:1; 
-      GLuint dest_addr:29; 
+      unsigned int pad:2;
+      unsigned int dest_addr_type:1; 
+      unsigned int dest_addr:29; 
    } dest;
    
-   GLuint dword2;   
-   GLuint dword3;   
+   unsigned int dword2;   
+   unsigned int dword3;   
 };
 
 
@@ -74,18 +72,18 @@ struct brw_3d_primitive
 {
    struct
    {
-      GLuint length:8; 
-      GLuint pad:2;
-      GLuint topology:5; 
-      GLuint indexed:1; 
-      GLuint opcode:16; 
+      unsigned int length:8; 
+      unsigned int pad:2;
+      unsigned int topology:5; 
+      unsigned int indexed:1; 
+      unsigned int opcode:16; 
    } header;
 
-   GLuint verts_per_instance;  
-   GLuint start_vert_location;  
-   GLuint instance_count;  
-   GLuint start_instance_location;  
-   GLuint base_vert_location;  
+   unsigned int verts_per_instance;  
+   unsigned int start_vert_location;  
+   unsigned int instance_count;  
+   unsigned int start_instance_location;  
+   unsigned int base_vert_location;  
 };
 
 /* These seem to be passed around as function args, so it works out
@@ -98,16 +96,16 @@ struct brw_3d_primitive
 
 struct brw_mi_flush
 {
-   GLuint flags:4;
-   GLuint pad:12;
-   GLuint opcode:16;
+   unsigned int flags:4;
+   unsigned int pad:12;
+   unsigned int opcode:16;
 };
 
 struct brw_vf_statistics
 {
-   GLuint statistics_enable:1;
-   GLuint pad:15;
-   GLuint opcode:16;
+   unsigned int statistics_enable:1;
+   unsigned int pad:15;
+   unsigned int opcode:16;
 };
 
 
@@ -115,18 +113,18 @@ struct brw_vf_statistics
 struct brw_binding_table_pointers
 {
    struct header header;
-   GLuint vs; 
-   GLuint gs; 
-   GLuint clp; 
-   GLuint sf; 
-   GLuint wm; 
+   unsigned int vs; 
+   unsigned int gs; 
+   unsigned int clp; 
+   unsigned int sf; 
+   unsigned int wm; 
 };
 
 
 struct brw_blend_constant_color
 {
    struct header header;
-   GLfloat blend_constant_color[4];  
+   float blend_constant_color[4];  
 };
 
 
@@ -136,50 +134,50 @@ struct brw_depthbuffer
    
    union {
       struct {
-	 GLuint pitch:18; 
-	 GLuint format:3; 
-	 GLuint pad:4;
-	 GLuint depth_offset_disable:1; 
-	 GLuint tile_walk:1; 
-	 GLuint tiled_surface:1; 
-	 GLuint pad2:1;
-	 GLuint surface_type:3; 
+	 unsigned int pitch:18; 
+	 unsigned int format:3; 
+	 unsigned int pad:4;
+	 unsigned int depth_offset_disable:1; 
+	 unsigned int tile_walk:1; 
+	 unsigned int tiled_surface:1; 
+	 unsigned int pad2:1;
+	 unsigned int surface_type:3; 
       } bits;
-      GLuint dword;
+      unsigned int dword;
    } dword1;
    
-   GLuint dword2_base_addr; 
+   unsigned int dword2_base_addr; 
  
    union {
       struct {
-	 GLuint pad:1;
-	 GLuint mipmap_layout:1; 
-	 GLuint lod:4; 
-	 GLuint width:13; 
-	 GLuint height:13; 
+	 unsigned int pad:1;
+	 unsigned int mipmap_layout:1; 
+	 unsigned int lod:4; 
+	 unsigned int width:13; 
+	 unsigned int height:13; 
       } bits;
-      GLuint dword;
+      unsigned int dword;
    } dword3;
 
    union {
       struct {
-	 GLuint pad:12;
-	 GLuint min_array_element:9; 
-	 GLuint depth:11; 
+	 unsigned int pad:12;
+	 unsigned int min_array_element:9; 
+	 unsigned int depth:11; 
       } bits;
-      GLuint dword;
+      unsigned int dword;
    } dword4;
 };
 
 struct brw_drawrect
 {
    struct header header;
-   GLuint xmin:16; 
-   GLuint ymin:16; 
-   GLuint xmax:16; 
-   GLuint ymax:16; 
-   GLuint xorg:16;  
-   GLuint yorg:16;  
+   unsigned int xmin:16; 
+   unsigned int ymin:16; 
+   unsigned int xmax:16; 
+   unsigned int ymax:16; 
+   unsigned int xorg:16;  
+   unsigned int yorg:16;  
 };
 
 
@@ -188,7 +186,7 @@ struct brw_drawrect
 struct brw_global_depth_offset_clamp
 {
    struct header header;
-   GLfloat depth_offset_clamp;  
+   float depth_offset_clamp;  
 };
 
 struct brw_indexbuffer
@@ -196,18 +194,18 @@ struct brw_indexbuffer
    union {
       struct
       {
-	 GLuint length:8; 
-	 GLuint index_format:2; 
-	 GLuint cut_index_enable:1; 
-	 GLuint pad:5; 
-	 GLuint opcode:16; 
+	 unsigned int length:8; 
+	 unsigned int index_format:2; 
+	 unsigned int cut_index_enable:1; 
+	 unsigned int pad:5; 
+	 unsigned int opcode:16; 
       } bits;
-      GLuint dword;
+      unsigned int dword;
 
    } header;
 
-   GLuint buffer_start; 
-   GLuint buffer_end; 
+   unsigned int buffer_start; 
+   unsigned int buffer_end; 
 };
 
 
@@ -217,15 +215,15 @@ struct brw_line_stipple
   
    struct
    {
-      GLuint pattern:16; 
-      GLuint pad:16;
+      unsigned int pattern:16; 
+      unsigned int pad:16;
    } bits0;
    
    struct
    {
-      GLuint repeat_count:9; 
-      GLuint pad:7;
-      GLuint inverse_repeat_count:16; 
+      unsigned int repeat_count:9; 
+      unsigned int pad:7;
+      unsigned int inverse_repeat_count:16; 
    } bits1;
 };
 
@@ -235,40 +233,40 @@ struct brw_pipelined_state_pointers
    struct header header;
    
    struct {
-      GLuint pad:5;
-      GLuint offset:27; 
+      unsigned int pad:5;
+      unsigned int offset:27; 
    } vs;
    
    struct
    {
-      GLuint enable:1;
-      GLuint pad:4;
-      GLuint offset:27; 
+      unsigned int enable:1;
+      unsigned int pad:4;
+      unsigned int offset:27; 
    } gs;
    
    struct
    {
-      GLuint enable:1;
-      GLuint pad:4;
-      GLuint offset:27; 
+      unsigned int enable:1;
+      unsigned int pad:4;
+      unsigned int offset:27; 
    } clp;
    
    struct
    {
-      GLuint pad:5;
-      GLuint offset:27; 
+      unsigned int pad:5;
+      unsigned int offset:27; 
    } sf;
 
    struct
    {
-      GLuint pad:5;
-      GLuint offset:27; 
+      unsigned int pad:5;
+      unsigned int offset:27; 
    } wm;
    
    struct
    {
-      GLuint pad:5;
-      GLuint offset:27; /* KW: check me! */
+      unsigned int pad:5;
+      unsigned int offset:27; /* KW: check me! */
    } cc;
 };
 
@@ -278,10 +276,10 @@ struct brw_polygon_stipple_offset
    struct header header;
 
    struct {
-      GLuint y_offset:5; 
-      GLuint pad:3;
-      GLuint x_offset:5; 
-      GLuint pad0:19;
+      unsigned int y_offset:5; 
+      unsigned int pad:3;
+      unsigned int x_offset:5; 
+      unsigned int pad0:19;
    } bits0;
 };
 
@@ -290,7 +288,7 @@ struct brw_polygon_stipple_offset
 struct brw_polygon_stipple
 {
    struct header header;
-   GLuint stipple[32];
+   unsigned int stipple[32];
 };
 
 
@@ -299,9 +297,9 @@ struct brw_pipeline_select
 {
    struct
    {
-      GLuint pipeline_select:1;   
-      GLuint pad:15;
-      GLuint opcode:16;   
+      unsigned int pipeline_select:1;   
+      unsigned int pad:15;
+      unsigned int opcode:16;   
    } header;
 };
 
@@ -310,26 +308,26 @@ struct brw_pipe_control
 {
    struct
    {
-      GLuint length:8;
-      GLuint notify_enable:1;
-      GLuint pad:2;
-      GLuint instruction_state_cache_flush_enable:1;
-      GLuint write_cache_flush_enable:1;
-      GLuint depth_stall_enable:1;
-      GLuint post_sync_operation:2;
+      unsigned int length:8;
+      unsigned int notify_enable:1;
+      unsigned int pad:2;
+      unsigned int instruction_state_cache_flush_enable:1;
+      unsigned int write_cache_flush_enable:1;
+      unsigned int depth_stall_enable:1;
+      unsigned int post_sync_operation:2;
 
-      GLuint opcode:16;
+      unsigned int opcode:16;
    } header;
 
    struct
    {
-      GLuint pad:2;
-      GLuint dest_addr_type:1;
-      GLuint dest_addr:29;
+      unsigned int pad:2;
+      unsigned int dest_addr_type:1;
+      unsigned int dest_addr:29;
    } bits1;
 
-   GLuint data0;
-   GLuint data1;
+   unsigned int data0;
+   unsigned int data1;
 };
 
 
@@ -337,31 +335,31 @@ struct brw_urb_fence
 {
    struct
    {
-      GLuint length:8;   
-      GLuint vs_realloc:1;   
-      GLuint gs_realloc:1;   
-      GLuint clp_realloc:1;   
-      GLuint sf_realloc:1;   
-      GLuint vfe_realloc:1;   
-      GLuint cs_realloc:1;   
-      GLuint pad:2;
-      GLuint opcode:16;   
+      unsigned int length:8;   
+      unsigned int vs_realloc:1;   
+      unsigned int gs_realloc:1;   
+      unsigned int clp_realloc:1;   
+      unsigned int sf_realloc:1;   
+      unsigned int vfe_realloc:1;   
+      unsigned int cs_realloc:1;   
+      unsigned int pad:2;
+      unsigned int opcode:16;   
    } header;
 
    struct
    {
-      GLuint vs_fence:10;  
-      GLuint gs_fence:10;  
-      GLuint clp_fence:10;  
-      GLuint pad:2;
+      unsigned int vs_fence:10;  
+      unsigned int gs_fence:10;  
+      unsigned int clp_fence:10;  
+      unsigned int pad:2;
    } bits0;
 
    struct
    {
-      GLuint sf_fence:10;  
-      GLuint vf_fence:10;  
-      GLuint cs_fence:10;  
-      GLuint pad:2;
+      unsigned int sf_fence:10;  
+      unsigned int vf_fence:10;  
+      unsigned int cs_fence:10;  
+      unsigned int pad:2;
    } bits1;
 };
 
@@ -371,10 +369,10 @@ struct brw_constant_buffer_state /* previously brw_command_streamer */
 
    struct
    {
-      GLuint nr_urb_entries:3;   
-      GLuint pad:1;
-      GLuint urb_entry_size:5;   
-      GLuint pad0:23;
+      unsigned int nr_urb_entries:3;   
+      unsigned int pad:1;
+      unsigned int urb_entry_size:5;   
+      unsigned int pad0:23;
    } bits0;
 };
 
@@ -382,16 +380,16 @@ struct brw_constant_buffer
 {
    struct
    {
-      GLuint length:8;   
-      GLuint valid:1;   
-      GLuint pad:7;
-      GLuint opcode:16;   
+      unsigned int length:8;   
+      unsigned int valid:1;   
+      unsigned int pad:7;
+      unsigned int opcode:16;   
    } header;
 
    struct
    {
-      GLuint buffer_length:6;   
-      GLuint buffer_address:26;  
+      unsigned int buffer_length:6;   
+      unsigned int buffer_address:26;  
    } bits0;
 };
 
@@ -401,37 +399,37 @@ struct brw_state_base_address
 
    struct
    {
-      GLuint modify_enable:1;
-      GLuint pad:4;
-      GLuint general_state_address:27;  
+      unsigned int modify_enable:1;
+      unsigned int pad:4;
+      unsigned int general_state_address:27;  
    } bits0;
 
    struct
    {
-      GLuint modify_enable:1;
-      GLuint pad:4;
-      GLuint surface_state_address:27;  
+      unsigned int modify_enable:1;
+      unsigned int pad:4;
+      unsigned int surface_state_address:27;  
    } bits1;
 
    struct
    {
-      GLuint modify_enable:1;
-      GLuint pad:4;
-      GLuint indirect_object_state_address:27;  
+      unsigned int modify_enable:1;
+      unsigned int pad:4;
+      unsigned int indirect_object_state_address:27;  
    } bits2;
 
    struct
    {
-      GLuint modify_enable:1;
-      GLuint pad:11;
-      GLuint general_state_upper_bound:20;  
+      unsigned int modify_enable:1;
+      unsigned int pad:11;
+      unsigned int general_state_upper_bound:20;  
    } bits3;
 
    struct
    {
-      GLuint modify_enable:1;
-      GLuint pad:11;
-      GLuint indirect_object_state_upper_bound:20;  
+      unsigned int modify_enable:1;
+      unsigned int pad:11;
+      unsigned int indirect_object_state_upper_bound:20;  
    } bits4;
 };
 
@@ -441,9 +439,9 @@ struct brw_state_prefetch
 
    struct
    {
-      GLuint prefetch_count:3;   
-      GLuint pad:3;
-      GLuint prefetch_pointer:26;  
+      unsigned int prefetch_count:3;   
+      unsigned int pad:3;
+      unsigned int prefetch_pointer:26;  
    } bits0;
 };
 
@@ -453,8 +451,8 @@ struct brw_system_instruction_pointer
 
    struct
    {
-      GLuint pad:4;
-      GLuint system_instruction_pointer:28;  
+      unsigned int pad:4;
+      unsigned int system_instruction_pointer:28;  
    } bits0;
 };
 
@@ -467,48 +465,48 @@ struct brw_system_instruction_pointer
 
 struct thread0
 {
-   GLuint pad0:1;
-   GLuint grf_reg_count:3; 
-   GLuint pad1:2;
-   GLuint kernel_start_pointer:26; 
+   unsigned int pad0:1;
+   unsigned int grf_reg_count:3; 
+   unsigned int pad1:2;
+   unsigned int kernel_start_pointer:26; 
 };
 
 struct thread1
 {
-   GLuint ext_halt_exception_enable:1; 
-   GLuint sw_exception_enable:1; 
-   GLuint mask_stack_exception_enable:1; 
-   GLuint timeout_exception_enable:1; 
-   GLuint illegal_op_exception_enable:1; 
-   GLuint pad0:3;
-   GLuint depth_coef_urb_read_offset:6;	/* WM only */
-   GLuint pad1:2;
-   GLuint floating_point_mode:1; 
-   GLuint thread_priority:1; 
-   GLuint binding_table_entry_count:8; 
-   GLuint pad3:5;
-   GLuint single_program_flow:1; 
+   unsigned int ext_halt_exception_enable:1; 
+   unsigned int sw_exception_enable:1; 
+   unsigned int mask_stack_exception_enable:1; 
+   unsigned int timeout_exception_enable:1; 
+   unsigned int illegal_op_exception_enable:1; 
+   unsigned int pad0:3;
+   unsigned int depth_coef_urb_read_offset:6;	/* WM only */
+   unsigned int pad1:2;
+   unsigned int floating_point_mode:1; 
+   unsigned int thread_priority:1; 
+   unsigned int binding_table_entry_count:8; 
+   unsigned int pad3:5;
+   unsigned int single_program_flow:1; 
 };
 
 struct thread2
 {
-   GLuint per_thread_scratch_space:4; 
-   GLuint pad0:6;
-   GLuint scratch_space_base_pointer:22; 
+   unsigned int per_thread_scratch_space:4; 
+   unsigned int pad0:6;
+   unsigned int scratch_space_base_pointer:22; 
 };
 
    
 struct thread3
 {
-   GLuint dispatch_grf_start_reg:4; 
-   GLuint urb_entry_read_offset:6; 
-   GLuint pad0:1;
-   GLuint urb_entry_read_length:6; 
-   GLuint pad1:1;
-   GLuint const_urb_entry_read_offset:6; 
-   GLuint pad2:1;
-   GLuint const_urb_entry_read_length:6; 
-   GLuint pad3:1;
+   unsigned int dispatch_grf_start_reg:4; 
+   unsigned int urb_entry_read_offset:6; 
+   unsigned int pad0:1;
+   unsigned int urb_entry_read_length:6; 
+   unsigned int pad1:1;
+   unsigned int const_urb_entry_read_offset:6; 
+   unsigned int pad2:1;
+   unsigned int const_urb_entry_read_length:6; 
+   unsigned int pad3:1;
 };
 
 
@@ -522,43 +520,43 @@ struct brw_clip_unit_state
 
    struct
    {
-      GLuint pad0:9;
-      GLuint gs_output_stats:1; /* not always */
-      GLuint stats_enable:1; 
-      GLuint nr_urb_entries:7; 
-      GLuint pad1:1;
-      GLuint urb_entry_allocation_size:5; 
-      GLuint pad2:1;
-      GLuint max_threads:6; 	/* may be less */
-      GLuint pad3:1;
+      unsigned int pad0:9;
+      unsigned int gs_output_stats:1; /* not always */
+      unsigned int stats_enable:1; 
+      unsigned int nr_urb_entries:7; 
+      unsigned int pad1:1;
+      unsigned int urb_entry_allocation_size:5; 
+      unsigned int pad2:1;
+      unsigned int max_threads:6; 	/* may be less */
+      unsigned int pad3:1;
    } thread4;   
       
    struct
    {
-      GLuint pad0:13;
-      GLuint clip_mode:3; 
-      GLuint userclip_enable_flags:8; 
-      GLuint userclip_must_clip:1; 
-      GLuint pad1:1;
-      GLuint guard_band_enable:1; 
-      GLuint viewport_z_clip_enable:1; 
-      GLuint viewport_xy_clip_enable:1; 
-      GLuint vertex_position_space:1; 
-      GLuint api_mode:1; 
-      GLuint pad2:1;
+      unsigned int pad0:13;
+      unsigned int clip_mode:3; 
+      unsigned int userclip_enable_flags:8; 
+      unsigned int userclip_must_clip:1; 
+      unsigned int pad1:1;
+      unsigned int guard_band_enable:1; 
+      unsigned int viewport_z_clip_enable:1; 
+      unsigned int viewport_xy_clip_enable:1; 
+      unsigned int vertex_position_space:1; 
+      unsigned int api_mode:1; 
+      unsigned int pad2:1;
    } clip5;
    
    struct
    {
-      GLuint pad0:5;
-      GLuint clipper_viewport_state_ptr:27; 
+      unsigned int pad0:5;
+      unsigned int clipper_viewport_state_ptr:27; 
    } clip6;
 
    
-   GLfloat viewport_xmin;  
-   GLfloat viewport_xmax;  
-   GLfloat viewport_ymin;  
-   GLfloat viewport_ymax;  
+   float viewport_xmin;  
+   float viewport_xmax;  
+   float viewport_ymin;  
+   float viewport_ymax;  
 };
 
 
@@ -567,90 +565,90 @@ struct brw_cc_unit_state
 {
    struct
    {
-      GLuint pad0:3;
-      GLuint bf_stencil_pass_depth_pass_op:3; 
-      GLuint bf_stencil_pass_depth_fail_op:3; 
-      GLuint bf_stencil_fail_op:3; 
-      GLuint bf_stencil_func:3; 
-      GLuint bf_stencil_enable:1; 
-      GLuint pad1:2;
-      GLuint stencil_write_enable:1; 
-      GLuint stencil_pass_depth_pass_op:3; 
-      GLuint stencil_pass_depth_fail_op:3; 
-      GLuint stencil_fail_op:3; 
-      GLuint stencil_func:3; 
-      GLuint stencil_enable:1; 
+      unsigned int pad0:3;
+      unsigned int bf_stencil_pass_depth_pass_op:3; 
+      unsigned int bf_stencil_pass_depth_fail_op:3; 
+      unsigned int bf_stencil_fail_op:3; 
+      unsigned int bf_stencil_func:3; 
+      unsigned int bf_stencil_enable:1; 
+      unsigned int pad1:2;
+      unsigned int stencil_write_enable:1; 
+      unsigned int stencil_pass_depth_pass_op:3; 
+      unsigned int stencil_pass_depth_fail_op:3; 
+      unsigned int stencil_fail_op:3; 
+      unsigned int stencil_func:3; 
+      unsigned int stencil_enable:1; 
    } cc0;
 
    
    struct
    {
-      GLuint bf_stencil_ref:8; 
-      GLuint stencil_write_mask:8; 
-      GLuint stencil_test_mask:8; 
-      GLuint stencil_ref:8; 
+      unsigned int bf_stencil_ref:8; 
+      unsigned int stencil_write_mask:8; 
+      unsigned int stencil_test_mask:8; 
+      unsigned int stencil_ref:8; 
    } cc1;
 
    
    struct
    {
-      GLuint logicop_enable:1; 
-      GLuint pad0:10;
-      GLuint depth_write_enable:1; 
-      GLuint depth_test_function:3; 
-      GLuint depth_test:1; 
-      GLuint bf_stencil_write_mask:8; 
-      GLuint bf_stencil_test_mask:8; 
+      unsigned int logicop_enable:1; 
+      unsigned int pad0:10;
+      unsigned int depth_write_enable:1; 
+      unsigned int depth_test_function:3; 
+      unsigned int depth_test:1; 
+      unsigned int bf_stencil_write_mask:8; 
+      unsigned int bf_stencil_test_mask:8; 
    } cc2;
 
    
    struct
    {
-      GLuint pad0:8;
-      GLuint alpha_test_func:3; 
-      GLuint alpha_test:1; 
-      GLuint blend_enable:1; 
-      GLuint ia_blend_enable:1; 
-      GLuint pad1:1;
-      GLuint alpha_test_format:1;
-      GLuint pad2:16;
+      unsigned int pad0:8;
+      unsigned int alpha_test_func:3; 
+      unsigned int alpha_test:1; 
+      unsigned int blend_enable:1; 
+      unsigned int ia_blend_enable:1; 
+      unsigned int pad1:1;
+      unsigned int alpha_test_format:1;
+      unsigned int pad2:16;
    } cc3;
    
    struct
    {
-      GLuint pad0:5; 
-      GLuint cc_viewport_state_offset:27; 
+      unsigned int pad0:5; 
+      unsigned int cc_viewport_state_offset:27; 
    } cc4;
    
    struct
    {
-      GLuint pad0:2;
-      GLuint ia_dest_blend_factor:5; 
-      GLuint ia_src_blend_factor:5; 
-      GLuint ia_blend_function:3; 
-      GLuint statistics_enable:1; 
-      GLuint logicop_func:4; 
-      GLuint pad1:11;
-      GLuint dither_enable:1; 
+      unsigned int pad0:2;
+      unsigned int ia_dest_blend_factor:5; 
+      unsigned int ia_src_blend_factor:5; 
+      unsigned int ia_blend_function:3; 
+      unsigned int statistics_enable:1; 
+      unsigned int logicop_func:4; 
+      unsigned int pad1:11;
+      unsigned int dither_enable:1; 
    } cc5;
 
    struct
    {
-      GLuint clamp_post_alpha_blend:1; 
-      GLuint clamp_pre_alpha_blend:1; 
-      GLuint clamp_range:2; 
-      GLuint pad0:11;
-      GLuint y_dither_offset:2; 
-      GLuint x_dither_offset:2; 
-      GLuint dest_blend_factor:5; 
-      GLuint src_blend_factor:5; 
-      GLuint blend_function:3; 
+      unsigned int clamp_post_alpha_blend:1; 
+      unsigned int clamp_pre_alpha_blend:1; 
+      unsigned int clamp_range:2; 
+      unsigned int pad0:11;
+      unsigned int y_dither_offset:2; 
+      unsigned int x_dither_offset:2; 
+      unsigned int dest_blend_factor:5; 
+      unsigned int src_blend_factor:5; 
+      unsigned int blend_function:3; 
    } cc6;
 
    struct {
       union {
-	 GLfloat f;  
-	 GLubyte ub[4];
+	 float f;  
+	 unsigned byte ub[4];
       } alpha_ref;
    } cc7;
 };
@@ -661,18 +659,18 @@ struct brw_sf_unit_state
 {
    struct thread0 thread0;
    struct {
-      GLuint pad0:7;
-      GLuint sw_exception_enable:1; 
-      GLuint pad1:3;
-      GLuint mask_stack_exception_enable:1; 
-      GLuint pad2:1;
-      GLuint illegal_op_exception_enable:1; 
-      GLuint pad3:2;
-      GLuint floating_point_mode:1; 
-      GLuint thread_priority:1; 
-      GLuint binding_table_entry_count:8; 
-      GLuint pad4:5;
-      GLuint single_program_flow:1; 
+      unsigned int pad0:7;
+      unsigned int sw_exception_enable:1; 
+      unsigned int pad1:3;
+      unsigned int mask_stack_exception_enable:1; 
+      unsigned int pad2:1;
+      unsigned int illegal_op_exception_enable:1; 
+      unsigned int pad3:2;
+      unsigned int floating_point_mode:1; 
+      unsigned int thread_priority:1; 
+      unsigned int binding_table_entry_count:8; 
+      unsigned int pad4:5;
+      unsigned int single_program_flow:1; 
    } sf1;
    
    struct thread2 thread2;
@@ -680,51 +678,51 @@ struct brw_sf_unit_state
 
    struct
    {
-      GLuint pad0:10;
-      GLuint stats_enable:1; 
-      GLuint nr_urb_entries:7; 
-      GLuint pad1:1;
-      GLuint urb_entry_allocation_size:5; 
-      GLuint pad2:1;
-      GLuint max_threads:6; 
-      GLuint pad3:1;
+      unsigned int pad0:10;
+      unsigned int stats_enable:1; 
+      unsigned int nr_urb_entries:7; 
+      unsigned int pad1:1;
+      unsigned int urb_entry_allocation_size:5; 
+      unsigned int pad2:1;
+      unsigned int max_threads:6; 
+      unsigned int pad3:1;
    } thread4;   
 
    struct
    {
-      GLuint front_winding:1; 
-      GLuint viewport_transform:1; 
-      GLuint pad0:3;
-      GLuint sf_viewport_state_offset:27; 
+      unsigned int front_winding:1; 
+      unsigned int viewport_transform:1; 
+      unsigned int pad0:3;
+      unsigned int sf_viewport_state_offset:27; 
    } sf5;
    
    struct
    {
-      GLuint pad0:9;
-      GLuint dest_org_vbias:4; 
-      GLuint dest_org_hbias:4; 
-      GLuint scissor:1; 
-      GLuint disable_2x2_trifilter:1; 
-      GLuint disable_zero_pix_trifilter:1; 
-      GLuint point_rast_rule:2; 
-      GLuint line_endcap_aa_region_width:2; 
-      GLuint line_width:4; 
-      GLuint fast_scissor_disable:1; 
-      GLuint cull_mode:2; 
-      GLuint aa_enable:1; 
+      unsigned int pad0:9;
+      unsigned int dest_org_vbias:4; 
+      unsigned int dest_org_hbias:4; 
+      unsigned int scissor:1; 
+      unsigned int disable_2x2_trifilter:1; 
+      unsigned int disable_zero_pix_trifilter:1; 
+      unsigned int point_rast_rule:2; 
+      unsigned int line_endcap_aa_region_width:2; 
+      unsigned int line_width:4; 
+      unsigned int fast_scissor_disable:1; 
+      unsigned int cull_mode:2; 
+      unsigned int aa_enable:1; 
    } sf6;
 
    struct
    {
-      GLuint point_size:11; 
-      GLuint use_point_size_state:1; 
-      GLuint subpixel_precision:1; 
-      GLuint sprite_point:1; 
-      GLuint pad0:11;
-      GLuint trifan_pv:2; 
-      GLuint linestrip_pv:2; 
-      GLuint tristrip_pv:2; 
-      GLuint line_last_pixel_enable:1; 
+      unsigned int point_size:11; 
+      unsigned int use_point_size_state:1; 
+      unsigned int subpixel_precision:1; 
+      unsigned int sprite_point:1; 
+      unsigned int pad0:11;
+      unsigned int trifan_pv:2; 
+      unsigned int linestrip_pv:2; 
+      unsigned int tristrip_pv:2; 
+      unsigned int line_last_pixel_enable:1; 
    } sf7;
 
 };
@@ -739,30 +737,30 @@ struct brw_gs_unit_state
 
    struct
    {
-      GLuint pad0:10;
-      GLuint stats_enable:1; 
-      GLuint nr_urb_entries:7; 
-      GLuint pad1:1;
-      GLuint urb_entry_allocation_size:5; 
-      GLuint pad2:1;
-      GLuint max_threads:1; 
-      GLuint pad3:6;
+      unsigned int pad0:10;
+      unsigned int stats_enable:1; 
+      unsigned int nr_urb_entries:7; 
+      unsigned int pad1:1;
+      unsigned int urb_entry_allocation_size:5; 
+      unsigned int pad2:1;
+      unsigned int max_threads:1; 
+      unsigned int pad3:6;
    } thread4;   
       
    struct
    {
-      GLuint sampler_count:3; 
-      GLuint pad0:2;
-      GLuint sampler_state_pointer:27; 
+      unsigned int sampler_count:3; 
+      unsigned int pad0:2;
+      unsigned int sampler_state_pointer:27; 
    } gs5;
 
    
    struct
    {
-      GLuint max_vp_index:4; 
-      GLuint pad0:26;
-      GLuint reorder_enable:1; 
-      GLuint pad1:1;
+      unsigned int max_vp_index:4; 
+      unsigned int pad0:26;
+      unsigned int reorder_enable:1; 
+      unsigned int pad1:1;
    } gs6;
 };
 
@@ -776,28 +774,28 @@ struct brw_vs_unit_state
    
    struct
    {
-      GLuint pad0:10;
-      GLuint stats_enable:1; 
-      GLuint nr_urb_entries:7; 
-      GLuint pad1:1;
-      GLuint urb_entry_allocation_size:5; 
-      GLuint pad2:1;
-      GLuint max_threads:4; 
-      GLuint pad3:3;
+      unsigned int pad0:10;
+      unsigned int stats_enable:1; 
+      unsigned int nr_urb_entries:7; 
+      unsigned int pad1:1;
+      unsigned int urb_entry_allocation_size:5; 
+      unsigned int pad2:1;
+      unsigned int max_threads:4; 
+      unsigned int pad3:3;
    } thread4;   
 
    struct
    {
-      GLuint sampler_count:3; 
-      GLuint pad0:2;
-      GLuint sampler_state_pointer:27; 
+      unsigned int sampler_count:3; 
+      unsigned int pad0:2;
+      unsigned int sampler_state_pointer:27; 
    } vs5;
 
    struct
    {
-      GLuint vs_enable:1; 
-      GLuint vert_cache_disable:1; 
-      GLuint pad0:30;
+      unsigned int vs_enable:1; 
+      unsigned int vert_cache_disable:1; 
+      unsigned int pad0:30;
    } vs6;
 };
 
@@ -810,41 +808,41 @@ struct brw_wm_unit_state
    struct thread3 thread3;
    
    struct {
-      GLuint stats_enable:1; 
-      GLuint pad0:1;
-      GLuint sampler_count:3; 
-      GLuint sampler_state_pointer:27; 
+      unsigned int stats_enable:1; 
+      unsigned int pad0:1;
+      unsigned int sampler_count:3; 
+      unsigned int sampler_state_pointer:27; 
    } wm4;
    
    struct
    {
-      GLuint enable_8_pix:1; 
-      GLuint enable_16_pix:1; 
-      GLuint enable_32_pix:1; 
-      GLuint pad0:7;
-      GLuint legacy_global_depth_bias:1; 
-      GLuint line_stipple:1; 
-      GLuint depth_offset:1; 
-      GLuint polygon_stipple:1; 
-      GLuint line_aa_region_width:2; 
-      GLuint line_endcap_aa_region_width:2; 
-      GLuint early_depth_test:1; 
-      GLuint thread_dispatch_enable:1; 
-      GLuint program_uses_depth:1; 
-      GLuint program_computes_depth:1; 
-      GLuint program_uses_killpixel:1; 
-      GLuint legacy_line_rast: 1; 
-      GLuint pad1:1; 
-      GLuint max_threads:6; 
-      GLuint pad2:1;
+      unsigned int enable_8_pix:1; 
+      unsigned int enable_16_pix:1; 
+      unsigned int enable_32_pix:1; 
+      unsigned int pad0:7;
+      unsigned int legacy_global_depth_bias:1; 
+      unsigned int line_stipple:1; 
+      unsigned int depth_offset:1; 
+      unsigned int polygon_stipple:1; 
+      unsigned int line_aa_region_width:2; 
+      unsigned int line_endcap_aa_region_width:2; 
+      unsigned int early_depth_test:1; 
+      unsigned int thread_dispatch_enable:1; 
+      unsigned int program_uses_depth:1; 
+      unsigned int program_computes_depth:1; 
+      unsigned int program_uses_killpixel:1; 
+      unsigned int legacy_line_rast: 1; 
+      unsigned int pad1:1; 
+      unsigned int max_threads:6; 
+      unsigned int pad2:1;
    } wm5;
    
-   GLfloat global_depth_offset_constant;  
-   GLfloat global_depth_offset_scale;   
+   float global_depth_offset_constant;  
+   float global_depth_offset_scale;   
 };
 
 struct brw_sampler_default_color {
-   GLfloat color[4];
+   float color[4];
 };
 
 struct brw_sampler_state
@@ -852,79 +850,79 @@ struct brw_sampler_state
    
    struct
    {
-      GLuint shadow_function:3; 
-      GLuint lod_bias:11; 
-      GLuint min_filter:3; 
-      GLuint mag_filter:3; 
-      GLuint mip_filter:2; 
-      GLuint base_level:5; 
-      GLuint pad:1;
-      GLuint lod_preclamp:1; 
-      GLuint default_color_mode:1; 
-      GLuint pad0:1;
-      GLuint disable:1; 
+      unsigned int shadow_function:3; 
+      unsigned int lod_bias:11; 
+      unsigned int min_filter:3; 
+      unsigned int mag_filter:3; 
+      unsigned int mip_filter:2; 
+      unsigned int base_level:5; 
+      unsigned int pad:1;
+      unsigned int lod_preclamp:1; 
+      unsigned int default_color_mode:1; 
+      unsigned int pad0:1;
+      unsigned int disable:1; 
    } ss0;
 
    struct
    {
-      GLuint r_wrap_mode:3; 
-      GLuint t_wrap_mode:3; 
-      GLuint s_wrap_mode:3; 
-      GLuint pad:3;
-      GLuint max_lod:10; 
-      GLuint min_lod:10; 
+      unsigned int r_wrap_mode:3; 
+      unsigned int t_wrap_mode:3; 
+      unsigned int s_wrap_mode:3; 
+      unsigned int pad:3;
+      unsigned int max_lod:10; 
+      unsigned int min_lod:10; 
    } ss1;
 
    
    struct
    {
-      GLuint pad:5;
-      GLuint default_color_pointer:27; 
+      unsigned int pad:5;
+      unsigned int default_color_pointer:27; 
    } ss2;
    
    struct
    {
-      GLuint pad:19;
-      GLuint max_aniso:3; 
-      GLuint chroma_key_mode:1; 
-      GLuint chroma_key_index:2; 
-      GLuint chroma_key_enable:1; 
-      GLuint monochrome_filter_width:3; 
-      GLuint monochrome_filter_height:3; 
+      unsigned int pad:19;
+      unsigned int max_aniso:3; 
+      unsigned int chroma_key_mode:1; 
+      unsigned int chroma_key_index:2; 
+      unsigned int chroma_key_enable:1; 
+      unsigned int monochrome_filter_width:3; 
+      unsigned int monochrome_filter_height:3; 
    } ss3;
 };
 
 
 struct brw_clipper_viewport
 {
-   GLfloat xmin;  
-   GLfloat xmax;  
-   GLfloat ymin;  
-   GLfloat ymax;  
+   float xmin;  
+   float xmax;  
+   float ymin;  
+   float ymax;  
 };
 
 struct brw_cc_viewport
 {
-   GLfloat min_depth;  
-   GLfloat max_depth;  
+   float min_depth;  
+   float max_depth;  
 };
 
 struct brw_sf_viewport
 {
    struct {
-      GLfloat m00;  
-      GLfloat m11;  
-      GLfloat m22;  
-      GLfloat m30;  
-      GLfloat m31;  
-      GLfloat m32;  
+      float m00;  
+      float m11;  
+      float m22;  
+      float m30;  
+      float m31;  
+      float m32;  
    } viewport;
 
    struct {
-      GLshort xmin;
-      GLshort ymin;
-      GLshort xmax;
-      GLshort ymax;
+      short xmin;
+      short ymin;
+      short xmax;
+      short ymax;
    } scissor;
 };
 
@@ -933,51 +931,51 @@ struct brw_sf_viewport
 struct brw_surface_state
 {
    struct {
-      GLuint cube_pos_z:1; 
-      GLuint cube_neg_z:1; 
-      GLuint cube_pos_y:1; 
-      GLuint cube_neg_y:1; 
-      GLuint cube_pos_x:1; 
-      GLuint cube_neg_x:1; 
-      GLuint pad:3;
-      GLuint render_cache_read_mode:1;
-      GLuint mipmap_layout_mode:1; 
-      GLuint vert_line_stride_ofs:1; 
-      GLuint vert_line_stride:1; 
-      GLuint color_blend:1; 
-      GLuint writedisable_blue:1; 
-      GLuint writedisable_green:1; 
-      GLuint writedisable_red:1; 
-      GLuint writedisable_alpha:1; 
-      GLuint surface_format:9; 
-      GLuint data_return_format:1; 
-      GLuint pad0:1;
-      GLuint surface_type:3; 
+      unsigned int cube_pos_z:1; 
+      unsigned int cube_neg_z:1; 
+      unsigned int cube_pos_y:1; 
+      unsigned int cube_neg_y:1; 
+      unsigned int cube_pos_x:1; 
+      unsigned int cube_neg_x:1; 
+      unsigned int pad:3;
+      unsigned int render_cache_read_mode:1;
+      unsigned int mipmap_layout_mode:1; 
+      unsigned int vert_line_stride_ofs:1; 
+      unsigned int vert_line_stride:1; 
+      unsigned int color_blend:1; 
+      unsigned int writedisable_blue:1; 
+      unsigned int writedisable_green:1; 
+      unsigned int writedisable_red:1; 
+      unsigned int writedisable_alpha:1; 
+      unsigned int surface_format:9; 
+      unsigned int data_return_format:1; 
+      unsigned int pad0:1;
+      unsigned int surface_type:3; 
    } ss0;
    
    struct {
-      GLuint base_addr;  
+      unsigned int base_addr;  
    } ss1;
    
    struct {
-      GLuint render_target_rotation:2;
-      GLuint mip_count:4; 
-      GLuint width:13; 
-      GLuint height:13; 
+      unsigned int render_target_rotation:2;
+      unsigned int mip_count:4; 
+      unsigned int width:13; 
+      unsigned int height:13; 
    } ss2;
 
    struct {
-      GLuint tile_walk:1; 
-      GLuint tiled_surface:1; 
-      GLuint pad:1; 
-      GLuint pitch:18; 
-      GLuint depth:11; 
+      unsigned int tile_walk:1; 
+      unsigned int tiled_surface:1; 
+      unsigned int pad:1; 
+      unsigned int pitch:18; 
+      unsigned int depth:11; 
    } ss3;
    
    struct {
-      GLuint pad:19;
-      GLuint min_array_elt:9; 
-      GLuint min_lod:4; 
+      unsigned int pad:19;
+      unsigned int min_array_elt:9; 
+      unsigned int min_lod:4; 
    } ss4;
 };
 
@@ -986,16 +984,16 @@ struct brw_surface_state
 struct brw_vertex_buffer_state
 {
    struct {
-      GLuint pitch:11; 
-      GLuint pad:15;
-      GLuint access_type:1; 
-      GLuint vb_index:5; 
+      unsigned int pitch:11; 
+      unsigned int pad:15;
+      unsigned int access_type:1; 
+      unsigned int vb_index:5; 
    } vb0;
    
-   GLuint start_addr; 
-   GLuint max_index;   
+   unsigned int start_addr; 
+   unsigned int max_index;   
 #if 1
-   GLuint instance_data_step_rate; /* not included for sequential/random vertices? */
+   unsigned int instance_data_step_rate; /* not included for sequential/random vertices? */
 #endif
 };
 
@@ -1011,22 +1009,22 @@ struct brw_vertex_element_state
 {
    struct
    {
-      GLuint src_offset:11; 
-      GLuint pad:5;
-      GLuint src_format:9; 
-      GLuint pad0:1;
-      GLuint valid:1; 
-      GLuint vertex_buffer_index:5; 
+      unsigned int src_offset:11; 
+      unsigned int pad:5;
+      unsigned int src_format:9; 
+      unsigned int pad0:1;
+      unsigned int valid:1; 
+      unsigned int vertex_buffer_index:5; 
    } ve0;
    
    struct
    {
-      GLuint dst_offset:8; 
-      GLuint pad:8;
-      GLuint vfcomponent3:4; 
-      GLuint vfcomponent2:4; 
-      GLuint vfcomponent1:4; 
-      GLuint vfcomponent0:4; 
+      unsigned int dst_offset:8; 
+      unsigned int pad:8;
+      unsigned int vfcomponent3:4; 
+      unsigned int vfcomponent2:4; 
+      unsigned int vfcomponent1:4; 
+      unsigned int vfcomponent0:4; 
    } ve1;
 };
 
@@ -1039,18 +1037,18 @@ struct brw_vertex_element_packet {
 
 
 struct brw_urb_immediate {
-   GLuint opcode:4;
-   GLuint offset:6;
-   GLuint swizzle_control:2; 
-   GLuint pad:1;
-   GLuint allocate:1;
-   GLuint used:1;
-   GLuint complete:1;
-   GLuint response_length:4;
-   GLuint msg_length:4;
-   GLuint msg_target:4;
-   GLuint pad1:3;
-   GLuint end_of_thread:1;
+   unsigned int opcode:4;
+   unsigned int offset:6;
+   unsigned int swizzle_control:2; 
+   unsigned int pad:1;
+   unsigned int allocate:1;
+   unsigned int used:1;
+   unsigned int complete:1;
+   unsigned int response_length:4;
+   unsigned int msg_length:4;
+   unsigned int msg_target:4;
+   unsigned int pad1:3;
+   unsigned int end_of_thread:1;
 };
 
 /* Instruction format for the execution units:
@@ -1060,79 +1058,79 @@ struct brw_instruction
 {
    struct 
    {
-      GLuint opcode:7;
-      GLuint pad:1;
-      GLuint access_mode:1;
-      GLuint mask_control:1;
-      GLuint dependency_control:2;
-      GLuint compression_control:2;
-      GLuint thread_control:2;
-      GLuint predicate_control:4;
-      GLuint predicate_inverse:1;
-      GLuint execution_size:3;
-      GLuint destreg__conditonalmod:4; /* destreg - send, conditionalmod - others */
-      GLuint pad0:2;
-      GLuint debug_control:1;
-      GLuint saturate:1;
+      unsigned int opcode:7;
+      unsigned int pad:1;
+      unsigned int access_mode:1;
+      unsigned int mask_control:1;
+      unsigned int dependency_control:2;
+      unsigned int compression_control:2;
+      unsigned int thread_control:2;
+      unsigned int predicate_control:4;
+      unsigned int predicate_inverse:1;
+      unsigned int execution_size:3;
+      unsigned int destreg__conditonalmod:4; /* destreg - send, conditionalmod - others */
+      unsigned int pad0:2;
+      unsigned int debug_control:1;
+      unsigned int saturate:1;
    } header;
 
    union {
       struct
       {
-	 GLuint dest_reg_file:2;
-	 GLuint dest_reg_type:3;
-	 GLuint src0_reg_file:2;
-	 GLuint src0_reg_type:3;
-	 GLuint src1_reg_file:2;
-	 GLuint src1_reg_type:3;
-	 GLuint pad:1;
-	 GLuint dest_subreg_nr:5;
-	 GLuint dest_reg_nr:8;
-	 GLuint dest_horiz_stride:2;
-	 GLuint dest_address_mode:1;
+	 unsigned int dest_reg_file:2;
+	 unsigned int dest_reg_type:3;
+	 unsigned int src0_reg_file:2;
+	 unsigned int src0_reg_type:3;
+	 unsigned int src1_reg_file:2;
+	 unsigned int src1_reg_type:3;
+	 unsigned int pad:1;
+	 unsigned int dest_subreg_nr:5;
+	 unsigned int dest_reg_nr:8;
+	 unsigned int dest_horiz_stride:2;
+	 unsigned int dest_address_mode:1;
       } da1;
 
       struct
       {
-	 GLuint dest_reg_file:2;
-	 GLuint dest_reg_type:3;
-	 GLuint src0_reg_file:2;
-	 GLuint src0_reg_type:3;
-	 GLuint pad:6;
-	 GLint dest_indirect_offset:10;	/* offset against the deref'd address reg */
-	 GLuint dest_subreg_nr:3; /* subnr for the address reg a0.x */
-	 GLuint dest_horiz_stride:2;
-	 GLuint dest_address_mode:1;
+	 unsigned int dest_reg_file:2;
+	 unsigned int dest_reg_type:3;
+	 unsigned int src0_reg_file:2;
+	 unsigned int src0_reg_type:3;
+	 unsigned int pad:6;
+	 int dest_indirect_offset:10;	/* offset against the deref'd address reg */
+	 unsigned int dest_subreg_nr:3; /* subnr for the address reg a0.x */
+	 unsigned int dest_horiz_stride:2;
+	 unsigned int dest_address_mode:1;
       } ia1;
 
       struct
       {
-	 GLuint dest_reg_file:2;
-	 GLuint dest_reg_type:3;
-	 GLuint src0_reg_file:2;
-	 GLuint src0_reg_type:3;
-	 GLuint src1_reg_file:2;
-	 GLuint src1_reg_type:3;
-	 GLuint pad0:1;
-	 GLuint dest_writemask:4;
-	 GLuint dest_subreg_nr:1;
-	 GLuint dest_reg_nr:8;
-	 GLuint pad1:2;
-	 GLuint dest_address_mode:1;
+	 unsigned int dest_reg_file:2;
+	 unsigned int dest_reg_type:3;
+	 unsigned int src0_reg_file:2;
+	 unsigned int src0_reg_type:3;
+	 unsigned int src1_reg_file:2;
+	 unsigned int src1_reg_type:3;
+	 unsigned int pad0:1;
+	 unsigned int dest_writemask:4;
+	 unsigned int dest_subreg_nr:1;
+	 unsigned int dest_reg_nr:8;
+	 unsigned int pad1:2;
+	 unsigned int dest_address_mode:1;
       } da16;
 
       struct
       {
-	 GLuint dest_reg_file:2;
-	 GLuint dest_reg_type:3;
-	 GLuint src0_reg_file:2;
-	 GLuint src0_reg_type:3;
-	 GLuint pad0:6;
-	 GLuint dest_writemask:4;
-	 GLint dest_indirect_offset:6;
-	 GLuint dest_subreg_nr:3;
-	 GLuint pad1:2;
-	 GLuint dest_address_mode:1;
+	 unsigned int dest_reg_file:2;
+	 unsigned int dest_reg_type:3;
+	 unsigned int src0_reg_file:2;
+	 unsigned int src0_reg_type:3;
+	 unsigned int pad0:6;
+	 unsigned int dest_writemask:4;
+	 int dest_indirect_offset:6;
+	 unsigned int dest_subreg_nr:3;
+	 unsigned int pad1:2;
+	 unsigned int dest_address_mode:1;
       } ia16;
    } bits1;
 
@@ -1140,64 +1138,64 @@ struct brw_instruction
    union {
       struct
       {
-	 GLuint src0_subreg_nr:5;
-	 GLuint src0_reg_nr:8;
-	 GLuint src0_abs:1;
-	 GLuint src0_negate:1;
-	 GLuint src0_address_mode:1;
-	 GLuint src0_horiz_stride:2;
-	 GLuint src0_width:3;
-	 GLuint src0_vert_stride:4;
-	 GLuint flag_reg_nr:1;
-	 GLuint pad:6;
+	 unsigned int src0_subreg_nr:5;
+	 unsigned int src0_reg_nr:8;
+	 unsigned int src0_abs:1;
+	 unsigned int src0_negate:1;
+	 unsigned int src0_address_mode:1;
+	 unsigned int src0_horiz_stride:2;
+	 unsigned int src0_width:3;
+	 unsigned int src0_vert_stride:4;
+	 unsigned int flag_reg_nr:1;
+	 unsigned int pad:6;
       } da1;
 
       struct
       {
-	 GLint src0_indirect_offset:10;
-	 GLuint src0_subreg_nr:3;
-	 GLuint src0_abs:1;
-	 GLuint src0_negate:1;
-	 GLuint src0_address_mode:1;
-	 GLuint src0_horiz_stride:2;
-	 GLuint src0_width:3;
-	 GLuint src0_vert_stride:4;
-	 GLuint flag_reg_nr:1;
-	 GLuint pad:6;	
+	 int src0_indirect_offset:10;
+	 unsigned int src0_subreg_nr:3;
+	 unsigned int src0_abs:1;
+	 unsigned int src0_negate:1;
+	 unsigned int src0_address_mode:1;
+	 unsigned int src0_horiz_stride:2;
+	 unsigned int src0_width:3;
+	 unsigned int src0_vert_stride:4;
+	 unsigned int flag_reg_nr:1;
+	 unsigned int pad:6;	
       } ia1;
 
       struct
       {
-	 GLuint src0_swz_x:2;
-	 GLuint src0_swz_y:2;
-	 GLuint src0_subreg_nr:1;
-	 GLuint src0_reg_nr:8;
-	 GLuint src0_abs:1;
-	 GLuint src0_negate:1;
-	 GLuint src0_address_mode:1;
-	 GLuint src0_swz_z:2;
-	 GLuint src0_swz_w:2;
-	 GLuint pad0:1;
-	 GLuint src0_vert_stride:4;
-	 GLuint flag_reg_nr:1;
-	 GLuint pad1:6;
+	 unsigned int src0_swz_x:2;
+	 unsigned int src0_swz_y:2;
+	 unsigned int src0_subreg_nr:1;
+	 unsigned int src0_reg_nr:8;
+	 unsigned int src0_abs:1;
+	 unsigned int src0_negate:1;
+	 unsigned int src0_address_mode:1;
+	 unsigned int src0_swz_z:2;
+	 unsigned int src0_swz_w:2;
+	 unsigned int pad0:1;
+	 unsigned int src0_vert_stride:4;
+	 unsigned int flag_reg_nr:1;
+	 unsigned int pad1:6;
       } da16;
 
       struct
       {
-	 GLuint src0_swz_x:2;
-	 GLuint src0_swz_y:2;
-	 GLint src0_indirect_offset:6;
-	 GLuint src0_subreg_nr:3;
-	 GLuint src0_abs:1;
-	 GLuint src0_negate:1;
-	 GLuint src0_address_mode:1;
-	 GLuint src0_swz_z:2;
-	 GLuint src0_swz_w:2;
-	 GLuint pad0:1;
-	 GLuint src0_vert_stride:4;
-	 GLuint flag_reg_nr:1;
-	 GLuint pad1:6;
+	 unsigned int src0_swz_x:2;
+	 unsigned int src0_swz_y:2;
+	 int src0_indirect_offset:6;
+	 unsigned int src0_subreg_nr:3;
+	 unsigned int src0_abs:1;
+	 unsigned int src0_negate:1;
+	 unsigned int src0_address_mode:1;
+	 unsigned int src0_swz_z:2;
+	 unsigned int src0_swz_w:2;
+	 unsigned int pad0:1;
+	 unsigned int src0_vert_stride:4;
+	 unsigned int flag_reg_nr:1;
+	 unsigned int pad1:6;
       } ia16;
 
    } bits2;
@@ -1206,135 +1204,135 @@ struct brw_instruction
    {
       struct
       {
-	 GLuint src1_subreg_nr:5;
-	 GLuint src1_reg_nr:8;
-	 GLuint src1_abs:1;
-	 GLuint src1_negate:1;
-	 GLuint pad:1;
-	 GLuint src1_horiz_stride:2;
-	 GLuint src1_width:3;
-	 GLuint src1_vert_stride:4;
-	 GLuint pad0:7;
+	 unsigned int src1_subreg_nr:5;
+	 unsigned int src1_reg_nr:8;
+	 unsigned int src1_abs:1;
+	 unsigned int src1_negate:1;
+	 unsigned int pad:1;
+	 unsigned int src1_horiz_stride:2;
+	 unsigned int src1_width:3;
+	 unsigned int src1_vert_stride:4;
+	 unsigned int pad0:7;
       } da1;
 
       struct
       {
-	 GLuint src1_swz_x:2;
-	 GLuint src1_swz_y:2;
-	 GLuint src1_subreg_nr:1;
-	 GLuint src1_reg_nr:8;
-	 GLuint src1_abs:1;
-	 GLuint src1_negate:1;
-	 GLuint pad0:1;
-	 GLuint src1_swz_z:2;
-	 GLuint src1_swz_w:2;
-	 GLuint pad1:1;
-	 GLuint src1_vert_stride:4;
-	 GLuint pad2:7;
+	 unsigned int src1_swz_x:2;
+	 unsigned int src1_swz_y:2;
+	 unsigned int src1_subreg_nr:1;
+	 unsigned int src1_reg_nr:8;
+	 unsigned int src1_abs:1;
+	 unsigned int src1_negate:1;
+	 unsigned int pad0:1;
+	 unsigned int src1_swz_z:2;
+	 unsigned int src1_swz_w:2;
+	 unsigned int pad1:1;
+	 unsigned int src1_vert_stride:4;
+	 unsigned int pad2:7;
       } da16;
 
       struct
       {
-	 GLint  src1_indirect_offset:10;
-	 GLuint src1_subreg_nr:3;
-	 GLuint src1_abs:1;
-	 GLuint src1_negate:1;
-	 GLuint pad0:1;
-	 GLuint src1_horiz_stride:2;
-	 GLuint src1_width:3;
-	 GLuint src1_vert_stride:4;
-	 GLuint flag_reg_nr:1;
-	 GLuint pad1:6;	
+	 int  src1_indirect_offset:10;
+	 unsigned int src1_subreg_nr:3;
+	 unsigned int src1_abs:1;
+	 unsigned int src1_negate:1;
+	 unsigned int pad0:1;
+	 unsigned int src1_horiz_stride:2;
+	 unsigned int src1_width:3;
+	 unsigned int src1_vert_stride:4;
+	 unsigned int flag_reg_nr:1;
+	 unsigned int pad1:6;	
       } ia1;
 
       struct
       {
-	 GLuint src1_swz_x:2;
-	 GLuint src1_swz_y:2;
-	 GLint  src1_indirect_offset:6;
-	 GLuint src1_subreg_nr:3;
-	 GLuint src1_abs:1;
-	 GLuint src1_negate:1;
-	 GLuint pad0:1;
-	 GLuint src1_swz_z:2;
-	 GLuint src1_swz_w:2;
-	 GLuint pad1:1;
-	 GLuint src1_vert_stride:4;
-	 GLuint flag_reg_nr:1;
-	 GLuint pad2:6;
+	 unsigned int src1_swz_x:2;
+	 unsigned int src1_swz_y:2;
+	 int  src1_indirect_offset:6;
+	 unsigned int src1_subreg_nr:3;
+	 unsigned int src1_abs:1;
+	 unsigned int src1_negate:1;
+	 unsigned int pad0:1;
+	 unsigned int src1_swz_z:2;
+	 unsigned int src1_swz_w:2;
+	 unsigned int pad1:1;
+	 unsigned int src1_vert_stride:4;
+	 unsigned int flag_reg_nr:1;
+	 unsigned int pad2:6;
       } ia16;
 
 
       struct
       {
-	 GLint  jump_count:16;	/* note: signed */
-	 GLuint  pop_count:4;
-	 GLuint  pad0:12;
+	 int  jump_count:16;	/* note: signed */
+	 unsigned int  pop_count:4;
+	 unsigned int  pad0:12;
       } if_else;
 
       struct {
-	 GLuint function:4;
-	 GLuint int_type:1;
-	 GLuint precision:1;
-	 GLuint saturate:1;
-	 GLuint data_type:1;
-	 GLuint pad0:8;
-	 GLuint response_length:4;
-	 GLuint msg_length:4;
-	 GLuint msg_target:4;
-	 GLuint pad1:3;
-	 GLuint end_of_thread:1;
+	 unsigned int function:4;
+	 unsigned int int_type:1;
+	 unsigned int precision:1;
+	 unsigned int saturate:1;
+	 unsigned int data_type:1;
+	 unsigned int pad0:8;
+	 unsigned int response_length:4;
+	 unsigned int msg_length:4;
+	 unsigned int msg_target:4;
+	 unsigned int pad1:3;
+	 unsigned int end_of_thread:1;
       } math;
 
       struct {
-	 GLuint binding_table_index:8;
-	 GLuint sampler:4;
-	 GLuint return_format:2; 
-	 GLuint msg_type:2;   
-	 GLuint response_length:4;
-	 GLuint msg_length:4;
-	 GLuint msg_target:4;
-	 GLuint pad1:3;
-	 GLuint end_of_thread:1;
+	 unsigned int binding_table_index:8;
+	 unsigned int sampler:4;
+	 unsigned int return_format:2; 
+	 unsigned int msg_type:2;   
+	 unsigned int response_length:4;
+	 unsigned int msg_length:4;
+	 unsigned int msg_target:4;
+	 unsigned int pad1:3;
+	 unsigned int end_of_thread:1;
       } sampler;
 
       struct brw_urb_immediate urb;
 
       struct {
-	 GLuint binding_table_index:8;
-	 GLuint msg_control:4;  
-	 GLuint msg_type:2;  
-	 GLuint target_cache:2;    
-	 GLuint response_length:4;
-	 GLuint msg_length:4;
-	 GLuint msg_target:4;
-	 GLuint pad1:3;
-	 GLuint end_of_thread:1;
+	 unsigned int binding_table_index:8;
+	 unsigned int msg_control:4;  
+	 unsigned int msg_type:2;  
+	 unsigned int target_cache:2;    
+	 unsigned int response_length:4;
+	 unsigned int msg_length:4;
+	 unsigned int msg_target:4;
+	 unsigned int pad1:3;
+	 unsigned int end_of_thread:1;
       } dp_read;
 
       struct {
-	 GLuint binding_table_index:8;
-	 GLuint msg_control:3;
-	 GLuint pixel_scoreboard_clear:1;
-	 GLuint msg_type:3;    
-	 GLuint send_commit_msg:1;
-	 GLuint response_length:4;
-	 GLuint msg_length:4;
-	 GLuint msg_target:4;
-	 GLuint pad1:3;
-	 GLuint end_of_thread:1;
+	 unsigned int binding_table_index:8;
+	 unsigned int msg_control:3;
+	 unsigned int pixel_scoreboard_clear:1;
+	 unsigned int msg_type:3;    
+	 unsigned int send_commit_msg:1;
+	 unsigned int response_length:4;
+	 unsigned int msg_length:4;
+	 unsigned int msg_target:4;
+	 unsigned int pad1:3;
+	 unsigned int end_of_thread:1;
       } dp_write;
 
       struct {
-	 GLuint pad:16;
-	 GLuint response_length:4;
-	 GLuint msg_length:4;
-	 GLuint msg_target:4;
-	 GLuint pad1:3;
-	 GLuint end_of_thread:1;
+	 unsigned int pad:16;
+	 unsigned int response_length:4;
+	 unsigned int msg_length:4;
+	 unsigned int msg_target:4;
+	 unsigned int pad1:3;
+	 unsigned int end_of_thread:1;
       } generic;
 
-      GLuint ud;
+      unsigned int ud;
    } bits3;
 };
 
