@@ -648,7 +648,7 @@ struct brw_cc_unit_state
    struct {
       union {
 	 float f;  
-	 unsigned byte ub[4];
+	 unsigned char ub[4];
       } alpha_ref;
    } cc7;
 };
