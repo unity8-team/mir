@@ -134,6 +134,7 @@ void
 I830Sync(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+   int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
    if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
       ErrorF("I830Sync\n");
@@ -148,13 +149,17 @@ I830Sync(ScrnInfoPtr pScrn)
 
    if (pI830->entityPrivate && !pI830->entityPrivate->RingRunning) return;
 
+   if (IS_I965G(pI830))
+      flags = 0;
+
    /* Send a flush instruction and then wait till the ring is empty.
     * This is stronger than waiting for the blitter to finish as it also
     * flushes the internal graphics caches.
     */
+   
    {
       BEGIN_LP_RING(2);
-      OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
+      OUT_RING(MI_FLUSH | flags);
       OUT_RING(MI_NOOP);		/* pad to quadword */
       ADVANCE_LP_RING();
    }
@@ -169,9 +174,13 @@ void
 I830EmitFlush(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+   int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
+
+   if (IS_I965G(pI830))
+      flags = 0;
 
    BEGIN_LP_RING(2);
-   OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
+   OUT_RING(MI_FLUSH | flags);
    OUT_RING(MI_NOOP);		/* pad to quadword */
    ADVANCE_LP_RING();
 }
@@ -233,4 +242,3 @@ I830AccelInit(ScreenPtr pScreen)
 #endif
     return FALSE;
 }
-

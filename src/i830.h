@@ -47,6 +47,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _I830_H_
 #define _I830_H_
 
+#include "xf86_OSproc.h"
 #include "compiler.h"
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
@@ -56,6 +57,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86xv.h"
 #include "xf86int10.h"
 #include "vbe.h"
+#include "vbeModes.h"
 #include "vgaHW.h"
 #include "randrstr.h"
 
@@ -78,6 +80,11 @@ Bool I830XAAInit(ScreenPtr pScreen);
 #endif
 
 #include "common.h"
+
+#define NEED_REPLIES				/* ? */
+#define EXTENSION_PROC_ARGS void *
+#include "extnsionst.h" 			/* required */
+#include <X11/extensions/panoramiXproto.h> 	/* required */
 
 /* I830 Video BIOS support */
 
@@ -102,7 +109,6 @@ typedef struct _VESARec {
    int statePage, stateSize, stateMode, stateRefresh;
    CARD32 *savedPal;
    int savedScanlinePitch;
-   xf86MonPtr monitor;
    /* Don't try to set the refresh rate for any modes. */
    Bool useDefaultRefresh;
    /* display start */
@@ -150,7 +156,7 @@ typedef struct {
 } I830RingBuffer;
 
 typedef struct {
-   unsigned int Fence[8];
+   unsigned int Fence[FENCE_NEW_NR * 2];
 } I830RegRec, *I830RegPtr;
 
 typedef struct {
@@ -163,6 +169,29 @@ typedef struct {
    int            XvInUse;
 #endif
 } I830EntRec, *I830EntPtr;
+
+typedef struct _MergedDisplayModeRec {
+    DisplayModePtr First;
+    DisplayModePtr Second;
+    int    SecondPosition;
+} I830MergedDisplayModeRec, *I830MergedDisplayModePtr;
+
+typedef struct _I830XineramaData {
+    int x;
+    int y;
+    int width;
+    int height;
+} I830XineramaData;
+
+typedef struct _ModePrivateRec {
+    I830MergedDisplayModeRec merged;
+    VbeModeInfoData vbeData;
+} I830ModePrivateRec, *I830ModePrivatePtr;
+
+typedef struct _region {
+    int x0,x1,y0,y1;
+} region;
+
 
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
@@ -229,7 +258,25 @@ typedef struct _I830Rec {
    I830MemRange *OverlayMem;
    I830MemRange LinearMem;
 #endif
-   unsigned int LinearAlloc;
+   int LinearAlloc;
+
+   Bool MergedFB;
+   ScrnInfoPtr pScrn_2;
+   char	*SecondHSync;
+   char	*SecondVRefresh;
+   char	*MetaModes;
+   int SecondPosition;
+   int FirstXOffs, FirstYOffs, SecondXOffs, SecondYOffs;
+   int FirstframeX0, FirstframeX1, FirstframeY0, FirstframeY1;
+   int MBXNR1XMAX, MBXNR1YMAX, MBXNR2XMAX, MBXNR2YMAX;
+   Bool	NonRect, HaveNonRect, HaveOffsRegions, MouseRestrictions;
+   int maxFirst_X1, maxFirst_X2, maxFirst_Y1, maxFirst_Y2;
+   int maxSecond_X1, maxSecond_X2, maxSecond_Y1, maxSecond_Y2;
+   region NonRectDead, OffDead1, OffDead2;
+   Bool	IntelXinerama;
+   Bool	SecondIsScrn0;
+   ExtensionEntry *XineramaExtEntry;
+   int I830XineramaVX, I830XineramaVY;
   
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
    I830MemRange RotatedMem;
@@ -249,6 +296,12 @@ typedef struct _I830Rec {
    int TexGranularity;
    int drmMinor;
    Bool have3DWindows;
+
+   unsigned int front_tiled;
+   unsigned int back_tiled;
+   unsigned int depth_tiled;
+   unsigned int rotated_tiled;
+   unsigned int rotated2_tiled;
 #endif
 
    Bool NeedRingBufferLow;
@@ -397,6 +450,9 @@ typedef struct _I830Rec {
    Bool devicePresence;
 
    OsTimerPtr devicesTimer;
+
+   CARD32 savedAsurf;
+   CARD32 savedBsurf;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -411,6 +467,7 @@ extern int I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis);
 extern void I830SetPIOAccess(I830Ptr pI830);
 extern void I830SetMMIOAccess(I830Ptr pI830);
 extern void I830PrintErrorState(ScrnInfoPtr pScrn);
+extern void I965PrintErrorState(ScrnInfoPtr pScrn);
 extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
 extern Bool I830CursorInit(ScreenPtr pScreen);
@@ -471,8 +528,8 @@ extern long I830GetExcessMemoryAllocations(ScrnInfoPtr pScrn);
 extern Bool I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags);
 extern Bool I830DoPoolAllocation(ScrnInfoPtr pScrn, I830MemPool *pool);
 extern Bool I830FixupOffsets(ScrnInfoPtr pScrn);
-extern Bool I830BindGARTMemory(ScrnInfoPtr pScrn);
-extern Bool I830UnbindGARTMemory(ScrnInfoPtr pScrn);
+extern Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
+extern Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
 extern unsigned long I830AllocVidMem(ScrnInfoPtr pScrn, I830MemRange *result,
 				     I830MemPool *pool, long size,
 				     unsigned long alignment, int flags);
