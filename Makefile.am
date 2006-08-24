@@ -30,4 +30,11 @@ README.r128: README.r128.sgml
 
 endif
 
-EXTRA_DIST = README.ati README.r128 README.ati.sgml README.r128.sgml
+EXTRA_DIST = README.ati README.r128 README.ati.sgml README.r128.sgml ChangeLog
+
+# Always regenerate the changelog
+CLEANFILES = ChangeLog
+ChangeLog: FORCE
+        git-log > ChangeLog
+FORCE:
+
