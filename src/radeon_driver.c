@@ -4475,6 +4475,19 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	return FALSE;
     }
 
+    if (info->Chipset == PCI_CHIP_RS400_5A41 ||
+	info->Chipset == PCI_CHIP_RS400_5A42 ||
+	info->Chipset == PCI_CHIP_RC410_5A61 ||
+	info->Chipset == PCI_CHIP_RC410_5A62 ||
+	info->Chipset == PCI_CHIP_RS480_5954 ||
+	info->Chipset == PCI_CHIP_RS480_5955 ||
+	info->Chipset == PCI_CHIP_RS482_5974 ||
+	info->Chipset == PCI_CHIP_RS482_5975) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Direct rendering broken on XPRESS 200 and 200M\n");
+	return FALSE;
+    }
+
     if (xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "[dri] Acceleration disabled, not initializing the DRI\n");
