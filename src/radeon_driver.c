@@ -4642,15 +4642,12 @@ static void RADEONPreInitColorTiling(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
+    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
+				        OPTION_COLOR_TILING, TRUE);
     if (IS_R300_VARIANT) {
-        /* false by default on R3/4xx */
-        info->allowColorTiling = xf86ReturnOptValBool(info->Options,
-					        OPTION_COLOR_TILING, FALSE);
 	info->MaxSurfaceWidth = 3968; /* one would have thought 4096...*/
 	info->MaxLines = 4096;
     } else {
-        info->allowColorTiling = xf86ReturnOptValBool(info->Options,
-						OPTION_COLOR_TILING, TRUE);
 	info->MaxSurfaceWidth = 2048;
 	info->MaxLines = 2048;
     }
