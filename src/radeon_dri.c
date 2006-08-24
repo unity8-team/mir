@@ -1380,11 +1380,6 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     } else    
     if ( info->ChipFamily >= CHIP_FAMILY_R200 )
        pDRIInfo->clientDriverName	 = R200_DRIVER_NAME;
-    else if ((info->Chipset == PCI_CHIP_RN50_515E) || 
-             (info->Chipset == PCI_CHIP_RN50_5969)) {
-        /* RN50 doesn't support 3D, so setting clientDriverName to an invalid name "RN50" */
-        pDRIInfo->clientDriverName       = "RN50";          
-    }
     else 
        pDRIInfo->clientDriverName	 = RADEON_DRIVER_NAME;
 
