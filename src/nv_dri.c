@@ -1,6 +1,5 @@
-
-#ifdef XF86DRI
 #include "nv_include.h"
+#ifdef XF86DRI
 #define _XF86DRI_SERVER_
 #include "GL/glxint.h"
 #include "sarea.h"
