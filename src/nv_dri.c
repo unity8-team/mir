@@ -169,6 +169,8 @@ Bool NVInitAGP(ScrnInfoPtr pScrn)
     pNv->agpScratchSize = agp_size < 16*0x100000 ? agp_size : 16*0x100000;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			"AGP: aperture is %dMB\n", agp_size>>20);
+	if (agp_size==0)
+		return FALSE;
 
 	alloc.flags     = NOUVEAU_MEM_AGP|NOUVEAU_MEM_MAPPED;
 	alloc.alignment = 0; /* drm will page-align this */
