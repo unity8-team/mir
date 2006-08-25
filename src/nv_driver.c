@@ -396,14 +396,12 @@ static const char *ddcSymbols[] = {
     NULL
 };
 
-#ifdef XFree86LOADER
 static const char *vbeSymbols[] = {
     "VBEInit",
     "vbeFree",
     "vbeDoEDID",
     NULL
 };
-#endif
 
 static const char *i2cSymbols[] = {
     "xf86CreateI2CBusRec",
@@ -497,8 +495,6 @@ const char *driSymbols[] = {
 
 #endif
 
-#ifdef XFree86LOADER
-
 static MODULESETUPPROTO(nvSetup);
 
 static XF86ModuleVersionInfo nvVersRec =
@@ -516,7 +512,6 @@ static XF86ModuleVersionInfo nvVersRec =
 };
 
 _X_EXPORT XF86ModuleData nvModuleData = { &nvVersRec, nvSetup, NULL };
-#endif
 
 
 typedef enum {
@@ -587,8 +582,6 @@ NVFreeRec(ScrnInfoPtr pScrn)
 }
 
 
-#ifdef XFree86LOADER
-
 static pointer
 nvSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 {
@@ -626,9 +619,6 @@ nvSetup(pointer module, pointer opts, int *errmaj, int *errmin)
         return NULL;
     }
 }
-
-
-#endif /* XFree86LOADER */
 
 static const OptionInfoRec *
 NVAvailableOptions(int chipid, int busid)

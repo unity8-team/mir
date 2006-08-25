@@ -111,14 +111,12 @@ static const char *ddcSymbols[] = {
     NULL
 };
 
-#ifdef XFree86LOADER
 static const char *vbeSymbols[] = {
     "VBEInit",
     "vbeFree",
     "vbeDoEDID",
     NULL
 };
-#endif
 
 static const char *i2cSymbols[] = {
     "xf86CreateI2CBusRec",
@@ -162,8 +160,6 @@ static const char *int10Symbols[] = {
 };
 
 
-#ifdef XFree86LOADER
-
 static MODULESETUPPROTO(rivaSetup);
 
 static XF86ModuleVersionInfo rivaVersRec =
@@ -181,8 +177,6 @@ static XF86ModuleVersionInfo rivaVersRec =
 };
 
 _X_EXPORT XF86ModuleData riva128ModuleData = { &rivaVersRec, rivaSetup, NULL };
-#endif
-
 
 typedef enum {
     OPTION_SW_CURSOR,
@@ -249,9 +243,6 @@ RivaFreeRec(ScrnInfoPtr pScrn)
     pScrn->driverPrivate = NULL;
 }
 
-
-#ifdef XFree86LOADER
-
 static pointer
 rivaSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 {
@@ -269,9 +260,6 @@ rivaSetup(pointer module, pointer opts, int *errmaj, int *errmin)
     } 
     return (pointer)1;
 }
-
-
-#endif /* XFree86LOADER */
 
 _X_EXPORT const OptionInfoRec *
 RivaAvailableOptions(int chipid, int busid)
