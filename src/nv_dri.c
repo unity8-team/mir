@@ -1,6 +1,3 @@
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 
 #ifdef XF86DRI
 #include "nv_include.h"

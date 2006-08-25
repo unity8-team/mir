@@ -25,10 +25,6 @@
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_cursor.c $ */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include "riva_include.h"
 
 #include "cursorstr.h"

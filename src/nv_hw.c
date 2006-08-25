@@ -38,10 +38,6 @@
  \***************************************************************************/
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.21 2006/06/16 00:19:33 mvojkovi Exp $ */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include "nv_local.h"
 #include "compiler.h"
 #include "nv_include.h"

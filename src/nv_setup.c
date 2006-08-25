@@ -39,10 +39,6 @@
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_setup.c,v 1.48 2005/09/14 02:28:03 mvojkovi Exp $ */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include "nv_include.h"
 
 /*

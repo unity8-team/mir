@@ -1,9 +1,5 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/riva/riva_dga.c $ */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include "riva_local.h"
 #include "riva_include.h"
 #include "riva_type.h"

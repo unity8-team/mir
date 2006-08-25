@@ -41,10 +41,6 @@
   Exa Modifications (c) Lars Knoll (lars@trolltech.com)
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include "nv_include.h"
 #include "exa.h"
 
