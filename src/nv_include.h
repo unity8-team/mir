@@ -3,13 +3,14 @@
 #ifndef __NV_INCLUDE_H__
 #define __NV_INCLUDE_H__
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #if !USE_LIBC_WRAPPER
 #include <string.h>
 #include <math.h>
-#endif
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <errno.h>
 #endif
 
 /* All drivers should typically include these */
@@ -72,6 +73,7 @@
 #include "nv_type.h"
 #include "nv_proto.h"
 #include "nv_dma.h"
+#include <stdint.h>
 #include "nouveau_drm.h"
 
 #endif /* __NV_INCLUDE_H__ */

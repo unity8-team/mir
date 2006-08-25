@@ -70,7 +70,7 @@ PKG_CHECK_EXISTS([xorg-server >= 1.0.99.901],
                  [AC_DEFINE(USE_LIBC_WRAPPER,1,[Use the libc wrapper])])
 
 # Checks for pkg-config packages
-PKG_CHECK_MODULES(XORG, [xorg-server xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server xproto fontsproto libdrm xf86driproto $REQUIRED_MODULES])
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
 # Checks for libraries.

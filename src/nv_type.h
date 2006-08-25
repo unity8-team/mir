@@ -13,6 +13,7 @@
 #define _XF86DRI_SERVER_
 #include "xf86drm.h"
 #include "dri.h"
+#include <stdint.h>
 #include "nouveau_drm.h"
 #else
 #error "This driver requires a DRI-enabled X server"
