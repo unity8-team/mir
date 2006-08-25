@@ -455,6 +455,8 @@ Bool NVExaInit(ScreenPtr pScreen)
         pNv->NoAccel = TRUE;
         return FALSE;
     }
+    		pNv->EXADriverPtr->exa_major = EXA_VERSION_MAJOR;
+		pNv->EXADriverPtr->exa_minor = EXA_VERSION_MINOR;
 
 		pNv->EXADriverPtr->memoryBase         = pNv->FbStart;
 		pNv->EXADriverPtr->offScreenBase      = pScrn->virtualX*pScrn->virtualY*pScrn->depth; 
