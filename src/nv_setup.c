@@ -402,6 +402,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     pNv->BlendingPossible = ((pNv->Chipset & 0xffff) != CHIPSET_NV04);
 
     /* look for known laptop chips */
+    /* FIXME we could add some ids here (0x0167) */
     switch(pNv->Chipset & 0xffff) {
     case 0x0112:
     case 0x0174:
