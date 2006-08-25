@@ -7,6 +7,8 @@
 Bool   NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
 void   NVAdjustFrame(int scrnIndex, int x, int y, int flags);
 Bool   NVI2CInit(ScrnInfoPtr pScrn);
+NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size);
+void        NVFreeMemory(NVPtr pNv, NVAllocRec *mem);
 
 #ifdef XF86DRI
 Bool NVInitAGP(ScrnInfoPtr pScrn);

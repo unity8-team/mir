@@ -114,6 +114,12 @@ typedef struct _riva_hw_state
     U032 crtcSync;
 } RIVA_HW_STATE, *NVRegPtr;
 
+typedef struct {
+	int type;
+	uint64_t size;
+	uint64_t offset;
+	void *map;
+} NVAllocRec;
 
 typedef struct _NVRec *NVPtr;
 typedef struct _NVRec {
@@ -121,7 +127,6 @@ typedef struct _NVRec {
     RIVA_HW_STATE       ModeReg;
     RIVA_HW_STATE       *CurrentState;
     CARD32              Architecture;
-    CARD32              CursorStart;
     EntityInfoPtr       pEnt;
     pciVideoPtr         PciInfo;
     PCITAG              PciTag;
@@ -129,6 +134,8 @@ typedef struct _NVRec {
     int                 ChipRev;
     Bool                Primary;
     CARD32              IOAddress;
+#if 1
+	/*XXX: To be removed */
     unsigned long       FbAddress;
     unsigned char *     FbBase;
     unsigned char *     FbStart;
@@ -136,6 +143,13 @@ typedef struct _NVRec {
     CARD32              FbUsableSize;
     CARD32              ScratchBufferSize;
     CARD32              ScratchBufferStart;
+//#else /* the replacements */
+	unsigned long       VRAMPhysical;
+	unsigned long		VRAMPhysicalSize;
+	NVAllocRec *        FB;
+	NVAllocRec *        Cursor;
+	NVAllocRec *        ScratchBuffer;
+#endif
     Bool                NoAccel;
     Bool                HWCursor;
     Bool                FpScale;

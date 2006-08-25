@@ -114,6 +114,9 @@ NVDmaKickoff(NVPtr pNv)
     }
 }
 
+static CARD32 getOffset(NVPtr pNv, NVAllocRec *mem) {
+	return (mem->offset - pNv->VRAMPhysical);
+}
 
 /* There is a HW race condition with videoram command buffers.
    You can't jump to the location of your put offset.  We write put
@@ -280,8 +283,8 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
     NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 4);
     NVDmaNext (pNv, surfaceFormat);
     NVDmaNext (pNv, pitch | (pitch << 16));
-    NVDmaNext (pNv, 0);
-    NVDmaNext (pNv, 0);
+    NVDmaNext (pNv, getOffset(pNv, pNv->FB));
+    NVDmaNext (pNv, getOffset(pNv, pNv->FB));
 
     NVDmaStart(pNv, NvSubImagePattern, PATTERN_FORMAT, 1);
     NVDmaNext (pNv, patternFormat);
@@ -588,13 +591,13 @@ NVSubsequentScanlineImageWriteRect(
    _remaining = h;
    _image_dstpitch = pNv->CurrentLayout.displayWidth * Bpp;
    image_srcpitch =  ((w * Bpp) + 63) & ~63;
-   _storage_buffer[0] = pNv->FbStart + pNv->ScratchBufferStart;
+   _storage_buffer[0] = pNv->ScratchBuffer->map;
 
    NVSync(pScrn);
 
    NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_PITCH, 2);
    NVDmaNext (pNv, (_image_dstpitch << 16) | image_srcpitch);
-   NVDmaNext (pNv, pNv->ScratchBufferStart);
+   NVDmaNext (pNv, getOffset(pNv, pNv->ScratchBuffer));
 }
 
 static void NVSubsequentImageWriteScanline(ScrnInfoPtr pScrn, int bufno)
@@ -613,7 +616,7 @@ static void NVSubsequentImageWriteScanline(ScrnInfoPtr pScrn, int bufno)
    } else {
       NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_PITCH, 2);
       NVDmaNext (pNv, _image_dstpitch | (_image_dstpitch << 16));
-      NVDmaNext (pNv, 0);
+      NVDmaNext (pNv, getOffset(pNv, pNv->FB));
    }
 }
 

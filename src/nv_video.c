@@ -49,7 +49,7 @@ typedef struct _NVPortPrivRec {
    Bool         iturbt_709;
    Bool         blitter;
    Bool         SyncToVBlank;
-   FBLinearPtr  linear;
+   NVAllocRec * video_mem;
    int pitch;
    int offset;
 } NVPortPrivRec, *NVPortPrivPtr;
@@ -226,45 +226,27 @@ NVStopOverlay (ScrnInfoPtr pScrnInfo)
     pNv->PMC[0x00008704/4] = 1;
 }
 
-static FBLinearPtr
+static NVAllocRec *
 NVAllocateOverlayMemory(
    ScrnInfoPtr pScrn,
-   FBLinearPtr linear,
+   NVAllocRec *mem,
    int size
 ){
-   ScreenPtr pScreen;
-   FBLinearPtr new_linear;
+   NVPtr pNv = NVPTR(pScrn);
 
-   if(linear) {
-        if(linear->size >= size) 
-           return linear;
-        
-        if(xf86ResizeOffscreenLinear(linear, size))
-           return linear;
+   /* The code assumes the XAA fb manager is being used here,
+	* which allocates in pixels.  We allocate in bytes so we
+	* need to adjust the size here.
+	*/
+   size *= (pScrn->bitsPerPixel >> 3);
 
-        xf86FreeOffscreenLinear(linear);
+   if(mem) {
+        if(mem->size >= size) 
+           return mem;
+		NVFreeMemory(pNv, mem);
    }
 
-   pScreen = screenInfo.screens[pScrn->scrnIndex];
-
-   new_linear = xf86AllocateOffscreenLinear(pScreen, size, 32, 
-                                                NULL, NULL, NULL);
-
-   if(!new_linear) {
-        int max_size;
-
-        xf86QueryLargestOffscreenLinear(pScreen, &max_size, 32, 
-                                                PRIORITY_EXTREME);
-        
-        if(max_size < size)
-           return NULL;
-
-        xf86PurgeUnlockedOffscreenAreas(pScreen);
-        new_linear = xf86AllocateOffscreenLinear(pScreen, size, 32, 
-                                                NULL, NULL, NULL);
-   }
-
-   return new_linear;
+   return NVAllocateMemory(pNv, NOUVEAU_MEM_FB, size); /* align 32? */
 }
 
 static void NVFreeOverlayMemory(ScrnInfoPtr pScrnInfo)
@@ -272,9 +254,9 @@ static void NVFreeOverlayMemory(ScrnInfoPtr pScrnInfo)
     NVPtr               pNv   = NVPTR(pScrnInfo);
     NVPortPrivPtr  pPriv   = GET_OVERLAY_PRIVATE(pNv);
 
-    if(pPriv->linear) {
-        xf86FreeOffscreenLinear(pPriv->linear);
-	pPriv->linear = NULL;
+    if(pPriv->video_mem) {
+		NVFreeMemory(pNv, pPriv->video_mem);
+		pPriv->video_mem = NULL;
     }
 }
 
@@ -284,9 +266,9 @@ static void NVFreeBlitMemory(ScrnInfoPtr pScrnInfo)
     NVPtr               pNv   = NVPTR(pScrnInfo);
     NVPortPrivPtr  pPriv   = GET_BLIT_PRIVATE(pNv);
 
-    if(pPriv->linear) {
-        xf86FreeOffscreenLinear(pPriv->linear);
-        pPriv->linear = NULL;
+    if(pPriv->video_mem) {
+		NVFreeMemory(pNv, pPriv->video_mem);
+        pPriv->video_mem = NULL;
     }
 }
 
@@ -637,7 +619,11 @@ NVPutBlitImage (
     }
 
     NVDmaKickoff(pNv);
-    SET_SYNC_FLAG(pNv->AccelInfoRec);
+
+	if (pNv->useEXA)
+		exaMarkSync(pScrnInfo->pScreen);
+	else
+		SET_SYNC_FLAG(pNv->AccelInfoRec);
 
     pPriv->videoStatus = FREE_TIMER;
     pPriv->videoTime = currentTime.milliseconds + FREE_DELAY;
@@ -1099,13 +1085,16 @@ static int NVPutImage
     if(pPriv->doubleBuffer)
 	newSize <<= 1;
 
-    pPriv->linear = NVAllocateOverlayMemory(pScrnInfo, 
-					    pPriv->linear, 
+    pPriv->video_mem = NVAllocateOverlayMemory(pScrnInfo, 
+					    pPriv->video_mem, 
 					    newSize);
+    if(!pPriv->video_mem) return BadAlloc;
 
-    if(!pPriv->linear) return BadAlloc;
-
-    offset = pPriv->linear->offset * bpp;
+	ErrorF("offset=0x%llx, size=0x%llx, map=0x%p\n",
+			pPriv->video_mem->offset,
+			pPriv->video_mem->size,
+			pPriv->video_mem->map);
+    offset = pPriv->video_mem->offset;
 
     if(pPriv->doubleBuffer) {
         int mask = 1 << (pPriv->currentBuffer << 2);
@@ -1125,11 +1114,12 @@ static int NVPutImage
             offset += (newSize * bpp) >> 1;
     }
 
-    dst_start = pNv->FbStart + offset;
-        
+    dst_start = pPriv->video_mem->map +
+		(offset - (uint32_t)pPriv->video_mem->offset);
+	offset -= pNv->VRAMPhysical;
+
     /* We need to enlarge the copied rectangle by a pixel so the HW 
        filtering doesn't pick up junk laying outside of the source */
-
     left = (xa - 0x00010000) >> 16;
     if(left < 0) left = 0;
     top = (ya - 0x00010000) >> 16;
@@ -1158,6 +1148,7 @@ static int NVPutImage
            s2offset = s3offset;
            s3offset = tmp;
         }
+
         NVCopyData420(buf + (top * srcPitch) + left,
 				buf + s2offset, buf + s3offset,
 				dst_start, srcPitch, srcPitch2,
@@ -1351,12 +1342,11 @@ NVAllocSurface (
     pPriv->pitch = ((w << 1) + 63) & ~63;
     size = h * pPriv->pitch / bpp;
 
-    pPriv->linear = NVAllocateOverlayMemory(pScrnInfo, pPriv->linear,
+    pPriv->video_mem = NVAllocateOverlayMemory(pScrnInfo, pPriv->video_mem,
 					    size);
+    if(!pPriv->video_mem) return BadAlloc;
 
-    if(!pPriv->linear) return BadAlloc;
-
-    pPriv->offset = pPriv->linear->offset * bpp;
+    pPriv->offset = 0;
 
     surface->width = w;
     surface->height = h;

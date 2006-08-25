@@ -841,6 +841,8 @@ void NVCalcStateExt (
 )
 {
     int pixelDepth, VClk;
+	CARD32 CursorStart;
+
     /*
      * Save mode parameters.
      */
@@ -903,9 +905,10 @@ void NVCalcStateExt (
                                          &(state->arbitration0),
                                          &(state->arbitration1));
             }
-            state->cursor0  = 0x80 | (pNv->CursorStart >> 17);
-            state->cursor1  = (pNv->CursorStart >> 11) << 2;
-	    state->cursor2  = pNv->CursorStart >> 24;
+			CursorStart = pNv->Cursor->offset - pNv->VRAMPhysical;
+            state->cursor0  = 0x80 | (CursorStart >> 17);
+            state->cursor1  = (CursorStart >> 11) << 2;
+	    state->cursor2  = CursorStart >> 24;
 	    if (flags & V_DBLSCAN) 
 		state->cursor1 |= 2;
             state->pllsel   = 0x10000700;

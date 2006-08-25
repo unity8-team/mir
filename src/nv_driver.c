@@ -554,6 +554,55 @@ static const OptionInfoRec NVOptions[] = {
  */
 static int pix24bpp = 0;
 
+NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
+{
+	drm_nouveau_mem_alloc_t memalloc;
+	NVAllocRec *mem;
+
+	mem = malloc(sizeof(NVAllocRec));
+	if (!mem)
+		return NULL;
+	mem->type = type | NOUVEAU_MEM_MAPPED;
+	mem->size = size;
+
+	memalloc.flags         = mem->type;
+	memalloc.size          = mem->size;
+	memalloc.alignment     = 0;
+	memalloc.region_offset = &mem->offset;
+	if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_ALLOC, &memalloc,
+				sizeof(memalloc))) {
+		ErrorF("NOUVEAU_MEM_ALLOC failed.  flags=0x%08x, size=%d (%d)\n",
+				mem->type, mem->size, errno);
+		free(mem);
+		return NULL;
+	}
+
+	if (drmMap(pNv->drm_fd, mem->offset, mem->size, &mem->map)) {
+		ErrorF("drmMap() failed. offset=0x%llx, size=%d (%d)\n",
+				mem->offset, mem->size, errno);
+		//XXX: NOUVEAU_MEM_FREE
+		free(mem);
+		return NULL;
+	}
+
+	return mem;
+}
+
+void NVFreeMemory(NVPtr pNv, NVAllocRec *mem)
+{
+	drm_nouveau_mem_free_t memfree;
+
+	if (mem) {
+		memfree.flags = mem->type;
+		memfree.region_offset = mem->offset;
+		if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_FREE, &memfree,
+					sizeof(memfree))) {
+			ErrorF("NOUVEAU_MEM_FREE failed.  flags=0x%08x, offset=0x%llx (%d)\n",
+					mem->type, mem->size, errno);
+		}
+		free(mem);
+	}
+}
 
 static Bool
 NVGetRec(ScrnInfoPtr pScrn)
@@ -853,6 +902,7 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
     NVFBLayout *pLayout = &pNv->CurrentLayout;
 
     startAddr = (((y*pLayout->displayWidth)+x)*(pLayout->bitsPerPixel/8));
+	startAddr += (pNv->FB->offset - pNv->VRAMPhysical);
     NVSetStartAddress(pNv, startAddr);
 }
 
@@ -1422,11 +1472,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	    NVFreeRec(pScrn);
 	    return FALSE;
 	}
-	pNv->FbAddress = pNv->pEnt->device->MemBase;
+	pNv->VRAMPhysical = pNv->pEnt->device->MemBase;
 	from = X_CONFIG;
     } else {
 	if (pNv->PciInfo->memBase[1] != 0) {
 	    pNv->FbAddress = pNv->PciInfo->memBase[1] & 0xff800000;
+	    pNv->VRAMPhysical = pNv->PciInfo->memBase[1] & 0xff800000;
 	    from = X_PROBED;
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -1530,6 +1581,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
                pScrn->videoRam);
 	
     pNv->FbMapSize = pScrn->videoRam * 1024;
+	pNv->VRAMPhysicalSize = pScrn->videoRam * 1024;
 
     /*
      * If the driver can do gamma correction, it should call xf86SetGamma()
@@ -1554,7 +1606,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
        pNv->FbUsableSize = pNv->FbMapSize - (256 * 1024);
     pNv->ScratchBufferSize = (pNv->Architecture < NV_ARCH_10) ? 8192 : 16384;
     pNv->ScratchBufferStart = pNv->FbUsableSize - pNv->ScratchBufferSize;
-    pNv->CursorStart = pNv->ScratchBufferStart - (64*1024);
     pNv->FbUsableSize -= pNv->ScratchBufferSize + (64*1024);
 
     /*
@@ -1988,7 +2039,31 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	/* Init DRM - Alloc FIFO, setup graphics objects */
 	if (!NVInitDma(pScrn))
 		return FALSE;
-	
+
+	pNv->FB = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, pNv->VRAMPhysicalSize/2);
+	if (!pNv->FB) {
+		ErrorF("Failed to allocate memory for framebuffer!\n");
+		return FALSE;
+	}
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Alllllocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
+			pNv->FB->size >> 20
+			);
+
+	pNv->Cursor = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 64*1024);
+	if (!pNv->Cursor) {
+		ErrorF("Failed to allocate memory for hardware cursor\n");
+		return FALSE;
+	}
+
+	/*XXX: only needed for XAA and DGA */
+	pNv->ScratchBuffer = NVAllocateMemory(pNv, NOUVEAU_MEM_FB,
+			pNv->Architecture <NV_ARCH_10 ? 8192 : 16384);
+	if (!pNv->ScratchBuffer) {
+		ErrorF("Failed to allocate memory for scratch buffer\n");
+		return FALSE;
+	}
+
     if (pNv->FBDev) {
 	fbdevHWSave(pScrn);
 	if (!fbdevHWModeInit(pScrn, pScrn->currentMode))
@@ -2062,7 +2137,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
         FBStart = pNv->ShadowPtr;
     } else {
 	pNv->ShadowPtr = NULL;
-	FBStart = pNv->FbStart;
+	FBStart = pNv->FB->map;
     }
 
     switch (pScrn->bitsPerPixel) {

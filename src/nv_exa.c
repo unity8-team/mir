@@ -61,11 +61,17 @@ static CARD32 getPitch(DrawablePtr pDrawable)
 static CARD32 getOffset(NVPtr pNv, DrawablePtr pDrawable)
 {
     PixmapPtr pPixmap;
-    if (pDrawable->type == DRAWABLE_WINDOW)
-        return 0;
+	CARD32 offset;
 
-    pPixmap = (PixmapPtr)pDrawable;
-    return (CARD32)((unsigned long)pPixmap->devPrivate.ptr - (unsigned long)pNv->FbBase);
+    if (pDrawable->type == DRAWABLE_WINDOW) {
+        offset = pNv->FB->offset - pNv->VRAMPhysical;
+	} else {
+	    pPixmap = (PixmapPtr)pDrawable;
+		offset  = (CARD32)((unsigned long)pPixmap->devPrivate.ptr - (unsigned long)pNv->FB->map);
+		offset += pNv->FB->offset - pNv->VRAMPhysical;
+	}
+
+	return offset;
 }
 
 static CARD32 surfaceFormat(DrawablePtr pDrawable)
@@ -458,9 +464,9 @@ Bool NVExaInit(ScreenPtr pScreen)
     		pNv->EXADriverPtr->exa_major = EXA_VERSION_MAJOR;
 		pNv->EXADriverPtr->exa_minor = EXA_VERSION_MINOR;
 
-		pNv->EXADriverPtr->memoryBase         = pNv->FbStart;
+		pNv->EXADriverPtr->memoryBase         = pNv->FB->map;
 		pNv->EXADriverPtr->offScreenBase      = pScrn->virtualX*pScrn->virtualY*pScrn->depth; 
-		pNv->EXADriverPtr->memorySize         = pNv->ScratchBufferStart; 
+		pNv->EXADriverPtr->memorySize         = pNv->FB->size; 
 		pNv->EXADriverPtr->pixmapOffsetAlign  = 256; 
 		pNv->EXADriverPtr->pixmapPitchAlign   = 64; 
 		pNv->EXADriverPtr->flags              = EXA_OFFSCREEN_PIXMAPS;
