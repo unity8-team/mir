@@ -1,5 +1,8 @@
-#ifdef XF86DRI
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
+#ifdef XF86DRI
 #include "nv_include.h"
 #define _XF86DRI_SERVER_
 #include "GL/glxint.h"
