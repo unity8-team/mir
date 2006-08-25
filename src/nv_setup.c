@@ -525,6 +525,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 
        VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
        cr44 = VGA_RD08(pNv->PCIO, 0x03D5);
+	   pNv->vtOWNER = cr44;
 
        VGA_WR08(pNv->PCIO, 0x03D5, 3);
        NVSelectHeadRegisters(pScrn, 1);

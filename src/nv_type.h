@@ -198,6 +198,7 @@ typedef struct {
     Bool                FPDither;
     Bool                Television;
     int			CRTCnumber;
+	int         vtOWNER;
     OptionInfoPtr	Options;
     Bool                alphaCursor;
     unsigned char       DDCBase;

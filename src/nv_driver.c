@@ -1840,7 +1840,7 @@ NVRestore(ScrnInfoPtr pScrn)
     NVDACRestore(pScrn, vgaReg, nvReg, pNv->Primary);
     if(pNv->twoHeads) {
         VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
-        VGA_WR08(pNv->PCIO, 0x03D5, nvReg->crtcOwner);
+        VGA_WR08(pNv->PCIO, 0x03D5, pNv->vtOWNER);
     }
     vgaHWProtect(pScrn, FALSE);
 }
