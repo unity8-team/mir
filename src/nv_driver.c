@@ -1982,6 +1982,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	    return FALSE;
     }
 
+	/* Init DRM - Alloc FIFO, setup graphics objects */
+	if (!NVInitDma(pScrn))
+		return FALSE;
+	
     if (pNv->FBDev) {
 	fbdevHWSave(pScrn);
 	if (!fbdevHWModeInit(pScrn, pScrn->currentMode))

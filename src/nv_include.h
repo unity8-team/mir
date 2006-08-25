@@ -71,5 +71,6 @@
 #include "nv_type.h"
 #include "nv_proto.h"
 #include "nv_dma.h"
+#include "nouveau_drm.h"
 
 #endif /* __NV_INCLUDE_H__ */

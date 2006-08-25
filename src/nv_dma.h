@@ -69,7 +69,7 @@ CARD32 NVDmaCreateNotifier(NVPtr pNv, int target, CARD32 base_address);
 #define NV_DMA_CONTEXT_FLAGS_MONO 0x8
 void NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
                               CARD32 dma_in, CARD32 dma_out, CARD32 dma_notifier);
-void NVInitDma(ScrnInfoPtr pScrn);
+Bool NVInitDma(ScrnInfoPtr pScrn);
 
 
 enum DMAObjects {

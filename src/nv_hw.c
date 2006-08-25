@@ -968,13 +968,14 @@ void NVLoadStateExt (
        }
     }
 
-    /* setup DMA object for command buffer */
-    pNv->PRAMIN[0x07f8] = 0x00003002;
-    pNv->PRAMIN[0x07f9] = 0x00007FFF;
-    pNv->PRAMIN[0x07fa] = pNv->FbUsableSize | 0x00000002;
-    pNv->PRAMIN[0x07fb] = 0x00000002;
-
-    NVInitDma(pScrn);
+#if 1
+		/*FIXME: do this in the DRM */
+	    /* setup DMA object for command buffer */
+	    pNv->PRAMIN[0x07f8] = 0x00003002;
+	    pNv->PRAMIN[0x07f9] = 0x00007FFF;
+	    pNv->PRAMIN[0x07fa] = pNv->FbUsableSize | 0x00000002;
+	    pNv->PRAMIN[0x07fb] = 0x00000002;
+#endif
 
     if(pNv->Architecture < NV_ARCH_10) {
        if((pNv->Chipset & 0x0fff) == CHIPSET_NV04) {
@@ -1212,47 +1213,8 @@ void NVLoadStateExt (
     pNv->PGRAPH[0x0544/4] = 0x00007FFF;
     pNv->PGRAPH[0x0548/4] = 0x00007FFF;
 
-    pNv->PFIFO[0x0140] = 0x00000000;
-    pNv->PFIFO[0x0141] = 0x00000001;
-    pNv->PFIFO[0x0480] = 0x00000000;
-    pNv->PFIFO[0x0494] = 0x00000000;
-    if(pNv->Architecture >= NV_ARCH_40)
-       pNv->PFIFO[0x0481] = 0x00010000;
-    else
-       pNv->PFIFO[0x0481] = 0x00000100;
-    pNv->PFIFO[0x0490] = 0x00000000;
-    pNv->PFIFO[0x0491] = 0x00000000;
-#if 0
-    if(pNv->Architecture >= NV_ARCH_40)
-       pNv->PFIFO[0x048B] = 0x00001213;
-    else
-       pNv->PFIFO[0x048B] = 0x00001209;
-#else
-    /* points to a dma object for the DMA command buffer */
-    pNv->PFIFO[0x048B] = 0x000011fe;
-#endif
-    pNv->PFIFO[0x0400] = 0x00000000;
-    pNv->PFIFO[0x0414] = 0x00000000;
-    pNv->PFIFO[0x0084] = 0x03000100;
-    pNv->PFIFO[0x0085] = 0x00000110;
-    pNv->PFIFO[0x0086] = 0x00000112;
-    pNv->PFIFO[0x0143] = 0x0000FFFF;
-    pNv->PFIFO[0x0496] = 0x0000FFFF;
-    pNv->PFIFO[0x0050] = 0x00000000;
-    pNv->PFIFO[0x0040] = 0xFFFFFFFF;
-    pNv->PFIFO[0x0415] = 0x00000001;
-    pNv->PFIFO[0x048C] = 0x00000000;
-    pNv->PFIFO[0x04A0] = 0x00000000;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    pNv->PFIFO[0x0489] = 0x800F0078;
-#else
-    pNv->PFIFO[0x0489] = 0x000F0078;
-#endif
-    pNv->PFIFO[0x0488] = 0x00000001;
-    pNv->PFIFO[0x0480] = 0x00000001;
-    pNv->PFIFO[0x0494] = 0x00000001;
-    pNv->PFIFO[0x0495] = 0x00000001;
-    pNv->PFIFO[0x0140] = 0x00000001;
+    /* Seems we have to reinit some/all of the FIFO regs on a mode switch */
+    drmCommandNone(pNv->drm_fd, DRM_NOUVEAU_PFIFO_REINIT);
 
     if(pNv->Architecture >= NV_ARCH_10) {
         if(pNv->twoHeads) {
