@@ -37,7 +37,7 @@ typedef struct {
     unsigned int  length;
     
     U016      init_tbls_offset;
-    U016      ram_table_offset;    
+    U016      macro_index_offset;    
     U016      macro_offset; 
     U016      condition_offset;
     U016      io_flag_condition_offset;
@@ -61,7 +61,7 @@ typedef struct {
 
 static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset, init_exec_t *iexec);
 
-#define MACRO_SIZE              8
+/* #define MACRO_SIZE              8 */
 #define CONDITION_SIZE          12
 #define IO_FLAG_CONDITION_SIZE  9 
 
@@ -813,7 +813,7 @@ static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_
 static Bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
 {
 	// FIXME replace with a suitable implementation
-
+#if 0
 	U016 ramcfg = *((U016 *) (&bios->data[bios->ram_table_offset]));
     U032 pfb_debug;
     U032 strapinfo;
@@ -852,6 +852,7 @@ static Bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_
 
 
 	}
+#endif
     return TRUE;
 }
 
@@ -1020,7 +1021,7 @@ static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_
 	}
 	return TRUE;
 }
-
+#if 0
 static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
 {
 	// FIXME replace with the haiku version
@@ -1049,6 +1050,44 @@ static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t
 	}
 	return TRUE;
 
+}
+#endif
+
+static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+{
+    U008 index = *((U008 *) (&bios->data[offset + 1]));
+    U032 tmp = bios->macro_index_offset + (index << 1);
+    U032 offs =  *((U008 *) (&bios->data[tmp]))  << 3;
+    U032 nr = *((U008 *) (&bios->data[tmp + 1]));
+    U032 reg, data;
+
+    int i;
+
+    if (iexec->execute) {
+
+        offs += bios->macro_offset;
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: WRITE %d 32-BIT REGS:\n", offset, nr);
+
+        for (i = 0; i < nr; i++) {
+            reg = *((U032 *) (&bios->data[offs + (i << 3)]));
+            data = *((U032 *) (&bios->data[offs + (i << 3) + 4]));
+
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", offset,
+                    reg, data);
+
+            if (DEBUGLEVEL >= 6) {
+                U032 tmpval;
+                nv32_rd(pScrn, reg, &tmpval);
+                xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n",
+                        offset, tmpval);
+            }
+
+            nv32_wr(pScrn, reg, data);
+        }
+
+    }
+	
+    return TRUE;
 }
 
 static Bool init_done(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
@@ -1371,9 +1410,7 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
     }
     
     bios->init_tbls_offset = *((U016 *) (&bios->data[bitentry->offset]));
-    /* XXX: ram config at offset + 2 ?? */
-    // FIXME replace with the haiku version
-    bios->ram_table_offset = *((U016 *) (&bios->data[bitentry->offset + 2]));
+    bios->macro_index_offset = *((U016 *) (&bios->data[bitentry->offset + 2]));
     bios->macro_offset = *((U016 *) (&bios->data[bitentry->offset + 4]));
     bios->condition_offset = 
         *((U016 *) (&bios->data[bitentry->offset + 6]));
