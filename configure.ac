@@ -78,6 +78,10 @@ sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 # Checks for header files.
 AC_HEADER_STDC
 
+# Use -Wall all the time
+CFLAGS=-Wall
+AC_SUBST([CFLAGS])
+
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([moduledir])
 
