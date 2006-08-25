@@ -43,6 +43,11 @@
 
 #include "nv_include.h"
 #include "exa.h"
+
+#if (EXA_VERSION_MAJOR < 2)
+#error You need EXA >=2.0.0
+#endif
+
 #include "nv_dma.h"
 #include "nv_local.h"
 
@@ -451,35 +456,35 @@ Bool NVExaInit(ScreenPtr pScreen)
         return FALSE;
     }
 
-    pNv->EXADriverPtr->card.memoryBase         = pNv->FbStart;
-    pNv->EXADriverPtr->card.offScreenBase      = pScrn->virtualX*pScrn->virtualY*pScrn->depth; 
-    pNv->EXADriverPtr->card.memorySize         = pNv->ScratchBufferStart; 
-    pNv->EXADriverPtr->card.pixmapOffsetAlign  = 256; 
-    pNv->EXADriverPtr->card.pixmapPitchAlign   = 64; 
-    pNv->EXADriverPtr->card.flags              = EXA_OFFSCREEN_PIXMAPS;
-    pNv->EXADriverPtr->card.maxX               = 32768;
-    pNv->EXADriverPtr->card.maxY               = 32768;
+		pNv->EXADriverPtr->memoryBase         = pNv->FbStart;
+		pNv->EXADriverPtr->offScreenBase      = pScrn->virtualX*pScrn->virtualY*pScrn->depth; 
+		pNv->EXADriverPtr->memorySize         = pNv->ScratchBufferStart; 
+		pNv->EXADriverPtr->pixmapOffsetAlign  = 256; 
+		pNv->EXADriverPtr->pixmapPitchAlign   = 64; 
+		pNv->EXADriverPtr->flags              = EXA_OFFSCREEN_PIXMAPS;
+		pNv->EXADriverPtr->maxX               = 32768;
+		pNv->EXADriverPtr->maxY               = 32768;
 
-    pNv->EXADriverPtr->accel.WaitMarker = NVExaWaitMarker;
+		pNv->EXADriverPtr->WaitMarker = NVExaWaitMarker;
 
-    pNv->EXADriverPtr->accel.PrepareCopy = NVExaPrepareCopy;
-    pNv->EXADriverPtr->accel.Copy = NVExaCopy;
-    pNv->EXADriverPtr->accel.DoneCopy = NVExaDoneCopy;
+		pNv->EXADriverPtr->PrepareCopy = NVExaPrepareCopy;
+		pNv->EXADriverPtr->Copy = NVExaCopy;
+		pNv->EXADriverPtr->DoneCopy = NVExaDoneCopy;
 
-    pNv->EXADriverPtr->accel.PrepareSolid = NVExaPrepareSolid;
-    pNv->EXADriverPtr->accel.Solid = NVExaSolid;
-    pNv->EXADriverPtr->accel.DoneSolid = NVExaDoneSolid;
+		pNv->EXADriverPtr->PrepareSolid = NVExaPrepareSolid;
+		pNv->EXADriverPtr->Solid = NVExaSolid;
+    pNv->EXADriverPtr->DoneSolid = NVExaDoneSolid;
 
     if (pNv->agpMemory) {
-        pNv->EXADriverPtr->accel.DownloadFromScreen = NVDownloadFromScreen; 
-        pNv->EXADriverPtr->accel.UploadToScreen = NVUploadToScreen; 
+        pNv->EXADriverPtr->DownloadFromScreen = NVDownloadFromScreen; 
+        pNv->EXADriverPtr->UploadToScreen = NVUploadToScreen; 
     }
     if (pNv->BlendingPossible) {
         /* install composite hooks */
-        pNv->EXADriverPtr->accel.CheckComposite = NVCheckComposite;
-        pNv->EXADriverPtr->accel.PrepareComposite = NVPrepareComposite;
-        pNv->EXADriverPtr->accel.Composite = NVComposite;
-        pNv->EXADriverPtr->accel.DoneComposite = NVDoneComposite;
+        pNv->EXADriverPtr->CheckComposite = NVCheckComposite;
+        pNv->EXADriverPtr->PrepareComposite = NVPrepareComposite;
+        pNv->EXADriverPtr->Composite = NVComposite;
+        pNv->EXADriverPtr->DoneComposite = NVDoneComposite;
     }
 
 #if 0
