@@ -778,6 +778,7 @@ NVProbe(DriverPtr drv, int flags)
                case 0x0230:
                case CHIPSET_G71:
                case CHIPSET_G73:
+	       case CHIPSET_C512:
                    NVChipsets[numUsed].token = pciid;
                    NVChipsets[numUsed].name = "Unknown NVIDIA chip";
                    NVPciChipsets[numUsed].numChipset = pciid;
@@ -1507,6 +1508,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     case CHIPSET_G71:   /* GeForce 7900 */
     case CHIPSET_G73:   /* GeForce 7600 */
     case CHIPSET_C51:   /* GeForce 6100 */
+    case CHIPSET_C512: /* Geforce 6100 (nForce 4xx) */
          pNv->Architecture =  NV_ARCH_40;
          break;
     default:

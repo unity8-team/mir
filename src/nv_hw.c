@@ -878,8 +878,8 @@ void NVCalcStateExt (
         case NV_ARCH_20:
         case NV_ARCH_30:
         default:
-            if(((pNv->Chipset & 0xfff0) == CHIPSETS_C51) ||
-               ((pNv->Chipset & 0xfff0) == 0x03D0))
+            if(((pNv->Chipset & 0xfff0) == CHIPSET_C51) ||
+               ((pNv->Chipset & 0xfff0) == CHIPSET_C512))
             {
                 state->arbitration0 = 256; 
                 state->arbitration1 = 0x0480; 
@@ -942,6 +942,8 @@ void NVLoadStateExt (
     pNv->PTIMER[0x0140] = 0x00000000;
     pNv->PTIMER[0x0100] = 0xFFFFFFFF;
 
+    /* begin surfaces */
+    /* it seems those regions are equivalent to the radeon's SURFACEs. needs to go in-kernel just like the SURFACEs */
     if(pNv->Architecture == NV_ARCH_04) {
         pNv->PFB[0x0200/4] = state->config;
     } else 
@@ -959,7 +961,7 @@ void NVLoadStateExt (
            ((pNv->Chipset & 0xfff0) == CHIPSET_G71) ||
            ((pNv->Chipset & 0xfff0) == CHIPSET_G72) ||
            ((pNv->Chipset & 0xfff0) == CHIPSET_G73) ||
-           ((pNv->Chipset & 0xfff0) == 0x03D0))
+           ((pNv->Chipset & 0xfff0) == CHIPSET_C512))
         {
            regions = 15;
         }
@@ -969,6 +971,7 @@ void NVLoadStateExt (
           pNv->PFB[(0x0604 + (i * 0x10))/4] = pNv->FbMapSize - 1;
        }
     }
+    /* end of surfaces */
 
     if(pNv->Architecture < NV_ARCH_10) {
        if((pNv->Chipset & 0x0fff) == CHIPSET_NV04) {
@@ -1011,8 +1014,11 @@ void NVLoadStateExt (
            pNv->PGRAPH[0x0088/4] = 0x24E00810;
            pNv->PGRAPH[0x008C/4] = 0x55DE0030;
 
+           /* nv10 second surfaces */
+           /* this is a copy of the surfaces. What is it for ? */
            for(i = 0; i < 32; i++)
              pNv->PGRAPH[(0x0B00/4) + i] = pNv->PFB[(0x0240/4) + i];
+           /* end of nv10 second surfaces */
 
            pNv->PGRAPH[0x640/4] = 0;
            pNv->PGRAPH[0x644/4] = 0;
@@ -1057,7 +1063,7 @@ void NVLoadStateExt (
               case CHIPSET_NV44:
               case CHIPSET_G72:
               case CHIPSET_C51:
-              case 0x03D0:
+              case CHIPSET_C512:
                  pNv->PMC[0x1700/4] = pNv->PFB[0x020C/4];
                  pNv->PMC[0x1704/4] = 0;
                  pNv->PMC[0x1708/4] = 0;
@@ -1124,6 +1130,8 @@ void NVLoadStateExt (
               }
            }
 
+           /* begin nv20+ secondr surfaces */
+           /* again, a copy of the surfaces. */
            if((pNv->Architecture < NV_ARCH_40) ||
               ((pNv->Chipset & 0xfff0) == CHIPSET_NV40)) 
            {
@@ -1136,7 +1144,7 @@ void NVLoadStateExt (
                  ((pNv->Chipset & 0xfff0) == CHIPSET_G71) ||
                  ((pNv->Chipset & 0xfff0) == CHIPSET_G72) ||
                  ((pNv->Chipset & 0xfff0) == CHIPSET_G73) ||
-                 ((pNv->Chipset & 0xfff0) == 0x03D0))
+                 ((pNv->Chipset & 0xfff0) == CHIPSET_C512))
               {
                  for(i = 0; i < 60; i++) {
                    pNv->PGRAPH[(0x0D00/4) + i] = pNv->PFB[(0x0600/4) + i];
@@ -1154,7 +1162,9 @@ void NVLoadStateExt (
                  }
               }
            }
+           /* end nv20+ second surfaces */
 
+           /* begin RAM config */
            if(pNv->Architecture >= NV_ARCH_40) {
               if((pNv->Chipset & 0xfff0) == CHIPSET_NV40) {
                  pNv->PGRAPH[0x09A4/4] = pNv->PFB[0x0200/4];
@@ -1199,15 +1209,19 @@ void NVLoadStateExt (
               pNv->PGRAPH[0x0864/4] = pNv->FbMapSize - 1;
               pNv->PGRAPH[0x0868/4] = pNv->FbMapSize - 1;
            }
+           /* end of RAM config */
 
            pNv->PGRAPH[0x0B20/4] = 0x00000000;
            pNv->PGRAPH[0x0B04/4] = 0xFFFFFFFF;
        }
     }
+
+    /* begin clipping values */
     pNv->PGRAPH[0x053C/4] = 0;
     pNv->PGRAPH[0x0540/4] = 0;
     pNv->PGRAPH[0x0544/4] = 0x00007FFF;
     pNv->PGRAPH[0x0548/4] = 0x00007FFF;
+    /* end of clipping values */
 
     /* Seems we have to reinit some/all of the FIFO regs on a mode switch */
     drmCommandNone(pNv->drm_fd, DRM_NOUVEAU_PFIFO_REINIT);

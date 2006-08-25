@@ -51,7 +51,11 @@
 #define CHIPSET_G71      0x0290
 #define CHIPSET_G72      0x01D0
 #define CHIPSET_G73      0x0390
+// integrated GeForces (6100, 6150)
 #define CHIPSET_C51      0x0240
+// variant of C51, seems based on a G70 design
+#define CHIPSET_C512     0x03D0
+#define CHIPSET_G73_BRIDGED 0x02E0
 
 
 #define BITMASK(t,b) (((unsigned)(1U << (((t)-(b)+1)))-1)  << (b))
