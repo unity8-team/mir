@@ -128,63 +128,33 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 Bool NVInitAGP(ScrnInfoPtr pScrn)
 {
     NVPtr pNv = NVPTR(pScrn);
-    int agp_mode;
     unsigned long agp_size;
-
-    if (drmAgpAcquire(pNv->drm_fd)) {
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                   "Could not access AGP, disabling DMA transfers\n");
-        return FALSE;
-    }        
+	drm_nouveau_mem_alloc_t alloc;
 
     agp_size = drmAgpSize(pNv->drm_fd);
     pNv->agpSize = agp_size < 16*0x100000 ? agp_size : 16*0x100000;
-    pNv->agpPhysical = drmAgpBase(pNv->drm_fd);
-    
-    agp_mode = drmAgpGetMode(pNv->drm_fd);
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-               "AGP: version %d.%d\n"
-               "     mode %x\n"
-               "     base=%08lx size=%08lx (%08lx)\n"
-               , drmAgpVersionMajor(pNv->drm_fd),
-               drmAgpVersionMinor(pNv->drm_fd), agp_mode,
-               pNv->agpPhysical, agp_size, pNv->agpSize);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"AGP: aperture is %dMB\n", agp_size>>20);
 
-    if (drmAgpEnable(pNv->drm_fd, agp_mode) < 0) {
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                   "could not enable AGP\n");
-        return FALSE;
-    }
-
-    if (drmAgpAlloc(pNv->drm_fd, pNv->agpSize, 0, 0, &pNv->drm_agp_handle)) {
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                   "could not allocate AGP memory\n");
-        return FALSE;
-    }
-
-    if (drmAgpBind(pNv->drm_fd, pNv->drm_agp_handle, 0)) {
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                   "could not bind AGP memory\n");
-        return FALSE;
-    }
-
-    if (drmAddMap(pNv->drm_fd, 0, pNv->agpSize, /* agp_size, */
-                  DRM_AGP, 0,
-                  &pNv->drm_agp_map_handle)) {
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                   "could not add AGP map, %s\n", strerror(errno));
-        return FALSE;
-    }        
-    
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-               "agp map handle=%08lx\n", pNv->drm_agp_map_handle);
-    /* no idea why the handle is set to 0 in the addMap call. */
+	alloc.flags     = NOUVEAU_MEM_AGP|NOUVEAU_MEM_MAPPED;
+	alloc.alignment = 0; /* drm will page-align this */
+	alloc.size      = pNv->agpSize;
+	alloc.region_offset = &pNv->agpPhysical;
+	if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_ALLOC, &alloc, sizeof(alloc))) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"Unable to alloc AGP memory (%s) - DMA transfers disabled\n", strerror(errno));
+		pNv->agpMemory = NULL;
+		return FALSE;
+	}
     
     if (drmMap(pNv->drm_fd, pNv->agpPhysical, pNv->agpSize /* agp_size */, (drmAddressPtr)&pNv->agpMemory)) {
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
                    "could not map AGP memory: %s\n", strerror(errno));
         return FALSE;
     }
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"AGP: mapped %dMB at %p\n", pNv->agpSize>>20, pNv->agpMemory);
+
 
     return TRUE;
     
