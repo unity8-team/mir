@@ -119,7 +119,6 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
     pDRIInfo->createDummyCtx     = FALSE;
     pDRIInfo->createDummyCtxPriv = FALSE;
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling DRIScreenInit(%x,%x,%x)\n",pScreen,pDRIInfo,&pNv->drm_fd);
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Sync\nSync\nSync\nSync\nSync\n");
 
     if (!DRIScreenInit(pScreen, pDRIInfo, &pNv->drm_fd)) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
