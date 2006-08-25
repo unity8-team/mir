@@ -295,7 +295,18 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
     pNv->currentRop = ~0;  /* set to something invalid */
     NVSetRopSolid(pScrn, GXcopy, ~0);
 
-    NVDmaKickoff(pNv);
+    /*NVDmaKickoff(pNv);*/
+}
+
+static void NVDumpLockupInfo(NVPtr pNv)
+{
+	int i,start;
+	start=READ_GET(pNv)-10;
+	if (start<0) start=0;
+	xf86DrvMsg(0, X_INFO, "Fifo dump (lockup 0x%04x,0x%04x):\n",READ_GET(pNv),pNv->dmaPut);
+	for(i=start;i<pNv->dmaPut+10;i++)
+		xf86DrvMsg(0, X_INFO, "[0x%04x] 0x%08x\n", i, pNv->dmaBase[i]);
+	xf86DrvMsg(0, X_INFO, "End of fifo dump\n");
 }
 
 void NVDoSync(NVPtr pNv)
@@ -312,6 +323,7 @@ void NVDoSync(NVPtr pNv)
     if ((GetTimeInMillis() - t_start) >= timeout) {
         if (pNv->LockedUp)
             return;
+        NVDumpLockupInfo(pNv);
         pNv->LockedUp = TRUE; /* avoid re-entering FatalError on shutdown */
         FatalError("DMA queue hang: dmaPut=%x, current=%x, status=%x\n",
                pNv->dmaPut, READ_GET(pNv), pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
