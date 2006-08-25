@@ -132,28 +132,29 @@ Bool NVInitAGP(ScrnInfoPtr pScrn)
 	drm_nouveau_mem_alloc_t alloc;
 
     agp_size = drmAgpSize(pNv->drm_fd);
-    pNv->agpSize = agp_size < 16*0x100000 ? agp_size : 16*0x100000;
+    pNv->agpScratchSize = agp_size < 16*0x100000 ? agp_size : 16*0x100000;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			"AGP: aperture is %dMB\n", agp_size>>20);
 
 	alloc.flags     = NOUVEAU_MEM_AGP|NOUVEAU_MEM_MAPPED;
 	alloc.alignment = 0; /* drm will page-align this */
-	alloc.size      = pNv->agpSize;
-	alloc.region_offset = &pNv->agpPhysical;
+	alloc.size      = pNv->agpScratchSize;
+	alloc.region_offset = &pNv->agpScratchPhysical;
 	if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_ALLOC, &alloc, sizeof(alloc))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"Unable to alloc AGP memory (%s) - DMA transfers disabled\n", strerror(errno));
-		pNv->agpMemory = NULL;
+		pNv->agpScratch = NULL;
 		return FALSE;
 	}
     
-    if (drmMap(pNv->drm_fd, pNv->agpPhysical, pNv->agpSize /* agp_size */, (drmAddressPtr)&pNv->agpMemory)) {
+    if (drmMap(pNv->drm_fd, pNv->agpScratchPhysical, pNv->agpScratchSize,
+				(drmAddressPtr)&pNv->agpScratch)) {
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
                    "could not map AGP memory: %s\n", strerror(errno));
         return FALSE;
     }
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"AGP: mapped %dMB at %p\n", pNv->agpSize>>20, pNv->agpMemory);
+			"AGP: mapped %dMB at %p\n", pNv->agpScratchSize>>20, pNv->agpScratch);
 
 
     return TRUE;

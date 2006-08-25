@@ -144,9 +144,9 @@ typedef struct _NVRec {
     int drm_fd;
     unsigned long drm_agp_handle;
     unsigned long drm_agp_map_handle;
-    unsigned char *agpMemory;
-    unsigned long agpPhysical;
-    unsigned long agpSize;
+    unsigned char *agpScratch;
+    unsigned long agpScratchPhysical;
+    unsigned long agpScratchSize;
 
     volatile U032 *REGS;
     volatile U032 *PCRTC0;
@@ -218,6 +218,7 @@ typedef struct _NVRec {
     int                 IRQ;
     Bool                LockedUp;
 
+    void *              Notifier0;
     drm_nouveau_fifo_init_t fifo;
     CARD32              dmaPut;
     CARD32              dmaCurrent;

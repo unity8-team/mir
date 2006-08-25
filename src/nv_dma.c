@@ -1,4 +1,4 @@
-
+#include <errno.h>
 #include "nv_include.h"
 #include "nvreg.h"
 
@@ -11,8 +11,6 @@ void NVDmaCreateDMAObject(NVPtr pNv, int handle, int target, CARD32 base_address
     dma.target = target;
     dma.size   = size;
     dma.offset = base_address;
-    if (target == NV_DMA_TARGET_AGP)
-        dma.offset += pNv->agpPhysical;
     drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_DMA_OBJECT_INIT, &dma, sizeof(dma));
 }
 
@@ -21,9 +19,33 @@ void NVDmaCreateDMAObject(NVPtr pNv, int handle, int target, CARD32 base_address
    seems, we use 256 for saftey) memory area that will be used by the HW to give feedback
    about a DMA operation.
 */
-void NVDmaCreateNotifier(NVPtr pNv, int handle, int target, CARD32 base_address)
+void *NVDmaCreateNotifier(NVPtr pNv, int handle)
 {
-    NVDmaCreateDMAObject(pNv, handle, target, base_address, 0x100, NV_DMA_ACCES_RW);
+	uint64_t notifier_base;
+	void *notifier = NULL;
+	int target = 0;
+
+#ifndef __powerpc__
+	if (pNv->agpScratch) {
+		drm_nouveau_mem_alloc_t alloc;
+
+		alloc.flags     = NOUVEAU_MEM_AGP|NOUVEAU_MEM_MAPPED;
+		alloc.alignment = 0;
+		alloc.size      = 256;
+		alloc.region_offset = &notifier_base;
+		if (!(drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_ALLOC,
+						&alloc, sizeof(alloc)))) {
+			if (!drmMap(pNv->drm_fd, notifier_base, alloc.size, &notifier))
+				target = NV_DMA_TARGET_AGP;
+		}
+	}
+#endif
+
+	if (!target) /* FIXME: try a FB notifier when we can alloc the memory */
+		return NULL;
+
+	NVDmaCreateDMAObject(pNv, handle, target, notifier_base, 256, NV_DMA_ACCES_RW);
+	return notifier;
 }
 
 /*
@@ -46,14 +68,11 @@ void NVDmaCreateNotifier(NVPtr pNv, int handle, int target, CARD32 base_address)
    We can't use interrupts in user land, so we do the simple polling approach.
    The method returns FALSE in case of an error.
 */
-Bool NVDmaWaitForNotifier(NVPtr pNv, int target, CARD32 base_address)
+Bool NVDmaWaitForNotifier(NVPtr pNv, void *notifier)
 {
     int t_start, timeout = 0;
     volatile U032 *n;
-    unsigned char *notifier = (target == NV_DMA_TARGET_AGP)
-                              ? pNv->agpMemory
-                              : pNv->FbBase;
-    notifier += base_address;
+
     n = (volatile U032 *)notifier;
     NVDEBUG("NVDmaWaitForNotifier @%p", n);
     t_start = GetTimeInMillis();
@@ -203,20 +222,26 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
                               NvDmaFB, NvDmaFB, 0);
 
 #ifdef XF86DRI
-    if (NVInitAGP(pScrn) && pNv->agpMemory) {
-        NVDmaCreateDMAObject(pNv, NvDmaAGP, NV_DMA_TARGET_AGP, 0x10000, pNv->agpSize - 0x10000,
-                                       NV_DMA_ACCES_RW);
-        NVDmaCreateNotifier(pNv, NvDmaNotifier0, NV_DMA_TARGET_AGP, 0);
+    if (NVInitAGP(pScrn) && pNv->agpScratch) {
+        pNv->Notifier0 = NVDmaCreateNotifier(pNv, NvDmaNotifier0);
+		if (pNv->Notifier0) {
+			NVDmaCreateDMAObject(pNv, NvDmaAGP, NV_DMA_TARGET_AGP,
+					pNv->agpScratchPhysical, pNv->agpScratchSize, NV_DMA_ACCES_RW);
+
+	        NVDmaCreateContextObject (pNv, NvGraphicsToAGP,
+					NV_MEMORY_TO_MEMORY_FORMAT, 0,
+					NvDmaFB, NvDmaAGP, NvDmaNotifier0
+					);
         
-        NVDmaCreateContextObject (pNv, NvGraphicsToAGP,
-                                  NV_MEMORY_TO_MEMORY_FORMAT,
-                                  0,
-                                  NvDmaFB, NvDmaAGP, NvDmaNotifier0);
-        
-        NVDmaCreateContextObject (pNv, NvAGPToGraphics,
-                                  NV_MEMORY_TO_MEMORY_FORMAT,
-                                  0,
-                                  NvDmaAGP, NvDmaFB, NvDmaNotifier0);
+    	    NVDmaCreateContextObject (pNv, NvAGPToGraphics,
+					NV_MEMORY_TO_MEMORY_FORMAT, 0,
+					NvDmaAGP, NvDmaFB, NvDmaNotifier0
+					);
+		} else {
+			/* FIXME */
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to create DMA notifier - DMA transfers disabled\n");
+			pNv->agpScratch = NULL;
+		}
     }
 #endif
 

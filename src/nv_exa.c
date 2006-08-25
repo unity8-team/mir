@@ -232,7 +232,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
         NVDEBUG("     max_lines=%d, h=%d\n", max_lines, h);
         int nlines = h > max_lines ? max_lines : h;
         /* reset the notification object */
-        memset(pNv->agpMemory, 0xff, 0x100);
+        memset(pNv->Notifier0, 0xff, 0x100);
         NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_NOTIFY, 1);
         NVDmaNext (pNv, 0);
         NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_OFFSET_IN, 8);
@@ -245,7 +245,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
         NVDmaNext (pNv, 0x101);
         NVDmaNext (pNv, 0);
         NVDmaKickoff(pNv);
-        if (!NVDmaWaitForNotifier(pNv, NV_DMA_TARGET_AGP, 0)) {
+        if (!NVDmaWaitForNotifier(pNv, pNv->Notifier0)) {
             ret = FALSE;
             goto error;
         }
@@ -253,7 +253,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
         if (memcmp(pNv->FbBase + offset_in, pNv->agpMemory + 0x10000, nlines*dst_pitch) != 0)
             ErrorF("DMA transfer wrong!\n");
 #endif
-        memcpy(dst, pNv->agpMemory + 0x10000, nlines*dst_pitch);
+        memcpy(dst, pNv->agpScratch, nlines*dst_pitch);
         h -= nlines;
         offset_in += nlines*pitch_in;
         dst += nlines*dst_pitch;
@@ -295,8 +295,8 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
         NVDEBUG("     max_lines=%d, h=%d\n", max_lines, h);
         int nlines = h > max_lines ? max_lines : h;
         /* reset the notification object */
-        memset(pNv->agpMemory, 0xff, 0x100);
-        memcpy(pNv->agpMemory + 0x10000, src, nlines*src_pitch);
+        memset(pNv->Notifier0, 0xff, 0x100);
+        memcpy(pNv->agpScratch, src, nlines*src_pitch);
         NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_NOTIFY, 1);
         NVDmaNext (pNv, 0);
         NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_OFFSET_IN, 8);
@@ -309,7 +309,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
         NVDmaNext (pNv, 0x101);
         NVDmaNext (pNv, 0);
         NVDmaKickoff(pNv);
-        if (!NVDmaWaitForNotifier(pNv, NV_DMA_TARGET_AGP, 0)) {
+        if (!NVDmaWaitForNotifier(pNv, pNv->Notifier0)) {
             ret = FALSE;
             goto error;
         }
@@ -477,7 +477,7 @@ Bool NVExaInit(ScreenPtr pScreen)
 		pNv->EXADriverPtr->Solid = NVExaSolid;
     pNv->EXADriverPtr->DoneSolid = NVExaDoneSolid;
 
-    if (pNv->agpMemory) {
+    if (pNv->agpScratch) {
         pNv->EXADriverPtr->DownloadFromScreen = NVDownloadFromScreen; 
         pNv->EXADriverPtr->UploadToScreen = NVUploadToScreen; 
     }
