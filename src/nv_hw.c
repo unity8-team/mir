@@ -970,15 +970,6 @@ void NVLoadStateExt (
        }
     }
 
-#if 1
-		/*FIXME: do this in the DRM */
-	    /* setup DMA object for command buffer */
-	    pNv->PRAMIN[0x07f8] = 0x00003002;
-	    pNv->PRAMIN[0x07f9] = 0x00007FFF;
-	    pNv->PRAMIN[0x07fa] = pNv->FbUsableSize | 0x00000002;
-	    pNv->PRAMIN[0x07fb] = 0x00000002;
-#endif
-
     if(pNv->Architecture < NV_ARCH_10) {
        if((pNv->Chipset & 0x0fff) == CHIPSET_NV04) {
            pNv->PRAMIN[0x0824] |= 0x00020000;
