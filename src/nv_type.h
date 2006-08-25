@@ -164,6 +164,7 @@ typedef struct {
     volatile U008 *PDIO0;
     volatile U008 *PDIO;
     volatile U032 *PRAMDAC;
+    volatile U008 *PROM;
 
     volatile U032 *RAMHT;
     CARD32 pramin_free;

@@ -379,6 +379,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     pNv->PCIO0    = (U008*)pNv->REGS + 0x00601000;
     pNv->PDIO0    = (U008*)pNv->REGS + 0x00681000;
     pNv->PVIO     = (U008*)pNv->REGS + 0x000C0000;
+    pNv->PROM     = (U008*)pNv->REGS + 0x00300000;
 
     pNv->twoHeads =  (pNv->Architecture >= NV_ARCH_10) &&
                      (implementation != CHIPSET_NV10) &&

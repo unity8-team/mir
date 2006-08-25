@@ -1236,10 +1236,11 @@ static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offse
     int i;
     
     
-    
+    int count=0;
     /* Loop as long as INIT_DONE (command id 0x71) has not been found
-     * (and offset < bios length just in case... ) */
-    while (((id = bios->data[offset]) != 0x71) && offset < bios->length) {
+     * (and offset < bios length just in case... )
+     * (and no more than 10000 iterations just in case... ) */
+    while (((id = bios->data[offset]) != 0x71) && (offset < bios->length) && (count++<10000)) {
         /* Find matching id in itbl_entry */
         for (i = 0; itbl_entry[i].name && (itbl_entry[i].id != id); i++)
             ;
@@ -1390,11 +1391,23 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn) {
 	unsigned char nv_signature[]={0xff,0x7f,'N','V',0x0};
 	unsigned char bit_signature[]={'B','I','T'};
 	NVPtr pNv;
+	int i;
 	pNv = NVPTR(pScrn);
 
 	bios.data=xalloc(NVIDIA_VBIOS_SIZE);
-	xf86ReadPciBIOS(0, pNv->PciTag, 0, bios.data, NVIDIA_VBIOS_SIZE);
-	
+
+	pNv->PMC[0x1850/4] = 0x0;
+	for(i=0;i<NVIDIA_VBIOS_SIZE;i++)
+	{
+		/* according to nvclock, we need that to work around a 6600GT/6800LE bug */
+		bios.data[i]=pNv->PROM[i];
+		bios.data[i]=pNv->PROM[i];
+		bios.data[i]=pNv->PROM[i];
+		bios.data[i]=pNv->PROM[i];
+		bios.data[i]=pNv->PROM[i];
+	}
+	pNv->PMC[0x1850/4] = 0x1;
+
 	/* check for BIOS signature */
 	if (!(bios.data[0] == 0x55 && bios.data[1] == 0xAA)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "BIOS signature not found!\n");
