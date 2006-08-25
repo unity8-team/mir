@@ -65,7 +65,46 @@ static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offse
 #define CONDITION_SIZE          12
 #define IO_FLAG_CONDITION_SIZE  9 
 
+void still_alive()
+{
+	sync();
+//	usleep(200000);
+}
 
+static int nv_valid_reg(U032 reg)
+{
+	#define WITHIN(x,y,z) ((x>=y)&&(x<y+z))
+	if (WITHIN(reg,NV_PRAMIN_OFFSET,NV_PRAMIN_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PCRTC0_OFFSET,NV_PCRTC0_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PRAMDAC0_OFFSET,NV_PRAMDAC0_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PFB_OFFSET,NV_PFB_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PFIFO_OFFSET,NV_PFIFO_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PGRAPH_OFFSET,NV_PGRAPH_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PEXTDEV_OFFSET,NV_PEXTDEV_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PTIMER_OFFSET,NV_PTIMER_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PMC_OFFSET,NV_PMC_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_FIFO_OFFSET,NV_FIFO_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PCIO0_OFFSET,NV_PCIO0_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PDIO0_OFFSET,NV_PDIO0_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PVIO_OFFSET,NV_PVIO_SIZE))
+		return 1;
+	if (WITHIN(reg,NV_PROM_OFFSET,NV_PROM_SIZE))
+		return 1;
+	#undef WITHIN
+	return 0;
+}
 
 static int nv32_rd(ScrnInfoPtr pScrn, U032 reg, U032 *data)
 {
@@ -76,7 +115,15 @@ static int nv32_rd(ScrnInfoPtr pScrn, U032 reg, U032 *data)
 
 static int nv32_wr(ScrnInfoPtr pScrn, U032 reg, U032 data)
 {
-#ifdef PERFORM_WRITE 
+#ifdef PERFORM_WRITE
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "nv32_wr reg 0x%X value 0x%X\n",reg,data);
+	still_alive();
+	if (!nv_valid_reg(reg))
+	{
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "========= unknown reg 0x%X ==========\n",reg);
+		return 0;
+	}
+
 	NVPtr pNv = NVPTR(pScrn);
 	pNv->REGS[reg/4]=data;
 #endif
@@ -86,6 +133,8 @@ static int nv32_wr(ScrnInfoPtr pScrn, U032 reg, U032 data)
 void nv_set_crtc_index(ScrnInfoPtr pScrn, U008 index)
 {
 #ifdef PERFORM_WRITE
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "nv_set_crtc_index index 0x%X\n",index);
+	still_alive();
 	NVPtr pNv = NVPTR(pScrn);
 	VGA_WR08(pNv->PCIO, 0x3D4, index);
 #endif
@@ -100,6 +149,8 @@ U008 nv_rd_crtc_data(ScrnInfoPtr pScrn)
 void nv_wr_crtc_data(ScrnInfoPtr pScrn, U008 val)
 {
 #ifdef PERFORM_WRITE
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "nv_wr_crtc_data value 0x%X\n",val);
+	still_alive();
 	NVPtr pNv = NVPTR(pScrn);
 	VGA_WR08(pNv->PCIO, 0x3D5, val);
 #endif
@@ -285,6 +336,8 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t 
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset, 
 					VGA_RD08(pNv->PCIO, crtcreg + 1));
 #ifdef PERFORM_WRITE 
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "init_copy crtcreg 0x%X value 0x%X\n",crtcreg+1,crtcdata);
+			still_alive();
 			printf("WRITE IS PERFORMED\n");
 			VGA_WR08(pNv->PCIO,crtcreg + 1, crtcdata);
 #endif
@@ -749,6 +802,8 @@ static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_
 				VGA_RD08(pNv->PCIO, crtcreg + 1));
 	
 #ifdef PERFORM_WRITE
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "init_zm_index_io crtcreg 0x%X value 0x%X\n",crtcreg+1,value);
+		still_alive();
 		VGA_WR08(pNv->PCIO,crtcreg + 1, value);
 #endif
 	}
@@ -864,6 +919,8 @@ static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_ex
 				VGA_RD08(pNv->PCIO, reg));
 
 #ifdef PERFORM_WRITE
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "init_index_io8 crtcreg 0x%X value 0x%X\n",reg,data);
+		still_alive();
 		VGA_WR08(pNv->PCIO, reg, data);
 #endif
 		
@@ -1137,6 +1194,8 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exe
 				VGA_RD08(pNv->PCIO, crtcreg + 1));
 
 #ifdef PERFORM_WRITE
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "init_index_io crtcreg 0x%X value 0x%X\n",crtcreg+1,data);
+		still_alive();
 		VGA_WR08(pNv->PCIO,crtcreg + 1, data);
 #endif
 
@@ -1282,7 +1341,7 @@ void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios) {
                 table, i / 2);
         
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n",table);
-        
+        still_alive();
         parse_init_table(pScrn, bios, table, &iexec);         
         i += 2;
     }
@@ -1364,8 +1423,8 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	}
 }
 
-
 static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset) {
+	
 }
 
 
@@ -1380,24 +1439,24 @@ static unsigned int findstr(bios_t* bios, unsigned char *str, int len) {
     return 0;
 }
 
-#define NVIDIA_VBIOS_SIZE 65536
 
 unsigned int NVParseBios(ScrnInfoPtr pScrn) {
 
 	unsigned int bit_offset;
 	bios_t bios;
 	bios.data=NULL;
-	bios.length=NVIDIA_VBIOS_SIZE;
+	bios.length=NV_PROM_SIZE;
 	unsigned char nv_signature[]={0xff,0x7f,'N','V',0x0};
 	unsigned char bit_signature[]={'B','I','T'};
 	NVPtr pNv;
 	int i;
 	pNv = NVPTR(pScrn);
 
-	bios.data=xalloc(NVIDIA_VBIOS_SIZE);
+	bios.data=xalloc(NV_PROM_SIZE);
 
+	/* enable ROM access */
 	pNv->PMC[0x1850/4] = 0x0;
-	for(i=0;i<NVIDIA_VBIOS_SIZE;i++)
+	for(i=0;i<NV_PROM_SIZE;i++)
 	{
 		/* according to nvclock, we need that to work around a 6600GT/6800LE bug */
 		bios.data[i]=pNv->PROM[i];
@@ -1406,6 +1465,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn) {
 		bios.data[i]=pNv->PROM[i];
 		bios.data[i]=pNv->PROM[i];
 	}
+	/* disable ROM access */
 	pNv->PMC[0x1850/4] = 0x1;
 
 	/* check for BIOS signature */

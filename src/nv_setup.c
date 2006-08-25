@@ -40,6 +40,7 @@
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_setup.c,v 1.48 2005/09/14 02:28:03 mvojkovi Exp $ */
 
 #include "nv_include.h"
+#include "nvreg.h"
 
 /*
  * Override VGA I/O routines.
@@ -318,7 +319,6 @@ static void nv10GetConfig (NVPtr pNv)
     pNv->MaxVClockFreqKHz = pNv->twoStagePLL ? 400000 : 350000;
 }
 
-
 void
 NVCommonSetup(ScrnInfoPtr pScrn)
 {
@@ -364,22 +364,22 @@ NVCommonSetup(ScrnInfoPtr pScrn)
                               VIDMEM_MMIO | VIDMEM_READSIDEEFFECT, 
                               pNv->PciTag, pNv->IOAddress, 0x01000000);
 
-    pNv->PRAMIN   = pNv->REGS + (0x00710000/4);
-    pNv->PCRTC0   = pNv->REGS + (0x00600000/4);
-    pNv->PRAMDAC0 = pNv->REGS + (0x00680000/4);
-    pNv->PFB      = pNv->REGS + (0x00100000/4);
-    pNv->PFIFO    = pNv->REGS + (0x00002000/4);
-    pNv->PGRAPH   = pNv->REGS + (0x00400000/4);
-    pNv->PEXTDEV  = pNv->REGS + (0x00101000/4);
-    pNv->PTIMER   = pNv->REGS + (0x00009000/4);
-    pNv->PMC      = pNv->REGS + (0x00000000/4);
-    pNv->FIFO     = pNv->REGS + (0x00800000/4);
+    pNv->PRAMIN   = pNv->REGS + (NV_PRAMIN_OFFSET/4);
+    pNv->PCRTC0   = pNv->REGS + (NV_PCRTC0_OFFSET/4);
+    pNv->PRAMDAC0 = pNv->REGS + (NV_PRAMDAC0_OFFSET/4);
+    pNv->PFB      = pNv->REGS + (NV_PFB_OFFSET/4);
+    pNv->PFIFO    = pNv->REGS + (NV_PFIFO_OFFSET/4);
+    pNv->PGRAPH   = pNv->REGS + (NV_PGRAPH_OFFSET/4);
+    pNv->PEXTDEV  = pNv->REGS + (NV_PEXTDEV_OFFSET/4);
+    pNv->PTIMER   = pNv->REGS + (NV_PTIMER_OFFSET/4);
+    pNv->PMC      = pNv->REGS + (NV_PMC_OFFSET/4);
+    pNv->FIFO     = pNv->REGS + (NV_FIFO_OFFSET/4);
 
     /* 8 bit registers */
-    pNv->PCIO0    = (U008*)pNv->REGS + 0x00601000;
-    pNv->PDIO0    = (U008*)pNv->REGS + 0x00681000;
-    pNv->PVIO     = (U008*)pNv->REGS + 0x000C0000;
-    pNv->PROM     = (U008*)pNv->REGS + 0x00300000;
+    pNv->PCIO0    = (U008*)pNv->REGS + NV_PCIO0_OFFSET;
+    pNv->PDIO0    = (U008*)pNv->REGS + NV_PDIO0_OFFSET;
+    pNv->PVIO     = (U008*)pNv->REGS + NV_PVIO_OFFSET;
+    pNv->PROM     = (U008*)pNv->REGS + NV_PROM_OFFSET;
 
     pNv->twoHeads =  (pNv->Architecture >= NV_ARCH_10) &&
                      (implementation != CHIPSET_NV10) &&
@@ -452,6 +452,13 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     default:
         break;
     }
+
+    /* Parse the bios to initialize the card */
+    NVParseBios(pScrn);
+    /* reset PFIFO and PGRAPH, then power up all the card units */
+/*    pNv->PMC[0]=0x17110013;
+    usleep(1000);*/
+    pNv->PMC[0]=0x17111113;
 
     if(pNv->Architecture == NV_ARCH_04)
         nv4GetConfig(pNv);

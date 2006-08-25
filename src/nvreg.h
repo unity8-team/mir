@@ -204,6 +204,50 @@ extern volatile unsigned  *dumb;          /* FrameBuffer - hack!!!! */
 #define NV12_IMAGE_BLIT             0x9f
 
 
+#define NV_PRAMIN_OFFSET            0x00710000
+#define NV_PRAMIN_SIZE              0x00100000
+
+#define NV_PCRTC0_OFFSET            0x00600000
+#define NV_PCRTC0_SIZE              0x00001000 /* empirical */
+
+#define NV_PRAMDAC0_OFFSET          0x00680000
+#define NV_PRAMDAC0_SIZE            0x00001000
+
+#define NV_PFB_OFFSET               0x00100000
+#define NV_PFB_SIZE                 0x00001000
+
+#define NV_PFIFO_OFFSET             0x00002000
+#define NV_PFIFO_SIZE               0x00010000
+
+#define NV_PGRAPH_OFFSET            0x00400000
+#define NV_PGRAPH_SIZE              0x00010000
+
+#define NV_PEXTDEV_OFFSET           0x00101000
+#define NV_PEXTDEV_SIZE             0x00001000
+
+#define NV_PTIMER_OFFSET            0x00009000
+#define NV_PTIMER_SIZE              0x00001000
+
+#define NV_PMC_OFFSET               0x00000000
+#define NV_PMC_SIZE                 0x0000f000
+
+#define NV_FIFO_OFFSET              0x00800000
+#define NV_FIFO_SIZE                0x00800000
+
+#define NV_PCIO0_OFFSET             0x00601000
+#define NV_PCIO0_SIZE               0x00002000
+
+#define NV_PDIO0_OFFSET             0x00681000
+#define NV_PDIO0_SIZE               0x00002000
+
+#define NV_PVIO_OFFSET              0x000C0000
+#define NV_PVIO_SIZE                0x00008000
+
+#define NV_PROM_OFFSET              0x00300000
+#define NV_PROM_SIZE                0x00010000
+
+
+
 #define NV_PGRAPH_STATUS            (0x00000700)
 #define NV_PFIFO_RAMHT              (0x00000210)
 #define NV_PFB_BOOT                 (0x00000000)

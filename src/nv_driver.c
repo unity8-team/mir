@@ -1519,9 +1519,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
     NVCommonSetup(pScrn);
 
-    /* Parse the bios to initialize the card */
-    NVParseBios(pScrn);
-
     if (pNv->FBDev) {
        pScrn->videoRam = fbdevHWGetVidmem(pScrn)/1024;
     } else {
