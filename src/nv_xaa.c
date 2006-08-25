@@ -121,7 +121,7 @@ NVDmaKickoff(NVPtr pNv)
    to solve this problem */
 #define SKIPS  8
 
-#ifdef NV_DMA_DEBUG
+#if NV_DMA_DEBUG == 1
 CARD32 READ_GET(void *data) {
 	NVPtr pNv = data;
 

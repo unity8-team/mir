@@ -79,7 +79,7 @@ typedef unsigned int   U032;
 #define _NV_FENCE() mem_barrier();
 #endif
 
-#ifdef NV_DMA_DEBUG
+#if NV_DMA_DEBUG == 1
 extern CARD32 READ_GET(void *);
 
 #define WRITE_PUT(pNv, data) {       \
