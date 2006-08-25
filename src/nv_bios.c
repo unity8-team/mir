@@ -1493,7 +1493,35 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 }
 
 static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset) {
-	
+	int pins_version_major=bios->data[offset+5];
+	int pins_version_minor=bios->data[offset+6];
+	int init1 = bios->data[offset + 18] + (bios->data[offset + 19] * 256);     
+	int init2 = bios->data[offset + 20] + (bios->data[offset + 21] * 256);     
+	int init_size = bios->data[offset + 22] + (bios->data[offset + 23] * 256) + 1;                                                    
+	int ram_tab;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "PINS version %d.%d\n",pins_version_major,pins_version_minor);
+
+#if 0
+	if (pins_version_major==2)
+		ram_tab = init1-0x0010;
+	else
+		ram_tab = bios->data[offset + 24] + (bios->data[offset + 25] * 256);
+
+	if ((pins_version_major==5)&&(pins_version_minor>=6))
+	{
+		/* VCO range info */
+		
+	}
+
+	if ((pins_version_major==5)&&(pins_version_minor>=16))
+	{
+		
+	}
+
+	parse_bit_init_tbl_entry(pScrn, bios, bitentry);
+
+#endif
 }
 
 
