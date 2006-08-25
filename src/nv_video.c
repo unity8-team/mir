@@ -1090,10 +1090,6 @@ static int NVPutImage
 					    newSize);
     if(!pPriv->video_mem) return BadAlloc;
 
-	ErrorF("offset=0x%llx, size=0x%llx, map=0x%p\n",
-			pPriv->video_mem->offset,
-			pPriv->video_mem->size,
-			pPriv->video_mem->map);
     offset = pPriv->video_mem->offset;
 
     if(pPriv->doubleBuffer) {
