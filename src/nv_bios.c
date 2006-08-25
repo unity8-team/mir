@@ -27,6 +27,11 @@
 #define DEBUGLEVEL 6
 /*#define PERFORM_WRITE*/
 
+/* TODO: 
+ *       * Fix indentation. Currently a mix between spaces and tabs.
+ *       * PLL algorithms.
+ */
+
 typedef struct {
     Bool execute;
     Bool repeat;
@@ -554,7 +559,7 @@ Bool init_cr(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
     /* XXX: IS THIS CORRECT? check the typecast .. probably wrong */
 
     NVPtr pNv = NVPTR(pScrn);
-    U008 index = *((U032 *) (&bios->data[offset + 1]));
+    U008 index = *((U032 *) (&bios->data[offset + 1])); 
     U008 and = *((U008 *) (&bios->data[offset + 2]));
     U008 or = *((U008 *) (&bios->data[offset + 3]));
     U008 data;
@@ -1275,41 +1280,54 @@ static Bool init_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_
 }
 
 static init_tbl_entry_t itbl_entry[] = {
-	/* command name                   , id  , length  , offset  , mult    , command handler       */
-	{ "INIT_PROG"                    , 0x31, 15      , 10      , 4       , init_prog             },
-	{ "INIT_IO_RESTRICT_PROG"        , 0x32, 11      , 6       , 4       , init_io_restrict_prog },
-	{ "INIT_REPEAT"                  , 0x33, 2       , 0       , 0       , init_repeat           },
-	{ "INIT_END_REPEAT"              , 0x36, 1       , 0       , 0       , init_end_repeat       },
-	{ "INIT_COPY"                    , 0x37, 11      , 0       , 0       , init_copy             },
-	{ "INIT_NOT"                     , 0x38, 1       , 0       , 0       , init_not              },
-	{ "INIT_IO_FLAG_CONDITION"       , 0x39, 2       , 0       , 0       , init_io_flag_condition},
-	{ "INIT_IO_RESTRICT_PLL"         , 0x4A, 43      , 0       , 0       , init_io_restrict_pll  },
-	{ "INIT_PLL"                     , 0x4B, 9       , 0       , 0       , init_pll              },
-	{ "INIT_CR_INDEX_ADDRESS_LATCHED", 0x51, 5       , 4       , 1       , init_cr_idx_adr_latch },
-	{ "INIT_CR"                      , 0x52, 4       , 0       , 0       , init_cr               },
-	{ "INIT_ZM_CR"                   , 0x53, 3       , 0       , 0       , init_zm_cr            },
-	{ "INIT_ZM_CR_GROUP"             , 0x54, 2       , 1       , 2       , init_zm_cr_group      },
-	{ "INIT_CONDITION_TIME"          , 0x56, 3       , 0       , 0       , init_condition_time   },
-	{ "INIT_ZM_REG_SEQUENCE"         , 0x58, 6       , 5       , 4       , init_zm_reg_sequence  },
-	{ "INIT_INDIRECT_REG"            , 0x5A, 7       , 0       , 0       , init_indirect_reg     },
-	{ "INIT_SUB_DIRECT"              , 0x5B, 3       , 0       , 0       , init_sub_direct       },
-	{ "INIT_COPY_NV_REG"             , 0x5F, 22      , 0       , 0       , init_copy_nv_reg      },
-	{ "INIT_ZM_INDEX_IO"             , 0x62, 5       , 0       , 0       , init_zm_index_io      },
-	{ "INIT_COMPUTE_MEM"             , 0x63, 1       , 0       , 0       , init_compute_mem      },
-	{ "INIT_RESET"                   , 0x65, 13      , 0       , 0       , init_reset            },
-	{ "INIT_INDEX_IO8"               , 0x69, 5       , 0       , 0       , init_index_io8        },
-	{ "INIT_SUB"                     , 0x6B, 2       , 0       , 0       , init_sub              },
-	{ "INIT_RAM_CONDITION"           , 0x6D, 3       , 0       , 0       , init_ram_condition    },
-	{ "INIT_NV_REG"                  , 0x6E, 13      , 0       , 0       , init_nv_reg           },
-	{ "INIT_MACRO"                   , 0x6F, 2       , 0       , 0       , init_macro            },
-	{ "INIT_DONE"                    , 0x71, 1       , 0       , 0       , init_done             },
-	{ "INIT_RESUME"                  , 0x72, 1       , 0       , 0       , init_resume           },
-	{ "INIT_RAM_CONDITION2"          , 0x73, 9       , 0       , 0       , init_ram_condition2   },
-	{ "INIT_TIME"                    , 0x74, 3       , 0       , 0       , init_time             },
-	{ "INIT_CONDITION"               , 0x75, 2       , 0       , 0       , init_condition        },
-	{ "INIT_INDEX_IO"                , 0x78, 6       , 0       , 0       , init_index_io         },
-	{ "INIT_ZM_REG"                  , 0x7A, 9       , 0       , 0       , init_zm_reg           },
-	{ 0                              , 0   , 0       , 0       , 0       , 0                     }
+	/* command name                       , id  , length  , offset  , mult    , command handler                 */
+	{ "INIT_PROG"                         , 0x31, 15      , 10      , 4       , init_prog                       },
+	{ "INIT_IO_RESTRICT_PROG"             , 0x32, 11      , 6       , 4       , init_io_restrict_prog           },
+	{ "INIT_REPEAT"                       , 0x33, 2       , 0       , 0       , init_repeat                     },
+	{ "INIT_END_REPEAT"                   , 0x36, 1       , 0       , 0       , init_end_repeat                 },
+	{ "INIT_COPY"                         , 0x37, 11      , 0       , 0       , init_copy                       },
+	{ "INIT_NOT"                          , 0x38, 1       , 0       , 0       , init_not                        },
+	{ "INIT_IO_FLAG_CONDITION"            , 0x39, 2       , 0       , 0       , init_io_flag_condition          },
+/*	[ "INIT_INDEX_ADDRESS_LATCHED"        , 0x49, x       , x       , x,      , init_idx_addr_latched           }, */	
+	{ "INIT_IO_RESTRICT_PLL"              , 0x4A, 43      , 0       , 0       , init_io_restrict_pll            },
+	{ "INIT_PLL"                          , 0x4B, 9       , 0       , 0       , init_pll                        },
+/*	{ "INIT_I2C_BYTE"                     , 0x4C, x       , x       , x       , init_i2c_byte                   }, */
+/*	{ "INIT_ZM_I2C_BYTE"                  , 0x4D, x       , x       , x       , init_zm_i2c_byte                }, */
+/*	{ "INIT_ZM_I2C"                       , 0x4E, x       , x       , x       , init_zm_i2c                     }, */
+	{ "INIT_CR_INDEX_ADDRESS_LATCHED"     , 0x51, 5       , 4       , 1       , init_cr_idx_adr_latch           },
+	{ "INIT_CR"                           , 0x52, 4       , 0       , 0       , init_cr                         },
+	{ "INIT_ZM_CR"                        , 0x53, 3       , 0       , 0       , init_zm_cr                      },
+	{ "INIT_ZM_CR_GROUP"                  , 0x54, 2       , 1       , 2       , init_zm_cr_group                },
+	{ "INIT_CONDITION_TIME"               , 0x56, 3       , 0       , 0       , init_condition_time             },
+	{ "INIT_ZM_REG_SEQUENCE"              , 0x58, 6       , 5       , 4       , init_zm_reg_sequence            },
+	{ "INIT_INDIRECT_REG"                 , 0x5A, 7       , 0       , 0       , init_indirect_reg               },
+	{ "INIT_SUB_DIRECT"                   , 0x5B, 3       , 0       , 0       , init_sub_direct                 },
+	{ "INIT_COPY_NV_REG"                  , 0x5F, 22      , 0       , 0       , init_copy_nv_reg                },
+	{ "INIT_ZM_INDEX_IO"                  , 0x62, 5       , 0       , 0       , init_zm_index_io                },
+	{ "INIT_COMPUTE_MEM"                  , 0x63, 1       , 0       , 0       , init_compute_mem                },
+	{ "INIT_RESET"                        , 0x65, 13      , 0       , 0       , init_reset                      },
+/*	{ "INIT_NEXT"                         , 0x66, x       , x       , x       , init_next                       }, */	
+/*	{ "INIT_NEXT"                         , 0x67, x       , x       , x       , init_next                       }, */	
+/*	{ "INIT_NEXT"                         , 0x68, x       , x       , x       , init_next                       }, */	
+	{ "INIT_INDEX_IO8"                    , 0x69, 5       , 0       , 0       , init_index_io8                  },
+	{ "INIT_SUB"                          , 0x6B, 2       , 0       , 0       , init_sub                        },
+	{ "INIT_RAM_CONDITION"                , 0x6D, 3       , 0       , 0       , init_ram_condition              },
+	{ "INIT_NV_REG"                       , 0x6E, 13      , 0       , 0       , init_nv_reg                     },
+	{ "INIT_MACRO"                        , 0x6F, 2       , 0       , 0       , init_macro                      },
+	{ "INIT_DONE"                         , 0x71, 1       , 0       , 0       , init_done                       },
+	{ "INIT_RESUME"                       , 0x72, 1       , 0       , 0       , init_resume                     },
+	{ "INIT_RAM_CONDITION2"               , 0x73, 9       , 0       , 0       , init_ram_condition2             },
+	{ "INIT_TIME"                         , 0x74, 3       , 0       , 0       , init_time                       },
+	{ "INIT_CONDITION"                    , 0x75, 2       , 0       , 0       , init_condition                  },
+/*	{ "INIT_IO_CONDITION",                , 0x76, x       , x,      , x       , init_io_condition               }, */
+	{ "INIT_INDEX_IO"                     , 0x78, 6       , 0       , 0       , init_index_io                   },
+/*	{ "INIT_PLL2"                         , 0x79, x       , x       , x       , init_pll2                       }, */
+	{ "INIT_ZM_REG"                       , 0x7A, 9       , 0       , 0       , init_zm_reg                     },
+/*	{ "INIT_RAM_RESTRICT_ZM_REG_GROUP"    , 0x8F, x       , x       , x       , init_ram_restrict_zm_reg_group  }, */
+/*	{ "INIT_COPY_ZM_REG"                  , 0x90, x       , x       , x       , init_copy_zm_reg                }, */
+/*	{ "INIT_ZM_REG_GROUP_ADDRESS_LATCHED" , 0x91, x       , x       , x       , init_zm_reg_group_addr_latched  }, */
+/*	{ "INIT_RESERVED"                     , 0x92, x       , x       , x       , init_reserved                   }, */
+	{ 0                                   , 0   , 0       , 0       , 0       , 0                               }
 };
 
 
@@ -1392,16 +1410,25 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
      * Starting at bitentry->offset: 
      * 
      * offset + 0  (16 bits): offset of init tables
-     * offset + 2  (16 bits): unknown
+     * offset + 2  (16 bits): macro index table offset
      * offset + 4  (16 bits): macro offset
      * offset + 6  (16 bits): condition offset
      * offset + 8  (16 bits): io flag condition offset (?)
      * offset + 10 (16 bits): io flag condition offset (?)
-     *
+     * offset + 12 (16 bits): unknown
+	 *
      * offset + 8 and offset + 10 seems to contain the same
      * offsets on all bioses i have checked. Don't know which
      * one is the correct, therefore this code will bail out
      * if the two values are not the same.
+	 *
+     * TODO:
+     * * In addition to "conditions" and "io flag conditions" there seems to be
+     *   "io conditions". These are probably located at offset + (8, 10 or 12).
+     *    We need more BIOS dumps to figure this out...
+	 * 
+	 * * Are 'I' bit entries always of length 0xE?
+	 * 
      */
     
     if (bitentry->length < 12) {
@@ -1454,6 +1481,11 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 				parse_bit_init_tbl_entry(pScrn, bios, bitentry);
 				/*parse_init_tables(pScrn, bios);*/
 				break;
+			
+			/* TODO: What kind of information does the other BIT entrys point to?
+			 *       'P' entry is probably performance tables, but there are
+			 *       quite a few others...
+			 */
 		}
 
 		offset += sizeof(bit_entry_t);
