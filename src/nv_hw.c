@@ -881,7 +881,7 @@ void NVCalcStateExt (
             if(((pNv->Chipset & 0xfff0) == CHIPSET_C51) ||
                ((pNv->Chipset & 0xfff0) == CHIPSET_C512))
             {
-                state->arbitration0 = 256; 
+                state->arbitration0 = 128; 
                 state->arbitration1 = 0x0480; 
             } else
             if(((pNv->Chipset & 0xffff) == CHIPSET_NFORCE) ||

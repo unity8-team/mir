@@ -733,8 +733,8 @@ NVProbe(DriverPtr drv, int flags)
             int pciid = ((*ppPci)->vendor << 16) | (*ppPci)->chipType;
             int token = pciid;
 
-            if(((token & 0xfff0) == CHIPSET_PCIE) ||
-               ((token & 0xfff0) == 0x02E0))
+            if(((token & 0xfff0) == CHIPSET_MISC_BRIDGED) ||
+               ((token & 0xfff0) == CHIPSET_G73_BRIDGED))
             {
                 token = NVGetPCIXpressChip(*ppPci);
             }
@@ -778,7 +778,7 @@ NVProbe(DriverPtr drv, int flags)
                case 0x0230:
                case CHIPSET_G71:
                case CHIPSET_G73:
-	       case CHIPSET_C512:
+               case CHIPSET_C512:
                    NVChipsets[numUsed].token = pciid;
                    NVChipsets[numUsed].name = "Unknown NVIDIA chip";
                    NVPciChipsets[numUsed].numChipset = pciid;
@@ -1130,8 +1130,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	from = X_PROBED;
 	pNv->Chipset = (pNv->PciInfo->vendor << 16) | pNv->PciInfo->chipType;
 
-        if(((pNv->Chipset & 0xfff0) == CHIPSET_PCIE) ||
-           ((pNv->Chipset & 0xfff0) == 0x02E0))
+        if(((pNv->Chipset & 0xfff0) == CHIPSET_MISC_BRIDGED) ||
+           ((pNv->Chipset & 0xfff0) == CHIPSET_G73_BRIDGED))
         {
             pNv->Chipset = NVGetPCIXpressChip(pNv->PciInfo);
         }

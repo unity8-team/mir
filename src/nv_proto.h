@@ -47,12 +47,15 @@ void   NVWaitVSync(NVPtr pNv);
 void   NVSetRopSolid(ScrnInfoPtr pScrn, CARD32 rop, CARD32 planemask);
 void   NVDMAKickoffCallback (NVPtr pNv);
 
+/* in nv_exa.c */
+Bool NVExaInit(ScreenPtr pScreen);
+
 /* in nv_dga.c */
 Bool   NVDGAInit(ScreenPtr pScreen);
 
 /* in riva_hw.c */
 void NVCalcStateExt(NVPtr,struct _riva_hw_state *,int,int,int,int,int,int);
-void NVLoadStateExt(NVPtr,struct _riva_hw_state *);
+void NVLoadStateExt(ScrnInfoPtr pScrn,struct _riva_hw_state *);
 void NVUnloadStateExt(NVPtr,struct _riva_hw_state *);
 void NVSetStartAddress(NVPtr,CARD32);
 int  NVShowHideCursor(NVPtr,int);

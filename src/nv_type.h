@@ -46,7 +46,7 @@
 #define CHIPSET_NV44     0x0160
 #define CHIPSET_NV44A    0x0220
 #define CHIPSET_NV45     0x0210
-#define CHIPSET_PCIE     0x00F0
+#define CHIPSET_MISC_BRIDGED  0x00F0
 #define CHIPSET_G70      0x0090
 #define CHIPSET_G71      0x0290
 #define CHIPSET_G72      0x01D0

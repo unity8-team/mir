@@ -60,7 +60,7 @@ NVDACPanelTweaks(NVPtr pNv, NVRegPtr state)
           tweak = -1;
        }
 
-       if((pNv->Chipset & 0xfff0) == 0x0310) {
+       if((pNv->Chipset & 0xfff0) == CHIPSET_NV31) {
           tweak = 1;
        }
        /* end flat panel hacks */
@@ -249,7 +249,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     if(mode->Flags & V_DBLSCAN)
        nvReg->cursorConfig |= (1 << 4);
     if(pNv->alphaCursor) {
-        if((pNv->Chipset & 0x0ff0) != 0x0110) 
+        if((pNv->Chipset & 0x0ff0) != CHIPSET_NV11) 
            nvReg->cursorConfig |= 0x04011000;
         else
            nvReg->cursorConfig |= 0x14011000;
@@ -258,7 +258,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
        nvReg->cursorConfig |= 0x02000000;
 
     if(pNv->twoHeads) {
-        if((pNv->Chipset & 0x0ff0) == 0x0110) {
+        if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
            nvReg->dither = pNv->PRAMDAC[0x0528/4] & ~0x00010000;
            if(pNv->FPDither)
               nvReg->dither |= 0x00010000;
@@ -284,7 +284,7 @@ NVDACRestore(ScrnInfoPtr pScrn, vgaRegPtr vgaReg, NVRegPtr nvReg,
     int restore = VGA_SR_MODE;
 
     if(primary) restore |= VGA_SR_CMAP | VGA_SR_FONTS;
-    NVLoadStateExt(pNv, nvReg);
+    NVLoadStateExt(pScrn, nvReg);
 #if defined(__powerpc__)
     restore &= ~VGA_SR_FONTS;
 #endif
@@ -311,7 +311,7 @@ NVDACSave(ScrnInfoPtr pScrn, vgaRegPtr vgaReg, NVRegPtr nvReg,
     NVUnloadStateExt(pNv, nvReg);
 
     /* can't read this reliably on NV11 */
-    if((pNv->Chipset & 0x0ff0) == 0x0110) 
+    if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) 
        nvReg->crtcOwner = pNv->CRTCnumber;
 }
 
