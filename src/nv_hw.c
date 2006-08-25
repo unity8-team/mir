@@ -931,12 +931,14 @@ void NVLoadStateExt (
     NVPtr pNv = NVPTR(pScrn);
     int i, j;
 
-    pNv->PMC[0x0140/4] = 0x00000000;
+    if (!pNv->IRQ)
+        pNv->PMC[0x0140/4] = 0x00000000;
     pNv->PMC[0x0200/4] = 0xFFFF00FF;
     pNv->PMC[0x0200/4] = 0xFFFFFFFF;
 
     pNv->PTIMER[0x0200] = 0x00000008;
     pNv->PTIMER[0x0210] = 0x00000003;
+    /*TODO: DRM handle PTIMER interrupts */
     pNv->PTIMER[0x0140] = 0x00000000;
     pNv->PTIMER[0x0100] = 0xFFFFFFFF;
 
@@ -989,8 +991,10 @@ void NVLoadStateExt (
        pNv->PGRAPH[0x008C/4] = 0x0004FF31;
        pNv->PGRAPH[0x008C/4] = 0x4004FF31;
 
-       pNv->PGRAPH[0x0140/4] = 0x00000000;
-       pNv->PGRAPH[0x0100/4] = 0xFFFFFFFF;
+       if (!pNv->IRQ) {
+           pNv->PGRAPH[0x0140/4] = 0x00000000;
+           pNv->PGRAPH[0x0100/4] = 0xFFFFFFFF;
+       }
        pNv->PGRAPH[0x0170/4] = 0x10010100;
        pNv->PGRAPH[0x0710/4] = 0xFFFFFFFF;
        pNv->PGRAPH[0x0720/4] = 0x00000001;
@@ -1001,8 +1005,10 @@ void NVLoadStateExt (
        pNv->PGRAPH[0x0080/4] = 0xFFFFFFFF;
        pNv->PGRAPH[0x0080/4] = 0x00000000;
 
-       pNv->PGRAPH[0x0140/4] = 0x00000000;
-       pNv->PGRAPH[0x0100/4] = 0xFFFFFFFF;
+       if (!pNv->IRQ) {
+           pNv->PGRAPH[0x0140/4] = 0x00000000;
+           pNv->PGRAPH[0x0100/4] = 0xFFFFFFFF;
+       }
        pNv->PGRAPH[0x0144/4] = 0x10010100;
        pNv->PGRAPH[0x0714/4] = 0xFFFFFFFF;
        pNv->PGRAPH[0x0720/4] = 0x00000001;
@@ -1092,7 +1098,6 @@ void NVLoadStateExt (
               pNv->PGRAPH[0x0b38/4] = 0x2ffff800;
               pNv->PGRAPH[0x0b3c/4] = 0x00006000;
               pNv->PGRAPH[0x032C/4] = 0x01000000; 
-              pNv->PGRAPH[0x0220/4] = 0x00001200;
            } else
            if(pNv->Architecture == NV_ARCH_30) {
               pNv->PGRAPH[0x0084/4] = 0x40108700;

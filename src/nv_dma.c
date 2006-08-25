@@ -2,21 +2,18 @@
 #include "nv_include.h"
 #include "nvreg.h"
 
-CARD32 NVDmaCreateDMAObject(NVPtr pNv, int target, CARD32 base_address, CARD32 size, int access)
+void NVDmaCreateDMAObject(NVPtr pNv, int handle, int target, CARD32 base_address, CARD32 size, int access)
 {
-	drm_nouveau_dma_object_init_t dma;
-	CARD32 object;
+    drm_nouveau_dma_object_init_t dma;
 
-	dma.instance = &object;
-	dma.access   = access;
-	dma.target   = target;
-	dma.size     = size;
-	dma.offset   = base_address;
-	if (target == NV_DMA_TARGET_AGP)
-		dma.offset += pNv->agpPhysical;
-	drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_DMA_OBJECT_INIT, &dma, sizeof(dma));
-
-    return object;
+    dma.handle = handle;
+    dma.access = access;
+    dma.target = target;
+    dma.size   = size;
+    dma.offset = base_address;
+    if (target == NV_DMA_TARGET_AGP)
+        dma.offset += pNv->agpPhysical;
+    drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_DMA_OBJECT_INIT, &dma, sizeof(dma));
 }
 
 /*
@@ -24,9 +21,9 @@ CARD32 NVDmaCreateDMAObject(NVPtr pNv, int target, CARD32 base_address, CARD32 s
    seems, we use 256 for saftey) memory area that will be used by the HW to give feedback
    about a DMA operation.
 */
-CARD32 NVDmaCreateNotifier(NVPtr pNv, int target, CARD32 base_address)
+void NVDmaCreateNotifier(NVPtr pNv, int handle, int target, CARD32 base_address)
 {
-    return NVDmaCreateDMAObject(pNv, target, base_address, 0x100, NV_DMA_ACCES_RW);
+    NVDmaCreateDMAObject(pNv, handle, target, base_address, 0x100, NV_DMA_ACCES_RW);
 }
 
 /*
@@ -37,7 +34,7 @@ CARD32 NVDmaCreateNotifier(NVPtr pNv, int target, CARD32 base_address)
    the 'notify' field of the object in the channel.  My guess is that 
    this causes an interrupt in PGRAPH/NOTIFY as soon as the transfer is
    completed.  Clients probably can use poll on the nv* devices to get this 
-   event.  All this is a guess.	 I don't know any details, and I have not
+   event.  All this is a guess.  I don't know any details, and I have not
    tested is.  Also, I have no idea how the 'nvdriver' reacts if it gets 
    notify events that are not registered.
 
@@ -51,6 +48,7 @@ CARD32 NVDmaCreateNotifier(NVPtr pNv, int target, CARD32 base_address)
 */
 Bool NVDmaWaitForNotifier(NVPtr pNv, int target, CARD32 base_address)
 {
+    int t_start, timeout = 0;
     volatile U032 *n;
     unsigned char *notifier = (target == NV_DMA_TARGET_AGP)
                               ? pNv->agpMemory
@@ -58,12 +56,29 @@ Bool NVDmaWaitForNotifier(NVPtr pNv, int target, CARD32 base_address)
     notifier += base_address;
     n = (volatile U032 *)notifier;
     NVDEBUG("NVDmaWaitForNotifier @%p", n);
+    t_start = GetTimeInMillis();
     while (1) {
         U032 a = n[0];
         U032 b = n[1];
         U032 c = n[2];
         U032 status = n[3];
         NVDEBUG("status: n[0]=%x, n[1]=%x, n[2]=%x, n[3]=%x\n", a, b, c, status);
+        NVDEBUG("status: GET: 0x%08x\n", READ_GET(pNv));
+
+        if (GetTimeInMillis() - t_start >= 2000) {
+            /* We've timed out, call NVSync() to detect lockups */
+            if (timeout++ == 0) {
+                NVDoSync(pNv);
+                /* If we're still here, wait another second for notifier.. */
+                t_start = GetTimeInMillis() + 1000;
+                break;
+            }
+
+            /* Still haven't recieved notification, log error */
+            ErrorF("Notifier timeout\n");
+            return FALSE;
+        }
+
         if (status == 0xffffffff)
             continue;
         if (!status)
@@ -77,7 +92,7 @@ Bool NVDmaWaitForNotifier(NVPtr pNv, int target, CARD32 base_address)
 void NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
                               CARD32 dma_in, CARD32 dma_out, CARD32 dma_notifier)
 {
-	drm_nouveau_object_init_t cto;
+    drm_nouveau_object_init_t cto;
     CARD32 nv_flags0 = 0, nv_flags1 = 0, nv_flags2 = 0;
     
     if (pNv->Architecture >= NV_ARCH_40) {
@@ -112,45 +127,52 @@ void NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
 #endif
     }
 
-	cto.handle = handle;
-	cto.class  = class;
-	cto.flags0 = nv_flags0;
-	cto.flags1 = nv_flags1;
-	cto.flags2 = nv_flags2;
-	cto.dma_in       = dma_in;
-	cto.dma_out      = dma_out;
-	cto.dma_notifier = dma_notifier;
-	drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_OBJECT_INIT, &cto, sizeof(cto));
+    cto.handle = handle;
+    cto.class  = class;
+    cto.flags0 = nv_flags0;
+    cto.flags1 = nv_flags1;
+    cto.flags2 = nv_flags2;
+    cto.dma0   = dma_in;
+    cto.dma1   = dma_out;
+    cto.dma_notifier = dma_notifier;
+    drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_OBJECT_INIT, &cto, sizeof(cto));
 }
                            
 Bool NVInitDma(ScrnInfoPtr pScrn)
 {
     NVPtr pNv = NVPTR(pScrn);
-    CARD32 dma_fb;
-#ifdef XF86DRI
-    CARD32 dma_agp;
-    CARD32 dma_notifier;
-#endif
-	drm_nouveau_fifo_init_t fifo_init;
-	unsigned int *fifo_regs, *fifo_cmdbuf;
-	int fifo;
-	int i;
+    drm_nouveau_fifo_init_t fifo;
 
-	if (!NVDRIScreenInit(pScrn))
-		return FALSE;
+    if (!NVDRIScreenInit(pScrn))
+        return FALSE;
 
-	fifo_init.fifo_num = &fifo;
-	if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_FIFO_INIT, &fifo_init, sizeof(fifo_init)) != 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Could not initialise kernel module\n");
-		return FALSE;
-	}
+    if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_FIFO_INIT, &pNv->fifo, sizeof(pNv->fifo)) != 0) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Could not initialise kernel module\n");
+        return FALSE;
+    }
 
-    dma_fb = NVDmaCreateDMAObject(pNv, NV_DMA_TARGET_VIDMEM, 0, pNv->FbMapSize, NV_DMA_ACCES_RW);
+    if (drmMap(pNv->drm_fd, pNv->fifo.cmdbuf, pNv->fifo.cmdbuf_size, (drmAddressPtr)&pNv->dmaBase)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to map DMA command buffer\n");
+        return FALSE;
+    }
+
+    if (drmMap(pNv->drm_fd, pNv->fifo.ctrl, pNv->fifo.ctrl_size, (drmAddressPtr)&pNv->FIFO)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to map FIFO control regs\n");
+        return FALSE;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using FIFO channel %d\n", pNv->fifo.channel);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "  Control registers : %p (0x%08x)\n", pNv->FIFO, pNv->fifo.ctrl);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "  DMA command buffer: %p (0x%08x)\n", pNv->dmaBase, pNv->fifo.cmdbuf);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "  DMA cmdbuf length : %d KiB\n", pNv->fifo.cmdbuf_size / 1024);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "  DMA base PUT      : 0x%08x\n", pNv->fifo.put_base);
+
+    NVDmaCreateDMAObject(pNv, NvDmaFB, NV_DMA_TARGET_VIDMEM, 0, pNv->FbMapSize, NV_DMA_ACCES_RW);
     
     NVDmaCreateContextObject (pNv, NvContextSurfaces,
                               (pNv->Architecture >= NV_ARCH_10) ? NV10_CONTEXT_SURFACES_2D : NV4_SURFACE,
                               NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
-                              dma_fb, dma_fb, 0);
+                              NvDmaFB, NvDmaFB, 0);
     NVDmaCreateContextObject (pNv, NvRop,
                               NV_ROP5_SOLID, 
                               NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
@@ -170,7 +192,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
     NVDmaCreateContextObject (pNv, NvImageBlit,
                               pNv->WaitVSyncPossible ? NV12_IMAGE_BLIT : NV_IMAGE_BLIT,
                               NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND, 
-                              dma_fb, dma_fb, 0);
+                              NvDmaFB, NvDmaFB, 0);
     NVDmaCreateContextObject (pNv, NvRectangle,
                               NV4_GDI_RECTANGLE_TEXT, 
                               NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_MONO, 
@@ -178,32 +200,25 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
     NVDmaCreateContextObject (pNv, NvScaledImage,
                               NV_SCALED_IMAGE_FROM_MEMORY, 
                               NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
-                              dma_fb, dma_fb, 0);
+                              NvDmaFB, NvDmaFB, 0);
 
 #ifdef XF86DRI
     if (NVInitAGP(pScrn) && pNv->agpMemory) {
-
-        dma_agp = NVDmaCreateDMAObject(pNv, NV_DMA_TARGET_AGP, 0x10000, pNv->agpSize - 0x10000,
+        NVDmaCreateDMAObject(pNv, NvDmaAGP, NV_DMA_TARGET_AGP, 0x10000, pNv->agpSize - 0x10000,
                                        NV_DMA_ACCES_RW);
-        dma_notifier = NVDmaCreateNotifier(pNv, NV_DMA_TARGET_AGP, 0);
+        NVDmaCreateNotifier(pNv, NvDmaNotifier0, NV_DMA_TARGET_AGP, 0);
         
         NVDmaCreateContextObject (pNv, NvGraphicsToAGP,
                                   NV_MEMORY_TO_MEMORY_FORMAT,
                                   0,
-                                  dma_fb, dma_agp, dma_notifier);
+                                  NvDmaFB, NvDmaAGP, NvDmaNotifier0);
         
         NVDmaCreateContextObject (pNv, NvAGPToGraphics,
                                   NV_MEMORY_TO_MEMORY_FORMAT,
                                   0,
-                                  dma_agp, dma_fb, dma_notifier);
+                                  NvDmaAGP, NvDmaFB, NvDmaNotifier0);
     }
 #endif
 
-	fifo_regs   = pNv->FIFO;
-	fifo_cmdbuf = pNv->dmaBase;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using FIFO %d\n", fifo);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "FIFO control registers: %p\n", fifo_regs);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "DMA command buffer    : %p\n", fifo_cmdbuf);
-	return TRUE;
+    return TRUE;
 }

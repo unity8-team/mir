@@ -38,13 +38,14 @@ Bool   NVCursorInit(ScreenPtr pScreen);
 
 /* in nv_xaa.c */
 Bool   NVXaaInit(ScreenPtr pScreen);
+void   NVDoSync(NVPtr pNv);
 void   NVSync(ScrnInfoPtr pScrn);
 void   NVResetGraphics(ScrnInfoPtr pScrn);
 void   NVDmaKickoff(NVPtr pNv);
 void   NVDmaWait(NVPtr pNv, int size);
 void   NVWaitVSync(NVPtr pNv);
 void   NVSetRopSolid(ScrnInfoPtr pScrn, CARD32 rop, CARD32 planemask);
-void   NVDMAKickoffCallback (ScrnInfoPtr pScrn);
+void   NVDMAKickoffCallback (NVPtr pNv);
 
 /* in nv_dga.c */
 Bool   NVDGAInit(ScreenPtr pScreen);

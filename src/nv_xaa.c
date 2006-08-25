@@ -121,24 +121,41 @@ NVDmaKickoff(NVPtr pNv)
    to solve this problem */
 #define SKIPS  8
 
+#ifdef NV_DMA_DEBUG
+CARD32 READ_GET(void *data) {
+	NVPtr pNv = data;
+
+	CARD32 getPtr = pNv->FIFO[0x44/4];
+	xf86DrvMsg(0, X_INFO, "READ_GET: 0x%08x\n", getPtr);
+	getPtr = (getPtr - pNv->fifo.put_base) >> 2;
+	xf86DrvMsg(0, X_INFO, "READ_GET retval: 0x%08x\n", getPtr);
+	return getPtr;
+}
+#endif
+
 void 
 NVDmaWait (NVPtr pNv, int size){
+    int t_start;
     int dmaGet;
 
     size++;
 
+    t_start = GetTimeInMillis();
     while(pNv->dmaFree < size) {
        dmaGet = READ_GET(pNv);
 
        if(pNv->dmaPut >= dmaGet) {
            pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
            if(pNv->dmaFree < size) {
-               NVDmaNext(pNv, 0x20000000);
+               NVDmaNext(pNv, (0x20000000|pNv->fifo.put_base));
                if(dmaGet <= SKIPS) {
                    if(pNv->dmaPut <= SKIPS) /* corner case - will be idle */
                       WRITE_PUT(pNv, SKIPS + 1);
-                   do { dmaGet = READ_GET(pNv); }
-                   while(dmaGet <= SKIPS);
+                   do {
+                       if (GetTimeInMillis() - t_start > 2000)
+                           NVDoSync(pNv);
+                       dmaGet = READ_GET(pNv);
+                   } while(dmaGet <= SKIPS);
                }
                WRITE_PUT(pNv, SKIPS);
                pNv->dmaCurrent = pNv->dmaPut = SKIPS;
@@ -146,6 +163,9 @@ NVDmaWait (NVPtr pNv, int size){
            }
        } else 
            pNv->dmaFree = dmaGet - pNv->dmaCurrent - 1;
+
+       if (GetTimeInMillis() - t_start > 2000)
+           NVDoSync(pNv);
     }
 }
 
@@ -219,34 +239,21 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
     pitch = pNv->CurrentLayout.displayWidth * 
             (pNv->CurrentLayout.bitsPerPixel >> 3);
 
-    pNv->dmaBase = (CARD32*)(&pNv->FbStart[pNv->FbUsableSize]);
+    pNv->dmaPut = pNv->dmaCurrent = 0;
+    pNv->dmaMax = pNv->dmaFree = (pNv->fifo.cmdbuf_size >> 2) - 1;
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                   "dmaBase at 0x%x\n",pNv->dmaBase);
-    for(i = 0; i < SKIPS; i++)
-      pNv->dmaBase[i] = 0x00000000;
+    for (i=0; i<SKIPS; i++)
+        NVDmaNext(pNv, 0);
+    pNv->dmaFree -= SKIPS;
 
-    pNv->dmaBase[0x0 + SKIPS] = 0x00040000;
-    pNv->dmaBase[0x1 + SKIPS] = NvContextSurfaces;
-    pNv->dmaBase[0x2 + SKIPS] = 0x00042000;
-    pNv->dmaBase[0x3 + SKIPS] = NvRop;
-    pNv->dmaBase[0x4 + SKIPS] = 0x00044000;
-    pNv->dmaBase[0x5 + SKIPS] = NvImagePattern;
-    pNv->dmaBase[0x6 + SKIPS] = 0x00046000;
-    pNv->dmaBase[0x7 + SKIPS] = NvClipRectangle;
-    pNv->dmaBase[0x8 + SKIPS] = 0x00048000;
-    pNv->dmaBase[0x9 + SKIPS] = NvSolidLine;
-    pNv->dmaBase[0xA + SKIPS] = 0x0004A000;
-    pNv->dmaBase[0xB + SKIPS] = NvImageBlit;
-    pNv->dmaBase[0xC + SKIPS] = 0x0004C000;
-    pNv->dmaBase[0xD + SKIPS] = NvRectangle;
-    pNv->dmaBase[0xE + SKIPS] = 0x0004E000;
-    pNv->dmaBase[0xF + SKIPS] = NvScaledImage;
-
-    pNv->dmaPut = 0;
-    pNv->dmaCurrent = 16 + SKIPS;
-    pNv->dmaMax = 8191;
-    pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
+    NVDmaSetObjectOnSubchannel(pNv, NvSubContextSurfaces, NvContextSurfaces);
+    NVDmaSetObjectOnSubchannel(pNv, NvSubRop            , NvRop            );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubImagePattern   , NvImagePattern   );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubClipRectangle  , NvClipRectangle  );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubSolidLine      , NvSolidLine      );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubImageBlit      , NvImageBlit      );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubRectangle      , NvRectangle      );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubScaledImage    , NvScaledImage    );
 
     switch(pNv->CurrentLayout.depth) {
     case 24:
@@ -291,29 +298,35 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
     NVDmaKickoff(pNv);
 }
 
-void NVSync(ScrnInfoPtr pScrn)
+void NVDoSync(NVPtr pNv)
 {
-    int i = 0;
-    const int timeout = 0x10000;
-    NVPtr pNv = NVPTR(pScrn);
+    int t_start, timeout = 2000;
 
     if(pNv->DMAKickoffCallback)
-       (*pNv->DMAKickoffCallback)(pScrn);
+       (*pNv->DMAKickoffCallback)(pNv);
 
-    while((i++ < timeout) && (READ_GET(pNv) != pNv->dmaPut));
+    t_start = GetTimeInMillis();
+    while((GetTimeInMillis() - t_start) < timeout && (READ_GET(pNv) != pNv->dmaPut));
+    while((GetTimeInMillis() - t_start) < timeout && pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
 
-    while((i++ < timeout) && pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
-    if (i >= timeout) {
-        ErrorF("DMA queue hang: dmaPut=%x, current=%x, status=%x\n",
+    if ((GetTimeInMillis() - t_start) >= timeout) {
+        if (pNv->LockedUp)
+            return;
+        pNv->LockedUp = TRUE; /* avoid re-entering FatalError on shutdown */
+        FatalError("DMA queue hang: dmaPut=%x, current=%x, status=%x\n",
                pNv->dmaPut, READ_GET(pNv), pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
     }
 }
 
-void
-NVDMAKickoffCallback (ScrnInfoPtr pScrn)
+void NVSync(ScrnInfoPtr pScrn)
 {
-   NVPtr pNv = NVPTR(pScrn);
+    NVPtr pNv = NVPTR(pScrn);
+    NVDoSync(pNv);
+}
 
+void
+NVDMAKickoffCallback (NVPtr pNv)
+{
    NVDmaKickoff(pNv);
    pNv->DMAKickoffCallback = NULL;
 }

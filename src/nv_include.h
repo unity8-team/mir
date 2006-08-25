@@ -67,6 +67,7 @@
 #include <X11/extensions/randr.h>
 #endif
 
+#define NV_DMA_DEBUG 0
 #include "nv_local.h"
 #include "nv_type.h"
 #include "nv_proto.h"

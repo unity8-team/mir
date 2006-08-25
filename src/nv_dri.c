@@ -50,6 +50,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
     drmVersionPtr drm_version;
     ScreenPtr pScreen;
     pScreen = screenInfo.screens[pScrn->scrnIndex];
+	int irq;
 
     if (!xf86LoadSubModule(pScrn, "dri")) {
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -102,6 +103,24 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
                drm_version->version_minor, 
                drm_version->version_patchlevel,
                drm_version->name);
+
+#if 1
+    pNv->IRQ = 0;
+#else
+    /* Ask DRM to install IRQ handler */
+    irq = drmGetInterruptFromBusID(pNv->drm_fd,
+            ((pciConfigPtr)pNv->PciInfo->thisCard)->busnum,
+            ((pciConfigPtr)pNv->PciInfo->thisCard)->devnum,
+            ((pciConfigPtr)pNv->PciInfo->thisCard)->funcnum);
+
+    if (drmCtlInstHandler(pNv->drm_fd, irq)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to install IRQ handler\n");
+        pNv->IRQ = 0;
+    } else {
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "IRQ handler initialised.  IRQ %d\n", irq);
+        pNv->IRQ = irq;
+    }
+#endif
 
     return TRUE;
 }

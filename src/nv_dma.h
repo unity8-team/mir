@@ -42,12 +42,7 @@
 #ifndef NV_DMA_H
 #define NV_DMA_H
 
-#if 0
-#define NVDEBUG ErrorF
-#else
-#define NVDEBUG if (0) ErrorF
-#endif
-
+#define NVDEBUG if (NV_DMA_DEBUG) ErrorF
 
 #define NV_DMA_ACCES_RW 0
 #define NV_DMA_ACCES_RO 1
@@ -58,10 +53,10 @@
 #define NV_DMA_TARGET_PCI 2
 */
 #define NV_DMA_TARGET_AGP 3
-CARD32 NVDmaCreateDMAObject(NVPtr pNv, int target, CARD32 base_address, CARD32 size, int access);
+void NVDmaCreateDMAObject(NVPtr pNv, int handle, int target, CARD32 base_address, CARD32 size, int access);
 
 Bool NVDmaWaitForNotifier(NVPtr pNv, int target, CARD32 base_address);
-CARD32 NVDmaCreateNotifier(NVPtr pNv, int target, CARD32 base_address);
+void NVDmaCreateNotifier(NVPtr pNv, int handle, int target, CARD32 base_address);
     
 #define NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND 0x1
 #define NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY 0x2
@@ -82,7 +77,10 @@ enum DMAObjects {
         NvRectangle = 0x80000016, 
         NvScaledImage = 0x80000017, 
         NvGraphicsToAGP = 0x80000018, 
-        NvAGPToGraphics = 0x80000019
+        NvAGPToGraphics = 0x80000019,
+        NvDmaFB = 0xD8000001,
+        NvDmaAGP = 0xD8000002,
+        NvDmaNotifier0 = 0xD8000003
 };
 enum DMASubchannel {
         NvSubContextSurfaces = 0, 
@@ -96,12 +94,15 @@ enum DMASubchannel {
         NvSubGraphicsToAGP = 7
 };
 
-#define NVDmaNext(pNv, data)                            \
-     (pNv)->dmaBase[(pNv)->dmaCurrent++] = (data)
+#define NVDmaNext(pNv, data) {                           \
+     (pNv)->dmaBase[(pNv)->dmaCurrent++] = (data);       \
+     NVDEBUG("\tNVDmaNext: 0x%08x\n", (data));           \
+}
 
 #define NVDmaStart(pNv, subchannel, tag, size) {                        \
         if((pNv)->dmaFree <= (size))                                    \
             NVDmaWait(pNv, size);                                       \
+        NVDEBUG("NVDmaStart: subc=%d, cmd=%x, num=%d\n", (subchannel), (tag), (size)); \
         NVDmaNext(pNv, ((size) << 18) | ((subchannel) << 13) | (tag));  \
         (pNv)->dmaFree -= ((size) + 1);                                 \
     }

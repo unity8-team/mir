@@ -13,8 +13,10 @@
 #define _XF86DRI_SERVER_
 #include "xf86drm.h"
 #include "dri.h"
+#include "nouveau_drm.h"
+#else
+#error "This driver requires a DRI-enabled X server"
 #endif
-
 
 #define NV_ARCH_04  0x04
 #define NV_ARCH_10  0x10
@@ -108,7 +110,8 @@ typedef struct _riva_hw_state
 } RIVA_HW_STATE, *NVRegPtr;
 
 
-typedef struct {
+typedef struct _NVRec *NVPtr;
+typedef struct _NVRec {
     RIVA_HW_STATE       SavedReg;
     RIVA_HW_STATE       ModeReg;
     RIVA_HW_STATE       *CurrentState;
@@ -190,7 +193,7 @@ typedef struct {
     I2CBusPtr           I2C;
     xf86Int10InfoPtr    pInt;
     void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
-    void		(*DMAKickoffCallback)(ScrnInfoPtr);
+    void		(*DMAKickoffCallback)(NVPtr pNv);
     XF86VideoAdaptorPtr	overlayAdaptor;
     XF86VideoAdaptorPtr	blitAdaptor;
     int			videoKey;
@@ -212,6 +215,10 @@ typedef struct {
     int                 PanelTweak;
     Bool                LVDS;
 
+    int                 IRQ;
+    Bool                LockedUp;
+
+    drm_nouveau_fifo_init_t fifo;
     CARD32              dmaPut;
     CARD32              dmaCurrent;
     CARD32              dmaFree;
@@ -225,7 +232,7 @@ typedef struct {
 #ifdef XF86DRI
     DRIInfoPtr          pDRIInfo;
 #endif /* XF86DRI */
-} NVRec, *NVPtr;
+} NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))
 

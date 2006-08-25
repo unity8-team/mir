@@ -79,15 +79,28 @@ typedef unsigned int   U032;
 #define _NV_FENCE() mem_barrier();
 #endif
 
+#ifdef NV_DMA_DEBUG
+extern CARD32 READ_GET(void *);
+
 #define WRITE_PUT(pNv, data) {       \
   volatile CARD8 scratch;            \
   _NV_FENCE()                        \
   scratch = (pNv)->FbStart[0];       \
-  (pNv)->FIFO[0x0010] = (data) << 2; \
+  (pNv)->FIFO[0x0010] = ((data) << 2) + pNv->fifo.put_base; \
+	xf86DrvMsg(0, X_INFO, "WRITE_PUT: 0x%08x\n", ((data) << 2) + pNv->fifo.put_base); \
   mem_barrier();                     \
 }
+#else
+#define READ_GET(pNv) (((pNv)->FIFO[0x0011] - pNv->fifo.put_base) >> 2)
 
-#define READ_GET(pNv) ((pNv)->FIFO[0x0011] >> 2)
+#define WRITE_PUT(pNv, data) {       \
+  volatile CARD8 scratch;            \
+  _NV_FENCE()                        \
+  scratch = (pNv)->FbStart[0];       \
+  (pNv)->FIFO[0x0010] = ((data) << 2) + pNv->fifo.put_base; \
+  mem_barrier();                     \
+}
+#endif
 
 
 #endif /* __NV_LOCAL_H__ */

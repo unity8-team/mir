@@ -481,7 +481,10 @@ Bool NVExaInit(ScreenPtr pScreen)
         pNv->EXADriverPtr->DownloadFromScreen = NVDownloadFromScreen; 
         pNv->EXADriverPtr->UploadToScreen = NVUploadToScreen; 
     }
-    if (pNv->BlendingPossible) {
+    /*darktama: Hard-disabled these for now, I get lockups often when
+     *          starting e17 with them enabled.
+     */
+    if (0 && pNv->BlendingPossible) {
         /* install composite hooks */
         pNv->EXADriverPtr->CheckComposite = NVCheckComposite;
         pNv->EXADriverPtr->PrepareComposite = NVPrepareComposite;

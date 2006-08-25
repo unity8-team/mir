@@ -373,7 +373,6 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     pNv->PEXTDEV  = pNv->REGS + (NV_PEXTDEV_OFFSET/4);
     pNv->PTIMER   = pNv->REGS + (NV_PTIMER_OFFSET/4);
     pNv->PMC      = pNv->REGS + (NV_PMC_OFFSET/4);
-    pNv->FIFO     = pNv->REGS + (NV_FIFO_OFFSET/4);
 
     /* 8 bit registers */
     pNv->PCIO0    = (U008*)pNv->REGS + NV_PCIO0_OFFSET;
@@ -454,11 +453,12 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     }
 
     /* Parse the bios to initialize the card */
+    NVSelectHeadRegisters(pScrn, 0);
     NVParseBios(pScrn);
     /* reset PFIFO and PGRAPH, then power up all the card units */
-/*    pNv->PMC[0]=0x17110013;
+/*    pNv->PMC[0x200]=0x17110013;
     usleep(1000);*/
-    pNv->PMC[0]=0x17111113;
+    pNv->PMC[0x200]=0x17111113;
 
     if(pNv->Architecture == NV_ARCH_04)
         nv4GetConfig(pNv);

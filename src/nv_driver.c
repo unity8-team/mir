@@ -920,7 +920,7 @@ NVBlockHandler (
     NVPtr         pNv = NVPTR(pScrnInfo);
 
     if (pNv->DMAKickoffCallback)
-        (*pNv->DMAKickoffCallback)(pScrnInfo);
+        (*pNv->DMAKickoffCallback)(pNv);
     
     pScreen->BlockHandler = pNv->BlockHandler;
     (*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
@@ -1543,13 +1543,17 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
     }
 
+    /*
+     * This is all generally bad.. We need to allocate these areas
+     */
     if(pNv->Architecture >= NV_ARCH_40)
        pNv->FbUsableSize = pNv->FbMapSize - (560 * 1024);
     else
        pNv->FbUsableSize = pNv->FbMapSize - (256 * 1024);
     pNv->ScratchBufferSize = (pNv->Architecture < NV_ARCH_10) ? 8192 : 16384;
     pNv->ScratchBufferStart = pNv->FbUsableSize - pNv->ScratchBufferSize;
-    pNv->CursorStart = pNv->FbUsableSize + (32 * 1024);
+    pNv->CursorStart = pNv->ScratchBufferStart - (64*1024);
+    pNv->FbUsableSize -= pNv->ScratchBufferSize + (64*1024);
 
     /*
      * Setup the ClockRanges, which describe what clock ranges are available,
