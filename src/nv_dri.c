@@ -42,6 +42,25 @@ static void NVDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 	return;
 }	
 
+static void NVDRITransitionTo2d(ScreenPtr pScreen)
+{
+	return;
+}
+
+static void NVDRITransitionTo3d(ScreenPtr pScreen)
+{
+	return;
+}
+
+static void NVDRITransitionSingleToMulti3d(ScreenPtr pScreen)
+{           
+	return;
+}           
+        
+static void NVDRITransitionMultiToSingle3d(ScreenPtr pScreen)
+{       
+	return;
+}
 
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 {
@@ -50,7 +69,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
     drmVersionPtr drm_version;
     ScreenPtr pScreen;
     pScreen = screenInfo.screens[pScrn->scrnIndex];
-	int irq;
+    int irq;
 
     if (!xf86LoadSubModule(pScrn, "dri")) {
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -67,6 +86,12 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
     
     pNv->pDRIInfo                        = pDRIInfo;
     pDRIInfo->drmDriverName              = "nouveau";
+    pDRIInfo->clientDriverName           = "nouveau";
+    pDRIInfo->busIdString                = DRICreatePCIBusID(pNv->PciInfo);
+
+    pDRIInfo->ddxDriverMajorVersion      = NV_MAJOR_VERSION;
+    pDRIInfo->ddxDriverMinorVersion      = NV_MINOR_VERSION;
+    pDRIInfo->ddxDriverPatchVersion      = NV_PATCHLEVEL;
 
     pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->FbAddress;
     pDRIInfo->frameBufferSize            = pNv->FbUsableSize;
@@ -86,6 +111,16 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
     pDRIInfo->InitBuffers                = NVDRIInitBuffers;
     pDRIInfo->MoveBuffers                = NVDRIMoveBuffers;
     pDRIInfo->bufferRequests             = DRI_ALL_WINDOWS;
+    pDRIInfo->TransitionTo2d             = NVDRITransitionTo2d;
+    pDRIInfo->TransitionTo3d             = NVDRITransitionTo3d;
+    pDRIInfo->TransitionSingleToMulti3D  = NVDRITransitionSingleToMulti3d;
+    pDRIInfo->TransitionMultiToSingle3D  = NVDRITransitionMultiToSingle3d;
+
+    pDRIInfo->createDummyCtx     = FALSE;
+    pDRIInfo->createDummyCtxPriv = FALSE;
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling DRIScreenInit(%x,%x,%x)\n",pScreen,pDRIInfo,&pNv->drm_fd);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Sync\nSync\nSync\nSync\nSync\n");
+
     if (!DRIScreenInit(pScreen, pDRIInfo, &pNv->drm_fd)) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 	    	    "[dri] DRIScreenInit failed.  Disabling DRI.\n");
