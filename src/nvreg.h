@@ -190,9 +190,24 @@ extern volatile unsigned  *nvPNVMPort;    /* Priviled Bus */
 extern volatile unsigned  *dumb;          /* FrameBuffer - hack!!!! */
 
 
-typedef enum {NV1,NV3,NV4,NV10,NumNVChips} NVChipType;
+#define NV_IMAGE_PATTERN            0x18
+#define NV_IMAGE_BLACK_RECTANGLE    0x19
+#define NV_MEMORY_TO_MEMORY_FORMAT  0x39
+#define NV4_SURFACE                 0x42
+#define NV_ROP5_SOLID               0x43
+#define NV4_IMAGE_PATTERN           0x44
+#define NV4_GDI_RECTANGLE_TEXT      0x4a
+#define NV4_RENDER_SOLID_LIN        0x5c
+#define NV_IMAGE_BLIT               0x5f
+#define NV10_CONTEXT_SURFACES_2D    0x62
+#define NV_SCALED_IMAGE_FROM_MEMORY 0x77
+#define NV12_IMAGE_BLIT             0x9f
 
-NVChipType GetChipType(void);
+
+#define NV_PGRAPH_STATUS            (0x00000700)
+#define NV_PFIFO_RAMHT              (0x00000210)
+#define NV_PFB_BOOT                 (0x00000000)
+#define NV_PEXTDEV_BOOT             (0x00000000)
 
 
 #endif

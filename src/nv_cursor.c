@@ -180,7 +180,7 @@ NVSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
         fore = ConvertToRGB888(fg);
         back = ConvertToRGB888(bg);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-        if((pNv->Chipset & 0x0ff0) == 0x0110) {
+        if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
            fore = BYTE_SWAP_32(fore);
            back = BYTE_SWAP_32(back);
         }
@@ -189,7 +189,7 @@ NVSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
         fore = ConvertToRGB555(fg);
         back = ConvertToRGB555(bg);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-        if((pNv->Chipset & 0x0ff0) == 0x0110) {
+        if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
            fore = ((fore & 0xff) << 8) | (fore >> 8);
            back = ((back & 0xff) << 8) | (back >> 8);
         }
@@ -249,7 +249,7 @@ NVLoadCursorARGB(ScrnInfoPtr pScrn, CursorPtr pCurs)
     w = pCurs->bits->width;
     h = pCurs->bits->height;
 
-    if((pNv->Chipset & 0x0ff0) == 0x0110) {  /* premultiply */
+    if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {  /* premultiply */
        for(y = 0; y < h; y++) {
           for(x = 0; x < w; x++) {
              alpha = *image >> 24;

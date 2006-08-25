@@ -296,10 +296,10 @@ static void nv10GetConfig (NVPtr pNv)
     }
 #endif
 
-    if(implementation == 0x01a0) {
+    if(implementation == CHIPSET_NFORCE) {
         int amt = pciReadLong(pciTag(0, 0, 1), 0x7C);
         pNv->RamAmountKBytes = (((amt >> 6) & 31) + 1) * 1024;
-    } else if(implementation == 0x01f0) {
+    } else if(implementation == CHIPSET_NFORCE2) {
         int amt = pciReadLong(pciTag(0, 0, 1), 0x84);
         pNv->RamAmountKBytes = (((amt >> 4) & 127) + 1) * 1024;
     } else {
@@ -311,7 +311,7 @@ static void nv10GetConfig (NVPtr pNv)
 
     pNv->CrystalFreqKHz = (pNv->PEXTDEV[0x0000/4] & (1 << 6)) ? 14318 : 13500;
     
-    if(pNv->twoHeads && (implementation != 0x0110))
+    if(pNv->twoHeads && (implementation != CHIPSET_NV11))
     {
        if(pNv->PEXTDEV[0x0000/4] & (1 << 22))
            pNv->CrystalFreqKHz = 27000;
@@ -385,21 +385,21 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     pNv->PVIO     = (U008*)pNv->REGS + 0x000C0000;
 
     pNv->twoHeads =  (pNv->Architecture >= NV_ARCH_10) &&
-                     (implementation != 0x0100) &&
-                     (implementation != 0x0150) &&
-                     (implementation != 0x01A0) &&
-                     (implementation != 0x0200);
+                     (implementation != CHIPSET_NV10) &&
+                     (implementation != CHIPSET_NV15) &&
+                     (implementation != CHIPSET_NFORCE) &&
+                     (implementation != CHIPSET_NV20);
 
-    pNv->fpScaler = (pNv->FpScale && pNv->twoHeads && (implementation!=0x0110));
+    pNv->fpScaler = (pNv->FpScale && pNv->twoHeads && (implementation!=CHIPSET_NV11));
 
-    pNv->twoStagePLL = (implementation == 0x0310) ||
-                       (implementation == 0x0340) ||
+    pNv->twoStagePLL = (implementation == CHIPSET_NV31) ||
+                       (implementation == CHIPSET_NV36) ||
                        (pNv->Architecture >= NV_ARCH_40);
 
     pNv->WaitVSyncPossible = (pNv->Architecture >= NV_ARCH_10) &&
-                             (implementation != 0x0100);
+                             (implementation != CHIPSET_NV10);
 
-    pNv->BlendingPossible = ((pNv->Chipset & 0xffff) != 0x0020);
+    pNv->BlendingPossible = ((pNv->Chipset & 0xffff) != CHIPSET_NV04);
 
     /* look for known laptop chips */
     switch(pNv->Chipset & 0xffff) {
@@ -474,7 +474,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
            FlatPanel = monitorA->features.input_type ? 1 : 0;
 
            /* NV4 doesn't support FlatPanels */
-           if((pNv->Chipset & 0x0fff) <= 0x0020)
+           if((pNv->Chipset & 0x0fff) <= CHIPSET_NV04)
               FlatPanel = 0;
        } else {
            VGA_WR08(pNv->PCIO, 0x03D4, 0x28);
@@ -507,7 +507,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
        CARD32 oldhead;
        CARD8 cr44;
       
-       if(implementation != 0x0110) {
+       if(implementation != CHIPSET_NV11) {
            if(pNv->PRAMDAC0[0x0000052C/4] & 0x100)
                outputAfromCRTC = 1;
            else            
@@ -665,7 +665,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
            monitorB = NULL;
        }
 
-       if(implementation == 0x0110)
+       if(implementation == CHIPSET_NV11)
            cr44 = pNv->CRTCnumber * 0x3;
 
        pNv->PCRTC0[0x00000860/4] = oldhead;

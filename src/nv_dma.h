@@ -39,109 +39,180 @@
  \***************************************************************************/
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_dma.h,v 1.4 2004/03/20 01:52:16 mvojkovi Exp $ */
+#ifndef NV_DMA_H
+#define NV_DMA_H
+
+#if 0
+#define NVDEBUG ErrorF
+#else
+#define NVDEBUG if (0) ErrorF
+#endif
+
+
+#define NV_DMA_ACCES_RW 0
+#define NV_DMA_ACCES_RO 1
+#define NV_DMA_ACCES_WO 2
+#define NV_DMA_TARGET_VIDMEM 0
+/*
+#define NV_DMA_TARGET_VIDMEM_TILED 1
+#define NV_DMA_TARGET_PCI 2
+*/
+#define NV_DMA_TARGET_AGP 3
+CARD32 NVDmaCreateDMAObject(NVPtr pNv, int target, CARD32 base_address, CARD32 size, int access);
+
+Bool NVDmaWaitForNotifier(NVPtr pNv, int target, CARD32 base_address);
+CARD32 NVDmaCreateNotifier(NVPtr pNv, int target, CARD32 base_address);
+    
+#define NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND 0x1
+#define NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY 0x2
+#define NV_DMA_CONTEXT_FLAGS_CLIP_ENABLE 0x4
+#define NV_DMA_CONTEXT_FLAGS_MONO 0x8
+void NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
+                              CARD32 dma_in, CARD32 dma_out, CARD32 dma_notifier);
+void NVInitDma(ScrnInfoPtr pScrn);
+
+
+enum DMAObjects {
+        NvContextSurfaces = 0x80000010, 
+        NvRop = 0x80000011, 
+        NvImagePattern = 0x80000012, 
+        NvClipRectangle = 0x80000013, 
+        NvSolidLine = 0x80000014, 
+        NvImageBlit = 0x80000015, 
+        NvRectangle = 0x80000016, 
+        NvScaledImage = 0x80000017, 
+        NvGraphicsToAGP = 0x80000018, 
+        NvAGPToGraphics = 0x80000019
+};
+enum DMASubchannel {
+        NvSubContextSurfaces = 0, 
+        NvSubRop = 1, 
+        NvSubImagePattern = 2, 
+        NvSubClipRectangle = 3, 
+        NvSubSolidLine = 4, 
+        NvSubImageBlit = 5, 
+        NvSubRectangle = 6, 
+        NvSubScaledImage = 7, 
+        NvSubGraphicsToAGP = 7
+};
+
+#define NVDmaNext(pNv, data)                            \
+     (pNv)->dmaBase[(pNv)->dmaCurrent++] = (data)
+
+#define NVDmaStart(pNv, subchannel, tag, size) {                        \
+        if((pNv)->dmaFree <= (size))                                    \
+            NVDmaWait(pNv, size);                                       \
+        NVDmaNext(pNv, ((size) << 18) | ((subchannel) << 13) | (tag));  \
+        (pNv)->dmaFree -= ((size) + 1);                                 \
+    }
+
+#define NVDmaSetObjectOnSubchannel(pNv, subchannel, object) \
+    NVDmaStart(pNv, subchannel, 0, 1);                      \
+    NVDmaNext(pNv,object);
 
 #define SURFACE_FORMAT                                              0x00000300
-#define SURFACE_FORMAT_DEPTH8                                       0x00000001
-#define SURFACE_FORMAT_DEPTH15                                      0x00000002
-#define SURFACE_FORMAT_DEPTH16                                      0x00000004
-#define SURFACE_FORMAT_DEPTH24                                      0x00000006
+#define SURFACE_FORMAT_Y8                                           0x00000001
+#define SURFACE_FORMAT_X1R5G5B5                                     0x00000002
+#define SURFACE_FORMAT_R5G6B5                                       0x00000004
+#define SURFACE_FORMAT_X8R8G8B8                                     0x00000006
+#define SURFACE_FORMAT_A8R8G8B8                                     0x0000000a
 #define SURFACE_PITCH                                               0x00000304
 #define SURFACE_PITCH_SRC                                           15:0
 #define SURFACE_PITCH_DST                                           31:16
 #define SURFACE_OFFSET_SRC                                          0x00000308
 #define SURFACE_OFFSET_DST                                          0x0000030C
 
-#define ROP_SET                                                     0x00002300
+#define ROP_SET                                                     0x00000300
 
-#define PATTERN_FORMAT                                              0x00004300
+#define PATTERN_FORMAT                                              0x00000300
 #define PATTERN_FORMAT_DEPTH8                                       0x00000003
 #define PATTERN_FORMAT_DEPTH16                                      0x00000001
 #define PATTERN_FORMAT_DEPTH24                                      0x00000003
-#define PATTERN_COLOR_0                                             0x00004310
-#define PATTERN_COLOR_1                                             0x00004314
-#define PATTERN_PATTERN_0                                           0x00004318
-#define PATTERN_PATTERN_1                                           0x0000431C
+#define PATTERN_COLOR_0                                             0x00000310
+#define PATTERN_COLOR_1                                             0x00000314
+#define PATTERN_PATTERN_0                                           0x00000318
+#define PATTERN_PATTERN_1                                           0x0000031C
 
-#define CLIP_POINT                                                  0x00006300
+#define CLIP_POINT                                                  0x00000300
 #define CLIP_POINT_X                                                15:0
 #define CLIP_POINT_Y                                                31:16
-#define CLIP_SIZE                                                   0x00006304
+#define CLIP_SIZE                                                   0x00000304
 #define CLIP_SIZE_WIDTH                                             15:0
 #define CLIP_SIZE_HEIGHT                                            31:16
 
-#define LINE_FORMAT                                                 0x00008300
+#define LINE_FORMAT                                                 0x00000300
 #define LINE_FORMAT_DEPTH8                                          0x00000003
 #define LINE_FORMAT_DEPTH16                                         0x00000001
 #define LINE_FORMAT_DEPTH24                                         0x00000003
-#define LINE_COLOR                                                  0x00008304
+#define LINE_COLOR                                                  0x00000304
 #define LINE_MAX_LINES                                              16
-#define LINE_LINES(i)                                               0x00008400\
+#define LINE_LINES(i)                                               0x00000400\
                                                                     +(i)*8
 #define LINE_LINES_POINT0_X                                         15:0
 #define LINE_LINES_POINT0_Y                                         31:16 
 #define LINE_LINES_POINT1_X                                         47:32
 #define LINE_LINES_POINT1_Y                                         63:48
 
-#define BLIT_POINT_SRC                                              0x0000A300
+#define BLIT_POINT_SRC                                              0x00000300
 #define BLIT_POINT_SRC_X                                            15:0
 #define BLIT_POINT_SRC_Y                                            31:16
-#define BLIT_POINT_DST                                              0x0000A304
+#define BLIT_POINT_DST                                              0x00000304
 #define BLIT_POINT_DST_X                                            15:0
 #define BLIT_POINT_DST_Y                                            31:16
-#define BLIT_SIZE                                                   0x0000A308
+#define BLIT_SIZE                                                   0x00000308
 #define BLIT_SIZE_WIDTH                                             15:0
 #define BLIT_SIZE_HEIGHT                                            31:16
 
-#define RECT_FORMAT                                                 0x0000C300
+#define RECT_FORMAT                                                 0x00000300
 #define RECT_FORMAT_DEPTH8                                          0x00000003
 #define RECT_FORMAT_DEPTH16                                         0x00000001
 #define RECT_FORMAT_DEPTH24                                         0x00000003
-#define RECT_SOLID_COLOR                                            0x0000C3FC
+#define RECT_SOLID_COLOR                                            0x000003FC
 #define RECT_SOLID_RECTS_MAX_RECTS                                  32
-#define RECT_SOLID_RECTS(i)                                         0x0000C400\
+#define RECT_SOLID_RECTS(i)                                         0x00000400\
                                                                     +(i)*8
 #define RECT_SOLID_RECTS_Y                                          15:0
 #define RECT_SOLID_RECTS_X                                          31:16
 #define RECT_SOLID_RECTS_HEIGHT                                     47:32
 #define RECT_SOLID_RECTS_WIDTH                                      63:48
 
-#define RECT_EXPAND_ONE_COLOR_CLIP                                  0x0000C7EC
+#define RECT_EXPAND_ONE_COLOR_CLIP                                  0x000007EC
 #define RECT_EXPAND_ONE_COLOR_CLIP_POINT0_X                         15:0
 #define RECT_EXPAND_ONE_COLOR_CLIP_POINT0_Y                         31:16
 #define RECT_EXPAND_ONE_COLOR_CLIP_POINT1_X                         47:32
 #define RECT_EXPAND_ONE_COLOR_CLIP_POINT1_Y                         63:48
-#define RECT_EXPAND_ONE_COLOR_COLOR                                 0x0000C7F4
-#define RECT_EXPAND_ONE_COLOR_SIZE                                  0x0000C7F8
+#define RECT_EXPAND_ONE_COLOR_COLOR                                 0x000007F4
+#define RECT_EXPAND_ONE_COLOR_SIZE                                  0x000007F8
 #define RECT_EXPAND_ONE_COLOR_SIZE_WIDTH                            15:0
 #define RECT_EXPAND_ONE_COLOR_SIZE_HEIGHT                           31:16
-#define RECT_EXPAND_ONE_COLOR_POINT                                 0x0000C7FC
+#define RECT_EXPAND_ONE_COLOR_POINT                                 0x000007FC
 #define RECT_EXPAND_ONE_COLOR_POINT_X                               15:0
 #define RECT_EXPAND_ONE_COLOR_POINT_Y                               31:16
 #define RECT_EXPAND_ONE_COLOR_DATA_MAX_DWORDS                       128
-#define RECT_EXPAND_ONE_COLOR_DATA(i)                               0x0000C800\
+#define RECT_EXPAND_ONE_COLOR_DATA(i)                               0x00000800\
                                                                     +(i)*4
 
-#define RECT_EXPAND_TWO_COLOR_CLIP                                  0x0000CBE4
+#define RECT_EXPAND_TWO_COLOR_CLIP                                  0x00000BE4
 #define RECT_EXPAND_TWO_COLOR_CLIP_POINT0_X                         15:0
 #define RECT_EXPAND_TWO_COLOR_CLIP_POINT0_Y                         31:16
 #define RECT_EXPAND_TWO_COLOR_CLIP_POINT1_X                         47:32
 #define RECT_EXPAND_TWO_COLOR_CLIP_POINT1_Y                         63:48
-#define RECT_EXPAND_TWO_COLOR_COLOR_0                               0x0000CBEC
-#define RECT_EXPAND_TWO_COLOR_COLOR_1                               0x0000CBF0
-#define RECT_EXPAND_TWO_COLOR_SIZE_IN                               0x0000CBF4
+#define RECT_EXPAND_TWO_COLOR_COLOR_0                               0x00000BEC
+#define RECT_EXPAND_TWO_COLOR_COLOR_1                               0x00000BF0
+#define RECT_EXPAND_TWO_COLOR_SIZE_IN                               0x00000BF4
 #define RECT_EXPAND_TWO_COLOR_SIZE_IN_WIDTH                         15:0
 #define RECT_EXPAND_TWO_COLOR_SIZE_IN_HEIGHT                        31:16
-#define RECT_EXPAND_TWO_COLOR_SIZE_OUT                              0x0000CBF8
+#define RECT_EXPAND_TWO_COLOR_SIZE_OUT                              0x00000BF8
 #define RECT_EXPAND_TWO_COLOR_SIZE_OUT_WIDTH                        15:0
 #define RECT_EXPAND_TWO_COLOR_SIZE_OUT_HEIGHT                       31:16
-#define RECT_EXPAND_TWO_COLOR_POINT                                 0x0000CBFC
+#define RECT_EXPAND_TWO_COLOR_POINT                                 0x00000BFC
 #define RECT_EXPAND_TWO_COLOR_POINT_X                               15:0
 #define RECT_EXPAND_TWO_COLOR_POINT_Y                               31:16
 #define RECT_EXPAND_TWO_COLOR_DATA_MAX_DWORDS                       128
-#define RECT_EXPAND_TWO_COLOR_DATA(i)                               0x0000CC00\
+#define RECT_EXPAND_TWO_COLOR_DATA(i)                               0x00000C00\
                                                                     +(i)*4
 
-#define STRETCH_BLIT_FORMAT                                         0x0000E300
+#define STRETCH_BLIT_FORMAT                                         0x00000300
 #define STRETCH_BLIT_FORMAT_DEPTH8                                  0x00000004
 #define STRETCH_BLIT_FORMAT_DEPTH16                                 0x00000007
 #define STRETCH_BLIT_FORMAT_DEPTH24                                 0x00000004
@@ -149,30 +220,29 @@
 #define STRETCH_BLIT_FORMAT_X8R8G8B8                                0x00000004
 #define STRETCH_BLIT_FORMAT_YUYV                                    0x00000005
 #define STRETCH_BLIT_FORMAT_UYVY                                    0x00000006
-/* STRETCH_BLIT_OPERATION is only supported on TNT2 and newer */
-#define STRETCH_BLIT_OPERATION                                      0x0000E304
+#define STRETCH_BLIT_OPERATION                                      0x00000304
 #define STRETCH_BLIT_OPERATION_ROP                                  0x00000001
 #define STRETCH_BLIT_OPERATION_COPY                                 0x00000003
 #define STRETCH_BLIT_OPERATION_BLEND                                0x00000002
-#define STRETCH_BLIT_CLIP_POINT                                     0x0000E308
+#define STRETCH_BLIT_CLIP_POINT                                     0x00000308
 #define STRETCH_BLIT_CLIP_POINT_X                                   15:0 
 #define STRETCH_BLIT_CLIP_POINT_Y                                   31:16
-#define STRETCH_BLIT_CLIP_POINT                                     0x0000E308
-#define STRETCH_BLIT_CLIP_SIZE                                      0x0000E30C
+#define STRETCH_BLIT_CLIP_POINT                                     0x00000308
+#define STRETCH_BLIT_CLIP_SIZE                                      0x0000030C
 #define STRETCH_BLIT_CLIP_SIZE_WIDTH                                15:0
 #define STRETCH_BLIT_CLIP_SIZE_HEIGHT                               31:16
-#define STRETCH_BLIT_DST_POINT                                      0x0000E310
+#define STRETCH_BLIT_DST_POINT                                      0x00000310
 #define STRETCH_BLIT_DST_POINT_X                                    15:0
 #define STRETCH_BLIT_DST_POINT_Y                                    31:16
-#define STRETCH_BLIT_DST_SIZE                                       0x0000E314
+#define STRETCH_BLIT_DST_SIZE                                       0x00000314
 #define STRETCH_BLIT_DST_SIZE_WIDTH                                 15:0
 #define STRETCH_BLIT_DST_SIZE_HEIGHT                                31:16
-#define STRETCH_BLIT_DU_DX                                          0x0000E318
-#define STRETCH_BLIT_DV_DY                                          0x0000E31C
-#define STRETCH_BLIT_SRC_SIZE                                       0x0000E400
+#define STRETCH_BLIT_DU_DX                                          0x00000318
+#define STRETCH_BLIT_DV_DY                                          0x0000031C
+#define STRETCH_BLIT_SRC_SIZE                                       0x00000400
 #define STRETCH_BLIT_SRC_SIZE_WIDTH                                 15:0
 #define STRETCH_BLIT_SRC_SIZE_HEIGHT                                31:16
-#define STRETCH_BLIT_SRC_FORMAT                                     0x0000E404
+#define STRETCH_BLIT_SRC_FORMAT                                     0x00000404
 #define STRETCH_BLIT_SRC_FORMAT_PITCH                               15:0
 #define STRETCH_BLIT_SRC_FORMAT_ORIGIN                              23:16
 #define STRETCH_BLIT_SRC_FORMAT_ORIGIN_CENTER                       0x00000001
@@ -180,7 +250,20 @@
 #define STRETCH_BLIT_SRC_FORMAT_FILTER                              31:24
 #define STRETCH_BLIT_SRC_FORMAT_FILTER_POINT_SAMPLE                 0x00000000
 #define STRETCH_BLIT_SRC_FORMAT_FILTER_BILINEAR                     0x00000001
-#define STRETCH_BLIT_SRC_OFFSET                                     0x0000E408
-#define STRETCH_BLIT_SRC_POINT                                      0x0000E40C
+#define STRETCH_BLIT_SRC_OFFSET                                     0x00000408
+#define STRETCH_BLIT_SRC_POINT                                      0x0000040C
 #define STRETCH_BLIT_SRC_POINT_U                                    15:0
 #define STRETCH_BLIT_SRC_POINT_V                                    31:16
+
+
+#define MEMFORMAT_NOTIFY                                0x00000104
+#define MEMFORMAT_DMA_NOTIFY                            0x00000180
+#define MEMFORMAT_OFFSET_IN                             0x0000030C
+#define MEMFORMAT_OFFSET_OUT                            0x00000310
+#define MEMFORMAT_PITCH_IN                              0x00000314
+#define MEMFORMAT_PITCH_OUT                             0x00000318
+#define MEMFORMAT_LINE_LENGTH_IN                        0x0000031C
+#define MEMFORMAT_LINE_COUNT                            0x00000320
+
+
+#endif /* NV_DMA_H */

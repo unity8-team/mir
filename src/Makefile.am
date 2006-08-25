@@ -29,11 +29,15 @@ nv_drv_la_LDFLAGS = -module -avoid-version
 nv_drv_ladir = @moduledir@/drivers
 
 nv_drv_la_SOURCES = \
+	 nv_bios.c \
          nv_const.h \
          nv_cursor.c \
          nv_dac.c \
          nv_dga.c \
+	 nv_dma.c \
          nv_dma.h \
+	 nv_dri.c \
+	 nv_exa.c \
          nv_driver.c \
          nv_hw.c \
          nv_include.h \

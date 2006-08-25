@@ -8,12 +8,48 @@
 #include "xaa.h"
 #include "xf86Cursor.h"
 #include "xf86int10.h"
+#include "exa.h"
+#ifdef XF86DRI
+#define _XF86DRI_SERVER_
+#include "xf86drm.h"
+#include "dri.h"
+#endif
+
 
 #define NV_ARCH_04  0x04
 #define NV_ARCH_10  0x10
 #define NV_ARCH_20  0x20
 #define NV_ARCH_30  0x30
 #define NV_ARCH_40  0x40
+
+#define CHIPSET_NV04     0x0020
+#define CHIPSET_NV10     0x0100
+#define CHIPSET_NV11     0x0110
+#define CHIPSET_NV15     0x0150
+#define CHIPSET_NV17     0x0170
+#define CHIPSET_NV18     0x0180
+#define CHIPSET_NFORCE   0x01A0
+#define CHIPSET_NFORCE2  0x01F0
+#define CHIPSET_NV20     0x0200
+#define CHIPSET_NV25     0x0250
+#define CHIPSET_NV28     0x0280
+#define CHIPSET_NV30     0x0300
+#define CHIPSET_NV31     0x0310
+#define CHIPSET_NV34     0x0320
+#define CHIPSET_NV35     0x0330
+#define CHIPSET_NV36     0x0340
+#define CHIPSET_NV40     0x0040
+#define CHIPSET_NV41     0x00C0
+#define CHIPSET_NV43     0x0140
+#define CHIPSET_NV44     0x0160
+#define CHIPSET_NV44A    0x0220
+#define CHIPSET_NV45     0x0210
+#define CHIPSET_PCIE     0x00F0
+#define CHIPSET_G70      0x0090
+#define CHIPSET_G71      0x0290
+#define CHIPSET_G72      0x01D0
+#define CHIPSET_G73      0x0390
+#define CHIPSET_C51      0x0240
 
 
 #define BITMASK(t,b) (((unsigned)(1U << (((t)-(b)+1)))-1)  << (b))
@@ -102,6 +138,12 @@ typedef struct {
     CARD32              MaxVClockFreqKHz;
     CARD32              CrystalFreqKHz;
     CARD32              RamAmountKBytes;
+    int drm_fd;
+    unsigned long drm_agp_handle;
+    unsigned long drm_agp_map_handle;
+    unsigned char *agpMemory;
+    unsigned long agpPhysical;
+    unsigned long agpSize;
 
     volatile U032 *REGS;
     volatile U032 *PCRTC0;
@@ -123,7 +165,12 @@ typedef struct {
     volatile U008 *PDIO;
     volatile U032 *PRAMDAC;
 
+    volatile U032 *RAMHT;
+    CARD32 pramin_free;
+
     XAAInfoRecPtr       AccelInfoRec;
+    ExaDriverPtr	EXADriverPtr;
+    Bool                useEXA;
     xf86CursorInfoPtr   CursorInfoRec;
     DGAModePtr          DGAModes;
     int                 numDGAModes;
@@ -173,6 +220,9 @@ typedef struct {
     Bool                WaitVSyncPossible;
     Bool                BlendingPossible;
     Bool                RandRRotation;
+#ifdef XF86DRI
+    DRIInfoPtr          pDRIInfo;
+#endif /* XF86DRI */
 } NVRec, *NVPtr;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

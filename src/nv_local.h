@@ -73,16 +73,6 @@ typedef unsigned int   U032;
 #define VGA_WR08(p,i,d) NV_WR08(p,i,d)
 #define VGA_RD08(p,i)   NV_RD08(p,i)
 
-#define NVDmaNext(pNv, data) \
-     (pNv)->dmaBase[(pNv)->dmaCurrent++] = (data)
-
-#define NVDmaStart(pNv, tag, size) {          \
-     if((pNv)->dmaFree <= (size))             \
-        NVDmaWait(pNv, size);                 \
-     NVDmaNext(pNv, ((size) << 18) | (tag));  \
-     (pNv)->dmaFree -= ((size) + 1);          \
-}
-
 #if defined(__i386__)
 #define _NV_FENCE() outb(0x3D0, 0);
 #else

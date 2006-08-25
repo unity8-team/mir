@@ -8,6 +8,11 @@ Bool   NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
 void   NVAdjustFrame(int scrnIndex, int x, int y, int flags);
 Bool   NVI2CInit(ScrnInfoPtr pScrn);
 
+#ifdef XF86DRI
+Bool NVInitAGP(ScrnInfoPtr pScrn);
+Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
+extern const char *drmSymbols[], *driSymbols[];
+#endif
 
 /* in nv_dac.c */
 Bool   NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
@@ -32,12 +37,14 @@ void   NVCommonSetup(ScrnInfoPtr pScrn);
 Bool   NVCursorInit(ScreenPtr pScreen);
 
 /* in nv_xaa.c */
-Bool   NVAccelInit(ScreenPtr pScreen);
+Bool   NVXaaInit(ScreenPtr pScreen);
 void   NVSync(ScrnInfoPtr pScrn);
 void   NVResetGraphics(ScrnInfoPtr pScrn);
 void   NVDmaKickoff(NVPtr pNv);
 void   NVDmaWait(NVPtr pNv, int size);
 void   NVWaitVSync(NVPtr pNv);
+void   NVSetRopSolid(ScrnInfoPtr pScrn, CARD32 rop, CARD32 planemask);
+void   NVDMAKickoffCallback (ScrnInfoPtr pScrn);
 
 /* in nv_dga.c */
 Bool   NVDGAInit(ScreenPtr pScreen);
@@ -56,6 +63,9 @@ void NVRefreshArea8(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 void NVRefreshArea16(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 void NVRefreshArea32(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 void NVPointerMoved(int index, int x, int y);
+
+/* in nv_bios.c */
+unsigned int NVParseBios(ScrnInfoPtr pScrn);
 
 #endif /* __NV_PROTO_H__ */
 

@@ -35,6 +35,10 @@
 
 #include "xf86int10.h"
 
+#ifdef XF86DRI
+#include "xf86drm.h"
+#endif
+
 const   OptionInfoRec * RivaAvailableOptions(int chipid, int busid);
 Bool    RivaGetScrnInfoRec(PciChipsets *chips, int chip);
 
@@ -376,6 +380,12 @@ static const char *xaaSymbols[] = {
     NULL
 };
 
+static const char *exaSymbols[] = {
+    "exaDriverInit",
+    "exaOffscreenInit",
+    NULL
+};
+
 static const char *ramdacSymbols[] = {
     "xf86CreateCursorInfoRec",
     "xf86DestroyCursorInfoRec",
@@ -446,6 +456,50 @@ static const char *rivaSymbols[] = {
     NULL
 };
 
+#ifdef XF86DRI
+const char *drmSymbols[] = {
+    "drmOpen", 
+    "drmAddBufs",
+    "drmAddMap",
+    "drmAgpAcquire",
+    "drmAgpVersionMajor",
+    "drmAgpVersionMinor",
+    "drmAgpAlloc",
+    "drmAgpBind",
+    "drmAgpEnable",
+    "drmAgpFree",
+    "drmAgpRelease",
+    "drmAgpUnbind",
+    "drmAuthMagic",
+    "drmCommandNone",
+    "drmCommandWrite",
+    "drmCreateContext",
+    "drmCtlInstHandler",
+    "drmCtlUninstHandler",
+    "drmDestroyContext",
+    "drmFreeVersion",
+    "drmGetInterruptFromBusID",
+    "drmGetLibVersion",
+    "drmGetVersion",
+    NULL
+};
+
+const char *driSymbols[] = {
+    "DRICloseScreen",
+    "DRICreateInfoRec",
+    "DRIDestroyInfoRec",
+    "DRIFinishScreenInit",
+    "DRIGetSAREAPrivate",
+    "DRILock",
+    "DRIQueryVersion",
+    "DRIScreenInit",
+    "DRIUnlock",
+    "GlxSetVisualConfigs",
+    "DRICreatePCIBusID",
+    NULL
+};
+
+#endif
 
 #ifdef XFree86LOADER
 
@@ -481,7 +535,8 @@ typedef enum {
     OPTION_FP_DITHER,
     OPTION_CRTC_NUMBER,
     OPTION_FP_SCALE,
-    OPTION_FP_TWEAK
+    OPTION_FP_TWEAK,
+    OPTION_ACCELMETHOD
 } NVOpts;
 
 
@@ -498,6 +553,7 @@ static const OptionInfoRec NVOptions[] = {
     { OPTION_CRTC_NUMBER,	"CrtcNumber",	OPTV_INTEGER,	{0}, FALSE },
     { OPTION_FP_SCALE,          "FPScale",      OPTV_BOOLEAN,   {0}, FALSE },
     { OPTION_FP_TWEAK,          "FPTweak",      OPTV_INTEGER,   {0}, FALSE },
+    { OPTION_ACCELMETHOD,	 "AccelMethod",	OPTV_STRING,	{0}, FALSE },
     { -1,                       NULL,           OPTV_NONE,      {0}, FALSE }
 };
 
@@ -552,12 +608,14 @@ nvSetup(pointer module, pointer opts, int *errmaj, int *errmin)
          * Modules that this driver always requires may be loaded here
          * by calling LoadSubModule().
          */
-
         /*
          * Tell the loader about symbols from other modules that this module
          * might refer to.
          */
-        LoaderRefSymLists(vgahwSymbols, xaaSymbols, fbSymbols,
+        LoaderRefSymLists(vgahwSymbols, xaaSymbols, exaSymbols, fbSymbols,
+#ifdef XF86DRI
+                          drmSymbols, 
+#endif
                           ramdacSymbols, shadowSymbols, rivaSymbols,
                           i2cSymbols, ddcSymbols, vbeSymbols,
                           fbdevHWSymbols, int10Symbols, NULL);
@@ -689,7 +747,7 @@ NVProbe(DriverPtr drv, int flags)
             int pciid = ((*ppPci)->vendor << 16) | (*ppPci)->chipType;
             int token = pciid;
 
-            if(((token & 0xfff0) == 0x00F0) ||
+            if(((token & 0xfff0) == CHIPSET_PCIE) ||
                ((token & 0xfff0) == 0x02E0))
             {
                 token = NVGetPCIXpressChip(*ppPci);
@@ -712,28 +770,28 @@ NVProbe(DriverPtr drv, int flags)
                /* look for a compatible devices which may be newer than 
                   the NVKnownChipsets list above.  */
                switch(token & 0xfff0) {
-               case 0x0170:   
-               case 0x0180:
-               case 0x0250:
-               case 0x0280:
-               case 0x0300:
-               case 0x0310:
-               case 0x0320:
-               case 0x0330:
-               case 0x0340:
-               case 0x0040:
-               case 0x00C0:
+               case CHIPSET_NV17:
+               case CHIPSET_NV18:
+               case CHIPSET_NV25:
+               case CHIPSET_NV28:
+               case CHIPSET_NV30:
+               case CHIPSET_NV31:
+               case CHIPSET_NV34:
+               case CHIPSET_NV35:
+               case CHIPSET_NV36:
+               case CHIPSET_NV40:
+               case CHIPSET_NV41:
                case 0x0120:
-               case 0x0140:
-               case 0x0160:
-               case 0x01D0:
-               case 0x0090:
-               case 0x0210:
-               case 0x0220:
-               case 0x0240:
-               case 0x0290:
-               case 0x0390:
-               case 0x03D0:
+               case CHIPSET_NV43:
+               case CHIPSET_NV44:
+               case 0x0130:
+               case CHIPSET_G72:
+               case CHIPSET_G70:
+               case CHIPSET_NV45:
+               case CHIPSET_NV44A:
+               case 0x0230:
+               case CHIPSET_G71:
+               case CHIPSET_G73:
                    NVChipsets[numUsed].token = pciid;
                    NVChipsets[numUsed].name = "Unknown NVIDIA chip";
                    NVPciChipsets[numUsed].numChipset = pciid;
@@ -1085,7 +1143,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	from = X_PROBED;
 	pNv->Chipset = (pNv->PciInfo->vendor << 16) | pNv->PciInfo->chipType;
 
-        if(((pNv->Chipset & 0xfff0) == 0x00F0) ||
+        if(((pNv->Chipset & 0xfff0) == CHIPSET_PCIE) ||
            ((pNv->Chipset & 0xfff0) == 0x02E0))
         {
             pNv->Chipset = NVGetPCIXpressChip(pNv->PciInfo);
@@ -1252,6 +1310,21 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
 		"Using framebuffer device\n");
     }
+    if (!pNv->NoAccel) {
+        if((s = (char *)xf86GetOptValString(pNv->Options, OPTION_ACCELMETHOD))) {
+            if(!xf86NameCmp(s,"XAA")) {
+                from = X_CONFIG;
+                pNv->useEXA = FALSE;
+            } else if(!xf86NameCmp(s,"EXA")) {
+                from = X_CONFIG;
+                pNv->useEXA = TRUE;
+            }
+        }
+	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Using %s acceleration method\n", s);
+    } else {
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Acceleration disabled\n");
+    }
+    
     if (pNv->FBDev) {
 	/* check for linux framebuffer device */
 	if (!xf86LoadSubModule(pScrn, "fbdevhw")) {
@@ -1415,40 +1488,39 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     }
 
     switch (pNv->Chipset & 0x0ff0) {
-    case 0x0100:   /* GeForce 256 */
-    case 0x0110:   /* GeForce2 MX */
-    case 0x0150:   /* GeForce2 */
-    case 0x0170:   /* GeForce4 MX */
-    case 0x0180:   /* GeForce4 MX (8x AGP) */
-    case 0x01A0:   /* nForce */
-    case 0x01F0:   /* nForce2 */
+    case CHIPSET_NV10:   /* GeForce 256 */
+    case CHIPSET_NV11:   /* GeForce2 MX */
+    case CHIPSET_NV15:   /* GeForce2 */
+    case CHIPSET_NV17:   /* GeForce4 MX */
+    case CHIPSET_NV18:   /* GeForce4 MX (8x AGP) */
+    case CHIPSET_NFORCE: /* nForce */
+    case CHIPSET_NFORCE2:/* nForce2 */
          pNv->Architecture =  NV_ARCH_10;
          break;
-    case 0x0200:   /* GeForce3 */
-    case 0x0250:   /* GeForce4 Ti */
-    case 0x0280:   /* GeForce4 Ti (8x AGP) */
+    case CHIPSET_NV20:   /* GeForce3 */
+    case CHIPSET_NV25:   /* GeForce4 Ti */
+    case CHIPSET_NV28:   /* GeForce4 Ti (8x AGP) */
          pNv->Architecture =  NV_ARCH_20;
          break;
-    case 0x0300:   /* GeForce FX 5800 */
-    case 0x0310:   /* GeForce FX 5600 */
-    case 0x0320:   /* GeForce FX 5200 */
-    case 0x0330:   /* GeForce FX 5900 */
-    case 0x0340:   /* GeForce FX 5700 */
+    case CHIPSET_NV30:   /* GeForceFX 5800 */
+    case CHIPSET_NV31:   /* GeForceFX 5600 */
+    case CHIPSET_NV34:   /* GeForceFX 5200 */
+    case CHIPSET_NV35:   /* GeForceFX 5900 */
+    case CHIPSET_NV36:   /* GeForceFX 5700 */
          pNv->Architecture =  NV_ARCH_30;
          break;
-    case 0x0040:   /* GeForce 6800 */
-    case 0x00C0:   /* GeForce 6800 */
+    case CHIPSET_NV40:   /* GeForce 6800 */
+    case CHIPSET_NV41:   /* GeForce 6800 */
     case 0x0120:   /* GeForce 6800 */
-    case 0x0140:   /* GeForce 6600 */
-    case 0x0160:   /* GeForce 6200 */
-    case 0x01D0:   /* GeForce 7200, 7300, 7400 */
-    case 0x0090:   /* GeForce 7800 */
-    case 0x0210:   /* GeForce 6800 */
-    case 0x0220:   /* GeForce 6200 */
-    case 0x0290:   /* GeForce 7900 */
-    case 0x0390:   /* GeForce 7600 */
-    case 0x0240:   /* GeForce 6100 */
-    case 0x03D0:
+    case CHIPSET_NV43:   /* GeForce 6600 */
+    case CHIPSET_NV44:   /* GeForce 6200 */
+    case CHIPSET_G72:   /* GeForce 7200, 7300, 7400 */
+    case CHIPSET_G70:   /* GeForce 7800 */
+    case CHIPSET_NV45:   /* GeForce 6800 */
+    case CHIPSET_NV44A:   /* GeForce 6200 */
+    case CHIPSET_G71:   /* GeForce 7900 */
+    case CHIPSET_G73:   /* GeForce 7600 */
+    case CHIPSET_C51:   /* GeForce 6100 */
          pNv->Architecture =  NV_ARCH_40;
          break;
     default:
@@ -1457,9 +1529,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     }
 
     pNv->alphaCursor = (pNv->Architecture >= NV_ARCH_10) &&
-                       ((pNv->Chipset & 0x0ff0) != 0x0100);
+                       ((pNv->Chipset & 0x0ff0) != CHIPSET_NV10);
 
     NVCommonSetup(pScrn);
+
+    /* Parse the bios to initialize the card */
+    NVParseBios(pScrn);
 
     if (pNv->FBDev) {
        pScrn->videoRam = fbdevHWGetVidmem(pScrn)/1024;
@@ -1488,7 +1563,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     if(pNv->Architecture >= NV_ARCH_40)
        pNv->FbUsableSize = pNv->FbMapSize - (560 * 1024);
     else
-       pNv->FbUsableSize = pNv->FbMapSize - (128 * 1024);
+       pNv->FbUsableSize = pNv->FbMapSize - (256 * 1024);
     pNv->ScratchBufferSize = (pNv->Architecture < NV_ARCH_10) ? 8192 : 16384;
     pNv->ScratchBufferStart = pNv->FbUsableSize - pNv->ScratchBufferSize;
     pNv->CursorStart = pNv->FbUsableSize + (32 * 1024);
@@ -1506,8 +1581,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     clockRanges->doubleScanAllowed = TRUE;
     if((pNv->Architecture == NV_ARCH_20) ||
          ((pNv->Architecture == NV_ARCH_10) && 
-           ((pNv->Chipset & 0x0ff0) != 0x0100) &&
-           ((pNv->Chipset & 0x0ff0) != 0x0150)))
+           ((pNv->Chipset & 0x0ff0) != CHIPSET_NV10) &&
+           ((pNv->Chipset & 0x0ff0) != CHIPSET_NV15)))
     {
        /* HW is broken */
        clockRanges->interlaceAllowed = FALSE;
@@ -1599,7 +1674,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     
     /* Load XAA if needed */
     if (!pNv->NoAccel) {
-	if (!xf86LoadSubModule(pScrn, "xaa")) {
+	if (!xf86LoadSubModule(pScrn, pNv->useEXA ? "exa" : "xaa")) {
 	    xf86FreeInt10(pNv->pInt);
 	    NVFreeRec(pScrn);
 	    return FALSE;
@@ -1808,7 +1883,7 @@ static void NVBacklightEnable(NVPtr pNv,  Bool on)
 #endif
     
     if(pNv->LVDS) {
-       if(pNv->twoHeads && ((pNv->Chipset & 0x0ff0) != 0x0110)) {
+       if(pNv->twoHeads && ((pNv->Chipset & 0x0ff0) != CHIPSET_NV11)) {
            pNv->PMC[0x130C/4] = on ? 3 : 7; 
        }
     } else {
@@ -1929,8 +2004,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	/* Save the current state */
 	NVSave(pScrn);
 	/* Initialise the first mode */
-	if (!NVModeInit(pScrn, pScrn->currentMode))
+	if (!NVModeInit(pScrn, pScrn->currentMode)) {
 	    return FALSE;
+    }
     }
 
     /* Darken the screen for aesthetic reasons and set the viewport */
@@ -2041,14 +2117,21 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     if(offscreenHeight > 32767)
         offscreenHeight = 32767;
 
+    if (!pNv->useEXA) {
     AvailFBArea.x1 = 0;
     AvailFBArea.y1 = 0;
     AvailFBArea.x2 = pScrn->displayWidth;
     AvailFBArea.y2 = offscreenHeight;
     xf86InitFBManager(pScreen, &AvailFBArea);
+    }
     
-    if (!pNv->NoAccel)
-	NVAccelInit(pScreen);
+    if (!pNv->NoAccel) {
+        if (pNv->useEXA)
+            NVExaInit(pScreen);
+        else /* XAA */
+            NVXaaInit(pScreen);
+    }
+    NVResetGraphics(pScrn);
     
     miInitializeBackingStore(pScreen);
     xf86SetBackingStore(pScreen);

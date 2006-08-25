@@ -306,7 +306,7 @@ void NVInitVideo (ScreenPtr pScreen)
 
     if((pScrn->bitsPerPixel != 8) && (pNv->Architecture >= NV_ARCH_10) &&
          ((pNv->Architecture <= NV_ARCH_30) || 
-            ((pNv->Chipset & 0xfff0) == 0x0040)))
+            ((pNv->Chipset & 0xfff0) == CHIPSET_NV40)))
     {
 	overlayAdaptor = NVSetupOverlayVideo(pScreen);
   
@@ -597,8 +597,8 @@ NVPutBlitImage (
     }
 
     if(pNv->CurrentLayout.depth == 15) {
-        NVDmaStart(pNv, SURFACE_FORMAT, 1);
-        NVDmaNext (pNv, SURFACE_FORMAT_DEPTH15);
+        NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 1);
+        NVDmaNext (pNv, SURFACE_FORMAT_X1R5G5B5);
     }
 
     if(pPriv->SyncToVBlank) {
@@ -607,19 +607,19 @@ NVPutBlitImage (
     }
 
     if(pNv->BlendingPossible) {
-       NVDmaStart(pNv, STRETCH_BLIT_FORMAT, 2);
+       NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_FORMAT, 2);
        NVDmaNext (pNv, format);
        NVDmaNext (pNv, STRETCH_BLIT_OPERATION_COPY);
     } else {
-       NVDmaStart(pNv, STRETCH_BLIT_FORMAT, 1);
+       NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_FORMAT, 1);
        NVDmaNext (pNv, format);
     }
 
     while(nbox--) {
-       NVDmaStart(pNv, RECT_SOLID_COLOR, 1);
+       NVDmaStart(pNv, NvSubRectangle, RECT_SOLID_COLOR, 1);
        NVDmaNext (pNv, 0);
 
-       NVDmaStart(pNv, STRETCH_BLIT_CLIP_POINT, 6);
+       NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_CLIP_POINT, 6);
        NVDmaNext (pNv, (pbox->y1 << 16) | pbox->x1); 
        NVDmaNext (pNv, ((pbox->y2 - pbox->y1) << 16) | (pbox->x2 - pbox->x1));
        NVDmaNext (pNv, point);
@@ -627,7 +627,7 @@ NVPutBlitImage (
        NVDmaNext (pNv, dsdx);
        NVDmaNext (pNv, dtdy);
 
-       NVDmaStart(pNv, STRETCH_BLIT_SRC_SIZE, 4);
+       NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_SRC_SIZE, 4);
        NVDmaNext (pNv, (height << 16) | width);
        NVDmaNext (pNv, dstPitch);
        NVDmaNext (pNv, offset);
@@ -636,8 +636,8 @@ NVPutBlitImage (
     }
 
     if(pNv->CurrentLayout.depth == 15) {
-        NVDmaStart(pNv, SURFACE_FORMAT, 1);
-        NVDmaNext (pNv, SURFACE_FORMAT_DEPTH16);
+        NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 1);
+        NVDmaNext (pNv, SURFACE_FORMAT_R5G6B5);
     }
 
     NVDmaKickoff(pNv);

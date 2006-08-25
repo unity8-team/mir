@@ -66,5 +66,6 @@
 #include "nv_local.h"
 #include "nv_type.h"
 #include "nv_proto.h"
+#include "nv_dma.h"
 
 #endif /* __NV_INCLUDE_H__ */
