@@ -2046,7 +2046,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		return FALSE;
 	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"Alllllocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
+			"Allocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
 			pNv->FB->size >> 20
 			);
 
