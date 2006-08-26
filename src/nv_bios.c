@@ -41,11 +41,11 @@ typedef struct {
     unsigned char *data;
     unsigned int  length;
     
-    U016      init_tbls_offset;
-    U016      macro_index_offset;    
-    U016      macro_offset; 
-    U016      condition_offset;
-    U016      io_flag_condition_offset;
+    CARD16      init_tbls_offset;
+    CARD16      macro_index_offset;    
+    CARD16      macro_offset; 
+    CARD16      condition_offset;
+    CARD16      io_flag_condition_offset;
 } bios_t;
 
 
@@ -55,7 +55,7 @@ typedef struct {
 	int length;
 	int length_offset;
 	int length_multiplier;
-	Bool (*handler)(ScrnInfoPtr pScrn, bios_t *, U016, init_exec_t *);
+	Bool (*handler)(ScrnInfoPtr pScrn, bios_t *, CARD16, init_exec_t *);
 } init_tbl_entry_t;
 
 typedef struct {
@@ -76,7 +76,7 @@ void still_alive()
 //	usleep(200000);
 }
 
-static int nv_valid_reg(U032 reg)
+static int nv_valid_reg(CARD32 reg)
 {
 	#define WITHIN(x,y,z) ((x>=y)&&(x<y+z))
 	if (WITHIN(reg,NV_PRAMIN_OFFSET,NV_PRAMIN_SIZE))
@@ -111,14 +111,14 @@ static int nv_valid_reg(U032 reg)
 	return 0;
 }
 
-static int nv32_rd(ScrnInfoPtr pScrn, U032 reg, U032 *data)
+static int nv32_rd(ScrnInfoPtr pScrn, CARD32 reg, CARD32 *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	*data=pNv->REGS[reg/4];
 	return 1;
 }
 
-static int nv32_wr(ScrnInfoPtr pScrn, U032 reg, U032 data)
+static int nv32_wr(ScrnInfoPtr pScrn, CARD32 reg, CARD32 data)
 {
 #ifdef PERFORM_WRITE
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "nv32_wr reg 0x%X value 0x%X\n",reg,data);
@@ -135,7 +135,7 @@ static int nv32_wr(ScrnInfoPtr pScrn, U032 reg, U032 data)
 	return 1;
 }
 
-void nv_set_crtc_index(ScrnInfoPtr pScrn, U008 index)
+void nv_set_crtc_index(ScrnInfoPtr pScrn, CARD8 index)
 {
 #ifdef PERFORM_WRITE
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "nv_set_crtc_index index 0x%X\n",index);
@@ -145,13 +145,13 @@ void nv_set_crtc_index(ScrnInfoPtr pScrn, U008 index)
 #endif
 }
 
-U008 nv_rd_crtc_data(ScrnInfoPtr pScrn)
+CARD8 nv_rd_crtc_data(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	return VGA_RD08(pNv->PCIO, 0x3D5);
 }
 
-void nv_wr_crtc_data(ScrnInfoPtr pScrn, U008 val)
+void nv_wr_crtc_data(ScrnInfoPtr pScrn, CARD8 val)
 {
 #ifdef PERFORM_WRITE
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "nv_wr_crtc_data value 0x%X\n",val);
@@ -162,7 +162,7 @@ void nv_wr_crtc_data(ScrnInfoPtr pScrn, U008 val)
 }
 
 
-static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     /* INIT_PROG   opcode: 0x31
      * 
@@ -183,13 +183,13 @@ static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t 
      * Assign "register" with appropriate configuration value.
      */
     
-    U032 reg = *((U032 *) (&bios->data[offset + 1]));
-    U032 and = *((U032 *) (&bios->data[offset + 5]));
-    U008 shiftr = *((U008 *) (&bios->data[offset + 9]));
-    U008 nr = *((U008 *) (&bios->data[offset + 10]));
-    U032 reg2 = *((U032 *) (&bios->data[offset + 11]));
-    U008 configuration;
-    U032 configval, tmp;
+    CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
+    CARD32 and = *((CARD32 *) (&bios->data[offset + 5]));
+    CARD8 shiftr = *((CARD8 *) (&bios->data[offset + 9]));
+    CARD8 nr = *((CARD8 *) (&bios->data[offset + 10]));
+    CARD32 reg2 = *((CARD32 *) (&bios->data[offset + 11]));
+    CARD8 configuration;
+    CARD32 configval, tmp;
    	
 	if (iexec->execute) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%04X\n", offset, 
@@ -205,7 +205,7 @@ static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t 
 
 
 			configval = 
-				*((U032 *) (&bios->data[offset + 15 + configuration * 4]));
+				*((CARD32 *) (&bios->data[offset + 15 + configuration * 4]));
 
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", offset, 
 					reg2, configval);
@@ -220,7 +220,7 @@ static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t 
 	return TRUE;
 }
 
-static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     /* INIT_IO_RESTRICT_PROG   opcode: 0x32
      * 
@@ -243,14 +243,14 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, 
      */
     
     NVPtr pNv = NVPTR(pScrn);
-    U016 crtcreg = *((U016 *) (&bios->data[offset + 1]));
-    U008  index = *((U008 *) (&bios->data[offset + 3]));
-    U008 and = *((U008 *) (&bios->data[offset + 4]));
-    U008 shiftr = *((U008 *) (&bios->data[offset + 5]));
-    U008 nr = *((U008 *) (&bios->data[offset + 6]));
-    U032 reg = *((U032 *) (&bios->data[offset + 7]));
-    U008 configuration;
-    U032 configval, tmp;
+    CARD16 crtcreg = *((CARD16 *) (&bios->data[offset + 1]));
+    CARD8  index = *((CARD8 *) (&bios->data[offset + 3]));
+    CARD8 and = *((CARD8 *) (&bios->data[offset + 4]));
+    CARD8 shiftr = *((CARD8 *) (&bios->data[offset + 5]));
+    CARD8 nr = *((CARD8 *) (&bios->data[offset + 6]));
+    CARD32 reg = *((CARD32 *) (&bios->data[offset + 7]));
+    CARD8 configuration;
+    CARD32 configval, tmp;
    	
 	if (iexec->execute) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC REG: 0x%04X, INDEX: 0x%02X\n", offset, 
@@ -266,7 +266,7 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, 
 
 
 			configval = 
-				*((U032 *) (&bios->data[offset + 11 + configuration * 4]));
+				*((CARD32 *) (&bios->data[offset + 11 + configuration * 4]));
 
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", offset, 
 					reg, configval);
@@ -281,12 +281,12 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, 
     return TRUE;
 }
 
-static Bool init_repeat(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_repeat(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     
     
-    U008 repeats = *((U008 *) (&bios->data[offset + 1]));
-    U008 i;
+    CARD8 repeats = *((CARD8 *) (&bios->data[offset + 1]));
+    CARD8 i;
     
     if (iexec->execute) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REPEATING FOLLOWING SEGMENT %d TIMES.\n", 
@@ -302,7 +302,7 @@ static Bool init_repeat(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_
     return TRUE;
 }
 
-static Bool init_end_repeat(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_end_repeat(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     if (iexec->repeat)
         return FALSE;
@@ -310,18 +310,18 @@ static Bool init_end_repeat(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_e
     return TRUE;
 }
 
-static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     /* XXX: double check this... */
     NVPtr pNv = NVPTR(pScrn);
-    U032 reg = *((U032 *) (&bios->data[offset + 1]));
-    U008 shift = *((U008 *) (&bios->data[offset + 5]));
-    U008 and1 = *((U008 *) (&bios->data[offset + 6]));
-    U016 crtcreg = *((U016 *) (&bios->data[offset + 7]));
-    U008 index = *((U008 *) (&bios->data[offset + 9]));
-    U008 and2 = *((U008 *) (&bios->data[offset + 10]));
-    U032 data;
-    U008 crtcdata;
+    CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
+    CARD8 shift = *((CARD8 *) (&bios->data[offset + 5]));
+    CARD8 and1 = *((CARD8 *) (&bios->data[offset + 6]));
+    CARD16 crtcreg = *((CARD16 *) (&bios->data[offset + 7]));
+    CARD8 index = *((CARD8 *) (&bios->data[offset + 9]));
+    CARD8 and2 = *((CARD8 *) (&bios->data[offset + 10]));
+    CARD32 data;
+    CARD8 crtcdata;
    	
 	if (iexec->execute) {
 		if (nv32_rd(pScrn, reg, &data)) {
@@ -332,7 +332,7 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t 
 
 			data &= and1;
 			VGA_WR08(pNv->PCIO,crtcreg, index);
-			crtcdata = (VGA_RD08(pNv->PCIO, crtcreg + 1) & and2) | (U008) data;
+			crtcdata = (VGA_RD08(pNv->PCIO, crtcreg + 1) & and2) | (CARD8) data;
 
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
 					"0x%04X: CRTC REG: 0x%04X, INDEX: 0x%04X, VALUE: 0x%02X\n"
@@ -351,7 +351,7 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t 
     return TRUE;
 }
 
-static Bool init_not(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_not(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     if (iexec->execute) { 
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: ------ SKIPPING FOLLOWING COMMANDS  ------\n",
@@ -365,33 +365,33 @@ static Bool init_not(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *
     return TRUE;
 }
 
-static Bool init_io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     NVPtr pNv = NVPTR(pScrn);
-    U008 cond = *((U008 *) (&bios->data[offset + 1]));
-    U016 crtcreg = *((U016 *) 
+    CARD8 cond = *((CARD8 *) (&bios->data[offset + 1]));
+    CARD16 crtcreg = *((CARD16 *) 
             (&bios->data[bios->io_flag_condition_offset + 
              cond * IO_FLAG_CONDITION_SIZE]));
-    U008 index = *((U008 *) 
+    CARD8 index = *((CARD8 *) 
             (&bios->data[bios->io_flag_condition_offset + 
              cond * IO_FLAG_CONDITION_SIZE + 2]));
-    U008 and1 = *((U008 *) 
+    CARD8 and1 = *((CARD8 *) 
             (&bios->data[bios->io_flag_condition_offset + 
              cond * IO_FLAG_CONDITION_SIZE + 3]));
-    U008 shift = *((U008 *) 
+    CARD8 shift = *((CARD8 *) 
             (&bios->data[bios->io_flag_condition_offset + 
              cond * IO_FLAG_CONDITION_SIZE + 4]));
-    U016 offs = *((U016 *) 
+    CARD16 offs = *((CARD16 *) 
             (&bios->data[bios->io_flag_condition_offset + 
              cond * IO_FLAG_CONDITION_SIZE + 5]));
-    U008 and2 = *((U008 *) 
+    CARD8 and2 = *((CARD8 *) 
             (&bios->data[bios->io_flag_condition_offset + 
              cond * IO_FLAG_CONDITION_SIZE + 7]));
-    U008 cmpval = *((U008 *) 
+    CARD8 cmpval = *((CARD8 *) 
             (&bios->data[bios->io_flag_condition_offset + 
              cond * IO_FLAG_CONDITION_SIZE + 8]));
     
-    U008 data;
+    CARD8 data;
 	
 	if (iexec->execute) {
 	
@@ -399,7 +399,7 @@ static Bool init_io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, U016 offset,
 		data = VGA_RD08(pNv->PCIO, crtcreg + 1);
 		data &= and1;
 		offs += (data >> shift);
-		data = *((U008 *) (&bios->data[offs]));
+		data = *((CARD8 *) (&bios->data[offs]));
 		data &= and2;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
@@ -421,7 +421,7 @@ static Bool init_io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, U016 offset,
     return TRUE;
 }
 
-static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
@@ -429,14 +429,14 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, i
     /*init_io_restrict_prog(bios, offset, iexec);*/
 
     
-    U016 crtcreg = *((U016 *) (&bios->data[offset + 1]));
-    U008  index = *((U008 *) (&bios->data[offset + 3]));
-    U008 and = *((U008 *) (&bios->data[offset + 4]));
-    U008 shiftr = *((U008 *) (&bios->data[offset + 5]));
-    U008 nr = *((U008 *) (&bios->data[offset + 6]));
-    U032 reg = *((U032 *) (&bios->data[offset + 7]));
-    U008 configuration;
-    U032 configval, tmp;
+    CARD16 crtcreg = *((CARD16 *) (&bios->data[offset + 1]));
+    CARD8  index = *((CARD8 *) (&bios->data[offset + 3]));
+    CARD8 and = *((CARD8 *) (&bios->data[offset + 4]));
+    CARD8 shiftr = *((CARD8 *) (&bios->data[offset + 5]));
+    CARD8 nr = *((CARD8 *) (&bios->data[offset + 6]));
+    CARD32 reg = *((CARD32 *) (&bios->data[offset + 7]));
+    CARD8 configuration;
+    CARD32 configval, tmp;
 /*    
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC REG: 0x%04X, INDEX: 0x%02X\n", offset, 
             crtcreg, index, reg);
@@ -454,7 +454,7 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, i
                     offset, configval);
         
         configval = 
-            *((U032 *) (&bios->data[offset + 11 + configuration * 4]));
+            *((CARD32 *) (&bios->data[offset + 11 + configuration * 4]));
 
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", offset, 
                 reg, configval);
@@ -484,12 +484,12 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, i
     return TRUE;
 }
 
-static Bool init_pll(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_pll(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
  
-    U032 reg = *((U032 *) (&bios->data[offset + 1]));
-    U032 val = *((U032 *) (&bios->data[offset + 5]));
-    U032 configval, tmp;
+    CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
+    CARD32 val = *((CARD32 *) (&bios->data[offset + 5]));
+    CARD32 configval, tmp;
 #if 0
 	if (iexec->execute) {
 		switch (reg) {
@@ -514,14 +514,14 @@ static Bool init_pll(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *
     return TRUE;
 }
 
-Bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+Bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     
-    U008 crtcindex = *((U008 *) (&bios->data[offset + 1]));
-    U008 crtcdata = *((U008 *) (&bios->data[offset + 2]));
-    U008 initial_index = *((U008 *) (&bios->data[offset + 3]));
-	U008 entries = *((U008 *) (&bios->data[offset + 4]));
-    U008 data;
+    CARD8 crtcindex = *((CARD8 *) (&bios->data[offset + 1]));
+    CARD8 crtcdata = *((CARD8 *) (&bios->data[offset + 2]));
+    CARD8 initial_index = *((CARD8 *) (&bios->data[offset + 3]));
+	CARD8 entries = *((CARD8 *) (&bios->data[offset + 4]));
+    CARD8 data;
 	int i;
 	
 	if (iexec->execute) {
@@ -538,7 +538,7 @@ Bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_ex
 			
 			nv_set_crtc_index(pScrn, crtcdata);
 
-			data = *((U008 *) (&bios->data[offset + 5 + i]));
+			data = *((CARD8 *) (&bios->data[offset + 5 + i]));
 
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC INDEX: %02X    DATA: %02X\n", offset,
 					crtcdata, data);
@@ -554,15 +554,15 @@ Bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_ex
 }
 
 
-Bool init_cr(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+Bool init_cr(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     /* XXX: IS THIS CORRECT? check the typecast .. probably wrong */
 
     NVPtr pNv = NVPTR(pScrn);
-    U008 index = *((U032 *) (&bios->data[offset + 1])); 
-    U008 and = *((U008 *) (&bios->data[offset + 2]));
-    U008 or = *((U008 *) (&bios->data[offset + 3]));
-    U008 data;
+    CARD8 index = *((CARD32 *) (&bios->data[offset + 1])); 
+    CARD8 and = *((CARD8 *) (&bios->data[offset + 2]));
+    CARD8 or = *((CARD8 *) (&bios->data[offset + 3]));
+    CARD8 data;
 	
 	if (iexec->execute) {
 		nv_set_crtc_index(pScrn, index);
@@ -581,7 +581,7 @@ Bool init_cr(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
     
 }
 
-static Bool init_zm_cr(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_zm_cr(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     /* INIT_ZM_CR   opcode: 0x53
      * 
@@ -593,8 +593,8 @@ static Bool init_zm_cr(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t
      */
     
     NVPtr pNv = NVPTR(pScrn);
-    U008 index = *((U032 *) (&bios->data[offset + 1]));
-    U008 value = *((U008 *) (&bios->data[offset + 2]));
+    CARD8 index = *((CARD32 *) (&bios->data[offset + 1]));
+    CARD8 value = *((CARD8 *) (&bios->data[offset + 2]));
 	
 	if (iexec->execute) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC INDEX: 0x%02X, VALUE: 0x%02X\n", offset, 
@@ -610,7 +610,7 @@ static Bool init_zm_cr(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t
     return TRUE;
 }
 
-static Bool init_zm_cr_group(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_zm_cr_group(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     /* INIT_ZM_CR   opcode: 0x54
      * 
@@ -623,14 +623,14 @@ static Bool init_zm_cr_group(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_
      * Assign "value n" to CRTC register with index "index n".
      */
     
-    U008 nr = *((U008 *) (&bios->data[offset + 1]));
-    U008 index, value;
+    CARD8 nr = *((CARD8 *) (&bios->data[offset + 1]));
+    CARD8 index, value;
     int i;
     
 	if (iexec->execute) {
 		for (i = 0; i < nr; i++) {
-			index = *((U008 *) (&bios->data[offset + 2 + 2 * i]));
-			value = *((U008 *) (&bios->data[offset + 2 + 2 * i + 1]));
+			index = *((CARD8 *) (&bios->data[offset + 2 + 2 * i]));
+			value = *((CARD8 *) (&bios->data[offset + 2 + 2 * i + 1]));
 
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC INDEX: 0x%02X, VALUE: 0x%02X\n", offset,
 					index, value);
@@ -645,7 +645,7 @@ static Bool init_zm_cr_group(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_
     return TRUE;
 }
 
-static Bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     /* My BIOS does not use this command. */
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
@@ -653,7 +653,7 @@ static Bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, in
     return FALSE;
 }
 
-static Bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     /* INIT_ZM_REG_SEQUENCE   opcode: 0x58
      * 
@@ -666,15 +666,15 @@ static Bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, i
      * Initialzies a sequence of "nr" registers starting at "register base".
      */
     
-    U032 reg = *((U032 *) (&bios->data[offset + 1]));
-    U032 nr = *((U008 *) (&bios->data[offset + 5]));
-    U032 data;
-    U032 tmp;
+    CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
+    CARD32 nr = *((CARD8 *) (&bios->data[offset + 5]));
+    CARD32 data;
+    CARD32 tmp;
 	int i;
     
    	if (iexec->execute) { 
 		for (i = 0; i < nr; i++) {
-			data = *((U032 *) (&bios->data[offset + 6 + i * 4]));
+			data = *((CARD32 *) (&bios->data[offset + 6 + i * 4]));
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", offset,
 					reg + i * 4, data);
 			
@@ -690,7 +690,7 @@ static Bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, i
     return TRUE;
 }
 
-static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     /* INIT_INDIRECT_REG opcode: 0x5A
      * 
@@ -701,9 +701,9 @@ static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init
      * Lookup value at offset data in the bios and write it to reg
      */
 	NVPtr pNv = NVPTR(pScrn);
-	U032 reg = *((U032 *) (&bios->data[offset + 1]));
-	U032 data = *((U016 *) (&bios->data[offset + 5]));
-	U032 data2 = bios->data[data];
+	CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
+	CARD32 data = *((CARD16 *) (&bios->data[offset + 5]));
+	CARD32 data2 = bios->data[data];
 
 
 	if (iexec->execute) {
@@ -712,7 +712,7 @@ static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init
 				offset, reg, data, data2);
 
 		if (DEBUGLEVEL >= 6) {
-			U032 tmpval;
+			CARD32 tmpval;
 			nv32_rd(pScrn, reg, &tmpval);
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n", offset, tmpval);
 		}
@@ -723,7 +723,7 @@ static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init
 }
 
 
-static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     /* INIT_SUB_DIRECT   opcode: 0x5B
      * 
@@ -734,7 +734,7 @@ static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_e
      * is found. 
      */
     
-    U016 sub_offset = *((U016 *) (&bios->data[offset + 1]));
+    CARD16 sub_offset = *((CARD16 *) (&bios->data[offset + 1]));
        
 	if (iexec->execute) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: EXECUTING SUB-ROUTINE AT: 0x%04X\n", 
@@ -747,17 +747,17 @@ static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_e
     return TRUE;
 }
 
-static Bool init_copy_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_copy_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {   
     
-	U032 srcreg = *((U032 *) (&bios->data[offset + 1]));
-    U008 shift = *((U008 *) (&bios->data[offset + 5]));
-    U032 and1 = *((U032 *) (&bios->data[offset + 6]));
-    U032 xor = *((U032 *) (&bios->data[offset + 10]));
-    U032 dstreg = *((U032 *) (&bios->data[offset + 14]));
-    U032 and2 = *((U032 *) (&bios->data[offset + 18]));
-    U032 srcdata;
-	U032 dstdata;
+	CARD32 srcreg = *((CARD32 *) (&bios->data[offset + 1]));
+    CARD8 shift = *((CARD8 *) (&bios->data[offset + 5]));
+    CARD32 and1 = *((CARD32 *) (&bios->data[offset + 6]));
+    CARD32 xor = *((CARD32 *) (&bios->data[offset + 10]));
+    CARD32 dstreg = *((CARD32 *) (&bios->data[offset + 14]));
+    CARD32 and2 = *((CARD32 *) (&bios->data[offset + 18]));
+    CARD32 srcdata;
+	CARD32 dstdata;
 	
 	if (iexec->execute) {
 		nv32_rd(pScrn, srcreg, &srcdata);
@@ -774,7 +774,7 @@ static Bool init_copy_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_
 
 		dstdata |= srcdata;
 
-		U032 tmp;		
+		CARD32 tmp;		
 		nv32_rd(pScrn, dstreg, &tmp);
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", offset, dstreg, 
@@ -788,12 +788,12 @@ static Bool init_copy_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_
 	return TRUE;
 }
 
-static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     NVPtr pNv = NVPTR(pScrn);
-    U016 crtcreg = *((U016 *) (&bios->data[offset + 1]));
-    U008 index = *((U008 *) (&bios->data[offset + 3]));
-    U008 value = *((U008 *) (&bios->data[offset + 4]));
+    CARD16 crtcreg = *((CARD16 *) (&bios->data[offset + 1]));
+    CARD8 index = *((CARD8 *) (&bios->data[offset + 3]));
+    CARD8 value = *((CARD8 *) (&bios->data[offset + 4]));
     
   	
 	if (iexec->execute) {
@@ -815,14 +815,14 @@ static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_
     return TRUE;
 }
 
-static Bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	// FIXME replace with a suitable implementation
 #if 0
-	U016 ramcfg = *((U016 *) (&bios->data[bios->ram_table_offset]));
-    U032 pfb_debug;
-    U032 strapinfo;
-    U032 ramcfg2;
+	CARD16 ramcfg = *((CARD16 *) (&bios->data[bios->ram_table_offset]));
+    CARD32 pfb_debug;
+    CARD32 strapinfo;
+    CARD32 ramcfg2;
     
 	if (iexec->execute) {
 		nv32_rd(pScrn, 0x00101000, &strapinfo);
@@ -835,7 +835,7 @@ static Bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_
 		pfb_debug &= 0xffffffef;
 		strapinfo >>= 2;
 		strapinfo &= 0x0000000f;
-		ramcfg2 = *((U016 *) 
+		ramcfg2 = *((CARD16 *) 
 				(&bios->data[bios->ram_table_offset + (2 * strapinfo)])); 
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "AFTER MANIPULATION\n");
@@ -846,8 +846,8 @@ static Bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
 
 
-		U032 reg1;
-		U032 reg2;
+		CARD32 reg1;
+		CARD32 reg2;
 
 		nv32_rd(pScrn, 0x00100200, &reg1);
 		nv32_rd(pScrn, 0x0010020C, &reg2);
@@ -861,12 +861,12 @@ static Bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_
     return TRUE;
 }
 
-static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     
-    U032 reg = *((U032 *) (&bios->data[offset + 1]));
-    U032 value1 = *((U032 *) (&bios->data[offset + 5]));
-    U032 value2 = *((U032 *) (&bios->data[offset + 9]));
+    CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
+    CARD32 value1 = *((CARD32 *) (&bios->data[offset + 5]));
+    CARD32 value2 = *((CARD32 *) (&bios->data[offset + 9]));
     
 	if (iexec->execute) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", 
@@ -875,7 +875,7 @@ static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t
 				offset, reg, value2);
 
 		if (DEBUGLEVEL >= 6) {
-			U032 tmpval;
+			CARD32 tmpval;
 			nv32_rd(pScrn, reg, &tmpval);
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n", offset, tmpval);
 			/*
@@ -896,7 +896,7 @@ static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t
     return TRUE;
 }
 
-static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     /* INIT_INDEX_IO8   opcode: 0x69
      * 
@@ -909,10 +909,10 @@ static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_ex
      */
     
     NVPtr pNv = NVPTR(pScrn);
-    U016 reg = *((U016 *) (&bios->data[offset + 1]));
-    U008 and  = *((U008 *) (&bios->data[offset + 3]));
-    U008 or = *((U008 *) (&bios->data[offset + 4]));
-    U008 data;
+    CARD16 reg = *((CARD16 *) (&bios->data[offset + 1]));
+    CARD8 and  = *((CARD8 *) (&bios->data[offset + 3]));
+    CARD8 or = *((CARD8 *) (&bios->data[offset + 4]));
+    CARD8 data;
   	
 
 	if (iexec->execute) {
@@ -935,15 +935,15 @@ static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_ex
 	
 }
 
-static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
-    U008 sub = *((U008 *) (&bios->data[offset + 1]));
+    CARD8 sub = *((CARD8 *) (&bios->data[offset + 1]));
     
     if (iexec->execute) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: EXECUTING SUB-SCRIPT: %d\n", offset, sub);
 
 		parse_init_table(pScrn, bios, 
-				*((U016 *) (&bios->data[bios->init_tbls_offset + sub * 2])),
+				*((CARD16 *) (&bios->data[bios->init_tbls_offset + sub * 2])),
 				iexec);
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: END OF SUB-SCRIPT\n", offset);
@@ -951,7 +951,7 @@ static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *
     return TRUE;
 }
 
-static Bool init_ram_condition(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_ram_condition(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_RAM_CONDITION   opcode: 0x6D
 	 * 
@@ -962,9 +962,9 @@ static Bool init_ram_condition(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, ini
 	 * Test if (NV_PFB_BOOT & and mask) matches cmpval
 	 */
 	NVPtr pNv = NVPTR(pScrn);
-	U008 and = *((U008 *) (&bios->data[offset + 1]));
-	U008 cmpval = *((U008 *) (&bios->data[offset + 2]));
-	U032 data;
+	CARD8 and = *((CARD8 *) (&bios->data[offset + 1]));
+	CARD8 cmpval = *((CARD8 *) (&bios->data[offset + 2]));
+	CARD32 data;
 
 	if (iexec->execute) {
 		data=(pNv->PFB[NV_PFB_BOOT/4])&and;
@@ -987,7 +987,7 @@ static Bool init_ram_condition(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, ini
 	return TRUE;
 }
 
-static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_NV_REG   opcode: 0x6E
 	 * 
@@ -999,10 +999,10 @@ static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_
 	 * Assign "register" to (REGVAL(register) & "and mask") | "or with";
 	 */
 
-	U032 reg = *((U032 *) (&bios->data[offset + 1]));
-	U032 and = *((U032 *) (&bios->data[offset + 5]));
-	U032 or = *((U032 *) (&bios->data[offset + 9]));
-	U032 data;
+	CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
+	CARD32 and = *((CARD32 *) (&bios->data[offset + 5]));
+	CARD32 or = *((CARD32 *) (&bios->data[offset + 9]));
+	CARD32 data;
 	unsigned int status;
 
 	if (iexec->execute) {
@@ -1014,7 +1014,7 @@ static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_
 					reg, data);
 
 			if (DEBUGLEVEL >= 6 && status) {
-				U032 tmpval;
+				CARD32 tmpval;
 				nv32_rd(pScrn, reg, &tmpval);
 				xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n",
 						offset, tmpval);
@@ -1027,16 +1027,16 @@ static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_
 	return TRUE;
 }
 #if 0
-static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	// FIXME replace with the haiku version
 	/* XXX: Not sure this is correct... */
 
-	U008 macro = *((U008 *) (&bios->data[offset + 1]));
-	U032 reg = 
-		*((U032 *) (&bios->data[bios->macro_offset + macro * MACRO_SIZE]));
-	U032 value =
-		*((U032 *) (&bios->data[bios->macro_offset + macro * MACRO_SIZE + 4]));
+	CARD8 macro = *((CARD8 *) (&bios->data[offset + 1]));
+	CARD32 reg = 
+		*((CARD32 *) (&bios->data[bios->macro_offset + macro * MACRO_SIZE]));
+	CARD32 value =
+		*((CARD32 *) (&bios->data[bios->macro_offset + macro * MACRO_SIZE + 4]));
 
 	if (iexec->execute) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: EXECUTING MACRO: 0x%02X\n", offset, macro);
@@ -1044,7 +1044,7 @@ static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t
 				value);
 
 		if (DEBUGLEVEL >= 6) {
-			U032 tmpval;
+			CARD32 tmpval;
 			nv32_rd(pScrn, reg, &tmpval);
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n",
 					offset, tmpval);
@@ -1058,13 +1058,13 @@ static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t
 }
 #endif
 
-static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
-    U008 index = *((U008 *) (&bios->data[offset + 1]));
-    U032 tmp = bios->macro_index_offset + (index << 1);
-    U032 offs =  *((U008 *) (&bios->data[tmp]))  << 3;
-    U032 nr = *((U008 *) (&bios->data[tmp + 1]));
-    U032 reg, data;
+    CARD8 index = *((CARD8 *) (&bios->data[offset + 1]));
+    CARD32 tmp = bios->macro_index_offset + (index << 1);
+    CARD32 offs =  *((CARD8 *) (&bios->data[tmp]))  << 3;
+    CARD32 nr = *((CARD8 *) (&bios->data[tmp + 1]));
+    CARD32 reg, data;
 
     int i;
 
@@ -1074,14 +1074,14 @@ static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t
         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: WRITE %d 32-BIT REGS:\n", offset, nr);
 
         for (i = 0; i < nr; i++) {
-            reg = *((U032 *) (&bios->data[offs + (i << 3)]));
-            data = *((U032 *) (&bios->data[offs + (i << 3) + 4]));
+            reg = *((CARD32 *) (&bios->data[offs + (i << 3)]));
+            data = *((CARD32 *) (&bios->data[offs + (i << 3) + 4]));
 
             xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", offset,
                     reg, data);
 
             if (DEBUGLEVEL >= 6) {
-                U032 tmpval;
+                CARD32 tmpval;
                 nv32_rd(pScrn, reg, &tmpval);
                 xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n",
                         offset, tmpval);
@@ -1095,12 +1095,12 @@ static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t
     return TRUE;
 }
 
-static Bool init_done(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_done(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	return TRUE;
 }
 
-static Bool init_resume(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_resume(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	if (!iexec->execute) {
 		iexec->execute = TRUE;;
@@ -1110,7 +1110,7 @@ static Bool init_resume(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_
 	return TRUE;
 }
 
-static Bool init_ram_condition2(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_ram_condition2(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_RAM_CONDITION2   opcode: 0x73
 	 * 
@@ -1121,9 +1121,9 @@ static Bool init_ram_condition2(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, in
 	 * Test if (NV_PEXTDEV_BOOT & and mask) matches cmpval
 	 */
 	NVPtr pNv = NVPTR(pScrn);
-	U032 and = *((U032 *) (&bios->data[offset + 1]));
-	U032 cmpval = *((U032 *) (&bios->data[offset + 5]));
-	U032 data;
+	CARD32 and = *((CARD32 *) (&bios->data[offset + 1]));
+	CARD32 cmpval = *((CARD32 *) (&bios->data[offset + 5]));
+	CARD32 data;
 
 	if (iexec->execute) {
 		data=(pNv->PEXTDEV[NV_PEXTDEV_BOOT/4])&and;
@@ -1146,7 +1146,7 @@ static Bool init_ram_condition2(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, in
 	return TRUE;
 }
 
-static Bool init_time(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_time(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_TIME   opcode: 0x74
 	 * 
@@ -1156,7 +1156,7 @@ static Bool init_time(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t 
 	 * Sleep for "time" microseconds.
 	 */
 
-	U016 time = *((U016 *) (&bios->data[offset + 1]));
+	CARD16 time = *((CARD16 *) (&bios->data[offset + 1]));
 
 	if (iexec->execute) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: Sleeping for 0x%04X microseconds.\n", 
@@ -1167,19 +1167,19 @@ static Bool init_time(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t 
 	return TRUE;
 }
 
-static Bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
-	U008 cond = *((U008 *) (&bios->data[offset + 1]));
-	U032 reg = 
-		*((U032 *) 
+	CARD8 cond = *((CARD8 *) (&bios->data[offset + 1]));
+	CARD32 reg = 
+		*((CARD32 *) 
 				(&bios->data[bios->condition_offset + cond * CONDITION_SIZE]));
-	U032 and = 
-		*((U032 *) 
+	CARD32 and = 
+		*((CARD32 *) 
 				(&bios->data[bios->condition_offset + cond * CONDITION_SIZE + 4]));
-	U032 cmpval = 
-		*((U032 *) 
+	CARD32 cmpval = 
+		*((CARD32 *) 
 				(&bios->data[bios->condition_offset + cond * CONDITION_SIZE + 8]));
-	U032 data;
+	CARD32 data;
 
 	if (iexec->execute) {
 		if (nv32_rd(pScrn, reg, &data)) {
@@ -1205,7 +1205,7 @@ static Bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_ex
 	return TRUE;
 }
 
-static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_INDEX_IO   opcode: 0x78
 	 * 
@@ -1219,11 +1219,11 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exe
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
-	U016 crtcreg = *((U016 *) (&bios->data[offset + 1]));
-	U008 index = *((U008 *) (&bios->data[offset + 3]));
-	U008 and  = *((U008 *) (&bios->data[offset + 4]));
-	U008 or = *((U008 *) (&bios->data[offset + 5]));
-	U008 data;
+	CARD16 crtcreg = *((CARD16 *) (&bios->data[offset + 1]));
+	CARD8 index = *((CARD8 *) (&bios->data[offset + 3]));
+	CARD8 and  = *((CARD8 *) (&bios->data[offset + 4]));
+	CARD8 or = *((CARD8 *) (&bios->data[offset + 5]));
+	CARD8 data;
 
 
 	if (iexec->execute) {
@@ -1248,7 +1248,7 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exe
 
 }
 
-static Bool init_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_t *iexec)
+static Bool init_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_ZM_REG   opcode: 0x7A
 	 * 
@@ -1259,15 +1259,15 @@ static Bool init_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, U016 offset, init_exec_
 	 * Assign "register" to "value";
 	 */
 
-	U032 reg = *((U032 *) (&bios->data[offset + 1]));
-	U032 value = *((U032 *) (&bios->data[offset + 5]));
+	CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
+	CARD32 value = *((CARD32 *) (&bios->data[offset + 5]));
 
 	if (iexec->execute) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", 
 				offset, reg, value);
 
 		if (DEBUGLEVEL >= 6) {
-			U032 tmpval;
+			CARD32 tmpval;
 			nv32_rd(pScrn, reg, &tmpval);
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n", offset, tmpval);
 		}
@@ -1389,10 +1389,10 @@ void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios) {
     /* Loops and calls parse_init_table() for each present table. */
     
     int i = 0;
-    U016 table;
+    CARD16 table;
     init_exec_t iexec = {TRUE, FALSE};
     
-    while (table = *((U016 *) (&bios->data[bios->init_tbls_offset + i]))) {
+    while (table = *((CARD16 *) (&bios->data[bios->init_tbls_offset + i]))) {
         
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: Parsing init table %d\n", 
                 table, i / 2);
@@ -1436,20 +1436,20 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
         return 0;
     }
     
-    bios->init_tbls_offset = *((U016 *) (&bios->data[bitentry->offset]));
-    bios->macro_index_offset = *((U016 *) (&bios->data[bitentry->offset + 2]));
-    bios->macro_offset = *((U016 *) (&bios->data[bitentry->offset + 4]));
+    bios->init_tbls_offset = *((CARD16 *) (&bios->data[bitentry->offset]));
+    bios->macro_index_offset = *((CARD16 *) (&bios->data[bitentry->offset + 2]));
+    bios->macro_offset = *((CARD16 *) (&bios->data[bitentry->offset + 4]));
     bios->condition_offset = 
-        *((U016 *) (&bios->data[bitentry->offset + 6]));
+        *((CARD16 *) (&bios->data[bitentry->offset + 6]));
     
-    if (*((U016 *) (&bios->data[bitentry->offset + 8])) != 
-            *((U016 *) (&bios->data[bitentry->offset + 10]))) {
+    if (*((CARD16 *) (&bios->data[bitentry->offset + 8])) != 
+            *((CARD16 *) (&bios->data[bitentry->offset + 10]))) {
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "Unable to find IO flag condition offset.\n");
         return 0;
     }
     
     bios->io_flag_condition_offset =
-        *((U016 *) (&bios->data[bitentry->offset + 8]));
+        *((CARD16 *) (&bios->data[bitentry->offset + 8]));
     
     parse_init_tables(pScrn, bios);
     

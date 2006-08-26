@@ -252,13 +252,13 @@ Riva3Setup(ScrnInfoPtr pScrn)
      * These registers are read/write as 8 bit values.  Probably have to map
      * sparse on alpha.
      */
-    pRiva->riva.PCIO = (U008 *)xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
+    pRiva->riva.PCIO = (CARD8 *)xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
                                            pRiva->PciTag, regBase+0x00601000,
                                            0x00003000);
-    pRiva->riva.PDIO = (U008 *)xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
+    pRiva->riva.PDIO = (CARD8 *)xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
                                            pRiva->PciTag, regBase+0x00681000,
                                            0x00003000);
-    pRiva->riva.PVIO = (U008 *)xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
+    pRiva->riva.PVIO = (CARD8 *)xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
                                            pRiva->PciTag, regBase+0x000C0000,
                                            0x00001000);
 

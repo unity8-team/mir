@@ -170,7 +170,7 @@ static Bool
 NVIsConnected (ScrnInfoPtr pScrn, int output)
 {
     NVPtr pNv = NVPTR(pScrn);
-    volatile U032 *PRAMDAC = pNv->PRAMDAC0;
+    volatile CARD32 *PRAMDAC = pNv->PRAMDAC0;
     CARD32 reg52C, reg608;
     Bool present;
 
@@ -375,10 +375,10 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     pNv->PMC      = pNv->REGS + (NV_PMC_OFFSET/4);
 
     /* 8 bit registers */
-    pNv->PCIO0    = (U008*)pNv->REGS + NV_PCIO0_OFFSET;
-    pNv->PDIO0    = (U008*)pNv->REGS + NV_PDIO0_OFFSET;
-    pNv->PVIO     = (U008*)pNv->REGS + NV_PVIO_OFFSET;
-    pNv->PROM     = (U008*)pNv->REGS + NV_PROM_OFFSET;
+    pNv->PCIO0    = (CARD8*)pNv->REGS + NV_PCIO0_OFFSET;
+    pNv->PDIO0    = (CARD8*)pNv->REGS + NV_PDIO0_OFFSET;
+    pNv->PVIO     = (CARD8*)pNv->REGS + NV_PVIO_OFFSET;
+    pNv->PROM     = (CARD8*)pNv->REGS + NV_PROM_OFFSET;
 
     pNv->twoHeads =  (pNv->Architecture >= NV_ARCH_10) &&
                      (implementation != CHIPSET_NV10) &&

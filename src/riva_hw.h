@@ -54,172 +54,172 @@
  */
 typedef volatile struct
 {
-    U032 reserved00[4];
-    U016 FifoFree;
-    U016 Nop;
-    U032 reserved01[0x0BB];
-    U032 Rop3;
+    CARD32 reserved00[4];
+    CARD16 FifoFree;
+    CARD16 Nop;
+    CARD32 reserved01[0x0BB];
+    CARD32 Rop3;
 } RivaRop;
 /*
  * 8X8 Monochrome pattern.
  */
 typedef volatile struct
 {
-    U032 reserved00[4];
-    U016 FifoFree;
-    U016 Nop;
-    U032 reserved01[0x0BD];
-    U032 Shape;
-    U032 reserved03[0x001];
-    U032 Color0;
-    U032 Color1;
-    U032 Monochrome[2];
+    CARD32 reserved00[4];
+    CARD16 FifoFree;
+    CARD16 Nop;
+    CARD32 reserved01[0x0BD];
+    CARD32 Shape;
+    CARD32 reserved03[0x001];
+    CARD32 Color0;
+    CARD32 Color1;
+    CARD32 Monochrome[2];
 } RivaPattern;
 /*
  * Scissor clip rectangle.
  */
 typedef volatile struct
 {
-    U032 reserved00[4];
-    U016 FifoFree;
-    U016 Nop;
-    U032 reserved01[0x0BB];
-    U032 TopLeft;
-    U032 WidthHeight;
+    CARD32 reserved00[4];
+    CARD16 FifoFree;
+    CARD16 Nop;
+    CARD32 reserved01[0x0BB];
+    CARD32 TopLeft;
+    CARD32 WidthHeight;
 } RivaClip;
 /*
  * 2D filled rectangle.
  */
 typedef volatile struct
 {
-    U032 reserved00[4];
-    U016 FifoFree;
-    U016 Nop[1];
-    U032 reserved01[0x0BC];
-    U032 Color;
-    U032 reserved03[0x03E];
-    U032 TopLeft;
-    U032 WidthHeight;
+    CARD32 reserved00[4];
+    CARD16 FifoFree;
+    CARD16 Nop[1];
+    CARD32 reserved01[0x0BC];
+    CARD32 Color;
+    CARD32 reserved03[0x03E];
+    CARD32 TopLeft;
+    CARD32 WidthHeight;
 } RivaRectangle;
 /*
  * 2D screen-screen BLT.
  */
 typedef volatile struct
 {
-    U032 reserved00[4];
-    U016 FifoFree;
-    U016 Nop;
-    U032 reserved01[0x0BB];
-    U032 TopLeftSrc;
-    U032 TopLeftDst;
-    U032 WidthHeight;
+    CARD32 reserved00[4];
+    CARD16 FifoFree;
+    CARD16 Nop;
+    CARD32 reserved01[0x0BB];
+    CARD32 TopLeftSrc;
+    CARD32 TopLeftDst;
+    CARD32 WidthHeight;
 } RivaScreenBlt;
 /*
  * 2D pixel BLT.
  */
 typedef volatile struct
 {
-    U032 reserved00[4];
-    U016 FifoFree;
-    U016 Nop[1];
-    U032 reserved01[0x0BC];
-    U032 TopLeft;
-    U032 WidthHeight;
-    U032 WidthHeightIn;
-    U032 reserved02[0x03C];
-    U032 Pixels;
+    CARD32 reserved00[4];
+    CARD16 FifoFree;
+    CARD16 Nop[1];
+    CARD32 reserved01[0x0BC];
+    CARD32 TopLeft;
+    CARD32 WidthHeight;
+    CARD32 WidthHeightIn;
+    CARD32 reserved02[0x03C];
+    CARD32 Pixels;
 } RivaPixmap;
 /*
  * Filled rectangle combined with monochrome expand.  Useful for glyphs.
  */
 typedef volatile struct
 {
-    U032 reserved00[4];
-    U016 FifoFree;
-    U016 Nop;
-    U032 reserved01[0x0BB];
-    U032 reserved03[(0x040)-1];
-    U032 Color1A;
+    CARD32 reserved00[4];
+    CARD16 FifoFree;
+    CARD16 Nop;
+    CARD32 reserved01[0x0BB];
+    CARD32 reserved03[(0x040)-1];
+    CARD32 Color1A;
     struct
     {
-        U032 TopLeft;
-        U032 WidthHeight;
+        CARD32 TopLeft;
+        CARD32 WidthHeight;
     } UnclippedRectangle[64];
-    U032 reserved04[(0x080)-3];
+    CARD32 reserved04[(0x080)-3];
     struct
     {
-        U032 TopLeft;
-        U032 BottomRight;
+        CARD32 TopLeft;
+        CARD32 BottomRight;
     } ClipB;
-    U032 Color1B;
+    CARD32 Color1B;
     struct
     {
-        U032 TopLeft;
-        U032 BottomRight;
+        CARD32 TopLeft;
+        CARD32 BottomRight;
     } ClippedRectangle[64];
-    U032 reserved05[(0x080)-5];
+    CARD32 reserved05[(0x080)-5];
     struct
     {
-        U032 TopLeft;
-        U032 BottomRight;
+        CARD32 TopLeft;
+        CARD32 BottomRight;
     } ClipC;
-    U032 Color1C;
-    U032 WidthHeightC;
-    U032 PointC;
-    U032 MonochromeData1C;
-    U032 reserved06[(0x080)+121];
+    CARD32 Color1C;
+    CARD32 WidthHeightC;
+    CARD32 PointC;
+    CARD32 MonochromeData1C;
+    CARD32 reserved06[(0x080)+121];
     struct
     {
-        U032 TopLeft;
-        U032 BottomRight;
+        CARD32 TopLeft;
+        CARD32 BottomRight;
     } ClipD;
-    U032 Color1D;
-    U032 WidthHeightInD;
-    U032 WidthHeightOutD;
-    U032 PointD;
-    U032 MonochromeData1D;
-    U032 reserved07[(0x080)+120];
+    CARD32 Color1D;
+    CARD32 WidthHeightInD;
+    CARD32 WidthHeightOutD;
+    CARD32 PointD;
+    CARD32 MonochromeData1D;
+    CARD32 reserved07[(0x080)+120];
     struct
     {
-        U032 TopLeft;
-        U032 BottomRight;
+        CARD32 TopLeft;
+        CARD32 BottomRight;
     } ClipE;
-    U032 Color0E;
-    U032 Color1E;
-    U032 WidthHeightInE;
-    U032 WidthHeightOutE;
-    U032 PointE;
-    U032 MonochromeData01E;
+    CARD32 Color0E;
+    CARD32 Color1E;
+    CARD32 WidthHeightInE;
+    CARD32 WidthHeightOutE;
+    CARD32 PointE;
+    CARD32 MonochromeData01E;
 } RivaBitmap;
 /*
  * 2D line.
  */
 typedef volatile struct
 {
-    U032 reserved00[4];
-    U016 FifoFree;
-    U016 Nop[1];
-    U032 reserved01[0x0BC];
-    U032 Color;             /* source color               0304-0307*/
-    U032 Reserved02[0x03e];
+    CARD32 reserved00[4];
+    CARD16 FifoFree;
+    CARD16 Nop[1];
+    CARD32 reserved01[0x0BC];
+    CARD32 Color;             /* source color               0304-0307*/
+    CARD32 Reserved02[0x03e];
     struct {                /* start aliased methods in array   0400-    */
-        U032 point0;        /* y_x S16_S16 in pixels            0-   3*/
-        U032 point1;        /* y_x S16_S16 in pixels            4-   7*/
+        CARD32 point0;        /* y_x S16_S16 in pixels            0-   3*/
+        CARD32 point1;        /* y_x S16_S16 in pixels            4-   7*/
     } Lin[16];              /* end of aliased methods in array      -047f*/
     struct {                /* start aliased methods in array   0480-    */
-        U032 point0X;       /* in pixels, 0 at left                0-   3*/
-        U032 point0Y;       /* in pixels, 0 at top                 4-   7*/
-        U032 point1X;       /* in pixels, 0 at left                8-   b*/
-        U032 point1Y;       /* in pixels, 0 at top                 c-   f*/
+        CARD32 point0X;       /* in pixels, 0 at left                0-   3*/
+        CARD32 point0Y;       /* in pixels, 0 at top                 4-   7*/
+        CARD32 point1X;       /* in pixels, 0 at left                8-   b*/
+        CARD32 point1Y;       /* in pixels, 0 at top                 c-   f*/
     } Lin32[8];             /* end of aliased methods in array      -04ff*/
-    U032 PolyLin[32];       /* y_x S16_S16 in pixels         0500-057f*/
+    CARD32 PolyLin[32];       /* y_x S16_S16 in pixels         0500-057f*/
     struct {                /* start aliased methods in array   0580-    */
-        U032 x;             /* in pixels, 0 at left                0-   3*/
-        U032 y;             /* in pixels, 0 at top                 4-   7*/
+        CARD32 x;             /* in pixels, 0 at left                0-   3*/
+        CARD32 y;             /* in pixels, 0 at top                 4-   7*/
     } PolyLin32[16];        /* end of aliased methods in array      -05ff*/
     struct {                /* start aliased methods in array   0600-    */
-        U032 color;         /* source color                     0-   3*/
-        U032 point;         /* y_x S16_S16 in pixels            4-   7*/
+        CARD32 color;         /* source color                     0-   3*/
+        CARD32 point;         /* y_x S16_S16 in pixels            4-   7*/
     } ColorPolyLin[16];     /* end of aliased methods in array      -067f*/
 } RivaLine;
 /*
@@ -227,21 +227,21 @@ typedef volatile struct
  */
 typedef volatile struct
 {
-    U032 reserved00[4];
-    U016 FifoFree;
-    U016 Nop;
-    U032 reserved01[0x0BE];
-    U032 Offset;
+    CARD32 reserved00[4];
+    CARD16 FifoFree;
+    CARD16 Nop;
+    CARD32 reserved01[0x0BE];
+    CARD32 Offset;
 } RivaSurface;
 typedef volatile struct
 {
-    U032 reserved00[4];
-    U016 FifoFree;
-    U016 Nop;
-    U032 reserved01[0x0BD];
-    U032 Pitch;
-    U032 RenderBufferOffset;
-    U032 ZBufferOffset;
+    CARD32 reserved00[4];
+    CARD16 FifoFree;
+    CARD16 Nop;
+    CARD32 reserved01[0x0BD];
+    CARD32 Pitch;
+    CARD32 RenderBufferOffset;
+    CARD32 ZBufferOffset;
 } RivaSurface3D;
     
 /***************************************************************************\
@@ -263,33 +263,33 @@ typedef struct _riva_hw_inst
     /*
      * Chip specific settings.
      */
-    U032 CrystalFreqKHz;
-    U032 RamAmountKBytes;
-    U032 MaxVClockFreqKHz;
-    U032 RamBandwidthKBytesPerSec;
-    U032 EnableIRQ;
-    U032 IO;
-    U032 VBlankBit;
-    U032 FifoFreeCount;
-    U032 FifoEmptyCount;
-    U032 CursorStart;
+    CARD32 CrystalFreqKHz;
+    CARD32 RamAmountKBytes;
+    CARD32 MaxVClockFreqKHz;
+    CARD32 RamBandwidthKBytesPerSec;
+    CARD32 EnableIRQ;
+    CARD32 IO;
+    CARD32 VBlankBit;
+    CARD32 FifoFreeCount;
+    CARD32 FifoEmptyCount;
+    CARD32 CursorStart;
     /*
      * Non-FIFO registers.
      */
-    volatile U032 *PCRTC;
-    volatile U032 *PFB;
-    volatile U032 *PFIFO;
-    volatile U032 *PGRAPH;
-    volatile U032 *PEXTDEV;
-    volatile U032 *PTIMER;
-    volatile U032 *PMC;
-    volatile U032 *PRAMIN;
-    volatile U032 *FIFO;
-    volatile U032 *CURSOR;
-    volatile U008 *PCIO;
-    volatile U008 *PVIO;
-    volatile U008 *PDIO;
-    volatile U032 *PRAMDAC;
+    volatile CARD32 *PCRTC;
+    volatile CARD32 *PFB;
+    volatile CARD32 *PFIFO;
+    volatile CARD32 *PGRAPH;
+    volatile CARD32 *PEXTDEV;
+    volatile CARD32 *PTIMER;
+    volatile CARD32 *PMC;
+    volatile CARD32 *PRAMIN;
+    volatile CARD32 *FIFO;
+    volatile CARD32 *CURSOR;
+    volatile CARD8 *PCIO;
+    volatile CARD8 *PVIO;
+    volatile CARD8 *PDIO;
+    volatile CARD32 *PRAMDAC;
     /*
      * Common chip functions.
      */
@@ -297,7 +297,7 @@ typedef struct _riva_hw_inst
     void (*CalcStateExt)(struct _riva_hw_inst *,struct _riva_hw_state *,int,int,int,int,int,int);
     void (*LoadStateExt)(struct _riva_hw_inst *,struct _riva_hw_state *);
     void (*UnloadStateExt)(struct _riva_hw_inst *,struct _riva_hw_state *);
-    void (*SetStartAddress)(struct _riva_hw_inst *,U032);
+    void (*SetStartAddress)(struct _riva_hw_inst *,CARD32);
     int  (*ShowHideCursor)(struct _riva_hw_inst *,int);
     void (*LockUnlock)(struct _riva_hw_inst *, int);
     /*
@@ -320,28 +320,28 @@ typedef struct _riva_hw_inst
  */
 typedef struct _riva_hw_state
 {
-    U032 bpp;
-    U032 width;
-    U032 height;
-    U032 interlace;
-    U032 repaint0;
-    U032 repaint1;
-    U032 screen;
-    U032 extra;
-    U032 pixel;
-    U032 horiz;
-    U032 arbitration0;
-    U032 arbitration1;
-    U032 vpll;
-    U032 pllsel;
-    U032 general;
-    U032 config;
-    U032 cursorConfig;
-    U032 cursor0;
-    U032 cursor1;
-    U032 cursor2;
-    U032 offset;
-    U032 pitch;
+    CARD32 bpp;
+    CARD32 width;
+    CARD32 height;
+    CARD32 interlace;
+    CARD32 repaint0;
+    CARD32 repaint1;
+    CARD32 screen;
+    CARD32 extra;
+    CARD32 pixel;
+    CARD32 horiz;
+    CARD32 arbitration0;
+    CARD32 arbitration1;
+    CARD32 vpll;
+    CARD32 pllsel;
+    CARD32 general;
+    CARD32 config;
+    CARD32 cursorConfig;
+    CARD32 cursor0;
+    CARD32 cursor1;
+    CARD32 cursor2;
+    CARD32 offset;
+    CARD32 pitch;
 } RIVA_HW_STATE;
 
 /*

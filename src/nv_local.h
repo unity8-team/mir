@@ -53,13 +53,6 @@
 #include "xf86_OSproc.h"
 
 /*
- * Typedefs to force certain sized values.
- */
-typedef unsigned char  U008;
-typedef unsigned short U016;
-typedef unsigned int   U032;
-
-/*
  * HW access macros.  These assume memory-mapped I/O, and not normal I/O space.
  */
 #define NV_WR08(p,i,d)  MMIO_OUT8((pointer)(p), (i), (d))

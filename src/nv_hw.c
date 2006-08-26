@@ -742,7 +742,7 @@ static void nForceUpdateArbitrationSettings (
 static void CalcVClock (
     int           clockIn,
     int          *clockOut,
-    U032         *pllOut,
+    CARD32         *pllOut,
     NVPtr        pNv
 )
 {
@@ -788,8 +788,8 @@ static void CalcVClock (
 static void CalcVClock2Stage (
     int           clockIn,
     int          *clockOut,
-    U032         *pllOut,
-    U032         *pllBOut,
+    CARD32         *pllOut,
+    CARD32         *pllBOut,
     NVPtr        pNv
 )
 {

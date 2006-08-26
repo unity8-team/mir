@@ -71,16 +71,16 @@ void *NVDmaCreateNotifier(NVPtr pNv, int handle)
 Bool NVDmaWaitForNotifier(NVPtr pNv, void *notifier)
 {
     int t_start, timeout = 0;
-    volatile U032 *n;
+    volatile CARD32 *n;
 
-    n = (volatile U032 *)notifier;
+    n = (volatile CARD32 *)notifier;
     NVDEBUG("NVDmaWaitForNotifier @%p", n);
     t_start = GetTimeInMillis();
     while (1) {
-        U032 a = n[0];
-        U032 b = n[1];
-        U032 c = n[2];
-        U032 status = n[3];
+        CARD32 a = n[0];
+        CARD32 b = n[1];
+        CARD32 c = n[2];
+        CARD32 status = n[3];
         NVDEBUG("status: n[0]=%x, n[1]=%x, n[2]=%x, n[3]=%x\n", a, b, c, status);
         NVDEBUG("status: GET: 0x%08x\n", READ_GET(pNv));
 
