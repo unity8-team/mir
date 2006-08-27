@@ -188,9 +188,15 @@ typedef struct _NVRec {
     volatile CARD32 *PRAMDAC;
     volatile CARD8 *PROM;
 
+    volatile CARD8 *PCIO1;
+    volatile CARD8 *PDIO1;
+    volatile CARD32 *PRAMDAC1;
+    volatile CARD32 *PCRTC1;
+
     volatile CARD32 *RAMHT;
     CARD32 pramin_free;
 
+    uint8_t cur_head;
     XAAInfoRecPtr       AccelInfoRec;
     ExaDriverPtr	EXADriverPtr;
     Bool                useEXA;

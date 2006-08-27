@@ -1,4 +1,4 @@
- /***************************************************************************\
+/***************************************************************************\
 |*                                                                           *|
 |*       Copyright 1993-2003 NVIDIA, Corporation.  All rights reserved.      *|
 |*                                                                           *|
@@ -42,6 +42,19 @@
 #include "compiler.h"
 #include "nv_include.h"
 
+static inline uint8_t nvReadVGA(NVPtr pNv, uint8_t index)
+{
+  volatile const uint8_t *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
+  VGA_WR08(ptr, 0x03D4, index);
+  return VGA_RD08(ptr, 0x03D5);
+}
+
+static inline void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data)
+{
+  volatile const uint8_t *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
+  VGA_WR08(ptr, 0x03D4, index);
+  VGA_WR08(ptr, 0x03D5, data);
+}
 
 void NVLockUnlock (
     NVPtr pNv,
@@ -50,14 +63,12 @@ void NVLockUnlock (
 {
     CARD8 cr11;
 
-    VGA_WR08(pNv->PCIO, 0x3D4, 0x1F);
-    VGA_WR08(pNv->PCIO, 0x3D5, Lock ? 0x99 : 0x57);
+    nvWriteVGA(pNv, 0x1f, Lock ? 0x99 : 0x57 );
 
-    VGA_WR08(pNv->PCIO, 0x3D4, 0x11);
-    cr11 = VGA_RD08(pNv->PCIO, 0x3D5);
+    cr11 = nvReadVGA(pNv, 0x11);
     if(Lock) cr11 |= 0x80;
     else cr11 &= ~0x80;
-    VGA_WR08(pNv->PCIO, 0x3D5, cr11);
+    nvWriteVGA(pNv, 0x11, cr11);
 }
 
 int NVShowHideCursor (
@@ -69,8 +80,8 @@ int NVShowHideCursor (
 
     pNv->CurrentState->cursor1 = (pNv->CurrentState->cursor1 & 0xFE) |
                                  (ShowHide & 0x01);
-    VGA_WR08(pNv->PCIO, 0x3D4, 0x31);
-    VGA_WR08(pNv->PCIO, 0x3D5, pNv->CurrentState->cursor1);
+
+    nvWriteVGA(pNv, 0x31, pNv->CurrentState->cursor1);
 
     if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
        volatile CARD32 curpos = pNv->PRAMDAC[0x0300/4];
@@ -1256,46 +1267,30 @@ void NVLoadStateExt (
                pNv->PRAMDAC[0x083C/4] = state->dither;
            }
     
-           VGA_WR08(pNv->PCIO, 0x03D4, 0x53);
-           VGA_WR08(pNv->PCIO, 0x03D5, state->timingH);
-           VGA_WR08(pNv->PCIO, 0x03D4, 0x54);
-           VGA_WR08(pNv->PCIO, 0x03D5, state->timingV);
-           VGA_WR08(pNv->PCIO, 0x03D4, 0x21);
-           VGA_WR08(pNv->PCIO, 0x03D5, 0xfa);
+	   nvWriteVGA(pNv, 0x53, state->timingH);
+	   nvWriteVGA(pNv, 0x54, state->timingV);
+	   nvWriteVGA(pNv, 0x21, 0xfa);
         }
 
-        VGA_WR08(pNv->PCIO, 0x03D4, 0x41);
-        VGA_WR08(pNv->PCIO, 0x03D5, state->extra);
+	nvWriteVGA(pNv, 0x41, state->extra);
     }
 
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x19);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->repaint0);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x1A);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->repaint1);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x25);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->screen);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x28);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->pixel);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x2D);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->horiz);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x1C);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->fifo);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x1B);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->arbitration0);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x20);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->arbitration1);
+    nvWriteVGA(pNv, 0x19, state->repaint0);
+    nvWriteVGA(pNv, 0x1A, state->repaint1);
+    nvWriteVGA(pNv, 0x25, state->screen);
+    nvWriteVGA(pNv, 0x28, state->pixel);
+    nvWriteVGA(pNv, 0x2D, state->horiz);
+    nvWriteVGA(pNv, 0x1C, state->fifo);
+    nvWriteVGA(pNv, 0x1B, state->arbitration0);
+    nvWriteVGA(pNv, 0x20, state->arbitration1);
     if(pNv->Architecture >= NV_ARCH_30) {
-      VGA_WR08(pNv->PCIO, 0x03D4, 0x47);
-      VGA_WR08(pNv->PCIO, 0x03D5, state->arbitration1 >> 8);
+      nvWriteVGA(pNv, 0x47, state->arbitration1 >> 8);
     }
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x30);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->cursor0);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x31);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->cursor1);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x2F);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->cursor2);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x39);
-    VGA_WR08(pNv->PCIO, 0x03D5, state->interlace);
+
+    nvWriteVGA(pNv, 0x30, state->cursor0);
+    nvWriteVGA(pNv, 0x31, state->cursor1);
+    nvWriteVGA(pNv, 0x2F, state->cursor2);
+    nvWriteVGA(pNv, 0x39, state->interlace);
 
     if(!pNv->FlatPanel) {
        pNv->PRAMDAC0[0x050C/4] = state->pllsel;
@@ -1324,34 +1319,22 @@ void NVUnloadStateExt
     RIVA_HW_STATE *state
 )
 {
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x19);
-    state->repaint0     = VGA_RD08(pNv->PCIO, 0x03D5);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x1A);
-    state->repaint1     = VGA_RD08(pNv->PCIO, 0x03D5);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x25);
-    state->screen       = VGA_RD08(pNv->PCIO, 0x03D5);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x28);
-    state->pixel        = VGA_RD08(pNv->PCIO, 0x03D5);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x2D);
-    state->horiz        = VGA_RD08(pNv->PCIO, 0x03D5);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x1C);
-    state->fifo         = VGA_RD08(pNv->PCIO, 0x03D5);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x1B);
-    state->arbitration0 = VGA_RD08(pNv->PCIO, 0x03D5);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x20);
-    state->arbitration1 = VGA_RD08(pNv->PCIO, 0x03D5);
+    state->repaint0     = nvReadVGA(pNv, 0x19);
+    state->repaint1     = nvReadVGA(pNv, 0x1A);
+    state->screen       = nvReadVGA(pNv, 0x25);
+    state->pixel        = nvReadVGA(pNv, 0x28);
+    state->horiz        = nvReadVGA(pNv, 0x2D);
+    state->fifo         = nvReadVGA(pNv, 0x1C);
+    state->arbitration0 = nvReadVGA(pNv, 0x1B);
+    state->arbitration1 = nvReadVGA(pNv, 0x20);
     if(pNv->Architecture >= NV_ARCH_30) {
-       VGA_WR08(pNv->PCIO, 0x03D4, 0x47);
-       state->arbitration1 |= (VGA_RD08(pNv->PCIO, 0x03D5) & 1) << 8;
+       state->arbitration1 |= (nvReadVGA(pNv, 0x47) & 1) << 8;
     }
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x30);
-    state->cursor0      = VGA_RD08(pNv->PCIO, 0x03D5);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x31);
-    state->cursor1      = VGA_RD08(pNv->PCIO, 0x03D5);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x2F);
-    state->cursor2      = VGA_RD08(pNv->PCIO, 0x03D5);
-    VGA_WR08(pNv->PCIO, 0x03D4, 0x39);
-    state->interlace    = VGA_RD08(pNv->PCIO, 0x03D5);
+    state->cursor0      = nvReadVGA(pNv, 0x30);
+    state->cursor1      = nvReadVGA(pNv, 0x31);
+    state->cursor2      = nvReadVGA(pNv, 0x2F);
+    state->interlace    = nvReadVGA(pNv, 0x39);
+
     state->vpll         = pNv->PRAMDAC0[0x0508/4];
     if(pNv->twoHeads)
        state->vpll2     = pNv->PRAMDAC0[0x0520/4];
@@ -1368,11 +1351,10 @@ void NVUnloadStateExt
         if(pNv->twoHeads) {
            state->head     = pNv->PCRTC0[0x0860/4];
            state->head2    = pNv->PCRTC0[0x2860/4];
-           VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
-           state->crtcOwner = VGA_RD08(pNv->PCIO, 0x03D5);
+           state->crtcOwner = nvReadVGA(pNv, 0x44);
         }
-        VGA_WR08(pNv->PCIO, 0x03D4, 0x41);
-        state->extra = VGA_RD08(pNv->PCIO, 0x03D5);
+        state->extra = nvReadVGA(pNv, 0x41);
+
         state->cursorConfig = pNv->PCRTC[0x0810/4];
 
         if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
@@ -1383,10 +1365,8 @@ void NVUnloadStateExt
         }
 
         if(pNv->FlatPanel) {
-           VGA_WR08(pNv->PCIO, 0x03D4, 0x53);
-           state->timingH = VGA_RD08(pNv->PCIO, 0x03D5);
-           VGA_WR08(pNv->PCIO, 0x03D4, 0x54);
-           state->timingV = VGA_RD08(pNv->PCIO, 0x03D5);
+           state->timingH = nvReadVGA(pNv, 0x53);
+           state->timingV = nvReadVGA(pNv, 0x54);
         }
     }
 

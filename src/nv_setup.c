@@ -214,11 +214,13 @@ NVSelectHeadRegisters(ScrnInfoPtr pScrn, int head)
 {
     NVPtr pNv = NVPTR(pScrn);
 
+    pNv->cur_head = head;
+
     if(head) {
-       pNv->PCIO = pNv->PCIO0 + 0x2000;
-       pNv->PCRTC = pNv->PCRTC0 + 0x800;
-       pNv->PRAMDAC = pNv->PRAMDAC0 + 0x800;
-       pNv->PDIO = pNv->PDIO0 + 0x2000;
+       pNv->PCIO = pNv->PCIO1;
+       pNv->PCRTC = pNv->PCRTC1;
+       pNv->PRAMDAC = pNv->PRAMDAC1;
+       pNv->PDIO = pNv->PDIO1;
     } else {
        pNv->PCIO = pNv->PCIO0;
        pNv->PCRTC = pNv->PCRTC0;
@@ -379,6 +381,11 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     pNv->PDIO0    = (CARD8*)pNv->REGS + NV_PDIO0_OFFSET;
     pNv->PVIO     = (CARD8*)pNv->REGS + NV_PVIO_OFFSET;
     pNv->PROM     = (CARD8*)pNv->REGS + NV_PROM_OFFSET;
+
+    pNv->PCRTC1   = pNv->PCRTC0 + 0x800;
+    pNv->PRAMDAC1 = pNv->PRAMDAC0 + 0x800;
+    pNv->PCIO1    = pNv->PCIO0 + 0x2000;
+    pNv->PDIO1    = pNv->PDIO0 + 0x2000;
 
     pNv->twoHeads =  (pNv->Architecture >= NV_ARCH_10) &&
                      (implementation != CHIPSET_NV10) &&
