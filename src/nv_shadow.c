@@ -26,7 +26,7 @@ NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 	height = pbox->y2 - pbox->y1;
 	src = pNv->ShadowPtr + (pbox->y1 * pNv->ShadowPitch) + 
 						(pbox->x1 * Bpp);
-	dst = pNv->FbStart + (pbox->y1 * FBPitch) + (pbox->x1 * Bpp);
+	dst = pNv->FB->map + (pbox->y1 * FBPitch) + (pbox->x1 * Bpp);
 
 	while(height--) {
 	    memcpy(dst, src, width);
@@ -79,11 +79,11 @@ NVRefreshArea8(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 	height = (y2 - y1) >> 2;  /* in dwords */
 
 	if(pNv->Rotate == 1) {
-	    dstPtr = pNv->FbStart + 
+	    dstPtr = pNv->FB->map + 
 			(pbox->x1 * dstPitch) + pScrn->virtualX - y2;
 	    srcPtr = pNv->ShadowPtr + ((1 - y2) * srcPitch) + pbox->x1;
 	} else {
-	    dstPtr = pNv->FbStart + 
+	    dstPtr = pNv->FB->map + 
 			((pScrn->virtualY - pbox->x2) * dstPitch) + y1;
 	    srcPtr = pNv->ShadowPtr + (y1 * srcPitch) + pbox->x2 - 1;
 	}
@@ -130,12 +130,12 @@ NVRefreshArea16(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 	height = (y2 - y1) >> 1;  /* in dwords */
 
 	if(pNv->Rotate == 1) {
-	    dstPtr = (CARD16*)pNv->FbStart + 
+	    dstPtr = (CARD16*)pNv->FB->map + 
 			(pbox->x1 * dstPitch) + pScrn->virtualX - y2;
 	    srcPtr = (CARD16*)pNv->ShadowPtr + 
 			((1 - y2) * srcPitch) + pbox->x1;
 	} else {
-	    dstPtr = (CARD16*)pNv->FbStart + 
+	    dstPtr = (CARD16*)pNv->FB->map + 
 			((pScrn->virtualY - pbox->x2) * dstPitch) + y1;
 	    srcPtr = (CARD16*)pNv->ShadowPtr + 
 			(y1 * srcPitch) + pbox->x2 - 1;
@@ -178,12 +178,12 @@ NVRefreshArea32(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 	height = pbox->y2 - pbox->y1;
 
 	if(pNv->Rotate == 1) {
-	    dstPtr = (CARD32*)pNv->FbStart + 
+	    dstPtr = (CARD32*)pNv->FB->map + 
 			(pbox->x1 * dstPitch) + pScrn->virtualX - pbox->y2;
 	    srcPtr = (CARD32*)pNv->ShadowPtr + 
 			((1 - pbox->y2) * srcPitch) + pbox->x1;
 	} else {
-	    dstPtr = (CARD32*)pNv->FbStart + 
+	    dstPtr = (CARD32*)pNv->FB->map + 
 			((pScrn->virtualY - pbox->x2) * dstPitch) + pbox->y1;
 	    srcPtr = (CARD32*)pNv->ShadowPtr + 
 			(pbox->y1 * srcPitch) + pbox->x2 - 1;
