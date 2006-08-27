@@ -33,7 +33,6 @@ nv_drv_la_SOURCES = \
          nv_const.h \
          nv_cursor.c \
          nv_dac.c \
-         nv_dga.c \
 	 nv_dma.c \
          nv_dma.h \
 	 nv_dri.c \

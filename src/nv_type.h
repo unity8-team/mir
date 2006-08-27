@@ -201,14 +201,9 @@ typedef struct _NVRec {
     ExaDriverPtr	EXADriverPtr;
     Bool                useEXA;
     xf86CursorInfoPtr   CursorInfoRec;
-    DGAModePtr          DGAModes;
-    int                 numDGAModes;
-    Bool                DGAactive;
-    int                 DGAViewportStatus;
     void		(*PointerMoved)(int index, int x, int y);
     ScreenBlockHandlerProcPtr BlockHandler;
     CloseScreenProcPtr  CloseScreen;
-    Bool                FBDev;
     int			Rotate;
     NVFBLayout		CurrentLayout;
     /* Cursor */

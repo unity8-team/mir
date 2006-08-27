@@ -49,7 +49,6 @@ static Bool    NVPreInit(ScrnInfoPtr pScrn, int flags);
 static Bool    NVScreenInit(int Index, ScreenPtr pScreen, int argc,
                             char **argv);
 static Bool    NVEnterVT(int scrnIndex, int flags);
-static Bool    NVEnterVTFBDev(int scrnIndex, int flags);
 static void    NVLeaveVT(int scrnIndex, int flags);
 static Bool    NVCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool    NVSaveScreen(ScreenPtr pScreen, int mode);
@@ -66,7 +65,6 @@ static Bool    NVDriverFunc(ScrnInfoPtr pScrnInfo, xorgDriverFuncOp op,
 /* Internally used functions */
 
 static Bool	NVMapMem(ScrnInfoPtr pScrn);
-static Bool	NVMapMemFBDev(ScrnInfoPtr pScrn);
 static Bool	NVUnmapMem(ScrnInfoPtr pScrn);
 static void	NVSave(ScrnInfoPtr pScrn);
 static void	NVRestore(ScrnInfoPtr pScrn);
@@ -414,30 +412,6 @@ static const char *shadowSymbols[] = {
     NULL
 };
 
-static const char *fbdevHWSymbols[] = {
-    "fbdevHWInit",
-    "fbdevHWUseBuildinMode",
-
-    "fbdevHWGetVidmem",
-
-    /* colormap */
-    "fbdevHWLoadPaletteWeak",
-
-    /* ScrnInfo hooks */
-    "fbdevHWAdjustFrameWeak",
-    "fbdevHWEnterVT",
-    "fbdevHWLeaveVTWeak",
-    "fbdevHWModeInit",
-    "fbdevHWSave",
-    "fbdevHWSwitchModeWeak",
-    "fbdevHWValidModeWeak",
-
-    "fbdevHWMapMMIO",
-    "fbdevHWMapVidmem",
-
-    NULL
-};
-
 static const char *int10Symbols[] = {
     "xf86FreeInt10",
     "xf86InitInt10",
@@ -519,7 +493,6 @@ typedef enum {
     OPTION_HW_CURSOR,
     OPTION_NOACCEL,
     OPTION_SHADOW_FB,
-    OPTION_FBDEV,
     OPTION_ROTATE,
     OPTION_VIDEO_KEY,
     OPTION_FLAT_PANEL,
@@ -536,7 +509,6 @@ static const OptionInfoRec NVOptions[] = {
     { OPTION_HW_CURSOR,         "HWcursor",     OPTV_BOOLEAN,   {0}, FALSE },
     { OPTION_NOACCEL,           "NoAccel",      OPTV_BOOLEAN,   {0}, FALSE },
     { OPTION_SHADOW_FB,         "ShadowFB",     OPTV_BOOLEAN,   {0}, FALSE },
-    { OPTION_FBDEV,             "UseFBDev",     OPTV_BOOLEAN,   {0}, FALSE },
     { OPTION_ROTATE,		"Rotate",	OPTV_ANYSTR,	{0}, FALSE },
     { OPTION_VIDEO_KEY,		"VideoKey",	OPTV_INTEGER,	{0}, FALSE },
     { OPTION_FLAT_PANEL,	"FlatPanel",	OPTV_BOOLEAN,	{0}, FALSE },
@@ -656,7 +628,7 @@ nvSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 #endif
                           ramdacSymbols, shadowSymbols, rivaSymbols,
                           i2cSymbols, ddcSymbols, vbeSymbols,
-                          fbdevHWSymbols, int10Symbols, NULL);
+                          int10Symbols, NULL);
 
         /*
          * The return value must be non-NULL on success even though there
@@ -930,13 +902,6 @@ NVEnterVT(int scrnIndex, int flags)
     return TRUE;
 }
 
-static Bool
-NVEnterVTFBDev(int scrnIndex, int flags)
-{
-    fbdevHWEnterVT(scrnIndex,flags);
-    return TRUE;
-}
-
 /*
  * This is called when VT switching away from the X server.  Its job is
  * to restore the previous (text) mode.
@@ -1011,8 +976,6 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
         xf86DestroyCursorInfoRec(pNv->CursorInfoRec);
     if (pNv->ShadowPtr)
         xfree(pNv->ShadowPtr);
-    if (pNv->DGAModes)
-        xfree(pNv->DGAModes);
     if (pNv->overlayAdaptor)
 	xfree(pNv->overlayAdaptor);
     if (pNv->blitAdaptor)
@@ -1342,11 +1305,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
 		"Using \"Shadow Framebuffer\" - acceleration disabled\n");
     }
-    if (xf86ReturnOptValBool(pNv->Options, OPTION_FBDEV, FALSE)) {
-	pNv->FBDev = TRUE;
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
-		"Using framebuffer device\n");
-    }
     if (!pNv->NoAccel) {
         if((s = (char *)xf86GetOptValString(pNv->Options, OPTION_ACCELMETHOD))) {
             if(!xf86NameCmp(s,"XAA")) {
@@ -1362,24 +1320,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Acceleration disabled\n");
     }
     
-    if (pNv->FBDev) {
-	/* check for linux framebuffer device */
-	if (!xf86LoadSubModule(pScrn, "fbdevhw")) {
-	    xf86FreeInt10(pNv->pInt);
-	    return FALSE;
-	}
-	
-	xf86LoaderReqSymLists(fbdevHWSymbols, NULL);
-	if (!fbdevHWInit(pScrn, pNv->PciInfo, NULL)) {
-	    xf86FreeInt10(pNv->pInt);
-	    return FALSE;
-	}
-	pScrn->SwitchMode    = fbdevHWSwitchModeWeak();
-	pScrn->AdjustFrame   = fbdevHWAdjustFrameWeak();
-	pScrn->EnterVT       = NVEnterVTFBDev;
-	pScrn->LeaveVT       = fbdevHWLeaveVTWeak();
-	pScrn->ValidMode     = fbdevHWValidModeWeak();
-    }
     pNv->Rotate = 0;
     pNv->RandRRotation = FALSE;
     if ((s = xf86GetOptValString(pNv->Options, OPTION_ROTATE))) {
@@ -1572,11 +1512,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
     NVCommonSetup(pScrn);
 
-    if (pNv->FBDev) {
-       pScrn->videoRam = fbdevHWGetVidmem(pScrn)/1024;
-    } else {
-       pScrn->videoRam = pNv->RamAmountKBytes;
-    }
+    pScrn->videoRam = pNv->RamAmountKBytes;
     xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "VideoRAM: %d kBytes\n",
                pScrn->videoRam);
 	
@@ -1658,11 +1594,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
                           pNv->ScratchBufferStart,
                           LOOKUP_BEST_REFRESH);
 
-    if (i < 1 && pNv->FBDev) {
-	fbdevHWUseBuildinMode(pScrn);
-	pScrn->displayWidth = pScrn->virtualX; /* FIXME: might be wrong */
-	i = 1;
-    }
     if (i == -1) {
 	xf86FreeInt10(pNv->pInt);
 	NVFreeRec(pScrn);
@@ -1773,22 +1704,6 @@ NVMapMem(ScrnInfoPtr pScrn)
 				 pNv->FbMapSize);
     if (pNv->FbBase == NULL)
 	return FALSE;
-
-    pNv->FbStart = pNv->FbBase;
-
-    return TRUE;
-}
-
-Bool
-NVMapMemFBDev(ScrnInfoPtr pScrn)
-{
-    NVPtr pNv;
-
-    pNv = NVPTR(pScrn);
-
-    pNv->FbBase = fbdevHWMapVidmem(pScrn);
-    if (pNv->FbBase == NULL)
-        return FALSE;
 
     pNv->FbStart = pNv->FbBase;
 
@@ -2019,18 +1934,12 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     pNv = NVPTR(pScrn);
 
     /* Map the NV memory and MMIO areas */
-    if (pNv->FBDev) {
-        if (!NVMapMemFBDev(pScrn)) {
-            return FALSE;
-        }
-    } else {
-        if (!NVMapMem(pScrn)) {
-            return FALSE;
-         }
+    if (!NVMapMem(pScrn)) {
+        return FALSE;
     }
 
     /* Map the VGA memory when the primary video */
-    if (pNv->Primary && !pNv->FBDev) {
+    if (pNv->Primary) {
 	hwp->MapSize = 0x10000;
 	if (!vgaHWMapMem(pScrn))
 	    return FALSE;
@@ -2056,7 +1965,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		return FALSE;
 	}
 
-	/*XXX: only needed for XAA and DGA */
+	/*XXX: only needed for XAA */
 	pNv->ScratchBuffer = NVAllocateMemory(pNv, NOUVEAU_MEM_FB,
 			pNv->Architecture <NV_ARCH_10 ? 8192 : 16384);
 	if (!pNv->ScratchBuffer) {
@@ -2064,17 +1973,11 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		return FALSE;
 	}
 
-    if (pNv->FBDev) {
-	fbdevHWSave(pScrn);
-	if (!fbdevHWModeInit(pScrn, pScrn->currentMode))
-	    return FALSE;
-    } else {
 	/* Save the current state */
 	NVSave(pScrn);
 	/* Initialise the first mode */
 	if (!NVModeInit(pScrn, pScrn->currentMode)) {
 	    return FALSE;
-    }
     }
 
     /* Darken the screen for aesthetic reasons and set the viewport */
@@ -2177,9 +2080,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     
     xf86SetBlackWhitePixels(pScreen);
 
-    if(!pNv->ShadowFB) /* hardware cursor needs to wrap this layer */
-	NVDGAInit(pScreen);
-
     offscreenHeight = pNv->ScratchBufferStart /
                      (pScrn->displayWidth * pScrn->bitsPerPixel >> 3);
     if(offscreenHeight > 32767)
@@ -2223,8 +2123,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
     /* Initialize colormap layer.  
 	Must follow initialization of the default colormap */
-    if(!xf86HandleColormaps(pScreen, 256, 8,
-	(pNv->FBDev ? fbdevHWLoadPaletteWeak() : NVDACLoadPalette), 
+    if(!xf86HandleColormaps(pScreen, 256, 8, NVDACLoadPalette,
 	NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
 	return FALSE;
 

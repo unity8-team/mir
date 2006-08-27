@@ -52,9 +52,6 @@ void   NVDMAKickoffCallback (NVPtr pNv);
 /* in nv_exa.c */
 Bool NVExaInit(ScreenPtr pScreen);
 
-/* in nv_dga.c */
-Bool   NVDGAInit(ScreenPtr pScreen);
-
 /* in riva_hw.c */
 void NVCalcStateExt(NVPtr,struct _riva_hw_state *,int,int,int,int,int,int);
 void NVLoadStateExt(ScrnInfoPtr pScrn,struct _riva_hw_state *);

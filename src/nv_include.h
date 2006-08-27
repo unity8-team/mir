@@ -52,7 +52,6 @@
 #include "xaa.h"
 #include "xf86cmap.h"
 #include "shadowfb.h"
-#include "fbdevhw.h"
 
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
