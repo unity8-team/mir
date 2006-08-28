@@ -103,8 +103,8 @@ int NVShowHideCursor (
     nvWriteVGA(pNv, 0x31, pNv->CurrentState->cursor1);
 
     if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
-       volatile CARD32 curpos = nvReadCurRAMDAC(pNv, 0x300);
-       nvWriteCurRAMDAC(pNv, 0x0300, curpos);
+       volatile CARD32 curpos = nvReadCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS);
+       nvWriteCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS, curpos);
     }
 
     return (current & 0x01);
