@@ -1752,8 +1752,7 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
     NVLockUnlock(pNv, 0);
     if(pNv->twoHeads) {
-        VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
-        VGA_WR08(pNv->PCIO, 0x03D5, nvReg->crtcOwner);
+        nvWriteVGA(pNv, 0x44, nvReg->crtcOwner);
         NVLockUnlock(pNv, 0);
     }
 
@@ -1797,8 +1796,7 @@ NVRestore(ScrnInfoPtr pScrn)
     NVLockUnlock(pNv, 0);
 
     if(pNv->twoHeads) {
-        VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
-        VGA_WR08(pNv->PCIO, 0x03D5, pNv->CRTCnumber * 0x3);
+        nvWriteVGA(pNv, 0x44, pNv->CRTCnumber * 0x3);
         NVLockUnlock(pNv, 0);
     }
 
@@ -1806,8 +1804,7 @@ NVRestore(ScrnInfoPtr pScrn)
     vgaHWProtect(pScrn, TRUE);
     NVDACRestore(pScrn, vgaReg, nvReg, pNv->Primary);
     if(pNv->twoHeads) {
-        VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
-        VGA_WR08(pNv->PCIO, 0x03D5, pNv->vtOWNER);
+        nvWriteVGA(pNv, 0x44, pNv->vtOWNER);
     }
     vgaHWProtect(pScrn, FALSE);
 }
@@ -2174,8 +2171,7 @@ NVSave(ScrnInfoPtr pScrn)
 
     NVLockUnlock(pNv, 0);
     if(pNv->twoHeads) {
-        VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
-        VGA_WR08(pNv->PCIO, 0x03D5, pNv->CRTCnumber * 0x3);
+        nvWriteVGA(pNv, 0x44, pNv->CRTCnumber * 0x3);
         NVLockUnlock(pNv, 0);
     }
 

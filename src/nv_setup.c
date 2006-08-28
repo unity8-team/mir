@@ -489,10 +489,8 @@ NVCommonSetup(ScrnInfoPtr pScrn)
            if((pNv->Chipset & 0x0fff) <= CHIPSET_NV04)
               FlatPanel = 0;
        } else {
-           VGA_WR08(pNv->PCIO, 0x03D4, 0x28);
-           if(VGA_RD08(pNv->PCIO, 0x03D5) & 0x80) {
-              VGA_WR08(pNv->PCIO, 0x03D4, 0x33);
-              if(!(VGA_RD08(pNv->PCIO, 0x03D5) & 0x01)) 
+           if(nvReadVGA(pNv, 0x28) & 0x80) {
+              if(!(nvReadVGA(pNv, 0x33) & 0x01)) 
                  Television = TRUE;
               FlatPanel = 1;
            } else {
@@ -537,31 +535,25 @@ NVCommonSetup(ScrnInfoPtr pScrn)
           analog_on_B = FALSE;
        }
 
-       VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
-       cr44 = VGA_RD08(pNv->PCIO, 0x03D5);
-	   pNv->vtOWNER = cr44;
+       cr44 = nvReadVGA(pNv, 0x44);
+       pNv->vtOWNER = cr44;
 
-       VGA_WR08(pNv->PCIO, 0x03D5, 3);
+       nvWriteVGA(pNv, 0x44, 3);
        NVSelectHeadRegisters(pScrn, 1);
        NVLockUnlock(pNv, 0);
 
-       VGA_WR08(pNv->PCIO, 0x03D4, 0x28);
-       slaved_on_B = VGA_RD08(pNv->PCIO, 0x03D5) & 0x80;
+       slaved_on_B = nvReadVGA(pNv, 0x28) & 0x80;
        if(slaved_on_B) {
-           VGA_WR08(pNv->PCIO, 0x03D4, 0x33);
-           tvB = !(VGA_RD08(pNv->PCIO, 0x03D5) & 0x01);
+           tvB = !(nvReadVGA(pNv, 0x33) & 0x01);
        }
 
-       VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
-       VGA_WR08(pNv->PCIO, 0x03D5, 0);
+       nvWriteVGA(pNv, 0x44, 0);
        NVSelectHeadRegisters(pScrn, 0);
        NVLockUnlock(pNv, 0);
 
-       VGA_WR08(pNv->PCIO, 0x03D4, 0x28);
-       slaved_on_A = VGA_RD08(pNv->PCIO, 0x03D5) & 0x80; 
+       slaved_on_A = nvReadVGA(pNv, 0x28) & 0x80; 
        if(slaved_on_A) {
-           VGA_WR08(pNv->PCIO, 0x03D4, 0x33);
-           tvA = !(VGA_RD08(pNv->PCIO, 0x03D5) & 0x01);
+           tvA = !(nvReadVGA(pNv, 0x33) & 0x01);
        }
 
        oldhead = pNv->PCRTC0[0x00000860/4];
@@ -683,8 +675,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 
        pNv->PCRTC0[0x00000860/4] = oldhead;
 
-       VGA_WR08(pNv->PCIO, 0x03D4, 0x44);
-       VGA_WR08(pNv->PCIO, 0x03D5, cr44);
+       nvWriteVGA(pNv, 0x44, cr44);
        NVSelectHeadRegisters(pScrn, pNv->CRTCnumber);
     }
 
