@@ -374,8 +374,7 @@ NV_I2CGetBits(I2CBusPtr b, int *clock, int *data)
     unsigned char val;
 
     /* Get the result. */
-    VGA_WR08(pNv->PCIO, 0x3d4, pNv->DDCBase);
-    val = VGA_RD08(pNv->PCIO, 0x3d5);
+    val = nvReadVGA(pNv, pNv->DDCBase);
 
     *clock = (val & DDC_SCL_READ_MASK) != 0;
     *data  = (val & DDC_SDA_READ_MASK) != 0;
@@ -387,8 +386,7 @@ NV_I2CPutBits(I2CBusPtr b, int clock, int data)
     NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
     unsigned char val;
 
-    VGA_WR08(pNv->PCIO, 0x3d4, pNv->DDCBase + 1);
-    val = VGA_RD08(pNv->PCIO, 0x3d5) & 0xf0;
+    val = nvReadVGA(pNv, pNv->DDCBase + 1) & 0xf0;
     if (clock)
         val |= DDC_SCL_WRITE_MASK;
     else
@@ -399,8 +397,7 @@ NV_I2CPutBits(I2CBusPtr b, int clock, int data)
     else
         val &= ~DDC_SDA_WRITE_MASK;
 
-    VGA_WR08(pNv->PCIO, 0x3d4, pNv->DDCBase + 1);
-    VGA_WR08(pNv->PCIO, 0x3d5, val | 0x1);
+    nvWriteVGA(pNv, pNv->DDCBase + 1, val | 0x1);
 }
 
 Bool

@@ -1766,10 +1766,9 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     {
 	unsigned char tmp;
 
-	VGA_WR08(pNv->PCIO, 0x3d4, 0x46);
-	tmp = VGA_RD08(pNv->PCIO, 0x3d5);
+	tmp = nvReadVGA(pNv, 0x46);
 	tmp |= (1 << 7);
-	VGA_WR08(pNv->PCIO, 0x3d5, tmp);
+	nvWriteVGA(pNv, 0x46, tmp);
     }
 #endif
 
