@@ -26,7 +26,7 @@ void *NVDmaCreateNotifier(NVPtr pNv, int handle)
 	int target = 0;
 
 #ifndef __powerpc__
-	if (pNv->agpScratch) {
+	if (pNv->AGPScratch) {
 		drm_nouveau_mem_alloc_t alloc;
 
 		alloc.flags     = NOUVEAU_MEM_AGP|NOUVEAU_MEM_MAPPED;
@@ -222,11 +222,11 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
                               NvDmaFB, NvDmaFB, 0);
 
 #ifdef XF86DRI
-    if (NVInitAGP(pScrn) && pNv->agpScratch) {
+    if (NVInitAGP(pScrn) && pNv->AGPScratch) {
         pNv->Notifier0 = NVDmaCreateNotifier(pNv, NvDmaNotifier0);
 		if (pNv->Notifier0) {
 			NVDmaCreateDMAObject(pNv, NvDmaAGP, NV_DMA_TARGET_AGP,
-					pNv->agpScratchPhysical, pNv->agpScratchSize, NV_DMA_ACCES_RW);
+					pNv->AGPScratch->offset, pNv->AGPScratch->size, NV_DMA_ACCES_RW);
 
 	        NVDmaCreateContextObject (pNv, NvGraphicsToAGP,
 					NV_MEMORY_TO_MEMORY_FORMAT, 0,
@@ -240,7 +240,8 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 		} else {
 			/* FIXME */
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to create DMA notifier - DMA transfers disabled\n");
-			pNv->agpScratch = NULL;
+			NVFreeMemory(pNv, pNv->AGPScratch);
+			pNv->AGPScratch = NULL;
 		}
     }
 #endif

@@ -139,6 +139,7 @@ typedef struct _NVRec {
 	NVAllocRec *        FB;
 	NVAllocRec *        Cursor;
 	NVAllocRec *        ScratchBuffer;
+	NVAllocRec *        AGPScratch;
     Bool                NoAccel;
     Bool                HWCursor;
     Bool                FpScale;
@@ -150,11 +151,6 @@ typedef struct _NVRec {
     CARD32              CrystalFreqKHz;
     CARD32              RamAmountKBytes;
     int drm_fd;
-    unsigned long drm_agp_handle;
-    unsigned long drm_agp_map_handle;
-    unsigned char *agpScratch;
-    unsigned long agpScratchPhysical;
-    unsigned long agpScratchSize;
 
     volatile CARD32 *REGS;
     volatile CARD32 *PCRTC0;

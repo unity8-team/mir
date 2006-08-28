@@ -256,7 +256,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
             goto error;
         }
 
-        memcpy(dst, pNv->agpScratch, nlines*dst_pitch);
+        memcpy(dst, pNv->AGPScratch->map, nlines*dst_pitch);
         h -= nlines;
         offset_in += nlines*pitch_in;
         dst += nlines*dst_pitch;
@@ -299,7 +299,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
         int nlines = h > max_lines ? max_lines : h;
         /* reset the notification object */
         memset(pNv->Notifier0, 0xff, 0x100);
-        memcpy(pNv->agpScratch, src, nlines*src_pitch);
+        memcpy(pNv->AGPScratch->map, src, nlines*src_pitch);
         NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_NOTIFY, 1);
         NVDmaNext (pNv, 0);
         NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_OFFSET_IN, 8);
@@ -480,7 +480,7 @@ Bool NVExaInit(ScreenPtr pScreen)
 		pNv->EXADriverPtr->Solid = NVExaSolid;
     pNv->EXADriverPtr->DoneSolid = NVExaDoneSolid;
 
-    if (pNv->agpScratch) {
+    if (pNv->AGPScratch) {
         pNv->EXADriverPtr->DownloadFromScreen = NVDownloadFromScreen; 
         pNv->EXADriverPtr->UploadToScreen = NVUploadToScreen; 
     }

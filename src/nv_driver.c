@@ -552,8 +552,8 @@ NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
 	if (drmMap(pNv->drm_fd, mem->offset, mem->size, &mem->map)) {
 		ErrorF("drmMap() failed. offset=0x%llx, size=%d (%d)\n",
 				mem->offset, mem->size, errno);
-		//XXX: NOUVEAU_MEM_FREE
-		free(mem);
+		mem->map  = NULL;
+		NVFreeMemory(pNv, mem);
 		return NULL;
 	}
 
@@ -565,6 +565,11 @@ void NVFreeMemory(NVPtr pNv, NVAllocRec *mem)
 	drm_nouveau_mem_free_t memfree;
 
 	if (mem) {
+		if (mem->map) {
+			if (drmUnmap(mem->map, mem->size))
+				ErrorF("drmUnmap() failed. map=%p, size=%d\n", mem->map, mem->size);
+		}
+
 		memfree.flags = mem->type;
 		memfree.region_offset = mem->offset;
 		if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_FREE, &memfree,

@@ -166,49 +166,26 @@ Bool NVInitAGP(ScrnInfoPtr pScrn)
 	drm_nouveau_mem_alloc_t alloc;
 
     agp_size = drmAgpSize(pNv->drm_fd);
-    pNv->agpScratchSize = agp_size < 16*0x100000 ? agp_size : 16*0x100000;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"AGP: aperture is %dMB\n", agp_size>>20);
 	if (agp_size==0)
 		return FALSE;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"AGP: aperture is %dMB\n", agp_size>>20);
 
-	alloc.flags     = NOUVEAU_MEM_AGP|NOUVEAU_MEM_MAPPED;
-	alloc.alignment = 0; /* drm will page-align this */
-	alloc.size      = pNv->agpScratchSize;
-	alloc.region_offset = &pNv->agpScratchPhysical;
-	if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_ALLOC, &alloc, sizeof(alloc))) {
+	if (agp_size > 16*1024*1024)
+		agp_size = 16*1024*1024;
+
+	pNv->AGPScratch = NVAllocateMemory(pNv, NOUVEAU_MEM_AGP, agp_size);
+	if (!pNv->AGPScratch) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"Unable to alloc AGP memory (%s) - DMA transfers disabled\n", strerror(errno));
-		pNv->agpScratch = NULL;
+			"Unable to alloc AGP memory - DMA transfers disabled\n");
 		return FALSE;
 	}
-    
-    if (drmMap(pNv->drm_fd, pNv->agpScratchPhysical, pNv->agpScratchSize,
-				(drmAddressPtr)&pNv->agpScratch)) {
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                   "could not map AGP memory: %s\n", strerror(errno));
-        return FALSE;
-    }
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"AGP: mapped %dMB at %p\n", pNv->agpScratchSize>>20, pNv->agpScratch);
 
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"AGP: mapped %dMB at %p\n", pNv->AGPScratch->size>>20,
+			pNv->AGPScratch->map);
 
     return TRUE;
-    
-#if 0
-    {
-        char *tmp = malloc(pNv->agpSize);
-        struct timeval tv, tv2;
-        gettimeofday(&tv, 0);
-        memcpy(tmp, pNv->agpMemory, pNv->agpSize);
-        gettimeofday(&tv2, 0);
-        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "agp: Memory benchmark %f MB/s\n",
-                   (pNv->agpSize/(1024.*1024.))*1000000
-                   /((int)tv2.tv_usec- (int)tv.tv_usec + 1000000*(tv2.tv_sec-tv.tv_sec)+1));
-        free(tmp);
-    }
-#endif
 }
 #endif
 
