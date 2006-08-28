@@ -966,7 +966,7 @@ void NVLoadStateExt (
     {
         for(i = 0; i < 8; i++) {
            pNv->PFB[(0x0240 + (i * 0x10))/4] = 0;
-           pNv->PFB[(0x0244 + (i * 0x10))/4] = pNv->FbMapSize - 1;
+           pNv->PFB[(0x0244 + (i * 0x10))/4] = pNv->VRAMPhysicalSize - 1;
         }
     } else {
         int regions = 12;
@@ -982,15 +982,18 @@ void NVLoadStateExt (
  
        for(i = 0; i < regions; i++) {
           pNv->PFB[(0x0600 + (i * 0x10))/4] = 0;
-          pNv->PFB[(0x0604 + (i * 0x10))/4] = pNv->FbMapSize - 1;
+          pNv->PFB[(0x0604 + (i * 0x10))/4] = pNv->VRAMPhysicalSize - 1;
        }
     }
     /* end of surfaces */
 
     if(pNv->Architecture < NV_ARCH_10) {
        if((pNv->Chipset & 0x0fff) == CHIPSET_NV04) {
+		   /*XXX: RAMIN access here, find out what it's for.
+			*     The DRM is handling RAMIN now
+			*/
            pNv->PRAMIN[0x0824] |= 0x00020000;
-           pNv->PRAMIN[0x0826] += pNv->FbAddress;
+           pNv->PRAMIN[0x0826] += pNv->VRAMPhysical;
        }
        pNv->PGRAPH[0x0080/4] = 0x000001FF;
        pNv->PGRAPH[0x0080/4] = 0x1230C000;
@@ -1036,8 +1039,8 @@ void NVLoadStateExt (
 
            pNv->PGRAPH[0x640/4] = 0;
            pNv->PGRAPH[0x644/4] = 0;
-           pNv->PGRAPH[0x684/4] = pNv->FbMapSize - 1;
-           pNv->PGRAPH[0x688/4] = pNv->FbMapSize - 1;
+           pNv->PGRAPH[0x684/4] = pNv->VRAMPhysicalSize - 1;
+           pNv->PGRAPH[0x688/4] = pNv->VRAMPhysicalSize - 1;
 
            pNv->PGRAPH[0x0810/4] = 0x00000000;
            pNv->PGRAPH[0x0608/4] = 0xFFFFFFFF;
@@ -1188,8 +1191,8 @@ void NVLoadStateExt (
 
                  pNv->PGRAPH[0x0820/4] = 0;
                  pNv->PGRAPH[0x0824/4] = 0;
-                 pNv->PGRAPH[0x0864/4] = pNv->FbMapSize - 1;
-                 pNv->PGRAPH[0x0868/4] = pNv->FbMapSize - 1;
+                 pNv->PGRAPH[0x0864/4] = pNv->VRAMPhysicalSize - 1;
+                 pNv->PGRAPH[0x0868/4] = pNv->VRAMPhysicalSize - 1;
               } else {
                  if(((pNv->Chipset & 0xfff0) == CHIPSET_G70) ||
                     ((pNv->Chipset & 0xfff0) == CHIPSET_G71) ||
@@ -1207,8 +1210,8 @@ void NVLoadStateExt (
 
                  pNv->PGRAPH[0x0840/4] = 0;
                  pNv->PGRAPH[0x0844/4] = 0;
-                 pNv->PGRAPH[0x08a0/4] = pNv->FbMapSize - 1;
-                 pNv->PGRAPH[0x08a4/4] = pNv->FbMapSize - 1;
+                 pNv->PGRAPH[0x08a0/4] = pNv->VRAMPhysicalSize - 1;
+                 pNv->PGRAPH[0x08a4/4] = pNv->VRAMPhysicalSize - 1;
               }
            } else {
               pNv->PGRAPH[0x09A4/4] = pNv->PFB[0x0200/4];
@@ -1220,8 +1223,8 @@ void NVLoadStateExt (
 
               pNv->PGRAPH[0x0820/4] = 0;
               pNv->PGRAPH[0x0824/4] = 0;
-              pNv->PGRAPH[0x0864/4] = pNv->FbMapSize - 1;
-              pNv->PGRAPH[0x0868/4] = pNv->FbMapSize - 1;
+              pNv->PGRAPH[0x0864/4] = pNv->VRAMPhysicalSize - 1;
+              pNv->PGRAPH[0x0868/4] = pNv->VRAMPhysicalSize - 1;
            }
            /* end of RAM config */
 
@@ -1251,8 +1254,8 @@ void NVLoadStateExt (
         pNv->PMC[0x8140/4] = 0;
         pNv->PMC[0x8920/4] = 0;
         pNv->PMC[0x8924/4] = 0;
-        pNv->PMC[0x8908/4] = pNv->FbMapSize - 1;
-        pNv->PMC[0x890C/4] = pNv->FbMapSize - 1;
+        pNv->PMC[0x8908/4] = pNv->VRAMPhysicalSize - 1;
+        pNv->PMC[0x890C/4] = pNv->VRAMPhysicalSize - 1;
         pNv->PMC[0x1588/4] = 0;
 
         pNv->PCRTC[0x0810/4] = state->cursorConfig;

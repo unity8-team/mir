@@ -93,8 +93,8 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
     pDRIInfo->ddxDriverMinorVersion      = NV_MINOR_VERSION;
     pDRIInfo->ddxDriverPatchVersion      = NV_PATCHLEVEL;
 
-    pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->FbAddress;
-    pDRIInfo->frameBufferSize            = pNv->FbUsableSize;
+    pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical;
+    pDRIInfo->frameBufferSize            = pNv->VRAMPhysicalSize;
     pDRIInfo->frameBufferStride          = pScrn->displayWidth * pScrn->bitsPerPixel/8;
  
     pDRIInfo->ddxDrawableTableEntry      = 1;

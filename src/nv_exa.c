@@ -255,10 +255,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
             ret = FALSE;
             goto error;
         }
-#if 0
-        if (memcmp(pNv->FbBase + offset_in, pNv->agpMemory + 0x10000, nlines*dst_pitch) != 0)
-            ErrorF("DMA transfer wrong!\n");
-#endif
+
         memcpy(dst, pNv->agpScratch, nlines*dst_pitch);
         h -= nlines;
         offset_in += nlines*pitch_in;
@@ -498,46 +495,5 @@ Bool NVExaInit(ScreenPtr pScreen)
         pNv->EXADriverPtr->DoneComposite = NVDoneComposite;
     }
 
-#if 0
-    {
-        int i;
-        struct timeval tv, tv2;
-        ErrorF("\nTiming upload:\n");
-        gettimeofday(&tv, 0);
-        NVDmaSetObjectOnSubchannel(pNv, NvSubGraphicsToAGP, NvAGPToGraphics);
-
-        for (i = 0; i < 0x10000; ++i)
-            ((CARD32 *)(pNv->agpMemory+0x10000))[i] = (i<<16) | (0xffff-i);
-        for (i = 0; i < 0x10000; ++i)
-            ((CARD32 *)(pNv->FbBase))[i] = 0;
-            
-        /* reset the notification object */
-        memset(pNv->agpMemory, 0xff, 0x100);
-        NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_NOTIFY, 1);
-        NVDmaNext (pNv, 0);
-        NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_OFFSET_IN, 8);
-        NVDmaNext (pNv, 0);
-        NVDmaNext (pNv, 0);
-        NVDmaNext (pNv, 1024);
-        NVDmaNext (pNv, 1024);
-        NVDmaNext (pNv, 1024);
-        NVDmaNext (pNv, 1024);
-        NVDmaNext (pNv, 0x101);
-        NVDmaNext (pNv, 0);
-        NVDmaKickoff(pNv);
-        if (!NVDmaWaitForNotifier(pNv, NV_DMA_TARGET_AGP, 0))
-            ErrorF("DMA transfer error!\n");
-
-        NVDmaSetObjectOnSubchannel(pNv, NvSubGraphicsToAGP, NvScaledImage);
-        gettimeofday(&tv2, 0);
-        for (i = 0; i < 0x10000; i += 256)
-            ErrorF("%x %x %x %x\n", ((CARD32 *)(pNv->FbBase))[i], ((CARD32 *)(pNv->FbBase))[i+1],
-                   ((CARD32 *)(pNv->FbBase))[i+2], ((CARD32 *)(pNv->FbBase))[i+3]);
-        ErrorF("Download from Screen %f MB/s\n", 
-                   (1.)*1000000
-                   /((int)tv2.tv_usec- (int)tv.tv_usec + 1000000*(tv2.tv_sec-tv.tv_sec)+1));
-    }
-#endif
-    
     return exaDriverInit(pScreen, pNv->EXADriverPtr);
 }

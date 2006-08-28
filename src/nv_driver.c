@@ -1416,7 +1416,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	from = X_CONFIG;
     } else {
 	if (pNv->PciInfo->memBase[1] != 0) {
-	    pNv->FbAddress = pNv->PciInfo->memBase[1] & 0xff800000;
 	    pNv->VRAMPhysical = pNv->PciInfo->memBase[1] & 0xff800000;
 	    from = X_PROBED;
 	} else {
@@ -1428,7 +1427,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
     }
     xf86DrvMsg(pScrn->scrnIndex, from, "Linear framebuffer at 0x%lX\n",
-	       (unsigned long)pNv->FbAddress);
+	       (unsigned long)pNv->VRAMPhysical);
 
     if (pNv->pEnt->device->IOBase != 0) {
 	/* Require that the config file value matches one of the PCI values. */
@@ -1516,7 +1515,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "VideoRAM: %d kBytes\n",
                pScrn->videoRam);
 	
-    pNv->FbMapSize = pScrn->videoRam * 1024;
 	pNv->VRAMPhysicalSize = pScrn->videoRam * 1024;
 
     /*
@@ -1532,17 +1530,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	    return FALSE;
 	}
     }
-
-    /*
-     * This is all generally bad.. We need to allocate these areas
-     */
-    if(pNv->Architecture >= NV_ARCH_40)
-       pNv->FbUsableSize = pNv->FbMapSize - (560 * 1024);
-    else
-       pNv->FbUsableSize = pNv->FbMapSize - (256 * 1024);
-    pNv->ScratchBufferSize = (pNv->Architecture < NV_ARCH_10) ? 8192 : 16384;
-    pNv->ScratchBufferStart = pNv->FbUsableSize - pNv->ScratchBufferSize;
-    pNv->FbUsableSize -= pNv->ScratchBufferSize + (64*1024);
 
     /*
      * Setup the ClockRanges, which describe what clock ranges are available,
@@ -1591,7 +1578,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
                           512, 128, max_height,
                           pScrn->display->virtualX,
                           pScrn->display->virtualY,
-                          pNv->ScratchBufferStart,
+                          pNv->VRAMPhysicalSize / 2,
                           LOOKUP_BEST_REFRESH);
 
     if (i == -1) {
@@ -1695,17 +1682,30 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 static Bool
 NVMapMem(ScrnInfoPtr pScrn)
 {
-    NVPtr pNv;
-        
-    pNv = NVPTR(pScrn);
+	NVPtr pNv = NVPTR(pScrn);
 
-    pNv->FbBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
-				 pNv->PciTag, pNv->FbAddress,
-				 pNv->FbMapSize);
-    if (pNv->FbBase == NULL)
-	return FALSE;
+	pNv->FB = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, pNv->VRAMPhysicalSize/2);
+	if (!pNv->FB) {
+		ErrorF("Failed to allocate memory for framebuffer!\n");
+		return FALSE;
+	}
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Allocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
+			pNv->FB->size >> 20
+			);
 
-    pNv->FbStart = pNv->FbBase;
+	pNv->Cursor = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 64*1024);
+	if (!pNv->Cursor) {
+		ErrorF("Failed to allocate memory for hardware cursor\n");
+		return FALSE;
+	}
+
+	pNv->ScratchBuffer = NVAllocateMemory(pNv, NOUVEAU_MEM_FB,
+			pNv->Architecture <NV_ARCH_10 ? 8192 : 16384);
+	if (!pNv->ScratchBuffer) {
+		ErrorF("Failed to allocate memory for scratch buffer\n");
+		return FALSE;
+	}
 
     return TRUE;
 }
@@ -1717,13 +1717,11 @@ NVMapMem(ScrnInfoPtr pScrn)
 static Bool
 NVUnmapMem(ScrnInfoPtr pScrn)
 {
-    NVPtr pNv;
-    
-    pNv = NVPTR(pScrn);
+	NVPtr pNv = NVPTR(pScrn);
 
-    xf86UnMapVidMem(pScrn->scrnIndex, (pointer)pNv->FbBase, pNv->FbMapSize);
-    pNv->FbBase = NULL;
-    pNv->FbStart = NULL;
+	NVFreeMemory(pNv, pNv->FB);
+	NVFreeMemory(pNv, pNv->ScratchBuffer);
+	NVFreeMemory(pNv, pNv->Cursor);
 
     return TRUE;
 }
@@ -1933,11 +1931,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     hwp = VGAHWPTR(pScrn);
     pNv = NVPTR(pScrn);
 
-    /* Map the NV memory and MMIO areas */
-    if (!NVMapMem(pScrn)) {
-        return FALSE;
-    }
-
     /* Map the VGA memory when the primary video */
     if (pNv->Primary) {
 	hwp->MapSize = 0x10000;
@@ -1949,29 +1942,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!NVInitDma(pScrn))
 		return FALSE;
 
-	pNv->FB = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, pNv->VRAMPhysicalSize/2);
-	if (!pNv->FB) {
-		ErrorF("Failed to allocate memory for framebuffer!\n");
-		return FALSE;
-	}
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"Allocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
-			pNv->FB->size >> 20
-			);
-
-	pNv->Cursor = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 64*1024);
-	if (!pNv->Cursor) {
-		ErrorF("Failed to allocate memory for hardware cursor\n");
-		return FALSE;
-	}
-
-	/*XXX: only needed for XAA */
-	pNv->ScratchBuffer = NVAllocateMemory(pNv, NOUVEAU_MEM_FB,
-			pNv->Architecture <NV_ARCH_10 ? 8192 : 16384);
-	if (!pNv->ScratchBuffer) {
-		ErrorF("Failed to allocate memory for scratch buffer\n");
-		return FALSE;
-	}
+    /* Allocate and map memory areas we need */
+    if (!NVMapMem(pScrn)) {
+        return FALSE;
+    }
 
 	/* Save the current state */
 	NVSave(pScrn);
@@ -2080,7 +2054,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     
     xf86SetBlackWhitePixels(pScreen);
 
-    offscreenHeight = pNv->ScratchBufferStart /
+    offscreenHeight = pNv->FB->size /
                      (pScrn->displayWidth * pScrn->bitsPerPixel >> 3);
     if(offscreenHeight > 32767)
         offscreenHeight = 32767;
@@ -2155,7 +2129,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     else
        xf86DPMSInit(pScreen, NVDPMSSet, 0);
     
-    pScrn->memPhysBase = pNv->FbAddress;
+    pScrn->memPhysBase = pNv->VRAMPhysical;
     pScrn->fbOffset = 0;
 
     if(pNv->Rotate == 0 && !pNv->RandRRotation)

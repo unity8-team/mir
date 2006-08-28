@@ -134,22 +134,11 @@ typedef struct _NVRec {
     int                 ChipRev;
     Bool                Primary;
     CARD32              IOAddress;
-#if 1
-	/*XXX: To be removed */
-    unsigned long       FbAddress;
-    unsigned char *     FbBase;
-    unsigned char *     FbStart;
-    CARD32              FbMapSize;
-    CARD32              FbUsableSize;
-    CARD32              ScratchBufferSize;
-    CARD32              ScratchBufferStart;
-//#else /* the replacements */
 	unsigned long       VRAMPhysical;
 	unsigned long		VRAMPhysicalSize;
 	NVAllocRec *        FB;
 	NVAllocRec *        Cursor;
 	NVAllocRec *        ScratchBuffer;
-#endif
     Bool                NoAccel;
     Bool                HWCursor;
     Bool                FpScale;

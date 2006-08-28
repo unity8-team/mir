@@ -186,7 +186,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "  DMA cmdbuf length : %d KiB\n", pNv->fifo.cmdbuf_size / 1024);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "  DMA base PUT      : 0x%08x\n", pNv->fifo.put_base);
 
-    NVDmaCreateDMAObject(pNv, NvDmaFB, NV_DMA_TARGET_VIDMEM, 0, pNv->FbMapSize, NV_DMA_ACCES_RW);
+    NVDmaCreateDMAObject(pNv, NvDmaFB, NV_DMA_TARGET_VIDMEM, 0, pNv->VRAMPhysicalSize, NV_DMA_ACCES_RW);
     
     NVDmaCreateContextObject (pNv, NvContextSurfaces,
                               (pNv->Architecture >= NV_ARCH_10) ? NV10_CONTEXT_SURFACES_2D : NV4_SURFACE,

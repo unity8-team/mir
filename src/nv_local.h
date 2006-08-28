@@ -78,7 +78,7 @@ extern CARD32 READ_GET(void *);
 #define WRITE_PUT(pNv, data) {       \
   volatile CARD8 scratch;            \
   _NV_FENCE()                        \
-  scratch = (pNv)->FbStart[0];       \
+  scratch = ((char*)(pNv)->FB->map)[0];       \
   (pNv)->FIFO[0x0010] = ((data) << 2) + pNv->fifo.put_base; \
 	xf86DrvMsg(0, X_INFO, "WRITE_PUT: 0x%08x\n", ((data) << 2) + pNv->fifo.put_base); \
   mem_barrier();                     \
@@ -89,7 +89,7 @@ extern CARD32 READ_GET(void *);
 #define WRITE_PUT(pNv, data) {       \
   volatile CARD8 scratch;            \
   _NV_FENCE()                        \
-  scratch = (pNv)->FbStart[0];       \
+  scratch = ((char*)(pNv)->FB->map)[0];       \
   (pNv)->FIFO[0x0010] = ((data) << 2) + pNv->fifo.put_base; \
   mem_barrier();                     \
 }
