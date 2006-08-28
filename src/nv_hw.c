@@ -68,12 +68,6 @@ void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg, CARD32 val)
   MMIO_OUT32(ptr, ramdac_reg, val);
 }
 
-#define nvReadRAMDAC0(pNv, reg) nvReadRAMDAC(pNv, 0, reg)
-#define nvWriteRAMDAC0(pNv, reg, val) nvWriteRAMDAC(pNv, 0, reg, val)
-
-#define nvReadCurRAMDAC(pNv, reg) nvReadRAMDAC(pNv, pNv->cur_head, reg)
-
-#define nvWriteCurRAMDAC(pNv, reg, val) nvWriteRAMDAC(pNv, pNv->cur_head, reg, val)
 
 void NVLockUnlock (
     NVPtr pNv,
@@ -425,7 +419,7 @@ static void nv4UpdateArbitrationSettings (
 
     nvGetClocks(pNv, &MClk, &NVClk);
 
-    cfg1 = pNv->PFB[0x00000204/4];
+    cfg1 = nvReadFB(pNv, 0x204);
     sim_data.pix_bpp        = (char)pixelDepth;
     sim_data.enable_video   = 0;
     sim_data.enable_mp      = 0;
@@ -652,11 +646,11 @@ static void nv10UpdateArbitrationSettings (
 
     nvGetClocks(pNv, &MClk, &NVClk);
 
-    cfg1 = pNv->PFB[0x0204/4];
+    cfg1 = nvReadFB(pNv, 0x0204);
     sim_data.pix_bpp        = (char)pixelDepth;
     sim_data.enable_video   = 1;
     sim_data.enable_mp      = 0;
-    sim_data.memory_type    = (pNv->PFB[0x0200/4] & 0x01) ? 1 : 0;
+    sim_data.memory_type    = (nvReadFB(pNv, 0x0200) & 0x01) ? 1 : 0;
     sim_data.memory_width   = (pNv->PEXTDEV[0x0000/4] & 0x10) ? 128 : 64;
     sim_data.mem_latency    = (char)cfg1 & 0x0F;
     sim_data.mem_aligned    = 1;
@@ -942,7 +936,7 @@ void NVCalcStateExt (
 	    if (flags & V_DBLSCAN) 
 		state->cursor1 |= 2;
             state->pllsel   = 0x10000700;
-            state->config   = pNv->PFB[0x00000200/4];
+            state->config   = nvReadFB(pNv, 0x200);
             state->general  = bpp == 16 ? 0x00101100 : 0x00100100;
             state->repaint1 = hDisplaySize < 1280 ? 0x04 : 0x00;
             break;
@@ -979,14 +973,14 @@ void NVLoadStateExt (
     /* begin surfaces */
     /* it seems those regions are equivalent to the radeon's SURFACEs. needs to go in-kernel just like the SURFACEs */
     if(pNv->Architecture == NV_ARCH_04) {
-        pNv->PFB[0x0200/4] = state->config;
+        nvWriteFB(pNv, 0x0200, state->config);
     } else 
     if((pNv->Architecture < NV_ARCH_40) ||
        ((pNv->Chipset & 0xfff0) == CHIPSET_NV40))
     {
         for(i = 0; i < 8; i++) {
-           pNv->PFB[(0x0240 + (i * 0x10))/4] = 0;
-           pNv->PFB[(0x0244 + (i * 0x10))/4] = pNv->VRAMPhysicalSize - 1;
+           nvWriteFB(pNv, (0x0240 + (i * 0x10)), 0);
+           nvWriteFB(pNv, (0x0244 + (i * 0x10)), pNv->VRAMPhysicalSize - 1);
         }
     } else {
         int regions = 12;
@@ -1001,8 +995,8 @@ void NVLoadStateExt (
         }
  
        for(i = 0; i < regions; i++) {
-          pNv->PFB[(0x0600 + (i * 0x10))/4] = 0;
-          pNv->PFB[(0x0604 + (i * 0x10))/4] = pNv->VRAMPhysicalSize - 1;
+          nvWriteFB(pNv, (0x0600 + (i * 0x10)), 0);
+          nvWriteFB(pNv, (0x0604 + (i * 0x10)), pNv->VRAMPhysicalSize - 1);
        }
     }
     /* end of surfaces */
@@ -1054,7 +1048,7 @@ void NVLoadStateExt (
            /* nv10 second surfaces */
            /* this is a copy of the surfaces. What is it for ? */
            for(i = 0; i < 32; i++)
-             pNv->PGRAPH[(0x0B00/4) + i] = pNv->PFB[(0x0240/4) + i];
+             pNv->PGRAPH[(0x0B00/4) + i] = nvReadFB(pNv, 0x0240 + (i*4));
            /* end of nv10 second surfaces */
 
            pNv->PGRAPH[0x640/4] = 0;
@@ -1090,7 +1084,8 @@ void NVLoadStateExt (
               case CHIPSET_NV45:
                  pNv->PGRAPH[0x09b8/4] = 0x0078e366;
                  pNv->PGRAPH[0x09bc/4] = 0x0000014c;
-                 pNv->PFB[0x033C/4] &= 0xffff7fff;
+		 temp = nvReadFB(pNv, 0x33C);
+		 nvWriteFB(pNv, 0x33c, temp & 0xffff7fff);
                  break;
               case CHIPSET_NV41:
               case 0x0120:
@@ -1101,10 +1096,10 @@ void NVLoadStateExt (
               case CHIPSET_G72:
               case CHIPSET_C51:
               case CHIPSET_C512:
-                 pNv->PMC[0x1700/4] = pNv->PFB[0x020C/4];
+                 pNv->PMC[0x1700/4] = nvReadFB(pNv, 0x020C);
                  pNv->PMC[0x1704/4] = 0;
                  pNv->PMC[0x1708/4] = 0;
-                 pNv->PMC[0x170C/4] = pNv->PFB[0x020C/4];
+                 pNv->PMC[0x170C/4] = nvReadFB(pNv, 0x020C);
                  pNv->PGRAPH[0x0860/4] = 0;
                  pNv->PGRAPH[0x0864/4] = 0;
                  temp = nvReadCurRAMDAC(pNv, 0x608);
@@ -1176,8 +1171,8 @@ void NVLoadStateExt (
               ((pNv->Chipset & 0xfff0) == CHIPSET_NV40)) 
            {
               for(i = 0; i < 32; i++) {
-                pNv->PGRAPH[(0x0900/4) + i] = pNv->PFB[(0x0240/4) + i];
-                pNv->PGRAPH[(0x6900/4) + i] = pNv->PFB[(0x0240/4) + i];
+                pNv->PGRAPH[(0x0900/4) + i] = nvReadFB(pNv, 0x0240 + i*4);
+                pNv->PGRAPH[(0x6900/4) + i] = nvReadFB(pNv, 0x0240 + i*4);
               }
            } else {
               if(((pNv->Chipset & 0xfff0) == CHIPSET_G70) ||
@@ -1187,17 +1182,17 @@ void NVLoadStateExt (
                  ((pNv->Chipset & 0xfff0) == CHIPSET_C512))
               {
                  for(i = 0; i < 60; i++) {
-                   pNv->PGRAPH[(0x0D00/4) + i] = pNv->PFB[(0x0600/4) + i];
-                   pNv->PGRAPH[(0x6900/4) + i] = pNv->PFB[(0x0600/4) + i];
+                   pNv->PGRAPH[(0x0D00/4) + i] = nvReadFB(pNv, 0x0600 + i*4);
+                   pNv->PGRAPH[(0x6900/4) + i] = nvReadFB(pNv, 0x0600 + i*4);
                  }
               } else {
                  for(i = 0; i < 48; i++) {
-                   pNv->PGRAPH[(0x0900/4) + i] = pNv->PFB[(0x0600/4) + i];
+                   pNv->PGRAPH[(0x0900/4) + i] = nvReadFB(pNv, 0x0600 + i*4);
                    if(((pNv->Chipset & 0xfff0) != CHIPSET_NV44) &&
                       ((pNv->Chipset & 0xfff0) != CHIPSET_NV44A) &&
                       ((pNv->Chipset & 0xfff0) != CHIPSET_C51))
                    {
-                      pNv->PGRAPH[(0x6900/4) + i] = pNv->PFB[(0x0600/4) + i];
+                      pNv->PGRAPH[(0x6900/4) + i] = nvReadFB(pNv, 0x0600 + i*4);
                    }
                  }
               }
@@ -1207,10 +1202,8 @@ void NVLoadStateExt (
            /* begin RAM config */
            if(pNv->Architecture >= NV_ARCH_40) {
               if((pNv->Chipset & 0xfff0) == CHIPSET_NV40) {
-                 pNv->PGRAPH[0x09A4/4] = pNv->PFB[0x0200/4];
-                 pNv->PGRAPH[0x09A8/4] = pNv->PFB[0x0204/4];
-                 pNv->PGRAPH[0x69A4/4] = pNv->PFB[0x0200/4];
-                 pNv->PGRAPH[0x69A8/4] = pNv->PFB[0x0204/4];
+                 pNv->PGRAPH[0x09A4/4] = nvReadFB(pNv, 0x0200);
+                 pNv->PGRAPH[0x09A8/4] = nvReadFB(pNv, 0x0204);
 
                  pNv->PGRAPH[0x0820/4] = 0;
                  pNv->PGRAPH[0x0824/4] = 0;
@@ -1222,14 +1215,14 @@ void NVLoadStateExt (
                     ((pNv->Chipset & 0xfff0) == CHIPSET_G72) ||
                     ((pNv->Chipset & 0xfff0) == CHIPSET_G73)) 
                  {
-                    pNv->PGRAPH[0x0DF0/4] = pNv->PFB[0x0200/4];
-                    pNv->PGRAPH[0x0DF4/4] = pNv->PFB[0x0204/4];
+                    pNv->PGRAPH[0x0DF0/4] = nvReadFB(pNv, 0x0200);
+                    pNv->PGRAPH[0x0DF4/4] = nvReadFB(pNv, 0x0204);
                  } else {
-                    pNv->PGRAPH[0x09F0/4] = pNv->PFB[0x0200/4];
-                    pNv->PGRAPH[0x09F4/4] = pNv->PFB[0x0204/4];
+                    pNv->PGRAPH[0x09F0/4] = nvReadFB(pNv, 0x0200);
+                    pNv->PGRAPH[0x09F4/4] = nvReadFB(pNv, 0x0204);
                  }
-                 pNv->PGRAPH[0x69F0/4] = pNv->PFB[0x0200/4];
-                 pNv->PGRAPH[0x69F4/4] = pNv->PFB[0x0204/4];
+                 pNv->PGRAPH[0x69F0/4] = nvReadFB(pNv, 0x0200);
+                 pNv->PGRAPH[0x69F4/4] = nvReadFB(pNv, 0x0204);
 
                  pNv->PGRAPH[0x0840/4] = 0;
                  pNv->PGRAPH[0x0844/4] = 0;
@@ -1237,12 +1230,12 @@ void NVLoadStateExt (
                  pNv->PGRAPH[0x08a4/4] = pNv->VRAMPhysicalSize - 1;
               }
            } else {
-              pNv->PGRAPH[0x09A4/4] = pNv->PFB[0x0200/4];
-              pNv->PGRAPH[0x09A8/4] = pNv->PFB[0x0204/4];
+              pNv->PGRAPH[0x09A4/4] = nvReadFB(pNv, 0x0200);
+              pNv->PGRAPH[0x09A8/4] = nvReadFB(pNv, 0x0204);
               pNv->PGRAPH[0x0750/4] = 0x00EA0000;
-              pNv->PGRAPH[0x0754/4] = pNv->PFB[0x0200/4];
+              pNv->PGRAPH[0x0754/4] = nvReadFB(pNv, 0x0200);
               pNv->PGRAPH[0x0750/4] = 0x00EA0004;
-              pNv->PGRAPH[0x0754/4] = pNv->PFB[0x0204/4];
+              pNv->PGRAPH[0x0754/4] = nvReadFB(pNv, 0x0204);
 
               pNv->PGRAPH[0x0820/4] = 0;
               pNv->PGRAPH[0x0824/4] = 0;
@@ -1372,7 +1365,7 @@ void NVUnloadStateExt
     state->pllsel       = nvReadRAMDAC0(pNv, 0x050C);
     state->general      = nvReadCurRAMDAC(pNv, 0x0600);
     state->scale        = nvReadCurRAMDAC(pNv, 0x0848);
-    state->config       = pNv->PFB[0x0200/4];
+    state->config       = nvReadFB(pNv, 0x0200);
 
     if(pNv->Architecture >= NV_ARCH_10) {
         if(pNv->twoHeads) {

@@ -258,11 +258,12 @@ NVProbeDDC (ScrnInfoPtr pScrn, int bus)
 
 static void nv4GetConfig (NVPtr pNv)
 {
-    if (pNv->PFB[0x0000/4] & 0x00000100) {
-        pNv->RamAmountKBytes = ((pNv->PFB[0x0000/4] >> 12) & 0x0F) * 1024 * 2
+    CARD32 reg_FB0 = nvReadFB(pNv, 0x0);
+    if (reg_FB0 & 0x00000100) {
+        pNv->RamAmountKBytes = ((reg_FB0 >> 12) & 0x0F) * 1024 * 2
                               + 1024 * 2;
     } else {
-        switch (pNv->PFB[0x0000/4] & 0x00000003) {
+        switch (reg_FB0 & 0x00000003) {
         case 0:
             pNv->RamAmountKBytes = 1024 * 32;
             break;
@@ -303,7 +304,7 @@ static void nv10GetConfig (NVPtr pNv)
         int amt = pciReadLong(pciTag(0, 0, 1), 0x84);
         pNv->RamAmountKBytes = (((amt >> 4) & 127) + 1) * 1024;
     } else {
-        pNv->RamAmountKBytes = (pNv->PFB[0x020C/4] & 0xFFF00000) >> 10;
+        pNv->RamAmountKBytes = (nvReadFB(pNv, 0x020C) & 0xFFF00000) >> 10;
     }
 
     if(pNv->RamAmountKBytes > 256*1024)
