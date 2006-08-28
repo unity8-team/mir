@@ -8079,13 +8079,15 @@ I830BIOSEnterVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled) {
+
+      I830DRISetVBlankInterrupt (pScrn, TRUE);
+
       if (!pI830->starting) {
          ScreenPtr pScreen = pScrn->pScreen;
          drmI830Sarea *sarea = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
          int i;
 
 	 I830DRIResume(screenInfo.screens[scrnIndex]);
-         I830DRISetVBlankInterrupt (pScrn, TRUE);
       
 	 I830RefreshRing(pScrn);
 	 I830Sync(pScrn);
