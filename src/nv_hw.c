@@ -56,6 +56,25 @@ void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data)
   VGA_WR08(ptr, 0x03D5, data);
 }
 
+CARD32 nvReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg)
+{
+  volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
+  return MMIO_IN32(ptr, ramdac_reg);
+}
+
+void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg, CARD32 val)
+{
+  volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
+  MMIO_OUT32(ptr, ramdac_reg, val);
+}
+
+#define nvReadRAMDAC0(pNv, reg) nvReadRAMDAC(pNv, 0, reg)
+#define nvWriteRAMDAC0(pNv, reg, val) nvWriteRAMDAC(pNv, 0, reg, val)
+
+#define nvReadCurRAMDAC(pNv, reg) nvReadRAMDAC(pNv, pNv->cur_head, reg)
+
+#define nvWriteCurRAMDAC(pNv, reg, val) nvWriteRAMDAC(pNv, pNv->cur_head, reg, val)
+
 void NVLockUnlock (
     NVPtr pNv,
     Bool  Lock
@@ -84,8 +103,8 @@ int NVShowHideCursor (
     nvWriteVGA(pNv, 0x31, pNv->CurrentState->cursor1);
 
     if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
-       volatile CARD32 curpos = pNv->PRAMDAC[0x0300/4];
-       pNv->PRAMDAC[0x0300/4] = curpos;
+       volatile CARD32 curpos = nvReadCurRAMDAC(pNv, 0x300);
+       nvWriteCurRAMDAC(pNv, 0x0300, curpos);
     }
 
     return (current & 0x01);
@@ -177,11 +196,11 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        *NVClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
     } else
     if(pNv->twoStagePLL) {
-       pll = pNv->PRAMDAC0[0x0504/4];
+       pll = nvReadRAMDAC0(pNv, 0x0504);
        M = pll & 0xFF; 
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
-       pll = pNv->PRAMDAC0[0x0574/4];
+       pll = nvReadRAMDAC0(pNv, 0x0574);
        if(pll & 0x80000000) {
            MB = pll & 0xFF; 
            NB = (pll >> 8) & 0xFF;
@@ -191,11 +210,11 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        }
        *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
 
-       pll = pNv->PRAMDAC0[0x0500/4];
+       pll = nvReadRAMDAC0(pNv, 0x0500);
        M = pll & 0xFF; 
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
-       pll = pNv->PRAMDAC0[0x0570/4];
+       pll = nvReadRAMDAC0(pNv, 0x0570);
        if(pll & 0x80000000) {
            MB = pll & 0xFF;
            NB = (pll >> 8) & 0xFF;
@@ -208,7 +227,7 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
     if(((pNv->Chipset & 0x0ff0) == CHIPSET_NV30) ||
        ((pNv->Chipset & 0x0ff0) == CHIPSET_NV35))
     {
-       pll = pNv->PRAMDAC0[0x0504/4];
+       pll = nvReadRAMDAC0(pNv, 0x504);
        M = pll & 0x0F; 
        N = (pll >> 8) & 0xFF;
        P = (pll >> 16) & 0x07;
@@ -221,7 +240,7 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        }
        *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
 
-       pll = pNv->PRAMDAC0[0x0500/4];
+       pll = nvReadRAMDAC0(pNv, 0x500);
        M = pll & 0x0F;
        N = (pll >> 8) & 0xFF;
        P = (pll >> 16) & 0x07;
@@ -234,13 +253,13 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        }
        *NVClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
     } else {
-       pll = pNv->PRAMDAC0[0x0504/4];
+       pll = nvReadRAMDAC0(pNv, 0x504);
        M = pll & 0xFF; 
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
        *MClk = (N * pNv->CrystalFreqKHz / M) >> P;
 
-       pll = pNv->PRAMDAC0[0x0500/4];
+       pll = nvReadRAMDAC0(pNv, 0x500);
        M = pll & 0xFF; 
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
@@ -699,7 +718,7 @@ static void nForceUpdateArbitrationSettings (
        MClk = pciReadLong(pciTag(0, 0, 5), 0x4C) / 1000;
     }
 
-    pll = pNv->PRAMDAC0[0x0500/4];
+    pll = nvReadRAMDAC0(pNv, 0x500);
     M = (pll >> 0)  & 0xFF; N = (pll >> 8)  & 0xFF; P = (pll >> 16) & 0x0F;
     NVClk  = (N * pNv->CrystalFreqKHz / M) >> P;
     sim_data.pix_bpp        = (char)pixelDepth;
@@ -944,6 +963,7 @@ void NVLoadStateExt (
 {
     NVPtr pNv = NVPTR(pScrn);
     int i, j;
+    CARD32 temp;
 
     if (!pNv->IRQ)
         pNv->PMC[0x0140/4] = 0x00000000;
@@ -1087,7 +1107,8 @@ void NVLoadStateExt (
                  pNv->PMC[0x170C/4] = pNv->PFB[0x020C/4];
                  pNv->PGRAPH[0x0860/4] = 0;
                  pNv->PGRAPH[0x0864/4] = 0;
-                 pNv->PRAMDAC[0x0608/4] |= 0x00100000;
+                 temp = nvReadCurRAMDAC(pNv, 0x608);
+                 nvWriteCurRAMDAC(pNv, 0x608, temp | 0x00100000);
                  break;
               case CHIPSET_NV43:
                  pNv->PGRAPH[0x0828/4] = 0x0072cb77;
@@ -1096,12 +1117,14 @@ void NVLoadStateExt (
               case CHIPSET_NV44A:
                  pNv->PGRAPH[0x0860/4] = 0;
                  pNv->PGRAPH[0x0864/4] = 0;
-                 pNv->PRAMDAC[0x0608/4] |= 0x00100000;
+                 temp = nvReadCurRAMDAC(pNv, 0x608);
+                 nvWriteCurRAMDAC(pNv, 0x608, temp | 0x00100000);
                  break;
               case CHIPSET_G70:
               case CHIPSET_G71:
               case CHIPSET_G73:
-                 pNv->PRAMDAC[0x0608/4] |= 0x00100000;
+                 temp = nvReadCurRAMDAC(pNv, 0x608);
+                 nvWriteCurRAMDAC(pNv, 0x608, temp | 0x00100000);
                  pNv->PGRAPH[0x0828/4] = 0x07830610;
                  pNv->PGRAPH[0x082C/4] = 0x0000016A;
                  break;
@@ -1248,7 +1271,8 @@ void NVLoadStateExt (
            pNv->PCRTC0[0x0860/4] = state->head;
            pNv->PCRTC0[0x2860/4] = state->head2;
         }
-        pNv->PRAMDAC[0x0404/4] |= (1 << 25);
+        temp = nvReadCurRAMDAC(pNv, 0x404);
+        nvWriteCurRAMDAC(pNv, 0x404, temp | (1 << 25));
     
         pNv->PMC[0x8704/4] = 1;
         pNv->PMC[0x8140/4] = 0;
@@ -1264,10 +1288,10 @@ void NVLoadStateExt (
     
         if(pNv->FlatPanel) {
            if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-               pNv->PRAMDAC[0x0528/4] = state->dither;
+               nvWriteCurRAMDAC(pNv, 0x528, state->dither);
            } else 
            if(pNv->twoHeads) {
-               pNv->PRAMDAC[0x083C/4] = state->dither;
+               nvWriteCurRAMDAC(pNv, 0x83C, state->dither);
            }
     
 	   nvWriteVGA(pNv, 0x53, state->timingH);
@@ -1296,19 +1320,19 @@ void NVLoadStateExt (
     nvWriteVGA(pNv, 0x39, state->interlace);
 
     if(!pNv->FlatPanel) {
-       pNv->PRAMDAC0[0x050C/4] = state->pllsel;
-       pNv->PRAMDAC0[0x0508/4] = state->vpll;
+       nvWriteRAMDAC0(pNv, 0x50C, state->pllsel);
+       nvWriteRAMDAC0(pNv, 0x508, state->vpll);
        if(pNv->twoHeads)
-          pNv->PRAMDAC0[0x0520/4] = state->vpll2;
+          nvWriteRAMDAC0(pNv, 0x520, state->vpll2);
        if(pNv->twoStagePLL) {
-          pNv->PRAMDAC0[0x0578/4] = state->vpllB;
-          pNv->PRAMDAC0[0x057C/4] = state->vpll2B;
+          nvWriteRAMDAC0(pNv, 0x578, state->vpllB);
+          nvWriteRAMDAC0(pNv, 0x57C, state->vpll2B);
        }
     } else {
-       pNv->PRAMDAC[0x0848/4] = state->scale;
-       pNv->PRAMDAC[0x0828/4] = state->crtcSync;
+       nvWriteCurRAMDAC(pNv, 0x848, state->scale);
+       nvWriteCurRAMDAC(pNv, 0x828, state->crtcSync);
     }
-    pNv->PRAMDAC[0x0600/4] = state->general;
+    nvWriteCurRAMDAC(pNv, 0x600, state->general);
 
     pNv->PCRTC[0x0140/4] = 0;
     pNv->PCRTC[0x0100/4] = 1;
@@ -1338,16 +1362,16 @@ void NVUnloadStateExt
     state->cursor2      = nvReadVGA(pNv, 0x2F);
     state->interlace    = nvReadVGA(pNv, 0x39);
 
-    state->vpll         = pNv->PRAMDAC0[0x0508/4];
+    state->vpll         = nvReadRAMDAC0(pNv, 0x0508);
     if(pNv->twoHeads)
-       state->vpll2     = pNv->PRAMDAC0[0x0520/4];
+       state->vpll2     = nvReadRAMDAC0(pNv, 0x0520);
     if(pNv->twoStagePLL) {
-        state->vpllB    = pNv->PRAMDAC0[0x0578/4];
-        state->vpll2B   = pNv->PRAMDAC0[0x057C/4];
+        state->vpllB    = nvReadRAMDAC0(pNv, 0x0578);
+        state->vpll2B   = nvReadRAMDAC0(pNv, 0x057C);
     }
-    state->pllsel       = pNv->PRAMDAC0[0x050C/4];
-    state->general      = pNv->PRAMDAC[0x0600/4];
-    state->scale        = pNv->PRAMDAC[0x0848/4];
+    state->pllsel       = nvReadRAMDAC0(pNv, 0x050C);
+    state->general      = nvReadCurRAMDAC(pNv, 0x0600);
+    state->scale        = nvReadCurRAMDAC(pNv, 0x0848);
     state->config       = pNv->PFB[0x0200/4];
 
     if(pNv->Architecture >= NV_ARCH_10) {
@@ -1361,10 +1385,10 @@ void NVUnloadStateExt
         state->cursorConfig = pNv->PCRTC[0x0810/4];
 
         if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-           state->dither = pNv->PRAMDAC[0x0528/4];
+           state->dither = nvReadCurRAMDAC(pNv, 0x0528);
         } else 
         if(pNv->twoHeads) {
-            state->dither = pNv->PRAMDAC[0x083C/4];
+            state->dither = nvReadCurRAMDAC(pNv, 0x083C);
         }
 
         if(pNv->FlatPanel) {
@@ -1374,7 +1398,7 @@ void NVUnloadStateExt
     }
 
     if(pNv->FlatPanel) {
-       state->crtcSync = pNv->PRAMDAC[0x0828/4];
+       state->crtcSync = nvReadCurRAMDAC(pNv, 0x0828);
     }
 }
 

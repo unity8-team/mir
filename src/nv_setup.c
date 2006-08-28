@@ -170,41 +170,42 @@ static Bool
 NVIsConnected (ScrnInfoPtr pScrn, int output)
 {
     NVPtr pNv = NVPTR(pScrn);
-    volatile CARD32 *PRAMDAC = pNv->PRAMDAC0;
-    CARD32 reg52C, reg608;
+    CARD32 reg52C, reg608, temp;
     Bool present;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
                "Probing for analog device on output %s...\n", 
                 output ? "B" : "A");
 
-    if(output) PRAMDAC += 0x800;
+    reg52C = nvReadRAMDAC(pNv, output, 0x052C);
+    reg608 = nvReadRAMDAC(pNv, output, 0x0608);
 
-    reg52C = PRAMDAC[0x052C/4];
-    reg608 = PRAMDAC[0x0608/4];
+    nvWriteRAMDAC(pNv, output, 0x608, (reg608 & ~0x00010000));
 
-    PRAMDAC[0x0608/4] = reg608 & ~0x00010000;
-
-    PRAMDAC[0x052C/4] = reg52C & 0x0000FEEE;
+    nvWriteRAMDAC(pNv, output, 0x52C, (reg52C & 0x0000FEEE));
     usleep(1000);
-    PRAMDAC[0x052C/4] |= 1;
+    
+    temp = nvReadRAMDAC(pNv, output, 0x52C);
+    nvWriteRAMDAC(pNv, output, 0x52C, temp | 1);
 
-    pNv->PRAMDAC0[0x0610/4] = 0x94050140;
-    pNv->PRAMDAC0[0x0608/4] |= 0x00001000;
+    nvWriteRAMDAC(pNv, output, 0x610, 0x94050140);
+    temp = nvReadRAMDAC(pNv, output, 0x608);
+    nvWriteRAMDAC(pNv, output, 0x608, temp | 0x1000);
 
     usleep(1000);
 
-    present = (PRAMDAC[0x0608/4] & (1 << 28)) ? TRUE : FALSE;
+    present = (nvReadRAMDAC(pNv, output, 0x608) & (1 << 28)) ? TRUE : FALSE;
 
     if(present)
        xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "  ...found one\n");
     else
        xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "  ...can't find one\n");
 
-    pNv->PRAMDAC0[0x0608/4] &= 0x0000EFFF;
+    temp = nvReadRAMDAC(pNv, output, 0x608);
+    nvWriteRAMDAC(pNv, output, 0x608, temp & 0x000EFFF);
 
-    PRAMDAC[0x052C/4] = reg52C;
-    PRAMDAC[0x0608/4] = reg608;
+    nvWriteRAMDAC(pNv, output, 0x52C, reg52C);
+    nvWriteRAMDAC(pNv, output, 0x608, reg608);
 
     return present;
 }
@@ -518,11 +519,11 @@ NVCommonSetup(ScrnInfoPtr pScrn)
        CARD8 cr44;
       
        if(implementation != CHIPSET_NV11) {
-           if(pNv->PRAMDAC0[0x0000052C/4] & 0x100)
+           if(nvReadRAMDAC0(pNv, 0x52c) & 0x100)
                outputAfromCRTC = 1;
            else            
                outputAfromCRTC = 0;
-           if(pNv->PRAMDAC0[0x0000252C/4] & 0x100)
+           if(nvReadRAMDAC(pNv, 1, 0x52C) & 0x100)
                outputBfromCRTC = 1;
            else
                outputBfromCRTC = 0;
@@ -685,9 +686,9 @@ NVCommonSetup(ScrnInfoPtr pScrn)
               pNv->CRTCnumber);
 
     if(pNv->FlatPanel && !pNv->Television) {
-       pNv->fpWidth = pNv->PRAMDAC[0x0820/4] + 1;
-       pNv->fpHeight = pNv->PRAMDAC[0x0800/4] + 1;
-       pNv->fpSyncs = pNv->PRAMDAC[0x0848/4] & 0x30000033;
+       pNv->fpWidth = nvReadCurRAMDAC(pNv, 0x820) + 1;
+       pNv->fpHeight = nvReadCurRAMDAC(pNv, 0x800) + 1;
+       pNv->fpSyncs = nvReadCurRAMDAC(pNv, 0x0848) & 0x30000033;
        xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %i x %i\n",
                   pNv->fpWidth, pNv->fpHeight);
     }
@@ -700,8 +701,8 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 
     pNv->LVDS = FALSE;
     if(pNv->FlatPanel && pNv->twoHeads) {
-        pNv->PRAMDAC0[0x08B0/4] = 0x00010004;
-        if(pNv->PRAMDAC0[0x08B4/4] & 1)
+        nvWriteRAMDAC0(pNv, 0x8b0, 0x00010004);
+        if(nvReadRAMDAC0(pNv, 0x08B4) & 1)
            pNv->LVDS = TRUE;
         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Panel is %s\n", 
                    pNv->LVDS ? "LVDS" : "TMDS");

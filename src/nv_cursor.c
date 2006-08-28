@@ -163,7 +163,7 @@ NVSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 {
     NVPtr pNv = NVPTR(pScrn);
 
-    pNv->PRAMDAC[0x0000300/4] = (x & 0xFFFF) | (y << 16);
+    nvWriteCurRAMDAC(pNv, 0x300, (x & 0xFFFF) | (y << 16));
 }
 
 static void
