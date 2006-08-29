@@ -291,8 +291,8 @@ static void nv10GetConfig (NVPtr pNv)
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     /* turn on big endian register access */
-    if(!(pNv->PMC[0x0004/4] & 0x01000001)) {
-       pNv->PMC[0x0004/4] = 0x01000001;
+    if(!(nvReadMC(pNv, 0x0004) & 0x01000001)) {
+       nvWriteMC(pNv, 0x0004, 0x01000001);
        mem_barrier();
     }
 #endif
@@ -465,9 +465,9 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     NVSelectHeadRegisters(pScrn, 0);
     NVParseBios(pScrn);
     /* reset PFIFO and PGRAPH, then power up all the card units */
-/*    pNv->PMC[0x200]=0x17110013;
+/*    nvWriteMC(pNv, 0x800, 0x17110013);
     usleep(1000);*/
-    pNv->PMC[0x200]=0x17111113;
+    nvWriteMC(pNv, 0x800, 0x17111113);
 
     if(pNv->Architecture == NV_ARCH_04)
         nv4GetConfig(pNv);

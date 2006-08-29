@@ -1827,20 +1827,20 @@ static void NVBacklightEnable(NVPtr pNv,  Bool on)
     {
        /* NV17,18,34 Apple iMac, iBook, PowerBook */
       CARD32 tmp_pmc, tmp_pcrt;
-      tmp_pmc = pNv->PMC[0x10F0/4] & 0x7FFFFFFF;
+      tmp_pmc = nvReadMC(pNv, 0x10F0) & 0x7FFFFFFF;
       tmp_pcrt = pNv->PCRTC0[0x081C/4] & 0xFFFFFFFC;
       if(on) {
           tmp_pmc |= (1 << 31);
           tmp_pcrt |= 0x1;
       }
-      pNv->PMC[0x10F0/4] = tmp_pmc;
+      nvWriteMC(pNv, 0x10F0, tmp_pmc);
       pNv->PCRTC0[0x081C/4] = tmp_pcrt;
     }
 #endif
     
     if(pNv->LVDS) {
        if(pNv->twoHeads && ((pNv->Chipset & 0x0ff0) != CHIPSET_NV11)) {
-           pNv->PMC[0x130C/4] = on ? 3 : 7; 
+           nvWriteMC(pNv, 0x130C, on ? 3 : 7);
        }
     } else {
        CARD32 fpcontrol;

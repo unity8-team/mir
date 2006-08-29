@@ -209,11 +209,11 @@ NVResetVideo (ScrnInfoPtr pScrnInfo)
     if (satCosine < -1024)
         satCosine = -1024;
     
-    pNv->PMC[0x8910/4] = (pPriv->brightness << 16) | pPriv->contrast;
-    pNv->PMC[0x8914/4] = (pPriv->brightness << 16) | pPriv->contrast;
-    pNv->PMC[0x8918/4] = (satSine << 16) | (satCosine & 0xffff);
-    pNv->PMC[0x891C/4] = (satSine << 16) | (satCosine & 0xffff);
-    pNv->PMC[0x8b00/4] = pPriv->colorKey;
+    nvWriteMC(pNv, 0x8910, (pPriv->brightness << 16) | pPriv->contrast);
+    nvWriteMC(pNv, 0x8914, (pPriv->brightness << 16) | pPriv->contrast);
+    nvWriteMC(pNv, 0x8918, (satSine << 16) | (satCosine & 0xffff));
+    nvWriteMC(pNv, 0x891C, (satSine << 16) | (satCosine & 0xffff));
+    nvWriteMC(pNv, 0x8b00, pPriv->colorKey);
 }
 
 
@@ -223,7 +223,7 @@ NVStopOverlay (ScrnInfoPtr pScrnInfo)
 {
     NVPtr          pNv     = NVPTR(pScrnInfo);
 
-    pNv->PMC[0x00008704/4] = 1;
+    nvWriteMC(pNv, 0x00008704, 1);
 }
 
 static NVAllocRec *
@@ -500,14 +500,14 @@ NVPutOverlayImage (
         drw_h <<= 1;
     }
 
-    pNv->PMC[(0x8900/4) + buffer] = offset;
-    pNv->PMC[(0x8928/4) + buffer] = (height << 16) | width;
-    pNv->PMC[(0x8930/4) + buffer] = ((y1 << 4) & 0xffff0000) | (x1 >> 12);
-    pNv->PMC[(0x8938/4) + buffer] = (src_w << 20) / drw_w;
-    pNv->PMC[(0x8940/4) + buffer] = (src_h << 20) / drw_h;
-    pNv->PMC[(0x8948/4) + buffer] = (dstBox->y1 << 16) | dstBox->x1;
-    pNv->PMC[(0x8950/4) + buffer] = ((dstBox->y2 - dstBox->y1) << 16) |
-                               	       (dstBox->x2 - dstBox->x1);
+    nvWriteMC(pNv, 0x8900 + buffer*4, offset);
+    nvWriteMC(pNv, 0x8928 + buffer*4, (height << 16) | width);
+    nvWriteMC(pNv, 0x8930 + buffer*4, ((y1 << 4) & 0xffff0000) | (x1 >> 12));
+    nvWriteMC(pNv, 0x8938 + buffer*4, (src_w << 20) / drw_w);
+    nvWriteMC(pNv, 0x8940 + buffer*4, (src_h << 20) / drw_h);
+    nvWriteMC(pNv, 0x8948 + buffer*4, (dstBox->y1 << 16) | dstBox->x1);
+    nvWriteMC(pNv, 0x8950 + buffer*4, ((dstBox->y2 - dstBox->y1) << 16) |
+                               	       (dstBox->x2 - dstBox->x1));
 
     dstPitch |= 1 << 20;   /* use color key */
 
@@ -516,9 +516,9 @@ NVPutOverlayImage (
     if(pPriv->iturbt_709)
         dstPitch |= 1 << 24;
 
-    pNv->PMC[(0x8958/4) + buffer] = dstPitch;
-    pNv->PMC[0x00008704/4] = 0;
-    pNv->PMC[0x8700/4] = 1 << (buffer << 2);
+    nvWriteMC(pNv, 0x8958 + buffer*4, dstPitch);
+    nvWriteMC(pNv, 0x8704, 0);
+    nvWriteMC(pNv, 0x8700, 1 << (buffer << 2));
 
     pPriv->videoStatus = CLIENT_VIDEO_ON;
 }
@@ -1097,10 +1097,10 @@ static int NVPutImage
 
 #if 0
         /* burn the CPU until the next buffer is available */
-        while(pNv->PMC[0x00008700/4] & mask);
+        while(nvReadMC(pNv, 0x8700) & mask);
 #else
         /* overwrite the newest buffer if there's not one free */
-        if(pNv->PMC[0x00008700/4] & mask) {
+        if(nvReadMC(pNv, 0x8700) & mask) {
            if(!pPriv->currentBuffer)
               offset += (newSize * bpp) >> 1;
            skip = TRUE;

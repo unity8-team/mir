@@ -255,4 +255,7 @@ typedef struct _NVRec {
 #define nvReadGRAPH(pNv, reg) MMIO_IN32(pNv->PGRAPH, reg)
 #define nvWriteGRAPH(pNv, reg, val) MMIO_OUT32(pNv->PGRAPH, reg, val)
 
+#define nvReadMC(pNv, reg) MMIO_IN32(pNv->PMC, reg)
+#define nvWriteMC(pNv, reg, val) MMIO_OUT32(pNv->PMC, reg, val)
+
 #endif /* __NV_STRUCT_H__ */

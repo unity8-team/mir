@@ -163,9 +163,9 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
     unsigned int pll, N, M, MB, NB, P;
 
     if(pNv->Architecture >= NV_ARCH_40) {
-       pll = pNv->PMC[0x4020/4];
+       pll = nvReadMC(pNv, 0x4020);
        P = (pll >> 16) & 0x07;
-       pll = pNv->PMC[0x4024/4];
+       pll = nvReadMC(pNv, 0x4024);
        M = pll & 0xFF;
        N = (pll >> 8) & 0xFF;
        if(((pNv->Chipset & 0xfff0) == CHIPSET_G71) ||
@@ -179,9 +179,9 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        }
        *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
 
-       pll = pNv->PMC[0x4000/4];
+       pll = nvReadMC(pNv, 0x4000);
        P = (pll >> 16) & 0x07;  
-       pll = pNv->PMC[0x4004/4];
+       pll = nvReadMC(pNv, 0x4004);
        M = pll & 0xFF;
        N = (pll >> 8) & 0xFF;
        MB = (pll >> 16) & 0xFF;
@@ -960,9 +960,9 @@ void NVLoadStateExt (
     CARD32 temp;
 
     if (!pNv->IRQ)
-        pNv->PMC[0x0140/4] = 0x00000000;
-    pNv->PMC[0x0200/4] = 0xFFFF00FF;
-    pNv->PMC[0x0200/4] = 0xFFFFFFFF;
+        nvWriteMC(pNv, 0x140, 0);
+    nvWriteMC(pNv, 0x0200, 0xFFFF00FF);
+    nvWriteMC(pNv, 0x0200, 0xFFFFFFFF);
 
     pNv->PTIMER[0x0200] = 0x00000008;
     pNv->PTIMER[0x0210] = 0x00000003;
@@ -1098,10 +1098,10 @@ void NVLoadStateExt (
               case CHIPSET_G72:
               case CHIPSET_C51:
               case CHIPSET_C512:
-                 pNv->PMC[0x1700/4] = nvReadFB(pNv, 0x020C);
-                 pNv->PMC[0x1704/4] = 0;
-                 pNv->PMC[0x1708/4] = 0;
-                 pNv->PMC[0x170C/4] = nvReadFB(pNv, 0x020C);
+                 nvWriteMC(pNv, 0x1700, nvReadFB(pNv, 0x020C));
+                 nvWriteMC(pNv, 0x1704, 0);
+                 nvWriteMC(pNv, 0x1708, 0);
+                 nvWriteMC(pNv, 0x170C, nvReadFB(pNv, 0x020C));
                  nvWriteGRAPH(pNv, 0x0860, 0);
                  nvWriteGRAPH(pNv, 0x0864, 0);
                  temp = nvReadCurRAMDAC(pNv, 0x608);
@@ -1269,13 +1269,13 @@ void NVLoadStateExt (
         temp = nvReadCurRAMDAC(pNv, 0x404);
         nvWriteCurRAMDAC(pNv, 0x404, temp | (1 << 25));
     
-        pNv->PMC[0x8704/4] = 1;
-        pNv->PMC[0x8140/4] = 0;
-        pNv->PMC[0x8920/4] = 0;
-        pNv->PMC[0x8924/4] = 0;
-        pNv->PMC[0x8908/4] = pNv->VRAMPhysicalSize - 1;
-        pNv->PMC[0x890C/4] = pNv->VRAMPhysicalSize - 1;
-        pNv->PMC[0x1588/4] = 0;
+        nvWriteMC(pNv, 0x8704, 1);
+        nvWriteMC(pNv, 0x8140, 0);
+        nvWriteMC(pNv, 0x8920, 0);
+        nvWriteMC(pNv, 0x8924, 0);
+        nvWriteMC(pNv, 0x8908, pNv->VRAMPhysicalSize - 1);
+        nvWriteMC(pNv, 0x890C, pNv->VRAMPhysicalSize - 1);
+        nvWriteMC(pNv, 0x1588, 0);
 
         pNv->PCRTC[0x0810/4] = state->cursorConfig;
         pNv->PCRTC[0x0830/4] = state->displayV - 3;

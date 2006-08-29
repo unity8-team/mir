@@ -1552,7 +1552,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn) {
 	bios.data=xalloc(NV_PROM_SIZE);
 
 	/* enable ROM access */
-	pNv->PMC[0x1850/4] = 0x0;
+	nvWriteMC(pNv, 0x1850, 0x0);
 	for(i=0;i<NV_PROM_SIZE;i++)
 	{
 		/* according to nvclock, we need that to work around a 6600GT/6800LE bug */
@@ -1563,7 +1563,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn) {
 		bios.data[i]=pNv->PROM[i];
 	}
 	/* disable ROM access */
-	pNv->PMC[0x1850/4] = 0x1;
+	nvWriteMC(pNv, 0x1850, 0x1);
 
 	/* check for BIOS signature */
 	if (!(bios.data[0] == 0x55 && bios.data[1] == 0xAA)) {
