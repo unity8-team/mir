@@ -219,13 +219,9 @@ NVSelectHeadRegisters(ScrnInfoPtr pScrn, int head)
 
     if(head) {
        pNv->PCIO = pNv->PCIO1;
-       pNv->PCRTC = pNv->PCRTC1;
-       pNv->PRAMDAC = pNv->PRAMDAC1;
        pNv->PDIO = pNv->PDIO1;
     } else {
        pNv->PCIO = pNv->PCIO0;
-       pNv->PCRTC = pNv->PCRTC0;
-       pNv->PRAMDAC = pNv->PRAMDAC0;
        pNv->PDIO = pNv->PDIO0;
     }
 }

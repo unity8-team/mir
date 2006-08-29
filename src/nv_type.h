@@ -154,8 +154,10 @@ typedef struct _NVRec {
 
     volatile CARD32 *REGS;
     volatile CARD32 *PCRTC0;
-    volatile CARD32 *PCRTC;
+    volatile CARD32 *PCRTC1;
+
     volatile CARD32 *PRAMDAC0;
+    volatile CARD32 *PRAMDAC1;
     volatile CARD32 *PFB;
     volatile CARD32 *PFIFO;
     volatile CARD32 *PGRAPH;
@@ -166,17 +168,14 @@ typedef struct _NVRec {
     volatile CARD32 *FIFO;
     volatile CARD32 *CURSOR;
     volatile CARD8 *PCIO0;
+    volatile CARD8 *PCIO1;
     volatile CARD8 *PCIO;
     volatile CARD8 *PVIO;
     volatile CARD8 *PDIO0;
+    volatile CARD8 *PDIO1;
     volatile CARD8 *PDIO;
-    volatile CARD32 *PRAMDAC;
     volatile CARD8 *PROM;
 
-    volatile CARD8 *PCIO1;
-    volatile CARD8 *PDIO1;
-    volatile CARD32 *PRAMDAC1;
-    volatile CARD32 *PCRTC1;
 
     volatile CARD32 *RAMHT;
     CARD32 pramin_free;
