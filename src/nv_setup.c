@@ -48,14 +48,16 @@
 static void NVWriteCrtc(vgaHWPtr pVga, CARD8 index, CARD8 value)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    VGA_WR08(pNv->PCIO, pVga->IOBase + VGA_CRTC_INDEX_OFFSET, index);
-    VGA_WR08(pNv->PCIO, pVga->IOBase + VGA_CRTC_DATA_OFFSET,  value);
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
+    VGA_WR08(ptr, pVga->IOBase + VGA_CRTC_INDEX_OFFSET, index);
+    VGA_WR08(ptr, pVga->IOBase + VGA_CRTC_DATA_OFFSET,  value);
 }
 static CARD8 NVReadCrtc(vgaHWPtr pVga, CARD8 index)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    VGA_WR08(pNv->PCIO, pVga->IOBase + VGA_CRTC_INDEX_OFFSET, index);
-    return (VGA_RD08(pNv->PCIO, pVga->IOBase + VGA_CRTC_DATA_OFFSET));
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
+    VGA_WR08(ptr, pVga->IOBase + VGA_CRTC_INDEX_OFFSET, index);
+    return (VGA_RD08(ptr, pVga->IOBase + VGA_CRTC_DATA_OFFSET));
 }
 static void NVWriteGr(vgaHWPtr pVga, CARD8 index, CARD8 value)
 {
@@ -84,28 +86,30 @@ static CARD8 NVReadSeq(vgaHWPtr pVga, CARD8 index)
 static void NVWriteAttr(vgaHWPtr pVga, CARD8 index, CARD8 value)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
     volatile CARD8 tmp;
 
-    tmp = VGA_RD08(pNv->PCIO, pVga->IOBase + VGA_IN_STAT_1_OFFSET);
+    tmp = VGA_RD08(ptr, pVga->IOBase + VGA_IN_STAT_1_OFFSET);
     if (pVga->paletteEnabled)
         index &= ~0x20;
     else
         index |= 0x20;
-    VGA_WR08(pNv->PCIO, VGA_ATTR_INDEX,  index);
-    VGA_WR08(pNv->PCIO, VGA_ATTR_DATA_W, value);
+    VGA_WR08(ptr, VGA_ATTR_INDEX,  index);
+    VGA_WR08(ptr, VGA_ATTR_DATA_W, value);
 }
 static CARD8 NVReadAttr(vgaHWPtr pVga, CARD8 index)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
     volatile CARD8 tmp;
 
-    tmp = VGA_RD08(pNv->PCIO, pVga->IOBase + VGA_IN_STAT_1_OFFSET);
+    tmp = VGA_RD08(ptr, pVga->IOBase + VGA_IN_STAT_1_OFFSET);
     if (pVga->paletteEnabled)
         index &= ~0x20;
     else
         index |= 0x20;
-    VGA_WR08(pNv->PCIO, VGA_ATTR_INDEX, index);
-    return (VGA_RD08(pNv->PCIO, VGA_ATTR_DATA_R));
+    VGA_WR08(ptr, VGA_ATTR_INDEX, index);
+    return (VGA_RD08(ptr, VGA_ATTR_DATA_R));
 }
 static void NVWriteMiscOut(vgaHWPtr pVga, CARD8 value)
 {
@@ -120,50 +124,58 @@ static CARD8 NVReadMiscOut(vgaHWPtr pVga)
 static void NVEnablePalette(vgaHWPtr pVga)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
     volatile CARD8 tmp;
 
-    tmp = VGA_RD08(pNv->PCIO, pVga->IOBase + VGA_IN_STAT_1_OFFSET);
-    VGA_WR08(pNv->PCIO, VGA_ATTR_INDEX, 0x00);
+    tmp = VGA_RD08(ptr, pVga->IOBase + VGA_IN_STAT_1_OFFSET);
+    VGA_WR08(ptr, VGA_ATTR_INDEX, 0x00);
     pVga->paletteEnabled = TRUE;
 }
 static void NVDisablePalette(vgaHWPtr pVga)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
     volatile CARD8 tmp;
 
-    tmp = VGA_RD08(pNv->PCIO, pVga->IOBase + VGA_IN_STAT_1_OFFSET);
-    VGA_WR08(pNv->PCIO, VGA_ATTR_INDEX, 0x20);
+    tmp = VGA_RD08(ptr, pVga->IOBase + VGA_IN_STAT_1_OFFSET);
+    VGA_WR08(ptr, VGA_ATTR_INDEX, 0x20);
     pVga->paletteEnabled = FALSE;
 }
 static void NVWriteDacMask(vgaHWPtr pVga, CARD8 value)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    VGA_WR08(pNv->PDIO, VGA_DAC_MASK, value);
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PDIO1 : pNv->PDIO0;
+    VGA_WR08(ptr, VGA_DAC_MASK, value);
 }
 static CARD8 NVReadDacMask(vgaHWPtr pVga)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    return (VGA_RD08(pNv->PDIO, VGA_DAC_MASK));
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PDIO1 : pNv->PDIO0;
+    return (VGA_RD08(ptr, VGA_DAC_MASK));
 }
 static void NVWriteDacReadAddr(vgaHWPtr pVga, CARD8 value)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    VGA_WR08(pNv->PDIO, VGA_DAC_READ_ADDR, value);
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PDIO1 : pNv->PDIO0;
+    VGA_WR08(ptr, VGA_DAC_READ_ADDR, value);
 }
 static void NVWriteDacWriteAddr(vgaHWPtr pVga, CARD8 value)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    VGA_WR08(pNv->PDIO, VGA_DAC_WRITE_ADDR, value);
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PDIO1 : pNv->PDIO0;
+    VGA_WR08(ptr, VGA_DAC_WRITE_ADDR, value);
 }
 static void NVWriteDacData(vgaHWPtr pVga, CARD8 value)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    VGA_WR08(pNv->PDIO, VGA_DAC_DATA, value);
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PDIO1 : pNv->PDIO0;
+    VGA_WR08(ptr, VGA_DAC_DATA, value);
 }
 static CARD8 NVReadDacData(vgaHWPtr pVga)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    return (VGA_RD08(pNv->PDIO, VGA_DAC_DATA));
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PDIO1 : pNv->PDIO0;
+    return (VGA_RD08(ptr, VGA_DAC_DATA));
 }
 
 static Bool 
@@ -216,14 +228,6 @@ NVSelectHeadRegisters(ScrnInfoPtr pScrn, int head)
     NVPtr pNv = NVPTR(pScrn);
 
     pNv->cur_head = head;
-
-    if(head) {
-       pNv->PCIO = pNv->PCIO1;
-       pNv->PDIO = pNv->PDIO1;
-    } else {
-       pNv->PCIO = pNv->PCIO0;
-       pNv->PDIO = pNv->PDIO0;
-    }
 }
 
 static xf86MonPtr 

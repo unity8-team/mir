@@ -169,11 +169,9 @@ typedef struct _NVRec {
     volatile CARD32 *CURSOR;
     volatile CARD8 *PCIO0;
     volatile CARD8 *PCIO1;
-    volatile CARD8 *PCIO;
     volatile CARD8 *PVIO;
     volatile CARD8 *PDIO0;
     volatile CARD8 *PDIO1;
-    volatile CARD8 *PDIO;
     volatile CARD8 *PROM;
 
 

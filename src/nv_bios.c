@@ -141,14 +141,16 @@ void nv_set_crtc_index(ScrnInfoPtr pScrn, CARD8 index)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "nv_set_crtc_index index 0x%X\n",index);
 	still_alive();
 	NVPtr pNv = NVPTR(pScrn);
-	VGA_WR08(pNv->PCIO, 0x3D4, index);
+	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
+	VGA_WR08(ptr, 0x3D4, index);
 #endif
 }
 
 CARD8 nv_rd_crtc_data(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	return VGA_RD08(pNv->PCIO, 0x3D5);
+	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
+	return VGA_RD08(ptr, 0x3D5);
 }
 
 void nv_wr_crtc_data(ScrnInfoPtr pScrn, CARD8 val)
@@ -157,7 +159,8 @@ void nv_wr_crtc_data(ScrnInfoPtr pScrn, CARD8 val)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "nv_wr_crtc_data value 0x%X\n",val);
 	still_alive();
 	NVPtr pNv = NVPTR(pScrn);
-	VGA_WR08(pNv->PCIO, 0x3D5, val);
+	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
+	VGA_WR08(ptr, 0x3D5, val);
 #endif
 }
 
@@ -243,6 +246,7 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset
      */
     
     NVPtr pNv = NVPTR(pScrn);
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
     CARD16 crtcreg = *((CARD16 *) (&bios->data[offset + 1]));
     CARD8  index = *((CARD8 *) (&bios->data[offset + 3]));
     CARD8 and = *((CARD8 *) (&bios->data[offset + 4]));
@@ -256,8 +260,8 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC REG: 0x%04X, INDEX: 0x%02X\n", offset, 
 				crtcreg, index);
 
-		VGA_WR08(pNv->PCIO,crtcreg, index);
-		configuration = (VGA_RD08(pNv->PCIO, crtcreg + 1) & and) >> shiftr;
+		VGA_WR08(ptr,crtcreg, index);
+		configuration = (VGA_RD08(ptr, crtcreg + 1) & and) >> shiftr;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CONFIGURATION TO USE: 0x%02X\n", 
 				offset, configuration);
@@ -314,6 +318,7 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_
 {
     /* XXX: double check this... */
     NVPtr pNv = NVPTR(pScrn);
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
     CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
     CARD8 shift = *((CARD8 *) (&bios->data[offset + 5]));
     CARD8 and1 = *((CARD8 *) (&bios->data[offset + 6]));
@@ -331,20 +336,20 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_
 				data <<= (0x100 - shift);
 
 			data &= and1;
-			VGA_WR08(pNv->PCIO,crtcreg, index);
-			crtcdata = (VGA_RD08(pNv->PCIO, crtcreg + 1) & and2) | (CARD8) data;
+			VGA_WR08(ptr,crtcreg, index);
+			crtcdata = (VGA_RD08(ptr, crtcreg + 1) & and2) | (CARD8) data;
 
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
 					"0x%04X: CRTC REG: 0x%04X, INDEX: 0x%04X, VALUE: 0x%02X\n"
 					, offset, crtcreg, index, crtcdata);
 
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset, 
-					VGA_RD08(pNv->PCIO, crtcreg + 1));
+					VGA_RD08(ptr, crtcreg + 1));
 #ifdef PERFORM_WRITE 
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "init_copy crtcreg 0x%X value 0x%X\n",crtcreg+1,crtcdata);
 			still_alive();
 			printf("WRITE IS PERFORMED\n");
-			VGA_WR08(pNv->PCIO,crtcreg + 1, crtcdata);
+			VGA_WR08(ptr,crtcreg + 1, crtcdata);
 #endif
 		}
 	}
@@ -368,6 +373,7 @@ static Bool init_not(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t
 static Bool init_io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     NVPtr pNv = NVPTR(pScrn);
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
     CARD8 cond = *((CARD8 *) (&bios->data[offset + 1]));
     CARD16 crtcreg = *((CARD16 *) 
             (&bios->data[bios->io_flag_condition_offset + 
@@ -395,8 +401,8 @@ static Bool init_io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offse
 	
 	if (iexec->execute) {
 	
-		VGA_WR08(pNv->PCIO,crtcreg, index);
-		data = VGA_RD08(pNv->PCIO, crtcreg + 1);
+		VGA_WR08(ptr,crtcreg, index);
+		data = VGA_RD08(ptr, crtcreg + 1);
 		data &= and1;
 		offs += (data >> shift);
 		data = *((CARD8 *) (&bios->data[offs]));
@@ -441,8 +447,8 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset,
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC REG: 0x%04X, INDEX: 0x%02X\n", offset, 
             crtcreg, index, reg);
     
-    VGA_WR08(pNv->PCIO,crtcreg, index);
-    configuration = (VGA_RD08(pNv->PCIO, crtcreg + 1) & and) >> shiftr;
+    VGA_WR08(ptr,crtcreg, index);
+    configuration = (VGA_RD08(ptr, crtcreg + 1) & and) >> shiftr;
     
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CONFIGURATION TO USE: 0x%02X\n", 
             offset, configuration);
@@ -791,6 +797,7 @@ static Bool init_copy_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, ini
 static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
     NVPtr pNv = NVPTR(pScrn);
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
     CARD16 crtcreg = *((CARD16 *) (&bios->data[offset + 1]));
     CARD8 index = *((CARD8 *) (&bios->data[offset + 3]));
     CARD8 value = *((CARD8 *) (&bios->data[offset + 4]));
@@ -801,15 +808,15 @@ static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, ini
 				"0x%04X: CRTC REG: 0x%04X, INDEX: 0x%04X, VALUE: 0x%02X\n", 
 				offset, crtcreg, index, value);
 
-		VGA_WR08(pNv->PCIO,crtcreg, index);
+		VGA_WR08(ptr,crtcreg, index);
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset, 
-				VGA_RD08(pNv->PCIO, crtcreg + 1));
+				VGA_RD08(ptr, crtcreg + 1));
 	
 #ifdef PERFORM_WRITE
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "init_zm_index_io crtcreg 0x%X value 0x%X\n",crtcreg+1,value);
 		still_alive();
-		VGA_WR08(pNv->PCIO,crtcreg + 1, value);
+		VGA_WR08(ptr,crtcreg + 1, value);
 #endif
 	}
     return TRUE;
@@ -909,6 +916,7 @@ static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_
      */
     
     NVPtr pNv = NVPTR(pScrn);
+    volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
     CARD16 reg = *((CARD16 *) (&bios->data[offset + 1]));
     CARD8 and  = *((CARD8 *) (&bios->data[offset + 3]));
     CARD8 or = *((CARD8 *) (&bios->data[offset + 4]));
@@ -916,18 +924,18 @@ static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_
   	
 
 	if (iexec->execute) {
-		data = (VGA_RD08(pNv->PCIO, reg) & and) | or;
+		data = (VGA_RD08(ptr, reg) & and) | or;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
 				"0x%04X: CRTC REG: 0x%04X, VALUE: 0x%02X\n", 
 				offset, reg, data);
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset, 
-				VGA_RD08(pNv->PCIO, reg));
+				VGA_RD08(ptr, reg));
 
 #ifdef PERFORM_WRITE
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "init_index_io8 crtcreg 0x%X value 0x%X\n",reg,data);
 		still_alive();
-		VGA_WR08(pNv->PCIO, reg, data);
+		VGA_WR08(ptr, reg, data);
 #endif
 		
 	}
@@ -1219,6 +1227,7 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_e
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
+	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
 	CARD16 crtcreg = *((CARD16 *) (&bios->data[offset + 1]));
 	CARD8 index = *((CARD8 *) (&bios->data[offset + 3]));
 	CARD8 and  = *((CARD8 *) (&bios->data[offset + 4]));
@@ -1227,20 +1236,20 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_e
 
 
 	if (iexec->execute) {
-		VGA_WR08(pNv->PCIO,crtcreg, index);
+		VGA_WR08(ptr,crtcreg, index);
 		/* data at reg + 1 */
-		data = (VGA_RD08(pNv->PCIO, crtcreg + 1) & and) | or;
+		data = (VGA_RD08(ptr, crtcreg + 1) & and) | or;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
 				"0x%04X: CRTC REG: 0x%04X, INDEX: 0x%04X, VALUE: 0x%02X\n", 
 				offset, crtcreg, index, data);
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset, 
-				VGA_RD08(pNv->PCIO, crtcreg + 1));
+				VGA_RD08(ptr, crtcreg + 1));
 
 #ifdef PERFORM_WRITE
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "init_index_io crtcreg 0x%X value 0x%X\n",crtcreg+1,data);
 		still_alive();
-		VGA_WR08(pNv->PCIO,crtcreg + 1, data);
+		VGA_WR08(ptr,crtcreg + 1, data);
 #endif
 
 	}
