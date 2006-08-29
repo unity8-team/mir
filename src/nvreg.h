@@ -96,6 +96,15 @@
 #define NV_RAMDAC_CURSOR_DATA_LO    0x324
 #define NV_RAMDAC_CURSOR_DATA_HI    0x328
 
+#define NV_CRTC_INTR_0              0x100
+#	define NV_CRTC_INTR_VBLANK           1
+#define NV_CRTC_INTR_EN_0           0x140
+#define NV_CRTC_START               0x800
+#define NV_CRTC_CURSOR_CONFIG       0x810
+#define NV_CRTC_081C                0x81c
+#define NV_CRTC_0830                0x830
+#define NV_CRTC_0834                0x834
+#define NV_CRTC_HEAD_CONFIG         0x860
 
 #endif
 

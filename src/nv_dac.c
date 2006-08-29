@@ -227,8 +227,8 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     nvReg->fifo = nvReadVGA(pNv, 0x1c) & ~(1<<5);
 
     if(pNv->CRTCnumber) {
-       nvReg->head  = nvReadCRTC0(pNv, 0x0860) & ~0x00001000;
-       nvReg->head2 = nvReadCRTC0(pNv, 0x2860) | 0x00001000;
+       nvReg->head  = nvReadCRTC(pNv, 0, NV_CRTC_HEAD_CONFIG) & ~0x00001000;
+       nvReg->head2 = nvReadCRTC(pNv, 1, NV_CRTC_HEAD_CONFIG) | 0x00001000;
        nvReg->crtcOwner = 3;
        nvReg->pllsel |= 0x20000800;
        nvReg->vpll = nvReadRAMDAC0(pNv, 0x0508);
@@ -236,8 +236,8 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
           nvReg->vpllB = nvReadRAMDAC0(pNv, 0x0578);
     } else 
     if(pNv->twoHeads) {
-       nvReg->head  =  nvReadCRTC0(pNv, 0x0860) | 0x00001000;
-       nvReg->head2 =  nvReadCRTC0(pNv, 0x2860) & ~0x00001000;
+       nvReg->head  =  nvReadCRTC(pNv, 0, NV_CRTC_HEAD_CONFIG) | 0x00001000;
+       nvReg->head2 =  nvReadCRTC(pNv, 1, NV_CRTC_HEAD_CONFIG) & ~0x00001000;
        nvReg->crtcOwner = 0;
        nvReg->vpll2 = nvReadRAMDAC0(pNv, 0x520);
        if(pNv->twoStagePLL) 
