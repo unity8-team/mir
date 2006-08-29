@@ -246,8 +246,13 @@ typedef struct _NVRec {
 #define nvWriteRAMDAC0(pNv, reg, val) nvWriteRAMDAC(pNv, 0, reg, val)
 
 #define nvReadCurRAMDAC(pNv, reg) nvReadRAMDAC(pNv, pNv->cur_head, reg)
-
 #define nvWriteCurRAMDAC(pNv, reg, val) nvWriteRAMDAC(pNv, pNv->cur_head, reg, val)
+
+#define nvReadCRTC0(pNv, reg) nvReadCRTC(pNv, 0, reg)
+#define nvWriteCRTC0(pNv, reg, val) nvWriteCRTC(pNv, 0, reg, val)
+
+#define nvReadCurCRTC(pNv, reg) nvReadCRTC(pNv, pNv->cur_head, reg)
+#define nvWriteCurCRTC(pNv, reg, val) nvWriteCRTC(pNv, pNv->cur_head, reg, val)
 
 #define nvReadFB(pNv, fb_reg) MMIO_IN32(pNv->PFB, fb_reg)
 #define nvWriteFB(pNv, fb_reg, val) MMIO_OUT32(pNv->PFB, fb_reg, val)
