@@ -138,6 +138,14 @@
 #define NV_CRTC_0834                0x834
 #define NV_CRTC_HEAD_CONFIG         0x860
 
+#define NV_FB_CFG0                  0x200
+#define NV_FB_CFG1                  0x204
+#define NV_FB_020C                  0x20C
+#define NV_FB_TILE_NV40             0x240
+#define NV_FB_TILE_END_NV40         0x244
+#define NV_FB_CLOSE_PAGE2           0x33C
+#define NV_FB_TILE_NV4P             0x600
+#define NV_FB_TILE_END_NV4P         0x604
 #endif
 
 
