@@ -403,10 +403,11 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     pNv->WaitVSyncPossible = (pNv->Architecture >= NV_ARCH_10) &&
                              (implementation != CHIPSET_NV10);
 
+    /* actually, NV5_SCALED_IMAGE_FROM_MEMORY could lift that and work on nv05 (but maybe not nv04 ? to be confirmed) */
     pNv->BlendingPossible = ((pNv->Chipset & 0xffff) != CHIPSET_NV04);
 
     /* look for known laptop chips */
-    /* FIXME we could add some ids here (0x0167) */
+    /* FIXME we could add some ids here (0x0164,0x0167,0x0168,0x01D6,0x01D7,0x01D8,0x0298,0x0299,0x0398) */
     switch(pNv->Chipset & 0xffff) {
     case 0x0112:
     case 0x0174:

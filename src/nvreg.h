@@ -37,6 +37,7 @@
 #define NV_IMAGE_BLIT               0x5f
 #define NV10_CONTEXT_SURFACES_2D    0x62
 #define NV_SCALED_IMAGE_FROM_MEMORY 0x77
+#define NV10_SCALED_IMAGE_FROM_MEMORY 0x89
 #define NV12_IMAGE_BLIT             0x9f
 
 

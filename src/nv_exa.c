@@ -486,8 +486,10 @@ Bool NVExaInit(ScreenPtr pScreen)
     }
     /*darktama: Hard-disabled these for now, I get lockups often when
      *          starting e17 with them enabled.
+     *marcheu:  Doesn't crash for me... was it related to the setup being
+     *          called twice before ?
      */
-    if (0 && pNv->BlendingPossible) {
+    if (pNv->BlendingPossible) {
         /* install composite hooks */
         pNv->EXADriverPtr->CheckComposite = NVCheckComposite;
         pNv->EXADriverPtr->PrepareComposite = NVPrepareComposite;
