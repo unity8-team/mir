@@ -201,11 +201,11 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        *NVClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
     } else
     if(pNv->twoStagePLL) {
-       pll = nvReadRAMDAC0(pNv, 0x0504);
-       M = pll & 0xFF; 
+       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_MPLL);
+       M = pll & 0xFF;
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
-       pll = nvReadRAMDAC0(pNv, 0x0574);
+       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_MPLL_B);
        if(pll & 0x80000000) {
            MB = pll & 0xFF; 
            NB = (pll >> 8) & 0xFF;
@@ -215,11 +215,11 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        }
        *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
 
-       pll = nvReadRAMDAC0(pNv, 0x0500);
+       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_NVPLL);
        M = pll & 0xFF; 
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
-       pll = nvReadRAMDAC0(pNv, 0x0570);
+       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_NVPLL_B);
        if(pll & 0x80000000) {
            MB = pll & 0xFF;
            NB = (pll >> 8) & 0xFF;
@@ -232,7 +232,7 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
     if(((pNv->Chipset & 0x0ff0) == CHIPSET_NV30) ||
        ((pNv->Chipset & 0x0ff0) == CHIPSET_NV35))
     {
-       pll = nvReadRAMDAC0(pNv, 0x504);
+       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_MPLL);
        M = pll & 0x0F; 
        N = (pll >> 8) & 0xFF;
        P = (pll >> 16) & 0x07;
@@ -245,7 +245,7 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        }
        *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
 
-       pll = nvReadRAMDAC0(pNv, 0x500);
+       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_NVPLL);
        M = pll & 0x0F;
        N = (pll >> 8) & 0xFF;
        P = (pll >> 16) & 0x07;
@@ -258,13 +258,13 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        }
        *NVClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
     } else {
-       pll = nvReadRAMDAC0(pNv, 0x504);
+       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_MPLL);
        M = pll & 0xFF; 
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
        *MClk = (N * pNv->CrystalFreqKHz / M) >> P;
 
-       pll = nvReadRAMDAC0(pNv, 0x500);
+       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_NVPLL);
        M = pll & 0xFF; 
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
@@ -723,7 +723,7 @@ static void nForceUpdateArbitrationSettings (
        MClk = pciReadLong(pciTag(0, 0, 5), 0x4C) / 1000;
     }
 
-    pll = nvReadRAMDAC0(pNv, 0x500);
+    pll = nvReadRAMDAC0(pNv, NV_RAMDAC_NVPLL);
     M = (pll >> 0)  & 0xFF; N = (pll >> 8)  & 0xFF; P = (pll >> 16) & 0x0F;
     NVClk  = (N * pNv->CrystalFreqKHz / M) >> P;
     sim_data.pix_bpp        = (char)pixelDepth;
@@ -1115,8 +1115,8 @@ void NVLoadStateExt (
                  nvWriteMC(pNv, 0x170C, nvReadFB(pNv, 0x020C));
                  nvWriteGRAPH(pNv, 0x0860, 0);
                  nvWriteGRAPH(pNv, 0x0864, 0);
-                 temp = nvReadCurRAMDAC(pNv, 0x608);
-                 nvWriteCurRAMDAC(pNv, 0x608, temp | 0x00100000);
+                 temp = nvReadCurRAMDAC(pNv, NV_RAMDAC_TEST_CONTROL);
+                 nvWriteCurRAMDAC(pNv, NV_RAMDAC_TEST_CONTROL, temp | 0x00100000);
                  break;
               case CHIPSET_NV43:
                  nvWriteGRAPH(pNv, 0x0828, 0x0072cb77);
@@ -1125,14 +1125,14 @@ void NVLoadStateExt (
               case CHIPSET_NV44A:
                  nvWriteGRAPH(pNv, 0x0860, 0);
                  nvWriteGRAPH(pNv, 0x0864, 0);
-                 temp = nvReadCurRAMDAC(pNv, 0x608);
-                 nvWriteCurRAMDAC(pNv, 0x608, temp | 0x00100000);
+                 temp = nvReadCurRAMDAC(pNv, NV_RAMDAC_TEST_CONTROL);
+                 nvWriteCurRAMDAC(pNv, NV_RAMDAC_TEST_CONTROL, temp | 0x00100000);
                  break;
               case CHIPSET_G70:
               case CHIPSET_G71:
               case CHIPSET_G73:
-                 temp = nvReadCurRAMDAC(pNv, 0x608);
-                 nvWriteCurRAMDAC(pNv, 0x608, temp | 0x00100000);
+                 temp = nvReadCurRAMDAC(pNv, NV_RAMDAC_TEST_CONTROL);
+                 nvWriteCurRAMDAC(pNv, NV_RAMDAC_TEST_CONTROL, temp | 0x00100000);
                  nvWriteGRAPH(pNv, 0x0828, 0x07830610);
                  nvWriteGRAPH(pNv, 0x082C, 0x0000016A);
                  break;
@@ -1277,8 +1277,8 @@ void NVLoadStateExt (
            nvWriteCRTC(pNv, 0, NV_CRTC_HEAD_CONFIG, state->head);
            nvWriteCRTC(pNv, 1, NV_CRTC_HEAD_CONFIG, state->head2);
         }
-        temp = nvReadCurRAMDAC(pNv, 0x404);
-        nvWriteCurRAMDAC(pNv, 0x404, temp | (1 << 25));
+        temp = nvReadCurRAMDAC(pNv, NV_RAMDAC_0404);
+        nvWriteCurRAMDAC(pNv, NV_RAMDAC_0404, temp | (1 << 25));
     
         nvWriteMC(pNv, 0x8704, 1);
         nvWriteMC(pNv, 0x8140, 0);
@@ -1294,10 +1294,10 @@ void NVLoadStateExt (
     
         if(pNv->FlatPanel) {
            if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-               nvWriteCurRAMDAC(pNv, 0x528, state->dither);
+               nvWriteCurRAMDAC(pNv, NV_RAMDAC_DITHER_NV11, state->dither);
            } else 
            if(pNv->twoHeads) {
-               nvWriteCurRAMDAC(pNv, 0x83C, state->dither);
+               nvWriteCurRAMDAC(pNv, NV_RAMDAC_FP_DITHER, state->dither);
            }
     
 	   nvWriteVGA(pNv, 0x53, state->timingH);
@@ -1326,19 +1326,19 @@ void NVLoadStateExt (
     nvWriteVGA(pNv, 0x39, state->interlace);
 
     if(!pNv->FlatPanel) {
-       nvWriteRAMDAC0(pNv, 0x50C, state->pllsel);
-       nvWriteRAMDAC0(pNv, 0x508, state->vpll);
+       nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
+       nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll);
        if(pNv->twoHeads)
-          nvWriteRAMDAC0(pNv, 0x520, state->vpll2);
+          nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2, state->vpll2);
        if(pNv->twoStagePLL) {
-          nvWriteRAMDAC0(pNv, 0x578, state->vpllB);
-          nvWriteRAMDAC0(pNv, 0x57C, state->vpll2B);
+          nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpllB);
+          nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2B);
        }
     } else {
-       nvWriteCurRAMDAC(pNv, 0x848, state->scale);
-       nvWriteCurRAMDAC(pNv, 0x828, state->crtcSync);
+       nvWriteCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL, state->scale);
+       nvWriteCurRAMDAC(pNv, NV_RAMDAC_FP_HCRTC, state->crtcSync);
     }
-    nvWriteCurRAMDAC(pNv, 0x600, state->general);
+    nvWriteCurRAMDAC(pNv, NV_RAMDAC_GENERAL_CONTROL, state->general);
 
     nvWriteCurCRTC(pNv, NV_CRTC_INTR_EN_0, 0);
     nvWriteCurCRTC(pNv, NV_CRTC_INTR_0, NV_CRTC_INTR_VBLANK);
@@ -1368,16 +1368,16 @@ void NVUnloadStateExt
     state->cursor2      = nvReadVGA(pNv, 0x2F);
     state->interlace    = nvReadVGA(pNv, 0x39);
 
-    state->vpll         = nvReadRAMDAC0(pNv, 0x0508);
+    state->vpll         = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL);
     if(pNv->twoHeads)
-       state->vpll2     = nvReadRAMDAC0(pNv, 0x0520);
+       state->vpll2     = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2);
     if(pNv->twoStagePLL) {
-        state->vpllB    = nvReadRAMDAC0(pNv, 0x0578);
-        state->vpll2B   = nvReadRAMDAC0(pNv, 0x057C);
+        state->vpllB    = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL_B);
+        state->vpll2B   = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2_B);
     }
-    state->pllsel       = nvReadRAMDAC0(pNv, 0x050C);
-    state->general      = nvReadCurRAMDAC(pNv, 0x0600);
-    state->scale        = nvReadCurRAMDAC(pNv, 0x0848);
+    state->pllsel       = nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT);
+    state->general      = nvReadCurRAMDAC(pNv, NV_RAMDAC_GENERAL_CONTROL);
+    state->scale        = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL);
     state->config       = nvReadFB(pNv, 0x0200);
 
     if(pNv->Architecture >= NV_ARCH_10) {
@@ -1391,10 +1391,10 @@ void NVUnloadStateExt
         state->cursorConfig = nvReadCurCRTC(pNv, NV_CRTC_CURSOR_CONFIG);
 
         if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-           state->dither = nvReadCurRAMDAC(pNv, 0x0528);
+           state->dither = nvReadCurRAMDAC(pNv, NV_RAMDAC_DITHER_NV11);
         } else 
         if(pNv->twoHeads) {
-            state->dither = nvReadCurRAMDAC(pNv, 0x083C);
+            state->dither = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_DITHER);
         }
 
         if(pNv->FlatPanel) {
@@ -1404,7 +1404,7 @@ void NVUnloadStateExt
     }
 
     if(pNv->FlatPanel) {
-       state->crtcSync = nvReadCurRAMDAC(pNv, 0x0828);
+       state->crtcSync = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_HCRTC);
     }
 }
 

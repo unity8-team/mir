@@ -96,6 +96,38 @@
 #define NV_RAMDAC_CURSOR_DATA_LO    0x324
 #define NV_RAMDAC_CURSOR_DATA_HI    0x328
 
+#define NV_RAMDAC_0404              0x404
+
+#define NV_RAMDAC_NVPLL             0x500
+#define NV_RAMDAC_MPLL              0x504
+#	define NV_RAMDAC_PLL_COEFF_MDIV     0x000000FF
+#	define NV_RAMDAC_PLL_COEFF_NDIV     0x0000FF00
+#	define NV_RAMDAC_PLL_COEFF_PDIV     0x00070000
+
+#define NV_RAMDAC_VPLL              0x508
+#define NV_RAMDAC_PLL_SELECT        0x50c
+#define NV_RAMDAC_VPLL2             0x520
+#define NV_RAMDAC_DITHER_NV11       0x528
+#define NV_RAMDAC_052C              0x52c
+
+#define NV_RAMDAC_NVPLL_B           0x570
+#define NV_RAMDAC_MPLL_B            0x574
+#define NV_RAMDAC_VPLL_B            0x578
+#define NV_RAMDAC_VPLL2_B           0x57c
+
+#define NV_RAMDAC_GENERAL_CONTROL   0x600
+#define NV_RAMDAC_TEST_CONTROL      0x608
+#define NV_RAMDAC_TEST_DATA         0x610
+
+#define NV_RAMDAC_FP_VDISP_END      0x800
+#define NV_RAMDAC_FP_HDISP_END      0x820
+#define NV_RAMDAC_FP_HCRTC          0x828
+#define NV_RAMDAC_FP_DITHER         0x83c
+#define NV_RAMDAC_FP_CONTROL        0x848
+
+#define NV_RAMDAC_FP_TMDS_DATA      0x8b0
+#define NV_RAMDAC_FP_TMDS_LVDS      0x8b4
+
 #define NV_CRTC_INTR_0              0x100
 #	define NV_CRTC_INTR_VBLANK           1
 #define NV_CRTC_INTR_EN_0           0x140

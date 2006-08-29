@@ -207,7 +207,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
                     mode->Clock,
                     mode->Flags);
 
-    nvReg->scale = nvReadCurRAMDAC(pNv, 0x848) & 0xfff000ff;
+    nvReg->scale = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL) & 0xfff000ff;
     if(pNv->FlatPanel == 1) {
        nvReg->pixel |= (1 << 7);
        if(!pNv->fpScaler || (pNv->fpWidth <= mode->HDisplay)
@@ -215,7 +215,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
        {
            nvReg->scale |= (1 << 8) ;
        }
-       nvReg->crtcSync = nvReadCurRAMDAC(pNv, 0x0828);
+       nvReg->crtcSync = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_HCRTC);
        nvReg->crtcSync += NVDACPanelTweaks(pNv, nvReg);
     }
 
@@ -231,17 +231,17 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
        nvReg->head2 = nvReadCRTC(pNv, 1, NV_CRTC_HEAD_CONFIG) | 0x00001000;
        nvReg->crtcOwner = 3;
        nvReg->pllsel |= 0x20000800;
-       nvReg->vpll = nvReadRAMDAC0(pNv, 0x0508);
+       nvReg->vpll = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL);
        if(pNv->twoStagePLL) 
-          nvReg->vpllB = nvReadRAMDAC0(pNv, 0x0578);
+          nvReg->vpllB = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL_B);
     } else 
     if(pNv->twoHeads) {
        nvReg->head  =  nvReadCRTC(pNv, 0, NV_CRTC_HEAD_CONFIG) | 0x00001000;
        nvReg->head2 =  nvReadCRTC(pNv, 1, NV_CRTC_HEAD_CONFIG) & ~0x00001000;
        nvReg->crtcOwner = 0;
-       nvReg->vpll2 = nvReadRAMDAC0(pNv, 0x520);
+       nvReg->vpll2 = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2);
        if(pNv->twoStagePLL) 
-          nvReg->vpll2B = nvReadRAMDAC0(pNv, 0x57C);
+          nvReg->vpll2B = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2_B);
     }
 
     nvReg->cursorConfig = 0x00000100;
@@ -258,11 +258,11 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
     if(pNv->twoHeads) {
         if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-           nvReg->dither = nvReadCurRAMDAC(pNv, 0x0528) & ~0x00010000;
+           nvReg->dither = nvReadCurRAMDAC(pNv, NV_RAMDAC_DITHER_NV11) & ~0x00010000;
            if(pNv->FPDither)
               nvReg->dither |= 0x00010000;
         } else {
-           nvReg->dither = nvReadCurRAMDAC(pNv, 0x083C) & ~1;
+           nvReg->dither = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_DITHER) & ~1;
            if(pNv->FPDither)
               nvReg->dither |= 1;
         } 
