@@ -423,7 +423,7 @@ static void nv4UpdateArbitrationSettings (
     sim_data.pix_bpp        = (char)pixelDepth;
     sim_data.enable_video   = 0;
     sim_data.enable_mp      = 0;
-    sim_data.memory_width   = (pNv->PEXTDEV[0x0000/4] & 0x10) ? 128 : 64;
+    sim_data.memory_width   = (nvReadEXTDEV(pNv, 0x0000) & 0x10) ? 128 : 64;
     sim_data.mem_latency    = (char)cfg1 & 0x0F;
     sim_data.mem_aligned    = 1;
     sim_data.mem_page_miss  = (char)(((cfg1 >> 4) &0x0F) + ((cfg1 >> 31) & 0x01));
@@ -651,7 +651,7 @@ static void nv10UpdateArbitrationSettings (
     sim_data.enable_video   = 1;
     sim_data.enable_mp      = 0;
     sim_data.memory_type    = (nvReadFB(pNv, 0x0200) & 0x01) ? 1 : 0;
-    sim_data.memory_width   = (pNv->PEXTDEV[0x0000/4] & 0x10) ? 128 : 64;
+    sim_data.memory_width   = (nvReadEXTDEV(pNv, 0x0000) & 0x10) ? 128 : 64;
     sim_data.mem_latency    = (char)cfg1 & 0x0F;
     sim_data.mem_aligned    = 1;
     sim_data.mem_page_miss  = (char)(((cfg1>>4) &0x0F) + ((cfg1>>31) & 0x01));
@@ -964,11 +964,11 @@ void NVLoadStateExt (
     nvWriteMC(pNv, 0x0200, 0xFFFF00FF);
     nvWriteMC(pNv, 0x0200, 0xFFFFFFFF);
 
-    pNv->PTIMER[0x0200] = 0x00000008;
-    pNv->PTIMER[0x0210] = 0x00000003;
+    nvWriteTIMER(pNv, 0x0200, 0x00000008);
+    nvWriteTIMER(pNv, 0x0210, 0x00000003);
     /*TODO: DRM handle PTIMER interrupts */
-    pNv->PTIMER[0x0140] = 0x00000000;
-    pNv->PTIMER[0x0100] = 0xFFFFFFFF;
+    nvWriteTIMER(pNv, 0x0140, 0x00000000);
+    nvWriteTIMER(pNv, 0x0100, 0xFFFFFFFF);
 
     /* begin surfaces */
     /* it seems those regions are equivalent to the radeon's SURFACEs. needs to go in-kernel just like the SURFACEs */

@@ -258,4 +258,10 @@ typedef struct _NVRec {
 #define nvReadMC(pNv, reg) MMIO_IN32(pNv->PMC, reg)
 #define nvWriteMC(pNv, reg, val) MMIO_OUT32(pNv->PMC, reg, val)
 
+#define nvReadEXTDEV(pNv, reg) MMIO_IN32(pNv->PEXTDEV, reg)
+#define nvWriteEXTDEV(pNv, reg, val) MMIO_OUT32(pNv->PEXTDEV, reg, val)
+
+#define nvReadTIMER(pNv, reg) MMIO_IN32(pNv->PTIMER, reg)
+#define nvWriteTIMER(pNv, reg, val) MMIO_OUT32(pNv->PTIMER, reg, val)
+
 #endif /* __NV_STRUCT_H__ */

@@ -1118,7 +1118,7 @@ static Bool init_ram_condition2(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, 
 	 * offset + 1  (8  bit): and mask
 	 * offset + 2  (8  bit): cmpval
 	 *
-	 * Test if (NV_PEXTDEV_BOOT & and mask) matches cmpval
+	 * Test if (NV_EXTDEV_BOOT & and mask) matches cmpval
 	 */
 	NVPtr pNv = NVPTR(pScrn);
 	CARD32 and = *((CARD32 *) (&bios->data[offset + 1]));
@@ -1126,7 +1126,7 @@ static Bool init_ram_condition2(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, 
 	CARD32 data;
 
 	if (iexec->execute) {
-		data=(pNv->PEXTDEV[NV_PEXTDEV_BOOT/4])&and;
+		data=(nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT))&and;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
 				"0x%04X: CHECKING IF REGVAL: 0x%08X equals COND: 0x%08X\n",

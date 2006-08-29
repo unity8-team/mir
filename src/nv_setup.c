@@ -279,7 +279,7 @@ static void nv4GetConfig (NVPtr pNv)
             break;
         }
     }
-    pNv->CrystalFreqKHz = (pNv->PEXTDEV[0x0000/4] & 0x00000040) ? 14318 : 13500;
+    pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, 0x0000) & 0x00000040) ? 14318 : 13500;
     pNv->CURSOR         = &(pNv->PRAMIN[0x1E00]);
     pNv->MinVClockFreqKHz = 12000;
     pNv->MaxVClockFreqKHz = 350000;
@@ -310,11 +310,11 @@ static void nv10GetConfig (NVPtr pNv)
     if(pNv->RamAmountKBytes > 256*1024)
         pNv->RamAmountKBytes = 256*1024;
 
-    pNv->CrystalFreqKHz = (pNv->PEXTDEV[0x0000/4] & (1 << 6)) ? 14318 : 13500;
+    pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, 0x0000) & (1 << 6)) ? 14318 : 13500;
     
     if(pNv->twoHeads && (implementation != CHIPSET_NV11))
     {
-       if(pNv->PEXTDEV[0x0000/4] & (1 << 22))
+       if(nvReadEXTDEV(pNv, 0x0000) & (1 << 22))
            pNv->CrystalFreqKHz = 27000;
     }
 
