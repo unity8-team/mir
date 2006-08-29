@@ -26,19 +26,20 @@
 #ifndef __NVREG_H_
 #define __NVREG_H_
 
-#define NV_IMAGE_PATTERN            0x18
-#define NV_IMAGE_BLACK_RECTANGLE    0x19
-#define NV_MEMORY_TO_MEMORY_FORMAT  0x39
-#define NV4_SURFACE                 0x42
-#define NV_ROP5_SOLID               0x43
-#define NV4_IMAGE_PATTERN           0x44
-#define NV4_GDI_RECTANGLE_TEXT      0x4a
-#define NV4_RENDER_SOLID_LIN        0x5c
-#define NV_IMAGE_BLIT               0x5f
-#define NV10_CONTEXT_SURFACES_2D    0x62
-#define NV_SCALED_IMAGE_FROM_MEMORY 0x77
+#define NV_IMAGE_PATTERN              0x18
+#define NV_IMAGE_BLACK_RECTANGLE      0x19
+#define NV_MEMORY_TO_MEMORY_FORMAT    0x39
+#define NV4_SURFACE                   0x42
+#define NV_ROP5_SOLID                 0x43
+#define NV4_IMAGE_PATTERN             0x44
+#define NV4_GDI_RECTANGLE_TEXT        0x4a
+#define NV4_RENDER_SOLID_LIN          0x5c
+#define NV_IMAGE_BLIT                 0x5f
+#define NV10_CONTEXT_SURFACES_2D      0x62
+#define NV5_SCALED_IMAGE_FROM_MEMORY  0x63
+#define NV_SCALED_IMAGE_FROM_MEMORY   0x77
 #define NV10_SCALED_IMAGE_FROM_MEMORY 0x89
-#define NV12_IMAGE_BLIT             0x9f
+#define NV12_IMAGE_BLIT               0x9f
 
 
 #define NV_PRAMIN_OFFSET            0x00710000

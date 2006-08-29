@@ -216,16 +216,21 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
                               NV4_GDI_RECTANGLE_TEXT, 
                               NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_MONO, 
                               0, 0, 0);
-    if (pNv->Architecture==NV_ARCH_04)
-    NVDmaCreateContextObject (pNv, NvScaledImage,
-                              NV_SCALED_IMAGE_FROM_MEMORY, 
-                              NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
-                              NvDmaFB, NvDmaFB, 0);
+    if (pNv->Chipset==CHIPSET_NV04)
+        NVDmaCreateContextObject (pNv, NvScaledImage,
+                                  NV_SCALED_IMAGE_FROM_MEMORY, 
+                                  NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
+                                  NvDmaFB, NvDmaFB, 0);
+    else if (pNv->Architecture==NV_ARCH_04)
+        NVDmaCreateContextObject (pNv, NvScaledImage,
+                                  NV5_SCALED_IMAGE_FROM_MEMORY, 
+                                  NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
+                                  NvDmaFB, NvDmaFB, 0);
     else
-    NVDmaCreateContextObject (pNv, NvScaledImage,
-                              NV10_SCALED_IMAGE_FROM_MEMORY, 
-                              NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
-                              NvDmaFB, NvDmaFB, 0);
+        NVDmaCreateContextObject (pNv, NvScaledImage,
+                                  NV10_SCALED_IMAGE_FROM_MEMORY, 
+                                  NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
+                                  NvDmaFB, NvDmaFB, 0);
 
 #ifdef XF86DRI
     if (NVInitAGP(pScrn) && pNv->AGPScratch) {
