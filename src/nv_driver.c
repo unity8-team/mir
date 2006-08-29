@@ -1311,6 +1311,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		"Using \"Shadow Framebuffer\" - acceleration disabled\n");
     }
     if (!pNv->NoAccel) {
+        from = X_DEFAULT;
+        pNv->useEXA = TRUE;
         if((s = (char *)xf86GetOptValString(pNv->Options, OPTION_ACCELMETHOD))) {
             if(!xf86NameCmp(s,"XAA")) {
                 from = X_CONFIG;
@@ -1320,7 +1322,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
                 pNv->useEXA = TRUE;
             }
         }
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Using %s acceleration method\n", s);
+	xf86DrvMsg(pScrn->scrnIndex, from, "Using %s acceleration method\n", pNv->useEXA ? "EXA" : "XAA");
     } else {
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Acceleration disabled\n");
     }
