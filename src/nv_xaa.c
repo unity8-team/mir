@@ -321,7 +321,7 @@ void NVDoSync(NVPtr pNv)
 
     t_start = GetTimeInMillis();
     while((GetTimeInMillis() - t_start) < timeout && (READ_GET(pNv) != pNv->dmaPut));
-    while((GetTimeInMillis() - t_start) < timeout && pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
+    while((GetTimeInMillis() - t_start) < timeout && nvReadGRAPH(pNv, NV_PGRAPH_STATUS));
 
     if ((GetTimeInMillis() - t_start) >= timeout) {
         if (pNv->LockedUp)
@@ -329,7 +329,7 @@ void NVDoSync(NVPtr pNv)
         NVDumpLockupInfo(pNv);
         pNv->LockedUp = TRUE; /* avoid re-entering FatalError on shutdown */
         FatalError("DMA queue hang: dmaPut=%x, current=%x, status=%x\n",
-               pNv->dmaPut, READ_GET(pNv), pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
+               pNv->dmaPut, READ_GET(pNv), nvReadGRAPH(pNv, NV_PGRAPH_STATUS));
     }
 }
 
