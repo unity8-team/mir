@@ -469,11 +469,11 @@ const char *driSymbols[] = {
 
 #endif
 
-static MODULESETUPPROTO(nvSetup);
+static MODULESETUPPROTO(nouveauSetup);
 
-static XF86ModuleVersionInfo nvVersRec =
+static XF86ModuleVersionInfo nouveauVersRec =
 {
-    "nv",
+    "nouveau",
     MODULEVENDORSTRING,
     MODINFOSTRING1,
     MODINFOSTRING2,
@@ -485,7 +485,7 @@ static XF86ModuleVersionInfo nvVersRec =
     {0,0,0,0}
 };
 
-_X_EXPORT XF86ModuleData nvModuleData = { &nvVersRec, nvSetup, NULL };
+_X_EXPORT XF86ModuleData nouveauModuleData = { &nouveauVersRec, nouveauSetup, NULL };
 
 
 typedef enum {
@@ -609,7 +609,7 @@ NVFreeRec(ScrnInfoPtr pScrn)
 
 
 static pointer
-nvSetup(pointer module, pointer opts, int *errmaj, int *errmin)
+nouveauSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 {
     static Bool setupDone = FALSE;
 

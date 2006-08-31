@@ -24,19 +24,19 @@
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 AM_CFLAGS = @XORG_CFLAGS@
-nv_drv_la_LTLIBRARIES = nv_drv.la
-nv_drv_la_LDFLAGS = -module -avoid-version
-nv_drv_ladir = @moduledir@/drivers
+nouveau_drv_la_LTLIBRARIES = nouveau_drv.la
+nouveau_drv_la_LDFLAGS = -module -avoid-version
+nouveau_drv_ladir = @moduledir@/drivers
 
-nv_drv_la_SOURCES = \
-	 nv_bios.c \
+nouveau_drv_la_SOURCES = \
+         nv_bios.c \
          nv_const.h \
          nv_cursor.c \
          nv_dac.c \
-	 nv_dma.c \
+         nv_dma.c \
          nv_dma.h \
-	 nv_dri.c \
-	 nv_exa.c \
+         nv_dri.c \
+         nv_exa.c \
          nv_driver.c \
          nv_hw.c \
          nv_include.h \
@@ -50,23 +50,23 @@ nv_drv_la_SOURCES = \
          nv_video.c \
          nv_xaa.c
 
-riva128_la_LTLIBRARIES = riva128.la
-riva128_la_LDFLAGS = -module -avoid-version
-riva128_ladir = @moduledir@/drivers
+#riva128_la_LTLIBRARIES = riva128.la
+#riva128_la_LDFLAGS = -module -avoid-version
+#riva128_ladir = @moduledir@/drivers
 
-riva128_la_SOURCES = \
-         riva_const.h \
-         riva_cursor.c \
-         riva_dac.c \
-         riva_dga.c \
-         riva_driver.c \
-         riva_hw.c \
-         riva_hw.h \
-         riva_include.h \
-         riva_local.h \
-         riva_proto.h \
-         riva_setup.c \
-         riva_shadow.c \
-         riva_tbl.h \
-         riva_type.h \
-         riva_xaa.c
+#riva128_la_SOURCES = \
+#         riva_const.h \
+#         riva_cursor.c \
+#         riva_dac.c \
+#         riva_dga.c \
+#         riva_driver.c \
+#         riva_hw.c \
+#         riva_hw.h \
+#         riva_include.h \
+#         riva_local.h \
+#         riva_proto.h \
+#         riva_setup.c \
+#         riva_shadow.c \
+#         riva_tbl.h \
+#         riva_type.h \
+#         riva_xaa.c

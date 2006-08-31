@@ -4,8 +4,8 @@
 #define __NV_CONST_H__
 
 #define NV_VERSION 4000
-#define NV_NAME "NV"
-#define NV_DRIVER_NAME "nv"
+#define NV_NAME "NOUVEAU"
+#define NV_DRIVER_NAME "nouveau"
 
 #endif /* __NV_CONST_H__ */
           

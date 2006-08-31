@@ -21,10 +21,10 @@
 # Process this file with autoconf to produce a configure script
 
 AC_PREREQ(2.57)
-AC_INIT([xf86-video-nv],
+AC_INIT([xf86-video-nouveau],
         1.2.0,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
-        xf86-video-nv)
+        xf86-video-nouveau)
 
 AC_DEFINE_UNQUOTED([NV_MAJOR_VERSION],
                    [$(echo $PACKAGE_VERSION | sed -e 's/^\([[0-9]]\)\.[[0-9]]\.[[0-9]]/\1/')],
@@ -85,7 +85,7 @@ AC_SUBST([CFLAGS])
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([moduledir])
 
-DRIVER_NAME=nv
+DRIVER_NAME=nouveau
 AC_SUBST([DRIVER_NAME])
 
 XORG_MANPAGE_SECTIONS
