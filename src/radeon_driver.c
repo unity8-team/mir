@@ -136,6 +136,9 @@ static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode);
 static void RADEONForceSomeClocks(ScrnInfoPtr pScrn);
 static void RADEONUpdatePanelSize(ScrnInfoPtr pScrn);
 static void RADEONSaveMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+static xf86MonPtr RADEONProbeDDC(ScrnInfoPtr pScrn, int indx);
+static RADEONMonitorType RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac);
+  
 
 #ifdef XF86DRI
 static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
@@ -958,6 +961,8 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
     RADEONMonitorType MonType = MT_NONE;
     xf86MonPtr* MonInfo = &port->MonInfo;
     int i, j;
+    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+    int vbeProbe = FALSE;
 
     DDCReg = info->DDCReg;
     switch(DDCType)
@@ -976,7 +981,9 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
 	break;
     default:
 	info->DDCReg = DDCReg;
+	/* Fall through, can still try ... 
 	return MT_NONE;
+	*/
     }
 
     /* Read and output monitor info using DDC2 over I2C bus */
@@ -1042,6 +1049,15 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
     OUTREG(info->DDCReg, INREG(info->DDCReg) &
 	   ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
 
+    if ((!*MonInfo) && ((port == &pRADEONEnt->PortInfo[0]) ||
+	(RADEONCrtIsPhysicallyConnected(pScrn, !(pRADEONEnt->PortInfo[1].DACType)) 
+	== MT_CRT))) {
+	vbeProbe = TRUE;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VBE DDC probing on port %d ::: \n", 
+	    (port == &pRADEONEnt->PortInfo[0])? 1:2);
+	*MonInfo = RADEONProbeDDC(pScrn, info->pEnt->index);
+    }
+
     if (*MonInfo) {
 	if ((*MonInfo)->rawData[0x14] & 0x80) {
 	    /* Note some laptops have a DVI output that uses internal TMDS,
@@ -1051,14 +1067,32 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
 	     * Also for laptop, when X starts with lid closed (no DVI connection)
 	     * both LDVS and TMDS are disable, we still need to treat it as a LVDS panel.
 	     */
-	    if (port->TMDSType == TMDS_EXT) MonType = MT_DFP;
-	    else {
-		if ((INREG(RADEON_FP_GEN_CNTL) & (1<<7)) || !info->IsMobility)
-		    MonType = MT_DFP;
-		else 
-		    MonType = MT_LCD;
+	    if (vbeProbe && 
+		(RADEONCrtIsPhysicallyConnected(pScrn, !(port->DACType)) == MT_CRT)) {
+	    	    MonType = MT_NONE;
+	    	    *MonInfo = NULL;
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VBE probed DDC info nullified on port %d :::\n", (port == &pRADEONEnt->PortInfo[0])? 1:2);
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CRT physically connected but digital device indicated in DDC\n");
+	    } else {
+		if (port->TMDSType == TMDS_EXT) MonType = MT_DFP;
+	    	else {
+		    if ((INREG(RADEON_FP_GEN_CNTL) & (1<<7)) || !info->IsMobility)
+		    	MonType = MT_DFP;
+		    else 
+		    	MonType = MT_LCD;
+		}
 	    }
-	} else MonType = MT_CRT;
+	} else  {
+	    	if ((RADEONCrtIsPhysicallyConnected(pScrn, 
+		    !(pRADEONEnt->PortInfo[1].DACType)) == MT_CRT) && vbeProbe && 
+		    (info->HasCRTC2) && (port == &pRADEONEnt->PortInfo[0])) {
+	    	    MonType = MT_NONE;
+	    	    *MonInfo = NULL;
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "DDC info nullified on port 1 :::\n");
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Analog device indicated in DDC but port 2 CRT physically connected\n");
+		} else
+	    	    MonType = MT_CRT;
+	}
     } else MonType = MT_NONE;
 
     info->DDCReg = DDCReg;
@@ -1082,6 +1116,7 @@ RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac)
     if(IsCrtDac) {
 	unsigned long ulOrigVCLK_ECP_CNTL;
 	unsigned long ulOrigDAC_CNTL;
+	unsigned long ulOrigDAC_MACRO_CNTL;
 	unsigned long ulOrigDAC_EXT_CNTL;
 	unsigned long ulOrigCRTC_EXT_CNTL;
 	unsigned long ulData;
@@ -1116,11 +1151,21 @@ RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac)
 	OUTREG(RADEON_DAC_EXT_CNTL, ulData);
 
 	ulOrigDAC_CNTL     = INREG(RADEON_DAC_CNTL);
+
+	if (ulOrigDAC_CNTL & RADEON_DAC_PDWN) {
+	    /* turn on power so testing can go through */
+	    ulOrigDAC_MACRO_CNTL = INREG(RADEON_DAC_MACRO_CNTL);
+	    ulOrigDAC_MACRO_CNTL &= ~(RADEON_DAC_PDWN_R | RADEON_DAC_PDWN_G |
+		RADEON_DAC_PDWN_B);
+	    OUTREG(RADEON_DAC_MACRO_CNTL, ulOrigDAC_MACRO_CNTL);
+	}
+
 	ulData             = ulOrigDAC_CNTL;
 	ulData            |= RADEON_DAC_CMP_EN;
 	ulData            &= ~(RADEON_DAC_RANGE_CNTL_MASK
 			       | RADEON_DAC_PDWN);
 	ulData            |= 0x2;
+
 	OUTREG(RADEON_DAC_CNTL, ulData);
 
 	usleep(10000);
@@ -1135,6 +1180,18 @@ RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac)
 	OUTREG(RADEON_DAC_CNTL,      ulOrigDAC_CNTL     );
 	OUTREG(RADEON_DAC_EXT_CNTL,  ulOrigDAC_EXT_CNTL );
 	OUTREG(RADEON_CRTC_EXT_CNTL, ulOrigCRTC_EXT_CNTL);
+
+	if (!bConnected) {
+	    /* Power DAC down if CRT is not connected */
+            ulOrigDAC_MACRO_CNTL = INREG(RADEON_DAC_MACRO_CNTL);
+            ulOrigDAC_MACRO_CNTL |= (RADEON_DAC_PDWN_R | RADEON_DAC_PDWN_G |
+	    	RADEON_DAC_PDWN_B);
+            OUTREG(RADEON_DAC_MACRO_CNTL, ulOrigDAC_MACRO_CNTL);
+
+	    ulData     = INREG(RADEON_DAC_CNTL);
+	    ulData     |= RADEON_DAC_PDWN ;
+	    OUTREG(RADEON_DAC_CNTL, ulData);
+    	}
     } else { /* TV DAC */
 
         /* This doesn't seem to work reliably (maybe worse on some OEM cards),
@@ -1284,7 +1341,6 @@ RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac)
 	}
 #endif
     }
-
     return(bConnected ? MT_CRT : MT_NONE);
 }
 
@@ -1694,9 +1750,12 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
     if (info->ChipFamily == CHIP_FAMILY_RV100 && !info->HasCRTC2) {
         /* Avoid RN50 corruption due to memory bandwidth starvation.
          * 18 is an empirical value based on the databook and Windows driver.
-        */
+         *
+         * Empirical value changed to 24 to raise pixel clock limit and
+         * allow higher resolution modes on capable monitors.
+         */
         pll->max_pll_freq = min(pll->max_pll_freq,
-                               18 * info->mclk * 100 / pScrn->bitsPerPixel *
+                               24 * info->mclk * 100 / pScrn->bitsPerPixel *
                                info->RamWidth / 16);
     }
 
@@ -1830,7 +1889,9 @@ static BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 	pRADEONEnt->PortInfo[i].ConnectorType = CONNECTOR_NONE;
     }
 
-    if (!RADEONGetConnectorInfoFromBIOS(pScrn)) {
+    if (!RADEONGetConnectorInfoFromBIOS(pScrn) ||
+	((pRADEONEnt->PortInfo[0].DDCType == 0) &&
+	(pRADEONEnt->PortInfo[1].DDCType == 0))) {
 	/* Below is the most common setting, but may not be true */
 	pRADEONEnt->PortInfo[0].MonType = MT_UNKNOWN;
 	pRADEONEnt->PortInfo[0].MonInfo = NULL;
@@ -3145,7 +3206,8 @@ static void RADEONSortModes(DisplayModePtr *new, DisplayModePtr *first,
 
     p = *last;
     while (p) {
-	if ((((*new)->HDisplay < p->HDisplay) &&
+	if (((*new)->HDisplay < p->HDisplay) ||
+	    (((*new)->HDisplay == p->HDisplay) &&
 	     ((*new)->VDisplay < p->VDisplay)) ||
 	    (((*new)->HDisplay == p->HDisplay) &&
 	     ((*new)->VDisplay == p->VDisplay) &&
@@ -3682,89 +3744,162 @@ static Bool RADEONPreInitGamma(ScrnInfoPtr pScrn)
 
 static void RADEONSetSyncRangeFromEdid(ScrnInfoPtr pScrn, int flag)
 {
-    MonPtr      mon = pScrn->monitor;
-    xf86MonPtr  ddc = mon->DDC;
-    int         i;
+    MonPtr monitor = pScrn->monitor;
+    xf86MonPtr DDC = (xf86MonPtr)(pScrn->monitor->DDC);
+    int i, j;
+    float hmin = 1e6, hmax = 0.0, vmin = 1e6, vmax = 0.0;
+    float h, v;
+    struct std_timings *t;
+    struct detailed_timings *dt;
+    struct monitor_ranges *mon_range = NULL;
+    int numTimings = 0;
+    range hsync[MAX_HSYNC];
+    range vrefresh[MAX_VREFRESH];
 
-    if (flag) { /* HSync */
-	for (i = 0; i < 4; i++) {
-	    if (ddc->det_mon[i].type == DS_RANGES) {
-		mon->nHsync = 1;
-		mon->hsync[0].lo = ddc->det_mon[i].section.ranges.min_h;
-		mon->hsync[0].hi = ddc->det_mon[i].section.ranges.max_h;
-		return;
+    numTimings = 0;
+
+    if (flag) { /* Hsync */
+	for (i = 0; i < DET_TIMINGS; i++) {
+	    switch (DDC->det_mon[i].type) {
+	    case DS_RANGES:
+		mon_range = &DDC->det_mon[i].section.ranges;
+		hsync[numTimings].lo = mon_range->min_h;
+		hsync[numTimings].hi = mon_range->max_h;
+		numTimings++;
+		break;
+
+	    case DS_STD_TIMINGS:
+		t = DDC->det_mon[i].section.std_t;
+		for (j = 0; j < 5; j++) {
+		    if (t[j].hsize > 256) { /* sanity check */
+			h = t[j].refresh * 1.07 * t[j].vsize / 1000.0;
+			if (h < hmin)
+			    hmin = h;
+			if (h > hmax)
+			    hmax = h;
+		    }
+		}
+		break;
+
+	    case DT:
+		dt = &DDC->det_mon[i].section.d_timings;
+		if (dt->clock > 15000000) { /* sanity check */
+		    h = (float)dt->clock / (dt->h_active + dt->h_blanking);
+		    h /= 1000.0;
+		    if (h < hmin)
+			hmin = h;
+		    if (h > hmax)
+			hmax = h;
+		}
+		break;
+	    }
+
+	    if (numTimings > MAX_HSYNC)
+		break;
+	}
+
+	if (numTimings == 0) {
+	    t = DDC->timings2;
+	    for (i = 0; i < STD_TIMINGS; i++) {
+		if (t[i].hsize > 256) { /* sanity check */
+		    h = t[i].refresh * 1.07 * t[i].vsize / 1000.0;
+		    if (h < hmin)
+			hmin = h;
+		    if (h > hmax)
+			hmax = h;
+		}
+	    }
+
+	    if (hmax > 0.0) {
+		hsync[numTimings].lo = hmin;
+		hsync[numTimings].hi = hmax;
+		numTimings++;
 	    }
 	}
-	/* If no sync ranges detected in detailed timing table, let's
-	 * try to derive them from supported VESA modes.  Are we doing
-	 * too much here!!!?  */
-	i = 0;
-	if (ddc->timings1.t1 & 0x02) { /* 800x600@56 */
-	    mon->hsync[i].lo = mon->hsync[i].hi = 35.2;
-	    i++;
+
+	if (numTimings > 0) {
+	    monitor->nHsync = numTimings;
+	    for (i = 0; i < numTimings; i++) {
+	    	monitor->hsync[i].lo = hsync[i].lo;
+	    	monitor->hsync[i].hi = hsync[i].hi;
+	    }
+	} else {
+	    pScrn->monitor->hsync[0].lo = 28;
+            pScrn->monitor->hsync[0].hi = 60;
+            monitor->nHsync = 1;
 	}
-	if (ddc->timings1.t1 & 0x04) { /* 640x480@75 */
-	    mon->hsync[i].lo = mon->hsync[i].hi = 37.5;
-	    i++;
-	}
-	if ((ddc->timings1.t1 & 0x08) || (ddc->timings1.t1 & 0x01)) {
-	    mon->hsync[i].lo = mon->hsync[i].hi = 37.9;
-	    i++;
-	}
-	if (ddc->timings1.t2 & 0x40) {
-	    mon->hsync[i].lo = mon->hsync[i].hi = 46.9;
-	    i++;
-	}
-	if ((ddc->timings1.t2 & 0x80) || (ddc->timings1.t2 & 0x08)) {
-	    mon->hsync[i].lo = mon->hsync[i].hi = 48.1;
-	    i++;
-	}
-	if (ddc->timings1.t2 & 0x04) {
-	    mon->hsync[i].lo = mon->hsync[i].hi = 56.5;
-	    i++;
-	}
-	if (ddc->timings1.t2 & 0x02) {
-	    mon->hsync[i].lo = mon->hsync[i].hi = 60.0;
-	    i++;
-	}
-	if (ddc->timings1.t2 & 0x01) {
-	    mon->hsync[i].lo = mon->hsync[i].hi = 64.0;
-	    i++;
-	}
-	mon->nHsync = i;
+
     } else {  /* Vrefresh */
-	for (i = 0; i < 4; i++) {
-	    if (ddc->det_mon[i].type == DS_RANGES) {
-		mon->nVrefresh = 1;
-		mon->vrefresh[0].lo = ddc->det_mon[i].section.ranges.min_v;
-		mon->vrefresh[0].hi = ddc->det_mon[i].section.ranges.max_v;
-		return;
+	for (i = 0; i < DET_TIMINGS; i++) {
+	    switch (DDC->det_mon[i].type) {
+	    case DS_RANGES:
+		mon_range = &DDC->det_mon[i].section.ranges;
+		vrefresh[numTimings].lo = mon_range->min_v;
+		vrefresh[numTimings].hi = mon_range->max_v;
+		numTimings++;
+		break;
+
+	    case DS_STD_TIMINGS:
+		t = DDC->det_mon[i].section.std_t;
+		for (j = 0; j < 5; j++) {
+		    if (t[j].hsize > 256) { /* sanity check */
+			if (t[j].refresh < vmin)
+			    vmin = t[i].refresh;
+			if (t[j].refresh > vmax)
+			    vmax = t[i].refresh;
+		    }
+		}
+		break;
+
+	    case DT:
+		dt = &DDC->det_mon[i].section.d_timings;
+		if (dt->clock > 15000000) { /* sanity check */
+		    h = (float)dt->clock / (dt->h_active + dt->h_blanking);
+		    v = h / (dt->v_active + dt->v_blanking);
+		    if (dt->interlaced) 
+			v /= 2.0;
+
+		    if (v < vmin)
+			vmin = v;
+		    if (v > vmax)
+			vmax = v;
+		}
+		break;
+	    }
+
+	    if (numTimings > MAX_HSYNC)
+		break;
+	}
+
+	if (numTimings == 0) {
+	    t = DDC->timings2;
+	    for (i = 0; i < STD_TIMINGS; i++) {
+		if (t[i].hsize > 256) { /* sanity check */
+		    if (t[i].refresh < vmin)
+			vmin = t[i].refresh;
+		    if (t[i].refresh > vmax)
+			vmax = t[i].refresh;
+		}
+	    }
+
+	    if (vmax > 0.0) {
+		vrefresh[numTimings].lo = vmin;
+		vrefresh[numTimings].hi = vmax;
+		numTimings++;
 	    }
 	}
 
-	i = 0;
-	if (ddc->timings1.t1 & 0x02) { /* 800x600@56 */
-	    mon->vrefresh[i].lo = mon->vrefresh[i].hi = 56;
-	    i++;
+	if (numTimings > 0) {
+	    monitor->nVrefresh = numTimings;
+	    for (i = 0; i < numTimings; i++) {
+		monitor->vrefresh[i].lo = vrefresh[i].lo;
+		monitor->vrefresh[i].hi = vrefresh[i].hi;
+	    }
+	 } else {
+	    pScrn->monitor->vrefresh[0].lo = 43;
+            pScrn->monitor->vrefresh[0].hi = 72;
+            monitor->nVrefresh = 1;
 	}
-	if ((ddc->timings1.t1 & 0x01) || (ddc->timings1.t2 & 0x08)) {
-	    mon->vrefresh[i].lo = mon->vrefresh[i].hi = 60;
-	    i++;
-	}
-	if (ddc->timings1.t2 & 0x04) {
-	    mon->vrefresh[i].lo = mon->vrefresh[i].hi = 70;
-	    i++;
-	}
-	if ((ddc->timings1.t1 & 0x08) || (ddc->timings1.t2 & 0x80)) {
-	    mon->vrefresh[i].lo = mon->vrefresh[i].hi = 72;
-	    i++;
-	}
-	if ((ddc->timings1.t1 & 0x04) || (ddc->timings1.t2 & 0x40) ||
-	    (ddc->timings1.t2 & 0x02) || (ddc->timings1.t2 & 0x01)) {
-	    mon->vrefresh[i].lo = mon->vrefresh[i].hi = 75;
-	    i++;
-	}
-	mon->nVrefresh = i;
     }
 }
 
@@ -3940,6 +4075,9 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
     int            modesFound;
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     char           *s;
+    DisplayModePtr	first = NULL;
+    DisplayModePtr 	last = NULL;
+    DisplayModePtr 	start, mp;
 
     /* This option has two purposes:
      *
@@ -4222,6 +4360,29 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 			   modesFound);
 	    }
 	}
+    }
+
+    /* Sort the modes, retain the first */
+    if (pScrn->modes && (start = pScrn->modes->next)) {
+       for (mp = start; mp->next != pScrn->modes; mp = mp->next) {
+           DisplayModePtr 	new = NULL;
+
+           new = xnfcalloc(1, sizeof (DisplayModeRec));
+           memcpy(new, mp, sizeof (DisplayModeRec));
+           new->name = strdup(mp->name);
+           RADEONSortModes(&new, &first, &last);
+       }
+
+       if (last && first) {
+           pScrn->modes->next = first;
+           pScrn->modes->prev = last;
+           first->prev = pScrn->modes;
+           /* Make the list circular */
+           last->next = pScrn->modes;
+
+           for (mp = start; mp->next != pScrn->modes; mp = mp->next) 
+	       xf86DeleteMode(&start, mp);
+       }
     }
 
     pScrn->currentMode = pScrn->modes;
@@ -4785,15 +4946,18 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-static void
+static xf86MonPtr
 RADEONProbeDDC(ScrnInfoPtr pScrn, int indx)
 {
     vbeInfoPtr  pVbe;
+    xf86MonPtr monitor;
 
     if (xf86LoadSubModule(pScrn, "vbe")) {
 	pVbe = VBEInit(NULL,indx);
-	ConfiguredMonitor = vbeDoEDID(pVbe, NULL);
-    }
+	monitor = vbeDoEDID(pVbe, NULL);
+	return (monitor);
+    } else
+	return (NULL);
 }
 
 _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
@@ -4886,7 +5050,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     }
 
     if (flags & PROBE_DETECT) {
-	RADEONProbeDDC(pScrn, info->pEnt->index);
+	ConfiguredMonitor = RADEONProbeDDC(pScrn, info->pEnt->index);
 	RADEONPostInt10Check(pScrn, int10_save);
 	if(info->MMIO) RADEONUnmapMMIO(pScrn);
 	return TRUE;

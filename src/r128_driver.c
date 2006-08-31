@@ -1529,126 +1529,165 @@ static Bool R128GetDFPInfo(ScrnInfoPtr pScrn)
 
 static void R128SetSyncRangeFromEdid(ScrnInfoPtr pScrn, int flag)
 {
-    int i;
-    xf86MonPtr ddc = pScrn->monitor->DDC;
-    if(flag)  /*HSync*/
-    {
-        for(i=0; i<4; i++)
-        {
-            if(ddc->det_mon[i].type == DS_RANGES)
-            {
-                pScrn->monitor->nHsync = 1;
-                pScrn->monitor->hsync[0].lo =
-                    ddc->det_mon[i].section.ranges.min_h;
-                pScrn->monitor->hsync[0].hi =
-                    ddc->det_mon[i].section.ranges.max_h;
-                return;
-            }
-        }
-        /*if no sync ranges detected in detailed timing table,
-          let's try to derive them from supported VESA modes
-          Are we doing too much here!!!?
-        **/
-        i = 0;
-        if(ddc->timings1.t1 & 0x02) /*800x600@56*/
-        {
-            pScrn->monitor->hsync[i].lo =
-                pScrn->monitor->hsync[i].hi = 35.2;
-            i++;
-        }
-        if(ddc->timings1.t1 & 0x04) /*640x480@75*/
-        {
-            pScrn->monitor->hsync[i].lo =
-                pScrn->monitor->hsync[i].hi = 37.5;
-            i++;
-        }
-        if((ddc->timings1.t1 & 0x08) || (ddc->timings1.t1 & 0x01))
-        {
-            pScrn->monitor->hsync[i].lo =
-                pScrn->monitor->hsync[i].hi = 37.9;
-            i++;
-        }
-        if(ddc->timings1.t2 & 0x40)
-        {
-            pScrn->monitor->hsync[i].lo =
-                pScrn->monitor->hsync[i].hi = 46.9;
-            i++;
-        }
-        if((ddc->timings1.t2 & 0x80) || (ddc->timings1.t2 & 0x08))
-        {
-            pScrn->monitor->hsync[i].lo =
-                pScrn->monitor->hsync[i].hi = 48.1;
-            i++;
-        }
-        if(ddc->timings1.t2 & 0x04)
-        {
-            pScrn->monitor->hsync[i].lo =
-                pScrn->monitor->hsync[i].hi = 56.5;
-            i++;
-        }
-        if(ddc->timings1.t2 & 0x02)
-        {
-            pScrn->monitor->hsync[i].lo =
-                pScrn->monitor->hsync[i].hi = 60.0;
-            i++;
-        }
-        if(ddc->timings1.t2 & 0x01)
-        {
-            pScrn->monitor->hsync[i].lo =
-                pScrn->monitor->hsync[i].hi = 64.0;
-            i++;
-        }
-        pScrn->monitor->nHsync = i;
-    }
-    else      /*Vrefresh*/
-    {
-        for(i=0; i<4; i++)
-        {
-            if(ddc->det_mon[i].type == DS_RANGES)
-            {
-                pScrn->monitor->nVrefresh = 1;
-                pScrn->monitor->vrefresh[0].lo =
-                    ddc->det_mon[i].section.ranges.min_v;
-                pScrn->monitor->vrefresh[0].hi =
-                    ddc->det_mon[i].section.ranges.max_v;
-                return;
-            }
-        }
-        i = 0;
-        if(ddc->timings1.t1 & 0x02) /*800x600@56*/
-        {
-            pScrn->monitor->vrefresh[i].lo =
-                pScrn->monitor->vrefresh[i].hi = 56;
-            i++;
-        }
-        if((ddc->timings1.t1 & 0x01) || (ddc->timings1.t2 & 0x08))
-        {
-            pScrn->monitor->vrefresh[i].lo =
-                pScrn->monitor->vrefresh[i].hi = 60;
-            i++;
-        }
-        if(ddc->timings1.t2 & 0x04)
-        {
-            pScrn->monitor->vrefresh[i].lo =
-                pScrn->monitor->vrefresh[i].hi = 70;
-            i++;
-        }
-        if((ddc->timings1.t1 & 0x08) || (ddc->timings1.t2 & 0x80))
-        {
-            pScrn->monitor->vrefresh[i].lo =
-                pScrn->monitor->vrefresh[i].hi = 72;
-            i++;
-        }
-        if((ddc->timings1.t1 & 0x04) || (ddc->timings1.t2 & 0x40)
-           || (ddc->timings1.t2 & 0x02) || (ddc->timings1.t2 & 0x01))
-        {
-            pScrn->monitor->vrefresh[i].lo =
-                pScrn->monitor->vrefresh[i].hi = 75;
-            i++;
-        }
-        pScrn->monitor->nVrefresh = i;
+    MonPtr monitor = pScrn->monitor;
+    xf86MonPtr DDC = (xf86MonPtr)(pScrn->monitor->DDC);
+    int i, j;
+    float hmin = 1e6, hmax = 0.0, vmin = 1e6, vmax = 0.0;
+    float h, v;
+    struct std_timings *t;
+    struct detailed_timings *dt;
+    struct monitor_ranges *mon_range = NULL;
+    int numTimings = 0;
+    range hsync[MAX_HSYNC];
+    range vrefresh[MAX_VREFRESH];
+
+    numTimings = 0;
+
+    if (flag) { /* Hsync */
+	for (i = 0; i < DET_TIMINGS; i++) {
+	    switch (DDC->det_mon[i].type) {
+	    case DS_RANGES:
+		mon_range = &DDC->det_mon[i].section.ranges;
+		hsync[numTimings].lo = mon_range->min_h;
+		hsync[numTimings].hi = mon_range->max_h;
+		numTimings++;
+		break;
+
+	    case DS_STD_TIMINGS:
+		t = DDC->det_mon[i].section.std_t;
+		for (j = 0; j < 5; j++) {
+		    if (t[j].hsize > 256) { /* sanity check */
+			h = t[j].refresh * 1.07 * t[j].vsize / 1000.0;
+			if (h < hmin)
+			    hmin = h;
+			if (h > hmax)
+			    hmax = h;
+		    }
+		}
+		break;
+
+	    case DT:
+		dt = &DDC->det_mon[i].section.d_timings;
+		if (dt->clock > 15000000) { /* sanity check */
+		    h = (float)dt->clock / (dt->h_active + dt->h_blanking);
+		    h /= 1000.0;
+		    if (h < hmin)
+			hmin = h;
+		    if (h > hmax)
+			hmax = h;
+		}
+		break;
+	    }
+
+	    if (numTimings > MAX_HSYNC)
+		break;
+	}
+
+	if (numTimings == 0) {
+	    t = DDC->timings2;
+	    for (i = 0; i < STD_TIMINGS; i++) {
+		if (t[i].hsize > 256) { /* sanity check */
+		    h = t[i].refresh * 1.07 * t[i].vsize / 1000.0;
+		    if (h < hmin)
+			hmin = h;
+		    if (h > hmax)
+			hmax = h;
+		}
+	    }
+
+	    if (hmax > 0.0) {
+		hsync[numTimings].lo = hmin;
+		hsync[numTimings].hi = hmax;
+		numTimings++;
+	    }
+	}
+
+	if (numTimings > 0) {
+	    monitor->nHsync = numTimings;
+	    for (i = 0; i < numTimings; i++) {
+	    	monitor->hsync[i].lo = hsync[i].lo;
+	    	monitor->hsync[i].hi = hsync[i].hi;
+	    }
+	} else {
+	    pScrn->monitor->hsync[0].lo = 28;
+            pScrn->monitor->hsync[0].hi = 60;
+            monitor->nHsync = 1;
+	}
+
+    } else {  /* Vrefresh */
+	for (i = 0; i < DET_TIMINGS; i++) {
+	    switch (DDC->det_mon[i].type) {
+	    case DS_RANGES:
+		mon_range = &DDC->det_mon[i].section.ranges;
+		vrefresh[numTimings].lo = mon_range->min_v;
+		vrefresh[numTimings].hi = mon_range->max_v;
+		numTimings++;
+		break;
+
+	    case DS_STD_TIMINGS:
+		t = DDC->det_mon[i].section.std_t;
+		for (j = 0; j < 5; j++) {
+		    if (t[j].hsize > 256) { /* sanity check */
+			if (t[j].refresh < vmin)
+			    vmin = t[i].refresh;
+			if (t[j].refresh > vmax)
+			    vmax = t[i].refresh;
+		    }
+		}
+		break;
+
+	    case DT:
+		dt = &DDC->det_mon[i].section.d_timings;
+		if (dt->clock > 15000000) { /* sanity check */
+		    h = (float)dt->clock / (dt->h_active + dt->h_blanking);
+		    v = h / (dt->v_active + dt->v_blanking);
+		    if (dt->interlaced) 
+			v /= 2.0;
+
+		    if (v < vmin)
+			vmin = v;
+		    if (v > vmax)
+			vmax = v;
+		}
+		break;
+	    }
+
+	    if (numTimings > MAX_HSYNC)
+		break;
+	}
+
+	if (numTimings == 0) {
+	    t = DDC->timings2;
+	    for (i = 0; i < STD_TIMINGS; i++) {
+		if (t[i].hsize > 256) { /* sanity check */
+		    if (t[i].refresh < vmin)
+			vmin = t[i].refresh;
+		    if (t[i].refresh > vmax)
+			vmax = t[i].refresh;
+		}
+	    }
+
+	    if (vmax > 0.0) {
+		vrefresh[numTimings].lo = vmin;
+		vrefresh[numTimings].hi = vmax;
+		numTimings++;
+	    }
+	}
+
+	if (numTimings > 0) {
+	    monitor->nVrefresh = numTimings;
+	    for (i = 0; i < numTimings; i++) {
+		monitor->vrefresh[i].lo = vrefresh[i].lo;
+		monitor->vrefresh[i].hi = vrefresh[i].hi;
+	    }
+	 } else {
+	    pScrn->monitor->vrefresh[0].lo = 43;
+            pScrn->monitor->vrefresh[0].hi = 72;
+            monitor->nVrefresh = 1;
+	}
     }
 }
+
 
 /***********
    xfree's xf86ValidateModes routine deosn't work well with DFPs
