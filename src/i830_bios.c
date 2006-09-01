@@ -210,7 +210,13 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 	    pI830->panel_fixed_vblank = _V_BLANK(timing_ptr);
 	    pI830->panel_fixed_vsyncoff = _V_SYNC_OFF(timing_ptr);
 	    pI830->panel_fixed_vsyncwidth = _V_SYNC_WIDTH(timing_ptr);
-
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Panel mode h active %d blank %d rate %f v active %d blank %d rate %f\n",
+		       pI830->panel_fixed_hactive, pI830->panel_fixed_hblank,
+		       (double) pI830->panel_fixed_clock / (pI830->panel_fixed_hactive + pI830->panel_fixed_hblank),
+		       pI830->panel_fixed_vactive, pI830->panel_fixed_vblank,
+		       (double) pI830->panel_fixed_clock / 
+		       ((pI830->panel_fixed_hactive + pI830->panel_fixed_hblank) * (pI830->panel_fixed_vactive + pI830->panel_fixed_vblank)));
 	    found_panel_info = TRUE;
 	    break;
 	}
