@@ -49,6 +49,9 @@ AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 AC_PROG_CC
 
+AC_CHECK_PROG(gen4asm, [intel-gen4asm], yes, no)
+AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
+
 AH_TOP([#include "xorg-server.h"])
 
 AC_ARG_WITH(xorg-module-dir,
