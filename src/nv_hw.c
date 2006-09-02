@@ -1217,6 +1217,8 @@ void NVLoadStateExt (
               if((pNv->Chipset & 0xfff0) == CHIPSET_NV40) {
                  nvWriteGRAPH(pNv, 0x09A4, nvReadFB(pNv, NV_FB_CFG0));
                  nvWriteGRAPH(pNv, 0x09A8, nvReadFB(pNv, NV_FB_CFG1));
+                 nvWriteGRAPH(pNv, 0x69A4, nvReadFB(pNv, NV_FB_CFG0));
+                 nvWriteGRAPH(pNv, 0x69A8, nvReadFB(pNv, NV_FB_CFG1));
 
                  nvWriteGRAPH(pNv, 0x0820, 0);
                  nvWriteGRAPH(pNv, 0x0824, 0);
