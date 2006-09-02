@@ -1324,6 +1324,10 @@ void NVLoadStateExt (
 
     nvWriteVGA(pNv, 0x30, state->cursor0);
     nvWriteVGA(pNv, 0x31, state->cursor1);
+    if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
+       volatile CARD32 curpos = nvReadCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS);
+       nvWriteCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS, curpos);
+    }
     nvWriteVGA(pNv, 0x2F, state->cursor2);
     nvWriteVGA(pNv, 0x39, state->interlace);
 
