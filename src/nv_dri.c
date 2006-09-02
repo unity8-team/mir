@@ -6,6 +6,29 @@
 #include "xf86drm.h"
 #include "dri.h"
 
+Bool NVDRMSetParam(NVPtr pNv, unsigned int param, unsigned int value)
+{
+	drm_nouveau_setparam_t setparam;
+	int ret;
+
+	setparam.param = param;
+	setparam.value = value;
+	ret = drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_SETPARAM, &setparam,
+			sizeof(setparam));
+	if (ret)
+		return FALSE;
+	return TRUE;
+}
+
+unsigned int NVDRMGetParam(NVPtr pNv, unsigned int param)
+{
+	drm_nouveau_getparam_t getparam;
+
+	getparam.param = param;
+	drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_GETPARAM, &getparam, sizeof(getparam));
+
+	return getparam.value;
+}
 
 static Bool NVCreateContext(ScreenPtr pScreen, VisualPtr visual,
 		drm_context_t hwContext, void *pVisualConfigPriv,

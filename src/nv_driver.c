@@ -488,38 +488,6 @@ static XF86ModuleVersionInfo nouveauVersRec =
 _X_EXPORT XF86ModuleData nouveauModuleData = { &nouveauVersRec, nouveauSetup, NULL };
 
 
-typedef enum {
-    OPTION_SW_CURSOR,
-    OPTION_HW_CURSOR,
-    OPTION_NOACCEL,
-    OPTION_SHADOW_FB,
-    OPTION_ROTATE,
-    OPTION_VIDEO_KEY,
-    OPTION_FLAT_PANEL,
-    OPTION_FP_DITHER,
-    OPTION_CRTC_NUMBER,
-    OPTION_FP_SCALE,
-    OPTION_FP_TWEAK,
-    OPTION_ACCELMETHOD
-} NVOpts;
-
-
-static const OptionInfoRec NVOptions[] = {
-    { OPTION_SW_CURSOR,         "SWcursor",     OPTV_BOOLEAN,   {0}, FALSE },
-    { OPTION_HW_CURSOR,         "HWcursor",     OPTV_BOOLEAN,   {0}, FALSE },
-    { OPTION_NOACCEL,           "NoAccel",      OPTV_BOOLEAN,   {0}, FALSE },
-    { OPTION_SHADOW_FB,         "ShadowFB",     OPTV_BOOLEAN,   {0}, FALSE },
-    { OPTION_ROTATE,		"Rotate",	OPTV_ANYSTR,	{0}, FALSE },
-    { OPTION_VIDEO_KEY,		"VideoKey",	OPTV_INTEGER,	{0}, FALSE },
-    { OPTION_FLAT_PANEL,	"FlatPanel",	OPTV_BOOLEAN,	{0}, FALSE },
-    { OPTION_FP_DITHER, 	"FPDither",	OPTV_BOOLEAN,	{0}, FALSE },
-    { OPTION_CRTC_NUMBER,	"CrtcNumber",	OPTV_INTEGER,	{0}, FALSE },
-    { OPTION_FP_SCALE,          "FPScale",      OPTV_BOOLEAN,   {0}, FALSE },
-    { OPTION_FP_TWEAK,          "FPTweak",      OPTV_INTEGER,   {0}, FALSE },
-    { OPTION_ACCELMETHOD,	 "AccelMethod",	OPTV_STRING,	{0}, FALSE },
-    { -1,                       NULL,           OPTV_NONE,      {0}, FALSE }
-};
-
 /*
  * This is intentionally screen-independent.  It indicates the binding
  * choice made in the first PreInit.

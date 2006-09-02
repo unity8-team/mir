@@ -11,6 +11,9 @@ NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size);
 void        NVFreeMemory(NVPtr pNv, NVAllocRec *mem);
 
 #ifdef XF86DRI
+/* in nv_dri.c */
+unsigned int NVDRMGetParam(NVPtr pNv, unsigned int param);
+Bool NVDRMSetParam(NVPtr pNv, unsigned int param, unsigned int value);
 Bool NVInitAGP(ScrnInfoPtr pScrn);
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
 extern const char *drmSymbols[], *driSymbols[];

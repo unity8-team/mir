@@ -329,7 +329,37 @@ void NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
     cto.dma_notifier = dma_notifier;
     drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_OBJECT_INIT, &cto, sizeof(cto));
 }
-                           
+
+static void NVInitDmaCB(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	unsigned int cb_location, cb_size;
+	char *s;
+
+	/* I'm not bothering to check for failures here, the DRM will fall back
+	 * on defaults if anything's wrong (ie. out of AGP, invalid sizes)
+	 */
+#ifndef __powerpc__
+	if (pNv->AGPScratch)
+		cb_location = NOUVEAU_MEM_AGP;
+	else
+#endif
+	cb_location = NOUVEAU_MEM_FB;
+	if((s = (char *)xf86GetOptValString(pNv->Options, OPTION_CMDBUF_LOCATION))) {
+		if(!xf86NameCmp(s, "AGP"))
+			cb_location = NOUVEAU_MEM_AGP;
+		else if (!xf86NameCmp(s, "VRAM"))
+			cb_location = NOUVEAU_MEM_FB;
+		else
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid value \"%s\" for CBLocation\n", s);
+	}
+	NVDRMSetParam(pNv, NOUVEAU_SETPARAM_CMDBUF_LOCATION, cb_location);
+
+	/* CBSize == size of space reserved for *all* FIFOs in MiB */
+	if (xf86GetOptValInteger(pNv->Options, OPTION_CMDBUF_SIZE, &cb_size))
+		NVDRMSetParam(pNv, NOUVEAU_SETPARAM_CMDBUF_SIZE, (cb_size<<20));
+}
+
 Bool NVInitDma(ScrnInfoPtr pScrn)
 {
     NVPtr pNv = NVPTR(pScrn);
@@ -337,6 +367,8 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 
     if (!NVDRIScreenInit(pScrn))
         return FALSE;
+
+	NVInitDmaCB(pScrn);
 
     if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_FIFO_INIT, &pNv->fifo, sizeof(pNv->fifo)) != 0) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Could not initialise kernel module\n");
