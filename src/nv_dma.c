@@ -114,14 +114,20 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
         NVDmaNext(pNv, 0);
     pNv->dmaFree -= SKIPS;
 
+	/* EXA + XAA + Xv */
     NVDmaSetObjectOnSubchannel(pNv, NvSubContextSurfaces, NvContextSurfaces);
-    NVDmaSetObjectOnSubchannel(pNv, NvSubRop            , NvRop            );
-    NVDmaSetObjectOnSubchannel(pNv, NvSubImagePattern   , NvImagePattern   );
-    NVDmaSetObjectOnSubchannel(pNv, NvSubClipRectangle  , NvClipRectangle  );
-    NVDmaSetObjectOnSubchannel(pNv, NvSubSolidLine      , NvSolidLine      );
-    NVDmaSetObjectOnSubchannel(pNv, NvSubImageBlit      , NvImageBlit      );
     NVDmaSetObjectOnSubchannel(pNv, NvSubRectangle      , NvRectangle      );
     NVDmaSetObjectOnSubchannel(pNv, NvSubScaledImage    , NvScaledImage    );
+	/* EXA + XAA */
+    NVDmaSetObjectOnSubchannel(pNv, NvSubRop            , NvRop            );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubImagePattern   , NvImagePattern   );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubImageBlit      , NvImageBlit      );
+	if (pNv->useEXA && pNv->AGPScratch) {
+		NVDmaSetObjectOnSubchannel(pNv, NvSubGraphicsToAGP, NvAGPToGraphics);
+	} else if (!pNv->useEXA) {
+        NVDmaSetObjectOnSubchannel(pNv, NvSubClipRectangle, NvClipRectangle);
+        NVDmaSetObjectOnSubchannel(pNv, NvSubSolidLine    , NvSolidLine    );
+	}
 
     switch(pNv->CurrentLayout.depth) {
     case 24:
@@ -157,8 +163,10 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
     NVDmaStart(pNv, NvSubRectangle, RECT_FORMAT, 1);
     NVDmaNext (pNv, rectFormat);
 
-    NVDmaStart(pNv, NvSubSolidLine, LINE_FORMAT, 1);
-    NVDmaNext (pNv, lineFormat);
+	if (!pNv->useEXA) {
+        NVDmaStart(pNv, NvSubSolidLine, LINE_FORMAT, 1);
+        NVDmaNext (pNv, lineFormat);
+	}
 
     pNv->currentRop = ~0;  /* set to something invalid */
     NVSetRopSolid(pScrn, GXcopy, ~0);
@@ -351,30 +359,11 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "  DMA base PUT      : 0x%08x\n", pNv->fifo.put_base);
 
     NVDmaCreateDMAObject(pNv, NvDmaFB, NV_DMA_TARGET_VIDMEM, 0, pNv->VRAMPhysicalSize, NV_DMA_ACCES_RW);
-    
+   
+	/* EXA + XAA + Xv */
     NVDmaCreateContextObject (pNv, NvContextSurfaces,
                               (pNv->Architecture >= NV_ARCH_10) ? NV10_CONTEXT_SURFACES_2D : NV4_SURFACE,
                               NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
-                              NvDmaFB, NvDmaFB, 0);
-    NVDmaCreateContextObject (pNv, NvRop,
-                              NV_ROP5_SOLID, 
-                              NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
-                              0, 0, 0);
-    NVDmaCreateContextObject (pNv, NvImagePattern,
-                              NV4_IMAGE_PATTERN, 
-                              NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_MONO,
-                              0, 0, 0);
-    NVDmaCreateContextObject (pNv, NvClipRectangle,
-                              NV_IMAGE_BLACK_RECTANGLE, 
-                              NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
-                              0, 0, 0);
-    NVDmaCreateContextObject (pNv, NvSolidLine,
-                              NV4_RENDER_SOLID_LIN, 
-                              NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_CLIP_ENABLE,
-                              0, 0, 0);
-    NVDmaCreateContextObject (pNv, NvImageBlit,
-                              pNv->WaitVSyncPossible ? NV12_IMAGE_BLIT : NV_IMAGE_BLIT,
-                              NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND, 
                               NvDmaFB, NvDmaFB, 0);
     NVDmaCreateContextObject (pNv, NvRectangle,
                               NV4_GDI_RECTANGLE_TEXT, 
@@ -395,9 +384,34 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
                                   NV10_SCALED_IMAGE_FROM_MEMORY, 
                                   NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
                                   NvDmaFB, NvDmaFB, 0);
+	
+	/* EXA + XAA */
+    NVDmaCreateContextObject (pNv, NvRop,
+                              NV_ROP5_SOLID, 
+                              NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
+                              0, 0, 0);
+    NVDmaCreateContextObject (pNv, NvImagePattern,
+                              NV4_IMAGE_PATTERN, 
+                              NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_MONO,
+                              0, 0, 0);
+    NVDmaCreateContextObject (pNv, NvImageBlit,
+                              pNv->WaitVSyncPossible ? NV12_IMAGE_BLIT : NV_IMAGE_BLIT,
+                              NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND, 
+                              NvDmaFB, NvDmaFB, 0);
+
+	if (!pNv->useEXA) {
+        NVDmaCreateContextObject (pNv, NvClipRectangle,
+                                  NV_IMAGE_BLACK_RECTANGLE, 
+                                  NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
+                                  0, 0, 0);
+        NVDmaCreateContextObject (pNv, NvSolidLine,
+                                  NV4_RENDER_SOLID_LIN, 
+                                  NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_CLIP_ENABLE,
+                                  0, 0, 0);
+	}
 
 #ifdef XF86DRI
-    if (NVInitAGP(pScrn) && pNv->AGPScratch) {
+    if (pNv->useEXA && NVInitAGP(pScrn) && pNv->AGPScratch) {
         pNv->Notifier0 = NVDmaCreateNotifier(pNv, NvDmaNotifier0);
 		if (pNv->Notifier0) {
 			NVDmaCreateDMAObject(pNv, NvDmaAGP, NV_DMA_TARGET_AGP,

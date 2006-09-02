@@ -74,16 +74,21 @@ enum DMAObjects {
         NvDmaAGP = 0xD8000002,
         NvDmaNotifier0 = 0xD8000003
 };
+
 enum DMASubchannel {
+/* EXA + XAA + Xv */
         NvSubContextSurfaces = 0, 
-        NvSubRop = 1, 
-        NvSubImagePattern = 2, 
-        NvSubClipRectangle = 3, 
-        NvSubSolidLine = 4, 
+		NvSubRectangle = 1, 
+        NvSubScaledImage = 2, 
+/* EXA + XAA */
+        NvSubRop = 3, 
+        NvSubImagePattern = 4, 
         NvSubImageBlit = 5, 
-        NvSubRectangle = 6, 
-        NvSubScaledImage = 7, 
-        NvSubGraphicsToAGP = 7
+/* EXA */
+        NvSubGraphicsToAGP = 6,
+/* XAA */
+        NvSubClipRectangle = 6, 
+        NvSubSolidLine = 7, 
 };
 
 #define NVDmaNext(pNv, data) {                           \

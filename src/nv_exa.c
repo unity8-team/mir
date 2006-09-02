@@ -230,8 +230,6 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
     max_lines = 65536/dst_pitch + 1;
     line_length = w * (pSrc->drawable.bitsPerPixel >> 3);
 
-    NVDmaSetObjectOnSubchannel(pNv, NvSubGraphicsToAGP, NvGraphicsToAGP);
-    
     NVDEBUG("NVDownloadFromScreen: x=%d, y=%d, w=%d, h=%d\n", x, y, w, h);
     NVDEBUG("    pitch_in=%x dst_pitch=%x offset_in=%x", pitch_in, dst_pitch, offset_in);
     while (h > 0) {
@@ -263,7 +261,6 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
     }
 
 error:
-    NVDmaSetObjectOnSubchannel(pNv, NvSubGraphicsToAGP, NvScaledImage);
     exaMarkSync(pSrc->drawable.pScreen);
     return ret;
 }
@@ -291,8 +288,6 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
     max_lines = 65536/src_pitch + 1;
     line_length = w * (pDst->drawable.bitsPerPixel >> 3);
 
-    NVDmaSetObjectOnSubchannel(pNv, NvSubGraphicsToAGP, NvAGPToGraphics);
-    
     NVDEBUG("NVUploadToScreen: x=%d, y=%d, w=%d, h=%d\n", x, y, w, h);
     while (h > 0) {
         NVDEBUG("     max_lines=%d, h=%d\n", max_lines, h);
@@ -322,7 +317,6 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
     }
 
 error:
-    NVDmaSetObjectOnSubchannel(pNv, NvSubGraphicsToAGP, NvScaledImage);
     exaMarkSync(pDst->drawable.pScreen);
     return ret;
 }
