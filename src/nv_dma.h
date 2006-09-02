@@ -68,8 +68,7 @@ enum DMAObjects {
         NvImageBlit = 0x80000015, 
         NvRectangle = 0x80000016, 
         NvScaledImage = 0x80000017, 
-        NvGraphicsToAGP = 0x80000018, 
-        NvAGPToGraphics = 0x80000019,
+        NvMemFormat = 0x80000018,
         NvDmaFB = 0xD8000001,
         NvDmaAGP = 0xD8000002,
         NvDmaNotifier0 = 0xD8000003
@@ -85,7 +84,7 @@ enum DMASubchannel {
         NvSubImagePattern = 4, 
         NvSubImageBlit = 5, 
 /* EXA */
-        NvSubGraphicsToAGP = 6,
+        NvSubMemFormat = 6,
 /* XAA */
         NvSubClipRectangle = 6, 
         NvSubSolidLine = 7, 
@@ -256,6 +255,8 @@ enum DMASubchannel {
 
 #define MEMFORMAT_NOTIFY                                0x00000104
 #define MEMFORMAT_DMA_NOTIFY                            0x00000180
+#define MEMFORMAT_DMA_OBJECT_IN                         0x00000184
+#define MEMFORMAT_DMA_OBJECT_OUT                        0x00000188
 #define MEMFORMAT_OFFSET_IN                             0x0000030C
 #define MEMFORMAT_OFFSET_OUT                            0x00000310
 #define MEMFORMAT_PITCH_IN                              0x00000314

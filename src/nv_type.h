@@ -229,6 +229,8 @@ typedef struct _NVRec {
     CARD32              *dmaBase;
 
     CARD32              currentRop;
+    int                 M2MFDirection;
+
     Bool                WaitVSyncPossible;
     Bool                BlendingPossible;
     Bool                RandRRotation;

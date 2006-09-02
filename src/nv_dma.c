@@ -123,7 +123,7 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
     NVDmaSetObjectOnSubchannel(pNv, NvSubImagePattern   , NvImagePattern   );
     NVDmaSetObjectOnSubchannel(pNv, NvSubImageBlit      , NvImageBlit      );
 	if (pNv->useEXA && pNv->AGPScratch) {
-		NVDmaSetObjectOnSubchannel(pNv, NvSubGraphicsToAGP, NvAGPToGraphics);
+		NVDmaSetObjectOnSubchannel(pNv, NvSubMemFormat    , NvMemFormat    );
 	} else if (!pNv->useEXA) {
         NVDmaSetObjectOnSubchannel(pNv, NvSubClipRectangle, NvClipRectangle);
         NVDmaSetObjectOnSubchannel(pNv, NvSubSolidLine    , NvSolidLine    );
@@ -171,6 +171,7 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
     pNv->currentRop = ~0;  /* set to something invalid */
     NVSetRopSolid(pScrn, GXcopy, ~0);
 
+    pNv->M2MFDirection = -1; /* invalid */
     /*NVDmaKickoff(pNv);*/
 }
 
@@ -417,14 +418,9 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 			NVDmaCreateDMAObject(pNv, NvDmaAGP, NV_DMA_TARGET_AGP,
 					pNv->AGPScratch->offset, pNv->AGPScratch->size, NV_DMA_ACCES_RW);
 
-	        NVDmaCreateContextObject (pNv, NvGraphicsToAGP,
+	        NVDmaCreateContextObject (pNv, NvMemFormat,
 					NV_MEMORY_TO_MEMORY_FORMAT, 0,
-					NvDmaFB, NvDmaAGP, NvDmaNotifier0
-					);
-        
-    	    NVDmaCreateContextObject (pNv, NvAGPToGraphics,
-					NV_MEMORY_TO_MEMORY_FORMAT, 0,
-					NvDmaAGP, NvDmaFB, NvDmaNotifier0
+					0, 0, NvDmaNotifier0
 					);
 		} else {
 			/* FIXME */

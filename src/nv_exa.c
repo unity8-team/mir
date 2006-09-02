@@ -53,6 +53,16 @@
 
 #include <sys/time.h>
 
+static void setM2MFDirection(NVPtr pNv, int dir)
+{
+	if (pNv->M2MFDirection != dir) {
+		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
+		NVDmaNext (pNv, dir ? NvDmaAGP : NvDmaFB);
+		NVDmaNext (pNv, dir ? NvDmaFB : NvDmaAGP);
+		pNv->M2MFDirection = dir;
+	}
+}
+
 static CARD32 getPitch(DrawablePtr pDrawable)
 {
     return (pDrawable->width*(pDrawable->bitsPerPixel >> 3) + 63) & ~63;
@@ -230,6 +240,8 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
     max_lines = 65536/dst_pitch + 1;
     line_length = w * (pSrc->drawable.bitsPerPixel >> 3);
 
+    setM2MFDirection(pNv, 0);
+
     NVDEBUG("NVDownloadFromScreen: x=%d, y=%d, w=%d, h=%d\n", x, y, w, h);
     NVDEBUG("    pitch_in=%x dst_pitch=%x offset_in=%x", pitch_in, dst_pitch, offset_in);
     while (h > 0) {
@@ -237,9 +249,9 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
         int nlines = h > max_lines ? max_lines : h;
         /* reset the notification object */
         memset(pNv->Notifier0, 0xff, 0x100);
-        NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_NOTIFY, 1);
+        NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_NOTIFY, 1);
         NVDmaNext (pNv, 0);
-        NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_OFFSET_IN, 8);
+        NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_OFFSET_IN, 8);
         NVDmaNext (pNv, offset_in);
         NVDmaNext (pNv, 0);
         NVDmaNext (pNv, pitch_in);
@@ -288,6 +300,8 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
     max_lines = 65536/src_pitch + 1;
     line_length = w * (pDst->drawable.bitsPerPixel >> 3);
 
+    setM2MFDirection(pNv, 1);
+
     NVDEBUG("NVUploadToScreen: x=%d, y=%d, w=%d, h=%d\n", x, y, w, h);
     while (h > 0) {
         NVDEBUG("     max_lines=%d, h=%d\n", max_lines, h);
@@ -295,9 +309,9 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
         /* reset the notification object */
         memset(pNv->Notifier0, 0xff, 0x100);
         memcpy(pNv->AGPScratch->map, src, nlines*src_pitch);
-        NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_NOTIFY, 1);
+        NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_NOTIFY, 1);
         NVDmaNext (pNv, 0);
-        NVDmaStart(pNv, NvSubGraphicsToAGP, MEMFORMAT_OFFSET_IN, 8);
+        NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_OFFSET_IN, 8);
         NVDmaNext (pNv, 0);
         NVDmaNext (pNv, offset_out);
         NVDmaNext (pNv, src_pitch);
