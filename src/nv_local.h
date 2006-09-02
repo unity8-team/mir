@@ -72,9 +72,9 @@
 #define _NV_FENCE() mem_barrier();
 #endif
 
-#if NV_DMA_DEBUG == 1
-extern CARD32 READ_GET(void *);
 
+#define READ_GET(pNv) (((pNv)->FIFO[0x0011] - pNv->fifo.put_base) >> 2)
+#if NV_DMA_DEBUG == 1
 #define WRITE_PUT(pNv, data) {       \
   volatile CARD8 scratch;            \
   _NV_FENCE()                        \
@@ -84,8 +84,6 @@ extern CARD32 READ_GET(void *);
   mem_barrier();                     \
 }
 #else
-#define READ_GET(pNv) (((pNv)->FIFO[0x0011] - pNv->fifo.put_base) >> 2)
-
 #define WRITE_PUT(pNv, data) {       \
   volatile CARD8 scratch;            \
   _NV_FENCE()                        \

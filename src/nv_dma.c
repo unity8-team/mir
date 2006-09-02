@@ -2,6 +2,170 @@
 #include "nv_include.h"
 #include "nvreg.h"
 
+void NVDmaKickoff(NVPtr pNv)
+{
+    if(pNv->dmaCurrent != pNv->dmaPut) {
+        pNv->dmaPut = pNv->dmaCurrent;
+        WRITE_PUT(pNv,  pNv->dmaPut);
+    }
+}
+
+void NVDmaKickoffCallback(NVPtr pNv)
+{
+   NVDmaKickoff(pNv);
+   pNv->DMAKickoffCallback = NULL;
+}
+
+/* There is a HW race condition with videoram command buffers.
+   You can't jump to the location of your put offset.  We write put
+   at the jump offset + SKIPS dwords with noop padding in between
+   to solve this problem */
+#define SKIPS  8
+
+void NVDmaWait (NVPtr pNv, int size)
+{
+    int t_start;
+    int dmaGet;
+
+    size++;
+
+    t_start = GetTimeInMillis();
+    while(pNv->dmaFree < size) {
+       dmaGet = READ_GET(pNv);
+
+       if(pNv->dmaPut >= dmaGet) {
+           pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
+           if(pNv->dmaFree < size) {
+               NVDmaNext(pNv, (0x20000000|pNv->fifo.put_base));
+               if(dmaGet <= SKIPS) {
+                   if(pNv->dmaPut <= SKIPS) /* corner case - will be idle */
+                      WRITE_PUT(pNv, SKIPS + 1);
+                   do {
+                       if (GetTimeInMillis() - t_start > 2000)
+                           NVDoSync(pNv);
+                       dmaGet = READ_GET(pNv);
+                   } while(dmaGet <= SKIPS);
+               }
+               WRITE_PUT(pNv, SKIPS);
+               pNv->dmaCurrent = pNv->dmaPut = SKIPS;
+               pNv->dmaFree = dmaGet - (SKIPS + 1);
+           }
+       } else 
+           pNv->dmaFree = dmaGet - pNv->dmaCurrent - 1;
+
+       if (GetTimeInMillis() - t_start > 2000)
+           NVDoSync(pNv);
+    }
+}
+
+static void NVDumpLockupInfo(NVPtr pNv)
+{
+	int i,start;
+	start=READ_GET(pNv)-10;
+	if (start<0) start=0;
+	xf86DrvMsg(0, X_INFO, "Fifo dump (lockup 0x%04x,0x%04x):\n",READ_GET(pNv),pNv->dmaPut);
+	for(i=start;i<pNv->dmaPut+10;i++)
+		xf86DrvMsg(0, X_INFO, "[0x%04x] 0x%08x\n", i, pNv->dmaBase[i]);
+	xf86DrvMsg(0, X_INFO, "End of fifo dump\n");
+}
+
+void NVDoSync(NVPtr pNv)
+{
+    int t_start, timeout = 2000;
+
+    if(pNv->DMAKickoffCallback)
+       (*pNv->DMAKickoffCallback)(pNv);
+
+    t_start = GetTimeInMillis();
+    while((GetTimeInMillis() - t_start) < timeout && (READ_GET(pNv) != pNv->dmaPut));
+    while((GetTimeInMillis() - t_start) < timeout && pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
+
+    if ((GetTimeInMillis() - t_start) >= timeout) {
+        if (pNv->LockedUp)
+            return;
+        NVDumpLockupInfo(pNv);
+        pNv->LockedUp = TRUE; /* avoid re-entering FatalError on shutdown */
+        FatalError("DMA queue hang: dmaPut=%x, current=%x, status=%x\n",
+               pNv->dmaPut, READ_GET(pNv), pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
+    }
+}
+
+void NVSync(ScrnInfoPtr pScrn)
+{
+    NVPtr pNv = NVPTR(pScrn);
+    NVDoSync(pNv);
+}
+
+void NVResetGraphics(ScrnInfoPtr pScrn)
+{
+    NVPtr pNv = NVPTR(pScrn);
+    CARD32 surfaceFormat, patternFormat, rectFormat, lineFormat;
+    int pitch, i;
+
+    if(pNv->NoAccel) return;
+
+    pitch = pNv->CurrentLayout.displayWidth * 
+            (pNv->CurrentLayout.bitsPerPixel >> 3);
+
+    pNv->dmaPut = pNv->dmaCurrent = 0;
+    pNv->dmaMax = pNv->dmaFree = (pNv->fifo.cmdbuf_size >> 2) - 1;
+
+    for (i=0; i<SKIPS; i++)
+        NVDmaNext(pNv, 0);
+    pNv->dmaFree -= SKIPS;
+
+    NVDmaSetObjectOnSubchannel(pNv, NvSubContextSurfaces, NvContextSurfaces);
+    NVDmaSetObjectOnSubchannel(pNv, NvSubRop            , NvRop            );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubImagePattern   , NvImagePattern   );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubClipRectangle  , NvClipRectangle  );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubSolidLine      , NvSolidLine      );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubImageBlit      , NvImageBlit      );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubRectangle      , NvRectangle      );
+    NVDmaSetObjectOnSubchannel(pNv, NvSubScaledImage    , NvScaledImage    );
+
+    switch(pNv->CurrentLayout.depth) {
+    case 24:
+       surfaceFormat = SURFACE_FORMAT_X8R8G8B8;
+       patternFormat = PATTERN_FORMAT_DEPTH24;
+       rectFormat    = RECT_FORMAT_DEPTH24;
+       lineFormat    = LINE_FORMAT_DEPTH24;
+       break;
+    case 16:
+    case 15:
+       surfaceFormat = SURFACE_FORMAT_R5G6B5;
+       patternFormat = PATTERN_FORMAT_DEPTH16;
+       rectFormat    = RECT_FORMAT_DEPTH16;
+       lineFormat    = LINE_FORMAT_DEPTH16;
+       break;
+    default:
+       surfaceFormat = SURFACE_FORMAT_Y8;
+       patternFormat = PATTERN_FORMAT_DEPTH8;
+       rectFormat    = RECT_FORMAT_DEPTH8;
+       lineFormat    = LINE_FORMAT_DEPTH8;
+       break;
+    }
+
+    NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 4);
+    NVDmaNext (pNv, surfaceFormat);
+    NVDmaNext (pNv, pitch | (pitch << 16));
+    NVDmaNext (pNv, (pNv->FB->offset - pNv->VRAMPhysical));
+    NVDmaNext (pNv, (pNv->FB->offset - pNv->VRAMPhysical));
+
+    NVDmaStart(pNv, NvSubImagePattern, PATTERN_FORMAT, 1);
+    NVDmaNext (pNv, patternFormat);
+
+    NVDmaStart(pNv, NvSubRectangle, RECT_FORMAT, 1);
+    NVDmaNext (pNv, rectFormat);
+
+    NVDmaStart(pNv, NvSubSolidLine, LINE_FORMAT, 1);
+    NVDmaNext (pNv, lineFormat);
+
+    pNv->currentRop = ~0;  /* set to something invalid */
+    NVSetRopSolid(pScrn, GXcopy, ~0);
+
+    /*NVDmaKickoff(pNv);*/
+}
+
 void NVDmaCreateDMAObject(NVPtr pNv, int handle, int target, CARD32 base_address, CARD32 size, int access)
 {
     drm_nouveau_dma_object_init_t dma;

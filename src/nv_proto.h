@@ -38,16 +38,26 @@ void   NVCommonSetup(ScrnInfoPtr pScrn);
 /* in nv_cursor.c */
 Bool   NVCursorInit(ScreenPtr pScreen);
 
+/* in nv_dma.c */
+void  NVDmaKickoff(NVPtr pNv);
+void  NVDmaKickoffCallback(NVPtr pNv);
+void  NVDmaWait(NVPtr pNv, int size);
+void  NVDoSync(NVPtr pNv);
+void  NVSync(ScrnInfoPtr pScrn);
+void  NVResetGraphics(ScrnInfoPtr pScrn);
+void  NVDmaCreateDMAObject(NVPtr pNv, int handle, int target,
+			   CARD32 base_address, CARD32 size, int access);
+void  *NVDmaCreateNotifier(NVPtr pNv, int handle);
+Bool  NVDmaWaitForNotifier(NVPtr pNv, void *notifier);
+void  NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
+			       CARD32 dma_in, CARD32 dma_out,
+			       CARD32 dma_notifier);
+Bool  NVInitDma(ScrnInfoPtr pScrn);
+
 /* in nv_xaa.c */
 Bool   NVXaaInit(ScreenPtr pScreen);
-void   NVDoSync(NVPtr pNv);
-void   NVSync(ScrnInfoPtr pScrn);
-void   NVResetGraphics(ScrnInfoPtr pScrn);
-void   NVDmaKickoff(NVPtr pNv);
-void   NVDmaWait(NVPtr pNv, int size);
 void   NVWaitVSync(NVPtr pNv);
 void   NVSetRopSolid(ScrnInfoPtr pScrn, CARD32 rop, CARD32 planemask);
-void   NVDMAKickoffCallback (NVPtr pNv);
 
 /* in nv_exa.c */
 Bool NVExaInit(ScreenPtr pScreen);

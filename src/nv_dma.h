@@ -53,19 +53,11 @@
 #define NV_DMA_TARGET_PCI 2
 */
 #define NV_DMA_TARGET_AGP 3
-void NVDmaCreateDMAObject(NVPtr pNv, int handle, int target, CARD32 base_address, CARD32 size, int access);
-
-Bool NVDmaWaitForNotifier(NVPtr pNv, void *notifier);
-void *NVDmaCreateNotifier(NVPtr pNv, int handle);
     
 #define NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND 0x1
 #define NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY 0x2
 #define NV_DMA_CONTEXT_FLAGS_CLIP_ENABLE 0x4
 #define NV_DMA_CONTEXT_FLAGS_MONO 0x8
-void NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
-                              CARD32 dma_in, CARD32 dma_out, CARD32 dma_notifier);
-Bool NVInitDma(ScrnInfoPtr pScrn);
-
 
 enum DMAObjects {
         NvContextSurfaces = 0x80000010, 

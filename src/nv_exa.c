@@ -141,7 +141,7 @@ static Bool NVExaPrepareSolid (PixmapPtr      pPixmap,
     NVDmaStart(pNv, NvSubRectangle, RECT_SOLID_COLOR, 1);
     NVDmaNext (pNv, fg);
 
-    pNv->DMAKickoffCallback = NVDMAKickoffCallback;
+    pNv->DMAKickoffCallback = NVDmaKickoffCallback;
 
     return TRUE;
 }
@@ -187,7 +187,7 @@ static Bool NVExaPrepareCopy (PixmapPtr       pSrcPixmap,
     NVDmaNext (pNv, getOffset(pNv, &pSrcPixmap->drawable));
     NVDmaNext (pNv, getOffset(pNv, &pDstPixmap->drawable));
 
-    pNv->DMAKickoffCallback = NVDMAKickoffCallback;
+    pNv->DMAKickoffCallback = NVDmaKickoffCallback;
     return TRUE;
 }
 
