@@ -5947,15 +5947,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 		       (pScrn->displayWidth * pScrn->virtualY *
 			info->CurrentLayout.pixel_bytes * 3 + 1023) / 1024);
 	    info->directRenderingEnabled = FALSE;
-	} else if (info->ChipFamily >= CHIP_FAMILY_R300)  {
-	       xf86DrvMsg(scrnIndex, X_WARNING,
-	              "Enabling DRM support\n\n"
-                      "\t*** Direct rendering support is highly experimental for Radeon 9500\n"
-		      "\t*** and newer cards. The 3d mesa driver is not provided in this tree.\n"
-		      "\t*** A very experimental (and incomplete) version is available from Mesa CVS.\n" "\t*** Additional information can be found on http://r300.sourceforge.net\n"
-		      "\t*** This message has been last modified on 2005-08-07.\n\n"
-		      );
-               info->directRenderingEnabled = RADEONDRIScreenInit(pScreen);
 	} else {
 	    info->directRenderingEnabled = RADEONDRIScreenInit(pScreen);
 	}
