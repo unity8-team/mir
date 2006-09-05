@@ -19,12 +19,14 @@
 #error "This driver requires a DRI-enabled X server"
 #endif
 
+#define NV_ARCH_03  0x03
 #define NV_ARCH_04  0x04
 #define NV_ARCH_10  0x10
 #define NV_ARCH_20  0x20
 #define NV_ARCH_30  0x30
 #define NV_ARCH_40  0x40
 
+#define CHIPSET_NV03     0x0010
 #define CHIPSET_NV04     0x0020
 #define CHIPSET_NV10     0x0100
 #define CHIPSET_NV11     0x0110

@@ -402,7 +402,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
                               NV4_GDI_RECTANGLE_TEXT, 
                               NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_MONO, 
                               0, 0, 0);
-    if (pNv->Chipset==CHIPSET_NV04)
+    if (pNv->Chipset<=CHIPSET_NV04)
         NVDmaCreateContextObject (pNv, NvScaledImage,
                                   NV_SCALED_IMAGE_FROM_MEMORY, 
                                   NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 

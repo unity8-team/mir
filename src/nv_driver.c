@@ -35,8 +35,8 @@
 #include "xf86drm.h"
 #endif
 
-const   OptionInfoRec * RivaAvailableOptions(int chipid, int busid);
-Bool    RivaGetScrnInfoRec(PciChipsets *chips, int chip);
+/*const   OptionInfoRec * RivaAvailableOptions(int chipid, int busid);
+Bool    RivaGetScrnInfoRec(PciChipsets *chips, int chip);*/
 
 /*
  * Forward definitions for the functions that make up the driver.
@@ -94,6 +94,7 @@ _X_EXPORT DriverRec NV = {
 static SymTabRec NVKnownChipsets[] =
 {
   { 0x12D20018, "RIVA 128" },
+  { 0x12D20019, "RIVA 128ZX" },
 
   { 0x10DE0020, "RIVA TNT" },
 
@@ -617,12 +618,12 @@ nouveauSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 static const OptionInfoRec *
 NVAvailableOptions(int chipid, int busid)
 {
-    if(chipid == 0x12D20018) {
+/*    if(chipid == 0x12D20018) {
 	if (!xf86LoadOneModule("riva128", NULL)) {
 	    return NULL;
 	} else
 	    return RivaAvailableOptions(chipid, busid);
-    }
+    }*/
     
     return NVOptions;
 }
@@ -807,17 +808,8 @@ NVProbe(DriverPtr drv, int flags)
         pciVideoPtr pPci;
 
         pPci = xf86GetPciInfoForEntity(usedChips[i]);
-        if(pPci->vendor == PCI_VENDOR_NVIDIA_SGS) {
-            if (!xf86LoadDrvSubModule(drv, "riva128")) {
-                  continue;
-            }
-            xf86LoaderReqSymLists(rivaSymbols, NULL);
-            if(RivaGetScrnInfoRec(NVPciChipsets, usedChips[i]))
-                foundScreen = TRUE;
-        } else {
-            if(NVGetScrnInfoRec(NVPciChipsets, usedChips[i])) 
-	        foundScreen = TRUE;
-	}    
+        if(NVGetScrnInfoRec(NVPciChipsets, usedChips[i])) 
+	    foundScreen = TRUE;
     }
 
     xfree(devSections);
@@ -1440,6 +1432,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     }
 
     switch (pNv->Chipset & 0x0ff0) {
+    case CHIPSET_NV03:   /* Riva128 */
+         pNv->Architecture =  NV_ARCH_03;
+         break;
+    case CHIPSET_NV04:   /* TNT/TNT2 */
+         pNv->Architecture =  NV_ARCH_04;
+         break;
     case CHIPSET_NV10:   /* GeForce 256 */
     case CHIPSET_NV11:   /* GeForce2 MX */
     case CHIPSET_NV15:   /* GeForce2 */
@@ -1476,8 +1474,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     case CHIPSET_C512: /* Geforce 6100 (nForce 4xx) */
          pNv->Architecture =  NV_ARCH_40;
          break;
-    default:
-         pNv->Architecture =  NV_ARCH_04;
+    default:           /* Unknown, probably >=NV40 */
+         pNv->Architecture =  NV_ARCH_40;
          break;
     }
 

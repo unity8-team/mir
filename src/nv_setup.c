@@ -256,6 +256,29 @@ NVProbeDDC (ScrnInfoPtr pScrn, int bus)
     return MonInfo;
 }
 
+static void nv3GetConfig (NVPtr pNv)
+{
+    CARD32 reg_FB0 = nvReadFB(pNv, 0x0);
+    switch (reg_FB0 & 0x00000003) {
+    case 0:
+        pNv->RamAmountKBytes = 1024 * 8;
+        break;
+    case 1:
+        pNv->RamAmountKBytes = 1024 * 2;
+        break;
+    case 2:
+        pNv->RamAmountKBytes = 1024 * 4;
+        break;
+    default:
+        pNv->RamAmountKBytes = 1024 * 8;
+        break;
+    }
+    pNv->CrystalFreqKHz   = (nvReadPEXTDEV(pNv, 0x0000) & 0x00000040) ? 14318 : 13500;
+    pNv->CURSOR           = &(pNv->PRAMIN[0x00008000/4 - 0x0800/4]);
+    pNv->MinVClockFreqKHz = 12000;
+    pNv->MaxVClockFreqKHz = 256000;
+}
+
 static void nv4GetConfig (NVPtr pNv)
 {
     CARD32 reg_FB0 = nvReadFB(pNv, 0x0);
@@ -404,7 +427,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     pNv->WaitVSyncPossible = (pNv->Architecture >= NV_ARCH_10) &&
                              (implementation != CHIPSET_NV10);
 
-    pNv->BlendingPossible = ((pNv->Chipset & 0xffff) != CHIPSET_NV04);
+    pNv->BlendingPossible = ((pNv->Chipset & 0xffff) > CHIPSET_NV04);
 
     /* look for known laptop chips */
     /* FIXME we could add some ids here (0x0164,0x0167,0x0168,0x01D6,0x01D7,0x01D8,0x0298,0x0299,0x0398) */
@@ -469,7 +492,9 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     usleep(1000);*/
     nvWriteMC(pNv, 0x800, 0x17111113);
 
-    if(pNv->Architecture == NV_ARCH_04)
+    if(pNv->Architecture == NV_ARCH_03)
+        nv3GetConfig(pNv);
+    else if(pNv->Architecture == NV_ARCH_04)
         nv4GetConfig(pNv);
     else
         nv10GetConfig(pNv);
