@@ -112,11 +112,6 @@ union intfloat {
 Bool is_transform[2];
 PictTransform *transform[2];
 
-Bool i830UploadToScreen(PixmapPtr pDst, int x, int y, int w, int h, 
-			    char *src, int src_pitch);
-Bool i830DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
-			    char *dst, int dst_pitch);
-
 extern Bool I830EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
 extern Bool I830EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
 				PixmapPtr, PixmapPtr, PixmapPtr);
@@ -325,61 +320,6 @@ I830EXADoneCopy(PixmapPtr pDstPixmap)
     	return;
 }
 
-static Bool
-I830EXAUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h, 
-		char *src, int src_pitch)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
-    int dst_pitch = exaGetPixmapPitch(pDst);
-    int dst_offset = exaGetPixmapOffset(pDst);
-    unsigned char *dst;
-
-    I830Sync(pScrn);
-
-#ifdef I830DEBUG
-    ErrorF("Up->Screen: dst offset 0x%x, dst pitch %d, x %d, y %d, src %p, src pitch %d\n",
-		dst_offset, dst_pitch, x, y, src, src_pitch);
-#endif
-    dst = pI830->FbBase + dst_offset + y*dst_pitch + 
-		x* (pDst->drawable.bitsPerPixel/8);
-    w *= pDst->drawable.bitsPerPixel/8;
-    while(h--) {
-	memcpy(dst, src, w);
-	src += src_pitch;
-	dst += dst_pitch;
-    }
-
-    return TRUE;
-}
-
-static Bool
-I830EXADownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
-			  char *dst, int dst_pitch)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pSrc->drawable.pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
-    int src_pitch = exaGetPixmapPitch(pSrc);
-    int src_offset = exaGetPixmapOffset(pSrc);
-    unsigned char *src = pI830->FbBase + src_offset + y*src_pitch +
-		x*(pSrc->drawable.bitsPerPixel/8);
-
-    I830Sync(pScrn);
-
-#ifdef I830DEBUG
-    ErrorF("Screen->Mem: src offset 0x%x, src %p, src pitch %d, x %d, y %d, dst %p, dst_pitch %d\n",
-	src_offset, src, src_pitch, x, y, dst, dst_pitch);
-#endif
-    w *= pSrc->drawable.bitsPerPixel/8;
-    while(h--) {
-	memcpy(dst, src, w);
-	src += src_pitch;
-	dst += dst_pitch;
-    }
-
-    return TRUE;
-}
-
 static void
 IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		 int dstX, int dstY, int w, int h)
@@ -577,10 +517,6 @@ I830EXAInit(ScreenPtr pScreen)
     	pI830->EXADriverPtr->Composite = IntelEXAComposite;
     	pI830->EXADriverPtr->DoneComposite = IntelEXADoneComposite;
     }
-
-    /* Upload, download to/from Screen, experimental!! */
-    pI830->EXADriverPtr->UploadToScreen = I830EXAUploadToScreen;
-    pI830->EXADriverPtr->DownloadFromScreen = I830EXADownloadFromScreen;
 
     if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {
 	xfree(pI830->EXADriverPtr);
