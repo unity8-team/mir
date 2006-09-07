@@ -339,7 +339,6 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	    scale_units[1][0], scale_units[1][1]);
 
     if (scale_units[1][0] == -1 || scale_units[1][1] == -1) {
-	ErrorF("mask is null\n");
 	pMask = 0;
     }
 
