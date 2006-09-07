@@ -6926,7 +6926,7 @@ I830InitFBManager(
    ScreenBox.x1 = 0;
    ScreenBox.y1 = 0;
    ScreenBox.x2 = pScrn->displayWidth;
-   if (pScrn->virtualX > pScrn->virtualY)
+   if (!pI830->MergedFB && pScrn->virtualX > pScrn->virtualY)
       ScreenBox.y2 = pScrn->virtualX;
    else
       ScreenBox.y2 = pScrn->virtualY;
