@@ -1,17 +1,3 @@
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include "xf86_ansic.h"
-#include "xf86.h"
-#include "xaarop.h"
-#include "i830.h"
-#include "i810_reg.h"
-
-#ifndef DO_SCANLINE_IMAGE_WRITE
-#define DO_SCANLINE_IMAGE_WRITE 0
-#endif
-
 /**************************************************************************
 
 Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
@@ -57,6 +43,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *   Keith Whitwell <keith@tungstengraphics.com>
  *
  */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include "xf86.h"
+#include "xaarop.h"
+#include "i830.h"
+#include "i810_reg.h"
+
+#ifndef DO_SCANLINE_IMAGE_WRITE
+#define DO_SCANLINE_IMAGE_WRITE 0
+#endif
 
 /* I830 Accel Functions */
 static void I830SetupForMono8x8PatternFill(ScrnInfoPtr pScrn,
