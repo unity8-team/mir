@@ -330,6 +330,10 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     CARD32 dst_format, dst_offset, dst_pitch;
     CARD32 blendctl;
 
+#ifdef I830DEBUG
+    ErrorF("Enter i915 prepareComposite\n");
+#endif
+
     I915GetDestFormat(pDstPicture, &dst_format);
     dst_offset = exaGetPixmapOffset(pDst);
     dst_pitch = exaGetPixmapPitch(pDst);

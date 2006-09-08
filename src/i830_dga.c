@@ -99,6 +99,31 @@ I830DGAInit(ScreenPtr pScreen)
 
    while (pMode) {
 
+	if(pI830->MergedFB) {
+	   Bool nogood = FALSE;
+	   /* Filter out all meta modes that would require driver-side panning */
+	   switch(((I830ModePrivatePtr)pMode->Private)->merged.SecondPosition) {
+	   case PosRightOf:
+	   case PosLeftOf:
+	      if( (((I830ModePrivatePtr)pMode->Private)->merged.First->VDisplay !=
+		   ((I830ModePrivatePtr)pMode->Private)->merged.Second->VDisplay)	||
+		  (((I830ModePrivatePtr)pMode->Private)->merged.First->VDisplay != pMode->VDisplay) )
+		 nogood = TRUE;
+	      break;
+	   default:
+	      if( (((I830ModePrivatePtr)pMode->Private)->merged.First->HDisplay !=
+		   ((I830ModePrivatePtr)pMode->Private)->merged.Second->HDisplay)	||
+		  (((I830ModePrivatePtr)pMode->Private)->merged.First->HDisplay != pMode->HDisplay) )
+		 nogood = TRUE;
+	   }
+	   if(nogood) {
+	      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"DGA: MetaMode %dx%d not suitable for DGA, skipping\n",
+			pMode->HDisplay, pMode->VDisplay);
+	      goto mode_nogood;
+	   }
+	}
+
       newmodes = xrealloc(modes, (num + 1) * sizeof(DGAModeRec));
 
       if (!newmodes) {
@@ -155,6 +180,7 @@ I830DGAInit(ScreenPtr pScreen)
       currentMode->maxViewportY = currentMode->imageHeight -
 	    currentMode->viewportHeight;
 
+mode_nogood:
       pMode = pMode->next;
       if (pMode == firstMode)
 	 break;
@@ -254,15 +280,26 @@ I830_FillRect(ScrnInfoPtr pScrn,
 static void
 I830_Sync(ScrnInfoPtr pScrn)
 {
-#ifdef I830_USE_XAA
    I830Ptr pI830 = I830PTR(pScrn);
+   int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
    MARKER();
 
-   if (pI830->AccelInfoRec) {
-      (*pI830->AccelInfoRec->Sync) (pScrn);
-   }
-#endif
+   if (pI830->noAccel) 
+      return;
+
+   if (IS_I965G(pI830))
+      flags = 0;
+
+   BEGIN_LP_RING(2);
+   OUT_RING(MI_FLUSH | flags);
+   OUT_RING(MI_NOOP);		/* pad to quadword */
+   ADVANCE_LP_RING();
+
+   I830WaitLpRing(pScrn, pI830->LpRing->mem.Size - 8, 0);
+
+   pI830->LpRing->space = pI830->LpRing->mem.Size - 8;
+   pI830->nextColorExpandBuf = 0;
 }
 
 static void

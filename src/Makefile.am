@@ -31,6 +31,9 @@ i810_drv_la_LDFLAGS = -module -avoid-version
 i810_drv_ladir = @moduledir@/drivers
 
 i810_drv_la_SOURCES = \
+         brw_defines.h \
+         brw_structs.h \
+         wm_prog.h \
          common.h \
          i810_accel.c \
          i810_common.h \
@@ -53,6 +56,7 @@ i810_drv_la_SOURCES = \
          i830_memory.c \
          i830_modes.c \
          i830_video.c \
+         i830_video.h \
          i830_rotate.c \
 	 i830_randr.c \
 	 i830_3d.c \
@@ -60,6 +64,7 @@ i810_drv_la_SOURCES = \
 	 i915_3d.c \
 	 i915_3d.h \
 	 i915_reg.h \
+	 i915_video.c \
 	 i830_exa.c \
 	 i830_xaa.c \
 	 i830_exa_render.c \

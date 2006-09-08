@@ -84,7 +84,7 @@ typedef struct {
 	drmTextureRegion texList[I830_NR_TEX_REGIONS+1];
         int last_upload;	/* last time texture was uploaded */
         int last_enqueue;	/* last time a buffer was enqueued */
-	int last_dispatch;	/* age of the most recently dispatched buffer */
+	volatile int last_dispatch;	/* age of the most recently dispatched buffer */
 	int ctxOwner;		/* last context to upload state */
 	int texAge;
         int pf_enabled;		/* is pageflipping allowed? */
@@ -115,6 +115,12 @@ typedef struct {
 	int rotated_size;
 	int rotated_pitch;
 	int virtualX, virtualY;
+
+        unsigned int front_tiled;
+        unsigned int back_tiled;
+        unsigned int depth_tiled;
+        unsigned int rotated_tiled;
+        unsigned int rotated2_tiled;
 } drmI830Sarea;
 
 /* Flags for perf_boxes

@@ -504,12 +504,14 @@ I830EXAInit(ScreenPtr pScreen)
     pI830->EXADriverPtr->DoneCopy = I830EXADoneCopy;
 
     /* Composite */
-    if (IS_I9XX(pI830)) {   		
+    if (IS_I915G(pI830) || IS_I915GM(pI830) || 
+	IS_I945G(pI830) || IS_I945GM(pI830)) {   		
 	pI830->EXADriverPtr->CheckComposite = I915EXACheckComposite;
    	pI830->EXADriverPtr->PrepareComposite = I915EXAPrepareComposite;
     	pI830->EXADriverPtr->Composite = IntelEXAComposite;
     	pI830->EXADriverPtr->DoneComposite = IntelEXADoneComposite;
-    } else if (IS_I865G(pI830) || IS_I855(pI830) || IS_845G(pI830) || IS_I830(pI830)) { 
+    } else if (IS_I865G(pI830) || IS_I855(pI830) || 
+	IS_845G(pI830) || IS_I830(pI830)) { 
     	pI830->EXADriverPtr->CheckComposite = I830EXACheckComposite;
     	pI830->EXADriverPtr->PrepareComposite = I830EXAPrepareComposite;
     	pI830->EXADriverPtr->Composite = IntelEXAComposite;

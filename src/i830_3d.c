@@ -29,6 +29,7 @@
 #include "config.h"
 #endif
 
+#include "xf86.h"
 #include "i830.h"
 
 #include "i830_reg.h"
