@@ -212,12 +212,6 @@ RADEONCopyModeNLink(ScrnInfoPtr pScrn, DisplayModePtr dest,
     mode->VSyncEnd += dy;
     mode->VTotal += dy;
 
-    /* This is needed for not generating negative refesh rates in xrandr with the
-       faked DotClock below
-     */
-    if (!(mode->VRefresh))
-        mode->VRefresh = mode->Clock * 1000.0 / mode->HTotal / mode->VTotal;
-
      /* Provide a sophisticated fake DotClock in order to trick the vidmode
       * extension to allow selecting among a number of modes whose merged result
       * looks identical but consists of different modes for CRT1 and CRT2
@@ -537,26 +531,14 @@ RADEONGenerateModeList(ScrnInfoPtr pScrn, char* str,
    if(str != NULL) {
       return(RADEONGenerateModeListFromMetaModes(pScrn, str, i, j, srel));
    } else {
-	if (srel == radeonClone ) {
-      	   DisplayModePtr p, q, result = NULL;
-
-      	   xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Clone mode, list all common modes\n");
-	   for (p = i; p->next != i; p = p->next)
-		for (q = j; q->next != j; q = q->next)
-		   if ((p->HDisplay == q->HDisplay) &&
-			(p->VDisplay == q->VDisplay))
-		   	result = RADEONCopyModeNLink(pScrn, result, p, q, srel);
-	   return result;
-	} else {
-      	   xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"No MetaModes given, linking %s modes by default\n",
-	   	(info->NonRect ?
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	"No MetaModes given, linking %s modes by default\n",
+	(srel == radeonClone) ? "largest common" :
+	   (info->NonRect ?
 		(((srel == radeonLeftOf) || (srel == radeonRightOf)) ? "widest" :  "tallest")
 		:
 		(((srel == radeonLeftOf) || (srel == radeonRightOf)) ? "widest common" :  "tallest common")) );
-           return(RADEONGenerateModeListFromLargestModes(pScrn, i, j, srel));
-	}
+      return(RADEONGenerateModeListFromLargestModes(pScrn, i, j, srel));
    }
 }
 
