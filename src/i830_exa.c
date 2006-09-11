@@ -159,9 +159,6 @@ I830EXASync(ScreenPtr pScreen, int marker)
 
 /**
  * I830EXAPrepareSolid - prepare for a Solid operation, if possible
- *
- * TODO:
- *   - support planemask using FILL_MONO_SRC_BLT_CMD?
  */
 static Bool
 I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
@@ -173,6 +170,9 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
     if (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
 
+    if (pPixmap->drawable.bitsPerPixel == 24)
+	I830FALLBACK("solid 24bpp unsupported!\n");
+
     offset = exaGetPixmapOffset(pPixmap);
     pitch = exaGetPixmapPitch(pPixmap);
 
@@ -181,25 +181,21 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
     if ( pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
 	I830FALLBACK("pixmap pitch not aligned");
 
-    pI830->BR[13] = pitch;
-    pI830->BR[13] |= I830PatternROP[alu] << 16;
-
-    pI830->BR[16] = fg;
-
-    /*
-     * Depth: 00 - 8 bit, 01 - 16 bit, 10 - 24 bit, 11 - 32 bit
-     */
-    switch (pScrn->bitsPerPixel) {
-    case 8:
-	pI830->BR[13] |= ((0 << 25) | (0 << 24));
-	break;
-    case 16:
-	pI830->BR[13] |= ((0 << 25) | (1 << 24));
-	break;
-    case 32:
-	pI830->BR[13] |= ((1 << 25) | (1 << 24));
-	break;
+    pI830->BR[13] = (pitch & 0xffff);
+    switch (pPixmap->drawable.bitsPerPixel) {
+	case 8:
+	    break;
+	case 16:
+	    /* RGB565 */
+	    pI830->BR[13] |= (1 << 24);
+	    break;
+	case 32:
+	    /* RGB8888 */
+	    pI830->BR[13] |= ((1 << 24) | (1 << 25));
+	    break;
     }
+    pI830->BR[13] |= (I830PatternROP[alu] & 0xff) << 16 ;
+    pI830->BR[16] = fg;
     return TRUE;
 }
 
@@ -208,32 +204,23 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    int h, w;
     unsigned long offset;
 
-    /* pixmap's offset and pitch is aligned, 
-       otherwise it falls back in PrepareSolid */
-    offset = exaGetPixmapOffset(pPixmap) + y1 * exaGetPixmapPitch(pPixmap) +
-	x1 * (pPixmap->drawable.bitsPerPixel / 8);
+    offset = exaGetPixmapOffset(pPixmap);  
     
-    h = y2 - y1;
-    w = x2 - x1;
-
     {
 	BEGIN_LP_RING(6);
-
-	if (pScrn->bitsPerPixel == 32)
-	    OUT_RING(COLOR_BLT_CMD | COLOR_BLT_WRITE_ALPHA |
-		     COLOR_BLT_WRITE_RGB);
+	if (pPixmap->drawable.bitsPerPixel == 32)
+	    OUT_RING(XY_COLOR_BLT_CMD | XY_COLOR_BLT_WRITE_ALPHA
+			| XY_COLOR_BLT_WRITE_RGB);
 	else
-	    OUT_RING(COLOR_BLT_CMD);
+	    OUT_RING(XY_COLOR_BLT_CMD);
 
 	OUT_RING(pI830->BR[13]);
-	OUT_RING((h << 16) | (w * (pPixmap->drawable.bitsPerPixel/8)));
+	OUT_RING((y1 << 16) | x1);
+	OUT_RING((y2 << 16) | x2);
 	OUT_RING(offset);
 	OUT_RING(pI830->BR[16]);
-	OUT_RING(0);
-
 	ADVANCE_LP_RING();
     }
 }
