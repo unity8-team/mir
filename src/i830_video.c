@@ -130,9 +130,9 @@ static Atom xvBrightness, xvContrast, xvColorKey, xvPipe, xvDoubleBuffer;
 static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 
 #define IMAGE_MAX_WIDTH		1920
-#define IMAGE_MAX_HEIGHT	1080
+#define IMAGE_MAX_HEIGHT	1088
 #define IMAGE_MAX_WIDTH_LEGACY	1024
-#define IMAGE_MAX_HEIGHT_LEGACY	1080
+#define IMAGE_MAX_HEIGHT_LEGACY	1088
 
 /*
  * Broadwater requires a bit of extra video memory for state information
