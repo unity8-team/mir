@@ -6918,6 +6918,7 @@ I830InitFBManager(
     BoxPtr FullBox
 ){
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
    RegionRec ScreenRegion;
    RegionRec FullRegion;
    BoxRec ScreenBox;
