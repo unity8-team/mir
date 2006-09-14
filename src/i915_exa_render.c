@@ -312,11 +312,6 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
         is_transform[unit] = FALSE;
     }
 
-#ifdef I830DEBUG
-    ErrorF("try to sync to show any errors...");
-    I830Sync(pScrn);
-#endif
-
     return TRUE;
 }
 
@@ -493,11 +488,6 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	}
     }
     FS_END();
-
-#ifdef I830DEBUG
-    ErrorF("try to sync to show any errors...");
-    I830Sync(pScrn);
-#endif
 
     return TRUE;
 }

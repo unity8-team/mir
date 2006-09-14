@@ -41,6 +41,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DEBUG_I830FALLBACK 1
 #endif
 
+#define ALWAYS_SYNC		1
+
 #ifdef DEBUG_I830FALLBACK
 #define I830FALLBACK(s, arg...)				\
 do {							\
@@ -206,7 +208,11 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 static void
 I830EXADoneSolid(PixmapPtr pPixmap)
 {
-    return;
+#if ALWAYS_SYNC
+    ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+
+    I830Sync(pScrn);
+#endif
 }
 
 /**
@@ -281,7 +287,11 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 static void
 I830EXADoneCopy(PixmapPtr pDstPixmap)
 {
-    	return;
+#if ALWAYS_SYNC
+    ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
+
+    I830Sync(pScrn);
+#endif
 }
 
 static void
@@ -399,17 +409,16 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
 	ADVANCE_LP_RING();
     }
-#ifdef I830DEBUG
-    ErrorF("sync after 3dprimitive");
-    I830Sync(pScrn);
-#endif
-
 }
 
 static void
 IntelEXADoneComposite(PixmapPtr pDst)
 {
-    return; 
+#if ALWAYS_SYNC
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+
+    I830Sync(pScrn);
+#endif
 }
 /*
  * TODO:
