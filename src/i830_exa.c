@@ -452,6 +452,8 @@ I830EXAInit(ScreenPtr pScreen)
 
     pI830->EXADriverPtr->pixmapOffsetAlign = 256;
     pI830->EXADriverPtr->pixmapPitchAlign = 64;
+
+    /* i845 and i945 2D limits rendering to 65536 lines and pitch of 32768. */
     pI830->EXADriverPtr->maxX = 4095;
     pI830->EXADriverPtr->maxY = 4095;
 
