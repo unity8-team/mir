@@ -185,13 +185,12 @@ Bool NVInitAGP(ScrnInfoPtr pScrn)
 {
     NVPtr pNv = NVPTR(pScrn);
     unsigned long agp_size;
-	drm_nouveau_mem_alloc_t alloc;
 
     agp_size = drmAgpSize(pNv->drm_fd);
 	if (agp_size==0)
 		return FALSE;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"AGP: aperture is %dMB\n", agp_size>>20);
+			"AGP: aperture is %dMB\n", (unsigned int)(agp_size>>20));
 
 	if (agp_size > 16*1024*1024)
 		agp_size = 16*1024*1024;
@@ -204,7 +203,8 @@ Bool NVInitAGP(ScrnInfoPtr pScrn)
 	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"AGP: mapped %dMB at %p\n", pNv->AGPScratch->size>>20,
+			"AGP: mapped %dMB at %p\n",
+			(unsigned int)(pNv->AGPScratch->size>>20),
 			pNv->AGPScratch->map);
 
     return TRUE;

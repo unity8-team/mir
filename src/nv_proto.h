@@ -48,11 +48,11 @@ void  NVDmaWait(NVPtr pNv, int size);
 void  NVDoSync(NVPtr pNv);
 void  NVSync(ScrnInfoPtr pScrn);
 void  NVResetGraphics(ScrnInfoPtr pScrn);
-void  NVDmaCreateDMAObject(NVPtr pNv, int handle, int target,
+Bool  NVDmaCreateDMAObject(NVPtr pNv, int handle, int target,
 			   CARD32 base_address, CARD32 size, int access);
-void  *NVDmaCreateNotifier(NVPtr pNv, int handle);
+NVAllocRec *NVDmaCreateNotifier(NVPtr pNv, int handle);
 Bool  NVDmaWaitForNotifier(NVPtr pNv, void *notifier);
-void  NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
+Bool  NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
 			       CARD32 dma_in, CARD32 dma_out,
 			       CARD32 dma_notifier);
 Bool  NVInitDma(ScrnInfoPtr pScrn);

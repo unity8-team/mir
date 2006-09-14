@@ -154,8 +154,8 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
     NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 4);
     NVDmaNext (pNv, surfaceFormat);
     NVDmaNext (pNv, pitch | (pitch << 16));
-    NVDmaNext (pNv, (pNv->FB->offset - pNv->VRAMPhysical));
-    NVDmaNext (pNv, (pNv->FB->offset - pNv->VRAMPhysical));
+    NVDmaNext (pNv, (CARD32)(pNv->FB->offset - pNv->VRAMPhysical));
+    NVDmaNext (pNv, (CARD32)(pNv->FB->offset - pNv->VRAMPhysical));
 
     NVDmaStart(pNv, NvSubImagePattern, PATTERN_FORMAT, 1);
     NVDmaNext (pNv, patternFormat);
@@ -175,16 +175,19 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
     /*NVDmaKickoff(pNv);*/
 }
 
-void NVDmaCreateDMAObject(NVPtr pNv, int handle, int target, CARD32 base_address, CARD32 size, int access)
+Bool NVDmaCreateDMAObject(NVPtr pNv, int handle, int target, CARD32 base_address, CARD32 size, int access)
 {
     drm_nouveau_dma_object_init_t dma;
+	int ret;
 
     dma.handle = handle;
     dma.access = access;
     dma.target = target;
     dma.size   = size;
     dma.offset = base_address;
-    drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_DMA_OBJECT_INIT, &dma, sizeof(dma));
+    ret = drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_DMA_OBJECT_INIT, &dma, sizeof(dma));
+
+    return ret == 0;
 }
 
 /*
@@ -192,32 +195,26 @@ void NVDmaCreateDMAObject(NVPtr pNv, int handle, int target, CARD32 base_address
    seems, we use 256 for saftey) memory area that will be used by the HW to give feedback
    about a DMA operation.
 */
-void *NVDmaCreateNotifier(NVPtr pNv, int handle)
+NVAllocRec *NVDmaCreateNotifier(NVPtr pNv, int handle)
 {
-	uint64_t notifier_base;
-	void *notifier = NULL;
-	int target = 0;
+	NVAllocRec *notifier = NULL;
 
 #ifndef __powerpc__
-	if (pNv->AGPScratch) {
-		drm_nouveau_mem_alloc_t alloc;
-
-		alloc.flags     = NOUVEAU_MEM_AGP|NOUVEAU_MEM_MAPPED;
-		alloc.alignment = 0;
-		alloc.size      = 256;
-		alloc.region_offset = &notifier_base;
-		if (!(drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_ALLOC,
-						&alloc, sizeof(alloc)))) {
-			if (!drmMap(pNv->drm_fd, notifier_base, alloc.size, &notifier))
-				target = NV_DMA_TARGET_AGP;
-		}
-	}
+	notifier = NVAllocateMemory(pNv, NOUVEAU_MEM_AGP, 256);
 #endif
+	if (!notifier)
+		notifier = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 256);
 
-	if (!target) /* FIXME: try a FB notifier when we can alloc the memory */
+	if (!NVDmaCreateDMAObject(pNv, handle,
+			notifier->type & NOUVEAU_MEM_AGP ?
+				NV_DMA_TARGET_AGP : NV_DMA_TARGET_VIDMEM,
+			notifier->offset,
+			notifier->size,
+			NV_DMA_ACCES_RW)) {
+		NVFreeMemory(pNv, notifier);
 		return NULL;
+	}
 
-	NVDmaCreateDMAObject(pNv, handle, target, notifier_base, 256, NV_DMA_ACCES_RW);
 	return notifier;
 }
 
@@ -281,11 +278,12 @@ Bool NVDmaWaitForNotifier(NVPtr pNv, void *notifier)
     return TRUE;
 }
 
-void NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
+Bool NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
                               CARD32 dma_in, CARD32 dma_out, CARD32 dma_notifier)
 {
     drm_nouveau_object_init_t cto;
     CARD32 nv_flags0 = 0, nv_flags1 = 0, nv_flags2 = 0;
+	int ret;
     
     if (pNv->Architecture >= NV_ARCH_40) {
         if (flags & NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND)
@@ -327,13 +325,16 @@ void NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
     cto.dma0   = dma_in;
     cto.dma1   = dma_out;
     cto.dma_notifier = dma_notifier;
-    drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_OBJECT_INIT, &cto, sizeof(cto));
+    ret = drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_OBJECT_INIT, &cto, sizeof(cto));
+
+	return ret == 0;
 }
 
 static void NVInitDmaCB(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	unsigned int cb_location, cb_size;
+	unsigned int cb_location;
+	int cb_size;
 	char *s;
 
 	/* I'm not bothering to check for failures here, the DRM will fall back
@@ -363,7 +364,6 @@ static void NVInitDmaCB(ScrnInfoPtr pScrn)
 Bool NVInitDma(ScrnInfoPtr pScrn)
 {
     NVPtr pNv = NVPTR(pScrn);
-    drm_nouveau_fifo_init_t fifo;
 
     if (!NVDRIScreenInit(pScrn))
         return FALSE;

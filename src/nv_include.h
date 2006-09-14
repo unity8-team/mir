@@ -11,6 +11,7 @@
 #include <string.h>
 #include <math.h>
 #include <errno.h>
+#include <unistd.h>
 #endif
 
 /* All drivers should typically include these */

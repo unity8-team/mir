@@ -248,7 +248,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
         NVDEBUG("     max_lines=%d, h=%d\n", max_lines, h);
         int nlines = h > max_lines ? max_lines : h;
         /* reset the notification object */
-        memset(pNv->Notifier0, 0xff, 0x100);
+        memset(pNv->Notifier0->map, 0xff, pNv->Notifier0->size);
         NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_NOTIFY, 1);
         NVDmaNext (pNv, 0);
         NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_OFFSET_IN, 8);
@@ -307,7 +307,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
         NVDEBUG("     max_lines=%d, h=%d\n", max_lines, h);
         int nlines = h > max_lines ? max_lines : h;
         /* reset the notification object */
-        memset(pNv->Notifier0, 0xff, 0x100);
+        memset(pNv->Notifier0->map, 0xff, pNv->Notifier0->size);
         memcpy(pNv->AGPScratch->map, src, nlines*src_pitch);
         NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_NOTIFY, 1);
         NVDmaNext (pNv, 0);
