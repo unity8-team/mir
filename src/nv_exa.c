@@ -261,7 +261,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
         NVDmaNext (pNv, 0x101);
         NVDmaNext (pNv, 0);
         NVDmaKickoff(pNv);
-        if (!NVDmaWaitForNotifier(pNv, pNv->Notifier0)) {
+        if (!NVDmaWaitForNotifier(pNv, pNv->Notifier0->map)) {
             ret = FALSE;
             goto error;
         }
@@ -321,7 +321,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
         NVDmaNext (pNv, 0x101);
         NVDmaNext (pNv, 0);
         NVDmaKickoff(pNv);
-        if (!NVDmaWaitForNotifier(pNv, pNv->Notifier0)) {
+        if (!NVDmaWaitForNotifier(pNv, pNv->Notifier0->map)) {
             ret = FALSE;
             goto error;
         }
