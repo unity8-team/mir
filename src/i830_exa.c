@@ -123,38 +123,16 @@ extern Bool I915EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
  * @pScreen: current screen
  * @marker: marker command to wait for
  *
- * Wait for the command specified by @marker to finish, then return.
+ * Wait for the command specified by @marker to finish, then return.  We don't
+ * actually do marker waits, though we might in the future.  For now, just
+ * wait for a full idle.
  */
 static void
 I830EXASync(ScreenPtr pScreen, int marker)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
 
-#ifdef XF86DRI
-    /* VT switching tries to do this. */
-    if (!pI830->LockHeld && pI830->directRenderingEnabled)
-	return;
-#endif
-
-    if (pI830->entityPrivate && !pI830->entityPrivate->RingRunning)
-	return;
-
-    /* Send a flush instruction and then wait till the ring is empty.
-     * This is stronger than waiting for the blitter to finish as it also
-     * flushes the internal graphics caches.
-     */
-    {
-	BEGIN_LP_RING(2);
-	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
-	OUT_RING(MI_NOOP);		/* pad to quadword */
-	ADVANCE_LP_RING();
-    }
-
-    I830WaitLpRing(pScrn, pI830->LpRing->mem.Size - 8, 0);
-
-    pI830->LpRing->space = pI830->LpRing->mem.Size - 8;
-    pI830->nextColorExpandBuf = 0;
+    I830Sync(pScrn);
 }
 
 /**
