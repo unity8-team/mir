@@ -229,7 +229,7 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
     pI830->BR[13] = exaGetPixmapPitch(pDstPixmap);
     pI830->BR[13] |= I830CopyROP[alu] << 16;
 
-    switch (pScrn->bitsPerPixel) {
+    switch (pSrcPixmap->drawable.bitsPerPixel) {
     case 8:
 	break;
     case 16:
@@ -260,7 +260,7 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
     {
 	BEGIN_LP_RING(8);
 
-	if (pScrn->bitsPerPixel == 32)
+	if (pDstPixmap->drawable.bitsPerPixel == 32)
 	    OUT_RING(XY_SRC_COPY_BLT_CMD | XY_SRC_COPY_BLT_WRITE_ALPHA |
 		     XY_SRC_COPY_BLT_WRITE_RGB);
 	else
