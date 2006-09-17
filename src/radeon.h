@@ -809,6 +809,8 @@ typedef struct {
     int                MaxSurfaceWidth;
     int                MaxLines;
 
+    CARD32            tv_dac_adj;
+
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\

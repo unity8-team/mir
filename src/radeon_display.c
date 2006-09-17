@@ -48,12 +48,7 @@
 #include "radeon_version.h"
 #include "radeon_mergedfb.h"
 
-#ifdef XF86DRI
-#define _XF86DRI_SERVER_
-#include "radeon_dri.h"
-#include "radeon_sarea.h"
-#include "sarea.h"
-#endif
+extern int getRADEONEntityIndex(void);
 
 const char *MonTypeName[7] = {
   "AUTO",
@@ -140,6 +135,28 @@ static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
     {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_R420*/
     {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_RV410*/ /* FIXME: just values from r420 used... */
     {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RS400*/ /* FIXME: just values from rv380 used... */
+};
+
+static const CARD32 default_tvdac_adj [CHIP_FAMILY_LAST] =
+{
+    0x00000000,   /* unknown */
+    0x00000000,   /* legacy */
+    0x00000000,   /* r100 */
+    0x00280000,   /* rv100 */
+    0x00000000,   /* rs100 */
+    0x00880000,   /* rv200 */
+    0x00000000,   /* rs200 */
+    0x00000000,   /* r200 */
+    0x00770000,   /* rv250 */
+    0x00290000,   /* rs300 */
+    0x00560000,   /* rv280 */
+    0x00780000,   /* r300 */
+    0x00770000,   /* r350 */
+    0x00780000,   /* rv350 */
+    0x00780000,   /* rv380 */
+    0x01080000,   /* r420 */
+    0x01080000,   /* rv410 */ /* FIXME: just values from r420 used... */
+    0x00780000,   /* rs400 */ /* FIXME: just values from rv380 used... */
 };
 
 static void RADEONI2CGetBits(I2CBusPtr b, int *Clock, int *data)
@@ -882,6 +899,18 @@ void RADEONGetPanelInfo (ScrnInfoPtr pScrn)
             else if (!info->IsSecondary)
                RADEONUpdatePanelSize(pScrn);
         }
+    }
+}
+
+void RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    
+    /* Todo: get this setting from BIOS */
+    info->tv_dac_adj = default_tvdac_adj[info->ChipFamily];
+    if (info->IsMobility) { /* some mobility chips may different */
+	if (info->ChipFamily == CHIP_FAMILY_RV250)
+	    info->tv_dac_adj = 0x00880000;
     }
 }
 

@@ -3560,6 +3560,7 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
     if (!RADEONQueryConnectedMonitors(pScrn))    
       goto fail;
     RADEONGetClockInfo(pScrn);
+    RADEONGetTVDacAdjInfo(pScrn);
     
     return TRUE;
  fail:
