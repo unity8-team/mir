@@ -6273,6 +6273,8 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
 				  RADEONSavePtr save, DisplayModePtr mode,
 				  RADEONInfoPtr info)
 {
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     int    xres = mode->HDisplay;
     int    yres = mode->VDisplay;
     float  Hratio, Vratio;
@@ -6453,15 +6455,16 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
     /*
      * Allow the bios to toggle outputs. see below for more.
      */
-    if (xf86ReturnOptValBool(info->Options, OPTION_BIOS_HOTKEYS, FALSE)) {
-	info->BiosHotkeys = TRUE;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Enabled\n");
-    } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Disabled\n");
+    if (info->IsMobility) {
+        if (xf86ReturnOptValBool(info->Options, OPTION_BIOS_HOTKEYS, FALSE)) {
+	    info->BiosHotkeys = TRUE;
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Enabled\n");
+        } else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Disabled\n");
+        }
     }
 
     if (info->IsMobility && (!info->BiosHotkeys)) {
-	RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
 	/* To work correctly with laptop hotkeys.
 	 * Since there is no machnism for accessing ACPI evnets
@@ -6476,8 +6479,6 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
 		save->bios_5_scratch = 0x0201;
 	    else if (pRADEONEnt->Controller[1].pPort->MonType == MT_DFP)
 		save->bios_5_scratch = 0x0801;
-	    else
-		save->bios_5_scratch = orig->bios_5_scratch;
 	} else {
 	    if (pRADEONEnt->Controller[1].pPort->MonType == MT_CRT)
 		save->bios_5_scratch = 0x0200;
@@ -6487,21 +6488,15 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
 		save->bios_5_scratch = 0x0; 
 	}
 	save->bios_4_scratch = 0x4;
-	save->bios_6_scratch = orig->bios_6_scratch | 0x40000000;
+	save->bios_6_scratch |= 0x40000000;
 
     } else if (info->IsMobility && (info->DisplayType == MT_LCD)) {
-	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
 	/* BIOS will use this setting to reset displays upon lid close/open.
 	 * Here we let BIOS controls LCD, but the driver will control the external CRT.
 	 */
 	if (info->MergedFB || pRADEONEnt->HasSecondary)
 	    save->bios_5_scratch = 0x01020201;
-	else
-	    save->bios_5_scratch = orig->bios_5_scratch;
-
-    	save->bios_4_scratch = orig->bios_4_scratch;
-	save->bios_6_scratch = orig->bios_6_scratch;
 
     }
 
