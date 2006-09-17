@@ -1271,16 +1271,6 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 /*
  * Powering done DAC, needed for DPMS problem with ViewSonic P817 (or its variant).
  *
- * Note for current DAC mapping when calling this function:
- * For most of cards:
- * single CRT:  Driver doesn't change the existing CRTC->DAC mapping, 
- *              CRTC1 could be driving either DAC or both DACs.
- * CRT+CRT:     CRTC1->TV DAC, CRTC2->Primary DAC
- * DFP/LCD+CRT: CRTC2->TV DAC, CRTC2->Primary DAC.
- * Some boards have two DACs reversed or don't even have a primary DAC,
- * this is reflected in pRADEONEnt->ReversedDAC. And radeon 7200 doesn't 
- * have a second DAC.
- * It's kind of messy, we'll need to redo DAC mapping part some day.
  */
 static void RADEONDacPowerSet(ScrnInfoPtr pScrn, Bool IsOn, Bool IsPrimaryDAC)
 {
@@ -1308,8 +1298,39 @@ static void RADEONDacPowerSet(ScrnInfoPtr pScrn, Bool IsOn, Bool IsPrimaryDAC)
 	if ((!info->IsMobility) || (info->ChipFamily == CHIP_FAMILY_RV350)) 
 	    OUTREG(RADEON_DAC_MACRO_CNTL, dac_macro_cntl);
     } else {
-	if (info->ChipFamily != CHIP_FAMILY_R200) {
-	    CARD32 tv_dac_cntl = INREG(RADEON_TV_DAC_CNTL);
+	CARD32 tv_dac_cntl;
+	CARD32 fp2_gen_cntl;
+	
+	switch(info->ChipFamily)
+	{
+	case CHIP_FAMILY_R420:
+	case CHIP_FAMILY_RV410:
+	    tv_dac_cntl = INREG(RADEON_TV_DAC_CNTL);
+	    if (IsOn) {
+		tv_dac_cntl &= ~(R420_TV_DAC_RDACPD |
+				 R420_TV_DAC_GDACPD |
+				 R420_TV_DAC_BDACPD |
+				 RADEON_TV_DAC_BGSLEEP);
+	    } else {
+		tv_dac_cntl |= (R420_TV_DAC_RDACPD |
+				R420_TV_DAC_GDACPD |
+				R420_TV_DAC_BDACPD |
+				RADEON_TV_DAC_BGSLEEP);
+	    }
+	    OUTREG(RADEON_TV_DAC_CNTL, tv_dac_cntl);
+	    break;
+	case CHIP_FAMILY_R200:
+	    fp2_gen_cntl = INREG(RADEON_FP2_GEN_CNTL);
+	    if (IsOn) {
+		fp2_gen_cntl |= RADEON_FP2_DVO_EN;
+	    } else {
+		fp2_gen_cntl &= ~RADEON_FP2_DVO_EN;
+	    }
+	    OUTREG(RADEON_FP2_GEN_CNTL, fp2_gen_cntl);
+	    break;
+
+	default:
+	    tv_dac_cntl = INREG(RADEON_TV_DAC_CNTL);
 	    if (IsOn) {
 		tv_dac_cntl &= ~(RADEON_TV_DAC_RDACPD |
 				 RADEON_TV_DAC_GDACPD |
@@ -1322,14 +1343,7 @@ static void RADEONDacPowerSet(ScrnInfoPtr pScrn, Bool IsOn, Bool IsPrimaryDAC)
 				RADEON_TV_DAC_BGSLEEP);
 	    }
 	    OUTREG(RADEON_TV_DAC_CNTL, tv_dac_cntl);
-	} else {
-	    CARD32 fp2_gen_cntl = INREG(RADEON_FP2_GEN_CNTL);
-	    if (IsOn) {
-		fp2_gen_cntl |= RADEON_FP2_DVO_EN;
-	    } else {
-		fp2_gen_cntl &= ~RADEON_FP2_DVO_EN;
-	    }
-	    OUTREG(RADEON_FP2_GEN_CNTL, fp2_gen_cntl);
+	    break;
 	}
     }
 }
