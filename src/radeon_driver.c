@@ -6267,6 +6267,250 @@ static void RADEONInitCommonRegisters(RADEONSavePtr save, RADEONInfoPtr info)
 	save->bus_cntl |= RADEON_BUS_RD_DISCARD_EN;
 }
 
+
+/* Define CRTC registers for requested video mode */
+static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
+				  RADEONSavePtr save, DisplayModePtr mode,
+				  RADEONInfoPtr info)
+{
+    int    xres = mode->HDisplay;
+    int    yres = mode->VDisplay;
+    float  Hratio, Vratio;
+
+    /* If the FP registers have been initialized before for a panel,
+     * but the primary port is a CRT, we need to reinitialize
+     * FP registers in order for CRT to work properly
+     */
+
+    if ((info->DisplayType != MT_DFP) && (info->DisplayType != MT_LCD)) {
+        save->fp_crtc_h_total_disp = orig->fp_crtc_h_total_disp;
+        save->fp_crtc_v_total_disp = orig->fp_crtc_v_total_disp;
+        save->fp_gen_cntl          = 0;
+        save->fp_h_sync_strt_wid   = orig->fp_h_sync_strt_wid;
+        save->fp_horz_stretch      = 0;
+        save->fp_v_sync_strt_wid   = orig->fp_v_sync_strt_wid;
+        save->fp_vert_stretch      = 0;
+        save->lvds_gen_cntl        = orig->lvds_gen_cntl;
+        save->lvds_pll_cntl        = orig->lvds_pll_cntl;
+        save->tmds_pll_cntl        = orig->tmds_pll_cntl;
+        save->tmds_transmitter_cntl= orig->tmds_transmitter_cntl;
+
+        save->lvds_gen_cntl |= ( RADEON_LVDS_DISPLAY_DIS | (1 << 23));
+        save->lvds_gen_cntl &= ~(RADEON_LVDS_BLON | RADEON_LVDS_ON);
+        save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
+
+        return;
+    }
+
+    if (info->PanelXRes == 0 || info->PanelYRes == 0) {
+	Hratio = 1.0;
+	Vratio = 1.0;
+    } else {
+	if (xres > info->PanelXRes) xres = info->PanelXRes;
+	if (yres > info->PanelYRes) yres = info->PanelYRes;
+
+	Hratio = (float)xres/(float)info->PanelXRes;
+	Vratio = (float)yres/(float)info->PanelYRes;
+    }
+
+    if (Hratio == 1.0 || !(mode->Flags & RADEON_USE_RMX)) {
+	save->fp_horz_stretch = orig->fp_horz_stretch;
+	save->fp_horz_stretch &= ~(RADEON_HORZ_STRETCH_BLEND |
+				   RADEON_HORZ_STRETCH_ENABLE);
+	save->fp_horz_stretch &= ~(RADEON_HORZ_AUTO_RATIO |
+				   RADEON_HORZ_PANEL_SIZE);
+	save->fp_horz_stretch |= ((xres/8-1)<<16);
+
+    } else {
+	save->fp_horz_stretch =
+	    ((((unsigned long)(Hratio * RADEON_HORZ_STRETCH_RATIO_MAX +
+			       0.5)) & RADEON_HORZ_STRETCH_RATIO_MASK)) |
+	    (orig->fp_horz_stretch & (RADEON_HORZ_PANEL_SIZE |
+				      RADEON_HORZ_FP_LOOP_STRETCH |
+				      RADEON_HORZ_AUTO_RATIO_INC));
+	save->fp_horz_stretch |= (RADEON_HORZ_STRETCH_BLEND |
+				  RADEON_HORZ_STRETCH_ENABLE);
+
+	save->fp_horz_stretch &= ~(RADEON_HORZ_AUTO_RATIO |
+				   RADEON_HORZ_PANEL_SIZE);
+	save->fp_horz_stretch |= ((info->PanelXRes / 8 - 1) << 16);
+
+    }
+
+    if (Vratio == 1.0 || !(mode->Flags & RADEON_USE_RMX)) {
+	save->fp_vert_stretch = orig->fp_vert_stretch;
+	save->fp_vert_stretch &= ~(RADEON_VERT_STRETCH_ENABLE|
+				   RADEON_VERT_STRETCH_BLEND);
+	save->fp_vert_stretch &= ~(RADEON_VERT_AUTO_RATIO_EN |
+				   RADEON_VERT_PANEL_SIZE);
+	save->fp_vert_stretch |= ((yres-1) << 12);
+    } else {
+	save->fp_vert_stretch =
+	    (((((unsigned long)(Vratio * RADEON_VERT_STRETCH_RATIO_MAX +
+				0.5)) & RADEON_VERT_STRETCH_RATIO_MASK)) |
+	     (orig->fp_vert_stretch & (RADEON_VERT_PANEL_SIZE |
+				       RADEON_VERT_STRETCH_RESERVED)));
+	save->fp_vert_stretch |= (RADEON_VERT_STRETCH_ENABLE |
+				  RADEON_VERT_STRETCH_BLEND);
+
+	save->fp_vert_stretch &= ~(RADEON_VERT_AUTO_RATIO_EN |
+				   RADEON_VERT_PANEL_SIZE);
+	save->fp_vert_stretch |= ((info->PanelYRes-1) << 12);
+
+    }
+
+    save->fp_gen_cntl = (orig->fp_gen_cntl & (CARD32)
+			 ~(RADEON_FP_SEL_CRTC2 |
+			   RADEON_FP_RMX_HVSYNC_CONTROL_EN |
+			   RADEON_FP_DFP_SYNC_SEL |
+			   RADEON_FP_CRT_SYNC_SEL |
+			   RADEON_FP_CRTC_LOCK_8DOT |
+			   RADEON_FP_USE_SHADOW_EN |
+			   RADEON_FP_CRTC_USE_SHADOW_VEND |
+			   RADEON_FP_CRT_SYNC_ALT));
+    save->fp_gen_cntl |= (RADEON_FP_CRTC_DONT_SHADOW_VPAR |
+			  RADEON_FP_CRTC_DONT_SHADOW_HEND );
+
+    if (pScrn->rgbBits == 8)
+        save->fp_gen_cntl |= RADEON_FP_PANEL_FORMAT;  /* 24 bit format */
+    else
+        save->fp_gen_cntl &= ~RADEON_FP_PANEL_FORMAT;/* 18 bit format */
+
+    if (IS_R300_VARIANT ||
+	(info->ChipFamily == CHIP_FAMILY_R200)) {
+	save->fp_gen_cntl &= ~R200_FP_SOURCE_SEL_MASK;
+	if (mode->Flags & RADEON_USE_RMX) 
+	    save->fp_gen_cntl |= R200_FP_SOURCE_SEL_RMX;
+	else
+	    save->fp_gen_cntl |= R200_FP_SOURCE_SEL_CRTC1;
+    } else 
+	save->fp_gen_cntl |= RADEON_FP_SEL_CRTC1;
+
+    save->lvds_gen_cntl = orig->lvds_gen_cntl;
+    save->lvds_pll_cntl = orig->lvds_pll_cntl;
+
+    info->PanelOff = FALSE;
+    /* This option is used to force the ONLY DEVICE in XFConfig to use
+     * CRT port, instead of default DVI port.
+     */
+    if (xf86ReturnOptValBool(info->Options, OPTION_PANEL_OFF, FALSE)) {
+	info->PanelOff = TRUE;
+    }
+
+    save->tmds_pll_cntl = orig->tmds_pll_cntl;
+    save->tmds_transmitter_cntl= orig->tmds_transmitter_cntl;
+    if (info->PanelOff && info->MergedFB) {
+	info->OverlayOnCRTC2 = TRUE;
+	if (info->DisplayType == MT_LCD) {
+	    /* Turning off LVDS_ON seems to make panel white blooming.
+	     * For now we just turn off display data ???
+	     */
+	    save->lvds_gen_cntl |= (RADEON_LVDS_DISPLAY_DIS);
+	    save->lvds_gen_cntl &= ~(RADEON_LVDS_BLON | RADEON_LVDS_ON);
+
+	} else if (info->DisplayType == MT_DFP)
+	    save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
+    } else {
+	if (info->DisplayType == MT_LCD) {
+
+	    save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
+	    save->fp_gen_cntl   &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
+
+	} else if (info->DisplayType == MT_DFP) {
+	    int i;
+	    CARD32 tmp = orig->tmds_pll_cntl & 0xfffff;
+	    for (i=0; i<4; i++) {
+		if (info->tmds_pll[i].freq == 0) break;
+		if (save->dot_clock_freq < info->tmds_pll[i].freq) {
+		    tmp = info->tmds_pll[i].value ;
+		    break;
+		}
+	    }
+	    if (IS_R300_VARIANT ||
+		(info->ChipFamily == CHIP_FAMILY_RV280)) {
+		if (tmp & 0xfff00000)
+		    save->tmds_pll_cntl = tmp;
+		else
+		    save->tmds_pll_cntl = (orig->tmds_pll_cntl & 0xfff00000) | tmp;
+	    } else save->tmds_pll_cntl = tmp;
+
+	    RADEONTRACE(("TMDS_PLL from %lx to %lx\n", 
+			 orig->tmds_pll_cntl, 
+			 save->tmds_pll_cntl));
+
+            save->tmds_transmitter_cntl &= ~(RADEON_TMDS_TRANSMITTER_PLLRST);
+            if (IS_R300_VARIANT ||
+		(info->ChipFamily == CHIP_FAMILY_R200) || !info->HasCRTC2)
+		save->tmds_transmitter_cntl &= ~(RADEON_TMDS_TRANSMITTER_PLLEN);
+            else /* weird, RV chips got this bit reversed? */
+                save->tmds_transmitter_cntl |= (RADEON_TMDS_TRANSMITTER_PLLEN);
+
+	    save->fp_gen_cntl   |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
+        }
+    }
+
+    info->BiosHotkeys = FALSE;
+    /*
+     * Allow the bios to toggle outputs. see below for more.
+     */
+    if (xf86ReturnOptValBool(info->Options, OPTION_BIOS_HOTKEYS, FALSE)) {
+	info->BiosHotkeys = TRUE;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Enabled\n");
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Disabled\n");
+    }
+
+    if (info->IsMobility && (!info->BiosHotkeys)) {
+	RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+
+	/* To work correctly with laptop hotkeys.
+	 * Since there is no machnism for accessing ACPI evnets
+	 * and the driver currently doesn't know how to validate
+	 * a mode dynamically, we have to tell BIOS don't do
+	 * display switching after X has started.  
+	 * If LCD is on, lid close/open should still work 
+	 * with below settings
+	 */
+	if (info->DisplayType == MT_LCD) {
+	    if (pRADEONEnt->Controller[1].pPort->MonType == MT_CRT)
+		save->bios_5_scratch = 0x0201;
+	    else if (pRADEONEnt->Controller[1].pPort->MonType == MT_DFP)
+		save->bios_5_scratch = 0x0801;
+	    else
+		save->bios_5_scratch = orig->bios_5_scratch;
+	} else {
+	    if (pRADEONEnt->Controller[1].pPort->MonType == MT_CRT)
+		save->bios_5_scratch = 0x0200;
+	    else if (pRADEONEnt->Controller[1].pPort->MonType == MT_DFP)
+		save->bios_5_scratch = 0x0800;
+	    else
+		save->bios_5_scratch = 0x0; 
+	}
+	save->bios_4_scratch = 0x4;
+	save->bios_6_scratch = orig->bios_6_scratch | 0x40000000;
+
+    } else if (info->IsMobility && (info->DisplayType == MT_LCD)) {
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+	/* BIOS will use this setting to reset displays upon lid close/open.
+	 * Here we let BIOS controls LCD, but the driver will control the external CRT.
+	 */
+	if (info->MergedFB || pRADEONEnt->HasSecondary)
+	    save->bios_5_scratch = 0x01020201;
+	else
+	    save->bios_5_scratch = orig->bios_5_scratch;
+
+    	save->bios_4_scratch = orig->bios_4_scratch;
+	save->bios_6_scratch = orig->bios_6_scratch;
+
+    }
+
+    save->fp_crtc_h_total_disp = save->crtc_h_total_disp;
+    save->fp_crtc_v_total_disp = save->crtc_v_total_disp;
+    save->fp_h_sync_strt_wid   = save->crtc_h_sync_strt_wid;
+    save->fp_v_sync_strt_wid   = save->crtc_v_sync_strt_wid;
+}
+
 /* Define CRTC registers for requested video mode */
 static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				  DisplayModePtr mode, RADEONInfoPtr info)
@@ -6667,248 +6911,6 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     return TRUE;
 }
 
-/* Define CRTC registers for requested video mode */
-static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
-				  RADEONSavePtr save, DisplayModePtr mode,
-				  RADEONInfoPtr info)
-{
-    int    xres = mode->HDisplay;
-    int    yres = mode->VDisplay;
-    float  Hratio, Vratio;
-
-    /* If the FP registers have been initialized before for a panel,
-     * but the primary port is a CRT, we need to reinitialize
-     * FP registers in order for CRT to work properly
-     */
-
-    if ((info->DisplayType != MT_DFP) && (info->DisplayType != MT_LCD)) {
-        save->fp_crtc_h_total_disp = orig->fp_crtc_h_total_disp;
-        save->fp_crtc_v_total_disp = orig->fp_crtc_v_total_disp;
-        save->fp_gen_cntl          = 0;
-        save->fp_h_sync_strt_wid   = orig->fp_h_sync_strt_wid;
-        save->fp_horz_stretch      = 0;
-        save->fp_v_sync_strt_wid   = orig->fp_v_sync_strt_wid;
-        save->fp_vert_stretch      = 0;
-        save->lvds_gen_cntl        = orig->lvds_gen_cntl;
-        save->lvds_pll_cntl        = orig->lvds_pll_cntl;
-        save->tmds_pll_cntl        = orig->tmds_pll_cntl;
-        save->tmds_transmitter_cntl= orig->tmds_transmitter_cntl;
-
-        save->lvds_gen_cntl |= ( RADEON_LVDS_DISPLAY_DIS | (1 << 23));
-        save->lvds_gen_cntl &= ~(RADEON_LVDS_BLON | RADEON_LVDS_ON);
-        save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
-
-        return;
-    }
-
-    if (info->PanelXRes == 0 || info->PanelYRes == 0) {
-	Hratio = 1.0;
-	Vratio = 1.0;
-    } else {
-	if (xres > info->PanelXRes) xres = info->PanelXRes;
-	if (yres > info->PanelYRes) yres = info->PanelYRes;
-
-	Hratio = (float)xres/(float)info->PanelXRes;
-	Vratio = (float)yres/(float)info->PanelYRes;
-    }
-
-    if (Hratio == 1.0 || !(mode->Flags & RADEON_USE_RMX)) {
-	save->fp_horz_stretch = orig->fp_horz_stretch;
-	save->fp_horz_stretch &= ~(RADEON_HORZ_STRETCH_BLEND |
-				   RADEON_HORZ_STRETCH_ENABLE);
-	save->fp_horz_stretch &= ~(RADEON_HORZ_AUTO_RATIO |
-				   RADEON_HORZ_PANEL_SIZE);
-	save->fp_horz_stretch |= ((xres/8-1)<<16);
-
-    } else {
-	save->fp_horz_stretch =
-	    ((((unsigned long)(Hratio * RADEON_HORZ_STRETCH_RATIO_MAX +
-			       0.5)) & RADEON_HORZ_STRETCH_RATIO_MASK)) |
-	    (orig->fp_horz_stretch & (RADEON_HORZ_PANEL_SIZE |
-				      RADEON_HORZ_FP_LOOP_STRETCH |
-				      RADEON_HORZ_AUTO_RATIO_INC));
-	save->fp_horz_stretch |= (RADEON_HORZ_STRETCH_BLEND |
-				  RADEON_HORZ_STRETCH_ENABLE);
-
-	save->fp_horz_stretch &= ~(RADEON_HORZ_AUTO_RATIO |
-				   RADEON_HORZ_PANEL_SIZE);
-	save->fp_horz_stretch |= ((info->PanelXRes / 8 - 1) << 16);
-
-    }
-
-    if (Vratio == 1.0 || !(mode->Flags & RADEON_USE_RMX)) {
-	save->fp_vert_stretch = orig->fp_vert_stretch;
-	save->fp_vert_stretch &= ~(RADEON_VERT_STRETCH_ENABLE|
-				   RADEON_VERT_STRETCH_BLEND);
-	save->fp_vert_stretch &= ~(RADEON_VERT_AUTO_RATIO_EN |
-				   RADEON_VERT_PANEL_SIZE);
-	save->fp_vert_stretch |= ((yres-1) << 12);
-    } else {
-	save->fp_vert_stretch =
-	    (((((unsigned long)(Vratio * RADEON_VERT_STRETCH_RATIO_MAX +
-				0.5)) & RADEON_VERT_STRETCH_RATIO_MASK)) |
-	     (orig->fp_vert_stretch & (RADEON_VERT_PANEL_SIZE |
-				       RADEON_VERT_STRETCH_RESERVED)));
-	save->fp_vert_stretch |= (RADEON_VERT_STRETCH_ENABLE |
-				  RADEON_VERT_STRETCH_BLEND);
-
-	save->fp_vert_stretch &= ~(RADEON_VERT_AUTO_RATIO_EN |
-				   RADEON_VERT_PANEL_SIZE);
-	save->fp_vert_stretch |= ((info->PanelYRes-1) << 12);
-
-    }
-
-    save->fp_gen_cntl = (orig->fp_gen_cntl & (CARD32)
-			 ~(RADEON_FP_SEL_CRTC2 |
-			   RADEON_FP_RMX_HVSYNC_CONTROL_EN |
-			   RADEON_FP_DFP_SYNC_SEL |
-			   RADEON_FP_CRT_SYNC_SEL |
-			   RADEON_FP_CRTC_LOCK_8DOT |
-			   RADEON_FP_USE_SHADOW_EN |
-			   RADEON_FP_CRTC_USE_SHADOW_VEND |
-			   RADEON_FP_CRT_SYNC_ALT));
-    save->fp_gen_cntl |= (RADEON_FP_CRTC_DONT_SHADOW_VPAR |
-			  RADEON_FP_CRTC_DONT_SHADOW_HEND );
-
-    if (pScrn->rgbBits == 8)
-        save->fp_gen_cntl |= RADEON_FP_PANEL_FORMAT;  /* 24 bit format */
-    else
-        save->fp_gen_cntl &= ~RADEON_FP_PANEL_FORMAT;/* 18 bit format */
-
-    if (IS_R300_VARIANT ||
-	(info->ChipFamily == CHIP_FAMILY_R200)) {
-	save->fp_gen_cntl &= ~R200_FP_SOURCE_SEL_MASK;
-	if (mode->Flags & RADEON_USE_RMX) 
-	    save->fp_gen_cntl |= R200_FP_SOURCE_SEL_RMX;
-	else
-	    save->fp_gen_cntl |= R200_FP_SOURCE_SEL_CRTC1;
-    } else 
-	save->fp_gen_cntl |= RADEON_FP_SEL_CRTC1;
-
-    save->lvds_gen_cntl = orig->lvds_gen_cntl;
-    save->lvds_pll_cntl = orig->lvds_pll_cntl;
-
-    info->PanelOff = FALSE;
-    /* This option is used to force the ONLY DEVICE in XFConfig to use
-     * CRT port, instead of default DVI port.
-     */
-    if (xf86ReturnOptValBool(info->Options, OPTION_PANEL_OFF, FALSE)) {
-	info->PanelOff = TRUE;
-    }
-
-    save->tmds_pll_cntl = orig->tmds_pll_cntl;
-    save->tmds_transmitter_cntl= orig->tmds_transmitter_cntl;
-    if (info->PanelOff && info->MergedFB) {
-	info->OverlayOnCRTC2 = TRUE;
-	if (info->DisplayType == MT_LCD) {
-	    /* Turning off LVDS_ON seems to make panel white blooming.
-	     * For now we just turn off display data ???
-	     */
-	    save->lvds_gen_cntl |= (RADEON_LVDS_DISPLAY_DIS);
-	    save->lvds_gen_cntl &= ~(RADEON_LVDS_BLON | RADEON_LVDS_ON);
-
-	} else if (info->DisplayType == MT_DFP)
-	    save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
-    } else {
-	if (info->DisplayType == MT_LCD) {
-
-	    save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
-	    save->fp_gen_cntl   &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
-
-	} else if (info->DisplayType == MT_DFP) {
-	    int i;
-	    CARD32 tmp = orig->tmds_pll_cntl & 0xfffff;
-	    for (i=0; i<4; i++) {
-		if (info->tmds_pll[i].freq == 0) break;
-		if (save->dot_clock_freq < info->tmds_pll[i].freq) {
-		    tmp = info->tmds_pll[i].value ;
-		    break;
-		}
-	    }
-	    if (IS_R300_VARIANT ||
-		(info->ChipFamily == CHIP_FAMILY_RV280)) {
-		if (tmp & 0xfff00000)
-		    save->tmds_pll_cntl = tmp;
-		else
-		    save->tmds_pll_cntl = (orig->tmds_pll_cntl & 0xfff00000) | tmp;
-	    } else save->tmds_pll_cntl = tmp;
-
-	    RADEONTRACE(("TMDS_PLL from %lx to %lx\n", 
-			 orig->tmds_pll_cntl, 
-			 save->tmds_pll_cntl));
-
-            save->tmds_transmitter_cntl &= ~(RADEON_TMDS_TRANSMITTER_PLLRST);
-            if (IS_R300_VARIANT ||
-		(info->ChipFamily == CHIP_FAMILY_R200) || !info->HasCRTC2)
-		save->tmds_transmitter_cntl &= ~(RADEON_TMDS_TRANSMITTER_PLLEN);
-            else /* weird, RV chips got this bit reversed? */
-                save->tmds_transmitter_cntl |= (RADEON_TMDS_TRANSMITTER_PLLEN);
-
-	    save->fp_gen_cntl   |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
-        }
-    }
-
-    info->BiosHotkeys = FALSE;
-    /*
-     * Allow the bios to toggle outputs. see below for more.
-     */
-    if (xf86ReturnOptValBool(info->Options, OPTION_BIOS_HOTKEYS, FALSE)) {
-	info->BiosHotkeys = TRUE;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Enabled\n");
-    } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Disabled\n");
-    }
-
-    if (info->IsMobility && (!info->BiosHotkeys)) {
-	RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-
-	/* To work correctly with laptop hotkeys.
-	 * Since there is no machnism for accessing ACPI evnets
-	 * and the driver currently doesn't know how to validate
-	 * a mode dynamically, we have to tell BIOS don't do
-	 * display switching after X has started.  
-	 * If LCD is on, lid close/open should still work 
-	 * with below settings
-	 */
-	if (info->DisplayType == MT_LCD) {
-	    if (pRADEONEnt->Controller[1].pPort->MonType == MT_CRT)
-		save->bios_5_scratch = 0x0201;
-	    else if (pRADEONEnt->Controller[1].pPort->MonType == MT_DFP)
-		save->bios_5_scratch = 0x0801;
-	    else
-		save->bios_5_scratch = orig->bios_5_scratch;
-	} else {
-	    if (pRADEONEnt->Controller[1].pPort->MonType == MT_CRT)
-		save->bios_5_scratch = 0x0200;
-	    else if (pRADEONEnt->Controller[1].pPort->MonType == MT_DFP)
-		save->bios_5_scratch = 0x0800;
-	    else
-		save->bios_5_scratch = 0x0; 
-	}
-	save->bios_4_scratch = 0x4;
-	save->bios_6_scratch = orig->bios_6_scratch | 0x40000000;
-
-    } else if (info->IsMobility && (info->DisplayType == MT_LCD)) {
-	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-
-	/* BIOS will use this setting to reset displays upon lid close/open.
-	 * Here we let BIOS controls LCD, but the driver will control the external CRT.
-	 */
-	if (info->MergedFB || pRADEONEnt->HasSecondary)
-	    save->bios_5_scratch = 0x01020201;
-	else
-	    save->bios_5_scratch = orig->bios_5_scratch;
-
-    	save->bios_4_scratch = orig->bios_4_scratch;
-	save->bios_6_scratch = orig->bios_6_scratch;
-
-    }
-
-    save->fp_crtc_h_total_disp = save->crtc_h_total_disp;
-    save->fp_crtc_v_total_disp = save->crtc_v_total_disp;
-    save->fp_h_sync_strt_wid   = save->crtc_h_sync_strt_wid;
-    save->fp_v_sync_strt_wid   = save->crtc_v_sync_strt_wid;
-}
 
 /* Define PLL registers for requested video mode */
 static void RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONInfoPtr info,
