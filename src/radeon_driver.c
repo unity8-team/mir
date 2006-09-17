@@ -6536,24 +6536,6 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	return FALSE;
     }
 
-    if ((info->DisplayType == MT_DFP) ||
-	(info->DisplayType == MT_LCD)) {
-	if (mode->Flags & RADEON_USE_RMX) {
-#if 0
-	    mode->CrtcHDisplay   = info->PanelXRes;
-	    mode->CrtcVDisplay   = info->PanelYRes;
-#endif
-	    mode->CrtcHTotal     = mode->CrtcHDisplay + info->HBlank;
-	    mode->CrtcHSyncStart = mode->CrtcHDisplay + info->HOverPlus;
-	    mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + info->HSyncWidth;
-	    mode->CrtcVTotal     = mode->CrtcVDisplay + info->VBlank;
-	    mode->CrtcVSyncStart = mode->CrtcVDisplay + info->VOverPlus;
-	    mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + info->VSyncWidth;
-	    mode->Clock          = info->DotClock;
-	    mode->Flags          = info->Flags | RADEON_USE_RMX;
-	}
-    }
-
     save->crtc_gen_cntl = (RADEON_CRTC_EXT_DISP_EN
 			   | RADEON_CRTC_EN
 			   | (format << 8)
@@ -6587,9 +6569,48 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 			       RADEON_CRTC_CRT_ON);
     }
 
-    save->dac_cntl = (RADEON_DAC_MASK_ALL
-		      | RADEON_DAC_VGA_ADR_EN
-		      | (info->dac6bits ? 0 : RADEON_DAC_8BIT_EN));
+    save->surface_cntl = 0;
+    save->disp_merge_cntl = info->SavedReg.disp_merge_cntl;
+    save->disp_merge_cntl &= ~RADEON_DISP_RGB_OFFSET_EN;
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    /* We must set both apertures as they can be both used to map the entire
+     * video memory. -BenH.
+     */
+    switch (pScrn->bitsPerPixel) {
+    case 16:
+	save->surface_cntl |= RADEON_NONSURF_AP0_SWP_16BPP;
+	save->surface_cntl |= RADEON_NONSURF_AP1_SWP_16BPP;
+	break;
+
+    case 32:
+	save->surface_cntl |= RADEON_NONSURF_AP0_SWP_32BPP;
+	save->surface_cntl |= RADEON_NONSURF_AP1_SWP_32BPP;
+	break;
+    }
+#endif
+
+    save->crtc_more_cntl = 0;
+    if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
+        (info->ChipFamily == CHIP_FAMILY_RS200)) {
+        /* This is to workaround the asic bug for RMX, some versions
+           of BIOS dosen't have this register initialized correctly.
+	*/
+        save->crtc_more_cntl |= RADEON_CRTC_H_CUTOFF_ACTIVE_EN;
+    }
+
+    if (mode->Flags & RADEON_USE_RMX) {
+      mode->CrtcHTotal     = mode->CrtcHDisplay + info->HBlank;
+      mode->CrtcHSyncStart = mode->CrtcHDisplay + info->HOverPlus;
+      mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + info->HSyncWidth;
+      mode->CrtcVTotal     = mode->CrtcVDisplay + info->VBlank;
+      mode->CrtcVSyncStart = mode->CrtcVDisplay + info->VOverPlus;
+      mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + info->VSyncWidth;
+      mode->Clock          = info->DotClock;
+      mode->Flags          = info->Flags | RADEON_USE_RMX;
+    }
+
+
 
     save->crtc_h_total_disp = ((((mode->CrtcHTotal / 8) - 1) & 0x3ff)
 			       | ((((mode->CrtcHDisplay / 8) - 1) & 0x1ff)
@@ -6606,19 +6627,9 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				     ? RADEON_CRTC_H_SYNC_POL
 				     : 0));
 
-#if 1
 				/* This works for double scan mode. */
     save->crtc_v_total_disp = (((mode->CrtcVTotal - 1) & 0xffff)
 			       | ((mode->CrtcVDisplay - 1) << 16));
-#else
-				/* This is what cce/nbmode.c example code
-				 * does -- is this correct?
-				 */
-    save->crtc_v_total_disp = (((mode->CrtcVTotal - 1) & 0xffff)
-			       | ((mode->CrtcVDisplay
-				   * ((mode->Flags & V_DBLSCAN) ? 2 : 1) - 1)
-				  << 16));
-#endif
 
     vsync_wid = mode->CrtcVSyncEnd - mode->CrtcVSyncStart;
     if (!vsync_wid)       vsync_wid = 1;
@@ -6654,35 +6665,10 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 			 (pScrn->bitsPerPixel * 8));
     save->crtc_pitch |= save->crtc_pitch << 16;
     
-    save->crtc_more_cntl = 0;
-    if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
-        (info->ChipFamily == CHIP_FAMILY_RS200)) {
-        /* This is to workaround the asic bug for RMX, some versions
-           of BIOS dosen't have this register initialized correctly.
-	*/
-        save->crtc_more_cntl |= RADEON_CRTC_H_CUTOFF_ACTIVE_EN;
-    }
 
-    save->surface_cntl = 0;
-    save->disp_merge_cntl = info->SavedReg.disp_merge_cntl;
-    save->disp_merge_cntl &= ~RADEON_DISP_RGB_OFFSET_EN;
-
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* We must set both apertures as they can be both used to map the entire
-     * video memory. -BenH.
-     */
-    switch (pScrn->bitsPerPixel) {
-    case 16:
-	save->surface_cntl |= RADEON_NONSURF_AP0_SWP_16BPP;
-	save->surface_cntl |= RADEON_NONSURF_AP1_SWP_16BPP;
-	break;
-
-    case 32:
-	save->surface_cntl |= RADEON_NONSURF_AP0_SWP_32BPP;
-	save->surface_cntl |= RADEON_NONSURF_AP1_SWP_32BPP;
-	break;
-    }
-#endif
+    save->dac_cntl = (RADEON_DAC_MASK_ALL
+		      | RADEON_DAC_VGA_ADR_EN
+		      | (info->dac6bits ? 0 : RADEON_DAC_8BIT_EN));
 
     if (info->IsDellServer) {
 	save->dac2_cntl = info->SavedReg.dac2_cntl;
@@ -6737,60 +6723,6 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	return FALSE;
     }
 
-    save->crtc2_gen_cntl = (RADEON_CRTC2_EN
-			    | RADEON_CRTC2_CRT2_ON
-			    | (format << 8)
-			    | ((mode->Flags & V_DBLSCAN)
-			       ? RADEON_CRTC2_DBL_SCAN_EN
-			       : 0)
-			    | ((mode->Flags & V_CSYNC)
-			       ? RADEON_CRTC2_CSYNC_EN
-			       : 0)
-			    | ((mode->Flags & V_INTERLACE)
-			       ? RADEON_CRTC2_INTERLACE_EN
-			       : 0));
-
-    /* Turn CRT on in case the first head is a DFP */
-    save->dac2_cntl = info->SavedReg.dac2_cntl;
-    /* always let TVDAC drive CRT2, we don't support tvout yet */
-    save->dac2_cntl |= RADEON_DAC2_DAC2_CLK_SEL;
-    save->disp_output_cntl = info->SavedReg.disp_output_cntl;
-    if (info->ChipFamily == CHIP_FAMILY_R200 ||
-	IS_R300_VARIANT) {
-	save->disp_output_cntl &= ~(RADEON_DISP_DAC_SOURCE_MASK |
-				    RADEON_DISP_DAC2_SOURCE_MASK);
-	if (pRADEONEnt->Controller[0].pPort->MonType != MT_CRT) {
-	    save->disp_output_cntl |= (RADEON_DISP_DAC_SOURCE_CRTC2 |
-				       RADEON_DISP_DAC2_SOURCE_CRTC2);
-	} else {
-	    if (pRADEONEnt->ReversedDAC) {
-		save->disp_output_cntl |= RADEON_DISP_DAC2_SOURCE_CRTC2;
-	    } else {
-		save->disp_output_cntl |= RADEON_DISP_DAC_SOURCE_CRTC2;
-	    }
-	}
-    } else {
-	save->disp_hw_debug = info->SavedReg.disp_hw_debug;
-	/* Turn on 2nd CRT */
-	if (pRADEONEnt->Controller[0].pPort->MonType != MT_CRT) {
-	    /* This is for some sample boards with the VGA port
-	       connected to the TVDAC, but BIOS doesn't reflect this.
-	       Here we configure both DACs to use CRTC2.
-	       Not sure if this happens in any retail board.
-	    */
-	    save->disp_hw_debug &= ~RADEON_CRT2_DISP1_SEL;
-	    save->dac2_cntl |= RADEON_DAC2_DAC_CLK_SEL;
-	} else {
-	    if (pRADEONEnt->ReversedDAC) {
-		save->disp_hw_debug &= ~RADEON_CRT2_DISP1_SEL;
-		save->dac2_cntl &= ~RADEON_DAC2_DAC_CLK_SEL;
-	    } else {
-		save->disp_hw_debug |= RADEON_CRT2_DISP1_SEL;
-		save->dac2_cntl |= RADEON_DAC2_DAC_CLK_SEL;
-	    }
-	}
-    }
-
     save->crtc2_h_total_disp =
 	((((mode->CrtcHTotal / 8) - 1) & 0x3ff)
 	 | ((((mode->CrtcHDisplay / 8) - 1) & 0x1ff) << 16));
@@ -6806,19 +6738,9 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				      ? RADEON_CRTC_H_SYNC_POL
 				      : 0));
 
-#if 1
 				/* This works for double scan mode. */
     save->crtc2_v_total_disp = (((mode->CrtcVTotal - 1) & 0xffff)
 				| ((mode->CrtcVDisplay - 1) << 16));
-#else
-				/* This is what cce/nbmode.c example code
-				 * does -- is this correct?
-				 */
-    save->crtc2_v_total_disp = (((mode->CrtcVTotal - 1) & 0xffff)
-				| ((mode->CrtcVDisplay
-				    * ((mode->Flags & V_DBLSCAN) ? 2 : 1) - 1)
-				   << 16));
-#endif
 
     vsync_wid = mode->CrtcVSyncEnd - mode->CrtcVSyncStart;
     if (!vsync_wid)       vsync_wid = 1;
@@ -6863,8 +6785,64 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 			  (pScrn->bitsPerPixel * 8));
     save->crtc2_pitch |= save->crtc2_pitch << 16;
     }
+
+    save->crtc2_gen_cntl = (RADEON_CRTC2_EN
+			    | RADEON_CRTC2_CRT2_ON
+			    | (format << 8)
+			    | ((mode->Flags & V_DBLSCAN)
+			       ? RADEON_CRTC2_DBL_SCAN_EN
+			       : 0)
+			    | ((mode->Flags & V_CSYNC)
+			       ? RADEON_CRTC2_CSYNC_EN
+			       : 0)
+			    | ((mode->Flags & V_INTERLACE)
+			       ? RADEON_CRTC2_INTERLACE_EN
+			       : 0));
+
     save->disp2_merge_cntl = info->SavedReg.disp2_merge_cntl;
     save->disp2_merge_cntl &= ~(RADEON_DISP2_RGB_OFFSET_EN);
+
+    /* Turn CRT on in case the first head is a DFP */
+    save->dac2_cntl = info->SavedReg.dac2_cntl;
+    /* always let TVDAC drive CRT2, we don't support tvout yet */
+    save->dac2_cntl |= RADEON_DAC2_DAC2_CLK_SEL;
+    save->disp_output_cntl = info->SavedReg.disp_output_cntl;
+    if (info->ChipFamily == CHIP_FAMILY_R200 ||
+	IS_R300_VARIANT) {
+	save->disp_output_cntl &= ~(RADEON_DISP_DAC_SOURCE_MASK |
+				    RADEON_DISP_DAC2_SOURCE_MASK);
+	if (pRADEONEnt->Controller[0].pPort->MonType != MT_CRT) {
+	    save->disp_output_cntl |= (RADEON_DISP_DAC_SOURCE_CRTC2 |
+				       RADEON_DISP_DAC2_SOURCE_CRTC2);
+	} else {
+	    if (pRADEONEnt->ReversedDAC) {
+		save->disp_output_cntl |= RADEON_DISP_DAC2_SOURCE_CRTC2;
+	    } else {
+		save->disp_output_cntl |= RADEON_DISP_DAC_SOURCE_CRTC2;
+	    }
+	}
+    } else {
+	save->disp_hw_debug = info->SavedReg.disp_hw_debug;
+	/* Turn on 2nd CRT */
+	if (pRADEONEnt->Controller[0].pPort->MonType != MT_CRT) {
+	    /* This is for some sample boards with the VGA port
+	       connected to the TVDAC, but BIOS doesn't reflect this.
+	       Here we configure both DACs to use CRTC2.
+	       Not sure if this happens in any retail board.
+	    */
+	    save->disp_hw_debug &= ~RADEON_CRT2_DISP1_SEL;
+	    save->dac2_cntl |= RADEON_DAC2_DAC_CLK_SEL;
+	} else {
+	    if (pRADEONEnt->ReversedDAC) {
+		save->disp_hw_debug &= ~RADEON_CRT2_DISP1_SEL;
+		save->dac2_cntl &= ~RADEON_DAC2_DAC_CLK_SEL;
+	    } else {
+		save->disp_hw_debug |= RADEON_CRT2_DISP1_SEL;
+		save->dac2_cntl |= RADEON_DAC2_DAC_CLK_SEL;
+	    }
+	}
+    }
+ 
 
     if ((info->DisplayType == MT_DFP && info->IsSecondary) || 
 	info->MergeType == MT_DFP) {
