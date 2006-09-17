@@ -6522,6 +6522,12 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     int  hsync_wid;
     int  vsync_wid;
 
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+
+    pRADEONEnt->Controller[0].IsUsed = TRUE;
+    pRADEONEnt->Controller[0].IsActive = TRUE;
+    pRADEONEnt->Controller[0].pCurMode = mode;
+
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
     case 8:  format = 2; break;
@@ -6716,6 +6722,10 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     int  hsync_start;
     int  hsync_wid;
     int  vsync_wid;
+
+    pRADEONEnt->Controller[1].IsUsed = TRUE;
+    pRADEONEnt->Controller[1].IsActive = TRUE;
+    pRADEONEnt->Controller[1].pCurMode = mode;
 
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
