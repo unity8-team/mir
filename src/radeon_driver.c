@@ -3556,6 +3556,18 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
+{
+    RADEONGetBIOSInfo(pScrn, pInt10);
+    if (!RADEONQueryConnectedMonitors(pScrn))    
+      goto fail;
+    RADEONGetClockInfo(pScrn);
+    
+    return TRUE;
+ fail:
+    return FALSE;
+}
+
 static void
 RADEONProbeDDC(ScrnInfoPtr pScrn, int indx)
 {
@@ -3879,9 +3891,8 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     RADEONPreInitDDC(pScrn);
 
-    RADEONGetBIOSInfo(pScrn, pInt10);
-    if (!RADEONQueryConnectedMonitors(pScrn))    goto fail;
-    RADEONGetClockInfo(pScrn);
+    if (!RADEONPreInitControllers(pScrn, pInt10))
+       goto fail;
 
     /* collect MergedFB options */
     /* only parse mergedfb options on the primary head. 
