@@ -79,6 +79,13 @@
 #include "picturestr.h"
 #endif
 
+#ifndef MAX
+#define MAX(a,b) ((a)>(b)?(a):(b))
+#endif
+#ifndef MIN
+#define MIN(a,b) ((a)>(b)?(b):(a))
+#endif
+
 typedef enum {
     OPTION_NOACCEL,
     OPTION_SW_CURSOR,
@@ -860,6 +867,16 @@ extern Bool        RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn);
 extern Bool        RADEONGetLVDSInfoFromBIOS (ScrnInfoPtr pScrn);
 extern Bool        RADEONGetTMDSInfoFromBIOS (ScrnInfoPtr pScrn);
 extern Bool        RADEONGetHardCodedEDIDFromBIOS (ScrnInfoPtr pScrn);
+
+extern void        RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
+extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
+extern void        RADEONSetSyncRangeFromEdid(ScrnInfoPtr pScrn, int flag);
+extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
+extern void        RADEONUnblank(ScrnInfoPtr pScrn);
+extern void        RADEONBlank(ScrnInfoPtr pScrn);
+extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
+						   int PowerManagementMode,
+						   int flags);
 
 #ifdef XF86DRI
 #ifdef USE_XAA
