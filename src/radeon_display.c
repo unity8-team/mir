@@ -877,6 +877,7 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
     max_mt = 5;
 
     if(info->IsSecondary) {
+        pScrn->monitor->DDC = pRADEONEnt->Controller[1].pPort->MonInfo;
 	info->DisplayType = (RADEONMonitorType)pRADEONEnt->Controller[1].pPort->MonType;
 	if(info->DisplayType == MT_NONE) return FALSE;
 	return TRUE;
@@ -1173,13 +1174,8 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 	}
     }
 
-    if (info->IsSecondary) {
-        pScrn->monitor->DDC = pRADEONEnt->Controller[1].pPort->MonInfo;
-        info->DisplayType = pRADEONEnt->Controller[1].pPort->MonType;
-    } else {
-        pScrn->monitor->DDC = pRADEONEnt->Controller[0].pPort->MonInfo;
-	info->DisplayType = pRADEONEnt->Controller[0].pPort->MonType;
-    }
+    pScrn->monitor->DDC = pRADEONEnt->Controller[0].pPort->MonInfo;
+    info->DisplayType = pRADEONEnt->Controller[0].pPort->MonType;
 
     pRADEONEnt->ReversedDAC = FALSE;
     info->OverlayOnCRTC2 = FALSE;
