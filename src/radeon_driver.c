@@ -6270,8 +6270,7 @@ static void RADEONInitCommonRegisters(RADEONSavePtr save, RADEONInfoPtr info)
 
 /* Define CRTC registers for requested video mode */
 static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
-				  RADEONSavePtr save, DisplayModePtr mode,
-				  RADEONInfoPtr info)
+				  RADEONSavePtr save, DisplayModePtr mode)
 {
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
@@ -7171,15 +7170,15 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
 	if ((info->MergeType == MT_LCD) || (info->MergeType == MT_DFP)) {
             /* I suppose crtc2 could drive the FP as well... */
 	    RADEONInitFPRegisters(pScrn, &info->SavedReg, save, 
-		((RADEONMergedDisplayModePtr)mode->Private)->CRT2, info);
+		((RADEONMergedDisplayModePtr)mode->Private)->CRT2);
 	}
 	else {
 	    RADEONInitFPRegisters(pScrn, &info->SavedReg, save, 
-		((RADEONMergedDisplayModePtr)mode->Private)->CRT1, info);
+		((RADEONMergedDisplayModePtr)mode->Private)->CRT1);
 	}
     }
     else {
-    	RADEONInitFPRegisters(pScrn, &info->SavedReg, save, mode, info);
+    	RADEONInitFPRegisters(pScrn, &info->SavedReg, save, mode);
     }
 
     RADEONTRACE(("RADEONInit returns %p\n", save));
