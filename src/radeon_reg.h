@@ -457,6 +457,7 @@
 #       define RADEON_DAC_CMP_EN            (1 <<  3)
 #       define RADEON_DAC_CMP_OUTPUT        (1 <<  7)
 #       define RADEON_DAC_8BIT_EN           (1 <<  8)
+#       define RADEON_DAC_TVO_EN            (1 << 10)
 #       define RADEON_DAC_VGA_ADR_EN        (1 << 13)
 #       define RADEON_DAC_PDWN              (1 << 15)
 #       define RADEON_DAC_MASK_ALL          (0xff << 24)
@@ -475,11 +476,25 @@
 #       define RADEON_DAC_PDWN_G            (1 << 17)
 #       define RADEON_DAC_PDWN_B            (1 << 18)
 #define RADEON_TV_DAC_CNTL                  0x088c
+#       define RADEON_TV_DAC_NBLANK         (1 << 0)
+#       define RADEON_TV_DAC_NHOLD          (1 << 1)
+#       define RADEON_TV_DAC_PEDESTAL       (1 <<  2)
+#       define RADEON_TV_MONITOR_DETECT_EN  (1 <<  4)
+#       define RADEON_TV_DAC_CMPOUT         (1 <<  5)
+#       define RADEON_TV_DAC_STD_NTSC       (1 <<  8)
 #       define RADEON_TV_DAC_STD_MASK       0x0300
+#       define RADEON_TV_DAC_STD_PS2        0x0200
 #       define RADEON_TV_DAC_BGSLEEP        (1 <<  6)
+#       define RADEON_TV_DAC_BGADJ_MASK     (0xf <<  16)
+#       define RADEON_TV_DAC_DACADJ_MASK    (0xf <<  20)
 #       define RADEON_TV_DAC_RDACPD         (1 <<  24)
 #       define RADEON_TV_DAC_GDACPD         (1 <<  25)
 #       define RADEON_TV_DAC_BDACPD         (1 <<  26)
+#       define R420_TV_DAC_DACADJ_MASK      (0x1f <<  20)
+#       define R420_TV_DAC_RDACPD           (1 <<  25)
+#       define R420_TV_DAC_GDACPD           (1 <<  26)
+#       define R420_TV_DAC_BDACPD           (1 <<  27)
+#       define R420_TV_DAC_TVENABLE         (1 <<  28)
 #define RADEON_DISP_HW_DEBUG                0x0d14
 #       define RADEON_CRT2_DISP1_SEL        (1 <<  5)
 #define RADEON_DISP_OUTPUT_CNTL             0x0d64
@@ -487,6 +502,14 @@
 #       define RADEON_DISP_DAC2_SOURCE_MASK  0x0c
 #       define RADEON_DISP_DAC_SOURCE_CRTC2 0x01
 #       define RADEON_DISP_DAC2_SOURCE_CRTC2 0x04
+#       define RADEON_DISP_TVDAC_SOURCE_MASK  (0x03<<2)
+#       define RADEON_DISP_TVDAC_SOURCE_CRTC  0x0
+#       define RADEON_DISP_TVDAC_SOURCE_CRTC2 (0x01<<2)
+#       define RADEON_DISP_TV_SOURCE_CRTC   (1 << 16) /* crtc1 or crtc2 */
+#       define RADEON_DISP_TV_SOURCE_LTU    (0 << 16) /* linear transform unit */
+#define RADEON_DISP_TV_OUT_CNTL             0x0d6c
+#       define RADEON_DISP_TV_PATH_SRC_CRTC2 (1 << 16)
+#       define RADEON_DISP_TV_PATH_SRC_CRTC1 (0 << 16)
 #define RADEON_DAC_CRC_SIG                  0x02cc
 #define RADEON_DAC_DATA                     0x03c9 /* VGA */
 #define RADEON_DAC_MASK                     0x03c6 /* VGA */
@@ -1450,6 +1473,9 @@
 #define RADEON_VIPH_CH2_ABCNT               0x0c38
 #define RADEON_VIPH_CH3_ABCNT               0x0c3c
 #define RADEON_VIPH_CONTROL                 0x0c40
+#       define RADEON_VIP_BUSY 0
+#       define RADEON_VIP_IDLE 1
+#       define RADEON_VIP_RESET 2
 #define RADEON_VIPH_DV_LAT                  0x0c44
 #define RADEON_VIPH_BM_CHUNK                0x0c48
 #define RADEON_VIPH_DV_INT                  0x0c4c
@@ -3014,15 +3040,75 @@
 #define RADEON_SS_SHININESS                      60
 
 #define RADEON_TV_MASTER_CNTL                    0x0800
+#       define RADEON_TV_ASYNC_RST               (1 <<  0)
+#       define RADEON_CRT_ASYNC_RST              (1 <<  1)
+#       define RADEON_RESTART_PHASE_FIX          (1 <<  3)
+#       define RADEON_CRT_FIFO_CE_EN             (1 <<  9)
+#       define RADEON_TV_FIFO_CE_EN              (1 << 10)
 #       define RADEON_TVCLK_ALWAYS_ONb           (1 << 30)
-#define RADEON_TV_DAC_CNTL                       0x088c
-#       define RADEON_TV_DAC_CMPOUT              (1 << 5)
 #define RADEON_TV_PRE_DAC_MUX_CNTL               0x0888
 #       define RADEON_Y_RED_EN                   (1 << 0)
 #       define RADEON_C_GRN_EN                   (1 << 1)
 #       define RADEON_CMP_BLU_EN                 (1 << 2)
+#       define RADEON_DAC_DITHER_EN              (1 << 3)
 #       define RADEON_RED_MX_FORCE_DAC_DATA      (6 << 4)
 #       define RADEON_GRN_MX_FORCE_DAC_DATA      (6 << 8)
 #       define RADEON_BLU_MX_FORCE_DAC_DATA      (6 << 12)
 #       define RADEON_TV_FORCE_DAC_DATA_SHIFT    16
+#define RADEON_TV_RGB_CNTL                           0x0804
+#       define RADEON_SWITCH_TO_BLUE		  (1 <<  4)
+#       define RADEON_RGB_DITHER_EN		  (1 <<  5)
+#       define RADEON_RGB_SRC_SEL_MASK		  (3 <<  8)
+#       define RADEON_RGB_SRC_SEL_CRTC1		  (0 <<  8)
+#       define RADEON_RGB_SRC_SEL_RMX		  (1 <<  8)
+#       define RADEON_RGB_SRC_SEL_CRTC2		  (2 <<  8)
+#       define RADEON_RGB_CONVERT_BY_PASS	  (1 << 10)
+#define RADEON_TV_SYNC_CNTL                          0x0808
+#define RADEON_TV_HTOTAL                             0x080c
+#define RADEON_TV_HDISP                              0x0810
+#define RADEON_TV_HSTART                             0x0818
+#define RADEON_TV_HCOUNT                             0x081C
+#define RADEON_TV_VTOTAL                             0x0820
+#define RADEON_TV_VDISP                              0x0824
+#define RADEON_TV_VCOUNT                             0x0828
+#define RADEON_TV_FTOTAL                             0x082c
+#define RADEON_TV_FCOUNT                             0x0830
+#define RADEON_TV_FRESTART                           0x0834
+#define RADEON_TV_HRESTART                           0x0838
+#define RADEON_TV_VRESTART                           0x083c
+#define RADEON_TV_HOST_READ_DATA                     0x0840
+#define RADEON_TV_HOST_WRITE_DATA                    0x0844
+#define RADEON_TV_HOST_RD_WT_CNTL                    0x0848
+#define RADEON_TV_VSCALER_CNTL1                      0x084c
+#       define RADEON_RESTART_FIELD              (1 << 29) /* restart on field 0 */
+#       define RADEON_Y_DEL_W_SIG_SHIFT          26
+#define RADEON_TV_TIMING_CNTL                        0x0850
+#define RADEON_TV_VSCALER_CNTL2                      0x0854
+#       define RADEON_DITHER_MODE                (1 <<  0)
+#       define RADEON_Y_OUTPUT_DITHER_EN         (1 <<  1)
+#       define RADEON_UV_OUTPUT_DITHER_EN        (1 <<  2)
+#       define RADEON_UV_TO_BUF_DITHER_EN        (1 <<  3)
+#define RADEON_TV_Y_FALL_CNTL                        0x0858
+#       define RADEON_Y_FALL_PING_PONG           (1 << 16)
+#define RADEON_TV_Y_RISE_CNTL                        0x085c
+#       define RADEON_Y_RISE_PING_PONG           (1 << 16)
+#define RADEON_TV_Y_SAW_TOOTH_CNTL                   0x0860
+#define RADEON_TV_UPSAMP_AND_GAIN_CNTL               0x0864
+#define RADEON_TV_GAIN_LIMIT_SETTINGS                0x0868
+#define RADEON_TV_LINEAR_GAIN_SETTINGS               0x086c
+#define RADEON_TV_MODULATOR_CNTL1                    0x0870
+#       define RADEON_ALT_PHASE_EN               (1 <<  6)
+#       define RADEON_SYNC_TIP_LEVEL             (1 <<  7)
+#define RADEON_TV_MODULATOR_CNTL2                    0x0874
+#define RADEON_TV_CRC_CNTL                           0x0890
+#define RADEON_TV_UV_ADR                             0x08ac
+#define RADEON_TV_PLL_FINE_CNTL			     0x0020	/* PLL */
+#define RADEON_TV_PLL_CNTL                           0x0021	/* PLL */
+#       define RADEON_TV_SLIP_EN                 (1 << 23)
+#       define RADEON_TV_DTO_EN                  (1 << 28)
+#define RADEON_TV_PLL_CNTL1                          0x0022	/* PLL */
+#       define RADEON_TVPLL_TEST_DIS             (1 << 31)
+#       define RADEON_TVCLK_SRC_SEL_TVPLL        (1 << 30)
+#       define RADEON_TVPLL_SLEEP                (1 <<  3)
+#       define RADEON_TVPLL_REFCLK_SEL           (1 <<  4)
 #endif
