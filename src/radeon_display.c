@@ -1747,6 +1747,91 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
     }
 }
 
+static void RADEONDPMSSetOn(ScrnInfoPtr pScrn, int controller)
+{
+  RADEONInfoPtr  info       = RADEONPTR(pScrn);
+  RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+  unsigned char *RADEONMMIO = info->MMIO;
+  RADEONMonitorType MonType;
+  RADEONTmdsType TmdsType;
+  RADEONDacType DacType;
+
+  MonType = pRADEONEnt->Controller[controller].pPort->MonType;
+  TmdsType = pRADEONEnt->Controller[controller].pPort->TMDSType;
+  DacType = pRADEONEnt->Controller[controller].pPort->DACType;
+
+  switch(MonType) {
+  case MT_LCD:
+    OUTREGP (RADEON_LVDS_GEN_CNTL, RADEON_LVDS_BLON, ~RADEON_LVDS_BLON);
+    usleep (info->PanelPwrDly * 1000);
+    OUTREGP (RADEON_LVDS_GEN_CNTL, RADEON_LVDS_ON, ~RADEON_LVDS_ON);
+    break;
+  case MT_DFP:
+    if (TmdsType == TMDS_EXT) {
+      OUTREGP (RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_BLANK_EN);
+      OUTREGP (RADEON_FP2_GEN_CNTL, RADEON_FP2_ON, ~RADEON_FP2_ON);
+      if (info->ChipFamily >= CHIP_FAMILY_R200) {
+	OUTREGP (RADEON_FP2_GEN_CNTL, RADEON_FP2_DVO_EN, 
+		 ~RADEON_FP2_DVO_EN);
+      }
+    } else
+      OUTREGP (RADEON_FP_GEN_CNTL, (RADEON_FP_FPON | RADEON_FP_TMDS_EN),
+	       ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN));
+    break;
+  case MT_CRT:
+  default:
+    RADEONDacPowerSet(pScrn, TRUE, (DacType == DAC_PRIMARY));
+    break;
+  }
+}
+
+static void RADEONDPMSSetOff(ScrnInfoPtr pScrn, int controller)
+{
+  RADEONInfoPtr  info       = RADEONPTR(pScrn);
+  RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+  unsigned char *RADEONMMIO = info->MMIO;
+  RADEONMonitorType MonType;
+  RADEONTmdsType TmdsType;
+  RADEONDacType DacType;
+  unsigned long tmpPixclksCntl;
+
+  MonType = pRADEONEnt->Controller[controller].pPort->MonType;
+  TmdsType = pRADEONEnt->Controller[controller].pPort->TMDSType;
+  DacType = pRADEONEnt->Controller[controller].pPort->DACType;
+
+  switch(MonType) {
+  case MT_LCD:
+    tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
+    if (info->IsMobility || info->IsIGP) {
+      /* Asic bug, when turning off LVDS_ON, we have to make sure
+	 RADEON_PIXCLK_LVDS_ALWAYS_ON bit is off
+      */
+      OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL, 0, ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
+    }
+    OUTREGP (RADEON_LVDS_GEN_CNTL, 0,
+	     ~(RADEON_LVDS_BLON | RADEON_LVDS_ON));
+    if (info->IsMobility || info->IsIGP) {
+      OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
+    }
+    break;
+  case MT_DFP:
+    if (TmdsType == TMDS_EXT) {
+      OUTREGP (RADEON_FP2_GEN_CNTL, RADEON_FP2_BLANK_EN, ~RADEON_FP2_BLANK_EN);
+      OUTREGP (RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_ON);
+      if (info->ChipFamily >= CHIP_FAMILY_R200) {
+	OUTREGP (RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_DVO_EN);
+      }
+    } else
+      OUTREGP (RADEON_FP_GEN_CNTL, 0, ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN));
+    break;
+  case MT_CRT:
+  default:
+    RADEONDacPowerSet(pScrn, FALSE, (DacType == DAC_PRIMARY));
+    break;
+  }
+}
+
+
 /* Sets VESA Display Power Management Signaling (DPMS) Mode */
 void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 					    int PowerManagementMode,
@@ -1836,95 +1921,17 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 	}
 
 	if (PowerManagementMode == DPMSModeOn) {
-	    if (info->IsSecondary) {
-		if (info->DisplayType == MT_DFP) {
-		    OUTREGP (RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_BLANK_EN);
-		    OUTREGP (RADEON_FP2_GEN_CNTL, RADEON_FP2_ON, ~RADEON_FP2_ON);
-		    if (info->ChipFamily >= CHIP_FAMILY_R200) {
-			OUTREGP (RADEON_FP2_GEN_CNTL, RADEON_FP2_DVO_EN, ~RADEON_FP2_DVO_EN);
-		    }
-		} else if (info->DisplayType == MT_CRT) {
-		    RADEONDacPowerSet(pScrn, TRUE, !pRADEONEnt->ReversedDAC);
-		}
-	    } else {
-		if ((info->MergedFB) && (info->MergeType == MT_DFP)) {
-		    OUTREGP (RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_BLANK_EN);
-		    OUTREGP (RADEON_FP2_GEN_CNTL, RADEON_FP2_ON, ~RADEON_FP2_ON);
-		    if (info->ChipFamily >= CHIP_FAMILY_R200) {
-			OUTREGP (RADEON_FP2_GEN_CNTL, RADEON_FP2_DVO_EN, ~RADEON_FP2_DVO_EN);
-		    }
-		}
-		if (info->DisplayType == MT_DFP) {
-		    OUTREGP (RADEON_FP_GEN_CNTL, (RADEON_FP_FPON | RADEON_FP_TMDS_EN),
-			     ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN));
-		} else if (info->DisplayType == MT_LCD) {
-
-		    OUTREGP (RADEON_LVDS_GEN_CNTL, RADEON_LVDS_BLON, ~RADEON_LVDS_BLON);
-		    usleep (info->PanelPwrDly * 1000);
-		    OUTREGP (RADEON_LVDS_GEN_CNTL, RADEON_LVDS_ON, ~RADEON_LVDS_ON);
-		} else if (info->DisplayType == MT_CRT) {
-		    if ((pRADEONEnt->HasSecondary) || info->MergedFB) {
-			RADEONDacPowerSet(pScrn, TRUE, pRADEONEnt->ReversedDAC);
-		    } else {
-			RADEONDacPowerSet(pScrn, TRUE, TRUE);
-			if (info->HasCRTC2)
-			    RADEONDacPowerSet(pScrn, TRUE, FALSE);
-		    }
-		}
-	    }
+   	    RADEONDPMSSetOn(pScrn, info->IsSecondary ? 1 : 0);
+	    if (info->MergedFB)
+	      RADEONDPMSSetOn(pScrn, 1);
 	} else if ((PowerManagementMode == DPMSModeOff) ||
 		   (PowerManagementMode == DPMSModeSuspend) ||
 		   (PowerManagementMode == DPMSModeStandby)) {
-	    if (info->IsSecondary) {
-		if (info->DisplayType == MT_DFP) {
-		    OUTREGP (RADEON_FP2_GEN_CNTL, RADEON_FP2_BLANK_EN, ~RADEON_FP2_BLANK_EN);
-		    OUTREGP (RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_ON);
-		    if (info->ChipFamily >= CHIP_FAMILY_R200) {
-			OUTREGP (RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_DVO_EN);
-		    }
-		} else if (info->DisplayType == MT_CRT) {
-		    RADEONDacPowerSet(pScrn, FALSE, !pRADEONEnt->ReversedDAC);
-		}
-	    } else {
-		if ((info->MergedFB) && (info->MergeType == MT_DFP)) {
-		    OUTREGP (RADEON_FP2_GEN_CNTL, RADEON_FP2_BLANK_EN, ~RADEON_FP2_BLANK_EN);
-		    OUTREGP (RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_ON);
-		    if (info->ChipFamily >= CHIP_FAMILY_R200) {
-			OUTREGP (RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_DVO_EN);
-		    }
-		}
-		if (info->DisplayType == MT_DFP) {
-		    OUTREGP (RADEON_FP_GEN_CNTL, 0, ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN));
-		} else if (info->DisplayType == MT_LCD) {
-		    unsigned long tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
 
-		    if (info->IsMobility || info->IsIGP) {
-			/* Asic bug, when turning off LVDS_ON, we have to make sure
-			   RADEON_PIXCLK_LVDS_ALWAYS_ON bit is off
-			*/
-			OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL, 0, ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
-		    }
-
-		    OUTREGP (RADEON_LVDS_GEN_CNTL, 0,
-			     ~(RADEON_LVDS_BLON | RADEON_LVDS_ON));
-
-		    if (info->IsMobility || info->IsIGP) {
-			OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
-		    }
-		} else if (info->DisplayType == MT_CRT) {
-		    if ((pRADEONEnt->HasSecondary) || info->MergedFB) {
-			RADEONDacPowerSet(pScrn, FALSE, pRADEONEnt->ReversedDAC);
-		    } else {
-			/* single CRT, turning both DACs off, we don't really know 
-			 * which DAC is actually connected.
-			 */
-			RADEONDacPowerSet(pScrn, FALSE, TRUE);
-			if (info->HasCRTC2) /* don't apply this to old radeon (singel CRTC) card */
-			    RADEONDacPowerSet(pScrn, FALSE, FALSE);
-		    }
-		}
-	    }
-	}
+	    RADEONDPMSSetOff(pScrn, info->IsSecondary ? 1 : 0);
+	    if (info->MergedFB)
+	        RADEONDPMSSetOff(pScrn, 1);
+        }
     }
 
 #ifdef XF86DRI
