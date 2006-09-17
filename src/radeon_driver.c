@@ -5243,6 +5243,12 @@ static void RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
     OUTREG(RADEON_CRTC_H_SYNC_STRT_WID, restore->crtc_h_sync_strt_wid);
     OUTREG(RADEON_CRTC_V_TOTAL_DISP,    restore->crtc_v_total_disp);
     OUTREG(RADEON_CRTC_V_SYNC_STRT_WID, restore->crtc_v_sync_strt_wid);
+
+    OUTREG(RADEON_FP_H_SYNC_STRT_WID,   restore->fp_h_sync_strt_wid);
+    OUTREG(RADEON_FP_V_SYNC_STRT_WID,   restore->fp_v_sync_strt_wid);
+    OUTREG(RADEON_FP_CRTC_H_TOTAL_DISP, restore->fp_crtc_h_total_disp);
+    OUTREG(RADEON_FP_CRTC_V_TOTAL_DISP, restore->fp_crtc_v_total_disp);
+
     OUTREG(RADEON_CRTC_OFFSET,          restore->crtc_offset);
     OUTREG(RADEON_CRTC_OFFSET_CNTL,     restore->crtc_offset_cntl);
     OUTREG(RADEON_CRTC_PITCH,           restore->crtc_pitch);
@@ -5284,10 +5290,15 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
 
     OUTREG(RADEON_DAC_CNTL2, restore->dac2_cntl);
 
-    OUTREG(RADEON_TV_DAC_CNTL, 0x00280203);
+    /*OUTREG(RADEON_TV_DAC_CNTL, 0x00280203);*/
+    if ((info->ChipFamily != CHIP_FAMILY_RADEON) &&
+	(info->ChipFamily != CHIP_FAMILY_R200)) 
+	OUTREG (RADEON_TV_DAC_CNTL, restore->tv_dac_cntl);
+
     if ((info->ChipFamily == CHIP_FAMILY_R200) ||
 	IS_R300_VARIANT) {
 	OUTREG(RADEON_DISP_OUTPUT_CNTL, restore->disp_output_cntl);
+	OUTREG(RADEON_DISP_TV_OUT_CNTL, restore->disp_tv_out_cntl);
     } else {
 	OUTREG(RADEON_DISP_HW_DEBUG, restore->disp_hw_debug);
     }
@@ -5296,6 +5307,12 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
     OUTREG(RADEON_CRTC2_H_SYNC_STRT_WID, restore->crtc2_h_sync_strt_wid);
     OUTREG(RADEON_CRTC2_V_TOTAL_DISP,    restore->crtc2_v_total_disp);
     OUTREG(RADEON_CRTC2_V_SYNC_STRT_WID, restore->crtc2_v_sync_strt_wid);
+
+    OUTREG(RADEON_FP_H2_SYNC_STRT_WID,   restore->fp_h2_sync_strt_wid);
+    OUTREG(RADEON_FP_V2_SYNC_STRT_WID,   restore->fp_v2_sync_strt_wid);
+    OUTREG(RADEON_FP_CRTC2_H_TOTAL_DISP, restore->fp_crtc2_h_total_disp);
+    OUTREG(RADEON_FP_CRTC2_V_TOTAL_DISP, restore->fp_crtc2_v_total_disp);
+
     OUTREG(RADEON_CRTC2_OFFSET,          restore->crtc2_offset);
     OUTREG(RADEON_CRTC2_OFFSET_CNTL,     restore->crtc2_offset_cntl);
     OUTREG(RADEON_CRTC2_PITCH,           restore->crtc2_pitch);
@@ -5303,8 +5320,6 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
 
     if ((info->DisplayType == MT_DFP && info->IsSecondary) || 
 	info->MergeType == MT_DFP) {	
-	OUTREG(RADEON_FP_H2_SYNC_STRT_WID, restore->fp2_h_sync_strt_wid);
-	OUTREG(RADEON_FP_V2_SYNC_STRT_WID, restore->fp2_v_sync_strt_wid);
 	OUTREG(RADEON_FP2_GEN_CNTL,        restore->fp2_gen_cntl);
     }
 
@@ -5323,10 +5338,6 @@ static void RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned long  tmp;
 
-    OUTREG(RADEON_FP_CRTC_H_TOTAL_DISP, restore->fp_crtc_h_total_disp);
-    OUTREG(RADEON_FP_CRTC_V_TOTAL_DISP, restore->fp_crtc_v_total_disp);
-    OUTREG(RADEON_FP_H_SYNC_STRT_WID,   restore->fp_h_sync_strt_wid);
-    OUTREG(RADEON_FP_V_SYNC_STRT_WID,   restore->fp_v_sync_strt_wid);
     OUTREG(RADEON_TMDS_PLL_CNTL,        restore->tmds_pll_cntl);
     OUTREG(RADEON_TMDS_TRANSMITTER_CNTL,restore->tmds_transmitter_cntl);
     OUTREG(RADEON_FP_HORZ_STRETCH,      restore->fp_horz_stretch);
@@ -5946,6 +5957,12 @@ static void RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->crtc_h_sync_strt_wid = INREG(RADEON_CRTC_H_SYNC_STRT_WID);
     save->crtc_v_total_disp    = INREG(RADEON_CRTC_V_TOTAL_DISP);
     save->crtc_v_sync_strt_wid = INREG(RADEON_CRTC_V_SYNC_STRT_WID);
+
+    save->fp_h_sync_strt_wid   = INREG(RADEON_FP_H_SYNC_STRT_WID);
+    save->fp_v_sync_strt_wid   = INREG(RADEON_FP_V_SYNC_STRT_WID);
+    save->fp_crtc_h_total_disp = INREG(RADEON_FP_CRTC_H_TOTAL_DISP);
+    save->fp_crtc_v_total_disp = INREG(RADEON_FP_CRTC_V_TOTAL_DISP);
+
     save->crtc_offset          = INREG(RADEON_CRTC_OFFSET);
     save->crtc_offset_cntl     = INREG(RADEON_CRTC_OFFSET_CNTL);
     save->crtc_pitch           = INREG(RADEON_CRTC_PITCH);
@@ -5966,12 +5983,9 @@ static void RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    save->fp_crtc_h_total_disp = INREG(RADEON_FP_CRTC_H_TOTAL_DISP);
-    save->fp_crtc_v_total_disp = INREG(RADEON_FP_CRTC_V_TOTAL_DISP);
     save->fp_gen_cntl          = INREG(RADEON_FP_GEN_CNTL);
-    save->fp_h_sync_strt_wid   = INREG(RADEON_FP_H_SYNC_STRT_WID);
+    save->fp2_gen_cntl          = INREG (RADEON_FP2_GEN_CNTL);
     save->fp_horz_stretch      = INREG(RADEON_FP_HORZ_STRETCH);
-    save->fp_v_sync_strt_wid   = INREG(RADEON_FP_V_SYNC_STRT_WID);
     save->fp_vert_stretch      = INREG(RADEON_FP_VERT_STRETCH);
     save->lvds_gen_cntl        = INREG(RADEON_LVDS_GEN_CNTL);
     save->lvds_pll_cntl        = INREG(RADEON_LVDS_PLL_CNTL);
@@ -5994,7 +6008,9 @@ static void RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     unsigned char *RADEONMMIO = info->MMIO;
 
     save->dac2_cntl             = INREG(RADEON_DAC_CNTL2);
+    save->tv_dac_cntl           = INREG(RADEON_TV_DAC_CNTL);
     save->disp_output_cntl      = INREG(RADEON_DISP_OUTPUT_CNTL);
+    save->disp_tv_out_cntl      = INREG(RADEON_DISP_TV_OUT_CNTL);
     save->disp_hw_debug         = INREG (RADEON_DISP_HW_DEBUG);
 
     save->crtc2_gen_cntl        = INREG(RADEON_CRTC2_GEN_CNTL);
@@ -6006,9 +6022,11 @@ static void RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->crtc2_offset_cntl     = INREG(RADEON_CRTC2_OFFSET_CNTL);
     save->crtc2_pitch           = INREG(RADEON_CRTC2_PITCH);
 
-    save->fp2_h_sync_strt_wid   = INREG (RADEON_FP_H2_SYNC_STRT_WID);
-    save->fp2_v_sync_strt_wid   = INREG (RADEON_FP_V2_SYNC_STRT_WID);
-    save->fp2_gen_cntl          = INREG (RADEON_FP2_GEN_CNTL);
+    save->fp_h2_sync_strt_wid   = INREG (RADEON_FP_H2_SYNC_STRT_WID);
+    save->fp_v2_sync_strt_wid   = INREG (RADEON_FP_V2_SYNC_STRT_WID);
+    save->fp_crtc2_h_total_disp = INREG(RADEON_FP_CRTC2_H_TOTAL_DISP);
+    save->fp_crtc2_v_total_disp = INREG(RADEON_FP_CRTC2_V_TOTAL_DISP);
+
     save->disp2_merge_cntl      = INREG(RADEON_DISP2_MERGE_CNTL);
 }
 
@@ -6018,6 +6036,7 @@ static void RADEONSavePLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->ppll_ref_div = INPLL(pScrn, RADEON_PPLL_REF_DIV);
     save->ppll_div_3   = INPLL(pScrn, RADEON_PPLL_DIV_3);
     save->htotal_cntl  = INPLL(pScrn, RADEON_HTOTAL_CNTL);
+    save->vclk_cntl    = INPLL(pScrn, RADEON_VCLK_ECP_CNTL);
 
     RADEONTRACE(("Read: 0x%08x 0x%08x 0x%08lx\n",
 		 save->ppll_ref_div,
@@ -6035,6 +6054,7 @@ static void RADEONSavePLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->p2pll_ref_div = INPLL(pScrn, RADEON_P2PLL_REF_DIV);
     save->p2pll_div_0   = INPLL(pScrn, RADEON_P2PLL_DIV_0);
     save->htotal_cntl2  = INPLL(pScrn, RADEON_HTOTAL2_CNTL);
+    save->pixclks_cntl  = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
 
     RADEONTRACE(("Read: 0x%08lx 0x%08lx 0x%08lx\n",
 		 save->p2pll_ref_div,
@@ -6598,8 +6618,8 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     if ((info->DisplayType == MT_DFP && info->IsSecondary) || 
 	info->MergeType == MT_DFP) {
 	save->crtc2_gen_cntl      = (RADEON_CRTC2_EN | (format << 8));
-	save->fp2_h_sync_strt_wid = save->crtc2_h_sync_strt_wid;
-	save->fp2_v_sync_strt_wid = save->crtc2_v_sync_strt_wid;
+	save->fp_h2_sync_strt_wid = save->crtc2_h_sync_strt_wid;
+	save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
 	save->fp2_gen_cntl        = info->SavedReg.fp2_gen_cntl | RADEON_FP2_ON;
 	save->fp2_gen_cntl	  &= ~(RADEON_FP2_BLANK_EN);
 
@@ -6955,6 +6975,10 @@ static void RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONInfoPtr info,
     save->ppll_ref_div   = pll->reference_div;
     save->ppll_div_3     = (save->feedback_div | (post_div->bitvalue << 16));
     save->htotal_cntl    = 0;
+
+    save->vclk_cntl = (info->SavedReg.vclk_cntl &
+	    ~RADEON_VCLK_SRC_SEL_MASK) | RADEON_VCLK_SRC_SEL_PPLLCLK;
+
 }
 
 /* Define PLL2 registers for requested video mode */
@@ -6962,6 +6986,7 @@ static void RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				    RADEONPLLPtr pll, double dot_clock,
 				    int no_odd_postdiv)
 {
+    RADEONInfoPtr  info      = RADEONPTR(pScrn);
     unsigned long  freq = dot_clock * 100;
 
     struct {
@@ -7018,6 +7043,11 @@ static void RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     save->p2pll_div_0      = (save->feedback_div_2 |
 			      (post_div->bitvalue << 16));
     save->htotal_cntl2     = 0;
+
+    save->pixclks_cntl = ((info->SavedReg.pixclks_cntl &
+			   ~(RADEON_PIX2CLK_SRC_SEL_MASK)) |
+			  RADEON_PIX2CLK_SRC_SEL_P2PLLCLK);
+
 }
 
 #if 0

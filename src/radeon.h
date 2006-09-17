@@ -261,6 +261,7 @@ typedef struct {
 
     CARD32            dac2_cntl;
     CARD32            disp_output_cntl;
+    CARD32            disp_tv_out_cntl;
     CARD32            disp_hw_debug;
     CARD32            disp2_merge_cntl;
     CARD32            grph2_buffer_cntl;
@@ -274,14 +275,16 @@ typedef struct {
 				/* Flat panel registers */
     CARD32            fp_crtc_h_total_disp;
     CARD32            fp_crtc_v_total_disp;
+    CARD32            fp_crtc2_h_total_disp;
+    CARD32            fp_crtc2_v_total_disp;
     CARD32            fp_gen_cntl;
     CARD32            fp2_gen_cntl;
     CARD32            fp_h_sync_strt_wid;
-    CARD32            fp2_h_sync_strt_wid;
+    CARD32            fp_h2_sync_strt_wid;
     CARD32            fp_horz_stretch;
     CARD32            fp_panel_cntl;
     CARD32            fp_v_sync_strt_wid;
-    CARD32            fp2_v_sync_strt_wid;
+    CARD32            fp_v2_sync_strt_wid;
     CARD32            fp_vert_stretch;
     CARD32            lvds_gen_cntl;
     CARD32            lvds_pll_cntl;
@@ -298,6 +301,7 @@ typedef struct {
     unsigned          ppll_ref_div;
     unsigned          ppll_div_3;
     CARD32            htotal_cntl;
+    CARD32            vclk_cntl;
 
 				/* Computed values for PLL2 */
     CARD32            dot_clock_freq_2;
@@ -309,6 +313,7 @@ typedef struct {
     CARD32            p2pll_ref_div;
     CARD32            p2pll_div_0;
     CARD32            htotal_cntl2;
+    CARD32            pixclks_cntl;
 
 				/* Pallet */
     Bool              palette_valid;
