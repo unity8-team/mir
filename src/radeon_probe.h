@@ -115,6 +115,14 @@ typedef struct
 
 typedef struct
 {
+    Bool IsUsed;
+    Bool IsActive;
+    DisplayModePtr pCurMode;
+    RADEONConnector* pPort;
+} RADEONController;
+
+typedef struct
+{
     Bool HasSecondary;
 
     /*
@@ -127,13 +135,10 @@ typedef struct
     ScrnInfoPtr pSecondaryScrn;
     ScrnInfoPtr pPrimaryScrn;
 
-    int MonType1;
-    int MonType2;
-    xf86MonPtr MonInfo1;
-    xf86MonPtr MonInfo2;
     Bool ReversedDAC;	  /* TVDAC used as primary dac */
     Bool ReversedTMDS;    /* DDC_DVI is used for external TMDS */
     RADEONConnector PortInfo[2];
+    RADEONController Controller[2];
 } RADEONEntRec, *RADEONEntPtr;
 
 /* radeon_probe.c */

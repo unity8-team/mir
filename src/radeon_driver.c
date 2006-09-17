@@ -2751,7 +2751,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 	xf86ReturnOptValBool(info->Options, OPTION_DDC_MODE, FALSE);
 
     /* don't use RMX if we have a dual-tmds panels */
-   if (pRADEONEnt->MonType2 == MT_DFP)
+   if (pRADEONEnt->Controller[1].pPort->MonType == MT_DFP)
 	info->ddc_mode = TRUE;
    /* don't use RMX if we are Dell Server */  
    if (info->IsDellServer)
@@ -2761,11 +2761,6 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Validating modes on %s head ---------\n",
 	       info->IsSecondary ? "Secondary" : "Primary");
-
-    if (info->IsSecondary)
-        pScrn->monitor->DDC = pRADEONEnt->MonInfo2;
-    else
-        pScrn->monitor->DDC = pRADEONEnt->MonInfo1;
 
     if (!pScrn->monitor->DDC && info->ddc_mode) {
 	info->ddc_mode = FALSE;
@@ -6510,7 +6505,7 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	IS_R300_VARIANT) {
 	save->disp_output_cntl &= ~(RADEON_DISP_DAC_SOURCE_MASK |
 				    RADEON_DISP_DAC2_SOURCE_MASK);
-	if (pRADEONEnt->MonType1 != MT_CRT) {
+	if (pRADEONEnt->Controller[0].pPort->MonType != MT_CRT) {
 	    save->disp_output_cntl |= (RADEON_DISP_DAC_SOURCE_CRTC2 |
 				       RADEON_DISP_DAC2_SOURCE_CRTC2);
 	} else {
@@ -6523,7 +6518,7 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     } else {
 	save->disp_hw_debug = info->SavedReg.disp_hw_debug;
 	/* Turn on 2nd CRT */
-	if (pRADEONEnt->MonType1 != MT_CRT) {
+	if (pRADEONEnt->Controller[0].pPort->MonType != MT_CRT) {
 	    /* This is for some sample boards with the VGA port
 	       connected to the TVDAC, but BIOS doesn't reflect this.
 	       Here we configure both DACs to use CRTC2.
@@ -6872,16 +6867,16 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
 	 * with below settings
 	 */
 	if (info->DisplayType == MT_LCD) {
-	    if (pRADEONEnt->MonType2 == MT_CRT)
+	    if (pRADEONEnt->Controller[1].pPort->MonType == MT_CRT)
 		save->bios_5_scratch = 0x0201;
-	    else if (pRADEONEnt->MonType2 == MT_DFP)
+	    else if (pRADEONEnt->Controller[1].pPort->MonType == MT_DFP)
 		save->bios_5_scratch = 0x0801;
 	    else
 		save->bios_5_scratch = orig->bios_5_scratch;
 	} else {
-	    if (pRADEONEnt->MonType2 == MT_CRT)
+	    if (pRADEONEnt->Controller[1].pPort->MonType == MT_CRT)
 		save->bios_5_scratch = 0x0200;
-	    else if (pRADEONEnt->MonType2 == MT_DFP)
+	    else if (pRADEONEnt->Controller[1].pPort->MonType == MT_DFP)
 		save->bios_5_scratch = 0x0800;
 	    else
 		save->bios_5_scratch = 0x0; 
@@ -7763,7 +7758,7 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 	info->MergedFB = FALSE;
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
         "Failed to detect secondary monitor, MergedFB/Clone mode disabled\n");
-    } else if (!pRADEONEnt->MonInfo2) {
+    } else if (!pRADEONEnt->Controller[1].pPort->MonInfo) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 	"Failed to detect secondary monitor DDC, default HSync and VRefresh used\n");
 	default_range = TRUE;
@@ -7929,7 +7924,7 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 	  }
 
 	  /* xf86SetDDCproperties(info->CRT2pScrn, pRADEONEnt->MonInfo2); */
-          info->CRT2pScrn->monitor->DDC = pRADEONEnt->MonInfo2;
+          info->CRT2pScrn->monitor->DDC = pRADEONEnt->Controller[1].pPort->MonInfo;
           if (default_range) {
              RADEONStrToRanges(info->CRT2pScrn->monitor->hsync, default_hsync, MAX_HSYNC);
              RADEONStrToRanges(info->CRT2pScrn->monitor->vrefresh, default_vrefresh, MAX_VREFRESH);
