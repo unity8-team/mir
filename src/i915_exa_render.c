@@ -473,15 +473,23 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	if (PICT_FORMAT_A(pMaskPicture->format) == 0)
 	    i915_fs_mov_masked(FS_R1, MASK_W, i915_fs_operand_one());
 
-	/* If component alpha is set in the mask, then we need to provide
-	 * the source alpha component (channelwise multiplication) as the
-	 * output color.  If it isn't set, then we need to provide the
-	 * source value component, which is the multipliction of the source
-	 * by the mask alpha.
+	/* If component alpha is set in the mask and the blend operation
+	 * uses the source alpha, then we know we don't need the source
+	 * value (otherwise we would have hit a fallback earlier), so we
+	 * provide the source alpha (src.A * mask.X) as output color.
+	 * Conversely, if CA is set and we don't need the source alpha, then
+	 * we produce the source value (src.X * mask.X) and the source alpha
+	 * is unused..  Otherwise, we provide the non-CA source value
+	 * (src.X * mask.A).
 	 */
-	if (pMaskPicture->componentAlpha && pDstPicture->format != PICT_a8) {
-	    i915_fs_mul(FS_OC, i915_fs_operand_reg(FS_R0),
-			i915_fs_operand_reg(FS_R1));
+	if (pMaskPicture->componentAlpha) {
+	    if (I915BlendOp[op].src_alpha) {
+		i915_fs_mul(FS_OC, i915_fs_operand(FS_R0, W, W, W, W),
+			    i915_fs_operand_reg(FS_R1));
+	    } else {
+		i915_fs_mul(FS_OC, i915_fs_operand_reg(FS_R0),
+			    i915_fs_operand_reg(FS_R1));
+	    }
 	} else {
 	    i915_fs_mul(FS_OC, i915_fs_operand_reg(FS_R0),
 			i915_fs_operand(FS_R1, W, W, W, W));
