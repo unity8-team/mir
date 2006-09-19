@@ -255,7 +255,7 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 format, offset, pitch, filter;
     int w, h, i;
-    CARD32 wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
+    CARD32 wrap_mode = TEXCOORDMODE_CLAMP_EDGE;
 
     offset = exaGetPixmapOffset(pPix);
     pitch = exaGetPixmapPitch(pPix);
