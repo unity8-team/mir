@@ -212,6 +212,12 @@ RADEONCopyModeNLink(ScrnInfoPtr pScrn, DisplayModePtr dest,
     mode->VSyncEnd += dy;
     mode->VTotal += dy;
 
+    /* This is needed for not generating negative refesh rates in xrandr with the
+       faked DotClock below
+     */
+    if (!(mode->VRefresh))
+        mode->VRefresh = mode->Clock * 1000.0 / mode->HTotal / mode->VTotal;
+
      /* Provide a sophisticated fake DotClock in order to trick the vidmode
       * extension to allow selecting among a number of modes whose merged result
       * looks identical but consists of different modes for CRT1 and CRT2
