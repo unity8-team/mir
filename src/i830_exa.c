@@ -197,8 +197,8 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	    OUT_RING(XY_COLOR_BLT_CMD);
 
 	OUT_RING(pI830->BR[13]);
-	OUT_RING((y1 << 16) | x1);
-	OUT_RING((y2 << 16) | x2);
+	OUT_RING((y1 << 16) | (x1 & 0xffff));
+	OUT_RING((y2 << 16) | (x2 & 0xffff));
 	OUT_RING(offset);
 	OUT_RING(pI830->BR[16]);
 	ADVANCE_LP_RING();
@@ -255,12 +255,11 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     int dst_x2, dst_y2;
-    unsigned int src_off, dst_off;
+    unsigned int dst_off;
 
     dst_x2 = dst_x1 + w;
     dst_y2 = dst_y1 + h;
 
-    src_off = pI830->copy_src_off;
     dst_off = exaGetPixmapOffset(pDstPixmap);
 
     {
@@ -278,7 +277,7 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 	OUT_RING(dst_off);
 	OUT_RING((src_y1 << 16) | (src_x1 & 0xffff));
 	OUT_RING(pI830->copy_src_pitch);
-	OUT_RING(src_off);
+	OUT_RING(pI830->copy_src_off);
 
 	ADVANCE_LP_RING();
     }
@@ -298,7 +297,6 @@ static void
 IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		 int dstX, int dstY, int w, int h)
 {
-	/* should be same like I830Composite */
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     int srcXend, srcYend, maskXend, maskYend;
