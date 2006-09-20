@@ -1,0 +1,5 @@
+xserver-xorg-video-intel (1.6.0-0ubuntu1) edgy; urgency=low
+
+  * Initial release.
+
+ -- Matthew Garrett <mjg59@srcf.ucam.org>  Wed, 20 Sep 2006 19:47:23 +0100

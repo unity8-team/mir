@@ -79,6 +79,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Paulo César Pereira de Andrade <pcpa@conectiva.com.br>.
  */
 
+#ifndef assert
+#define assert(x)
+#endif
+
 #define PIPE_NONE	0<<0
 #define PIPE_CRT	1<<0
 #define PIPE_TV		1<<1

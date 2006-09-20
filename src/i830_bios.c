@@ -29,6 +29,8 @@
 #undef VERSION	/* XXX edid.h has a VERSION too */
 #endif
 
+#include <stdio.h>
+
 #define _PARSE_EDID_
 #include "xf86.h"
 #include "i830.h"

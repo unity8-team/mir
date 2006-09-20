@@ -26,11 +26,11 @@ SUBDIRS = xvmc bios_reader ch7xxx sil164
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ -DI830_XV
 
-i810_drv_la_LTLIBRARIES = i810_drv.la
-i810_drv_la_LDFLAGS = -module -avoid-version
-i810_drv_ladir = @moduledir@/drivers
+intel_drv_la_LTLIBRARIES = intel_drv.la
+intel_drv_la_LDFLAGS = -module -avoid-version
+intel_drv_ladir = @moduledir@/drivers
 
-i810_drv_la_SOURCES = \
+intel_drv_la_SOURCES = \
          common.h \
 	 i2c_vid.h \
          i810_accel.c \
@@ -71,7 +71,7 @@ i810_drv_la_SOURCES = \
 	 i830_xf86Modes.h \
 	 i830_xf86Modes.c
 if DRI
-i810_drv_la_SOURCES += \
+intel_drv_la_SOURCES += \
          i810_dri.c \
          i810_dri.h \
          i830_dri.c \

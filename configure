@@ -21581,7 +21581,7 @@ fi
 
 
 
-DRIVER_NAME=i810
+DRIVER_NAME=intel
 
 
 

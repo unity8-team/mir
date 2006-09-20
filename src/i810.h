@@ -61,9 +61,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "common.h"
 
+#ifndef assert
+#define assert(x)
+#endif
+
 #define I810_VERSION 4000
-#define I810_NAME "I810"
-#define I810_DRIVER_NAME "i810"
+#define I810_NAME "INTEL"
+#define I810_DRIVER_NAME "intel"
 #define I810_MAJOR_VERSION 1
 #define I810_MINOR_VERSION 6
 #define I810_PATCHLEVEL 0

@@ -112,7 +112,7 @@ static ModeStatus I810ValidMode(int scrnIndex, DisplayModePtr mode,
 #endif /* I830_ONLY */
 
 
-_X_EXPORT DriverRec I810 = {
+_X_EXPORT DriverRec INTEL = {
    I810_VERSION,
    I810_DRIVER_NAME,
    I810Identify,
@@ -385,7 +385,7 @@ static XF86ModuleVersionInfo i810VersRec = {
    {0, 0, 0, 0}
 };
 
-_X_EXPORT XF86ModuleData i810ModuleData = { &i810VersRec, i810Setup, 0 };
+_X_EXPORT XF86ModuleData intelModuleData = { &i810VersRec, i810Setup, 0 };
 
 static pointer
 i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
@@ -396,7 +396,7 @@ i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
     */
    if (!setupDone) {
       setupDone = 1;
-      xf86AddDriver(&I810, module, 0);
+      xf86AddDriver(&INTEL, module, 0);
 
       /*
        * Tell the loader about symbols from other modules that this module
