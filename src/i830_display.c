@@ -31,6 +31,10 @@
 #endif
 
 #include <unistd.h>
+#include <string.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <math.h>
 
 #include "xf86.h"
 #include "i830.h"
