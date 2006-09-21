@@ -534,7 +534,7 @@ extern void I830SetMMIOAccess(I830Ptr pI830);
 extern void I830PrintErrorState(ScrnInfoPtr pScrn);
 extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
-extern void I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe);
+extern void I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force);
 extern Bool I830CursorInit(ScreenPtr pScreen);
 extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);

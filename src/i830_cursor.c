@@ -80,7 +80,7 @@ static Bool I830UseHWCursorARGB(ScreenPtr pScrn, CursorPtr pCurs);
 #endif
 
 void
-I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe)
+I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    CARD32 temp;
@@ -90,7 +90,7 @@ I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe)
 	return;
 
     show = pI830->cursorOn && pI830->cursorInRange[pipe];
-    if (show && !pI830->cursorShown[pipe])
+    if (show && (force || !pI830->cursorShown[pipe]))
     {
 	if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
 	    int	cursor_control, cursor_base;
@@ -138,7 +138,7 @@ I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe)
 	}
 	pI830->cursorShown[pipe] = TRUE;
     }
-    else if (!show && pI830->cursorShown[pipe])
+    else if (!show && (force || pI830->cursorShown[pipe]))
     {
 	if (IS_MOBILE(pI830) || IS_I9XX(pI830)) 
 	{
@@ -182,25 +182,22 @@ I830InitHWCursor(ScrnInfoPtr pScrn)
    for (i = 0; i < MAX_DISPLAY_PIPES; i++) pI830->cursorShown[i] = FALSE;
    /* Initialise the HW cursor registers, leaving the cursor hidden. */
    if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
-      temp = INREG(CURSOR_A_CONTROL);
-      temp &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE | MCURSOR_MEM_TYPE_LOCAL |
-		MCURSOR_PIPE_SELECT);
-      temp |= CURSOR_MODE_DISABLE;
-      temp |= (pI830->pipe << 28);
-      /* Need to set control, then address. */
-      OUTREG(CURSOR_A_CONTROL, temp);
-      if (pI830->CursorIsARGB)
-         OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
-      else
-         OUTREG(CURSOR_A_BASE, pI830->CursorMem->Physical);
-      if (pI830->Clone) {
-         temp &= ~MCURSOR_PIPE_SELECT;
-         temp |= (!pI830->pipe << 28);
-         OUTREG(CURSOR_B_CONTROL, temp);
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Physical);
-         else
-            OUTREG(CURSOR_B_BASE, pI830->CursorMem->Physical);
+      for (i = 0; i < MAX_DISPLAY_PIPES; i++)
+      {
+	 int   cursor_control = i == 0 ? CURSOR_A_CONTROL : CURSOR_B_CONTROL;
+	 int   cursor_base = i == 0 ? CURSOR_A_BASE : CURSOR_B_BASE;
+	 temp = INREG(cursor_control);
+	 temp &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE |
+		   MCURSOR_MEM_TYPE_LOCAL |
+		   MCURSOR_PIPE_SELECT);
+	 temp |= CURSOR_MODE_DISABLE;
+	 temp |= (i << 28);
+	 /* Need to set control, then address. */
+	 OUTREG(cursor_control, temp);
+	 if (pI830->CursorIsARGB)
+	    OUTREG(cursor_base, pI830->CursorMemARGB->Physical);
+	 else
+	    OUTREG(cursor_base, pI830->CursorMem->Physical);
       }
    } else {
       temp = INREG(CURSOR_CONTROL);
@@ -530,20 +527,15 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 
 	pI830->cursorInRange[pipe] = inrange;
 	
-        I830SetPipeCursor (pScrn, pipe);
-    }
+        I830SetPipeCursor (pScrn, pipe, FALSE);
 
-    /* have to upload the base for the new position */
-    if (IS_I9XX(pI830)) {
-	if (pI830->CursorIsARGB)
-	    OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
-	else
-	    OUTREG(CURSOR_A_BASE, pI830->CursorMem->Physical);
-	if (pI830->Clone) {
+	/* have to upload the base for the new position */
+	if (IS_I9XX(pI830)) {
+	    int base = pipe == 0 ? CURSOR_A_BASE : CURSOR_B_BASE;
 	    if (pI830->CursorIsARGB)
-		OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Physical);
+		OUTREG(base, pI830->CursorMemARGB->Physical);
 	    else
-		OUTREG(CURSOR_B_BASE, pI830->CursorMem->Physical);
+		OUTREG(base, pI830->CursorMem->Physical);
 	}
     }
 }
@@ -566,7 +558,7 @@ I830ShowCursor(ScrnInfoPtr pScrn)
 
     pI830->cursorOn = TRUE;
     for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++)
-	I830SetPipeCursor (pScrn, pipe);
+	I830SetPipeCursor (pScrn, pipe, TRUE);
 }
 
 static void
@@ -579,7 +571,7 @@ I830HideCursor(ScrnInfoPtr pScrn)
 
    pI830->cursorOn = FALSE;
     for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++)
-	I830SetPipeCursor (pScrn, pipe);
+	I830SetPipeCursor (pScrn, pipe, TRUE);
 }
 
 static void
@@ -595,11 +587,15 @@ I830SetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 
    DPRINTF(PFX, "I830SetCursorColors\n");
 
-   OUTREG(CURSOR_A_PALETTE0, bg & 0x00ffffff);
-   OUTREG(CURSOR_A_PALETTE1, fg & 0x00ffffff);
-   OUTREG(CURSOR_A_PALETTE2, fg & 0x00ffffff);
-   OUTREG(CURSOR_A_PALETTE3, bg & 0x00ffffff);
-   if (pI830->Clone) {
+   if (pI830->planeEnabled[0])
+   {
+       OUTREG(CURSOR_A_PALETTE0, bg & 0x00ffffff);
+       OUTREG(CURSOR_A_PALETTE1, fg & 0x00ffffff);
+       OUTREG(CURSOR_A_PALETTE2, fg & 0x00ffffff);
+       OUTREG(CURSOR_A_PALETTE3, bg & 0x00ffffff);
+   }
+   if (pI830->planeEnabled[1])
+   {
       OUTREG(CURSOR_B_PALETTE0, bg & 0x00ffffff);
       OUTREG(CURSOR_B_PALETTE1, fg & 0x00ffffff);
       OUTREG(CURSOR_B_PALETTE2, fg & 0x00ffffff);
