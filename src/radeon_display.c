@@ -815,45 +815,45 @@ static Bool RADEONGetLVDSInfo (ScrnInfoPtr pScrn)
      */
     RADEONUpdatePanelSize(pScrn);
 
-    /* No timing information for the native mode,
-     * use whatever specified in the Modeline.
-     * If no Modeline specified, we'll just pick
-     * the VESA mode at 60Hz refresh rate which
-     * is likely to be the best for a flat panel.
-     */
     if (info->DotClock == 0) {
-        RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-        DisplayModePtr  tmp_mode = NULL;
-        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                   "No valid timing info from BIOS.\n");
-        tmp_mode = pScrn->monitor->Modes;
-        while(tmp_mode) {
-            if ((tmp_mode->HDisplay == info->PanelXRes) &&
-                (tmp_mode->VDisplay == info->PanelYRes)) {
-
-                float  refresh =
-                    (float)tmp_mode->Clock * 1000.0 / tmp_mode->HTotal / tmp_mode->VTotal;
-                if ((abs(60.0 - refresh) < 1.0) ||
-                    (tmp_mode->type == 0)) {
-                    info->HBlank     = tmp_mode->HTotal - tmp_mode->HDisplay;
-                    info->HOverPlus  = tmp_mode->HSyncStart - tmp_mode->HDisplay;
-                    info->HSyncWidth = tmp_mode->HSyncEnd - tmp_mode->HSyncStart;
-                    info->VBlank     = tmp_mode->VTotal - tmp_mode->VDisplay;
-                    info->VOverPlus  = tmp_mode->VSyncStart - tmp_mode->VDisplay;
-                    info->VSyncWidth = tmp_mode->VSyncEnd - tmp_mode->VSyncStart;
-                    info->DotClock   = tmp_mode->Clock;
-                    info->Flags = 0;
-                    break;
-                }
-            }
-            tmp_mode = tmp_mode->next;
-        }
-        if ((info->DotClock == 0) && !pRADEONEnt->PortInfo[0].MonInfo) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                       "Panel size is not correctly detected.\n"
-                       "Please try to use PanelSize option for correct settings.\n");
-            return FALSE;
-        }
+	RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+	DisplayModePtr  tmp_mode = NULL;
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "No valid timing info from BIOS.\n");
+	/* No timing information for the native mode,
+	   use whatever specified in the Modeline.
+	   If no Modeline specified, we'll just pick
+	   the VESA mode at 60Hz refresh rate which
+	   is likely to be the best for a flat panel.
+	*/
+	tmp_mode = pScrn->monitor->Modes;
+	while(tmp_mode) {
+	    if ((tmp_mode->HDisplay == info->PanelXRes) &&
+		(tmp_mode->VDisplay == info->PanelYRes)) {
+		    
+		float  refresh =
+		    (float)tmp_mode->Clock * 1000.0 / tmp_mode->HTotal / tmp_mode->VTotal;
+		if ((abs(60.0 - refresh) < 1.0) ||
+		    (tmp_mode->type == 0)) {
+		    info->HBlank     = tmp_mode->HTotal - tmp_mode->HDisplay;
+		    info->HOverPlus  = tmp_mode->HSyncStart - tmp_mode->HDisplay;
+		    info->HSyncWidth = tmp_mode->HSyncEnd - tmp_mode->HSyncStart;
+		    info->VBlank     = tmp_mode->VTotal - tmp_mode->VDisplay;
+		    info->VOverPlus  = tmp_mode->VSyncStart - tmp_mode->VDisplay;
+		    info->VSyncWidth = tmp_mode->VSyncEnd - tmp_mode->VSyncStart;
+		    info->DotClock   = tmp_mode->Clock;
+		    info->Flags = 0;
+		    break;
+		}
+		tmp_mode = tmp_mode->next;
+	    }
+	}
+	if ((info->DotClock == 0) && !pRADEONEnt->PortInfo[0].MonInfo) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Panel size is not correctly detected.\n"
+		       "Please try to use PanelSize option for correct settings.\n");
+	    return FALSE;
+	}
     }
 
     return TRUE;
