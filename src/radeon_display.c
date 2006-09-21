@@ -1784,35 +1784,107 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     }
 }
 
+static void RADEONBlankSet(ScrnInfoPtr pScrn, int controller)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+
+    switch(pRADEONEnt->Controller[controller].pPort->MonType) {
+    case MT_LCD:
+        OUTREGP(RADEON_LVDS_GEN_CNTL, RADEON_LVDS_DISPLAY_DIS, ~RADEON_LVDS_DISPLAY_DIS);
+        break;
+
+    case MT_CRT:
+       if ((info->ChipFamily == CHIP_FAMILY_R200) && 
+ 	  (pRADEONEnt->Controller[controller].pPort->DACType == DAC_TVDAC))
+	    OUTREGP(RADEON_FP2_GEN_CNTL, RADEON_FP2_BLANK_EN, ~RADEON_FP2_BLANK_EN);
+      
+        break;
+    case MT_DFP:
+        if (pRADEONEnt->Controller[controller].pPort->TMDSType == TMDS_EXT)
+  	    OUTREGP(RADEON_FP2_GEN_CNTL, RADEON_FP2_BLANK_EN, ~RADEON_FP2_BLANK_EN);
+        else
+	    OUTREGP(RADEON_FP_GEN_CNTL, RADEON_FP_BLANK_EN, ~RADEON_FP_BLANK_EN);
+      
+        break;
+    case MT_NONE:
+    default:
+        break;
+    }   
+}
 
 /* Blank screen */
 void RADEONBlank(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
-    if (!info->IsSecondary) {
-	switch(info->DisplayType) {
-	case MT_LCD:
-	case MT_CRT:
-	case MT_DFP:
-	    OUTREGP(RADEON_CRTC_EXT_CNTL,
-		    RADEON_CRTC_DISPLAY_DIS,
-		    ~(RADEON_CRTC_DISPLAY_DIS));
-	    break;
+    if (!pRADEONEnt->HasSecondary ||
+	(pRADEONEnt->HasSecondary && !info->IsSwitching) ||
+	(info->IsSwitching && (!info->IsSecondary))) {
+      
+        RADEONBlankSet(pScrn, 0);
+	OUTREGP (RADEON_CRTC_EXT_CNTL,
+		 RADEON_CRTC_DISPLAY_DIS |
+		 RADEON_CRTC_VSYNC_DIS |
+		 RADEON_CRTC_HSYNC_DIS,
+		 ~(RADEON_CRTC_DISPLAY_DIS |
+		   RADEON_CRTC_VSYNC_DIS | 
+		   RADEON_CRTC_HSYNC_DIS));
 
-	case MT_NONE:
-	default:
-	    break;
+	if (!info->HasCRTC2) return;
+
+	if (info->MergedFB) {
+  	    RADEONBlankSet(pScrn, 1);
+	    OUTREGP (RADEON_CRTC2_GEN_CNTL,
+		     RADEON_CRTC2_DISP_DIS |
+		     RADEON_CRTC2_VSYNC_DIS |
+		     RADEON_CRTC2_HSYNC_DIS,
+		     ~(RADEON_CRTC2_DISP_DIS |
+		       RADEON_CRTC2_VSYNC_DIS | 
+		       RADEON_CRTC2_HSYNC_DIS));
 	}
-	if (info->MergedFB)
-	    OUTREGP(RADEON_CRTC2_GEN_CNTL,
-		    RADEON_CRTC2_DISP_DIS,
-		    ~(RADEON_CRTC2_DISP_DIS));
-    } else {
-	OUTREGP(RADEON_CRTC2_GEN_CNTL,
-		RADEON_CRTC2_DISP_DIS,
-		~(RADEON_CRTC2_DISP_DIS));
+    }
+
+    if ((pRADEONEnt->HasSecondary && !info->IsSwitching) ||
+	(info->IsSwitching && info->IsSecondary)) {
+        RADEONBlankSet(pScrn, 1);
+	OUTREGP (RADEON_CRTC2_GEN_CNTL,
+		 RADEON_CRTC2_DISP_DIS |
+		 RADEON_CRTC2_VSYNC_DIS |
+		 RADEON_CRTC2_HSYNC_DIS,
+		 ~(RADEON_CRTC2_DISP_DIS |
+		   RADEON_CRTC2_VSYNC_DIS | 
+		   RADEON_CRTC2_HSYNC_DIS));
+    }
+}
+
+static void RADEONUnblankSet(ScrnInfoPtr pScrn, int controller)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+
+    switch(pRADEONEnt->Controller[controller].pPort->MonType) {
+    case MT_LCD:
+        OUTREGP(RADEON_LVDS_GEN_CNTL, 0, ~RADEON_LVDS_DISPLAY_DIS);
+        break;
+    case MT_CRT:
+        if ((info->ChipFamily == CHIP_FAMILY_R200) &&
+	  (pRADEONEnt->Controller[controller].pPort->DACType == DAC_TVDAC))
+	      OUTREGP(RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_BLANK_EN);
+        break;
+    case MT_DFP:
+        if (pRADEONEnt->Controller[controller].pPort->TMDSType == TMDS_EXT)
+	    OUTREGP(RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_BLANK_EN);
+        else
+	    OUTREGP(RADEON_FP_GEN_CNTL, 0, ~RADEON_FP_BLANK_EN);
+        break;
+    case MT_NONE:
+    default:
+        break;
     }
 }
 
@@ -1821,39 +1893,33 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
-    if (!info->IsSecondary) {
-	switch (info->DisplayType) {
-	case MT_LCD:
-	case MT_CRT:
-	case MT_DFP:
-	    OUTREGP(RADEON_CRTC_EXT_CNTL,
-		    RADEON_CRTC_CRT_ON,
-		    ~(RADEON_CRTC_DISPLAY_DIS));
-	    break;
+    if (!pRADEONEnt->HasSecondary || (info->IsSwitching  && !info->IsSecondary)) {
+      RADEONUnblankSet(pScrn, 0);
+      OUTREGP(RADEON_CRTC_EXT_CNTL,
+	      0,
+	      ~(RADEON_CRTC_DISPLAY_DIS |
+		RADEON_CRTC_VSYNC_DIS |
+		RADEON_CRTC_HSYNC_DIS));
 
-	case MT_NONE:
-	default:
-	    break;
-	}
-	if (info->MergedFB)
-	    OUTREGP(RADEON_CRTC2_GEN_CNTL,
-		    0,
-		    ~(RADEON_CRTC2_DISP_DIS));
-    } else {
-	switch (info->DisplayType) {
-	case MT_LCD:
-	case MT_DFP:
-	case MT_CRT:
-	    OUTREGP(RADEON_CRTC2_GEN_CNTL,
-		    0,
-		    ~(RADEON_CRTC2_DISP_DIS));
-	    break;
+      if (!info->HasCRTC2) return;
 
-	case MT_NONE:
-	default:
-	    break;
-	}
+      if (info->MergedFB) {
+	RADEONUnblankSet(pScrn, 1);
+	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0,
+		~(RADEON_CRTC2_DISP_DIS |
+		  RADEON_CRTC2_VSYNC_DIS |
+		  RADEON_CRTC2_HSYNC_DIS));
+      }
+    }
+
+    if (info->IsSwitching && info->IsSecondary) {
+        RADEONUnblankSset(pScrn, 1);
+	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0,
+		~(RADEON_CRTC2_DISP_DIS |
+		  RADEON_CRTC2_VSYNC_DIS |
+		  RADEON_CRTC2_HSYNC_DIS));
     }
 }
 
