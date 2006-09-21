@@ -960,7 +960,7 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 	pRADEONEnt->PortInfo[0].DDCType = DDC_DVI;
 	pRADEONEnt->PortInfo[0].DACType = DAC_TVDAC;
 	pRADEONEnt->PortInfo[0].TMDSType = TMDS_INT;
-	pRADEONEnt->PortInfo[0].ConnectorType = CONNECTOR_DVI_D;
+	pRADEONEnt->PortInfo[0].ConnectorType = CONNECTOR_DVI_I;
 
 	pRADEONEnt->PortInfo[1].MonType = MT_UNKNOWN;
 	pRADEONEnt->PortInfo[1].MonInfo = NULL;
