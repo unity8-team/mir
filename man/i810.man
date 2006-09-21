@@ -49,7 +49,7 @@ DRI is enabled.  This amount may be changed with the
 entry in the config file
 .B "Device"
 section.  It may be set to any reasonable value up to 64MB for older
-chipsets or 128MB for newer chipets.  It is advisable to check the
+chipsets or 128MB for newer chipsets.  It is advisable to check the
 __xservername__
 log file to check if any features have been disabled because of insufficient
 video memory.  In particular, DRI support or tiling mode may be disabled
