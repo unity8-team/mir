@@ -954,6 +954,11 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 		    maxY = mode->VDisplay;
 	    }
 	}
+	/* let the user specify a bigger virtual size if they like */
+	if (pScrn->display->virtualX > maxX)
+	    maxX = pScrn->display->virtualX;
+	if (pScrn->display->virtualY > maxY)
+	    maxY = pScrn->display->virtualY;
 	pScrn->virtualX = maxX;
 	pScrn->virtualY = maxY;
 	pScrn->displayWidth = (maxX + 63) & ~63;
