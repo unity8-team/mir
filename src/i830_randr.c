@@ -548,7 +548,7 @@ I830RandRCrtcSet (ScreenPtr	pScreen,
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
     I830Ptr		pI830 = I830PTR(pScrn);
     int			pipe = (int) (crtc->devPrivate);
-    DisplayModePtr	display_mode = mode->devPrivate;
+    DisplayModePtr	display_mode = mode ? mode->devPrivate : NULL;
     
     /* Sync the engine before adjust mode */
     if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
@@ -558,8 +558,24 @@ I830RandRCrtcSet (ScreenPtr	pScreen,
 
     if (display_mode != randrp->modes[pipe])
     {
-	if (!i830PipeSetMode (pScrn, display_mode, pipe))
-	    return FALSE;
+	pI830->planeEnabled[pipe] = mode != NULL;
+	if (display_mode)
+	{
+	    if (!i830PipeSetMode (pScrn, display_mode, pipe))
+		return FALSE;
+	    /* XXX need I830SDVOPostSetMode here */
+	}
+	else
+	{
+	    CARD32  operatingDevices = pI830->operatingDevices;
+
+	    if (pipe == 0)
+		pI830->operatingDevices &= ~0xff;
+	    else
+		pI830->operatingDevices &= ~0xff00;
+	    i830DisableUnusedFunctions (pScrn);
+	    pI830->operatingDevices = operatingDevices;
+	}
 	randrp->modes[pipe] = display_mode;
     }
     i830PipeSetBase(pScrn, pipe, x, y);

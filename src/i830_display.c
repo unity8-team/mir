@@ -719,7 +719,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     return TRUE;
 }
 
-static void
+void
 i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
