@@ -927,13 +927,6 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 
     max_mt = 5;
 
-    if(info->IsSecondary) {
-        pScrn->monitor->DDC = pRADEONEnt->Controller[1].pPort->MonInfo;
-	info->DisplayType = (RADEONMonitorType)pRADEONEnt->Controller[1].pPort->MonType;
-	if(info->DisplayType == MT_NONE) return FALSE;
-	return TRUE;
-    }
-
 
     /* We first get the information about all connectors from BIOS.
      * This is how the card is phyiscally wired up.
@@ -1212,58 +1205,6 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
         }
     }
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "\n");
-
-    pRADEONEnt->Controller[0].pPort = &pRADEONEnt->PortInfo[0];
-    pRADEONEnt->Controller[1].pPort = &pRADEONEnt->PortInfo[1];
-    if (pRADEONEnt->PortInfo[0].MonType == MT_NONE) {
-	if (pRADEONEnt->PortInfo[1].MonType == MT_NONE) {
-  	    pRADEONEnt->Controller[0].pPort->MonType = MT_CRT;
-	} else {
-	    pRADEONEnt->Controller[0].pPort = &(pRADEONEnt->PortInfo[1]);
-  	    pRADEONEnt->Controller[1].pPort = &(pRADEONEnt->PortInfo[0]);
-	}
-    }
-
-    pScrn->monitor->DDC = pRADEONEnt->Controller[0].pPort->MonInfo;
-    info->DisplayType = pRADEONEnt->Controller[0].pPort->MonType;
-
-    pRADEONEnt->ReversedDAC = FALSE;
-    info->OverlayOnCRTC2 = FALSE;
-    info->MergeType = MT_NONE;
-    if (pRADEONEnt->Controller[1].pPort->MonType != MT_NONE) {
-	if(!pRADEONEnt->HasSecondary) {
- 	    info->MergeType = pRADEONEnt->Controller[1].pPort->MonType;
-	}
-
-	if (pRADEONEnt->PortInfo[1].DACType == DAC_TVDAC) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Reversed DAC decteced\n");
-	    pRADEONEnt->ReversedDAC = TRUE;
-	}
-    } else {
-	pRADEONEnt->HasSecondary = FALSE;
-    }
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Primary:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n",
-	       MonTypeName[pRADEONEnt->PortInfo[0].MonType+1],
-	       info->IsAtomBios ?
-	       ConnectorTypeNameATOM[pRADEONEnt->PortInfo[0].ConnectorType]:
-	       ConnectorTypeName[pRADEONEnt->PortInfo[0].ConnectorType],
-	       DACTypeName[pRADEONEnt->PortInfo[0].DACType+1],
-	       TMDSTypeName[pRADEONEnt->PortInfo[0].TMDSType+1],
-	       DDCTypeName[pRADEONEnt->PortInfo[0].DDCType]);
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Secondary:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n",
-	       MonTypeName[pRADEONEnt->PortInfo[1].MonType+1],
-	       info->IsAtomBios ?
-	       ConnectorTypeNameATOM[pRADEONEnt->PortInfo[1].ConnectorType]:
-	       ConnectorTypeName[pRADEONEnt->PortInfo[1].ConnectorType],
-	       DACTypeName[pRADEONEnt->PortInfo[1].DACType+1],
-	       TMDSTypeName[pRADEONEnt->PortInfo[1].TMDSType+1],
-	       DDCTypeName[pRADEONEnt->PortInfo[1].DDCType]);
-
     return TRUE;
 }
 
@@ -1273,7 +1214,99 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    RADEONQueryConnectedMonitors(pScrn);
+
+    if (!info->IsSecondary) {
+      RADEONQueryConnectedMonitors(pScrn);
+
+      pRADEONEnt->Controller[0].pPort = &(pRADEONEnt->PortInfo[0]);
+      pRADEONEnt->Controller[1].pPort = &(pRADEONEnt->PortInfo[1]);
+
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+		 "Port1:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n", 
+		 MonTypeName[pRADEONEnt->Controller[0].pPort->MonType+1], 
+		 info->IsAtomBios ? 
+		 ConnectorTypeNameATOM[pRADEONEnt->Controller[0].pPort->ConnectorType]:
+		 ConnectorTypeName[pRADEONEnt->Controller[0].pPort->ConnectorType],
+		 DACTypeName[pRADEONEnt->Controller[0].pPort->DACType+1],
+		 TMDSTypeName[pRADEONEnt->Controller[0].pPort->TMDSType+1],
+		 DDCTypeName[pRADEONEnt->Controller[0].pPort->DDCType]);
+
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+		 "Port2:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n", 
+		 MonTypeName[pRADEONEnt->Controller[1].pPort->MonType+1], 
+		 info->IsAtomBios ? 
+		 ConnectorTypeNameATOM[pRADEONEnt->Controller[1].pPort->ConnectorType]:
+		 ConnectorTypeName[pRADEONEnt->Controller[1].pPort->ConnectorType],
+		 DACTypeName[pRADEONEnt->Controller[1].pPort->DACType+1],
+		 TMDSTypeName[pRADEONEnt->Controller[1].pPort->TMDSType+1],
+		 		 DDCTypeName[pRADEONEnt->Controller[1].pPort->DDCType]);
+
+	/* no display detected on primary port*/
+	if (pRADEONEnt->Controller[0].pPort->MonType == MT_NONE) {
+	    if (pRADEONEnt->Controller[1].pPort->MonType != MT_NONE) {
+		/* Only one detected on secondary, let it to be primary */
+		pRADEONEnt->Controller[0].pPort = &(pRADEONEnt->PortInfo[1]);
+		pRADEONEnt->Controller[1].pPort = &(pRADEONEnt->PortInfo[0]);
+		head_reversed = TRUE;
+	    } else {
+		/* None detected, Default to a CRT connected */
+		pRADEONEnt->Controller[0].pPort->MonType = MT_CRT;
+	    }
+	}
+
+	if ((pRADEONEnt->Controller[0].pPort->MonType == MT_LCD) &&
+	    (pRADEONEnt->Controller[1].pPort->MonType == MT_CRT)) {
+	    if (!(INREG(RADEON_LVDS_GEN_CNTL) & RADEON_LVDS_ON)) {
+		/* LCD is switched off, don't turn it on, otherwise it may casue lockup due to SS issue. */
+		pRADEONEnt->Controller[0].pPort = &(pRADEONEnt->PortInfo[1]);
+		pRADEONEnt->Controller[1].pPort = &(pRADEONEnt->PortInfo[0]);
+		pRADEONEnt->Controller[1].pPort->MonType = MT_NONE;
+		head_reversed = TRUE;
+		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "LCD is switched off, only CRT will be used\n");
+	    }
+	}
+
+	if ((pRADEONEnt->Controller[0].pPort->MonType != MT_NONE) &&
+	    (pRADEONEnt->Controller[1].pPort->MonType != MT_NONE)) {
+	  if (FALSE /*xf86ReturnOptValBool(info->Options, OPTION_REVERSE_DISPLAY, FALSE)*/) {
+		if (info->IsMobility) {
+		    /* Don't reverse display for mobility chips, as only CRTC1 path has RMX which
+		       will be required by many LCD panels
+		    */
+		    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Reverse Display cannot be used for mobility chip\n");
+		} else {
+		    pRADEONEnt->Controller[0].pPort = &(pRADEONEnt->PortInfo[1]);
+		    pRADEONEnt->Controller[1].pPort = &(pRADEONEnt->PortInfo[0]);
+		    head_reversed = TRUE;
+		    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Primary and Secondary mapping is reversed\n");
+		}
+	    }
+	}
+
+	if (pRADEONEnt->HasSecondary && pRADEONEnt->Controller[1].pPort->MonType == MT_NONE) {
+	    pRADEONEnt->HasSecondary = FALSE;
+	}
+    }
+
+    if(info->HasCRTC2) {   
+	if(info->IsSecondary) {
+	    info->DisplayType = pRADEONEnt->Controller[1].pPort->MonType;
+	    pScrn->monitor->DDC = pRADEONEnt->Controller[1].pPort->MonInfo;
+	} else {
+	    info->DisplayType = pRADEONEnt->Controller[0].pPort->MonType; 
+	    pScrn->monitor->DDC = pRADEONEnt->Controller[0].pPort->MonInfo;
+	}
+	
+	if(!pRADEONEnt->HasSecondary) {
+	    info->MergeType = pRADEONEnt->Controller[1].pPort->MonType;
+	} 
+    } else {
+	if (pRADEONEnt->Controller[0].pPort->MonType == MT_NONE) 
+	    pRADEONEnt->Controller[0].pPort->MonType = MT_CRT;
+	info->DisplayType = pRADEONEnt->Controller[0].pPort->MonType; 
+	pScrn->monitor->DDC = pRADEONEnt->Controller[0].pPort->MonInfo;
+	pRADEONEnt->Controller[1].pPort->MonType = MT_NONE;
+    }
 
     if (!info->IsSecondary) {
         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Primary Head:   Port%d ---- \n", head_reversed?2:1);
