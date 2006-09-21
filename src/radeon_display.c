@@ -1348,6 +1348,116 @@ static void RADEONDacPowerSet(ScrnInfoPtr pScrn, Bool IsOn, Bool IsPrimaryDAC)
     }
 }
 
+/* This is to be used enable/disable displays dynamically */
+void RADEONEnableDisplay(ScrnInfoPtr pScrn, RADEONController* pCRTC, BOOL bEnable)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONSavePtr save = &info->ModeReg;
+    unsigned char * RADEONMMIO = info->MMIO;
+    unsigned long tmp;
+
+    if (bEnable) {
+        if (pCRTC->pPort->MonType == MT_CRT) {
+            if (pCRTC->pPort->DACType == DAC_PRIMARY) {
+                tmp = INREG(RADEON_CRTC_EXT_CNTL);
+                tmp |= RADEON_CRTC_CRT_ON;                    
+                OUTREG(RADEON_CRTC_EXT_CNTL, tmp);
+                save->crtc_ext_cntl |= RADEON_CRTC_CRT_ON;
+            } else if (pCRTC->pPort->DACType == DAC_TVDAC) {
+                if (info->ChipFamily == CHIP_FAMILY_R200) {
+                    tmp = INREG(RADEON_CRTC2_GEN_CNTL);
+                    tmp |= RADEON_CRTC2_CRT2_ON;  
+                    OUTREG(RADEON_CRTC2_GEN_CNTL, tmp);
+                    save->crtc2_gen_cntl |= RADEON_CRTC2_CRT2_ON;
+                } else {
+                    tmp = INREG(RADEON_FP2_GEN_CNTL);
+                    tmp |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+                    OUTREG(RADEON_FP2_GEN_CNTL, tmp);
+                    save->fp2_gen_cntl |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+                }
+            }
+	    RADEONDacPowerSet(pScrn, bEnable, (pCRTC->pPort->DACType == DAC_PRIMARY));
+        } else if (pCRTC->pPort->MonType == MT_DFP) {
+            if (pCRTC->pPort->TMDSType == TMDS_INT) {
+                tmp = INREG(RADEON_FP_GEN_CNTL);
+                tmp |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
+                OUTREG(RADEON_FP_GEN_CNTL, tmp);
+                save->fp_gen_cntl |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
+            } else if (pCRTC->pPort->TMDSType == TMDS_EXT) {
+                tmp = INREG(RADEON_FP2_GEN_CNTL);
+                tmp |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+                OUTREG(RADEON_FP2_GEN_CNTL, tmp);
+                save->fp2_gen_cntl |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+            }
+        } else if (pCRTC->pPort->MonType == MT_LCD) {
+            tmp = INREG(RADEON_LVDS_GEN_CNTL);
+            tmp |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
+            tmp &= ~(RADEON_LVDS_DISPLAY_DIS);
+	    usleep (info->PanelPwrDly * 1000);
+            OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
+            save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
+            save->lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS);
+        } 
+    } else {
+        if (pCRTC->pPort->MonType == MT_CRT || pCRTC->pPort->MonType == NONE) {
+            if (pCRTC->pPort->DACType == DAC_PRIMARY) {
+                tmp = INREG(RADEON_CRTC_EXT_CNTL);
+                tmp &= ~RADEON_CRTC_CRT_ON;                    
+                OUTREG(RADEON_CRTC_EXT_CNTL, tmp);
+                save->crtc_ext_cntl &= ~RADEON_CRTC_CRT_ON;
+            } else if (pCRTC->pPort->DACType == DAC_TVDAC) {
+                if (info->ChipFamily == CHIP_FAMILY_R200) {
+                    tmp = INREG(RADEON_FP2_GEN_CNTL);
+                    tmp &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+                    OUTREG(RADEON_FP2_GEN_CNTL, tmp);
+                    save->fp2_gen_cntl &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+                } else {
+                    tmp = INREG(RADEON_CRTC2_GEN_CNTL);
+                    tmp &= ~RADEON_CRTC2_CRT2_ON;  
+                    OUTREG(RADEON_CRTC2_GEN_CNTL, tmp);
+                    save->crtc2_gen_cntl &= ~RADEON_CRTC2_CRT2_ON;
+                }
+            }
+	    RADEONDacPowerSet(pScrn, bEnable, (pCRTC->pPort->DACType == DAC_PRIMARY));
+        }
+
+        if (pCRTC->pPort->MonType == MT_DFP || pCRTC->pPort->MonType == NONE) {
+            if (pCRTC->pPort->TMDSType == TMDS_INT) {
+                tmp = INREG(RADEON_FP_GEN_CNTL);
+                tmp &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
+                OUTREG(RADEON_FP_GEN_CNTL, tmp);
+                save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
+            } else if (pCRTC->pPort->TMDSType == TMDS_EXT) {
+                tmp = INREG(RADEON_FP2_GEN_CNTL);
+                tmp &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+                OUTREG(RADEON_FP2_GEN_CNTL, tmp);
+                save->fp2_gen_cntl &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+            }
+        }
+
+        if (pCRTC->pPort->MonType == MT_LCD || 
+            (pCRTC->pPort->MonType == NONE && pCRTC->pPort->ConnectorType == CONNECTOR_PROPRIETARY)) {
+	    unsigned long tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
+	    if (info->IsMobility || info->IsIGP) {
+	    /* Asic bug, when turning off LVDS_ON, we have to make sure
+	       RADEON_PIXCLK_LVDS_ALWAYS_ON bit is off
+	    */
+		OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL, 0, ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
+	    }
+            tmp = INREG(RADEON_LVDS_GEN_CNTL);
+            tmp |= (RADEON_LVDS_ON | RADEON_LVDS_DISPLAY_DIS);
+            tmp &= ~(RADEON_LVDS_BLON);
+            OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
+            save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_DISPLAY_DIS);
+            save->lvds_gen_cntl &= ~(RADEON_LVDS_BLON);
+	    if (info->IsMobility || info->IsIGP) {
+		OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
+	    }
+        }
+    }
+    pCRTC->IsActive = bEnable;
+}
+
 /* Calculate display buffer watermark to prevent buffer underflow */
 void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
 {
