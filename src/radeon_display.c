@@ -1269,7 +1269,21 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 
 Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 {
-  return RADEONQueryConnectedMonitors(pScrn);
+    Bool head_reversed = FALSE;
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONQueryConnectedMonitors(pScrn);
+
+    if (!info->IsSecondary) {
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Primary Head:   Port%d ---- \n", head_reversed?2:1);
+	if (pRADEONEnt->Controller[1].pPort->MonType != MT_NONE)
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Secondary Head: Port%d ----\n", head_reversed?1:2);
+ 	else
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Secondary Head: Not used ----\n");
+    }
+
+    return TRUE;
 }
 
 /*
