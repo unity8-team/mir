@@ -30,7 +30,6 @@
 #endif
 
 #include "xf86.h"
-#include "xf86_ansic.h"
 #include "i830.h"
 #include "i830_debug.h"
 

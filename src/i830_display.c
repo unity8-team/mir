@@ -30,8 +30,9 @@
 #include "config.h"
 #endif
 
+#include <unistd.h>
+
 #include "xf86.h"
-#include "xf86_ansic.h"
 #include "i830.h"
 #include "i830_bios.h"
 #include "i830_display.h"
