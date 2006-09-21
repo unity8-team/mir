@@ -3561,14 +3561,14 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
 static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 {
     RADEONGetBIOSInfo(pScrn, pInt10);
-    if (!RADEONQueryConnectedMonitors(pScrn))    
-      goto fail;
+
+    RADEONMapControllers(pScrn);
+
     RADEONGetClockInfo(pScrn);
+    RADEONGetPanelInfo(pScrn);
     RADEONGetTVDacAdjInfo(pScrn);
     
     return TRUE;
- fail:
-    return FALSE;
 }
 
 static void

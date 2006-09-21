@@ -1267,6 +1267,10 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+Bool RADEONMapControllers(ScrnInfoPtr pScrn)
+{
+  return RADEONQueryConnectedMonitors(pScrn);
+}
 
 /*
  * Powering done DAC, needed for DPMS problem with ViewSonic P817 (or its variant).
