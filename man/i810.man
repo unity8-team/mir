@@ -172,13 +172,6 @@ NOTE: Using this option may cause text mode to be restored incorrectly,
 and thus should be used with caution.
 Default: disabled.
 .TP
-.BI "Option \*qDevicePresence\*q \*q" boolean \*q
-Tell the driver to perform an active detect of the currently connected
-monitors. This option is useful if the monitor was not connected when
-the machine has booted, but unfortunately it doesn't always work and
-is extremely dependent upon the Video BIOS.
-Default: disabled
-.TP
 .BI "Option \*qRotate\*q \*q90\*q"
 Rotate the desktop 90 degrees counterclockwise. Other valid options are
 0, 90, 180 and 270 degrees. The RandR extension is used for rotation 

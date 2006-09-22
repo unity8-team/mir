@@ -260,7 +260,6 @@ static OptionInfoRec I830Options[] = {
    {OPTION_XVIDEO,	"XVideo",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_DEVICE_PRESENCE,"DevicePresence",OPTV_BOOLEAN,{0},	FALSE},
    {OPTION_MONITOR_LAYOUT, "MonitorLayout", OPTV_ANYSTR,{0},	FALSE},
    {OPTION_CLONE,	"Clone",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_CLONE_REFRESH,"CloneRefresh",OPTV_INTEGER,	{0},	FALSE},
@@ -621,31 +620,6 @@ GetBIOSVersion(ScrnInfoPtr pScrn, unsigned int *version)
 
    *version = 0;
    return FALSE;
-}
-
-static Bool
-GetDevicePresence(ScrnInfoPtr pScrn, Bool *required, int *attached,
-		  int *encoderPresent)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-
-   DPRINTF(PFX, "GetDevicePresence\n");
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f64;
-   pVbe->pInt10->bx = 0x200;
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax)) {
-      if (required)
-	 *required = ((pVbe->pInt10->bx & 0x1) == 0);
-      if (attached)
-	 *attached = (pVbe->pInt10->cx >> 8) & 0xff;
-      if (encoderPresent)
-	 *encoderPresent = pVbe->pInt10->cx & 0xff;
-      return TRUE;
-   } else
-      return FALSE;
 }
 
 /*
@@ -2070,30 +2044,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using new Pipe switch code\n");
    } else
       pI830->newPipeSwitch = FALSE;
-
-   pI830->devicePresence = FALSE;
-   from = X_DEFAULT;
-   if (xf86ReturnOptValBool(pI830->Options, OPTION_DEVICE_PRESENCE, FALSE)) {
-      pI830->devicePresence = TRUE;
-      from = X_CONFIG;
-   }
-   xf86DrvMsg(pScrn->scrnIndex, from, "Device Presence: %s.\n",
-	      pI830->devicePresence ? "enabled" : "disabled");
-
-   /* This performs an active detect of the currently attached monitors
-    * or, at least it's meant to..... alas it doesn't seem to always work.
-    */
-   if (pI830->devicePresence) {
-      int req=0, att=0, enc=0;
-      GetDevicePresence(pScrn, &req, &att, &enc);
-      for (i = 0; i < NumDisplayTypes; i++) {
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	    "Display Presence: %s: attached: %s, encoder: %s\n",
-	    displayDevices[i],
-	    BOOLTOSTRING(((1<<i) & att)>>i),
-	    BOOLTOSTRING(((1<<i) & enc)>>i));
-      }
-   }
 
    PrintDisplayDeviceInfo(pScrn);
 
