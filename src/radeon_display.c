@@ -914,7 +914,7 @@ void RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn)
     }
 }
 
-BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
+static void RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
@@ -1151,7 +1151,7 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 		   TMDSTypeName[pRADEONEnt->PortInfo[0].TMDSType+1],
 		   DDCTypeName[pRADEONEnt->PortInfo[0].DDCType]);
 
-	return TRUE;
+	return;
     }
 
     if (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN || pRADEONEnt->PortInfo[1].MonType == MT_UNKNOWN) {
@@ -1200,7 +1200,7 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
         }
     }
 
-    return TRUE;
+    return;
 }
 
 Bool RADEONMapControllers(ScrnInfoPtr pScrn)
