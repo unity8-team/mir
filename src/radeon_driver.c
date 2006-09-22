@@ -6483,7 +6483,10 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     {
 	save->crtc_ext_cntl = (RADEON_VGA_ATI_LINEAR |
 			       RADEON_XCRT_CNT_EN |
-			       RADEON_CRTC_CRT_ON);
+			       RADEON_CRTC_CRT_ON |
+			       RADEON_CRTC_VSYNC_DIS |
+			       RADEON_CRTC_HSYNC_DIS |
+			       RADEON_CRTC_DISPLAY_DIS);
     }
 
     save->surface_cntl = 0;
