@@ -397,10 +397,6 @@ typedef struct _I830Rec {
    int toggleDevices;
    int lastDevice0, lastDevice1, lastDevice2;
 
-   /* These are indexed by the display types */
-   Bool displayAttached[NumDisplayTypes];
-   Bool displayPresent[NumDisplayTypes];
-
    /* [0] is Pipe A, [1] is Pipe B. */
    int availablePipes;
    /* [0] is display plane A, [1] is display plane B. */
