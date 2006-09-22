@@ -8900,7 +8900,7 @@ i830MarkSync(ScrnInfoPtr pScrn)
 
 #ifdef I830_USE_XAA
    if (!pI830->useEXA && pI830->AccelInfoRec)
-      pI830->AccelInfoRec->NeedToSync = FALSE;
+      pI830->AccelInfoRec->NeedToSync = TRUE;
 #endif
 #ifdef I830_USE_EXA
    if (pI830->useEXA && pI830->EXADriverPtr) {
