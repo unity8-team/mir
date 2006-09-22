@@ -1112,78 +1112,66 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 
     }
 
-    if(((!info->HasCRTC2) || info->IsDellServer)) {
-	if (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN) {
-	    if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn, DDC_DVI, &pRADEONEnt->PortInfo[0])));
-	    else if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn, DDC_VGA, &pRADEONEnt->PortInfo[0])));
-	    else if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn, DDC_CRT2, &pRADEONEnt->PortInfo[0])));
-	    else
-		pRADEONEnt->PortInfo[0].MonType = MT_CRT;
-	}
-
-	if (!ignore_edid) {
-	    if (pRADEONEnt->PortInfo[0].MonInfo) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Monitor1 EDID data ---------------------------\n");
-		xf86PrintEDID(pRADEONEnt->PortInfo[0].MonInfo );
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "End of Monitor1 EDID data --------------------\n");
-	    }
-	}
-
-	pRADEONEnt->PortInfo[1].MonType = MT_NONE;
-	pRADEONEnt->PortInfo[1].MonInfo = NULL;
-	pRADEONEnt->PortInfo[1].DDCType = DDC_NONE_DETECTED;
-	pRADEONEnt->PortInfo[1].DACType = DAC_UNKNOWN;
-	pRADEONEnt->PortInfo[1].TMDSType = TMDS_UNKNOWN;
-	pRADEONEnt->PortInfo[1].ConnectorType = CONNECTOR_NONE;
-
-	pRADEONEnt->Controller[0].pPort = &pRADEONEnt->PortInfo[0];
-	pRADEONEnt->Controller[1].pPort = &pRADEONEnt->PortInfo[1];
-
-	info->DisplayType = pRADEONEnt->Controller[0].pPort->MonType;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Primary:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n",
-		   MonTypeName[pRADEONEnt->PortInfo[0].MonType+1],
-		   info->IsAtomBios ?
-		   ConnectorTypeNameATOM[pRADEONEnt->PortInfo[0].ConnectorType]:
-		   ConnectorTypeName[pRADEONEnt->PortInfo[0].ConnectorType],
-		   DACTypeName[pRADEONEnt->PortInfo[0].DACType+1],
-		   TMDSTypeName[pRADEONEnt->PortInfo[0].TMDSType+1],
-		   DDCTypeName[pRADEONEnt->PortInfo[0].DDCType]);
-
-	return;
-    }
-
     if (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN || pRADEONEnt->PortInfo[1].MonType == MT_UNKNOWN) {
+		
+        if ((!info->HasCRTC2) && (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN)) {
+			if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn, DDC_DVI,
+																			&pRADEONEnt->PortInfo[0])));
+			else if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn, DDC_VGA,
+																				 &pRADEONEnt->PortInfo[0])));
+			else if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn, DDC_CRT2,
+																				 &pRADEONEnt->PortInfo[0])));
+			else
+				pRADEONEnt->PortInfo[0].MonType = MT_CRT;
+			
+			if (!ignore_edid) {
+				if (pRADEONEnt->PortInfo[0].MonInfo) {
+					xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Monitor1 EDID data ---------------------------\n");
+					xf86PrintEDID(pRADEONEnt->PortInfo[0].MonInfo );
+					xf86DrvMsg(pScrn->scrnIndex, X_INFO, "End of Monitor1 EDID data --------------------\n");
+				}
+			}
 
-	/* Primary Head (DVI or Laptop Int. panel)*/
-	/* A ddc capable display connected on DVI port */
-	if (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN) {
-	    if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn,
-									    pRADEONEnt->PortInfo[0].DDCType,
-									    &pRADEONEnt->PortInfo[0])));
-	    else if (info->IsMobility &&
-		     (INREG(RADEON_BIOS_4_SCRATCH) & 4)) {
-		/* non-DDC laptop panel connected on primary */
-		pRADEONEnt->PortInfo[0].MonType = MT_LCD;
-	    } else {
-		/* CRT on DVI, TODO: not reliable, make it always return false for now*/
-		pRADEONEnt->PortInfo[0].MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(pRADEONEnt->PortInfo[0].DACType));
-	    }
+			pRADEONEnt->PortInfo[1].MonType = MT_NONE;
+			pRADEONEnt->PortInfo[1].MonInfo = NULL;
+			pRADEONEnt->PortInfo[1].DDCType = DDC_NONE_DETECTED;
+			pRADEONEnt->PortInfo[1].DACType = DAC_UNKNOWN;
+			pRADEONEnt->PortInfo[1].TMDSType = TMDS_UNKNOWN;
+			pRADEONEnt->PortInfo[1].ConnectorType = CONNECTOR_NONE;
+			
+			pRADEONEnt->Controller[0].pPort = &pRADEONEnt->PortInfo[0];
+			pRADEONEnt->Controller[1].pPort = &pRADEONEnt->PortInfo[1];
+			return;
+		}
+		
+		/* Primary Head (DVI or Laptop Int. panel)*/
+		/* A ddc capable display connected on DVI port */
+		if (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN) {
+			if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn,
+																			pRADEONEnt->PortInfo[0].DDCType,
+																			&pRADEONEnt->PortInfo[0])));
+			else if (info->IsMobility &&
+					 (INREG(RADEON_BIOS_4_SCRATCH) & 4)) {
+				/* non-DDC laptop panel connected on primary */
+				pRADEONEnt->PortInfo[0].MonType = MT_LCD;
+			} else {
+				/* CRT on DVI, TODO: not reliable, make it always return false for now*/
+				pRADEONEnt->PortInfo[0].MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(pRADEONEnt->PortInfo[0].DACType));
+			}
+		}
+
+		/* Secondary Head (mostly VGA, can be DVI on some OEM boards)*/
+		if (pRADEONEnt->PortInfo[1].MonType == MT_UNKNOWN) {
+			if((pRADEONEnt->PortInfo[1].MonType =
+				RADEONDisplayDDCConnected(pScrn, pRADEONEnt->PortInfo[1].DDCType, &pRADEONEnt->PortInfo[1])));
+			else if (info->IsMobility &&
+					 (INREG(RADEON_FP2_GEN_CNTL) & RADEON_FP2_ON)) {
+				/* non-DDC TMDS panel connected through DVO */
+				pRADEONEnt->PortInfo[1].MonType = MT_DFP;
+			} else
+				pRADEONEnt->PortInfo[1].MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(pRADEONEnt->PortInfo[1].DACType));
+		}
 	}
-
-	/* Secondary Head (mostly VGA, can be DVI on some OEM boards)*/
-	if (pRADEONEnt->PortInfo[1].MonType == MT_UNKNOWN) {
-	    if((pRADEONEnt->PortInfo[1].MonType =
-                RADEONDisplayDDCConnected(pScrn, pRADEONEnt->PortInfo[1].DDCType, &pRADEONEnt->PortInfo[1])));
-            else if (info->IsMobility &&
-                     (INREG(RADEON_FP2_GEN_CNTL) & RADEON_FP2_ON)) {
-                /* non-DDC TMDS panel connected through DVO */
-                pRADEONEnt->PortInfo[1].MonType = MT_DFP;
-            } else
-                pRADEONEnt->PortInfo[1].MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(pRADEONEnt->PortInfo[1].DACType));
-        }
-    }
 
     if(ignore_edid) {
         pRADEONEnt->PortInfo[0].MonInfo = NULL;
