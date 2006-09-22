@@ -7057,7 +7057,10 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
 		       RADEONSavePtr save)
 {
     RADEONInfoPtr  info      = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     double         dot_clock = mode->Clock/1000.0;
+    RADEONInfoPtr  info0     = NULL;
+    ScrnInfoPtr    pScrn0    = NULL;
 
 #if RADEON_DEBUG
     ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
@@ -7113,9 +7116,13 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
     RADEONInitMemMapRegisters(pScrn, save, info);
     RADEONInitCommonRegisters(save, info);
     if (info->IsSecondary) {
+	pScrn0 = pRADEONEnt->pPrimaryScrn;
+	info0 = RADEONPTR(pScrn0);
 	if (!RADEONInitCrtc2Registers(pScrn, save, mode, info))
 	    return FALSE;
 	RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, info->DisplayType != MT_CRT);
+	/* Make sure primary has the same copy */
+	memcpy(&info0->ModeReg, save, sizeof(RADEONSaveRec));
     } else if (info->MergedFB) {
         if (!RADEONInitCrtcRegisters(pScrn, save, 
 			((RADEONMergedDisplayModePtr)mode->Private)->CRT1, info))
@@ -7142,6 +7149,12 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
 	    save->ppll_ref_div = info->SavedReg.ppll_ref_div;
 	    save->ppll_div_3   = info->SavedReg.ppll_div_3;
 	    save->htotal_cntl  = info->SavedReg.htotal_cntl;
+	}
+	if (pRADEONEnt->HasSecondary) {
+	    pScrn0 = pRADEONEnt->pSecondaryScrn;
+	    info0 = RADEONPTR(pScrn0);
+	    /* carry over to secondary screen */
+	    memcpy(&info0->ModeReg, save, sizeof(RADEONSaveRec));	
 	}
 
 	/* Not used for now: */
