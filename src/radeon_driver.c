@@ -6272,6 +6272,32 @@ static void RADEONInitCommonRegisters(RADEONSavePtr save, RADEONInfoPtr info)
 	save->bus_cntl |= RADEON_BUS_RD_DISCARD_EN;
 }
 
+/* XXX: fix me */
+static void RADEONInitTvDacCntl(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    if (info->ChipFamily == CHIP_FAMILY_R420 ||
+	info->ChipFamily == CHIP_FAMILY_RV410) {
+	save->tv_dac_cntl &= ~(RADEON_TV_DAC_STD_MASK |
+			       RADEON_TV_DAC_BGADJ_MASK |
+			       R420_TV_DAC_DACADJ_MASK |
+			       R420_TV_DAC_RDACPD |
+			       R420_TV_DAC_GDACPD |
+			       R420_TV_DAC_GDACPD |
+			       R420_TV_DAC_TVENABLE);
+    } else {
+	save->tv_dac_cntl &= ~(RADEON_TV_DAC_STD_MASK |
+			       RADEON_TV_DAC_BGADJ_MASK |
+			       RADEON_TV_DAC_DACADJ_MASK |
+			       RADEON_TV_DAC_RDACPD |
+			       RADEON_TV_DAC_GDACPD |
+			       RADEON_TV_DAC_GDACPD);
+    }
+    save->tv_dac_cntl = (RADEON_TV_DAC_NBLANK |
+			 RADEON_TV_DAC_NHOLD |
+			 RADEON_TV_DAC_STD_PS2 |
+			 info->tv_dac_adj);
+}
 
 /* Define CRTC registers for requested video mode */
 static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr orig,
@@ -6647,7 +6673,6 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				     : 0));
 
     save->crtc_offset      = pScrn->fbOffset;
-    save->crtc_offset_cntl = INREG(RADEON_CRTC_OFFSET_CNTL);
     if (info->tilingEnabled) {
        if (IS_R300_VARIANT)
           save->crtc_offset_cntl |= (R300_CRTC_X_Y_MODE_EN |
@@ -6670,6 +6695,15 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 			 (pScrn->bitsPerPixel * 8));
     save->crtc_pitch |= save->crtc_pitch << 16;
     
+    /* Set following registers for all cases first, if a DFP/LCD is connected on
+       internal TMDS/LVDS port, they will be set by RADEONInitFPRegister
+    */
+    if (!info->IsSwitching) {
+	save->fp_gen_cntl = 0;
+	save->fp_vert_stretch &= RADEON_VERT_STRETCH_RESERVED;
+	save->fp_horz_stretch &= (RADEON_HORZ_FP_LOOP_STRETCH |
+				  RADEON_HORZ_AUTO_RATIO_INC);
+    }
 
     save->dac_cntl = (RADEON_DAC_MASK_ALL
 		      | RADEON_DAC_VGA_ADR_EN
@@ -6703,12 +6737,16 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				     DisplayModePtr mode, RADEONInfoPtr info)
 {
     unsigned char *RADEONMMIO = info->MMIO;
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
     int  format;
     int  hsync_start;
     int  hsync_wid;
     int  vsync_wid;
+
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+    RADEONInfoPtr info0 = NULL;
+    if (info->IsSecondary)
+	info0 = RADEONPTR(pRADEONEnt->pPrimaryScrn);
 
     pRADEONEnt->Controller[1].IsUsed = TRUE;
     pRADEONEnt->Controller[1].IsActive = TRUE;
