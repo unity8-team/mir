@@ -198,7 +198,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define NB_OF(x) (sizeof (x) / sizeof (*x))
 
 /* *INDENT-OFF* */
-static SymTabRec I830BIOSChipsets[] = {
+static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_I830_M,		"i830"},
    {PCI_CHIP_845_G,		"845G"},
    {PCI_CHIP_I855_GM,		"852GM/855GM"},
@@ -211,7 +211,7 @@ static SymTabRec I830BIOSChipsets[] = {
    {-1,				NULL}
 };
 
-static PciChipsets I830BIOSPciChipsets[] = {
+static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_I830_M,		PCI_CHIP_I830_M,	RES_SHARED_VGA},
    {PCI_CHIP_845_G,		PCI_CHIP_845_G,		RES_SHARED_VGA},
    {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	RES_SHARED_VGA},
@@ -251,7 +251,7 @@ typedef enum {
    OPTION_LINEARALLOC
 } I830Opts;
 
-static OptionInfoRec I830BIOSOptions[] = {
+static OptionInfoRec I830Options[] = {
    {OPTION_NOACCEL,	"NoAccel",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SW_CURSOR,	"SWcursor",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_CACHE_LINES,	"CacheLines",	OPTV_INTEGER,	{0},	FALSE},
@@ -285,9 +285,9 @@ static const char *output_type_names[] = {
 static void I830DisplayPowerManagementSet(ScrnInfoPtr pScrn,
 					  int PowerManagementMode, int flags);
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
-static Bool I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen);
-static Bool I830BIOSSaveScreen(ScreenPtr pScreen, int unblack);
-static Bool I830BIOSEnterVT(int scrnIndex, int flags);
+static Bool I830CloseScreen(int scrnIndex, ScreenPtr pScreen);
+static Bool I830SaveScreen(ScreenPtr pScreen, int unblack);
+static Bool I830EnterVT(int scrnIndex, int flags);
 #if 0
 static Bool I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode,
 			       VbeCRTCInfoBlock *block);
@@ -325,21 +325,21 @@ I830DPRINTF_stub(const char *filename, int line, const char *function,
 }
 #endif /* #ifdef I830DEBUG */
 
-/* XXX Check if this is still needed. */
+/* Export I830 options to i830 driver where necessary */
 const OptionInfoRec *
-I830BIOSAvailableOptions(int chipid, int busid)
+I830AvailableOptions(int chipid, int busid)
 {
    int i;
 
-   for (i = 0; I830BIOSPciChipsets[i].PCIid > 0; i++) {
-      if (chipid == I830BIOSPciChipsets[i].PCIid)
-	 return I830BIOSOptions;
+   for (i = 0; I830PciChipsets[i].PCIid > 0; i++) {
+      if (chipid == I830PciChipsets[i].PCIid)
+	 return I830Options;
    }
    return NULL;
 }
 
 static Bool
-I830BIOSGetRec(ScrnInfoPtr pScrn)
+I830GetRec(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830;
 
@@ -351,7 +351,7 @@ I830BIOSGetRec(ScrnInfoPtr pScrn)
 }
 
 static void
-I830BIOSFreeRec(ScrnInfoPtr pScrn)
+I830FreeRec(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830;
    VESAPtr pVesa;
@@ -398,7 +398,7 @@ I830BIOSFreeRec(ScrnInfoPtr pScrn)
 }
 
 static void
-I830BIOSProbeDDC(ScrnInfoPtr pScrn, int index)
+I830ProbeDDC(ScrnInfoPtr pScrn, int index)
 {
    vbeInfoPtr pVbe;
 
@@ -1201,7 +1201,7 @@ PreInitCleanup(ScrnInfoPtr pScrn)
    }
    if (pI830->MMIOBase)
       I830UnmapMMIO(pScrn);
-   I830BIOSFreeRec(pScrn);
+   I830FreeRec(pScrn);
 }
 
 Bool
@@ -1218,7 +1218,7 @@ I830IsPrimary(ScrnInfoPtr pScrn)
 }
 
 static Bool
-I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
+I830PreInit(ScrnInfoPtr pScrn, int flags)
 {
    vgaHWPtr hwp;
    I830Ptr pI830;
@@ -1252,7 +1252,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
    pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
 
    if (flags & PROBE_DETECT) {
-      I830BIOSProbeDDC(pScrn, pEnt->index);
+      I830ProbeDDC(pScrn, pEnt->index);
       return TRUE;
    }
 
@@ -1266,7 +1266,7 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       return FALSE;
 
    /* Allocate driverPrivate */
-   if (!I830BIOSGetRec(pScrn))
+   if (!I830GetRec(pScrn))
       return FALSE;
 
    pI830 = I830PTR(pScrn);
@@ -1355,9 +1355,9 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 
    /* Process the options */
    xf86CollectOptions(pScrn, NULL);
-   if (!(pI830->Options = xalloc(sizeof(I830BIOSOptions))))
+   if (!(pI830->Options = xalloc(sizeof(I830Options))))
       return FALSE;
-   memcpy(pI830->Options, I830BIOSOptions, sizeof(I830BIOSOptions));
+   memcpy(pI830->Options, I830Options, sizeof(I830Options));
    xf86ProcessOptions(pScrn->scrnIndex, pScrn->options, pI830->Options);
 
    /* We have to use PIO to probe, because we haven't mapped yet. */
@@ -1446,14 +1446,14 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       pScrn->chipset = pI830->pEnt->device->chipset;
       from = X_CONFIG;
    } else if (pI830->pEnt->device->chipID >= 0) {
-      pScrn->chipset = (char *)xf86TokenToString(I830BIOSChipsets,
+      pScrn->chipset = (char *)xf86TokenToString(I830Chipsets,
 						 pI830->pEnt->device->chipID);
       from = X_CONFIG;
       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ChipID override: 0x%04X\n",
 		 pI830->pEnt->device->chipID);
    } else {
       from = X_PROBED;
-      pScrn->chipset = (char *)xf86TokenToString(I830BIOSChipsets,
+      pScrn->chipset = (char *)xf86TokenToString(I830Chipsets,
 						 pI830->PciInfo->chipType);
    }
 
@@ -3238,7 +3238,7 @@ I830InitFBManager(
 }
 
 static Bool
-I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
+I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
    ScrnInfoPtr pScrn;
    vgaHWPtr hwp;
@@ -3515,9 +3515,9 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    /* Clear SavedReg */
    memset(&pI830->SavedReg, 0, sizeof(pI830->SavedReg));
 
-   DPRINTF(PFX, "assert( if(!I830BIOSEnterVT(scrnIndex, 0)) )\n");
+   DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
 
-   if (!I830BIOSEnterVT(scrnIndex, 0))
+   if (!I830EnterVT(scrnIndex, 0))
       return FALSE;
 
    DPRINTF(PFX, "assert( if(!fbScreenInit(pScreen, ...) )\n");
@@ -3628,9 +3628,9 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Not available\n");
 #endif
 
-   pScreen->SaveScreen = I830BIOSSaveScreen;
+   pScreen->SaveScreen = I830SaveScreen;
    pI830->CloseScreen = pScreen->CloseScreen;
-   pScreen->CloseScreen = I830BIOSCloseScreen;
+   pScreen->CloseScreen = I830CloseScreen;
 
    if (pI830->shadowReq.minorversion >= 1) {
       /* Rotation */
@@ -3685,9 +3685,9 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 }
 
 static void
-I830BIOSFreeScreen(int scrnIndex, int flags)
+I830FreeScreen(int scrnIndex, int flags)
 {
-   I830BIOSFreeRec(xf86Screens[scrnIndex]);
+   I830FreeRec(xf86Screens[scrnIndex]);
    if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
       vgaHWFreeHWRec(xf86Screens[scrnIndex]);
 }
@@ -3721,7 +3721,7 @@ RestoreHWOperatingState(ScrnInfoPtr pScrn)
 #endif
 
 static void
-I830BIOSLeaveVT(int scrnIndex, int flags)
+I830LeaveVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
@@ -3927,7 +3927,7 @@ I830DetectMonitorChange(ScrnInfoPtr pScrn)
  * This gets called when gaining control of the VT, and from ScreenInit().
  */
 static Bool
-I830BIOSEnterVT(int scrnIndex, int flags)
+I830EnterVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
@@ -4015,7 +4015,7 @@ I830BIOSEnterVT(int scrnIndex, int flags)
 }
 
 static Bool
-I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
+I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
 
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
@@ -4023,7 +4023,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
    Bool ret = TRUE;
    PixmapPtr pspix = (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen);
 
-   DPRINTF(PFX, "I830BIOSSwitchMode: mode == %p\n", mode);
+   DPRINTF(PFX, "I830SwitchMode: mode == %p\n", mode);
 
 #ifdef I830_XV
    /* Give the video overlay code a chance to see the new mode. */
@@ -4083,7 +4083,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 }
 
 static Bool
-I830BIOSSaveScreen(ScreenPtr pScreen, int mode)
+I830SaveScreen(ScreenPtr pScreen, int mode)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
@@ -4091,7 +4091,7 @@ I830BIOSSaveScreen(ScreenPtr pScreen, int mode)
    CARD32 temp, ctrl, base;
    int i;
 
-   DPRINTF(PFX, "I830BIOSSaveScreen: %d, on is %s\n", mode, BOOLTOSTRING(on));
+   DPRINTF(PFX, "I830SaveScreen: %d, on is %s\n", mode, BOOLTOSTRING(on));
 
    if (pScrn->vtSema) {
       for (i = 0; i < pI830->availablePipes; i++) {
@@ -4215,7 +4215,7 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
 }
 
 static Bool
-I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen)
+I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
@@ -4230,7 +4230,7 @@ I830BIOSCloseScreen(int scrnIndex, ScreenPtr pScreen)
 #endif
 
    if (pScrn->vtSema == TRUE) {
-      I830BIOSLeaveVT(scrnIndex, 0);
+      I830LeaveVT(scrnIndex, 0);
    }
 
    if (pI830->devicesTimer)
@@ -4668,7 +4668,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
          } 
 
          pI830->currentMode = NULL;
-         I830BIOSSwitchMode(pScrn->pScreen->myNum, pScrn->currentMode, 0);
+         I830SwitchMode(pScrn->pScreen->myNum, pScrn->currentMode, 0);
          i830AdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
 
          if (xf86IsEntityShared(pScrn->entityList[0])) {
@@ -4687,7 +4687,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
                miPointerPosition(&x, &y);
 
             pI8302->currentMode = NULL;
-            I830BIOSSwitchMode(pScrn2->pScreen->myNum, pScrn2->currentMode, 0);
+            I830SwitchMode(pScrn2->pScreen->myNum, pScrn2->currentMode, 0);
             i830AdjustFrame(pScrn2->pScreen->myNum, pScrn2->frameX0, pScrn2->frameY0, 0);
 
  	    (*pScrn2->EnableDisableFBAccess) (pScrn2->pScreen->myNum, FALSE);
@@ -4734,13 +4734,13 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
 void
 I830InitpScrn(ScrnInfoPtr pScrn)
 {
-   pScrn->PreInit = I830BIOSPreInit;
-   pScrn->ScreenInit = I830BIOSScreenInit;
-   pScrn->SwitchMode = I830BIOSSwitchMode;
+   pScrn->PreInit = I830PreInit;
+   pScrn->ScreenInit = I830ScreenInit;
+   pScrn->SwitchMode = I830SwitchMode;
    pScrn->AdjustFrame = i830AdjustFrame;
-   pScrn->EnterVT = I830BIOSEnterVT;
-   pScrn->LeaveVT = I830BIOSLeaveVT;
-   pScrn->FreeScreen = I830BIOSFreeScreen;
+   pScrn->EnterVT = I830EnterVT;
+   pScrn->LeaveVT = I830LeaveVT;
+   pScrn->FreeScreen = I830FreeScreen;
    pScrn->ValidMode = I830ValidMode;
    pScrn->PMEvent = I830PMEvent;
 }

@@ -68,7 +68,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 /* I830 hooks for the I810 driver setup/probe. */
-extern const OptionInfoRec *I830BIOSAvailableOptions(int chipid, int busid);
+extern const OptionInfoRec *I830AvailableOptions(int chipid, int busid);
 extern void I830InitpScrn(ScrnInfoPtr pScrn);
 
 /* Symbol lists shared by the i810 and i830 parts. */

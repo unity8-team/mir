@@ -477,11 +477,11 @@ I810AvailableOptions(int chipid, int busid)
 #ifndef I830_ONLY
    const OptionInfoRec *pOptions;
 
-   if ((pOptions = I830BIOSAvailableOptions(chipid, busid)))
+   if ((pOptions = I830AvailableOptions(chipid, busid)))
       return pOptions;
    return I810Options;
 #else
-   return I830BIOSAvailableOptions(chipid, busid);
+   return I830AvailableOptions(chipid, busid);
 #endif
 }
 

@@ -72,7 +72,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_sdvo.h"
 #include "i2c_vid.h"
 
-/* I830 Video BIOS support */
+/* I830 Video support */
 
 /*
  * The mode handling is based upon the VESA driver written by
