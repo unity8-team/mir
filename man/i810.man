@@ -117,13 +117,6 @@ The following driver
 .B Options
 are supported for the 830M and later chipsets:
 .TP
-.BI "Option \*qVBERestore\*q \*q" boolean \*q
-Enable or disable the use of VBE save/restore for saving and restoring
-the initial text mode.  This is disabled by default because it causes
-lockups on some platforms.  However, there are some cases where it must
-enabled for the correct restoration of the initial video mode.  If you are
-having a problem with that, try enabling this option.  Default: Disabled.
-.TP
 .BI "Option \*qVideoKey\*q \*q" integer \*q
 This is the same as the
 .B \*qColorKey\*q

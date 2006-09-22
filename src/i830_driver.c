@@ -260,7 +260,6 @@ static OptionInfoRec I830Options[] = {
    {OPTION_XVIDEO,	"XVideo",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_VBE_RESTORE,	"VBERestore",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_DEVICE_PRESENCE,"DevicePresence",OPTV_BOOLEAN,{0},	FALSE},
    {OPTION_MONITOR_LAYOUT, "MonitorLayout", OPTV_ANYSTR,{0},	FALSE},
    {OPTION_CLONE,	"Clone",	OPTV_BOOLEAN,	{0},	FALSE},
@@ -2426,16 +2425,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    pI830->pVbe = NULL;
 #endif
 
-   /* Use the VBE mode restore workaround by default. */
-   pI830->vbeRestoreWorkaround = TRUE;
-   from = X_DEFAULT;
-   if (xf86ReturnOptValBool(pI830->Options, OPTION_VBE_RESTORE, FALSE)) {
-      pI830->vbeRestoreWorkaround = FALSE;
-      from = X_CONFIG;
-   }
-   xf86DrvMsg(pScrn->scrnIndex, from, "VBE Restore workaround: %s.\n",
-	      pI830->vbeRestoreWorkaround ? "enabled" : "disabled");
-      
 #if defined(XF86DRI)
    /* Load the dri module if requested. */
    if (xf86ReturnOptValBool(pI830->Options, OPTION_DRI, FALSE) &&

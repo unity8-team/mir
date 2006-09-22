@@ -416,7 +416,6 @@ typedef struct _I830Rec {
    int yoffset;
 
    unsigned int SaveGeneration;
-   Bool vbeRestoreWorkaround;
    Bool devicePresence;
 
    OsTimerPtr devicesTimer;
