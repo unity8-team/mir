@@ -1268,7 +1268,7 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 
 	if ((pRADEONEnt->Controller[0].pPort->MonType != MT_NONE) &&
 	    (pRADEONEnt->Controller[1].pPort->MonType != MT_NONE)) {
-	  if (FALSE /*xf86ReturnOptValBool(info->Options, OPTION_REVERSE_DISPLAY, FALSE)*/) {
+	  if (xf86ReturnOptValBool(info->Options, OPTION_REVERSE_DISPLAY, FALSE)) {
 		if (info->IsMobility) {
 		    /* Don't reverse display for mobility chips, as only CRTC1 path has RMX which
 		       will be required by many LCD panels

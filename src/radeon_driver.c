@@ -201,7 +201,8 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_REVERSE_DDC,    "ReverseDDC",       OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_LVDS_PROBE_PLL, "LVDSProbePLL",     OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_ACCELMETHOD,    "AccelMethod",      OPTV_STRING,  {0}, FALSE },
-    { OPTION_CONSTANTDPI,    "ConstantDPI",	 OPTV_BOOLEAN,	{0}, FALSE },
+    { OPTION_CONSTANTDPI,    "ConstantDPI",	 OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_REVERSE_DISPLAY,"ReverseDisplay",   OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
