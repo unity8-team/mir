@@ -914,7 +914,7 @@ void RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn)
     }
 }
 
-static void RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
+static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
@@ -1205,15 +1205,15 @@ static void RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 
 Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 {
-    Bool head_reversed = FALSE;
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    Bool head_reversed = FALSE;
 
     info->MergeType = MT_NONE;
 
     if (!info->IsSecondary) {
-      RADEONQueryConnectedMonitors(pScrn);
+      RADEONQueryConnectedDisplays(pScrn);
 
       pRADEONEnt->Controller[0].pPort = &(pRADEONEnt->PortInfo[0]);
       pRADEONEnt->Controller[1].pPort = &(pRADEONEnt->PortInfo[1]);
