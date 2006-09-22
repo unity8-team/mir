@@ -3512,9 +3512,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!vgaHWMapMem(pScrn))
       return FALSE;
 
-   /* Clear SavedReg */
-   memset(&pI830->SavedReg, 0, sizeof(pI830->SavedReg));
-
    DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
 
    if (!I830EnterVT(scrnIndex, 0))
@@ -3692,34 +3689,6 @@ I830FreeScreen(int scrnIndex, int flags)
       vgaHWFreeHWRec(xf86Screens[scrnIndex]);
 }
 
-#ifndef SAVERESTORE_HWSTATE
-#define SAVERESTORE_HWSTATE 0
-#endif
-
-#if SAVERESTORE_HWSTATE
-static void
-SaveHWOperatingState(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   I830RegPtr save = &pI830->SavedReg;
-
-   DPRINTF(PFX, "SaveHWOperatingState\n");
-
-   return;
-}
-
-static void
-RestoreHWOperatingState(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   I830RegPtr save = &pI830->SavedReg;
-
-   DPRINTF(PFX, "RestoreHWOperatingState\n");
-
-   return;
-}
-#endif
-
 static void
 I830LeaveVT(int scrnIndex, int flags)
 {
@@ -3758,11 +3727,6 @@ I830LeaveVT(int scrnIndex, int flags)
       
       drmCtlUninstHandler(pI830->drmSubFD);
    }
-#endif
-
-#if SAVERESTORE_HWSTATE
-   if (!pI830->closing)
-      SaveHWOperatingState(pScrn);
 #endif
 
    if (pI830->CursorInfoRec && pI830->CursorInfoRec->HideCursor)
@@ -3981,10 +3945,6 @@ I830EnterVT(int scrnIndex, int flags)
    SetHWOperatingState(pScrn);
 
    pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-
-#if SAVERESTORE_HWSTATE
-   RestoreHWOperatingState(pScrn);
-#endif
 
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled) {

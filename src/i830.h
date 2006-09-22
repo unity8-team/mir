@@ -337,7 +337,6 @@ typedef struct _I830Rec {
    int NumScanlineColorExpandBuffers;
    int nextColorExpandBuf;
 
-   I830RegRec SavedReg;
    I830RegRec ModeReg;
 
    Bool noAccel;
