@@ -418,7 +418,6 @@ typedef struct _I830Rec {
    unsigned int SaveGeneration;
 
    OsTimerPtr devicesTimer;
-   int MaxClock;
 
    int ddc2;
    int num_outputs;

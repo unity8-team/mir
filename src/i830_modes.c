@@ -1025,20 +1025,6 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
     last->next = pScrn->modes;
     pScrn->modes->prev = last;
 
-#if 0
-    /* XXX: do I need this any more?  Maybe XF86VidMode uses it?
-     * Set up the ClockRanges, which describe what clock ranges are available,
-     * and what sort of modes they can be used for.
-     */
-    clockRanges = xnfcalloc(sizeof(ClockRange), 1);
-    clockRanges->next = NULL;
-    clockRanges->minClock = 25000;
-    clockRanges->maxClock = pI830->MaxClock;
-    clockRanges->clockIndex = -1;		/* programmable */
-    clockRanges->interlaceAllowed = TRUE;	/* XXX check this */
-    clockRanges->doubleScanAllowed = FALSE;	/* XXX check this */
-#endif
-
 #if DEBUG_REPROBE
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Modes post revalidate\n");
     do {

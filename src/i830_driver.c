@@ -2161,8 +2161,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
 	      "Maximum space available for video modes: %d kByte\n", memsize);
 
-     pI830->MaxClock = 300000;
-
    n = I830ValidateXF86ModeList(pScrn, TRUE);
    if (n <= 0) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
