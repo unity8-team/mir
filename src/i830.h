@@ -442,8 +442,6 @@ typedef struct _I830Rec {
    
    Bool panel_wants_dither;
 
-   unsigned char *VBIOS;
-
    CARD32 saveDSPACNTR;
    CARD32 saveDSPBCNTR;
    CARD32 savePIPEACONF;
