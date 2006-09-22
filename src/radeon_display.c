@@ -1190,15 +1190,17 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
         pRADEONEnt->PortInfo[1].MonInfo = NULL;
     } else {
         if (pRADEONEnt->PortInfo[0].MonInfo) {
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on port 1 ----------------------\n");
-            xf86PrintEDID(pRADEONEnt->PortInfo[0].MonInfo );
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on 1st port ----------------------\n");
+            xf86PrintEDID( pRADEONEnt->PortInfo[0].MonInfo );
         }
 
         if (pRADEONEnt->PortInfo[1].MonInfo) {
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on port 2-----------------------\n");
-            xf86PrintEDID(pRADEONEnt->PortInfo[1].MonInfo );
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on 2nd port -----------------------\n");
+            xf86PrintEDID( pRADEONEnt->PortInfo[1].MonInfo );
         }
     }
+    
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "\n");
 
     return;
 }
