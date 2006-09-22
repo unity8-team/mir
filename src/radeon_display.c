@@ -921,12 +921,7 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     const char *s;
     Bool ignore_edid = FALSE;
-    int i = 0, second = 0, max_mt;
-
-
-
-    max_mt = 5;
-
+    int i = 0, second = 0, max_mt = 5;
 
     /* We first get the information about all connectors from BIOS.
      * This is how the card is phyiscally wired up.
@@ -961,6 +956,7 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 	pRADEONEnt->PortInfo[1].DACType = DAC_PRIMARY;
 	pRADEONEnt->PortInfo[1].TMDSType = TMDS_EXT;
 	pRADEONEnt->PortInfo[1].ConnectorType = CONNECTOR_CRT;
+
 
        /* Some cards have the DDC lines swapped and we have no way to
         * detect it yet (Mac cards)
@@ -1143,7 +1139,6 @@ BOOL RADEONQueryConnectedMonitors(ScrnInfoPtr pScrn)
 	pRADEONEnt->Controller[0].pPort = &pRADEONEnt->PortInfo[0];
 	pRADEONEnt->Controller[1].pPort = &pRADEONEnt->PortInfo[1];
 
-	info->MergeType = MT_NONE;
 	info->DisplayType = pRADEONEnt->Controller[0].pPort->MonType;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1214,6 +1209,8 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+
+    info->MergeType = MT_NONE;
 
     if (!info->IsSecondary) {
       RADEONQueryConnectedMonitors(pScrn);
@@ -1315,6 +1312,17 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
  	else
             xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Secondary Head: Not used ----\n");
     }
+
+    info->HBlank     = 0;
+    info->HOverPlus  = 0;
+    info->HSyncWidth = 0;
+    info->VBlank     = 0;
+    info->VOverPlus  = 0;
+    info->VSyncWidth = 0;
+    info->DotClock   = 0;
+    info->UseBiosDividers = FALSE;
+
+    info->OverlayOnCRTC2 = FALSE;
 
     return TRUE;
 }
