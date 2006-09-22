@@ -941,7 +941,9 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
     pRADEONEnt->Controller[0].IsActive = FALSE;
     pRADEONEnt->Controller[1].IsActive = FALSE;
 
-    if (!RADEONGetConnectorInfoFromBIOS(pScrn)) {
+    if (!RADEONGetConnectorInfoFromBIOS(pScrn) ||
+        ((pRADEONEnt->PortInfo[0].DDCType == 0) &&
+        (pRADEONEnt->PortInfo[1].DDCType == 0))) {
 	/* Below is the most common setting, but may not be true */
 	pRADEONEnt->PortInfo[0].MonType = MT_UNKNOWN;
 	pRADEONEnt->PortInfo[0].MonInfo = NULL;
@@ -958,6 +960,7 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 	pRADEONEnt->PortInfo[1].ConnectorType = CONNECTOR_CRT;
 
 
+#if 0 // DA what replaced this?? 
        /* Some cards have the DDC lines swapped and we have no way to
         * detect it yet (Mac cards)
         */
@@ -965,6 +968,7 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
            pRADEONEnt->PortInfo[0].DDCType = DDC_VGA;
            pRADEONEnt->PortInfo[1].DDCType = DDC_DVI;
         }
+#endif
     }
 
     /* always make TMDS_INT port first*/
@@ -1035,6 +1039,12 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
      * Another usage of this option is you want to config the server
      * to start up with a certain monitor arrangement even one monitor
      * is not plugged in when server starts.
+     * For example, you can config your laptop with 
+     * Option "MonitorLayout" "LVDS, CRT"
+     * Option "CloneHSync" "40-150"
+     * Option "CloneVRefresh" "60-120"
+     * With these options, you can connect in your CRT monitor later
+     * after the X server has started.
      */
     if ((s = xf86GetOptValString(info->Options, OPTION_MONITOR_LAYOUT))) {
         char s1[5], s2[5];
@@ -1066,18 +1076,30 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
         } while(*s++);
         s2[i] = '\0';
 
-	for (i = 0; i < max_mt; i++) {
-	    if (strcmp(s1, MonTypeName[i]) == 0) {
-		pRADEONEnt->PortInfo[0].MonType = MonTypeID[i];
-		break;
-	    }
-	}
-	for (i = 0; i < max_mt; i++) {
-	    if (strcmp(s2, MonTypeName[i]) == 0) {
-		pRADEONEnt->PortInfo[1].MonType = MonTypeID[i];
-		break;
-	    }
-	}
+        for (i = 0; i < max_mt; i++)
+        {
+            if (strcmp(s1, MonTypeName[i]) == 0) 
+            {
+                pRADEONEnt->PortInfo[0].MonType = MonTypeID[i];
+                break;
+            }
+        }
+        if (i ==  max_mt)
+            xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
+                       "Invalid Monitor type specified for 1st port \n"); 
+
+        for (i = 0; i < max_mt; i++)
+        {
+            if (strcmp(s2, MonTypeName[i]) == 0) 
+            {
+                pRADEONEnt->PortInfo[1].MonType = MonTypeID[i];
+                break;
+            }
+
+        }
+        if (i ==  max_mt)
+            xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
+                       "Invalid Monitor type specified for 2nd port \n"); 
 
 	if (i ==  max_mt)
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -1098,6 +1120,18 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 	    pRADEONEnt->PortInfo[0].MonInfo = NULL;
         }
 #endif
+
+        /* some thinkpads and powerbooks use lvds and internal tmds 
+	 * at the same time.  --AGD
+	 */
+	if ((pRADEONEnt->PortInfo[0].MonType  == MT_LCD) &&
+	    (pRADEONEnt->PortInfo[1].MonType == MT_DFP)) {
+	    pRADEONEnt->PortInfo[1].DDCType = DDC_DVI;
+	    pRADEONEnt->PortInfo[0].DDCType = DDC_MONID;
+            pRADEONEnt->PortInfo[1].TMDSType = TMDS_INT;
+            pRADEONEnt->PortInfo[1].ConnectorType = CONNECTOR_DVI_I;
+            pRADEONEnt->PortInfo[0].TMDSType = TMDS_UNKNOWN;
+	}
 
         if (!ignore_edid) {
             if ((pRADEONEnt->PortInfo[0].MonType > MT_NONE) &&
