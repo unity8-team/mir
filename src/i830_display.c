@@ -1081,7 +1081,7 @@ i830DetectCRT(ScrnInfoPtr pScrn, Bool allow_disturb)
      * pipe, as it seems having other outputs on that pipe will result in a
      * false positive.
      */
-    if (0 && (allow_disturb || !(INREG(ADPA) & !ADPA_DAC_ENABLE))) {
+    if (1 && (allow_disturb || !(INREG(ADPA) & !ADPA_DAC_ENABLE))) {
 	return i830LoadDetectCRT(pScrn);
     }
 

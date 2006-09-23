@@ -773,7 +773,15 @@ static Bool
 I830RandRGetInfo12 (ScreenPtr pScreen, Rotation *rotations)
 {
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr		pI830 = I830PTR(pScrn);
+    int			found_crt;
+
     /* Re-probe the outputs for new monitors or modes */
+    pI830->operatingDevices = pI830->operatingDevices & ~PIPE_CRT;
+    found_crt = i830DetectCRT(pScrn, FALSE);
+    if (found_crt)
+        pI830->operatingDevices = pI830->operatingDevices | PIPE_CRT;
+
     I830ValidateXF86ModeList(pScrn, FALSE);
     return I830RandRSetInfo12 (pScreen);
 }
