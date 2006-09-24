@@ -960,7 +960,6 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 	pRADEONEnt->PortInfo[1].ConnectorType = CONNECTOR_CRT;
 
 
-#if 0 // DA what replaced this?? 
        /* Some cards have the DDC lines swapped and we have no way to
         * detect it yet (Mac cards)
         */
@@ -968,7 +967,6 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
            pRADEONEnt->PortInfo[0].DDCType = DDC_VGA;
            pRADEONEnt->PortInfo[1].DDCType = DDC_DVI;
         }
-#endif
     }
 
     /* always make TMDS_INT port first*/
