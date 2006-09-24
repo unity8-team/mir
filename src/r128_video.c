@@ -1,4 +1,3 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/r128_video.c,v 1.30 2003/11/10 18:22:18 tsi Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

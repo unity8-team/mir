@@ -1,4 +1,3 @@
-/* $XFree86$ */ /* -*- mode: c; c-basic-offset: 3 -*- */
 /* mach64_common.h -- common header definitions for Rage Pro 2D/3D/DRM suite
  * Created: Sun Dec 03 11:34:16 2000 by gareth@valinux.com
  *

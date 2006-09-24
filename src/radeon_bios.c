@@ -1,4 +1,3 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/ati/radeon_bios.c,v 1.0 Exp $ */
 /*
  * Copyright 2004 ATI Technologies Inc., Markham, Ontario
  *

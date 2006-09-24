@@ -1,4 +1,3 @@
-/* $XdotOrg: driver/xf86-video-ati/src/radeon_driver.c,v 1.116 2006/04/29 21:30:23 daenzer Exp $ */
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.

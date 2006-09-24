@@ -1,5 +1,3 @@
-/* $XdotOrg: driver/xf86-video-ati/src/atipciids.c, Exp $ */
-
 /*
  * Copyright (c) 1995-2003 by The XFree86 Project, Inc.
  *
