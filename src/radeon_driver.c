@@ -6464,28 +6464,10 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 			      ? RADEON_CRTC_INTERLACE_EN
 			      : 0));
 
-    /* Don't try to be smart and unconditionally enable the analog output
-     * for now as the dodgy code to handle it for the second head doesn't
-     * work. This will be correctly fixed when Alex' megapatch gets in that
-     * reworks the whole output mapping
-     */
-#if 0
-    if ((info->DisplayType == MT_DFP) ||
-	(info->DisplayType == MT_LCD)) {
-	save->crtc_ext_cntl = RADEON_VGA_ATI_LINEAR | RADEON_XCRT_CNT_EN;
-	save->crtc_gen_cntl &= ~(RADEON_CRTC_DBL_SCAN_EN |
-				 RADEON_CRTC_CSYNC_EN |
-				 RADEON_CRTC_INTERLACE_EN);
-    } else
-#endif
-    {
-	save->crtc_ext_cntl = (RADEON_VGA_ATI_LINEAR |
-			       RADEON_XCRT_CNT_EN |
-			       RADEON_CRTC_CRT_ON |
-			       RADEON_CRTC_VSYNC_DIS |
-			       RADEON_CRTC_HSYNC_DIS |
-			       RADEON_CRTC_DISPLAY_DIS);
-    }
+    save->crtc_ext_cntl |= (RADEON_CRTC_CRT_ON |
+			    RADEON_CRTC_VSYNC_DIS |
+			    RADEON_CRTC_HSYNC_DIS |
+			    RADEON_CRTC_DISPLAY_DIS);
 
     save->surface_cntl = 0;
     save->disp_merge_cntl = info->SavedReg.disp_merge_cntl;
@@ -6772,18 +6754,9 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
           save->crtc2_offset_cntl &= ~RADEON_CRTC_TILE_EN;
     }
 
-    /* this should be right */
-    if (0 /*info->MergedFB*/) {
-    save->crtc2_pitch  = (((info->CRT2pScrn->displayWidth * pScrn->bitsPerPixel) +
-			   ((pScrn->bitsPerPixel * 8) -1)) /
-			  (pScrn->bitsPerPixel * 8));
+    save->crtc2_pitch  = ((pScrn->displayWidth * pScrn->bitsPerPixel) +
+			  ((pScrn->bitsPerPixel * 8) -1)) / (pScrn->bitsPerPixel * 8);
     save->crtc2_pitch |= save->crtc2_pitch << 16;
-    } else {
-    save->crtc2_pitch  = (((pScrn->displayWidth * pScrn->bitsPerPixel) +
-			   ((pScrn->bitsPerPixel * 8) -1)) /
-			  (pScrn->bitsPerPixel * 8));
-    save->crtc2_pitch |= save->crtc2_pitch << 16;
-    }
 
     save->crtc2_gen_cntl = (RADEON_CRTC2_EN
 			    | RADEON_CRTC2_CRT2_ON
