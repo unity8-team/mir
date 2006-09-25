@@ -120,6 +120,11 @@ extern Bool I915EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
 extern Bool I915EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
 				PixmapPtr, PixmapPtr, PixmapPtr);
 
+extern Bool I965EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+extern Bool I965EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
+				PixmapPtr, PixmapPtr, PixmapPtr);
+extern void I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, 
+			int maskY, int dstX, int dstY, int width, int height);
 /**
  * I830EXASync - wait for a command to finish
  * @pScreen: current screen
@@ -418,6 +423,8 @@ IntelEXADoneComposite(PixmapPtr pDst)
     I830Sync(pScrn);
 #endif
 }
+
+#define BRW_LINEAR_EXTRA (32*1024)
 /*
  * TODO:
  *   - Dual head?
@@ -440,7 +447,11 @@ I830EXAInit(ScreenPtr pScreen)
     pI830->EXADriverPtr->exa_minor = 0;
     pI830->EXADriverPtr->memoryBase = pI830->FbBase;
     pI830->EXADriverPtr->offScreenBase = pI830->Offscreen.Start;
-    pI830->EXADriverPtr->memorySize = pI830->Offscreen.End;
+    if (IS_I965G(pI830))
+    	pI830->EXADriverPtr->memorySize = pI830->Offscreen.End -
+					BRW_LINEAR_EXTRA; /* BRW needs state buffer*/
+    else
+    	pI830->EXADriverPtr->memorySize = pI830->Offscreen.End;
 	   
     DPRINTF(PFX, "EXA Mem: memoryBase 0x%x, end 0x%x, offscreen base 0x%x, memorySize 0x%x\n",
 		pI830->EXADriverPtr->memoryBase,
@@ -490,6 +501,11 @@ I830EXAInit(ScreenPtr pScreen)
     	pI830->EXADriverPtr->PrepareComposite = I830EXAPrepareComposite;
     	pI830->EXADriverPtr->Composite = IntelEXAComposite;
     	pI830->EXADriverPtr->DoneComposite = IntelEXADoneComposite;
+    } else if (IS_I965G(pI830)) {
+ 	pI830->EXADriverPtr->CheckComposite = I965EXACheckComposite;
+ 	pI830->EXADriverPtr->PrepareComposite = I965EXAPrepareComposite;
+ 	pI830->EXADriverPtr->Composite = I965EXAComposite;
+ 	pI830->EXADriverPtr->DoneComposite = IntelEXADoneComposite;
     }
 
     if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {
