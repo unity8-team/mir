@@ -5292,10 +5292,10 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
 
     OUTREG(RADEON_DAC_CNTL2, restore->dac2_cntl);
 
-    OUTREG(RADEON_TV_DAC_CNTL, 0x00280203);
-    //if ((info->ChipFamily != CHIP_FAMILY_RADEON) &&
-    //	(info->ChipFamily != CHIP_FAMILY_R200)) 
-    //OUTREG (RADEON_TV_DAC_CNTL, restore->tv_dac_cntl);
+    //OUTREG(RADEON_TV_DAC_CNTL, 0x00280203);
+    if ((info->ChipFamily != CHIP_FAMILY_RADEON) &&
+    	(info->ChipFamily != CHIP_FAMILY_R200)) 
+    OUTREG (RADEON_TV_DAC_CNTL, restore->tv_dac_cntl);
 
     if ((info->ChipFamily == CHIP_FAMILY_R200) ||
 	IS_R300_VARIANT) {
