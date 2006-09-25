@@ -951,22 +951,14 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       pPriv->brightness = value;
       overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
       ErrorF("BRIGHTNESS\n");
-      overlay->OCMD &= ~OVERLAY_ENABLE;
       OVERLAY_UPDATE;
-#if 1
-      OVERLAY_OFF;
-#endif
    } else if (attribute == xvContrast) {
       if ((value < 0) || (value > 255))
 	 return BadValue;
       pPriv->contrast = value;
       overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
       ErrorF("CONTRAST\n");
-      overlay->OCMD &= ~OVERLAY_ENABLE;
       OVERLAY_UPDATE;
-#if 1
-      OVERLAY_OFF;
-#endif
    } else if (pI830->Clone && attribute == xvPipe) {
       if ((value < 0) || (value > 1))
          return BadValue;
@@ -980,11 +972,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       else 
          overlay->OCONFIG |= OVERLAY_PIPE_B;
       ErrorF("PIPE CHANGE\n");
-      overlay->OCMD &= ~OVERLAY_ENABLE;
       OVERLAY_UPDATE;
-#if 1
-      OVERLAY_OFF;
-#endif
    } else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
       pPriv->gamma0 = value; 
    } else if (attribute == xvGamma1 && (IS_I9XX(pI830))) {
@@ -1011,11 +999,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	 break;
       }
       ErrorF("COLORKEY\n");
-      overlay->OCMD &= ~OVERLAY_ENABLE;
       OVERLAY_UPDATE;
-#if 1
-      OVERLAY_OFF;
-#endif
       REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
    } else if(attribute == xvDoubleBuffer) {
       if ((value < 0) || (value > 1))
@@ -1026,20 +1010,20 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
    } else
       return BadMatch;
 
-   /* We've already confirmed that the overlay is off, ready for updating */
+   /* Ensure that the overlay is off, ready for updating */
    if ((attribute == xvGamma0 ||
         attribute == xvGamma1 ||
         attribute == xvGamma2 ||
         attribute == xvGamma3 ||
         attribute == xvGamma4 ||
         attribute == xvGamma5) && (IS_I9XX(pI830))) {
+	CARD32 r = overlay->OCMD & OVERLAY_ENABLE;
         ErrorF("GAMMA\n");
         overlay->OCMD &= ~OVERLAY_ENABLE;
         OVERLAY_UPDATE;
-#if 1
-        OVERLAY_OFF;
-#endif
 	I830UpdateGamma(pScrn);
+        overlay->OCMD |= r;
+        OVERLAY_UPDATE;
    }
 
    return Success;
