@@ -1238,12 +1238,11 @@ typedef enum {
    TvIndex,
    DfpIndex,
    LfpIndex,
+   Crt2Index,
    Tv2Index,
    Dfp2Index,
-   UnknownIndex,
-   Unknown2Index,
-   NumDisplayTypes,
-   NumKnownDisplayTypes = UnknownIndex
+   Lfp2Index,
+   NumDisplayTypes
 } DisplayType;
 
 /* What's connected to the pipes (as reported by the BIOS) */
@@ -1252,10 +1251,10 @@ typedef enum {
 #define PIPE_TV_ACTIVE			(1 << TvIndex)
 #define PIPE_DFP_ACTIVE			(1 << DfpIndex)
 #define PIPE_LCD_ACTIVE			(1 << LfpIndex)
+#define PIPE_CRT2_ACTIVE		(1 << Crt2Index)
 #define PIPE_TV2_ACTIVE			(1 << Tv2Index)
 #define PIPE_DFP2_ACTIVE		(1 << Dfp2Index)
-#define PIPE_UNKNOWN_ACTIVE		((1 << UnknownIndex) |	\
-					 (1 << Unknown2Index))
+#define PIPE_LCD2_ACTIVE		(1 << Lfp2Index)
 
 #define PIPE_SIZED_DISP_MASK		(PIPE_DFP_ACTIVE |	\
 					 PIPE_LCD_ACTIVE |	\

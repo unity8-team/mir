@@ -2870,12 +2870,14 @@ GetDisplayInfo(ScrnInfoPtr pScrn, int device, Bool *attached, Bool *present,
    DPRINTF(PFX, "GetDisplayInfo: device: 0x%x\n", device);
 
    switch (device & 0xff) {
-   case 0x01:
-   case 0x02:
-   case 0x04:
-   case 0x08:
-   case 0x10:
-   case 0x20:
+   case PIPE_CRT:
+   case PIPE_TV:
+   case PIPE_DFP:
+   case PIPE_LFP:
+   case PIPE_CRT2:
+   case PIPE_TV2:
+   case PIPE_DFP2:
+   case PIPE_LFP2:
       break;
    default:
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -2982,10 +2984,6 @@ PrintDisplayDeviceInfo(ScrnInfoPtr pScrn)
 	    name = DeviceToString(-1);
 	 } while (name);
 
-	 if (pipe & PIPE_UNKNOWN_ACTIVE)
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "\tSome unknown display devices may also be present\n");
-
       } else {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "No active displays on Pipe %c.\n", PIPE_NAME(n));
@@ -3018,7 +3016,7 @@ GetPipeSizes(ScrnInfoPtr pScrn)
       pipe = (pI830->operatingDevices >> PIPE_SHIFT(n)) & PIPE_ACTIVE_MASK;
       pI830->pipeDisplaySize[n].x1 = pI830->pipeDisplaySize[n].y1 = 0;
       pI830->pipeDisplaySize[n].x2 = pI830->pipeDisplaySize[n].y2 = 4096;
-      for (i = 0; i < NumKnownDisplayTypes; i++) {
+      for (i = 0; i < NumDisplayTypes; i++) {
          if (pipe & (1 << i) & PIPE_SIZED_DISP_MASK) {
 	    if (pI830->displaySize[i].x2 != 0) {
 	       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -3055,7 +3053,7 @@ I830DetectDisplayDevice(ScrnInfoPtr pScrn)
 		  "\t      If you encounter this problem please add \n"
 		  "\t\t Option \"DisplayInfo\" \"FALSE\"\n"
 		  "\t      to the Device section of your XF86Config file.\n");
-      for (i = 0; i < NumKnownDisplayTypes; i++) {
+      for (i = 0; i < NumDisplayTypes; i++) {
          if (GetDisplayInfo(pScrn, 1 << i, &pI830->displayAttached[i],
 			 &pI830->displayPresent[i],
 			 &pI830->displaySize[i].x2,
@@ -7002,6 +7000,7 @@ I830InitFBManager(
     BoxPtr FullBox
 ){
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
    RegionRec ScreenRegion;
    RegionRec FullRegion;
    BoxRec ScreenBox;
@@ -7010,7 +7009,7 @@ I830InitFBManager(
    ScreenBox.x1 = 0;
    ScreenBox.y1 = 0;
    ScreenBox.x2 = pScrn->displayWidth;
-   if (pScrn->virtualX > pScrn->virtualY)
+   if (!pI830->MergedFB && pScrn->virtualX > pScrn->virtualY)
       ScreenBox.y2 = pScrn->virtualX;
    else
       ScreenBox.y2 = pScrn->virtualY;
@@ -8161,13 +8160,15 @@ I830BIOSEnterVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled) {
+
+      I830DRISetVBlankInterrupt (pScrn, TRUE);
+
       if (!pI830->starting) {
          ScreenPtr pScreen = pScrn->pScreen;
          drmI830Sarea *sarea = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
          int i;
 
 	 I830DRIResume(screenInfo.screens[scrnIndex]);
-         I830DRISetVBlankInterrupt (pScrn, TRUE);
       
 	 I830RefreshRing(pScrn);
 	 I830Sync(pScrn);

@@ -33,6 +33,7 @@ i810_drv_ladir = @moduledir@/drivers
 i810_drv_la_SOURCES = \
          brw_defines.h \
          brw_structs.h \
+	 sf_prog.h \
          wm_prog.h \
          common.h \
          i810_accel.c \
@@ -70,6 +71,13 @@ i810_drv_la_SOURCES = \
 	 i830_exa_render.c \
 	 i915_exa_render.c
 
+if HAVE_GEN4ASM
+sf_prog.h: packed_yuv_sf.g4a
+	intel-gen4asm -o sf_prog.h packed_yuv_sf.g4a
+wm_prog.h: packed_yuv_wm.g4a
+	intel-gen4asm -o wm_prog.h packed_yuv_wm.g4a
+endif
+
 if DRI
 i810_drv_la_SOURCES += \
          i810_dri.c \
@@ -78,3 +86,7 @@ i810_drv_la_SOURCES += \
          i810_hwmc.c \
          i830_dri.h 
 endif
+
+EXTRA_DIST = \
+	packed_yuv_sf.g4a \
+	packed_yuv_wm.g4a

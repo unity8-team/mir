@@ -783,7 +783,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
       pI830->FbMemBox.x1 = 0;
       pI830->FbMemBox.x2 = pScrn->displayWidth;
       pI830->FbMemBox.y1 = 0;
-      if (pScrn->virtualX > pScrn->virtualY)
+      if (!pI830->MergedFB && pScrn->virtualX > pScrn->virtualY)
          pI830->FbMemBox.y2 = pScrn->virtualX;
       else
          pI830->FbMemBox.y2 = pScrn->virtualY;
@@ -855,7 +855,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
       }
 
 #if 1 /* ROTATION */
-      if (pScrn->virtualX > pScrn->virtualY)
+      if (!pI830->MergedFB && pScrn->virtualX > pScrn->virtualY)
          size = lineSize * (pScrn->virtualX + cacheLines);
       else 
          size = lineSize * (pScrn->virtualY + cacheLines);
