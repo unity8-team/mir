@@ -47,6 +47,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _I830_H_
 #define _I830_H_
 
+#include "xf86_OSproc.h"
 #include "compiler.h"
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
@@ -73,6 +74,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i2c_vid.h"
 
 /* I830 Video support */
+#define NEED_REPLIES				/* ? */
+#define EXTENSION_PROC_ARGS void *
+#include "extnsionst.h" 			/* required */
+#include <X11/extensions/panoramiXproto.h> 	/* required */
 
 /*
  * The mode handling is based upon the VESA driver written by
@@ -151,7 +156,7 @@ typedef struct {
 } I830RingBuffer;
 
 typedef struct {
-   unsigned int Fence[8];
+   unsigned int Fence[FENCE_NEW_NR * 2];
 } I830RegRec, *I830RegPtr;
 
 typedef struct {
@@ -296,7 +301,6 @@ typedef struct _I830Rec {
    I830MemRange LinearMem;
 #endif
    unsigned long LinearAlloc;
-  
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
    I830MemRange RotatedMem;
    I830MemRange RotatedMem2;
@@ -307,14 +311,20 @@ typedef struct _I830Rec {
    CreateScreenResourcesProcPtr    CreateScreenResources;
    int *used3D;
 
+   I830MemRange ContextMem;
 #ifdef XF86DRI
    I830MemRange BackBuffer;
    I830MemRange DepthBuffer;
    I830MemRange TexMem;
    int TexGranularity;
-   I830MemRange ContextMem;
    int drmMinor;
    Bool have3DWindows;
+
+   unsigned int front_tiled;
+   unsigned int back_tiled;
+   unsigned int depth_tiled;
+   unsigned int rotated_tiled;
+   unsigned int rotated2_tiled;
 #endif
 
    Bool NeedRingBufferLow;
@@ -474,6 +484,7 @@ typedef struct _I830Rec {
    CARD32 saveDSPASIZE;
    CARD32 saveDSPAPOS;
    CARD32 saveDSPABASE;
+   CARD32 saveDSPASURF;
    CARD32 saveFPB0;
    CARD32 saveFPB1;
    CARD32 saveDPLL_B;
@@ -487,6 +498,7 @@ typedef struct _I830Rec {
    CARD32 saveDSPBSIZE;
    CARD32 saveDSPBPOS;
    CARD32 saveDSPBBASE;
+   CARD32 saveDSPBSURF;
    CARD32 saveVCLK_DIVISOR_VGA0;
    CARD32 saveVCLK_DIVISOR_VGA1;
    CARD32 saveVCLK_POST_DIV;
@@ -519,11 +531,14 @@ extern int I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis);
 extern void I830SetPIOAccess(I830Ptr pI830);
 extern void I830SetMMIOAccess(I830Ptr pI830);
 extern void I830PrintErrorState(ScrnInfoPtr pScrn);
+extern void I965PrintErrorState(ScrnInfoPtr pScrn);
 extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
 extern void I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force);
 extern Bool I830CursorInit(ScreenPtr pScreen);
+extern void IntelEmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
+extern void I915EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 
 extern void I830RefreshRing(ScrnInfoPtr pScrn);
@@ -578,8 +593,8 @@ extern long I830GetExcessMemoryAllocations(ScrnInfoPtr pScrn);
 extern Bool I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags);
 extern Bool I830DoPoolAllocation(ScrnInfoPtr pScrn, I830MemPool *pool);
 extern Bool I830FixupOffsets(ScrnInfoPtr pScrn);
-extern Bool I830BindGARTMemory(ScrnInfoPtr pScrn);
-extern Bool I830UnbindGARTMemory(ScrnInfoPtr pScrn);
+extern Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
+extern Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
 extern unsigned long I830AllocVidMem(ScrnInfoPtr pScrn, I830MemRange *result,
 				     I830MemPool *pool, long size,
 				     unsigned long alignment, int flags);

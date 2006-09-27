@@ -238,6 +238,8 @@ i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned long Start;
+    int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
+    int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 
     if (I830IsPrimary(pScrn))
 	Start = pI830->FrontBuffer.Start;
@@ -246,10 +248,13 @@ i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y)
 	Start = pI8301->FrontBuffer2.Start;
     }
 
-    if (pipe == 0)
-	OUTREG(DSPABASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
-    else
-	OUTREG(DSPBBASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+    if (IS_I965G(pI830)) {
+	OUTREG(dspbase, 0);
+	OUTREG(dspsurf, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+    } else {
+	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+    }
+
     pI830->pipeX[pipe] = x;
     pI830->pipeY[pipe] = y;
 }

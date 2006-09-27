@@ -116,10 +116,17 @@ I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force)
 	    temp |= (pipe << 28); /* Connect to correct pipe */
 	    /* Need to set mode, then address. */
 	    OUTREG(cursor_control, temp);
-	    if (pI830->CursorIsARGB)
-		OUTREG(cursor_base, pI830->CursorMemARGB->Physical);
-	    else
-		OUTREG(cursor_base, pI830->CursorMem->Physical);
+	    if (pI830->CursorNeedsPhysical) {
+		if (pI830->CursorIsARGB)
+		    OUTREG(cursor_base, pI830->CursorMemARGB->Physical);
+		else
+		    OUTREG(cursor_base, pI830->CursorMem->Physical);
+	    } else {
+		if (pI830->CursorIsARGB)
+		    OUTREG(cursor_base, pI830->CursorMemARGB->Start);
+		else
+		    OUTREG(cursor_base, pI830->CursorMem->Start);
+	    }
 	} else {
 	    temp = INREG(CURSOR_CONTROL);
 	    temp &= ~(CURSOR_FORMAT_MASK);
@@ -158,10 +165,17 @@ I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force)
 	    temp |= CURSOR_MODE_DISABLE;
 	    OUTREG(cursor_control, temp);
 	    /* This is needed to flush the above change. */
-	    if (pI830->CursorIsARGB)
-		OUTREG(cursor_base, pI830->CursorMemARGB->Physical);
-	    else
-		OUTREG(cursor_base, pI830->CursorMem->Physical);
+	    if (pI830->CursorNeedsPhysical) {
+		if (pI830->CursorIsARGB)
+		    OUTREG(cursor_base, pI830->CursorMemARGB->Physical);
+		else
+		    OUTREG(cursor_base, pI830->CursorMem->Physical);
+	    } else {
+		if (pI830->CursorIsARGB)
+		    OUTREG(cursor_base, pI830->CursorMemARGB->Start);
+		else
+		    OUTREG(cursor_base, pI830->CursorMem->Start);
+	    }
 	} else {
 	    temp = INREG(CURSOR_CONTROL);
 	    temp &= ~(CURSOR_ENABLE|CURSOR_GAMMA_ENABLE);
@@ -190,20 +204,33 @@ I830InitHWCursor(ScrnInfoPtr pScrn)
 	 temp &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE |
 		   MCURSOR_MEM_TYPE_LOCAL |
 		   MCURSOR_PIPE_SELECT);
-	 temp |= CURSOR_MODE_DISABLE;
 	 temp |= (i << 28);
+	 if (pI830->CursorIsARGB)
+	    temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+	 else
+	    temp |= CURSOR_MODE_64_4C_AX;
 	 /* Need to set control, then address. */
 	 OUTREG(cursor_control, temp);
-	 if (pI830->CursorIsARGB)
-	    OUTREG(cursor_base, pI830->CursorMemARGB->Physical);
-	 else
-	    OUTREG(cursor_base, pI830->CursorMem->Physical);
+	 if (pI830->CursorNeedsPhysical) {
+	    if (pI830->CursorIsARGB)
+	       OUTREG(cursor_base, pI830->CursorMemARGB->Physical);
+	    else
+	       OUTREG(cursor_base, pI830->CursorMem->Physical);
+	 } else {
+	    if (pI830->CursorIsARGB)
+	       OUTREG(cursor_base, pI830->CursorMemARGB->Start);
+	    else
+	       OUTREG(cursor_base, pI830->CursorMem->Start);
+	 }
       }
    } else {
       temp = INREG(CURSOR_CONTROL);
       temp &= ~(CURSOR_FORMAT_MASK | CURSOR_GAMMA_ENABLE |
 		CURSOR_ENABLE  | CURSOR_STRIDE_MASK);
-      temp |= (CURSOR_FORMAT_3C);
+      if (pI830->CursorIsARGB)
+         temp |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
+      else 
+         temp |= CURSOR_FORMAT_3C;
       /* This initialises the format and leave the cursor disabled. */
       OUTREG(CURSOR_CONTROL, temp);
       /* Need to set address and size after disabling. */
@@ -532,10 +559,17 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 	/* have to upload the base for the new position */
 	if (IS_I9XX(pI830)) {
 	    int base = pipe == 0 ? CURSOR_A_BASE : CURSOR_B_BASE;
-	    if (pI830->CursorIsARGB)
-		OUTREG(base, pI830->CursorMemARGB->Physical);
-	    else
-		OUTREG(base, pI830->CursorMem->Physical);
+	    if (pI830->CursorNeedsPhysical) {
+	       if (pI830->CursorIsARGB)
+		  OUTREG(base, pI830->CursorMemARGB->Physical);
+	       else
+		  OUTREG(base, pI830->CursorMem->Physical);
+	    } else {
+	       if (pI830->CursorIsARGB)
+		  OUTREG(base, pI830->CursorMemARGB->Start);
+	       else
+		  OUTREG(base, pI830->CursorMem->Start);
+	    }
 	}
     }
 }

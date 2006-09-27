@@ -3,31 +3,31 @@
 ]>
 
 <article>
-<title>Information for i810 Users
-<author>Precision Insight, Inc.
-<date>3 March 2000
-<ident>
-$XFree86: xc/programs/Xserver/hw/xfree86/doc/sgml/i810.sgml,v 1.4 2001/04/04 01:34:18 dawes Exp $
-</ident>
+<title>Information for Intel graphics driver users
+<author>Eric Anholt
+<date>2006-08-04
 <toc>
 
 <sect>Introduction
 <p>
-This document provides a brief summary of the i810/i815 support provided
-by the i810 driver.  Support for later chipsets is not covered here.
-More up to date information about the i810 driver can be found in the
+This document provides a brief summary of the Intel graphics support provided
+by the xf86-video-intel driver.  More information can also be found in the
 <htmlurl name="i810(4)" url="i810.4.html"> manual page.
 
 <sect>Supported Hardware
 <p>
 <itemize>
-  <item>Intel 810 motherboards:
-	<itemize>
-	  <item>i810,
-	  <item>i810-dc100,
-	  <item>i810e
-	  <item>i815
-	</itemize>
+	<item>i810,
+  	<item>i810-dc100,
+	<item>i810e
+	<item>i815
+	<item>i830
+	<item>i845
+	<item>i852
+	<item>i855
+	<item>i915
+	<item>i945
+	<item>i965
 </itemize>
 
 
@@ -35,42 +35,31 @@ More up to date information about the i810 driver can be found in the
 <p>
 <itemize>
   <item>Full support for 8, 15, 16, and 24 bit pixel depths.
-  <item>Hardware cursor support to reduce sprite flicker.
   <item>Hardware accelerated 2D drawing engine support for 8, 15, 16 and
         24 bit pixel depths.
-  <item>Support for high resolution video modes up to 1600x1200.
-  <item>Fully programmable clock supported.
-  <item>Robust text mode restore for VT switching.
+  <item>Hardware accelerated 3D drawing using OpenGL and the DRI.
+  <item>Hardware cursor support to reduce sprite flicker.
+  <item>Textured video XV implementation on i915 through i965.
+  <item>Hardware overlay XV implementation up through i945.
+  <item>Screen resize and rotation on chipsets up through i945.
+  <item>Screen resize on i965.
 </itemize>
 
 
 <sect>Technical Notes
 <p>
 <itemize>
-  <item>Hardware acceleration is not possible when using the framebuffer
-	in 32 bit per pixel format, and this mode is not supported by
-	this driver.
   <item>Interlace modes cannot be supported.
-  <item>This driver currently only works for Linux/ix86 and recent versions
-	of FreeBSD.  It requires the agpgart kernel support, which is
+  <item>This driver  requires kernel support for AGP, which is
 	included in Linux kernels 2.3.42 and higher, and FreeBSD 4.1
 	and higher.
-</itemize>
-
-
-<sect>Reported Working Video Cards
-<p>
-<itemize>
-  <item>Intel evaluation hardware - i810, i810-dc100, i810e and i815.
-  <item>Tyan Tomcat Motherboard.
-  <item>HappyPC set-top box.
 </itemize>
 
 
 <sect>Configuration
 <p>
 The driver auto-detects all device information necessary to
-initialize the card.  The only lines you need in the "Device"
+initialize the card.  The only lines you should need in the "Device"
 section of your xorg.conf file are:
 <verb>
        Section "Device"
@@ -78,45 +67,51 @@ section of your xorg.conf file are:
            Driver     "i810"
        EndSection
 </verb>
-or let <tt>xorgconfig</tt> do this for you.
-
-However, if you have problems with auto-detection, you can specify:
-<itemize>
-  <item>DacSpeed - in MHz
-  <item>MemBase  - physical address of the linear framebuffer
-  <item>IOBase   - physical address of the memory mapped IO registers
-</itemize>
 
 In order to use most resolutions, it is necessary to install the
-'agpgart.o' module.  You will probably have to compile the module yourself
+"agpgart.o" module.  You will probably have to compile the module yourself
 (see the notes in the module).
-
-Note: the i810 driver detects whether your motherboard has display cache
-video memory.  This memory is has reduced bandwidth compared to normal
-system memory, and isn't used by the server.  The main function of this
-memory is for ancillary buffers (eg. z buffer) in a forthcoming 3d
-capable server.
-
 
 <sect>Driver Options
 <p>
-<itemize>
-  <item>"NoAccel"  - Turn off hardware acceleration
-  <item>"SWCursor" - Request a software cursor (hardware is default)
-  <item>"Dac6Bit"  - Force the use of a 6 Bit Dac (8 Bit is the default)
-</itemize>
+Please refer to the <htmlurl name="i810(4)" url="i810.4.html"> manual page
+for information on configuration options.
+
 
 <sect>Known Limitations
 <p>
 <itemize>
-  <item>No 3D support in this release.
-  <item>Running two X servers on different VTs is not supported at this time.
+  <item>Many systems with Intel graphics have issues with setting video modes
+at larger than some small maximum resolution.  This is not fixed in the current
+release, but is being actively worked on in the modesetting branch.
+  <item>Bug #5795: Some systems have issues with VT switching.  This should
+be fixed with the modesetting brach integration.
+  <item>Bug #5817: Hotkey switching from LVDS to CRT breaks CRT output.  This
+is a known issue, but will not be fixed in the current release.
+  <item>Bug #6635: Video is output from an incorrect offset in the framebuffer.
+This is expected to be fixed with the modesetting branch integration.
+  <item>GL_EXT_texture_compression_s3tc is not supported.  We can't support the
+extension due to patent restrictions on compression, but may be able to support
+an option for partial extension support in the future.  For now, this prevents
+Quake4 and some other games from running.
+  <item>Some X Test Suite cases sometimes fail due to a timeout. These cases
+include: Xt8/XtResizeWindow, Xt8/XtQueryGeometry, Xt9/XtAppAddInput,
+Xt9/XtRemoveInput, Xt9/XtAppAddTimeOut, Xt9/XtRemoveTimeOut, Xt9/XtAddGrab,
+Xt9/XtRemoveGrab.
+  <item>Some X Test Suite cases fail in 64-bit mode: Xlib9/XDrawArc,
+XDrawImageString, XDrawLine, XDrawRectangle, XDrawSegments, XFillArc,
+XFillPolygon, XFillRectangle, XPutImage, Xt11/XtVaGetSubresources,
+XtSetSubvalues, and XtVaSetSubvalues.
+  <item>Some GLEAN test cases fail if DRI is enabled: pointAtten,
+readPixSanity, texCombine, texCube, texEnv, texgen, coloredTexPerf2, and
+coloredLitPerf2.
 </itemize>
 
 
 <sect>Author
 <p>
 <itemize>
+   <item>Eric Anholt
    <item>Keith Whitwell
 </itemize>
 
@@ -129,8 +124,10 @@ The XFree86 version of this driver was donated to The XFree86 Project by:
     USA
 </verb>
 
-<htmlurl name="http://www.precisioninsight.com"
-          url="http://www.precisioninsight.com">
+The X.Org version of this driver is maintained by Intel Corporation.
+
+<htmlurl name="http://www.intellinuxgraphics.org"
+          url="http://www.intellinuxgraphics.org">
 
 
 </article>
