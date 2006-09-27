@@ -980,7 +980,7 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 	/* On my Inspiron 8600 both internal and external ports are
 	   marked DAC_PRIMARY in BIOS. So be extra careful - only
 	   swap when the first port is not DAC_PRIMARY */
-        if ( (pRADEONEnt->PortInfo[1].DACType == DAC_PRIMARY) &&
+        if ((!(pRADEONEnt->PortInfo[0].ConnectorType == CONNECTOR_PROPRIETARY)) &&  (pRADEONEnt->PortInfo[1].DACType == DAC_PRIMARY) &&
 	     (pRADEONEnt->PortInfo[0].DACType != DAC_PRIMARY)) {
             RADEONConnector connector;
             connector = pRADEONEnt->PortInfo[0];
