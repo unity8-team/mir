@@ -24,7 +24,7 @@ SUBDIRS = xvmc bios_reader ch7xxx sil164
 # -avoid-version prevents gratuitous .0.0.0 version numbers on the end
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
-AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ -DI830_XV
+AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ -DI830_XV
 
 i810_drv_la_LTLIBRARIES = i810_drv.la
 i810_drv_la_LDFLAGS = -module -avoid-version

@@ -685,6 +685,36 @@ i830GetConfiguredMonitor(ScrnInfoPtr pScrn)
     return mon;
 }
 
+static MonPtr
+i830GetDefaultMonitor(ScrnInfoPtr pScrn)
+{
+    MonPtr mon;
+
+    mon = xnfcalloc(1, sizeof(*mon));
+
+    mon->id = xnfstrdup("Unknown Id");
+    mon->vendor = xnfstrdup("Unknown Vendor");
+    mon->model = xnfstrdup("Unknown Model");
+
+    mon->nHsync = 1;
+    mon->hsync[0].lo = 31.0;
+    mon->hsync[0].hi = 100.0;
+    mon->nVrefresh = 1;
+    mon->vrefresh[0].lo = 50.0;
+    mon->vrefresh[0].hi = 70.0;
+    mon->widthmm = 400;
+    mon->heightmm = 300;
+    /* Use VESA standard and user modelines, and do additional validation
+     * on them beyond what pipe config will do (x/y/pitch, clocks, flags)
+     */
+    mon->Modes = i830DuplicateModes(pScrn, pScrn->monitor->Modes);
+    i830xf86ValidateModesSync(pScrn, mon->Modes, mon);
+    i830xf86PruneInvalidModes(pScrn, &mon->Modes, TRUE);
+    mon->Last = i830GetModeListTail(mon->Modes);
+
+    return mon;
+}
+
 static void
 i830FreeMonitor(ScrnInfoPtr pScrn, MonPtr mon)
 {
@@ -771,8 +801,12 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
 	     * know if a monitor is attached, and this detect process should be
 	     * infrequent.
 	     */
-	    if (i830DetectCRT(pScrn, TRUE))
-		pI830->pipeMon[pipe] = i830GetConfiguredMonitor(pScrn);
+	    if (i830DetectCRT(pScrn, TRUE)) {
+/*		if (pipe == pI830->pipe)
+		    pI830->pipeMon[pipe] = i830GetConfiguredMonitor(pScrn);
+		else */
+		    pI830->pipeMon[pipe] = i830GetDefaultMonitor(pScrn);
+	    }
 	    break;
 	default:
 	    pI830->pipeMon[pipe] = i830GetConfiguredMonitor(pScrn);
@@ -954,6 +988,11 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 		    maxY = mode->VDisplay;
 	    }
 	}
+	/* let the user specify a bigger virtual size if they like */
+	if (pScrn->display->virtualX > maxX)
+	    maxX = pScrn->display->virtualX;
+	if (pScrn->display->virtualY > maxY)
+	    maxY = pScrn->display->virtualY;
 	pScrn->virtualX = maxX;
 	pScrn->virtualY = maxY;
 	pScrn->displayWidth = (maxX + 63) & ~63;

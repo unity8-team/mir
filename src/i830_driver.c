@@ -271,7 +271,7 @@ static OptionInfoRec I830Options[] = {
 };
 /* *INDENT-ON* */
 
-static const char *output_type_names[] = {
+const char *i830_output_type_names[] = {
    "Unused",
    "Analog",
    "DVO",
@@ -996,7 +996,7 @@ I830DetectMonitors(ScrnInfoPtr pScrn)
 						    pI830->output[i].pDDCBus);
 
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "DDC %s %d, %08lX\n",
-		    output_type_names[pI830->output[i].type], i,
+		    i830_output_type_names[pI830->output[i].type], i,
 		    pI830->output[i].pDDCBus->DriverPrivate.uval);
 	 xf86PrintEDID(pI830->output[i].MonInfo);
 	 break;
@@ -3007,22 +3007,8 @@ I830CreateScreenResources (ScreenPtr pScreen)
    if (!(*pScreen->CreateScreenResources)(pScreen))
       return FALSE;
 
-   if (pI830->rotation != RR_Rotate_0) {
-      RRScreenSize p;
-      Rotation requestedRotation = pI830->rotation;
-
-      pI830->rotation = RR_Rotate_0;
-
-      /* Just setup enough for an initial rotate */
-      p.width = pScreen->width;
-      p.height = pScreen->height;
-      p.mmWidth = pScreen->mmWidth;
-      p.mmHeight = pScreen->mmHeight;
-
-      pI830->starting = TRUE; /* abuse this for dual head & rotation */
-      I830RandRSetConfig (pScreen, requestedRotation, 0, &p);
-      pI830->starting = FALSE;
-   } 
+   if (!I830RandRCreateScreenResources (pScreen))
+      return FALSE;
 
    return TRUE;
 }
@@ -3346,6 +3332,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    if (!I830EnterVT(scrnIndex, 0))
       return FALSE;
+
+    if (pScrn->virtualX > pScrn->displayWidth)
+	pScrn->displayWidth = pScrn->virtualX;
 
    DPRINTF(PFX, "assert( if(!fbScreenInit(pScreen, ...) )\n");
    if (!fbScreenInit(pScreen, pI830->FbBase + pScrn->fbOffset, 

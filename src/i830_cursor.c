@@ -80,33 +80,124 @@ static Bool I830UseHWCursorARGB(ScreenPtr pScrn, CursorPtr pCurs);
 #endif
 
 void
+I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   CARD32 temp;
+    Bool show;
+    
+    if (!pI830->planeEnabled[pipe])
+	return;
+
+    show = pI830->cursorOn && pI830->cursorInRange[pipe];
+    if (show && (force || !pI830->cursorShown[pipe]))
+    {
+	if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
+	    int	cursor_control, cursor_base;
+	    if (pipe == 0)
+	    {
+		cursor_control = CURSOR_A_CONTROL;
+		cursor_base = CURSOR_A_BASE;
+	    }
+	    else
+	    {
+		cursor_control = CURSOR_B_CONTROL;
+		cursor_base = CURSOR_B_BASE;
+	    }
+	    temp = INREG(cursor_control);
+	    temp &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
+	    if (pI830->CursorIsARGB) {
+		temp |= CURSOR_MODE_64_ARGB_AX;
+		if (pI830->gammaEnabled[pipe])
+		    temp |= MCURSOR_GAMMA_ENABLE;
+	    } else
+		temp |= CURSOR_MODE_64_4C_AX;
+	    
+	    temp |= (pipe << 28); /* Connect to correct pipe */
+	    /* Need to set mode, then address. */
+	    OUTREG(cursor_control, temp);
+	    if (pI830->CursorIsARGB)
+		OUTREG(cursor_base, pI830->CursorMemARGB->Physical);
+	    else
+		OUTREG(cursor_base, pI830->CursorMem->Physical);
+	} else {
+	    temp = INREG(CURSOR_CONTROL);
+	    temp &= ~(CURSOR_FORMAT_MASK);
+	    temp |= CURSOR_ENABLE;
+	    if (pI830->CursorIsARGB) {
+		temp |= CURSOR_FORMAT_ARGB;
+		if (pI830->gammaEnabled[pipe])
+		    temp |= CURSOR_GAMMA_ENABLE;
+	    } else
+		temp |= CURSOR_FORMAT_3C;
+	    OUTREG(CURSOR_CONTROL, temp);
+	    if (pI830->CursorIsARGB)
+		OUTREG(CURSOR_BASEADDR, pI830->CursorMemARGB->Start);
+	    else
+		OUTREG(CURSOR_BASEADDR, pI830->CursorMem->Start);
+	}
+	pI830->cursorShown[pipe] = TRUE;
+    }
+    else if (!show && (force || pI830->cursorShown[pipe]))
+    {
+	if (IS_MOBILE(pI830) || IS_I9XX(pI830)) 
+	{
+	    int	cursor_control, cursor_base;
+	    if (pipe == 0)
+	    {
+		cursor_control = CURSOR_A_CONTROL;
+		cursor_base = CURSOR_A_BASE;
+	    }
+	    else
+	    {
+		cursor_control = CURSOR_B_CONTROL;
+		cursor_base = CURSOR_B_BASE;
+	    }
+	    temp = INREG(cursor_control);
+	    temp &= ~(CURSOR_MODE|MCURSOR_GAMMA_ENABLE);
+	    temp |= CURSOR_MODE_DISABLE;
+	    OUTREG(cursor_control, temp);
+	    /* This is needed to flush the above change. */
+	    if (pI830->CursorIsARGB)
+		OUTREG(cursor_base, pI830->CursorMemARGB->Physical);
+	    else
+		OUTREG(cursor_base, pI830->CursorMem->Physical);
+	} else {
+	    temp = INREG(CURSOR_CONTROL);
+	    temp &= ~(CURSOR_ENABLE|CURSOR_GAMMA_ENABLE);
+	    OUTREG(CURSOR_CONTROL, temp);
+	}
+	pI830->cursorShown[pipe] = FALSE;
+    }
+}
+
+void
 I830InitHWCursor(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    CARD32 temp;
+   int i;
 
    DPRINTF(PFX, "I830InitHWCursor\n");
+   for (i = 0; i < MAX_DISPLAY_PIPES; i++) pI830->cursorShown[i] = FALSE;
    /* Initialise the HW cursor registers, leaving the cursor hidden. */
    if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
-      temp = INREG(CURSOR_A_CONTROL);
-      temp &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE | MCURSOR_MEM_TYPE_LOCAL |
-		MCURSOR_PIPE_SELECT);
-      temp |= CURSOR_MODE_DISABLE;
-      temp |= (pI830->pipe << 28);
-      /* Need to set control, then address. */
-      OUTREG(CURSOR_A_CONTROL, temp);
-      if (pI830->CursorIsARGB)
-         OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
-      else
-         OUTREG(CURSOR_A_BASE, pI830->CursorMem->Physical);
-      if (pI830->Clone) {
-         temp &= ~MCURSOR_PIPE_SELECT;
-         temp |= (!pI830->pipe << 28);
-         OUTREG(CURSOR_B_CONTROL, temp);
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Physical);
-         else
-            OUTREG(CURSOR_B_BASE, pI830->CursorMem->Physical);
+      for (i = 0; i < MAX_DISPLAY_PIPES; i++)
+      {
+	 int   cursor_control = i == 0 ? CURSOR_A_CONTROL : CURSOR_B_CONTROL;
+	 int   cursor_base = i == 0 ? CURSOR_A_BASE : CURSOR_B_BASE;
+	 temp = INREG(cursor_control);
+	 temp &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE |
+		   MCURSOR_MEM_TYPE_LOCAL |
+		   MCURSOR_PIPE_SELECT);
+	 temp |= CURSOR_MODE_DISABLE;
+	 temp |= (i << 28);
+	 /* Need to set control, then address. */
+	 OUTREG(cursor_control, temp);
+	 if (pI830->CursorIsARGB)
+	    OUTREG(cursor_base, pI830->CursorMemARGB->Physical);
+	 else
+	    OUTREG(cursor_base, pI830->CursorMem->Physical);
       }
    } else {
       temp = INREG(CURSOR_CONTROL);
@@ -356,121 +447,104 @@ static void I830LoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 static void
 I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 {
-   I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 temp = 0;
-   Bool hide = FALSE, show = FALSE;
-   int oldx = x, oldy = y;
-   int hotspotx = 0, hotspoty = 0;
-#if 0
-   static Bool outsideViewport = FALSE;
-#endif
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 temp;
+    Bool inrange;
+    int oldx = x, oldy = y;
+    int hotspotx = 0, hotspoty = 0;
+    int pipe;
 
-   oldx += pScrn->frameX0; /* undo what xf86HWCurs did */
-   oldy += pScrn->frameY0;
+    oldx += pScrn->frameX0; /* undo what xf86HWCurs did */
+    oldy += pScrn->frameY0;
 
-   switch (pI830->rotation) {
-      case RR_Rotate_0:
-         x = oldx;
-         y = oldy;
-         break;
-      case RR_Rotate_90:
-         x = oldy;
-         y = pScrn->pScreen->width - oldx;
-         hotspoty = I810_CURSOR_X;
-         break;
-      case RR_Rotate_180:
-         x = pScrn->pScreen->width - oldx;
-         y = pScrn->pScreen->height - oldy;
-         hotspotx = I810_CURSOR_X;
-         hotspoty = I810_CURSOR_Y;
-         break;
-      case RR_Rotate_270:
-         x = pScrn->pScreen->height - oldy;
-         y = oldx;
-         hotspotx = I810_CURSOR_Y;
-         break;
-   }
+    switch (pI830->rotation) {
+    case RR_Rotate_0:
+	x = oldx;
+	y = oldy;
+	break;
+    case RR_Rotate_90:
+	x = oldy;
+	y = pScrn->pScreen->width - oldx;
+	hotspoty = I810_CURSOR_X;
+	break;
+    case RR_Rotate_180:
+	x = pScrn->pScreen->width - oldx;
+	y = pScrn->pScreen->height - oldy;
+	hotspotx = I810_CURSOR_X;
+	hotspoty = I810_CURSOR_Y;
+	break;
+    case RR_Rotate_270:
+	x = pScrn->pScreen->height - oldy;
+	y = oldx;
+	hotspotx = I810_CURSOR_Y;
+	break;
+    }
 
-   x -= hotspotx;
-   y -= hotspoty;
+    x -= hotspotx;
+    y -= hotspoty;
 
-   /* Now, readjust */
-   x -= pScrn->frameX0;
-   y -= pScrn->frameY0;
+    for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++)
+    {
+	DisplayModePtr	mode = &pI830->pipeCurMode[pipe];
+	int		thisx = x - pI830->pipeX[pipe];
+	int		thisy = y - pI830->pipeY[pipe];
 
-   /* Clamp the cursor position to the visible screen area.  Ignore this if we
-    * are doing motion (with SilkenMouse) while the currentMode being changed.
-    */
-   if (pScrn->currentMode != NULL) {
-     if (x >= pScrn->currentMode->HDisplay)
-       x = pScrn->currentMode->HDisplay - 1;
-     if (y >= pScrn->currentMode->VDisplay)
-       y = pScrn->currentMode->VDisplay - 1;
-   }
-   if (x <= -I810_CURSOR_X) x = -I810_CURSOR_X + 1;
-   if (y <= -I810_CURSOR_Y) y = -I810_CURSOR_Y + 1;
+	if (!pI830->planeEnabled[pipe])
+	    continue;
 
-#if 0
-   /*
-    * There is a screen display problem when the cursor position is set
-    * wholely outside of the viewport.  We trap that here, turning the
-    * cursor off when that happens, and back on when it comes back into
-    * the viewport.
-    */
-   if (x >= pScrn->currentMode->HDisplay ||
-       y >= pScrn->currentMode->VDisplay ||
-       x <= -I810_CURSOR_X || y <= -I810_CURSOR_Y) {
-      hide = TRUE;
-      outsideViewport = TRUE;
-   } else if (outsideViewport) {
-      show = TRUE;
-      outsideViewport = FALSE;
-   }
-#endif
+	/*
+	 * There is a screen display problem when the cursor position is set
+	 * wholely outside of the viewport.  We trap that here, turning the
+	 * cursor off when that happens, and back on when it comes back into
+	 * the viewport.
+	 */
+	inrange = TRUE;
+	if (thisx >= mode->HDisplay ||
+	    thisy >= mode->VDisplay ||
+	    thisx <= -I810_CURSOR_X || thisy <= -I810_CURSOR_Y) 
+	{
+	    inrange = FALSE;
+	    thisx = 0;
+	    thisy = 0;
+	}
 
-   if (x < 0) {
-      temp |= (CURSOR_POS_SIGN << CURSOR_X_SHIFT);
-      x = -x;
-   }
-   if (y < 0) {
-      temp |= (CURSOR_POS_SIGN << CURSOR_Y_SHIFT);
-      y = -y;
-   }
-   temp |= ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
-   temp |= ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
+	temp = 0;
+	if (thisx < 0) {
+	    temp |= (CURSOR_POS_SIGN << CURSOR_X_SHIFT);
+	    thisx = -thisx;
+	}
+	if (thisy < 0) {
+	    temp |= (CURSOR_POS_SIGN << CURSOR_Y_SHIFT);
+	    thisy = -thisy;
+	}
+	temp |= ((thisx & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
+	temp |= ((thisy & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
 
-   OUTREG(CURSOR_A_POSITION, temp);
-   if (pI830->Clone)
-      OUTREG(CURSOR_B_POSITION, temp);
+	if (pipe == 0)
+	    OUTREG(CURSOR_A_POSITION, temp);
+	if (pipe == 1)
+	    OUTREG(CURSOR_B_POSITION, temp);
 
-   if (pI830->cursorOn) {
-      if (hide)
-	 pI830->CursorInfoRec->HideCursor(pScrn);
-      else if (show)
-	 pI830->CursorInfoRec->ShowCursor(pScrn);
-      pI830->cursorOn = TRUE;
-   }
+	pI830->cursorInRange[pipe] = inrange;
+	
+        I830SetPipeCursor (pScrn, pipe, FALSE);
 
-   /* have to upload the base for the new position */
-   if (IS_I9XX(pI830)) {
-      if (pI830->CursorIsARGB)
-         OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
-      else
-         OUTREG(CURSOR_A_BASE, pI830->CursorMem->Physical);
-      if (pI830->Clone) {
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Physical);
-         else
-            OUTREG(CURSOR_B_BASE, pI830->CursorMem->Physical);
-      }
-   }
+	/* have to upload the base for the new position */
+	if (IS_I9XX(pI830)) {
+	    int base = pipe == 0 ? CURSOR_A_BASE : CURSOR_B_BASE;
+	    if (pI830->CursorIsARGB)
+		OUTREG(base, pI830->CursorMemARGB->Physical);
+	    else
+		OUTREG(base, pI830->CursorMem->Physical);
+	}
+    }
 }
 
 static void
 I830ShowCursor(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 temp;
+    int pipe;
 
    DPRINTF(PFX, "I830ShowCursor\n");
    DPRINTF(PFX,
@@ -482,81 +556,22 @@ I830ShowCursor(ScrnInfoPtr pScrn)
 	   " Value of CursorMemARGB->Start is %x ",
 	   pI830->CursorMemARGB->Physical, pI830->CursorMemARGB->Start);
 
-   pI830->cursorOn = TRUE;
-   if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
-      temp = INREG(CURSOR_A_CONTROL);
-      temp &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
-      if (pI830->CursorIsARGB) {
-         temp |= CURSOR_MODE_64_ARGB_AX;
-	 if (pI830->gammaEnabled[pI830->pipe])
-	    temp |= MCURSOR_GAMMA_ENABLE;
-      } else
-         temp |= CURSOR_MODE_64_4C_AX;
-      temp |= (pI830->pipe << 28); /* Connect to correct pipe */
-      /* Need to set mode, then address. */
-      OUTREG(CURSOR_A_CONTROL, temp);
-      if (pI830->CursorIsARGB)
-         OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
-      else
-         OUTREG(CURSOR_A_BASE, pI830->CursorMem->Physical);
-      if (pI830->Clone) {
-         temp &= ~MCURSOR_PIPE_SELECT;
-         temp |= (!pI830->pipe << 28);
-         OUTREG(CURSOR_B_CONTROL, temp);
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Physical);
-         else
-            OUTREG(CURSOR_B_BASE, pI830->CursorMem->Physical);
-      }
-   } else {
-      temp = INREG(CURSOR_CONTROL);
-      temp &= ~(CURSOR_FORMAT_MASK);
-      temp |= CURSOR_ENABLE;
-      if (pI830->CursorIsARGB) {
-         temp |= CURSOR_FORMAT_ARGB;
-	 if (pI830->gammaEnabled[pI830->pipe])
-	    temp |= CURSOR_GAMMA_ENABLE;
-      } else
-         temp |= CURSOR_FORMAT_3C;
-      OUTREG(CURSOR_CONTROL, temp);
-      if (pI830->CursorIsARGB)
-         OUTREG(CURSOR_BASEADDR, pI830->CursorMemARGB->Start);
-      else
-         OUTREG(CURSOR_BASEADDR, pI830->CursorMem->Start);
-   }
+    pI830->cursorOn = TRUE;
+    for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++)
+	I830SetPipeCursor (pScrn, pipe, TRUE);
 }
 
 static void
 I830HideCursor(ScrnInfoPtr pScrn)
 {
-   CARD32 temp;
    I830Ptr pI830 = I830PTR(pScrn);
+    int pipe;
 
    DPRINTF(PFX, "I830HideCursor\n");
 
    pI830->cursorOn = FALSE;
-   if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
-      temp = INREG(CURSOR_A_CONTROL);
-      temp &= ~(CURSOR_MODE|MCURSOR_GAMMA_ENABLE);
-      temp |= CURSOR_MODE_DISABLE;
-      OUTREG(CURSOR_A_CONTROL, temp);
-      /* This is needed to flush the above change. */
-      if (pI830->CursorIsARGB)
-         OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
-      else
-         OUTREG(CURSOR_A_BASE, pI830->CursorMem->Physical);
-      if (pI830->Clone) {
-         OUTREG(CURSOR_B_CONTROL, temp);
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Physical);
-         else
-            OUTREG(CURSOR_B_BASE, pI830->CursorMem->Physical);
-      }
-   } else {
-      temp = INREG(CURSOR_CONTROL);
-      temp &= ~(CURSOR_ENABLE|CURSOR_GAMMA_ENABLE);
-      OUTREG(CURSOR_CONTROL, temp);
-   }
+    for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++)
+	I830SetPipeCursor (pScrn, pipe, TRUE);
 }
 
 static void
@@ -572,11 +587,15 @@ I830SetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 
    DPRINTF(PFX, "I830SetCursorColors\n");
 
-   OUTREG(CURSOR_A_PALETTE0, bg & 0x00ffffff);
-   OUTREG(CURSOR_A_PALETTE1, fg & 0x00ffffff);
-   OUTREG(CURSOR_A_PALETTE2, fg & 0x00ffffff);
-   OUTREG(CURSOR_A_PALETTE3, bg & 0x00ffffff);
-   if (pI830->Clone) {
+   if (pI830->planeEnabled[0])
+   {
+       OUTREG(CURSOR_A_PALETTE0, bg & 0x00ffffff);
+       OUTREG(CURSOR_A_PALETTE1, fg & 0x00ffffff);
+       OUTREG(CURSOR_A_PALETTE2, fg & 0x00ffffff);
+       OUTREG(CURSOR_A_PALETTE3, bg & 0x00ffffff);
+   }
+   if (pI830->planeEnabled[1])
+   {
       OUTREG(CURSOR_B_PALETTE0, bg & 0x00ffffff);
       OUTREG(CURSOR_B_PALETTE1, fg & 0x00ffffff);
       OUTREG(CURSOR_B_PALETTE2, fg & 0x00ffffff);

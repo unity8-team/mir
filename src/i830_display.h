@@ -26,6 +26,8 @@
  */
 
 /* i830_display.c */
+Bool i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe);
+void i830DisableUnusedFunctions(ScrnInfoPtr pScrn);
 Bool i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
 Bool i830DetectCRT(ScrnInfoPtr pScrn, Bool allow_disturb);
 void i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on);

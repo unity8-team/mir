@@ -250,13 +250,15 @@ i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y)
 	OUTREG(DSPABASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
     else
 	OUTREG(DSPBBASE, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+    pI830->pipeX[pipe] = x;
+    pI830->pipeY[pipe] = y;
 }
 
 /**
  * Sets the given video mode on the given pipe.  Assumes that plane A feeds
  * pipe A, and plane B feeds pipe B.  Should not affect the other planes/pipes.
  */
-static Bool
+Bool
 i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -613,7 +615,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	OUTREG(DSPASTRIDE, pScrn->displayWidth * pI830->cpp);
 	OUTREG(DSPASIZE, dspsize);
 	OUTREG(DSPAPOS, 0);
-	i830PipeSetBase(pScrn, pipe, pScrn->frameX0, pScrn->frameY0);
+	i830PipeSetBase(pScrn, pipe, pI830->pipeX[pipe], pI830->pipeX[pipe]);
 	OUTREG(PIPEASRC, pipesrc);
 
 	/* Then, turn the pipe on first */
@@ -661,7 +663,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	OUTREG(DSPBSTRIDE, pScrn->displayWidth * pI830->cpp);
 	OUTREG(DSPBSIZE, dspsize);
 	OUTREG(DSPBPOS, 0);
-	i830PipeSetBase(pScrn, pipe, pScrn->frameX0, pScrn->frameY0);
+	i830PipeSetBase(pScrn, pipe, pI830->pipeX[pipe], pI830->pipeY[pipe]);
 	OUTREG(PIPEBSRC, pipesrc);
 
 	if (outputs & PIPE_LCD_ACTIVE) {
@@ -717,7 +719,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     return TRUE;
 }
 
-static void
+void
 i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -1079,7 +1081,7 @@ i830DetectCRT(ScrnInfoPtr pScrn, Bool allow_disturb)
      * pipe, as it seems having other outputs on that pipe will result in a
      * false positive.
      */
-    if (0 && (allow_disturb || !(INREG(ADPA) & !ADPA_DAC_ENABLE))) {
+    if (1 && (allow_disturb || !(INREG(ADPA) & !ADPA_DAC_ENABLE))) {
 	return i830LoadDetectCRT(pScrn);
     }
 

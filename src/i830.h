@@ -79,6 +79,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Paulo César Pereira de Andrade <pcpa@conectiva.com.br>.
  */
 
+#define PIPE_CRT_ID	0
+#define PIPE_TV_ID    	1
+#define PIPE_DFP_ID	2
+#define PIPE_LFP_ID	3
+#define PIPE_CRT2_ID	4
+#define PIPE_TV2_ID	5
+#define PIPE_DFP2_ID	6
+#define PIPE_LFP2_ID	7
+#define PIPE_NUM_ID	8
+
 #define PIPE_NONE	0<<0
 #define PIPE_CRT	1<<0
 #define PIPE_TV		1<<1
@@ -201,10 +211,12 @@ typedef struct _I830SDVODriver {
    CARD32 save_SDVOX;
 } I830SDVORec, *I830SDVOPtr;
 
+extern const char *i830_output_type_names[];
+
 struct _I830OutputRec {
    int type;
-   int pipe;
-   int flags;
+/*   int pipe;
+   int flags;*/
    xf86MonPtr MonInfo;
    I2CBusPtr pI2CBus;
    I2CBusPtr pDDCBus;
@@ -233,6 +245,10 @@ typedef struct _I830Rec {
 
    Bool gammaEnabled[MAX_DISPLAY_PIPES];
 
+   int pipeX[MAX_DISPLAY_PIPES];
+   int pipeY[MAX_DISPLAY_PIPES];
+   Bool cursorInRange[MAX_DISPLAY_PIPES];
+   Bool cursorShown[MAX_DISPLAY_PIPES];
    Bool Clone;
    int CloneRefresh;
    int CloneHDisplay;
@@ -505,6 +521,7 @@ extern void I830SetMMIOAccess(I830Ptr pI830);
 extern void I830PrintErrorState(ScrnInfoPtr pScrn);
 extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
+extern void I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force);
 extern Bool I830CursorInit(ScreenPtr pScreen);
 extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
@@ -597,6 +614,7 @@ DisplayModePtr i830GetGTF(int h_pixels, int v_lines, float freq,
 int I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time);
 
 /* i830_randr.c */
+Bool I830RandRCreateScreenResources (ScreenPtr pScreen);
 Bool I830RandRInit(ScreenPtr pScreen, int rotation);
 Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
 			RRScreenSizePtr pSize);
