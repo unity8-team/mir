@@ -436,116 +436,6 @@ Check5fStatus(ScrnInfoPtr pScrn, int func, int ax)
    }
 }
 
-static int
-GetToggleList(ScrnInfoPtr pScrn, int toggle)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-
-   DPRINTF(PFX, "GetToggleList\n");
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f64;
-   pVbe->pInt10->bx = 0x500;
- 
-   pVbe->pInt10->bx |= toggle;
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Toggle (%d) 0x%x\n", toggle, pVbe->pInt10->cx);
-      return pVbe->pInt10->cx & 0xffff;
-   }
-
-   return 0;
-}
-
-static int
-GetNextDisplayDeviceList(ScrnInfoPtr pScrn, int toggle)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-   int devices = 0;
-   int pipe = 0;
-   int i;
-
-   DPRINTF(PFX, "GetNextDisplayDeviceList\n");
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f64;
-   pVbe->pInt10->bx = 0xA00;
-   pVbe->pInt10->bx |= toggle;
-   pVbe->pInt10->es = SEG_ADDR(pVbe->real_mode_base);
-   pVbe->pInt10->di = SEG_OFF(pVbe->real_mode_base);
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (!Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax))
-      return 0;
-
-   for (i=0; i<(pVbe->pInt10->cx & 0xff); i++) {
-      CARD32 VODA = (CARD32)((CARD32*)pVbe->memory)[i];
-
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Next ACPI _DGS [%d] 0x%lx\n",
-		 i, (unsigned long) VODA);
-
-      /* Check if it's a custom Video Output Device Attribute */
-      if (!(VODA & 0x80000000)) 
-         continue;
-
-      pipe = (VODA & 0x000000F0) >> 4;
-
-      if (pipe != 0 && pipe != 1) {
-         pipe = 0;
-#if 0
-         ErrorF("PIPE %d\n",pipe);
-#endif
-      }
-
-      switch ((VODA & 0x00000F00) >> 8) {
-      case 0x0:
-      case 0x1: /* CRT */
-         devices |= PIPE_CRT << (pipe == 1 ? 8 : 0);
-         break;
-      case 0x2: /* TV/HDTV */
-         devices |= PIPE_TV << (pipe == 1 ? 8 : 0);
-         break;
-      case 0x3: /* DFP */
-         devices |= PIPE_DFP << (pipe == 1 ? 8 : 0);
-         break;
-      case 0x4: /* LFP */
-         devices |= PIPE_LFP << (pipe == 1 ? 8 : 0);
-         break;
-      }
-   }
-
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ACPI Toggle devices 0x%x\n", devices);
-
-   return devices;
-}
-
-static int
-GetAttachableDisplayDeviceList(ScrnInfoPtr pScrn)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-   int i;
-
-   DPRINTF(PFX, "GetAttachableDisplayDeviceList\n");
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f64;
-   pVbe->pInt10->bx = 0x900;
-   pVbe->pInt10->es = SEG_ADDR(pVbe->real_mode_base);
-   pVbe->pInt10->di = SEG_OFF(pVbe->real_mode_base);
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (!Check5fStatus(pScrn, 0x5f64, pVbe->pInt10->ax))
-      return 0;
-
-   for (i=0; i<(pVbe->pInt10->cx & 0xff); i++)
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		"Attachable device 0x%lx.\n", 
-		   (unsigned long) ((CARD32*)pVbe->memory)[i]);
-
-   return pVbe->pInt10->cx & 0xffff;
-}
-
 struct panelid {
 	short hsize;
 	short vsize;
@@ -1188,6 +1078,31 @@ I830IsPrimary(ScrnInfoPtr pScrn)
    }
 
    return TRUE;
+}
+
+#define HOTKEY_BIOS_SWITCH	0
+#define HOTKEY_DRIVER_NOTIFY	1
+
+/**
+ * Controls the BIOS's behavior on hotkey switch.
+ *
+ * If the mode is HOTKEY_BIOS_SWITCH, the BIOS will be set to do a mode switch
+ * on its own and update the state in the scratch register.
+ * If the mode is HOTKEY_DRIVER_NOTIFY, the BIOS won't do a mode switch and
+ * will just update the state to represent what it would have been switched to.
+ */
+static void
+i830SetHotkeyControl(ScrnInfoPtr pScrn, int mode)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   CARD8 gr18;
+
+   gr18 = pI830->readControl(pI830, GRX, 0x18);
+   if (mode == HOTKEY_BIOS_SWITCH)
+      gr18 &= ~HOTKEY_VBIOS_SWITCH_BLOCK;
+   else
+      gr18 |= HOTKEY_VBIOS_SWITCH_BLOCK;
+   pI830->writeControl(pI830, GRX, 0x18, gr18);
 }
 
 static Bool
@@ -2127,28 +2042,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
 	      "Maximum frambuffer space: %d kByte\n", pScrn->videoRam);
-
-   /* XXX Move this to a header. */
-#define VIDEO_BIOS_SCRATCH 0x18
-
-#if 1
-   /*
-    * XXX This should be in ScreenInit/EnterVT.  PreInit should not leave the
-    * state changed.
-    */
-   /* Enable hot keys by writing the proper value to GR18 */
-   {
-      CARD8 gr18;
-
-      gr18 = pI830->readControl(pI830, GRX, VIDEO_BIOS_SCRATCH);
-      gr18 &= ~0x80;			/*
-					 * Clear Hot key bit so that Video
-					 * BIOS performs the hot key
-					 * servicing
-					 */
-      pI830->writeControl(pI830, GRX, VIDEO_BIOS_SCRATCH, gr18);
-   }
-#endif
 
    /*
     * Limit videoram available for mode selection to what the video
@@ -3640,6 +3533,8 @@ I830LeaveVT(int scrnIndex, int flags)
       TimerCancel(pI830->devicesTimer);
    pI830->devicesTimer = NULL;
 
+   i830SetHotkeyControl(pScrn, HOTKEY_BIOS_SWITCH);
+
 #ifdef I830_XV
    /* Give the video overlay code a chance to shutdown. */
    I830VideoSwitchModeBefore(pScrn, NULL);
@@ -3852,9 +3747,6 @@ I830EnterVT(int scrnIndex, int flags)
 	  pScrn->virtualY * pScrn->displayWidth * pI830->cpp);
 #endif
 
-   /* Setup for device monitoring status */
-   pI830->monitorSwitch = pI830->toggleDevices = INREG(SWF0) & 0x0000FFFF;
-
    if (I830IsPrimary(pScrn))
       if (!I830BindAGPMemory(pScrn))
          return FALSE;
@@ -3899,6 +3791,13 @@ I830EnterVT(int scrnIndex, int flags)
       pI830->LockHeld = 0;
    }
 #endif
+
+   /* Set the hotkey to just notify us.  We can check its results periodically
+    * in the CheckDevicesTimer.  Eventually we want the kernel to just hand us
+    * an input event when someone presses the button, but for now we just have
+    * to poll.
+    */
+   i830SetHotkeyControl(pScrn, HOTKEY_DRIVER_NOTIFY);
 
    if (pI830->checkDevices)
       pI830->devicesTimer = TimerSet(NULL, 0, 1000, I830CheckDevicesTimer, pScrn);
@@ -4264,15 +4163,6 @@ I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
 
       ErrorF("I830PMEvent: Capability change\n");
 
-      /* ACPI Toggle */
-      pI830->toggleDevices = GetNextDisplayDeviceList(pScrn, 1);
-      if (xf86IsEntityShared(pScrn->entityList[0])) {
-         I830Ptr pI8302 = I830PTR(pI830->entityPrivate->pScrn_2);
-         pI8302->toggleDevices = pI830->toggleDevices;
-      }
-
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ACPI Toggle to 0x%x\n",pI830->toggleDevices);
-
       I830CheckDevicesTimer(NULL, 0, pScrn);
       SaveScreens(SCREEN_SAVER_FORCER, ScreenSaverReset);
       break;
@@ -4282,27 +4172,16 @@ I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
    return TRUE;
 }
 
-static int CountBits(int a)
-{
-   int i;
-   int b = 0;
-
-   for (i=0;i<8;i++) {
-     if (a & (1<<i))
-        b+=1;
-   }
-
-   return b;
-}
-
-static CARD32
-I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
-{
-   ScrnInfoPtr pScrn = (ScrnInfoPtr) arg;
-   I830Ptr pI830 = I830PTR(pScrn);
-   int cloned = 0;
 #if 0
+/**
+ * This function is used for testing of the screen detect functions from the
+ * periodic timer.
+ */
+static void
+i830MonitorDetectDebugger(ScrnInfoPtr pScrn)
+{
    Bool found_crt;
+   I830Ptr pI830 = I830PTR(pScrn);
    int start, finish, i;
 
    if (!pScrn->vtSema)
@@ -4328,303 +4207,41 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Detected SDVO as %s in %dms\n",
 		 found_sdvo ? "connected" : "disconnected", finish - start);
    }
+}
 #endif
 
-   if (pScrn->vtSema) {
-      /* Check for monitor lid being closed/opened and act accordingly */
-      CARD32 adjust;
-      CARD32 temp = INREG(SWF0) & 0x0000FFFF;
-      int fixup = 0;
-      I830Ptr pI8301;
-      I830Ptr pI8302 = NULL;
+static CARD32
+I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
+{
+   ScrnInfoPtr pScrn = (ScrnInfoPtr) arg;
+   I830Ptr pI830 = I830PTR(pScrn);
+   CARD8 gr18;
 
-      if (I830IsPrimary(pScrn))
-         pI8301 = pI830;
-      else 
-         pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-
-      if (xf86IsEntityShared(pScrn->entityList[0]))
-         pI8302 = I830PTR(pI830->entityPrivate->pScrn_2);
-
-      /* this avoids several BIOS calls if possible */
-      if (pI830->monitorSwitch != temp || pI830->monitorSwitch != pI830->toggleDevices) {
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		    "Hotkey switch to 0x%lx.\n", (unsigned long) temp);
-
-         if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-            (*pI830->AccelInfoRec->Sync)(pScrn);
-            pI830->AccelInfoRec->NeedToSync = FALSE;
-            if (xf86IsEntityShared(pScrn->entityList[0]))
-               pI8302->AccelInfoRec->NeedToSync = FALSE;
-         }
-
-         GetAttachableDisplayDeviceList(pScrn);
-         
-	 pI8301->lastDevice0 = pI8301->lastDevice1;
-         pI8301->lastDevice1 = pI8301->lastDevice2;
-         pI8301->lastDevice2 = pI8301->monitorSwitch;
-
-	 if (temp != pI8301->lastDevice1 && 
-	     temp != pI8301->lastDevice2) {
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Detected three device configs.\n");
-	 } else
-         if (CountBits(temp & 0xff) > 1) {
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Detected cloned pipe mode (A).\n");
-            if (xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone)
-	       temp = pI8301->MonType2 << 8 | pI8301->MonType1;
-         } else
-         if (CountBits((temp & 0xff00) >> 8) > 1) {
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Detected cloned pipe mode (B).\n");
-            if (xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone)
-	       temp = pI8301->MonType2 << 8 | pI8301->MonType1;
-         } else
-         if (pI8301->lastDevice1 && pI8301->lastDevice2) {
-            if ( ((pI8301->lastDevice1 & 0xFF00) == 0) && 
-                 ((pI8301->lastDevice2 & 0x00FF) == 0) ) {
-               xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Detected last devices (1).\n");
-	       cloned = 1;
-            } else if ( ((pI8301->lastDevice2 & 0xFF00) == 0) && 
-                 ((pI8301->lastDevice1 & 0x00FF) == 0) ) {
-               xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Detected last devices (2).\n");
-	       cloned = 1;
-            } else
-               cloned = 0;
-         }
-
-         if (cloned &&
-             ((CountBits(pI8301->lastDevice1 & 0xff) > 1) ||
-             ((CountBits((pI8301->lastDevice1 & 0xff00) >> 8) > 1))) ) {
-               xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Detected duplicate (1).\n");
-               cloned = 0;
-         } else
-         if (cloned &&
-             ((CountBits(pI8301->lastDevice2 & 0xff) > 1) ||
-             ((CountBits((pI8301->lastDevice2 & 0xff00) >> 8) > 1))) ) {
-               xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Detected duplicate (2).\n");
-               cloned = 0;
-         } 
-
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Requested display devices 0x%lx.\n", 
-		    (unsigned long) temp);
-
-
-         /* If the BIOS doesn't flip between CRT, LFP and CRT+LFP we fake
-          * it here as it seems some just flip between CRT and LFP. Ugh!
-          *
-          * So this pushes them onto Pipe B and clones the displays, which
-          * is what most BIOS' should be doing.
-          *
-          * Cloned pipe mode should only be done when running single head.
-          */
-         if (xf86IsEntityShared(pScrn->entityList[0])) {
-            cloned = 0;
-
-	    /* Some BIOS' don't realize we may be in true dual head mode.
-	     * And only display the primary output on both when switching.
-	     * We detect this here and cycle back to both pipes.
-	     */
-	    if ((pI830->lastDevice0 == temp) &&
-                ((CountBits(pI8301->lastDevice2 & 0xff) > 1) ||
-                ((CountBits((pI8301->lastDevice2 & 0xff00) >> 8) > 1))) ) {
-               xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Detected cloned pipe mode when dual head on previous switch. (0x%x -> 0x%x)\n", (int)temp, pI8301->MonType2 << 8 | pI8301->MonType1);
-	       temp = pI8301->MonType2 << 8 | pI8301->MonType1;
-	    }
-	    
-	 }
-
-         if (cloned) { 
-            if (pI830->Clone)
-               temp = pI8301->MonType2 << 8 | pI8301->MonType1;
-	    else if (pI8301->lastDevice1 & 0xFF)
-	       temp = pI8301->lastDevice1 << 8 | pI8301->lastDevice2;
-            else
-	       temp = pI8301->lastDevice2 << 8 | pI8301->lastDevice1;
-         } 
-
-         /* Jump to our next mode if we detect we've been here before */
-         if (temp == pI8301->lastDevice1 || temp == pI8301->lastDevice2) {
-             temp = GetToggleList(pScrn, 1);
-             xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"Detected duplicate devices. Toggling (0x%lx)\n", 
-			(unsigned long) temp);
-         }
-
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		"Detected display change operation (0x%x, 0x%x, 0x%lx).\n", 
-                pI8301->lastDevice1, pI8301->lastDevice2, 
-		    (unsigned long) temp);
-
-         /* So that if we close on the wrong config, we restore correctly */
-         pI830->specifiedMonitor = TRUE;
-
-         if (!xf86IsEntityShared(pScrn->entityList[0])) {
-            if ((temp & 0xFF00) && (temp & 0x00FF)) {
-               pI830->Clone = TRUE;
-               xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting Clone mode\n");
-            } else {
-               pI830->Clone = FALSE;
-               xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Clearing Clone mode\n");
-            }
-         }
-
-         {
-            /* Turn Cursor off before switching */
-            Bool on = pI830->cursorOn;
-            if (pI830->CursorInfoRec && pI830->CursorInfoRec->HideCursor)
-               pI830->CursorInfoRec->HideCursor(pScrn);
-            pI830->cursorOn = on;
-         }
-
-#if 0 /* Disable -- I'll need to look at this whole function later. */
-         /* double check the display devices are what's configured and try
-          * not to do it twice because of dual heads with the code above */
-         if (!SetDisplayDevices(pScrn, temp)) {
-            if ( cloned &&
-                    ((CountBits(temp & 0xff) > 1) ||
-                     (CountBits((temp & 0xff00) >> 8) > 1)) ) {
-	       temp = pI8301->lastDevice2 | pI8301->lastDevice1;
-               xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Cloning failed, "
-			  "trying dual pipe clone mode (0x%lx)\n", 
-			  (unsigned long) temp);
-               if (!SetDisplayDevices(pScrn, temp))
-                    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Failed to switch "
- 		    "to configured display devices (0x%lx).\n", 
-			       (unsigned long) temp);
-               else {
-                 pI830->Clone = TRUE;
-                 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting Clone mode\n");
-               }
-            }
-         }
-#endif
-
-         pI8301->monitorSwitch = temp;
-	 pI8301->operatingDevices = temp;
-	 pI8301->toggleDevices = temp;
-
-         if (xf86IsEntityShared(pScrn->entityList[0])) {
-	    pI8302->operatingDevices = pI8301->operatingDevices;
-            pI8302->monitorSwitch = pI8301->monitorSwitch;
-	    pI8302->toggleDevices = pI8301->toggleDevices;
-         }
-
-         fixup = 1;
+   if (!pScrn->vtSema)
+      return 1000;
 
 #if 0
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			"ACPI _DGS queried devices is 0x%x, but probed is 0x%x monitorSwitch=0x%x\n", 
-			pI830->toggleDevices, INREG(SWF0), pI830->monitorSwitch);
+   i830MonitorDetectDebugger(pScrn);
 #endif
-      } else {
-         int offset = -1;
-         if (I830IsPrimary(pScrn))
-            offset = pI8301->FrontBuffer.Start + ((pScrn->frameY0 * pI830->displayWidth + pScrn->frameX0) * pI830->cpp);
-         else {
-            offset = pI8301->FrontBuffer2.Start + ((pScrn->frameY0 * pI830->displayWidth + pScrn->frameX0) * pI830->cpp);
-	 }
 
-         if (pI830->pipe == 0)
-            adjust = INREG(DSPABASE);
-         else 
-            adjust = INREG(DSPBBASE);
+   /* Check for a hotkey press report from the BIOS. */
+   gr18 = pI830->readControl(pI830, GRX, 0x18);
+   if ((gr18 & (HOTKEY_TOGGLE | HOTKEY_SWITCH)) != 0) {
+      /* The user has pressed the hotkey requesting a toggle or switch.
+       * Re-probe our connected displays and turn on whatever we find.
+       *
+       * In the future, we want the hotkey to dump down to a user app which
+       * implements a sensible policy using RandR-1.2.  For now, all we get
+       * is this.
+       */
+      I830ValidateXF86ModeList(pScrn, FALSE);
+      xf86SwitchMode(pScrn->pScreen, pScrn->currentMode);
 
-         if (adjust != offset) {
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			                       "Fixing display offsets.\n");
-
-            i830AdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
-         }
-      }
-
-      if (fixup) {
-         ScreenPtr   pCursorScreen;
-         int x = 0, y = 0;
-
-
-         pCursorScreen = miPointerCurrentScreen();
-         if (pScrn->pScreen == pCursorScreen)
-            miPointerPosition(&x, &y);
-
-         /* Now, when we're single head, make sure we switch pipes */
-         if (!(xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone) || cloned) {
-            if (temp & 0xFF00)
-               pI830->pipe = 1;
-            else 
-               pI830->pipe = 0;
-	       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			 "Primary pipe is now %s.\n", pI830->pipe ? "B" : "A");
-         } 
-
-         pI830->currentMode = NULL;
-         I830SwitchMode(pScrn->pScreen->myNum, pScrn->currentMode, 0);
-         i830AdjustFrame(pScrn->pScreen->myNum, pScrn->frameX0, pScrn->frameY0, 0);
-
-         if (xf86IsEntityShared(pScrn->entityList[0])) {
-	    ScrnInfoPtr pScrn2;
-            I830Ptr pI8302;
-
-            if (I830IsPrimary(pScrn)) {
-	       pScrn2 = pI830->entityPrivate->pScrn_2;
-               pI8302 = I830PTR(pI830->entityPrivate->pScrn_2);
-            } else {
-	       pScrn2 = pI830->entityPrivate->pScrn_1;
-               pI8302 = I830PTR(pI830->entityPrivate->pScrn_1);
-            }
-
-            if (pScrn2->pScreen == pCursorScreen)
-               miPointerPosition(&x, &y);
-
-            pI8302->currentMode = NULL;
-            I830SwitchMode(pScrn2->pScreen->myNum, pScrn2->currentMode, 0);
-            i830AdjustFrame(pScrn2->pScreen->myNum, pScrn2->frameX0, pScrn2->frameY0, 0);
-
- 	    (*pScrn2->EnableDisableFBAccess) (pScrn2->pScreen->myNum, FALSE);
- 	    (*pScrn2->EnableDisableFBAccess) (pScrn2->pScreen->myNum, TRUE);
-
-            if (pScrn2->pScreen == pCursorScreen) {
-               int sigstate = xf86BlockSIGIO ();
-               miPointerWarpCursor(pScrn2->pScreen,x,y);
-
-               /* xf86Info.currentScreen = pScrn->pScreen; */
-               xf86UnblockSIGIO (sigstate);
-               if (pI8302->CursorInfoRec && !pI8302->SWCursor && pI8302->cursorOn) {
-                  pI8302->CursorInfoRec->HideCursor(pScrn);
-	          xf86SetCursor(pScrn2->pScreen, pI830->pCurs, x, y);
-                  pI8302->CursorInfoRec->ShowCursor(pScrn);
-                  pI8302->cursorOn = TRUE;
-               }
-            }
-	 }
-
- 	 (*pScrn->EnableDisableFBAccess) (pScrn->pScreen->myNum, FALSE);
- 	 (*pScrn->EnableDisableFBAccess) (pScrn->pScreen->myNum, TRUE);
-
-         if (pScrn->pScreen == pCursorScreen) {
-            int sigstate = xf86BlockSIGIO ();
-            miPointerWarpCursor(pScrn->pScreen,x,y);
-
-            /* xf86Info.currentScreen = pScrn->pScreen; */
-            xf86UnblockSIGIO (sigstate);
-            if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn) {
-               pI830->CursorInfoRec->HideCursor(pScrn);
-	       xf86SetCursor(pScrn->pScreen, pI830->pCurs, x, y);
-               pI830->CursorInfoRec->ShowCursor(pScrn);
-               pI830->cursorOn = TRUE;
-            }
-         }
-      }
+      /* Clear the BIOS's hotkey press flags */
+      gr18 &= ~(HOTKEY_TOGGLE | HOTKEY_SWITCH);
+      pI830->writeControl(pI830, GRX, 0x18, gr18);
    }
 
-  
    return 1000;
 }
 

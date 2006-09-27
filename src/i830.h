@@ -392,10 +392,7 @@ typedef struct _I830Rec {
    CARD32 saveSWF4;
 
    Bool checkDevices;
-   int monitorSwitch;
    int operatingDevices;
-   int toggleDevices;
-   int lastDevice0, lastDevice1, lastDevice2;
 
    /* [0] is Pipe A, [1] is Pipe B. */
    int availablePipes;
