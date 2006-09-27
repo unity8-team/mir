@@ -282,7 +282,7 @@ struct brw_surface_state *dest_surf_state;
 struct brw_surface_state *src_surf_state;
 struct brw_surface_state *mask_surf_state;
 struct brw_sampler_state *src_sampler_state;
-struct brw_sampler_state *mask_sampler_state;  // could just use one sampler?
+struct brw_sampler_state *mask_sampler_state;  
 
 struct brw_vs_unit_state *vs_state;
 struct brw_sf_unit_state *sf_state;
@@ -297,7 +297,8 @@ struct brw_instruction *sip_kernel;
 CARD32 *binding_table;
 int binding_table_entries; 
 
-int dest_surf_offset, src_surf_offset, src_sampler_offset, vs_offset;
+int dest_surf_offset, src_surf_offset;
+int src_sampler_offset, mask_sampler_offset,vs_offset;
 int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
 int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
 int binding_table_offset;
@@ -381,17 +382,17 @@ static const CARD32 sf_kernel_static[][4] = {
 /* ps kernels */
 /* 1: no mask */
 static const CARD32 ps_kernel_static_nomask [][4] = {
-	#include "i965_composite_ps_nomask.h"
+	#include "i965_composite_wm_nomask.h"
 };
 
 /* 2: mask with componentAlpha, src * mask color, XXX: later */
 static const CARD32 ps_kernel_static_maskca [][4] = {
-	#include "i965_composite_ps_maskca.h"
+	#include "i965_composite_wm_maskca.h"
 };
 
 /* 3: mask without componentAlpha, src * mask alpha */
 static const CARD32 ps_kernel_static_masknoca [][4] = {
-	#include "i965_composite_ps_masknoca.h"
+	#include "i965_composite_wm_masknoca.h"
 };
 
 Bool
@@ -478,11 +479,14 @@ ErrorF("i965 prepareComposite\n");
    cc_viewport_offset = ALIGN(next_offset, 32);
    next_offset = cc_viewport_offset + sizeof(*cc_viewport);
 
-   // : fix for texture sampler
-   // XXX: -> use only one sampler
+   // for texture sampler
    src_sampler_offset = ALIGN(next_offset, 32);
    next_offset = src_sampler_offset + sizeof(*src_sampler_state);
 
+   if (pMask) {
+   	mask_sampler_offset = ALIGN(next_offset, 32);
+   	next_offset = mask_sampler_offset + sizeof(*mask_sampler_state);
+   }
    /* Align VB to native size of elements, for safety */
    vb_offset = ALIGN(next_offset, 8);
    next_offset = vb_offset + vb_size;
@@ -536,6 +540,9 @@ ErrorF("i965 prepareComposite\n");
 	mask_surf_state = (void *)(state_base + mask_surf_offset);
 
    src_sampler_state = (void *)(state_base + src_sampler_offset);
+   if (pMask)
+	mask_sampler_state = (void *)(state_base + mask_sampler_offset);
+
    binding_table = (void *)(state_base + binding_table_offset);
 
    vb = (void *)(state_base + vb_offset);
@@ -724,6 +731,37 @@ ErrorF("i965 prepareComposite\n");
     	   and just a single texel tex map, with R32G32B32A32_FLOAT */
    src_sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
 
+   if (pMask) {
+   	memset(mask_sampler_state, 0, sizeof(*mask_sampler_state));
+   	mask_sampler_state->ss0.lod_peclamp = 1; /* GL mode */
+   	switch(pMaskPicture->filter) {
+   	case PictFilterNearest:
+   	    mask_sampler_state->ss0.min_filter = BRW_MAPFILTER_NEAREST; 
+   	    mask_sampler_state->ss0.mag_filter = BRW_MAPFILTER_NEAREST;
+	    break;
+   	case PictFilterBilinear:
+   	    mask_sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR; 
+   	    mask_sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
+	    break;
+   	default:
+	    I830FALLBACK("Bad filter 0x%x\n", pMaskPicture->filter);
+   	}
+
+   	if (!pMaskPicture->repeat) {
+	/* XXX: clamp_border and set border to 0 */
+   	    mask_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP; 
+   	    mask_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+   	    mask_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+   	} else {
+   	    mask_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_WRAP; 
+   	    mask_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
+   	    mask_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
+    	}
+   /* XXX: ss2 has border color pointer, which should be in general state address,
+    	   and just a single texel tex map, with R32G32B32A32_FLOAT */
+   	mask_sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
+   }
+
    /* Set up the vertex shader to be disabled (passthrough) */
    memset(vs_state, 0, sizeof(*vs_state));
    // XXX: vs URB should be defined for VF vertex URB store. done already?
@@ -783,26 +821,26 @@ ErrorF("i965 prepareComposite\n");
    wm_state->thread0.grf_reg_count = ((PS_KERNEL_NUM_GRF & ~15) / 16);
    wm_state->thread1.single_program_flow = 1;
    if (!pMask)
-       wm_state->thread1.binding_table_entry_count = 2; /* tex and fb */
+       wm_state->thread1.binding_table_entry_count = 2; /* 1 tex and fb */
    else
-       wm_state->thread1.binding_table_entry_count = 3; /* tex and fb */
+       wm_state->thread1.binding_table_entry_count = 3; /* 2 tex and fb */
 
    wm_state->thread2.scratch_space_base_pointer = 0;
    wm_state->thread2.per_thread_scratch_space = 0;
    // XXX: urb allocation
-   wm_state->thread3.dispatch_grf_start_reg = 3; /* must match kernel */
-   // wm kernel use urb from 3, see wm_program in compiler module
-   wm_state->thread3.urb_entry_read_length = 1;  /* one per pair of attrib */
    wm_state->thread3.const_urb_entry_read_length = 0;
    wm_state->thread3.const_urb_entry_read_offset = 0;
+   wm_state->thread3.urb_entry_read_length = 1;  /* one per pair of attrib */
    wm_state->thread3.urb_entry_read_offset = 0;
+   // wm kernel use urb from 3, see wm_program in compiler module
+   wm_state->thread3.dispatch_grf_start_reg = 3; /* must match kernel */
 
-   wm_state->wm4.stats_enable = 1;
-   wm_state->wm4.sampler_state_pointer = (state_base_offset + src_sampler_offset) >> 5;
+   wm_state->wm4.stats_enable = 1;  /* statistic */
+   wm_state->wm4.sampler_state_pointer = (state_base_offset + src_sampler_offset) >> 5; 
    wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
    wm_state->wm5.max_threads = PS_MAX_THREADS - 1;
    wm_state->wm5.thread_dispatch_enable = 1;
-   //just use 16-pixel dispatch, don't need to change kernel start point
+   //just use 16-pixel dispatch (4 subspans), don't need to change kernel start point
    wm_state->wm5.enable_16_pix = 1;
    wm_state->wm5.enable_8_pix = 0;
    wm_state->wm5.early_depth_test = 1;
