@@ -2768,7 +2768,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 	       "Validating modes on %s head ---------\n",
 	       info->IsSecondary ? "Secondary" : "Primary");
 
-    if (!pScrn->monitor->DDC && info->ddc_mode) {
+    if (!pRADEONEnt->Controller[0].pPort->MonInfo && !pRADEONEnt->Controller[1].pPort->MonInfo && info->ddc_mode) {
 	info->ddc_mode = FALSE;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "No DDC data available, DDCMode option is dismissed\n");
