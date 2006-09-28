@@ -417,6 +417,11 @@ ErrorF("i965 prepareComposite\n");
 //    i965_surf_setup(pScrn, pSrcPicture, pMaskPicture, pDstPicture,
 //   			pSrc, pMask, pDst);
     // then setup blend, and shader program 
+    
+    /* FIXME: fallback in pMask for now, would be enable after finish
+	wm kernel program */
+    if (pMask)
+	I830FALLBACK("No mask support yet.\n");
 
     I965GetDestFormat(pDstPicture, &dst_format);
     src_offset = exaGetPixmapOffset(pSrc);
@@ -995,67 +1000,11 @@ ErrorF("i965 prepareComposite\n");
 	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
 	    (8 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); 
 		//XXX: is this has alignment issue? and thread access problem?
-	    
    }
    
    ADVANCE_LP_RING();
     
    }
-
-    {
-	/* cc states */
-	/* dest buffer */
-	/* urbs */
-	/* binding tables */
-	/* clipping */
-	/* color blend (color calculator, dataport shared function)
-		COLOR_CALC_STATE/SURFACE_STATE(rendertarget's color blend enable
-		bit)
-		Errata!!!: brw-a/b, rendertarget 'local' color blending always
-		enabled! only control by global enable bit.
-	   surface format for blend, "Surface format table in Sampling Engine"
-	   XXX: if surface format not support, we should fallback.
-	*/
-	/* 
-	    render target should be defined in SURFACE_STATE
-	    	o render target SURFTYPE_BUFFER? 2D? Keith has 2D set.
-		o depth buffer SURFTYPE_NULL?
-	    color blend:
-	        o Errata!!: mush issue PIPE_CONTROL with Write Cache Flush
-		enable set, before transite to read-write color buffer. 
-	    	o disable pre/post-blending clamping
-		o enable color buffer blending enable in COLOR_CALC_STATE,(vol2, 3d rasterization 3.8) 
-		  enable color blending enable in SURFACE_STATE.(shared,
-		  sampling engine 1.7) 
-		  disable depth test
-		o (we don't use BLENDFACT_SRC_ALPHA_SATURATE, so don't care
-		the Errata for independent alpha blending, just use color
-		blending factor for all) disable independent alpha blending
-		in COLOR_CALC_STATE
-		o set src/dst blend factor in COLOR_CALC_STATE
-
-	*/
-    }
-
-	/* shader program 
-		o use sampler shared function for texture data
-		o submit result to dataport for later color blending */
-    {
-	 /* PS program:
-	 	o declare sampler and variables??
-		o 'send' cmd to Sampling Engine to load 'src' picture
-		o if (!pMask) then 'send' 'src' texture value to DataPort
-		target render cache
-		o else 
-		    - 'send' cmd to SE to load 'mask' picture
-		    - if no alpha, force to 1 (move 1 to W element of mask)
-		    - if (mask->componentAlpha) then mul 'src' & 'mask', 'send'
-		    	output to DataPort render cache
-		    - else mul 'src' & 'mask''s W element(alpha), 'send' output
-		    	to Dataport render cache
-	 */
-
-    }
 
 #ifdef I830DEBUG
     ErrorF("try to sync to show any errors...");
