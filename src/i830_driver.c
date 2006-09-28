@@ -2064,9 +2064,6 @@ I830XineramaExtensionInit(ScrnInfoPtr pScrn)
        pI830->I830XineramaVY = 0;
 
     }
-
-    I830UpdateXineramaScreenInfo(pScrn);
-
 }
 
 static void
@@ -7491,6 +7488,9 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "libshadow is version %d.%d.%d, required 1.1.0 or greater for rotation.\n",pI830->shadowReq.majorversion,pI830->shadowReq.minorversion,pI830->shadowReq.patchlevel);
    }
 
+   /* Call this unconditionally, as it also sets some fields in the SAREA */
+   I830UpdateXineramaScreenInfo(pScrn);
+
    if (serverGeneration == 1)
       xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
@@ -8235,6 +8235,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 
    /* Since RandR (indirectly) uses SwitchMode(), we need to
     * update our Xinerama info here, too, in case of resizing
+    * Call this unconditionally, as it also sets some fields in the SAREA
     */
    I830UpdateXineramaScreenInfo(pScrn);
 
