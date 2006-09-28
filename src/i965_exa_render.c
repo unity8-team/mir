@@ -437,11 +437,22 @@ ErrorF("i965 prepareComposite\n");
     scale_units[2][0] = pDst->drawable.width;
     scale_units[2][1] = pDst->drawable.height;
 
+    if (pSrcPicture->transform) {
+	is_transform[0] = TRUE;
+	transform[0] = pSrcPicture->transform;
+    } else 
+	is_transform[0] = FALSE;
+
     if (!pMask) {
 	is_transform[1] = FALSE;
 	scale_units[1][0] = -1;
 	scale_units[1][1] = -1;
     } else {
+	if (pMaskPicture->transform) {
+	    is_transform[1] = TRUE;
+	    transform[1] = pMaskPicture->transform;
+	} else
+	    is_transform[1] = FALSE;
 	scale_units[1][0] = pMask->drawable.width;
 	scale_units[1][1] = pMask->drawable.height;
     }
