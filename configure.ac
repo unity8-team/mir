@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-ati],
-        6.6.2,
+        6.6.1,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-ati)
 AC_DEFINE_UNQUOTED([ATI_VERSION_MAJOR],
@@ -135,7 +135,7 @@ case $host_cpu in
     ATIMISC_TV_OUT=yes
     ATIMISC_CPIO=yes
     ;;
-  x86_64|amd64|alpha|ia64)
+  x86_64|amd64|alpha)
     ATIMISC_CPIO=yes
     ;;
   sparc)

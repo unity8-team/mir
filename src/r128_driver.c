@@ -4522,6 +4522,18 @@ static void R128DisplayPowerManagementSet(ScrnInfoPtr pScrn,
 		OUTREGP(R128_CRTC_EXT_CNTL, mask, ~mask);
 	break;
     }
+    if(info->isDFP) {
+	switch (PowerManagementMode) {
+	case DPMSModeOn:
+	    OUTREG(R128_FP_GEN_CNTL, INREG(R128_FP_GEN_CNTL) | (R128_FP_FPON | R128_FP_TDMS_EN));
+	    break;
+	case DPMSModeStandby:
+	case DPMSModeSuspend:
+	case DPMSModeOff:
+	    OUTREG(R128_FP_GEN_CNTL, INREG(R128_FP_GEN_CNTL) & ~(R128_FP_FPON | R128_FP_TDMS_EN));
+	    break;
+	}
+    }
 }
 
 static int r128_set_backlight_enable(ScrnInfoPtr pScrn, int on);
