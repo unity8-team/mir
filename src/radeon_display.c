@@ -1445,15 +1445,15 @@ void RADEONEnableDisplay(ScrnInfoPtr pScrn, RADEONController* pCRTC, BOOL bEnabl
                 save->crtc_ext_cntl |= RADEON_CRTC_CRT_ON;
             } else if (pCRTC->pPort->DACType == DAC_TVDAC) {
                 if (info->ChipFamily == CHIP_FAMILY_R200) {
-                    tmp = INREG(RADEON_CRTC2_GEN_CNTL);
-                    tmp |= RADEON_CRTC2_CRT2_ON;  
-                    OUTREG(RADEON_CRTC2_GEN_CNTL, tmp);
-                    save->crtc2_gen_cntl |= RADEON_CRTC2_CRT2_ON;
-                } else {
                     tmp = INREG(RADEON_FP2_GEN_CNTL);
                     tmp |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
                     OUTREG(RADEON_FP2_GEN_CNTL, tmp);
                     save->fp2_gen_cntl |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+                } else {
+                    tmp = INREG(RADEON_CRTC2_GEN_CNTL);
+                    tmp |= RADEON_CRTC2_CRT2_ON;  
+                    OUTREG(RADEON_CRTC2_GEN_CNTL, tmp);
+                    save->crtc2_gen_cntl |= RADEON_CRTC2_CRT2_ON;
                 }
             }
 	    RADEONDacPowerSet(pScrn, bEnable, (pCRTC->pPort->DACType == DAC_PRIMARY));
