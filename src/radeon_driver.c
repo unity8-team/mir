@@ -55,7 +55,7 @@
  * This server does not yet support these XFree86 4.0 features:
  * !!!! FIXME !!!!
  *   DDC1 & DDC2
- *   shadowfb (Note: dri uses shadowfb for another purpose in radeon_dri.c)
+ *   shadowfb
  *   overlay planes
  *
  * Modified by Marc Aurele La France (tsi@xfree86.org) for ATI driver merge.
@@ -360,11 +360,6 @@ static const char *driSymbols[] = {
     "DRICreatePCIBusID",
     NULL
 };
-
-static const char *driShadowFBSymbols[] = {
-    "ShadowFBInit",
-    NULL
-};
 #endif
 
 static const char *vbeSymbols[] = {
@@ -411,7 +406,6 @@ void RADEONLoaderRefSymLists(void)
 #ifdef XF86DRI
 			  drmSymbols,
 			  driSymbols,
-			  driShadowFBSymbols,
 #endif
 			  fbdevHWSymbols,
 			  vbeSymbols,
@@ -3214,6 +3208,7 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     MessageType    from;
+    char          *reason;
 
     info->directRenderingEnabled = FALSE;
     info->directRenderingInited = FALSE;
@@ -3389,29 +3384,24 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 					      OPTION_NO_BACKBUFFER,
 					      FALSE);
 
-#ifdef XF86DRI
+    info->allowPageFlip = 0;
+
+#ifdef DAMAGE
     if (info->noBackBuffer) {
-	info->allowPageFlip = 0;
-    } else if (!xf86LoadSubModule(pScrn, "shadowfb")) {
-	info->allowPageFlip = 0;
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Couldn't load shadowfb module:\n");
+	from = X_DEFAULT;
+	reason = " because back buffer disabled";
     } else {
-	xf86LoaderReqSymLists(driShadowFBSymbols, NULL);
-
-	info->allowPageFlip = xf86ReturnOptValBool(info->Options,
-						   OPTION_PAGE_FLIP,
-						   FALSE);
-	if (info->allowPageFlip && info->useEXA) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Page flipping not allowed with EXA, disabling.\n");
-	    info->allowPageFlip = FALSE;
-	}
+	from = xf86GetOptValBool(info->Options, OPTION_PAGE_FLIP,
+				 &info->allowPageFlip) ? X_CONFIG : X_DEFAULT;
+	reason = "";
     }
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Page flipping %sabled\n",
-	       info->allowPageFlip ? "en" : "dis");
+#else
+    from = X_DEFAULT;
+    reason = " because Damage layer not available at build time";
 #endif
+
+    xf86DrvMsg(pScrn->scrnIndex, from, "Page Flipping %sabled%s\n",
+	       info->allowPageFlip ? "en" : "dis", reason);
 
     info->DMAForXv = TRUE;
     from = xf86GetOptValBool(info->Options, OPTION_XV_DMA, &info->DMAForXv)
@@ -4834,14 +4824,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	xf86DrvMsg(scrnIndex, X_INFO, "Acceleration disabled\n");
 	info->accelOn = FALSE;
     }
-
-#ifdef XF86DRI
-    /* Init page flipping if enabled now */
-    if (info->allowPageFlip) {
-	RADEONTRACE(("Initializing Page Flipping\n"));
-	RADEONDRIInitPageFlip(pScreen);
-    }
-#endif
 
     /* Init DPMS */
     RADEONTRACE(("Initializing DPMS\n"));

@@ -54,8 +54,6 @@
 #include "xf86PciInfo.h"
 #include "windowstr.h"
 
-
-#include "shadowfb.h"
 				/* GLX/DRI/DRM definitions */
 #define _XF86DRI_SERVER_
 #include "GL/glxtokens.h"
@@ -70,7 +68,7 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen);
 static void RADEONDRITransitionMultiToSingle3d(ScreenPtr pScreen);
 static void RADEONDRITransitionSingleToMulti3d(ScreenPtr pScreen);
 
-#ifdef USE_XAA
+#ifdef DAMAGE
 static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 #endif
 
@@ -419,6 +417,19 @@ static void RADEONLeaveServer(ScreenPtr pScreen)
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     RING_LOCALS;
+
+#ifdef DAMAGE
+    if (info->pDamage) {
+	RegionPtr pDamageReg = DamageRegion(info->pDamage);
+
+	if (pDamageReg) {
+	    RADEONDRIRefreshArea(pScrn, REGION_NUM_RECTS(pDamageReg),
+				 REGION_RECTS(pDamageReg));
+
+	    DamageEmpty(info->pDamage);
+	}
+    }
+#endif
 
     /* The CP is always running, but if we've generated any CP commands
      * we must flush them to the kernel module now.
@@ -1624,30 +1635,6 @@ Bool RADEONDRIFinishScreenInit(ScreenPtr pScreen)
     return TRUE;
 }
 
-void RADEONDRIInitPageFlip(ScreenPtr pScreen)
-{
-    ScrnInfoPtr         pScrn = xf86Screens[pScreen->myNum];
-    RADEONInfoPtr       info  = RADEONPTR(pScrn);
-
-#ifdef USE_XAA
-   /* Have shadowfb run only while there is 3d active. This must happen late,
-     * after XAAInit has been called 
-     */
-    if (!info->useEXA) {
-	if (!ShadowFBInit( pScreen, RADEONDRIRefreshArea )) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "ShadowFB init failed, Page Flipping disabled\n");
-	    info->allowPageFlip = 0;
-	} else
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "ShadowFB initialized for Page Flipping\n");
-    } else
-#endif /* USE_XAA */
-    {
-       info->allowPageFlip = 0;
-    }
-}
-
 /**
  * This function will attempt to get the Radeon hardware back into shape
  * after a resume from disc.
@@ -1798,8 +1785,6 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
     }
 }
 
-#ifdef USE_XAA
-
 /* Use callbacks from dri.c to support pageflipping mode for a single
  * 3d context without need for any specific full-screen extension.
  *
@@ -1808,11 +1793,11 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
  */
 
 
-/* Use the shadowfb module to maintain a list of dirty rectangles.
+#ifdef DAMAGE
+
+/* Use the damage layer to maintain a list of dirty rectangles.
  * These are blitted to the back buffer to keep both buffers clean
  * during page-flipping when the 3d application isn't fullscreen.
- *
- * Unlike most use of the shadowfb code, both buffers are in video memory.
  *
  * An alternative to this would be to organize for all on-screen drawing
  * operations to be duplicated for the two buffers.  That might be
@@ -1824,7 +1809,11 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 {
     RADEONInfoPtr       info       = RADEONPTR(pScrn);
     int                 i;
-    RADEONSAREAPrivPtr  pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+    ScreenPtr           pScreen    = pScrn->pScreen;
+    RADEONSAREAPrivPtr  pSAREAPriv = DRIGetSAREAPrivate(pScreen);
+#ifdef USE_EXA
+    PixmapPtr           pPix = pScreen->GetScreenPixmap(pScreen);
+#endif
 
     if (!info->directRenderingInited)
 	return;
@@ -1835,64 +1824,98 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     if (!pSAREAPriv->pfAllowPageFlip && pSAREAPriv->pfCurrentPage == 0)
 	return;
 
-    /* XXX: implement for EXA */
     /* pretty much a hack. */
 
-    /* Make sure accel has been properly inited */
-    if (info->accel == NULL || info->accel->SetupForScreenToScreenCopy == NULL)
-	return;
-    if (info->tilingEnabled)
-       info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
-    (*info->accel->SetupForScreenToScreenCopy)(pScrn,
-					       1, 1, GXcopy,
-					       (CARD32)(-1), -1);
+#ifdef USE_EXA
+    if (info->useEXA) {
+	CARD32 src_pitch_offset, dst_pitch_offset, datatype;
+
+	RADEONGetPixmapOffsetPitch(pPix, &src_pitch_offset);
+	dst_pitch_offset = src_pitch_offset + (info->backOffset >> 10);
+	RADEONGetDatatypeBpp(pScrn->bitsPerPixel, &datatype);
+	info->xdir = info->ydir = 1;
+
+	RADEONDoPrepareCopyCP(pScrn, src_pitch_offset, dst_pitch_offset, datatype,
+			      GXcopy, ~0);
+    }
+#endif
+
+#ifdef USE_XAA
+    if (!info->useEXA) {
+	/* Make sure accel has been properly inited */
+	if (info->accel == NULL || info->accel->SetupForScreenToScreenCopy == NULL)
+	    return;
+	if (info->tilingEnabled)
+	    info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
+	(*info->accel->SetupForScreenToScreenCopy)(pScrn,
+						   1, 1, GXcopy,
+						   (CARD32)(-1), -1);
+    }
+#endif
 
     for (i = 0 ; i < num ; i++, pbox++) {
 	int xa = max(pbox->x1, 0), xb = min(pbox->x2, pScrn->virtualX-1);
 	int ya = max(pbox->y1, 0), yb = min(pbox->y2, pScrn->virtualY-1);
 
 	if (xa <= xb && ya <= yb) {
-	    (*info->accel->SubsequentScreenToScreenCopy)(pScrn, xa, ya,
-							 xa + info->backX,
-							 ya + info->backY,
-							 xb - xa + 1,
-							 yb - ya + 1);
+#ifdef USE_EXA
+	    if (info->useEXA) {
+		RADEONCopyCP(pPix, xa, ya, xa, ya, xb - xa + 1, yb - ya + 1);
+	    }
+#endif
+
+#ifdef USE_XAA
+	    if (!info->useEXA) {
+		(*info->accel->SubsequentScreenToScreenCopy)(pScrn, xa, ya,
+							     xa + info->backX,
+							     ya + info->backY,
+							     xb - xa + 1,
+							     yb - ya + 1);
+	    }
+#endif
 	}
     }
+
+#ifdef USE_XAA
     info->dst_pitch_offset &= ~RADEON_DST_TILE_MACRO;
+#endif
 }
 
-#endif /* USE_XAA */
+#endif /* DAMAGE */
 
 static void RADEONEnablePageFlip(ScreenPtr pScreen)
 {
-#ifdef USE_XAA
+#ifdef DAMAGE
     ScrnInfoPtr         pScrn      = xf86Screens[pScreen->myNum];
     RADEONInfoPtr       info       = RADEONPTR(pScrn);
-    RADEONSAREAPrivPtr  pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
-    /* XXX: Fix in EXA case */
     if (info->allowPageFlip) {
-        /* pretty much a hack. */
-	if (info->tilingEnabled)
-	    info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
-	/* Duplicate the frontbuffer to the backbuffer */
-	(*info->accel->SetupForScreenToScreenCopy)(pScrn,
-						   1, 1, GXcopy,
-						   (CARD32)(-1), -1);
+	BoxRec box = { .x1 = 0, .y1 = 0, .x2 = pScrn->virtualX - 1,
+		       .y2 = pScrn->virtualY - 1 };
+	RADEONSAREAPrivPtr pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
-	(*info->accel->SubsequentScreenToScreenCopy)(pScrn,
-						     0,
-						     0,
-						     info->backX,
-						     info->backY,
-						     pScrn->virtualX,
-						     pScrn->virtualY);
+	if (!info->pDamage) {
+	    PixmapPtr pPix  = pScreen->GetScreenPixmap(pScreen);
 
-	info->dst_pitch_offset &= ~RADEON_DST_TILE_MACRO;
+	    /* Have damage run only while there is 3d active.
+	     */
+	    info->pDamage = DamageCreate(NULL, NULL, DamageReportNone, TRUE,
+					 pScreen, pPix);
+
+	    if (info->pDamage == NULL) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "No screen damage record, page flipping disabled\n");
+		info->allowPageFlip = 0;
+		return;
+	    }
+
+	    DamageRegister(&pPix->drawable, info->pDamage);
+	}
+
 	pSAREAPriv->pfAllowPageFlip = 1;
+	RADEONDRIRefreshArea(pScrn, 1, &box);
     }
-#endif /* USE_XAA */
+#endif
 }
 
 static void RADEONDisablePageFlip(ScreenPtr pScreen)
@@ -1902,6 +1925,17 @@ static void RADEONDisablePageFlip(ScreenPtr pScreen)
      *   -- DRM needs to cope with Front-to-Back swapbuffers.
      */
     RADEONSAREAPrivPtr  pSAREAPriv = DRIGetSAREAPrivate(pScreen);
+#ifdef DAMAGE
+    RADEONInfoPtr info = RADEONPTR(xf86Screens[pScreen->myNum]);
+
+    if (info->pDamage) {
+	PixmapPtr pPix = pScreen->GetScreenPixmap(pScreen);
+
+	DamageUnregister(&pPix->drawable, info->pDamage);
+	DamageDestroy(info->pDamage);
+	info->pDamage = NULL;
+    }
+#endif
 
     pSAREAPriv->pfAllowPageFlip = 0;
 }

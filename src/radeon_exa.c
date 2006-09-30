@@ -118,7 +118,7 @@ static __inline__ CARD32 F_TO_DW(float val)
 /* Assumes that depth 15 and 16 can be used as depth 16, which is okay since we
  * require src and dest datatypes to be equal.
  */
-static Bool RADEONGetDatatypeBpp(int bpp, CARD32 *type)
+Bool RADEONGetDatatypeBpp(int bpp, CARD32 *type)
 {
 	switch (bpp) {
 	case 8:
@@ -172,7 +172,7 @@ static Bool RADEONGetOffsetPitch(PixmapPtr pPix, int bpp, CARD32 *pitch_offset,
 	return TRUE;
 }
 
-static Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix, CARD32 *pitch_offset)
+Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix, CARD32 *pitch_offset)
 {
 	RINFO_FROM_SCREEN(pPix->drawable.pScreen);
 	CARD32 pitch, offset;

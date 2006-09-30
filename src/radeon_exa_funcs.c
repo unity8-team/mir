@@ -127,29 +127,13 @@ FUNC_NAME(RADEONDoneSolid)(PixmapPtr pPix)
     TRACE;
 }
 
-static Bool
-FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
-			     int xdir, int ydir,
-			     int rop,
-			     Pixel planemask)
+void
+FUNC_NAME(RADEONDoPrepareCopy)(ScrnInfoPtr pScrn, CARD32 src_pitch_offset,
+			       CARD32 dst_pitch_offset, CARD32 datatype, int rop,
+			       Pixel planemask)
 {
-    RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    CARD32 datatype, src_pitch_offset, dst_pitch_offset;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     ACCEL_PREAMBLE();
-
-    TRACE;
-
-    info->xdir = xdir;
-    info->ydir = ydir;
-
-    if (pDst->drawable.bitsPerPixel == 24)
-	RADEON_FALLBACK(("24bpp unsupported"));
-    if (!RADEONGetDatatypeBpp(pDst->drawable.bitsPerPixel, &datatype))
-	RADEON_FALLBACK(("RADEONGetDatatypeBpp failed\n"));
-    if (!RADEONGetPixmapOffsetPitch(pSrc, &src_pitch_offset))
-	RADEON_FALLBACK(("RADEONGetPixmapOffsetPitch source failed\n"));
-    if (!RADEONGetPixmapOffsetPitch(pDst, &dst_pitch_offset))
-	RADEON_FALLBACK(("RADEONGetPixmapOffsetPitch dest failed\n"));
 
     RADEON_SWITCH_TO_2D();
 
@@ -165,16 +149,43 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
 	RADEON_GMC_CLR_CMP_CNTL_DIS);
     OUT_ACCEL_REG(RADEON_DP_WRITE_MASK, planemask);
     OUT_ACCEL_REG(RADEON_DP_CNTL,
-	((xdir >= 0 ? RADEON_DST_X_LEFT_TO_RIGHT : 0) |
-	 (ydir >= 0 ? RADEON_DST_Y_TOP_TO_BOTTOM : 0)));
+	((info->xdir >= 0 ? RADEON_DST_X_LEFT_TO_RIGHT : 0) |
+	 (info->ydir >= 0 ? RADEON_DST_Y_TOP_TO_BOTTOM : 0)));
     OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
     OUT_ACCEL_REG(RADEON_SRC_PITCH_OFFSET, src_pitch_offset);
     FINISH_ACCEL();
+}
+
+static Bool
+FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
+			     int xdir, int ydir,
+			     int rop,
+			     Pixel planemask)
+{
+    RINFO_FROM_SCREEN(pDst->drawable.pScreen);
+    CARD32 datatype, src_pitch_offset, dst_pitch_offset;
+
+    TRACE;
+
+    info->xdir = xdir;
+    info->ydir = ydir;
+
+    if (pDst->drawable.bitsPerPixel == 24)
+	RADEON_FALLBACK(("24bpp unsupported"));
+    if (!RADEONGetDatatypeBpp(pDst->drawable.bitsPerPixel, &datatype))
+	RADEON_FALLBACK(("RADEONGetDatatypeBpp failed\n"));
+    if (!RADEONGetPixmapOffsetPitch(pSrc, &src_pitch_offset))
+	RADEON_FALLBACK(("RADEONGetPixmapOffsetPitch source failed\n"));
+    if (!RADEONGetPixmapOffsetPitch(pDst, &dst_pitch_offset))
+	RADEON_FALLBACK(("RADEONGetPixmapOffsetPitch dest failed\n"));
+
+    FUNC_NAME(RADEONDoPrepareCopy)(pScrn, src_pitch_offset, dst_pitch_offset,
+				   datatype, rop, planemask);
 
     return TRUE;
 }
 
-static void
+void
 FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 		      int srcX, int srcY,
 		      int dstX, int dstY,

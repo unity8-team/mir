@@ -71,6 +71,10 @@
 #include "radeon_dripriv.h"
 #include "dri.h"
 #include "GL/glxint.h"
+#ifdef DAMAGE
+#include "damage.h"
+#include "globals.h"
+#endif
 #endif
 
 				/* Render support */
@@ -599,6 +603,9 @@ typedef struct {
 
     Bool              depthMoves;       /* Enable depth moves -- slow! */
     Bool              allowPageFlip;    /* Enable 3d page flipping */
+#ifdef DAMAGE
+    DamagePtr         pDamage;
+#endif
     Bool              have3DWindows;    /* Are there any 3d clients? */
 
     drmSize           gartSize;
@@ -847,7 +854,17 @@ extern Bool        RADEONAccelInit(ScreenPtr pScreen);
 extern Bool        RADEONSetupMemEXA (ScreenPtr pScreen);
 extern Bool        RADEONDrawInitMMIO(ScreenPtr pScreen);
 #ifdef XF86DRI
+extern Bool        RADEONGetDatatypeBpp(int bpp, CARD32 *type);
+extern Bool        RADEONGetPixmapOffsetPitch(PixmapPtr pPix,
+					      CARD32 *pitch_offset);
 extern Bool        RADEONDrawInitCP(ScreenPtr pScreen);
+extern void        RADEONDoPrepareCopyCP(ScrnInfoPtr pScrn,
+					 CARD32 src_pitch_offset,
+					 CARD32 dst_pitch_offset,
+					 CARD32 datatype, int rop,
+					 Pixel planemask);
+extern void        RADEONCopyCP(PixmapPtr pDst, int srcX, int srcY, int dstX,
+				int dstY, int w, int h);
 #endif
 #endif
 #ifdef USE_XAA
@@ -898,7 +915,6 @@ extern void        RADEONDRICloseScreen(ScreenPtr pScreen);
 extern void        RADEONDRIResume(ScreenPtr pScreen);
 extern Bool        RADEONDRIFinishScreenInit(ScreenPtr pScreen);
 extern void        RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen);
-extern void	   RADEONDRIInitPageFlip(ScreenPtr pScreen);
 extern void        RADEONDRIStop(ScreenPtr pScreen);
 
 extern drmBufPtr   RADEONCPGetBuffer(ScrnInfoPtr pScrn);

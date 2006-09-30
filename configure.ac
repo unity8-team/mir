@@ -91,6 +91,8 @@ if test "$DRI" != no; then
                       [have_sarea_h="yes"], [have_sarea_h="no"])
 	AC_CHECK_FILE([${sdkdir}/dristruct.h],
                       [have_dristruct_h="yes"], [have_dristruct_h="no"])
+	AC_CHECK_FILE([${sdkdir}/damage.h],
+                      [have_damage_h="yes"], [have_damage_h="no"])
 fi
 
 AC_MSG_CHECKING([whether to include DRI support])
@@ -110,6 +112,9 @@ if test "$DRI" = yes; then
 	PKG_CHECK_MODULES(DRI, [libdrm >= 2.0 xf86driproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
+	if test "$have_damage_h" = yes; then
+		AC_DEFINE(DAMAGE,1,[Use Damage extension])
+	fi
 fi
 
 # Note that this is sort of inverted from drivers/ati/Imakefile in
