@@ -1995,7 +1995,7 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
     }
 
     if (info->IsSwitching && info->IsSecondary) {
-        RADEONUnblankSset(pScrn, 1);
+        RADEONUnblankSet(pScrn, 1);
 	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0,
 		~(RADEON_CRTC2_DISP_DIS |
 		  RADEON_CRTC2_VSYNC_DIS |
@@ -2094,7 +2094,6 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 					    int flags)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
     if (!pScrn->vtSema) return;
