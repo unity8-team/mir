@@ -1434,12 +1434,11 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
     GDevPtr        dev    = pEnt->device;
     unsigned char *RADEONMMIO = info->MMIO;
     MessageType    from = X_PROBED;
+    CARD32         accessible, bar_size;
 
     if (info->FBDev)
 	pScrn->videoRam      = fbdevHWGetVidmem(pScrn) / 1024;
-    else if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
-	     (info->ChipFamily == CHIP_FAMILY_RS200) ||
-	     (info->ChipFamily == CHIP_FAMILY_RS300)) {
+    else if ((info->IsIGP)) {
         CARD32 tom = INREG(RADEON_NB_TOM);
 
 	pScrn->videoRam = (((tom >> 16) -
@@ -1447,9 +1446,6 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
 
 	OUTREG(RADEON_CONFIG_MEMSIZE, pScrn->videoRam * 1024);
     } else {
-	CARD32 accessible;
-	CARD32 bar_size;
-
 	/* Read VRAM size from card */
         pScrn->videoRam      = INREG(RADEON_CONFIG_MEMSIZE) / 1024;
 
@@ -1458,24 +1454,23 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
 	    pScrn->videoRam = 8192;
 	    OUTREG(RADEON_CONFIG_MEMSIZE, 0x800000);
 	}
-
-	/* Get accessible memory */
-	accessible = RADEONGetAccessibleVRAM(pScrn);
-
-	/* Crop it to the size of the PCI BAR */
-	bar_size = (1ul << info->PciInfo->size[0]) / 1024;
-	if (bar_size == 0)
-	    bar_size = 0x20000;
-	if (accessible > bar_size)
-	    accessible = bar_size;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Detected total video RAM=%dK, accessible=%ldK "
-		   "(PCI BAR=%ldK)\n",
-	       pScrn->videoRam, accessible, bar_size);
-	if (pScrn->videoRam > accessible)
-	    pScrn->videoRam = accessible;
     }
+
+    /* Get accessible memory */
+    accessible = RADEONGetAccessibleVRAM(pScrn);
+
+    /* Crop it to the size of the PCI BAR */
+    bar_size = (1ul << info->PciInfo->size[0]) / 1024;
+    if (bar_size == 0)
+	bar_size = 0x20000;
+    if (accessible > bar_size)
+	accessible = bar_size;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Detected total video RAM=%dK, accessible=%ldK (PCI BAR=%ldK)\n",
+	       pScrn->videoRam, accessible, bar_size);
+    if (pScrn->videoRam > accessible)
+	pScrn->videoRam = accessible;
 
     info->MemCntl            = INREG(RADEON_SDRAM_MODE_REG);
     info->BusCntl            = INREG(RADEON_BUS_CNTL);
