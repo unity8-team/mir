@@ -45,6 +45,7 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 {
     RADEONInfoPtr info     = RADEONPTR(pScrn);
     int tmp;
+    unsigned short dptr;
 
     if (!(info->VBIOS = xalloc(RADEON_VBIOS_SIZE))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -76,7 +77,22 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	xfree (info->VBIOS);
 	info->VBIOS = NULL;
 	return FALSE;
-    } 
+    }
+
+    /* Verify it's an x86 BIOS not OF firmware, copied from radeonfb */
+    dptr = RADEON_BIOS16(0x18);
+    /* If PCI data signature is wrong assume x86 video BIOS anyway */
+    if (RADEON_BIOS32(dptr) != (('R' << 24) | ('I' << 16) | ('C' << 8) | 'P')) {
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "ROM PCI data signature incorrect, ignoring\n");
+    }
+    else if (info->VBIOS[dptr + 0x14] != 0x0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Not an x86 BIOS ROM image, BIOS data will not be used\n");
+	xfree (info->VBIOS);
+	info->VBIOS = NULL;
+	return FALSE;
+    }
 
     if (info->VBIOS) info->ROMHeaderStart = RADEON_BIOS16(0x48);
 
