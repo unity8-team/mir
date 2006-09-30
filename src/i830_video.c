@@ -158,11 +158,11 @@ Edummy(const char *dummy, ...)
 
 #define OVERLAY_UPDATE						\
    do { 								\
-      BEGIN_LP_RING(6);							\
-      OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);			\
-      OUT_RING(MI_NOOP);						\
+      BEGIN_LP_RING(8);							\
+      OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);                       	\
+      OUT_RING(MI_NOOP);    						\  
       if (!*pI830->overlayOn) {						\
-         OUT_RING(MI_NOOP);						\
+	 OUT_RING(MI_NOOP);						\
 	 OUT_RING(MI_NOOP);						\
 	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_ON);		\
 	 ErrorF("Overlay goes from off to on\n");			\
@@ -172,10 +172,12 @@ Edummy(const char *dummy, ...)
 	 OUT_RING(MI_NOOP);						\
 	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);		\
       }									\
-      if (IS_I965G(pI830)) 					\
+      if (IS_I965G(pI830)) 						\
          OUT_RING(pI830->OverlayMem->Start | OFC_UPDATE); 		\
       else								\
 	 OUT_RING(pI830->OverlayMem->Physical | OFC_UPDATE);		\
+      OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);		\
+      OUT_RING(MI_NOOP);						\
       ADVANCE_LP_RING();						\
       ErrorF("OVERLAY_UPDATE\n");					\
    } while(0)
@@ -184,20 +186,11 @@ Edummy(const char *dummy, ...)
    do { 								\
       if (*pI830->overlayOn) {						\
 	 int spin = 1000000;						\
-	 BEGIN_LP_RING(12);						\
-	 OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);			\
-	 OUT_RING(MI_NOOP);						\
-	 OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);	\
-	 OUT_RING(MI_NOOP);						\
-	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);		\
-         if (IS_I965G(pI830)) 					\
-            OUT_RING(pI830->OverlayMem->Start | OFC_UPDATE); 		\
-         else								\
-	    OUT_RING(pI830->OverlayMem->Physical | OFC_UPDATE);		\
-	 OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);	\
-	 OUT_RING(MI_NOOP);						\
+	 BEGIN_LP_RING(6);						\
+         OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);                   	\
+         OUT_RING(MI_NOOP);    						\  
 	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_OFF);		\
-         if (IS_I965G(pI830)) 					\
+         if (IS_I965G(pI830)) 						\
             OUT_RING(pI830->OverlayMem->Start | OFC_UPDATE); 		\
          else								\
 	    OUT_RING(pI830->OverlayMem->Physical | OFC_UPDATE);		\
@@ -420,7 +413,7 @@ I830InitVideo(ScreenPtr pScreen)
    XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
    int num_adaptors;
 
-   DPRINTF(PFX, "I830InitVideo\n");
+   ErrorF("I830InitVideo\n");
 
 #if 0
    {
@@ -494,7 +487,7 @@ I830ResetVideo(ScrnInfoPtr pScrn)
    I830OverlayRegPtr overlay =
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
 
-   DPRINTF(PFX, "I830ResetVideo: base: %p, offset: 0x%lx, obase: %p\n",
+   ErrorF("I830ResetVideo: base: %p, offset: 0x%lx, obase: %p\n",
 	   pI830->FbBase, pI830->OverlayMem->Start, overlay);
    /*
     * Default to maximum image size in YV12
@@ -663,7 +656,7 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
    I830PortPrivPtr pPriv;
    XF86AttributePtr att;
 
-   DPRINTF(PFX, "I830SetupImageVideoOverlay\n");
+   ErrorF("I830SetupImageVideoOverlay\n");
 
    if (!(adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec) +
 			 sizeof(I830PortPrivRec) + sizeof(DevUnion))))
@@ -789,7 +782,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
    int nports = 16, i;
    int nAttributes;
 
-   DPRINTF(PFX, "I830SetupImageVideoOverlay\n");
+   ErrorF("I830SetupImageVideoOverlay\n");
 
    nAttributes = NUM_TEXTURED_ATTRIBUTES;
 
@@ -898,18 +891,16 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
    if (pPriv->textured)
       return;
 
-   DPRINTF(PFX, "I830StopVideo\n");
+   ErrorF("I830StopVideo\n");
 
    REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
 
    if (shutdown) {
       if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
 
-	 overlay->OCMD &= ~OVERLAY_ENABLE;
+	 I830ResetVideo(pScrn);
 	 OVERLAY_UPDATE;
-#if 1
 	 OVERLAY_OFF;
-#endif
 
          if (pI830->entityPrivate)
             pI830->entityPrivate->XvInUse = -1;
@@ -1671,8 +1662,11 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       I830ResetVideo(pScrn);
 
    /* Ensure overlay is turned on with OVERLAY_ENABLE at 0 */
-   if (!*pI830->overlayOn)
+   if (!*pI830->overlayOn) {
+      ErrorF("TURNING ON OVERLAY BEFORE UPDATE\n");
+      I830ResetVideo(pScrn);
       OVERLAY_UPDATE;
+   }
 
    /* Fix up the dstBox if outside the visible screen */
    {
@@ -2873,7 +2867,7 @@ I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size)
    ScreenPtr pScreen;
    FBLinearPtr new_linear = NULL;
 
-   DPRINTF(PFX, "I830AllocateMemory\n");
+   ErrorF("I830AllocateMemory\n");
 
    if (linear) {
       if (linear->size >= size)
@@ -2945,7 +2939,7 @@ I830PutImage(ScrnInfoPtr pScrn,
    int pitchAlignMask;
    int extraLinear;
 
-   DPRINTF(PFX, "I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
+   ErrorF("I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
 	   "width %d, height %d\n", src_x, src_y, src_w, src_h, drw_x, drw_y,
 	   drw_w, drw_h, width, height);
 
@@ -3296,11 +3290,10 @@ I830BlockHandler(int i,
 	 if (pPriv->offTime < now) {
 	    /* Turn off the overlay */
 	    ErrorF("BLOCKHANDLER\n");
-	    overlay->OCMD &= ~OVERLAY_ENABLE;
+
+	    I830ResetVideo(pScrn);
             OVERLAY_UPDATE;
-#if 1
             OVERLAY_OFF;
-#endif
 
 	    pPriv->videoStatus = FREE_TIMER;
 	    pPriv->freeTime = now + FREE_DELAY;
@@ -3413,11 +3406,10 @@ I830StopSurface(XF86SurfacePtr surface)
 	    (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
 
       ErrorF("StopSurface\n");
-      overlay->OCMD &= ~OVERLAY_ENABLE;
+
+      I830ResetVideo(pScrn);
       OVERLAY_UPDATE;
-#if 1
       OVERLAY_OFF;
-#endif
 
       if (pI830->entityPrivate)
          pI830->entityPrivate->XvInUse = -1;
