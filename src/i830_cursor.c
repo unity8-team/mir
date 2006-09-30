@@ -655,7 +655,7 @@ I830ShowCursor(ScrnInfoPtr pScrn)
       temp &= ~(CURSOR_FORMAT_MASK | CURSOR_GAMMA_ENABLE);
       temp |= CURSOR_ENABLE;
       if (pI830->CursorIsARGB)
-         temp |= CURSOR_FORMAT_ARGB;
+         temp |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
       else 
          temp |= CURSOR_FORMAT_3C;
       OUTREG(CURSOR_CONTROL, temp);
