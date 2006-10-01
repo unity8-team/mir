@@ -2866,7 +2866,8 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 
 	if (modesFound < 1 && info->FBDev) {
 	    fbdevHWUseBuildinMode(pScrn);
-	    pScrn->displayWidth = pScrn->virtualX; /* FIXME: might be wrong */
+	    pScrn->displayWidth = fbdevHWGetLineLength(pScrn)
+				/ info->CurrentLayout.pixel_bytes;
 	    modesFound = 1;
 	}
 
@@ -4593,6 +4594,8 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	unsigned char *RADEONMMIO = info->MMIO;
 
 	if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) return FALSE;
+	pScrn->displayWidth = fbdevHWGetLineLength(pScrn)
+		/ info->CurrentLayout.pixel_bytes;
 	RADEONSaveMemMapRegisters(pScrn, &info->ModeReg);
 	info->fbLocation = (info->ModeReg.mc_fb_location & 0xffff) << 16;
 	info->ModeReg.surface_cntl = INREG(RADEON_SURFACE_CNTL);
@@ -7230,6 +7233,8 @@ _X_EXPORT Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 	RADEONSaveFBDevRegisters(pScrn, &info->ModeReg);
 
 	ret = fbdevHWSwitchMode(scrnIndex, mode, flags);
+	pScrn->displayWidth = fbdevHWGetLineLength(pScrn)
+		/ info->CurrentLayout.pixel_bytes;
 
 	RADEONRestoreFBDevRegisters(pScrn, &info->ModeReg);
     } else {
