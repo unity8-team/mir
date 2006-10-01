@@ -891,6 +891,9 @@ void RADEONGetPanelInfo (ScrnInfoPtr pScrn)
 
         if(info->DisplayType == MT_LCD) {
             RADEONGetLVDSInfo(pScrn);
+	    if (info->MergeType == MT_DFP) {
+		RADEONGetTMDSInfo(pScrn);
+	    }
         } else if ((info->DisplayType == MT_DFP) || (info->MergeType == MT_DFP)) {
             RADEONGetTMDSInfo(pScrn);
             if (!pScrn->monitor->DDC)

@@ -5289,8 +5289,6 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
 
     OUTREG(RADEON_FP_H2_SYNC_STRT_WID,   restore->fp_h2_sync_strt_wid);
     OUTREG(RADEON_FP_V2_SYNC_STRT_WID,   restore->fp_v2_sync_strt_wid);
-    OUTREG(RADEON_FP_CRTC2_H_TOTAL_DISP, restore->fp_crtc2_h_total_disp);
-    OUTREG(RADEON_FP_CRTC2_V_TOTAL_DISP, restore->fp_crtc2_v_total_disp);
 
     OUTREG(RADEON_CRTC2_OFFSET,          restore->crtc2_offset);
     OUTREG(RADEON_CRTC2_OFFSET_CNTL,     restore->crtc2_offset_cntl);
@@ -5959,8 +5957,6 @@ static void RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     save->fp_h2_sync_strt_wid   = INREG (RADEON_FP_H2_SYNC_STRT_WID);
     save->fp_v2_sync_strt_wid   = INREG (RADEON_FP_V2_SYNC_STRT_WID);
-    save->fp_crtc2_h_total_disp = INREG(RADEON_FP_CRTC2_H_TOTAL_DISP);
-    save->fp_crtc2_v_total_disp = INREG(RADEON_FP_CRTC2_V_TOTAL_DISP);
 
     save->disp2_merge_cntl      = INREG(RADEON_DISP2_MERGE_CNTL);
 }
@@ -6286,14 +6282,6 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	}
     }
 
-    save->fp_gen_cntl |= (RADEON_FP_CRTC_DONT_SHADOW_VPAR |
-			  RADEON_FP_CRTC_DONT_SHADOW_HEND );
-
-    if (pScrn->rgbBits == 8)
-        save->fp_gen_cntl |= RADEON_FP_PANEL_FORMAT;  /* 24 bit format */
-    else
-        save->fp_gen_cntl &= ~RADEON_FP_PANEL_FORMAT;/* 18 bit format */
-
     info->PanelOff = FALSE;
     /* This option is used to force the ONLY DEVICE in XFConfig to use
      * CRT port, instead of default DVI port.
@@ -6347,6 +6335,14 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
                 save->tmds_transmitter_cntl |= (RADEON_TMDS_TRANSMITTER_PLLEN);
 
 	    //	    save->fp_gen_cntl   |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
+
+    	    save->fp_gen_cntl |= (RADEON_FP_CRTC_DONT_SHADOW_VPAR |
+			  	  RADEON_FP_CRTC_DONT_SHADOW_HEND );
+
+    	    if (pScrn->rgbBits == 8)
+        	save->fp_gen_cntl |= RADEON_FP_PANEL_FORMAT;  /* 24 bit format */
+    	    else
+        	save->fp_gen_cntl &= ~RADEON_FP_PANEL_FORMAT;/* 18 bit format */
         }
     }
 
@@ -6584,11 +6580,6 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     } else if ((pRADEONEnt->Controller[0].pPort->MonType == MT_DFP) || 
 	       (pRADEONEnt->Controller[0].pPort->MonType == MT_LCD)) {
 
-	save->fp_h_sync_strt_wid = save->crtc_h_sync_strt_wid;
-	save->fp_v_sync_strt_wid = save->crtc_v_sync_strt_wid;
-        save->fp_crtc_h_total_disp = save->crtc_h_total_disp;
-        save->fp_crtc_v_total_disp = save->crtc_v_total_disp;
-
 	RADEONInitFPRegisters(pScrn, save, mode, TRUE);
 
         if ((pRADEONEnt->Controller[0].pPort->TMDSType == TMDS_INT) ||
@@ -6597,6 +6588,12 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	    if (pRADEONEnt->Controller[0].pPort->MonType == MT_LCD) {
 	        save->lvds_gen_cntl &= ~RADEON_LVDS_SEL_CRTC2;
     	    } else {
+
+		save->fp_h_sync_strt_wid = save->crtc_h_sync_strt_wid;
+		save->fp_v_sync_strt_wid = save->crtc_v_sync_strt_wid;
+        	save->fp_crtc_h_total_disp = save->crtc_h_total_disp;
+        	save->fp_crtc_v_total_disp = save->crtc_v_total_disp;
+
 	        if ((IS_R300_VARIANT) ||
 		    (info->ChipFamily == CHIP_FAMILY_R200)) {
 		    save->fp_gen_cntl &= ~R200_FP_SOURCE_SEL_MASK;
@@ -6781,8 +6778,6 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
                                        RADEON_FP2_DVO_EN);
 		save->fp_h2_sync_strt_wid = save->crtc2_h_sync_strt_wid;
 		save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
-        	save->fp_crtc2_h_total_disp = save->crtc2_h_total_disp;
-                save->fp_crtc2_v_total_disp = save->crtc2_v_total_disp;
             } else {
                 save->dac2_cntl |= RADEON_DAC2_DAC2_CLK_SEL;
                 save->disp_hw_debug &= ~RADEON_CRT2_DISP1_SEL;
@@ -6790,11 +6785,6 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
         }
     } else if ((pRADEONEnt->Controller[1].pPort->MonType == MT_DFP) || 
                (pRADEONEnt->Controller[1].pPort->MonType == MT_LCD)) {
-
-	save->fp_h2_sync_strt_wid = save->crtc2_h_sync_strt_wid;
-	save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
-        save->fp_crtc2_h_total_disp = save->crtc2_h_total_disp;
-        save->fp_crtc2_v_total_disp = save->crtc2_v_total_disp;
 
         if ((pRADEONEnt->Controller[1].pPort->TMDSType == TMDS_INT) || 
 	    (pRADEONEnt->Controller[1].pPort->MonType == MT_LCD)) {
@@ -6804,6 +6794,10 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	    if (pRADEONEnt->Controller[1].pPort->MonType == MT_LCD) {
 	        save->lvds_gen_cntl |= RADEON_LVDS_SEL_CRTC2;
     	    } else {
+
+		save->fp_h2_sync_strt_wid = save->crtc2_h_sync_strt_wid;
+		save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
+
 	        if ((IS_R300_VARIANT) ||
 		    (info->ChipFamily == CHIP_FAMILY_R200)) {
 		    save->fp_gen_cntl &= ~R200_FP_SOURCE_SEL_MASK;

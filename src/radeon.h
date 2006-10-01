@@ -279,8 +279,6 @@ typedef struct {
 				/* Flat panel registers */
     CARD32            fp_crtc_h_total_disp;
     CARD32            fp_crtc_v_total_disp;
-    CARD32            fp_crtc2_h_total_disp;
-    CARD32            fp_crtc2_v_total_disp;
     CARD32            fp_gen_cntl;
     CARD32            fp2_gen_cntl;
     CARD32            fp_h_sync_strt_wid;
