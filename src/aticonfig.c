@@ -361,8 +361,8 @@ ATIProcessOptions
             "Using %s acceleration architecture\n",
             pATI->useEXA ? "EXA" : "XAA");
 
-        pATI->RenderAccelEnabled = FALSE;
 #if defined(USE_EXA)
+        pATI->RenderAccelEnabled = FALSE;
         if (pATI->useEXA && RenderAccel)
             pATI->RenderAccelEnabled = TRUE;
 #endif
