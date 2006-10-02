@@ -111,7 +111,7 @@ typedef struct {
 } drmMach64Vertex;
 
 typedef struct {
-   int idx;
+   void *buf;
    int pitch;
    int offset;
    int format;
