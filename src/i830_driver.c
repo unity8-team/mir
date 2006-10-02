@@ -1343,7 +1343,7 @@ I830UpdateXineramaScreenInfo(ScrnInfoPtr pScrn1)
     Bool usenonrect = pI830->NonRect;
     const char *rectxine = "\t... setting up rectangular Xinerama layout\n";
 #ifdef XF86DRI
-    drmI830Sarea *sarea;
+    drmI830Sarea *sarea = NULL;
 
     if (pI830->directRenderingEnabled) {
        sarea = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn1->pScreen);
