@@ -614,6 +614,9 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
     int			pipe_type;
     int			pipe;
     int			subpixel;
+    DisplayModePtr	modes, mode;
+    xRRModeInfo		modeInfo;
+    RRModePtr		rrmode, *rrmodes;
     
     if (randrp->virtualX == -1 || randrp->virtualY == -1) 
     {
@@ -689,24 +692,22 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 
 	RROutputSetCrtc (randrp->outputs[i], crtc);
     
-	if (pipe >= 0)
+        nmode = 0;
+	rrmodes = NULL;
+	if (pipe >= 0) 
 	{
-	    MonPtr	    mon = pI830->pipeMon[pipe];
-	    DisplayModePtr  mode;
-	    xRRModeInfo	    modeInfo;
-	    RRModePtr	    rrmode;
-	    
-	    nmode = 0;
-	    for (mode = mon->Modes; mode; mode = mode->next)
+	    modes = pI830->pipeMon[pipe]->Modes;
+	
+	    for (mode = modes; mode; mode = mode->next)
 		nmode++;
-	    
+
 	    if (nmode)
 	    {
-		modes = xalloc (nmode * sizeof (RRModePtr));
-		if (!modes)
+		rrmodes = xalloc (nmode * sizeof (RRModePtr));
+		if (!rrmodes)
 		    return FALSE;
 		nmode = 0;
-		for (mode = mon->Modes; mode; mode = mode->next)
+		for (mode = modes; mode; mode = mode->next)
 		{
 		    modeInfo.nameLength = strlen (mode->name);
 		    modeInfo.mmWidth = mon->widthmm;
@@ -728,17 +729,19 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 		    rrmode = RRModeGet (pScreen, &modeInfo, mode->name);
 		    rrmode->devPrivate = mode;
 		    if (rrmode)
-			modes[nmode++] = rrmode;
+			rrmodes[nmode++] = rrmode;
 		}
-		if (!RROutputSetModes (randrp->outputs[i], modes, nmode))
-		{
-		    xfree (modes);
-		    return FALSE;
-		}
-
-		xfree (modes);
 	    }
 	}
+	
+    	if (!RROutputSetModes (randrp->outputs[i], rrmodes, nmode))
+	{
+    	    xfree (rrmodes);
+	    return FALSE;
+	}
+	
+	xfree (rrmodes);
+	
 	connection = RR_Disconnected;
 	if (pipe >= 0)
 	    connection = RR_Connected;
