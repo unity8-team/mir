@@ -6580,6 +6580,11 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     } else if ((pRADEONEnt->Controller[0].pPort->MonType == MT_DFP) || 
 	       (pRADEONEnt->Controller[0].pPort->MonType == MT_LCD)) {
 
+	save->fp_h_sync_strt_wid = save->crtc_h_sync_strt_wid;
+	save->fp_v_sync_strt_wid = save->crtc_v_sync_strt_wid;
+        save->fp_crtc_h_total_disp = save->crtc_h_total_disp;
+        save->fp_crtc_v_total_disp = save->crtc_v_total_disp;
+
 	RADEONInitFPRegisters(pScrn, save, mode, TRUE);
 
         if ((pRADEONEnt->Controller[0].pPort->TMDSType == TMDS_INT) ||
@@ -6588,12 +6593,6 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	    if (pRADEONEnt->Controller[0].pPort->MonType == MT_LCD) {
 	        save->lvds_gen_cntl &= ~RADEON_LVDS_SEL_CRTC2;
     	    } else {
-
-		save->fp_h_sync_strt_wid = save->crtc_h_sync_strt_wid;
-		save->fp_v_sync_strt_wid = save->crtc_v_sync_strt_wid;
-        	save->fp_crtc_h_total_disp = save->crtc_h_total_disp;
-        	save->fp_crtc_v_total_disp = save->crtc_v_total_disp;
-
 	        if ((IS_R300_VARIANT) ||
 		    (info->ChipFamily == CHIP_FAMILY_R200)) {
 		    save->fp_gen_cntl &= ~R200_FP_SOURCE_SEL_MASK;
@@ -6786,6 +6785,9 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     } else if ((pRADEONEnt->Controller[1].pPort->MonType == MT_DFP) || 
                (pRADEONEnt->Controller[1].pPort->MonType == MT_LCD)) {
 
+	save->fp_h2_sync_strt_wid = save->crtc2_h_sync_strt_wid;
+	save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
+
         if ((pRADEONEnt->Controller[1].pPort->TMDSType == TMDS_INT) || 
 	    (pRADEONEnt->Controller[1].pPort->MonType == MT_LCD)) {
 
@@ -6794,10 +6796,6 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	    if (pRADEONEnt->Controller[1].pPort->MonType == MT_LCD) {
 	        save->lvds_gen_cntl |= RADEON_LVDS_SEL_CRTC2;
     	    } else {
-
-		save->fp_h2_sync_strt_wid = save->crtc2_h_sync_strt_wid;
-		save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
-
 	        if ((IS_R300_VARIANT) ||
 		    (info->ChipFamily == CHIP_FAMILY_R200)) {
 		    save->fp_gen_cntl &= ~R200_FP_SOURCE_SEL_MASK;
