@@ -698,8 +698,6 @@
 #define RADEON_FOG_TABLE_DATA               0x1a18
 #define RADEON_FP_CRTC_H_TOTAL_DISP         0x0250
 #define RADEON_FP_CRTC_V_TOTAL_DISP         0x0254
-#define RADEON_FP_CRTC2_H_TOTAL_DISP        0x0350
-#define RADEON_FP_CRTC2_V_TOTAL_DISP        0x0354
 #       define RADEON_FP_CRTC_H_TOTAL_MASK      0x000003ff
 #       define RADEON_FP_CRTC_H_DISP_MASK       0x01ff0000
 #       define RADEON_FP_CRTC_V_TOTAL_MASK      0x00000fff
