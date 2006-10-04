@@ -681,8 +681,7 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
 
    adapt->pPortPrivates[0].ptr = (pointer) (pPriv);
    adapt->nAttributes = NUM_ATTRIBUTES;
-   if (pI830->Clone)
-      adapt->nAttributes += CLONE_ATTRIBUTES;
+   adapt->nAttributes += CLONE_ATTRIBUTES;
    if (IS_I9XX(pI830))
       adapt->nAttributes += GAMMA_ATTRIBUTES; /* has gamma */
    adapt->pAttributes = xnfalloc(sizeof(XF86AttributeRec) * adapt->nAttributes);
@@ -690,10 +689,8 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
    att = adapt->pAttributes;
    memcpy((char *)att, (char*)Attributes, sizeof(XF86AttributeRec)* NUM_ATTRIBUTES);
    att+=NUM_ATTRIBUTES;
-   if (pI830->Clone) {
-      memcpy((char*)att, (char*)CloneAttributes, sizeof(XF86AttributeRec) * CLONE_ATTRIBUTES);
-      att+=CLONE_ATTRIBUTES;
-   }
+   memcpy((char*)att, (char*)CloneAttributes, sizeof(XF86AttributeRec) * CLONE_ATTRIBUTES);
+   att+=CLONE_ATTRIBUTES;
    if (IS_I9XX(pI830)) {
       memcpy((char*)att, (char*)GammaAttributes, sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
       att+=GAMMA_ATTRIBUTES;
@@ -752,8 +749,7 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
    xvDoubleBuffer = MAKE_ATOM("XV_DOUBLE_BUFFER");
 
    /* Allow the pipe to be switched from pipe A to B when in clone mode */
-   if (pI830->Clone)
-     xvPipe = MAKE_ATOM("XV_PIPE");
+   xvPipe = MAKE_ATOM("XV_PIPE");
    
    if (IS_I9XX(pI830)) {
      xvGamma0 = MAKE_ATOM("XV_GAMMA0");
@@ -1031,7 +1027,7 @@ I830GetPortAttribute(ScrnInfoPtr pScrn,
       *value = pPriv->brightness;
    } else if (attribute == xvContrast) {
       *value = pPriv->contrast;
-   } else if (pI830->Clone && attribute == xvPipe) {
+   } else if (attribute == xvPipe) {
       *value = pPriv->pipe;
    } else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
       *value = pPriv->gamma0;
