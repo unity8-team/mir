@@ -290,7 +290,10 @@ i830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 	    new->Clock      = d_timings->clock / 1000;
 	    new->Flags      = (d_timings->interlaced ? V_INTERLACE : 0);
 	    new->status     = MODE_OK;
-	    new->type       = M_T_DEFAULT;
+	    if (PREFERRED_TIMING_MODE(ddc->features.msc))
+		new->type   = M_T_PREFERRED;
+	    else
+		new->type   = M_T_DRIVER;
 
 	    i830xf86SetModeDefaultName(new);
 
@@ -419,7 +422,7 @@ i830FPNativeMode(ScrnInfoPtr pScrn)
    new->VTotal     = new->VSyncEnd + 1;
    new->Clock      = pI830->panel_fixed_clock;
 
-   new->type       = M_T_USERDEF;
+   new->type       = M_T_PREFERRED;
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	      "No valid mode specified, force to native mode\n");
@@ -475,7 +478,7 @@ i830GetLVDSModes(ScrnInfoPtr pScrn, char **ppModeName)
       }
 
       new = i830GetGTF(width, height, 60.0, FALSE, FALSE);
-      new->type |= M_T_USERDEF;
+      new->type |= M_T_DEFAULT;
 
       new->next       = NULL;
       new->prev       = last;
@@ -510,10 +513,7 @@ i830GetLVDSModes(ScrnInfoPtr pScrn, char **ppModeName)
 	 }
 	 if (!tmp) {
 	    new = i830GetGTF(p->HDisplay, p->VDisplay, 60.0, FALSE, FALSE);
-	    if (ppModeName[i] == NULL)
-		new->type |= M_T_USERDEF;
-	    else
-		new->type |= M_T_DEFAULT;
+	    new->type |= M_T_DEFAULT;
 
 	    I830xf86SortModes(new, &first, &last);
 
