@@ -57,9 +57,6 @@ struct _I830DVODriver i830_dvo_drivers[] =
 static void
 i830_dvo_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 {
-    if (output->i2c_drv == NULL)
-	return;
-
     if (mode == DPMSModeOn)
 	output->i2c_drv->vid_rec->Power(output->i2c_drv->dev_priv, TRUE);
     else
@@ -70,9 +67,6 @@ static void
 i830_dvo_save(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-
-    if (output->i2c_drv == NULL)
-	return;
 
     /* Each output should probably just save the registers it touches, but for
      * now, use more overkill.
@@ -89,9 +83,6 @@ i830_dvo_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (output->i2c_drv == NULL)
-	return;
-
     OUTREG(DVOA, pI830->saveDVOA);
     OUTREG(DVOB, pI830->saveDVOB);
     OUTREG(DVOC, pI830->saveDVOC);
@@ -99,7 +90,7 @@ i830_dvo_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
     output->i2c_drv->vid_rec->RestoreRegs(output->i2c_drv->dev_priv);
 }
 
-Bool
+static Bool
 I830I2CDetectDVOControllers(ScrnInfoPtr pScrn, I2CBusPtr pI2CBus,
 			    struct _I830DVODriver **retdrv)
 {

@@ -866,10 +866,10 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     for (i = 0; i < pI830->num_outputs; i++) {
 	I830OutputPtr output = &pI830->output[i];
 
-	if (pI830->output[i].sdvo_drv != NULL)
+	if (pI830->output[i].type == I830_OUTPUT_SDVO)
 	    pI830->output[i].dpms(pScrn, &pI830->output[i], DPMSModeOff);
 
-	if (output->i2c_drv != NULL)
+	if (pI830->output[i].type == I830_OUTPUT_DVO)
 	    output->i2c_drv->vid_rec->Mode(output->i2c_drv->dev_priv,
 					   pMode);
     }
@@ -885,7 +885,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	    goto done;
     }
     for (i = 0; i < pI830->num_outputs; i++) {
-	if (pI830->output[i].sdvo_drv)
+	if (pI830->output[i].type == I830_OUTPUT_SDVO)
 	    I830SDVOPostSetMode(pI830->output[i].sdvo_drv, pMode);
     }
 

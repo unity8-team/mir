@@ -985,14 +985,12 @@ I830DetectMonitors(ScrnInfoPtr pScrn)
 	 xf86PrintEDID(pI830->output[i].MonInfo);
       break;
       case I830_OUTPUT_SDVO:
-	 if (pI830->output[i].sdvo_drv != NULL) {
-	    pI830->output[i].MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex,
-						       pI830->output[i].pDDCBus);
+	 pI830->output[i].MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex,
+						    pI830->output[i].pDDCBus);
 
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "DDC SDVO %d, %08lX\n", i,
-		       pI830->output[i].pDDCBus->DriverPrivate.uval);
-	    xf86PrintEDID(pI830->output[i].MonInfo);
-	 }
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "DDC SDVO %d, %08lX\n", i,
+		    pI830->output[i].pDDCBus->DriverPrivate.uval);
+	 xf86PrintEDID(pI830->output[i].MonInfo);
 	 break;
       case I830_OUTPUT_UNUSED:
 	 break;
@@ -1675,8 +1673,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        * treat different SDVO outputs differently.
        */
       for (i = 0; i < MAX_OUTPUTS; i++) {
-	 if (pI830->output[i].type == I830_OUTPUT_SDVO &&
-	     pI830->output[i].sdvo_drv != NULL) {
+	 if (pI830->output[i].type == I830_OUTPUT_SDVO) {
 	    if (!I830DetectSDVODisplays(pScrn, i))
 	       continue;
 
@@ -4339,11 +4336,8 @@ i830MonitorDetectDebugger(ScrnInfoPtr pScrn)
    for (i = 0; i < MAX_OUTPUTS; i++) {
       Bool found_sdvo = TRUE;
 
-      if (pI830->output[i].type != I830_OUTPUT_SDVO ||
-	  pI830->output[i].sdvo_drv == NULL)
-      {
+      if (pI830->output[i].type != I830_OUTPUT_SDVO)
 	 continue;
-      }
       start = GetTimeInMillis();
       found_sdvo = I830DetectSDVODisplays(pScrn, i);   
       finish = GetTimeInMillis();
