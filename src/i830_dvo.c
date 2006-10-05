@@ -54,8 +54,8 @@ struct _I830DVODriver i830_dvo_drivers[] =
 
 #define I830_NUM_DVO_DRIVERS (sizeof(i830_dvo_drivers)/sizeof(struct _I830DVODriver))
 
-void
-I830DVODPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
+static void
+i830_dvo_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 {
     if (output->i2c_drv == NULL)
 	return;
@@ -66,8 +66,8 @@ I830DVODPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 	output->i2c_drv->vid_rec->Power(output->i2c_drv->dev_priv, FALSE);
 }
 
-void
-I830DVOSave(ScrnInfoPtr pScrn, I830OutputPtr output)
+static void
+i830_dvo_save(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
@@ -84,8 +84,8 @@ I830DVOSave(ScrnInfoPtr pScrn, I830OutputPtr output)
     output->i2c_drv->vid_rec->SaveRegs(output->i2c_drv->dev_priv);
 }
 
-void
-I830DVORestore(ScrnInfoPtr pScrn, I830OutputPtr output)
+static void
+i830_dvo_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
@@ -128,4 +128,43 @@ I830I2CDetectDVOControllers(ScrnInfoPtr pScrn, I2CBusPtr pI2CBus,
 	xf86UnloadSubModule(drv->modhandle);
     }
     return FALSE;
+}
+
+void
+i830_dvo_init(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    Bool ret;
+    int i = pI830->num_outputs;
+
+    pI830->output[i].type = I830_OUTPUT_DVO;
+    pI830->output[i].dpms = i830_dvo_dpms;
+    pI830->output[i].save = i830_dvo_save;
+    pI830->output[i].restore = i830_dvo_restore;
+
+    /* Set up the I2C and DDC buses */
+    ret = I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");
+    if (!ret)
+	return;
+
+    ret = I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOD, "DVODDC_D");
+    if (!ret) {
+	xf86DestroyI2CBusRec(pI830->output[i].pI2CBus, TRUE, TRUE);
+	return;
+    }
+
+    /* Now, try to find a controller */
+    ret = I830I2CDetectDVOControllers(pScrn, pI830->output[i].pI2CBus,
+				      &pI830->output[i].i2c_drv);
+    if (ret) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found i2c %s on %08lX\n",
+		   pI830->output[i].i2c_drv->modulename,
+		   pI830->output[i].pI2CBus->DriverPrivate.uval);
+    } else {
+	xf86DestroyI2CBusRec(pI830->output[i].pI2CBus, TRUE, TRUE);
+	xf86DestroyI2CBusRec(pI830->output[i].pDDCBus, TRUE, TRUE);
+	return;
+    }
+
+    pI830->num_outputs++;
 }

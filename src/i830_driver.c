@@ -900,71 +900,30 @@ I830UseDDC(ScrnInfoPtr pScrn)
 }
 #endif
 
+/**
+ * Set up the outputs according to what type of chip we are.
+ *
+ * Some outputs may not initialize, due to allocation failure or because a
+ * controller chip isn't found.
+ */
 static void
-I830SetupOutputBusses(ScrnInfoPtr pScrn)
+I830SetupOutputs(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   int i = 0;
-   Bool ret;
 
    /* everyone has at least a single analog output */
-   pI830->output[i].type = I830_OUTPUT_ANALOG;
-   pI830->output[i].dpms = I830CRTDPMS;
-   pI830->output[i].save = I830CRTSave;
-   pI830->output[i].restore = I830CRTRestore;
+   i830_crt_init(pScrn);
 
-   /* setup the DDC bus for the analog output */
-   I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOA, "CRTDDC_A");
-   i++;
-
-   if (IS_MOBILE(pI830) && !IS_I830(pI830)) {
-      /* Set up integrated LVDS */
-      pI830->output[i].type = I830_OUTPUT_LVDS;
-      pI830->output[i].dpms = I830LVDSDPMS;
-      pI830->output[i].save = I830LVDSSave;
-      pI830->output[i].restore = I830LVDSRestore;
-      I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOC, "LVDSDDC_C");
-      i++;
-   }
+   /* Set up integrated LVDS */
+   if (IS_MOBILE(pI830) && !IS_I830(pI830))
+      i830_lvds_init(pScrn);
 
    if (IS_I9XX(pI830)) {
-      /* Set up SDVOB */
-      pI830->output[i].type = I830_OUTPUT_SDVO;
-      pI830->output[i].dpms = i830SDVODPMS;
-      pI830->output[i].save = i830SDVOSave;
-      pI830->output[i].restore = i830SDVORestore;
-      I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "SDVOCTRL_E");
-      I830SDVOInit(pScrn, i, SDVOB);
-      i++;
-
-      /* Set up SDVOC */
-      pI830->output[i].type = I830_OUTPUT_SDVO;
-      pI830->output[i].dpms = i830SDVODPMS;
-      pI830->output[i].save = i830SDVOSave;
-      pI830->output[i].restore = i830SDVORestore;
-      pI830->output[i].pI2CBus = pI830->output[i-1].pI2CBus;
-      I830SDVOInit(pScrn, i, SDVOC);
-      i++;
+      i830_sdvo_init(pScrn, SDVOB);
+      i830_sdvo_init(pScrn, SDVOC);
    } else {
-      /* set up DVO */
-      pI830->output[i].type = I830_OUTPUT_DVO;
-      pI830->output[i].dpms = I830DVODPMS;
-      pI830->output[i].save = I830DVOSave;
-      pI830->output[i].restore = I830DVORestore;
-      I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOD, "DVODDC_D");
-      I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");
-
-      ret = I830I2CDetectDVOControllers(pScrn, pI830->output[i].pI2CBus,
-					&pI830->output[i].i2c_drv);
-      if (ret == TRUE) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found i2c %s on %08lX\n",
-		    pI830->output[i].i2c_drv->modulename,
-		    pI830->output[i].pI2CBus->DriverPrivate.uval);
-      }
-
-      i++;
+      i830_dvo_init(pScrn);
    }
-   pI830->num_outputs = i;
 }
 
 static void 
@@ -985,7 +944,7 @@ I830PreInitDDC(ScrnInfoPtr pScrn)
       if (xf86LoadSubModule(pScrn, "i2c")) {
 	 xf86LoaderReqSymLists(I810i2cSymbols, NULL);
 
-	 I830SetupOutputBusses(pScrn);
+	 I830SetupOutputs(pScrn);
 
 	 pI830->ddc2 = TRUE;
       } else {

@@ -32,8 +32,8 @@
 #include "xf86.h"
 #include "i830.h"
 
-void
-I830LVDSDPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
+static void
+i830_lvds_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 {
     if (mode == DPMSModeOn)
 	i830SetLVDSPanelPower(pScrn, TRUE);
@@ -41,8 +41,8 @@ I830LVDSDPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 	i830SetLVDSPanelPower(pScrn, FALSE);
 }
 
-void
-I830LVDSSave(ScrnInfoPtr pScrn, I830OutputPtr output)
+static void
+i830_lvds_save(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
@@ -66,8 +66,8 @@ I830LVDSSave(ScrnInfoPtr pScrn, I830OutputPtr output)
     }
 }
 
-void
-I830LVDSRestore(ScrnInfoPtr pScrn, I830OutputPtr output)
+static void
+i830_lvds_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
@@ -78,4 +78,23 @@ I830LVDSRestore(ScrnInfoPtr pScrn, I830OutputPtr output)
     OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
     OUTREG(LVDS, pI830->saveLVDS);
     OUTREG(PP_CONTROL, pI830->savePP_CONTROL);
+}
+
+void
+i830_lvds_init(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    pI830->output[pI830->num_outputs].type = I830_OUTPUT_LVDS;
+    pI830->output[pI830->num_outputs].dpms = i830_lvds_dpms;
+    pI830->output[pI830->num_outputs].save = i830_lvds_save;
+    pI830->output[pI830->num_outputs].restore = i830_lvds_restore;
+
+    /* Set up the LVDS DDC channel.  Most panels won't support it, but it can
+     * be useful if available.
+     */
+    I830I2CInit(pScrn, &pI830->output[pI830->num_outputs].pDDCBus,
+		GPIOC, "LVDSDDC_C");
+
+    pI830->num_outputs++;
 }

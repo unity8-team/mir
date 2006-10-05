@@ -56,13 +56,7 @@ typedef struct _i830_sdvo_dtd {
 } __attribute__((packed)) i830_sdvo_dtd;
 
 void
-i830SDVODPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode);
-
-void
-i830SDVOSave(ScrnInfoPtr pScrn, I830OutputPtr output);
-
-void
-i830SDVORestore(ScrnInfoPtr pScrn, I830OutputPtr output);
+i830_sdvo_init(ScrnInfoPtr pScrn, int output_device);
 
 Bool
 I830DetectSDVODisplays(ScrnInfoPtr pScrn, int output_index);

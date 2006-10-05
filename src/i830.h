@@ -633,21 +633,13 @@ extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
 
 /* i830_crt.c */
-void I830CRTDPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode);
-void I830CRTSave(ScrnInfoPtr pScrn, I830OutputPtr output);
-void I830CRTRestore(ScrnInfoPtr pScrn, I830OutputPtr output);
+void i830_crt_init(ScrnInfoPtr pScrn);
 
 /* i830_dvo.c */
-void I830DVODPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode);
-void I830DVOSave(ScrnInfoPtr pScrn, I830OutputPtr output);
-void I830DVORestore(ScrnInfoPtr pScrn, I830OutputPtr output);
-Bool I830I2CDetectDVOControllers(ScrnInfoPtr pScrn, I2CBusPtr pI2CBus,
-				 struct _I830DVODriver **retdrv);
+void i830_dvo_init(ScrnInfoPtr pScrn);
 
 /* i830_lvds.c */
-void I830LVDSDPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode);
-void I830LVDSSave(ScrnInfoPtr pScrn, I830OutputPtr output);
-void I830LVDSRestore(ScrnInfoPtr pScrn, I830OutputPtr output);
+void i830_lvds_init(ScrnInfoPtr pScrn);
 
 /* i830_memory.c */
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);

@@ -32,8 +32,8 @@
 #include "xf86.h"
 #include "i830.h"
 
-void
-I830CRTDPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
+static void
+i830_crt_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 temp;
@@ -58,18 +58,35 @@ I830CRTDPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
     OUTREG(ADPA, temp);
 }
 
-void
-I830CRTSave(ScrnInfoPtr pScrn, I830OutputPtr output)
+static void
+i830_crt_save(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
     pI830->saveADPA = INREG(ADPA);
 }
 
-void
-I830CRTRestore(ScrnInfoPtr pScrn, I830OutputPtr output)
+static void
+i830_crt_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
     OUTREG(ADPA, pI830->saveADPA);
+}
+
+void
+i830_crt_init(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    pI830->output[pI830->num_outputs].type = I830_OUTPUT_ANALOG;
+    pI830->output[pI830->num_outputs].dpms = i830_crt_dpms;
+    pI830->output[pI830->num_outputs].save = i830_crt_save;
+    pI830->output[pI830->num_outputs].restore = i830_crt_restore;
+
+    /* Set up the DDC bus. */
+    I830I2CInit(pScrn, &pI830->output[pI830->num_outputs].pDDCBus,
+		GPIOA, "CRTDDC_A");
+
+    pI830->num_outputs++;
 }
