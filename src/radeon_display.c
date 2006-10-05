@@ -340,28 +340,31 @@ RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac)
 
 	OUTREG(RADEON_DAC_EXT_CNTL, ulData);
 
-	ulOrigDAC_CNTL     = INREG(RADEON_DAC_CNTL);
+	/* turn on power so testing can go through */
+	ulOrigDAC_CNTL = INREG(RADEON_DAC_CNTL);
+	ulOrigDAC_CNTL &= ~RADEON_DAC_PDWN;
+	OUTREG(RADEON_DAC_CNTL, ulOrigDAC_CNTL);
 
-	if (ulOrigDAC_CNTL & RADEON_DAC_PDWN) {
-	    /* turn on power so testing can go through */
-	    ulOrigDAC_MACRO_CNTL = INREG(RADEON_DAC_MACRO_CNTL);
-	    ulOrigDAC_MACRO_CNTL &= ~(RADEON_DAC_PDWN_R | RADEON_DAC_PDWN_G |
-		RADEON_DAC_PDWN_B);
-	    OUTREG(RADEON_DAC_MACRO_CNTL, ulOrigDAC_MACRO_CNTL);
-	}
+	ulOrigDAC_MACRO_CNTL = INREG(RADEON_DAC_MACRO_CNTL);
+	ulOrigDAC_MACRO_CNTL &= ~(RADEON_DAC_PDWN_R | RADEON_DAC_PDWN_G |
+				  RADEON_DAC_PDWN_B);
+	OUTREG(RADEON_DAC_MACRO_CNTL, ulOrigDAC_MACRO_CNTL);
 
-	ulData             = ulOrigDAC_CNTL;
-	ulData            |= RADEON_DAC_CMP_EN;
-	ulData            &= ~(RADEON_DAC_RANGE_CNTL_MASK
-			       | RADEON_DAC_PDWN);
-	ulData            |= 0x2;
+	/* Enable comparators and set DAC range to PS2 (VGA) output level */
+	ulData = ulOrigDAC_CNTL;
+	ulData |= RADEON_DAC_CMP_EN;
+	ulData &= ~RADEON_DAC_RANGE_CNTL_MASK;
+	ulData |= 0x2;
 	OUTREG(RADEON_DAC_CNTL, ulData);
 
+	/* Settle down */
 	usleep(10000);
 
+	/* Read comparators */
 	ulData     = INREG(RADEON_DAC_CNTL);
 	bConnected =  (RADEON_DAC_CMP_OUTPUT & ulData)?1:0;
 
+	/* Restore things */
 	ulData    = ulOrigVCLK_ECP_CNTL;
 	ulMask    = 0xFFFFFFFFL;
 	OUTPLLP(pScrn, RADEON_VCLK_ECP_CNTL, ulData, ulMask);
@@ -377,8 +380,8 @@ RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac)
 	    	RADEON_DAC_PDWN_B);
             OUTREG(RADEON_DAC_MACRO_CNTL, ulOrigDAC_MACRO_CNTL);
 
-	    ulData     = INREG(RADEON_DAC_CNTL);
-	    ulData     |= RADEON_DAC_PDWN ;
+	    ulData = INREG(RADEON_DAC_CNTL);
+	    ulData |= RADEON_DAC_PDWN;
 	    OUTREG(RADEON_DAC_CNTL, ulData);
     	}
     } else { /* TV DAC */
