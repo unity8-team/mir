@@ -542,7 +542,7 @@ I830RandRCrtcSet (ScreenPtr	pScreen,
 		  int		y,
 		  Rotation	rotation,
 		  int		numOutputs,
-		  RROutputPtr	*outputs)
+		  RROutputConfigPtr	outputs)
 {
     XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
@@ -603,7 +603,6 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
     int			nclone;
     RRCrtcPtr		crtcs[MAX_DISPLAY_PIPES];
     int			ncrtc;
-    RRModePtr		*modes;
     int			nmode;
     struct _I830OutputRec   *output;
     int			i;
@@ -617,6 +616,8 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
     DisplayModePtr	modes, mode;
     xRRModeInfo		modeInfo;
     RRModePtr		rrmode, *rrmodes;
+    CARD32		possibleOptions = 0;
+    CARD32		currentOptions = 0;
     
     if (randrp->virtualX == -1 || randrp->virtualY == -1) 
     {
@@ -655,6 +656,10 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 	    clone_types = (1 << I830_OUTPUT_LVDS);
 	    pipe_type = PIPE_LFP;
 	    subpixel = SubPixelHorizontalRGB;
+	    possibleOptions = (RROutputOptionScaleNone|
+			       RROutputOptionScaleMaxAspect |
+			       RROutputOptionScaleMax);
+	    currentOptions = RROutputOptionScaleMax;
 	    break;
 	case I830_OUTPUT_TVOUT:
 	    crtc_types = ((1 << 0) |
@@ -692,11 +697,14 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 
 	RROutputSetCrtc (randrp->outputs[i], crtc);
     
+	RROutputSetPossibleOptions (randrp->outputs[i], possibleOptions);
+	RROutputSetCurrentOptions (randrp->outputs[i], currentOptions);
         nmode = 0;
 	rrmodes = NULL;
 	if (pipe >= 0) 
 	{
-	    modes = pI830->pipeMon[pipe]->Modes;
+	    MonPtr  mon = pI830->pipeMon[pipe];
+	    modes = mon->Modes;
 	
 	    for (mode = modes; mode; mode = mode->next)
 		nmode++;
@@ -725,6 +733,16 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 		    modeInfo.vSyncEnd = mode->VSyncEnd;
 		    modeInfo.vTotal = mode->VTotal;
 		    modeInfo.modeFlags = mode->Flags;
+		    if (mode->type & M_T_PREFERRED)
+			modeInfo.origin = RRModeOriginPreferred;
+		    else if (mode->type & M_T_DRIVER)
+			modeInfo.origin = RRModeOriginDetailed;
+		    else if (mode->type & M_T_USERDEF)
+			modeInfo.origin = RRModeOriginConfig;
+		    else if (mode->type & M_T_DEFAULT)
+			modeInfo.origin = RRModeOriginVESA;
+		    else
+			modeInfo.origin = RRModeOriginOther;
 
 		    rrmode = RRModeGet (pScreen, &modeInfo, mode->name);
 		    rrmode->devPrivate = mode;
@@ -776,8 +794,6 @@ static Bool
 I830RandRGetInfo12 (ScreenPtr pScreen, Rotation *rotations)
 {
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr		pI830 = I830PTR(pScrn);
-    int			found_crt;
 
     I830ValidateXF86ModeList(pScrn, FALSE);
     return I830RandRSetInfo12 (pScreen);
