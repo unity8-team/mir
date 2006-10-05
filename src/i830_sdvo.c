@@ -640,10 +640,13 @@ I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
 }
 
 void
-i830SDVOSave(ScrnInfoPtr pScrn, int output_index)
+i830SDVOSave(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I830SDVOPtr sdvo = pI830->output[output_index].sdvo_drv;
+    I830SDVOPtr sdvo = output->sdvo_drv;
+
+    if (sdvo == NULL)
+	return;
 
     sdvo->save_sdvo_mult = I830SDVOGetClockRateMult(sdvo);
     I830SDVOGetActiveOutputs(sdvo, &sdvo->save_sdvo_active_1,
@@ -677,19 +680,28 @@ i830SDVOSave(ScrnInfoPtr pScrn, int output_index)
 }
 
 void
-i830SDVOPreRestore(ScrnInfoPtr pScrn, int output_index)
+i830SDVODPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I830SDVOPtr sdvo = pI830->output[output_index].sdvo_drv;
+    I830SDVOPtr sdvo = output->sdvo_drv;
 
-    I830SDVOSetActiveOutputs(sdvo, FALSE, FALSE);
+    if (sdvo == NULL)
+	return;
+
+    if (mode != DPMSModeOn)
+	I830SDVOSetActiveOutputs(sdvo, FALSE, FALSE);
+    else
+	I830SDVOSetActiveOutputs(sdvo, TRUE, FALSE);
 }
 
 void
-i830SDVOPostRestore(ScrnInfoPtr pScrn, int output_index)
+i830SDVORestore(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I830SDVOPtr sdvo = pI830->output[output_index].sdvo_drv;
+    I830SDVOPtr sdvo = output->sdvo_drv;
+
+    if (sdvo == NULL)
+	return;
 
     if (sdvo->caps.caps & 0x1) {
        I830SDVOSetTargetInput(sdvo, FALSE, FALSE);

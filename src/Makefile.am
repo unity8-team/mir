@@ -53,6 +53,7 @@ i810_drv_la_SOURCES = \
          i830_bios.c \
          i830_bios.h \
          i830_common.h \
+	 i830_crt.c \
          i830_cursor.c \
 	 i830_debug.c \
 	 i830_debug.h \
@@ -65,6 +66,7 @@ i810_drv_la_SOURCES = \
          i830_gtf.c \
          i830_i2c.c \
          i830_io.c \
+	 i830_lvds.c \
          i830_memory.c \
          i830_modes.c \
          i830_video.c \

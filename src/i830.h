@@ -69,6 +69,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_dri.h"
 #endif
 
+typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
+
 #include "common.h"
 #include "i830_sdvo.h"
 #include "i2c_vid.h"
@@ -222,6 +224,23 @@ struct _I830OutputRec {
    int type;
 /*   int pipe;
    int flags;*/
+
+   /**
+    * Turns the output on/off, or sets intermediate power levels if available.
+    * Unsupported intermediate modes drop to the lower power setting.
+    */
+   void (*dpms)(ScrnInfoPtr pScrn, I830OutputPtr output, int mode);
+
+   /**
+    * Saves the output's state for restoration on VT switch.
+    */
+   void (*save)(ScrnInfoPtr pScrn, I830OutputPtr output);
+
+   /**
+    * Restore's the output's state at VT switch.
+    */
+   void (*restore)(ScrnInfoPtr pScrn, I830OutputPtr output);
+
    xf86MonPtr MonInfo;
    I2CBusPtr pI2CBus;
    I2CBusPtr pDDCBus;
@@ -613,9 +632,22 @@ extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
 
+/* i830_crt.c */
+void I830CRTDPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode);
+void I830CRTSave(ScrnInfoPtr pScrn, I830OutputPtr output);
+void I830CRTRestore(ScrnInfoPtr pScrn, I830OutputPtr output);
+
 /* i830_dvo.c */
+void I830DVODPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode);
+void I830DVOSave(ScrnInfoPtr pScrn, I830OutputPtr output);
+void I830DVORestore(ScrnInfoPtr pScrn, I830OutputPtr output);
 Bool I830I2CDetectDVOControllers(ScrnInfoPtr pScrn, I2CBusPtr pI2CBus,
 				 struct _I830DVODriver **retdrv);
+
+/* i830_lvds.c */
+void I830LVDSDPMS(ScrnInfoPtr pScrn, I830OutputPtr output, int mode);
+void I830LVDSSave(ScrnInfoPtr pScrn, I830OutputPtr output);
+void I830LVDSRestore(ScrnInfoPtr pScrn, I830OutputPtr output);
 
 /* i830_memory.c */
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);

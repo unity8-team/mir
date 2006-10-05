@@ -909,6 +909,9 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
 
    /* everyone has at least a single analog output */
    pI830->output[i].type = I830_OUTPUT_ANALOG;
+   pI830->output[i].dpms = I830CRTDPMS;
+   pI830->output[i].save = I830CRTSave;
+   pI830->output[i].restore = I830CRTRestore;
 
    /* setup the DDC bus for the analog output */
    I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOA, "CRTDDC_A");
@@ -917,6 +920,9 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
    if (IS_MOBILE(pI830) && !IS_I830(pI830)) {
       /* Set up integrated LVDS */
       pI830->output[i].type = I830_OUTPUT_LVDS;
+      pI830->output[i].dpms = I830LVDSDPMS;
+      pI830->output[i].save = I830LVDSSave;
+      pI830->output[i].restore = I830LVDSRestore;
       I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOC, "LVDSDDC_C");
       i++;
    }
@@ -924,18 +930,27 @@ I830SetupOutputBusses(ScrnInfoPtr pScrn)
    if (IS_I9XX(pI830)) {
       /* Set up SDVOB */
       pI830->output[i].type = I830_OUTPUT_SDVO;
+      pI830->output[i].dpms = i830SDVODPMS;
+      pI830->output[i].save = i830SDVOSave;
+      pI830->output[i].restore = i830SDVORestore;
       I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "SDVOCTRL_E");
       I830SDVOInit(pScrn, i, SDVOB);
       i++;
 
       /* Set up SDVOC */
       pI830->output[i].type = I830_OUTPUT_SDVO;
+      pI830->output[i].dpms = i830SDVODPMS;
+      pI830->output[i].save = i830SDVOSave;
+      pI830->output[i].restore = i830SDVORestore;
       pI830->output[i].pI2CBus = pI830->output[i-1].pI2CBus;
       I830SDVOInit(pScrn, i, SDVOC);
       i++;
    } else {
       /* set up DVO */
       pI830->output[i].type = I830_OUTPUT_DVO;
+      pI830->output[i].dpms = I830DVODPMS;
+      pI830->output[i].save = I830DVOSave;
+      pI830->output[i].restore = I830DVORestore;
       I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOD, "DVODDC_D");
       I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");
 
@@ -2600,31 +2615,6 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveVCLK_POST_DIV = INREG(VCLK_POST_DIV);
    pI830->saveVGACNTRL = INREG(VGACNTRL);
 
-   pI830->saveADPA = INREG(ADPA);
-
-   pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
-   pI830->savePP_ON = INREG(LVDSPP_ON);
-   pI830->savePP_OFF = INREG(LVDSPP_OFF);
-   pI830->saveLVDS = INREG(LVDS);
-   pI830->savePP_CONTROL = INREG(PP_CONTROL);
-   pI830->savePP_CYCLE = INREG(PP_CYCLE);
-   pI830->saveBLC_PWM_CTL = INREG(BLC_PWM_CTL);
-   pI830->backlight_duty_cycle = (pI830->saveBLC_PWM_CTL & 
-				  BACKLIGHT_DUTY_CYCLE_MASK);
-   /*
-    * If the light is off at server startup, just make it full brightness
-    */
-   if (!pI830->backlight_duty_cycle)
-      pI830->backlight_duty_cycle = ((pI830->saveBLC_PWM_CTL &
-				      BACKLIGHT_MODULATION_FREQ_MASK) >>
-				     BACKLIGHT_MODULATION_FREQ_SHIFT);
-
-   if (!IS_I9XX(pI830)) {
-      pI830->saveDVOA = INREG(DVOA);
-      pI830->saveDVOB = INREG(DVOB);
-      pI830->saveDVOC = INREG(DVOC);
-   }
-
    for(i = 0; i < 7; i++) {
       pI830->saveSWF[i] = INREG(SWF0 + (i << 2));
       pI830->saveSWF[i+7] = INREG(SWF00 + (i << 2));
@@ -2634,17 +2624,8 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveSWF[16] = INREG(SWF32);
 
    for (i = 0; i < pI830->num_outputs; i++) {
-      if (pI830->output[i].type == I830_OUTPUT_DVO &&
-	  pI830->output[i].i2c_drv != NULL)
-      {
-	 pI830->output[i].i2c_drv->vid_rec->SaveRegs(
-	    pI830->output[i].i2c_drv->dev_priv);
-      }
-      if (pI830->output[i].type == I830_OUTPUT_SDVO &&
-	  pI830->output[i].sdvo_drv != NULL)
-      {
-	 i830SDVOSave(pScrn, i);
-      }
+      if (pI830->output[i].save != NULL)
+	 pI830->output[i].save(pScrn, &pI830->output[i]);
    }
 
    vgaHWUnlock(hwp);
@@ -2670,6 +2651,11 @@ RestoreHWState(ScrnInfoPtr pScrn)
    vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
    vgaHWLock(hwp);
 
+   /* Disable outputs */
+   for (i = 0; i < pI830->num_outputs; i++) {
+      pI830->output[i].dpms(pScrn, &pI830->output[i], DPMSModeOff);
+   }
+
    /* First, disable display planes */
    temp = INREG(DSPACNTR);
    OUTREG(DSPACNTR, temp & ~DISPLAY_PLANE_ENABLE);
@@ -2682,18 +2668,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
    temp = INREG(PIPEBCONF);
    OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
 
-   /* XXX: Wait for a vblank */
-   sleep(1);
-
-   i830SetLVDSPanelPower(pScrn, FALSE);
-
-   for (i = 0; i < pI830->num_outputs; i++) {
-      if (pI830->output[i].type == I830_OUTPUT_SDVO &&
-	  pI830->output[i].sdvo_drv != NULL)
-      {
-	 i830SDVOPreRestore(pScrn, i);
-      }
-   }
+   i830WaitForVblank(pScrn);
 
    OUTREG(FPA0, pI830->saveFPA0);
    OUTREG(FPA1, pI830->saveFPA1);
@@ -2738,12 +2713,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(DSPBSURF, pI830->saveDSPBBASE);
    }
 
-   OUTREG(BLC_PWM_CTL, pI830->saveBLC_PWM_CTL);
-   OUTREG(LVDSPP_ON, pI830->savePP_ON);
-   OUTREG(LVDSPP_OFF, pI830->savePP_OFF);
-   OUTREG(PP_CYCLE, pI830->savePP_CYCLE);
-   OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
-   
    OUTREG(VCLK_DIVISOR_VGA0, pI830->saveVCLK_DIVISOR_VGA0);
    OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
    OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
@@ -2755,29 +2724,9 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(DSPACNTR, pI830->saveDSPACNTR);
    OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
 
-   OUTREG(ADPA, pI830->saveADPA);
-   OUTREG(LVDS, pI830->saveLVDS);
-   if (!IS_I9XX(pI830)) {
-      OUTREG(DVOA, pI830->saveDVOA);
-      OUTREG(DVOB, pI830->saveDVOB);
-      OUTREG(DVOC, pI830->saveDVOC);
-   }
-
    for (i = 0; i < pI830->num_outputs; i++) {
-      if (pI830->output[i].type == I830_OUTPUT_DVO &&
-	  pI830->output[i].i2c_drv != NULL)
-      {
-	 pI830->output[i].i2c_drv->vid_rec->RestoreRegs(
-	    pI830->output[i].i2c_drv->dev_priv);
-      }
-      if (pI830->output[i].type == I830_OUTPUT_SDVO &&
-	  pI830->output[i].sdvo_drv != NULL)
-      {
-	 i830SDVOPostRestore(pScrn, i);
-      }
+      pI830->output[i].restore(pScrn, &pI830->output[i]);
    }
-
-   OUTREG(PP_CONTROL, pI830->savePP_CONTROL);
 
    for(i = 0; i < 7; i++) {
 	   OUTREG(SWF0 + (i << 2), pI830->saveSWF[i]);
@@ -4204,39 +4153,6 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
    return TRUE;
 }
 
-static void
-I830DPMSCRT(ScrnInfoPtr pScrn, int mode)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 temp;
-   
-   temp = INREG(ADPA);
-   temp &= ~(ADPA_HSYNC_CNTL_DISABLE|ADPA_VSYNC_CNTL_DISABLE);
-   switch(mode) {
-   case DPMSModeOn:
-      break;
-   case DPMSModeStandby:
-      temp |= ADPA_HSYNC_CNTL_DISABLE;
-      break;
-   case DPMSModeSuspend:
-      temp |= ADPA_VSYNC_CNTL_DISABLE;
-      break;
-   case DPMSModeOff:
-      temp |= ADPA_HSYNC_CNTL_DISABLE|ADPA_VSYNC_CNTL_DISABLE;
-      break;
-   }
-   OUTREG(ADPA, temp);
-}
-
-static void
-I830DPMSLVDS(ScrnInfoPtr pScrn, int mode)
-{
-   if (mode == DPMSModeOn)
-      i830SetLVDSPanelPower(pScrn, TRUE);
-   else
-      i830SetLVDSPanelPower(pScrn, FALSE);
-}
-
 /* Use the VBE version when available. */
 static void
 I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
@@ -4245,6 +4161,10 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
    I830Ptr pI830 = I830PTR(pScrn);
    int i;
    CARD32 temp, ctrl, base;
+
+   for (i = 0; i < pI830->num_outputs; i++) {
+      pI830->output[i].dpms(pScrn, &pI830->output[i], PowerManagementMode);
+   }
 
    for (i = 0; i < pI830->availablePipes; i++) {
       if (i == 0) {
@@ -4265,22 +4185,6 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
 	   temp = INREG(base);
 	   OUTREG(base, temp);
       }
-   }
-
-   if (pI830->operatingDevices & (PIPE_CRT_ACTIVE | (PIPE_CRT_ACTIVE<<8))) {
-      I830DPMSCRT(pScrn, PowerManagementMode);
-   }
-
-   if (pI830->operatingDevices & (PIPE_LCD_ACTIVE | (PIPE_LCD_ACTIVE<<8))) {
-      I830DPMSLVDS(pScrn, PowerManagementMode);
-   }
-
-   if (pI830->operatingDevices & (PIPE_DFP_ACTIVE | (PIPE_DFP_ACTIVE<<8))) {
-      /* TBD */
-   }
-
-   if (pI830->operatingDevices & (PIPE_DFP2_ACTIVE | (PIPE_DFP2_ACTIVE<<8))) {
-      /* TBD */
    }
 
    if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn) {
