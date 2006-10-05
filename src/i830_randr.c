@@ -832,12 +832,25 @@ I830RandRCreateScreenResources12 (ScreenPtr pScreen)
     mode = pScrn->currentMode;
     if (mode)
     {
+	int mmWidth, mmHeight;
+
+	if (mode->HDisplay == pScreen->width &&
+	    mode->VDisplay == pScreen->height)
+	{
+	    mmWidth = pScrn->widthmm;
+	    mmHeight = pScrn->heightmm;
+	}
+	else
+	{
+#define MMPERINCH 25.4
+	    mmWidth = (double) mode->HDisplay / pScrn->xDpi * MMPERINCH;
+	    mmHeight = (double) mode->VDisplay / pScrn->yDpi * MMPERINCH;
+	}
 	I830RandRScreenSetSize (pScreen,
 				mode->HDisplay,
 				mode->VDisplay,
-				pScreen->mmWidth,
-				pScreen->mmHeight);
-	
+				mmWidth,
+				mmHeight);
     }
 			    
     for (i = 0; i < MAX_DISPLAY_PIPES; i++)
