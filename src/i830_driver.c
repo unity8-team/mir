@@ -1771,13 +1771,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    if ((pI830->entityPrivate && I830IsPrimary(pScrn)) || pI830->Clone) {
-      if ((!xf86GetOptValString(pI830->Options, OPTION_MONITOR_LAYOUT))) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "You must have a MonitorLayout "
-	 		"defined for use in a DualHead, Clone or MergedFB setup.\n");
-         PreInitCleanup(pScrn);
-         return FALSE;
-      }
-
       if (pI830->MonType1 == PIPE_NONE || pI830->MonType2 == PIPE_NONE) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Monitor 1 or Monitor 2 "
 	 		"cannot be type NONE in DualHead or Clone setup.\n");
