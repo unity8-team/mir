@@ -1577,8 +1577,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    /* Blacklist machines with known broken BIOSes */
    if (pI830->PciInfo->chipType == PCI_CHIP_I945_GM) {
-	if ((pI830->PciInfo->subsysVendor == 0xa0a0) &&
-	    (pI830->PciInfo->subsysCard == 0x0589))  /* aopen mini pc */
+	if (pI830->PciInfo->subsysVendor == 0xa0a0)  /* aopen mini pc */
 	    has_lvds = FALSE;
 
 	if ((pI830->PciInfo->subsysVendor == 0x8086) &&
