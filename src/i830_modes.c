@@ -651,11 +651,27 @@ static MonPtr
 i830GetLVDSMonitor(ScrnInfoPtr pScrn)
 {
     MonPtr mon;
+    DisplayModePtr  mode;
 
     mon = xnfcalloc(1, sizeof(*mon));
     mon->Modes = i830GetLVDSModes(pScrn, pScrn->display->modes);
     mon->Last = i830GetModeListTail(mon->Modes);
-
+    /*
+     * Find the preferred mode, use the display resolution to compute
+     * the effective monitor size
+     */
+    for (mode = mon->Modes; mode; mode = mode->next)
+	if (mode->type & M_T_PREFERRED)
+	    break;
+    if (!mode)
+	mode = mon->Modes;
+    if (mode)
+    {
+#define MMPERINCH 25.4
+	mon->widthmm = (double) mode->HDisplay / pScrn->xDpi * MMPERINCH;
+	mon->heightmm = (double) mode->VDisplay / pScrn->yDpi * MMPERINCH;
+    }
+	
     return mon;
 }
 
