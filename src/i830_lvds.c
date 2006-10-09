@@ -117,6 +117,10 @@ i830_lvds_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
     OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
     OUTREG(LVDS, pI830->saveLVDS);
     OUTREG(PP_CONTROL, pI830->savePP_CONTROL);
+    if (pI830->savePP_CONTROL & POWER_TARGET_ON)
+	i830SetLVDSPanelPower(pScrn, TRUE);
+    else
+	i830SetLVDSPanelPower(pScrn, FALSE);
 }
 
 static void
@@ -158,6 +162,9 @@ i830_lvds_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
      * sequencing the panel.
      */
     OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
+
+    /* Re-enable the PLL */
+    OUTREG(FPB0, INREG(FPB0) | DPLL_VCO_ENABLE);
 
     i830SetLVDSPanelPower(pScrn, TRUE);
 }

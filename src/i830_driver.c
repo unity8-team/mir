@@ -1668,45 +1668,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	 pI830->MonType1 |= PIPE_CRT;
       }
 
-      /* Perform the pipe assignment of outputs.  This code shouldn't exist,
-       * but for now we're supporting the existing MonitorLayout configuration
-       * scheme.
-       */
-      for (i = 0; i < pI830->num_outputs; i++) {
-	 pI830->output[i].disabled = FALSE;
-
-	 switch (pI830->output[i].type) {
-	 case I830_OUTPUT_LVDS:
-	    if (pI830->MonType1 & PIPE_LFP)
-	       pI830->output[i].pipe = 0;
-	    else if (pI830->MonType2 & PIPE_LFP)
-	       pI830->output[i].pipe = 1;
-	    else
-	       pI830->output[i].disabled = TRUE;
-	    break;
-	 case I830_OUTPUT_ANALOG:
-	    if (pI830->MonType1 & PIPE_CRT)
-	       pI830->output[i].pipe = 0;
-	    else if (pI830->MonType2 & PIPE_CRT)
-	       pI830->output[i].pipe = 1;
-	    else
-	       pI830->output[i].disabled = TRUE;
-	    break;
-	 case I830_OUTPUT_DVO:
-	 case I830_OUTPUT_SDVO:
-	    if (pI830->MonType1 & PIPE_DFP)
-	       pI830->output[i].pipe = 0;
-	    else if (pI830->MonType2 & PIPE_DFP)
-	       pI830->output[i].pipe = 1;
-	    else
-	       pI830->output[i].disabled = TRUE;
-	    break;
-	 default:
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unhandled output type\n");
-	    break;
-	 }
-      }
-
       /* Check for attached SDVO outputs.  Assume that they're flat panels for
        * now.  Though really, it's just a name at the moment, since we don't
        * treat different SDVO outputs differently.
@@ -1765,6 +1726,48 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Enabling Clone Mode\n");
       pI830->Clone = TRUE;
    }
+
+
+   /* Perform the pipe assignment of outputs.  This code shouldn't exist,
+    * but for now we're supporting the existing MonitorLayout configuration
+    * scheme.
+    */
+   for (i = 0; i < pI830->num_outputs; i++) {
+      pI830->output[i].disabled = FALSE;
+
+      switch (pI830->output[i].type) {
+      case I830_OUTPUT_LVDS:
+	 if (pI830->MonType1 & PIPE_LFP)
+	    pI830->output[i].pipe = 0;
+	 else if (pI830->MonType2 & PIPE_LFP)
+	    pI830->output[i].pipe = 1;
+	 else
+	    pI830->output[i].disabled = TRUE;
+	 break;
+      case I830_OUTPUT_ANALOG:
+	 if (pI830->MonType1 & PIPE_CRT)
+	    pI830->output[i].pipe = 0;
+	 else if (pI830->MonType2 & PIPE_CRT)
+	    pI830->output[i].pipe = 1;
+	 else
+	    pI830->output[i].disabled = TRUE;
+	 break;
+      case I830_OUTPUT_DVO:
+      case I830_OUTPUT_SDVO:
+	 if (pI830->MonType1 & PIPE_DFP)
+	    pI830->output[i].pipe = 0;
+	 else if (pI830->MonType2 & PIPE_DFP)
+	    pI830->output[i].pipe = 1;
+	 else
+	    pI830->output[i].disabled = TRUE;
+	 break;
+      default:
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unhandled output type\n");
+	 break;
+      }
+   }
+
+   
 
    pI830->CloneRefresh = 60; /* default to 60Hz */
    if (xf86GetOptValInteger(pI830->Options, OPTION_CLONE_REFRESH,
@@ -2703,6 +2706,10 @@ RestoreHWState(ScrnInfoPtr pScrn)
       }
    }
 
+   for (i = 0; i < pI830->num_outputs; i++) {
+      pI830->output[i].restore(pScrn, &pI830->output[i]);
+   }
+
    if (IS_I965G(pI830)) {
       OUTREG(DSPASURF, pI830->saveDSPABASE);
       OUTREG(DSPBSURF, pI830->saveDSPBBASE);
@@ -2718,10 +2725,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(VGACNTRL, pI830->saveVGACNTRL);
    OUTREG(DSPACNTR, pI830->saveDSPACNTR);
    OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
-
-   for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].restore(pScrn, &pI830->output[i]);
-   }
 
    for(i = 0; i < 7; i++) {
 	   OUTREG(SWF0 + (i << 2), pI830->saveSWF[i]);
