@@ -34,6 +34,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "compiler.h"
 #include "i830.h"
 #include "i830_display.h"
+#include "i810_reg.h"
 #include "i830_sdvo_regs.h"
 
 CARD16 curr_table[6];
@@ -167,6 +168,17 @@ I830SDVOReadInputRegs(I830SDVOPtr s)
     else
 	ErrorF("(??? %d)", s->sdvo_regs[SDVO_I2C_CMD_STATUS]);
     ErrorF("\n");
+}
+
+int
+i830_sdvo_get_pixel_multiplier(DisplayModePtr pMode)
+{
+    if (pMode->Clock >= 100000)
+	return 1;
+    else if (pMode->Clock >= 50000)
+	return 2;
+    else
+	return 4;
 }
 
 /* Sets the control bus switch to either point at one of the DDC buses or the
@@ -520,9 +532,11 @@ I830SDVOSetClockRateMult(I830SDVOPtr s, CARD8 val)
     return TRUE;
 }
 
-Bool
-I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
+static void
+i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
+			DisplayModePtr mode)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
     CARD16 clock = mode->Clock/10, width = mode->CrtcHDisplay;
     CARD16 height = mode->CrtcVDisplay;
     CARD16 h_blank_len, h_sync_len, v_blank_len, v_sync_len;
@@ -533,6 +547,7 @@ I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
     CARD16 out_timings[6];
     CARD16 clock_min, clock_max;
     Bool out1, out2;
+    I830SDVOPtr s = output->sdvo_drv;
 
     /* do some mode translations */
     h_blank_len = mode->CrtcHBlankEnd - mode->CrtcHBlankStart;
@@ -600,22 +615,34 @@ I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
 				 out_timings[5]);
 
     I830SDVOSetTargetInput (s, FALSE, FALSE);
-    
-    if (clock >= 10000)
-	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_1X);
-    else if (clock >= 5000)
-	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_2X);
-    else
-	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_4X);
 
-    return TRUE;
+    switch (i830_sdvo_get_pixel_multiplier(mode)) {
+    case 1:
+	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_1X);
+	break;
+    case 2:
+	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_2X);
+	break;
+    case 4:
+	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_4X);
+	break;
+    }
+
+    OUTREG(SDVOC, INREG(SDVOC) & ~SDVO_ENABLE);
+    OUTREG(SDVOB, INREG(SDVOB) & ~SDVO_ENABLE);
 }
 
-Bool
-I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
+static void
+i830_sdvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
+			DisplayModePtr mode)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
     Bool ret = TRUE;
     Bool out1, out2;
+    CARD32 dpll, sdvob, sdvoc;
+    int dpll_reg = (output->pipe == 0) ? DPLL_A : DPLL_B;
+    int sdvo_pixel_multiply;
+    I830SDVOPtr s = output->sdvo_drv;
 
     /* the BIOS writes out 6 commands post mode set */
     /* two 03s, 04 05, 10, 1d */
@@ -636,18 +663,41 @@ I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
     I830SDVOSetActiveOutputs(s, TRUE, FALSE);
     I830SDVOSetTargetInput (s, FALSE, FALSE);
 
-    return ret;
+    /* Set the SDVO control regs. */
+    sdvob = INREG(SDVOB) & SDVOB_PRESERVE_MASK;
+    sdvoc = INREG(SDVOC) & SDVOC_PRESERVE_MASK;
+    sdvob |= SDVO_ENABLE | (9 << 19) | SDVO_BORDER_ENABLE;
+    sdvoc |= 9 << 19;
+    if (output->pipe == 1)
+	sdvob |= SDVO_PIPE_B_SELECT;
+
+    dpll = INREG(dpll_reg);
+
+    sdvo_pixel_multiply = i830_sdvo_get_pixel_multiplier(mode);
+    if (IS_I945G(pI830) || IS_I945GM(pI830))
+	dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
+    else
+	sdvob |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
+
+    OUTREG(dpll_reg, dpll | DPLL_DVO_HIGH_SPEED);
+
+    OUTREG(SDVOB, sdvob);
+    OUTREG(SDVOC, sdvoc);
 }
 
 static void
 i830_sdvo_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
     I830SDVOPtr sdvo = output->sdvo_drv;
 
-    if (mode != DPMSModeOn)
+    if (mode != DPMSModeOn) {
 	I830SDVOSetActiveOutputs(sdvo, FALSE, FALSE);
-    else
+	OUTREG(SDVOB, INREG(SDVOB) & ~SDVO_ENABLE);
+    } else {
 	I830SDVOSetActiveOutputs(sdvo, TRUE, FALSE);
+	OUTREG(SDVOB, INREG(SDVOB) | SDVO_ENABLE);
+    }
 }
 
 static void
@@ -857,13 +907,11 @@ void
 I830DumpSDVO (ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I830SDVOPtr	s;
     int	i;
 
-    for (i = 0; i < 4; i++) {
-	s = pI830->output[i].sdvo_drv;
-	if (s)
-	    I830DumpOneSDVO (s);
+    for (i = 0; i < pI830->num_outputs; i++) {
+	if (pI830->output[i].type == I830_OUTPUT_SDVO)
+	    I830DumpOneSDVO (pI830->output[i].sdvo_drv);
     }
 }
 
@@ -906,6 +954,8 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     pI830->output[pI830->num_outputs].dpms = i830_sdvo_dpms;
     pI830->output[pI830->num_outputs].save = i830_sdvo_save;
     pI830->output[pI830->num_outputs].restore = i830_sdvo_restore;
+    pI830->output[pI830->num_outputs].pre_set_mode = i830_sdvo_pre_set_mode;
+    pI830->output[pI830->num_outputs].post_set_mode = i830_sdvo_post_set_mode;
 
     /* Find an existing SDVO I2CBus from another output, or allocate it. */
     for (i = 0; i < pI830->num_outputs; i++) {
@@ -974,7 +1024,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	return;
     }
 
-    pI830->output[pI830->num_outputs].pI2CBus = ddcbus;
+    pI830->output[pI830->num_outputs].pI2CBus = i2cbus;
     pI830->output[pI830->num_outputs].pDDCBus = ddcbus;
     pI830->output[pI830->num_outputs].sdvo_drv = sdvo;
 

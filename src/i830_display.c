@@ -226,7 +226,7 @@ i830FindBestPLL(ScrnInfoPtr pScrn, int outputs, int target, int refclk,
     return (err != target);
 }
 
-static void
+void
 i830WaitForVblank(ScrnInfoPtr pScreen)
 {
     /* Wait for 20ms, i.e. one cycle at 50hz. */
@@ -260,6 +260,91 @@ i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y)
 }
 
 /**
+ * In the current world order, there is a list of per-pipe modes, which may or
+ * may not include the mode that was asked to be set by XFree86's mode
+ * selection.  Find the closest one, in the following preference order:
+ *
+ * - Equality
+ * - Closer in size to the requested mode, but no larger
+ * - Closer in refresh rate to the requested mode.
+ */
+static DisplayModePtr
+i830PipeFindClosestMode(ScrnInfoPtr pScrn, int pipe, DisplayModePtr pMode)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    DisplayModePtr pBest = NULL, pScan;
+
+    /* If the pipe doesn't have any detected modes, just let the system try to
+     * spam the desired mode in.
+     */
+    if (pI830->pipeMon[pipe] == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "No pipe mode list for pipe %d,"
+		   "continuing with desired mode\n", pipe);
+	return pMode;
+    }
+
+    assert(pScan->VRefresh != 0.0);
+    for (pScan = pI830->pipeMon[pipe]->Modes; pScan != NULL;
+	 pScan = pScan->next) {
+	/* If there's an exact match, we're done. */
+	if (I830ModesEqual(pScan, pMode)) {
+	    pBest = pMode;
+	    break;
+	}
+
+	/* Reject if it's larger than the desired mode. */
+	if (pScan->HDisplay > pMode->HDisplay ||
+	    pScan->VDisplay > pMode->VDisplay)
+	{
+	    continue;
+	}
+
+	if (pBest == NULL) {
+	    pBest = pScan;
+	    continue;
+	}
+
+	/* Find if it's closer to the right size than the current best
+	 * option.
+	 */
+	if ((pScan->HDisplay > pBest->HDisplay &&
+	     pScan->VDisplay >= pBest->VDisplay) ||
+	    (pScan->HDisplay >= pBest->HDisplay &&
+	     pScan->VDisplay > pBest->VDisplay))
+	{
+	    pBest = pScan;
+	    continue;
+	}
+
+	/* Find if it's still closer to the right refresh than the current
+	 * best resolution.
+	 */
+	if (pScan->HDisplay == pBest->HDisplay &&
+	    pScan->VDisplay == pBest->VDisplay &&
+	    (fabs(pScan->VRefresh - pMode->VRefresh) <
+	     fabs(pBest->VRefresh - pMode->VRefresh))) {
+	    pBest = pScan;
+	}
+    }
+
+    if (pBest == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "No suitable mode found to program for the pipe.\n"
+		   "	continuing with desired mode %dx%d@%.1f\n",
+		   pMode->HDisplay, pMode->VDisplay, pMode->VRefresh);
+    } else if (!I830ModesEqual(pBest, pMode)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Choosing pipe %d's mode %dx%d@%.1f instead of xf86 "
+		   "mode %dx%d@%.1f\n", pipe,
+		   pBest->HDisplay, pBest->VDisplay, pBest->VRefresh,
+		   pMode->HDisplay, pMode->VDisplay, pMode->VRefresh);
+	pMode = pBest;
+    }
+    return pMode;
+}
+
+/**
  * Sets the given video mode on the given pipe.  Assumes that plane A feeds
  * pipe A, and plane B feeds pipe B.  Should not affect the other planes/pipes.
  */
@@ -270,118 +355,75 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     int m1 = 0, m2 = 0, n = 0, p1 = 0, p2 = 0;
     CARD32 dpll = 0, fp = 0, temp;
     CARD32 htot, hblank, hsync, vtot, vblank, vsync, dspcntr;
-    CARD32 pipesrc, dspsize, adpa;
-    CARD32 sdvob = 0, sdvoc = 0, dvo = 0;
-    Bool ok, is_sdvo, is_dvo;
-    int refclk, pixel_clock, sdvo_pixel_multiply;
-    int outputs;
-    DisplayModePtr pMasterMode = pMode;
+    CARD32 pipesrc, dspsize;
+    Bool ok, is_sdvo = FALSE, is_dvo = FALSE;
+    Bool is_crt = FALSE, is_lvds = FALSE, is_tv = FALSE;
+    int refclk, pixel_clock;
+    int outputs, i;
+    int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
+    int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
+    int fp_reg = (pipe == 0) ? FPA0 : FPB0;
+    int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
+    int htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
+    int hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
+    int hsync_reg = (pipe == 0) ? HSYNC_A : HSYNC_B;
+    int vtot_reg = (pipe == 0) ? VTOTAL_A : VTOTAL_B;
+    int vblank_reg = (pipe == 0) ? VBLANK_A : VBLANK_B;
+    int vsync_reg = (pipe == 0) ? VSYNC_A : VSYNC_B;
+    int dspsize_reg = (pipe == 0) ? DSPASIZE : DSPBSIZE;
+    int dspstride_reg = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
+    int dsppos_reg = (pipe == 0) ? DSPAPOS : DSPBPOS;
+    int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
 
-    assert(pMode->VRefresh != 0.0);
-    /* If we've got a list of modes probed for the device, find the best match
-     * in there to the requested mode.
-     */
-    if (pI830->pipeMon[pipe] != NULL) {
-	DisplayModePtr pBest = NULL, pScan;
-
-	assert(pScan->VRefresh != 0.0);
-	for (pScan = pI830->pipeMon[pipe]->Modes; pScan != NULL;
-	     pScan = pScan->next)
-	{
-	    /* If there's an exact match, we're done. */
-	    if (I830ModesEqual(pScan, pMode)) {
-		pBest = pMode;
-		break;
-	    }
-
-	    /* Reject if it's larger than the desired mode. */
-	    if (pScan->HDisplay > pMode->HDisplay ||
-		pScan->VDisplay > pMode->VDisplay)
-	    {
-		continue;
-	    }
-
-	    if (pBest == NULL) {
-		pBest = pScan;
-	        continue;
-	    }
-	    /* Find if it's closer to the right size than the current best
-	     * option.
-	     */
-	    if ((pScan->HDisplay > pBest->HDisplay && 
-		pScan->VDisplay >= pBest->VDisplay) ||
-	        (pScan->HDisplay >= pBest->HDisplay && 
-		pScan->VDisplay > pBest->VDisplay))
-	    {
-		pBest = pScan;
-		continue;
-	    }
-	    /* Find if it's still closer to the right refresh than the current
-	     * best resolution.
-	     */
-	    if (pScan->HDisplay == pBest->HDisplay && 
-		pScan->VDisplay == pBest->VDisplay &&
-		(fabs(pScan->VRefresh - pMode->VRefresh) <
-		fabs(pBest->VRefresh - pMode->VRefresh)))
-	    {
-		pBest = pScan;
-	    }
-	}
-	if (pBest != NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Choosing pipe %d's mode %dx%d@%.1f instead of xf86 "
-		       "mode %dx%d@%.1f\n", pipe,
-		       pBest->HDisplay, pBest->VDisplay, pBest->VRefresh,
-		       pMode->HDisplay, pMode->VDisplay, pMode->VRefresh);
-	    pMode = pBest;
-	}
-    }
     if (pipe == 0)
 	outputs = pI830->operatingDevices & 0xff;
     else
 	outputs = (pI830->operatingDevices >> 8) & 0xff;
 
-    if (outputs & PIPE_LCD_ACTIVE) {
-	if (I830ModesEqual(&pI830->pipeCurMode[pipe], pMasterMode))
-	    return TRUE;
-    } else {
-	if (I830ModesEqual(&pI830->pipeCurMode[pipe], pMode))
-	    return TRUE;
-    }
+    if (I830ModesEqual(&pI830->pipeCurMode[pipe], pMode))
+	return TRUE;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Requested pix clock: %d\n",
 	       pMode->Clock);
 
-    if ((outputs & PIPE_LCD_ACTIVE) && (outputs & ~PIPE_LCD_ACTIVE)) {
+    for (i = 0; i < pI830->num_outputs; i++) {
+	if (pI830->output[i].pipe != pipe || pI830->output[i].disabled)
+	    continue;
+
+	switch (pI830->output[i].type) {
+	case I830_OUTPUT_LVDS:
+	    is_lvds = TRUE;
+	    break;
+	case I830_OUTPUT_SDVO:
+	    is_sdvo = TRUE;
+	    break;
+	case I830_OUTPUT_DVO:
+	    is_dvo = TRUE;
+	    break;
+	case I830_OUTPUT_TVOUT:
+	    is_tv = TRUE;
+	    break;
+	case I830_OUTPUT_ANALOG:
+	    is_crt = TRUE;
+	    break;
+	}
+    }
+
+    if (is_lvds && (is_sdvo || is_dvo || is_tv || is_crt)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Can't enable LVDS and non-LVDS on the same pipe\n");
 	return FALSE;
     }
-    if (((outputs & PIPE_TV_ACTIVE) && (outputs & ~PIPE_TV_ACTIVE)) ||
-	((outputs & PIPE_TV2_ACTIVE) && (outputs & ~PIPE_TV2_ACTIVE))) {
+    if (is_tv && (is_sdvo || is_dvo || is_crt || is_lvds)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Can't enable a TV and any other output on the same pipe\n");
+		   "Can't enable a TV and any other output on the same "
+		   "pipe\n");
 	return FALSE;
     }
-    if (pipe == 0 && (outputs & PIPE_LCD_ACTIVE)) {
+    if (pipe == 0 && is_lvds) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Can't support LVDS on pipe A\n");
 	return FALSE;
-    }
-    if ((outputs & PIPE_DFP_ACTIVE) || (outputs & PIPE_DFP2_ACTIVE)) {
-	/* We'll change how we control outputs soon, but to get the SDVO code up
-	 * and running, just check for these two possibilities.
-	 */
-	if (IS_I9XX(pI830)) {
-	    is_sdvo = TRUE;
-	    is_dvo = FALSE;
-	} else {
-	    is_dvo = TRUE;
-	    is_sdvo = FALSE;
-	}
-    } else {
-	is_sdvo = FALSE;
-	is_dvo = FALSE;
     }
 
     htot = (pMode->CrtcHDisplay - 1) | ((pMode->CrtcHTotal - 1) << 16);
@@ -393,8 +435,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     pipesrc = ((pMode->HDisplay - 1) << 16) | (pMode->VDisplay - 1);
     dspsize = ((pMode->VDisplay - 1) << 16) | (pMode->HDisplay - 1);
     pixel_clock = pMode->Clock;
-    if (outputs & PIPE_LCD_ACTIVE && pI830->panel_fixed_hactive != 0)
-    {
+
+    if (is_lvds && pI830->panel_fixed_hactive != 0) {
 	/* To enable panel fitting, we need to set the pipe timings to that of
 	 * the screen at its full resolution.  So, drop the timings from the
 	 * BIOS VBT tables here.
@@ -420,30 +462,24 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 		  pI830->panel_fixed_vsyncwidth - 1) << 16);
 	pixel_clock = pI830->panel_fixed_clock;
 
-	if (pMasterMode->HDisplay <= pI830->panel_fixed_hactive &&
-	    pMasterMode->HDisplay <= pI830->panel_fixed_vactive)
+	if (pMode->HDisplay <= pI830->panel_fixed_hactive &&
+	    pMode->HDisplay <= pI830->panel_fixed_vactive)
 	{
-	    pipesrc = ((pMasterMode->HDisplay - 1) << 16) |
-		       (pMasterMode->VDisplay - 1);
-	    dspsize = ((pMasterMode->VDisplay - 1) << 16) |
-		       (pMasterMode->HDisplay - 1);
+	    pipesrc = ((pMode->HDisplay - 1) << 16) |
+		       (pMode->VDisplay - 1);
+	    dspsize = ((pMode->VDisplay - 1) << 16) |
+		       (pMode->HDisplay - 1);
 	}
     }
-
-    if (pMode->Clock >= 100000)
-	sdvo_pixel_multiply = 1;
-    else if (pMode->Clock >= 50000)
-	sdvo_pixel_multiply = 2;
-    else
-	sdvo_pixel_multiply = 4;
 
     /* In SDVO, we need to keep the clock on the bus between 1Ghz and 2Ghz.
      * The clock on the bus is 10 times the pixel clock normally.  If that
      * would be too low, we run the DPLL at a multiple of the pixel clock, and
-     * tell the SDVO device the multiplier so it can throw away the dummy bytes.
+     * tell the SDVO device the multiplier so it can throw away the dummy
+     * bytes.
      */
     if (is_sdvo) {
-	pixel_clock *= sdvo_pixel_multiply;
+	pixel_clock *= i830_sdvo_get_pixel_multiplier(pMode);
     }
 
     if (IS_I9XX(pI830)) {
@@ -461,7 +497,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
     dpll = DPLL_VCO_ENABLE | DPLL_VGA_MODE_DIS;
     if (IS_I9XX(pI830)) {
-	if (outputs & PIPE_LCD_ACTIVE)
+	if (is_lvds)
 	    dpll |= DPLLB_MODE_LVDS;
 	else
 	    dpll |= DPLLB_MODE_DAC_SERIAL;
@@ -486,54 +522,14 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	    dpll |= PLL_P2_DIVIDE_BY_4;
     }
 
-    if (outputs & (PIPE_TV_ACTIVE | PIPE_TV2_ACTIVE))
+    if (is_tv)
 	dpll |= PLL_REF_INPUT_TVCLKINBC;
 #if 0    
-    else if (outputs & (PIPE_LCD_ACTIVE))
+    else if (is_lvds)
 	dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 #endif
     else	
 	dpll |= PLL_REF_INPUT_DREFCLK;
-
-    if (is_dvo) {
-	dpll |= DPLL_DVO_HIGH_SPEED;
-
-	/* Save the data order, since I don't know what it should be set to. */
-	dvo = INREG(DVOC) & (DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
-	dvo |= DVO_ENABLE;
-	dvo |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE | DVO_BLANK_ACTIVE_HIGH;
-
-	if (pipe == 1)
-	    dvo |= DVO_PIPE_B_SELECT;
-
-	if (pMode->Flags & V_PHSYNC)
-	    dvo |= DVO_HSYNC_ACTIVE_HIGH;
-	if (pMode->Flags & V_PVSYNC)
-	    dvo |= DVO_VSYNC_ACTIVE_HIGH;
-
-	OUTREG(DVOC, dvo & ~DVO_ENABLE);
-    }
-
-    if (is_sdvo) {
-	dpll |= DPLL_DVO_HIGH_SPEED;
-
-	ErrorF("DVOB: %08x\nDVOC: %08x\n", (int)INREG(SDVOB), (int)INREG(SDVOC));
-
-        sdvob = INREG(SDVOB) & SDVOB_PRESERVE_MASK;
-	sdvoc = INREG(SDVOC) & SDVOC_PRESERVE_MASK;
-	sdvob |= SDVO_ENABLE | (9 << 19) | SDVO_BORDER_ENABLE;
-	sdvoc |= 9 << 19;
-	if (pipe == 1)
-	    sdvob |= SDVO_PIPE_B_SELECT;
-
-	if (IS_I945G(pI830) || IS_I945GM(pI830))
-	    dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
-	else
-	    sdvob |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
-
-	OUTREG(SDVOC, INREG(SDVOC) & ~SDVO_ENABLE);
-	OUTREG(SDVOB, INREG(SDVOB) & ~SDVO_ENABLE);
-    }
 
     fp = ((n - 2) << 16) | ((m1 - 2) << 8) | (m2 - 2);
 
@@ -576,150 +572,53 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
  	dspcntr |= DISPPLANE_GAMMA_ENABLE;
     }
 
-    if (is_sdvo)
-	adpa = ADPA_DAC_DISABLE;
-    else
-	adpa = ADPA_DAC_ENABLE;
-    if (pMode->Flags & V_PHSYNC)
-	adpa |= ADPA_HSYNC_ACTIVE_HIGH;
-    if (pMode->Flags & V_PVSYNC)
-	adpa |= ADPA_VSYNC_ACTIVE_HIGH;
-    
-    if (pipe == 0) {
+    if (pipe == 0)
 	dspcntr |= DISPPLANE_SEL_PIPE_A;
-	adpa |= ADPA_PIPE_A_SELECT;
-    } else {
+    else
 	dspcntr |= DISPPLANE_SEL_PIPE_B;
-	adpa |= ADPA_PIPE_B_SELECT;
-    }
 
     OUTREG(VGACNTRL, VGA_DISP_DISABLE);
 
-    /* Set up display timings and PLLs for the pipe. */
-    if (pipe == 0) {
-	/* First, disable display planes */
-	temp = INREG(DSPACNTR);
-	OUTREG(DSPACNTR, temp & ~DISPLAY_PLANE_ENABLE);
+    /* Finally, set the mode. */
+    /* First, disable display planes */
+    temp = INREG(dspcntr_reg);
+    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
 
-	/* Wait for vblank for the disable to take effect */
-	i830WaitForVblank(pScrn);
+    /* Wait for vblank for the disable to take effect */
+    i830WaitForVblank(pScrn);
 
-	/* Next, disable display pipes */
-	temp = INREG(PIPEACONF);
-	OUTREG(PIPEACONF, temp & ~PIPEACONF_ENABLE);
+    /* Next, disable display pipes */
+    temp = INREG(pipeconf_reg);
+    OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
 
-	OUTREG(FPA0, fp);
-	OUTREG(DPLL_A, dpll);
+    OUTREG(fp_reg, fp);
+    OUTREG(dpll_reg, dpll);
 
-	OUTREG(HTOTAL_A, htot);
-	OUTREG(HBLANK_A, hblank);
-	OUTREG(HSYNC_A, hsync);
-	OUTREG(VTOTAL_A, vtot);
-	OUTREG(VBLANK_A, vblank);
-	OUTREG(VSYNC_A, vsync);
-	OUTREG(DSPASTRIDE, pScrn->displayWidth * pI830->cpp);
-	OUTREG(DSPASIZE, dspsize);
-	OUTREG(DSPAPOS, 0);
-	i830PipeSetBase(pScrn, pipe, pI830->pipeX[pipe], pI830->pipeX[pipe]);
-	OUTREG(PIPEASRC, pipesrc);
-
-	/* Then, turn the pipe on first */
-	temp = INREG(PIPEACONF);
-	OUTREG(PIPEACONF, temp | PIPEACONF_ENABLE);
-
-	/* And then turn the plane on */
-	OUTREG(DSPACNTR, dspcntr);
-    } else {
-	/* Always make sure the LVDS is off before we play with DPLLs and pipe
-	 * configuration.
-	 */
-	i830SetLVDSPanelPower(pScrn, FALSE);
-
-	/* First, disable display planes */
-	temp = INREG(DSPBCNTR);
-	OUTREG(DSPBCNTR, temp & ~DISPLAY_PLANE_ENABLE);
-
-	/* Wait for vblank for the disable to take effect */
-	i830WaitForVblank(pScrn);
-
-	/* Next, disable display pipes */
-	temp = INREG(PIPEBCONF);
-	OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
-
-	if (outputs & PIPE_LCD_ACTIVE) {
-	    /* Disable the PLL before messing with LVDS enable */
-	    OUTREG(FPB0, fp & ~DPLL_VCO_ENABLE);
-
-	    /* LVDS must be powered on before PLL is enabled and before power
-	     * sequencing the panel.
-	     */
-	    temp = INREG(LVDS);
-	    OUTREG(LVDS, temp | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
-	}
-
-	OUTREG(FPB0, fp);
-	OUTREG(DPLL_B, dpll);
-	OUTREG(HTOTAL_B, htot);
-	OUTREG(HBLANK_B, hblank);
-	OUTREG(HSYNC_B, hsync);
-	OUTREG(VTOTAL_B, vtot);
-	OUTREG(VBLANK_B, vblank);
-	OUTREG(VSYNC_B, vsync);
-	OUTREG(DSPBSTRIDE, pScrn->displayWidth * pI830->cpp);
-	OUTREG(DSPBSIZE, dspsize);
-	OUTREG(DSPBPOS, 0);
-	i830PipeSetBase(pScrn, pipe, pI830->pipeX[pipe], pI830->pipeY[pipe]);
-	OUTREG(PIPEBSRC, pipesrc);
-
-	if (outputs & PIPE_LCD_ACTIVE) {
-	    CARD32  pfit_control;
-	    
-	    /* Enable automatic panel scaling so that non-native modes fill the
-	     * screen.
-	     */
-	    /* XXX: Allow (auto-?) enabling of 8-to-6 dithering */
-	    pfit_control = (PFIT_ENABLE |
-			    VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
-			    VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR);
-	    if (pI830->panel_wants_dither)
-		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
-	    OUTREG(PFIT_CONTROL, pfit_control);
-	}
-
-	/* Then, turn the pipe on first */
-	temp = INREG(PIPEBCONF);
-	OUTREG(PIPEBCONF, temp | PIPEBCONF_ENABLE);
-
-	/* And then turn the plane on */
-	OUTREG(DSPBCNTR, dspcntr);
-
-	if (outputs & PIPE_LCD_ACTIVE) {
-	    i830SetLVDSPanelPower(pScrn, TRUE);
-	}
+    for (i = 0; i < pI830->num_outputs; i++) {
+	if (pI830->output[i].pipe == pipe)
+	    pI830->output[i].post_set_mode(pScrn, &pI830->output[i], pMode);
     }
 
-    if (outputs & PIPE_CRT_ACTIVE)
-	OUTREG(ADPA, adpa);
+    OUTREG(htot_reg, htot);
+    OUTREG(hblank_reg, hblank);
+    OUTREG(hsync_reg, hsync);
+    OUTREG(vtot_reg, vtot);
+    OUTREG(vblank_reg, vblank);
+    OUTREG(vsync_reg, vsync);
+    OUTREG(dspstride_reg, pScrn->displayWidth * pI830->cpp);
+    OUTREG(dspsize_reg, dspsize);
+    OUTREG(dsppos_reg, 0);
+    i830PipeSetBase(pScrn, pipe, pI830->pipeX[pipe], pI830->pipeX[pipe]);
+    OUTREG(pipesrc_reg, pipesrc);
 
-    if (is_dvo) {
-	/*OUTREG(DVOB_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
-	    (pMode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));*/
-	OUTREG(DVOC_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
-	    (pMode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));
-	/*OUTREG(DVOB, dvo);*/
-	OUTREG(DVOC, dvo);
-    }
+    /* Then, turn the pipe on first */
+    temp = INREG(pipeconf_reg);
+    OUTREG(pipeconf_reg, temp | PIPEACONF_ENABLE);
 
-    if (is_sdvo) {
-	OUTREG(SDVOB, sdvob);
-	OUTREG(SDVOC, sdvoc);
-    }
+    /* And then turn the plane on */
+    OUTREG(dspcntr_reg, dspcntr);
 
-    if (outputs & PIPE_LCD_ACTIVE) {
-	pI830->pipeCurMode[pipe] = *pMasterMode;
-    } else {
-	pI830->pipeCurMode[pipe] = *pMode;
-    }
+    pI830->pipeCurMode[pipe] = *pMode;
 
     return TRUE;
 }
@@ -729,47 +628,15 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int outputsA, outputsB;
+    int i;
 
     outputsA = pI830->operatingDevices & 0xff;
     outputsB = (pI830->operatingDevices >> 8) & 0xff;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling unused functions\n");
 
-    /* First, disable the unused outputs */
-    if ((outputsA & PIPE_CRT_ACTIVE) == 0 &&
-	(outputsB & PIPE_CRT_ACTIVE) == 0)
-    {
-	CARD32 adpa = INREG(ADPA);
-
-	if (adpa & ADPA_DAC_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling CRT output\n");
-	    OUTREG(ADPA, adpa & ~ADPA_DAC_ENABLE);
-	}
-    }
-
-    if ((outputsB & PIPE_LCD_ACTIVE) == 0) {
-	CARD32 pp_status = INREG(PP_STATUS);
-
-	if (pp_status & PP_ON) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling LVDS output\n");
-	    i830SetLVDSPanelPower(pScrn, FALSE);
-	}
-    }
-
-    if (IS_I9XX(pI830) && ((outputsA & PIPE_DFP_ACTIVE) == 0 &&
-	(outputsB & PIPE_DFP_ACTIVE) == 0))
-    {
-	CARD32 sdvob = INREG(SDVOB);
-	CARD32 sdvoc = INREG(SDVOC);
-
-	if (sdvob & SDVO_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling SDVOB output\n");
-	    OUTREG(SDVOB, sdvob & ~SDVO_ENABLE);
-	}
-	if (sdvoc & SDVO_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling SDVOC output\n");
-	    OUTREG(SDVOC, sdvoc & ~SDVO_ENABLE);
-	}
+    for (i = 0; i < pI830->num_outputs; i++) {
+	pI830->output[i].dpms(pScrn, &pI830->output[i], DPMSModeOff);
     }
 
     /* Now, any unused plane, pipe, and DPLL (FIXME: except for DVO, i915
@@ -864,29 +731,20 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     }
 
     for (i = 0; i < pI830->num_outputs; i++) {
-	I830OutputPtr output = &pI830->output[i];
-
-	if (pI830->output[i].type == I830_OUTPUT_SDVO)
-	    pI830->output[i].dpms(pScrn, &pI830->output[i], DPMSModeOff);
-
-	if (pI830->output[i].type == I830_OUTPUT_DVO)
-	    output->i2c_drv->vid_rec->Mode(output->i2c_drv->dev_priv,
-					   pMode);
+	pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], pMode);
     }
 
     if (pI830->planeEnabled[0]) {
-	ok = i830PipeSetMode(pScrn, pMode, 0);
+	ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, 0, pMode),
+			     0);
 	if (!ok)
 	    goto done;
     }
     if (pI830->planeEnabled[1]) {
-	ok = i830PipeSetMode(pScrn, pMode, 1);
+	ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, 1, pMode),
+			     1);
 	if (!ok)
 	    goto done;
-    }
-    for (i = 0; i < pI830->num_outputs; i++) {
-	if (pI830->output[i].type == I830_OUTPUT_SDVO)
-	    I830SDVOPostSetMode(pI830->output[i].sdvo_drv, pMode);
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode bandwidth is %d Mpixel/s\n",
@@ -1091,43 +949,4 @@ i830DetectCRT(ScrnInfoPtr pScrn, Bool allow_disturb)
     }
 
     return FALSE;
-}
-
-/**
- * Sets the power state for the panel.
- */
-void
-i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 pp_status, pp_control;
-    CARD32 blc_pwm_ctl;
-    int backlight_duty_cycle;
-
-    blc_pwm_ctl = INREG (BLC_PWM_CTL);
-    backlight_duty_cycle = blc_pwm_ctl & BACKLIGHT_DUTY_CYCLE_MASK;
-    if (backlight_duty_cycle)
-        pI830->backlight_duty_cycle = backlight_duty_cycle;
-    
-    if (on) {
-	OUTREG(PP_STATUS, INREG(PP_STATUS) | PP_ON);
-	OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
-	do {
-	    pp_status = INREG(PP_STATUS);
-	    pp_control = INREG(PP_CONTROL);
-	} while (!(pp_status & PP_ON) && !(pp_control & POWER_TARGET_ON));
-	OUTREG(BLC_PWM_CTL,
-	       (blc_pwm_ctl & ~BACKLIGHT_DUTY_CYCLE_MASK) |
-	       pI830->backlight_duty_cycle);
-    } else {
-	OUTREG(BLC_PWM_CTL,
-	       (blc_pwm_ctl & ~BACKLIGHT_DUTY_CYCLE_MASK));
-	       
-	OUTREG(PP_STATUS, INREG(PP_STATUS) & ~PP_ON);
-	OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
-	do {
-	    pp_status = INREG(PP_STATUS);
-	    pp_control = INREG(PP_CONTROL);
-	} while ((pp_status & PP_ON) || (pp_control & POWER_TARGET_ON));
-    }
 }

@@ -1528,7 +1528,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
     * that we might find early in the list.  This hackery will go away when we
     * start doing independent per-head mode selection.
     */
-   for (i = MAX_OUTPUTS - 1; i >= 0; i--) {
+   for (i = pI830->num_outputs - 1; i >= 0; i--) {
      if (pI830->output[i].MonInfo) {
        pScrn->monitor->DDC = pI830->output[i].MonInfo;
        xf86SetDDCproperties(pScrn, pI830->output[i].MonInfo);
@@ -1668,11 +1668,50 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	 pI830->MonType1 |= PIPE_CRT;
       }
 
+      /* Perform the pipe assignment of outputs.  This code shouldn't exist,
+       * but for now we're supporting the existing MonitorLayout configuration
+       * scheme.
+       */
+      for (i = 0; i < pI830->num_outputs; i++) {
+	 pI830->output[i].disabled = FALSE;
+
+	 switch (pI830->output[i].type) {
+	 case I830_OUTPUT_LVDS:
+	    if (pI830->MonType1 & PIPE_LFP)
+	       pI830->output[i].pipe = 0;
+	    else if (pI830->MonType2 & PIPE_LFP)
+	       pI830->output[i].pipe = 1;
+	    else
+	       pI830->output[i].disabled = TRUE;
+	    break;
+	 case I830_OUTPUT_ANALOG:
+	    if (pI830->MonType1 & PIPE_CRT)
+	       pI830->output[i].pipe = 0;
+	    else if (pI830->MonType2 & PIPE_CRT)
+	       pI830->output[i].pipe = 1;
+	    else
+	       pI830->output[i].disabled = TRUE;
+	    break;
+	 case I830_OUTPUT_DVO:
+	 case I830_OUTPUT_SDVO:
+	    if (pI830->MonType1 & PIPE_DFP)
+	       pI830->output[i].pipe = 0;
+	    else if (pI830->MonType2 & PIPE_DFP)
+	       pI830->output[i].pipe = 1;
+	    else
+	       pI830->output[i].disabled = TRUE;
+	    break;
+	 default:
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unhandled output type\n");
+	    break;
+	 }
+      }
+
       /* Check for attached SDVO outputs.  Assume that they're flat panels for
        * now.  Though really, it's just a name at the moment, since we don't
        * treat different SDVO outputs differently.
        */
-      for (i = 0; i < MAX_OUTPUTS; i++) {
+      for (i = 0; i < pI830->num_outputs; i++) {
 	 if (pI830->output[i].type == I830_OUTPUT_SDVO) {
 	    if (!I830DetectSDVODisplays(pScrn, i))
 	       continue;
@@ -2607,11 +2646,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
    vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
    vgaHWLock(hwp);
 
-   /* Disable outputs */
-   for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].dpms(pScrn, &pI830->output[i], DPMSModeOff);
-   }
-
    /* First, disable display planes */
    temp = INREG(DSPACNTR);
    OUTREG(DSPACNTR, temp & ~DISPLAY_PLANE_ENABLE);
@@ -2623,6 +2657,11 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(PIPEACONF, temp & ~PIPEACONF_ENABLE);
    temp = INREG(PIPEBCONF);
    OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
+
+   /* Disable outputs if necessary */
+   for (i = 0; i < pI830->num_outputs; i++) {
+      pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], NULL);
+   }
 
    i830WaitForVblank(pScrn);
 
@@ -4333,7 +4372,7 @@ i830MonitorDetectDebugger(ScrnInfoPtr pScrn)
    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Detected CRT as %s in %dms\n",
 	      found_crt ? "connected" : "disconnected", finish - start);
 
-   for (i = 0; i < MAX_OUTPUTS; i++) {
+   for (i = 0; i < pI830->num_outputs; i++) {
       Bool found_sdvo = TRUE;
 
       if (pI830->output[i].type != I830_OUTPUT_SDVO)

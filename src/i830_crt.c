@@ -40,15 +40,17 @@ i830_crt_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 
     temp = INREG(ADPA);
     temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
+    temp &= ~ADPA_DAC_ENABLE;
 
     switch(mode) {
     case DPMSModeOn:
+	temp |= ADPA_DAC_ENABLE;
 	break;
     case DPMSModeStandby:
-	temp |= ADPA_HSYNC_CNTL_DISABLE;
+	temp |= ADPA_DAC_ENABLE | ADPA_HSYNC_CNTL_DISABLE;
 	break;
     case DPMSModeSuspend:
-	temp |= ADPA_VSYNC_CNTL_DISABLE;
+	temp |= ADPA_DAC_ENABLE | ADPA_VSYNC_CNTL_DISABLE;
 	break;
     case DPMSModeOff:
 	temp |= ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE;
@@ -74,6 +76,35 @@ i830_crt_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
     OUTREG(ADPA, pI830->saveADPA);
 }
 
+static void
+i830_crt_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
+		      DisplayModePtr pMode)
+{
+}
+
+static void
+i830_crt_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
+		       DisplayModePtr pMode)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    CARD32 adpa;
+
+    adpa = ADPA_DAC_ENABLE;
+
+    if (pMode->Flags & V_PHSYNC)
+	adpa |= ADPA_HSYNC_ACTIVE_HIGH;
+    if (pMode->Flags & V_PVSYNC)
+	adpa |= ADPA_VSYNC_ACTIVE_HIGH;
+
+    if (output->pipe == 0)
+	adpa |= ADPA_PIPE_A_SELECT;
+    else
+	adpa |= ADPA_PIPE_B_SELECT;
+
+    OUTREG(ADPA, adpa);
+}
+
 void
 i830_crt_init(ScrnInfoPtr pScrn)
 {
@@ -83,6 +114,8 @@ i830_crt_init(ScrnInfoPtr pScrn)
     pI830->output[pI830->num_outputs].dpms = i830_crt_dpms;
     pI830->output[pI830->num_outputs].save = i830_crt_save;
     pI830->output[pI830->num_outputs].restore = i830_crt_restore;
+    pI830->output[pI830->num_outputs].pre_set_mode = i830_crt_pre_set_mode;
+    pI830->output[pI830->num_outputs].post_set_mode = i830_crt_post_set_mode;
 
     /* Set up the DDC bus. */
     I830I2CInit(pScrn, &pI830->output[pI830->num_outputs].pDDCBus,

@@ -222,12 +222,15 @@ extern const char *i830_output_type_names[];
 
 struct _I830OutputRec {
    int type;
-/*   int pipe;
-   int flags;*/
+   int pipe;
+   Bool disabled;
 
    /**
     * Turns the output on/off, or sets intermediate power levels if available.
-    * Unsupported intermediate modes drop to the lower power setting.
+    *
+    * Unsupported intermediate modes drop to the lower power setting.  If the
+    * mode is DPMSModeOff, the output must be disabled, as the DPLL may be
+    * disabled afterwards.
     */
    void (*dpms)(ScrnInfoPtr pScrn, I830OutputPtr output, int mode);
 
@@ -240,6 +243,22 @@ struct _I830OutputRec {
     * Restore's the output's state at VT switch.
     */
    void (*restore)(ScrnInfoPtr pScrn, I830OutputPtr output);
+
+   /**
+    * Callback for setting up a video mode before any pipe/dpll changes.
+    *
+    * \param pMode the mode that will be set, or NULL if the mode to be set is
+    * unknown (such as the restore path of VT switching).
+    */
+   void (*pre_set_mode)(ScrnInfoPtr pScrn, I830OutputPtr output,
+			DisplayModePtr pMode);
+
+   /**
+    * Callback for setting up a video mode after the DPLL update but before
+    * the plane is enabled.
+    */
+   void (*post_set_mode)(ScrnInfoPtr pScrn, I830OutputPtr output,
+			 DisplayModePtr pMode);
 
    xf86MonPtr MonInfo;
    I2CBusPtr pI2CBus;

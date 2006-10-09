@@ -22,7 +22,8 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-**************************************************************************/
+******
+********************************************************************/
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -30,6 +31,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "xf86.h"
 #include "i830.h"
+#include "i810_reg.h"
 
 #include "sil164/sil164.h"
 #include "ch7xxx/ch7xxx.h"
@@ -90,6 +92,51 @@ i830_dvo_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
     output->i2c_drv->vid_rec->RestoreRegs(output->i2c_drv->dev_priv);
 }
 
+static void
+i830_dvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
+		      DisplayModePtr pMode)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (output->i2c_drv == NULL)
+	return;
+
+    output->i2c_drv->vid_rec->Mode(output->i2c_drv->dev_priv, pMode);
+
+    OUTREG(DVOC, INREG(DVOC) & ~DVO_ENABLE);
+}
+
+static void
+i830_dvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
+		       DisplayModePtr pMode)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 dvo;
+    int dpll_reg = (output->pipe == 0) ? DPLL_A : DPLL_B;
+
+    /* Save the data order, since I don't know what it should be set to. */
+    dvo = INREG(DVOC) & (DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
+    dvo |= DVO_ENABLE;
+    dvo |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE | DVO_BLANK_ACTIVE_HIGH;
+
+    if (output->pipe == 1)
+	dvo |= DVO_PIPE_B_SELECT;
+
+    if (pMode->Flags & V_PHSYNC)
+	dvo |= DVO_HSYNC_ACTIVE_HIGH;
+    if (pMode->Flags & V_PVSYNC)
+	dvo |= DVO_VSYNC_ACTIVE_HIGH;
+
+    OUTREG(dpll_reg, INREG(dpll_reg) | DPLL_DVO_HIGH_SPEED);
+
+    /*OUTREG(DVOB_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
+      (pMode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));*/
+    OUTREG(DVOC_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
+	   (pMode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));
+    /*OUTREG(DVOB, dvo);*/
+    OUTREG(DVOC, dvo);
+}
+
 static Bool
 I830I2CDetectDVOControllers(ScrnInfoPtr pScrn, I2CBusPtr pI2CBus,
 			    struct _I830DVODriver **retdrv)
@@ -132,6 +179,8 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     pI830->output[i].dpms = i830_dvo_dpms;
     pI830->output[i].save = i830_dvo_save;
     pI830->output[i].restore = i830_dvo_restore;
+    pI830->output[i].pre_set_mode  = i830_dvo_pre_set_mode ;
+    pI830->output[i].post_set_mode  = i830_dvo_post_set_mode ;
 
     /* Set up the I2C and DDC buses */
     ret = I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");

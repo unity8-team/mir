@@ -58,6 +58,9 @@ typedef struct _i830_sdvo_dtd {
 void
 i830_sdvo_init(ScrnInfoPtr pScrn, int output_device);
 
+int
+i830_sdvo_get_pixel_multiplier(DisplayModePtr pMode);
+
 Bool
 I830DetectSDVODisplays(ScrnInfoPtr pScrn, int output_index);
 

@@ -32,6 +32,45 @@
 #include "xf86.h"
 #include "i830.h"
 
+/**
+ * Sets the power state for the panel.
+ */
+static void
+i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 pp_status, pp_control;
+    CARD32 blc_pwm_ctl;
+    int backlight_duty_cycle;
+
+    blc_pwm_ctl = INREG (BLC_PWM_CTL);
+    backlight_duty_cycle = blc_pwm_ctl & BACKLIGHT_DUTY_CYCLE_MASK;
+    if (backlight_duty_cycle)
+        pI830->backlight_duty_cycle = backlight_duty_cycle;
+
+    if (on) {
+	OUTREG(PP_STATUS, INREG(PP_STATUS) | PP_ON);
+	OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
+	do {
+	    pp_status = INREG(PP_STATUS);
+	    pp_control = INREG(PP_CONTROL);
+	} while (!(pp_status & PP_ON) && !(pp_control & POWER_TARGET_ON));
+	OUTREG(BLC_PWM_CTL,
+	       (blc_pwm_ctl & ~BACKLIGHT_DUTY_CYCLE_MASK) |
+	       pI830->backlight_duty_cycle);
+    } else {
+	OUTREG(BLC_PWM_CTL,
+	       (blc_pwm_ctl & ~BACKLIGHT_DUTY_CYCLE_MASK));
+
+	OUTREG(PP_STATUS, INREG(PP_STATUS) & ~PP_ON);
+	OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
+	do {
+	    pp_status = INREG(PP_STATUS);
+	    pp_control = INREG(PP_CONTROL);
+	} while ((pp_status & PP_ON) || (pp_control & POWER_TARGET_ON));
+    }
+}
+
 static void
 i830_lvds_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 {
@@ -80,6 +119,49 @@ i830_lvds_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
     OUTREG(PP_CONTROL, pI830->savePP_CONTROL);
 }
 
+static void
+i830_lvds_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
+		       DisplayModePtr pMode)
+{
+    /* Always make sure the LVDS is off before we play with DPLLs and pipe
+     * configuration.  We can skip this in some cases (for example, going
+     * between hi-res modes with automatic panel scaling are fine), but be
+     * conservative for now.
+     */
+    i830SetLVDSPanelPower(pScrn, FALSE);
+}
+
+static void
+i830_lvds_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
+			DisplayModePtr pMode)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32  pfit_control;
+
+    /* Enable automatic panel scaling so that non-native modes fill the
+     * screen.  Should be enabled before the pipe is enabled, according to
+     * register description.
+     */
+    pfit_control = (PFIT_ENABLE |
+		    VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
+		    VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR);
+
+    if (pI830->panel_wants_dither)
+	pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+
+    OUTREG(PFIT_CONTROL, pfit_control);
+
+    /* Disable the PLL before messing with LVDS enable */
+    OUTREG(FPB0, INREG(FPB0) & ~DPLL_VCO_ENABLE);
+
+    /* LVDS must be powered on before PLL is enabled and before power
+     * sequencing the panel.
+     */
+    OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
+
+    i830SetLVDSPanelPower(pScrn, TRUE);
+}
+
 void
 i830_lvds_init(ScrnInfoPtr pScrn)
 {
@@ -89,6 +171,8 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     pI830->output[pI830->num_outputs].dpms = i830_lvds_dpms;
     pI830->output[pI830->num_outputs].save = i830_lvds_save;
     pI830->output[pI830->num_outputs].restore = i830_lvds_restore;
+    pI830->output[pI830->num_outputs].pre_set_mode = i830_lvds_pre_set_mode;
+    pI830->output[pI830->num_outputs].post_set_mode = i830_lvds_post_set_mode;
 
     /* Set up the LVDS DDC channel.  Most panels won't support it, but it can
      * be useful if available.
