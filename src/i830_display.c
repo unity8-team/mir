@@ -706,7 +706,6 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     Bool ok = TRUE;
-    CARD32 planeA, planeB;
 #ifdef XF86DRI
     Bool didLock = FALSE;
 #endif
@@ -777,18 +776,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 
     i830DisableUnusedFunctions(pScrn);
 
-    planeA = INREG(DSPACNTR);
-    planeB = INREG(DSPBCNTR);
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Display plane A is now %s and connected to %s.\n",
-	       pI830->planeEnabled[0] ? "enabled" : "disabled",
-	       planeA & DISPPLANE_SEL_PIPE_MASK ? "Pipe B" : "Pipe A");
-    if (pI830->availablePipes == 2)
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Display plane B is now %s and connected to %s.\n",
-		   pI830->planeEnabled[1] ? "enabled" : "disabled",
-		   planeB & DISPPLANE_SEL_PIPE_MASK ? "Pipe B" : "Pipe A");
+    i830DescribeOutputConfiguration(pScrn);
 
 #ifdef XF86DRI
    I830DRISetVBlankInterrupt (pScrn, TRUE);
@@ -802,6 +790,52 @@ done:
     i830DumpRegs (pScrn);
     I830DumpSDVO (pScrn);
     return ok;
+}
+
+void
+i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int i;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output configuration:\n");
+
+    for (i = 0; i < pI830->availablePipes; i++) {
+	CARD32 dspcntr = INREG(DSPACNTR + (DSPBCNTR - DSPACNTR) * i);
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "  Display plane %c is now %s and connected to pipe %c.\n",
+		   'A' + i,
+		   pI830->planeEnabled[i] ? "enabled" : "disabled",
+		   dspcntr & DISPPLANE_SEL_PIPE_MASK ? 'B' : 'A');
+    }
+
+    for (i = 0; i < pI830->num_outputs; i++) {
+	const char *name = NULL;
+
+	switch (pI830->output[i].type) {
+	case I830_OUTPUT_ANALOG:
+	    name = "CRT";
+	    break;
+	case I830_OUTPUT_LVDS:
+	    name = "LVDS";
+	    break;
+	case I830_OUTPUT_SDVO:
+	    name = "SDVO";
+	    break;
+	case I830_OUTPUT_DVO:
+	    name = "DVO";
+	    break;
+	case I830_OUTPUT_TVOUT:
+	    name = "TV";
+	    break;
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "  Output %s is %sabled and connected to pipe %c\n",
+		   name, pI830->output[i].disabled ? "dis" : "en",
+		   pI830->output[i].pipe == 0 ? 'A' : 'B');
+    }
 }
 
 /**
