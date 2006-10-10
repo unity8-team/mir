@@ -89,7 +89,6 @@ struct formatinfo {
 
 // refer vol2, 3d rasterization 3.8.1
 
-/* XXX: bad!bad! broadwater has different blend factor definition */
 /* defined in brw_defines.h */
 static struct blendinfo I965BlendOp[] = { 
     /* Clear */
@@ -163,8 +162,6 @@ static void I965GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format,
 
 }
 
-
-/* FIXME */
 static Bool I965GetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
 {
     switch (pDstPicture->format) {
@@ -221,7 +218,6 @@ static Bool I965CheckCompositeTexture(PicturePtr pPict, int unit)
         I830FALLBACK("Unsupported picture format 0x%x\n",
                          (int)pPict->format);
 
-    /* XXX: fallback when repeat? */
     if (pPict->repeat && pPict->repeatType != RepeatNormal)
 	I830FALLBACK("extended repeat (%d) not supported\n",
 		     pPict->repeatType);
@@ -346,40 +342,7 @@ static const CARD32 sip_kernel_static[][4] = {
 #define SF_MAX_THREADS	   4
 
 static const CARD32 sf_kernel_static[][4] = {
-/*    send   0 (1) g6<1>F g1.12<0,1,0>F math mlen 1 rlen 1 { align1 +  } */
-   { 0x00000031, 0x20c01fbd, 0x0000002c, 0x01110081 },
-/*    send   0 (1) g6.4<1>F g1.20<0,1,0>F math mlen 1 rlen 1 { align1 +  } */
-   { 0x00000031, 0x20c41fbd, 0x00000034, 0x01110081 },
-/*    add (8) g7<1>F g4<8,8,1>F g3<8,8,1>F { align1 +  } */
-   { 0x00600040, 0x20e077bd, 0x008d0080, 0x008d4060 },
-/*    mul (1) g7<1>F g7<0,1,0>F g6<0,1,0>F { align1 +  } */
-   { 0x00000041, 0x20e077bd, 0x000000e0, 0x000000c0 },
-/*    mul (1) g7.4<1>F g7.4<0,1,0>F g6.4<0,1,0>F { align1 +  } */
-   { 0x00000041, 0x20e477bd, 0x000000e4, 0x000000c4 },
-/*    mov (8) m1<1>F g7<0,1,0>F { align1 +  } */
-   { 0x00600001, 0x202003be, 0x000000e0, 0x00000000 },
-/*    mov (8) m2<1>F g7.4<0,1,0>F { align1 +  } */
-   { 0x00600001, 0x204003be, 0x000000e4, 0x00000000 },
-/*    mov (8) m3<1>F g3<8,8,1>F { align1 +  } */
-   { 0x00600001, 0x206003be, 0x008d0060, 0x00000000 },
-/*    send   0 (8) a0<1>F g0<8,8,1>F urb mlen 4 rlen 0 write +0 transpose used complete EOT{ align1 +  } */
-   { 0x00600031, 0x20001fbc, 0x008d0000, 0x8640c800 },
-/*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
-/*    nop (4) g0<1>UD { align1 +  } */
-   { 0x0040007e, 0x20000c21, 0x00690000, 0x00000000 },
+#include "sf_prog.h"
 };
 
 /* ps kernels */
@@ -475,9 +438,8 @@ ErrorF("i965 prepareComposite\n");
    cc_offset = ALIGN(next_offset, 32);
    next_offset = cc_offset + sizeof(*cc_state);
 
-// fixup sf_kernel_static, is sf_kernel needed? or not? why? 
-//	-> just keep current sf_kernel, which will send one setup urb entry to
-//	PS kernel
+   /* keep current sf_kernel, which will send one setup urb entry to
+	PS kernel */
    sf_kernel_offset = ALIGN(next_offset, 64);
    next_offset = sf_kernel_offset + sizeof (sf_kernel_static);
 
@@ -965,7 +927,7 @@ ErrorF("i965 prepareComposite\n");
   // int vb_pitch = 4 * 4;  // XXX: pitch should include mask's coords? possible
   // all three coords on one row?
    int nelem = pMask ? 3: 2;
-   OUT_RING(BRW_3DSTATE_VERTEX_BUFFERS | 3); //should be 4n-1 -> 3
+   OUT_RING(BRW_3DSTATE_VERTEX_BUFFERS | 3); //XXX: should be 4n-1 -> 3
    OUT_RING((0 << VB0_BUFFER_INDEX_SHIFT) |
 	    VB0_VERTEXDATA |
 	    ((4 * 2 * nelem) << VB0_BUFFER_PITCH_SHIFT)); 
