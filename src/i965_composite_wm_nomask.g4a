@@ -1,6 +1,8 @@
 /*
  * This's for exa composite operation in no mask picture case.
- * The simplest case is just sending what src picture has to dst picture
+ * The simplest case is just sending what src picture has to dst picture.
+ * XXX: This is still experimental, and should be fixed to support multiple texture
+ * map, and conditional mul actions. 
  */
 
 /* I think this should be same as in g4a program for texture video,
