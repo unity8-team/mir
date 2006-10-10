@@ -160,7 +160,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
                drm_version->version_patchlevel,
                drm_version->name);
 
-#if 1
+#if 0
     pNv->IRQ = 0;
 #else
     /* Ask DRM to install IRQ handler */

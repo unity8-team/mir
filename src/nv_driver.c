@@ -442,6 +442,7 @@ const char *drmSymbols[] = {
     "drmAuthMagic",
     "drmCommandNone",
     "drmCommandWrite",
+    "drmCommandWriteRead",
     "drmCreateContext",
     "drmCtlInstHandler",
     "drmCtlUninstHandler",
@@ -928,6 +929,7 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
     NVPtr pNv = NVPTR(pScrn);
 
     if (pScrn->vtSema) {
+        pScrn->vtSema = FALSE;
         NVSync(pScrn);
         NVRestore(pScrn);
         NVLockUnlock(pNv, 1);
@@ -946,7 +948,6 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
     if (pNv->blitAdaptor)
         xfree(pNv->blitAdaptor);
 
-    pScrn->vtSema = FALSE;
     pScreen->CloseScreen = pNv->CloseScreen;
     pScreen->BlockHandler = pNv->BlockHandler;
     return (*pScreen->CloseScreen)(scrnIndex, pScreen);
@@ -1907,14 +1908,17 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	    return FALSE;
     }
 
+	/* First init DRI/DRM */
+	if (!NVDRIScreenInit(pScrn))
+		return FALSE;
+
+	/* Allocate and map memory areas we need */
+	if (!NVMapMem(pScrn))
+		return FALSE;
+
 	/* Init DRM - Alloc FIFO, setup graphics objects */
 	if (!NVInitDma(pScrn))
 		return FALSE;
-
-    /* Allocate and map memory areas we need */
-    if (!NVMapMem(pScrn)) {
-        return FALSE;
-    }
 
 	/* Save the current state */
 	NVSave(pScrn);

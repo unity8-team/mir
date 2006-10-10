@@ -488,9 +488,9 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     NVSelectHeadRegisters(pScrn, 0);
     NVParseBios(pScrn);
     /* reset PFIFO and PGRAPH, then power up all the card units */
-/*    nvWriteMC(pNv, 0x800, 0x17110013);
-    usleep(1000);*/
-    nvWriteMC(pNv, 0x800, 0x17111113);
+    nvWriteMC(pNv, 0x200, 0x17110013);
+    usleep(1000);
+    nvWriteMC(pNv, 0x200, 0x17111113);
 
     if(pNv->Architecture == NV_ARCH_03)
         nv3GetConfig(pNv);

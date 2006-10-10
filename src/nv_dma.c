@@ -107,11 +107,18 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
     pitch = pNv->CurrentLayout.displayWidth * 
             (pNv->CurrentLayout.bitsPerPixel >> 3);
 
-    pNv->dmaPut = pNv->dmaCurrent = 0;
-    pNv->dmaMax = pNv->dmaFree = (pNv->fifo.cmdbuf_size >> 2) - 1;
+    pNv->dmaPut = pNv->dmaCurrent = READ_GET(pNv);
+    pNv->dmaMax = (pNv->fifo.cmdbuf_size >> 2) - 1;
+    pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
 
+    /* assert there's enough room for the skips */
+    if(pNv->dmaFree <= SKIPS)
+            NVDmaWait(pNv, SKIPS); 
     for (i=0; i<SKIPS; i++)
-        NVDmaNext(pNv, 0);
+    {
+	    NVDmaNext(pNv,0);
+	    pNv->dmaBase[i]=0;
+    }
     pNv->dmaFree -= SKIPS;
 
 	/* EXA + XAA + Xv */
@@ -364,9 +371,6 @@ static void NVInitDmaCB(ScrnInfoPtr pScrn)
 Bool NVInitDma(ScrnInfoPtr pScrn)
 {
     NVPtr pNv = NVPTR(pScrn);
-
-    if (!NVDRIScreenInit(pScrn))
-        return FALSE;
 
 	NVInitDmaCB(pScrn);
 
