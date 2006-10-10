@@ -627,16 +627,13 @@ void
 i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    int outputsA, outputsB;
     int i;
-
-    outputsA = pI830->operatingDevices & 0xff;
-    outputsB = (pI830->operatingDevices >> 8) & 0xff;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling unused functions\n");
 
     for (i = 0; i < pI830->num_outputs; i++) {
-	pI830->output[i].dpms(pScrn, &pI830->output[i], DPMSModeOff);
+	if (pI830->output[i].disabled)
+	    pI830->output[i].dpms(pScrn, &pI830->output[i], DPMSModeOff);
     }
 
     /* Now, any unused plane, pipe, and DPLL (FIXME: except for DVO, i915
