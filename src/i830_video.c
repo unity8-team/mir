@@ -454,19 +454,6 @@ I830InitVideo(ScreenPtr pScreen)
    xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
    xvContrast = MAKE_ATOM("XV_CONTRAST");
 
-   /* Set up overlay video if we can do it at this depth. */
-   if (!IS_I965G(pI830) && pScrn->bitsPerPixel != 8) {
-      overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
-      if (overlayAdaptor != NULL) {
-	 adaptors[num_adaptors++] = overlayAdaptor;
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up overlay video\n");
-      } else {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Failed to set up overlay video\n");
-      }
-      I830InitOffscreenImages(pScreen);
-   }
-
    /* Set up textured video if we can do it at this depth and we are on
     * supported hardware.
     */
@@ -479,6 +466,19 @@ I830InitVideo(ScreenPtr pScreen)
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "Failed to set up textured video\n");
       }
+   }
+
+   /* Set up overlay video if we can do it at this depth. */
+   if (!IS_I965G(pI830) && pScrn->bitsPerPixel != 8) {
+      overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
+      if (overlayAdaptor != NULL) {
+	 adaptors[num_adaptors++] = overlayAdaptor;
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up overlay video\n");
+      } else {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Failed to set up overlay video\n");
+      }
+      I830InitOffscreenImages(pScreen);
    }
 
    if (num_adaptors)
