@@ -8041,7 +8041,11 @@ I830BIOSEnterVT(int scrnIndex, int flags)
       * the Video BIOS with our saved devices, and only when that fails,
       * we'll warm boot it.
       */
-      if (!I830Set640x480(pScrn)) {
+      /* Check Pipe conf registers or possibly HTOTAL/VTOTAL for 0x00000000)*/
+      CARD32 temp;
+      Bool set = I830Set640x480(pScrn);
+      temp = pI830->pipe ? INREG(PIPEBCONF) : INREG(PIPEACONF);
+      if (!set || !(temp & 0x80000000)) {
          xf86Int10InfoPtr pInt;
 
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
