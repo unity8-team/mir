@@ -1,4 +1,4 @@
-#define VIDEO_DEBUG 0
+#define VIDEO_DEBUG 1
 /***************************************************************************
  
 Copyright 2000 Intel Corporation.  All Rights Reserved. 
@@ -160,7 +160,7 @@ Edummy(const char *dummy, ...)
    do { 								\
       BEGIN_LP_RING(8);							\
       OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);                       	\
-      OUT_RING(MI_NOOP);    						\  
+      OUT_RING(MI_NOOP);    						\
       if (!*pI830->overlayOn) {						\
 	 OUT_RING(MI_NOOP);						\
 	 OUT_RING(MI_NOOP);						\
@@ -188,7 +188,7 @@ Edummy(const char *dummy, ...)
 	 int spin = 1000000;						\
 	 BEGIN_LP_RING(6);						\
          OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);                   	\
-         OUT_RING(MI_NOOP);    						\  
+         OUT_RING(MI_NOOP);    						\
 	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_OFF);		\
          if (IS_I965G(pI830)) 						\
             OUT_RING(pI830->OverlayMem->Start | OFC_UPDATE); 		\
@@ -880,9 +880,6 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 {
    I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
    I830Ptr pI830 = I830PTR(pScrn);
-
-   I830OverlayRegPtr overlay =
-	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
 
    if (pPriv->textured)
       return;
@@ -3267,8 +3264,6 @@ I830BlockHandler(int i,
    ScrnInfoPtr pScrn = xf86Screens[i];
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pPriv = GET_PORT_PRIVATE(pScrn);
-   I830OverlayRegPtr overlay =
-	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
 
    pScreen->BlockHandler = pI830->BlockHandler;
 
@@ -3397,9 +3392,6 @@ I830StopSurface(XF86SurfacePtr surface)
 
    if (pPriv->isOn) {
       I830Ptr pI830 = I830PTR(pScrn);
-
-      I830OverlayRegPtr overlay =
-	    (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
 
       ErrorF("StopSurface\n");
 
