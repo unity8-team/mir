@@ -425,8 +425,6 @@ static void RADEONLeaveServer(ScreenPtr pScreen)
 	if (pDamageReg) {
 	    RADEONDRIRefreshArea(pScrn, REGION_NUM_RECTS(pDamageReg),
 				 REGION_RECTS(pDamageReg));
-
-	    DamageEmpty(info->pDamage);
 	}
     }
 #endif
@@ -1815,7 +1813,7 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     PixmapPtr           pPix = pScreen->GetScreenPixmap(pScreen);
 #endif
 
-    if (!info->directRenderingInited)
+    if (!info->directRenderingInited || !info->CPStarted)
 	return;
 
     /* Don't want to do this when no 3d is active and pages are
@@ -1879,6 +1877,8 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 #ifdef USE_XAA
     info->dst_pitch_offset &= ~RADEON_DST_TILE_MACRO;
 #endif
+
+    DamageEmpty(info->pDamage);
 }
 
 #endif /* DAMAGE */
