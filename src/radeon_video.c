@@ -2696,6 +2696,17 @@ RADEONDisplayVideo(
 }
 
 
+static void
+RADEONFillKeyHelper(DrawablePtr pDraw, CARD32 colorKey, RegionPtr clipBoxes)
+{
+#if HAVE_XV_DRAWABLE_HELPER
+    xf86XVFillKeyHelperDrawable(pDraw, colorKey, clipBoxes);
+#else
+    xf86XVFillKeyHelper(pDraw->pScreen, colorKey, clipBoxes);
+#endif
+}
+
+
 static int
 RADEONPutImage(
   ScrnInfoPtr pScrn,
@@ -2870,7 +2881,7 @@ RADEONPutImage(
 	REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
 	/* draw these */
 	if(pPriv->autopaint_colorkey)
-	    xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes);
+	    RADEONFillKeyHelper(pDraw, pPriv->colorKey, clipBoxes);
     }
 
     RADEONDisplayVideo(pScrn, pPriv, id, offset, offset, offset, offset, width, height, dstPitch,
@@ -3416,7 +3427,7 @@ RADEONPutVideo(
         REGION_COPY(pScreen, &pPriv->clip, clipBoxes);
         /* draw these */
         if(pPriv->autopaint_colorkey)
-	     	xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes);
+	    RADEONFillKeyHelper(pDraw, pPriv->colorKey, clipBoxes);
    }
 
    RADEONDisplayVideo(pScrn, pPriv, id, offset1+top*srcPitch, offset2+top*srcPitch, offset3+top*srcPitch, offset4+top*srcPitch, width, height, dstPitch*mult/2,

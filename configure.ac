@@ -219,6 +219,12 @@ if test "x$have_exa_h" = xyes; then
                 AC_DEFINE(USE_EXA, 1, [Build support for Exa])
         fi
 fi
+
+AC_CHECK_DECL(xf86XVFillKeyHelperDrawable,
+	      [AC_DEFINE(HAVE_XV_DRAWABLE_HELPER, 1, [Have xf86XVFillKeyHelperDrawable prototype])],
+	      [],
+	      [#include <xf86xv.h>])
+
 CPPFLAGS="$SAVE_CPPFLAGS"
 
 AM_CONDITIONAL(USE_EXA, test "x$USE_EXA" = xyes)
