@@ -449,7 +449,6 @@ typedef struct {
     Bool	      IsPrimary;        /* Primary Screen */
     Bool              IsSwitching;      /* Flag for switching mode           */
     Bool              OverlayOnCRTC2;
-    Bool              PanelOff;         /* Force panel (LCD/DFP) off         */
     Bool              ddc_mode;         /* Validate mode by matching exactly
 					 * the modes supported in DDC data
 					 */

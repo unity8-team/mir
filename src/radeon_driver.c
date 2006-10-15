@@ -158,7 +158,6 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_ACCEL_DFS,      "AccelDFS",         OPTV_BOOLEAN, {0}, FALSE },
 #endif
 #endif
-    { OPTION_PANEL_OFF,      "PanelOff",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DDC_MODE,       "DDCMode",          OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_MONITOR_LAYOUT, "MonitorLayout",    OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_IGNORE_EDID,    "IgnoreEDID",       OPTV_BOOLEAN, {0}, FALSE },
@@ -6281,26 +6280,6 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	}
     }
 
-    info->PanelOff = FALSE;
-    /* This option is used to force the ONLY DEVICE in XFConfig to use
-     * CRT port, instead of default DVI port.
-     */
-    if (xf86ReturnOptValBool(info->Options, OPTION_PANEL_OFF, FALSE)) {
-	info->PanelOff = TRUE;
-    }
-
-    if (info->PanelOff && info->MergedFB) {
-	info->OverlayOnCRTC2 = TRUE;
-	if (MonType == MT_LCD) {
-	    /* Turning off LVDS_ON seems to make panel white blooming.
-	     * For now we just turn off display data ???
-	     */
-	    save->lvds_gen_cntl |= (RADEON_LVDS_DISPLAY_DIS);
-	    save->lvds_gen_cntl &= ~(RADEON_LVDS_BLON | RADEON_LVDS_ON);
-
-	} else if (MonType == MT_DFP)
-	    save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
-    } else {
 	if (MonType == MT_LCD) {
 
 	    /*	    save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
@@ -6343,57 +6322,6 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     	    else
         	save->fp_gen_cntl &= ~RADEON_FP_PANEL_FORMAT;/* 18 bit format */
         }
-    }
-#if 0
-    info->BiosHotkeys = FALSE;
-    /*
-     * Allow the bios to toggle outputs. see below for more.
-     */
-    if (info->IsMobility) {
-        if (xf86ReturnOptValBool(info->Options, OPTION_BIOS_HOTKEYS, FALSE)) {
-	    info->BiosHotkeys = TRUE;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Enabled\n");
-        } else {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS HotKeys Disabled\n");
-        }
-    }
-
-    if (info->IsMobility && (!info->BiosHotkeys)) {
-
-	/* To work correctly with laptop hotkeys.
-	 * Since there is no machnism for accessing ACPI evnets
-	 * and the driver currently doesn't know how to validate
-	 * a mode dynamically, we have to tell BIOS don't do
-	 * display switching after X has started.  
-	 * If LCD is on, lid close/open should still work 
-	 * with below settings
-	 */
-	if (info->DisplayType == MT_LCD) {
-	    if (pRADEONEnt->Controller[1].pPort->MonType == MT_CRT)
-		save->bios_5_scratch = 0x0201;
-	    else if (pRADEONEnt->Controller[1].pPort->MonType == MT_DFP)
-		save->bios_5_scratch = 0x0801;
-	} else {
-	    if (pRADEONEnt->Controller[1].pPort->MonType == MT_CRT)
-		save->bios_5_scratch = 0x0200;
-	    else if (pRADEONEnt->Controller[1].pPort->MonType == MT_DFP)
-		save->bios_5_scratch = 0x0800;
-	    else
-		save->bios_5_scratch = 0x0; 
-	}
-	save->bios_4_scratch = 0x4;
-	save->bios_6_scratch |= 0x40000000;
-
-    } else if (info->IsMobility && (info->DisplayType == MT_LCD)) {
-
-	/* BIOS will use this setting to reset displays upon lid close/open.
-	 * Here we let BIOS controls LCD, but the driver will control the external CRT.
-	 */
-	if (info->MergedFB || pRADEONEnt->HasSecondary)
-	    save->bios_5_scratch = 0x01020201;
-
-    }
-#endif
 }
 
 /* Define CRTC registers for requested video mode */
