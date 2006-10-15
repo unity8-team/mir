@@ -891,6 +891,7 @@ extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
 extern void        RADEONSetSyncRangeFromEdid(ScrnInfoPtr pScrn, int flag);
 extern Bool        RADEONMapControllers(ScrnInfoPtr pScrn);
 extern void        RADEONEnableDisplay(ScrnInfoPtr pScrn, RADEONController* pCRTC, BOOL bEnable);
+extern void        RADEONDisableDisplays(ScrnInfoPtr pScrn);
 extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
 extern void        RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn);
 extern void        RADEONUnblank(ScrnInfoPtr pScrn);

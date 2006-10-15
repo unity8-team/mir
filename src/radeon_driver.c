@@ -5760,6 +5760,12 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	return;
     }
 
+    /* Disable all outputs at initial mode set.  the ones we want will
+       get set by RADEONEnableDisplay()
+     */
+    if (!info->IsSwitching && !info->IsSecondary)
+	RADEONDisableDisplays(pScrn);
+
     /* When changing mode with Dual-head card, care must be taken for
      * the special order in setting registers. CRTC2 has to be set
      * before changing CRTC_EXT register.  In the dual-head setup, X
