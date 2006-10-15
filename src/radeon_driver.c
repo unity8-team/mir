@@ -193,7 +193,6 @@ static const OptionInfoRec RADEONOptions[] = {
 #endif
     { OPTION_SHOWCACHE,      "ShowCache",        OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DYNAMIC_CLOCKS, "DynamicClocks",    OPTV_BOOLEAN, {0}, FALSE },
-    { OPTION_BIOS_HOTKEYS,   "BIOSHotkeys",      OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_VGA_ACCESS,     "VGAAccess",        OPTV_BOOLEAN, {0}, TRUE  },
     { OPTION_REVERSE_DDC,    "ReverseDDC",       OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_LVDS_PROBE_PLL, "LVDSProbePLL",     OPTV_BOOLEAN, {0}, FALSE },
@@ -6345,7 +6344,7 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
         	save->fp_gen_cntl &= ~RADEON_FP_PANEL_FORMAT;/* 18 bit format */
         }
     }
-
+#if 0
     info->BiosHotkeys = FALSE;
     /*
      * Allow the bios to toggle outputs. see below for more.
@@ -6394,6 +6393,7 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	    save->bios_5_scratch = 0x01020201;
 
     }
+#endif
 }
 
 /* Define CRTC registers for requested video mode */
