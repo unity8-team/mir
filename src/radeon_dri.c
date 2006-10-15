@@ -402,7 +402,24 @@ static void RADEONEnterServer(ScreenPtr pScreen)
     if (info->ChipFamily>=CHIP_FAMILY_R300)
         drmCommandNone(info->drmFD, DRM_RADEON_CP_IDLE);
 
+#ifdef DAMAGE
+    if (!info->pDamage && info->allowPageFlip) {
+	PixmapPtr pPix  = pScreen->GetScreenPixmap(pScreen);
+	info->pDamage = DamageCreate(NULL, NULL, DamageReportNone, TRUE,
+				     pScreen, pPix);
 
+	if (info->pDamage == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "No screen damage record, page flipping disabled\n");
+	    info->allowPageFlip = 0;
+	} else {
+	    DamageRegister(&pPix->drawable, info->pDamage);
+
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Damage tracking initialized for page flipping\n");
+	}
+    }
+#endif
 }
 
 /* Called when the X server goes to sleep to allow the X server's
@@ -1890,30 +1907,9 @@ static void RADEONEnablePageFlip(ScreenPtr pScreen)
     RADEONInfoPtr       info       = RADEONPTR(pScrn);
 
     if (info->allowPageFlip) {
-	BoxRec box = { .x1 = 0, .y1 = 0, .x2 = pScrn->virtualX - 1,
-		       .y2 = pScrn->virtualY - 1 };
 	RADEONSAREAPrivPtr pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
-	if (!info->pDamage) {
-	    PixmapPtr pPix  = pScreen->GetScreenPixmap(pScreen);
-
-	    /* Have damage run only while there is 3d active.
-	     */
-	    info->pDamage = DamageCreate(NULL, NULL, DamageReportNone, TRUE,
-					 pScreen, pPix);
-
-	    if (info->pDamage == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "No screen damage record, page flipping disabled\n");
-		info->allowPageFlip = 0;
-		return;
-	    }
-
-	    DamageRegister(&pPix->drawable, info->pDamage);
-	}
-
 	pSAREAPriv->pfAllowPageFlip = 1;
-	RADEONDRIRefreshArea(pScrn, 1, &box);
     }
 #endif
 }
@@ -1925,17 +1921,6 @@ static void RADEONDisablePageFlip(ScreenPtr pScreen)
      *   -- DRM needs to cope with Front-to-Back swapbuffers.
      */
     RADEONSAREAPrivPtr  pSAREAPriv = DRIGetSAREAPrivate(pScreen);
-#ifdef DAMAGE
-    RADEONInfoPtr info = RADEONPTR(xf86Screens[pScreen->myNum]);
-
-    if (info->pDamage) {
-	PixmapPtr pPix = pScreen->GetScreenPixmap(pScreen);
-
-	DamageUnregister(&pPix->drawable, info->pDamage);
-	DamageDestroy(info->pDamage);
-	info->pDamage = NULL;
-    }
-#endif
 
     pSAREAPriv->pfAllowPageFlip = 0;
 }

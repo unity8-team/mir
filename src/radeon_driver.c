@@ -7563,6 +7563,16 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     info->accelOn = FALSE;
 
 #ifdef XF86DRI
+#ifdef DAMAGE
+    if (info->pDamage) {
+	PixmapPtr pPix = pScreen->GetScreenPixmap(pScreen);
+
+	DamageUnregister(&pPix->drawable, info->pDamage);
+	DamageDestroy(info->pDamage);
+	info->pDamage = NULL;
+    }
+#endif
+
     RADEONDRIStop(pScreen);
 #endif
 
