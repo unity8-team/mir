@@ -641,7 +641,7 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
 	     */
 	    if (port->TMDSType == TMDS_EXT) MonType = MT_DFP;
 	    else {
-		if ((INREG(RADEON_FP_GEN_CNTL) & (1<<7)) || !info->IsMobility)
+		if ((INREG(RADEON_FP_GEN_CNTL) & RADEON_FP_EN_TMDS) || !info->IsMobility)
 		    MonType = MT_DFP;
 		else 
 		    MonType = MT_LCD;
