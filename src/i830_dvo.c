@@ -92,14 +92,21 @@ i830_dvo_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
     output->i2c_drv->vid_rec->RestoreRegs(output->i2c_drv->dev_priv);
 }
 
+static int
+i830_dvo_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
+		    DisplayModePtr pMode)
+{
+    if (output->i2c_drv->vid_rec->ModeValid(output->i2c_drv->dev_priv, pMode))
+	return MODE_OK;
+    else
+	return MODE_BAD;
+}
+
 static void
 i830_dvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
 		      DisplayModePtr pMode)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-
-    if (output->i2c_drv == NULL)
-	return;
 
     output->i2c_drv->vid_rec->Mode(output->i2c_drv->dev_priv, pMode);
 
@@ -179,8 +186,9 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     pI830->output[i].dpms = i830_dvo_dpms;
     pI830->output[i].save = i830_dvo_save;
     pI830->output[i].restore = i830_dvo_restore;
-    pI830->output[i].pre_set_mode  = i830_dvo_pre_set_mode ;
-    pI830->output[i].post_set_mode  = i830_dvo_post_set_mode ;
+    pI830->output[i].mode_valid  = i830_dvo_mode_valid;
+    pI830->output[i].pre_set_mode  = i830_dvo_pre_set_mode;
+    pI830->output[i].post_set_mode  = i830_dvo_post_set_mode;
 
     /* Set up the I2C and DDC buses */
     ret = I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");

@@ -123,6 +123,13 @@ i830_lvds_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
 	i830SetLVDSPanelPower(pScrn, FALSE);
 }
 
+static int
+i830_lvds_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
+		    DisplayModePtr pMode)
+{
+   return MODE_OK;
+}
+
 static void
 i830_lvds_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
 		       DisplayModePtr pMode)
@@ -178,6 +185,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     pI830->output[pI830->num_outputs].dpms = i830_lvds_dpms;
     pI830->output[pI830->num_outputs].save = i830_lvds_save;
     pI830->output[pI830->num_outputs].restore = i830_lvds_restore;
+    pI830->output[pI830->num_outputs].mode_valid = i830_lvds_mode_valid;
     pI830->output[pI830->num_outputs].pre_set_mode = i830_lvds_pre_set_mode;
     pI830->output[pI830->num_outputs].post_set_mode = i830_lvds_post_set_mode;
 

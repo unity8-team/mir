@@ -545,7 +545,6 @@ i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     CARD8 c16a[8];
     CARD8 c17a[8];
     CARD16 out_timings[6];
-    CARD16 clock_min, clock_max;
     Bool out1, out2;
     I830SDVOPtr s = output->sdvo_drv;
 
@@ -588,8 +587,6 @@ i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     out_timings[5] = c17a[3] | ((short)c17a[2] << 8);
 
     I830SDVOSetTargetInput(s, FALSE, FALSE);
-    I830SDVOGetInputPixelClockRange(s, &clock_min, &clock_max);
-    ErrorF("clock min/max: %d %d\n", clock_min, clock_max);
 
     I830SDVOGetActiveOutputs(s, &out1, &out2);
     
@@ -775,6 +772,21 @@ i830_sdvo_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
 			     sdvo->save_sdvo_active_2);
 }
 
+static int
+i830_sdvo_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
+		     DisplayModePtr pMode)
+{
+    I830SDVOPtr sdvo = output->sdvo_drv;
+
+    if (sdvo->pixel_clock_min > pMode->Clock)
+	return MODE_CLOCK_HIGH;
+
+    if (sdvo->pixel_clock_max < pMode->Clock)
+	return MODE_CLOCK_LOW;
+
+    return MODE_OK;
+}
+
 static void
 I830SDVOGetCapabilities(I830SDVOPtr s, i830_sdvo_caps *caps)
 {
@@ -954,6 +966,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     pI830->output[pI830->num_outputs].dpms = i830_sdvo_dpms;
     pI830->output[pI830->num_outputs].save = i830_sdvo_save;
     pI830->output[pI830->num_outputs].restore = i830_sdvo_restore;
+    pI830->output[pI830->num_outputs].mode_valid = i830_sdvo_mode_valid;
     pI830->output[pI830->num_outputs].pre_set_mode = i830_sdvo_pre_set_mode;
     pI830->output[pI830->num_outputs].post_set_mode = i830_sdvo_post_set_mode;
 
@@ -1041,6 +1054,9 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     }
 
     I830SDVOGetCapabilities(sdvo, &sdvo->caps);
+
+    I830SDVOGetInputPixelClockRange(sdvo, &sdvo->pixel_clock_min,
+				    &sdvo->pixel_clock_max);
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "SDVO device VID/DID: %02X:%02X.%02X, %02X,"

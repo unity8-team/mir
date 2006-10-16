@@ -211,6 +211,9 @@ typedef struct _I830SDVODriver {
    CARD32 output_device;		/* SDVOB or SDVOC */
 
    i830_sdvo_caps caps;
+
+   CARD16 pixel_clock_min, pixel_clock_max;
+
    int save_sdvo_mult;
    Bool save_sdvo_active_1, save_sdvo_active_2;
    i830_sdvo_dtd save_input_dtd_1, save_input_dtd_2;
@@ -243,6 +246,17 @@ struct _I830OutputRec {
     * Restore's the output's state at VT switch.
     */
    void (*restore)(ScrnInfoPtr pScrn, I830OutputPtr output);
+
+   /**
+    * Callback for testing a video mode for a given output.
+    *
+    * This function should only check for cases where a mode can't be supported
+    * on the pipe specifically, and not represent generic CRTC limitations.
+    *
+    * \return MODE_OK if the mode is valid, or another MODE_* otherwise.
+    */
+   int (*mode_valid)(ScrnInfoPtr pScrn, I830OutputPtr output,
+		     DisplayModePtr pMode);
 
    /**
     * Callback for setting up a video mode before any pipe/dpll changes.
