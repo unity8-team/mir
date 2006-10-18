@@ -215,8 +215,8 @@ RADEONCopyModeNLink(ScrnInfoPtr pScrn, DisplayModePtr dest,
       * extension to allow selecting among a number of modes whose merged result
       * looks identical but consists of different modes for CRT1 and CRT2
       */
-    mode->VRefresh = (i->Clock * 1000.0 / i->HTotal / i->VTotal) * 100 +
-	(j->Clock * 1000.0 / j->HTotal / j->VTotal);
+    mode->VRefresh = (float)((i->Clock * 1000.0 / i->HTotal / i->VTotal) * 100 +
+	(j->Clock * 1000.0 / j->HTotal / j->VTotal));
 
     mode->Clock = (int)(mode->VRefresh * 0.001 * mode->HTotal * mode->VTotal);
 
