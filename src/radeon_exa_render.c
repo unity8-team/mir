@@ -246,12 +246,19 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	txoffset |= RADEON_TXO_MACRO_TILE;
 
     if (pPict->repeat) {
+	if (((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch)
+	    RADEON_FALLBACK(("Width %d and pitch %u not compatible for repeat\n",
+			     w, (unsigned)txpitch));
+
 	txformat |= RADEONLog2(w) << RADEON_TXFORMAT_WIDTH_SHIFT;
 	txformat |= RADEONLog2(h) << RADEON_TXFORMAT_HEIGHT_SHIFT;
-    } else 
+    } else
 	txformat |= RADEON_TXFORMAT_NON_POWER2;
     txformat |= unit << 24; /* RADEON_TXFORMAT_ST_ROUTE_STQX */
- 
+
+    info->texW[unit] = 1;
+    info->texH[unit] = 1;
+
     switch (pPict->filter) {
     case PictFilterNearest:
 	txfilter = (RADEON_MAG_FILTER_NEAREST | RADEON_MIN_FILTER_NEAREST);
@@ -499,11 +506,18 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	txoffset |= R200_TXO_MACRO_TILE;
 
     if (pPict->repeat) {
+	if (((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch)
+	    RADEON_FALLBACK(("Width %d and pitch %u not compatible for repeat\n",
+			     w, (unsigned)txpitch));
+
 	txformat |= RADEONLog2(w) << R200_TXFORMAT_WIDTH_SHIFT;
 	txformat |= RADEONLog2(h) << R200_TXFORMAT_HEIGHT_SHIFT;
     } else
 	txformat |= R200_TXFORMAT_NON_POWER2;
     txformat |= unit << R200_TXFORMAT_ST_ROUTE_SHIFT;
+
+    info->texW[unit] = w;
+    info->texH[unit] = h;
 
     switch (pPict->filter) {
     case PictFilterNearest:
@@ -791,11 +805,6 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 		 (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
     }
 
-    VTX_OUT(dstX,     dstY,     srcX,    srcY,    maskX,    maskY);
-    VTX_OUT(dstX,     dstY + h, srcX,    srcYend, maskX,    maskYend);
-    VTX_OUT(dstX + w, dstY + h, srcXend, srcYend, maskXend, maskYend);
-    VTX_OUT(dstX + w, dstY,     srcXend, srcY,    maskXend, maskY);
-    ADVANCE_RING();
 #else /* ACCEL_CP */
     BEGIN_ACCEL(1 + VTX_REG_COUNT * 4);
     if (info->ChipFamily < CHIP_FAMILY_R200) {
@@ -808,11 +817,32 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 					  RADEON_VF_PRIM_WALK_DATA |
 					  4 << RADEON_VF_NUM_VERTICES_SHIFT));
     }
+#endif
 
-    VTX_OUT(dstX,     dstY,     srcX,    srcY,    maskX,    maskY);
-    VTX_OUT(dstX,     dstY + h, srcX,    srcYend, maskX,    maskYend);
-    VTX_OUT(dstX + w, dstY + h, srcXend, srcYend, maskXend, maskYend);
-    VTX_OUT(dstX + w, dstY,     srcXend, srcY,    maskXend, maskY);
+    if (info->texW[0] == 1 && info->texH[0] == 1 &&
+	info->texW[1] == 1 && info->texH[1] == 1) {
+	VTX_OUT(dstX,     dstY,       srcX,     srcY,	  maskX,    maskY);
+	VTX_OUT(dstX,     dstY + h,   srcX,     srcYend,  maskX,    maskYend);
+	VTX_OUT(dstX + w, dstY + h,   srcXend,  srcYend,  maskXend, maskYend);
+	VTX_OUT(dstX + w, dstY,	      srcXend,  srcY,     maskXend, maskY);
+    } else {
+    VTX_OUT((float)dstX,     (float)dstY,
+	    (float)srcX / info->texW[0],     (float)srcY / info->texH[0],
+	    (float)maskX / info->texW[1],    (float)maskY / info->texH[1]);
+    VTX_OUT((float)dstX,     (float)(dstY + h),
+	    (float)srcX / info->texW[0],     (float)srcYend / info->texH[0],
+	    (float)maskX / info->texW[1],    (float)maskYend / info->texH[1]);
+    VTX_OUT((float)(dstX + w), (float)(dstY + h),
+	    (float)srcXend / info->texW[0],  (float)srcYend / info->texH[0],
+	    (float)maskXend / info->texW[1], (float)maskYend / info->texH[1]);
+    VTX_OUT((float)(dstX + w), (float)dstY,
+	    (float)srcXend / info->texW[0],  (float)srcY / info->texH[0],
+	    (float)maskXend / info->texW[1], (float)maskY / info->texH[1]);
+    }
+
+#ifdef ACCEL_CP
+    ADVANCE_RING();
+#else
     FINISH_ACCEL();
 #endif /* !ACCEL_CP */
 

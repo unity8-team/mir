@@ -742,6 +742,8 @@ typedef struct {
 
     /* Render */
     Bool              RenderAccel;
+    unsigned short    texW[2];
+    unsigned short    texH[2];
 #ifdef USE_XAA
     FBLinearPtr       RenderTex;
     void              (*RenderCallback)(ScrnInfoPtr);

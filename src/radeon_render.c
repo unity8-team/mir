@@ -398,6 +398,13 @@ static Bool FUNC_NAME(R100SetupTexture)(
     txformat = RadeonGetTextureFormat(format);
     tex_bytepp = PICT_FORMAT_BPP(format) >> 3;
 
+    dst_pitch = (width * tex_bytepp + 63) & ~63;
+    size = dst_pitch * height;
+
+    if ((flags & XAA_RENDER_REPEAT) &&
+	(((width * tex_bytepp + 31) & ~31) != dst_pitch))
+	return FALSE;
+
 #ifndef ACCEL_CP
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -409,9 +416,6 @@ static Bool FUNC_NAME(R100SetupTexture)(
 #endif
 
 #endif
-
-    dst_pitch = (width * tex_bytepp + 63) & ~63;
-    size = dst_pitch * height;
 
     if (!AllocateLinear(pScrn, size))
 	return FALSE;
@@ -731,6 +735,13 @@ static Bool FUNC_NAME(R200SetupTexture)(
     txformat = RadeonGetTextureFormat(format);
     tex_bytepp = PICT_FORMAT_BPP(format) >> 3;
 
+    dst_pitch = (width * tex_bytepp + 63) & ~63;
+    size = dst_pitch * height;
+
+    if ((flags & XAA_RENDER_REPEAT) &&
+	(((width * tex_bytepp + 31) & ~31) != dst_pitch))
+	return FALSE;
+
 #ifndef ACCEL_CP
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -743,9 +754,6 @@ static Bool FUNC_NAME(R200SetupTexture)(
 
 #endif
 
-    dst_pitch = (width * tex_bytepp + 63) & ~63;
-    size = dst_pitch * height;
-
     if (!AllocateLinear(pScrn, size))
 	return FALSE;
 
@@ -756,6 +764,9 @@ static Bool FUNC_NAME(R200SetupTexture)(
 	tex_size = ((height - 1) << 16) | (width - 1);
 	txformat |= RADEON_TXFORMAT_NON_POWER2;
     }
+
+    info->texW[0] = width;
+    info->texH[0] = height;
 
     offset = info->RenderTex->offset * pScrn->bitsPerPixel / 8;
     dst = (CARD8*)(info->FB + offset);
@@ -956,10 +967,10 @@ FUNC_NAME(R200SubsequentCPUToScreenTexture) (
     
     r = width + l;
     b = height + t;
-    fl = srcx;
-    fr = srcx + width;
-    ft = srcy;
-    fb = srcy + height;
+    fl = (float)srcx / info->texW[0];
+    fr = (float)(srcx + width) / info->texW[0];
+    ft = (float)srcy / info->texH[0];
+    fb = (float)(srcy + height) / info->texH[0];
 
 #ifdef ACCEL_CP
     BEGIN_RING(24);

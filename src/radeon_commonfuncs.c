@@ -55,6 +55,8 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     ACCEL_PREAMBLE();
 
+    info->texW[0] = info->texH[0] = info->texW[1] = info->texH[1] = 1;
+
     if (info->ChipFamily >= CHIP_FAMILY_R300) {
 	/* Unimplemented */
     } else if ((info->ChipFamily == CHIP_FAMILY_RV250) || 
@@ -72,8 +74,7 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	OUT_ACCEL_REG(R200_PP_TXMULTI_CTL_0, 0);
 	OUT_ACCEL_REG(R200_SE_VTX_STATE_CNTL, 0);
 	OUT_ACCEL_REG(R200_RE_CNTL, 0x0);
-	/* XXX: correct?  Want it to be like RADEON_VTX_ST?_NONPARAMETRIC */
-	OUT_ACCEL_REG(R200_SE_VTE_CNTL, R200_VTX_ST_DENORMALIZED);
+	OUT_ACCEL_REG(R200_SE_VTE_CNTL, 0);
 	OUT_ACCEL_REG(R200_SE_VAP_CNTL, R200_VAP_FORCE_W_TO_ONE |
 	    R200_VAP_VF_MAX_VTX_NUM);
 	FINISH_ACCEL();
