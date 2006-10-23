@@ -401,7 +401,7 @@ static Bool FUNC_NAME(R100SetupTexture)(
     dst_pitch = (width * tex_bytepp + 63) & ~63;
     size = dst_pitch * height;
 
-    if ((flags & XAA_RENDER_REPEAT) &&
+    if ((flags & XAA_RENDER_REPEAT) && (height != 1) &&
 	(((width * tex_bytepp + 31) & ~31) != dst_pitch))
 	return FALSE;
 
@@ -738,7 +738,7 @@ static Bool FUNC_NAME(R200SetupTexture)(
     dst_pitch = (width * tex_bytepp + 63) & ~63;
     size = dst_pitch * height;
 
-    if ((flags & XAA_RENDER_REPEAT) &&
+    if ((flags & XAA_RENDER_REPEAT) && (height != 1) &&
 	(((width * tex_bytepp + 31) & ~31) != dst_pitch))
 	return FALSE;
 

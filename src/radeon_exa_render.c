@@ -246,7 +246,8 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	txoffset |= RADEON_TXO_MACRO_TILE;
 
     if (pPict->repeat) {
-	if (((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch)
+	if ((h != 1) &&
+	    (((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch))
 	    RADEON_FALLBACK(("Width %d and pitch %u not compatible for repeat\n",
 			     w, (unsigned)txpitch));
 
@@ -506,7 +507,8 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	txoffset |= R200_TXO_MACRO_TILE;
 
     if (pPict->repeat) {
-	if (((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch)
+	if ((h != 1) &&
+	    (((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch))
 	    RADEON_FALLBACK(("Width %d and pitch %u not compatible for repeat\n",
 			     w, (unsigned)txpitch));
 
