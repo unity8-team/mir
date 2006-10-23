@@ -279,6 +279,8 @@ struct _I830OutputRec {
    I2CBusPtr pDDCBus;
    struct _I830DVODriver *i2c_drv;
    I830SDVOPtr sdvo_drv;
+   /** Output-private structure.  Should replace i2c_drv and sdvo_drv */
+   void *dev_priv;
 };
 
 typedef struct _I830Rec {
@@ -692,6 +694,9 @@ Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
 			RRScreenSizePtr pSize);
 Rotation I830GetRotation(ScreenPtr pScreen);
 void I830GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y);
+
+/* i830_tv.c */
+void i830_tv_init(ScrnInfoPtr pScrn);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for
