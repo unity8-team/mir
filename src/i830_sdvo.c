@@ -34,6 +34,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "compiler.h"
 #include "i830.h"
 #include "i830_display.h"
+#include "i810_reg.h"
 #include "i830_sdvo_regs.h"
 
 CARD16 curr_table[6];
@@ -167,6 +168,17 @@ I830SDVOReadInputRegs(I830SDVOPtr s)
     else
 	ErrorF("(??? %d)", s->sdvo_regs[SDVO_I2C_CMD_STATUS]);
     ErrorF("\n");
+}
+
+int
+i830_sdvo_get_pixel_multiplier(DisplayModePtr pMode)
+{
+    if (pMode->Clock >= 100000)
+	return 1;
+    else if (pMode->Clock >= 50000)
+	return 2;
+    else
+	return 4;
 }
 
 /* Sets the control bus switch to either point at one of the DDC buses or the
@@ -520,9 +532,11 @@ I830SDVOSetClockRateMult(I830SDVOPtr s, CARD8 val)
     return TRUE;
 }
 
-Bool
-I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
+static void
+i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
+			DisplayModePtr mode)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
     CARD16 clock = mode->Clock/10, width = mode->CrtcHDisplay;
     CARD16 height = mode->CrtcVDisplay;
     CARD16 h_blank_len, h_sync_len, v_blank_len, v_sync_len;
@@ -531,8 +545,8 @@ I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
     CARD8 c16a[8];
     CARD8 c17a[8];
     CARD16 out_timings[6];
-    CARD16 clock_min, clock_max;
     Bool out1, out2;
+    I830SDVOPtr s = output->sdvo_drv;
 
     /* do some mode translations */
     h_blank_len = mode->CrtcHBlankEnd - mode->CrtcHBlankStart;
@@ -573,8 +587,6 @@ I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
     out_timings[5] = c17a[3] | ((short)c17a[2] << 8);
 
     I830SDVOSetTargetInput(s, FALSE, FALSE);
-    I830SDVOGetInputPixelClockRange(s, &clock_min, &clock_max);
-    ErrorF("clock min/max: %d %d\n", clock_min, clock_max);
 
     I830SDVOGetActiveOutputs(s, &out1, &out2);
     
@@ -600,22 +612,34 @@ I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode)
 				 out_timings[5]);
 
     I830SDVOSetTargetInput (s, FALSE, FALSE);
-    
-    if (clock >= 10000)
-	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_1X);
-    else if (clock >= 5000)
-	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_2X);
-    else
-	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_4X);
 
-    return TRUE;
+    switch (i830_sdvo_get_pixel_multiplier(mode)) {
+    case 1:
+	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_1X);
+	break;
+    case 2:
+	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_2X);
+	break;
+    case 4:
+	I830SDVOSetClockRateMult(s, SDVO_CLOCK_RATE_MULT_4X);
+	break;
+    }
+
+    OUTREG(SDVOC, INREG(SDVOC) & ~SDVO_ENABLE);
+    OUTREG(SDVOB, INREG(SDVOB) & ~SDVO_ENABLE);
 }
 
-Bool
-I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
+static void
+i830_sdvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
+			DisplayModePtr mode)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
     Bool ret = TRUE;
     Bool out1, out2;
+    CARD32 dpll, sdvob, sdvoc;
+    int dpll_reg = (output->pipe == 0) ? DPLL_A : DPLL_B;
+    int sdvo_pixel_multiply;
+    I830SDVOPtr s = output->sdvo_drv;
 
     /* the BIOS writes out 6 commands post mode set */
     /* two 03s, 04 05, 10, 1d */
@@ -636,14 +660,48 @@ I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode)
     I830SDVOSetActiveOutputs(s, TRUE, FALSE);
     I830SDVOSetTargetInput (s, FALSE, FALSE);
 
-    return ret;
+    /* Set the SDVO control regs. */
+    sdvob = INREG(SDVOB) & SDVOB_PRESERVE_MASK;
+    sdvoc = INREG(SDVOC) & SDVOC_PRESERVE_MASK;
+    sdvob |= SDVO_ENABLE | (9 << 19) | SDVO_BORDER_ENABLE;
+    sdvoc |= 9 << 19;
+    if (output->pipe == 1)
+	sdvob |= SDVO_PIPE_B_SELECT;
+
+    dpll = INREG(dpll_reg);
+
+    sdvo_pixel_multiply = i830_sdvo_get_pixel_multiplier(mode);
+    if (IS_I945G(pI830) || IS_I945GM(pI830))
+	dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
+    else
+	sdvob |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
+
+    OUTREG(dpll_reg, dpll | DPLL_DVO_HIGH_SPEED);
+
+    OUTREG(SDVOB, sdvob);
+    OUTREG(SDVOC, sdvoc);
 }
 
-void
-i830SDVOSave(ScrnInfoPtr pScrn, int output_index)
+static void
+i830_sdvo_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I830SDVOPtr sdvo = pI830->output[output_index].sdvo_drv;
+    I830SDVOPtr sdvo = output->sdvo_drv;
+
+    if (mode != DPMSModeOn) {
+	I830SDVOSetActiveOutputs(sdvo, FALSE, FALSE);
+	OUTREG(SDVOB, INREG(SDVOB) & ~SDVO_ENABLE);
+    } else {
+	I830SDVOSetActiveOutputs(sdvo, TRUE, FALSE);
+	OUTREG(SDVOB, INREG(SDVOB) | SDVO_ENABLE);
+    }
+}
+
+static void
+i830_sdvo_save(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830SDVOPtr sdvo = output->sdvo_drv;
 
     sdvo->save_sdvo_mult = I830SDVOGetClockRateMult(sdvo);
     I830SDVOGetActiveOutputs(sdvo, &sdvo->save_sdvo_active_1,
@@ -676,20 +734,11 @@ i830SDVOSave(ScrnInfoPtr pScrn, int output_index)
     sdvo->save_SDVOX = INREG(sdvo->output_device);
 }
 
-void
-i830SDVOPreRestore(ScrnInfoPtr pScrn, int output_index)
+static void
+i830_sdvo_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I830SDVOPtr sdvo = pI830->output[output_index].sdvo_drv;
-
-    I830SDVOSetActiveOutputs(sdvo, FALSE, FALSE);
-}
-
-void
-i830SDVOPostRestore(ScrnInfoPtr pScrn, int output_index)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830SDVOPtr sdvo = pI830->output[output_index].sdvo_drv;
+    I830SDVOPtr sdvo = output->sdvo_drv;
 
     if (sdvo->caps.caps & 0x1) {
        I830SDVOSetTargetInput(sdvo, FALSE, FALSE);
@@ -721,6 +770,21 @@ i830SDVOPostRestore(ScrnInfoPtr pScrn, int output_index)
 
     I830SDVOSetActiveOutputs(sdvo, sdvo->save_sdvo_active_1,
 			     sdvo->save_sdvo_active_2);
+}
+
+static int
+i830_sdvo_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
+		     DisplayModePtr pMode)
+{
+    I830SDVOPtr sdvo = output->sdvo_drv;
+
+    if (sdvo->pixel_clock_min > pMode->Clock)
+	return MODE_CLOCK_HIGH;
+
+    if (sdvo->pixel_clock_max < pMode->Clock)
+	return MODE_CLOCK_LOW;
+
+    return MODE_OK;
 }
 
 static void
@@ -815,95 +879,6 @@ I830SDVODDCI2CAddress(I2CDevPtr d, I2CSlaveAddr addr)
     return FALSE;
 }
 
-I830SDVOPtr
-I830SDVOInit(ScrnInfoPtr pScrn, int output_index, CARD32 output_device)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830SDVOPtr sdvo;
-    int i;
-    unsigned char ch[0x40];
-    I2CBusPtr i2cbus, ddcbus;
-
-    i2cbus = pI830->output[output_index].pI2CBus;
-
-    sdvo = xcalloc(1, sizeof(I830SDVORec));
-    if (sdvo == NULL)
-	return NULL;
-
-    if (output_device == SDVOB) {
-	sdvo->d.DevName = "SDVO Controller B";
-	sdvo->d.SlaveAddr = 0x70;
-    } else {
-	sdvo->d.DevName = "SDVO Controller C";
-	sdvo->d.SlaveAddr = 0x72;
-    }
-    sdvo->d.pI2CBus = i2cbus;
-    sdvo->d.DriverPrivate.ptr = sdvo;
-    sdvo->output_device = output_device;
-
-    if (!xf86I2CDevInit(&sdvo->d)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Failed to initialize SDVO I2C device %s\n",
-		   output_device == SDVOB ? "SDVOB" : "SDVOC");
-	xfree(sdvo);
-	return NULL;
-    }
-
-    /* Set up our wrapper I2C bus for DDC.  It acts just like the regular I2C
-     * bus, except that it does the control bus switch to DDC mode before every
-     * Start.  While we only need to do it at Start after every Stop after a
-     * Start, extra attempts should be harmless.
-     */
-    ddcbus = xf86CreateI2CBusRec();
-    if (ddcbus == NULL) {
-	xf86DestroyI2CDevRec(&sdvo->d, 0);
-	xfree(sdvo);
-	return NULL;
-    }
-    if (output_device == SDVOB)
-        ddcbus->BusName = "SDVOB DDC Bus";
-    else
-        ddcbus->BusName = "SDVOC DDC Bus";
-    ddcbus->scrnIndex = i2cbus->scrnIndex;
-    ddcbus->I2CGetByte = I830SDVODDCI2CGetByte;
-    ddcbus->I2CPutByte = I830SDVODDCI2CPutByte;
-    ddcbus->I2CStart = I830SDVODDCI2CStart;
-    ddcbus->I2CStop = I830SDVODDCI2CStop;
-    ddcbus->I2CAddress = I830SDVODDCI2CAddress;
-    ddcbus->DriverPrivate.ptr = sdvo;
-    if (!xf86I2CBusInit(ddcbus)) {
-	xf86DestroyI2CDevRec(&sdvo->d, 0);
-	xfree(sdvo);
-	return NULL;
-    }
-
-    pI830->output[output_index].pDDCBus = ddcbus;
-
-    /* Read the regs to test if we can talk to the device */
-    for (i = 0; i < 0x40; i++) {
-	if (!sReadByte(sdvo, i, &ch[i])) {
-	    xf86DestroyI2CBusRec(pI830->output[output_index].pDDCBus, FALSE,
-		FALSE);
-	    xf86DestroyI2CDevRec(&sdvo->d, 0);
-	    xfree(sdvo);
-	    return NULL;
-	}
-    }
-
-    pI830->output[output_index].sdvo_drv = sdvo;
-
-    I830SDVOGetCapabilities(sdvo, &sdvo->caps);
-    
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "SDVO device VID/DID: %02X:%02X.%02X, %02X, output 1: %c, output 2: %c\n",
-	       sdvo->caps.vendor_id, sdvo->caps.device_id,
-	       sdvo->caps.device_rev_id, sdvo->caps.caps,
-	       sdvo->caps.output_0_supported ? 'Y' : 'N',
-	       sdvo->caps.output_1_supported ? 'Y' : 'N');
-
-    return sdvo;
-}
-
 static void
 I830DumpSDVOCmd (I830SDVOPtr s, int opcode)
 {
@@ -944,13 +919,11 @@ void
 I830DumpSDVO (ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I830SDVOPtr	s;
     int	i;
 
-    for (i = 0; i < 4; i++) {
-	s = pI830->output[i].sdvo_drv;
-	if (s)
-	    I830DumpOneSDVO (s);
+    for (i = 0; i < pI830->num_outputs; i++) {
+	if (pI830->output[i].type == I830_OUTPUT_SDVO)
+	    I830DumpOneSDVO (pI830->output[i].sdvo_drv);
     }
 }
 
@@ -978,4 +951,120 @@ I830DetectSDVODisplays(ScrnInfoPtr pScrn, int output_index)
 
     return (s->sdvo_regs[SDVO_I2C_RETURN_0] != 0 ||
 	    s->sdvo_regs[SDVO_I2C_RETURN_1] != 0);
+}
+
+void
+i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830SDVOPtr sdvo;
+    int i;
+    unsigned char ch[0x40];
+    I2CBusPtr i2cbus = NULL, ddcbus;
+
+    pI830->output[pI830->num_outputs].type = I830_OUTPUT_SDVO;
+    pI830->output[pI830->num_outputs].dpms = i830_sdvo_dpms;
+    pI830->output[pI830->num_outputs].save = i830_sdvo_save;
+    pI830->output[pI830->num_outputs].restore = i830_sdvo_restore;
+    pI830->output[pI830->num_outputs].mode_valid = i830_sdvo_mode_valid;
+    pI830->output[pI830->num_outputs].pre_set_mode = i830_sdvo_pre_set_mode;
+    pI830->output[pI830->num_outputs].post_set_mode = i830_sdvo_post_set_mode;
+
+    /* Find an existing SDVO I2CBus from another output, or allocate it. */
+    for (i = 0; i < pI830->num_outputs; i++) {
+	if (pI830->output[i].type == I830_OUTPUT_SDVO)
+	    i2cbus = pI830->output[i].pI2CBus;
+    }
+    if (i2cbus == NULL)
+	I830I2CInit(pScrn, &i2cbus, GPIOE, "SDVOCTRL_E");
+    if (i2cbus == NULL)
+	return;
+
+    /* Allocate the SDVO output private data */
+    sdvo = xcalloc(1, sizeof(I830SDVORec));
+    if (sdvo == NULL) {
+	xf86DestroyI2CBusRec(i2cbus, TRUE, TRUE);
+	return;
+    }
+
+    if (output_device == SDVOB) {
+	sdvo->d.DevName = "SDVO Controller B";
+	sdvo->d.SlaveAddr = 0x70;
+    } else {
+	sdvo->d.DevName = "SDVO Controller C";
+	sdvo->d.SlaveAddr = 0x72;
+    }
+    sdvo->d.pI2CBus = i2cbus;
+    sdvo->d.DriverPrivate.ptr = sdvo;
+    sdvo->output_device = output_device;
+
+    if (!xf86I2CDevInit(&sdvo->d)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Failed to initialize SDVO I2C device %s\n",
+		   output_device == SDVOB ? "SDVOB" : "SDVOC");
+	xf86DestroyI2CBusRec(i2cbus, TRUE, TRUE);
+	xfree(sdvo);
+	return;
+    }
+
+    /* Set up our wrapper I2C bus for DDC.  It acts just like the regular I2C
+     * bus, except that it does the control bus switch to DDC mode before every
+     * Start.  While we only need to do it at Start after every Stop after a
+     * Start, extra attempts should be harmless.
+     */
+    ddcbus = xf86CreateI2CBusRec();
+    if (ddcbus == NULL) {
+	xf86DestroyI2CDevRec(&sdvo->d, FALSE);
+	xf86DestroyI2CBusRec(i2cbus, TRUE, TRUE);
+	xfree(sdvo);
+	return;
+    }
+    if (output_device == SDVOB)
+        ddcbus->BusName = "SDVOB DDC Bus";
+    else
+        ddcbus->BusName = "SDVOC DDC Bus";
+    ddcbus->scrnIndex = i2cbus->scrnIndex;
+    ddcbus->I2CGetByte = I830SDVODDCI2CGetByte;
+    ddcbus->I2CPutByte = I830SDVODDCI2CPutByte;
+    ddcbus->I2CStart = I830SDVODDCI2CStart;
+    ddcbus->I2CStop = I830SDVODDCI2CStop;
+    ddcbus->I2CAddress = I830SDVODDCI2CAddress;
+    ddcbus->DriverPrivate.ptr = sdvo;
+    if (!xf86I2CBusInit(ddcbus)) {
+	xf86DestroyI2CDevRec(&sdvo->d, FALSE);
+	xf86DestroyI2CBusRec(i2cbus, TRUE, TRUE);
+	xfree(sdvo);
+	return;
+    }
+
+    pI830->output[pI830->num_outputs].pI2CBus = i2cbus;
+    pI830->output[pI830->num_outputs].pDDCBus = ddcbus;
+    pI830->output[pI830->num_outputs].sdvo_drv = sdvo;
+
+    /* Read the regs to test if we can talk to the device */
+    for (i = 0; i < 0x40; i++) {
+	if (!sReadByte(sdvo, i, &ch[i])) {
+	    xf86DestroyI2CBusRec(pI830->output[pI830->num_outputs].pDDCBus,
+				 FALSE, FALSE);
+	    xf86DestroyI2CDevRec(&sdvo->d, FALSE);
+	    xf86DestroyI2CBusRec(i2cbus, TRUE, TRUE);
+	    xfree(sdvo);
+	    return;
+	}
+    }
+
+    I830SDVOGetCapabilities(sdvo, &sdvo->caps);
+
+    I830SDVOGetInputPixelClockRange(sdvo, &sdvo->pixel_clock_min,
+				    &sdvo->pixel_clock_max);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "SDVO device VID/DID: %02X:%02X.%02X, %02X,"
+	       "output 1: %c, output 2: %c\n",
+	       sdvo->caps.vendor_id, sdvo->caps.device_id,
+	       sdvo->caps.device_rev_id, sdvo->caps.caps,
+	       sdvo->caps.output_0_supported ? 'Y' : 'N',
+	       sdvo->caps.output_1_supported ? 'Y' : 'N');
+
+    pI830->num_outputs++;
 }

@@ -69,6 +69,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_dri.h"
 #endif
 
+typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
+
 #include "common.h"
 #include "i830_sdvo.h"
 #include "i2c_vid.h"
@@ -209,6 +211,9 @@ typedef struct _I830SDVODriver {
    CARD32 output_device;		/* SDVOB or SDVOC */
 
    i830_sdvo_caps caps;
+
+   CARD16 pixel_clock_min, pixel_clock_max;
+
    int save_sdvo_mult;
    Bool save_sdvo_active_1, save_sdvo_active_2;
    i830_sdvo_dtd save_input_dtd_1, save_input_dtd_2;
@@ -220,13 +225,62 @@ extern const char *i830_output_type_names[];
 
 struct _I830OutputRec {
    int type;
-/*   int pipe;
-   int flags;*/
+   int pipe;
+   Bool disabled;
+
+   /**
+    * Turns the output on/off, or sets intermediate power levels if available.
+    *
+    * Unsupported intermediate modes drop to the lower power setting.  If the
+    * mode is DPMSModeOff, the output must be disabled, as the DPLL may be
+    * disabled afterwards.
+    */
+   void (*dpms)(ScrnInfoPtr pScrn, I830OutputPtr output, int mode);
+
+   /**
+    * Saves the output's state for restoration on VT switch.
+    */
+   void (*save)(ScrnInfoPtr pScrn, I830OutputPtr output);
+
+   /**
+    * Restore's the output's state at VT switch.
+    */
+   void (*restore)(ScrnInfoPtr pScrn, I830OutputPtr output);
+
+   /**
+    * Callback for testing a video mode for a given output.
+    *
+    * This function should only check for cases where a mode can't be supported
+    * on the pipe specifically, and not represent generic CRTC limitations.
+    *
+    * \return MODE_OK if the mode is valid, or another MODE_* otherwise.
+    */
+   int (*mode_valid)(ScrnInfoPtr pScrn, I830OutputPtr output,
+		     DisplayModePtr pMode);
+
+   /**
+    * Callback for setting up a video mode before any pipe/dpll changes.
+    *
+    * \param pMode the mode that will be set, or NULL if the mode to be set is
+    * unknown (such as the restore path of VT switching).
+    */
+   void (*pre_set_mode)(ScrnInfoPtr pScrn, I830OutputPtr output,
+			DisplayModePtr pMode);
+
+   /**
+    * Callback for setting up a video mode after the DPLL update but before
+    * the plane is enabled.
+    */
+   void (*post_set_mode)(ScrnInfoPtr pScrn, I830OutputPtr output,
+			 DisplayModePtr pMode);
+
    xf86MonPtr MonInfo;
    I2CBusPtr pI2CBus;
    I2CBusPtr pDDCBus;
    struct _I830DVODriver *i2c_drv;
    I830SDVOPtr sdvo_drv;
+   /** Output-private structure.  Should replace i2c_drv and sdvo_drv */
+   void *dev_priv;
 };
 
 typedef struct _I830Rec {
@@ -613,9 +667,14 @@ extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
 
+/* i830_crt.c */
+void i830_crt_init(ScrnInfoPtr pScrn);
+
 /* i830_dvo.c */
-Bool I830I2CDetectDVOControllers(ScrnInfoPtr pScrn, I2CBusPtr pI2CBus,
-				 struct _I830DVODriver **retdrv);
+void i830_dvo_init(ScrnInfoPtr pScrn);
+
+/* i830_lvds.c */
+void i830_lvds_init(ScrnInfoPtr pScrn);
 
 /* i830_memory.c */
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
@@ -635,6 +694,9 @@ Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
 			RRScreenSizePtr pSize);
 Rotation I830GetRotation(ScreenPtr pScreen);
 void I830GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y);
+
+/* i830_tv.c */
+void i830_tv_init(ScrnInfoPtr pScrn);
 
 /*
  * 12288 is set as the maximum, chosen because it is enough for

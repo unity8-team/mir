@@ -750,7 +750,7 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
     else
 	outputs = (pI830->operatingDevices >> 8) & 0xff;
 
-    for (i = 0; i < MAX_OUTPUTS; i++) {
+    for (i = 0; i < pI830->num_outputs; i++) {
 	switch (pI830->output[i].type) {
 	case I830_OUTPUT_ANALOG:
 	    if (outputs & PIPE_CRT) {
@@ -763,14 +763,12 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
 	    }
 	    break;
 	case I830_OUTPUT_DVO:
-	    if (outputs & PIPE_DFP && pI830->output[i].i2c_drv != NULL) {
+	    if (outputs & PIPE_DFP) {
 		output_index = i;
 	    }
 	    break;
 	case I830_OUTPUT_SDVO:
-	    if (outputs & PIPE_DFP &&
-		pI830->output[i].sdvo_drv != NULL)
-	    {
+	    if (outputs & PIPE_DFP) {
 		output_index = i;
 	    }
 	    break;
