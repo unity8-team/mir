@@ -5468,6 +5468,16 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
 #endif
       pI830->disableTiling = TRUE; /* no DRI - so disableTiling */
 
+   if (pScrn->displayWidth >= 4096) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support > 1024x768 in leftof/rightof configurations. disabling DRI.\n");
+      pI830->directRenderingDisabled = TRUE;
+   }
+
+   if (pScrn->virtualY > 2048) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support > 2048 vertical lines. disabling acceleration.\n");
+      pI830->noAccel = TRUE;
+   }
+
    pI830->displayWidth = pScrn->displayWidth;
 
    SetPipeAccess(pScrn);
