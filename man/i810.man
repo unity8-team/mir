@@ -201,7 +201,7 @@ Default: 0 degrees.
 .BI "Option \*qLinearAlloc\*q \*q" integer \*q
 Allows more memory for the offscreen allocator. This usually helps in
 situations where HDTV movies are required to play but not enough offscreen
-memory is usually available. Set this to 6144 for upto 1920x1080 HDTV support.
+memory is usually available. Set this to 8160 for upto 1920x1080 HDTV support.
 Default 0KB (off).
 
 .SH "SEE ALSO"
