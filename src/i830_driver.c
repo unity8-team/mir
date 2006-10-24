@@ -900,56 +900,30 @@ I830UseDDC(ScrnInfoPtr pScrn)
 }
 #endif
 
+/**
+ * Set up the outputs according to what type of chip we are.
+ *
+ * Some outputs may not initialize, due to allocation failure or because a
+ * controller chip isn't found.
+ */
 static void
-I830SetupOutputBusses(ScrnInfoPtr pScrn)
+I830SetupOutputs(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   int i = 0;
-   Bool ret;
 
    /* everyone has at least a single analog output */
-   pI830->output[i].type = I830_OUTPUT_ANALOG;
+   i830_crt_init(pScrn);
 
-   /* setup the DDC bus for the analog output */
-   I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOA, "CRTDDC_A");
-   i++;
-
-   if (IS_MOBILE(pI830) && !IS_I830(pI830)) {
-      /* Set up integrated LVDS */
-      pI830->output[i].type = I830_OUTPUT_LVDS;
-      I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOC, "LVDSDDC_C");
-      i++;
-   }
+   /* Set up integrated LVDS */
+   if (IS_MOBILE(pI830) && !IS_I830(pI830))
+      i830_lvds_init(pScrn);
 
    if (IS_I9XX(pI830)) {
-      /* Set up SDVOB */
-      pI830->output[i].type = I830_OUTPUT_SDVO;
-      I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "SDVOCTRL_E");
-      I830SDVOInit(pScrn, i, SDVOB);
-      i++;
-
-      /* Set up SDVOC */
-      pI830->output[i].type = I830_OUTPUT_SDVO;
-      pI830->output[i].pI2CBus = pI830->output[i-1].pI2CBus;
-      I830SDVOInit(pScrn, i, SDVOC);
-      i++;
+      i830_sdvo_init(pScrn, SDVOB);
+      i830_sdvo_init(pScrn, SDVOC);
    } else {
-      /* set up DVO */
-      pI830->output[i].type = I830_OUTPUT_DVO;
-      I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOD, "DVODDC_D");
-      I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");
-
-      ret = I830I2CDetectDVOControllers(pScrn, pI830->output[i].pI2CBus,
-					&pI830->output[i].i2c_drv);
-      if (ret == TRUE) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found i2c %s on %08lX\n",
-		    pI830->output[i].i2c_drv->modulename,
-		    pI830->output[i].pI2CBus->DriverPrivate.uval);
-      }
-
-      i++;
+      i830_dvo_init(pScrn);
    }
-   pI830->num_outputs = i;
 }
 
 static void 
@@ -970,7 +944,7 @@ I830PreInitDDC(ScrnInfoPtr pScrn)
       if (xf86LoadSubModule(pScrn, "i2c")) {
 	 xf86LoaderReqSymLists(I810i2cSymbols, NULL);
 
-	 I830SetupOutputBusses(pScrn);
+	 I830SetupOutputs(pScrn);
 
 	 pI830->ddc2 = TRUE;
       } else {
@@ -1011,14 +985,12 @@ I830DetectMonitors(ScrnInfoPtr pScrn)
 	 xf86PrintEDID(pI830->output[i].MonInfo);
       break;
       case I830_OUTPUT_SDVO:
-	 if (pI830->output[i].sdvo_drv != NULL) {
-	    pI830->output[i].MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex,
-						       pI830->output[i].pDDCBus);
+	 pI830->output[i].MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex,
+						    pI830->output[i].pDDCBus);
 
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "DDC SDVO %d, %08lX\n", i,
-		       pI830->output[i].pDDCBus->DriverPrivate.uval);
-	    xf86PrintEDID(pI830->output[i].MonInfo);
-	 }
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "DDC SDVO %d, %08lX\n", i,
+		    pI830->output[i].pDDCBus->DriverPrivate.uval);
+	 xf86PrintEDID(pI830->output[i].MonInfo);
 	 break;
       case I830_OUTPUT_UNUSED:
 	 break;
@@ -1556,7 +1528,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
     * that we might find early in the list.  This hackery will go away when we
     * start doing independent per-head mode selection.
     */
-   for (i = MAX_OUTPUTS - 1; i >= 0; i--) {
+   for (i = pI830->num_outputs - 1; i >= 0; i--) {
      if (pI830->output[i].MonInfo) {
        pScrn->monitor->DDC = pI830->output[i].MonInfo;
        xf86SetDDCproperties(pScrn, pI830->output[i].MonInfo);
@@ -1577,8 +1549,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    /* Blacklist machines with known broken BIOSes */
    if (pI830->PciInfo->chipType == PCI_CHIP_I945_GM) {
-	if ((pI830->PciInfo->subsysVendor == 0xa0a0) &&
-	    (pI830->PciInfo->subsysCard == 0x0589))  /* aopen mini pc */
+	if (pI830->PciInfo->subsysVendor == 0xa0a0)  /* aopen mini pc */
 	    has_lvds = FALSE;
 
 	if ((pI830->PciInfo->subsysVendor == 0x8086) &&
@@ -1700,9 +1671,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        * now.  Though really, it's just a name at the moment, since we don't
        * treat different SDVO outputs differently.
        */
-      for (i = 0; i < MAX_OUTPUTS; i++) {
-	 if (pI830->output[i].type == I830_OUTPUT_SDVO &&
-	     pI830->output[i].sdvo_drv != NULL) {
+      for (i = 0; i < pI830->num_outputs; i++) {
+	 if (pI830->output[i].type == I830_OUTPUT_SDVO) {
 	    if (!I830DetectSDVODisplays(pScrn, i))
 	       continue;
 
@@ -1755,6 +1725,48 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Enabling Clone Mode\n");
       pI830->Clone = TRUE;
    }
+
+
+   /* Perform the pipe assignment of outputs.  This code shouldn't exist,
+    * but for now we're supporting the existing MonitorLayout configuration
+    * scheme.
+    */
+   for (i = 0; i < pI830->num_outputs; i++) {
+      pI830->output[i].disabled = FALSE;
+
+      switch (pI830->output[i].type) {
+      case I830_OUTPUT_LVDS:
+	 if (pI830->MonType1 & PIPE_LFP)
+	    pI830->output[i].pipe = 0;
+	 else if (pI830->MonType2 & PIPE_LFP)
+	    pI830->output[i].pipe = 1;
+	 else
+	    pI830->output[i].disabled = TRUE;
+	 break;
+      case I830_OUTPUT_ANALOG:
+	 if (pI830->MonType1 & PIPE_CRT)
+	    pI830->output[i].pipe = 0;
+	 else if (pI830->MonType2 & PIPE_CRT)
+	    pI830->output[i].pipe = 1;
+	 else
+	    pI830->output[i].disabled = TRUE;
+	 break;
+      case I830_OUTPUT_DVO:
+      case I830_OUTPUT_SDVO:
+	 if (pI830->MonType1 & PIPE_DFP)
+	    pI830->output[i].pipe = 0;
+	 else if (pI830->MonType2 & PIPE_DFP)
+	    pI830->output[i].pipe = 1;
+	 else
+	    pI830->output[i].disabled = TRUE;
+	 break;
+      default:
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unhandled output type\n");
+	 break;
+      }
+   }
+
+   
 
    pI830->CloneRefresh = 60; /* default to 60Hz */
    if (xf86GetOptValInteger(pI830->Options, OPTION_CLONE_REFRESH,
@@ -2593,31 +2605,6 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveVCLK_POST_DIV = INREG(VCLK_POST_DIV);
    pI830->saveVGACNTRL = INREG(VGACNTRL);
 
-   pI830->saveADPA = INREG(ADPA);
-
-   pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
-   pI830->savePP_ON = INREG(LVDSPP_ON);
-   pI830->savePP_OFF = INREG(LVDSPP_OFF);
-   pI830->saveLVDS = INREG(LVDS);
-   pI830->savePP_CONTROL = INREG(PP_CONTROL);
-   pI830->savePP_CYCLE = INREG(PP_CYCLE);
-   pI830->saveBLC_PWM_CTL = INREG(BLC_PWM_CTL);
-   pI830->backlight_duty_cycle = (pI830->saveBLC_PWM_CTL & 
-				  BACKLIGHT_DUTY_CYCLE_MASK);
-   /*
-    * If the light is off at server startup, just make it full brightness
-    */
-   if (!pI830->backlight_duty_cycle)
-      pI830->backlight_duty_cycle = ((pI830->saveBLC_PWM_CTL &
-				      BACKLIGHT_MODULATION_FREQ_MASK) >>
-				     BACKLIGHT_MODULATION_FREQ_SHIFT);
-
-   if (!IS_I9XX(pI830)) {
-      pI830->saveDVOA = INREG(DVOA);
-      pI830->saveDVOB = INREG(DVOB);
-      pI830->saveDVOC = INREG(DVOC);
-   }
-
    for(i = 0; i < 7; i++) {
       pI830->saveSWF[i] = INREG(SWF0 + (i << 2));
       pI830->saveSWF[i+7] = INREG(SWF00 + (i << 2));
@@ -2627,17 +2614,8 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveSWF[16] = INREG(SWF32);
 
    for (i = 0; i < pI830->num_outputs; i++) {
-      if (pI830->output[i].type == I830_OUTPUT_DVO &&
-	  pI830->output[i].i2c_drv != NULL)
-      {
-	 pI830->output[i].i2c_drv->vid_rec->SaveRegs(
-	    pI830->output[i].i2c_drv->dev_priv);
-      }
-      if (pI830->output[i].type == I830_OUTPUT_SDVO &&
-	  pI830->output[i].sdvo_drv != NULL)
-      {
-	 i830SDVOSave(pScrn, i);
-      }
+      if (pI830->output[i].save != NULL)
+	 pI830->output[i].save(pScrn, &pI830->output[i]);
    }
 
    vgaHWUnlock(hwp);
@@ -2675,18 +2653,12 @@ RestoreHWState(ScrnInfoPtr pScrn)
    temp = INREG(PIPEBCONF);
    OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
 
-   /* XXX: Wait for a vblank */
-   sleep(1);
-
-   i830SetLVDSPanelPower(pScrn, FALSE);
-
+   /* Disable outputs if necessary */
    for (i = 0; i < pI830->num_outputs; i++) {
-      if (pI830->output[i].type == I830_OUTPUT_SDVO &&
-	  pI830->output[i].sdvo_drv != NULL)
-      {
-	 i830SDVOPreRestore(pScrn, i);
-      }
+      pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], NULL);
    }
+
+   i830WaitForVblank(pScrn);
 
    OUTREG(FPA0, pI830->saveFPA0);
    OUTREG(FPA1, pI830->saveFPA1);
@@ -2726,17 +2698,15 @@ RestoreHWState(ScrnInfoPtr pScrn)
       }
    }
 
+   for (i = 0; i < pI830->num_outputs; i++) {
+      pI830->output[i].restore(pScrn, &pI830->output[i]);
+   }
+
    if (IS_I965G(pI830)) {
       OUTREG(DSPASURF, pI830->saveDSPABASE);
       OUTREG(DSPBSURF, pI830->saveDSPBBASE);
    }
 
-   OUTREG(BLC_PWM_CTL, pI830->saveBLC_PWM_CTL);
-   OUTREG(LVDSPP_ON, pI830->savePP_ON);
-   OUTREG(LVDSPP_OFF, pI830->savePP_OFF);
-   OUTREG(PP_CYCLE, pI830->savePP_CYCLE);
-   OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
-   
    OUTREG(VCLK_DIVISOR_VGA0, pI830->saveVCLK_DIVISOR_VGA0);
    OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
    OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
@@ -2747,30 +2717,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(VGACNTRL, pI830->saveVGACNTRL);
    OUTREG(DSPACNTR, pI830->saveDSPACNTR);
    OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
-
-   OUTREG(ADPA, pI830->saveADPA);
-   OUTREG(LVDS, pI830->saveLVDS);
-   if (!IS_I9XX(pI830)) {
-      OUTREG(DVOA, pI830->saveDVOA);
-      OUTREG(DVOB, pI830->saveDVOB);
-      OUTREG(DVOC, pI830->saveDVOC);
-   }
-
-   for (i = 0; i < pI830->num_outputs; i++) {
-      if (pI830->output[i].type == I830_OUTPUT_DVO &&
-	  pI830->output[i].i2c_drv != NULL)
-      {
-	 pI830->output[i].i2c_drv->vid_rec->RestoreRegs(
-	    pI830->output[i].i2c_drv->dev_priv);
-      }
-      if (pI830->output[i].type == I830_OUTPUT_SDVO &&
-	  pI830->output[i].sdvo_drv != NULL)
-      {
-	 i830SDVOPostRestore(pScrn, i);
-      }
-   }
-
-   OUTREG(PP_CONTROL, pI830->savePP_CONTROL);
 
    for(i = 0; i < 7; i++) {
 	   OUTREG(SWF0 + (i << 2), pI830->saveSWF[i]);
@@ -4197,39 +4143,6 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
    return TRUE;
 }
 
-static void
-I830DPMSCRT(ScrnInfoPtr pScrn, int mode)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 temp;
-   
-   temp = INREG(ADPA);
-   temp &= ~(ADPA_HSYNC_CNTL_DISABLE|ADPA_VSYNC_CNTL_DISABLE);
-   switch(mode) {
-   case DPMSModeOn:
-      break;
-   case DPMSModeStandby:
-      temp |= ADPA_HSYNC_CNTL_DISABLE;
-      break;
-   case DPMSModeSuspend:
-      temp |= ADPA_VSYNC_CNTL_DISABLE;
-      break;
-   case DPMSModeOff:
-      temp |= ADPA_HSYNC_CNTL_DISABLE|ADPA_VSYNC_CNTL_DISABLE;
-      break;
-   }
-   OUTREG(ADPA, temp);
-}
-
-static void
-I830DPMSLVDS(ScrnInfoPtr pScrn, int mode)
-{
-   if (mode == DPMSModeOn)
-      i830SetLVDSPanelPower(pScrn, TRUE);
-   else
-      i830SetLVDSPanelPower(pScrn, FALSE);
-}
-
 /* Use the VBE version when available. */
 static void
 I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
@@ -4238,6 +4151,10 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
    I830Ptr pI830 = I830PTR(pScrn);
    int i;
    CARD32 temp, ctrl, base;
+
+   for (i = 0; i < pI830->num_outputs; i++) {
+      pI830->output[i].dpms(pScrn, &pI830->output[i], PowerManagementMode);
+   }
 
    for (i = 0; i < pI830->availablePipes; i++) {
       if (i == 0) {
@@ -4258,22 +4175,6 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
 	   temp = INREG(base);
 	   OUTREG(base, temp);
       }
-   }
-
-   if (pI830->operatingDevices & (PIPE_CRT_ACTIVE | (PIPE_CRT_ACTIVE<<8))) {
-      I830DPMSCRT(pScrn, PowerManagementMode);
-   }
-
-   if (pI830->operatingDevices & (PIPE_LCD_ACTIVE | (PIPE_LCD_ACTIVE<<8))) {
-      I830DPMSLVDS(pScrn, PowerManagementMode);
-   }
-
-   if (pI830->operatingDevices & (PIPE_DFP_ACTIVE | (PIPE_DFP_ACTIVE<<8))) {
-      /* TBD */
-   }
-
-   if (pI830->operatingDevices & (PIPE_DFP2_ACTIVE | (PIPE_DFP2_ACTIVE<<8))) {
-      /* TBD */
    }
 
    if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn) {
@@ -4466,14 +4367,11 @@ i830MonitorDetectDebugger(ScrnInfoPtr pScrn)
    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Detected CRT as %s in %dms\n",
 	      found_crt ? "connected" : "disconnected", finish - start);
 
-   for (i = 0; i < MAX_OUTPUTS; i++) {
+   for (i = 0; i < pI830->num_outputs; i++) {
       Bool found_sdvo = TRUE;
 
-      if (pI830->output[i].type != I830_OUTPUT_SDVO ||
-	  pI830->output[i].sdvo_drv == NULL)
-      {
+      if (pI830->output[i].type != I830_OUTPUT_SDVO)
 	 continue;
-      }
       start = GetTimeInMillis();
       found_sdvo = I830DetectSDVODisplays(pScrn, i);   
       finish = GetTimeInMillis();

@@ -32,9 +32,9 @@ Bool i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
 Bool i830DetectCRT(ScrnInfoPtr pScrn, Bool allow_disturb);
 void i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on);
 void i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y);
+void i830WaitForVblank(ScrnInfoPtr pScrn);
+void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
 
 /* i830_sdvo.c */
-I830SDVOPtr I830SDVOInit(ScrnInfoPtr pScrn, int output_index,
-			 CARD32 output_device);
 Bool I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode);
 Bool I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode);
