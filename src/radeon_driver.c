@@ -2088,7 +2088,10 @@ static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn)
 	    new->Clock      = d_timings->clock / 1000;
 	    new->Flags      = (d_timings->interlaced ? V_INTERLACE : 0);
 	    new->status     = MODE_OK;
-	    new->type       = M_T_DEFAULT;
+	    if (PREFERRED_TIMING_MODE(ddc->features.msc))
+	      new->type     = M_T_PREFERRED;
+	    else
+	      new->type     = M_T_DEFAULT;
 
 	    if (d_timings->sync == 3) {
 		switch (d_timings->misc) {
@@ -2443,6 +2446,9 @@ static int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName)
 	new->VSyncEnd   = new->VSyncStart + info->VSyncWidth;
 	new->Clock      = info->DotClock;
 	new->Flags     |= RADEON_USE_RMX;
+
+	if (width == info->PanelXRes && height == info->PanelYRes)
+	  new->type |= M_T_PREFERRED;
 
 	new->type      |= M_T_USERDEF;
 
