@@ -1,7 +1,7 @@
 /**************************************************************************
 
  Copyright 2006 Dave Airlie <airlied@linux.ie>
- 
+
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
 to deal in the Software without restriction, including without limitation
@@ -463,7 +463,7 @@ i830_sdvo_set_timings_part1(I830OutputPtr output, char cmd, CARD16 clock,
 
     i830_sdvo_write_outputs(output, 8);
     i830_sdvo_read_input_regs(output);
-  
+
     return TRUE;
 }
 
@@ -492,9 +492,9 @@ i830_sdvo_set_timings_part2(I830OutputPtr output, CARD8 cmd,
     struct i830_sdvo_priv *dev_priv = output->dev_priv;
 
     memset(dev_priv->sdvo_regs, 0, 9);
-  
+
     dev_priv->sdvo_regs[SDVO_I2C_OPCODE] = cmd;
- 
+
     /* set clock regs */
     dev_priv->sdvo_regs[SDVO_I2C_ARG_0] = magic4 & 0xff;
     dev_priv->sdvo_regs[SDVO_I2C_ARG_1] = (magic4 >> 8) & 0xff;
@@ -505,7 +505,7 @@ i830_sdvo_set_timings_part2(I830OutputPtr output, CARD8 cmd,
 
     i830_sdvo_write_outputs(output, 8);
     i830_sdvo_read_input_regs(output);
-  
+
     return TRUE;
 }
 
@@ -691,7 +691,7 @@ i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     i830_sdvo_set_target_input(output, FALSE, FALSE);
 
     i830_sdvo_get_active_outputs(output, &out1, &out2);
-    
+
     i830_sdvo_set_active_outputs(output, FALSE, FALSE);
 
     i830_sdvo_set_target_output(output, TRUE, FALSE);
@@ -702,13 +702,13 @@ i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
 				       out_timings[5]);
 
     i830_sdvo_set_target_input(output, FALSE, FALSE);
-    
+
     i830_sdvo_create_preferred_input_timing(output, clock, width, height);
     i830_sdvo_get_preferred_input_timing_part1(output);
     i830_sdvo_get_preferred_input_timing_part2(output);
-    
+
     i830_sdvo_set_target_input(output, FALSE, FALSE);
-    
+
     i830_sdvo_set_input_timings_part1(output, clock,
 				      curr_table[0], curr_table[1],
 				      curr_table[2]);
@@ -821,7 +821,7 @@ i830_sdvo_save(ScrnInfoPtr pScrn, I830OutputPtr output)
        i830_sdvo_get_timings(output, &dev_priv->save_input_dtd_2,
 			     SDVO_CMD_GET_INPUT_TIMINGS_PART1);
     }
-    
+
     if (dev_priv->caps.output_0_supported) {
        i830_sdvo_set_target_output(output, TRUE, FALSE);
        i830_sdvo_get_timings(output, &dev_priv->save_output_dtd_1,
