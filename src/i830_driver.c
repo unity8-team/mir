@@ -1087,7 +1087,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    rgb defaultWeight = { 0, 0, 0 };
    EntityInfoPtr pEnt;
    I830EntPtr pI830Ent = NULL;					
-   int mem, memsize;
+   int mem;
    int flags24;
    int i, n;
    char *s;
@@ -2037,17 +2037,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
 	      "Maximum frambuffer space: %d kByte\n", pScrn->videoRam);
-
-   /*
-    * Limit videoram available for mode selection to what the video
-    * BIOS can see.
-    */
-   if (pScrn->videoRam > (pI830->vbeInfo->TotalMemory * 64))
-      memsize = pI830->vbeInfo->TotalMemory * 64;
-   else
-      memsize = pScrn->videoRam;
-   xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-	      "Maximum space available for video modes: %d kByte\n", memsize);
 
    n = I830ValidateXF86ModeList(pScrn, TRUE);
    if (n <= 0) {
