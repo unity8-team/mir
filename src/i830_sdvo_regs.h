@@ -25,6 +25,57 @@
  *
  */
 
+typedef struct _i830_sdvo_caps {
+    CARD8 vendor_id;
+    CARD8 device_id;
+    CARD8 device_rev_id;
+    CARD8 sdvo_version_major;
+    CARD8 sdvo_version_minor;
+    unsigned int sdvo_inputs_mask:2;
+    unsigned int smooth_scaling:1;
+    unsigned int sharp_scaling:1;
+    unsigned int up_scaling:1;
+    unsigned int down_scaling:1;
+    unsigned int stall_support:1;
+    unsigned int pad:1;
+    CARD8 output_0_supported;
+    CARD8 output_1_supported;
+} __attribute__((packed)) i830_sdvo_caps;
+
+struct i830_sdvo_dtd {
+    struct {
+	CARD16 clock;
+	CARD8 h_active;
+	CARD8 h_blank;
+	CARD8 h_high;
+	CARD8 v_active;
+	CARD8 v_blank;
+	CARD8 v_high;
+    } part1;
+
+    struct {
+	CARD8 h_sync_off;
+	CARD8 h_sync_width;
+	CARD8 v_sync_off_width;
+	CARD8 sync_off_width_high;
+	CARD8 dtd_flags;
+	CARD8 sdvo_flags;
+	CARD8 v_sync_off_high;
+	CARD8 reserved;
+    } part2;
+} __attribute__((packed));
+
+struct i830_sdvo_pixel_clock_range {
+    CARD16 min;
+    CARD16 max;
+} __attribute__((packed));
+
+struct i830_sdvo_preferred_input_timing_args {
+    CARD16 clock;
+    CARD16 width;
+    CARD16 height;
+} __attribute__((packed));
+
 /* I2C registers for SDVO */
 #define SDVO_I2C_ARG_0				0x07
 #define SDVO_I2C_ARG_1				0x06
@@ -56,22 +107,11 @@
 #define SDVO_CMD_STATUS_SCALING_NOT_SUPP	0x6
 
 /* SDVO commands, argument/result registers */
+
 #define SDVO_CMD_RESET					0x01
+
+/** Returns a struct i830_sdvo_caps */
 #define SDVO_CMD_GET_DEVICE_CAPS			0x02
-# define SDVO_DEVICE_CAPS_VENDOR_ID			SDVO_I2C_RETURN_0
-# define SDVO_DEVICE_CAPS_DEVICE_ID			SDVO_I2C_RETURN_1
-# define SDVO_DEVICE_CAPS_DEVICE_REV_ID			SDVO_I2C_RETURN_2
-# define SDVO_DEVICE_CAPS_SDVOVERSION_MINOR		SDVO_I2C_RETURN_3
-# define SDVO_DEVICE_CAPS_SDVOVERSION_MAJOR		SDVO_I2C_RETURN_4
-# define SDVO_DEVICE_CAPS_CAPS				SDVO_I2C_RETURN_5
-# define SDVO_DEVICE_CAPS_INPUTS_MASK				(3 << 0)
-# define SDVO_DEVICE_CAPS_SMOOTH_SCALING			(1 << 2)
-# define SDVO_DEVICE_CAPS_SHARP_SCALING				(1 << 3)
-# define SDVO_DEVICE_CAPS_UP_SCALING				(1 << 4)
-# define SDVO_DEVICE_CAPS_DOWN_SCALING				(1 << 5)
-# define SDVO_DEVICE_CAPS_STALL_SUPPORT				(1 << 6)
-# define SDVO_DEVICE_CAPS_OUTPUT_0_SUPPORTED		SDVO_I2C_RETURN_6
-# define SDVO_DEVICE_CAPS_OUTPUT_1_SUPPORTED		SDVO_I2C_RETURN_7
 
 #define SDVO_CMD_GET_FIRMWARE_REV			0x86
 # define SDVO_DEVICE_FIRMWARE_MINOR			SDVO_I2C_RETURN_0
@@ -148,7 +188,9 @@
 #define SDVO_CMD_GET_PREFERRED_INPUT_TIMING_PART1	0x1b
 #define SDVO_CMD_GET_PREFERRED_INPUT_TIMING_PART2	0x1c
 
+/** Returns a struct i830_sdvo_pixel_clock_range */
 #define SDVO_CMD_GET_INPUT_PIXEL_CLOCK_RANGE		0x1d
+/** Returns a struct i830_sdvo_pixel_clock_range */
 #define SDVO_CMD_GET_OUTPUT_PIXEL_CLOCK_RANGE		0x1e
 
 #define SDVO_CMD_GET_SUPPORTED_CLOCK_RATE_MULTS		0x1f
