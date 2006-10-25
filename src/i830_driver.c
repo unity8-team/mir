@@ -375,8 +375,6 @@ I830FreeRec(ScrnInfoPtr pScrn)
    pI830 = I830PTR(pScrn);
 
    if (I830IsPrimary(pScrn)) {
-      if (pI830->vbeInfo)
-         VBEFreeVBEInfo(pI830->vbeInfo);
       if (pI830->pVbe)
          vbeFree(pI830->pVbe);
    }
@@ -597,6 +595,7 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    CARD16 gmch_ctrl;
    int memsize = 0;
    int range;
+   VbeInfoBlock *vbeInfo;
 
    bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
    gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
@@ -661,6 +660,19 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    } else {
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "no video memory detected.\n");
    }
+
+   /* Sanity check: compare with what the BIOS thinks. */
+   vbeInfo = VBEGetVBEInfo(pI830->pVbe);
+   if (vbeInfo != NULL && vbeInfo->TotalMemory != memsize / 1024 / 64) {
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		 "Detected stolen memory (%ld kB) doesn't match what the BIOS"
+		 " reports (%d kB)\n",
+		 ROUND_DOWN_TO(memsize / 1024, 64),
+		 vbeInfo->TotalMemory * 64);
+   }
+   if (vbeInfo != NULL)
+      VBEFreeVBEInfo(vbeInfo);
+
    return memsize;
 }
 
@@ -1301,13 +1313,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	      "Integrated Graphics Chipset: Intel(R) %s\n", chipname);
 
-   if (I830IsPrimary(pScrn)) {
-      pI830->vbeInfo = VBEGetVBEInfo(pI830->pVbe);
-   } else {
-      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-      pI830->vbeInfo = pI8301->vbeInfo;
-   }
-
    /* Set the Chipset and ChipRev, allowing config file entries to override. */
    if (pI830->pEnt->device->chipset && *pI830->pEnt->device->chipset) {
       pScrn->chipset = pI830->pEnt->device->chipset;
@@ -1433,15 +1438,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    pI830->StolenMemory.Size = I830DetectMemory(pScrn);
    pI830->StolenMemory.Start = 0;
    pI830->StolenMemory.End = pI830->StolenMemory.Size;
-
-   /* Sanity check: compare with what the BIOS thinks. */
-   if (pI830->vbeInfo->TotalMemory != pI830->StolenMemory.Size / 1024 / 64) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Detected stolen memory (%ld kB) doesn't match what the BIOS"
-		 " reports (%d kB)\n",
-		 ROUND_DOWN_TO(pI830->StolenMemory.Size / 1024, 64),
-		 pI830->vbeInfo->TotalMemory * 64);
-   }
 
    /* Find the maximum amount of agpgart memory available. */
    if (I830IsPrimary(pScrn)) {
@@ -2243,10 +2239,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
 #if 0
    if (I830IsPrimary(pScrn)) {
-      VBEFreeVBEInfo(pI830->vbeInfo);
       vbeFree(pI830->pVbe);
    }
-   pI830->vbeInfo = NULL;
    pI830->pVbe = NULL;
 #endif
 
@@ -3232,14 +3226,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    if (!pI830->pVbe)
       return FALSE;
-
-   if (I830IsPrimary(pScrn)) {
-      if (pI830->vbeInfo)
-         VBEFreeVBEInfo(pI830->vbeInfo);
-      pI830->vbeInfo = VBEGetVBEInfo(pI830->pVbe);
-   } else {
-      pI830->vbeInfo = pI8301->vbeInfo;
-   }
 
    SetPipeAccess(pScrn);
 

@@ -447,7 +447,6 @@ typedef struct _I830Rec {
 
    /* Video BIOS support. */
    vbeInfoPtr pVbe;
-   VbeInfoBlock *vbeInfo;
    VESAPtr vesa;
 
    Bool swfSaved;
