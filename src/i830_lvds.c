@@ -181,6 +181,39 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
+    /* Get the LVDS fixed mode out of the BIOS.  We should support LVDS with
+     * the BIOS being unavailable or broken, but lack the configuration options
+     * for now.
+     */
+    if (!i830GetLVDSInfoFromBIOS(pScrn))
+	return;
+
+    /* Blacklist machines with BIOSes that list an LVDS panel without actually
+     * having one.
+     */
+    if (pI830->PciInfo->chipType == PCI_CHIP_I945_GM) {
+	if (pI830->PciInfo->subsysVendor == 0xa0a0)  /* aopen mini pc */
+	    return;
+
+	if ((pI830->PciInfo->subsysVendor == 0x8086) &&
+	    (pI830->PciInfo->subsysCard == 0x7270)) {
+	    /* It's a Mac Mini or Macbook Pro.
+	     *
+	     * Apple hardware is out to get us.  The macbook pro has a real
+	     * LVDS panel, but the mac mini does not, and they have the same
+	     * device IDs.  We'll distinguish by panel size, on the assumption
+	     * that Apple isn't about to make any machines with an 800x600
+	     * display.
+	     */
+
+	    if (pI830->PanelXRes == 800 && pI830->PanelYRes == 600) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Suspected Mac Mini, ignoring the LVDS\n");
+		return;
+	    }
+	}
+   }
+
     pI830->output[pI830->num_outputs].type = I830_OUTPUT_LVDS;
     pI830->output[pI830->num_outputs].dpms = i830_lvds_dpms;
     pI830->output[pI830->num_outputs].save = i830_lvds_save;

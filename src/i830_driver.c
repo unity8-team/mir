@@ -1092,7 +1092,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    int i, n;
    char *s;
    pointer pVBEModule = NULL;
-   Bool enable, has_lvds, is_apple_945gm = FALSE;
+   Bool enable;
    const char *chipname;
    unsigned int ver;
    char v[5];
@@ -1235,7 +1235,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->pVbe = pI8301->pVbe;
    }
 
-   has_lvds = TRUE;
    switch (pI830->PciInfo->chipType) {
    case PCI_CHIP_I830_M:
       chipname = "830M";
@@ -1269,11 +1268,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       break;
    case PCI_CHIP_I865_G:
       chipname = "865G";
-      has_lvds = FALSE;
       break;
    case PCI_CHIP_I915_G:
       chipname = "915G";
-      has_lvds = FALSE;
       break;
    case PCI_CHIP_E7221_G:
       chipname = "E7221 (i915)";
@@ -1283,7 +1280,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       break;
    case PCI_CHIP_I945_G:
       chipname = "945G";
-      has_lvds = FALSE;
       break;
    case PCI_CHIP_I945_GM:
       chipname = "945GM";
@@ -1540,23 +1536,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    pI830->MonType2 = PIPE_NONE;
    pI830->specifiedMonitor = FALSE;
 
-   /* Always check for LVDS info once at startup.  We hook in the BIOS data
-    * dumping here (this should be cleaner) and we get to rely on having the
-    * LVDS info later on.
-    */
-   if (!i830GetLVDSInfoFromBIOS(pScrn))
-      has_lvds = FALSE;
-
-   /* Blacklist machines with known broken BIOSes */
-   if (pI830->PciInfo->chipType == PCI_CHIP_I945_GM) {
-	if (pI830->PciInfo->subsysVendor == 0xa0a0)  /* aopen mini pc */
-	    has_lvds = FALSE;
-
-	if ((pI830->PciInfo->subsysVendor == 0x8086) &&
-	    (pI830->PciInfo->subsysCard == 0x7270)) /* mini, macbook pro... */
-	    is_apple_945gm = TRUE;
-   }
-
    if ((s = xf86GetOptValString(pI830->Options, OPTION_MONITOR_LAYOUT)) &&
       I830IsPrimary(pScrn)) {
       char *Mon1;
@@ -1645,33 +1624,19 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->specifiedMonitor = TRUE;
    } else if (I830IsPrimary(pScrn)) {
       /* Choose a default set of outputs to use based on what we've detected. */
-
-      /*
-       * Apple hardware is out to get us.  The macbook pro has a real LVDS
-       * panel, but the mac mini does not, and they have the same device IDs.
-       * We'll distinguish by panel size, on the assumption that Apple isn't
-       * about to make any machines with an 800x600 display.
-       */
-      if (is_apple_945gm && pI830->PanelXRes == 800 && pI830->PanelYRes == 600)
-      {
-	  xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		     "Suspected Mac Mini, ignoring the LFP\n");
-	  has_lvds = FALSE;
-      }
-
-      if (has_lvds) {
-	 pI830->MonType2 |= PIPE_LFP;
-      }
-
       if (i830DetectCRT(pScrn, TRUE)) {
 	 pI830->MonType1 |= PIPE_CRT;
       }
 
       /* Check for attached SDVO outputs.  Assume that they're flat panels for
        * now.  Though really, it's just a name at the moment, since we don't
-       * treat different SDVO outputs differently.
+       * treat different SDVO outputs differently.  Also, check for LVDS and
+       * set it  to the right pipe if available.
        */
       for (i = 0; i < pI830->num_outputs; i++) {
+	 if (pI830->output[i].type == I830_OUTPUT_LVDS)
+	    pI830->MonType2 |= PIPE_LFP;
+
 	 if (pI830->output[i].type == I830_OUTPUT_SDVO) {
 	    if (!i830_sdvo_detect_displays(pScrn, &pI830->output[i]))
 	       continue;
