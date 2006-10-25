@@ -1673,7 +1673,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        */
       for (i = 0; i < pI830->num_outputs; i++) {
 	 if (pI830->output[i].type == I830_OUTPUT_SDVO) {
-	    if (!I830DetectSDVODisplays(pScrn, i))
+	    if (!i830_sdvo_detect_displays(pScrn, &pI830->output[i]))
 	       continue;
 
 	    if (pI830->MonType1 == PIPE_NONE)
@@ -4373,7 +4373,7 @@ i830MonitorDetectDebugger(ScrnInfoPtr pScrn)
       if (pI830->output[i].type != I830_OUTPUT_SDVO)
 	 continue;
       start = GetTimeInMillis();
-      found_sdvo = I830DetectSDVODisplays(pScrn, i);   
+      found_sdvo = i830_sdvo_detect_displays(pScrn, &pI830->output[i]);
       finish = GetTimeInMillis();
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Detected SDVO as %s in %dms\n",
 		 found_sdvo ? "connected" : "disconnected", finish - start);

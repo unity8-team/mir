@@ -807,7 +807,7 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
     if (pI830->pipeMon[pipe] == NULL) {
 	switch (pI830->output[output_index].type) {
 	case I830_OUTPUT_SDVO:
-	    if (I830DetectSDVODisplays(pScrn, output_index))
+	    if (i830_sdvo_detect_displays(pScrn, &pI830->output[output_index]))
 		pI830->pipeMon[pipe] = i830GetConfiguredMonitor(pScrn);
 	    break;
 	case I830_OUTPUT_ANALOG:

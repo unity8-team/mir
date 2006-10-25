@@ -205,22 +205,6 @@ struct _I830DVODriver {
    pointer modhandle;
 };
 
-typedef struct _I830SDVODriver {
-   I2CDevRec d;
-   unsigned char sdvo_regs[20];
-   CARD32 output_device;		/* SDVOB or SDVOC */
-
-   i830_sdvo_caps caps;
-
-   CARD16 pixel_clock_min, pixel_clock_max;
-
-   int save_sdvo_mult;
-   Bool save_sdvo_active_1, save_sdvo_active_2;
-   i830_sdvo_dtd save_input_dtd_1, save_input_dtd_2;
-   i830_sdvo_dtd save_output_dtd_1, save_output_dtd_2;
-   CARD32 save_SDVOX;
-} I830SDVORec, *I830SDVOPtr;
-
 extern const char *i830_output_type_names[];
 
 struct _I830OutputRec {
@@ -278,8 +262,7 @@ struct _I830OutputRec {
    I2CBusPtr pI2CBus;
    I2CBusPtr pDDCBus;
    struct _I830DVODriver *i2c_drv;
-   I830SDVOPtr sdvo_drv;
-   /** Output-private structure.  Should replace i2c_drv and sdvo_drv */
+   /** Output-private structure.  Should replace i2c_drv */
    void *dev_priv;
 };
 
@@ -499,7 +482,6 @@ typedef struct _I830Rec {
    int ddc2;
    int num_outputs;
    struct _I830OutputRec output[MAX_OUTPUTS];
-   I830SDVOPtr sdvo;
 
    /* Panel size pulled from the BIOS */
    int PanelXRes, PanelYRes;

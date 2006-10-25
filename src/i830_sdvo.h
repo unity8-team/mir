@@ -62,7 +62,7 @@ int
 i830_sdvo_get_pixel_multiplier(DisplayModePtr pMode);
 
 Bool
-I830DetectSDVODisplays(ScrnInfoPtr pScrn, int output_index);
+i830_sdvo_detect_displays(ScrnInfoPtr pScrn, I830OutputPtr output);
 
 void
-I830DumpSDVO(ScrnInfoPtr pScrn);
+i830_sdvo_dump(ScrnInfoPtr pScrn);

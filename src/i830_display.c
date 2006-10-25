@@ -785,7 +785,7 @@ done:
 #endif
 
     i830DumpRegs (pScrn);
-    I830DumpSDVO (pScrn);
+    i830_sdvo_dump(pScrn);
     return ok;
 }
 
