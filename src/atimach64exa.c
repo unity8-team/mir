@@ -570,8 +570,7 @@ Mach64SetupMemEXA(ScreenPtr pScreen)
 	pATIDRIServer->textureSize = textureSize;
 	next += textureSize;
 
-	if (pATI->directRenderingEnabled)
-	    pExa->offScreenBase = next;
+	/* pExa->offScreenBase is moved to `next' when DRI gets activated */
     }
 #endif /* XF86DRI_DEVEL */
 

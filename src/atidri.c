@@ -408,7 +408,6 @@ static void ATIDRITransitionTo2d_EXA(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScreenInfo = xf86Screens[pScreen->myNum];
    ATIPtr pATI = ATIPTR(pScreenInfo);
-#if 0
    ATIDRIServerInfoPtr pATIDRIServer = pATI->pDRIServerInfo;
 
    exaEnableDisableFBAccess(pScreen->myNum, FALSE);
@@ -416,7 +415,6 @@ static void ATIDRITransitionTo2d_EXA(ScreenPtr pScreen)
    pATI->pExa->offScreenBase = pATIDRIServer->backOffset;
 
    exaEnableDisableFBAccess(pScreen->myNum, TRUE);
-#endif
 
    pATI->have3DWindows = FALSE;
 }
@@ -425,7 +423,6 @@ static void ATIDRITransitionTo3d_EXA(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScreenInfo = xf86Screens[pScreen->myNum];
    ATIPtr pATI = ATIPTR(pScreenInfo);
-#if 0
    ATIDRIServerInfoPtr pATIDRIServer = pATI->pDRIServerInfo;
 
    exaEnableDisableFBAccess(pScreen->myNum, FALSE);
@@ -434,7 +431,6 @@ static void ATIDRITransitionTo3d_EXA(ScreenPtr pScreen)
 			       pATIDRIServer->textureSize;
 
    exaEnableDisableFBAccess(pScreen->myNum, TRUE);
-#endif
 
    pATI->have3DWindows = TRUE;
 }
