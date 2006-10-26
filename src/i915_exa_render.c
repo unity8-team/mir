@@ -332,8 +332,6 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     I915GetDestFormat(pDstPicture, &dst_format);
     dst_offset = exaGetPixmapOffset(pDst);
     dst_pitch = exaGetPixmapPitch(pDst);
-    scale_units[2][0] = pDst->drawable.width;
-    scale_units[2][1] = pDst->drawable.height;
     FS_LOCALS(20);
 
     if (!I915TextureSetup(pSrcPicture, pSrc, 0))
