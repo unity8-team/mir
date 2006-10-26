@@ -26,13 +26,13 @@ AC_INIT([xf86-video-ati],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-ati)
 AC_DEFINE_UNQUOTED([ATI_VERSION_MAJOR],
-		   [$(echo $PACKAGE_VERSION | sed -e 's/^\([[0-9]]\)\.[[0-9]]\.[[0-9]]/\1/')],
+		   [$(echo $PACKAGE_VERSION | sed -e 's/^\([[0-9]]\)\.[[0-9]]\.[[0-9]\+]/\1/')],
 		   [Major version])
 AC_DEFINE_UNQUOTED([ATI_VERSION_MINOR],
-		   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]\.\([[0-9]]\)\.[[0-9]]/\1/')],
+		   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]\.\([[0-9]]\)\.[[0-9]\+]/\1/')],
 		   [Minor version])
 AC_DEFINE_UNQUOTED([ATI_VERSION_PATCH],
-		   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]\.[[0-9]]\.\([[0-9]]\)/\1/')],
+		   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]\.[[0-9]]\.\([[0-9]\+]\)/\1/')],
 		   [Patch version])
 
 AC_CONFIG_SRCDIR([Makefile.am])
