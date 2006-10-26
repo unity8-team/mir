@@ -192,6 +192,13 @@ typedef struct _region {
     int x0,x1,y0,y1;
 } region;
 
+/** enumeration of 3d consumers so some can maintain invariant state. */
+enum last_3d {
+    LAST_3D_OTHER,
+    LAST_3D_VIDEO,
+    LAST_3D_RENDER,
+    LAST_3D_ROTATION
+};
 
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
@@ -453,6 +460,8 @@ typedef struct _I830Rec {
 
    CARD32 savedAsurf;
    CARD32 savedBsurf;
+
+    enum last_3d last_3d;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))

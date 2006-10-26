@@ -7041,9 +7041,22 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    CARD32 ctx_addr;
+#ifdef XF86DRI
+   drmI830Sarea *sarea;
+#endif
 
    if (pI830->noAccel)
       return;
+
+#ifdef XF86DRI
+   if (pI830->directRenderingEnabled) {
+      sarea = DRIGetSAREAPrivate(pScrn->pScreen);
+
+      /* Mark that the X Server was the last holder of the context */
+      if (sarea)
+	 sarea->ctxOwner = DRIGetContext(pScrn->pScreen);
+   }
+#endif
 
    ctx_addr = pI830->ContextMem.Start;
    /* Align to a 2k boundry */

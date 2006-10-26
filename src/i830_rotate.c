@@ -211,11 +211,6 @@ I915UpdateRotate (ScreenPtr      pScreen,
    struct matrix23 rotMatrix;
    int j;
    int use_fence;
-   Bool updateInvarient = FALSE;
-#ifdef XF86DRI
-   drmI830Sarea *sarea = NULL;
-   drm_context_t myContext = 0;
-#endif
    Bool didLock = FALSE;
 
    if (I830IsPrimary(pScrn)) {
@@ -246,58 +241,20 @@ I915UpdateRotate (ScreenPtr      pScreen,
    }
 
 #ifdef XF86DRI
-   if (pI8301->directRenderingEnabled) {
-      sarea = DRIGetSAREAPrivate(pScrn1->pScreen);
-      myContext = DRIGetContext(pScrn1->pScreen);
+   if (pI8301->directRenderingEnabled)
       didLock = I830DRILock(pScrn1);
-   }
 #endif
 
+   /* If another screen was active, we don't know the current state. */
    if (pScrn->scrnIndex != *pI830->used3D)
-      updateInvarient = TRUE;
- 
-#ifdef XF86DRI
-   if (sarea && sarea->ctxOwner != myContext)
-      updateInvarient = TRUE;
-#endif
+      pI830->last_3d = LAST_3D_OTHER;
 
-   if (updateInvarient) {
+   if (pI830->last_3d != LAST_3D_ROTATION) {
       FS_LOCALS(3);
       *pI830->used3D = pScrn->scrnIndex;
-#ifdef XF86DRI
-      if (sarea)
-         sarea->ctxOwner = myContext;
-#endif
-      BEGIN_LP_RING(54);
+
+      BEGIN_LP_RING(34);
       /* invarient state */
-      OUT_RING(MI_NOOP);
-      OUT_RING(_3DSTATE_AA_CMD |
-	       AA_LINE_ECAAR_WIDTH_ENABLE | AA_LINE_ECAAR_WIDTH_1_0 |
-	       AA_LINE_REGION_WIDTH_ENABLE | AA_LINE_REGION_WIDTH_1_0);
-
-      OUT_RING(_3DSTATE_DFLT_DIFFUSE_CMD);
-      OUT_RING(0x00000000);
-
-      OUT_RING(_3DSTATE_DFLT_SPEC_CMD);
-      OUT_RING(0x00000000);
-
-      OUT_RING(_3DSTATE_DFLT_Z_CMD);
-      OUT_RING(0x00000000);
-
-      OUT_RING(_3DSTATE_COORD_SET_BINDINGS |
-	       CSB_TCB(0, 0) | CSB_TCB(1, 1) |
-	       CSB_TCB(2, 2) | CSB_TCB(3, 3) |
-	       CSB_TCB(4, 4) | CSB_TCB(5, 5) |
-	       CSB_TCB(6, 6) | CSB_TCB(7, 7));
-
-      OUT_RING(_3DSTATE_RASTER_RULES_CMD |
-	       ENABLE_TRI_FAN_PROVOKE_VRTX | TRI_FAN_PROVOKE_VRTX(2) |
-	       ENABLE_LINE_STRIP_PROVOKE_VRTX | LINE_STRIP_PROVOKE_VRTX(1) |
-	       ENABLE_TEXKILL_3D_4D | TEXKILL_4D |
-	       ENABLE_POINT_RASTER_RULE | OGL_POINT_RASTER_RULE);
-
-      OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 1);
-      OUT_RING(0x00000000);
 
       /* flush map & render cache */
       OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
@@ -313,24 +270,13 @@ I915UpdateRotate (ScreenPtr      pScreen,
 
       OUT_RING(MI_NOOP);
 
-      OUT_RING(_3DSTATE_SCISSOR_ENABLE_CMD | DISABLE_SCISSOR_RECT);
-      OUT_RING(_3DSTATE_SCISSOR_RECT_0_CMD);
-      OUT_RING(0x00000000); /* ymin, xmin */
-      OUT_RING(0x00000000); /* ymax, xmax */
-
       OUT_RING(0x7c000003); /* XXX: magic numbers */
       OUT_RING(0x7d070000);
       OUT_RING(0x00000000);
       OUT_RING(0x68000002);
 
-      /* context setup */
-      OUT_RING(_3DSTATE_MODES_4_CMD |
-	       ENABLE_LOGIC_OP_FUNC | LOGIC_OP_FUNC(LOGICOP_COPY) |
-	       MODE4_ENABLE_STENCIL_WRITE_MASK |
-	       MODE4_ENABLE_STENCIL_TEST_MASK);
-
       OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
-	       I1_LOAD_S(2) | I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 4);
+	       I1_LOAD_S(2) | I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
 
       OUT_RING(S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D) |
 	       S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT) |
@@ -349,14 +295,6 @@ I915UpdateRotate (ScreenPtr      pScreen,
 	       (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) | S6_COLOR_WRITE_ENABLE |
 	       (2 << S6_TRISTRIP_PV_SHIFT));
 
-      OUT_RING(_3DSTATE_INDEPENDENT_ALPHA_BLEND_CMD |
-	       IAB_MODIFY_ENABLE |
-	       IAB_MODIFY_FUNC | (BLENDFUNC_ADD << IAB_FUNC_SHIFT) |
-	       IAB_MODIFY_SRC_FACTOR |
-	       (BLENDFACT_ONE << IAB_SRC_FACTOR_SHIFT) |
-	       IAB_MODIFY_DST_FACTOR |
-	       (BLENDFACT_ZERO << IAB_DST_FACTOR_SHIFT));
-
       OUT_RING(_3DSTATE_CONST_BLEND_COLOR_CMD);
       OUT_RING(0x00000000);
 
@@ -372,9 +310,6 @@ I915UpdateRotate (ScreenPtr      pScreen,
 		  DSTORG_VERT_BIAS(0x8) | COLR_BUF_ARGB8888 |
 		  DEPTH_FRMT_24_FIXED_8_OTHER);
       }
-
-      OUT_RING(_3DSTATE_STIPPLE);
-      OUT_RING(0x00000000);
 
       /* texture sampler state */
       OUT_RING(_3DSTATE_SAMPLER_STATE | 3);
@@ -493,13 +428,8 @@ I830UpdateRotate (ScreenPtr      pScreen,
    CARD32	vb[32];	/* 32 dword vertex buffer */
    float verts[4][2], tex[4][2];
    struct matrix23 rotMatrix;
-   Bool updateInvarient = FALSE;
    int use_fence;
    int j;
-#ifdef XF86DRI
-   drmI830Sarea *sarea = NULL;
-   drm_context_t myContext = 0;
-#endif
    Bool didLock = FALSE;
 
    if (I830IsPrimary(pScrn)) {
@@ -530,28 +460,18 @@ I830UpdateRotate (ScreenPtr      pScreen,
    }
 
 #ifdef XF86DRI
-   if (pI8301->directRenderingEnabled) {
-      sarea = DRIGetSAREAPrivate(pScrn1->pScreen);
-      myContext = DRIGetContext(pScrn1->pScreen);
+   if (pI8301->directRenderingEnabled)
       didLock = I830DRILock(pScrn1);
-   }
 #endif
 
    if (pScrn->scrnIndex != *pI830->used3D)
-      updateInvarient = TRUE;
+      pI830->last_3d = LAST_3D_OTHER;
 
-#ifdef XF86DRI
-   if (sarea && sarea->ctxOwner != myContext)
-      updateInvarient = TRUE;
-#endif
-
-   if (updateInvarient) {
+   if (pI830->last_3d != LAST_3D_ROTATION) {
       *pI830->used3D = pScrn->scrnIndex;
-#ifdef XF86DRI
-      if (sarea)
-         sarea->ctxOwner = myContext;
-#endif
-      
+
+      pI830->last_3d = LAST_3D_ROTATION;
+
       BEGIN_LP_RING(48);
       OUT_RING(0x682008a1);
       OUT_RING(0x6f402100);

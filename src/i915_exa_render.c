@@ -329,6 +329,8 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     ErrorF("Enter i915 prepareComposite\n");
 #endif
 
+    pI830->last_3d = LAST_3D_RENDER;
+
     I915GetDestFormat(pDstPicture, &dst_format);
     dst_offset = exaGetPixmapOffset(pDst);
     dst_pitch = exaGetPixmapPitch(pDst);
@@ -383,7 +385,7 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     {
 	CARD32 ss2;
 
-	BEGIN_LP_RING(26);
+	BEGIN_LP_RING(18);
 	/* color buffer
 	 * XXX: Need to add USE_FENCE if we ever tile the X Server's pixmaps or
 	 * visible screen.
@@ -391,23 +393,12 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	OUT_RING(_3DSTATE_BUF_INFO_CMD);
 	OUT_RING(BUF_3D_ID_COLOR_BACK| BUF_3D_PITCH(dst_pitch));
 	OUT_RING(BUF_3D_ADDR(dst_offset));
-	OUT_RING(MI_NOOP);
 
 	OUT_RING(_3DSTATE_DST_BUF_VARS_CMD);
 	OUT_RING(dst_format);
 
-	/* XXX: defaults */
-	OUT_RING(_3DSTATE_DFLT_Z_CMD);
-	OUT_RING(0x00000000);
-
-	OUT_RING(_3DSTATE_DFLT_DIFFUSE_CMD);
-	OUT_RING(0x00000000);
-
-	OUT_RING(_3DSTATE_DFLT_SPEC_CMD);
-	OUT_RING(0x00000000);
-
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
-		 I1_LOAD_S(3) | I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 4);
+		 I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
 	ss2 = S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D);
 	if (pMask)
 		ss2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_2D);
@@ -420,7 +411,6 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	ss2 |= S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT);
 	ss2 |= S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT);
 	OUT_RING(ss2);
-	OUT_RING(0x00000000); /* Disable texture coordinate wrap-shortest */
 	OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
 		 S4_CULLMODE_NONE| S4_VFMT_XY);
 	blendctl = I915GetBlendCntl(op, pMaskPicture, pDstPicture->format);

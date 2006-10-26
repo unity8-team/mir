@@ -1000,6 +1000,8 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("i830DRISwapContext (in)\n");
 
+      pI830->last_3d = LAST_3D_OTHER;
+
       if (!pScrn->vtSema)
      	 return;
       pI830->LockHeld = 1;

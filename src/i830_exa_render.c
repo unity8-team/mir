@@ -404,6 +404,8 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     dst_offset = exaGetPixmapOffset(pDst);
     dst_pitch = exaGetPixmapPitch(pDst);
 
+    pI830->last_3d = LAST_3D_RENDER;
+
     if (!I830TextureSetup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
     if (pMask != NULL) {
