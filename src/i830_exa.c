@@ -457,6 +457,7 @@ I830EXAInit(ScreenPtr pScreen)
 	/* disable Xv here... */
     }
 
+    /* i915 3D requires 16 byte alignment (4k if tiled) */
     pI830->EXADriverPtr->pixmapOffsetAlign = 256;
     pI830->EXADriverPtr->pixmapPitchAlign = 64;
 
