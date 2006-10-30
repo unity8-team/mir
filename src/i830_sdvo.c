@@ -277,7 +277,7 @@ i830_sdvo_get_trained_inputs(I830OutputPtr output, Bool *input_1, Bool *input_2)
 
     i830_sdvo_write_cmd(output, SDVO_CMD_GET_TRAINED_INPUTS, NULL, 0);
 
-    i830_sdvo_read_response(output, response, 2);
+    status = i830_sdvo_read_response(output, response, 2);
     if (status != SDVO_CMD_STATUS_SUCCESS)
 	return FALSE;
 
@@ -607,7 +607,7 @@ i830_sdvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     /* two 03s, 04 05, 10, 1d */
     /* these contain the height and mode clock / 10 by the looks of it */
 
-    i830_sdvo_get_trained_inputs(output, &input1, &input2);
+    status = i830_sdvo_get_trained_inputs(output, &input1, &input2);
 
     /* Warn if the device reported failure to sync. */
     if (status == SDVO_CMD_STATUS_SUCCESS && !input1) {
