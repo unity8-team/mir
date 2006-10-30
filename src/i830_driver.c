@@ -2506,6 +2506,8 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveFPA0 = INREG(FPA0);
    pI830->saveFPA1 = INREG(FPA1);
    pI830->saveDPLL_A = INREG(DPLL_A);
+   if (IS_I965G(pI830))
+      pI830->saveDPLL_A_MD = INREG(DPLL_A_MD);
    pI830->saveHTOTAL_A = INREG(HTOTAL_A);
    pI830->saveHBLANK_A = INREG(HBLANK_A);
    pI830->saveHSYNC_A = INREG(HSYNC_A);
@@ -2528,6 +2530,8 @@ SaveHWState(ScrnInfoPtr pScrn)
       pI830->saveFPB0 = INREG(FPB0);
       pI830->saveFPB1 = INREG(FPB1);
       pI830->saveDPLL_B = INREG(DPLL_B);
+      if (IS_I965G(pI830))
+	 pI830->saveDPLL_B_MD = INREG(DPLL_B_MD);
       pI830->saveHTOTAL_B = INREG(HTOTAL_B);
       pI830->saveHBLANK_B = INREG(HBLANK_B);
       pI830->saveHSYNC_B = INREG(HSYNC_B);
@@ -2611,6 +2615,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(FPA0, pI830->saveFPA0);
    OUTREG(FPA1, pI830->saveFPA1);
    OUTREG(DPLL_A, pI830->saveDPLL_A);
+   if (IS_I965G(pI830))
+      OUTREG(DPLL_A_MD, pI830->saveDPLL_A_MD);
    OUTREG(HTOTAL_A, pI830->saveHTOTAL_A);
    OUTREG(HBLANK_A, pI830->saveHBLANK_A);
    OUTREG(HSYNC_A, pI830->saveHSYNC_A);
@@ -2630,6 +2636,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(FPB0, pI830->saveFPB0);
       OUTREG(FPB1, pI830->saveFPB1);
       OUTREG(DPLL_B, pI830->saveDPLL_B);
+      if (IS_I965G(pI830))
+	 OUTREG(DPLL_B_MD, pI830->saveDPLL_B_MD);
       OUTREG(HTOTAL_B, pI830->saveHTOTAL_B);
       OUTREG(HBLANK_B, pI830->saveHBLANK_B);
       OUTREG(HSYNC_B, pI830->saveHSYNC_B);

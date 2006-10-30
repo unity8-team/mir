@@ -799,9 +799,55 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define PLL_REF_INPUT_TVCLKINBC		(2 << 13)
 # define PLLB_REF_INPUT_SPREADSPECTRUMIN	(3 << 13)
 # define DISPLAY_RATE_SELECT_FPA1		(1 << 8)
+/**
+ * SDVO multiplier for 945G/GM.
+ *
+ * \sa DPLL_MD_UDI_MULTIPLIER_MASK
+ */
 # define SDVO_MULTIPLIER_MASK			0x000000ff
 # define SDVO_MULTIPLIER_SHIFT_HIRES		4
 # define SDVO_MULTIPLIER_SHIFT_VGA		0
+
+/** @defgroup DPLL_MD
+ * @{
+ */
+/** Pipe A SDVO/UDI clock multiplier/divider register for G965. */
+#define DPLL_A_MD		0x0601c
+/** Pipe B SDVO/UDI clock multiplier/divider register for G965. */
+#define DPLL_B_MD		0x06020
+/**
+ * UDI pixel divider, controlling how many pixels are stuffed into a packet.
+ *
+ * Value is pixels minus 1.  Must be set to 1 pixel for SDVO.
+ */
+# define DPLL_MD_UDI_DIVIDER_MASK		0x3f000000
+# define DPLL_MD_UDI_DIVIDER_SHIFT		24
+/** UDI pixel divider for VGA, same as DPLL_MD_UDI_DIVIDER_MASK. */
+# define DPLL_MD_VGA_UDI_DIVIDER_MASK		0x003f0000
+# define DPLL_MD_VGA_UDI_DIVIDER_SHIFT		16
+/**
+ * SDVO/UDI pixel multiplier.
+ *
+ * SDVO requires that the bus clock rate be between 1 and 2 Ghz, and the bus
+ * clock rate is 10 times the DPLL clock.  At low resolution/refresh rate
+ * modes, the bus rate would be below the limits, so SDVO allows for stuffing
+ * dummy bytes in the datastream at an increased clock rate, with both sides of
+ * the link knowing how many bytes are fill.
+ *
+ * So, for a mode with a dotclock of 65Mhz, we would want to double the clock
+ * rate to 130Mhz to get a bus rate of 1.30Ghz.  The DPLL clock rate would be
+ * set to 130Mhz, and the SDVO multiplier set to 2x in this register and
+ * through an SDVO command.
+ *
+ * This register field has values of multiplication factor minus 1, with
+ * a maximum multiplier of 5 for SDVO.
+ */
+# define DPLL_MD_UDI_MULTIPLIER_MASK		0x00003f00
+# define DPLL_MD_UDI_MULTIPLIER_SHIFT		8
+/** SDVO/UDI pixel multiplier for VGA, same as DPLL_MD_UDI_MULTIPLIER_MASK. */
+# define DPLL_MD_VGA_UDI_MULTIPLIER_MASK	0x0000003f
+# define DPLL_MD_VGA_UDI_MULTIPLIER_SHIFT	0
+/** @} */
 
 #define BLC_PWM_CTL		0x61254
 #define BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
@@ -842,7 +888,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SDVO_PIPE_B_SELECT			(1 << 30)
 #define SDVO_STALL_SELECT			(1 << 29)
 #define SDVO_INTERRUPT_ENABLE			(1 << 26)
-/* Programmed value is multiplier - 1, up to 5x.  alv, gdg only */
+/**
+ * 915G/GM SDVO pixel multiplier.
+ *
+ * Programmed value is multiplier - 1, up to 5x.
+ *
+ * \sa DPLL_MD_UDI_MULTIPLIER_MASK
+ */
 #define SDVO_PORT_MULTIPLY_MASK			(7 << 23)
 #define SDVO_PORT_MULTIPLY_SHIFT		23
 #define SDVO_PHASE_SELECT_MASK			(15 << 19)

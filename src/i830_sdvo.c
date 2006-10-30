@@ -600,6 +600,7 @@ i830_sdvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     Bool out1, out2, input1, input2;
     CARD32 dpll, sdvob, sdvoc;
     int dpll_reg = (output->pipe == 0) ? DPLL_A : DPLL_B;
+    int dpll_md_reg = (output->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
     int sdvo_pixel_multiply;
     CARD8 status;
 
@@ -630,10 +631,14 @@ i830_sdvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     dpll = INREG(dpll_reg);
 
     sdvo_pixel_multiply = i830_sdvo_get_pixel_multiplier(mode);
-    if (IS_I945G(pI830) || IS_I945GM(pI830))
+    if (IS_I965G(pI830)) {
+	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
+	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
+    } else if (IS_I945G(pI830) || IS_I945GM(pI830)) {
 	dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
-    else
+    } else {
 	sdvob |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
+    }
 
     OUTREG(dpll_reg, dpll | DPLL_DVO_HIGH_SPEED);
 

@@ -472,11 +472,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	}
     }
 
-    /* In SDVO, we need to keep the clock on the bus between 1Ghz and 2Ghz.
-     * The clock on the bus is 10 times the pixel clock normally.  If that
-     * would be too low, we run the DPLL at a multiple of the pixel clock, and
-     * tell the SDVO device the multiplier so it can throw away the dummy
-     * bytes.
+    /* Adjust the clock for pixel multiplication.
+     * See DPLL_MD_UDI_MULTIPLIER_MASK.
      */
     if (is_sdvo) {
 	pixel_clock *= i830_sdvo_get_pixel_multiplier(pMode);
