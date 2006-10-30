@@ -305,7 +305,6 @@ static Bool I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode,
 			       VbeCRTCInfoBlock *block);
 #endif
 static CARD32 I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg);
-static Bool SetPipeAccess(ScrnInfoPtr pScrn);
 
 extern int I830EntityIndex;
 
@@ -441,49 +440,6 @@ struct panelid {
 	int rsvdoffscrnmemptr;
 	char reserved[14];
 };
-
-static Bool
-SetBIOSPipe(ScrnInfoPtr pScrn, int pipe)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   vbeInfoPtr pVbe = pI830->pVbe;
-
-   DPRINTF(PFX, "SetBIOSPipe: pipe 0x%x\n", pipe);
-
-   /* single pipe machines should always return TRUE */
-   if (pI830->availablePipes == 1) return TRUE;
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f1c;
-   if (pI830->newPipeSwitch) {
-      pVbe->pInt10->bx = pipe;
-      pVbe->pInt10->cx = 0;
-   } else {
-      pVbe->pInt10->bx = 0x0;
-      pVbe->pInt10->cx = pipe << 8;
-   }
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f1c, pVbe->pInt10->ax)) {
-      return TRUE;
-   }
-	
-   return FALSE;
-}
-
-static Bool
-SetPipeAccess(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   /* Don't try messing with the pipe, unless we're dual head */
-   if (xf86IsEntityShared(pScrn->entityList[0]) || pI830->Clone || pI830->origPipe != pI830->pipe) {
-      if (!SetBIOSPipe(pScrn, pI830->pipe))
-         return FALSE;
-   }
-   
-   return TRUE;
-}
 
 static Bool
 GetBIOSVersion(ScrnInfoPtr pScrn, unsigned int *version)
@@ -3218,24 +3174,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       pI830->overlayOn = pI8301->overlayOn;
       pI830->used3D = pI8301->used3D;
    }
-
-   /*
-    * If we're changing the BIOS's view of the video memory size, do that
-    * first, then re-initialise the VBE information.
-    */
-   if (I830IsPrimary(pScrn)) {
-      SetPipeAccess(pScrn);
-      if (pI830->pVbe)
-         vbeFree(pI830->pVbe);
-      pI830->pVbe = VBEInit(NULL, pI830->pEnt->index);
-   } else {
-      pI830->pVbe = pI8301->pVbe;
-   }
-
-   if (!pI830->pVbe)
-      return FALSE;
-
-   SetPipeAccess(pScrn);
 
    miClearVisualTypes();
    if (!miSetVisualTypes(pScrn->depth,
