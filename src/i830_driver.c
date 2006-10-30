@@ -621,7 +621,7 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    vbeInfo = VBEGetVBEInfo(pI830->pVbe);
    if (vbeInfo != NULL && vbeInfo->TotalMemory != memsize / 1024 / 64) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Detected stolen memory (%ld kB) doesn't match what the BIOS"
+		 "Detected stolen memory (%d kB) doesn't match what the BIOS"
 		 " reports (%d kB)\n",
 		 ROUND_DOWN_TO(memsize / 1024, 64),
 		 vbeInfo->TotalMemory * 64);
