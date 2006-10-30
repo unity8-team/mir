@@ -300,10 +300,6 @@ static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
 static Bool I830CloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool I830SaveScreen(ScreenPtr pScreen, int unblack);
 static Bool I830EnterVT(int scrnIndex, int flags);
-#if 0
-static Bool I830VESASetVBEMode(ScrnInfoPtr pScrn, int mode,
-			       VbeCRTCInfoBlock *block);
-#endif
 static CARD32 I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg);
 
 extern int I830EntityIndex;
@@ -397,28 +393,6 @@ I830ProbeDDC(ScrnInfoPtr pScrn, int index)
    pVbe = VBEInit(NULL, index);
    ConfiguredMonitor = vbeDoEDID(pVbe, NULL);
 }
-
-/* Various extended video BIOS functions. 
- * 100 and 120Hz aren't really supported, they work but only get close
- * to the requested refresh, and really not close enough.
- * I've seen 100Hz come out at 104Hz, and 120Hz come out at 128Hz */
-const int i830refreshes[] = {
-   43, 56, 60, 70, 72, 75, 85 /* 100, 120 */
-};
-static const int nrefreshes = sizeof(i830refreshes) / sizeof(i830refreshes[0]);
-
-struct panelid {
-	short hsize;
-	short vsize;
-	short fptype;
-	char redbpp;
-	char greenbpp;
-	char bluebpp;
-	char reservedbpp;
-	int rsvdoffscrnmemsize;
-	int rsvdoffscrnmemptr;
-	char reserved[14];
-};
 
 /*
  * Returns a string matching the device corresponding to the first bit set
@@ -759,73 +733,6 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn)
       pI830->CursorInfoRec->ShowCursor(pScrn);
 }
-
-#if 0
-static int
-I830UseDDC(ScrnInfoPtr pScrn)
-{
-   xf86MonPtr DDC = (xf86MonPtr)(pScrn->monitor->DDC);
-   struct detailed_monitor_section* detMon;
-   struct monitor_ranges *mon_range = NULL;
-   int i;
-
-   if (!DDC) return 0;
-
-   /* Now change the hsync/vrefresh values of the current monitor to
-    * match those of DDC */
-   for (i = 0; i < 4; i++) {
-      detMon = &DDC->det_mon[i];
-      if(detMon->type == DS_RANGES)
-         mon_range = &detMon->section.ranges;
-   }
-
-   if (!mon_range || mon_range->min_h == 0 || mon_range->max_h == 0 ||
-		     mon_range->min_v == 0 || mon_range->max_v == 0)
-      return 0;	/* bad ddc */
-
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using detected DDC timings\n");
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "\tHorizSync %d-%d\n", 
-		mon_range->min_h, mon_range->max_h);
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "\tVertRefresh %d-%d\n", 
-		mon_range->min_v, mon_range->max_v);
-#define DDC_SYNC_TOLERANCE SYNC_TOLERANCE
-   if (pScrn->monitor->nHsync > 0) {
-      for (i = 0; i < pScrn->monitor->nHsync; i++) {
-         if ((1.0 - DDC_SYNC_TOLERANCE) * mon_range->min_h >
-				pScrn->monitor->hsync[i].lo ||
-	     (1.0 + DDC_SYNC_TOLERANCE) * mon_range->max_h <
-				pScrn->monitor->hsync[i].hi) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			  "config file hsync range %g-%gkHz not within DDC "
-			  "hsync range %d-%dkHz\n",
-			  pScrn->monitor->hsync[i].lo, pScrn->monitor->hsync[i].hi,
-			  mon_range->min_h, mon_range->max_h);
-         }
-         pScrn->monitor->hsync[i].lo = mon_range->min_h;
-	 pScrn->monitor->hsync[i].hi = mon_range->max_h;
-      }
-   }
-
-   if (pScrn->monitor->nVrefresh > 0) {
-      for (i=0; i<pScrn->monitor->nVrefresh; i++) {
-         if ((1.0 - DDC_SYNC_TOLERANCE) * mon_range->min_v >
-				pScrn->monitor->vrefresh[i].lo ||
-	     (1.0 + DDC_SYNC_TOLERANCE) * mon_range->max_v <
-				pScrn->monitor->vrefresh[i].hi) {
-   	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			  "config file vrefresh range %g-%gHz not within DDC "
-			  "vrefresh range %d-%dHz\n",
-			  pScrn->monitor->vrefresh[i].lo, pScrn->monitor->vrefresh[i].hi,
-			  mon_range->min_v, mon_range->max_v);
-         }
-         pScrn->monitor->vrefresh[i].lo = mon_range->min_v;
-         pScrn->monitor->vrefresh[i].hi = mon_range->max_v;
-      }
-   }
-
-   return mon_range->max_clock;
-}
-#endif
 
 /**
  * Set up the outputs according to what type of chip we are.

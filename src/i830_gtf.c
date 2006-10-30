@@ -67,8 +67,6 @@
 #define C_PRIME           (((C - J) * K/256.0) + J)
 #define M_PRIME           (K/256.0 * M)
 
-extern const int i830refreshes[];
-
 DisplayModePtr
 i830GetGTF(int h_pixels, int v_lines, float freq, int interlaced, int margins)
 {

@@ -99,8 +99,6 @@ static struct
 
 #define DEBUG_REPROBE 1
 
-extern const int i830refreshes[];
-
 void
 I830PrintModes(ScrnInfoPtr scrp)
 {
