@@ -407,27 +407,6 @@ const int i830refreshes[] = {
 };
 static const int nrefreshes = sizeof(i830refreshes) / sizeof(i830refreshes[0]);
 
-static Bool
-Check5fStatus(ScrnInfoPtr pScrn, int func, int ax)
-{
-   if (ax == 0x005f)
-      return TRUE;
-   else if (ax == 0x015f) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Extended BIOS function 0x%04x failed.\n", func);
-      return FALSE;
-   } else if ((ax & 0xff) != 0x5f) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Extended BIOS function 0x%04x not supported.\n", func);
-      return FALSE;
-   } else {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Extended BIOS function 0x%04x returns 0x%04x.\n",
-		 func, ax & 0xffff);
-      return FALSE;
-   }
-}
-
 struct panelid {
 	short hsize;
 	short vsize;
@@ -440,26 +419,6 @@ struct panelid {
 	int rsvdoffscrnmemptr;
 	char reserved[14];
 };
-
-static Bool
-GetBIOSVersion(ScrnInfoPtr pScrn, unsigned int *version)
-{
-   vbeInfoPtr pVbe = I830PTR(pScrn)->pVbe;
-
-   DPRINTF(PFX, "GetBIOSVersion\n");
-
-   pVbe->pInt10->num = 0x10;
-   pVbe->pInt10->ax = 0x5f01;
-
-   xf86ExecX86int10_wrapper(pVbe->pInt10, pScrn);
-   if (Check5fStatus(pScrn, 0x5f01, pVbe->pInt10->ax)) {
-      *version = pVbe->pInt10->bx;
-      return TRUE;
-   }
-
-   *version = 0;
-   return FALSE;
-}
 
 /*
  * Returns a string matching the device corresponding to the first bit set
@@ -1062,8 +1021,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    pointer pVBEModule = NULL;
    Bool enable;
    const char *chipname;
-   unsigned int ver;
-   char v[5];
 
    if (pScrn->numEntities != 1)
       return FALSE;
@@ -1881,18 +1838,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	 return FALSE;
       }
    }
-
-   GetBIOSVersion(pScrn, &ver);
-
-   v[0] = (ver & 0xff000000) >> 24;
-   v[1] = (ver & 0x00ff0000) >> 16;
-   v[2] = (ver & 0x0000ff00) >> 8;
-   v[3] = (ver & 0x000000ff) >> 0;
-   v[4] = 0;
-   
-   pI830->bios_version = atoi(v);
-
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS Build: %d\n",pI830->bios_version);
 
    if (IS_I9XX(pI830))
       pI830->newPipeSwitch = TRUE;
