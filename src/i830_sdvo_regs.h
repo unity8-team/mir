@@ -25,7 +25,23 @@
  *
  */
 
-typedef struct _i830_sdvo_caps {
+struct i830_sdvo_output_flags {
+    unsigned int tmds0:1;
+    unsigned int rgb0:1;
+    unsigned int cvbs0:1;
+    unsigned int svid0:1;
+    unsigned int yprpb0:1;
+    unsigned int scart0:1;
+    unsigned int lvds0:1;
+    unsigned int pad0:1;
+    unsigned int tmds1:1;
+    unsigned int pad1:4;
+    unsigned int rgb1:1;
+    unsigned int lvds1:1;
+    unsigned int pad2:1;
+} __attribute__((packed));
+
+struct i830_sdvo_caps {
     CARD8 vendor_id;
     CARD8 device_id;
     CARD8 device_rev_id;
@@ -38,13 +54,13 @@ typedef struct _i830_sdvo_caps {
     unsigned int down_scaling:1;
     unsigned int stall_support:1;
     unsigned int pad:1;
-    CARD8 output_0_supported;
-    CARD8 output_1_supported;
-} __attribute__((packed)) i830_sdvo_caps;
+    struct i830_sdvo_output_flags output_flags;
+} __attribute__((packed));
 
+/** This matches the EDID DTD structure, more or less */
 struct i830_sdvo_dtd {
     struct {
-	CARD16 clock;
+	CARD16 clock;			/**< pixel clock, in 10kHz units */
 	CARD8 h_active;
 	CARD8 h_blank;
 	CARD8 h_high;
@@ -66,8 +82,8 @@ struct i830_sdvo_dtd {
 } __attribute__((packed));
 
 struct i830_sdvo_pixel_clock_range {
-    CARD16 min;
-    CARD16 max;
+    CARD16 min;			/**< pixel clock, in 10kHz units */
+    CARD16 max;			/**< pixel clock, in 10kHz units */
 } __attribute__((packed));
 
 struct i830_sdvo_preferred_input_timing_args {
@@ -103,7 +119,7 @@ struct i830_sdvo_preferred_input_timing_args {
 #define SDVO_CMD_STATUS_NOTSUPP			0x2
 #define SDVO_CMD_STATUS_INVALID_ARG		0x3
 #define SDVO_CMD_STATUS_PENDING			0x4
-#define SDVO_CMD_STATUS_TARGET_NOT_SUPP		0x5
+#define SDVO_CMD_STATUS_TARGET_NOT_SPECIFIED	0x5
 #define SDVO_CMD_STATUS_SCALING_NOT_SUPP	0x6
 
 /* SDVO commands, argument/result registers */
@@ -116,29 +132,93 @@ struct i830_sdvo_preferred_input_timing_args {
 #define SDVO_CMD_GET_FIRMWARE_REV			0x86
 # define SDVO_DEVICE_FIRMWARE_MINOR			SDVO_I2C_RETURN_0
 # define SDVO_DEVICE_FIRMWARE_MAJOR			SDVO_I2C_RETURN_1
+# define SDVO_DEVICE_FIRMWARE_PATCH			SDVO_I2C_RETURN_2
 
+/**
+ * Reports which inputs are trained (managed to sync).
+ *
+ * Devices must have trained within 2 vsyncs of a mode change.
+ */
 #define SDVO_CMD_GET_TRAINED_INPUTS			0x03
+struct i830_sdvo_get_trained_inputs_response {
+    unsigned int input0_trained:1;
+    unsigned int input1_trained:1;
+    unsigned int pad:6;
+} __attribute__((packed));
 
+/** Returns a struct i830_sdvo_output_flags of active outputs. */
 #define SDVO_CMD_GET_ACTIVE_OUTPUTS			0x04
 
+/**
+ * Sets the current set of active outputs.
+ *
+ * Takes a struct i830_sdvo_output_flags.  Must be preceded by a SET_IN_OUT_MAP
+ * on multi-output devices.
+ */
 #define SDVO_CMD_SET_ACTIVE_OUTPUTS			0x05
 
+/**
+ * Returns the current mapping of SDVO inputs to outputs on the device.
+ *
+ * Returns two struct i830_sdvo_output_flags structures.
+ */
 #define SDVO_CMD_GET_IN_OUT_MAP				0x06
 
+/**
+ * Sets the current mapping of SDVO inputs to outputs on the device.
+ *
+ * Takes two struct i380_sdvo_output_flags structures.
+ */
 #define SDVO_CMD_SET_IN_OUT_MAP				0x07
 
+/**
+ * Returns a struct i830_sdvo_output_flags of attached displays.
+ */
 #define SDVO_CMD_GET_ATTACHED_DISPLAYS			0x0b
 
+/**
+ * Returns a struct i830_sdvo_ouptut_flags of displays supporting hot plugging.
+ */
 #define SDVO_CMD_GET_HOT_PLUG_SUPPORT			0x0c
 
+/**
+ * Takes a struct i830_sdvo_output_flags.
+ */
 #define SDVO_CMD_SET_ACTIVE_HOT_PLUG			0x0d
 
+/**
+ * Returns a struct i830_sdvo_output_flags of displays with hot plug
+ * interrupts enabled.
+ */
 #define SDVO_CMD_GET_ACTIVE_HOT_PLUG			0x0e
 
-#define SDVO_CMD_GET_INTR_EVENT_SOURCE			0x0f
+#define SDVO_CMD_GET_INTERRUPT_EVENT_SOURCE		0x0f
+struct i830_sdvo_get_interrupt_event_source_response {
+    struct i830_sdvo_output_flags interrupt_status;
+    unsigned int ambient_light_interrupt:1;
+    unsigned int pad:7;
+} __attribute__((packed));
 
+/**
+ * Selects which input is affected by future input commands.
+ *
+ * Commands affected include SET_INPUT_TIMINGS_PART[12],
+ * GET_INPUT_TIMINGS_PART[12], GET_PREFERRED_INPUT_TIMINGS_PART[12],
+ * GET_INPUT_PIXEL_CLOCK_RANGE, and CREATE_PREFERRED_INPUT_TIMINGS.
+ */
 #define SDVO_CMD_SET_TARGET_INPUT			0x10
+struct i830_sdvo_set_target_input_args {
+    unsigned int target_1:1;
+    unsigned int pad:7;
+} __attribute__((packed));
 
+/**
+ * Takes a struct i830_sdvo_output_flags of which outputs are targetted by
+ * future output commands.
+ *
+ * Affected commands inclue SET_OUTPUT_TIMINGS_PART[12],
+ * GET_OUTPUT_TIMINGS_PART[12], and GET_OUTPUT_PIXEL_CLOCK_RANGE.
+ */
 #define SDVO_CMD_SET_TARGET_OUTPUT			0x11
 
 #define SDVO_CMD_GET_INPUT_TIMINGS_PART1		0x12
@@ -174,6 +254,12 @@ struct i830_sdvo_preferred_input_timing_args {
 # define SDVO_DTD_SDVO_FLAG_SCALING_MASK			(3 << 4)
 # define SDVO_DTD_VSYNC_OFF_HIGH			SDVO_I2C_ARG_6
 
+/**
+ * Generates a DTD based on the given width, height, and flags.
+ *
+ * This will be supported by any device supporting scaling or interlaced
+ * modes.
+ */
 #define SDVO_CMD_CREATE_PREFERRED_INPUT_TIMING		0x1a
 # define SDVO_PREFERRED_INPUT_TIMING_CLOCK_LOW		SDVO_I2C_ARG_0
 # define SDVO_PREFERRED_INPUT_TIMING_CLOCK_HIGH		SDVO_I2C_ARG_1
@@ -193,15 +279,16 @@ struct i830_sdvo_preferred_input_timing_args {
 /** Returns a struct i830_sdvo_pixel_clock_range */
 #define SDVO_CMD_GET_OUTPUT_PIXEL_CLOCK_RANGE		0x1e
 
+/** Returns a byte bitfield containing SDVO_CLOCK_RATE_MULT_* flags */
 #define SDVO_CMD_GET_SUPPORTED_CLOCK_RATE_MULTS		0x1f
 
+/** Returns a byte containing a SDVO_CLOCK_RATE_MULT_* flag */
 #define SDVO_CMD_GET_CLOCK_RATE_MULT			0x20
+/** Takes a byte containing a SDVO_CLOCK_RATE_MULT_* flag */
 #define SDVO_CMD_SET_CLOCK_RATE_MULT			0x21
 # define SDVO_CLOCK_RATE_MULT_1X				(1 << 0)
 # define SDVO_CLOCK_RATE_MULT_2X				(1 << 1)
-# define SDVO_CLOCK_RATE_MULT_3X				(1 << 2)
 # define SDVO_CLOCK_RATE_MULT_4X				(1 << 3)
-# define SDVO_CLOCK_RATE_MULT_5X				(1 << 4)
 
 #define SDVO_CMD_GET_SUPPORTED_TV_FORMATS		0x27
 
