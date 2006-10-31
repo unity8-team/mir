@@ -31,6 +31,7 @@
 
 #include "xf86.h"
 #include "i830.h"
+#include "i830_bios.h"
 
 /**
  * Sets the power state for the panel.
@@ -176,6 +177,18 @@ i830_lvds_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     i830SetLVDSPanelPower(pScrn, TRUE);
 }
 
+/**
+ * Detect the LVDS connection.
+ *
+ * This always returns OUTPUT_STATUS_CONNECTED.  This output should only have
+ * been set up if the LVDS was actually connected anyway.
+ */
+static enum detect_status
+i830_lvds_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    return OUTPUT_STATUS_CONNECTED;
+}
+
 void
 i830_lvds_init(ScrnInfoPtr pScrn)
 {
@@ -221,6 +234,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     pI830->output[pI830->num_outputs].mode_valid = i830_lvds_mode_valid;
     pI830->output[pI830->num_outputs].pre_set_mode = i830_lvds_pre_set_mode;
     pI830->output[pI830->num_outputs].post_set_mode = i830_lvds_post_set_mode;
+    pI830->output[pI830->num_outputs].detect = i830_lvds_detect;
 
     /* Set up the LVDS DDC channel.  Most panels won't support it, but it can
      * be useful if available.

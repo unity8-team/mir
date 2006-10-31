@@ -1439,28 +1439,36 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->operatingDevices = (pI830->MonType2 << 8) | pI830->MonType1;
       pI830->specifiedMonitor = TRUE;
    } else if (I830IsPrimary(pScrn)) {
-      /* Choose a default set of outputs to use based on what we've detected. */
-      if (i830DetectCRT(pScrn, TRUE)) {
-	 pI830->MonType1 |= PIPE_CRT;
-      }
-
-      /* Check for attached SDVO outputs.  Assume that they're flat panels for
-       * now.  Though really, it's just a name at the moment, since we don't
-       * treat different SDVO outputs differently.  Also, check for LVDS and
-       * set it  to the right pipe if available.
+      /* Choose a default set of outputs to use based on what we've detected.
+       *
+       * Assume that SDVO outputs are flat panels for now.  It's just a name
+       * at the moment, since we don't treat different SDVO outputs
+       * differently.
        */
       for (i = 0; i < pI830->num_outputs; i++) {
 	 if (pI830->output[i].type == I830_OUTPUT_LVDS)
-	    pI830->MonType2 |= PIPE_LFP;
+	    pI830->MonType2 = PIPE_LFP;
 
-	 if (pI830->output[i].type == I830_OUTPUT_SDVO) {
-	    if (!i830_sdvo_detect_displays(pScrn, &pI830->output[i]))
+	 if (pI830->output[i].type == I830_OUTPUT_SDVO ||
+	     pI830->output[i].type == I830_OUTPUT_ANALOG)
+	 {
+	    int pipetype;
+
+	    if (pI830->output[i].detect(pScrn, &pI830->output[i]) ==
+		OUTPUT_STATUS_DISCONNECTED)
+	    {
 	       continue;
+	    }
+
+	    if (pI830->output[i].type == I830_OUTPUT_SDVO)
+	       pipetype = PIPE_DFP;
+	    else
+	       pipetype = PIPE_CRT;
 
 	    if (pI830->MonType1 == PIPE_NONE)
-	       pI830->MonType1 |= PIPE_DFP;
+	       pI830->MonType1 |= pipetype;
 	    else if (pI830->MonType2 == PIPE_NONE)
-	       pI830->MonType2 |= PIPE_DFP;
+	       pI830->MonType2 |= pipetype;
 	 }
       }
 
@@ -3891,22 +3899,23 @@ i830MonitorDetectDebugger(ScrnInfoPtr pScrn)
    if (!pScrn->vtSema)
       return 1000;
 
-   start = GetTimeInMillis();
-   found_crt = i830DetectCRT(pScrn, FALSE);   
-   finish = GetTimeInMillis();
-   xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Detected CRT as %s in %dms\n",
-	      found_crt ? "connected" : "disconnected", finish - start);
-
    for (i = 0; i < pI830->num_outputs; i++) {
-      Bool found_sdvo = TRUE;
+      enum output_status ret;
+      char *result;
 
-      if (pI830->output[i].type != I830_OUTPUT_SDVO)
-	 continue;
       start = GetTimeInMillis();
-      found_sdvo = i830_sdvo_detect_displays(pScrn, &pI830->output[i]);
+      ret = pI830->output[i].detect(pScrn, &pI830->output[i]);
       finish = GetTimeInMillis();
+
+      if (ret == OUTPUT_STATUS_CONNECTED)
+	 result = "connected";
+      else if (ret == OUTPUT_STATUS_DISCONNECTED)
+	 result = "disconnected";
+      else
+	 result = "unknown";
+
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Detected SDVO as %s in %dms\n",
-		 found_sdvo ? "connected" : "disconnected", finish - start);
+		 result, finish - start);
    }
 }
 #endif

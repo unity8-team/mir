@@ -803,17 +803,18 @@ I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
      * is plugged in, then assume that it is.
      */
     if (pI830->pipeMon[pipe] == NULL) {
+	enum detect_status detect;
+
+	detect = pI830->output[output_index].detect(pScrn,
+		&pI830->output[output_index]);
+
 	switch (pI830->output[output_index].type) {
 	case I830_OUTPUT_SDVO:
-	    if (i830_sdvo_detect_displays(pScrn, &pI830->output[output_index]))
+	    if (detect == OUTPUT_STATUS_CONNECTED)
 		pI830->pipeMon[pipe] = i830GetConfiguredMonitor(pScrn);
 	    break;
 	case I830_OUTPUT_ANALOG:
-	    /* Do a disruptive detect if necessary, since we want to be sure we
-	     * know if a monitor is attached, and this detect process should be
-	     * infrequent.
-	     */
-	    if (i830DetectCRT(pScrn, TRUE)) {
+	    if (detect == OUTPUT_STATUS_CONNECTED) {
 /*		if (pipe == pI830->pipe)
 		    pI830->pipeMon[pipe] = i830GetConfiguredMonitor(pScrn);
 		else */

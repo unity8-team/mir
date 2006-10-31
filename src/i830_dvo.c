@@ -144,6 +144,17 @@ i830_dvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     OUTREG(DVOC, dvo);
 }
 
+/**
+ * Detect the output connection on our DVO device.
+ *
+ * Unimplemented.
+ */
+static enum detect_status
+i830_dvo_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    return OUTPUT_STATUS_UNKNOWN;
+}
+
 static Bool
 I830I2CDetectDVOControllers(ScrnInfoPtr pScrn, I2CBusPtr pI2CBus,
 			    struct _I830DVODriver **retdrv)
@@ -189,6 +200,7 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     pI830->output[i].mode_valid  = i830_dvo_mode_valid;
     pI830->output[i].pre_set_mode  = i830_dvo_pre_set_mode;
     pI830->output[i].post_set_mode  = i830_dvo_post_set_mode;
+    pI830->output[i].detect  = i830_dvo_detect;
 
     /* Set up the I2C and DDC buses */
     ret = I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");

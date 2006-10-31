@@ -207,6 +207,12 @@ struct _I830DVODriver {
 
 extern const char *i830_output_type_names[];
 
+enum detect_status {
+   OUTPUT_STATUS_CONNECTED,
+   OUTPUT_STATUS_DISCONNECTED,
+   OUTPUT_STATUS_UNKNOWN
+};
+
 struct _I830OutputRec {
    int type;
    int pipe;
@@ -257,6 +263,11 @@ struct _I830OutputRec {
     */
    void (*post_set_mode)(ScrnInfoPtr pScrn, I830OutputPtr output,
 			 DisplayModePtr pMode);
+
+   /**
+    * Probe for a connected output, and return detect_status.
+    */
+   enum detect_status (*detect)(ScrnInfoPtr pScrn, I830OutputPtr output);
 
    xf86MonPtr MonInfo;
    I2CBusPtr pI2CBus;

@@ -112,6 +112,167 @@ i830_crt_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     OUTREG(ADPA, adpa);
 }
 
+/**
+ * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect CRT presence.
+ *
+ * Only for I945G/GM.
+ *
+ * \return TRUE if CRT is connected.
+ * \return FALSE if CRT is disconnected.
+ */
+static Bool
+i830_crt_detect_hotplug(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 temp;
+    const int timeout_ms = 1000;
+    int starttime, curtime;
+
+    temp = INREG(PORT_HOTPLUG_EN);
+
+    OUTREG(PORT_HOTPLUG_EN, temp | CRT_HOTPLUG_FORCE_DETECT | (1 << 5));
+
+    for (curtime = starttime = GetTimeInMillis();
+	 (curtime - starttime) < timeout_ms; curtime = GetTimeInMillis())
+    {
+	if ((INREG(PORT_HOTPLUG_EN) & CRT_HOTPLUG_FORCE_DETECT) == 0)
+	    break;
+    }
+
+    if ((INREG(PORT_HOTPLUG_STAT) & CRT_HOTPLUG_MONITOR_MASK) ==
+	CRT_HOTPLUG_MONITOR_COLOR)
+    {
+	return TRUE;
+    } else {
+	return FALSE;
+    }
+}
+
+/**
+ * Detects CRT presence by checking for load.
+ *
+ * Requires that the current pipe's DPLL is active.  This will cause flicker
+ * on the CRT, so it should not be used while the display is being used.  Only
+ * color (not monochrome) displays are detected.
+ *
+ * \return TRUE if CRT is connected.
+ * \return FALSE if CRT is disconnected.
+ */
+static Bool
+i830_crt_detect_load(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 adpa, pipeconf;
+    CARD8 st00;
+    int pipeconf_reg, bclrpat_reg, dpll_reg;
+    int pipe;
+
+    pipe = pI830->pipe;
+    if (pipe == 0) {
+	bclrpat_reg = BCLRPAT_A;
+	pipeconf_reg = PIPEACONF;
+	dpll_reg = DPLL_A;
+    } else {
+	bclrpat_reg = BCLRPAT_B;
+	pipeconf_reg = PIPEBCONF;
+	dpll_reg = DPLL_B;
+    }
+
+    /* Don't try this if the DPLL isn't running. */
+    if (!(INREG(dpll_reg) & DPLL_VCO_ENABLE))
+	return FALSE;
+
+    adpa = INREG(ADPA);
+
+    /* Enable CRT output if disabled. */
+    if (!(adpa & ADPA_DAC_ENABLE)) {
+	OUTREG(ADPA, adpa | ADPA_DAC_ENABLE |
+	       ((pipe == 1) ? ADPA_PIPE_B_SELECT : 0));
+    }
+
+    /* Set the border color to red, green.  Maybe we should save/restore this
+     * reg.
+     */
+    OUTREG(bclrpat_reg, 0x00500050);
+
+    /* Force the border color through the active region */
+    pipeconf = INREG(pipeconf_reg);
+    OUTREG(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
+
+    /* Read the ST00 VGA status register */
+    st00 = pI830->readStandard(pI830, 0x3c2);
+
+    /* Restore previous settings */
+    OUTREG(pipeconf_reg, pipeconf);
+    OUTREG(ADPA, adpa);
+
+    if (st00 & (1 << 4))
+	return TRUE;
+    else
+	return FALSE;
+}
+
+/**
+ * Detects CRT presence by probing for a response on the DDC address.
+ *
+ * This takes approximately 5ms in testing on an i915GM, with CRT connected or
+ * not.
+ *
+ * \return TRUE if the CRT is connected and responded to DDC.
+ * \return FALSE if no DDC response was detected.
+ */
+static Bool
+i830_crt_detect_ddc(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct _I830OutputRec *output;
+
+    output = &pI830->output[0];
+    /* CRT should always be at 0, but check anyway */
+    if (output->type != I830_OUTPUT_ANALOG)
+	return FALSE;
+
+    return xf86I2CProbeAddress(output->pDDCBus, 0x00A0);
+}
+
+/**
+ * Attempts to detect CRT presence through any method available.
+ *
+ * @param allow_disturb enables detection methods that may cause flickering
+ *        on active displays.
+ */
+static enum detect_status
+i830_crt_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_I965G(pI830)) {
+	if (i830_crt_detect_hotplug(pScrn))
+	    return OUTPUT_STATUS_CONNECTED;
+	else
+	    return OUTPUT_STATUS_DISCONNECTED;
+    }
+
+    if (i830_crt_detect_ddc(pScrn))
+	return OUTPUT_STATUS_CONNECTED;
+
+    /* Use the load-detect method if we're not currently outputting to the CRT,
+     * or we don't care.
+     *
+     * Actually, the method is unreliable currently.  We need to not share a
+     * pipe, as it seems having other outputs on that pipe will result in a
+     * false positive.
+     */
+    if (0) {
+	if (i830_crt_detect_load(pScrn))
+	    return OUTPUT_STATUS_CONNECTED;
+	else
+	    return OUTPUT_STATUS_DISCONNECTED;
+    }
+
+    return OUTPUT_STATUS_UNKNOWN;
+}
+
 void
 i830_crt_init(ScrnInfoPtr pScrn)
 {
@@ -124,6 +285,7 @@ i830_crt_init(ScrnInfoPtr pScrn)
     pI830->output[pI830->num_outputs].mode_valid = i830_crt_mode_valid;
     pI830->output[pI830->num_outputs].pre_set_mode = i830_crt_pre_set_mode;
     pI830->output[pI830->num_outputs].post_set_mode = i830_crt_post_set_mode;
+    pI830->output[pI830->num_outputs].detect = i830_crt_detect;
 
     /* Set up the DDC bus. */
     I830I2CInit(pScrn, &pI830->output[pI830->num_outputs].pDDCBus,

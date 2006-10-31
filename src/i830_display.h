@@ -29,7 +29,6 @@
 Bool i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe);
 void i830DisableUnusedFunctions(ScrnInfoPtr pScrn);
 Bool i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
-Bool i830DetectCRT(ScrnInfoPtr pScrn, Bool allow_disturb);
 void i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y);
 void i830WaitForVblank(ScrnInfoPtr pScrn);
 void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);

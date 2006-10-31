@@ -405,6 +405,18 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     OUTREG(TV_CTL, tv_ctl);
 }
 
+/**
+ * Detect the TV connection.
+ *
+ * Currently this always returns OUTPUT_STATUS_UNKNOWN, as we need to be sure
+ * we have a pipe programmed in order to probe the TV.
+ */
+static enum detect_status
+i830_tv_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    return OUTPUT_STATUS_UNKNOWN;
+}
+
 void
 i830_tv_init(ScrnInfoPtr pScrn)
 {
@@ -425,6 +437,7 @@ i830_tv_init(ScrnInfoPtr pScrn)
     pI830->output[pI830->num_outputs].mode_valid = i830_tv_mode_valid;
     pI830->output[pI830->num_outputs].pre_set_mode = i830_tv_pre_set_mode;
     pI830->output[pI830->num_outputs].post_set_mode = i830_tv_post_set_mode;
+    pI830->output[pI830->num_outputs].detect = i830_tv_detect;
 
     pI830->num_outputs++;
 }

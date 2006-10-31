@@ -904,8 +904,8 @@ i830_sdvo_dump(ScrnInfoPtr pScrn)
  *
  * Takes 14ms on average on my i945G.
  */
-Bool
-i830_sdvo_detect_displays(ScrnInfoPtr pScrn, I830OutputPtr output)
+static enum detect_status
+i830_sdvo_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     CARD8 response[2];
     CARD8 status;
@@ -914,9 +914,12 @@ i830_sdvo_detect_displays(ScrnInfoPtr pScrn, I830OutputPtr output)
     status = i830_sdvo_read_response(output, &response, 2);
 
     if (status != SDVO_CMD_STATUS_SUCCESS)
-	return FALSE;
+	return OUTPUT_STATUS_UNKNOWN;
 
-    return (response[0] != 0 || response[1] != 0);
+    if (response[0] != 0 || response[1] != 0)
+	return OUTPUT_STATUS_CONNECTED;
+    else
+	return OUTPUT_STATUS_DISCONNECTED;
 }
 
 void
@@ -936,6 +939,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     output->mode_valid = i830_sdvo_mode_valid;
     output->pre_set_mode = i830_sdvo_pre_set_mode;
     output->post_set_mode = i830_sdvo_post_set_mode;
+    output->detect = i830_sdvo_detect;
 
     /* While it's the same bus, we just initialize a new copy to avoid trouble
      * with tracking refcounting ourselves, since the XFree86 DDX bits don't.
