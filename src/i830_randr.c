@@ -763,11 +763,17 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 
 	xfree (rrmodes);
 
-	connection = RR_Disconnected;
-	if (pipe >= 0)
-	    connection = RR_Connected;
-
-	RROutputSetConnection (randrp->outputs[i], connection);
+	switch (pI830->output[i].detect(pScrn, &pI830->output[i])) {
+	case OUTPUT_STATUS_CONNECTED:
+	    RROutputSetConnection (randrp->outputs[i], RR_Connected);
+	    break;
+	case OUTPUT_STATUS_DISCONNECTED:
+	    RROutputSetConnection (randrp->outputs[i], RR_Disconnected);
+	    break;
+	case OUTPUT_STATUS_UNKNOWN:
+	    RROutputSetConnection (randrp->outputs[i], RR_UnknownConnection);
+	    break;
+	}
 
 	RROutputSetSubpixelOrder (randrp->outputs[i], subpixel);
 
