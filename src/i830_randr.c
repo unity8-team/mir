@@ -630,8 +630,6 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 			  randrp->virtualX, randrp->virtualY);
     for (i = 0; i < pI830->num_outputs; i++)
     {
-	MonPtr mon;
-
 	output = &pI830->output[i];
 	/*
 	 * Valid crtcs
@@ -701,6 +699,11 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 
 	RROutputSetCrtc (randrp->outputs[i], crtc);
 
+	/* We should pull info out of EDID to get the output physical
+	 * size when available.
+	 */
+	RROutputSetPhysicalSize(randrp->outputs[i], 0, 0);
+
 	RROutputSetPossibleOptions (randrp->outputs[i], possibleOptions);
 	RROutputSetCurrentOptions (randrp->outputs[i], currentOptions);
         nmode = 0;
@@ -708,11 +711,6 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 	rrmodes = NULL;
 
 	modes = pI830->output[i].probed_modes;
-
-	if (pI830->output[i].pipe >= 0)
-	    mon = pI830->pipeMon[pipe];
-	else
-	    mon = NULL;
 
 	for (mode = modes; mode; mode = mode->next)
 	    nmode++;
@@ -722,11 +720,6 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 	    if (!rrmodes)
 		return FALSE;
 	    nmode = 0;
-
-	    /* We should pull info out of EDID to get the output physical
-	     * size when available.
-	     */
-	    RROutputSetPhysicalSize(randrp->outputs[i], 0, 0);
 
 	    for (p = 1; p >= 0; p--) {
 		for (mode = modes; mode; mode = mode->next) {
@@ -806,7 +799,7 @@ I830RandRGetInfo12 (ScreenPtr pScreen, Rotation *rotations)
 {
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
 
-    I830ValidateXF86ModeList(pScrn, FALSE);
+    i830_reprobe_output_modes(pScrn);
     return I830RandRSetInfo12 (pScreen);
 }
 

@@ -189,6 +189,39 @@ i830_lvds_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
     return OUTPUT_STATUS_CONNECTED;
 }
 
+/**
+ * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
+ */
+static DisplayModePtr
+i830_lvds_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    DisplayModePtr modes, new;
+    char stmp[32];
+
+    modes = i830_ddc_get_modes(pScrn, output);
+    if (modes != NULL)
+	return modes;
+
+    new             = xnfcalloc(1, sizeof (DisplayModeRec));
+    sprintf(stmp, "%dx%d", pI830->PanelXRes, pI830->PanelYRes);
+    new->name       = xnfalloc(strlen(stmp) + 1);
+    strcpy(new->name, stmp);
+    new->HDisplay   = pI830->PanelXRes;
+    new->VDisplay   = pI830->PanelYRes;
+    new->HSyncStart = pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff;
+    new->HSyncEnd   = new->HSyncStart + pI830->panel_fixed_hsyncwidth;
+    new->HTotal     = new->HSyncEnd + 1;
+    new->VSyncStart = pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff;
+    new->VSyncEnd   = new->VSyncStart + pI830->panel_fixed_vsyncwidth;
+    new->VTotal     = new->VSyncEnd + 1;
+    new->Clock      = pI830->panel_fixed_clock;
+
+    new->type       = M_T_PREFERRED;
+
+    return new;
+}
+
 void
 i830_lvds_init(ScrnInfoPtr pScrn)
 {
@@ -235,11 +268,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     pI830->output[pI830->num_outputs].pre_set_mode = i830_lvds_pre_set_mode;
     pI830->output[pI830->num_outputs].post_set_mode = i830_lvds_post_set_mode;
     pI830->output[pI830->num_outputs].detect = i830_lvds_detect;
-    /* This will usually return NULL on laptop panels, which is no good.
-     * We need to construct a mode from the fixed panel info, and return a copy
-     * of that when DDC is unavailable.
-     */
-    pI830->output[pI830->num_outputs].get_modes = i830_ddc_get_modes;
+    pI830->output[pI830->num_outputs].get_modes = i830_lvds_get_modes;
 
     /* Set up the LVDS DDC channel.  Most panels won't support it, but it can
      * be useful if available.

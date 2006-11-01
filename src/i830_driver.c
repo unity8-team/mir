@@ -788,55 +788,6 @@ I830PreInitDDC(ScrnInfoPtr pScrn)
 }
 
 static void
-I830DetectMonitors(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int i;
-
-   if (!pI830->ddc2)
-      return;
-
-   for (i=0; i<pI830->num_outputs; i++) {
-      switch (pI830->output[i].type) {
-      case I830_OUTPUT_ANALOG:
-      case I830_OUTPUT_LVDS:
-	 /* for an analog/LVDS output, just do DDC */
-	 pI830->output[i].MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex,
-						    pI830->output[i].pDDCBus);
-
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "DDC %s %d, %08lX\n",
-		    i830_output_type_names[pI830->output[i].type], i,
-		    pI830->output[i].pDDCBus->DriverPrivate.uval);
-	 xf86PrintEDID(pI830->output[i].MonInfo);
-	 break;
-      case I830_OUTPUT_DVO:
-	 /* check for DDC */
-	 pI830->output[i].MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex,
-						    pI830->output[i].pDDCBus);
-
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "DDC DVO %d, %08lX\n", i,
-		    pI830->output[i].pDDCBus->DriverPrivate.uval);
-	 xf86PrintEDID(pI830->output[i].MonInfo);
-      break;
-      case I830_OUTPUT_SDVO:
-	 pI830->output[i].MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex,
-						    pI830->output[i].pDDCBus);
-
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "DDC SDVO %d, %08lX\n", i,
-		    pI830->output[i].pDDCBus->DriverPrivate.uval);
-	 xf86PrintEDID(pI830->output[i].MonInfo);
-	 break;
-      case I830_OUTPUT_UNUSED:
-	 break;
-      default:
-	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		    "Unknown or unhandled output device at %d\n", i);
-	 break;
-      }
-   }
-}
-
-static void
 PreInitCleanup(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
@@ -1332,21 +1283,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    I830PreInitDDC(pScrn);
-
-   I830DetectMonitors(pScrn);
-
-   /* Walk from the end so we'll happen to hit SDVO first, if we found some. An
-    * SDVO device is probably a DFP, and so probably pickier than (say) a CRT
-    * that we might find early in the list.  This hackery will go away when we
-    * start doing independent per-head mode selection.
-    */
-   for (i = pI830->num_outputs - 1; i >= 0; i--) {
-     if (pI830->output[i].MonInfo) {
-       pScrn->monitor->DDC = pI830->output[i].MonInfo;
-       xf86SetDDCproperties(pScrn, pI830->output[i].MonInfo);
-       break;
-     }
-   }
 
    pI830->MonType1 = PIPE_NONE;
    pI830->MonType2 = PIPE_NONE;

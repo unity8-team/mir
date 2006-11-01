@@ -31,6 +31,12 @@ i830xf86ModeHSync(DisplayModePtr mode);
 double
 i830xf86ModeVRefresh(DisplayModePtr mode);
 
+DisplayModePtr
+i830xf86DuplicateMode(DisplayModePtr pMode);
+
+DisplayModePtr
+i830xf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList);
+
 void
 i830xf86SetModeDefaultName(DisplayModePtr mode);
 

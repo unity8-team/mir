@@ -195,6 +195,59 @@ I830xf86SetModeCrtc(DisplayModePtr p, int adjustFlags)
 }
 
 /**
+ * Allocates and returns a copy of pMode, including pointers within pMode.
+ */
+DisplayModePtr
+i830xf86DuplicateMode(DisplayModePtr pMode)
+{
+    DisplayModePtr pNew;
+
+    pNew = xnfalloc(sizeof(DisplayModeRec));
+    *pNew = *pMode;
+    pNew->next = NULL;
+    pNew->prev = NULL;
+    if (pNew->name == NULL) {
+	i830xf86SetModeDefaultName(pMode);
+    } else {
+	pNew->name = xnfstrdup(pMode->name);
+    }
+
+    return pNew;
+}
+
+/**
+ * Duplicates every mode in the given list and returns a pointer to the first
+ * mode.
+ *
+ * \param modeList doubly-linked mode list
+ */
+DisplayModePtr
+i830xf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
+{
+    DisplayModePtr first = NULL, last = NULL;
+    DisplayModePtr mode;
+
+    for (mode = modeList; mode != NULL; mode = mode->next) {
+	DisplayModePtr new;
+
+	new = i830xf86DuplicateMode(mode);
+
+	/* Insert pNew into modeList */
+	if (last) {
+	    last->next = new;
+	    new->prev = last;
+	} else {
+	    first = new;
+	    new->prev = NULL;
+	}
+	new->next = NULL;
+	last = new;
+    }
+
+    return first;
+}
+
+/**
  * Returns true if the given modes should program to the same timings.
  *
  * This doesn't use Crtc values, as it might be used on ModeRecs without the

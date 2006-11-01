@@ -485,7 +485,6 @@ typedef struct _I830Rec {
    int availablePipes;
    /* [0] is display plane A, [1] is display plane B. */
    int planeEnabled[MAX_DISPLAY_PIPES];
-   MonPtr pipeMon[MAX_DISPLAY_PIPES];
    DisplayModeRec pipeCurMode[MAX_DISPLAY_PIPES];
 
    /* Driver phase/state information */
@@ -694,6 +693,7 @@ DisplayModePtr i830GetGTF(int h_pixels, int v_lines, float freq,
 
 /* i830_modes.c */
 int I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time);
+void i830_reprobe_output_modes(ScrnInfoPtr pScrn);
 DisplayModePtr i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output);
 
 /* i830_randr.c */

@@ -31,7 +31,7 @@
 
 #include "xf86.h"
 #include "i830.h"
-
+#include "i830_xf86Modes.h"
 static void
 i830_crt_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 {
@@ -80,6 +80,12 @@ static int
 i830_crt_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
 		    DisplayModePtr pMode)
 {
+    if (pMode->Flags & V_DBLSCAN)
+	return MODE_NO_DBLESCAN;
+
+    if (pMode->Clock > 400000 || pMode->Clock < 25000)
+	return MODE_CLOCK_RANGE;
+
     return MODE_OK;
 }
 
@@ -273,6 +279,37 @@ i830_crt_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
     return OUTPUT_STATUS_UNKNOWN;
 }
 
+static DisplayModePtr
+i830_crt_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    DisplayModePtr modes;
+    MonRec fixed_mon;
+
+    modes = i830_ddc_get_modes(pScrn, output);
+    if (modes != NULL)
+	return modes;
+
+    if (output->detect(pScrn, output) == OUTPUT_STATUS_DISCONNECTED)
+	return NULL;
+
+    /* We've got a potentially-connected monitor that we can't DDC.  Return a
+     * fixed set of VESA plus user modes for a presumed multisync monitor with
+     * some reasonable limits.
+     */
+    fixed_mon.nHsync = 1;
+    fixed_mon.hsync[0].lo = 31.0;
+    fixed_mon.hsync[0].hi = 100.0;
+    fixed_mon.nVrefresh = 1;
+    fixed_mon.vrefresh[0].lo = 50.0;
+    fixed_mon.vrefresh[0].hi = 70.0;
+
+    modes = i830xf86DuplicateModes(pScrn, pScrn->monitor->Modes);
+    i830xf86ValidateModesSync(pScrn, modes, &fixed_mon);
+    i830xf86PruneInvalidModes(pScrn, &modes, TRUE);
+
+    return modes;
+}
+
 void
 i830_crt_init(ScrnInfoPtr pScrn)
 {
@@ -286,7 +323,7 @@ i830_crt_init(ScrnInfoPtr pScrn)
     pI830->output[pI830->num_outputs].pre_set_mode = i830_crt_pre_set_mode;
     pI830->output[pI830->num_outputs].post_set_mode = i830_crt_post_set_mode;
     pI830->output[pI830->num_outputs].detect = i830_crt_detect;
-    pI830->output[pI830->num_outputs].get_modes = i830_ddc_get_modes;
+    pI830->output[pI830->num_outputs].get_modes = i830_crt_get_modes;
 
     /* Set up the DDC bus. */
     I830I2CInit(pScrn, &pI830->output[pI830->num_outputs].pDDCBus,

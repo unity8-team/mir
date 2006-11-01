@@ -423,7 +423,7 @@ i830_tv_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
  * This should probably return a set of fixed modes, unless we can figure out
  * how to probe modes off of TV connections.
  */
-DisplayModePtr
+static DisplayModePtr
 i830_tv_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     return NULL;

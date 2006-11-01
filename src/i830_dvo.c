@@ -96,6 +96,11 @@ static int
 i830_dvo_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
 		    DisplayModePtr pMode)
 {
+    if (pMode->Flags & V_DBLSCAN)
+	return MODE_NO_DBLESCAN;
+
+    /* XXX: Validate clock range */
+
     if (output->i2c_drv->vid_rec->ModeValid(output->i2c_drv->dev_priv, pMode))
 	return MODE_OK;
     else

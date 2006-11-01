@@ -260,8 +260,8 @@ i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y)
 }
 
 /**
- * In the current world order, there is a list of per-pipe modes, which may or
- * may not include the mode that was asked to be set by XFree86's mode
+ * In the current world order, there are lists of modes per output, which may
+ * or may not include the mode that was asked to be set by XFree86's mode
  * selection.  Find the closest one, in the following preference order:
  *
  * - Equality
@@ -272,21 +272,32 @@ static DisplayModePtr
 i830PipeFindClosestMode(ScrnInfoPtr pScrn, int pipe, DisplayModePtr pMode)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    DisplayModePtr pBest = NULL, pScan;
+    DisplayModePtr pBest = NULL, pScan = NULL;
+    int i;
+
+    /* Assume that there's only one output connected to the given CRTC. */
+    for (i = 0; i < pI830->num_outputs; i++) {
+	if (pI830->output[i].pipe == pipe &&
+	    !pI830->output[i].disabled &&
+	    pI830->output[i].probed_modes != NULL)
+	{
+	    pScan = pI830->output[i].probed_modes;
+	}
+    }
 
     /* If the pipe doesn't have any detected modes, just let the system try to
      * spam the desired mode in.
      */
-    if (pI830->pipeMon[pipe] == NULL) {
+    if (pScan == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "No pipe mode list for pipe %d,"
 		   "continuing with desired mode\n", pipe);
 	return pMode;
     }
 
-    assert(pScan->VRefresh != 0.0);
-    for (pScan = pI830->pipeMon[pipe]->Modes; pScan != NULL;
-	 pScan = pScan->next) {
+    for (; pScan != NULL; pScan = pScan->next) {
+	assert(pScan->VRefresh != 0.0);
+
 	/* If there's an exact match, we're done. */
 	if (I830ModesEqual(pScan, pMode)) {
 	    pBest = pMode;

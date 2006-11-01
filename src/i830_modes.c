@@ -162,27 +162,6 @@ I830PrintModes(ScrnInfoPtr scrp)
     } while (p != NULL && p != scrp->modes);
 }
 
-/**
- * Allocates and returns a copy of pMode, including pointers within pMode.
- */
-static DisplayModePtr
-I830DuplicateMode(DisplayModePtr pMode)
-{
-    DisplayModePtr pNew;
-
-    pNew = xnfalloc(sizeof(DisplayModeRec));
-    *pNew = *pMode;
-    pNew->next = NULL;
-    pNew->prev = NULL;
-    if (pNew->name == NULL) {
-	i830xf86SetModeDefaultName(pMode);
-    } else {
-	pNew->name = xnfstrdup(pMode->name);
-    }
-
-    return pNew;
-}
-
 /* This function will sort all modes according to their resolution.
  * Highest resolution first.
  */
@@ -244,7 +223,7 @@ I830GetVESAEstablishedMode(ScrnInfoPtr pScrn, int i)
 	    pMode->VDisplay == est_timings[i].vsize &&
 	    fabs(i830xf86ModeVRefresh(pMode) - est_timings[i].refresh) < 1.0)
 	{
-	    DisplayModePtr pNew = I830DuplicateMode(pMode);
+	    DisplayModePtr pNew = i830xf86DuplicateMode(pMode);
 	    i830xf86SetModeDefaultName(pNew);
 	    pNew->VRefresh = i830xf86ModeVRefresh(pMode);
 	    return pNew;
@@ -391,141 +370,6 @@ i830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
     return first;
 }
 
-/**
- * This function returns a default mode for flat panels using the timing
- * information provided by the BIOS.
- */
-static DisplayModePtr
-i830FPNativeMode(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   DisplayModePtr  new;
-   char            stmp[32];
-
-   if (pI830->PanelXRes == 0 || pI830->PanelYRes == 0)
-      return NULL;
-
-   /* Add native panel size */
-   new             = xnfcalloc(1, sizeof (DisplayModeRec));
-   sprintf(stmp, "%dx%d", pI830->PanelXRes, pI830->PanelYRes);
-   new->name       = xnfalloc(strlen(stmp) + 1);
-   strcpy(new->name, stmp);
-   new->HDisplay   = pI830->PanelXRes;
-   new->VDisplay   = pI830->PanelYRes;
-   new->HSyncStart = pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff;
-   new->HSyncEnd   = new->HSyncStart + pI830->panel_fixed_hsyncwidth;
-   new->HTotal     = new->HSyncEnd + 1;
-   new->VSyncStart = pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff;
-   new->VSyncEnd   = new->VSyncStart + pI830->panel_fixed_vsyncwidth;
-   new->VTotal     = new->VSyncEnd + 1;
-   new->Clock      = pI830->panel_fixed_clock;
-
-   new->type       = M_T_PREFERRED;
-
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	      "No valid mode specified, force to native mode\n");
-
-   return new;
-}
-
-/**
- * FP automatic modelist creation routine for using panel fitting.
- *
- * Constructs modes for any resolution less than the panel size specified by the
- * user, with the user flag set, plus standard VESA mode sizes without the user
- * flag set (for randr).
- *
- * Modes will be faked to use GTF parameters, even though at the time of being
- * programmed into the LVDS they'll end up being forced to the panel's fixed
- * mode.
- *
- * \return doubly-linked list of modes.
- */
-static DisplayModePtr
-i830GetLVDSModes(ScrnInfoPtr pScrn, char **ppModeName)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   DisplayModePtr  last       = NULL;
-   DisplayModePtr  new        = NULL;
-   DisplayModePtr  first      = NULL;
-   DisplayModePtr  p, tmp;
-   int             count      = 0;
-   int             i, width, height;
-
-   /* We have a flat panel connected to the primary display, and we
-    * don't have any DDC info.
-    */
-   for (i = 0; ppModeName[i] != NULL; i++) {
-
-      if (sscanf(ppModeName[i], "%dx%d", &width, &height) != 2)
-	 continue;
-
-      /* Note: We allow all non-standard modes as long as they do not
-       * exceed the native resolution of the panel.  Since these modes
-       * need the internal RMX unit in the video chips (and there is
-       * only one per card), this will only apply to the primary head.
-       */
-      if (width < 320 || width > pI830->PanelXRes ||
-	 height < 200 || height > pI830->PanelYRes) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Mode %s is out of range.\n",
- 		    ppModeName[i]);
-	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		    "Valid modes must be between 320x200-%dx%d\n",
-		    pI830->PanelXRes, pI830->PanelYRes);
-	 continue;
-      }
-
-      new = i830GetGTF(width, height, 60.0, FALSE, FALSE);
-      new->type |= M_T_DEFAULT;
-
-      new->next       = NULL;
-      new->prev       = last;
-
-      if (last)
-	 last->next = new;
-      last = new;
-      if (!first)
-	 first = new;
-
-      count++;
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		 "Valid mode using panel fitting: %s\n", new->name);
-   }
-
-   /* If the user hasn't specified modes, add the native mode */
-   if (!count) {
-      new = i830FPNativeMode(pScrn);
-      if (new) {
-	 I830xf86SortModes(new, &first, &last);
-	 count = 1;
-      }
-   }
-
-   /* add in all default vesa modes smaller than panel size, used for randr */
-   for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
-      if ((p->HDisplay <= pI830->PanelXRes) && (p->VDisplay <= pI830->PanelYRes)) {
-	 tmp = first;
-	 while (tmp) {
-	    if ((p->HDisplay == tmp->HDisplay) && (p->VDisplay == tmp->VDisplay)) break;
-	       tmp = tmp->next;
-	 }
-	 if (!tmp) {
-	    new = i830GetGTF(p->HDisplay, p->VDisplay, 60.0, FALSE, FALSE);
-	    new->type |= M_T_DEFAULT;
-
-	    I830xf86SortModes(new, &first, &last);
-
-	    count++;
-	 }
-      }
-   }
-
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	      "Total number of valid FP mode(s) found: %d\n", count);
-
-   return first;
-}
-
 static DisplayModePtr
 i830GetModeListTail(DisplayModePtr pModeList)
 {
@@ -562,330 +406,6 @@ i830AppendModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
 }
 
 /**
- * Duplicates every mode in the given list and returns a pointer to the first
- * mode.
- *
- * \param modeList doubly-linked mode list
- */
-static DisplayModePtr
-i830DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
-{
-    DisplayModePtr first = NULL, last = NULL;
-    DisplayModePtr mode;
-
-    for (mode = modeList; mode != NULL; mode = mode->next) {
-	DisplayModePtr new;
-
-	new = I830DuplicateMode(mode);
-
-	/* Insert pNew into modeList */
-	if (last) {
-	    last->next = new;
-	    new->prev = last;
-	} else {
-	    first = new;
-	    new->prev = NULL;
-	}
-	new->next = NULL;
-	last = new;
-    }
-
-    return first;
-}
-
-static MonPtr
-i830GetDDCMonitor(ScrnInfoPtr pScrn, I2CBusPtr pDDCBus)
-{
-    xf86MonPtr ddc;
-    MonPtr mon;
-    DisplayModePtr userModes;
-    int i;
-
-    ddc = xf86DoEDID_DDC2(pScrn->scrnIndex, pDDCBus);
-
-    if (ddc == NULL)
-	return NULL;
-
-    mon = xnfcalloc(1, sizeof(*mon));
-    mon->Modes = i830GetDDCModes(pScrn, ddc);
-    mon->DDC = ddc;
-
-    for (i = 0; i < DET_TIMINGS; i++) {
-	struct detailed_monitor_section *det_mon = &ddc->det_mon[i];
-
-	switch (ddc->det_mon[i].type) {
-	case DS_RANGES:
-	    mon->hsync[mon->nHsync].lo = det_mon->section.ranges.min_h;
-	    mon->hsync[mon->nHsync].hi = det_mon->section.ranges.max_h;
-	    mon->nHsync++;
-	    mon->vrefresh[mon->nVrefresh].lo = det_mon->section.ranges.min_v;
-	    mon->vrefresh[mon->nVrefresh].hi = det_mon->section.ranges.max_v;
-	    mon->nVrefresh++;
-	    break;
-	default:
-	    /* We probably don't care about trying to contruct ranges around
-	     * modes specified by DDC.
-	     */
-	    break;
-	}
-    }
-
-    /* Add in VESA standard and user modelines, and do additional validation
-     * on them beyond what pipe config will do (x/y/pitch, clocks, flags)
-     */
-    userModes = i830DuplicateModes(pScrn, pScrn->monitor->Modes);
-
-    i830xf86ValidateModesSync(pScrn, userModes, mon);
-    i830xf86PruneInvalidModes(pScrn, &userModes, TRUE);
-
-    i830AppendModes(pScrn, &mon->Modes, userModes);
-
-    mon->Last = i830GetModeListTail(mon->Modes);
-
-    return mon;
-}
-
-static MonPtr
-i830GetLVDSMonitor(ScrnInfoPtr pScrn)
-{
-    MonPtr mon;
-    DisplayModePtr  mode;
-
-    mon = xnfcalloc(1, sizeof(*mon));
-    mon->Modes = i830GetLVDSModes(pScrn, pScrn->display->modes);
-    mon->Last = i830GetModeListTail(mon->Modes);
-    /*
-     * Find the preferred mode, use the display resolution to compute
-     * the effective monitor size
-     */
-    for (mode = mon->Modes; mode; mode = mode->next)
-	if (mode->type & M_T_PREFERRED)
-	    break;
-    if (!mode)
-	mode = mon->Modes;
-    if (mode)
-    {
-#define MMPERINCH 25.4
-	mon->widthmm = (double) mode->HDisplay / pScrn->xDpi * MMPERINCH;
-	mon->heightmm = (double) mode->VDisplay / pScrn->yDpi * MMPERINCH;
-    }
-	
-    return mon;
-}
-
-static MonPtr
-i830GetConfiguredMonitor(ScrnInfoPtr pScrn)
-{
-    MonPtr mon;
-
-    mon = xnfcalloc(1, sizeof(*mon));
-    memcpy(mon, pScrn->monitor, sizeof(*mon));
-
-    if (pScrn->monitor->id != NULL)
-	mon->id = xnfstrdup(pScrn->monitor->id);
-    if (pScrn->monitor->vendor != NULL)
-	mon->vendor = xnfstrdup(pScrn->monitor->vendor);
-    if (pScrn->monitor->model != NULL)
-	mon->model = xnfstrdup(pScrn->monitor->model);
-
-    /* Use VESA standard and user modelines, and do additional validation
-     * on them beyond what pipe config will do (x/y/pitch, clocks, flags)
-     */
-    mon->Modes = i830DuplicateModes(pScrn, pScrn->monitor->Modes);
-    i830xf86ValidateModesSync(pScrn, mon->Modes, mon);
-    i830xf86PruneInvalidModes(pScrn, &mon->Modes, TRUE);
-    mon->Last = i830GetModeListTail(mon->Modes);
-
-    return mon;
-}
-
-static MonPtr
-i830GetDefaultMonitor(ScrnInfoPtr pScrn)
-{
-    MonPtr mon;
-
-    mon = xnfcalloc(1, sizeof(*mon));
-
-    mon->id = xnfstrdup("Unknown Id");
-    mon->vendor = xnfstrdup("Unknown Vendor");
-    mon->model = xnfstrdup("Unknown Model");
-
-    mon->nHsync = 1;
-    mon->hsync[0].lo = 31.0;
-    mon->hsync[0].hi = 100.0;
-    mon->nVrefresh = 1;
-    mon->vrefresh[0].lo = 50.0;
-    mon->vrefresh[0].hi = 70.0;
-    mon->widthmm = 400;
-    mon->heightmm = 300;
-    /* Use VESA standard and user modelines, and do additional validation
-     * on them beyond what pipe config will do (x/y/pitch, clocks, flags)
-     */
-    mon->Modes = i830DuplicateModes(pScrn, pScrn->monitor->Modes);
-    i830xf86ValidateModesSync(pScrn, mon->Modes, mon);
-    i830xf86PruneInvalidModes(pScrn, &mon->Modes, TRUE);
-    mon->Last = i830GetModeListTail(mon->Modes);
-
-    return mon;
-}
-
-static void
-i830FreeMonitor(ScrnInfoPtr pScrn, MonPtr mon)
-{
-    while (mon->Modes != NULL)
-	xf86DeleteMode(&mon->Modes, mon->Modes);
-    xfree(mon->id);
-    xfree(mon->vendor);
-    xfree(mon->model);
-    xfree(mon->DDC);
-    xfree(mon);
-}
-
-/**
- * Performs probing of modes available on the output connected to the given
- * pipe.
- *
- * We do not support multiple outputs per pipe (since the cases for that are
- * sufficiently rare we can't imagine the complexity being worth it), so
- * the pipe is a sufficient specifier.
- */
-static void
-I830ReprobePipeModeList(ScrnInfoPtr pScrn, int pipe)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    int output_index = -1;
-    int i;
-    int outputs;
-    DisplayModePtr pMode;
-    MonPtr old_mon = pI830->pipeMon[pipe];
-
-    if (pipe == 0)
-	outputs = pI830->operatingDevices & 0xff;
-    else
-	outputs = (pI830->operatingDevices >> 8) & 0xff;
-
-    for (i = 0; i < pI830->num_outputs; i++) {
-	switch (pI830->output[i].type) {
-	case I830_OUTPUT_ANALOG:
-	    if (outputs & PIPE_CRT) {
-		output_index = i;
-	    }
-	    break;
-	case I830_OUTPUT_LVDS:
-	    if (outputs & PIPE_LFP) {
-		output_index = i;
-	    }
-	    break;
-	case I830_OUTPUT_DVO:
-	    if (outputs & PIPE_DFP) {
-		output_index = i;
-	    }
-	    break;
-	case I830_OUTPUT_SDVO:
-	    if (outputs & PIPE_DFP) {
-		output_index = i;
-	    }
-	    break;
-	}
-    }
-    /* XXX: If there's no output associated with the pipe, bail for now. */
-    if (output_index == -1)
-	return;
-
-    if (outputs & PIPE_LFP) {
-	pI830->pipeMon[pipe] = i830GetLVDSMonitor(pScrn);
-    } else if (pI830->output[output_index].pDDCBus != NULL) {
-	pI830->pipeMon[pipe] =
-	    i830GetDDCMonitor(pScrn, pI830->output[output_index].pDDCBus);
-    }
-    /* If DDC didn't work (or the flat panel equivalent), then see if we can
-     * detect if a monitor is at least plugged in.  If we can't tell that one
-     * is plugged in, then assume that it is.
-     */
-    if (pI830->pipeMon[pipe] == NULL) {
-	enum detect_status detect;
-
-	detect = pI830->output[output_index].detect(pScrn,
-		&pI830->output[output_index]);
-
-	switch (pI830->output[output_index].type) {
-	case I830_OUTPUT_SDVO:
-	    if (detect == OUTPUT_STATUS_CONNECTED)
-		pI830->pipeMon[pipe] = i830GetConfiguredMonitor(pScrn);
-	    break;
-	case I830_OUTPUT_ANALOG:
-	    if (detect == OUTPUT_STATUS_CONNECTED) {
-/*		if (pipe == pI830->pipe)
-		    pI830->pipeMon[pipe] = i830GetConfiguredMonitor(pScrn);
-		else */
-		    pI830->pipeMon[pipe] = i830GetDefaultMonitor(pScrn);
-	    }
-	    break;
-	default:
-	    pI830->pipeMon[pipe] = i830GetConfiguredMonitor(pScrn);
-	    break;
-	}
-    }
-
-#ifdef DEBUG_REPROBE
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Printing probed modes for pipe %d\n",
-	       pipe);
-#endif
-    if (pI830->pipeMon[pipe] != NULL) {
-	int minclock, maxclock;
-
-	switch (pI830->output[output_index].type) {
-	case I830_OUTPUT_SDVO:
-	    minclock = 25000;
-	    maxclock = 165000;
-	case I830_OUTPUT_LVDS:
-	case I830_OUTPUT_ANALOG:
-	default:
-	    minclock = 25000;
-	    maxclock = 400000;
-	}
-
-	i830xf86ValidateModesFlags(pScrn, pI830->pipeMon[pipe]->Modes,
-				   V_INTERLACE);
-	i830xf86ValidateModesClocks(pScrn, pI830->pipeMon[pipe]->Modes,
-				    &minclock, &maxclock, 1);
-
-	i830xf86PruneInvalidModes(pScrn, &pI830->pipeMon[pipe]->Modes, TRUE);
-
-	/* silently prune modes down to ones matching the user's configuration.
-	 */
-	i830xf86ValidateModesUserConfig(pScrn, pI830->pipeMon[pipe]->Modes);
-	i830xf86PruneInvalidModes(pScrn, &pI830->pipeMon[pipe]->Modes, FALSE);
-
-	for (pMode = pI830->pipeMon[pipe]->Modes; pMode != NULL;
-	     pMode = pMode->next)
-	{
-	    /* The code to choose the best mode per pipe later on will require
-	     * VRefresh to be set.
-	     */
-	    pMode->VRefresh = i830xf86ModeVRefresh(pMode);
-	    I830xf86SetModeCrtc(pMode, INTERLACE_HALVE_V);
-#ifdef DEBUG_REPROBE
-	    PrintModeline(pScrn->scrnIndex, pMode);
-#endif
-	}
-    }
-
-    if (old_mon != NULL && pI830->pipeMon[pipe] == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Failed to probe output on pipe %d, disabling output at next "
-		   "mode switch\n", pipe);
-	if (pipe == 0)
-	    pI830->operatingDevices &= ~0x00ff;
-	else
-	    pI830->operatingDevices &= ~0xff00;
-    }
-
-    if (old_mon != NULL)
-	i830FreeMonitor(pScrn, old_mon);
-}
-
-/**
  * This function removes a mode from a list of modes.  It should probably be
  * moved to xf86Mode.c.
  *
@@ -918,28 +438,18 @@ I830xf86DeleteModeFromList(DisplayModePtr *modeList, DisplayModePtr mode)
 	    mode->next->prev = mode->prev;
     }
 }
-    
-/**
- * Probes for video modes on attached otuputs, and assembles a list to insert
- * into pScrn.
- *
- * \param first_time indicates that the memory layout has already been set up,
- * 	  so displayWidth, virtualX, and virtualY shouldn't be touched.
- *
- * A SetMode must follow this call in order for operatingDevices to match the
- * hardware's state, in case we detect a new output device.  
- */
-int
-I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
+
+void
+i830_reprobe_output_modes(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    int pipe, i;
-    DisplayModePtr saved_mode, last;
-    Bool pipes_reconfigured = FALSE;
-    int originalVirtualX, originalVirtualY;
+    Bool properties_set = FALSE;
+    int i;
 
     /* Re-probe the list of modes for each output. */
     for (i = 0; i < pI830->num_outputs; i++) {
+	DisplayModePtr mode;
+
 	while (pI830->output[i].probed_modes != NULL) {
 	    xf86DeleteMode(&pI830->output[i].probed_modes,
 			   pI830->output[i].probed_modes);
@@ -947,103 +457,66 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 
 	pI830->output[i].probed_modes =
 	    pI830->output[i].get_modes(pScrn, &pI830->output[i]);
-    }
 
-    for (pipe = 0; pipe < pI830->availablePipes; pipe++) {
-	I830ReprobePipeModeList(pScrn, pipe);
-    }
-
-    /* If we've got a spare pipe, try to detect if a new CRT has been plugged
-     * in.
-     */
-    if ((pI830->operatingDevices & (PIPE_CRT | (PIPE_CRT << 8))) == 0) {
-	if ((pI830->operatingDevices & 0xff) == PIPE_NONE) {
-	    pI830->operatingDevices |= PIPE_CRT;
-	    I830ReprobePipeModeList(pScrn, 0);
-	    if (pI830->pipeMon[0] == NULL) {
-		/* No new output found. */
-		pI830->operatingDevices &= ~PIPE_CRT;
-	    } else {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Enabled new CRT on pipe A\n");
-		pipes_reconfigured = TRUE;
-		/* Clear the current mode, so we reprogram the pipe for sure. */
-		memset(&pI830->pipeCurMode[0], 0, sizeof(pI830->pipeCurMode[0]));
-	    }
-	} else if (((pI830->operatingDevices >> 8) & 0xff) == PIPE_NONE) {
-	    pI830->operatingDevices |= PIPE_CRT << 8;
-	    I830ReprobePipeModeList(pScrn, 1);
-	    if (pI830->pipeMon[1] == NULL) {
-		/* No new output found. */
-		pI830->operatingDevices &= ~(PIPE_CRT << 8);
-	    } else {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Enabled new CRT on pipe B\n");
-		pipes_reconfigured = TRUE;
-		/* Clear the current mode, so we reprogram the pipe for sure. */
-		memset(&pI830->pipeCurMode[1], 0, sizeof(pI830->pipeCurMode[1]));
-	    }
-	}
-    }
-
-    if ((pI830->pipeMon[0] == NULL || pI830->pipeMon[0]->Modes == NULL) &&
-	(pI830->pipeMon[1] == NULL || pI830->pipeMon[1]->Modes == NULL))
-    {
-	FatalError("No modes found on either pipe\n");
-    }
-
-    if (first_time) {
-	int maxX = -1, maxY = -1;
-
-	/* Set up a virtual size that will cover any clone mode we'd want to set
-	 * for either of the two pipes.
+	/* Set the DDC properties to whatever first output has DDC information.
 	 */
-	for (pipe = 0; pipe < pI830->availablePipes; pipe++) {
-	    MonPtr mon = pI830->pipeMon[pipe];
-	    DisplayModePtr mode;
-
-	    if (mon == NULL)
-		continue;
-
-	    for (mode = mon->Modes; mode != NULL; mode = mode->next) {
-		if (mode->HDisplay > maxX)
-		    maxX = mode->HDisplay;
-		if (mode->VDisplay > maxY)
-		    maxY = mode->VDisplay;
-	    }
+	if (pI830->output[i].MonInfo != NULL && !properties_set) {
+	    xf86SetDDCproperties(pScrn, pI830->output[i].MonInfo);
+	    properties_set = TRUE;
 	}
-	/* let the user specify a bigger virtual size if they like */
-	if (pScrn->display->virtualX > maxX)
-	    maxX = pScrn->display->virtualX;
-	if (pScrn->display->virtualY > maxY)
-	    maxY = pScrn->display->virtualY;
-	pScrn->virtualX = maxX;
-	pScrn->virtualY = maxY;
-	pScrn->displayWidth = (maxX + 63) & ~63;
-    }
 
-    I830GetOriginalVirtualSize(pScrn, &originalVirtualX, &originalVirtualY);
+	if (pI830->output[i].probed_modes != NULL) {
+	    /* silently prune modes down to ones matching the user's
+	     * configuration.
+	     */
+	    i830xf86ValidateModesUserConfig(pScrn,
+					    pI830->output[i].probed_modes);
+	    i830xf86PruneInvalidModes(pScrn, &pI830->output[i].probed_modes,
+				      FALSE);
+	}
 
-    /* Disable modes that are larger than the virtual size we decided on
-     * initially.
-     */
-    if (!first_time) {
-	for (pipe = 0; pipe < pI830->availablePipes; pipe++) {
-	    MonPtr mon = pI830->pipeMon[pipe];
-	    DisplayModePtr mode;
+#ifdef DEBUG_REPROBE
+	if (pI830->output[i].probed_modes != NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Printing probed modes for output %s\n",
+		       i830_output_type_names[pI830->output[i].type]);
+	} else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "No remaining probed modes for output %s\n",
+		       i830_output_type_names[pI830->output[i].type]);
+	}
+#endif
+	for (mode = pI830->output[i].probed_modes; mode != NULL;
+	     mode = mode->next)
+	{
+	    /* The code to choose the best mode per pipe later on will require
+	     * VRefresh to be set.
+	     */
+	    mode->VRefresh = i830xf86ModeVRefresh(mode);
+	    I830xf86SetModeCrtc(mode, INTERLACE_HALVE_V);
 
-	    if (mon == NULL)
-		continue;
-
-	    for (mode = mon->Modes; mode != NULL; mode = mode->next)
-	    {
-		if (mode->HDisplay > originalVirtualX)
-		    mode->status = MODE_VIRTUAL_X;
-		if (mode->VDisplay > originalVirtualY)
-		    mode->status = MODE_VIRTUAL_Y;
-	    }
+#ifdef DEBUG_REPROBE
+	    PrintModeline(pScrn->scrnIndex, mode);
+#endif
 	}
     }
+}
+
+/**
+ * Constructs pScrn->modes from the output mode lists.
+ *
+ * Currently it only takes one output's mode list and stuffs it into the
+ * XFree86 DDX mode list while trimming it for root window size.
+ *
+ * This should be obsoleted by RandR 1.2 hopefully.
+ */
+static void
+i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    DisplayModePtr saved_mode, last;
+    int originalVirtualX, originalVirtualY;
+    int i;
 
     /* Remove the current mode from the modelist if we're re-validating, so we
      * can find a new mode to map ourselves to afterwards.
@@ -1057,29 +530,33 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
     while (pScrn->modes != NULL)
 	xf86DeleteMode(&pScrn->modes, pScrn->modes);
 
-    /* Set pScrn->modes to the mode list for the an arbitrary head.
+    /* Set pScrn->modes to the mode list for an arbitrary output.
      * pScrn->modes should only be used for XF86VidMode now, which we don't
      * care about enough to make some sort of unioned list.
      */
-    if (pI830->pipeMon[1] != NULL) {
-	pScrn->modes = i830DuplicateModes(pScrn, pI830->pipeMon[1]->Modes);
-    } else {
-	pScrn->modes = i830DuplicateModes(pScrn, pI830->pipeMon[0]->Modes);
-    }
-    if (pScrn->modes == NULL) {
-	FatalError("No modes found\n");
+    for (i = 0; i < pI830->num_outputs; i++) {
+	if (pI830->output[i].probed_modes != NULL) {
+	    pScrn->modes =
+		i830xf86DuplicateModes(pScrn, pI830->output[i].probed_modes);
+	    break;
+	}
     }
 
-    /* Don't let pScrn->modes have modes larger than the max root window size.
-     * We don't really care about the monitors having it, particularly since we
-     * eventually want randr to be able to move to those sizes.
+    I830GetOriginalVirtualSize(pScrn, &originalVirtualX, &originalVirtualY);
+
+    /* Disable modes in the XFree86 DDX list that are larger than the current
+     * virtual size.
      */
     i830xf86ValidateModesSize(pScrn, pScrn->modes,
 			      originalVirtualX, originalVirtualY,
 			      pScrn->displayWidth);
 
-    /* Strip out anything bad that we threw out for virtualX. */
+    /* Strip out anything that we threw out for virtualX/Y. */
     i830xf86PruneInvalidModes(pScrn, &pScrn->modes, TRUE);
+
+    if (pScrn->modes == NULL) {
+	FatalError("No modes left for XFree86 DDX\n");
+    }
 
     /* For some reason, pScrn->modes is circular, unlike the other mode lists.
      * How great is that?
@@ -1088,25 +565,70 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
     last->next = pScrn->modes;
     pScrn->modes->prev = last;
 
-#if DEBUG_REPROBE
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Modes post revalidate\n");
-    do {
-	DisplayModePtr pMode;
-
-	for (pMode = pScrn->modes; ; pMode = pMode->next) {
-	    PrintModeline(pScrn->scrnIndex, pMode);
-	    if (pMode->next == pScrn->modes)
-		break;
-	}
-    } while (0);
-#endif
-
     /* Save a pointer to the previous current mode.  We can't reset
      * pScrn->currentmode, because we rely on xf86SwitchMode's shortcut not
      * happening so we can hot-enable devices at SwitchMode.  We'll notice this
      * case at SwitchMode and free the saved mode.
      */
     pI830->savedCurrentMode = saved_mode;
+}
+
+/**
+ * Takes the output mode lists and decides the default root window size
+ * and framebuffer pitch.
+ */
+static void
+i830_set_default_screen_size(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int maxX = -1, maxY = -1;
+    int i;
+
+    /* Set up a virtual size that will cover any clone mode we'd want to
+     * set for the currently-connected outputs.
+     */
+    for (i = 0; i < pI830->num_outputs; i++) {
+	DisplayModePtr mode;
+
+	for (mode = pI830->output[i].probed_modes; mode != NULL;
+	     mode = mode->next)
+	{
+	    if (mode->HDisplay > maxX)
+		maxX = mode->HDisplay;
+	    if (mode->VDisplay > maxY)
+		maxY = mode->VDisplay;
+	}
+    }
+    /* let the user specify a bigger virtual size if they like */
+    if (pScrn->display->virtualX > maxX)
+	maxX = pScrn->display->virtualX;
+    if (pScrn->display->virtualY > maxY)
+	maxY = pScrn->display->virtualY;
+    pScrn->virtualX = maxX;
+    pScrn->virtualY = maxY;
+    pScrn->displayWidth = (maxX + 63) & ~63;
+}
+
+/**
+ * Probes for video modes on attached otuputs, and assembles a list to insert
+ * into pScrn.
+ *
+ * \param first_time indicates that the memory layout has already been set up,
+ * 	  so displayWidth, virtualX, and virtualY shouldn't be touched.
+ *
+ * A SetMode must follow this call in order for operatingDevices to match the
+ * hardware's state, in case we detect a new output device.
+ */
+int
+I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
+{
+    i830_reprobe_output_modes(pScrn);
+
+    if (first_time) {
+	i830_set_default_screen_size(pScrn);
+    }
+
+    i830_set_xf86_modes_from_outputs(pScrn);
 
     return 1; /* XXX */
 }
@@ -1118,13 +640,31 @@ DisplayModePtr
 i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     xf86MonPtr ddc_mon;
-    DisplayModePtr ddc_modes;
+    DisplayModePtr ddc_modes, mode;
 
     ddc_mon = xf86DoEDID_DDC2(pScrn->scrnIndex, output->pDDCBus);
     if (ddc_mon == NULL)
 	return NULL;
 
+    if (output->MonInfo != NULL)
+	xfree(output->MonInfo);
+    output->MonInfo = ddc_mon;
+
+    /* Debug info for now, at least */
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %s\n",
+	       i830_output_type_names[output->type]);
+    xf86PrintEDID(output->MonInfo);
+
     ddc_modes = i830GetDDCModes(pScrn, ddc_mon);
+
+    /* Strip out any modes that can't be supported on this output. */
+    for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+	int status = output->mode_valid(pScrn, output, mode);
+
+	if (status != MODE_OK)
+	    mode->status = status;
+    }
+    i830xf86PruneInvalidModes(pScrn, &ddc_modes, TRUE);
 
     xfree(ddc_mon);
 

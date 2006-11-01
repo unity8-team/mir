@@ -66,8 +66,8 @@ struct i830_sdvo_priv {
      */
     struct i830_sdvo_caps caps;
 
-    /** Pixel clock limitations reported by the SDVO device */
-    CARD16 pixel_clock_min, pixel_clock_max;
+    /** Pixel clock limitations reported by the SDVO device, in kHz */
+    int pixel_clock_min, pixel_clock_max;
 
     /** State for save/restore */
     /** @{ */
@@ -323,9 +323,12 @@ i830_sdvo_set_active_outputs(I830OutputPtr output,
     return (status == SDVO_CMD_STATUS_SUCCESS);
 }
 
+/**
+ * Returns the pixel clock range limits of the current target input in kHz.
+ */
 static Bool
-i830_sdvo_get_input_pixel_clock_range(I830OutputPtr output, CARD16 *clock_min,
-				      CARD16 *clock_max)
+i830_sdvo_get_input_pixel_clock_range(I830OutputPtr output, int *clock_min,
+				      int *clock_max)
 {
     struct i830_sdvo_pixel_clock_range clocks;
     CARD8 status;
@@ -337,8 +340,9 @@ i830_sdvo_get_input_pixel_clock_range(I830OutputPtr output, CARD16 *clock_min,
     if (status != SDVO_CMD_STATUS_SUCCESS)
 	return FALSE;
 
-    *clock_min = clocks.min;
-    *clock_max = clocks.max;
+    /* Convert the values from units of 10 kHz to kHz. */
+    *clock_min = clocks.min * 10;
+    *clock_max = clocks.max * 10;
 
     return TRUE;
 }
@@ -735,6 +739,9 @@ i830_sdvo_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
 {
     struct i830_sdvo_priv *dev_priv = output->dev_priv;
 
+    if (pMode->Flags & V_DBLSCAN)
+	return MODE_NO_DBLESCAN;
+
     if (dev_priv->pixel_clock_min > pMode->Clock)
 	return MODE_CLOCK_HIGH;
 
@@ -1035,10 +1042,13 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "SDVO device VID/DID: %02X:%02X.%02X, "
+	       "clock range %.1fMHz - %.1fMHz, "
 	       "input 1: %c, input 2: %c, "
 	       "output 1: %c, output 2: %c\n",
 	       dev_priv->caps.vendor_id, dev_priv->caps.device_id,
 	       dev_priv->caps.device_rev_id,
+	       dev_priv->pixel_clock_min / 1000.0,
+	       dev_priv->pixel_clock_max / 1000.0,
 	       (dev_priv->caps.sdvo_inputs_mask & 0x1) ? 'Y' : 'N',
 	       (dev_priv->caps.sdvo_inputs_mask & 0x2) ? 'Y' : 'N',
 	       dev_priv->caps.output_flags.tmds0 ? 'Y' : 'N',
