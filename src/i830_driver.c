@@ -352,7 +352,6 @@ I830GetRec(ScrnInfoPtr pScrn)
    if (pScrn->driverPrivate)
       return TRUE;
    pI830 = pScrn->driverPrivate = xnfcalloc(sizeof(I830Rec), 1);
-   pI830->vesa = xnfcalloc(sizeof(VESARec), 1);
    return TRUE;
 }
 
@@ -360,7 +359,6 @@ static void
 I830FreeRec(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830;
-   VESAPtr pVesa;
 
    if (!pScrn)
       return;
@@ -373,11 +371,6 @@ I830FreeRec(ScrnInfoPtr pScrn)
       if (pI830->pVbe)
          vbeFree(pI830->pVbe);
    }
-
-   pVesa = pI830->vesa;
-   if (pVesa->savedPal)
-      xfree(pVesa->savedPal);
-   xfree(pVesa);
 
    xfree(pScrn->driverPrivate);
    pScrn->driverPrivate = NULL;

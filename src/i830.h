@@ -106,18 +106,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #define PIPE_DFP2	1<<6
 #define PIPE_LFP2	1<<7
 
-typedef struct _VESARec {
-   /* SVGA state */
-   pointer state, pstate;
-   int statePage, stateSize, stateMode, stateRefresh;
-   CARD32 *savedPal;
-   int savedScanlinePitch;
-   xf86MonPtr monitor;
-   /* display start */
-   int x, y;
-} VESARec, *VESAPtr;
-
-
 typedef struct _I830Rec *I830Ptr;
 
 typedef void (*I830WriteIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
@@ -480,7 +468,6 @@ typedef struct _I830Rec {
 
    /* Video BIOS support. */
    vbeInfoPtr pVbe;
-   VESAPtr vesa;
 
    Bool swfSaved;
    CARD32 saveSWF0;
