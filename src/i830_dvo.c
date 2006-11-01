@@ -201,6 +201,7 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     pI830->output[i].pre_set_mode  = i830_dvo_pre_set_mode;
     pI830->output[i].post_set_mode  = i830_dvo_post_set_mode;
     pI830->output[i].detect  = i830_dvo_detect;
+    pI830->output[i].get_modes = i830_ddc_get_modes;
 
     /* Set up the I2C and DDC buses */
     ret = I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");

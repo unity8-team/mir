@@ -269,6 +269,20 @@ struct _I830OutputRec {
     */
    enum detect_status (*detect)(ScrnInfoPtr pScrn, I830OutputPtr output);
 
+   /**
+    * Query the device for the modes it provides.
+    *
+    * \return singly-linked list of modes or NULL if no modes found.
+    */
+   DisplayModePtr (*get_modes)(ScrnInfoPtr pScrn, I830OutputPtr output);
+
+   /**
+    * List of available modes on this output.
+    *
+    * This should be the list from get_modes(), plus perhaps additional
+    * compatible modes added later.
+    */
+   DisplayModePtr probed_modes;
    xf86MonPtr MonInfo;
    I2CBusPtr pI2CBus;
    I2CBusPtr pDDCBus;
@@ -680,6 +694,7 @@ DisplayModePtr i830GetGTF(int h_pixels, int v_lines, float freq,
 
 /* i830_modes.c */
 int I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time);
+DisplayModePtr i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output);
 
 /* i830_randr.c */
 Bool I830RandRCreateScreenResources (ScreenPtr pScreen);

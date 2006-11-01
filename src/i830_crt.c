@@ -286,6 +286,7 @@ i830_crt_init(ScrnInfoPtr pScrn)
     pI830->output[pI830->num_outputs].pre_set_mode = i830_crt_pre_set_mode;
     pI830->output[pI830->num_outputs].post_set_mode = i830_crt_post_set_mode;
     pI830->output[pI830->num_outputs].detect = i830_crt_detect;
+    pI830->output[pI830->num_outputs].get_modes = i830_ddc_get_modes;
 
     /* Set up the DDC bus. */
     I830I2CInit(pScrn, &pI830->output[pI830->num_outputs].pDDCBus,

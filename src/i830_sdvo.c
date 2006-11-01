@@ -940,6 +940,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     output->pre_set_mode = i830_sdvo_pre_set_mode;
     output->post_set_mode = i830_sdvo_post_set_mode;
     output->detect = i830_sdvo_detect;
+    output->get_modes = i830_ddc_get_modes;
 
     /* While it's the same bus, we just initialize a new copy to avoid trouble
      * with tracking refcounting ourselves, since the XFree86 DDX bits don't.

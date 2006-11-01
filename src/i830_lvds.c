@@ -235,6 +235,11 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     pI830->output[pI830->num_outputs].pre_set_mode = i830_lvds_pre_set_mode;
     pI830->output[pI830->num_outputs].post_set_mode = i830_lvds_post_set_mode;
     pI830->output[pI830->num_outputs].detect = i830_lvds_detect;
+    /* This will usually return NULL on laptop panels, which is no good.
+     * We need to construct a mode from the fixed panel info, and return a copy
+     * of that when DDC is unavailable.
+     */
+    pI830->output[pI830->num_outputs].get_modes = i830_ddc_get_modes;
 
     /* Set up the LVDS DDC channel.  Most panels won't support it, but it can
      * be useful if available.

@@ -417,6 +417,18 @@ i830_tv_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
     return OUTPUT_STATUS_UNKNOWN;
 }
 
+/**
+ * Stub get_modes function.
+ *
+ * This should probably return a set of fixed modes, unless we can figure out
+ * how to probe modes off of TV connections.
+ */
+DisplayModePtr
+i830_tv_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    return NULL;
+}
+
 void
 i830_tv_init(ScrnInfoPtr pScrn)
 {
@@ -438,6 +450,7 @@ i830_tv_init(ScrnInfoPtr pScrn)
     pI830->output[pI830->num_outputs].pre_set_mode = i830_tv_pre_set_mode;
     pI830->output[pI830->num_outputs].post_set_mode = i830_tv_post_set_mode;
     pI830->output[pI830->num_outputs].detect = i830_tv_detect;
+    pI830->output[pI830->num_outputs].get_modes = i830_tv_get_modes;
 
     pI830->num_outputs++;
 }

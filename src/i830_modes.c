@@ -933,10 +933,21 @@ int
 I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    int pipe;
+    int pipe, i;
     DisplayModePtr saved_mode, last;
     Bool pipes_reconfigured = FALSE;
     int originalVirtualX, originalVirtualY;
+
+    /* Re-probe the list of modes for each output. */
+    for (i = 0; i < pI830->num_outputs; i++) {
+	while (pI830->output[i].probed_modes != NULL) {
+	    xf86DeleteMode(&pI830->output[i].probed_modes,
+			   pI830->output[i].probed_modes);
+	}
+
+	pI830->output[i].probed_modes =
+	    pI830->output[i].get_modes(pScrn, &pI830->output[i]);
+    }
 
     for (pipe = 0; pipe < pI830->availablePipes; pipe++) {
 	I830ReprobePipeModeList(pScrn, pipe);
@@ -1098,4 +1109,24 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
     pI830->savedCurrentMode = saved_mode;
 
     return 1; /* XXX */
+}
+
+/**
+ * Generic get_modes function using DDC, used by many outputs.
+ */
+DisplayModePtr
+i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    xf86MonPtr ddc_mon;
+    DisplayModePtr ddc_modes;
+
+    ddc_mon = xf86DoEDID_DDC2(pScrn->scrnIndex, output->pDDCBus);
+    if (ddc_mon == NULL)
+	return NULL;
+
+    ddc_modes = i830GetDDCModes(pScrn, ddc_mon);
+
+    xfree(ddc_mon);
+
+    return ddc_modes;
 }

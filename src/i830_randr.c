@@ -612,7 +612,6 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
     int			p;
     int			clone_types;
     int			crtc_types;
-    int			connection;
     int			pipe_type;
     int			pipe;
     int			subpixel;
@@ -631,6 +630,8 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 			  randrp->virtualX, randrp->virtualY);
     for (i = 0; i < pI830->num_outputs; i++)
     {
+	MonPtr mon;
+
 	output = &pI830->output[i];
 	/*
 	 * Valid crtcs
@@ -705,50 +706,53 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
         nmode = 0;
 	npreferred = 0;
 	rrmodes = NULL;
-	if (pipe >= 0)
-	{
-	    MonPtr  mon = pI830->pipeMon[pipe];
-	    modes = mon->Modes;
 
-	    for (mode = modes; mode; mode = mode->next)
-		nmode++;
+	modes = pI830->output[i].probed_modes;
 
-	    if (nmode)
-	    {
-		rrmodes = xalloc (nmode * sizeof (RRModePtr));
-		if (!rrmodes)
-		    return FALSE;
-		nmode = 0;
-		for (p = 1; p >= 0; p--)
-		{
-		    for (mode = modes; mode; mode = mode->next)
-		    {
-			if ((p != 0) == ((mode->type & M_T_PREFERRED) != 0))
-			{
-			    modeInfo.nameLength = strlen (mode->name);
+	if (pI830->output[i].pipe >= 0)
+	    mon = pI830->pipeMon[pipe];
+	else
+	    mon = NULL;
+
+	for (mode = modes; mode; mode = mode->next)
+	    nmode++;
+
+	if (nmode) {
+	    rrmodes = xalloc (nmode * sizeof (RRModePtr));
+	    if (!rrmodes)
+		return FALSE;
+	    nmode = 0;
+
+	    for (p = 1; p >= 0; p--) {
+		for (mode = modes; mode; mode = mode->next) {
+		    if ((p != 0) == ((mode->type & M_T_PREFERRED) != 0)) {
+			modeInfo.nameLength = strlen (mode->name);
+			if (mon != NULL) {
 			    modeInfo.mmWidth = mon->widthmm;
 			    modeInfo.mmHeight = mon->heightmm;
+			} else {
+			    modeInfo.mmWidth = 0;
+			    modeInfo.mmHeight = 0;
+			}
 
-			    modeInfo.width = mode->HDisplay;
-			    modeInfo.dotClock = mode->Clock * 1000;
-			    modeInfo.hSyncStart = mode->HSyncStart;
-			    modeInfo.hSyncEnd = mode->HSyncEnd;
-			    modeInfo.hTotal = mode->HTotal;
-			    modeInfo.hSkew = mode->HSkew;
+			modeInfo.width = mode->HDisplay;
+			modeInfo.dotClock = mode->Clock * 1000;
+			modeInfo.hSyncStart = mode->HSyncStart;
+			modeInfo.hSyncEnd = mode->HSyncEnd;
+			modeInfo.hTotal = mode->HTotal;
+			modeInfo.hSkew = mode->HSkew;
 
-			    modeInfo.height = mode->VDisplay;
-			    modeInfo.vSyncStart = mode->VSyncStart;
-			    modeInfo.vSyncEnd = mode->VSyncEnd;
-			    modeInfo.vTotal = mode->VTotal;
-			    modeInfo.modeFlags = mode->Flags;
+			modeInfo.height = mode->VDisplay;
+			modeInfo.vSyncStart = mode->VSyncStart;
+			modeInfo.vSyncEnd = mode->VSyncEnd;
+			modeInfo.vTotal = mode->VTotal;
+			modeInfo.modeFlags = mode->Flags;
 
-			    rrmode = RRModeGet (pScreen, &modeInfo, mode->name);
-			    rrmode->devPrivate = mode;
-			    if (rrmode)
-			    {
-				rrmodes[nmode++] = rrmode;
-				npreferred += p;
-			    }
+			rrmode = RRModeGet (pScreen, &modeInfo, mode->name);
+			rrmode->devPrivate = mode;
+			if (rrmode) {
+			    rrmodes[nmode++] = rrmode;
+			    npreferred += p;
 			}
 		    }
 		}
