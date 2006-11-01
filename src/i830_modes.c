@@ -641,6 +641,7 @@ i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     xf86MonPtr ddc_mon;
     DisplayModePtr ddc_modes, mode;
+    int i;
 
     ddc_mon = xf86DoEDID_DDC2(pScrn->scrnIndex, output->pDDCBus);
     if (ddc_mon == NULL)
@@ -666,7 +667,17 @@ i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
     }
     i830xf86PruneInvalidModes(pScrn, &ddc_modes, TRUE);
 
-    xfree(ddc_mon);
+    /* Pull out a phyiscal size from a detailed timing if available. */
+    for (i = 0; i < 4; i++) {
+	if (ddc_mon->det_mon[i].type == DT &&
+	    ddc_mon->det_mon[i].section.d_timings.h_size != 0 &&
+	    ddc_mon->det_mon[i].section.d_timings.v_size != 0)
+	{
+	    output->mm_width = ddc_mon->det_mon[i].section.d_timings.h_size;
+	    output->mm_height = ddc_mon->det_mon[i].section.d_timings.v_size;
+	    break;
+	}
+    }
 
     return ddc_modes;
 }

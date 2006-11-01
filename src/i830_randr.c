@@ -698,12 +698,8 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 	    return FALSE;
 
 	RROutputSetCrtc (randrp->outputs[i], crtc);
-
-	/* We should pull info out of EDID to get the output physical
-	 * size when available.
-	 */
-	RROutputSetPhysicalSize(randrp->outputs[i], 0, 0);
-
+	RROutputSetPhysicalSize(randrp->outputs[i], pI830->output[i].mm_width,
+				pI830->output[i].mm_height);
 	RROutputSetPossibleOptions (randrp->outputs[i], possibleOptions);
 	RROutputSetCurrentOptions (randrp->outputs[i], currentOptions);
         nmode = 0;

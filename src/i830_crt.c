@@ -32,6 +32,7 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i830_xf86Modes.h"
+
 static void
 i830_crt_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 {

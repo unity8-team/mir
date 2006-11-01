@@ -272,6 +272,8 @@ struct _I830OutputRec {
    /**
     * Query the device for the modes it provides.
     *
+    * This function may also update MonInfo, mm_width, and mm_height.
+    *
     * \return singly-linked list of modes or NULL if no modes found.
     */
    DisplayModePtr (*get_modes)(ScrnInfoPtr pScrn, I830OutputPtr output);
@@ -283,7 +285,13 @@ struct _I830OutputRec {
     * compatible modes added later.
     */
    DisplayModePtr probed_modes;
+
+   /** EDID monitor information */
    xf86MonPtr MonInfo;
+
+   /** Physical size of the output currently attached. */
+   int mm_width, mm_height;
+
    I2CBusPtr pI2CBus;
    I2CBusPtr pDDCBus;
    struct _I830DVODriver *i2c_drv;
