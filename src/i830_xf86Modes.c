@@ -100,8 +100,7 @@ i830xf86SetModeDefaultName(DisplayModePtr mode)
     if (mode->name != NULL)
 	xfree(mode->name);
 
-    mode->name = XNFprintf("%dx%dx%.0f", mode->HDisplay, mode->VDisplay,
-			   i830xf86ModeVRefresh(mode));
+    mode->name = XNFprintf("%dx%d", mode->HDisplay, mode->VDisplay);
 }
 
 /*
