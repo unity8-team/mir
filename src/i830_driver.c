@@ -6514,7 +6514,7 @@ I830VESASetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode bandwidth is %d Mpixel/s\n",
 	      pMode->HDisplay * pMode->VDisplay * refresh / 1000000);
-
+   if (0)
    {
       int maxBandwidth, bandwidthA, bandwidthB;
 
