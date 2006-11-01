@@ -60,34 +60,36 @@
 #define NV_DMA_CONTEXT_FLAGS_MONO 0x8
 
 enum DMAObjects {
-        NvContextSurfaces = 0x80000010, 
-        NvRop = 0x80000011, 
-        NvImagePattern = 0x80000012, 
-        NvClipRectangle = 0x80000013, 
-        NvSolidLine = 0x80000014, 
-        NvImageBlit = 0x80000015, 
-        NvRectangle = 0x80000016, 
-        NvScaledImage = 0x80000017, 
-        NvMemFormat = 0x80000018,
-        NvDmaFB = 0xD8000001,
-        NvDmaAGP = 0xD8000002,
-        NvDmaNotifier0 = 0xD8000003
+	NvContextSurfaces	= 0x80000010, 
+	NvRop			= 0x80000011, 
+	NvImagePattern		= 0x80000012, 
+	NvClipRectangle		= 0x80000013, 
+	NvSolidLine		= 0x80000014, 
+	NvImageBlit		= 0x80000015, 
+	NvRectangle		= 0x80000016, 
+	NvScaledImage		= 0x80000017, 
+	NvMemFormat		= 0x80000018,
+	Nv3D			= 0x80000019,
+	NvDmaFB			= 0xD8000001,
+	NvDmaAGP		= 0xD8000002,
+	NvDmaNotifier0		= 0xD8000003
 };
 
 enum DMASubchannel {
 /* EXA + XAA + Xv */
-        NvSubContextSurfaces = 0, 
-		NvSubRectangle = 1, 
-        NvSubScaledImage = 2, 
+	NvSubContextSurfaces	= 0, 
+	NvSubRectangle		= 1, 
+	NvSubScaledImage	= 2, 
 /* EXA + XAA */
-        NvSubRop = 3, 
-        NvSubImagePattern = 4, 
-        NvSubImageBlit = 5, 
+	NvSubRop		= 3, 
+	NvSubImagePattern	= 4, 
+	NvSubImageBlit		= 5, 
 /* EXA */
-        NvSubMemFormat = 6,
+	NvSubMemFormat		= 6,
+	NvSub3D			= 7,
 /* XAA */
-        NvSubClipRectangle = 6, 
-        NvSubSolidLine = 7, 
+	NvSubClipRectangle	= 6, 
+	NvSubSolidLine		= 7, 
 };
 
 #define NVDmaNext(pNv, data) {                           \

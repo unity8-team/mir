@@ -130,8 +130,13 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 	NVDmaSetObjectOnSubchannel(pNv, NvSubRop         , NvRop            );
 	NVDmaSetObjectOnSubchannel(pNv, NvSubImagePattern, NvImagePattern   );
 	NVDmaSetObjectOnSubchannel(pNv, NvSubImageBlit   , NvImageBlit      );
-	if (pNv->useEXA && pNv->AGPScratch) {
-		NVDmaSetObjectOnSubchannel(pNv, NvSubMemFormat, NvMemFormat);
+	if (pNv->useEXA) {
+		if (pNv->AGPScratch)
+			NVDmaSetObjectOnSubchannel(pNv, NvSubMemFormat, NvMemFormat);
+		if (pNv->use3D) {
+			NVDmaSetObjectOnSubchannel(pNv, NvSub3D, Nv3D);
+			pNv->Reset3D(pNv);
+		}
 	} else if (!pNv->useEXA) {
 		NVDmaSetObjectOnSubchannel(pNv, NvSubClipRectangle, NvClipRectangle);
 		NVDmaSetObjectOnSubchannel(pNv, NvSubSolidLine, NvSolidLine);
@@ -435,7 +440,41 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 				 pNv->WaitVSyncPossible ? NV12_IMAGE_BLIT : NV_IMAGE_BLIT,
 				 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND, 
 				 NvDmaFB, NvDmaFB, 0);
-	if (!pNv->useEXA) {
+	if (pNv->useEXA) {
+		unsigned int class_3d = 0;
+
+#ifdef NV_ENABLE_3D
+		switch (pNv->Architecture) {
+		case NV_ARCH_30:
+		case NV_ARCH_40:
+			//pNv->Reset3D = NV30EXAResetGraphics;
+			switch (pNv->Chipset) {
+			case CHIPSET_NV40:
+				class_3d = NV30_TCL_PRIMITIVE_3D|0x4000;
+				break;
+			case CHIPSET_C51:
+				class_3d = NV30_TCL_PRIMITIVE_3D|0x4400;
+				break;
+			default:
+				break;
+			}
+		default:
+			break;
+		}
+
+		if (class_3d) {
+			NVDmaCreateContextObject(pNv, Nv3D, class_3d,
+						 0,
+						 0, 0, 0);
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					"Enabled experimental EXA-on-3D code\n");
+			//pNv->use3D = 1;
+		} else {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+					"Unknown chipset - not using 3D for EXA\n");
+		}
+#endif
+	} else {
 		NVDmaCreateContextObject(pNv, NvClipRectangle,
 					 NV_IMAGE_BLACK_RECTANGLE, 
 					 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,

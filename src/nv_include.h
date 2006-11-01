@@ -69,11 +69,13 @@
 #endif
 
 #define NV_DMA_DEBUG 0
+#define NV_ENABLE_3D
 #include "nv_local.h"
 #include "nv_type.h"
 #include "nv_proto.h"
 #include "nv_dma.h"
 #include "nouveau_drm.h"
+#include "nouveau_reg.h"
 #include "nvreg.h"
 
 #endif /* __NV_INCLUDE_H__ */
