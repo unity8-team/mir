@@ -723,17 +723,15 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 		return FALSE;
 	    nmode = 0;
 
+	    /* We should pull info out of EDID to get the output physical
+	     * size when available.
+	     */
+	    RROutputSetPhysicalSize(randrp->outputs[i], 0, 0);
+
 	    for (p = 1; p >= 0; p--) {
 		for (mode = modes; mode; mode = mode->next) {
 		    if ((p != 0) == ((mode->type & M_T_PREFERRED) != 0)) {
 			modeInfo.nameLength = strlen (mode->name);
-			if (mon != NULL) {
-			    modeInfo.mmWidth = mon->widthmm;
-			    modeInfo.mmHeight = mon->heightmm;
-			} else {
-			    modeInfo.mmWidth = 0;
-			    modeInfo.mmHeight = 0;
-			}
 
 			modeInfo.width = mode->HDisplay;
 			modeInfo.dotClock = mode->Clock * 1000;
