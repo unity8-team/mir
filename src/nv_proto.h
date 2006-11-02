@@ -65,6 +65,11 @@ void   NVSetRopSolid(ScrnInfoPtr pScrn, CARD32 rop, CARD32 planemask);
 /* in nv_exa.c */
 Bool NVExaInit(ScreenPtr pScreen);
 
+/* in nv30_exa.c */
+Bool NV30EXAPreInit(ScrnInfoPtr pScrn);
+void NV30EXAResetGraphics(NVPtr pNv);
+void NV30EXAInstallHooks(NVPtr pNv);
+
 /* in riva_hw.c */
 void NVCalcStateExt(NVPtr,struct _riva_hw_state *,int,int,int,int,int,int);
 void NVLoadStateExt(ScrnInfoPtr pScrn,struct _riva_hw_state *);

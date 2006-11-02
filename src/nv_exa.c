@@ -461,7 +461,6 @@ Bool NVExaInit(ScreenPtr pScreen)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	Bool hooks_installed = FALSE;
 
 	if(!(pNv->EXADriverPtr = (ExaDriverPtr) xnfcalloc(sizeof(ExaDriverRec), 1))) {
 		pNv->NoAccel = TRUE;
@@ -482,33 +481,37 @@ Bool NVExaInit(ScreenPtr pScreen)
 
 	pNv->EXADriverPtr->WaitMarker = NVExaWaitMarker;
 
+	/* Install default hooks */
 	if (pNv->AGPScratch) {
 		pNv->EXADriverPtr->DownloadFromScreen = NVDownloadFromScreen; 
 		pNv->EXADriverPtr->UploadToScreen = NVUploadToScreen; 
 	}
 
-	if (!hooks_installed) {
-		pNv->EXADriverPtr->PrepareCopy = NVExaPrepareCopy;
-		pNv->EXADriverPtr->Copy = NVExaCopy;
-		pNv->EXADriverPtr->DoneCopy = NVExaDoneCopy;
+	pNv->EXADriverPtr->PrepareCopy = NVExaPrepareCopy;
+	pNv->EXADriverPtr->Copy = NVExaCopy;
+	pNv->EXADriverPtr->DoneCopy = NVExaDoneCopy;
 
-		pNv->EXADriverPtr->PrepareSolid = NVExaPrepareSolid;
-		pNv->EXADriverPtr->Solid = NVExaSolid;
-		pNv->EXADriverPtr->DoneSolid = NVExaDoneSolid;
+	pNv->EXADriverPtr->PrepareSolid = NVExaPrepareSolid;
+	pNv->EXADriverPtr->Solid = NVExaSolid;
+	pNv->EXADriverPtr->DoneSolid = NVExaDoneSolid;
 
-		/*darktama: Hard-disabled these for now, I get lockups often when
-		 *          starting e17 with them enabled.
-		 *marcheu:  Doesn't crash for me... was it related to the setup being
-		 *          called twice before ?
-		 */
-		if (pNv->BlendingPossible) {
-			/* install composite hooks */
-			pNv->EXADriverPtr->CheckComposite = NVCheckComposite;
-			pNv->EXADriverPtr->PrepareComposite = NVPrepareComposite;
-			pNv->EXADriverPtr->Composite = NVComposite;
-			pNv->EXADriverPtr->DoneComposite = NVDoneComposite;
-		}
+	/*darktama: Hard-disabled these for now, I get lockups often when
+	 *          starting e17 with them enabled.
+	 *marcheu:  Doesn't crash for me... was it related to the setup being
+	 *          called twice before ?
+	 */
+	if (pNv->BlendingPossible) {
+		/* install composite hooks */
+		pNv->EXADriverPtr->CheckComposite = NVCheckComposite;
+		pNv->EXADriverPtr->PrepareComposite = NVPrepareComposite;
+		pNv->EXADriverPtr->Composite = NVComposite;
+		pNv->EXADriverPtr->DoneComposite = NVDoneComposite;
 	}
+
+	/* If we're going to try and use 3D, let the card-specific function
+	 * override whatever hooks it wants.
+	 */
+	if (pNv->use3D) pNv->InitEXA3D(pNv);
 
 	return exaDriverInit(pScreen, pNv->EXADriverPtr);
 }

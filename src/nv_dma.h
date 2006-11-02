@@ -97,6 +97,11 @@ enum DMASubchannel {
      NVDEBUG("\tNVDmaNext: 0x%08x\n", (data));           \
 }
 
+#define NVDmaFloat(pNv, data) {         \
+	float f = (data);               \
+	NVDmaNext((pNv), *(CARD32*)&f); \
+}
+
 #define NVDmaStart(pNv, subchannel, tag, size) {                        \
         if((pNv)->dmaFree <= (size))                                    \
             NVDmaWait(pNv, size);                                       \
@@ -104,6 +109,10 @@ enum DMASubchannel {
         NVDmaNext(pNv, ((size) << 18) | ((subchannel) << 13) | (tag));  \
         (pNv)->dmaFree -= ((size) + 1);                                 \
     }
+
+#define NVDmaStart_NonInc(pNv, subchannel, tag, size) {                 \
+	NVDmaStart((pNv), (subchannel), (tag)|0x40000000, (size));      \
+}
 
 #define NVDmaSetObjectOnSubchannel(pNv, subchannel, object) \
     NVDmaStart(pNv, subchannel, 0, 1);                      \

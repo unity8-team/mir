@@ -447,8 +447,11 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 		switch (pNv->Architecture) {
 		case NV_ARCH_30:
 		case NV_ARCH_40:
-			//pNv->Reset3D = NV30EXAResetGraphics;
-			switch (pNv->Chipset) {
+			if (!NV30EXAPreInit(pScrn))
+				break;
+			pNv->Reset3D   = NV30EXAResetGraphics;
+			pNv->InitEXA3D = NV30EXAInstallHooks;
+			switch (pNv->Chipset & 0xff0) {
 			case CHIPSET_NV40:
 				class_3d = NV30_TCL_PRIMITIVE_3D|0x4000;
 				break;
@@ -456,9 +459,16 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 				class_3d = NV30_TCL_PRIMITIVE_3D|0x4400;
 				break;
 			default:
+				xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+						"3D: Unknown chipset=0x%x\n",
+						pNv->Chipset);
 				break;
 			}
+			break;
 		default:
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+					"3D: Unknown arch=0x%x\n",\
+					pNv->Architecture);
 			break;
 		}
 
@@ -468,10 +478,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 						 0, 0, 0);
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 					"Enabled experimental EXA-on-3D code\n");
-			//pNv->use3D = 1;
-		} else {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-					"Unknown chipset - not using 3D for EXA\n");
+			pNv->use3D = 1;
 		}
 #endif
 	} else {
