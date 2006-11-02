@@ -607,6 +607,16 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	    pI830->output[i].post_set_mode(pScrn, &pI830->output[i], pMode);
     }
 
+    /*
+     * If the panel fitter is stuck on our pipe, turn it off
+     * the LVDS output will whack it correctly if it needs it
+     */
+    if (((INREG(PFIT_CONTROL) >> 29) & 0x3) == pipe)
+	OUTREG(PFIT_CONTROL, 0);
+	   
+    OUTREG(PFIT_PGM_RATIOS, 0x10001000);
+    OUTREG(DSPARB, (47 << 0) | (95 << 7));
+    
     OUTREG(htot_reg, htot);
     OUTREG(hblank_reg, hblank);
     OUTREG(hsync_reg, hsync);

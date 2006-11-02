@@ -2308,6 +2308,8 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveSWF[15] = INREG(SWF31);
    pI830->saveSWF[16] = INREG(SWF32);
 
+   pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
+
    for (i = 0; i < pI830->num_outputs; i++) {
       if (pI830->output[i].save != NULL)
 	 pI830->output[i].save(pScrn, &pI830->output[i]);
@@ -2425,6 +2427,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(SWF30, pI830->saveSWF[14]);
    OUTREG(SWF31, pI830->saveSWF[15]);
    OUTREG(SWF32, pI830->saveSWF[16]);
+
+   OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
 
    i830CompareRegsToSnapshot(pScrn);
 
