@@ -1378,7 +1378,7 @@ Bool ATIDRIScreenInit( ScreenPtr pScreen )
 	 /* Incompatible DRM version */
 	 xf86DrvMsg( pScreen->myNum, X_ERROR,
 		     "[dri] ATIDRIScreenInit failed because of a version mismatch.\n"
-		     "[dri] mach64.o kernel module version is %d.%d.%d, but version 1.0 or greater is needed.\n"
+		     "[dri] mach64.o kernel module version is %d.%d.%d, but version 2.x is needed (with 2.x >= 2.0).\n"
 		     "[dri] Disabling DRI.\n",
 		     version->version_major,
 		     version->version_minor,
