@@ -38,7 +38,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "ch7xxx.h"
 #include "ch7xxx_reg.h"
 
-static void ch7xxxSaveRegs(void *d);
+static void ch7xxxSaveRegs(I2CDevPtr d);
 
 static CARD8 ch7xxxFreqRegs[][7] =
   { { 0, 0x23, 0x08, 0x16, 0x30, 0x60, 0x00 },
@@ -243,9 +243,9 @@ static void ch7xxxPrintRegs(I2CDevPtr d)
   }
 }
 
-static void ch7xxxSaveRegs(void *d)
+static void ch7xxxSaveRegs(I2CDevPtr d)
 {
-  CH7xxxPtr ch7xxx = CH7PTR(((I2CDevPtr)d));
+  CH7xxxPtr ch7xxx = CH7PTR(d);
   int ret;
   int i;
 
