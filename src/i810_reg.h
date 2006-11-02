@@ -276,11 +276,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define GPIOG			0x5028
 #define GPIOH			0x502c
 # define GPIO_CLOCK_DIR_MASK		(1 << 0)
+# define GPIO_CLOCK_DIR_IN		(0 << 1)
 # define GPIO_CLOCK_DIR_OUT		(1 << 1)
 # define GPIO_CLOCK_VAL_MASK		(1 << 2)
 # define GPIO_CLOCK_VAL_OUT		(1 << 3)
 # define GPIO_CLOCK_VAL_IN		(1 << 4)
 # define GPIO_DATA_DIR_MASK		(1 << 8)
+# define GPIO_DATA_DIR_IN		(0 << 9)
 # define GPIO_DATA_DIR_OUT		(1 << 9)
 # define GPIO_DATA_VAL_MASK		(1 << 10)
 # define GPIO_DATA_VAL_OUT		(1 << 11)

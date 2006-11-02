@@ -48,6 +48,219 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "shadow.h"
 #include "i830.h"
 
+#define AIRLIED_I2C	0
+
+#if AIRLIED_I2C
+
+#define I2C_TIMEOUT(x)	/*(x)*/  /* Report timeouts */
+#define I2C_TRACE(x)    /*(x)*/  /* Report progress */
+
+static void i830_setscl(I2CBusPtr b, int state)
+{
+    ScrnInfoPtr pScrn = xf86Screens[b->scrnIndex];
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 val;
+
+    OUTREG(b->DriverPrivate.uval,
+	   (state ? GPIO_CLOCK_VAL_OUT : 0) | GPIO_CLOCK_DIR_OUT |
+	   GPIO_CLOCK_DIR_MASK | GPIO_CLOCK_VAL_MASK);
+    val = INREG(b->DriverPrivate.uval);
+}
+
+static void i830_setsda(I2CBusPtr b, int state)
+{
+    ScrnInfoPtr pScrn = xf86Screens[b->scrnIndex];
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 val;
+
+    OUTREG(b->DriverPrivate.uval,
+	   (state ? GPIO_DATA_VAL_OUT : 0) | GPIO_DATA_DIR_OUT |
+	   GPIO_DATA_DIR_MASK | GPIO_DATA_VAL_MASK);
+    val = INREG(b->DriverPrivate.uval);
+}
+
+static void i830_getscl(I2CBusPtr b, int *state)
+{
+    ScrnInfoPtr pScrn = xf86Screens[b->scrnIndex];
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 val;
+
+    OUTREG(b->DriverPrivate.uval, GPIO_CLOCK_DIR_IN | GPIO_CLOCK_DIR_MASK);
+    OUTREG(b->DriverPrivate.uval, 0);
+    val = INREG(b->DriverPrivate.uval);
+    *state = ((val & GPIO_DATA_VAL_IN) != 0);
+}
+
+static int i830_getsda(I2CBusPtr b)
+ {
+     ScrnInfoPtr pScrn = xf86Screens[b->scrnIndex];
+     I830Ptr pI830 = I830PTR(pScrn);
+     CARD32 val;
+
+     OUTREG(b->DriverPrivate.uval, GPIO_DATA_DIR_IN | GPIO_DATA_DIR_MASK);
+     OUTREG(b->DriverPrivate.uval, 0);
+     val = INREG(b->DriverPrivate.uval);
+     return ((val & GPIO_DATA_VAL_IN) != 0);
+}
+
+static inline void sdalo(I2CBusPtr b)
+{
+    i830_setsda(b, 0);
+    b->I2CUDelay(b, b->RiseFallTime);
+}
+
+static inline void sdahi(I2CBusPtr b)
+{
+    i830_setsda(b, 1);
+    b->I2CUDelay(b, b->RiseFallTime);
+}
+
+static inline void scllo(I2CBusPtr b)
+{
+    i830_setscl(b, 0);
+    b->I2CUDelay(b, b->RiseFallTime);
+}
+
+static inline int sclhi(I2CBusPtr b, int timeout)
+{
+    int scl = 0;
+    int i;
+
+    i830_setscl(b, 1);
+    b->I2CUDelay(b, b->RiseFallTime);
+
+    for (i = timeout; i > 0; i -= b->RiseFallTime) {
+	i830_getscl(b, &scl);
+	if (scl) break;
+	b->I2CUDelay(b, b->RiseFallTime);
+    }
+
+    if (i <= 0) {
+	I2C_TIMEOUT(ErrorF("[I2CRaiseSCL(<%s>, %d) timeout]",
+			   b->BusName, timeout));
+	return FALSE;
+    }
+    return TRUE;
+}
+
+static Bool
+I830I2CGetByte(I2CDevPtr d, I2CByte *data, Bool last)
+{
+    I2CBusPtr b = d->pI2CBus;
+    int i, sda;
+    unsigned char indata = 0;
+
+    sdahi(b);
+
+    for (i = 0; i < 8; i++) {
+	if (sclhi(b, d->BitTimeout) == FALSE) {
+	    I2C_TRACE(ErrorF("timeout at bit #%d\n", 7-i));
+	    return FALSE;
+	};
+	indata *= 2;
+	if (i830_getsda(b))
+	    indata |= 0x01;
+	scllo(b);
+    }
+
+    if (last) {
+	sdahi(b);
+    } else {
+	sdalo(b);
+    }
+
+    if (sclhi(b, d->BitTimeout) == FALSE) {
+	sdahi(b);
+	return FALSE;
+    };
+
+    scllo(b);
+    sdahi(b);
+
+    *data = indata & 0xff;
+    I2C_TRACE(ErrorF("R%02x ", (int) *data));
+
+    return TRUE;
+}
+
+static Bool
+I830I2CPutByte(I2CDevPtr d, I2CByte c)
+{
+    Bool r;
+    int i, scl, sda;
+    int sb, ack;
+    I2CBusPtr b = d->pI2CBus;
+
+    for (i = 7; i >= 0; i--) {
+	sb = c & (1 << i);
+	i830_setsda(b, sb);
+	b->I2CUDelay(b, b->RiseFallTime);
+
+	if (sclhi(b, d->ByteTimeout) == FALSE) {
+	    sdahi(b);
+	    return FALSE;
+	}
+
+	i830_setscl(b, 0);
+	b->I2CUDelay(b, b->RiseFallTime);
+    }
+    sdahi(b);
+    if (sclhi(b, d->ByteTimeout) == FALSE) {
+	I2C_TIMEOUT(ErrorF("[I2CPutByte(<%s>, 0x%02x, %d, %d, %d) timeout]",
+			   b->BusName, c, d->BitTimeout,
+			   d->ByteTimeout, d->AcknTimeout));
+	return FALSE;
+    }
+    ack = i830_getsda(b);
+    I2C_TRACE(ErrorF("Put byte 0x%02x , getsda() = %d\n", c & 0xff, ack));
+
+    scllo(b);
+    return (0 == ack);
+}
+
+static Bool
+I830I2CStart(I2CBusPtr b, int timeout)
+{
+    if (sclhi(b, timeout) == FALSE)
+	return FALSE;
+
+    sdalo(b);
+    scllo(b);
+
+    return TRUE;
+}
+
+static void
+I830I2CStop(I2CDevPtr d)
+{
+    I2CBusPtr b = d->pI2CBus;
+
+    sdalo(b);
+    sclhi(b, d->ByteTimeout);
+    sdahi(b);
+}
+
+static Bool
+I830I2CAddress(I2CDevPtr d, I2CSlaveAddr addr)
+{
+    if (I830I2CStart(d->pI2CBus, d->StartTimeout)) {
+	if (I830I2CPutByte(d, addr & 0xFF)) {
+	    if ((addr & 0xF8) != 0xF0 &&
+		(addr & 0xFE) != 0x00)
+		return TRUE;
+
+	    if (I830I2CPutByte(d, (addr >> 8) & 0xFF))
+		return TRUE;
+	}
+
+	I830I2CStop(d);
+    }
+
+    return FALSE;
+}
+
+#else
+
 static void
 i830I2CGetBits(I2CBusPtr b, int *clock, int *data)
 {
@@ -76,6 +289,7 @@ i830I2CPutBits(I2CBusPtr b, int clock, int data)
 	GPIO_DATA_DIR_MASK |
 	GPIO_DATA_VAL_MASK);
 }
+#endif
 
 /* the i830 has a number of I2C Buses */
 Bool
@@ -90,8 +304,16 @@ I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
 
     pI2CBus->BusName = name;
     pI2CBus->scrnIndex = pScrn->scrnIndex;
+#if AIRLIED_I2C
+    pI2CBus->I2CGetByte = I830I2CGetByte;
+    pI2CBus->I2CPutByte = I830I2CPutByte;
+    pI2CBus->I2CStart = I830I2CStart;
+    pI2CBus->I2CStop = I830I2CStop;
+    pI2CBus->I2CAddress = I830I2CAddress;
+#else
     pI2CBus->I2CGetBits = i830I2CGetBits;
     pI2CBus->I2CPutBits = i830I2CPutBits;
+#endif
     pI2CBus->DriverPrivate.uval = i2c_reg;
 
     if (!xf86I2CBusInit(pI2CBus))
