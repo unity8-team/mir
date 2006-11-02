@@ -397,7 +397,6 @@ typedef struct _I830Rec {
 
    int MonType1;
    int MonType2;
-   Bool specifiedMonitor;
 
    DGAModePtr DGAModes;
    int numDGAModes;

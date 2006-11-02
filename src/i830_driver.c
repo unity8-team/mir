@@ -1279,7 +1279,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    pI830->MonType1 = PIPE_NONE;
    pI830->MonType2 = PIPE_NONE;
-   pI830->specifiedMonitor = FALSE;
 
    if ((s = xf86GetOptValString(pI830->Options, OPTION_MONITOR_LAYOUT)) &&
       I830IsPrimary(pScrn)) {
@@ -1366,7 +1365,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	 pI830->pipe = 1;
 
       pI830->operatingDevices = (pI830->MonType2 << 8) | pI830->MonType1;
-      pI830->specifiedMonitor = TRUE;
    } else if (I830IsPrimary(pScrn)) {
       /* Choose a default set of outputs to use based on what we've detected.
        *
