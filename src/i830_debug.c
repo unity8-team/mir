@@ -41,6 +41,26 @@ static struct i830SnapshotRec {
     char *name;
     CARD32 regval;
 } i830_snapshot[] = {
+    DEFINEREG(VCLK_DIVISOR_VGA0),
+    DEFINEREG(VCLK_DIVISOR_VGA1),
+    DEFINEREG(VCLK_POST_DIV),
+    DEFINEREG(DPLL_TEST),
+    DEFINEREG(D_STATE),
+    DEFINEREG(DSPCLK_GATE_D),
+    DEFINEREG(RENCLK_GATE_D1),
+    DEFINEREG(RENCLK_GATE_D2),
+/*  DEFINEREG(RAMCLK_GATE_D),	CRL only */
+    DEFINEREG(SDVOB),
+    DEFINEREG(SDVOC),
+/*    DEFINEREG(UDIB_SVB_SHB_CODES), CRL only */
+/*    DEFINEREG(UDIB_SHA_BLANK_CODES), CRL only */
+    DEFINEREG(SDVOUDI),
+    DEFINEREG(DSPARB),
+    DEFINEREG(DSPFW1),
+    DEFINEREG(DSPFW2),
+    DEFINEREG(DSPFW3),
+    
+
     DEFINEREG(ADPA),
     DEFINEREG(LVDS),
     DEFINEREG(DVOA),
@@ -62,36 +82,46 @@ static struct i830SnapshotRec {
     DEFINEREG(DSPAPOS),
     DEFINEREG(DSPASIZE),
     DEFINEREG(DSPABASE),
+    DEFINEREG(DSPASURF),
+    DEFINEREG(DSPATILEOFF),
     DEFINEREG(PIPEACONF),
     DEFINEREG(PIPEASRC),
 
     DEFINEREG(FPA0),
     DEFINEREG(FPA1),
     DEFINEREG(DPLL_A),
+    DEFINEREG(DPLLAMD),
     DEFINEREG(HTOTAL_A),
     DEFINEREG(HBLANK_A),
     DEFINEREG(HSYNC_A),
     DEFINEREG(VTOTAL_A),
     DEFINEREG(VBLANK_A),
     DEFINEREG(VSYNC_A),
+    DEFINEREG(BCLRPAT_A),
+    DEFINEREG(VSYNCSHIFT_A),
 
     DEFINEREG(DSPBCNTR),
     DEFINEREG(DSPBSTRIDE),
     DEFINEREG(DSPBPOS),
     DEFINEREG(DSPBSIZE),
     DEFINEREG(DSPBBASE),
+    DEFINEREG(DSPBSURF),
+    DEFINEREG(DSPBTILEOFF),
     DEFINEREG(PIPEBCONF),
     DEFINEREG(PIPEBSRC),
 
     DEFINEREG(FPB0),
     DEFINEREG(FPB1),
     DEFINEREG(DPLL_B),
+    DEFINEREG(DPLLBMD),
     DEFINEREG(HTOTAL_B),
     DEFINEREG(HBLANK_B),
     DEFINEREG(HSYNC_B),
     DEFINEREG(VTOTAL_B),
     DEFINEREG(VBLANK_B),
     DEFINEREG(VSYNC_B),
+    DEFINEREG(BCLRPAT_B),
+    DEFINEREG(VSYNCSHIFT_B),
 
     DEFINEREG(VCLK_DIVISOR_VGA0),
     DEFINEREG(VCLK_DIVISOR_VGA1),
@@ -129,13 +159,115 @@ void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn)
     }
 }
 
+static void i830DumpIndexed (ScrnInfoPtr pScrn, char *name, int id, int val, int min, int max)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int	i;
+
+    for (i = min; i <= max; i++) {
+	OUTREG8 (id, i);
+	xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "%18.18s%02x: 0x%02x\n",
+		    name, i, INREG8(val));
+    }
+}
+
 void i830DumpRegs (ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int i;
+    int	fp, dpll;
+    int pipe;
+    int	n, m1, m2, m, p1, p2;
+    int ref;
+    int	dot;
+    int phase;
+    int msr;
+    int crt;
 
+    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "DumpRegsBegin\n");
     for (i = 0; i < NUM_I830_SNAPSHOTREGS; i++) {
-	xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "%10.10s: 0x%08x\n",
+	xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "%20.20s: 0x%08x\n",
 		    i830_snapshot[i].name, (unsigned int) INREG(i830_snapshot[i].reg));
     }
+    i830DumpIndexed (pScrn, "SR", 0x3c4, 0x3c5, 0, 7);
+    msr = INREG8(0x3cc);
+    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "%20.20s: 0x%02x\n",
+		    "MSR", (unsigned int) msr);
+
+    if (msr & 1)
+	crt = 0x3d0;
+    else
+	crt = 0x3b0;
+    i830DumpIndexed (pScrn, "CR", crt + 4, crt + 5, 0, 0x24);
+    for (pipe = 0; pipe <= 1; pipe++)
+    {
+	fp = INREG(pipe == 0 ? FPA0 : FPB0);
+	dpll = INREG(pipe == 0 ? DPLL_A : DPLL_B);
+	switch ((dpll >> 24) & 0x3) {
+	case 0:
+	    p2 = 10;
+	    break;
+	case 1:
+	    p2 = 5;
+	    break;
+	default:
+	    p2 = 1;
+	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR, "p2 out of range\n");
+	    break;
+	}
+	switch ((dpll >> 16) & 0xff) {
+	case 1:
+	    p1 = 1; break;
+	case 2:
+	    p1 = 2; break;
+	case 4:
+	    p1 = 3; break;
+	case 8:
+	    p1 = 4; break;
+	case 16:
+	    p1 = 5; break;
+	case 32:
+	    p1 = 6; break;
+	case 64:
+	    p1 = 7; break;
+	case 128:
+	    p1 = 8; break;
+	default:
+	    p1 = 1;
+	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR, "p1 out of range\n");
+	    break;
+	}
+	switch ((dpll >> 13) & 0x3) {
+	case 0:
+	    ref = 96000;
+	    break;
+	default:
+	    ref = 0;
+	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR, "ref out of range\n");
+	    break;
+	}
+	phase = (dpll >> 9) & 0xf;
+	switch (phase) {
+	case 6:
+	    break;
+	default:
+	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR, "phase %d out of range\n", phase);
+	    break;
+	}
+	switch ((dpll >> 8) & 1) {
+	case 0:
+	    break;
+	default:
+	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR, "fp select out of range\n");
+	    break;
+	}
+	n = ((fp >> 16) & 0x3f);
+	m1 = ((fp >> 8) & 0x3f);
+	m2 = ((fp >> 0) & 0x3f);
+	m = 5 * (m1 + 2) + (m2 + 2);
+	dot = (ref * (5 * (m1 + 2) + (m2 + 2)) / (n + 2)) / (p1 * p2);
+	xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "pipe %s dot %d n %d m1 %d m2 %d p1 %d p2 %d\n",
+		    pipe == 0 ? "A" : "B", dot, n, m1, m2, p1, p2);
+    }
+    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "DumpRegsEnd\n");
 }
