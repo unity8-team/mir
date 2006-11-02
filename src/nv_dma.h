@@ -114,9 +114,10 @@ enum DMASubchannel {
 	NVDmaStart((pNv), (subchannel), (tag)|0x40000000, (size));      \
 }
 
-#define NVDmaSetObjectOnSubchannel(pNv, subchannel, object) \
-    NVDmaStart(pNv, subchannel, 0, 1);                      \
-    NVDmaNext(pNv,object);
+#define NVDmaSetObjectOnSubchannel(pNv, subchannel, object) { \
+    NVDmaStart(pNv, subchannel, 0, 1);                        \
+    NVDmaNext(pNv,object);                                    \
+}
 
 #define SURFACE_FORMAT                                              0x00000300
 #define SURFACE_FORMAT_Y8                                           0x00000001
