@@ -844,7 +844,6 @@ fail:
 void
 NV30EXAInstallHooks(NVPtr pNv) 
 {
-#if 0
 	pNv->EXADriverPtr->PrepareCopy        = NV30EXAPrepareCopy;
 	pNv->EXADriverPtr->Copy               = NV30EXACopy;
 	pNv->EXADriverPtr->DoneCopy           = NV30EXADoneCopy;
@@ -857,7 +856,6 @@ NV30EXAInstallHooks(NVPtr pNv)
 	pNv->EXADriverPtr->PrepareComposite   = NV30EXAPrepareComposite;
 	pNv->EXADriverPtr->Composite          = NV30EXAComposite;
 	pNv->EXADriverPtr->DoneComposite      = NV30EXADoneComposite;
-#endif
 }
 
 void
