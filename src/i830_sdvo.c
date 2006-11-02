@@ -553,7 +553,7 @@ i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     output_dtd.part2.sync_off_width_high = 0;
     output_dtd.part2.dtd_flags = 0x18;
     output_dtd.part2.sdvo_flags = 0;
-    output_dtd.part2.v_sync_off_width = 0;
+    output_dtd.part2.v_sync_off_high = 0;
     output_dtd.part2.reserved = 0;
     if (mode->Flags & V_PHSYNC)
 	output_dtd.part2.dtd_flags |= 0x2;
