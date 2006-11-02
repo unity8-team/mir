@@ -92,32 +92,32 @@ enum DMASubchannel {
 	NvSubSolidLine		= 7, 
 };
 
-#define NVDmaNext(pNv, data) {                           \
+#define NVDmaNext(pNv, data) do {                        \
      (pNv)->dmaBase[(pNv)->dmaCurrent++] = (data);       \
      NVDEBUG("\tNVDmaNext: 0x%08x\n", (data));           \
-}
+} while(0)
 
-#define NVDmaFloat(pNv, data) {         \
+#define NVDmaFloat(pNv, data) do {      \
 	float f = (data);               \
 	NVDmaNext((pNv), *(CARD32*)&f); \
-}
+} while(0)
 
-#define NVDmaStart(pNv, subchannel, tag, size) {                        \
+#define NVDmaStart(pNv, subchannel, tag, size) do {                     \
         if((pNv)->dmaFree <= (size))                                    \
             NVDmaWait(pNv, size);                                       \
         NVDEBUG("NVDmaStart: subc=%d, cmd=%x, num=%d\n", (subchannel), (tag), (size)); \
         NVDmaNext(pNv, ((size) << 18) | ((subchannel) << 13) | (tag));  \
         (pNv)->dmaFree -= ((size) + 1);                                 \
-    }
+} while(0)
 
-#define NVDmaStart_NonInc(pNv, subchannel, tag, size) {                 \
+#define NVDmaStart_NonInc(pNv, subchannel, tag, size) do {              \
 	NVDmaStart((pNv), (subchannel), (tag)|0x40000000, (size));      \
-}
+} while(0)
 
-#define NVDmaSetObjectOnSubchannel(pNv, subchannel, object) { \
-    NVDmaStart(pNv, subchannel, 0, 1);                        \
-    NVDmaNext(pNv,object);                                    \
-}
+#define NVDmaSetObjectOnSubchannel(pNv, subchannel, object) do { \
+    NVDmaStart(pNv, subchannel, 0, 1);                           \
+    NVDmaNext(pNv,object);                                       \
+} while(0)
 
 #define SURFACE_FORMAT                                              0x00000300
 #define SURFACE_FORMAT_Y8                                           0x00000001
