@@ -237,6 +237,7 @@ void
 i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    I830PipePtr pI830Pipe = &pI830->pipes[pipe];
     unsigned long Start;
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
@@ -255,8 +256,8 @@ i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y)
 	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
     }
 
-    pI830->pipeX[pipe] = x;
-    pI830->pipeY[pipe] = y;
+    pI830Pipe->x = x;
+    pI830Pipe->y = y;
 }
 
 /**
@@ -363,6 +364,7 @@ Bool
 i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    I830PipePtr pI830Pipe = &pI830->pipes[pipe];
     int m1 = 0, m2 = 0, n = 0, p1 = 0, p2 = 0;
     CARD32 dpll = 0, fp = 0, temp;
     CARD32 htot, hblank, hsync, vtot, vblank, vsync, dspcntr;
@@ -391,7 +393,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     else
 	outputs = (pI830->operatingDevices >> 8) & 0xff;
 
-    if (I830ModesEqual(&pI830->pipeCurMode[pipe], pMode))
+    if (I830ModesEqual(&pI830Pipe->curMode, pMode))
 	return TRUE;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Requested pix clock: %d\n",
@@ -576,7 +578,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	FatalError("unknown display bpp\n");
     }
 
-    if (pI830->gammaEnabled[pipe]) {
+    if (pI830Pipe->gammaEnabled) {
  	dspcntr |= DISPPLANE_GAMMA_ENABLE;
     }
 
@@ -626,7 +628,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     OUTREG(dspstride_reg, pScrn->displayWidth * pI830->cpp);
     OUTREG(dspsize_reg, dspsize);
     OUTREG(dsppos_reg, 0);
-    i830PipeSetBase(pScrn, pipe, pI830->pipeX[pipe], pI830->pipeX[pipe]);
+    i830PipeSetBase(pScrn, pipe, pI830Pipe->x, pI830Pipe->y);
     OUTREG(pipesrc_reg, pipesrc);
 
     /* Then, turn the pipe on first */
@@ -636,7 +638,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     /* And then turn the plane on */
     OUTREG(dspcntr_reg, dspcntr);
 
-    pI830->pipeCurMode[pipe] = *pMode;
+    pI830Pipe->curMode = *pMode;
 
     return TRUE;
 }
@@ -658,63 +660,49 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
      * internal TV) should have no outputs trying to pull data out of it, so
      * we're ready to turn those off.
      */
-    if (!pI830->planeEnabled[0]) {
-	CARD32 dspcntr, pipeconf, dpll;
+    for (i = 0; i < MAX_DISPLAY_PIPES; i++) {
+	I830PipePtr pI830Pipe = &pI830->pipes[i];
+	int	    dspcntr_reg = pipe == 0 ? DSPACNTR : DSPBCNTR;
+	int	    pipeconf_reg = pipe == 0 ? PIPEACONF : PIPEBCONF;
+	int	    dpll_reg = pipe == 0 ? DPLL_A : DPLL_B;
+	CARD32	    dspcntr, pipeconf, dpll;
+	char	    *pipe_name = pipe == 0 ? "A" : "B";
 
-	dspcntr = INREG(DSPACNTR);
+	if (pI830Pipe->planeEnabled)
+	    continue;
+	
+	dspcntr = INREG(dspcntr_reg);
 	if (dspcntr & DISPLAY_PLANE_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling plane A\n");
-	    OUTREG(DSPACNTR, dspcntr & ~DISPLAY_PLANE_ENABLE);
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling plane %s\n",
+		       pipe_name);
+	    
+	    OUTREG(dspcntr_reg, dspcntr & ~DISPLAY_PLANE_ENABLE);
 
 	    /* Wait for vblank for the disable to take effect */
 	    i830WaitForVblank(pScrn);
 	}
 
-	pipeconf = INREG(PIPEACONF);
+	pipeconf = INREG(pipeconf_reg);
 	if (pipeconf & PIPEACONF_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling pipe A\n");
-	   OUTREG(PIPEACONF, pipeconf & ~PIPEACONF_ENABLE);
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling pipe %s\n",
+		       pipe_name);
+	   OUTREG(pipeconf_reg, pipeconf & ~PIPEACONF_ENABLE);
 	}
 
-	dpll = INREG(DPLL_A);
+	dpll = INREG(dpll_reg);
 	if (dpll & DPLL_VCO_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling DPLL A\n");
-	    OUTREG(DPLL_A, dpll & ~DPLL_VCO_ENABLE);
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling DPLL %s\n",
+		       pipe_name);
+	    OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
 	}
 
-	memset(&pI830->pipeCurMode[0], 0, sizeof(pI830->pipeCurMode[0]));
-    }
-
-    if (!pI830->planeEnabled[1]) {
-	CARD32 dspcntr, pipeconf, dpll;
-
-	dspcntr = INREG(DSPBCNTR);
-	if (dspcntr & DISPLAY_PLANE_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling plane B\n");
-	    OUTREG(DSPBCNTR, dspcntr & ~DISPLAY_PLANE_ENABLE);
-
-	    /* Wait for vblank for the disable to take effect */
-	    i830WaitForVblank(pScrn);
-	}
-
-	pipeconf = INREG(PIPEBCONF);
-	if (pipeconf & PIPEBCONF_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling pipe B\n");
-	   OUTREG(PIPEBCONF, pipeconf & ~PIPEBCONF_ENABLE);
-	}
-
-	dpll = INREG(DPLL_B);
-	if (dpll & DPLL_VCO_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling DPLL B\n");
-	    OUTREG(DPLL_B, dpll & ~DPLL_VCO_ENABLE);
-	}
-
-	memset(&pI830->pipeCurMode[1], 0, sizeof(pI830->pipeCurMode[1]));
+	memset(&pI830Pipe->curMode, 0, sizeof(pI830Pipe->curMode));
     }
 }
 
 /**
- * This function sets the given mode on the active pipes.
+ * This function configures the screens in clone mode on
+ * all active outputs using a mode similar to the specified mode.
  */
 Bool
 i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
@@ -732,31 +720,17 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     didLock = I830DRILock(pScrn);
 #endif
 
-    if (pI830->operatingDevices & 0xff) {
-	pI830->planeEnabled[0] = 1;
-    } else {
-	pI830->planeEnabled[0] = 0;
-    }
+    pI830->pipes[0].planeEnabled = (pI830->operatingDevices & 0xff) != 0;
+    pI830->pipes[1].planeEnabled = (pI830->operatingDevices & 0xff00) != 0;
 
-    if (pI830->operatingDevices & 0xff00) {
-	pI830->planeEnabled[1] = 1;
-    } else {
-	pI830->planeEnabled[1] = 0;
-    }
-
-    for (i = 0; i < pI830->num_outputs; i++) {
+    for (i = 0; i < pI830->num_outputs; i++)
 	pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], pMode);
-    }
 
-    if (pI830->planeEnabled[0]) {
-	ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, 0, pMode),
-			     0);
-	if (!ok)
-	    goto done;
-    }
-    if (pI830->planeEnabled[1]) {
-	ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, 1, pMode),
-			     1);
+    for (i = 0; i < MAX_DISPLAY_PIPES; i++)
+    {
+	if (pI830->pipes[i].planeEnabled)
+	    ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, i, pMode),
+				 i);
 	if (!ok)
 	    goto done;
     }
@@ -776,13 +750,10 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	/* If we might have enabled/disabled some pipes, we need to reset
 	 * cloning mode support.
 	 */
-	if ((pI830->operatingDevices & 0x00ff) &&
-	    (pI830->operatingDevices & 0xff00))
-	{
+	if (pI830->pipes[0].planeEnabled && pI830->pipes[1].planeEnabled)
 	    pI830->Clone = TRUE;
-	} else {
+	else
 	    pI830->Clone = FALSE;
-	}
 
 	/* If HW cursor currently showing, reset cursor state */
 	if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn)
@@ -821,7 +792,7 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "  Display plane %c is now %s and connected to pipe %c.\n",
 		   'A' + i,
-		   pI830->planeEnabled[i] ? "enabled" : "disabled",
+		   pI830->pipes[i].planeEnabled ? "enabled" : "disabled",
 		   dspcntr & DISPPLANE_SEL_PIPE_MASK ? 'B' : 'A');
     }
 

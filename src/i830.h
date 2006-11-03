@@ -287,18 +287,20 @@ struct _I830OutputRec {
    void *dev_priv;
 };
 
+typedef struct _I830PipeRec {
+   Bool		  gammaEnabled;
+   int		  x;
+   int		  y;
+   Bool		  cursorInRange;
+   Bool		  cursorShown;
+   Bool		  planeEnabled;
+   DisplayModeRec curMode;
+} I830PipeRec, *I830PipePtr;
+
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
    unsigned char *FbBase;
    int cpp;
-
-   unsigned int bios_version;
-
-   Bool newPipeSwitch;
-
-   Bool fakeSwitch;
-   
-   int fixedPipe;
 
    DisplayModePtr currentMode;
    /* Mode saved during randr reprobe, which will need to be freed at the point
@@ -306,12 +308,8 @@ typedef struct _I830Rec {
     */
    DisplayModePtr savedCurrentMode;
 
-   Bool gammaEnabled[MAX_DISPLAY_PIPES];
-
-   int pipeX[MAX_DISPLAY_PIPES];
-   int pipeY[MAX_DISPLAY_PIPES];
-   Bool cursorInRange[MAX_DISPLAY_PIPES];
-   Bool cursorShown[MAX_DISPLAY_PIPES];
+   I830PipeRec	  pipes[MAX_DISPLAY_PIPES];
+   
    Bool Clone;
    int CloneRefresh;
    int CloneHDisplay;
@@ -478,8 +476,6 @@ typedef struct _I830Rec {
    /* [0] is Pipe A, [1] is Pipe B. */
    int availablePipes;
    /* [0] is display plane A, [1] is display plane B. */
-   int planeEnabled[MAX_DISPLAY_PIPES];
-   DisplayModeRec pipeCurMode[MAX_DISPLAY_PIPES];
 
    /* Driver phase/state information */
    Bool preinit;

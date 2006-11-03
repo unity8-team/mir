@@ -105,14 +105,15 @@ void
 I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+   I830PipePtr pI830Pipe = &pI830->pipes[pipe];
    CARD32 temp;
     Bool show;
     
-    if (!pI830->planeEnabled[pipe])
+    if (!pI830Pipe->planeEnabled)
 	return;
 
-    show = pI830->cursorOn && pI830->cursorInRange[pipe];
-    if (show && (force || !pI830->cursorShown[pipe]))
+    show = pI830->cursorOn && pI830Pipe->cursorInRange;
+    if (show && (force || !pI830Pipe->cursorShown))
     {
 	if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
 	    int	cursor_control;
@@ -124,7 +125,7 @@ I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force)
 	    temp &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
 	    if (pI830->CursorIsARGB) {
 		temp |= CURSOR_MODE_64_ARGB_AX;
-		if (pI830->gammaEnabled[pipe])
+		if (pI830Pipe->gammaEnabled)
 		    temp |= MCURSOR_GAMMA_ENABLE;
 	    } else
 		temp |= CURSOR_MODE_64_4C_AX;
@@ -138,15 +139,15 @@ I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force)
 	    temp |= CURSOR_ENABLE;
 	    if (pI830->CursorIsARGB) {
 		temp |= CURSOR_FORMAT_ARGB;
-		if (pI830->gammaEnabled[pipe])
+		if (pI830Pipe->gammaEnabled)
 		    temp |= CURSOR_GAMMA_ENABLE;
 	    } else
 		temp |= CURSOR_FORMAT_3C;
 	    OUTREG(CURSOR_CONTROL, temp);
 	}
-	pI830->cursorShown[pipe] = TRUE;
+	pI830Pipe->cursorShown = TRUE;
     }
-    else if (!show && (force || pI830->cursorShown[pipe]))
+    else if (!show && (force || pI830Pipe->cursorShown))
     {
 	if (IS_MOBILE(pI830) || IS_I9XX(pI830)) 
 	{
@@ -164,7 +165,7 @@ I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force)
 	    temp &= ~(CURSOR_ENABLE|CURSOR_GAMMA_ENABLE);
 	    OUTREG(CURSOR_CONTROL, temp);
 	}
-	pI830->cursorShown[pipe] = FALSE;
+	pI830Pipe->cursorShown = FALSE;
     }
 
     /* Flush cursor changes. */
@@ -179,7 +180,8 @@ I830InitHWCursor(ScrnInfoPtr pScrn)
    int i;
 
    DPRINTF(PFX, "I830InitHWCursor\n");
-   for (i = 0; i < MAX_DISPLAY_PIPES; i++) pI830->cursorShown[i] = FALSE;
+   for (i = 0; i < MAX_DISPLAY_PIPES; i++) 
+      pI830->pipes[i].cursorShown = FALSE;
    /* Initialise the HW cursor registers, leaving the cursor hidden. */
    if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
       for (i = 0; i < MAX_DISPLAY_PIPES; i++)
@@ -484,11 +486,12 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 
     for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++)
     {
-	DisplayModePtr	mode = &pI830->pipeCurMode[pipe];
-	int		thisx = x - pI830->pipeX[pipe];
-	int		thisy = y - pI830->pipeY[pipe];
+	I830PipePtr	pI830Pipe = &pI830->pipes[pipe];
+	DisplayModePtr	mode = &pI830Pipe->curMode;
+	int		thisx = x - pI830Pipe->x;
+	int		thisy = y - pI830Pipe->y;
 
-	if (!pI830->planeEnabled[pipe])
+	if (!pI830Pipe->planeEnabled)
 	    continue;
 
 	/*
@@ -524,7 +527,7 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 	if (pipe == 1)
 	    OUTREG(CURSOR_B_POSITION, temp);
 
-	pI830->cursorInRange[pipe] = inrange;
+	pI830Pipe->cursorInRange = inrange;
 	
         I830SetPipeCursor (pScrn, pipe, FALSE);
     }
@@ -577,14 +580,14 @@ I830SetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 
    DPRINTF(PFX, "I830SetCursorColors\n");
 
-   if (pI830->planeEnabled[0])
+   if (pI830->pipes[0].planeEnabled)
    {
        OUTREG(CURSOR_A_PALETTE0, bg & 0x00ffffff);
        OUTREG(CURSOR_A_PALETTE1, fg & 0x00ffffff);
        OUTREG(CURSOR_A_PALETTE2, fg & 0x00ffffff);
        OUTREG(CURSOR_A_PALETTE3, bg & 0x00ffffff);
    }
-   if (pI830->planeEnabled[1])
+   if (pI830->pipes[1].planeEnabled)
    {
       OUTREG(CURSOR_B_PALETTE0, bg & 0x00ffffff);
       OUTREG(CURSOR_B_PALETTE1, fg & 0x00ffffff);
