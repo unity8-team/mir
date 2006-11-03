@@ -874,7 +874,6 @@ I830RandRInit12 (ScreenPtr pScreen)
     rp->rrCrtcSet = I830RandRCrtcSet;
     rp->rrCrtcSetGamma = I830RandRCrtcSetGamma;
     rp->rrSetConfig = NULL;
-    memset (rp->modes, '\0', sizeof (rp->modes));
     pScrn->PointerMoved = I830RandRPointerMoved;
     return TRUE;
 }
