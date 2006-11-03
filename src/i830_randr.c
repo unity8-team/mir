@@ -563,7 +563,7 @@ I830RandRCrtcSet (ScreenPtr	pScreen,
 	pI830->planeEnabled[pipe] = mode != NULL;
 	if (display_mode)
 	{
-	    if (!i830PipeSetMode (pScrn, display_mode, pipe))
+	    if (!i830PipeSetMode (pScrn, display_mode, pipe, TRUE))
 		return FALSE;
 	    /* XXX need I830SDVOPostSetMode here */
 	}

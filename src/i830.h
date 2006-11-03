@@ -205,6 +205,11 @@ struct _I830OutputRec {
    int type;
    int pipe;
    Bool disabled;
+   /**
+    * Marks that the output and associated pipe is temporarily enabled for
+    * load detection.
+    */
+   Bool load_detect_temp;
 
    /**
     * Turns the output on/off, or sets intermediate power levels if available.

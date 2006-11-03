@@ -32,6 +32,7 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i830_xf86Modes.h"
+#include "i830_display.h"
 
 static void
 i830_crt_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
@@ -166,7 +167,7 @@ i830_crt_detect_hotplug(ScrnInfoPtr pScrn)
  * \return FALSE if CRT is disconnected.
  */
 static Bool
-i830_crt_detect_load(ScrnInfoPtr pScrn)
+i830_crt_detect_load(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 adpa, pipeconf;
@@ -174,7 +175,7 @@ i830_crt_detect_load(ScrnInfoPtr pScrn)
     int pipeconf_reg, bclrpat_reg, dpll_reg;
     int pipe;
 
-    pipe = pI830->pipe;
+    pipe = output->pipe;
     if (pipe == 0) {
 	bclrpat_reg = BCLRPAT_A;
 	pipeconf_reg = PIPEACONF;
@@ -263,15 +264,12 @@ i830_crt_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
     if (i830_crt_detect_ddc(pScrn))
 	return OUTPUT_STATUS_CONNECTED;
 
-    /* Use the load-detect method if we're not currently outputting to the CRT,
-     * or we don't care.
-     *
-     * Actually, the method is unreliable currently.  We need to not share a
-     * pipe, as it seems having other outputs on that pipe will result in a
-     * false positive.
-     */
-    if (0) {
-	if (i830_crt_detect_load(pScrn))
+    /* Use the load-detect method if we have no other way of telling. */
+    if (i830GetLoadDetectPipe(pScrn, output) != -1) {
+	Bool connected = i830_crt_detect_load(pScrn, output);
+
+	i830ReleaseLoadDetectPipe(pScrn, output);
+	if (connected)
 	    return OUTPUT_STATUS_CONNECTED;
 	else
 	    return OUTPUT_STATUS_DISCONNECTED;

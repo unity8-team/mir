@@ -356,11 +356,16 @@ i830PipeFindClosestMode(ScrnInfoPtr pScrn, int pipe, DisplayModePtr pMode)
 }
 
 /**
- * Sets the given video mode on the given pipe.  Assumes that plane A feeds
- * pipe A, and plane B feeds pipe B.  Should not affect the other planes/pipes.
+ * Sets the given video mode on the given pipe.
+ *
+ * Plane A is always output to pipe A, and plane B to pipe B.  The plane
+ * will not be enabled if plane_enable is FALSE, which is used for
+ * load detection, when something else will be output to the pipe other than
+ * display data.
  */
 Bool
-i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
+i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe,
+		Bool plane_enable)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int m1 = 0, m2 = 0, n = 0, p1 = 0, p2 = 0;
@@ -623,8 +628,10 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     temp = INREG(pipeconf_reg);
     OUTREG(pipeconf_reg, temp | PIPEACONF_ENABLE);
 
-    /* And then turn the plane on */
-    OUTREG(dspcntr_reg, dspcntr);
+    if (plane_enable) {
+	/* And then turn the plane on */
+	OUTREG(dspcntr_reg, dspcntr);
+    }
 
     pI830->pipeCurMode[pipe] = *pMode;
 
@@ -740,13 +747,13 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 
     if (pI830->planeEnabled[0]) {
 	ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, 0, pMode),
-			     0);
+			     0, TRUE);
 	if (!ok)
 	    goto done;
     }
     if (pI830->planeEnabled[1]) {
 	ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, 1, pMode),
-			     1);
+			     1, TRUE);
 	if (!ok)
 	    goto done;
     }
@@ -840,5 +847,101 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 		   "  Output %s is %sabled and connected to pipe %c\n",
 		   name, pI830->output[i].disabled ? "dis" : "en",
 		   pI830->output[i].pipe == 0 ? 'A' : 'B');
+    }
+}
+
+/**
+ * Get a pipe with a simple mode set on it for doing load-based monitor
+ * detection.
+ *
+ * It will be up to the load-detect code to adjust the pipe as appropriate for
+ * its requirements.  The pipe will be connected to no other outputs.
+ *
+ * Currently this code will only succeed if there is a pipe with no outputs
+ * configured for it.  In the future, it could choose to temporarily disable
+ * some outputs to free up a pipe for its use.
+ *
+ * \return monitor number, or -1 if no pipes are available.
+ */
+int
+i830GetLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    Bool pipe_available[MAX_DISPLAY_PIPES];
+    int i;
+    /* VESA 640x480x72Hz mode to set on the pipe */
+    DisplayModeRec mode = {
+	NULL, NULL, "640x480", MODE_OK, M_T_DEFAULT,
+	31500,
+	640, 664, 704, 832, 0,
+	480, 489, 491, 520, 0,
+	V_NHSYNC | V_NVSYNC,
+	0, 0,
+	0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0,
+	FALSE, FALSE, 0, NULL, 0, 0.0, 0.0
+    };
+
+    /* If the output is not marked disabled, check if it's already assigned
+     * to an active pipe, and is alone on that pipe.  If so, we're done.
+     */
+    if (!output->disabled) {
+	int pipeconf_reg = (output->pipe == 0) ? PIPEACONF : PIPEBCONF;
+
+	if (INREG(pipeconf_reg) & PIPEACONF_ENABLE) {
+	    /* Actually, maybe we don't need to be all alone on the pipe.
+	     * The worst that should happen is false positives.  Need to test,
+	     * but actually fixing this during server startup is messy.
+	     */
+#if 0
+	    for (i = 0; i < pI830->num_outputs; i++) {
+		if (&pI830->output[i] != output &&
+		    pI830->output[i].pipe == output->pipe)
+		{
+		    return -1;
+		}
+	    }
+#endif
+	    return output->pipe;
+	}
+    }
+
+    for (i = 0; i < pI830->availablePipes; i++) {
+	pipe_available[i] = TRUE;
+    }
+
+    for (i = 0; i < pI830->num_outputs; i++) {
+	if (!pI830->output[i].disabled)
+	{
+	    pipe_available[pI830->output[i].pipe] = FALSE;
+	}
+    }
+
+    for (i = 0; i < pI830->availablePipes; i++) {
+	if (pipe_available[i])
+	    break;
+    }
+
+    if (i == pI830->availablePipes) {
+	return -1;
+    }
+    output->load_detect_temp = TRUE;
+    output->pipe = i;
+    output->disabled = FALSE;
+
+    I830xf86SetModeCrtc(&mode, INTERLACE_HALVE_V);
+
+    i830PipeSetMode(pScrn, &mode, i, FALSE);
+
+    return i;
+}
+
+void
+i830ReleaseLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    if (output->load_detect_temp) {
+	output->disabled = TRUE;
+	i830DisableUnusedFunctions(pScrn);
+	output->load_detect_temp = FALSE;
     }
 }

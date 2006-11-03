@@ -26,9 +26,12 @@
  */
 
 /* i830_display.c */
-Bool i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe);
+Bool i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe,
+		     Bool plane_enable);
 void i830DisableUnusedFunctions(ScrnInfoPtr pScrn);
 Bool i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
 void i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y);
 void i830WaitForVblank(ScrnInfoPtr pScrn);
 void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
+int i830GetLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output);
+void i830ReleaseLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output);
