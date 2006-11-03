@@ -86,7 +86,6 @@ i830_lvds_save(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
     pI830->savePP_ON = INREG(LVDSPP_ON);
     pI830->savePP_OFF = INREG(LVDSPP_OFF);
     pI830->saveLVDS = INREG(LVDS);
@@ -115,7 +114,6 @@ i830_lvds_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
     OUTREG(LVDSPP_ON, pI830->savePP_ON);
     OUTREG(LVDSPP_OFF, pI830->savePP_OFF);
     OUTREG(PP_CYCLE, pI830->savePP_CYCLE);
-    OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
     OUTREG(LVDS, pI830->saveLVDS);
     OUTREG(PP_CONTROL, pI830->savePP_CONTROL);
     if (pI830->savePP_CONTROL & POWER_TARGET_ON)

@@ -385,27 +385,6 @@ i830GetModeListTail(DisplayModePtr pModeList)
 }
 
 /**
- * Appends a list of modes to another mode list, without duplication.
- */
-static void
-i830AppendModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
-		DisplayModePtr addModes)
-{
-    DisplayModePtr first = *modeList;
-    DisplayModePtr last = i830GetModeListTail(first);
-
-    if (addModes == NULL)
-      return;
-
-    if (first == NULL) {
-	*modeList = addModes;
-    } else {
-	last->next = addModes;
-	addModes->prev = last;
-    }
-}
-
-/**
  * This function removes a mode from a list of modes.  It should probably be
  * moved to xf86Mode.c.
  *

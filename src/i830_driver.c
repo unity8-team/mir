@@ -640,6 +640,7 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    pI830 = I830PTR(pScrn);
 
    for(p=0; p < pI830->availablePipes; p++) {
+      I830PipePtr pI830Pipe = &pI830->pipes[p];
 
       if (p == 0) {
          palreg = PALETTE_A;
@@ -653,10 +654,10 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 	 dspsurf = DSPBSURF;
       }
 
-      if (pI830->planeEnabled[p] == 0)
+      if (pI830Pipe->planeEnabled == 0)
 	 continue;  
 
-      pI830->gammaEnabled[p] = 1;
+      pI830Pipe->gammaEnabled = 1;
       
       /* To ensure gamma is enabled we need to turn off and on the plane */
       temp = INREG(dspreg);
@@ -1265,21 +1266,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
          pI830->LinearAlloc = 0;
    }
 
-   pI830->fixedPipe = -1;
-   if ((s = xf86GetOptValString(pI830->Options, OPTION_FIXEDPIPE)) &&
-      I830IsPrimary(pScrn)) {
-
-      if (strstr(s, "A") || strstr(s, "a") || strstr(s, "0"))
-         pI830->fixedPipe = 0;
-      else if (strstr(s, "B") || strstr(s, "b") || strstr(s, "1"))
-         pI830->fixedPipe = 1;
-   }
-
    I830PreInitDDC(pScrn);
 
    pI830->MonType1 = PIPE_NONE;
    pI830->MonType2 = PIPE_NONE;
-   pI830->specifiedMonitor = FALSE;
 
    if ((s = xf86GetOptValString(pI830->Options, OPTION_MONITOR_LAYOUT)) &&
       I830IsPrimary(pScrn)) {
@@ -1366,7 +1356,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	 pI830->pipe = 1;
 
       pI830->operatingDevices = (pI830->MonType2 << 8) | pI830->MonType1;
-      pI830->specifiedMonitor = TRUE;
    } else if (I830IsPrimary(pScrn)) {
       /* Choose a default set of outputs to use based on what we've detected.
        *
@@ -1682,16 +1671,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	 return FALSE;
       }
    }
-
-   if (IS_I9XX(pI830))
-      pI830->newPipeSwitch = TRUE;
-   else
-   if (pI830->availablePipes == 2 && pI830->bios_version >= 3062) {
-      /* BIOS build 3062 changed the pipe switching functionality */
-      pI830->newPipeSwitch = TRUE;
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using new Pipe switch code\n");
-   } else
-      pI830->newPipeSwitch = FALSE;
 
    PrintDisplayDeviceInfo(pScrn);
 
@@ -2310,6 +2289,8 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveSWF[15] = INREG(SWF31);
    pI830->saveSWF[16] = INREG(SWF32);
 
+   pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
+
    for (i = 0; i < pI830->num_outputs; i++) {
       if (pI830->output[i].save != NULL)
 	 pI830->output[i].save(pScrn, &pI830->output[i]);
@@ -2427,6 +2408,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(SWF30, pI830->saveSWF[14]);
    OUTREG(SWF31, pI830->saveSWF[15]);
    OUTREG(SWF32, pI830->saveSWF[16]);
+
+   OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
 
    i830CompareRegsToSnapshot(pScrn);
 
@@ -3398,7 +3381,8 @@ static Bool
 I830EnterVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-   I830Ptr pI830 = I830PTR(pScrn);
+   I830Ptr  pI830 = I830PTR(pScrn);
+   int	    i;
 
    DPRINTF(PFX, "Enter VT\n");
 
@@ -3429,7 +3413,8 @@ I830EnterVT(int scrnIndex, int flags)
    SetHWOperatingState(pScrn);
 
    /* Mark that we'll need to re-set the mode for sure */
-   memset(pI830->pipeCurMode, 0, sizeof(pI830->pipeCurMode));
+   for (i = 0; i < MAX_DISPLAY_PIPES; i++)
+      memset(&pI830->pipes[i].curMode, 0, sizeof(pI830->pipes[i].curMode));
 
    if (!i830SetMode(pScrn, pScrn->currentMode))
       return FALSE;
@@ -3582,7 +3567,7 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
 	    base = DSPBADDR;
 	    surf = DSPBSURF;
         }
-        if (pI830->planeEnabled[i]) {
+        if (pI830->pipes[i].planeEnabled) {
 	   temp = INREG(ctrl);
 	   if (on)
 	      temp |= DISPLAY_PLANE_ENABLE;
@@ -3631,7 +3616,7 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
          ctrl = DSPBCNTR;
          base = DSPBADDR;
       }
-      if (pI830->planeEnabled[i]) {
+      if (pI830->pipes[i].planeEnabled) {
 	   temp = INREG(ctrl);
 	   if (PowerManagementMode == DPMSModeOn)
 	      temp |= DISPLAY_PLANE_ENABLE;

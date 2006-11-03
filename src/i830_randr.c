@@ -489,12 +489,13 @@ I830RandRCrtcNotify (RRCrtcPtr	crtc)
     struct _I830OutputRec   *output;
     RROutputPtr		rrout;
     int			pipe = (int) crtc->devPrivate;
+    I830PipePtr		pI830Pipe = &pI830->pipes[pipe];
     int			i, j;
-    DisplayModePtr	pipeMode = &pI830->pipeCurMode[pipe];
+    DisplayModePtr	pipeMode = &pI830Pipe->curMode;
     int			pipe_type;
 
-    x = pI830->pipeX[pipe];
-    y = pI830->pipeY[pipe];
+    x = pI830Pipe->x;
+    y = pI830Pipe->y;
     rotation = RR_Rotate_0;
     numOutputs = 0;
     for (i = 0; i < pI830->num_outputs; i++)
@@ -550,6 +551,7 @@ I830RandRCrtcSet (ScreenPtr	pScreen,
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
     I830Ptr		pI830 = I830PTR(pScrn);
     int			pipe = (int) (crtc->devPrivate);
+    I830PipePtr		pI830Pipe = &pI830->pipes[pipe];
     DisplayModePtr	display_mode = mode ? mode->devPrivate : NULL;
 
     /* Sync the engine before adjust mode */
@@ -560,7 +562,7 @@ I830RandRCrtcSet (ScreenPtr	pScreen,
 
     if (display_mode != randrp->modes[pipe])
     {
-	pI830->planeEnabled[pipe] = mode != NULL;
+	pI830Pipe->planeEnabled = mode != NULL;
 	if (display_mode)
 	{
 	    if (!i830PipeSetMode (pScrn, display_mode, pipe, TRUE))
@@ -833,18 +835,15 @@ I830RandRCreateScreenResources12 (ScreenPtr pScreen)
     {
 	int mmWidth, mmHeight;
 
-	if (mode->HDisplay == pScreen->width &&
-	    mode->VDisplay == pScreen->height)
-	{
-	    mmWidth = pScrn->widthmm;
-	    mmHeight = pScrn->heightmm;
-	}
-	else
-	{
-#define MMPERINCH 25.4
-	    mmWidth = (double) mode->HDisplay / pScrn->xDpi * MMPERINCH;
-	    mmHeight = (double) mode->VDisplay / pScrn->yDpi * MMPERINCH;
-	}
+	mmWidth = pScreen->mmWidth;
+	mmHeight = pScreen->mmHeight;
+	if (mode->HDisplay != pScreen->width)
+	    mmWidth = mmWidth * mode->HDisplay / pScreen->width;
+	if (mode->VDisplay == pScreen->height)
+	    mmHeight = mmHeight * mode->VDisplay / pScreen->height;
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Setting screen physical size to %d x %d\n",
+		   mmWidth, mmHeight);
 	I830RandRScreenSetSize (pScreen,
 				mode->HDisplay,
 				mode->VDisplay,
