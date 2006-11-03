@@ -317,7 +317,7 @@ PrintModeline(int scrnIndex,DisplayModePtr mode)
 #if 0
     if (mode->Flags & V_CLKDIV2) add(&flags, "vclk/2");
 #endif
-    xf86DrvMsg(scrnIndex, X_ERROR,
+    xf86DrvMsg(scrnIndex, X_INFO,
 		   "Modeline \"%s\"x%.01f  %6.2f  %i %i %i %i  %i %i %i %i%s "
 		   "(%.01f kHz)\n",
 		   mode->name, mode->VRefresh, mode->Clock/1000., mode->HDisplay,
