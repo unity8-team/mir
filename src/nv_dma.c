@@ -456,6 +456,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 				class_3d = NV30_TCL_PRIMITIVE_3D|0x4000;
 				break;
 			case CHIPSET_C51:
+			case CHIPSET_NV44A:
 				class_3d = NV30_TCL_PRIMITIVE_3D|0x4400;
 				break;
 			default:
