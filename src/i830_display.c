@@ -673,7 +673,7 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
      * internal TV) should have no outputs trying to pull data out of it, so
      * we're ready to turn those off.
      */
-    for (i = 0; i < pI830->availablePipes; i++) {
+    for (i = 0; i < pI830->num_pipes; i++) {
 	I830PipePtr pI830Pipe = &pI830->pipes[i];
 	int	    dspcntr_reg = pipe == 0 ? DSPACNTR : DSPBCNTR;
 	int	    pipeconf_reg = pipe == 0 ? PIPEACONF : PIPEBCONF;
@@ -749,13 +749,13 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     didLock = I830DRILock(pScrn);
 #endif
 
-    for (i = 0; i < pI830->availablePipes; i++)
+    for (i = 0; i < pI830->num_pipes; i++)
 	pI830->pipes[i].planeEnabled = i830PipeInUse (pScrn, i);
 
     for (i = 0; i < pI830->num_outputs; i++)
 	pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], pMode);
 
-    for (i = 0; i < pI830->availablePipes; i++)
+    for (i = 0; i < pI830->num_pipes; i++)
     {
 	if (pI830->pipes[i].planeEnabled)
 	    ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, i, pMode),
@@ -815,7 +815,7 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output configuration:\n");
 
-    for (i = 0; i < pI830->availablePipes; i++) {
+    for (i = 0; i < pI830->num_pipes; i++) {
 	CARD32 dspcntr = INREG(DSPACNTR + (DSPBCNTR - DSPACNTR) * i);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,

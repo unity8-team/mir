@@ -174,12 +174,12 @@ i830_crt_detect_load(ScrnInfoPtr pScrn)
     int pipeconf_reg, bclrpat_reg, dpll_reg;
     int pipe;
 
-    for (pipe = 0; pipe < pI830->availablePipes; pipe++)
+    for (pipe = 0; pipe < pI830->num_pipes; pipe++)
 	if (!pI830->pipes[pipe].planeEnabled)
 	    break;
     
     /* No available pipes for load detection */
-    if (pipe == pI830->availablePipes)
+    if (pipe == pI830->num_pipes)
 	return FALSE;
     
     if (pipe == 0) {
