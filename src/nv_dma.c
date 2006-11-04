@@ -294,47 +294,11 @@ Bool NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
 			      CARD32 dma_in, CARD32 dma_out, CARD32 dma_notifier)
 {
 	drm_nouveau_object_init_t cto;
-	CARD32 nv_flags0 = 0, nv_flags1 = 0, nv_flags2 = 0;
 	int ret;
-
-	if (pNv->Architecture >= NV_ARCH_40) {
-		if (flags & NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND)
-			nv_flags0 |= 0x02080000;
-		else if (flags & NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY)
-			nv_flags0 |= 0x02080000;
-		if (flags & NV_DMA_CONTEXT_FLAGS_CLIP_ENABLE)
-			nv_flags0 |= 0x00020000;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-		if (flags & NV_DMA_CONTEXT_FLAGS_MONO)
-			nv_flags1 |= 0x01000000;
-		nv_flags2 |= 0x01000000;
-#else
-		if (flags & NV_DMA_CONTEXT_FLAGS_MONO)
-			nv_flags1 |= 0x02000000;
-#endif
-	} else {
-		if (flags & NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND)
-			nv_flags0 |= 0x01008000;
-		else if (flags & NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY)
-			nv_flags0 |= 0x01018000;
-		if (flags & NV_DMA_CONTEXT_FLAGS_CLIP_ENABLE)
-			nv_flags0 |= 0x00002000;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-		nv_flags0 |= 0x00080000;
-		if (flags & NV_DMA_CONTEXT_FLAGS_MONO)
-			nv_flags1 |= 0x00000001;
-#else
-		if (flags & NV_DMA_CONTEXT_FLAGS_MONO)
-			nv_flags1 |= 0x00000002;
-#endif
-	}
-
 
 	cto.handle = handle;
 	cto.class  = class;
-	cto.flags0 = nv_flags0;
-	cto.flags1 = nv_flags1;
-	cto.flags2 = nv_flags2;
+	cto.flags  = flags;
 	cto.dma0= dma_in;
 	cto.dma1= dma_out;
 	cto.dma_notifier = dma_notifier;
