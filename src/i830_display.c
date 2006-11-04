@@ -796,12 +796,32 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 
     for (i = 0; i < pI830->availablePipes; i++) {
 	CARD32 dspcntr = INREG(DSPACNTR + (DSPBCNTR - DSPACNTR) * i);
+	CARD32 pipeconf = INREG(PIPEACONF + (PIPEBCONF - PIPEACONF) * i);
+	Bool hw_plane_enable = (dspcntr & DISPLAY_PLANE_ENABLE) != 0;
+	Bool hw_pipe_enable = (pipeconf & PIPEACONF_ENABLE) != 0;
 
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "  Pipe %c is %s\n",
+		   'A' + i, pI830->pipes[i].planeEnabled ? "on" : "off");
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "  Display plane %c is now %s and connected to pipe %c.\n",
 		   'A' + i,
 		   pI830->pipes[i].planeEnabled ? "enabled" : "disabled",
 		   dspcntr & DISPPLANE_SEL_PIPE_MASK ? 'B' : 'A');
+	if (hw_pipe_enable != pI830->pipes[i].planeEnabled) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "  Hardware claims pipe %c is %s while software "
+		       "believes it is %s\n",
+		       'A' + i, hw_pipe_enable ? "on" : "off",
+		       pI830->pipes[i].planeEnabled ? "on" : "off");
+	}
+	if (hw_plane_enable != pI830->pipes[i].planeEnabled) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "  Hardware claims plane %c is %s while software "
+		       "believes it is %s\n",
+		       'A' + i, hw_plane_enable ? "on" : "off",
+		       pI830->pipes[i].planeEnabled ? "on" : "off");
+	}
     }
 
     for (i = 0; i < pI830->num_outputs; i++) {
