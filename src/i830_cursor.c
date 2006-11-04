@@ -180,11 +180,11 @@ I830InitHWCursor(ScrnInfoPtr pScrn)
    int i;
 
    DPRINTF(PFX, "I830InitHWCursor\n");
-   for (i = 0; i < MAX_DISPLAY_PIPES; i++) 
+   for (i = 0; i < pI830->availablePipes; i++) 
       pI830->pipes[i].cursorShown = FALSE;
    /* Initialise the HW cursor registers, leaving the cursor hidden. */
    if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
-      for (i = 0; i < MAX_DISPLAY_PIPES; i++)
+      for (i = 0; i < pI830->availablePipes; i++)
       {
 	 int   cursor_control = i == 0 ? CURSOR_A_CONTROL : CURSOR_B_CONTROL;
 	 temp = INREG(cursor_control);
@@ -484,7 +484,7 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
     x -= hotspotx;
     y -= hotspoty;
 
-    for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++)
+    for (pipe = 0; pipe < pI830->availablePipes; pipe++)
     {
 	I830PipePtr	pI830Pipe = &pI830->pipes[pipe];
 	DisplayModePtr	mode = &pI830Pipe->curMode;
@@ -550,7 +550,7 @@ I830ShowCursor(ScrnInfoPtr pScrn)
 	   pI830->CursorMemARGB->Physical, pI830->CursorMemARGB->Start);
 
     pI830->cursorOn = TRUE;
-    for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++)
+    for (pipe = 0; pipe < pI830->availablePipes; pipe++)
 	I830SetPipeCursor (pScrn, pipe, TRUE);
 }
 
@@ -563,7 +563,7 @@ I830HideCursor(ScrnInfoPtr pScrn)
    DPRINTF(PFX, "I830HideCursor\n");
 
    pI830->cursorOn = FALSE;
-    for (pipe = 0; pipe < MAX_DISPLAY_PIPES; pipe++)
+    for (pipe = 0; pipe < pI830->availablePipes; pipe++)
 	I830SetPipeCursor (pScrn, pipe, TRUE);
 }
 

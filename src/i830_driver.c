@@ -3387,7 +3387,7 @@ I830EnterVT(int scrnIndex, int flags)
    SetHWOperatingState(pScrn);
 
    /* Mark that we'll need to re-set the mode for sure */
-   for (i = 0; i < MAX_DISPLAY_PIPES; i++)
+   for (i = 0; i < pI830->availablePipes; i++)
       memset(&pI830->pipes[i].curMode, 0, sizeof(pI830->pipes[i].curMode));
 
    if (!i830SetMode(pScrn, pScrn->currentMode))

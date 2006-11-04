@@ -682,7 +682,7 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 	ncrtc = 0;
 	pipe = -1;
 	crtc = NULL;
-	for (j = 0; j < MAX_DISPLAY_PIPES; j++)
+	for (j = 0; j < pI830->availablePipes; j++)
 	{
 #if 0
 	     /* Can't flip outputs among crtcs yet */
@@ -782,7 +782,7 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 	if (!RROutputSetClones (randrp->outputs[i], clones, nclone))
 	    return FALSE;
     }
-    for (i = 0; i < MAX_DISPLAY_PIPES; i++)
+    for (i = 0; i < pI830->availablePipes; i++)
 	I830RandRCrtcNotify (randrp->crtcs[i]);
     return TRUE;
 }
@@ -815,7 +815,7 @@ I830RandRCreateScreenResources12 (ScreenPtr pScreen)
     /*
      * Create RandR resources, then probe them
      */
-    for (i = 0; i < MAX_DISPLAY_PIPES; i++)
+    for (i = 0; i < pI830->availablePipes; i++)
     {
 	randrp->crtcs[i] = RRCrtcCreate (pScreen, (void *) i);
 	RRCrtcGammaSetSize (randrp->crtcs[i], 256);
@@ -851,7 +851,7 @@ I830RandRCreateScreenResources12 (ScreenPtr pScreen)
 				mmHeight);
     }
 
-    for (i = 0; i < MAX_DISPLAY_PIPES; i++)
+    for (i = 0; i < pI830->availablePipes; i++)
 	i830PipeSetBase(pScrn, i, 0, 0);
 
     return I830RandRSetInfo12 (pScreen);
