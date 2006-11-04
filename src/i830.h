@@ -463,11 +463,6 @@ typedef struct _I830Rec {
    /* Stolen memory support */
    Bool StolenOnly;
 
-#if 0
-   /* Video BIOS support. */
-   vbeInfoPtr pVbe;
-#endif
-
    Bool swfSaved;
    CARD32 saveSWF0;
    CARD32 saveSWF4;

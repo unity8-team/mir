@@ -367,13 +367,6 @@ I830FreeRec(ScrnInfoPtr pScrn)
 
    pI830 = I830PTR(pScrn);
 
-#if 0
-   if (I830IsPrimary(pScrn)) {
-      if (pI830->pVbe)
-         vbeFree(pI830->pVbe);
-   }
-#endif
-
    xfree(pScrn->driverPrivate);
    pScrn->driverPrivate = NULL;
 }
@@ -546,20 +539,6 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    } else {
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "no video memory detected.\n");
    }
-
-#if 0
-   /* Sanity check: compare with what the BIOS thinks. */
-   vbeInfo = VBEGetVBEInfo(pI830->pVbe);
-   if (vbeInfo != NULL && vbeInfo->TotalMemory != memsize / 1024 / 64) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Detected stolen memory (%d kB) doesn't match what the BIOS"
-		 " reports (%d kB)\n",
-		 ROUND_DOWN_TO(memsize / 1024, 64),
-		 vbeInfo->TotalMemory * 64);
-   }
-   if (vbeInfo != NULL)
-      VBEFreeVBEInfo(vbeInfo);
-#endif
 
    return memsize;
 }
@@ -1006,19 +985,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    /* We have to use PIO to probe, because we haven't mapped yet. */
    I830SetPIOAccess(pI830);
-
-#if 0
-   /* Initialize VBE record */
-   if (I830IsPrimary(pScrn)) {
-      if ((pI830->pVbe = VBEInit(NULL, pI830->pEnt->index)) == NULL) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "VBE initialization failed.\n");
-         return FALSE;
-      }
-   } else {
-      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-      pI830->pVbe = pI8301->pVbe;
-   }
-#endif
 
    switch (pI830->PciInfo->chipType) {
    case PCI_CHIP_I830_M:
