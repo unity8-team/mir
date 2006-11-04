@@ -367,10 +367,12 @@ I830FreeRec(ScrnInfoPtr pScrn)
 
    pI830 = I830PTR(pScrn);
 
+#if 0
    if (I830IsPrimary(pScrn)) {
       if (pI830->pVbe)
          vbeFree(pI830->pVbe);
    }
+#endif
 
    xfree(pScrn->driverPrivate);
    pScrn->driverPrivate = NULL;
@@ -477,7 +479,9 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    CARD16 gmch_ctrl;
    int memsize = 0;
    int range;
+#if 0
    VbeInfoBlock *vbeInfo;
+#endif
 
    bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
    gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
@@ -543,6 +547,7 @@ I830DetectMemory(ScrnInfoPtr pScrn)
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "no video memory detected.\n");
    }
 
+#if 0
    /* Sanity check: compare with what the BIOS thinks. */
    vbeInfo = VBEGetVBEInfo(pI830->pVbe);
    if (vbeInfo != NULL && vbeInfo->TotalMemory != memsize / 1024 / 64) {
@@ -554,6 +559,7 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    }
    if (vbeInfo != NULL)
       VBEFreeVBEInfo(vbeInfo);
+#endif
 
    return memsize;
 }
@@ -1001,6 +1007,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* We have to use PIO to probe, because we haven't mapped yet. */
    I830SetPIOAccess(pI830);
 
+#if 0
    /* Initialize VBE record */
    if (I830IsPrimary(pScrn)) {
       if ((pI830->pVbe = VBEInit(NULL, pI830->pEnt->index)) == NULL) {
@@ -1011,6 +1018,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
       pI830->pVbe = pI8301->pVbe;
    }
+#endif
 
    switch (pI830->PciInfo->chipType) {
    case PCI_CHIP_I830_M:
