@@ -86,26 +86,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
  * Paulo César Pereira de Andrade <pcpa@conectiva.com.br>.
  */
 
-#define PIPE_CRT_ID	0
-#define PIPE_TV_ID    	1
-#define PIPE_DFP_ID	2
-#define PIPE_LFP_ID	3
-#define PIPE_CRT2_ID	4
-#define PIPE_TV2_ID	5
-#define PIPE_DFP2_ID	6
-#define PIPE_LFP2_ID	7
-#define PIPE_NUM_ID	8
-
-#define PIPE_NONE	0<<0
-#define PIPE_CRT	1<<0
-#define PIPE_TV		1<<1
-#define PIPE_DFP	1<<2
-#define PIPE_LFP	1<<3
-#define PIPE_CRT2	1<<4
-#define PIPE_TV2	1<<5
-#define PIPE_DFP2	1<<6
-#define PIPE_LFP2	1<<7
-
 typedef struct _I830Rec *I830Ptr;
 
 typedef void (*I830WriteIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
@@ -314,7 +294,9 @@ typedef struct _I830Rec {
    int CloneVDisplay;
 
    I830EntPtr entityPrivate;	
+#if 0
    int pipe, origPipe;
+#endif
    int init;
 
    unsigned int bufferOffset;		/* for I830SelectBuffer */
@@ -391,9 +373,6 @@ typedef struct _I830Rec {
    Bool CursorIsARGB;
    CursorPtr pCurs;
 
-   int MonType1;
-   int MonType2;
-
    DGAModePtr DGAModes;
    int numDGAModes;
    Bool DGAactive;
@@ -466,7 +445,6 @@ typedef struct _I830Rec {
    CARD32 saveSWF4;
 
    Bool checkDevices;
-   int operatingDevices;
 
    /* [0] is Pipe A, [1] is Pipe B. */
    int availablePipes;
@@ -659,6 +637,10 @@ extern Bool I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode);
 extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
+
+/* i830_display.c */
+Bool
+i830PipeHasType (ScrnInfoPtr pScrn, int pipe, int type);
 
 /* i830_crt.c */
 void i830_crt_init(ScrnInfoPtr pScrn);

@@ -61,6 +61,24 @@ i830PrintPll(char *prefix, int refclk, int m1, int m2, int n, int p1, int p2)
 }
 
 /**
+ * Returns whether any output on the specified pipe is an LVDS output
+ */
+Bool
+i830PipeHasType (ScrnInfoPtr pScrn, int pipe, int type)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int	    i;
+
+    for (i = 0; i < pI830->num_outputs; i++)
+	if (!pI830->output[i].disabled && pI830->output[i].pipe == pipe)
+	{
+	    if (pI830->output[i].type == type)
+		return TRUE;
+	}
+    return FALSE;
+}
+
+/**
  * Returns whether the given set of divisors are valid for a given refclk with
  * the given outputs.
  *
@@ -68,7 +86,7 @@ i830PrintPll(char *prefix, int refclk, int m1, int m2, int n, int p1, int p2)
  * clk = refclk * (5 * m1 + m2) / n / (p1 * p2)
  */
 static Bool
-i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
+i830PllIsValid(ScrnInfoPtr pScrn, int pipe, int refclk, int m1, int m2,
 	       int n, int p1, int p2)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -87,7 +105,7 @@ i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
 	max_n = 8;
 	min_p1 = 1;
 	max_p1 = 8;
-	if (outputs & PIPE_LCD_ACTIVE) {
+	if (i830PipeHasType (pScrn, pipe, I830_OUTPUT_LVDS)) {
 	    min_p = 7;
 	    max_p = 98;
 	} else {
@@ -153,7 +171,7 @@ i830PllIsValid(ScrnInfoPtr pScrn, int outputs, int refclk, int m1, int m2,
  * clk = refclk * (5 * m1 + m2) / n / (p1 * p2)
  */
 static Bool
-i830FindBestPLL(ScrnInfoPtr pScrn, int outputs, int target, int refclk,
+i830FindBestPLL(ScrnInfoPtr pScrn, int pipe, int target, int refclk,
 		int *outm1, int *outm2, int *outn, int *outp1, int *outp2)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -170,7 +188,7 @@ i830FindBestPLL(ScrnInfoPtr pScrn, int outputs, int target, int refclk,
 	max_n = 8;
 	min_p1 = 1;
 	max_p1 = 8;
-	if (outputs & PIPE_LCD_ACTIVE) {
+	if (i830PipeHasType (pScrn, pipe, I830_OUTPUT_LVDS)) {
 	    if (target < 200000) /* XXX: Is this the right cutoff? */
 		p2 = 14;
 	    else
@@ -203,7 +221,7 @@ i830FindBestPLL(ScrnInfoPtr pScrn, int outputs, int target, int refclk,
 		for (p1 = min_p1; p1 <= max_p1; p1++) {
 		    int clock, this_err;
 
-		    if (!i830PllIsValid(pScrn, outputs, refclk, m1, m2, n,
+		    if (!i830PllIsValid(pScrn, pipe, refclk, m1, m2, n,
 					p1, p2)) {
 			continue;
 		    }
@@ -372,7 +390,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     Bool ok, is_sdvo = FALSE, is_dvo = FALSE;
     Bool is_crt = FALSE, is_lvds = FALSE, is_tv = FALSE;
     int refclk, pixel_clock;
-    int outputs, i;
+    int i;
     int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
     int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
     int fp_reg = (pipe == 0) ? FPA0 : FPB0;
@@ -387,11 +405,6 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     int dspstride_reg = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
     int dsppos_reg = (pipe == 0) ? DSPAPOS : DSPBPOS;
     int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
-
-    if (pipe == 0)
-	outputs = pI830->operatingDevices & 0xff;
-    else
-	outputs = (pI830->operatingDevices >> 8) & 0xff;
 
     if (I830ModesEqual(&pI830Pipe->curMode, pMode))
 	return TRUE;
@@ -497,7 +510,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     } else {
 	refclk = 48000;
     }
-    ok = i830FindBestPLL(pScrn, outputs, pixel_clock, refclk, &m1, &m2, &n,
+    ok = i830FindBestPLL(pScrn, pipe, pixel_clock, refclk, &m1, &m2, &n,
 			 &p1, &p2);
     if (!ok) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -701,6 +714,22 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 }
 
 /**
+ * Return whether any outputs are connected to the specified pipe
+ */
+
+static Bool
+i830PipeInUse (ScrnInfoPtr pScrn, int pipe)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int	i;
+    
+    for (i = 0; i < pI830->num_outputs; i++)
+	if (!pI830->output[i].disabled && pI830->output[i].pipe == pipe)
+	    return TRUE;
+    return FALSE;
+}
+
+/**
  * This function configures the screens in clone mode on
  * all active outputs using a mode similar to the specified mode.
  */
@@ -720,8 +749,8 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     didLock = I830DRILock(pScrn);
 #endif
 
-    pI830->pipes[0].planeEnabled = (pI830->operatingDevices & 0xff) != 0;
-    pI830->pipes[1].planeEnabled = (pI830->operatingDevices & 0xff00) != 0;
+    for (i = 0; i < pI830->availablePipes; i++)
+	pI830->pipes[i].planeEnabled = i830PipeInUse (pScrn, i);
 
     for (i = 0; i < pI830->num_outputs; i++)
 	pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], pMode);
