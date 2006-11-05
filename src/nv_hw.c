@@ -38,9 +38,9 @@
  \***************************************************************************/
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.21 2006/06/16 00:19:33 mvojkovi Exp $ */
 
+#include "nv_include.h"
 #include "nv_local.h"
 #include "compiler.h"
-#include "nv_include.h"
 
 uint8_t nvReadVGA(NVPtr pNv, uint8_t index)
 {
