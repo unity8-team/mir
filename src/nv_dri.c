@@ -94,10 +94,19 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
     pScreen = screenInfo.screens[pScrn->scrnIndex];
     int irq;
 
-    if (!xf86LoadSubModule(pScrn, "dri")) {
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                   "Could not load DRI module\n");
-        return FALSE;
+    {
+	pointer ret;
+	int errmaj, errmin;
+
+	ret = LoadSubModule(pScrn->module, "dri", NULL, NULL, NULL, NULL,
+                            &errmaj, &errmin);
+	if (!ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "error %d\n", errmaj);
+		LoaderErrorMsg(pScrn->name, "dri", errmaj, errmin);
+	}
+
+	if (!ret && errmaj != LDR_ONCEONLY)
+		return FALSE;
     }
 
     xf86LoaderReqSymLists(drmSymbols, NULL);
