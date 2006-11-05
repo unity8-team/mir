@@ -459,51 +459,60 @@ static void NVDoneComposite (PixmapPtr         pDst)
 
 Bool NVExaInit(ScreenPtr pScreen) 
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    NVPtr pNv = NVPTR(pScrn);
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
 
-    if(!(pNv->EXADriverPtr = (ExaDriverPtr) xnfcalloc(sizeof(ExaDriverRec), 1))) {
-        pNv->NoAccel = TRUE;
-        return FALSE;
-    }
-    		pNv->EXADriverPtr->exa_major = EXA_VERSION_MAJOR;
-		pNv->EXADriverPtr->exa_minor = EXA_VERSION_MINOR;
+	if(!(pNv->EXADriverPtr = (ExaDriverPtr) xnfcalloc(sizeof(ExaDriverRec), 1))) {
+		pNv->NoAccel = TRUE;
+		return FALSE;
+	}
 
-		pNv->EXADriverPtr->memoryBase         = pNv->FB->map;
-		pNv->EXADriverPtr->offScreenBase      = pScrn->virtualX*pScrn->virtualY*pScrn->depth; 
-		pNv->EXADriverPtr->memorySize         = pNv->FB->size; 
-		pNv->EXADriverPtr->pixmapOffsetAlign  = 256; 
-		pNv->EXADriverPtr->pixmapPitchAlign   = 64; 
-		pNv->EXADriverPtr->flags              = EXA_OFFSCREEN_PIXMAPS;
-		pNv->EXADriverPtr->maxX               = 32768;
-		pNv->EXADriverPtr->maxY               = 32768;
+	pNv->EXADriverPtr->exa_major = EXA_VERSION_MAJOR;
+	pNv->EXADriverPtr->exa_minor = EXA_VERSION_MINOR;
 
-		pNv->EXADriverPtr->WaitMarker = NVExaWaitMarker;
+	pNv->EXADriverPtr->memoryBase         = pNv->FB->map;
+	pNv->EXADriverPtr->offScreenBase      = pScrn->virtualX*pScrn->virtualY*pScrn->depth; 
+	pNv->EXADriverPtr->memorySize         = pNv->FB->size; 
+	pNv->EXADriverPtr->pixmapOffsetAlign  = 256; 
+	pNv->EXADriverPtr->pixmapPitchAlign   = 64; 
+	pNv->EXADriverPtr->flags              = EXA_OFFSCREEN_PIXMAPS;
+	pNv->EXADriverPtr->maxX               = 32768;
+	pNv->EXADriverPtr->maxY               = 32768;
 
-		pNv->EXADriverPtr->PrepareCopy = NVExaPrepareCopy;
-		pNv->EXADriverPtr->Copy = NVExaCopy;
-		pNv->EXADriverPtr->DoneCopy = NVExaDoneCopy;
+	pNv->EXADriverPtr->WaitMarker = NVExaWaitMarker;
 
-		pNv->EXADriverPtr->PrepareSolid = NVExaPrepareSolid;
-		pNv->EXADriverPtr->Solid = NVExaSolid;
-    pNv->EXADriverPtr->DoneSolid = NVExaDoneSolid;
+	/* Install default hooks */
+	if (pNv->AGPScratch) {
+		pNv->EXADriverPtr->DownloadFromScreen = NVDownloadFromScreen; 
+		pNv->EXADriverPtr->UploadToScreen = NVUploadToScreen; 
+	}
 
-    if (pNv->AGPScratch) {
-        pNv->EXADriverPtr->DownloadFromScreen = NVDownloadFromScreen; 
-        pNv->EXADriverPtr->UploadToScreen = NVUploadToScreen; 
-    }
-    /*darktama: Hard-disabled these for now, I get lockups often when
-     *          starting e17 with them enabled.
-     *marcheu:  Doesn't crash for me... was it related to the setup being
-     *          called twice before ?
-     */
-    if (pNv->BlendingPossible) {
-        /* install composite hooks */
-        pNv->EXADriverPtr->CheckComposite = NVCheckComposite;
-        pNv->EXADriverPtr->PrepareComposite = NVPrepareComposite;
-        pNv->EXADriverPtr->Composite = NVComposite;
-        pNv->EXADriverPtr->DoneComposite = NVDoneComposite;
-    }
+	pNv->EXADriverPtr->PrepareCopy = NVExaPrepareCopy;
+	pNv->EXADriverPtr->Copy = NVExaCopy;
+	pNv->EXADriverPtr->DoneCopy = NVExaDoneCopy;
 
-    return exaDriverInit(pScreen, pNv->EXADriverPtr);
+	pNv->EXADriverPtr->PrepareSolid = NVExaPrepareSolid;
+	pNv->EXADriverPtr->Solid = NVExaSolid;
+	pNv->EXADriverPtr->DoneSolid = NVExaDoneSolid;
+
+	/*darktama: Hard-disabled these for now, I get lockups often when
+	 *          starting e17 with them enabled.
+	 *marcheu:  Doesn't crash for me... was it related to the setup being
+	 *          called twice before ?
+	 */
+	if (pNv->BlendingPossible) {
+		/* install composite hooks */
+		pNv->EXADriverPtr->CheckComposite = NVCheckComposite;
+		pNv->EXADriverPtr->PrepareComposite = NVPrepareComposite;
+		pNv->EXADriverPtr->Composite = NVComposite;
+		pNv->EXADriverPtr->DoneComposite = NVDoneComposite;
+	}
+
+	/* If we're going to try and use 3D, let the card-specific function
+	 * override whatever hooks it wants.
+	 */
+	if (pNv->use3D) pNv->InitEXA3D(pNv);
+
+	return exaDriverInit(pScreen, pNv->EXADriverPtr);
 }
+

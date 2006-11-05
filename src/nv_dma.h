@@ -54,58 +54,65 @@
 */
 #define NV_DMA_TARGET_AGP 3
     
-#define NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND 0x1
-#define NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY 0x2
-#define NV_DMA_CONTEXT_FLAGS_CLIP_ENABLE 0x4
-#define NV_DMA_CONTEXT_FLAGS_MONO 0x8
-
 enum DMAObjects {
-        NvContextSurfaces = 0x80000010, 
-        NvRop = 0x80000011, 
-        NvImagePattern = 0x80000012, 
-        NvClipRectangle = 0x80000013, 
-        NvSolidLine = 0x80000014, 
-        NvImageBlit = 0x80000015, 
-        NvRectangle = 0x80000016, 
-        NvScaledImage = 0x80000017, 
-        NvMemFormat = 0x80000018,
-        NvDmaFB = 0xD8000001,
-        NvDmaAGP = 0xD8000002,
-        NvDmaNotifier0 = 0xD8000003
+	NvContextSurfaces	= 0x80000010, 
+	NvRop			= 0x80000011, 
+	NvImagePattern		= 0x80000012, 
+	NvClipRectangle		= 0x80000013, 
+	NvSolidLine		= 0x80000014, 
+	NvImageBlit		= 0x80000015, 
+	NvRectangle		= 0x80000016, 
+	NvScaledImage		= 0x80000017, 
+	NvMemFormat		= 0x80000018,
+	Nv3D			= 0x80000019,
+	NvDmaFB			= 0xD8000001,
+	NvDmaAGP		= 0xD8000002,
+	NvDmaNotifier0		= 0xD8000003
 };
 
 enum DMASubchannel {
 /* EXA + XAA + Xv */
-        NvSubContextSurfaces = 0, 
-		NvSubRectangle = 1, 
-        NvSubScaledImage = 2, 
+	NvSubContextSurfaces	= 0, 
+	NvSubRectangle		= 1, 
+	NvSubScaledImage	= 2, 
 /* EXA + XAA */
-        NvSubRop = 3, 
-        NvSubImagePattern = 4, 
-        NvSubImageBlit = 5, 
+	NvSubRop		= 3, 
+	NvSubImagePattern	= 4, 
+	NvSubImageBlit		= 5, 
 /* EXA */
-        NvSubMemFormat = 6,
+	NvSubMemFormat		= 6,
+	NvSub3D			= 7,
 /* XAA */
-        NvSubClipRectangle = 6, 
-        NvSubSolidLine = 7, 
+	NvSubClipRectangle	= 6, 
+	NvSubSolidLine		= 7, 
 };
 
-#define NVDmaNext(pNv, data) {                           \
+#define NVDmaNext(pNv, data) do {                        \
      (pNv)->dmaBase[(pNv)->dmaCurrent++] = (data);       \
      NVDEBUG("\tNVDmaNext: 0x%08x\n", (data));           \
-}
+} while(0)
 
-#define NVDmaStart(pNv, subchannel, tag, size) {                        \
+#define NVDmaFloat(pNv, data) do {      \
+	float f = (data);               \
+	NVDmaNext((pNv), *(CARD32*)&f); \
+} while(0)
+
+#define NVDmaStart(pNv, subchannel, tag, size) do {                     \
         if((pNv)->dmaFree <= (size))                                    \
             NVDmaWait(pNv, size);                                       \
         NVDEBUG("NVDmaStart: subc=%d, cmd=%x, num=%d\n", (subchannel), (tag), (size)); \
         NVDmaNext(pNv, ((size) << 18) | ((subchannel) << 13) | (tag));  \
         (pNv)->dmaFree -= ((size) + 1);                                 \
-    }
+} while(0)
 
-#define NVDmaSetObjectOnSubchannel(pNv, subchannel, object) \
-    NVDmaStart(pNv, subchannel, 0, 1);                      \
-    NVDmaNext(pNv,object);
+#define NVDmaStart_NonInc(pNv, subchannel, tag, size) do {              \
+	NVDmaStart((pNv), (subchannel), (tag)|0x40000000, (size));      \
+} while(0)
+
+#define NVDmaSetObjectOnSubchannel(pNv, subchannel, object) do { \
+    NVDmaStart(pNv, subchannel, 0, 1);                           \
+    NVDmaNext(pNv,object);                                       \
+} while(0)
 
 #define SURFACE_FORMAT                                              0x00000300
 #define SURFACE_FORMAT_Y8                                           0x00000001
