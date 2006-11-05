@@ -375,6 +375,22 @@ i830PipeFindClosestMode(ScrnInfoPtr pScrn, int pipe, DisplayModePtr pMode)
 }
 
 /**
+ * Return whether any outputs are connected to the specified pipe
+ */
+
+static Bool
+i830PipeInUse (ScrnInfoPtr pScrn, int pipe)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int	i;
+    
+    for (i = 0; i < pI830->num_outputs; i++)
+	if (!pI830->output[i].disabled && pI830->output[i].pipe == pipe)
+	    return TRUE;
+    return FALSE;
+}
+
+/**
  * Sets the given video mode on the given pipe.  Assumes that plane A feeds
  * pipe A, and plane B feeds pipe B.  Should not affect the other planes/pipes.
  */
@@ -405,6 +421,10 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     int dspstride_reg = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
     int dsppos_reg = (pipe == 0) ? DSPAPOS : DSPBPOS;
     int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
+    Bool ret = FALSE;
+#ifdef XF86DRI
+    Bool didLock = FALSE;
+#endif
 
     if (I830ModesEqual(&pI830Pipe->curMode, pMode))
 	return TRUE;
@@ -412,10 +432,21 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Requested pix clock: %d\n",
 	       pMode->Clock);
 
+    pI830->pipes[pipe].planeEnabled = i830PipeInUse (pScrn, pipe);
+    
+    if (!pI830->pipes[pipe].planeEnabled)
+	return TRUE;
+
+#ifdef XF86DRI
+    didLock = I830DRILock(pScrn);
+#endif
+    
     for (i = 0; i < pI830->num_outputs; i++) {
 	if (pI830->output[i].pipe != pipe || pI830->output[i].disabled)
 	    continue;
 
+	pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], pMode);
+	
 	switch (pI830->output[i].type) {
 	case I830_OUTPUT_LVDS:
 	    is_lvds = TRUE;
@@ -438,18 +469,18 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     if (is_lvds && (is_sdvo || is_dvo || is_tv || is_crt)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Can't enable LVDS and non-LVDS on the same pipe\n");
-	return FALSE;
+	goto done;
     }
     if (is_tv && (is_sdvo || is_dvo || is_crt || is_lvds)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Can't enable a TV and any other output on the same "
 		   "pipe\n");
-	return FALSE;
+	goto done;
     }
     if (pipe == 0 && is_lvds) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Can't support LVDS on pipe A\n");
-	return FALSE;
+	goto done;
     }
 
     htot = (pMode->CrtcHDisplay - 1) | ((pMode->CrtcHTotal - 1) << 16);
@@ -515,7 +546,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     if (!ok) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Couldn't find PLL settings for mode!\n");
-	return FALSE;
+	goto done;
     }
 
     dpll = DPLL_VCO_ENABLE | DPLL_VGA_MODE_DIS;
@@ -629,7 +660,6 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     if (((INREG(PFIT_CONTROL) >> 29) & 0x3) == pipe)
 	OUTREG(PFIT_CONTROL, 0);
 	   
-    OUTREG(PFIT_PGM_RATIOS, 0x10001000);
     OUTREG(DSPARB, (47 << 0) | (95 << 7));
     
     OUTREG(htot_reg, htot);
@@ -653,7 +683,13 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 
     pI830Pipe->curMode = *pMode;
 
-    return TRUE;
+    ret = TRUE;
+done:
+#ifdef XF86DRI
+    if (didLock)
+	I830DRIUnlock(pScrn);
+#endif
+    return ret;
 }
 
 void
@@ -714,22 +750,6 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 }
 
 /**
- * Return whether any outputs are connected to the specified pipe
- */
-
-static Bool
-i830PipeInUse (ScrnInfoPtr pScrn, int pipe)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    int	i;
-    
-    for (i = 0; i < pI830->num_outputs; i++)
-	if (!pI830->output[i].disabled && pI830->output[i].pipe == pipe)
-	    return TRUE;
-    return FALSE;
-}
-
-/**
  * This function configures the screens in clone mode on
  * all active outputs using a mode similar to the specified mode.
  */
@@ -738,28 +758,13 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     Bool ok = TRUE;
-#ifdef XF86DRI
-    Bool didLock = FALSE;
-#endif
     int i;
 
     DPRINTF(PFX, "i830SetMode\n");
 
-#ifdef XF86DRI
-    didLock = I830DRILock(pScrn);
-#endif
-
-    for (i = 0; i < pI830->num_pipes; i++)
-	pI830->pipes[i].planeEnabled = i830PipeInUse (pScrn, i);
-
-    for (i = 0; i < pI830->num_outputs; i++)
-	pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], pMode);
-
     for (i = 0; i < pI830->num_pipes; i++)
     {
-	if (pI830->pipes[i].planeEnabled)
-	    ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, i, pMode),
-				 i);
+	ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, i, pMode), i);
 	if (!ok)
 	    goto done;
     }
@@ -797,11 +802,6 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
    I830DRISetVBlankInterrupt (pScrn, TRUE);
 #endif
 done:
-#ifdef XF86DRI
-    if (didLock)
-	I830DRIUnlock(pScrn);
-#endif
-
     i830DumpRegs (pScrn);
     i830_sdvo_dump(pScrn);
     return ok;
