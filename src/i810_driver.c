@@ -315,6 +315,12 @@ const char *I810drmSymbols[] = {
    "drmGetLibVersion",
    "drmGetVersion",
    "drmRmMap",
+#ifdef XSERVER_LIBDRM_MM 
+   "drmMMInit",
+   "drmMMTakedown",
+   "drmMMLock",
+   "drmMMUnlock",
+#endif
    NULL
 };
 
@@ -335,14 +341,14 @@ const char *I810driSymbols[] = {
    NULL
 };
 
+#endif /* I830_ONLY */
+
 const char *I810shadowSymbols[] = {
     "shadowInit",
     "shadowSetup",
     "shadowAdd",
     NULL
 };
-
-#endif /* I830_ONLY */
 
 #ifndef I810_DEBUG
 int I810_DEBUG = (0
@@ -410,9 +416,9 @@ i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
 #ifdef XF86DRI
 			I810drmSymbols,
 			I810driSymbols,
+#endif
 			I810shadowSymbols,
 			I810shadowFBSymbols,
-#endif
 			I810vbeSymbols, vbeOptionalSymbols,
 			I810ddcSymbols, I810int10Symbols, NULL);
 
@@ -1189,14 +1195,13 @@ I810MapMem(ScrnInfoPtr pScrn)
    long i;
 
    for (i = 2; i < pI810->FbMapSize; i <<= 1) ;
-   pI810->FbMapSize = i;
 
    if (!I810MapMMIO(pScrn))
       return FALSE;
 
    pI810->FbBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
 				 pI810->PciTag,
-				 pI810->LinearAddr, pI810->FbMapSize);
+				 pI810->LinearAddr, i);
    if (!pI810->FbBase)
       return FALSE;
 
