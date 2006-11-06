@@ -2,9 +2,11 @@
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
 #include "GL/glxint.h"
+#include "GL/glxtokens.h"
 #include "sarea.h"
 #include "xf86drm.h"
 #include "dri.h"
+#include "nv_dripriv.h"
 
 Bool NVDRMSetParam(NVPtr pNv, unsigned int param, unsigned int value)
 {
@@ -83,6 +85,100 @@ static void NVDRITransitionSingleToMulti3d(ScreenPtr pScreen)
 static void NVDRITransitionMultiToSingle3d(ScreenPtr pScreen)
 {       
 	return;
+}
+
+static Bool NVDRIInitVisualConfigs(ScreenPtr pScreen)
+{
+	ScrnInfoPtr pScrn=xf86Screens[pScreen->myNum];
+	__GLXvisualConfig* pConfigs = NULL;
+	NVConfigPrivPtr pNVConfigs = NULL;
+	NVConfigPrivPtr* pNVConfigPtrs = NULL;
+	int db,depth,alpha;
+	int depths[]={24,16,0};
+	int num_configs,i;
+
+	switch(pScrn->depth)
+	{
+		case 8:
+		case 15:
+			xf86DrvMsg(pScreen->myNum, X_ERROR, "[dri] no DRI at %d bpp ",pScrn->depth);
+			break;
+		case 16:
+		case 24:
+			num_configs=2*3*((pScrn->depth==24)?2:1); /* db*depth*alpha */
+			if (!(pConfigs=(__GLXvisualConfig*)xcalloc(sizeof(__GLXvisualConfig),num_configs)))
+				return FALSE;
+			if (!(pNVConfigs=(NVConfigPrivPtr)xcalloc(sizeof(NVConfigPrivRec), num_configs))) {
+				xfree(pConfigs);
+				return FALSE;
+			}
+			if (!(pNVConfigPtrs=(NVConfigPrivPtr *)xcalloc(sizeof(NVConfigPrivPtr),num_configs))) {
+				xfree(pConfigs);
+				xfree(pNVConfigs);
+				return FALSE;
+			}
+
+			i = 0;
+			for(db=1;db>=0;db--)
+			for(depth=0;depth<3;depth++)
+			for(alpha=0;alpha<((pScrn->depth==24)?1:0);alpha++)
+			{
+				pConfigs[i].vid                = (VisualID)(-1);
+				pConfigs[i].class              = -1;
+				pConfigs[i].rgba               = TRUE;
+				if (pScrn->depth==16)
+				{					
+					pConfigs[i].redSize            = 5;
+					pConfigs[i].greenSize          = 6;
+					pConfigs[i].blueSize           = 5;
+					pConfigs[i].alphaSize          = 0;
+					pConfigs[i].redMask            = 0x0000F800;
+					pConfigs[i].greenMask          = 0x000007E0;
+					pConfigs[i].blueMask           = 0x0000001F;
+					pConfigs[i].alphaMask          = 0x00000000;
+				} else {
+					pConfigs[i].redSize            = 8;
+					pConfigs[i].greenSize          = 8;
+					pConfigs[i].blueSize           = 8;
+					pConfigs[i].redMask            = 0x00FF0000;
+					pConfigs[i].greenMask          = 0x0000FF00;
+					pConfigs[i].blueMask           = 0x000000FF;
+					if (alpha) {
+						pConfigs[i].alphaSize          = 8;
+						pConfigs[i].alphaMask          = 0xFF000000;
+					} else {
+						pConfigs[i].alphaSize          = 0;
+						pConfigs[i].alphaMask          = 0x00000000;
+					}
+				}
+
+				pConfigs[i].accumRedSize   = 0;
+				pConfigs[i].accumGreenSize = 0;
+				pConfigs[i].accumBlueSize  = 0;
+				pConfigs[i].accumAlphaSize = 0;
+				if (db)
+					pConfigs[i].doubleBuffer   = TRUE;
+				else
+					pConfigs[i].doubleBuffer   = FALSE;
+				pConfigs[i].stereo             = FALSE;
+				pConfigs[i].bufferSize         = pScrn->depth;
+				pConfigs[i].depthSize          = depths[depth];
+				pConfigs[i].stencilSize        = 0;
+				pConfigs[i].auxBuffers         = 0;
+				pConfigs[i].level              = 0;
+				pConfigs[i].visualRating       = GLX_NONE;
+				pConfigs[i].transparentPixel   = GLX_NONE;
+				pConfigs[i].transparentRed     = 0;
+				pConfigs[i].transparentGreen   = 0;
+				pConfigs[i].transparentBlue    = 0;
+				pConfigs[i].transparentAlpha   = 0;
+				pConfigs[i].transparentIndex   = 0;
+				i++;
+			}
+			break;
+	}
+	GlxSetVisualConfigs(num_configs, pConfigs, (void**)pNVConfigPtrs);
+	return TRUE;
 }
 
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
