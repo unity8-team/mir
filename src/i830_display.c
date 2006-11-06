@@ -268,8 +268,8 @@ i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y)
     }
 
     if (IS_I965G(pI830)) {
-	OUTREG(dspbase, 0);
-	OUTREG(dspsurf, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+	OUTREG(dspbase, ((y * pScrn->displayWidth + x) * pI830->cpp));
+	OUTREG(dspsurf, Start);
     } else {
 	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
     }
