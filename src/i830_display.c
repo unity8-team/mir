@@ -570,6 +570,8 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
 	    dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
 	    break;
 	}
+	if (IS_I965G(pI830))
+	    dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
     } else {
 	dpll |= (p1 - 2) << 16;
 	if (p2 == 4)
@@ -660,8 +662,14 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe)
     if (((INREG(PFIT_CONTROL) >> 29) & 0x3) == pipe)
 	OUTREG(PFIT_CONTROL, 0);
 	   
+    /* 
+     * Docs say to not mess with this register. I think we will
+     * need to eventually though
+     */
+#if 0     
     OUTREG(DSPARB, (47 << 0) | (95 << 7));
-    
+#endif
+
     OUTREG(htot_reg, htot);
     OUTREG(hblank_reg, hblank);
     OUTREG(hsync_reg, hsync);

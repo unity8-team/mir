@@ -800,11 +800,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define PLL_P1_DIVIDE_BY_TWO			(1 << 21) /* i830 */
 # define PLL_REF_INPUT_DREFCLK			(0 << 13)
 # define PLL_REF_INPUT_TVCLKINA			(1 << 13) /* i830 */
-# define PLL_REF_INPUT_TVCLKINBC		(2 << 13)
+# define PLL_REF_INPUT_TVCLKINBC		(2 << 13) /* SDVO TVCLKIN */
 # define PLLB_REF_INPUT_SPREADSPECTRUMIN	(3 << 13)
+# define PLL_LOAD_PULSE_PHASE_SHIFT		9
+/*
+ * Parallel to Serial Load Pulse phase selection.
+ * Selects the phase for the 10X DPLL clock for the PCIe
+ * digital display port. The range is 4 to 13; 10 or more
+ * is just a flip delay. The default is 6
+ */
+# define PLL_LOAD_PULSE_PHASE_MASK		(0xf << PLL_LOAD_PULSE_PHASE_SHIFT)
 # define DISPLAY_RATE_SELECT_FPA1		(1 << 8)
 /**
- * SDVO multiplier for 945G/GM.
+ * SDVO multiplier for 945G/GM. Not used on 965.
  *
  * \sa DPLL_MD_UDI_MULTIPLIER_MASK
  */
@@ -848,7 +856,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 # define DPLL_MD_UDI_MULTIPLIER_MASK		0x00003f00
 # define DPLL_MD_UDI_MULTIPLIER_SHIFT		8
-/** SDVO/UDI pixel multiplier for VGA, same as DPLL_MD_UDI_MULTIPLIER_MASK. */
+/** SDVO/UDI pixel multiplier for VGA, same as DPLL_MD_UDI_MULTIPLIER_MASK. 
+ * This best be set to the default value (3) or the CRT won't work. No,
+ * I don't entirely understand what this does...
+ */
 # define DPLL_MD_VGA_UDI_MULTIPLIER_MASK	0x0000003f
 # define DPLL_MD_VGA_UDI_MULTIPLIER_SHIFT	0
 /** @} */
