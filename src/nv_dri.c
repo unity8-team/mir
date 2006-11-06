@@ -188,12 +188,22 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
     drmVersionPtr drm_version;
     ScreenPtr pScreen;
     pScreen = screenInfo.screens[pScrn->scrnIndex];
+    int drm_page_size;
     int irq;
 
-    if (!xf86LoadSubModule(pScrn, "dri")) {
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                   "Could not load DRI module\n");
-        return FALSE;
+    {
+	pointer ret;
+	int errmaj, errmin;
+
+	ret = LoadSubModule(pScrn->module, "dri", NULL, NULL, NULL, NULL,
+                            &errmaj, &errmin);
+	if (!ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "error %d\n", errmaj);
+		LoaderErrorMsg(pScrn->name, "dri", errmaj, errmin);
+	}
+
+	if (!ret && errmaj != LDR_ONCEONLY)
+		return FALSE;
     }
 
     xf86LoaderReqSymLists(drmSymbols, NULL);
@@ -201,6 +211,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "Loaded DRI module\n");
 
+    drm_page_size = getpagesize();
     if (!(pDRIInfo = DRICreateInfoRec())) return FALSE;
     
     pNv->pDRIInfo                        = pDRIInfo;
@@ -222,7 +233,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
     pDRIInfo->devPrivate                 = NULL; 
     pDRIInfo->devPrivateSize             = 0;
     pDRIInfo->contextSize                = 0;
-    pDRIInfo->SAREASize                  = SAREA_MAX;
+    pDRIInfo->SAREASize                  = (drm_page_size > SAREA_MAX) ? drm_page_size : SAREA_MAX;
     
     pDRIInfo->CreateContext              = NVCreateContext;
     pDRIInfo->DestroyContext             = NVDestroyContext;

@@ -21,6 +21,7 @@
 #if USE_LIBC_WRAPPER
 #include "xf86_ansic.h"
 #endif
+#define PPC_MMIO_IS_BE
 #include "compiler.h"
 
 /* Drivers for PCI hardware need this */
