@@ -666,7 +666,7 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
      * internal TV) should have no outputs trying to pull data out of it, so
      * we're ready to turn those off.
      */
-    for (i = 0; i < MAX_DISPLAY_PIPES; i++) {
+    for (i = 0; i < pI830->availablePipes; i++) {
 	I830PipePtr pI830Pipe = &pI830->pipes[i];
 	int	    dspcntr_reg = pipe == 0 ? DSPACNTR : DSPBCNTR;
 	int	    pipeconf_reg = pipe == 0 ? PIPEACONF : PIPEBCONF;
@@ -732,7 +732,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
     for (i = 0; i < pI830->num_outputs; i++)
 	pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], pMode);
 
-    for (i = 0; i < MAX_DISPLAY_PIPES; i++)
+    for (i = 0; i < pI830->availablePipes; i++)
     {
 	if (pI830->pipes[i].planeEnabled)
 	    ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, i,

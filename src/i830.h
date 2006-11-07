@@ -313,8 +313,6 @@ typedef struct _I830Rec {
     */
    DisplayModePtr savedCurrentMode;
 
-   I830PipeRec	  pipes[MAX_DISPLAY_PIPES];
-   
    Bool Clone;
    int CloneRefresh;
    int CloneHDisplay;
@@ -481,7 +479,8 @@ typedef struct _I830Rec {
    /* [0] is Pipe A, [1] is Pipe B. */
    int availablePipes;
    /* [0] is display plane A, [1] is display plane B. */
-
+   I830PipeRec	  pipes[MAX_DISPLAY_PIPES];
+   
    /* Driver phase/state information */
    Bool preinit;
    Bool starting;
