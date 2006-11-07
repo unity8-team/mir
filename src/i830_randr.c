@@ -492,45 +492,31 @@ I830RandRCrtcNotify (RRCrtcPtr	crtc)
     I830PipePtr		pI830Pipe = &pI830->pipes[pipe];
     int			i, j;
     DisplayModePtr	pipeMode = &pI830Pipe->curMode;
-    int			pipe_type;
 
     x = pI830Pipe->x;
     y = pI830Pipe->y;
     rotation = RR_Rotate_0;
     numOutputs = 0;
+    mode = NULL;
     for (i = 0; i < pI830->num_outputs; i++)
     {
 	output = &pI830->output[i];
-	/*
-	 * Valid crtcs
-	 */
-	switch (output->type) {
-	case I830_OUTPUT_DVO:
-	case I830_OUTPUT_SDVO:
-	    pipe_type = PIPE_DFP;
-	    break;
-	case I830_OUTPUT_ANALOG:
-	    pipe_type = PIPE_CRT;
-	    break;
-	case I830_OUTPUT_LVDS:
-	    pipe_type = PIPE_LFP;
-	    break;
-	case I830_OUTPUT_TVOUT:
-	    pipe_type = PIPE_TV;
-	    break;
-	default:
-	    pipe_type = PIPE_NONE;
-	    break;
-	}
-	if (pI830->operatingDevices & (pipe_type << (pipe << 3)))
+	if (!output->disabled && output->pipe == pipe)
 	{
 	    rrout = randrp->outputs[i];
 	    outputs[numOutputs++] = rrout;
+	    /*
+	     * We make copies of modes, so pointer equality 
+	     * isn't sufficient
+	     */
 	    for (j = 0; j < rrout->numModes; j++)
 	    {
 		DisplayModePtr	outMode = rrout->modes[j]->devPrivate;
 		if (I830ModesEqual(pipeMode, outMode))
+		{
 		    mode = rrout->modes[j];
+		    break;
+		}
 	    }
 	}
     }
@@ -571,14 +557,7 @@ I830RandRCrtcSet (ScreenPtr	pScreen,
 	}
 	else
 	{
-	    CARD32  operatingDevices = pI830->operatingDevices;
-
-	    if (pipe == 0)
-		pI830->operatingDevices &= ~0xff;
-	    else
-		pI830->operatingDevices &= ~0xff00;
 	    i830DisableUnusedFunctions (pScrn);
-	    pI830->operatingDevices = operatingDevices;
 	}
 	randrp->modes[pipe] = display_mode;
     }
@@ -614,7 +593,6 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
     int			p;
     int			clone_types;
     int			crtc_types;
-    int			pipe_type;
     int			pipe;
     int			subpixel;
     DisplayModePtr	modes, mode;
@@ -644,7 +622,6 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 	    clone_types = ((1 << I830_OUTPUT_ANALOG) |
 			   (1 << I830_OUTPUT_DVO) |
 			   (1 << I830_OUTPUT_SDVO));
-	    pipe_type = PIPE_DFP;
 	    subpixel = SubPixelHorizontalRGB;
 	    break;
 	case I830_OUTPUT_ANALOG:
@@ -652,13 +629,11 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 	    clone_types = ((1 << I830_OUTPUT_ANALOG) |
 			   (1 << I830_OUTPUT_DVO) |
 			   (1 << I830_OUTPUT_SDVO));
-	    pipe_type = PIPE_CRT;
 	    subpixel = SubPixelNone;
 	    break;
 	case I830_OUTPUT_LVDS:
 	    crtc_types = (1 << 1);
 	    clone_types = (1 << I830_OUTPUT_LVDS);
-	    pipe_type = PIPE_LFP;
 	    subpixel = SubPixelHorizontalRGB;
 	    possibleOptions = (RROutputOptionScaleNone|
 			       RROutputOptionScaleMaxAspect |
@@ -669,32 +644,27 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 	    crtc_types = ((1 << 0) |
 			  (1 << 1));
 	    clone_types = (1 << I830_OUTPUT_TVOUT);
-	    pipe_type = PIPE_TV;
 	    subpixel = SubPixelNone;
 	    break;
 	default:
 	    crtc_types = 0;
 	    clone_types = 0;
-	    pipe_type = PIPE_NONE;
 	    subpixel = SubPixelUnknown;
 	    break;
 	}
-	ncrtc = 0;
-	pipe = -1;
-	crtc = NULL;
-	for (j = 0; j < pI830->availablePipes; j++)
+	if (!output->disabled)
 	{
-#if 0
-	     /* Can't flip outputs among crtcs yet */
-	    if (crtc_types & (1 << j))
-		crtcs[ncrtc++] = randrp->crtcs[j];
-#endif
-	    if (pI830->operatingDevices & (pipe_type << (j << 3)))
-	    {
-		pipe = j;
-		crtc = randrp->crtcs[j];
-		crtcs[ncrtc++] = crtc;
-	    }
+	    /* Can't flip outputs among crtcs yet */
+	    ncrtc = 1;
+	    pipe = output->pipe;
+	    crtc = randrp->crtcs[pipe];
+	    crtcs[0] = randrp->crtcs[pipe];
+	}
+	else
+	{
+	    ncrtc = 0;
+	    pipe = -1;
+	    crtc = NULL;
 	}
 	if (!RROutputSetCrtcs (randrp->outputs[i], crtcs, ncrtc))
 	    return FALSE;

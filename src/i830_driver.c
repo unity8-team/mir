@@ -387,88 +387,6 @@ I830ProbeDDC(ScrnInfoPtr pScrn, int index)
    ConfiguredMonitor = vbeDoEDID(pVbe, NULL);
 }
 
-/*
- * Returns a string matching the device corresponding to the first bit set
- * in "device".  savedDevice is then set to device with that bit cleared.
- * Subsequent calls with device == -1 will use savedDevice.
- */
-
-static const char *displayDevices[] = {
-   "CRT",
-   "TV",
-   "DFP (digital flat panel)",
-   "LFP (local flat panel)",
-   "CRT2 (second CRT)",
-   "TV2 (second TV)",
-   "DFP2 (second digital flat panel)",
-   "LFP2 (second local flat panel)",
-   NULL
-};
-
-static const char *
-DeviceToString(int device)
-{
-   static int savedDevice = -1;
-   int bit = 0;
-   const char *name;
-
-   if (device == -1) {
-      device = savedDevice;
-      bit = 0;
-   }
-
-   if (device == -1)
-      return NULL;
-
-   while (displayDevices[bit]) {
-      if (device & (1 << bit)) {
-	 name = displayDevices[bit];
-	 savedDevice = device & ~(1 << bit);
-	 bit++;
-	 return name;
-      }
-      bit++;
-   }
-   return NULL;
-}
-
-static void
-PrintDisplayDeviceInfo(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int pipe, n;
-   int displays;
-
-   DPRINTF(PFX, "PrintDisplayDeviceInfo\n");
-
-   displays = pI830->operatingDevices;
-   if (displays == -1) {
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		 "No active display devices.\n");
-      return;
-   }
-
-   /* Check for active devices connected to each display pipe. */
-   for (n = 0; n < pI830->availablePipes; n++) {
-      pipe = ((displays >> PIPE_SHIFT(n)) & PIPE_ACTIVE_MASK);
-      if (pipe) {
-	 const char *name;
-
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Currently active displays on Pipe %c:\n", PIPE_NAME(n));
-	 name = DeviceToString(pipe);
-	 do {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "\t%s\n", name);
-	    name = DeviceToString(-1);
-	 } while (name);
-
-      } else {
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "No active displays on Pipe %c.\n", PIPE_NAME(n));
-      }
-   }
-}
-
 static int
 I830DetectMemory(ScrnInfoPtr pScrn)
 {
@@ -1268,9 +1186,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    I830PreInitDDC(pScrn);
 
-   pI830->MonType1 = PIPE_NONE;
-   pI830->MonType2 = PIPE_NONE;
-
+#if 0
+   /*
+    * This moves to generic RandR-based configuration code
+    */
    if ((s = xf86GetOptValString(pI830->Options, OPTION_MONITOR_LAYOUT)) &&
       I830IsPrimary(pScrn)) {
       char *Mon1;
@@ -1355,7 +1274,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       else
 	 pI830->pipe = 1;
 
-      pI830->operatingDevices = (pI830->MonType2 << 8) | pI830->MonType1;
    } else if (I830IsPrimary(pScrn)) {
       /* Choose a default set of outputs to use based on what we've detected.
        *
@@ -1401,7 +1319,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	 pI830->pipe = 0;
       else
 	 pI830->pipe = 1;
-      pI830->operatingDevices = (pI830->MonType2 << 8) | pI830->MonType1;
 
       if (pI830->MonType1 != 0 && pI830->MonType2 != 0) {
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
@@ -1410,11 +1327,11 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       }
    } else {
       I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-      pI830->operatingDevices = pI8301->operatingDevices;
       pI830->pipe = !pI8301->pipe;
       pI830->MonType1 = pI8301->MonType1;
       pI830->MonType2 = pI8301->MonType2;
    }
+#endif
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_CLONE, FALSE)) {
       if (pI830->availablePipes == 1) {
@@ -1434,38 +1351,23 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
 
-   /* Perform the pipe assignment of outputs.  This code shouldn't exist,
-    * but for now we're supporting the existing MonitorLayout configuration
-    * scheme.
+   /* Perform the pipe assignment of outputs. This is a kludge until
+    * we have better configuration support in the generic RandR code
     */
    for (i = 0; i < pI830->num_outputs; i++) {
       pI830->output[i].disabled = FALSE;
 
       switch (pI830->output[i].type) {
       case I830_OUTPUT_LVDS:
-	 if (pI830->MonType1 & PIPE_LFP)
-	    pI830->output[i].pipe = 0;
-	 else if (pI830->MonType2 & PIPE_LFP)
-	    pI830->output[i].pipe = 1;
-	 else
-	    pI830->output[i].disabled = TRUE;
+	 /* LVDS must live on pipe B for two-pipe devices */
+	 pI830->output[i].pipe = pI830->availablePipes - 1;
 	 break;
       case I830_OUTPUT_ANALOG:
-	 if (pI830->MonType1 & PIPE_CRT)
-	    pI830->output[i].pipe = 0;
-	 else if (pI830->MonType2 & PIPE_CRT)
-	    pI830->output[i].pipe = 1;
-	 else
-	    pI830->output[i].disabled = TRUE;
+	 pI830->output[i].pipe = 0;
 	 break;
       case I830_OUTPUT_DVO:
       case I830_OUTPUT_SDVO:
-	 if (pI830->MonType1 & PIPE_DFP)
-	    pI830->output[i].pipe = 0;
-	 else if (pI830->MonType2 & PIPE_DFP)
-	    pI830->output[i].pipe = 1;
-	 else
-	    pI830->output[i].disabled = TRUE;
+	 pI830->output[i].pipe = 0;
 	 break;
       default:
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unhandled output type\n");
@@ -1473,8 +1375,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       }
    }
 
-   
-
+#if 0
    pI830->CloneRefresh = 60; /* default to 60Hz */
    if (xf86GetOptValInteger(pI830->Options, OPTION_CLONE_REFRESH,
 			    &(pI830->CloneRefresh))) {
@@ -1497,6 +1398,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
          return FALSE;
       }
    }
+#endif
 
    pI830->rotation = RR_Rotate_0;
    if ((s = xf86GetOptValString(pI830->Options, OPTION_ROTATE))) {
@@ -1672,8 +1574,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       }
    }
 
-   PrintDisplayDeviceInfo(pScrn);
-
+#if 0
    if (xf86IsEntityShared(pScrn->entityList[0])) {
       if (!I830IsPrimary(pScrn)) {
 	 /* This could be made to work with a little more fiddling */
@@ -1689,6 +1590,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       xf86DrvMsg(pScrn->scrnIndex, from, "Display is using Pipe %s\n",
 		pI830->pipe ? "B" : "A");
    }
+#endif
 
    /* Alloc our pointers for the primary head */
    if (I830IsPrimary(pScrn)) {
@@ -2898,17 +2800,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 #endif
 
-   if (xf86IsEntityShared(pScrn->entityList[0])) {
-      /* PreInit failed on the second head, so make sure we turn it off */
-      if (I830IsPrimary(pScrn) && !pI830->entityPrivate->pScrn_2) {
-         if (pI830->pipe == 0) {
-            pI830->operatingDevices &= 0xFF;
-         } else {
-            pI830->operatingDevices &= 0xFF00;
-         }
-      }
-   }
-
    pI830->starting = TRUE;
 
    /* Alloc our pointers for the primary head */
@@ -3295,6 +3186,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
+   int i;
 
    DPRINTF(PFX, "i830AdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
 	   x, pI830->xoffset, y, pI830->yoffset);
@@ -3305,9 +3197,9 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
       pI830->AccelInfoRec->NeedToSync = FALSE;
    }
 
-   i830PipeSetBase(pScrn, pI830->pipe, x, y);
-   if (pI830->Clone)
-      i830PipeSetBase(pScrn, !pI830->pipe, x, y);
+   for (i = 0; i < pI830->availablePipes; i++)
+      if (pI830->pipes[i].planeEnabled)
+	 i830PipeSetBase(pScrn, i, x, y);
 }
 
 static void

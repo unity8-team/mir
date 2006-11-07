@@ -170,7 +170,7 @@ static Bool
 i830_crt_detect_load(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 adpa, pipeconf;
+    CARD32 adpa, pipeconf, bclrpat;
     CARD8 st00;
     int pipeconf_reg, bclrpat_reg, dpll_reg;
     int pipe;
@@ -198,9 +198,10 @@ i830_crt_detect_load(ScrnInfoPtr pScrn, I830OutputPtr output)
 	       ((pipe == 1) ? ADPA_PIPE_B_SELECT : 0));
     }
 
-    /* Set the border color to red, green.  Maybe we should save/restore this
+    /* Set the border color to purple.  Maybe we should save/restore this
      * reg.
      */
+    bclrpat = INREG(bclrpat_reg);
     OUTREG(bclrpat_reg, 0x00500050);
 
     /* Force the border color through the active region */
@@ -211,6 +212,7 @@ i830_crt_detect_load(ScrnInfoPtr pScrn, I830OutputPtr output)
     st00 = pI830->readStandard(pI830, 0x3c2);
 
     /* Restore previous settings */
+    OUTREG(bclrpat_reg, bclrpat);
     OUTREG(pipeconf_reg, pipeconf);
     OUTREG(ADPA, adpa);
 

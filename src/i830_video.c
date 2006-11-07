@@ -722,7 +722,7 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
    pPriv->brightness = 0;
    pPriv->contrast = 64;
    pPriv->saturation = 128;
-   pPriv->pipe = pI830->pipe; /* default to current pipe */
+   pPriv->pipe = 0;  /* XXX must choose pipe wisely */
    pPriv->linear = NULL;
    pPriv->currentBuf = 0;
    pPriv->gamma5 = 0xc0c0c0;
@@ -3592,6 +3592,8 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
    pPriv->overlayOK = TRUE;
 
+#if 0
+   /* XXX Must choose pipe wisely */
    /* ensure pipe is updated on mode switch */
    if (!pI830->Clone) {
       if (pPriv->pipe != pI830->pipe) {
@@ -3600,6 +3602,7 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
          pPriv->pipe = pI830->pipe;
       }
    }
+#endif
 
    if (!IS_I965G(pI830)) {
       if (pPriv->pipe == 0) {
@@ -3628,8 +3631,8 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
    }
 
    /* Check we have an LFP connected */
-   if ((pPriv->pipe == 1 && pI830->operatingDevices & (PIPE_LFP << 8)) ||
-       (pPriv->pipe == 0 && pI830->operatingDevices & PIPE_LFP) ) {
+   if (i830PipeHasType (pScrn, pPriv->pipe, I830_OUTPUT_LVDS)) 
+   {
       size = pPriv->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
       hsize = (size >> 16) & 0x7FF;
       vsize = size & 0x7FF;
