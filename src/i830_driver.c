@@ -367,11 +367,6 @@ I830FreeRec(ScrnInfoPtr pScrn)
 
    pI830 = I830PTR(pScrn);
 
-   if (I830IsPrimary(pScrn)) {
-      if (pI830->pVbe)
-         vbeFree(pI830->pVbe);
-   }
-
    xfree(pScrn->driverPrivate);
    pScrn->driverPrivate = NULL;
 }
@@ -395,7 +390,9 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    CARD16 gmch_ctrl;
    int memsize = 0;
    int range;
+#if 0
    VbeInfoBlock *vbeInfo;
+#endif
 
    bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
    gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
@@ -460,18 +457,6 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    } else {
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "no video memory detected.\n");
    }
-
-   /* Sanity check: compare with what the BIOS thinks. */
-   vbeInfo = VBEGetVBEInfo(pI830->pVbe);
-   if (vbeInfo != NULL && vbeInfo->TotalMemory != memsize / 1024 / 64) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "Detected stolen memory (%d kB) doesn't match what the BIOS"
-		 " reports (%d kB)\n",
-		 ROUND_DOWN_TO(memsize / 1024, 64),
-		 vbeInfo->TotalMemory * 64);
-   }
-   if (vbeInfo != NULL)
-      VBEFreeVBEInfo(vbeInfo);
 
    return memsize;
 }
@@ -557,7 +542,7 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    DPRINTF(PFX, "I830LoadPalette: numColors: %d\n", numColors);
    pI830 = I830PTR(pScrn);
 
-   for(p=0; p < pI830->availablePipes; p++) {
+   for(p=0; p < pI830->num_pipes; p++) {
       I830PipePtr pI830Pipe = &pI830->pipes[p];
 
       if (p == 0) {
@@ -791,6 +776,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    pointer pVBEModule = NULL;
    Bool enable;
    const char *chipname;
+   int mem_skip;
 
    if (pScrn->numEntities != 1)
       return FALSE;
@@ -918,17 +904,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    /* We have to use PIO to probe, because we haven't mapped yet. */
    I830SetPIOAccess(pI830);
-
-   /* Initialize VBE record */
-   if (I830IsPrimary(pScrn)) {
-      if ((pI830->pVbe = VBEInit(NULL, pI830->pEnt->index)) == NULL) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "VBE initialization failed.\n");
-         return FALSE;
-      }
-   } else {
-      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-      pI830->pVbe = pI8301->pVbe;
-   }
 
    switch (pI830->PciInfo->chipType) {
    case PCI_CHIP_I830_M:
@@ -1106,20 +1081,27 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
-      pI830->availablePipes = 1;
+      pI830->num_pipes = 1;
    else
    if (IS_MOBILE(pI830) || IS_I9XX(pI830))
-      pI830->availablePipes = 2;
+      pI830->num_pipes = 2;
    else
-      pI830->availablePipes = 1;
+      pI830->num_pipes = 1;
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%d display pipe%s available.\n",
-	      pI830->availablePipes, pI830->availablePipes > 1 ? "s" : "");
+	      pI830->num_pipes, pI830->num_pipes > 1 ? "s" : "");
 
    /*
     * Get the pre-allocated (stolen) memory size.
     */
-   pI830->StolenMemory.Size = I830DetectMemory(pScrn);
-   pI830->StolenMemory.Start = 0;
+    
+   mem_skip = 0;
+   
+   /* On 965, it looks like the GATT table is inside the aperture? */
+   if (IS_I965G(pI830))
+      mem_skip = pI830->FbMapSize >> 10;
+    
+   pI830->StolenMemory.Size = I830DetectMemory(pScrn) - mem_skip;
+   pI830->StolenMemory.Start = mem_skip;
    pI830->StolenMemory.End = pI830->StolenMemory.Size;
 
    /* Find the maximum amount of agpgart memory available. */
@@ -1257,7 +1239,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
             } while (sub);
          }
     
-         if (pI830->availablePipes == 1 && pI830->MonType2 != PIPE_NONE) {
+         if (pI830->num_pipes == 1 && pI830->MonType2 != PIPE_NONE) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "Monitor 2 cannot be specified on single pipe devices\n");
             return FALSE;
@@ -1334,7 +1316,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 #endif
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_CLONE, FALSE)) {
-      if (pI830->availablePipes == 1) {
+      if (pI830->num_pipes == 1) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
  		 "Can't enable Clone Mode because this is a single pipe device\n");
          PreInitCleanup(pScrn);
@@ -1359,9 +1341,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
       switch (pI830->output[i].type) {
       case I830_OUTPUT_LVDS:
-	 /* LVDS must always be on pipe B. */
-	 pI830->output[i].pipe = 1;
-	 pI830->output[i].enabled = TRUE;
+	 /* LVDS must live on pipe B for two-pipe devices */
+	 pI830->output[i].pipe = pI830->num_pipes - 1;
 	 break;
       case I830_OUTPUT_ANALOG:
       case I830_OUTPUT_DVO:
@@ -1383,7 +1364,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       }
    }
 
-   for (i = 0; i < pI830->availablePipes; i++) {
+   for (i = 0; i < pI830->num_pipes; i++) {
       pI830->pipes[i].enabled = i830PipeInUse(pScrn, i);
    }
 
@@ -2129,7 +2110,7 @@ SaveHWState(ScrnInfoPtr pScrn)
    temp = INREG(PIPEACONF);
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PIPEACONF is 0x%08lx\n", 
 	      (unsigned long) temp);
-   if (pI830->availablePipes == 2) {
+   if (pI830->num_pipes == 2) {
       temp = INREG(PIPEBCONF);
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PIPEBCONF is 0x%08lx\n", 
 		 (unsigned long) temp);
@@ -2161,7 +2142,7 @@ SaveHWState(ScrnInfoPtr pScrn)
       pI830->savePaletteA[i] = INREG(PALETTE_A + (i << 2));
    }
 
-   if(pI830->availablePipes == 2) {
+   if(pI830->num_pipes == 2) {
       pI830->savePIPEBCONF = INREG(PIPEBCONF);
       pI830->savePIPEBSRC = INREG(PIPEBSRC);
       pI830->saveDSPBCNTR = INREG(DSPBCNTR);
@@ -2272,7 +2253,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
          OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
    }
 
-   if(pI830->availablePipes == 2) {
+   if(pI830->num_pipes == 2) {
       OUTREG(FPB0, pI830->saveFPB0);
       OUTREG(FPB1, pI830->saveFPB1);
       OUTREG(DPLL_B, pI830->saveDPLL_B);
@@ -3209,7 +3190,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
       pI830->AccelInfoRec->NeedToSync = FALSE;
    }
 
-   for (i = 0; i < pI830->availablePipes; i++)
+   for (i = 0; i < pI830->num_pipes; i++)
       if (pI830->pipes[i].enabled)
 	 i830PipeSetBase(pScrn, i, x, y);
 }
@@ -3317,7 +3298,7 @@ I830EnterVT(int scrnIndex, int flags)
    SetHWOperatingState(pScrn);
 
    /* Mark that we'll need to re-set the mode for sure */
-   for (i = 0; i < pI830->availablePipes; i++)
+   for (i = 0; i < pI830->num_pipes; i++)
       memset(&pI830->pipes[i].curMode, 0, sizeof(pI830->pipes[i].curMode));
 
    if (!i830SetMode(pScrn, pScrn->currentMode))
@@ -3461,7 +3442,7 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
    DPRINTF(PFX, "I830SaveScreen: %d, on is %s\n", mode, BOOLTOSTRING(on));
 
    if (pScrn->vtSema) {
-      for (i = 0; i < pI830->availablePipes; i++) {
+      for (i = 0; i < pI830->num_pipes; i++) {
         if (i == 0) {
 	    ctrl = DSPACNTR;
 	    base = DSPABASE;
@@ -3512,7 +3493,7 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
       pI830->output[i].dpms(pScrn, &pI830->output[i], PowerManagementMode);
    }
 
-   for (i = 0; i < pI830->availablePipes; i++) {
+   for (i = 0; i < pI830->num_pipes; i++) {
       if (i == 0) {
          ctrl = DSPACNTR;
          base = DSPABASE;

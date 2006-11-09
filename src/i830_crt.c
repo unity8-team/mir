@@ -102,8 +102,14 @@ i830_crt_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
 		       DisplayModePtr pMode)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    int	    dpll_md_reg = (output->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
+    CARD32  adpa;
 
-    CARD32 adpa;
+    /*
+     * Not quite sure precisely what this does...
+     */
+    if (IS_I965G(pI830))
+	OUTREG(dpll_md_reg, 0x3 << DPLL_MD_VGA_UDI_MULTIPLIER_SHIFT);
 
     adpa = ADPA_DAC_ENABLE;
 

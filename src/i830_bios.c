@@ -84,15 +84,18 @@ i830GetBIOS(ScrnInfoPtr pScrn)
     struct vbt_header *vbt;
     int vbt_off;
     unsigned char *bios;
+    vbeInfoPtr	pVbe;
 
     bios = xalloc(INTEL_VBIOS_SIZE);
     if (bios == NULL)
 	return NULL;
 
-    if (pI830->pVbe != NULL) {
-	memcpy(bios, xf86int10Addr(pI830->pVbe->pInt10,
-					   pI830->pVbe->pInt10->BIOSseg << 4),
+    pVbe = VBEInit (NULL, pI830->pEnt->index);
+    if (pVbe != NULL) {
+	memcpy(bios, xf86int10Addr(pVbe->pInt10,
+				   pVbe->pInt10->BIOSseg << 4),
 	       INTEL_VBIOS_SIZE);
+	vbeFree (pVbe);
     } else {
 	xf86ReadPciBIOS(0, pI830->PciTag, 0, bios, INTEL_VBIOS_SIZE);
     }

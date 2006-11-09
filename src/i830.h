@@ -445,9 +445,6 @@ typedef struct _I830Rec {
    /* Stolen memory support */
    Bool StolenOnly;
 
-   /* Video BIOS support. */
-   vbeInfoPtr pVbe;
-
    Bool swfSaved;
    CARD32 saveSWF0;
    CARD32 saveSWF4;
@@ -455,7 +452,7 @@ typedef struct _I830Rec {
    Bool checkDevices;
 
    /* [0] is Pipe A, [1] is Pipe B. */
-   int availablePipes;
+   int num_pipes;
    /* [0] is display plane A, [1] is display plane B. */
    I830PipeRec	  pipes[MAX_DISPLAY_PIPES];
    

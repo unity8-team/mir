@@ -517,8 +517,8 @@ i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct i830_sdvo_priv *dev_priv = output->dev_priv;
-    CARD16 width = mode->CrtcHDisplay;
-    CARD16 height = mode->CrtcVDisplay;
+    CARD16 width;
+    CARD16 height;
     CARD16 h_blank_len, h_sync_len, v_blank_len, v_sync_len;
     CARD16 h_sync_offset, v_sync_offset;
     struct i830_sdvo_dtd output_dtd;
@@ -526,6 +526,11 @@ i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
 
     memset(&no_outputs, 0, sizeof(no_outputs));
 
+    if (!mode)
+	return;
+    width = mode->CrtcHDisplay;
+    height = mode->CrtcVDisplay;
+    
     /* do some mode translations */
     h_blank_len = mode->CrtcHBlankEnd - mode->CrtcHBlankStart;
     h_sync_len = mode->CrtcHSyncEnd - mode->CrtcHSyncStart;
