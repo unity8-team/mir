@@ -707,7 +707,7 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 			modeInfo.vTotal = mode->VTotal;
 			modeInfo.modeFlags = mode->Flags;
 
-			rrmode = RRModeGet (pScreen, &modeInfo, mode->name);
+			rrmode = RRModeGet (&modeInfo, mode->name);
 			rrmode->devPrivate = mode;
 			if (rrmode) {
 			    rrmodes[nmode++] = rrmode;
@@ -787,7 +787,11 @@ I830RandRCreateScreenResources12 (ScreenPtr pScreen)
      */
     for (i = 0; i < pI830->num_pipes; i++)
     {
-	randrp->crtcs[i] = RRCrtcCreate (pScreen, (void *) i);
+	randrp->crtcs[i] = RRCrtcCreate ((void *) i);
+	if (!randrp->crtcs[i])
+	    return FALSE;
+	if (!RRCrtcAttachScreen (randrp->crtcs[i], pScreen))
+	    return FALSE;
 	RRCrtcGammaSetSize (randrp->crtcs[i], 256);
     }
 
@@ -795,9 +799,11 @@ I830RandRCreateScreenResources12 (ScreenPtr pScreen)
     {
 	output = &pI830->output[i];
 	name = i830_output_type_names[output->type];
-	randrp->outputs[i] = RROutputCreate (pScreen,
-					     name, strlen (name),
-					     (void *) i);
+	randrp->outputs[i] = RROutputCreate (name, strlen (name), (void *) i);
+	if (!randrp->outputs[i])
+	    return FALSE;
+	if (!RROutputAttachScreen (randrp->outputs[i], pScreen))
+	    return FALSE;
     }
 
     mode = pScrn->currentMode;
