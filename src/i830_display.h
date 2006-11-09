@@ -35,3 +35,4 @@ void i830WaitForVblank(ScrnInfoPtr pScrn);
 void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
 int i830GetLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output);
 void i830ReleaseLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output);
+Bool i830PipeInUse(ScrnInfoPtr pScrn, int pipe);

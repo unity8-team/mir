@@ -723,7 +723,7 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
  * Return whether any outputs are connected to the specified pipe
  */
 
-static Bool
+Bool
 i830PipeInUse (ScrnInfoPtr pScrn, int pipe)
 {
     I830Ptr pI830 = I830PTR(pScrn);

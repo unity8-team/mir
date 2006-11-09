@@ -1355,24 +1355,36 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
     * we have better configuration support in the generic RandR code
     */
    for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].disabled = FALSE;
+      pI830->output[i].disabled = TRUE;
 
       switch (pI830->output[i].type) {
       case I830_OUTPUT_LVDS:
-	 /* LVDS must live on pipe B for two-pipe devices */
-	 pI830->output[i].pipe = pI830->availablePipes - 1;
+	 /* LVDS must always be on pipe B. */
+	 pI830->output[i].pipe = 1;
+	 pI830->output[i].disabled = FALSE;
 	 break;
       case I830_OUTPUT_ANALOG:
-	 pI830->output[i].pipe = 0;
-	 break;
       case I830_OUTPUT_DVO:
       case I830_OUTPUT_SDVO:
-	 pI830->output[i].pipe = 0;
+	 if (pI830->output[i].detect(pScrn, &pI830->output[i]) !=
+	     OUTPUT_STATUS_DISCONNECTED) {
+	    if (!i830PipeInUse(pScrn, 0)) {
+	       pI830->output[i].pipe = 0;
+	       pI830->output[i].disabled = FALSE;
+	    } else if (!i830PipeInUse(pScrn, 1)) {
+	       pI830->output[i].pipe = 1;
+	       pI830->output[i].disabled = FALSE;
+	    }
+	 }
 	 break;
       default:
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unhandled output type\n");
 	 break;
       }
+   }
+
+   for (i = 0; i < pI830->availablePipes; i++) {
+      pI830->pipes[i].planeEnabled = i830PipeInUse(pScrn, i);
    }
 
 #if 0
