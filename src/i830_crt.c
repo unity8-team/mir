@@ -170,7 +170,7 @@ static Bool
 i830_crt_detect_load(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 adpa, pipeconf, bclrpat;
+    CARD32 save_adpa, adpa, pipeconf, bclrpat;
     CARD8 st00;
     int pipeconf_reg, bclrpat_reg, dpll_reg;
     int pipe;
@@ -186,23 +186,25 @@ i830_crt_detect_load(ScrnInfoPtr pScrn, I830OutputPtr output)
 	dpll_reg = DPLL_B;
     }
 
-    /* Don't try this if the DPLL isn't running. */
-    if (!(INREG(dpll_reg) & DPLL_VCO_ENABLE))
-	return FALSE;
-
     adpa = INREG(ADPA);
+    save_adpa = adpa;
 
-    /* Enable CRT output if disabled. */
-    if (!(adpa & ADPA_DAC_ENABLE)) {
-	OUTREG(ADPA, adpa | ADPA_DAC_ENABLE |
-	       ((pipe == 1) ? ADPA_PIPE_B_SELECT : 0));
-    }
+    /* Enable CRT output. */
+    adpa |= ADPA_DAC_ENABLE;
+    if (pipe == 1)
+ 	adpa |= ADPA_PIPE_B_SELECT;
+    else
+ 	adpa &= ~ADPA_PIPE_B_SELECT;
+    adpa |= ADPA_VSYNC_CNTL_ENABLE | ADPA_HSYNC_CNTL_ENABLE;
+    OUTREG(ADPA, adpa);
 
     /* Set the border color to purple.  Maybe we should save/restore this
      * reg.
      */
     bclrpat = INREG(bclrpat_reg);
     OUTREG(bclrpat_reg, 0x00500050);
+
+    i830WaitForVblank(pScrn);
 
     /* Force the border color through the active region */
     pipeconf = INREG(pipeconf_reg);
@@ -214,7 +216,7 @@ i830_crt_detect_load(ScrnInfoPtr pScrn, I830OutputPtr output)
     /* Restore previous settings */
     OUTREG(bclrpat_reg, bclrpat);
     OUTREG(pipeconf_reg, pipeconf);
-    OUTREG(ADPA, adpa);
+    OUTREG(ADPA, save_adpa);
 
     if (st00 & (1 << 4))
 	return TRUE;
