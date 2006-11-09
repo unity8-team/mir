@@ -666,7 +666,7 @@ void
 i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    int i;
+    int i, pipe;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling unused functions\n");
 
@@ -679,8 +679,8 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
      * internal TV) should have no outputs trying to pull data out of it, so
      * we're ready to turn those off.
      */
-    for (i = 0; i < pI830->availablePipes; i++) {
-	I830PipePtr pI830Pipe = &pI830->pipes[i];
+    for (pipe = 0; pipe < pI830->availablePipes; pipe++) {
+	I830PipePtr pI830Pipe = &pI830->pipes[pipe];
 	int	    dspcntr_reg = pipe == 0 ? DSPACNTR : DSPBCNTR;
 	int	    pipeconf_reg = pipe == 0 ? PIPEACONF : PIPEBCONF;
 	int	    dpll_reg = pipe == 0 ? DPLL_A : DPLL_B;
