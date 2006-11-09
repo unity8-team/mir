@@ -572,7 +572,7 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 	 dspsurf = DSPBSURF;
       }
 
-      if (pI830Pipe->planeEnabled == 0)
+      if (pI830Pipe->enabled == 0)
 	 continue;  
 
       pI830Pipe->gammaEnabled = 1;
@@ -1355,13 +1355,13 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
     * we have better configuration support in the generic RandR code
     */
    for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].disabled = TRUE;
+      pI830->output[i].enabled = FALSE;
 
       switch (pI830->output[i].type) {
       case I830_OUTPUT_LVDS:
 	 /* LVDS must always be on pipe B. */
 	 pI830->output[i].pipe = 1;
-	 pI830->output[i].disabled = FALSE;
+	 pI830->output[i].enabled = TRUE;
 	 break;
       case I830_OUTPUT_ANALOG:
       case I830_OUTPUT_DVO:
@@ -1370,10 +1370,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	     OUTPUT_STATUS_DISCONNECTED) {
 	    if (!i830PipeInUse(pScrn, 0)) {
 	       pI830->output[i].pipe = 0;
-	       pI830->output[i].disabled = FALSE;
+	       pI830->output[i].enabled = TRUE;
 	    } else if (!i830PipeInUse(pScrn, 1)) {
 	       pI830->output[i].pipe = 1;
-	       pI830->output[i].disabled = FALSE;
+	       pI830->output[i].enabled = TRUE;
 	    }
 	 }
 	 break;
@@ -1384,7 +1384,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    for (i = 0; i < pI830->availablePipes; i++) {
-      pI830->pipes[i].planeEnabled = i830PipeInUse(pScrn, i);
+      pI830->pipes[i].enabled = i830PipeInUse(pScrn, i);
    }
 
 #if 0
@@ -3210,7 +3210,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    }
 
    for (i = 0; i < pI830->availablePipes; i++)
-      if (pI830->pipes[i].planeEnabled)
+      if (pI830->pipes[i].enabled)
 	 i830PipeSetBase(pScrn, i, x, y);
 }
 
@@ -3471,7 +3471,7 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
 	    base = DSPBADDR;
 	    surf = DSPBSURF;
         }
-        if (pI830->pipes[i].planeEnabled) {
+        if (pI830->pipes[i].enabled) {
 	   temp = INREG(ctrl);
 	   if (on)
 	      temp |= DISPLAY_PLANE_ENABLE;
@@ -3520,7 +3520,7 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
          ctrl = DSPBCNTR;
          base = DSPBADDR;
       }
-      if (pI830->pipes[i].planeEnabled) {
+      if (pI830->pipes[i].enabled) {
 	   temp = INREG(ctrl);
 	   if (PowerManagementMode == DPMSModeOn)
 	      temp |= DISPLAY_PLANE_ENABLE;

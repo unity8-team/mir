@@ -70,7 +70,7 @@ i830PipeHasType (ScrnInfoPtr pScrn, int pipe, int type)
     int	    i;
 
     for (i = 0; i < pI830->num_outputs; i++)
-	if (!pI830->output[i].disabled && pI830->output[i].pipe == pipe)
+	if (pI830->output[i].enabled && pI830->output[i].pipe == pipe)
 	{
 	    if (pI830->output[i].type == type)
 		return TRUE;
@@ -297,7 +297,7 @@ i830PipeFindClosestMode(ScrnInfoPtr pScrn, int pipe, DisplayModePtr pMode)
     /* Assume that there's only one output connected to the given CRTC. */
     for (i = 0; i < pI830->num_outputs; i++) {
 	if (pI830->output[i].pipe == pipe &&
-	    !pI830->output[i].disabled &&
+	    pI830->output[i].enabled &&
 	    pI830->output[i].probed_modes != NULL)
 	{
 	    pScan = pI830->output[i].probed_modes;
@@ -418,7 +418,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe,
 	       pMode->Clock);
 
     for (i = 0; i < pI830->num_outputs; i++) {
-	if (pI830->output[i].pipe != pipe || pI830->output[i].disabled)
+	if (pI830->output[i].pipe != pipe || !pI830->output[i].enabled)
 	    continue;
 
 	switch (pI830->output[i].type) {
@@ -671,7 +671,7 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling unused functions\n");
 
     for (i = 0; i < pI830->num_outputs; i++) {
-	if (pI830->output[i].disabled)
+	if (!pI830->output[i].enabled)
 	    pI830->output[i].dpms(pScrn, &pI830->output[i], DPMSModeOff);
     }
 
@@ -687,7 +687,7 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 	CARD32	    dspcntr, pipeconf, dpll;
 	char	    *pipe_name = pipe == 0 ? "A" : "B";
 
-	if (pI830Pipe->planeEnabled)
+	if (pI830Pipe->enabled)
 	    continue;
 	
 	dspcntr = INREG(dspcntr_reg);
@@ -730,7 +730,7 @@ i830PipeInUse (ScrnInfoPtr pScrn, int pipe)
     int	i;
     
     for (i = 0; i < pI830->num_outputs; i++)
-	if (!pI830->output[i].disabled && pI830->output[i].pipe == pipe)
+	if (pI830->output[i].enabled && pI830->output[i].pipe == pipe)
 	    return TRUE;
     return FALSE;
 }
@@ -756,14 +756,14 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 #endif
 
     for (i = 0; i < pI830->availablePipes; i++)
-	pI830->pipes[i].planeEnabled = i830PipeInUse (pScrn, i);
+	pI830->pipes[i].enabled = i830PipeInUse (pScrn, i);
 
     for (i = 0; i < pI830->num_outputs; i++)
 	pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], pMode);
 
     for (i = 0; i < pI830->availablePipes; i++)
     {
-	if (pI830->pipes[i].planeEnabled)
+	if (pI830->pipes[i].enabled)
 	    ok = i830PipeSetMode(pScrn, i830PipeFindClosestMode(pScrn, i,
 								pMode),
 				 i, TRUE);
@@ -786,7 +786,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	/* If we might have enabled/disabled some pipes, we need to reset
 	 * cloning mode support.
 	 */
-	if (pI830->pipes[0].planeEnabled && pI830->pipes[1].planeEnabled)
+	if (pI830->pipes[0].enabled && pI830->pipes[1].enabled)
 	    pI830->Clone = TRUE;
 	else
 	    pI830->Clone = FALSE;
@@ -830,25 +830,25 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "  Pipe %c is %s\n",
-		   'A' + i, pI830->pipes[i].planeEnabled ? "on" : "off");
+		   'A' + i, pI830->pipes[i].enabled ? "on" : "off");
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "  Display plane %c is now %s and connected to pipe %c.\n",
 		   'A' + i,
-		   pI830->pipes[i].planeEnabled ? "enabled" : "disabled",
+		   pI830->pipes[i].enabled ? "enabled" : "disabled",
 		   dspcntr & DISPPLANE_SEL_PIPE_MASK ? 'B' : 'A');
-	if (hw_pipe_enable != pI830->pipes[i].planeEnabled) {
+	if (hw_pipe_enable != pI830->pipes[i].enabled) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "  Hardware claims pipe %c is %s while software "
 		       "believes it is %s\n",
 		       'A' + i, hw_pipe_enable ? "on" : "off",
-		       pI830->pipes[i].planeEnabled ? "on" : "off");
+		       pI830->pipes[i].enabled ? "on" : "off");
 	}
-	if (hw_plane_enable != pI830->pipes[i].planeEnabled) {
+	if (hw_plane_enable != pI830->pipes[i].enabled) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "  Hardware claims plane %c is %s while software "
 		       "believes it is %s\n",
 		       'A' + i, hw_plane_enable ? "on" : "off",
-		       pI830->pipes[i].planeEnabled ? "on" : "off");
+		       pI830->pipes[i].enabled ? "on" : "off");
 	}
     }
 
@@ -875,7 +875,7 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "  Output %s is %sabled and connected to pipe %c\n",
-		   name, pI830->output[i].disabled ? "dis" : "en",
+		   name, pI830->output[i].enabled ? "en" : "dis",
 		   pI830->output[i].pipe == 0 ? 'A' : 'B');
     }
 }
@@ -915,7 +915,7 @@ i830GetLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output)
     /* If the output is not marked disabled, check if it's already assigned
      * to an active pipe, and is alone on that pipe.  If so, we're done.
      */
-    if (!output->disabled) {
+    if (output->enabled) {
 	int pipeconf_reg = (output->pipe == 0) ? PIPEACONF : PIPEBCONF;
 
 	if (INREG(pipeconf_reg) & PIPEACONF_ENABLE) {
@@ -936,16 +936,8 @@ i830GetLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output)
 	}
     }
 
-    for (i = 0; i < pI830->availablePipes; i++) {
-	pipe_available[i] = TRUE;
-    }
-
-    for (i = 0; i < pI830->num_outputs; i++) {
-	if (!pI830->output[i].disabled)
-	{
-	    pipe_available[pI830->output[i].pipe] = FALSE;
-	}
-    }
+    for (i = 0; i < pI830->availablePipes; i++)
+	pipe_available[i] = i830PipeInUse(pScrn, i);
 
     for (i = 0; i < pI830->availablePipes; i++) {
 	if (pipe_available[i])
@@ -957,7 +949,7 @@ i830GetLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output)
     }
     output->load_detect_temp = TRUE;
     output->pipe = i;
-    output->disabled = FALSE;
+    output->enabled = TRUE;
 
     I830xf86SetModeCrtc(&mode, INTERLACE_HALVE_V);
 
@@ -970,7 +962,7 @@ void
 i830ReleaseLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     if (output->load_detect_temp) {
-	output->disabled = TRUE;
+	output->enabled = FALSE;
 	i830DisableUnusedFunctions(pScrn);
 	output->load_detect_temp = FALSE;
     }

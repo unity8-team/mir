@@ -109,7 +109,7 @@ I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force)
    CARD32 temp;
     Bool show;
     
-    if (!pI830Pipe->planeEnabled)
+    if (!pI830Pipe->enabled)
 	return;
 
     show = pI830->cursorOn && pI830Pipe->cursorInRange;
@@ -491,7 +491,7 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 	int		thisx = x - pI830Pipe->x;
 	int		thisy = y - pI830Pipe->y;
 
-	if (!pI830Pipe->planeEnabled)
+	if (!pI830Pipe->enabled)
 	    continue;
 
 	/*
@@ -580,14 +580,14 @@ I830SetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 
    DPRINTF(PFX, "I830SetCursorColors\n");
 
-   if (pI830->pipes[0].planeEnabled)
+   if (pI830->pipes[0].enabled)
    {
        OUTREG(CURSOR_A_PALETTE0, bg & 0x00ffffff);
        OUTREG(CURSOR_A_PALETTE1, fg & 0x00ffffff);
        OUTREG(CURSOR_A_PALETTE2, fg & 0x00ffffff);
        OUTREG(CURSOR_A_PALETTE3, bg & 0x00ffffff);
    }
-   if (pI830->pipes[1].planeEnabled)
+   if (pI830->pipes[1].enabled)
    {
       OUTREG(CURSOR_B_PALETTE0, bg & 0x00ffffff);
       OUTREG(CURSOR_B_PALETTE1, fg & 0x00ffffff);

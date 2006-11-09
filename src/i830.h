@@ -184,7 +184,7 @@ enum detect_status {
 struct _I830OutputRec {
    int type;
    int pipe;
-   Bool disabled;
+   Bool enabled;
    /**
     * Marks that the output and associated pipe is temporarily enabled for
     * load detection.
@@ -273,12 +273,12 @@ struct _I830OutputRec {
 };
 
 typedef struct _I830PipeRec {
+   Bool		  enabled;
    Bool		  gammaEnabled;
    int		  x;
    int		  y;
    Bool		  cursorInRange;
    Bool		  cursorShown;
-   Bool		  planeEnabled;
    DisplayModeRec curMode;
 } I830PipeRec, *I830PipePtr;
 

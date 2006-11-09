@@ -501,7 +501,7 @@ I830RandRCrtcNotify (RRCrtcPtr	crtc)
     for (i = 0; i < pI830->num_outputs; i++)
     {
 	output = &pI830->output[i];
-	if (!output->disabled && output->pipe == pipe)
+	if (output->enabled && output->pipe == pipe)
 	{
 	    rrout = randrp->outputs[i];
 	    outputs[numOutputs++] = rrout;
@@ -548,7 +548,7 @@ I830RandRCrtcSet (ScreenPtr	pScreen,
 
     if (display_mode != randrp->modes[pipe])
     {
-	pI830Pipe->planeEnabled = mode != NULL;
+	pI830Pipe->enabled = mode != NULL;
 	if (display_mode)
 	{
 	    if (!i830PipeSetMode (pScrn, display_mode, pipe, TRUE))
@@ -652,7 +652,7 @@ I830RandRSetInfo12 (ScreenPtr pScreen)
 	    subpixel = SubPixelUnknown;
 	    break;
 	}
-	if (!output->disabled)
+	if (output->enabled)
 	{
 	    /* Can't flip outputs among crtcs yet */
 	    ncrtc = 1;
