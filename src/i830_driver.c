@@ -771,7 +771,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    I830EntPtr pI830Ent = NULL;					
    int mem;
    int flags24;
-   int i, n;
+   int i;
    char *s;
    pointer pVBEModule = NULL;
    Bool enable;
@@ -1653,8 +1653,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
 	      "Maximum frambuffer space: %d kByte\n", pScrn->videoRam);
 
-   n = I830ValidateXF86ModeList(pScrn, TRUE);
-   if (n <= 0) {
+   if (!I830RandRPreInit (pScrn))
+   {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       PreInitCleanup(pScrn);
       return FALSE;

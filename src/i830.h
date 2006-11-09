@@ -270,6 +270,9 @@ struct _I830OutputRec {
    struct _I830DVODriver *i2c_drv;
    /** Output-private structure.  Should replace i2c_drv */
    void *dev_priv;
+#ifdef RANDR_12_INTERFACE
+   RROutputPtr randr_output;
+#endif
 };
 
 typedef struct _I830PipeRec {
@@ -280,6 +283,9 @@ typedef struct _I830PipeRec {
    Bool		  cursorInRange;
    Bool		  cursorShown;
    DisplayModeRec curMode;
+#ifdef RANDR_12_INTERFACE
+   RRCrtcPtr	  randr_crtc;
+#endif
 } I830PipeRec, *I830PipePtr;
 
 typedef struct _I830Rec {
@@ -676,6 +682,7 @@ Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
 			RRScreenSizePtr pSize);
 Rotation I830GetRotation(ScreenPtr pScreen);
 void I830GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y);
+Bool I830RandRPreInit (ScrnInfoPtr pScrn);
 
 /* i830_tv.c */
 void i830_tv_init(ScrnInfoPtr pScrn);
