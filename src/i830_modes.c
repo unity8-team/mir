@@ -48,6 +48,7 @@
 #include <math.h>
 
 #include "xf86.h"
+#include "X11/Xatom.h"
 #include "i830.h"
 #include "i830_display.h"
 #include "i830_xf86Modes.h"
@@ -612,6 +613,29 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
     return 1; /* XXX */
 }
 
+#ifdef RANDR_12_INTERFACE
+
+#define EDID_ATOM_NAME		"EDID_DATA"
+
+static void
+i830_ddc_set_edid_property(ScrnInfoPtr pScrn, I830OutputPtr output,
+			   void *data, int data_len)
+{
+    Atom edid_atom = MakeAtom(EDID_ATOM_NAME, sizeof(EDID_ATOM_NAME), TRUE);
+
+    /* This may get called before the RandR resources have been created */
+    if (output->randr_output == NULL)
+	return;
+
+    if (data_len != 0) {
+	RRChangeOutputProperty(output->randr_output, edid_atom, XA_INTEGER, 8,
+			       PropModeReplace, data_len, data, FALSE);
+    } else {
+	RRDeleteOutputProperty(output->randr_output, edid_atom);
+    }
+}
+#endif
+
 /**
  * Generic get_modes function using DDC, used by many outputs.
  */
@@ -623,12 +647,26 @@ i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
     int i;
 
     ddc_mon = xf86DoEDID_DDC2(pScrn->scrnIndex, output->pDDCBus);
-    if (ddc_mon == NULL)
+    if (ddc_mon == NULL) {
+#ifdef RANDR_12_INTERFACE
+	i830_ddc_set_edid_property(pScrn, output, NULL, 0);
+#endif
 	return NULL;
+    }
 
     if (output->MonInfo != NULL)
 	xfree(output->MonInfo);
     output->MonInfo = ddc_mon;
+
+#ifdef RANDR_12_INTERFACE
+    if (output->MonInfo->ver.version == 1) {
+	i830_ddc_set_edid_property(pScrn, output, ddc_mon->rawData, 128);
+    } else if (output->MonInfo->ver.version == 2) {
+	i830_ddc_set_edid_property(pScrn, output, ddc_mon->rawData, 256);
+    } else {
+	i830_ddc_set_edid_property(pScrn, output, NULL, 0);
+    }
+#endif
 
     /* Debug info for now, at least */
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %s\n",
