@@ -25,6 +25,10 @@
  *
  */
 
+/**
+ * @file SDVO command definitions and structures.
+ */
+
 struct i830_sdvo_output_flags {
     unsigned int tmds0:1;
     unsigned int rgb0:1;
@@ -60,22 +64,28 @@ struct i830_sdvo_caps {
 /** This matches the EDID DTD structure, more or less */
 struct i830_sdvo_dtd {
     struct {
-	CARD16 clock;			/**< pixel clock, in 10kHz units */
-	CARD8 h_active;
-	CARD8 h_blank;
-	CARD8 h_high;
-	CARD8 v_active;
-	CARD8 v_blank;
-	CARD8 v_high;
+	CARD16 clock;		/**< pixel clock, in 10kHz units */
+	CARD8 h_active;		/**< lower 8 bits (pixels) */
+	CARD8 h_blank;		/**< lower 8 bits (pixels) */
+	CARD8 h_high;		/**< upper 4 bits each h_active, h_blank */
+	CARD8 v_active;		/**< lower 8 bits (lines) */
+	CARD8 v_blank;		/**< lower 8 bits (lines) */
+	CARD8 v_high;		/**< upper 4 bits each v_active, v_blank */
     } part1;
 
     struct {
-	CARD8 h_sync_off;
-	CARD8 h_sync_width;
+	CARD8 h_sync_off;	/**< lower 8 bits, from hblank start */
+	CARD8 h_sync_width;	/**< lower 8 bits (pixels) */
+	/** lower 4 bits each vsync offset, vsync width */
 	CARD8 v_sync_off_width;
+	/**
+	 * 2 high bits of hsync offset, 2 high bits of hsync width,
+	 * bits 4-5 of vsync offset, and 2 high bits of vsync width.
+	 */
 	CARD8 sync_off_width_high;
 	CARD8 dtd_flags;
 	CARD8 sdvo_flags;
+	/** bits 6-7 of vsync offset at bits 6-7 */
 	CARD8 v_sync_off_high;
 	CARD8 reserved;
     } part2;
@@ -250,8 +260,12 @@ struct i830_sdvo_set_target_input_args {
 # define SDVO_DTD_DTD_FLAG_SYNC_MASK				(3 << 1)
 # define SDVO_DTD_SDVO_FLAS				SDVO_I2C_ARG_5
 # define SDVO_DTD_SDVO_FLAG_STALL				(1 << 7)
-# define SDVO_DTD_SDVO_FLAG_NOT_CENTERED			(1 << 6)
+# define SDVO_DTD_SDVO_FLAG_CENTERED				(0 << 6)
+# define SDVO_DTD_SDVO_FLAG_UPPER_LEFT				(1 << 6)
 # define SDVO_DTD_SDVO_FLAG_SCALING_MASK			(3 << 4)
+# define SDVO_DTD_SDVO_FLAG_SCALING_NONE			(0 << 4)
+# define SDVO_DTD_SDVO_FLAG_SCALING_SHARP			(1 << 4)
+# define SDVO_DTD_SDVO_FLAG_SCALING_SMOOTH			(2 << 4)
 # define SDVO_DTD_VSYNC_OFF_HIGH			SDVO_I2C_ARG_6
 
 /**

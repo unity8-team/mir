@@ -555,15 +555,19 @@ i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     output_dtd.part2.h_sync_width = h_sync_len & 0xff;
     output_dtd.part2.v_sync_off_width = (v_sync_offset & 0xf) << 4 |
 	(v_sync_len & 0xf);
-    output_dtd.part2.sync_off_width_high = 0;
+    output_dtd.part2.sync_off_width_high = ((h_sync_offset & 0x300) >> 2) |
+	((h_sync_len & 0x300) >> 4) | ((v_sync_offset & 0x30) >> 2) |
+	((v_sync_len & 0x30) >> 4);
+
     output_dtd.part2.dtd_flags = 0x18;
-    output_dtd.part2.sdvo_flags = 0;
-    output_dtd.part2.v_sync_off_high = 0;
-    output_dtd.part2.reserved = 0;
     if (mode->Flags & V_PHSYNC)
 	output_dtd.part2.dtd_flags |= 0x2;
     if (mode->Flags & V_PVSYNC)
 	output_dtd.part2.dtd_flags |= 0x4;
+
+    output_dtd.part2.sdvo_flags = 0;
+    output_dtd.part2.v_sync_off_high = v_sync_offset & 0xc0;
+    output_dtd.part2.reserved = 0;
 
     /* Turn off the screens before adjusting timings */
     i830_sdvo_set_active_outputs(output, &no_outputs);
