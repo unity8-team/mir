@@ -189,7 +189,10 @@ i830FindBestPLL(ScrnInfoPtr pScrn, int pipe, int target, int refclk,
 	min_p1 = 1;
 	max_p1 = 8;
 	if (i830PipeHasType (pScrn, pipe, I830_OUTPUT_LVDS)) {
-	    if (target < 200000) /* XXX: Is this the right cutoff? */
+	    /* The single-channel range is 25-112Mhz, and dual-channel
+	     * is 80-224Mhz.  Prefer single channel as much as possible.
+	     */
+	    if (target < 112000)
 		p2 = 14;
 	    else
 		p2 = 7;
