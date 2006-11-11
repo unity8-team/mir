@@ -7,6 +7,7 @@
 #include "xf86drm.h"
 #include "dri.h"
 #include "nv_dripriv.h"
+#include "nv_dri.h"
 
 Bool NVDRMSetParam(NVPtr pNv, unsigned int param, unsigned int value)
 {
@@ -184,6 +185,7 @@ static Bool NVDRIInitVisualConfigs(ScreenPtr pScreen)
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 {
 	DRIInfoPtr     pDRIInfo;
+	NOUVEAUDRIPtr  pNOUVEAUDRI;
 	NVPtr pNv = NVPTR(pScrn);
 	drmVersionPtr drm_version;
 	ScreenPtr pScreen;
@@ -237,8 +239,13 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	pDRIInfo->ddxDrawableTableEntry      = 1;
 	pDRIInfo->maxDrawableTableEntry      = 1;
 
-	pDRIInfo->devPrivate                 = NULL; 
-	pDRIInfo->devPrivateSize             = 0;
+	if (!(pNOUVEAUDRI = (NOUVEAUDRIPtr)xcalloc(sizeof(NOUVEAUDRIRec), 1))) {
+		DRIDestroyInfoRec(pDRIInfo);
+		pNv->pDRIInfo = NULL;
+		return FALSE;
+	}
+	pDRIInfo->devPrivate                 = pNOUVEAUDRI; 
+	pDRIInfo->devPrivateSize             = sizeof(NOUVEAUDRIRec);
 	pDRIInfo->contextSize                = 0;
 	pDRIInfo->SAREASize                  = (drm_page_size > SAREA_MAX) ? drm_page_size : SAREA_MAX;
 
