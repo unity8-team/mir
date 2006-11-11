@@ -183,117 +183,117 @@ static Bool NVDRIInitVisualConfigs(ScreenPtr pScreen)
 
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 {
-    DRIInfoPtr     pDRIInfo;
-    NVPtr pNv = NVPTR(pScrn);
-    drmVersionPtr drm_version;
-    ScreenPtr pScreen;
-    pScreen = screenInfo.screens[pScrn->scrnIndex];
-    int drm_page_size;
-    int irq;
+	DRIInfoPtr     pDRIInfo;
+	NVPtr pNv = NVPTR(pScrn);
+	drmVersionPtr drm_version;
+	ScreenPtr pScreen;
+	pScreen = screenInfo.screens[pScrn->scrnIndex];
+	int drm_page_size;
+	int irq;
 
-    {
-	pointer ret;
-	int errmaj, errmin;
+	{
+		pointer ret;
+		int errmaj, errmin;
 
-	ret = LoadSubModule(pScrn->module, "dri", NULL, NULL, NULL, NULL,
-                            &errmaj, &errmin);
-	if (!ret) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "error %d\n", errmaj);
-		LoaderErrorMsg(pScrn->name, "dri", errmaj, errmin);
+		ret = LoadSubModule(pScrn->module, "dri", NULL, NULL, NULL,
+				    NULL, &errmaj, &errmin);
+		if (!ret) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					"error %d\n", errmaj);
+			LoaderErrorMsg(pScrn->name, "dri", errmaj, errmin);
+		}
+
+		if (!ret && errmaj != LDR_ONCEONLY)
+			return FALSE;
 	}
 
-	if (!ret && errmaj != LDR_ONCEONLY)
+	xf86LoaderReqSymLists(drmSymbols, NULL);
+	xf86LoaderReqSymLists(driSymbols, NULL);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loaded DRI module\n");
+
+	drm_page_size = getpagesize();
+	if (!(pDRIInfo = DRICreateInfoRec())) return FALSE;
+	
+	pNv->pDRIInfo                        = pDRIInfo;
+	pDRIInfo->drmDriverName              = "nouveau";
+	pDRIInfo->clientDriverName           = "nouveau";
+	pDRIInfo->busIdString                = DRICreatePCIBusID(pNv->PciInfo);
+
+	pDRIInfo->ddxDriverMajorVersion      = NV_MAJOR_VERSION;
+	pDRIInfo->ddxDriverMinorVersion      = NV_MINOR_VERSION;
+	pDRIInfo->ddxDriverPatchVersion      = NV_PATCHLEVEL;
+	
+	pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical;
+	pDRIInfo->frameBufferSize            = pNv->VRAMPhysicalSize;
+	pDRIInfo->frameBufferStride          = pScrn->displayWidth * pScrn->bitsPerPixel/8;
+
+	pDRIInfo->ddxDrawableTableEntry      = 1;
+	pDRIInfo->maxDrawableTableEntry      = 1;
+
+	pDRIInfo->devPrivate                 = NULL; 
+	pDRIInfo->devPrivateSize             = 0;
+	pDRIInfo->contextSize                = 0;
+	pDRIInfo->SAREASize                  = (drm_page_size > SAREA_MAX) ? drm_page_size : SAREA_MAX;
+
+	pDRIInfo->CreateContext              = NVCreateContext;
+	pDRIInfo->DestroyContext             = NVDestroyContext;
+	pDRIInfo->SwapContext                = NVDRISwapContext;
+	pDRIInfo->InitBuffers                = NVDRIInitBuffers;
+	pDRIInfo->MoveBuffers                = NVDRIMoveBuffers;
+	pDRIInfo->bufferRequests             = DRI_ALL_WINDOWS;
+	pDRIInfo->TransitionTo2d             = NVDRITransitionTo2d;
+	pDRIInfo->TransitionTo3d             = NVDRITransitionTo3d;
+	pDRIInfo->TransitionSingleToMulti3D  = NVDRITransitionSingleToMulti3d;
+	pDRIInfo->TransitionMultiToSingle3D  = NVDRITransitionMultiToSingle3d;
+
+	pDRIInfo->createDummyCtx     = FALSE;
+	pDRIInfo->createDummyCtxPriv = FALSE;
+
+	if (!DRIScreenInit(pScreen, pDRIInfo, &pNv->drm_fd)) {
+		xf86DrvMsg(pScreen->myNum, X_ERROR,
+				"[dri] DRIScreenInit failed.  Disabling DRI.\n");
+		xfree(pDRIInfo->devPrivate);
+		pDRIInfo->devPrivate = NULL;
+		DRIDestroyInfoRec(pDRIInfo);
+		pDRIInfo = NULL;
 		return FALSE;
-    }
+	}
+	drm_version = drmGetVersion(pNv->drm_fd);
 
-    xf86LoaderReqSymLists(drmSymbols, NULL);
-    xf86LoaderReqSymLists(driSymbols, NULL);
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Loaded DRI module\n");
-
-    drm_page_size = getpagesize();
-    if (!(pDRIInfo = DRICreateInfoRec())) return FALSE;
-    
-    pNv->pDRIInfo                        = pDRIInfo;
-    pDRIInfo->drmDriverName              = "nouveau";
-    pDRIInfo->clientDriverName           = "nouveau";
-    pDRIInfo->busIdString                = DRICreatePCIBusID(pNv->PciInfo);
-
-    pDRIInfo->ddxDriverMajorVersion      = NV_MAJOR_VERSION;
-    pDRIInfo->ddxDriverMinorVersion      = NV_MINOR_VERSION;
-    pDRIInfo->ddxDriverPatchVersion      = NV_PATCHLEVEL;
-
-    pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical;
-    pDRIInfo->frameBufferSize            = pNv->VRAMPhysicalSize;
-    pDRIInfo->frameBufferStride          = pScrn->displayWidth * pScrn->bitsPerPixel/8;
- 
-    pDRIInfo->ddxDrawableTableEntry      = 1;
-    pDRIInfo->maxDrawableTableEntry      = 1;
-
-    pDRIInfo->devPrivate                 = NULL; 
-    pDRIInfo->devPrivateSize             = 0;
-    pDRIInfo->contextSize                = 0;
-    pDRIInfo->SAREASize                  = (drm_page_size > SAREA_MAX) ? drm_page_size : SAREA_MAX;
-    
-    pDRIInfo->CreateContext              = NVCreateContext;
-    pDRIInfo->DestroyContext             = NVDestroyContext;
-    pDRIInfo->SwapContext                = NVDRISwapContext;
-    pDRIInfo->InitBuffers                = NVDRIInitBuffers;
-    pDRIInfo->MoveBuffers                = NVDRIMoveBuffers;
-    pDRIInfo->bufferRequests             = DRI_ALL_WINDOWS;
-    pDRIInfo->TransitionTo2d             = NVDRITransitionTo2d;
-    pDRIInfo->TransitionTo3d             = NVDRITransitionTo3d;
-    pDRIInfo->TransitionSingleToMulti3D  = NVDRITransitionSingleToMulti3d;
-    pDRIInfo->TransitionMultiToSingle3D  = NVDRITransitionMultiToSingle3d;
-
-    pDRIInfo->createDummyCtx     = FALSE;
-    pDRIInfo->createDummyCtxPriv = FALSE;
-
-    if (!DRIScreenInit(pScreen, pDRIInfo, &pNv->drm_fd)) {
-	xf86DrvMsg(pScreen->myNum, X_ERROR,
-	    	    "[dri] DRIScreenInit failed.  Disabling DRI.\n");
-	xfree(pDRIInfo->devPrivate);
-	pDRIInfo->devPrivate = NULL;
-	DRIDestroyInfoRec(pDRIInfo);
-	pDRIInfo = NULL;
-	return FALSE;
-    }
-    drm_version = drmGetVersion(pNv->drm_fd);
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-               "DRM version: %d.%d.%d (name: %s)\n",
-               drm_version->version_major, 
-               drm_version->version_minor, 
-               drm_version->version_patchlevel,
-               drm_version->name);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "DRM version: %d.%d.%d (name: %s)\n",
+		   drm_version->version_major, 
+		   drm_version->version_minor, 
+		   drm_version->version_patchlevel,
+		   drm_version->name);
 
 #if 0
-    pNv->IRQ = 0;
+	pNv->IRQ = 0;
 #else
-    /* Ask DRM to install IRQ handler */
-    irq = drmGetInterruptFromBusID(pNv->drm_fd,
-            ((pciConfigPtr)pNv->PciInfo->thisCard)->busnum,
-            ((pciConfigPtr)pNv->PciInfo->thisCard)->devnum,
-            ((pciConfigPtr)pNv->PciInfo->thisCard)->funcnum);
+	/* Ask DRM to install IRQ handler */
+	irq = drmGetInterruptFromBusID(pNv->drm_fd,
+			((pciConfigPtr)pNv->PciInfo->thisCard)->busnum,
+			((pciConfigPtr)pNv->PciInfo->thisCard)->devnum,
+			((pciConfigPtr)pNv->PciInfo->thisCard)->funcnum);
 
-    if (drmCtlInstHandler(pNv->drm_fd, irq)) {
-        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to install IRQ handler\n");
-        pNv->IRQ = 0;
-    } else {
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "IRQ handler initialised.  IRQ %d\n", irq);
-        pNv->IRQ = irq;
-    }
+	if (drmCtlInstHandler(pNv->drm_fd, irq)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to install IRQ handler\n");
+		pNv->IRQ = 0;
+	} else {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "IRQ handler initialised.  IRQ %d\n", irq);
+		pNv->IRQ = irq;
+	}
 #endif
 
-    return TRUE;
+	return TRUE;
 }
 
 Bool NVInitAGP(ScrnInfoPtr pScrn)
 {
-    NVPtr pNv = NVPTR(pScrn);
-    unsigned long agp_size;
+	NVPtr pNv = NVPTR(pScrn);
+	unsigned long agp_size;
 
-    agp_size = drmAgpSize(pNv->drm_fd);
+	agp_size = drmAgpSize(pNv->drm_fd);
 	if (agp_size==0)
 		return FALSE;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -314,7 +314,7 @@ Bool NVInitAGP(ScrnInfoPtr pScrn)
 			(unsigned int)(pNv->AGPScratch->size>>20),
 			pNv->AGPScratch->map);
 
-    return TRUE;
+	return TRUE;
 }
 #endif
 
