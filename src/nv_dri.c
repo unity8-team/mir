@@ -222,9 +222,16 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	pDRIInfo->ddxDriverMajorVersion      = NV_MAJOR_VERSION;
 	pDRIInfo->ddxDriverMinorVersion      = NV_MINOR_VERSION;
 	pDRIInfo->ddxDriverPatchVersion      = NV_PATCHLEVEL;
-	
+
+	/* FIXME: this gets passed to drmMap somewhere, and will currently fail if
+	 *        the pNv->FB is not where we specify here.. Somehow we need to be
+	 *        able to alloc pNv->FB before doing DRIScreenInit, or maybe we just
+	 *        need a map of the entire framebuffer added to the drm.. I don't know :)
+	 *
+	 *        At the moment the setup here will probably only work if using an AGP cmdbuf..
+	 */
 	pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical;
-	pDRIInfo->frameBufferSize            = pNv->VRAMPhysicalSize;
+	pDRIInfo->frameBufferSize            = pNv->VRAMPhysicalSize / 2;
 	pDRIInfo->frameBufferStride          = pScrn->displayWidth * pScrn->bitsPerPixel/8;
 
 	pDRIInfo->ddxDrawableTableEntry      = 1;
