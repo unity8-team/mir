@@ -6959,96 +6959,75 @@ static void RADEONInitPalette(RADEONSavePtr save)
 #endif
 
 /* Define registers for a requested video mode */
-static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
-		       RADEONSavePtr save)
+static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
+			DisplayModePtr crtc2, int crtc_mask,
+			RADEONSavePtr save)
 {
     RADEONInfoPtr  info      = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    double         dot_clock = mode->Clock/1000.0;
+    double         dot_clock = crtc1->Clock/1000.0;
     RADEONInfoPtr  info0     = NULL;
     ScrnInfoPtr    pScrn0    = NULL;
 
 #if RADEON_DEBUG
     ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
-	   mode->name,
+	   crtc1->name,
 	   dot_clock,
 
-	   mode->HDisplay,
-	   mode->HSyncStart,
-	   mode->HSyncEnd,
-	   mode->HTotal,
+	   crtc1->HDisplay,
+	   crtc1->HSyncStart,
+	   crtc1->HSyncEnd,
+	   crtc1->HTotal,
 
-	   mode->VDisplay,
-	   mode->VSyncStart,
-	   mode->VSyncEnd,
-	   mode->VTotal,
+	   crtc1->VDisplay,
+	   crtc1->VSyncStart,
+	   crtc1->VSyncEnd,
+	   crtc1->VTotal,
 	   pScrn->depth,
 	   pScrn->bitsPerPixel);
-    if (mode->Flags & V_DBLSCAN)   ErrorF(" D");
-    if (mode->Flags & V_CSYNC)     ErrorF(" C");
-    if (mode->Flags & V_INTERLACE) ErrorF(" I");
-    if (mode->Flags & V_PHSYNC)    ErrorF(" +H");
-    if (mode->Flags & V_NHSYNC)    ErrorF(" -H");
-    if (mode->Flags & V_PVSYNC)    ErrorF(" +V");
-    if (mode->Flags & V_NVSYNC)    ErrorF(" -V");
+    if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
+    if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
+    if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
+    if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
+    if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
+    if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
+    if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
     ErrorF("\n");
     ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
-	   mode->name,
+	   crtc1->name,
 	   dot_clock,
 
-	   mode->CrtcHDisplay,
-	   mode->CrtcHSyncStart,
-	   mode->CrtcHSyncEnd,
-	   mode->CrtcHTotal,
+	   crtc1->CrtcHDisplay,
+	   crtc1->CrtcHSyncStart,
+	   crtc1->CrtcHSyncEnd,
+	   crtc1->CrtcHTotal,
 
-	   mode->CrtcVDisplay,
-	   mode->CrtcVSyncStart,
-	   mode->CrtcVSyncEnd,
-	   mode->CrtcVTotal,
+	   crtc1->CrtcVDisplay,
+	   crtc1->CrtcVSyncStart,
+	   crtc1->CrtcVSyncEnd,
+	   crtc1->CrtcVTotal,
 	   pScrn->depth,
 	   pScrn->bitsPerPixel);
-    if (mode->Flags & V_DBLSCAN)   ErrorF(" D");
-    if (mode->Flags & V_CSYNC)     ErrorF(" C");
-    if (mode->Flags & V_INTERLACE) ErrorF(" I");
-    if (mode->Flags & V_PHSYNC)    ErrorF(" +H");
-    if (mode->Flags & V_NHSYNC)    ErrorF(" -H");
-    if (mode->Flags & V_PVSYNC)    ErrorF(" +V");
-    if (mode->Flags & V_NVSYNC)    ErrorF(" -V");
+    if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
+    if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
+    if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
+    if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
+    if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
+    if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
+    if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
     ErrorF("\n");
 #endif
 
-    info->Flags = mode->Flags;
+    info->Flags = crtc1->Flags;
 
     RADEONInitMemMapRegisters(pScrn, save, info);
     RADEONInitCommonRegisters(save, info);
-    if (info->IsSecondary) {
-	pScrn0 = pRADEONEnt->pPrimaryScrn;
-	info0 = RADEONPTR(pScrn0);
-	if (!RADEONInitCrtc2Registers(pScrn, save, mode, info))
+
+    switch(crtc_mask) {
+    case 1:
+	if (!RADEONInitCrtcRegisters(pScrn, save, crtc1, info))
 	    return FALSE;
-	RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, info->DisplayType != MT_CRT);
-	/* Make sure primary has the same copy */
-	memcpy(&info0->ModeReg, save, sizeof(RADEONSaveRec));
-    } else if (info->MergedFB) {
-        if (!RADEONInitCrtcRegisters(pScrn, save, 
-			((RADEONMergedDisplayModePtr)mode->Private)->CRT1, info))
-            return FALSE;
-        dot_clock = (((RADEONMergedDisplayModePtr)mode->Private)->CRT1)->Clock / 1000.0;
-        if (dot_clock) {
-		RADEONInitPLLRegisters(pScrn, info, save, &info->pll, dot_clock);
-        } else {
-            save->ppll_ref_div = info->SavedReg.ppll_ref_div;
-            save->ppll_div_3   = info->SavedReg.ppll_div_3;
-            save->htotal_cntl  = info->SavedReg.htotal_cntl;
-        }
-        RADEONInitCrtc2Registers(pScrn, save, 
-			((RADEONMergedDisplayModePtr)mode->Private)->CRT2, info);
-        dot_clock = (((RADEONMergedDisplayModePtr)mode->Private)->CRT2)->Clock / 1000.0;
-        RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, info->MergeType != MT_CRT);
-    } else {
-	if (!RADEONInitCrtcRegisters(pScrn, save, mode, info))
-	    return FALSE;
-	dot_clock = mode->Clock/1000.0;
+	dot_clock = crtc1->Clock/1000.0;
 	if (dot_clock) {
 		RADEONInitPLLRegisters(pScrn, info, save, &info->pll, dot_clock);
 	} else {
@@ -7064,11 +7043,56 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
 	}
 
 	/* Not used for now: */
-     /* if (!info->PaletteSavedOnVT) RADEONInitPalette(save); */
+	/* if (!info->PaletteSavedOnVT) RADEONInitPalette(save); */
+	break;
+    case 2:
+	pScrn0 = pRADEONEnt->pPrimaryScrn;
+	info0 = RADEONPTR(pScrn0);
+	dot_clock = crtc2->Clock/1000.0;
+	if (!RADEONInitCrtc2Registers(pScrn, save, crtc2, info))
+	    return FALSE;
+	RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, info->DisplayType != MT_CRT);
+	/* Make sure primary has the same copy */
+	memcpy(&info0->ModeReg, save, sizeof(RADEONSaveRec));
+	break;
+    case 3:
+       if (!RADEONInitCrtcRegisters(pScrn, save, 
+				    crtc1, info))
+            return FALSE;
+        dot_clock = crtc1->Clock / 1000.0;
+        if (dot_clock) {
+		RADEONInitPLLRegisters(pScrn, info, save, &info->pll, dot_clock);
+        } else {
+            save->ppll_ref_div = info->SavedReg.ppll_ref_div;
+            save->ppll_div_3   = info->SavedReg.ppll_div_3;
+            save->htotal_cntl  = info->SavedReg.htotal_cntl;
+        }
+        RADEONInitCrtc2Registers(pScrn, save, crtc2, info);
+        dot_clock = crtc2->Clock / 1000.0;
+        RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, info->MergeType != MT_CRT);
+	break;
+    default:
+	return FALSE;
     }
 
     RADEONTRACE(("RADEONInit returns %p\n", save));
     return TRUE;
+}
+
+static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
+		       RADEONSavePtr save)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+    if (info->IsSecondary) {
+        return RADEONInit2(pScrn, NULL, mode, 2, save);
+    } else if (info->MergedFB) {
+        return RADEONInit2(pScrn, ((RADEONMergedDisplayModePtr)mode->Private)->CRT1,
+			   ((RADEONMergedDisplayModePtr)mode->Private)->CRT2, 3, save);
+    } else {
+        return RADEONInit2(pScrn, mode, NULL, 1, save);
+    }
 }
 
 /* Initialize a new mode */
