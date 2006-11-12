@@ -2052,6 +2052,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     xf86SetBackingStore(pScreen);
     xf86SetSilkenMouse(pScreen);
 
+    /* Finish DRI init */
+    NVDRIFinishScreenInit(pScrn);
+
     /* Initialize software cursor.  
 	Must precede creation of the default colormap */
     miDCInitialize(pScreen, xf86GetPointerScreenFuncs());

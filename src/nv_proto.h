@@ -16,6 +16,7 @@ unsigned int NVDRMGetParam(NVPtr pNv, unsigned int param);
 Bool NVDRMSetParam(NVPtr pNv, unsigned int param, unsigned int value);
 Bool NVInitAGP(ScrnInfoPtr pScrn);
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
+Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn);
 extern const char *drmSymbols[], *driSymbols[];
 #endif
 

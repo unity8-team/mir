@@ -246,7 +246,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	}
 	pDRIInfo->devPrivate                 = pNOUVEAUDRI; 
 	pDRIInfo->devPrivateSize             = sizeof(NOUVEAUDRIRec);
-	pDRIInfo->contextSize                = 0;
+	pDRIInfo->contextSize                = sizeof(NVDRIContextRec);
 	pDRIInfo->SAREASize                  = (drm_page_size > SAREA_MAX) ? drm_page_size : SAREA_MAX;
 
 	pDRIInfo->CreateContext              = NVCreateContext;
@@ -298,6 +298,37 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 		pNv->IRQ = irq;
 	}
 #endif
+
+	return TRUE;
+}
+
+Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
+{
+	ScreenPtr      pScreen = screenInfo.screens[pScrn->scrnIndex];
+	NVPtr          pNv = NVPTR(pScrn);
+	NOUVEAUDRIPtr  pNOUVEAUDRI;
+	int cpp = pScrn->bitsPerPixel/8;
+
+	if (!DRIFinishScreenInit(pScreen)) {
+		return FALSE;
+	}
+
+	pNOUVEAUDRI 			= (NOUVEAUDRIPtr)pNv->pDRIInfo->devPrivate;
+
+	pNOUVEAUDRI->device_id		= pNv->Chipset;
+
+	pNOUVEAUDRI->width		= pScrn->virtualX;
+	pNOUVEAUDRI->height		= pScrn->virtualY;
+	pNOUVEAUDRI->depth		= pScrn->depth;
+	pNOUVEAUDRI->bpp		= pScrn->bitsPerPixel;
+
+	/*FIXME! */
+	pNOUVEAUDRI->front_offset 	= 0;
+	pNOUVEAUDRI->front_pitch	= 0;
+	pNOUVEAUDRI->back_offset	= 0;
+	pNOUVEAUDRI->back_pitch		= 0;
+	pNOUVEAUDRI->depth_offset	= 0;
+	pNOUVEAUDRI->depth_pitch	= 0;
 
 	return TRUE;
 }
