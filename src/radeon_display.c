@@ -1635,14 +1635,11 @@ void RADEONEnableDisplay(ScrnInfoPtr pScrn, RADEONController* pCRTC, BOOL bEnabl
 }
 
 /* Calculate display buffer watermark to prevent buffer underflow */
-void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
+void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, RADEONInfoPtr info2,
+			      DisplayModePtr mode1, DisplayModePtr mode2)
 {
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    RADEONInfoPtr  info2 = NULL;
-
-    DisplayModePtr mode1, mode2;
 
     CARD32 temp, data, mem_trcd, mem_trp, mem_tras, mem_trbs=0;
     float mem_tcas;
@@ -1677,7 +1674,7 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
      */
     if ((info->DispPriority == 2) && IS_R300_VARIANT) {
         CARD32 mc_init_misc_lat_timer = INREG(R300_MC_INIT_MISC_LAT_TIMER);
-	if (info->MergedFB || pRADEONEnt->HasSecondary) {
+	if (pRADEONEnt->Controller[1].IsActive) {
 	    mc_init_misc_lat_timer |= 0x1100; /* display 0 and 1 */
 	} else {
 	    mc_init_misc_lat_timer |= 0x0100; /* display 0 only */
@@ -1692,22 +1689,12 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     if (pRADEONEnt->pSecondaryScrn) {
 	if (info->IsSecondary) return;
 	info2 = RADEONPTR(pRADEONEnt->pSecondaryScrn);
-    }  else if (info->MergedFB) info2 = info;
+    }  else if (pRADEONEnt->Controller[1].binding == 1) info2 = info;
 
     /*
      * Determine if there is enough bandwidth for current display mode
      */
     mem_bw = info->mclk * (info->RamWidth / 8) * (info->IsDDR ? 2 : 1);
-
-    mode1 = info->CurrentLayout.mode;
-    if (info->MergedFB) {
-	mode1 = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT1;
-	mode2 = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2;
-    } else if ((pRADEONEnt->HasSecondary) && info2) {
-	mode2 = info2->CurrentLayout.mode;
-    } else {
-	mode2 = NULL;
-    }
 
     pix_clk = mode1->Clock/1000.0;
     if (mode2)
@@ -1958,6 +1945,31 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
 	RADEONTRACE(("GRPH2_BUFFER_CNTL from %x to %x\n",
 		     (unsigned int)info->SavedReg.grph2_buffer_cntl, INREG(RADEON_GRPH2_BUFFER_CNTL)));
     }
+}
+
+void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    DisplayModePtr mode1, mode2;
+    RADEONInfoPtr info2 = NULL;
+
+    if (pRADEONEnt->pSecondaryScrn) {
+	if (info->IsSecondary) return;
+	info2 = RADEONPTR(pRADEONEnt->pSecondaryScrn);
+    } else if (pRADEONEnt->Controller[1].binding == 1) info2 = info;
+
+    mode1 = info->CurrentLayout.mode;
+    if (info->MergedFB) {
+	mode1 = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT1;
+	mode2 = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2;
+    } else if ((pRADEONEnt->HasSecondary) && info2) {
+	mode2 = info2->CurrentLayout.mode;
+    } else {
+	mode2 = NULL;
+    }
+
+    RADEONInitDispBandwidth2(pScrn, info, info2, mode1, mode2);
 }
 
 static void RADEONBlankSet(ScrnInfoPtr pScrn, int controller)
