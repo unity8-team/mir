@@ -1347,14 +1347,17 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 
     if(info->HasCRTC2) {   
 	if(info->IsSecondary) {
+  	    pRADEONEnt->Controller[1].binding = 2;
 	    info->DisplayType = pRADEONEnt->Controller[1].pPort->MonType;
 	    pScrn->monitor->DDC = pRADEONEnt->Controller[1].pPort->MonInfo;
 	} else {
+  	    pRADEONEnt->Controller[1].binding = 1;
 	    info->DisplayType = pRADEONEnt->Controller[0].pPort->MonType; 
 	    pScrn->monitor->DDC = pRADEONEnt->Controller[0].pPort->MonInfo;
 	}
 	
 	if(!pRADEONEnt->HasSecondary) {
+  	    pRADEONEnt->Controller[1].binding = 1;
 	    info->MergeType = pRADEONEnt->Controller[1].pPort->MonType;
 	} 
     } else {
@@ -1363,6 +1366,7 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 	info->DisplayType = pRADEONEnt->Controller[0].pPort->MonType; 
 	pScrn->monitor->DDC = pRADEONEnt->Controller[0].pPort->MonInfo;
 	pRADEONEnt->Controller[1].pPort->MonType = MT_NONE;
+	pRADEONEnt->Controller[1].binding = 1;
     }
 
     if (!info->IsSecondary) {
@@ -2008,7 +2012,7 @@ void RADEONBlank(ScrnInfoPtr pScrn)
 
 	if (!info->HasCRTC2) return;
 
-	if (info->MergedFB) {
+	if (pRADEONEnt->Controller[1].binding == 1) {
   	    RADEONBlankSet(pScrn, 1);
 	    OUTREGP (RADEON_CRTC2_GEN_CNTL,
 		     RADEON_CRTC2_DISP_DIS |
@@ -2077,7 +2081,7 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
 
       if (!info->HasCRTC2) return;
 
-      if (info->MergedFB) {
+      if (pRADEONEnt->Controller[1].binding == 1) {
 	RADEONUnblankSet(pScrn, 1);
 	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0,
 		~(RADEON_CRTC2_DISP_DIS |
@@ -2186,6 +2190,7 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 					    int flags)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
     if (!pScrn->vtSema) return;
@@ -2215,7 +2220,7 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 	    if (info->IsSecondary)
 		OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~mask2);
 	    else {
-		if (info->MergedFB)
+		if (pRADEONEnt->Controller[1].binding == 1)
 		    OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~mask2);
 		OUTREGP(RADEON_CRTC_EXT_CNTL, 0, ~mask1);
 	    }
@@ -2228,7 +2233,7 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 			(RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_HSYNC_DIS),
 			~mask2);
 	    else {
-		if (info->MergedFB)
+		if (pRADEONEnt->Controller[1].binding == 1)
 		    OUTREGP(RADEON_CRTC2_GEN_CNTL,
 			    (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_HSYNC_DIS),
 			    ~mask2);
@@ -2245,7 +2250,7 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 			(RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS),
 			~mask2);
 	    else {
-		if (info->MergedFB)
+		if (pRADEONEnt->Controller[1].binding == 1)
 		    OUTREGP(RADEON_CRTC2_GEN_CNTL,
 			    (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS),
 			    ~mask2);
@@ -2260,7 +2265,7 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 	    if (info->IsSecondary)
 		OUTREGP(RADEON_CRTC2_GEN_CNTL, mask2, ~mask2);
 	    else {
-		if (info->MergedFB)
+		if (pRADEONEnt->Controller[1].binding == 1)
 		    OUTREGP(RADEON_CRTC2_GEN_CNTL, mask2, ~mask2);
 		OUTREGP(RADEON_CRTC_EXT_CNTL, mask1, ~mask1);
 	    }
@@ -2269,14 +2274,14 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 
 	if (PowerManagementMode == DPMSModeOn) {
    	    RADEONDPMSSetOn(pScrn, info->IsSecondary ? 1 : 0);
-	    if (info->MergedFB)
+	    if (pRADEONEnt->Controller[1].binding == 1)
 	      RADEONDPMSSetOn(pScrn, 1);
 	} else if ((PowerManagementMode == DPMSModeOff) ||
 		   (PowerManagementMode == DPMSModeSuspend) ||
 		   (PowerManagementMode == DPMSModeStandby)) {
 
 	    RADEONDPMSSetOff(pScrn, info->IsSecondary ? 1 : 0);
-	    if (info->MergedFB)
+	    if (pRADEONEnt->Controller[1].binding == 1)
 	        RADEONDPMSSetOff(pScrn, 1);
         }
     }

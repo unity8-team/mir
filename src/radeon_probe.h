@@ -116,6 +116,7 @@ typedef struct
 {
     Bool IsUsed;
     Bool IsActive;
+    int binding; // which instance of the driver "owns" this controller
     DisplayModePtr pCurMode;
     RADEONConnector* pPort;
 } RADEONController;

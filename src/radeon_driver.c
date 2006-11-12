@@ -2967,7 +2967,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
     xf86SetCrtcForModes(pScrn, 0);
 
     if (info->HasCRTC2) {
-	if (info->MergedFB) {
+	if (pRADEONEnt->Controller[1].binding == 1) {
 
 	    /* If we have 2 screens from the config file, we don't need
 	     * to do clone thing, let each screen handles one head.
@@ -2996,7 +2996,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
     }
     xf86PrintModes(pScrn);
 
-    if(info->MergedFB) {
+    if(pRADEONEnt->Controller[1].binding == 1) {
 
        xf86SetCrtcForModes(info->CRT2pScrn, INTERLACE_HALVE_V);
 
@@ -5796,7 +5796,7 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	} else {
 	    RADEONRestoreMemMapRegisters(pScrn, restore);
 	    RADEONRestoreCommonRegisters(pScrn, restore);
-	    if (info->MergedFB) {
+	    if (pCRTC2->binding == 1) {
 		RADEONRestoreCrtc2Registers(pScrn, restore);
 		RADEONRestorePLL2Registers(pScrn, restore);
 	    }
@@ -5805,14 +5805,14 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
             RADEONRestorePLLRegisters(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
 	    RADEONEnableDisplay(pScrn, pCRTC1, TRUE);
-	    if (info->MergedFB) {
+	    if (pCRTC2->binding == 1) {
 	        RADEONEnableDisplay(pScrn, pCRTC2, TRUE);
 	    }
 	}
     } else {
 	RADEONRestoreMemMapRegisters(pScrn, restore);
 	RADEONRestoreCommonRegisters(pScrn, restore);
-	if ((info->MergedFB) || pRADEONEnt->HasSecondary) {
+	if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
 	    RADEONRestoreCrtc2Registers(pScrn, restore);
 	    RADEONRestorePLL2Registers(pScrn, restore);
 	}
@@ -5821,7 +5821,7 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	RADEONRestorePLLRegisters(pScrn, restore);
 	RADEONRestoreFPRegisters(pScrn, restore);
 	RADEONEnableDisplay(pScrn, pCRTC1, TRUE);
-	if ((info->MergedFB) || pRADEONEnt->HasSecondary) {
+	if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
 	    RADEONEnableDisplay(pScrn, pCRTC2, TRUE);
 	}
     }
