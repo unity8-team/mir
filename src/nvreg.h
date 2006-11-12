@@ -142,6 +142,33 @@
 #define NV_PFB_CLOSE_PAGE2          0x33C
 #define NV_PFB_TILE_NV40            0x600
 #define NV_PFB_TILE_SIZE_NV40       0x604
+
+#define NV_PGRAPH_DEBUG_0           0x080
+#define NV_PGRAPH_DEBUG_1           0x084
+#define NV_PGRAPH_DEBUG_2           0x620
+#define NV_PGRAPH_DEBUG_3           0x08c
+#define NV_PGRAPH_DEBUG_4           0x090
+
+#define NV_PGRAPH_INTR              0x100
+#define NV_PGRAPH_INTR_EN           0x140
+#define NV_PGRAPH_CTX_CONTROL       0x144
+#define NV_PGRAPH_BETA_AND          0x608
+#define NV_PGRAPH_LIMIT_VIOL_PIX    0x610
+
+#define NV_PGRAPH_BOFFSET0          0x640
+#define NV_PGRAPH_BOFFSET1          0x644
+#define NV_PGRAPH_BOFFSET2          0x648
+
+#define NV_PGRAPH_BLIMIT0           0x684
+#define NV_PGRAPH_BLIMIT1           0x688
+#define NV_PGRAPH_BLIMIT2           0x68c
+
+#define NV_PGRAPH_SURFACE           0x710
+#define NV_PGRAPH_STATE             0x714
+#define NV_PGRAPH_FIFO              0x720
+
+#define NV_PGRAPH_PATTERN_SHAPE     0x810
+
 #endif
 
 

@@ -1018,43 +1018,43 @@ void NVLoadStateExt (
            pNv->PRAMIN[0x0824] |= 0x00020000;
            pNv->PRAMIN[0x0826] += pNv->VRAMPhysical;
        }
-       nvWriteGRAPH(pNv, 0x0080, 0x000001FF);
-       nvWriteGRAPH(pNv, 0x0080, 0x1230C000);
-       nvWriteGRAPH(pNv, 0x0084, 0x72111101);
+       nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_0, 0x000001FF);
+       nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_0, 0x1230C000);
+       nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_1, 0x72111101);
        nvWriteGRAPH(pNv, 0x0088, 0x11D5F071);
-       nvWriteGRAPH(pNv, 0x008C, 0x0004FF31);
-       nvWriteGRAPH(pNv, 0x008C, 0x4004FF31);
+       nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x0004FF31);
+       nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x4004FF31);
 
        if (!pNv->IRQ) {
-	   nvWriteGRAPH(pNv, 0x140, 0x0);
-	   nvWriteGRAPH(pNv, 0x100, 0xFFFFFFFF);
+	   nvWriteGRAPH(pNv, NV_PGRAPH_INTR_EN, 0x0);
+	   nvWriteGRAPH(pNv, NV_PGRAPH_INTR, 0xFFFFFFFF);
        }
        nvWriteGRAPH(pNv, 0x0170, 0x10010100);
-       nvWriteGRAPH(pNv, 0x0710, 0xFFFFFFFF);
-       nvWriteGRAPH(pNv, 0x0720, 0x00000001);
+       nvWriteGRAPH(pNv, NV_PGRAPH_SURFACE, 0xFFFFFFFF);
+       nvWriteGRAPH(pNv, NV_PGRAPH_FIFO, 0x00000001);
 
-       nvWriteGRAPH(pNv, 0x0810, 0x00000000);
-       nvWriteGRAPH(pNv, 0x0608, 0xFFFFFFFF);
+       nvWriteGRAPH(pNv, NV_PGRAPH_PATTERN_SHAPE, 0x00000000);
+       nvWriteGRAPH(pNv, NV_PGRAPH_BETA_AND, 0xFFFFFFFF);
     } else {
-       nvWriteGRAPH(pNv, 0x0080, 0xFFFFFFFF);
-       nvWriteGRAPH(pNv, 0x0080, 0x00000000);
+       nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_0, 0xFFFFFFFF);
+       nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_0, 0x00000000);
 
        if (!pNv->IRQ) {
-	   nvWriteGRAPH(pNv, 0x140, 0x0);
-	   nvWriteGRAPH(pNv, 0x100, 0xFFFFFFFF);
+	   nvWriteGRAPH(pNv, NV_PGRAPH_INTR_EN, 0x0);
+	   nvWriteGRAPH(pNv, NV_PGRAPH_INTR, 0xFFFFFFFF);
        }
-       nvWriteGRAPH(pNv, 0x0144, 0x10010100);
-       nvWriteGRAPH(pNv, 0x0714, 0xFFFFFFFF);
-       nvWriteGRAPH(pNv, 0x0720, 0x00000001);
-       temp = nvReadGRAPH(pNv, 0x710);
-       nvWriteGRAPH(pNv, 0x0710, temp & 0x0007ff00);
-       temp = nvReadGRAPH(pNv, 0x710);
-       nvWriteGRAPH(pNv, 0x0710, temp | 0x00020100);
+       nvWriteGRAPH(pNv, NV_PGRAPH_CTX_CONTROL, 0x10010100);
+       nvWriteGRAPH(pNv, NV_PGRAPH_STATE, 0xFFFFFFFF);
+       nvWriteGRAPH(pNv, NV_PGRAPH_FIFO, 0x00000001);
+       temp = nvReadGRAPH(pNv, NV_PGRAPH_SURFACE);
+       nvWriteGRAPH(pNv, NV_PGRAPH_SURFACE, temp & 0x0007ff00);
+       temp = nvReadGRAPH(pNv, NV_PGRAPH_SURFACE);
+       nvWriteGRAPH(pNv, NV_PGRAPH_SURFACE, temp | 0x00020100);
 
        if(pNv->Architecture == NV_ARCH_10) {
-           nvWriteGRAPH(pNv, 0x0084, 0x00118700);
+           nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_0, 0x00118700);
            nvWriteGRAPH(pNv, 0x0088, 0x24E00810);
-           nvWriteGRAPH(pNv, 0x008C, 0x55DE0030);
+           nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x55DE0030);
 
            /* nv10 second surfaces */
            /* this is a copy of the surfaces. What is it for ? */
@@ -1062,19 +1062,19 @@ void NVLoadStateExt (
              nvWriteGRAPH(pNv, 0x0B00 + (i*4), nvReadFB(pNv, NV_PFB_TILE_NV10 + (i*4)));
            /* end of nv10 second surfaces */
 
-           nvWriteGRAPH(pNv, 0x640, 0);
-           nvWriteGRAPH(pNv, 0x644, 0);
-	   nvWriteGRAPH(pNv, 0x684, pNv->VRAMPhysicalSize - 1);
-           nvWriteGRAPH(pNv, 0x688, pNv->VRAMPhysicalSize - 1);
+           nvWriteGRAPH(pNv, NV_PGRAPH_BOFFSET0, 0);
+           nvWriteGRAPH(pNv, NV_PGRAPH_BOFFSET1, 0);
+	   nvWriteGRAPH(pNv, NV_PGRAPH_BLIMIT0, pNv->VRAMPhysicalSize - 1);
+           nvWriteGRAPH(pNv, NV_PGRAPH_BLIMIT1, pNv->VRAMPhysicalSize - 1);
 
            nvWriteGRAPH(pNv, 0x0810, 0x00000000);
            nvWriteGRAPH(pNv, 0x0608, 0xFFFFFFFF);
        } else {
            if(pNv->Architecture >= NV_ARCH_40) {
-              nvWriteGRAPH(pNv, 0x0084, 0x401287c0);
-              nvWriteGRAPH(pNv, 0x008C, 0x60de8051);
-              nvWriteGRAPH(pNv, 0x0090, 0x00008000);
-              nvWriteGRAPH(pNv, 0x0610, 0x00be3c5f);
+              nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_1, 0x401287c0);
+              nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x60de8051);
+              nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_4, 0x00008000);
+              nvWriteGRAPH(pNv, NV_PGRAPH_LIMIT_VIOL_PIX, 0x00be3c5f);
 
               j = pNv->REGS[0x1540/4] & 0xff;
               if(j) {
