@@ -891,6 +891,7 @@ extern Bool        RADEONGetHardCodedEDIDFromBIOS (ScrnInfoPtr pScrn);
 extern void        RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
 extern void        RADEONSetSyncRangeFromEdid(ScrnInfoPtr pScrn, int flag);
+extern void        RADEONSetupConnectors(ScrnInfoPtr pScrn);
 extern Bool        RADEONMapControllers(ScrnInfoPtr pScrn);
 extern void        RADEONEnableDisplay(ScrnInfoPtr pScrn, RADEONController* pCRTC, BOOL bEnable);
 extern void        RADEONDisableDisplays(ScrnInfoPtr pScrn);

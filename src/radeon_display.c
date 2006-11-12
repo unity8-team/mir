@@ -919,7 +919,9 @@ void RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn)
     }
 }
 
-static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
+/*
+ * initialise the static data sos we don't have to re-do at randr change */
+void RADEONSetupConnectors(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
@@ -1136,6 +1138,32 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
             pRADEONEnt->PortInfo[0].TMDSType = TMDS_UNKNOWN;
 	}
 
+    }
+}
+
+static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
+{
+
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    const char *s;
+    Bool ignore_edid = FALSE;
+    int i = 0, second = 0, max_mt = 5;
+
+    /* IgnoreEDID option is different from the NoDDCxx options used by DDC module
+     * When IgnoreEDID is used, monitor detection will still use DDC
+     * detection, but all EDID data will not be used in mode validation.
+     * You can use this option when you have a DDC monitor but want specify your own
+     * monitor timing parameters by using HSync, VRefresh and Modeline,
+     */
+    if (xf86GetOptValBool(info->Options, OPTION_IGNORE_EDID, &ignore_edid)) {
+        if (ignore_edid)
+            xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
+                       "IgnoreEDID is specified, EDID data will be ignored\n");
+    }
+
+    if ((s = xf86GetOptValString(info->Options, OPTION_MONITOR_LAYOUT))) {
         if (!ignore_edid) {
             if ((pRADEONEnt->PortInfo[0].MonType > MT_NONE) &&
                 (pRADEONEnt->PortInfo[0].MonType < MT_STV))
@@ -1146,8 +1174,13 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 		RADEONDisplayDDCConnected(pScrn, pRADEONEnt->PortInfo[1].DDCType,
 					  &pRADEONEnt->PortInfo[1]);
         }
-
     }
+    else {
+      /* force monitor redetection */
+      pRADEONEnt->PortInfo[0].MonType = MT_UNKNOWN;
+      pRADEONEnt->PortInfo[1].MonType = MT_UNKNOWN;
+    }
+      
 
     if (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN || pRADEONEnt->PortInfo[1].MonType == MT_UNKNOWN) {
 		
