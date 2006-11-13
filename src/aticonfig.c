@@ -200,7 +200,7 @@ ATIProcessOptions
 
     Blend = PanelDisplay = TRUE;
 #ifdef XF86DRI_DEVEL
-    DMAMode = "mmio";
+    DMAMode = "async";
 #endif
 
     xf86ProcessOptions(pScreenInfo->scrnIndex, pScreenInfo->options,
