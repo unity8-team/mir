@@ -1052,7 +1052,7 @@ void NVLoadStateExt (
        nvWriteGRAPH(pNv, NV_PGRAPH_SURFACE, temp | 0x00020100);
 
        if(pNv->Architecture == NV_ARCH_10) {
-           nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_0, 0x00118700);
+           nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_1, 0x00118700);
            nvWriteGRAPH(pNv, 0x0088, 0x24E00810);
            nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x55DE0030);
 
