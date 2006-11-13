@@ -1351,14 +1351,15 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 	    info->DisplayType = pRADEONEnt->Controller[1].pPort->MonType;
 	    pScrn->monitor->DDC = pRADEONEnt->Controller[1].pPort->MonInfo;
 	} else {
-  	    pRADEONEnt->Controller[1].binding = 1;
+  	    pRADEONEnt->Controller[0].binding = 1;
 	    info->DisplayType = pRADEONEnt->Controller[0].pPort->MonType; 
 	    pScrn->monitor->DDC = pRADEONEnt->Controller[0].pPort->MonInfo;
 	}
 	
 	if(!pRADEONEnt->HasSecondary) {
-  	    pRADEONEnt->Controller[1].binding = 1;
 	    info->MergeType = pRADEONEnt->Controller[1].pPort->MonType;
+	    if (info->MergeType)
+  	    	pRADEONEnt->Controller[1].binding = 1;
 	} 
     } else {
 	if (pRADEONEnt->Controller[0].pPort->MonType == MT_NONE) 
