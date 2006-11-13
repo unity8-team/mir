@@ -121,7 +121,7 @@ static Bool ATIInitVisualConfigs( ScreenPtr pScreen )
       }
 
       i = 0;
-      for (db = 0; db <= 1; db++) {
+      for (db = 1; db >= 0; db--) {
 	 for ( accum = 0 ; accum <= ATI_USE_ACCUM ; accum++ ) {
 	    for ( stencil = 0 ; stencil <= ATI_USE_STENCIL ; stencil++ ) {
 	       pATIConfigPtrs[i] = &pATIConfigs[i];
@@ -202,7 +202,7 @@ static Bool ATIInitVisualConfigs( ScreenPtr pScreen )
       }
 
       i = 0;
-      for (db = 0; db <= 1; db++) {
+      for (db = 1; db >= 0; db--) {
 	 for ( accum = 0 ; accum <= ATI_USE_ACCUM ; accum++ ) {
 	    for ( stencil = 0 ; stencil <= ATI_USE_STENCIL ; stencil++ ) {
 	       pATIConfigPtrs[i] = &pATIConfigs[i];
