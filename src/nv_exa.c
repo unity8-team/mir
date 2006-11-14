@@ -192,7 +192,8 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 
 	dstPitch = getPitch(&pDstPixmap->drawable);
 	srcPitch = getPitch(&pSrcPixmap->drawable);
-	NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_PITCH, 3);
+	NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 4);
+	NVDmaNext (pNv, surfaceFormat(&pDstPixmap->drawable));
 	NVDmaNext (pNv, (dstPitch<<16)|srcPitch);
 	NVDmaNext (pNv, getOffset(pNv, &pSrcPixmap->drawable));
 	NVDmaNext (pNv, getOffset(pNv, &pDstPixmap->drawable));
@@ -402,8 +403,10 @@ static Bool NVPrepareComposite(int	  op,
 		dstFormat = SURFACE_FORMAT_A8R8G8B8;
 	else if (pDstPicture->format == PICT_x8r8g8b8)
 		dstFormat = SURFACE_FORMAT_X8R8G8B8;
-	else
+	else if (pDstPicture->format == PICT_r5g6b5)
 		dstFormat = SURFACE_FORMAT_R5G6B5;
+	else
+		dstFormat = SURFACE_FORMAT_Y8;
 
 #if 0
 	NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 1);
