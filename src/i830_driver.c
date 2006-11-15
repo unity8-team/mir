@@ -1349,6 +1349,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       case I830_OUTPUT_LVDS:
 	 /* LVDS must live on pipe B for two-pipe devices */
 	 pI830->output[i].pipe = pI830->num_pipes - 1;
+	 pI830->output[i].enabled = TRUE;
 	 break;
       case I830_OUTPUT_ANALOG:
       case I830_OUTPUT_DVO:
