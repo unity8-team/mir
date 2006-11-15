@@ -369,21 +369,21 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 
 	/* EXA + XAA + Xv */
 	NVDmaCreateContextObject(pNv, NvContextSurfaces,
-				 (pNv->Architecture >= NV_ARCH_10) ? NV10_CONTEXT_SURFACES_2D : NV4_SURFACE,
+				 (pNv->Architecture >= NV_ARCH_10) ? NV10_CONTEXT_SURFACES_2D : NV04_SURFACE,
 				 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
 				 NvDmaFB, NvDmaFB, 0);
 	NVDmaCreateContextObject(pNv, NvRectangle,
-				 NV4_GDI_RECTANGLE_TEXT,
+				 NV04_GDI_RECTANGLE_TEXT,
 				 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_MONO,
 				 0, 0, 0);
 	if (pNv->Chipset<=CHIPSET_NV04)
 		NVDmaCreateContextObject(pNv, NvScaledImage,
-					 NV_SCALED_IMAGE_FROM_MEMORY, 
+					 NV04_SCALED_IMAGE_FROM_MEMORY, 
 					 NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
 					 NvDmaFB, NvDmaFB, 0);
 	else if (pNv->Architecture==NV_ARCH_04)
 		NVDmaCreateContextObject(pNv, NvScaledImage,
-					 NV5_SCALED_IMAGE_FROM_MEMORY, 
+					 NV05_SCALED_IMAGE_FROM_MEMORY, 
 					 NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
 					 NvDmaFB, NvDmaFB, 0);
 	else
@@ -393,15 +393,15 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 					 NvDmaFB, NvDmaFB, 0);
 	/* EXA + XAA */
 	NVDmaCreateContextObject(pNv, NvRop,
-				 NV_ROP5_SOLID,
+				 NV03_PRIMITIVE_RASTER_OP,
 				 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
 				 0, 0, 0);
 	NVDmaCreateContextObject(pNv, NvImagePattern,
-				 NV4_IMAGE_PATTERN, 
+				 NV04_IMAGE_PATTERN, 
 				 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_MONO,
 				 0, 0, 0);
 	NVDmaCreateContextObject(pNv, NvImageBlit,
-				 pNv->WaitVSyncPossible ? NV12_IMAGE_BLIT : NV_IMAGE_BLIT,
+				 pNv->WaitVSyncPossible ? NV10_IMAGE_BLIT : NV_IMAGE_BLIT,
 				 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND, 
 				 NvDmaFB, NvDmaFB, 0);
 	if (pNv->useEXA) {
@@ -448,11 +448,11 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 #endif
 	} else {
 		NVDmaCreateContextObject(pNv, NvClipRectangle,
-					 NV_IMAGE_BLACK_RECTANGLE, 
+					 NV01_CONTEXT_CLIP_RECTANGLE, 
 					 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
 					 0, 0, 0);
 		NVDmaCreateContextObject(pNv, NvSolidLine,
-					 NV4_RENDER_SOLID_LIN,
+					 NV04_SOLID_LINE,
 					 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_CLIP_ENABLE,
 					 0, 0, 0);
 	}
