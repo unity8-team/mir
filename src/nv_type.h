@@ -165,6 +165,7 @@ typedef struct _NVRec {
     volatile CARD32 *PGRAPH;
     volatile CARD32 *PEXTDEV;
     volatile CARD32 *PTIMER;
+    volatile CARD32 *PVIDEO;
     volatile CARD32 *PMC;
     volatile CARD32 *PRAMIN;
     volatile CARD32 *FIFO;
@@ -273,5 +274,8 @@ typedef struct _NVRec {
 
 #define nvReadTIMER(pNv, reg) MMIO_IN32(pNv->PTIMER, reg)
 #define nvWriteTIMER(pNv, reg, val) MMIO_OUT32(pNv->PTIMER, reg, val)
+
+#define nvReadVIDEO(pNv, reg) MMIO_IN32(pNv->PVIDEO, reg)
+#define nvWriteVIDEO(pNv, reg, val) MMIO_OUT32(pNv->PVIDEO, reg, val)
 
 #endif /* __NV_STRUCT_H__ */

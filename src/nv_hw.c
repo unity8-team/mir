@@ -1277,12 +1277,12 @@ void NVLoadStateExt (
         temp = nvReadCurRAMDAC(pNv, NV_RAMDAC_0404);
         nvWriteCurRAMDAC(pNv, NV_RAMDAC_0404, temp | (1 << 25));
     
-        nvWriteMC(pNv, 0x8704, 1);
-        nvWriteMC(pNv, 0x8140, 0);
-        nvWriteMC(pNv, 0x8920, 0);
-        nvWriteMC(pNv, 0x8924, 0);
-        nvWriteMC(pNv, 0x8908, pNv->VRAMPhysicalSize - 1);
-        nvWriteMC(pNv, 0x890C, pNv->VRAMPhysicalSize - 1);
+        nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
+        nvWriteVIDEO(pNv, NV_PVIDEO_INTR_EN, 0);
+        nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(0), 0);
+        nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(1), 0);
+        nvWriteVIDEO(pNv, NV_PVIDEO_LIMIT(0), pNv->VRAMPhysicalSize - 1);
+        nvWriteVIDEO(pNv, NV_PVIDEO_LIMIT(1), pNv->VRAMPhysicalSize - 1);
         nvWriteMC(pNv, 0x1588, 0);
 
         nvWriteCurCRTC(pNv, NV_CRTC_CURSOR_CONFIG, state->cursorConfig);

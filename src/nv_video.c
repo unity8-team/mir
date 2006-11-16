@@ -209,11 +209,11 @@ NVResetVideo (ScrnInfoPtr pScrnInfo)
     if (satCosine < -1024)
         satCosine = -1024;
     
-    nvWriteMC(pNv, 0x8910, (pPriv->brightness << 16) | pPriv->contrast);
-    nvWriteMC(pNv, 0x8914, (pPriv->brightness << 16) | pPriv->contrast);
-    nvWriteMC(pNv, 0x8918, (satSine << 16) | (satCosine & 0xffff));
-    nvWriteMC(pNv, 0x891C, (satSine << 16) | (satCosine & 0xffff));
-    nvWriteMC(pNv, 0x8b00, pPriv->colorKey);
+    nvWriteVIDEO(pNv, NV_PVIDEO_LUMINANCE(0), (pPriv->brightness << 16) | pPriv->contrast);
+    nvWriteVIDEO(pNv, NV_PVIDEO_LUMINANCE(1), (pPriv->brightness << 16) | pPriv->contrast);
+    nvWriteVIDEO(pNv, NV_PVIDEO_CHROMINANCE(0), (satSine << 16) | (satCosine & 0xffff));
+    nvWriteVIDEO(pNv, NV_PVIDEO_CHROMINANCE(1), (satSine << 16) | (satCosine & 0xffff));
+    nvWriteVIDEO(pNv, NV_PVIDEO_COLOR_KEY, pPriv->colorKey);
 }
 
 
@@ -223,7 +223,7 @@ NVStopOverlay (ScrnInfoPtr pScrnInfo)
 {
     NVPtr          pNv     = NVPTR(pScrnInfo);
 
-    nvWriteMC(pNv, 0x00008704, 1);
+    nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
 }
 
 static NVAllocRec *
@@ -500,25 +500,25 @@ NVPutOverlayImage (
         drw_h <<= 1;
     }
 
-    nvWriteMC(pNv, 0x8900 + buffer*4, offset);
-    nvWriteMC(pNv, 0x8928 + buffer*4, (height << 16) | width);
-    nvWriteMC(pNv, 0x8930 + buffer*4, ((y1 << 4) & 0xffff0000) | (x1 >> 12));
-    nvWriteMC(pNv, 0x8938 + buffer*4, (src_w << 20) / drw_w);
-    nvWriteMC(pNv, 0x8940 + buffer*4, (src_h << 20) / drw_h);
-    nvWriteMC(pNv, 0x8948 + buffer*4, (dstBox->y1 << 16) | dstBox->x1);
-    nvWriteMC(pNv, 0x8950 + buffer*4, ((dstBox->y2 - dstBox->y1) << 16) |
+    nvWriteVIDEO(pNv, NV_PVIDEO_BASE(buffer), offset);
+    nvWriteVIDEO(pNv, NV_PVIDEO_SIZE_IN(buffer), (height << 16) | width);
+    nvWriteVIDEO(pNv, NV_PVIDEO_POINT_IN(buffer), ((y1 << 4) & 0xffff0000) | (x1 >> 12));
+    nvWriteVIDEO(pNv, NV_PVIDEO_DS_DX(buffer), (src_w << 20) / drw_w);
+    nvWriteVIDEO(pNv, NV_PVIDEO_DT_DY(buffer), (src_h << 20) / drw_h);
+    nvWriteVIDEO(pNv, NV_PVIDEO_POINT_OUT(buffer), (dstBox->y1 << 16) | dstBox->x1);
+    nvWriteVIDEO(pNv, NV_PVIDEO_SIZE_OUT(buffer), ((dstBox->y2 - dstBox->y1) << 16) |
                                	       (dstBox->x2 - dstBox->x1));
 
-    dstPitch |= 1 << 20;   /* use color key */
+    dstPitch |= NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY;   /* use color key */
 
     if(id != FOURCC_UYVY)
-	dstPitch |= 1 << 16;
+	dstPitch |= NV_PVIDEO_FORMAT_COLOR_LE_CR8YB8CB8YA8;
     if(pPriv->iturbt_709)
-        dstPitch |= 1 << 24;
+        dstPitch |= NV_PVIDEO_FORMAT_MATRIX_ITURBT709;
 
-    nvWriteMC(pNv, 0x8958 + buffer*4, dstPitch);
-    nvWriteMC(pNv, 0x8704, 0);
-    nvWriteMC(pNv, 0x8700, 1 << (buffer << 2));
+    nvWriteVIDEO(pNv, NV_PVIDEO_FORMAT(buffer), dstPitch);
+    nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 0);
+    nvWriteVIDEO(pNv, NV_PVIDEO_BUFFER, buffer ? 0x10 : 0x1);
 
     pPriv->videoStatus = CLIENT_VIDEO_ON;
 }
@@ -1097,10 +1097,10 @@ static int NVPutImage
 
 #if 0
         /* burn the CPU until the next buffer is available */
-        while(nvReadMC(pNv, 0x8700) & mask);
+        while(nvReadVIDEO(pNv,  NV_PVIDEO_BUFFER) & mask);
 #else
         /* overwrite the newest buffer if there's not one free */
-        if(nvReadMC(pNv, 0x8700) & mask) {
+        if(nvReadVIDEO(pNv, NV_PVIDEO_BUFFER) & mask) {
            if(!pPriv->currentBuffer)
               offset += (newSize * bpp) >> 1;
            skip = TRUE;

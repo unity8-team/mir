@@ -53,6 +53,10 @@
 #define NV_PTIMER_OFFSET            0x00009000
 #define NV_PTIMER_SIZE              0x00001000
 
+#define NV_PVIDEO_OFFSET            0x00008000
+#define NV_PVIDEO_SIZE              0x00001000
+
+/* TODO PMC size is 0x1000, but we need to get ride of abuses first */
 #define NV_PMC_OFFSET               0x00000000
 #define NV_PMC_SIZE                 0x0000f000
 
@@ -159,6 +163,26 @@
 #define NV_PGRAPH_FIFO              0x720
 
 #define NV_PGRAPH_PATTERN_SHAPE     0x810
+
+#define NV_PVIDEO_INTR_EN           0x140
+#define NV_PVIDEO_BUFFER            0x700
+#define NV_PVIDEO_STOP              0x704
+#define NV_PVIDEO_BASE(buff)        (0x900+(buff)*4)
+#define NV_PVIDEO_LIMIT(buff)       (0x908+(buff)*4)
+#define NV_PVIDEO_LUMINANCE(buff)   (0x910+(buff)*4)
+#define NV_PVIDEO_CHROMINANCE(buff) (0x918+(buff)*4)
+#define NV_PVIDEO_OFFSET_BUFF(buff) (0x920+(buff)*4)
+#define NV_PVIDEO_SIZE_IN(buff)     (0x928+(buff)*4)
+#define NV_PVIDEO_POINT_IN(buff)    (0x930+(buff)*4)
+#define NV_PVIDEO_DS_DX(buff)       (0x938+(buff)*4)
+#define NV_PVIDEO_DT_DY(buff)       (0x940+(buff)*4)
+#define NV_PVIDEO_POINT_OUT(buff)   (0x948+(buff)*4)
+#define NV_PVIDEO_SIZE_OUT(buff)    (0x950+(buff)*4)
+#define NV_PVIDEO_FORMAT(buff)      (0x958+(buff)*4)
+#	define NV_PVIDEO_FORMAT_COLOR_LE_CR8YB8CB8YA8    (1 << 16)
+#	define NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY        (1 << 20)
+#	define NV_PVIDEO_FORMAT_MATRIX_ITURBT709         (1 << 24)
+#define NV_PVIDEO_COLOR_KEY          0xB00
 
 #endif
 

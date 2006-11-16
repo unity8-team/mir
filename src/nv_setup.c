@@ -399,6 +399,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     pNv->PGRAPH   = pNv->REGS + (NV_PGRAPH_OFFSET/4);
     pNv->PEXTDEV  = pNv->REGS + (NV_PEXTDEV_OFFSET/4);
     pNv->PTIMER   = pNv->REGS + (NV_PTIMER_OFFSET/4);
+    pNv->PVIDEO   = pNv->REGS + (NV_PVIDEO_OFFSET/4);
     pNv->PMC      = pNv->REGS + (NV_PMC_OFFSET/4);
 
     /* 8 bit registers */

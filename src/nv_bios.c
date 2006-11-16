@@ -95,6 +95,8 @@ static int nv_valid_reg(CARD32 reg)
 		return 1;
 	if (WITHIN(reg,NV_PTIMER_OFFSET,NV_PTIMER_SIZE))
 		return 1;
+	if (WITHIN(reg,NV_PVIDEO_OFFSET,NV_PVIDEO_SIZE))
+		return 1;
 	if (WITHIN(reg,NV_PMC_OFFSET,NV_PMC_SIZE))
 		return 1;
 	if (WITHIN(reg,NV_FIFO_OFFSET,NV_FIFO_SIZE))
