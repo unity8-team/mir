@@ -4192,16 +4192,12 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
       }
    } else {
       if (IS_I9XX(pI830)) {
-	 if (pI830->PciInfo->memBase[2] & 0x08000000)
-	    pI830->FbMapSize = 0x8000000;	/* 128MB aperture */
-	 else
-	    pI830->FbMapSize = 0x10000000;	/* 256MB aperture */
-
-   	 if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
-	    pI830->FbMapSize = 0x8000000;	/* 128MB aperture */
-      } else
-	 /* 128MB aperture for later chips */
+	 pI830->FbMapSize = 1UL << pciGetBaseSize(pI830->PciTag, 2, TRUE,
+						  NULL);
+      } else {
+	 /* 128MB aperture for later i8xx series. */
 	 pI830->FbMapSize = 0x8000000;
+      }
    }
 
    if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
