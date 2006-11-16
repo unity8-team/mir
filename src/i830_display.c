@@ -904,7 +904,6 @@ int
 i830GetLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    Bool pipe_available[MAX_DISPLAY_PIPES];
     int i;
     /* VESA 640x480x72Hz mode to set on the pipe */
     DisplayModeRec mode = {
@@ -944,16 +943,12 @@ i830GetLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output)
     }
 
     for (i = 0; i < pI830->num_pipes; i++)
-	pipe_available[i] = i830PipeInUse(pScrn, i);
-
-    for (i = 0; i < pI830->num_pipes; i++) {
-	if (pipe_available[i])
+	if (!i830PipeInUse(pScrn, i))
 	    break;
-    }
 
-    if (i == pI830->num_pipes) {
+    if (i == pI830->num_pipes)
 	return -1;
-    }
+
     output->load_detect_temp = TRUE;
     output->pipe = i;
     output->enabled = TRUE;
