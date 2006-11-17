@@ -118,8 +118,6 @@ if test "x$GCC" = "xyes"; then
 	-Wnested-externs -fno-strict-aliasing"
 fi
 
-CFLAGS="$CFLAGS $WARN_CFLAGS"
-
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
         PKG_CHECK_MODULES(DRI, [libdrm >= 2.2 xf86driproto])
@@ -134,6 +132,7 @@ fi
 
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([XORG_CFLAGS])
+AC_SUBST([WARN_CFLAGS])
 AC_SUBST([moduledir])
 
 DRIVER_NAME=i810
@@ -148,5 +147,8 @@ AC_OUTPUT([
 	Makefile
 	src/Makefile
 	src/xvmc/Makefile
+	src/bios_reader/Makefile
+	src/ch7xxx/Makefile
+	src/sil164/Makefile
 	man/Makefile
 ])

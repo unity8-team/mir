@@ -1,6 +1,9 @@
+/* -*- c-basic-offset: 4 -*- */
+
 #define DEBUG_VERB 2
 /*
  * Copyright © 2002 David Dawes
+ * Copyright © 2006 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,6 +29,7 @@
  * the author(s).
  *
  * Authors: David Dawes <dawes@xfree86.org>
+ *	    Eric Anholt <eric.anholt@intel.com>
  *
  * $XFree86: xc/programs/Xserver/hw/xfree86/os-support/vbe/vbeModes.c,v 1.6 2002/11/02 01:38:25 dawes Exp $
  */
@@ -40,13 +44,19 @@
 
 #include <stdio.h>
 #include <string.h>
-
-#include "xf86.h"
-#include "i830.h"
-
+#include <assert.h>
 #include <math.h>
 
+#include "xf86.h"
+#include "X11/Xatom.h"
+#include "i830.h"
+#include "i830_display.h"
+#include "i830_xf86Modes.h"
+#include <randrstr.h>
+
 #define rint(x) floor(x)
+
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
 
 #define MARGIN_PERCENT    1.8   /* % of active vertical image                */
 #define CELL_GRAN         8.0   /* assumed character cell granularity        */
@@ -63,725 +73,32 @@
 
 #define C_PRIME           (((C - J) * K/256.0) + J)
 #define M_PRIME           (K/256.0 * M)
-
-extern const int i830refreshes[];
-
-static DisplayModePtr
-I830GetGTF (int h_pixels, int v_lines, float freq,
-                    int interlaced, int margins)
+/* Established timings from EDID standard */
+static struct
 {
-    float h_pixels_rnd;
-    float v_lines_rnd;
-    float v_field_rate_rqd;
-    float top_margin;
-    float bottom_margin;
-    float interlace;
-    float h_period_est;
-    float vsync_plus_bp;
-    float v_back_porch;
-    float total_v_lines;
-    float v_field_rate_est;
-    float h_period;
-    float v_field_rate;
-    float v_frame_rate;
-    float left_margin;
-    float right_margin;
-    float total_active_pixels;
-    float ideal_duty_cycle;
-    float h_blank;
-    float total_pixels;
-    float pixel_freq;
-    float h_freq;
-
-    float h_sync;
-    float h_front_porch;
-    float v_odd_front_porch_lines;
-    char modename[20];
-    DisplayModePtr m;
-
-    m = xnfcalloc(sizeof(DisplayModeRec), 1);
-    
-    
-    /*  1. In order to give correct results, the number of horizontal
-     *  pixels requested is first processed to ensure that it is divisible
-     *  by the character size, by rounding it to the nearest character
-     *  cell boundary:
-     *
-     *  [H PIXELS RND] = ((ROUND([H PIXELS]/[CELL GRAN RND],0))*[CELLGRAN RND])
-     */
-    
-    h_pixels_rnd = rint((float) h_pixels / CELL_GRAN) * CELL_GRAN;
-    
-    
-    /*  2. If interlace is requested, the number of vertical lines assumed
-     *  by the calculation must be halved, as the computation calculates
-     *  the number of vertical lines per field. In either case, the
-     *  number of lines is rounded to the nearest integer.
-     *   
-     *  [V LINES RND] = IF([INT RQD?]="y", ROUND([V LINES]/2,0),
-     *                                     ROUND([V LINES],0))
-     */
-
-    v_lines_rnd = interlaced ?
-            rint((float) v_lines) / 2.0 :
-            rint((float) v_lines);
-    
-    /*  3. Find the frame rate required:
-     *
-     *  [V FIELD RATE RQD] = IF([INT RQD?]="y", [I/P FREQ RQD]*2,
-     *                                          [I/P FREQ RQD])
-     */
-
-    v_field_rate_rqd = interlaced ? (freq * 2.0) : (freq);
-
-    /*  4. Find number of lines in Top margin:
-     *
-     *  [TOP MARGIN (LINES)] = IF([MARGINS RQD?]="Y",
-     *          ROUND(([MARGIN%]/100*[V LINES RND]),0),
-     *          0)
-     */
-
-    top_margin = margins ? rint(MARGIN_PERCENT / 100.0 * v_lines_rnd) : (0.0);
-
-    /*  5. Find number of lines in Bottom margin:
-     *
-     *  [BOT MARGIN (LINES)] = IF([MARGINS RQD?]="Y",
-     *          ROUND(([MARGIN%]/100*[V LINES RND]),0),
-     *          0)
-     */
-
-    bottom_margin = margins ? rint(MARGIN_PERCENT/100.0 * v_lines_rnd) : (0.0);
-
-    /*  6. If interlace is required, then set variable [INTERLACE]=0.5:
-     *   
-     *  [INTERLACE]=(IF([INT RQD?]="y",0.5,0))
-     */
-
-    interlace = interlaced ? 0.5 : 0.0;
-
-    /*  7. Estimate the Horizontal period
-     *
-     *  [H PERIOD EST] = ((1/[V FIELD RATE RQD]) - [MIN VSYNC+BP]/1000000) /
-     *                    ([V LINES RND] + (2*[TOP MARGIN (LINES)]) +
-     *                     [MIN PORCH RND]+[INTERLACE]) * 1000000
-     */
-
-    h_period_est = (((1.0/v_field_rate_rqd) - (MIN_VSYNC_PLUS_BP/1000000.0))
-                    / (v_lines_rnd + (2*top_margin) + MIN_PORCH + interlace)
-                    * 1000000.0);
-
-    /*  8. Find the number of lines in V sync + back porch:
-     *
-     *  [V SYNC+BP] = ROUND(([MIN VSYNC+BP]/[H PERIOD EST]),0)
-     */
-
-    vsync_plus_bp = rint(MIN_VSYNC_PLUS_BP/h_period_est);
-
-    /*  9. Find the number of lines in V back porch alone:
-     *
-     *  [V BACK PORCH] = [V SYNC+BP] - [V SYNC RND]
-     *
-     *  XXX is "[V SYNC RND]" a typo? should be [V SYNC RQD]?
-     */
-    
-    v_back_porch = vsync_plus_bp - V_SYNC_RQD;
-    
-    /*  10. Find the total number of lines in Vertical field period:
-     *
-     *  [TOTAL V LINES] = [V LINES RND] + [TOP MARGIN (LINES)] +
-     *                    [BOT MARGIN (LINES)] + [V SYNC+BP] + [INTERLACE] +
-     *                    [MIN PORCH RND]
-     */
-
-    total_v_lines = v_lines_rnd + top_margin + bottom_margin + vsync_plus_bp +
-        interlace + MIN_PORCH;
-    
-    /*  11. Estimate the Vertical field frequency:
-     *
-     *  [V FIELD RATE EST] = 1 / [H PERIOD EST] / [TOTAL V LINES] * 1000000
-     */
-
-    v_field_rate_est = 1.0 / h_period_est / total_v_lines * 1000000.0;
-    
-    /*  12. Find the actual horizontal period:
-     *
-     *  [H PERIOD] = [H PERIOD EST] / ([V FIELD RATE RQD] / [V FIELD RATE EST])
-     */
-
-    h_period = h_period_est / (v_field_rate_rqd / v_field_rate_est);
-    
-    /*  13. Find the actual Vertical field frequency:
-     *
-     *  [V FIELD RATE] = 1 / [H PERIOD] / [TOTAL V LINES] * 1000000
-     */
-
-    v_field_rate = 1.0 / h_period / total_v_lines * 1000000.0;
-
-    /*  14. Find the Vertical frame frequency:
-     *
-     *  [V FRAME RATE] = (IF([INT RQD?]="y", [V FIELD RATE]/2, [V FIELD RATE]))
-     */
-
-    v_frame_rate = interlaced ? v_field_rate / 2.0 : v_field_rate;
-
-    /*  15. Find number of pixels in left margin:
-     *
-     *  [LEFT MARGIN (PIXELS)] = (IF( [MARGINS RQD?]="Y",
-     *          (ROUND( ([H PIXELS RND] * [MARGIN%] / 100 /
-     *                   [CELL GRAN RND]),0)) * [CELL GRAN RND],
-     *          0))
-     */
-
-    left_margin = margins ?
-        rint(h_pixels_rnd * MARGIN_PERCENT / 100.0 / CELL_GRAN) * CELL_GRAN :
-        0.0;
-    
-    /*  16. Find number of pixels in right margin:
-     *
-     *  [RIGHT MARGIN (PIXELS)] = (IF( [MARGINS RQD?]="Y",
-     *          (ROUND( ([H PIXELS RND] * [MARGIN%] / 100 /
-     *                   [CELL GRAN RND]),0)) * [CELL GRAN RND],
-     *          0))
-     */
-    
-    right_margin = margins ?
-        rint(h_pixels_rnd * MARGIN_PERCENT / 100.0 / CELL_GRAN) * CELL_GRAN :
-        0.0;
-    
-    /*  17. Find total number of active pixels in image and left and right
-     *  margins:
-     *
-     *  [TOTAL ACTIVE PIXELS] = [H PIXELS RND] + [LEFT MARGIN (PIXELS)] +
-     *                          [RIGHT MARGIN (PIXELS)]
-     */
-
-    total_active_pixels = h_pixels_rnd + left_margin + right_margin;
-    
-    /*  18. Find the ideal blanking duty cycle from the blanking duty cycle
-     *  equation:
-     *
-     *  [IDEAL DUTY CYCLE] = [C'] - ([M']*[H PERIOD]/1000)
-     */
-
-    ideal_duty_cycle = C_PRIME - (M_PRIME * h_period / 1000.0);
-    
-    /*  19. Find the number of pixels in the blanking time to the nearest
-     *  double character cell:
-     *
-     *  [H BLANK (PIXELS)] = (ROUND(([TOTAL ACTIVE PIXELS] *
-     *                               [IDEAL DUTY CYCLE] /
-     *                               (100-[IDEAL DUTY CYCLE]) /
-     *                               (2*[CELL GRAN RND])), 0))
-     *                       * (2*[CELL GRAN RND])
-     */
-
-    h_blank = rint(total_active_pixels *
-                   ideal_duty_cycle /
-                   (100.0 - ideal_duty_cycle) /
-                   (2.0 * CELL_GRAN)) * (2.0 * CELL_GRAN);
-    
-    /*  20. Find total number of pixels:
-     *
-     *  [TOTAL PIXELS] = [TOTAL ACTIVE PIXELS] + [H BLANK (PIXELS)]
-     */
-
-    total_pixels = total_active_pixels + h_blank;
-    
-    /*  21. Find pixel clock frequency:
-     *
-     *  [PIXEL FREQ] = [TOTAL PIXELS] / [H PERIOD]
-     */
-    
-    pixel_freq = total_pixels / h_period;
-    
-    /*  22. Find horizontal frequency:
-     *
-     *  [H FREQ] = 1000 / [H PERIOD]
-     */
-
-    h_freq = 1000.0 / h_period;
-    
-
-    /* Stage 1 computations are now complete; I should really pass
-       the results to another function and do the Stage 2
-       computations, but I only need a few more values so I'll just
-       append the computations here for now */
-
-    
-
-    /*  17. Find the number of pixels in the horizontal sync period:
-     *
-     *  [H SYNC (PIXELS)] =(ROUND(([H SYNC%] / 100 * [TOTAL PIXELS] /
-     *                             [CELL GRAN RND]),0))*[CELL GRAN RND]
-     */
-
-    h_sync = rint(H_SYNC_PERCENT/100.0 * total_pixels / CELL_GRAN) * CELL_GRAN;
-
-    /*  18. Find the number of pixels in the horizontal front porch period:
-     *
-     *  [H FRONT PORCH (PIXELS)] = ([H BLANK (PIXELS)]/2)-[H SYNC (PIXELS)]
-     */
-
-    h_front_porch = (h_blank / 2.0) - h_sync;
-
-    /*  36. Find the number of lines in the odd front porch period:
-     *
-     *  [V ODD FRONT PORCH(LINES)]=([MIN PORCH RND]+[INTERLACE])
-     */
-    
-    v_odd_front_porch_lines = MIN_PORCH + interlace;
-    
-    /* finally, pack the results in the DisplayMode struct */
-    
-    m->HDisplay  = (int) (h_pixels_rnd);
-    m->HSyncStart = (int) (h_pixels_rnd + h_front_porch);
-    m->HSyncEnd = (int) (h_pixels_rnd + h_front_porch + h_sync);
-    m->HTotal = (int) (total_pixels);
-
-    m->VDisplay  = (int) (v_lines_rnd);
-    m->VSyncStart = (int) (v_lines_rnd + v_odd_front_porch_lines);
-    m->VSyncEnd = (int) (int) (v_lines_rnd + v_odd_front_porch_lines + V_SYNC_RQD);
-    m->VTotal = (int) (total_v_lines);
-
-    m->Clock   = (int)(pixel_freq * 1000);
-    m->SynthClock   = m->Clock;
-    m->HSync = h_freq;
-    m->VRefresh = v_frame_rate /* freq */;
-
-    snprintf(modename, sizeof(modename), "%dx%d", m->HDisplay,m->VDisplay);
-    m->name = xnfstrdup(modename);
-
-    return (m);
-}
-
-static DisplayModePtr
-CheckMode(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe, int id,
-	  int flags)
-{
-    CARD16 major, minor;
-    VbeModeInfoBlock *mode;
-    DisplayModePtr p = NULL, pMode = NULL;
-#if 0
-    VbeModeInfoData *data;
-#else
-    I830ModePrivatePtr data;
-#endif
-    Bool modeOK = FALSE;
-    ModeStatus status = MODE_OK;
-
-    major = (unsigned)(vbe->VESAVersion >> 8);
-    minor = vbe->VESAVersion & 0xff;
-
-    if ((mode = VBEGetModeInfo(pVbe, id)) == NULL)
-	return NULL;
-
-    /* Does the mode match the depth/bpp? */
-    /* Some BIOS's set BitsPerPixel to 15 instead of 16 for 15/16 */
-    if (VBE_MODE_USABLE(mode, flags) &&
-	((pScrn->bitsPerPixel == 1 && !VBE_MODE_COLOR(mode)) ||
-	 (mode->BitsPerPixel > 8 &&
-	  (mode->RedMaskSize + mode->GreenMaskSize +
-	   mode->BlueMaskSize) == pScrn->depth &&
-	  mode->BitsPerPixel == pScrn->bitsPerPixel) ||
-	 (mode->BitsPerPixel == 15 && pScrn->depth == 15) ||
-	 (mode->BitsPerPixel <= 8 &&
-	  mode->BitsPerPixel == pScrn->bitsPerPixel))) {
-	modeOK = TRUE;
-	xf86ErrorFVerb(DEBUG_VERB, "*");
-    }
-
-    if (mode->XResolution && mode->YResolution &&
-	!I830CheckModeSupport(pScrn, mode->XResolution, mode->YResolution, id)) 
-	modeOK = FALSE;
-
-
-    /*
-     * Check if there's a valid monitor mode that this one can be matched
-     * up with from the 'specified' modes list.
-     */
-    if (modeOK) {
-	for (p = pScrn->monitor->Modes; p != NULL; p = p->next) {
-	    if ((p->type != 0) ||
-		(p->HDisplay != mode->XResolution) ||
-		(p->VDisplay != mode->YResolution) ||
-		(p->Flags & (V_INTERLACE | V_DBLSCAN | V_CLKDIV2)))
-		continue;
-	    status = xf86CheckModeForMonitor(p, pScrn->monitor);
-	    if (status == MODE_OK) {
-		modeOK = TRUE;
-		break;
-	    }
-	}
-	if (p) {
-    		pMode = xnfcalloc(sizeof(DisplayModeRec), 1);
-		memcpy((char*)pMode,(char*)p,sizeof(DisplayModeRec));
-    		pMode->name = xnfstrdup(p->name);
-	}
-    } 
-
-    /*
-     * Now, check if there's a valid monitor mode that this one can be matched
-     * up with from the default modes list. i.e. VESA modes in xf86DefModes.c
-     */
-    if (modeOK && !pMode) {
-	int refresh = 0, calcrefresh = 0;
-	DisplayModePtr newMode = NULL;
-
-	for (p = pScrn->monitor->Modes; p != NULL; p = p->next) {
-	    calcrefresh = (int)(((double)(p->Clock * 1000) /
-                       (double)(p->HTotal * p->VTotal)) * 100);
-	    if ((p->type != M_T_DEFAULT) ||
-		(p->HDisplay != mode->XResolution) ||
-		(p->VDisplay != mode->YResolution) ||
-		(p->Flags & (V_INTERLACE | V_DBLSCAN | V_CLKDIV2)))
-		continue;
-	    status = xf86CheckModeForMonitor(p, pScrn->monitor);
-	    if (status == MODE_OK) {
-	    	if (calcrefresh > refresh) {
-			refresh = calcrefresh;
-			newMode = p;
-		}
-		modeOK = TRUE;
-	    }
-	}
-	if (newMode) {
-    		pMode = xnfcalloc(sizeof(DisplayModeRec), 1);
-		memcpy((char*)pMode,(char*)newMode,sizeof(DisplayModeRec));
-    		pMode->name = xnfstrdup(newMode->name);
-	}
-    } 
-
-    /*
-     * Check if there's a valid monitor mode that this one can be matched
-     * up with.  The actual matching is done later.
-     */
-    if (modeOK && !pMode) {
-	float vrefresh = 0.0f;
-	int i;
-
-	for (i=0;i<pScrn->monitor->nVrefresh;i++) {
-
-  	    for (vrefresh = pScrn->monitor->vrefresh[i].hi; 
-		 vrefresh >= pScrn->monitor->vrefresh[i].lo; vrefresh -= 1.0f) {
-
-	        if (vrefresh != (float)0.0f) {
-                    float best_vrefresh;
-                    int int_vrefresh;
- 
-                    /* Find the best refresh for the Intel chipsets */
-                    int_vrefresh = I830GetBestRefresh(pScrn, (int)vrefresh);
-		    best_vrefresh = (float)i830refreshes[int_vrefresh];
-
-                    /* Now, grab the best mode from the available refresh */
-		    pMode = I830GetGTF(mode->XResolution, mode->YResolution, 
-							best_vrefresh, 0, 0);
-
-    	            pMode->type = M_T_BUILTIN;
-
-	            status = xf86CheckModeForMonitor(pMode, pScrn->monitor);
-	            if (status == MODE_OK) {
-			if (major >= 3) {
-			    if (pMode->Clock * 1000 <= mode->MaxPixelClock)
-				modeOK = TRUE;
-			    else
-				modeOK = FALSE;
-			} else
-			    modeOK = TRUE;
-	            } else
-	    	        modeOK = FALSE;
-  	            pMode->status = status;
-	        } else { 
-	            modeOK = FALSE;
-	        }
-	        if (modeOK) break;
-            }
-	    if (modeOK) break;
-        }
-    }
-
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "Mode: %x (%dx%d)\n", id, mode->XResolution, mode->YResolution);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	ModeAttributes: 0x%x\n", mode->ModeAttributes);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	WinAAttributes: 0x%x\n", mode->WinAAttributes);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	WinBAttributes: 0x%x\n", mode->WinBAttributes);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	WinGranularity: %d\n", mode->WinGranularity);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	WinSize: %d\n", mode->WinSize);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	WinASegment: 0x%x\n", mode->WinASegment);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	WinBSegment: 0x%x\n", mode->WinBSegment);
-    xf86ErrorFVerb(DEBUG_VERB,
-		   "	WinFuncPtr: 0x%lx\n", (unsigned long)mode->WinFuncPtr);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	BytesPerScanline: %d\n", mode->BytesPerScanline);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	XResolution: %d\n", mode->XResolution);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	YResolution: %d\n", mode->YResolution);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	XCharSize: %d\n", mode->XCharSize);
-    xf86ErrorFVerb(DEBUG_VERB,
-           "	YCharSize: %d\n", mode->YCharSize);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	NumberOfPlanes: %d\n", mode->NumberOfPlanes);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	BitsPerPixel: %d\n", mode->BitsPerPixel);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	NumberOfBanks: %d\n", mode->NumberOfBanks);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	MemoryModel: %d\n", mode->MemoryModel);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	BankSize: %d\n", mode->BankSize);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	NumberOfImages: %d\n", mode->NumberOfImages);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	RedMaskSize: %d\n", mode->RedMaskSize);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	RedFieldPosition: %d\n", mode->RedFieldPosition);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	GreenMaskSize: %d\n", mode->GreenMaskSize);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	GreenFieldPosition: %d\n", mode->GreenFieldPosition);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	BlueMaskSize: %d\n", mode->BlueMaskSize);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	BlueFieldPosition: %d\n", mode->BlueFieldPosition);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	RsvdMaskSize: %d\n", mode->RsvdMaskSize);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	RsvdFieldPosition: %d\n", mode->RsvdFieldPosition);
-    xf86ErrorFVerb(DEBUG_VERB,
-	    "	DirectColorModeInfo: %d\n", mode->DirectColorModeInfo);
-    if (major >= 2) {
-	xf86ErrorFVerb(DEBUG_VERB,
-		       "	PhysBasePtr: 0x%lx\n", 
-		       (unsigned long)mode->PhysBasePtr);
-	if (major >= 3) {
-	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	LinBytesPerScanLine: %d\n", mode->LinBytesPerScanLine);
-	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	BnkNumberOfImagePages: %d\n", mode->BnkNumberOfImagePages);
-	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	LinNumberOfImagePages: %d\n", mode->LinNumberOfImagePages);
-	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	LinRedMaskSize: %d\n", mode->LinRedMaskSize);
-	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	LinRedFieldPosition: %d\n", mode->LinRedFieldPosition);
-	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	LinGreenMaskSize: %d\n", mode->LinGreenMaskSize);
-	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	LinGreenFieldPosition: %d\n", mode->LinGreenFieldPosition);
-	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	LinBlueMaskSize: %d\n", mode->LinBlueMaskSize);
-	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	LinBlueFieldPosition: %d\n", mode->LinBlueFieldPosition);
-	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	LinRsvdMaskSize: %d\n", mode->LinRsvdMaskSize);
-	    xf86ErrorFVerb(DEBUG_VERB,
-		    "	LinRsvdFieldPosition: %d\n", mode->LinRsvdFieldPosition);
-	    xf86ErrorFVerb(DEBUG_VERB,
-			   "	MaxPixelClock: %ld\n", (unsigned long)
-			   mode->MaxPixelClock);
-	}
-    }
-
-    if (!modeOK) {
-	VBEFreeModeInfo(mode);
-	if (pMode)
-	    xfree(pMode);
-	return NULL;
-    }
-
-    pMode->status = MODE_OK;
-    pMode->type = M_T_BUILTIN;
-
-    /* for adjust frame */
-    pMode->HDisplay = mode->XResolution;
-    pMode->VDisplay = mode->YResolution;
-
-#if 0
-    data = xnfcalloc(sizeof(VbeModeInfoData), 1);
-    data->mode = id;
-    data->data = mode;
-    pMode->PrivSize = sizeof(VbeModeInfoData);
-    pMode->Private = (INT32*)data;
-#else
-    data = xnfcalloc(sizeof(I830ModePrivateRec), 1);
-    data->vbeData.mode = id;
-    data->vbeData.data = mode;
-    pMode->PrivSize = sizeof(I830ModePrivateRec);
-    pMode->Private = (INT32*)data;
-#endif
-    pMode->next = NULL;
-
-    return pMode;
-}
-
-/*
- * Check the available BIOS modes, and extract those that match the
- * requirements into the modePool.  Note: modePool is a NULL-terminated
- * list.
- */
-
-DisplayModePtr
-I830GetModePool(ScrnInfoPtr pScrn, vbeInfoPtr pVbe, VbeInfoBlock *vbe)
-{
-   DisplayModePtr pMode, p = NULL, modePool = NULL;
-   int i = 0;
-
-   for (i = 0; i < 0x7F; i++) {
-      if ((pMode = CheckMode(pScrn, pVbe, vbe, i, V_MODETYPE_VGA)) != NULL) {
-         ModeStatus status = MODE_OK;
-
-		/* Check the mode against a specified virtual size (if any) */
-		if (pScrn->display->virtualX > 0 &&
-		    pMode->HDisplay > pScrn->display->virtualX) {
-		    status = MODE_VIRTUAL_X;
-		}
-		if (pScrn->display->virtualY > 0 &&
-		    pMode->VDisplay > pScrn->display->virtualY) {
-		    status = MODE_VIRTUAL_Y;
-		}
-		if (status != MODE_OK) {
-		     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"Not using mode \"%dx%d\" (%s)\n",
-				pMode->HDisplay, pMode->VDisplay,
-				xf86ModeStatusToString(status));
-		} else {
-		    if (p == NULL) {
-			modePool = pMode;
-		    } else {
-			p->next = pMode;
-		    }
-		    pMode->prev = NULL;
-		    p = pMode;
-		}
-	    }
-	}
-    return modePool;
-}
-
-/*
- * Go through the monitor modes and selecting the best set of
- * parameters for each BIOS mode.  Note: This is only supported in
- * VBE version 3.0 or later.
- */
-void
-I830SetModeParameters(ScrnInfoPtr pScrn, vbeInfoPtr pVbe)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    DisplayModePtr pMode = pScrn->modes;
-    DisplayModePtr ppMode = pScrn->modes;
-    I830ModePrivatePtr mp = NULL;
-
-    do {
-	int clock;
-        
-        mp = (I830ModePrivatePtr) pMode->Private;
-
-        if (pI830->MergedFB) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s\n", pScrn->monitor->id);
-            ppMode = (DisplayModePtr) mp->merged.First;
-            mp = (I830ModePrivatePtr) mp->merged.First->Private;
-        }
-	mp->vbeData.block = xcalloc(sizeof(VbeCRTCInfoBlock), 1);
-	mp->vbeData.block->HorizontalTotal = ppMode->HTotal;
-	mp->vbeData.block->HorizontalSyncStart = ppMode->HSyncStart;
-	mp->vbeData.block->HorizontalSyncEnd = ppMode->HSyncEnd;
-	mp->vbeData.block->VerticalTotal = ppMode->VTotal;
-	mp->vbeData.block->VerticalSyncStart = ppMode->VSyncStart;
-	mp->vbeData.block->VerticalSyncEnd = ppMode->VSyncEnd;
-	mp->vbeData.block->Flags = ((ppMode->Flags & V_NHSYNC) ? CRTC_NHSYNC : 0) |
-				 ((ppMode->Flags & V_NVSYNC) ? CRTC_NVSYNC : 0);
-	mp->vbeData.block->PixelClock = ppMode->Clock * 1000;
-	/* XXX May not have this. */
-	clock = VBEGetPixelClock(pVbe, mp->vbeData.mode, mp->vbeData.block->PixelClock);
-	if (clock)
-	    mp->vbeData.block->PixelClock = clock;
-#ifdef DEBUG
-	ErrorF("Setting clock %.2fMHz, closest is %.2fMHz\n",
-		(double)mp->vbeData.block->PixelClock / 1000000.0, 
-		(double)clock / 1000000.0);
-#endif
-	mp->vbeData.mode |= (1 << 11);
-	if (ppMode->VRefresh != 0) {
-	    mp->vbeData.block->RefreshRate = ppMode->VRefresh * 100;
-	} else {
-	    mp->vbeData.block->RefreshRate = (int)(((double)(mp->vbeData.block->PixelClock)/
-                       (double)(ppMode->HTotal * ppMode->VTotal)) * 100);
-	}
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Attempting to use %2.2fHz refresh for mode \"%s\" (%x)\n",
-		       (float)(((double)(mp->vbeData.block->PixelClock) / (double)(ppMode->HTotal * ppMode->VTotal))), ppMode->name, mp->vbeData.mode);
-#ifdef DEBUG
-	ErrorF("Video Modeline: ID: 0x%x Name: %s %i %i %i %i - "
-	       "  %i %i %i %i %.2f MHz Refresh: %.2f Hz\n",
-	       mp->vbeData.mode, ppMode->name, ppMode->HDisplay, ppMode->HSyncStart,
-	       ppMode->HSyncEnd, ppMode->HTotal, ppMode->VDisplay,
-	       ppMode->VSyncStart,ppMode->VSyncEnd,ppMode->VTotal,
-	       (double)mp->vbeData.block->PixelClock/1000000.0,
-	       (double)mp->vbeData.block->RefreshRate/100);
-#endif
-	pMode = ppMode = pMode->next;
-    } while (pMode != pScrn->modes);
-
-    if (pI830->MergedFB) {
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s\n", pI830->pScrn_2->monitor->id);
-    pMode = pScrn->modes;
-    	do {
-	    int clock;
-
-            mp = (I830ModePrivatePtr) pMode->Private;
-            ppMode = (DisplayModePtr) mp->merged.Second;
-            mp = (I830ModePrivatePtr) mp->merged.Second->Private;
-
-	    mp->vbeData.block = xcalloc(sizeof(VbeCRTCInfoBlock), 1);
-	    mp->vbeData.block->HorizontalTotal = ppMode->HTotal;
-	    mp->vbeData.block->HorizontalSyncStart = ppMode->HSyncStart;
-	    mp->vbeData.block->HorizontalSyncEnd = ppMode->HSyncEnd;
-	    mp->vbeData.block->VerticalTotal = ppMode->VTotal;
-	    mp->vbeData.block->VerticalSyncStart = ppMode->VSyncStart;
-	    mp->vbeData.block->VerticalSyncEnd = ppMode->VSyncEnd;
-	    mp->vbeData.block->Flags = ((ppMode->Flags & V_NHSYNC) ? CRTC_NHSYNC : 0) |
-				 ((ppMode->Flags & V_NVSYNC) ? CRTC_NVSYNC : 0);
-	    mp->vbeData.block->PixelClock = ppMode->Clock * 1000;
-	    /* XXX May not have this. */
-	    clock = VBEGetPixelClock(pVbe, mp->vbeData.mode, mp->vbeData.block->PixelClock);
-	    if (clock)
-	        mp->vbeData.block->PixelClock = clock;
-#ifdef DEBUG
-	    ErrorF("Setting clock %.2fMHz, closest is %.2fMHz\n",
-		(double)mp->vbeData.block->PixelClock / 1000000.0, 
-		(double)clock / 1000000.0);
-#endif
-	    mp->vbeData.mode |= (1 << 11);
-	    if (ppMode->VRefresh != 0) {
-	        mp->vbeData.block->RefreshRate = ppMode->VRefresh * 100;
-	    } else {
-	        mp->vbeData.block->RefreshRate = (int)(((double)(mp->vbeData.block->PixelClock)/
-                       (double)(ppMode->HTotal * ppMode->VTotal)) * 100);
-	    }
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Attempting to use %2.2fHz refresh for mode \"%s\" (%x)\n",
-		       (float)(((double)(mp->vbeData.block->PixelClock) / (double)(ppMode->HTotal * ppMode->VTotal))), ppMode->name, mp->vbeData.mode);
-#ifdef DEBUG
-	    ErrorF("Video Modeline: ID: 0x%x Name: %s %i %i %i %i - "
-	       "  %i %i %i %i %.2f MHz Refresh: %.2f Hz\n",
-	       mp->vbeData.mode, ppMode->name, ppMode->HDisplay, ppMode->HSyncStart,
-	       ppMode->HSyncEnd, ppMode->HTotal, ppMode->VDisplay,
-	       ppMode->VSyncStart,ppMode->VSyncEnd,ppMode->VTotal,
-	       (double)mp->vbeData.block->PixelClock/1000000.0,
-	       (double)mp->vbeData.block->RefreshRate/100);
-#endif
-	    pMode = ppMode = pMode->next;
-        } while (pMode != pScrn->modes);
-    }
-}
+    int hsize;
+    int vsize;
+    int refresh;
+} est_timings[] = {
+    {1280, 1024, 75},
+    {1024, 768, 75},
+    {1024, 768, 70},
+    {1024, 768, 60},
+    {1024, 768, 87},
+    {832, 624, 75},
+    {800, 600, 75},
+    {800, 600, 72},
+    {800, 600, 60},
+    {800, 600, 56},
+    {640, 480, 75},
+    {640, 480, 72},
+    {640, 480, 67},
+    {640, 480, 60},
+    {720, 400, 88},
+    {720, 400, 70},
+};
+
+#define DEBUG_REPROBE 1
 
 void
 I830PrintModes(ScrnInfoPtr scrp)
@@ -844,4 +161,540 @@ I830PrintModes(ScrnInfoPtr scrp)
 			   uprefix, prefix, p->HDisplay, p->VDisplay);
 	p = p->next;
     } while (p != NULL && p != scrp->modes);
+}
+
+/* This function will sort all modes according to their resolution.
+ * Highest resolution first.
+ */
+static void
+I830xf86SortModes(DisplayModePtr new, DisplayModePtr *first,
+	      DisplayModePtr *last)
+{
+    DisplayModePtr  p;
+
+    p = *last;
+    while (p) {
+	if (((new->HDisplay < p->HDisplay) &&
+	     (new->VDisplay < p->VDisplay)) ||
+	    ((new->HDisplay * new->VDisplay) < (p->HDisplay * p->VDisplay)) ||
+	    ((new->HDisplay == p->HDisplay) &&
+	     (new->VDisplay == p->VDisplay) &&
+	     (new->Clock < p->Clock))) {
+
+	    if (p->next) 
+		p->next->prev = new;
+	    new->prev = p;
+	    new->next = p->next;
+	    p->next = new;
+	    if (!(new->next))
+		*last = new;
+	    break;
+	}
+	if (!p->prev) {
+	    new->prev = NULL;
+	    new->next = p;
+	    p->prev = new;
+	    *first = new;
+	    break;
+	}
+	p = p->prev;
+    }
+
+    if (!*first) {
+	*first = new;
+	new->prev = NULL;
+	new->next = NULL;
+	*last = new;
+    }
+}
+
+/**
+ * Gets a new pointer to a VESA established mode.
+ *
+ * \param i index into the VESA established modes table.
+ */
+static DisplayModePtr
+I830GetVESAEstablishedMode(ScrnInfoPtr pScrn, int i)
+{
+    DisplayModePtr pMode;
+
+    for (pMode = I830xf86DefaultModes; pMode->name != NULL; pMode++)
+    {
+	if (pMode->HDisplay == est_timings[i].hsize &&
+	    pMode->VDisplay == est_timings[i].vsize &&
+	    fabs(i830xf86ModeVRefresh(pMode) - est_timings[i].refresh) < 1.0)
+	{
+	    DisplayModePtr pNew = i830xf86DuplicateMode(pMode);
+	    i830xf86SetModeDefaultName(pNew);
+	    pNew->VRefresh = i830xf86ModeVRefresh(pMode);
+	    return pNew;
+	}
+    }
+    return NULL;
+}
+
+static DisplayModePtr
+i830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
+{
+    DisplayModePtr  last  = NULL;
+    DisplayModePtr  new   = NULL;
+    DisplayModePtr  first = NULL;
+    int             count = 0;
+    int             j, tmp;
+
+    if (ddc == NULL)
+	return NULL;
+
+    /* Go thru detailed timing table first */
+    for (j = 0; j < 4; j++) {
+	if (ddc->det_mon[j].type == 0) {
+	    struct detailed_timings *d_timings =
+		&ddc->det_mon[j].section.d_timings;
+
+	    if (d_timings->h_active == 0 || d_timings->v_active == 0) break;
+
+	    new = xnfcalloc(1, sizeof (DisplayModeRec));
+	    memset(new, 0, sizeof (DisplayModeRec));
+
+	    new->HDisplay   = d_timings->h_active;
+	    new->VDisplay   = d_timings->v_active;
+
+	    new->HTotal     = new->HDisplay + d_timings->h_blanking;
+	    new->HSyncStart = new->HDisplay + d_timings->h_sync_off;
+	    new->HSyncEnd   = new->HSyncStart + d_timings->h_sync_width;
+	    new->VTotal     = new->VDisplay + d_timings->v_blanking;
+	    new->VSyncStart = new->VDisplay + d_timings->v_sync_off;
+	    new->VSyncEnd   = new->VSyncStart + d_timings->v_sync_width;
+	    new->Clock      = d_timings->clock / 1000;
+	    new->Flags      = (d_timings->interlaced ? V_INTERLACE : 0);
+	    new->status     = MODE_OK;
+	    if (PREFERRED_TIMING_MODE(ddc->features.msc))
+		new->type   = M_T_PREFERRED;
+	    else
+		new->type   = M_T_DRIVER;
+
+	    i830xf86SetModeDefaultName(new);
+
+	    if (d_timings->sync == 3) {
+		switch (d_timings->misc) {
+		case 0: new->Flags |= V_NHSYNC | V_NVSYNC; break;
+		case 1: new->Flags |= V_PHSYNC | V_NVSYNC; break;
+		case 2: new->Flags |= V_NHSYNC | V_PVSYNC; break;
+		case 3: new->Flags |= V_PHSYNC | V_PVSYNC; break;
+		}
+	    }
+	    count++;
+
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Valid Mode from Detailed timing table: %s (ht %d hss %d hse %d vt %d vss %d vse %d)\n",
+		       new->name,
+		       new->HTotal, new->HSyncStart, new->HSyncEnd,
+		       new->VTotal, new->VSyncStart, new->VSyncEnd);
+
+	    I830xf86SortModes(new, &first, &last);
+	}
+    }
+
+    /* Search thru standard VESA modes from EDID */
+    for (j = 0; j < 8; j++) {
+        if (ddc->timings2[j].hsize == 0 || ddc->timings2[j].vsize == 0)
+               continue;
+#if 1
+	new = i830GetGTF(ddc->timings2[j].hsize, ddc->timings2[j].vsize,
+			 ddc->timings2[j].refresh, FALSE, FALSE);
+	new->status = MODE_OK;
+	new->type |= M_T_DEFAULT;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Valid Mode from standard timing table: %s\n",
+		   new->name);
+
+	I830xf86SortModes(new, &first, &last);
+#else
+	for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
+
+	    /* Ignore all double scan modes */
+	    if ((ddc->timings2[j].hsize == p->HDisplay) &&
+		(ddc->timings2[j].vsize == p->VDisplay)) {
+		float  refresh =
+		    (float)p->Clock * 1000.0 / p->HTotal / p->VTotal;
+		float err = (float)ddc->timings2[j].refresh - refresh;
+
+		if (err < 0) err = -err;
+		if (err < 1.0) {
+		    /* Is this good enough? */
+		    new = xnfcalloc(1, sizeof (DisplayModeRec));
+		    memcpy(new, p, sizeof(DisplayModeRec));
+		    new->name = xnfalloc(strlen(p->name) + 1);
+		    strcpy(new->name, p->name);
+		    new->status = MODE_OK;
+		    new->type   = M_T_DEFAULT;
+
+		    count++;
+
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			       "Valid Mode from standard timing table: %s\n",
+			       new->name);
+
+		    I830xf86SortModes(new, &first, &last);
+		    break;
+		}
+	    }
+	}
+#endif
+    }
+
+    /* Search thru established modes from EDID */
+    tmp = (ddc->timings1.t1 << 8) | ddc->timings1.t2;
+    for (j = 0; j < 16; j++) {
+	if (tmp & (1 << j)) {
+	    new = I830GetVESAEstablishedMode(pScrn, j);
+	    if (new == NULL) {
+		ErrorF("Couldn't get established mode %d\n", j);
+		continue;
+	    }
+	    new->status = MODE_OK;
+	    new->type = M_T_DEFAULT;
+
+	    count++;
+
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Valid Mode from established "
+		       "timing table: %s\n", new->name);
+
+	    I830xf86SortModes(new, &first, &last);
+	}
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Total of %d DDC mode(s) found.\n", count);
+
+    return first;
+}
+
+static DisplayModePtr
+i830GetModeListTail(DisplayModePtr pModeList)
+{
+    DisplayModePtr last;
+
+    if (pModeList == NULL)
+	return NULL;
+
+    for (last = pModeList; last->next != NULL; last = last->next)
+	;
+
+    return last;
+}
+
+/**
+ * This function removes a mode from a list of modes.  It should probably be
+ * moved to xf86Mode.c.
+ *
+ * There are different types of mode lists:
+ *
+ *  - singly linked linear lists, ending in NULL
+ *  - doubly linked linear lists, starting and ending in NULL
+ *  - doubly linked circular lists
+ *
+ */
+
+static void
+I830xf86DeleteModeFromList(DisplayModePtr *modeList, DisplayModePtr mode)
+{
+    /* Catch the easy/insane cases */
+    if (modeList == NULL || *modeList == NULL || mode == NULL)
+	return;
+
+    /* If the mode is at the start of the list, move the start of the list */
+    if (*modeList == mode)
+	*modeList = mode->next;
+
+    /* If mode is the only one on the list, set the list to NULL */
+    if ((mode == mode->prev) && (mode == mode->next)) {
+	*modeList = NULL;
+    } else {
+	if ((mode->prev != NULL) && (mode->prev->next == mode))
+	    mode->prev->next = mode->next;
+	if ((mode->next != NULL) && (mode->next->prev == mode))
+	    mode->next->prev = mode->prev;
+    }
+}
+
+void
+i830_reprobe_output_modes(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    Bool properties_set = FALSE;
+    int i;
+
+    /* Re-probe the list of modes for each output. */
+    for (i = 0; i < pI830->num_outputs; i++) {
+	DisplayModePtr mode;
+
+	while (pI830->output[i].probed_modes != NULL) {
+	    xf86DeleteMode(&pI830->output[i].probed_modes,
+			   pI830->output[i].probed_modes);
+	}
+
+	pI830->output[i].probed_modes =
+	    pI830->output[i].get_modes(pScrn, &pI830->output[i]);
+
+	/* Set the DDC properties to whatever first output has DDC information.
+	 */
+	if (pI830->output[i].MonInfo != NULL && !properties_set) {
+	    xf86SetDDCproperties(pScrn, pI830->output[i].MonInfo);
+	    properties_set = TRUE;
+	}
+
+	if (pI830->output[i].probed_modes != NULL) {
+	    /* silently prune modes down to ones matching the user's
+	     * configuration.
+	     */
+	    i830xf86ValidateModesUserConfig(pScrn,
+					    pI830->output[i].probed_modes);
+	    i830xf86PruneInvalidModes(pScrn, &pI830->output[i].probed_modes,
+				      FALSE);
+	}
+
+#ifdef DEBUG_REPROBE
+	if (pI830->output[i].probed_modes != NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Printing probed modes for output %s\n",
+		       i830_output_type_names[pI830->output[i].type]);
+	} else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "No remaining probed modes for output %s\n",
+		       i830_output_type_names[pI830->output[i].type]);
+	}
+#endif
+	for (mode = pI830->output[i].probed_modes; mode != NULL;
+	     mode = mode->next)
+	{
+	    /* The code to choose the best mode per pipe later on will require
+	     * VRefresh to be set.
+	     */
+	    mode->VRefresh = i830xf86ModeVRefresh(mode);
+	    I830xf86SetModeCrtc(mode, INTERLACE_HALVE_V);
+
+#ifdef DEBUG_REPROBE
+	    PrintModeline(pScrn->scrnIndex, mode);
+#endif
+	}
+    }
+}
+
+/**
+ * Constructs pScrn->modes from the output mode lists.
+ *
+ * Currently it only takes one output's mode list and stuffs it into the
+ * XFree86 DDX mode list while trimming it for root window size.
+ *
+ * This should be obsoleted by RandR 1.2 hopefully.
+ */
+void
+i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    DisplayModePtr saved_mode, last;
+    int originalVirtualX, originalVirtualY;
+    int i;
+
+    /* Remove the current mode from the modelist if we're re-validating, so we
+     * can find a new mode to map ourselves to afterwards.
+     */
+    saved_mode = pI830->currentMode;
+    if (saved_mode != NULL) {
+	I830xf86DeleteModeFromList(&pScrn->modes, saved_mode);
+    }
+
+    /* Clear any existing modes from pScrn->modes */
+    while (pScrn->modes != NULL)
+	xf86DeleteMode(&pScrn->modes, pScrn->modes);
+
+    /* Set pScrn->modes to the mode list for an arbitrary output.
+     * pScrn->modes should only be used for XF86VidMode now, which we don't
+     * care about enough to make some sort of unioned list.
+     */
+    for (i = 0; i < pI830->num_outputs; i++) {
+	if (pI830->output[i].probed_modes != NULL) {
+	    pScrn->modes =
+		i830xf86DuplicateModes(pScrn, pI830->output[i].probed_modes);
+	    break;
+	}
+    }
+
+    I830GetOriginalVirtualSize(pScrn, &originalVirtualX, &originalVirtualY);
+
+    /* Disable modes in the XFree86 DDX list that are larger than the current
+     * virtual size.
+     */
+    i830xf86ValidateModesSize(pScrn, pScrn->modes,
+			      originalVirtualX, originalVirtualY,
+			      pScrn->displayWidth);
+
+    /* Strip out anything that we threw out for virtualX/Y. */
+    i830xf86PruneInvalidModes(pScrn, &pScrn->modes, TRUE);
+
+    if (pScrn->modes == NULL) {
+	FatalError("No modes left for XFree86 DDX\n");
+    }
+
+    /* For some reason, pScrn->modes is circular, unlike the other mode lists.
+     * How great is that?
+     */
+    last = i830GetModeListTail(pScrn->modes);
+    last->next = pScrn->modes;
+    pScrn->modes->prev = last;
+
+    /* Save a pointer to the previous current mode.  We can't reset
+     * pScrn->currentmode, because we rely on xf86SwitchMode's shortcut not
+     * happening so we can hot-enable devices at SwitchMode.  We'll notice this
+     * case at SwitchMode and free the saved mode.
+     */
+    pI830->savedCurrentMode = saved_mode;
+}
+
+/**
+ * Takes the output mode lists and decides the default root window size
+ * and framebuffer pitch.
+ */
+void
+i830_set_default_screen_size(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int maxX = -1, maxY = -1;
+    int i;
+
+    /* Set up a virtual size that will cover any clone mode we'd want to
+     * set for the currently-connected outputs.
+     */
+    for (i = 0; i < pI830->num_outputs; i++) {
+	DisplayModePtr mode;
+
+	for (mode = pI830->output[i].probed_modes; mode != NULL;
+	     mode = mode->next)
+	{
+	    if (mode->HDisplay > maxX)
+		maxX = mode->HDisplay;
+	    if (mode->VDisplay > maxY)
+		maxY = mode->VDisplay;
+	}
+    }
+    /* let the user specify a bigger virtual size if they like */
+    if (pScrn->display->virtualX > maxX)
+	maxX = pScrn->display->virtualX;
+    if (pScrn->display->virtualY > maxY)
+	maxY = pScrn->display->virtualY;
+    pScrn->virtualX = maxX;
+    pScrn->virtualY = maxY;
+    pScrn->displayWidth = (maxX + 63) & ~63;
+}
+
+/**
+ * Probes for video modes on attached otuputs, and assembles a list to insert
+ * into pScrn.
+ *
+ * \param first_time indicates that the memory layout has already been set up,
+ * 	  so displayWidth, virtualX, and virtualY shouldn't be touched.
+ *
+ * A SetMode must follow this call in order for operatingDevices to match the
+ * hardware's state, in case we detect a new output device.
+ */
+int
+I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
+{
+    i830_reprobe_output_modes(pScrn);
+
+    if (first_time) {
+	i830_set_default_screen_size(pScrn);
+    }
+
+    i830_set_xf86_modes_from_outputs(pScrn);
+
+    return 1; /* XXX */
+}
+
+#ifdef RANDR_12_INTERFACE
+
+#define EDID_ATOM_NAME		"EDID_DATA"
+
+static void
+i830_ddc_set_edid_property(ScrnInfoPtr pScrn, I830OutputPtr output,
+			   void *data, int data_len)
+{
+    Atom edid_atom = MakeAtom(EDID_ATOM_NAME, sizeof(EDID_ATOM_NAME), TRUE);
+
+    /* This may get called before the RandR resources have been created */
+    if (output->randr_output == NULL)
+	return;
+
+    if (data_len != 0) {
+	RRChangeOutputProperty(output->randr_output, edid_atom, XA_INTEGER, 8,
+			       PropModeReplace, data_len, data, FALSE);
+    } else {
+	RRDeleteOutputProperty(output->randr_output, edid_atom);
+    }
+}
+#endif
+
+/**
+ * Generic get_modes function using DDC, used by many outputs.
+ */
+DisplayModePtr
+i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
+{
+    xf86MonPtr ddc_mon;
+    DisplayModePtr ddc_modes, mode;
+    int i;
+
+    ddc_mon = xf86DoEDID_DDC2(pScrn->scrnIndex, output->pDDCBus);
+    if (ddc_mon == NULL) {
+#ifdef RANDR_12_INTERFACE
+	i830_ddc_set_edid_property(pScrn, output, NULL, 0);
+#endif
+	return NULL;
+    }
+
+    if (output->MonInfo != NULL)
+	xfree(output->MonInfo);
+    output->MonInfo = ddc_mon;
+
+#ifdef RANDR_12_INTERFACE
+    if (output->MonInfo->ver.version == 1) {
+	i830_ddc_set_edid_property(pScrn, output, ddc_mon->rawData, 128);
+    } else if (output->MonInfo->ver.version == 2) {
+	i830_ddc_set_edid_property(pScrn, output, ddc_mon->rawData, 256);
+    } else {
+	i830_ddc_set_edid_property(pScrn, output, NULL, 0);
+    }
+#endif
+
+    /* Debug info for now, at least */
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %s\n",
+	       i830_output_type_names[output->type]);
+    xf86PrintEDID(output->MonInfo);
+
+    ddc_modes = i830GetDDCModes(pScrn, ddc_mon);
+
+    /* Strip out any modes that can't be supported on this output. */
+    for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+	int status = output->mode_valid(pScrn, output, mode);
+
+	if (status != MODE_OK)
+	    mode->status = status;
+    }
+    i830xf86PruneInvalidModes(pScrn, &ddc_modes, TRUE);
+
+    /* Pull out a phyiscal size from a detailed timing if available. */
+    for (i = 0; i < 4; i++) {
+	if (ddc_mon->det_mon[i].type == DT &&
+	    ddc_mon->det_mon[i].section.d_timings.h_size != 0 &&
+	    ddc_mon->det_mon[i].section.d_timings.v_size != 0)
+	{
+	    output->mm_width = ddc_mon->det_mon[i].section.d_timings.h_size;
+	    output->mm_height = ddc_mon->det_mon[i].section.d_timings.v_size;
+	    break;
+	}
+    }
+
+    return ddc_modes;
 }

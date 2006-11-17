@@ -73,7 +73,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 /* I830 hooks for the I810 driver setup/probe. */
-extern const OptionInfoRec *I830BIOSAvailableOptions(int chipid, int busid);
+extern const OptionInfoRec *I830AvailableOptions(int chipid, int busid);
 extern void I830InitpScrn(ScrnInfoPtr pScrn);
 
 /* Symbol lists shared by the i810 and i830 parts. */
@@ -90,6 +90,7 @@ extern const char *I810shadowSymbols[];
 extern const char *I810driSymbols[];
 extern const char *I810drmSymbols[];
 #endif
+extern const char *I810i2cSymbols[];
 
 extern void I830DPRINTF_stub(const char *filename, int line,
 			     const char *function, const char *fmt, ...);
@@ -106,8 +107,8 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 
 /* BIOS debug macro */
 #define xf86ExecX86int10_wrapper(pInt, pScrn) do {			\
+   ErrorF("Executing (ax == 0x%x) BIOS call at %s:%d\n", pInt->ax, __FILE__, __LINE__);	\
    if (I810_DEBUG & DEBUG_VERBOSE_BIOS) {				\
-      ErrorF("\n\n\n\nExecuting (ax == 0x%x) BIOS call\n", pInt->ax);	\
       ErrorF("Checking Error state before execution\n");		\
       PrintErrorState(pScrn);						\
    }									\

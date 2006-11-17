@@ -18,13 +18,13 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-SUBDIRS = xvmc
+SUBDIRS = xvmc bios_reader ch7xxx sil164
 # this is obnoxious:
 # -module lets us name the module exactly how we want
 # -avoid-version prevents gratuitous .0.0.0 version numbers on the end
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
-AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ -DI830_XV
+AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ -DI830_XV
 
 i810_drv_la_LTLIBRARIES = i810_drv.la
 i810_drv_la_LDFLAGS = -module -avoid-version
@@ -36,6 +36,7 @@ i810_drv_la_SOURCES = \
 	 sf_prog.h \
          wm_prog.h \
          common.h \
+	 i2c_vid.h \
          i810_accel.c \
          i810_common.h \
          i810_cursor.c \
@@ -47,21 +48,38 @@ i810_drv_la_SOURCES = \
          i810_reg.h \
          i810_video.c \
          i810_wmark.c \
+	 i830_3d.c \
          i830_accel.c \
+         i830_bios.c \
+         i830_bios.h \
          i830_common.h \
+	 i830_crt.c \
          i830_cursor.c \
+	 i830_debug.c \
+	 i830_debug.h \
          i830_dga.c \
+	 i830_display.c \
+	 i830_display.h \
          i830_driver.c \
+	 i830_dvo.c \
          i830.h \
+         i830_gtf.c \
+         i830_i2c.c \
          i830_io.c \
+	 i830_lvds.c \
          i830_memory.c \
          i830_modes.c \
          i830_video.c \
          i830_video.h \
+	 i830_reg.h \
          i830_rotate.c \
 	 i830_randr.c \
-	 i830_3d.c \
-	 i830_reg.h \
+	 i830_sdvo.c \
+	 i830_sdvo.h \
+	 i830_sdvo_regs.h \
+	 i830_tv.c \
+	 i830_xf86Modes.h \
+	 i830_xf86Modes.c \
 	 i915_3d.c \
 	 i915_3d.h \
 	 i915_reg.h \

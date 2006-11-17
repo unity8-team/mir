@@ -4,6 +4,7 @@ Makefile
 Makefile.in
 *.la
 *.lo
+*.o
 aclocal.m4
 autom4te.cache
 compile
@@ -20,3 +21,4 @@ libtool
 ltmain.sh
 missing
 stamp-h1
+i810.4

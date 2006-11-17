@@ -40,6 +40,7 @@ typedef struct {
 
    int brightness;
    int contrast;
+   int saturation;
    int pipe;
    int doubleBuffer;
 

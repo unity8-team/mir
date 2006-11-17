@@ -125,7 +125,7 @@ I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size);
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
-static Atom xvBrightness, xvContrast, xvColorKey, xvPipe, xvDoubleBuffer;
+static Atom xvBrightness, xvContrast, xvSaturation, xvColorKey, xvPipe, xvDoubleBuffer;
 static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 
 #define IMAGE_MAX_WIDTH		1920
@@ -294,11 +294,12 @@ static XF86AttributeRec CloneAttributes[CLONE_ATTRIBUTES] = {
    {XvSettable | XvGettable, 0, 1, "XV_PIPE"}
 };
 
-#define NUM_ATTRIBUTES 4
+#define NUM_ATTRIBUTES 5
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
    {XvSettable | XvGettable, 0, (1 << 24) - 1, "XV_COLORKEY"},
    {XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
    {XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
+   {XvSettable | XvGettable, 0, 1023, "XV_SATURATION"},
    {XvSettable | XvGettable, 0, 1, "XV_DOUBLE_BUFFER"}
 };
 
@@ -445,19 +446,6 @@ I830InitVideo(ScreenPtr pScreen)
    xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
    xvContrast = MAKE_ATOM("XV_CONTRAST");
 
-   /* Set up overlay video if we can do it at this depth. */
-   if (!IS_I965G(pI830) && pScrn->bitsPerPixel != 8) {
-      overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
-      if (overlayAdaptor != NULL) {
-	 adaptors[num_adaptors++] = overlayAdaptor;
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up overlay video\n");
-      } else {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Failed to set up overlay video\n");
-      }
-      I830InitOffscreenImages(pScreen);
-   }
-
    /* Set up textured video if we can do it at this depth and we are on
     * supported hardware.
     */
@@ -470,6 +458,19 @@ I830InitVideo(ScreenPtr pScreen)
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "Failed to set up textured video\n");
       }
+   }
+
+   /* Set up overlay video if we can do it at this depth. */
+   if (!IS_I965G(pI830) && pScrn->bitsPerPixel != 8) {
+      overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
+      if (overlayAdaptor != NULL) {
+	 adaptors[num_adaptors++] = overlayAdaptor;
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up overlay video\n");
+      } else {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Failed to set up overlay video\n");
+      }
+      I830InitOffscreenImages(pScreen);
    }
 
    if (num_adaptors)
@@ -503,7 +504,7 @@ I830ResetVideo(ScrnInfoPtr pScrn)
    overlay->SWIDTHSW = 0;
    overlay->SHEIGHT = 0;
    overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
-   overlay->OCLRC1 = 0x00000080;	/* saturation: bypass */
+   overlay->OCLRC1 = pPriv->saturation;
 #if 0
    overlay->AWINPOS = 0;
    overlay->AWINSZ = 0;
@@ -712,7 +713,8 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
    pPriv->videoStatus = 0;
    pPriv->brightness = 0;
    pPriv->contrast = 64;
-   pPriv->pipe = pI830->pipe; /* default to current pipe */
+   pPriv->saturation = 128;
+   pPriv->pipe = 0;  /* XXX must choose pipe wisely */
    pPriv->linear = NULL;
    pPriv->currentBuf = 0;
    pPriv->gamma5 = 0xc0c0c0;
@@ -745,6 +747,9 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
    pScreen->BlockHandler = I830BlockHandler;
 
    xvColorKey = MAKE_ATOM("XV_COLORKEY");
+   xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
+   xvContrast = MAKE_ATOM("XV_CONTRAST");
+   xvSaturation = MAKE_ATOM("XV_SATURATION");
    xvDoubleBuffer = MAKE_ATOM("XV_DOUBLE_BUFFER");
 
    /* Allow the pipe to be switched from pipe A to B when in clone mode */
@@ -942,6 +947,13 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
       ErrorF("CONTRAST\n");
       OVERLAY_UPDATE;
+   } else if (attribute == xvSaturation) {
+      if ((value < 0) || (value > 1023))
+	 return BadValue;
+      pPriv->saturation = value;
+      overlay->OCLRC1 = pPriv->saturation;
+      overlay->OCMD &= ~OVERLAY_ENABLE;
+      OVERLAY_UPDATE;
    } else if (pI830->Clone && attribute == xvPipe) {
       if ((value < 0) || (value > 1))
          return BadValue;
@@ -1023,6 +1035,8 @@ I830GetPortAttribute(ScrnInfoPtr pScrn,
       *value = pPriv->brightness;
    } else if (attribute == xvContrast) {
       *value = pPriv->contrast;
+   } else if (attribute == xvSaturation) {
+      *value = pPriv->saturation;
    } else if (attribute == xvPipe) {
       *value = pPriv->pipe;
    } else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
@@ -1528,7 +1542,6 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    unsigned int swidth;
    unsigned int mask, shift, offsety, offsetu;
    int tmp;
-   BoxRec dstBox2;
 
    ErrorF("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
 	   dstPitch);
@@ -1542,22 +1555,10 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
    switch (pI830->rotation) {
 	case RR_Rotate_0:
-                if (pI830->MergedFB) {
-		   memcpy(&dstBox2, dstBox, sizeof(BoxRec));
-		   dstBox->x1 -= pI830->FirstframeX0;
-		   dstBox->x2 -= pI830->FirstframeX0;
-		   dstBox->y1 -= pI830->FirstframeY0;
-		   dstBox->y2 -= pI830->FirstframeY0;
-		   dstBox2.x1 -= pI830->pScrn_2->frameX0;
-		   dstBox2.x2 -= pI830->pScrn_2->frameX0;
-		   dstBox2.y1 -= pI830->pScrn_2->frameY0;
-		   dstBox2.y2 -= pI830->pScrn_2->frameY0;
-                } else {
-		   dstBox->x1 -= pScrn->frameX0;
-		   dstBox->x2 -= pScrn->frameX0;
-		   dstBox->y1 -= pScrn->frameY0;
-		   dstBox->y2 -= pScrn->frameY0;
-                }
+		dstBox->x1 -= pScrn->frameX0;
+		dstBox->x2 -= pScrn->frameX0;
+		dstBox->y1 -= pScrn->frameY0;
+		dstBox->y2 -= pScrn->frameY0;
 		break;
 	case RR_Rotate_90:
 		tmp = dstBox->x1;
@@ -1591,66 +1592,10 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 		break;
    }
 
-   if (pI830->MergedFB) {
-      I830ModePrivatePtr mp = (I830ModePrivatePtr)pScrn->currentMode->Private;
-      int w1, h1, w2, h2;
-
-      /* Clip the video to the independent modes of the merged screens */
-      if (dstBox->x1 > mp->merged.First->HDisplay) dstBox->x1 = mp->merged.First->HDisplay - 1;
-      if (dstBox->x2 > mp->merged.First->HDisplay) dstBox->x2 = mp->merged.First->HDisplay - 1;
-      if (dstBox2.x1 > mp->merged.Second->HDisplay) dstBox2.x1 = mp->merged.Second->HDisplay - 1;
-      if (dstBox2.x2 > mp->merged.Second->HDisplay) dstBox2.x2 = mp->merged.Second->HDisplay - 1;
-      if (dstBox->y1 > mp->merged.First->VDisplay) dstBox->y1 = mp->merged.First->VDisplay - 1;
-      if (dstBox->y2 > mp->merged.First->VDisplay) dstBox->y2 = mp->merged.First->VDisplay - 1;
-      if (dstBox2.y1 > mp->merged.Second->VDisplay) dstBox2.y1 = mp->merged.Second->VDisplay - 1;
-      if (dstBox2.y2 > mp->merged.Second->VDisplay) dstBox2.y2 = mp->merged.Second->VDisplay - 1;
-      if (dstBox->y1 < 0) dstBox->y1 = 0;
-      if (dstBox->y2 < 0) dstBox->y2 = 0;
-      if (dstBox->x1 < 0) dstBox->x1 = 0;
-      if (dstBox->x2 < 0) dstBox->x2 = 0;
-      if (dstBox2.y1 < 0) dstBox2.y1 = 0;
-      if (dstBox2.y2 < 0) dstBox2.y2 = 0;
-      if (dstBox2.x1 < 0) dstBox2.x1 = 0;
-      if (dstBox2.x2 < 0) dstBox2.x2 = 0;
-
-      w1 = dstBox->x2 - dstBox->x1;
-      w2 = dstBox2.x2 - dstBox2.x1;
-      h1 = dstBox->y2 - dstBox->y1;
-      h2 = dstBox2.y2 - dstBox2.y1;
-
-      switch (pI830->SecondPosition) {
-         case PosRightOf:
-         case PosBelow:
-            if ((w2 > 0 && w1 == 0) ||
-                (h2 > 0 && h1 == 0)) {
-               pPriv->pipe = !pI830->pipe;
-               dstBox->x1 = dstBox2.x1;
-               dstBox->y1 = dstBox2.y1;
-               dstBox->x2 = dstBox2.x2;
-               dstBox->y2 = dstBox2.y2;
-            } else 
-               pPriv->pipe = pI830->pipe;
-            break;
-         case PosLeftOf:
-         case PosAbove:
-            if ((w1 > 0 && w2 == 0) ||
-                (h1 > 0 && h2 == 0)) { 
-               pPriv->pipe = pI830->pipe;
-            } else {
-               pPriv->pipe = !pI830->pipe;
-               dstBox->x1 = dstBox2.x1;
-               dstBox->y1 = dstBox2.y1;
-               dstBox->x2 = dstBox2.x2;
-               dstBox->y2 = dstBox2.y2;
-            }
-            break;
-      }
-   }
-
    /* When in dual head with different bpp setups we need to refresh the
     * color key, so let's reset the video parameters and refresh here.
     * In MergedFB mode, we may need to flip pipes too. */
-   if (pI830->entityPrivate || pI830->MergedFB)
+   if (pI830->entityPrivate)
       I830ResetVideo(pScrn);
 
    /* Ensure overlay is turned on with OVERLAY_ENABLE at 0 */
@@ -3611,6 +3556,8 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
    pPriv->overlayOK = TRUE;
 
+#if 0
+   /* XXX Must choose pipe wisely */
    /* ensure pipe is updated on mode switch */
    if (!pI830->Clone) {
       if (pPriv->pipe != pI830->pipe) {
@@ -3619,6 +3566,7 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
          pPriv->pipe = pI830->pipe;
       }
    }
+#endif
 
    if (!IS_I965G(pI830)) {
       if (pPriv->pipe == 0) {
@@ -3647,8 +3595,8 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
    }
 
    /* Check we have an LFP connected */
-   if ((pPriv->pipe == 1 && pI830->operatingDevices & (PIPE_LFP << 8)) ||
-       (pPriv->pipe == 0 && pI830->operatingDevices & PIPE_LFP) ) {
+   if (i830PipeHasType (pScrn, pPriv->pipe, I830_OUTPUT_LVDS)) 
+   {
       size = pPriv->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
       hsize = (size >> 16) & 0x7FF;
       vsize = size & 0x7FF;

@@ -1,0 +1,3 @@
+- licensing of new files
+- Figure out what exactly doublescan, interlace mean, and see if we support them.
+- Remove VbeModeInfoData

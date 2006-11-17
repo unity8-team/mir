@@ -65,10 +65,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 static int nextTile = 0;
 static unsigned int tileGeneration = -1;
 
-#ifndef ALLOCATE_ALL_BIOSMEM
-#define ALLOCATE_ALL_BIOSMEM 1
-#endif
-
 static unsigned long
 GetBestTileAlignment(unsigned long size)
 {
@@ -252,11 +248,7 @@ I830FreeVidMem(ScrnInfoPtr pScrn, I830MemRange *range)
        * USE CAUTION when changing anything here...
        */
       I830MemPool *Pool = range->Pool;
-      if (pI830->overrideBIOSMemSize &&
-          pI830->BIOSMemorySize > pI830->StolenMemory.Size) 
-         Pool->Total.End = pI830->BIOSMemorySize;
-      else 
-         Pool->Total.End = pI830->StolenMemory.End;
+      Pool->Total.End = pI830->StolenMemory.End;
 
       if (pI830->StolenOnly)
          Pool->Free.End += range->Size;
@@ -783,7 +775,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
       pI830->FbMemBox.x1 = 0;
       pI830->FbMemBox.x2 = pScrn->displayWidth;
       pI830->FbMemBox.y1 = 0;
-      if (!pI830->MergedFB && pScrn->virtualX > pScrn->virtualY)
+      if (pScrn->virtualX > pScrn->virtualY)
          pI830->FbMemBox.y2 = pScrn->virtualX;
       else
          pI830->FbMemBox.y2 = pScrn->virtualY;
@@ -855,7 +847,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
       }
 
 #if 1 /* ROTATION */
-      if (!pI830->MergedFB && pScrn->virtualX > pScrn->virtualY)
+      if (pScrn->virtualX > pScrn->virtualY)
          size = lineSize * (pScrn->virtualX + cacheLines);
       else 
          size = lineSize * (pScrn->virtualY + cacheLines);
@@ -1115,13 +1107,6 @@ I830ResetAllocations(ScrnInfoPtr pScrn, const int flags)
 #endif
    pI830->StolenPool.Fixed = pI830->StolenMemory;
    pI830->StolenPool.Total = pI830->StolenMemory;
-#if ALLOCATE_ALL_BIOSMEM
-   if (pI830->overrideBIOSMemSize &&
-       pI830->BIOSMemorySize > pI830->StolenMemory.Size) {
-      pI830->StolenPool.Total.End = pI830->BIOSMemorySize;
-      pI830->StolenPool.Total.Size = pI830->BIOSMemorySize;
-   }
-#endif
    pI830->StolenPool.Free = pI830->StolenPool.Total;
    pI830->FreeMemory = pI830->TotalVideoRam - pI830->StolenPool.Total.Size;
    pI830->allocatedMemory = 0;

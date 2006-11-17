@@ -1513,11 +1513,12 @@ I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on)
 
     if (pI830->directRenderingEnabled && pI830->drmMinor >= 5) {
 	if (on) {
-	    if (pI830->planeEnabled[1]) {
+	    if (pI830->pipes[1].enabled) {
 		if (pI830->drmMinor >= 6)
 		    pipe.pipe = DRM_I830_VBLANK_PIPE_A | DRM_I830_VBLANK_PIPE_B;
 		else
 		    pipe.pipe = DRM_I830_VBLANK_PIPE_B;
+		pipe.pipe = DRM_I830_VBLANK_PIPE_B;
 	    } else
 		pipe.pipe = DRM_I830_VBLANK_PIPE_A;
 	} else {
