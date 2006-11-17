@@ -7219,6 +7219,10 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       /* Rotated2 Buffer */
       memset(&(pI830->RotatedMem2), 0, sizeof(pI830->RotatedMem2));
       pI830->RotatedMem2.Key = -1;
+      if (IS_I965G(pI830)) {
+          memset(&(pI830->RotateStateMem), 0, sizeof(pI830->RotateStateMem));
+          pI830->RotateStateMem.Key = -1;
+      }
    }
 
 #ifdef HAS_MTRR_SUPPORT
@@ -7636,11 +7640,7 @@ I830BIOSScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       xf86DisableRandR(); /* Disable built-in RandR extension */
       shadowSetup(pScreen);
       /* support all rotations */
-      if (IS_I965G(pI830)) {
-	 I830RandRInit(pScreen, RR_Rotate_0); /* only 0 degrees for I965G */
-      } else {
-	 I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
-      }
+      I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
       pI830->PointerMoved = pScrn->PointerMoved;
       pScrn->PointerMoved = I830PointerMoved;
       pI830->CreateScreenResources = pScreen->CreateScreenResources;
@@ -8428,8 +8428,7 @@ I830BIOSSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     * The extra WindowTable check detects a rotation at startup.
     */
    if ( (!WindowTable[pScrn->scrnIndex] || pspix->devPrivate.ptr == NULL) &&
-         !pI830->DGAactive && (pScrn->PointerMoved == I830PointerMoved) &&
-	 !IS_I965G(pI830)) {
+         !pI830->DGAactive && (pScrn->PointerMoved == I830PointerMoved)) {
       if (!I830Rotate(pScrn, mode))
          ret = FALSE;
    }
