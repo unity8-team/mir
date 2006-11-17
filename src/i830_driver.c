@@ -3534,12 +3534,33 @@ I830EnterVT(int scrnIndex, int flags)
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
-   /* Mark that we'll need to re-set the mode for sure */
    for (i = 0; i < pI830->num_pipes; i++)
-      memset(&pI830->pipes[i].curMode, 0, sizeof(pI830->pipes[i].curMode));
+   {
+      I830PipePtr pipe = &pI830->pipes[i];
+      /* Mark that we'll need to re-set the mode for sure */
+      memset(&pipe->curMode, 0, sizeof(pipe->curMode));
+      if (!pipe->desiredMode.CrtcHDisplay)
+      {
+	 pipe->desiredMode = *i830PipeFindClosestMode (pScrn, i,
+						       pScrn->currentMode);
+      }
+      if (!i830PipeSetMode (pScrn, &pipe->desiredMode, i, TRUE))
+	 return FALSE;
+      i830PipeSetBase(pScrn, i, pipe->x, pipe->y);
+   }
 
+   i830DisableUnusedFunctions(pScrn);
+
+   i830DescribeOutputConfiguration(pScrn);
+
+#ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, TRUE);
+#endif
+   
+#if 0
    if (!i830SetMode(pScrn, pScrn->currentMode))
       return FALSE;
+#endif
    
 #ifdef I830_XV
    I830VideoSwitchModeAfter(pScrn, pScrn->currentMode);

@@ -490,7 +490,7 @@ i830_reprobe_output_modes(ScrnInfoPtr pScrn)
  *
  * This should be obsoleted by RandR 1.2 hopefully.
  */
-static void
+void
 i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -557,7 +557,7 @@ i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
  * Takes the output mode lists and decides the default root window size
  * and framebuffer pitch.
  */
-static void
+void
 i830_set_default_screen_size(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);

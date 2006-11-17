@@ -609,6 +609,7 @@ I830RandRCrtcSet (ScreenPtr	pScreen,
 		}
 		return FALSE;
 	    }
+	    pI830Pipe->desiredMode = *display_mode;
 	    i830PipeSetBase(pScrn, pipe, x, y);
 	}
 	randrp->modes[pipe] = display_mode;
@@ -840,11 +841,6 @@ I830RandRCreateObjects12 (ScrnInfoPtr pScrn)
 	    return FALSE;
 	output->randr_output = randr_output;
     }
-    /*
-     * Configure output modes
-     */
-    if (!I830RandRSetInfo12 (pScrn))
-	return FALSE;
     return TRUE;
 }
 
@@ -855,7 +851,7 @@ I830RandRCreateScreenResources12 (ScreenPtr pScreen)
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
     I830Ptr		pI830 = I830PTR(pScrn);
     int			p, o;
-    DisplayModePtr	mode;
+    int			width, height;
 
     /*
      * Attach RandR objects to screen
@@ -868,33 +864,43 @@ I830RandRCreateScreenResources12 (ScreenPtr pScreen)
 	if (!RROutputAttachScreen (pI830->output[o].randr_output, pScreen))
 	    return FALSE;
 
-    mode = pScrn->currentMode;
-    if (mode)
+    /*
+     * Compute width of screen
+     */
+    width = 0; height = 0;
+    for (p = 0; p < pI830->num_pipes; p++)
+    {
+	I830PipePtr pipe = &pI830->pipes[p];
+	int	    pipe_width = pipe->x + pipe->curMode.HDisplay;
+	int	    pipe_height = pipe->y + pipe->curMode.VDisplay;
+	if (pipe->enabled && pipe_width > width)
+	    width = pipe_width;
+	if (pipe->enabled && pipe_height > height)
+	    height = pipe_height;
+    }
+    
+    if (width && height)
     {
 	int mmWidth, mmHeight;
 
 	mmWidth = pScreen->mmWidth;
 	mmHeight = pScreen->mmHeight;
-	if (mode->HDisplay != pScreen->width)
-	    mmWidth = mmWidth * mode->HDisplay / pScreen->width;
-	if (mode->VDisplay != pScreen->height)
-	    mmHeight = mmHeight * mode->VDisplay / pScreen->height;
+	if (width != pScreen->width)
+	    mmWidth = mmWidth * width / pScreen->width;
+	if (height != pScreen->height)
+	    mmHeight = mmHeight * height / pScreen->height;
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "Setting screen physical size to %d x %d\n",
 		   mmWidth, mmHeight);
 	I830RandRScreenSetSize (pScreen,
-				mode->HDisplay,
-				mode->VDisplay,
+				width,
+				height,
 				mmWidth,
 				mmHeight);
     }
 
     for (p = 0; p < pI830->num_pipes; p++)
-    {
-	i830PipeSetBase(pScrn, p, 0, 0);
 	I830RandRCrtcNotify (pI830->pipes[p].randr_crtc);
-    }
-
     
     if (randrp->virtualX == -1 || randrp->virtualY == -1)
     {
@@ -926,19 +932,349 @@ I830RandRInit12 (ScreenPtr pScreen)
     pScrn->PointerMoved = I830RandRPointerMoved;
     return TRUE;
 }
+
+static RRModePtr
+I830RRDefaultMode (RROutputPtr output)
+{
+    RRModePtr   target_mode = NULL;
+    int		target_diff = 0;
+    int		mmHeight;
+    int		num_modes;
+    int		m;
+    
+    num_modes = output->numPreferred ? output->numPreferred : output->numModes;
+    mmHeight = output->mmHeight;
+    if (!mmHeight)
+	mmHeight = 203;	/* 768 pixels at 96dpi */
+    /*
+     * Pick a mode closest to 96dpi 
+     */
+    for (m = 0; m < num_modes; m++)
+    {
+	RRModePtr   mode = output->modes[m];
+	int	    dpi;
+	int	    diff;
+
+	dpi = (mode->mode.height * 254) / (mmHeight * 10);
+	diff = dpi - 96;
+	diff = diff < 0 ? -diff : diff;
+	if (target_mode == NULL || diff < target_diff)
+	{
+	    target_mode = mode;
+	    target_diff = diff;
+	}
+    }
+    return target_mode;
+}
+
+static RRModePtr
+I830ClosestMode (RROutputPtr output, RRModePtr match)
+{
+    RRModePtr   target_mode = NULL;
+    int		target_diff = 0;
+    int		m;
+    
+    /*
+     * Pick a mode closest to the specified mode
+     */
+    for (m = 0; m < output->numModes; m++)
+    {
+	RRModePtr   mode = output->modes[m];
+	int	    dx, dy;
+	int	    diff;
+
+	/* exact matches are preferred */
+	if (mode == match)
+	    return mode;
+	
+	dx = match->mode.width - mode->mode.width;
+	dy = match->mode.height - mode->mode.height;
+	diff = dx * dx + dy * dy;
+	if (target_mode == NULL || diff < target_diff)
+	{
+	    target_mode = mode;
+	    target_diff = diff;
+	}
+    }
+    return target_mode;
+}
+
+static int
+I830RRPickCrtcs (RROutputPtr	*outputs,
+		 RRCrtcPtr	*best_crtcs,
+		 RRModePtr	*modes,
+		 int		num_outputs,
+		 int		n)
+{
+    int		c, o, l;
+    RROutputPtr	output;
+    RRCrtcPtr	crtc;
+    RRCrtcPtr	*crtcs;
+    RRCrtcPtr	best_crtc;
+    int		best_score;
+    int		score;
+    int		my_score;
+    
+    if (n == num_outputs)
+	return 0;
+    output = outputs[n];
+    
+    /*
+     * Compute score with this output disabled
+     */
+    best_crtcs[n] = NULL;
+    best_crtc = NULL;
+    best_score = I830RRPickCrtcs (outputs, best_crtcs, modes, num_outputs, n+1);
+    if (modes[n] == NULL)
+	return best_score;
+    
+    crtcs = xalloc (num_outputs * sizeof (RRCrtcPtr));
+    if (!crtcs)
+	return best_score;
+
+    my_score = 1;
+    /* Score outputs that are known to be connected higher */
+    if (output->connection == RR_Connected)
+	my_score++;
+    /* Score outputs with preferred modes higher */
+    if (output->numPreferred)
+	my_score++;
+    /*
+     * Select a crtc for this output and
+     * then attempt to configure the remaining
+     * outputs
+     */
+    for (c = 0; c < output->numCrtcs; c++)
+    {
+	crtc = output->crtcs[c];
+	/*
+	 * Check to see if some other output is
+	 * using this crtc
+	 */
+	for (o = 0; o < n; o++)
+	    if (best_crtcs[o] == crtc)
+		break;
+	if (o < n)
+	{
+	    /*
+	     * If the two outputs desire the same mode,
+	     * see if they can be cloned
+	     */
+	    if (modes[o] == modes[n])
+	    {
+		for (l = 0; l < output->numClones; l++)
+		    if (output->clones[l] == outputs[o])
+			break;
+		if (l == output->numClones)
+		    continue;		/* nope, try next CRTC */
+	    }
+	    else
+		continue;		/* different modes, can't clone */
+	}
+	crtcs[n] = crtc;
+	memcpy (crtcs, best_crtcs, n * sizeof (RRCrtcPtr));
+	score = my_score + I830RRPickCrtcs (outputs, crtcs, modes,
+					    num_outputs, n+1);
+	if (score >= best_score)
+	{
+	    best_crtc = crtc;
+	    best_score = score;
+	    memcpy (best_crtcs, crtcs, num_outputs * sizeof (RRCrtcPtr));
+	}
+    }
+    xfree (crtcs);
+    return best_score;
+}
+
+static Bool
+I830RRInitialConfiguration (RROutputPtr *outputs,
+			    RRCrtcPtr	*crtcs,
+			    RRModePtr	*modes,
+			    int		num_outputs)
+{
+    int		o;
+    RRModePtr	target_mode = NULL;
+
+    for (o = 0; o < num_outputs; o++)
+	modes[o] = NULL;
+    
+    /*
+     * Let outputs with preferred modes drive screen size
+     */
+    for (o = 0; o < num_outputs; o++)
+    {
+	RROutputPtr output = outputs[o];
+
+	if (output->connection != RR_Disconnected && output->numPreferred)
+	{
+	    target_mode = I830RRDefaultMode (output);
+	    if (target_mode)
+	    {
+		modes[o] = target_mode;
+		break;
+	    }
+	}
+    }
+    if (!target_mode)
+    {
+	for (o = 0; o < num_outputs; o++)
+	{
+	    RROutputPtr output = outputs[o];
+	    if (output->connection != RR_Disconnected)
+	    {
+		target_mode = I830RRDefaultMode (output);
+		if (target_mode)
+		{
+		    modes[o] = target_mode;
+		    break;
+		}
+	    }
+	}
+    }
+    for (o = 0; o < num_outputs; o++)
+    {
+	RROutputPtr output = outputs[o];
+	
+	if (output->connection != RR_Disconnected && !modes[o])
+	    modes[o] = I830ClosestMode (output, target_mode);
+    }
+
+    if (!I830RRPickCrtcs (outputs, crtcs, modes, num_outputs, 0))
+	return FALSE;
+    
+    return TRUE;
+}
+
+/*
+ * Compute the virtual size necessary to place all of the available
+ * crtcs in a panorama configuration
+ */
+
+static void
+I830RRDefaultScreenLimits (RROutputPtr *outputs, int num_outputs,
+			   RRCrtcPtr *crtcs, int num_crtc,
+			   int *widthp, int *heightp)
+{
+    int	    width = 0, height = 0;
+    int	    o;
+    int	    c;
+    int	    m;
+    int	    s;
+
+    for (c = 0; c < num_crtc; c++)
+    {
+	RRCrtcPtr   crtc = crtcs[c];
+	int	    crtc_width = 1600, crtc_height = 1200;
+
+	for (o = 0; o < num_outputs; o++) 
+	{
+	    RROutputPtr	output = outputs[o];
+
+	    for (s = 0; s < output->numCrtcs; s++)
+		if (output->crtcs[s] == crtc)
+		    break;
+	    if (s == output->numCrtcs)
+		continue;
+	    for (m = 0; m < output->numModes; m++)
+	    {
+		RRModePtr   mode = output->modes[m];
+		if (mode->mode.width > crtc_width)
+		    crtc_width = mode->mode.width;
+		if (mode->mode.height > crtc_width)
+		    crtc_height = mode->mode.height;
+	    }
+	}
+	width += crtc_width;
+	if (crtc_height > height)
+	    height = crtc_height;
+    }
+    *widthp = width;
+    *heightp = height;
+}
+
 #endif
 
 Bool
 I830RandRPreInit (ScrnInfoPtr pScrn)
 {
-    int n;
+    I830Ptr pI830 = I830PTR(pScrn);
+#if RANDR_12_INTERFACE
+    RROutputPtr	outputs[MAX_OUTPUTS];
+    RRCrtcPtr	output_crtcs[MAX_OUTPUTS];
+    RRModePtr	output_modes[MAX_OUTPUTS];
+    RRCrtcPtr	crtcs[MAX_DISPLAY_PIPES];
+    int		width, height;
+    int		o;
+    int		c;
+#endif
     
-    n = I830ValidateXF86ModeList(pScrn, TRUE);
-    if (n <= 0)
+    if (pI830->num_outputs <= 0)
 	return FALSE;
+    
+    i830_reprobe_output_modes(pScrn);
+
 #if RANDR_12_INTERFACE
     if (!I830RandRCreateObjects12 (pScrn))
 	return FALSE;
+
+    /*
+     * Configure output modes
+     */
+    if (!I830RandRSetInfo12 (pScrn))
+	return FALSE;
+    /*
+     * With RandR info set up, let RandR choose
+     * the initial configuration
+     */
+    for (o = 0; o < pI830->num_outputs; o++)
+	outputs[o] = pI830->output[o].randr_output;
+    for (c = 0; c < pI830->num_pipes; c++)
+	crtcs[c] = pI830->pipes[c].randr_crtc;
+    
+    if (!I830RRInitialConfiguration (outputs, output_crtcs, output_modes,
+				     pI830->num_outputs))
+	return FALSE;
+    
+    I830RRDefaultScreenLimits (outputs, pI830->num_outputs, 
+			       crtcs, pI830->num_pipes,
+			       &width, &height);
+    
+    if (width > pScrn->virtualX)
+	pScrn->virtualX = width;
+    if (height > pScrn->virtualY)
+	pScrn->virtualY = height;
+    
+    for (o = 0; o < pI830->num_outputs; o++)
+    {
+	RRModePtr	randr_mode = output_modes[o];
+	DisplayModePtr	mode;
+	RRCrtcPtr	randr_crtc = output_crtcs[o];
+	int		pipe;
+	Bool		enabled;
+
+	if (randr_mode)
+	    mode = (DisplayModePtr) randr_mode->devPrivate;
+	else
+	    mode = NULL;
+	if (randr_crtc)
+	{
+	    pipe = (int) randr_crtc->devPrivate;
+	    enabled = TRUE;
+	}
+	else
+	{
+	    pipe = 0;
+	    enabled = FALSE;
+	}
+	if (mode)
+	    pI830->pipes[pipe].desiredMode = *mode;
+	pI830->output[o].pipe = pipe;
+	pI830->output[o].enabled = enabled;
+    }
 #endif
+    i830_set_xf86_modes_from_outputs (pScrn);
+    
+    i830_set_default_screen_size(pScrn);
+
     return TRUE;
 }

@@ -26,6 +26,8 @@
  */
 
 /* i830_display.c */
+DisplayModePtr
+i830PipeFindClosestMode(ScrnInfoPtr pScrn, int pipe, DisplayModePtr pMode);
 Bool i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe,
 		     Bool plane_enable);
 void i830DisableUnusedFunctions(ScrnInfoPtr pScrn);

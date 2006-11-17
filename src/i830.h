@@ -290,6 +290,7 @@ typedef struct _I830PipeRec {
    Bool		  cursorInRange;
    Bool		  cursorShown;
    DisplayModeRec curMode;
+   DisplayModeRec desiredMode;
 #ifdef RANDR_12_INTERFACE
    RRCrtcPtr	  randr_crtc;
 #endif
@@ -682,6 +683,8 @@ DisplayModePtr i830GetGTF(int h_pixels, int v_lines, float freq,
 /* i830_modes.c */
 int I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time);
 void i830_reprobe_output_modes(ScrnInfoPtr pScrn);
+void i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn);
+void i830_set_default_screen_size(ScrnInfoPtr pScrn);
 DisplayModePtr i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output);
 
 /* i830_randr.c */
