@@ -903,6 +903,12 @@ extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 						   int PowerManagementMode,
 						   int flags);
 
+extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
+extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
+				  RADEONMonitorType DisplayType, int crtc2);
+extern int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName);
+
+
 #ifdef XF86DRI
 #ifdef USE_XAA
 extern void        RADEONAccelInitCP(ScreenPtr pScreen, XAAInfoRecPtr a);
