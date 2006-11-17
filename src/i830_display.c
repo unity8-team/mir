@@ -290,7 +290,7 @@ i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y)
  * - Closer in size to the requested mode, but no larger
  * - Closer in refresh rate to the requested mode.
  */
-static DisplayModePtr
+DisplayModePtr
 i830PipeFindClosestMode(ScrnInfoPtr pScrn, int pipe, DisplayModePtr pMode)
 {
     I830Ptr pI830 = I830PTR(pScrn);
