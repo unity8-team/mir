@@ -117,7 +117,7 @@ static void RADEONSortModes(DisplayModePtr *new, DisplayModePtr *first,
     }
 }
 
-static void RADEONSetPitch (ScrnInfoPtr pScrn)
+void RADEONSetPitch (ScrnInfoPtr pScrn)
 {
     int  dummy = pScrn->virtualX;
     RADEONInfoPtr info = RADEONPTR(pScrn);
