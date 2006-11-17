@@ -1266,7 +1266,8 @@ I830RandRPreInit (ScrnInfoPtr pScrn)
 	    pipe = 0;
 	    enabled = FALSE;
 	}
-	pI830->pipes[pipe].desiredMode = *mode;
+	if (mode)
+	    pI830->pipes[pipe].desiredMode = *mode;
 	pI830->output[o].pipe = pipe;
 	pI830->output[o].enabled = enabled;
     }
