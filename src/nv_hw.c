@@ -87,12 +87,12 @@ void NVLockUnlock (
 {
     CARD8 cr11;
 
-    nvWriteVGA(pNv, 0x1f, Lock ? 0x99 : 0x57 );
+    nvWriteVGA(pNv, NV_VGA_CRTCX_LOCK, Lock ? 0x99 : 0x57 );
 
-    cr11 = nvReadVGA(pNv, 0x11);
+    cr11 = nvReadVGA(pNv, NV_VGA_CRTCX_VSYNCE);
     if(Lock) cr11 |= 0x80;
     else cr11 &= ~0x80;
-    nvWriteVGA(pNv, 0x11, cr11);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_VSYNCE, cr11);
 }
 
 int NVShowHideCursor (
@@ -105,7 +105,7 @@ int NVShowHideCursor (
     pNv->CurrentState->cursor1 = (pNv->CurrentState->cursor1 & 0xFE) |
                                  (ShowHide & 0x01);
 
-    nvWriteVGA(pNv, 0x31, pNv->CurrentState->cursor1);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_CURCTL1, pNv->CurrentState->cursor1);
 
     if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
        volatile CARD32 curpos = nvReadCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS);
@@ -1297,34 +1297,34 @@ void NVLoadStateExt (
                nvWriteCurRAMDAC(pNv, NV_RAMDAC_FP_DITHER, state->dither);
            }
     
-	   nvWriteVGA(pNv, 0x53, state->timingH);
-	   nvWriteVGA(pNv, 0x54, state->timingV);
-	   nvWriteVGA(pNv, 0x21, 0xfa);
+	   nvWriteVGA(pNv, NV_VGA_CRTCX_FP_HTIMING, state->timingH);
+	   nvWriteVGA(pNv, NV_VGA_CRTCX_FP_VTIMING, state->timingV);
+	   nvWriteVGA(pNv, NV_VGA_CRTCX_BUFFER, 0xfa);
         }
 
-	nvWriteVGA(pNv, 0x41, state->extra);
+	nvWriteVGA(pNv, NV_VGA_CRTCX_EXTRA, state->extra);
     }
 
-    nvWriteVGA(pNv, 0x19, state->repaint0);
-    nvWriteVGA(pNv, 0x1A, state->repaint1);
-    nvWriteVGA(pNv, 0x25, state->screen);
-    nvWriteVGA(pNv, 0x28, state->pixel);
-    nvWriteVGA(pNv, 0x2D, state->horiz);
-    nvWriteVGA(pNv, 0x1C, state->fifo);
-    nvWriteVGA(pNv, 0x1B, state->arbitration0);
-    nvWriteVGA(pNv, 0x20, state->arbitration1);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_REPAINT0, state->repaint0);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_REPAINT1, state->repaint1);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_LSR, state->screen);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_PIXEL, state->pixel);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_HEB, state->horiz);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_FIFO1, state->fifo);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_FIFO0, state->arbitration0);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_FIFO_LWM, state->arbitration1);
     if(pNv->Architecture >= NV_ARCH_30) {
-      nvWriteVGA(pNv, 0x47, state->arbitration1 >> 8);
+      nvWriteVGA(pNv, NV_VGA_CRTCX_FIFO_LWM_NV30, state->arbitration1 >> 8);
     }
 
-    nvWriteVGA(pNv, 0x30, state->cursor0);
-    nvWriteVGA(pNv, 0x31, state->cursor1);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_CURCTL0, state->cursor0);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_CURCTL1, state->cursor1);
     if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
        volatile CARD32 curpos = nvReadCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS);
        nvWriteCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS, curpos);
     }
-    nvWriteVGA(pNv, 0x2F, state->cursor2);
-    nvWriteVGA(pNv, 0x39, state->interlace);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_CURCTL2, state->cursor2);
+    nvWriteVGA(pNv, NV_VGA_CRTCX_INTERLACE, state->interlace);
 
     if(!pNv->FlatPanel) {
        nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
@@ -1353,21 +1353,21 @@ void NVUnloadStateExt
     RIVA_HW_STATE *state
 )
 {
-    state->repaint0     = nvReadVGA(pNv, 0x19);
-    state->repaint1     = nvReadVGA(pNv, 0x1A);
-    state->screen       = nvReadVGA(pNv, 0x25);
-    state->pixel        = nvReadVGA(pNv, 0x28);
-    state->horiz        = nvReadVGA(pNv, 0x2D);
-    state->fifo         = nvReadVGA(pNv, 0x1C);
-    state->arbitration0 = nvReadVGA(pNv, 0x1B);
-    state->arbitration1 = nvReadVGA(pNv, 0x20);
+    state->repaint0     = nvReadVGA(pNv, NV_VGA_CRTCX_REPAINT0);
+    state->repaint1     = nvReadVGA(pNv, NV_VGA_CRTCX_REPAINT1);
+    state->screen       = nvReadVGA(pNv, NV_VGA_CRTCX_LSR);
+    state->pixel        = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL);
+    state->horiz        = nvReadVGA(pNv, NV_VGA_CRTCX_HEB);
+    state->fifo         = nvReadVGA(pNv, NV_VGA_CRTCX_FIFO1);
+    state->arbitration0 = nvReadVGA(pNv, NV_VGA_CRTCX_FIFO0);
+    state->arbitration1 = nvReadVGA(pNv, NV_VGA_CRTCX_FIFO_LWM);
     if(pNv->Architecture >= NV_ARCH_30) {
-       state->arbitration1 |= (nvReadVGA(pNv, 0x47) & 1) << 8;
+       state->arbitration1 |= (nvReadVGA(pNv, NV_VGA_CRTCX_FIFO_LWM_NV30) & 1) << 8;
     }
-    state->cursor0      = nvReadVGA(pNv, 0x30);
-    state->cursor1      = nvReadVGA(pNv, 0x31);
-    state->cursor2      = nvReadVGA(pNv, 0x2F);
-    state->interlace    = nvReadVGA(pNv, 0x39);
+    state->cursor0      = nvReadVGA(pNv, NV_VGA_CRTCX_CURCTL0);
+    state->cursor1      = nvReadVGA(pNv, NV_VGA_CRTCX_CURCTL1);
+    state->cursor2      = nvReadVGA(pNv, NV_VGA_CRTCX_CURCTL2);
+    state->interlace    = nvReadVGA(pNv, NV_VGA_CRTCX_INTERLACE);
 
     state->vpll         = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL);
     if(pNv->twoHeads)
@@ -1385,9 +1385,9 @@ void NVUnloadStateExt
         if(pNv->twoHeads) {
            state->head     = nvReadCRTC(pNv, 0, NV_CRTC_HEAD_CONFIG);
            state->head2    = nvReadCRTC(pNv, 1, NV_CRTC_HEAD_CONFIG);
-           state->crtcOwner = nvReadVGA(pNv, 0x44);
+           state->crtcOwner = nvReadVGA(pNv, NV_VGA_CRTCX_OWNER);
         }
-        state->extra = nvReadVGA(pNv, 0x41);
+        state->extra = nvReadVGA(pNv, NV_VGA_CRTCX_EXTRA);
 
         state->cursorConfig = nvReadCurCRTC(pNv, NV_CRTC_CURSOR_CONFIG);
 
@@ -1399,8 +1399,8 @@ void NVUnloadStateExt
         }
 
         if(pNv->FlatPanel) {
-           state->timingH = nvReadVGA(pNv, 0x53);
-           state->timingV = nvReadVGA(pNv, 0x54);
+           state->timingH = nvReadVGA(pNv, NV_VGA_CRTCX_FP_HTIMING);
+           state->timingV = nvReadVGA(pNv, NV_VGA_CRTCX_FP_VTIMING);
         }
     }
 
