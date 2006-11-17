@@ -182,16 +182,11 @@ static Bool NVDRIInitVisualConfigs(ScreenPtr pScreen)
 	return TRUE;
 }
 
-Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
+Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 {
-	DRIInfoPtr     pDRIInfo;
-	NOUVEAUDRIPtr  pNOUVEAUDRI;
 	NVPtr pNv = NVPTR(pScrn);
-	drmVersionPtr drm_version;
-	ScreenPtr pScreen;
-	pScreen = screenInfo.screens[pScrn->scrnIndex];
-	int drm_page_size;
-	int irq;
+	char *busId;
+	int fd;
 
 	{
 		pointer ret;
@@ -212,6 +207,48 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	xf86LoaderReqSymLists(drmSymbols, NULL);
 	xf86LoaderReqSymLists(driSymbols, NULL);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loaded DRI module\n");
+
+	busId = DRICreatePCIBusID(pNv->PciInfo);
+
+	fd = drmOpen("nouveau", busId);
+	xfree(busId);
+	if (fd < 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"[dri] Failed to open the DRM\n");
+		return FALSE;
+	}
+
+	/* Check the lib version */
+	if (xf86LoaderCheckSymbol("drmGetLibVersion"))
+		pNv->pLibDRMVersion = drmGetLibVersion(0);
+	if (pNv->pLibDRMVersion == NULL) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		"NVDRIGetVersion failed because libDRM is really "
+		"way to old to even get a version number out of it.\n"
+		"[dri] Disabling DRI.\n");
+		return FALSE;
+	}
+
+	pNv->pKernelDRMVersion = drmGetVersion(fd);
+	drmClose(fd);
+	if (pNv->pKernelDRMVersion == NULL) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"failed to get DRM version\n");
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
+{
+	DRIInfoPtr     pDRIInfo;
+	NOUVEAUDRIPtr  pNOUVEAUDRI;
+	NVPtr pNv = NVPTR(pScrn);
+	ScreenPtr pScreen;
+	pScreen = screenInfo.screens[pScrn->scrnIndex];
+	int drm_page_size;
+	int irq;
 
 	drm_page_size = getpagesize();
 	if (!(pDRIInfo = DRICreateInfoRec())) return FALSE;
@@ -272,14 +309,6 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 		pDRIInfo = NULL;
 		return FALSE;
 	}
-	drm_version = drmGetVersion(pNv->drm_fd);
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "DRM version: %d.%d.%d (name: %s)\n",
-		   drm_version->version_major, 
-		   drm_version->version_minor, 
-		   drm_version->version_patchlevel,
-		   drm_version->name);
 
 #if 0
 	pNv->IRQ = 0;

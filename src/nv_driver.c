@@ -1017,6 +1017,26 @@ Bool NVI2CInit(ScrnInfoPtr pScrn)
     return FALSE;
 }
 
+static Bool NVPreInitDRI(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+    	if (!NVDRIGetVersion(pScrn))
+		return FALSE;
+
+ 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"[dri] Found DRI library version %d.%d.%d and kernel"
+		" module version %d.%d.%d\n",
+		pNv->pLibDRMVersion->version_major,
+		pNv->pLibDRMVersion->version_minor,
+		pNv->pLibDRMVersion->version_patchlevel,
+		pNv->pKernelDRMVersion->version_major,
+		pNv->pKernelDRMVersion->version_minor,
+		pNv->pKernelDRMVersion->version_patchlevel);
+
+	return TRUE;
+}
+
 /* Mandatory */
 Bool
 NVPreInit(ScrnInfoPtr pScrn, int flags)
@@ -1483,6 +1503,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     pNv->alphaCursor = (pNv->Architecture >= NV_ARCH_10) &&
                        ((pNv->Chipset & 0x0ff0) != CHIPSET_NV10);
 
+    if (NVPreInitDRI(pScrn) == FALSE) {
+	    xf86FreeInt10(pNv->pInt);
+	    return FALSE;
+    }
+	
     NVCommonSetup(pScrn);
 
     pScrn->videoRam = pNv->RamAmountKBytes;

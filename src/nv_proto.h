@@ -18,6 +18,7 @@ Bool NVInitAGP(ScrnInfoPtr pScrn);
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
 Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn);
 extern const char *drmSymbols[], *driSymbols[];
+Bool NVDRIGetVersion(ScrnInfoPtr pScrn);
 #endif
 
 /* in nv_dac.c */

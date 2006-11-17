@@ -243,6 +243,8 @@ typedef struct _NVRec {
     Bool                RandRRotation;
 #ifdef XF86DRI
     DRIInfoPtr          pDRIInfo;
+    drmVersionPtr       pLibDRMVersion;
+    drmVersionPtr       pKernelDRMVersion;
 #endif /* XF86DRI */
 } NVRec;
 
