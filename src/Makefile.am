@@ -47,7 +47,6 @@ nouveau_drv_la_SOURCES = \
          nv_setup.c \
          nv_shadow.c \
          nv_type.h \
-         nvvga.h \
          nv_video.c \
          nv_xaa.c \
 	 nv30_exa.c \
