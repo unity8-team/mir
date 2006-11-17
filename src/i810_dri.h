@@ -9,8 +9,8 @@
 #define I810_MAX_DRAWABLES 256
 
 #define I810_MAJOR_VERSION 1
-#define I810_MINOR_VERSION 6
-#define I810_PATCHLEVEL 3
+#define I810_MINOR_VERSION 7
+#define I810_PATCHLEVEL 2
 
 typedef struct {
    drm_handle_t regs;

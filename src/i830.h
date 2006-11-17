@@ -86,6 +86,13 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
  * Paulo César Pereira de Andrade <pcpa@conectiva.com.br>.
  */
 
+#ifdef XF86DRI
+#define I830_MM_MINPAGES 512
+#define I830_MM_MAXSIZE  (32*1024)
+#define I830_KERNEL_MM  (1 << 0) /* Initialize the kernel memory manager*/
+#define I830_KERNEL_TEX (1 << 1) /* Allocate texture memory pool */
+#endif
+
 typedef struct _I830Rec *I830Ptr;
 
 typedef void (*I830WriteIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
@@ -366,6 +373,8 @@ typedef struct _I830Rec {
    int TexGranularity;
    int drmMinor;
    Bool have3DWindows;
+   int mmModeFlags;
+   int mmSize;
 
    unsigned int front_tiled;
    unsigned int back_tiled;
@@ -726,5 +735,11 @@ void i830_tv_init(ScrnInfoPtr pScrn);
 #ifndef M_T_DRIVER
 #define M_T_DRIVER	0x40
 #endif
+
+/* 
+ * Xserver MM compatibility. Remove code guarded by this when the
+ * XServer contains the libdrm mm code
+ */
+#undef XSERVER_LIBDRM_MM
 
 #endif /* _I830_H_ */

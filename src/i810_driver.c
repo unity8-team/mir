@@ -313,6 +313,12 @@ const char *I810drmSymbols[] = {
    "drmGetLibVersion",
    "drmGetVersion",
    "drmRmMap",
+#ifdef XSERVER_LIBDRM_MM 
+   "drmMMInit",
+   "drmMMTakedown",
+   "drmMMLock",
+   "drmMMUnlock",
+#endif
    NULL
 };
 
@@ -1194,14 +1200,13 @@ I810MapMem(ScrnInfoPtr pScrn)
    long i;
 
    for (i = 2; i < pI810->FbMapSize; i <<= 1) ;
-   pI810->FbMapSize = i;
 
    if (!I810MapMMIO(pScrn))
       return FALSE;
 
    pI810->FbBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
 				 pI810->PciTag,
-				 pI810->LinearAddr, pI810->FbMapSize);
+				 pI810->LinearAddr, i);
    if (!pI810->FbBase)
       return FALSE;
 
