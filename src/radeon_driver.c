@@ -6349,7 +6349,6 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
 		       RADEONSavePtr save)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
     if (info->IsSecondary) {
         return RADEONInit2(pScrn, NULL, mode, 2, save);

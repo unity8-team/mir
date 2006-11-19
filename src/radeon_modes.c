@@ -40,7 +40,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "xf86str.h"
+#include "xf86.h"
 				/* Driver data structures */
 #include "radeon.h"
 #include "radeon_reg.h"

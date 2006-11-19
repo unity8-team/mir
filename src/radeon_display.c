@@ -925,7 +925,6 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     const char *s;
     Bool ignore_edid = FALSE;
     int i = 0, second = 0, max_mt = 5;
@@ -1149,7 +1148,6 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     const char *s;
     Bool ignore_edid = FALSE;
-    int i = 0, second = 0, max_mt = 5;
 
     /* IgnoreEDID option is different from the NoDDCxx options used by DDC module
      * When IgnoreEDID is used, monitor detection will still use DDC
