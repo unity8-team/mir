@@ -667,6 +667,10 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
    } else {
       i830_dvo_init(pScrn);
    }
+#if 1
+   if (IS_I915GM(pI830) || IS_I945GM(pI830))
+      i830_tv_init(pScrn);
+#endif
 }
 
 static void 
@@ -702,7 +706,8 @@ PreInitCleanup(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    if (I830IsPrimary(pScrn)) {
-      pI830->entityPrivate->pScrn_1 = NULL;
+      if (pI830->entityPrivate)
+	 pI830->entityPrivate->pScrn_1 = NULL;
       if (pI830->LpRing)
          xfree(pI830->LpRing);
       pI830->LpRing = NULL;
@@ -1432,6 +1437,12 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	       pI830->output[i].pipe = 1;
 	       pI830->output[i].enabled = TRUE;
 	    }
+	 }
+	 break;
+      case I830_OUTPUT_TVOUT:
+         if (!i830PipeInUse(pScrn, 0)) {
+	    pI830->output[i].pipe = 0;
+	    pI830->output[i].enabled = TRUE;
 	 }
 	 break;
       default:
@@ -3551,6 +3562,7 @@ I830EnterVT(int scrnIndex, int flags)
 
    i830DisableUnusedFunctions(pScrn);
 
+   i830DumpRegs (pScrn);
    i830DescribeOutputConfiguration(pScrn);
 
 #ifdef XF86DRI
