@@ -1409,9 +1409,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /** Turns on the first subcarrier phase generation DDA */
 # define TV_SC_DDA1_EN			(1 << 31)
 /** Turns on the first subcarrier phase generation DDA */
-# define TV_SC_DDA2_EN			(2 << 31)
+# define TV_SC_DDA2_EN			(1 << 30)
 /** Turns on the first subcarrier phase generation DDA */
-# define TV_SC_DDA3_EN			(3 << 31)
+# define TV_SC_DDA3_EN			(1 << 29)
 /** Sets the subcarrier DDA to reset frequency every other field */
 # define TV_SC_RESET_EVERY_2		(0 << 24)
 /** Sets the subcarrier DDA to reset frequency every fourth field */
