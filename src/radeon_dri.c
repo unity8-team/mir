@@ -1910,6 +1910,14 @@ static void RADEONEnablePageFlip(ScreenPtr pScreen)
 	RADEONSAREAPrivPtr pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
 	pSAREAPriv->pfAllowPageFlip = 1;
+
+#ifdef USE_XAA
+	if (!info->useEXA) {
+	    BoxRec box = { .x1 = 0, .y1 = 0, .x2 = pScrn->virtualX - 1,
+			   .y2 = pScrn->virtualY - 1 };
+	    RADEONDRIRefreshArea(pScrn, 1, &box);
+	}
+#endif
     }
 #endif
 }
