@@ -587,7 +587,11 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe,
     }
 
     if (is_tv)
-	dpll |= PLL_REF_INPUT_TVCLKINBC;
+    {
+	/* XXX: just matching BIOS for now */
+/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
+	dpll |= 3;
+    }
 #if 0    
     else if (is_lvds)
 	dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;

@@ -1044,6 +1044,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define TV_ENC_OUTPUT_SVIDEO		(1 << 28)
 /** Outputs Component video (DAC A/B/C) */
 # define TV_ENC_OUTPUT_COMPONENT	(2 << 28)
+/** Outputs Composite and SVideo (DAC A/B/C) */
+# define TV_ENC_OUTPUT_SVIDEO_COMPOSITE	(3 << 28)
 # define TV_TRILEVEL_SYNC		(1 << 21)
 /** Enables slow sync generation (945GM only) */
 # define TV_SLOW_SYNC			(1 << 20)
@@ -1078,6 +1080,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define TV_FUSE_STATE_NO_MACROVISION	(1 << 4)
 /** Read-only state that reports that TV-out is disabled in hardware. */
 # define TV_FUSE_STATE_DISABLED		(2 << 4)
+/** Normal operation */
+# define TV_TEST_MODE_NORMAL		(0 << 0)
+/** Encoder test pattern 1 - combo pattern */
+# define TV_TEST_MODE_PATTERN_1		(1 << 0)
+/** Encoder test pattern 2 - full screen vertical 75% color bars */
+# define TV_TEST_MODE_PATTERN_2		(2 << 0)
+/** Encoder test pattern 3 - full screen horizontal 75% color bars */
+# define TV_TEST_MODE_PATTERN_3		(3 << 0)
+/** Encoder test pattern 4 - random noise */
+# define TV_TEST_MODE_PATTERN_4		(4 << 0)
+/** Encoder test pattern 5 - linear color ramps */
+# define TV_TEST_MODE_PATTERN_5		(5 << 0)
 /**
  * This test mode forces the DACs to 50% of full output.
  *
@@ -1395,9 +1409,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /** Turns on the first subcarrier phase generation DDA */
 # define TV_SC_DDA1_EN			(1 << 31)
 /** Turns on the first subcarrier phase generation DDA */
-# define TV_SC_DDA2_EN			(2 << 31)
+# define TV_SC_DDA2_EN			(1 << 30)
 /** Turns on the first subcarrier phase generation DDA */
-# define TV_SC_DDA3_EN			(3 << 31)
+# define TV_SC_DDA3_EN			(1 << 29)
 /** Sets the subcarrier DDA to reset frequency every other field */
 # define TV_SC_RESET_EVERY_2		(0 << 24)
 /** Sets the subcarrier DDA to reset frequency every fourth field */
@@ -1417,7 +1431,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /** @defgroup TV_SC_CTL_2
  * @{
  */
-#define TV_SC_CTL_2		0x68068
+#define TV_SC_CTL_2		0x68064
 /** Sets the rollover for the second subcarrier phase generation DDA */
 # define TV_SCDDA2_SIZE_MASK		0x7fff0000
 # define TV_SCDDA2_SIZE_SHIFT		16
@@ -1586,6 +1600,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define TV_H_LUMA_59		0x681ec
 #define TV_H_CHROMA_0		0x68200
 #define TV_H_CHROMA_59		0x682ec
+#define TV_V_LUMA_0		0x68300
+#define TV_V_LUMA_42		0x683a8
+#define TV_V_CHROMA_0		0x68400
+#define TV_V_CHROMA_42		0x684a8
 /** @} */
 
 #define PIPEACONF 0x70008

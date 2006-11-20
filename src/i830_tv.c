@@ -279,7 +279,73 @@ i830_tv_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
 
     /* Disable the encoder while we set up the pipe. */
     OUTREG(TV_CTL, INREG(TV_CTL) & ~TV_ENC_ENABLE);
+    /* XXX match BIOS for now */
+    OUTREG(ADPA, 0x40008C18);
 }
+
+static const CARD32 h_luma[60] = {
+    0xB1403000, 0x2E203500, 0x35002E20, 0x3000B140,
+    0x35A0B160, 0x2DC02E80, 0xB1403480, 0xB1603000,
+    0x2EA03640, 0x34002D80, 0x3000B120, 0x36E0B160,
+    0x2D202EF0, 0xB1203380, 0xB1603000, 0x2F303780,
+    0x33002CC0, 0x3000B100, 0x3820B160, 0x2C802F50,
+    0xB10032A0, 0xB1603000, 0x2F9038C0, 0x32202C20,
+    0x3000B0E0, 0x3980B160, 0x2BC02FC0, 0xB0E031C0,
+    0xB1603000, 0x2FF03A20, 0x31602B60, 0xB020B0C0,
+    0x3AE0B160, 0x2B001810, 0xB0C03120, 0xB140B020,
+    0x18283BA0, 0x30C02A80, 0xB020B0A0, 0x3C60B140,
+    0x2A201838, 0xB0A03080, 0xB120B020, 0x18383D20,
+    0x304029C0, 0xB040B080, 0x3DE0B100, 0x29601848,
+    0xB0803000, 0xB100B040, 0x18483EC0, 0xB0402900,
+    0xB040B060, 0x3F80B0C0, 0x28801858, 0xB060B080,
+    0xB0A0B060, 0x18602820, 0xB0A02820, 0x0000B060,
+};
+
+static const CARD32 h_chroma[60] = {
+    0xB1403000, 0x2E203500, 0x35002E20, 0x3000B140,
+    0x35A0B160, 0x2DC02E80, 0xB1403480, 0xB1603000,
+    0x2EA03640, 0x34002D80, 0x3000B120, 0x36E0B160,
+    0x2D202EF0, 0xB1203380, 0xB1603000, 0x2F303780,
+    0x33002CC0, 0x3000B100, 0x3820B160, 0x2C802F50,
+    0xB10032A0, 0xB1603000, 0x2F9038C0, 0x32202C20,
+    0x3000B0E0, 0x3980B160, 0x2BC02FC0, 0xB0E031C0,
+    0xB1603000, 0x2FF03A20, 0x31602B60, 0xB020B0C0,
+    0x3AE0B160, 0x2B001810, 0xB0C03120, 0xB140B020,
+    0x18283BA0, 0x30C02A80, 0xB020B0A0, 0x3C60B140,
+    0x2A201838, 0xB0A03080, 0xB120B020, 0x18383D20,
+    0x304029C0, 0xB040B080, 0x3DE0B100, 0x29601848,
+    0xB0803000, 0xB100B040, 0x18483EC0, 0xB0402900,
+    0xB040B060, 0x3F80B0C0, 0x28801858, 0xB060B080,
+    0xB0A0B060, 0x18602820, 0xB0A02820, 0x0000B060,
+};
+
+static const CARD32 v_luma[43] = {
+    0x36403000, 0x2D002CC0, 0x30003640, 0x2D0036C0,
+    0x35C02CC0, 0x37403000, 0x2C802D40, 0x30003540,
+    0x2D8037C0, 0x34C02C40, 0x38403000, 0x2BC02E00,
+    0x30003440, 0x2E2038C0, 0x34002B80, 0x39803000,
+    0x2B402E40, 0x30003380, 0x2E603A00, 0x33402B00,
+    0x3A803040, 0x2A802EA0, 0x30403300, 0x2EC03B40,
+    0x32802A40, 0x3C003040, 0x2A002EC0, 0x30803240,
+    0x2EC03C80, 0x320029C0, 0x3D403080, 0x29402F00,
+    0x308031C0, 0x2F203DC0, 0x31802900, 0x3E8030C0,
+    0x28802F40, 0x30C03140, 0x2F203F40, 0x31402840,
+    0x28003100, 0x28002F00, 0x00003100,
+};
+
+static const CARD32 v_chroma[43] = {
+    0x36403000, 0x2D002CC0, 0x30003640, 0x2D0036C0,
+    0x35C02CC0, 0x37403000, 0x2C802D40, 0x30003540,
+    0x2D8037C0, 0x34C02C40, 0x38403000, 0x2BC02E00,
+    0x30003440, 0x2E2038C0, 0x34002B80, 0x39803000,
+    0x2B402E40, 0x30003380, 0x2E603A00, 0x33402B00,
+    0x3A803040, 0x2A802EA0, 0x30403300, 0x2EC03B40,
+    0x32802A40, 0x3C003040, 0x2A002EC0, 0x30803240,
+    0x2EC03C80, 0x320029C0, 0x3D403080, 0x29402F00,
+    0x308031C0, 0x2F203DC0, 0x31802900, 0x3E8030C0,
+    0x28802F40, 0x30C03140, 0x2F203F40, 0x31402840,
+    0x28003100, 0x28002F00, 0x00003100,
+};
 
 static void
 i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
@@ -293,6 +359,7 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     CARD32 hctl1, hctl2, hctl3;
     CARD32 vctl1, vctl2, vctl3, vctl4, vctl5, vctl6, vctl7;
     CARD32 scctl1, scctl2, scctl3;
+    int i;
 
     /* Need to actually choose or construct the appropriate
      * mode.  For now, just set the first one in the list, with
@@ -302,10 +369,6 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     sc_mode = &tv_sc_modes[TV_SC_NTSC_MJ];
 
     type = i830_tv_detect_type(pScrn, output);
-    if (type == TV_TYPE_UNKNOWN) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Defaulting TV to SVIDEO\n");
-	type = TV_TYPE_SVIDEO;
-    }
 
     hctl1 = (tv_mode->hsync_end << TV_HSYNC_END_SHIFT) |
 	(tv_mode->htotal << TV_HTOTAL_SHIFT);
@@ -355,9 +418,12 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     case TV_TYPE_COMPONENT:
 	tv_ctl |= TV_ENC_OUTPUT_COMPONENT;
 	break;
-    default:
     case TV_TYPE_SVIDEO:
 	tv_ctl |= TV_ENC_OUTPUT_SVIDEO;
+	break;
+    default:
+    case TV_TYPE_UNKNOWN:
+	tv_ctl |= TV_ENC_OUTPUT_SVIDEO_COMPOSITE;
 	break;
     }
     tv_ctl |= tv_mode->oversample;
@@ -366,11 +432,12 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     if (sc_mode->pal_burst)
 	tv_ctl |= TV_PAL_BURST;
 
-    scctl1 = TV_SC_DDA1_EN | TV_SC_DDA1_EN;
+    scctl1 = TV_SC_DDA1_EN | TV_SC_DDA2_EN;
     if (sc_mode->dda3_size != 0)
 	scctl1 |= TV_SC_DDA3_EN;
     scctl1 |= sc_mode->sc_reset;
     /* XXX: set the burst level */
+    scctl1 |= 113 << TV_BURST_LEVEL_SHIFT;    /* from BIOS */
     scctl1 |= sc_mode->dda1_inc << TV_SCDDA1_INC_SHIFT;
 
     scctl2 = sc_mode->dda2_size << TV_SCDDA2_SIZE_SHIFT |
@@ -400,6 +467,28 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     OUTREG(TV_SC_CTL_1, scctl1);
     OUTREG(TV_SC_CTL_2, scctl2);
     OUTREG(TV_SC_CTL_3, scctl3);
+    /* XXX match BIOS */
+    OUTREG(TV_CSC_Y, 0x0332012D);
+    OUTREG(TV_CSC_Y2, 0x07D30133);
+    OUTREG(TV_CSC_U, 0x076A0564);
+    OUTREG(TV_CSC_U2, 0x030D0200);
+    OUTREG(TV_CSC_V, 0x037A033D);
+    OUTREG(TV_CSC_V2, 0x06F60200);
+    OUTREG(TV_CLR_KNOBS, 0x00606000);
+    OUTREG(TV_CLR_LEVEL, 0x013C010A);
+    OUTREG(TV_WIN_POS, 0x00360024);
+    OUTREG(TV_WIN_SIZE, 0x02640198);
+    OUTREG(TV_FILTER_CTL_1, 0x8000085E);
+    OUTREG(TV_FILTER_CTL_2, 0x00017878);
+    OUTREG(TV_FILTER_CTL_3, 0x0000BC3C);
+    for (i = 0; i < 60; i++)
+	OUTREG(TV_H_LUMA_0 + (i <<2), h_luma[i]);
+    for (i = 0; i < 60; i++)
+	OUTREG(TV_H_CHROMA_0 + (i <<2), h_chroma[i]);
+    for (i = 0; i < 43; i++)
+	OUTREG(TV_V_LUMA_0 + (i <<2), v_luma[i]);
+    for (i = 0; i < 43; i++)
+	OUTREG(TV_V_CHROMA_0 + (i <<2), v_chroma[i]);
 
     OUTREG(TV_DAC, 0);
     OUTREG(TV_CTL, tv_ctl);
@@ -414,7 +503,7 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
 static enum detect_status
 i830_tv_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
-    return OUTPUT_STATUS_UNKNOWN;
+    return OUTPUT_STATUS_CONNECTED;
 }
 
 /**
@@ -426,31 +515,74 @@ i830_tv_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
 static DisplayModePtr
 i830_tv_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
-    return NULL;
+    I830Ptr pI830 = I830PTR(pScrn);
+    DisplayModePtr new;
+    char stmp[32];
+
+    (void) pI830;
+    new             = xnfcalloc(1, sizeof (DisplayModeRec));
+    sprintf(stmp, "480i");
+    new->name       = xnfalloc(strlen(stmp) + 1);
+    strcpy(new->name, stmp);
+    
+    new->Clock      = 108000;
+    
+    /*
+    new->HDisplay   = 640;
+    new->HSyncStart = 664;
+    new->HSyncEnd   = 704;
+    new->HTotal     = 832;
+    
+    new->VDisplay   = 480;
+    new->VSyncStart = 489;
+    new->VSyncEnd   = 491;
+    new->VTotal     = 520;
+     */
+    new->HDisplay   = 1024;
+    new->HSyncStart = 1048;
+    new->HSyncEnd   = 1184;
+    new->HTotal     = 1344;
+    
+    new->VDisplay   = 768;
+    new->VSyncStart = 771;
+    new->VSyncEnd   = 777;
+    new->VTotal     = 806;
+
+    new->type       = M_T_PREFERRED;
+
+    return new;
 }
 
 void
 i830_tv_init(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-
+    I830OutputPtr output = &pI830->output[pI830->num_outputs];
+    struct i830_tv_priv *dev_priv;
+ 
     if ((INREG(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
 	return;
 
-    pI830->output[pI830->num_outputs].dev_priv =
-	malloc(sizeof(struct i830_tv_priv));
-    if (pI830->output[pI830->num_outputs].dev_priv == NULL)
+    output->type = I830_OUTPUT_TVOUT;
+    output->pipe = 0;
+    output->enabled = FALSE;
+    output->load_detect_temp = FALSE;
+    
+    output->dpms = i830_tv_dpms;
+    output->save = i830_tv_save;
+    output->restore = i830_tv_restore;
+    output->mode_valid = i830_tv_mode_valid;
+    output->pre_set_mode = i830_tv_pre_set_mode;
+    output->post_set_mode = i830_tv_post_set_mode;
+    output->detect = i830_tv_detect;
+    output->get_modes = i830_tv_get_modes;
+
+    dev_priv = xnfcalloc(1, sizeof(struct i830_tv_priv));
+    
+    if (dev_priv == NULL)
 	return;
 
-    pI830->output[pI830->num_outputs].type = I830_OUTPUT_ANALOG;
-    pI830->output[pI830->num_outputs].dpms = i830_tv_dpms;
-    pI830->output[pI830->num_outputs].save = i830_tv_save;
-    pI830->output[pI830->num_outputs].restore = i830_tv_restore;
-    pI830->output[pI830->num_outputs].mode_valid = i830_tv_mode_valid;
-    pI830->output[pI830->num_outputs].pre_set_mode = i830_tv_pre_set_mode;
-    pI830->output[pI830->num_outputs].post_set_mode = i830_tv_post_set_mode;
-    pI830->output[pI830->num_outputs].detect = i830_tv_detect;
-    pI830->output[pI830->num_outputs].get_modes = i830_tv_get_modes;
-
+    output->dev_priv = dev_priv;
+    ErrorF ("TV out is output %d\n", pI830->num_outputs);
     pI830->num_outputs++;
 }
