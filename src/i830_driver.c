@@ -657,13 +657,7 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
 
    if (IS_I9XX(pI830)) {
       i830_sdvo_init(pScrn, SDVOB);
-
-      /* Don't initialize the second SDVO port for now.  We have issues with
-       * dealing with two ports, where we stomp both SDVO channels' registers
-       * when interacting with each, channel, and commands to one SDVO
-       * device appear to be affecting the other.
-       */
-      /* i830_sdvo_init(pScrn, SDVOC); */
+      i830_sdvo_init(pScrn, SDVOC);
    } else {
       i830_dvo_init(pScrn);
    }

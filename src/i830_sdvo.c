@@ -59,7 +59,7 @@ struct i830_sdvo_priv {
     int output_device;
 
     /** Active outputs controlled by this SDVO output */
-    struct i830_sdvo_output_flags active_outputs;
+    CARD16 active_outputs;
 
     /**
      * Capabilities of the SDVO device returned by i830_sdvo_get_capabilities()
@@ -72,9 +72,9 @@ struct i830_sdvo_priv {
     /** State for save/restore */
     /** @{ */
     int save_sdvo_mult;
-    struct i830_sdvo_output_flags save_active_outputs;
+    CARD16 save_active_outputs;
     struct i830_sdvo_dtd save_input_dtd_1, save_input_dtd_2;
-    struct i830_sdvo_dtd save_output_dtd;
+    struct i830_sdvo_dtd save_output_dtd[16];
     CARD32 save_SDVOX;
     /** @} */
 };
@@ -155,6 +155,11 @@ const struct _sdvo_cmd_name {
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_CONTROL_BUS_SWITCH),
 };
 
+static I2CSlaveAddr slaveAddr;
+
+#define SDVO_NAME(dev_priv) ((dev_priv)->output_device == SDVOB ? "SDVO" : "SDVO")
+#define SDVO_PRIV(output)   ((struct i830_sdvo_priv *) (output)->dev_priv)
+
 /**
  * Writes out the data given in args (up to 8 bytes), followed by the opcode.
  */
@@ -162,9 +167,13 @@ static void
 i830_sdvo_write_cmd(I830OutputPtr output, CARD8 cmd, void *args, int args_len)
 {
     int i;
+    struct i830_sdvo_priv *dev_priv = output->dev_priv;
+
+    if (slaveAddr && slaveAddr != dev_priv->d.SlaveAddr)
+	ErrorF ("Mismatch slave addr %x != %x\n", slaveAddr, dev_priv->d.SlaveAddr);
 
     /* Write the SDVO command logging */
-    xf86DrvMsg(output->pI2CBus->scrnIndex, X_INFO, "SDVO: W: %02X ", cmd);
+    xf86DrvMsg(output->pI2CBus->scrnIndex, X_INFO, "%s: W: %02X ", SDVO_NAME(dev_priv), cmd);
     for (i = 0; i < args_len; i++)
 	LogWrite(1, "%02X ", ((CARD8 *)args)[i]);
     for (; i < 8; i++)
@@ -217,7 +226,7 @@ i830_sdvo_read_response(I830OutputPtr output, void *response, int response_len)
 
     /* Write the SDVO command logging */
     xf86DrvMsg(output->pI2CBus->scrnIndex, X_INFO,
-	       "SDVO: R: ");
+	       "%s: R: ", SDVO_NAME(SDVO_PRIV(output)));
     for (i = 0; i < response_len; i++)
 	LogWrite(1, "%02X ", ((CARD8 *)response)[i]);
     for (; i < 8; i++)
@@ -300,7 +309,7 @@ i830_sdvo_get_trained_inputs(I830OutputPtr output, Bool *input_1, Bool *input_2)
 
 static Bool
 i830_sdvo_get_active_outputs(I830OutputPtr output,
-			     struct i830_sdvo_output_flags *outputs)
+			     CARD16 *outputs)
 {
     CARD8 status;
 
@@ -312,12 +321,12 @@ i830_sdvo_get_active_outputs(I830OutputPtr output,
 
 static Bool
 i830_sdvo_set_active_outputs(I830OutputPtr output,
-			     struct i830_sdvo_output_flags *outputs)
+			     CARD16 outputs)
 {
     CARD8 status;
 
-    i830_sdvo_write_cmd(output, SDVO_CMD_SET_ACTIVE_OUTPUTS, outputs,
-			sizeof(*outputs));
+    i830_sdvo_write_cmd(output, SDVO_CMD_SET_ACTIVE_OUTPUTS, &outputs,
+			sizeof(outputs));
     status = i830_sdvo_read_response(output, NULL, 0);
 
     return (status == SDVO_CMD_STATUS_SUCCESS);
@@ -348,13 +357,12 @@ i830_sdvo_get_input_pixel_clock_range(I830OutputPtr output, int *clock_min,
 }
 
 static Bool
-i830_sdvo_set_target_output(I830OutputPtr output,
-			    struct i830_sdvo_output_flags *outputs)
+i830_sdvo_set_target_output(I830OutputPtr output, CARD16 outputs)
 {
     CARD8 status;
 
-    i830_sdvo_write_cmd(output, SDVO_CMD_SET_TARGET_OUTPUT, outputs,
-			sizeof(*outputs));
+    i830_sdvo_write_cmd(output, SDVO_CMD_SET_TARGET_OUTPUT, &outputs,
+			sizeof(outputs));
 
     status = i830_sdvo_read_response(output, NULL, 0);
 
@@ -522,9 +530,9 @@ i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     CARD16 h_blank_len, h_sync_len, v_blank_len, v_sync_len;
     CARD16 h_sync_offset, v_sync_offset;
     struct i830_sdvo_dtd output_dtd;
-    struct i830_sdvo_output_flags no_outputs;
+    CARD16 no_outputs;
 
-    memset(&no_outputs, 0, sizeof(no_outputs));
+    no_outputs = 0;
 
     if (!mode)
 	return;
@@ -570,10 +578,10 @@ i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     output_dtd.part2.reserved = 0;
 
     /* Turn off the screens before adjusting timings */
-    i830_sdvo_set_active_outputs(output, &no_outputs);
+    i830_sdvo_set_active_outputs(output, 0);
 
     /* Set the output timing to the screen */
-    i830_sdvo_set_target_output(output, &dev_priv->active_outputs);
+    i830_sdvo_set_target_output(output, dev_priv->active_outputs);
     i830_sdvo_set_output_timing(output, &output_dtd);
 
     /* Set the input timing to the screen. Assume always input 0. */
@@ -609,8 +617,7 @@ i830_sdvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
 	break;
     }
 
-    OUTREG(SDVOC, INREG(SDVOC) & ~SDVO_ENABLE);
-    OUTREG(SDVOB, INREG(SDVOB) & ~SDVO_ENABLE);
+    OUTREG(dev_priv->output_device, INREG(dev_priv->output_device) & ~SDVO_ENABLE);
 }
 
 static void
@@ -620,7 +627,7 @@ i830_sdvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     I830Ptr pI830 = I830PTR(pScrn);
     struct i830_sdvo_priv *dev_priv = output->dev_priv;
     Bool input1, input2;
-    CARD32 dpll, sdvob, sdvoc;
+    CARD32 dpll, sdvox;
     int dpll_reg = (output->pipe == 0) ? DPLL_A : DPLL_B;
     int dpll_md_reg = (output->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
     int sdvo_pixel_multiply;
@@ -628,12 +635,18 @@ i830_sdvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     CARD8 status;
 
     /* Set the SDVO control regs. */
-    sdvob = INREG(SDVOB) & SDVOB_PRESERVE_MASK;
-    sdvoc = INREG(SDVOC) & SDVOC_PRESERVE_MASK;
-    sdvob |= SDVO_ENABLE | (9 << 19) | SDVO_BORDER_ENABLE;
-    sdvoc |= 9 << 19;
+    sdvox = INREG(dev_priv->output_device);
+    switch (dev_priv->output_device) {
+    case SDVOB:
+	sdvox &= SDVOB_PRESERVE_MASK;
+	break;
+    case SDVOC:
+	sdvox &= SDVOC_PRESERVE_MASK;
+	break;
+    }
+    sdvox |= SDVO_ENABLE | (9 << 19) | SDVO_BORDER_ENABLE;
     if (output->pipe == 1)
-	sdvob |= SDVO_PIPE_B_SELECT;
+	sdvox |= SDVO_PIPE_B_SELECT;
 
     dpll = INREG(dpll_reg);
 
@@ -644,13 +657,12 @@ i830_sdvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     } else if (IS_I945G(pI830) || IS_I945GM(pI830)) {
 	dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
     } else {
-	sdvob |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
+	sdvox |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
     }
 
     OUTREG(dpll_reg, dpll | DPLL_DVO_HIGH_SPEED);
 
-    OUTREG(SDVOB, sdvob);
-    OUTREG(SDVOC, sdvoc);
+    OUTREG(dev_priv->output_device, sdvox);
 
     for (i = 0; i < 2; i++)
 	i830WaitForVblank(pScrn);
@@ -660,10 +672,11 @@ i830_sdvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     /* Warn if the device reported failure to sync. */
     if (status == SDVO_CMD_STATUS_SUCCESS && !input1) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "First SDVO output reported failure to sync\n");
+		   "First %s output reported failure to sync\n",
+		   SDVO_NAME(dev_priv));
     }
 
-    i830_sdvo_set_active_outputs(output, &dev_priv->active_outputs);
+    i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
     i830_sdvo_set_target_input(output, TRUE, FALSE);
 }
 
@@ -674,15 +687,11 @@ i830_sdvo_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
     struct i830_sdvo_priv *dev_priv = output->dev_priv;
 
     if (mode != DPMSModeOn) {
-	struct i830_sdvo_output_flags no_outputs;
-
-	memset(&no_outputs, 0, sizeof(no_outputs));
-
-	i830_sdvo_set_active_outputs(output, &no_outputs);
-	OUTREG(SDVOB, INREG(SDVOB) & ~SDVO_ENABLE);
+	i830_sdvo_set_active_outputs(output, 0);
+	OUTREG(dev_priv->output_device, INREG(dev_priv->output_device) & ~SDVO_ENABLE);
     } else {
-	i830_sdvo_set_active_outputs(output, &dev_priv->active_outputs);
-	OUTREG(SDVOB, INREG(SDVOB) | SDVO_ENABLE);
+	i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
+	OUTREG(dev_priv->output_device, INREG(dev_priv->output_device) | SDVO_ENABLE);
     }
 }
 
@@ -691,6 +700,7 @@ i830_sdvo_save(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct i830_sdvo_priv *dev_priv = output->dev_priv;
+    int o;
 
     /* XXX: We should save the in/out mapping. */
 
@@ -707,11 +717,15 @@ i830_sdvo_save(ScrnInfoPtr pScrn, I830OutputPtr output)
        i830_sdvo_get_input_timing(output, &dev_priv->save_input_dtd_2);
     }
 
-    /* XXX: We should really iterate over the enabled outputs and save each
-     * one's state.
-     */
-    i830_sdvo_set_target_output(output, &dev_priv->save_active_outputs);
-    i830_sdvo_get_output_timing(output, &dev_priv->save_output_dtd);
+    for (o = SDVO_OUTPUT_FIRST; o <= SDVO_OUTPUT_LAST; o++)
+    {
+	CARD16  this_output = (1 << o);
+	if (dev_priv->caps.output_flags & this_output)
+	{
+	    i830_sdvo_set_target_output(output, this_output);
+	    i830_sdvo_get_output_timing(output, &dev_priv->save_output_dtd[o]);
+	}
+    }
 
     dev_priv->save_SDVOX = INREG(dev_priv->output_device);
 }
@@ -721,6 +735,7 @@ i830_sdvo_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct i830_sdvo_priv *dev_priv = output->dev_priv;
+    int o;
 
     if (dev_priv->caps.sdvo_inputs_mask & 0x1) {
        i830_sdvo_set_target_input(output, TRUE, FALSE);
@@ -732,14 +747,20 @@ i830_sdvo_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
        i830_sdvo_set_input_timing(output, &dev_priv->save_input_dtd_2);
     }
 
-    i830_sdvo_set_target_output(output, &dev_priv->save_active_outputs);
-    i830_sdvo_set_output_timing(output, &dev_priv->save_output_dtd);
+    for (o = SDVO_OUTPUT_FIRST; o <= SDVO_OUTPUT_LAST; o++)
+    {
+	CARD16  this_output = (1 << o);
+	if (dev_priv->caps.output_flags & this_output)
+	{
+	    i830_sdvo_set_target_output(output, this_output);
+	    i830_sdvo_set_output_timing(output, &dev_priv->save_output_dtd[o]);
+	}
+    }
+    i830_sdvo_set_target_output(output, dev_priv->save_active_outputs);
 
     i830_sdvo_set_clock_rate_mult(output, dev_priv->save_sdvo_mult);
 
     OUTREG(dev_priv->output_device, dev_priv->save_SDVOX);
-
-    i830_sdvo_set_active_outputs(output, &dev_priv->save_active_outputs);
 }
 
 static int
@@ -989,8 +1010,8 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 
     if (!xf86I2CDevInit(&dev_priv->d)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Failed to initialize SDVO I2C device %s\n",
-		   output_device == SDVOB ? "SDVOB" : "SDVOC");
+		   "Failed to initialize %s I2C device\n",
+		   SDVO_NAME(dev_priv));
 	xf86DestroyI2CBusRec(i2cbus, TRUE, TRUE);
 	xfree(dev_priv);
 	return;
@@ -1043,25 +1064,42 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 
     i830_sdvo_get_capabilities(output, &dev_priv->caps);
 
+    memset(&dev_priv->active_outputs, 0, sizeof(dev_priv->active_outputs));
+    if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS0)
+	dev_priv->active_outputs = SDVO_OUTPUT_TMDS0;
+    else if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS1)
+	dev_priv->active_outputs = SDVO_OUTPUT_TMDS1;
+    else
+    {
+	unsigned char	bytes[2];
+
+	memcpy (bytes, &dev_priv->caps.output_flags, 2);
+	xf86DrvMsg(output->pI2CBus->scrnIndex, X_ERROR,
+		   "%s: No active TMDS outputs (0x%02x%02x)\n",
+		   SDVO_NAME(dev_priv),
+		   bytes[0], bytes[1]);
+    }
+    
+    /* Set the input timing to the screen. Assume always input 0. */
+    i830_sdvo_set_target_input(output, TRUE, FALSE);
+
     i830_sdvo_get_input_pixel_clock_range(output, &dev_priv->pixel_clock_min,
 					  &dev_priv->pixel_clock_max);
 
-    memset(&dev_priv->active_outputs, 0, sizeof(dev_priv->active_outputs));
-    dev_priv->active_outputs.tmds0 = 1;
-
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "SDVO device VID/DID: %02X:%02X.%02X, "
+	       "%s device VID/DID: %02X:%02X.%02X, "
 	       "clock range %.1fMHz - %.1fMHz, "
 	       "input 1: %c, input 2: %c, "
 	       "output 1: %c, output 2: %c\n",
+	       SDVO_NAME(dev_priv),
 	       dev_priv->caps.vendor_id, dev_priv->caps.device_id,
 	       dev_priv->caps.device_rev_id,
 	       dev_priv->pixel_clock_min / 1000.0,
 	       dev_priv->pixel_clock_max / 1000.0,
 	       (dev_priv->caps.sdvo_inputs_mask & 0x1) ? 'Y' : 'N',
 	       (dev_priv->caps.sdvo_inputs_mask & 0x2) ? 'Y' : 'N',
-	       dev_priv->caps.output_flags.tmds0 ? 'Y' : 'N',
-	       dev_priv->caps.output_flags.tmds1 ? 'Y' : 'N');
+	       dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS0 ? 'Y' : 'N',
+	       dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS1 ? 'Y' : 'N');
 
     pI830->num_outputs++;
 }
