@@ -1172,17 +1172,16 @@ I830RRDefaultScreenLimits (RROutputPtr *outputs, int num_outputs,
 
 	    for (s = 0; s < output->numCrtcs; s++)
 		if (output->crtcs[s] == crtc)
-		    break;
-	    if (s == output->numCrtcs)
-		continue;
-	    for (m = 0; m < output->numModes; m++)
-	    {
-		RRModePtr   mode = output->modes[m];
-		if (mode->mode.width > crtc_width)
-		    crtc_width = mode->mode.width;
-		if (mode->mode.height > crtc_width)
-		    crtc_height = mode->mode.height;
-	    }
+		{
+		    for (m = 0; m < output->numModes; m++)
+		    {
+			RRModePtr   mode = output->modes[m];
+			if (mode->mode.width > crtc_width)
+			    crtc_width = mode->mode.width;
+			if (mode->mode.height > crtc_width)
+			    crtc_height = mode->mode.height;
+		    }
+		}
 	}
 	width += crtc_width;
 	if (crtc_height > height)
@@ -1241,9 +1240,16 @@ I830RandRPreInit (ScrnInfoPtr pScrn)
     
     if (width > pScrn->virtualX)
 	pScrn->virtualX = width;
+    if (width > pScrn->display->virtualX)
+	pScrn->display->virtualX = width;
     if (height > pScrn->virtualY)
 	pScrn->virtualY = height;
+    if (height > pScrn->display->virtualY)
+	pScrn->display->virtualY = height;
     
+    /* XXX override xf86 common frame computation code */
+    pScrn->display->frameX0 = 0;
+    pScrn->display->frameY0 = 0;
     for (o = 0; o < pI830->num_outputs; o++)
     {
 	RRModePtr	randr_mode = output_modes[o];
