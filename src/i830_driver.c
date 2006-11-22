@@ -1240,153 +1240,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    I830PreInitDDC(pScrn);
 
-#if 0
-   /*
-    * This moves to generic RandR-based configuration code
-    */
-   if ((s = xf86GetOptValString(pI830->Options, OPTION_MONITOR_LAYOUT)) &&
-      I830IsPrimary(pScrn)) {
-      char *Mon1;
-      char *Mon2;
-      char *sub;
-        
-      Mon1 = strtok(s, ",");
-      Mon2 = strtok(NULL, ",");
-
-      if (Mon1) {
-         sub = strtok(Mon1, "+");
-         do {
-            if (strcmp(sub, "NONE") == 0)
-               pI830->MonType1 |= PIPE_NONE;
-            else if (strcmp(sub, "CRT") == 0)
-               pI830->MonType1 |= PIPE_CRT;
-            else if (strcmp(sub, "TV") == 0)
-               pI830->MonType1 |= PIPE_TV;
-            else if (strcmp(sub, "DFP") == 0)
-               pI830->MonType1 |= PIPE_DFP;
-            else if (strcmp(sub, "LFP") == 0)
-               pI830->MonType1 |= PIPE_LFP;
-            else if (strcmp(sub, "Second") == 0)
-               pI830->MonType1 |= PIPE_CRT2;
-            else if (strcmp(sub, "TV2") == 0)
-               pI830->MonType1 |= PIPE_TV2;
-            else if (strcmp(sub, "DFP2") == 0)
-               pI830->MonType1 |= PIPE_DFP2;
-            else if (strcmp(sub, "LFP2") == 0)
-               pI830->MonType1 |= PIPE_LFP2;
-            else 
-               xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-			       "Invalid Monitor type specified for Pipe A\n"); 
-
-            sub = strtok(NULL, "+");
-         } while (sub);
-      }
-
-      if (Mon2) {
-         sub = strtok(Mon2, "+");
-         do {
-            if (strcmp(sub, "NONE") == 0)
-               pI830->MonType2 |= PIPE_NONE;
-            else if (strcmp(sub, "CRT") == 0)
-               pI830->MonType2 |= PIPE_CRT;
-            else if (strcmp(sub, "TV") == 0)
-               pI830->MonType2 |= PIPE_TV;
-            else if (strcmp(sub, "DFP") == 0)
-               pI830->MonType2 |= PIPE_DFP;
-            else if (strcmp(sub, "LFP") == 0)
-               pI830->MonType2 |= PIPE_LFP;
-            else if (strcmp(sub, "Second") == 0)
-               pI830->MonType2 |= PIPE_CRT2;
-            else if (strcmp(sub, "TV2") == 0)
-               pI830->MonType2 |= PIPE_TV2;
-            else if (strcmp(sub, "DFP2") == 0)
-               pI830->MonType2 |= PIPE_DFP2;
-            else if (strcmp(sub, "LFP2") == 0)
-               pI830->MonType2 |= PIPE_LFP2;
-            else 
-               xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-			       "Invalid Monitor type specified for Pipe B\n"); 
-
-               sub = strtok(NULL, "+");
-            } while (sub);
-         }
-    
-         if (pI830->num_pipes == 1 && pI830->MonType2 != PIPE_NONE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Monitor 2 cannot be specified on single pipe devices\n");
-            return FALSE;
-         }
-
-         if (pI830->MonType1 == PIPE_NONE && pI830->MonType2 == PIPE_NONE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Monitor 1 and 2 cannot be type NONE\n");
-            return FALSE;
-      }
-
-      if (pI830->MonType1 != PIPE_NONE)
-	 pI830->pipe = 0;
-      else
-	 pI830->pipe = 1;
-
-   } else if (I830IsPrimary(pScrn)) {
-      /* Choose a default set of outputs to use based on what we've detected.
-       *
-       * Assume that SDVO outputs are flat panels for now.  It's just a name
-       * at the moment, since we don't treat different SDVO outputs
-       * differently.
-       */
-      for (i = 0; i < pI830->num_outputs; i++) {
-	 if (pI830->output[i].type == I830_OUTPUT_LVDS)
-	    pI830->MonType2 = PIPE_LFP;
-
-	 if (pI830->output[i].type == I830_OUTPUT_SDVO ||
-	     pI830->output[i].type == I830_OUTPUT_ANALOG)
-	 {
-	    int pipetype;
-
-	    if (pI830->output[i].detect(pScrn, &pI830->output[i]) ==
-		OUTPUT_STATUS_DISCONNECTED)
-	    {
-	       continue;
-	    }
-
-	    if (pI830->output[i].type == I830_OUTPUT_SDVO)
-	       pipetype = PIPE_DFP;
-	    else
-	       pipetype = PIPE_CRT;
-
-	    if (pI830->MonType1 == PIPE_NONE)
-	       pI830->MonType1 |= pipetype;
-	    else if (pI830->MonType2 == PIPE_NONE)
-	       pI830->MonType2 |= pipetype;
-	 }
-      }
-
-      /* And, if we haven't found anything (including CRT through DDC), assume
-       * that there's a CRT and that the user has set up some appropriate modes
-       * or something.
-       */
-      if (pI830->MonType1 == PIPE_NONE && pI830->MonType2 == PIPE_NONE)
-	 pI830->MonType1 |= PIPE_CRT;
-
-      if (pI830->MonType1 != PIPE_NONE)
-	 pI830->pipe = 0;
-      else
-	 pI830->pipe = 1;
-
-      if (pI830->MonType1 != 0 && pI830->MonType2 != 0) {
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
- 		    "Enabling clone mode by default\n");
-	 pI830->Clone = TRUE;
-      }
-   } else {
-      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-      pI830->pipe = !pI8301->pipe;
-      pI830->MonType1 = pI8301->MonType1;
-      pI830->MonType2 = pI8301->MonType2;
-   }
-#endif
-
    if (xf86ReturnOptValBool(pI830->Options, OPTION_CLONE, FALSE)) {
       if (pI830->num_pipes == 1) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
@@ -1446,31 +1299,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    for (i = 0; i < pI830->num_pipes; i++) {
       pI830->pipes[i].enabled = i830PipeInUse(pScrn, i);
    }
-
-#if 0
-   pI830->CloneRefresh = 60; /* default to 60Hz */
-   if (xf86GetOptValInteger(pI830->Options, OPTION_CLONE_REFRESH,
-			    &(pI830->CloneRefresh))) {
-      xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Clone Monitor Refresh Rate %d\n",
-		 pI830->CloneRefresh);
-   }
-
-   /* See above i830refreshes on why 120Hz is commented out */
-   if (pI830->CloneRefresh < 60 || pI830->CloneRefresh > 85 /* 120 */) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad Clone Refresh Rate\n");
-      PreInitCleanup(pScrn);
-      return FALSE;
-   }
-
-   if ((pI830->entityPrivate && I830IsPrimary(pScrn)) || pI830->Clone) {
-      if (pI830->MonType1 == PIPE_NONE || pI830->MonType2 == PIPE_NONE) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Monitor 1 or Monitor 2 "
-	 		"cannot be type NONE in DualHead or Clone setup.\n");
-         PreInitCleanup(pScrn);
-         return FALSE;
-      }
-   }
-#endif
 
    pI830->rotation = RR_Rotate_0;
    if ((s = xf86GetOptValString(pI830->Options, OPTION_ROTATE))) {
@@ -1645,24 +1473,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	 return FALSE;
       }
    }
-
-#if 0
-   if (xf86IsEntityShared(pScrn->entityList[0])) {
-      if (!I830IsPrimary(pScrn)) {
-	 /* This could be made to work with a little more fiddling */
-	 pI830->directRenderingDisabled = TRUE;
-
-         xf86DrvMsg(pScrn->scrnIndex, from, "Secondary head is using Pipe %s\n",
-		pI830->pipe ? "B" : "A");
-      } else {
-         xf86DrvMsg(pScrn->scrnIndex, from, "Primary head is using Pipe %s\n",
-		pI830->pipe ? "B" : "A");
-      }
-   } else {
-      xf86DrvMsg(pScrn->scrnIndex, from, "Display is using Pipe %s\n",
-		pI830->pipe ? "B" : "A");
-   }
-#endif
 
    /* Alloc our pointers for the primary head */
    if (I830IsPrimary(pScrn)) {
@@ -3559,11 +3369,6 @@ I830EnterVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
    I830DRISetVBlankInterrupt (pScrn, TRUE);
-#endif
-   
-#if 0
-   if (!i830SetMode(pScrn, pScrn->currentMode))
-      return FALSE;
 #endif
    
 #ifdef I830_XV
