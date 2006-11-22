@@ -399,9 +399,9 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	case PCI_CHIP_RADEON_LW:
 	     xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility M7, disabling multimedia i2c\n");
  	     return;
-	case PCI_CHIP_RV250_If:
+	/*case PCI_CHIP_RV250_If:
 	     xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon 9000 - skipping multimedia i2c initialization code.\n");
-	     return;
+	     return;*/
 	case PCI_CHIP_RV370_5460:
 	     xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility X300, disabling multimedia i2c\n");
 	     return;
