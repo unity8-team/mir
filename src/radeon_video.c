@@ -1396,6 +1396,13 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 
     /* Initialize VIP bus */
     RADEONVIP_init(pScrn, pPriv);
+
+    /* resetting the VIP bus causes problems with some mobility chips.
+     * we don't support video in on any mobility chips at the moment anyway
+     */
+    if (!info->IsMobility)
+	RADEONVIP_reset(pScrn, pPriv);
+
     info->adaptor = adapt;
 
 	if(!xf86LoadSubModule(pScrn,"theatre_detect")) 
