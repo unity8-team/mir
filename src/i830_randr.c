@@ -1183,7 +1183,8 @@ I830RRDefaultScreenLimits (RROutputPtr *outputs, int num_outputs,
 		    }
 		}
 	}
-	width += crtc_width;
+	if (crtc_width > width)
+	    width = crtc_width;
 	if (crtc_height > height)
 	    height = crtc_height;
     }
