@@ -1394,14 +1394,12 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
                 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "     found device at address 0x%02x\n", i);
     #endif
 
-    /* Initialize VIP bus */
-    RADEONVIP_init(pScrn, pPriv);
-
     /* resetting the VIP bus causes problems with some mobility chips.
      * we don't support video in on any mobility chips at the moment anyway
      */
+    /* Initialize VIP bus */
     if (!info->IsMobility)
-	RADEONVIP_reset(pScrn, pPriv);
+	RADEONVIP_init(pScrn, pPriv);
 
     info->adaptor = adapt;
 

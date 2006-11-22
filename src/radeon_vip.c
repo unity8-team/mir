@@ -351,5 +351,5 @@ void RADEONVIP_init(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     pPriv->VIP->fifo_read=RADEONVIP_fifo_read;
     pPriv->VIP->fifo_write=RADEONVIP_fifo_write;
    
-    /*RADEONVIP_reset(pScrn, pPriv);*/
+    RADEONVIP_reset(pScrn, pPriv);
 }
