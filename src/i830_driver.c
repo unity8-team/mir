@@ -661,10 +661,8 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
    } else {
       i830_dvo_init(pScrn);
    }
-#if 1
    if (IS_I915GM(pI830) || IS_I945GM(pI830))
       i830_tv_init(pScrn);
-#endif
 }
 
 static void 
@@ -1915,9 +1913,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 #endif
       pI830->disableTiling = TRUE; /* no DRI - so disableTiling */
 
-   if (pScrn->displayWidth >= 4096) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support > 1024x768 in leftof/rightof configurations. disabling DRI.\n");
-      pI830->directRenderingDisabled = TRUE;
+   if (pScrn->displayWidth * pI830->cpp > 8192) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support frame buffer stride > 8K >  DRI.\n");
+      pI830->disableTiling = TRUE;
    }
 
    if (pScrn->virtualY > 2048) {
