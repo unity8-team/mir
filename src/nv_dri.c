@@ -1,5 +1,6 @@
 #include "nv_include.h"
 
+#define _XF86DRI_SERVER_
 #include "GL/glxint.h"
 #include "GL/glxtokens.h"
 #include "sarea.h"
