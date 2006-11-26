@@ -10,7 +10,6 @@ Bool   NVI2CInit(ScrnInfoPtr pScrn);
 NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size);
 void        NVFreeMemory(NVPtr pNv, NVAllocRec *mem);
 
-#ifdef XF86DRI
 /* in nv_dri.c */
 unsigned int NVDRMGetParam(NVPtr pNv, unsigned int param);
 Bool NVDRMSetParam(NVPtr pNv, unsigned int param, unsigned int value);
@@ -19,7 +18,6 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
 Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn);
 extern const char *drmSymbols[], *driSymbols[];
 Bool NVDRIGetVersion(ScrnInfoPtr pScrn);
-#endif
 
 /* in nv_dac.c */
 Bool   NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode);

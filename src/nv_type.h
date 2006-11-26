@@ -241,11 +241,9 @@ typedef struct _NVRec {
     Bool                WaitVSyncPossible;
     Bool                BlendingPossible;
     Bool                RandRRotation;
-#ifdef XF86DRI
     DRIInfoPtr          pDRIInfo;
     drmVersionPtr       pLibDRMVersion;
     drmVersionPtr       pKernelDRMVersion;
-#endif /* XF86DRI */
 } NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

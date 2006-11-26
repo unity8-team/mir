@@ -31,9 +31,7 @@
 
 #include "xf86int10.h"
 
-#ifdef XF86DRI
 #include "xf86drm.h"
-#endif
 
 /*const   OptionInfoRec * RivaAvailableOptions(int chipid, int busid);
 Bool    RivaGetScrnInfoRec(PciChipsets *chips, int chip);*/
@@ -425,7 +423,6 @@ static const char *rivaSymbols[] = {
     NULL
 };
 
-#ifdef XF86DRI
 const char *drmSymbols[] = {
     "drmOpen", 
     "drmAddBufs",
@@ -469,7 +466,6 @@ const char *driSymbols[] = {
     NULL
 };
 
-#endif
 
 static MODULESETUPPROTO(nouveauSetup);
 

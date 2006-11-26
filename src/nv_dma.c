@@ -457,7 +457,6 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 					 0, 0, 0);
 	}
 
-#ifdef XF86DRI
 	if (pNv->useEXA && NVInitAGP(pScrn) && pNv->AGPScratch) {
 		pNv->Notifier0 = NVDmaCreateNotifier(pNv, NvDmaNotifier0);
 		if (pNv->Notifier0) {
@@ -477,7 +476,6 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 			pNv->AGPScratch = NULL;
 		}
 	}
-#endif
 
 	return TRUE;
 }
