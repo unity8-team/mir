@@ -930,18 +930,6 @@ i830GetLoadDetectPipe(I830_xf86OutputPtr output)
     I830OutputPrivatePtr    intel_output = output->driver_private;
     I830_xf86CrtcPtr	    crtc;
     int			    i;
-    /* VESA 640x480x72Hz mode to set on the pipe */
-    static DisplayModeRec   mode = {
-	NULL, NULL, "640x480", MODE_OK, M_T_DEFAULT,
-	31500,
-	640, 664, 704, 832, 0,
-	480, 489, 491, 520, 0,
-	V_NHSYNC | V_NVSYNC,
-	0, 0,
-	0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0,
-	FALSE, FALSE, 0, NULL, 0, 0.0, 0.0
-    };
 
     if (output->crtc) 
 	return output->crtc;
@@ -957,9 +945,6 @@ i830GetLoadDetectPipe(I830_xf86OutputPtr output)
 
     output->crtc = crtc;
     intel_output->load_detect_temp = TRUE;
-
-    I830xf86SetModeCrtc(&mode, INTERLACE_HALVE_V);
-    i830PipeSetMode(crtc, &mode, FALSE);
 
     return crtc;
 }
