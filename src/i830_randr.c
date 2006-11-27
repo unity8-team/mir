@@ -1215,17 +1215,17 @@ I830RandRPreInit (ScrnInfoPtr pScrn)
     {
 	I830_xf86OutputPtr  output = pI830->xf86_output[o];
 	RRModePtr	    randr_mode = output_modes[o];
+        RRCrtcPtr	    randr_crtc = output_crtcs[o];
 	DisplayModePtr	    mode;
-	RRCrtcPtr	    randr_crtc = output_crtcs[o];
-	I830_xf86CrtcPtr    crtc = randr_crtc->devPrivate;
 
-	if (randr_mode)
+	if (randr_mode && randr_crtc)
+	{
+	    I830_xf86CrtcPtr    crtc = randr_crtc->devPrivate;
+	    
 	    mode = (DisplayModePtr) randr_mode->devPrivate;
-	else
-	    mode = NULL;
-	if (mode)
 	    crtc->desiredMode = *mode;
-	output->crtc = crtc;
+	    output->crtc = crtc;
+	}
     }
 #endif
     i830_set_xf86_modes_from_outputs (pScrn);

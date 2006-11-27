@@ -667,6 +667,34 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       i830_tv_init(pScrn);
 }
 
+/**
+ * Setup the CRTCs
+ */
+
+static const I830_xf86CrtcFuncsRec i830_crtc_funcs = {
+};
+
+static void
+I830SetupCrtcs(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int	    p;
+
+    for (p = 0; p < pI830->num_pipes; p++)
+    {
+	I830_xf86CrtcPtr    crtc = i830xf86CrtcCreate (pScrn, &i830_crtc_funcs);
+	I830CrtcPrivatePtr  intel_crtc;
+	
+	if (!crtc)
+	    break;
+	intel_crtc = xnfcalloc (sizeof (I830CrtcPrivateRec), 1);
+	intel_crtc->pipe = p;
+	
+	crtc->driver_private = intel_crtc;
+	pI830->xf86_crtc[p] = crtc;
+    }
+}
+    
 static void 
 I830PreInitDDC(ScrnInfoPtr pScrn)
 {
@@ -684,8 +712,6 @@ I830PreInitDDC(ScrnInfoPtr pScrn)
    if (pI830->ddc2) {
       if (xf86LoadSubModule(pScrn, "i2c")) {
 	 xf86LoaderReqSymLists(I810i2cSymbols, NULL);
-
-	 I830SetupOutputs(pScrn);
 
 	 pI830->ddc2 = TRUE;
       } else {
@@ -1241,6 +1267,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    I830PreInitDDC(pScrn);
+   I830SetupOutputs(pScrn);
+   I830SetupCrtcs(pScrn);
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_CLONE, FALSE)) {
       if (pI830->num_pipes == 1) {

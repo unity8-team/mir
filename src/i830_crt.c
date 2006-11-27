@@ -292,13 +292,13 @@ i830_crt_detect(I830_xf86OutputPtr output)
 	return OUTPUT_STATUS_CONNECTED;
 
     /* Use the load-detect method if we have no other way of telling. */
-    crtc = i830xf86AllocCrtc (output);
+    crtc = i830GetLoadDetectPipe (output);
     
     if (crtc)
     {
 	Bool connected = i830_crt_detect_load(crtc, output);
 
-	i830xf86FreeCrtc (crtc);
+	i830ReleaseLoadDetectPipe (output);
 	if (connected)
 	    return OUTPUT_STATUS_CONNECTED;
 	else

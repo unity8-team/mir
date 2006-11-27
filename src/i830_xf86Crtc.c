@@ -39,8 +39,8 @@
  * Crtc functions
  */
 I830_xf86CrtcPtr
-i830xf86CrtcCreate (ScrnInfoPtr		    scrn,
-		    I830_xf86CrtcFuncsPtr   funcs)
+i830xf86CrtcCreate (ScrnInfoPtr			scrn,
+		    const I830_xf86CrtcFuncsRec	*funcs)
 {
     I830_xf86CrtcPtr	xf86_crtc;
 
@@ -119,6 +119,7 @@ i830xf86OutputDestroy (I830_xf86OutputPtr output)
 	    memmove (&pI830->xf86_output[o],
 		     &pI830->xf86_output[o+1],
 		     pI830->num_outputs - (o + 1));
+	    pI830->num_outputs--;
 	    break;
 	}
     xfree (output);

@@ -257,7 +257,7 @@ struct _I830_xf86Output {
  */
 I830_xf86CrtcPtr
 i830xf86CrtcCreate (ScrnInfoPtr			scrn,
-		    const I830_xf86CrtcFuncsPtr	funcs);
+		    const I830_xf86CrtcFuncsRec	*funcs);
 
 void
 i830xf86CrtcDestroy (I830_xf86CrtcPtr		xf86_crtc);
