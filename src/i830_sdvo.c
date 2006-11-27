@@ -1026,6 +1026,22 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	return;
     }
 
+    output->pI2CBus = i2cbus;
+    output->dev_priv = dev_priv;
+
+    /* Read the regs to test if we can talk to the device */
+    for (i = 0; i < 0x40; i++) {
+	if (!i830_sdvo_read_byte_quiet(output, i, &ch[i])) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "No SDVO device found on SDVO%c\n",
+		       output_device == SDVOB ? 'B' : 'C');
+	    xf86DestroyI2CDevRec(&dev_priv->d, FALSE);
+	    xf86DestroyI2CBusRec(i2cbus, TRUE, TRUE);
+	    xfree(dev_priv);
+	    return;
+	}
+    }
+
     /* Set up our wrapper I2C bus for DDC.  It acts just like the regular I2C
      * bus, except that it does the control bus switch to DDC mode before every
      * Start.  While we only need to do it at Start after every Stop after a
@@ -1055,24 +1071,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	xfree(dev_priv);
 	return;
     }
-
-    output->pI2CBus = i2cbus;
     output->pDDCBus = ddcbus;
-    output->dev_priv = dev_priv;
-
-    /* Read the regs to test if we can talk to the device */
-    for (i = 0; i < 0x40; i++) {
-	if (!i830_sdvo_read_byte_quiet(output, i, &ch[i])) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "No SDVO device found on SDVO%c\n",
-		       output_device == SDVOB ? 'B' : 'C');
-	    xf86DestroyI2CBusRec(output->pDDCBus, FALSE, FALSE);
-	    xf86DestroyI2CDevRec(&dev_priv->d, FALSE);
-	    xf86DestroyI2CBusRec(i2cbus, TRUE, TRUE);
-	    xfree(dev_priv);
-	    return;
-	}
-    }
 
     i830_sdvo_get_capabilities(output, &dev_priv->caps);
 
