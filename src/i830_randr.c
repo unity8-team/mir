@@ -889,7 +889,7 @@ I830RandRCreateScreenResources12 (ScreenPtr pScreen)
 	    mmWidth = mmWidth * width / pScreen->width;
 	if (height != pScreen->height)
 	    mmHeight = mmHeight * height / pScreen->height;
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Setting screen physical size to %d x %d\n",
 		   mmWidth, mmHeight);
 	I830RandRScreenSetSize (pScreen,

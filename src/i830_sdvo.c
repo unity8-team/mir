@@ -87,11 +87,20 @@ static Bool i830_sdvo_read_byte(I830OutputPtr output, int addr,
 
     if (!xf86I2CReadByte(&dev_priv->d, addr, ch)) {
 	xf86DrvMsg(output->pI2CBus->scrnIndex, X_ERROR,
-		   "Unable to read from %s slave %d.\n",
+		   "Unable to read from %s slave 0x%02x.\n",
 		   output->pI2CBus->BusName, dev_priv->d.SlaveAddr);
 	return FALSE;
     }
     return TRUE;
+}
+
+/** Read a single byte from the given address on the SDVO device. */
+static Bool i830_sdvo_read_byte_quiet(I830OutputPtr output, int addr,
+				      unsigned char *ch)
+{
+    struct i830_sdvo_priv *dev_priv = output->dev_priv;
+
+    return xf86I2CReadByte(&dev_priv->d, addr, ch);
 }
 
 /** Write a single byte to the given address on the SDVO device. */
@@ -102,7 +111,7 @@ static Bool i830_sdvo_write_byte(I830OutputPtr output,
 
     if (!xf86I2CWriteByte(&dev_priv->d, addr, ch)) {
 	xf86DrvMsg(output->pI2CBus->scrnIndex, X_ERROR,
-		   "Unable to write to %s Slave %d.\n",
+		   "Unable to write to %s Slave %02x.\n",
 		   output->pI2CBus->BusName, dev_priv->d.SlaveAddr);
 	return FALSE;
     }
@@ -1053,7 +1062,10 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 
     /* Read the regs to test if we can talk to the device */
     for (i = 0; i < 0x40; i++) {
-	if (!i830_sdvo_read_byte(output, i, &ch[i])) {
+	if (!i830_sdvo_read_byte_quiet(output, i, &ch[i])) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "No SDVO device found on SDVO%c\n",
+		       output_device == SDVOB ? 'B' : 'C');
 	    xf86DestroyI2CBusRec(output->pDDCBus, FALSE, FALSE);
 	    xf86DestroyI2CDevRec(&dev_priv->d, FALSE);
 	    xf86DestroyI2CBusRec(i2cbus, TRUE, TRUE);
