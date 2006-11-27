@@ -57,18 +57,21 @@ struct _I830DVODriver i830_dvo_drivers[] =
 #define I830_NUM_DVO_DRIVERS (sizeof(i830_dvo_drivers)/sizeof(struct _I830DVODriver))
 
 static void
-i830_dvo_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
+i830_dvo_dpms(I830_xf86OutputPtr output, int mode)
 {
+    I830OutputPrivatePtr    intel_output = output->driver_private;
     if (mode == DPMSModeOn)
-	output->i2c_drv->vid_rec->Power(output->i2c_drv->dev_priv, TRUE);
+	(*intel_output->i2c_drv->vid_rec->Power)(intel_output->i2c_drv->dev_priv, TRUE);
     else
-	output->i2c_drv->vid_rec->Power(output->i2c_drv->dev_priv, FALSE);
+	(*intel_output->i2c_drv->vid_rec->Power)(intel_output->i2c_drv->dev_priv, FALSE);
 }
 
 static void
-i830_dvo_save(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_dvo_save(I830_xf86OutputPtr output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
 
     /* Each output should probably just save the registers it touches, but for
      * now, use more overkill.
@@ -77,61 +80,68 @@ i830_dvo_save(ScrnInfoPtr pScrn, I830OutputPtr output)
     pI830->saveDVOB = INREG(DVOB);
     pI830->saveDVOC = INREG(DVOC);
 
-    output->i2c_drv->vid_rec->SaveRegs(output->i2c_drv->dev_priv);
+    (*intel_output->i2c_drv->vid_rec->SaveRegs)(intel_output->i2c_drv->dev_priv);
 }
 
 static void
-i830_dvo_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_dvo_restore(I830_xf86OutputPtr output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
 
     OUTREG(DVOA, pI830->saveDVOA);
     OUTREG(DVOB, pI830->saveDVOB);
     OUTREG(DVOC, pI830->saveDVOC);
 
-    output->i2c_drv->vid_rec->RestoreRegs(output->i2c_drv->dev_priv);
+    (*intel_output->i2c_drv->vid_rec->RestoreRegs)(intel_output->i2c_drv->dev_priv);
 }
 
 static int
-i830_dvo_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
-		    DisplayModePtr pMode)
+i830_dvo_mode_valid(I830_xf86OutputPtr output, DisplayModePtr pMode)
 {
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    
     if (pMode->Flags & V_DBLSCAN)
 	return MODE_NO_DBLESCAN;
 
     /* XXX: Validate clock range */
 
-    if (output->i2c_drv->vid_rec->ModeValid(output->i2c_drv->dev_priv, pMode))
+    if ((*intel_output->i2c_drv->vid_rec->ModeValid)(intel_output->i2c_drv->dev_priv, pMode))
 	return MODE_OK;
     else
 	return MODE_BAD;
 }
 
 static void
-i830_dvo_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
-		      DisplayModePtr pMode)
+i830_dvo_pre_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
 
-    output->i2c_drv->vid_rec->Mode(output->i2c_drv->dev_priv, pMode);
+    (*intel_output->i2c_drv->vid_rec->Mode)(intel_output->i2c_drv->dev_priv, pMode);
 
     OUTREG(DVOC, INREG(DVOC) & ~DVO_ENABLE);
 }
 
 static void
-i830_dvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
-		       DisplayModePtr pMode)
+i830_dvo_post_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 dvo;
-    int dpll_reg = (output->pipe == 0) ? DPLL_A : DPLL_B;
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830_xf86CrtcPtr	    crtc = output->crtc;
+    I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
+    int			    pipe = intel_crtc->pipe;
+    CARD32		    dvo;
+    int			    dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
 
     /* Save the data order, since I don't know what it should be set to. */
     dvo = INREG(DVOC) & (DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
     dvo |= DVO_ENABLE;
     dvo |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE | DVO_BLANK_ACTIVE_HIGH;
 
-    if (output->pipe == 1)
+    if (pipe == 1)
 	dvo |= DVO_PIPE_B_SELECT;
 
     if (pMode->Flags & V_PHSYNC)
@@ -155,7 +165,7 @@ i830_dvo_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
  * Unimplemented.
  */
 static enum detect_status
-i830_dvo_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_dvo_detect(I830_xf86OutputPtr output)
 {
     return OUTPUT_STATUS_UNKNOWN;
 }
@@ -191,46 +201,81 @@ I830I2CDetectDVOControllers(ScrnInfoPtr pScrn, I2CBusPtr pI2CBus,
     return FALSE;
 }
 
+static void
+i830_dvo_destroy (I830_xf86OutputPtr output)
+{
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+
+    if (intel_output)
+    {
+	if (intel_output->pI2CBus)
+	    xf86DestroyI2CBusRec (intel_output->pI2CBus, TRUE, TRUE);
+	if (intel_output->pDDCBus)
+	    xf86DestroyI2CBusRec (intel_output->pDDCBus, TRUE, TRUE);
+	/* XXX sub module cleanup? */
+	xfree (intel_output);
+    }
+}
+
+static const I830_xf86OutputFuncsRec i830_dvo_output_funcs = {
+    .dpms = i830_dvo_dpms,
+    .save = i830_dvo_save,
+    .restore = i830_dvo_restore,
+    .mode_valid = i830_dvo_mode_valid,
+    .pre_set_mode = i830_dvo_pre_set_mode,
+    .post_set_mode = i830_dvo_post_set_mode,
+    .detect = i830_dvo_detect,
+    .get_modes = i830_ddc_get_modes,
+    .destroy = i830_dvo_destroy
+};
+
 void
 i830_dvo_init(ScrnInfoPtr pScrn)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    Bool ret;
-    int i = pI830->num_outputs;
+    I830_xf86OutputPtr	    output;
+    I830OutputPrivatePtr    intel_output;
+    int			    ret;
 
-    pI830->output[i].type = I830_OUTPUT_DVO;
-    pI830->output[i].dpms = i830_dvo_dpms;
-    pI830->output[i].save = i830_dvo_save;
-    pI830->output[i].restore = i830_dvo_restore;
-    pI830->output[i].mode_valid  = i830_dvo_mode_valid;
-    pI830->output[i].pre_set_mode  = i830_dvo_pre_set_mode;
-    pI830->output[i].post_set_mode  = i830_dvo_post_set_mode;
-    pI830->output[i].detect  = i830_dvo_detect;
-    pI830->output[i].get_modes = i830_ddc_get_modes;
-
-    /* Set up the I2C and DDC buses */
-    ret = I830I2CInit(pScrn, &pI830->output[i].pI2CBus, GPIOE, "DVOI2C_E");
-    if (!ret)
+    output = i830xf86OutputCreate (pScrn, &i830_dvo_output_funcs,
+				   "ADD AGP card");
+    if (!output)
 	return;
+    intel_output = xnfcalloc (sizeof (I830OutputPrivateRec), 1);
+    if (!intel_output)
+    {
+	i830xf86OutputDestroy (output);
+	return;
+    }
+    intel_output->type = I830_OUTPUT_DVO;
+    output->driver_private = intel_output;
+    
+    /* Set up the I2C and DDC buses */
+    ret = I830I2CInit(pScrn, &intel_output->pI2CBus, GPIOE, "DVOI2C_E");
+    if (!ret)
+    {
+	i830xf86OutputDestroy (output);
+	return;
+    }
 
-    ret = I830I2CInit(pScrn, &pI830->output[i].pDDCBus, GPIOD, "DVODDC_D");
-    if (!ret) {
-	xf86DestroyI2CBusRec(pI830->output[i].pI2CBus, TRUE, TRUE);
+    ret = I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOD, "DVODDC_D");
+    if (!ret)
+    {
+	i830xf86OutputDestroy (output);
 	return;
     }
 
     /* Now, try to find a controller */
-    ret = I830I2CDetectDVOControllers(pScrn, pI830->output[i].pI2CBus,
-				      &pI830->output[i].i2c_drv);
-    if (ret) {
+    ret = I830I2CDetectDVOControllers(pScrn, intel_output->pI2CBus,
+				      &intel_output->i2c_drv);
+    if (ret)
+    {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found i2c %s on %08lX\n",
-		   pI830->output[i].i2c_drv->modulename,
-		   pI830->output[i].pI2CBus->DriverPrivate.uval);
-    } else {
-	xf86DestroyI2CBusRec(pI830->output[i].pI2CBus, TRUE, TRUE);
-	xf86DestroyI2CBusRec(pI830->output[i].pDDCBus, TRUE, TRUE);
+		   intel_output->i2c_drv->modulename,
+		   intel_output->pI2CBus->DriverPrivate.uval);
+    }
+    else
+    {
+	i830xf86OutputDestroy (output);
 	return;
     }
-
-    pI830->num_outputs++;
 }

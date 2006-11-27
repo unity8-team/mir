@@ -59,6 +59,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "vbe.h"
 #include "vgaHW.h"
 #include "randrstr.h"
+#include "i830_xf86Crtc.h"
 
 #ifdef XF86DRI
 #include "xf86drm.h"
@@ -187,6 +188,25 @@ enum detect_status {
    OUTPUT_STATUS_DISCONNECTED,
    OUTPUT_STATUS_UNKNOWN
 };
+
+typedef struct _I830CrtcPrivateRec {
+    int			    pipe;
+    Bool		    gammaEnabled;
+} I830CrtcPrivateRec, *I830CrtcPrivatePtr;
+
+#define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
+
+typedef struct _I830OutputPrivateRec {
+   int			    type;
+   I2CBusPtr		    pI2CBus;
+   I2CBusPtr		    pDDCBus;
+   struct _I830DVODriver    *i2c_drv;
+   Bool			    load_detect_temp;
+   /** Output-private structure.  Should replace i2c_drv */
+   void			    *dev_priv;
+} I830OutputPrivateRec, *I830OutputPrivatePtr;
+
+#define I830OutputPrivate(o) ((I830OutputPrivatePtr) (o)->driver_private)
 
 struct _I830OutputRec {
    int type;
@@ -467,10 +487,16 @@ typedef struct _I830Rec {
 
    Bool checkDevices;
 
+   /* XXX outputs and crtcs need to move to ScrnInfoRec */
+   int num_outputs;
+/*   struct _I830OutputRec output[MAX_OUTPUTS]; */
+   I830_xf86OutputPtr	xf86_output[MAX_OUTPUTS];
+    
    /* [0] is Pipe A, [1] is Pipe B. */
    int num_pipes;
    /* [0] is display plane A, [1] is display plane B. */
-   I830PipeRec	  pipes[MAX_DISPLAY_PIPES];
+/*   I830PipeRec	  pipes[MAX_DISPLAY_PIPES]; */
+   I830_xf86CrtcPtr  xf86_crtc[MAX_DISPLAY_PIPES];
    
    /* Driver phase/state information */
    Bool preinit;
@@ -488,8 +514,6 @@ typedef struct _I830Rec {
    OsTimerPtr devicesTimer;
 
    int ddc2;
-   int num_outputs;
-   struct _I830OutputRec output[MAX_OUTPUTS];
 
    /* Panel size pulled from the BIOS */
    int PanelXRes, PanelYRes;
@@ -580,7 +604,7 @@ extern void I830PrintErrorState(ScrnInfoPtr pScrn);
 extern void I965PrintErrorState(ScrnInfoPtr pScrn);
 extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
-extern void I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force);
+extern void I830SetPipeCursor (I830_xf86CrtcPtr crtc, Bool force);
 extern Bool I830CursorInit(ScreenPtr pScreen);
 extern void IntelEmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
@@ -661,7 +685,7 @@ extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 
 /* i830_display.c */
 Bool
-i830PipeHasType (ScrnInfoPtr pScrn, int pipe, int type);
+i830PipeHasType (I830_xf86CrtcPtr crtc, int type);
 
 /* i830_crt.c */
 void i830_crt_init(ScrnInfoPtr pScrn);
@@ -685,7 +709,7 @@ int I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time);
 void i830_reprobe_output_modes(ScrnInfoPtr pScrn);
 void i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn);
 void i830_set_default_screen_size(ScrnInfoPtr pScrn);
-DisplayModePtr i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output);
+DisplayModePtr i830_ddc_get_modes(I830_xf86OutputPtr output);
 
 /* i830_randr.c */
 Bool I830RandRCreateScreenResources (ScreenPtr pScreen);

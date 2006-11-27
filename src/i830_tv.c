@@ -143,11 +143,14 @@ const struct tv_mode {
 
 
 static int
-i830_tv_detect_type(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_tv_detect_type(I830_xf86OutputPtr output)
 {
+    ScrnInfoPtr		pScrn = output->scrn;
+    I830Ptr		pI830 = I830PTR(pScrn);
+    I830_xf86CrtcPtr	crtc = output->crtc;
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     CARD32 save_tv_ctl, save_tv_dac;
     CARD32 tv_ctl, tv_dac;
-    I830Ptr pI830 = I830PTR(pScrn);
 
     save_tv_ctl = INREG(TV_CTL);
     save_tv_dac = INREG(TV_DAC);
@@ -156,7 +159,7 @@ i830_tv_detect_type(ScrnInfoPtr pScrn, I830OutputPtr output)
      * which is already enabled.
      */
     tv_ctl = INREG(TV_CTL) & ~(TV_ENC_ENABLE | TV_ENC_PIPEB_SELECT);
-    if (output->pipe == 1)
+    if (intel_crtc->pipe == 1)
 	tv_ctl |= TV_ENC_PIPEB_SELECT;
     OUTREG(TV_CTL, tv_ctl);
 
@@ -200,8 +203,9 @@ i830_tv_detect_type(ScrnInfoPtr pScrn, I830OutputPtr output)
 }
 
 static void
-i830_tv_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
+i830_tv_dpms(I830_xf86OutputPtr output, int mode)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
 
     switch(mode) {
@@ -217,10 +221,12 @@ i830_tv_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 }
 
 static void
-i830_tv_save(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_tv_save(I830_xf86OutputPtr output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    struct i830_tv_priv *dev_priv = output->dev_priv;
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
 
     dev_priv->save_TV_H_CTL_1 = INREG(TV_H_CTL_1);
     dev_priv->save_TV_H_CTL_2 = INREG(TV_H_CTL_2);
@@ -241,10 +247,12 @@ i830_tv_save(ScrnInfoPtr pScrn, I830OutputPtr output)
 }
 
 static void
-i830_tv_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_tv_restore(I830_xf86OutputPtr output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    struct i830_tv_priv *dev_priv = output->dev_priv;
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
 
     OUTREG(TV_H_CTL_1, dev_priv->save_TV_H_CTL_1);
     OUTREG(TV_H_CTL_2, dev_priv->save_TV_H_CTL_2);
@@ -265,16 +273,15 @@ i830_tv_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
 }
 
 static int
-i830_tv_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
-		   DisplayModePtr pMode)
+i830_tv_mode_valid(I830_xf86OutputPtr output, DisplayModePtr pMode)
 {
     return MODE_OK;
 }
 
 static void
-i830_tv_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
-		     DisplayModePtr pMode)
+i830_tv_pre_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
 
     /* Disable the encoder while we set up the pipe. */
@@ -348,10 +355,12 @@ static const CARD32 v_chroma[43] = {
 };
 
 static void
-i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
-		      DisplayModePtr pMode)
+i830_tv_post_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
+    I830_xf86CrtcPtr	crtc = output->crtc;
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     enum tv_type type;
     const struct tv_mode *tv_mode;
     const struct tv_sc_mode *sc_mode;
@@ -368,7 +377,7 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     tv_mode = &tv_modes[0];
     sc_mode = &tv_sc_modes[TV_SC_NTSC_MJ];
 
-    type = i830_tv_detect_type(pScrn, output);
+    type = i830_tv_detect_type(output);
 
     hctl1 = (tv_mode->hsync_end << TV_HSYNC_END_SHIFT) |
 	(tv_mode->htotal << TV_HTOTAL_SHIFT);
@@ -408,7 +417,7 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
 	(tv_mode->vburst_end_f4 << TV_VBURST_END_F4_SHIFT);
 
     tv_ctl = TV_ENC_ENABLE;
-    if (output->pipe == 1)
+    if (intel_crtc->pipe == 1)
 	tv_ctl |= TV_ENC_PIPEB_SELECT;
 
     switch (type) {
@@ -501,8 +510,9 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
  * we have a pipe programmed in order to probe the TV.
  */
 static enum detect_status
-i830_tv_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_tv_detect(I830_xf86OutputPtr output)
 {
+    /* XXX need to load-detect */
     return OUTPUT_STATUS_CONNECTED;
 }
 
@@ -513,8 +523,9 @@ i830_tv_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
  * how to probe modes off of TV connections.
  */
 static DisplayModePtr
-i830_tv_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_tv_get_modes(I830_xf86OutputPtr output)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     DisplayModePtr new;
     char stmp[32];
@@ -553,36 +564,52 @@ i830_tv_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
     return new;
 }
 
+static void
+i830_tv_destroy (I830_xf86OutputPtr output)
+{
+    if (output->driver_private)
+	xfree (output->driver_private);
+}
+
+static const I830_xf86OutputFuncsRec i830_tv_output_funcs = {
+    .dpms = i830_tv_dpms,
+    .save = i830_tv_save,
+    .restore = i830_tv_restore,
+    .mode_valid = i830_tv_mode_valid,
+    .pre_set_mode = i830_tv_pre_set_mode,
+    .post_set_mode = i830_tv_post_set_mode,
+    .detect = i830_tv_detect,
+    .get_modes = i830_tv_get_modes,
+    .destroy = i830_tv_destroy
+};
+
 void
 i830_tv_init(ScrnInfoPtr pScrn)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830OutputPtr output = &pI830->output[pI830->num_outputs];
-    struct i830_tv_priv *dev_priv;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830_xf86OutputPtr	    output;
+    I830OutputPrivatePtr    intel_output;
+    struct i830_tv_priv	    *dev_priv;
  
     if ((INREG(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
 	return;
 
-    output->type = I830_OUTPUT_TVOUT;
-    output->pipe = 0;
-    output->enabled = FALSE;
-    output->load_detect_temp = FALSE;
+    output = i830xf86OutputCreate (pScrn, &i830_tv_output_funcs,
+				   "TV");
     
-    output->dpms = i830_tv_dpms;
-    output->save = i830_tv_save;
-    output->restore = i830_tv_restore;
-    output->mode_valid = i830_tv_mode_valid;
-    output->pre_set_mode = i830_tv_pre_set_mode;
-    output->post_set_mode = i830_tv_post_set_mode;
-    output->detect = i830_tv_detect;
-    output->get_modes = i830_tv_get_modes;
-
-    dev_priv = xnfcalloc(1, sizeof(struct i830_tv_priv));
-    
-    if (dev_priv == NULL)
+    if (!output)
 	return;
-
-    output->dev_priv = dev_priv;
-    ErrorF ("TV out is output %d\n", pI830->num_outputs);
-    pI830->num_outputs++;
+    
+    intel_output = xnfcalloc (sizeof (I830OutputPrivateRec) +
+			      sizeof (struct i830_tv_priv), 1);
+    if (!intel_output)
+    {
+	i830xf86OutputDestroy (output);
+	return;
+    }
+    dev_priv = (struct i830_tv_priv *) (intel_output + 1);
+    intel_output->type = I830_OUTPUT_SDVO;
+    intel_output->dev_priv = dev_priv;
+    
+    output->driver_private = intel_output;
 }

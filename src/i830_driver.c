@@ -548,8 +548,10 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    DPRINTF(PFX, "I830LoadPalette: numColors: %d\n", numColors);
    pI830 = I830PTR(pScrn);
 
-   for(p=0; p < pI830->num_pipes; p++) {
-      I830PipePtr pI830Pipe = &pI830->pipes[p];
+   for(p=0; p < pI830->num_pipes; p++) 
+   {
+      I830_xf86CrtcPtr	   crtc = pI830->xf86_crtc[p];
+      I830CrtcPrivatePtr   intel_crtc = crtc->driver_private;
 
       if (p == 0) {
          palreg = PALETTE_A;
@@ -563,10 +565,10 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 	 dspsurf = DSPBSURF;
       }
 
-      if (pI830Pipe->enabled == 0)
+      if (crtc->enabled == 0)
 	 continue;  
 
-      pI830Pipe->gammaEnabled = 1;
+      intel_crtc->gammaEnabled = 1;
       
       /* To ensure gamma is enabled we need to turn off and on the plane */
       temp = INREG(dspreg);
@@ -1261,33 +1263,44 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* Perform the pipe assignment of outputs. This is a kludge until
     * we have better configuration support in the generic RandR code
     */
-   for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].enabled = FALSE;
+   for (i = 0; i < pI830->num_outputs; i++) 
+   {
+      I830_xf86OutputPtr      output = pI830->xf86_output[i];
+      I830OutputPrivatePtr    intel_output = output->driver_private;
+      I830_xf86CrtcPtr	      crtc;
+      int		      p;
 
-      switch (pI830->output[i].type) {
+      output->crtc = NULL;
+
+      switch (intel_output->type) {
       case I830_OUTPUT_LVDS:
 	 /* LVDS must live on pipe B for two-pipe devices */
-	 pI830->output[i].pipe = pI830->num_pipes - 1;
-	 pI830->output[i].enabled = TRUE;
+	 crtc = pI830->xf86_crtc[pI830->num_pipes - 1];
+	 if (!i830PipeInUse (crtc))
+	    output->crtc = crtc;
 	 break;
       case I830_OUTPUT_ANALOG:
       case I830_OUTPUT_DVO:
       case I830_OUTPUT_SDVO:
-	 if (pI830->output[i].detect(pScrn, &pI830->output[i]) !=
-	     OUTPUT_STATUS_DISCONNECTED) {
-	    if (!i830PipeInUse(pScrn, 0)) {
-	       pI830->output[i].pipe = 0;
-	       pI830->output[i].enabled = TRUE;
-	    } else if (!i830PipeInUse(pScrn, 1)) {
-	       pI830->output[i].pipe = 1;
-	       pI830->output[i].enabled = TRUE;
+	 if ((*output->funcs->detect)(output) != OUTPUT_STATUS_DISCONNECTED) 
+	 {
+	    for (p = 0; p < pI830->num_pipes; p++)
+	    {
+	       crtc = pI830->xf86_crtc[p];
+	       if (!i830PipeInUse(crtc))
+	       {
+		  output->crtc = crtc;
+		  break;
+	       }
 	    }
 	 }
 	 break;
       case I830_OUTPUT_TVOUT:
-         if (!i830PipeInUse(pScrn, 0)) {
-	    pI830->output[i].pipe = 0;
-	    pI830->output[i].enabled = TRUE;
+	 crtc = pI830->xf86_crtc[0];
+	 if ((*output->funcs->detect)(output) != OUTPUT_STATUS_DISCONNECTED &&
+	     !i830PipeInUse(crtc))
+	 {
+	    output->crtc = crtc;
 	 }
 	 break;
       default:
@@ -1296,10 +1309,12 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       }
    }
 
-   for (i = 0; i < pI830->num_pipes; i++) {
-      pI830->pipes[i].enabled = i830PipeInUse(pScrn, i);
+   for (i = 0; i < pI830->num_pipes; i++) 
+   {
+      I830_xf86CrtcPtr	crtc = pI830->xf86_crtc[i];
+      crtc->enabled = i830PipeInUse(crtc);
    }
-
+   
    pI830->rotation = RR_Rotate_0;
    if ((s = xf86GetOptValString(pI830->Options, OPTION_ROTATE))) {
       pI830->InitialRotation = 0;
@@ -2108,8 +2123,9 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
 
    for (i = 0; i < pI830->num_outputs; i++) {
-      if (pI830->output[i].save != NULL)
-	 pI830->output[i].save(pScrn, &pI830->output[i]);
+      I830_xf86OutputPtr   output = pI830->xf86_output[i];
+      if (output->funcs->save)
+	 (*output->funcs->save) (output);
    }
 
    vgaHWUnlock(hwp);
@@ -2149,7 +2165,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    /* Disable outputs if necessary */
    for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], NULL);
+      I830_xf86OutputPtr   output = pI830->xf86_output[i];
+      (*output->funcs->pre_set_mode) (output, NULL);
    }
 
    i830WaitForVblank(pScrn);
@@ -2199,7 +2216,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
 
    for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].restore(pScrn, &pI830->output[i]);
+      I830_xf86OutputPtr   output = pI830->xf86_output[i];
+      (*output->funcs->restore) (output);
    }
 
    if (IS_I965G(pI830)) {
@@ -3235,8 +3253,11 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    }
 
    for (i = 0; i < pI830->num_pipes; i++)
-      if (pI830->pipes[i].enabled)
-	 i830PipeSetBase(pScrn, i, x, y);
+   {
+      I830_xf86CrtcPtr	crtc = pI830->xf86_crtc[i];
+      if (crtc->enabled)
+	 i830PipeSetBase(crtc, x, y);
+   }
 }
 
 static void
@@ -3349,17 +3370,17 @@ I830EnterVT(int scrnIndex, int flags)
 
    for (i = 0; i < pI830->num_pipes; i++)
    {
-      I830PipePtr pipe = &pI830->pipes[i];
+      I830_xf86CrtcPtr	crtc = pI830->xf86_crtc[i];
+
       /* Mark that we'll need to re-set the mode for sure */
-      memset(&pipe->curMode, 0, sizeof(pipe->curMode));
-      if (!pipe->desiredMode.CrtcHDisplay)
-      {
-	 pipe->desiredMode = *i830PipeFindClosestMode (pScrn, i,
-						       pScrn->currentMode);
-      }
-      if (!i830PipeSetMode (pScrn, &pipe->desiredMode, i, TRUE))
+      memset(&crtc->curMode, 0, sizeof(crtc->curMode));
+      if (!crtc->desiredMode.CrtcHDisplay)
+	 crtc->desiredMode = *i830PipeFindClosestMode (crtc, pScrn->currentMode);
+      
+      if (!i830PipeSetMode (crtc, &crtc->desiredMode, TRUE))
 	 return FALSE;
-      i830PipeSetBase(pScrn, i, pipe->x, pipe->y);
+      
+      i830PipeSetBase(crtc, crtc->x, crtc->y);
    }
 
    i830DisableUnusedFunctions(pScrn);
@@ -3527,7 +3548,7 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
 	    base = DSPBADDR;
 	    surf = DSPBSURF;
         }
-        if (pI830->pipes[i].enabled) {
+        if (pI830->xf86_crtc[i]->enabled) {
 	   temp = INREG(ctrl);
 	   if (on)
 	      temp |= DISPLAY_PLANE_ENABLE;
@@ -3565,10 +3586,15 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
    CARD32 temp, ctrl, base;
 
    for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].dpms(pScrn, &pI830->output[i], PowerManagementMode);
+      I830_xf86OutputPtr   output = pI830->xf86_output[i];
+      
+      (*output->funcs->dpms) (output, PowerManagementMode);
    }
 
-   for (i = 0; i < pI830->num_pipes; i++) {
+   for (i = 0; i < pI830->num_pipes; i++) 
+   {
+      I830_xf86CrtcPtr	   crtc = pI830->xf86_crtc[i];
+      
       if (i == 0) {
          ctrl = DSPACNTR;
          base = DSPABASE;
@@ -3576,7 +3602,8 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
          ctrl = DSPBCNTR;
          base = DSPBADDR;
       }
-      if (pI830->pipes[i].enabled) {
+      /* XXX pipe disable too? */
+      if (crtc->enabled) {
 	   temp = INREG(ctrl);
 	   if (PowerManagementMode == DPMSModeOn)
 	      temp |= DISPLAY_PLANE_ENABLE;

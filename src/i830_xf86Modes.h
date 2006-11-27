@@ -25,6 +25,9 @@
  *
  */
 
+#ifndef _I830_XF86MODES_H_
+#define _I830_XF86MODES_H_
+
 double
 i830xf86ModeHSync(DisplayModePtr mode);
 
@@ -77,3 +80,5 @@ void
 PrintModeline(int scrnIndex,DisplayModePtr mode);
 
 extern DisplayModeRec I830xf86DefaultModes[];
+
+#endif /* _I830_XF86MODES_H_ */

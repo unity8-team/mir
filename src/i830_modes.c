@@ -427,47 +427,44 @@ i830_reprobe_output_modes(ScrnInfoPtr pScrn)
     int i;
 
     /* Re-probe the list of modes for each output. */
-    for (i = 0; i < pI830->num_outputs; i++) {
+    for (i = 0; i < pI830->num_outputs; i++) 
+    {
+	I830_xf86OutputPtr  output = pI830->xf86_output[i];
 	DisplayModePtr mode;
 
-	while (pI830->output[i].probed_modes != NULL) {
-	    xf86DeleteMode(&pI830->output[i].probed_modes,
-			   pI830->output[i].probed_modes);
-	}
+	while (output->probed_modes != NULL)
+	    xf86DeleteMode(&output->probed_modes, output->probed_modes);
 
-	pI830->output[i].probed_modes =
-	    pI830->output[i].get_modes(pScrn, &pI830->output[i]);
+	output->probed_modes = (*output->funcs->get_modes) (output);
 
 	/* Set the DDC properties to whatever first output has DDC information.
 	 */
-	if (pI830->output[i].MonInfo != NULL && !properties_set) {
-	    xf86SetDDCproperties(pScrn, pI830->output[i].MonInfo);
+	if (output->MonInfo != NULL && !properties_set) {
+	    xf86SetDDCproperties(pScrn, output->MonInfo);
 	    properties_set = TRUE;
 	}
 
-	if (pI830->output[i].probed_modes != NULL) {
+	if (output->probed_modes != NULL) 
+	{
 	    /* silently prune modes down to ones matching the user's
 	     * configuration.
 	     */
-	    i830xf86ValidateModesUserConfig(pScrn,
-					    pI830->output[i].probed_modes);
-	    i830xf86PruneInvalidModes(pScrn, &pI830->output[i].probed_modes,
-				      FALSE);
+	    i830xf86ValidateModesUserConfig(pScrn, output->probed_modes);
+	    i830xf86PruneInvalidModes(pScrn, &output->probed_modes, FALSE);
 	}
 
 #ifdef DEBUG_REPROBE
-	if (pI830->output[i].probed_modes != NULL) {
+	if (output->probed_modes != NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Printing probed modes for output %s\n",
-		       i830_output_type_names[pI830->output[i].type]);
+		       output->name);
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "No remaining probed modes for output %s\n",
-		       i830_output_type_names[pI830->output[i].type]);
+		       output->name);
 	}
 #endif
-	for (mode = pI830->output[i].probed_modes; mode != NULL;
-	     mode = mode->next)
+	for (mode = output->probed_modes; mode != NULL; mode = mode->next)
 	{
 	    /* The code to choose the best mode per pipe later on will require
 	     * VRefresh to be set.
@@ -515,9 +512,9 @@ i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
      * care about enough to make some sort of unioned list.
      */
     for (i = 0; i < pI830->num_outputs; i++) {
-	if (pI830->output[i].probed_modes != NULL) {
-	    pScrn->modes =
-		i830xf86DuplicateModes(pScrn, pI830->output[i].probed_modes);
+	I830_xf86OutputPtr output = pI830->xf86_output[i];
+	if (output->probed_modes != NULL) {
+	    pScrn->modes = i830xf86DuplicateModes(pScrn, output->probed_modes);
 	    break;
 	}
     }
@@ -568,10 +565,10 @@ i830_set_default_screen_size(ScrnInfoPtr pScrn)
      * set for the currently-connected outputs.
      */
     for (i = 0; i < pI830->num_outputs; i++) {
+	I830_xf86OutputPtr  output = pI830->xf86_output[i];
 	DisplayModePtr mode;
 
-	for (mode = pI830->output[i].probed_modes; mode != NULL;
-	     mode = mode->next)
+	for (mode = output->probed_modes; mode != NULL; mode = mode->next)
 	{
 	    if (mode->HDisplay > maxX)
 		maxX = mode->HDisplay;
@@ -618,8 +615,7 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 #define EDID_ATOM_NAME		"EDID_DATA"
 
 static void
-i830_ddc_set_edid_property(ScrnInfoPtr pScrn, I830OutputPtr output,
-			   void *data, int data_len)
+i830_ddc_set_edid_property(I830_xf86OutputPtr output, void *data, int data_len)
 {
     Atom edid_atom = MakeAtom(EDID_ATOM_NAME, sizeof(EDID_ATOM_NAME), TRUE);
 
@@ -640,16 +636,18 @@ i830_ddc_set_edid_property(ScrnInfoPtr pScrn, I830OutputPtr output,
  * Generic get_modes function using DDC, used by many outputs.
  */
 DisplayModePtr
-i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_ddc_get_modes(I830_xf86OutputPtr output)
 {
+    ScrnInfoPtr	pScrn = output->scrn;
+    I830OutputPrivatePtr intel_output = output->driver_private;
     xf86MonPtr ddc_mon;
     DisplayModePtr ddc_modes, mode;
     int i;
 
-    ddc_mon = xf86DoEDID_DDC2(pScrn->scrnIndex, output->pDDCBus);
+    ddc_mon = xf86DoEDID_DDC2(pScrn->scrnIndex, intel_output->pDDCBus);
     if (ddc_mon == NULL) {
 #ifdef RANDR_12_INTERFACE
-	i830_ddc_set_edid_property(pScrn, output, NULL, 0);
+	i830_ddc_set_edid_property(output, NULL, 0);
 #endif
 	return NULL;
     }
@@ -660,24 +658,23 @@ i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
 
 #ifdef RANDR_12_INTERFACE
     if (output->MonInfo->ver.version == 1) {
-	i830_ddc_set_edid_property(pScrn, output, ddc_mon->rawData, 128);
+	i830_ddc_set_edid_property(output, ddc_mon->rawData, 128);
     } else if (output->MonInfo->ver.version == 2) {
-	i830_ddc_set_edid_property(pScrn, output, ddc_mon->rawData, 256);
+	i830_ddc_set_edid_property(output, ddc_mon->rawData, 256);
     } else {
-	i830_ddc_set_edid_property(pScrn, output, NULL, 0);
+	i830_ddc_set_edid_property(output, NULL, 0);
     }
 #endif
 
     /* Debug info for now, at least */
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %s\n",
-	       i830_output_type_names[output->type]);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %s\n", output->name);
     xf86PrintEDID(output->MonInfo);
 
     ddc_modes = i830GetDDCModes(pScrn, ddc_mon);
 
     /* Strip out any modes that can't be supported on this output. */
     for (mode = ddc_modes; mode != NULL; mode = mode->next) {
-	int status = output->mode_valid(pScrn, output, mode);
+	int status = (*output->funcs->mode_valid)(output, mode);
 
 	if (status != MODE_OK)
 	    mode->status = status;
