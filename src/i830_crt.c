@@ -35,7 +35,7 @@
 #include "i830_display.h"
 
 static void
-i830_crt_dpms(I830_xf86OutputPtr output, int mode)
+i830_crt_dpms(xf86OutputPtr output, int mode)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
     I830Ptr	    pI830 = I830PTR(pScrn);
@@ -64,7 +64,7 @@ i830_crt_dpms(I830_xf86OutputPtr output, int mode)
 }
 
 static void
-i830_crt_save (I830_xf86OutputPtr output)
+i830_crt_save (xf86OutputPtr output)
 {
     ScrnInfoPtr	pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
@@ -73,7 +73,7 @@ i830_crt_save (I830_xf86OutputPtr output)
 }
 
 static void
-i830_crt_restore (I830_xf86OutputPtr output)
+i830_crt_restore (xf86OutputPtr output)
 {
     ScrnInfoPtr	pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
@@ -82,7 +82,7 @@ i830_crt_restore (I830_xf86OutputPtr output)
 }
 
 static int
-i830_crt_mode_valid(I830_xf86OutputPtr output, DisplayModePtr pMode)
+i830_crt_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
     if (pMode->Flags & V_DBLSCAN)
 	return MODE_NO_DBLESCAN;
@@ -94,16 +94,16 @@ i830_crt_mode_valid(I830_xf86OutputPtr output, DisplayModePtr pMode)
 }
 
 static void
-i830_crt_pre_set_mode (I830_xf86OutputPtr output, DisplayModePtr pMode)
+i830_crt_pre_set_mode (xf86OutputPtr output, DisplayModePtr pMode)
 {
 }
 
 static void
-i830_crt_post_set_mode (I830_xf86OutputPtr output, DisplayModePtr pMode)
+i830_crt_post_set_mode (xf86OutputPtr output, DisplayModePtr pMode)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
-    I830_xf86CrtcPtr	    crtc = output->crtc;
+    xf86CrtcPtr	    crtc = output->crtc;
     I830CrtcPrivatePtr	    i830_crtc = crtc->driver_private;
     int			    dpll_md_reg;
     CARD32		    adpa, dpll_md;
@@ -146,7 +146,7 @@ i830_crt_post_set_mode (I830_xf86OutputPtr output, DisplayModePtr pMode)
  * \return FALSE if CRT is disconnected.
  */
 static Bool
-i830_crt_detect_hotplug(I830_xf86OutputPtr output)
+i830_crt_detect_hotplug(xf86OutputPtr output)
 {
     ScrnInfoPtr	pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
@@ -185,8 +185,8 @@ i830_crt_detect_hotplug(I830_xf86OutputPtr output)
  * \return FALSE if CRT is disconnected.
  */
 static Bool
-i830_crt_detect_load (I830_xf86CrtcPtr	    crtc,
-		      I830_xf86OutputPtr    output)
+i830_crt_detect_load (xf86CrtcPtr	    crtc,
+		      xf86OutputPtr    output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
@@ -257,7 +257,7 @@ i830_crt_detect_load (I830_xf86CrtcPtr	    crtc,
  * \return FALSE if no DDC response was detected.
  */
 static Bool
-i830_crt_detect_ddc(I830_xf86OutputPtr output)
+i830_crt_detect_ddc(xf86OutputPtr output)
 {
     I830OutputPrivatePtr    i830_output = output->driver_private;
 
@@ -275,11 +275,11 @@ i830_crt_detect_ddc(I830_xf86OutputPtr output)
  *        on active displays.
  */
 static enum detect_status
-i830_crt_detect(I830_xf86OutputPtr output)
+i830_crt_detect(xf86OutputPtr output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
-    I830_xf86CrtcPtr	    crtc;
+    xf86CrtcPtr	    crtc;
 
     if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_I965G(pI830)) {
 	if (i830_crt_detect_hotplug(output))
@@ -329,7 +329,7 @@ i830_crt_detect(I830_xf86OutputPtr output)
 }
 
 static DisplayModePtr
-i830_crt_get_modes(I830_xf86OutputPtr output)
+i830_crt_get_modes(xf86OutputPtr output)
 {
     ScrnInfoPtr		pScrn = output->scrn;
     DisplayModePtr	modes;
@@ -361,13 +361,13 @@ i830_crt_get_modes(I830_xf86OutputPtr output)
 }
 
 static void
-i830_crt_destroy (I830_xf86OutputPtr output)
+i830_crt_destroy (xf86OutputPtr output)
 {
     if (output->driver_private)
 	xfree (output->driver_private);
 }
 
-static const I830_xf86OutputFuncsRec i830_crt_output_funcs = {
+static const xf86OutputFuncsRec i830_crt_output_funcs = {
     .dpms = i830_crt_dpms,
     .save = i830_crt_save,
     .restore = i830_crt_restore,
@@ -382,16 +382,16 @@ static const I830_xf86OutputFuncsRec i830_crt_output_funcs = {
 void
 i830_crt_init(ScrnInfoPtr pScrn)
 {
-    I830_xf86OutputPtr	    output;
+    xf86OutputPtr	    output;
     I830OutputPrivatePtr    i830_output;
 
-    output = i830xf86OutputCreate (pScrn, &i830_crt_output_funcs, "VGA");
+    output = xf86OutputCreate (pScrn, &i830_crt_output_funcs, "VGA");
     if (!output)
 	return;
     i830_output = xnfcalloc (sizeof (I830OutputPrivateRec), 1);
     if (!i830_output)
     {
-	i830xf86OutputDestroy (output);
+	xf86OutputDestroy (output);
 	return;
     }
     i830_output->type = I830_OUTPUT_ANALOG;

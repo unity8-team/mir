@@ -427,9 +427,9 @@ i830_reprobe_output_modes(ScrnInfoPtr pScrn)
     int i;
 
     /* Re-probe the list of modes for each output. */
-    for (i = 0; i < pI830->num_outputs; i++) 
+    for (i = 0; i < pI830->xf86_config.num_output; i++) 
     {
-	I830_xf86OutputPtr  output = pI830->xf86_output[i];
+	xf86OutputPtr  output = pI830->xf86_config.output[i];
 	DisplayModePtr mode;
 
 	while (output->probed_modes != NULL)
@@ -511,8 +511,8 @@ i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
      * pScrn->modes should only be used for XF86VidMode now, which we don't
      * care about enough to make some sort of unioned list.
      */
-    for (i = 0; i < pI830->num_outputs; i++) {
-	I830_xf86OutputPtr output = pI830->xf86_output[i];
+    for (i = 0; i < pI830->xf86_config.num_output; i++) {
+	xf86OutputPtr output = pI830->xf86_config.output[i];
 	if (output->probed_modes != NULL) {
 	    pScrn->modes = i830xf86DuplicateModes(pScrn, output->probed_modes);
 	    break;
@@ -564,8 +564,8 @@ i830_set_default_screen_size(ScrnInfoPtr pScrn)
     /* Set up a virtual size that will cover any clone mode we'd want to
      * set for the currently-connected outputs.
      */
-    for (i = 0; i < pI830->num_outputs; i++) {
-	I830_xf86OutputPtr  output = pI830->xf86_output[i];
+    for (i = 0; i < pI830->xf86_config.num_output; i++) {
+	xf86OutputPtr  output = pI830->xf86_config.output[i];
 	DisplayModePtr mode;
 
 	for (mode = output->probed_modes; mode != NULL; mode = mode->next)
@@ -615,7 +615,7 @@ I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 #define EDID_ATOM_NAME		"EDID_DATA"
 
 static void
-i830_ddc_set_edid_property(I830_xf86OutputPtr output, void *data, int data_len)
+i830_ddc_set_edid_property(xf86OutputPtr output, void *data, int data_len)
 {
     Atom edid_atom = MakeAtom(EDID_ATOM_NAME, sizeof(EDID_ATOM_NAME), TRUE);
 
@@ -636,7 +636,7 @@ i830_ddc_set_edid_property(I830_xf86OutputPtr output, void *data, int data_len)
  * Generic get_modes function using DDC, used by many outputs.
  */
 DisplayModePtr
-i830_ddc_get_modes(I830_xf86OutputPtr output)
+i830_ddc_get_modes(xf86OutputPtr output)
 {
     ScrnInfoPtr	pScrn = output->scrn;
     I830OutputPrivatePtr intel_output = output->driver_private;

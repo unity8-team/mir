@@ -19,15 +19,15 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
  * OF THIS SOFTWARE.
  */
-#ifndef _I830_XF86CRTC_H_
-#define _I830_XF86CRTC_H_
+#ifndef _XF86CRTC_H_
+#define _XF86CRTC_H_
 
 #include <edid.h>
 #include "i830_xf86Modes.h"
 
-typedef struct _I830_xf86Crtc I830_xf86CrtcRec, *I830_xf86CrtcPtr;
+typedef struct _xf86Crtc xf86CrtcRec, *xf86CrtcPtr;
 
-typedef struct _I830_xf86CrtcFuncs {
+typedef struct _xf86CrtcFuncs {
    /**
     * Turns the crtc on/off, or sets intermediate power levels if available.
     *
@@ -36,33 +36,33 @@ typedef struct _I830_xf86CrtcFuncs {
     * disabled afterwards.
     */
    void
-    (*dpms)(I830_xf86CrtcPtr		crtc,
-	    int				mode);
+    (*dpms)(xf86CrtcPtr		crtc,
+	    int		    	mode);
 
    /**
     * Saves the crtc's state for restoration on VT switch.
     */
    void
-    (*save)(I830_xf86CrtcPtr		crtc);
+    (*save)(xf86CrtcPtr		crtc);
 
    /**
     * Restore's the crtc's state at VT switch.
     */
    void
-    (*restore)(I830_xf86CrtcPtr		crtc);
+    (*restore)(xf86CrtcPtr	crtc);
 
     /**
      * Clean up driver-specific bits of the crtc
      */
     void
-    (*destroy) (I830_xf86CrtcPtr	crtc);
-} I830_xf86CrtcFuncsRec, *I830_xf86CrtcFuncsPtr;
+    (*destroy) (xf86CrtcPtr	crtc);
+} xf86CrtcFuncsRec, *xf86CrtcFuncsPtr;
 
-struct _I830_xf86Crtc {
+struct _xf86Crtc {
     /**
      * Associated ScrnInfo
      */
-    ScrnInfoPtr		scrn;
+    ScrnInfoPtr	    scrn;
     
     /**
      * Active state of this CRTC
@@ -104,7 +104,7 @@ struct _I830_xf86Crtc {
     DisplayModeRec  desiredMode;
     
     /** crtc-specific functions */
-    const I830_xf86CrtcFuncsRec *funcs;
+    const xf86CrtcFuncsRec *funcs;
 
     /**
      * Driver private
@@ -126,9 +126,9 @@ struct _I830_xf86Crtc {
 #endif
 };
 
-typedef struct _I830_xf86Output I830_xf86OutputRec, *I830_xf86OutputPtr;
+typedef struct _xf86Output xf86OutputRec, *xf86OutputPtr;
 
-typedef struct _I830_xf86OutputFuncs {
+typedef struct _xf86OutputFuncs {
     /**
      * Turns the output on/off, or sets intermediate power levels if available.
      *
@@ -137,20 +137,20 @@ typedef struct _I830_xf86OutputFuncs {
      * disabled afterwards.
      */
     void
-    (*dpms)(I830_xf86OutputPtr	output,
+    (*dpms)(xf86OutputPtr	output,
 	    int			mode);
 
     /**
      * Saves the output's state for restoration on VT switch.
      */
     void
-    (*save)(I830_xf86OutputPtr		output);
+    (*save)(xf86OutputPtr	output);
 
     /**
      * Restore's the output's state at VT switch.
      */
     void
-    (*restore)(I830_xf86OutputPtr	output);
+    (*restore)(xf86OutputPtr	output);
 
     /**
      * Callback for testing a video mode for a given output.
@@ -161,8 +161,8 @@ typedef struct _I830_xf86OutputFuncs {
      * \return MODE_OK if the mode is valid, or another MODE_* otherwise.
      */
     int
-    (*mode_valid)(I830_xf86OutputPtr	output,
-		  DisplayModePtr	pMode);
+    (*mode_valid)(xf86OutputPtr	    output,
+		  DisplayModePtr    pMode);
 
     /**
      * Callback for setting up a video mode before any crtc/dpll changes.
@@ -171,22 +171,22 @@ typedef struct _I830_xf86OutputFuncs {
      * unknown (such as the restore path of VT switching).
      */
     void
-    (*pre_set_mode)(I830_xf86OutputPtr  output,
-		    DisplayModePtr	pMode);
+    (*pre_set_mode)(xf86OutputPtr   output,
+		    DisplayModePtr  pMode);
 
     /**
      * Callback for setting up a video mode after the DPLL update but before
      * the plane is enabled.
      */
     void
-    (*post_set_mode)(I830_xf86OutputPtr	output,
-		     DisplayModePtr	pMode);
+    (*post_set_mode)(xf86OutputPtr  output,
+		     DisplayModePtr pMode);
 
     /**
      * Probe for a connected output, and return detect_status.
      */
     enum detect_status
-    (*detect)(I830_xf86OutputPtr	output);
+    (*detect)(xf86OutputPtr	    output);
 
     /**
      * Query the device for the modes it provides.
@@ -196,16 +196,16 @@ typedef struct _I830_xf86OutputFuncs {
      * \return singly-linked list of modes or NULL if no modes found.
      */
     DisplayModePtr
-    (*get_modes)(I830_xf86OutputPtr	output);
+    (*get_modes)(xf86OutputPtr	    output);
 
     /**
      * Clean up driver-specific bits of the output
      */
     void
-    (*destroy) (I830_xf86OutputPtr	output);
-} I830_xf86OutputFuncsRec, *I830_xf86OutputFuncsPtr;
+    (*destroy) (xf86OutputPtr	    output);
+} xf86OutputFuncsRec, *xf86OutputFuncsPtr;
 
-struct _I830_xf86Output {
+struct _xf86Output {
     /**
      * Associated ScrnInfo
      */
@@ -215,7 +215,7 @@ struct _I830_xf86Output {
      *
      * If this output is not in use, this field will be NULL.
      */
-    I830_xf86CrtcPtr	crtc;
+    xf86CrtcPtr		crtc;
     /**
      * List of available modes on this output.
      *
@@ -234,7 +234,7 @@ struct _I830_xf86Output {
     char		*name;
 
     /** output-specific functions */
-    const I830_xf86OutputFuncsRec *funcs;
+    const xf86OutputFuncsRec *funcs;
 
     /** driver private information */
     void		*driver_private;
@@ -252,15 +252,28 @@ struct _I830_xf86Output {
 #endif
 };
 
+#define XF86_MAX_CRTC	4
+#define XF86_MAX_OUTPUT	16
+
+typedef struct _xf86CrtcConfig {
+   int			num_output;
+   xf86OutputPtr	output[XF86_MAX_OUTPUT];
+    
+   int			num_crtc;
+   xf86CrtcPtr		crtc[XF86_MAX_CRTC];
+} xf86CrtcConfigRec, *xf86CrtcConfigPtr;
+
+#define XF86_CRTC_CONFIG_PTR(p)	((xf86CrtcConfigPtr) ((p)->driverPrivate))
+
 /*
  * Crtc functions
  */
-I830_xf86CrtcPtr
-i830xf86CrtcCreate (ScrnInfoPtr			scrn,
-		    const I830_xf86CrtcFuncsRec	*funcs);
+xf86CrtcPtr
+xf86CrtcCreate (ScrnInfoPtr		scrn,
+		const xf86CrtcFuncsRec	*funcs);
 
 void
-i830xf86CrtcDestroy (I830_xf86CrtcPtr		xf86_crtc);
+xf86CrtcDestroy (xf86CrtcPtr		crtc);
 
 
 /**
@@ -270,8 +283,8 @@ i830xf86CrtcDestroy (I830_xf86CrtcPtr		xf86_crtc);
  * the specified output
  */
 
-I830_xf86CrtcPtr 
-i830xf86AllocCrtc (I830_xf86OutputPtr		output);
+xf86CrtcPtr 
+xf86AllocCrtc (xf86OutputPtr		output);
 
 /**
  * Free a crtc
@@ -280,17 +293,17 @@ i830xf86AllocCrtc (I830_xf86OutputPtr		output);
  */
 
 void
-i830xf86FreeCrtc (I830_xf86CrtcPtr crtc);
+xf86FreeCrtc (xf86CrtcPtr		crtc);
 
 /*
  * Output functions
  */
-I830_xf86OutputPtr
-i830xf86OutputCreate (ScrnInfoPtr		    scrn,
-		      const I830_xf86OutputFuncsRec *funcs,
-		      const char		    *name);
+xf86OutputPtr
+xf86OutputCreate (ScrnInfoPtr		scrn,
+		      const xf86OutputFuncsRec *funcs,
+		      const char	*name);
 
 void
-i830xf86OutputDestroy (I830_xf86OutputPtr	xf86_output);
+xf86OutputDestroy (xf86OutputPtr	output);
 
-#endif /* _I830_XF86CRTC_H_ */
+#endif /* _XF86CRTC_H_ */

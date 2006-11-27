@@ -73,7 +73,7 @@ i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on)
 }
 
 static void
-i830_lvds_dpms (I830_xf86OutputPtr output, int mode)
+i830_lvds_dpms (xf86OutputPtr output, int mode)
 {
     ScrnInfoPtr	pScrn = output->scrn;
 
@@ -84,7 +84,7 @@ i830_lvds_dpms (I830_xf86OutputPtr output, int mode)
 }
 
 static void
-i830_lvds_save (I830_xf86OutputPtr output)
+i830_lvds_save (xf86OutputPtr output)
 {
     ScrnInfoPtr	pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
@@ -109,7 +109,7 @@ i830_lvds_save (I830_xf86OutputPtr output)
 }
 
 static void
-i830_lvds_restore(I830_xf86OutputPtr output)
+i830_lvds_restore(xf86OutputPtr output)
 {
     ScrnInfoPtr	pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
@@ -127,13 +127,13 @@ i830_lvds_restore(I830_xf86OutputPtr output)
 }
 
 static int
-i830_lvds_mode_valid(I830_xf86OutputPtr output, DisplayModePtr pMode)
+i830_lvds_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
    return MODE_OK;
 }
 
 static void
-i830_lvds_pre_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
+i830_lvds_pre_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
 {
     ScrnInfoPtr	pScrn = output->scrn;
     /* Always make sure the LVDS is off before we play with DPLLs and pipe
@@ -145,7 +145,7 @@ i830_lvds_pre_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
 }
 
 static void
-i830_lvds_post_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
+i830_lvds_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
 {
     ScrnInfoPtr	pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
@@ -185,7 +185,7 @@ i830_lvds_post_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
  * been set up if the LVDS was actually connected anyway.
  */
 static enum detect_status
-i830_lvds_detect(I830_xf86OutputPtr output)
+i830_lvds_detect(xf86OutputPtr output)
 {
     return OUTPUT_STATUS_CONNECTED;
 }
@@ -194,7 +194,7 @@ i830_lvds_detect(I830_xf86OutputPtr output)
  * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
  */
 static DisplayModePtr
-i830_lvds_get_modes(I830_xf86OutputPtr output)
+i830_lvds_get_modes(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
     I830Ptr	    pI830 = I830PTR(pScrn);
@@ -225,7 +225,7 @@ i830_lvds_get_modes(I830_xf86OutputPtr output)
 }
 
 static void
-i830_lvds_destroy (I830_xf86OutputPtr output)
+i830_lvds_destroy (xf86OutputPtr output)
 {
     I830OutputPrivatePtr    intel_output = output->driver_private;
 
@@ -233,7 +233,7 @@ i830_lvds_destroy (I830_xf86OutputPtr output)
 	xfree (intel_output);
 }
 
-static const I830_xf86OutputFuncsRec i830_lvds_output_funcs = {
+static const xf86OutputFuncsRec i830_lvds_output_funcs = {
     .dpms = i830_lvds_dpms,
     .save = i830_lvds_save,
     .restore = i830_lvds_restore,
@@ -249,7 +249,7 @@ void
 i830_lvds_init(ScrnInfoPtr pScrn)
 {
     I830Ptr		    pI830 = I830PTR(pScrn);
-    I830_xf86OutputPtr	    output;
+    xf86OutputPtr	    output;
     I830OutputPrivatePtr    intel_output;
 
 
@@ -286,13 +286,13 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 	}
    }
 
-    output = i830xf86OutputCreate (pScrn, &i830_lvds_output_funcs, "Built-in LCD panel");
+    output = xf86OutputCreate (pScrn, &i830_lvds_output_funcs, "Built-in LCD panel");
     if (!output)
 	return;
     intel_output = xnfcalloc (sizeof (I830OutputPrivateRec), 1);
     if (!intel_output)
     {
-	i830xf86OutputDestroy (output);
+	xf86OutputDestroy (output);
 	return;
     }
     intel_output->type = I830_OUTPUT_LVDS;

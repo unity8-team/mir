@@ -64,15 +64,15 @@ i830PrintPll(char *prefix, int refclk, int m1, int m2, int n, int p1, int p2)
  * Returns whether any output on the specified pipe is of the specified type
  */
 Bool
-i830PipeHasType (I830_xf86CrtcPtr crtc, int type)
+i830PipeHasType (xf86CrtcPtr crtc, int type)
 {
     ScrnInfoPtr	pScrn = crtc->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
     int		i;
 
-    for (i = 0; i < pI830->num_outputs; i++)
+    for (i = 0; i < pI830->xf86_config.num_output; i++)
     {
-	I830_xf86OutputPtr  output = pI830->xf86_output[i];
+	xf86OutputPtr  output = pI830->xf86_config.output[i];
 	if (output->crtc == crtc)
 	{
 	    I830OutputPrivatePtr    intel_output = output->driver_private;
@@ -91,7 +91,7 @@ i830PipeHasType (I830_xf86CrtcPtr crtc, int type)
  * clk = refclk * (5 * m1 + m2) / n / (p1 * p2)
  */
 static Bool
-i830PllIsValid(I830_xf86CrtcPtr crtc, int refclk, int m1, int m2,
+i830PllIsValid(xf86CrtcPtr crtc, int refclk, int m1, int m2,
 	       int n, int p1, int p2)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
@@ -177,7 +177,7 @@ i830PllIsValid(I830_xf86CrtcPtr crtc, int refclk, int m1, int m2,
  * clk = refclk * (5 * m1 + m2) / n / (p1 * p2)
  */
 static Bool
-i830FindBestPLL(I830_xf86CrtcPtr crtc, int target, int refclk,
+i830FindBestPLL(xf86CrtcPtr crtc, int target, int refclk,
 		int *outm1, int *outm2, int *outn, int *outp1, int *outp2)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
@@ -262,7 +262,7 @@ i830WaitForVblank(ScrnInfoPtr pScreen)
 }
 
 void
-i830PipeSetBase(I830_xf86CrtcPtr crtc, int x, int y)
+i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
@@ -300,7 +300,7 @@ i830PipeSetBase(I830_xf86CrtcPtr crtc, int x, int y)
  * - Closer in refresh rate to the requested mode.
  */
 DisplayModePtr
-i830PipeFindClosestMode(I830_xf86CrtcPtr crtc, DisplayModePtr pMode)
+i830PipeFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
 {
     ScrnInfoPtr	pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
@@ -308,9 +308,9 @@ i830PipeFindClosestMode(I830_xf86CrtcPtr crtc, DisplayModePtr pMode)
     int i;
 
     /* Assume that there's only one output connected to the given CRTC. */
-    for (i = 0; i < pI830->num_outputs; i++) 
+    for (i = 0; i < pI830->xf86_config.num_output; i++) 
     {
-	I830_xf86OutputPtr  output = pI830->xf86_output[i];
+	xf86OutputPtr  output = pI830->xf86_config.output[i];
 	if (output->crtc == crtc && output->probed_modes != NULL)
 	{
 	    pScan = output->probed_modes;
@@ -396,14 +396,14 @@ i830PipeFindClosestMode(I830_xf86CrtcPtr crtc, DisplayModePtr pMode)
  */
 
 Bool
-i830PipeInUse (I830_xf86CrtcPtr crtc)
+i830PipeInUse (xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     int	i;
     
-    for (i = 0; i < pI830->num_outputs; i++)
-	if (pI830->xf86_output[i]->crtc == crtc)
+    for (i = 0; i < pI830->xf86_config.num_output; i++)
+	if (pI830->xf86_config.output[i]->crtc == crtc)
 	    return TRUE;
     return FALSE;
 }
@@ -417,7 +417,7 @@ i830PipeInUse (I830_xf86CrtcPtr crtc)
  * display data.
  */
 Bool
-i830PipeSetMode(I830_xf86CrtcPtr crtc, DisplayModePtr pMode,
+i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
 		Bool plane_enable)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
@@ -469,9 +469,9 @@ i830PipeSetMode(I830_xf86CrtcPtr crtc, DisplayModePtr pMode,
     didLock = I830DRILock(pScrn);
 #endif
     
-    for (i = 0; i < pI830->num_outputs; i++) 
+    for (i = 0; i < pI830->xf86_config.num_output; i++) 
     {
-	I830_xf86OutputPtr  output = pI830->xf86_output[i];
+	xf86OutputPtr  output = pI830->xf86_config.output[i];
 	I830OutputPrivatePtr	intel_output = output->driver_private;
 	if (output->crtc != crtc)
 	    continue;
@@ -694,8 +694,8 @@ i830PipeSetMode(I830_xf86CrtcPtr crtc, DisplayModePtr pMode,
 	    OUTREG(PFIT_CONTROL, 0);
     }
 
-    for (i = 0; i < pI830->num_outputs; i++) {
-	I830_xf86OutputPtr  output = pI830->xf86_output[i];
+    for (i = 0; i < pI830->xf86_config.num_output; i++) {
+	xf86OutputPtr  output = pI830->xf86_config.output[i];
 	if (output->crtc == crtc)
 	    (*output->funcs->post_set_mode)(output, pMode);
     }
@@ -740,9 +740,9 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling unused functions\n");
 
-    for (o = 0; o < pI830->num_outputs; o++) 
+    for (o = 0; o < pI830->xf86_config.num_output; o++) 
     {
-	I830_xf86OutputPtr  output = pI830->xf86_output[o];
+	xf86OutputPtr  output = pI830->xf86_config.output[o];
 	if (!output->crtc)
 	    (*output->funcs->dpms)(output, DPMSModeOff);
     }
@@ -751,9 +751,9 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
      * internal TV) should have no outputs trying to pull data out of it, so
      * we're ready to turn those off.
      */
-    for (pipe = 0; pipe < pI830->num_pipes; pipe++) 
+    for (pipe = 0; pipe < pI830->xf86_config.num_crtc; pipe++) 
     {
-	I830_xf86CrtcPtr crtc = pI830->xf86_crtc[pipe];
+	xf86CrtcPtr crtc = pI830->xf86_config.crtc[pipe];
 	I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
 	int		    pipe = intel_crtc->pipe;
 	int	    dspcntr_reg = pipe == 0 ? DSPACNTR : DSPBCNTR;
@@ -807,9 +807,9 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 
     DPRINTF(PFX, "i830SetMode\n");
 
-    for (i = 0; i < pI830->num_pipes; i++)
+    for (i = 0; i < pI830->xf86_config.num_crtc; i++)
     {
-	I830_xf86CrtcPtr    crtc = pI830->xf86_crtc[i];
+	xf86CrtcPtr    crtc = pI830->xf86_config.crtc[i];
 	ok = i830PipeSetMode(crtc,
 			     i830PipeFindClosestMode(crtc, pMode), 
 			     TRUE);
@@ -832,9 +832,9 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	/* If we might have enabled/disabled some pipes, we need to reset
 	 * cloning mode support.
 	 */
-	if (pI830->num_pipes >= 2 && 
-	    pI830->xf86_crtc[0]->enabled &&
-	    pI830->xf86_crtc[1]->enabled)
+	if (pI830->xf86_config.num_crtc >= 2 && 
+	    pI830->xf86_config.crtc[0]->enabled &&
+	    pI830->xf86_config.crtc[1]->enabled)
 	    pI830->Clone = TRUE;
 	else
 	    pI830->Clone = FALSE;
@@ -865,8 +865,8 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output configuration:\n");
 
-    for (i = 0; i < pI830->num_pipes; i++) {
-	I830_xf86CrtcPtr crtc = pI830->xf86_crtc[i];
+    for (i = 0; i < pI830->xf86_config.num_crtc; i++) {
+	xf86CrtcPtr crtc = pI830->xf86_config.crtc[i];
 	CARD32 dspcntr = INREG(DSPACNTR + (DSPBCNTR - DSPACNTR) * i);
 	CARD32 pipeconf = INREG(PIPEACONF + (PIPEBCONF - PIPEACONF) * i);
 	Bool hw_plane_enable = (dspcntr & DISPLAY_PLANE_ENABLE) != 0;
@@ -896,9 +896,9 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 	}
     }
 
-    for (i = 0; i < pI830->num_outputs; i++) {
-	I830_xf86OutputPtr	output = pI830->xf86_output[i];
-	I830_xf86CrtcPtr	crtc = output->crtc;
+    for (i = 0; i < pI830->xf86_config.num_output; i++) {
+	xf86OutputPtr	output = pI830->xf86_config.output[i];
+	xf86CrtcPtr	crtc = output->crtc;
 	I830CrtcPrivatePtr	intel_crtc = crtc ? crtc->driver_private : NULL;
 	
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -922,26 +922,26 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
  * \return crtc, or NULL if no pipes are available.
  */
     
-I830_xf86CrtcPtr
-i830GetLoadDetectPipe(I830_xf86OutputPtr output)
+xf86CrtcPtr
+i830GetLoadDetectPipe(xf86OutputPtr output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
-    I830_xf86CrtcPtr	    crtc;
+    xf86CrtcPtr	    crtc;
     int			    i;
 
     if (output->crtc) 
 	return output->crtc;
 
-    for (i = 0; i < pI830->num_pipes; i++)
-	if (!i830PipeInUse(pI830->xf86_crtc[i]))
+    for (i = 0; i < pI830->xf86_config.num_crtc; i++)
+	if (!i830PipeInUse(pI830->xf86_config.crtc[i]))
 	    break;
 
-    if (i == pI830->num_pipes)
+    if (i == pI830->xf86_config.num_crtc)
 	return NULL;
 
-    crtc = pI830->xf86_crtc[i];
+    crtc = pI830->xf86_config.crtc[i];
 
     output->crtc = crtc;
     intel_output->load_detect_temp = TRUE;
@@ -950,7 +950,7 @@ i830GetLoadDetectPipe(I830_xf86OutputPtr output)
 }
 
 void
-i830ReleaseLoadDetectPipe(I830_xf86OutputPtr output)
+i830ReleaseLoadDetectPipe(xf86OutputPtr output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830OutputPrivatePtr    intel_output = output->driver_private;

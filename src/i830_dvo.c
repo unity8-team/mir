@@ -57,7 +57,7 @@ struct _I830DVODriver i830_dvo_drivers[] =
 #define I830_NUM_DVO_DRIVERS (sizeof(i830_dvo_drivers)/sizeof(struct _I830DVODriver))
 
 static void
-i830_dvo_dpms(I830_xf86OutputPtr output, int mode)
+i830_dvo_dpms(xf86OutputPtr output, int mode)
 {
     I830OutputPrivatePtr    intel_output = output->driver_private;
     if (mode == DPMSModeOn)
@@ -67,7 +67,7 @@ i830_dvo_dpms(I830_xf86OutputPtr output, int mode)
 }
 
 static void
-i830_dvo_save(I830_xf86OutputPtr output)
+i830_dvo_save(xf86OutputPtr output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
@@ -84,7 +84,7 @@ i830_dvo_save(I830_xf86OutputPtr output)
 }
 
 static void
-i830_dvo_restore(I830_xf86OutputPtr output)
+i830_dvo_restore(xf86OutputPtr output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
@@ -98,7 +98,7 @@ i830_dvo_restore(I830_xf86OutputPtr output)
 }
 
 static int
-i830_dvo_mode_valid(I830_xf86OutputPtr output, DisplayModePtr pMode)
+i830_dvo_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
     I830OutputPrivatePtr    intel_output = output->driver_private;
     
@@ -114,7 +114,7 @@ i830_dvo_mode_valid(I830_xf86OutputPtr output, DisplayModePtr pMode)
 }
 
 static void
-i830_dvo_pre_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
+i830_dvo_pre_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
@@ -126,11 +126,11 @@ i830_dvo_pre_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
 }
 
 static void
-i830_dvo_post_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
+i830_dvo_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
-    I830_xf86CrtcPtr	    crtc = output->crtc;
+    xf86CrtcPtr	    crtc = output->crtc;
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
     int			    pipe = intel_crtc->pipe;
     CARD32		    dvo;
@@ -165,7 +165,7 @@ i830_dvo_post_set_mode(I830_xf86OutputPtr output, DisplayModePtr pMode)
  * Unimplemented.
  */
 static enum detect_status
-i830_dvo_detect(I830_xf86OutputPtr output)
+i830_dvo_detect(xf86OutputPtr output)
 {
     return OUTPUT_STATUS_UNKNOWN;
 }
@@ -202,7 +202,7 @@ I830I2CDetectDVOControllers(ScrnInfoPtr pScrn, I2CBusPtr pI2CBus,
 }
 
 static void
-i830_dvo_destroy (I830_xf86OutputPtr output)
+i830_dvo_destroy (xf86OutputPtr output)
 {
     I830OutputPrivatePtr    intel_output = output->driver_private;
 
@@ -217,7 +217,7 @@ i830_dvo_destroy (I830_xf86OutputPtr output)
     }
 }
 
-static const I830_xf86OutputFuncsRec i830_dvo_output_funcs = {
+static const xf86OutputFuncsRec i830_dvo_output_funcs = {
     .dpms = i830_dvo_dpms,
     .save = i830_dvo_save,
     .restore = i830_dvo_restore,
@@ -232,18 +232,18 @@ static const I830_xf86OutputFuncsRec i830_dvo_output_funcs = {
 void
 i830_dvo_init(ScrnInfoPtr pScrn)
 {
-    I830_xf86OutputPtr	    output;
+    xf86OutputPtr	    output;
     I830OutputPrivatePtr    intel_output;
     int			    ret;
 
-    output = i830xf86OutputCreate (pScrn, &i830_dvo_output_funcs,
+    output = xf86OutputCreate (pScrn, &i830_dvo_output_funcs,
 				   "ADD AGP card");
     if (!output)
 	return;
     intel_output = xnfcalloc (sizeof (I830OutputPrivateRec), 1);
     if (!intel_output)
     {
-	i830xf86OutputDestroy (output);
+	xf86OutputDestroy (output);
 	return;
     }
     intel_output->type = I830_OUTPUT_DVO;
@@ -253,14 +253,14 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     ret = I830I2CInit(pScrn, &intel_output->pI2CBus, GPIOE, "DVOI2C_E");
     if (!ret)
     {
-	i830xf86OutputDestroy (output);
+	xf86OutputDestroy (output);
 	return;
     }
 
     ret = I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOD, "DVODDC_D");
     if (!ret)
     {
-	i830xf86OutputDestroy (output);
+	xf86OutputDestroy (output);
 	return;
     }
 
@@ -275,7 +275,7 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     }
     else
     {
-	i830xf86OutputDestroy (output);
+	xf86OutputDestroy (output);
 	return;
     }
 }

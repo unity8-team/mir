@@ -1098,6 +1098,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * This is used for load detection in combination with TVDAC_SENSE_MASK
  */
 # define TV_TEST_MODE_MONITOR_DETECT	(7 << 0)
+# define TV_TEST_MODE_MASK		(7 << 0)
 /** @} */
 
 /** @defgroup TV_DAC

@@ -31,57 +31,70 @@
 #include <stdio.h>
 
 #include "xf86.h"
-#include "i830.h"
-#include "i830_xf86Modes.h"
 #include "i830_xf86Crtc.h"
 
 /*
  * Crtc functions
  */
-I830_xf86CrtcPtr
-i830xf86CrtcCreate (ScrnInfoPtr			scrn,
-		    const I830_xf86CrtcFuncsRec	*funcs)
+xf86CrtcPtr
+xf86CrtcCreate (ScrnInfoPtr		scrn,
+		const xf86CrtcFuncsRec	*funcs)
 {
-    I830_xf86CrtcPtr	xf86_crtc;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+    xf86CrtcPtr		crtc;
 
-    xf86_crtc = xcalloc (sizeof (I830_xf86CrtcRec), 1);
-    if (!xf86_crtc)
+    crtc = xcalloc (sizeof (xf86CrtcRec), 1);
+    if (!crtc)
 	return NULL;
-    xf86_crtc->scrn = scrn;
-    xf86_crtc->funcs = funcs;
+    crtc->scrn = scrn;
+    crtc->funcs = funcs;
 #ifdef RANDR_12_INTERFACE
-    xf86_crtc->randr_crtc = RRCrtcCreate (xf86_crtc);
-    if (!xf86_crtc->randr_crtc)
+    crtc->randr_crtc = RRCrtcCreate (crtc);
+    if (!crtc->randr_crtc)
     {
-	xfree (xf86_crtc);
+	xfree (crtc);
 	return NULL;
     }
 #endif
-    return xf86_crtc;
+    xf86_config->crtc[xf86_config->num_crtc++] = crtc;
+    return crtc;
 }
 
 void
-i830xf86CrtcDestroy (I830_xf86CrtcPtr xf86_crtc)
+xf86CrtcDestroy (xf86CrtcPtr crtc)
 {
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+    int			c;
+    
+    (*crtc->funcs->destroy) (crtc);
 #ifdef RANDR_12_INTERFACE
-    RRCrtcDestroy (xf86_crtc->randr_crtc);
+    RRCrtcDestroy (crtc->randr_crtc);
 #endif
-    xfree (xf86_crtc);
+    for (c = 0; c < xf86_config->num_crtc; c++)
+	if (xf86_config->crtc[c] == crtc)
+	{
+	    memmove (&xf86_config->crtc[c],
+		     &xf86_config->crtc[c+1],
+		     xf86_config->num_crtc - (c + 1));
+	    xf86_config->num_crtc--;
+	    break;
+	}
+    xfree (crtc);
 }
 
 /*
  * Output functions
  */
-I830_xf86OutputPtr
-i830xf86OutputCreate (ScrnInfoPtr		    scrn,
-		      const I830_xf86OutputFuncsRec *funcs,
-		      const char		    *name)
+xf86OutputPtr
+xf86OutputCreate (ScrnInfoPtr		    scrn,
+		  const xf86OutputFuncsRec *funcs,
+		  const char		    *name)
 {
-    I830_xf86OutputPtr	output;
-    I830Ptr		pI830 = I830PTR(scrn);
+    xf86OutputPtr	output;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     int			len = strlen (name);
 
-    output = xcalloc (sizeof (I830_xf86OutputRec) + len + 1, 1);
+    output = xcalloc (sizeof (xf86OutputRec) + len + 1, 1);
     if (!output)
 	return NULL;
     output->scrn = scrn;
@@ -96,16 +109,16 @@ i830xf86OutputCreate (ScrnInfoPtr		    scrn,
 	return NULL;
     }
 #endif
-    pI830->xf86_output[pI830->num_outputs++] = output;
+    xf86_config->output[xf86_config->num_output++] = output;
     return output;
 }
 
 void
-i830xf86OutputDestroy (I830_xf86OutputPtr output)
+xf86OutputDestroy (xf86OutputPtr output)
 {
-    ScrnInfoPtr	scrn = output->scrn;
-    I830Ptr	pI830 = I830PTR(scrn);
-    int		o;
+    ScrnInfoPtr		scrn = output->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+    int			o;
     
     (*output->funcs->destroy) (output);
 #ifdef RANDR_12_INTERFACE
@@ -113,13 +126,13 @@ i830xf86OutputDestroy (I830_xf86OutputPtr output)
 #endif
     while (output->probed_modes)
 	xf86DeleteMode (&output->probed_modes, output->probed_modes);
-    for (o = 0; o < pI830->num_outputs; o++)
-	if (pI830->xf86_output[o] == output)
+    for (o = 0; o < xf86_config->num_output; o++)
+	if (xf86_config->output[o] == output)
 	{
-	    memmove (&pI830->xf86_output[o],
-		     &pI830->xf86_output[o+1],
-		     pI830->num_outputs - (o + 1));
-	    pI830->num_outputs--;
+	    memmove (&xf86_config->output[o],
+		     &xf86_config->output[o+1],
+		     xf86_config->num_output - (o + 1));
+	    xf86_config->num_output--;
 	    break;
 	}
     xfree (output);

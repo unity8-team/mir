@@ -27,14 +27,14 @@
 
 /* i830_display.c */
 DisplayModePtr
-i830PipeFindClosestMode(I830_xf86CrtcPtr crtc, DisplayModePtr pMode);
-Bool i830PipeSetMode(I830_xf86CrtcPtr crtc, DisplayModePtr pMode, 
+i830PipeFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
+Bool i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode, 
 		     Bool plane_enable);
 void i830DisableUnusedFunctions(ScrnInfoPtr pScrn);
 Bool i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
-void i830PipeSetBase(I830_xf86CrtcPtr crtc, int x, int y);
+void i830PipeSetBase(xf86CrtcPtr crtc, int x, int y);
 void i830WaitForVblank(ScrnInfoPtr pScrn);
 void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
-I830_xf86CrtcPtr i830GetLoadDetectPipe(I830_xf86OutputPtr output);
-void i830ReleaseLoadDetectPipe(I830_xf86OutputPtr output);
-Bool i830PipeInUse(I830_xf86CrtcPtr crtc);
+xf86CrtcPtr i830GetLoadDetectPipe(xf86OutputPtr output);
+void i830ReleaseLoadDetectPipe(xf86OutputPtr output);
+Bool i830PipeInUse(xf86CrtcPtr crtc);
