@@ -394,7 +394,7 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
     else
 	screen_size = pScrn->virtualY * byteStride;
 
-    info->exa->memoryBase = info->FB + pScrn->fbOffset + info->FbSecureSize;
+    info->exa->memoryBase = info->FB + pScrn->fbOffset;
     info->exa->memorySize = info->FbMapSize - info->FbSecureSize;
     info->exa->offScreenBase = screen_size;
 
