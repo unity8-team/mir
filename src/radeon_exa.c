@@ -394,16 +394,13 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
     else
 	screen_size = pScrn->virtualY * byteStride;
 
-    info->exa->memoryBase = info->FB + pScrn->fbOffset;
+    info->exa->memoryBase = info->FB + pScrn->fbOffset + info->FbSecureSize;
     info->exa->memorySize = info->FbMapSize - info->FbSecureSize;
     info->exa->offScreenBase = screen_size;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Allocating from a screen of %ld kb\n",
 	       info->exa->memorySize / 1024);
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Will use %d kb for front buffer at offset 0x%08x\n",
-	       screen_size / 1024, 0);
 
     /* Reserve static area for hardware cursor */
     if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
@@ -425,6 +422,9 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 	info->frontOffset = 0;
 	info->frontPitch = pScrn->displayWidth;
 
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Will use %d kb for front buffer at offset 0x%08x\n",
+	       screen_size / 1024, info->frontOffset);
 	RADEONDRIAllocatePCIGARTTable(pScreen);
 	
 	if (info->cardType==CARD_PCIE)
@@ -483,9 +483,12 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 	    /* Minimum texture size is for 2 256x256x32bpp textures */
 	    info->textureSize = 0;
 	}
-    }
+    } else
 #endif /* XF86DRI */
-	
+    	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Will use %d kb for front buffer at offset 0x%08x\n",
+		       screen_size / 1024, 0);
+
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Will use %ld kb for X Server offscreen at offset 0x%08lx\n",
 	       (info->exa->memorySize - info->exa->offScreenBase) /

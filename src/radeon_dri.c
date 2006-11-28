@@ -1422,7 +1422,7 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     				RADEON_VERSION_MAJOR_TILED : RADEON_VERSION_MAJOR;
     pDRIInfo->ddxDriverMinorVersion      = RADEON_VERSION_MINOR;
     pDRIInfo->ddxDriverPatchVersion      = RADEON_VERSION_PATCH;
-    pDRIInfo->frameBufferPhysicalAddress = (void *)info->LinearAddr;
+    pDRIInfo->frameBufferPhysicalAddress = (void *)info->LinearAddr + info->frontOffset;
     pDRIInfo->frameBufferSize            = info->FbMapSize - info->FbSecureSize;
     pDRIInfo->frameBufferStride          = (pScrn->displayWidth *
 					    info->CurrentLayout.pixel_bytes);

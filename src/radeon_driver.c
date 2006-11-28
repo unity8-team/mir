@@ -3621,6 +3621,10 @@ Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
     }
 
     xf86DrvMsg(scrnIndex, X_INFO,
+	       "Will use front buffer at offset 0x%x\n",
+	       info->frontOffset);
+
+    xf86DrvMsg(scrnIndex, X_INFO,
 	       "Will use back buffer at offset 0x%x\n",
 	       info->backOffset);
     xf86DrvMsg(scrnIndex, X_INFO,
@@ -3720,14 +3724,14 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     char*          s;
 #endif
 
-    RADEONTRACE(("RADEONScreenInit %lx %ld\n",
-		 pScrn->memPhysBase, pScrn->fbOffset));
+    RADEONTRACE(("RADEONScreenInit %lx %ld %lx\n",
+		 pScrn->memPhysBase, pScrn->fbOffset, info->frontOffset));
 
     info->accelOn      = FALSE;
 #ifdef USE_XAA
     info->accel        = NULL;
 #endif
-    pScrn->fbOffset    = 0;
+    pScrn->fbOffset    = info->frontOffset;
     if (info->IsSecondary) pScrn->fbOffset = pScrn->videoRam * 1024;
     if (!RADEONMapMem(pScrn)) return FALSE;
 
@@ -3800,47 +3804,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 		   "Using %d bit depth buffer\n", info->depthBits);
     }
 
-    /* Setup DRI after visuals have been established, but before fbScreenInit is
-     * called.  fbScreenInit will eventually call the driver's InitGLXVisuals
-     * call back. */
-    if (info->directRenderingEnabled) {
-	/* FIXME: When we move to dynamic allocation of back and depth
-	 * buffers, we will want to revisit the following check for 3
-	 * times the virtual size of the screen below.
-	 */
-	int  width_bytes = (pScrn->displayWidth *
-			    info->CurrentLayout.pixel_bytes);
-	int  maxy        = info->FbMapSize / width_bytes;
-
-	if (maxy <= pScrn->virtualY * 3) {
-	    xf86DrvMsg(scrnIndex, X_ERROR,
-		       "Static buffer allocation failed.  Disabling DRI.\n");
-	    xf86DrvMsg(scrnIndex, X_ERROR,
-		       "At least %d kB of video memory needed at this "
-		       "resolution and depth.\n",
-		       (pScrn->displayWidth * pScrn->virtualY *
-			info->CurrentLayout.pixel_bytes * 3 + 1023) / 1024);
-	    info->directRenderingEnabled = FALSE;
-	} else {
-	    info->directRenderingEnabled = RADEONDRIScreenInit(pScreen);
-	}
-    }
-
-    /* Tell DRI about new memory map */
-    if (info->directRenderingEnabled && info->newMemoryMap) {
-	drmRadeonSetParam  radeonsetparam;
-	RADEONTRACE(("DRI New memory map param\n"));
-	memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
-	radeonsetparam.param = RADEON_SETPARAM_NEW_MEMMAP;
-	radeonsetparam.value = 1;
-	if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
-			    &radeonsetparam, sizeof(drmRadeonSetParam)) < 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "[drm] failed to enable new memory map\n");
-		RADEONDRICloseScreen(pScreen);
-		info->directRenderingEnabled = FALSE;		
-	}
-    }
 
     hasDRI = info->directRenderingEnabled;
 #endif /* XF86DRI */
@@ -3860,24 +3823,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	    OUTREG(RADEON_SURFACE0_UPPER_BOUND + 16 * i, 0);
 	}
     }
-
-    if (info->FBDev) {
-	unsigned char *RADEONMMIO = info->MMIO;
-
-	if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) return FALSE;
-	pScrn->displayWidth = fbdevHWGetLineLength(pScrn)
-		/ info->CurrentLayout.pixel_bytes;
-	RADEONSaveMemMapRegisters(pScrn, &info->ModeReg);
-	info->fbLocation = (info->ModeReg.mc_fb_location & 0xffff) << 16;
-	info->ModeReg.surface_cntl = INREG(RADEON_SURFACE_CNTL);
-	info->ModeReg.surface_cntl &= ~RADEON_SURF_TRANSLATION_DIS;
-    } else {
-	if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
-    }
-
-    RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
-
-    pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 
 #ifdef XF86DRI
     /* Depth moves are disabled by default since they are extremely slow */
@@ -3901,54 +3846,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	RADEONChangeSurfaces(pScrn);
     }
 
-    RADEONTRACE(("Initializing fb layer\n"));
-
-    /* Init fb layer */
-    if (!fbScreenInit(pScreen, info->FB,
-		      pScrn->virtualX, pScrn->virtualY,
-		      pScrn->xDpi, pScrn->yDpi, pScrn->displayWidth,
-		      pScrn->bitsPerPixel))
-	return FALSE;
-
-    xf86SetBlackWhitePixels(pScreen);
-
-    if (pScrn->bitsPerPixel > 8) {
-	VisualPtr  visual;
-
-	visual = pScreen->visuals + pScreen->numVisuals;
-	while (--visual >= pScreen->visuals) {
-	    if ((visual->class | DynamicClass) == DirectColor) {
-		visual->offsetRed   = pScrn->offset.red;
-		visual->offsetGreen = pScrn->offset.green;
-		visual->offsetBlue  = pScrn->offset.blue;
-		visual->redMask     = pScrn->mask.red;
-		visual->greenMask   = pScrn->mask.green;
-		visual->blueMask    = pScrn->mask.blue;
-	    }
-	}
-    }
-
-    /* Must be after RGB order fixed */
-    fbPictureInit (pScreen, 0, 0);
-
-#ifdef RENDER
-    if ((s = xf86GetOptValString(info->Options, OPTION_SUBPIXEL_ORDER))) {
-	if (strcmp(s, "RGB") == 0) subPixelOrder = SubPixelHorizontalRGB;
-	else if (strcmp(s, "BGR") == 0) subPixelOrder = SubPixelHorizontalBGR;
-	else if (strcmp(s, "NONE") == 0) subPixelOrder = SubPixelNone;
-	PictureSetSubpixelOrder (pScreen, subPixelOrder);
-    } 
-
-    if (PictureGetSubpixelOrder (pScreen) == SubPixelUnknown) {
-	switch (info->DisplayType) {
-	case MT_NONE:	subPixelOrder = SubPixelUnknown; break;
-	case MT_LCD:	subPixelOrder = SubPixelHorizontalRGB; break;
-	case MT_DFP:	subPixelOrder = SubPixelHorizontalRGB; break;
-	default:	subPixelOrder = SubPixelNone; break;
-	}
-	PictureSetSubpixelOrder (pScreen, subPixelOrder);
-    }
-#endif
 				/* Memory manager setup */
 
     RADEONTRACE(("Setting up accel memmap\n"));
@@ -4007,6 +3904,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	}
 	if (!RADEONSetupMemXAA_DRI(scrnIndex, pScreen))
 	    return FALSE;
+    	pScrn->fbOffset    = info->frontOffset;
     }
 #endif
 
@@ -4018,6 +3916,114 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     info->dst_pitch_offset = (((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64)
 			       << 22) | ((info->fbLocation + pScrn->fbOffset) >> 10));
 
+    /* Setup DRI after visuals have been established, but before fbScreenInit is
+     * called.  fbScreenInit will eventually call the driver's InitGLXVisuals
+     * call back. */
+    if (info->directRenderingEnabled) {
+	/* FIXME: When we move to dynamic allocation of back and depth
+	 * buffers, we will want to revisit the following check for 3
+	 * times the virtual size of the screen below.
+	 */
+	int  width_bytes = (pScrn->displayWidth *
+			    info->CurrentLayout.pixel_bytes);
+	int  maxy        = info->FbMapSize / width_bytes;
+
+	if (maxy <= pScrn->virtualY * 3) {
+	    xf86DrvMsg(scrnIndex, X_ERROR,
+		       "Static buffer allocation failed.  Disabling DRI.\n");
+	    xf86DrvMsg(scrnIndex, X_ERROR,
+		       "At least %d kB of video memory needed at this "
+		       "resolution and depth.\n",
+		       (pScrn->displayWidth * pScrn->virtualY *
+			info->CurrentLayout.pixel_bytes * 3 + 1023) / 1024);
+	    info->directRenderingEnabled = FALSE;
+	} else {
+	    info->directRenderingEnabled = RADEONDRIScreenInit(pScreen);
+	}
+    }
+
+    /* Tell DRI about new memory map */
+    if (info->directRenderingEnabled && info->newMemoryMap) {
+	drmRadeonSetParam  radeonsetparam;
+	RADEONTRACE(("DRI New memory map param\n"));
+	memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
+	radeonsetparam.param = RADEON_SETPARAM_NEW_MEMMAP;
+	radeonsetparam.value = 1;
+	if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
+			    &radeonsetparam, sizeof(drmRadeonSetParam)) < 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "[drm] failed to enable new memory map\n");
+		RADEONDRICloseScreen(pScreen);
+		info->directRenderingEnabled = FALSE;		
+	}
+    }
+    RADEONTRACE(("Initializing fb layer\n"));
+
+    /* Init fb layer */
+    if (!fbScreenInit(pScreen, info->FB + pScrn->fbOffset,
+		      pScrn->virtualX, pScrn->virtualY,
+		      pScrn->xDpi, pScrn->yDpi, pScrn->displayWidth,
+		      pScrn->bitsPerPixel))
+	return FALSE;
+
+    xf86SetBlackWhitePixels(pScreen);
+
+    if (pScrn->bitsPerPixel > 8) {
+	VisualPtr  visual;
+
+	visual = pScreen->visuals + pScreen->numVisuals;
+	while (--visual >= pScreen->visuals) {
+	    if ((visual->class | DynamicClass) == DirectColor) {
+		visual->offsetRed   = pScrn->offset.red;
+		visual->offsetGreen = pScrn->offset.green;
+		visual->offsetBlue  = pScrn->offset.blue;
+		visual->redMask     = pScrn->mask.red;
+		visual->greenMask   = pScrn->mask.green;
+		visual->blueMask    = pScrn->mask.blue;
+	    }
+	}
+    }
+
+    /* Must be after RGB order fixed */
+    fbPictureInit (pScreen, 0, 0);
+
+#ifdef RENDER
+    if ((s = xf86GetOptValString(info->Options, OPTION_SUBPIXEL_ORDER))) {
+	if (strcmp(s, "RGB") == 0) subPixelOrder = SubPixelHorizontalRGB;
+	else if (strcmp(s, "BGR") == 0) subPixelOrder = SubPixelHorizontalBGR;
+	else if (strcmp(s, "NONE") == 0) subPixelOrder = SubPixelNone;
+	PictureSetSubpixelOrder (pScreen, subPixelOrder);
+    } 
+
+    if (PictureGetSubpixelOrder (pScreen) == SubPixelUnknown) {
+	switch (info->DisplayType) {
+	case MT_NONE:	subPixelOrder = SubPixelUnknown; break;
+	case MT_LCD:	subPixelOrder = SubPixelHorizontalRGB; break;
+	case MT_DFP:	subPixelOrder = SubPixelHorizontalRGB; break;
+	default:	subPixelOrder = SubPixelNone; break;
+	}
+	PictureSetSubpixelOrder (pScreen, subPixelOrder);
+    }
+#endif
+
+    if (info->FBDev) {
+	unsigned char *RADEONMMIO = info->MMIO;
+
+	if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) return FALSE;
+	pScrn->displayWidth = fbdevHWGetLineLength(pScrn)
+		/ info->CurrentLayout.pixel_bytes;
+	RADEONSaveMemMapRegisters(pScrn, &info->ModeReg);
+	info->fbLocation = (info->ModeReg.mc_fb_location & 0xffff) << 16;
+	info->ModeReg.surface_cntl = INREG(RADEON_SURFACE_CNTL);
+	info->ModeReg.surface_cntl &= ~RADEON_SURF_TRANSLATION_DIS;
+    } else {
+	if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
+    }
+
+    RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
+
+    pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+
     /* Backing store setup */
     RADEONTRACE(("Initializing backing store\n"));
     miInitializeBackingStore(pScreen);
@@ -4026,7 +4032,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     /* DRI finalisation */
 #ifdef XF86DRI
     if (info->directRenderingEnabled && info->cardType==CARD_PCIE &&
-	info->pciGartOffset && info->pKernelDRMVersion->version_minor >= 19)
+        info->pKernelDRMVersion->version_minor >= 19)
     {
       drmRadeonSetParam  radeonsetparam;
       RADEONTRACE(("DRI PCIGART param\n"));
@@ -6645,7 +6651,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 	}
 
 	if (pSAREAPriv->pfCurrentPage == 1) {
-	    Base += info->backOffset;
+	    Base += info->backOffset - info->frontOffset;
 	}
     }
 #endif
@@ -6728,7 +6734,7 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
     	if (info->cardType == CARD_PCIE && info->pKernelDRMVersion->version_minor >= 19 && info->FbSecureSize)
     	{
       		/* we need to backup the PCIE GART TABLE from fb memory */
-     	 memcpy(info->FB + info->pciGartOffset, info->pciGartBackup, info->pciGartSize);
+	  memcpy(info->FB + info->pciGartOffset, info->pciGartBackup, info->pciGartSize);
     	}
 
 	/* get the DRI back into shape after resume */
