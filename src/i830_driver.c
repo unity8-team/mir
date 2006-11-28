@@ -1735,8 +1735,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    pI830->displayWidth = pScrn->displayWidth;
 
-   I830PrintModes(pScrn);
-
    /* Don't need MMIO access anymore. */
    if (pI830->swfSaved) {
       OUTREG(SWF0, pI830->saveSWF0);
