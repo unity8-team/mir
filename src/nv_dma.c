@@ -96,6 +96,7 @@ void NVDoSync(NVPtr pNv)
 void NVSync(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	if(pNv->NoAccel) return;
 	NVDoSync(pNv);
 }
 
@@ -343,6 +344,8 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 
 	NVInitDmaCB(pScrn);
+
+	if(pNv->NoAccel) return TRUE;
 
 	if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_FIFO_ALLOC, &pNv->fifo, sizeof(pNv->fifo)) != 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Could not initialise kernel module\n");
