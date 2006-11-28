@@ -75,5 +75,3 @@ i830xf86ValidateModesUserConfig(ScrnInfoPtr pScrn, DisplayModePtr modeList);
 
 void
 PrintModeline(int scrnIndex,DisplayModePtr mode);
-
-extern DisplayModeRec I830xf86DefaultModes[];

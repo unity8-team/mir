@@ -38,3 +38,11 @@ void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
 int i830GetLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output);
 void i830ReleaseLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output);
 Bool i830PipeInUse(ScrnInfoPtr pScrn, int pipe);
+
+/** @{
+ */
+DisplayModePtr i830xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC);
+DisplayModePtr i830xf86CVTMode(int HDisplay, int VDisplay, float VRefresh,
+			       Bool Reduced, Bool Interlaced);
+/** @} */
+

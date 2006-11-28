@@ -48,31 +48,13 @@
 #include <math.h>
 
 #include "xf86.h"
+#include "xf86DDC.h"
 #include "X11/Xatom.h"
 #include "i830.h"
 #include "i830_display.h"
 #include "i830_xf86Modes.h"
 #include <randrstr.h>
 
-#define rint(x) floor(x)
-
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-
-#define MARGIN_PERCENT    1.8   /* % of active vertical image                */
-#define CELL_GRAN         8.0   /* assumed character cell granularity        */
-#define MIN_PORCH         1     /* minimum front porch                       */
-#define V_SYNC_RQD        3     /* width of vsync in lines                   */
-#define H_SYNC_PERCENT    8.0   /* width of hsync as % of total line         */
-#define MIN_VSYNC_PLUS_BP 550.0 /* min time of vsync + back porch (microsec) */
-#define M                 600.0 /* blanking formula gradient                 */
-#define C                 40.0  /* blanking formula offset                   */
-#define K                 128.0 /* blanking formula scaling factor           */
-#define J                 20.0  /* blanking formula scaling factor           */
-
-/* C' and M' are part of the Blanking Duty Cycle computation */
-
-#define C_PRIME           (((C - J) * K/256.0) + J)
-#define M_PRIME           (K/256.0 * M)
 /* Established timings from EDID standard */
 static struct
 {
@@ -161,214 +143,6 @@ I830PrintModes(ScrnInfoPtr scrp)
 			   uprefix, prefix, p->HDisplay, p->VDisplay);
 	p = p->next;
     } while (p != NULL && p != scrp->modes);
-}
-
-/* This function will sort all modes according to their resolution.
- * Highest resolution first.
- */
-static void
-I830xf86SortModes(DisplayModePtr new, DisplayModePtr *first,
-	      DisplayModePtr *last)
-{
-    DisplayModePtr  p;
-
-    p = *last;
-    while (p) {
-	if (((new->HDisplay < p->HDisplay) &&
-	     (new->VDisplay < p->VDisplay)) ||
-	    ((new->HDisplay * new->VDisplay) < (p->HDisplay * p->VDisplay)) ||
-	    ((new->HDisplay == p->HDisplay) &&
-	     (new->VDisplay == p->VDisplay) &&
-	     (new->Clock < p->Clock))) {
-
-	    if (p->next) 
-		p->next->prev = new;
-	    new->prev = p;
-	    new->next = p->next;
-	    p->next = new;
-	    if (!(new->next))
-		*last = new;
-	    break;
-	}
-	if (!p->prev) {
-	    new->prev = NULL;
-	    new->next = p;
-	    p->prev = new;
-	    *first = new;
-	    break;
-	}
-	p = p->prev;
-    }
-
-    if (!*first) {
-	*first = new;
-	new->prev = NULL;
-	new->next = NULL;
-	*last = new;
-    }
-}
-
-/**
- * Gets a new pointer to a VESA established mode.
- *
- * \param i index into the VESA established modes table.
- */
-static DisplayModePtr
-I830GetVESAEstablishedMode(ScrnInfoPtr pScrn, int i)
-{
-    DisplayModePtr pMode;
-
-    for (pMode = I830xf86DefaultModes; pMode->name != NULL; pMode++)
-    {
-	if (pMode->HDisplay == est_timings[i].hsize &&
-	    pMode->VDisplay == est_timings[i].vsize &&
-	    fabs(i830xf86ModeVRefresh(pMode) - est_timings[i].refresh) < 1.0)
-	{
-	    DisplayModePtr pNew = i830xf86DuplicateMode(pMode);
-	    i830xf86SetModeDefaultName(pNew);
-	    pNew->VRefresh = i830xf86ModeVRefresh(pMode);
-	    return pNew;
-	}
-    }
-    return NULL;
-}
-
-static DisplayModePtr
-i830GetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
-{
-    DisplayModePtr  last  = NULL;
-    DisplayModePtr  new   = NULL;
-    DisplayModePtr  first = NULL;
-    int             count = 0;
-    int             j, tmp;
-
-    if (ddc == NULL)
-	return NULL;
-
-    /* Go thru detailed timing table first */
-    for (j = 0; j < 4; j++) {
-	if (ddc->det_mon[j].type == 0) {
-	    struct detailed_timings *d_timings =
-		&ddc->det_mon[j].section.d_timings;
-
-	    if (d_timings->h_active == 0 || d_timings->v_active == 0) break;
-
-	    new = xnfcalloc(1, sizeof (DisplayModeRec));
-	    memset(new, 0, sizeof (DisplayModeRec));
-
-	    new->HDisplay   = d_timings->h_active;
-	    new->VDisplay   = d_timings->v_active;
-
-	    new->HTotal     = new->HDisplay + d_timings->h_blanking;
-	    new->HSyncStart = new->HDisplay + d_timings->h_sync_off;
-	    new->HSyncEnd   = new->HSyncStart + d_timings->h_sync_width;
-	    new->VTotal     = new->VDisplay + d_timings->v_blanking;
-	    new->VSyncStart = new->VDisplay + d_timings->v_sync_off;
-	    new->VSyncEnd   = new->VSyncStart + d_timings->v_sync_width;
-	    new->Clock      = d_timings->clock / 1000;
-	    new->Flags      = (d_timings->interlaced ? V_INTERLACE : 0);
-	    new->status     = MODE_OK;
-	    if (PREFERRED_TIMING_MODE(ddc->features.msc))
-		new->type   = M_T_PREFERRED;
-	    else
-		new->type   = M_T_DRIVER;
-
-	    i830xf86SetModeDefaultName(new);
-
-	    if (d_timings->sync == 3) {
-		switch (d_timings->misc) {
-		case 0: new->Flags |= V_NHSYNC | V_NVSYNC; break;
-		case 1: new->Flags |= V_PHSYNC | V_NVSYNC; break;
-		case 2: new->Flags |= V_NHSYNC | V_PVSYNC; break;
-		case 3: new->Flags |= V_PHSYNC | V_PVSYNC; break;
-		}
-	    }
-	    count++;
-
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Valid Mode from Detailed timing table: %s (ht %d hss %d hse %d vt %d vss %d vse %d)\n",
-		       new->name,
-		       new->HTotal, new->HSyncStart, new->HSyncEnd,
-		       new->VTotal, new->VSyncStart, new->VSyncEnd);
-
-	    I830xf86SortModes(new, &first, &last);
-	}
-    }
-
-    /* Search thru standard VESA modes from EDID */
-    for (j = 0; j < 8; j++) {
-        if (ddc->timings2[j].hsize == 0 || ddc->timings2[j].vsize == 0)
-               continue;
-#if 1
-	new = i830GetGTF(ddc->timings2[j].hsize, ddc->timings2[j].vsize,
-			 ddc->timings2[j].refresh, FALSE, FALSE);
-	new->status = MODE_OK;
-	new->type |= M_T_DEFAULT;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Valid Mode from standard timing table: %s\n",
-		   new->name);
-
-	I830xf86SortModes(new, &first, &last);
-#else
-	for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
-
-	    /* Ignore all double scan modes */
-	    if ((ddc->timings2[j].hsize == p->HDisplay) &&
-		(ddc->timings2[j].vsize == p->VDisplay)) {
-		float  refresh =
-		    (float)p->Clock * 1000.0 / p->HTotal / p->VTotal;
-		float err = (float)ddc->timings2[j].refresh - refresh;
-
-		if (err < 0) err = -err;
-		if (err < 1.0) {
-		    /* Is this good enough? */
-		    new = xnfcalloc(1, sizeof (DisplayModeRec));
-		    memcpy(new, p, sizeof(DisplayModeRec));
-		    new->name = xnfalloc(strlen(p->name) + 1);
-		    strcpy(new->name, p->name);
-		    new->status = MODE_OK;
-		    new->type   = M_T_DEFAULT;
-
-		    count++;
-
-		    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			       "Valid Mode from standard timing table: %s\n",
-			       new->name);
-
-		    I830xf86SortModes(new, &first, &last);
-		    break;
-		}
-	    }
-	}
-#endif
-    }
-
-    /* Search thru established modes from EDID */
-    tmp = (ddc->timings1.t1 << 8) | ddc->timings1.t2;
-    for (j = 0; j < 16; j++) {
-	if (tmp & (1 << j)) {
-	    new = I830GetVESAEstablishedMode(pScrn, j);
-	    if (new == NULL) {
-		ErrorF("Couldn't get established mode %d\n", j);
-		continue;
-	    }
-	    new->status = MODE_OK;
-	    new->type = M_T_DEFAULT;
-
-	    count++;
-
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Valid Mode from established "
-		       "timing table: %s\n", new->name);
-
-	    I830xf86SortModes(new, &first, &last);
-	}
-    }
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Total of %d DDC mode(s) found.\n", count);
-
-    return first;
 }
 
 static DisplayModePtr
@@ -673,7 +447,7 @@ i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
 	       i830_output_type_names[output->type]);
     xf86PrintEDID(output->MonInfo);
 
-    ddc_modes = i830GetDDCModes(pScrn, ddc_mon);
+    ddc_modes = xf86DDCGetModes(pScrn->scrnIndex, ddc_mon);
 
     /* Strip out any modes that can't be supported on this output. */
     for (mode = ddc_modes; mode != NULL; mode = mode->next) {

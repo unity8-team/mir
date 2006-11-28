@@ -676,10 +676,6 @@ void i830_lvds_init(ScrnInfoPtr pScrn);
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
 
-/* i830_gtf.c */
-DisplayModePtr i830GetGTF(int h_pixels, int v_lines, float freq,
-			  int interlaced, int margins);
-
 /* i830_modes.c */
 int I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time);
 void i830_reprobe_output_modes(ScrnInfoPtr pScrn);
