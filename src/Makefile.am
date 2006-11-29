@@ -78,8 +78,8 @@ sf_prog.h: packed_yuv_sf.g4a
 	intel-gen4asm -o sf_prog.h packed_yuv_sf.g4a
 wm_prog.h: packed_yuv_wm.g4a
 	intel-gen4asm -o wm_prog.h packed_yuv_wm.g4a
-i965_composite_wm_nomask.h: i965_composite_wm_nomask.g4a
-	intel-gen4asm -o i965_composite_wm_nomask.h i965_composite_wm_nomask.g4a
+exa_wm_nomask_prog.h: exa_wm_nomask.g4a
+	intel-gen4asm -o exa_wm_nomask_prog.h exa_wm_nomask.g4a
 endif
 
 if DRI
