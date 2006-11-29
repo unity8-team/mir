@@ -297,6 +297,7 @@ int dest_surf_offset, src_surf_offset, mask_surf_offset;
 int src_sampler_offset, mask_sampler_offset,vs_offset;
 int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
 int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
+int wm_scratch_offset;
 int binding_table_offset;
 int default_color_offset; 
 int next_offset, total_state_size;
@@ -426,6 +427,9 @@ ErrorF("i965 prepareComposite\n");
    wm_offset = ALIGN(next_offset, 32);
    next_offset = wm_offset + sizeof(*wm_state);
     
+   wm_scratch_offset = ALIGN(next_offset, 1024);
+   next_offset = wm_scratch_offset + 1024 * PS_MAX_THREADS;
+
    cc_offset = ALIGN(next_offset, 32);
    next_offset = cc_offset + sizeof(*cc_state);
 
@@ -798,7 +802,8 @@ ErrorF("i965 prepareComposite\n");
    else
        wm_state->thread1.binding_table_entry_count = 3; /* 2 tex and fb */
 
-   wm_state->thread2.scratch_space_base_pointer = 0;
+   wm_state->thread2.scratch_space_base_pointer = (state_base_offset + 
+						   wm_scratch_offset)>>10;
    wm_state->thread2.per_thread_scratch_space = 0;
    // XXX: urb allocation
    wm_state->thread3.const_urb_entry_read_length = 0;
