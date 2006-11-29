@@ -394,7 +394,7 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
    PCITAG bridge;
    CARD16 gmch_ctrl;
-   int memsize = 0;
+   int memsize = 0, gtt_size;
    int range;
 #if 0
    VbeInfoBlock *vbeInfo;
@@ -403,9 +403,35 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
    gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
 
-   /* We need to reduce the stolen size, by the GTT and the popup.
-    * The GTT varying according the the FbMapSize and the popup is 4KB */
-   range = (pI830->FbMapSize / (1024*1024)) + 4;
+   if (IS_I965G(pI830)) {
+      /* The 965 may have a GTT that is actually larger than is necessary
+       * to cover the aperture, so check the hardware's reporting of the
+       * GTT size.
+       */
+      switch (INREG(PGETBL_CTL) & PGETBL_SIZE_MASK) {
+      case PGETBL_SIZE_512KB:
+	 gtt_size = 512;
+	 break;
+      case PGETBL_SIZE_256KB:
+	 gtt_size = 256;
+	 break;
+      case PGETBL_SIZE_128KB:
+	 gtt_size = 128;
+	 break;
+      default:
+	 FatalError("Unknown GTT size value: %08x\n", (int)INREG(PGETBL_CTL));
+      }
+   } else {
+      /* Older chipsets only had GTT appropriately sized for the aperture. */
+      gtt_size = pI830->FbMapSize / (1024*1024);
+   }
+
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "detected %d kB GTT.\n", gtt_size);
+
+   /* The stolen memory has the GTT at the top, and the 4KB popup below that.
+    * Everything else can be freely used by the graphics driver.
+    */
+   range = gtt_size + 4;
 
    if (IS_I85X(pI830) || IS_I865G(pI830) || IS_I9XX(pI830)) {
       switch (gmch_ctrl & I830_GMCH_GMS_MASK) {

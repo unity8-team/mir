@@ -499,6 +499,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PGETBL_ADDR_MASK    0xFFFFF000
 #define PGETBL_ENABLE_MASK  0x00000001
 #define PGETBL_ENABLED      0x00000001
+/** Added in 965G, this field has the actual size of the global GTT */
+#define PGETBL_SIZE_MASK    0x0000000e
+#define PGETBL_SIZE_512KB   (0 << 1)
+#define PGETBL_SIZE_256KB   (1 << 1)
+#define PGETBL_SIZE_128KB   (2 << 1)
 
 /* Register containing pge table error results, p276
  */
