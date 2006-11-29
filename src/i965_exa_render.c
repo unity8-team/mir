@@ -266,6 +266,7 @@ I965EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 
 #define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define BRW_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
 
 int urb_vs_start, urb_vs_size;
 int urb_gs_start, urb_gs_size;
@@ -336,9 +337,8 @@ static const CARD32 sip_kernel_static[][4] = {
  * with the base texture coordinate. It was extracted from the Mesa driver
  */
 
-#define SF_KERNEL_NUM_GRF  10
-#define SF_KERNEL_NUM_URB  8
-#define SF_MAX_THREADS	   4
+#define SF_KERNEL_NUM_GRF  16
+#define SF_MAX_THREADS	   1
 
 static const CARD32 sf_kernel_static[][4] = {
 #include "exa_sf_prog.h"
@@ -468,7 +468,6 @@ ErrorF("i965 prepareComposite\n");
    next_offset = vb_offset + vb_size;
 
    /* And then the general state: */
-   //XXX: fix for texture map and target surface
    dest_surf_offset = ALIGN(next_offset, 32);
    next_offset = dest_surf_offset + sizeof(*dest_surf_state);
 
@@ -534,8 +533,8 @@ ErrorF("i965 prepareComposite\n");
 #define URB_CLIP_ENTRY_SIZE   0
 #define URB_CLIP_ENTRIES      0
    
-#define URB_SF_ENTRY_SIZE     4
-#define URB_SF_ENTRIES	      8
+#define URB_SF_ENTRY_SIZE     2
+#define URB_SF_ENTRIES	      1
 
    urb_vs_start = 0;
    urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
@@ -564,7 +563,6 @@ ErrorF("i965 prepareComposite\n");
    cc_state->cc3.ia_blend_enable = 0;  /* blend alpha just like colors */
    cc_state->cc3.blend_enable = 1;     /* enable color blend */
    cc_state->cc3.alpha_test = 0;       /* disable alpha test */
-   // XXX:cc_viewport needed? 
    cc_state->cc4.cc_viewport_state_offset = (state_base_offset + cc_viewport_offset) >> 5;
    cc_state->cc5.dither_enable = 0;    /* disable dither */
 //   cc_state->cc5.logicop_func = 0xc;   /* COPY */
@@ -585,7 +583,6 @@ ErrorF("i965 prepareComposite\n");
    memset(dest_surf_state, 0, sizeof(*dest_surf_state));
    dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
    dest_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
-   // XXX: should compare with picture's cpp?...8 bit surf?
    if (pDst->drawable.bitsPerPixel == 16) {
       dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
    } else {
@@ -601,14 +598,12 @@ ErrorF("i965 prepareComposite\n");
    dest_surf_state->ss0.mipmap_layout_mode = 0;
    dest_surf_state->ss0.render_cache_read_mode = 0;
    
-   // XXX: fix to picture address & size
    dest_surf_state->ss1.base_addr = dst_offset;
    dest_surf_state->ss2.height = pDst->drawable.height - 1;
    dest_surf_state->ss2.width = pDst->drawable.width - 1;
    dest_surf_state->ss2.mip_count = 0;
    dest_surf_state->ss2.render_target_rotation = 0;
    dest_surf_state->ss3.pitch = dst_pitch - 1; 
-   // tiled surface?
 
    /* Set up the source surface state buffer */
    memset(src_surf_state, 0, sizeof(*src_surf_state));
@@ -741,8 +736,10 @@ ErrorF("i965 prepareComposite\n");
 
    /* Set up the vertex shader to be disabled (passthrough) */
    memset(vs_state, 0, sizeof(*vs_state));
-   // XXX: vs URB should be defined for VF vertex URB store. done already?
+   vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
+   vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
    vs_state->vs6.vs_enable = 0;
+   vs_state->vs6.vert_cache_disable = 1;
 
    // XXX: sf_kernel? keep it as now
    /* Set up the SF kernel to do coord interp: for each attribute,
@@ -754,7 +751,7 @@ ErrorF("i965 prepareComposite\n");
    memset(sf_state, 0, sizeof(*sf_state));
    sf_state->thread0.kernel_start_pointer = 
 	       (state_base_offset + sf_kernel_offset) >> 6;
-   sf_state->thread0.grf_reg_count = ((SF_KERNEL_NUM_GRF & ~15) / 16);
+   sf_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
    sf_state->sf1.single_program_flow = 1;
    sf_state->sf1.binding_table_entry_count = 0;
    sf_state->sf1.thread_priority = 0;
@@ -795,7 +792,7 @@ ErrorF("i965 prepareComposite\n");
    memset (wm_state, 0, sizeof (*wm_state));
    wm_state->thread0.kernel_start_pointer = 
 	    (state_base_offset + ps_kernel_offset) >> 6;
-   wm_state->thread0.grf_reg_count = ((PS_KERNEL_NUM_GRF & ~15) / 16);
+   wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
    wm_state->thread1.single_program_flow = 1;
    if (!pMask)
        wm_state->thread1.binding_table_entry_count = 2; /* 1 tex and fb */
@@ -808,7 +805,10 @@ ErrorF("i965 prepareComposite\n");
    // XXX: urb allocation
    wm_state->thread3.const_urb_entry_read_length = 0;
    wm_state->thread3.const_urb_entry_read_offset = 0;
-   wm_state->thread3.urb_entry_read_length = 1;  /* one per pair of attrib */
+   if (pMask)
+       wm_state->thread3.urb_entry_read_length = 2;  /* two per pair of attrib */
+   else 
+       wm_state->thread3.urb_entry_read_length = 1;  /* one per pair of attrib */
    wm_state->thread3.urb_entry_read_offset = 0;
    // wm kernel use urb from 3, see wm_program in compiler module
    wm_state->thread3.dispatch_grf_start_reg = 3; /* must match kernel */
