@@ -905,6 +905,25 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 		       "offscreen memory at 0x%lx, size %ld KB\n", 
 			pI830->Offscreen.Start, pI830->Offscreen.Size/1024);
       }
+      if (IS_I965G(pI830)) {
+          memset(&(pI830->EXAStateMem), 0, sizeof(I830MemRange));
+          pI830->EXAStateMem.Key = -1;
+          size = ROUND_TO_PAGE(EXA_LINEAR_EXTRA);
+          align = GTT_PAGE_SIZE;
+          alloced = I830AllocVidMem(pScrn, &(pI830->EXAStateMem),
+				&(pI830->StolenPool), size, align,
+				flags | FROM_ANYWHERE | ALLOCATE_AT_TOP);
+          if (alloced < size) {
+             if (!dryrun) {
+         	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "G965: Failed to allocate exa state buffer space.\n");
+             }
+             return FALSE;
+          }
+          xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+ 		  "%sAllocated %ld kB for the G965 exa state buffer at 0x%lx - 0x%lx.\n", s, 
+ 		alloced / 1024, pI830->EXAStateMem.Start, pI830->EXAStateMem.End);
+      }
 #endif
    } else {
       long lineSize;
@@ -1545,6 +1564,11 @@ I830FixupOffsets(ScrnInfoPtr pScrn)
       I830FixOffset(pScrn, &(pI830->TexMem));
    }
 #endif
+#ifdef I830_USE_EXA
+   I830FixOffset(pScrn, &(pI830->Offscreen));
+   if (IS_I965G(pI830))
+       I830FixOffset(pScrn, &(pI830->EXAStateMem));
+#endif
    return TRUE;
 }
 
@@ -1945,6 +1969,12 @@ I830BindAGPMemory(ScrnInfoPtr pScrn)
 	    return FALSE;
       }
 #endif
+#ifdef I830_USE_EXA
+     if (!BindMemRange(pScrn, &(pI830->Offscreen)))
+	return FALSE;
+     if (IS_I965G(pI830) && !BindMemRange(pScrn, &(pI830->EXAStateMem)))
+	return FALSE;
+#endif
       pI830->GttBound = 1;
    }
 
@@ -2028,6 +2058,12 @@ I830UnbindAGPMemory(ScrnInfoPtr pScrn)
 	 if (!UnbindMemRange(pScrn, &(pI830->TexMem)))
 	    return FALSE;
       }
+#endif
+#ifdef I830_USE_EXA
+     if (!UnbindMemRange(pScrn, &(pI830->Offscreen)))
+	return FALSE;
+     if (IS_I965G(pI830) && !UnbindMemRange(pScrn, &(pI830->EXAStateMem)))
+	return FALSE;
 #endif
       if (!xf86ReleaseGART(pScrn->scrnIndex))
 	 return FALSE;

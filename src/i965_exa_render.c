@@ -490,21 +490,12 @@ ErrorF("i965 prepareComposite\n");
    next_offset = binding_table_offset + (binding_table_entries * 4);
 
    total_state_size = next_offset;
+   assert(total_state_size < EXA_LINEAR_EXTRA);
 
-   /*
-    * XXX: Use the extra space allocated at the end of the exa offscreen buffer?
-    */
-#define BRW_LINEAR_EXTRA	(32*1024)
-
-   state_base_offset = (pI830->Offscreen.End -
-			BRW_LINEAR_EXTRA);
-   
+   state_base_offset = pI830->EXAStateMem.Start;
    state_base_offset = ALIGN(state_base_offset, 64);
    state_base = (char *)(pI830->FbBase + state_base_offset);
-   /* Set up our pointers to state structures in framebuffer.  It would probably
-    * be a good idea to fill these structures out in system memory and then dump
-    * them there, instead.
-    */
+
    vs_state = (void *)(state_base + vs_offset);
    sf_state = (void *)(state_base + sf_offset);
    wm_state = (void *)(state_base + wm_offset);
