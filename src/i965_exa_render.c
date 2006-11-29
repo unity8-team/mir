@@ -344,12 +344,16 @@ static const CARD32 sf_kernel_static[][4] = {
 #include "exa_sf_prog.h"
 };
 
+static const CARD32 sf_kernel_static_mask[][4] = {
+#include "exa_sf_mask_prog.h"
+};
+
 /* ps kernels */
 #define PS_KERNEL_NUM_GRF   32
 #define PS_MAX_THREADS	   32
 /* 1: no mask */
 static const CARD32 ps_kernel_static_nomask [][4] = {
-	#include "exa_wm_nomask_prog.h"
+#include "exa_wm_nomask_prog.h"
 };
 
 /* 2: mask with componentAlpha, src * mask color, XXX: later */
@@ -359,7 +363,7 @@ static const CARD32 ps_kernel_static_maskca [][4] = {
 
 /* 3: mask without componentAlpha, src * mask alpha */
 static const CARD32 ps_kernel_static_masknoca [][4] = {
-/*#include "i965_composite_wm_masknoca.h" */
+#include "exa_wm_masknoca_prog.h"
 };
 
 Bool
@@ -374,11 +378,6 @@ I965EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     CARD32 dst_format, dst_offset, dst_pitch;
  
 ErrorF("i965 prepareComposite\n");
-
-    /* FIXME: fallback in pMask for now, would be enable after finish
-	wm kernel program */
-    if (pMask)
-	I830FALLBACK("No mask support yet.\n");
 
     I965GetDestFormat(pDstPicture, &dst_format);
     src_offset = exaGetPixmapOffset(pSrc);
@@ -436,7 +435,10 @@ ErrorF("i965 prepareComposite\n");
    /* keep current sf_kernel, which will send one setup urb entry to
 	PS kernel */
    sf_kernel_offset = ALIGN(next_offset, 64);
-   next_offset = sf_kernel_offset + sizeof (sf_kernel_static);
+   if (pMask) 
+       next_offset = sf_kernel_offset + sizeof (sf_kernel_static_mask);
+   else
+       next_offset = sf_kernel_offset + sizeof (sf_kernel_static);
 
    //XXX: ps_kernel may be seperated, fix with offset
    ps_kernel_offset = ALIGN(next_offset, 64);
@@ -746,7 +748,10 @@ ErrorF("i965 prepareComposite\n");
     * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
     * back to SF which then hands pixels off to WM.
     */
-   memcpy (sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
+   if (pMask) 
+       memcpy (sf_kernel, sf_kernel_static_mask, sizeof (sf_kernel_static));
+   else
+       memcpy (sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
 
    memset(sf_state, 0, sizeof(*sf_state));
    sf_state->thread0.kernel_start_pointer = 
@@ -780,7 +785,6 @@ ErrorF("i965 prepareComposite\n");
    /* Set up the PS kernel (dispatched by WM) 
     */
     
-    // XXX: replace to texture blend shader, and different cases 
    if (pMask) {
 	if (pMaskPicture->componentAlpha)
    	    memcpy (ps_kernel, ps_kernel_static_maskca, sizeof (ps_kernel_static_maskca));
