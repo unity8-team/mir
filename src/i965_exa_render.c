@@ -278,6 +278,7 @@ struct brw_surface_state *src_surf_state;
 struct brw_surface_state *mask_surf_state;
 struct brw_sampler_state *src_sampler_state;
 struct brw_sampler_state *mask_sampler_state;  
+struct brw_sampler_default_color *default_color_state;
 
 struct brw_vs_unit_state *vs_state;
 struct brw_sf_unit_state *sf_state;
@@ -297,6 +298,7 @@ int src_sampler_offset, mask_sampler_offset,vs_offset;
 int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
 int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
 int binding_table_offset;
+int default_color_offset; 
 int next_offset, total_state_size;
 char *state_base;
 int state_base_offset;
@@ -478,6 +480,9 @@ ErrorF("i965 prepareComposite\n");
    binding_table_offset = ALIGN(next_offset, 32);
    next_offset = binding_table_offset + (binding_table_entries * 4);
 
+   default_color_offset = ALIGN(next_offset, 32);
+   next_offset = default_color_offset + sizeof(*default_color_state);
+
    total_state_size = next_offset;
    assert(total_state_size < EXA_LINEAR_EXTRA);
 
@@ -507,6 +512,8 @@ ErrorF("i965 prepareComposite\n");
    binding_table = (void *)(state_base + binding_table_offset);
 
    vb = (void *)(state_base + vb_offset);
+
+   default_color_state = (void*)(state_base + default_color_offset);
 
    /* Set up a default static partitioning of the URB, which is supposed to
     * allow anything we would want to do, at potentially lower performance.
@@ -541,7 +548,6 @@ ErrorF("i965 prepareComposite\n");
     * here, but we should have synced the 3D engine already in I830PutImage.
     */
 
-// needed?
    memset (cc_viewport, 0, sizeof (*cc_viewport));
    cc_viewport->min_depth = -1.e35;
    cc_viewport->max_depth = 1.e35;
@@ -678,18 +684,25 @@ ErrorF("i965 prepareComposite\n");
 	I830FALLBACK("Bad filter 0x%x\n", pSrcPicture->filter);
    }
 
+   memset(default_color_state, 0, sizeof(*default_color_state));
+   default_color_state->color[0] = 1.0; /* RGBA format */
+   default_color_state->color[1] = 0.0; 
+   default_color_state->color[2] = 0.0; 
+   default_color_state->color[3] = 0.0; 
+
+   src_sampler_state->ss0.default_color_mode = 0; /* GL mode */
+
    if (!pSrcPicture->repeat) {
-	/* XXX: clamp_border and set border to 0 */
-   	src_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP; 
-   	src_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
-   	src_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+   	src_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER; 
+   	src_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
+   	src_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
+	src_sampler_state->ss2.default_color_pointer = 
+			(state_base_offset + default_color_offset) >> 5;
    } else {
    	src_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_WRAP; 
    	src_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
    	src_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
    }
-   /* XXX: ss2 has border color pointer, which should be in general state address,
-    	   and just a single texel tex map, with R32G32B32A32_FLOAT */
    src_sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
 
    if (pMask) {
@@ -709,17 +722,16 @@ ErrorF("i965 prepareComposite\n");
    	}
 
    	if (!pMaskPicture->repeat) {
-	/* XXX: clamp_border and set border to 0 */
-   	    mask_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP; 
-   	    mask_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
-   	    mask_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+   	    mask_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER; 
+   	    mask_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
+   	    mask_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
+            mask_sampler_state->ss2.default_color_pointer = 
+				(state_base_offset + default_color_offset)>>5;
    	} else {
    	    mask_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_WRAP; 
    	    mask_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
    	    mask_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
     	}
-   /* XXX: ss2 has border color pointer, which should be in general state address,
-    	   and just a single texel tex map, with R32G32B32A32_FLOAT */
    	mask_sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
    }
 
