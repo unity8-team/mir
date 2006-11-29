@@ -562,21 +562,26 @@ ErrorF("i965 prepareComposite\n");
    cc_state->cc0.stencil_enable = 0;   /* disable stencil */
    cc_state->cc2.depth_test = 0;       /* disable depth test */
    cc_state->cc2.logicop_enable = 0;   /* disable logic op */
-   cc_state->cc3.ia_blend_enable = 0;  /* blend alpha just like colors */
+   cc_state->cc3.ia_blend_enable = 1;  /* blend alpha just like colors */
    cc_state->cc3.blend_enable = 1;     /* enable color blend */
    cc_state->cc3.alpha_test = 0;       /* disable alpha test */
    cc_state->cc4.cc_viewport_state_offset = (state_base_offset + cc_viewport_offset) >> 5;
    cc_state->cc5.dither_enable = 0;    /* disable dither */
-//   cc_state->cc5.logicop_func = 0xc;   /* COPY */
-//   cc_state->cc5.statistics_enable = 1;
-//   cc_state->cc5.ia_blend_function = BRW_BLENDFUNCTION_ADD;
-//   cc_state->cc5.ia_src_blend_factor = BRW_BLENDFACTOR_ONE;
-//   cc_state->cc5.ia_dest_blend_factor = BRW_BLENDFACTOR_ONE;
-   cc_state->cc6.blend_function = BRW_BLENDFUNCTION_ADD;
+   cc_state->cc5.logicop_func = 0xc;   /* COPY */
+   cc_state->cc5.statistics_enable = 1;
+   cc_state->cc5.ia_blend_function = BRW_BLENDFUNCTION_ADD;
    I965GetBlendCntl(op, pMaskPicture, pDstPicture->format, 
 		    &src_blend, &dst_blend);
+   /* XXX: alpha blend factor should be same as color, but check
+	   for CA case in future */
+   cc_state->cc5.ia_src_blend_factor = src_blend;
+   cc_state->cc5.ia_dest_blend_factor = dst_blend;
+   cc_state->cc6.blend_function = BRW_BLENDFUNCTION_ADD;
    cc_state->cc6.src_blend_factor = src_blend;
    cc_state->cc6.dest_blend_factor = dst_blend;
+   cc_state->cc6.clamp_post_alpha_blend = 1; 
+   cc_state->cc6.clamp_pre_alpha_blend = 1; 
+   cc_state->cc6.clamp_range = 0;  /* clamp range [0,1] */
 
    /* Upload system kernel */
    memcpy (sip_kernel, sip_kernel_static, sizeof (sip_kernel_static));
