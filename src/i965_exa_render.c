@@ -1011,10 +1011,8 @@ I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     srcXend = srcX + w;
     srcYend = srcY + h;
-    if (pMask) {
-        maskXend = maskX + w;
-        maskYend = maskY + h;
-    }
+    maskXend = maskX + w;
+    maskYend = maskY + h;
     if (is_transform[0]) {
         v.vector[0] = IntToxFixed(srcX);
         v.vector[1] = IntToxFixed(srcY);
