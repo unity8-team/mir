@@ -62,8 +62,7 @@ typedef struct {
 #define METHOD_ADAPTIVE 3
 
    int           overlay_deinterlacing_method;
-   int		 overlay_scaler_buffer_width;
-   
+
    int           capture_vbi_data;
 
    int           dec_brightness;

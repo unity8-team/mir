@@ -1364,17 +1364,6 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
         OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL,
 	       (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) | (1<<18)));
     }
-    
-    /* overlay scaler line length differs for different revisions 
-       this needs to be maintained by hand  */
-    switch(info->ChipFamily){
-    	case CHIP_FAMILY_R200:
-	case CHIP_FAMILY_R300:
-		pPriv->overlay_scaler_buffer_width=1920;
-		break;
-	default:
-		pPriv->overlay_scaler_buffer_width=1536;
-    	}
 
     /* Decide on tuner type */
     if((info->tunerType<0) && (info->MM_TABLE_valid)) {
@@ -2439,6 +2428,8 @@ RADEONDisplayVideo(
     CARD32 scale_cntl;
     double dsr;
     int tap_set;
+    int predownscale=0;
+    int src_w_d;
 
     is_rgb=0;
     switch(id){
@@ -2513,17 +2504,27 @@ RADEONDisplayVideo(
     step_by_y = 1;
     step_by_uv = step_by_y;
 
+    src_w_d = src_w;
+#if 0
+    /* XXX this does not appear to work */
     /* if the source width was larger than what would fit in overlay scaler increase step_by values */
     i=src_w;
-    while(i>pPriv->overlay_scaler_buffer_width){
-    	step_by_y++;
+    while(i>info->overlay_scaler_buffer_width){
+	step_by_y++;
 	step_by_uv++;
 	h_inc >>=1;
 	i=i/2;
-    	}
+	}
+#else
+    /* predownscale instead (yes this hurts quality) - will only work for widths up
+       to 2 times the overlay_scaler_buffer_width, should be enough */
+    if (src_w_d > info->overlay_scaler_buffer_width) {
+	src_w_d /= 2; /* odd widths? */
+	predownscale = 1;
+    }
+#endif
 
-
-    h_inc_d = src_w;
+    h_inc_d = src_w_d;
     h_inc_d = h_inc_d/drw_w;
     /* we could do a tad better  - but why
        bother when this concerns downscaling and the code is so much more
@@ -2540,7 +2541,7 @@ RADEONDisplayVideo(
     h_inc_uv = h_inc>>(step_by_uv-step_by_y);
     h_inc = h_inc * h_inc_d;
     h_inc_uv = h_inc_uv * h_inc_d;
-    /* pPriv->overlay_scaler_buffer_width is magic number - maximum line length the overlay scaler can fit 
+    /* info->overlay_scaler_buffer_width is magic number - maximum line length the overlay scaler can fit 
        in the buffer for 2 tap filtering */
     /* the only place it is documented in is in ATI source code */
     /* we need twice as much space for 4 tap filtering.. */
@@ -2550,7 +2551,7 @@ RADEONDisplayVideo(
 #if 0
     if(!is_rgb && (step_by_y==1) && (step_by_uv==1) && (h_inc < (1<<12))
        && (deinterlacing_method!=METHOD_WEAVE)
-       && (drw_w*2 <= pPriv->overlay_scaler_buffer_width)){
+       && (drw_w*2 <= info->overlay_scaler_buffer_width)){
         step_by_y=0;
         step_by_uv=1;
         h_inc_uv = h_inc;
@@ -2592,7 +2593,8 @@ RADEONDisplayVideo(
 
     RADEONWaitForFifo(pScrn, 10);
     OUTREG(RADEON_OV0_H_INC, h_inc | ((h_inc_uv >> 1) << 16));
-    OUTREG(RADEON_OV0_STEP_BY, step_by_y | (step_by_uv << 8));
+    OUTREG(RADEON_OV0_STEP_BY, step_by_y | (step_by_uv << 8) |
+	predownscale << 4 | predownscale << 12);
 
     x_off = 8;
     y_off = 0;

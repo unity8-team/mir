@@ -140,6 +140,17 @@ This overrides the default pixel value for the YUV video overlay key.
 The default value is
 .B 0x1E.
 .TP
+.BI "Option \*qScalerWidth\*q \*q" integer \*q
+This sets the overlay scaler buffer width. Accepted values range from 1024 to
+2048, divisible by 64, values other than 1536 and 1920 may not make sense
+though. Should be set automatically, but noone has a clue what the limit is
+for which chip. If you think quality is not optimal when playing back HD video
+(with horizontal resolution larger than this setting), increase this value, if
+you get an empty area at the right (usually pink), decrease it. Note this only
+affects the "true" overlay via xv, it won't affect things like textured video.
+.br
+The default value is either 1536 (for most chips) or 1920.
+.TP
 .BI "Option \*qUseFBDev\*q \*q" boolean \*q
 Enable or disable use of an OS\-specific framebuffer device interface
 (which is not supported on all OSs).  MergedFB does not work when this

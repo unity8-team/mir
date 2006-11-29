@@ -142,6 +142,7 @@ typedef enum {
     OPTION_TUNER_TYPE,
     OPTION_RAGE_THEATRE_MICROC_PATH,
     OPTION_RAGE_THEATRE_MICROC_TYPE,
+    OPTION_SCALER_WIDTH,
 #endif
 #ifdef RENDER
     OPTION_RENDER_ACCEL,
@@ -739,6 +740,7 @@ typedef struct {
         CARD8 input[5];
     	} MM_TABLE;
     CARD16 video_decoder_type;
+    int overlay_scaler_buffer_width;
 
     /* Render */
     Bool              RenderAccel;

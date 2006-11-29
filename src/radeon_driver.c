@@ -182,8 +182,9 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_RAGE_THEATRE_COMPOSITE_PORT, "RageTheatreCompositePort", OPTV_INTEGER, {0}, FALSE },
     { OPTION_RAGE_THEATRE_SVIDEO_PORT,    "RageTheatreSVideoPort",    OPTV_INTEGER, {0}, FALSE },
     { OPTION_TUNER_TYPE,                  "TunerType",                OPTV_INTEGER, {0}, FALSE },
-	{ OPTION_RAGE_THEATRE_MICROC_PATH,	"RageTheatreMicrocPath",	 OPTV_STRING, {0}, FALSE },
-	{ OPTION_RAGE_THEATRE_MICROC_TYPE, 	"RageTheatreMicrocType",	 OPTV_STRING, {0}, FALSE },
+    { OPTION_RAGE_THEATRE_MICROC_PATH,    "RageTheatreMicrocPath",    OPTV_STRING, {0}, FALSE },
+    { OPTION_RAGE_THEATRE_MICROC_TYPE,    "RageTheatreMicrocType",    OPTV_STRING, {0}, FALSE },
+    { OPTION_SCALER_WIDTH,                "ScalerWidth",              OPTV_INTEGER, {0}, FALSE }, 
 #endif
 #ifdef RENDER
     { OPTION_RENDER_ACCEL,   "RenderAccel",      OPTV_BOOLEAN, {0}, FALSE },
@@ -3048,6 +3049,30 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     } else {
     	info->tunerType=-1;
     }
+
+    if(xf86GetOptValInteger(info->Options, OPTION_SCALER_WIDTH, &(info->overlay_scaler_buffer_width))) {
+	if ((info->overlay_scaler_buffer_width < 1024) ||
+	  (info->overlay_scaler_buffer_width > 2048) ||
+	  ((info->overlay_scaler_buffer_width % 64) != 0)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to set illegal scaler width. Using default\n");
+	    info->overlay_scaler_buffer_width = 0;
+	}
+    }
+    else info->overlay_scaler_buffer_width = 0;
+    if (!info->overlay_scaler_buffer_width) {
+       /* overlay scaler line length differs for different revisions 
+       this needs to be maintained by hand  */
+	switch(info->ChipFamily){
+	case CHIP_FAMILY_R200:
+	case CHIP_FAMILY_R300:
+		info->overlay_scaler_buffer_width = 1920;
+		break;
+	default:
+		info->overlay_scaler_buffer_width = 1536;
+	}
+    }
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Assuming overlay scaler buffer width is %d\n",
+	info->overlay_scaler_buffer_width);
 
     if(info->tunerType>31){
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to set tuner type to invalid value. Disabling setting\n");
