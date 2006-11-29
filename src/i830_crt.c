@@ -316,7 +316,7 @@ i830_crt_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
     fixed_mon.vrefresh[0].lo = 50.0;
     fixed_mon.vrefresh[0].hi = 70.0;
 
-    modes = i830xf86DuplicateModes(pScrn, pScrn->monitor->Modes);
+    modes = xf86DuplicateModes(pScrn, pScrn->monitor->Modes);
     i830xf86ValidateModesSync(pScrn, modes, &fixed_mon);
     i830xf86PruneInvalidModes(pScrn, &modes, TRUE);
 

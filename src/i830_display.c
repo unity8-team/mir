@@ -321,7 +321,7 @@ i830PipeFindClosestMode(ScrnInfoPtr pScrn, int pipe, DisplayModePtr pMode)
 	assert(pScan->VRefresh != 0.0);
 
 	/* If there's an exact match, we're done. */
-	if (I830ModesEqual(pScan, pMode)) {
+	if (xf86ModesEqual(pScan, pMode)) {
 	    pBest = pMode;
 	    break;
 	}
@@ -366,7 +366,7 @@ i830PipeFindClosestMode(ScrnInfoPtr pScrn, int pipe, DisplayModePtr pMode)
 		   "No suitable mode found to program for the pipe.\n"
 		   "	continuing with desired mode %dx%d@%.1f\n",
 		   pMode->HDisplay, pMode->VDisplay, pMode->VRefresh);
-    } else if (!I830ModesEqual(pBest, pMode)) {
+    } else if (!xf86ModesEqual(pBest, pMode)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "Choosing pipe %d's mode %dx%d@%.1f instead of xf86 "
 		   "mode %dx%d@%.1f\n", pipe,
@@ -434,7 +434,7 @@ i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe,
     Bool didLock = FALSE;
 #endif
 
-    if (I830ModesEqual(&pI830Pipe->curMode, pMode))
+    if (xf86ModesEqual(&pI830Pipe->curMode, pMode))
 	return TRUE;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Requested pix clock: %d\n",
@@ -957,7 +957,7 @@ i830GetLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output)
     output->pipe = i;
     output->enabled = TRUE;
 
-    I830xf86SetModeCrtc(&mode, INTERLACE_HALVE_V);
+    xf86SetModeCrtc(&mode, INTERLACE_HALVE_V);
 
     i830PipeSetMode(pScrn, &mode, i, FALSE);
 

@@ -158,11 +158,11 @@ i830_reprobe_output_modes(ScrnInfoPtr pScrn)
 	    /* The code to choose the best mode per pipe later on will require
 	     * VRefresh to be set.
 	     */
-	    mode->VRefresh = i830xf86ModeVRefresh(mode);
-	    I830xf86SetModeCrtc(mode, INTERLACE_HALVE_V);
+	    mode->VRefresh = xf86ModeVRefresh(mode);
+	    xf86SetModeCrtc(mode, INTERLACE_HALVE_V);
 
 #ifdef DEBUG_REPROBE
-	    PrintModeline(pScrn->scrnIndex, mode);
+	    xf86PrintModeline(pScrn->scrnIndex, mode);
 #endif
 	}
     }
@@ -203,7 +203,7 @@ i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
     for (i = 0; i < pI830->num_outputs; i++) {
 	if (pI830->output[i].probed_modes != NULL) {
 	    pScrn->modes =
-		i830xf86DuplicateModes(pScrn, pI830->output[i].probed_modes);
+		xf86DuplicateModes(pScrn, pI830->output[i].probed_modes);
 	    break;
 	}
     }

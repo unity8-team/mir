@@ -25,26 +25,27 @@
  *
  */
 
-double
-i830xf86ModeHSync(DisplayModePtr mode);
+#include "xorgVersion.h"
 
-double
-i830xf86ModeVRefresh(DisplayModePtr mode);
-
-DisplayModePtr
-i830xf86DuplicateMode(DisplayModePtr pMode);
-
-DisplayModePtr
-i830xf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList);
-
-void
-i830xf86SetModeDefaultName(DisplayModePtr mode);
-
-void
-I830xf86SetModeCrtc(DisplayModePtr p, int adjustFlags);
-
-Bool
-I830ModesEqual(DisplayModePtr pMode1, DisplayModePtr pMode2);
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0)
+double i830_xf86ModeHSync(DisplayModePtr mode);
+double i830_xf86ModeVRefresh(DisplayModePtr mode);
+DisplayModePtr i830_xf86DuplicateMode(DisplayModePtr pMode);
+DisplayModePtr i830_xf86DuplicateModes(ScrnInfoPtr pScrn,
+				       DisplayModePtr modeList);
+void i830_xf86SetModeDefaultName(DisplayModePtr mode);
+void i830_xf86SetModeCrtc(DisplayModePtr p, int adjustFlags);
+Bool i830_xf86ModesEqual(DisplayModePtr pMode1, DisplayModePtr pMode2);
+void i830_xf86PrintModeline(int scrnIndex,DisplayModePtr mode);
+#define xf86ModeHSync i830_xf86ModeHSync
+#define xf86ModeVRefresh i830_xf86ModeVRefresh
+#define xf86DuplicateMode i830_xf86DuplicateMode
+#define xf86DuplicateModes i830_xf86DuplicateModes
+#define xf86SetModeDefaultName i830_xf86SetModeDefaultName
+#define xf86SetModeCrtc i830_xf86SetModeCrtc
+#define xf86ModesEqual i830_xf86ModesEqual
+#define xf86PrintModeline i830_xf86PrintModeline
+#endif /* XORG_VERSION_CURRENT <= 7.1.99.2 */
 
 void
 i830xf86ValidateModesFlags(ScrnInfoPtr pScrn, DisplayModePtr modeList,
@@ -72,6 +73,3 @@ i830xf86ValidateModesFlags(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 
 void
 i830xf86ValidateModesUserConfig(ScrnInfoPtr pScrn, DisplayModePtr modeList);
-
-void
-PrintModeline(int scrnIndex,DisplayModePtr mode);

@@ -31,8 +31,16 @@
  * code is shared directly.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "xf86.h"
 
+#include "i830.h"
+#include "i830_display.h"
+
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0)
 /*
  * Generate a CVT standard mode from HDisplay, VDisplay and VRefresh.
  *
@@ -58,8 +66,8 @@
  *
  */
 _X_EXPORT DisplayModePtr
-i830xf86CVTMode(int HDisplay, int VDisplay, float VRefresh, Bool Reduced,
-		Bool Interlaced)
+xf86CVTMode(int HDisplay, int VDisplay, float VRefresh, Bool Reduced,
+	    Bool Interlaced)
 {
     DisplayModeRec  *Mode = xnfalloc(sizeof(DisplayModeRec));
 
@@ -295,3 +303,4 @@ i830xf86CVTMode(int HDisplay, int VDisplay, float VRefresh, Bool Reduced,
 
     return Mode;
 }
+#endif /* XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0) */

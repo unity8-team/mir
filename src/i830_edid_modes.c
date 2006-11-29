@@ -25,8 +25,8 @@
  * @file This is a copy of edid_modes.c from the X Server, for compatibility
  * with old X Servers.
  */
-#ifdef HAVE_XORG_CONFIG_H
-#include <xorg-config.h>
+#ifdef HAVE_CONFIG_H
+#include <config.h>
 #endif
 
 #include "xf86.h"
@@ -35,6 +35,10 @@
 #include "property.h"
 #include "propertyst.h"
 #include "xf86DDC.h"
+#include "i830.h"
+#include "i830_display.h"
+
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0)
 
 /*
  * TODO:
@@ -92,7 +96,7 @@ DDCModesFromStandardTiming(int scrnIndex, struct std_timings *timing)
 
     for (i = 0; i < STD_TIMINGS; i++) {
         if (timing[i].hsize && timing[i].vsize && timing[i].refresh) {
-            Mode =  i830xf86CVTMode(timing[i].hsize, timing[i].vsize,
+            Mode =  xf86CVTMode(timing[i].hsize, timing[i].vsize,
                                 timing[i].refresh, FALSE, FALSE);
 	    Mode->type = M_T_DRIVER;
             Modes = xf86ModesAdd(Modes, Mode);
@@ -164,52 +168,8 @@ DDCModeFromDetailedTiming(int scrnIndex, struct detailed_timings *timing,
     return Mode;
 }
 
-/*
- *
- */
-static void
-DDCGuessRangesFromModes(int scrnIndex, MonPtr Monitor, DisplayModePtr Modes)
-{
-    DisplayModePtr Mode = Modes;
-
-    if (!Monitor || !Modes)
-        return;
-
-    /* set up the ranges for scanning through the modes */
-    Monitor->nHsync = 1;
-    Monitor->hsync[0].lo = 1024.0;
-    Monitor->hsync[0].hi = 0.0;
-
-    Monitor->nVrefresh = 1;
-    Monitor->vrefresh[0].lo = 1024.0;
-    Monitor->vrefresh[0].hi = 0.0;
-
-    while (Mode) {
-        if (!Mode->HSync)
-            Mode->HSync = ((float) Mode->Clock ) / ((float) Mode->HTotal);
-
-        if (!Mode->VRefresh)
-            Mode->VRefresh = (1000.0 * ((float) Mode->Clock)) / 
-                ((float) (Mode->HTotal * Mode->VTotal));
-
-        if (Mode->HSync < Monitor->hsync[0].lo)
-            Monitor->hsync[0].lo = Mode->HSync;
-
-        if (Mode->HSync > Monitor->hsync[0].hi)
-            Monitor->hsync[0].hi = Mode->HSync;
-
-        if (Mode->VRefresh < Monitor->vrefresh[0].lo)
-            Monitor->vrefresh[0].lo = Mode->VRefresh;
-
-        if (Mode->VRefresh > Monitor->vrefresh[0].hi)
-            Monitor->vrefresh[0].hi = Mode->VRefresh;
-
-        Mode = Mode->next;
-    }
-}
-
 DisplayModePtr
-i830xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC)
+xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC)
 {
     int preferred, i;
     DisplayModePtr Modes = NULL, Mode;
@@ -247,3 +207,5 @@ i830xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC)
 
     return Modes;
 }
+
+#endif /* XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0) */

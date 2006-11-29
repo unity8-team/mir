@@ -45,13 +45,14 @@
  * there but we still want to use.  We need to come up with better API here.
  */
 
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0)
 /**
  * Calculates the horizontal sync rate of a mode.
  *
  * Exact copy of xf86Mode.c's.
  */
 double
-i830xf86ModeHSync(DisplayModePtr mode)
+xf86ModeHSync(DisplayModePtr mode)
 {
     double hsync = 0.0;
     
@@ -69,7 +70,7 @@ i830xf86ModeHSync(DisplayModePtr mode)
  * Exact copy of xf86Mode.c's.
  */
 double
-i830xf86ModeVRefresh(DisplayModePtr mode)
+xf86ModeVRefresh(DisplayModePtr mode)
 {
     double refresh = 0.0;
 
@@ -89,7 +90,7 @@ i830xf86ModeVRefresh(DisplayModePtr mode)
 
 /** Sets a default mode name of <width>x<height> on a mode. */
 void
-i830xf86SetModeDefaultName(DisplayModePtr mode)
+xf86SetModeDefaultName(DisplayModePtr mode)
 {
     if (mode->name != NULL)
 	xfree(mode->name);
@@ -98,7 +99,7 @@ i830xf86SetModeDefaultName(DisplayModePtr mode)
 }
 
 /*
- * I830xf86SetModeCrtc
+ * xf86SetModeCrtc
  *
  * Initialises the Crtc parameters for a mode.  The initialisation includes
  * adjustments for interlaced and double scan modes.
@@ -106,7 +107,7 @@ i830xf86SetModeDefaultName(DisplayModePtr mode)
  * Exact copy of xf86Mode.c's.
  */
 void
-I830xf86SetModeCrtc(DisplayModePtr p, int adjustFlags)
+xf86SetModeCrtc(DisplayModePtr p, int adjustFlags)
 {
     if ((p == NULL) || ((p->type & M_T_CRTC_C) == M_T_BUILTIN))
 	return;
@@ -191,7 +192,7 @@ I830xf86SetModeCrtc(DisplayModePtr p, int adjustFlags)
  * Allocates and returns a copy of pMode, including pointers within pMode.
  */
 DisplayModePtr
-i830xf86DuplicateMode(DisplayModePtr pMode)
+xf86DuplicateMode(DisplayModePtr pMode)
 {
     DisplayModePtr pNew;
 
@@ -200,7 +201,7 @@ i830xf86DuplicateMode(DisplayModePtr pMode)
     pNew->next = NULL;
     pNew->prev = NULL;
     if (pNew->name == NULL) {
-	i830xf86SetModeDefaultName(pMode);
+	xf86SetModeDefaultName(pMode);
     } else {
 	pNew->name = xnfstrdup(pMode->name);
     }
@@ -215,7 +216,7 @@ i830xf86DuplicateMode(DisplayModePtr pMode)
  * \param modeList doubly-linked mode list
  */
 DisplayModePtr
-i830xf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
+xf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
 {
     DisplayModePtr first = NULL, last = NULL;
     DisplayModePtr mode;
@@ -223,7 +224,7 @@ i830xf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
     for (mode = modeList; mode != NULL; mode = mode->next) {
 	DisplayModePtr new;
 
-	new = i830xf86DuplicateMode(mode);
+	new = xf86DuplicateMode(mode);
 
 	/* Insert pNew into modeList */
 	if (last) {
@@ -249,7 +250,7 @@ i830xf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
  * This isn't in xf86Modes.c, but it might deserve to be there.
  */
 Bool
-I830ModesEqual(DisplayModePtr pMode1, DisplayModePtr pMode2)
+xf86ModesEqual(DisplayModePtr pMode1, DisplayModePtr pMode2)
 {
      if (pMode1->Clock == pMode2->Clock &&
 	 pMode1->HDisplay == pMode2->HDisplay &&
@@ -285,7 +286,7 @@ add(char **p, char *new)
  * Convenient VRefresh printing was added, though, compared to xf86Mode.c
  */
 void
-PrintModeline(int scrnIndex,DisplayModePtr mode)
+xf86PrintModeline(int scrnIndex,DisplayModePtr mode)
 {
     char tmp[256];
     char *flags = xnfcalloc(1, 1);
@@ -317,9 +318,10 @@ PrintModeline(int scrnIndex,DisplayModePtr mode)
 		   mode->name, mode->VRefresh, mode->Clock/1000., mode->HDisplay,
 		   mode->HSyncStart, mode->HSyncEnd, mode->HTotal,
 		   mode->VDisplay, mode->VSyncStart, mode->VSyncEnd,
-		   mode->VTotal, flags, i830xf86ModeHSync(mode));
+		   mode->VTotal, flags, xf86ModeHSync(mode));
     xfree(flags);
 }
+#endif /* XORG_VERSION_CURRENT <= 7.1.99.2 */
 
 /**
  * Marks as bad any modes with unsupported flags.
@@ -393,8 +395,8 @@ i830xf86ValidateModesSync(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 
 	bad = TRUE;
 	for (i = 0; i < mon->nHsync; i++) {
-	    if (i830xf86ModeHSync(mode) >= mon->hsync[i].lo &&
-		i830xf86ModeHSync(mode) <= mon->hsync[i].hi)
+	    if (xf86ModeHSync(mode) >= mon->hsync[i].lo &&
+		xf86ModeHSync(mode) <= mon->hsync[i].hi)
 	    {
 		bad = FALSE;
 	    }
@@ -404,8 +406,8 @@ i830xf86ValidateModesSync(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 
 	bad = TRUE;
 	for (i = 0; i < mon->nVrefresh; i++) {
-	    if (i830xf86ModeVRefresh(mode) >= mon->vrefresh[i].lo &&
-		i830xf86ModeVRefresh(mode) <= mon->vrefresh[i].hi)
+	    if (xf86ModeVRefresh(mode) >= mon->vrefresh[i].lo &&
+		xf86ModeVRefresh(mode) <= mon->vrefresh[i].hi)
 	    {
 		bad = FALSE;
 	    }

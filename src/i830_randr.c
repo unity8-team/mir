@@ -117,7 +117,7 @@ I830RandRGetInfo (ScreenPtr pScreen, Rotation *rotations)
 	    return FALSE;
 	RRRegisterRate (pScreen, pSize, refresh);
 
-	if (I830ModesEqual(mode, scrp->currentMode) &&
+	if (xf86ModesEqual(mode, scrp->currentMode) &&
 	    mode->HDisplay == scrp->virtualX &&
 	    mode->VDisplay == scrp->virtualY)
 	{
@@ -509,7 +509,7 @@ I830RandRCrtcNotify (RRCrtcPtr	crtc)
 	    for (j = 0; j < rrout->numModes; j++)
 	    {
 		DisplayModePtr	outMode = rrout->modes[j]->devPrivate;
-		if (I830ModesEqual(pipeMode, outMode))
+		if (xf86ModesEqual(pipeMode, outMode))
 		{
 		    mode = rrout->modes[j];
 		    break;
