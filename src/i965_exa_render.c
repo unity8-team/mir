@@ -397,8 +397,6 @@ ErrorF("i965 prepareComposite\n");
     }
     scale_units[0][0] = pSrc->drawable.width;
     scale_units[0][1] = pSrc->drawable.height;
-    scale_units[2][0] = pDst->drawable.width;
-    scale_units[2][1] = pDst->drawable.height;
 
     if (pSrcPicture->transform) {
 	is_transform[0] = TRUE;
