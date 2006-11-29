@@ -806,7 +806,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    pointer pVBEModule = NULL;
    Bool enable;
    const char *chipname;
-   int mem_skip;
 #ifdef XF86DRI
    unsigned long savedMMSize;
 #endif
@@ -1126,15 +1125,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /*
     * Get the pre-allocated (stolen) memory size.
     */
-    
-   mem_skip = 0;
-   
-   /* On 965, it looks like the GATT table is inside the aperture? */
-   if (IS_I965G(pI830))
-      mem_skip = pI830->FbMapSize >> 10;
-    
-   pI830->StolenMemory.Size = I830DetectMemory(pScrn) - mem_skip;
-   pI830->StolenMemory.Start = mem_skip;
+   pI830->StolenMemory.Size = I830DetectMemory(pScrn);
+   pI830->StolenMemory.Start = 0;
    pI830->StolenMemory.End = pI830->StolenMemory.Size;
 
    /* Find the maximum amount of agpgart memory available. */
