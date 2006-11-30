@@ -273,11 +273,50 @@ i830I2CGetBits(I2CBusPtr b, int *clock, int *data)
     *clock = (val & GPIO_CLOCK_VAL_IN) != 0;
 }
 
+#define I2C_DEBUG 0
+
+#if I2C_DEBUG
+static int last_clock = 0, last_data = 0;
+static Bool first = TRUE;
+#endif
+
 static void
 i830I2CPutBits(I2CBusPtr b, int clock, int data)
 {
+#if I2C_DEBUG
+    int cur_clock, cur_data;
+    char *debug = "";
+#endif
+
     ScrnInfoPtr pScrn = xf86Screens[b->scrnIndex];
     I830Ptr pI830 = I830PTR(pScrn);
+
+#if I2C_DEBUG
+    if (!first && cur_clock != last_clock && cur_data != last_data) {
+	/* If we change the clock and data simultaneously, that would be bad.
+	 * I thought we did sometimes, but maybe not.
+	 */
+	debug = " <--";
+    }
+
+    last_clock = cur_clock;
+    last_data = cur_data;
+
+    i830I2CGetBits(b, &cur_clock, &cur_data);
+
+    if (first) {
+	ErrorF("I2C Debug:        C D      C D\n");
+	first = FALSE;
+    }
+
+    ErrorF("Setting I2C 0x%08x to: %c %c (at: %c %c)%s\n",
+	   b->DriverPrivate.uval,
+	   clock ? '^' : 'v',
+	   data ? '^' : 'v',
+	   cur_clock ? '^' : 'v',
+	   cur_data ? '^' : 'v',
+	   debug);
+#endif
 
     OUTREG(b->DriverPrivate.uval,
 	(data ? GPIO_DATA_VAL_OUT : 0) |
