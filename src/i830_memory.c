@@ -870,6 +870,34 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 	 }
 	 return FALSE;
       }
+#ifdef I830_USE_EXA
+      size = lineSize * pScrn->virtualY;
+      size = ROUND_TO_PAGE(size);
+
+      if (tileable) {
+	 align = KB(512);
+	 alignflags = ALIGN_BOTH_ENDS;
+      } else {
+	 align = KB(64);
+	 alignflags = 0;
+      }
+
+      alloced = I830AllocVidMem(pScrn, &(pI830->Offscreen),
+				&(pI830->StolenPool), size, align,
+				flags | alignflags |
+				FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
+      if (alloced < size) {
+	 if (!dryrun) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
+		       "offscreen memory.  Not enough VRAM?\n");
+	 }
+	 return FALSE;
+      } else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Successful allocate "
+		       "offscreen memory at 0x%lx, size %ld KB\n", 
+			pI830->Offscreen.Start, pI830->Offscreen.Size/1024);
+      }
+#endif
    } else {
       long lineSize;
       long extra = 0;

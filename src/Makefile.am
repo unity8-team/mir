@@ -24,7 +24,8 @@ SUBDIRS = xvmc bios_reader ch7xxx sil164
 # -avoid-version prevents gratuitous .0.0.0 version numbers on the end
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
-AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ -DI830_XV
+AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ \
+	-DI830_XV -DI830_USE_XAA -DI830_USE_EXA
 
 i810_drv_la_LTLIBRARIES = i810_drv.la
 i810_drv_la_LDFLAGS = -module -avoid-version
@@ -84,7 +85,11 @@ i810_drv_la_SOURCES = \
 	 i915_3d.c \
 	 i915_3d.h \
 	 i915_reg.h \
-	 i915_video.c
+	 i915_video.c \
+	 i830_exa.c \
+	 i830_xaa.c \
+	 i830_exa_render.c \
+	 i915_exa_render.c
 
 if HAVE_GEN4ASM
 sf_prog.h: packed_yuv_sf.g4a

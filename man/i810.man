@@ -206,7 +206,12 @@ atctivate the legacy texture pool (see
 ). If you run 3D programs with large texture memory requirements, you might
 gain some performance by increasing this value.
 Default: 32768.
- 
+.TP
+.BI "Option \*qAccelMethod\*q \*q" string \*q
+Choose acceleration architecture, either "XAA" or "EXA".  XAA is the old
+(but stable) XFree86 based acceleration architecture.  EXA is a newer and
+simpler acceleration architecture designed to better accelerate the X Render
+extension.  Default: "XAA".
 
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)

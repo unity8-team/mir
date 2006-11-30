@@ -69,6 +69,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_dri.h"
 #endif
 
+#ifdef I830_USE_EXA
+#include "exa.h"
+Bool I830EXAInit(ScreenPtr pScreen);
+#endif
+
+#ifdef I830_USE_XAA
+Bool I830XAAInit(ScreenPtr pScreen);
+#endif
+
 typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
 #include "common.h"
@@ -282,6 +291,14 @@ struct _I830OutputRec {
 #endif
 };
 
+/** enumeration of 3d consumers so some can maintain invariant state. */
+enum last_3d {
+    LAST_3D_OTHER,
+    LAST_3D_VIDEO,
+    LAST_3D_RENDER,
+    LAST_3D_ROTATION
+};
+
 typedef struct _I830PipeRec {
    Bool		  enabled;
    Bool		  gammaEnabled;
@@ -340,7 +357,9 @@ typedef struct _I830Rec {
    I830MemRange FrontBuffer2;
    I830MemRange Scratch;
    I830MemRange Scratch2;
-
+#ifdef I830_USE_EXA
+   I830MemRange Offscreen;
+#endif
    /* Regions allocated either from the above pools, or from agpgart. */
    I830MemRange	*CursorMem;
    I830MemRange	*CursorMemARGB;
@@ -418,12 +437,21 @@ typedef struct _I830Rec {
 
    I830RegRec ModeReg;
 
+   Bool useEXA;
    Bool noAccel;
    Bool SWCursor;
    Bool cursorOn;
+#ifdef I830_USE_XAA
    XAAInfoRecPtr AccelInfoRec;
+#endif
    xf86CursorInfoPtr CursorInfoRec;
    CloseScreenProcPtr CloseScreen;
+
+#ifdef I830_USE_EXA
+   unsigned int copy_src_pitch;
+   unsigned int copy_src_off;
+   ExaDriverPtr	EXADriverPtr;
+#endif
 
    I830WriteIndexedByteFunc writeControl;
    I830ReadIndexedByteFunc readControl;
@@ -563,6 +591,8 @@ typedef struct _I830Rec {
    CARD32 savePaletteB[256];
    CARD32 saveSWF[17];
    CARD32 saveBLC_PWM_CTL;
+
+   enum last_3d last_3d;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -669,6 +699,9 @@ void i830_dvo_init(ScrnInfoPtr pScrn);
 
 /* i830_lvds.c */
 void i830_lvds_init(ScrnInfoPtr pScrn);
+
+extern void i830MarkSync(ScrnInfoPtr pScrn);
+extern void i830WaitSync(ScrnInfoPtr pScrn);
 
 /* i830_memory.c */
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);

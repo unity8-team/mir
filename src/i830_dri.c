@@ -1028,6 +1028,8 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("i830DRISwapContext (in)\n");
 
+      pI830->last_3d = LAST_3D_OTHER;
+
       if (!pScrn->vtSema)
      	 return;
       pI830->LockHeld = 1;
@@ -1047,7 +1049,6 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
 {
    ScreenPtr pScreen = pWin->drawable.pScreen;
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I830Ptr pI830 = I830PTR(pScrn);
    BoxPtr pbox = REGION_RECTS(prgn);
    int nbox = REGION_NUM_RECTS(prgn);
 
@@ -1085,7 +1086,7 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
    }
 
    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
-   pI830->AccelInfoRec->NeedToSync = TRUE;
+   i830MarkSync(pScrn);
 }
 
 /* This routine is a modified form of XAADoBitBlt with the calls to
@@ -1248,8 +1249,7 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
       DEALLOCATE_LOCAL(pptNew1);
       DEALLOCATE_LOCAL(pboxNew1);
    }
-
-   pI830->AccelInfoRec->NeedToSync = TRUE;
+   i830MarkSync(pScrn);
 }
 
 /* Use callbacks from dri.c to support pageflipping mode for a single
