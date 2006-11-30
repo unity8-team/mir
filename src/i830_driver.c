@@ -1585,7 +1585,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
 	      "Maximum frambuffer space: %d kByte\n", pScrn->videoRam);
 
-   if (!I830RandRPreInit (pScrn))
+   if (!xf86RandRPreInit (pScrn))
    {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       PreInitCleanup(pScrn);
@@ -2614,7 +2614,7 @@ I830CreateScreenResources (ScreenPtr pScreen)
    if (!(*pScreen->CreateScreenResources)(pScreen))
       return FALSE;
 
-   if (!I830RandRCreateScreenResources (pScreen))
+   if (!xf86RandRCreateScreenResources (pScreen))
       return FALSE;
 
    return TRUE;
@@ -3157,10 +3157,11 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       xf86DisableRandR(); /* Disable built-in RandR extension */
       shadowSetup(pScreen);
       /* support all rotations */
+      xf86RandRInit (pScreen);
       if (IS_I965G(pI830)) {
-	 I830RandRInit(pScreen, RR_Rotate_0); /* only 0 degrees for I965G */
+	 xf86RandRSetRotations (pScreen, RR_Rotate_0); /* only 0 degrees for I965G */
       } else {
-	 I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
+	 xf86RandRSetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
       }
       pI830->PointerMoved = pScrn->PointerMoved;
       pScrn->PointerMoved = I830PointerMoved;

@@ -519,7 +519,7 @@ i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
 	}
     }
 
-    I830GetOriginalVirtualSize(pScrn, &originalVirtualX, &originalVirtualY);
+    xf86GetOriginalVirtualSize(pScrn, &originalVirtualX, &originalVirtualY);
 
     /* Disable modes in the XFree86 DDX list that are larger than the current
      * virtual size.

@@ -60,6 +60,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "vgaHW.h"
 #include "randrstr.h"
 #include "i830_xf86Crtc.h"
+#include "i830_randr.h"
 
 #ifdef XF86DRI
 #include "xf86drm.h"
@@ -605,15 +606,6 @@ void i830_reprobe_output_modes(ScrnInfoPtr pScrn);
 void i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn);
 void i830_set_default_screen_size(ScrnInfoPtr pScrn);
 DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
-
-/* i830_randr.c */
-Bool I830RandRCreateScreenResources (ScreenPtr pScreen);
-Bool I830RandRInit(ScreenPtr pScreen, int rotation);
-Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
-			RRScreenSizePtr pSize);
-Rotation I830GetRotation(ScreenPtr pScreen);
-void I830GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y);
-Bool I830RandRPreInit (ScrnInfoPtr pScrn);
 
 /* i830_tv.c */
 void i830_tv_init(ScrnInfoPtr pScrn);
