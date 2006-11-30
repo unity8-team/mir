@@ -25,13 +25,13 @@
 #include <randrstr.h>
 #include <X11/extensions/render.h>
 
-Bool xf86RandRCreateScreenResources (ScreenPtr pScreen);
-Bool xf86RandRInit(ScreenPtr pScreen);
-void xf86RandRSetRotations (ScreenPtr pScreen, Rotation rotation);
-Bool xf86RandRSetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
+Bool xf86RandR12CreateScreenResources (ScreenPtr pScreen);
+Bool xf86RandR12Init(ScreenPtr pScreen);
+void xf86RandR12SetRotations (ScreenPtr pScreen, Rotation rotation);
+Bool xf86RandR12SetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
 			RRScreenSizePtr pSize);
-Rotation xf86RandRGetRotation(ScreenPtr pScreen);
-void xf86GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y);
-Bool xf86RandRPreInit (ScrnInfoPtr pScrn);
+Rotation xf86RandR12GetRotation(ScreenPtr pScreen);
+void xf86RandR12GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y);
+Bool xf86RandR12PreInit (ScrnInfoPtr pScrn);
 
 #endif /* _XF86_RANDR_H_ */

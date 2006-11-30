@@ -44,7 +44,7 @@
 #include "i830_display.h"
 #include "i830.h"
 
-typedef struct _xf86RandRInfo {
+typedef struct _xf86RandR12Info {
     int				    virtualX;
     int				    virtualY;
     int				    mmWidth;
@@ -56,18 +56,18 @@ typedef struct _xf86RandRInfo {
 } XF86RandRInfoRec, *XF86RandRInfoPtr;
 
 #ifdef RANDR_12_INTERFACE
-static Bool xf86RandRInit12 (ScreenPtr pScreen);
-static Bool xf86RandRCreateScreenResources12 (ScreenPtr pScreen);
+static Bool xf86RandR12Init12 (ScreenPtr pScreen);
+static Bool xf86RandR12CreateScreenResources12 (ScreenPtr pScreen);
 #endif
 
-static int	    xf86RandRIndex;
-static int	    xf86RandRGeneration;
+static int	    xf86RandR12Index;
+static int	    xf86RandR12Generation;
 
 #define XF86RANDRINFO(p) \
-	((XF86RandRInfoPtr)(p)->devPrivates[xf86RandRIndex].ptr)
+	((XF86RandRInfoPtr)(p)->devPrivates[xf86RandR12Index].ptr)
 
 static int
-xf86RandRModeRefresh (DisplayModePtr mode)
+xf86RandR12ModeRefresh (DisplayModePtr mode)
 {
     if (mode->VRefresh)
 	return (int) (mode->VRefresh + 0.5);
@@ -76,7 +76,7 @@ xf86RandRModeRefresh (DisplayModePtr mode)
 }
 
 static Bool
-xf86RandRGetInfo (ScreenPtr pScreen, Rotation *rotations)
+xf86RandR12GetInfo (ScreenPtr pScreen, Rotation *rotations)
 {
     RRScreenSizePtr	    pSize;
     ScrnInfoPtr		    scrp = XF86SCRNINFO(pScreen);
@@ -98,7 +98,7 @@ xf86RandRGetInfo (ScreenPtr pScreen, Rotation *rotations)
 
     for (mode = scrp->modes; ; mode = mode->next)
     {
-	int refresh = xf86RandRModeRefresh (mode);
+	int refresh = xf86RandR12ModeRefresh (mode);
 	if (randrp->maxX == 0 || randrp->maxY == 0)
 	{
 		if (maxX < mode->HDisplay)
@@ -152,7 +152,7 @@ xf86RandRGetInfo (ScreenPtr pScreen, Rotation *rotations)
 }
 
 static Bool
-xf86RandRSetMode (ScreenPtr	    pScreen,
+xf86RandR12SetMode (ScreenPtr	    pScreen,
 		  DisplayModePtr    mode,
 		  Bool		    useVirtual,
 		  int		    mmWidth,
@@ -241,7 +241,7 @@ xf86RandRSetMode (ScreenPtr	    pScreen,
 }
 
 Bool
-xf86RandRSetConfig (ScreenPtr		pScreen,
+xf86RandR12SetConfig (ScreenPtr		pScreen,
 		    Rotation		rotation,
 		    int			rate,
 		    RRScreenSizePtr	pSize)
@@ -274,7 +274,7 @@ xf86RandRSetConfig (ScreenPtr		pScreen,
 	}
 	if (mode->HDisplay == pSize->width &&
 	    mode->VDisplay == pSize->height &&
-	    (rate == 0 || xf86RandRModeRefresh (mode) == rate))
+	    (rate == 0 || xf86RandR12ModeRefresh (mode) == rate))
 	    break;
 	if (mode->next == scrp->modes)
 	{
@@ -300,7 +300,7 @@ xf86RandRSetConfig (ScreenPtr		pScreen,
 	randrp->maxY = maxY;
     }
 
-    if (!xf86RandRSetMode (pScreen, mode, useVirtual, pSize->mmWidth,
+    if (!xf86RandR12SetMode (pScreen, mode, useVirtual, pSize->mmWidth,
 			   pSize->mmHeight)) {
         randrp->rotation = oldRotation;
 	return FALSE;
@@ -323,7 +323,7 @@ xf86RandRSetConfig (ScreenPtr		pScreen,
 }
 
 Rotation
-xf86RandRGetRotation(ScreenPtr pScreen)
+xf86RandR12GetRotation(ScreenPtr pScreen)
 {
     XF86RandRInfoPtr	    randrp = XF86RANDRINFO(pScreen);
 
@@ -331,7 +331,7 @@ xf86RandRGetRotation(ScreenPtr pScreen)
 }
 
 Bool
-xf86RandRCreateScreenResources (ScreenPtr pScreen)
+xf86RandR12CreateScreenResources (ScreenPtr pScreen)
 {
 #if 0
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
@@ -343,7 +343,7 @@ xf86RandRCreateScreenResources (ScreenPtr pScreen)
 	return TRUE;
 #endif
 #if RANDR_12_INTERFACE
-    if (xf86RandRCreateScreenResources12 (pScreen))
+    if (xf86RandR12CreateScreenResources12 (pScreen))
 	return TRUE;
 #endif
 #if 0
@@ -361,7 +361,7 @@ xf86RandRCreateScreenResources (ScreenPtr pScreen)
 	p.mmHeight = pScreen->mmHeight;
 
 	pI830->starting = TRUE; /* abuse this for dual head & rotation */
-	xf86RandRSetConfig (pScreen, requestedRotation, 0, &p);
+	xf86RandR12SetConfig (pScreen, requestedRotation, 0, &p);
 	pI830->starting = FALSE;
     }
 #endif
@@ -370,7 +370,7 @@ xf86RandRCreateScreenResources (ScreenPtr pScreen)
 
 
 Bool
-xf86RandRInit (ScreenPtr pScreen)
+xf86RandR12Init (ScreenPtr pScreen)
 {
     rrScrPrivPtr	rp;
     XF86RandRInfoPtr	randrp;
@@ -380,10 +380,10 @@ xf86RandRInit (ScreenPtr pScreen)
     if (!noPanoramiXExtension)
 	return TRUE;
 #endif
-    if (xf86RandRGeneration != serverGeneration)
+    if (xf86RandR12Generation != serverGeneration)
     {
-	xf86RandRIndex = AllocateScreenPrivateIndex();
-	xf86RandRGeneration = serverGeneration;
+	xf86RandR12Index = AllocateScreenPrivateIndex();
+	xf86RandR12Generation = serverGeneration;
     }
 
     randrp = xalloc (sizeof (XF86RandRInfoRec));
@@ -396,8 +396,8 @@ xf86RandRInit (ScreenPtr pScreen)
 	return FALSE;
     }
     rp = rrGetScrPriv(pScreen);
-    rp->rrGetInfo = xf86RandRGetInfo;
-    rp->rrSetConfig = xf86RandRSetConfig;
+    rp->rrGetInfo = xf86RandR12GetInfo;
+    rp->rrSetConfig = xf86RandR12SetConfig;
 
     randrp->virtualX = -1;
     randrp->virtualY = -1;
@@ -410,17 +410,17 @@ xf86RandRInit (ScreenPtr pScreen)
 
     randrp->maxX = randrp->maxY = 0;
 
-    pScreen->devPrivates[xf86RandRIndex].ptr = randrp;
+    pScreen->devPrivates[xf86RandR12Index].ptr = randrp;
 
 #if RANDR_12_INTERFACE
-    if (!xf86RandRInit12 (pScreen))
+    if (!xf86RandR12Init12 (pScreen))
 	return FALSE;
 #endif
     return TRUE;
 }
 
 void
-xf86RandRSetRotations (ScreenPtr pScreen, Rotation rotations)
+xf86RandR12SetRotations (ScreenPtr pScreen, Rotation rotations)
 {
     XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
 
@@ -428,11 +428,11 @@ xf86RandRSetRotations (ScreenPtr pScreen, Rotation rotations)
 }
 
 void
-xf86GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y)
+xf86RandR12GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y)
 {
     ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
 
-    if (xf86RandRGeneration != serverGeneration ||
+    if (xf86RandR12Generation != serverGeneration ||
 	XF86RANDRINFO(pScreen)->virtualX == -1)
     {
 	*x = pScrn->virtualX;
@@ -447,7 +447,7 @@ xf86GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y)
 
 #if RANDR_12_INTERFACE
 static Bool
-xf86RandRScreenSetSize (ScreenPtr	pScreen,
+xf86RandR12ScreenSetSize (ScreenPtr	pScreen,
 			CARD16		width,
 			CARD16		height,
 			CARD32		mmWidth,
@@ -483,7 +483,7 @@ xf86RandRScreenSetSize (ScreenPtr	pScreen,
 }
 
 static Bool
-xf86RandRCrtcNotify (RRCrtcPtr	randr_crtc)
+xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
 {
     ScreenPtr		pScreen = randr_crtc->pScreen;
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
@@ -532,7 +532,7 @@ xf86RandRCrtcNotify (RRCrtcPtr	randr_crtc)
 }
 
 static Bool
-xf86RandRCrtcSet (ScreenPtr	pScreen,
+xf86RandR12CrtcSet (ScreenPtr	pScreen,
 		  RRCrtcPtr	randr_crtc,
 		  RRModePtr	randr_mode,
 		  int		x,
@@ -603,11 +603,11 @@ xf86RandRCrtcSet (ScreenPtr	pScreen,
 	}
 	i830DisableUnusedFunctions (pScrn);
     }
-    return xf86RandRCrtcNotify (randr_crtc);
+    return xf86RandR12CrtcNotify (randr_crtc);
 }
 
 static Bool
-xf86RandRCrtcSetGamma (ScreenPtr    pScreen,
+xf86RandR12CrtcSetGamma (ScreenPtr    pScreen,
 		       RRCrtcPtr    crtc)
 {
     return FALSE;
@@ -677,7 +677,7 @@ I830xf86RROutputSetModes (RROutputPtr randr_output, DisplayModePtr modes)
  * Mirror the current mode configuration to RandR
  */
 static Bool
-xf86RandRSetInfo12 (ScrnInfoPtr pScrn)
+xf86RandR12SetInfo12 (ScrnInfoPtr pScrn)
 {
     I830Ptr		    pI830 = I830PTR(pScrn);
     RROutputPtr		    clones[MAX_OUTPUTS];
@@ -787,16 +787,16 @@ xf86RandRSetInfo12 (ScrnInfoPtr pScrn)
  * that to RandR
  */
 static Bool
-xf86RandRGetInfo12 (ScreenPtr pScreen, Rotation *rotations)
+xf86RandR12GetInfo12 (ScreenPtr pScreen, Rotation *rotations)
 {
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
 
     i830_reprobe_output_modes(pScrn);
-    return xf86RandRSetInfo12 (pScrn);
+    return xf86RandR12SetInfo12 (pScrn);
 }
 
 static Bool
-xf86RandRCreateObjects12 (ScrnInfoPtr pScrn)
+xf86RandR12CreateObjects12 (ScrnInfoPtr pScrn)
 {
     I830Ptr		pI830 = I830PTR(pScrn);
     int			p;
@@ -818,7 +818,7 @@ xf86RandRCreateObjects12 (ScrnInfoPtr pScrn)
 }
 
 static Bool
-xf86RandRCreateScreenResources12 (ScreenPtr pScreen)
+xf86RandR12CreateScreenResources12 (ScreenPtr pScreen)
 {
     XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
@@ -866,7 +866,7 @@ xf86RandRCreateScreenResources12 (ScreenPtr pScreen)
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "Setting screen physical size to %d x %d\n",
 		   mmWidth, mmHeight);
-	xf86RandRScreenSetSize (pScreen,
+	xf86RandR12ScreenSetSize (pScreen,
 				width,
 				height,
 				mmWidth,
@@ -874,7 +874,7 @@ xf86RandRCreateScreenResources12 (ScreenPtr pScreen)
     }
 
     for (p = 0; p < pI830->xf86_config.num_crtc; p++)
-	xf86RandRCrtcNotify (pI830->xf86_config.crtc[p]->randr_crtc);
+	xf86RandR12CrtcNotify (pI830->xf86_config.crtc[p]->randr_crtc);
     
     if (randrp->virtualX == -1 || randrp->virtualY == -1)
     {
@@ -888,22 +888,22 @@ xf86RandRCreateScreenResources12 (ScreenPtr pScreen)
 }
 
 static void
-xf86RandRPointerMoved (int scrnIndex, int x, int y)
+xf86RandR12PointerMoved (int scrnIndex, int x, int y)
 {
 }
 
 static Bool
-xf86RandRInit12 (ScreenPtr pScreen)
+xf86RandR12Init12 (ScreenPtr pScreen)
 {
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
     rrScrPrivPtr	rp = rrGetScrPriv(pScreen);
 
-    rp->rrGetInfo = xf86RandRGetInfo12;
-    rp->rrScreenSetSize = xf86RandRScreenSetSize;
-    rp->rrCrtcSet = xf86RandRCrtcSet;
-    rp->rrCrtcSetGamma = xf86RandRCrtcSetGamma;
+    rp->rrGetInfo = xf86RandR12GetInfo12;
+    rp->rrScreenSetSize = xf86RandR12ScreenSetSize;
+    rp->rrCrtcSet = xf86RandR12CrtcSet;
+    rp->rrCrtcSetGamma = xf86RandR12CrtcSetGamma;
     rp->rrSetConfig = NULL;
-    pScrn->PointerMoved = xf86RandRPointerMoved;
+    pScrn->PointerMoved = xf86RandR12PointerMoved;
     return TRUE;
 }
 
@@ -1169,7 +1169,7 @@ I830RRDefaultScreenLimits (RROutputPtr *outputs, int num_output,
 #endif
 
 Bool
-xf86RandRPreInit (ScrnInfoPtr pScrn)
+xf86RandR12PreInit (ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 #if RANDR_12_INTERFACE
@@ -1188,13 +1188,13 @@ xf86RandRPreInit (ScrnInfoPtr pScrn)
     i830_reprobe_output_modes(pScrn);
 
 #if RANDR_12_INTERFACE
-    if (!xf86RandRCreateObjects12 (pScrn))
+    if (!xf86RandR12CreateObjects12 (pScrn))
 	return FALSE;
 
     /*
      * Configure output modes
      */
-    if (!xf86RandRSetInfo12 (pScrn))
+    if (!xf86RandR12SetInfo12 (pScrn))
 	return FALSE;
     /*
      * With RandR info set up, let RandR choose
