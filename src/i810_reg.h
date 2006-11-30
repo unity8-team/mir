@@ -281,12 +281,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define GPIO_CLOCK_VAL_MASK		(1 << 2)
 # define GPIO_CLOCK_VAL_OUT		(1 << 3)
 # define GPIO_CLOCK_VAL_IN		(1 << 4)
+# define GPIO_CLOCK_PULLUP_DISABLE	(1 << 5)
 # define GPIO_DATA_DIR_MASK		(1 << 8)
 # define GPIO_DATA_DIR_IN		(0 << 9)
 # define GPIO_DATA_DIR_OUT		(1 << 9)
 # define GPIO_DATA_VAL_MASK		(1 << 10)
 # define GPIO_DATA_VAL_OUT		(1 << 11)
 # define GPIO_DATA_VAL_IN		(1 << 12)
+# define GPIO_DATA_PULLUP_DISABLE	(1 << 13)
 
 /* p317, 319
  */

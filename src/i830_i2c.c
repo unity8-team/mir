@@ -283,6 +283,8 @@ static Bool first = TRUE;
 static void
 i830I2CPutBits(I2CBusPtr b, int clock, int data)
 {
+    CARD32 reserved = 0;
+
 #if I2C_DEBUG
     int cur_clock, cur_data;
     char *debug = "";
@@ -310,7 +312,7 @@ i830I2CPutBits(I2CBusPtr b, int clock, int data)
     }
 
     ErrorF("Setting I2C 0x%08x to: %c %c (at: %c %c)%s\n",
-	   b->DriverPrivate.uval,
+	   (int)b->DriverPrivate.uval,
 	   clock ? '^' : 'v',
 	   data ? '^' : 'v',
 	   cur_clock ? '^' : 'v',
@@ -318,15 +320,22 @@ i830I2CPutBits(I2CBusPtr b, int clock, int data)
 	   debug);
 #endif
 
+    if (!IS_I830(pI830) && !IS_845G(pI830)) {
+	/* On most chips, these bits must be preserved in software. */
+	reserved = INREG(b->DriverPrivate.uval) &
+	    (GPIO_DATA_PULLUP_DISABLE | GPIO_CLOCK_PULLUP_DISABLE);
+    }
+
     OUTREG(b->DriverPrivate.uval,
-	(data ? GPIO_DATA_VAL_OUT : 0) |
-	(clock ? GPIO_CLOCK_VAL_OUT : 0) |
-	GPIO_CLOCK_DIR_OUT |
-	GPIO_DATA_DIR_OUT |
-	GPIO_CLOCK_DIR_MASK |
-	GPIO_CLOCK_VAL_MASK |
-	GPIO_DATA_DIR_MASK |
-	GPIO_DATA_VAL_MASK);
+	   reserved |
+	   (data ? GPIO_DATA_VAL_OUT : 0) |
+	   (clock ? GPIO_CLOCK_VAL_OUT : 0) |
+	   GPIO_CLOCK_DIR_OUT |
+	   GPIO_DATA_DIR_OUT |
+	   GPIO_CLOCK_DIR_MASK |
+	   GPIO_CLOCK_VAL_MASK |
+	   GPIO_DATA_DIR_MASK |
+	   GPIO_DATA_VAL_MASK);
 }
 #endif
 
