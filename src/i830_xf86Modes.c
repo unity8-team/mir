@@ -526,3 +526,27 @@ i830xf86PruneInvalidModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
 	mode = next;
     }
 }
+
+/**
+ * Adds the new mode into the mode list, and returns the new list
+ *
+ * \param modes doubly-linked mode list.
+ */
+DisplayModePtr
+xf86ModesAdd(DisplayModePtr modes, DisplayModePtr new)
+{
+    if (modes == NULL)
+	return new;
+
+    if (new) {
+	DisplayModePtr mode = modes;
+
+	while (mode->next)
+	    mode = mode->next;
+
+	mode->next = new;
+	new->prev = mode;
+    }
+
+    return modes;
+}

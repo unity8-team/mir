@@ -58,7 +58,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86int10.h"
 #include "vbe.h"
 #include "vgaHW.h"
-#include "randrstr.h"
+#include "i830_xf86Crtc.h"
+#include "i830_randr.h"
 
 #ifdef XF86DRI
 #include "xf86drm.h"
@@ -197,99 +198,24 @@ enum detect_status {
    OUTPUT_STATUS_UNKNOWN
 };
 
-struct _I830OutputRec {
-   int type;
-   int pipe;
-   Bool enabled;
-   /**
-    * Marks that the output and associated pipe is temporarily enabled for
-    * load detection.
-    */
-   Bool load_detect_temp;
+typedef struct _I830CrtcPrivateRec {
+    int			    pipe;
+    Bool		    gammaEnabled;
+} I830CrtcPrivateRec, *I830CrtcPrivatePtr;
 
-   /**
-    * Turns the output on/off, or sets intermediate power levels if available.
-    *
-    * Unsupported intermediate modes drop to the lower power setting.  If the
-    * mode is DPMSModeOff, the output must be disabled, as the DPLL may be
-    * disabled afterwards.
-    */
-   void (*dpms)(ScrnInfoPtr pScrn, I830OutputPtr output, int mode);
+#define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
 
-   /**
-    * Saves the output's state for restoration on VT switch.
-    */
-   void (*save)(ScrnInfoPtr pScrn, I830OutputPtr output);
-
-   /**
-    * Restore's the output's state at VT switch.
-    */
-   void (*restore)(ScrnInfoPtr pScrn, I830OutputPtr output);
-
-   /**
-    * Callback for testing a video mode for a given output.
-    *
-    * This function should only check for cases where a mode can't be supported
-    * on the pipe specifically, and not represent generic CRTC limitations.
-    *
-    * \return MODE_OK if the mode is valid, or another MODE_* otherwise.
-    */
-   int (*mode_valid)(ScrnInfoPtr pScrn, I830OutputPtr output,
-		     DisplayModePtr pMode);
-
-   /**
-    * Callback for setting up a video mode before any pipe/dpll changes.
-    *
-    * \param pMode the mode that will be set, or NULL if the mode to be set is
-    * unknown (such as the restore path of VT switching).
-    */
-   void (*pre_set_mode)(ScrnInfoPtr pScrn, I830OutputPtr output,
-			DisplayModePtr pMode);
-
-   /**
-    * Callback for setting up a video mode after the DPLL update but before
-    * the plane is enabled.
-    */
-   void (*post_set_mode)(ScrnInfoPtr pScrn, I830OutputPtr output,
-			 DisplayModePtr pMode);
-
-   /**
-    * Probe for a connected output, and return detect_status.
-    */
-   enum detect_status (*detect)(ScrnInfoPtr pScrn, I830OutputPtr output);
-
-   /**
-    * Query the device for the modes it provides.
-    *
-    * This function may also update MonInfo, mm_width, and mm_height.
-    *
-    * \return singly-linked list of modes or NULL if no modes found.
-    */
-   DisplayModePtr (*get_modes)(ScrnInfoPtr pScrn, I830OutputPtr output);
-
-   /**
-    * List of available modes on this output.
-    *
-    * This should be the list from get_modes(), plus perhaps additional
-    * compatible modes added later.
-    */
-   DisplayModePtr probed_modes;
-
-   /** EDID monitor information */
-   xf86MonPtr MonInfo;
-
-   /** Physical size of the output currently attached. */
-   int mm_width, mm_height;
-
-   I2CBusPtr pI2CBus;
-   I2CBusPtr pDDCBus;
-   struct _I830DVODriver *i2c_drv;
+typedef struct _I830OutputPrivateRec {
+   int			    type;
+   I2CBusPtr		    pI2CBus;
+   I2CBusPtr		    pDDCBus;
+   struct _I830DVODriver    *i2c_drv;
+   Bool			    load_detect_temp;
    /** Output-private structure.  Should replace i2c_drv */
-   void *dev_priv;
-#ifdef RANDR_12_INTERFACE
-   RROutputPtr randr_output;
-#endif
-};
+   void			    *dev_priv;
+} I830OutputPrivateRec, *I830OutputPrivatePtr;
+
+#define I830OutputPrivate(o) ((I830OutputPrivatePtr) (o)->driver_private)
 
 /** enumeration of 3d consumers so some can maintain invariant state. */
 enum last_3d {
@@ -314,6 +240,9 @@ typedef struct _I830PipeRec {
 } I830PipeRec, *I830PipePtr;
 
 typedef struct _I830Rec {
+   /* Must be first */
+   xf86CrtcConfigRec	xf86_config;
+    
    unsigned char *MMIOBase;
    unsigned char *FbBase;
    int cpp;
@@ -330,9 +259,6 @@ typedef struct _I830Rec {
    int CloneVDisplay;
 
    I830EntPtr entityPrivate;	
-#if 0
-   int pipe, origPipe;
-#endif
    int init;
 
    unsigned int bufferOffset;		/* for I830SelectBuffer */
@@ -495,11 +421,6 @@ typedef struct _I830Rec {
 
    Bool checkDevices;
 
-   /* [0] is Pipe A, [1] is Pipe B. */
-   int num_pipes;
-   /* [0] is display plane A, [1] is display plane B. */
-   I830PipeRec	  pipes[MAX_DISPLAY_PIPES];
-   
    /* Driver phase/state information */
    Bool preinit;
    Bool starting;
@@ -516,8 +437,6 @@ typedef struct _I830Rec {
    OsTimerPtr devicesTimer;
 
    int ddc2;
-   int num_outputs;
-   struct _I830OutputRec output[MAX_OUTPUTS];
 
    /* Panel size pulled from the BIOS */
    int PanelXRes, PanelYRes;
@@ -610,7 +529,7 @@ extern void I830PrintErrorState(ScrnInfoPtr pScrn);
 extern void I965PrintErrorState(ScrnInfoPtr pScrn);
 extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
-extern void I830SetPipeCursor (ScrnInfoPtr pScrn, int pipe, Bool force);
+extern void I830SetPipeCursor (xf86CrtcPtr crtc, Bool force);
 extern Bool I830CursorInit(ScreenPtr pScreen);
 extern void IntelEmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
@@ -689,7 +608,7 @@ extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 
 /* i830_display.c */
 Bool
-i830PipeHasType (ScrnInfoPtr pScrn, int pipe, int type);
+i830PipeHasType (xf86CrtcPtr crtc, int type);
 
 /* i830_crt.c */
 void i830_crt_init(ScrnInfoPtr pScrn);
@@ -712,16 +631,7 @@ int I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time);
 void i830_reprobe_output_modes(ScrnInfoPtr pScrn);
 void i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn);
 void i830_set_default_screen_size(ScrnInfoPtr pScrn);
-DisplayModePtr i830_ddc_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output);
-
-/* i830_randr.c */
-Bool I830RandRCreateScreenResources (ScreenPtr pScreen);
-Bool I830RandRInit(ScreenPtr pScreen, int rotation);
-Bool I830RandRSetConfig(ScreenPtr pScreen, Rotation rotation, int rate,
-			RRScreenSizePtr pSize);
-Rotation I830GetRotation(ScreenPtr pScreen);
-void I830GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y);
-Bool I830RandRPreInit (ScrnInfoPtr pScrn);
+DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
 
 /* i830_tv.c */
 void i830_tv_init(ScrnInfoPtr pScrn);

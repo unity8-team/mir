@@ -82,6 +82,8 @@ i810_drv_la_SOURCES = \
 	 i830_xf86Modes.h \
 	 i830_xf86Modes.c \
 	 i830_xf86cvt.c \
+	 i830_xf86Crtc.h \
+	 i830_xf86Crtc.c \
 	 i915_3d.c \
 	 i915_3d.h \
 	 i915_reg.h \

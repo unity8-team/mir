@@ -38,6 +38,7 @@
 #include "i830_display.h"
 
 enum tv_type {
+    TV_TYPE_NONE,
     TV_TYPE_UNKNOWN,
     TV_TYPE_COMPOSITE,
     TV_TYPE_SVIDEO,
@@ -46,6 +47,7 @@ enum tv_type {
 
 /** Private structure for the integrated TV support */
 struct i830_tv_priv {
+    int type;
     CARD32 save_TV_H_CTL_1;
     CARD32 save_TV_H_CTL_2;
     CARD32 save_TV_H_CTL_3;
@@ -141,67 +143,10 @@ const struct tv_mode {
     }
 };
 
-
-static int
-i830_tv_detect_type(ScrnInfoPtr pScrn, I830OutputPtr output)
-{
-    CARD32 save_tv_ctl, save_tv_dac;
-    CARD32 tv_ctl, tv_dac;
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    save_tv_ctl = INREG(TV_CTL);
-    save_tv_dac = INREG(TV_DAC);
-
-    /* First, we have to disable the encoder but source from the right pipe,
-     * which is already enabled.
-     */
-    tv_ctl = INREG(TV_CTL) & ~(TV_ENC_ENABLE | TV_ENC_PIPEB_SELECT);
-    if (output->pipe == 1)
-	tv_ctl |= TV_ENC_PIPEB_SELECT;
-    OUTREG(TV_CTL, tv_ctl);
-
-    /* Then set the voltage overrides. */
-    tv_dac = DAC_CTL_OVERRIDE | DAC_A_0_7_V | DAC_B_0_7_V | DAC_C_0_7_V;
-    OUTREG(TV_DAC, tv_dac);
-
-    /* Enable sensing of the load. */
-    tv_ctl |= TV_TEST_MODE_MONITOR_DETECT;
-    OUTREG(TV_CTL, tv_ctl);
-
-    tv_dac |= TVDAC_STATE_CHG_EN | TVDAC_A_SENSE_CTL | TVDAC_B_SENSE_CTL |
-        TVDAC_C_SENSE_CTL;
-    OUTREG(TV_DAC, tv_dac);
-
-    /* Wait for things to take effect. */
-    i830WaitForVblank(pScrn);
-
-    tv_dac = INREG(TV_DAC);
-
-    OUTREG(TV_DAC, save_tv_dac);
-    OUTREG(TV_CTL, save_tv_ctl);
-
-    if ((tv_dac & TVDAC_SENSE_MASK) == (TVDAC_B_SENSE | TVDAC_C_SENSE)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Detected Composite TV connection\n");
-	return TV_TYPE_COMPOSITE;
-    } else if ((tv_dac & TVDAC_SENSE_MASK) == TVDAC_A_SENSE) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Detected S-Video TV connection\n");
-	return TV_TYPE_SVIDEO;
-    } else if ((tv_dac & TVDAC_SENSE_MASK) == 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Detected Component TV connection\n");
-	return TV_TYPE_COMPONENT;
-    } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Couldn't detect TV connection\n");
-	return TV_TYPE_UNKNOWN;
-    }
-}
-
 static void
-i830_tv_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
+i830_tv_dpms(xf86OutputPtr output, int mode)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
 
     switch(mode) {
@@ -217,10 +162,12 @@ i830_tv_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 }
 
 static void
-i830_tv_save(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_tv_save(xf86OutputPtr output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    struct i830_tv_priv *dev_priv = output->dev_priv;
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
 
     dev_priv->save_TV_H_CTL_1 = INREG(TV_H_CTL_1);
     dev_priv->save_TV_H_CTL_2 = INREG(TV_H_CTL_2);
@@ -241,10 +188,12 @@ i830_tv_save(ScrnInfoPtr pScrn, I830OutputPtr output)
 }
 
 static void
-i830_tv_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_tv_restore(xf86OutputPtr output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    struct i830_tv_priv *dev_priv = output->dev_priv;
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
 
     OUTREG(TV_H_CTL_1, dev_priv->save_TV_H_CTL_1);
     OUTREG(TV_H_CTL_2, dev_priv->save_TV_H_CTL_2);
@@ -265,16 +214,15 @@ i830_tv_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
 }
 
 static int
-i830_tv_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
-		   DisplayModePtr pMode)
+i830_tv_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
     return MODE_OK;
 }
 
 static void
-i830_tv_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
-		     DisplayModePtr pMode)
+i830_tv_pre_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
 
     /* Disable the encoder while we set up the pipe. */
@@ -348,18 +296,22 @@ static const CARD32 v_chroma[43] = {
 };
 
 static void
-i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
-		      DisplayModePtr pMode)
+i830_tv_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    enum tv_type type;
-    const struct tv_mode *tv_mode;
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    xf86CrtcPtr	    crtc = output->crtc;
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+    enum tv_type	    type;
+    const struct tv_mode    *tv_mode;
     const struct tv_sc_mode *sc_mode;
-    CARD32 tv_ctl, tv_filter_ctl;
-    CARD32 hctl1, hctl2, hctl3;
-    CARD32 vctl1, vctl2, vctl3, vctl4, vctl5, vctl6, vctl7;
-    CARD32 scctl1, scctl2, scctl3;
-    int i;
+    CARD32		    tv_ctl, tv_filter_ctl;
+    CARD32		    hctl1, hctl2, hctl3;
+    CARD32		    vctl1, vctl2, vctl3, vctl4, vctl5, vctl6, vctl7;
+    CARD32		    scctl1, scctl2, scctl3;
+    int			    i;
 
     /* Need to actually choose or construct the appropriate
      * mode.  For now, just set the first one in the list, with
@@ -368,7 +320,7 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     tv_mode = &tv_modes[0];
     sc_mode = &tv_sc_modes[TV_SC_NTSC_MJ];
 
-    type = i830_tv_detect_type(pScrn, output);
+    type = dev_priv->type;
 
     hctl1 = (tv_mode->hsync_end << TV_HSYNC_END_SHIFT) |
 	(tv_mode->htotal << TV_HTOTAL_SHIFT);
@@ -408,7 +360,7 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
 	(tv_mode->vburst_end_f4 << TV_VBURST_END_F4_SHIFT);
 
     tv_ctl = TV_ENC_ENABLE;
-    if (output->pipe == 1)
+    if (intel_crtc->pipe == 1)
 	tv_ctl |= TV_ENC_PIPEB_SELECT;
 
     switch (type) {
@@ -494,6 +446,99 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     OUTREG(TV_CTL, tv_ctl);
 }
 
+static const DisplayModeRec tvModes[] = {
+    {
+	.name = "NTSC 480i",
+	.Clock = 108000,
+	
+	.HDisplay   = 1024,
+	.HSyncStart = 1048,
+	.HSyncEnd   = 1184,
+	.HTotal     = 1344,
+
+	.VDisplay   = 768,
+	.VSyncStart = 771,
+	.VSyncEnd   = 777,
+	.VTotal     = 806,
+
+	.type       = M_T_DEFAULT
+    }
+};
+
+/**
+ * Detects TV presence by checking for load.
+ *
+ * Requires that the current pipe's DPLL is active.
+ 
+ * \return TRUE if TV is connected.
+ * \return FALSE if TV is disconnected.
+ */
+static int
+i830_tv_detect_type (xf86CrtcPtr    crtc,
+		     xf86OutputPtr  output)
+{
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+    CARD32		    tv_ctl, save_tv_ctl;
+    CARD32		    tv_dac, save_tv_dac;
+    int			    type = TV_TYPE_UNKNOWN;
+
+    tv_dac = INREG(TV_DAC);
+    /*
+     * Detect TV by polling)
+     */
+    if (intel_output->load_detect_temp)
+    {
+	/* TV not currently running, prod it with destructive detect */
+	save_tv_dac = tv_dac;
+	tv_ctl = INREG(TV_CTL);
+	save_tv_ctl = tv_ctl;
+	tv_ctl &= ~TV_ENC_ENABLE;
+	tv_ctl &= ~TV_TEST_MODE_MASK;
+	tv_ctl |= TV_TEST_MODE_MONITOR_DETECT;
+	tv_dac &= ~TVDAC_SENSE_MASK;
+	tv_dac |= (TVDAC_STATE_CHG_EN |
+		   TVDAC_A_SENSE_CTL |
+		   TVDAC_B_SENSE_CTL |
+		   TVDAC_C_SENSE_CTL);
+	tv_dac = DAC_CTL_OVERRIDE | DAC_A_0_7_V | DAC_B_0_7_V | DAC_C_0_7_V;
+	OUTREG(TV_CTL, tv_ctl);
+	OUTREG(TV_DAC, tv_dac);
+	i830WaitForVblank(pScrn);
+	tv_dac = INREG(TV_DAC);
+	OUTREG(TV_DAC, save_tv_dac);
+	OUTREG(TV_CTL, save_tv_ctl);
+    }
+    /*
+     *  A B C
+     *  0 1 1 Composite
+     *  1 0 X svideo
+     *  0 0 0 Component
+     */
+    if ((tv_dac & TVDAC_SENSE_MASK) == (TVDAC_B_SENSE | TVDAC_C_SENSE)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Detected Composite TV connection\n");
+	type = TV_TYPE_COMPOSITE;
+    } else if ((tv_dac & (TVDAC_A_SENSE|TVDAC_B_SENSE)) == TVDAC_A_SENSE) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Detected S-Video TV connection\n");
+	type = TV_TYPE_SVIDEO;
+    } else if ((tv_dac & TVDAC_SENSE_MASK) == 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Detected Component TV connection\n");
+	type = TV_TYPE_COMPONENT;
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Couldn't detect TV connection\n");
+	type = TV_TYPE_NONE;
+    }
+    
+    dev_priv->type = type;
+    return type;
+}
+
 /**
  * Detect the TV connection.
  *
@@ -501,9 +546,34 @@ i830_tv_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
  * we have a pipe programmed in order to probe the TV.
  */
 static enum detect_status
-i830_tv_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_tv_detect(xf86OutputPtr output)
 {
-    return OUTPUT_STATUS_CONNECTED;
+    xf86CrtcPtr	    crtc;
+    DisplayModeRec	    mode;
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    int			    type;
+
+    crtc = i830GetLoadDetectPipe (output);
+    if (!crtc)
+	return OUTPUT_STATUS_UNKNOWN;
+    
+    if (intel_output->load_detect_temp)
+    {
+	mode = tvModes[0];
+	xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
+	i830PipeSetMode (crtc, &mode, FALSE);
+    }
+    type = i830_tv_detect_type (crtc, output);
+    i830ReleaseLoadDetectPipe (output);
+    
+    switch (type) {
+    case TV_TYPE_NONE:
+	return OUTPUT_STATUS_DISCONNECTED;
+    case TV_TYPE_UNKNOWN:
+	return OUTPUT_STATUS_UNKNOWN;
+    default:
+	return OUTPUT_STATUS_CONNECTED;
+    }
 }
 
 /**
@@ -513,8 +583,9 @@ i830_tv_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
  * how to probe modes off of TV connections.
  */
 static DisplayModePtr
-i830_tv_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_tv_get_modes(xf86OutputPtr output)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     DisplayModePtr new;
     char stmp[32];
@@ -553,36 +624,52 @@ i830_tv_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
     return new;
 }
 
+static void
+i830_tv_destroy (xf86OutputPtr output)
+{
+    if (output->driver_private)
+	xfree (output->driver_private);
+}
+
+static const xf86OutputFuncsRec i830_tv_output_funcs = {
+    .dpms = i830_tv_dpms,
+    .save = i830_tv_save,
+    .restore = i830_tv_restore,
+    .mode_valid = i830_tv_mode_valid,
+    .pre_set_mode = i830_tv_pre_set_mode,
+    .post_set_mode = i830_tv_post_set_mode,
+    .detect = i830_tv_detect,
+    .get_modes = i830_tv_get_modes,
+    .destroy = i830_tv_destroy
+};
+
 void
 i830_tv_init(ScrnInfoPtr pScrn)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830OutputPtr output = &pI830->output[pI830->num_outputs];
-    struct i830_tv_priv *dev_priv;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    xf86OutputPtr	    output;
+    I830OutputPrivatePtr    intel_output;
+    struct i830_tv_priv	    *dev_priv;
  
     if ((INREG(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
 	return;
 
-    output->type = I830_OUTPUT_TVOUT;
-    output->pipe = 0;
-    output->enabled = FALSE;
-    output->load_detect_temp = FALSE;
+    output = xf86OutputCreate (pScrn, &i830_tv_output_funcs, "TV");
     
-    output->dpms = i830_tv_dpms;
-    output->save = i830_tv_save;
-    output->restore = i830_tv_restore;
-    output->mode_valid = i830_tv_mode_valid;
-    output->pre_set_mode = i830_tv_pre_set_mode;
-    output->post_set_mode = i830_tv_post_set_mode;
-    output->detect = i830_tv_detect;
-    output->get_modes = i830_tv_get_modes;
-
-    dev_priv = xnfcalloc(1, sizeof(struct i830_tv_priv));
-    
-    if (dev_priv == NULL)
+    if (!output)
 	return;
-
-    output->dev_priv = dev_priv;
-    ErrorF ("TV out is output %d\n", pI830->num_outputs);
-    pI830->num_outputs++;
+    
+    intel_output = xnfcalloc (sizeof (I830OutputPrivateRec) +
+			      sizeof (struct i830_tv_priv), 1);
+    if (!intel_output)
+    {
+	xf86OutputDestroy (output);
+	return;
+    }
+    dev_priv = (struct i830_tv_priv *) (intel_output + 1);
+    intel_output->type = I830_OUTPUT_SDVO;
+    intel_output->dev_priv = dev_priv;
+    dev_priv->type = TV_TYPE_UNKNOWN;
+    
+    output->driver_private = intel_output;
 }

@@ -35,10 +35,11 @@
 #include "i830_display.h"
 
 static void
-i830_crt_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
+i830_crt_dpms(xf86OutputPtr output, int mode)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 temp;
+    ScrnInfoPtr	    pScrn = output->scrn;
+    I830Ptr	    pI830 = I830PTR(pScrn);
+    CARD32	    temp;
 
     temp = INREG(ADPA);
     temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
@@ -63,24 +64,25 @@ i830_crt_dpms(ScrnInfoPtr pScrn, I830OutputPtr output, int mode)
 }
 
 static void
-i830_crt_save(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_crt_save (xf86OutputPtr output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+    ScrnInfoPtr	pScrn = output->scrn;
+    I830Ptr	pI830 = I830PTR(pScrn);
 
     pI830->saveADPA = INREG(ADPA);
 }
 
 static void
-i830_crt_restore(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_crt_restore (xf86OutputPtr output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+    ScrnInfoPtr	pScrn = output->scrn;
+    I830Ptr	pI830 = I830PTR(pScrn);
 
     OUTREG(ADPA, pI830->saveADPA);
 }
 
 static int
-i830_crt_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
-		    DisplayModePtr pMode)
+i830_crt_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
     if (pMode->Flags & V_DBLSCAN)
 	return MODE_NO_DBLESCAN;
@@ -92,19 +94,24 @@ i830_crt_mode_valid(ScrnInfoPtr pScrn, I830OutputPtr output,
 }
 
 static void
-i830_crt_pre_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
-		      DisplayModePtr pMode)
+i830_crt_pre_set_mode (xf86OutputPtr output, DisplayModePtr pMode)
 {
 }
 
 static void
-i830_crt_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
-		       DisplayModePtr pMode)
+i830_crt_post_set_mode (xf86OutputPtr output, DisplayModePtr pMode)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    int	    dpll_md_reg = (output->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
-    CARD32  adpa, dpll_md;
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    xf86CrtcPtr	    crtc = output->crtc;
+    I830CrtcPrivatePtr	    i830_crtc = crtc->driver_private;
+    int			    dpll_md_reg;
+    CARD32		    adpa, dpll_md;
 
+    if (i830_crtc->pipe == 0) 
+	dpll_md_reg = DPLL_A_MD;
+    else
+	dpll_md_reg = DPLL_B_MD;
     /*
      * Disable separate mode multiplier used when cloning SDVO to CRT
      * XXX this needs to be adjusted when we really are cloning
@@ -122,7 +129,7 @@ i830_crt_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
     if (pMode->Flags & V_PVSYNC)
 	adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
-    if (output->pipe == 0)
+    if (i830_crtc->pipe == 0)
 	adpa |= ADPA_PIPE_A_SELECT;
     else
 	adpa |= ADPA_PIPE_B_SELECT;
@@ -139,12 +146,13 @@ i830_crt_post_set_mode(ScrnInfoPtr pScrn, I830OutputPtr output,
  * \return FALSE if CRT is disconnected.
  */
 static Bool
-i830_crt_detect_hotplug(ScrnInfoPtr pScrn)
+i830_crt_detect_hotplug(xf86OutputPtr output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 temp;
-    const int timeout_ms = 1000;
-    int starttime, curtime;
+    ScrnInfoPtr	pScrn = output->scrn;
+    I830Ptr	pI830 = I830PTR(pScrn);
+    CARD32	temp;
+    const int	timeout_ms = 1000;
+    int		starttime, curtime;
 
     temp = INREG(PORT_HOTPLUG_EN);
 
@@ -177,20 +185,25 @@ i830_crt_detect_hotplug(ScrnInfoPtr pScrn)
  * \return FALSE if CRT is disconnected.
  */
 static Bool
-i830_crt_detect_load(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_crt_detect_load (xf86CrtcPtr	    crtc,
+		      xf86OutputPtr    output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 save_adpa, adpa, pipeconf, bclrpat;
-    CARD8 st00;
-    int pipeconf_reg, bclrpat_reg, dpll_reg;
-    int pipe;
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr	    i830_crtc = I830CrtcPrivate(crtc);
+    CARD32		    save_adpa, adpa, pipeconf, bclrpat;
+    CARD8		    st00;
+    int			    pipeconf_reg, bclrpat_reg, dpll_reg;
+    int			    pipe = i830_crtc->pipe;
 
-    pipe = output->pipe;
-    if (pipe == 0) {
+    if (pipe == 0) 
+    {
 	bclrpat_reg = BCLRPAT_A;
 	pipeconf_reg = PIPEACONF;
 	dpll_reg = DPLL_A;
-    } else {
+    }
+    else 
+    {
 	bclrpat_reg = BCLRPAT_B;
 	pipeconf_reg = PIPEBCONF;
 	dpll_reg = DPLL_B;
@@ -244,17 +257,15 @@ i830_crt_detect_load(ScrnInfoPtr pScrn, I830OutputPtr output)
  * \return FALSE if no DDC response was detected.
  */
 static Bool
-i830_crt_detect_ddc(ScrnInfoPtr pScrn)
+i830_crt_detect_ddc(xf86OutputPtr output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    struct _I830OutputRec *output;
+    I830OutputPrivatePtr    i830_output = output->driver_private;
 
-    output = &pI830->output[0];
     /* CRT should always be at 0, but check anyway */
-    if (output->type != I830_OUTPUT_ANALOG)
+    if (i830_output->type != I830_OUTPUT_ANALOG)
 	return FALSE;
 
-    return xf86I2CProbeAddress(output->pDDCBus, 0x00A0);
+    return xf86I2CProbeAddress(i830_output->pDDCBus, 0x00A0);
 }
 
 /**
@@ -264,25 +275,50 @@ i830_crt_detect_ddc(ScrnInfoPtr pScrn)
  *        on active displays.
  */
 static enum detect_status
-i830_crt_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_crt_detect(xf86OutputPtr output)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    xf86CrtcPtr	    crtc;
 
     if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_I965G(pI830)) {
-	if (i830_crt_detect_hotplug(pScrn))
+	if (i830_crt_detect_hotplug(output))
 	    return OUTPUT_STATUS_CONNECTED;
 	else
 	    return OUTPUT_STATUS_DISCONNECTED;
     }
 
-    if (i830_crt_detect_ddc(pScrn))
+    if (i830_crt_detect_ddc(output))
 	return OUTPUT_STATUS_CONNECTED;
 
     /* Use the load-detect method if we have no other way of telling. */
-    if (i830GetLoadDetectPipe(pScrn, output) != -1) {
-	Bool connected = i830_crt_detect_load(pScrn, output);
+    crtc = i830GetLoadDetectPipe (output);
+    
+    if (crtc)
+    {
+	/* VESA 640x480x72Hz mode to set on the pipe */
+	static DisplayModeRec   mode = {
+	    NULL, NULL, "640x480", MODE_OK, M_T_DEFAULT,
+	    31500,
+	    640, 664, 704, 832, 0,
+	    480, 489, 491, 520, 0,
+	    V_NHSYNC | V_NVSYNC,
+	    0, 0,
+	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0,
+	    FALSE, FALSE, 0, NULL, 0, 0.0, 0.0
+	};
+	Bool			connected;
+	I830OutputPrivatePtr	intel_output = output->driver_private;
+	
+	if (intel_output->load_detect_temp)
+	{
+	    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
+	    i830PipeSetMode (crtc, &mode, FALSE);
+	}
+	connected = i830_crt_detect_load (crtc, output);
 
-	i830ReleaseLoadDetectPipe(pScrn, output);
+	i830ReleaseLoadDetectPipe (output);
 	if (connected)
 	    return OUTPUT_STATUS_CONNECTED;
 	else
@@ -293,16 +329,17 @@ i830_crt_detect(ScrnInfoPtr pScrn, I830OutputPtr output)
 }
 
 static DisplayModePtr
-i830_crt_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
+i830_crt_get_modes(xf86OutputPtr output)
 {
-    DisplayModePtr modes;
+    ScrnInfoPtr		pScrn = output->scrn;
+    DisplayModePtr	modes;
     MonRec fixed_mon;
 
-    modes = i830_ddc_get_modes(pScrn, output);
+    modes = i830_ddc_get_modes(output);
     if (modes != NULL)
 	return modes;
 
-    if (output->detect(pScrn, output) == OUTPUT_STATUS_DISCONNECTED)
+    if ((*output->funcs->detect)(output) == OUTPUT_STATUS_DISCONNECTED)
 	return NULL;
 
     /* We've got a potentially-connected monitor that we can't DDC.  Return a
@@ -323,24 +360,43 @@ i830_crt_get_modes(ScrnInfoPtr pScrn, I830OutputPtr output)
     return modes;
 }
 
+static void
+i830_crt_destroy (xf86OutputPtr output)
+{
+    if (output->driver_private)
+	xfree (output->driver_private);
+}
+
+static const xf86OutputFuncsRec i830_crt_output_funcs = {
+    .dpms = i830_crt_dpms,
+    .save = i830_crt_save,
+    .restore = i830_crt_restore,
+    .mode_valid = i830_crt_mode_valid,
+    .pre_set_mode = i830_crt_pre_set_mode,
+    .post_set_mode = i830_crt_post_set_mode,
+    .detect = i830_crt_detect,
+    .get_modes = i830_crt_get_modes,
+    .destroy = i830_crt_destroy
+};
+
 void
 i830_crt_init(ScrnInfoPtr pScrn)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+    xf86OutputPtr	    output;
+    I830OutputPrivatePtr    i830_output;
 
-    pI830->output[pI830->num_outputs].type = I830_OUTPUT_ANALOG;
-    pI830->output[pI830->num_outputs].dpms = i830_crt_dpms;
-    pI830->output[pI830->num_outputs].save = i830_crt_save;
-    pI830->output[pI830->num_outputs].restore = i830_crt_restore;
-    pI830->output[pI830->num_outputs].mode_valid = i830_crt_mode_valid;
-    pI830->output[pI830->num_outputs].pre_set_mode = i830_crt_pre_set_mode;
-    pI830->output[pI830->num_outputs].post_set_mode = i830_crt_post_set_mode;
-    pI830->output[pI830->num_outputs].detect = i830_crt_detect;
-    pI830->output[pI830->num_outputs].get_modes = i830_crt_get_modes;
+    output = xf86OutputCreate (pScrn, &i830_crt_output_funcs, "VGA");
+    if (!output)
+	return;
+    i830_output = xnfcalloc (sizeof (I830OutputPrivateRec), 1);
+    if (!i830_output)
+    {
+	xf86OutputDestroy (output);
+	return;
+    }
+    i830_output->type = I830_OUTPUT_ANALOG;
+    output->driver_private = i830_output;
 
     /* Set up the DDC bus. */
-    I830I2CInit(pScrn, &pI830->output[pI830->num_outputs].pDDCBus,
-		GPIOA, "CRTDDC_A");
-
-    pI830->num_outputs++;
+    I830I2CInit(pScrn, &i830_output->pDDCBus, GPIOA, "CRTDDC_A");
 }

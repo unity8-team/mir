@@ -677,7 +677,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
       pScrn2 = pScrn;
    }
 
-   pI830->rotation = I830GetRotation(pScrn->pScreen);
+   pI830->rotation = xf86RandR12GetRotation(pScrn->pScreen);
 
    /* Check if we've still got the same orientation, or same mode */
    if (pI830->rotation == oldRotation && pI830->currentMode == mode)
