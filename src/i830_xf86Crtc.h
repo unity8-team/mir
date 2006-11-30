@@ -23,6 +23,7 @@
 #define _XF86CRTC_H_
 
 #include <edid.h>
+#include "randrstr.h"
 #include "i830_xf86Modes.h"
 
 typedef struct _xf86Crtc xf86CrtcRec, *xf86CrtcPtr;

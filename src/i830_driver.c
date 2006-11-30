@@ -675,12 +675,11 @@ static const xf86CrtcFuncsRec i830_crtc_funcs = {
 };
 
 static void
-I830SetupCrtcs(ScrnInfoPtr pScrn)
+I830SetupCrtcs(ScrnInfoPtr pScrn, int num_pipe)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
     int	    p;
 
-    for (p = 0; p < pI830->xf86_config.num_crtc; p++)
+    for (p = 0; p < num_pipe; p++)
     {
 	xf86CrtcPtr    crtc = xf86CrtcCreate (pScrn, &i830_crtc_funcs);
 	I830CrtcPrivatePtr  intel_crtc;
@@ -691,7 +690,6 @@ I830SetupCrtcs(ScrnInfoPtr pScrn)
 	intel_crtc->pipe = p;
 	
 	crtc->driver_private = intel_crtc;
-	pI830->xf86_config.crtc[p] = crtc;
     }
 }
     
@@ -835,6 +833,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    Bool enable;
    const char *chipname;
    int mem_skip;
+   int num_pipe;
 #ifdef XF86DRI
    unsigned long savedMMSize;
 #endif
@@ -1142,14 +1141,14 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
-      pI830->xf86_config.num_crtc = 1;
+      num_pipe = 1;
    else
    if (IS_MOBILE(pI830) || IS_I9XX(pI830))
-      pI830->xf86_config.num_crtc = 2;
+      num_pipe = 2;
    else
-      pI830->xf86_config.num_crtc = 1;
+      num_pipe = 1;
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%d display pipe%s available.\n",
-	      pI830->xf86_config.num_crtc, pI830->xf86_config.num_crtc > 1 ? "s" : "");
+	      num_pipe, num_pipe > 1 ? "s" : "");
 
    /*
     * Get the pre-allocated (stolen) memory size.
@@ -1268,10 +1267,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    I830PreInitDDC(pScrn);
    I830SetupOutputs(pScrn);
-   I830SetupCrtcs(pScrn);
+   I830SetupCrtcs(pScrn, num_pipe);
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_CLONE, FALSE)) {
-      if (pI830->xf86_config.num_crtc == 1) {
+      if (num_pipe == 1) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
  		 "Can't enable Clone Mode because this is a single pipe device\n");
          PreInitCleanup(pScrn);
@@ -1293,7 +1292,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
     */
    for (i = 0; i < pI830->xf86_config.num_output; i++) 
    {
-      xf86OutputPtr      output = pI830->xf86_config.output[i];
+      xf86OutputPtr	      output = pI830->xf86_config.output[i];
       I830OutputPrivatePtr    intel_output = output->driver_private;
       xf86CrtcPtr	      crtc;
       int		      p;

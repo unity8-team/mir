@@ -58,7 +58,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86int10.h"
 #include "vbe.h"
 #include "vgaHW.h"
-#include "randrstr.h"
 #include "i830_xf86Crtc.h"
 #include "i830_randr.h"
 
