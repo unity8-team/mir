@@ -261,24 +261,46 @@ I830I2CAddress(I2CDevPtr d, I2CSlaveAddr addr)
 
 #else
 
+#define I2C_DEBUG 0
+
+#if I2C_DEBUG
+static Bool first = TRUE;
+#endif
+
 static void
 i830I2CGetBits(I2CBusPtr b, int *clock, int *data)
 {
     ScrnInfoPtr pScrn = xf86Screens[b->scrnIndex];
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 val;
+    CARD32 val, tristate = 0;
 
     val = INREG(b->DriverPrivate.uval);
+
+    /* If we've released either of the lines from holding low, tristate them
+     * so that we can successfully read.  Some hardware fails to read low
+     * values driven by slaves when our master is not tri-stated, while other
+     * chips succeed.
+     */
+    if ((val & GPIO_DATA_DIR_OUT) && (val & GPIO_DATA_VAL_OUT))
+	tristate |= GPIO_DATA_DIR_IN | GPIO_DATA_DIR_MASK;
+    if ((val & GPIO_CLOCK_DIR_OUT) && (val & GPIO_CLOCK_VAL_OUT))
+	tristate |= GPIO_CLOCK_DIR_IN | GPIO_CLOCK_DIR_MASK;
+
+    if (tristate) {
+	OUTREG(b->DriverPrivate.uval, tristate);
+
+	val = INREG(b->DriverPrivate.uval);
+    }
+
     *data = (val & GPIO_DATA_VAL_IN) != 0;
     *clock = (val & GPIO_CLOCK_VAL_IN) != 0;
-}
-
-#define I2C_DEBUG 0
 
 #if I2C_DEBUG
-static int last_clock = 0, last_data = 0;
-static Bool first = TRUE;
+    ErrorF("Getting I2C:                   %c %c\n",
+	   *clock ? '^' : 'v',
+	   *data ? '^' : 'v');
 #endif
+}
 
 static void
 i830I2CPutBits(I2CBusPtr b, int clock, int data)
@@ -287,23 +309,12 @@ i830I2CPutBits(I2CBusPtr b, int clock, int data)
 
 #if I2C_DEBUG
     int cur_clock, cur_data;
-    char *debug = "";
 #endif
 
     ScrnInfoPtr pScrn = xf86Screens[b->scrnIndex];
     I830Ptr pI830 = I830PTR(pScrn);
 
 #if I2C_DEBUG
-    if (!first && cur_clock != last_clock && cur_data != last_data) {
-	/* If we change the clock and data simultaneously, that would be bad.
-	 * I thought we did sometimes, but maybe not.
-	 */
-	debug = " <--";
-    }
-
-    last_clock = cur_clock;
-    last_data = cur_data;
-
     i830I2CGetBits(b, &cur_clock, &cur_data);
 
     if (first) {
@@ -311,13 +322,10 @@ i830I2CPutBits(I2CBusPtr b, int clock, int data)
 	first = FALSE;
     }
 
-    ErrorF("Setting I2C 0x%08x to: %c %c (at: %c %c)%s\n",
+    ErrorF("Setting I2C 0x%08x to: %c %c\n",
 	   (int)b->DriverPrivate.uval,
 	   clock ? '^' : 'v',
-	   data ? '^' : 'v',
-	   cur_clock ? '^' : 'v',
-	   cur_data ? '^' : 'v',
-	   debug);
+	   data ? '^' : 'v');
 #endif
 
     if (!IS_I830(pI830) && !IS_845G(pI830)) {
