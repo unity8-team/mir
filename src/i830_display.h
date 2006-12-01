@@ -25,16 +25,30 @@
  *
  */
 
+#include "xorgVersion.h"
+
 /* i830_display.c */
 DisplayModePtr
-i830PipeFindClosestMode(ScrnInfoPtr pScrn, int pipe, DisplayModePtr pMode);
-Bool i830PipeSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, int pipe,
+i830PipeFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
+Bool i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode, 
 		     Bool plane_enable);
 void i830DisableUnusedFunctions(ScrnInfoPtr pScrn);
 Bool i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
-void i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y);
+void i830PipeSetBase(xf86CrtcPtr crtc, int x, int y);
 void i830WaitForVblank(ScrnInfoPtr pScrn);
 void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
-int i830GetLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output);
-void i830ReleaseLoadDetectPipe(ScrnInfoPtr pScrn, I830OutputPtr output);
-Bool i830PipeInUse(ScrnInfoPtr pScrn, int pipe);
+
+xf86CrtcPtr i830GetLoadDetectPipe(xf86OutputPtr output);
+void i830ReleaseLoadDetectPipe(xf86OutputPtr output);
+Bool i830PipeInUse(xf86CrtcPtr crtc);
+
+/** @{
+ */
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0)
+DisplayModePtr i830_xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC);
+DisplayModePtr i830_xf86CVTMode(int HDisplay, int VDisplay, float VRefresh,
+				Bool Reduced, Bool Interlaced);
+#define xf86DDCGetModes i830_xf86DDCGetModes
+#define xf86CVTMode i830_xf86CVTMode
+#endif /* XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2) */
+/** @} */

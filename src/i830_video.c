@@ -2804,8 +2804,6 @@ I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size)
    ScreenPtr pScreen;
    FBLinearPtr new_linear = NULL;
 
-   ErrorF("I830AllocateMemory\n");
-
    if (linear) {
       if (linear->size >= size)
 	 return linear;
@@ -3595,7 +3593,7 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
    }
 
    /* Check we have an LFP connected */
-   if (i830PipeHasType (pScrn, pPriv->pipe, I830_OUTPUT_LVDS)) 
+   if (i830PipeHasType (pI830->xf86_config.crtc[pPriv->pipe], I830_OUTPUT_LVDS)) 
    {
       size = pPriv->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
       hsize = (size >> 16) & 0x7FF;

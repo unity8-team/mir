@@ -29,21 +29,18 @@
  * @file SDVO command definitions and structures.
  */
 
-struct i830_sdvo_output_flags {
-    unsigned int tmds0:1;
-    unsigned int rgb0:1;
-    unsigned int cvbs0:1;
-    unsigned int svid0:1;
-    unsigned int yprpb0:1;
-    unsigned int scart0:1;
-    unsigned int lvds0:1;
-    unsigned int pad0:1;
-    unsigned int tmds1:1;
-    unsigned int pad1:4;
-    unsigned int rgb1:1;
-    unsigned int lvds1:1;
-    unsigned int pad2:1;
-} __attribute__((packed));
+#define SDVO_OUTPUT_FIRST   (0)
+#define SDVO_OUTPUT_TMDS0   (1 << 0)
+#define SDVO_OUTPUT_RGB0    (1 << 1)
+#define SDVO_OUTPUT_CVBS0   (1 << 2)
+#define SDVO_OUTPUT_SVID0   (1 << 3)
+#define SDVO_OUTPUT_YPRPB0  (1 << 4)
+#define SDVO_OUTPUT_SCART0  (1 << 5)
+#define SDVO_OUTPUT_LVDS0   (1 << 6)
+#define SDVO_OUTPUT_TMDS1   (1 << 8)
+#define SDVO_OUTPUT_RGB1    (1 << 13)
+#define SDVO_OUTPUT_LVDS1   (1 << 14)
+#define SDVO_OUTPUT_LAST    (14)
 
 struct i830_sdvo_caps {
     CARD8 vendor_id;
@@ -58,7 +55,7 @@ struct i830_sdvo_caps {
     unsigned int down_scaling:1;
     unsigned int stall_support:1;
     unsigned int pad:1;
-    struct i830_sdvo_output_flags output_flags;
+    CARD16 output_flags;
 } __attribute__((packed));
 
 /** This matches the EDID DTD structure, more or less */
@@ -204,7 +201,7 @@ struct i830_sdvo_get_trained_inputs_response {
 
 #define SDVO_CMD_GET_INTERRUPT_EVENT_SOURCE		0x0f
 struct i830_sdvo_get_interrupt_event_source_response {
-    struct i830_sdvo_output_flags interrupt_status;
+    CARD16 interrupt_status;
     unsigned int ambient_light_interrupt:1;
     unsigned int pad:7;
 } __attribute__((packed));

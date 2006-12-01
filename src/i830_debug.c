@@ -200,7 +200,7 @@ static void i830DumpIndexed (ScrnInfoPtr pScrn, char *name, int id, int val, int
 
     for (i = min; i <= max; i++) {
 	OUTREG8 (id, i);
-	xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "%18.18s%02x: 0x%02x\n",
+	xf86DrvMsg (pScrn->scrnIndex, X_INFO, "%18.18s%02x: 0x%02x\n",
 		    name, i, INREG8(val));
     }
 }
@@ -218,14 +218,14 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
     int msr;
     int crt;
 
-    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "DumpRegsBegin\n");
+    xf86DrvMsg (pScrn->scrnIndex, X_INFO, "DumpRegsBegin\n");
     for (i = 0; i < NUM_I830_SNAPSHOTREGS; i++) {
-	xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "%20.20s: 0x%08x\n",
+	xf86DrvMsg (pScrn->scrnIndex, X_INFO, "%20.20s: 0x%08x\n",
 		    i830_snapshot[i].name, (unsigned int) INREG(i830_snapshot[i].reg));
     }
     i830DumpIndexed (pScrn, "SR", 0x3c4, 0x3c5, 0, 7);
     msr = INREG8(0x3cc);
-    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "%20.20s: 0x%02x\n",
+    xf86DrvMsg (pScrn->scrnIndex, X_INFO, "%20.20s: 0x%02x\n",
 		    "MSR", (unsigned int) msr);
 
     if (msr & 1)
@@ -285,7 +285,9 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
 	case 6:
 	    break;
 	default:
-	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR, "phase %d out of range\n", phase);
+	    xf86DrvMsg (pScrn->scrnIndex, X_INFO,
+			"SDVO phase shift %d out of range -- probobly not "
+			"an issue.\n", phase);
 	    break;
 	}
 	switch ((dpll >> 8) & 1) {
@@ -300,8 +302,8 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
 	m2 = ((fp >> 0) & 0x3f);
 	m = 5 * (m1 + 2) + (m2 + 2);
 	dot = (ref * (5 * (m1 + 2) + (m2 + 2)) / (n + 2)) / (p1 * p2);
-	xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "pipe %s dot %d n %d m1 %d m2 %d p1 %d p2 %d\n",
+	xf86DrvMsg (pScrn->scrnIndex, X_INFO, "pipe %s dot %d n %d m1 %d m2 %d p1 %d p2 %d\n",
 		    pipe == 0 ? "A" : "B", dot, n, m1, m2, p1, p2);
     }
-    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "DumpRegsEnd\n");
+    xf86DrvMsg (pScrn->scrnIndex, X_INFO, "DumpRegsEnd\n");
 }

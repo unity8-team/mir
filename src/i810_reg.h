@@ -281,12 +281,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define GPIO_CLOCK_VAL_MASK		(1 << 2)
 # define GPIO_CLOCK_VAL_OUT		(1 << 3)
 # define GPIO_CLOCK_VAL_IN		(1 << 4)
+# define GPIO_CLOCK_PULLUP_DISABLE	(1 << 5)
 # define GPIO_DATA_DIR_MASK		(1 << 8)
 # define GPIO_DATA_DIR_IN		(0 << 9)
 # define GPIO_DATA_DIR_OUT		(1 << 9)
 # define GPIO_DATA_VAL_MASK		(1 << 10)
 # define GPIO_DATA_VAL_OUT		(1 << 11)
 # define GPIO_DATA_VAL_IN		(1 << 12)
+# define GPIO_DATA_PULLUP_DISABLE	(1 << 13)
 
 /* p317, 319
  */
@@ -499,6 +501,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PGETBL_ADDR_MASK    0xFFFFF000
 #define PGETBL_ENABLE_MASK  0x00000001
 #define PGETBL_ENABLED      0x00000001
+/** Added in 965G, this field has the actual size of the global GTT */
+#define PGETBL_SIZE_MASK    0x0000000e
+#define PGETBL_SIZE_512KB   (0 << 1)
+#define PGETBL_SIZE_256KB   (1 << 1)
+#define PGETBL_SIZE_128KB   (2 << 1)
 
 /* Register containing pge table error results, p276
  */
@@ -1098,6 +1105,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * This is used for load detection in combination with TVDAC_SENSE_MASK
  */
 # define TV_TEST_MODE_MONITOR_DETECT	(7 << 0)
+# define TV_TEST_MODE_MASK		(7 << 0)
 /** @} */
 
 /** @defgroup TV_DAC

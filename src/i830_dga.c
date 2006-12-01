@@ -238,6 +238,7 @@ static void
 I830_FillRect(ScrnInfoPtr pScrn,
 	      int x, int y, int w, int h, unsigned long color)
 {
+#ifdef I830_USE_XAA
    I830Ptr pI830 = I830PTR(pScrn);
 
    MARKER();
@@ -247,6 +248,7 @@ I830_FillRect(ScrnInfoPtr pScrn,
       (*pI830->AccelInfoRec->SubsequentSolidFillRect) (pScrn, x, y, w, h);
       SET_SYNC_FLAG(pI830->AccelInfoRec);
    }
+#endif
 }
 
 static void
@@ -278,6 +280,7 @@ static void
 I830_BlitRect(ScrnInfoPtr pScrn,
 	      int srcx, int srcy, int w, int h, int dstx, int dsty)
 {
+#ifdef I830_USE_XAA
    I830Ptr pI830 = I830PTR(pScrn);
 
    MARKER();
@@ -292,6 +295,7 @@ I830_BlitRect(ScrnInfoPtr pScrn,
 							    dstx, dsty, w, h);
       SET_SYNC_FLAG(pI830->AccelInfoRec);
    }
+#endif
 }
 
 #if 0

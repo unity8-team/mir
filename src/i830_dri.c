@@ -1028,6 +1028,8 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("i830DRISwapContext (in)\n");
 
+      pI830->last_3d = LAST_3D_OTHER;
+
       if (!pScrn->vtSema)
      	 return;
       pI830->LockHeld = 1;
@@ -1047,7 +1049,6 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
 {
    ScreenPtr pScreen = pWin->drawable.pScreen;
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I830Ptr pI830 = I830PTR(pScrn);
    BoxPtr pbox = REGION_RECTS(prgn);
    int nbox = REGION_NUM_RECTS(prgn);
 
@@ -1085,7 +1086,7 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
    }
 
    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
-   pI830->AccelInfoRec->NeedToSync = TRUE;
+   i830MarkSync(pScrn);
 }
 
 /* This routine is a modified form of XAADoBitBlt with the calls to
@@ -1248,8 +1249,7 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
       DEALLOCATE_LOCAL(pptNew1);
       DEALLOCATE_LOCAL(pboxNew1);
    }
-
-   pI830->AccelInfoRec->NeedToSync = TRUE;
+   i830MarkSync(pScrn);
 }
 
 /* Use callbacks from dri.c to support pageflipping mode for a single
@@ -1513,20 +1513,16 @@ I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on)
 
     if (pI830->directRenderingEnabled && pI830->drmMinor >= 5) {
 	if (on) {
-	    if (pI830->pipes[1].enabled) {
-		if (pI830->drmMinor >= 6)
-		    pipe.pipe = DRM_I830_VBLANK_PIPE_A | DRM_I830_VBLANK_PIPE_B;
-		else
-		    pipe.pipe = DRM_I830_VBLANK_PIPE_B;
+	    if (pI830->xf86_config.num_crtc > 1 && pI830->xf86_config.crtc[1]->enabled)
 		pipe.pipe = DRM_I830_VBLANK_PIPE_B;
-	    } else
+	    else
 		pipe.pipe = DRM_I830_VBLANK_PIPE_A;
 	} else {
 	    pipe.pipe = 0;
 	}
 	if (drmCommandWrite(pI830->drmSubFD, DRM_I830_SET_VBLANK_PIPE,
 			    &pipe, sizeof (pipe))) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "I830 Vblank Pipe Setup Failed\n");
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "I830 Vblank Pipe Setup Failed %d\n", pipe.pipe);
 	    return FALSE;
 	}
     }

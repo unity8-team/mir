@@ -201,6 +201,18 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <errno.h>
 #endif
 
+#ifdef I830_USE_EXA
+const char *I830exaSymbols[] = {
+    "exaGetVersion",
+    "exaDriverInit",
+    "exaDriverFini",
+    "exaOffscreenAlloc",
+    "exaOffscreenFree",
+    "exaWaitSync",
+    NULL
+};
+#endif
+
 #define BIT(x) (1 << (x))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define NB_OF(x) (sizeof (x) / sizeof (*x))
@@ -249,6 +261,9 @@ static PciChipsets I830PciChipsets[] = {
  */
 
 typedef enum {
+#if defined(I830_USE_XAA) && defined(I830_USE_EXA)
+   OPTION_ACCELMETHOD,
+#endif
    OPTION_NOACCEL,
    OPTION_SW_CURSOR,
    OPTION_CACHE_LINES,
@@ -272,6 +287,9 @@ typedef enum {
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
+#if defined(I830_USE_XAA) && defined(I830_USE_EXA)
+   {OPTION_ACCELMETHOD,	"AccelMethod",	OPTV_ANYSTR,	{0},	FALSE},
+#endif
    {OPTION_NOACCEL,	"NoAccel",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SW_CURSOR,	"SWcursor",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_CACHE_LINES,	"CacheLines",	OPTV_INTEGER,	{0},	FALSE},
@@ -396,7 +414,7 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
    PCITAG bridge;
    CARD16 gmch_ctrl;
-   int memsize = 0;
+   int memsize = 0, gtt_size;
    int range;
 #if 0
    VbeInfoBlock *vbeInfo;
@@ -405,9 +423,35 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
    gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
 
-   /* We need to reduce the stolen size, by the GTT and the popup.
-    * The GTT varying according the the FbMapSize and the popup is 4KB */
-   range = (pI830->FbMapSize / (1024*1024)) + 4;
+   if (IS_I965G(pI830)) {
+      /* The 965 may have a GTT that is actually larger than is necessary
+       * to cover the aperture, so check the hardware's reporting of the
+       * GTT size.
+       */
+      switch (INREG(PGETBL_CTL) & PGETBL_SIZE_MASK) {
+      case PGETBL_SIZE_512KB:
+	 gtt_size = 512;
+	 break;
+      case PGETBL_SIZE_256KB:
+	 gtt_size = 256;
+	 break;
+      case PGETBL_SIZE_128KB:
+	 gtt_size = 128;
+	 break;
+      default:
+	 FatalError("Unknown GTT size value: %08x\n", (int)INREG(PGETBL_CTL));
+      }
+   } else {
+      /* Older chipsets only had GTT appropriately sized for the aperture. */
+      gtt_size = pI830->FbMapSize / (1024*1024);
+   }
+
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "detected %d kB GTT.\n", gtt_size);
+
+   /* The stolen memory has the GTT at the top, and the 4KB popup below that.
+    * Everything else can be freely used by the graphics driver.
+    */
+   range = gtt_size + 4;
 
    if (IS_I85X(pI830) || IS_I865G(pI830) || IS_I9XX(pI830)) {
       switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
@@ -550,8 +594,10 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    DPRINTF(PFX, "I830LoadPalette: numColors: %d\n", numColors);
    pI830 = I830PTR(pScrn);
 
-   for(p=0; p < pI830->num_pipes; p++) {
-      I830PipePtr pI830Pipe = &pI830->pipes[p];
+   for(p=0; p < pI830->xf86_config.num_crtc; p++) 
+   {
+      xf86CrtcPtr	   crtc = pI830->xf86_config.crtc[p];
+      I830CrtcPrivatePtr   intel_crtc = crtc->driver_private;
 
       if (p == 0) {
          palreg = PALETTE_A;
@@ -565,10 +611,10 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 	 dspsurf = DSPBSURF;
       }
 
-      if (pI830Pipe->enabled == 0)
+      if (crtc->enabled == 0)
 	 continue;  
 
-      pI830Pipe->gammaEnabled = 1;
+      intel_crtc->gammaEnabled = 1;
       
       /* To ensure gamma is enabled we need to turn off and on the plane */
       temp = INREG(dspreg);
@@ -659,22 +705,40 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
 
    if (IS_I9XX(pI830)) {
       i830_sdvo_init(pScrn, SDVOB);
-
-      /* Don't initialize the second SDVO port for now.  We have issues with
-       * dealing with two ports, where we stomp both SDVO channels' registers
-       * when interacting with each, channel, and commands to one SDVO
-       * device appear to be affecting the other.
-       */
-      /* i830_sdvo_init(pScrn, SDVOC); */
+      i830_sdvo_init(pScrn, SDVOC);
    } else {
       i830_dvo_init(pScrn);
    }
-#if 1
    if (IS_I915GM(pI830) || IS_I945GM(pI830) || IS_I965G(pI830))
       i830_tv_init(pScrn);
-#endif
 }
 
+/**
+ * Setup the CRTCs
+ */
+
+static const xf86CrtcFuncsRec i830_crtc_funcs = {
+};
+
+static void
+I830SetupCrtcs(ScrnInfoPtr pScrn, int num_pipe)
+{
+    int	    p;
+
+    for (p = 0; p < num_pipe; p++)
+    {
+	xf86CrtcPtr    crtc = xf86CrtcCreate (pScrn, &i830_crtc_funcs);
+	I830CrtcPrivatePtr  intel_crtc;
+	
+	if (!crtc)
+	    break;
+	intel_crtc = xnfcalloc (sizeof (I830CrtcPrivateRec), 1);
+	intel_crtc->pipe = p;
+	
+	crtc->driver_private = intel_crtc;
+    }
+}
+    
 static void 
 I830PreInitDDC(ScrnInfoPtr pScrn)
 {
@@ -692,8 +756,6 @@ I830PreInitDDC(ScrnInfoPtr pScrn)
    if (pI830->ddc2) {
       if (xf86LoadSubModule(pScrn, "i2c")) {
 	 xf86LoaderReqSymLists(I810i2cSymbols, NULL);
-
-	 I830SetupOutputs(pScrn);
 
 	 pI830->ddc2 = TRUE;
       } else {
@@ -816,10 +878,11 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    pointer pVBEModule = NULL;
    Bool enable;
    const char *chipname;
-   int mem_skip;
+   int num_pipe;
 #ifdef XF86DRI
    unsigned long savedMMSize;
 #endif
+   enum detect_status output_status[MAX_OUTPUTS];
 
    if (pScrn->numEntities != 1)
       return FALSE;
@@ -1123,27 +1186,20 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
-      pI830->num_pipes = 1;
+      num_pipe = 1;
    else
    if (IS_MOBILE(pI830) || IS_I9XX(pI830))
-      pI830->num_pipes = 2;
+      num_pipe = 2;
    else
-      pI830->num_pipes = 1;
+      num_pipe = 1;
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%d display pipe%s available.\n",
-	      pI830->num_pipes, pI830->num_pipes > 1 ? "s" : "");
+	      num_pipe, num_pipe > 1 ? "s" : "");
 
    /*
     * Get the pre-allocated (stolen) memory size.
     */
-    
-   mem_skip = 0;
-   
-   /* On 965, it looks like the GATT table is inside the aperture? */
-   if (IS_I965G(pI830))
-      mem_skip = pI830->FbMapSize >> 10;
-    
-   pI830->StolenMemory.Size = I830DetectMemory(pScrn) - mem_skip;
-   pI830->StolenMemory.Start = mem_skip;
+   pI830->StolenMemory.Size = I830DetectMemory(pScrn);
+   pI830->StolenMemory.Start = 0;
    pI830->StolenMemory.End = pI830->StolenMemory.Size;
 
    /* Find the maximum amount of agpgart memory available. */
@@ -1177,6 +1233,42 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (xf86ReturnOptValBool(pI830->Options, OPTION_NOACCEL, FALSE)) {
       pI830->noAccel = TRUE;
    }
+
+   /*
+    * The ugliness below:
+    * If either XAA or EXA (exclusive) is compiled in, default to it.
+    * 
+    * If both are compiled in, and the user didn't specify noAccel, use the
+    * config option AccelMethod to determine which to use, defaulting to XAA
+    * if none is specified, or if the string was unrecognized.
+    *
+    * All this *could* go away if we removed XAA support from this driver,
+    * for example. :)
+    */
+   if (!pI830->noAccel) {
+#if (defined(I830_USE_EXA) && defined(I830_USE_XAA)) || !defined(I830_USE_EXA)
+       pI830->useEXA = FALSE;
+#else
+       pI830->useEXA = TRUE;
+#endif
+#if defined(I830_USE_XAA) && defined(I830_USE_EXA)
+       int from = X_DEFAULT;
+       if ((s = (char *)xf86GetOptValString(pI830->Options,
+					    OPTION_ACCELMETHOD))) {
+	   if (!xf86NameCmp(s, "EXA")) {
+	       from = X_CONFIG;
+	       pI830->useEXA = TRUE;
+	   }
+	   else if (!xf86NameCmp(s, "XAA")) {
+	       from = X_CONFIG;
+	       pI830->useEXA = FALSE;
+	   }
+       }
+#endif
+       xf86DrvMsg(pScrn->scrnIndex, from, "Using %s for acceleration\n",
+		  pI830->useEXA ? "EXA" : "XAA");
+   }
+
    if (xf86ReturnOptValBool(pI830->Options, OPTION_SW_CURSOR, FALSE)) {
       pI830->SWCursor = TRUE;
    }
@@ -1248,156 +1340,11 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    I830PreInitDDC(pScrn);
-
-#if 0
-   /*
-    * This moves to generic RandR-based configuration code
-    */
-   if ((s = xf86GetOptValString(pI830->Options, OPTION_MONITOR_LAYOUT)) &&
-      I830IsPrimary(pScrn)) {
-      char *Mon1;
-      char *Mon2;
-      char *sub;
-        
-      Mon1 = strtok(s, ",");
-      Mon2 = strtok(NULL, ",");
-
-      if (Mon1) {
-         sub = strtok(Mon1, "+");
-         do {
-            if (strcmp(sub, "NONE") == 0)
-               pI830->MonType1 |= PIPE_NONE;
-            else if (strcmp(sub, "CRT") == 0)
-               pI830->MonType1 |= PIPE_CRT;
-            else if (strcmp(sub, "TV") == 0)
-               pI830->MonType1 |= PIPE_TV;
-            else if (strcmp(sub, "DFP") == 0)
-               pI830->MonType1 |= PIPE_DFP;
-            else if (strcmp(sub, "LFP") == 0)
-               pI830->MonType1 |= PIPE_LFP;
-            else if (strcmp(sub, "Second") == 0)
-               pI830->MonType1 |= PIPE_CRT2;
-            else if (strcmp(sub, "TV2") == 0)
-               pI830->MonType1 |= PIPE_TV2;
-            else if (strcmp(sub, "DFP2") == 0)
-               pI830->MonType1 |= PIPE_DFP2;
-            else if (strcmp(sub, "LFP2") == 0)
-               pI830->MonType1 |= PIPE_LFP2;
-            else 
-               xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-			       "Invalid Monitor type specified for Pipe A\n"); 
-
-            sub = strtok(NULL, "+");
-         } while (sub);
-      }
-
-      if (Mon2) {
-         sub = strtok(Mon2, "+");
-         do {
-            if (strcmp(sub, "NONE") == 0)
-               pI830->MonType2 |= PIPE_NONE;
-            else if (strcmp(sub, "CRT") == 0)
-               pI830->MonType2 |= PIPE_CRT;
-            else if (strcmp(sub, "TV") == 0)
-               pI830->MonType2 |= PIPE_TV;
-            else if (strcmp(sub, "DFP") == 0)
-               pI830->MonType2 |= PIPE_DFP;
-            else if (strcmp(sub, "LFP") == 0)
-               pI830->MonType2 |= PIPE_LFP;
-            else if (strcmp(sub, "Second") == 0)
-               pI830->MonType2 |= PIPE_CRT2;
-            else if (strcmp(sub, "TV2") == 0)
-               pI830->MonType2 |= PIPE_TV2;
-            else if (strcmp(sub, "DFP2") == 0)
-               pI830->MonType2 |= PIPE_DFP2;
-            else if (strcmp(sub, "LFP2") == 0)
-               pI830->MonType2 |= PIPE_LFP2;
-            else 
-               xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-			       "Invalid Monitor type specified for Pipe B\n"); 
-
-               sub = strtok(NULL, "+");
-            } while (sub);
-         }
-    
-         if (pI830->num_pipes == 1 && pI830->MonType2 != PIPE_NONE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Monitor 2 cannot be specified on single pipe devices\n");
-            return FALSE;
-         }
-
-         if (pI830->MonType1 == PIPE_NONE && pI830->MonType2 == PIPE_NONE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Monitor 1 and 2 cannot be type NONE\n");
-            return FALSE;
-      }
-
-      if (pI830->MonType1 != PIPE_NONE)
-	 pI830->pipe = 0;
-      else
-	 pI830->pipe = 1;
-
-   } else if (I830IsPrimary(pScrn)) {
-      /* Choose a default set of outputs to use based on what we've detected.
-       *
-       * Assume that SDVO outputs are flat panels for now.  It's just a name
-       * at the moment, since we don't treat different SDVO outputs
-       * differently.
-       */
-      for (i = 0; i < pI830->num_outputs; i++) {
-	 if (pI830->output[i].type == I830_OUTPUT_LVDS)
-	    pI830->MonType2 = PIPE_LFP;
-
-	 if (pI830->output[i].type == I830_OUTPUT_SDVO ||
-	     pI830->output[i].type == I830_OUTPUT_ANALOG)
-	 {
-	    int pipetype;
-
-	    if (pI830->output[i].detect(pScrn, &pI830->output[i]) ==
-		OUTPUT_STATUS_DISCONNECTED)
-	    {
-	       continue;
-	    }
-
-	    if (pI830->output[i].type == I830_OUTPUT_SDVO)
-	       pipetype = PIPE_DFP;
-	    else
-	       pipetype = PIPE_CRT;
-
-	    if (pI830->MonType1 == PIPE_NONE)
-	       pI830->MonType1 |= pipetype;
-	    else if (pI830->MonType2 == PIPE_NONE)
-	       pI830->MonType2 |= pipetype;
-	 }
-      }
-
-      /* And, if we haven't found anything (including CRT through DDC), assume
-       * that there's a CRT and that the user has set up some appropriate modes
-       * or something.
-       */
-      if (pI830->MonType1 == PIPE_NONE && pI830->MonType2 == PIPE_NONE)
-	 pI830->MonType1 |= PIPE_CRT;
-
-      if (pI830->MonType1 != PIPE_NONE)
-	 pI830->pipe = 0;
-      else
-	 pI830->pipe = 1;
-
-      if (pI830->MonType1 != 0 && pI830->MonType2 != 0) {
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
- 		    "Enabling clone mode by default\n");
-	 pI830->Clone = TRUE;
-      }
-   } else {
-      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-      pI830->pipe = !pI8301->pipe;
-      pI830->MonType1 = pI8301->MonType1;
-      pI830->MonType2 = pI8301->MonType2;
-   }
-#endif
+   I830SetupOutputs(pScrn);
+   I830SetupCrtcs(pScrn, num_pipe);
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_CLONE, FALSE)) {
-      if (pI830->num_pipes == 1) {
+      if (num_pipe == 1) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
  		 "Can't enable Clone Mode because this is a single pipe device\n");
          PreInitCleanup(pScrn);
@@ -1417,33 +1364,53 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* Perform the pipe assignment of outputs. This is a kludge until
     * we have better configuration support in the generic RandR code
     */
-   for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].enabled = FALSE;
+   for (i = 0; i < pI830->xf86_config.num_output; i++) 
+   {
+      xf86OutputPtr	      output = pI830->xf86_config.output[i];
+      I830OutputPrivatePtr    intel_output = output->driver_private;
+      xf86CrtcPtr	      crtc;
+      int		      p;
 
-      switch (pI830->output[i].type) {
+      output_status[i] = (*output->funcs->detect) (output);
+   }
+   
+   for (i = 0; i < pI830->xf86_config.num_output; i++) 
+   {
+      xf86OutputPtr	      output = pI830->xf86_config.output[i];
+      I830OutputPrivatePtr    intel_output = output->driver_private;
+      xf86CrtcPtr	      crtc;
+      int		      p;
+
+      output->crtc = NULL;
+
+      if (output_status[i] == OUTPUT_STATUS_DISCONNECTED)
+	 continue;
+      
+      switch (intel_output->type) {
       case I830_OUTPUT_LVDS:
 	 /* LVDS must live on pipe B for two-pipe devices */
-	 pI830->output[i].pipe = pI830->num_pipes - 1;
-	 pI830->output[i].enabled = TRUE;
+	 crtc = pI830->xf86_config.crtc[pI830->xf86_config.num_crtc - 1];
+	 if (!i830PipeInUse (crtc))
+	    output->crtc = crtc;
 	 break;
       case I830_OUTPUT_ANALOG:
       case I830_OUTPUT_DVO:
       case I830_OUTPUT_SDVO:
-	 if (pI830->output[i].detect(pScrn, &pI830->output[i]) !=
-	     OUTPUT_STATUS_DISCONNECTED) {
-	    if (!i830PipeInUse(pScrn, 0)) {
-	       pI830->output[i].pipe = 0;
-	       pI830->output[i].enabled = TRUE;
-	    } else if (!i830PipeInUse(pScrn, 1)) {
-	       pI830->output[i].pipe = 1;
-	       pI830->output[i].enabled = TRUE;
+	 for (p = 0; p < pI830->xf86_config.num_crtc; p++)
+	 {
+	    crtc = pI830->xf86_config.crtc[p];
+	    if (!i830PipeInUse(crtc))
+	    {
+	       output->crtc = crtc;
+	       break;
 	    }
 	 }
 	 break;
       case I830_OUTPUT_TVOUT:
-         if (!i830PipeInUse(pScrn, 0)) {
-	    pI830->output[i].pipe = 0;
-	    pI830->output[i].enabled = TRUE;
+	 crtc = pI830->xf86_config.crtc[0];
+	 if (!i830PipeInUse(crtc))
+	 {
+	    output->crtc = crtc;
 	 }
 	 break;
       default:
@@ -1452,35 +1419,12 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       }
    }
 
-   for (i = 0; i < pI830->num_pipes; i++) {
-      pI830->pipes[i].enabled = i830PipeInUse(pScrn, i);
+   for (i = 0; i < pI830->xf86_config.num_crtc; i++) 
+   {
+      xf86CrtcPtr	crtc = pI830->xf86_config.crtc[i];
+      crtc->enabled = i830PipeInUse(crtc);
    }
-
-#if 0
-   pI830->CloneRefresh = 60; /* default to 60Hz */
-   if (xf86GetOptValInteger(pI830->Options, OPTION_CLONE_REFRESH,
-			    &(pI830->CloneRefresh))) {
-      xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Clone Monitor Refresh Rate %d\n",
-		 pI830->CloneRefresh);
-   }
-
-   /* See above i830refreshes on why 120Hz is commented out */
-   if (pI830->CloneRefresh < 60 || pI830->CloneRefresh > 85 /* 120 */) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad Clone Refresh Rate\n");
-      PreInitCleanup(pScrn);
-      return FALSE;
-   }
-
-   if ((pI830->entityPrivate && I830IsPrimary(pScrn)) || pI830->Clone) {
-      if (pI830->MonType1 == PIPE_NONE || pI830->MonType2 == PIPE_NONE) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Monitor 1 or Monitor 2 "
-	 		"cannot be type NONE in DualHead or Clone setup.\n");
-         PreInitCleanup(pScrn);
-         return FALSE;
-      }
-   }
-#endif
-
+   
    pI830->rotation = RR_Rotate_0;
    if ((s = xf86GetOptValString(pI830->Options, OPTION_ROTATE))) {
       pI830->InitialRotation = 0;
@@ -1655,24 +1599,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       }
    }
 
-#if 0
-   if (xf86IsEntityShared(pScrn->entityList[0])) {
-      if (!I830IsPrimary(pScrn)) {
-	 /* This could be made to work with a little more fiddling */
-	 pI830->directRenderingDisabled = TRUE;
-
-         xf86DrvMsg(pScrn->scrnIndex, from, "Secondary head is using Pipe %s\n",
-		pI830->pipe ? "B" : "A");
-      } else {
-         xf86DrvMsg(pScrn->scrnIndex, from, "Primary head is using Pipe %s\n",
-		pI830->pipe ? "B" : "A");
-      }
-   } else {
-      xf86DrvMsg(pScrn->scrnIndex, from, "Display is using Pipe %s\n",
-		pI830->pipe ? "B" : "A");
-   }
-#endif
-
    /* Alloc our pointers for the primary head */
    if (I830IsPrimary(pScrn)) {
       pI830->LpRing = xalloc(sizeof(I830RingBuffer));
@@ -1741,7 +1667,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
 	      "Maximum frambuffer space: %d kByte\n", pScrn->videoRam);
 
-   if (!I830RandRPreInit (pScrn))
+   if (!xf86RandR12PreInit (pScrn))
    {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       PreInitCleanup(pScrn);
@@ -1922,9 +1848,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 #endif
       pI830->disableTiling = TRUE; /* no DRI - so disableTiling */
 
-   if (pScrn->displayWidth >= 4096) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support > 1024x768 in leftof/rightof configurations. disabling DRI.\n");
-      pI830->directRenderingDisabled = TRUE;
+   if (pScrn->displayWidth * pI830->cpp > 8192) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support frame buffer stride > 8K >  DRI.\n");
+      pI830->disableTiling = TRUE;
    }
 
    if (pScrn->virtualY > 2048) {
@@ -1933,8 +1859,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    pI830->displayWidth = pScrn->displayWidth;
-
-   I830PrintModes(pScrn);
 
    /* Don't need MMIO access anymore. */
    if (pI830->swfSaved) {
@@ -1953,14 +1877,33 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    xf86LoaderReqSymLists(I810fbSymbols, NULL);
 
-   if (!pI830->noAccel) {
+#ifdef I830_USE_XAA
+   if (!pI830->noAccel && !pI830->useEXA) {
       if (!xf86LoadSubModule(pScrn, "xaa")) {
 	 PreInitCleanup(pScrn);
 	 return FALSE;
       }
       xf86LoaderReqSymLists(I810xaaSymbols, NULL);
    }
+#endif
 
+#ifdef I830_USE_EXA
+   if (!pI830->noAccel && pI830->useEXA) {
+      XF86ModReqInfo req;
+      int errmaj, errmin;
+
+      memset(&req, 0, sizeof(req));
+      req.majorversion = 2;
+      req.minorversion = 0;
+      if (!LoadSubModule(pScrn->module, "exa", NULL, NULL, NULL, &req,
+		&errmaj, &errmin)) {
+	 LoaderErrorMsg(NULL, "exa", errmaj, errmin);
+	 PreInitCleanup(pScrn);
+	 return FALSE;
+      }
+      xf86LoaderReqSymLists(I830exaSymbols, NULL);
+   }
+#endif
    if (!pI830->SWCursor) {
       if (!xf86LoadSubModule(pScrn, "ramdac")) {
 	 PreInitCleanup(pScrn);
@@ -2106,16 +2049,25 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
       for (i = 0; i < FENCE_NR; i++)
          OUTREG(FENCE + i * 4, 0);
    }
-
    /* Flush the ring buffer (if enabled), then disable it. */
-   if (pI830->AccelInfoRec != NULL && flush) {
-      temp = INREG(LP_RING + RING_LEN);
-      if (temp & 1) {
-	 I830RefreshRing(pScrn);
-	 I830Sync(pScrn);
-	 DO_RING_IDLE();
-      }
-   }
+   /* God this is ugly */
+#define flush_ring() do { \
+      temp = INREG(LP_RING + RING_LEN); \
+      if (temp & 1) { \
+	 I830RefreshRing(pScrn); \
+	 I830Sync(pScrn); \
+	 DO_RING_IDLE(); \
+      } \
+   } while(0)
+#ifdef I830_USE_XAA
+   if (!pI830->useEXA && flush && pI830->AccelInfoRec)
+       flush_ring();
+#endif
+#ifdef I830_USE_XAA
+   if (pI830->useEXA && flush && pI830->EXADriverPtr)
+       flush_ring();
+#endif
+
    OUTREG(LP_RING + RING_LEN, 0);
    OUTREG(LP_RING + RING_HEAD, 0);
    OUTREG(LP_RING + RING_TAIL, 0);
@@ -2230,7 +2182,7 @@ SaveHWState(ScrnInfoPtr pScrn)
    temp = INREG(PIPEACONF);
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PIPEACONF is 0x%08lx\n", 
 	      (unsigned long) temp);
-   if (pI830->num_pipes == 2) {
+   if (pI830->xf86_config.num_crtc == 2) {
       temp = INREG(PIPEBCONF);
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PIPEBCONF is 0x%08lx\n", 
 		 (unsigned long) temp);
@@ -2262,7 +2214,7 @@ SaveHWState(ScrnInfoPtr pScrn)
       pI830->savePaletteA[i] = INREG(PALETTE_A + (i << 2));
    }
 
-   if(pI830->num_pipes == 2) {
+   if(pI830->xf86_config.num_crtc == 2) {
       pI830->savePIPEBCONF = INREG(PIPEBCONF);
       pI830->savePIPEBSRC = INREG(PIPEBSRC);
       pI830->saveDSPBCNTR = INREG(DSPBCNTR);
@@ -2306,9 +2258,10 @@ SaveHWState(ScrnInfoPtr pScrn)
 
    pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
 
-   for (i = 0; i < pI830->num_outputs; i++) {
-      if (pI830->output[i].save != NULL)
-	 pI830->output[i].save(pScrn, &pI830->output[i]);
+   for (i = 0; i < pI830->xf86_config.num_output; i++) {
+      xf86OutputPtr   output = pI830->xf86_config.output[i];
+      if (output->funcs->save)
+	 (*output->funcs->save) (output);
    }
 
    vgaHWUnlock(hwp);
@@ -2347,8 +2300,9 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
 
    /* Disable outputs if necessary */
-   for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].pre_set_mode(pScrn, &pI830->output[i], NULL);
+   for (i = 0; i < pI830->xf86_config.num_output; i++) {
+      xf86OutputPtr   output = pI830->xf86_config.output[i];
+      (*output->funcs->pre_set_mode) (output, NULL);
    }
 
    i830WaitForVblank(pScrn);
@@ -2373,7 +2327,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
          OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
    }
 
-   if(pI830->num_pipes == 2) {
+   if(pI830->xf86_config.num_crtc == 2) {
       OUTREG(FPB0, pI830->saveFPB0);
       OUTREG(FPB1, pI830->saveFPB1);
       OUTREG(DPLL_B, pI830->saveDPLL_B);
@@ -2397,8 +2351,9 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
 
-   for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].restore(pScrn, &pI830->output[i]);
+   for (i = 0; i < pI830->xf86_config.num_output; i++) {
+      xf86OutputPtr   output = pI830->xf86_config.output[i];
+      (*output->funcs->restore) (output);
    }
 
    if (IS_I965G(pI830)) {
@@ -2767,7 +2722,7 @@ I830CreateScreenResources (ScreenPtr pScreen)
    if (!(*pScreen->CreateScreenResources)(pScreen))
       return FALSE;
 
-   if (!I830RandRCreateScreenResources (pScreen))
+   if (!xf86RandR12CreateScreenResources (pScreen))
       return FALSE;
 
    return TRUE;
@@ -2819,9 +2774,22 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    CARD32 ctx_addr;
+#ifdef XF86DRI
+   drmI830Sarea *sarea;
+#endif
 
    if (pI830->noAccel)
       return;
+
+#ifdef XF86DRI
+   if (pI830->directRenderingEnabled) {
+      sarea = DRIGetSAREAPrivate(pScrn->pScreen);
+
+      /* Mark that the X Server was the last holder of the context */
+      if (sarea)
+	 sarea->ctxOwner = DRIGetContext(pScrn->pScreen);
+   }
+#endif
 
    ctx_addr = pI830->ContextMem.Start;
    /* Align to a 2k boundry */
@@ -3314,7 +3282,12 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       xf86DisableRandR(); /* Disable built-in RandR extension */
       shadowSetup(pScreen);
       /* support all rotations */
-      I830RandRInit(pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
+      xf86RandR12Init (pScreen);
+      if (IS_I965G(pI830)) {
+	 xf86RandR12SetRotations (pScreen, RR_Rotate_0); /* only 0 degrees for I965G */
+      } else {
+	 xf86RandR12SetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
+      }
       pI830->PointerMoved = pScrn->PointerMoved;
       pScrn->PointerMoved = I830PointerMoved;
       pI830->CreateScreenResources = pScreen->CreateScreenResources;
@@ -3371,7 +3344,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
          pI830->rotation = RR_Rotate_0;
          break;
    }
-
 
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled && (pI830->mmModeFlags & I830_KERNEL_MM)) {
@@ -3433,9 +3405,12 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
       pI830->AccelInfoRec->NeedToSync = FALSE;
    }
 
-   for (i = 0; i < pI830->num_pipes; i++)
-      if (pI830->pipes[i].enabled)
-	 i830PipeSetBase(pScrn, i, x, y);
+   for (i = 0; i < pI830->xf86_config.num_crtc; i++)
+   {
+      xf86CrtcPtr	crtc = pI830->xf86_config.crtc[i];
+      if (crtc->enabled)
+	 i830PipeSetBase(crtc, x, y);
+   }
 }
 
 static void
@@ -3546,19 +3521,19 @@ I830EnterVT(int scrnIndex, int flags)
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
-   for (i = 0; i < pI830->num_pipes; i++)
+   for (i = 0; i < pI830->xf86_config.num_crtc; i++)
    {
-      I830PipePtr pipe = &pI830->pipes[i];
+      xf86CrtcPtr	crtc = pI830->xf86_config.crtc[i];
+
       /* Mark that we'll need to re-set the mode for sure */
-      memset(&pipe->curMode, 0, sizeof(pipe->curMode));
-      if (!pipe->desiredMode.CrtcHDisplay)
-      {
-	 pipe->desiredMode = *i830PipeFindClosestMode (pScrn, i,
-						       pScrn->currentMode);
-      }
-      if (!i830PipeSetMode (pScrn, &pipe->desiredMode, i, TRUE))
+      memset(&crtc->curMode, 0, sizeof(crtc->curMode));
+      if (!crtc->desiredMode.CrtcHDisplay)
+	 crtc->desiredMode = *i830PipeFindClosestMode (crtc, pScrn->currentMode);
+      
+      if (!i830PipeSetMode (crtc, &crtc->desiredMode, TRUE))
 	 return FALSE;
-      i830PipeSetBase(pScrn, i, pipe->x, pipe->y);
+      
+      i830PipeSetBase(crtc, crtc->x, crtc->y);
    }
 
    i830DisableUnusedFunctions(pScrn);
@@ -3568,11 +3543,6 @@ I830EnterVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
    I830DRISetVBlankInterrupt (pScrn, TRUE);
-#endif
-   
-#if 0
-   if (!i830SetMode(pScrn, pScrn->currentMode))
-      return FALSE;
 #endif
    
 #ifdef I830_XV
@@ -3657,10 +3627,7 @@ I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 #endif
 
    /* Sync the engine before mode switch */
-   if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-      (*pI830->AccelInfoRec->Sync)(pScrn);
-      pI830->AccelInfoRec->NeedToSync = FALSE;
-   }
+   i830WaitSync(pScrn);
 
    /* Check if our currentmode is about to change. We do this so if we
     * are rotating, we don't need to call the mode setup again.
@@ -3720,7 +3687,7 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
    DPRINTF(PFX, "I830SaveScreen: %d, on is %s\n", mode, BOOLTOSTRING(on));
 
    if (pScrn->vtSema) {
-      for (i = 0; i < pI830->num_pipes; i++) {
+      for (i = 0; i < pI830->xf86_config.num_crtc; i++) {
         if (i == 0) {
 	    ctrl = DSPACNTR;
 	    base = DSPABASE;
@@ -3730,7 +3697,7 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
 	    base = DSPBADDR;
 	    surf = DSPBSURF;
         }
-        if (pI830->pipes[i].enabled) {
+        if (pI830->xf86_config.crtc[i]->enabled) {
 	   temp = INREG(ctrl);
 	   if (on)
 	      temp |= DISPLAY_PLANE_ENABLE;
@@ -3767,11 +3734,16 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
    int i;
    CARD32 temp, ctrl, base;
 
-   for (i = 0; i < pI830->num_outputs; i++) {
-      pI830->output[i].dpms(pScrn, &pI830->output[i], PowerManagementMode);
+   for (i = 0; i < pI830->xf86_config.num_output; i++) {
+      xf86OutputPtr   output = pI830->xf86_config.output[i];
+      
+      (*output->funcs->dpms) (output, PowerManagementMode);
    }
 
-   for (i = 0; i < pI830->num_pipes; i++) {
+   for (i = 0; i < pI830->xf86_config.num_crtc; i++) 
+   {
+      xf86CrtcPtr	   crtc = pI830->xf86_config.crtc[i];
+      
       if (i == 0) {
          ctrl = DSPACNTR;
          base = DSPABASE;
@@ -3779,7 +3751,8 @@ I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
          ctrl = DSPBCNTR;
          base = DSPBADDR;
       }
-      if (pI830->pipes[i].enabled) {
+      /* XXX pipe disable too? */
+      if (crtc->enabled) {
 	   temp = INREG(ctrl);
 	   if (PowerManagementMode == DPMSModeOn)
 	      temp |= DISPLAY_PLANE_ENABLE;
@@ -3806,7 +3779,9 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
+#ifdef I830_USE_XAA
    XAAInfoRecPtr infoPtr = pI830->AccelInfoRec;
+#endif
 
    pI830->closing = TRUE;
 #ifdef XF86DRI
@@ -3839,14 +3814,21 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
       xfree(pI830->ScanlineColorExpandBuffers);
       pI830->ScanlineColorExpandBuffers = 0;
    }
-
+#ifdef I830_USE_XAA
    if (infoPtr) {
       if (infoPtr->ScanlineColorExpandBuffers)
 	 xfree(infoPtr->ScanlineColorExpandBuffers);
       XAADestroyInfoRec(infoPtr);
       pI830->AccelInfoRec = NULL;
    }
-
+#endif
+#ifdef I830_USE_EXA
+   if (pI830->useEXA && pI830->EXADriverPtr) {
+       exaDriverFini(pScreen);
+       xfree(pI830->EXADriverPtr);
+       pI830->EXADriverPtr = NULL;
+   }
+#endif
    if (pI830->CursorInfoRec) {
       xf86DestroyCursorInfoRec(pI830->CursorInfoRec);
       pI830->CursorInfoRec = 0;
@@ -3983,7 +3965,7 @@ i830MonitorDetectDebugger(ScrnInfoPtr pScrn)
    if (!pScrn->vtSema)
       return 1000;
 
-   for (i = 0; i < pI830->num_outputs; i++) {
+   for (i = 0; i < pI830->xf86_config.num_output; i++) {
       enum output_status ret;
       char *result;
 
@@ -4037,6 +4019,43 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
    }
 
    return 1000;
+}
+
+void
+i830WaitSync(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+#ifdef I830_USE_XAA
+   if (!pI830->noAccel && !pI830->useEXA && pI830->AccelInfoRec 
+	&& pI830->AccelInfoRec->NeedToSync) {
+      (*pI830->AccelInfoRec->Sync)(pScrn);
+      pI830->AccelInfoRec->NeedToSync = FALSE;
+   }
+#endif
+#ifdef I830_USE_EXA
+   if (!pI830->noAccel && pI830->useEXA && pI830->EXADriverPtr) {
+	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+	exaWaitSync(pScreen);
+   }
+#endif
+}
+
+void
+i830MarkSync(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+#ifdef I830_USE_XAA
+   if (!pI830->useEXA && pI830->AccelInfoRec)
+      pI830->AccelInfoRec->NeedToSync = TRUE;
+#endif
+#ifdef I830_USE_EXA
+   if (pI830->useEXA && pI830->EXADriverPtr) {
+      ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+      exaMarkSync(pScreen);
+   }
+#endif
 }
 
 void
