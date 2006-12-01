@@ -473,7 +473,7 @@ static const DisplayModeRec tvModes[] = {
  * \return TRUE if TV is connected.
  * \return FALSE if TV is disconnected.
  */
-static int
+static void
 i830_tv_detect_type (xf86CrtcPtr    crtc,
 		     xf86OutputPtr  output)
 {
@@ -536,7 +536,6 @@ i830_tv_detect_type (xf86CrtcPtr    crtc,
     }
     
     dev_priv->type = type;
-    return type;
 }
 
 /**
@@ -548,25 +547,25 @@ i830_tv_detect_type (xf86CrtcPtr    crtc,
 static enum detect_status
 i830_tv_detect(xf86OutputPtr output)
 {
-    xf86CrtcPtr	    crtc;
+    xf86CrtcPtr		    crtc;
     DisplayModeRec	    mode;
     I830OutputPrivatePtr    intel_output = output->driver_private;
-    int			    type;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
 
     crtc = i830GetLoadDetectPipe (output);
-    if (!crtc)
-	return OUTPUT_STATUS_UNKNOWN;
-    
-    if (intel_output->load_detect_temp)
+    if (crtc)
     {
-	mode = tvModes[0];
-	xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
-	i830PipeSetMode (crtc, &mode, FALSE);
+	if (intel_output->load_detect_temp)
+	{
+	    mode = tvModes[0];
+	    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
+	    i830PipeSetMode (crtc, &mode, FALSE);
+	}
+	i830_tv_detect_type (crtc, output);
+	i830ReleaseLoadDetectPipe (output);
     }
-    type = i830_tv_detect_type (crtc, output);
-    i830ReleaseLoadDetectPipe (output);
     
-    switch (type) {
+    switch (dev_priv->type) {
     case TV_TYPE_NONE:
 	return OUTPUT_STATUS_DISCONNECTED;
     case TV_TYPE_UNKNOWN:
