@@ -3055,10 +3055,14 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	  (info->overlay_scaler_buffer_width > 2048) ||
 	  ((info->overlay_scaler_buffer_width % 64) != 0)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to set illegal scaler width. Using default\n");
+	    from = X_DEFAULT;
 	    info->overlay_scaler_buffer_width = 0;
-	}
+	} else
+	    from = X_CONFIG;
+    } else {
+	from = X_DEFAULT;
+	info->overlay_scaler_buffer_width = 0;
     }
-    else info->overlay_scaler_buffer_width = 0;
     if (!info->overlay_scaler_buffer_width) {
        /* overlay scaler line length differs for different revisions 
        this needs to be maintained by hand  */
@@ -3072,7 +3076,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 		info->overlay_scaler_buffer_width = 1536;
 	}
     }
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Assuming overlay scaler buffer width is %d\n",
+    xf86DrvMsg(pScrn->scrnIndex, from, "Assuming overlay scaler buffer width is %d\n",
 	info->overlay_scaler_buffer_width);
 
     if(info->tunerType>31){
