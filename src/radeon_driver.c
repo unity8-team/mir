@@ -3749,7 +3749,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     char*          s;
 #endif
 
-    RADEONTRACE(("RADEONScreenInit %lx %ld %lx\n",
+    RADEONTRACE(("RADEONScreenInit %lx %ld %d\n",
 		 pScrn->memPhysBase, pScrn->fbOffset, info->frontOffset));
 
     info->accelOn      = FALSE;
