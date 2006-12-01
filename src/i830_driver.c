@@ -880,6 +880,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 #ifdef XF86DRI
    unsigned long savedMMSize;
 #endif
+   enum detect_status output_status[MAX_OUTPUTS];
 
    if (pScrn->numEntities != 1)
       return FALSE;
@@ -1369,8 +1370,21 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       xf86CrtcPtr	      crtc;
       int		      p;
 
+      output_status[i] = (*output->funcs->detect) (output);
+   }
+   
+   for (i = 0; i < pI830->xf86_config.num_output; i++) 
+   {
+      xf86OutputPtr	      output = pI830->xf86_config.output[i];
+      I830OutputPrivatePtr    intel_output = output->driver_private;
+      xf86CrtcPtr	      crtc;
+      int		      p;
+
       output->crtc = NULL;
 
+      if (output_status[i] == OUTPUT_STATUS_DISCONNECTED)
+	 continue;
+      
       switch (intel_output->type) {
       case I830_OUTPUT_LVDS:
 	 /* LVDS must live on pipe B for two-pipe devices */
@@ -1381,23 +1395,19 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       case I830_OUTPUT_ANALOG:
       case I830_OUTPUT_DVO:
       case I830_OUTPUT_SDVO:
-	 if ((*output->funcs->detect)(output) != OUTPUT_STATUS_DISCONNECTED) 
+	 for (p = 0; p < pI830->xf86_config.num_crtc; p++)
 	 {
-	    for (p = 0; p < pI830->xf86_config.num_crtc; p++)
+	    crtc = pI830->xf86_config.crtc[p];
+	    if (!i830PipeInUse(crtc))
 	    {
-	       crtc = pI830->xf86_config.crtc[p];
-	       if (!i830PipeInUse(crtc))
-	       {
-		  output->crtc = crtc;
-		  break;
-	       }
+	       output->crtc = crtc;
+	       break;
 	    }
 	 }
 	 break;
       case I830_OUTPUT_TVOUT:
 	 crtc = pI830->xf86_config.crtc[0];
-	 if ((*output->funcs->detect)(output) != OUTPUT_STATUS_DISCONNECTED &&
-	     !i830PipeInUse(crtc))
+	 if (!i830PipeInUse(crtc))
 	 {
 	    output->crtc = crtc;
 	 }
