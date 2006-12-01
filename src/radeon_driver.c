@@ -3065,6 +3065,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	switch(info->ChipFamily){
 	case CHIP_FAMILY_R200:
 	case CHIP_FAMILY_R300:
+	case CHIP_FAMILY_RV350:
 		info->overlay_scaler_buffer_width = 1920;
 		break;
 	default:
