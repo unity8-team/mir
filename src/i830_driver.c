@@ -709,7 +709,7 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
    } else {
       i830_dvo_init(pScrn);
    }
-   if (IS_I915GM(pI830) || IS_I945GM(pI830) || IS_I965G(pI830))
+   if (IS_I9XX(pI830) && !IS_I915G(pI830))
       i830_tv_init(pScrn);
 }
 
