@@ -550,7 +550,9 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     xf86CrtcPtr	save_crtcs[MAX_OUTPUTS];
     Bool		save_enabled = crtc->enabled;
 
-    if (!xf86ModesEqual (&crtc->curMode, mode))
+    if ((mode != NULL) != crtc->enabled)
+	changed = TRUE;
+    else if (mode && !xf86ModesEqual (&crtc->curMode, mode))
 	changed = TRUE;
     
     for (o = 0; o < pI830->xf86_config.num_output; o++) 
