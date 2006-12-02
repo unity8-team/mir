@@ -442,7 +442,7 @@ typedef struct {
     RADEONMonitorType DisplayType;      /* Monitor connected on              */
     RADEONDDCType     DDCType;
     RADEONConnectorType ConnectorType;
-    Bool              HasCRTC2;         /* All cards except original Radeon  */
+
     Bool              IsMobility;       /* Mobile chips for laptops */
     Bool              IsIGP;            /* IGP chips */
     Bool              HasSingleDAC;     /* only TVDAC on chip */

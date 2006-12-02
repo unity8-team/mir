@@ -1005,7 +1005,7 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
             pRADEONEnt->PortInfo[1].DACType = DAC_TVDAC;
             pRADEONEnt->PortInfo[0].DACType = DAC_PRIMARY;
         }
-    } else if (!info->HasCRTC2) {
+    } else if (!pRADEONEnt->HasCRTC2) {
         pRADEONEnt->PortInfo[0].DACType = DAC_PRIMARY;
     }
 
@@ -1182,7 +1182,7 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 
     if (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN || pRADEONEnt->PortInfo[1].MonType == MT_UNKNOWN) {
 		
-        if ((!info->HasCRTC2) && (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN)) {
+        if ((!pRADEONEnt->HasCRTC2) && (pRADEONEnt->PortInfo[0].MonType == MT_UNKNOWN)) {
 			if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn, DDC_DVI,
 																			&pRADEONEnt->PortInfo[0])));
 			else if((pRADEONEnt->PortInfo[0].MonType = RADEONDisplayDDCConnected(pScrn, DDC_VGA,
@@ -1343,7 +1343,7 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 	}
     }
 
-    if(info->HasCRTC2) {   
+    if(pRADEONEnt->HasCRTC2) {   
 	if(info->IsSecondary) {
   	    pRADEONEnt->Controller[1].binding = 2;
 	    info->DisplayType = pRADEONEnt->Controller[1].pPort->MonType;
@@ -2021,7 +2021,7 @@ void RADEONBlank(ScrnInfoPtr pScrn)
 		   RADEON_CRTC_VSYNC_DIS | 
 		   RADEON_CRTC_HSYNC_DIS));
 
-	if (!info->HasCRTC2) return;
+	if (!pRADEONEnt->HasCRTC2) return;
 
 	if (pRADEONEnt->Controller[1].binding == 1) {
   	    RADEONBlankSet(pScrn, 1);
@@ -2090,7 +2090,7 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
 		RADEON_CRTC_VSYNC_DIS |
 		RADEON_CRTC_HSYNC_DIS));
 
-      if (!info->HasCRTC2) return;
+      if (!pRADEONEnt->HasCRTC2) return;
 
       if (pRADEONEnt->Controller[1].binding == 1) {
 	RADEONUnblankSet(pScrn, 1);

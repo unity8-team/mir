@@ -124,7 +124,7 @@ typedef struct
 typedef struct
 {
     Bool HasSecondary;
-
+    Bool              HasCRTC2;         /* All cards except original Radeon  */
     /*
      * The next two are used to make sure CRTC2 is restored before CRTC_EXT,
      * otherwise it could lead to blank screens.

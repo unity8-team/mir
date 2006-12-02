@@ -816,6 +816,7 @@ static int RADEONDiv(int n, int d)
 static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONPLLPtr  pll  = &info->pll;
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned char ppll_div_sel;
@@ -1018,6 +1019,7 @@ static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
 static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONPLLPtr pll = &info->pll;
     double min_dotclock;
 
@@ -1067,7 +1069,7 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
         info->mclk = 200.00;
     }
 
-    if (info->ChipFamily == CHIP_FAMILY_RV100 && !info->HasCRTC2) {
+    if (info->ChipFamily == CHIP_FAMILY_RV100 && !pRADEONEnt->HasCRTC2) {
         /* Avoid RN50 corruption due to memory bandwidth starvation.
          * 18 is an empirical value based on the databook and Windows driver.
          *
@@ -1289,6 +1291,7 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 static void RADEONGetVRamType(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 tmp;
  
@@ -1312,7 +1315,7 @@ static void RADEONGetVRamType(ScrnInfoPtr pScrn)
 	       (info->ChipFamily == CHIP_FAMILY_RS200)){
 	if (tmp & RV100_HALF_MODE) info->RamWidth = 32;
 	else info->RamWidth = 64;
-       if (!info->HasCRTC2) {
+       if (!pRADEONEnt->HasCRTC2) {
            info->RamWidth /= 4;
            info->IsDDR = TRUE;
        }
@@ -1496,6 +1499,7 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
 static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     EntityInfoPtr  pEnt   = info->pEnt;
     GDevPtr        dev    = pEnt->device;
     unsigned char *RADEONMMIO = info->MMIO;
@@ -1532,7 +1536,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	       pScrn->chipset,
 	       info->Chipset);
 
-    info->HasCRTC2 = TRUE;
+    pRADEONEnt->HasCRTC2 = TRUE;
     info->IsMobility = FALSE;
     info->IsIGP = FALSE;
     info->IsDellServer = FALSE;
@@ -1546,7 +1550,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 
     case PCI_CHIP_RN50_515E:  /* RN50 is based on the RV100 but 3D isn't guaranteed to work.  YMMV. */
     case PCI_CHIP_RN50_5969:
-        info->HasCRTC2 = FALSE;
+        pRADEONEnt->HasCRTC2 = FALSE;
     case PCI_CHIP_RV100_QY:
     case PCI_CHIP_RV100_QZ:
 	info->ChipFamily = CHIP_FAMILY_RV100;
@@ -1777,7 +1781,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     default:
 	/* Original Radeon/7200 */
 	info->ChipFamily = CHIP_FAMILY_RADEON;
-	info->HasCRTC2 = FALSE;
+	pRADEONEnt->HasCRTC2 = FALSE;
     }
 
 
@@ -2233,7 +2237,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 
     xf86SetCrtcForModes(pScrn, 0);
 
-    if (info->HasCRTC2) {
+    if (pRADEONEnt->HasCRTC2) {
 	if (pRADEONEnt->Controller[1].binding == 1) {
 
 	    /* If we have 2 screens from the config file, we don't need
@@ -4234,6 +4238,7 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 					 RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     int timeout;
 
@@ -4275,7 +4280,7 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 		& ~(RADEON_CRTC_CUR_EN | RADEON_CRTC_ICON_EN))
 	       | RADEON_CRTC_DISP_REQ_EN_B | RADEON_CRTC_EXT_DISP_EN);
 
- 	if (info->HasCRTC2) {
+ 	if (pRADEONEnt->HasCRTC2) {
 	    crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL);
 	    RADEONWaitForVerticalSync2(pScrn);
 	    OUTREG(RADEON_CRTC2_GEN_CNTL,
@@ -4344,7 +4349,7 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	    }
 	    usleep(1000);
 	}
-	if (info->HasCRTC2) {
+	if (pRADEONEnt->HasCRTC2) {
 	    OUTREG(RADEON_CRTC2_OFFSET_CNTL, RADEON_CRTC2_OFFSET_FLIP_CNTL);
 	    OUTREG(RADEON_CRTC2_OFFSET, 0);
 	    OUTREG(RADEON_CUR2_OFFSET, 0);
@@ -4363,7 +4368,7 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
     RADEONTRACE(("Updating display base addresses...\n"));
 
     OUTREG(RADEON_DISPLAY_BASE_ADDR, restore->display_base_addr);
-    if (info->HasCRTC2)
+    if (pRADEONEnt->HasCRTC2)
         OUTREG(RADEON_DISPLAY2_BASE_ADDR, restore->display2_base_addr);
     OUTREG(RADEON_OV0_BASE_ADDR, restore->ov0_base_addr);
     (void)INREG(RADEON_OV0_BASE_ADDR);
@@ -4439,6 +4444,7 @@ static void RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
 					 RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
     OUTREG(RADEON_OVR_CLR,            restore->ovr_clr);
@@ -4458,7 +4464,7 @@ static void RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
      * problem only occurs on RV style chips, typically when a FP and
      * CRT are connected.
      */
-    if (info->HasCRTC2 &&
+    if (pRADEONEnt->HasCRTC2 &&
 	!info->IsSwitching &&
 	info->ChipFamily != CHIP_FAMILY_R200 &&
 	!IS_R300_VARIANT) {
@@ -4481,6 +4487,7 @@ static void RADEONRestoreFBDevRegisters(ScrnInfoPtr pScrn,
 {
 #ifdef XF86DRI
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
     /* Restore register for vertical blank interrupts */
@@ -4491,7 +4498,7 @@ static void RADEONRestoreFBDevRegisters(ScrnInfoPtr pScrn,
     /* Restore registers for page flipping */
     if (info->allowPageFlip) {
 	OUTREG(RADEON_CRTC_OFFSET_CNTL, restore->crtc_offset_cntl);
-	if (info->HasCRTC2) {
+	if (pRADEONEnt->HasCRTC2) {
 	    OUTREG(RADEON_CRTC2_OFFSET_CNTL, restore->crtc2_offset_cntl);
 	}
     }
@@ -4610,6 +4617,7 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
 static void RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
     OUTREG(RADEON_TMDS_PLL_CNTL,        restore->tmds_pll_cntl);
@@ -4621,7 +4629,7 @@ static void RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     /* old AIW Radeon has some BIOS initialization problem
      * with display buffer underflow, only occurs to DFP
      */
-    if (!info->HasCRTC2)
+    if (!pRADEONEnt->HasCRTC2)
 	OUTREG(RADEON_GRPH_BUFFER_CNTL,
 	       INREG(RADEON_GRPH_BUFFER_CNTL) & ~0x7f0000);
 
@@ -5060,7 +5068,7 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONTRACE(("RADEONRestoreMode(%p)\n", restore));
 
     /* For Non-dual head card, we don't have private field in the Entity */
-    if (!info->HasCRTC2) {
+    if (!pRADEONEnt->HasCRTC2) {
 	RADEONRestoreMemMapRegisters(pScrn, restore);
 	RADEONRestoreCommonRegisters(pScrn, restore);
 	RADEONRestoreCrtcRegisters(pScrn, restore);
@@ -5173,6 +5181,7 @@ static void RADEONSaveFBDevRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
 #ifdef XF86DRI
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
     /* Save register for vertical blank interrupts */
@@ -5183,7 +5192,7 @@ static void RADEONSaveFBDevRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     /* Save registers for page flipping */
     if (info->allowPageFlip) {
 	save->crtc_offset_cntl = INREG(RADEON_CRTC_OFFSET_CNTL);
-	if (info->HasCRTC2) {
+	if (pRADEONEnt->HasCRTC2) {
 	    save->crtc2_offset_cntl = INREG(RADEON_CRTC2_OFFSET_CNTL);
 	}
     }
@@ -5543,6 +5552,7 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				  DisplayModePtr mode, BOOL IsPrimary)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     int i;
     CARD32 tmp = save->tmds_pll_cntl & 0xfffff;
 
@@ -5565,7 +5575,7 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
     save->tmds_transmitter_cntl &= ~(RADEON_TMDS_TRANSMITTER_PLLRST);
 
-    if (IS_R300_VARIANT || (info->ChipFamily == CHIP_FAMILY_R200) || !info->HasCRTC2)
+    if (IS_R300_VARIANT || (info->ChipFamily == CHIP_FAMILY_R200) || !pRADEONEnt->HasCRTC2)
 	save->tmds_transmitter_cntl &= ~(RADEON_TMDS_TRANSMITTER_PLLEN);
     else /* weird, RV chips got this bit reversed? */
         save->tmds_transmitter_cntl |= (RADEON_TMDS_TRANSMITTER_PLLEN);
@@ -7198,11 +7208,12 @@ static void RADEONForceSomeClocks(ScrnInfoPtr pScrn)
 static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 tmp;
     switch(mode) {
         case 0: /* Turn everything OFF (ForceON to everything)*/
-            if ( !info->HasCRTC2 ) {
+            if ( !pRADEONEnt->HasCRTC2 ) {
                 tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
                 tmp |= (RADEON_SCLK_FORCE_CP   | RADEON_SCLK_FORCE_HDP |
 			RADEON_SCLK_FORCE_DISP1 | RADEON_SCLK_FORCE_TOP |
@@ -7270,7 +7281,7 @@ static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
                 tmp |= (RADEON_SCLK_FORCE_CP | RADEON_SCLK_FORCE_E2);
                 tmp |= RADEON_SCLK_FORCE_SE;
 
-		if ( !info->HasCRTC2 ) {
+		if ( !pRADEONEnt->HasCRTC2 ) {
                      tmp |= ( RADEON_SCLK_FORCE_RB    |
 			      RADEON_SCLK_FORCE_TDM   |
 			      RADEON_SCLK_FORCE_TAM   |
@@ -7342,7 +7353,7 @@ static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Dynamic Clock Scaling Disabled\n");
             break;
         case 1:
-            if (!info->HasCRTC2) {
+            if (!pRADEONEnt->HasCRTC2) {
                 tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
 		if ((INREG(RADEON_CONFIG_CNTL) & RADEON_CFG_ATI_REV_ID_MASK) >
 		    RADEON_CFG_ATI_REV_A13) { 
