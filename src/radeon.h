@@ -905,6 +905,7 @@ extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 						   int PowerManagementMode,
 						   int flags);
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn);
+extern Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn);
 
 extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,

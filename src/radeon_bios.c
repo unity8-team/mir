@@ -148,46 +148,46 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 			    /* sharing same port with id[0] */
 			    if (((portinfo>>8) & 0xf) == id[0]) {
 				if (i == 3) 
-				    pRADEONEnt->PortInfo[0].TMDSType = TMDS_INT;
+				    pRADEONEnt->PortInfo[0]->TMDSType = TMDS_INT;
 				else if (i == 7)
-				    pRADEONEnt->PortInfo[0].TMDSType = TMDS_EXT;
+				    pRADEONEnt->PortInfo[0]->TMDSType = TMDS_EXT;
 
-				if (pRADEONEnt->PortInfo[0].DACType == DAC_UNKNOWN)
-				    pRADEONEnt->PortInfo[0].DACType = (portinfo & 0xf) - 1;
+				if (pRADEONEnt->PortInfo[0]->DACType == DAC_UNKNOWN)
+				    pRADEONEnt->PortInfo[0]->DACType = (portinfo & 0xf) - 1;
 				continue;
 			    }
 			}
 
 			id[crtc] = (portinfo>>8) & 0xf; 
-			pRADEONEnt->PortInfo[crtc].DACType = (portinfo & 0xf) - 1;
-			pRADEONEnt->PortInfo[crtc].ConnectorType = (portinfo>>4) & 0xf;
+			pRADEONEnt->PortInfo[crtc]->DACType = (portinfo & 0xf) - 1;
+			pRADEONEnt->PortInfo[crtc]->ConnectorType = (portinfo>>4) & 0xf;
 			if (i == 3) 
-			    pRADEONEnt->PortInfo[crtc].TMDSType = TMDS_INT;
+			    pRADEONEnt->PortInfo[crtc]->TMDSType = TMDS_INT;
 			else if (i == 7)
-			    pRADEONEnt->PortInfo[crtc].TMDSType = TMDS_EXT;
+			    pRADEONEnt->PortInfo[crtc]->TMDSType = TMDS_EXT;
 			
 			if((tmp0 = RADEON_BIOS16 (info->MasterDataStart + 24)) && id[crtc]) {
 			    switch (RADEON_BIOS16 (tmp0 + 4 + 27 * id[crtc]) * 4) 
 			    {
 			    case RADEON_GPIO_MONID:
-				pRADEONEnt->PortInfo[crtc].DDCType = DDC_MONID;
+				pRADEONEnt->PortInfo[crtc]->DDCType = DDC_MONID;
 				break;
 			    case RADEON_GPIO_DVI_DDC:
-				pRADEONEnt->PortInfo[crtc].DDCType = DDC_DVI;
+				pRADEONEnt->PortInfo[crtc]->DDCType = DDC_DVI;
 				break;
 			    case RADEON_GPIO_VGA_DDC:
-				pRADEONEnt->PortInfo[crtc].DDCType = DDC_VGA;
+				pRADEONEnt->PortInfo[crtc]->DDCType = DDC_VGA;
 				break;
 			    case RADEON_GPIO_CRT2_DDC:
-				pRADEONEnt->PortInfo[crtc].DDCType = DDC_CRT2;
+				pRADEONEnt->PortInfo[crtc]->DDCType = DDC_CRT2;
 				break;
 			    default:
-				pRADEONEnt->PortInfo[crtc].DDCType = DDC_NONE_DETECTED;
+				pRADEONEnt->PortInfo[crtc]->DDCType = DDC_NONE_DETECTED;
 				break;
 			    }
 
 			} else {
-			    pRADEONEnt->PortInfo[crtc].DDCType = DDC_NONE_DETECTED;
+			    pRADEONEnt->PortInfo[crtc]->DDCType = DDC_NONE_DETECTED;
 			}
 			crtc++;
 		    } else {
@@ -197,12 +197,12 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 			for (j=0; j<2; j++) {
 			    if (((portinfo>>8) & 0xf) == id[j]) {
 				if (i == 3) 
-				    pRADEONEnt->PortInfo[j].TMDSType = TMDS_INT;
+				    pRADEONEnt->PortInfo[j]->TMDSType = TMDS_INT;
 				else if (i == 7)
-				    pRADEONEnt->PortInfo[j].TMDSType = TMDS_EXT;
+				    pRADEONEnt->PortInfo[j]->TMDSType = TMDS_EXT;
 
-				if (pRADEONEnt->PortInfo[j].DACType == DAC_UNKNOWN)
-				    pRADEONEnt->PortInfo[j].DACType = (portinfo & 0xf) - 1;
+				if (pRADEONEnt->PortInfo[j]->DACType == DAC_UNKNOWN)
+				    pRADEONEnt->PortInfo[j]->DACType = (portinfo & 0xf) - 1;
 			    }
 			}
 		    }
@@ -211,8 +211,8 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 
 	    for (i=0; i<2; i++) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-%d, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
-			   i, pRADEONEnt->PortInfo[i].DDCType, pRADEONEnt->PortInfo[i].DACType,
-			   pRADEONEnt->PortInfo[i].TMDSType, pRADEONEnt->PortInfo[i].ConnectorType);
+			   i, pRADEONEnt->PortInfo[i]->DDCType, pRADEONEnt->PortInfo[i]->DACType,
+			   pRADEONEnt->PortInfo[i]->TMDSType, pRADEONEnt->PortInfo[i]->ConnectorType);
 	    }	    
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No Device Info Table found!\n");
@@ -239,25 +239,25 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		tmp0 = RADEON_BIOS16(tmp + i*2);
 		if (((tmp0 >> 12) & 0x0f) == 0) continue;     /* no connector */
 		if (connector_found > 0) {
-		    if (pRADEONEnt->PortInfo[tmp1].DDCType == ((tmp0 >> 8) & 0x0f))
+		    if (pRADEONEnt->PortInfo[tmp1]->DDCType == ((tmp0 >> 8) & 0x0f))
 			continue;                             /* same connector */
 		}
 
 		/* internal DDC_DVI port will get assigned to PortInfo[0], or if there is no DDC_DVI (like in some IGPs). */
 		tmp1 = ((((tmp0 >> 8) & 0xf) == DDC_DVI) || (tmp1 == 1)) ? 0 : 1; /* determine port info index */
 		
-		pRADEONEnt->PortInfo[tmp1].DDCType        = (tmp0 >> 8) & 0x0f;
-		if (pRADEONEnt->PortInfo[tmp1].DDCType > DDC_CRT2) pRADEONEnt->PortInfo[tmp1].DDCType = DDC_NONE_DETECTED;
-		pRADEONEnt->PortInfo[tmp1].DACType        = (tmp0 & 0x01) ? DAC_TVDAC : DAC_PRIMARY;
-		pRADEONEnt->PortInfo[tmp1].ConnectorType  = (tmp0 >> 12) & 0x0f;
-		if (pRADEONEnt->PortInfo[tmp1].ConnectorType > CONNECTOR_UNSUPPORTED) pRADEONEnt->PortInfo[tmp1].ConnectorType = CONNECTOR_UNSUPPORTED;
-		pRADEONEnt->PortInfo[tmp1].TMDSType       = ((tmp0 >> 4) & 0x01) ? TMDS_EXT : TMDS_INT;
+		pRADEONEnt->PortInfo[tmp1]->DDCType        = (tmp0 >> 8) & 0x0f;
+		if (pRADEONEnt->PortInfo[tmp1]->DDCType > DDC_CRT2) pRADEONEnt->PortInfo[tmp1]->DDCType = DDC_NONE_DETECTED;
+		pRADEONEnt->PortInfo[tmp1]->DACType        = (tmp0 & 0x01) ? DAC_TVDAC : DAC_PRIMARY;
+		pRADEONEnt->PortInfo[tmp1]->ConnectorType  = (tmp0 >> 12) & 0x0f;
+		if (pRADEONEnt->PortInfo[tmp1]->ConnectorType > CONNECTOR_UNSUPPORTED) pRADEONEnt->PortInfo[tmp1]->ConnectorType = CONNECTOR_UNSUPPORTED;
+		pRADEONEnt->PortInfo[tmp1]->TMDSType       = ((tmp0 >> 4) & 0x01) ? TMDS_EXT : TMDS_INT;
 
 		/* some sanity checks */
-		if (((pRADEONEnt->PortInfo[tmp1].ConnectorType != CONNECTOR_DVI_D) &&
-		     (pRADEONEnt->PortInfo[tmp1].ConnectorType != CONNECTOR_DVI_I)) &&
-		    pRADEONEnt->PortInfo[tmp1].TMDSType == TMDS_INT)
-		    pRADEONEnt->PortInfo[tmp1].TMDSType = TMDS_UNKNOWN;
+		if (((pRADEONEnt->PortInfo[tmp1]->ConnectorType != CONNECTOR_DVI_D) &&
+		     (pRADEONEnt->PortInfo[tmp1]->ConnectorType != CONNECTOR_DVI_I)) &&
+		    pRADEONEnt->PortInfo[tmp1]->TMDSType == TMDS_INT)
+		    pRADEONEnt->PortInfo[tmp1]->TMDSType = TMDS_UNKNOWN;
 		
 		connector_found += (tmp1 + 1);
 	    }
@@ -271,15 +271,15 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	       we assume LVDS is not listed in the connector table, 
 	       add it in here as the first port.
 	    */
-	    if ((connector_found < 3) && (pRADEONEnt->PortInfo[tmp1].ConnectorType == CONNECTOR_CRT)) {
+	    if ((connector_found < 3) && (pRADEONEnt->PortInfo[tmp1]->ConnectorType == CONNECTOR_CRT)) {
 		if (connector_found == 1) {
 		    memcpy (&pRADEONEnt->PortInfo[1], &pRADEONEnt->PortInfo[0], 
 			    sizeof (pRADEONEnt->PortInfo[0]));
 		}
-		pRADEONEnt->PortInfo[0].DACType = DAC_TVDAC;
-		pRADEONEnt->PortInfo[0].TMDSType = TMDS_UNKNOWN;
-		pRADEONEnt->PortInfo[0].DDCType = DDC_NONE_DETECTED;
-		pRADEONEnt->PortInfo[0].ConnectorType = CONNECTOR_PROPRIETARY;
+		pRADEONEnt->PortInfo[0]->DACType = DAC_TVDAC;
+		pRADEONEnt->PortInfo[0]->TMDSType = TMDS_UNKNOWN;
+		pRADEONEnt->PortInfo[0]->DDCType = DDC_NONE_DETECTED;
+		pRADEONEnt->PortInfo[0]->ConnectorType = CONNECTOR_PROPRIETARY;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "LVDS port is not in connector table, added in.\n");
 		if (connector_found == 0) connector_found = 1;
@@ -289,12 +289,12 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    if ((tmp = RADEON_BIOS16(info->ROMHeaderStart + 0x42))) {
 	        if ((tmp0 = RADEON_BIOS16(tmp + 0x15))) {
 		    if ((tmp1 = RADEON_BIOS8(tmp0+2) & 0x07)) {	    
-			pRADEONEnt->PortInfo[0].DDCType	= tmp1;      
-			if (pRADEONEnt->PortInfo[0].DDCType > DDC_CRT2) {
+			pRADEONEnt->PortInfo[0]->DDCType	= tmp1;      
+			if (pRADEONEnt->PortInfo[0]->DDCType > DDC_CRT2) {
 			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 				       "Unknown DDCType %d found\n",
-				       pRADEONEnt->PortInfo[0].DDCType);
-			    pRADEONEnt->PortInfo[0].DDCType = DDC_NONE_DETECTED;
+				       pRADEONEnt->PortInfo[0]->DDCType);
+			    pRADEONEnt->PortInfo[0]->DDCType = DDC_NONE_DETECTED;
 			}
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "LCD DDC Info Table found!\n");
 		    }
@@ -303,10 +303,10 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	} else if (connector_found == 2) {
 	    memcpy (&pRADEONEnt->PortInfo[0], &pRADEONEnt->PortInfo[1], 
 		    sizeof (pRADEONEnt->PortInfo[0]));	
-	    pRADEONEnt->PortInfo[1].DACType = DAC_UNKNOWN;
-	    pRADEONEnt->PortInfo[1].TMDSType = TMDS_UNKNOWN;
-	    pRADEONEnt->PortInfo[1].DDCType = DDC_NONE_DETECTED;
-	    pRADEONEnt->PortInfo[1].ConnectorType = CONNECTOR_NONE;
+	    pRADEONEnt->PortInfo[1]->DACType = DAC_UNKNOWN;
+	    pRADEONEnt->PortInfo[1]->TMDSType = TMDS_UNKNOWN;
+	    pRADEONEnt->PortInfo[1]->DDCType = DDC_NONE_DETECTED;
+	    pRADEONEnt->PortInfo[1]->ConnectorType = CONNECTOR_NONE;
 	    connector_found = 1;
 	}
 
@@ -314,22 +314,22 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No connector found in Connector Info Table.\n");
 	} else {
 	    xf86DrvMsg(0, X_INFO, "Connector0: DDCType-%d, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
-		       pRADEONEnt->PortInfo[0].DDCType, pRADEONEnt->PortInfo[0].DACType,
-		       pRADEONEnt->PortInfo[0].TMDSType, pRADEONEnt->PortInfo[0].ConnectorType);
+		       pRADEONEnt->PortInfo[0]->DDCType, pRADEONEnt->PortInfo[0]->DACType,
+		       pRADEONEnt->PortInfo[0]->TMDSType, pRADEONEnt->PortInfo[0]->ConnectorType);
 	}
 	if (connector_found == 3) {
 	    xf86DrvMsg(0, X_INFO, "Connector1: DDCType-%d, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
-		       pRADEONEnt->PortInfo[1].DDCType, pRADEONEnt->PortInfo[1].DACType,
-		       pRADEONEnt->PortInfo[1].TMDSType, pRADEONEnt->PortInfo[1].ConnectorType);
+		       pRADEONEnt->PortInfo[1]->DDCType, pRADEONEnt->PortInfo[1]->DACType,
+		       pRADEONEnt->PortInfo[1]->TMDSType, pRADEONEnt->PortInfo[1]->ConnectorType);
 	}
 
 #if 0
 /* External TMDS Table, not used now */
         if ((tmp0 = RADEON_BIOS16(info->ROMHeaderStart + 0x58))) {
 
-            //pRADEONEnt->PortInfo[1].DDCType = (RADEON_BIOS8(tmp0 + 7) & 0x07);
-            //pRADEONEnt->PortInfo[1].ConnectorType  = CONNECTOR_DVI_I;
-            //pRADEONEnt->PortInfo[1].TMDSType = TMDS_EXT;
+            //pRADEONEnt->PortInfo[1]->DDCType = (RADEON_BIOS8(tmp0 + 7) & 0x07);
+            //pRADEONEnt->PortInfo[1]->ConnectorType  = CONNECTOR_DVI_I;
+            //pRADEONEnt->PortInfo[1]->TMDSType = TMDS_EXT;
             xf86DrvMsg(pScrn->scrnIndex, X_INFO, "External TMDS found.\n");
 
         } else {

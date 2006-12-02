@@ -2821,8 +2821,14 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
 
-    if (!info->IsSecondary)
-        RADEONAllocateControllers(pScrn);
+    if (!info->IsSecondary) {
+      if (!RADEONAllocateConnectors(pScrn))
+	return FALSE;
+
+      if (!RADEONAllocateControllers(pScrn))
+	return FALSE;
+      
+    }
 
     RADEONGetBIOSInfo(pScrn, pInt10);
 

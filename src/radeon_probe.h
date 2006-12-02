@@ -121,6 +121,7 @@ typedef struct
     RADEONConnector* pPort;
 } RADEONController;
 
+#define RADEON_MAX_CONNECTOR 2
 #define RADEON_MAX_CRTC 2
 
 typedef struct
@@ -139,7 +140,7 @@ typedef struct
 
     Bool ReversedDAC;	  /* TVDAC used as primary dac */
     Bool ReversedTMDS;    /* DDC_DVI is used for external TMDS */
-    RADEONConnector PortInfo[2];
+    RADEONConnector *PortInfo[RADEON_MAX_CONNECTOR];
     RADEONController *Controller[RADEON_MAX_CRTC]; /* pointer to a controller */
 } RADEONEntRec, *RADEONEntPtr;
 
