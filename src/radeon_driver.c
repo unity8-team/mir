@@ -439,6 +439,22 @@ struct RADEONInt10Save {
 static Bool RADEONMapMMIO(ScrnInfoPtr pScrn);
 static Bool RADEONUnmapMMIO(ScrnInfoPtr pScrn);
 
+static Bool
+RADEONCreateScreenResources (ScreenPtr pScreen)
+{
+   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   RADEONInfoPtr  info   = RADEONPTR(pScrn);
+
+   pScreen->CreateScreenResources = info->CreateScreenResources;
+   if (!(*pScreen->CreateScreenResources)(pScreen))
+      return FALSE;
+
+   if (!RADEONRandRCreateScreenResources(pScreen))
+      return FALSE;
+
+  return TRUE;
+}
+
 RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn)
 {
     DevUnion     *pPriv;
@@ -2211,7 +2227,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 					  info->FbMapSize,
 					  LOOKUP_BEST_REFRESH);
 		else if (!info->IsSecondary)
-		  modesFound = RADEONValidateFPModes(pScrn, pScrn->display->modes, pScrn->monitor->Modes);
+		  modesFound = RADEONValidateFPModes(pScrn, pScrn->display->modes, &pScrn->monitor->Modes);
 	    }
         }
 
@@ -3208,11 +3224,8 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitGamma(pScrn))              goto fail;
 
-#if 0
-    if (!RADEONPreInitModes(pScrn, pInt10))      goto fail;
-#else
-    RADEONValidateXF86ModeList(pScrn, TRUE);
-#endif
+    if (!RADEONRandRPreInit(pScrn))
+	goto fail;
 
     if (!RADEONPreInitCursor(pScrn))             goto fail;
 
@@ -4242,6 +4255,15 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     pScreen->SaveScreen  = RADEONSaveScreen;
     info->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = RADEONBlockHandler;
+
+    /* Rotation */
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
+    xf86DisableRandR(); /* Disable built-in RandR extension */
+    /* support all rotations */
+    RADEONRandRInit(pScreen, RR_Rotate_0); /* only 0 degrees for Radeon */
+
+    info->CreateScreenResources = pScreen->CreateScreenResources;
+    pScreen->CreateScreenResources = RADEONCreateScreenResources;
 
     /* Note unused options */
     if (serverGeneration == 1)
@@ -7035,6 +7057,14 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 	info->MergedFB = FALSE;
 	return;
     }
+
+#if RANDR_12_INTERFACE
+    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+              "MergedFB does not work with Randr 1.2\n");
+    info->MergedFB = FALSE;
+    return;
+#endif
+
 
 			/* collect MergedFB options */
     info->MergedFB = TRUE;

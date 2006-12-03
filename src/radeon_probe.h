@@ -38,6 +38,7 @@
 
 #include "xf86str.h"
 #include "xf86DDC.h"
+#include "randrstr.h"
 
 #define _XF86MISC_SERVER_
 #include <X11/extensions/xf86misc.h>
@@ -111,6 +112,10 @@ typedef struct
     Bool IsActive;
     int binding; // which instance of the driver "owns" this controller
     DisplayModePtr pCurMode;
+
+#ifdef RANDR_12_INTERFACE
+    RRCrtcPtr randr_crtc;
+#endif
 } RADEONController;
 
 typedef struct
@@ -125,8 +130,11 @@ typedef struct
     /* one connector can be bound to one CRTC */
     int crtc_num;
 
-     /* a list of probed modes on this connector */
-     DisplayModePtr probed_modes;
+    /* a list of probed modes on this connector */
+    DisplayModePtr probed_modes;
+#ifdef RANDR_12_INTERFACE
+    RROutputPtr randr_output;
+#endif
 } RADEONConnector;
 
 

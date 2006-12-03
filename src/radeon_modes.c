@@ -42,10 +42,12 @@
 
 #include "xf86.h"
 				/* Driver data structures */
+#include "randrstr.h"
+#include "radeon_probe.h"
 #include "radeon.h"
 #include "radeon_reg.h"
 #include "radeon_macros.h"
-#include "radeon_probe.h"
+
 #include "radeon_version.h"
 
 #include "radeon_xf86Modes.h"
@@ -293,7 +295,7 @@ static DisplayModePtr RADEONFPNativeMode(ScrnInfoPtr pScrn)
 
 /* FP mode initialization routine for using on-chip RMX to scale
  */
-int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr modeList)
+int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr *modeList)
 {
     RADEONInfoPtr   info       = RADEONPTR(pScrn);
     DisplayModePtr  last       = NULL;
@@ -376,7 +378,7 @@ int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr m
     }
 
     /* add in all default vesa modes smaller than panel size, used for randr*/
-    for (p = modeList; p && p->next; p = p->next->next) {
+    for (p = *modeList; p && p->next; p = p->next->next) {
 	if ((p->HDisplay <= info->PanelXRes) && (p->VDisplay <= info->PanelYRes)) {
 	    tmp = first;
 	    while (tmp) {
@@ -416,9 +418,9 @@ int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr m
 
     /* Close the doubly-linked mode list, if we found any usable modes */
     if (last) {
-	last->next   = first;
-	first->prev  = last;
-	pScrn->modes = first;
+	last->next   = NULL; //first;
+	first->prev  = NULL; //last;
+	*modeList = first;
 	RADEONSetPitch(pScrn);
     }
 
@@ -597,14 +599,18 @@ RADEONProbeOutputModes(ScrnInfoPtr pScrn)
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     int i;
     DisplayModePtr ddc_modes, mode;
-
+    DisplayModePtr test;
 
     for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
 
-	while(pRADEONEnt->PortInfo[i]->probed_modes != NULL) {
-	    xf86DeleteMode(&pRADEONEnt->PortInfo[i]->probed_modes,
-			   pRADEONEnt->PortInfo[i]->probed_modes);
+	test = pRADEONEnt->PortInfo[i]->probed_modes;
+	while(test != NULL) {
+	  xf86DeleteMode(&test, test);
 	}
+
+	pRADEONEnt->PortInfo[i]->probed_modes = test;
+	/* force reprobe */
+	pRADEONEnt->PortInfo[i]->MonType = MT_UNKNOWN;
 	
 	RADEONConnectorFindMonitor(pScrn, i);
 	
@@ -655,7 +661,7 @@ RADEONProbeOutputModes(ScrnInfoPtr pScrn)
 	      break;
 		
 	    case MT_LCD:
-	      RADEONValidateFPModes(pScrn, pScrn->display->modes, pRADEONEnt->PortInfo[i]->probed_modes);
+	      RADEONValidateFPModes(pScrn, pScrn->display->modes, &pRADEONEnt->PortInfo[i]->probed_modes);
 	      break;
 	    default:
 		break;
@@ -695,7 +701,7 @@ RADEONProbeOutputModes(ScrnInfoPtr pScrn)
  *
  * This should be obsoleted by RandR 1.2 hopefully.
  */
-static void
+void
 RADEON_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
@@ -769,7 +775,7 @@ RADEON_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
  * Takes the output mode lists and decides the default root window size
  * and framebuffer pitch.
  */
-static void
+void
 RADEON_set_default_screen_size(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
