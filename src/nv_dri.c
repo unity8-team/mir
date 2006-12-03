@@ -236,6 +236,13 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 			"failed to get DRM version\n");
 		return FALSE;
 	}
+	
+	/* temporary lock step versioning */
+	if (pNv->pKernelDRMVersion->version_patchlevel != 1) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"wrong DRM version\n");
+		return FALSE;
+	}
 
 	return TRUE;
 }

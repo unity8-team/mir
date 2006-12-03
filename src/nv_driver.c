@@ -510,7 +510,7 @@ NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
 	memalloc.flags         = mem->type;
 	memalloc.size          = mem->size;
 	memalloc.alignment     = 0;
-	memalloc.region_offset = &mem->offset;
+	memalloc.region_offset = 0;
 	if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_ALLOC, &memalloc,
 				sizeof(memalloc))) {
 		ErrorF("NOUVEAU_MEM_ALLOC failed.  flags=0x%08x, size=%d (%d)\n",
@@ -518,6 +518,7 @@ NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
 		free(mem);
 		return NULL;
 	}
+	mem->offset=memalloc.region_offset;
 
 	if (drmMap(pNv->drm_fd, mem->offset, mem->size, &mem->map)) {
 		ErrorF("drmMap() failed. offset=0x%llx, size=%d (%d)\n",
