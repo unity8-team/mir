@@ -823,7 +823,7 @@ i830_sdvo_get_capabilities(xf86OutputPtr output, struct i830_sdvo_caps *caps)
 static Bool
 i830_sdvo_ddc_i2c_get_byte(I2CDevPtr d, I2CByte *data, Bool last)
 {
-    xf86OutputPtr	    output = d->DriverPrivate.ptr;
+    xf86OutputPtr	    output = d->pI2CBus->DriverPrivate.ptr;
     I830OutputPrivatePtr    intel_output = output->driver_private;
     I2CBusPtr		    i2cbus = intel_output->pI2CBus, savebus;
     Bool		    ret;
@@ -840,7 +840,7 @@ i830_sdvo_ddc_i2c_get_byte(I2CDevPtr d, I2CByte *data, Bool last)
 static Bool
 i830_sdvo_ddc_i2c_put_byte(I2CDevPtr d, I2CByte c)
 {
-    xf86OutputPtr	    output = d->DriverPrivate.ptr;
+    xf86OutputPtr	    output = d->pI2CBus->DriverPrivate.ptr;
     I830OutputPrivatePtr    intel_output = output->driver_private;
     I2CBusPtr		    i2cbus = intel_output->pI2CBus, savebus;
     Bool		    ret;
@@ -875,7 +875,7 @@ i830_sdvo_ddc_i2c_start(I2CBusPtr b, int timeout)
 static void
 i830_sdvo_ddc_i2c_stop(I2CDevPtr d)
 {
-    xf86OutputPtr	    output = d->DriverPrivate.ptr;
+    xf86OutputPtr	    output = d->pI2CBus->DriverPrivate.ptr;
     I830OutputPrivatePtr    intel_output = output->driver_private;
     I2CBusPtr		    i2cbus = intel_output->pI2CBus, savebus;
 

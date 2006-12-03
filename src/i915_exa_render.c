@@ -116,6 +116,8 @@ static struct formatinfo I915TexFormats[] = {
         {PICT_r5g6b5,   MAPSURF_16BIT | MT_16BIT_RGB565   },
         {PICT_a1r5g5b5, MAPSURF_16BIT | MT_16BIT_ARGB1555 },
         {PICT_x1r5g5b5, MAPSURF_16BIT | MT_16BIT_ARGB1555 },
+        {PICT_a4r4g4b4, MAPSURF_16BIT | MT_16BIT_ARGB4444 },
+        {PICT_x4r4g4b4, MAPSURF_16BIT | MT_16BIT_ARGB4444 },
         {PICT_a8,       MAPSURF_8BIT | MT_8BIT_A8 	  },
 };
 
