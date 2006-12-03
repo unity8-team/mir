@@ -5866,6 +5866,7 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	return FALSE;
     }
 
+    save->bios_4_scratch = info->SavedReg.bios_4_scratch;
     save->crtc_gen_cntl = (RADEON_CRTC_EXT_DISP_EN
 			   | RADEON_CRTC_EN
 			   | (format << 8)
