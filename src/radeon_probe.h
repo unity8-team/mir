@@ -104,22 +104,26 @@ typedef enum
 
 typedef struct
 {
+    Bool IsUsed;
+    Bool IsActive;
+    int binding; // which instance of the driver "owns" this controller
+    DisplayModePtr pCurMode;
+} RADEONController;
+
+typedef struct
+{
     RADEONDDCType DDCType;
     RADEONDacType DACType;
     RADEONTmdsType TMDSType;
     RADEONConnectorType ConnectorType;
     RADEONMonitorType MonType;
     xf86MonPtr MonInfo;
+
+    /* one connector can be bound to one CRTC */
+    int crtc_num;
 } RADEONConnector;
 
-typedef struct
-{
-    Bool IsUsed;
-    Bool IsActive;
-    int binding; // which instance of the driver "owns" this controller
-    DisplayModePtr pCurMode;
-    RADEONConnector* pPort;
-} RADEONController;
+
 
 #define RADEON_MAX_CONNECTOR 2
 #define RADEON_MAX_CRTC 2
