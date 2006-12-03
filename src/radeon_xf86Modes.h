@@ -77,3 +77,22 @@ void
 PrintModeline(int scrnIndex,DisplayModePtr mode);
 
 extern DisplayModeRec RADEONxf86DefaultModes[];
+
+void
+RADEONPrintModes(ScrnInfoPtr scrp);
+
+DisplayModePtr
+RADEONGetGTF(int h_pixels, int v_lines, float freq, int interlaced, int margins);
+
+void
+RADEONxf86SortModes(DisplayModePtr new, DisplayModePtr *first,
+		    DisplayModePtr *last);
+
+DisplayModePtr
+RADEONGetVESAEstablishedMode(ScrnInfoPtr pScrn, int i);
+
+DisplayModePtr
+RADEONGetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc);
+
+DisplayModePtr
+RADEONGetModeListTail(DisplayModePtr pModeList);
