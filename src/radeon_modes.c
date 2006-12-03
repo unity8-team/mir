@@ -141,7 +141,7 @@ void RADEONSetPitch (ScrnInfoPtr pScrn)
 /* When no mode provided in config file, this will add all modes supported in
  * DDC date the pScrn->modes list
  */
-static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn)
+static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 {
     DisplayModePtr  p;
     DisplayModePtr  last  = NULL;
@@ -150,7 +150,6 @@ static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn)
     int             count = 0;
     int             j, tmp;
     char            stmp[32];
-    xf86MonPtr      ddc   = pScrn->monitor->DDC;
 
     /* Go thru detailed timing table first */
     for (j = 0; j < 4; j++) {
@@ -302,7 +301,7 @@ int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 	int  maxVirtY = pScrn->virtualY;
 
 	/* Collect all of the DDC modes */
-	first = last = ddcModes = RADEONDDCModes(pScrn);
+	first = last = ddcModes = RADEONDDCModes(pScrn, pScrn->monitor->DDC);
 
 	for (p = ddcModes; p; p = p->next) {
 
