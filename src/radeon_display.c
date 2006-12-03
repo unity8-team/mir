@@ -1140,6 +1140,50 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
     }
 }
 
+static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, int connector)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    if (info->IsMobility) {
+      switch(connector) {
+      case 0:
+	/* non-DDC laptop panel connected on primary */
+	if (INREG(RADEON_BIOS_4_SCRATCH) & 4)
+	  return MT_LCD;
+	break;
+      case 1:
+	/* non-DDC TMDS panel connected through DVO */
+	if (INREG(RADEON_FP2_GEN_CNTL) & RADEON_FP2_ON)
+	  return MT_DFP;
+	break;
+      default:
+	break;
+      }
+    }
+    return MT_NONE;
+}
+
+/* Primary Head (DVI or Laptop Int. panel)*/
+/* A ddc capable display connected on DVI port */
+/* Secondary Head (mostly VGA, can be DVI on some OEM boards)*/
+void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, int connector)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+    RADEONConnector *pPort = pRADEONEnt->PortInfo[connector];
+    
+    if (pPort->MonType == MT_UNKNOWN) {
+      if ((pPort->MonType = RADEONDisplayDDCConnected(pScrn,
+						     pPort->DDCType,
+						     pPort)));
+      else if((pPort->MonType = RADEONPortCheckNonDDC(pScrn, connector)));
+      else
+	pPort->MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(pPort->DACType));
+    }
+}
+
 static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 {
 
@@ -1179,68 +1223,44 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
       pRADEONEnt->PortInfo[1]->MonType = MT_UNKNOWN;
     }
       
-
+    
     if (pRADEONEnt->PortInfo[0]->MonType == MT_UNKNOWN || pRADEONEnt->PortInfo[1]->MonType == MT_UNKNOWN) {
-		
+	
         if ((!pRADEONEnt->HasCRTC2) && (pRADEONEnt->PortInfo[0]->MonType == MT_UNKNOWN)) {
-			if((pRADEONEnt->PortInfo[0]->MonType = RADEONDisplayDDCConnected(pScrn, DDC_DVI,
-																			pRADEONEnt->PortInfo[0])));
-			else if((pRADEONEnt->PortInfo[0]->MonType = RADEONDisplayDDCConnected(pScrn, DDC_VGA,
-																				 pRADEONEnt->PortInfo[0])));
-			else if((pRADEONEnt->PortInfo[0]->MonType = RADEONDisplayDDCConnected(pScrn, DDC_CRT2,
-																				 pRADEONEnt->PortInfo[0])));
-			else
-				pRADEONEnt->PortInfo[0]->MonType = MT_CRT;
-			
-			if (!ignore_edid) {
-				if (pRADEONEnt->PortInfo[0]->MonInfo) {
-					xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Monitor1 EDID data ---------------------------\n");
-					xf86PrintEDID(pRADEONEnt->PortInfo[0]->MonInfo );
-					xf86DrvMsg(pScrn->scrnIndex, X_INFO, "End of Monitor1 EDID data --------------------\n");
-				}
-			}
-
-			pRADEONEnt->PortInfo[1]->MonType = MT_NONE;
-			pRADEONEnt->PortInfo[1]->MonInfo = NULL;
-			pRADEONEnt->PortInfo[1]->DDCType = DDC_NONE_DETECTED;
-			pRADEONEnt->PortInfo[1]->DACType = DAC_UNKNOWN;
-			pRADEONEnt->PortInfo[1]->TMDSType = TMDS_UNKNOWN;
-			pRADEONEnt->PortInfo[1]->ConnectorType = CONNECTOR_NONE;
-			
-			pRADEONEnt->PortInfo[0]->crtc_num = 1;
-			pRADEONEnt->PortInfo[1]->crtc_num = 2;
-
-			return;
+	    if((pRADEONEnt->PortInfo[0]->MonType = RADEONDisplayDDCConnected(pScrn, DDC_DVI,
+									     pRADEONEnt->PortInfo[0])));
+	    else if((pRADEONEnt->PortInfo[0]->MonType = RADEONDisplayDDCConnected(pScrn, DDC_VGA,
+										  pRADEONEnt->PortInfo[0])));
+	    else if((pRADEONEnt->PortInfo[0]->MonType = RADEONDisplayDDCConnected(pScrn, DDC_CRT2,
+										  pRADEONEnt->PortInfo[0])));
+	    else
+		pRADEONEnt->PortInfo[0]->MonType = MT_CRT;
+	    
+	    if (!ignore_edid) {
+		if (pRADEONEnt->PortInfo[0]->MonInfo) {
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Monitor1 EDID data ---------------------------\n");
+		    xf86PrintEDID(pRADEONEnt->PortInfo[0]->MonInfo );
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "End of Monitor1 EDID data --------------------\n");
 		}
-		
-		/* Primary Head (DVI or Laptop Int. panel)*/
-		/* A ddc capable display connected on DVI port */
-		if (pRADEONEnt->PortInfo[0]->MonType == MT_UNKNOWN) {
-			if((pRADEONEnt->PortInfo[0]->MonType = RADEONDisplayDDCConnected(pScrn,
-																			pRADEONEnt->PortInfo[0]->DDCType,
-																			pRADEONEnt->PortInfo[0])));
-			else if (info->IsMobility &&
-					 (INREG(RADEON_BIOS_4_SCRATCH) & 4)) {
-				/* non-DDC laptop panel connected on primary */
-				pRADEONEnt->PortInfo[0]->MonType = MT_LCD;
-			} else {
-				/* CRT on DVI, TODO: not reliable, make it always return false for now*/
-				pRADEONEnt->PortInfo[0]->MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(pRADEONEnt->PortInfo[0]->DACType));
-			}
-		}
-
-		/* Secondary Head (mostly VGA, can be DVI on some OEM boards)*/
-		if (pRADEONEnt->PortInfo[1]->MonType == MT_UNKNOWN) {
-			if((pRADEONEnt->PortInfo[1]->MonType =
-				RADEONDisplayDDCConnected(pScrn, pRADEONEnt->PortInfo[1]->DDCType, pRADEONEnt->PortInfo[1])));
-			else if (info->IsMobility &&
-					 (INREG(RADEON_FP2_GEN_CNTL) & RADEON_FP2_ON)) {
-				/* non-DDC TMDS panel connected through DVO */
-				pRADEONEnt->PortInfo[1]->MonType = MT_DFP;
-			} else
-				pRADEONEnt->PortInfo[1]->MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(pRADEONEnt->PortInfo[1]->DACType));
-		}
+	    }
+	    
+	    pRADEONEnt->PortInfo[1]->MonType = MT_NONE;
+	    pRADEONEnt->PortInfo[1]->MonInfo = NULL;
+	    pRADEONEnt->PortInfo[1]->DDCType = DDC_NONE_DETECTED;
+	    pRADEONEnt->PortInfo[1]->DACType = DAC_UNKNOWN;
+	    pRADEONEnt->PortInfo[1]->TMDSType = TMDS_UNKNOWN;
+	    pRADEONEnt->PortInfo[1]->ConnectorType = CONNECTOR_NONE;
+	    
+	    pRADEONEnt->PortInfo[0]->crtc_num = 1;
+	    pRADEONEnt->PortInfo[1]->crtc_num = 2;
+	    
+	    return;
 	}
+	
+	RADEONConnectorFindMonitor(pScrn, 0);
+	RADEONConnectorFindMonitor(pScrn, 1);
+	
+    }
 
     if(ignore_edid) {
         pRADEONEnt->PortInfo[0]->MonInfo = NULL;
