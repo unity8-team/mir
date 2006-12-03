@@ -42,6 +42,9 @@
 #define _XF86MISC_SERVER_
 #include <X11/extensions/xf86misc.h>
 
+#define RADEON_MAX_CRTC 2
+#define RADEON_MAX_CONNECTOR 2
+
 typedef enum
 {
     DDC_NONE_DETECTED,
@@ -121,6 +124,9 @@ typedef struct
 
     /* one connector can be bound to one CRTC */
     int crtc_num;
+
+     /* a list of probed modes on this connector */
+     DisplayModePtr probed_modes;
 } RADEONConnector;
 
 

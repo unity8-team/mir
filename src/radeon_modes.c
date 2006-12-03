@@ -52,6 +52,15 @@
 				/* DDC support */
 #include "xf86DDC.h"
 
+void
+RADEONGetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y)
+{
+    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+
+    *x = pScrn->virtualX;
+    *y = pScrn->virtualY;
+}
+
 void RADEONSetPitch (ScrnInfoPtr pScrn)
 {
     int  dummy = pScrn->virtualX;
@@ -284,7 +293,7 @@ static DisplayModePtr RADEONFPNativeMode(ScrnInfoPtr pScrn)
 
 /* FP mode initialization routine for using on-chip RMX to scale
  */
-int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName)
+int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr modeList)
 {
     RADEONInfoPtr   info       = RADEONPTR(pScrn);
     DisplayModePtr  last       = NULL;
@@ -367,7 +376,7 @@ int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName)
     }
 
     /* add in all default vesa modes smaller than panel size, used for randr*/
-    for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
+    for (p = modeList; p && p->next; p = p->next->next) {
 	if ((p->HDisplay <= info->PanelXRes) && (p->VDisplay <= info->PanelYRes)) {
 	    tmp = first;
 	    while (tmp) {
@@ -579,4 +588,231 @@ int RADEONValidateMergeModes(ScrnInfoPtr pScrn1)
 	}
     }
     return modesFound;
+}
+
+void
+RADEONProbeOutputModes(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+    int i;
+    DisplayModePtr ddc_modes, mode;
+
+
+    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
+
+	while(pRADEONEnt->PortInfo[i]->probed_modes != NULL) {
+	    xf86DeleteMode(&pRADEONEnt->PortInfo[i]->probed_modes,
+			   pRADEONEnt->PortInfo[i]->probed_modes);
+	}
+	
+	RADEONConnectorFindMonitor(pScrn, i);
+	
+	/* okay we got DDC info */
+	if (pRADEONEnt->PortInfo[i]->MonInfo) {
+	    /* Debug info for now, at least */
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", i);
+	    xf86PrintEDID(pRADEONEnt->PortInfo[i]->MonInfo);
+
+	    ddc_modes = RADEONGetDDCModes(pScrn, pRADEONEnt->PortInfo[i]->MonInfo);
+	    
+	    for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+		if (mode->Flags & V_DBLSCAN) {
+		    if ((mode->CrtcHDisplay >= 1024) || (mode->CrtcVDisplay >= 768))
+			mode->status = MODE_CLOCK_RANGE;
+		}
+	    }
+	    RADEONxf86PruneInvalidModes(pScrn, &ddc_modes, TRUE);
+
+	    /* do some physcial size stuff */
+	}
+	   
+
+	if (pRADEONEnt->PortInfo[i]->probed_modes == NULL) {
+  	    MonRec fixed_mon;
+	    DisplayModePtr modes;
+
+	    switch(pRADEONEnt->PortInfo[i]->MonType) {
+	    case MT_CRT:
+	    case MT_DFP:
+	      
+	            /* We've got a potentially-connected monitor that we can't DDC.  Return a
+		     * fixed set of VESA plus user modes for a presumed multisync monitor with
+		     * some reasonable limits.
+		     */
+	      fixed_mon.nHsync = 1;
+	      fixed_mon.hsync[0].lo = 31.0;
+	      fixed_mon.hsync[0].hi = 100.0;
+	      fixed_mon.nVrefresh = 1;
+	      fixed_mon.vrefresh[0].lo = 50.0;
+	      fixed_mon.vrefresh[0].hi = 70.0;
+	      
+	      modes = RADEONxf86DuplicateModes(pScrn, pScrn->monitor->Modes);
+	      RADEONxf86ValidateModesSync(pScrn, modes, &fixed_mon);
+	      RADEONxf86PruneInvalidModes(pScrn, &modes, TRUE);
+	      /* fill out CRT of FP mode table */
+	      pRADEONEnt->PortInfo[i]->probed_modes = modes;
+	      break;
+		
+	    case MT_LCD:
+	      RADEONValidateFPModes(pScrn, pScrn->display->modes, pRADEONEnt->PortInfo[i]->probed_modes);
+	      break;
+	    default:
+		break;
+	    }
+	}
+
+	if (pRADEONEnt->PortInfo[i]->probed_modes) {
+	  RADEONxf86ValidateModesUserConfig(pScrn,
+					    pRADEONEnt->PortInfo[i]->probed_modes);
+	  RADEONxf86PruneInvalidModes(pScrn, &pRADEONEnt->PortInfo[i]->probed_modes,
+				      FALSE);
+	}
+
+
+	for (mode = pRADEONEnt->PortInfo[i]->probed_modes; mode != NULL;
+	     mode = mode->next)
+	{
+	    /* The code to choose the best mode per pipe later on will require
+	     * VRefresh to be set.
+	     */
+	    mode->VRefresh = RADEONxf86ModeVRefresh(mode);
+	    RADEONxf86SetModeCrtc(mode, INTERLACE_HALVE_V);
+
+#ifdef DEBUG_REPROBE
+	    PrintModeline(pScrn->scrnIndex, mode);
+#endif
+	}
+    }
+}
+  
+
+/**
+ * Constructs pScrn->modes from the output mode lists.
+ *
+ * Currently it only takes one output's mode list and stuffs it into the
+ * XFree86 DDX mode list while trimming it for root window size.
+ *
+ * This should be obsoleted by RandR 1.2 hopefully.
+ */
+static void
+RADEON_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+    DisplayModePtr saved_mode, last;
+    int originalVirtualX, originalVirtualY;
+    int i;
+
+    /* Remove the current mode from the modelist if we're re-validating, so we
+     * can find a new mode to map ourselves to afterwards.
+     */
+    saved_mode = info->currentMode;
+    if (saved_mode != NULL) {
+	RADEONxf86DeleteModeFromList(&pScrn->modes, saved_mode);
+    }
+
+    /* Clear any existing modes from pScrn->modes */
+    while (pScrn->modes != NULL)
+	xf86DeleteMode(&pScrn->modes, pScrn->modes);
+
+    /* Set pScrn->modes to the mode list for an arbitrary output.
+     * pScrn->modes should only be used for XF86VidMode now, which we don't
+     * care about enough to make some sort of unioned list.
+     */
+    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
+	if (pRADEONEnt->PortInfo[i]->probed_modes != NULL) {
+	    pScrn->modes =
+		RADEONxf86DuplicateModes(pScrn, pRADEONEnt->PortInfo[i]->probed_modes);
+	    break;
+	}
+    }
+
+    RADEONGetOriginalVirtualSize(pScrn, &originalVirtualX, &originalVirtualY);
+
+    /* Disable modes in the XFree86 DDX list that are larger than the current
+     * virtual size.
+     */
+    RADEONxf86ValidateModesSize(pScrn, pScrn->modes,
+			      originalVirtualX, originalVirtualY,
+			      pScrn->displayWidth);
+
+    /* Strip out anything that we threw out for virtualX/Y. */
+    RADEONxf86PruneInvalidModes(pScrn, &pScrn->modes, TRUE);
+
+    if (pScrn->modes == NULL) {
+	FatalError("No modes left for XFree86 DDX\n");
+    }
+
+    pScrn->currentMode = pScrn->modes;
+
+    xf86SetDpi(pScrn, 0, 0);
+    info->RADEONDPIVX = pScrn->virtualX;
+    info->RADEONDPIVY = pScrn->virtualY;
+
+    /* For some reason, pScrn->modes is circular, unlike the other mode lists.
+     * How great is that?
+     */
+    last = RADEONGetModeListTail(pScrn->modes);
+    last->next = pScrn->modes;
+    pScrn->modes->prev = last;
+
+    /* Save a pointer to the previous current mode.  We can't reset
+     * pScrn->currentmode, because we rely on xf86SwitchMode's shortcut not
+     * happening so we can hot-enable devices at SwitchMode.  We'll notice this
+     * case at SwitchMode and free the saved mode.
+     */
+    info->savedCurrentMode = saved_mode;
+}
+
+/**
+ * Takes the output mode lists and decides the default root window size
+ * and framebuffer pitch.
+ */
+static void
+RADEON_set_default_screen_size(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+    int maxX = -1, maxY = -1;
+    int i;
+
+    /* Set up a virtual size that will cover any clone mode we'd want to
+     * set for the currently-connected outputs.
+     */
+    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
+	DisplayModePtr mode;
+
+	for (mode = pRADEONEnt->PortInfo[i]->probed_modes; mode != NULL;
+	     mode = mode->next)
+	{
+	    if (mode->HDisplay > maxX)
+		maxX = mode->HDisplay;
+	    if (mode->VDisplay > maxY)
+		maxY = mode->VDisplay;
+	}
+    }
+    /* let the user specify a bigger virtual size if they like */
+    if (pScrn->display->virtualX > maxX)
+	maxX = pScrn->display->virtualX;
+    if (pScrn->display->virtualY > maxY)
+	maxY = pScrn->display->virtualY;
+    pScrn->virtualX = maxX;
+    pScrn->virtualY = maxY;
+    pScrn->displayWidth = (maxX + 63) & ~63;
+}
+
+
+
+int RADEONValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
+{
+  RADEONProbeOutputModes(pScrn);
+
+  if (first_time)
+    {
+      RADEON_set_default_screen_size(pScrn);
+    }
+
+  RADEON_set_xf86_modes_from_outputs(pScrn);
+  return 1;
 }

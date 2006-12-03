@@ -2211,7 +2211,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 					  info->FbMapSize,
 					  LOOKUP_BEST_REFRESH);
 		else if (!info->IsSecondary)
-		    modesFound = RADEONValidateFPModes(pScrn, pScrn->display->modes);
+		  modesFound = RADEONValidateFPModes(pScrn, pScrn->display->modes, pScrn->monitor->Modes);
 	    }
         }
 
@@ -2348,10 +2348,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
         info->RADEONDPIVY = pScrn->virtualY;
     }
 
-				/* Get ScreenInit function */
-    if (!xf86LoadSubModule(pScrn, "fb")) return FALSE;
-
-    xf86LoaderReqSymLists(fbSymbols, NULL);
+			
 
     info->CurrentLayout.displayWidth = pScrn->displayWidth;
     info->CurrentLayout.mode = pScrn->currentMode;
@@ -3197,6 +3194,11 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     if (!RADEONPreInitControllers(pScrn, pInt10))
        goto fail;
 
+	/* Get ScreenInit function */
+    if (!xf86LoadSubModule(pScrn, "fb")) return FALSE;
+
+    xf86LoaderReqSymLists(fbSymbols, NULL);
+
     /* collect MergedFB options */
     /* only parse mergedfb options on the primary head. 
        Mergedfb is already disabled in xinerama/screen based
@@ -3206,7 +3208,11 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitGamma(pScrn))              goto fail;
 
+#if 0
     if (!RADEONPreInitModes(pScrn, pInt10))      goto fail;
+#else
+    RADEONValidateXF86ModeList(pScrn, TRUE);
+#endif
 
     if (!RADEONPreInitCursor(pScrn))             goto fail;
 

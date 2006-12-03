@@ -769,6 +769,7 @@ typedef struct {
     /* X itself has the 3D context */
     Bool              XInited3D;
 
+  DisplayModePtr currentMode, savedCurrentMode;
     /* merged fb stuff, also covers clone modes */
     Bool		MergedFB;
     RADEONScrn2Rel	CRT2Position;
@@ -910,7 +911,7 @@ extern RADEONConnector *RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num);
 extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 				  RADEONMonitorType DisplayType, int crtc2);
-extern int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName);
+extern int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr modeList);
 extern void RADEONSetPitch (ScrnInfoPtr pScrn);
 
 
