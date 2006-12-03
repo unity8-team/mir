@@ -710,7 +710,7 @@ xf86RandR12SetInfo12 (ScrnInfoPtr pScrn)
 	    subpixel = SubPixelHorizontalRGB;
 	    break;
 	case I830_OUTPUT_ANALOG:
-	    crtc_types = ((1 << 0) | (1 << 1));
+	    crtc_types = ((1 << 0));
 	    clone_types = ((1 << I830_OUTPUT_ANALOG) |
 			   (1 << I830_OUTPUT_DVO) |
 			   (1 << I830_OUTPUT_SDVO));
