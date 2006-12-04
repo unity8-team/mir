@@ -51,10 +51,10 @@ mov (1) g8.20<1>F g1.14<0,1,0>UW { align1 };
 add (1) g8.24<1>F g1.14<0,1,0>UW 1UB { align1 };
 add (1) g8.28<1>F g1.14<0,1,0>UW 1UB { align1 };
     /* Set up ss2.x coordinates */
-mov (1) g9<1>F g1.16<0,1,0>UW { align1 };
-add (1) g9.4<1>F g1.16<0,1,0>UW 1UB { align1 };
-mov (1) g9.8<1>F g1.16<0,1,0>UW { align1 };
-add (1) g9.12<1>F g1.16<0,1,0>UW 1UB { align1 };
+mov (1) g7<1>F g1.16<0,1,0>UW { align1 };
+add (1) g7.4<1>F g1.16<0,1,0>UW 1UB { align1 };
+mov (1) g7.8<1>F g1.16<0,1,0>UW { align1 };
+add (1) g7.12<1>F g1.16<0,1,0>UW 1UB { align1 };
     /* Set up ss2.y coordinates */
 mov (1) g9<1>F g1.18<0,1,0>UW { align1 };
 mov (1) g9.4<1>F g1.18<0,1,0>UW { align1 };
