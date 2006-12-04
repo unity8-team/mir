@@ -77,6 +77,8 @@
 #endif
 #endif
 
+#include "radeon_xf86Crtc.h"
+
 				/* Render support */
 #ifdef RENDER
 #include "picturestr.h"
@@ -405,6 +407,7 @@ typedef struct {
 }RADEONTMDSPll;
 
 typedef struct {
+    xf86CrtcConfigRec xf86_config;
     EntityInfoPtr     pEnt;
     pciVideoPtr       PciInfo;
     PCITAG            PciTag;
@@ -897,7 +900,7 @@ extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
 extern void        RADEONSetSyncRangeFromEdid(ScrnInfoPtr pScrn, int flag);
 extern void        RADEONSetupConnectors(ScrnInfoPtr pScrn);
 extern Bool        RADEONMapControllers(ScrnInfoPtr pScrn);
-extern void        RADEONEnableDisplay(ScrnInfoPtr pScrn, RADEONConnector* pPort, BOOL bEnable);
+extern void        RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr pPort, BOOL bEnable);
 extern void        RADEONDisableDisplays(ScrnInfoPtr pScrn);
 extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
 extern void        RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn);
@@ -908,7 +911,7 @@ extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 						   int flags);
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn);
 extern Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn);
-extern RADEONConnector *RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num);
+extern xf86OutputPtr RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num);
 extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 				  RADEONMonitorType DisplayType, int crtc2);

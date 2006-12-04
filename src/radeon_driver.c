@@ -1996,7 +1996,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
     int            modesFound;
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     char           *s;
-    RADEONConnector *connector;
+    xf86OutputPtr connector;
     /* This option has two purposes:
      *
      * 1. For CRT, if this option is on, xf86ValidateModes (to
@@ -2037,9 +2037,11 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 
     /* don't use RMX if we have a dual-tmds panels */
     
-    if ((connector = RADEONGetCrtcConnector(pScrn, 2)))
-	if (connector->MonType == MT_DFP)
+    if ((connector = RADEONGetCrtcConnector(pScrn, 2))) {
+	RADEONOutputPrivatePtr radconnector = connector->driver_private;
+	if (radconnector->MonType == MT_DFP)
 	    info->ddc_mode = TRUE;
+    }
     /* don't use RMX if we are Dell Server */  
     if (info->IsDellServer)
     {
@@ -2049,7 +2051,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 	       "Validating modes on %s head ---------\n",
 	       info->IsSecondary ? "Secondary" : "Primary");
 
-    if (!pRADEONEnt->PortInfo[0]->MonInfo && !pRADEONEnt->PortInfo[1]->MonInfo && info->ddc_mode) {
+    if (!pRADEONEnt->pOutput[0]->MonInfo && !pRADEONEnt->pOutput[1]->MonInfo && info->ddc_mode) {
 	info->ddc_mode = FALSE;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "No DDC data available, DDCMode option is dismissed\n");
@@ -5103,9 +5105,9 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr      info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-    RADEONController* pCRTC1 = pRADEONEnt->Controller[0];
-    RADEONController* pCRTC2 = pRADEONEnt->Controller[1];
-    RADEONConnector *pPort;
+    RADEONCrtcPrivatePtr pCRTC1 = pRADEONEnt->Controller[0];
+    RADEONCrtcPrivatePtr pCRTC2 = pRADEONEnt->Controller[1];
+    xf86OutputPtr pPort;
     RADEONTRACE(("RADEONRestoreMode(%p)\n", restore));
 
     /* For Non-dual head card, we don't have private field in the Entity */
@@ -5840,24 +5842,24 @@ static void RADEONInitDAC2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     }
 }
 
-static void RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save, DisplayModePtr mode, RADEONConnector *pPort, int crtc_num)
+static void RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save, DisplayModePtr mode, xf86OutputPtr pPort, int crtc_num)
 {
     Bool IsPrimary = crtc_num == 1 ? TRUE : FALSE;
-
-    if (pPort->MonType == MT_CRT) {
-	if (pPort->DACType == DAC_PRIMARY) {
+    RADEONOutputPrivatePtr pRPort = pPort->driver_private;
+    if (pRPort->MonType == MT_CRT) {
+	if (pRPort->DACType == DAC_PRIMARY) {
 	    RADEONInitDACRegisters(pScrn, save, mode, IsPrimary);
 	} else {
 	    RADEONInitDAC2Registers(pScrn, save, mode, IsPrimary);
 	}
-    } else if (pPort->MonType == MT_LCD) {
+    } else if (pRPort->MonType == MT_LCD) {
 	if (crtc_num == 1)
 	    RADEONInitRMXRegisters(pScrn, save, mode);
 	RADEONInitLVDSRegisters(pScrn, save, mode, IsPrimary);
-    } else if (pPort->MonType == MT_DFP) {
+    } else if (pRPort->MonType == MT_DFP) {
 	if (crtc_num == 1)
 	    RADEONInitRMXRegisters(pScrn, save, mode);
-	if (pPort->TMDSType == TMDS_INT) {
+	if (pRPort->TMDSType == TMDS_INT) {
 	    RADEONInitFPRegisters(pScrn, save, mode, IsPrimary);
 	} else {
 	    RADEONInitFP2Registers(pScrn, save, mode, IsPrimary);
@@ -5874,11 +5876,11 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     int    hsync_wid;
     int    vsync_wid;
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    RADEONConnector *connector;
+    xf86OutputPtr connector;
 
     pRADEONEnt->Controller[0]->IsUsed = TRUE;
     pRADEONEnt->Controller[0]->IsActive = TRUE;
-    pRADEONEnt->Controller[0]->pCurMode = mode;
+    pRADEONEnt->pCrtc[0]->curMode = *mode;
 
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
@@ -6025,9 +6027,9 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
     /* get the output connected to this CRTC */
     if (pRADEONEnt->PortInfo[0]->crtc_num == 1) {
-	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->PortInfo[0], 1);
+	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[0], 1);
     } else if (pRADEONEnt->PortInfo[1]->crtc_num == 1) {
-	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->PortInfo[1], 1);
+	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[1], 1);
     }
 
     if (info->IsDellServer) {
@@ -6066,7 +6068,7 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
     pRADEONEnt->Controller[1]->IsUsed = TRUE;
     pRADEONEnt->Controller[1]->IsActive = TRUE;
-    pRADEONEnt->Controller[1]->pCurMode = mode;
+    pRADEONEnt->pCrtc[1]->curMode = *mode;
 
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
@@ -6160,9 +6162,9 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
     /* get the output connected to this CRTC */
     if (pRADEONEnt->PortInfo[0]->crtc_num == 2) {
-	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->PortInfo[0], 2);
+	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[0], 2);
     } else if (pRADEONEnt->PortInfo[1]->crtc_num == 2) {
-	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->PortInfo[1], 2);
+	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[1], 2);
     }
 
     /* We must set SURFACE_CNTL properly on the second screen too */
@@ -7043,7 +7045,7 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    RADEONConnector *connector;
+    xf86OutputPtr pOutput;
     char        *strptr;
     char	*default_hsync = "28-33";
     char	*default_vrefresh = "43-72";
@@ -7081,8 +7083,8 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 	info->MergedFB = FALSE;
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
         "Failed to detect secondary monitor, MergedFB/Clone mode disabled\n");
-    } else if ((connector = RADEONGetCrtcConnector(pScrn, 2))) {
-	if (!connector->MonInfo) {
+    } else if ((pOutput = RADEONGetCrtcConnector(pScrn, 2))) {
+	if (!pOutput->MonInfo) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Failed to detect secondary monitor DDC, default HSync and VRefresh used\n");
 	    default_range = TRUE;
@@ -7249,8 +7251,8 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 	  }
 
 	  /* xf86SetDDCproperties(info->CRT2pScrn, pRADEONEnt->MonInfo2); */
-	  if (connector = RADEONGetCrtcConnector(pScrn, 2))
-	      info->CRT2pScrn->monitor->DDC = connector->MonInfo;
+	  if (pOutput = RADEONGetCrtcConnector(pScrn, 2))
+	      info->CRT2pScrn->monitor->DDC = pOutput->MonInfo;
 	  else
 	      info->CRT2pScrn->monitor->DDC = NULL;
           if (default_range) {

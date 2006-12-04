@@ -133,7 +133,7 @@ RADEONRandRCrtcNotify (RRCrtcPtr crtc)
 
   for (i = 0; i<RADEON_MAX_CONNECTOR; i++) {
     
-    rrout = pRADEONEnt->PortInfo[i]->randr_output;
+    rrout = pRADEONEnt->pOutput[i]->randr_output;
 
     outputs[numOutputs++] = rrout;
     for (j = 0; j<rrout->numModes; j++) {
@@ -252,16 +252,18 @@ RADEONRandRSetInfo12 (ScrnInfoPtr pScrn)
     int			connection;
     int                 subpixel = SubPixelNone;
     RRCrtcPtr		    randr_crtc;
-    RADEONConnector *connector;
+    xf86OutputPtr connector;
+    RADEONOutputPrivatePtr pRPort;
 
     for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
       ncrtc = 0;
       crtc = NULL;
       
-      connector = pRADEONEnt->PortInfo[i];
+      connector = pRADEONEnt->pOutput[i];
+      pRPort = pRADEONEnt->PortInfo[i];
 
-      if (connector->MonType) {
-	crtc = pRADEONEnt->Controller[i]->randr_crtc;
+      if (pRPort->MonType) {
+	crtc = pRADEONEnt->pCrtc[i]->randr_crtc;
 	crtcs[ncrtc++] = crtc;
 	randr_crtc = crtc;
       } else
@@ -282,7 +284,7 @@ RADEONRandRSetInfo12 (ScrnInfoPtr pScrn)
       }
 
       connection = RR_Disconnected;
-      if (connector->MonType > MT_NONE)
+      if (pRPort->MonType > MT_NONE)
 	connection = RR_Connected;
 
       RROutputSetConnection(connector->randr_output, connection);
@@ -338,7 +340,7 @@ RADEONRandRCreateObjects12(ScrnInfoPtr pScrn)
       return FALSE;
 
     RRCrtcGammaSetSize(randr_crtc, 256);
-    pRADEONEnt->Controller[i]->randr_crtc = randr_crtc;
+    pRADEONEnt->pCrtc[i]->randr_crtc = randr_crtc;
   }
 
   for (i = 0; i < 2; i++)
@@ -351,7 +353,7 @@ RADEONRandRCreateObjects12(ScrnInfoPtr pScrn)
     if (!randr_output)
       return FALSE;
 
-    pRADEONEnt->PortInfo[i]->randr_output = randr_output;
+    pRADEONEnt->pOutput[i]->randr_output = randr_output;
   }
   return TRUE;
 }
@@ -369,12 +371,12 @@ RADEONRandRCreateScreenResources12 (ScreenPtr pScreen)
 
   for (i = 0; i < 2; i++)
   {
-    if (!RRCrtcAttachScreen(pRADEONEnt->Controller[i]->randr_crtc, pScreen))
+    if (!RRCrtcAttachScreen(pRADEONEnt->pCrtc[i]->randr_crtc, pScreen))
       return FALSE;
   }
   
   for (i = 0; i < 2; i++) {
-    if (!RROutputAttachScreen(pRADEONEnt->PortInfo[i]->randr_output, pScreen))
+    if (!RROutputAttachScreen(pRADEONEnt->pOutput[i]->randr_output, pScreen))
       return FALSE;
   }
 
@@ -400,7 +402,7 @@ RADEONRandRCreateScreenResources12 (ScreenPtr pScreen)
   }
 
   for (i = 0; i < RADEON_MAX_CRTC; i++)
-    RADEONRandRCrtcNotify (pRADEONEnt->Controller[i]->randr_crtc);
+    RADEONRandRCrtcNotify (pRADEONEnt->pCrtc[i]->randr_crtc);
     
   if (randrp->virtualX == -1 || randrp->virtualY == -1)
   {
@@ -770,9 +772,9 @@ RADEONRandRPreInit(ScrnInfoPtr pScrn)
    * the initial configuration
    */
   for (o = 0; o < RADEON_MAX_CONNECTOR; o++)
-    outputs[o] = pRADEONEnt->PortInfo[o]->randr_output;
+    outputs[o] = pRADEONEnt->pOutput[o]->randr_output;
   for (c = 0; c < RADEON_MAX_CRTC; c++)
-    crtcs[c] = pRADEONEnt->Controller[c]->randr_crtc;
+    crtcs[c] = pRADEONEnt->pCrtc[c]->randr_crtc;
   
   if (!RADEONRRInitialConfiguration (outputs, output_crtcs, output_modes,
 				     RADEON_MAX_CONNECTOR))

@@ -603,24 +603,24 @@ RADEONProbeOutputModes(ScrnInfoPtr pScrn)
 
     for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
 
-	test = pRADEONEnt->PortInfo[i]->probed_modes;
+	test = pRADEONEnt->pOutput[i]->probed_modes;
 	while(test != NULL) {
 	  xf86DeleteMode(&test, test);
 	}
 
-	pRADEONEnt->PortInfo[i]->probed_modes = test;
+	pRADEONEnt->pOutput[i]->probed_modes = test;
 	/* force reprobe */
 	pRADEONEnt->PortInfo[i]->MonType = MT_UNKNOWN;
 	
 	RADEONConnectorFindMonitor(pScrn, i);
 	
 	/* okay we got DDC info */
-	if (pRADEONEnt->PortInfo[i]->MonInfo) {
+	if (pRADEONEnt->pOutput[i]->MonInfo) {
 	    /* Debug info for now, at least */
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", i);
-	    xf86PrintEDID(pRADEONEnt->PortInfo[i]->MonInfo);
+	    xf86PrintEDID(pRADEONEnt->pOutput[i]->MonInfo);
 
-	    ddc_modes = RADEONGetDDCModes(pScrn, pRADEONEnt->PortInfo[i]->MonInfo);
+	    ddc_modes = RADEONGetDDCModes(pScrn, pRADEONEnt->pOutput[i]->MonInfo);
 	    
 	    for (mode = ddc_modes; mode != NULL; mode = mode->next) {
 		if (mode->Flags & V_DBLSCAN) {
@@ -634,7 +634,7 @@ RADEONProbeOutputModes(ScrnInfoPtr pScrn)
 	}
 	   
 
-	if (pRADEONEnt->PortInfo[i]->probed_modes == NULL) {
+	if (pRADEONEnt->pOutput[i]->probed_modes == NULL) {
   	    MonRec fixed_mon;
 	    DisplayModePtr modes;
 
@@ -657,26 +657,26 @@ RADEONProbeOutputModes(ScrnInfoPtr pScrn)
 	      RADEONxf86ValidateModesSync(pScrn, modes, &fixed_mon);
 	      RADEONxf86PruneInvalidModes(pScrn, &modes, TRUE);
 	      /* fill out CRT of FP mode table */
-	      pRADEONEnt->PortInfo[i]->probed_modes = modes;
+	      pRADEONEnt->pOutput[i]->probed_modes = modes;
 	      break;
 		
 	    case MT_LCD:
-	      RADEONValidateFPModes(pScrn, pScrn->display->modes, &pRADEONEnt->PortInfo[i]->probed_modes);
+	      RADEONValidateFPModes(pScrn, pScrn->display->modes, &pRADEONEnt->pOutput[i]->probed_modes);
 	      break;
 	    default:
 		break;
 	    }
 	}
 
-	if (pRADEONEnt->PortInfo[i]->probed_modes) {
+	if (pRADEONEnt->pOutput[i]->probed_modes) {
 	  RADEONxf86ValidateModesUserConfig(pScrn,
-					    pRADEONEnt->PortInfo[i]->probed_modes);
-	  RADEONxf86PruneInvalidModes(pScrn, &pRADEONEnt->PortInfo[i]->probed_modes,
+					    pRADEONEnt->pOutput[i]->probed_modes);
+	  RADEONxf86PruneInvalidModes(pScrn, &pRADEONEnt->pOutput[i]->probed_modes,
 				      FALSE);
 	}
 
 
-	for (mode = pRADEONEnt->PortInfo[i]->probed_modes; mode != NULL;
+	for (mode = pRADEONEnt->pOutput[i]->probed_modes; mode != NULL;
 	     mode = mode->next)
 	{
 	    /* The code to choose the best mode per pipe later on will require
@@ -727,9 +727,9 @@ RADEON_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
      * care about enough to make some sort of unioned list.
      */
     for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
-	if (pRADEONEnt->PortInfo[i]->probed_modes != NULL) {
+	if (pRADEONEnt->pOutput[i]->probed_modes != NULL) {
 	    pScrn->modes =
-		RADEONxf86DuplicateModes(pScrn, pRADEONEnt->PortInfo[i]->probed_modes);
+		RADEONxf86DuplicateModes(pScrn, pRADEONEnt->pOutput[i]->probed_modes);
 	    break;
 	}
     }
@@ -789,7 +789,7 @@ RADEON_set_default_screen_size(ScrnInfoPtr pScrn)
     for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
 	DisplayModePtr mode;
 
-	for (mode = pRADEONEnt->PortInfo[i]->probed_modes; mode != NULL;
+	for (mode = pRADEONEnt->pOutput[i]->probed_modes; mode != NULL;
 	     mode = mode->next)
 	{
 	    if (mode->HDisplay > maxX)
