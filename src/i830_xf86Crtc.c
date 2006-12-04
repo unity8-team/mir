@@ -68,7 +68,8 @@ xf86CrtcDestroy (xf86CrtcPtr crtc)
     
     (*crtc->funcs->destroy) (crtc);
 #ifdef RANDR_12_INTERFACE
-    RRCrtcDestroy (crtc->randr_crtc);
+    if (crtc->randr_crtc)
+	RRCrtcDestroy (crtc->randr_crtc);
 #endif
     for (c = 0; c < xf86_config->num_crtc; c++)
 	if (xf86_config->crtc[c] == crtc)
@@ -122,7 +123,8 @@ xf86OutputDestroy (xf86OutputPtr output)
     
     (*output->funcs->destroy) (output);
 #ifdef RANDR_12_INTERFACE
-    RROutputDestroy (output->randr_output);
+    if (output->randr_output)
+	RROutputDestroy (output->randr_output);
 #endif
     while (output->probed_modes)
 	xf86DeleteMode (&output->probed_modes, output->probed_modes);
@@ -138,3 +140,55 @@ xf86OutputDestroy (xf86OutputPtr output)
     xfree (output);
 }
 
+Bool
+xf86CrtcScreenInit (ScreenPtr pScreen)
+{
+#ifdef RANDR_12_INTERFACE
+    ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int			i;
+
+    for (i = 0; i < xf86_config->num_crtc; i++)
+    {
+	xf86CrtcPtr crtc = xf86_config->crtc[i];
+
+	if (!crtc->randr_crtc)
+	    crtc->randr_crtc = RRCrtcCreate (crtc);
+	if (!crtc->randr_crtc)
+	    return FALSE;
+    }
+    for (i = 0; i < xf86_config->num_output; i++)
+    {
+	xf86OutputPtr output = xf86_config->output[i];
+	
+	if (!output->randr_output)
+	    output->randr_output = RROutputCreate (output->name,
+						   strlen (output->name),
+						   output);
+	if (!output->randr_output)
+	    return FALSE;
+    }
+#endif
+    return TRUE;
+}
+
+void
+xf86CrtcCloseScreen (ScreenPtr pScreen)
+{
+#ifdef RANDR_12_INTERFACE
+    ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int			i;
+
+    for (i = 0; i < xf86_config->num_crtc; i++)
+    {
+	xf86CrtcPtr crtc = xf86_config->crtc[i];
+	crtc->randr_crtc = NULL;
+    }
+    for (i = 0; i < xf86_config->num_output; i++)
+    {
+	xf86OutputPtr output = xf86_config->output[i];
+	output->randr_output = NULL;
+    }
+#endif
+}

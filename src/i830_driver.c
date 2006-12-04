@@ -3805,6 +3805,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    DPRINTF(PFX, "\nUnmapping memory\n");
    I830UnmapMem(pScrn);
    vgaHWUnmapMem(pScrn);
+   xf86CrtcCloseScreen (pScreen);
 
    if (pI830->ScanlineColorExpandBuffers) {
       xfree(pI830->ScanlineColorExpandBuffers);
