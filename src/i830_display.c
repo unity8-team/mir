@@ -758,8 +758,6 @@ i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
 
     crtc->curMode = *pMode;
 
-    i830DumpRegs(pScrn);
-
     /* XXX free adjustedmode */
     ret = TRUE;
 done:
