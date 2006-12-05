@@ -40,7 +40,7 @@ static void
 i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 pp_status, pp_control;
+    CARD32 pp_status;
     CARD32 blc_pwm_ctl;
     int backlight_duty_cycle;
 
@@ -77,6 +77,8 @@ i830_lvds_dpms (xf86OutputPtr output, int mode)
 	i830SetLVDSPanelPower(pScrn, TRUE);
     else
 	i830SetLVDSPanelPower(pScrn, FALSE);
+
+    /* XXX: We never power down the LVDS pair. */
 }
 
 static void
@@ -128,28 +130,86 @@ i830_lvds_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
    return MODE_OK;
 }
 
-static void
-i830_lvds_pre_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
+static Bool
+i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
+		     DisplayModePtr adjusted_mode)
 {
-    ScrnInfoPtr	pScrn = output->scrn;
-    /* Always make sure the LVDS is off before we play with DPLLs and pipe
-     * configuration.  We can skip this in some cases (for example, going
-     * between hi-res modes with automatic panel scaling are fine), but be
-     * conservative for now.
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr intel_crtc = output->crtc->driver_private;
+    int i;
+
+    for (i = 0; i < pI830->xf86_config.num_output; i++) {
+	xf86OutputPtr other_output = pI830->xf86_config.output[i];
+
+	if (other_output != output && other_output->crtc == output->crtc) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Can't enable LVDS and another output on the same "
+		       "pipe\n");
+	    return FALSE;
+	}
+    }
+
+    if (intel_crtc->pipe == 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Can't support LVDS on pipe A\n");
+	return FALSE;
+    }
+
+    /* If we have timings from the BIOS for the panel, put them in
+     * to the adjusted mode.  The CRTC will be set up for this mode,
+     * with the panel scaling set up to source from the H/VDisplay
+     * of the original mode.
      */
-    i830SetLVDSPanelPower(pScrn, FALSE);
+    if (pI830->panel_fixed_hactive != 0) {
+	adjusted_mode->HDisplay = pI830->panel_fixed_hactive;
+	adjusted_mode->HTotal = adjusted_mode->HDisplay +
+	    pI830->panel_fixed_hblank;
+	adjusted_mode->HSyncStart = adjusted_mode->HDisplay +
+	    pI830->panel_fixed_hsyncoff;
+	adjusted_mode->HSyncStart = adjusted_mode->HSyncStart +
+	    pI830->panel_fixed_hsyncwidth;
+	adjusted_mode->VDisplay = pI830->panel_fixed_vactive;
+	adjusted_mode->VTotal = adjusted_mode->VDisplay +
+	    pI830->panel_fixed_hblank;
+	adjusted_mode->VSyncStart = adjusted_mode->VDisplay +
+	    pI830->panel_fixed_hsyncoff;
+	adjusted_mode->VSyncStart = adjusted_mode->VSyncStart +
+	    pI830->panel_fixed_hsyncwidth;
+	adjusted_mode->Clock = pI830->panel_fixed_clock;
+	xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
+    }
+
+    /* XXX: if we don't have BIOS fixed timings (or we have
+     * a preferred mode from DDC, probably), we should use the
+     * DDC mode as the fixed timing.
+     */
+
+    /* XXX: It would be nice to support lower refresh rates on the
+     * panels to reduce power consumption, and perhaps match the
+     * user's requested refresh rate.
+     */
+
+    return TRUE;
 }
 
 static void
-i830_lvds_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
+i830_lvds_mode_set(xf86OutputPtr output, DisplayModePtr mode,
+		   DisplayModePtr adjusted_mode)
 {
-    ScrnInfoPtr	pScrn = output->scrn;
-    I830Ptr	pI830 = I830PTR(pScrn);
-    CARD32	pfit_control;
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 pfit_control;
+
+    /* The LVDS pin pair needs to be on before the DPLLs are enabled.
+     * This is an exception to the general rule that mode_set doesn't turn
+     * things on.
+     */
+    OUTREG(LVDS, LVDS_PORT_EN | LVDS_PIPEB_SELECT);
 
     /* Enable automatic panel scaling so that non-native modes fill the
      * screen.  Should be enabled before the pipe is enabled, according to
-     * register description.
+     * register description and PRM.
      */
     pfit_control = (PFIT_ENABLE |
 		    VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
@@ -159,19 +219,6 @@ i830_lvds_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
 	pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 
     OUTREG(PFIT_CONTROL, pfit_control);
-
-    /* Disable the PLL before messing with LVDS enable */
-    OUTREG(FPB0, INREG(FPB0) & ~DPLL_VCO_ENABLE);
-
-    /* LVDS must be powered on before PLL is enabled and before power
-     * sequencing the panel.
-     */
-    OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
-
-    /* Re-enable the PLL */
-    OUTREG(FPB0, INREG(FPB0) | DPLL_VCO_ENABLE);
-
-    i830SetLVDSPanelPower(pScrn, TRUE);
 }
 
 /**
@@ -234,8 +281,8 @@ static const xf86OutputFuncsRec i830_lvds_output_funcs = {
     .save = i830_lvds_save,
     .restore = i830_lvds_restore,
     .mode_valid = i830_lvds_mode_valid,
-    .pre_set_mode = i830_lvds_pre_set_mode,
-    .post_set_mode = i830_lvds_post_set_mode,
+    .mode_fixup = i830_lvds_mode_fixup,
+    .mode_set = i830_lvds_mode_set,
     .detect = i830_lvds_detect,
     .get_modes = i830_lvds_get_modes,
     .destroy = i830_lvds_destroy

@@ -295,8 +295,33 @@ static const CARD32 v_chroma[43] = {
     0x28003100, 0x28002F00, 0x00003100,
 };
 
+static Bool
+i830_tv_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
+		 DisplayModePtr adjusted_mode)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    int i;
+
+    for (i = 0; i < pI830->xf86_config.num_output; i++) {
+	xf86OutputPtr other_output = pI830->xf86_config.output[i];
+
+	if (other_output != output && other_output->crtc == output->crtc) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Can't enable TV and another output on the same "
+		       "pipe\n");
+	    return FALSE;
+	}
+    }
+
+    /* XXX: fill me in */
+
+    return TRUE;
+}
+
 static void
-i830_tv_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
+i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
+		 DisplayModePtr adjusted_mode)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
@@ -359,7 +384,7 @@ i830_tv_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
     vctl7 = (tv_mode->vburst_start_f4 << TV_VBURST_START_F4_SHIFT) |
 	(tv_mode->vburst_end_f4 << TV_VBURST_END_F4_SHIFT);
 
-    tv_ctl = TV_ENC_ENABLE;
+    tv_ctl = 0;
     if (intel_crtc->pipe == 1)
 	tv_ctl |= TV_ENC_PIPEB_SELECT;
 
@@ -403,7 +428,7 @@ i830_tv_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
 	tv_ctl |= TV_ENC_C0_FIX | TV_ENC_SDP_FIX;
 
     tv_filter_ctl = TV_AUTO_SCALE;
-    if (pMode->HDisplay > 1024)
+    if (mode->HDisplay > 1024)
 	tv_ctl |= TV_V_FILTER_BYPASS;
 
     OUTREG(TV_H_CTL_1, hctl1);
@@ -635,8 +660,8 @@ static const xf86OutputFuncsRec i830_tv_output_funcs = {
     .save = i830_tv_save,
     .restore = i830_tv_restore,
     .mode_valid = i830_tv_mode_valid,
-    .pre_set_mode = i830_tv_pre_set_mode,
-    .post_set_mode = i830_tv_post_set_mode,
+    .mode_fixup = i830_tv_mode_fixup,
+    .mode_set = i830_tv_mode_set,
     .detect = i830_tv_detect,
     .get_modes = i830_tv_get_modes,
     .destroy = i830_tv_destroy

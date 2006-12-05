@@ -27,14 +27,15 @@
 #include "i830_xf86Modes.h"
 
 typedef struct _xf86Crtc xf86CrtcRec, *xf86CrtcPtr;
+typedef struct _xf86Output xf86OutputRec, *xf86OutputPtr;
 
 typedef struct _xf86CrtcFuncs {
    /**
     * Turns the crtc on/off, or sets intermediate power levels if available.
     *
     * Unsupported intermediate modes drop to the lower power setting.  If the
-    * mode is DPMSModeOff, the crtc must be disabled, as the DPLL may be
-    * disabled afterwards.
+    * mode is DPMSModeOff, the crtc must be disabled sufficiently for it to
+    * be safe to call mode_set.
     */
    void
     (*dpms)(xf86CrtcPtr		crtc,
@@ -51,6 +52,27 @@ typedef struct _xf86CrtcFuncs {
     */
    void
     (*restore)(xf86CrtcPtr	crtc);
+
+
+    /**
+     * Callback to adjust the mode to be set in the CRTC.
+     *
+     * This allows a CRTC to adjust the clock or even the entire set of
+     * timings, which is used for panels with fixed timings or for
+     * buses with clock limitations.
+     */
+    Bool
+    (*mode_fixup)(xf86CrtcPtr crtc,
+		  DisplayModePtr mode,
+		  DisplayModePtr adjusted_mode);
+
+    /**
+     * Callback for setting up a video mode after fixups have been made.
+     */
+    void
+    (*mode_set)(xf86CrtcPtr crtc,
+		DisplayModePtr mode,
+		DisplayModePtr adjusted_mode);
 
     /**
      * Clean up driver-specific bits of the crtc
@@ -127,8 +149,6 @@ struct _xf86Crtc {
 #endif
 };
 
-typedef struct _xf86Output xf86OutputRec, *xf86OutputPtr;
-
 typedef struct _xf86OutputFuncs {
     /**
      * Turns the output on/off, or sets intermediate power levels if available.
@@ -157,7 +177,7 @@ typedef struct _xf86OutputFuncs {
      * Callback for testing a video mode for a given output.
      *
      * This function should only check for cases where a mode can't be supported
-     * on the pipe specifically, and not represent generic CRTC limitations.
+     * on the output specifically, and not represent generic CRTC limitations.
      *
      * \return MODE_OK if the mode is valid, or another MODE_* otherwise.
      */
@@ -166,22 +186,28 @@ typedef struct _xf86OutputFuncs {
 		  DisplayModePtr    pMode);
 
     /**
-     * Callback for setting up a video mode before any crtc/dpll changes.
+     * Callback to adjust the mode to be set in the CRTC.
      *
-     * \param pMode the mode that will be set, or NULL if the mode to be set is
-     * unknown (such as the restore path of VT switching).
+     * This allows an output to adjust the clock or even the entire set of
+     * timings, which is used for panels with fixed timings or for
+     * buses with clock limitations.
      */
-    void
-    (*pre_set_mode)(xf86OutputPtr   output,
-		    DisplayModePtr  pMode);
+    Bool
+    (*mode_fixup)(xf86OutputPtr output,
+		  DisplayModePtr mode,
+		  DisplayModePtr adjusted_mode);
 
     /**
-     * Callback for setting up a video mode after the DPLL update but before
-     * the plane is enabled.
+     * Callback for setting up a video mode after fixups have been made.
+     *
+     * This is only called while the output is disabled.  The dpms callback
+     * must be all that's necessary for the output, to turn the output on
+     * after this function is called.
      */
     void
-    (*post_set_mode)(xf86OutputPtr  output,
-		     DisplayModePtr pMode);
+    (*mode_set)(xf86OutputPtr  output,
+		DisplayModePtr mode,
+		DisplayModePtr adjusted_mode);
 
     /**
      * Probe for a connected output, and return detect_status.

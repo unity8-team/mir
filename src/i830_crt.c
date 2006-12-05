@@ -93,13 +93,16 @@ i830_crt_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
     return MODE_OK;
 }
 
-static void
-i830_crt_pre_set_mode (xf86OutputPtr output, DisplayModePtr pMode)
+static Bool
+i830_crt_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
+		    DisplayModePtr adjusted_mode)
 {
+    return TRUE;
 }
 
 static void
-i830_crt_post_set_mode (xf86OutputPtr output, DisplayModePtr pMode)
+i830_crt_mode_set(xf86OutputPtr output, DisplayModePtr mode,
+		  DisplayModePtr adjusted_mode)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
@@ -122,11 +125,10 @@ i830_crt_post_set_mode (xf86OutputPtr output, DisplayModePtr pMode)
 	OUTREG(dpll_md_reg, dpll_md & ~DPLL_MD_UDI_MULTIPLIER_MASK);
     }
 
-    adpa = ADPA_DAC_ENABLE;
-
-    if (pMode->Flags & V_PHSYNC)
+    adpa = 0;
+    if (adjusted_mode->Flags & V_PHSYNC)
 	adpa |= ADPA_HSYNC_ACTIVE_HIGH;
-    if (pMode->Flags & V_PVSYNC)
+    if (adjusted_mode->Flags & V_PVSYNC)
 	adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
     if (i830_crtc->pipe == 0)
@@ -372,8 +374,8 @@ static const xf86OutputFuncsRec i830_crt_output_funcs = {
     .save = i830_crt_save,
     .restore = i830_crt_restore,
     .mode_valid = i830_crt_mode_valid,
-    .pre_set_mode = i830_crt_pre_set_mode,
-    .post_set_mode = i830_crt_post_set_mode,
+    .mode_fixup = i830_crt_mode_fixup,
+    .mode_set = i830_crt_mode_set,
     .detect = i830_crt_detect,
     .get_modes = i830_crt_get_modes,
     .destroy = i830_crt_destroy
