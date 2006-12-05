@@ -2095,23 +2095,6 @@ RADEONCopyData(
     }
 }
 
-#ifdef XF86DRI
-static void RADEON_420_422(
-    unsigned int *d,
-    unsigned char *s1,
-    unsigned char *s2,
-    unsigned char *s3,
-    unsigned int n
-)
-{
-    while ( n ) {
-	*(d++) = s1[0] | (s1[1] << 16) | (s3[0] << 8) | (s2[0] << 24);
-	s1+=2; s2++; s3++;
-	n--;
-    }
-}
-#endif
-
 static void
 RADEONCopyRGB24Data(
   ScrnInfoPtr pScrn,
@@ -2187,6 +2170,24 @@ RADEONCopyRGB24Data(
 #endif
     }
 }
+
+#if 0
+#ifdef XF86DRI
+static void RADEON_420_422(
+    unsigned int *d,
+    unsigned char *s1,
+    unsigned char *s2,
+    unsigned char *s3,
+    unsigned int n
+)
+{
+    while ( n ) {
+	*(d++) = s1[0] | (s1[1] << 16) | (s3[0] << 8) | (s2[0] << 24);
+	s1+=2; s2++; s3++;
+	n--;
+    }
+}
+#endif
 
 static void
 RADEONCopyMungedData(
@@ -2286,6 +2287,7 @@ RADEONCopyMungedData(
 #endif
     }
 }
+#endif
 
 /* Allocates memory, either by resizing the allocation pointed to by mem_struct,
  * or by freeing mem_struct (if non-NULL) and allocating a new space.  The size
@@ -2401,6 +2403,7 @@ RADEONDisplayVideo(
     int id,
     int offset1, int offset2,
     int offset3, int offset4,
+    int offset5, int offset6,
     short width, short height,
     int pitch,
     int left, int right, int top,
@@ -2414,7 +2417,8 @@ RADEONDisplayVideo(
     CARD32 v_inc, h_inc, h_inc_uv, step_by_y, step_by_uv, tmp;
     double h_inc_d;
     int p1_h_accum_init, p23_h_accum_init;
-    int p1_v_accum_init;
+    int p1_v_accum_init, p23_v_accum_init;
+    int p23_blank_lines;
     int ecp_div;
     int v_inc_shift;
     int y_mult;
@@ -2424,15 +2428,21 @@ RADEONDisplayVideo(
     CARD32 dot_clock;
     DisplayModePtr overlay_mode;
     int is_rgb;
+    int is_planar;
     int i;
     CARD32 scale_cntl;
     double dsr;
     int tap_set;
     int predownscale=0;
     int src_w_d;
+    int leftuv = 0;
 
-    is_rgb=0;
+    is_rgb=0; is_planar=0;
     switch(id){
+        case FOURCC_I420:
+        case FOURCC_YV12:
+            is_planar=1;
+            break;
         case FOURCC_RGBA32:
         case FOURCC_RGB24:
         case FOURCC_RGBT16:
@@ -2441,7 +2451,7 @@ RADEONDisplayVideo(
             break;
         default:
 	    break;
-        }
+    }
 
     /* Unlike older Mach64 chips, RADEON has only two ECP settings: 0 for PIXCLK < 175Mhz, and 1 (divide by 2)
        for higher clocks, sure makes life nicer
@@ -2537,7 +2547,8 @@ RADEONDisplayVideo(
         step_by_y++;
         step_by_uv = step_by_y;
         h_inc >>= 1;
-        }
+    }
+
     h_inc_uv = h_inc>>(step_by_uv-step_by_y);
     h_inc = h_inc * h_inc_d;
     h_inc_uv = h_inc_uv * h_inc_d;
@@ -2560,16 +2571,34 @@ RADEONDisplayVideo(
 
     /* keep everything in 16.16 */
 
-    offset1 += ((left >> 16) & ~7) << 1;
-    offset2 += ((left >> 16) & ~7) << 1;
-    offset3 += ((left >> 16) & ~7) << 1;
-    offset4 += ((left >> 16) & ~7) << 1;
-
+    if (is_planar) {
+	offset1 += ((left >> 16) & ~15);
+	offset2 += ((left >> 16) & ~31) >> 1;
+	offset3 += ((left >> 16) & ~31) >> 1;
+	offset4 += ((left >> 16) & ~15);
+	offset5 += ((left >> 16) & ~31) >> 1;
+	offset6 += ((left >> 16) & ~31) >> 1;
+	offset2 |= RADEON_VIF_BUF0_PITCH_SEL;
+	offset3 |= RADEON_VIF_BUF0_PITCH_SEL;
+	offset5 |= RADEON_VIF_BUF0_PITCH_SEL;
+	offset6 |= RADEON_VIF_BUF0_PITCH_SEL;
+    }
+    else {
+	/* is this really correct for non-2-byte formats? */
+	offset1 += ((left >> 16) & ~7) << 1;
+	offset2 += ((left >> 16) & ~7) << 1;
+	offset3 += ((left >> 16) & ~7) << 1;
+	offset4 += ((left >> 16) & ~7) << 1;
+	offset5 += ((left >> 16) & ~7) << 1;
+	offset6 += ((left >> 16) & ~7) << 1;
+    }
     if (info->IsSecondary) {
 	offset1 += info->FbMapSize;
 	offset2 += info->FbMapSize;
-    	offset3 += info->FbMapSize;
-    	offset4 += info->FbMapSize;
+	offset3 += info->FbMapSize;
+	offset4 += info->FbMapSize;
+	offset5 += info->FbMapSize;
+	offset6 += info->FbMapSize;
     }
 
     tmp = (left & 0x0003ffff) + 0x00028000 + (h_inc << 3);
@@ -2584,7 +2613,23 @@ RADEONDisplayVideo(
     p1_v_accum_init = ((tmp << 4) & 0x03ff8000) | 
     	(((deinterlacing_method!=METHOD_WEAVE)&&!is_rgb)?0x03:0x01);
 
-    left = (left >> 16) & 7;
+    if (is_planar) {
+	p23_v_accum_init = ((tmp << 4) & 0x03ff8000) |
+	    ((deinterlacing_method != METHOD_WEAVE) ? 0x03 : 0x01);
+	p23_blank_lines = (((src_h >> 1) - 1) << 16);
+    }
+    else {
+	p23_v_accum_init = 0;
+	p23_blank_lines = 0;
+    }
+
+    if (is_planar) {
+	leftuv = ((left >> 16) >> 1) & 15;
+	left = (left >> 16) & 15;
+    }
+    else {
+	left = (left >> 16) & 7;
+    }
 
     RADEONWaitForFifo(pScrn, 2);
     OUTREG(RADEON_OV0_REG_LOAD_CNTL, RADEON_REG_LD_CTL_LOCK);
@@ -2654,25 +2699,27 @@ RADEONDisplayVideo(
 	    	((TapCoeffs[tap_set].coeff[i][3] &0xf)<<24));
 		}
 
-    RADEONWaitForFifo(pScrn, 10);
+    RADEONWaitForFifo(pScrn, 11);
     OUTREG(RADEON_OV0_V_INC, v_inc);
     OUTREG(RADEON_OV0_P1_BLANK_LINES_AT_TOP, 0x00000fff | ((src_h - 1) << 16));
+    OUTREG(RADEON_OV0_P23_BLANK_LINES_AT_TOP, 0x000007ff | p23_blank_lines);
     OUTREG(RADEON_OV0_VID_BUF_PITCH0_VALUE, pitch);
-    OUTREG(RADEON_OV0_VID_BUF_PITCH1_VALUE, pitch);
+    OUTREG(RADEON_OV0_VID_BUF_PITCH1_VALUE, is_planar ? pitch >> 1 : pitch);
     OUTREG(RADEON_OV0_P1_X_START_END, (src_w + left - 1) | (left << 16));
-    left >>= 1; src_w >>= 1;
-    OUTREG(RADEON_OV0_P2_X_START_END, (src_w + left - 1) | (left << 16));
-    OUTREG(RADEON_OV0_P3_X_START_END, (src_w + left - 1) | (left << 16));
-    OUTREG(RADEON_OV0_VID_BUF0_BASE_ADRS, offset1 & 0xfffffff0);
-    OUTREG(RADEON_OV0_VID_BUF1_BASE_ADRS, offset2 & 0xfffffff0);
-    OUTREG(RADEON_OV0_VID_BUF2_BASE_ADRS, offset3 & 0xfffffff0);
+    src_w >>= 1;
+    OUTREG(RADEON_OV0_P2_X_START_END, (src_w + leftuv - 1) | (leftuv << 16));
+    OUTREG(RADEON_OV0_P3_X_START_END, (src_w + leftuv - 1) | (leftuv << 16));
+    OUTREG(RADEON_OV0_VID_BUF0_BASE_ADRS, offset1);
+    OUTREG(RADEON_OV0_VID_BUF1_BASE_ADRS, offset2);
+    OUTREG(RADEON_OV0_VID_BUF2_BASE_ADRS, offset3);
 
     RADEONWaitForFifo(pScrn, 9);
-    OUTREG(RADEON_OV0_VID_BUF3_BASE_ADRS, offset4 & 0xfffffff0);
-    OUTREG(RADEON_OV0_VID_BUF4_BASE_ADRS, offset1 & 0xfffffff0);
-    OUTREG(RADEON_OV0_VID_BUF5_BASE_ADRS, offset2 & 0xfffffff0);
+    OUTREG(RADEON_OV0_VID_BUF3_BASE_ADRS, offset4);
+    OUTREG(RADEON_OV0_VID_BUF4_BASE_ADRS, offset5);
+    OUTREG(RADEON_OV0_VID_BUF5_BASE_ADRS, offset6);
     OUTREG(RADEON_OV0_P1_V_ACCUM_INIT, p1_v_accum_init);
     OUTREG(RADEON_OV0_P1_H_ACCUM_INIT, p1_h_accum_init);
+    OUTREG(RADEON_OV0_P23_V_ACCUM_INIT, p23_v_accum_init);
     OUTREG(RADEON_OV0_P23_H_ACCUM_INIT, p23_h_accum_init);
 
    scale_cntl = RADEON_SCALER_ADAPTIVE_DEINT | RADEON_SCALER_DOUBLE_BUFFER 
@@ -2690,9 +2737,11 @@ RADEONDisplayVideo(
         case FOURCC_RGBT16:
 		scale_cntl |= RADEON_SCALER_SOURCE_15BPP | RADEON_SCALER_LIN_TRANS_BYPASS;
 		break;
-        case FOURCC_YUY2:
         case FOURCC_YV12:
         case FOURCC_I420:
+		scale_cntl |= RADEON_SCALER_SOURCE_YUV12;
+		break;
+        case FOURCC_YUY2:
         default:
 		scale_cntl |= RADEON_SCALER_SOURCE_VYUY422
 			| ((info->ChipFamily >= CHIP_FAMILY_R200) ? RADEON_SCALER_TEMPORAL_DEINT : 0);
@@ -2733,6 +2782,7 @@ RADEONPutImage(
    unsigned char *dst_start;
    int new_size, offset, s2offset, s3offset;
    int srcPitch, srcPitch2, dstPitch;
+   int d2line, d3line;
    int top, left, npixels, nlines, bpp;
    BoxRec dstBox;
    CARD32 tmp;
@@ -2750,6 +2800,7 @@ RADEONPutImage(
 
    /* make the compiler happy */
    s2offset = s3offset = srcPitch2 = 0;
+   d2line = d3line = 0;
 
    if(src_w > (drw_w << 4))
 	drw_w = src_w >> 4;
@@ -2804,11 +2855,10 @@ RADEONPutImage(
 	break;
    case FOURCC_YV12:
    case FOURCC_I420:
-	dstPitch = ((width << 1) + 63) & ~63;
-	srcPitch = (width + 3) & ~3;
-	s2offset = srcPitch * height;
-	srcPitch2 = ((width >> 1) + 3) & ~3;
-	s3offset = (srcPitch2 * (height >> 1)) + s2offset;
+	/* need 16bytes alignment for u,v plane, so 2 times that for width
+	   but blitter needs 64bytes alignment */
+	dstPitch = ((width + 127) & ~127);
+	srcPitch = width;
 	break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
@@ -2819,6 +2869,9 @@ RADEONPutImage(
    }
 
    new_size = dstPitch * height;
+   if (id == FOURCC_YV12 || id == FOURCC_I420) {
+      new_size += (dstPitch >> 1) * height;
+   }
    pPriv->video_offset = RADEONAllocateMemory(pScrn, &pPriv->video_memory,
 					      (pPriv->doubleBuffer ?
 					       (new_size * 2) : new_size));
@@ -2840,22 +2893,33 @@ RADEONPutImage(
    dst_start = info->FB + offset;
 
    switch(id) {
-    case FOURCC_YV12:
-    case FOURCC_I420:
-	top &= ~1;
-	dst_start += left << 1;
-	tmp = ((top >> 1) * srcPitch2) + (left >> 1);
-	s2offset += tmp;
-	s3offset += tmp;
-	if(id == FOURCC_I420) {
-	   tmp = s2offset;
-	   s2offset = s3offset;
-	   s3offset = tmp;
-	}
-	nlines = ((((yb + 0xffff) >> 16) + 1) & ~1) - top;
-	RADEONCopyMungedData(pScrn, buf + (top * srcPitch) + left,
-			     buf + s2offset, buf + s3offset, dst_start,
-			     srcPitch, srcPitch2, dstPitch, nlines, npixels);
+   case FOURCC_YV12:
+   case FOURCC_I420:
+/* meh. Such a mess just for someone who wants to watch half the video clipped */
+	/* odd number of pixels? That may not work correctly */
+	srcPitch2 = width >> 1;
+	/* odd number of lines? See above... */
+	s2offset = (srcPitch * height);
+	s3offset = s2offset + srcPitch2 * (height >> 1);
+	s2offset += (top >> 1) * srcPitch2 + (left >> 1);
+	s3offset += (top >> 1) * srcPitch2 + (left >> 1);
+	d2line = (height * dstPitch);
+	d3line = d2line + (height >> 1) * (dstPitch >> 1);
+	nlines = ((yb + 0xffff) >> 16) - top;
+	d2line += (top >> 1) * (dstPitch >> 1) - (top * dstPitch);
+	d3line += (top >> 1) * (dstPitch >> 1) - (top * dstPitch);
+        if(id == FOURCC_YV12) {
+            tmp = s2offset;
+            s2offset = s3offset;
+            s3offset = tmp;
+        }
+        RADEONCopyData(pScrn, buf + (top * srcPitch) + left, dst_start + left,
+		srcPitch, dstPitch, nlines, npixels, 1);
+        RADEONCopyData(pScrn, buf + s2offset, dst_start + d2line + (left >> 1),
+		srcPitch2, dstPitch >> 1, nlines >> 1, npixels >> 1, 1);
+        RADEONCopyData(pScrn, buf + s3offset, dst_start + d3line + (left >> 1),
+		srcPitch2, dstPitch >> 1, nlines >> 1, npixels >> 1, 1);
+
 	break;
     case FOURCC_RGBT16:
     case FOURCC_RGB16:
@@ -2891,7 +2955,10 @@ RADEONPutImage(
 	    RADEONFillKeyHelper(pDraw, pPriv->colorKey, clipBoxes);
     }
 
-    RADEONDisplayVideo(pScrn, pPriv, id, offset, offset, offset, offset, width, height, dstPitch,
+    /* FIXME: someone should look at these offsets, I don't think it makes sense how
+              they are handled throughout the source. */
+    RADEONDisplayVideo(pScrn, pPriv, id, offset, offset + d2line, offset + d3line,
+		     offset, offset + d2line, offset + d3line, width, height, dstPitch,
 		     xa, xb, ya, &dstBox, src_w, src_h, drw_w, drw_h, METHOD_BOB);
 
     pPriv->videoStatus = CLIENT_VIDEO_ON;
@@ -3154,6 +3221,7 @@ RADEONDisplaySurface(
     RADEONResetVideo(pScrn);
 #endif
     RADEONDisplayVideo(pScrn, portPriv, surface->id,
+		       surface->offsets[0], surface->offsets[0],
 		       surface->offsets[0], surface->offsets[0],
 		       surface->offsets[0], surface->offsets[0],
 		       surface->width, surface->height, surface->pitches[0],
@@ -3437,7 +3505,9 @@ RADEONPutVideo(
 	    RADEONFillKeyHelper(pDraw, pPriv->colorKey, clipBoxes);
    }
 
-   RADEONDisplayVideo(pScrn, pPriv, id, offset1+top*srcPitch, offset2+top*srcPitch, offset3+top*srcPitch, offset4+top*srcPitch, width, height, dstPitch*mult/2,
+   RADEONDisplayVideo(pScrn, pPriv, id, offset1+top*srcPitch, offset2+top*srcPitch,
+		offset3+top*srcPitch, offset4+top*srcPitch, offset1+top*srcPitch,
+		offset2+top*srcPitch, width, height, dstPitch*mult/2,
                      xa, xb, ya, &dstBox, src_w, src_h*mult/2, drw_w, drw_h, pPriv->overlay_deinterlacing_method);
 
    RADEONWaitForFifo(pScrn, 1);
