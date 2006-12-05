@@ -2629,6 +2629,7 @@ RADEONDisplayVideo(
     }
     else {
 	left = (left >> 16) & 7;
+	leftuv = left >> 1;
     }
 
     RADEONWaitForFifo(pScrn, 2);
