@@ -333,4 +333,10 @@ xf86OutputCreate (ScrnInfoPtr		scrn,
 void
 xf86OutputDestroy (xf86OutputPtr	output);
 
+Bool
+xf86CrtcScreenInit (ScreenPtr pScreen);
+
+void
+xf86CrtcCloseScreen (ScreenPtr pScreen);
+
 #endif /* _XF86CRTC_H_ */
