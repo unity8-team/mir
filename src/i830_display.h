@@ -44,11 +44,11 @@ Bool i830PipeInUse(xf86CrtcPtr crtc);
 
 /** @{
  */
-#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0)
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,2,99,2,0)
 DisplayModePtr i830_xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC);
 DisplayModePtr i830_xf86CVTMode(int HDisplay, int VDisplay, float VRefresh,
 				Bool Reduced, Bool Interlaced);
 #define xf86DDCGetModes i830_xf86DDCGetModes
 #define xf86CVTMode i830_xf86CVTMode
-#endif /* XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2) */
+#endif /* XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,2,99,2) */
 /** @} */

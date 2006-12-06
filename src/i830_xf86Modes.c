@@ -45,7 +45,7 @@
  * there but we still want to use.  We need to come up with better API here.
  */
 
-#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0)
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,2,99,2,0)
 /**
  * Calculates the horizontal sync rate of a mode.
  *
@@ -321,7 +321,7 @@ xf86PrintModeline(int scrnIndex,DisplayModePtr mode)
 		   mode->VTotal, flags, xf86ModeHSync(mode));
     xfree(flags);
 }
-#endif /* XORG_VERSION_CURRENT <= 7.1.99.2 */
+#endif /* XORG_VERSION_CURRENT <= 7.2.99.2 */
 
 /**
  * Marks as bad any modes with unsupported flags.
