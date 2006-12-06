@@ -1021,7 +1021,7 @@ void NVLoadStateExt (
        nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_0, 0x000001FF);
        nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_0, 0x1230C000);
        nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_1, 0x72111101);
-       nvWriteGRAPH(pNv, 0x0088, 0x11D5F071);
+       nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_2_NV04, 0x11D5F071);
        nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x0004FF31);
        nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x4004FF31);
 
@@ -1029,7 +1029,7 @@ void NVLoadStateExt (
 	   nvWriteGRAPH(pNv, NV_PGRAPH_INTR_EN, 0x0);
 	   nvWriteGRAPH(pNv, NV_PGRAPH_INTR, 0xFFFFFFFF);
        }
-       nvWriteGRAPH(pNv, 0x0170, 0x10010100);
+       nvWriteGRAPH(pNv, NV_PGRAPH_CTX_CONTROL_NV04, 0x10010100);
        nvWriteGRAPH(pNv, NV_PGRAPH_SURFACE, 0xFFFFFFFF);
        nvWriteGRAPH(pNv, NV_PGRAPH_FIFO, 0x00000001);
 
@@ -1059,7 +1059,7 @@ void NVLoadStateExt (
            /* nv10 second surfaces */
            /* this is a copy of the surfaces. What is it for ? */
            for(i = 0; i < 32; i++)
-             nvWriteGRAPH(pNv, 0x0B00 + (i*4), nvReadFB(pNv, NV_PFB_TILE_NV10 + (i*4)));
+             nvWriteGRAPH(pNv, NV_PGRAPH_TILE + (i*4), nvReadFB(pNv, NV_PFB_TILE_NV10 + (i*4)));
            /* end of nv10 second surfaces */
 
            nvWriteGRAPH(pNv, NV_PGRAPH_BOFFSET0, 0);
@@ -1067,8 +1067,8 @@ void NVLoadStateExt (
 	   nvWriteGRAPH(pNv, NV_PGRAPH_BLIMIT0, pNv->VRAMPhysicalSize - 1);
            nvWriteGRAPH(pNv, NV_PGRAPH_BLIMIT1, pNv->VRAMPhysicalSize - 1);
 
-           nvWriteGRAPH(pNv, 0x0810, 0x00000000);
-           nvWriteGRAPH(pNv, 0x0608, 0xFFFFFFFF);
+           nvWriteGRAPH(pNv, NV_PGRAPH_PATTERN_SHAPE, 0x00000000);
+           nvWriteGRAPH(pNv, NV_PGRAPH_BETA_AND, 0xFFFFFFFF);
        } else {
            if(pNv->Architecture >= NV_ARCH_40) {
               nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_1, 0x401287c0);
@@ -1263,10 +1263,10 @@ void NVLoadStateExt (
     }
 
     /* begin clipping values */
-    nvWriteGRAPH(pNv, 0x053C, 0);
-    nvWriteGRAPH(pNv, 0x0540, 0);
-    nvWriteGRAPH(pNv, 0x0544, 0x00007FFF);
-    nvWriteGRAPH(pNv, 0x0548, 0x00007FFF);
+    nvWriteGRAPH(pNv, NV_PGRAPH_ABS_UCLIP_XMIN, 0);
+    nvWriteGRAPH(pNv, NV_PGRAPH_ABS_UCLIP_YMIN, 0);
+    nvWriteGRAPH(pNv, NV_PGRAPH_ABS_UCLIP_XMAX, 0x00007FFF);
+    nvWriteGRAPH(pNv, NV_PGRAPH_ABS_UCLIP_YMAX, 0x00007FFF);
     /* end of clipping values */
 
     if(pNv->Architecture >= NV_ARCH_10) {

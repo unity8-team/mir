@@ -184,6 +184,7 @@
 
 #define NV_PGRAPH_DEBUG_0           0x080
 #define NV_PGRAPH_DEBUG_1           0x084
+#define NV_PGRAPH_DEBUG_2_NV04      0x088
 #define NV_PGRAPH_DEBUG_2           0x620
 #define NV_PGRAPH_DEBUG_3           0x08c
 #define NV_PGRAPH_DEBUG_4           0x090
@@ -191,6 +192,11 @@
 #define NV_PGRAPH_INTR              0x100
 #define NV_PGRAPH_INTR_EN           0x140
 #define NV_PGRAPH_CTX_CONTROL       0x144
+#define NV_PGRAPH_CTX_CONTROL_NV04  0x170
+#define NV_PGRAPH_ABS_UCLIP_XMIN    0x53C
+#define NV_PGRAPH_ABS_UCLIP_YMIN    0x540
+#define NV_PGRAPH_ABS_UCLIP_XMAX    0x544
+#define NV_PGRAPH_ABS_UCLIP_YMAX    0x548
 #define NV_PGRAPH_BETA_AND          0x608
 #define NV_PGRAPH_LIMIT_VIOL_PIX    0x610
 
@@ -207,6 +213,8 @@
 #define NV_PGRAPH_FIFO              0x720
 
 #define NV_PGRAPH_PATTERN_SHAPE     0x810
+
+#define NV_PGRAPH_TILE              0xb00
 
 #define NV_PVIDEO_INTR_EN           0x140
 #define NV_PVIDEO_BUFFER            0x700
