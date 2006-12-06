@@ -121,13 +121,12 @@ static struct blendinfo I965BlendOp[] = {
 
 /* FIXME: surface format defined in brw_defines.h, shared Sampling engine 1.7.2*/
 static struct formatinfo I965TexFormats[] = {
-        {PICT_a8r8g8b8, BRW_SURFACEFORMAT_R8G8B8A8_UNORM },
-        {PICT_x8r8g8b8, BRW_SURFACEFORMAT_R8G8B8X8_UNORM },
-        {PICT_a8b8g8r8, BRW_SURFACEFORMAT_B8G8R8A8_UNORM },
-        {PICT_x8b8g8r8, BRW_SURFACEFORMAT_B8G8R8X8_UNORM },
+        {PICT_a8r8g8b8, BRW_SURFACEFORMAT_B8G8R8A8_UNORM },
+        {PICT_x8r8g8b8, BRW_SURFACEFORMAT_B8G8R8X8_UNORM },
+        {PICT_a8b8g8r8, BRW_SURFACEFORMAT_R8G8B8A8_UNORM },
+        {PICT_x8b8g8r8, BRW_SURFACEFORMAT_R8G8B8X8_UNORM },
         {PICT_r5g6b5,   BRW_SURFACEFORMAT_B5G6R5_UNORM   },
         {PICT_a1r5g5b5, BRW_SURFACEFORMAT_B5G5R5A1_UNORM },
-        {PICT_x1r5g5b5, BRW_SURFACEFORMAT_B5G5R5X1_UNORM },
         {PICT_a8,       BRW_SURFACEFORMAT_A8_UNORM	 },
 };
 
@@ -366,6 +365,16 @@ static const CARD32 ps_kernel_static_masknoca [][4] = {
 #include "exa_wm_masknoca_prog.h"
 };
 
+static CARD32 i965_get_card_format(PicturePtr pPict) 
+{
+	int i;
+        for (i = 0; i < sizeof(I965TexFormats) / sizeof(I965TexFormats[0]); i++) {
+            if (I965TexFormats[i].fmt == pPict->format)
+                break;
+        }
+	return I965TexFormats[i].card_fmt;
+}
+
 Bool
 I965EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 			PicturePtr pMaskPicture, PicturePtr pDstPicture,
@@ -376,10 +385,7 @@ I965EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     CARD32 src_offset, src_pitch;
     CARD32 mask_offset = 0, mask_pitch = 0;
     CARD32 dst_format, dst_offset, dst_pitch;
- 
-ErrorF("i965 prepareComposite\n");
 
-    I965GetDestFormat(pDstPicture, &dst_format);
     src_offset = exaGetPixmapOffset(pSrc);
     src_pitch = exaGetPixmapPitch(pSrc);
     dst_offset = exaGetPixmapOffset(pDst);
@@ -590,11 +596,9 @@ ErrorF("i965 prepareComposite\n");
    memset(dest_surf_state, 0, sizeof(*dest_surf_state));
    dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
    dest_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
-   if (pDst->drawable.bitsPerPixel == 16) {
-      dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
-   } else {
-      dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B8G8R8A8_UNORM;
-   }
+   I965GetDestFormat(pDstPicture, &dst_format);
+   dest_surf_state->ss0.surface_format = dst_format;
+
    dest_surf_state->ss0.writedisable_alpha = 0;
    dest_surf_state->ss0.writedisable_red = 0;
    dest_surf_state->ss0.writedisable_green = 0;
@@ -615,12 +619,7 @@ ErrorF("i965 prepareComposite\n");
    /* Set up the source surface state buffer */
    memset(src_surf_state, 0, sizeof(*src_surf_state));
    src_surf_state->ss0.surface_type = BRW_SURFACE_2D;
-   if (pSrc->drawable.bitsPerPixel == 8)
-      src_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_A8_UNORM; //XXX? 
-   else if (pSrc->drawable.bitsPerPixel == 16)
-      src_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
-   else 
-      src_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B8G8R8A8_UNORM;
+   src_surf_state->ss0.surface_format = i965_get_card_format(pSrcPicture);
 
    src_surf_state->ss0.writedisable_alpha = 0;
    src_surf_state->ss0.writedisable_red = 0;
@@ -643,12 +642,7 @@ ErrorF("i965 prepareComposite\n");
    if (pMask) {
    	memset(mask_surf_state, 0, sizeof(*mask_surf_state));
 	mask_surf_state->ss0.surface_type = BRW_SURFACE_2D;
-   	if (pMask->drawable.bitsPerPixel == 8)
-      	    mask_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_A8_UNORM; //XXX? 
-   	else if (pMask->drawable.bitsPerPixel == 16)
-      	    mask_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
-   	else 
-      	    mask_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B8G8R8A8_UNORM;
+   	mask_surf_state->ss0.surface_format = i965_get_card_format(pMaskPicture);
 
    	mask_surf_state->ss0.writedisable_alpha = 0;
    	mask_surf_state->ss0.writedisable_red = 0;
