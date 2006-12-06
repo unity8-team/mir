@@ -221,9 +221,7 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     adpa |= ADPA_VSYNC_CNTL_ENABLE | ADPA_HSYNC_CNTL_ENABLE;
     OUTREG(ADPA, adpa);
 
-    /* Set the border color to purple.  Maybe we should save/restore this
-     * reg.
-     */
+    /* Set the border color to purple. */
     bclrpat = INREG(bclrpat_reg);
     OUTREG(bclrpat_reg, 0x00500050);
 
