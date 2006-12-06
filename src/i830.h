@@ -432,19 +432,8 @@ typedef struct _I830Rec {
 
    int ddc2;
 
-   /* Panel size pulled from the BIOS */
-   int PanelXRes, PanelYRes;
-
    /* The BIOS's fixed timings for the LVDS */
-   int panel_fixed_clock;
-   int panel_fixed_hactive;
-   int panel_fixed_hblank;
-   int panel_fixed_hsyncoff;
-   int panel_fixed_hsyncwidth;
-   int panel_fixed_vactive;
-   int panel_fixed_vblank;
-   int panel_fixed_vsyncoff;
-   int panel_fixed_vsyncwidth;
+   DisplayModePtr panel_fixed_mode;
 
    int backlight_duty_cycle;  /* restore backlight to this value */
    
