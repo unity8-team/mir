@@ -912,15 +912,15 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 Bool
 i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 {
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830Ptr pI830 = I830PTR(pScrn);
     Bool ok = TRUE;
-    int i;
+    xf86CrtcPtr crtc = config->output[config->compat_output]->crtc;
 
     DPRINTF(PFX, "i830SetMode\n");
 
-    for (i = 0; i < pI830->xf86_config.num_crtc; i++)
+    if (crtc && crtc->enabled)
     {
-	xf86CrtcPtr    crtc = pI830->xf86_config.crtc[i];
 	ok = i830PipeSetMode(crtc,
 			     i830PipeFindClosestMode(crtc, pMode), 
 			     TRUE);

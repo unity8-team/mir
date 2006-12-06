@@ -272,7 +272,7 @@ i830_crt_detect_ddc(xf86OutputPtr output)
  * @param allow_disturb enables detection methods that may cause flickering
  *        on active displays.
  */
-static enum detect_status
+static xf86OutputStatus
 i830_crt_detect(xf86OutputPtr output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
@@ -281,13 +281,13 @@ i830_crt_detect(xf86OutputPtr output)
 
     if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_I965G(pI830)) {
 	if (i830_crt_detect_hotplug(output))
-	    return OUTPUT_STATUS_CONNECTED;
+	    return XF86OutputStatusConnected;
 	else
-	    return OUTPUT_STATUS_DISCONNECTED;
+	    return XF86OutputStatusDisconnected;
     }
 
     if (i830_crt_detect_ddc(output))
-	return OUTPUT_STATUS_CONNECTED;
+	return XF86OutputStatusConnected;
 
     /* Use the load-detect method if we have no other way of telling. */
     crtc = i830GetLoadDetectPipe (output);
@@ -318,12 +318,12 @@ i830_crt_detect(xf86OutputPtr output)
 
 	i830ReleaseLoadDetectPipe (output);
 	if (connected)
-	    return OUTPUT_STATUS_CONNECTED;
+	    return XF86OutputStatusConnected;
 	else
-	    return OUTPUT_STATUS_DISCONNECTED;
+	    return XF86OutputStatusDisconnected;
     }
 
-    return OUTPUT_STATUS_UNKNOWN;
+    return XF86OutputStatusUnknown;
 }
 
 static DisplayModePtr
@@ -337,7 +337,7 @@ i830_crt_get_modes(xf86OutputPtr output)
     if (modes != NULL)
 	return modes;
 
-    if ((*output->funcs->detect)(output) == OUTPUT_STATUS_DISCONNECTED)
+    if ((*output->funcs->detect)(output) == XF86OutputStatusDisconnected)
 	return NULL;
 
     /* We've got a potentially-connected monitor that we can't DDC.  Return a
@@ -393,6 +393,7 @@ i830_crt_init(ScrnInfoPtr pScrn)
 	return;
     }
     i830_output->type = I830_OUTPUT_ANALOG;
+    
     output->driver_private = i830_output;
 
     /* Set up the DDC bus. */

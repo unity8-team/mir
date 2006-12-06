@@ -686,6 +686,23 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
       pI830->CursorInfoRec->ShowCursor(pScrn);
 }
 
+int
+i830_output_clones (ScrnInfoPtr pScrn, int type_mask)
+{
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
+    int			o;
+    int			index_mask = 0;
+
+    for (o = 0; o < config->num_output; o++)
+    {
+	xf86OutputPtr		output = config->output[o];
+	I830OutputPrivatePtr	intel_output = output->driver_private;
+	if (type_mask & (1 << intel_output->type))
+	    index_mask |= (1 << o);
+    }
+    return index_mask;
+}
+
 /**
  * Set up the outputs according to what type of chip we are.
  *
@@ -695,7 +712,9 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 static void
 I830SetupOutputs(ScrnInfoPtr pScrn)
 {
-   I830Ptr pI830 = I830PTR(pScrn);
+   xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
+   I830Ptr  pI830 = I830PTR(pScrn);
+   int	    o;
 
    /* everyone has at least a single analog output */
    i830_crt_init(pScrn);
@@ -712,6 +731,44 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
    }
    if (IS_I915GM(pI830) || IS_I945GM(pI830))
       i830_tv_init(pScrn);
+   
+   for (o = 0; o < config->num_output; o++)
+   {
+      xf86OutputPtr	   output = config->output[o];
+      I830OutputPrivatePtr intel_output = output->driver_private;
+      int		   crtc_mask = 0, clone_mask = 0;
+      
+      /*
+       * Valid crtcs
+       */
+      switch (intel_output->type) {
+      case I830_OUTPUT_DVO:
+      case I830_OUTPUT_SDVO:
+	 crtc_mask = ((1 << 0)|
+		      (1 << 1));
+	 clone_mask = ((1 << I830_OUTPUT_ANALOG) |
+		       (1 << I830_OUTPUT_DVO) |
+		       (1 << I830_OUTPUT_SDVO));
+	 break;
+      case I830_OUTPUT_ANALOG:
+	 crtc_mask = ((1 << 0));
+	 clone_mask = ((1 << I830_OUTPUT_ANALOG) |
+		       (1 << I830_OUTPUT_DVO) |
+		       (1 << I830_OUTPUT_SDVO));
+	 break;
+      case I830_OUTPUT_LVDS:
+	 crtc_mask = (1 << 1);
+	 clone_mask = (1 << I830_OUTPUT_LVDS);
+	 break;
+      case I830_OUTPUT_TVOUT:
+	 crtc_mask = ((1 << 0) |
+		      (1 << 1));
+	 clone_mask = (1 << I830_OUTPUT_TVOUT);
+	 break;
+      }
+      output->possible_crtcs = crtc_mask;
+      output->possible_clones = i830_output_clones (pScrn, clone_mask);
+   }
 }
 
 /**
@@ -883,7 +940,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 #ifdef XF86DRI
    unsigned long savedMMSize;
 #endif
-   enum detect_status output_status[MAX_OUTPUTS];
 
    if (pScrn->numEntities != 1)
       return FALSE;
@@ -1375,64 +1431,20 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    {
       xf86OutputPtr	      output = pI830->xf86_config.output[i];
 
-      output_status[i] = (*output->funcs->detect) (output);
+      output->status = (*output->funcs->detect) (output);
    }
 #if 0
    RestoreHWState (pScrn);
 #endif
    
-   
-   for (i = 0; i < pI830->xf86_config.num_output; i++) 
+   if (!xf86InitialConfiguration (pScrn))
    {
-      xf86OutputPtr	      output = pI830->xf86_config.output[i];
-      I830OutputPrivatePtr    intel_output = output->driver_private;
-      xf86CrtcPtr	      crtc;
-      int		      p;
-
-      output->crtc = NULL;
-
-      if (output_status[i] == OUTPUT_STATUS_DISCONNECTED)
-	 continue;
-      
-      switch (intel_output->type) {
-      case I830_OUTPUT_LVDS:
-	 /* LVDS must live on pipe B for two-pipe devices */
-	 crtc = pI830->xf86_config.crtc[pI830->xf86_config.num_crtc - 1];
-	 if (!i830PipeInUse (crtc))
-	    output->crtc = crtc;
-	 break;
-      case I830_OUTPUT_ANALOG:
-      case I830_OUTPUT_DVO:
-      case I830_OUTPUT_SDVO:
-	 for (p = 0; p < pI830->xf86_config.num_crtc; p++)
-	 {
-	    crtc = pI830->xf86_config.crtc[p];
-	    if (!i830PipeInUse(crtc))
-	    {
-	       output->crtc = crtc;
-	       break;
-	    }
-	 }
-	 break;
-      case I830_OUTPUT_TVOUT:
-	 crtc = pI830->xf86_config.crtc[0];
-	 if (!i830PipeInUse(crtc))
-	 {
-	    output->crtc = crtc;
-	 }
-	 break;
-      default:
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unhandled output type\n");
-	 break;
-      }
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
+      PreInitCleanup(pScrn);
+      return FALSE;
    }
-
-   for (i = 0; i < pI830->xf86_config.num_crtc; i++) 
-   {
-      xf86CrtcPtr	crtc = pI830->xf86_config.crtc[i];
-      crtc->enabled = i830PipeInUse(crtc);
-   }
-   
+   pScrn->displayWidth = (pScrn->virtualX + 63) & ~63;
+    
    pI830->rotation = RR_Rotate_0;
    if ((s = xf86GetOptValString(pI830->Options, OPTION_ROTATE))) {
       pI830->InitialRotation = 0;
@@ -1677,7 +1689,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    if (!xf86RandR12PreInit (pScrn))
    {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "RandR initialization failure\n");
       PreInitCleanup(pScrn);
       return FALSE;
    }	
@@ -3398,23 +3410,21 @@ static void
 i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+   xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
-   int i;
+   xf86CrtcPtr	crtc = config->output[config->compat_output]->crtc;
 
    DPRINTF(PFX, "i830AdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
 	   x, pI830->xoffset, y, pI830->yoffset);
 
-   /* Sync the engine before adjust frame */
-   if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-      (*pI830->AccelInfoRec->Sync)(pScrn);
-      pI830->AccelInfoRec->NeedToSync = FALSE;
-   }
-
-   for (i = 0; i < pI830->xf86_config.num_crtc; i++)
+   if (crtc && crtc->enabled)
    {
-      xf86CrtcPtr	crtc = pI830->xf86_config.crtc[i];
-      if (crtc->enabled)
-	 i830PipeSetBase(crtc, x, y);
+      /* Sync the engine before adjust frame */
+      if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
+	 (*pI830->AccelInfoRec->Sync)(pScrn);
+	 pI830->AccelInfoRec->NeedToSync = FALSE;
+      }
+      i830PipeSetBase(crtc, x, y);
    }
 }
 
@@ -3815,7 +3825,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    DPRINTF(PFX, "\nUnmapping memory\n");
    I830UnmapMem(pScrn);
    vgaHWUnmapMem(pScrn);
-   xf86CrtcCloseScreen (pScreen);
 
    if (pI830->ScanlineColorExpandBuffers) {
       xfree(pI830->ScanlineColorExpandBuffers);
@@ -4017,7 +4026,9 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
        * implements a sensible policy using RandR-1.2.  For now, all we get
        * is this.
        */
-      I830ValidateXF86ModeList(pScrn, FALSE);
+      
+      xf86ProbeOutputModes (pScrn);
+      xf86SetScrnInfoModes (pScrn);
       xf86SwitchMode(pScrn->pScreen, pScrn->currentMode);
 
       /* Clear the BIOS's hotkey press flags */

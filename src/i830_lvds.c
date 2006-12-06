@@ -180,10 +180,10 @@ i830_lvds_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
  * This always returns OUTPUT_STATUS_CONNECTED.  This output should only have
  * been set up if the LVDS was actually connected anyway.
  */
-static enum detect_status
+static xf86OutputStatus
 i830_lvds_detect(xf86OutputPtr output)
 {
-    return OUTPUT_STATUS_CONNECTED;
+    return XF86OutputStatusConnected;
 }
 
 /**
@@ -293,6 +293,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     }
     intel_output->type = I830_OUTPUT_LVDS;
     output->driver_private = intel_output;
+    output->subpixel_order = SubPixelHorizontalRGB;
 
     /* Set up the LVDS DDC channel.  Most panels won't support it, but it can
      * be useful if available.

@@ -192,12 +192,6 @@ struct _I830DVODriver {
 
 extern const char *i830_output_type_names[];
 
-enum detect_status {
-   OUTPUT_STATUS_CONNECTED,
-   OUTPUT_STATUS_DISCONNECTED,
-   OUTPUT_STATUS_UNKNOWN
-};
-
 typedef struct _I830CrtcPrivateRec {
     int			    pipe;
     Bool		    gammaEnabled;
@@ -606,6 +600,9 @@ extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
 
+/* return a mask of output indices matching outputs against type_mask */
+int i830_output_clones (ScrnInfoPtr pScrn, int type_mask);
+
 /* i830_display.c */
 Bool
 i830PipeHasType (xf86CrtcPtr crtc, int type);
@@ -627,10 +624,6 @@ Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
 
 /* i830_modes.c */
-int I830ValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time);
-void i830_reprobe_output_modes(ScrnInfoPtr pScrn);
-void i830_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn);
-void i830_set_default_screen_size(ScrnInfoPtr pScrn);
 DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
 
 /* i830_tv.c */

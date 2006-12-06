@@ -975,7 +975,7 @@ i830_sdvo_dump(ScrnInfoPtr pScrn)
  *
  * Takes 14ms on average on my i945G.
  */
-static enum detect_status
+static xf86OutputStatus
 i830_sdvo_detect(xf86OutputPtr output)
 {
     CARD8 response[2];
@@ -985,12 +985,12 @@ i830_sdvo_detect(xf86OutputPtr output)
     status = i830_sdvo_read_response(output, &response, 2);
 
     if (status != SDVO_CMD_STATUS_SUCCESS)
-	return OUTPUT_STATUS_UNKNOWN;
+	return XF86OutputStatusUnknown;
 
     if (response[0] != 0 || response[1] != 0)
-	return OUTPUT_STATUS_CONNECTED;
+	return XF86OutputStatusConnected;
     else
-	return OUTPUT_STATUS_DISCONNECTED;
+	return XF86OutputStatusDisconnected;
 }
 
 static void
@@ -1132,9 +1132,15 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 
     memset(&dev_priv->active_outputs, 0, sizeof(dev_priv->active_outputs));
     if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS0)
+    {
 	dev_priv->active_outputs = SDVO_OUTPUT_TMDS0;
+        output->subpixel_order = SubPixelHorizontalRGB;
+    }
     else if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS1)
+    {
 	dev_priv->active_outputs = SDVO_OUTPUT_TMDS1;
+        output->subpixel_order = SubPixelHorizontalRGB;
+    }
     else
     {
 	unsigned char	bytes[2];

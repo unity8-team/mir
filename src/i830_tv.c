@@ -544,7 +544,7 @@ i830_tv_detect_type (xf86CrtcPtr    crtc,
  * Currently this always returns OUTPUT_STATUS_UNKNOWN, as we need to be sure
  * we have a pipe programmed in order to probe the TV.
  */
-static enum detect_status
+static xf86OutputStatus
 i830_tv_detect(xf86OutputPtr output)
 {
     xf86CrtcPtr		    crtc;
@@ -567,11 +567,11 @@ i830_tv_detect(xf86OutputPtr output)
     
     switch (dev_priv->type) {
     case TV_TYPE_NONE:
-	return OUTPUT_STATUS_DISCONNECTED;
+	return XF86OutputStatusDisconnected;
     case TV_TYPE_UNKNOWN:
-	return OUTPUT_STATUS_UNKNOWN;
+	return XF86OutputStatusUnknown;
     default:
-	return OUTPUT_STATUS_CONNECTED;
+	return XF86OutputStatusConnected;
     }
 }
 

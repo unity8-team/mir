@@ -164,10 +164,10 @@ i830_dvo_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
  *
  * Unimplemented.
  */
-static enum detect_status
+static xf86OutputStatus
 i830_dvo_detect(xf86OutputPtr output)
 {
-    return OUTPUT_STATUS_UNKNOWN;
+    return XF86OutputStatusUnknown;
 }
 
 static Bool
@@ -248,6 +248,7 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     }
     intel_output->type = I830_OUTPUT_DVO;
     output->driver_private = intel_output;
+    output->subpixel_order = SubPixelHorizontalRGB;
     
     /* Set up the I2C and DDC buses */
     ret = I830I2CInit(pScrn, &intel_output->pI2CBus, GPIOE, "DVOI2C_E");
