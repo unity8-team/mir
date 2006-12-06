@@ -41,6 +41,7 @@ void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
 xf86CrtcPtr i830GetLoadDetectPipe(xf86OutputPtr output);
 void i830ReleaseLoadDetectPipe(xf86OutputPtr output);
 Bool i830PipeInUse(xf86CrtcPtr crtc);
+void i830_crtc_init(ScrnInfoPtr pScrn, int pipe);
 
 /** @{
  */

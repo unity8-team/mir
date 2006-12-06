@@ -41,6 +41,7 @@
 
 #include "i830_xf86Crtc.h"
 #include "i830_randr.h"
+#include "i830_debug.h"
 #include "i830_display.h"
 #include "i830.h"
 
@@ -604,6 +605,8 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	    i830PipeSetBase(crtc, x, y);
 	}
 	i830DisableUnusedFunctions (pScrn);
+
+	i830DumpRegs(pScrn);
     }
     return xf86RandR12CrtcNotify (randr_crtc);
 }
