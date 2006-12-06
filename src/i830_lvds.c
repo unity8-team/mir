@@ -161,22 +161,16 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
      * with the panel scaling set up to source from the H/VDisplay
      * of the original mode.
      */
-    if (pI830->panel_fixed_hactive != 0) {
-	adjusted_mode->HDisplay = pI830->panel_fixed_hactive;
-	adjusted_mode->HTotal = adjusted_mode->HDisplay +
-	    pI830->panel_fixed_hblank;
-	adjusted_mode->HSyncStart = adjusted_mode->HDisplay +
-	    pI830->panel_fixed_hsyncoff;
-	adjusted_mode->HSyncStart = adjusted_mode->HSyncStart +
-	    pI830->panel_fixed_hsyncwidth;
-	adjusted_mode->VDisplay = pI830->panel_fixed_vactive;
-	adjusted_mode->VTotal = adjusted_mode->VDisplay +
-	    pI830->panel_fixed_hblank;
-	adjusted_mode->VSyncStart = adjusted_mode->VDisplay +
-	    pI830->panel_fixed_hsyncoff;
-	adjusted_mode->VSyncStart = adjusted_mode->VSyncStart +
-	    pI830->panel_fixed_hsyncwidth;
-	adjusted_mode->Clock = pI830->panel_fixed_clock;
+    if (pI830->panel_fixed_mode != NULL) {
+	adjusted_mode->HDisplay = pI830->panel_fixed_mode->HDisplay;
+	adjusted_mode->HSyncStart = pI830->panel_fixed_mode->HSyncStart;
+	adjusted_mode->HSyncEnd = pI830->panel_fixed_mode->HSyncEnd;
+	adjusted_mode->HTotal = pI830->panel_fixed_mode->HTotal;
+	adjusted_mode->VDisplay = pI830->panel_fixed_mode->VDisplay;
+	adjusted_mode->VSyncStart = pI830->panel_fixed_mode->VSyncStart;
+	adjusted_mode->VSyncEnd = pI830->panel_fixed_mode->VSyncEnd;
+	adjusted_mode->VTotal = pI830->panel_fixed_mode->VTotal;
+	adjusted_mode->Clock = pI830->panel_fixed_mode->Clock;
 	xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
     }
 
@@ -241,30 +235,16 @@ i830_lvds_get_modes(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
     I830Ptr	    pI830 = I830PTR(pScrn);
-    DisplayModePtr  modes, new;
-    char	    stmp[32];
+    DisplayModePtr  modes;
 
     modes = i830_ddc_get_modes(output);
     if (modes != NULL)
 	return modes;
 
-    new             = xnfcalloc(1, sizeof (DisplayModeRec));
-    sprintf(stmp, "%dx%d", pI830->PanelXRes, pI830->PanelYRes);
-    new->name       = xnfalloc(strlen(stmp) + 1);
-    strcpy(new->name, stmp);
-    new->HDisplay   = pI830->PanelXRes;
-    new->VDisplay   = pI830->PanelYRes;
-    new->HSyncStart = pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff;
-    new->HSyncEnd   = new->HSyncStart + pI830->panel_fixed_hsyncwidth;
-    new->HTotal     = new->HSyncEnd + 1;
-    new->VSyncStart = pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff;
-    new->VSyncEnd   = new->VSyncStart + pI830->panel_fixed_vsyncwidth;
-    new->VTotal     = new->VSyncEnd + 1;
-    new->Clock      = pI830->panel_fixed_clock;
+    if (pI830->panel_fixed_mode != NULL)
+	return xf86DuplicateMode(pI830->panel_fixed_mode);
 
-    new->type       = M_T_PREFERRED;
-
-    return new;
+    return NULL;
 }
 
 static void
@@ -321,7 +301,9 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 	     * display.
 	     */
 
-	    if (pI830->PanelXRes == 800 && pI830->PanelYRes == 600) {
+	    if (pI830->panel_fixed_mode != NULL &&
+		pI830->panel_fixed_mode->HDisplay == 800 &&
+		pI830->panel_fixed_mode->VDisplay == 600) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Suspected Mac Mini, ignoring the LVDS\n");
 		return;
