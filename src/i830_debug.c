@@ -41,6 +41,12 @@ DEBUGSTRING(i830_debug_xyminus1)
 		     ((val & 0xffff0000) >> 16) + 1);
 }
 
+DEBUGSTRING(i830_debug_yxminus1)
+{
+    return XNFprintf("%d, %d", ((val & 0xffff0000) >> 16) + 1,
+		     (val & 0xffff) + 1);
+}
+
 DEBUGSTRING(i830_debug_xy)
 {
     return XNFprintf("%d, %d", (val & 0xffff),
@@ -228,7 +234,7 @@ static struct i830SnapshotRec {
     DEFINEREG(DSPASURF),
     DEFINEREG(DSPATILEOFF),
     DEFINEREG2(PIPEACONF, i830_debug_pipeconf),
-    DEFINEREG2(PIPEASRC, i830_debug_xyminus1),
+    DEFINEREG2(PIPEASRC, i830_debug_yxminus1),
 
     DEFINEREG2(FPA0, i830_debug_fp),
     DEFINEREG2(FPA1, i830_debug_fp),
@@ -251,7 +257,7 @@ static struct i830SnapshotRec {
     DEFINEREG(DSPBSURF),
     DEFINEREG(DSPBTILEOFF),
     DEFINEREG2(PIPEBCONF, i830_debug_pipeconf),
-    DEFINEREG2(PIPEBSRC, i830_debug_xyminus1),
+    DEFINEREG2(PIPEBSRC, i830_debug_yxminus1),
 
     DEFINEREG2(FPB0, i830_debug_fp),
     DEFINEREG2(FPB1, i830_debug_fp),
