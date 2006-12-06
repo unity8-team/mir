@@ -624,15 +624,22 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
     fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
 
-    i830PrintPll("chosen", &clock);
-    ErrorF("clock regs: 0x%08x, 0x%08x\n", (int)dpll, (int)fp);
-
     dpll = DPLL_VGA_MODE_DIS;
     if (IS_I9XX(pI830)) {
 	if (is_lvds)
 	    dpll |= DPLLB_MODE_LVDS;
 	else
 	    dpll |= DPLLB_MODE_DAC_SERIAL;
+	if (is_sdvo)
+	{
+	    dpll |= DPLL_DVO_HIGH_SPEED;
+	    if (IS_I945G(pI830) || IS_I945GM(pI830))
+	    {
+		int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
+		dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
+	    }
+	}
+	
 	/* compute bitmask from p1 value */
 	dpll |= (1 << (clock.p1 - 1)) << 16;
 	switch (clock.p2) {
@@ -718,6 +725,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	else
 	    pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
     }
+
+    i830PrintPll("chosen", &clock);
+    ErrorF("clock regs: 0x%08x, 0x%08x\n", (int)dpll, (int)fp);
 
     OUTREG(fp_reg, fp);
     OUTREG(dpll_reg, dpll);

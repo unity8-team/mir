@@ -557,8 +557,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     xf86CrtcPtr	    crtc = output->crtc;
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
     Bool input1, input2;
-    CARD32 dpll, sdvox;
-    int dpll_reg = (intel_crtc->pipe == 0) ? DPLL_A : DPLL_B;
+    CARD32 sdvox;
     int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
     int sdvo_pixel_multiply;
     int i;
@@ -614,9 +613,6 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     output_dtd.part2.v_sync_off_high = v_sync_offset & 0xc0;
     output_dtd.part2.reserved = 0;
 
-    /* Turn off the screens before adjusting timings */
-    i830_sdvo_set_active_outputs(output, 0);
-
     /* Set the output timing to the screen */
     i830_sdvo_set_target_output(output, dev_priv->active_outputs);
     i830_sdvo_set_output_timing(output, &output_dtd);
@@ -668,19 +664,15 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     if (intel_crtc->pipe == 1)
 	sdvox |= SDVO_PIPE_B_SELECT;
 
-    dpll = INREG(dpll_reg);
-
     sdvo_pixel_multiply = i830_sdvo_get_pixel_multiplier(mode);
     if (IS_I965G(pI830)) {
 	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
 	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
     } else if (IS_I945G(pI830) || IS_I945GM(pI830)) {
-	dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
+	/* done in crtc_mode_set as it lives inside the dpll register */
     } else {
 	sdvox |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
     }
-
-    OUTREG(dpll_reg, dpll | DPLL_DVO_HIGH_SPEED);
 
     OUTREG(dev_priv->output_device, sdvox);
 
@@ -695,9 +687,6 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		   "First %s output reported failure to sync\n",
 		   SDVO_NAME(dev_priv));
     }
-
-    i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
-    i830_sdvo_set_target_input(output, TRUE, FALSE);
 }
 
 static void
