@@ -352,9 +352,9 @@ void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn)
 						  i830_snapshot[i].reg,
 						  val);
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "%s before: %s", i830_snapshot[i].name, before);
+		       "%s before: %s\n", i830_snapshot[i].name, before);
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "%s after: %s", i830_snapshot[i].name, after);
+		       "%s after: %s\n", i830_snapshot[i].name, after);
 
 	}
     }
