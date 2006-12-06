@@ -745,7 +745,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     /* pipesrc and dspsize control the size that is scaled from, which should
      * always be the user's requested size.
      */
-    OUTREG(dspsize_reg, ((mode->HDisplay - 1) << 16) | (mode->VDisplay - 1));
+    OUTREG(dspsize_reg, ((mode->VDisplay - 1) << 16) | (mode->HDisplay - 1));
     OUTREG(dsppos_reg, 0);
     i830PipeSetBase(crtc, crtc->x, crtc->y);
     OUTREG(pipesrc_reg, ((mode->HDisplay - 1) << 16) | (mode->VDisplay - 1));
