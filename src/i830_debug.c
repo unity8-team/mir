@@ -159,7 +159,7 @@ DEBUGSTRING(i830_debug_dpll)
 	break;
     }
     if (IS_I945G(pI830) || IS_I945GM(pI830)) {
-	sprintf(sdvoextra, "SDVO mult %d",
+	sprintf(sdvoextra, ", SDVO mult %d",
 		(int)(val & SDVO_MULTIPLIER_MASK) >>
 		SDVO_MULTIPLIER_SHIFT_HIRES);
     } else {
