@@ -210,13 +210,14 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 		_H_SYNC_OFF(timing_ptr);
 	    fixed_mode->HSyncEnd   = fixed_mode->HSyncStart +
 		_H_SYNC_WIDTH(timing_ptr);
-	    fixed_mode->HTotal     = fixed_mode->HSyncEnd +
-		1;
+	    fixed_mode->HTotal     = fixed_mode->HDisplay +
+	        _H_BLANK(timing_ptr);
 	    fixed_mode->VSyncStart = fixed_mode->VDisplay +
 		_V_SYNC_OFF(timing_ptr);
 	    fixed_mode->VSyncEnd   = fixed_mode->VSyncStart +
 		_V_SYNC_WIDTH(timing_ptr);
-	    fixed_mode->VTotal     = fixed_mode->VSyncEnd + 1;
+	    fixed_mode->VTotal     = fixed_mode->VDisplay +
+	        _V_BLANK(timing_ptr);
 	    fixed_mode->Clock      = _PIXEL_CLOCK(timing_ptr) / 1000;
 	    fixed_mode->type       = M_T_PREFERRED;
 
