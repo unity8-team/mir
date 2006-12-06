@@ -199,7 +199,7 @@ i830_lvds_mode_set(xf86OutputPtr output, DisplayModePtr mode,
      * This is an exception to the general rule that mode_set doesn't turn
      * things on.
      */
-    OUTREG(LVDS, LVDS_PORT_EN | LVDS_PIPEB_SELECT);
+    OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
 
     /* Enable automatic panel scaling so that non-native modes fill the
      * screen.  Should be enabled before the pipe is enabled, according to
