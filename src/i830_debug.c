@@ -175,13 +175,13 @@ void i830TakeRegSnapshot(ScrnInfoPtr pScrn)
     }
 }
 
-void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn)
+void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn, char *where)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int i;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Comparing regs before/after X's VT usage\n");
+	       "Comparing regs from server start up to %s\n", where);
     for (i = 0; i < NUM_I830_SNAPSHOTREGS; i++) {
 	CARD32 val = INREG(i830_snapshot[i].reg);
 	if (i830_snapshot[i].regval != val) {

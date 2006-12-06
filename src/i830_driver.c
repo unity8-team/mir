@@ -325,6 +325,9 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool I830SaveScreen(ScreenPtr pScreen, int unblack);
 static Bool I830EnterVT(int scrnIndex, int flags);
 static CARD32 I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg);
+static Bool SaveHWState(ScrnInfoPtr pScrn);
+static Bool RestoreHWState(ScrnInfoPtr pScrn);
+
 
 extern int I830EntityIndex;
 
@@ -1146,6 +1149,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* Some of the probing needs MMIO access, so map it here. */
    I830MapMMIO(pScrn);
 
+   i830TakeRegSnapshot(pScrn);
+
 #if 1
    pI830->saveSWF0 = INREG(SWF0);
    pI830->saveSWF4 = INREG(SWF4);
@@ -1360,18 +1365,22 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
 
+#if 0
+   SaveHWState (pScrn);
+#endif
    /* Perform the pipe assignment of outputs. This is a kludge until
     * we have better configuration support in the generic RandR code
     */
    for (i = 0; i < pI830->xf86_config.num_output; i++) 
    {
       xf86OutputPtr	      output = pI830->xf86_config.output[i];
-      I830OutputPrivatePtr    intel_output = output->driver_private;
-      xf86CrtcPtr	      crtc;
-      int		      p;
 
       output_status[i] = (*output->funcs->detect) (output);
    }
+#if 0
+   RestoreHWState (pScrn);
+#endif
+   
    
    for (i = 0; i < pI830->xf86_config.num_output; i++) 
    {
@@ -1911,6 +1920,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       xf86LoaderReqSymLists(I810ramdacSymbols, NULL);
    }
 
+   i830CompareRegsToSnapshot(pScrn, "After PreInit");
+
    I830UnmapMMIO(pScrn);
 
    /*  We won't be using the VGA access after the probe. */
@@ -2187,8 +2198,6 @@ SaveHWState(ScrnInfoPtr pScrn)
 		 (unsigned long) temp);
    }
 
-   i830TakeRegSnapshot(pScrn);
-
    /* Save video mode information for native mode-setting. */
    pI830->saveDSPACNTR = INREG(DSPACNTR);
    pI830->savePIPEACONF = INREG(PIPEACONF);
@@ -2380,7 +2389,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(SWF31, pI830->saveSWF[15]);
    OUTREG(SWF32, pI830->saveSWF[16]);
 
-   i830CompareRegsToSnapshot(pScrn);
+   i830CompareRegsToSnapshot(pScrn, "After RestoreHWState");
+   i830DumpRegs (pScrn);
 
    return TRUE;
 }
