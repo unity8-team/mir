@@ -816,7 +816,6 @@ static int RADEONDiv(int n, int d)
 static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONPLLPtr  pll  = &info->pll;
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned char ppll_div_sel;
@@ -5846,7 +5845,6 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     int    hsync_wid;
     int    vsync_wid;
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    RADEONConnector *connector;
 
     pRADEONEnt->Controller[0]->IsUsed = TRUE;
     pRADEONEnt->Controller[0]->IsActive = TRUE;
@@ -7014,7 +7012,6 @@ static void
 RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     RADEONConnector *connector;
     char        *strptr;
     char	*default_hsync = "28-33";
@@ -7213,10 +7210,10 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 	  }
 
 	  /* xf86SetDDCproperties(info->CRT2pScrn, pRADEONEnt->MonInfo2); */
-	  if (connector = RADEONGetCrtcConnector(pScrn, 2))
-	      info->CRT2pScrn->monitor->DDC = connector->MonInfo;
-	  else
-	      info->CRT2pScrn->monitor->DDC = NULL;
+
+	  connector = RADEONGetCrtcConnector(pScrn, 2);
+	  info->CRT2pScrn->monitor->DDC = connector ? connector->MonInfo : NULL;
+
           if (default_range) {
              RADEONStrToRanges(info->CRT2pScrn->monitor->hsync, default_hsync, MAX_HSYNC);
              RADEONStrToRanges(info->CRT2pScrn->monitor->vrefresh, default_vrefresh, MAX_VREFRESH);

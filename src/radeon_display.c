@@ -1143,7 +1143,6 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, int connector)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
     if (info->IsMobility) {
@@ -1170,7 +1169,6 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, int connector)
 /* Secondary Head (mostly VGA, can be DVI on some OEM boards)*/
 void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, int connector)
 {
-    RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     RADEONConnector *pPort = pRADEONEnt->PortInfo[connector];
     
@@ -1189,7 +1187,6 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     const char *s;
     Bool ignore_edid = FALSE;
 
@@ -2010,7 +2007,6 @@ static void RADEONBlankSet(ScrnInfoPtr pScrn, RADEONConnector *pPort)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
     switch(pPort->MonType) {
     case MT_LCD:
@@ -2093,7 +2089,6 @@ static void RADEONUnblankSet(ScrnInfoPtr pScrn, RADEONConnector *pPort)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
     switch(pPort->MonType) {
     case MT_LCD:
@@ -2161,7 +2156,6 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
 static void RADEONDPMSSetOn(ScrnInfoPtr pScrn, RADEONConnector *pPort)
 {
   RADEONInfoPtr  info       = RADEONPTR(pScrn);
-  RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
   unsigned char *RADEONMMIO = info->MMIO;
   RADEONMonitorType MonType;
   RADEONTmdsType TmdsType;
@@ -2199,7 +2193,6 @@ static void RADEONDPMSSetOn(ScrnInfoPtr pScrn, RADEONConnector *pPort)
 static void RADEONDPMSSetOff(ScrnInfoPtr pScrn, RADEONConnector *pPort)
 {
   RADEONInfoPtr  info       = RADEONPTR(pScrn);
-  RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
   unsigned char *RADEONMMIO = info->MMIO;
   RADEONMonitorType MonType;
   RADEONTmdsType TmdsType;
@@ -2358,7 +2351,6 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 Bool RADEONAllocateControllers(ScrnInfoPtr pScrn)
 {
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-    int num_crtc;
 
     if (pRADEONEnt->Controller[0])
       return TRUE;
@@ -2383,7 +2375,6 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn)
 Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
 {
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-    int num_connectors;
     int i;
 
     if (pRADEONEnt->PortInfo[0])
