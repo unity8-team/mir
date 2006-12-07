@@ -1184,6 +1184,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* Some of the probing needs MMIO access, so map it here. */
    I830MapMMIO(pScrn);
 
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Hardware state on X startup:\n");
+   i830DumpRegs (pScrn);
+
    i830TakeRegSnapshot(pScrn);
 
 #if 1
@@ -2177,18 +2180,6 @@ SaveHWState(ScrnInfoPtr pScrn)
    CARD32 temp;
    int i;
 
-   /*
-    * Print out the PIPEACONF and PIPEBCONF registers.
-    */
-   temp = INREG(PIPEACONF);
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PIPEACONF is 0x%08lx\n", 
-	      (unsigned long) temp);
-   if (pI830->xf86_config.num_crtc == 2) {
-      temp = INREG(PIPEBCONF);
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PIPEBCONF is 0x%08lx\n", 
-		 (unsigned long) temp);
-   }
-
    /* Save video mode information for native mode-setting. */
    pI830->saveDSPACNTR = INREG(DSPACNTR);
    pI830->savePIPEACONF = INREG(PIPEACONF);
@@ -2386,9 +2377,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(SWF31, pI830->saveSWF[15]);
    OUTREG(SWF32, pI830->saveSWF[16]);
 
-   i830CompareRegsToSnapshot(pScrn, "After RestoreHWState");
-   i830DumpRegs (pScrn);
-
    return TRUE;
 }
 
@@ -2501,195 +2489,6 @@ I965PrintErrorState(ScrnInfoPtr pScrn)
 
    
 }
-
-#ifdef I830DEBUG
-static void
-dump_DSPACNTR(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   unsigned int tmp;
-
-   /* Display A Control */
-   tmp = INREG(0x70180);
-   ErrorF("Display A Plane Control Register (0x%.8x)\n", tmp);
-
-   if (tmp & BIT(31))
-      ErrorF("   Display Plane A (Primary) Enable\n");
-   else
-      ErrorF("   Display Plane A (Primary) Disabled\n");
-
-   if (tmp & BIT(30))
-      ErrorF("   Display A pixel data is gamma corrected\n");
-   else
-      ErrorF("   Display A pixel data bypasses gamma correction logic (default)\n");
-
-   switch ((tmp & 0x3c000000) >> 26) {	/* bit 29:26 */
-   case 0x00:
-   case 0x01:
-   case 0x03:
-      ErrorF("   Reserved\n");
-      break;
-   case 0x02:
-      ErrorF("   8-bpp Indexed\n");
-      break;
-   case 0x04:
-      ErrorF("   15-bit (5-5-5) pixel format (Targa compatible)\n");
-      break;
-   case 0x05:
-      ErrorF("   16-bit (5-6-5) pixel format (XGA compatible)\n");
-      break;
-   case 0x06:
-      ErrorF("   32-bit format (X:8:8:8)\n");
-      break;
-   case 0x07:
-      ErrorF("   32-bit format (8:8:8:8)\n");
-      break;
-   default:
-      ErrorF("   Unknown - Invalid register value maybe?\n");
-   }
-
-   if (tmp & BIT(25))
-      ErrorF("   Stereo Enable\n");
-   else
-      ErrorF("   Stereo Disable\n");
-
-   if (tmp & BIT(24))
-      ErrorF("   Display A, Pipe B Select\n");
-   else
-      ErrorF("   Display A, Pipe A Select\n");
-
-   if (tmp & BIT(22))
-      ErrorF("   Source key is enabled\n");
-   else
-      ErrorF("   Source key is disabled\n");
-
-   switch ((tmp & 0x00300000) >> 20) {	/* bit 21:20 */
-   case 0x00:
-      ErrorF("   No line duplication\n");
-      break;
-   case 0x01:
-      ErrorF("   Line/pixel Doubling\n");
-      break;
-   case 0x02:
-   case 0x03:
-      ErrorF("   Reserved\n");
-      break;
-   }
-
-   if (tmp & BIT(18))
-      ErrorF("   Stereo output is high during second image\n");
-   else
-      ErrorF("   Stereo output is high during first image\n");
-}
-
-static void
-dump_DSPBCNTR(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   unsigned int tmp;
-
-   /* Display B/Sprite Control */
-   tmp = INREG(0x71180);
-   ErrorF("Display B/Sprite Plane Control Register (0x%.8x)\n", tmp);
-
-   if (tmp & BIT(31))
-      ErrorF("   Display B/Sprite Enable\n");
-   else
-      ErrorF("   Display B/Sprite Disable\n");
-
-   if (tmp & BIT(30))
-      ErrorF("   Display B pixel data is gamma corrected\n");
-   else
-      ErrorF("   Display B pixel data bypasses gamma correction logic (default)\n");
-
-   switch ((tmp & 0x3c000000) >> 26) {	/* bit 29:26 */
-   case 0x00:
-   case 0x01:
-   case 0x03:
-      ErrorF("   Reserved\n");
-      break;
-   case 0x02:
-      ErrorF("   8-bpp Indexed\n");
-      break;
-   case 0x04:
-      ErrorF("   15-bit (5-5-5) pixel format (Targa compatible)\n");
-      break;
-   case 0x05:
-      ErrorF("   16-bit (5-6-5) pixel format (XGA compatible)\n");
-      break;
-   case 0x06:
-      ErrorF("   32-bit format (X:8:8:8)\n");
-      break;
-   case 0x07:
-      ErrorF("   32-bit format (8:8:8:8)\n");
-      break;
-   default:
-      ErrorF("   Unknown - Invalid register value maybe?\n");
-   }
-
-   if (tmp & BIT(25))
-      ErrorF("   Stereo is enabled and both start addresses are used in a two frame sequence\n");
-   else
-      ErrorF("   Stereo disable and only a single start address is used\n");
-
-   if (tmp & BIT(24))
-      ErrorF("   Display B/Sprite, Pipe B Select\n");
-   else
-      ErrorF("   Display B/Sprite, Pipe A Select\n");
-
-   if (tmp & BIT(22))
-      ErrorF("   Sprite source key is enabled\n");
-   else
-      ErrorF("   Sprite source key is disabled (default)\n");
-
-   switch ((tmp & 0x00300000) >> 20) {	/* bit 21:20 */
-   case 0x00:
-      ErrorF("   No line duplication\n");
-      break;
-   case 0x01:
-      ErrorF("   Line/pixel Doubling\n");
-      break;
-   case 0x02:
-   case 0x03:
-      ErrorF("   Reserved\n");
-      break;
-   }
-
-   if (tmp & BIT(18))
-      ErrorF("   Stereo output is high during second image\n");
-   else
-      ErrorF("   Stereo output is high during first image\n");
-
-   if (tmp & BIT(15))
-      ErrorF("   Alpha transfer mode enabled\n");
-   else
-      ErrorF("   Alpha transfer mode disabled\n");
-
-   if (tmp & BIT(0))
-      ErrorF("   Sprite is above overlay\n");
-   else
-      ErrorF("   Sprite is above display A (default)\n");
-}
-
-void
-I830_dump_registers(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   unsigned int i;
-
-   ErrorF("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-
-   dump_DSPACNTR(pScrn);
-   dump_DSPBCNTR(pScrn);
-
-   ErrorF("0x71400 == 0x%.8x\n", INREG(0x71400));
-   ErrorF("0x70008 == 0x%.8x\n", INREG(0x70008));
-   for (i = 0x71410; i <= 0x71428; i += 4)
-      ErrorF("0x%x == 0x%.8x\n", i, INREG(i));
-
-   ErrorF("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-}
-#endif
 
 static void
 I830PointerMoved(int index, int x, int y)
@@ -3302,10 +3101,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (serverGeneration == 1)
       xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
-#ifdef I830DEBUG
-   I830_dump_registers(pScrn);
-#endif
-
    if (IS_I965G(pI830)) {
       /* turn off clock gating */
 #if 0
@@ -3477,6 +3272,10 @@ I830LeaveVT(int scrnIndex, int flags)
    ResetState(pScrn, TRUE);
 
    RestoreHWState(pScrn);
+
+   i830CompareRegsToSnapshot(pScrn, "After LeaveVT");
+   i830DumpRegs (pScrn);
+
    if (I830IsPrimary(pScrn))
       I830UnbindAGPMemory(pScrn);
    if (pI830->AccelInfoRec)
