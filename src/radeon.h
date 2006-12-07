@@ -621,6 +621,7 @@ typedef struct {
     int               CPMode;           /* CP mode that server/clients use */
     int               CPFifoSize;       /* Size of the CP command FIFO */
     int               CPusecTimeout;    /* CP timeout in usecs */
+    Bool              needCacheFlush;
 
 				/* CP ring buffer data */
     unsigned long     ringStart;        /* Offset into GART space */
@@ -986,6 +987,11 @@ do {									\
 #define RADEONCP_REFRESH(pScrn, info)					\
 do {									\
     if (!info->CPInUse) {						\
+	if (info->needCacheFlush) {					\
+	    RADEON_PURGE_CACHE();					\
+	    RADEON_PURGE_ZCACHE();					\
+	    info->needCacheFlush = FALSE;				\
+	}								\
 	RADEON_WAIT_UNTIL_IDLE();					\
 	BEGIN_RING(6);							\
 	OUT_RING_REG(RADEON_RE_TOP_LEFT,     info->re_top_left);	\
@@ -1130,6 +1136,12 @@ do {									\
     OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));		\
     OUT_RING(RADEON_RB3D_DC_FLUSH_ALL);					\
     ADVANCE_RING();							\
+} while (0)
+
+#define RADEON_PURGE_ZCACHE()						\
+do {									\
+    OUT_RING(CP_PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));		\
+    OUT_RING(RADEON_RB3D_ZC_FLUSH_ALL);					\
 } while (0)
 
 #endif /* XF86DRI */
