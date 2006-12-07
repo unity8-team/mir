@@ -2750,6 +2750,119 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
     CARD16 mm_table;
     CARD16 bios_header;
     CARD16 pll_info_block;
+#ifdef XvExtension
+    char* microc_path = NULL;
+    char* microc_type = NULL;
+    MessageType from;
+
+    if (xf86GetOptValInteger(info->Options, OPTION_VIDEO_KEY,
+			     &(info->videoKey))) {
+	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "video key set to 0x%x\n",
+		   info->videoKey);
+    } else {
+	info->videoKey = 0x1E;
+    }
+
+    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_CRYSTAL, &(info->RageTheatreCrystal))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre Crystal frequency was specified as %d.%d Mhz\n",
+                                info->RageTheatreCrystal/100, info->RageTheatreCrystal % 100);
+    } else {
+	info->RageTheatreCrystal=-1;
+    }
+
+    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_TUNER_PORT, &(info->RageTheatreTunerPort))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre tuner port was specified as %d\n",
+                                info->RageTheatreTunerPort);
+    } else {
+	info->RageTheatreTunerPort=-1;
+    }
+
+    if(info->RageTheatreTunerPort>5){
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to assign Rage Theatre tuner port to invalid value. Disabling setting\n");
+	 info->RageTheatreTunerPort=-1;
+	 }
+
+    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_COMPOSITE_PORT, &(info->RageTheatreCompositePort))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre composite port was specified as %d\n",
+                                info->RageTheatreCompositePort);
+    } else {
+	info->RageTheatreCompositePort=-1;
+    }
+
+    if(info->RageTheatreCompositePort>6){
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to assign Rage Theatre composite port to invalid value. Disabling setting\n");
+	 info->RageTheatreCompositePort=-1;
+	 }
+
+    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_SVIDEO_PORT, &(info->RageTheatreSVideoPort))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre SVideo Port was specified as %d\n",
+                                info->RageTheatreSVideoPort);
+    } else {
+	info->RageTheatreSVideoPort=-1;
+    }
+
+    if(info->RageTheatreSVideoPort>6){
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to assign Rage Theatre SVideo port to invalid value. Disabling setting\n");
+	 info->RageTheatreSVideoPort=-1;
+	 }
+
+    if(xf86GetOptValInteger(info->Options, OPTION_TUNER_TYPE, &(info->tunerType))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Tuner type was specified as %d\n",
+                                info->tunerType);
+    } else {
+	info->tunerType=-1;
+    }
+
+    if(info->tunerType>31){
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to set tuner type to invalid value. Disabling setting\n");
+	 info->tunerType=-1;
+	 }
+
+	if((microc_path = xf86GetOptValString(info->Options, OPTION_RAGE_THEATRE_MICROC_PATH)) != NULL)
+	{
+		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre Microcode path was specified as %s\n", microc_path);
+		info->RageTheatreMicrocPath = microc_path;
+    } else {
+		info->RageTheatreMicrocPath= NULL;
+    }
+
+	if((microc_type = xf86GetOptValString(info->Options, OPTION_RAGE_THEATRE_MICROC_TYPE)) != NULL)
+	{
+		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre Microcode type was specified as %s\n", microc_type);
+		info->RageTheatreMicrocType = microc_type;
+	} else {
+		info->RageTheatreMicrocType= NULL;
+	}
+
+    if(xf86GetOptValInteger(info->Options, OPTION_SCALER_WIDTH, &(info->overlay_scaler_buffer_width))) {
+	if ((info->overlay_scaler_buffer_width < 1024) ||
+	  (info->overlay_scaler_buffer_width > 2048) ||
+	  ((info->overlay_scaler_buffer_width % 64) != 0)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to set illegal scaler width. Using default\n");
+	    from = X_DEFAULT;
+	    info->overlay_scaler_buffer_width = 0;
+	} else
+	    from = X_CONFIG;
+    } else {
+	from = X_DEFAULT;
+	info->overlay_scaler_buffer_width = 0;
+    }
+    if (!info->overlay_scaler_buffer_width) {
+       /* overlay scaler line length differs for different revisions
+       this needs to be maintained by hand  */
+	switch(info->ChipFamily){
+	case CHIP_FAMILY_R200:
+	case CHIP_FAMILY_R300:
+	case CHIP_FAMILY_RV350:
+		info->overlay_scaler_buffer_width = 1920;
+		break;
+	default:
+		info->overlay_scaler_buffer_width = 1536;
+	}
+    }
+    xf86DrvMsg(pScrn->scrnIndex, from, "Assuming overlay scaler buffer width is %d\n",
+	info->overlay_scaler_buffer_width);
+#endif
 
     /* Rescue MM_TABLE before VBIOS is freed */
     info->MM_TABLE_valid = FALSE;
@@ -2860,8 +2973,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     xf86Int10InfoPtr  pInt10 = NULL;
     void *int10_save = NULL;
     const char *s;
-	 char* microc_path = NULL;
-	 char* microc_type = NULL;
     MessageType from;
 
     RADEONTRACE(("RADEONPreInit\n"));
@@ -3006,117 +3117,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitWeight(pScrn))
 	goto fail;
-
-#ifdef XvExtension
-    if (xf86GetOptValInteger(info->Options, OPTION_VIDEO_KEY,
-			     &(info->videoKey))) {
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "video key set to 0x%x\n",
-		   info->videoKey);
-    } else {
-	info->videoKey = 0x1E;
-    }
-    
-    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_CRYSTAL, &(info->RageTheatreCrystal))) {
-        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre Crystal frequency was specified as %d.%d Mhz\n",
-                                info->RageTheatreCrystal/100, info->RageTheatreCrystal % 100);
-    } else {
-    	info->RageTheatreCrystal=-1;
-    }
-
-    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_TUNER_PORT, &(info->RageTheatreTunerPort))) {
-        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre tuner port was specified as %d\n",
-                                info->RageTheatreTunerPort);
-    } else {
-    	info->RageTheatreTunerPort=-1;
-    }
-    
-    if(info->RageTheatreTunerPort>5){
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to assign Rage Theatre tuner port to invalid value. Disabling setting\n");
-	 info->RageTheatreTunerPort=-1;
-	 }
-
-    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_COMPOSITE_PORT, &(info->RageTheatreCompositePort))) {
-        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre composite port was specified as %d\n",
-                                info->RageTheatreCompositePort);
-    } else {
-    	info->RageTheatreCompositePort=-1;
-    }
-
-    if(info->RageTheatreCompositePort>6){
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to assign Rage Theatre composite port to invalid value. Disabling setting\n");
-	 info->RageTheatreCompositePort=-1;
-	 }
-
-    if(xf86GetOptValInteger(info->Options, OPTION_RAGE_THEATRE_SVIDEO_PORT, &(info->RageTheatreSVideoPort))) {
-        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre SVideo Port was specified as %d\n",
-                                info->RageTheatreSVideoPort);
-    } else {
-    	info->RageTheatreSVideoPort=-1;
-    }
-
-    if(info->RageTheatreSVideoPort>6){
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to assign Rage Theatre SVideo port to invalid value. Disabling setting\n");
-	 info->RageTheatreSVideoPort=-1;
-	 }
-
-    if(xf86GetOptValInteger(info->Options, OPTION_TUNER_TYPE, &(info->tunerType))) {
-        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Tuner type was specified as %d\n",
-                                info->tunerType);
-    } else {
-    	info->tunerType=-1;
-    }
-
-    if(xf86GetOptValInteger(info->Options, OPTION_SCALER_WIDTH, &(info->overlay_scaler_buffer_width))) {
-	if ((info->overlay_scaler_buffer_width < 1024) ||
-	  (info->overlay_scaler_buffer_width > 2048) ||
-	  ((info->overlay_scaler_buffer_width % 64) != 0)) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to set illegal scaler width. Using default\n");
-	    from = X_DEFAULT;
-	    info->overlay_scaler_buffer_width = 0;
-	} else
-	    from = X_CONFIG;
-    } else {
-	from = X_DEFAULT;
-	info->overlay_scaler_buffer_width = 0;
-    }
-    if (!info->overlay_scaler_buffer_width) {
-       /* overlay scaler line length differs for different revisions 
-       this needs to be maintained by hand  */
-	switch(info->ChipFamily){
-	case CHIP_FAMILY_R200:
-	case CHIP_FAMILY_R300:
-	case CHIP_FAMILY_RV350:
-		info->overlay_scaler_buffer_width = 1920;
-		break;
-	default:
-		info->overlay_scaler_buffer_width = 1536;
-	}
-    }
-    xf86DrvMsg(pScrn->scrnIndex, from, "Assuming overlay scaler buffer width is %d\n",
-	info->overlay_scaler_buffer_width);
-
-    if(info->tunerType>31){
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Attempt to set tuner type to invalid value. Disabling setting\n");
-	 info->tunerType=-1;
-	 }
-
-	if((microc_path = xf86GetOptValString(info->Options, OPTION_RAGE_THEATRE_MICROC_PATH)) != NULL) 
-	{
-		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre Microcode path was specified as %s\n", microc_path);
-		info->RageTheatreMicrocPath = microc_path;
-    } else {
-		info->RageTheatreMicrocPath= NULL;
-    }
-
-	if((microc_type = xf86GetOptValString(info->Options, OPTION_RAGE_THEATRE_MICROC_TYPE)) != NULL) 
-	{
-		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Rage Theatre Microcode type was specified as %s\n", microc_type);
-		info->RageTheatreMicrocType = microc_type;
-	} else {
-		info->RageTheatreMicrocType= NULL;
-	}
-	 
-#endif
 
     info->DispPriority = 1; 
     if ((s = xf86GetOptValString(info->Options, OPTION_DISP_PRIORITY))) {
