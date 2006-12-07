@@ -1401,12 +1401,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->Clone = TRUE;
    }
 
-
-#if 0
-   SaveHWState (pScrn);
-#endif
-   /* Perform the pipe assignment of outputs. This is a kludge until
-    * we have better configuration support in the generic RandR code
+   SaveHWState(pScrn);
+   /* Do an initial detection of the outputs while none are configured on yet.
+    * This will give us some likely legitimate response for later if both
+    * pipes are already allocated and we're asked to do a detect.
     */
    for (i = 0; i < pI830->xf86_config.num_output; i++) 
    {
@@ -1414,16 +1412,16 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
       output->status = (*output->funcs->detect) (output);
    }
-#if 0
-   RestoreHWState (pScrn);
-#endif
-   
+
    if (!xf86InitialConfiguration (pScrn))
    {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
+      RestoreHWState(pScrn);
       PreInitCleanup(pScrn);
       return FALSE;
    }
+   RestoreHWState(pScrn);
+
    pScrn->displayWidth = (pScrn->virtualX + 63) & ~63;
     
    pI830->rotation = RR_Rotate_0;
