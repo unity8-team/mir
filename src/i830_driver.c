@@ -2273,8 +2273,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
 #ifdef XF86DRI
    I830DRISetVBlankInterrupt (pScrn, FALSE);
 #endif
-   vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
-   vgaHWLock(hwp);
 
    /* Disable outputs */
    for (i = 0; i < pI830->xf86_config.num_output; i++) {
@@ -2375,6 +2373,12 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(SWF30, pI830->saveSWF[14]);
    OUTREG(SWF31, pI830->saveSWF[15]);
    OUTREG(SWF32, pI830->saveSWF[16]);
+
+   for (i = 0; i < 2; i++)
+      i830WaitForVblank(pScrn);
+
+   vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
+   vgaHWLock(hwp);
 
    return TRUE;
 }
