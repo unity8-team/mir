@@ -59,6 +59,26 @@ struct i830_tv_priv {
     CARD32 save_TV_V_CTL_6;
     CARD32 save_TV_V_CTL_7;
     CARD32 save_TV_SC_CTL_1, save_TV_SC_CTL_2, save_TV_SC_CTL_3;
+
+    CARD32 save_TV_CSC_Y;
+    CARD32 save_TV_CSC_Y2;
+    CARD32 save_TV_CSC_U;
+    CARD32 save_TV_CSC_U2;
+    CARD32 save_TV_CSC_V;
+    CARD32 save_TV_CSC_V2;
+    CARD32 save_TV_CLR_KNOBS;
+    CARD32 save_TV_CLR_LEVEL;
+    CARD32 save_TV_WIN_POS;
+    CARD32 save_TV_WIN_SIZE;
+    CARD32 save_TV_FILTER_CTL_1;
+    CARD32 save_TV_FILTER_CTL_2;
+    CARD32 save_TV_FILTER_CTL_3;
+
+    CARD32 save_TV_H_LUMA[60];
+    CARD32 save_TV_H_CHROMA[60];
+    CARD32 save_TV_V_LUMA[43];
+    CARD32 save_TV_V_CHROMA[43];
+
     CARD32 save_TV_DAC;
     CARD32 save_TV_CTL;
 };
@@ -168,6 +188,7 @@ i830_tv_save(xf86OutputPtr output)
     I830Ptr		    pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+    int			    i;
 
     dev_priv->save_TV_H_CTL_1 = INREG(TV_H_CTL_1);
     dev_priv->save_TV_H_CTL_2 = INREG(TV_H_CTL_2);
@@ -183,6 +204,29 @@ i830_tv_save(xf86OutputPtr output)
     dev_priv->save_TV_SC_CTL_2 = INREG(TV_SC_CTL_2);
     dev_priv->save_TV_SC_CTL_3 = INREG(TV_SC_CTL_3);
 
+    dev_priv->save_TV_CSC_Y = INREG(TV_CSC_Y);
+    dev_priv->save_TV_CSC_Y2 = INREG(TV_CSC_Y2);
+    dev_priv->save_TV_CSC_U = INREG(TV_CSC_U);
+    dev_priv->save_TV_CSC_U2 = INREG(TV_CSC_U2);
+    dev_priv->save_TV_CSC_V = INREG(TV_CSC_V);
+    dev_priv->save_TV_CSC_V2 = INREG(TV_CSC_V2);
+    dev_priv->save_TV_CLR_KNOBS = INREG(TV_CLR_KNOBS);
+    dev_priv->save_TV_CLR_LEVEL = INREG(TV_CLR_LEVEL);
+    dev_priv->save_TV_WIN_POS = INREG(TV_WIN_POS);
+    dev_priv->save_TV_WIN_SIZE = INREG(TV_WIN_SIZE);
+    dev_priv->save_TV_FILTER_CTL_1 = INREG(TV_FILTER_CTL_1);
+    dev_priv->save_TV_FILTER_CTL_2 = INREG(TV_FILTER_CTL_2);
+    dev_priv->save_TV_FILTER_CTL_3 = INREG(TV_FILTER_CTL_3);
+
+    for (i = 0; i < 60; i++)
+	dev_priv->save_TV_H_LUMA[i] = INREG(TV_H_LUMA_0 + (i <<2));
+    for (i = 0; i < 60; i++)
+	dev_priv->save_TV_H_CHROMA[i] = INREG(TV_H_CHROMA_0 + (i <<2));
+    for (i = 0; i < 43; i++)
+	dev_priv->save_TV_V_LUMA[i] = INREG(TV_V_LUMA_0 + (i <<2));
+    for (i = 0; i < 43; i++)
+	dev_priv->save_TV_V_CHROMA[i] = INREG(TV_V_CHROMA_0 + (i <<2));
+
     dev_priv->save_TV_DAC = INREG(TV_DAC);
     dev_priv->save_TV_CTL = INREG(TV_CTL);
 }
@@ -194,6 +238,7 @@ i830_tv_restore(xf86OutputPtr output)
     I830Ptr		    pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+    int			    i;
 
     OUTREG(TV_H_CTL_1, dev_priv->save_TV_H_CTL_1);
     OUTREG(TV_H_CTL_2, dev_priv->save_TV_H_CTL_2);
@@ -208,6 +253,29 @@ i830_tv_restore(xf86OutputPtr output)
     OUTREG(TV_SC_CTL_1, dev_priv->save_TV_SC_CTL_1);
     OUTREG(TV_SC_CTL_2, dev_priv->save_TV_SC_CTL_2);
     OUTREG(TV_SC_CTL_3, dev_priv->save_TV_SC_CTL_3);
+
+    OUTREG(TV_CSC_Y, dev_priv->save_TV_CSC_Y);
+    OUTREG(TV_CSC_Y2, dev_priv->save_TV_CSC_Y2);
+    OUTREG(TV_CSC_U, dev_priv->save_TV_CSC_U);
+    OUTREG(TV_CSC_U2, dev_priv->save_TV_CSC_U2);
+    OUTREG(TV_CSC_V, dev_priv->save_TV_CSC_V);
+    OUTREG(TV_CSC_V2, dev_priv->save_TV_CSC_V2);
+    OUTREG(TV_CLR_KNOBS, dev_priv->save_TV_CLR_KNOBS);
+    OUTREG(TV_CLR_LEVEL, dev_priv->save_TV_CLR_LEVEL);
+    OUTREG(TV_WIN_POS, dev_priv->save_TV_WIN_POS);
+    OUTREG(TV_WIN_SIZE, dev_priv->save_TV_WIN_SIZE);
+    OUTREG(TV_FILTER_CTL_1, dev_priv->save_TV_FILTER_CTL_1);
+    OUTREG(TV_FILTER_CTL_2, dev_priv->save_TV_FILTER_CTL_2);
+    OUTREG(TV_FILTER_CTL_3, dev_priv->save_TV_FILTER_CTL_3);
+
+    for (i = 0; i < 60; i++)
+	OUTREG(TV_H_LUMA_0 + (i <<2), dev_priv->save_TV_H_LUMA[i]);
+    for (i = 0; i < 60; i++)
+	OUTREG(TV_H_CHROMA_0 + (i <<2), dev_priv->save_TV_H_CHROMA[i]);
+    for (i = 0; i < 43; i++)
+	OUTREG(TV_V_LUMA_0 + (i <<2), dev_priv->save_TV_V_LUMA[i]);
+    for (i = 0; i < 43; i++)
+	OUTREG(TV_V_CHROMA_0 + (i <<2), dev_priv->save_TV_V_CHROMA[i]);
 
     OUTREG(TV_DAC, dev_priv->save_TV_DAC);
     OUTREG(TV_CTL, dev_priv->save_TV_CTL);
