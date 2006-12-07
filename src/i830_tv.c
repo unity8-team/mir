@@ -287,18 +287,6 @@ i830_tv_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
     return MODE_OK;
 }
 
-static void
-i830_tv_pre_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
-{
-    ScrnInfoPtr pScrn = output->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    /* Disable the encoder while we set up the pipe. */
-    OUTREG(TV_CTL, INREG(TV_CTL) & ~TV_ENC_ENABLE);
-    /* XXX match BIOS for now */
-    OUTREG(ADPA, 0x40008C18);
-}
-
 static const CARD32 h_luma[60] = {
     0xB1403000, 0x2E203500, 0x35002E20, 0x3000B140,
     0x35A0B160, 0x2DC02E80, 0xB1403480, 0xB1603000,
