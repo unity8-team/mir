@@ -2177,7 +2177,6 @@ SaveHWState(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
    vgaHWPtr hwp = VGAHWPTR(pScrn);
    vgaRegPtr vgaReg = &hwp->SavedReg;
-   CARD32 temp;
    int i;
 
    /* Save video mode information for native mode-setting. */
