@@ -59,11 +59,17 @@ struct _I830DVODriver i830_dvo_drivers[] =
 static void
 i830_dvo_dpms(xf86OutputPtr output, int mode)
 {
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
-    if (mode == DPMSModeOn)
+
+    if (mode == DPMSModeOn) {
+	OUTREG(DVOC, INREG(DVOC) | DVO_ENABLE);
 	(*intel_output->i2c_drv->vid_rec->Power)(intel_output->i2c_drv->dev_priv, TRUE);
-    else
+    } else {
 	(*intel_output->i2c_drv->vid_rec->Power)(intel_output->i2c_drv->dev_priv, FALSE);
+	OUTREG(DVOC, INREG(DVOC) & ~DVO_ENABLE);
+    }
 }
 
 static void
@@ -113,48 +119,51 @@ i830_dvo_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 	return MODE_BAD;
 }
 
-static void
-i830_dvo_pre_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
+static Bool
+i830_dvo_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
+		    DisplayModePtr adjusted_mode)
 {
-    ScrnInfoPtr		    pScrn = output->scrn;
-    I830Ptr		    pI830 = I830PTR(pScrn);
-    I830OutputPrivatePtr    intel_output = output->driver_private;
+    /* XXX: Hook this up to a DVO driver function */
 
-    (*intel_output->i2c_drv->vid_rec->Mode)(intel_output->i2c_drv->dev_priv, pMode);
-
-    OUTREG(DVOC, INREG(DVOC) & ~DVO_ENABLE);
+    return TRUE;
 }
 
 static void
-i830_dvo_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
+i830_dvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
+		  DisplayModePtr adjusted_mode)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
     xf86CrtcPtr	    crtc = output->crtc;
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
+    I830OutputPrivatePtr    intel_output = output->driver_private;
     int			    pipe = intel_crtc->pipe;
     CARD32		    dvo;
     int			    dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
 
+    intel_output->i2c_drv->vid_rec->Mode(intel_output->i2c_drv->dev_priv,
+					 mode);
+
     /* Save the data order, since I don't know what it should be set to. */
     dvo = INREG(DVOC) & (DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
-    dvo |= DVO_ENABLE;
     dvo |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE | DVO_BLANK_ACTIVE_HIGH;
 
     if (pipe == 1)
 	dvo |= DVO_PIPE_B_SELECT;
 
-    if (pMode->Flags & V_PHSYNC)
+    if (adjusted_mode->Flags & V_PHSYNC)
 	dvo |= DVO_HSYNC_ACTIVE_HIGH;
-    if (pMode->Flags & V_PVSYNC)
+    if (adjusted_mode->Flags & V_PVSYNC)
 	dvo |= DVO_VSYNC_ACTIVE_HIGH;
 
     OUTREG(dpll_reg, INREG(dpll_reg) | DPLL_DVO_HIGH_SPEED);
 
-    /*OUTREG(DVOB_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
-      (pMode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));*/
-    OUTREG(DVOC_SRCDIM, (pMode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
-	   (pMode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));
+    /*OUTREG(DVOB_SRCDIM,
+      (adjusted_mode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
+      (adjusted_mode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));*/
+    OUTREG(DVOC_SRCDIM,
+	   (adjusted_mode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
+	   (adjusted_mode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));
     /*OUTREG(DVOB, dvo);*/
     OUTREG(DVOC, dvo);
 }
@@ -164,10 +173,10 @@ i830_dvo_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
  *
  * Unimplemented.
  */
-static enum detect_status
+static xf86OutputStatus
 i830_dvo_detect(xf86OutputPtr output)
 {
-    return OUTPUT_STATUS_UNKNOWN;
+    return XF86OutputStatusUnknown;
 }
 
 static Bool
@@ -222,8 +231,8 @@ static const xf86OutputFuncsRec i830_dvo_output_funcs = {
     .save = i830_dvo_save,
     .restore = i830_dvo_restore,
     .mode_valid = i830_dvo_mode_valid,
-    .pre_set_mode = i830_dvo_pre_set_mode,
-    .post_set_mode = i830_dvo_post_set_mode,
+    .mode_fixup = i830_dvo_mode_fixup,
+    .mode_set = i830_dvo_mode_set,
     .detect = i830_dvo_detect,
     .get_modes = i830_ddc_get_modes,
     .destroy = i830_dvo_destroy
@@ -248,6 +257,7 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     }
     intel_output->type = I830_OUTPUT_DVO;
     output->driver_private = intel_output;
+    output->subpixel_order = SubPixelHorizontalRGB;
     
     /* Set up the I2C and DDC buses */
     ret = I830I2CInit(pScrn, &intel_output->pI2CBus, GPIOE, "DVOI2C_E");

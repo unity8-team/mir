@@ -93,13 +93,16 @@ i830_crt_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
     return MODE_OK;
 }
 
-static void
-i830_crt_pre_set_mode (xf86OutputPtr output, DisplayModePtr pMode)
+static Bool
+i830_crt_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
+		    DisplayModePtr adjusted_mode)
 {
+    return TRUE;
 }
 
 static void
-i830_crt_post_set_mode (xf86OutputPtr output, DisplayModePtr pMode)
+i830_crt_mode_set(xf86OutputPtr output, DisplayModePtr mode,
+		  DisplayModePtr adjusted_mode)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
@@ -122,11 +125,10 @@ i830_crt_post_set_mode (xf86OutputPtr output, DisplayModePtr pMode)
 	OUTREG(dpll_md_reg, dpll_md & ~DPLL_MD_UDI_MULTIPLIER_MASK);
     }
 
-    adpa = ADPA_DAC_ENABLE;
-
-    if (pMode->Flags & V_PHSYNC)
+    adpa = 0;
+    if (adjusted_mode->Flags & V_PHSYNC)
 	adpa |= ADPA_HSYNC_ACTIVE_HIGH;
-    if (pMode->Flags & V_PVSYNC)
+    if (adjusted_mode->Flags & V_PVSYNC)
 	adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
     if (i830_crtc->pipe == 0)
@@ -221,9 +223,7 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     adpa |= ADPA_VSYNC_CNTL_ENABLE | ADPA_HSYNC_CNTL_ENABLE;
     OUTREG(ADPA, adpa);
 
-    /* Set the border color to purple.  Maybe we should save/restore this
-     * reg.
-     */
+    /* Set the border color to purple. */
     bclrpat = INREG(bclrpat_reg);
     OUTREG(bclrpat_reg, 0x00500050);
 
@@ -274,7 +274,7 @@ i830_crt_detect_ddc(xf86OutputPtr output)
  * @param allow_disturb enables detection methods that may cause flickering
  *        on active displays.
  */
-static enum detect_status
+static xf86OutputStatus
 i830_crt_detect(xf86OutputPtr output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
@@ -283,13 +283,13 @@ i830_crt_detect(xf86OutputPtr output)
 
     if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_I965G(pI830)) {
 	if (i830_crt_detect_hotplug(output))
-	    return OUTPUT_STATUS_CONNECTED;
+	    return XF86OutputStatusConnected;
 	else
-	    return OUTPUT_STATUS_DISCONNECTED;
+	    return XF86OutputStatusDisconnected;
     }
 
     if (i830_crt_detect_ddc(output))
-	return OUTPUT_STATUS_CONNECTED;
+	return XF86OutputStatusConnected;
 
     /* Use the load-detect method if we have no other way of telling. */
     crtc = i830GetLoadDetectPipe (output);
@@ -320,12 +320,12 @@ i830_crt_detect(xf86OutputPtr output)
 
 	i830ReleaseLoadDetectPipe (output);
 	if (connected)
-	    return OUTPUT_STATUS_CONNECTED;
+	    return XF86OutputStatusConnected;
 	else
-	    return OUTPUT_STATUS_DISCONNECTED;
+	    return XF86OutputStatusDisconnected;
     }
 
-    return OUTPUT_STATUS_UNKNOWN;
+    return XF86OutputStatusUnknown;
 }
 
 static DisplayModePtr
@@ -339,7 +339,7 @@ i830_crt_get_modes(xf86OutputPtr output)
     if (modes != NULL)
 	return modes;
 
-    if ((*output->funcs->detect)(output) == OUTPUT_STATUS_DISCONNECTED)
+    if ((*output->funcs->detect)(output) == XF86OutputStatusDisconnected)
 	return NULL;
 
     /* We've got a potentially-connected monitor that we can't DDC.  Return a
@@ -372,8 +372,8 @@ static const xf86OutputFuncsRec i830_crt_output_funcs = {
     .save = i830_crt_save,
     .restore = i830_crt_restore,
     .mode_valid = i830_crt_mode_valid,
-    .pre_set_mode = i830_crt_pre_set_mode,
-    .post_set_mode = i830_crt_post_set_mode,
+    .mode_fixup = i830_crt_mode_fixup,
+    .mode_set = i830_crt_mode_set,
     .detect = i830_crt_detect,
     .get_modes = i830_crt_get_modes,
     .destroy = i830_crt_destroy
@@ -395,6 +395,7 @@ i830_crt_init(ScrnInfoPtr pScrn)
 	return;
     }
     i830_output->type = I830_OUTPUT_ANALOG;
+    
     output->driver_private = i830_output;
 
     /* Set up the DDC bus. */

@@ -40,7 +40,7 @@
 #include "i830.h"
 #include "i830_display.h"
 
-#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0)
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,2,99,2,0)
 /*
  * Generate a CVT standard mode from HDisplay, VDisplay and VRefresh.
  *
@@ -303,4 +303,4 @@ xf86CVTMode(int HDisplay, int VDisplay, float VRefresh, Bool Reduced,
 
     return Mode;
 }
-#endif /* XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0) */
+#endif /* XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,2,99,2,0) */

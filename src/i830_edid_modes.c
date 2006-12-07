@@ -38,7 +38,7 @@
 #include "i830.h"
 #include "i830_display.h"
 
-#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0)
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,2,99,2,0)
 
 /*
  * TODO:
@@ -208,4 +208,4 @@ xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC)
     return Modes;
 }
 
-#endif /* XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,1,99,2,0) */
+#endif /* XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,2,99,2,0) */

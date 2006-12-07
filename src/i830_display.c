@@ -43,21 +43,179 @@
 #include "i830_debug.h"
 #include "i830_xf86Modes.h"
 
-/** Returns the pixel clock for the given refclk and divisors. */
-static int i830_clock(int refclk, int m1, int m2, int n, int p1, int p2)
+typedef struct {
+    /* given values */    
+    int n;
+    int m1, m2;
+    int p1, p2;
+    /* derived values */
+    int	dot;
+    int	vco;
+    int	m;
+    int	p;
+} intel_clock_t;
+
+typedef struct {
+    int	min, max;
+} intel_range_t;
+
+typedef struct {
+    int	dot_limit;
+    int	p2_slow, p2_fast;
+} intel_p2_t;
+
+#define INTEL_P2_NUM		      2
+
+typedef struct {
+    intel_range_t   dot, vco, n, m, m1, m2, p, p1;
+    intel_p2_t	    p2;
+} intel_limit_t;
+
+#define I8XX_DOT_MIN		  25000
+#define I8XX_DOT_MAX		 350000
+#define I8XX_VCO_MIN		 930000
+#define I8XX_VCO_MAX		1400000
+#define I8XX_N_MIN		      3
+#define I8XX_N_MAX		     16
+#define I8XX_M_MIN		     96
+#define I8XX_M_MAX		    140
+#define I8XX_M1_MIN		     18
+#define I8XX_M1_MAX		     26
+#define I8XX_M2_MIN		      6
+#define I8XX_M2_MAX		     16
+#define I8XX_P_MIN		      4
+#define I8XX_P_MAX		    128
+#define I8XX_P1_MIN		      0
+#define I8XX_P1_MAX		     30
+#define I8XX_P2_SLOW		      1
+#define I8XX_P2_FAST		      0
+#define I8XX_P2_SLOW_LIMIT	 165000
+
+#define I9XX_DOT_MIN		  20000
+#define I9XX_DOT_MAX		 400000
+#define I9XX_VCO_MIN		1400000
+#define I9XX_VCO_MAX		2800000
+#define I9XX_N_MIN		      3
+#define I9XX_N_MAX		      8
+#define I9XX_M_MIN		     70
+#define I9XX_M_MAX		    120
+#define I9XX_M1_MIN		     10
+#define I9XX_M1_MAX		     20
+#define I9XX_M2_MIN		      5
+#define I9XX_M2_MAX		      9
+#define I9XX_P_SDVO_DAC_MIN	      5
+#define I9XX_P_SDVO_DAC_MAX	     80
+#define I9XX_P_LVDS_MIN		      7
+#define I9XX_P_LVDS_MAX		     98
+#define I9XX_P1_MIN		      1
+#define I9XX_P1_MAX		      8
+#define I9XX_P2_SDVO_DAC_SLOW		     10
+#define I9XX_P2_SDVO_DAC_FAST		      5
+#define I9XX_P2_SDVO_DAC_SLOW_LIMIT	 200000
+#define I9XX_P2_LVDS_SLOW		     14
+#define I9XX_P2_LVDS_FAST		      7
+#define I9XX_P2_LVDS_SLOW_LIMIT		 112000
+
+#define INTEL_LIMIT_I8XX	    0
+#define INTEL_LIMIT_I9XX_SDVO_DAC   1
+#define INTEL_LIMIT_I9XX_LVDS	    2
+
+static const intel_limit_t intel_limits[] = {
+    {
+        .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
+        .vco = { .min = I8XX_VCO_MIN,		.max = I8XX_VCO_MAX },
+        .n   = { .min = I8XX_N_MIN,		.max = I8XX_N_MAX },
+        .m   = { .min = I8XX_M_MIN,		.max = I8XX_M_MAX },
+        .m1  = { .min = I8XX_M1_MIN,		.max = I8XX_M1_MAX },
+        .m2  = { .min = I8XX_M2_MIN,		.max = I8XX_M2_MAX },
+        .p   = { .min = I8XX_P_MIN,		.max = I8XX_P_MAX },
+        .p1  = { .min = I8XX_P1_MIN,		.max = I8XX_P1_MAX },
+	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
+		 .p2_slow = I8XX_P2_SLOW,	.p2_fast = I8XX_P2_FAST },
+    },
+    {
+        .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
+        .vco = { .min = I9XX_VCO_MIN,		.max = I9XX_VCO_MAX },
+        .n   = { .min = I9XX_N_MIN,		.max = I9XX_N_MAX },
+        .m   = { .min = I9XX_M_MIN,		.max = I9XX_M_MAX },
+        .m1  = { .min = I9XX_M1_MIN,		.max = I9XX_M1_MAX },
+        .m2  = { .min = I9XX_M2_MIN,		.max = I9XX_M2_MAX },
+        .p   = { .min = I9XX_P_SDVO_DAC_MIN,	.max = I9XX_P_SDVO_DAC_MAX },
+        .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
+	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
+		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
+    },
+    {
+        .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
+        .vco = { .min = I9XX_VCO_MIN,		.max = I9XX_VCO_MAX },
+        .n   = { .min = I9XX_N_MIN,		.max = I9XX_N_MAX },
+        .m   = { .min = I9XX_M_MIN,		.max = I9XX_M_MAX },
+        .m1  = { .min = I9XX_M1_MIN,		.max = I9XX_M1_MAX },
+        .m2  = { .min = I9XX_M2_MIN,		.max = I9XX_M2_MAX },
+        .p   = { .min = I9XX_P_LVDS_MIN,	.max = I9XX_P_LVDS_MAX },
+        .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
+	/* The single-channel range is 25-112Mhz, and dual-channel
+	 * is 80-224Mhz.  Prefer single channel as much as possible.
+	 */
+	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
+		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_FAST },
+    },
+};
+
+static const intel_limit_t *intel_limit (xf86CrtcPtr crtc)
 {
-    return refclk * (5 * m1 + m2) / n / (p1 * p2);
+    ScrnInfoPtr	pScrn = crtc->scrn;
+    I830Ptr	pI830 = I830PTR(pScrn);
+    const intel_limit_t *limit;
+
+    if (IS_I9XX(pI830)) 
+    {
+	if (i830PipeHasType (crtc, I830_OUTPUT_LVDS))
+	    limit = &intel_limits[INTEL_LIMIT_I9XX_LVDS];
+	else
+	    limit = &intel_limits[INTEL_LIMIT_I9XX_SDVO_DAC];
+    }
+    else
+        limit = &intel_limits[INTEL_LIMIT_I8XX];
+    return limit;
+}
+
+/** Derive the pixel clock for the given refclk and divisors for 8xx chips. */
+
+static void i8xx_clock(int refclk, intel_clock_t *clock)
+{
+    clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
+    clock->p = (clock->p1 + 2) << (clock->p2 + 1);
+    clock->vco = refclk * clock->m / (clock->n + 2);
+    clock->dot = clock->vco / clock->p;
+}
+
+/** Derive the pixel clock for the given refclk and divisors for 9xx chips. */
+
+static void i9xx_clock(int refclk, intel_clock_t *clock)
+{
+    clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
+    clock->p = clock->p1 * clock->p2;
+    clock->vco = refclk * clock->m / (clock->n + 2);
+    clock->dot = clock->vco / clock->p;
+}
+
+static void intel_clock(I830Ptr pI830, int refclk, intel_clock_t *clock)
+{
+    if (IS_I9XX(pI830))
+	return i9xx_clock (refclk, clock);
+    else
+	return i8xx_clock (refclk, clock);
 }
 
 static void
-i830PrintPll(char *prefix, int refclk, int m1, int m2, int n, int p1, int p2)
+i830PrintPll(char *prefix, intel_clock_t *clock)
 {
-    int dotclock;
-
-    dotclock = i830_clock(refclk, m1, m2, n, p1, p2);
-
-    ErrorF("%s: dotclock %d ((%d, %d), %d, (%d, %d))\n", prefix, dotclock,
-	   m1, m2, n, p1, p2);
+    ErrorF("%s: dotclock %d vco %d ((m %d, m1 %d, m2 %d), n %d, (p %d, p1 %d, p2 %d))\n",
+	   prefix, clock->dot, clock->vco,
+	   clock->m, clock->m1, clock->m2,
+	   clock->n, 
+	   clock->p, clock->p1, clock->p2);
 }
 
 /**
@@ -83,90 +241,38 @@ i830PipeHasType (xf86CrtcPtr crtc, int type)
     return FALSE;
 }
 
+#define i830PllInvalid(s)   { /* ErrorF (s) */; return FALSE; }
 /**
  * Returns whether the given set of divisors are valid for a given refclk with
  * the given outputs.
- *
- * The equation for these divisors would be:
- * clk = refclk * (5 * m1 + m2) / n / (p1 * p2)
  */
+
 static Bool
-i830PllIsValid(xf86CrtcPtr crtc, int refclk, int m1, int m2,
-	       int n, int p1, int p2)
+i830PllIsValid(xf86CrtcPtr crtc, intel_clock_t *clock)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
-    int p, m, vco, dotclock;
-    int min_m1, max_m1, min_m2, max_m2, min_m, max_m, min_n, max_n;
-    int min_p1, max_p1, min_p, max_p, min_vco, max_vco, min_dot, max_dot;
+    const intel_limit_t *limit = intel_limit (crtc);
 
-    if (IS_I9XX(pI830)) {
-	min_m1 = 10;
-	max_m1 = 20;
-	min_m2 = 5;
-	max_m2 = 9;
-	min_m = 70;
-	max_m = 120;
-	min_n = 3;
-	max_n = 8;
-	min_p1 = 1;
-	max_p1 = 8;
-	if (i830PipeHasType (crtc, I830_OUTPUT_LVDS)) {
-	    min_p = 7;
-	    max_p = 98;
-	} else {
-	    min_p = 5;
-	    max_p = 80;
-	}
-	min_vco = 1400000;
-	max_vco = 2800000;
-	min_dot = 20000;
-	max_dot = 400000;
-    } else {
-	min_m1 = 18;
-	max_m1 = 26;
-	min_m2 = 6;
-	max_m2 = 16;
-	min_m = 96;
-	max_m = 140;
-	min_n = 3;
-	max_n = 16;
-	min_p1 = 2;
-	max_p1 = 18;
-	min_vco = 930000;
-	max_vco = 1400000;
-	min_dot = 20000;
-	max_dot = 350000;
-	min_p = 4;
-	max_p = 128;
-    }
-
-    p = p1 * p2;
-    m = 5 * m1 + m2;
-    vco = refclk * m / n;
-    dotclock = i830_clock(refclk, m1, m2, n, p1, p2);
-
-    if (p1 < min_p1 || p1 > max_p1)
-	return FALSE;
-    if (p < min_p || p > max_p)
-	return FALSE;
-    if (m2 < min_m2 || m2 > max_m2)
-	return FALSE;
-    if (m1 < min_m1 || m1 > max_m1)
-	return FALSE;
-    if (m1 <= m2)
-	return FALSE;
-    if (m < min_m || m > max_m)
-	return FALSE;
-    if (n < min_n || n > max_n)
-	return FALSE;
-    if (vco < min_vco || vco > max_vco)
-	return FALSE;
+    if (clock->p1  < limit->p1.min  || limit->p1.max  < clock->p1)
+	i830PllInvalid ("p1 out of range\n");
+    if (clock->p   < limit->p.min   || limit->p.max   < clock->p)
+	i830PllInvalid ("p out of range\n");
+    if (clock->m2  < limit->m2.min  || limit->m2.max  < clock->m2)
+	i830PllInvalid ("m2 out of range\n");
+    if (clock->m1  < limit->m1.min  || limit->m1.max  < clock->m1)
+	i830PllInvalid ("m1 out of range\n");
+    if (clock->m1 <= clock->m2)
+	i830PllInvalid ("m1 <= m2\n");
+    if (clock->m   < limit->m.min   || limit->m.max   < clock->m)
+	i830PllInvalid ("m out of range\n");
+    if (clock->n   < limit->n.min   || limit->n.max   < clock->n)
+	i830PllInvalid ("n out of range\n");
+    if (clock->vco < limit->vco.min || limit->vco.max < clock->vco)
+	i830PllInvalid ("vco out of range\n");
     /* XXX: We may need to be checking "Dot clock" depending on the multiplier,
      * output, etc., rather than just a single range.
      */
-    if (dotclock < min_dot || dotclock > max_dot)
-	return FALSE;
+    if (clock->dot < limit->dot.min || limit->dot.max < clock->dot)
+	i830PllInvalid ("dot out of range\n");
 
     return TRUE;
 }
@@ -174,83 +280,47 @@ i830PllIsValid(xf86CrtcPtr crtc, int refclk, int m1, int m2,
 /**
  * Returns a set of divisors for the desired target clock with the given refclk,
  * or FALSE.  Divisor values are the actual divisors for
- * clk = refclk * (5 * m1 + m2) / n / (p1 * p2)
  */
 static Bool
-i830FindBestPLL(xf86CrtcPtr crtc, int target, int refclk,
-		int *outm1, int *outm2, int *outn, int *outp1, int *outp2)
+i830FindBestPLL(xf86CrtcPtr crtc, int target, int refclk, intel_clock_t *best_clock)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
-    int m1, m2, n, p1, p2;
+    intel_clock_t   clock;
+    const intel_limit_t   *limit = intel_limit (crtc);
     int err = target;
-    int min_m1, max_m1, min_m2, max_m2, min_n, max_n, min_p1, max_p1;
 
-    if (IS_I9XX(pI830)) {
-	min_m1 = 10;
-	max_m1 = 20;
-	min_m2 = 5;
-	max_m2 = 9;
-	min_n = 3;
-	max_n = 8;
-	min_p1 = 1;
-	max_p1 = 8;
-	if (i830PipeHasType (crtc, I830_OUTPUT_LVDS)) {
-	    /* The single-channel range is 25-112Mhz, and dual-channel
-	     * is 80-224Mhz.  Prefer single channel as much as possible.
-	     */
-	    if (target < 112000)
-		p2 = 14;
-	    else
-		p2 = 7;
-	} else {
-	    if (target < 200000)
-		p2 = 10;
-	    else
-		p2 = 5;
-	}
-    } else {
-	min_m1 = 18;
-	max_m1 = 26;
-	min_m2 = 6;
-	max_m2 = 16;
-	min_n = 3;
-	max_n = 16;
-	min_p1 = 2;
-	max_p1 = 18;
-	if (target < 165000)
-	    p2 = 4;
-	else
-	    p2 = 2;
-    }
+    if (target < limit->p2.dot_limit)
+	clock.p2 = limit->p2.p2_slow;
+    else
+	clock.p2 = limit->p2.p2_fast;
 
+    memset (best_clock, 0, sizeof (*best_clock));
 
-    for (m1 = min_m1; m1 <= max_m1; m1++) {
-	for (m2 = min_m2; m2 < max_m2; m2++) {
-	    for (n = min_n; n <= max_n; n++) {
-		for (p1 = min_p1; p1 <= max_p1; p1++) {
-		    int clock, this_err;
+    for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max; clock.m1++) 
+    {
+	for (clock.m2 = limit->m2.min; clock.m2 < clock.m1 && clock.m2 < limit->m2.max; clock.m2++) 
+	{
+	    for (clock.n = limit->n.min; clock.n <= limit->n.max; clock.n++) 
+	    {
+		for (clock.p1 = limit->p1.min; clock.p1 <= limit->p1.max; clock.p1++) 
+		{
+		    int this_err;
 
-		    if (!i830PllIsValid(crtc, refclk, m1, m2, n,
-					p1, p2)) {
+		    intel_clock (pI830, refclk, &clock);
+		    
+		    if (!i830PllIsValid(crtc, &clock))
 			continue;
-		    }
 
-		    clock = i830_clock(refclk, m1, m2, n, p1, p2);
-		    this_err = abs(clock - target);
+		    this_err = abs(clock.dot - target);
 		    if (this_err < err) {
-			*outm1 = m1;
-			*outm2 = m2;
-			*outn = n;
-			*outp1 = p1;
-			*outp2 = p2;
+			*best_clock = clock;
 			err = this_err;
 		    }
 		}
 	    }
 	}
     }
-
     return (err != target);
 }
 
@@ -408,34 +478,94 @@ i830PipeInUse (xf86CrtcPtr crtc)
     return FALSE;
 }
 
-/**
- * Sets the given video mode on the given pipe.
- *
- * Plane A is always output to pipe A, and plane B to pipe B.  The plane
- * will not be enabled if plane_enable is FALSE, which is used for
- * load detection, when something else will be output to the pipe other than
- * display data.
- */
-Bool
-i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
-		Bool plane_enable)
+static void
+i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     int pipe = intel_crtc->pipe;
-    int m1 = 0, m2 = 0, n = 0, p1 = 0, p2 = 0;
-    CARD32 dpll = 0, fp = 0, temp;
-    CARD32 htot, hblank, hsync, vtot, vblank, vsync, dspcntr;
-    CARD32 pipesrc, dspsize;
-    Bool ok, is_sdvo = FALSE, is_dvo = FALSE;
-    Bool is_crt = FALSE, is_lvds = FALSE, is_tv = FALSE;
-    int refclk, pixel_clock;
-    int i;
+    int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
     int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
     int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
+    CARD32 temp;
+
+    /* XXX: When our outputs are all unaware of DPMS modes other than off and
+     * on, we should map those modes to DPMSModeOff in the CRTC.
+     */
+    switch (mode) {
+    case DPMSModeOn:
+    case DPMSModeStandby:
+    case DPMSModeSuspend:
+	/* Enable the DPLL */
+	temp = INREG(dpll_reg);
+	OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
+
+	/* Wait for the clocks to stabilize. */
+	usleep(150);
+
+	/* Enable the pipe */
+	temp = INREG(pipeconf_reg);
+	OUTREG(pipeconf_reg, temp | PIPEACONF_ENABLE);
+
+	/* Enable the plane */
+	temp = INREG(dspcntr_reg);
+	OUTREG(dspcntr_reg, temp | DISPLAY_PLANE_ENABLE);
+	break;
+    case DPMSModeOff:
+	/* Disable display plane */
+	temp = INREG(dspcntr_reg);
+	OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
+
+	/* Disable the VGA plane that we never use */
+	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
+
+	if (!IS_I9XX(pI830)) {
+	    /* Wait for vblank for the disable to take effect */
+	    i830WaitForVblank(pScrn);
+	}
+
+	/* Next, disable display pipes */
+	temp = INREG(pipeconf_reg);
+	OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
+
+	/* Wait for vblank for the disable to take effect. */
+	i830WaitForVblank(pScrn);
+
+	temp = INREG(dpll_reg);
+	OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
+	break;
+    }
+}
+
+static Bool
+i830_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
+		     DisplayModePtr adjusted_mode)
+{
+    return TRUE;
+}
+
+/**
+ * Sets up registers for the given mode/adjusted_mode pair.
+ *
+ * The clocks, CRTCs and outputs attached to this CRTC must be off.
+ *
+ * This shouldn't enable any clocks, CRTCs, or outputs, but they should
+ * be easily turned on/off after this.
+ */
+static void
+i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
+		   DisplayModePtr adjusted_mode)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+    int pipe = intel_crtc->pipe;
     int fp_reg = (pipe == 0) ? FPA0 : FPB0;
     int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
+    int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
+    int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
+    int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
     int htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
     int hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
     int hsync_reg = (pipe == 0) ? HSYNC_A : HSYNC_B;
@@ -446,38 +576,23 @@ i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
     int dspstride_reg = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
     int dsppos_reg = (pipe == 0) ? DSPAPOS : DSPBPOS;
     int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
-    Bool ret = FALSE;
-#ifdef XF86DRI
-    Bool didLock = FALSE;
-#endif
+    int i;
+    int refclk;
+    intel_clock_t clock;
+    CARD32 dpll = 0, fp = 0, dspcntr, pipeconf;
+    Bool ok, is_sdvo = FALSE, is_dvo = FALSE;
+    Bool is_crt = FALSE, is_lvds = FALSE, is_tv = FALSE;
 
-    if (xf86ModesEqual(&crtc->curMode, pMode))
-	return TRUE;
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Requested pix clock: %d\n",
-	       pMode->Clock);
-
-    crtc->enabled = i830PipeInUse (crtc);
-    
-    if (!crtc->enabled)
-    {
-	/* XXX disable crtc? */
-	return TRUE;
-    }
-
-#ifdef XF86DRI
-    didLock = I830DRILock(pScrn);
-#endif
-    
-    for (i = 0; i < pI830->xf86_config.num_output; i++) 
-    {
+    /* Set up some convenient bools for what outputs are connected to
+     * our pipe, used in DPLL setup.
+     */
+    for (i = 0; i < pI830->xf86_config.num_output; i++) {
 	xf86OutputPtr  output = pI830->xf86_config.output[i];
-	I830OutputPrivatePtr	intel_output = output->driver_private;
+	I830OutputPrivatePtr intel_output = output->driver_private;
+
 	if (output->crtc != crtc)
 	    continue;
 
-	(*output->funcs->pre_set_mode)(output, pMode);
-	
 	switch (intel_output->type) {
 	case I830_OUTPUT_LVDS:
 	    is_lvds = TRUE;
@@ -497,97 +612,37 @@ i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
 	}
     }
 
-    if (is_lvds && (is_sdvo || is_dvo || is_tv || is_crt)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Can't enable LVDS and non-LVDS on the same pipe\n");
-	goto done;
-    }
-    if (is_tv && (is_sdvo || is_dvo || is_crt || is_lvds)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Can't enable a TV and any other output on the same "
-		   "pipe\n");
-	goto done;
-    }
-    if (pipe == 0 && is_lvds) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Can't support LVDS on pipe A\n");
-	goto done;
-    }
-
-    htot = (pMode->CrtcHDisplay - 1) | ((pMode->CrtcHTotal - 1) << 16);
-    hblank = (pMode->CrtcHBlankStart - 1) | ((pMode->CrtcHBlankEnd - 1) << 16);
-    hsync = (pMode->CrtcHSyncStart - 1) | ((pMode->CrtcHSyncEnd - 1) << 16);
-    vtot = (pMode->CrtcVDisplay - 1) | ((pMode->CrtcVTotal - 1) << 16);
-    vblank = (pMode->CrtcVBlankStart - 1) | ((pMode->CrtcVBlankEnd - 1) << 16);
-    vsync = (pMode->CrtcVSyncStart - 1) | ((pMode->CrtcVSyncEnd - 1) << 16);
-    pipesrc = ((pMode->HDisplay - 1) << 16) | (pMode->VDisplay - 1);
-    dspsize = ((pMode->VDisplay - 1) << 16) | (pMode->HDisplay - 1);
-    pixel_clock = pMode->Clock;
-
-    if (is_lvds && pI830->panel_fixed_hactive != 0) {
-	/* To enable panel fitting, we need to set the pipe timings to that of
-	 * the screen at its full resolution.  So, drop the timings from the
-	 * BIOS VBT tables here.
-	 */
-	htot = (pI830->panel_fixed_hactive - 1) |
-		((pI830->panel_fixed_hactive + pI830->panel_fixed_hblank - 1)
-		 << 16);
-	hblank = (pI830->panel_fixed_hactive - 1) |
-		((pI830->panel_fixed_hactive + pI830->panel_fixed_hblank - 1)
-		 << 16);
-	hsync = (pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff - 1) |
-		((pI830->panel_fixed_hactive + pI830->panel_fixed_hsyncoff +
-		  pI830->panel_fixed_hsyncwidth - 1) << 16);
-
-	vtot = (pI830->panel_fixed_vactive - 1) |
-		((pI830->panel_fixed_vactive + pI830->panel_fixed_vblank - 1)
-		 << 16);
-	vblank = (pI830->panel_fixed_vactive - 1) |
-		((pI830->panel_fixed_vactive + pI830->panel_fixed_vblank - 1)
-		 << 16);
-	vsync = (pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff - 1) |
-		((pI830->panel_fixed_vactive + pI830->panel_fixed_vsyncoff +
-		  pI830->panel_fixed_vsyncwidth - 1) << 16);
-	pixel_clock = pI830->panel_fixed_clock;
-
-	if (pMode->HDisplay <= pI830->panel_fixed_hactive &&
-	    pMode->HDisplay <= pI830->panel_fixed_vactive)
-	{
-	    pipesrc = ((pMode->HDisplay - 1) << 16) |
-		       (pMode->VDisplay - 1);
-	    dspsize = ((pMode->VDisplay - 1) << 16) |
-		       (pMode->HDisplay - 1);
-	}
-    }
-
-    /* Adjust the clock for pixel multiplication.
-     * See DPLL_MD_UDI_MULTIPLIER_MASK.
-     */
-    if (is_sdvo) {
-	pixel_clock *= i830_sdvo_get_pixel_multiplier(pMode);
-    }
-
     if (IS_I9XX(pI830)) {
 	refclk = 96000;
     } else {
 	refclk = 48000;
     }
-    ok = i830FindBestPLL(crtc, pixel_clock, refclk, &m1, &m2, &n,
-			 &p1, &p2);
-    if (!ok) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Couldn't find PLL settings for mode!\n");
-	goto done;
-    }
 
-    dpll = DPLL_VCO_ENABLE | DPLL_VGA_MODE_DIS;
+    ok = i830FindBestPLL(crtc, adjusted_mode->Clock, refclk, &clock);
+    if (!ok)
+	FatalError("Couldn't find PLL settings for mode!\n");
+
+    fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
+
+    dpll = DPLL_VGA_MODE_DIS;
     if (IS_I9XX(pI830)) {
 	if (is_lvds)
 	    dpll |= DPLLB_MODE_LVDS;
 	else
 	    dpll |= DPLLB_MODE_DAC_SERIAL;
-	dpll |= (1 << (p1 - 1)) << 16;
-	switch (p2) {
+	if (is_sdvo)
+	{
+	    dpll |= DPLL_DVO_HIGH_SPEED;
+	    if (IS_I945G(pI830) || IS_I945GM(pI830))
+	    {
+		int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
+		dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
+	    }
+	}
+	
+	/* compute bitmask from p1 value */
+	dpll |= (1 << (clock.p1 - 1)) << 16;
+	switch (clock.p2) {
 	case 5:
 	    dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
 	    break;
@@ -604,9 +659,8 @@ i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
 	if (IS_I965G(pI830))
 	    dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
     } else {
-	dpll |= (p1 - 2) << 16;
-	if (p2 == 4)
-	    dpll |= PLL_P2_DIVIDE_BY_4;
+	dpll |= clock.p1 << 16;
+	dpll |= clock.p2 << 23;
     }
 
     if (is_tv)
@@ -615,33 +669,15 @@ i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
 /*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
 	dpll |= 3;
     }
-#if 0    
+#if 0
     else if (is_lvds)
 	dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 #endif
-    else	
+    else
 	dpll |= PLL_REF_INPUT_DREFCLK;
 
-    fp = ((n - 2) << 16) | ((m1 - 2) << 8) | (m2 - 2);
-
-#if 1
-    ErrorF("hact: %d htot: %d hbstart: %d hbend: %d hsyncstart: %d hsyncend: %d\n",
-	(int)(htot & 0xffff) + 1, (int)(htot >> 16) + 1,
-	(int)(hblank & 0xffff) + 1, (int)(hblank >> 16) + 1,
-	(int)(hsync & 0xffff) + 1, (int)(hsync >> 16) + 1);
-    ErrorF("vact: %d vtot: %d vbstart: %d vbend: %d vsyncstart: %d vsyncend: %d\n",
-	(int)(vtot & 0xffff) + 1, (int)(vtot >> 16) + 1,
-	(int)(vblank & 0xffff) + 1, (int)(vblank >> 16) + 1,
-	(int)(vsync & 0xffff) + 1, (int)(vsync >> 16) + 1);
-    ErrorF("pipesrc: %dx%d, dspsize: %dx%d\n",
-	(int)(pipesrc >> 16) + 1, (int)(pipesrc & 0xffff) + 1,
-	(int)(dspsize & 0xffff) + 1, (int)(dspsize >> 16) + 1);
-#endif
-
-    i830PrintPll("chosen", refclk, m1, m2, n, p1, p2);
-    ErrorF("clock regs: 0x%08x, 0x%08x\n", (int)dpll, (int)fp);
-
-    dspcntr = DISPLAY_PLANE_ENABLE;
+    /* Set up the display plane register */
+    dspcntr = 0;
     switch (pScrn->bitsPerPixel) {
     case 8:
 	dspcntr |= DISPPLANE_8BPP | DISPPLANE_GAMMA_ENABLE;
@@ -668,61 +704,179 @@ i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
     else
 	dspcntr |= DISPPLANE_SEL_PIPE_B;
 
-    OUTREG(VGACNTRL, VGA_DISP_DISABLE);
+    pipeconf = INREG(pipeconf_reg);
+    if (!IS_I9XX(pI830) && pipe == 0) {
+	/*
+	 * The docs say this is needed when the dot clock is > 90% of the
+	 * core speed. Core speeds are indicated by bits in the PCI
+	 * config space and don't seem to ever be less than 200MHz,
+	 * which is a bit confusing.
+	 *
+	 * However, For one little 855/852 card I have, 135000 requires
+	 * double wide mode, but 108000 does not. That makes no sense
+	 * but we're used to that. It may be affected by pixel size,
+	 * but the BIOS mode setting code doesn't appear to use that.
+	 *
+	 * It doesn't seem to cause any harm, although it
+	 * does restrict some output options.
+	 */
+	if (adjusted_mode->Clock > 108000)
+	    pipeconf |= PIPEACONF_DOUBLE_WIDE;
+	else
+	    pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
+    }
 
-    /* Finally, set the mode. */
-    /* First, disable display planes */
-    temp = INREG(dspcntr_reg);
-    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
-
-    /* Wait for vblank for the disable to take effect */
-    i830WaitForVblank(pScrn);
-
-    /* Next, disable display pipes */
-    temp = INREG(pipeconf_reg);
-    OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
+    i830PrintPll("chosen", &clock);
+    ErrorF("clock regs: 0x%08x, 0x%08x\n", (int)dpll, (int)fp);
 
     OUTREG(fp_reg, fp);
     OUTREG(dpll_reg, dpll);
-
-    /*
-     * If the panel fitter is stuck on our pipe, turn it off.
-     * The LVDS output will set it as necessary in post_set_mode.
-     */
-    if (!IS_I830(pI830)) {
-	if (((INREG(PFIT_CONTROL) >> 29) & 0x3) == pipe)
-	    OUTREG(PFIT_CONTROL, 0);
+    if (IS_I965G(pI830)) {
+	/* Set the SDVO multiplier/divider to 1x for the sake of analog output.
+	 * It will be updated by the SDVO code if SDVO had fixed up the clock
+	 * for a higher multiplier.
+	 */
+	OUTREG(dpll_md_reg, 0);
     }
 
-    for (i = 0; i < pI830->xf86_config.num_output; i++) {
-	xf86OutputPtr  output = pI830->xf86_config.output[i];
-	if (output->crtc == crtc)
-	    (*output->funcs->post_set_mode)(output, pMode);
-    }
-
-    OUTREG(htot_reg, htot);
-    OUTREG(hblank_reg, hblank);
-    OUTREG(hsync_reg, hsync);
-    OUTREG(vtot_reg, vtot);
-    OUTREG(vblank_reg, vblank);
-    OUTREG(vsync_reg, vsync);
+    OUTREG(htot_reg, (adjusted_mode->CrtcHDisplay - 1) |
+	((adjusted_mode->CrtcHTotal - 1) << 16));
+    OUTREG(hblank_reg, (adjusted_mode->CrtcHBlankStart - 1) |
+	((adjusted_mode->CrtcHBlankEnd - 1) << 16));
+    OUTREG(hsync_reg, (adjusted_mode->CrtcHSyncStart - 1) |
+	((adjusted_mode->CrtcHSyncEnd - 1) << 16));
+    OUTREG(vtot_reg, (adjusted_mode->CrtcVDisplay - 1) |
+	((adjusted_mode->CrtcVTotal - 1) << 16));
+    OUTREG(vblank_reg, (adjusted_mode->CrtcVBlankStart - 1) |
+	((adjusted_mode->CrtcVBlankEnd - 1) << 16));
+    OUTREG(vsync_reg, (adjusted_mode->CrtcVSyncStart - 1) |
+	((adjusted_mode->CrtcVSyncEnd - 1) << 16));
     OUTREG(dspstride_reg, pScrn->displayWidth * pI830->cpp);
-    OUTREG(dspsize_reg, dspsize);
+    /* pipesrc and dspsize control the size that is scaled from, which should
+     * always be the user's requested size.
+     */
+    OUTREG(dspsize_reg, ((mode->VDisplay - 1) << 16) | (mode->HDisplay - 1));
     OUTREG(dsppos_reg, 0);
     i830PipeSetBase(crtc, crtc->x, crtc->y);
-    OUTREG(pipesrc_reg, pipesrc);
+    OUTREG(pipesrc_reg, ((mode->HDisplay - 1) << 16) | (mode->VDisplay - 1));
+    OUTREG(pipeconf_reg, pipeconf);
+    OUTREG(dspcntr_reg, dspcntr);
 
-    /* Then, turn the pipe on first */
-    temp = INREG(pipeconf_reg);
-    OUTREG(pipeconf_reg, temp | PIPEACONF_ENABLE);
+    /* Disable the panel fitter if it was on our pipe */
+    if (!IS_I830(pI830) && ((INREG(PFIT_CONTROL) >> 29) & 0x3) == pipe)
+	OUTREG(PFIT_CONTROL, 0);
+}
 
-    if (plane_enable) {
-	/* And then turn the plane on */
-	OUTREG(dspcntr_reg, dspcntr);
+/**
+ * Sets the given video mode on the given pipe.
+ *
+ * Plane A is always output to pipe A, and plane B to pipe B.  The plane
+ * will not be enabled if plane_enable is FALSE, which is used for
+ * load detection, when something else will be output to the pipe other than
+ * display data.
+ */
+Bool
+i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
+		Bool plane_enable)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    int i;
+    Bool ret = FALSE;
+#ifdef XF86DRI
+    Bool didLock = FALSE;
+#endif
+    DisplayModePtr adjusted_mode;
+
+    /* XXX: curMode */
+
+    adjusted_mode = xf86DuplicateMode(pMode);
+
+    crtc->enabled = i830PipeInUse (crtc);
+    
+    if (!crtc->enabled)
+    {
+	/* XXX disable crtc? */
+	return TRUE;
     }
 
+#ifdef XF86DRI
+    didLock = I830DRILock(pScrn);
+#endif
+
+    /* Pass our mode to the outputs and the CRTC to give them a chance to
+     * adjust it according to limitations or output properties, and also
+     * a chance to reject the mode entirely.
+     */
+    for (i = 0; i < pI830->xf86_config.num_output; i++) {
+	xf86OutputPtr output = pI830->xf86_config.output[i];
+
+	if (output->crtc != crtc)
+	    continue;
+
+	if (!output->funcs->mode_fixup(output, pMode, adjusted_mode)) {
+	    ret = FALSE;
+	    goto done;
+	}
+    }
+
+    if (!crtc->funcs->mode_fixup(crtc, pMode, adjusted_mode)) {
+	ret = FALSE;
+	goto done;
+    }
+
+    /* Disable the outputs and CRTCs before setting the mode. */
+    for (i = 0; i < pI830->xf86_config.num_output; i++) {
+	xf86OutputPtr output = pI830->xf86_config.output[i];
+
+	if (output->crtc != crtc)
+	    continue;
+
+	/* Disable the output as the first thing we do. */
+	output->funcs->dpms(output, DPMSModeOff);
+    }
+
+    crtc->funcs->dpms(crtc, DPMSModeOff);
+
+    /* Set up the DPLL and any output state that needs to adjust or depend
+     * on the DPLL.
+     */
+    crtc->funcs->mode_set(crtc, pMode, adjusted_mode);
+    for (i = 0; i < pI830->xf86_config.num_output; i++) {
+	xf86OutputPtr output = pI830->xf86_config.output[i];
+	if (output->crtc == crtc)
+	    output->funcs->mode_set(output, pMode, adjusted_mode);
+    }
+
+    /* Now, enable the clocks, plane, pipe, and outputs that we set up. */
+    crtc->funcs->dpms(crtc, DPMSModeOn);
+    for (i = 0; i < pI830->xf86_config.num_output; i++) {
+	xf86OutputPtr output = pI830->xf86_config.output[i];
+	if (output->crtc == crtc)
+	    output->funcs->dpms(output, DPMSModeOn);
+    }
+
+#if 0
+    /*
+     * If the display isn't solid, it may be running out
+     * of memory bandwidth. This code will dump out the
+     * pipe status, if bit 31 is on, the fifo underran
+     */
+    for (i = 0; i < 4; i++) {
+	i830WaitForVblank(pScrn);
+    
+	OUTREG(pipestat_reg, INREG(pipestat_reg) | 0x80000000);
+    
+	i830WaitForVblank(pScrn);
+    
+	temp = INREG(pipestat_reg);
+	ErrorF ("pipe status 0x%x\n", temp);
+    }
+#endif
+    
     crtc->curMode = *pMode;
 
+    /* XXX free adjustedmode */
     ret = TRUE;
 done:
 #ifdef XF86DRI
@@ -801,15 +955,15 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 Bool
 i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 {
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830Ptr pI830 = I830PTR(pScrn);
     Bool ok = TRUE;
-    int i;
+    xf86CrtcPtr crtc = config->output[config->compat_output]->crtc;
 
     DPRINTF(PFX, "i830SetMode\n");
 
-    for (i = 0; i < pI830->xf86_config.num_crtc; i++)
+    if (crtc && crtc->enabled)
     {
-	xf86CrtcPtr    crtc = pI830->xf86_config.crtc[i];
 	ok = i830PipeSetMode(crtc,
 			     i830PipeFindClosestMode(crtc, pMode), 
 			     TRUE);
@@ -962,3 +1116,29 @@ i830ReleaseLoadDetectPipe(xf86OutputPtr output)
 	i830DisableUnusedFunctions(pScrn);
     }
 }
+
+static const xf86CrtcFuncsRec i830_crtc_funcs = {
+    .dpms = i830_crtc_dpms,
+    .save = NULL, /* XXX */
+    .restore = NULL, /* XXX */
+    .mode_fixup = i830_crtc_mode_fixup,
+    .mode_set = i830_crtc_mode_set,
+    .destroy = NULL, /* XXX */
+};
+
+void
+i830_crtc_init(ScrnInfoPtr pScrn, int pipe)
+{
+    xf86CrtcPtr crtc;
+    I830CrtcPrivatePtr intel_crtc;
+
+    crtc = xf86CrtcCreate (pScrn, &i830_crtc_funcs);
+    if (crtc == NULL)
+	return;
+
+    intel_crtc = xnfcalloc (sizeof (I830CrtcPrivateRec), 1);
+    intel_crtc->pipe = pipe;
+
+    crtc->driver_private = intel_crtc;
+}
+
