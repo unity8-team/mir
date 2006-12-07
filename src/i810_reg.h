@@ -762,6 +762,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define PP_STATUS	0x61200
 # define PP_ON					(1 << 31)
+/**
+ * Indicates that all dependencies of the panel are on:
+ *
+ * - PLL enabled
+ * - pipe enabled
+ * - LVDS/DVOB/DVOC on
+ */
+# define PP_READY				(1 << 30)
+# define PP_SEQUENCE_NONE			(0 << 28)
+# define PP_SEQUENCE_ON				(1 << 28)
+# define PP_SEQUENCE_OFF			(2 << 28)
+# define PP_SEQUENCE_MASK			0x30000000
 
 #define PP_CONTROL	0x61204
 # define POWER_TARGET_ON			(1 << 0)
@@ -796,12 +808,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define DPLL_VGA_MODE_DIS			(1 << 28)
 # define DPLLB_MODE_DAC_SERIAL			(1 << 26) /* i915 */
 # define DPLLB_MODE_LVDS			(2 << 26) /* i915 */
+# define DPLL_MODE_MASK				(3 << 26)
 # define DPLL_DAC_SERIAL_P2_CLOCK_DIV_10	(0 << 24) /* i915 */
 # define DPLL_DAC_SERIAL_P2_CLOCK_DIV_5		(1 << 24) /* i915 */
 # define DPLLB_LVDS_P2_CLOCK_DIV_14		(0 << 24) /* i915 */
 # define DPLLB_LVDS_P2_CLOCK_DIV_7		(1 << 24) /* i915 */
 # define DPLL_P2_CLOCK_DIV_MASK			0x03000000 /* i915 */
 # define DPLL_FPA01_P1_POST_DIV_MASK		0x00ff0000 /* i915 */
+# define DPLL_FPA01_P1_POST_DIV_SHIFT		16
 # define PLL_P2_DIVIDE_BY_4			(1 << 23) /* i830, required in DVO non-gang */
 # define DPLL_FPA01_P1_POS_DIV_MASK_I830	0x001f0000 /* i830 */
 # define PLL_P1_DIVIDE_BY_TWO			(1 << 21) /* i830 */
@@ -809,6 +823,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define PLL_REF_INPUT_TVCLKINA			(1 << 13) /* i830 */
 # define PLL_REF_INPUT_TVCLKINBC		(2 << 13) /* SDVO TVCLKIN */
 # define PLLB_REF_INPUT_SPREADSPECTRUMIN	(3 << 13)
+# define PLL_REF_INPUT_MASK			(3 << 13)
 # define PLL_LOAD_PULSE_PHASE_SHIFT		9
 /*
  * Parallel to Serial Load Pulse phase selection.
@@ -818,6 +833,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 # define PLL_LOAD_PULSE_PHASE_MASK		(0xf << PLL_LOAD_PULSE_PHASE_SHIFT)
 # define DISPLAY_RATE_SELECT_FPA1		(1 << 8)
+
 /**
  * SDVO multiplier for 945G/GM. Not used on 965.
  *
@@ -906,8 +922,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define FPB0		0x06048
 #define FPB1		0x0604c
 # define FP_N_DIV_MASK				0x003f0000
+# define FP_N_DIV_SHIFT				16
 # define FP_M1_DIV_MASK				0x00003f00
+# define FP_M1_DIV_SHIFT			8
 # define FP_M2_DIV_MASK				0x0000003f
+# define FP_M2_DIV_SHIFT			0
 
 #define PORT_HOTPLUG_EN		0x61110
 # define SDVOB_HOTPLUG_INT_EN			(1 << 26)

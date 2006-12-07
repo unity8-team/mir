@@ -534,15 +534,35 @@ i830_sdvo_set_clock_rate_mult(xf86OutputPtr output, CARD8 val)
     return TRUE;
 }
 
+static Bool
+i830_sdvo_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
+		     DisplayModePtr adjusted_mode)
+{
+    /* Make the CRTC code factor in the SDVO pixel multiplier.  The SDVO
+     * device will be told of the multiplier during mode_set.
+     */
+    adjusted_mode->Clock *= i830_sdvo_get_pixel_multiplier(mode);
+
+    return TRUE;
+}
+
 static void
-i830_sdvo_pre_set_mode(xf86OutputPtr output, DisplayModePtr mode)
+i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
+		   DisplayModePtr adjusted_mode)
 {
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
-    CARD16 width;
-    CARD16 height;
+    xf86CrtcPtr	    crtc = output->crtc;
+    I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
+    Bool input1, input2;
+    CARD32 sdvox;
+    int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
+    int sdvo_pixel_multiply;
+    int i;
+    CARD8 status;
+    CARD16 width, height;
     CARD16 h_blank_len, h_sync_len, v_blank_len, v_sync_len;
     CARD16 h_sync_offset, v_sync_offset;
     struct i830_sdvo_dtd output_dtd;
@@ -593,9 +613,6 @@ i830_sdvo_pre_set_mode(xf86OutputPtr output, DisplayModePtr mode)
     output_dtd.part2.v_sync_off_high = v_sync_offset & 0xc0;
     output_dtd.part2.reserved = 0;
 
-    /* Turn off the screens before adjusting timings */
-    i830_sdvo_set_active_outputs(output, 0);
-
     /* Set the output timing to the screen */
     i830_sdvo_set_target_output(output, dev_priv->active_outputs);
     i830_sdvo_set_output_timing(output, &output_dtd);
@@ -633,26 +650,6 @@ i830_sdvo_pre_set_mode(xf86OutputPtr output, DisplayModePtr mode)
 	break;
     }
 
-    OUTREG(dev_priv->output_device, INREG(dev_priv->output_device) & ~SDVO_ENABLE);
-}
-
-static void
-i830_sdvo_post_set_mode(xf86OutputPtr output, DisplayModePtr mode)
-{
-    ScrnInfoPtr pScrn = output->scrn;
-    I830OutputPrivatePtr    intel_output = output->driver_private;
-    struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
-    xf86CrtcPtr	    crtc = output->crtc;
-    I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
-    I830Ptr pI830 = I830PTR(pScrn);
-    Bool input1, input2;
-    CARD32 dpll, sdvox;
-    int dpll_reg = (intel_crtc->pipe == 0) ? DPLL_A : DPLL_B;
-    int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
-    int sdvo_pixel_multiply;
-    int i;
-    CARD8 status;
-
     /* Set the SDVO control regs. */
     sdvox = INREG(dev_priv->output_device);
     switch (dev_priv->output_device) {
@@ -663,23 +660,19 @@ i830_sdvo_post_set_mode(xf86OutputPtr output, DisplayModePtr mode)
 	sdvox &= SDVOC_PRESERVE_MASK;
 	break;
     }
-    sdvox |= SDVO_ENABLE | (9 << 19) | SDVO_BORDER_ENABLE;
+    sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
     if (intel_crtc->pipe == 1)
 	sdvox |= SDVO_PIPE_B_SELECT;
-
-    dpll = INREG(dpll_reg);
 
     sdvo_pixel_multiply = i830_sdvo_get_pixel_multiplier(mode);
     if (IS_I965G(pI830)) {
 	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
 	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
     } else if (IS_I945G(pI830) || IS_I945GM(pI830)) {
-	dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
+	/* done in crtc_mode_set as it lives inside the dpll register */
     } else {
 	sdvox |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
     }
-
-    OUTREG(dpll_reg, dpll | DPLL_DVO_HIGH_SPEED);
 
     OUTREG(dev_priv->output_device, sdvox);
 
@@ -694,9 +687,6 @@ i830_sdvo_post_set_mode(xf86OutputPtr output, DisplayModePtr mode)
 		   "First %s output reported failure to sync\n",
 		   SDVO_NAME(dev_priv));
     }
-
-    i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
-    i830_sdvo_set_target_input(output, TRUE, FALSE);
 }
 
 static void
@@ -975,7 +965,7 @@ i830_sdvo_dump(ScrnInfoPtr pScrn)
  *
  * Takes 14ms on average on my i945G.
  */
-static enum detect_status
+static xf86OutputStatus
 i830_sdvo_detect(xf86OutputPtr output)
 {
     CARD8 response[2];
@@ -985,12 +975,12 @@ i830_sdvo_detect(xf86OutputPtr output)
     status = i830_sdvo_read_response(output, &response, 2);
 
     if (status != SDVO_CMD_STATUS_SUCCESS)
-	return OUTPUT_STATUS_UNKNOWN;
+	return XF86OutputStatusUnknown;
 
     if (response[0] != 0 || response[1] != 0)
-	return OUTPUT_STATUS_CONNECTED;
+	return XF86OutputStatusConnected;
     else
-	return OUTPUT_STATUS_DISCONNECTED;
+	return XF86OutputStatusDisconnected;
 }
 
 static void
@@ -1014,8 +1004,8 @@ static const xf86OutputFuncsRec i830_sdvo_output_funcs = {
     .save = i830_sdvo_save,
     .restore = i830_sdvo_restore,
     .mode_valid = i830_sdvo_mode_valid,
-    .pre_set_mode = i830_sdvo_pre_set_mode,
-    .post_set_mode = i830_sdvo_post_set_mode,
+    .mode_fixup = i830_sdvo_mode_fixup,
+    .mode_set = i830_sdvo_mode_set,
     .detect = i830_sdvo_detect,
     .get_modes = i830_ddc_get_modes,
     .destroy = i830_sdvo_destroy
@@ -1132,9 +1122,15 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 
     memset(&dev_priv->active_outputs, 0, sizeof(dev_priv->active_outputs));
     if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS0)
+    {
 	dev_priv->active_outputs = SDVO_OUTPUT_TMDS0;
+        output->subpixel_order = SubPixelHorizontalRGB;
+    }
     else if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS1)
+    {
 	dev_priv->active_outputs = SDVO_OUTPUT_TMDS1;
+        output->subpixel_order = SubPixelHorizontalRGB;
+    }
     else
     {
 	unsigned char	bytes[2];

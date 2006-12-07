@@ -27,14 +27,21 @@
 #include "i830_xf86Modes.h"
 
 typedef struct _xf86Crtc xf86CrtcRec, *xf86CrtcPtr;
+typedef struct _xf86Output xf86OutputRec, *xf86OutputPtr;
+
+typedef enum _xf86OutputStatus {
+   XF86OutputStatusConnected,
+   XF86OutputStatusDisconnected,
+   XF86OutputStatusUnknown,
+} xf86OutputStatus;
 
 typedef struct _xf86CrtcFuncs {
    /**
     * Turns the crtc on/off, or sets intermediate power levels if available.
     *
     * Unsupported intermediate modes drop to the lower power setting.  If the
-    * mode is DPMSModeOff, the crtc must be disabled, as the DPLL may be
-    * disabled afterwards.
+    * mode is DPMSModeOff, the crtc must be disabled sufficiently for it to
+    * be safe to call mode_set.
     */
    void
     (*dpms)(xf86CrtcPtr		crtc,
@@ -51,6 +58,27 @@ typedef struct _xf86CrtcFuncs {
     */
    void
     (*restore)(xf86CrtcPtr	crtc);
+
+
+    /**
+     * Callback to adjust the mode to be set in the CRTC.
+     *
+     * This allows a CRTC to adjust the clock or even the entire set of
+     * timings, which is used for panels with fixed timings or for
+     * buses with clock limitations.
+     */
+    Bool
+    (*mode_fixup)(xf86CrtcPtr crtc,
+		  DisplayModePtr mode,
+		  DisplayModePtr adjusted_mode);
+
+    /**
+     * Callback for setting up a video mode after fixups have been made.
+     */
+    void
+    (*mode_set)(xf86CrtcPtr crtc,
+		DisplayModePtr mode,
+		DisplayModePtr adjusted_mode);
 
     /**
      * Clean up driver-specific bits of the crtc
@@ -127,8 +155,6 @@ struct _xf86Crtc {
 #endif
 };
 
-typedef struct _xf86Output xf86OutputRec, *xf86OutputPtr;
-
 typedef struct _xf86OutputFuncs {
     /**
      * Turns the output on/off, or sets intermediate power levels if available.
@@ -157,7 +183,7 @@ typedef struct _xf86OutputFuncs {
      * Callback for testing a video mode for a given output.
      *
      * This function should only check for cases where a mode can't be supported
-     * on the pipe specifically, and not represent generic CRTC limitations.
+     * on the output specifically, and not represent generic CRTC limitations.
      *
      * \return MODE_OK if the mode is valid, or another MODE_* otherwise.
      */
@@ -166,27 +192,33 @@ typedef struct _xf86OutputFuncs {
 		  DisplayModePtr    pMode);
 
     /**
-     * Callback for setting up a video mode before any crtc/dpll changes.
+     * Callback to adjust the mode to be set in the CRTC.
      *
-     * \param pMode the mode that will be set, or NULL if the mode to be set is
-     * unknown (such as the restore path of VT switching).
+     * This allows an output to adjust the clock or even the entire set of
+     * timings, which is used for panels with fixed timings or for
+     * buses with clock limitations.
      */
-    void
-    (*pre_set_mode)(xf86OutputPtr   output,
-		    DisplayModePtr  pMode);
+    Bool
+    (*mode_fixup)(xf86OutputPtr output,
+		  DisplayModePtr mode,
+		  DisplayModePtr adjusted_mode);
 
     /**
-     * Callback for setting up a video mode after the DPLL update but before
-     * the plane is enabled.
+     * Callback for setting up a video mode after fixups have been made.
+     *
+     * This is only called while the output is disabled.  The dpms callback
+     * must be all that's necessary for the output, to turn the output on
+     * after this function is called.
      */
     void
-    (*post_set_mode)(xf86OutputPtr  output,
-		     DisplayModePtr pMode);
+    (*mode_set)(xf86OutputPtr  output,
+		DisplayModePtr mode,
+		DisplayModePtr adjusted_mode);
 
     /**
      * Probe for a connected output, and return detect_status.
      */
-    enum detect_status
+    xf86OutputStatus
     (*detect)(xf86OutputPtr	    output);
 
     /**
@@ -211,12 +243,23 @@ struct _xf86Output {
      * Associated ScrnInfo
      */
     ScrnInfoPtr		scrn;
+
     /**
      * Currently connected crtc (if any)
      *
      * If this output is not in use, this field will be NULL.
      */
     xf86CrtcPtr		crtc;
+
+    /**
+     * Possible CRTCs for this output as a mask of crtc indices
+     */
+    CARD32		possible_crtcs;
+
+    /**
+     * Possible outputs to share the same CRTC as a mask of output indices
+     */
+    CARD32		possible_clones;
     /**
      * List of available modes on this output.
      *
@@ -225,8 +268,19 @@ struct _xf86Output {
      */
     DisplayModePtr	probed_modes;
 
+    /**
+     * Current connection status
+     *
+     * This indicates whether a monitor is known to be connected
+     * to this output or not, or whether there is no way to tell
+     */
+    xf86OutputStatus	status;
+
     /** EDID monitor information */
     xf86MonPtr		MonInfo;
+
+    /** subpixel order */
+    int			subpixel_order;
 
     /** Physical size of the currently attached output device. */
     int			mm_width, mm_height;
@@ -253,12 +307,20 @@ struct _xf86Output {
 #endif
 };
 
+/* XXX yes, static allocation is a kludge */
 #define XF86_MAX_CRTC	4
 #define XF86_MAX_OUTPUT	16
 
 typedef struct _xf86CrtcConfig {
    int			num_output;
    xf86OutputPtr	output[XF86_MAX_OUTPUT];
+   /**
+    * compat_output is used whenever we deal
+    * with legacy code that only understands a single
+    * output. pScrn->modes will be loaded from this output,
+    * adjust frame will whack this output, etc.
+    */
+   int			compat_output;
     
    int			num_crtc;
    xf86CrtcPtr		crtc[XF86_MAX_CRTC];
@@ -306,5 +368,14 @@ xf86OutputCreate (ScrnInfoPtr		scrn,
 
 void
 xf86OutputDestroy (xf86OutputPtr	output);
+
+void
+xf86ProbeOutputModes (ScrnInfoPtr pScrn);
+
+void
+xf86SetScrnInfoModes (ScrnInfoPtr pScrn);
+
+Bool
+xf86InitialConfiguration (ScrnInfoPtr pScrn);
 
 #endif /* _XF86CRTC_H_ */
