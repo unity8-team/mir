@@ -33,6 +33,7 @@
 #include "xf86.h"
 #include "xf86DDC.h"
 #include "i830_xf86Crtc.h"
+#include "X11/extensions/render.h"
 
 /*
  * Crtc functions

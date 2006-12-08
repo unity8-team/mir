@@ -705,22 +705,23 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	dspcntr |= DISPPLANE_SEL_PIPE_B;
 
     pipeconf = INREG(pipeconf_reg);
-    if (!IS_I9XX(pI830) && pipe == 0) {
+    if (pipe == 0) 
+    {
 	/*
 	 * The docs say this is needed when the dot clock is > 90% of the
 	 * core speed. Core speeds are indicated by bits in the PCI
-	 * config space and don't seem to ever be less than 200MHz,
-	 * which is a bit confusing.
-	 *
-	 * However, For one little 855/852 card I have, 135000 requires
-	 * double wide mode, but 108000 does not. That makes no sense
-	 * but we're used to that. It may be affected by pixel size,
-	 * but the BIOS mode setting code doesn't appear to use that.
-	 *
-	 * It doesn't seem to cause any harm, although it
-	 * does restrict some output options.
+	 * config space, but that's a pain to go read, so we just guess
+	 * based on the hardware age. AGP hardware is assumed to run
+	 * at 133MHz while PCI-E hardware is assumed to run at 200MHz
 	 */
-	if (adjusted_mode->Clock > 108000)
+	int core_clock;
+	
+	if (IS_I9XX(pI830))
+	    core_clock = 200000;
+	else
+	    core_clock = 133000;
+	
+	if (mode->Clock > core_clock * 9 / 10)
 	    pipeconf |= PIPEACONF_DOUBLE_WIDE;
 	else
 	    pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
