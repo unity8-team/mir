@@ -22,7 +22,6 @@ typedef struct {
    int           red_intensity;
    int           green_intensity;
    int           blue_intensity;
-   int		 ecp_div;
 
 	/* overlay composition mode */
    int		 alpha_mode; /* 0 = key mode, 1 = global mode */

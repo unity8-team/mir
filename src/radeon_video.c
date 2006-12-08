@@ -1275,6 +1275,7 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONPortPrivPtr pPriv;
     CARD32 dot_clock;
+    int ecp;
 
     if(!(adapt = xf86XVAllocateVideoAdaptorRec(pScrn)))
 	return NULL;
@@ -1339,21 +1340,14 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 	dot_clock = info->ModeReg.dot_clock_freq;
 
     if(dot_clock < 17500)
-        pPriv->ecp_div = 0;
+        info->ecp_div = 0;
     else
-        pPriv->ecp_div = 1;
-
+        info->ecp_div = 1;
+    ecp = (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) & 0xfffffCff) | (info->ecp_div << 8);
 
 #if 0
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Dotclock is %g Mhz, setting ecp_div to %d\n", info->ModeReg.dot_clock_freq/100.0, pPriv->ecp_div);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Dotclock is %g Mhz, setting ecp_div to %d\n", info->ModeReg.dot_clock_freq/100.0, info->ecp_div);
 #endif
-
-    OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL, (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) &
-					 0xfffffCff) | (pPriv->ecp_div << 8));
-
-    /* I suspect we may need a usleep after writing to the PLL.  if you play a video too soon
-       after switching crtcs in mergedfb clone mode you get a temporary one pixel line of colorkey 
-       on the right edge video output.  */
 
 
     if ((info->ChipFamily == CHIP_FAMILY_RS100) || 
@@ -1361,9 +1355,12 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 	(info->ChipFamily == CHIP_FAMILY_RS300)) {
         /* Force the overlay clock on for integrated chips
 	 */
-        OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL,
-	       (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) | (1<<18)));
+        ecp |= (1<<18);
     }
+
+    OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL, ecp);
+
+
 
     /* Decide on tuner type */
     if((info->tunerType<0) && (info->MM_TABLE_valid)) {
@@ -2453,10 +2450,9 @@ RADEONDisplayVideo(
 	    break;
     }
 
-    /* Unlike older Mach64 chips, RADEON has only two ECP settings: 0 for PIXCLK < 175Mhz, and 1 (divide by 2)
-       for higher clocks, sure makes life nicer
-
-       Here we need to find ecp_div again, as the user may have switched resolutions */
+    /* Here we need to find ecp_div again, as the user may have switched resolutions
+       but only call OUTPLL/INPLL if needed since it may cause a 10ms delay due to
+       workarounds for chip erratas */
 
     /* Figure out which head we are on for dot clock */
     if ((info->MergedFB && info->OverlayOnCRTC2) || info->IsSecondary)
@@ -2469,12 +2465,17 @@ RADEONDisplayVideo(
     else
 	ecp_div = 1;
 
-    OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL,
+    if (ecp_div != info->ecp_div) {
+	info->ecp_div = ecp_div;
+	OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL,
 	   (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) & 0xfffffCff) | (ecp_div << 8));
+    }
 
     /* I suspect we may need a usleep after writing to the PLL.  if you play a video too soon
        after switching crtcs in mergedfb clone mode you get a temporary one pixel line of colorkey 
-       on the right edge video output.  */
+       on the right edge video output.
+       Is this still the case? Might have been chips which need the errata,
+       there is now plenty of usleep after INPLL/OUTPLL for those...*/
 
     v_inc_shift = 20;
     y_mult = 1;

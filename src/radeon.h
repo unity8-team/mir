@@ -742,6 +742,7 @@ typedef struct {
     	} MM_TABLE;
     CARD16 video_decoder_type;
     int overlay_scaler_buffer_width;
+    int ecp_div;
 
     /* Render */
     Bool              RenderAccel;

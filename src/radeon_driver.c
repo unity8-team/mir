@@ -6595,6 +6595,8 @@ _X_EXPORT Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
        RADEONResetDPI(pScrn, FALSE);
     }
 
+    info->ecp_div = -1;
+
     return ret;
 }
 
