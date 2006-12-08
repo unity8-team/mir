@@ -94,7 +94,7 @@ static Bool NVDRIInitVisualConfigs(ScreenPtr pScreen)
 	__GLXvisualConfig* pConfigs = NULL;
 	NVConfigPrivPtr pNVConfigs = NULL;
 	NVConfigPrivPtr* pNVConfigPtrs = NULL;
-	int db,depth,alpha;
+	int db,depth,alpha,stencil;
 	int depths[]={24,16,0};
 	int num_configs,i;
 
@@ -106,7 +106,7 @@ static Bool NVDRIInitVisualConfigs(ScreenPtr pScreen)
 			break;
 		case 16:
 		case 24:
-			num_configs=2*3*((pScrn->depth==24)?2:1); /* db*depth*alpha */
+			num_configs=2*3*((pScrn->depth==24)?2:1)*2; /* db*depth*alpha*stencil */
 			if (!(pConfigs=(__GLXvisualConfig*)xcalloc(sizeof(__GLXvisualConfig),num_configs)))
 				return FALSE;
 			if (!(pNVConfigs=(NVConfigPrivPtr)xcalloc(sizeof(NVConfigPrivRec), num_configs))) {
@@ -122,7 +122,8 @@ static Bool NVDRIInitVisualConfigs(ScreenPtr pScreen)
 			i = 0;
 			for(db=1;db>=0;db--)
 			for(depth=0;depth<3;depth++)
-			for(alpha=0;alpha<((pScrn->depth==24)?1:0);alpha++)
+			for(alpha=0;alpha<((pScrn->depth==24)?2:1);alpha++)
+			for(stencil=0;stencil<2;stencil++)
 			{
 				pConfigs[i].vid                = (VisualID)(-1);
 				pConfigs[i].class              = -1;
@@ -163,8 +164,13 @@ static Bool NVDRIInitVisualConfigs(ScreenPtr pScreen)
 					pConfigs[i].doubleBuffer   = FALSE;
 				pConfigs[i].stereo             = FALSE;
 				pConfigs[i].bufferSize         = pScrn->depth;
-				pConfigs[i].depthSize          = depths[depth];
-				pConfigs[i].stencilSize        = 0;
+				if (depths[depth] == 24 && stencil) {
+					pConfigs[i].depthSize          = depths[depth];
+					pConfigs[i].stencilSize        = 8;
+				} else {
+					pConfigs[i].depthSize          = depths[depth];
+					pConfigs[i].stencilSize        = 0;
+				}
 				pConfigs[i].auxBuffers         = 0;
 				pConfigs[i].level              = 0;
 				pConfigs[i].visualRating       = GLX_NONE;
@@ -310,6 +316,15 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	if (!DRIScreenInit(pScreen, pDRIInfo, &pNv->drm_fd)) {
 		xf86DrvMsg(pScreen->myNum, X_ERROR,
 				"[dri] DRIScreenInit failed.  Disabling DRI.\n");
+		xfree(pDRIInfo->devPrivate);
+		pDRIInfo->devPrivate = NULL;
+		DRIDestroyInfoRec(pDRIInfo);
+		pDRIInfo = NULL;
+		return FALSE;
+	}
+	if (!NVDRIInitVisualConfigs(pScreen)) {
+		xf86DrvMsg(pScreen->myNum, X_ERROR,
+				"[dri] NVDRIInitVisualConfigs failed.  Disabling DRI.\n");
 		xfree(pDRIInfo->devPrivate);
 		pDRIInfo->devPrivate = NULL;
 		DRIDestroyInfoRec(pDRIInfo);
