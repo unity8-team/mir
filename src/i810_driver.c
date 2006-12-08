@@ -140,6 +140,10 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_I915_GM,		"915GM"},
    {PCI_CHIP_I945_G,		"945G"},
    {PCI_CHIP_I945_GM,		"945GM"},
+   {PCI_CHIP_I965_G,		"965G"},
+   {PCI_CHIP_I965_G_1,		"965G"},
+   {PCI_CHIP_I965_Q,		"965Q"},
+   {PCI_CHIP_I946_GZ,		"946GZ"},
    {-1,				NULL}
 };
 
@@ -159,6 +163,10 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	RES_SHARED_VGA},
    {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	RES_SHARED_VGA},
    {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	RES_SHARED_VGA},
+   {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	RES_SHARED_VGA},
+   {PCI_CHIP_I965_G_1,		PCI_CHIP_I965_G_1,	RES_SHARED_VGA},
+   {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	RES_SHARED_VGA},
+   {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	RES_SHARED_VGA},
    {-1,				-1, RES_UNDEFINED }
 };
 
@@ -305,6 +313,12 @@ const char *I810drmSymbols[] = {
    "drmGetLibVersion",
    "drmGetVersion",
    "drmRmMap",
+#ifdef XSERVER_LIBDRM_MM 
+   "drmMMInit",
+   "drmMMTakedown",
+   "drmMMLock",
+   "drmMMUnlock",
+#endif
    NULL
 };
 
@@ -324,7 +338,8 @@ const char *I810driSymbols[] = {
    "DRICreatePCIBusID",
    NULL
 };
-#endif 
+
+#endif /* I830_ONLY */
 
 const char *I810shadowSymbols[] = {
     "shadowInit",
@@ -378,7 +393,7 @@ static XF86ModuleVersionInfo i810VersRec = {
    MODINFOSTRING1,
    MODINFOSTRING2,
    XORG_VERSION_CURRENT,
-   I810_MAJOR_VERSION, I810_MINOR_VERSION, I810_PATCHLEVEL,
+   INTEL_VERSION_MAJOR, INTEL_VERSION_MINOR, INTEL_VERSION_PATCH,
    ABI_CLASS_VIDEODRV,
    ABI_VIDEODRV_VERSION,
    MOD_CLASS_VIDEODRV,
@@ -407,9 +422,9 @@ i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
 #ifdef XF86DRI
 			I810drmSymbols,
 			I810driSymbols,
+#endif
 			I810shadowSymbols,
 			I810shadowFBSymbols,
-#endif
 			I810vbeSymbols, vbeOptionalSymbols,
 			I810ddcSymbols, I810int10Symbols, NULL);
 
@@ -477,11 +492,11 @@ I810AvailableOptions(int chipid, int busid)
 #ifndef I830_ONLY
    const OptionInfoRec *pOptions;
 
-   if ((pOptions = I830BIOSAvailableOptions(chipid, busid)))
+   if ((pOptions = I830AvailableOptions(chipid, busid)))
       return pOptions;
    return I810Options;
 #else
-   return I830BIOSAvailableOptions(chipid, busid);
+   return I830AvailableOptions(chipid, busid);
 #endif
 }
 
@@ -584,6 +599,10 @@ I810Probe(DriverPtr drv, int flags)
 	    case PCI_CHIP_I915_GM:
 	    case PCI_CHIP_I945_G:
 	    case PCI_CHIP_I945_GM:
+	    case PCI_CHIP_I965_G:
+	    case PCI_CHIP_I965_G_1:
+	    case PCI_CHIP_I965_Q:
+	    case PCI_CHIP_I946_GZ:
     	       xf86SetEntitySharable(usedChips[i]);
 
     	       /* Allocate an entity private if necessary */		
@@ -1181,14 +1200,13 @@ I810MapMem(ScrnInfoPtr pScrn)
    long i;
 
    for (i = 2; i < pI810->FbMapSize; i <<= 1) ;
-   pI810->FbMapSize = i;
 
    if (!I810MapMMIO(pScrn))
       return FALSE;
 
    pI810->FbBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
 				 pI810->PciTag,
-				 pI810->LinearAddr, pI810->FbMapSize);
+				 pI810->LinearAddr, i);
    if (!pI810->FbBase)
       return FALSE;
 

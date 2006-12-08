@@ -22,9 +22,19 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-i810],
-        1.6.0,
+        1.7.2,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-i810)
+
+AC_DEFINE_UNQUOTED([INTEL_VERSION_MAJOR],
+		   [$(echo $PACKAGE_VERSION | sed -e 's/^\([[0-9]]\)\.[[0-9]]\.[[0-9]]/\1/')],
+		   [Major version])
+AC_DEFINE_UNQUOTED([INTEL_VERSION_MINOR],
+		   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]\.\([[0-9]]\)\.[[0-9]]/\1/')],
+		   [Minor version])
+AC_DEFINE_UNQUOTED([INTEL_VERSION_PATCH],
+		   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]\.[[0-9]]\.\([[0-9]]\)/\1/')],
+		   [Patch version])
 
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_CONFIG_HEADER([config.h])
@@ -39,6 +49,9 @@ AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 AC_PROG_CC
 
+AC_CHECK_PROG(gen4asm, [intel-gen4asm], yes, no)
+AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
+
 AH_TOP([#include "xorg-server.h"])
 
 AC_ARG_WITH(xorg-module-dir,
@@ -52,8 +65,14 @@ AC_ARG_ENABLE(dri, AC_HELP_STRING([--disable-dri],
               [DRI="$enableval"],
               [DRI=auto])
 
+AC_ARG_ENABLE(video-debug, AC_HELP_STRING([--enable-video-debug],
+                                  [Enable video debugging support [[default=no]]]),
+              [VIDEO_DEBUG="$enableval"],
+              [VIDEO_DEBUG=no])
+
 
 # Checks for extensions
+XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
 XORG_DRIVER_CHECK_EXT(RENDER, renderproto)
 XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
@@ -99,17 +118,21 @@ if test "x$GCC" = "xyes"; then
 	-Wnested-externs -fno-strict-aliasing"
 fi
 
-CFLAGS="$CFLAGS $WARN_CFLAGS"
-
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
-        PKG_CHECK_MODULES(DRI, [libdrm >= 2.0 xf86driproto])
+        PKG_CHECK_MODULES(DRI, [libdrm >= 2.2 xf86driproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
 fi
 
+AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)
+if test "$VIDEO_DEBUG" = yes; then
+	AC_DEFINE(VIDEO_DEBUG,1,[Enable debug support])
+fi
+
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([XORG_CFLAGS])
+AC_SUBST([WARN_CFLAGS])
 AC_SUBST([moduledir])
 
 DRIVER_NAME=i810

@@ -29,7 +29,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define CH7xxx_REG_VID 0x4a
 #define CH7xxx_REG_DID 0x4b
 
-
 #define CH7011_VID 0x83
 #define CH7009A_VID 0x84
 #define CH7009B_VID 0x85
@@ -41,13 +40,13 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define CH7xxx_NUM_REGS 0x4c
 
 typedef struct _CH7xxxSaveRec {
-  CARD8 regs[CH7xxx_NUM_REGS];
+    CARD8 regs[CH7xxx_NUM_REGS];
 } CH7xxxSaveRec;
 
 typedef struct {
-  I2CDevRec d;
-  CH7xxxSaveRec SavedReg;
-  CH7xxxSaveRec ModeReg;
+    I2CDevRec d;
+    CH7xxxSaveRec SavedReg;
+    CH7xxxSaveRec ModeReg;
 } CH7xxxRec, *CH7xxxPtr;
 
 #define CH7PTR(d) ((CH7xxxPtr)(d->DriverPrivate.ptr))
@@ -85,7 +84,5 @@ typedef struct {
 
 #define CH7301_SYNC_RGB_YUV (1<<0)
 #define CH7301_SYNC_POL_DVI (1<<5)
-
-
 
 #endif

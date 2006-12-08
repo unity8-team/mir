@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 3 -*- */
 /**************************************************************************
 
 Copyright 2005 Tungsten Graphics, Inc., Cedar Park, Texas.
@@ -57,6 +58,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "shadow.h"
 
 #include "i830.h"
+#include "i915_reg.h"
+#include "i915_3d.h"
 
 #ifdef XF86DRI
 #include "dri.h"
@@ -208,11 +211,6 @@ I915UpdateRotate (ScreenPtr      pScreen,
    struct matrix23 rotMatrix;
    int j;
    int use_fence;
-   Bool updateInvarient = FALSE;
-#ifdef XF86DRI
-   drmI830Sarea *sarea = NULL;
-   drm_context_t myContext = 0;
-#endif
    Bool didLock = FALSE;
 
    if (I830IsPrimary(pScrn)) {
@@ -243,109 +241,94 @@ I915UpdateRotate (ScreenPtr      pScreen,
    }
 
 #ifdef XF86DRI
-   if (pI8301->directRenderingEnabled) {
-      sarea = DRIGetSAREAPrivate(pScrn1->pScreen);
-      myContext = DRIGetContext(pScrn1->pScreen);
+   if (pI8301->directRenderingEnabled)
       didLock = I830DRILock(pScrn1);
-   }
 #endif
 
+   /* If another screen was active, we don't know the current state. */
    if (pScrn->scrnIndex != *pI830->used3D)
-      updateInvarient = TRUE;
- 
-#ifdef XF86DRI
-   if (sarea && sarea->ctxOwner != myContext)
-      updateInvarient = TRUE;
-#endif
+      pI830->last_3d = LAST_3D_OTHER;
 
-   if (updateInvarient) {
+   if (pI830->last_3d != LAST_3D_ROTATION) {
+      FS_LOCALS(3);
       *pI830->used3D = pScrn->scrnIndex;
-#ifdef XF86DRI
-      if (sarea)
-         sarea->ctxOwner = myContext;
-#endif
-      BEGIN_LP_RING(64);
+
+      BEGIN_LP_RING(34);
       /* invarient state */
-      OUT_RING(MI_NOOP);
-      OUT_RING(0x66014140);
-      OUT_RING(0x7d990000);
-      OUT_RING(0x00000000);
-      OUT_RING(0x7d9a0000);
-      OUT_RING(0x00000000);
-      OUT_RING(0x7d980000);
-      OUT_RING(0x00000000);
-      OUT_RING(0x76fac688);
-      OUT_RING(0x6700a770);
-      OUT_RING(0x7d040081);
-      OUT_RING(0x00000000);
+
       /* flush map & render cache */
       OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
       OUT_RING(0x00000000);
+
       /* draw rect */
-      OUT_RING(0x7d800003);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING((pScrn->virtualX - 1) | (pScrn->virtualY - 1) << 16);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      /* scissor */
-      OUT_RING(0x7c800002);
-      OUT_RING(0x7d810001);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING(0x7c000003);
+      OUT_RING(_3DSTATE_DRAW_RECT_CMD);
+      OUT_RING(DRAW_DITHER_OFS_X(0) | DRAW_DITHER_OFS_Y(0));
+      OUT_RING(DRAW_XMIN(0) | DRAW_YMIN(0));
+      OUT_RING(DRAW_XMAX(pScrn->virtualX - 1) |
+	       DRAW_YMAX(pScrn->virtualY - 1));
+      OUT_RING(DRAW_XORG(0) | DRAW_YORG(0));
+
+      OUT_RING(MI_NOOP);
+
+      OUT_RING(0x7c000003); /* XXX: magic numbers */
       OUT_RING(0x7d070000);
       OUT_RING(0x00000000);
       OUT_RING(0x68000002);
-      /* context setup */
-      OUT_RING(0x6db3ffff);
-      OUT_RING(0x7d040744);
-      OUT_RING(0xfffffff0);
-      OUT_RING(0x00902c80);
+
+      OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
+	       I1_LOAD_S(2) | I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
+
+      OUT_RING(S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D) |
+	       S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(2, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(3, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(4, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
+	       S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT));
+      OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
+	       S4_CULLMODE_NONE | S4_VFMT_SPEC_FOG | S4_VFMT_COLOR |
+	       S4_VFMT_XYZW);
+      OUT_RING(0x00000000); /* S5 -- enable bits */
+      OUT_RING((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
+	       (2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
+	       (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) | S6_COLOR_WRITE_ENABLE |
+	       (2 << S6_TRISTRIP_PV_SHIFT));
+
+      OUT_RING(_3DSTATE_CONST_BLEND_COLOR_CMD);
       OUT_RING(0x00000000);
-      OUT_RING(0x00020216);
-      OUT_RING(0x6ba008a1);
-      OUT_RING(0x7d880000);
-      OUT_RING(0x00000000);
-      /* dv0 */
-      OUT_RING(0x7d850000);
-      /* dv1 */
-      if (pI830->cpp == 1)
-         OUT_RING(0x10880000);
-      else if (pI830->cpp == 2)
-            OUT_RING(0x10880200);
-         else
-            OUT_RING(0x10880308);
-      /* stipple */
-      OUT_RING(0x7d830000);
-      OUT_RING(0x00000000);
-      /* fragment program - texture blend replace*/
-      OUT_RING(0x7d050008);
-      OUT_RING(0x19180000);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING(0x19083c00);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING(0x15200000);
-      OUT_RING(0x01000000);
-      OUT_RING(0x00000000);
+
+      OUT_RING(_3DSTATE_DST_BUF_VARS_CMD);
+      if (pI830->cpp == 1) {
+	 OUT_RING(LOD_PRECLAMP_OGL | DSTORG_HORT_BIAS(0x8) |
+		  DSTORG_VERT_BIAS(0x8) | COLR_BUF_8BIT);
+      } else if (pI830->cpp == 2) {
+	 OUT_RING(LOD_PRECLAMP_OGL | DSTORG_HORT_BIAS(0x8) |
+		  DSTORG_VERT_BIAS(0x8) | COLR_BUF_RGB565);
+      } else {
+	 OUT_RING(LOD_PRECLAMP_OGL | DSTORG_HORT_BIAS(0x8) |
+		  DSTORG_VERT_BIAS(0x8) | COLR_BUF_ARGB8888 |
+		  DEPTH_FRMT_24_FIXED_8_OTHER);
+      }
+
       /* texture sampler state */
-      OUT_RING(0x7d010003);
+      OUT_RING(_3DSTATE_SAMPLER_STATE | 3);
       OUT_RING(0x00000001);
       OUT_RING(0x00000000);
       OUT_RING(0x00000000);
       OUT_RING(0x00000000);
+
       /* front buffer, pitch, offset */
-      OUT_RING(0x7d8e0001);
-      OUT_RING(0x03800000 | (((pI830->displayWidth * pI830->cpp) / 4) << 2));
+      OUT_RING(_3DSTATE_BUF_INFO_CMD);
+      OUT_RING(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
+	       BUF_3D_PITCH(pI830->displayWidth * pI830->cpp));
       if (I830IsPrimary(pScrn))
          OUT_RING(pI830->FrontBuffer.Start);
       else 
          OUT_RING(pI8301->FrontBuffer2.Start);
 
       /* Set the entire frontbuffer up as a texture */
-      OUT_RING(0x7d000003);
+      OUT_RING(_3DSTATE_MAP_STATE | 3);
       OUT_RING(0x00000001);
 
       if (I830IsPrimary(pScrn)) 
@@ -356,18 +339,25 @@ I915UpdateRotate (ScreenPtr      pScreen,
       if (pI830->disableTiling)
          use_fence = 0;
       else
-         use_fence = 4;
+         use_fence = MS3_USE_FENCE_REGS;
       
       if (pI830->cpp == 1)
-         use_fence |= 0x80; /* MAPSURF_8BIT */
+	 use_fence |= MAPSURF_8BIT;
       else
       if (pI830->cpp == 2)
-         use_fence |= 0x100; /* MAPSURF_16BIT */
+	 use_fence |= MAPSURF_16BIT;
       else
-         use_fence |= 0x180; /* MAPSURF_32BIT */
+	 use_fence |= MAPSURF_32BIT;
       OUT_RING(use_fence | (pScreen->height - 1) << 21 | (pScreen->width - 1) << 10);
       OUT_RING(((((pScrn->displayWidth * pI830->cpp) / 4) - 1) << 21));
       ADVANCE_LP_RING();
+
+      /* fragment program - texture blend replace*/
+      FS_BEGIN();
+      i915_fs_dcl(FS_S0);
+      i915_fs_dcl(FS_T0);
+      i915_fs_texld(FS_OC, FS_S0, FS_T0);
+      FS_END();
    }
    
    {
@@ -395,7 +385,7 @@ I915UpdateRotate (ScreenPtr      pScreen,
       OUT_RING(MI_NOOP);
 
       /* vertex data */
-      OUT_RING(0x7f0c001f);
+      OUT_RING(PRIM3D_INLINE | PRIM3D_TRIFAN | (32 - 1));
       verts[0][0] = box_x1; verts[0][1] = box_y1;
       verts[1][0] = box_x2; verts[1][1] = box_y1;
       verts[2][0] = box_x2; verts[2][1] = box_y2;
@@ -438,13 +428,8 @@ I830UpdateRotate (ScreenPtr      pScreen,
    CARD32	vb[32];	/* 32 dword vertex buffer */
    float verts[4][2], tex[4][2];
    struct matrix23 rotMatrix;
-   Bool updateInvarient = FALSE;
    int use_fence;
    int j;
-#ifdef XF86DRI
-   drmI830Sarea *sarea = NULL;
-   drm_context_t myContext = 0;
-#endif
    Bool didLock = FALSE;
 
    if (I830IsPrimary(pScrn)) {
@@ -475,28 +460,18 @@ I830UpdateRotate (ScreenPtr      pScreen,
    }
 
 #ifdef XF86DRI
-   if (pI8301->directRenderingEnabled) {
-      sarea = DRIGetSAREAPrivate(pScrn1->pScreen);
-      myContext = DRIGetContext(pScrn1->pScreen);
+   if (pI8301->directRenderingEnabled)
       didLock = I830DRILock(pScrn1);
-   }
 #endif
 
    if (pScrn->scrnIndex != *pI830->used3D)
-      updateInvarient = TRUE;
+      pI830->last_3d = LAST_3D_OTHER;
 
-#ifdef XF86DRI
-   if (sarea && sarea->ctxOwner != myContext)
-      updateInvarient = TRUE;
-#endif
-
-   if (updateInvarient) {
+   if (pI830->last_3d != LAST_3D_ROTATION) {
       *pI830->used3D = pScrn->scrnIndex;
-#ifdef XF86DRI
-      if (sarea)
-         sarea->ctxOwner = myContext;
-#endif
-      
+
+      pI830->last_3d = LAST_3D_ROTATION;
+
       BEGIN_LP_RING(48);
       OUT_RING(0x682008a1);
       OUT_RING(0x6f402100);
@@ -520,15 +495,15 @@ I830UpdateRotate (ScreenPtr      pScreen,
       OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
       OUT_RING(0x00000000);
       /* draw rect */
-      OUT_RING(0x7d800003);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
-      OUT_RING((pScrn->virtualX - 1) | (pScrn->virtualY - 1) << 16);
-      OUT_RING(0x00000000);
-      OUT_RING(0x00000000);
+      OUT_RING(_3DSTATE_DRAW_RECT_CMD);
+      OUT_RING(0x00000000);	/* flags */
+      OUT_RING(0x00000000);	/* ymin, xmin */
+      OUT_RING((pScrn->virtualX - 1) | (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+      OUT_RING(0x00000000);	/* yorigin, xorigin */
+      OUT_RING(MI_NOOP);
 
       /* front buffer */
-      OUT_RING(0x7d8e0001);
+      OUT_RING(_3DSTATE_BUF_INFO_CMD);
       OUT_RING(0x03800000 | (((pI830->displayWidth * pI830->cpp) / 4) << 2));
       if (I830IsPrimary(pScrn))
 	 OUT_RING(pI830->FrontBuffer.Start);
@@ -574,9 +549,9 @@ I830UpdateRotate (ScreenPtr      pScreen,
 	 OUT_RING(pI8301->RotatedMem2.Start | use_fence);
 
       if (pI830->cpp == 1)
-         OUT_RING(0x00 | (pScreen->height - 1) << 21 | (pScreen->width - 1) << 10);
-      else if (pI830->cpp == 2)
          OUT_RING(0x40 | (pScreen->height - 1) << 21 | (pScreen->width - 1) << 10);
+      else if (pI830->cpp == 2)
+         OUT_RING(0x80 | (pScreen->height - 1) << 21 | (pScreen->width - 1) << 10);
       else
          OUT_RING(0xc0 | (pScreen->height - 1) << 21 | (pScreen->width - 1) << 10);
 
@@ -681,12 +656,12 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
    };
 
    if (pI830->noAccel)
-	   func = LoaderSymbol("shadowUpdateRotatePacked");
+      func = LoaderSymbol("shadowUpdateRotatePacked");
    else
-	   if (IS_I9XX(pI830))
-		   func = I915UpdateRotate;
-	   else
-		   func = I830UpdateRotate;
+      if (IS_I9XX(pI830))
+	 func = I915UpdateRotate;
+      else
+	 func = I830UpdateRotate;
 
    if (I830IsPrimary(pScrn)) {
       pI8301 = pI830;
@@ -702,7 +677,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
       pScrn2 = pScrn;
    }
 
-   pI830->rotation = I830GetRotation(pScrn->pScreen);
+   pI830->rotation = xf86RandR12GetRotation(pScrn->pScreen);
 
    /* Check if we've still got the same orientation, or same mode */
    if (pI830->rotation == oldRotation && pI830->currentMode == mode)
@@ -716,13 +691,14 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
     * We grab the DRI lock when reallocating buffers to avoid DRI clients
     * getting bogus information.
     */
+
 #ifdef XF86DRI
    if (pI8301->directRenderingEnabled && reAllocate) {
       didLock = I830DRILock(pScrn1);
       
       /* Do heap teardown here
        */
-      {
+      if (pI8301->mmModeFlags & I830_KERNEL_TEX) {
 	 drmI830MemDestroyHeap destroy;
 	 destroy.region = I830_MEM_REGION_AGP;
 	 
@@ -734,9 +710,11 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	 }
       }
       
-      if (pI8301->TexMem.Key != -1)
-         xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key);
-      I830FreeVidMem(pScrn1, &(pI8301->TexMem));
+      if (pI8301->mmModeFlags & I830_KERNEL_TEX) {
+	 if (pI8301->TexMem.Key != -1)
+	    xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key);
+	 I830FreeVidMem(pScrn1, &(pI8301->TexMem));
+      }
       if (pI8301->StolenPool.Allocated.Key != -1) {
          xf86UnbindGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key);
          xf86DeallocateGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key);
@@ -836,7 +814,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
       if (pI8301->rotation != RR_Rotate_0) {
          if (!I830AllocateRotatedBuffer(pScrn1, 
-			      (pI8301->disableTiling ? ALLOC_NO_TILING : 0)))
+			      pI8301->disableTiling ? ALLOC_NO_TILING : 0))
             goto BAIL1;
 
          I830FixOffset(pScrn1, &(pI8301->RotatedMem));
@@ -848,8 +826,8 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
    shadowRemove (pScrn->pScreen, NULL);
    if (pI830->rotation != RR_Rotate_0)
       shadowAdd (pScrn->pScreen, 
-                    (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen), 
-                    func, I830WindowLinear, pI830->rotation, 0);
+		 (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen),
+		 func, I830WindowLinear, pI830->rotation, 0);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)
@@ -886,9 +864,11 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
 			      pI8301->disableTiling ? ALLOC_NO_TILING : 0))
          goto BAIL3;
 
-      if (!I830AllocateTextureMemory(pScrn1,
-			      pI8301->disableTiling ? ALLOC_NO_TILING : 0))
-         goto BAIL4;
+      if (pI8301->mmModeFlags & I830_KERNEL_TEX) {
+	 if (!I830AllocateTextureMemory(pScrn1,
+					pI8301->disableTiling ? ALLOC_NO_TILING : 0))
+	    goto BAIL4;
+      }
 
       I830DoPoolAllocation(pScrn1, &(pI8301->StolenPool));
 
@@ -901,8 +881,10 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
          xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->DepthBuffer.Key, pI8301->DepthBuffer.Offset);
       if (pI8301->StolenPool.Allocated.Key != -1)
          xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key, pI8301->StolenPool.Allocated.Offset);
-      if (pI8301->TexMem.Key != -1)
-         xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key, pI8301->TexMem.Offset);
+      if (pI8301->mmModeFlags & I830_KERNEL_TEX) {
+	 if (pI8301->TexMem.Key != -1)
+	    xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key, pI8301->TexMem.Offset);
+      }
       I830SetupMemoryTiling(pScrn1);
       /* update fence registers */
       for (i = 0; i < 8; i++) 
@@ -959,21 +941,26 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
       }
    }
 
-   /* Don't allow pixmap cache or offscreen pixmaps when rotated */
-   /* XAA needs some serious fixing for this to happen */
-   if (pI830->rotation == RR_Rotate_0) {
-      pI830->AccelInfoRec->Flags = LINEAR_FRAMEBUFFER | OFFSCREEN_PIXMAPS | PIXMAP_CACHE;
-      pI830->AccelInfoRec->UsingPixmapCache = TRUE;
-      /* funny as it seems this will enable XAA's createpixmap */
-      pI830->AccelInfoRec->maxOffPixWidth = 0;
-      pI830->AccelInfoRec->maxOffPixHeight = 0;
-   } else {
-      pI830->AccelInfoRec->Flags = LINEAR_FRAMEBUFFER;
-      pI830->AccelInfoRec->UsingPixmapCache = FALSE;
-      /* funny as it seems this will disable XAA's createpixmap */
-      pI830->AccelInfoRec->maxOffPixWidth = 1;
-      pI830->AccelInfoRec->maxOffPixHeight = 1;
+#ifdef I830_USE_XAA
+   if (pI830->AccelInfoRec != NULL) {
+      /* Don't allow pixmap cache or offscreen pixmaps when rotated */
+      /* XAA needs some serious fixing for this to happen */
+      if (pI830->rotation == RR_Rotate_0) {
+	 pI830->AccelInfoRec->Flags = LINEAR_FRAMEBUFFER | OFFSCREEN_PIXMAPS |
+				      PIXMAP_CACHE;
+	 pI830->AccelInfoRec->UsingPixmapCache = TRUE;
+	 /* funny as it seems this will enable XAA's createpixmap */
+	 pI830->AccelInfoRec->maxOffPixWidth = 0;
+	 pI830->AccelInfoRec->maxOffPixHeight = 0;
+      } else {
+	 pI830->AccelInfoRec->Flags = LINEAR_FRAMEBUFFER;
+	 pI830->AccelInfoRec->UsingPixmapCache = FALSE;
+	 /* funny as it seems this will disable XAA's createpixmap */
+	 pI830->AccelInfoRec->maxOffPixWidth = 1;
+	 pI830->AccelInfoRec->maxOffPixHeight = 1;
+      }
    }
+#endif
 
    return TRUE;
 
@@ -1045,7 +1032,7 @@ BAIL0:
 
    if (pI8301->rotation != RR_Rotate_0) {
       if (!I830AllocateRotatedBuffer(pScrn1, 
-			      (pI8301->disableTiling ? ALLOC_NO_TILING : 0)))
+			      pI8301->disableTiling ? ALLOC_NO_TILING : 0))
          xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 		    "Oh dear, the rotated buffer failed - badness\n");
 
@@ -1057,8 +1044,8 @@ BAIL0:
    shadowRemove (pScrn->pScreen, NULL);
    if (pI830->rotation != RR_Rotate_0)
       shadowAdd (pScrn->pScreen, 
-                    (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen), 
-                    func, I830WindowLinear, pI830->rotation, 0);
+		 (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen),
+		 func, I830WindowLinear, pI830->rotation, 0);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)
@@ -1118,11 +1105,12 @@ BAIL0:
 			      pI8301->disableTiling ? ALLOC_NO_TILING : 0))
          xf86DrvMsg(pScrn1->scrnIndex, X_INFO, 
 		    "Oh dear, the depth buffer failed - badness\n");
-
-      if (!I830AllocateTextureMemory(pScrn1,
-			      pI8301->disableTiling ? ALLOC_NO_TILING : 0))
-         xf86DrvMsg(pScrn1->scrnIndex, X_INFO, 
-		    "Oh dear, the texture cache failed - badness\n");
+      if (pI8301->mmModeFlags & I830_KERNEL_TEX) {
+	 if (!I830AllocateTextureMemory(pScrn1,
+					pI8301->disableTiling ? ALLOC_NO_TILING : 0))
+	    xf86DrvMsg(pScrn1->scrnIndex, X_INFO, 
+		       "Oh dear, the texture cache failed - badness\n");
+      }
 
       I830DoPoolAllocation(pScrn1, &(pI8301->StolenPool));
 
@@ -1135,8 +1123,10 @@ BAIL0:
          xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->DepthBuffer.Key, pI8301->DepthBuffer.Offset);
       if (pI8301->StolenPool.Allocated.Key != -1)
          xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->StolenPool.Allocated.Key, pI8301->StolenPool.Allocated.Offset);
-      if (pI8301->TexMem.Key != -1)
-         xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key, pI8301->TexMem.Offset);
+      if (pI8301->mmModeFlags & I830_KERNEL_TEX) {
+	 if (pI8301->TexMem.Key != -1)
+	    xf86BindGARTMemory(pScrn1->scrnIndex, pI8301->TexMem.Key, pI8301->TexMem.Offset);
+      }
       I830SetupMemoryTiling(pScrn1);
       /* update fence registers */
       for (i = 0; i < 8; i++) 
