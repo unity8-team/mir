@@ -2476,7 +2476,8 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn)
         return FALSE;
 
     pRADEONEnt->pCrtc[0]->driver_private = pRADEONEnt->Controller[0];
-    
+    pRADEONEnt->Controller[0]->crtc_id = 0;
+
     if (!pRADEONEnt->HasCRTC2)
 	return TRUE;
 
@@ -2492,6 +2493,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn)
     }
 
     pRADEONEnt->pCrtc[1]->driver_private = pRADEONEnt->Controller[1];
+    pRADEONEnt->Controller[1]->crtc_id = 1;
     return TRUE;
 }
 

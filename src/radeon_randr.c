@@ -58,9 +58,6 @@ typedef struct _radeonRandRInfo {
     int				    maxY;
     Rotation			    rotation; /* current mode */
     Rotation                        supported_rotations; /* driver supported */
-#ifdef RANDR_12_INTERFACE
-    DisplayModePtr  		    modes[2];
-#endif
 } XF86RandRInfoRec, *XF86RandRInfoPtr;
 
 #ifdef RANDR_12_INTERFACE
@@ -117,49 +114,134 @@ RADEONRandRScreenSetSize (ScreenPtr	pScreen,
 }
 
 static Bool
-RADEONRandRCrtcNotify (RRCrtcPtr crtc)
+RADEONRandRCrtcNotify (RRCrtcPtr randr_crtc)
 {
-  ScreenPtr		pScreen = crtc->pScreen;
+  ScreenPtr		pScreen = randr_crtc->pScreen;
   XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
   ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
   RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-  RRModePtr		mode = NULL;
-  int i, j;
-  int numOutputs = 0;
+  RADEONInfoPtr info       = RADEONPTR(pScrn);
+  RRModePtr		randr_mode = NULL;
   int x, y;
-  int rotation = RR_Rotate_0;
-  RROutputPtr outputs[RADEON_MAX_CRTC];
-  RROutputPtr rrout;
+  Rotation rotation;
+  int numOutputs;
+  RROutputPtr randr_outputs[RADEON_MAX_CRTC];
+  RROutputPtr randr_output;
+  xf86CrtcPtr crtc = randr_crtc->devPrivate;
+  xf86OutputPtr output;
+  int i, j;
+  DisplayModePtr	curMode = &crtc->curMode;
 
-  for (i = 0; i<RADEON_MAX_CONNECTOR; i++) {
-    
-    rrout = pRADEONEnt->pOutput[i]->randr_output;
+  x = crtc->x;
+  y = crtc->y;
+  rotation = RR_Rotate_0;
+  numOutputs = 0;
+  randr_mode = NULL;
 
-    outputs[numOutputs++] = rrout;
-    for (j = 0; j<rrout->numModes; j++) {
-      DisplayModePtr outMode = rrout->modes[j]->devPrivate;
-      mode = rrout->modes[j];
+  for (i = 0; i < info->xf86_config.num_output; i++) {
+    output = info->xf86_config.output[i];
+    if (output->crtc == crtc) {
+      
+      randr_output = output->randr_output;
+      randr_outputs[numOutputs++] = randr_output;
+
+      for (j = 0; j < randr_output->numModes; j++) {
+	DisplayModePtr outMode = randr_output->modes[j]->devPrivate;
+	if (xf86ModesEqual(curMode, outMode)) {
+	  randr_mode = randr_output->modes[j];
+	  break;
+	}
+      }
     }
   }
   
-  return RRCrtcNotify (crtc, mode, x, y, rotation, numOutputs, outputs);
+  return RRCrtcNotify (randr_crtc, randr_mode, x, y, rotation, numOutputs, randr_outputs);
 }
 
 static Bool
 RADEONRandRCrtcSet (ScreenPtr	pScreen,
-		  RRCrtcPtr	crtc,
-		  RRModePtr	mode,
+		  RRCrtcPtr	randr_crtc,
+		  RRModePtr	randr_mode,
 		  int		x,
 		  int		y,
 		  Rotation	rotation,
 		  int		num_randr_outputs,
 		  RROutputPtr	*randr_outputs)
 {
-  XF86RandRInfoPtr randrp = XF86RANDRINFO(pScreen);
   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
   RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
- 
-  return RADEONRandRCrtcNotify(crtc);
+  RADEONInfoPtr info       = RADEONPTR(pScrn);
+  xf86CrtcPtr crtc = randr_crtc->devPrivate;
+  RADEONCrtcPrivatePtr pRcrtc = crtc->driver_private;
+  DisplayModePtr mode = randr_mode ? randr_mode->devPrivate : NULL;
+  Bool changed = FALSE;
+  int o, ro;
+  xf86CrtcPtr save_crtcs[RADEON_MAX_CONNECTOR];
+  Bool save_enabled = crtc->enabled;
+  int ret;
+
+  if ((mode != NULL) != crtc->enabled)
+    changed = TRUE;
+  else if (mode && !xf86ModesEqual (&crtc->curMode, mode))
+    changed = TRUE;
+
+  for (o = 0; o < info->xf86_config.num_output; o++) {
+    xf86OutputPtr output = info->xf86_config.output[o];
+    xf86CrtcPtr new_crtc;
+
+    save_crtcs[o] = output->crtc;
+
+    if (output->crtc == crtc)
+      new_crtc = NULL;
+    else
+      new_crtc = output->crtc;
+
+    for (ro = 0; ro < num_randr_outputs; ro++)
+      if (output->randr_output == randr_outputs[ro]) {
+	new_crtc = crtc;
+	break;
+      }
+    if (new_crtc != output->crtc) {
+      changed = TRUE;
+      output->crtc = new_crtc;
+    }
+  }
+
+  /* got to set the modes in here */
+  if (changed) {
+    crtc->enabled = mode != NULL;
+
+    if (info->accelOn)
+      RADEON_SYNC(info, pScrn);
+
+    if (mode) {
+      if (pRcrtc->crtc_id == 0)
+	ret = RADEONInit2(pScrn, mode, NULL, 1, &info->ModeReg);
+      else if (pRcrtc->crtc_id == 1)
+	ret = RADEONInit2(pScrn, NULL, mode, 2, &info->ModeReg);
+      
+      if (!ret) {
+	crtc->enabled = save_enabled;
+	for (o = 0; o < info->xf86_config.num_output; o++) {
+	  xf86OutputPtr output = info->xf86_config.output[o];
+	  output->crtc = save_crtcs[o];
+	}
+	return FALSE;
+      }
+      crtc->desiredMode = *mode;
+    }
+  }
+
+  if (changed) {
+	pScrn->vtSema = TRUE;
+	RADEONBlank(pScrn);
+	RADEONRestoreMode(pScrn, &info->ModeReg);
+	RADEONUnblank(pScrn);
+	
+	if (info->DispPriority)
+		RADEONInitDispBandwidth(pScrn);
+  }
+  return RADEONRandRCrtcNotify(randr_crtc);
 }
 
 

@@ -918,6 +918,9 @@ extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 extern int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr *modeList);
 extern void RADEONSetPitch (ScrnInfoPtr pScrn);
 
+extern Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
+			DisplayModePtr crtc2, int crtc_mask,
+			RADEONSavePtr save);
 
 #ifdef XF86DRI
 #ifdef USE_XAA

@@ -6340,9 +6340,9 @@ static void RADEONInitPalette(RADEONSavePtr save)
 #endif
 
 /* Define registers for a requested video mode */
-static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
-			DisplayModePtr crtc2, int crtc_mask,
-			RADEONSavePtr save)
+Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
+		 DisplayModePtr crtc2, int crtc_mask,
+		 RADEONSavePtr save)
 {
     RADEONInfoPtr  info      = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);

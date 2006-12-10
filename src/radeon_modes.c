@@ -601,21 +601,23 @@ RADEONProbeOutputModes(ScrnInfoPtr pScrn)
     DisplayModePtr ddc_modes, mode;
     DisplayModePtr test;
 
-    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
-
-	test = pRADEONEnt->pOutput[i]->probed_modes;
+    for (i = 0; i < info->xf86_config.num_output; i++) {
+        xf86OutputPtr output = info->xf86_config.output[i];
+	
+	test = output->probed_modes;
 	while(test != NULL) {
 	  xf86DeleteMode(&test, test);
 	}
 
-	pRADEONEnt->pOutput[i]->probed_modes = test;
+	output->probed_modes = test;
+
 	/* force reprobe */
 	pRADEONEnt->PortInfo[i]->MonType = MT_UNKNOWN;
 	
 	RADEONConnectorFindMonitor(pScrn, i);
 	
 	/* okay we got DDC info */
-	if (pRADEONEnt->pOutput[i]->MonInfo) {
+	if (output->MonInfo) {
 	    /* Debug info for now, at least */
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", i);
 	    xf86PrintEDID(pRADEONEnt->pOutput[i]->MonInfo);
@@ -634,7 +636,7 @@ RADEONProbeOutputModes(ScrnInfoPtr pScrn)
 	}
 	   
 
-	if (pRADEONEnt->pOutput[i]->probed_modes == NULL) {
+	if (output->probed_modes == NULL) {
   	    MonRec fixed_mon;
 	    DisplayModePtr modes;
 
@@ -668,16 +670,15 @@ RADEONProbeOutputModes(ScrnInfoPtr pScrn)
 	    }
 	}
 
-	if (pRADEONEnt->pOutput[i]->probed_modes) {
+	if (output->probed_modes) {
 	  RADEONxf86ValidateModesUserConfig(pScrn,
-					    pRADEONEnt->pOutput[i]->probed_modes);
-	  RADEONxf86PruneInvalidModes(pScrn, &pRADEONEnt->pOutput[i]->probed_modes,
+					    output->probed_modes);
+	  RADEONxf86PruneInvalidModes(pScrn, &output->probed_modes,
 				      FALSE);
 	}
 
 
-	for (mode = pRADEONEnt->pOutput[i]->probed_modes; mode != NULL;
-	     mode = mode->next)
+	for (mode = output->probed_modes; mode != NULL; mode = mode->next)
 	{
 	    /* The code to choose the best mode per pipe later on will require
 	     * VRefresh to be set.
@@ -726,10 +727,11 @@ RADEON_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
      * pScrn->modes should only be used for XF86VidMode now, which we don't
      * care about enough to make some sort of unioned list.
      */
-    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
-	if (pRADEONEnt->pOutput[i]->probed_modes != NULL) {
+    for (i = 0; i < info->xf86_config.num_output; i++) {
+        xf86OutputPtr output = info->xf86_config.output[i];
+	if (output->probed_modes != NULL) {
 	    pScrn->modes =
-		RADEONxf86DuplicateModes(pScrn, pRADEONEnt->pOutput[i]->probed_modes);
+		RADEONxf86DuplicateModes(pScrn, output->probed_modes);
 	    break;
 	}
     }
@@ -749,12 +751,6 @@ RADEON_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
     if (pScrn->modes == NULL) {
 	FatalError("No modes left for XFree86 DDX\n");
     }
-
-    pScrn->currentMode = pScrn->modes;
-
-    xf86SetDpi(pScrn, 0, 0);
-    info->RADEONDPIVX = pScrn->virtualX;
-    info->RADEONDPIVY = pScrn->virtualY;
 
     /* For some reason, pScrn->modes is circular, unlike the other mode lists.
      * How great is that?
