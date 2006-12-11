@@ -954,7 +954,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       overlay->OCLRC1 = pPriv->saturation;
       overlay->OCMD &= ~OVERLAY_ENABLE;
       OVERLAY_UPDATE;
-   } else if (pI830->Clone && attribute == xvPipe) {
+   } else if (attribute == xvPipe) {
       if ((value < 0) || (value > 1))
          return BadValue;
       pPriv->pipe = value;
@@ -3553,18 +3553,6 @@ I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
       return;
 
    pPriv->overlayOK = TRUE;
-
-#if 0
-   /* XXX Must choose pipe wisely */
-   /* ensure pipe is updated on mode switch */
-   if (!pI830->Clone) {
-      if (pPriv->pipe != pI830->pipe) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	   "Changing XVideo pipe (%d to %d).\n", pPriv->pipe, pI830->pipe);
-         pPriv->pipe = pI830->pipe;
-      }
-   }
-#endif
 
    if (!IS_I965G(pI830)) {
       if (pPriv->pipe == 0) {

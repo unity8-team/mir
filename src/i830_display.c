@@ -983,16 +983,6 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	xfree(pI830->savedCurrentMode->name);
 	xfree(pI830->savedCurrentMode);
 	pI830->savedCurrentMode = NULL;
-	    
-	/* If we might have enabled/disabled some pipes, we need to reset
-	 * cloning mode support.
-	 */
-	if (pI830->xf86_config.num_crtc >= 2 && 
-	    pI830->xf86_config.crtc[0]->enabled &&
-	    pI830->xf86_config.crtc[1]->enabled)
-	    pI830->Clone = TRUE;
-	else
-	    pI830->Clone = FALSE;
 
 	/* If HW cursor currently showing, reset cursor state */
 	if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn)

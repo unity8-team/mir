@@ -247,11 +247,6 @@ typedef struct _I830Rec {
     */
    DisplayModePtr savedCurrentMode;
 
-   Bool Clone;
-   int CloneRefresh;
-   int CloneHDisplay;
-   int CloneVDisplay;
-
    I830EntPtr entityPrivate;	
    int init;
 

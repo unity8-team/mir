@@ -274,8 +274,6 @@ typedef enum {
    OPTION_DISPLAY_INFO,
    OPTION_DEVICE_PRESENCE,
    OPTION_MONITOR_LAYOUT,
-   OPTION_CLONE,
-   OPTION_CLONE_REFRESH,
    OPTION_CHECKDEVICES,
    OPTION_FIXEDPIPE,
    OPTION_ROTATE,
@@ -297,8 +295,6 @@ static OptionInfoRec I830Options[] = {
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_MONITOR_LAYOUT, "MonitorLayout", OPTV_ANYSTR,{0},	FALSE},
-   {OPTION_CLONE,	"Clone",	OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_CLONE_REFRESH,"CloneRefresh",OPTV_INTEGER,	{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FIXEDPIPE,   "FixedPipe",    OPTV_ANYSTR, 	{0},	FALSE},
    {OPTION_ROTATE,      "Rotate",       OPTV_ANYSTR,    {0},    FALSE},
@@ -1385,23 +1381,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    I830SetupOutputs(pScrn);
    for (i = 0; i < num_pipe; i++) {
        i830_crtc_init(pScrn, i);
-   }
-
-   if (xf86ReturnOptValBool(pI830->Options, OPTION_CLONE, FALSE)) {
-      if (num_pipe == 1) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
- 		 "Can't enable Clone Mode because this is a single pipe device\n");
-         PreInitCleanup(pScrn);
-         return FALSE;
-      }
-      if (pI830->entityPrivate) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
- 		 "Can't enable Clone Mode because second head is configured\n");
-         PreInitCleanup(pScrn);
-         return FALSE;
-      }
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Enabling Clone Mode\n");
-      pI830->Clone = TRUE;
    }
 
    SaveHWState(pScrn);
@@ -3239,12 +3218,6 @@ I830LeaveVT(int scrnIndex, int flags)
    /* Give the video overlay code a chance to shutdown. */
    I830VideoSwitchModeBefore(pScrn, NULL);
 #endif
-
-   if (pI830->Clone) {
-      /* Ensure we don't try and setup modes on a clone head */
-      pI830->CloneHDisplay = 0;
-      pI830->CloneVDisplay = 0;
-   }
 
    if (!I830IsPrimary(pScrn)) {
    	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
