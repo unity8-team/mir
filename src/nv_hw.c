@@ -1011,13 +1011,6 @@ void NVLoadStateExt (
     /* end of surfaces */
 
     if(pNv->Architecture < NV_ARCH_10) {
-       if((pNv->Chipset & 0x0fff) == CHIPSET_NV04) {
-		   /*XXX: RAMIN access here, find out what it's for.
-			*     The DRM is handling RAMIN now
-			*/
-           pNv->PRAMIN[0x0824] |= 0x00020000;
-           pNv->PRAMIN[0x0826] += pNv->VRAMPhysical;
-       }
        nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_0, 0x000001FF);
        nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_0, 0x1230C000);
        nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_1, 0x72111101);
