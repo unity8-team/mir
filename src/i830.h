@@ -242,10 +242,6 @@ typedef struct _I830Rec {
    int cpp;
 
    DisplayModePtr currentMode;
-   /* Mode saved during randr reprobe, which will need to be freed at the point
-    * of the next SwitchMode, when we lose this last reference to it.
-    */
-   DisplayModePtr savedCurrentMode;
 
    I830EntPtr entityPrivate;	
    int init;

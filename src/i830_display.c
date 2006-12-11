@@ -976,19 +976,6 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	       (int)(pMode->HDisplay * pMode->VDisplay *
 		     pMode->VRefresh / 1000000));
 
-    if (pI830->savedCurrentMode) {
-	/* We're done with the currentMode that the last randr probe had left
-	 * behind, so free it.
-	 */
-	xfree(pI830->savedCurrentMode->name);
-	xfree(pI830->savedCurrentMode);
-	pI830->savedCurrentMode = NULL;
-
-	/* If HW cursor currently showing, reset cursor state */
-	if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn)
-	    pI830->CursorInfoRec->ShowCursor(pScrn);
-    }
-
     i830DisableUnusedFunctions(pScrn);
 
     i830DescribeOutputConfiguration(pScrn);
