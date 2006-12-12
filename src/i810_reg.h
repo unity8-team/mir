@@ -888,6 +888,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /** @} */
 
 #define DPLL_TEST		0x606c
+# define DPLLB_TEST_SDVO_DIV_1			(0 << 22)
+# define DPLLB_TEST_SDVO_DIV_2			(1 << 22)
+# define DPLLB_TEST_SDVO_DIV_4			(2 << 22)
+# define DPLLB_TEST_SDVO_DIV_MASK		(3 << 22)
+# define DPLLB_TEST_N_BYPASS			(1 << 19)
+# define DPLLB_TEST_M_BYPASS			(1 << 18)
+# define DPLLB_INPUT_BUFFER_ENABLE		(1 << 16)
+# define DPLLA_TEST_N_BYPASS			(1 << 3)
+# define DPLLA_TEST_M_BYPASS			(1 << 2)
+# define DPLLA_INPUT_BUFFER_ENABLE		(1 << 0)
 
 #define D_STATE			0x6104
 #define DSPCLK_GATE_D		0x6200

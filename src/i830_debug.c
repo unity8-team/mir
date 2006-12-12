@@ -160,8 +160,8 @@ DEBUGSTRING(i830_debug_dpll)
     }
     if (IS_I945G(pI830) || IS_I945GM(pI830)) {
 	sprintf(sdvoextra, ", SDVO mult %d",
-		(int)(val & SDVO_MULTIPLIER_MASK) >>
-		SDVO_MULTIPLIER_SHIFT_HIRES);
+		(int)((val & SDVO_MULTIPLIER_MASK) >>
+		SDVO_MULTIPLIER_SHIFT_HIRES) + 1);
     } else {
 	sdvoextra[0] = '\0';
     }
@@ -172,12 +172,49 @@ DEBUGSTRING(i830_debug_dpll)
 		     fpextra, sdvoextra);
 }
 
+DEBUGSTRING(i830_debug_dpll_test)
+{
+    char *dpllandiv = val & DPLLA_TEST_N_BYPASS ? ", DPLLA N bypassed" : "";
+    char *dpllamdiv = val & DPLLA_TEST_M_BYPASS ? ", DPLLA M bypassed" : "";
+    char *dpllainput = val & DPLLA_INPUT_BUFFER_ENABLE ?
+	"" : ", DPLLA input buffer disabled";
+    char *dpllbndiv = val & DPLLB_TEST_N_BYPASS ? ", DPLLB N bypassed" : "";
+    char *dpllbmdiv = val & DPLLB_TEST_M_BYPASS ? ", DPLLB M bypassed" : "";
+    char *dpllbinput = val & DPLLB_INPUT_BUFFER_ENABLE ?
+	"" : ", DPLLB input buffer disabled";
+
+    return XNFprintf("%s%s%s%s%s%s",
+		     dpllandiv, dpllamdiv, dpllainput,
+		     dpllbndiv, dpllbmdiv, dpllbinput);
+}
+
 DEBUGSTRING(i830_debug_lvds)
 {
     char pipe = val & LVDS_PIPEB_SELECT ? 'B' : 'A';
     char *enable = val & LVDS_PORT_EN ? "enabled" : "disabled";
 
     return XNFprintf("%s, pipe %c", enable, pipe);
+}
+
+DEBUGSTRING(i830_debug_sdvo)
+{
+    char *enable = val & SDVO_ENABLE ? "enabled" : "disabled";
+    char pipe = val & SDVO_PIPE_B_SELECT ? 'B' : 'A';
+    char *stall = val & SDVO_STALL_SELECT ? "enabled" : "disabled";
+    char *detected = val & SDVO_DETECTED ? "" : "not ";
+    char *gang = val & SDVOC_GANG_MODE ? ", gang mode" : "";
+    char sdvoextra[20];
+
+    if (IS_I915G(pI830) || IS_I915GM(pI830)) {
+	sprintf(sdvoextra, ", SDVO mult %d",
+		(int)((val & SDVO_PORT_MULTIPLY_MASK) >>
+		SDVO_PORT_MULTIPLY_SHIFT) + 1);
+    } else {
+	sdvoextra[0] = '\0';
+    }
+
+    return XNFprintf("%s, pipe %c, stall %s, %sdetected%s%s",
+		     enable, pipe, stall, detected, sdvoextra, gang);
 }
 
 #define DEFINEREG(reg) \
@@ -194,14 +231,14 @@ static struct i830SnapshotRec {
     DEFINEREG(VCLK_DIVISOR_VGA0),
     DEFINEREG(VCLK_DIVISOR_VGA1),
     DEFINEREG(VCLK_POST_DIV),
-    DEFINEREG(DPLL_TEST),
+    DEFINEREG2(DPLL_TEST, i830_debug_dpll_test),
     DEFINEREG(D_STATE),
     DEFINEREG(DSPCLK_GATE_D),
     DEFINEREG(RENCLK_GATE_D1),
     DEFINEREG(RENCLK_GATE_D2),
 /*  DEFINEREG(RAMCLK_GATE_D),	CRL only */
-    DEFINEREG(SDVOB),
-    DEFINEREG(SDVOC),
+    DEFINEREG2(SDVOB, i830_debug_sdvo),
+    DEFINEREG2(SDVOC, i830_debug_sdvo),
 /*    DEFINEREG(UDIB_SVB_SHB_CODES), CRL only */
 /*    DEFINEREG(UDIB_SHA_BLANK_CODES), CRL only */
     DEFINEREG(SDVOUDI),
