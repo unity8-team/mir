@@ -556,12 +556,9 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
     xf86CrtcPtr	    crtc = output->crtc;
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
-    Bool input1, input2;
     CARD32 sdvox;
     int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
     int sdvo_pixel_multiply;
-    int i;
-    CARD8 status;
     CARD16 width, height;
     CARD16 h_blank_len, h_sync_len, v_blank_len, v_sync_len;
     CARD16 h_sync_offset, v_sync_offset;
@@ -675,18 +672,6 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     }
 
     OUTREG(dev_priv->output_device, sdvox);
-
-    for (i = 0; i < 2; i++)
-	i830WaitForVblank(pScrn);
-
-    status = i830_sdvo_get_trained_inputs(output, &input1, &input2);
-
-    /* Warn if the device reported failure to sync. */
-    if (status == SDVO_CMD_STATUS_SUCCESS && !input1) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "First %s output reported failure to sync\n",
-		   SDVO_NAME(dev_priv));
-    }
 }
 
 static void
@@ -699,10 +684,29 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
 
     if (mode != DPMSModeOn) {
 	i830_sdvo_set_active_outputs(output, 0);
-	OUTREG(dev_priv->output_device, INREG(dev_priv->output_device) & ~SDVO_ENABLE);
+	OUTREG(dev_priv->output_device,
+	       INREG(dev_priv->output_device) & ~SDVO_ENABLE);
     } else {
-	OUTREG(dev_priv->output_device, INREG(dev_priv->output_device) | SDVO_ENABLE);
+	Bool input1, input2;
+	int i;
+	CARD8 status;
+
+	OUTREG(dev_priv->output_device,
+	       INREG(dev_priv->output_device) | SDVO_ENABLE);
+
 	i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
+
+	for (i = 0; i < 2; i++)
+	    i830WaitForVblank(pScrn);
+
+	status = i830_sdvo_get_trained_inputs(output, &input1, &input2);
+
+	/* Warn if the device reported failure to sync. */
+	if (status == SDVO_CMD_STATUS_SUCCESS && !input1) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "First %s output reported failure to sync\n",
+		       SDVO_NAME(dev_priv));
+	}
     }
 }
 
