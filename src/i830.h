@@ -517,8 +517,7 @@ extern Bool I830DGAInit(ScreenPtr pScreen);
 
 #ifdef I830_XV
 extern void I830InitVideo(ScreenPtr pScreen);
-extern void I830VideoSwitchModeBefore(ScrnInfoPtr pScrn, DisplayModePtr mode);
-extern void I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode);
+extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
 #endif
 
 extern Bool I830AllocateRotatedBuffer(ScrnInfoPtr pScrn, const int flags);

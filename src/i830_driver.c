@@ -2244,7 +2244,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
    vgaHWPtr hwp = VGAHWPTR(pScrn);
    vgaRegPtr vgaReg = &hwp->SavedReg;
-   CARD32 temp;
    int i;
 
    DPRINTF(PFX, "RestoreHWState\n");
@@ -2259,19 +2258,11 @@ RestoreHWState(ScrnInfoPtr pScrn)
       output->funcs->dpms(output, DPMSModeOff);
    }
 
-   /* Disable display planes */
-   temp = INREG(DSPACNTR);
-   OUTREG(DSPACNTR, temp & ~DISPLAY_PLANE_ENABLE);
-   temp = INREG(DSPBCNTR);
-   OUTREG(DSPBCNTR, temp & ~DISPLAY_PLANE_ENABLE);
-
-   /* Next, disable display pipes */
-   temp = INREG(PIPEACONF);
-   OUTREG(PIPEACONF, temp & ~PIPEACONF_ENABLE);
-   temp = INREG(PIPEBCONF);
-   OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
-
-   i830WaitForVblank(pScrn);
+   /* Disable pipes */
+   for (i = 0; i < pI830->xf86_config.num_crtc; i++) {
+      xf86CrtcPtr crtc = pI830->xf86_config.crtc[i];
+      crtc->funcs->dpms(crtc, DPMSModeOff);
+   }
 
    OUTREG(FPA0, pI830->saveFPA0);
    OUTREG(FPA1, pI830->saveFPA1);
@@ -3214,11 +3205,6 @@ I830LeaveVT(int scrnIndex, int flags)
 
    i830SetHotkeyControl(pScrn, HOTKEY_BIOS_SWITCH);
 
-#ifdef I830_XV
-   /* Give the video overlay code a chance to shutdown. */
-   I830VideoSwitchModeBefore(pScrn, NULL);
-#endif
-
    if (!I830IsPrimary(pScrn)) {
    	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
 	if (!pI8301->GttBound) {
@@ -3319,10 +3305,6 @@ I830EnterVT(int scrnIndex, int flags)
 #ifdef XF86DRI
    I830DRISetVBlankInterrupt (pScrn, TRUE);
 #endif
-   
-#ifdef I830_XV
-   I830VideoSwitchModeAfter(pScrn, pScrn->currentMode);
-#endif
 
    ResetState(pScrn, TRUE);
    SetHWOperatingState(pScrn);
@@ -3396,11 +3378,6 @@ I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 
    DPRINTF(PFX, "I830SwitchMode: mode == %p\n", mode);
 
-#ifdef I830_XV
-   /* Give the video overlay code a chance to see the new mode. */
-   I830VideoSwitchModeBefore(pScrn, mode);
-#endif
-
    /* Sync the engine before mode switch */
    i830WaitSync(pScrn);
 
@@ -3434,18 +3411,8 @@ I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 	 xf86DrvMsg(scrnIndex, X_INFO,
 		    "Failed to restore previous mode (SwitchMode)\n");
       }
-
-#ifdef I830_XV
-      /* Give the video overlay code a chance to see the new mode. */
-      I830VideoSwitchModeAfter(pScrn, pI830->currentMode);
-#endif
    } else {
       pI830->currentMode = mode;
-
-#ifdef I830_XV
-      /* Give the video overlay code a chance to see the new mode. */
-      I830VideoSwitchModeAfter(pScrn, mode);
-#endif
    }
 
    return ret;

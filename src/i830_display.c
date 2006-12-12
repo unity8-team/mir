@@ -511,8 +511,14 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Enable the plane */
 	temp = INREG(dspcntr_reg);
 	OUTREG(dspcntr_reg, temp | DISPLAY_PLANE_ENABLE);
+
+	/* Give the overlay scaler a chance to enable if it's on this pipe */
+	i830_crtc_dpms_video(crtc, TRUE);
 	break;
     case DPMSModeOff:
+	/* Give the overlay scaler a chance to disable if it's on this pipe */
+	i830_crtc_dpms_video(crtc, FALSE);
+
 	/* Disable display plane */
 	temp = INREG(dspcntr_reg);
 	OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
