@@ -1948,61 +1948,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 }
 
 /*
- * As the name says.  Check that the initial state is reasonable.
- * If any unrecoverable problems are found, bail out here.
- */
-static Bool
-CheckInheritedState(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int errors = 0, fatal = 0;
-   unsigned long temp, head, tail;
-
-   if (!I830IsPrimary(pScrn)) return TRUE;
-
-   /* Check first for page table errors */
-   temp = INREG(PGE_ERR);
-   if (temp != 0) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "PGTBL_ER is 0x%08lx\n", temp);
-      errors++;
-   }
-   temp = INREG(PGETBL_CTL);
-   if (!(temp & 1)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "PGTBL_CTL (0x%08lx) indicates GTT is disabled\n", temp);
-      errors++;
-   }
-   temp = INREG(LP_RING + RING_LEN);
-   if (temp & 1) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "PRB0_CTL (0x%08lx) indicates ring buffer enabled\n", temp);
-      errors++;
-   }
-   head = INREG(LP_RING + RING_HEAD);
-   tail = INREG(LP_RING + RING_TAIL);
-   if ((tail & I830_TAIL_MASK) != (head & I830_HEAD_MASK)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "PRB0_HEAD (0x%08lx) and PRB0_TAIL (0x%08lx) indicate "
-		 "ring buffer not flushed\n", head, tail);
-      errors++;
-   }
-
-#if 0
-   if (errors) {
-      if (IS_I965G(pI830))
-         I965PrintErrorState(pScrn);
-      else
-         I830PrintErrorState(pScrn);
-   }
-#endif
-
-   if (fatal)
-      FatalError("CheckInheritedState: can't recover from the above\n");
-
-   return (errors != 0);
-}
-
-/*
  * Reset registers that it doesn't make sense to save/restore to a sane state.
  * This is basically the ring buffer and fence registers.  Restoring these
  * doesn't make sense without restoring GTT mappings.  This is something that
@@ -2364,103 +2309,6 @@ InitRegisterRec(ScrnInfoPtr pScrn)
 
    for (i = 0; i < 8; i++)
       i830Reg->Fence[i] = 0;
-}
-
-/* Famous last words
- */
-void
-I830PrintErrorState(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   ErrorF("pgetbl_ctl: 0x%lx pgetbl_err: 0x%lx\n",
-	  (unsigned long)INREG(PGETBL_CTL), (unsigned long)INREG(PGE_ERR));
-
-   ErrorF("ipeir: %lx iphdr: %lx\n", (unsigned long)INREG(IPEIR), 
-	  (unsigned long)INREG(IPEHR));
-
-   ErrorF("LP ring tail: %lx head: %lx len: %lx start %lx\n",
-	  (unsigned long)INREG(LP_RING + RING_TAIL),
-	  (unsigned long)INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
-	  (unsigned long)INREG(LP_RING + RING_LEN), 
-	  (unsigned long)INREG(LP_RING + RING_START));
-
-   ErrorF("eir: %x esr: %x emr: %x\n",
-	  INREG16(EIR), INREG16(ESR), INREG16(EMR));
-
-   ErrorF("instdone: %x instpm: %x\n", INREG16(INST_DONE), INREG8(INST_PM));
-
-   ErrorF("memmode: %lx instps: %lx\n", (unsigned long)INREG(MEMMODE), 
-	  (unsigned long)INREG(INST_PS));
-
-   ErrorF("hwstam: %x ier: %x imr: %x iir: %x\n",
-	  INREG16(HWSTAM), INREG16(IER), INREG16(IMR), INREG16(IIR));
-}
-
-void
-I965PrintErrorState(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   ErrorF("pgetbl_ctl: 0x%lx pgetbl_err: 0x%lx\n",
-	  INREG(PGETBL_CTL), INREG(PGE_ERR));
-
-   ErrorF("ipeir: %lx iphdr: %lx\n", INREG(IPEIR_I965), INREG(IPEHR_I965));
-
-   ErrorF("LP ring tail: %lx head: %lx len: %lx start %lx\n",
-	  INREG(LP_RING + RING_TAIL),
-	  INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
-	  INREG(LP_RING + RING_LEN), INREG(LP_RING + RING_START));
-
-   ErrorF("Err ID (eir): %x Err Status (esr): %x Err Mask (emr): %x\n",
-	  (int)INREG(EIR), (int)INREG(ESR), (int)INREG(EMR));
-
-   ErrorF("instdone: %x instdone_1: %x\n", (int)INREG(INST_DONE_I965),
-	  (int)INREG(INST_DONE_1));
-   ErrorF("instpm: %x\n", (int)INREG(INST_PM));
-
-   ErrorF("memmode: %lx instps: %lx\n", INREG(MEMMODE), INREG(INST_PS_I965));
-
-   ErrorF("HW Status mask (hwstam): %x\nIRQ enable (ier): %x imr: %x iir: %x\n",
-	  (int)INREG(HWSTAM), (int)INREG(IER), (int)INREG(IMR),
-	  (int)INREG(IIR));
-
-   ErrorF("acthd: %lx dma_fadd_p: %lx\n", INREG(ACTHD), INREG(DMA_FADD_P));
-   ErrorF("ecoskpd: %lx excc: %lx\n", INREG(ECOSKPD), INREG(EXCC));
-
-   ErrorF("cache_mode: %x/%x\n", (int)INREG(CACHE_MODE_0),
-	  (int)INREG(CACHE_MODE_1));
-   ErrorF("mi_arb_state: %x\n", (int)INREG(MI_ARB_STATE));
-
-   ErrorF("IA_VERTICES_COUNT_QW %x/%x\n", (int)INREG(IA_VERTICES_COUNT_QW),
-	  (int)INREG(IA_VERTICES_COUNT_QW+4));
-   ErrorF("IA_PRIMITIVES_COUNT_QW %x/%x\n", (int)INREG(IA_PRIMITIVES_COUNT_QW),
-	  (int)INREG(IA_PRIMITIVES_COUNT_QW+4));
-
-   ErrorF("VS_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(VS_INVOCATION_COUNT_QW),
-	  (int)INREG(VS_INVOCATION_COUNT_QW+4));
-
-   ErrorF("GS_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(GS_INVOCATION_COUNT_QW),
-	  (int)INREG(GS_INVOCATION_COUNT_QW+4));
-   ErrorF("GS_PRIMITIVES_COUNT_QW %x/%x\n", (int)INREG(GS_PRIMITIVES_COUNT_QW),
-	  (int)INREG(GS_PRIMITIVES_COUNT_QW+4));
-
-   ErrorF("CL_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(CL_INVOCATION_COUNT_QW),
-	  (int)INREG(CL_INVOCATION_COUNT_QW+4));
-   ErrorF("CL_PRIMITIVES_COUNT_QW %x/%x\n", (int)INREG(CL_PRIMITIVES_COUNT_QW),
-	  (int)INREG(CL_PRIMITIVES_COUNT_QW+4));
-
-   ErrorF("PS_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(PS_INVOCATION_COUNT_QW),
-	  (int)INREG(PS_INVOCATION_COUNT_QW+4));
-   ErrorF("PS_DEPTH_COUNT_QW %x/%x\n", (int)INREG(PS_DEPTH_COUNT_QW),
-	  (int)INREG(PS_DEPTH_COUNT_QW+4));
-
-   ErrorF("WIZ_CTL %x\n", (int)INREG(WIZ_CTL));
-   ErrorF("TS_CTL %x  TS_DEBUG_DATA %x\n", (int)INREG(TS_CTL),
-	  (int)INREG(TS_DEBUG_DATA));
-   ErrorF("TD_CTL %x / %x\n", (int)INREG(TD_CTL), (int)INREG(TD_CTL2));
-
-   
 }
 
 static void
@@ -3277,7 +3125,7 @@ I830EnterVT(int scrnIndex, int flags)
       if (!I830BindAGPMemory(pScrn))
          return FALSE;
 
-   CheckInheritedState(pScrn);
+   i830_check_error_state(pScrn);
 
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);

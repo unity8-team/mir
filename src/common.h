@@ -96,7 +96,7 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 			     const char *function, const char *fmt, ...);
 
 #ifdef _I830_H_
-#define PrintErrorState I830PrintErrorState
+#define PrintErrorState i830_dump_error_state
 #define WaitRingFunc I830WaitLpRing
 #define RecPtr pI830
 #else

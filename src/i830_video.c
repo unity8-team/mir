@@ -2794,7 +2794,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    if (pI830->AccelInfoRec)
       (*pI830->AccelInfoRec->Sync)(pScrn);
 #if WATCH_STATS
-   I830PrintErrorState (pScrn);
+   i830_dump_error_state (pScrn);
 #endif
 }
 
