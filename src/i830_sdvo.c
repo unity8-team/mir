@@ -983,6 +983,31 @@ i830_sdvo_detect(xf86OutputPtr output)
 	return XF86OutputStatusDisconnected;
 }
 
+static DisplayModePtr
+i830_sdvo_get_modes(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    DisplayModePtr modes;
+    xf86OutputPtr crt;
+
+    modes = i830_ddc_get_modes(output);
+    if (modes != NULL)
+	return NULL;
+
+    /* Mac mini hack.  On this device, I get DDC through the analog, which
+     * load-detects as disconnected.  I fail to DDC through the SDVO DDC,
+     * but it does load-detect as connected.  So, just steal the DDC bits from
+     * analog when we fail at finding it the right way.
+     */
+    crt = pI830->xf86_config.output[0];
+    if (crt->funcs->detect(crt) == XF86OutputStatusDisconnected) {
+	return crt->funcs->get_modes(crt);
+    }
+
+    return NULL;
+}
+
 static void
 i830_sdvo_destroy (xf86OutputPtr output)
 {
@@ -1007,7 +1032,7 @@ static const xf86OutputFuncsRec i830_sdvo_output_funcs = {
     .mode_fixup = i830_sdvo_mode_fixup,
     .mode_set = i830_sdvo_mode_set,
     .detect = i830_sdvo_detect,
-    .get_modes = i830_ddc_get_modes,
+    .get_modes = i830_sdvo_get_modes,
     .destroy = i830_sdvo_destroy
 };
 
