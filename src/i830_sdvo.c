@@ -701,8 +701,8 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
 	i830_sdvo_set_active_outputs(output, 0);
 	OUTREG(dev_priv->output_device, INREG(dev_priv->output_device) & ~SDVO_ENABLE);
     } else {
-	i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
 	OUTREG(dev_priv->output_device, INREG(dev_priv->output_device) | SDVO_ENABLE);
+	i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
     }
 }
 
