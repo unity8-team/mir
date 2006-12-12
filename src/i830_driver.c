@@ -3125,7 +3125,10 @@ I830EnterVT(int scrnIndex, int flags)
       if (!I830BindAGPMemory(pScrn))
          return FALSE;
 
-   i830_check_error_state(pScrn);
+   if (i830_check_error_state(pScrn)) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		 "Existing errors found in hardware state\n");
+   }
 
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);

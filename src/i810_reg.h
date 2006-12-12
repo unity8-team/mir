@@ -398,8 +398,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define EIR               0x20B0
 #define EMR               0x20B4
 #define ESR               0x20B8
-#define IP_ERR                    0x0001
-#define ERROR_RESERVED            0xffc6
+# define ERR_VERTEX_MAX				(1 << 5) /* lpt/cst */
+# define ERR_PGTBL_ERROR			(1 << 4)
+# define ERR_DISPLAY_OVERLAY_UNDERRUN		(1 << 3)
+# define ERR_MAIN_MEMORY_REFRESH		(1 << 2)
+# define ERR_INSTRUCTION_ERROR			(1 << 0)
 
 
 /* Interrupt Control Registers 
@@ -507,8 +510,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PGETBL_SIZE_256KB   (1 << 1)
 #define PGETBL_SIZE_128KB   (2 << 1)
 
-/* Register containing pge table error results, p276
+/** @defgroup PGE_ERR
+ * @{
  */
+/** Page table debug register for i845 */
 #define PGE_ERR          0x2024
 #define PGE_ERR_ADDR_MASK   0xFFFFF000
 #define PGE_ERR_ID_MASK     0x00000038
@@ -528,8 +533,33 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PGE_ERR_ILLEGAL_TRX 0x00000004
 #define PGE_ERR_LOCAL_MEM   0x00000005
 #define PGE_ERR_TILED       0x00000006
+/** @} */
 
-
+/** @defgroup PGTBL_ER
+ * @{
+ */
+/** Page table debug register for i945 */
+# define PGTBL_ER	0x2024
+# define PGTBL_ERR_MT_TILING			(1 << 27)
+# define PGTBL_ERR_MT_GTT_PTE			(1 << 26)
+# define PGTBL_ERR_LC_TILING			(1 << 25)
+# define PGTBL_ERR_LC_GTT_PTE			(1 << 24)
+# define PGTBL_ERR_BIN_VERTEXDATA_GTT_PTE	(1 << 23)
+# define PGTBL_ERR_BIN_INSTRUCTION_GTT_PTE	(1 << 22)
+# define PGTBL_ERR_CS_VERTEXDATA_GTT_PTE	(1 << 21)
+# define PGTBL_ERR_CS_INSTRUCTION_GTT_PTE	(1 << 20)
+# define PGTBL_ERR_CS_GTT		(1 << 19)
+# define PGTBL_ERR_OVERLAY_TILING		(1 << 18)
+# define PGTBL_ERR_OVERLAY_GTT_PTE		(1 << 16)
+# define PGTBL_ERR_DISPC_TILING			(1 << 14)
+# define PGTBL_ERR_DISPC_GTT_PTE		(1 << 12)
+# define PGTBL_ERR_DISPB_TILING			(1 << 10)
+# define PGTBL_ERR_DISPB_GTT_PTE		(1 << 8)
+# define PGTBL_ERR_DISPA_TILING			(1 << 6)
+# define PGTBL_ERR_DISPA_GTT_PTE		(1 << 4)
+# define PGTBL_ERR_HOST_PTE_DATA		(1 << 1)
+# define PGTBL_ERR_HOST_GTT_PTE			(1 << 0)
+/** @} */
 
 /* Page table entries loaded via mmio region, p323
  */

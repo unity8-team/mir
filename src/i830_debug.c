@@ -637,16 +637,66 @@ Bool
 i830_check_error_state(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    int errors = 0, fatal = 0;
+    int errors = 0;
     unsigned long temp, head, tail;
 
     if (!I830IsPrimary(pScrn)) return TRUE;
 
-    /* Check first for page table errors */
-    temp = INREG(PGE_ERR);
+    temp = INREG16(ESR);
     if (temp != 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "PGTBL_ER is 0x%08lx\n", temp);
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "ESR is 0x%08lx%s%s%s%s\n", temp,
+		   temp & ERR_VERTEX_MAX ? ", max vertices exceeded" : "",
+		   temp & ERR_PGTBL_ERROR ? ", page table error" : "",
+		   temp & ERR_DISPLAY_OVERLAY_UNDERRUN ?
+		   ", display/overlay underrun" : "",
+		   temp & ERR_INSTRUCTION_ERROR ? ", instruction error" : "");
 	errors++;
+    }
+    /* Check first for page table errors */
+    if (!IS_I9XX(pI830)) {
+	temp = INREG(PGE_ERR);
+	if (temp != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "PGTBL_ER is 0x%08lx\n", temp);
+	    errors++;
+	}
+    } else {
+	temp = INREG(PGTBL_ER);
+	if (temp != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "PGTBL_ER is 0x%08lx"
+		       "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", temp,
+		       temp & PGTBL_ERR_HOST_GTT_PTE ? ", host gtt pte" : "",
+		       temp & PGTBL_ERR_HOST_PTE_DATA ? ", host pte data" : "",
+		       temp & PGTBL_ERR_DISPA_GTT_PTE ? ", display A pte" : "",
+		       temp & PGTBL_ERR_DISPA_TILING ?
+		       ", display A tiling" : "",
+		       temp & PGTBL_ERR_DISPB_GTT_PTE ? ", display B pte" : "",
+		       temp & PGTBL_ERR_DISPB_TILING ?
+		       ", display B tiling" : "",
+		       temp & PGTBL_ERR_DISPC_GTT_PTE ? ", display C pte" : "",
+		       temp & PGTBL_ERR_DISPC_TILING ?
+		       ", display C tiling" : "",
+		       temp & PGTBL_ERR_OVERLAY_GTT_PTE ?
+		       ", overlay GTT PTE" : "",
+		       temp & PGTBL_ERR_OVERLAY_TILING ?
+		       ", overlay tiling" : "",
+		       temp & PGTBL_ERR_CS_GTT ? ", CS GTT" : "",
+		       temp & PGTBL_ERR_CS_INSTRUCTION_GTT_PTE ?
+		       ", CS instruction GTT PTE" : "",
+		       temp & PGTBL_ERR_CS_VERTEXDATA_GTT_PTE ?
+		       ", CS vertex data GTT PTE" : "",
+		       temp & PGTBL_ERR_BIN_INSTRUCTION_GTT_PTE ?
+		       ", BIN instruction GTT PTE" : "",
+		       temp & PGTBL_ERR_BIN_VERTEXDATA_GTT_PTE ?
+		       ", BIN vertex data GTT PTE" : "",
+		       temp & PGTBL_ERR_LC_GTT_PTE ? ", LC pte" : "",
+		       temp & PGTBL_ERR_LC_TILING ? ", LC tiling" : "",
+		       temp & PGTBL_ERR_MT_GTT_PTE ? ", MT pte" : "",
+		       temp & PGTBL_ERR_MT_TILING ? ", MT tiling" : "");
+	    errors++;
+	}
     }
     temp = INREG(PGETBL_CTL);
     if (!(temp & 1)) {
@@ -677,9 +727,6 @@ i830_check_error_state(ScrnInfoPtr pScrn)
 	    i830_dump_error_state(pScrn);
     }
 #endif
-
-    if (fatal)
-	FatalError("i830_check_error_state: can't recover from the above\n");
 
     return (errors != 0);
 }
