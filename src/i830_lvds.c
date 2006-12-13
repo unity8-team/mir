@@ -135,12 +135,13 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
     ScrnInfoPtr pScrn = output->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = output->crtc->driver_private;
     int i;
 
-    for (i = 0; i < pI830->xf86_config.num_output; i++) {
-	xf86OutputPtr other_output = pI830->xf86_config.output[i];
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr other_output = xf86_config->output[i];
 
 	if (other_output != output && other_output->crtc == output->crtc) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,

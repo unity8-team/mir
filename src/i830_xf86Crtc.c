@@ -37,6 +37,36 @@
 #include "X11/extensions/render.h"
 
 /*
+ * Initialize xf86CrtcConfig structure
+ */
+
+int xf86CrtcConfigPrivateIndex = -1;
+
+void
+xf86CrtcConfigInit (ScrnInfoPtr scrn)
+{
+    xf86CrtcConfigPtr	config;
+    
+    if (xf86CrtcConfigPrivateIndex == -1)
+	xf86CrtcConfigPrivateIndex = xf86AllocateScrnInfoPrivateIndex();
+    config = xnfcalloc (1, sizeof (xf86CrtcConfigRec));
+    scrn->privates[xf86CrtcConfigPrivateIndex].ptr = config;
+}
+ 
+void
+xf86CrtcSetSizeRange (ScrnInfoPtr scrn,
+		      int minWidth, int minHeight,
+		      int maxWidth, int maxHeight)
+{
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(scrn);
+
+    config->minWidth = minWidth;
+    config->minHeight = minHeight;
+    config->maxWidth = maxWidth;
+    config->maxHeight = maxHeight;
+}
+
+/*
  * Crtc functions
  */
 xf86CrtcPtr
@@ -44,7 +74,7 @@ xf86CrtcCreate (ScrnInfoPtr		scrn,
 		const xf86CrtcFuncsRec	*funcs)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-    xf86CrtcPtr		crtc;
+    xf86CrtcPtr		crtc, *crtcs;
 
     crtc = xcalloc (sizeof (xf86CrtcRec), 1);
     if (!crtc)
@@ -54,6 +84,17 @@ xf86CrtcCreate (ScrnInfoPtr		scrn,
 #ifdef RANDR_12_INTERFACE
     crtc->randr_crtc = NULL;
 #endif
+    if (xf86_config->crtc)
+	crtcs = xrealloc (xf86_config->crtc,
+			  (xf86_config->num_crtc + 1) * sizeof (xf86CrtcPtr));
+    else
+	crtcs = xalloc ((xf86_config->num_crtc + 1) * sizeof (xf86CrtcPtr));
+    if (!crtcs)
+    {
+	xfree (crtc);
+	return NULL;
+    }
+    xf86_config->crtc = crtcs;
     xf86_config->crtc[xf86_config->num_crtc++] = crtc;
     return crtc;
 }
@@ -85,7 +126,7 @@ xf86OutputCreate (ScrnInfoPtr		    scrn,
 		  const xf86OutputFuncsRec *funcs,
 		  const char		    *name)
 {
-    xf86OutputPtr	output;
+    xf86OutputPtr	output, *outputs;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     int			len = strlen (name);
 
@@ -100,6 +141,17 @@ xf86OutputCreate (ScrnInfoPtr		    scrn,
 #ifdef RANDR_12_INTERFACE
     output->randr_output = NULL;
 #endif
+    if (xf86_config->output)
+	outputs = xrealloc (xf86_config->output,
+			  (xf86_config->num_output + 1) * sizeof (xf86OutputPtr));
+    else
+	outputs = xalloc ((xf86_config->num_output + 1) * sizeof (xf86OutputPtr));
+    if (!outputs)
+    {
+	xfree (output);
+	return NULL;
+    }
+    xf86_config->output = outputs;
     xf86_config->output[xf86_config->num_output++] = output;
     return output;
 }

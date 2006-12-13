@@ -234,9 +234,6 @@ typedef struct _I830PipeRec {
 } I830PipeRec, *I830PipePtr;
 
 typedef struct _I830Rec {
-   /* Must be first */
-   xf86CrtcConfigRec	xf86_config;
-    
    unsigned char *MMIOBase;
    unsigned char *FbBase;
    int cpp;

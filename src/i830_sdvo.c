@@ -951,12 +951,12 @@ i830_sdvo_dump_device(xf86OutputPtr output)
 void
 i830_sdvo_dump(ScrnInfoPtr pScrn)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int	i;
 
-    for (i = 0; i < pI830->xf86_config.num_output; i++) 
+    for (i = 0; i < xf86_config->num_output; i++) 
     {
-	xf86OutputPtr	output = pI830->xf86_config.output[i];
+	xf86OutputPtr	output = xf86_config->output[i];
 	I830OutputPrivatePtr	intel_output = output->driver_private;
 	
 	if (intel_output->type == I830_OUTPUT_SDVO)
@@ -995,7 +995,7 @@ static DisplayModePtr
 i830_sdvo_get_modes(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     DisplayModePtr modes;
     xf86OutputPtr crt;
 
@@ -1008,7 +1008,7 @@ i830_sdvo_get_modes(xf86OutputPtr output)
      * but it does load-detect as connected.  So, just steal the DDC bits from
      * analog when we fail at finding it the right way.
      */
-    crt = pI830->xf86_config.output[0];
+    crt = xf86_config->output[0];
     if (crt->funcs->detect(crt) == XF86OutputStatusDisconnected) {
 	return crt->funcs->get_modes(crt);
     }

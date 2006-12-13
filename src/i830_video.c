@@ -3514,6 +3514,7 @@ void
 i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
 {
    ScrnInfoPtr pScrn = crtc->scrn;
+   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pPriv;
    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
@@ -3551,7 +3552,7 @@ i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
       }
 
       /* Check we have an LFP connected */
-      if (i830PipeHasType(pI830->xf86_config.crtc[pPriv->pipe],
+      if (i830PipeHasType(xf86_config->crtc[pPriv->pipe],
 			  I830_OUTPUT_LVDS)) {
 	 size = pPriv->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
 	 hsize = (size >> 16) & 0x7FF;
