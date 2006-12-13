@@ -105,6 +105,21 @@ xf86OutputCreate (ScrnInfoPtr		    scrn,
 }
 
 void
+xf86OutputRename (xf86OutputPtr output, const char *name)
+{
+    int	    len = strlen(name);
+    char    *newname = xalloc (len + 1);
+    
+    if (!newname)
+	return;	/* so sorry... */
+    
+    strcpy (newname, name);
+    if (output->name != (char *) (output + 1))
+	xfree (output->name);
+    output->name = newname;
+}
+
+void
 xf86OutputDestroy (xf86OutputPtr output)
 {
     ScrnInfoPtr		scrn = output->scrn;
@@ -123,6 +138,8 @@ xf86OutputDestroy (xf86OutputPtr output)
 	    xf86_config->num_output--;
 	    break;
 	}
+    if (output->name != (char *) (output + 1))
+	xfree (output->name);
     xfree (output);
 }
 

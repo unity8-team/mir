@@ -311,7 +311,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 	}
    }
 
-    output = xf86OutputCreate (pScrn, &i830_lvds_output_funcs, "Built-in LCD panel");
+    output = xf86OutputCreate (pScrn, &i830_lvds_output_funcs, "LVDS");
     if (!output)
 	return;
     intel_output = xnfcalloc (sizeof (I830OutputPrivateRec), 1);

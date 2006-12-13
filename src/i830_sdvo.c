@@ -1053,6 +1053,9 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     int			    i;
     unsigned char	    ch[0x40];
     I2CBusPtr		    i2cbus = NULL, ddcbus;
+    char		    name[60];
+    char		    *name_prefix;
+    char		    *name_suffix;
 
     output = xf86OutputCreate (pScrn, &i830_sdvo_output_funcs,
 			       "ADD2 PCIE card");
@@ -1087,9 +1090,11 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     if (output_device == SDVOB) {
 	dev_priv->d.DevName = "SDVO Controller B";
 	dev_priv->d.SlaveAddr = 0x70;
+	name_suffix="-1";
     } else {
 	dev_priv->d.DevName = "SDVO Controller C";
 	dev_priv->d.SlaveAddr = 0x72;
+	name_suffix="-2";
     }
     dev_priv->d.pI2CBus = i2cbus;
     dev_priv->d.DriverPrivate.ptr = output;
@@ -1158,11 +1163,13 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     {
 	dev_priv->active_outputs = SDVO_OUTPUT_TMDS0;
         output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="TMDS";
     }
     else if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS1)
     {
 	dev_priv->active_outputs = SDVO_OUTPUT_TMDS1;
         output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="TMDS";
     }
     else
     {
@@ -1174,6 +1181,9 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 		   SDVO_NAME(dev_priv),
 		   bytes[0], bytes[1]);
     }
+    strcpy (name, name_prefix);
+    strcat (name, name_suffix);
+    xf86OutputRename (output, name);
     
     /* Set the input timing to the screen. Assume always input 0. */
     i830_sdvo_set_target_input(output, TRUE, FALSE);

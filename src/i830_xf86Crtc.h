@@ -367,6 +367,9 @@ xf86OutputCreate (ScrnInfoPtr		scrn,
 		      const char	*name);
 
 void
+xf86OutputRename (xf86OutputPtr output, const char *name);
+
+void
 xf86OutputDestroy (xf86OutputPtr	output);
 
 void
