@@ -583,8 +583,11 @@ i830_tv_detect_type (xf86CrtcPtr    crtc,
 	tv_dac |= (TVDAC_STATE_CHG_EN |
 		   TVDAC_A_SENSE_CTL |
 		   TVDAC_B_SENSE_CTL |
-		   TVDAC_C_SENSE_CTL);
-	tv_dac = DAC_CTL_OVERRIDE | DAC_A_0_7_V | DAC_B_0_7_V | DAC_C_0_7_V;
+		   TVDAC_C_SENSE_CTL |
+		   DAC_CTL_OVERRIDE |
+		   DAC_A_0_7_V |
+		   DAC_B_0_7_V |
+		   DAC_C_0_7_V);
 	OUTREG(TV_CTL, tv_ctl);
 	OUTREG(TV_DAC, tv_dac);
 	i830WaitForVblank(pScrn);
@@ -612,7 +615,7 @@ i830_tv_detect_type (xf86CrtcPtr    crtc,
 	type = TV_TYPE_COMPONENT;
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Couldn't detect TV connection\n");
+		   "No TV connection detected\n");
 	type = TV_TYPE_NONE;
     }
     
@@ -730,10 +733,34 @@ i830_tv_init(ScrnInfoPtr pScrn)
     xf86OutputPtr	    output;
     I830OutputPrivatePtr    intel_output;
     struct i830_tv_priv	    *dev_priv;
+    CARD32		    tv_dac_on, tv_dac_off, save_tv_dac;
  
     if ((INREG(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
 	return;
 
+    /*
+     * Sanity check the TV output by checking to see if the
+     * DAC register holds a value
+     */
+    save_tv_dac = INREG(TV_DAC);
+    
+    OUTREG(TV_DAC, save_tv_dac | TVDAC_STATE_CHG_EN);
+    tv_dac_on = INREG(TV_DAC);
+    
+    OUTREG(TV_DAC, save_tv_dac & ~TVDAC_STATE_CHG_EN);
+    tv_dac_off = INREG(TV_DAC);
+    
+    OUTREG(TV_DAC, save_tv_dac);
+    
+    /*
+     * If the register does not hold the state change enable
+     * bit, (either as a 0 or a 1), assume it doesn't really
+     * exist
+     */
+    if ((tv_dac_on & TVDAC_STATE_CHG_EN) == 0 || 
+	(tv_dac_off & TVDAC_STATE_CHG_EN) != 0)
+	return;
+    
     output = xf86OutputCreate (pScrn, &i830_tv_output_funcs, "TV");
     
     if (!output)
