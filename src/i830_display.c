@@ -507,6 +507,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Enable the DPLL */
 	temp = INREG(dpll_reg);
 	OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
+	(void)INREG(dpll_reg); /* write posting */
 
 	/* Wait for the clocks to stabilize. */
 	usleep(150);
@@ -538,6 +539,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 	/* Flush the plane changes */
 	OUTREG(dspbase_reg, INREG(dspbase_reg));
+	(void)INREG(dspbase_reg); /* write posting */
 
 	if (!IS_I9XX(pI830)) {
 	    /* Wait for vblank for the disable to take effect */
@@ -547,12 +549,17 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Next, disable display pipes */
 	temp = INREG(pipeconf_reg);
 	OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
+	(void)INREG(pipeconf_reg); /* write posting */
 
 	/* Wait for vblank for the disable to take effect. */
 	i830WaitForVblank(pScrn);
 
 	temp = INREG(dpll_reg);
 	OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
+	(void)INREG(dpll_reg); /* write posting */
+
+	/* Wait for the clocks to turn off. */
+	usleep(150);
 	break;
     }
 }
@@ -751,6 +758,15 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
     OUTREG(fp_reg, fp);
     OUTREG(dpll_reg, dpll);
+
+    /* Magic re-write of the register for the Mac Mini.  Without this, the
+     * first X invocation after a cold boot will stick in 4x pixel multiply
+     * mode.  Alternatives that don't work include sleeping and doing an
+     * INREG for presumable pci write posting magic before and after the dpll
+     * write above.
+     */
+    OUTREG(dpll_reg, dpll);
+
     if (IS_I965G(pI830)) {
 	int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
 	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
