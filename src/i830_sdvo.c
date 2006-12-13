@@ -557,7 +557,6 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     xf86CrtcPtr	    crtc = output->crtc;
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
     CARD32 sdvox;
-    int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
     int sdvo_pixel_multiply;
     CARD16 width, height;
     CARD16 h_blank_len, h_sync_len, v_blank_len, v_sync_len;
@@ -663,8 +662,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     sdvo_pixel_multiply = i830_sdvo_get_pixel_multiplier(mode);
     if (IS_I965G(pI830)) {
-	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
-	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
+	/* done in crtc_mode_set as the dpll_md reg must be written early */
     } else if (IS_I945G(pI830) || IS_I945GM(pI830)) {
 	/* done in crtc_mode_set as it lives inside the dpll register */
     } else {

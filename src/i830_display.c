@@ -752,11 +752,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     OUTREG(fp_reg, fp);
     OUTREG(dpll_reg, dpll);
     if (IS_I965G(pI830)) {
-	/* Set the SDVO multiplier/divider to 1x for the sake of analog output.
-	 * It will be updated by the SDVO code if SDVO had fixed up the clock
-	 * for a higher multiplier.
-	 */
-	OUTREG(dpll_md_reg, 0);
+	int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
+	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
+	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
     }
 
     OUTREG(htot_reg, (adjusted_mode->CrtcHDisplay - 1) |
