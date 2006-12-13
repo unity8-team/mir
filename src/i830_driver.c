@@ -314,8 +314,6 @@ const char *i830_output_type_names[] = {
    "TVOUT",
 };
 
-static void I830DisplayPowerManagementSet(ScrnInfoPtr pScrn,
-					  int PowerManagementMode, int flags);
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
 static Bool I830CloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool I830SaveScreen(ScreenPtr pScreen, int unblack);
@@ -2863,7 +2861,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       return FALSE;
    }
 
-   xf86DPMSInit(pScreen, I830DisplayPowerManagementSet, 0);
+   xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
 #ifdef I830_XV
    /* Init video */
@@ -3317,55 +3315,6 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
       }
    }
    return TRUE;
-}
-
-/* Use the VBE version when available. */
-static void
-I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
-			      int flags)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int i;
-   CARD32 temp, ctrl, base;
-
-   for (i = 0; i < pI830->xf86_config.num_output; i++) {
-      xf86OutputPtr   output = pI830->xf86_config.output[i];
-      
-      (*output->funcs->dpms) (output, PowerManagementMode);
-   }
-
-   for (i = 0; i < pI830->xf86_config.num_crtc; i++) 
-   {
-      xf86CrtcPtr	   crtc = pI830->xf86_config.crtc[i];
-      
-      if (i == 0) {
-         ctrl = DSPACNTR;
-         base = DSPABASE;
-      } else {
-         ctrl = DSPBCNTR;
-         base = DSPBADDR;
-      }
-      /* XXX pipe disable too? */
-      if (crtc->enabled) {
-	   temp = INREG(ctrl);
-	   if (PowerManagementMode == DPMSModeOn)
-	      temp |= DISPLAY_PLANE_ENABLE;
-	   else
-	      temp &= ~DISPLAY_PLANE_ENABLE;
-	   OUTREG(ctrl, temp);
-	   /* Flush changes */
-	   temp = INREG(base);
-	   OUTREG(base, temp);
-      }
-   }
-
-   if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn) {
-      if (PowerManagementMode == DPMSModeOn)
-         pI830->CursorInfoRec->ShowCursor(pScrn);
-      else
-         pI830->CursorInfoRec->HideCursor(pScrn);
-      pI830->cursorOn = TRUE;
-   }
 }
 
 static Bool

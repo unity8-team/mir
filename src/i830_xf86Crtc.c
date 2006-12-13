@@ -590,3 +590,38 @@ xf86InitialConfiguration (ScrnInfoPtr	    pScrn)
     xfree (modes);
     return TRUE;
 }
+
+/**
+ * Set the DPMS power mode of all outputs and CRTCs.
+ *
+ * If the new mode is off, it will turn off outputs and then CRTCs.
+ * Otherwise, it will affect CRTCs before outputs.
+ */
+void
+xf86DPMSSet(ScrnInfoPtr pScrn, int mode, int flags)
+{
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int			i;
+
+    if (mode == DPMSModeOff) {
+	for (i = 0; i < config->num_output; i++) {
+	    xf86OutputPtr output = config->output[i];
+	    if (output->crtc != NULL)
+		(*output->funcs->dpms) (output, mode);
+	}
+    }
+
+    for (i = 0; i < config->num_crtc; i++) {
+	xf86CrtcPtr crtc = config->crtc[i];
+	if (crtc->enabled)
+	    (*crtc->funcs->dpms) (crtc, mode);
+    }
+
+    if (mode != DPMSModeOff) {
+	for (i = 0; i < config->num_output; i++) {
+	    xf86OutputPtr output = config->output[i];
+	    if (output->crtc != NULL)
+		(*output->funcs->dpms) (output, mode);
+	}
+    }
+}

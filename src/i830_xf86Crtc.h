@@ -378,4 +378,7 @@ xf86SetScrnInfoModes (ScrnInfoPtr pScrn);
 Bool
 xf86InitialConfiguration (ScrnInfoPtr pScrn);
 
+void
+xf86DPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags);
+
 #endif /* _XF86CRTC_H_ */

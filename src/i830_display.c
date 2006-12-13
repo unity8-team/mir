@@ -478,6 +478,12 @@ i830PipeInUse (xf86CrtcPtr crtc)
     return FALSE;
 }
 
+/**
+ * Sets the power management mode of the pipe and plane.
+ *
+ * This code should probably grow support for turning the cursor off and back
+ * on appropriately at the same time as we're turning the pipe off/on.
+ */
 static void
 i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
