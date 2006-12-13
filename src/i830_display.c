@@ -507,6 +507,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Enable the DPLL */
 	temp = INREG(dpll_reg);
 	OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
+	(void)INREG(dpll_reg); /* write posting */
 
 	/* Wait for the clocks to stabilize. */
 	usleep(150);
@@ -538,6 +539,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 	/* Flush the plane changes */
 	OUTREG(dspbase_reg, INREG(dspbase_reg));
+	(void)INREG(dspbase_reg); /* write posting */
 
 	if (!IS_I9XX(pI830)) {
 	    /* Wait for vblank for the disable to take effect */
@@ -547,12 +549,17 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Next, disable display pipes */
 	temp = INREG(pipeconf_reg);
 	OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
+	(void)INREG(pipeconf_reg); /* write posting */
 
 	/* Wait for vblank for the disable to take effect. */
 	i830WaitForVblank(pScrn);
 
 	temp = INREG(dpll_reg);
 	OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
+	(void)INREG(dpll_reg); /* write posting */
+
+	/* Wait for the clocks to turn off. */
+	usleep(150);
 	break;
     }
 }
