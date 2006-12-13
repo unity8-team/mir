@@ -696,6 +696,12 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
 
 	i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
 
+	/* Do it again!  If we remove this below register write, or the exact
+	 * same one 2 lines up, the mac mini SDVO output doesn't turn on.
+	 */
+	OUTREG(dev_priv->output_device,
+	       INREG(dev_priv->output_device) | SDVO_ENABLE);
+
 	for (i = 0; i < 2; i++)
 	    i830WaitForVblank(pScrn);
 
