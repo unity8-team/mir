@@ -487,6 +487,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
     int pipe = intel_crtc->pipe;
     int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
     int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
+    int dspbase_reg = (pipe == 0) ? DSPABASE : DSPBBASE;
     int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
     CARD32 temp;
 
@@ -512,6 +513,9 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	temp = INREG(dspcntr_reg);
 	OUTREG(dspcntr_reg, temp | DISPLAY_PLANE_ENABLE);
 
+	/* Flush the plane changes */
+	OUTREG(dspbase_reg, INREG(dspbase_reg));
+
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
 	i830_crtc_dpms_video(crtc, TRUE);
 	break;
@@ -525,6 +529,9 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 	/* Disable the VGA plane that we never use */
 	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
+
+	/* Flush the plane changes */
+	OUTREG(dspbase_reg, INREG(dspbase_reg));
 
 	if (!IS_I9XX(pI830)) {
 	    /* Wait for vblank for the disable to take effect */
