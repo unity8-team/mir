@@ -1003,7 +1003,7 @@ i830_sdvo_get_modes(xf86OutputPtr output)
 
     modes = i830_ddc_get_modes(output);
     if (modes != NULL)
-	return NULL;
+	return modes;
 
     /* Mac mini hack.  On this device, I get DDC through the analog, which
      * load-detects as disconnected.  I fail to DDC through the SDVO DDC,
