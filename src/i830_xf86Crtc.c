@@ -337,6 +337,30 @@ xf86DefaultScreenLimits (ScrnInfoPtr pScrn, int *widthp, int *heightp)
     *heightp = height;
 }
 
+/*
+ * XXX walk the monitor mode list and prune out duplicates that
+ * are inserted by xf86DDCMonitorSet. In an ideal world, that
+ * function would do this work by itself.
+ */
+
+static void
+xf86PruneDuplicateMonitorModes (MonPtr Monitor)
+{
+    DisplayModePtr  master, clone, next;
+
+    for (master = Monitor->Modes; 
+	 master && master != Monitor->Last; 
+	 master = master->next)
+    {
+	for (clone = master->next; clone && clone != Monitor->Modes; clone = next)
+	{
+	    next = clone->next;
+	    if (xf86ModesEqual (master, clone))
+		xf86DeleteMode (&Monitor->Modes, clone);
+	}
+    }
+}
+
 void
 xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 {
@@ -344,6 +368,9 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
     Bool		properties_set = FALSE;
     int			o;
 
+    /* Elide duplicate modes before defaulting code uses them */
+    xf86PruneDuplicateMonitorModes (pScrn->monitor);
+    
     /* Probe the list of modes for each output. */
     for (o = 0; o < config->num_output; o++) 
     {
