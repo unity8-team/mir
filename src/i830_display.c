@@ -758,6 +758,15 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
     OUTREG(fp_reg, fp);
     OUTREG(dpll_reg, dpll);
+
+    /* Magic re-write of the register for the Mac Mini.  Without this, the
+     * first X invocation after a cold boot will stick in 4x pixel multiply
+     * mode.  Alternatives that don't work include sleeping and doing an
+     * INREG for presumable pci write posting magic before and after the dpll
+     * write above.
+     */
+    OUTREG(dpll_reg, dpll);
+
     if (IS_I965G(pI830)) {
 	int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
 	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
