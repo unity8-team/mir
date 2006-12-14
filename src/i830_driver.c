@@ -912,6 +912,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    Bool enable;
    const char *chipname;
    int num_pipe;
+   int max_width;
 #ifdef XF86DRI
    unsigned long savedMMSize;
 #endif
@@ -969,10 +970,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
         pI830->entityPrivate = pI830Ent;
     } else 
         pI830->entityPrivate = NULL;
-
-   /* Allocate an xf86CrtcConfig */
-   xf86CrtcConfigInit (pScrn);
-   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
    if (xf86RegisterResources(pI830->pEnt->index, 0, ResNone)) {
       PreInitCleanup(pScrn);
@@ -1180,6 +1177,16 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX\n",
 	      (unsigned long)pI830->MMIOAddr);
+
+   /* Allocate an xf86CrtcConfig */
+   xf86CrtcConfigInit (pScrn);
+   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+   
+   if (IS_I965G(pI830))
+      max_width = 16384;
+   else
+      max_width = 8192 / pI830->cpp;
+   xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, 2048);
 
    /* Some of the probing needs MMIO access, so map it here. */
    I830MapMMIO(pScrn);
@@ -1836,6 +1843,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (pScrn->displayWidth * pI830->cpp > 8192) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support frame buffer stride > 8K >  DRI.\n");
       pI830->disableTiling = TRUE;
+      pI830->directRenderingDisabled = TRUE;
    }
 
    if (pScrn->virtualY > 2048) {
