@@ -702,7 +702,7 @@ i830_tv_get_modes(xf86OutputPtr output)
     new->VSyncEnd   = 777;
     new->VTotal     = 806;
 
-    new->type       = M_T_PREFERRED;
+    new->type       = M_T_DRIVER;
 
     return new;
 }
