@@ -407,7 +407,6 @@ typedef struct {
 }RADEONTMDSPll;
 
 typedef struct {
-    xf86CrtcConfigRec xf86_config;
     EntityInfoPtr     pEnt;
     pciVideoPtr       PciInfo;
     PCITAG            PciTag;

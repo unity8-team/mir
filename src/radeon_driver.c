@@ -2837,7 +2837,8 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
 static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
-
+    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int i;
     if (!info->IsSecondary) {
       if (!RADEONAllocateConnectors(pScrn))
 	return FALSE;
@@ -2855,7 +2856,13 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
     RADEONGetClockInfo(pScrn);
     RADEONGetPanelInfo(pScrn);
     RADEONGetTVDacAdjInfo(pScrn);
-    
+
+    for (i = 0; i < config->num_output; i++) 
+    {
+      xf86OutputPtr	      output = config->output[i];
+      
+      output->status = (*output->funcs->detect) (output);
+    }
     return TRUE;
 }
 
@@ -2872,6 +2879,7 @@ RADEONProbeDDC(ScrnInfoPtr pScrn, int indx)
 
 _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 {
+    xf86CrtcConfigPtr   xf86_config;
     RADEONInfoPtr     info;
     xf86Int10InfoPtr  pInt10 = NULL;
     void *int10_save = NULL;
@@ -2979,6 +2987,11 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     pScrn->racMemFlags = RAC_FB | RAC_COLORMAP | RAC_VIEWPORT | RAC_CURSOR;
     pScrn->monitor     = pScrn->confScreen->monitor;
+
+   /* Allocate an xf86CrtcConfig */
+   xf86CrtcConfigInit (pScrn);
+   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+
 
     if (!RADEONPreInitVisual(pScrn))
 	goto fail;
@@ -3202,6 +3215,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     info->directRenderingEnabled = RADEONPreInitDRI(pScrn);
 #endif
 
+    xf86CrtcSetSizeRange (pScrn, 320, 200, 16384, 2048);
     if (!RADEONPreInitVRAM(pScrn))
 	goto fail;
 
@@ -3211,6 +3225,13 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitControllers(pScrn, pInt10))
        goto fail;
+
+
+   if (!xf86InitialConfiguration (pScrn))
+   {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
+      goto fail;
+   }
 
 	/* Get ScreenInit function */
     if (!xf86LoadSubModule(pScrn, "fb")) return FALSE;
@@ -3225,9 +3246,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	RADEONGetMergedFBOptions(pScrn);
 
     if (!RADEONPreInitGamma(pScrn))              goto fail;
-
-    if (!RADEONRandRPreInit(pScrn))
-	goto fail;
 
     if (!RADEONPreInitCursor(pScrn))             goto fail;
 
@@ -4262,7 +4280,8 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
     xf86DisableRandR(); /* Disable built-in RandR extension */
     /* support all rotations */
-    RADEONRandRInit(pScreen, RR_Rotate_0); /* only 0 degrees for Radeon */
+    xf86RandR12Init (pScreen);
+    xf86RandR12SetRotations (pScreen, RR_Rotate_0); /* only 0 degrees for I965G */
 
     info->CreateScreenResources = pScreen->CreateScreenResources;
     pScreen->CreateScreenResources = RADEONCreateScreenResources;

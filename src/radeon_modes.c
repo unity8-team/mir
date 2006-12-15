@@ -595,14 +595,15 @@ int RADEONValidateMergeModes(ScrnInfoPtr pScrn1)
 void
 RADEONProbeOutputModes(ScrnInfoPtr pScrn)
 {
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     int i;
     DisplayModePtr ddc_modes, mode;
     DisplayModePtr test;
 
-    for (i = 0; i < info->xf86_config.num_output; i++) {
-        xf86OutputPtr output = info->xf86_config.output[i];
+    for (i = 0; i < config->num_output; i++) {
+        xf86OutputPtr output = config->output[i];
 	
 	test = output->probed_modes;
 	while(test != NULL) {
@@ -705,6 +706,7 @@ RADEONProbeOutputModes(ScrnInfoPtr pScrn)
 void
 RADEON_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
 {
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     DisplayModePtr saved_mode, last;
@@ -727,8 +729,8 @@ RADEON_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
      * pScrn->modes should only be used for XF86VidMode now, which we don't
      * care about enough to make some sort of unioned list.
      */
-    for (i = 0; i < info->xf86_config.num_output; i++) {
-        xf86OutputPtr output = info->xf86_config.output[i];
+    for (i = 0; i < config->num_output; i++) {
+        xf86OutputPtr output = config->output[i];
 	if (output->probed_modes != NULL) {
 	    pScrn->modes =
 		RADEONxf86DuplicateModes(pScrn, output->probed_modes);

@@ -2379,7 +2379,34 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 #endif
 }
 
+static void
+radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
+{
+
+}
+
+static Bool
+radeon_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
+		     DisplayModePtr adjusted_mode)
+{
+    return TRUE;
+}
+
+static void
+radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
+		   DisplayModePtr adjusted_mode)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+}
+
 static const xf86CrtcFuncsRec radeon_crtc_funcs = {
+    .dpms = radeon_crtc_dpms,
+    .save = NULL, /* XXX */
+    .restore = NULL, /* XXX */
+    .mode_fixup = radeon_crtc_mode_fixup,
+    .mode_set = radeon_crtc_mode_set,
+    .destroy = NULL, /* XXX */
 };
 
 static void
@@ -2407,19 +2434,23 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
     return MODE_OK;
 }
 
-static void
-radeon_pre_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
+static Bool
+radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
+		    DisplayModePtr adjusted_mode)
 {
+    return TRUE;
 
 }
 
 static void
-radeon_post_set_mode(xf86OutputPtr output, DisplayModePtr pMode)
+radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
+		  DisplayModePtr adjusted_mode)
 {
+    
+
 }
 
-
-static enum detect_status
+static xf86OutputStatus
 radeon_detect(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
@@ -2428,11 +2459,11 @@ radeon_detect(xf86OutputPtr output)
 #if 0
     //    RADEONConnectorFindMonitor(pScrn, id);
     if (pRADEONEnt->PortInfo[id].MonType == MT_UNKNOWN)
-	return OUTPUT_STATUS_UNKNOWN;
+	return XF86OutputStatusUnknown;
     else if (pRADEONEnt->PortInfo[id].MonType == MT_NONE)
-	return OUTPUT_STATUS_DISCONNECTED;
+	return XF86OutputStatusDisconnected;
     else
-	return OUTPUT_STATUS_CONNECTED;
+	return XF86OutputStatusConnected;
 #endif
 }
 
@@ -2452,8 +2483,8 @@ static const xf86OutputFuncsRec radeon_output_funcs = {
     .save = radeon_save,
     .restore = radeon_restore,
     .mode_valid = radeon_mode_valid,
-    .pre_set_mode = radeon_pre_set_mode,
-    .post_set_mode = radeon_post_set_mode,
+    .mode_fixup = radeon_mode_fixup,
+    .mode_set = radeon_mode_set,
     .detect = radeon_detect,
     .get_modes = radeon_get_modes,
     .destroy = radeon_destroy
@@ -2471,7 +2502,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn)
     if (!pRADEONEnt->pCrtc[0])
       return FALSE;
 
-    pRADEONEnt->Controller[0] = xnfcalloc(sizeof(xf86CrtcRec), 1);
+    pRADEONEnt->Controller[0] = xnfcalloc(sizeof(RADEONCrtcPrivateRec), 1);
     if (!pRADEONEnt->Controller[0])
         return FALSE;
 
@@ -2485,7 +2516,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn)
     if (!pRADEONEnt->pCrtc[1])
       return FALSE;
 
-    pRADEONEnt->Controller[1] = xnfcalloc(sizeof(xf86CrtcRec), 1);
+    pRADEONEnt->Controller[1] = xnfcalloc(sizeof(RADEONCrtcPrivateRec), 1);
     if (!pRADEONEnt->Controller[1])
     {
 	xfree(pRADEONEnt->Controller[0]);
