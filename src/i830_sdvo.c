@@ -679,26 +679,31 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
     I830Ptr pI830 = I830PTR(pScrn);
+    CARD32  temp;
 
     if (mode != DPMSModeOn) {
 	i830_sdvo_set_active_outputs(output, 0);
-	OUTREG(dev_priv->output_device,
-	       INREG(dev_priv->output_device) & ~SDVO_ENABLE);
+	temp = INREG(dev_priv->output_device);
+	if ((temp & SDVO_ENABLE) != 0)
+	    OUTREG(dev_priv->output_device, temp & ~SDVO_ENABLE);
     } else {
 	Bool input1, input2;
 	int i;
 	CARD8 status;
 
-	OUTREG(dev_priv->output_device,
-	       INREG(dev_priv->output_device) | SDVO_ENABLE);
+	temp = INREG(dev_priv->output_device);
+	if ((temp & SDVO_ENABLE) == 0)
+	    OUTREG(dev_priv->output_device, temp | SDVO_ENABLE);
 
 	i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
 
+#if 0
 	/* Do it again!  If we remove this below register write, or the exact
 	 * same one 2 lines up, the mac mini SDVO output doesn't turn on.
 	 */
 	OUTREG(dev_priv->output_device,
 	       INREG(dev_priv->output_device) | SDVO_ENABLE);
+#endif
 
 	for (i = 0; i < 2; i++)
 	    i830WaitForVblank(pScrn);

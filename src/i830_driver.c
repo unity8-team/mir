@@ -2225,15 +2225,25 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    OUTREG(FPA0, pI830->saveFPA0);
    OUTREG(FPA1, pI830->saveFPA1);
-   OUTREG(DPLL_A, pI830->saveDPLL_A);
    if (IS_I965G(pI830))
       OUTREG(DPLL_A_MD, pI830->saveDPLL_A_MD);
+   if (pI830->saveDPLL_A & DPLL_VCO_ENABLE)
+   {
+      OUTREG(DPLL_A, pI830->saveDPLL_A & ~DPLL_VCO_ENABLE);
+      usleep(150);
+   }
+   OUTREG(DPLL_A, pI830->saveDPLL_A);
    if(xf86_config->num_crtc == 2) {
       OUTREG(FPB0, pI830->saveFPB0);
       OUTREG(FPB1, pI830->saveFPB1);
-      OUTREG(DPLL_B, pI830->saveDPLL_B);
       if (IS_I965G(pI830))
 	 OUTREG(DPLL_B_MD, pI830->saveDPLL_B_MD);
+      if (pI830->saveDPLL_B & DPLL_VCO_ENABLE)
+      {
+	 OUTREG(DPLL_A, pI830->saveDPLL_B & ~DPLL_VCO_ENABLE);
+	 usleep(150);
+      }
+      OUTREG(DPLL_B, pI830->saveDPLL_B);
    }
    /* Wait for clocks to stabilize */
    usleep(150);

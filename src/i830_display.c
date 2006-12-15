@@ -506,22 +506,25 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
     case DPMSModeSuspend:
 	/* Enable the DPLL */
 	temp = INREG(dpll_reg);
-	OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
-	(void)INREG(dpll_reg); /* write posting */
+	if ((temp & DPLL_VCO_ENABLE) == 0)
+	    OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
 
 	/* Wait for the clocks to stabilize. */
 	usleep(150);
 
 	/* Enable the pipe */
 	temp = INREG(pipeconf_reg);
-	OUTREG(pipeconf_reg, temp | PIPEACONF_ENABLE);
+	if ((temp & PIPEACONF_ENABLE) == 0)
+	    OUTREG(pipeconf_reg, temp | PIPEACONF_ENABLE);
 
 	/* Enable the plane */
 	temp = INREG(dspcntr_reg);
-	OUTREG(dspcntr_reg, temp | DISPLAY_PLANE_ENABLE);
-
-	/* Flush the plane changes */
-	OUTREG(dspbase_reg, INREG(dspbase_reg));
+	if ((temp & DISPLAY_PLANE_ENABLE) == 0)
+	{
+	    OUTREG(dspcntr_reg, temp | DISPLAY_PLANE_ENABLE);
+	    /* Flush the plane changes */
+	    OUTREG(dspbase_reg, INREG(dspbase_reg));
+	}
 
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
 	i830_crtc_dpms_video(crtc, TRUE);
@@ -530,16 +533,17 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Give the overlay scaler a chance to disable if it's on this pipe */
 	i830_crtc_dpms_video(crtc, FALSE);
 
-	/* Disable display plane */
-	temp = INREG(dspcntr_reg);
-	OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
-
 	/* Disable the VGA plane that we never use */
 	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
 
-	/* Flush the plane changes */
-	OUTREG(dspbase_reg, INREG(dspbase_reg));
-	(void)INREG(dspbase_reg); /* write posting */
+	/* Disable display plane */
+	temp = INREG(dspcntr_reg);
+	if ((temp & DISPLAY_PLANE_ENABLE) != 0)
+	{
+	    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
+	    /* Flush the plane changes */
+	    OUTREG(dspbase_reg, INREG(dspbase_reg));
+	}
 
 	if (!IS_I9XX(pI830)) {
 	    /* Wait for vblank for the disable to take effect */
@@ -548,15 +552,15 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 	/* Next, disable display pipes */
 	temp = INREG(pipeconf_reg);
-	OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
-	(void)INREG(pipeconf_reg); /* write posting */
+	if ((temp & PIPEACONF_ENABLE) != 0)
+	    OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
 
 	/* Wait for vblank for the disable to take effect. */
 	i830WaitForVblank(pScrn);
 
 	temp = INREG(dpll_reg);
-	OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
-	(void)INREG(dpll_reg); /* write posting */
+	if ((temp & DPLL_VCO_ENABLE) != 0)
+	    OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
 
 	/* Wait for the clocks to turn off. */
 	usleep(150);
@@ -592,6 +596,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
     int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
     int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
+    int dspbase_reg = (pipe == 0) ? DSPABASE : DSPBBASE;
     int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
     int htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
     int hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
@@ -753,13 +758,44 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	else
 	    pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
     }
+    dspcntr |= DISPLAY_PLANE_ENABLE;
+    pipeconf |= PIPEACONF_ENABLE;
+    dpll |= DPLL_VCO_ENABLE;
+
+    if (is_lvds)
+    {
+	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
+	 * This is an exception to the general rule that mode_set doesn't turn
+	 * things on.
+	 */
+	OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
+    }
+    
+    /* Disable the panel fitter if it was on our pipe */
+    if (!IS_I830(pI830) && ((INREG(PFIT_CONTROL) >> 29) & 0x3) == pipe)
+	OUTREG(PFIT_CONTROL, 0);
 
     i830PrintPll("chosen", &clock);
     ErrorF("clock regs: 0x%08x, 0x%08x\n", (int)dpll, (int)fp);
 
+    if (IS_I965G(pI830)) {
+	int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
+	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
+	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
+    }
+
+    if (dpll & DPLL_VCO_ENABLE)
+    {
+	OUTREG(fp_reg, fp);
+	OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
+	usleep(150);
+    }
     OUTREG(fp_reg, fp);
     OUTREG(dpll_reg, dpll);
+    /* Wait for the clocks to stabilize. */
+    usleep(150);
 
+#if 0
     /* Magic re-write of the register for the Mac Mini.  Without this, the
      * first X invocation after a cold boot will stick in 4x pixel multiply
      * mode.  Alternatives that don't work include sleeping and doing an
@@ -767,12 +803,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
      * write above.
      */
     OUTREG(dpll_reg, dpll);
-
-    if (IS_I965G(pI830)) {
-	int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
-	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
-	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
-    }
+#endif
 
     OUTREG(htot_reg, (adjusted_mode->CrtcHDisplay - 1) |
 	((adjusted_mode->CrtcHTotal - 1) << 16));
@@ -792,14 +823,16 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
      */
     OUTREG(dspsize_reg, ((mode->VDisplay - 1) << 16) | (mode->HDisplay - 1));
     OUTREG(dsppos_reg, 0);
-    i830PipeSetBase(crtc, crtc->x, crtc->y);
     OUTREG(pipesrc_reg, ((mode->HDisplay - 1) << 16) | (mode->VDisplay - 1));
+    i830PipeSetBase(crtc, crtc->x, crtc->y);
     OUTREG(pipeconf_reg, pipeconf);
+    i830WaitForVblank(pScrn);
+    
     OUTREG(dspcntr_reg, dspcntr);
-
-    /* Disable the panel fitter if it was on our pipe */
-    if (!IS_I830(pI830) && ((INREG(PFIT_CONTROL) >> 29) & 0x3) == pipe)
-	OUTREG(PFIT_CONTROL, 0);
+    /* Flush the plane changes */
+    OUTREG(dspbase_reg, INREG(dspbase_reg));
+    
+    i830WaitForVblank(pScrn);
 }
 
 /**
