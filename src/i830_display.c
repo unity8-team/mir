@@ -507,10 +507,17 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Enable the DPLL */
 	temp = INREG(dpll_reg);
 	if ((temp & DPLL_VCO_ENABLE) == 0)
+	{
+	    OUTREG(dpll_reg, temp);
+	    /* Wait for the clocks to stabilize. */
+	    usleep(150);
 	    OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
-
-	/* Wait for the clocks to stabilize. */
-	usleep(150);
+	    /* Wait for the clocks to stabilize. */
+	    usleep(150);
+	    OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
+	    /* Wait for the clocks to stabilize. */
+	    usleep(150);
+	}
 
 	/* Enable the pipe */
 	temp = INREG(pipeconf_reg);
@@ -791,6 +798,11 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	usleep(150);
     }
     OUTREG(fp_reg, fp);
+    OUTREG(dpll_reg, dpll);
+    /* Wait for the clocks to stabilize. */
+    usleep(150);
+    
+    /* write it again -- the BIOS does, after all */
     OUTREG(dpll_reg, dpll);
     /* Wait for the clocks to stabilize. */
     usleep(150);
