@@ -593,104 +593,81 @@ int RADEONValidateMergeModes(ScrnInfoPtr pScrn1)
 }
 
 void
-RADEONProbeOutputModes(ScrnInfoPtr pScrn)
+RADEONProbeOutputModes(xf86OutputPtr output)
 {
+    ScrnInfoPtr	    pScrn = output->scrn;
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+    RADEONOutputPrivatePtr pRPort = output->driver_private;
     int i;
     DisplayModePtr ddc_modes, mode;
     DisplayModePtr test;
 
-    for (i = 0; i < config->num_output; i++) {
-        xf86OutputPtr output = config->output[i];
+    /* force reprobe */
+    pRPort->MonType = MT_UNKNOWN;
 	
-	test = output->probed_modes;
-	while(test != NULL) {
-	  xf86DeleteMode(&test, test);
+    RADEONConnectorFindMonitor(pScrn, output);
+    
+    /* okay we got DDC info */
+    if (output->MonInfo) {
+      /* Debug info for now, at least */
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", i);
+      xf86PrintEDID(output->MonInfo);
+      
+      ddc_modes = RADEONGetDDCModes(pScrn, output->MonInfo);
+      
+      for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+	if (mode->Flags & V_DBLSCAN) {
+	  if ((mode->CrtcHDisplay >= 1024) || (mode->CrtcVDisplay >= 768))
+	    mode->status = MODE_CLOCK_RANGE;
 	}
-
-	output->probed_modes = test;
-
-	/* force reprobe */
-	pRADEONEnt->PortInfo[i]->MonType = MT_UNKNOWN;
+      }
+      RADEONxf86PruneInvalidModes(pScrn, &ddc_modes, TRUE);
+      
+      /* do some physcial size stuff */
+    }
+    
+    
+    if (output->probed_modes == NULL) {
+      MonRec fixed_mon;
+      DisplayModePtr modes;
+      
+      switch(pRPort->MonType) {
+      case MT_CRT:
+      case MT_DFP:
 	
-	RADEONConnectorFindMonitor(pScrn, i);
+	/* We've got a potentially-connected monitor that we can't DDC.  Return a
+	 * fixed set of VESA plus user modes for a presumed multisync monitor with
+	 * some reasonable limits.
+	 */
+	fixed_mon.nHsync = 1;
+	fixed_mon.hsync[0].lo = 31.0;
+	fixed_mon.hsync[0].hi = 100.0;
+	fixed_mon.nVrefresh = 1;
+	fixed_mon.vrefresh[0].lo = 50.0;
+	fixed_mon.vrefresh[0].hi = 70.0;
 	
-	/* okay we got DDC info */
-	if (output->MonInfo) {
-	    /* Debug info for now, at least */
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", i);
-	    xf86PrintEDID(pRADEONEnt->pOutput[i]->MonInfo);
-
-	    ddc_modes = RADEONGetDDCModes(pScrn, pRADEONEnt->pOutput[i]->MonInfo);
-	    
-	    for (mode = ddc_modes; mode != NULL; mode = mode->next) {
-		if (mode->Flags & V_DBLSCAN) {
-		    if ((mode->CrtcHDisplay >= 1024) || (mode->CrtcVDisplay >= 768))
-			mode->status = MODE_CLOCK_RANGE;
-		}
-	    }
-	    RADEONxf86PruneInvalidModes(pScrn, &ddc_modes, TRUE);
-
-	    /* do some physcial size stuff */
-	}
-	   
-
-	if (output->probed_modes == NULL) {
-  	    MonRec fixed_mon;
-	    DisplayModePtr modes;
-
-	    switch(pRADEONEnt->PortInfo[i]->MonType) {
-	    case MT_CRT:
-	    case MT_DFP:
-	      
-	            /* We've got a potentially-connected monitor that we can't DDC.  Return a
-		     * fixed set of VESA plus user modes for a presumed multisync monitor with
-		     * some reasonable limits.
-		     */
-	      fixed_mon.nHsync = 1;
-	      fixed_mon.hsync[0].lo = 31.0;
-	      fixed_mon.hsync[0].hi = 100.0;
-	      fixed_mon.nVrefresh = 1;
-	      fixed_mon.vrefresh[0].lo = 50.0;
-	      fixed_mon.vrefresh[0].hi = 70.0;
-	      
-	      modes = RADEONxf86DuplicateModes(pScrn, pScrn->monitor->Modes);
-	      RADEONxf86ValidateModesSync(pScrn, modes, &fixed_mon);
-	      RADEONxf86PruneInvalidModes(pScrn, &modes, TRUE);
-	      /* fill out CRT of FP mode table */
-	      pRADEONEnt->pOutput[i]->probed_modes = modes;
-	      break;
-		
-	    case MT_LCD:
-	      RADEONValidateFPModes(pScrn, pScrn->display->modes, &pRADEONEnt->pOutput[i]->probed_modes);
-	      break;
-	    default:
-		break;
-	    }
-	}
-
-	if (output->probed_modes) {
-	  RADEONxf86ValidateModesUserConfig(pScrn,
-					    output->probed_modes);
-	  RADEONxf86PruneInvalidModes(pScrn, &output->probed_modes,
-				      FALSE);
-	}
-
-
-	for (mode = output->probed_modes; mode != NULL; mode = mode->next)
-	{
-	    /* The code to choose the best mode per pipe later on will require
-	     * VRefresh to be set.
-	     */
-	    mode->VRefresh = RADEONxf86ModeVRefresh(mode);
-	    RADEONxf86SetModeCrtc(mode, INTERLACE_HALVE_V);
-
-#ifdef DEBUG_REPROBE
-	    PrintModeline(pScrn->scrnIndex, mode);
-#endif
-	}
+	modes = RADEONxf86DuplicateModes(pScrn, pScrn->monitor->Modes);
+	RADEONxf86ValidateModesSync(pScrn, modes, &fixed_mon);
+	RADEONxf86PruneInvalidModes(pScrn, &modes, TRUE);
+	/* fill out CRT of FP mode table */
+	pRADEONEnt->pOutput[i]->probed_modes = modes;
+	break;
+	
+      case MT_LCD:
+	RADEONValidateFPModes(pScrn, pScrn->display->modes, &output->probed_modes);
+	break;
+      default:
+	break;
+      }
+    }
+    
+    if (output->probed_modes) {
+      RADEONxf86ValidateModesUserConfig(pScrn,
+					output->probed_modes);
+      RADEONxf86PruneInvalidModes(pScrn, &output->probed_modes,
+				  FALSE);
     }
 }
   

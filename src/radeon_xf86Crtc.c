@@ -548,12 +548,12 @@ xf86SetScrnInfoModes (ScrnInfoPtr pScrn)
     /* Disable modes in the XFree86 DDX list that are larger than the current
      * virtual size.
      */
-    i830xf86ValidateModesSize(pScrn, pScrn->modes,
+    RADEONxf86ValidateModesSize(pScrn, pScrn->modes,
 			      originalVirtualX, originalVirtualY,
 			      pScrn->displayWidth);
 
     /* Strip out anything that we threw out for virtualX/Y. */
-    i830xf86PruneInvalidModes(pScrn, &pScrn->modes, TRUE);
+    RADEONxf86PruneInvalidModes(pScrn, &pScrn->modes, TRUE);
 
     for (mode = pScrn->modes; mode; mode = mode->next)
 	if (xf86ModesEqual (mode, &crtc->desiredMode))

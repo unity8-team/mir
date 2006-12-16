@@ -124,6 +124,7 @@ typedef struct _RADEONCrtcPrivateRec {
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
 typedef struct _RADEONOutputPrivateRec {
+    int num;
     RADEONOutputType type;
     void *dev_priv;
     RADEONDDCType DDCType;

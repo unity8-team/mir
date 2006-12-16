@@ -1149,14 +1149,15 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
     }
 }
 
-static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, int connector)
+static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr pPort)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    RADEONOutputPrivatePtr pRPort = pPort->driver_private;
 
     if (info->IsMobility) {
-      switch(connector) {
+      switch(pRPort->num) {
       case 0:
 	/* non-DDC laptop panel connected on primary */
 	if (INREG(RADEON_BIOS_4_SCRATCH) & 4)
@@ -1177,18 +1178,17 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, int connector)
 /* Primary Head (DVI or Laptop Int. panel)*/
 /* A ddc capable display connected on DVI port */
 /* Secondary Head (mostly VGA, can be DVI on some OEM boards)*/
-void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, int connector)
+void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr pPort)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    xf86OutputPtr pPort = pRADEONEnt->pOutput[connector];
     RADEONOutputPrivatePtr pRPort = pPort->driver_private;
     
     if (pRPort->MonType == MT_UNKNOWN) {
       if ((pRPort->MonType = RADEONDisplayDDCConnected(pScrn,
 						     pRPort->DDCType,
 						     pPort)));
-      else if((pRPort->MonType = RADEONPortCheckNonDDC(pScrn, connector)));
+      else if((pRPort->MonType = RADEONPortCheckNonDDC(pScrn, pPort)));
       else
 	pRPort->MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(pRPort->DACType));
     }
@@ -1267,8 +1267,8 @@ static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 	    return;
 	}
 	
-	RADEONConnectorFindMonitor(pScrn, 0);
-	RADEONConnectorFindMonitor(pScrn, 1);
+	RADEONConnectorFindMonitor(pScrn, pRADEONEnt->pOutput[0]);
+	RADEONConnectorFindMonitor(pScrn, pRADEONEnt->pOutput[1]);
 	
     }
 
@@ -2470,7 +2470,8 @@ radeon_detect(xf86OutputPtr output)
 static DisplayModePtr
 radeon_get_modes(xf86OutputPtr output)
 {
-    
+    RADEONProbeOutputModes(output);
+    return output->probed_modes;
 }
 
 static void
@@ -2550,7 +2551,11 @@ Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
 
       pRADEONEnt->PortInfo[i]->type = OUTPUT_VGA;
       pRADEONEnt->pOutput[i]->driver_private = pRADEONEnt->PortInfo[i];
+      pRADEONEnt->PortInfo[i]->num = i;
+
+      pRADEONEnt->pOutput[i]->possible_crtcs = (1<<0) | (1<<1);
     }
+
 
     return TRUE;
 }

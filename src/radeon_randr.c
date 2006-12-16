@@ -66,12 +66,31 @@ static Bool xf86RandR12CreateScreenResources12 (ScreenPtr pScreen);
 #endif
 
  
-static int	    RADEONRandRIndex;
-static int	    RADEONRandRGeneration;
+static int	    xf86RandR12Index;
+static int	    xf86RandR12Generation;
 
-#define XF86RANDRINFO(p)    ((XF86RandRInfoPtr) (p)->devPrivates[RADEONRandRIndex].ptr)
+#define XF86RANDRINFO(p)    ((XF86RandRInfoPtr) (p)->devPrivates[xf86RandR12Index].ptr)
 
 #if RANDR_12_INTERFACE
+
+void
+xf86RandR12GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y)
+{
+    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+
+    if (xf86RandR12Generation != serverGeneration ||
+	XF86RANDRINFO(pScreen)->virtualX == -1)
+    {
+	*x = pScrn->virtualX;
+	*y = pScrn->virtualY;
+    } else {
+	XF86RandRInfoPtr randrp = XF86RANDRINFO(pScreen);
+
+	*x = randrp->virtualX;
+	*y = randrp->virtualY;
+    }
+}
+
 static int
 xf86RandR12ModeRefresh (DisplayModePtr mode)
 {
@@ -811,10 +830,10 @@ RADEONRandRInit (ScreenPtr    pScreen, int rotation)
     if (!noPanoramiXExtension)
 	return TRUE;
 #endif
-    if (RADEONRandRGeneration != serverGeneration)
+    if (xf86RandR12Generation != serverGeneration)
     {
-	RADEONRandRIndex = AllocateScreenPrivateIndex();
-	RADEONRandRGeneration = serverGeneration;
+	xf86RandR12Index = AllocateScreenPrivateIndex();
+	xf86RandR12Generation = serverGeneration;
     }
     
     randrp = xalloc (sizeof (XF86RandRInfoRec));
@@ -841,7 +860,7 @@ RADEONRandRInit (ScreenPtr    pScreen, int rotation)
 
     randrp->maxX = randrp->maxY = 0;
 
-    pScreen->devPrivates[RADEONRandRIndex].ptr = randrp;
+    pScreen->devPrivates[xf86RandR12Index].ptr = randrp;
 
 #if RANDR_12_INTERFACE
     if (!RADEONRandRInit12 (pScreen))
