@@ -110,7 +110,7 @@ int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 	int  maxVirtY = pScrn->virtualY;
 
 	/* Collect all of the DDC modes */
-	first = last = ddcModes = RADEONGetDDCModes(pScrn, pScrn->monitor->DDC);
+	first = last = ddcModes = xf86DDCGetModes(pScrn, pScrn->monitor->DDC);
 
 	for (p = ddcModes; p; p = p->next) {
 
