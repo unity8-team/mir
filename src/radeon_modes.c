@@ -611,7 +611,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     /* okay we got DDC info */
     if (output->MonInfo) {
       /* Debug info for now, at least */
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", output->num);
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", pRPort->num);
       xf86PrintEDID(output->MonInfo);
       
       ddc_modes = xf86DDCGetModes(pScrn->scrnIndex, output->MonInfo);
@@ -786,8 +786,7 @@ RADEON_set_default_screen_size(ScrnInfoPtr pScrn)
 
 int RADEONValidateXF86ModeList(ScrnInfoPtr pScrn, Bool first_time)
 {
-  RADEONProbeOutputModes(pScrn);
-
+  
   if (first_time)
     {
       RADEON_set_default_screen_size(pScrn);
