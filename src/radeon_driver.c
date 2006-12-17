@@ -3238,6 +3238,8 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
       goto fail;
    }
 
+   pScrn->displayWidth = (pScrn->virtualX + 63) & ~63;
+
 	/* Get ScreenInit function */
     if (!xf86LoadSubModule(pScrn, "fb")) return FALSE;
 
