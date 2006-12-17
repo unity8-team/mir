@@ -2223,18 +2223,19 @@ RestoreHWState(ScrnInfoPtr pScrn)
       crtc->funcs->dpms(crtc, DPMSModeOff);
    }
 
-   OUTREG(FPA0, pI830->saveFPA0);
-   OUTREG(FPA1, pI830->saveFPA1);
-   if (IS_I965G(pI830))
-      OUTREG(DPLL_A_MD, pI830->saveDPLL_A_MD);
    if (pI830->saveDPLL_A & DPLL_VCO_ENABLE)
    {
       OUTREG(DPLL_A, pI830->saveDPLL_A & ~DPLL_VCO_ENABLE);
       usleep(150);
    }
+   OUTREG(FPA0, pI830->saveFPA0);
+   OUTREG(FPA1, pI830->saveFPA1);
    OUTREG(DPLL_A, pI830->saveDPLL_A);
    usleep(150);
-   OUTREG(DPLL_A, pI830->saveDPLL_A);
+   if (IS_I965G(pI830))
+      OUTREG(DPLL_A_MD, pI830->saveDPLL_A_MD);
+   else
+      OUTREG(DPLL_A, pI830->saveDPLL_A);
    usleep(150);
 
    OUTREG(HTOTAL_A, pI830->saveHTOTAL_A);
@@ -2243,16 +2244,19 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(VTOTAL_A, pI830->saveVTOTAL_A);
    OUTREG(VBLANK_A, pI830->saveVBLANK_A);
    OUTREG(VSYNC_A, pI830->saveVSYNC_A);
+   
    OUTREG(DSPASTRIDE, pI830->saveDSPASTRIDE);
    OUTREG(DSPASIZE, pI830->saveDSPASIZE);
    OUTREG(DSPAPOS, pI830->saveDSPAPOS);
-   OUTREG(PIPEACONF, pI830->savePIPEACONF);
-   OUTREG(PIPEASRC, pI830->savePIPEASRC);
    OUTREG(DSPACNTR, pI830->saveDSPACNTR);
    OUTREG(DSPABASE, pI830->saveDSPABASE);
    if (IS_I965G(pI830)) {
       OUTREG(DSPASURF, pI830->saveDSPASURF);
    }
+   
+   OUTREG(PIPEASRC, pI830->savePIPEASRC);
+   OUTREG(PIPEACONF, pI830->savePIPEACONF);
+   
    for(i = 0; i < 256; i++) {
          OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
    }
@@ -2296,6 +2300,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    if (!IS_I830(pI830) && !IS_845G(pI830))
      OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
 
+   OUTREG(VGACNTRL, pI830->saveVGACNTRL);
+
    OUTREG(VCLK_DIVISOR_VGA0, pI830->saveVCLK_DIVISOR_VGA0);
    OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
    OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
@@ -2304,8 +2310,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
       xf86OutputPtr   output = xf86_config->output[i];
       (*output->funcs->restore) (output);
    }
-
-   OUTREG(VGACNTRL, pI830->saveVGACNTRL);
 
    for(i = 0; i < 7; i++) {
 	   OUTREG(SWF0 + (i << 2), pI830->saveSWF[i]);

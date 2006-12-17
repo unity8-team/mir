@@ -765,9 +765,11 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	else
 	    pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
     }
+#if 1
     dspcntr |= DISPLAY_PLANE_ENABLE;
     pipeconf |= PIPEACONF_ENABLE;
     dpll |= DPLL_VCO_ENABLE;
+#endif
 
     if (is_lvds)
     {
