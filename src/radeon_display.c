@@ -113,6 +113,15 @@ const char *ConnectorTypeNameATOM[10] = {
   "Unsupported"
 };
 
+const char *OutputType[10] = {
+    "None",
+    "VGA",
+    "DVI",
+    "LVDS",
+    "S-video",
+    "Composite",
+};
+
 
 static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
 {
@@ -2529,33 +2538,84 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
+Bool RADEONAllocatePortInfo(ScrnInfoPtr pScrn)
 {
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     int num_connectors;
     int i;
 
     if (pRADEONEnt->PortInfo[0])
+	return TRUE;
+
+    /* for now always allocate max connectors */
+    for (i = 0 ; i < RADEON_MAX_CONNECTOR; i++) {
+
+	pRADEONEnt->PortInfo[i] = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
+	if (!pRADEONEnt->PortInfo[i])
+	    return FALSE;
+    }
+}
+
+void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr pRPort)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    RADEONOutputType output;
+    if (info->IsAtomBios) {
+	switch(pRPort->ConnectorType) {
+	case 0: output = OUTPUT_NONE; break;
+	case 1: output = OUTPUT_VGA; break;
+	case 2:
+	case 3:
+	case 4: output = OUTPUT_DVI; break;
+	case 5: output = OUTPUT_STV; break;
+	case 6: output = OUTPUT_CTV; break;
+	case 7:
+	case 8: output = OUTPUT_LVDS; break;
+	case 9:
+	default:
+	    output = OUTPUT_NONE; break;
+	}
+    }
+    else {
+	switch(pRPort->ConnectorType) {
+	case 0: output = OUTPUT_NONE; break;
+	case 1: output = OUTPUT_LVDS; break;
+	case 2: output = OUTPUT_VGA; break;
+	case 3:
+	case 4: output = OUTPUT_DVI; break;
+	case 5: output = OUTPUT_STV; break;
+	case 6: output = OUTPUT_CTV; break;
+	default: output = OUTPUT_NONE; break;
+	}
+    }
+    pRPort->type = output;
+}
+
+Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
+{
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    int num_connectors;
+    int i;
+
+    if (pRADEONEnt->pOutput[0])
         return TRUE;
     
     /* for now always allocate max connectors */
     for (i = 0 ; i < RADEON_MAX_CONNECTOR; i++) {
 
-      pRADEONEnt->pOutput[i] = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA");
-      if (!pRADEONEnt->pOutput[i])
-	return FALSE;
+	RADEONSetOutputType(pScrn, pRADEONEnt->PortInfo[i]);
 
-      pRADEONEnt->PortInfo[i] = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
-      if (!pRADEONEnt->PortInfo[i])
-	return FALSE;
-
-      pRADEONEnt->PortInfo[i]->type = OUTPUT_VGA;
-      pRADEONEnt->pOutput[i]->driver_private = pRADEONEnt->PortInfo[i];
-      pRADEONEnt->PortInfo[i]->num = i;
-
-      pRADEONEnt->pOutput[i]->possible_crtcs = (1<<0) | (1<<1);
+	pRADEONEnt->pOutput[i] = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[pRADEONEnt->PortInfo[i]->type]);
+	if (!pRADEONEnt->pOutput[i])
+	    return FALSE;
+	
+	
+	pRADEONEnt->pOutput[i]->driver_private = pRADEONEnt->PortInfo[i];
+	pRADEONEnt->PortInfo[i]->num = i;
+	
+	pRADEONEnt->pOutput[i]->possible_crtcs = (1<<0) | (1<<1);
     }
-
+    
 
     return TRUE;
 }

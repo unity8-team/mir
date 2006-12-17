@@ -2840,15 +2840,20 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
     int i;
     if (!info->IsSecondary) {
-      if (!RADEONAllocateConnectors(pScrn))
+      
+      if (!RADEONAllocatePortInfo(pScrn))
 	return FALSE;
 
       if (!RADEONAllocateControllers(pScrn))
 	return FALSE;
-      
     }
 
     RADEONGetBIOSInfo(pScrn, pInt10);
+
+    if (!info->IsSecondary) {
+      if (!RADEONAllocateConnectors(pScrn))
+	return FALSE;
+    }
 
     RADEONSetupConnectors(pScrn);
     RADEONMapControllers(pScrn);

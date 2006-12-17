@@ -112,7 +112,7 @@ typedef enum
     OUTPUT_DVI,
     OUTPUT_LVDS,
     OUTPUT_STV,
-    OUTPUT_CTX,
+    OUTPUT_CTV,
 } RADEONOutputType;
 
 typedef struct _RADEONCrtcPrivateRec {
