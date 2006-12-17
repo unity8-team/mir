@@ -600,7 +600,6 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     RADEONOutputPrivatePtr pRPort = output->driver_private;
-    int i;
     DisplayModePtr ddc_modes, mode;
     DisplayModePtr test;
 
@@ -612,7 +611,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     /* okay we got DDC info */
     if (output->MonInfo) {
       /* Debug info for now, at least */
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", i);
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", output->num);
       xf86PrintEDID(output->MonInfo);
       
       ddc_modes = xf86DDCGetModes(pScrn->scrnIndex, output->MonInfo);
@@ -652,7 +651,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 	RADEONxf86ValidateModesSync(pScrn, modes, &fixed_mon);
 	RADEONxf86PruneInvalidModes(pScrn, &modes, TRUE);
 	/* fill out CRT of FP mode table */
-	pRADEONEnt->pOutput[i]->probed_modes = modes;
+	output->probed_modes = modes;
 	break;
 	
       case MT_LCD:
