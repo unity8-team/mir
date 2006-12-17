@@ -3258,6 +3258,20 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitXv(pScrn))                 goto fail;
 
+
+    if (!xf86RandR12PreInit (pScrn))
+    {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "RandR initialization failure\n");
+      PreInitCleanup(pScrn);
+      return FALSE;
+    }	
+    
+    if (pScrn->modes == NULL) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes.\n");
+      PreInitCleanup(pScrn);
+      return FALSE;
+   }
+
     /* Free the video bios (if applicable) */
     if (info->VBIOS) {
 	xfree(info->VBIOS);
