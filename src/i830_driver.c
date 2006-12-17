@@ -2210,18 +2210,22 @@ RestoreHWState(ScrnInfoPtr pScrn)
 #ifdef XF86DRI
    I830DRISetVBlankInterrupt (pScrn, FALSE);
 #endif
-
    /* Disable outputs */
    for (i = 0; i < xf86_config->num_output; i++) {
       xf86OutputPtr   output = xf86_config->output[i];
       output->funcs->dpms(output, DPMSModeOff);
    }
-
+   i830WaitForVblank(pScrn);
+   
    /* Disable pipes */
    for (i = 0; i < xf86_config->num_crtc; i++) {
       xf86CrtcPtr crtc = xf86_config->crtc[i];
       crtc->funcs->dpms(crtc, DPMSModeOff);
    }
+   i830WaitForVblank(pScrn);
+
+   if (!IS_I830(pI830) && !IS_845G(pI830))
+     OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
 
    if (pI830->saveDPLL_A & DPLL_VCO_ENABLE)
    {
@@ -2248,32 +2252,31 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(DSPASTRIDE, pI830->saveDSPASTRIDE);
    OUTREG(DSPASIZE, pI830->saveDSPASIZE);
    OUTREG(DSPAPOS, pI830->saveDSPAPOS);
-   OUTREG(DSPACNTR, pI830->saveDSPACNTR);
-   OUTREG(DSPABASE, pI830->saveDSPABASE);
-   if (IS_I965G(pI830)) {
-      OUTREG(DSPASURF, pI830->saveDSPASURF);
-   }
-   
    OUTREG(PIPEASRC, pI830->savePIPEASRC);
+   OUTREG(DSPABASE, pI830->saveDSPABASE);
+   if (IS_I965G(pI830))
+      OUTREG(DSPASURF, pI830->saveDSPASURF);
    OUTREG(PIPEACONF, pI830->savePIPEACONF);
+   i830WaitForVblank(pScrn);
+   OUTREG(DSPACNTR, pI830->saveDSPACNTR);
+   OUTREG(DSPABASE, INREG(DSPABASE));
+   i830WaitForVblank(pScrn);
    
-   for(i = 0; i < 256; i++) {
-         OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
-   }
-
-   if(xf86_config->num_crtc == 2) {
-      OUTREG(FPB0, pI830->saveFPB0);
-      OUTREG(FPB1, pI830->saveFPB1);
-      if (IS_I965G(pI830))
-	 OUTREG(DPLL_B_MD, pI830->saveDPLL_B_MD);
+   if(xf86_config->num_crtc == 2) 
+   {
       if (pI830->saveDPLL_B & DPLL_VCO_ENABLE)
       {
 	 OUTREG(DPLL_B, pI830->saveDPLL_B & ~DPLL_VCO_ENABLE);
 	 usleep(150);
       }
+      OUTREG(FPB0, pI830->saveFPB0);
+      OUTREG(FPB1, pI830->saveFPB1);
       OUTREG(DPLL_B, pI830->saveDPLL_B);
       usleep(150);
-      OUTREG(DPLL_B, pI830->saveDPLL_B);
+      if (IS_I965G(pI830))
+	 OUTREG(DPLL_B_MD, pI830->saveDPLL_B_MD);
+      else
+	 OUTREG(DPLL_B, pI830->saveDPLL_B);
       usleep(150);
    
       OUTREG(HTOTAL_B, pI830->saveHTOTAL_B);
@@ -2286,42 +2289,47 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(DSPBSIZE, pI830->saveDSPBSIZE);
       OUTREG(DSPBPOS, pI830->saveDSPBPOS);
       OUTREG(PIPEBSRC, pI830->savePIPEBSRC);
-      OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
-      OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
       OUTREG(DSPBBASE, pI830->saveDSPBBASE);
-      if (IS_I965G(pI830)) {
+      if (IS_I965G(pI830))
 	 OUTREG(DSPBSURF, pI830->saveDSPBSURF);
-      }
-      for(i= 0; i < 256; i++) {
-         OUTREG(PALETTE_B + (i << 2), pI830->savePaletteB[i]);
-      }
+      OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
+      i830WaitForVblank(pScrn);
+      OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
+      OUTREG(DSPBBASE, INREG(DSPBBASE));
+      i830WaitForVblank(pScrn);
    }
 
-   if (!IS_I830(pI830) && !IS_845G(pI830))
-     OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
-
+   /* Restore outputs */
+   for (i = 0; i < xf86_config->num_output; i++) {
+      xf86OutputPtr   output = xf86_config->output[i];
+      if (output->funcs->restore)
+	 output->funcs->restore(output);
+   }
+    
    OUTREG(VGACNTRL, pI830->saveVGACNTRL);
 
    OUTREG(VCLK_DIVISOR_VGA0, pI830->saveVCLK_DIVISOR_VGA0);
    OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
    OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
 
-   for (i = 0; i < xf86_config->num_output; i++) {
-      xf86OutputPtr   output = xf86_config->output[i];
-      (*output->funcs->restore) (output);
+   for(i = 0; i < 256; i++) {
+      OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
+   }
+   
+   if(xf86_config->num_crtc == 2) {
+      for(i= 0; i < 256; i++) {
+         OUTREG(PALETTE_B + (i << 2), pI830->savePaletteB[i]);
+      }
    }
 
    for(i = 0; i < 7; i++) {
-	   OUTREG(SWF0 + (i << 2), pI830->saveSWF[i]);
-	   OUTREG(SWF00 + (i << 2), pI830->saveSWF[i+7]);
+      OUTREG(SWF0 + (i << 2), pI830->saveSWF[i]);
+      OUTREG(SWF00 + (i << 2), pI830->saveSWF[i+7]);
    }
 
    OUTREG(SWF30, pI830->saveSWF[14]);
    OUTREG(SWF31, pI830->saveSWF[15]);
    OUTREG(SWF32, pI830->saveSWF[16]);
-
-   for (i = 0; i < 2; i++)
-      i830WaitForVblank(pScrn);
 
    vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
    vgaHWLock(hwp);
