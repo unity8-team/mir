@@ -693,18 +693,16 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
 
 	temp = INREG(dev_priv->output_device);
 	if ((temp & SDVO_ENABLE) == 0)
+	{
 	    OUTREG(dev_priv->output_device, temp | SDVO_ENABLE);
-
-	i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
-
 #if 0
-	/* Do it again!  If we remove this below register write, or the exact
-	 * same one 2 lines up, the mac mini SDVO output doesn't turn on.
-	 */
-	OUTREG(dev_priv->output_device,
-	       INREG(dev_priv->output_device) | SDVO_ENABLE);
+	    /* Do it again!  If we remove this below register write, or the exact
+	     * same one 2 lines up, the mac mini SDVO output doesn't turn on.
+	     */
+	    OUTREG(dev_priv->output_device,
+		   INREG(dev_priv->output_device) | SDVO_ENABLE);
 #endif
-
+	}
 	for (i = 0; i < 2; i++)
 	    i830WaitForVblank(pScrn);
 
@@ -716,6 +714,8 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
 		       "First %s output reported failure to sync\n",
 		       SDVO_NAME(dev_priv));
 	}
+
+	i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
     }
 }
 
@@ -764,6 +764,21 @@ i830_sdvo_restore(xf86OutputPtr output)
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
     I830Ptr		    pI830 = I830PTR(pScrn);
     int			    o;
+    int			    i;
+    Bool		    input1, input2;
+    CARD8		    status;
+
+    i830_sdvo_set_active_outputs(output, 0);
+
+    for (o = SDVO_OUTPUT_FIRST; o <= SDVO_OUTPUT_LAST; o++)
+    {
+	CARD16  this_output = (1 << o);
+	if (dev_priv->caps.output_flags & this_output)
+	{
+	    i830_sdvo_set_target_output(output, this_output);
+	    i830_sdvo_set_output_timing(output, &dev_priv->save_output_dtd[o]);
+	}
+    }
 
     if (dev_priv->caps.sdvo_inputs_mask & 0x1) {
        i830_sdvo_set_target_input(output, TRUE, FALSE);
@@ -775,20 +790,22 @@ i830_sdvo_restore(xf86OutputPtr output)
        i830_sdvo_set_input_timing(output, &dev_priv->save_input_dtd_2);
     }
 
-    for (o = SDVO_OUTPUT_FIRST; o <= SDVO_OUTPUT_LAST; o++)
-    {
-	CARD16  this_output = (1 << o);
-	if (dev_priv->caps.output_flags & this_output)
-	{
-	    i830_sdvo_set_target_output(output, this_output);
-	    i830_sdvo_set_output_timing(output, &dev_priv->save_output_dtd[o]);
-	}
-    }
-    i830_sdvo_set_target_output(output, dev_priv->save_active_outputs);
-
     i830_sdvo_set_clock_rate_mult(output, dev_priv->save_sdvo_mult);
 
     OUTREG(dev_priv->output_device, dev_priv->save_SDVOX);
+
+    if (dev_priv->save_SDVOX & SDVO_ENABLE)
+    {
+	for (i = 0; i < 2; i++)
+	    i830WaitForVblank(pScrn);
+	status = i830_sdvo_get_trained_inputs(output, &input1, &input2);
+	if (status == SDVO_CMD_STATUS_SUCCESS && !input1)
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "First %s output reported failure to sync\n",
+		       SDVO_NAME(dev_priv));
+    }
+    
+    i830_sdvo_set_active_outputs(output, dev_priv->save_active_outputs);
 }
 
 static int
