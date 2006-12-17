@@ -110,7 +110,7 @@ int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 	int  maxVirtY = pScrn->virtualY;
 
 	/* Collect all of the DDC modes */
-	first = last = ddcModes = xf86DDCGetModes(pScrn, pScrn->monitor->DDC);
+	first = last = ddcModes = xf86DDCGetModes(pScrn->scrnIndex, pScrn->monitor->DDC);
 
 	for (p = ddcModes; p; p = p->next) {
 
@@ -615,7 +615,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", i);
       xf86PrintEDID(output->MonInfo);
       
-      ddc_modes = RADEONGetDDCModes(pScrn, output->MonInfo);
+      ddc_modes = xf86DDCGetModes(pScrn->scrnIndex, output->MonInfo);
       
       for (mode = ddc_modes; mode != NULL; mode = mode->next) {
 	if (mode->Flags & V_DBLSCAN) {
