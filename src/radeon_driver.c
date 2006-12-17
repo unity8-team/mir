@@ -3240,6 +3240,9 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
    pScrn->displayWidth = (pScrn->virtualX + 63) & ~63;
 
+   /* Set display resolution */
+   xf86SetDpi(pScrn, 0, 0);
+
 	/* Get ScreenInit function */
     if (!xf86LoadSubModule(pScrn, "fb")) return FALSE;
 
