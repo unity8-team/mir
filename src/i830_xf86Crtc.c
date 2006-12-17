@@ -359,7 +359,7 @@ xf86PickCrtcs (ScrnInfoPtr	pScrn,
 	crtcs[n] = crtc;
 	memcpy (crtcs, best_crtcs, n * sizeof (xf86CrtcPtr));
 	score = my_score + xf86PickCrtcs (pScrn, crtcs, modes, n+1, width, height);
-	if (score >= best_score)
+	if (score > best_score)
 	{
 	    best_crtc = crtc;
 	    best_score = score;
