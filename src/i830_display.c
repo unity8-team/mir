@@ -787,12 +787,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     i830PrintPll("chosen", &clock);
     ErrorF("clock regs: 0x%08x, 0x%08x\n", (int)dpll, (int)fp);
 
-    if (IS_I965G(pI830)) {
-	int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
-	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
-	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
-    }
-
     if (dpll & DPLL_VCO_ENABLE)
     {
 	OUTREG(fp_reg, fp);
@@ -804,20 +798,16 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     /* Wait for the clocks to stabilize. */
     usleep(150);
     
-    /* write it again -- the BIOS does, after all */
-    OUTREG(dpll_reg, dpll);
+    if (IS_I965G(pI830)) {
+	int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
+	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
+	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
+    } else {
+       /* write it again -- the BIOS does, after all */
+       OUTREG(dpll_reg, dpll);
+    }
     /* Wait for the clocks to stabilize. */
     usleep(150);
-
-#if 0
-    /* Magic re-write of the register for the Mac Mini.  Without this, the
-     * first X invocation after a cold boot will stick in 4x pixel multiply
-     * mode.  Alternatives that don't work include sleeping and doing an
-     * INREG for presumable pci write posting magic before and after the dpll
-     * write above.
-     */
-    OUTREG(dpll_reg, dpll);
-#endif
 
     OUTREG(htot_reg, (adjusted_mode->CrtcHDisplay - 1) |
 	((adjusted_mode->CrtcHTotal - 1) << 16));
