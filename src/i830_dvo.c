@@ -246,7 +246,7 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     int			    ret;
 
     output = xf86OutputCreate (pScrn, &i830_dvo_output_funcs,
-				   "ADD AGP card");
+				   "TMDS");
     if (!output)
 	return;
     intel_output = xnfcalloc (sizeof (I830OutputPrivateRec), 1);

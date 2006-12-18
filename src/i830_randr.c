@@ -495,13 +495,17 @@ xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
     int			y;
     Rotation		rotation;
     int			numOutputs;
-    RROutputPtr		randr_outputs[XF86_MAX_OUTPUT];
+    RROutputPtr		*randr_outputs;
     RROutputPtr		randr_output;
     xf86CrtcPtr		crtc = randr_crtc->devPrivate;
     xf86OutputPtr	output;
     int			i, j;
     DisplayModePtr	curMode = &crtc->curMode;
+    Bool		ret;
 
+    randr_outputs = ALLOCATE_LOCAL(config->num_output * sizeof (RROutputPtr));
+    if (!randr_outputs)
+	return FALSE;
     x = crtc->x;
     y = crtc->y;
     rotation = RR_Rotate_0;
@@ -529,8 +533,10 @@ xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
 	    }
 	}
     }
-    return RRCrtcNotify (randr_crtc, randr_mode, x, y,
-			 rotation, numOutputs, randr_outputs);
+    ret = RRCrtcNotify (randr_crtc, randr_mode, x, y,
+			rotation, numOutputs, randr_outputs);
+    DEALLOCATE_LOCAL(randr_outputs);
+    return ret;
 }
 
 static Bool
@@ -550,9 +556,10 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     Bool		changed = FALSE;
     Bool		pos_changed;
     int			o, ro;
-    xf86CrtcPtr		save_crtcs[XF86_MAX_OUTPUT];
+    xf86CrtcPtr		*save_crtcs;
     Bool		save_enabled = crtc->enabled;
 
+    save_crtcs = ALLOCATE_LOCAL(config->num_crtc * sizeof (xf86CrtcPtr));
     if ((mode != NULL) != crtc->enabled)
 	changed = TRUE;
     else if (mode && !xf86ModesEqual (&crtc->curMode, mode))
@@ -606,6 +613,7 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 		    xf86OutputPtr	output = config->output[o];
 		    output->crtc = save_crtcs[o];
 		}
+		DEALLOCATE_LOCAL(save_crtcs);
 		return FALSE;
 	    }
 	    crtc->desiredMode = *mode;
@@ -616,6 +624,7 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     }
     if (pos_changed && mode)
 	i830PipeSetBase(crtc, x, y);
+    DEALLOCATE_LOCAL(save_crtcs);
     return xf86RandR12CrtcNotify (randr_crtc);
 }
 
@@ -694,13 +703,15 @@ xf86RandR12SetInfo12 (ScreenPtr pScreen)
 {
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
-    RROutputPtr		clones[XF86_MAX_OUTPUT];
-    RRCrtcPtr		crtcs[XF86_MAX_CRTC];
+    RROutputPtr		*clones;
+    RRCrtcPtr		*crtcs;
     int			ncrtc;
     int			o, c, l;
     RRCrtcPtr		randr_crtc;
     int			nclone;
     
+    clones = ALLOCATE_LOCAL(config->num_output * sizeof (RROutputPtr));
+    crtcs = ALLOCATE_LOCAL (config->num_crtc * sizeof (RRCrtcPtr));
     for (o = 0; o < config->num_output; o++)
     {
 	xf86OutputPtr	output = config->output[o];
@@ -716,7 +727,11 @@ xf86RandR12SetInfo12 (ScreenPtr pScreen)
 	    randr_crtc = NULL;
 
 	if (!RROutputSetCrtcs (output->randr_output, crtcs, ncrtc))
+	{
+	    DEALLOCATE_LOCAL (crtcs);
+	    DEALLOCATE_LOCAL (clones);
 	    return FALSE;
+	}
 
 	RROutputSetCrtc (output->randr_output, randr_crtc);
 	RROutputSetPhysicalSize(output->randr_output, 
@@ -750,8 +765,14 @@ xf86RandR12SetInfo12 (ScreenPtr pScreen)
 		clones[nclone++] = clone->randr_output;
 	}
 	if (!RROutputSetClones (output->randr_output, clones, nclone))
+	{
+	    DEALLOCATE_LOCAL (crtcs);
+	    DEALLOCATE_LOCAL (clones);
 	    return FALSE;
+	}
     }
+    DEALLOCATE_LOCAL (crtcs);
+    DEALLOCATE_LOCAL (clones);
     return TRUE;
 }
 

@@ -58,6 +58,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xaarop.h"
 #include "i830.h"
 #include "i810_reg.h"
+#include "i830_debug.h"
 
 int
 I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
@@ -99,7 +100,7 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
       } else if (now - start > timeout_millis) {
 	 ErrorF("Error in I830WaitLpRing(), now is %d, start is %d\n", now,
 		start);
-	 I830PrintErrorState(pScrn);
+	 i830_dump_error_state(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
 #ifdef XF86DRI
 	 if (pI830->directRenderingEnabled) {

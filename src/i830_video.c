@@ -738,10 +738,10 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
 
    /*
     * Initialise pPriv->overlayOK.  Set it to TRUE here so that a warning will
-    * be generated if I830VideoSwitchModeAfter() sets it to FALSE.
+    * be generated if i830_crtc_dpms_video() sets it to FALSE during mode
+    * setup.
     */
    pPriv->overlayOK = TRUE;
-   I830VideoSwitchModeAfter(pScrn, pScrn->currentMode);
 
    pI830->BlockHandler = pScreen->BlockHandler;
    pScreen->BlockHandler = I830BlockHandler;
@@ -954,7 +954,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       overlay->OCLRC1 = pPriv->saturation;
       overlay->OCMD &= ~OVERLAY_ENABLE;
       OVERLAY_UPDATE;
-   } else if (pI830->Clone && attribute == xvPipe) {
+   } else if (attribute == xvPipe) {
       if ((value < 0) || (value > 1))
          return BadValue;
       pPriv->pipe = value;
@@ -2794,7 +2794,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    if (pI830->AccelInfoRec)
       (*pI830->AccelInfoRec->Sync)(pScrn);
 #if WATCH_STATS
-   I830PrintErrorState (pScrn);
+   i830_dump_error_state (pScrn);
 #endif
 }
 
@@ -3511,107 +3511,78 @@ I830InitOffscreenImages(ScreenPtr pScreen)
 }
 
 void
-I830VideoSwitchModeBefore(ScrnInfoPtr pScrn, DisplayModePtr mode)
+i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
 {
+   ScrnInfoPtr pScrn = crtc->scrn;
+   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pPriv;
+   I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
 
-   if (!pI830->adaptor) {
+   if (pI830->adaptor == NULL)
       return;
-   }
+
+   /* No overlay scaler on the 965. */
+   if (IS_I965G(pI830))
+      return;
 
    pPriv = GET_PORT_PRIVATE(pScrn);
 
-   if (!pPriv) {
-      xf86ErrorF("pPriv isn't set\n");
-      return;
-   }
-
-   /* We stop the video when mode switching, just so we don't lockup
-    * the engine. The overlayOK will determine whether we can re-enable
-    * with the current video on completion of the mode switch.
-    */
-   I830StopVideo(pScrn, pPriv, TRUE);
-
-   pPriv->overlayOK = FALSE;
-
-   pPriv->oneLineMode = FALSE;
-}
-
-void
-I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   I830PortPrivPtr pPriv;
-   int size, hsize, vsize, active;
-
-   if (!pI830->adaptor) {
-      return;
-   }
-   pPriv = GET_PORT_PRIVATE(pScrn);
-   if (!pPriv)
+   /* Check if it's the pipe the overlay is on */
+   if (intel_crtc->pipe != pPriv->pipe)
       return;
 
-   pPriv->overlayOK = TRUE;
+   if (on) {
+      int size, hsize, vsize, active;
+      int pipeconf_reg = pPriv->pipe == 0 ? PIPEACONF : PIPEBCONF;
+      char pipename = pPriv->pipe == 0 ? 'A' : 'B';
 
-#if 0
-   /* XXX Must choose pipe wisely */
-   /* ensure pipe is updated on mode switch */
-   if (!pI830->Clone) {
-      if (pPriv->pipe != pI830->pipe) {
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	   "Changing XVideo pipe (%d to %d).\n", pPriv->pipe, pI830->pipe);
-         pPriv->pipe = pI830->pipe;
-      }
-   }
-#endif
+      pPriv->overlayOK = TRUE;
 
-   if (!IS_I965G(pI830)) {
-      if (pPriv->pipe == 0) {
-         if (INREG(PIPEACONF) & PIPEACONF_DOUBLE_WIDE) {
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	    "Disabling XVideo output because Pipe A is in double-wide mode.\n");
-            pPriv->overlayOK = FALSE;
-         } else if (!pPriv->overlayOK) {
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	    "Re-enabling XVideo output because Pipe A is now in single-wide mode.\n");
-            pPriv->overlayOK = TRUE;
-         }
+      if (INREG(pipeconf_reg) & PIPEACONF_DOUBLE_WIDE) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "Disabling XVideo output because Pipe %c is in "
+		    "double-wide mode.\n", pipename);
+	 pPriv->overlayOK = FALSE;
+      } else if (!pPriv->overlayOK) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "Re-enabling XVideo output because Pipe %c is now in "
+		    "single-wide mode.\n", pipename);
+	 pPriv->overlayOK = TRUE;
       }
 
-      if (pPriv->pipe == 1) {
-         if (INREG(PIPEBCONF) & PIPEBCONF_DOUBLE_WIDE) {
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-   	    "Disabling XVideo output because Pipe B is in double-wide mode.\n");
-            pPriv->overlayOK = FALSE;
-         } else if (!pPriv->overlayOK) {
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	    "Re-enabling XVideo output because Pipe B is now in single-wide mode.\n");
-            pPriv->overlayOK = TRUE;
-         }
-      }
-   }
+      /* Check we have an LFP connected */
+      if (i830PipeHasType(xf86_config->crtc[pPriv->pipe],
+			  I830_OUTPUT_LVDS)) {
+	 size = pPriv->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
+	 hsize = (size >> 16) & 0x7FF;
+	 vsize = size & 0x7FF;
+	 int vtotal_reg = pPriv->pipe ? VTOTAL_A : VTOTAL_B;
+	 active = INREG(vtotal_reg) & 0x7FF;
 
-   /* Check we have an LFP connected */
-   if (i830PipeHasType (pI830->xf86_config.crtc[pPriv->pipe], I830_OUTPUT_LVDS)) 
-   {
-      size = pPriv->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
-      hsize = (size >> 16) & 0x7FF;
-      vsize = size & 0x7FF;
-      active = pPriv->pipe ? (INREG(VTOTAL_B) & 0x7FF) : (INREG(VTOTAL_A) & 0x7FF);
+	 if (vsize < active && hsize > 1024)
+	    I830SetOneLineModeRatio(pScrn);
 
-      if (vsize < active && hsize > 1024)
-         I830SetOneLineModeRatio(pScrn);
-   
-      if (pPriv->scaleRatio & 0xFFFE0000) {
-         /* Possible bogus ratio, using in-accurate fallback */
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	    "Bogus panel fit register, Xvideo positioning may not be accurate.\n");
-         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	    "Using fallback ratio - was 0x%x, now 0x%x\n", pPriv->scaleRatio, (int)(((float)active * 65536)/(float)vsize));
-   
-   
-         pPriv->scaleRatio = (int)(((float)active * 65536) / (float)vsize);
+	 if (pPriv->scaleRatio & 0xFFFE0000) {
+	    /* Possible bogus ratio, using in-accurate fallback */
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Bogus panel fit register, Xvideo positioning may not "
+		       "be accurate.\n");
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Using fallback ratio - was 0x%x, now 0x%x\n",
+		       pPriv->scaleRatio,
+		       (int)(((float)active * 65536)/(float)vsize));
+
+	    pPriv->scaleRatio = (int)(((float)active * 65536) / (float)vsize);
+	 }
       }
+   } else {
+      /* We stop the video when mode switching, so we don't lock up
+       * the engine. The overlayOK will determine whether we can re-enable
+       * with the current video on completion of the mode switch.
+       */
+      I830StopVideo(pScrn, pPriv, TRUE);
+      pPriv->overlayOK = FALSE;
+      pPriv->oneLineMode = FALSE;
    }
 }

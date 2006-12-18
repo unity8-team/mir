@@ -556,12 +556,8 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
     xf86CrtcPtr	    crtc = output->crtc;
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
-    Bool input1, input2;
     CARD32 sdvox;
-    int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
     int sdvo_pixel_multiply;
-    int i;
-    CARD8 status;
     CARD16 width, height;
     CARD16 h_blank_len, h_sync_len, v_blank_len, v_sync_len;
     CARD16 h_sync_offset, v_sync_offset;
@@ -666,8 +662,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     sdvo_pixel_multiply = i830_sdvo_get_pixel_multiplier(mode);
     if (IS_I965G(pI830)) {
-	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
-	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
+	/* done in crtc_mode_set as the dpll_md reg must be written early */
     } else if (IS_I945G(pI830) || IS_I945GM(pI830)) {
 	/* done in crtc_mode_set as it lives inside the dpll register */
     } else {
@@ -675,18 +670,6 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     }
 
     OUTREG(dev_priv->output_device, sdvox);
-
-    for (i = 0; i < 2; i++)
-	i830WaitForVblank(pScrn);
-
-    status = i830_sdvo_get_trained_inputs(output, &input1, &input2);
-
-    /* Warn if the device reported failure to sync. */
-    if (status == SDVO_CMD_STATUS_SUCCESS && !input1) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "First %s output reported failure to sync\n",
-		   SDVO_NAME(dev_priv));
-    }
 }
 
 static void
@@ -696,13 +679,43 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
     I830Ptr pI830 = I830PTR(pScrn);
+    CARD32  temp;
 
     if (mode != DPMSModeOn) {
 	i830_sdvo_set_active_outputs(output, 0);
-	OUTREG(dev_priv->output_device, INREG(dev_priv->output_device) & ~SDVO_ENABLE);
+	temp = INREG(dev_priv->output_device);
+	if ((temp & SDVO_ENABLE) != 0)
+	    OUTREG(dev_priv->output_device, temp & ~SDVO_ENABLE);
     } else {
+	Bool input1, input2;
+	int i;
+	CARD8 status;
+
+	temp = INREG(dev_priv->output_device);
+	if ((temp & SDVO_ENABLE) == 0)
+	{
+	    OUTREG(dev_priv->output_device, temp | SDVO_ENABLE);
+#if 0
+	    /* Do it again!  If we remove this below register write, or the exact
+	     * same one 2 lines up, the mac mini SDVO output doesn't turn on.
+	     */
+	    OUTREG(dev_priv->output_device,
+		   INREG(dev_priv->output_device) | SDVO_ENABLE);
+#endif
+	}
+	for (i = 0; i < 2; i++)
+	    i830WaitForVblank(pScrn);
+
+	status = i830_sdvo_get_trained_inputs(output, &input1, &input2);
+
+	/* Warn if the device reported failure to sync. */
+	if (status == SDVO_CMD_STATUS_SUCCESS && !input1) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "First %s output reported failure to sync\n",
+		       SDVO_NAME(dev_priv));
+	}
+
 	i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
-	OUTREG(dev_priv->output_device, INREG(dev_priv->output_device) | SDVO_ENABLE);
     }
 }
 
@@ -751,6 +764,21 @@ i830_sdvo_restore(xf86OutputPtr output)
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
     I830Ptr		    pI830 = I830PTR(pScrn);
     int			    o;
+    int			    i;
+    Bool		    input1, input2;
+    CARD8		    status;
+
+    i830_sdvo_set_active_outputs(output, 0);
+
+    for (o = SDVO_OUTPUT_FIRST; o <= SDVO_OUTPUT_LAST; o++)
+    {
+	CARD16  this_output = (1 << o);
+	if (dev_priv->caps.output_flags & this_output)
+	{
+	    i830_sdvo_set_target_output(output, this_output);
+	    i830_sdvo_set_output_timing(output, &dev_priv->save_output_dtd[o]);
+	}
+    }
 
     if (dev_priv->caps.sdvo_inputs_mask & 0x1) {
        i830_sdvo_set_target_input(output, TRUE, FALSE);
@@ -762,20 +790,22 @@ i830_sdvo_restore(xf86OutputPtr output)
        i830_sdvo_set_input_timing(output, &dev_priv->save_input_dtd_2);
     }
 
-    for (o = SDVO_OUTPUT_FIRST; o <= SDVO_OUTPUT_LAST; o++)
-    {
-	CARD16  this_output = (1 << o);
-	if (dev_priv->caps.output_flags & this_output)
-	{
-	    i830_sdvo_set_target_output(output, this_output);
-	    i830_sdvo_set_output_timing(output, &dev_priv->save_output_dtd[o]);
-	}
-    }
-    i830_sdvo_set_target_output(output, dev_priv->save_active_outputs);
-
     i830_sdvo_set_clock_rate_mult(output, dev_priv->save_sdvo_mult);
 
     OUTREG(dev_priv->output_device, dev_priv->save_SDVOX);
+
+    if (dev_priv->save_SDVOX & SDVO_ENABLE)
+    {
+	for (i = 0; i < 2; i++)
+	    i830WaitForVblank(pScrn);
+	status = i830_sdvo_get_trained_inputs(output, &input1, &input2);
+	if (status == SDVO_CMD_STATUS_SUCCESS && !input1)
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "First %s output reported failure to sync\n",
+		       SDVO_NAME(dev_priv));
+    }
+    
+    i830_sdvo_set_active_outputs(output, dev_priv->save_active_outputs);
 }
 
 static int
@@ -943,12 +973,12 @@ i830_sdvo_dump_device(xf86OutputPtr output)
 void
 i830_sdvo_dump(ScrnInfoPtr pScrn)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int	i;
 
-    for (i = 0; i < pI830->xf86_config.num_output; i++) 
+    for (i = 0; i < xf86_config->num_output; i++) 
     {
-	xf86OutputPtr	output = pI830->xf86_config.output[i];
+	xf86OutputPtr	output = xf86_config->output[i];
 	I830OutputPrivatePtr	intel_output = output->driver_private;
 	
 	if (intel_output->type == I830_OUTPUT_SDVO)
@@ -983,6 +1013,31 @@ i830_sdvo_detect(xf86OutputPtr output)
 	return XF86OutputStatusDisconnected;
 }
 
+static DisplayModePtr
+i830_sdvo_get_modes(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    DisplayModePtr modes;
+    xf86OutputPtr crt;
+
+    modes = i830_ddc_get_modes(output);
+    if (modes != NULL)
+	return modes;
+
+    /* Mac mini hack.  On this device, I get DDC through the analog, which
+     * load-detects as disconnected.  I fail to DDC through the SDVO DDC,
+     * but it does load-detect as connected.  So, just steal the DDC bits from
+     * analog when we fail at finding it the right way.
+     */
+    crt = xf86_config->output[0];
+    if (crt->funcs->detect(crt) == XF86OutputStatusDisconnected) {
+	return crt->funcs->get_modes(crt);
+    }
+
+    return NULL;
+}
+
 static void
 i830_sdvo_destroy (xf86OutputPtr output)
 {
@@ -1007,7 +1062,7 @@ static const xf86OutputFuncsRec i830_sdvo_output_funcs = {
     .mode_fixup = i830_sdvo_mode_fixup,
     .mode_set = i830_sdvo_mode_set,
     .detect = i830_sdvo_detect,
-    .get_modes = i830_ddc_get_modes,
+    .get_modes = i830_sdvo_get_modes,
     .destroy = i830_sdvo_destroy
 };
 
@@ -1020,6 +1075,9 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     int			    i;
     unsigned char	    ch[0x40];
     I2CBusPtr		    i2cbus = NULL, ddcbus;
+    char		    name[60];
+    char		    *name_prefix;
+    char		    *name_suffix;
 
     output = xf86OutputCreate (pScrn, &i830_sdvo_output_funcs,
 			       "ADD2 PCIE card");
@@ -1054,9 +1112,11 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     if (output_device == SDVOB) {
 	dev_priv->d.DevName = "SDVO Controller B";
 	dev_priv->d.SlaveAddr = 0x70;
+	name_suffix="-1";
     } else {
 	dev_priv->d.DevName = "SDVO Controller C";
 	dev_priv->d.SlaveAddr = 0x72;
+	name_suffix="-2";
     }
     dev_priv->d.pI2CBus = i2cbus;
     dev_priv->d.DriverPrivate.ptr = output;
@@ -1125,11 +1185,13 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     {
 	dev_priv->active_outputs = SDVO_OUTPUT_TMDS0;
         output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="TMDS";
     }
     else if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS1)
     {
 	dev_priv->active_outputs = SDVO_OUTPUT_TMDS1;
         output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="TMDS";
     }
     else
     {
@@ -1141,6 +1203,9 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 		   SDVO_NAME(dev_priv),
 		   bytes[0], bytes[1]);
     }
+    strcpy (name, name_prefix);
+    strcat (name, name_suffix);
+    xf86OutputRename (output, name);
     
     /* Set the input timing to the screen. Assume always input 0. */
     i830_sdvo_set_target_input(output, TRUE, FALSE);

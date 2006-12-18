@@ -235,23 +235,11 @@ typedef struct _I830PipeRec {
 } I830PipeRec, *I830PipePtr;
 
 typedef struct _I830Rec {
-   /* Must be first */
-   xf86CrtcConfigRec	xf86_config;
-    
    unsigned char *MMIOBase;
    unsigned char *FbBase;
    int cpp;
 
    DisplayModePtr currentMode;
-   /* Mode saved during randr reprobe, which will need to be freed at the point
-    * of the next SwitchMode, when we lose this last reference to it.
-    */
-   DisplayModePtr savedCurrentMode;
-
-   Bool Clone;
-   int CloneRefresh;
-   int CloneHDisplay;
-   int CloneVDisplay;
 
    I830EntPtr entityPrivate;	
    int init;
@@ -511,8 +499,6 @@ typedef struct _I830Rec {
 extern int I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis);
 extern void I830SetPIOAccess(I830Ptr pI830);
 extern void I830SetMMIOAccess(I830Ptr pI830);
-extern void I830PrintErrorState(ScrnInfoPtr pScrn);
-extern void I965PrintErrorState(ScrnInfoPtr pScrn);
 extern void I830Sync(ScrnInfoPtr pScrn);
 extern void I830InitHWCursor(ScrnInfoPtr pScrn);
 extern void I830SetPipeCursor (xf86CrtcPtr crtc, Bool force);
@@ -529,8 +515,7 @@ extern Bool I830DGAInit(ScreenPtr pScreen);
 
 #ifdef I830_XV
 extern void I830InitVideo(ScreenPtr pScreen);
-extern void I830VideoSwitchModeBefore(ScrnInfoPtr pScrn, DisplayModePtr mode);
-extern void I830VideoSwitchModeAfter(ScrnInfoPtr pScrn, DisplayModePtr mode);
+extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
 #endif
 
 extern Bool I830AllocateRotatedBuffer(ScrnInfoPtr pScrn, const int flags);

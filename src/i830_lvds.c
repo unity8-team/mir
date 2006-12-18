@@ -135,12 +135,13 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
     ScrnInfoPtr pScrn = output->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = output->crtc->driver_private;
     int i;
 
-    for (i = 0; i < pI830->xf86_config.num_output; i++) {
-	xf86OutputPtr other_output = pI830->xf86_config.output[i];
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr other_output = xf86_config->output[i];
 
 	if (other_output != output && other_output->crtc == output->crtc) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -195,11 +196,13 @@ i830_lvds_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 pfit_control;
 
+#if 0
     /* The LVDS pin pair needs to be on before the DPLLs are enabled.
      * This is an exception to the general rule that mode_set doesn't turn
      * things on.
      */
     OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
+#endif
 
     /* Enable automatic panel scaling so that non-native modes fill the
      * screen.  Should be enabled before the pipe is enabled, according to
@@ -311,7 +314,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 	}
    }
 
-    output = xf86OutputCreate (pScrn, &i830_lvds_output_funcs, "Built-in LCD panel");
+    output = xf86OutputCreate (pScrn, &i830_lvds_output_funcs, "LVDS");
     if (!output)
 	return;
     intel_output = xnfcalloc (sizeof (I830OutputPrivateRec), 1);

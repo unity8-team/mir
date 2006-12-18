@@ -276,8 +276,6 @@ typedef enum {
    OPTION_DISPLAY_INFO,
    OPTION_DEVICE_PRESENCE,
    OPTION_MONITOR_LAYOUT,
-   OPTION_CLONE,
-   OPTION_CLONE_REFRESH,
    OPTION_CHECKDEVICES,
    OPTION_FIXEDPIPE,
    OPTION_ROTATE,
@@ -299,8 +297,6 @@ static OptionInfoRec I830Options[] = {
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_MONITOR_LAYOUT, "MonitorLayout", OPTV_ANYSTR,{0},	FALSE},
-   {OPTION_CLONE,	"Clone",	OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_CLONE_REFRESH,"CloneRefresh",OPTV_INTEGER,	{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FIXEDPIPE,   "FixedPipe",    OPTV_ANYSTR, 	{0},	FALSE},
    {OPTION_ROTATE,      "Rotate",       OPTV_ANYSTR,    {0},    FALSE},
@@ -320,8 +316,6 @@ const char *i830_output_type_names[] = {
    "TVOUT",
 };
 
-static void I830DisplayPowerManagementSet(ScrnInfoPtr pScrn,
-					  int PowerManagementMode, int flags);
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
 static Bool I830CloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool I830SaveScreen(ScreenPtr pScreen, int unblack);
@@ -586,6 +580,7 @@ static void
 I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 		LOCO * colors, VisualPtr pVisual)
 {
+   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830;
    int i,j, index;
    unsigned char r, g, b;
@@ -597,9 +592,9 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    DPRINTF(PFX, "I830LoadPalette: numColors: %d\n", numColors);
    pI830 = I830PTR(pScrn);
 
-   for(p=0; p < pI830->xf86_config.num_crtc; p++) 
+   for(p=0; p < xf86_config->num_crtc; p++) 
    {
-      xf86CrtcPtr	   crtc = pI830->xf86_config.crtc[p];
+      xf86CrtcPtr	   crtc = xf86_config->crtc[p];
       I830CrtcPrivatePtr   intel_crtc = crtc->driver_private;
 
       if (p == 0) {
@@ -904,6 +899,7 @@ I830ReduceMMSize(ScrnInfoPtr pScrn, unsigned long newSize,
 static Bool
 I830PreInit(ScrnInfoPtr pScrn, int flags)
 {
+   xf86CrtcConfigPtr   xf86_config;
    vgaHWPtr hwp;
    I830Ptr pI830;
    MessageType from = X_PROBED;
@@ -918,6 +914,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    Bool enable;
    const char *chipname;
    int num_pipe;
+   int max_width;
 #ifdef XF86DRI
    unsigned long savedMMSize;
 #endif
@@ -1186,6 +1183,16 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX\n",
 	      (unsigned long)pI830->MMIOAddr);
 
+   /* Allocate an xf86CrtcConfig */
+   xf86CrtcConfigInit (pScrn);
+   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+   
+   if (IS_I965G(pI830))
+      max_width = 16384;
+   else
+      max_width = 8192 / pI830->cpp;
+   xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, 2048);
+
    /* Some of the probing needs MMIO access, so map it here. */
    I830MapMMIO(pScrn);
 
@@ -1388,31 +1395,14 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        i830_crtc_init(pScrn, i);
    }
 
-   if (xf86ReturnOptValBool(pI830->Options, OPTION_CLONE, FALSE)) {
-      if (num_pipe == 1) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
- 		 "Can't enable Clone Mode because this is a single pipe device\n");
-         PreInitCleanup(pScrn);
-         return FALSE;
-      }
-      if (pI830->entityPrivate) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
- 		 "Can't enable Clone Mode because second head is configured\n");
-         PreInitCleanup(pScrn);
-         return FALSE;
-      }
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Enabling Clone Mode\n");
-      pI830->Clone = TRUE;
-   }
-
    SaveHWState(pScrn);
    /* Do an initial detection of the outputs while none are configured on yet.
     * This will give us some likely legitimate response for later if both
     * pipes are already allocated and we're asked to do a detect.
     */
-   for (i = 0; i < pI830->xf86_config.num_output; i++) 
+   for (i = 0; i < xf86_config->num_output; i++) 
    {
-      xf86OutputPtr	      output = pI830->xf86_config.output[i];
+      xf86OutputPtr	      output = xf86_config->output[i];
 
       output->status = (*output->funcs->detect) (output);
    }
@@ -1854,6 +1844,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (pScrn->displayWidth * pI830->cpp > 8192) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support frame buffer stride > 8K >  DRI.\n");
       pI830->disableTiling = TRUE;
+      pI830->directRenderingDisabled = TRUE;
    }
 
    if (pScrn->virtualY > 2048) {
@@ -1967,61 +1958,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    pI830->preinit = FALSE;
 
    return TRUE;
-}
-
-/*
- * As the name says.  Check that the initial state is reasonable.
- * If any unrecoverable problems are found, bail out here.
- */
-static Bool
-CheckInheritedState(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int errors = 0, fatal = 0;
-   unsigned long temp, head, tail;
-
-   if (!I830IsPrimary(pScrn)) return TRUE;
-
-   /* Check first for page table errors */
-   temp = INREG(PGE_ERR);
-   if (temp != 0) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "PGTBL_ER is 0x%08lx\n", temp);
-      errors++;
-   }
-   temp = INREG(PGETBL_CTL);
-   if (!(temp & 1)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "PGTBL_CTL (0x%08lx) indicates GTT is disabled\n", temp);
-      errors++;
-   }
-   temp = INREG(LP_RING + RING_LEN);
-   if (temp & 1) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "PRB0_CTL (0x%08lx) indicates ring buffer enabled\n", temp);
-      errors++;
-   }
-   head = INREG(LP_RING + RING_HEAD);
-   tail = INREG(LP_RING + RING_TAIL);
-   if ((tail & I830_TAIL_MASK) != (head & I830_HEAD_MASK)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "PRB0_HEAD (0x%08lx) and PRB0_TAIL (0x%08lx) indicate "
-		 "ring buffer not flushed\n", head, tail);
-      errors++;
-   }
-
-#if 0
-   if (errors) {
-      if (IS_I965G(pI830))
-         I965PrintErrorState(pScrn);
-      else
-         I830PrintErrorState(pScrn);
-   }
-#endif
-
-   if (fatal)
-      FatalError("CheckInheritedState: can't recover from the above\n");
-
-   return (errors != 0);
 }
 
 /*
@@ -2175,6 +2111,7 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
 static Bool
 SaveHWState(ScrnInfoPtr pScrn)
 {
+   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
    vgaHWPtr hwp = VGAHWPTR(pScrn);
    vgaRegPtr vgaReg = &hwp->SavedReg;
@@ -2204,7 +2141,7 @@ SaveHWState(ScrnInfoPtr pScrn)
       pI830->savePaletteA[i] = INREG(PALETTE_A + (i << 2));
    }
 
-   if(pI830->xf86_config.num_crtc == 2) {
+   if(xf86_config->num_crtc == 2) {
       pI830->savePIPEBCONF = INREG(PIPEBCONF);
       pI830->savePIPEBSRC = INREG(PIPEBSRC);
       pI830->saveDSPBCNTR = INREG(DSPBCNTR);
@@ -2248,8 +2185,8 @@ SaveHWState(ScrnInfoPtr pScrn)
 
    pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
 
-   for (i = 0; i < pI830->xf86_config.num_output; i++) {
-      xf86OutputPtr   output = pI830->xf86_config.output[i];
+   for (i = 0; i < xf86_config->num_output; i++) {
+      xf86OutputPtr   output = xf86_config->output[i];
       if (output->funcs->save)
 	 (*output->funcs->save) (output);
    }
@@ -2263,10 +2200,10 @@ SaveHWState(ScrnInfoPtr pScrn)
 static Bool
 RestoreHWState(ScrnInfoPtr pScrn)
 {
+   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
    vgaHWPtr hwp = VGAHWPTR(pScrn);
    vgaRegPtr vgaReg = &hwp->SavedReg;
-   CARD32 temp;
    int i;
 
    DPRINTF(PFX, "RestoreHWState\n");
@@ -2274,40 +2211,36 @@ RestoreHWState(ScrnInfoPtr pScrn)
 #ifdef XF86DRI
    I830DRISetVBlankInterrupt (pScrn, FALSE);
 #endif
-
    /* Disable outputs */
-   for (i = 0; i < pI830->xf86_config.num_output; i++) {
-      xf86OutputPtr   output = pI830->xf86_config.output[i];
+   for (i = 0; i < xf86_config->num_output; i++) {
+      xf86OutputPtr   output = xf86_config->output[i];
       output->funcs->dpms(output, DPMSModeOff);
    }
-
-   /* Disable display planes */
-   temp = INREG(DSPACNTR);
-   OUTREG(DSPACNTR, temp & ~DISPLAY_PLANE_ENABLE);
-   temp = INREG(DSPBCNTR);
-   OUTREG(DSPBCNTR, temp & ~DISPLAY_PLANE_ENABLE);
-
-   /* Next, disable display pipes */
-   temp = INREG(PIPEACONF);
-   OUTREG(PIPEACONF, temp & ~PIPEACONF_ENABLE);
-   temp = INREG(PIPEBCONF);
-   OUTREG(PIPEBCONF, temp & ~PIPEBCONF_ENABLE);
-
+   i830WaitForVblank(pScrn);
+   
+   /* Disable pipes */
+   for (i = 0; i < xf86_config->num_crtc; i++) {
+      xf86CrtcPtr crtc = xf86_config->crtc[i];
+      crtc->funcs->dpms(crtc, DPMSModeOff);
+   }
    i830WaitForVblank(pScrn);
 
+   if (!IS_I830(pI830) && !IS_845G(pI830))
+     OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
+
+   if (pI830->saveDPLL_A & DPLL_VCO_ENABLE)
+   {
+      OUTREG(DPLL_A, pI830->saveDPLL_A & ~DPLL_VCO_ENABLE);
+      usleep(150);
+   }
    OUTREG(FPA0, pI830->saveFPA0);
    OUTREG(FPA1, pI830->saveFPA1);
    OUTREG(DPLL_A, pI830->saveDPLL_A);
+   usleep(150);
    if (IS_I965G(pI830))
       OUTREG(DPLL_A_MD, pI830->saveDPLL_A_MD);
-   if(pI830->xf86_config.num_crtc == 2) {
-      OUTREG(FPB0, pI830->saveFPB0);
-      OUTREG(FPB1, pI830->saveFPB1);
-      OUTREG(DPLL_B, pI830->saveDPLL_B);
-      if (IS_I965G(pI830))
-	 OUTREG(DPLL_B_MD, pI830->saveDPLL_B_MD);
-   }
-   /* Wait for clocks to stabilize */
+   else
+      OUTREG(DPLL_A, pI830->saveDPLL_A);
    usleep(150);
 
    OUTREG(HTOTAL_A, pI830->saveHTOTAL_A);
@@ -2316,16 +2249,37 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(VTOTAL_A, pI830->saveVTOTAL_A);
    OUTREG(VBLANK_A, pI830->saveVBLANK_A);
    OUTREG(VSYNC_A, pI830->saveVSYNC_A);
+   
    OUTREG(DSPASTRIDE, pI830->saveDSPASTRIDE);
    OUTREG(DSPASIZE, pI830->saveDSPASIZE);
    OUTREG(DSPAPOS, pI830->saveDSPAPOS);
-   OUTREG(DSPABASE, pI830->saveDSPABASE);
    OUTREG(PIPEASRC, pI830->savePIPEASRC);
-   for(i = 0; i < 256; i++) {
-         OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
-   }
-
-   if(pI830->xf86_config.num_crtc == 2) {
+   OUTREG(DSPABASE, pI830->saveDSPABASE);
+   if (IS_I965G(pI830))
+      OUTREG(DSPASURF, pI830->saveDSPASURF);
+   OUTREG(PIPEACONF, pI830->savePIPEACONF);
+   i830WaitForVblank(pScrn);
+   OUTREG(DSPACNTR, pI830->saveDSPACNTR);
+   OUTREG(DSPABASE, INREG(DSPABASE));
+   i830WaitForVblank(pScrn);
+   
+   if(xf86_config->num_crtc == 2) 
+   {
+      if (pI830->saveDPLL_B & DPLL_VCO_ENABLE)
+      {
+	 OUTREG(DPLL_B, pI830->saveDPLL_B & ~DPLL_VCO_ENABLE);
+	 usleep(150);
+      }
+      OUTREG(FPB0, pI830->saveFPB0);
+      OUTREG(FPB1, pI830->saveFPB1);
+      OUTREG(DPLL_B, pI830->saveDPLL_B);
+      usleep(150);
+      if (IS_I965G(pI830))
+	 OUTREG(DPLL_B_MD, pI830->saveDPLL_B_MD);
+      else
+	 OUTREG(DPLL_B, pI830->saveDPLL_B);
+      usleep(150);
+   
       OUTREG(HTOTAL_B, pI830->saveHTOTAL_B);
       OUTREG(HBLANK_B, pI830->saveHBLANK_B);
       OUTREG(HSYNC_B, pI830->saveHSYNC_B);
@@ -2335,49 +2289,48 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(DSPBSTRIDE, pI830->saveDSPBSTRIDE);
       OUTREG(DSPBSIZE, pI830->saveDSPBSIZE);
       OUTREG(DSPBPOS, pI830->saveDSPBPOS);
-      OUTREG(DSPBBASE, pI830->saveDSPBBASE);
       OUTREG(PIPEBSRC, pI830->savePIPEBSRC);
-      for(i= 0; i < 256; i++) {
-         OUTREG(PALETTE_B + (i << 2), pI830->savePaletteB[i]);
-      }
+      OUTREG(DSPBBASE, pI830->saveDSPBBASE);
+      if (IS_I965G(pI830))
+	 OUTREG(DSPBSURF, pI830->saveDSPBSURF);
+      OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
+      i830WaitForVblank(pScrn);
+      OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
+      OUTREG(DSPBBASE, INREG(DSPBBASE));
+      i830WaitForVblank(pScrn);
    }
 
-   if (!IS_I830(pI830) && !IS_845G(pI830))
-     OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
-
-   if (IS_I965G(pI830)) {
-      OUTREG(DSPASURF, pI830->saveDSPASURF);
-      OUTREG(DSPBSURF, pI830->saveDSPBSURF);
+   /* Restore outputs */
+   for (i = 0; i < xf86_config->num_output; i++) {
+      xf86OutputPtr   output = xf86_config->output[i];
+      if (output->funcs->restore)
+	 output->funcs->restore(output);
    }
+    
+   OUTREG(VGACNTRL, pI830->saveVGACNTRL);
 
    OUTREG(VCLK_DIVISOR_VGA0, pI830->saveVCLK_DIVISOR_VGA0);
    OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
    OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
 
-   OUTREG(PIPEACONF, pI830->savePIPEACONF);
-   OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
-   if (IS_I855(pI830))
-	usleep(10);
-   OUTREG(VGACNTRL, pI830->saveVGACNTRL);
-   OUTREG(DSPACNTR, pI830->saveDSPACNTR);
-   OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
-
-   for (i = 0; i < pI830->xf86_config.num_output; i++) {
-      xf86OutputPtr   output = pI830->xf86_config.output[i];
-      (*output->funcs->restore) (output);
+   for(i = 0; i < 256; i++) {
+      OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
+   }
+   
+   if(xf86_config->num_crtc == 2) {
+      for(i= 0; i < 256; i++) {
+         OUTREG(PALETTE_B + (i << 2), pI830->savePaletteB[i]);
+      }
    }
 
    for(i = 0; i < 7; i++) {
-	   OUTREG(SWF0 + (i << 2), pI830->saveSWF[i]);
-	   OUTREG(SWF00 + (i << 2), pI830->saveSWF[i+7]);
+      OUTREG(SWF0 + (i << 2), pI830->saveSWF[i]);
+      OUTREG(SWF00 + (i << 2), pI830->saveSWF[i+7]);
    }
 
    OUTREG(SWF30, pI830->saveSWF[14]);
    OUTREG(SWF31, pI830->saveSWF[15]);
    OUTREG(SWF32, pI830->saveSWF[16]);
-
-   for (i = 0; i < 2; i++)
-      i830WaitForVblank(pScrn);
 
    vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
    vgaHWLock(hwp);
@@ -2396,103 +2349,6 @@ InitRegisterRec(ScrnInfoPtr pScrn)
 
    for (i = 0; i < 8; i++)
       i830Reg->Fence[i] = 0;
-}
-
-/* Famous last words
- */
-void
-I830PrintErrorState(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   ErrorF("pgetbl_ctl: 0x%lx pgetbl_err: 0x%lx\n",
-	  (unsigned long)INREG(PGETBL_CTL), (unsigned long)INREG(PGE_ERR));
-
-   ErrorF("ipeir: %lx iphdr: %lx\n", (unsigned long)INREG(IPEIR), 
-	  (unsigned long)INREG(IPEHR));
-
-   ErrorF("LP ring tail: %lx head: %lx len: %lx start %lx\n",
-	  (unsigned long)INREG(LP_RING + RING_TAIL),
-	  (unsigned long)INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
-	  (unsigned long)INREG(LP_RING + RING_LEN), 
-	  (unsigned long)INREG(LP_RING + RING_START));
-
-   ErrorF("eir: %x esr: %x emr: %x\n",
-	  INREG16(EIR), INREG16(ESR), INREG16(EMR));
-
-   ErrorF("instdone: %x instpm: %x\n", INREG16(INST_DONE), INREG8(INST_PM));
-
-   ErrorF("memmode: %lx instps: %lx\n", (unsigned long)INREG(MEMMODE), 
-	  (unsigned long)INREG(INST_PS));
-
-   ErrorF("hwstam: %x ier: %x imr: %x iir: %x\n",
-	  INREG16(HWSTAM), INREG16(IER), INREG16(IMR), INREG16(IIR));
-}
-
-void
-I965PrintErrorState(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   ErrorF("pgetbl_ctl: 0x%lx pgetbl_err: 0x%lx\n",
-	  INREG(PGETBL_CTL), INREG(PGE_ERR));
-
-   ErrorF("ipeir: %lx iphdr: %lx\n", INREG(IPEIR_I965), INREG(IPEHR_I965));
-
-   ErrorF("LP ring tail: %lx head: %lx len: %lx start %lx\n",
-	  INREG(LP_RING + RING_TAIL),
-	  INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
-	  INREG(LP_RING + RING_LEN), INREG(LP_RING + RING_START));
-
-   ErrorF("Err ID (eir): %x Err Status (esr): %x Err Mask (emr): %x\n",
-	  (int)INREG(EIR), (int)INREG(ESR), (int)INREG(EMR));
-
-   ErrorF("instdone: %x instdone_1: %x\n", (int)INREG(INST_DONE_I965),
-	  (int)INREG(INST_DONE_1));
-   ErrorF("instpm: %x\n", (int)INREG(INST_PM));
-
-   ErrorF("memmode: %lx instps: %lx\n", INREG(MEMMODE), INREG(INST_PS_I965));
-
-   ErrorF("HW Status mask (hwstam): %x\nIRQ enable (ier): %x imr: %x iir: %x\n",
-	  (int)INREG(HWSTAM), (int)INREG(IER), (int)INREG(IMR),
-	  (int)INREG(IIR));
-
-   ErrorF("acthd: %lx dma_fadd_p: %lx\n", INREG(ACTHD), INREG(DMA_FADD_P));
-   ErrorF("ecoskpd: %lx excc: %lx\n", INREG(ECOSKPD), INREG(EXCC));
-
-   ErrorF("cache_mode: %x/%x\n", (int)INREG(CACHE_MODE_0),
-	  (int)INREG(CACHE_MODE_1));
-   ErrorF("mi_arb_state: %x\n", (int)INREG(MI_ARB_STATE));
-
-   ErrorF("IA_VERTICES_COUNT_QW %x/%x\n", (int)INREG(IA_VERTICES_COUNT_QW),
-	  (int)INREG(IA_VERTICES_COUNT_QW+4));
-   ErrorF("IA_PRIMITIVES_COUNT_QW %x/%x\n", (int)INREG(IA_PRIMITIVES_COUNT_QW),
-	  (int)INREG(IA_PRIMITIVES_COUNT_QW+4));
-
-   ErrorF("VS_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(VS_INVOCATION_COUNT_QW),
-	  (int)INREG(VS_INVOCATION_COUNT_QW+4));
-
-   ErrorF("GS_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(GS_INVOCATION_COUNT_QW),
-	  (int)INREG(GS_INVOCATION_COUNT_QW+4));
-   ErrorF("GS_PRIMITIVES_COUNT_QW %x/%x\n", (int)INREG(GS_PRIMITIVES_COUNT_QW),
-	  (int)INREG(GS_PRIMITIVES_COUNT_QW+4));
-
-   ErrorF("CL_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(CL_INVOCATION_COUNT_QW),
-	  (int)INREG(CL_INVOCATION_COUNT_QW+4));
-   ErrorF("CL_PRIMITIVES_COUNT_QW %x/%x\n", (int)INREG(CL_PRIMITIVES_COUNT_QW),
-	  (int)INREG(CL_PRIMITIVES_COUNT_QW+4));
-
-   ErrorF("PS_INVOCATION_COUNT_QW %x/%x\n", (int)INREG(PS_INVOCATION_COUNT_QW),
-	  (int)INREG(PS_INVOCATION_COUNT_QW+4));
-   ErrorF("PS_DEPTH_COUNT_QW %x/%x\n", (int)INREG(PS_DEPTH_COUNT_QW),
-	  (int)INREG(PS_DEPTH_COUNT_QW+4));
-
-   ErrorF("WIZ_CTL %x\n", (int)INREG(WIZ_CTL));
-   ErrorF("TS_CTL %x  TS_DEBUG_DATA %x\n", (int)INREG(TS_CTL),
-	  (int)INREG(TS_DEBUG_DATA));
-   ErrorF("TD_CTL %x / %x\n", (int)INREG(TD_CTL), (int)INREG(TD_CTL2));
-
-   
 }
 
 static void
@@ -3051,7 +2907,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       return FALSE;
    }
 
-   xf86DPMSInit(pScreen, I830DisplayPowerManagementSet, 0);
+   xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
 #ifdef I830_XV
    /* Init video */
@@ -3241,17 +3097,6 @@ I830LeaveVT(int scrnIndex, int flags)
 
    i830SetHotkeyControl(pScrn, HOTKEY_BIOS_SWITCH);
 
-#ifdef I830_XV
-   /* Give the video overlay code a chance to shutdown. */
-   I830VideoSwitchModeBefore(pScrn, NULL);
-#endif
-
-   if (pI830->Clone) {
-      /* Ensure we don't try and setup modes on a clone head */
-      pI830->CloneHDisplay = 0;
-      pI830->CloneVDisplay = 0;
-   }
-
    if (!I830IsPrimary(pScrn)) {
    	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
 	if (!pI8301->GttBound) {
@@ -3298,6 +3143,7 @@ static Bool
 I830EnterVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr  pI830 = I830PTR(pScrn);
    int	    i;
 
@@ -3324,14 +3170,17 @@ I830EnterVT(int scrnIndex, int flags)
       if (!I830BindAGPMemory(pScrn))
          return FALSE;
 
-   CheckInheritedState(pScrn);
+   if (i830_check_error_state(pScrn)) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		 "Existing errors found in hardware state\n");
+   }
 
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
-   for (i = 0; i < pI830->xf86_config.num_crtc; i++)
+   for (i = 0; i < xf86_config->num_crtc; i++)
    {
-      xf86CrtcPtr	crtc = pI830->xf86_config.crtc[i];
+      xf86CrtcPtr	crtc = xf86_config->crtc[i];
 
       /* Mark that we'll need to re-set the mode for sure */
       memset(&crtc->curMode, 0, sizeof(crtc->curMode));
@@ -3351,10 +3200,6 @@ I830EnterVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
    I830DRISetVBlankInterrupt (pScrn, TRUE);
-#endif
-   
-#ifdef I830_XV
-   I830VideoSwitchModeAfter(pScrn, pScrn->currentMode);
 #endif
 
    ResetState(pScrn, TRUE);
@@ -3429,11 +3274,6 @@ I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 
    DPRINTF(PFX, "I830SwitchMode: mode == %p\n", mode);
 
-#ifdef I830_XV
-   /* Give the video overlay code a chance to see the new mode. */
-   I830VideoSwitchModeBefore(pScrn, mode);
-#endif
-
    /* Sync the engine before mode switch */
    i830WaitSync(pScrn);
 
@@ -3466,18 +3306,8 @@ I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 	 xf86DrvMsg(scrnIndex, X_INFO,
 		    "Failed to restore previous mode (SwitchMode)\n");
       }
-
-#ifdef I830_XV
-      /* Give the video overlay code a chance to see the new mode. */
-      I830VideoSwitchModeAfter(pScrn, pI830->currentMode);
-#endif
    } else {
       pI830->currentMode = mode;
-
-#ifdef I830_XV
-      /* Give the video overlay code a chance to see the new mode. */
-      I830VideoSwitchModeAfter(pScrn, mode);
-#endif
    }
 
    return ret;
@@ -3487,6 +3317,7 @@ static Bool
 I830SaveScreen(ScreenPtr pScreen, int mode)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
    Bool on = xf86IsUnblank(mode);
    CARD32 temp, ctrl, base, surf;
@@ -3495,7 +3326,7 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
    DPRINTF(PFX, "I830SaveScreen: %d, on is %s\n", mode, BOOLTOSTRING(on));
 
    if (pScrn->vtSema) {
-      for (i = 0; i < pI830->xf86_config.num_crtc; i++) {
+      for (i = 0; i < xf86_config->num_crtc; i++) {
         if (i == 0) {
 	    ctrl = DSPACNTR;
 	    base = DSPABASE;
@@ -3505,7 +3336,7 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
 	    base = DSPBADDR;
 	    surf = DSPBSURF;
         }
-        if (pI830->xf86_config.crtc[i]->enabled) {
+        if (xf86_config->crtc[i]->enabled) {
 	   temp = INREG(ctrl);
 	   if (on)
 	      temp |= DISPLAY_PLANE_ENABLE;
@@ -3531,55 +3362,6 @@ I830SaveScreen(ScreenPtr pScreen, int mode)
       }
    }
    return TRUE;
-}
-
-/* Use the VBE version when available. */
-static void
-I830DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
-			      int flags)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int i;
-   CARD32 temp, ctrl, base;
-
-   for (i = 0; i < pI830->xf86_config.num_output; i++) {
-      xf86OutputPtr   output = pI830->xf86_config.output[i];
-      
-      (*output->funcs->dpms) (output, PowerManagementMode);
-   }
-
-   for (i = 0; i < pI830->xf86_config.num_crtc; i++) 
-   {
-      xf86CrtcPtr	   crtc = pI830->xf86_config.crtc[i];
-      
-      if (i == 0) {
-         ctrl = DSPACNTR;
-         base = DSPABASE;
-      } else {
-         ctrl = DSPBCNTR;
-         base = DSPBADDR;
-      }
-      /* XXX pipe disable too? */
-      if (crtc->enabled) {
-	   temp = INREG(ctrl);
-	   if (PowerManagementMode == DPMSModeOn)
-	      temp |= DISPLAY_PLANE_ENABLE;
-	   else
-	      temp &= ~DISPLAY_PLANE_ENABLE;
-	   OUTREG(ctrl, temp);
-	   /* Flush changes */
-	   temp = INREG(base);
-	   OUTREG(base, temp);
-      }
-   }
-
-   if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn) {
-      if (PowerManagementMode == DPMSModeOn)
-         pI830->CursorInfoRec->ShowCursor(pScrn);
-      else
-         pI830->CursorInfoRec->HideCursor(pScrn);
-      pI830->cursorOn = TRUE;
-   }
 }
 
 static Bool
@@ -3773,7 +3555,7 @@ i830MonitorDetectDebugger(ScrnInfoPtr pScrn)
    if (!pScrn->vtSema)
       return 1000;
 
-   for (i = 0; i < pI830->xf86_config.num_output; i++) {
+   for (i = 0; i < xf86_config->num_output; i++) {
       enum output_status ret;
       char *result;
 

@@ -225,12 +225,12 @@ Bool
 i830PipeHasType (xf86CrtcPtr crtc, int type)
 {
     ScrnInfoPtr	pScrn = crtc->scrn;
-    I830Ptr	pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int		i;
 
-    for (i = 0; i < pI830->xf86_config.num_output; i++)
+    for (i = 0; i < xf86_config->num_output; i++)
     {
-	xf86OutputPtr  output = pI830->xf86_config.output[i];
+	xf86OutputPtr  output = xf86_config->output[i];
 	if (output->crtc == crtc)
 	{
 	    I830OutputPrivatePtr    intel_output = output->driver_private;
@@ -373,14 +373,14 @@ DisplayModePtr
 i830PipeFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
 {
     ScrnInfoPtr	pScrn = crtc->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     DisplayModePtr pBest = NULL, pScan = NULL;
     int i;
 
     /* Assume that there's only one output connected to the given CRTC. */
-    for (i = 0; i < pI830->xf86_config.num_output; i++) 
+    for (i = 0; i < xf86_config->num_output; i++) 
     {
-	xf86OutputPtr  output = pI830->xf86_config.output[i];
+	xf86OutputPtr  output = xf86_config->output[i];
 	if (output->crtc == crtc && output->probed_modes != NULL)
 	{
 	    pScan = output->probed_modes;
@@ -469,15 +469,21 @@ Bool
 i830PipeInUse (xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int	i;
     
-    for (i = 0; i < pI830->xf86_config.num_output; i++)
-	if (pI830->xf86_config.output[i]->crtc == crtc)
+    for (i = 0; i < xf86_config->num_output; i++)
+	if (xf86_config->output[i]->crtc == crtc)
 	    return TRUE;
     return FALSE;
 }
 
+/**
+ * Sets the power management mode of the pipe and plane.
+ *
+ * This code should probably grow support for turning the cursor off and back
+ * on appropriately at the same time as we're turning the pipe off/on.
+ */
 static void
 i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
@@ -487,6 +493,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
     int pipe = intel_crtc->pipe;
     int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
     int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
+    int dspbase_reg = (pipe == 0) ? DSPABASE : DSPBBASE;
     int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
     CARD32 temp;
 
@@ -499,26 +506,51 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
     case DPMSModeSuspend:
 	/* Enable the DPLL */
 	temp = INREG(dpll_reg);
-	OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
-
-	/* Wait for the clocks to stabilize. */
-	usleep(150);
+	if ((temp & DPLL_VCO_ENABLE) == 0)
+	{
+	    OUTREG(dpll_reg, temp);
+	    /* Wait for the clocks to stabilize. */
+	    usleep(150);
+	    OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
+	    /* Wait for the clocks to stabilize. */
+	    usleep(150);
+	    OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
+	    /* Wait for the clocks to stabilize. */
+	    usleep(150);
+	}
 
 	/* Enable the pipe */
 	temp = INREG(pipeconf_reg);
-	OUTREG(pipeconf_reg, temp | PIPEACONF_ENABLE);
+	if ((temp & PIPEACONF_ENABLE) == 0)
+	    OUTREG(pipeconf_reg, temp | PIPEACONF_ENABLE);
 
 	/* Enable the plane */
 	temp = INREG(dspcntr_reg);
-	OUTREG(dspcntr_reg, temp | DISPLAY_PLANE_ENABLE);
+	if ((temp & DISPLAY_PLANE_ENABLE) == 0)
+	{
+	    OUTREG(dspcntr_reg, temp | DISPLAY_PLANE_ENABLE);
+	    /* Flush the plane changes */
+	    OUTREG(dspbase_reg, INREG(dspbase_reg));
+	}
+
+	/* Give the overlay scaler a chance to enable if it's on this pipe */
+	i830_crtc_dpms_video(crtc, TRUE);
 	break;
     case DPMSModeOff:
-	/* Disable display plane */
-	temp = INREG(dspcntr_reg);
-	OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
+	/* Give the overlay scaler a chance to disable if it's on this pipe */
+	i830_crtc_dpms_video(crtc, FALSE);
 
 	/* Disable the VGA plane that we never use */
 	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
+
+	/* Disable display plane */
+	temp = INREG(dspcntr_reg);
+	if ((temp & DISPLAY_PLANE_ENABLE) != 0)
+	{
+	    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
+	    /* Flush the plane changes */
+	    OUTREG(dspbase_reg, INREG(dspbase_reg));
+	}
 
 	if (!IS_I9XX(pI830)) {
 	    /* Wait for vblank for the disable to take effect */
@@ -527,13 +559,18 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 	/* Next, disable display pipes */
 	temp = INREG(pipeconf_reg);
-	OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
+	if ((temp & PIPEACONF_ENABLE) != 0)
+	    OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
 
 	/* Wait for vblank for the disable to take effect. */
 	i830WaitForVblank(pScrn);
 
 	temp = INREG(dpll_reg);
-	OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
+	if ((temp & DPLL_VCO_ENABLE) != 0)
+	    OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
+
+	/* Wait for the clocks to turn off. */
+	usleep(150);
 	break;
     }
 }
@@ -558,6 +595,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		   DisplayModePtr adjusted_mode)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     int pipe = intel_crtc->pipe;
@@ -565,6 +603,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
     int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
     int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
+    int dspbase_reg = (pipe == 0) ? DSPABASE : DSPBBASE;
     int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
     int htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
     int hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
@@ -586,8 +625,8 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     /* Set up some convenient bools for what outputs are connected to
      * our pipe, used in DPLL setup.
      */
-    for (i = 0; i < pI830->xf86_config.num_output; i++) {
-	xf86OutputPtr  output = pI830->xf86_config.output[i];
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr  output = xf86_config->output[i];
 	I830OutputPrivatePtr intel_output = output->driver_private;
 
 	if (output->crtc != crtc)
@@ -726,19 +765,49 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	else
 	    pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
     }
+#if 1
+    dspcntr |= DISPLAY_PLANE_ENABLE;
+    pipeconf |= PIPEACONF_ENABLE;
+    dpll |= DPLL_VCO_ENABLE;
+#endif
+
+    if (is_lvds)
+    {
+	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
+	 * This is an exception to the general rule that mode_set doesn't turn
+	 * things on.
+	 */
+	OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
+    }
+    
+    /* Disable the panel fitter if it was on our pipe */
+    if (!IS_I830(pI830) && ((INREG(PFIT_CONTROL) >> 29) & 0x3) == pipe)
+	OUTREG(PFIT_CONTROL, 0);
 
     i830PrintPll("chosen", &clock);
     ErrorF("clock regs: 0x%08x, 0x%08x\n", (int)dpll, (int)fp);
 
+    if (dpll & DPLL_VCO_ENABLE)
+    {
+	OUTREG(fp_reg, fp);
+	OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
+	usleep(150);
+    }
     OUTREG(fp_reg, fp);
     OUTREG(dpll_reg, dpll);
+    /* Wait for the clocks to stabilize. */
+    usleep(150);
+    
     if (IS_I965G(pI830)) {
-	/* Set the SDVO multiplier/divider to 1x for the sake of analog output.
-	 * It will be updated by the SDVO code if SDVO had fixed up the clock
-	 * for a higher multiplier.
-	 */
-	OUTREG(dpll_md_reg, 0);
+	int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
+	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
+	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
+    } else {
+       /* write it again -- the BIOS does, after all */
+       OUTREG(dpll_reg, dpll);
     }
+    /* Wait for the clocks to stabilize. */
+    usleep(150);
 
     OUTREG(htot_reg, (adjusted_mode->CrtcHDisplay - 1) |
 	((adjusted_mode->CrtcHTotal - 1) << 16));
@@ -758,14 +827,16 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
      */
     OUTREG(dspsize_reg, ((mode->VDisplay - 1) << 16) | (mode->HDisplay - 1));
     OUTREG(dsppos_reg, 0);
-    i830PipeSetBase(crtc, crtc->x, crtc->y);
     OUTREG(pipesrc_reg, ((mode->HDisplay - 1) << 16) | (mode->VDisplay - 1));
+    i830PipeSetBase(crtc, crtc->x, crtc->y);
     OUTREG(pipeconf_reg, pipeconf);
+    i830WaitForVblank(pScrn);
+    
     OUTREG(dspcntr_reg, dspcntr);
-
-    /* Disable the panel fitter if it was on our pipe */
-    if (!IS_I830(pI830) && ((INREG(PFIT_CONTROL) >> 29) & 0x3) == pipe)
-	OUTREG(PFIT_CONTROL, 0);
+    /* Flush the plane changes */
+    OUTREG(dspbase_reg, INREG(dspbase_reg));
+    
+    i830WaitForVblank(pScrn);
 }
 
 /**
@@ -781,7 +852,7 @@ i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
 		Bool plane_enable)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int i;
     Bool ret = FALSE;
 #ifdef XF86DRI
@@ -809,8 +880,8 @@ i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
      * adjust it according to limitations or output properties, and also
      * a chance to reject the mode entirely.
      */
-    for (i = 0; i < pI830->xf86_config.num_output; i++) {
-	xf86OutputPtr output = pI830->xf86_config.output[i];
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
 
 	if (output->crtc != crtc)
 	    continue;
@@ -827,8 +898,8 @@ i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
     }
 
     /* Disable the outputs and CRTCs before setting the mode. */
-    for (i = 0; i < pI830->xf86_config.num_output; i++) {
-	xf86OutputPtr output = pI830->xf86_config.output[i];
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
 
 	if (output->crtc != crtc)
 	    continue;
@@ -843,16 +914,16 @@ i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
      * on the DPLL.
      */
     crtc->funcs->mode_set(crtc, pMode, adjusted_mode);
-    for (i = 0; i < pI830->xf86_config.num_output; i++) {
-	xf86OutputPtr output = pI830->xf86_config.output[i];
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
 	if (output->crtc == crtc)
 	    output->funcs->mode_set(output, pMode, adjusted_mode);
     }
 
     /* Now, enable the clocks, plane, pipe, and outputs that we set up. */
     crtc->funcs->dpms(crtc, DPMSModeOn);
-    for (i = 0; i < pI830->xf86_config.num_output; i++) {
-	xf86OutputPtr output = pI830->xf86_config.output[i];
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
 	if (output->crtc == crtc)
 	    output->funcs->dpms(output, DPMSModeOn);
     }
@@ -890,14 +961,15 @@ done:
 void
 i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 {
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830Ptr pI830 = I830PTR(pScrn);
     int o, pipe;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling unused functions\n");
 
-    for (o = 0; o < pI830->xf86_config.num_output; o++) 
+    for (o = 0; o < xf86_config->num_output; o++) 
     {
-	xf86OutputPtr  output = pI830->xf86_config.output[o];
+	xf86OutputPtr  output = xf86_config->output[o];
 	if (!output->crtc)
 	    (*output->funcs->dpms)(output, DPMSModeOff);
     }
@@ -906,9 +978,9 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
      * internal TV) should have no outputs trying to pull data out of it, so
      * we're ready to turn those off.
      */
-    for (pipe = 0; pipe < pI830->xf86_config.num_crtc; pipe++) 
+    for (pipe = 0; pipe < xf86_config->num_crtc; pipe++) 
     {
-	xf86CrtcPtr crtc = pI830->xf86_config.crtc[pipe];
+	xf86CrtcPtr crtc = xf86_config->crtc[pipe];
 	I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
 	int		    pipe = intel_crtc->pipe;
 	int	    dspcntr_reg = pipe == 0 ? DSPACNTR : DSPBCNTR;
@@ -957,7 +1029,6 @@ Bool
 i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 {
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
-    I830Ptr pI830 = I830PTR(pScrn);
     Bool ok = TRUE;
     xf86CrtcPtr crtc = config->output[config->compat_output]->crtc;
 
@@ -976,29 +1047,6 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	       (int)(pMode->HDisplay * pMode->VDisplay *
 		     pMode->VRefresh / 1000000));
 
-    if (pI830->savedCurrentMode) {
-	/* We're done with the currentMode that the last randr probe had left
-	 * behind, so free it.
-	 */
-	xfree(pI830->savedCurrentMode->name);
-	xfree(pI830->savedCurrentMode);
-	pI830->savedCurrentMode = NULL;
-	    
-	/* If we might have enabled/disabled some pipes, we need to reset
-	 * cloning mode support.
-	 */
-	if (pI830->xf86_config.num_crtc >= 2 && 
-	    pI830->xf86_config.crtc[0]->enabled &&
-	    pI830->xf86_config.crtc[1]->enabled)
-	    pI830->Clone = TRUE;
-	else
-	    pI830->Clone = FALSE;
-
-	/* If HW cursor currently showing, reset cursor state */
-	if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn)
-	    pI830->CursorInfoRec->ShowCursor(pScrn);
-    }
-
     i830DisableUnusedFunctions(pScrn);
 
     i830DescribeOutputConfiguration(pScrn);
@@ -1015,13 +1063,14 @@ done:
 void
 i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 {
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830Ptr pI830 = I830PTR(pScrn);
     int i;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output configuration:\n");
 
-    for (i = 0; i < pI830->xf86_config.num_crtc; i++) {
-	xf86CrtcPtr crtc = pI830->xf86_config.crtc[i];
+    for (i = 0; i < xf86_config->num_crtc; i++) {
+	xf86CrtcPtr crtc = xf86_config->crtc[i];
 	CARD32 dspcntr = INREG(DSPACNTR + (DSPBCNTR - DSPACNTR) * i);
 	CARD32 pipeconf = INREG(PIPEACONF + (PIPEBCONF - PIPEACONF) * i);
 	Bool hw_plane_enable = (dspcntr & DISPLAY_PLANE_ENABLE) != 0;
@@ -1051,8 +1100,8 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 	}
     }
 
-    for (i = 0; i < pI830->xf86_config.num_output; i++) {
-	xf86OutputPtr	output = pI830->xf86_config.output[i];
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr	output = xf86_config->output[i];
 	xf86CrtcPtr	crtc = output->crtc;
 	I830CrtcPrivatePtr	intel_crtc = crtc ? crtc->driver_private : NULL;
 	
@@ -1081,7 +1130,7 @@ xf86CrtcPtr
 i830GetLoadDetectPipe(xf86OutputPtr output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
-    I830Ptr		    pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr	    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
     xf86CrtcPtr	    crtc;
     int			    i;
@@ -1089,14 +1138,14 @@ i830GetLoadDetectPipe(xf86OutputPtr output)
     if (output->crtc) 
 	return output->crtc;
 
-    for (i = 0; i < pI830->xf86_config.num_crtc; i++)
-	if (!i830PipeInUse(pI830->xf86_config.crtc[i]))
+    for (i = 0; i < xf86_config->num_crtc; i++)
+	if (!i830PipeInUse(xf86_config->crtc[i]))
 	    break;
 
-    if (i == pI830->xf86_config.num_crtc)
+    if (i == xf86_config->num_crtc)
 	return NULL;
 
-    crtc = pI830->xf86_config.crtc[i];
+    crtc = xf86_config->crtc[i];
 
     output->crtc = crtc;
     intel_output->load_detect_temp = TRUE;
