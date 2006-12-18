@@ -107,16 +107,14 @@ static int
 i830_dvo_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
     I830OutputPrivatePtr    intel_output = output->driver_private;
-    
+    void *dev_priv = intel_output->i2c_drv->dev_priv;
+
     if (pMode->Flags & V_DBLSCAN)
 	return MODE_NO_DBLESCAN;
 
     /* XXX: Validate clock range */
 
-    if ((*intel_output->i2c_drv->vid_rec->ModeValid)(intel_output->i2c_drv->dev_priv, pMode))
-	return MODE_OK;
-    else
-	return MODE_BAD;
+    return intel_output->i2c_drv->vid_rec->ModeValid(dev_priv, pMode);
 }
 
 static Bool
