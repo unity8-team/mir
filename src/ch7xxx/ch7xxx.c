@@ -32,6 +32,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "compiler.h"
 #include "miscstruct.h"
 #include "xf86i2c.h"
+#define DPMS_SERVER
+#include <X11/extensions/dpms.h>
 
 #include "../i2c_vid.h"
 #include "ch7xxx.h"
@@ -112,7 +114,7 @@ ch7xxx_write(struct ch7xxx_priv *dev_priv, int addr, unsigned char ch)
 }
 
 static void *
-ch7xxx_probe(I2CBusPtr b, I2CSlaveAddr addr)
+ch7xxx_init(I2CBusPtr b, I2CSlaveAddr addr)
 {
     /* this will detect the CH7xxx chip on the specified i2c bus */
     struct ch7xxx_priv *dev_priv;
@@ -171,14 +173,6 @@ out:
     return NULL;
 }
 
-
-static Bool
-ch7xxx_init(I2CDevPtr d)
-{
-    /* not much to do */
-    return TRUE;
-}
-
 static ModeStatus
 ch7xxx_mode_valid(I2CDevPtr d, DisplayModePtr mode)
 {
@@ -228,11 +222,11 @@ ch7xxx_mode_set(I2CDevPtr d, DisplayModePtr mode)
 
 /* set the CH7xxx power state */
 static void
-ch7xxx_power(I2CDevPtr d, Bool on)
+ch7xxx_dpms(I2CDevPtr d, int mode)
 {
     struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
 
-    if (on)
+    if (mode == DPMSModeOn)
 	ch7xxx_write(dev_priv, CH7xxx_PM, CH7xxx_PM_DVIL | CH7xxx_PM_DVIP);
     else
 	ch7xxx_write(dev_priv, CH7xxx_PM, CH7xxx_PM_FPD);
@@ -280,12 +274,11 @@ ch7xxx_restore(I2CDevPtr d)
 }
 
 I830I2CVidOutputRec CH7xxxVidOutput = {
-    ch7xxx_probe,
-    ch7xxx_init,
-    ch7xxx_mode_valid,
-    ch7xxx_mode_set,
-    ch7xxx_power,
-    ch7xxx_dump_regs,
-    ch7xxx_save,
-    ch7xxx_restore,
+    .init = ch7xxx_init,
+    .mode_valid = ch7xxx_mode_valid,
+    .mode_set = ch7xxx_mode_set,
+    .dpms = ch7xxx_dpms,
+    .dump_regs = ch7xxx_dump_regs,
+    .save = ch7xxx_save,
+    .restore = ch7xxx_restore,
 };
