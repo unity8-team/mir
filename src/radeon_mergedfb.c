@@ -1008,9 +1008,8 @@ RADEONProcXineramaGetState(ClientPtr client)
     register int		n;
 
     REQUEST_SIZE_MATCH(xPanoramiXGetStateReq);
-    n = dixLookupWindow(&pWin, stuff->window, client, DixUnknownAccess);
-    if (n != Success)
-	return n;
+    pWin = LookupWindow(stuff->window, client);
+    if(!pWin) return BadWindow;
 
     rep.type = X_Reply;
     rep.length = 0;
@@ -1034,9 +1033,8 @@ RADEONProcXineramaGetScreenCount(ClientPtr client)
     register int			n;
 
     REQUEST_SIZE_MATCH(xPanoramiXGetScreenCountReq);
-    n = dixLookupWindow(&pWin, stuff->window, client, DixUnknownAccess);
-    if (n != Success)
-	return n;
+    pWin = LookupWindow(stuff->window, client);
+    if(!pWin) return BadWindow;
 
     rep.type = X_Reply;
     rep.length = 0;
@@ -1060,9 +1058,8 @@ RADEONProcXineramaGetScreenSize(ClientPtr client)
     register int			n;
 
     REQUEST_SIZE_MATCH(xPanoramiXGetScreenSizeReq);
-    n = dixLookupWindow(&pWin, stuff->window, client, DixUnknownAccess);
-    if (n != Success)
-	return n;
+    pWin = LookupWindow (stuff->window, client);
+    if(!pWin)  return BadWindow;
 
     rep.type = X_Reply;
     rep.length = 0;
