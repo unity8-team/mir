@@ -555,16 +555,20 @@ xf86SetScrnInfoModes (ScrnInfoPtr pScrn)
     for (mode = pScrn->modes; mode; mode = mode->next)
 	if (xf86ModesEqual (mode, &crtc->desiredMode))
 	    break;
-    
-    /* For some reason, pScrn->modes is circular, unlike the other mode lists.
-     * How great is that?
-     */
-    for (last = pScrn->modes; last && last->next; last = last->next);
-    last->next = pScrn->modes;
-    pScrn->modes->prev = last;
-    if (mode)
-	while (pScrn->modes != mode)
-	    pScrn->modes = pScrn->modes->next;
+
+    if (pScrn->modes != NULL) {
+	/* For some reason, pScrn->modes is circular, unlike the other mode
+	 * lists.  How great is that?
+	 */
+	for (last = pScrn->modes; last && last->next; last = last->next)
+	    ;
+	last->next = pScrn->modes;
+	pScrn->modes->prev = last;
+	if (mode) {
+	    while (pScrn->modes != mode)
+		pScrn->modes = pScrn->modes->next;
+	}
+    }
     pScrn->currentMode = pScrn->modes;
 }
 
