@@ -41,6 +41,17 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * driver for the Chrontel 7xxx DVI chip over DVO.
  */
 
+static struct ch7xxx_id_struct {
+    int vid;
+    char *name;
+} ch7xxx_ids[] = { 
+	{ CH7011_VID, "CH7011" },
+	{ CH7009A_VID, "CH7009A" },
+	{ CH7009B_VID, "CH7009B" },
+};
+
+#define ID_ARRAY_SIZE (sizeof(ch7xxx_ids) / sizeof(ch7xxx_ids[0]))
+
 struct ch7xxx_reg_state {
     CARD8 regs[CH7xxx_NUM_REGS];
 };
@@ -59,6 +70,18 @@ static CARD8 ch7xxxFreqRegs[][7] =
   { { 0, 0x23, 0x08, 0x16, 0x30, 0x60, 0x00 },
     { 0, 0x23, 0x04, 0x26, 0x30, 0x60, 0x00 },
     { 0, 0x2D, 0x07, 0x26, 0x30, 0xE0, 0x00 } };
+
+static char *ch7xxx_get_id(int vid)
+{
+    int i;
+
+    for (i = 0; i < ID_ARRAY_SIZE; i++) {
+        if (ch7xxx_ids[i].vid == vid)
+		return ch7xxx_ids[i].name;
+    }
+
+    return NULL;
+}
 
 /** Reads an 8 bit register */
 static Bool
@@ -95,6 +118,7 @@ ch7xxx_probe(I2CBusPtr b, I2CSlaveAddr addr)
     struct ch7xxx_priv *dev_priv;
     CARD8 vendor, device;
     unsigned char ch;
+    char *name;
 
     dev_priv = xcalloc(1, sizeof(struct ch7xxx_priv));
     if (dev_priv == NULL)
@@ -112,7 +136,8 @@ ch7xxx_probe(I2CBusPtr b, I2CSlaveAddr addr)
     if (!ch7xxx_read(dev_priv, CH7xxx_REG_VID, &vendor))
 	goto out;
 
-    if (vendor != CH7xxx_VID) {
+    name = ch7xxx_get_id(vendor);
+    if (!name) {
 	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_INFO,
 		   "ch7xxx not detected; got 0x%02x from %s slave %d.\n",
 		   vendor, dev_priv->d.pI2CBus->BusName,
@@ -132,8 +157,8 @@ ch7xxx_probe(I2CBusPtr b, I2CSlaveAddr addr)
 	goto out;
     }
 	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_INFO,
-		   "Detected CH7xxx chipset, vendor/device ID 0x%02x/0x%02x\n",
-		   vendor, device);
+		   "Detected %s chipset, vendor/device ID 0x%02x/0x%02x\n",
+		   name, vendor, device);
 
     if (!xf86I2CDevInit(&dev_priv->d)) {
 	goto out;
