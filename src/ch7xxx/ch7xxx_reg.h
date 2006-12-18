@@ -53,11 +53,12 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define CH7301_DAC_CNTL 0x21
 #define CH7301_HOTPLUG 0x23
 #define CH7xxx_TCTL 0x31
+#define CH7xxx_TVCO 0x32
 #define CH7xxx_TPCP 0x33
 #define CH7xxx_TPD 0x34
 #define CH7xxx_TPVT 0x35
-#define CH7xxx_TPF 0x36
-#define CH7301_TCT 0x37
+#define CH7xxx_TLPF 0x36
+#define CH7xxx_TCT 0x37
 #define CH7301_TEST_PATTERN 0x48
 #define CH7xxx_PM 0x49
 

@@ -50,7 +50,7 @@ struct ch7xxx_priv {
     struct ch7xxx_reg_state SavedReg;
     struct ch7xxx_reg_state ModeReg;
     CARD8 save_TCTL, save_TPCP, save_TPD, save_TPVT;
-    CARD8 save_TPF, save_TCT, save_PM;
+    CARD8 save_TLPF, save_TCT, save_PM, save_IDF;
 };
 
 static void ch7xxx_save(I2CDevPtr d);
@@ -164,43 +164,29 @@ static void
 ch7xxx_mode_set(I2CDevPtr d, DisplayModePtr mode)
 {
     struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
-    int ret;
-    unsigned char pm, idf;
-    unsigned char tpcp, tpd, tpf, cm;
-    CARD8 *freq_regs;
-    int i;
+    CARD8 tvco, tpcp, tpd, tlpf, idf;
 
-    ErrorF("Clock is %d\n", mode->Clock);
-
-    if (mode->Clock < 75000)
-	freq_regs = ch7xxxFreqRegs[0];
-    else if (mode->Clock < 125000)
-	freq_regs = ch7xxxFreqRegs[1];
-    else
-	freq_regs = ch7xxxFreqRegs[2];
-
-    for (i = 0x31; i < 0x37; i++) {
-	dev_priv->ModeReg.regs[i] = freq_regs[i - 0x31];
-	ch7xxx_write(dev_priv, i, dev_priv->ModeReg.regs[i]);
-    }
-
-#if 0
-    xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_ERROR,
-	       "ch7xxx idf is 0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
-	       idf, tpcp, tpd, tpf);
-
-    xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_ERROR,
-	       "ch7xxx pm is %02X\n", pm);
-
-    if (mode->Clock < 65000) {
+    if (mode->Clock <= 65000) {
+	tvco = 0x23;
 	tpcp = 0x08;
 	tpd = 0x16;
-	tpf = 0x60;
+	tlpf = 0x60;
     } else {
+	tvco = 0x2d;
 	tpcp = 0x06;
 	tpd = 0x26;
-	tpf = 0xa0;
+	tlpf = 0xa0;
     }
+
+    ch7xxx_write(dev_priv, CH7xxx_TCTL, 0x00);
+    ch7xxx_write(dev_priv, CH7xxx_TVCO, tvco);
+    ch7xxx_write(dev_priv, CH7xxx_TPCP, tpcp);
+    ch7xxx_write(dev_priv, CH7xxx_TPD, tpd);
+    ch7xxx_write(dev_priv, CH7xxx_TPVT, 0x30);
+    ch7xxx_write(dev_priv, CH7xxx_TLPF, tlpf);
+    ch7xxx_write(dev_priv, CH7xxx_TCT, 0x00);
+
+    ch7xxx_read(dev_priv, CH7xxx_IDF, &idf);
 
     idf &= ~(CH7xxx_IDF_HSP | CH7xxx_IDF_VSP);
     if (mode->Flags & V_PHSYNC)
@@ -209,45 +195,19 @@ ch7xxx_mode_set(I2CDevPtr d, DisplayModePtr mode)
     if (mode->Flags & V_PVSYNC)
 	idf |= CH7xxx_IDF_HSP;
 
-    /* setup PM Registers */
-    pm &= ~CH7xxx_PM_FPD;
-    pm |= CH7xxx_PM_DVIL | CH7xxx_PM_DVIP;
-
-    /* cm |= 1; */
-
-    ch7xxx_write(dev_priv, CH7xxx_CM, cm);
-    ch7xxx_write(dev_priv, CH7xxx_TPCP, tpcp);
-    ch7xxx_write(dev_priv, CH7xxx_TPD, tpd);
-    ch7xxx_write(dev_priv, CH7xxx_TPF, tpf);
-    ch7xxx_write(dev_priv, CH7xxx_TPF, idf);
-    ch7xxx_write(dev_priv, CH7xxx_PM, pm);
-#endif
+    ch7xxx_write(dev_priv, CH7xxx_IDF, idf);
 }
 
 /* set the CH7xxx power state */
 static void
-ch7xxx_power(I2CDevPtr d, Bool On)
+ch7xxx_power(I2CDevPtr d, Bool on)
 {
     struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
-    int ret;
-    unsigned char ch;
 
-    ret = ch7xxx_read(dev_priv, CH7xxx_PM, &ch);
-    if (ret == FALSE)
-	return;
-
-#if 0
-    ret = ch7xxx_read(dev_priv, CH7xxx_REG8, &ch);
-    if (ret)
-	return;
-
-    if (On)
-	ch |= CH7xxx_8_PD;
+    if (on)
+	ch7xxx_write(dev_priv, CH7xxx_PM, CH7xxx_PM_DVIL | CH7xxx_PM_DVIP);
     else
-	ch &= ~CH7xxx_8_PD;
-
-    ch7xxx_write(dev_priv, CH7xxx_REG8, ch);
-#endif
+	ch7xxx_write(dev_priv, CH7xxx_PM, CH7xxx_PM_FPD);
 }
 
 static void
@@ -267,34 +227,28 @@ static void
 ch7xxx_save(I2CDevPtr d)
 {
     struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
-    int ret;
-    int i;
 
-    ch7xxx_read(dev_priv, CH7xxx_PM, &dev_priv->save_PM);
     ch7xxx_read(dev_priv, CH7xxx_TCTL, &dev_priv->save_TCTL);
     ch7xxx_read(dev_priv, CH7xxx_TPCP, &dev_priv->save_TPCP);
     ch7xxx_read(dev_priv, CH7xxx_TPD, &dev_priv->save_TPD);
     ch7xxx_read(dev_priv, CH7xxx_TPVT, &dev_priv->save_TPVT);
-    ch7xxx_read(dev_priv, CH7xxx_TPF, &dev_priv->save_TPF);
-
-    return;
+    ch7xxx_read(dev_priv, CH7xxx_TLPF, &dev_priv->save_TLPF);
+    ch7xxx_read(dev_priv, CH7xxx_PM, &dev_priv->save_PM);
+    ch7xxx_read(dev_priv, CH7xxx_IDF, &dev_priv->save_IDF);
 }
 
 static void
 ch7xxx_restore(I2CDevPtr d)
 {
     struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
-    int ret;
-    int i;
 
     ch7xxx_write(dev_priv, CH7xxx_TCTL, dev_priv->save_TCTL);
     ch7xxx_write(dev_priv, CH7xxx_TPCP, dev_priv->save_TPCP);
     ch7xxx_write(dev_priv, CH7xxx_TPD, dev_priv->save_TPD);
     ch7xxx_write(dev_priv, CH7xxx_TPVT, dev_priv->save_TPVT);
-    ch7xxx_write(dev_priv, CH7xxx_TPF, dev_priv->save_TPF);
+    ch7xxx_write(dev_priv, CH7xxx_TLPF, dev_priv->save_TLPF);
+    ch7xxx_write(dev_priv, CH7xxx_IDF, dev_priv->save_IDF);
     ch7xxx_write(dev_priv, CH7xxx_PM, dev_priv->save_PM);
-
-    return;
 }
 
 I830I2CVidOutputRec CH7xxxVidOutput = {
