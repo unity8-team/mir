@@ -39,18 +39,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define CH7xxx_NUM_REGS 0x4c
 
-typedef struct _CH7xxxSaveRec {
-    CARD8 regs[CH7xxx_NUM_REGS];
-} CH7xxxSaveRec;
-
-typedef struct {
-    I2CDevRec d;
-    CH7xxxSaveRec SavedReg;
-    CH7xxxSaveRec ModeReg;
-} CH7xxxRec, *CH7xxxPtr;
-
-#define CH7PTR(d) ((CH7xxxPtr)(d->DriverPrivate.ptr))
-
 #define CH7xxx_CM 0x1C
 #define CH7xxx_CM_XCM (1<<0)
 #define CH7xxx_CM_MCP (1<<2)
