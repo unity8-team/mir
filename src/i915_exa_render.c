@@ -142,7 +142,9 @@ static CARD32 I915GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
      * the source blend factor is 0, and the source blend value is the mask
      * channels multiplied by the source picture's alpha.
      */
-    if (pMask && pMask->componentAlpha && I915BlendOp[op].src_alpha) {
+    if (pMask && pMask->componentAlpha && PICT_FORMAT_RGB(pMask->format) &&
+	I915BlendOp[op].src_alpha)
+    {
         if (dblend == BLENDFACT_SRC_ALPHA) {
 	    dblend = BLENDFACT_SRC_COLR;
         } else if (dblend == BLENDFACT_INV_SRC_ALPHA) {
@@ -228,7 +230,9 @@ I915EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
     /* Check for unsupported compositing operations. */
     if (op >= sizeof(I915BlendOp) / sizeof(I915BlendOp[0]))
         I830FALLBACK("Unsupported Composite op 0x%x\n", op);
-    if (pMaskPicture != NULL && pMaskPicture->componentAlpha) {
+    if (pMaskPicture != NULL && pMaskPicture->componentAlpha &&
+	PICT_FORMAT_RGB(pMaskPicture->format))
+    {
         /* Check if it's component alpha that relies on a source alpha and on
          * the source value.  We can only get one of those into the single
          * source value that we get to blend with.
@@ -463,7 +467,7 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	if (PICT_FORMAT_A(pMaskPicture->format) == 0)
 	    i915_fs_mov_masked(FS_R1, MASK_W, i915_fs_operand_one());
 
-	/* If component alpha is set in the mask and the blend operation
+	/* If component alpha is active in the mask and the blend operation
 	 * uses the source alpha, then we know we don't need the source
 	 * value (otherwise we would have hit a fallback earlier), so we
 	 * provide the source alpha (src.A * mask.X) as output color.
@@ -472,7 +476,9 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	 * is unused..  Otherwise, we provide the non-CA source value
 	 * (src.X * mask.A).
 	 */
-	if (pMaskPicture->componentAlpha) {
+	if (pMaskPicture->componentAlpha &&
+	    PICT_FORMAT_RGB(pMaskPicture->format))
+	{
 	    if (I915BlendOp[op].src_alpha) {
 		i915_fs_mul(FS_OC, i915_fs_operand(FS_R0, W, W, W, W),
 			    i915_fs_operand_reg(FS_R1));
