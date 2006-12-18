@@ -49,6 +49,8 @@ struct ch7xxx_priv {
     I2CDevRec d;
     struct ch7xxx_reg_state SavedReg;
     struct ch7xxx_reg_state ModeReg;
+    CARD8 save_TCTL, save_TPCP, save_TPD, save_TPVT;
+    CARD8 save_TPF, save_TCT, save_PM;
 };
 
 static void ch7xxx_save(I2CDevPtr d);
@@ -270,13 +272,29 @@ ch7xxx_save(I2CDevPtr d)
     int ret;
     int i;
 
-    for (i = 0; i < CH7xxx_NUM_REGS; i++) {
-	ret = ch7xxx_read(dev_priv, i, &dev_priv->SavedReg.regs[i]);
-	if (ret == FALSE)
-	    break;
-    }
+    ch7xxx_read(dev_priv, CH7xxx_PM, &dev_priv->save_PM);
+    ch7xxx_read(dev_priv, CH7xxx_TCTL, &dev_priv->save_TCTL);
+    ch7xxx_read(dev_priv, CH7xxx_TPCP, &dev_priv->save_TPCP);
+    ch7xxx_read(dev_priv, CH7xxx_TPD, &dev_priv->save_TPD);
+    ch7xxx_read(dev_priv, CH7xxx_TPVT, &dev_priv->save_TPVT);
+    ch7xxx_read(dev_priv, CH7xxx_TPF, &dev_priv->save_TPF);
 
-    memcpy(dev_priv->ModeReg.regs, dev_priv->SavedReg.regs, CH7xxx_NUM_REGS);
+    return;
+}
+
+static void
+ch7xxx_restore(I2CDevPtr d)
+{
+    struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
+    int ret;
+    int i;
+
+    ch7xxx_write(dev_priv, CH7xxx_TCTL, dev_priv->save_TCTL);
+    ch7xxx_write(dev_priv, CH7xxx_TPCP, dev_priv->save_TPCP);
+    ch7xxx_write(dev_priv, CH7xxx_TPD, dev_priv->save_TPD);
+    ch7xxx_write(dev_priv, CH7xxx_TPVT, dev_priv->save_TPVT);
+    ch7xxx_write(dev_priv, CH7xxx_TPF, dev_priv->save_TPF);
+    ch7xxx_write(dev_priv, CH7xxx_PM, dev_priv->save_PM);
 
     return;
 }
@@ -289,5 +307,5 @@ I830I2CVidOutputRec CH7xxxVidOutput = {
     ch7xxx_power,
     ch7xxx_dump_regs,
     ch7xxx_save,
-    NULL,
+    ch7xxx_restore,
 };
