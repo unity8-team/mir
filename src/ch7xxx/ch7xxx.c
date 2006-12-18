@@ -25,6 +25,11 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <string.h>
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -32,6 +37,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "compiler.h"
 #include "miscstruct.h"
 #include "xf86i2c.h"
+#include "i830_xf86Crtc.h"
 #define DPMS_SERVER
 #include <X11/extensions/dpms.h>
 
@@ -173,6 +179,12 @@ out:
     return NULL;
 }
 
+static xf86OutputStatus
+ch7xxx_detect(I2CDevPtr d)
+{
+    return XF86OutputStatusUnknown;
+}
+
 static ModeStatus
 ch7xxx_mode_valid(I2CDevPtr d, DisplayModePtr mode)
 {
@@ -275,6 +287,7 @@ ch7xxx_restore(I2CDevPtr d)
 
 I830I2CVidOutputRec CH7xxxVidOutput = {
     .init = ch7xxx_init,
+    .detect = ch7xxx_detect,
     .mode_valid = ch7xxx_mode_valid,
     .mode_set = ch7xxx_mode_set,
     .dpms = ch7xxx_dpms,

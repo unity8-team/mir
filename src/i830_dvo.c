@@ -177,7 +177,10 @@ i830_dvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 static xf86OutputStatus
 i830_dvo_detect(xf86OutputPtr output)
 {
-    return XF86OutputStatusUnknown;
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    void *dev_priv = intel_output->i2c_drv->dev_priv;
+
+    return intel_output->i2c_drv->vid_rec->detect(dev_priv);
 }
 
 static Bool

@@ -4,6 +4,7 @@
 
 typedef struct _I830I2CVidOutputRec {
     void *(*init)(I2CBusPtr b, I2CSlaveAddr addr);
+    xf86OutputStatus (*detect)(I2CDevPtr d);
     ModeStatus (*mode_valid)(I2CDevPtr d, DisplayModePtr mode);
     void (*mode_set)(I2CDevPtr d, DisplayModePtr mode);
     void (*dpms)(I2CDevPtr d, int mode);

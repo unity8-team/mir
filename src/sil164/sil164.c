@@ -26,12 +26,18 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"
 #include "compiler.h"
 #include "miscstruct.h"
 #include "xf86i2c.h"
+#include "i830_xf86Crtc.h"
 #define DPMS_SERVER
 #include <X11/extensions/dpms.h>
 
@@ -115,6 +121,20 @@ sil164_init(I2CBusPtr b, I2CSlaveAddr addr)
 out:
     xfree(sil);
     return NULL;
+}
+
+static xf86OutputStatus
+sil164_detect(I2CDevPtr d)
+{
+    SIL164Ptr sil = SILPTR(d);
+    CARD8 reg9;
+
+    sil164ReadByte(sil, SIL164_REG9, &reg9);
+
+    if (reg9 & SIL164_9_HTPLG)
+	return XF86OutputStatusConnected;
+    else
+	return XF86OutputStatusDisconnected;
 }
 
 static ModeStatus
@@ -215,6 +235,7 @@ sil164_restore(I2CDevPtr d)
 
 I830I2CVidOutputRec SIL164VidOutput = {
     .init = sil164_init,
+    .detect = sil164_detect,
     .mode_valid = sil164_mode_valid,
     .mode_set = sil164_mode_set,
     .dpms = sil164_dpms,
