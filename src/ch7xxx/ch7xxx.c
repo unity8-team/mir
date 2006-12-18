@@ -157,6 +157,9 @@ ch7xxx_init(I2CDevPtr d)
 static ModeStatus
 ch7xxx_mode_valid(I2CDevPtr d, DisplayModePtr mode)
 {
+    if (mode->Clock > 165000)
+	return MODE_CLOCK_HIGH;
+
     return MODE_OK;
 }
 
