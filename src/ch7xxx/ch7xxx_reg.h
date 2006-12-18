@@ -29,7 +29,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define CH7xxx_REG_VID 0x4a
 #define CH7xxx_REG_DID 0x4b
 
-#define CH7011_VID 0x83
+#define CH7011_VID 0x83 /* 7010 as well */
 #define CH7009A_VID 0x84
 #define CH7009B_VID 0x85
 #define CH7301_VID 0x95

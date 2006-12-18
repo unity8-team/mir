@@ -93,9 +93,8 @@ ch7xxx_probe(I2CBusPtr b, I2CSlaveAddr addr)
 {
     /* this will detect the CH7xxx chip on the specified i2c bus */
     struct ch7xxx_priv *dev_priv;
+    CARD8 vendor, device;
     unsigned char ch;
-
-    xf86DrvMsg(b->scrnIndex, X_INFO, "detecting ch7xxx\n");
 
     dev_priv = xcalloc(1, sizeof(struct ch7xxx_priv));
     if (dev_priv == NULL)
@@ -110,29 +109,31 @@ ch7xxx_probe(I2CBusPtr b, I2CSlaveAddr addr)
     dev_priv->d.ByteTimeout = b->ByteTimeout;
     dev_priv->d.DriverPrivate.ptr = dev_priv;
 
-    if (!ch7xxx_read(dev_priv, CH7xxx_REG_VID, &ch))
+    if (!ch7xxx_read(dev_priv, CH7xxx_REG_VID, &vendor))
 	goto out;
 
-    ErrorF("VID is %02X", ch);
-    if (ch!=(CH7xxx_VID & 0xFF)) {
-	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_ERROR,
-		   "ch7xxx not detected got %d: from %s Slave %d.\n",
-		   ch, dev_priv->d.pI2CBus->BusName, dev_priv->d.SlaveAddr);
-	goto out;
-    }
-
-
-    if (!ch7xxx_read(dev_priv, CH7xxx_REG_DID, &ch))
-	goto out;
-
-    ErrorF("DID is %02X", ch);
-    if (ch!=(CH7xxx_DID & 0xFF)) {
-	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_ERROR,
-		   "ch7xxx not detected got %d: from %s Slave %d.\n",
-		   ch, dev_priv->d.pI2CBus->BusName, dev_priv->d.SlaveAddr);
+    if (vendor != CH7xxx_VID) {
+	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_INFO,
+		   "ch7xxx not detected; got 0x%02x from %s slave %d.\n",
+		   vendor, dev_priv->d.pI2CBus->BusName,
+		   dev_priv->d.SlaveAddr);
 	goto out;
     }
 
+
+    if (!ch7xxx_read(dev_priv, CH7xxx_REG_DID, &device))
+	goto out;
+
+    if (device != CH7xxx_DID) {
+	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_INFO,
+		   "ch7xxx not detected; got 0x%02x from %s slave %d.\n",
+		   device, dev_priv->d.pI2CBus->BusName,
+		   dev_priv->d.SlaveAddr);
+	goto out;
+    }
+	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_INFO,
+		   "Detected CH7xxx chipset, vendor/device ID 0x%02x/0x%02x\n",
+		   vendor, device);
 
     if (!xf86I2CDevInit(&dev_priv->d)) {
 	goto out;
@@ -234,9 +235,6 @@ ch7xxx_power(I2CDevPtr d, Bool On)
     ret = ch7xxx_read(dev_priv, CH7xxx_PM, &ch);
     if (ret == FALSE)
 	return;
-
-    xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_ERROR,
-	       "ch7xxx pm is %02X\n", ch);
 
 #if 0
     ret = ch7xxx_read(dev_priv, CH7xxx_REG8, &ch);
