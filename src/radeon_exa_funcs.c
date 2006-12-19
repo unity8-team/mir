@@ -517,9 +517,6 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     info->exa->pixmapOffsetAlign = RADEON_BUFFER_ALIGN + 1;
     info->exa->pixmapPitchAlign = 64;
 
-    info->exa->maxX = 2047;
-    info->exa->maxY = 2047;
-
 #ifdef RENDER
     if (info->RenderAccel) {
 	if (info->ChipFamily >= CHIP_FAMILY_R300) {
@@ -547,6 +544,9 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 	}
     }
 #endif
+
+    info->exa->maxX = info->exa->Composite ? 2048 : 8192;
+    info->exa->maxY = info->exa->Composite ? 2048 : 8192;
 
     RADEONEngineInit(pScrn);
 
