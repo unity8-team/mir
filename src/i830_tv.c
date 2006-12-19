@@ -171,13 +171,15 @@ i830_tv_dpms(xf86OutputPtr output, int mode)
 
     switch(mode) {
     case DPMSModeOn:
-	OUTREG(TV_CTL, INREG(TV_CTL) | TV_ENC_ENABLE);
-	break;
+            /* Wait for a Vblank when reenable TV encoder */
+	    i830WaitForVblank(pScrn);
+	    OUTREG(TV_CTL, INREG(TV_CTL) | TV_ENC_ENABLE);
+	    break;
     case DPMSModeStandby:
     case DPMSModeSuspend:
     case DPMSModeOff:
-	OUTREG(TV_CTL, INREG(TV_CTL) & ~TV_ENC_ENABLE);
-	break;
+	    /*OUTREG(TV_CTL, INREG(TV_CTL) & ~TV_ENC_ENABLE);*/
+	    break;
     }
 }
 
@@ -398,6 +400,7 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
      * mode.  For now, just set the first one in the list, with
      * NTSC format.
      */
+    OUTREG(TV_CTL, INREG(TV_CTL) & ~TV_ENC_ENABLE);
     tv_mode = &tv_modes[0];
     sc_mode = &tv_sc_modes[TV_SC_NTSC_MJ];
 
@@ -480,8 +483,8 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	sc_mode->dda3_inc << TV_SCDDA3_INC_SHIFT;
 
     /* Enable two fixes for the chips that need them. */
-    if (pI830->PciInfo->chipType < PCI_CHIP_I945_G)
-	tv_ctl |= TV_ENC_C0_FIX | TV_ENC_SDP_FIX;
+    if (pI830->PciInfo->chipType < PCI_CHIP_I945_G) 
+	    tv_ctl |= TV_ENC_C0_FIX | TV_ENC_SDP_FIX;
 
     tv_filter_ctl = TV_AUTO_SCALE;
     if (mode->HDisplay > 1024)
