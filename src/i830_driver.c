@@ -3173,6 +3173,8 @@ I830EnterVT(int scrnIndex, int flags)
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
+   i830DisableUnusedFunctions(pScrn);
+
    for (i = 0; i < xf86_config->num_crtc; i++)
    {
       xf86CrtcPtr	crtc = xf86_config->crtc[i];
@@ -3187,8 +3189,6 @@ I830EnterVT(int scrnIndex, int flags)
       
       i830PipeSetBase(crtc, crtc->x, crtc->y);
    }
-
-   i830DisableUnusedFunctions(pScrn);
 
    i830DumpRegs (pScrn);
    i830DescribeOutputConfiguration(pScrn);
