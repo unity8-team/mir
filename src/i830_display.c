@@ -962,7 +962,6 @@ void
 i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    I830Ptr pI830 = I830PTR(pScrn);
     int o, pipe;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling unused functions\n");
@@ -970,51 +969,24 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
     for (o = 0; o < xf86_config->num_output; o++) 
     {
 	xf86OutputPtr  output = xf86_config->output[o];
-	if (!output->crtc)
+	if (!output->crtc) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling output %s\n",
+		       output->name);
 	    (*output->funcs->dpms)(output, DPMSModeOff);
+	}
     }
 
-    /* Now, any unused plane, pipe, and DPLL (FIXME: except for DVO, i915
-     * internal TV) should have no outputs trying to pull data out of it, so
-     * we're ready to turn those off.
-     */
     for (pipe = 0; pipe < xf86_config->num_crtc; pipe++) 
     {
 	xf86CrtcPtr crtc = xf86_config->crtc[pipe];
 	I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
 	int		    pipe = intel_crtc->pipe;
-	int	    dspcntr_reg = pipe == 0 ? DSPACNTR : DSPBCNTR;
-	int	    pipeconf_reg = pipe == 0 ? PIPEACONF : PIPEBCONF;
-	int	    dpll_reg = pipe == 0 ? DPLL_A : DPLL_B;
-	CARD32	    dspcntr, pipeconf, dpll;
 	char	    *pipe_name = pipe == 0 ? "A" : "B";
 
-	if (crtc->enabled)
-	    continue;
-	
-	dspcntr = INREG(dspcntr_reg);
-	if (dspcntr & DISPLAY_PLANE_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling plane %s\n",
+	if (!crtc->enabled) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling CRTC %s\n",
 		       pipe_name);
-	    
-	    OUTREG(dspcntr_reg, dspcntr & ~DISPLAY_PLANE_ENABLE);
-
-	    /* Wait for vblank for the disable to take effect */
-	    i830WaitForVblank(pScrn);
-	}
-
-	pipeconf = INREG(pipeconf_reg);
-	if (pipeconf & PIPEACONF_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling pipe %s\n",
-		       pipe_name);
-	   OUTREG(pipeconf_reg, pipeconf & ~PIPEACONF_ENABLE);
-	}
-
-	dpll = INREG(dpll_reg);
-	if (dpll & DPLL_VCO_ENABLE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling DPLL %s\n",
-		       pipe_name);
-	    OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
+	    crtc->funcs->dpms(crtc, DPMSModeOff);
 	}
 
 	memset(&crtc->curMode, 0, sizeof(crtc->curMode));
