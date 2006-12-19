@@ -272,31 +272,21 @@ i830I2CGetBits(I2CBusPtr b, int *clock, int *data)
 {
     ScrnInfoPtr pScrn = xf86Screens[b->scrnIndex];
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 val, tristate = 0;
+    CARD32 val;
 
     val = INREG(b->DriverPrivate.uval);
 
-    /* If we've released either of the lines from holding low, tristate them
-     * so that we can successfully read.  Some hardware fails to read low
-     * values driven by slaves when our master is not tri-stated, while other
-     * chips succeed.
+    /*
+     * to read valid data, we must have written a 1 to
+     * the associated bit. Writing a 1 is done by
+     * tri-stating the bus in PutBits, so we needn't make
+     * sure that is true here
      */
-    if ((val & GPIO_DATA_DIR_OUT) && (val & GPIO_DATA_VAL_OUT))
-	tristate |= GPIO_DATA_DIR_IN | GPIO_DATA_DIR_MASK;
-    if ((val & GPIO_CLOCK_DIR_OUT) && (val & GPIO_CLOCK_VAL_OUT))
-	tristate |= GPIO_CLOCK_DIR_IN | GPIO_CLOCK_DIR_MASK;
-
-    if (tristate) {
-	OUTREG(b->DriverPrivate.uval, tristate);
-
-	val = INREG(b->DriverPrivate.uval);
-    }
-
     *data = (val & GPIO_DATA_VAL_IN) != 0;
     *clock = (val & GPIO_CLOCK_VAL_IN) != 0;
 
 #if I2C_DEBUG
-    ErrorF("Getting I2C:                   %c %c\n",
+    ErrorF("Getting %s:                   %c %c\n", b->BusName,
 	   *clock ? '^' : 'v',
 	   *data ? '^' : 'v');
 #endif
@@ -306,6 +296,7 @@ static void
 i830I2CPutBits(I2CBusPtr b, int clock, int data)
 {
     CARD32 reserved = 0;
+    CARD32 data_bits, clock_bits;
 
 #if I2C_DEBUG
     int cur_clock, cur_data;
@@ -318,11 +309,11 @@ i830I2CPutBits(I2CBusPtr b, int clock, int data)
     i830I2CGetBits(b, &cur_clock, &cur_data);
 
     if (first) {
-	ErrorF("I2C Debug:        C D      C D\n");
+	ErrorF("%s Debug:        C D      C D\n", b->BusName);
 	first = FALSE;
     }
 
-    ErrorF("Setting I2C 0x%08x to: %c %c\n",
+    ErrorF("Setting %s 0x%08x to: %c %c\n", b->BusName,
 	   (int)b->DriverPrivate.uval,
 	   clock ? '^' : 'v',
 	   data ? '^' : 'v');
@@ -334,17 +325,19 @@ i830I2CPutBits(I2CBusPtr b, int clock, int data)
 	    (GPIO_DATA_PULLUP_DISABLE | GPIO_CLOCK_PULLUP_DISABLE);
     }
 
-    OUTREG(b->DriverPrivate.uval,
-	   reserved |
-	   (data ? GPIO_DATA_VAL_OUT : 0) |
-	   (clock ? GPIO_CLOCK_VAL_OUT : 0) |
-	   GPIO_CLOCK_DIR_OUT |
-	   GPIO_DATA_DIR_OUT |
-	   GPIO_CLOCK_DIR_MASK |
-	   GPIO_CLOCK_VAL_MASK |
-	   GPIO_DATA_DIR_MASK |
-	   GPIO_DATA_VAL_MASK);
+    /* data or clock == 1 means to tristate the bus. otherwise, drive it low */
+    if (data)
+	data_bits = GPIO_DATA_DIR_IN|GPIO_DATA_DIR_MASK;
+    else
+	data_bits = GPIO_DATA_DIR_OUT|GPIO_DATA_DIR_MASK|GPIO_DATA_VAL_MASK;
+    if (clock)
+	clock_bits = GPIO_CLOCK_DIR_IN|GPIO_CLOCK_DIR_MASK;
+    else
+	clock_bits = GPIO_CLOCK_DIR_OUT|GPIO_CLOCK_DIR_MASK|GPIO_CLOCK_VAL_MASK;
+    
+    OUTREG(b->DriverPrivate.uval, reserved | data_bits | clock_bits);
 }
+
 #endif
 
 /* the i830 has a number of I2C Buses */
