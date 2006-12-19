@@ -60,7 +60,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 DrawablePtr pDraw)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 format, ms3, s2;
+   CARD32 format, ms3, s2, s5;
    BoxPtr pbox;
    int nbox, dxo, dyo;
    Bool planar;
@@ -103,7 +103,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    /* draw rect -- just clipping */
    OUT_RING(_3DSTATE_DRAW_RECT_CMD);
-   OUT_RING(0x00000000);	/* flags */
+   OUT_RING(DRAW_DITHER_OFS_X(x1 & 3)| DRAW_DITHER_OFS_Y(y1 & 3)); /* flags */
    OUT_RING(0x00000000);	/* ymin, xmin */
    OUT_RING((pScrn->virtualX - 1) |
 	    (pScrn->virtualY - 1) << 16); /* ymax, xmax */
@@ -131,7 +131,10 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_RING(s2);
    OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
 	    S4_CULLMODE_NONE | S4_VFMT_XY);
-   OUT_RING(0x00000000); /* S5 - enable bits */
+   s5 = 0x0;
+   if (pI830->cpp == 2)
+      s5 |= S5_COLOR_DITHER_ENABLE;
+   OUT_RING(s5); /* S5 - enable bits */
    OUT_RING((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
 	    (2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
 	    (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) | S6_COLOR_WRITE_ENABLE |
