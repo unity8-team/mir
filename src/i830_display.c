@@ -987,9 +987,9 @@ i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling CRTC %s\n",
 		       pipe_name);
 	    crtc->funcs->dpms(crtc, DPMSModeOff);
-	}
 
-	memset(&crtc->curMode, 0, sizeof(crtc->curMode));
+	    memset(&crtc->curMode, 0, sizeof(crtc->curMode));
+	}
     }
 }
 
