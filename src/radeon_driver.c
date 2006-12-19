@@ -2552,44 +2552,12 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	info->CPMode = RADEON_DEFAULT_CP_BM_MODE;
     }
 
-    info->agpMode       = RADEON_DEFAULT_AGP_MODE;
     info->gartSize      = RADEON_DEFAULT_GART_SIZE;
     info->ringSize      = RADEON_DEFAULT_RING_SIZE;
     info->bufSize       = RADEON_DEFAULT_BUFFER_SIZE;
     info->gartTexSize   = RADEON_DEFAULT_GART_TEX_SIZE;
-    info->agpFastWrite  = RADEON_DEFAULT_AGP_FAST_WRITE;
 
     info->CPusecTimeout = RADEON_DEFAULT_CP_TIMEOUT;
-
-    if (info->cardType==CARD_AGP) {
-	if (xf86GetOptValInteger(info->Options,
-				 OPTION_AGP_MODE, &(info->agpMode))) {
-	    if (info->agpMode < 1 || info->agpMode > RADEON_AGP_MAX_MODE) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Illegal AGP Mode: %dx, set to default %dx mode\n",
-			   info->agpMode, RADEON_DEFAULT_AGP_MODE);
-		info->agpMode = RADEON_DEFAULT_AGP_MODE;
-	    }
-
-	    /* AGP_MAX_MODE is changed to allow v3 8x mode.
-	     * At this time we don't know if the AGP bridge supports
-	     * 8x mode. This will later be verified on both 
-	     * AGP master and target sides.
-	     */
-	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-		       "AGP %dx mode is configured\n", info->agpMode);
-	}
-
-	if ((info->agpFastWrite = xf86ReturnOptValBool(info->Options,
-						       OPTION_AGP_FW,
-						       FALSE))) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-		       "Enabling AGP Fast Write\n");
-	} else {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "AGP Fast Write disabled by default\n");
-	}
-    }
 
     if ((xf86GetOptValInteger(info->Options,
 			     OPTION_GART_SIZE, (int *)&(info->gartSize))) ||

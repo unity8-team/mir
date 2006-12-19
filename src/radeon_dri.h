@@ -41,11 +41,6 @@
 /* DRI Driver defaults */
 #define RADEON_DEFAULT_CP_PIO_MODE    RADEON_CSQ_PRIPIO_INDPIO
 #define RADEON_DEFAULT_CP_BM_MODE     RADEON_CSQ_PRIBM_INDBM
-/* Default to AGP 4x mode for IGP chips, there are some problems with 1x and 2x
- * modes on AGP master side
- */
-#define RADEON_DEFAULT_AGP_MODE       (info->IsIGP ? 4 : 1)
-#define RADEON_DEFAULT_AGP_FAST_WRITE 0
 #define RADEON_DEFAULT_GART_SIZE      8 /* MB (must be 2^n and > 4MB) */
 #define RADEON_DEFAULT_RING_SIZE      1 /* MB (must be page aligned) */
 #define RADEON_DEFAULT_BUFFER_SIZE    2 /* MB (must be page aligned) */
@@ -54,8 +49,6 @@
 #define RADEON_DEFAULT_CP_TIMEOUT     10000  /* usecs */
 
 #define RADEON_PCIGART_TABLE_SIZE     32768
-
-#define RADEON_AGP_MAX_MODE           8
 
 #define RADEON_CARD_TYPE_RADEON       1
 
