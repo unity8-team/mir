@@ -1841,8 +1841,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 #endif
       pI830->disableTiling = TRUE; /* no DRI - so disableTiling */
 
-   if (pScrn->displayWidth * pI830->cpp > 8192) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support frame buffer stride > 8K >  DRI.\n");
+   if (!IS_I965G(pI830) && pScrn->displayWidth * pI830->cpp > 8192) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		 "Cannot support DRI with frame buffer stride > 8K.\n");
       pI830->disableTiling = TRUE;
       pI830->directRenderingDisabled = TRUE;
    }
@@ -3178,6 +3179,8 @@ I830EnterVT(int scrnIndex, int flags)
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
+   i830DisableUnusedFunctions(pScrn);
+
    for (i = 0; i < xf86_config->num_crtc; i++)
    {
       xf86CrtcPtr	crtc = xf86_config->crtc[i];
@@ -3192,8 +3195,6 @@ I830EnterVT(int scrnIndex, int flags)
       
       i830PipeSetBase(crtc, crtc->x, crtc->y);
    }
-
-   i830DisableUnusedFunctions(pScrn);
 
    i830DumpRegs (pScrn);
    i830DescribeOutputConfiguration(pScrn);

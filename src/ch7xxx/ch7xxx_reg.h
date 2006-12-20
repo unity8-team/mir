@@ -29,7 +29,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define CH7xxx_REG_VID 0x4a
 #define CH7xxx_REG_DID 0x4b
 
-#define CH7011_VID 0x83
+#define CH7011_VID 0x83 /* 7010 as well */
 #define CH7009A_VID 0x84
 #define CH7009B_VID 0x85
 #define CH7301_VID 0x95
@@ -38,18 +38,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define CH7xxx_DID 0x17
 
 #define CH7xxx_NUM_REGS 0x4c
-
-typedef struct _CH7xxxSaveRec {
-    CARD8 regs[CH7xxx_NUM_REGS];
-} CH7xxxSaveRec;
-
-typedef struct {
-    I2CDevRec d;
-    CH7xxxSaveRec SavedReg;
-    CH7xxxSaveRec ModeReg;
-} CH7xxxRec, *CH7xxxPtr;
-
-#define CH7PTR(d) ((CH7xxxPtr)(d->DriverPrivate.ptr))
 
 #define CH7xxx_CM 0x1C
 #define CH7xxx_CM_XCM (1<<0)
@@ -65,11 +53,12 @@ typedef struct {
 #define CH7301_DAC_CNTL 0x21
 #define CH7301_HOTPLUG 0x23
 #define CH7xxx_TCTL 0x31
+#define CH7xxx_TVCO 0x32
 #define CH7xxx_TPCP 0x33
 #define CH7xxx_TPD 0x34
 #define CH7xxx_TPVT 0x35
-#define CH7xxx_TPF 0x36
-#define CH7301_TCT 0x37
+#define CH7xxx_TLPF 0x36
+#define CH7xxx_TCT 0x37
 #define CH7301_TEST_PATTERN 0x48
 #define CH7xxx_PM 0x49
 

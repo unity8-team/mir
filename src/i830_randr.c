@@ -835,9 +835,10 @@ xf86RandR12CreateScreenResources12 (ScreenPtr pScreen)
     XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
     int			c;
     int			width, height;
+    int			mmWidth, mmHeight;
 
     /*
-     * Compute width of screen
+     * Compute size of screen
      */
     width = 0; height = 0;
     for (c = 0; c < config->num_crtc; c++)
@@ -854,14 +855,19 @@ xf86RandR12CreateScreenResources12 (ScreenPtr pScreen)
     
     if (width && height)
     {
-	int mmWidth, mmHeight;
-
-	mmWidth = pScreen->mmWidth;
-	mmHeight = pScreen->mmHeight;
-	if (width != pScreen->width)
-	    mmWidth = mmWidth * width / pScreen->width;
-	if (height != pScreen->height)
-	    mmHeight = mmHeight * height / pScreen->height;
+	/*
+	 * Compute physical size of screen
+	 */
+	if (monitorResolution) 
+	{
+	    mmWidth = width * 25.4 / monitorResolution;
+	    mmHeight = height * 25.4 / monitorResolution;
+	}
+	else
+	{
+	    mmWidth = pScreen->mmWidth;
+	    mmHeight = pScreen->mmHeight;
+	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Setting screen physical size to %d x %d\n",
 		   mmWidth, mmHeight);
