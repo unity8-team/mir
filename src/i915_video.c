@@ -103,7 +103,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    /* draw rect -- just clipping */
    OUT_RING(_3DSTATE_DRAW_RECT_CMD);
-   OUT_RING(DRAW_DITHER_OFS_X(x1 & 3)| DRAW_DITHER_OFS_Y(y1 & 3)); /* flags */
+   OUT_RING(DRAW_DITHER_OFS_X(pDraw->x & 3)| DRAW_DITHER_OFS_Y(pDraw->y & 3)); /* flags */
    OUT_RING(0x00000000);	/* ymin, xmin */
    OUT_RING((pScrn->virtualX - 1) |
 	    (pScrn->virtualY - 1) << 16); /* ymax, xmax */
