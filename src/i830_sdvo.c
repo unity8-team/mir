@@ -981,7 +981,7 @@ i830_sdvo_dump(ScrnInfoPtr pScrn)
 	xf86OutputPtr	output = xf86_config->output[i];
 	I830OutputPrivatePtr	intel_output = output->driver_private;
 	
-	if (intel_output->type == I830_OUTPUT_SDVO)
+	if (intel_output->type == I830_OUTPUT_SDVO && (intel_output->pI2CBus))
 	    i830_sdvo_dump_device(output);
     }
 }
