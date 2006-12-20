@@ -3600,6 +3600,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
       
       xf86ProbeOutputModes (pScrn);
       xf86SetScrnInfoModes (pScrn);
+      I830DGAReInit (pScrn->pScreen);
       xf86SwitchMode(pScrn->pScreen, pScrn->currentMode);
 
       /* Clear the BIOS's hotkey press flags */

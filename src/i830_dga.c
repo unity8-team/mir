@@ -83,8 +83,8 @@ DGAFunctionRec I830DGAFuncs = {
 #endif
 };
 
-Bool
-I830DGAInit(ScreenPtr pScreen)
+static DGAModePtr
+I830DGAModes (ScreenPtr pScreen, int *nump)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
@@ -92,8 +92,6 @@ I830DGAInit(ScreenPtr pScreen)
    DisplayModePtr pMode, firstMode;
    int Bpp = pScrn->bitsPerPixel >> 3;
    int num = 0;
-
-   MARKER();
 
    pMode = firstMode = pScrn->modes;
 
@@ -103,7 +101,7 @@ I830DGAInit(ScreenPtr pScreen)
 
       if (!newmodes) {
 	 xfree(modes);
-	 return FALSE;
+	 return NULL;
       }
       modes = newmodes;
 
@@ -159,7 +157,42 @@ I830DGAInit(ScreenPtr pScreen)
       if (pMode == firstMode)
 	 break;
    }
+   *nump = num;
+   return modes;
+}
 
+Bool
+I830DGAReInit(ScreenPtr pScreen)
+{
+   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
+   int num;
+   DGAModePtr  modes;
+   
+   modes = I830DGAModes (pScreen, &num);
+   if (!modes)
+      return FALSE;
+   
+   if (pI830->DGAModes)
+      xfree (pI830->DGAModes);
+   
+   pI830->numDGAModes = num;
+   pI830->DGAModes = modes;
+   return DGAReInitModes (pScreen, modes, num);
+}
+
+Bool
+I830DGAInit(ScreenPtr pScreen)
+{
+   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
+   int num;
+   DGAModePtr  modes;
+   
+   modes = I830DGAModes (pScreen, &num);
+   if (!modes)
+      return FALSE;
+   
    pI830->numDGAModes = num;
    pI830->DGAModes = modes;
 

@@ -508,6 +508,7 @@ extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 extern void I830RefreshRing(ScrnInfoPtr pScrn);
 extern void I830EmitFlush(ScrnInfoPtr pScrn);
 
+extern Bool I830DGAReInit(ScreenPtr pScreen);
 extern Bool I830DGAInit(ScreenPtr pScreen);
 
 #ifdef I830_XV
