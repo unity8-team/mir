@@ -1013,6 +1013,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 			     TRUE);
 	if (!ok)
 	    goto done;
+	crtc->desiredMode = *pMode;
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode bandwidth is %d Mpixel/s\n",
