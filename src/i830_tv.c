@@ -83,61 +83,20 @@ struct i830_tv_priv {
     CARD32 save_TV_CTL;
 };
 
-enum burst_modes {
-    TV_SC_NTSC_MJ,
-    TV_SC_PAL,
-    TV_SC_PAL_NC,
-    TV_SC_PAL_M,
-    TV_SC_NTSC_443
-};
+typedef struct {
+    int	blank, black, burst;
+} video_levels_t;
 
-const struct tv_sc_mode {
-    char *name;
-    int dda2_size, dda3_size, dda1_inc, dda2_inc, dda3_inc;
-    CARD32 sc_reset;
-    Bool pal_burst;
-} tv_sc_modes[] = {
-    [TV_SC_NTSC_MJ] = {
-	"NTSC M/J",
-	27456, 0, 135, 20800, 0,
-	TV_SC_RESET_EVERY_4,
-	FALSE
-    },
-    [TV_SC_PAL] = {
-	"PAL",
-	27648, 625, 168, 4122, 67,
-	TV_SC_RESET_EVERY_8,
-	TRUE
-    },
-    [TV_SC_PAL_NC] = {
-	"PAL Nc",
-	27648, 625, 135, 23578, 134,
-	TV_SC_RESET_EVERY_8,
-	TRUE
-    },
-    [TV_SC_PAL_M] = {
-	"PAL M",
-	27456, 0, 135, 16704, 0,
-	TV_SC_RESET_EVERY_8,
-	TRUE
-    },
-    [TV_SC_NTSC_443] = {
-	"NTSC-4.43",
-	27456, 525, 168, 4093, 310,
-	TV_SC_RESET_NEVER,
-	FALSE
-    },
-};
+typedef struct {
+    float   ry, gy, by, ay;
+    float   ru, gu, bu, au;
+    float   rv, gv, bv, av;
+} color_conversion_t;
 
-/**
- * Register programming values for TV modes.
- *
- * These values account for -1s required.
- */
-const struct tv_mode {
+typedef struct {
     char *name;
     CARD32 oversample;
-    int hsync_end, hblank_end, hblank_start, htotal;
+    int hsync_end, hblank_start, hblank_end, htotal;
     Bool progressive;
     int vsync_start_f1, vsync_start_f2, vsync_len;
     Bool veq_ena;
@@ -149,20 +108,264 @@ const struct tv_mode {
     int vburst_start_f2, vburst_end_f2;
     int vburst_start_f3, vburst_end_f3;
     int vburst_start_f4, vburst_end_f4;
-} tv_modes[] = {
+    /*
+     * subcarrier programming
+     */
+    int dda2_size, dda3_size, dda1_inc, dda2_inc, dda3_inc;
+    CARD32 sc_reset;
+    Bool pal_burst;
+    /*
+     * blank/black levels
+     */
+    video_levels_t	composite_levels, svideo_levels;
+    color_conversion_t	composite_color, svideo_color;
+} tv_mode_t;
+
+#define TV_PLL_CLOCK	107520
+
+/*
+ * Sub carrier DDA
+ *
+ *  I think this works as follows:
+ *
+ *  subcarrier freq = pixel_clock * (dda1_inc + dda2_inc / dda2_size) / 4096
+ *
+ * Presumably, when dda3 is added in, it gets to adjust the dda2_inc value
+ *
+ * So,
+ *  dda1_ideal = subcarrier/pixel * 4096
+ *  dda1_inc = floor (dda1_ideal)
+ *  dda2 = dda1_ideal - dda1_inc
+ *
+ *  then pick a ratio for dda2 that gives the closest approximation. If
+ *  you can't get close enough, you can play with dda3 as well. This
+ *  seems likely to happen when dda2 is small as the jumps would be larger
+ *
+ * To invert this,
+ *
+ *  pixel_clock = subcarrier * 4096 / (dda1_inc + dda2_inc / dda2_size)
+ *
+ * The constants below were all computed using a 107.520MHz clock
+ */
+ 
+/**
+ * Register programming values for TV modes.
+ *
+ * These values account for -1s required.
+ */
+
+const tv_mode_t tv_modes[] = {
     {
-	"480i",
-	TV_OVERSAMPLE_8X,
-	64, 124, 836, 857,
-	FALSE,
-	6, 7, 6,
-	TRUE, 0, 1, 18,
-	20, 21, 240,
-	TRUE,
-	72, 34, 9, 240, 10, 240, 9, 240, 10, 240
+	.name		= "NTSC 480i",
+	.oversample	= TV_OVERSAMPLE_8X,
+	
+	/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 3.580MHz */
+
+	.hsync_end	= 64,		    .hblank_end		= 124,
+	.hblank_start	= 836,		    .htotal		= 857,
+	
+	.progressive	= FALSE,
+	
+	.vsync_start_f1	= 6,		    .vsync_start_f2	= 7,
+	.vsync_len	= 6,
+	
+	.veq_ena	= TRUE,		    .veq_start_f1    	= 0,
+	.veq_start_f2	= 1,		    .veq_len		= 18,
+	
+	.vi_end_f1	= 20,		    .vi_end_f2		= 21,
+	.nbr_end	= 240,
+	
+	.burst_ena	= TRUE,
+	.hburst_start	= 72,		    .hburst_len		= 34,
+	.vburst_start_f1 = 9,		    .vburst_end_f1	= 240,
+	.vburst_start_f2 = 10,		    .vburst_end_f2	= 240,
+	.vburst_start_f3 = 9,		    .vburst_end_f3	= 240, 
+	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
+
+	/* desired 3.5800000 actual 3.5800000 clock 107.52 */
+	.dda1_inc	=    136,
+	.dda2_inc	=   7624,	    .dda2_size		=  20013,
+	.dda3_inc	=      0,	    .dda3_size		=      0,
+	.sc_reset	= TV_SC_RESET_EVERY_4,
+	.pal_burst	= FALSE,
+
+	.composite_levels = { .blank = 225, .black = 267, .burst = 113 },
+	.composite_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5082,
+	    .ru =-0.0749, .gu =-0.1471, .bu = 0.2220, .au = 1.0000,
+	    .rv = 0.3125, .gv =-0.2616, .bv =-0.0508, .av = 1.0000,
+	},
+
+	.svideo_levels    = { .blank = 266, .black = 316, .burst = 133 },
+	.svideo_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6006,
+	    .ru =-0.0885, .gu =-0.1738, .bu = 0.2624, .au = 1.0000,
+	    .rv = 0.3693, .gv =-0.3092, .bv =-0.0601, .av = 1.0000,
+	},
+    },
+    {
+	.name		= "NTSC-Japan 480i",
+	.oversample	= TV_OVERSAMPLE_8X,
+	
+	/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 3.580MHz */
+	.hsync_end	= 64,		    .hblank_end		= 124,
+	.hblank_start	= 836,		    .htotal		= 857,
+	
+	.progressive	= FALSE,
+	
+	.vsync_start_f1	= 6,		    .vsync_start_f2	= 7,
+	.vsync_len	= 6,
+	
+	.veq_ena	= TRUE,		    .veq_start_f1    	= 0,
+	.veq_start_f2	= 1,		    .veq_len		= 18,
+	
+	.vi_end_f1	= 20,		    .vi_end_f2		= 21,
+	.nbr_end	= 240,
+	
+	.burst_ena	= TRUE,
+	.hburst_start	= 72,		    .hburst_len		= 34,
+	.vburst_start_f1 = 9,		    .vburst_end_f1	= 240,
+	.vburst_start_f2 = 10,		    .vburst_end_f2	= 240,
+	.vburst_start_f3 = 9,		    .vburst_end_f3	= 240, 
+	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
+
+	/* desired 3.5800000 actual 3.5800000 clock 107.52 */
+	.dda1_inc	=    136,
+	.dda2_inc	=   7624,	    .dda2_size		=  20013,
+	.dda3_inc	=      0,	    .dda3_size		=      0,
+	.sc_reset	= TV_SC_RESET_EVERY_4,
+	.pal_burst	= FALSE,
+
+	.composite_levels = { .blank = 225, .black = 225, .burst = 113 },
+	.composite_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5495,
+	    .ru =-0.0810, .gu =-0.1590, .bu = 0.2400, .au = 1.0000,
+	    .rv = 0.3378, .gv =-0.2829, .bv =-0.0549, .av = 1.0000,
+	},
+
+	.svideo_levels    = { .blank = 266, .black = 266, .burst = 133 },
+	.svideo_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6494,
+	    .ru =-0.0957, .gu =-0.1879, .bu = 0.2836, .au = 1.0000,
+	    .rv = 0.3992, .gv =-0.3343, .bv =-0.0649, .av = 1.0000,
+	},
     }
+#if 0
+    {
+	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
+	.name	    = "PAL",
+	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
+	.dda1_inc	=    168,
+	.dda2_inc	=  18557,	.dda2_size	=  20625,
+	.dda3_inc	=      0,	.dda3_size	=      0,
+	.sc_reset   = TV_SC_RESET_EVERY_8,
+	.pal_burst  = TRUE
+	
+	.composite_levels = { .blank = 237, .black = 237, .burst = 118 },
+	.composite_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5379,
+	    .ru =-0.0793, .gu =-0.1557, .bu = 0.2350, .au = 1.0000,
+	    .rv = 0.3307, .gv =-0.2769, .bv =-0.0538, .av = 1.0000,
+	},
+
+	.svideo_levels    = { .blank = 280, .black = 280, .burst = 139 },
+	.svideo_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6357,
+	    .ru =-0.0937, .gu =-0.1840, .bu = 0.2777, .au = 1.0000,
+	    .rv = 0.3908, .gv =-0.3273, .bv =-0.0636, .av = 1.0000,
+	},
+    },
+    {
+	/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 3.576MHz */
+	.name	    = "PAL M",
+	/* desired 3.5756110 actual 3.5756110 clock 107.52 */
+	.dda1_inc	=    136,
+	.dda2_inc	=   5611,	.dda2_size	=  26250,
+	.dda3_inc	=      0,	.dda3_size	=      0,
+	.sc_reset   = TV_SC_RESET_EVERY_8,
+	.pal_burst  = TRUE
+	
+	.composite_levels = { .blank = 225, .black = 267, .burst = 113 },
+	.composite_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5082,
+	    .ru =-0.0749, .gu =-0.1471, .bu = 0.2220, .au = 1.0000,
+	    .rv = 0.3125, .gv =-0.2616, .bv =-0.0508, .av = 1.0000,
+	},
+
+	.svideo_levels    = { .blank = 266, .black = 316, .burst = 133 },
+	.svideo_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6006,
+	    .ru =-0.0885, .gu =-0.1738, .bu = 0.2624, .au = 1.0000,
+	    .rv = 0.3693, .gv =-0.3092, .bv =-0.0601, .av = 1.0000,
+	},
+    },
+    {
+	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 3.582MHz */
+	.name	    = "PAL Nc",
+	/* desired 3.5820560 actual 3.5820560 clock 107.52 */
+	.dda1_inc	=    136,
+	.dda2_inc	=  12056,	.dda2_size	=  26250,
+	.dda3_inc	=      0,	.dda3_size	=      0,
+	.sc_reset   = TV_SC_RESET_EVERY_8,
+	.pal_burst  = TRUE
+	
+	.composite_levels = { .blank = 225, .black = 267, .burst = 113 },
+	.composite_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5082,
+	    .ru =-0.0749, .gu =-0.1471, .bu = 0.2220, .au = 1.0000,
+	    .rv = 0.3125, .gv =-0.2616, .bv =-0.0508, .av = 1.0000,
+	},
+
+	.svideo_levels    = { .blank = 266, .black = 316, .burst = 133 },
+	.svideo_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6006,
+	    .ru =-0.0885, .gu =-0.1738, .bu = 0.2624, .au = 1.0000,
+	    .rv = 0.3693, .gv =-0.3092, .bv =-0.0601, .av = 1.0000,
+	},
+    },
+    {
+	/* 525 lines, 60 fields, 15.734KHz line, Sub-Carrier 4.43MHz */
+	.name	    = "NTSC-4.43(nonstandard)",
+	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
+	.dda1_inc	=    168,
+	.dda2_inc	=  18557,	.dda2_size	=  20625,
+	.dda3_inc	=      0,	.dda3_size	=      0,
+	.sc_reset   = TV_SC_RESET_NEVER,
+	.pal_burst  = FALSE
+
+	.composite_levels = { .blank = 225, .black = 267, .burst = 113 },
+	.composite_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5082,
+	    .ru =-0.0749, .gu =-0.1471, .bu = 0.2220, .au = 1.0000,
+	    .rv = 0.3125, .gv =-0.2616, .bv =-0.0508, .av = 1.0000,
+	},
+
+	.svideo_levels    = { .blank = 266, .black = 316, .burst = 133 },
+	.svideo_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6006,
+	    .ru =-0.0885, .gu =-0.1738, .bu = 0.2624, .au = 1.0000,
+	    .rv = 0.3693, .gv =-0.3092, .bv =-0.0601, .av = 1.0000,
+	},
+    },
+#endif
 };
 
+static const video_levels_t component_level = {
+    .blank = 279, .black = 279 
+};
+
+static const color_conversion_t sdtv_component_color = {
+    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6364,
+    .ru =-0.1687, .gu =-0.3313, .bu = 0.5000, .au = 1.0000,
+    .rv = 0.5000, .gv =-0.4187, .bv =-0.0813, .av = 1.0000,
+};
+    
+static const color_conversion_t hdtv_component_color = {
+    .ry = 0.2126, .gy = 0.7152, .by = 0.0722, .ay = 0.6364,
+    .ru =-0.1146, .gu =-0.3854, .bu = 0.5000, .au = 1.0000,
+    .rv = 0.5000, .gv =-0.4542, .bv =-0.0458, .av = 1.0000,
+};
+    
 static void
 i830_tv_dpms(xf86OutputPtr output, int mode)
 {
@@ -385,30 +588,55 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     I830OutputPrivatePtr    intel_output = output->driver_private;
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
     struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
-    enum tv_type	    type;
-    const struct tv_mode    *tv_mode;
-    const struct tv_sc_mode *sc_mode;
+    const tv_mode_t	    *tv_mode;
     CARD32		    tv_ctl, tv_filter_ctl;
     CARD32		    hctl1, hctl2, hctl3;
     CARD32		    vctl1, vctl2, vctl3, vctl4, vctl5, vctl6, vctl7;
     CARD32		    scctl1, scctl2, scctl3;
     int			    i;
+    const video_levels_t	*video_levels;
+    const color_conversion_t	*color_conversion;
+    Bool		    burst_ena;
 
     /* Need to actually choose or construct the appropriate
      * mode.  For now, just set the first one in the list, with
      * NTSC format.
      */
     tv_mode = &tv_modes[0];
-    sc_mode = &tv_sc_modes[TV_SC_NTSC_MJ];
+    
+    tv_ctl = 0;
 
-    type = dev_priv->type;
-
+    switch (dev_priv->type) {
+    default:
+    case TV_TYPE_UNKNOWN:
+    case TV_TYPE_COMPOSITE:
+	tv_ctl |= TV_ENC_OUTPUT_COMPOSITE;
+	video_levels = &tv_mode->composite_levels;
+	color_conversion = &tv_mode->composite_color;
+	burst_ena = tv_mode->burst_ena;
+	break;
+    case TV_TYPE_COMPONENT:
+	tv_ctl |= TV_ENC_OUTPUT_COMPONENT;
+	video_levels = &component_level;
+	if (tv_mode->burst_ena)
+	    color_conversion = &sdtv_component_color;
+	else
+	    color_conversion = &hdtv_component_color;
+	burst_ena = FALSE;
+	break;
+    case TV_TYPE_SVIDEO:
+	tv_ctl |= TV_ENC_OUTPUT_SVIDEO;
+	video_levels = &tv_mode->svideo_levels;
+	color_conversion = &tv_mode->svideo_color;
+	burst_ena = tv_mode->burst_ena;
+	break;
+    }
     hctl1 = (tv_mode->hsync_end << TV_HSYNC_END_SHIFT) |
 	(tv_mode->htotal << TV_HTOTAL_SHIFT);
 
     hctl2 = (tv_mode->hburst_start << 16) |
 	(tv_mode->hburst_len << TV_HBURST_LEN_SHIFT);
-    if (tv_mode->burst_ena)
+    if (burst_ena)
 	hctl2 |= TV_BURST_ENA;
 
     hctl3 = (tv_mode->hblank_start << TV_HBLANK_START_SHIFT) |
@@ -440,44 +668,32 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     vctl7 = (tv_mode->vburst_start_f4 << TV_VBURST_START_F4_SHIFT) |
 	(tv_mode->vburst_end_f4 << TV_VBURST_END_F4_SHIFT);
 
-    tv_ctl = 0;
     if (intel_crtc->pipe == 1)
 	tv_ctl |= TV_ENC_PIPEB_SELECT;
 
-    switch (type) {
-    case TV_TYPE_COMPOSITE:
-	tv_ctl |= TV_ENC_OUTPUT_COMPOSITE;
-	break;
-    case TV_TYPE_COMPONENT:
-	tv_ctl |= TV_ENC_OUTPUT_COMPONENT;
-	break;
-    case TV_TYPE_SVIDEO:
-	tv_ctl |= TV_ENC_OUTPUT_SVIDEO;
-	break;
-    default:
-    case TV_TYPE_UNKNOWN:
-	tv_ctl |= TV_ENC_OUTPUT_SVIDEO_COMPOSITE;
-	break;
-    }
     tv_ctl |= tv_mode->oversample;
     if (tv_mode->progressive)
 	tv_ctl |= TV_PROGRESSIVE;
-    if (sc_mode->pal_burst)
+    if (tv_mode->pal_burst)
 	tv_ctl |= TV_PAL_BURST;
 
-    scctl1 = TV_SC_DDA1_EN | TV_SC_DDA2_EN;
-    if (sc_mode->dda3_size != 0)
+    scctl1 = TV_SC_DDA1_EN;
+    
+    if (tv_mode->dda2_inc)
+	scctl1 |= TV_SC_DDA2_EN;
+    
+    if (tv_mode->dda3_inc)
 	scctl1 |= TV_SC_DDA3_EN;
-    scctl1 |= sc_mode->sc_reset;
-    /* XXX: set the burst level */
-    scctl1 |= 113 << TV_BURST_LEVEL_SHIFT;    /* from BIOS */
-    scctl1 |= sc_mode->dda1_inc << TV_SCDDA1_INC_SHIFT;
+    
+    scctl1 |= tv_mode->sc_reset;
+    scctl1 |= video_levels->burst << TV_BURST_LEVEL_SHIFT;
+    scctl1 |= tv_mode->dda1_inc << TV_SCDDA1_INC_SHIFT;
 
-    scctl2 = sc_mode->dda2_size << TV_SCDDA2_SIZE_SHIFT |
-	sc_mode->dda2_inc << TV_SCDDA2_INC_SHIFT;
+    scctl2 = tv_mode->dda2_size << TV_SCDDA2_SIZE_SHIFT |
+	tv_mode->dda2_inc << TV_SCDDA2_INC_SHIFT;
 
-    scctl3 = sc_mode->dda3_size << TV_SCDDA3_SIZE_SHIFT |
-	sc_mode->dda3_inc << TV_SCDDA3_INC_SHIFT;
+    scctl3 = tv_mode->dda3_size << TV_SCDDA3_SIZE_SHIFT |
+	tv_mode->dda3_inc << TV_SCDDA3_INC_SHIFT;
 
     /* Enable two fixes for the chips that need them. */
     if (pI830->PciInfo->chipType < PCI_CHIP_I945_G)
@@ -508,7 +724,8 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     OUTREG(TV_CSC_V, 0x037A033D);
     OUTREG(TV_CSC_V2, 0x06F60200);
     OUTREG(TV_CLR_KNOBS, 0x00606000);
-    OUTREG(TV_CLR_LEVEL, 0x013C010A);
+    OUTREG(TV_CLR_LEVEL, ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
+			  (video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
     OUTREG(TV_WIN_POS, 0x00360024);
     OUTREG(TV_WIN_SIZE, 0x02640198);
     OUTREG(TV_FILTER_CTL_1, 0x8000085E);
@@ -527,10 +744,10 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     OUTREG(TV_CTL, tv_ctl);
 }
 
-static const DisplayModeRec tvModes[] = {
+static const DisplayModeRec reported_modes[] = {
     {
 	.name = "NTSC 480i",
-	.Clock = 108000,
+	.Clock = TV_PLL_CLOCK,
 	
 	.HDisplay   = 1024,
 	.HSyncStart = 1048,
@@ -542,7 +759,7 @@ static const DisplayModeRec tvModes[] = {
 	.VSyncEnd   = 777,
 	.VTotal     = 806,
 
-	.type       = M_T_DEFAULT
+	.type       = M_T_DRIVER
     }
 };
 
@@ -641,7 +858,8 @@ i830_tv_detect(xf86OutputPtr output)
     {
 	if (intel_output->load_detect_temp)
 	{
-	    mode = tvModes[0];
+	    /* we only need the pixel clock set correctly here */
+	    mode = reported_modes[0];
 	    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
 	    i830PipeSetMode (crtc, &mode, FALSE);
 	}
@@ -668,43 +886,25 @@ i830_tv_detect(xf86OutputPtr output)
 static DisplayModePtr
 i830_tv_get_modes(xf86OutputPtr output)
 {
-    ScrnInfoPtr pScrn = output->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
-    DisplayModePtr new;
-    char stmp[32];
+    ScrnInfoPtr	    pScrn = output->scrn;
+    I830Ptr	    pI830 = I830PTR(pScrn);
+    DisplayModePtr  new, first = NULL, *tail = &first;;
+    int		    i;
 
     (void) pI830;
-    new             = xnfcalloc(1, sizeof (DisplayModeRec));
-    sprintf(stmp, "480i");
-    new->name       = xnfalloc(strlen(stmp) + 1);
-    strcpy(new->name, stmp);
-    
-    new->Clock      = 108000;
-    
-    /*
-    new->HDisplay   = 640;
-    new->HSyncStart = 664;
-    new->HSyncEnd   = 704;
-    new->HTotal     = 832;
-    
-    new->VDisplay   = 480;
-    new->VSyncStart = 489;
-    new->VSyncEnd   = 491;
-    new->VTotal     = 520;
-     */
-    new->HDisplay   = 1024;
-    new->HSyncStart = 1048;
-    new->HSyncEnd   = 1184;
-    new->HTotal     = 1344;
-    
-    new->VDisplay   = 768;
-    new->VSyncStart = 771;
-    new->VSyncEnd   = 777;
-    new->VTotal     = 806;
 
-    new->type       = M_T_DRIVER;
+    for (i = 0; i < sizeof (reported_modes) / sizeof (reported_modes[0]); i++)
+    {
+	new             = xnfcalloc(1, sizeof (DisplayModeRec));
 
-    return new;
+	*new = reported_modes[i];
+	new->name = xnfalloc(strlen(reported_modes[i].name) + 1);
+	strcpy(new->name, reported_modes[i].name);
+	*tail = new;
+	tail = &new->next;
+    }
+
+    return first;
 }
 
 static void
