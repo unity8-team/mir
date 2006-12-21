@@ -578,6 +578,43 @@ i830_tv_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
     return TRUE;
 }
 
+static CARD32
+i830_float_to_csc (float fin)
+{
+    CARD32  exp;
+    CARD32  mant;
+    CARD32  ret;
+    float   f = fin;
+    
+    /* somehow the color conversion knows the signs of all the values */
+    if (f < 0) f = -f;
+    
+    if (f >= 1)
+    {
+	exp = 0x7;
+	mant = 1 << 8;
+    }
+    else
+    {
+	for (exp = 0; exp < 3 && f < 0.5; exp++)
+	    f *= 2.0;
+	mant = (f * (1 << 9) + 0.5);
+	if (mant >= (1 << 9))
+	    mant = (1 << 9) - 1;
+    }
+    ret = (exp << 9) | mant;
+    return ret;
+}
+
+static CARD16
+i830_float_to_luma (float f)
+{
+    CARD16  ret;
+
+    ret = (f * (1 << 9));
+    return ret;
+}
+
 static void
 i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		 DisplayModePtr adjusted_mode)
@@ -716,18 +753,37 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     OUTREG(TV_SC_CTL_1, scctl1);
     OUTREG(TV_SC_CTL_2, scctl2);
     OUTREG(TV_SC_CTL_3, scctl3);
-    /* XXX match BIOS */
-    OUTREG(TV_CSC_Y, 0x0332012D);
-    OUTREG(TV_CSC_Y2, 0x07D30133);
-    OUTREG(TV_CSC_U, 0x076A0564);
-    OUTREG(TV_CSC_U2, 0x030D0200);
-    OUTREG(TV_CSC_V, 0x037A033D);
-    OUTREG(TV_CSC_V2, 0x06F60200);
+    
+    OUTREG(TV_CSC_Y,
+	   (i830_float_to_csc(color_conversion->ry) << 16) |
+	   (i830_float_to_csc(color_conversion->gy)));
+    OUTREG(TV_CSC_Y2,
+	    (i830_float_to_csc(color_conversion->by) << 16) |
+	    (i830_float_to_luma(color_conversion->ay)));
+	   
+    OUTREG(TV_CSC_U,
+	   (i830_float_to_csc(color_conversion->ru) << 16) |
+	   (i830_float_to_csc(color_conversion->gu)));
+
+    OUTREG(TV_CSC_U2,
+	    (i830_float_to_csc(color_conversion->bu) << 16) |
+	    (i830_float_to_luma(color_conversion->au)));
+	   
+    OUTREG(TV_CSC_V,
+	   (i830_float_to_csc(color_conversion->rv) << 16) |
+	   (i830_float_to_csc(color_conversion->gv)));
+
+    OUTREG(TV_CSC_V2,
+	    (i830_float_to_csc(color_conversion->bv) << 16) |
+	    (i830_float_to_luma(color_conversion->av)));
+	   
     OUTREG(TV_CLR_KNOBS, 0x00606000);
     OUTREG(TV_CLR_LEVEL, ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 			  (video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
+    
     OUTREG(TV_WIN_POS, 0x00360024);
     OUTREG(TV_WIN_SIZE, 0x02640198);
+    
     OUTREG(TV_FILTER_CTL_1, 0x8000085E);
     OUTREG(TV_FILTER_CTL_2, 0x00017878);
     OUTREG(TV_FILTER_CTL_3, 0x0000BC3C);
