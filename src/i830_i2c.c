@@ -365,6 +365,14 @@ I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
 #endif
     pI2CBus->DriverPrivate.uval = i2c_reg;
 
+    /* Assume all busses are used for DDCish stuff */
+    
+    pI2CBus->ByteTimeout = 2200; /* VESA DDC spec 3 p. 43 (+10 %) */
+    pI2CBus->StartTimeout = 550;
+    pI2CBus->BitTimeout = 40;
+    pI2CBus->ByteTimeout = 40;
+    pI2CBus->AcknTimeout = 40;
+
     if (!xf86I2CBusInit(pI2CBus))
 	return FALSE;
 
