@@ -299,7 +299,7 @@ i830FindBestPLL(xf86CrtcPtr crtc, int target, int refclk, intel_clock_t *best_cl
 
     for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max; clock.m1++) 
     {
-	for (clock.m2 = limit->m2.min; clock.m2 < clock.m1 && clock.m2 < limit->m2.max; clock.m2++) 
+	for (clock.m2 = limit->m2.min; clock.m2 < clock.m1 && clock.m2 <= limit->m2.max; clock.m2++) 
 	{
 	    for (clock.n = limit->n.min; clock.n <= limit->n.max; clock.n++) 
 	    {
