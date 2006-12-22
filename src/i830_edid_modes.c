@@ -41,6 +41,44 @@
 #if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,2,99,2,0)
 
 /*
+ * Quirks to work around broken EDID data from various monitors.
+ */
+
+typedef enum {
+    DDC_QUIRK_NONE = 0,
+    /*
+     * Detailed timing sync polarity values are inverted
+     */
+    DDC_QUIRK_DT_SYNC_INVERT = 1 << 0,
+} ddc_quirk_t;
+
+static Bool dt_sync_invert (int scrnIndex, xf86MonPtr DDC)
+{
+    /* Belinea 1924S1W */
+    if (memcmp (DDC->vendor.name, "MAX", 4) == 0 &&
+	DDC->vendor.prod_id == 1932)
+	return TRUE;
+    return FALSE;
+}
+
+typedef struct {
+    Bool	(*detect) (int scrnIndex, xf86MonPtr DDC);
+    ddc_quirk_t	quirk;
+    char	*description;
+} ddc_quirk_map_t;
+
+static const ddc_quirk_map_t ddc_quirks[] = {
+    { 
+	dt_sync_invert,	DDC_QUIRK_DT_SYNC_INVERT,
+	"Detailed timing data contains inverted sync polarity"
+    },
+    { 
+	NULL,		DDC_QUIRK_NONE,
+	"No known quirks"
+    },
+};
+
+/*
  * TODO:
  *  - for those with access to the VESA DMT standard; review please.
  */
@@ -68,7 +106,8 @@ DisplayModeRec DDCEstablishedModes[17] = {
 };
 
 static DisplayModePtr
-DDCModesFromEstablished(int scrnIndex, struct established_timings *timing)
+DDCModesFromEstablished(int scrnIndex, struct established_timings *timing,
+			ddc_quirk_t quirks)
 {
     DisplayModePtr Modes = NULL, Mode = NULL;
     CARD32 bits = (timing->t1) | (timing->t2 << 8) |
@@ -89,7 +128,8 @@ DDCModesFromEstablished(int scrnIndex, struct established_timings *timing)
  *
  */
 static DisplayModePtr
-DDCModesFromStandardTiming(int scrnIndex, struct std_timings *timing)
+DDCModesFromStandardTiming(int scrnIndex, struct std_timings *timing,
+			   ddc_quirk_t quirks)
 {
     DisplayModePtr Modes = NULL, Mode = NULL;
     int i;
@@ -111,9 +151,10 @@ DDCModesFromStandardTiming(int scrnIndex, struct std_timings *timing)
  */
 static DisplayModePtr
 DDCModeFromDetailedTiming(int scrnIndex, struct detailed_timings *timing,
-			  int preferred)
+			  int preferred, ddc_quirk_t quirks)
 {
     DisplayModePtr Mode;
+    unsigned int misc;
 
     /* We don't do stereo */
     if (timing->stereo) {
@@ -155,12 +196,16 @@ DDCModeFromDetailedTiming(int scrnIndex, struct detailed_timings *timing,
     if (timing->interlaced)
         Mode->Flags |= V_INTERLACE;
 
-    if (timing->misc & 0x02)
+    misc = timing->misc;
+    if (quirks & DDC_QUIRK_DT_SYNC_INVERT)
+	misc ^= 0x3;
+    
+    if (misc & 0x02)
         Mode->Flags |= V_PHSYNC;
     else
         Mode->Flags |= V_NHSYNC;
 
-    if (timing->misc & 0x01)
+    if (misc & 0x01)
         Mode->Flags |= V_PVSYNC;
     else
         Mode->Flags |= V_NVSYNC;
@@ -172,17 +217,22 @@ DisplayModePtr
 xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC)
 {
     int preferred, i;
-    DisplayModePtr Modes = NULL, Mode;
+    DisplayModePtr  Modes = NULL, Mode;
+    ddc_quirk_t	    quirks;
+
+    xf86DrvMsg (scrnIndex, X_INFO, "EDID vendor \"%s\", prod id %d\n",
+		DDC->vendor.name, DDC->vendor.prod_id);
+    quirks = DDC_QUIRK_NONE;
+    for (i = 0; ddc_quirks[i].detect; i++)
+	if (ddc_quirks[i].detect (scrnIndex, DDC))
+	{
+	    xf86DrvMsg (scrnIndex, X_INFO, "    EDID quirk: %s\n",
+			ddc_quirks[i].description);
+	    quirks |= ddc_quirks[i].quirk;
+	}
+    
 
     preferred = PREFERRED_TIMING_MODE(DDC->features.msc);
-
-    /* Add established timings */
-    Mode = DDCModesFromEstablished(scrnIndex, &DDC->timings1);
-    Modes = xf86ModesAdd(Modes, Mode);
-
-    /* Add standard timings */
-    Mode = DDCModesFromStandardTiming(scrnIndex, DDC->timings2);
-    Modes = xf86ModesAdd(Modes, Mode);
 
     for (i = 0; i < DET_TIMINGS; i++) {
 	struct detailed_monitor_section *det_mon = &DDC->det_mon[i];
@@ -191,19 +241,29 @@ xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC)
         case DT:
             Mode = DDCModeFromDetailedTiming(scrnIndex,
                                              &det_mon->section.d_timings,
-					     preferred);
+					     preferred,
+					     quirks);
 	    preferred = 0;
             Modes = xf86ModesAdd(Modes, Mode);
             break;
         case DS_STD_TIMINGS:
             Mode = DDCModesFromStandardTiming(scrnIndex,
-					      det_mon->section.std_t);
+					      det_mon->section.std_t,
+					      quirks);
             Modes = xf86ModesAdd(Modes, Mode);
             break;
         default:
             break;
         }
     }
+
+    /* Add established timings */
+    Mode = DDCModesFromEstablished(scrnIndex, &DDC->timings1, quirks);
+    Modes = xf86ModesAdd(Modes, Mode);
+
+    /* Add standard timings */
+    Mode = DDCModesFromStandardTiming(scrnIndex, DDC->timings2, quirks);
+    Modes = xf86ModesAdd(Modes, Mode);
 
     return Modes;
 }
