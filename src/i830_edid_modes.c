@@ -46,18 +46,21 @@
 
 typedef enum {
     DDC_QUIRK_NONE = 0,
-    /*
-     * Detailed timing sync polarity values are inverted
-     */
-    DDC_QUIRK_DT_SYNC_INVERT = 1 << 0,
+    /* Force detailed sync polarity to -h +v */
+    DDC_QUIRK_DT_SYNC_HM_VP = 1 << 0,
 } ddc_quirk_t;
 
-static Bool dt_sync_invert (int scrnIndex, xf86MonPtr DDC)
+static Bool quirk_dt_sync_hm_vp (int scrnIndex, xf86MonPtr DDC)
 {
     /* Belinea 1924S1W */
     if (memcmp (DDC->vendor.name, "MAX", 4) == 0 &&
 	DDC->vendor.prod_id == 1932)
 	return TRUE;
+    /* Belinea 10 20 30W */
+    if (memcmp (DDC->vendor.name, "MAX", 4) == 0 &&
+	DDC->vendor.prod_id == 2007)
+	return TRUE;
+    
     return FALSE;
 }
 
@@ -69,8 +72,8 @@ typedef struct {
 
 static const ddc_quirk_map_t ddc_quirks[] = {
     { 
-	dt_sync_invert,	DDC_QUIRK_DT_SYNC_INVERT,
-	"Detailed timing data contains inverted sync polarity"
+	quirk_dt_sync_hm_vp,	DDC_QUIRK_DT_SYNC_HM_VP,
+	"Set detailed timing sync polarity to -h +v"
     },
     { 
 	NULL,		DDC_QUIRK_NONE,
@@ -154,7 +157,6 @@ DDCModeFromDetailedTiming(int scrnIndex, struct detailed_timings *timing,
 			  int preferred, ddc_quirk_t quirks)
 {
     DisplayModePtr Mode;
-    unsigned int misc;
 
     /* We don't do stereo */
     if (timing->stereo) {
@@ -196,19 +198,20 @@ DDCModeFromDetailedTiming(int scrnIndex, struct detailed_timings *timing,
     if (timing->interlaced)
         Mode->Flags |= V_INTERLACE;
 
-    misc = timing->misc;
-    if (quirks & DDC_QUIRK_DT_SYNC_INVERT)
-	misc ^= 0x3;
+    if (quirks & DDC_QUIRK_DT_SYNC_HM_VP)
+	Mode->Flags |= V_NHSYNC | V_PVSYNC;
+    else
+    {
+	if (timing->misc & 0x02)
+	    Mode->Flags |= V_PHSYNC;
+	else
+	    Mode->Flags |= V_NHSYNC;
     
-    if (misc & 0x02)
-        Mode->Flags |= V_PHSYNC;
-    else
-        Mode->Flags |= V_NHSYNC;
-
-    if (misc & 0x01)
-        Mode->Flags |= V_PVSYNC;
-    else
-        Mode->Flags |= V_NVSYNC;
+	if (timing->misc & 0x01)
+	    Mode->Flags |= V_PVSYNC;
+	else
+	    Mode->Flags |= V_NVSYNC;
+    }
 
     return Mode;
 }
