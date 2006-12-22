@@ -140,5 +140,13 @@ i830_ddc_get_modes(xf86OutputPtr output)
 	}
     }
 
+    /* if no mm size is available from a detailed timing, check the max size field */
+    if ((!output->mm_width || !output->mm_height) &&
+	(ddc_mon->features.hsize && ddc_mon->features.vsize))
+    {
+	output->mm_width = ddc_mon->features.hsize * 10;
+	output->mm_height = ddc_mon->features.vsize * 10;
+    }
+
     return ddc_modes;
 }
