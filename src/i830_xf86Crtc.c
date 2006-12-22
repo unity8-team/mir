@@ -437,7 +437,11 @@ xf86PruneDuplicateMonitorModes (MonPtr Monitor)
 	{
 	    next = clone->next;
 	    if (xf86ModesEqual (master, clone))
+	    {
+		if (Monitor->Last == clone)
+		    Monitor->Last = clone->prev;
 		xf86DeleteMode (&Monitor->Modes, clone);
+	    }
 	}
     }
 }
