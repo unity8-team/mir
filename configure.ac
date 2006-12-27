@@ -35,6 +35,9 @@ AC_DEFINE_UNQUOTED([NV_MINOR_VERSION],
 AC_DEFINE_UNQUOTED([NV_PATCHLEVEL],
                    [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]\.[[0-9]]\.\([[0-9]]\)/\1/')],
                    [Patch version])
+AC_DEFINE_UNQUOTED([NV_DRIVER_DATE],
+                   [$(echo -n \";git-log |head -3|tail -1|tr -d '\n';echo -n \")],
+                   [Driver date])
 
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_CONFIG_HEADER([config.h])
