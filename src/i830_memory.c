@@ -602,11 +602,141 @@ GetFreeSpace(ScrnInfoPtr pScrn)
    return extra;
 }
 
+/**
+ * Allocates a framebuffer for a screen.
+ *
+ * Used once for each X screen, so once with RandR 1.2 and twice with classic
+ * dualhead.
+ *
+ * \param pScrn ScrnInfoPtr for the screen being allocated
+ * \param pI830 I830Ptr for the screen being allocated.
+ * \param FbMemBox
+ */
+static Bool
+I830AllocateFramebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
+			I830MemRange *FrontBuffer, I830MemPool *StolenPool,
+			Bool secondary, const int flags)
+{
+   Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
+   unsigned long minspace, avail, lineSize;
+   int cacheLines, maxCacheLines;
+   int verbosity = dryrun ? 4 : 1;
+   const char *s = dryrun ? "[dryrun] " : "";
+   Bool tileable;
+   int align, alignflags;
+   long size, alloced, fb_height;
+
+   /* Clear everything first. */
+   memset(FbMemBox, 0, sizeof(*FbMemBox));
+   memset(FrontBuffer, 0, sizeof(*FrontBuffer));
+   FrontBuffer->Key = -1;
+
+   /* We'll allocate the fb such that the root window will fit regardless of
+    * rotation.
+    */
+   if (pScrn->virtualX > pScrn->virtualY)
+      fb_height = pScrn->virtualX;
+   else
+      fb_height = pScrn->virtualY;
+
+   FbMemBox->x1 = 0;
+   FbMemBox->x2 = pScrn->displayWidth;
+   FbMemBox->y1 = 0;
+   FbMemBox->y2 = fb_height;
+
+   /* Calculate how much framebuffer memory to allocate.  For the
+    * initial allocation, calculate a reasonable minimum.  This is
+    * enough for the virtual screen size, plus some pixmap cache
+    * space if we're using XAA.
+    */
+
+   lineSize = pScrn->displayWidth * pI830->cpp;
+   minspace = lineSize * pScrn->virtualY;
+   avail = pScrn->videoRam * 1024;
+
+   if (!pI830->useEXA) {
+      maxCacheLines = (avail - minspace) / lineSize;
+      /* This shouldn't happen. */
+      if (maxCacheLines < 0) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Internal Error: "
+		    "maxCacheLines < 0 in I830Allocate2DMemory()\n");
+	 maxCacheLines = 0;
+      }
+      if (maxCacheLines > (MAX_DISPLAY_HEIGHT - pScrn->virtualY))
+	 maxCacheLines = MAX_DISPLAY_HEIGHT - pScrn->virtualY;
+
+      if (pI830->CacheLines >= 0) {
+	 cacheLines = pI830->CacheLines;
+      } else {
+#if 1
+	 /* Make sure there is enough for two DVD sized YUV buffers */
+	 cacheLines = (pScrn->depth == 24) ? 256 : 384;
+	 if (pScrn->displayWidth <= 1024)
+	    cacheLines *= 2;
+#else
+	 /*
+	  * Make sure there is enough for two DVD sized YUV buffers.
+	  * Make that 1.5MB, which is around what was allocated with
+	  * the old algorithm
+	  */
+	 cacheLines = (MB(1) + KB(512)) / pI830->cpp / pScrn->displayWidth;
+#endif
+      }
+      if (cacheLines > maxCacheLines)
+	 cacheLines = maxCacheLines;
+
+      FbMemBox->y2 += cacheLines;
+
+      xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		     "%sAllocating at least %d scanlines for pixmap cache\n",
+		     s, cacheLines);
+   } else {
+     /* For EXA, we have a separate allocation for the linear allocator which
+      * also does the pixmap cache.
+      */
+     cacheLines = 0;
+   }
+
+   tileable = !(flags & ALLOC_NO_TILING) && pI830->allowPageFlip &&
+      IsTileable(pScrn->displayWidth * pI830->cpp);
+   if (tileable) {
+      if (IS_I9XX(pI830))
+	 align = MB(1);
+      else
+	 align = KB(512);
+      alignflags = ALIGN_BOTH_ENDS;
+   } else {
+      align = KB(64);
+      alignflags = 0;
+   }
+
+   size = lineSize * (fb_height + cacheLines);
+   size = ROUND_TO_PAGE(size);
+   xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		  "%sInitial %sframebuffer allocation size: %ld kByte\n",
+		  s, secondary ? "secondary " : "",
+		  size / 1024);
+   alloced = I830AllocVidMem(pScrn, FrontBuffer,
+			     StolenPool, size, align,
+			     flags | alignflags |
+			     FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
+   if (alloced < size) {
+      if (!dryrun) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
+		    "%sframebuffer. Is your VideoRAM set too low?\n",
+		    secondary ? "secondary " : "");
+      }
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
 /*
  * Allocate memory for 2D operation.  This includes the (front) framebuffer,
  * ring buffer, scratch memory, HW cursor.
  */
-
 Bool
 I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 {
@@ -648,8 +778,6 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 	   pI830->StolenPool.Free.Size);
 
    if (flags & ALLOC_INITIAL) {
-      unsigned long minspace, avail, lineSize;
-      int cacheLines, maxCacheLines;
 
       if (pI830->NeedRingBufferLow)
 	 AllocateRingBuffer(pScrn, flags | FORCE_LOW);
@@ -660,242 +788,45 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
          I830EntPtr pI830Ent = pI830->entityPrivate;
          I830Ptr pI8302 = I830PTR(pI830Ent->pScrn_2);
 
-         /* Clear everything first. */
-         memset(&(pI830->FbMemBox2), 0, sizeof(pI830->FbMemBox2));
-         memset(&(pI830->FrontBuffer2), 0, sizeof(pI830->FrontBuffer2));
-         pI830->FrontBuffer2.Key = -1;
-
-#if 1 /* ROTATION */
-         pI830->FbMemBox2.x1 = 0;
-         pI830->FbMemBox2.x2 = pI830Ent->pScrn_2->displayWidth;
-         pI830->FbMemBox2.y1 = 0;
-         if (pI830Ent->pScrn_2->virtualX > pI830Ent->pScrn_2->virtualY)
-            pI830->FbMemBox2.y2 = pI830Ent->pScrn_2->virtualX;
-         else
-            pI830->FbMemBox2.y2 = pI830Ent->pScrn_2->virtualY;
-#else
-         pI830->FbMemBox2.x1 = 0;
-         pI830->FbMemBox2.x2 = pI830Ent->pScrn_2->displayWidth;
-         pI830->FbMemBox2.y1 = 0;
-         pI830->FbMemBox2.y2 = pI830Ent->pScrn_2->virtualY;
-#endif
-
-         /*
-          * Calculate how much framebuffer memory to allocate.  For the
-          * initial allocation, calculate a reasonable minimum.  This is
-          * enough for the virtual screen size, plus some pixmap cache
-          * space.
-          */
-
-         lineSize = pI830Ent->pScrn_2->displayWidth * pI8302->cpp;
-         minspace = lineSize * pI830Ent->pScrn_2->virtualY;
-         avail = pI830Ent->pScrn_2->videoRam * 1024;
-         maxCacheLines = (avail - minspace) / lineSize;
-         /* This shouldn't happen. */
-         if (maxCacheLines < 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Internal Error: "
-		    "maxCacheLines < 0 in I830Allocate2DMemory()\n");
-	    maxCacheLines = 0;
-         }
-         if (maxCacheLines > (MAX_DISPLAY_HEIGHT - pI830Ent->pScrn_2->virtualY))
-	    maxCacheLines = MAX_DISPLAY_HEIGHT - pI830Ent->pScrn_2->virtualY;
-
-         if (pI8302->CacheLines >= 0) {
-	    cacheLines = pI8302->CacheLines;
-         } else {
-#if 1
-	    /* Make sure there is enough for two DVD sized YUV buffers */
-	    cacheLines = (pI830Ent->pScrn_2->depth == 24) ? 256 : 384;
-	    if (pI830Ent->pScrn_2->displayWidth <= 1024)
-	       cacheLines *= 2;
-#else
-	    /*
-	     * Make sure there is enough for two DVD sized YUV buffers.
-	     * Make that 1.5MB, which is around what was allocated with
-	     * the old algorithm
-	     */
-	    cacheLines = (MB(1) + KB(512)) / pI8302->cpp / pI830Ent->pScrn_2->displayWidth;
-#endif
-         }
-         if (cacheLines > maxCacheLines)
-	    cacheLines = maxCacheLines;
-
-         pI830->FbMemBox2.y2 += cacheLines;
-
-         xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		     "%sAllocating at least %d scanlines for pixmap cache\n",
-		     s, cacheLines);
-
-         tileable = !(flags & ALLOC_NO_TILING) && pI8302->allowPageFlip &&
-		 IsTileable(pI830Ent->pScrn_2->displayWidth * pI8302->cpp);
-         if (tileable) {
-            if (IS_I9XX(pI830))
-               align = MB(1);
-            else
-	       align = KB(512);
-	    alignflags = ALIGN_BOTH_ENDS;
-         } else {
-	    align = KB(64);
-	    alignflags = 0;
-         }
-
-#if 1 /* ROTATION */
-         if (pI830Ent->pScrn_2->virtualX > pI830Ent->pScrn_2->virtualY)
-            size = lineSize * (pI830Ent->pScrn_2->virtualX + cacheLines);
-         else 
-            size = lineSize * (pI830Ent->pScrn_2->virtualY + cacheLines);
-         size = ROUND_TO_PAGE(size);
-#else
-         size = lineSize * (pI830Ent->pScrn_2->virtualY + cacheLines);
-         size = ROUND_TO_PAGE(size);
-#endif
-         xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		     "%sSecondary framebuffer allocation size: %ld kByte\n", s,
-		     size / 1024);
-         alloced = I830AllocVidMem(pScrn, &(pI830->FrontBuffer2),
-				&(pI830->StolenPool), size, align,
-				flags | alignflags |
-				FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
-         if (alloced < size) {
-	    if (!dryrun) {
-	       xf86DrvMsg(pI830Ent->pScrn_2->scrnIndex, X_ERROR,
-		       "Failed to allocate secondary framebuffer.\n");
-	    }
-            return FALSE;
-         }
-      }
-
-      /* Clear everything first. */
-      memset(&(pI830->FbMemBox), 0, sizeof(pI830->FbMemBox));
-      memset(&(pI830->FrontBuffer), 0, sizeof(pI830->FrontBuffer));
-      pI830->FrontBuffer.Key = -1;
-
-#if 1 /* ROTATION */
-      pI830->FbMemBox.x1 = 0;
-      pI830->FbMemBox.x2 = pScrn->displayWidth;
-      pI830->FbMemBox.y1 = 0;
-      if (pScrn->virtualX > pScrn->virtualY)
-         pI830->FbMemBox.y2 = pScrn->virtualX;
-      else
-         pI830->FbMemBox.y2 = pScrn->virtualY;
-#else
-      pI830->FbMemBox.x1 = 0;
-      pI830->FbMemBox.x2 = pScrn->displayWidth;
-      pI830->FbMemBox.y1 = 0;
-      pI830->FbMemBox.y2 = pScrn->virtualY;
-#endif
-
-      /*
-       * Calculate how much framebuffer memory to allocate.  For the
-       * initial allocation, calculate a reasonable minimum.  This is
-       * enough for the virtual screen size, plus some pixmap cache
-       * space.
-       */
-
-      lineSize = pScrn->displayWidth * pI830->cpp;
-      minspace = lineSize * pScrn->virtualY;
-      avail = pScrn->videoRam * 1024;
-      maxCacheLines = (avail - minspace) / lineSize;
-      /* This shouldn't happen. */
-      if (maxCacheLines < 0) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Internal Error: "
-		    "maxCacheLines < 0 in I830Allocate2DMemory()\n");
-	 maxCacheLines = 0;
-      }
-      if (maxCacheLines > (MAX_DISPLAY_HEIGHT - pScrn->virtualY))
-	 maxCacheLines = MAX_DISPLAY_HEIGHT - pScrn->virtualY;
-
-      if (pI830->CacheLines >= 0) {
-	 cacheLines = pI830->CacheLines;
-      } else {
-#if 1
-	 /* Make sure there is enough for two DVD sized YUV buffers */
-	 cacheLines = (pScrn->depth == 24) ? 256 : 384;
-	 if (pScrn->displayWidth <= 1024)
-	    cacheLines *= 2;
-#else
-	 /*
-	  * Make sure there is enough for two DVD sized YUV buffers.
-	  * Make that 1.5MB, which is around what was allocated with
-	  * the old algorithm
-	  */
-	 cacheLines = (MB(1) + KB(512)) / pI830->cpp / pScrn->displayWidth;
-#endif
-      }
-      if (cacheLines > maxCacheLines)
-	 cacheLines = maxCacheLines;
-
-      pI830->FbMemBox.y2 += cacheLines;
-
-      xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		     "%sAllocating at least %d scanlines for pixmap cache\n",
-		     s, cacheLines);
-
-      tileable = !(flags & ALLOC_NO_TILING) && pI830->allowPageFlip &&
-		 IsTileable(pScrn->displayWidth * pI830->cpp);
-      if (tileable) {
-         if (IS_I9XX(pI830))
-            align = MB(1);
-         else
-	    align = KB(512);
-	 alignflags = ALIGN_BOTH_ENDS;
-      } else {
-	 align = KB(64);
-	 alignflags = 0;
-      }
-
-#if 1 /* ROTATION */
-      if (pScrn->virtualX > pScrn->virtualY)
-         size = lineSize * (pScrn->virtualX + cacheLines);
-      else 
-         size = lineSize * (pScrn->virtualY + cacheLines);
-      size = ROUND_TO_PAGE(size);
-#else
-      size = lineSize * (pScrn->virtualY + cacheLines);
-      size = ROUND_TO_PAGE(size);
-#endif
-      xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		     "%sInitial framebuffer allocation size: %ld kByte\n", s,
-		     size / 1024);
-      alloced = I830AllocVidMem(pScrn, &(pI830->FrontBuffer),
-				&(pI830->StolenPool), size, align,
-				flags | alignflags |
-				FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
-      if (alloced < size) {
-	 if (!dryrun) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
-	    		"framebuffer. Is your VideoRAM set too low ??\n");
+	 if (!I830AllocateFramebuffer(pI830Ent->pScrn_2, pI8302,
+				      &pI830->FbMemBox2,
+				      &pI830->FrontBuffer2, &pI830->StolenPool,
+				      TRUE, flags))
+	 {
+	    return FALSE;
 	 }
+      }
+      if (!I830AllocateFramebuffer(pScrn, pI830, &pI830->FbMemBox,
+				   &pI830->FrontBuffer, &pI830->StolenPool,
+				   FALSE, flags))
+      {
 	 return FALSE;
       }
+
 #ifdef I830_USE_EXA
-      size = lineSize * pScrn->virtualY;
-      size = ROUND_TO_PAGE(size);
+      if (pI830->useEXA) {
+	 /* Default EXA to having 3 screens worth of offscreen memory space
+	  * (for pixmaps), plus a double-buffered, 1920x1088 video's worth.
+	  */
+	 size = 3 * pScrn->displayWidth * pI830->cpp * pScrn->virtualY;
+	 size += 1920 * 1088 * 2 * 2;
+	 size = ROUND_TO_PAGE(size);
 
-      if (tileable) {
-	 align = KB(512);
-	 alignflags = ALIGN_BOTH_ENDS;
-      } else {
-	 align = KB(64);
-	 alignflags = 0;
-      }
-
-      alloced = I830AllocVidMem(pScrn, &(pI830->Offscreen),
-				&(pI830->StolenPool), size, align,
-				flags | alignflags |
-				FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
-      if (alloced < size) {
-	 if (!dryrun) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
-		       "offscreen memory.  Not enough VRAM?\n");
+	 alloced = I830AllocVidMem(pScrn, &(pI830->Offscreen),
+				   &(pI830->StolenPool), size, 1,
+				   flags |
+				   FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
+	 if (alloced < size) {
+	    if (!dryrun) {
+	       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
+			  "offscreen memory.  Not enough VRAM?\n");
+	    }
+	    return FALSE;
+	 } else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Successful allocation of "
+		       "EXA offscreen memory at 0x%lx, size %ld KB\n",
+		       pI830->Offscreen.Start, pI830->Offscreen.Size/1024);
 	 }
-	 return FALSE;
-      } else {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Successful allocate "
-		       "offscreen memory at 0x%lx, size %ld KB\n", 
-			pI830->Offscreen.Start, pI830->Offscreen.Size/1024);
       }
 #endif
    } else {

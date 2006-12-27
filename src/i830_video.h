@@ -27,6 +27,18 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86.h"
 #include "xf86_OSproc.h"
 
+/* Ugly mess to support the old XF86 allocator or EXA using the same code.
+ */
+struct linear_alloc {
+#ifdef I830_USE_XAA
+   FBLinearPtr xaa;
+#endif
+#ifdef I830_USE_EXA
+   ExaOffscreenArea *exa;
+#endif
+   unsigned int offset;
+};
+
 typedef struct {
    CARD32 YBuf0offset;
    CARD32 UBuf0offset;
@@ -57,7 +69,8 @@ typedef struct {
    CARD32 videoStatus;
    Time offTime;
    Time freeTime;
-   FBLinearPtr linear;
+   struct linear_alloc linear;
+   unsigned int extra_offset;
 
    Bool overlayOK;
    int oneLineMode;

@@ -120,8 +120,8 @@ static int I830QueryImageAttributesTextured(ScrnInfoPtr, int, unsigned short *,
 
 static void I830BlockHandler(int, pointer, pointer, pointer);
 
-static FBLinearPtr
-I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size);
+static void
+I830FreeMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear);
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
@@ -715,7 +715,7 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
    pPriv->contrast = 64;
    pPriv->saturation = 128;
    pPriv->pipe = 0;  /* XXX must choose pipe wisely */
-   pPriv->linear = NULL;
+   memset(&pPriv->linear, 0, sizeof(pPriv->linear));
    pPriv->currentBuf = 0;
    pPriv->gamma5 = 0xc0c0c0;
    pPriv->gamma4 = 0x808080;
@@ -838,7 +838,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
 
       pPriv->textured = TRUE;
       pPriv->videoStatus = 0;
-      pPriv->linear = NULL;
+      memset(&pPriv->linear, 0, sizeof(pPriv->linear));
       pPriv->currentBuf = 0;
       pPriv->doubleBuffer = 0;
 
@@ -902,10 +902,7 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
          if (pI830->entityPrivate)
             pI830->entityPrivate->XvInUse = -1;
       }
-      if (pPriv->linear) {
-	 xf86FreeOffscreenLinear(pPriv->linear);
-	 pPriv->linear = NULL;
-      }
+      I830FreeMemory(pScrn, &pPriv->linear);
       pPriv->videoStatus = 0;
    } else {
       if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
@@ -2224,9 +2221,7 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    /*
     * Use the extra space allocated at the end of the Xv buffer
     */
-   state_base_offset = (pPriv->YBuf0offset + 
-			pPriv->linear->size * pI830->cpp -
-			BRW_LINEAR_EXTRA);
+   state_base_offset = pPriv->extra_offset;
    state_base_offset = ALIGN(state_base_offset, 64);
 
    state_base = (char *)(pI830->FbBase + state_base_offset);
@@ -2798,44 +2793,119 @@ BroadwaterDisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 #endif
 }
 
-static FBLinearPtr
-I830AllocateMemory(ScrnInfoPtr pScrn, FBLinearPtr linear, int size)
+#ifdef I830_USE_EXA
+static void
+I830VideoSave(ScreenPtr pScreen, ExaOffscreenArea *area)
 {
-   ScreenPtr pScreen;
-   FBLinearPtr new_linear = NULL;
+   struct linear_alloc *linear = area->privData;
 
-   if (linear) {
-      if (linear->size >= size)
-	 return linear;
+   linear->exa = NULL;
+   linear->offset = 0;
+}
+#endif /* I830_USE_EXA */
 
-      if (xf86ResizeOffscreenLinear(linear, size))
-	 return linear;
+/**
+ * Allocates linear memory using the XFree86 (XAA) or EXA allocator.
+ *
+ * \param pPriv adaptor the memory is being allocated for.
+ * \param size size of the allocation, in bytes.
+ * \param alignment offset alignment of the allocation, in bytes.
+ * \return offset of the allocated memory.
+ */
+static void
+I830AllocateMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear, int size,
+		   int align)
+{
+   ScreenPtr pScreen = pScrn->pScreen;
+   I830Ptr pI830 = I830PTR(pScrn);
 
-      xf86FreeOffscreenLinear(linear);
+#ifdef I830_USE_EXA
+   if (pI830->useEXA) {
+      if (linear->exa != NULL) {
+	 if (linear->exa->size >= size)
+	    return;
+
+	 exaOffscreenFree(pScreen, linear->exa);
+	 linear->offset = 0;
+      }
+
+      linear->exa = exaOffscreenAlloc(pScreen, size, align, TRUE,
+				      I830VideoSave, linear);
+      if (linear->exa == NULL)
+	 return;
+      linear->offset = linear->exa->offset;
    }
-
-   pScreen = screenInfo.screens[pScrn->scrnIndex];
-
-   new_linear = xf86AllocateOffscreenLinear(pScreen, size, 4,
-					    NULL, NULL, NULL);
-
-   if (!new_linear) {
+#endif /* I830_USE_EXA */
+#ifdef I830_USE_XAA
+   if (!pI830->useEXA) {
       int max_size;
 
-      xf86QueryLargestOffscreenLinear(pScreen, &max_size, 4,
+      /* The XFree86 linear allocator operates in units of screen pixels,
+       * sadly.
+       */
+      size = (size + pI830->cpp - 1) / pI830->cpp;
+      align = (align + pI830->cpp - 1) / pI830->cpp;
+
+      if (linear->xaa != NULL) {
+	 if (linear->xaa->size >= size) {
+	    linear->offset = linear->xaa->offset * pI830->cpp;
+	    return;
+	 }
+
+	 if (xf86ResizeOffscreenLinear(linear->xaa, size)) {
+	    linear->offset = linear->xaa->offset * pI830->cpp;
+	    return;
+	 }
+
+	 xf86FreeOffscreenLinear(linear->xaa);
+      }
+
+      linear->xaa = xf86AllocateOffscreenLinear(pScreen, size, align,
+						NULL, NULL, NULL);
+      if (linear->xaa != NULL) {
+	 linear->offset = linear->xaa->offset * pI830->cpp;
+	 return;
+      }
+
+      xf86QueryLargestOffscreenLinear(pScreen, &max_size, align,
 				      PRIORITY_EXTREME);
 
       if (max_size < size) {
-         ErrorF("No memory available\n");
-	 return NULL;
+	 ErrorF("No memory available\n");
+	 linear->offset = 0;
+	 return;
       }
 
       xf86PurgeUnlockedOffscreenAreas(pScreen);
-      new_linear = xf86AllocateOffscreenLinear(pScreen, size, 4,
-					       NULL, NULL, NULL);
+      linear->xaa = xf86AllocateOffscreenLinear(pScreen, size, 4,
+						NULL, NULL, NULL);
+      linear->offset = linear->xaa->offset * pI830->cpp;
    }
+#endif /* I830_USE_XAA */
+}
 
-   return new_linear;
+static void
+I830FreeMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+#ifdef I830_USE_EXA
+   if (pI830->useEXA) {
+      if (linear->exa != NULL) {
+	 exaOffscreenFree(pScrn->pScreen, linear->exa);
+	 linear->exa = NULL;
+      }
+   }
+#endif /* I830_USE_EXA */
+#ifdef I830_USE_XAA
+   if (!pI830->useEXA) {
+      if (linear->xaa != NULL) {
+	 xf86FreeOffscreenLinear(linear->xaa);
+	 linear->xaa = NULL;
+      }
+   }
+#endif /* I830_USE_XAA */
+   linear->offset = 0;
 }
 
 /*
@@ -2981,19 +3051,21 @@ I830PutImage(ScrnInfoPtr pScrn,
       extraLinear = 0;
 
    /* size is multiplied by 2 because we have two buffers that are flipping */
-   pPriv->linear = I830AllocateMemory(pScrn, pPriv->linear,
-				      (extraLinear +
-				       (pPriv->doubleBuffer ? size * 2 : size)) /
-				      pI830->cpp);
+   I830AllocateMemory(pScrn, &pPriv->linear,
+		      extraLinear + (pPriv->doubleBuffer ? size * 2 : size),
+		      16);
 
-   if(!pPriv->linear || pPriv->linear->offset < (pScrn->virtualX * pScrn->virtualY))
+   if (pPriv->linear.offset == 0)
       return BadAlloc;
+
+   pPriv->extra_offset = pPriv->linear.offset +
+      pPriv->doubleBuffer ? size * 2 : size;
 
    /* fixup pointers */
 #if 0
-   pPriv->YBuf0offset = pScrn->fbOffset + pPriv->linear->offset * pI830->cpp;
+   pPriv->YBuf0offset = pScrn->fbOffset + pPriv->linear.offset;
 #else
-   pPriv->YBuf0offset = pI830->FrontBuffer.Start + pPriv->linear->offset * pI830->cpp;
+   pPriv->YBuf0offset = pI830->FrontBuffer.Start + pPriv->linear.offset;
 #endif
    if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
       pPriv->UBuf0offset = pPriv->YBuf0offset + (dstPitch * 2 * width);
@@ -3236,10 +3308,7 @@ I830BlockHandler(int i,
 	 }
       } else {				/* FREE_TIMER */
 	 if (pPriv->freeTime < now) {
-	    if (pPriv->linear) {
-	       xf86FreeOffscreenLinear(pPriv->linear);
-	       pPriv->linear = NULL;
-	    }
+	    I830FreeMemory(pScrn, &pPriv->linear);
 	    pPriv->videoStatus = 0;
 	 }
       }
@@ -3251,7 +3320,7 @@ I830BlockHandler(int i,
  ***************************************************************************/
 
 typedef struct {
-   FBLinearPtr linear;
+   struct linear_alloc linear;
    Bool isOn;
 } OffscreenPrivRec, *OffscreenPrivPtr;
 
@@ -3261,8 +3330,7 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
 		    unsigned short w,
 		    unsigned short h, XF86SurfacePtr surface)
 {
-   FBLinearPtr linear;
-   int pitch, fbpitch, size, bpp;
+   int pitch, fbpitch, size;
    OffscreenPrivPtr pPriv;
    I830Ptr pI830 = I830PTR(pScrn);
 
@@ -3280,41 +3348,40 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
    if (pI830->rotation != RR_Rotate_0)
       return BadAlloc;
 
-   w = (w + 1) & ~1;
-   pitch = ((w << 1) + 15) & ~15;
-   bpp = pScrn->bitsPerPixel >> 3;
-   fbpitch = bpp * pScrn->displayWidth;
-   size = ((pitch * h) + bpp - 1) / bpp;
-
-   if (!(linear = I830AllocateMemory(pScrn, NULL, size)))
+   if (!(surface->pitches = xalloc(sizeof(int))))
       return BadAlloc;
-
-   surface->width = w;
-   surface->height = h;
-
-   if (!(surface->pitches = xalloc(sizeof(int)))) {
-      xf86FreeOffscreenLinear(linear);
-      return BadAlloc;
-   }
    if (!(surface->offsets = xalloc(sizeof(int)))) {
       xfree(surface->pitches);
-      xf86FreeOffscreenLinear(linear);
       return BadAlloc;
    }
    if (!(pPriv = xalloc(sizeof(OffscreenPrivRec)))) {
       xfree(surface->pitches);
       xfree(surface->offsets);
-      xf86FreeOffscreenLinear(linear);
       return BadAlloc;
    }
 
-   pPriv->linear = linear;
+   w = (w + 1) & ~1;
+   pitch = ((w << 1) + 15) & ~15;
+   fbpitch = pI830->cpp * pScrn->displayWidth;
+   size = pitch * h;
+
+   I830AllocateMemory(pScrn, &pPriv->linear, size, 16);
+   if (pPriv->linear.offset == 0) {
+      xfree(surface->pitches);
+      xfree(surface->offsets);
+      xfree(pPriv);
+      return BadAlloc;
+   }
+
+   surface->width = w;
+   surface->height = h;
+
    pPriv->isOn = FALSE;
 
    surface->pScrn = pScrn;
    surface->id = id;
    surface->pitches[0] = pitch;
-   surface->offsets[0] = linear->offset * bpp;
+   surface->offsets[0] = pPriv->linear.offset;
    surface->devPrivate.ptr = (pointer) pPriv;
 
 #if 0
@@ -3358,7 +3425,7 @@ I830FreeSurface(XF86SurfacePtr surface)
    if (pPriv->isOn) {
       I830StopSurface(surface);
    }
-   xf86FreeOffscreenLinear(pPriv->linear);
+   I830FreeMemory(surface->pScrn, &pPriv->linear);
    xfree(surface->pitches);
    xfree(surface->offsets);
    xfree(surface->devPrivate.ptr);
