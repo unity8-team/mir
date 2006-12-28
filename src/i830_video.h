@@ -84,7 +84,7 @@ typedef struct {
 /*
  * Broadwater requires a bit of extra video memory for state information
  */
-#define BRW_LINEAR_EXTRA	(32*1024)
+#define BRW_LINEAR_EXTRA	(36*1024)
 
 void I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 			      int id, RegionPtr dstRegion, short width,
