@@ -40,6 +40,10 @@
 #include "brw_defines.h"
 #include "brw_structs.h"
 
+/* Make assert() work. */
+#undef NDEBUG
+#include <assert.h>
+
 static const CARD32 sip_kernel_static[][4] = {
 /*    wait (1) a0<1>UW a145<0,1,0>UW { align1 +  } */
     { 0x00000030, 0x20000108, 0x00001220, 0x00000000 },
