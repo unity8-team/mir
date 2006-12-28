@@ -2273,7 +2273,7 @@ I830PutImage(ScrnInfoPtr pScrn,
       return BadAlloc;
 
    pPriv->extra_offset = pPriv->linear.offset +
-      pPriv->doubleBuffer ? size * 2 : size;
+      (pPriv->doubleBuffer ? size * 2 : size);
 
    /* fixup pointers */
    pPriv->YBuf0offset = pPriv->linear.offset;
