@@ -140,6 +140,11 @@ static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 #define OVERLAY_DEBUG if (0) ErrorF
 #endif
 
+/* Oops, I never exported this function in EXA.  I meant to. */
+#ifndef exaMoveInPixmap
+void exaMoveInPixmap (PixmapPtr pPixmap);
+#endif
+
 /*
  * This is more or less the correct way to initalise, update, and shut down
  * the overlay.  Note OVERLAY_OFF should be used only after disabling the
@@ -2387,6 +2392,13 @@ I830PutImage(ScrnInfoPtr pScrn,
    } else {
       pPixmap = (PixmapPtr)pDraw;
    }
+
+#ifdef I830_USE_EXA
+   if (pI830->useEXA) {
+       /* Force the pixmap into framebuffer so we can draw to it. */
+       exaMoveInPixmap(pPixmap);
+   }
+#endif
 
    if (((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
        ((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
