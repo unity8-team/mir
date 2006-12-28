@@ -131,12 +131,11 @@ static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 #define IMAGE_MAX_WIDTH_LEGACY	1024
 #define IMAGE_MAX_HEIGHT_LEGACY	1088
 
-#if !VIDEO_DEBUG
-#define ErrorF Edummy
-static void
-Edummy(const char *dummy, ...)
-{
-}
+/* overlay debugging printf function */
+#if 0
+#define OVERLAY_DEBUG ErrorF
+#else
+#define OVERLAY_DEBUG if (0) ErrorF
 #endif
 
 /*
@@ -157,7 +156,7 @@ Edummy(const char *dummy, ...)
 	 OUT_RING(MI_NOOP);						\
 	 OUT_RING(MI_NOOP);						\
 	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_ON);		\
-	 ErrorF("Overlay goes from off to on\n");			\
+	 OVERLAY_DEBUG("Overlay goes from off to on\n");		\
 	 *pI830->overlayOn = TRUE;					\
       } else {								\
 	 OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);	\
@@ -171,7 +170,7 @@ Edummy(const char *dummy, ...)
       OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);		\
       OUT_RING(MI_NOOP);						\
       ADVANCE_LP_RING();						\
-      ErrorF("OVERLAY_UPDATE\n");					\
+      OVERLAY_DEBUG("OVERLAY_UPDATE\n");				\
    } while(0)
 
 #define OVERLAY_OFF							\
@@ -190,13 +189,14 @@ Edummy(const char *dummy, ...)
 	 OUT_RING(MI_NOOP);						\
 	 ADVANCE_LP_RING();						\
 	 *pI830->overlayOn = FALSE;					\
-	 ErrorF("Overlay goes from on to off\n");			\
+	 OVERLAY_DEBUG("Overlay goes from on to off\n");		\
          while (spin != 0 && (INREG(OCMD_REGISTER) & OVERLAY_ENABLE)){	\
-		ErrorF("SPIN %d\n",spin);				\
+		OVERLAY_DEBUG("SPIN %d\n",spin);			\
 		spin--;							\
  	 }								\
-	 if (spin == 0) ErrorF("OVERLAY FAILED TO GO OFF\n");		\
-	 ErrorF("OVERLAY_OFF\n");					\
+	 if (spin == 0)							\
+		OVERLAY_DEBUG("OVERLAY FAILED TO GO OFF\n");		\
+	 OVERLAY_DEBUG("OVERLAY_OFF\n");				\
       }									\
    } while(0)
 
@@ -387,13 +387,13 @@ CompareOverlay(I830Ptr pI830, CARD32 * overlay, int size)
    for (i = 0; i < size; i += 4) {
       val = INREG(0x30100 + i);
       if (val != overlay[i / 4]) {
-	 ErrorF("0x%05x value doesn't match (0x%lx != 0x%lx)\n",
+	 OVERLAY_DEBUG("0x%05x value doesn't match (0x%lx != 0x%lx)\n",
 		0x30100 + i, val, overlay[i / 4]);
 	 bad++;
       }
    }
    if (!bad)
-      ErrorF("CompareOverlay: no differences\n");
+      OVERLAY_DEBUG("CompareOverlay: no differences\n");
 }
 #endif
 
@@ -405,8 +405,6 @@ I830InitVideo(ScreenPtr pScreen)
    XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
    XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
    int num_adaptors;
-
-   ErrorF("I830InitVideo\n");
 
 #if 0
    {
@@ -480,7 +478,7 @@ I830ResetVideo(ScrnInfoPtr pScrn)
    I830OverlayRegPtr overlay =
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
 
-   ErrorF("I830ResetVideo: base: %p, offset: 0x%lx, obase: %p\n",
+   OVERLAY_DEBUG("I830ResetVideo: base: %p, offset: 0x%lx, obase: %p\n",
 	   pI830->FbBase, pI830->OverlayMem->Start, overlay);
    /*
     * Default to maximum image size in YV12
@@ -622,15 +620,19 @@ I830UpdateGamma(ScrnInfoPtr pScrn)
    CARD32   gamma4 = pPriv->gamma4;
    CARD32   gamma5 = pPriv->gamma5;
 
+#if 0
    ErrorF ("Original gamma: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
 	   gamma0, gamma1, gamma2, gamma3, gamma4, gamma5);
+#endif
    gamma1 = I830BoundGamma (gamma1, gamma0);
    gamma2 = I830BoundGamma (gamma2, gamma1);
    gamma3 = I830BoundGamma (gamma3, gamma2);
    gamma4 = I830BoundGamma (gamma4, gamma3);
    gamma5 = I830BoundGamma (gamma5, gamma4);
+#if 0
    ErrorF ("Bounded  gamma: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
 	   gamma0, gamma1, gamma2, gamma3, gamma4, gamma5);
+#endif
 
    OUTREG(OGAMC5, gamma5);
    OUTREG(OGAMC4, gamma4);
@@ -649,7 +651,7 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
    I830PortPrivPtr pPriv;
    XF86AttributePtr att;
 
-   ErrorF("I830SetupImageVideoOverlay\n");
+   OVERLAY_DEBUG("I830SetupImageVideoOverlay\n");
 
    if (!(adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec) +
 			 sizeof(I830PortPrivRec) + sizeof(DevUnion))))
@@ -775,7 +777,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
    int nports = 16, i;
    int nAttributes;
 
-   ErrorF("I830SetupImageVideoOverlay\n");
+   OVERLAY_DEBUG("I830SetupImageVideoOverlay\n");
 
    nAttributes = NUM_TEXTURED_ATTRIBUTES;
 
@@ -881,7 +883,7 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
    if (pPriv->textured)
       return;
 
-   ErrorF("I830StopVideo\n");
+   OVERLAY_DEBUG("I830StopVideo\n");
 
    REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
 
@@ -928,14 +930,14 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	 return BadValue;
       pPriv->brightness = value;
       overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
-      ErrorF("BRIGHTNESS\n");
+      OVERLAY_DEBUG("BRIGHTNESS\n");
       OVERLAY_UPDATE;
    } else if (attribute == xvContrast) {
       if ((value < 0) || (value > 255))
 	 return BadValue;
       pPriv->contrast = value;
       overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
-      ErrorF("CONTRAST\n");
+      OVERLAY_DEBUG("CONTRAST\n");
       OVERLAY_UPDATE;
    } else if (attribute == xvSaturation) {
       if ((value < 0) || (value > 1023))
@@ -956,7 +958,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
          overlay->OCONFIG |= OVERLAY_PIPE_A;
       else 
          overlay->OCONFIG |= OVERLAY_PIPE_B;
-      ErrorF("PIPE CHANGE\n");
+      OVERLAY_DEBUG("PIPE CHANGE\n");
       OVERLAY_UPDATE;
    } else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
       pPriv->gamma0 = value; 
@@ -983,7 +985,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	 overlay->DCLRKV = pPriv->colorKey;
 	 break;
       }
-      ErrorF("COLORKEY\n");
+      OVERLAY_DEBUG("COLORKEY\n");
       OVERLAY_UPDATE;
       REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
    } else if(attribute == xvDoubleBuffer) {
@@ -1003,7 +1005,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
         attribute == xvGamma4 ||
         attribute == xvGamma5) && (IS_I9XX(pI830))) {
 	CARD32 r = overlay->OCMD & OVERLAY_ENABLE;
-        ErrorF("GAMMA\n");
+        OVERLAY_DEBUG("GAMMA\n");
         overlay->OCMD &= ~OVERLAY_ENABLE;
         OVERLAY_UPDATE;
 	I830UpdateGamma(pScrn);
@@ -1078,8 +1080,11 @@ I830CopyPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
    int i,j;
    unsigned char *s;
 
+#if 0
    ErrorF("I830CopyPackedData: (%d,%d) (%d,%d)\n"
-	   "srcPitch: %d, dstPitch: %d\n", top, left, h, w, srcPitch, dstPitch);
+	  "srcPitch: %d, dstPitch: %d\n", top, left, h, w,
+	  srcPitch, dstPitch);
+#endif
 
    src = buf + (top * srcPitch) + (left << 1);
 
@@ -1232,14 +1237,19 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
    unsigned char *s;
    int dstPitch2 = dstPitch << 1;
 
+#if 0
    ErrorF("I830CopyPlanarData: srcPitch %d, srcPitch %d, dstPitch %d\n"
-	   "nlines %d, npixels %d, top %d, left %d\n", srcPitch, srcPitch2, dstPitch,
-	   h, w, top, left);
+	  "nlines %d, npixels %d, top %d, left %d\n",
+	  srcPitch, srcPitch2, dstPitch,
+	  h, w, top, left);
+#endif
 
    /* Copy Y data */
    src1 = buf + (top * srcPitch) + left;
+#if 0
    ErrorF("src1 is %p, offset is %ld\n", src1,
 	  (unsigned long)src1 - (unsigned long)buf);
+#endif
    if (pPriv->currentBuf == 0)
       dst1 = pI830->FbBase + pPriv->YBuf0offset;
    else
@@ -1284,8 +1294,10 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
    /* Copy V data for YV12, or U data for I420 */
    src2 = buf + (srcH * srcPitch) + ((top * srcPitch) >> 2) + (left >> 1);
+#if 0
    ErrorF("src2 is %p, offset is %ld\n", src2,
 	  (unsigned long)src2 - (unsigned long)buf);
+#endif
    if (pPriv->currentBuf == 0) {
       if (id == FOURCC_I420)
 	 dst2 = pI830->FbBase + pPriv->UBuf0offset;
@@ -1338,8 +1350,10 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
    /* Copy U data for YV12, or V data for I420 */
    src3 = buf + (srcH * srcPitch) + ((srcH >> 1) * srcPitch2) +
 	 ((top * srcPitch) >> 2) + (left >> 1);
+#if 0
    ErrorF("src3 is %p, offset is %ld\n", src3,
 	  (unsigned long)src3 - (unsigned long)buf);
+#endif
    if (pPriv->currentBuf == 0) {
       if (id == FOURCC_I420)
 	 dst3 = pI830->FbBase + pPriv->VBuf0offset;
@@ -1533,8 +1547,8 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    unsigned int mask, shift, offsety, offsetu;
    int tmp;
 
-   ErrorF("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
-	   dstPitch);
+   OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
+		 dstPitch);
 
    if (!pPriv->overlayOK)
       return;
@@ -1590,7 +1604,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
    /* Ensure overlay is turned on with OVERLAY_ENABLE at 0 */
    if (!*pI830->overlayOn) {
-      ErrorF("TURNING ON OVERLAY BEFORE UPDATE\n");
+      OVERLAY_DEBUG("TURNING ON OVERLAY BEFORE UPDATE\n");
       I830ResetVideo(pScrn);
       OVERLAY_UPDATE;
    }
@@ -1673,22 +1687,22 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
       /* nothing do to */
       if ((!dstBox->x1 && !dstBox->x2) || (!dstBox->y1 && !dstBox->y2)) {
-         ErrorF("NOTHING TO DO\n");
+         OVERLAY_DEBUG("NOTHING TO DO\n");
          return;
       }
       if ((dstBox->x1 == (pScrn->currentMode->HDisplay - 1) && 
            dstBox->x2 == (pScrn->currentMode->HDisplay - 1)) || 
           (dstBox->y1 == vactive && 
            dstBox->y2 == vactive)) {
-         ErrorF("NOTHING TO DO\n");
+         OVERLAY_DEBUG("NOTHING TO DO\n");
          return;
       }
       if ((dstBox->y2 - dstBox->y1) <= N_VERT_Y_TAPS) {
-         ErrorF("NOTHING TO DO\n");
+         OVERLAY_DEBUG("NOTHING TO DO\n");
          return;
       }
       if ((dstBox->x2 - dstBox->x1) <= 2) {
-         ErrorF("NOTHING TO DO\n");
+         OVERLAY_DEBUG("NOTHING TO DO\n");
          return;
       }
    }
@@ -1726,7 +1740,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
       swidth -= 1;
 
-      ErrorF("Y width is %d, swidth is %d\n", width, swidth);
+      OVERLAY_DEBUG("Y width is %d, swidth is %d\n", width, swidth);
 
       overlay->SWIDTHSW = swidth << 2;
 
@@ -1738,11 +1752,11 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
       swidth -= 1;
 
-      ErrorF("UV width is %d, swidthsw is %d\n", width / 2, swidth);
+      OVERLAY_DEBUG("UV width is %d, swidthsw is %d\n", width / 2, swidth);
 
       overlay->SWIDTHSW |= swidth << 18;
 
-      ErrorF("HEIGHT is %d\n",height);
+      OVERLAY_DEBUG("HEIGHT is %d\n",height);
 
       overlay->SHEIGHT = height | ((height / 2) << 16);
       break;
@@ -1752,7 +1766,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       swidth = width;
       overlay->SWIDTH = swidth;
 
-      ErrorF("Y width is %d\n", swidth);
+      OVERLAY_DEBUG("Y width is %d\n", swidth);
 
       swidth = ((offsety + (width << 1) + mask) >> shift) -
 	    (offsety >> shift);
@@ -1762,11 +1776,11 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
       swidth -= 1;
 
-      ErrorF("swidthsw is %d\n", swidth);
+      OVERLAY_DEBUG("swidthsw is %d\n", swidth);
 
       overlay->SWIDTHSW = swidth << 2;
 
-      ErrorF("HEIGHT is %d\n",height);
+      OVERLAY_DEBUG("HEIGHT is %d\n",height);
 
       overlay->SHEIGHT = height;
       break;
@@ -1779,8 +1793,8 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    overlay->DWINSZ = ((dstBox->y2 - dstBox->y1) << 16) |
 	 (dstBox->x2 - dstBox->x1);
 
-   ErrorF("dstBox: x1: %d, y1: %d, x2: %d, y2: %d\n", dstBox->x1, dstBox->y1,
-			dstBox->x2, dstBox->y2);
+   OVERLAY_DEBUG("dstBox: x1: %d, y1: %d, x2: %d, y2: %d\n",
+		 dstBox->x1, dstBox->y1, dstBox->x2, dstBox->y2);
 
    /* buffer locations */
    if (IS_I965G(pI830))
@@ -1810,10 +1824,10 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       }
    }
 
-   ErrorF("Buffers: Y0: 0x%lx, U0: 0x%lx, V0: 0x%lx\n", overlay->OBUF_0Y,
-	  overlay->OBUF_0U, overlay->OBUF_0V);
-   ErrorF("Buffers: Y1: 0x%lx, U1: 0x%lx, V1: 0x%lx\n", overlay->OBUF_1Y,
-	  overlay->OBUF_1U, overlay->OBUF_1V);
+   OVERLAY_DEBUG("Buffers: Y0: 0x%lx, U0: 0x%lx, V0: 0x%lx\n",
+		 overlay->OBUF_0Y, overlay->OBUF_0U, overlay->OBUF_0V);
+   OVERLAY_DEBUG("Buffers: Y1: 0x%lx, U1: 0x%lx, V1: 0x%lx\n",
+		 overlay->OBUF_1Y, overlay->OBUF_1U, overlay->OBUF_1V);
 
 #if 0
    {
@@ -1837,8 +1851,9 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    }
 #endif
 
-   ErrorF("pos: 0x%lx, size: 0x%lx\n", overlay->DWINPOS, overlay->DWINSZ);
-   ErrorF("dst: %d x %d, src: %d x %d\n", drw_w, drw_h, src_w, src_h);
+   OVERLAY_DEBUG("pos: 0x%lx, size: 0x%lx\n",
+		 overlay->DWINPOS, overlay->DWINSZ);
+   OVERLAY_DEBUG("dst: %d x %d, src: %d x %d\n", drw_w, drw_h, src_w, src_h);
 
    /* 
     * Calculate horizontal and vertical scaling factors and polyphase
@@ -1881,20 +1896,20 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       xscaleIntUV = xscaleFractUV >> 12;
       yscaleIntUV = yscaleFractUV >> 12;
 
-      ErrorF("xscale: %x.%03x, yscale: %x.%03x\n", xscaleInt,
-	     xscaleFract & 0xFFF, yscaleInt, yscaleFract & 0xFFF);
-      ErrorF("UV xscale: %x.%03x, UV yscale: %x.%03x\n", xscaleIntUV,
-	     xscaleFractUV & 0xFFF, yscaleIntUV, yscaleFractUV & 0xFFF);
+      OVERLAY_DEBUG("xscale: %x.%03x, yscale: %x.%03x\n", xscaleInt,
+		    xscaleFract & 0xFFF, yscaleInt, yscaleFract & 0xFFF);
+      OVERLAY_DEBUG("UV xscale: %x.%03x, UV yscale: %x.%03x\n", xscaleIntUV,
+		    xscaleFractUV & 0xFFF, yscaleIntUV, yscaleFractUV & 0xFFF);
 
       /* shouldn't get here */
-      if (xscaleInt > 7) { 
-         ErrorF("xscale: bad scale\n");
+      if (xscaleInt > 7) {
+         OVERLAY_DEBUG("xscale: bad scale\n");
 	 return;
       }
 
       /* shouldn't get here */
-      if (xscaleIntUV > 7) { 
-         ErrorF("xscaleUV: bad scale\n");
+      if (xscaleIntUV > 7) {
+         OVERLAY_DEBUG("xscaleUV: bad scale\n");
          return;
       }
 
@@ -1965,12 +1980,13 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    switch (id) {
    case FOURCC_YV12:
    case FOURCC_I420:
-      ErrorF("YUV420\n");
+      OVERLAY_DEBUG("YUV420\n");
 #if 0
       /* set UV vertical phase to -0.25 */
       overlay->UV_VPH = 0x30003000;
 #endif
-      ErrorF("UV stride is %d, Y stride is %d\n", dstPitch, dstPitch * 2);
+      OVERLAY_DEBUG("UV stride is %d, Y stride is %d\n",
+		    dstPitch, dstPitch * 2);
       overlay->OSTRIDE = (dstPitch * 2) | (dstPitch << 16);
       overlay->OCMD &= ~SOURCE_FORMAT;
       overlay->OCMD &= ~OV_BYTE_ORDER;
@@ -1979,7 +1995,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
-      ErrorF("YUV422\n");
+      OVERLAY_DEBUG("YUV422\n");
       overlay->OSTRIDE = dstPitch;
       overlay->OCMD &= ~SOURCE_FORMAT;
       overlay->OCMD |= YUV_422;
@@ -1995,7 +2011,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    else
       overlay->OCMD |= BUFFER1;
 
-   ErrorF("OCMD is 0x%lx\n", overlay->OCMD);
+   OVERLAY_DEBUG("OCMD is 0x%lx\n", overlay->OCMD);
 
    OVERLAY_UPDATE;
 }
@@ -2158,9 +2174,11 @@ I830PutImage(ScrnInfoPtr pScrn,
    int pitchAlignMask;
    int extraLinear;
 
+#if 0
    ErrorF("I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
 	   "width %d, height %d\n", src_x, src_y, src_w, src_h, drw_x, drw_y,
 	   drw_w, drw_h, width, height);
+#endif
 
    if (pI830->entityPrivate) {
 	 if (pI830->entityPrivate->XvInUse != -1 &&
@@ -2441,6 +2459,7 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
       if (offsets)
 	 offsets[2] = size;
       size += tmp;
+#if 0
       if (pitches)
 	 ErrorF("pitch 0 is %d, pitch 1 is %d, pitch 2 is %d\n", pitches[0],
 		pitches[1], pitches[2]);
@@ -2448,6 +2467,7 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
 	 ErrorF("offset 1 is %d, offset 2 is %d\n", offsets[1], offsets[2]);
       if (offsets)
 	 ErrorF("size is %d\n", size);
+#endif
       break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
@@ -2504,7 +2524,7 @@ I830BlockHandler(int i,
       if (pPriv->videoStatus & OFF_TIMER) {
 	 if (pPriv->offTime < now) {
 	    /* Turn off the overlay */
-	    ErrorF("BLOCKHANDLER\n");
+	    OVERLAY_DEBUG("BLOCKHANDLER\n");
 
 	    I830ResetVideo(pScrn);
             OVERLAY_UPDATE;
@@ -2544,7 +2564,7 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
    OffscreenPrivPtr pPriv;
    I830Ptr pI830 = I830PTR(pScrn);
 
-   ErrorF("I830AllocateSurface\n");
+   OVERLAY_DEBUG("I830AllocateSurface\n");
 
    if (IS_845G(pI830) || IS_I830(pI830)) {
       if ((w > IMAGE_MAX_WIDTH_LEGACY) || (h > IMAGE_MAX_HEIGHT_LEGACY))
@@ -2608,7 +2628,7 @@ I830StopSurface(XF86SurfacePtr surface)
    if (pPriv->isOn) {
       I830Ptr pI830 = I830PTR(pScrn);
 
-      ErrorF("StopSurface\n");
+      OVERLAY_DEBUG("StopSurface\n");
 
       I830ResetVideo(pScrn);
       OVERLAY_UPDATE;
@@ -2669,7 +2689,7 @@ I830DisplaySurface(XF86SurfacePtr surface,
    INT32 loops = 0;
    BoxRec dstBox;
 
-   ErrorF("I830DisplaySurface\n");
+   OVERLAY_DEBUG("I830DisplaySurface\n");
 
    if (pI830->entityPrivate) {
 	 if (pI830->entityPrivate->XvInUse != -1 &&
