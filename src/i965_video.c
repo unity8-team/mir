@@ -149,11 +149,11 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 int x1, int y1, int x2, int y2,
 			 short src_w, short src_h,
 			 short drw_w, short drw_h,
-			 DrawablePtr pDraw)
+			 PixmapPtr pPixmap)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     BoxPtr pbox;
-    int nbox, dxo, dyo;
+    int nbox, dxo, dyo, pix_xoff, pix_yoff;
     int urb_vs_start, urb_vs_size;
     int urb_gs_start, urb_gs_size;
     int urb_clip_start, urb_clip_size;
@@ -381,12 +381,13 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     dest_surf_state->ss0.mipmap_layout_mode = 0;
     dest_surf_state->ss0.render_cache_read_mode = 0;
 
-    dest_surf_state->ss1.base_addr = pI830->FrontBuffer.Start;
+    dest_surf_state->ss1.base_addr = (long)pPixmap->devPrivate.ptr -
+	(long)pI830->FbBase;
     dest_surf_state->ss2.height = pScrn->virtualY - 1;
     dest_surf_state->ss2.width = pScrn->virtualX - 1;
     dest_surf_state->ss2.mip_count = 0;
     dest_surf_state->ss2.render_target_rotation = 0;
-    dest_surf_state->ss3.pitch = (pI830->displayWidth * pI830->cpp) - 1;
+    dest_surf_state->ss3.pitch = pPixmap->devKind - 1;
 
     /* Set up the source surface state buffer */
     memset(src_surf_state, 0, sizeof(*src_surf_state));
@@ -656,6 +657,17 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
        ADVANCE_LP_RING();
     }
 
+   /* Set up the offset for translating from the given region (in screen
+    * coordinates) to the backing pixmap.
+    */
+#ifdef COMPOSITE
+    pix_xoff = -pPixmap->screen_x + pPixmap->drawable.x;
+    pix_yoff = -pPixmap->screen_y + pPixmap->drawable.y;
+#else
+    pix_xoff = 0;
+    pix_yoff = 0;
+#endif
+
     dxo = dstRegion->extents.x1;
     dyo = dstRegion->extents.y1;
 
@@ -685,18 +697,18 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	i = 0;
 	vb[i++] = (box_x2 - dxo) * src_scale_x;
 	vb[i++] = (box_y2 - dyo) * src_scale_y;
-	vb[i++] = (float) box_x2;
-	vb[i++] = (float) box_y2;
+	vb[i++] = (float) box_x2 + pix_xoff;
+	vb[i++] = (float) box_y2 + pix_yoff;
 
 	vb[i++] = (box_x1 - dxo) * src_scale_x;
 	vb[i++] = (box_y2 - dyo) * src_scale_y;
-	vb[i++] = (float) box_x1;
-	vb[i++] = (float) box_y2;
+	vb[i++] = (float) box_x1 + pix_xoff;
+	vb[i++] = (float) box_y2 + pix_yoff;
 
 	vb[i++] = (box_x1 - dxo) * src_scale_x;
 	vb[i++] = (box_y1 - dyo) * src_scale_y;
-	vb[i++] = (float) box_x1;
-	vb[i++] = (float) box_y1;
+	vb[i++] = (float) box_x1 + pix_xoff;
+	vb[i++] = (float) box_y1 + pix_yoff;
 
 #if 0
 	ErrorF ("before EU_ATT 0x%08x%08x EU_ATT_DATA 0x%08x%08x\n",

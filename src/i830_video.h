@@ -92,7 +92,7 @@ void I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 			      int x1, int y1, int x2, int y2,
 			      short src_w, short src_h,
 			      short drw_w, short drw_h,
-			      DrawablePtr pDraw);
+			      PixmapPtr pPixmap);
 
 void I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 			      int id, RegionPtr dstRegion, short width,
@@ -100,4 +100,4 @@ void I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 			      int x1, int y1, int x2, int y2,
 			      short src_w, short src_h,
 			      short drw_w, short drw_h,
-			      DrawablePtr pDraw);
+			      PixmapPtr pPixmap);

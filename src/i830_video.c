@@ -76,6 +76,8 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86fbman.h"
 #include "regionstr.h"
 #include "randrstr.h"
+#include "windowstr.h"
+#include "damage.h"
 #include "i830.h"
 #include "i830_video.h"
 #include "xf86xv.h"
@@ -2016,7 +2018,6 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    OVERLAY_UPDATE;
 }
 
-
 #ifdef I830_USE_EXA
 static void
 I830VideoSave(ScreenPtr pScreen, ExaOffscreenArea *area)
@@ -2167,6 +2168,7 @@ I830PutImage(ScrnInfoPtr pScrn,
    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
    I830OverlayRegPtr overlay =
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
+   PixmapPtr pPixmap;
    INT32 x1, x2, y1, y2;
    int srcPitch, srcPitch2 = 0, dstPitch, destId;
    int top, left, npixels, nlines, size, loops;
@@ -2380,6 +2382,21 @@ I830PutImage(ScrnInfoPtr pScrn,
       break;
    }
 
+   if (pDraw->type == DRAWABLE_WINDOW) {
+      pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr)pDraw);
+   } else {
+      pPixmap = (PixmapPtr)pDraw;
+   }
+
+   if (((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
+       ((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
+	pI830->FbMapSize)) {
+      /* If the pixmap wasn't in framebuffer, then we have no way in XAA to
+       * force it there.  So, we simply refuse to draw and fail.
+       */
+      return BadAlloc;
+   }
+
    if (!pPriv->textured) {
       /* update cliplist */
       if (!RegionsEqual(&pPriv->clip, clipBoxes)) {
@@ -2392,12 +2409,16 @@ I830PutImage(ScrnInfoPtr pScrn,
    } else if (IS_I965G(pI830)) {
       I965DisplayVideoTextured(pScrn, pPriv, destId, clipBoxes, width, height,
 			       dstPitch, x1, y1, x2, y2,
-			       src_w, src_h, drw_w, drw_h, pDraw);
+			       src_w, src_h, drw_w, drw_h, pPixmap);
    } else {
       I915DisplayVideoTextured(pScrn, pPriv, destId, clipBoxes, width, height,
 			       dstPitch, x1, y1, x2, y2,
-			       src_w, src_h, drw_w, drw_h, pDraw);
+			       src_w, src_h, drw_w, drw_h, pPixmap);
    }
+   if (pPriv->textured) {
+      DamageDamageRegion(pDraw, clipBoxes);
+   }
+
    pPriv->videoStatus = CLIENT_VIDEO_ON;
 
    return Success;
