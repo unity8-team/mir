@@ -48,10 +48,10 @@ static const char *CH7xxxSymbols[] = {
 /* driver list */
 struct _I830DVODriver i830_dvo_drivers[] =
 {
-	{ I830_DVO_CHIP_TMDS, "sil164", "SIL164VidOutput",
-		(SIL164_ADDR_1<<1), SIL164Symbols, NULL , NULL, NULL},
-	{ I830_DVO_CHIP_TMDS | I830_DVO_CHIP_TVOUT, "ch7xxx", "CH7xxxVidOutput",
-		(CH7xxx_ADDR_1<<1), CH7xxxSymbols, NULL , NULL, NULL}
+    {I830_DVO_CHIP_TMDS, "sil164", "SIL164VidOutput",
+     (SIL164_ADDR_1<<1), SIL164Symbols, NULL , NULL, NULL},
+    {I830_DVO_CHIP_TMDS | I830_DVO_CHIP_TVOUT, "ch7xxx", "CH7xxxVidOutput",
+     (CH7xxx_ADDR_1<<1), CH7xxxSymbols, NULL , NULL, NULL}
 };
 
 #define I830_NUM_DVO_DRIVERS (sizeof(i830_dvo_drivers)/sizeof(struct _I830DVODriver))
