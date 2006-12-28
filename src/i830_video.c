@@ -2018,7 +2018,8 @@ I830VideoSave(ScreenPtr pScreen, ExaOffscreenArea *area)
  * \param pPriv adaptor the memory is being allocated for.
  * \param size size of the allocation, in bytes.
  * \param alignment offset alignment of the allocation, in bytes.
- * \return offset of the allocated memory.
+ *
+ * \return byte offset of the allocated memory from the start of framebuffer.
  */
 static void
 I830AllocateMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear, int size,
@@ -2048,6 +2049,11 @@ I830AllocateMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear, int size,
    if (!pI830->useEXA) {
       int max_size;
 
+      /* Converts an offset from XAA's linear allocator to an offset from the
+       * start of fb.
+       */
+#define XAA_OFFSET_TO_OFFSET(x) (pI830->FrontBuffer.Start + (x * pI830->cpp))
+
       /* The XFree86 linear allocator operates in units of screen pixels,
        * sadly.
        */
@@ -2056,12 +2062,12 @@ I830AllocateMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear, int size,
 
       if (linear->xaa != NULL) {
 	 if (linear->xaa->size >= size) {
-	    linear->offset = linear->xaa->offset * pI830->cpp;
+	    linear->offset = XAA_OFFSET_TO_OFFSET(linear->xaa->offset);
 	    return;
 	 }
 
 	 if (xf86ResizeOffscreenLinear(linear->xaa, size)) {
-	    linear->offset = linear->xaa->offset * pI830->cpp;
+	    linear->offset = XAA_OFFSET_TO_OFFSET(linear->xaa->offset);
 	    return;
 	 }
 
@@ -2071,7 +2077,7 @@ I830AllocateMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear, int size,
       linear->xaa = xf86AllocateOffscreenLinear(pScreen, size, align,
 						NULL, NULL, NULL);
       if (linear->xaa != NULL) {
-	 linear->offset = linear->xaa->offset * pI830->cpp;
+	 linear->offset = XAA_OFFSET_TO_OFFSET(linear->xaa->offset);
 	 return;
       }
 
@@ -2087,7 +2093,7 @@ I830AllocateMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear, int size,
       xf86PurgeUnlockedOffscreenAreas(pScreen);
       linear->xaa = xf86AllocateOffscreenLinear(pScreen, size, 4,
 						NULL, NULL, NULL);
-      linear->offset = linear->xaa->offset * pI830->cpp;
+      linear->offset = XAA_OFFSET_TO_OFFSET(linear->xaa->offset);
    }
 #endif /* I830_USE_XAA */
 }
@@ -2270,11 +2276,7 @@ I830PutImage(ScrnInfoPtr pScrn,
       pPriv->doubleBuffer ? size * 2 : size;
 
    /* fixup pointers */
-#if 0
-   pPriv->YBuf0offset = pScrn->fbOffset + pPriv->linear.offset;
-#else
-   pPriv->YBuf0offset = pI830->FrontBuffer.Start + pPriv->linear.offset;
-#endif
+   pPriv->YBuf0offset = pPriv->linear.offset;
    if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
       pPriv->UBuf0offset = pPriv->YBuf0offset + (dstPitch * 2 * width);
       pPriv->VBuf0offset = pPriv->UBuf0offset + (dstPitch * width / 2);
@@ -2592,11 +2594,7 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
    surface->offsets[0] = pPriv->linear.offset;
    surface->devPrivate.ptr = (pointer) pPriv;
 
-#if 0
-   memset(pI830->FbBase + pScrn->fbOffset + surface->offsets[0], 0, size);
-#else
-   memset(pI830->FbBase + pI830->FrontBuffer.Start + surface->offsets[0], 0, size);
-#endif
+   memset(pI830->FbBase + surface->offsets[0], 0, size);
 
    return Success;
 }
