@@ -659,10 +659,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	    /* Since we use the same little vertex buffer over and over, sync
 	     * for subsequent rectangles.
 	     */
-	    if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-		(*pI830->AccelInfoRec->Sync)(pScrn);
-		pI830->AccelInfoRec->NeedToSync = FALSE;
-	    }
+	    i830WaitSync(pScrn);
 	}
 
 	pbox++;
@@ -831,12 +828,10 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	}
 #endif
 	first_output = FALSE;
-	if (pI830->AccelInfoRec)
-	    pI830->AccelInfoRec->NeedToSync = TRUE;
+	i830MarkSync(pScrn);
     }
 
-    if (pI830->AccelInfoRec)
-	(*pI830->AccelInfoRec->Sync)(pScrn);
+    i830WaitSync(pScrn);
 #if WATCH_STATS
     i830_dump_error_state(pScrn);
 #endif
