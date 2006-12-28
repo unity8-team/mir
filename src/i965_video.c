@@ -281,6 +281,22 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     binding_table = (void *)(state_base + binding_table_offset);
     vb = (void *)(state_base + vb_offset);
 
+#if 0
+    ErrorF("vs:            0x%08x\n", state_base_offset + vs_offset);
+    ErrorF("wm:            0x%08x\n", state_base_offset + wm_offset);
+    ErrorF("sf:            0x%08x\n", state_base_offset + sf_offset);
+    ErrorF("cc:            0x%08x\n", state_base_offset + cc_offset);
+    ErrorF("sf kernel:     0x%08x\n", state_base_offset + sf_kernel_offset);
+    ErrorF("ps kernel:     0x%08x\n", state_base_offset + ps_kernel_offset);
+    ErrorF("sip kernel:    0x%08x\n", state_base_offset + sip_kernel_offset);
+    ErrorF("cc_vp:         0x%08x\n", state_base_offset + cc_viewport_offset);
+    ErrorF("src sampler:   0x%08x\n", state_base_offset + src_sampler_offset);
+    ErrorF("vb:            0x%08x\n", state_base_offset + vb_offset);
+    ErrorF("dst surf:      0x%08x\n", state_base_offset + dest_surf_offset);
+    ErrorF("src surf:      0x%08x\n", state_base_offset + src_surf_offset);
+    ErrorF("binding table: 0x%08x\n", state_base_offset + binding_table_offset);
+#endif
+
     /* For 3D, the VS must have 8, 12, 16, 24, or 32 VUEs allocated to it.
      * A VUE consists of a 256-bit vertex header followed by the vertex data,
      * which in our case is 4 floats (128 bits), thus a single 512-bit URB
@@ -430,9 +446,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
     memcpy (sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
     memset(sf_state, 0, sizeof(*sf_state));
-#if 0
-    ErrorF ("sf kernel: 0x%08x\n", state_base_offset + sf_kernel_offset);
-#endif
     sf_state->thread0.kernel_start_pointer =
 	(state_base_offset + sf_kernel_offset) >> 6;
     sf_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
@@ -463,9 +476,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     sf_state->sf6.dest_org_hbias = 0x8;
 
     memcpy (ps_kernel, ps_kernel_static, sizeof (ps_kernel_static));
-#if 0
-    ErrorF ("ps kernel: 0x%08x\n", state_base_offset + ps_kernel_offset);
-#endif
     memset (wm_state, 0, sizeof (*wm_state));
     wm_state->thread0.kernel_start_pointer =
 	(state_base_offset + ps_kernel_offset) >> 6;
