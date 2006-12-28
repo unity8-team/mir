@@ -51,6 +51,12 @@ static const char *ivch_symbols[] = {
     NULL
 };
 #endif
+#if 0
+static const char *ch7017_symbols[] = {
+    "ch7017_methods",
+    NULL
+};
+#endif
 
 /* driver list */
 struct _I830DVODriver i830_dvo_drivers[] =
@@ -62,6 +68,10 @@ struct _I830DVODriver i830_dvo_drivers[] =
     /*
     {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",
      (0x2 << 1), ivch_symbols, NULL, NULL, NULL},
+    */
+    /*
+    { I830_DVO_CHIP_LVDS, "ch7017", "ch7017_methods",
+      (CH7017_ADDR_1 << 1), ch7017_symbols, NULL, NULL, NULL }
     */
 };
 
