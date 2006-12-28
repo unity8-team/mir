@@ -149,6 +149,7 @@ AC_OUTPUT([
 	src/xvmc/Makefile
 	src/bios_reader/Makefile
 	src/ch7xxx/Makefile
+	src/ivch/Makefile
 	src/sil164/Makefile
 	man/Makefile
 ])
