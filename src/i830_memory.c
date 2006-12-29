@@ -1239,7 +1239,14 @@ I830AllocateTextureMemory(ScrnInfoPtr pScrn, const int flags)
 
    if (pI830->mmModeFlags & I830_KERNEL_TEX) {
 
-      size = GetFreeSpace(pScrn);
+      if (dryrun && pI830->pEnt->device->videoRam == 0) {
+	 /* If we're laying out a default-sized allocation, then don't be
+	  * too greedy and just ask for 32MB.
+	  */
+	 size = MB(32);
+      } else {
+	 size = GetFreeSpace(pScrn);
+      }
       if (dryrun && (size < MB(1)))
 	 size = MB(1);
       i = myLog2(size / I830_NR_TEX_REGIONS);

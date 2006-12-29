@@ -1450,52 +1450,26 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->checkDevices = FALSE;
 
    /*
-    * The "VideoRam" config file parameter specifies the total amount of
-    * memory that will be used/allocated.  When agpgart support isn't
-    * available (StolenOnly == TRUE), this is limited to the amount of
-    * pre-allocated ("stolen") memory.
-    */
-
-   /*
-    * Default to I830_DEFAULT_VIDEOMEM_2D (8192KB) for 2D-only,
-    * or I830_DEFAULT_VIDEOMEM_3D (32768KB) for 3D.  If the stolen memory
-    * amount is higher, default to it rounded up to the nearest MB.  This
-    * guarantees that by default there will be at least some run-time
-    * space for things that need a physical address.
-    * But, we double the amounts when dual head is enabled, and therefore
-    * for 2D-only we use 16384KB, and 3D we use 65536KB. The VideoRAM 
-    * for the second head is never used, as the primary head does the 
-    * allocation.
+    * The "VideoRam" config file parameter specifies the maximum amount of
+    * memory that will be used/allocated.  When not present, we allow the
+    * driver to allocate as much memory as it wishes to satisfy its
+    * allocations, but if agpgart support isn't available (StolenOnly == TRUE),
+    * it gets limited to the amount of pre-allocated ("stolen") memory.
     */
    if (!pI830->pEnt->device->videoRam) {
       from = X_DEFAULT;
-#ifdef XF86DRI
-      if (!pI830->directRenderingDisabled)
-	 pScrn->videoRam = I830_DEFAULT_VIDEOMEM_3D;
-      else
-#endif
-	 pScrn->videoRam = I830_DEFAULT_VIDEOMEM_2D;
-
-      if (xf86IsEntityShared(pScrn->entityList[0])) {
-         if (I830IsPrimary(pScrn))
-            pScrn->videoRam += I830_DEFAULT_VIDEOMEM_2D;
-      else
-            pScrn->videoRam = I830_MAXIMUM_VBIOS_MEM;
-      } 
-
-      if (pI830->StolenMemory.Size / 1024 > pScrn->videoRam)
-	 pScrn->videoRam = ROUND_TO(pI830->StolenMemory.Size / 1024, 1024);
+      pScrn->videoRam = pI830->FbMapSize / KB(1);
    } else {
       from = X_CONFIG;
       pScrn->videoRam = pI830->pEnt->device->videoRam;
    }
 
    /* Make sure it's on a page boundary */
-   if (pScrn->videoRam & (GTT_PAGE_SIZE - 1)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		    "VideoRAM reduced to %d kByte "
-		    "(page aligned - was %d)\n", pScrn->videoRam & ~(GTT_PAGE_SIZE - 1), pScrn->videoRam);
-      pScrn->videoRam &= ~(GTT_PAGE_SIZE - 1);
+   if (pScrn->videoRam & 3) {
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "VideoRam reduced to %d KB "
+		 "(page aligned - was %d KB)\n",
+		 pScrn->videoRam & ~3, pScrn->videoRam);
+      pScrn->videoRam &= ~3;
    }
 
    DPRINTF(PFX,
@@ -1523,9 +1497,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-	      "Pre-allocated VideoRAM: %ld kByte\n",
+	      "Pre-allocated VideoRam: %ld kByte\n",
 	      pI830->StolenMemory.Size / 1024);
-   xf86DrvMsg(pScrn->scrnIndex, from, "VideoRAM: %d kByte\n",
+   xf86DrvMsg(pScrn->scrnIndex, from, "Potential VideoRam: %d kByte\n",
 	      pScrn->videoRam);
 
    pI830->TotalVideoRam = KB(pScrn->videoRam);
@@ -1656,9 +1630,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pScrn->videoRam -= (MIN_SCRATCH_BUFFER_SIZE / 1024);
    }
 
-   xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-	      "Maximum frambuffer space: %d kByte\n", pScrn->videoRam);
-
    if (!xf86RandR12PreInit (pScrn))
    {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "RandR initialization failure\n");
@@ -1771,7 +1742,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 				      "to make room in AGP aperture for tiling.");
 		     goto retry_dryrun;
 		  }
-
+		  /* XXX */
 		  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			     "Allocation with DRI tiling enabled would "
 			     "exceed the\n"
@@ -1839,6 +1810,27 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    } else
 #endif
       pI830->disableTiling = TRUE; /* no DRI - so disableTiling */
+
+   if (pI830->pEnt->device->videoRam == 0) {
+      int default_videoram;
+
+      /* Now that we've sized the allocations, reduce our default VideoRam
+       * allocation from the aperture size to just what we need to cover our
+       * allocations.  Only, put in some slop for alignment and such.
+       */
+      default_videoram = pI830->StolenPool.Total.Size + pI830->allocatedMemory;
+      default_videoram += KB(512); /* slop */
+      /* align to 1MB increments */
+      default_videoram = (default_videoram + MB(1) - 1) / MB(1) * MB(1);
+
+      if (default_videoram < KB(pScrn->videoRam)) {
+	 pScrn->videoRam = default_videoram / KB(1);
+	 pI830->TotalVideoRam = KB(pScrn->videoRam);
+      }
+   }
+   xf86DrvMsg(pScrn->scrnIndex,
+	      pI830->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
+	      "VideoRam: %d KB\n", pScrn->videoRam);
 
    if (!IS_I965G(pI830) && pScrn->displayWidth * pI830->cpp > 8192) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,

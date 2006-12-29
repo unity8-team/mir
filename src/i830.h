@@ -604,14 +604,6 @@ DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
 /* i830_tv.c */
 void i830_tv_init(ScrnInfoPtr pScrn);
 
-/*
- * 12288 is set as the maximum, chosen because it is enough for
- * 1920x1440@32bpp with a 2048 pixel line pitch with some to spare.
- */
-#define I830_MAXIMUM_VBIOS_MEM		12288
-#define I830_DEFAULT_VIDEOMEM_2D	(MB(32) / 1024)
-#define I830_DEFAULT_VIDEOMEM_3D	(MB(64) / 1024)
-
 /* Flags for memory allocation function */
 #define FROM_ANYWHERE			0x00000000
 #define FROM_POOL_ONLY			0x00000001
