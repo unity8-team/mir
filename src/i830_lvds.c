@@ -127,7 +127,19 @@ i830_lvds_restore(xf86OutputPtr output)
 static int
 i830_lvds_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
-   return MODE_OK;
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    DisplayModePtr  pFixedMode = pI830->panel_fixed_mode;
+
+    if (pFixedMode)
+    {
+	if (pMode->HDisplay > pFixedMode->HDisplay)
+	    return MODE_PANEL;
+	if (pMode->VDisplay > pFixedMode->VDisplay)
+	    return MODE_PANEL;
+    }
+
+    return MODE_OK;
 }
 
 static Bool
@@ -236,13 +248,36 @@ i830_lvds_detect(xf86OutputPtr output)
 static DisplayModePtr
 i830_lvds_get_modes(xf86OutputPtr output)
 {
-    ScrnInfoPtr	    pScrn = output->scrn;
-    I830Ptr	    pI830 = I830PTR(pScrn);
-    DisplayModePtr  modes;
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    xf86MonPtr		    edid_mon;
+    DisplayModePtr	    modes;
 
-    modes = i830_ddc_get_modes(output);
+    edid_mon = i830_xf86OutputGetEDID (output, intel_output->pDDCBus);
+    i830_xf86OutputSetEDID (output, edid_mon);
+    
+    modes = i830_xf86OutputGetEDIDModes (output);
     if (modes != NULL)
 	return modes;
+
+    if (!output->MonInfo)
+    {
+	edid_mon = xcalloc (1, sizeof (xf86Monitor));
+	if (edid_mon)
+	{
+	    /* Set wide sync ranges so we get all modes
+	     * handed to valid_mode for checking
+	     */
+	    edid_mon->det_mon[0].type = DS_RANGES;
+	    edid_mon->det_mon[0].section.ranges.min_v = 0;
+	    edid_mon->det_mon[0].section.ranges.max_v = 200;
+	    edid_mon->det_mon[0].section.ranges.min_h = 0;
+	    edid_mon->det_mon[0].section.ranges.max_h = 200;
+	    
+	    output->MonInfo = edid_mon;
+	}
+    }
 
     if (pI830->panel_fixed_mode != NULL)
 	return xf86DuplicateMode(pI830->panel_fixed_mode);

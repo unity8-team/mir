@@ -25,6 +25,7 @@
 #include <edid.h>
 #include "randrstr.h"
 #include "i830_xf86Modes.h"
+#include "xf86Parser.h"
 
 typedef struct _xf86Crtc xf86CrtcRec, *xf86CrtcPtr;
 typedef struct _xf86Output xf86OutputRec, *xf86OutputPtr;
@@ -288,6 +289,12 @@ struct _xf86Output {
     /** Output name */
     char		*name;
 
+    /** Configured monitor name */
+    char		*monitor_name;
+
+    /** Monitor information from config file */
+    XF86ConfMonitorPtr	conf_monitor;
+
     /** output-specific functions */
     const xf86OutputFuncsRec *funcs;
 
@@ -396,5 +403,21 @@ xf86InitialConfiguration (ScrnInfoPtr pScrn);
 
 void
 xf86DPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags);
+    
+/**
+ * Set the EDID information for the specified output
+ */
+void
+i830_xf86OutputSetEDID (xf86OutputPtr output, xf86MonPtr edid_mon);
+
+/**
+ * Return the list of modes supported by the EDID information
+ * stored in 'output'
+ */
+DisplayModePtr
+i830_xf86OutputGetEDIDModes (xf86OutputPtr output);
+
+xf86MonPtr
+i830_xf86OutputGetEDID (xf86OutputPtr output, I2CBusPtr pDDCBus);
 
 #endif /* _XF86CRTC_H_ */

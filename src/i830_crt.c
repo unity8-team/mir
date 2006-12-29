@@ -328,38 +328,6 @@ i830_crt_detect(xf86OutputPtr output)
     return XF86OutputStatusUnknown;
 }
 
-static DisplayModePtr
-i830_crt_get_modes(xf86OutputPtr output)
-{
-    ScrnInfoPtr		pScrn = output->scrn;
-    DisplayModePtr	modes;
-    MonRec fixed_mon;
-
-    modes = i830_ddc_get_modes(output);
-    if (modes != NULL)
-	return modes;
-
-    if ((*output->funcs->detect)(output) == XF86OutputStatusDisconnected)
-	return NULL;
-
-    /* We've got a potentially-connected monitor that we can't DDC.  Return a
-     * fixed set of VESA plus user modes for a presumed multisync monitor with
-     * some reasonable limits.
-     */
-    fixed_mon.nHsync = 1;
-    fixed_mon.hsync[0].lo = 31.0;
-    fixed_mon.hsync[0].hi = 100.0;
-    fixed_mon.nVrefresh = 1;
-    fixed_mon.vrefresh[0].lo = 50.0;
-    fixed_mon.vrefresh[0].hi = 70.0;
-
-    modes = xf86DuplicateModes(pScrn, pScrn->monitor->Modes);
-    i830xf86ValidateModesSync(pScrn, modes, &fixed_mon);
-    i830xf86PruneInvalidModes(pScrn, &modes, TRUE);
-
-    return modes;
-}
-
 static void
 i830_crt_destroy (xf86OutputPtr output)
 {
@@ -375,7 +343,7 @@ static const xf86OutputFuncsRec i830_crt_output_funcs = {
     .mode_fixup = i830_crt_mode_fixup,
     .mode_set = i830_crt_mode_set,
     .detect = i830_crt_detect,
-    .get_modes = i830_crt_get_modes,
+    .get_modes = i830_ddc_get_modes,
     .destroy = i830_crt_destroy
 };
 

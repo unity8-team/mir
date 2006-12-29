@@ -32,9 +32,14 @@
 
 #include "xf86.h"
 #include "xf86DDC.h"
-#include "i830.h"
+/*#include "i830.h" */
 #include "i830_xf86Crtc.h"
+#include "i830_xf86Modes.h"
+#include "i830_randr.h"
 #include "X11/extensions/render.h"
+#define DPMS_SERVER
+#include "X11/extensions/dpms.h"
+#include "X11/Xatom.h"
 
 /*
  * Initialize xf86CrtcConfig structure
@@ -121,6 +126,29 @@ xf86CrtcDestroy (xf86CrtcPtr crtc)
 /*
  * Output functions
  */
+
+extern XF86ConfigPtr xf86configptr;
+
+static void
+xf86OutputSetMonitor (xf86OutputPtr output)
+{
+    char    *option_name;
+    static const char monitor_prefix[] = "monitor-";
+    char    *monitor;
+
+    option_name = xnfalloc (strlen (monitor_prefix) +
+			    strlen (output->name) + 1);
+    strcpy (option_name, monitor_prefix);
+    strcat (option_name, output->name);
+    monitor = xf86findOptionValue (output->scrn->options, option_name);
+    if (!monitor)
+	monitor = output->name;
+    else
+	xf86MarkOptionUsedByName (output->scrn->options, option_name);
+    free (option_name);
+    output->conf_monitor = xf86findMonitor (monitor, xf86configptr->conf_monitor_lst);
+}
+
 xf86OutputPtr
 xf86OutputCreate (ScrnInfoPtr		    scrn,
 		  const xf86OutputFuncsRec *funcs,
@@ -151,8 +179,11 @@ xf86OutputCreate (ScrnInfoPtr		    scrn,
 	xfree (output);
 	return NULL;
     }
+    
     xf86_config->output = outputs;
     xf86_config->output[xf86_config->num_output++] = output;
+    
+    xf86OutputSetMonitor (output);
     return output;
 }
 
@@ -169,6 +200,7 @@ xf86OutputRename (xf86OutputPtr output, const char *name)
     if (output->name != (char *) (output + 1))
 	xfree (output->name);
     output->name = newname;
+    xf86OutputSetMonitor (output);
 }
 
 void
@@ -446,12 +478,61 @@ xf86PruneDuplicateMonitorModes (MonPtr Monitor)
     }
 }
 
+/** Return - 0 + if a should be earlier, same or later than b in list
+ */
+static int
+i830xf86ModeCompare (DisplayModePtr a, DisplayModePtr b)
+{
+    int	diff;
+
+    diff = ((b->type & M_T_PREFERRED) != 0) - ((a->type & M_T_PREFERRED) != 0);
+    if (diff)
+	return diff;
+    diff = b->HDisplay * b->VDisplay - a->HDisplay * a->VDisplay;
+    if (diff)
+	return diff;
+    diff = b->Clock - a->Clock;
+    return diff;
+}
+
+/**
+ * Insertion sort input in-place and return the resulting head
+ */
+static DisplayModePtr
+i830xf86SortModes (DisplayModePtr input)
+{
+    DisplayModePtr  output = NULL, i, o, *op, prev;
+
+    while (input)
+    {
+	i = input;
+	input = input->next;
+	for (op = &output; (o = *op); op = &o->next)
+	    if (i830xf86ModeCompare (o, i) > 0)
+		break;
+	i->next = *op;
+	*op = i;
+    }
+    /* hook up backward links */
+    prev = NULL;
+    for (o = output; o; o = o->next)
+    {
+	o->prev = prev;
+	prev = o;
+    }
+    return output;
+}
+
+#define DEBUG_REPROBE 1
+
 void
 xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 {
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
-    Bool		properties_set = FALSE;
     int			o;
+    int			virtualX, virtualY;
+
+    xf86RandR12GetOriginalVirtualSize (pScrn, &virtualX, &virtualY);
 
     /* Elide duplicate modes before defaulting code uses them */
     xf86PruneDuplicateMonitorModes (pScrn->monitor);
@@ -459,21 +540,127 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
     /* Probe the list of modes for each output. */
     for (o = 0; o < config->num_output; o++) 
     {
-	xf86OutputPtr  output = config->output[o];
-	DisplayModePtr mode;
-
+	xf86OutputPtr	    output = config->output[o];
+	DisplayModePtr	    mode;
+	XF86ConfMonitorPtr  conf_monitor = output->conf_monitor;
+	xf86MonPtr	    edid_monitor = output->MonInfo;
+	MonRec		    mon_rec;
+	
 	while (output->probed_modes != NULL)
 	    xf86DeleteMode(&output->probed_modes, output->probed_modes);
 
-	output->probed_modes = (*output->funcs->get_modes) (output);
+	if (output->status == XF86OutputStatusDisconnected)
+	    continue;
 
-	/* Set the DDC properties to whatever first output has DDC information.
-	 */
-	if (output->MonInfo != NULL && !properties_set) {
-	    xf86SetDDCproperties(pScrn, output->MonInfo);
-	    properties_set = TRUE;
+	memset (&mon_rec, '\0', sizeof (mon_rec));
+	if (conf_monitor)
+	{
+	    int	i;
+	    
+	    for (i = 0; i < conf_monitor->mon_n_hsync; i++)
+	    {
+		mon_rec.hsync[mon_rec.nHsync].lo = conf_monitor->mon_hsync[i].lo;
+		mon_rec.hsync[mon_rec.nHsync].hi = conf_monitor->mon_hsync[i].hi;
+		mon_rec.nHsync++;
+	    }
+	    for (i = 0; i < conf_monitor->mon_n_vrefresh; i++)
+	    {
+		mon_rec.vrefresh[mon_rec.nVrefresh].lo = conf_monitor->mon_vrefresh[i].lo;
+		mon_rec.vrefresh[mon_rec.nVrefresh].hi = conf_monitor->mon_vrefresh[i].hi;
+		mon_rec.nVrefresh++;
+	    }
 	}
+	if (edid_monitor)
+	{
+	    int			    i;
+	    Bool		    set_hsync = mon_rec.nHsync == 0;
+	    Bool		    set_vrefresh = mon_rec.nVrefresh == 0;
 
+	    for (i = 0; i < sizeof (edid_monitor->det_mon) / sizeof (edid_monitor->det_mon[0]); i++)
+	    {
+		if (edid_monitor->det_mon[i].type == DS_RANGES)
+		{
+		    struct monitor_ranges   *ranges = &edid_monitor->det_mon[i].section.ranges;
+		    if (set_hsync && ranges->max_h)
+		    {
+			mon_rec.hsync[mon_rec.nHsync].lo = ranges->min_h;
+			mon_rec.hsync[mon_rec.nHsync].hi = ranges->max_h;
+			mon_rec.nHsync++;
+		    }
+		    if (set_vrefresh && ranges->max_v)
+		    {
+			mon_rec.vrefresh[mon_rec.nVrefresh].lo = ranges->min_v;
+			mon_rec.vrefresh[mon_rec.nVrefresh].hi = ranges->max_v;
+			mon_rec.nVrefresh++;
+		    }
+		}
+	    }
+	}
+	/*
+	 * These limits will end up setting a 1024x768@60Hz mode by default,
+	 * which seems like a fairly good mode to use when nothing else is
+	 * specified
+	 */
+	if (mon_rec.nHsync == 0)
+	{
+	    mon_rec.hsync[0].lo = 31.0;
+	    mon_rec.hsync[0].hi = 55.0;
+	    mon_rec.nHsync = 1;
+	}
+	if (mon_rec.nVrefresh == 0)
+	{
+	    mon_rec.vrefresh[0].lo = 58.0;
+	    mon_rec.vrefresh[0].hi = 62.0;
+	    mon_rec.nVrefresh = 1;
+	}
+	
+	output->probed_modes = NULL;
+	if (conf_monitor)
+	    output->probed_modes = xf86ModesAdd (output->probed_modes,
+						 i830xf86GetMonitorModes (pScrn, conf_monitor));
+	output->probed_modes = xf86ModesAdd (output->probed_modes,
+					     (*output->funcs->get_modes) (output));
+	output->probed_modes = xf86ModesAdd (output->probed_modes,
+					     i830xf86GetDefaultModes ());
+
+	i830xf86ValidateModesSize (pScrn, output->probed_modes, virtualX, virtualY, 0);
+	i830xf86ValidateModesSync (pScrn, output->probed_modes, &mon_rec);
+	 
+	/* Strip out any modes that can't be supported on this output. */
+	for (mode = output->probed_modes; mode != NULL; mode = mode->next) 
+	    if (mode->status == MODE_OK)
+		mode->status = (*output->funcs->mode_valid)(output, mode);
+	
+	i830xf86PruneInvalidModes(pScrn, &output->probed_modes, TRUE);
+	
+	output->probed_modes = i830xf86SortModes (output->probed_modes);
+	
+	/* Check for a configured preference for a particular mode */
+	if (conf_monitor)
+	{
+	    char  *preferred_mode = xf86findOptionValue (conf_monitor->mon_option_lst,
+							 "Preferred Mode");
+
+	    if (preferred_mode)
+	    {
+		for (mode = output->probed_modes; mode; mode = mode->next)
+		    if (!strcmp (preferred_mode, mode->name))
+			break;
+		if (mode && mode != output->probed_modes)
+		{
+		    if (mode->prev)
+			mode->prev->next = mode->next;
+		    if (mode->next)
+			mode->next->prev = mode->prev;
+		    mode->next = output->probed_modes;
+		    output->probed_modes->prev = mode;
+		    mode->prev = NULL;
+		    output->probed_modes = mode;
+		    mode->type |= M_T_PREFERRED;
+		}
+	    }
+	}
+	
 #ifdef DEBUG_REPROBE
 	if (output->probed_modes != NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -746,4 +933,113 @@ xf86DPMSSet(ScrnInfoPtr pScrn, int mode, int flags)
 		(*output->funcs->dpms) (output, mode);
 	}
     }
+}
+
+#ifdef RANDR_12_INTERFACE
+
+#define EDID_ATOM_NAME		"EDID_DATA"
+
+/**
+ * Set the RandR EDID property
+ */
+static void
+xf86OutputSetEDIDProperty (xf86OutputPtr output, void *data, int data_len)
+{
+    Atom edid_atom = MakeAtom(EDID_ATOM_NAME, sizeof(EDID_ATOM_NAME), TRUE);
+
+    /* This may get called before the RandR resources have been created */
+    if (output->randr_output == NULL)
+	return;
+
+    if (data_len != 0) {
+	RRChangeOutputProperty(output->randr_output, edid_atom, XA_INTEGER, 8,
+			       PropModeReplace, data_len, data, FALSE);
+    } else {
+	RRDeleteOutputProperty(output->randr_output, edid_atom);
+    }
+}
+
+#endif
+
+/**
+ * Set the EDID information for the specified output
+ */
+void
+i830_xf86OutputSetEDID (xf86OutputPtr output, xf86MonPtr edid_mon)
+{
+    ScrnInfoPtr		pScrn = output->scrn;
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int			i, size;
+    
+    if (output->MonInfo != NULL)
+	xfree(output->MonInfo);
+    
+    output->MonInfo = edid_mon;
+
+    /* Debug info for now, at least */
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %s\n", output->name);
+    xf86PrintEDID(edid_mon);
+    
+    /* Set the DDC properties for the 'compat' output */
+    if (output == config->output[config->compat_output])
+        xf86SetDDCproperties(pScrn, edid_mon);
+
+#ifdef RANDR_12_INTERFACE
+    /* Set the RandR output properties */
+    size = 0;
+    if (edid_mon)
+    {
+	if (edid_mon->ver.version == 1)
+	    size = 128;
+	else if (edid_mon->ver.version == 2)
+	    size = 256;
+    }
+    xf86OutputSetEDIDProperty (output, edid_mon ? edid_mon->rawData : NULL, size);
+#endif
+
+    if (edid_mon)
+    {
+	/* Pull out a phyiscal size from a detailed timing if available. */
+	for (i = 0; i < 4; i++) {
+	    if (edid_mon->det_mon[i].type == DT &&
+		edid_mon->det_mon[i].section.d_timings.h_size != 0 &&
+		edid_mon->det_mon[i].section.d_timings.v_size != 0)
+	    {
+		output->mm_width = edid_mon->det_mon[i].section.d_timings.h_size;
+		output->mm_height = edid_mon->det_mon[i].section.d_timings.v_size;
+		break;
+	    }
+	}
+    
+	/* if no mm size is available from a detailed timing, check the max size field */
+	if ((!output->mm_width || !output->mm_height) &&
+	    (edid_mon->features.hsize && edid_mon->features.vsize))
+	{
+	    output->mm_width = edid_mon->features.hsize * 10;
+	    output->mm_height = edid_mon->features.vsize * 10;
+	}
+    }
+}
+
+/**
+ * Return the list of modes supported by the EDID information
+ * stored in 'output'
+ */
+DisplayModePtr
+i830_xf86OutputGetEDIDModes (xf86OutputPtr output)
+{
+    ScrnInfoPtr	pScrn = output->scrn;
+    xf86MonPtr	edid_mon = output->MonInfo;
+
+    if (!edid_mon)
+	return NULL;
+    return xf86DDCGetModes(pScrn->scrnIndex, edid_mon);
+}
+
+xf86MonPtr
+i830_xf86OutputGetEDID (xf86OutputPtr output, I2CBusPtr pDDCBus)
+{
+    ScrnInfoPtr	pScrn = output->scrn;
+
+    return xf86DoEDID_DDC2 (pScrn->scrnIndex, pDDCBus);
 }

@@ -39,6 +39,9 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i830_xf86Modes.h"
+#include "xf86Priv.h"
+
+extern XF86ConfigPtr xf86configptr;
 
 /**
  * @file this file contains symbols from xf86Mode.c and friends that are static
@@ -549,4 +552,111 @@ xf86ModesAdd(DisplayModePtr modes, DisplayModePtr new)
     }
 
     return modes;
+}
+
+/**
+ * Build a mode list from a list of config file modes
+ */
+static DisplayModePtr
+i830xf86GetConfigModes (XF86ConfModeLinePtr conf_mode)
+{
+    DisplayModePtr  head = NULL, prev = NULL, mode;
+    
+    for (; conf_mode; conf_mode = (XF86ConfModeLinePtr) conf_mode->list.next)
+    {
+        mode = xalloc(sizeof(DisplayModeRec));
+	if (!mode)
+	    continue;
+        mode->name       = xstrdup(conf_mode->ml_identifier);
+	if (!mode->name)
+	{
+	    xfree (mode);
+	    continue;
+	}
+	
+        memset(mode,'\0',sizeof(DisplayModeRec));
+	mode->type       = 0;
+        mode->Clock      = conf_mode->ml_clock;
+        mode->HDisplay   = conf_mode->ml_hdisplay;
+        mode->HSyncStart = conf_mode->ml_hsyncstart;
+        mode->HSyncEnd   = conf_mode->ml_hsyncend;
+        mode->HTotal     = conf_mode->ml_htotal;
+        mode->VDisplay   = conf_mode->ml_vdisplay;
+        mode->VSyncStart = conf_mode->ml_vsyncstart;
+        mode->VSyncEnd   = conf_mode->ml_vsyncend;
+        mode->VTotal     = conf_mode->ml_vtotal;
+        mode->Flags      = conf_mode->ml_flags;
+        mode->HSkew      = conf_mode->ml_hskew;
+        mode->VScan      = conf_mode->ml_vscan;
+
+        mode->prev = prev;
+	mode->next = NULL;
+	if (prev)
+	    prev->next = mode;
+	else
+	    head = mode;
+	prev = mode;
+    }
+    return head;
+}
+
+/**
+ * Build a mode list from a monitor configuration
+ */
+DisplayModePtr
+i830xf86GetMonitorModes (ScrnInfoPtr pScrn, XF86ConfMonitorPtr conf_monitor)
+{
+    DisplayModePtr	    modes = NULL;
+    XF86ConfModesLinkPtr    modes_link;
+    
+    /*
+     * first we collect the mode lines from the UseModes directive
+     */
+    for (modes_link = conf_monitor->mon_modes_sect_lst; 
+	 modes_link; 
+	 modes_link = modes_link->list.next)
+    {
+	/* If this modes link hasn't been resolved, go look it up now */
+	if (!modes_link->ml_modes)
+	    modes_link->ml_modes = xf86findModes (modes_link->ml_modes_str, 
+						  xf86configptr->conf_modes_lst);
+	if (modes_link->ml_modes)
+	    modes = xf86ModesAdd (modes,
+				  i830xf86GetConfigModes (modes_link->ml_modes->mon_modeline_lst));
+    }
+
+    return xf86ModesAdd (modes,
+			 i830xf86GetConfigModes (conf_monitor->mon_modeline_lst));
+}
+
+/**
+ * Build a mode list containing all of the default modes
+ */
+DisplayModePtr
+i830xf86GetDefaultModes (void)
+{
+    DisplayModePtr  head = NULL, prev = NULL, mode;
+    int		    i;
+
+    for (i = 0; xf86DefaultModes[i].name != NULL; i++)
+    {
+	mode = xalloc(sizeof(DisplayModeRec));
+	if (!mode)
+	    continue;
+        memcpy(mode,&xf86DefaultModes[i],sizeof(DisplayModeRec));
+        mode->name = xstrdup(xf86DefaultModes[i].name);
+        if (!mode->name)
+	{
+	    xfree (mode);
+	    continue;
+	}
+        mode->prev = prev;
+	mode->next = NULL;
+	if (prev)
+	    prev->next = mode;
+	else
+	    head = mode;
+	prev = mode;
+    }
+    return head;
 }
