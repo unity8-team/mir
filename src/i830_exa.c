@@ -120,6 +120,11 @@ extern Bool I915EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
 extern Bool I915EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
 				PixmapPtr, PixmapPtr, PixmapPtr);
 
+extern Bool I965EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+extern Bool I965EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
+				PixmapPtr, PixmapPtr, PixmapPtr);
+extern void I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, 
+			int maskY, int dstX, int dstY, int width, int height);
 /**
  * I830EXASync - wait for a command to finish
  * @pScreen: current screen
@@ -418,6 +423,7 @@ IntelEXADoneComposite(PixmapPtr pDst)
     I830Sync(pScrn);
 #endif
 }
+
 /*
  * TODO:
  *   - Dual head?
@@ -491,6 +497,11 @@ I830EXAInit(ScreenPtr pScreen)
     	pI830->EXADriverPtr->PrepareComposite = I830EXAPrepareComposite;
     	pI830->EXADriverPtr->Composite = IntelEXAComposite;
     	pI830->EXADriverPtr->DoneComposite = IntelEXADoneComposite;
+    } else if (IS_I965G(pI830)) {
+ 	pI830->EXADriverPtr->CheckComposite = I965EXACheckComposite;
+ 	pI830->EXADriverPtr->PrepareComposite = I965EXAPrepareComposite;
+ 	pI830->EXADriverPtr->Composite = I965EXAComposite;
+ 	pI830->EXADriverPtr->DoneComposite = IntelEXADoneComposite;
     }
 
     if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {

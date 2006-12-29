@@ -232,6 +232,7 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_I965_G_1,		"965G"},
    {PCI_CHIP_I965_Q,		"965Q"},
    {PCI_CHIP_I946_GZ,		"946GZ"},
+   {PCI_CHIP_CRESTLINE,		"Crestline"},
    {-1,				NULL}
 };
 
@@ -249,6 +250,7 @@ static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_I965_G_1,		PCI_CHIP_I965_G_1,	RES_SHARED_VGA},
    {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	RES_SHARED_VGA},
    {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	RES_SHARED_VGA},
+   {PCI_CHIP_CRESTLINE,		PCI_CHIP_CRESTLINE,	RES_SHARED_VGA},
    {-1,				-1,			RES_UNDEFINED}
 };
 
@@ -1103,6 +1105,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    case PCI_CHIP_I946_GZ:
       chipname = "946GZ";
       break;
+   case PCI_CHIP_CRESTLINE:
+      chipname = "Crestline";
+      break;
    default:
       chipname = "unknown chipset";
       break;
@@ -1222,16 +1227,12 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       }
    } else {
       if (IS_I9XX(pI830)) {
-	 if (pI830->PciInfo->memBase[2] & 0x08000000)
-	    pI830->FbMapSize = 0x8000000;	/* 128MB aperture */
-	 else
-	    pI830->FbMapSize = 0x10000000;	/* 256MB aperture */
-
-   	 if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
-	    pI830->FbMapSize = 0x8000000;	/* 128MB aperture */
-      } else
-	 /* 128MB aperture for later chips */
+	 pI830->FbMapSize = 1UL << pciGetBaseSize(pI830->PciTag, 2, TRUE,
+						  NULL);
+      } else {
+	 /* 128MB aperture for later i8xx series. */
 	 pI830->FbMapSize = 0x8000000;
+      }
    }
 
    if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
@@ -2585,6 +2586,10 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       /* Rotated2 Buffer */
       memset(&(pI830->RotatedMem2), 0, sizeof(pI830->RotatedMem2));
       pI830->RotatedMem2.Key = -1;
+      if (IS_I965G(pI830)) {
+          memset(&(pI830->RotateStateMem), 0, sizeof(pI830->RotateStateMem));
+          pI830->RotateStateMem.Key = -1;
+      }
    }
 
 #ifdef HAS_MTRR_SUPPORT
@@ -3289,8 +3294,7 @@ I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     * The extra WindowTable check detects a rotation at startup.
     */
    if ( (!WindowTable[pScrn->scrnIndex] || pspix->devPrivate.ptr == NULL) &&
-         !pI830->DGAactive && (pScrn->PointerMoved == I830PointerMoved) &&
-	 !IS_I965G(pI830)) {
+         !pI830->DGAactive && (pScrn->PointerMoved == I830PointerMoved)) {
       if (!I830Rotate(pScrn, mode))
          ret = FALSE;
    }
