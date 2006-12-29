@@ -45,13 +45,34 @@ static const char *CH7xxxSymbols[] = {
     NULL
 };
 
+#if 0
+static const char *ivch_symbols[] = {
+    "ivch_methods",
+    NULL
+};
+#endif
+#if 0
+static const char *ch7017_symbols[] = {
+    "ch7017_methods",
+    NULL
+};
+#endif
+
 /* driver list */
 struct _I830DVODriver i830_dvo_drivers[] =
 {
-	{ I830_DVO_CHIP_TMDS, "sil164", "SIL164VidOutput",
-		(SIL164_ADDR_1<<1), SIL164Symbols, NULL , NULL, NULL},
-	{ I830_DVO_CHIP_TMDS | I830_DVO_CHIP_TVOUT, "ch7xxx", "CH7xxxVidOutput",
-		(CH7xxx_ADDR_1<<1), CH7xxxSymbols, NULL , NULL, NULL}
+    {I830_DVO_CHIP_TMDS, "sil164", "SIL164VidOutput",
+     (SIL164_ADDR_1<<1), SIL164Symbols, NULL , NULL, NULL},
+    {I830_DVO_CHIP_TMDS | I830_DVO_CHIP_TVOUT, "ch7xxx", "CH7xxxVidOutput",
+     (CH7xxx_ADDR_1<<1), CH7xxxSymbols, NULL , NULL, NULL},
+    /*
+    {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",
+     (0x2 << 1), ivch_symbols, NULL, NULL, NULL},
+    */
+    /*
+    { I830_DVO_CHIP_LVDS, "ch7017", "ch7017_methods",
+      (CH7017_ADDR_1 << 1), ch7017_symbols, NULL, NULL, NULL }
+    */
 };
 
 #define I830_NUM_DVO_DRIVERS (sizeof(i830_dvo_drivers)/sizeof(struct _I830DVODriver))
@@ -183,37 +204,6 @@ i830_dvo_detect(xf86OutputPtr output)
     return intel_output->i2c_drv->vid_rec->detect(dev_priv);
 }
 
-static Bool
-I830I2CDetectDVOControllers(ScrnInfoPtr pScrn, I2CBusPtr pI2CBus,
-			    struct _I830DVODriver **retdrv)
-{
-    int i;
-    void *ret_ptr;
-    struct _I830DVODriver *drv;
-
-    for (i = 0; i < I830_NUM_DVO_DRIVERS; i++) {
-	drv = &i830_dvo_drivers[i];
-	drv->modhandle = xf86LoadSubModule(pScrn, drv->modulename);
-	if (drv->modhandle == NULL)
-	    continue;
-
-	xf86LoaderReqSymLists(drv->symbols, NULL);
-
-	ret_ptr = NULL;
-	drv->vid_rec = LoaderSymbol(drv->fntablename);
-	if (drv->vid_rec != NULL)
-	    ret_ptr = drv->vid_rec->init(pI2CBus, drv->address);
-
-	if (ret_ptr != NULL) {
-	    drv->dev_priv = ret_ptr;
-	    *retdrv = drv;
-	    return TRUE;
-	}
-	xf86UnloadSubModule(drv->modhandle);
-    }
-    return FALSE;
-}
-
 static void
 i830_dvo_destroy (xf86OutputPtr output)
 {
@@ -245,9 +235,14 @@ static const xf86OutputFuncsRec i830_dvo_output_funcs = {
 void
 i830_dvo_init(ScrnInfoPtr pScrn)
 {
-    xf86OutputPtr	    output;
-    I830OutputPrivatePtr    intel_output;
-    int			    ret;
+    xf86OutputPtr output;
+    I830OutputPrivatePtr intel_output;
+    int ret;
+    int i;
+    void *ret_ptr;
+    struct _I830DVODriver *drv;
+    int gpio_inited = 0;
+    I2CBusPtr pI2CBus = NULL;
 
     output = xf86OutputCreate (pScrn, &i830_dvo_output_funcs,
 				   "TMDS");
@@ -263,14 +258,7 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     output->driver_private = intel_output;
     output->subpixel_order = SubPixelHorizontalRGB;
     
-    /* Set up the I2C and DDC buses */
-    ret = I830I2CInit(pScrn, &intel_output->pI2CBus, GPIOE, "DVOI2C_E");
-    if (!ret)
-    {
-	xf86OutputDestroy (output);
-	return;
-    }
-
+    /* Set up the DDC bus */
     ret = I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOD, "DVODDC_D");
     if (!ret)
     {
@@ -279,17 +267,51 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     }
 
     /* Now, try to find a controller */
-    ret = I830I2CDetectDVOControllers(pScrn, intel_output->pI2CBus,
-				      &intel_output->i2c_drv);
-    if (ret)
-    {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found i2c %s on %08lX\n",
-		   intel_output->i2c_drv->modulename,
-		   intel_output->pI2CBus->DriverPrivate.uval);
+    for (i = 0; i < I830_NUM_DVO_DRIVERS; i++) {
+	int gpio;
+
+	drv = &i830_dvo_drivers[i];
+	drv->modhandle = xf86LoadSubModule(pScrn, drv->modulename);
+	if (drv->modhandle == NULL)
+	    continue;
+
+	xf86LoaderReqSymLists(drv->symbols, NULL);
+
+	ret_ptr = NULL;
+	drv->vid_rec = LoaderSymbol(drv->fntablename);
+
+	if (drv->type & I830_DVO_CHIP_LVDS)
+	    gpio = GPIOB;
+	else
+	    gpio = GPIOE;
+
+	/* Set up the I2C bus necessary for the chip we're probing.  It appears
+	 * that everything is on GPIOE except for panels on i830 laptops, which
+	 * are on GPIOB (DVOA).
+	 */
+	if (gpio_inited != gpio) {
+	    if (pI2CBus != NULL)
+		xf86DestroyI2CBusRec(pI2CBus, TRUE, TRUE);
+	    if (!I830I2CInit(pScrn, &intel_output->pI2CBus, gpio,
+			     gpio == GPIOB ? "DVOI2C_B" : "DVOI2C_E")) {
+		continue;
+	    }
+	}
+
+	if (drv->vid_rec != NULL)
+	    ret_ptr = drv->vid_rec->init(pI2CBus, drv->address);
+
+	if (ret_ptr != NULL) {
+	    drv->dev_priv = ret_ptr;
+	    intel_output->i2c_drv = drv;
+	    intel_output->pI2CBus = pI2CBus;
+	    return;
+	}
+	xf86UnloadSubModule(drv->modhandle);
     }
-    else
-    {
-	xf86OutputDestroy (output);
-	return;
-    }
+
+    /* Didn't find a chip, so tear down. */
+    if (pI2CBus != NULL)
+	xf86DestroyI2CBusRec(pI2CBus, TRUE, TRUE);
+    xf86OutputDestroy (output);
 }
