@@ -2950,11 +2950,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       shadowSetup(pScreen);
       /* support all rotations */
       xf86RandR12Init (pScreen);
-      if (IS_I965G(pI830)) {
-	 xf86RandR12SetRotations (pScreen, RR_Rotate_0); /* only 0 degrees for I965G */
-      } else {
-	 xf86RandR12SetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
-      }
+      xf86RandR12SetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
       pI830->PointerMoved = pScrn->PointerMoved;
       pScrn->PointerMoved = I830PointerMoved;
       pI830->CreateScreenResources = pScreen->CreateScreenResources;

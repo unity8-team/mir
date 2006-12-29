@@ -517,6 +517,7 @@ xf86SetScrnInfoModes (ScrnInfoPtr pScrn)
     xf86CrtcPtr		crtc;
     DisplayModePtr	last, mode;
     int			originalVirtualX, originalVirtualY;
+    I830Ptr		pI830 = I830PTR(pScrn);
 
     output = config->output[config->compat_output];
     if (!output->crtc)
@@ -549,9 +550,10 @@ xf86SetScrnInfoModes (ScrnInfoPtr pScrn)
     /* Disable modes in the XFree86 DDX list that are larger than the current
      * virtual size.
      */
+    /* pass real line pitch, rotation might change this */
     i830xf86ValidateModesSize(pScrn, pScrn->modes,
 			      originalVirtualX, originalVirtualY,
-			      pScrn->displayWidth);
+			      pI830->displayWidth);
 
     /* Strip out anything that we threw out for virtualX/Y. */
     i830xf86PruneInvalidModes(pScrn, &pScrn->modes, TRUE);

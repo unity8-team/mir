@@ -196,6 +196,8 @@ extern const char *i830_output_type_names[];
 typedef struct _I830CrtcPrivateRec {
     int			    pipe;
     Bool		    gammaEnabled;
+    Rotation 		    rotation;    /* current rotation, mirror from pI830->rotation */
+    Rotation		    rotations;  /* all */
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;
 
 #define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
