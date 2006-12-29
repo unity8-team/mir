@@ -48,6 +48,8 @@ typedef enum {
     DDC_QUIRK_NONE = 0,
     /* Force detailed sync polarity to -h +v */
     DDC_QUIRK_DT_SYNC_HM_VP = 1 << 0,
+    /* First detailed mode is bogus, prefer largest mode at 60hz */
+    DDC_QUIRK_PREFER_LARGE_60 = 1 << 1,
 } ddc_quirk_t;
 
 static Bool quirk_dt_sync_hm_vp (int scrnIndex, xf86MonPtr DDC)
@@ -64,6 +66,16 @@ static Bool quirk_dt_sync_hm_vp (int scrnIndex, xf86MonPtr DDC)
     return FALSE;
 }
 
+static Bool quirk_prefer_large_60 (int scrnIndex, xf86MonPtr DDC)
+{
+    /* Belinea 10 15 55 */
+    if (memcmp (DDC->vendor.name, "MAX", 4) == 0 &&
+	DDC->vendor.prod_id == 1516)
+	return TRUE;
+    
+    return FALSE;
+}
+
 typedef struct {
     Bool	(*detect) (int scrnIndex, xf86MonPtr DDC);
     ddc_quirk_t	quirk;
@@ -74,6 +86,10 @@ static const ddc_quirk_map_t ddc_quirks[] = {
     { 
 	quirk_dt_sync_hm_vp,	DDC_QUIRK_DT_SYNC_HM_VP,
 	"Set detailed timing sync polarity to -h +v"
+    },
+    {
+	quirk_prefer_large_60,   DDC_QUIRK_PREFER_LARGE_60,
+	"Detailed timing is not preferred, use largest mode at 60Hz"
     },
     { 
 	NULL,		DDC_QUIRK_NONE,
@@ -234,8 +250,9 @@ xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC)
 	    quirks |= ddc_quirks[i].quirk;
 	}
     
-
     preferred = PREFERRED_TIMING_MODE(DDC->features.msc);
+    if (quirks & DDC_QUIRK_PREFER_LARGE_60)
+	preferred = 0;
 
     for (i = 0; i < DET_TIMINGS; i++) {
 	struct detailed_monitor_section *det_mon = &DDC->det_mon[i];
@@ -268,6 +285,33 @@ xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC)
     Mode = DDCModesFromStandardTiming(scrnIndex, DDC->timings2, quirks);
     Modes = xf86ModesAdd(Modes, Mode);
 
+    if (quirks & DDC_QUIRK_PREFER_LARGE_60)
+    {
+	DisplayModePtr	best = Modes;
+	for (Mode = Modes; Mode; Mode = Mode->next)
+	{
+	    if (Mode == best) continue;
+	    if (Mode->HDisplay * Mode->VDisplay > best->HDisplay * best->VDisplay)
+	    {
+		best = Mode;
+		continue;
+	    }
+	    if (Mode->HDisplay * Mode->VDisplay == best->HDisplay * best->VDisplay)
+	    {
+		double	mode_refresh = xf86ModeVRefresh (Mode);
+		double	best_refresh = xf86ModeVRefresh (best);
+		double	mode_dist = fabs(mode_refresh - 60.0);
+		double	best_dist = fabs(best_refresh - 60.0);
+		if (mode_dist < best_dist)
+		{
+		    best = Mode;
+		    continue;
+		}
+	    }
+	}
+	if (best)
+	    best->type |= M_T_PREFERRED;
+    }
     return Modes;
 }
 
