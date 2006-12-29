@@ -542,9 +542,11 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
     {
 	xf86OutputPtr	    output = config->output[o];
 	DisplayModePtr	    mode;
+	DisplayModePtr	    config_modes, output_modes, default_modes;
 	XF86ConfMonitorPtr  conf_monitor = output->conf_monitor;
 	xf86MonPtr	    edid_monitor = output->MonInfo;
 	MonRec		    mon_rec;
+	enum { sync_config, sync_edid, sync_default } sync_source = sync_default;
 	
 	while (output->probed_modes != NULL)
 	    xf86DeleteMode(&output->probed_modes, output->probed_modes);
@@ -562,12 +564,14 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 		mon_rec.hsync[mon_rec.nHsync].lo = conf_monitor->mon_hsync[i].lo;
 		mon_rec.hsync[mon_rec.nHsync].hi = conf_monitor->mon_hsync[i].hi;
 		mon_rec.nHsync++;
+		sync_source = sync_config;
 	    }
 	    for (i = 0; i < conf_monitor->mon_n_vrefresh; i++)
 	    {
 		mon_rec.vrefresh[mon_rec.nVrefresh].lo = conf_monitor->mon_vrefresh[i].lo;
 		mon_rec.vrefresh[mon_rec.nVrefresh].hi = conf_monitor->mon_vrefresh[i].hi;
 		mon_rec.nVrefresh++;
+		sync_source = sync_config;
 	    }
 	}
 	if (edid_monitor)
@@ -586,12 +590,16 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 			mon_rec.hsync[mon_rec.nHsync].lo = ranges->min_h;
 			mon_rec.hsync[mon_rec.nHsync].hi = ranges->max_h;
 			mon_rec.nHsync++;
+			if (sync_source == sync_default)
+			    sync_source = sync_edid;
 		    }
 		    if (set_vrefresh && ranges->max_v)
 		    {
 			mon_rec.vrefresh[mon_rec.nVrefresh].lo = ranges->min_v;
 			mon_rec.vrefresh[mon_rec.nVrefresh].hi = ranges->max_v;
 			mon_rec.nVrefresh++;
+			if (sync_source == sync_default)
+			    sync_source = sync_edid;
 		    }
 		}
 	    }
@@ -614,19 +622,36 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 	    mon_rec.nVrefresh = 1;
 	}
 	
+	config_modes = i830xf86GetMonitorModes (pScrn, conf_monitor);
+	output_modes = (*output->funcs->get_modes) (output);
+	default_modes = i830xf86GetDefaultModes ();
+	
+	if (sync_source == sync_config)
+	{
+	    /* 
+	     * Check output and config modes against sync range from config file
+	     */
+	    i830xf86ValidateModesSync (pScrn, output_modes, &mon_rec);
+	    i830xf86ValidateModesSync (pScrn, config_modes, &mon_rec);
+	}
+	/*
+	 * Check default modes against sync range
+	 */
+        i830xf86ValidateModesSync (pScrn, default_modes, &mon_rec);
+	
 	output->probed_modes = NULL;
-	if (conf_monitor)
-	    output->probed_modes = xf86ModesAdd (output->probed_modes,
-						 i830xf86GetMonitorModes (pScrn, conf_monitor));
-	output->probed_modes = xf86ModesAdd (output->probed_modes,
-					     (*output->funcs->get_modes) (output));
-	output->probed_modes = xf86ModesAdd (output->probed_modes,
-					     i830xf86GetDefaultModes ());
-
+	output->probed_modes = xf86ModesAdd (output->probed_modes, config_modes);
+	output->probed_modes = xf86ModesAdd (output->probed_modes, output_modes);
+	output->probed_modes = xf86ModesAdd (output->probed_modes, default_modes);
+	
+	/*
+	 * Check all modes against virtual size
+	 */
 	i830xf86ValidateModesSize (pScrn, output->probed_modes, virtualX, virtualY, 0);
-	i830xf86ValidateModesSync (pScrn, output->probed_modes, &mon_rec);
 	 
-	/* Strip out any modes that can't be supported on this output. */
+	/*
+	 * Check all modes against output
+	 */
 	for (mode = output->probed_modes; mode != NULL; mode = mode->next) 
 	    if (mode->status == MODE_OK)
 		mode->status = (*output->funcs->mode_valid)(output, mode);
