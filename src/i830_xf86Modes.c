@@ -609,6 +609,9 @@ i830xf86GetMonitorModes (ScrnInfoPtr pScrn, XF86ConfMonitorPtr conf_monitor)
     DisplayModePtr	    modes = NULL;
     XF86ConfModesLinkPtr    modes_link;
     
+    if (!conf_monitor)
+	return NULL;
+
     /*
      * first we collect the mode lines from the UseModes directive
      */
