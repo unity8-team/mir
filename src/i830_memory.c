@@ -438,20 +438,33 @@ AllocateOverlay(ScrnInfoPtr pScrn, int flags)
 #endif
 
 static Bool
-IsTileable(int pitch)
+IsTileable(ScrnInfoPtr pScrn, int pitch)
 {
+   I830Ptr pI830 = I830PTR(pScrn);
+
+   if (IS_I965G(pI830)) {
+      if (pitch / 512 * 512 == pitch && pitch <= KB(128))
+	 return TRUE;
+      else
+	 return FALSE;
+   }
+
    /*
     * Allow tiling for pitches that are a power of 2 multiple of 128 bytes,
     * up to 64 * 128 (= 8192) bytes.
     */
    switch (pitch) {
-   case 128 * 1:
-   case 128 * 2:
-   case 128 * 4:
-   case 128 * 8:
-   case 128 * 16:
-   case 128 * 32:
-   case 128 * 64:
+   case 128:
+   case 256:
+      if (IS_I945G(pI830) || IS_I945GM(pI830))
+	 return TRUE;
+      else
+	 return FALSE;
+   case 512:
+   case KB(1):
+   case KB(2):
+   case KB(4):
+   case KB(8):
       return TRUE;
    default:
       return FALSE;
@@ -475,7 +488,7 @@ I830AllocateRotatedBuffer(ScrnInfoPtr pScrn, int flags)
    memset(&(pI830->RotatedMem), 0, sizeof(I830MemRange));
    pI830->RotatedMem.Key = -1;
    tileable = !(flags & ALLOC_NO_TILING) &&
-	      IsTileable(pScrn->displayWidth * pI830->cpp);
+	      IsTileable(pScrn, pScrn->displayWidth * pI830->cpp);
    if (tileable) {
       /* Make the height a multiple of the tile height (16) */
       lines = (height + 15) / 16 * 16;
@@ -540,7 +553,7 @@ I830AllocateRotated2Buffer(ScrnInfoPtr pScrn, int flags)
    memset(&(pI830->RotatedMem2), 0, sizeof(I830MemRange));
    pI830->RotatedMem2.Key = -1;
    tileable = !(flags & ALLOC_NO_TILING) &&
-	      IsTileable(pI830Ent->pScrn_2->displayWidth * pI8302->cpp);
+	      IsTileable(pScrn, pI830Ent->pScrn_2->displayWidth * pI8302->cpp);
    if (tileable) {
       /* Make the height a multiple of the tile height (16) */
       lines = (height + 15) / 16 * 16;
@@ -699,7 +712,7 @@ I830AllocateFramebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
    }
 
    tileable = !(flags & ALLOC_NO_TILING) && pI830->allowPageFlip &&
-      IsTileable(pScrn->displayWidth * pI830->cpp);
+      IsTileable(pScrn, pScrn->displayWidth * pI830->cpp);
    if (tileable) {
       if (IS_I9XX(pI830))
 	 align = MB(1);
@@ -886,7 +899,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 			maxFb / lineSize - pScrn->virtualY);
 	 pI830->FbMemBox.y2 = maxFb / lineSize;
 	 tileable = !(flags & ALLOC_NO_TILING) && pI830->allowPageFlip &&
-		 IsTileable(pScrn->displayWidth * pI830->cpp);
+		 IsTileable(pScrn, pScrn->displayWidth * pI830->cpp);
 	 if (tileable) {
             if (IS_I9XX(pI830))
                align = MB(1);
@@ -1113,7 +1126,7 @@ I830AllocateBackBuffer(ScrnInfoPtr pScrn, const int flags)
    memset(&(pI830->BackBuffer), 0, sizeof(pI830->BackBuffer));
    pI830->BackBuffer.Key = -1;
    tileable = !(flags & ALLOC_NO_TILING) &&
-	      IsTileable(pScrn->displayWidth * pI830->cpp);
+	      IsTileable(pScrn, pScrn->displayWidth * pI830->cpp);
    if (tileable) {
       /* Make the height a multiple of the tile height (16) */
       lines = (height + 15) / 16 * 16;
@@ -1176,7 +1189,7 @@ I830AllocateDepthBuffer(ScrnInfoPtr pScrn, const int flags)
    memset(&(pI830->DepthBuffer), 0, sizeof(pI830->DepthBuffer));
    pI830->DepthBuffer.Key = -1;
    tileable = !(flags & ALLOC_NO_TILING) &&
-	      IsTileable(pScrn->displayWidth * pI830->cpp);
+	      IsTileable(pScrn, pScrn->displayWidth * pI830->cpp);
    if (tileable) {
       /* Make the height a multiple of the tile height (16) */
       lines = (height + 15) / 16 * 16;
@@ -1714,7 +1727,7 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
    if (!pI830->directRenderingEnabled)
       return;
 
-   if (!IsTileable(pScrn->displayWidth * pI830->cpp)) {
+   if (!IsTileable(pScrn, pScrn->displayWidth * pI830->cpp)) {
       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		 "I830SetupMemoryTiling: Not tileable 0x%x\n",
 		 pScrn->displayWidth * pI830->cpp);

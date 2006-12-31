@@ -1663,9 +1663,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    
    pScrn->currentMode = pScrn->modes;
 
-#ifndef USE_PITCHES
-#define USE_PITCHES 1
-#endif
    pI830->disableTiling = FALSE;
 
    /*
@@ -1685,18 +1682,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (I830IsPrimary(pScrn) && !pI830->directRenderingDisabled) {
       int savedDisplayWidth = pScrn->displayWidth;
       int memNeeded = 0;
-      /* Good pitches to allow tiling.  Don't care about pitches < 1024. */
-      static const int pitches[] = {
-/*
-	 128 * 2,
-	 128 * 4,
-*/
-	 128 * 8,
-	 128 * 16,
-	 128 * 32,
-	 128 * 64,
-	 0
-      };
+      Bool tiled = FALSE;
 
 #ifdef I830_XV
       /*
@@ -1706,16 +1692,28 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->XvEnabled = !pI830->XvDisabled;
 #endif
 
-      for (i = 0; pitches[i] != 0; i++) {
-#if USE_PITCHES
-	 if (pitches[i] >= pScrn->displayWidth) {
-	    pScrn->displayWidth = pitches[i];
-	    break;
+      if (IS_I965G(pI830)) {
+	 int tile_pixels = 512 / pI830->cpp;
+	 pScrn->displayWidth = (pScrn->displayWidth + tile_pixels - 1) &
+	    ~(tile_pixels - 1);
+	 tiled = TRUE;
+      } else {
+	 /* Good pitches to allow tiling.  Don't care about pitches < 1024. */
+	 static const int pitches[] = {
+	    KB(1),
+	    KB(2),
+	    KB(4),
+	    KB(8),
+	    0
+	 };
+
+	 for (i = 0; pitches[i] != 0; i++) {
+	    if (pitches[i] >= pScrn->displayWidth) {
+	       pScrn->displayWidth = pitches[i];
+	       tiled = TRUE;
+	       break;
+	    }
 	 }
-#else
-	 if (pitches[i] == pScrn->displayWidth)
-	    break;
-#endif
       }
 
       /*
@@ -1723,7 +1721,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        * memory available to enable tiling.
        */
       savedMMSize = pI830->mmSize;
-      if (pScrn->displayWidth == pitches[i]) {
+      if (tiled) {
       retry_dryrun:
 	 I830ResetAllocations(pScrn, 0);
 	 if (I830Allocate2DMemory(pScrn, ALLOCATE_DRY_RUN | ALLOC_INITIAL) &&
