@@ -90,6 +90,6 @@ DisplayModePtr
 i830xf86GetMonitorModes (ScrnInfoPtr pScrn, XF86ConfMonitorPtr conf_monitor);
 
 DisplayModePtr
-i830xf86GetDefaultModes (void);
+i830xf86GetDefaultModes (Bool interlaceAllowed, Bool doubleScanAllowed);
 
 #endif /* _I830_XF86MODES_H_ */

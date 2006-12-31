@@ -542,19 +542,27 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
     {
 	xf86OutputPtr	    output = config->output[o];
 	DisplayModePtr	    mode;
-	DisplayModePtr	    config_modes, output_modes, default_modes;
-	XF86ConfMonitorPtr  conf_monitor = output->conf_monitor;
-	xf86MonPtr	    edid_monitor = output->MonInfo;
+	DisplayModePtr	    config_modes = NULL, output_modes, default_modes;
+	XF86ConfMonitorPtr  conf_monitor;
+	xf86MonPtr	    edid_monitor;
 	MonRec		    mon_rec;
 	enum { sync_config, sync_edid, sync_default } sync_source = sync_default;
 	
 	while (output->probed_modes != NULL)
 	    xf86DeleteMode(&output->probed_modes, output->probed_modes);
 
+	/*
+	 * Check connection status
+	 */
+	output->status = (*output->funcs->detect)(output);
+
 	if (output->status == XF86OutputStatusDisconnected)
 	    continue;
 
 	memset (&mon_rec, '\0', sizeof (mon_rec));
+	
+	conf_monitor = output->conf_monitor;
+	
 	if (conf_monitor)
 	{
 	    int	i;
@@ -573,7 +581,13 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 		mon_rec.nVrefresh++;
 		sync_source = sync_config;
 	    }
+	    config_modes = i830xf86GetMonitorModes (pScrn, conf_monitor);
 	}
+	
+	output_modes = (*output->funcs->get_modes) (output);
+	
+	edid_monitor = output->MonInfo;
+	
 	if (edid_monitor)
 	{
 	    int			    i;
@@ -621,10 +635,8 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 	    mon_rec.vrefresh[0].hi = 62.0;
 	    mon_rec.nVrefresh = 1;
 	}
-	
-	config_modes = i830xf86GetMonitorModes (pScrn, conf_monitor);
-	output_modes = (*output->funcs->get_modes) (output);
-	default_modes = i830xf86GetDefaultModes ();
+	default_modes = i830xf86GetDefaultModes (output->interlaceAllowed,
+						 output->doubleScanAllowed);
 	
 	if (sync_source == sync_config)
 	{

@@ -1091,6 +1091,8 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	return;
     }
     output->driver_private = intel_output;
+    output->interlaceAllowed = FALSE;
+    output->doubleScanAllowed = FALSE;
     
     dev_priv = (struct i830_sdvo_priv *) (intel_output + 1);
     intel_output->type = I830_OUTPUT_SDVO;

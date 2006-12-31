@@ -636,13 +636,20 @@ i830xf86GetMonitorModes (ScrnInfoPtr pScrn, XF86ConfMonitorPtr conf_monitor)
  * Build a mode list containing all of the default modes
  */
 DisplayModePtr
-i830xf86GetDefaultModes (void)
+i830xf86GetDefaultModes (Bool interlaceAllowed, Bool doubleScanAllowed)
 {
     DisplayModePtr  head = NULL, prev = NULL, mode;
     int		    i;
 
     for (i = 0; xf86DefaultModes[i].name != NULL; i++)
     {
+	DisplayModePtr	defMode = &xf86DefaultModes[i];
+	
+	if (!interlaceAllowed && (defMode->Flags & V_INTERLACE))
+	    continue;
+	if (!doubleScanAllowed && (defMode->Flags & V_DBLSCAN))
+	    continue;
+
 	mode = xalloc(sizeof(DisplayModeRec));
 	if (!mode)
 	    continue;

@@ -365,6 +365,8 @@ i830_crt_init(ScrnInfoPtr pScrn)
     i830_output->type = I830_OUTPUT_ANALOG;
     
     output->driver_private = i830_output;
+    output->interlaceAllowed = FALSE;
+    output->doubleScanAllowed = FALSE;
 
     /* Set up the DDC bus. */
     I830I2CInit(pScrn, &i830_output->pDDCBus, GPIOA, "CRTDDC_A");

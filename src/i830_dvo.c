@@ -257,6 +257,8 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     intel_output->type = I830_OUTPUT_DVO;
     output->driver_private = intel_output;
     output->subpixel_order = SubPixelHorizontalRGB;
+    output->interlaceAllowed = FALSE;
+    output->doubleScanAllowed = FALSE;
     
     /* Set up the DDC bus */
     ret = I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOD, "DVODDC_D");

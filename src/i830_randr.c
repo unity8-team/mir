@@ -740,7 +740,7 @@ xf86RandR12SetInfo12 (ScreenPtr pScreen)
 				output->mm_height);
 	xf86RROutputSetModes (output->randr_output, output->probed_modes);
 
-	switch (output->status = (*output->funcs->detect)(output)) {
+	switch (output->status) {
 	case XF86OutputStatusConnected:
 	    RROutputSetConnection (output->randr_output, RR_Connected);
 	    break;

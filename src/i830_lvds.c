@@ -361,6 +361,8 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     intel_output->type = I830_OUTPUT_LVDS;
     output->driver_private = intel_output;
     output->subpixel_order = SubPixelHorizontalRGB;
+    output->interlaceAllowed = FALSE;
+    output->doubleScanAllowed = FALSE;
 
     /* Set up the LVDS DDC channel.  Most panels won't support it, but it can
      * be useful if available.

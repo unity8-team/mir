@@ -261,6 +261,17 @@ struct _xf86Output {
      * Possible outputs to share the same CRTC as a mask of output indices
      */
     CARD32		possible_clones;
+    
+    /**
+     * Whether this output can support interlaced modes
+     */
+    Bool		interlaceAllowed;
+
+    /**
+     * Whether this output can support double scan modes
+     */
+    Bool		doubleScanAllowed;
+
     /**
      * List of available modes on this output.
      *
@@ -268,6 +279,11 @@ struct _xf86Output {
      * compatible modes added later.
      */
     DisplayModePtr	probed_modes;
+
+    /**
+     * Desired initial position
+     */
+    int			initial_x, initial_y;
 
     /**
      * Current connection status

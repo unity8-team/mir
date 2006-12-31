@@ -1035,4 +1035,6 @@ i830_tv_init(ScrnInfoPtr pScrn)
     dev_priv->type = TV_TYPE_UNKNOWN;
     
     output->driver_private = intel_output;
+    output->interlaceAllowed = FALSE;
+    output->doubleScanAllowed = FALSE;
 }
