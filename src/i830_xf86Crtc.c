@@ -546,6 +546,8 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 	XF86ConfMonitorPtr  conf_monitor;
 	xf86MonPtr	    edid_monitor;
 	MonRec		    mon_rec;
+	int		    min_clock = 0;
+	int		    max_clock = 0;
 	enum { sync_config, sync_edid, sync_default } sync_source = sync_default;
 	
 	while (output->probed_modes != NULL)
@@ -615,6 +617,8 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 			if (sync_source == sync_default)
 			    sync_source = sync_edid;
 		    }
+		    if (ranges->max_clock > max_clock)
+			max_clock = ranges->max_clock;
 		}
 	    }
 	}
@@ -650,6 +654,12 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 	 * Check default modes against sync range
 	 */
         i830xf86ValidateModesSync (pScrn, default_modes, &mon_rec);
+	/*
+	 * Check default modes against monitor max clock
+	 */
+	if (max_clock)
+	    i830xf86ValidateModesClocks(pScrn, default_modes,
+					&min_clock, &max_clock, 1);
 	
 	output->probed_modes = NULL;
 	output->probed_modes = xf86ModesAdd (output->probed_modes, config_modes);
