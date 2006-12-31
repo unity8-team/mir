@@ -499,8 +499,9 @@ i830xf86ModeCompare (DisplayModePtr a, DisplayModePtr b)
 static DisplayModePtr
 i830xf86SortModes (DisplayModePtr input)
 {
-    DisplayModePtr  output = NULL, i, o, *op, prev;
+    DisplayModePtr  output = NULL, i, o, n, *op, prev;
 
+    /* sort by preferred status and pixel area */
     while (input)
     {
 	i = input;
@@ -510,6 +511,17 @@ i830xf86SortModes (DisplayModePtr input)
 		break;
 	i->next = *op;
 	*op = i;
+    }
+    /* prune identical modes */
+    for (o = output; o && (n = o->next); o = n)
+    {
+	if (!strcmp (o->name, n->name) && xf86ModesEqual (o, n))
+	{
+	    o->next = n->next;
+	    xfree (n->name);
+	    xfree (n);
+	    n = o;
+	}
     }
     /* hook up backward links */
     prev = NULL;
