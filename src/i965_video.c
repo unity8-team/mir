@@ -39,6 +39,7 @@
 #include "i830_video.h"
 #include "brw_defines.h"
 #include "brw_structs.h"
+#include <string.h>
 
 /* Make assert() work. */
 #undef NDEBUG

@@ -2469,11 +2469,7 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
    }
 }
 
-#ifdef XF86DRI
-#ifndef DRM_BO_MEM_TT
-#error "Wrong drm.h file included. You need to compile and install a recent libdrm."
-#endif
-
+#ifdef XF86DRI_MM
 #ifndef XSERVER_LIBDRM_MM
 
 static int
@@ -2548,7 +2544,7 @@ static int I830DrmMMUnlock(int fd, unsigned memType)
 }
 
 #endif
-#endif
+#endif /* XF86DRI_MM */
 
 static Bool
 I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
@@ -3001,7 +2997,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
          break;
    }
 
-#ifdef XF86DRI
+#ifdef XF86DRI_MM
    if (pI830->directRenderingEnabled && (pI830->mmModeFlags & I830_KERNEL_MM)) {
       unsigned long aperEnd = ROUND_DOWN_TO(pI830->FbMapSize, GTT_PAGE_SIZE) 
 	 / GTT_PAGE_SIZE;
@@ -3040,7 +3036,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 }
       }
    }
-#endif
+#endif /* XF86DRI_MM */
 
    return TRUE;
 }
@@ -3101,6 +3097,7 @@ I830LeaveVT(int scrnIndex, int flags)
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
       DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
+#ifdef XF86DRI_MM
       if (pI830->mmModeFlags & I830_KERNEL_MM) {
 #ifndef XSERVER_LIBDRM_MM
 	 I830DrmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT);
@@ -3108,6 +3105,7 @@ I830LeaveVT(int scrnIndex, int flags)
 	 drmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT);
 #endif
       }
+#endif /* XF86DRI_MM */
       I830DRISetVBlankInterrupt (pScrn, FALSE);
       
       drmCtlUninstHandler(pI830->drmSubFD);
@@ -3185,8 +3183,6 @@ I830EnterVT(int scrnIndex, int flags)
       
       if (!i830PipeSetMode (crtc, &crtc->desiredMode, TRUE))
 	 return FALSE;
-      
-      i830PipeSetBase(crtc, crtc->x, crtc->y);
    }
 
    i830DumpRegs (pScrn);
@@ -3221,6 +3217,7 @@ I830EnterVT(int scrnIndex, int flags)
 	 for(i = 0; i < I830_NR_TEX_REGIONS+1 ; i++)
 	    sarea->texList[i].age = sarea->texAge;
 
+#ifdef XF86DRI_MM
 	 if (pI830->mmModeFlags & I830_KERNEL_MM) {
 #ifndef XSERVER_LIBDRM_MM
 	    I830DrmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT);
@@ -3228,6 +3225,7 @@ I830EnterVT(int scrnIndex, int flags)
 	    drmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT);
 #endif
 	 }
+#endif /* XF86DRI_MM */
 
 	 DPRINTF(PFX, "calling dri unlock\n");
 	 DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
@@ -3371,6 +3369,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    pI830->closing = TRUE;
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
+#ifdef XF86DRI_MM
       if (pI830->mmModeFlags & I830_KERNEL_MM) {
 #ifndef XSERVER_LIBDRM_MM
 	 I830DrmMMTakedown(pI830->drmSubFD, DRM_BO_MEM_TT);
@@ -3378,6 +3377,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 	 drmMMTakedown(pI830->drmSubFD, DRM_BO_MEM_TT);	 
 #endif
       }
+#endif /* XF86DRI_MM */
       pI830->directRenderingOpen = FALSE;
       I830DRICloseScreen(pScreen);
    }

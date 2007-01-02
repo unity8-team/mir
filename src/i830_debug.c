@@ -32,6 +32,7 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i830_debug.h"
+#include <strings.h>
 
 #define DEBUGSTRING(func) static char *func(I830Ptr pI830, int reg, CARD32 val)
 

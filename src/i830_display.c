@@ -350,8 +350,8 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     }
 
     if (IS_I965G(pI830)) {
-	OUTREG(dspbase, ((y * pScrn->displayWidth + x) * pI830->cpp));
-	OUTREG(dspsurf, Start);
+        OUTREG(dspbase, ((y * pScrn->displayWidth + x) * pI830->cpp));
+        OUTREG(dspsurf, Start);
     } else {
 	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
     }
@@ -603,7 +603,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
     int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
     int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
-    int dspbase_reg = (pipe == 0) ? DSPABASE : DSPBBASE;
     int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
     int htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
     int hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
@@ -828,13 +827,12 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     OUTREG(dspsize_reg, ((mode->VDisplay - 1) << 16) | (mode->HDisplay - 1));
     OUTREG(dsppos_reg, 0);
     OUTREG(pipesrc_reg, ((mode->HDisplay - 1) << 16) | (mode->VDisplay - 1));
-    i830PipeSetBase(crtc, crtc->x, crtc->y);
     OUTREG(pipeconf_reg, pipeconf);
     i830WaitForVblank(pScrn);
     
     OUTREG(dspcntr_reg, dspcntr);
     /* Flush the plane changes */
-    OUTREG(dspbase_reg, INREG(dspbase_reg));
+    i830PipeSetBase(crtc, crtc->x, crtc->y);
     
     i830WaitForVblank(pScrn);
 }

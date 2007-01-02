@@ -143,7 +143,7 @@ xf86OutputSetMonitor (xf86OutputPtr output)
 	monitor = output->name;
     else
 	xf86MarkOptionUsedByName (output->scrn->options, option_name);
-    free (option_name);
+    xfree (option_name);
     output->conf_monitor = xf86findMonitor (monitor, xf86configptr->conf_monitor_lst);
 }
 
@@ -1026,7 +1026,10 @@ i830_xf86OutputSetEDID (xf86OutputPtr output, xf86MonPtr edid_mon)
 {
     ScrnInfoPtr		pScrn = output->scrn;
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int			i, size;
+    int			i;
+#ifdef RANDR_12_INTERFACE
+    int			size;
+#endif
     
     if (output->MonInfo != NULL)
 	xfree(output->MonInfo);

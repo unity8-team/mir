@@ -655,11 +655,14 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	 }
 	 pI830->drmMinor = version->version_minor;
 	 if (!(pI830->mmModeFlags & I830_KERNEL_TEX)) {
+#ifdef XF86DRI_MM	    
 	    if ((version->version_major > 1) ||
 		((version->version_minor >= 7) && 
 		 (version->version_major == 1))) {
 	       pI830->mmModeFlags |= I830_KERNEL_MM;
-	    } else {
+	    } else 
+#endif
+	    {
 	       pI830->mmModeFlags |= I830_KERNEL_TEX;
 	    }		
 	 } else {

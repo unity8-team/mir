@@ -37,6 +37,8 @@
 #include "xf86DDC.h"
 #include "i830.h"
 #include "i830_display.h"
+#include <string.h>
+#include <math.h>
 
 #if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,2,99,2,0)
 

@@ -27,6 +27,14 @@
 #include "i830_xf86Modes.h"
 #include "xf86Parser.h"
 
+/* Compat definitions for older X Servers. */
+#ifndef M_T_PREFERRED
+#define M_T_PREFERRED	0x08
+#endif
+#ifndef M_T_DRIVER
+#define M_T_DRIVER	0x40
+#endif
+
 typedef struct _xf86Crtc xf86CrtcRec, *xf86CrtcPtr;
 typedef struct _xf86Output xf86OutputRec, *xf86OutputPtr;
 

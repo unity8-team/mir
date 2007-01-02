@@ -628,14 +628,6 @@ void i830_tv_init(ScrnInfoPtr pScrn);
 #define _845_DRAM_RW_CONTROL 0x90
 #define DRAM_WRITE    0x33330000
 
-/* Compat definitions for older X Servers. */
-#ifndef M_T_PREFERRED
-#define M_T_PREFERRED	0x08
-#endif
-#ifndef M_T_DRIVER
-#define M_T_DRIVER	0x40
-#endif
-
 /* 
  * Xserver MM compatibility. Remove code guarded by this when the
  * XServer contains the libdrm mm code

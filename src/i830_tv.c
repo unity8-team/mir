@@ -36,6 +36,7 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i830_display.h"
+#include <string.h>
 
 enum tv_type {
     TV_TYPE_NONE,
