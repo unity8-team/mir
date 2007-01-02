@@ -864,7 +864,11 @@ xf86RandR12CreateObjects12 (ScreenPtr pScreen)
 static Bool
 xf86RandR12CreateScreenResources12 (ScreenPtr pScreen)
 {
-    
+    int			c;
+    ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
+    XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
+    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
+
     for (c = 0; c < config->num_crtc; c++)
 	xf86RandR12CrtcNotify (config->crtc[c]->randr_crtc);
     
