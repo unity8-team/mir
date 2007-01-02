@@ -124,7 +124,7 @@ if test "$DRI" = yes; then
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
 	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.2],[DRI_MM=yes], [DRI_MM=no])
-	if test "x$DRM_MM" = xyes; then
+	if test "x$DRI_MM" = xyes; then
 		AC_DEFINE(XF86DRI_MM,1,[Extended DRI memory management])
 	fi
 fi
