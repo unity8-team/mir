@@ -1065,7 +1065,7 @@ void NVLoadStateExt (
        } else {
            if(pNv->Architecture >= NV_ARCH_40) {
               nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_1, 0x401287c0);
-              nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x60de8051);
+              nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x60de8055);
               nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_4, 0x00008000);
               nvWriteGRAPH(pNv, NV_PGRAPH_LIMIT_VIOL_PIX, 0x00be3c5f);
 
@@ -1133,7 +1133,6 @@ void NVLoadStateExt (
 
               nvWriteGRAPH(pNv, 0x0b38, 0x2ffff800);
               nvWriteGRAPH(pNv, 0x0b3c, 0x00006000);
-              nvWriteGRAPH(pNv, 0x032C, 0x01000000); 
            } else
            if(pNv->Architecture == NV_ARCH_30) {
               nvWriteGRAPH(pNv, 0x0084, 0x40108700);
