@@ -351,9 +351,12 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 
     if (IS_I965G(pI830)) {
         OUTREG(dspbase, ((y * pScrn->displayWidth + x) * pI830->cpp));
+	(void) INREG(dspbase);
         OUTREG(dspsurf, Start);
+	(void) INREG(dspsurf);
     } else {
 	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+	(void) INREG(dspbase);
     }
 
     crtc->x = x;
