@@ -294,7 +294,7 @@ i830_dvo_init(ScrnInfoPtr pScrn)
 	if (gpio_inited != gpio) {
 	    if (pI2CBus != NULL)
 		xf86DestroyI2CBusRec(pI2CBus, TRUE, TRUE);
-	    if (!I830I2CInit(pScrn, &intel_output->pI2CBus, gpio,
+	    if (!I830I2CInit(pScrn, &pI2CBus, gpio,
 			     gpio == GPIOB ? "DVOI2C_B" : "DVOI2C_E")) {
 		continue;
 	    }
