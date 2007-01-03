@@ -95,7 +95,7 @@ xf86RandR12GetInfo (ScreenPtr pScreen, Rotation *rotations)
     }
 
     /* Re-probe the outputs for new monitors or modes */
-    xf86ProbeOutputModes (scrp);
+    xf86ProbeOutputModes (scrp, 0, 0);
     xf86SetScrnInfoModes (scrp);
     I830DGAReInit (pScreen);
 
@@ -818,7 +818,7 @@ xf86RandR12GetInfo12 (ScreenPtr pScreen, Rotation *rotations)
 {
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
 
-    xf86ProbeOutputModes (pScrn);
+    xf86ProbeOutputModes (pScrn, 0, 0);
     xf86SetScrnInfoModes (pScrn);
     I830DGAReInit (pScreen);
     return xf86RandR12SetInfo12 (pScreen);

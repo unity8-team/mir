@@ -127,6 +127,33 @@ xf86CrtcDestroy (xf86CrtcPtr crtc)
 
 extern XF86ConfigPtr xf86configptr;
 
+typedef enum {
+    OPTION_PREFERRED_MODE,
+    OPTION_POSITION,
+    OPTION_BELOW,
+    OPTION_RIGHT_OF,
+    OPTION_ABOVE,
+    OPTION_LEFT_OF,
+    OPTION_ENABLE,
+    OPTION_DISABLE,
+    OPTION_MIN_CLOCK,
+    OPTION_MAX_CLOCK,
+} OutputOpts;
+
+static OptionInfoRec xf86OutputOptions[] = {
+    {OPTION_PREFERRED_MODE, "PreferredMode",	OPTV_STRING,  {0}, FALSE },
+    {OPTION_POSITION,	    "Position",		OPTV_STRING,  {0}, FALSE },
+    {OPTION_BELOW,	    "Below",		OPTV_STRING,  {0}, FALSE },
+    {OPTION_RIGHT_OF,	    "RightOf",		OPTV_STRING,  {0}, FALSE },
+    {OPTION_ABOVE,	    "Above",		OPTV_STRING,  {0}, FALSE },
+    {OPTION_LEFT_OF,	    "LeftOf",		OPTV_STRING,  {0}, FALSE },
+    {OPTION_ENABLE,	    "Enable",		OPTV_BOOLEAN, {0}, FALSE },
+    {OPTION_DISABLE,	    "Disable",		OPTV_BOOLEAN, {0}, FALSE },
+    {OPTION_MIN_CLOCK,	    "MinClock",		OPTV_FREQ,    {0}, FALSE },
+    {OPTION_MAX_CLOCK,	    "MaxClock",		OPTV_FREQ,    {0}, FALSE },
+    {-1,		    NULL,		OPTV_NONE,    {0}, FALSE },
+};
+
 static void
 xf86OutputSetMonitor (xf86OutputPtr output)
 {
@@ -134,6 +161,12 @@ xf86OutputSetMonitor (xf86OutputPtr output)
     static const char monitor_prefix[] = "monitor-";
     char    *monitor;
 
+    if (output->options)
+	xfree (output->options);
+
+    output->options = xnfalloc (sizeof (xf86OutputOptions));
+    memcpy (output->options, xf86OutputOptions, sizeof (xf86OutputOptions));
+    
     option_name = xnfalloc (strlen (monitor_prefix) +
 			    strlen (output->name) + 1);
     strcpy (option_name, monitor_prefix);
@@ -144,7 +177,24 @@ xf86OutputSetMonitor (xf86OutputPtr output)
     else
 	xf86MarkOptionUsedByName (output->scrn->options, option_name);
     xfree (option_name);
-    output->conf_monitor = xf86findMonitor (monitor, xf86configptr->conf_monitor_lst);
+    output->conf_monitor = xf86findMonitor (monitor,
+					    xf86configptr->conf_monitor_lst);
+    if (output->conf_monitor)
+	xf86ProcessOptions (output->scrn->scrnIndex,
+			    output->conf_monitor->mon_option_lst,
+			    output->options);
+}
+
+static Bool
+xf86OutputEnabled (xf86OutputPtr    output)
+{
+    /* Check to see if this output was disabled in the config file */
+    if (xf86ReturnOptValBool (output->options, OPTION_ENABLE, TRUE) == FALSE ||
+	xf86ReturnOptValBool (output->options, OPTION_DISABLE, FALSE) == TRUE)
+    {
+	return FALSE;
+    }
+    return TRUE;
 }
 
 xf86OutputPtr
@@ -167,6 +217,8 @@ xf86OutputCreate (ScrnInfoPtr		    scrn,
 #ifdef RANDR_12_INTERFACE
     output->randr_output = NULL;
 #endif
+    xf86OutputSetMonitor (output);
+    
     if (xf86_config->output)
 	outputs = xrealloc (xf86_config->output,
 			  (xf86_config->num_output + 1) * sizeof (xf86OutputPtr));
@@ -181,24 +233,24 @@ xf86OutputCreate (ScrnInfoPtr		    scrn,
     xf86_config->output = outputs;
     xf86_config->output[xf86_config->num_output++] = output;
     
-    xf86OutputSetMonitor (output);
     return output;
 }
 
-void
+Bool
 xf86OutputRename (xf86OutputPtr output, const char *name)
 {
     int	    len = strlen(name);
     char    *newname = xalloc (len + 1);
     
     if (!newname)
-	return;	/* so sorry... */
+	return FALSE;	/* so sorry... */
     
     strcpy (newname, name);
     if (output->name != (char *) (output + 1))
 	xfree (output->name);
     output->name = newname;
     xf86OutputSetMonitor (output);
+    return TRUE;
 }
 
 void
@@ -375,7 +427,9 @@ xf86PickCrtcs (ScrnInfoPtr	pScrn,
 	     * If the two outputs desire the same mode,
 	     * see if they can be cloned
 	     */
-	    if (xf86ModesEqual (modes[o], modes[n]))
+	    if (xf86ModesEqual (modes[o], modes[n]) &&
+		config->output[o]->initial_x == config->output[n]->initial_x &&
+		config->output[o]->initial_y == config->output[n]->initial_y)
 	    {
 		for (l = 0; l < config->num_output; l++)
 		    if (output->possible_clones & (1 << l))
@@ -403,7 +457,8 @@ xf86PickCrtcs (ScrnInfoPtr	pScrn,
 
 /*
  * Compute the virtual size necessary to place all of the available
- * crtcs in a panorama configuration
+ * crtcs in the specified configuration and also large enough to
+ * resize any crtc to the largest available mode
  */
 
 static void
@@ -418,7 +473,13 @@ xf86DefaultScreenLimits (ScrnInfoPtr pScrn, int *widthp, int *heightp)
     for (c = 0; c < config->num_crtc; c++)
     {
 	int	    crtc_width = 0, crtc_height = 0;
+	xf86CrtcPtr crtc = config->crtc[c];
 
+	if (crtc->enabled)
+	{
+	    crtc_width = crtc->x + crtc->desiredMode.HDisplay;
+	    crtc_height = crtc->y + crtc->desiredMode.VDisplay;
+	}
 	for (o = 0; o < config->num_output; o++) 
 	{
 	    xf86OutputPtr   output = config->output[o];
@@ -436,7 +497,8 @@ xf86DefaultScreenLimits (ScrnInfoPtr pScrn, int *widthp, int *heightp)
 		    }
 		}
 	}
-	width += crtc_width;
+	if (crtc_width > width)
+	    width = crtc_width;
 	if (crtc_height > height)
 	    height = crtc_height;
     }
@@ -446,6 +508,186 @@ xf86DefaultScreenLimits (ScrnInfoPtr pScrn, int *widthp, int *heightp)
     if (config->minHeight && height < config->minHeight) height = config->minHeight;
     *widthp = width;
     *heightp = height;
+}
+
+#define POSITION_UNSET	-100000
+
+static Bool
+xf86InitialOutputPositions (ScrnInfoPtr pScrn, DisplayModePtr *modes)
+{
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int			o;
+    int			min_x, min_y;
+    
+    for (o = 0; o < config->num_output; o++)
+    {
+	xf86OutputPtr	output = config->output[o];
+
+	output->initial_x = output->initial_y = POSITION_UNSET;
+    }
+    
+    /*
+     * Loop until all outputs are set
+     */
+    for (;;)
+    {
+	Bool	any_set = FALSE;
+	Bool	keep_going = FALSE;
+
+	for (o = 0; o < config->num_output; o++)	
+	{
+	    static const OutputOpts	relations[] = {
+		OPTION_BELOW, OPTION_RIGHT_OF, OPTION_ABOVE, OPTION_LEFT_OF
+	    };
+	    xf86OutputPtr   output = config->output[o];
+	    xf86OutputPtr   relative;
+	    char	    *relative_name;
+	    char	    *position;
+	    OutputOpts	    relation;
+	    int		    r;
+
+	    if (output->initial_x != POSITION_UNSET)
+		continue;
+	    position = xf86GetOptValString (output->options,
+					    OPTION_POSITION);
+	    /*
+	     * Absolute position wins
+	     */
+	    if (position)
+	    {
+		int		    x, y;
+		if (sscanf (position, "%d %d", &x, &y) == 2)
+		{
+		    output->initial_x = x;
+		    output->initial_y = y;
+		}
+		else
+		{
+		    xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
+				"Output %s position not of form \"x y\"\n",
+				output->name);
+		    output->initial_x = output->initial_y = 0;
+		}
+		any_set = TRUE;
+		continue;
+	    }
+	    /*
+	     * Next comes relative positions
+	     */
+	    relation = 0;
+	    relative_name = NULL;
+	    for (r = 0; r < 4; r++)
+	    {
+		relation = relations[r];
+		relative_name = xf86GetOptValString (output->options,
+						     relation);
+		if (relative_name)
+		    break;
+	    }
+	    if (relative_name)
+	    {
+		int or;
+		relative = NULL;
+		for (or = 0; or < config->num_output; or++)
+		{
+		    xf86OutputPtr	out_rel = config->output[or];
+		    XF86ConfMonitorPtr	rel_mon = out_rel->conf_monitor;
+		    char		*name;
+
+		    if (rel_mon)
+			name = rel_mon->mon_identifier;
+		    else
+			name = out_rel->name;
+		    if (!strcmp (relative_name, name))
+		    {
+			relative = config->output[or];
+			break;
+		    }
+		}
+		if (!relative)
+		{
+		    xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
+				"Cannot position output %s relative to unknown output %s\n",
+				output->name, relative_name);
+		    output->initial_x = 0;
+		    output->initial_y = 0;
+		    any_set = TRUE;
+		    continue;
+		}
+		if (relative->initial_x == POSITION_UNSET)
+		{
+		    keep_going = TRUE;
+		    continue;
+		}
+		output->initial_x = relative->initial_x;
+		output->initial_y = relative->initial_y;
+		switch (relation) {
+		case OPTION_BELOW:
+		    output->initial_y += modes[or]->VDisplay;
+		    break;
+		case OPTION_RIGHT_OF:
+		    output->initial_x += modes[or]->HDisplay;
+		    break;
+		case OPTION_ABOVE:
+		    output->initial_y -= modes[o]->VDisplay;
+		    break;
+		case OPTION_LEFT_OF:
+		    output->initial_x -= modes[o]->HDisplay;
+		    break;
+		default:
+		    break;
+		}
+		any_set = TRUE;
+		continue;
+	    }
+	    
+	    /* Nothing set, just stick them at 0,0 */
+	    output->initial_x = 0;
+	    output->initial_y = 0;
+	    any_set = TRUE;
+	}
+	if (!keep_going)
+	    break;
+	if (!any_set) 
+	{
+	    for (o = 0; o < config->num_output; o++)
+	    {
+		xf86OutputPtr   output = config->output[o];
+		if (output->initial_x == POSITION_UNSET)
+		{
+		    xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
+				"Output position loop. Moving %s to 0,0\n",
+				output->name);
+		    output->initial_x = output->initial_y = 0;
+		    break;
+		}
+	    }
+	}
+    }
+
+    /*
+     * normalize positions
+     */
+    min_x = 1000000;
+    min_y = 1000000;
+    for (o = 0; o < config->num_output; o++)
+    {
+	xf86OutputPtr	output = config->output[o];
+
+	if (output->initial_x < min_x)
+	    min_x = output->initial_x;
+	if (output->initial_y < min_y)
+	    min_y = output->initial_y;
+    }
+    
+    for (o = 0; o < config->num_output; o++)
+    {
+	xf86OutputPtr	output = config->output[o];
+
+	output->initial_x -= min_x;
+	output->initial_y -= min_y;
+    }
+    return TRUE;
 }
 
 /*
@@ -536,13 +778,13 @@ i830xf86SortModes (DisplayModePtr input)
 #define DEBUG_REPROBE 1
 
 void
-xf86ProbeOutputModes (ScrnInfoPtr pScrn)
+xf86ProbeOutputModes (ScrnInfoPtr pScrn, int maxX, int maxY)
 {
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
     int			o;
-    int			virtualX, virtualY;
 
-    xf86RandR12GetOriginalVirtualSize (pScrn, &virtualX, &virtualY);
+    if (maxX == 0 || maxY == 0)
+	xf86RandR12GetOriginalVirtualSize (pScrn, &maxX, &maxY);
 
     /* Elide duplicate modes before defaulting code uses them */
     xf86PruneDuplicateMonitorModes (pScrn->monitor);
@@ -553,11 +795,13 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 	xf86OutputPtr	    output = config->output[o];
 	DisplayModePtr	    mode;
 	DisplayModePtr	    config_modes = NULL, output_modes, default_modes;
-	XF86ConfMonitorPtr  conf_monitor;
+	char		    *preferred_mode;
 	xf86MonPtr	    edid_monitor;
+	XF86ConfMonitorPtr  conf_monitor;
 	MonRec		    mon_rec;
 	int		    min_clock = 0;
 	int		    max_clock = 0;
+	double		    clock;
 	enum { sync_config, sync_edid, sync_default } sync_source = sync_default;
 	
 	while (output->probed_modes != NULL)
@@ -632,6 +876,14 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 		}
 	    }
 	}
+
+	if (xf86GetOptValFreq (output->options, OPTION_MIN_CLOCK,
+			       OPTUNITS_KHZ, &clock))
+	    min_clock = (int) clock;
+	if (xf86GetOptValFreq (output->options, OPTION_MAX_CLOCK,
+			       OPTUNITS_KHZ, &clock))
+	    max_clock = (int) clock;
+
 	/*
 	 * These limits will end up setting a 1024x768@60Hz mode by default,
 	 * which seems like a fairly good mode to use when nothing else is
@@ -677,9 +929,11 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 	output->probed_modes = xf86ModesAdd (output->probed_modes, default_modes);
 	
 	/*
-	 * Check all modes against virtual size
+	 * Check all modes against max size
 	 */
-	i830xf86ValidateModesSize (pScrn, output->probed_modes, virtualX, virtualY, 0);
+	if (maxX && maxY)
+	    i830xf86ValidateModesSize (pScrn, output->probed_modes,
+				       maxX, maxY, 0);
 	 
 	/*
 	 * Check all modes against output
@@ -693,27 +947,28 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn)
 	output->probed_modes = i830xf86SortModes (output->probed_modes);
 	
 	/* Check for a configured preference for a particular mode */
-	if (conf_monitor)
-	{
-	    char  *preferred_mode = xf86findOptionValue (conf_monitor->mon_option_lst,
-							 "Preferred Mode");
+	preferred_mode = xf86GetOptValString (output->options,
+					      OPTION_PREFERRED_MODE);
 
-	    if (preferred_mode)
+	if (preferred_mode)
+	{
+	    for (mode = output->probed_modes; mode; mode = mode->next)
 	    {
-		for (mode = output->probed_modes; mode; mode = mode->next)
-		    if (!strcmp (preferred_mode, mode->name))
-			break;
-		if (mode && mode != output->probed_modes)
+		if (!strcmp (preferred_mode, mode->name))
 		{
-		    if (mode->prev)
-			mode->prev->next = mode->next;
-		    if (mode->next)
-			mode->next->prev = mode->prev;
-		    mode->next = output->probed_modes;
-		    output->probed_modes->prev = mode;
-		    mode->prev = NULL;
-		    output->probed_modes = mode;
+		    if (mode != output->probed_modes)
+		    {
+			if (mode->prev)
+			    mode->prev->next = mode->next;
+			if (mode->next)
+			    mode->next->prev = mode->prev;
+			mode->next = output->probed_modes;
+			output->probed_modes->prev = mode;
+			mode->prev = NULL;
+			output->probed_modes = mode;
+		    }
 		    mode->type |= M_T_PREFERRED;
+		    break;
 		}
 	    }
 	}
@@ -760,7 +1015,6 @@ xf86SetScrnInfoModes (ScrnInfoPtr pScrn)
     xf86OutputPtr	output;
     xf86CrtcPtr		crtc;
     DisplayModePtr	last, mode;
-    int			originalVirtualX, originalVirtualY;
 
     output = config->output[config->compat_output];
     if (!output->crtc)
@@ -787,18 +1041,6 @@ xf86SetScrnInfoModes (ScrnInfoPtr pScrn)
 
     /* Set pScrn->modes to the mode list for the 'compat' output */
     pScrn->modes = xf86DuplicateModes(pScrn, output->probed_modes);
-
-    xf86RandR12GetOriginalVirtualSize(pScrn, &originalVirtualX, &originalVirtualY);
-
-    /* Disable modes in the XFree86 DDX list that are larger than the current
-     * virtual size.
-     */
-    i830xf86ValidateModesSize(pScrn, pScrn->modes,
-			      originalVirtualX, originalVirtualY,
-			      pScrn->displayWidth);
-
-    /* Strip out anything that we threw out for virtualX/Y. */
-    i830xf86PruneInvalidModes(pScrn, &pScrn->modes, TRUE);
 
     for (mode = pScrn->modes; mode; mode = mode->next)
 	if (xf86ModesEqual (mode, &crtc->desiredMode))
@@ -835,35 +1077,33 @@ xf86InitialConfiguration (ScrnInfoPtr	    pScrn)
     DisplayModePtr	target_mode = NULL;
     xf86CrtcPtr		*crtcs;
     DisplayModePtr	*modes;
-    int			width, height;
+    Bool		*enabled;
+    int			width;
+    int			height;
 
-    xf86ProbeOutputModes (pScrn);
-
-    if (pScrn->display->virtualX == 0)
-    {
-	/*
-	 * Expand virtual size to cover potential mode switches
-	 */
-	xf86DefaultScreenLimits (pScrn, &width, &height);
-    
-	pScrn->display->virtualX = width;
-	pScrn->display->virtualY = height;
-    }
-    else
-    {
+    if (pScrn->display->virtualX)
 	width = pScrn->display->virtualX;
+    else
+	width = config->maxWidth;
+    if (pScrn->display->virtualY)
 	height = pScrn->display->virtualY;
-    }
-    if (width > pScrn->virtualX)
-	pScrn->virtualX = width;
-    if (height > pScrn->virtualY)
-	pScrn->virtualY = height;
-    
+    else
+	height = config->maxHeight;
+
+    xf86ProbeOutputModes (pScrn, width, height);
+
     crtcs = xnfcalloc (config->num_output, sizeof (xf86CrtcPtr));
     modes = xnfcalloc (config->num_output, sizeof (DisplayModePtr));
+    enabled = xnfcalloc (config->num_output, sizeof (Bool));
     
     for (o = 0; o < config->num_output; o++)
+    {
+	xf86OutputPtr output = config->output[o];
+	
 	modes[o] = NULL;
+	enabled[o] = (xf86OutputEnabled (output) &&
+		      output->status != XF86OutputStatusDisconnected);
+    }
     
     /*
      * Let outputs with preferred modes drive screen size
@@ -872,7 +1112,7 @@ xf86InitialConfiguration (ScrnInfoPtr	    pScrn)
     {
 	xf86OutputPtr output = config->output[o];
 
-	if (output->status != XF86OutputStatusDisconnected &&
+	if (enabled[o] &&
 	    xf86OutputHasPreferredMode (output, width, height))
 	{
 	    target_mode = xf86DefaultMode (output, width, height);
@@ -889,7 +1129,7 @@ xf86InitialConfiguration (ScrnInfoPtr	    pScrn)
 	for (o = 0; o < config->num_output; o++)
 	{
 	    xf86OutputPtr output = config->output[o];
-	    if (output->status != XF86OutputStatusDisconnected)
+	    if (enabled[o])
 	    {
 		target_mode = xf86DefaultMode (output, width, height);
 		if (target_mode)
@@ -905,10 +1145,23 @@ xf86InitialConfiguration (ScrnInfoPtr	    pScrn)
     {
 	xf86OutputPtr output = config->output[o];
 	
-	if (output->status != XF86OutputStatusDisconnected && !modes[o])
+	if (enabled[o] && !modes[o])
 	    modes[o] = xf86ClosestMode (output, target_mode, width, height);
     }
 
+    /*
+     * Set the position of each output
+     */
+    if (!xf86InitialOutputPositions (pScrn, modes))
+    {
+	xfree (crtcs);
+	xfree (modes);
+	return FALSE;
+    }
+	
+    /*
+     * Assign CRTCs to fit output configuration
+     */
     if (!xf86PickCrtcs (pScrn, crtcs, modes, 0, width, height))
     {
 	xfree (crtcs);
@@ -928,7 +1181,7 @@ xf86InitialConfiguration (ScrnInfoPtr	    pScrn)
 	crtc->enabled = FALSE;
 	memset (&crtc->desiredMode, '\0', sizeof (crtc->desiredMode));
     }
-	
+    
     /*
      * Set initial configuration
      */
@@ -942,12 +1195,27 @@ xf86InitialConfiguration (ScrnInfoPtr	    pScrn)
 	{
 	    crtc->desiredMode = *mode;
 	    crtc->enabled = TRUE;
-	    crtc->x = 0;
-	    crtc->y = 0;
+	    crtc->x = output->initial_x;
+	    crtc->y = output->initial_y;
 	    output->crtc = crtc;
-	    /* XXX set position; for now, we clone */
 	}
     }
+    
+    if (pScrn->display->virtualX == 0)
+    {
+	/*
+	 * Expand virtual size to cover potential mode switches
+	 */
+	xf86DefaultScreenLimits (pScrn, &width, &height);
+    
+	pScrn->display->virtualX = width;
+	pScrn->display->virtualY = height;
+    }
+
+    if (width > pScrn->virtualX)
+	pScrn->virtualX = width;
+    if (height > pScrn->virtualY)
+	pScrn->virtualY = height;
     
     /* Mirror output modes to pScrn mode list */
     xf86SetScrnInfoModes (pScrn);

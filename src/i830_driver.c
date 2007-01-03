@@ -912,7 +912,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    Bool enable;
    const char *chipname;
    int num_pipe;
-   int max_width;
+   int max_width, max_height;
 #ifdef XF86DRI
    unsigned long savedMMSize;
 #endif
@@ -1183,10 +1183,16 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    
    if (IS_I965G(pI830))
+   {
       max_width = 16384;
+      max_height = 4096;
+   }
    else
-      max_width = 8192 / pI830->cpp;
-   xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, 2048);
+   {
+      max_width = 2048;
+      max_height = 2048;
+   }
+   xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, max_height);
 
    /* Some of the probing needs MMIO access, so map it here. */
    I830MapMMIO(pScrn);
@@ -1830,14 +1836,14 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	      pI830->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
 	      "VideoRam: %d KB\n", pScrn->videoRam);
 
-   if (!IS_I965G(pI830) && pScrn->displayWidth * pI830->cpp > 8192) {
+   if (!IS_I965G(pI830) && pScrn->displayWidth > 2048) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Cannot support DRI with frame buffer stride > 8K.\n");
+		 "Cannot support DRI with frame buffer width > 2048.\n");
       pI830->disableTiling = TRUE;
       pI830->directRenderingDisabled = TRUE;
    }
 
-   if (pScrn->virtualY > 2048) {
+   if (!IS_I965G(pI830) && pScrn->virtualY > 2048) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support > 2048 vertical lines. disabling acceleration.\n");
       pI830->noAccel = TRUE;
    }
@@ -3047,7 +3053,8 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
-   xf86CrtcPtr	crtc = config->output[config->compat_output]->crtc;
+   xf86OutputPtr  output = config->output[config->compat_output];
+   xf86CrtcPtr	crtc = output->crtc;
 
    DPRINTF(PFX, "i830AdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
 	   x, pI830->xoffset, y, pI830->yoffset);
@@ -3059,7 +3066,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 	 (*pI830->AccelInfoRec->Sync)(pScrn);
 	 pI830->AccelInfoRec->NeedToSync = FALSE;
       }
-      i830PipeSetBase(crtc, x, y);
+      i830PipeSetBase(crtc, output->initial_x + x, output->initial_y + y);
    }
 }
 
@@ -3596,7 +3603,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
        * is this.
        */
       
-      xf86ProbeOutputModes (pScrn);
+      xf86ProbeOutputModes (pScrn, 0, 0);
       xf86SetScrnInfoModes (pScrn);
       I830DGAReInit (pScrn->pScreen);
       xf86SwitchMode(pScrn->pScreen, pScrn->currentMode);

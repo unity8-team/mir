@@ -289,6 +289,16 @@ struct _xf86Output {
     DisplayModePtr	probed_modes;
 
     /**
+     * Options parsed from the related monitor section
+     */
+    OptionInfoPtr	options;
+    
+    /**
+     * Configured monitor section
+     */
+    XF86ConfMonitorPtr  conf_monitor;
+    
+    /**
      * Desired initial position
      */
     int			initial_x, initial_y;
@@ -312,12 +322,6 @@ struct _xf86Output {
 
     /** Output name */
     char		*name;
-
-    /** Configured monitor name */
-    char		*monitor_name;
-
-    /** Monitor information from config file */
-    XF86ConfMonitorPtr	conf_monitor;
 
     /** output-specific functions */
     const xf86OutputFuncsRec *funcs;
@@ -410,14 +414,14 @@ xf86OutputCreate (ScrnInfoPtr		scrn,
 		      const xf86OutputFuncsRec *funcs,
 		      const char	*name);
 
-void
+Bool
 xf86OutputRename (xf86OutputPtr output, const char *name);
 
 void
 xf86OutputDestroy (xf86OutputPtr	output);
 
 void
-xf86ProbeOutputModes (ScrnInfoPtr pScrn);
+xf86ProbeOutputModes (ScrnInfoPtr pScrn, int maxX, int maxY);
 
 void
 xf86SetScrnInfoModes (ScrnInfoPtr pScrn);
