@@ -216,9 +216,9 @@ I830InitVisualConfigs(ScreenPtr pScreen)
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
    int numConfigs = 0;
-   __GLXvisualConfig *pConfigs = 0;
-   I830ConfigPrivPtr pI830Configs = 0;
-   I830ConfigPrivPtr *pI830ConfigPtrs = 0;
+   __GLXvisualConfig *pConfigs = NULL;
+   I830ConfigPrivPtr pI830Configs = NULL;
+   I830ConfigPrivPtr *pI830ConfigPtrs = NULL;
    int accum, stencil, db, depth;
    int i;
 
@@ -538,7 +538,7 @@ I830DRIScreenInit(ScreenPtr pScreen)
 
    if (!(pI830DRI = (I830DRIPtr) xcalloc(sizeof(I830DRIRec), 1))) {
       DRIDestroyInfoRec(pI830->pDRIInfo);
-      pI830->pDRIInfo = 0;
+      pI830->pDRIInfo = NULL;
       return FALSE;
    }
    pDRIInfo->devPrivate = pI830DRI;
@@ -561,9 +561,9 @@ I830DRIScreenInit(ScreenPtr pScreen)
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[dri] DRIScreenInit failed. Disabling DRI.\n");
       xfree(pDRIInfo->devPrivate);
-      pDRIInfo->devPrivate = 0;
+      pDRIInfo->devPrivate = NULL;
       DRIDestroyInfoRec(pI830->pDRIInfo);
-      pI830->pDRIInfo = 0;
+      pI830->pDRIInfo = NULL;
       return FALSE;
    }
 
@@ -951,10 +951,10 @@ I830DRICloseScreen(ScreenPtr pScreen)
    if (pI830->pDRIInfo) {
       if (pI830->pDRIInfo->devPrivate) {
 	 xfree(pI830->pDRIInfo->devPrivate);
-	 pI830->pDRIInfo->devPrivate = 0;
+	 pI830->pDRIInfo->devPrivate = NULL;
       }
       DRIDestroyInfoRec(pI830->pDRIInfo);
-      pI830->pDRIInfo = 0;
+      pI830->pDRIInfo = NULL;
    }
    if (pI830->pVisualConfigs)
       xfree(pI830->pVisualConfigs);
@@ -1025,7 +1025,7 @@ I830DRIFinishScreenInit(ScreenPtr pScreen)
    }
 }
 
-void
+static void
 I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 		   DRIContextType oldContextType, void *oldContext,
 		   DRIContextType newContextType, void *newContext)
@@ -1035,7 +1035,6 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 
    if (syncType == DRI_3D_SYNC &&
        oldContextType == DRI_2D_CONTEXT && newContextType == DRI_2D_CONTEXT) {
-      ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("i830DRISwapContext (in)\n");
@@ -1128,9 +1127,9 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
    BoxPtr pbox = REGION_RECTS(prgnSrc);
    int nbox = REGION_NUM_RECTS(prgnSrc);
 
-   BoxPtr pboxNew1 = 0;
-   BoxPtr pboxNew2 = 0;
-   DDXPointPtr pptNew1 = 0;
+   BoxPtr pboxNew1 = NULL;
+   BoxPtr pboxNew2 = NULL;
+   DDXPointPtr pptNew1 = NULL;
    DDXPointPtr pptSrc = &ptOldOrg;
 
    int dx = pParent->drawable.x - ptOldOrg.x;
