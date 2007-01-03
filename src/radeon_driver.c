@@ -2268,53 +2268,56 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
     }
     xf86PrintModes(pScrn);
 
-    if(pRADEONEnt->Controller[1]->binding == 1) {
 
-       xf86SetCrtcForModes(info->CRT2pScrn, INTERLACE_HALVE_V);
-
-       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-           "Modes for CRT2: ********************\n");
-
-       xf86PrintModes(info->CRT2pScrn);
-
-       info->CRT1Modes = pScrn->modes;
-       info->CRT1CurrentMode = pScrn->currentMode;
-
-       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Generating MergedFB mode list\n");
-
-       if (info->NoVirtual) {
-           pScrn->display->virtualX = 0;
-           pScrn->display->virtualY = 0;
-       }
-       pScrn->modes = RADEONGenerateModeList(pScrn, info->MetaModes,
-	            	                  info->CRT1Modes, info->CRT2pScrn->modes,
-					  info->CRT2Position);
-
-       if(!pScrn->modes) {
-
-	  xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-	      "Failed to parse MetaModes or no modes found. MergeFB mode disabled.\n");
-	  if(info->CRT2pScrn) {
-	     if(info->CRT2pScrn->modes) {
-	        while(info->CRT2pScrn->modes)
-		   xf86DeleteMode(&info->CRT2pScrn->modes, info->CRT2pScrn->modes);
-	     }
-	     if(info->CRT2pScrn->monitor) {
-	        if(info->CRT2pScrn->monitor->Modes) {
-	           while(info->CRT2pScrn->monitor->Modes)
-		      xf86DeleteMode(&info->CRT2pScrn->monitor->Modes, info->CRT2pScrn->monitor->Modes);
-	        }
-		if(info->CRT2pScrn->monitor->DDC) xfree(info->CRT2pScrn->monitor->DDC);
-	        xfree(info->CRT2pScrn->monitor);
-	     }
-             xfree(info->CRT2pScrn);
-	     info->CRT2pScrn = NULL;
-	  }
-	  pScrn->modes = info->CRT1Modes;
-	  info->CRT1Modes = NULL;
-	  info->MergedFB = FALSE;
-
-       }
+    if (pRADEONEnt->HasCRTC2) {
+	if(pRADEONEnt->Controller[1]->binding == 1) {
+	    
+	    xf86SetCrtcForModes(info->CRT2pScrn, INTERLACE_HALVE_V);
+	    
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Modes for CRT2: ********************\n");
+	    
+	    xf86PrintModes(info->CRT2pScrn);
+	    
+	    info->CRT1Modes = pScrn->modes;
+	    info->CRT1CurrentMode = pScrn->currentMode;
+	    
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Generating MergedFB mode list\n");
+	    
+	    if (info->NoVirtual) {
+		pScrn->display->virtualX = 0;
+		pScrn->display->virtualY = 0;
+	    }
+	    pScrn->modes = RADEONGenerateModeList(pScrn, info->MetaModes,
+						  info->CRT1Modes, info->CRT2pScrn->modes,
+						  info->CRT2Position);
+	    
+	    if(!pScrn->modes) {
+		
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to parse MetaModes or no modes found. MergeFB mode disabled.\n");
+		if(info->CRT2pScrn) {
+		    if(info->CRT2pScrn->modes) {
+			while(info->CRT2pScrn->modes)
+			    xf86DeleteMode(&info->CRT2pScrn->modes, info->CRT2pScrn->modes);
+		    }
+		    if(info->CRT2pScrn->monitor) {
+			if(info->CRT2pScrn->monitor->Modes) {
+			    while(info->CRT2pScrn->monitor->Modes)
+				xf86DeleteMode(&info->CRT2pScrn->monitor->Modes, info->CRT2pScrn->monitor->Modes);
+			}
+			if(info->CRT2pScrn->monitor->DDC) xfree(info->CRT2pScrn->monitor->DDC);
+			xfree(info->CRT2pScrn->monitor);
+		    }
+		    xfree(info->CRT2pScrn);
+		    info->CRT2pScrn = NULL;
+		}
+		pScrn->modes = info->CRT1Modes;
+		info->CRT1Modes = NULL;
+		info->MergedFB = FALSE;
+		
+	    }
+	}
     }
 
     if (info->MergedFB) {
