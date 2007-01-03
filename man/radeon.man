@@ -177,8 +177,9 @@ The default is to
 .B leave it unchanged.
 .TP
 .BI "Option \*qAGPFastWrite\*q \*q" boolean \*q
-Enable or disable AGP fast writes.  Enabling this is frequently the cause of
-instability. Used only when the DRI is enabled.
+Enable AGP fast writes.  Enabling this is frequently the cause of
+instability. Used only when the DRI is enabled. If you enable
+this option you will get *NO* support from developers.
 .br
 The default is to
 .B leave it unchanged.

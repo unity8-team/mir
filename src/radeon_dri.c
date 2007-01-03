@@ -739,8 +739,9 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
     from = X_DEFAULT;
 
     if (xf86GetOptValInteger(info->Options, OPTION_AGP_MODE, &info->agpMode)) {
-	if (info->agpMode < is_v3 ? 4 : 1 || info->agpMode > is_v3 ? 8 : 4 ||
-	    info->agpMode & (info->agpMode - 1)) {
+	if ((info->agpMode < (is_v3 ? 4 : 1)) ||
+            (info->agpMode > (is_v3 ? 8 : 4)) ||
+	    (info->agpMode & (info->agpMode - 1))) {
 	    xf86DrvMsg(pScreen->myNum, X_ERROR,
 		       "Illegal AGP Mode: %d (valid values: %s), leaving at "
 		       "%dx\n", info->agpMode, is_v3 ? "4, 8" : "1, 2, 4",
@@ -753,7 +754,7 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
 
     xf86DrvMsg(pScreen->myNum, from, "Using AGP %dx\n", info->agpMode);
 
-    info->agpFastWrite = (agp_status & RADEON_AGP_FW_MODE);
+    info->agpFastWrite = 0; // Always off by default as it sucks
 
     from = xf86GetOptValInteger(info->Options, OPTION_AGP_FW,
 				&info->agpFastWrite) ? X_CONFIG : X_DEFAULT;
@@ -794,6 +795,7 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
     }
 
     if (info->agpFastWrite) mode |= RADEON_AGP_FW_MODE;
+    else mode &= ~RADEON_AGP_FW_MODE;
 
     xf86DrvMsg(pScreen->myNum, X_INFO,
 	       "[agp] Mode 0x%08lx [AGP 0x%04x/0x%04x; Card 0x%04x/0x%04x]\n",
