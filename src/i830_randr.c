@@ -663,9 +663,17 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 
 static Bool
 xf86RandR12CrtcSetGamma (ScreenPtr    pScreen,
-		       RRCrtcPtr    crtc)
+			 RRCrtcPtr    randr_crtc)
 {
-    return FALSE;
+    xf86CrtcPtr		crtc = randr_crtc->devPrivate;
+
+    if (crtc->funcs->gamma_set == NULL)
+	return FALSE;
+
+    crtc->funcs->gamma_set(crtc, randr_crtc->gammaRed, randr_crtc->gammaGreen,
+			   randr_crtc->gammaBlue, randr_crtc->gammaSize);
+
+    return TRUE;
 }
 
 /**

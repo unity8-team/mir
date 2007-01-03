@@ -89,6 +89,11 @@ typedef struct _xf86CrtcFuncs {
 		DisplayModePtr mode,
 		DisplayModePtr adjusted_mode);
 
+    /* Set the color ramps for the CRTC to the given values. */
+    void
+    (*gamma_set)(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
+		 int size);
+
     /**
      * Clean up driver-specific bits of the crtc
      */

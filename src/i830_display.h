@@ -42,3 +42,4 @@ xf86CrtcPtr i830GetLoadDetectPipe(xf86OutputPtr output);
 void i830ReleaseLoadDetectPipe(xf86OutputPtr output);
 Bool i830PipeInUse(xf86CrtcPtr crtc);
 void i830_crtc_init(ScrnInfoPtr pScrn, int pipe);
+void i830_crtc_load_lut(xf86CrtcPtr crtc);
