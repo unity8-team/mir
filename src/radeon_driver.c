@@ -5143,7 +5143,7 @@ static void RADEONRestorePalette(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 #endif
 
 /* Write out state to define a new video mode */
-static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr      info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
