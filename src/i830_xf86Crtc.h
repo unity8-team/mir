@@ -25,6 +25,15 @@
 #include <edid.h>
 #include "randrstr.h"
 #include "i830_xf86Modes.h"
+#include "xf86Parser.h"
+
+/* Compat definitions for older X Servers. */
+#ifndef M_T_PREFERRED
+#define M_T_PREFERRED	0x08
+#endif
+#ifndef M_T_DRIVER
+#define M_T_DRIVER	0x40
+#endif
 
 typedef struct _xf86Crtc xf86CrtcRec, *xf86CrtcPtr;
 typedef struct _xf86Output xf86OutputRec, *xf86OutputPtr;
@@ -79,6 +88,11 @@ typedef struct _xf86CrtcFuncs {
     (*mode_set)(xf86CrtcPtr crtc,
 		DisplayModePtr mode,
 		DisplayModePtr adjusted_mode);
+
+    /* Set the color ramps for the CRTC to the given values. */
+    void
+    (*gamma_set)(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
+		 int size);
 
     /**
      * Clean up driver-specific bits of the crtc
@@ -260,6 +274,17 @@ struct _xf86Output {
      * Possible outputs to share the same CRTC as a mask of output indices
      */
     CARD32		possible_clones;
+    
+    /**
+     * Whether this output can support interlaced modes
+     */
+    Bool		interlaceAllowed;
+
+    /**
+     * Whether this output can support double scan modes
+     */
+    Bool		doubleScanAllowed;
+
     /**
      * List of available modes on this output.
      *
@@ -267,6 +292,21 @@ struct _xf86Output {
      * compatible modes added later.
      */
     DisplayModePtr	probed_modes;
+
+    /**
+     * Options parsed from the related monitor section
+     */
+    OptionInfoPtr	options;
+    
+    /**
+     * Configured monitor section
+     */
+    XF86ConfMonitorPtr  conf_monitor;
+    
+    /**
+     * Desired initial position
+     */
+    int			initial_x, initial_y;
 
     /**
      * Current connection status
@@ -379,14 +419,14 @@ xf86OutputCreate (ScrnInfoPtr		scrn,
 		      const xf86OutputFuncsRec *funcs,
 		      const char	*name);
 
-void
+Bool
 xf86OutputRename (xf86OutputPtr output, const char *name);
 
 void
 xf86OutputDestroy (xf86OutputPtr	output);
 
 void
-xf86ProbeOutputModes (ScrnInfoPtr pScrn);
+xf86ProbeOutputModes (ScrnInfoPtr pScrn, int maxX, int maxY);
 
 void
 xf86SetScrnInfoModes (ScrnInfoPtr pScrn);
@@ -396,5 +436,21 @@ xf86InitialConfiguration (ScrnInfoPtr pScrn);
 
 void
 xf86DPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags);
+    
+/**
+ * Set the EDID information for the specified output
+ */
+void
+i830_xf86OutputSetEDID (xf86OutputPtr output, xf86MonPtr edid_mon);
+
+/**
+ * Return the list of modes supported by the EDID information
+ * stored in 'output'
+ */
+DisplayModePtr
+i830_xf86OutputGetEDIDModes (xf86OutputPtr output);
+
+xf86MonPtr
+i830_xf86OutputGetEDID (xf86OutputPtr output, I2CBusPtr pDDCBus);
 
 #endif /* _XF86CRTC_H_ */

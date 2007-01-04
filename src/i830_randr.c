@@ -6,21 +6,21 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that
- * copyright notice and this permission notice appear in supporting
- * documentation, and that the name of Keith Packard not be used in
- * advertising or publicity pertaining to distribution of the software without
- * specific, written prior permission.  Keith Packard makes no
- * representations about the suitability of this software for any purpose.  It
- * is provided "as is" without express or implied warranty.
+ * the above copyright notice appear in all copies and that both that copyright
+ * notice and this permission notice appear in supporting documentation, and
+ * that the name of the copyright holders not be used in advertising or
+ * publicity pertaining to distribution of the software without specific,
+ * written prior permission.  The copyright holders make no representations
+ * about the suitability of this software for any purpose.  It is provided "as
+ * is" without express or implied warranty.
  *
- * KEITH PACKARD DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
- * EVENT SHALL KEITH PACKARD BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+ * OF THIS SOFTWARE.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -95,7 +95,7 @@ xf86RandR12GetInfo (ScreenPtr pScreen, Rotation *rotations)
     }
 
     /* Re-probe the outputs for new monitors or modes */
-    xf86ProbeOutputModes (scrp);
+    xf86ProbeOutputModes (scrp, 0, 0);
     xf86SetScrnInfoModes (scrp);
     I830DGAReInit (pScreen);
 
@@ -325,6 +325,44 @@ xf86RandR12SetConfig (ScreenPtr		pScreen,
     return TRUE;
 }
 
+static Bool
+xf86RandR12ScreenSetSize (ScreenPtr	pScreen,
+			CARD16		width,
+			CARD16		height,
+			CARD32		mmWidth,
+			CARD32		mmHeight)
+{
+    XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
+    ScrnInfoPtr		pScrn = XF86SCRNINFO(pScreen);
+    WindowPtr		pRoot = WindowTable[pScreen->myNum];
+    Bool 		ret = TRUE;
+
+    if (randrp->virtualX == -1 || randrp->virtualY == -1)
+    {
+	randrp->virtualX = pScrn->virtualX;
+	randrp->virtualY = pScrn->virtualY;
+    }
+    if (pRoot)
+	(*pScrn->EnableDisableFBAccess) (pScreen->myNum, FALSE);
+    pScrn->virtualX = width;
+    pScrn->virtualY = height;
+
+    pScreen->width = pScrn->virtualX;
+    pScreen->height = pScrn->virtualY;
+    pScreen->mmWidth = mmWidth;
+    pScreen->mmHeight = mmHeight;
+
+    xf86SetViewport (pScreen, pScreen->width-1, pScreen->height-1);
+    xf86SetViewport (pScreen, 0, 0);
+    if (pRoot)
+	(*pScrn->EnableDisableFBAccess) (pScreen->myNum, TRUE);
+#if RANDR_12_INTERFACE
+    if (WindowTable[pScreen->myNum])
+	RRScreenSizeNotify (pScreen);
+#endif
+    return ret;
+}
+
 Rotation
 xf86RandR12GetRotation(ScreenPtr pScreen)
 {
@@ -344,37 +382,67 @@ xf86RandR12GetRotation12(RRCrtcPtr randr_crtc)
 Bool
 xf86RandR12CreateScreenResources (ScreenPtr pScreen)
 {
-#if 0
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr		pI830 = I830PTR(pScrn);
-#endif
+    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
+    XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
+    int			c;
+    int			width, height;
+    int			mmWidth, mmHeight;
 #ifdef PANORAMIX
     /* XXX disable RandR when using Xinerama */
     if (!noPanoramiXExtension)
 	return TRUE;
 #endif
+
+    /*
+     * Compute size of screen
+     */
+    width = 0; height = 0;
+    for (c = 0; c < config->num_crtc; c++)
+    {
+	xf86CrtcPtr crtc = config->crtc[c];
+	int	    crtc_width = crtc->x + crtc->curMode.HDisplay;
+	int	    crtc_height = crtc->y + crtc->curMode.VDisplay;
+	
+	if (crtc->enabled && crtc_width > width)
+	    width = crtc_width;
+	if (crtc->enabled && crtc_height > height)
+	    height = crtc_height;
+    }
+    
+    if (width && height)
+    {
+	/*
+	 * Compute physical size of screen
+	 */
+	if (monitorResolution) 
+	{
+	    mmWidth = width * 25.4 / monitorResolution;
+	    mmHeight = height * 25.4 / monitorResolution;
+	}
+	else
+	{
+	    mmWidth = pScreen->mmWidth;
+	    mmHeight = pScreen->mmHeight;
+	}
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Setting screen physical size to %d x %d\n",
+		   mmWidth, mmHeight);
+	xf86RandR12ScreenSetSize (pScreen,
+				  width,
+				  height,
+				  mmWidth,
+				  mmHeight);
+    }
+
+    if (randrp->virtualX == -1 || randrp->virtualY == -1)
+    {
+	randrp->virtualX = pScrn->virtualX;
+	randrp->virtualY = pScrn->virtualY;
+    }
 #if RANDR_12_INTERFACE
     if (xf86RandR12CreateScreenResources12 (pScreen))
 	return TRUE;
-#endif
-#if 0
-    /* XXX deal with initial rotation */
-    if (pI830->rotation != RR_Rotate_0) {
-	RRScreenSize p;
-	Rotation requestedRotation = pI830->rotation;
-
-	pI830->rotation = RR_Rotate_0;
-
-	/* Just setup enough for an initial rotate */
-	p.width = pScreen->width;
-	p.height = pScreen->height;
-	p.mmWidth = pScreen->mmWidth;
-	p.mmHeight = pScreen->mmHeight;
-
-	pI830->starting = TRUE; /* abuse this for dual head & rotation */
-	xf86RandR12SetConfig (pScreen, requestedRotation, 0, &p);
-	pI830->starting = FALSE;
-    }
 #endif
     return TRUE;
 }
@@ -474,44 +542,6 @@ xf86RandR12GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y)
 }
 
 #if RANDR_12_INTERFACE
-static Bool
-xf86RandR12ScreenSetSize (ScreenPtr	pScreen,
-			CARD16		width,
-			CARD16		height,
-			CARD32		mmWidth,
-			CARD32		mmHeight)
-{
-    XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
-    ScrnInfoPtr		pScrn = XF86SCRNINFO(pScreen);
-    WindowPtr		pRoot = WindowTable[pScreen->myNum];
-    Bool 		ret = TRUE;
-
-    if (randrp->virtualX == -1 || randrp->virtualY == -1)
-    {
-	randrp->virtualX = pScrn->virtualX;
-	randrp->virtualY = pScrn->virtualY;
-    }
-    if (pRoot)
-	(*pScrn->EnableDisableFBAccess) (pScreen->myNum, FALSE);
-    /* XXX don't change the actual draw window size */
-    /*pScrn->virtualX = width;
-     *pScrn->virtualY = height;
-     *pScreen->width = pScrn->virtualX;
-     *pScreen->height = pScrn->virtualY;*/
-    pScreen->width = width;
-    pScreen->height = height;
-    pScreen->mmWidth = mmWidth;
-    pScreen->mmHeight = mmHeight;
-
-    xf86SetViewport (pScreen, pScreen->width, pScreen->height);
-    xf86SetViewport (pScreen, 0, 0);
-    if (pRoot)
-	(*pScrn->EnableDisableFBAccess) (pScreen->myNum, TRUE);
-    if (WindowTable[pScreen->myNum])
-	RRScreenSizeNotify (pScreen);
-    return ret;
-}
-
 static Bool
 xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
 {
@@ -679,9 +709,17 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 
 static Bool
 xf86RandR12CrtcSetGamma (ScreenPtr    pScreen,
-		       RRCrtcPtr    crtc)
+			 RRCrtcPtr    randr_crtc)
 {
-    return FALSE;
+    xf86CrtcPtr		crtc = randr_crtc->devPrivate;
+
+    if (crtc->funcs->gamma_set == NULL)
+	return FALSE;
+
+    crtc->funcs->gamma_set(crtc, randr_crtc->gammaRed, randr_crtc->gammaGreen,
+			   randr_crtc->gammaBlue, randr_crtc->gammaSize);
+
+    return TRUE;
 }
 
 /**
@@ -788,7 +826,7 @@ xf86RandR12SetInfo12 (ScreenPtr pScreen)
 				output->mm_height);
 	xf86RROutputSetModes (output->randr_output, output->probed_modes);
 
-	switch (output->status = (*output->funcs->detect)(output)) {
+	switch (output->status) {
 	case XF86OutputStatusConnected:
 	    RROutputSetConnection (output->randr_output, RR_Connected);
 	    break;
@@ -834,7 +872,7 @@ xf86RandR12GetInfo12 (ScreenPtr pScreen, Rotation *rotations)
 {
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
 
-    xf86ProbeOutputModes (pScrn);
+    xf86ProbeOutputModes (pScrn, 0, 0);
     xf86SetScrnInfoModes (pScrn);
     I830DGAReInit (pScreen);
     return xf86RandR12SetInfo12 (pScreen);
@@ -880,62 +918,14 @@ xf86RandR12CreateObjects12 (ScreenPtr pScreen)
 static Bool
 xf86RandR12CreateScreenResources12 (ScreenPtr pScreen)
 {
-    ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
-    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
-    XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
     int			c;
-    int			width, height;
-    int			mmWidth, mmHeight;
-
-    /*
-     * Compute size of screen
-     */
-    width = 0; height = 0;
-    for (c = 0; c < config->num_crtc; c++)
-    {
-	xf86CrtcPtr crtc = config->crtc[c];
-	int	    crtc_width = crtc->x + crtc->curMode.HDisplay;
-	int	    crtc_height = crtc->y + crtc->curMode.VDisplay;
-	
-	if (crtc->enabled && crtc_width > width)
-	    width = crtc_width;
-	if (crtc->enabled && crtc_height > height)
-	    height = crtc_height;
-    }
-    
-    if (width && height)
-    {
-	/*
-	 * Compute physical size of screen
-	 */
-	if (monitorResolution) 
-	{
-	    mmWidth = width * 25.4 / monitorResolution;
-	    mmHeight = height * 25.4 / monitorResolution;
-	}
-	else
-	{
-	    mmWidth = pScreen->mmWidth;
-	    mmHeight = pScreen->mmHeight;
-	}
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Setting screen physical size to %d x %d\n",
-		   mmWidth, mmHeight);
-	xf86RandR12ScreenSetSize (pScreen,
-				  width,
-				  height,
-				  mmWidth,
-				  mmHeight);
-    }
+    ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
+    XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
+    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
 
     for (c = 0; c < config->num_crtc; c++)
 	xf86RandR12CrtcNotify (config->crtc[c]->randr_crtc);
     
-    if (randrp->virtualX == -1 || randrp->virtualY == -1)
-    {
-	randrp->virtualX = pScrn->virtualX;
-	randrp->virtualY = pScrn->virtualY;
-    }
     
     RRScreenSetSizeRange (pScreen, 320, 240,
 			  randrp->virtualX, randrp->virtualY);

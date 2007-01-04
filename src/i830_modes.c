@@ -55,98 +55,16 @@
 #include "i830_xf86Modes.h"
 #include <randrstr.h>
 
-#define DEBUG_REPROBE 1
-
-#ifdef RANDR_12_INTERFACE
-
-#define EDID_ATOM_NAME		"EDID_DATA"
-
-static void
-i830_ddc_set_edid_property(xf86OutputPtr output, void *data, int data_len)
-{
-    Atom edid_atom = MakeAtom(EDID_ATOM_NAME, sizeof(EDID_ATOM_NAME), TRUE);
-
-    /* This may get called before the RandR resources have been created */
-    if (output->randr_output == NULL)
-	return;
-
-    if (data_len != 0) {
-	RRChangeOutputProperty(output->randr_output, edid_atom, XA_INTEGER, 8,
-			       PropModeReplace, data_len, data, FALSE);
-    } else {
-	RRDeleteOutputProperty(output->randr_output, edid_atom);
-    }
-}
-#endif
-
-/**
- * Generic get_modes function using DDC, used by many outputs.
- */
 DisplayModePtr
-i830_ddc_get_modes(xf86OutputPtr output)
+i830_ddc_get_modes (xf86OutputPtr output)
 {
-    ScrnInfoPtr	pScrn = output->scrn;
-    I830OutputPrivatePtr intel_output = output->driver_private;
-    xf86MonPtr ddc_mon;
-    DisplayModePtr ddc_modes, mode;
-    int i;
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    xf86MonPtr		    edid_mon;
+    DisplayModePtr	    modes;
 
-    ddc_mon = xf86DoEDID_DDC2(pScrn->scrnIndex, intel_output->pDDCBus);
-    if (ddc_mon == NULL) {
-#ifdef RANDR_12_INTERFACE
-	i830_ddc_set_edid_property(output, NULL, 0);
-#endif
-	return NULL;
-    }
-
-    if (output->MonInfo != NULL)
-	xfree(output->MonInfo);
-    output->MonInfo = ddc_mon;
-
-#ifdef RANDR_12_INTERFACE
-    if (output->MonInfo->ver.version == 1) {
-	i830_ddc_set_edid_property(output, ddc_mon->rawData, 128);
-    } else if (output->MonInfo->ver.version == 2) {
-	i830_ddc_set_edid_property(output, ddc_mon->rawData, 256);
-    } else {
-	i830_ddc_set_edid_property(output, NULL, 0);
-    }
-#endif
-
-    /* Debug info for now, at least */
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %s\n", output->name);
-    xf86PrintEDID(output->MonInfo);
-
-    ddc_modes = xf86DDCGetModes(pScrn->scrnIndex, ddc_mon);
-
-    /* Strip out any modes that can't be supported on this output. */
-    for (mode = ddc_modes; mode != NULL; mode = mode->next) {
-	int status = (*output->funcs->mode_valid)(output, mode);
-
-	if (status != MODE_OK)
-	    mode->status = status;
-    }
-    i830xf86PruneInvalidModes(pScrn, &ddc_modes, TRUE);
-
-    /* Pull out a phyiscal size from a detailed timing if available. */
-    for (i = 0; i < 4; i++) {
-	if (ddc_mon->det_mon[i].type == DT &&
-	    ddc_mon->det_mon[i].section.d_timings.h_size != 0 &&
-	    ddc_mon->det_mon[i].section.d_timings.v_size != 0)
-	{
-	    output->mm_width = ddc_mon->det_mon[i].section.d_timings.h_size;
-	    output->mm_height = ddc_mon->det_mon[i].section.d_timings.v_size;
-	    break;
-	}
-    }
-
-    /* if no mm size is available from a detailed timing, check the max size field */
-    if ((!output->mm_width || !output->mm_height) &&
-	(ddc_mon->features.hsize && ddc_mon->features.vsize))
-    {
-	output->mm_width = ddc_mon->features.hsize * 10;
-	output->mm_height = ddc_mon->features.vsize * 10;
-    }
-
-    return ddc_modes;
+    edid_mon = i830_xf86OutputGetEDID (output, intel_output->pDDCBus);
+    i830_xf86OutputSetEDID (output, edid_mon);
+    
+    modes = i830_xf86OutputGetEDIDModes (output);
+    return modes;
 }

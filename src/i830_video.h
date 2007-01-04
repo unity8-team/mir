@@ -27,6 +27,18 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86.h"
 #include "xf86_OSproc.h"
 
+/* Ugly mess to support the old XF86 allocator or EXA using the same code.
+ */
+struct linear_alloc {
+#ifdef I830_USE_XAA
+   FBLinearPtr xaa;
+#endif
+#ifdef I830_USE_EXA
+   ExaOffscreenArea *exa;
+#endif
+   unsigned int offset;
+};
+
 typedef struct {
    CARD32 YBuf0offset;
    CARD32 UBuf0offset;
@@ -57,7 +69,8 @@ typedef struct {
    CARD32 videoStatus;
    Time offTime;
    Time freeTime;
-   FBLinearPtr linear;
+   struct linear_alloc linear;
+   unsigned int extra_offset;
 
    Bool overlayOK;
    int oneLineMode;
@@ -68,10 +81,23 @@ typedef struct {
 #define GET_PORT_PRIVATE(pScrn) \
    (I830PortPrivPtr)((I830PTR(pScrn))->adaptor->pPortPrivates[0].ptr)
 
+/*
+ * Broadwater requires a bit of extra video memory for state information
+ */
+#define BRW_LINEAR_EXTRA	(36*1024)
+
 void I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 			      int id, RegionPtr dstRegion, short width,
 			      short height, int video_pitch,
 			      int x1, int y1, int x2, int y2,
 			      short src_w, short src_h,
 			      short drw_w, short drw_h,
-			      DrawablePtr pDraw);
+			      PixmapPtr pPixmap);
+
+void I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
+			      int id, RegionPtr dstRegion, short width,
+			      short height, int video_pitch,
+			      int x1, int y1, int x2, int y2,
+			      short src_w, short src_h,
+			      short drw_w, short drw_h,
+			      PixmapPtr pPixmap);

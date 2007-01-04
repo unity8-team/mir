@@ -120,9 +120,13 @@ fi
 
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
-        PKG_CHECK_MODULES(DRI, [libdrm >= 2.2 xf86driproto])
+        PKG_CHECK_MODULES(DRI, [libdrm xf86driproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
+	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.2],[DRI_MM=yes], [DRI_MM=no])
+	if test "x$DRI_MM" = xyes; then
+		AC_DEFINE(XF86DRI_MM,1,[Extended DRI memory management])
+	fi
 fi
 
 AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)
@@ -148,7 +152,9 @@ AC_OUTPUT([
 	src/Makefile
 	src/xvmc/Makefile
 	src/bios_reader/Makefile
+	src/ch7017/Makefile
 	src/ch7xxx/Makefile
+	src/ivch/Makefile
 	src/sil164/Makefile
 	man/Makefile
 ])

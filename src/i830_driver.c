@@ -581,106 +581,67 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 		LOCO * colors, VisualPtr pVisual)
 {
    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-   I830Ptr pI830;
    int i,j, index;
-   unsigned char r, g, b;
-   CARD32 val, temp;
-   int palreg;
-   int dspreg, dspbase, dspsurf;
    int p;
+   CARD16 lut_r[256], lut_g[256], lut_b[256];
 
    DPRINTF(PFX, "I830LoadPalette: numColors: %d\n", numColors);
-   pI830 = I830PTR(pScrn);
 
-   for(p=0; p < xf86_config->num_crtc; p++) 
-   {
+   for(p = 0; p < xf86_config->num_crtc; p++) {
       xf86CrtcPtr	   crtc = xf86_config->crtc[p];
       I830CrtcPrivatePtr   intel_crtc = crtc->driver_private;
 
-      if (p == 0) {
-         palreg = PALETTE_A;
-         dspreg = DSPACNTR;
-         dspbase = DSPABASE;
-	 dspsurf = DSPASURF;
-      } else {
-         palreg = PALETTE_B;
-         dspreg = DSPBCNTR;
-         dspbase = DSPBBASE;
-	 dspsurf = DSPBSURF;
+      /* Initialize to the old lookup table values. */
+      for (i = 0; i < 256; i++) {
+	 lut_r[i] = intel_crtc->lut_r[i] << 8;
+	 lut_g[i] = intel_crtc->lut_g[i] << 8;
+	 lut_b[i] = intel_crtc->lut_b[i] << 8;
       }
-
-      if (crtc->enabled == 0)
-	 continue;  
-
-      intel_crtc->gammaEnabled = 1;
-      
-      /* To ensure gamma is enabled we need to turn off and on the plane */
-      temp = INREG(dspreg);
-      OUTREG(dspreg, temp & ~(1<<31));
-      OUTREG(dspbase, INREG(dspbase));
-      OUTREG(dspreg, temp | DISPPLANE_GAMMA_ENABLE);
-      OUTREG(dspbase, INREG(dspbase));
-      if (IS_I965G(pI830))
-	 OUTREG(dspsurf, INREG(dspsurf));
-
-      /* It seems that an initial read is needed. */
-      temp = INREG(palreg);
 
       switch(pScrn->depth) {
       case 15:
-        for (i = 0; i < numColors; i++) {
-         index = indices[i];
-         r = colors[index].red;
-         g = colors[index].green;
-         b = colors[index].blue;
-	 val = (r << 16) | (g << 8) | b;
-         for (j = 0; j < 8; j++) {
-	    OUTREG(palreg + index * 32 + (j * 4), val);
+	 for (i = 0; i < numColors; i++) {
+	    index = indices[i];
+	    for (j = 0; j < 8; j++) {
+	       lut_r[index * 8 + j] = colors[index].red << 8;
+	       lut_g[index * 8 + j] = colors[index].green << 8;
+	       lut_b[index * 8 + j] = colors[index].blue << 8;
+	    }
          }
-        }
-      break;
+	 break;
       case 16:
-        for (i = 0; i < numColors; i++) {
-         index = indices[i];
-	 r   = colors[index / 2].red;
-	 g   = colors[index].green;
-	 b   = colors[index / 2].blue;
+	 for (i = 0; i < numColors; i++) {
+	    index = indices[i];
 
-	 val = (r << 16) | (g << 8) | b;
-	 OUTREG(palreg + index * 16, val);
-	 OUTREG(palreg + index * 16 + 4, val);
-	 OUTREG(palreg + index * 16 + 8, val);
-	 OUTREG(palreg + index * 16 + 12, val);
+	    if (i <= 31) {
+	       for (j = 0; j < 8; j++) {
+		  lut_r[index * 8 + j] = colors[index].red << 8;
+		  lut_b[index * 8 + j] = colors[index].blue << 8;
+	       }
+	    }
 
-   	 if (index <= 31) {
-            r   = colors[index].red;
-	    g   = colors[(index * 2) + 1].green;
-	    b   = colors[index].blue;
-
-	    val = (r << 16) | (g << 8) | b;
-	    OUTREG(palreg + index * 32, val);
-	    OUTREG(palreg + index * 32 + 4, val);
-	    OUTREG(palreg + index * 32 + 8, val);
-	    OUTREG(palreg + index * 32 + 12, val);
-	 }
-        }
+	    for (j = 0; j < 4; j++) {
+	       lut_g[index * 4 + j] = colors[index].green << 8;
+	    }
+         }
         break;
       default:
-        for(i = 0; i < numColors; i++) {
-	 index = indices[i];
-	 r = colors[index].red;
-	 g = colors[index].green;
-	 b = colors[index].blue;
-	 val = (r << 16) | (g << 8) | b;
-	 OUTREG(palreg + index * 4, val);
-        }
-        break;
-     }
+	 for (i = 0; i < numColors; i++) {
+	    index = indices[i];
+	    lut_r[index] = colors[index].red << 8;
+	    lut_g[index] = colors[index].green << 8;
+	    lut_b[index] = colors[index].blue << 8;
+	 }
+	 break;
+      }
+
+      /* Make the change through RandR */
+#ifdef RANDR_12_INTERFACE
+      RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
+#else
+      crtc->funcs->gamma_set(crtc, lut_r, lut_g, lut_b, 256);
+#endif
    }
-   
-   /* Enable gamma for Cursor if ARGB */
-   if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn)
-      pI830->CursorInfoRec->ShowCursor(pScrn);
 }
 
 int
@@ -914,7 +875,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    Bool enable;
    const char *chipname;
    int num_pipe;
-   int max_width;
+   int max_width, max_height;
 #ifdef XF86DRI
    unsigned long savedMMSize;
 #endif
@@ -1188,10 +1149,16 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    
    if (IS_I965G(pI830))
+   {
       max_width = 16384;
+      max_height = 4096;
+   }
    else
-      max_width = 8192 / pI830->cpp;
-   xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, 2048);
+   {
+      max_width = 2048;
+      max_height = 2048;
+   }
+   xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, max_height);
 
    /* Some of the probing needs MMIO access, so map it here. */
    I830MapMMIO(pScrn);
@@ -1451,52 +1418,26 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->checkDevices = FALSE;
 
    /*
-    * The "VideoRam" config file parameter specifies the total amount of
-    * memory that will be used/allocated.  When agpgart support isn't
-    * available (StolenOnly == TRUE), this is limited to the amount of
-    * pre-allocated ("stolen") memory.
-    */
-
-   /*
-    * Default to I830_DEFAULT_VIDEOMEM_2D (8192KB) for 2D-only,
-    * or I830_DEFAULT_VIDEOMEM_3D (32768KB) for 3D.  If the stolen memory
-    * amount is higher, default to it rounded up to the nearest MB.  This
-    * guarantees that by default there will be at least some run-time
-    * space for things that need a physical address.
-    * But, we double the amounts when dual head is enabled, and therefore
-    * for 2D-only we use 16384KB, and 3D we use 65536KB. The VideoRAM 
-    * for the second head is never used, as the primary head does the 
-    * allocation.
+    * The "VideoRam" config file parameter specifies the maximum amount of
+    * memory that will be used/allocated.  When not present, we allow the
+    * driver to allocate as much memory as it wishes to satisfy its
+    * allocations, but if agpgart support isn't available (StolenOnly == TRUE),
+    * it gets limited to the amount of pre-allocated ("stolen") memory.
     */
    if (!pI830->pEnt->device->videoRam) {
       from = X_DEFAULT;
-#ifdef XF86DRI
-      if (!pI830->directRenderingDisabled)
-	 pScrn->videoRam = I830_DEFAULT_VIDEOMEM_3D;
-      else
-#endif
-	 pScrn->videoRam = I830_DEFAULT_VIDEOMEM_2D;
-
-      if (xf86IsEntityShared(pScrn->entityList[0])) {
-         if (I830IsPrimary(pScrn))
-            pScrn->videoRam += I830_DEFAULT_VIDEOMEM_2D;
-      else
-            pScrn->videoRam = I830_MAXIMUM_VBIOS_MEM;
-      } 
-
-      if (pI830->StolenMemory.Size / 1024 > pScrn->videoRam)
-	 pScrn->videoRam = ROUND_TO(pI830->StolenMemory.Size / 1024, 1024);
+      pScrn->videoRam = pI830->FbMapSize / KB(1);
    } else {
       from = X_CONFIG;
       pScrn->videoRam = pI830->pEnt->device->videoRam;
    }
 
    /* Make sure it's on a page boundary */
-   if (pScrn->videoRam & (GTT_PAGE_SIZE - 1)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		    "VideoRAM reduced to %d kByte "
-		    "(page aligned - was %d)\n", pScrn->videoRam & ~(GTT_PAGE_SIZE - 1), pScrn->videoRam);
-      pScrn->videoRam &= ~(GTT_PAGE_SIZE - 1);
+   if (pScrn->videoRam & 3) {
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "VideoRam reduced to %d KB "
+		 "(page aligned - was %d KB)\n",
+		 pScrn->videoRam & ~3, pScrn->videoRam);
+      pScrn->videoRam &= ~3;
    }
 
    DPRINTF(PFX,
@@ -1524,9 +1465,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-	      "Pre-allocated VideoRAM: %ld kByte\n",
+	      "Pre-allocated VideoRam: %ld kByte\n",
 	      pI830->StolenMemory.Size / 1024);
-   xf86DrvMsg(pScrn->scrnIndex, from, "VideoRAM: %d kByte\n",
+   xf86DrvMsg(pScrn->scrnIndex, from, "Potential VideoRam: %d kByte\n",
 	      pScrn->videoRam);
 
    pI830->TotalVideoRam = KB(pScrn->videoRam);
@@ -1657,9 +1598,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pScrn->videoRam -= (MIN_SCRATCH_BUFFER_SIZE / 1024);
    }
 
-   xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-	      "Maximum frambuffer space: %d kByte\n", pScrn->videoRam);
-
    if (!xf86RandR12PreInit (pScrn))
    {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "RandR initialization failure\n");
@@ -1693,9 +1631,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    
    pScrn->currentMode = pScrn->modes;
 
-#ifndef USE_PITCHES
-#define USE_PITCHES 1
-#endif
    pI830->disableTiling = FALSE;
 
    /*
@@ -1715,18 +1650,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (I830IsPrimary(pScrn) && !pI830->directRenderingDisabled) {
       int savedDisplayWidth = pScrn->displayWidth;
       int memNeeded = 0;
-      /* Good pitches to allow tiling.  Don't care about pitches < 1024. */
-      static const int pitches[] = {
-/*
-	 128 * 2,
-	 128 * 4,
-*/
-	 128 * 8,
-	 128 * 16,
-	 128 * 32,
-	 128 * 64,
-	 0
-      };
+      Bool tiled = FALSE;
 
 #ifdef I830_XV
       /*
@@ -1736,16 +1660,28 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->XvEnabled = !pI830->XvDisabled;
 #endif
 
-      for (i = 0; pitches[i] != 0; i++) {
-#if USE_PITCHES
-	 if (pitches[i] >= pScrn->displayWidth) {
-	    pScrn->displayWidth = pitches[i];
-	    break;
+      if (IS_I965G(pI830)) {
+	 int tile_pixels = 512 / pI830->cpp;
+	 pScrn->displayWidth = (pScrn->displayWidth + tile_pixels - 1) &
+	    ~(tile_pixels - 1);
+	 tiled = TRUE;
+      } else {
+	 /* Good pitches to allow tiling.  Don't care about pitches < 1024. */
+	 static const int pitches[] = {
+	    KB(1),
+	    KB(2),
+	    KB(4),
+	    KB(8),
+	    0
+	 };
+
+	 for (i = 0; pitches[i] != 0; i++) {
+	    if (pitches[i] >= pScrn->displayWidth) {
+	       pScrn->displayWidth = pitches[i];
+	       tiled = TRUE;
+	       break;
+	    }
 	 }
-#else
-	 if (pitches[i] == pScrn->displayWidth)
-	    break;
-#endif
       }
 
       /*
@@ -1753,7 +1689,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        * memory available to enable tiling.
        */
       savedMMSize = pI830->mmSize;
-      if (pScrn->displayWidth == pitches[i]) {
+      if (tiled) {
       retry_dryrun:
 	 I830ResetAllocations(pScrn, 0);
 	 if (I830Allocate2DMemory(pScrn, ALLOCATE_DRY_RUN | ALLOC_INITIAL) &&
@@ -1772,7 +1708,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 				      "to make room in AGP aperture for tiling.");
 		     goto retry_dryrun;
 		  }
-
+		  /* XXX */
 		  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			     "Allocation with DRI tiling enabled would "
 			     "exceed the\n"
@@ -1841,14 +1777,35 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 #endif
       pI830->disableTiling = TRUE; /* no DRI - so disableTiling */
 
-   if (!IS_I965G(pI830) && pScrn->displayWidth * pI830->cpp > 8192) {
+   if (pI830->pEnt->device->videoRam == 0) {
+      int default_videoram;
+
+      /* Now that we've sized the allocations, reduce our default VideoRam
+       * allocation from the aperture size to just what we need to cover our
+       * allocations.  Only, put in some slop for alignment and such.
+       */
+      default_videoram = pI830->StolenPool.Total.Size + pI830->allocatedMemory;
+      default_videoram += KB(512); /* slop */
+      /* align to 1MB increments */
+      default_videoram = (default_videoram + MB(1) - 1) / MB(1) * MB(1);
+
+      if (default_videoram < KB(pScrn->videoRam)) {
+	 pScrn->videoRam = default_videoram / KB(1);
+	 pI830->TotalVideoRam = KB(pScrn->videoRam);
+      }
+   }
+   xf86DrvMsg(pScrn->scrnIndex,
+	      pI830->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
+	      "VideoRam: %d KB\n", pScrn->videoRam);
+
+   if (!IS_I965G(pI830) && pScrn->displayWidth > 2048) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Cannot support DRI with frame buffer stride > 8K.\n");
+		 "Cannot support DRI with frame buffer width > 2048.\n");
       pI830->disableTiling = TRUE;
       pI830->directRenderingDisabled = TRUE;
    }
 
-   if (pScrn->virtualY > 2048) {
+   if (!IS_I965G(pI830) && pScrn->virtualY > 2048) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support > 2048 vertical lines. disabling acceleration.\n");
       pI830->noAccel = TRUE;
    }
@@ -2480,11 +2437,7 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
    }
 }
 
-#ifdef XF86DRI
-#ifndef DRM_BO_MEM_TT
-#error "Wrong drm.h file included. You need to compile and install a recent libdrm."
-#endif
-
+#ifdef XF86DRI_MM
 #ifndef XSERVER_LIBDRM_MM
 
 static int
@@ -2559,7 +2512,7 @@ static int I830DrmMMUnlock(int fd, unsigned memType)
 }
 
 #endif
-#endif
+#endif /* XF86DRI_MM */
 
 static Bool
 I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
@@ -2860,20 +2813,28 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    DPRINTF(PFX,
 	   "assert( if(!I830InitFBManager(pScreen, &(pI830->FbMemBox))) )\n");
-   if (I830IsPrimary(pScrn)) {
-      if (!I830InitFBManager(pScreen, &(pI830->FbMemBox))) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Failed to init memory manager\n");
-      }
+   if (!pI830->useEXA) {
+      if (I830IsPrimary(pScrn)) {
+	 if (!I830InitFBManager(pScreen, &(pI830->FbMemBox))) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to init memory manager\n");
+	 }
 
-      if (pI830->LinearAlloc && xf86InitFBManagerLinear(pScreen, pI830->LinearMem.Offset / pI830->cpp, pI830->LinearMem.Size / pI830->cpp))
-            xf86DrvMsg(scrnIndex, X_INFO, 
-			"Using %ld bytes of offscreen memory for linear (offset=0x%lx)\n", pI830->LinearMem.Size, pI830->LinearMem.Offset);
-
-   } else {
-      if (!I830InitFBManager(pScreen, &(pI8301->FbMemBox2))) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Failed to init memory manager\n");
+	 if (pI830->LinearAlloc &&
+	     xf86InitFBManagerLinear(pScreen,
+				     pI830->LinearMem.Offset / pI830->cpp,
+				     pI830->LinearMem.Size / pI830->cpp))
+	 {
+            xf86DrvMsg(scrnIndex, X_INFO,
+		       "Using %ld bytes of offscreen memory for linear "
+		       "(offset=0x%lx)\n", pI830->LinearMem.Size,
+		       pI830->LinearMem.Offset);
+	 }
+      } else {
+	 if (!I830InitFBManager(pScreen, &(pI8301->FbMemBox2))) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to init memory manager\n");
+	 }
       }
    }
 
@@ -3004,7 +2965,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
          break;
    }
 
-#ifdef XF86DRI
+#ifdef XF86DRI_MM
    if (pI830->directRenderingEnabled && (pI830->mmModeFlags & I830_KERNEL_MM)) {
       unsigned long aperEnd = ROUND_DOWN_TO(pI830->FbMapSize, GTT_PAGE_SIZE) 
 	 / GTT_PAGE_SIZE;
@@ -3043,7 +3004,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 }
       }
    }
-#endif
+#endif /* XF86DRI_MM */
 
    return TRUE;
 }
@@ -3054,7 +3015,8 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
-   xf86CrtcPtr	crtc = config->output[config->compat_output]->crtc;
+   xf86OutputPtr  output = config->output[config->compat_output];
+   xf86CrtcPtr	crtc = output->crtc;
 
    DPRINTF(PFX, "i830AdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
 	   x, pI830->xoffset, y, pI830->yoffset);
@@ -3066,7 +3028,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 	 (*pI830->AccelInfoRec->Sync)(pScrn);
 	 pI830->AccelInfoRec->NeedToSync = FALSE;
       }
-      i830PipeSetBase(crtc, x, y);
+      i830PipeSetBase(crtc, output->initial_x + x, output->initial_y + y);
    }
 }
 
@@ -3104,6 +3066,7 @@ I830LeaveVT(int scrnIndex, int flags)
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
       DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
+#ifdef XF86DRI_MM
       if (pI830->mmModeFlags & I830_KERNEL_MM) {
 #ifndef XSERVER_LIBDRM_MM
 	 I830DrmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT);
@@ -3111,6 +3074,7 @@ I830LeaveVT(int scrnIndex, int flags)
 	 drmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT);
 #endif
       }
+#endif /* XF86DRI_MM */
       I830DRISetVBlankInterrupt (pScrn, FALSE);
       
       drmCtlUninstHandler(pI830->drmSubFD);
@@ -3188,8 +3152,6 @@ I830EnterVT(int scrnIndex, int flags)
       
       if (!i830PipeSetMode (crtc, &crtc->desiredMode, TRUE))
 	 return FALSE;
-      
-      i830PipeSetBase(crtc, crtc->x, crtc->y);
    }
 
    i830DumpRegs (pScrn);
@@ -3224,6 +3186,7 @@ I830EnterVT(int scrnIndex, int flags)
 	 for(i = 0; i < I830_NR_TEX_REGIONS+1 ; i++)
 	    sarea->texList[i].age = sarea->texAge;
 
+#ifdef XF86DRI_MM
 	 if (pI830->mmModeFlags & I830_KERNEL_MM) {
 #ifndef XSERVER_LIBDRM_MM
 	    I830DrmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT);
@@ -3231,6 +3194,7 @@ I830EnterVT(int scrnIndex, int flags)
 	    drmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT);
 #endif
 	 }
+#endif /* XF86DRI_MM */
 
 	 DPRINTF(PFX, "calling dri unlock\n");
 	 DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
@@ -3373,6 +3337,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    pI830->closing = TRUE;
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
+#ifdef XF86DRI_MM
       if (pI830->mmModeFlags & I830_KERNEL_MM) {
 #ifndef XSERVER_LIBDRM_MM
 	 I830DrmMMTakedown(pI830->drmSubFD, DRM_BO_MEM_TT);
@@ -3380,6 +3345,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 	 drmMMTakedown(pI830->drmSubFD, DRM_BO_MEM_TT);	 
 #endif
       }
+#endif /* XF86DRI_MM */
       pI830->directRenderingOpen = FALSE;
       I830DRICloseScreen(pScreen);
    }
@@ -3598,7 +3564,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
        * is this.
        */
       
-      xf86ProbeOutputModes (pScrn);
+      xf86ProbeOutputModes (pScrn, 0, 0);
       xf86SetScrnInfoModes (pScrn);
       I830DGAReInit (pScrn->pScreen);
       xf86SwitchMode(pScrn->pScreen, pScrn->currentMode);

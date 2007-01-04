@@ -1091,6 +1091,8 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	return;
     }
     output->driver_private = intel_output;
+    output->interlaceAllowed = FALSE;
+    output->doubleScanAllowed = FALSE;
     
     dev_priv = (struct i830_sdvo_priv *) (intel_output + 1);
 
@@ -1204,7 +1206,12 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     }
     strcpy (name, name_prefix);
     strcat (name, name_suffix);
-    xf86OutputRename (output, name);
+    if (!xf86OutputRename (output, name))
+    {
+	xf86OutputDestroy (output);
+	return;
+    }
+	
     
     /* Set the input timing to the screen. Assume always input 0. */
     i830_sdvo_set_target_input(output, TRUE, FALSE);

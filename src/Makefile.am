@@ -18,7 +18,8 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-SUBDIRS = xvmc bios_reader ch7xxx sil164
+SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164
+
 # this is obnoxious:
 # -module lets us name the module exactly how we want
 # -avoid-version prevents gratuitous .0.0.0 version numbers on the end
@@ -88,6 +89,7 @@ i810_drv_la_SOURCES = \
 	 i915_3d.h \
 	 i915_reg.h \
 	 i915_video.c \
+	 i965_video.c \
 	 i830_exa.c \
 	 i830_xaa.c \
 	 i830_exa_render.c \

@@ -195,9 +195,10 @@ extern const char *i830_output_type_names[];
 
 typedef struct _I830CrtcPrivateRec {
     int			    pipe;
-    Bool		    gammaEnabled;
     Rotation 		    rotation;    /* current rotation, mirror from pI830->rotation */
     Rotation		    rotations;  /* all */
+    /* Lookup table values to be set when the CRTC is enabled */
+    CARD8 lut_r[256], lut_g[256], lut_b[256];
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;
 
 #define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
@@ -224,7 +225,6 @@ enum last_3d {
 
 typedef struct _I830PipeRec {
    Bool		  enabled;
-   Bool		  gammaEnabled;
    int		  x;
    int		  y;
    Bool		  cursorInRange;
@@ -609,14 +609,6 @@ DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
 /* i830_tv.c */
 void i830_tv_init(ScrnInfoPtr pScrn);
 
-/*
- * 12288 is set as the maximum, chosen because it is enough for
- * 1920x1440@32bpp with a 2048 pixel line pitch with some to spare.
- */
-#define I830_MAXIMUM_VBIOS_MEM		12288
-#define I830_DEFAULT_VIDEOMEM_2D	(MB(32) / 1024)
-#define I830_DEFAULT_VIDEOMEM_3D	(MB(64) / 1024)
-
 /* Flags for memory allocation function */
 #define FROM_ANYWHERE			0x00000000
 #define FROM_POOL_ONLY			0x00000001
@@ -640,14 +632,6 @@ void i830_tv_init(ScrnInfoPtr pScrn);
 #define _855_DRAM_RW_CONTROL 0x58
 #define _845_DRAM_RW_CONTROL 0x90
 #define DRAM_WRITE    0x33330000
-
-/* Compat definitions for older X Servers. */
-#ifndef M_T_PREFERRED
-#define M_T_PREFERRED	0x08
-#endif
-#ifndef M_T_DRIVER
-#define M_T_DRIVER	0x40
-#endif
 
 /* 
  * Xserver MM compatibility. Remove code guarded by this when the

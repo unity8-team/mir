@@ -1,5 +1,6 @@
+/* -*- c-basic-offset: 4 -*- */
 /*
- * Copyright © 2006 Intel Corporation
+ * Copyright Â© 2006 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -16,30 +17,48 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *    Eric Anholt <eric@anholt.net>
  *
  */
 
-#include "xorgVersion.h"
+#ifdef HAVE_XORG_CONFIG_H
+#include <xorg-config.h>
+#endif
 
-/* i830_display.c */
-DisplayModePtr
-i830PipeFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
-Bool i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode, 
-		     Bool plane_enable);
-void i830DisableUnusedFunctions(ScrnInfoPtr pScrn);
-Bool i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
-void i830PipeSetBase(xf86CrtcPtr crtc, int x, int y);
-void i830WaitForVblank(ScrnInfoPtr pScrn);
-void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
-xf86CrtcPtr i830GetLoadDetectPipe(xf86OutputPtr output);
-void i830ReleaseLoadDetectPipe(xf86OutputPtr output);
-Bool i830PipeInUse(xf86CrtcPtr crtc);
-void i830_crtc_init(ScrnInfoPtr pScrn, int pipe);
-void i830_crtc_load_lut(xf86CrtcPtr crtc);
+#include "xf86Module.h"
+
+static MODULESETUPPROTO(ivch_setup);
+
+static XF86ModuleVersionInfo ivch_version = {
+    "ivch",
+    MODULEVENDORSTRING,
+    MODINFOSTRING1,
+    MODINFOSTRING2,
+    XORG_VERSION_CURRENT,
+    1, 0, 0,
+    ABI_CLASS_VIDEODRV,
+    ABI_VIDEODRV_VERSION,
+    MOD_CLASS_NONE,
+    { 0,0,0,0 }
+};
+
+_X_EXPORT XF86ModuleData ivchModuleData = {
+    &ivch_version,
+    ivch_setup,
+    NULL
+};
+
+static pointer
+ivch_setup(pointer module, pointer opts, int *errmaj, int *errmin)
+{
+    return (pointer)1;
+}

@@ -36,6 +36,7 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i830_display.h"
+#include <string.h>
 
 enum tv_type {
     TV_TYPE_NONE,
@@ -1183,4 +1184,6 @@ i830_tv_init(ScrnInfoPtr pScrn)
     dev_priv->type = TV_TYPE_UNKNOWN;
     
     output->driver_private = intel_output;
+    output->interlaceAllowed = FALSE;
+    output->doubleScanAllowed = FALSE;
 }
