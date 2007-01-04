@@ -2465,8 +2465,9 @@ radeon_detect(xf86OutputPtr output)
     ScrnInfoPtr	    pScrn = output->scrn;
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-
-    //    RADEONConnectorFindMonitor(pScrn, id);
+    
+    radeon_output->MonType = MT_UNKNOWN;
+    RADEONConnectorFindMonitor(pScrn, output);
     if (radeon_output->MonType == MT_UNKNOWN)
 	return XF86OutputStatusUnknown;
     else if (radeon_output->MonType == MT_NONE)
