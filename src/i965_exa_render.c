@@ -546,8 +546,8 @@ ErrorF("i965 prepareComposite\n");
 #define URB_CS_ENTRY_SIZE     0
 #define URB_CS_ENTRIES	      0
    
-#define URB_VS_ENTRY_SIZE     1	  // XXX: VUE row num? double check, 1 row is enough
-#define URB_VS_ENTRIES	      8
+#define URB_VS_ENTRY_SIZE     1	  // each 512-bit row
+#define URB_VS_ENTRIES	      8	  // we needs at least 8 entries
    
 #define URB_GS_ENTRY_SIZE     0
 #define URB_GS_ENTRIES	      0
@@ -630,6 +630,7 @@ ErrorF("i965 prepareComposite\n");
    dest_surf_state->ss2.mip_count = 0;
    dest_surf_state->ss2.render_target_rotation = 0;
    dest_surf_state->ss3.pitch = dst_pitch - 1; 
+   // tiled surface?
 
    /* Set up the source surface state buffer */
    memset(src_surf_state, 0, sizeof(*src_surf_state));
@@ -695,19 +696,33 @@ ErrorF("i965 prepareComposite\n");
 
    /* PS kernel use this sampler */
    memset(src_sampler_state, 0, sizeof(*src_sampler_state));
-   src_sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR;
-   src_sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
+   src_sampler_state->ss0.lod_peclamp = 1; /* GL mode */
+   switch(pSrcPicture->filter) {
+   case PictFilterNearest:
+   	src_sampler_state->ss0.min_filter = BRW_MAPFILTER_NEAREST; 
+   	src_sampler_state->ss0.mag_filter = BRW_MAPFILTER_NEAREST;
+	break;
+   case PictFilterBilinear:
+   	src_sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR; 
+   	src_sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
+	break;
+   default:
+	I830FALLBACK("Bad filter 0x%x\n", pSrcPicture->filter);
+   }
 
-   /* XXX: fix for repeat */
    if (!pSrcPicture->repeat) {
-   	src_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP; // XXX: clamp_border and set border to 0?
+	/* XXX: clamp_border and set border to 0 */
+   	src_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP; 
    	src_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
    	src_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
    } else {
-   	src_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_WRAP; // XXX: clamp_border and set border to 0?
+   	src_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_WRAP; 
    	src_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
    	src_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
    }
+   /* XXX: ss2 has border color pointer, which should be in general state address,
+    	   and just a single texel tex map, with R32G32B32A32_FLOAT */
+   src_sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
 
    /* Set up the vertex shader to be disabled (passthrough) */
    memset(vs_state, 0, sizeof(*vs_state));
