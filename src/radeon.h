@@ -919,7 +919,7 @@ extern void RADEONSetPitch (ScrnInfoPtr pScrn);
 
 extern Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 			DisplayModePtr crtc2, int crtc_mask,
-			RADEONSavePtr save);
+			RADEONSavePtr save, RADEONMonitorType montype);
 
 #ifdef XF86DRI
 #ifdef USE_XAA

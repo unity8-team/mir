@@ -2412,12 +2412,51 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     
     switch (radeon_crtc->crtc_id) {
     case 0: 
-      RADEONInit2(pScrn, mode, NULL, 1, &info->ModeReg);
+      RADEONInit2(pScrn, mode, NULL, 1, &info->ModeReg, MT_CRT);
       break;
     case 1: 
-      RADEONInit2(pScrn, NULL, mode, 2, &info->ModeReg);
+      RADEONInit2(pScrn, NULL, mode, 2, &info->ModeReg, MT_CRT);
       break;
     }
+}
+
+void radeon_crtc_load_lut(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    int i;
+
+    if (!crtc->enabled)
+	return;
+
+    PAL_SELECT(radeon_crtc->crtc_id);
+
+    for (i = 0; i < 256; i++) {
+	OUTPAL(i, radeon_crtc->lut_r[i], radeon_crtc->lut_g[i], radeon_crtc->lut_b[i]);
+    }
+}
+
+
+static void
+radeon_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, 
+		      CARD16 *blue, int size)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    int i;
+
+    for (i = 0; i < 256; i++) {
+	radeon_crtc->lut_r[i] = red[i] >> 8;
+	radeon_crtc->lut_g[i] = green[i] >> 8;
+	radeon_crtc->lut_b[i] = blue[i] >> 8;
+    }
+
+    radeon_crtc_load_lut(crtc);
 }
 
 static const xf86CrtcFuncsRec radeon_crtc_funcs = {
@@ -2426,6 +2465,7 @@ static const xf86CrtcFuncsRec radeon_crtc_funcs = {
     .restore = NULL, /* XXX */
     .mode_fixup = radeon_crtc_mode_fixup,
     .mode_set = radeon_crtc_mode_set,
+    .gamma_set = radeon_crtc_gamma_set,
     .destroy = NULL, /* XXX */
 };
 

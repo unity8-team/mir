@@ -3334,9 +3334,12 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int            i;
-    int            idx, j;
+    int            index, j;
     unsigned char  r, g, b;
+    CARD16 lut_r[256], lut_g[256], lut_b[256];
+    int c;
 
 #ifdef XF86DRI
     if (info->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
@@ -3348,6 +3351,60 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
     if (info->FBDev) {
 	fbdevHWLoadPalette(pScrn, numColors, indices, colors, pVisual);
     } else {
+
+      for (c = 0; c < xf86_config->num_crtc; c++) {
+	  xf86CrtcPtr crtc = xf86_config->crtc[c];
+	  RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+
+	  for (i = 0 ; i < 256; i++) {
+	      lut_r[i] = radeon_crtc->lut_r[i] << 8;
+	      lut_g[i] = radeon_crtc->lut_g[i] << 8;
+	      lut_b[i] = radeon_crtc->lut_b[i] << 8;
+	  }
+
+	  switch (info->CurrentLayout.depth) {
+	  case 15:
+	      for (i = 0; i < numColors; i++) {
+		  index = indices[i];
+		  for (j = 0; j < 8; j++) {
+		      lut_r[index * 8 + j] = colors[index].red << 8;
+		      lut_g[index * 8 + j] = colors[index].green << 8;
+		      lut_b[index * 8 + j] = colors[index].blue << 8;
+		  }
+	      }
+	  case 16:
+	      for (i = 0; i < numColors; i++) {
+		  index = indices[i];
+		  
+		  if (i <= 31) {
+		      for (j = 0; j < 8; j++) {
+			  lut_r[index * 8 + j] = colors[index].red << 8;
+			  lut_b[index * 8 + j] = colors[index].blue << 8;
+		      }
+		  }
+		  
+		  for (j = 0; j < 4; j++) {
+		      lut_g[index * 4 + j] = colors[index].green << 8;
+		  }
+	      }
+	  default:
+	      for (i = 0; i < numColors; i++) {
+		  index = indices[i];
+		  lut_r[index] = colors[index].red << 8;
+		  lut_g[index] = colors[index].green << 8;
+		  lut_b[index] = colors[index].blue << 8;
+	      } 
+	      break;
+	  }
+
+	      /* Make the change through RandR */
+#ifdef RANDR_12_INTERFACE
+      RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
+#else
+      crtc->funcs->gamma_set(crtc, lut_r, lut_g, lut_b, 256);
+#endif
+      }
+#if 0
 	/* If the second monitor is connected, we also need to deal with
 	 * the secondary palette
 	 */
@@ -3451,6 +3508,7 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
 		}
 	    }
 	}
+#endif
     }
 
 #ifdef XF86DRI
@@ -4118,6 +4176,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     }
 #endif
 
+    pScrn->vtSema = TRUE;
     if (info->FBDev) {
 	unsigned char *RADEONMMIO = info->MMIO;
 
@@ -4237,7 +4296,11 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     /* Init DPMS */
     RADEONTRACE(("Initializing DPMS\n"));
+#if 1
     xf86DPMSInit(pScreen, RADEONDisplayPowerManagementSet, 0);
+#else
+    xf86DPMSInit(pScreen, xf86DPMSSet, 0);
+#endif
 
     RADEONTRACE(("Initializing Cursor\n"));
 
@@ -4276,16 +4339,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	xf86DrvMsg(scrnIndex, X_INFO, "Using software cursor\n");
     }
 
-    /* Colormap setup */
-    RADEONTRACE(("Initializing color map\n"));
-    if (!miCreateDefColormap(pScreen)) return FALSE;
-    if (!xf86HandleColormaps(pScreen, 256, info->dac6bits ? 6 : 8,
-			     RADEONLoadPalette, NULL,
-			     CMAP_PALETTED_TRUECOLOR
-#if 0 /* This option messes up text mode! (eich@suse.de) */
-			     | CMAP_LOAD_EVEN_IF_OFFSCREEN
-#endif
-			     | CMAP_RELOAD_ON_MODE_SWITCH)) return FALSE;
+
 
     /* DGA setup */
     RADEONTRACE(("Initializing DGA\n"));
@@ -4329,6 +4383,17 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     info->CreateScreenResources = pScreen->CreateScreenResources;
     pScreen->CreateScreenResources = RADEONCreateScreenResources;
+
+    /* Colormap setup */
+    RADEONTRACE(("Initializing color map\n"));
+    if (!miCreateDefColormap(pScreen)) return FALSE;
+    if (!xf86HandleColormaps(pScreen, 256, info->dac6bits ? 6 : 8,
+			     RADEONLoadPalette, NULL,
+			     CMAP_PALETTED_TRUECOLOR
+#if 0 /* This option messes up text mode! (eich@suse.de) */
+			     | CMAP_LOAD_EVEN_IF_OFFSCREEN
+#endif
+			     | CMAP_RELOAD_ON_MODE_SWITCH)) return FALSE;
 
     /* Note unused options */
     if (serverGeneration == 1)
@@ -6428,7 +6493,7 @@ static void RADEONInitPalette(RADEONSavePtr save)
 /* Define registers for a requested video mode */
 Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 		 DisplayModePtr crtc2, int crtc_mask,
-		 RADEONSavePtr save)
+		 RADEONSavePtr save, RADEONMonitorType montype)
 {
     RADEONInfoPtr  info      = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
@@ -6526,7 +6591,7 @@ Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 	dot_clock = crtc2->Clock/1000.0;
 	if (!RADEONInitCrtc2Registers(pScrn, save, crtc2, info))
 	    return FALSE;
-	RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, info->DisplayType != MT_CRT);
+	RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, montype != MT_CRT);
 	/* Make sure primary has the same copy */
 	if (pRADEONEnt->HasSecondary)
 	  memcpy(&info0->ModeReg, save, sizeof(RADEONSaveRec));
@@ -6545,7 +6610,7 @@ Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
         }
         RADEONInitCrtc2Registers(pScrn, save, crtc2, info);
         dot_clock = crtc2->Clock / 1000.0;
-        RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, info->MergeType != MT_CRT);
+        RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, montype != MT_CRT);
 	break;
     default:
 	return FALSE;
@@ -6561,12 +6626,12 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
     if (info->IsSecondary) {
-        return RADEONInit2(pScrn, NULL, mode, 2, save);
+        return RADEONInit2(pScrn, NULL, mode, 2, save, info->DisplayType);
     } else if (info->MergedFB) {
         return RADEONInit2(pScrn, ((RADEONMergedDisplayModePtr)mode->Private)->CRT1,
-			   ((RADEONMergedDisplayModePtr)mode->Private)->CRT2, 3, save);
+			   ((RADEONMergedDisplayModePtr)mode->Private)->CRT2, 3, save, info->MergeType);
     } else {
-        return RADEONInit2(pScrn, mode, NULL, 1, save);
+        return RADEONInit2(pScrn, mode, NULL, 1, save, info->DisplayType);
     }
 }
 
@@ -6931,6 +6996,8 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
 	RADEONRestoreFBDevRegisters(pScrn, &info->ModeReg);
     } else {
 	int i;
+
+	pScrn->vtSema = TRUE;
 	for (i = 0; i < xf86_config->num_crtc; i++)
 	{
 	    xf86CrtcPtr	crtc = xf86_config->crtc[i];
