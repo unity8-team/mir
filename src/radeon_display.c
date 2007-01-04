@@ -2079,7 +2079,7 @@ void RADEONBlank(ScrnInfoPtr pScrn)
 	(info->IsSwitching && (!info->IsSecondary))) {
         pPort = RADEONGetCrtcConnector(pScrn, 1);
 	if (pPort)
-	  RADEONBlankSet(pScrn, pPort);
+	    RADEONBlankSet(pScrn, pPort);
 	OUTREGP (RADEON_CRTC_EXT_CNTL,
 		 RADEON_CRTC_DISPLAY_DIS |
 		 RADEON_CRTC_VSYNC_DIS |
@@ -2159,11 +2159,11 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
 	pPort = RADEONGetCrtcConnector(pScrn, 1);
 	if (pPort)
 	    RADEONUnblankSet(pScrn, pPort);
-      OUTREGP(RADEON_CRTC_EXT_CNTL,
-	      0,
-	      ~(RADEON_CRTC_DISPLAY_DIS |
-		RADEON_CRTC_VSYNC_DIS |
-		RADEON_CRTC_HSYNC_DIS));
+	OUTREGP(RADEON_CRTC_EXT_CNTL,
+		0,
+		~(RADEON_CRTC_DISPLAY_DIS |
+		  RADEON_CRTC_VSYNC_DIS |
+		  RADEON_CRTC_HSYNC_DIS));
 
       if (!pRADEONEnt->HasCRTC2) return;
 
@@ -2407,6 +2407,17 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    
+    switch (radeon_crtc->crtc_id) {
+    case 0: 
+      RADEONInit2(pScrn, mode, NULL, 1, &info->ModeReg);
+      break;
+    case 1: 
+      RADEONInit2(pScrn, NULL, mode, 2, &info->ModeReg);
+      break;
+    }
 }
 
 static const xf86CrtcFuncsRec radeon_crtc_funcs = {
@@ -2455,8 +2466,6 @@ static void
 radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		  DisplayModePtr adjusted_mode)
 {
-    
-
 }
 
 static xf86OutputStatus
@@ -2555,6 +2564,7 @@ Bool RADEONAllocatePortInfo(ScrnInfoPtr pScrn)
 	if (!pRADEONEnt->PortInfo[i])
 	    return FALSE;
     }
+    return TRUE;
 }
 
 void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr pRPort)
@@ -2632,4 +2642,212 @@ xf86OutputPtr RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num)
     else if (pRADEONEnt->PortInfo[1]->crtc_num == crtc_num)
       return pRADEONEnt->pOutput[1];
     return NULL;
+}
+
+
+void
+RADEONCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONCrtcPrivatePtr	radeon_crtc = crtc->driver_private;
+    int crtc_id = radeon_crtc->crtc_id;
+    unsigned long Start;
+    
+    RADEONDoAdjustFrame(pScrn, x, y, crtc_id);
+
+    crtc->x = x;
+    crtc->y = y;
+}
+
+Bool
+RADEONCrtcInUse(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int	i;
+    
+    for (i = 0; i < xf86_config->num_output; i++)
+	if (xf86_config->output[i]->crtc == crtc)
+	    return TRUE;
+    return FALSE;
+}
+
+Bool
+RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);  
+    DisplayModePtr adjusted_mode;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    int i , ret;
+    /* XXX: curMode */
+
+    adjusted_mode = xf86DuplicateMode(pMode);
+    
+    crtc->enabled = RADEONCrtcInUse (crtc);
+
+    if (!crtc->enabled) {
+      return TRUE;
+    }
+
+    /* Pass our mode to the outputs and the CRTC to give them a chance to
+     * adjust it according to limitations or output properties, and also
+     * a chance to reject the mode entirely.
+     */
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
+
+	if (output->crtc != crtc)
+	    continue;
+
+	if (!output->funcs->mode_fixup(output, pMode, adjusted_mode)) {
+	    ret = FALSE;
+	    goto done;
+	}
+    }
+
+    if (!crtc->funcs->mode_fixup(crtc, pMode, adjusted_mode)) {
+	ret = FALSE;
+	goto done;
+    }
+
+    /* Disable the outputs and CRTCs before setting the mode. */
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
+
+	if (output->crtc != crtc)
+	    continue;
+
+	/* Disable the output as the first thing we do. */
+	output->funcs->dpms(output, DPMSModeOff);
+    }
+
+    crtc->funcs->dpms(crtc, DPMSModeOff);
+
+    /* Set up the DPLL and any output state that needs to adjust or depend
+     * on the DPLL.
+     */
+    crtc->funcs->mode_set(crtc, pMode, adjusted_mode);
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
+	if (output->crtc == crtc)
+	    output->funcs->mode_set(output, pMode, adjusted_mode);
+    }
+
+    /* Now, enable the clocks, plane, pipe, and outputs that we set up. */
+    crtc->funcs->dpms(crtc, DPMSModeOn);
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
+	if (output->crtc == crtc)
+	    output->funcs->dpms(output, DPMSModeOn);
+    }
+
+    crtc->curMode = *pMode;
+    
+    /* XXX free adjustedmode */
+    ret = TRUE;
+
+ done:
+    return ret;
+}
+
+/**
+ * In the current world order, there are lists of modes per output, which may
+ * or may not include the mode that was asked to be set by XFree86's mode
+ * selection.  Find the closest one, in the following preference order:
+ *
+ * - Equality
+ * - Closer in size to the requested mode, but no larger
+ * - Closer in refresh rate to the requested mode.
+ */
+DisplayModePtr
+RADEONCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
+{
+    ScrnInfoPtr	pScrn = crtc->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    DisplayModePtr pBest = NULL, pScan = NULL;
+    int i;
+
+    /* Assume that there's only one output connected to the given CRTC. */
+    for (i = 0; i < xf86_config->num_output; i++) 
+    {
+	xf86OutputPtr  output = xf86_config->output[i];
+	if (output->crtc == crtc && output->probed_modes != NULL)
+	{
+	    pScan = output->probed_modes;
+	    break;
+	}
+    }
+
+    /* If the pipe doesn't have any detected modes, just let the system try to
+     * spam the desired mode in.
+     */
+    if (pScan == NULL) {
+	RADEONCrtcPrivatePtr  radeon_crtc = crtc->driver_private;
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "No crtc mode list for crtc %d,"
+		   "continuing with desired mode\n", radeon_crtc->crtc_id);
+	return pMode;
+    }
+
+    for (; pScan != NULL; pScan = pScan->next) {
+	assert(pScan->VRefresh != 0.0);
+
+	/* If there's an exact match, we're done. */
+	if (xf86ModesEqual(pScan, pMode)) {
+	    pBest = pMode;
+	    break;
+	}
+
+	/* Reject if it's larger than the desired mode. */
+	if (pScan->HDisplay > pMode->HDisplay ||
+	    pScan->VDisplay > pMode->VDisplay)
+	{
+	    continue;
+	}
+
+	if (pBest == NULL) {
+	    pBest = pScan;
+	    continue;
+	}
+
+	/* Find if it's closer to the right size than the current best
+	 * option.
+	 */
+	if ((pScan->HDisplay > pBest->HDisplay &&
+	     pScan->VDisplay >= pBest->VDisplay) ||
+	    (pScan->HDisplay >= pBest->HDisplay &&
+	     pScan->VDisplay > pBest->VDisplay))
+	{
+	    pBest = pScan;
+	    continue;
+	}
+
+	/* Find if it's still closer to the right refresh than the current
+	 * best resolution.
+	 */
+	if (pScan->HDisplay == pBest->HDisplay &&
+	    pScan->VDisplay == pBest->VDisplay &&
+	    (fabs(pScan->VRefresh - pMode->VRefresh) <
+	     fabs(pBest->VRefresh - pMode->VRefresh))) {
+	    pBest = pScan;
+	}
+    }
+
+    if (pBest == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "No suitable mode found to program for the pipe.\n"
+		   "	continuing with desired mode %dx%d@%.1f\n",
+		   pMode->HDisplay, pMode->VDisplay, pMode->VRefresh);
+    } else if (!xf86ModesEqual(pBest, pMode)) {
+      RADEONCrtcPrivatePtr  radeon_crtc = crtc->driver_private;
+      int		    crtc = radeon_crtc->crtc_id;
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Choosing pipe %d's mode %dx%d@%.1f instead of xf86 "
+		   "mode %dx%d@%.1f\n", crtc,
+		   pBest->HDisplay, pBest->VDisplay, pBest->VRefresh,
+		   pMode->HDisplay, pMode->VDisplay, pMode->VRefresh);
+	pMode = pBest;
+    }
+    return pMode;
 }

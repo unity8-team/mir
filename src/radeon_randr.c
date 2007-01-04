@@ -636,31 +636,32 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	    RADEON_SYNC(info, pScrn);
 	
 	if (mode) {
-	    if (pRcrtc->crtc_id == 0)
-		ret = RADEONInit2(pScrn, mode, NULL, 1, &info->ModeReg);
-	    else if (pRcrtc->crtc_id == 1)
-		ret = RADEONInit2(pScrn, NULL, mode, 2, &info->ModeReg);
-	    
-	    if (!ret) {
+
+	    if (!RADEONCrtcSetMode (crtc, mode, TRUE))
+	    {
 		crtc->enabled = save_enabled;
-		for (o = 0; o < config->num_output; o++) {
-		    xf86OutputPtr output = config->output[o];
+		for (o = 0; o < config->num_output; o++)
+		{
+		    xf86OutputPtr	output = config->output[o];
 		    output->crtc = save_crtcs[o];
 		}
 		DEALLOCATE_LOCAL(save_crtcs);
 		return FALSE;
 	    }
 	    crtc->desiredMode = *mode;
-	    
-	    pScrn->vtSema = TRUE;
+
+	
 	    RADEONBlank(pScrn);
 	    RADEONRestoreMode(pScrn, &info->ModeReg);
 	    RADEONUnblank(pScrn);
-	    
-	    if (info->DispPriority)
-		RADEONInitDispBandwidth(pScrn);
+	
 	}
+	    //	    if (info->DispPriority)
+	    //		RADEONInitDispBandwidth(pScrn);
+    
     }
+    if (pos_changed && mode)
+	RADEONCrtcSetBase(crtc, x, y);
     DEALLOCATE_LOCAL(save_crtcs);
     return xf86RandR12CrtcNotify (randr_crtc);
 }

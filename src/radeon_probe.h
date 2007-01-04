@@ -116,7 +116,6 @@ typedef enum
 } RADEONOutputType;
 
 typedef struct _RADEONCrtcPrivateRec {
-    int crtc;
     int crtc_id;
     int binding;
     Bool IsActive;

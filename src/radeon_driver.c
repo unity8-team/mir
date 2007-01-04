@@ -116,7 +116,7 @@
 static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode);
 static void RADEONSave(ScrnInfoPtr pScrn);
-static void RADEONRestore(ScrnInfoPtr pScrn);
+//static void RADEONRestore(ScrnInfoPtr pScrn);
 static Bool RADEONModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
 
 static void RADEONGetMergedFBOptions(ScrnInfoPtr pScrn);
@@ -128,6 +128,8 @@ static void RADEONSaveMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 #endif
 
+DisplayModePtr
+RADEONCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 /* psuedo xinerama support */
 
 extern Bool 		RADEONnoPanoramiXExtension;
@@ -3827,6 +3829,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int            hasDRI = 0;
 #ifdef RENDER
     int            subPixelOrder = SubPixelUnknown;
@@ -4126,7 +4129,25 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	info->ModeReg.surface_cntl = INREG(RADEON_SURFACE_CNTL);
 	info->ModeReg.surface_cntl &= ~RADEON_SURF_TRANSLATION_DIS;
     } else {
-	if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
+	int i;
+	for (i = 0; i < xf86_config->num_crtc; i++)
+	{
+	    xf86CrtcPtr	crtc = xf86_config->crtc[i];
+	    
+	    /* Mark that we'll need to re-set the mode for sure */
+	    memset(&crtc->curMode, 0, sizeof(crtc->curMode));
+	    if (!crtc->desiredMode.CrtcHDisplay)
+		crtc->desiredMode = *RADEONCrtcFindClosestMode (crtc, pScrn->currentMode);
+	    
+	    if (!RADEONCrtcSetMode (crtc, &crtc->desiredMode, TRUE))
+		return FALSE;
+
+	}
+	RADEONBlank(pScrn);
+	RADEONRestoreMode(pScrn, &info->ModeReg);
+	RADEONUnblank(pScrn);
+
+	//if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
     }
 
     RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
@@ -5516,7 +5537,7 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 }
 
 /* Restore the original (text) mode */
-static void RADEONRestore(ScrnInfoPtr pScrn)
+void RADEONRestore(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -6388,60 +6409,63 @@ Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 {
     RADEONInfoPtr  info      = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    double         dot_clock = crtc1->Clock/1000.0;
+    double         dot_clock = 0;
     RADEONInfoPtr  info0     = NULL;
     ScrnInfoPtr    pScrn0    = NULL;
 
 #if RADEON_DEBUG
-    ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
-	   crtc1->name,
-	   dot_clock,
+    if (crtc1) {
+	ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
+	       crtc1->name,
+	       dot_clock,
+	       
+	       crtc1->HDisplay,
+	       crtc1->HSyncStart,
+	       crtc1->HSyncEnd,
+	       crtc1->HTotal,
+	       
+	       crtc1->VDisplay,
+	       crtc1->VSyncStart,
+	       crtc1->VSyncEnd,
+	       crtc1->VTotal,
+	       pScrn->depth,
+	       pScrn->bitsPerPixel);
+	if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
+	if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
+	if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
+	if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
+	if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
+	if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
+	if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
+	ErrorF("\n");
+	ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
+	       crtc1->name,
+	       dot_clock,
 
-	   crtc1->HDisplay,
-	   crtc1->HSyncStart,
-	   crtc1->HSyncEnd,
-	   crtc1->HTotal,
-
-	   crtc1->VDisplay,
-	   crtc1->VSyncStart,
-	   crtc1->VSyncEnd,
-	   crtc1->VTotal,
-	   pScrn->depth,
-	   pScrn->bitsPerPixel);
-    if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
-    if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
-    if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
-    if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
-    if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
-    if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
-    if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
-    ErrorF("\n");
-    ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
-	   crtc1->name,
-	   dot_clock,
-
-	   crtc1->CrtcHDisplay,
-	   crtc1->CrtcHSyncStart,
-	   crtc1->CrtcHSyncEnd,
-	   crtc1->CrtcHTotal,
-
-	   crtc1->CrtcVDisplay,
-	   crtc1->CrtcVSyncStart,
-	   crtc1->CrtcVSyncEnd,
-	   crtc1->CrtcVTotal,
-	   pScrn->depth,
-	   pScrn->bitsPerPixel);
-    if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
-    if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
-    if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
-    if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
-    if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
-    if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
-    if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
-    ErrorF("\n");
+	       crtc1->CrtcHDisplay,
+	       crtc1->CrtcHSyncStart,
+	       crtc1->CrtcHSyncEnd,
+	       crtc1->CrtcHTotal,
+	       
+	       crtc1->CrtcVDisplay,
+	       crtc1->CrtcVSyncStart,
+	       crtc1->CrtcVSyncEnd,
+	       crtc1->CrtcVTotal,
+	       pScrn->depth,
+	       pScrn->bitsPerPixel);
+	if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
+	if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
+	if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
+	if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
+	if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
+	if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
+	if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
+	ErrorF("\n");
+	info->Flags = crtc1->Flags;
+    }
 #endif
 
-    info->Flags = crtc1->Flags;
+
 
     RADEONInitMemMapRegisters(pScrn, save, info);
     RADEONInitCommonRegisters(save, info);
@@ -6469,14 +6493,20 @@ Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 	/* if (!info->PaletteSavedOnVT) RADEONInitPalette(save); */
 	break;
     case 2:
-	pScrn0 = pRADEONEnt->pPrimaryScrn;
-	info0 = RADEONPTR(pScrn0);
+	if (pRADEONEnt->HasSecondary) {
+	    pScrn0 = pRADEONEnt->pPrimaryScrn;
+	    info0 = RADEONPTR(pScrn0);
+	} else {
+	    pScrn0 = pScrn;
+	    info0 = info;
+	}
 	dot_clock = crtc2->Clock/1000.0;
 	if (!RADEONInitCrtc2Registers(pScrn, save, crtc2, info))
 	    return FALSE;
 	RADEONInitPLL2Registers(pScrn, save, &info->pll, dot_clock, info->DisplayType != MT_CRT);
 	/* Make sure primary has the same copy */
-	memcpy(&info0->ModeReg, save, sizeof(RADEONSaveRec));
+	if (pRADEONEnt->HasSecondary)
+	  memcpy(&info0->ModeReg, save, sizeof(RADEONSaveRec));
 	break;
     case 3:
        if (!RADEONInitCrtcRegisters(pScrn, save, 
@@ -6498,7 +6528,7 @@ Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 	return FALSE;
     }
 
-    RADEONTRACE(("RADEONInit returns %p\n", save));
+    RADEONTRACE(("RADEONInit2 %d returns %p\n", crtc_mask, save));
     return TRUE;
 }
 
@@ -6850,6 +6880,7 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
     ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
     RADEONTRACE(("RADEONEnterVT\n"));
 
@@ -6875,8 +6906,28 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
 	info->ModeReg.surface_cntl = INREG(RADEON_SURFACE_CNTL);
 
 	RADEONRestoreFBDevRegisters(pScrn, &info->ModeReg);
-    } else
-	if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
+    } else {
+	int i;
+	for (i = 0; i < xf86_config->num_crtc; i++)
+	{
+	    xf86CrtcPtr	crtc = xf86_config->crtc[i];
+	    
+	    /* Mark that we'll need to re-set the mode for sure */
+	    memset(&crtc->curMode, 0, sizeof(crtc->curMode));
+	    if (!crtc->desiredMode.CrtcHDisplay)
+		crtc->desiredMode = *RADEONCrtcFindClosestMode (crtc, pScrn->currentMode);
+	    
+	    if (!RADEONCrtcSetMode (crtc, &crtc->desiredMode, TRUE))
+		return FALSE;
+
+	}
+	RADEONBlank(pScrn);
+	RADEONRestoreMode(pScrn, &info->ModeReg);
+	RADEONUnblank(pScrn);
+    }
+#if 0
+      if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
+#endif
 
     if (!info->IsSecondary)
 	RADEONRestoreSurfaces(pScrn, &info->ModeReg);
@@ -7293,7 +7344,7 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 	  }
 
 	  /* xf86SetDDCproperties(info->CRT2pScrn, pRADEONEnt->MonInfo2); */
-	  if (pOutput = RADEONGetCrtcConnector(pScrn, 2))
+	  if ((pOutput = RADEONGetCrtcConnector(pScrn, 2)))
 	      info->CRT2pScrn->monitor->DDC = pOutput->MonInfo;
 	  else
 	      info->CRT2pScrn->monitor->DDC = NULL;
