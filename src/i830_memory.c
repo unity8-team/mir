@@ -2044,10 +2044,12 @@ I830UnbindAGPMemory(ScrnInfoPtr pScrn)
       }
 #endif
 #ifdef I830_USE_EXA
-     if (!UnbindMemRange(pScrn, &(pI830->Offscreen)))
-	return FALSE;
-     if (IS_I965G(pI830) && !UnbindMemRange(pScrn, &(pI830->EXAStateMem)))
-	return FALSE;
+     if (pI830->useEXA) {
+         if (!UnbindMemRange(pScrn, &(pI830->Offscreen)))
+	    return FALSE;
+         if (IS_I965G(pI830) && !UnbindMemRange(pScrn, &(pI830->EXAStateMem)))
+	    return FALSE;
+     }
 #endif
       if (!xf86ReleaseGART(pScrn->scrnIndex))
 	 return FALSE;
