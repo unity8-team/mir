@@ -53,6 +53,7 @@
 #include "radeon_xf86Modes.h"
 				/* DDC support */
 #include "xf86DDC.h"
+#include <randrstr.h>
 
 void
 RADEONGetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y)
@@ -647,7 +648,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 	fixed_mon.vrefresh[0].lo = 50.0;
 	fixed_mon.vrefresh[0].hi = 70.0;
 	
-	modes = RADEONxf86DuplicateModes(pScrn, pScrn->monitor->Modes);
+	modes = RADEON_xf86DuplicateModes(pScrn, pScrn->monitor->Modes);
 	RADEONxf86ValidateModesSync(pScrn, modes, &fixed_mon);
 	RADEONxf86PruneInvalidModes(pScrn, &modes, TRUE);
 	/* fill out CRT of FP mode table */
@@ -709,7 +710,7 @@ RADEON_set_xf86_modes_from_outputs(ScrnInfoPtr pScrn)
         xf86OutputPtr output = config->output[i];
 	if (output->probed_modes != NULL) {
 	    pScrn->modes =
-		RADEONxf86DuplicateModes(pScrn, output->probed_modes);
+		RADEON_xf86DuplicateModes(pScrn, output->probed_modes);
 	    break;
 	}
     }
