@@ -93,7 +93,8 @@ i810_drv_la_SOURCES = \
 	 i830_exa.c \
 	 i830_xaa.c \
 	 i830_exa_render.c \
-	 i915_exa_render.c
+	 i915_exa_render.c \
+	 i965_exa_render.c
 
 if HAVE_GEN4ASM
 sf_prog.h: packed_yuv_sf.g4a
