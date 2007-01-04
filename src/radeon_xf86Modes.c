@@ -39,448 +39,23 @@
 #include "xf86.h"
 #include "radeon.h"
 #include "radeon_xf86Modes.h"
+#include "xf86Priv.h"
 
-
-#include <math.h>
-
-#define rint(x) floor(x)
-
-#define MARGIN_PERCENT    1.8   /* % of active vertical image                */
-#define CELL_GRAN         8.0   /* assumed character cell granularity        */
-#define MIN_PORCH         1     /* minimum front porch                       */
-#define V_SYNC_RQD        3     /* width of vsync in lines                   */
-#define H_SYNC_PERCENT    8.0   /* width of hsync as % of total line         */
-#define MIN_VSYNC_PLUS_BP 550.0 /* min time of vsync + back porch (microsec) */
-#define M                 600.0 /* blanking formula gradient                 */
-#define C                 40.0  /* blanking formula offset                   */
-#define K                 128.0 /* blanking formula scaling factor           */
-#define J                 20.0  /* blanking formula scaling factor           */
-
-/* C' and M' are part of the Blanking Duty Cycle computation */
-
-#define C_PRIME           (((C - J) * K/256.0) + J)
-#define M_PRIME           (K/256.0 * M)
-
-DisplayModePtr
-RADEONGetGTF(int h_pixels, int v_lines, float freq, int interlaced, int margins)
-{
-    float h_pixels_rnd;
-    float v_lines_rnd;
-    float v_field_rate_rqd;
-    float top_margin;
-    float bottom_margin;
-    float interlace;
-    float h_period_est;
-    float vsync_plus_bp;
-    float v_back_porch;
-    float total_v_lines;
-    float v_field_rate_est;
-    float h_period;
-    float v_field_rate;
-    float v_frame_rate;
-    float left_margin;
-    float right_margin;
-    float total_active_pixels;
-    float ideal_duty_cycle;
-    float h_blank;
-    float total_pixels;
-    float pixel_freq;
-    float h_freq;
-
-    float h_sync;
-    float h_front_porch;
-    float v_odd_front_porch_lines;
-    DisplayModePtr m;
-
-    m = xnfcalloc(sizeof(DisplayModeRec), 1);
-    
-    
-    /*  1. In order to give correct results, the number of horizontal
-     *  pixels requested is first processed to ensure that it is divisible
-     *  by the character size, by rounding it to the nearest character
-     *  cell boundary:
-     *
-     *  [H PIXELS RND] = ((ROUND([H PIXELS]/[CELL GRAN RND],0))*[CELLGRAN RND])
-     */
-    
-    h_pixels_rnd = rint((float) h_pixels / CELL_GRAN) * CELL_GRAN;
-    
-    
-    /*  2. If interlace is requested, the number of vertical lines assumed
-     *  by the calculation must be halved, as the computation calculates
-     *  the number of vertical lines per field. In either case, the
-     *  number of lines is rounded to the nearest integer.
-     *   
-     *  [V LINES RND] = IF([INT RQD?]="y", ROUND([V LINES]/2,0),
-     *                                     ROUND([V LINES],0))
-     */
-
-    v_lines_rnd = interlaced ?
-            rint((float) v_lines) / 2.0 :
-            rint((float) v_lines);
-    
-    /*  3. Find the frame rate required:
-     *
-     *  [V FIELD RATE RQD] = IF([INT RQD?]="y", [I/P FREQ RQD]*2,
-     *                                          [I/P FREQ RQD])
-     */
-
-    v_field_rate_rqd = interlaced ? (freq * 2.0) : (freq);
-
-    /*  4. Find number of lines in Top margin:
-     *
-     *  [TOP MARGIN (LINES)] = IF([MARGINS RQD?]="Y",
-     *          ROUND(([MARGIN%]/100*[V LINES RND]),0),
-     *          0)
-     */
-
-    top_margin = margins ? rint(MARGIN_PERCENT / 100.0 * v_lines_rnd) : (0.0);
-
-    /*  5. Find number of lines in Bottom margin:
-     *
-     *  [BOT MARGIN (LINES)] = IF([MARGINS RQD?]="Y",
-     *          ROUND(([MARGIN%]/100*[V LINES RND]),0),
-     *          0)
-     */
-
-    bottom_margin = margins ? rint(MARGIN_PERCENT/100.0 * v_lines_rnd) : (0.0);
-
-    /*  6. If interlace is required, then set variable [INTERLACE]=0.5:
-     *   
-     *  [INTERLACE]=(IF([INT RQD?]="y",0.5,0))
-     */
-
-    interlace = interlaced ? 0.5 : 0.0;
-
-    /*  7. Estimate the Horizontal period
-     *
-     *  [H PERIOD EST] = ((1/[V FIELD RATE RQD]) - [MIN VSYNC+BP]/1000000) /
-     *                    ([V LINES RND] + (2*[TOP MARGIN (LINES)]) +
-     *                     [MIN PORCH RND]+[INTERLACE]) * 1000000
-     */
-
-    h_period_est = (((1.0/v_field_rate_rqd) - (MIN_VSYNC_PLUS_BP/1000000.0))
-                    / (v_lines_rnd + (2*top_margin) + MIN_PORCH + interlace)
-                    * 1000000.0);
-
-    /*  8. Find the number of lines in V sync + back porch:
-     *
-     *  [V SYNC+BP] = ROUND(([MIN VSYNC+BP]/[H PERIOD EST]),0)
-     */
-
-    vsync_plus_bp = rint(MIN_VSYNC_PLUS_BP/h_period_est);
-
-    /*  9. Find the number of lines in V back porch alone:
-     *
-     *  [V BACK PORCH] = [V SYNC+BP] - [V SYNC RND]
-     *
-     *  XXX is "[V SYNC RND]" a typo? should be [V SYNC RQD]?
-     */
-    
-    v_back_porch = vsync_plus_bp - V_SYNC_RQD;
-    
-    /*  10. Find the total number of lines in Vertical field period:
-     *
-     *  [TOTAL V LINES] = [V LINES RND] + [TOP MARGIN (LINES)] +
-     *                    [BOT MARGIN (LINES)] + [V SYNC+BP] + [INTERLACE] +
-     *                    [MIN PORCH RND]
-     */
-
-    total_v_lines = v_lines_rnd + top_margin + bottom_margin + vsync_plus_bp +
-        interlace + MIN_PORCH;
-    
-    /*  11. Estimate the Vertical field frequency:
-     *
-     *  [V FIELD RATE EST] = 1 / [H PERIOD EST] / [TOTAL V LINES] * 1000000
-     */
-
-    v_field_rate_est = 1.0 / h_period_est / total_v_lines * 1000000.0;
-    
-    /*  12. Find the actual horizontal period:
-     *
-     *  [H PERIOD] = [H PERIOD EST] / ([V FIELD RATE RQD] / [V FIELD RATE EST])
-     */
-
-    h_period = h_period_est / (v_field_rate_rqd / v_field_rate_est);
-    
-    /*  13. Find the actual Vertical field frequency:
-     *
-     *  [V FIELD RATE] = 1 / [H PERIOD] / [TOTAL V LINES] * 1000000
-     */
-
-    v_field_rate = 1.0 / h_period / total_v_lines * 1000000.0;
-
-    /*  14. Find the Vertical frame frequency:
-     *
-     *  [V FRAME RATE] = (IF([INT RQD?]="y", [V FIELD RATE]/2, [V FIELD RATE]))
-     */
-
-    v_frame_rate = interlaced ? v_field_rate / 2.0 : v_field_rate;
-
-    /*  15. Find number of pixels in left margin:
-     *
-     *  [LEFT MARGIN (PIXELS)] = (IF( [MARGINS RQD?]="Y",
-     *          (ROUND( ([H PIXELS RND] * [MARGIN%] / 100 /
-     *                   [CELL GRAN RND]),0)) * [CELL GRAN RND],
-     *          0))
-     */
-
-    left_margin = margins ?
-        rint(h_pixels_rnd * MARGIN_PERCENT / 100.0 / CELL_GRAN) * CELL_GRAN :
-        0.0;
-    
-    /*  16. Find number of pixels in right margin:
-     *
-     *  [RIGHT MARGIN (PIXELS)] = (IF( [MARGINS RQD?]="Y",
-     *          (ROUND( ([H PIXELS RND] * [MARGIN%] / 100 /
-     *                   [CELL GRAN RND]),0)) * [CELL GRAN RND],
-     *          0))
-     */
-    
-    right_margin = margins ?
-        rint(h_pixels_rnd * MARGIN_PERCENT / 100.0 / CELL_GRAN) * CELL_GRAN :
-        0.0;
-    
-    /*  17. Find total number of active pixels in image and left and right
-     *  margins:
-     *
-     *  [TOTAL ACTIVE PIXELS] = [H PIXELS RND] + [LEFT MARGIN (PIXELS)] +
-     *                          [RIGHT MARGIN (PIXELS)]
-     */
-
-    total_active_pixels = h_pixels_rnd + left_margin + right_margin;
-    
-    /*  18. Find the ideal blanking duty cycle from the blanking duty cycle
-     *  equation:
-     *
-     *  [IDEAL DUTY CYCLE] = [C'] - ([M']*[H PERIOD]/1000)
-     */
-
-    ideal_duty_cycle = C_PRIME - (M_PRIME * h_period / 1000.0);
-    
-    /*  19. Find the number of pixels in the blanking time to the nearest
-     *  double character cell:
-     *
-     *  [H BLANK (PIXELS)] = (ROUND(([TOTAL ACTIVE PIXELS] *
-     *                               [IDEAL DUTY CYCLE] /
-     *                               (100-[IDEAL DUTY CYCLE]) /
-     *                               (2*[CELL GRAN RND])), 0))
-     *                       * (2*[CELL GRAN RND])
-     */
-
-    h_blank = rint(total_active_pixels *
-                   ideal_duty_cycle /
-                   (100.0 - ideal_duty_cycle) /
-                   (2.0 * CELL_GRAN)) * (2.0 * CELL_GRAN);
-    
-    /*  20. Find total number of pixels:
-     *
-     *  [TOTAL PIXELS] = [TOTAL ACTIVE PIXELS] + [H BLANK (PIXELS)]
-     */
-
-    total_pixels = total_active_pixels + h_blank;
-    
-    /*  21. Find pixel clock frequency:
-     *
-     *  [PIXEL FREQ] = [TOTAL PIXELS] / [H PERIOD]
-     */
-    
-    pixel_freq = total_pixels / h_period;
-    
-    /*  22. Find horizontal frequency:
-     *
-     *  [H FREQ] = 1000 / [H PERIOD]
-     */
-
-    h_freq = 1000.0 / h_period;
-    
-
-    /* Stage 1 computations are now complete; I should really pass
-       the results to another function and do the Stage 2
-       computations, but I only need a few more values so I'll just
-       append the computations here for now */
-
-    
-
-    /*  17. Find the number of pixels in the horizontal sync period:
-     *
-     *  [H SYNC (PIXELS)] =(ROUND(([H SYNC%] / 100 * [TOTAL PIXELS] /
-     *                             [CELL GRAN RND]),0))*[CELL GRAN RND]
-     */
-
-    h_sync = rint(H_SYNC_PERCENT/100.0 * total_pixels / CELL_GRAN) * CELL_GRAN;
-
-    /*  18. Find the number of pixels in the horizontal front porch period:
-     *
-     *  [H FRONT PORCH (PIXELS)] = ([H BLANK (PIXELS)]/2)-[H SYNC (PIXELS)]
-     */
-
-    h_front_porch = (h_blank / 2.0) - h_sync;
-
-    /*  36. Find the number of lines in the odd front porch period:
-     *
-     *  [V ODD FRONT PORCH(LINES)]=([MIN PORCH RND]+[INTERLACE])
-     */
-    
-    v_odd_front_porch_lines = MIN_PORCH + interlace;
-    
-    /* finally, pack the results in the DisplayMode struct */
-    
-    m->HDisplay  = (int) (h_pixels_rnd);
-    m->HSyncStart = (int) (h_pixels_rnd + h_front_porch);
-    m->HSyncEnd = (int) (h_pixels_rnd + h_front_porch + h_sync);
-    m->HTotal = (int) (total_pixels);
-
-    m->VDisplay  = (int) (v_lines_rnd);
-    m->VSyncStart = (int) (v_lines_rnd + v_odd_front_porch_lines);
-    m->VSyncEnd = (int) (int) (v_lines_rnd + v_odd_front_porch_lines + V_SYNC_RQD);
-    m->VTotal = (int) (total_v_lines);
-
-    m->Clock   = (int)(pixel_freq * 1000);
-    m->SynthClock   = m->Clock;
-    m->HSync = h_freq;
-    m->VRefresh = v_frame_rate /* freq */;
-
-    RADEONxf86SetModeDefaultName(m);
-
-    return (m);
-}
-
-void
-RADEONPrintModes(ScrnInfoPtr scrp)
-{
-    DisplayModePtr p;
-    float hsync, refresh = 0;
-    char *desc, *desc2, *prefix, *uprefix;
-
-    if (scrp == NULL)
-	return;
-
-    xf86DrvMsg(scrp->scrnIndex, scrp->virtualFrom, "Virtual size is %dx%d "
-	       "(pitch %d)\n", scrp->virtualX, scrp->virtualY,
-	       scrp->displayWidth);
-    
-    p = scrp->modes;
-    if (p == NULL)
-	return;
-
-    do {
-	desc = desc2 = "";
-	if (p->HSync > 0.0)
-	    hsync = p->HSync;
-	else if (p->HTotal > 0)
-	    hsync = (float)p->Clock / (float)p->HTotal;
-	else
-	    hsync = 0.0;
-	if (p->VTotal > 0)
-	    refresh = hsync * 1000.0 / p->VTotal;
-	if (p->Flags & V_INTERLACE) {
-	    refresh *= 2.0;
-	    desc = " (I)";
-	}
-	if (p->Flags & V_DBLSCAN) {
-	    refresh /= 2.0;
-	    desc = " (D)";
-	}
-	if (p->VScan > 1) {
-	    refresh /= p->VScan;
-	    desc2 = " (VScan)";
-	}
-	if (p->VRefresh > 0.0)
-	    refresh = p->VRefresh;
-	if (p->type & M_T_BUILTIN)
-	    prefix = "Built-in mode";
-	else if (p->type & M_T_DEFAULT)
-	    prefix = "Default mode";
-	else
-	    prefix = "Mode";
-	if (p->type & M_T_USERDEF)
-	    uprefix = "*";
-	else
-	    uprefix = " ";
-	if (p->name)
-	    xf86DrvMsg(scrp->scrnIndex, X_CONFIG,
-			   "%s%s \"%s\"\n", uprefix, prefix, p->name);
-	else
-	    xf86DrvMsg(scrp->scrnIndex, X_PROBED,
-			   "%s%s %dx%d (unnamed)\n",
-			   uprefix, prefix, p->HDisplay, p->VDisplay);
-	p = p->next;
-    } while (p != NULL && p != scrp->modes);
-}
-
-/* This function will sort all modes according to their resolution.
- * Highest resolution first.
- */
-void
-RADEONxf86SortModes(DisplayModePtr new, DisplayModePtr *first,
-	      DisplayModePtr *last)
-{
-    DisplayModePtr  p;
-
-    p = *last;
-    while (p) {
-	if (((new->HDisplay < p->HDisplay) &&
-	     (new->VDisplay < p->VDisplay)) ||
-	    ((new->HDisplay * new->VDisplay) < (p->HDisplay * p->VDisplay)) ||
-	    ((new->HDisplay == p->HDisplay) &&
-	     (new->VDisplay == p->VDisplay) &&
-	     (new->Clock < p->Clock))) {
-
-	    if (p->next) 
-		p->next->prev = new;
-	    new->prev = p;
-	    new->next = p->next;
-	    p->next = new;
-	    if (!(new->next))
-		*last = new;
-	    break;
-	}
-	if (!p->prev) {
-	    new->prev = NULL;
-	    new->next = p;
-	    p->prev = new;
-	    *first = new;
-	    break;
-	}
-	p = p->prev;
-    }
-
-    if (!*first) {
-	*first = new;
-	new->prev = NULL;
-	new->next = NULL;
-	*last = new;
-    }
-}
-
-DisplayModePtr
-RADEONGetModeListTail(DisplayModePtr pModeList)
-{
-    DisplayModePtr last;
-
-    if (pModeList == NULL)
-	return NULL;
-
-    for (last = pModeList; last->next != NULL; last = last->next)
-	;
-
-    return last;
-}
+extern XF86ConfigPtr xf86configptr;
 
 /**
  * @file this file contains symbols from xf86Mode.c and friends that are static
  * there but we still want to use.  We need to come up with better API here.
  */
 
-
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,2,99,2,0)
 /**
  * Calculates the horizontal sync rate of a mode.
  *
  * Exact copy of xf86Mode.c's.
  */
 double
-RADEONxf86ModeHSync(DisplayModePtr mode)
+xf86ModeHSync(DisplayModePtr mode)
 {
     double hsync = 0.0;
     
@@ -498,7 +73,7 @@ RADEONxf86ModeHSync(DisplayModePtr mode)
  * Exact copy of xf86Mode.c's.
  */
 double
-RADEONxf86ModeVRefresh(DisplayModePtr mode)
+xf86ModeVRefresh(DisplayModePtr mode)
 {
     double refresh = 0.0;
 
@@ -516,14 +91,9 @@ RADEONxf86ModeVRefresh(DisplayModePtr mode)
     return refresh;
 }
 
-/**
- * Sets a default mode name of <width>x<height>x<refresh> on a mode.
- *
- * The refresh rate doesn't contain decimals, as that's expected to be
- * unimportant from the user's perspective for non-custom modelines.
- */
+/** Sets a default mode name of <width>x<height> on a mode. */
 void
-RADEONxf86SetModeDefaultName(DisplayModePtr mode)
+xf86SetModeDefaultName(DisplayModePtr mode)
 {
     if (mode->name != NULL)
 	xfree(mode->name);
@@ -532,7 +102,7 @@ RADEONxf86SetModeDefaultName(DisplayModePtr mode)
 }
 
 /*
- * RADEONxf86SetModeCrtc
+ * xf86SetModeCrtc
  *
  * Initialises the Crtc parameters for a mode.  The initialisation includes
  * adjustments for interlaced and double scan modes.
@@ -540,7 +110,7 @@ RADEONxf86SetModeDefaultName(DisplayModePtr mode)
  * Exact copy of xf86Mode.c's.
  */
 void
-RADEONxf86SetModeCrtc(DisplayModePtr p, int adjustFlags)
+xf86SetModeCrtc(DisplayModePtr p, int adjustFlags)
 {
     if ((p == NULL) || ((p->type & M_T_CRTC_C) == M_T_BUILTIN))
 	return;
@@ -625,7 +195,7 @@ RADEONxf86SetModeCrtc(DisplayModePtr p, int adjustFlags)
  * Allocates and returns a copy of pMode, including pointers within pMode.
  */
 DisplayModePtr
-RADEONxf86DuplicateMode(DisplayModePtr pMode)
+xf86DuplicateMode(DisplayModePtr pMode)
 {
     DisplayModePtr pNew;
 
@@ -634,7 +204,7 @@ RADEONxf86DuplicateMode(DisplayModePtr pMode)
     pNew->next = NULL;
     pNew->prev = NULL;
     if (pNew->name == NULL) {
-	RADEONxf86SetModeDefaultName(pMode);
+	xf86SetModeDefaultName(pMode);
     } else {
 	pNew->name = xnfstrdup(pMode->name);
     }
@@ -649,7 +219,7 @@ RADEONxf86DuplicateMode(DisplayModePtr pMode)
  * \param modeList doubly-linked mode list
  */
 DisplayModePtr
-RADEONxf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
+xf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
 {
     DisplayModePtr first = NULL, last = NULL;
     DisplayModePtr mode;
@@ -657,7 +227,7 @@ RADEONxf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
     for (mode = modeList; mode != NULL; mode = mode->next) {
 	DisplayModePtr new;
 
-	new = RADEONxf86DuplicateMode(mode);
+	new = xf86DuplicateMode(mode);
 
 	/* Insert pNew into modeList */
 	if (last) {
@@ -683,7 +253,7 @@ RADEONxf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList)
  * This isn't in xf86Modes.c, but it might deserve to be there.
  */
 Bool
-RADEONModesEqual(DisplayModePtr pMode1, DisplayModePtr pMode2)
+xf86ModesEqual(DisplayModePtr pMode1, DisplayModePtr pMode2)
 {
      if (pMode1->Clock == pMode2->Clock &&
 	 pMode1->HDisplay == pMode2->HDisplay &&
@@ -719,7 +289,7 @@ add(char **p, char *new)
  * Convenient VRefresh printing was added, though, compared to xf86Mode.c
  */
 void
-PrintModeline(int scrnIndex,DisplayModePtr mode)
+xf86PrintModeline(int scrnIndex,DisplayModePtr mode)
 {
     char tmp[256];
     char *flags = xnfcalloc(1, 1);
@@ -751,9 +321,10 @@ PrintModeline(int scrnIndex,DisplayModePtr mode)
 		   mode->name, mode->VRefresh, mode->Clock/1000., mode->HDisplay,
 		   mode->HSyncStart, mode->HSyncEnd, mode->HTotal,
 		   mode->VDisplay, mode->VSyncStart, mode->VSyncEnd,
-		   mode->VTotal, flags, RADEONxf86ModeHSync(mode));
+		   mode->VTotal, flags, xf86ModeHSync(mode));
     xfree(flags);
 }
+#endif /* XORG_VERSION_CURRENT <= 7.2.99.2 */
 
 /**
  * Marks as bad any modes with unsupported flags.
@@ -827,8 +398,8 @@ RADEONxf86ValidateModesSync(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 
 	bad = TRUE;
 	for (i = 0; i < mon->nHsync; i++) {
-	    if (RADEONxf86ModeHSync(mode) >= mon->hsync[i].lo &&
-		RADEONxf86ModeHSync(mode) <= mon->hsync[i].hi)
+	    if (xf86ModeHSync(mode) >= mon->hsync[i].lo &&
+		xf86ModeHSync(mode) <= mon->hsync[i].hi)
 	    {
 		bad = FALSE;
 	    }
@@ -838,8 +409,8 @@ RADEONxf86ValidateModesSync(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 
 	bad = TRUE;
 	for (i = 0; i < mon->nVrefresh; i++) {
-	    if (RADEONxf86ModeVRefresh(mode) >= mon->vrefresh[i].lo &&
-		RADEONxf86ModeVRefresh(mode) <= mon->vrefresh[i].hi)
+	    if (xf86ModeVRefresh(mode) >= mon->vrefresh[i].lo &&
+		xf86ModeVRefresh(mode) <= mon->vrefresh[i].hi)
 	    {
 		bad = FALSE;
 	    }
@@ -959,3 +530,144 @@ RADEONxf86PruneInvalidModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
     }
 }
 
+/**
+ * Adds the new mode into the mode list, and returns the new list
+ *
+ * \param modes doubly-linked mode list.
+ */
+DisplayModePtr
+xf86ModesAdd(DisplayModePtr modes, DisplayModePtr new)
+{
+    if (modes == NULL)
+	return new;
+
+    if (new) {
+	DisplayModePtr mode = modes;
+
+	while (mode->next)
+	    mode = mode->next;
+
+	mode->next = new;
+	new->prev = mode;
+    }
+
+    return modes;
+}
+
+/**
+ * Build a mode list from a list of config file modes
+ */
+static DisplayModePtr
+RADEONxf86GetConfigModes (XF86ConfModeLinePtr conf_mode)
+{
+    DisplayModePtr  head = NULL, prev = NULL, mode;
+    
+    for (; conf_mode; conf_mode = (XF86ConfModeLinePtr) conf_mode->list.next)
+    {
+        mode = xalloc(sizeof(DisplayModeRec));
+	if (!mode)
+	    continue;
+        mode->name       = xstrdup(conf_mode->ml_identifier);
+	if (!mode->name)
+	{
+	    xfree (mode);
+	    continue;
+	}
+	
+        memset(mode,'\0',sizeof(DisplayModeRec));
+	mode->type       = 0;
+        mode->Clock      = conf_mode->ml_clock;
+        mode->HDisplay   = conf_mode->ml_hdisplay;
+        mode->HSyncStart = conf_mode->ml_hsyncstart;
+        mode->HSyncEnd   = conf_mode->ml_hsyncend;
+        mode->HTotal     = conf_mode->ml_htotal;
+        mode->VDisplay   = conf_mode->ml_vdisplay;
+        mode->VSyncStart = conf_mode->ml_vsyncstart;
+        mode->VSyncEnd   = conf_mode->ml_vsyncend;
+        mode->VTotal     = conf_mode->ml_vtotal;
+        mode->Flags      = conf_mode->ml_flags;
+        mode->HSkew      = conf_mode->ml_hskew;
+        mode->VScan      = conf_mode->ml_vscan;
+
+        mode->prev = prev;
+	mode->next = NULL;
+	if (prev)
+	    prev->next = mode;
+	else
+	    head = mode;
+	prev = mode;
+    }
+    return head;
+}
+
+
+/**
+ * Build a mode list from a monitor configuration
+ */
+DisplayModePtr
+RADEONxf86GetMonitorModes (ScrnInfoPtr pScrn, XF86ConfMonitorPtr conf_monitor)
+{
+    DisplayModePtr	    modes = NULL;
+    XF86ConfModesLinkPtr    modes_link;
+    
+    if (!conf_monitor)
+	return NULL;
+
+    /*
+     * first we collect the mode lines from the UseModes directive
+     */
+    for (modes_link = conf_monitor->mon_modes_sect_lst; 
+	 modes_link; 
+	 modes_link = modes_link->list.next)
+    {
+	/* If this modes link hasn't been resolved, go look it up now */
+	if (!modes_link->ml_modes)
+	    modes_link->ml_modes = xf86findModes (modes_link->ml_modes_str, 
+						  xf86configptr->conf_modes_lst);
+	if (modes_link->ml_modes)
+	    modes = xf86ModesAdd (modes,
+				  RADEONxf86GetConfigModes (modes_link->ml_modes->mon_modeline_lst));
+    }
+
+    return xf86ModesAdd (modes,
+			 RADEONxf86GetConfigModes (conf_monitor->mon_modeline_lst));
+}
+
+/**
+ * Build a mode list containing all of the default modes
+ */
+DisplayModePtr
+RADEONxf86GetDefaultModes (Bool interlaceAllowed, Bool doubleScanAllowed)
+{
+    DisplayModePtr  head = NULL, prev = NULL, mode;
+    int		    i;
+
+    for (i = 0; xf86DefaultModes[i].name != NULL; i++)
+    {
+	DisplayModePtr	defMode = &xf86DefaultModes[i];
+	
+	if (!interlaceAllowed && (defMode->Flags & V_INTERLACE))
+	    continue;
+	if (!doubleScanAllowed && (defMode->Flags & V_DBLSCAN))
+	    continue;
+
+	mode = xalloc(sizeof(DisplayModeRec));
+	if (!mode)
+	    continue;
+        memcpy(mode,&xf86DefaultModes[i],sizeof(DisplayModeRec));
+        mode->name = xstrdup(xf86DefaultModes[i].name);
+        if (!mode->name)
+	{
+	    xfree (mode);
+	    continue;
+	}
+        mode->prev = prev;
+	mode->next = NULL;
+	if (prev)
+	    prev->next = mode;
+	else
+	    head = mode;
+	prev = mode;
+    }
+    return head;
+}

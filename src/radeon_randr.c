@@ -1,28 +1,24 @@
 /*
  * Copyright 2006 Dave Airlie
+ * Copyright © 2002 Keith Packard, member of The XFree86 Project, Inc.
  *
- * All Rights Reserved.
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that copyright
+ * notice and this permission notice appear in supporting documentation, and
+ * that the name of the copyright holders not be used in advertising or
+ * publicity pertaining to distribution of the software without specific,
+ * written prior permission.  The copyright holders make no representations
+ * about the suitability of this software for any purpose.  It is provided "as
+ * is" without express or implied warranty.
  *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation on the rights to use, copy, modify, merge,
- * publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial
- * portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NON-INFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS AND/OR
- * THEIR SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+ * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+ * OF THIS SOFTWARE.
  */
 
 
@@ -49,7 +45,7 @@
 #include "radeon_version.h"
 #include "radeon_mergedfb.h"
 
-typedef struct _radeonRandRInfo {
+typedef struct _xf86RandR12Info {
     int				    virtualX;
     int				    virtualY;
     int				    mmWidth;
@@ -69,27 +65,8 @@ static Bool xf86RandR12CreateScreenResources12 (ScreenPtr pScreen);
 static int	    xf86RandR12Index;
 static int	    xf86RandR12Generation;
 
-#define XF86RANDRINFO(p)    ((XF86RandRInfoPtr) (p)->devPrivates[xf86RandR12Index].ptr)
-
-#if RANDR_12_INTERFACE
-
-void
-xf86RandR12GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y)
-{
-    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-
-    if (xf86RandR12Generation != serverGeneration ||
-	XF86RANDRINFO(pScreen)->virtualX == -1)
-    {
-	*x = pScrn->virtualX;
-	*y = pScrn->virtualY;
-    } else {
-	XF86RandRInfoPtr randrp = XF86RANDRINFO(pScreen);
-
-	*x = randrp->virtualX;
-	*y = randrp->virtualY;
-    }
-}
+#define XF86RANDRINFO(p) \
+	((XF86RandRInfoPtr)(p)->devPrivates[xf86RandR12Index].ptr)
 
 static int
 xf86RandR12ModeRefresh (DisplayModePtr mode)
@@ -119,7 +96,7 @@ xf86RandR12GetInfo (ScreenPtr pScreen, Rotation *rotations)
     }
 
     /* Re-probe the outputs for new monitors or modes */
-    xf86ProbeOutputModes (scrp);
+    xf86ProbeOutputModes (scrp, 0, 0);
     xf86SetScrnInfoModes (scrp);
 
     for (mode = scrp->modes; ; mode = mode->next)
@@ -348,20 +325,6 @@ xf86RandR12SetConfig (ScreenPtr		pScreen,
     return TRUE;
 }
 
-Rotation
-xf86RandR12GetRotation(ScreenPtr pScreen)
-{
-    XF86RandRInfoPtr	    randrp = XF86RANDRINFO(pScreen);
-
-    return randrp->rotation;
-}
-
-
-static void
-RADEONRandRPointerMoved (int scrnIndex, int x, int y)
-{
-}
-
 static Bool
 xf86RandR12ScreenSetSize (ScreenPtr	pScreen,
 			CARD16		width,
@@ -389,15 +352,171 @@ xf86RandR12ScreenSetSize (ScreenPtr	pScreen,
     pScreen->mmWidth = mmWidth;
     pScreen->mmHeight = mmHeight;
 
-    xf86SetViewport (pScreen, pScreen->width, pScreen->height);
+    xf86SetViewport (pScreen, pScreen->width-1, pScreen->height-1);
     xf86SetViewport (pScreen, 0, 0);
     if (pRoot)
 	(*pScrn->EnableDisableFBAccess) (pScreen->myNum, TRUE);
+#if RANDR_12_INTERFACE
     if (WindowTable[pScreen->myNum])
 	RRScreenSizeNotify (pScreen);
+#endif
     return ret;
 }
 
+Rotation
+xf86RandR12GetRotation(ScreenPtr pScreen)
+{
+    XF86RandRInfoPtr	    randrp = XF86RANDRINFO(pScreen);
+
+    return randrp->rotation;
+}
+
+Bool
+xf86RandR12CreateScreenResources (ScreenPtr pScreen)
+{
+    ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
+    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
+    XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
+    int			c;
+    int			width, height;
+    int			mmWidth, mmHeight;
+#ifdef PANORAMIX
+    /* XXX disable RandR when using Xinerama */
+    if (!noPanoramiXExtension)
+	return TRUE;
+#endif
+
+    /*
+     * Compute size of screen
+     */
+    width = 0; height = 0;
+    for (c = 0; c < config->num_crtc; c++)
+    {
+	xf86CrtcPtr crtc = config->crtc[c];
+	int	    crtc_width = crtc->x + crtc->curMode.HDisplay;
+	int	    crtc_height = crtc->y + crtc->curMode.VDisplay;
+	
+	if (crtc->enabled && crtc_width > width)
+	    width = crtc_width;
+	if (crtc->enabled && crtc_height > height)
+	    height = crtc_height;
+    }
+    
+    if (width && height)
+    {
+	/*
+	 * Compute physical size of screen
+	 */
+	if (monitorResolution) 
+	{
+	    mmWidth = width * 25.4 / monitorResolution;
+	    mmHeight = height * 25.4 / monitorResolution;
+	}
+	else
+	{
+	    mmWidth = pScreen->mmWidth;
+	    mmHeight = pScreen->mmHeight;
+	}
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Setting screen physical size to %d x %d\n",
+		   mmWidth, mmHeight);
+	xf86RandR12ScreenSetSize (pScreen,
+				  width,
+				  height,
+				  mmWidth,
+				  mmHeight);
+    }
+
+    if (randrp->virtualX == -1 || randrp->virtualY == -1)
+    {
+	randrp->virtualX = pScrn->virtualX;
+	randrp->virtualY = pScrn->virtualY;
+    }
+#if RANDR_12_INTERFACE
+    if (xf86RandR12CreateScreenResources12 (pScreen))
+	return TRUE;
+#endif
+    return TRUE;
+}
+
+
+Bool
+xf86RandR12Init (ScreenPtr pScreen)
+{
+    rrScrPrivPtr	rp;
+    XF86RandRInfoPtr	randrp;
+
+#ifdef PANORAMIX
+    /* XXX disable RandR when using Xinerama */
+    if (!noPanoramiXExtension)
+	return TRUE;
+#endif
+    if (xf86RandR12Generation != serverGeneration)
+    {
+	xf86RandR12Index = AllocateScreenPrivateIndex();
+	xf86RandR12Generation = serverGeneration;
+    }
+
+    randrp = xalloc (sizeof (XF86RandRInfoRec));
+    if (!randrp)
+	return FALSE;
+
+    if (!RRScreenInit(pScreen))
+    {
+	xfree (randrp);
+	return FALSE;
+    }
+    rp = rrGetScrPriv(pScreen);
+    rp->rrGetInfo = xf86RandR12GetInfo;
+    rp->rrSetConfig = xf86RandR12SetConfig;
+
+    randrp->virtualX = -1;
+    randrp->virtualY = -1;
+    randrp->mmWidth = pScreen->mmWidth;
+    randrp->mmHeight = pScreen->mmHeight;
+
+    randrp->rotation = RR_Rotate_0; /* initial rotated mode */
+
+    randrp->supported_rotations = RR_Rotate_0;
+
+    randrp->maxX = randrp->maxY = 0;
+
+    pScreen->devPrivates[xf86RandR12Index].ptr = randrp;
+
+#if RANDR_12_INTERFACE
+    if (!xf86RandR12Init12 (pScreen))
+	return FALSE;
+#endif
+    return TRUE;
+}
+
+void
+xf86RandR12SetRotations (ScreenPtr pScreen, Rotation rotations)
+{
+    XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
+
+    randrp->supported_rotations = rotations;
+}
+
+void
+xf86RandR12GetOriginalVirtualSize(ScrnInfoPtr pScrn, int *x, int *y)
+{
+    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+
+    if (xf86RandR12Generation != serverGeneration ||
+	XF86RANDRINFO(pScreen)->virtualX == -1)
+    {
+	*x = pScrn->virtualX;
+	*y = pScrn->virtualY;
+    } else {
+	XF86RandRInfoPtr randrp = XF86RANDRINFO(pScreen);
+
+	*x = randrp->virtualX;
+	*y = randrp->virtualY;
+    }
+}
+
+#if RANDR_12_INTERFACE
 static Bool
 xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
 {
@@ -455,103 +574,111 @@ xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
 
 static Bool
 xf86RandR12CrtcSet (ScreenPtr	pScreen,
-		    RRCrtcPtr	randr_crtc,
-		    RRModePtr	randr_mode,
-		    int		x,
-		    int		y,
-		    Rotation	rotation,
-		    int		num_randr_outputs,
-		    RROutputPtr	*randr_outputs)
+		  RRCrtcPtr	randr_crtc,
+		  RRModePtr	randr_mode,
+		  int		x,
+		  int		y,
+		  Rotation	rotation,
+		  int		num_randr_outputs,
+		  RROutputPtr	*randr_outputs)
 {
-  ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-  xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
-  xf86CrtcPtr crtc = randr_crtc->devPrivate;
-  DisplayModePtr mode = randr_mode ? randr_mode->devPrivate : NULL;
-  Bool changed = FALSE;
-  Bool pos_changed;
-  int o, ro;
-  xf86CrtcPtr		*save_crtcs;
-  Bool save_enabled = crtc->enabled;
-  int ret;
-
-  save_crtcs = ALLOCATE_LOCAL(config->num_crtc * sizeof (xf86CrtcPtr));
-  if ((mode != NULL) != crtc->enabled)
+    ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
+    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
+    xf86CrtcPtr		crtc = randr_crtc->devPrivate;
+    DisplayModePtr	mode = randr_mode ? randr_mode->devPrivate : NULL;
+    Bool		changed = FALSE;
+    Bool		pos_changed;
+    int			o, ro;
+    xf86CrtcPtr		*save_crtcs;
+    Bool save_enabled = crtc->enabled;
+    int ret;
+    
+    save_crtcs = ALLOCATE_LOCAL(config->num_crtc * sizeof (xf86CrtcPtr));
+    if ((mode != NULL) != crtc->enabled)
     changed = TRUE;
-  else if (mode && !xf86ModesEqual (&crtc->curMode, mode))
-    changed = TRUE;
-
-  pos_changed = changed;
-  if (x != crtc->x || y != crtc->y)
-    pos_changed = TRUE;
-
-  for (o = 0; o < config->num_output; o++) {
-    xf86OutputPtr  output = config->output[o];
-    xf86CrtcPtr new_crtc;
-
-    save_crtcs[o] = output->crtc;
-
-    if (output->crtc == crtc)
-      new_crtc = NULL;
-    else
-      new_crtc = output->crtc;
-
-    for (ro = 0; ro < num_randr_outputs; ro++)
-      if (output->randr_output == randr_outputs[ro]) {
-	new_crtc = crtc;
-	break;
-      }
-    if (new_crtc != output->crtc) {
-      changed = TRUE;
-      output->crtc = new_crtc;
-    }
-  }
-
-  /* got to set the modes in here */
-  if (changed) {
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    RADEONInfoPtr  info = RADEONPTR(pScrn);
-    RADEONCrtcPrivatePtr pRcrtc;
-    crtc->enabled = mode != NULL;
-
-    if (info->accelOn)
-      RADEON_SYNC(info, pScrn);
-
-    if (mode) {
-      if (pRcrtc->crtc_id == 0)
-	ret = RADEONInit2(pScrn, mode, NULL, 1, &info->ModeReg);
-      else if (pRcrtc->crtc_id == 1)
-	ret = RADEONInit2(pScrn, NULL, mode, 2, &info->ModeReg);
-      
-      if (!ret) {
-	crtc->enabled = save_enabled;
-	for (o = 0; o < config->num_output; o++) {
-	  xf86OutputPtr output = config->output[o];
-	  output->crtc = save_crtcs[o];
+    else if (mode && !xf86ModesEqual (&crtc->curMode, mode))
+	changed = TRUE;
+    
+    pos_changed = changed;
+    if (x != crtc->x || y != crtc->y)
+	pos_changed = TRUE;
+    
+    for (o = 0; o < config->num_output; o++) {
+	xf86OutputPtr  output = config->output[o];
+	xf86CrtcPtr new_crtc;
+	
+	save_crtcs[o] = output->crtc;
+	
+	if (output->crtc == crtc)
+	    new_crtc = NULL;
+	else
+	    new_crtc = output->crtc;
+	
+	for (ro = 0; ro < num_randr_outputs; ro++)
+	    if (output->randr_output == randr_outputs[ro]) {
+		new_crtc = crtc;
+		break;
+	    }
+	if (new_crtc != output->crtc) {
+	    changed = TRUE;
+	    output->crtc = new_crtc;
 	}
-	DEALLOCATE_LOCAL(save_crtcs);
-	return FALSE;
-      }
-      crtc->desiredMode = *mode;
-      
-      pScrn->vtSema = TRUE;
-      RADEONBlank(pScrn);
-      RADEONRestoreMode(pScrn, &info->ModeReg);
-      RADEONUnblank(pScrn);
-      
-      if (info->DispPriority)
-	RADEONInitDispBandwidth(pScrn);
     }
-  }
-  DEALLOCATE_LOCAL(save_crtcs);
-  return RADEONRandRCrtcNotify(randr_crtc);
+    
+    /* got to set the modes in here */
+    if (changed) {
+	RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+	RADEONInfoPtr  info = RADEONPTR(pScrn);
+	RADEONCrtcPrivatePtr pRcrtc;
+	crtc->enabled = mode != NULL;
+	
+	if (info->accelOn)
+	    RADEON_SYNC(info, pScrn);
+	
+	if (mode) {
+	    if (pRcrtc->crtc_id == 0)
+		ret = RADEONInit2(pScrn, mode, NULL, 1, &info->ModeReg);
+	    else if (pRcrtc->crtc_id == 1)
+		ret = RADEONInit2(pScrn, NULL, mode, 2, &info->ModeReg);
+	    
+	    if (!ret) {
+		crtc->enabled = save_enabled;
+		for (o = 0; o < config->num_output; o++) {
+		    xf86OutputPtr output = config->output[o];
+		    output->crtc = save_crtcs[o];
+		}
+		DEALLOCATE_LOCAL(save_crtcs);
+		return FALSE;
+	    }
+	    crtc->desiredMode = *mode;
+	    
+	    pScrn->vtSema = TRUE;
+	    RADEONBlank(pScrn);
+	    RADEONRestoreMode(pScrn, &info->ModeReg);
+	    RADEONUnblank(pScrn);
+	    
+	    if (info->DispPriority)
+		RADEONInitDispBandwidth(pScrn);
+	}
+    }
+    DEALLOCATE_LOCAL(save_crtcs);
+    return xf86RandR12CrtcNotify (randr_crtc);
 }
 
 
 static Bool
 xf86RandR12CrtcSetGamma (ScreenPtr    pScreen,
-		       RRCrtcPtr    crtc)
+			 RRCrtcPtr    randr_crtc)
 {
-    return FALSE;
+    xf86CrtcPtr		crtc = randr_crtc->devPrivate;
+
+    if (crtc->funcs->gamma_set == NULL)
+	return FALSE;
+
+    crtc->funcs->gamma_set(crtc, randr_crtc->gammaRed, randr_crtc->gammaGreen,
+			   randr_crtc->gammaBlue, randr_crtc->gammaSize);
+
+    return TRUE;
 }
 
 /**
@@ -599,8 +726,8 @@ xf86RROutputSetModes (RROutputPtr randr_output, DisplayModePtr modes)
 		    modeInfo.modeFlags = mode->Flags;
 
 		    rrmode = RRModeGet (&modeInfo, mode->name);
-		    rrmode->devPrivate = mode;
 		    if (rrmode) {
+			rrmode->devPrivate = mode;
 			rrmodes[nmode++] = rrmode;
 			npreferred += pref;
 		    }
@@ -624,11 +751,11 @@ xf86RandR12SetInfo12 (ScreenPtr pScreen)
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
     RROutputPtr		*clones;
     RRCrtcPtr		*crtcs;
-    int ncrtc;
-    int o, c, l;
+    int			ncrtc;
+    int			o, c, l;
     RRCrtcPtr		randr_crtc;
-    int nclone;
-
+    int			nclone;
+    
     clones = ALLOCATE_LOCAL(config->num_output * sizeof (RROutputPtr));
     crtcs = ALLOCATE_LOCAL (config->num_crtc * sizeof (RRCrtcPtr));
     for (o = 0; o < config->num_output; o++)
@@ -658,7 +785,7 @@ xf86RandR12SetInfo12 (ScreenPtr pScreen)
 				output->mm_height);
 	xf86RROutputSetModes (output->randr_output, output->probed_modes);
 
-	switch (output->status = (*output->funcs->detect)(output)) {
+	switch (output->status) {
 	case XF86OutputStatusConnected:
 	    RROutputSetConnection (output->randr_output, RR_Connected);
 	    break;
@@ -704,536 +831,94 @@ xf86RandR12GetInfo12 (ScreenPtr pScreen, Rotation *rotations)
 {
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
 
-    xf86ProbeOutputModes (pScrn);
+    xf86ProbeOutputModes (pScrn, 0, 0);
     xf86SetScrnInfoModes (pScrn);
-    return RADEONRandRSetInfo12 (pScrn);
-}
 
-extern const char *ConnectorTypeName[], *ConnectorTypeNameATOM[];
-
-Bool
-RADEONRandRCreateScreenResources (ScreenPtr pScreen)
-{
-#if RANDR_12_INTERFACE
-    if (RADEONRandRCreateScreenResources12 (pScreen))
-      return TRUE;
-#endif
-    return FALSE;
+    return xf86RandR12SetInfo12 (pScreen);
 }
 
 static Bool
-xf86RandR12CreateObjects12(ScreenPtr pScreen)
-{
-  ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
-  xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
-  int c, o;
-
-  if (!RRInit())
-    return FALSE;
-
-
-  /*
-   * Configure crtcs
-   */
-  for (c = 0; c < config->num_crtc; c++)
-  {
-    xf86CrtcPtr    crtc = config->crtc[c];
-    
-    crtc->randr_crtc = RRCrtcCreate (crtc);
-    RRCrtcAttachScreen (crtc->randr_crtc, pScreen);
-    RRCrtcGammaSetSize (crtc->randr_crtc, 256);
-  }
-
-  /*
-   * Configure outputs
-   */
-  for (o = 0; o < config->num_output; o++)
-  {
-    xf86OutputPtr	output = config->output[o];
-    
-    output->randr_output = RROutputCreate (output->name, 
-					   strlen (output->name),
-					   output);
-    RROutputAttachScreen (output->randr_output, pScreen);
-  } 
-
-  return TRUE;
-}
-
-static Bool
-xf86RandRCreateScreenResources12 (ScreenPtr pScreen)
+xf86RandR12CreateObjects12 (ScreenPtr pScreen)
 {
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
-    XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
     int			c;
-    int			width, height;
+    int			o;
+    
+    if (!RRInit ())
+	return FALSE;
 
     /*
-     * Compute width of screen
+     * Configure crtcs
      */
-    width = 0; height = 0;
     for (c = 0; c < config->num_crtc; c++)
     {
-	xf86CrtcPtr crtc = config->crtc[c];
-	int	    crtc_width = crtc->x + crtc->curMode.HDisplay;
-	int	    crtc_height = crtc->y + crtc->curMode.VDisplay;
+	xf86CrtcPtr    crtc = config->crtc[c];
 	
-	if (crtc->enabled && crtc_width > width)
-	    width = crtc_width;
-	if (crtc->enabled && crtc_height > height)
-	    height = crtc_height;
+	crtc->randr_crtc = RRCrtcCreate (crtc);
+	RRCrtcAttachScreen (crtc->randr_crtc, pScreen);
+	RRCrtcGammaSetSize (crtc->randr_crtc, 256);
     }
-    
-    if (width && height)
+    /*
+     * Configure outputs
+     */
+    for (o = 0; o < config->num_output; o++)
     {
-	int mmWidth, mmHeight;
+	xf86OutputPtr	output = config->output[o];
 
-	mmWidth = pScreen->mmWidth;
-	mmHeight = pScreen->mmHeight;
-	if (width != pScreen->width)
-	    mmWidth = mmWidth * width / pScreen->width;
-	if (height != pScreen->height)
-	    mmHeight = mmHeight * height / pScreen->height;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Setting screen physical size to %d x %d\n",
-		   mmWidth, mmHeight);
-	xf86RandR12ScreenSetSize (pScreen,
-				  width,
-				  height,
-				  mmWidth,
-				  mmHeight);
+	output->randr_output = RROutputCreate (output->name, 
+					       strlen (output->name),
+					       output);
+	RROutputAttachScreen (output->randr_output, pScreen);
     }
+    return TRUE;
+}
+
+static Bool
+xf86RandR12CreateScreenResources12 (ScreenPtr pScreen)
+{
+    int			c;
+    ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
+    XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
+    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
 
     for (c = 0; c < config->num_crtc; c++)
 	xf86RandR12CrtcNotify (config->crtc[c]->randr_crtc);
     
-    if (randrp->virtualX == -1 || randrp->virtualY == -1)
-    {
-	randrp->virtualX = pScrn->virtualX;
-	randrp->virtualY = pScrn->virtualY;
-    }
     
     RRScreenSetSizeRange (pScreen, 320, 240,
 			  randrp->virtualX, randrp->virtualY);
     return TRUE;
 }
 
-Bool
-RADEONRandRInit (ScreenPtr    pScreen, int rotation)
+static void
+xf86RandR12PointerMoved (int scrnIndex, int x, int y)
 {
-    rrScrPrivPtr	rp;
-    XF86RandRInfoPtr	randrp;
-    
-#ifdef PANORAMIX
-    /* XXX disable RandR when using Xinerama */
-    if (!noPanoramiXExtension)
-	return TRUE;
-#endif
-    if (xf86RandR12Generation != serverGeneration)
-    {
-	xf86RandR12Index = AllocateScreenPrivateIndex();
-	xf86RandR12Generation = serverGeneration;
-    }
-    
-    randrp = xalloc (sizeof (XF86RandRInfoRec));
-    if (!randrp)
-	return FALSE;
-			
-    if (!RRScreenInit(pScreen))
-    {
-	xfree (randrp);
-	return FALSE;
-    }
-    rp = rrGetScrPriv(pScreen);
-    //    rp->rrGetInfo = RADEONRandRGetInfo;
-    //    rp->rrSetConfig = RADEONRandRSetConfig;
-
-    randrp->virtualX = -1;
-    randrp->virtualY = -1;
-    randrp->mmWidth = pScreen->mmWidth;
-    randrp->mmHeight = pScreen->mmHeight;
-    
-    randrp->rotation = RR_Rotate_0; /* initial rotated mode */
-
-    randrp->supported_rotations = rotation;
-
-    randrp->maxX = randrp->maxY = 0;
-
-    pScreen->devPrivates[xf86RandR12Index].ptr = randrp;
-
-#if RANDR_12_INTERFACE
-    if (!RADEONRandRInit12 (pScreen))
-	return FALSE;
-#endif
-    return TRUE;
 }
 
-Bool
-RADEONRandRInit12(ScreenPtr pScreen)
+static Bool
+xf86RandR12Init12 (ScreenPtr pScreen)
 {
-  ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-  rrScrPrivPtr rp = rrGetScrPriv(pScreen);
+    ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
+    rrScrPrivPtr	rp = rrGetScrPriv(pScreen);
 
     rp->rrGetInfo = xf86RandR12GetInfo12;
     rp->rrScreenSetSize = xf86RandR12ScreenSetSize;
     rp->rrCrtcSet = xf86RandR12CrtcSet;
     rp->rrCrtcSetGamma = xf86RandR12CrtcSetGamma;
-  rp->rrSetConfig = NULL;
-  //  memset (rp->modes, '\0', sizeof (rp->modes));
-  pScrn->PointerMoved = RADEONRandRPointerMoved;
-
-  if (!xf86RandR12CreateObjects12 (pScreen))
-    return FALSE;
-  /*
-   * Configure output modes
-   */
-  if (!xf86RandR12SetInfo12 (pScreen))
-    return FALSE;
-  return TRUE;
-}
-
-static RRModePtr
-RADEONRRDefaultMode (RROutputPtr output)
-{
-    RRModePtr   target_mode = NULL;
-    int		target_diff = 0;
-    int		mmHeight;
-    int		num_modes;
-    int		m;
-    
-    num_modes = output->numPreferred ? output->numPreferred : output->numModes;
-    mmHeight = output->mmHeight;
-    if (!mmHeight)
-	mmHeight = 203;	/* 768 pixels at 96dpi */
-    /*
-     * Pick a mode closest to 96dpi 
-     */
-    for (m = 0; m < num_modes; m++)
-    {
-	RRModePtr   mode = output->modes[m];
-	int	    dpi;
-	int	    diff;
-
-	dpi = (mode->mode.height * 254) / (mmHeight * 10);
-	diff = dpi - 96;
-	diff = diff < 0 ? -diff : diff;
-	if (target_mode == NULL || diff < target_diff)
-	{
-	    target_mode = mode;
-	    target_diff = diff;
-	}
-    }
-    return target_mode;
-}
-
-static RRModePtr
-RADEONClosestMode (RROutputPtr output, RRModePtr match)
-{
-    RRModePtr   target_mode = NULL;
-    int		target_diff = 0;
-    int		m;
-    
-    /*
-     * Pick a mode closest to the specified mode
-     */
-    for (m = 0; m < output->numModes; m++)
-    {
-	RRModePtr   mode = output->modes[m];
-	int	    dx, dy;
-	int	    diff;
-
-	/* exact matches are preferred */
-	if (mode == match)
-	    return mode;
-	
-	dx = match->mode.width - mode->mode.width;
-	dy = match->mode.height - mode->mode.height;
-	diff = dx * dx + dy * dy;
-	if (target_mode == NULL || diff < target_diff)
-	{
-	    target_mode = mode;
-	    target_diff = diff;
-	}
-    }
-    return target_mode;
-}
-
-static int
-RADEONRRPickCrtcs (RROutputPtr	*outputs,
-		 RRCrtcPtr	*best_crtcs,
-		 RRModePtr	*modes,
-		 int		num_outputs,
-		 int		n)
-{
-    int		c, o, l;
-    RROutputPtr	output;
-    RRCrtcPtr	crtc;
-    RRCrtcPtr	*crtcs;
-    RRCrtcPtr	best_crtc;
-    int		best_score;
-    int		score;
-    int		my_score;
-    
-    if (n == num_outputs)
-	return 0;
-    output = outputs[n];
-    
-    /*
-     * Compute score with this output disabled
-     */
-    best_crtcs[n] = NULL;
-    best_crtc = NULL;
-    best_score = RADEONRRPickCrtcs (outputs, best_crtcs, modes, num_outputs, n+1);
-    if (modes[n] == NULL)
-	return best_score;
-    
-    crtcs = xalloc (num_outputs * sizeof (RRCrtcPtr));
-    if (!crtcs)
-	return best_score;
-
-    my_score = 1;
-    /* Score outputs that are known to be connected higher */
-    if (output->connection == RR_Connected)
-	my_score++;
-    /* Score outputs with preferred modes higher */
-    if (output->numPreferred)
-	my_score++;
-    /*
-     * Select a crtc for this output and
-     * then attempt to configure the remaining
-     * outputs
-     */
-    for (c = 0; c < output->numCrtcs; c++)
-    {
-	crtc = output->crtcs[c];
-	/*
-	 * Check to see if some other output is
-	 * using this crtc
-	 */
-	for (o = 0; o < n; o++)
-	    if (best_crtcs[o] == crtc)
-		break;
-	if (o < n)
-	{
-	    /*
-	     * If the two outputs desire the same mode,
-	     * see if they can be cloned
-	     */
-	    if (modes[o] == modes[n])
-	    {
-		for (l = 0; l < output->numClones; l++)
-		    if (output->clones[l] == outputs[o])
-			break;
-		if (l == output->numClones)
-		    continue;		/* nope, try next CRTC */
-	    }
-	    else
-		continue;		/* different modes, can't clone */
-	}
-	crtcs[n] = crtc;
-	memcpy (crtcs, best_crtcs, n * sizeof (RRCrtcPtr));
-	score = my_score + RADEONRRPickCrtcs (outputs, crtcs, modes,
-					    num_outputs, n+1);
-	if (score >= best_score)
-	{
-	    best_crtc = crtc;
-	    best_score = score;
-	    memcpy (best_crtcs, crtcs, num_outputs * sizeof (RRCrtcPtr));
-	}
-    }
-    xfree (crtcs);
-    return best_score;
-}
-
-static Bool
-RADEONRRInitialConfiguration (RROutputPtr *outputs,
-			    RRCrtcPtr	*crtcs,
-			    RRModePtr	*modes,
-			    int		num_outputs)
-{
-    int		o;
-    RRModePtr	target_mode = NULL;
-
-    for (o = 0; o < num_outputs; o++)
-	modes[o] = NULL;
-    
-    /*
-     * Let outputs with preferred modes drive screen size
-     */
-    for (o = 0; o < num_outputs; o++)
-    {
-	RROutputPtr output = outputs[o];
-
-	if (output->connection != RR_Disconnected && output->numPreferred)
-	{
-	    target_mode = RADEONRRDefaultMode (output);
-	    if (target_mode)
-	    {
-		modes[o] = target_mode;
-		break;
-	    }
-	}
-    }
-    if (!target_mode)
-    {
-	for (o = 0; o < num_outputs; o++)
-	{
-	    RROutputPtr output = outputs[o];
-	    if (output->connection != RR_Disconnected)
-	    {
-		target_mode = RADEONRRDefaultMode (output);
-		if (target_mode)
-		{
-		    modes[o] = target_mode;
-		    break;
-		}
-	    }
-	}
-    }
-    for (o = 0; o < num_outputs; o++)
-    {
-	RROutputPtr output = outputs[o];
-	
-	if (output->connection != RR_Disconnected && !modes[o])
-	    modes[o] = RADEONClosestMode (output, target_mode);
-    }
-
-    if (!RADEONRRPickCrtcs (outputs, crtcs, modes, num_outputs, 0))
+    rp->rrSetConfig = NULL;
+    pScrn->PointerMoved = xf86RandR12PointerMoved;
+    if (!xf86RandR12CreateObjects12 (pScreen))
 	return FALSE;
-    
+
+    /*
+     * Configure output modes
+     */
+    if (!xf86RandR12SetInfo12 (pScreen))
+	return FALSE;
     return TRUE;
 }
 
-/*
- * Compute the virtual size necessary to place all of the available
- * crtcs in a panorama configuration
- */
-
-static void
-RADEONRRDefaultScreenLimits (RROutputPtr *outputs, int num_outputs,
-			   RRCrtcPtr *crtcs, int num_crtc,
-			   int *widthp, int *heightp)
-{
-    int	    width = 0, height = 0;
-    int	    o;
-    int	    c;
-    int	    m;
-    int	    s;
-
-    for (c = 0; c < num_crtc; c++)
-    {
-	RRCrtcPtr   crtc = crtcs[c];
-	int	    crtc_width = 1600, crtc_height = 1200;
-
-	for (o = 0; o < num_outputs; o++) 
-	{
-	    RROutputPtr	output = outputs[o];
-
-	    for (s = 0; s < output->numCrtcs; s++)
-		if (output->crtcs[s] == crtc)
-		    break;
-	    if (s == output->numCrtcs)
-		continue;
-	    for (m = 0; m < output->numModes; m++)
-	    {
-		RRModePtr   mode = output->modes[m];
-		if (mode->mode.width > crtc_width)
-		    crtc_width = mode->mode.width;
-		if (mode->mode.height > crtc_width)
-		    crtc_height = mode->mode.height;
-	    }
-	}
-	width += crtc_width;
-	if (crtc_height > height)
-	    height = crtc_height;
-    }
-    *widthp = width;
-    *heightp = height;
-}
-
-#if 0
-Bool
-RADEONRandRPreInit(ScrnInfoPtr pScrn)
-{
-  RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-#if RANDR_12_INTERFACE
-  RROutputPtr outputs[RADEON_MAX_CONNECTOR];
-  RRCrtcPtr output_crtcs[RADEON_MAX_CONNECTOR];
-  RRModePtr output_modes[RADEON_MAX_CONNECTOR];
-  RRCrtcPtr crtcs[RADEON_MAX_CRTC];
-#endif
-  int conn, crtc;
-  int o,c;
-  int width, height;
-
-  RADEONProbeOutputModes(pScrn);
-
-#if RANDR_12_INTERFACE
-  if (!xf86RandRCreateObjects12(pScrn))
-    return FALSE;
-
-  if (!RADEONRandRSetInfo12(pScrn))
-    return FALSE;
-  
-#endif
-    
-  /*
-   * With RandR info set up, let RandR choose
-   * the initial configuration
-   */
-  for (o = 0; o < RADEON_MAX_CONNECTOR; o++)
-    outputs[o] = pRADEONEnt->pOutput[o]->randr_output;
-  for (c = 0; c < RADEON_MAX_CRTC; c++)
-    crtcs[c] = pRADEONEnt->pCrtc[c]->randr_crtc;
-  
-  if (!RADEONRRInitialConfiguration (outputs, output_crtcs, output_modes,
-				     RADEON_MAX_CONNECTOR))
-	return FALSE;
-    
-  RADEONRRDefaultScreenLimits (outputs, RADEON_MAX_CONNECTOR,
-			       crtcs, RADEON_MAX_CRTC,
-			       &width, &height);
-    
-    if (width > pScrn->virtualX)
-      pScrn->virtualX = width;
-    if (height > pScrn->virtualY)
-      pScrn->virtualY = height;
-    
-    for (o = 0; o < RADEON_MAX_CONNECTOR; o++)
-    {
-	RRModePtr	randr_mode = output_modes[o];
-	DisplayModePtr	mode;
-	RRCrtcPtr	randr_crtc = output_crtcs[o];
-	int		pipe;
-	Bool		enabled;
-
-	if (randr_mode)
-	    mode = (DisplayModePtr) randr_mode->devPrivate;
-	else
-	    mode = NULL;
-	if (randr_crtc)
-	{
-	    pipe = (int) randr_crtc->devPrivate;
-	    enabled = TRUE;
-	}
-	else
-	{
-	    pipe = 0;
-	    enabled = FALSE;
-	}
-	//	if (mode)
-	//	    pRADEON->pipes[pipe].desiredMode = *mode;
-	//	pRADEON->output[o].pipe = pipe;
-	    //	pRADEON->output[o].enabled = enabled;
-    }
-
-  RADEON_set_xf86_modes_from_outputs(pScrn);
-  RADEON_set_default_screen_size(pScrn);
-    
-  return TRUE;
-}
-#endif
 #endif
 
 Bool

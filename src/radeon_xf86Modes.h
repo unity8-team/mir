@@ -25,26 +25,39 @@
  *
  */
 
-double
-RADEONxf86ModeHSync(DisplayModePtr mode);
+#ifndef _RADEON_XF86MODES_H_
+#define _RADEON_XF86MODES_H_
+#include "xorgVersion.h"
+#include "xf86Parser.h"
 
-double
-RADEONxf86ModeVRefresh(DisplayModePtr mode);
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(7,2,99,2,0)
+double RADEON_xf86ModeHSync(DisplayModePtr mode);
+double RADEON_xf86ModeVRefresh(DisplayModePtr mode);
+DisplayModePtr RADEON_xf86DuplicateMode(DisplayModePtr pMode);
+DisplayModePtr RADEON_xf86DuplicateModes(ScrnInfoPtr pScrn,
+				       DisplayModePtr modeList);
+void RADEON_xf86SetModeDefaultName(DisplayModePtr mode);
+void RADEON_xf86SetModeCrtc(DisplayModePtr p, int adjustFlags);
+Bool RADEON_xf86ModesEqual(DisplayModePtr pMode1, DisplayModePtr pMode2);
+void RADEON_xf86PrintModeline(int scrnIndex,DisplayModePtr mode);
+DisplayModePtr RADEON_xf86ModesAdd(DisplayModePtr modes, DisplayModePtr new);
 
-DisplayModePtr
-RADEONxf86DuplicateMode(DisplayModePtr pMode);
+DisplayModePtr RADEON_xf86DDCGetModes(int scrnIndex, xf86MonPtr DDC);
+DisplayModePtr RADEON_xf86CVTMode(int HDisplay, int VDisplay, float VRefresh,
+				Bool Reduced, Bool Interlaced);
 
-DisplayModePtr
-RADEONxf86DuplicateModes(ScrnInfoPtr pScrn, DisplayModePtr modeList);
-
-void
-RADEONxf86SetModeDefaultName(DisplayModePtr mode);
-
-void
-RADEONxf86SetModeCrtc(DisplayModePtr p, int adjustFlags);
-
-Bool
-RADEONModesEqual(DisplayModePtr pMode1, DisplayModePtr pMode2);
+#define xf86ModeHSync RADEON_xf86ModeHSync
+#define xf86ModeVRefresh RADEON_xf86ModeVRefresh
+#define xf86DuplicateMode RADEON_xf86DuplicateMode
+#define xf86DuplicateModes RADEON_xf86DuplicateModes
+#define xf86SetModeDefaultName RADEON_xf86SetModeDefaultName
+#define xf86SetModeCrtc RADEON_xf86SetModeCrtc
+#define xf86ModesEqual RADEON_xf86ModesEqual
+#define xf86PrintModeline RADEON_xf86PrintModeline
+#define xf86ModesAdd RADEON_xf86ModesAdd
+#define xf86DDCGetModes RADEON_xf86DDCGetModes
+#define xf86CVTMode RADEON_xf86CVTMode
+#endif /* XORG_VERSION_CURRENT <= 7.2.99.2 */
 
 void
 RADEONxf86ValidateModesFlags(ScrnInfoPtr pScrn, DisplayModePtr modeList,
@@ -73,26 +86,10 @@ RADEONxf86ValidateModesFlags(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 void
 RADEONxf86ValidateModesUserConfig(ScrnInfoPtr pScrn, DisplayModePtr modeList);
 
-void
-PrintModeline(int scrnIndex,DisplayModePtr mode);
-
-extern DisplayModeRec RADEONxf86DefaultModes[];
-
-void
-RADEONPrintModes(ScrnInfoPtr scrp);
+DisplayModePtr
+RADEONxf86GetMonitorModes (ScrnInfoPtr pScrn, XF86ConfMonitorPtr conf_monitor);
 
 DisplayModePtr
-RADEONGetGTF(int h_pixels, int v_lines, float freq, int interlaced, int margins);
+RADEONxf86GetDefaultModes (Bool interlaceAllowed, Bool doubleScanAllowed);
 
-void
-RADEONxf86SortModes(DisplayModePtr new, DisplayModePtr *first,
-		    DisplayModePtr *last);
-
-DisplayModePtr
-RADEONGetVESAEstablishedMode(ScrnInfoPtr pScrn, int i);
-
-DisplayModePtr
-RADEONGetDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc);
-
-DisplayModePtr
-RADEONGetModeListTail(DisplayModePtr pModeList);
+#endif

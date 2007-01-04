@@ -3267,14 +3267,12 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     if (!xf86RandR12PreInit (pScrn))
     {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "RandR initialization failure\n");
-      PreInitCleanup(pScrn);
-      return FALSE;
+      goto fail;
     }	
     
     if (pScrn->modes == NULL) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes.\n");
-      PreInitCleanup(pScrn);
-      return FALSE;
+      goto fail;
    }
 
     /* Free the video bios (if applicable) */
@@ -4303,9 +4301,9 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     /* Rotation */
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
     xf86DisableRandR(); /* Disable built-in RandR extension */
-    /* support all rotations */
+
     xf86RandR12Init (pScreen);
-    xf86RandR12SetRotations (pScreen, RR_Rotate_0); /* only 0 degrees for I965G */
+    xf86RandR12SetRotations (pScreen, RR_Rotate_0);
 
     info->CreateScreenResources = pScreen->CreateScreenResources;
     pScreen->CreateScreenResources = RADEONCreateScreenResources;
