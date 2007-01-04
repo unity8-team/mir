@@ -351,9 +351,12 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 
     if (IS_I965G(pI830)) {
         OUTREG(dspbase, ((y * pScrn->displayWidth + x) * pI830->cpp));
+	(void) INREG(dspbase);
         OUTREG(dspsurf, Start);
+	(void) INREG(dspsurf);
     } else {
 	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+	(void) INREG(dspbase);
     }
 
     crtc->x = x;
@@ -532,6 +535,8 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	    /* Flush the plane changes */
 	    OUTREG(dspbase_reg, INREG(dspbase_reg));
 	}
+
+	i830_crtc_load_lut(crtc);
 
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
 	i830_crtc_dpms_video(crtc, TRUE);
@@ -715,10 +720,10 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	dpll |= PLL_REF_INPUT_DREFCLK;
 
     /* Set up the display plane register */
-    dspcntr = 0;
+    dspcntr = DISPPLANE_GAMMA_ENABLE;
     switch (pScrn->bitsPerPixel) {
     case 8:
-	dspcntr |= DISPPLANE_8BPP | DISPPLANE_GAMMA_ENABLE;
+	dspcntr |= DISPPLANE_8BPP;
 	break;
     case 16:
 	if (pScrn->depth == 15)
@@ -731,10 +736,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	break;
     default:
 	FatalError("unknown display bpp\n");
-    }
-
-    if (intel_crtc->gammaEnabled) {
- 	dspcntr |= DISPPLANE_GAMMA_ENABLE;
     }
 
     if (pipe == 0)
@@ -835,6 +836,48 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     i830PipeSetBase(crtc, crtc->x, crtc->y);
     
     i830WaitForVblank(pScrn);
+}
+
+
+/** Loads the palette/gamma unit for the CRTC with the prepared values */
+void
+i830_crtc_load_lut(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+    int palreg = (intel_crtc->pipe == 0) ? PALETTE_A : PALETTE_B;
+    int i;
+
+    /* The clocks have to be on to load the palette. */
+    if (!crtc->enabled)
+	return;
+
+    for (i = 0; i < 256; i++) {
+	OUTREG(palreg + 4 * i,
+	       (intel_crtc->lut_r[i] << 16) |
+	       (intel_crtc->lut_g[i] << 8) |
+	       intel_crtc->lut_b[i]);
+    }
+}
+
+/** Sets the color ramps on behalf of RandR */
+static void
+i830_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
+		    int size)
+{
+    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+    int i;
+
+    assert(size == 256);
+
+    for (i = 0; i < 256; i++) {
+	intel_crtc->lut_r[i] = red[i] >> 8;
+	intel_crtc->lut_g[i] = green[i] >> 8;
+	intel_crtc->lut_b[i] = blue[i] >> 8;
+    }
+
+    i830_crtc_load_lut(crtc);
 }
 
 /**
@@ -1144,6 +1187,7 @@ static const xf86CrtcFuncsRec i830_crtc_funcs = {
     .restore = NULL, /* XXX */
     .mode_fixup = i830_crtc_mode_fixup,
     .mode_set = i830_crtc_mode_set,
+    .gamma_set = i830_crtc_gamma_set,
     .destroy = NULL, /* XXX */
 };
 
@@ -1152,6 +1196,7 @@ i830_crtc_init(ScrnInfoPtr pScrn, int pipe)
 {
     xf86CrtcPtr crtc;
     I830CrtcPrivatePtr intel_crtc;
+    int i;
 
     crtc = xf86CrtcCreate (pScrn, &i830_crtc_funcs);
     if (crtc == NULL)
@@ -1160,6 +1205,12 @@ i830_crtc_init(ScrnInfoPtr pScrn, int pipe)
     intel_crtc = xnfcalloc (sizeof (I830CrtcPrivateRec), 1);
     intel_crtc->pipe = pipe;
 
+    /* Initialize the LUTs for when we turn on the CRTC. */
+    for (i = 0; i < 256; i++) {
+	intel_crtc->lut_r[i] = i;
+	intel_crtc->lut_g[i] = i;
+	intel_crtc->lut_b[i] = i;
+    }
     crtc->driver_private = intel_crtc;
 }
 

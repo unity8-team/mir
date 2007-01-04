@@ -95,7 +95,7 @@ xf86RandR12GetInfo (ScreenPtr pScreen, Rotation *rotations)
     }
 
     /* Re-probe the outputs for new monitors or modes */
-    xf86ProbeOutputModes (scrp);
+    xf86ProbeOutputModes (scrp, 0, 0);
     xf86SetScrnInfoModes (scrp);
     I830DGAReInit (pScreen);
 
@@ -663,9 +663,17 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 
 static Bool
 xf86RandR12CrtcSetGamma (ScreenPtr    pScreen,
-		       RRCrtcPtr    crtc)
+			 RRCrtcPtr    randr_crtc)
 {
-    return FALSE;
+    xf86CrtcPtr		crtc = randr_crtc->devPrivate;
+
+    if (crtc->funcs->gamma_set == NULL)
+	return FALSE;
+
+    crtc->funcs->gamma_set(crtc, randr_crtc->gammaRed, randr_crtc->gammaGreen,
+			   randr_crtc->gammaBlue, randr_crtc->gammaSize);
+
+    return TRUE;
 }
 
 /**
@@ -818,7 +826,7 @@ xf86RandR12GetInfo12 (ScreenPtr pScreen, Rotation *rotations)
 {
     ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
 
-    xf86ProbeOutputModes (pScrn);
+    xf86ProbeOutputModes (pScrn, 0, 0);
     xf86SetScrnInfoModes (pScrn);
     I830DGAReInit (pScreen);
     return xf86RandR12SetInfo12 (pScreen);

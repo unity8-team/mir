@@ -579,106 +579,67 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 		LOCO * colors, VisualPtr pVisual)
 {
    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-   I830Ptr pI830;
    int i,j, index;
-   unsigned char r, g, b;
-   CARD32 val, temp;
-   int palreg;
-   int dspreg, dspbase, dspsurf;
    int p;
+   CARD16 lut_r[256], lut_g[256], lut_b[256];
 
    DPRINTF(PFX, "I830LoadPalette: numColors: %d\n", numColors);
-   pI830 = I830PTR(pScrn);
 
-   for(p=0; p < xf86_config->num_crtc; p++) 
-   {
+   for(p = 0; p < xf86_config->num_crtc; p++) {
       xf86CrtcPtr	   crtc = xf86_config->crtc[p];
       I830CrtcPrivatePtr   intel_crtc = crtc->driver_private;
 
-      if (p == 0) {
-         palreg = PALETTE_A;
-         dspreg = DSPACNTR;
-         dspbase = DSPABASE;
-	 dspsurf = DSPASURF;
-      } else {
-         palreg = PALETTE_B;
-         dspreg = DSPBCNTR;
-         dspbase = DSPBBASE;
-	 dspsurf = DSPBSURF;
+      /* Initialize to the old lookup table values. */
+      for (i = 0; i < 256; i++) {
+	 lut_r[i] = intel_crtc->lut_r[i] << 8;
+	 lut_g[i] = intel_crtc->lut_g[i] << 8;
+	 lut_b[i] = intel_crtc->lut_b[i] << 8;
       }
-
-      if (crtc->enabled == 0)
-	 continue;  
-
-      intel_crtc->gammaEnabled = 1;
-      
-      /* To ensure gamma is enabled we need to turn off and on the plane */
-      temp = INREG(dspreg);
-      OUTREG(dspreg, temp & ~(1<<31));
-      OUTREG(dspbase, INREG(dspbase));
-      OUTREG(dspreg, temp | DISPPLANE_GAMMA_ENABLE);
-      OUTREG(dspbase, INREG(dspbase));
-      if (IS_I965G(pI830))
-	 OUTREG(dspsurf, INREG(dspsurf));
-
-      /* It seems that an initial read is needed. */
-      temp = INREG(palreg);
 
       switch(pScrn->depth) {
       case 15:
-        for (i = 0; i < numColors; i++) {
-         index = indices[i];
-         r = colors[index].red;
-         g = colors[index].green;
-         b = colors[index].blue;
-	 val = (r << 16) | (g << 8) | b;
-         for (j = 0; j < 8; j++) {
-	    OUTREG(palreg + index * 32 + (j * 4), val);
+	 for (i = 0; i < numColors; i++) {
+	    index = indices[i];
+	    for (j = 0; j < 8; j++) {
+	       lut_r[index * 8 + j] = colors[index].red << 8;
+	       lut_g[index * 8 + j] = colors[index].green << 8;
+	       lut_b[index * 8 + j] = colors[index].blue << 8;
+	    }
          }
-        }
-      break;
+	 break;
       case 16:
-        for (i = 0; i < numColors; i++) {
-         index = indices[i];
-	 r   = colors[index / 2].red;
-	 g   = colors[index].green;
-	 b   = colors[index / 2].blue;
+	 for (i = 0; i < numColors; i++) {
+	    index = indices[i];
 
-	 val = (r << 16) | (g << 8) | b;
-	 OUTREG(palreg + index * 16, val);
-	 OUTREG(palreg + index * 16 + 4, val);
-	 OUTREG(palreg + index * 16 + 8, val);
-	 OUTREG(palreg + index * 16 + 12, val);
+	    if (i <= 31) {
+	       for (j = 0; j < 8; j++) {
+		  lut_r[index * 8 + j] = colors[index].red << 8;
+		  lut_b[index * 8 + j] = colors[index].blue << 8;
+	       }
+	    }
 
-   	 if (index <= 31) {
-            r   = colors[index].red;
-	    g   = colors[(index * 2) + 1].green;
-	    b   = colors[index].blue;
-
-	    val = (r << 16) | (g << 8) | b;
-	    OUTREG(palreg + index * 32, val);
-	    OUTREG(palreg + index * 32 + 4, val);
-	    OUTREG(palreg + index * 32 + 8, val);
-	    OUTREG(palreg + index * 32 + 12, val);
-	 }
-        }
+	    for (j = 0; j < 4; j++) {
+	       lut_g[index * 4 + j] = colors[index].green << 8;
+	    }
+         }
         break;
       default:
-        for(i = 0; i < numColors; i++) {
-	 index = indices[i];
-	 r = colors[index].red;
-	 g = colors[index].green;
-	 b = colors[index].blue;
-	 val = (r << 16) | (g << 8) | b;
-	 OUTREG(palreg + index * 4, val);
-        }
-        break;
-     }
+	 for (i = 0; i < numColors; i++) {
+	    index = indices[i];
+	    lut_r[index] = colors[index].red << 8;
+	    lut_g[index] = colors[index].green << 8;
+	    lut_b[index] = colors[index].blue << 8;
+	 }
+	 break;
+      }
+
+      /* Make the change through RandR */
+#ifdef RANDR_12_INTERFACE
+      RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
+#else
+      crtc->funcs->gamma_set(crtc, lut_r, lut_g, lut_b, 256);
+#endif
    }
-   
-   /* Enable gamma for Cursor if ARGB */
-   if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn)
-      pI830->CursorInfoRec->ShowCursor(pScrn);
 }
 
 int
@@ -912,7 +873,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    Bool enable;
    const char *chipname;
    int num_pipe;
-   int max_width;
+   int max_width, max_height;
 #ifdef XF86DRI
    unsigned long savedMMSize;
 #endif
@@ -1183,10 +1144,16 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    
    if (IS_I965G(pI830))
+   {
       max_width = 16384;
+      max_height = 4096;
+   }
    else
-      max_width = 8192 / pI830->cpp;
-   xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, 2048);
+   {
+      max_width = 2048;
+      max_height = 2048;
+   }
+   xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, max_height);
 
    /* Some of the probing needs MMIO access, so map it here. */
    I830MapMMIO(pScrn);
@@ -1830,14 +1797,14 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	      pI830->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
 	      "VideoRam: %d KB\n", pScrn->videoRam);
 
-   if (!IS_I965G(pI830) && pScrn->displayWidth * pI830->cpp > 8192) {
+   if (!IS_I965G(pI830) && pScrn->displayWidth > 2048) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Cannot support DRI with frame buffer stride > 8K.\n");
+		 "Cannot support DRI with frame buffer width > 2048.\n");
       pI830->disableTiling = TRUE;
       pI830->directRenderingDisabled = TRUE;
    }
 
-   if (pScrn->virtualY > 2048) {
+   if (!IS_I965G(pI830) && pScrn->virtualY > 2048) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support > 2048 vertical lines. disabling acceleration.\n");
       pI830->noAccel = TRUE;
    }
@@ -3047,7 +3014,8 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
-   xf86CrtcPtr	crtc = config->output[config->compat_output]->crtc;
+   xf86OutputPtr  output = config->output[config->compat_output];
+   xf86CrtcPtr	crtc = output->crtc;
 
    DPRINTF(PFX, "i830AdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
 	   x, pI830->xoffset, y, pI830->yoffset);
@@ -3059,7 +3027,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 	 (*pI830->AccelInfoRec->Sync)(pScrn);
 	 pI830->AccelInfoRec->NeedToSync = FALSE;
       }
-      i830PipeSetBase(crtc, x, y);
+      i830PipeSetBase(crtc, output->initial_x + x, output->initial_y + y);
    }
 }
 
@@ -3596,7 +3564,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
        * is this.
        */
       
-      xf86ProbeOutputModes (pScrn);
+      xf86ProbeOutputModes (pScrn, 0, 0);
       xf86SetScrnInfoModes (pScrn);
       I830DGAReInit (pScrn->pScreen);
       xf86SwitchMode(pScrn->pScreen, pScrn->currentMode);

@@ -130,9 +130,7 @@ I830SetPipeCursor (xf86CrtcPtr crtc, Bool force)
 	    temp = INREG(cursor_control);
 	    temp &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
 	    if (pI830->CursorIsARGB) {
-		temp |= CURSOR_MODE_64_ARGB_AX;
-		if (intel_crtc->gammaEnabled)
-		    temp |= MCURSOR_GAMMA_ENABLE;
+		temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
 	    } else
 		temp |= CURSOR_MODE_64_4C_AX;
 	    
@@ -144,9 +142,7 @@ I830SetPipeCursor (xf86CrtcPtr crtc, Bool force)
 	    temp &= ~(CURSOR_FORMAT_MASK);
 	    temp |= CURSOR_ENABLE;
 	    if (pI830->CursorIsARGB) {
-		temp |= CURSOR_FORMAT_ARGB;
-		if (intel_crtc->gammaEnabled)
-		    temp |= CURSOR_GAMMA_ENABLE;
+		temp |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
 	    } else
 		temp |= CURSOR_FORMAT_3C;
 	    OUTREG(CURSOR_CONTROL, temp);
