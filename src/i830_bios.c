@@ -29,28 +29,29 @@
 #undef VERSION	/* XXX edid.h has a VERSION too */
 #endif
 
+#include <stdio.h>
+#include <string.h>
+
 #define _PARSE_EDID_
 #include "xf86.h"
-#include "xf86_ansic.h"
 #include "i830.h"
 #include "i830_bios.h"
 #include "edid.h"
 
-#define INTEL_BIOS_8(_addr)	(pI830->VBIOS[_addr])
-#define INTEL_BIOS_16(_addr)	(pI830->VBIOS[_addr] | \
-				 (pI830->VBIOS[_addr + 1] << 8))
-#define INTEL_BIOS_32(_addr)	(pI830->VBIOS[_addr] | \
-				 (pI830->VBIOS[_addr + 1] << 8) \
-				 (pI830->VBIOS[_addr + 2] << 16) \
-				 (pI830->VBIOS[_addr + 3] << 24))
+#define INTEL_BIOS_8(_addr)	(bios[_addr])
+#define INTEL_BIOS_16(_addr)	(bios[_addr] | \
+				 (bios[_addr + 1] << 8))
+#define INTEL_BIOS_32(_addr)	(bios[_addr] | \
+				 (bios[_addr + 1] << 8) \
+				 (bios[_addr + 2] << 16) \
+				 (bios[_addr + 3] << 24))
 
 /* XXX */
 #define INTEL_VBIOS_SIZE (64 * 1024)
 
 static void
-i830DumpBIOSToFile(ScrnInfoPtr pScrn)
+i830DumpBIOSToFile(ScrnInfoPtr pScrn, unsigned char *bios)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
     const char *filename = "/tmp/xf86-video-intel-VBIOS";
     FILE *f;
 
@@ -59,7 +60,7 @@ i830DumpBIOSToFile(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Couldn't open %s\n", filename);
 	return;
     }
-    if (fwrite(pI830->VBIOS, INTEL_VBIOS_SIZE, 1, f) != 1) {
+    if (fwrite(bios, INTEL_VBIOS_SIZE, 1, f) != 1) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Couldn't write BIOS data\n");
     }
 
@@ -76,48 +77,49 @@ i830DumpBIOSToFile(ScrnInfoPtr pScrn)
  * feed an updated VBT back through that, compared to what we'll fetch using
  * this method of groping around in the BIOS data.
  */
-static Bool
+static unsigned char *
 i830GetBIOS(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct vbt_header *vbt;
     int vbt_off;
+    unsigned char *bios;
+    vbeInfoPtr	pVbe;
 
-    if (pI830->VBIOS != NULL)
-	return TRUE;
+    bios = xalloc(INTEL_VBIOS_SIZE);
+    if (bios == NULL)
+	return NULL;
 
-    pI830->VBIOS = xalloc(INTEL_VBIOS_SIZE);
-    if (pI830->VBIOS == NULL)
-	return FALSE;
-
-    if (pI830->pVbe != NULL) {
-	memcpy(pI830->VBIOS, xf86int10Addr(pI830->pVbe->pInt10,
-					   pI830->pVbe->pInt10->BIOSseg << 4),
+    pVbe = VBEInit (NULL, pI830->pEnt->index);
+    if (pVbe != NULL) {
+	memcpy(bios, xf86int10Addr(pVbe->pInt10,
+				   pVbe->pInt10->BIOSseg << 4),
 	       INTEL_VBIOS_SIZE);
+	vbeFree (pVbe);
     } else {
-	xf86ReadPciBIOS(0, pI830->PciTag, 0, pI830->VBIOS, INTEL_VBIOS_SIZE);
+	xf86ReadPciBIOS(0, pI830->PciTag, 0, bios, INTEL_VBIOS_SIZE);
     }
 
     if (0)
-	i830DumpBIOSToFile(pScrn);
+	i830DumpBIOSToFile(pScrn, bios);
 
     vbt_off = INTEL_BIOS_16(0x1a);
     if (vbt_off >= INTEL_VBIOS_SIZE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad VBT offset: 0x%x\n",
 		   vbt_off);
-	xfree(pI830->VBIOS);
-	return FALSE;
+	xfree(bios);
+	return NULL;
     }
 
-    vbt = (struct vbt_header *)(pI830->VBIOS + vbt_off);
+    vbt = (struct vbt_header *)(bios + vbt_off);
 
     if (memcmp(vbt->signature, "$VBT", 4) != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad VBT signature\n");
-	xfree(pI830->VBIOS);
-	return FALSE;
+	xfree(bios);
+	return NULL;
     }
 
-    return TRUE;
+    return bios;
 }
 
 Bool
@@ -128,18 +130,22 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
     struct bdb_header *bdb;
     int vbt_off, bdb_off, bdb_block_off, block_size;
     int panel_type = -1;
+    unsigned char *bios;
     Bool found_panel_info = FALSE;
 
-    if (!i830GetBIOS(pScrn))
+    bios = i830GetBIOS(pScrn);
+
+    if (bios == NULL)
 	return FALSE;
 
     vbt_off = INTEL_BIOS_16(0x1a);
-    vbt = (struct vbt_header *)(pI830->VBIOS + vbt_off);
+    vbt = (struct vbt_header *)(bios + vbt_off);
     bdb_off = vbt_off + vbt->bdb_offset;
-    bdb = (struct bdb_header *)(pI830->VBIOS + bdb_off);
+    bdb = (struct bdb_header *)(bios + bdb_off);
 
     if (memcmp(bdb->signature, "BIOS_DATA_BLOCK ", 16) != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad BDB signature\n");
+	xfree(bios);
 	return FALSE;
     }
 
@@ -152,6 +158,7 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 	struct lvds_bdb_2 *lvds2;
 	struct lvds_bdb_2_fp_params *fpparam;
 	struct lvds_bdb_2_fp_edid_dtd *fptiming;
+	DisplayModePtr fixed_mode;
 	CARD8 *timing_ptr;
 
 	id = INTEL_BIOS_8(start);
@@ -159,7 +166,7 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found BDB block type %d\n", id);
 	switch (id) {
 	case 40:
-	    lvds1 = (struct lvds_bdb_1 *)(pI830->VBIOS + start);
+	    lvds1 = (struct lvds_bdb_1 *)(bios + start);
 	    panel_type = lvds1->panel_type;
 	    if (lvds1->caps & LVDS_CAP_DITHER)
 		pI830->panel_wants_dither = TRUE;
@@ -168,53 +175,65 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 	    if (panel_type == -1)
 		break;
 
-	    lvds2 = (struct lvds_bdb_2 *)(pI830->VBIOS + start);
-	    fpparam = (struct lvds_bdb_2_fp_params *)(pI830->VBIOS +
+	    lvds2 = (struct lvds_bdb_2 *)(bios + start);
+	    fpparam = (struct lvds_bdb_2_fp_params *)(bios +
 		bdb_off + lvds2->panels[panel_type].fp_params_offset);
-	    fptiming = (struct lvds_bdb_2_fp_edid_dtd *)(pI830->VBIOS +
+	    fptiming = (struct lvds_bdb_2_fp_edid_dtd *)(bios +
 		bdb_off + lvds2->panels[panel_type].fp_edid_dtd_offset);
-	    timing_ptr = pI830->VBIOS + bdb_off +
+	    timing_ptr = bios + bdb_off +
 	        lvds2->panels[panel_type].fp_edid_dtd_offset;
 
 	    if (fpparam->terminator != 0xffff) {
 		/* Apparently the offsets are wrong for some BIOSes, so we
 		 * try the other offsets if we find a bad terminator.
 		 */
-		fpparam = (struct lvds_bdb_2_fp_params *)(pI830->VBIOS +
+		fpparam = (struct lvds_bdb_2_fp_params *)(bios +
 		    bdb_off + lvds2->panels[panel_type].fp_params_offset + 8);
-		fptiming = (struct lvds_bdb_2_fp_edid_dtd *)(pI830->VBIOS +
+		fptiming = (struct lvds_bdb_2_fp_edid_dtd *)(bios +
 		    bdb_off + lvds2->panels[panel_type].fp_edid_dtd_offset + 8);
-		timing_ptr = pI830->VBIOS + bdb_off +
+		timing_ptr = bios + bdb_off +
 	            lvds2->panels[panel_type].fp_edid_dtd_offset + 8;
 
 		if (fpparam->terminator != 0xffff)
 		    continue;
 	    }
 
-	    pI830->PanelXRes = fpparam->x_res;
-	    pI830->PanelYRes = fpparam->y_res;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Found panel of size %dx%d in BIOS VBT tables\n",
-		       pI830->PanelXRes, pI830->PanelYRes);
+	    fixed_mode = xnfalloc(sizeof(DisplayModeRec));
+	    memset(fixed_mode, 0, sizeof(*fixed_mode));
 
 	    /* Since lvds_bdb_2_fp_edid_dtd is just an EDID detailed timing
 	     * block, pull the contents out using EDID macros.
 	     */
-	    pI830->panel_fixed_clock = _PIXEL_CLOCK(timing_ptr) / 1000;
-	    pI830->panel_fixed_hactive = _H_ACTIVE(timing_ptr);
-	    pI830->panel_fixed_hblank = _H_BLANK(timing_ptr);
-	    pI830->panel_fixed_hsyncoff = _H_SYNC_OFF(timing_ptr);
-	    pI830->panel_fixed_hsyncwidth = _H_SYNC_WIDTH(timing_ptr);
+	    fixed_mode->HDisplay   = _H_ACTIVE(timing_ptr);
+	    fixed_mode->VDisplay   = _V_ACTIVE(timing_ptr);
+	    fixed_mode->HSyncStart = fixed_mode->HDisplay +
+		_H_SYNC_OFF(timing_ptr);
+	    fixed_mode->HSyncEnd   = fixed_mode->HSyncStart +
+		_H_SYNC_WIDTH(timing_ptr);
+	    fixed_mode->HTotal     = fixed_mode->HDisplay +
+	        _H_BLANK(timing_ptr);
+	    fixed_mode->VSyncStart = fixed_mode->VDisplay +
+		_V_SYNC_OFF(timing_ptr);
+	    fixed_mode->VSyncEnd   = fixed_mode->VSyncStart +
+		_V_SYNC_WIDTH(timing_ptr);
+	    fixed_mode->VTotal     = fixed_mode->VDisplay +
+	        _V_BLANK(timing_ptr);
+	    fixed_mode->Clock      = _PIXEL_CLOCK(timing_ptr) / 1000;
+	    fixed_mode->type       = M_T_PREFERRED;
 
-	    pI830->panel_fixed_vactive = _V_ACTIVE(timing_ptr);
-	    pI830->panel_fixed_vblank = _V_BLANK(timing_ptr);
-	    pI830->panel_fixed_vsyncoff = _V_SYNC_OFF(timing_ptr);
-	    pI830->panel_fixed_vsyncwidth = _V_SYNC_WIDTH(timing_ptr);
+	    xf86SetModeDefaultName(fixed_mode);
+
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Found panel mode in BIOS VBT tables:\n");
+	    xf86PrintModeline(pScrn->scrnIndex, fixed_mode);
+
+	    pI830->panel_fixed_mode = fixed_mode;
 
 	    found_panel_info = TRUE;
 	    break;
 	}
     }
 
+    xfree(bios);
     return found_panel_info;
 }

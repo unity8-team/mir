@@ -26,21 +26,24 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"
 #include "compiler.h"
 #include "miscstruct.h"
 #include "xf86i2c.h"
+#include "i830_xf86Crtc.h"
+#define DPMS_SERVER
+#include <X11/extensions/dpms.h>
 
 #include "../i2c_vid.h"
 #include "sil164.h"
 #include "sil164_reg.h"
-
-static void
-sil164PrintRegs(I2CDevPtr d);
-static void
-sil164Power(I2CDevPtr d, Bool On);
 
 static Bool
 sil164ReadByte(SIL164Ptr sil, int addr, CARD8 *ch)
@@ -68,7 +71,7 @@ sil164WriteByte(SIL164Ptr sil, int addr, CARD8 ch)
 
 /* Silicon Image 164 driver for chip on i2c bus */
 static void *
-sil164Detect(I2CBusPtr b, I2CSlaveAddr addr)
+sil164_init(I2CBusPtr b, I2CSlaveAddr addr)
 {
     /* this will detect the SIL164 chip on the specified i2c bus */
     SIL164Ptr sil;
@@ -120,26 +123,33 @@ out:
     return NULL;
 }
 
-
-static Bool
-sil164Init(I2CDevPtr d)
+static xf86OutputStatus
+sil164_detect(I2CDevPtr d)
 {
-    /* not much to do */
-    return TRUE;
+    SIL164Ptr sil = SILPTR(d);
+    CARD8 reg9;
+
+    sil164ReadByte(sil, SIL164_REG9, &reg9);
+
+    if (reg9 & SIL164_9_HTPLG)
+	return XF86OutputStatusConnected;
+    else
+	return XF86OutputStatusDisconnected;
 }
 
 static ModeStatus
-sil164ModeValid(I2CDevPtr d, DisplayModePtr mode)
+sil164_mode_valid(I2CDevPtr d, DisplayModePtr mode)
 {
     return MODE_OK;
 }
 
 static void
-sil164Mode(I2CDevPtr d, DisplayModePtr mode)
+sil164_mode_set(I2CDevPtr d, DisplayModePtr mode)
 {
-    sil164Power(d, TRUE);
-    sil164PrintRegs(d);
-
+    /* As long as the basics are set up, since we don't have clock dependencies
+     * in the mode setup, we can just leave the registers alone and everything
+     * will work fine.
+     */
     /* recommended programming sequence from doc */
     /*sil164WriteByte(sil, 0x08, 0x30);
       sil164WriteByte(sil, 0x09, 0x00);
@@ -152,7 +162,7 @@ sil164Mode(I2CDevPtr d, DisplayModePtr mode)
 
 /* set the SIL164 power state */
 static void
-sil164Power(I2CDevPtr d, Bool On)
+sil164_dpms(I2CDevPtr d, int mode)
 {
     SIL164Ptr sil = SILPTR(d);
     int ret;
@@ -162,7 +172,7 @@ sil164Power(I2CDevPtr d, Bool On)
     if (ret == FALSE)
 	return;
 
-    if (On)
+    if (mode == DPMSModeOn)
 	ch |= SIL164_8_PD;
     else
 	ch &= ~SIL164_8_PD;
@@ -173,7 +183,7 @@ sil164Power(I2CDevPtr d, Bool On)
 }
 
 static void
-sil164PrintRegs(I2CDevPtr d)
+sil164_dump_regs(I2CDevPtr d)
 {
     SIL164Ptr sil = SILPTR(d);
     CARD8 val;
@@ -193,7 +203,7 @@ sil164PrintRegs(I2CDevPtr d)
 }
 
 static void
-sil164SaveRegs(I2CDevPtr d)
+sil164_save(I2CDevPtr d)
 {
     SIL164Ptr sil = SILPTR(d);
 
@@ -210,7 +220,7 @@ sil164SaveRegs(I2CDevPtr d)
 }
 
 static void
-sil164RestoreRegs(I2CDevPtr d)
+sil164_restore(I2CDevPtr d)
 {
     SIL164Ptr sil = SILPTR(d);
 
@@ -224,12 +234,12 @@ sil164RestoreRegs(I2CDevPtr d)
 
 
 I830I2CVidOutputRec SIL164VidOutput = {
-    sil164Detect,
-    sil164Init,
-    sil164ModeValid,
-    sil164Mode,
-    sil164Power,
-    sil164PrintRegs,
-    sil164SaveRegs,
-    sil164RestoreRegs,
+    .init = sil164_init,
+    .detect = sil164_detect,
+    .mode_valid = sil164_mode_valid,
+    .mode_set = sil164_mode_set,
+    .dpms = sil164_dpms,
+    .dump_regs = sil164_dump_regs,
+    .save = sil164_save,
+    .restore = sil164_restore,
 };
