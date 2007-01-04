@@ -31,7 +31,7 @@
 #endif
 
 #define RADEONCTRACE(x)
-/* #define RADEONCTRACE(x) RADEONTRACE(x)  */
+/*#define RADEONCTRACE(x) RADEONTRACE(x) */
 
 /*
  * Authors:
@@ -104,6 +104,42 @@ static CARD32 mono_cursor_color[] = {
 
 #endif
 
+static void
+RADEONCrtcCursor(xf86CrtcPtr crtc,  Bool force)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    int crtc_id = radeon_crtc->crtc_id;
+    RADEONInfoPtr      info       = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    Bool		show;
+    unsigned char     *RADEONMMIO = info->MMIO;
+    CARD32 save1 = 0, save2 = 0;
+    if (!crtc->enabled)
+	return;
+
+    
+    show = crtc->cursorInRange;
+    if (show && (force || !crtc->cursorShown))
+    {
+	if (crtc_id == 0) 
+	    OUTREGP(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_CUR_EN,
+		    ~RADEON_CRTC_CUR_EN);
+	else if (crtc_id == 1)
+	    OUTREGP(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_CUR_EN,
+		    ~RADEON_CRTC2_CUR_EN);
+	crtc->cursorShown = TRUE;
+    } else if (!show && (force || crtc->cursorShown)) {
+
+	if (crtc_id == 0)
+	    OUTREGP(RADEON_CRTC_GEN_CNTL, 0, ~RADEON_CRTC_CUR_EN);
+	else if (crtc_id == 1)
+	    OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~RADEON_CRTC2_CUR_EN);
+
+	crtc->cursorShown = FALSE;
+    }
+    
+}    
 
 /* Set cursor foreground and background colors */
 static void RADEONSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
@@ -143,6 +179,92 @@ static void RADEONSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
     info->cursor_bg = bg;
 }
 
+static void
+RADEONRandrSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
+{
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONInfoPtr      info       = RADEONPTR(pScrn);
+    unsigned char     *RADEONMMIO = info->MMIO;
+    xf86CursorInfoPtr  cursor     = info->cursor;
+    Bool inrange;
+    int temp;
+    int oldx = x, oldy = y;
+    int hotspotx = 0, hotspoty = 0;
+    int c;
+    int xorigin, yorigin;
+    int		       stride     = 256;
+
+    oldx += pScrn->frameX0; /* undo what xf86HWCurs did */
+    oldy += pScrn->frameY0;
+
+    x = oldx;
+    y = oldy;
+
+    for (c = 0 ; c < xf86_config->num_crtc; c++) {
+	xf86CrtcPtr crtc = xf86_config->crtc[c];
+	DisplayModePtr mode = &crtc->curMode;
+	int thisx = x - crtc->x;
+	int thisy = y - crtc->y;
+	
+	if (!crtc->enabled)
+	    continue;
+
+	/*
+	 * There is a screen display problem when the cursor position is set
+	 * wholely outside of the viewport.  We trap that here, turning the
+	 * cursor off when that happens, and back on when it comes back into
+	 * the viewport.
+	 */
+	inrange = TRUE;
+	if (thisx >= mode->HDisplay ||
+	    thisy >= mode->VDisplay ||
+	    thisx <= -cursor->MaxWidth || thisy <= -cursor->MaxHeight) 
+	{
+	    inrange = FALSE;
+	    thisx = 0;
+	    thisy = 0;
+	}
+
+	temp = 0;
+	xorigin = 0;
+	yorigin = 0;
+	if (thisx < 0) xorigin = -thisx+1;
+	if (thisy < 0) yorigin = -thisy+1;
+	if (xorigin >= cursor->MaxWidth) xorigin = cursor->MaxWidth - 1;
+	if (yorigin >= cursor->MaxHeight) yorigin = cursor->MaxHeight - 1;
+
+	temp |= (xorigin ? 0 : thisx) << 16;
+	temp |= (yorigin ? 0 : thisy);
+
+	if (c == 0) {
+	    OUTREG(RADEON_CUR_HORZ_VERT_OFF,  (RADEON_CUR_LOCK
+					       | (xorigin << 16)
+					       | yorigin));
+	    OUTREG(RADEON_CUR_HORZ_VERT_POSN, (RADEON_CUR_LOCK |
+					       temp));
+	    RADEONCTRACE(("cursor_offset: 0x%x, yorigin: %d, stride: %d, temp %08X\n",
+			  info->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
+	    OUTREG(RADEON_CUR_OFFSET,
+		   info->cursor_offset + pScrn->fbOffset + yorigin * stride);
+	}
+	if (c == 1) {
+	    OUTREG(RADEON_CUR2_HORZ_VERT_OFF,  (RADEON_CUR2_LOCK
+						| (xorigin << 16)
+						| yorigin));
+	    OUTREG(RADEON_CUR2_HORZ_VERT_POSN, (RADEON_CUR2_LOCK |
+						temp));
+	    RADEONCTRACE(("cursor_offset2: 0x%x, yorigin: %d, stride: %d, temp %08X\n",
+			  info->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
+	    OUTREG(RADEON_CUR2_OFFSET,
+		   info->cursor_offset + pScrn->fbOffset + yorigin * stride);
+	}
+	crtc->cursorInRange = inrange;
+
+	RADEONCrtcCursor(crtc, FALSE);
+    }
+
+
+}
 
 /* Set cursor position to (x,y) with offset into cursor bitmap at
  * (xorigin,yorigin)
@@ -165,6 +287,8 @@ static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 
     RADEONCTRACE(("RADEONSetCursorPosition\n"));
 
+    
+#if 0
     if (x < 0)                        xorigin = -x+1;
     if (y < 0)                        yorigin = -y+1;
     if (y > total_y)                  y       = total_y;
@@ -182,7 +306,7 @@ static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 	RADEONCTRACE(("cursor_offset: 0x%x, yorigin: %d, stride: %d\n",
 		     info->cursor_offset + pScrn->fbOffset, yorigin, stride));
 	OUTREG(RADEON_CUR_OFFSET,
-		info->cursor_offset + pScrn->fbOffset + yorigin * stride);
+	       info->cursor_offset + pScrn->fbOffset + yorigin * stride);
     } else {
 	OUTREG(RADEON_CUR2_HORZ_VERT_OFF,  (RADEON_CUR2_LOCK
 					    | (xorigin << 16)
@@ -193,7 +317,7 @@ static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 	OUTREG(RADEON_CUR2_OFFSET,
 	       info->cursor_offset + pScrn->fbOffset + yorigin * stride);
     }
-
+#endif
 }
 
 /* Copy cursor image from `image' to video memory.  RADEONSetCursorPosition
@@ -203,6 +327,7 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     CARD8         *s          = (CARD8 *)(pointer)image;
     CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
     CARD32         save1      = 0;
@@ -216,9 +341,15 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
 	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
 	save1 |= (CARD32) (2 << 20);
 	OUTREG(RADEON_CRTC_GEN_CNTL, save1 & (CARD32)~RADEON_CRTC_CUR_EN);
+
+	if (pRADEONEnt->HasCRTC2) {
+	    save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
+	    save2 |= (CARD32) (2 << 20);
+	    OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
+	}
     }
 
-    if (info->IsSecondary || info->MergedFB) {
+    if (info->IsSecondary) {
 	save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
 	save2 |= (CARD32) (2 << 20);
 	OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
@@ -311,6 +442,7 @@ static Bool RADEONUseHWCursorARGB (ScreenPtr pScreen, CursorPtr pCurs)
 static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
     int            x, y, w, h;
@@ -325,9 +457,15 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
 	save1 |= (CARD32) (2 << 20);
 	OUTREG(RADEON_CRTC_GEN_CNTL, save1 & (CARD32)~RADEON_CRTC_CUR_EN);
+
+	if (pRADEONEnt->HasCRTC2) {
+	    save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
+	    save2 |= (CARD32) (2 << 20);
+	    OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
+	}
     }
 
-    if (info->IsSecondary || info->MergedFB) {
+    if (info->IsSecondary) {
 	save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
 	save2 |= (CARD32) (2 << 20);
 	OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
@@ -401,7 +539,7 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 				 | HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_1);
 
     cursor->SetCursorColors   = RADEONSetCursorColors;
-    cursor->SetCursorPosition = RADEONSetCursorPosition;
+    cursor->SetCursorPosition = RADEONRandrSetCursorPosition;
     cursor->LoadCursorImage   = RADEONLoadCursorImage;
     cursor->HideCursor        = RADEONHideCursor;
     cursor->ShowCursor        = RADEONShowCursor;
