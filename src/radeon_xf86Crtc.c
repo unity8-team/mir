@@ -839,7 +839,7 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn, int maxX, int maxY)
 		mon_rec.nVrefresh++;
 		sync_source = sync_config;
 	    }
-	    config_modes = i830xf86GetMonitorModes (pScrn, conf_monitor);
+	    config_modes = RADEONxf86GetMonitorModes (pScrn, conf_monitor);
 	}
 	
 	output_modes = (*output->funcs->get_modes) (output);
