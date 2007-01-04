@@ -2465,15 +2465,15 @@ radeon_detect(xf86OutputPtr output)
     ScrnInfoPtr	    pScrn = output->scrn;
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-#if 0
+
     //    RADEONConnectorFindMonitor(pScrn, id);
-    if (pRADEONEnt->PortInfo[id].MonType == MT_UNKNOWN)
+    if (radeon_output->MonType == MT_UNKNOWN)
 	return XF86OutputStatusUnknown;
-    else if (pRADEONEnt->PortInfo[id].MonType == MT_NONE)
+    else if (radeon_output->MonType == MT_NONE)
 	return XF86OutputStatusDisconnected;
     else
 	return XF86OutputStatusConnected;
-#endif
+
 }
 
 static DisplayModePtr

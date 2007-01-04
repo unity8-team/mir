@@ -449,7 +449,7 @@ RADEONCreateScreenResources (ScreenPtr pScreen)
    if (!(*pScreen->CreateScreenResources)(pScreen))
       return FALSE;
 
-   if (!RADEONRandRCreateScreenResources(pScreen))
+   if (!xf86RandR12CreateScreenResources(pScreen))
       return FALSE;
 
   return TRUE;
@@ -2850,12 +2850,13 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
 
     RADEONGetBIOSInfo(pScrn, pInt10);
 
+    RADEONSetupConnectors(pScrn);
+
     if (!info->IsSecondary) {
       if (!RADEONAllocateConnectors(pScrn))
 	return FALSE;
     }
 
-    RADEONSetupConnectors(pScrn);
     RADEONMapControllers(pScrn);
 
     RADEONGetClockInfo(pScrn);
@@ -3220,7 +3221,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     info->directRenderingEnabled = RADEONPreInitDRI(pScrn);
 #endif
 
-    xf86CrtcSetSizeRange (pScrn, 320, 200, 16384, 2048);
+    xf86CrtcSetSizeRange (pScrn, 320, 200, 2048, 2048);
     if (!RADEONPreInitVRAM(pScrn))
 	goto fail;
 
