@@ -68,6 +68,9 @@ extern void
 I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		int dstX, int dstY, int width, int height);
 
+static void I965GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format, 
+			     CARD32 *sblend, CARD32 *dblend);
+
 extern float scale_units[2][2];
 extern Bool is_transform[2];
 extern PictTransform *transform[2];
@@ -90,31 +93,31 @@ struct formatinfo {
 /* defined in brw_defines.h */
 static struct blendinfo I965BlendOp[] = { 
     /* Clear */
-    {0, 0, BRW_BLENDFACT_ZERO,          BRW_BLENDFACT_ZERO},
+    {0, 0, BRW_BLENDFACTOR_ZERO,          BRW_BLENDFACTOR_ZERO},
     /* Src */
-    {0, 0, BRW_BLENDFACT_ONE,           BRW_BLENDFACT_ZERO},
+    {0, 0, BRW_BLENDFACTOR_ONE,           BRW_BLENDFACTOR_ZERO},
     /* Dst */
-    {0, 0, BRW_BLENDFACT_ZERO,          BRW_BLENDFACT_ONE},
+    {0, 0, BRW_BLENDFACTOR_ZERO,          BRW_BLENDFACTOR_ONE},
     /* Over */
-    {0, 1, BRW_BLENDFACT_ONE,           BRW_BLENDFACT_INV_SRC_ALPHA},
+    {0, 1, BRW_BLENDFACTOR_ONE,           BRW_BLENDFACTOR_INV_SRC_ALPHA},
     /* OverReverse */
-    {1, 0, BRW_BLENDFACT_INV_DST_ALPHA, BRW_BLENDFACT_ONE},
+    {1, 0, BRW_BLENDFACTOR_INV_DST_ALPHA, BRW_BLENDFACTOR_ONE},
     /* In */
-    {1, 0, BRW_BLENDFACT_DST_ALPHA,     BRW_BLENDFACT_ZERO},
+    {1, 0, BRW_BLENDFACTOR_DST_ALPHA,     BRW_BLENDFACTOR_ZERO},
     /* InReverse */
-    {0, 1, BRW_BLENDFACT_ZERO,          BRW_BLENDFACT_SRC_ALPHA},
+    {0, 1, BRW_BLENDFACTOR_ZERO,          BRW_BLENDFACTOR_SRC_ALPHA},
     /* Out */
-    {1, 0, BRW_BLENDFACT_INV_DST_ALPHA, BRW_BLENDFACT_ZERO},
+    {1, 0, BRW_BLENDFACTOR_INV_DST_ALPHA, BRW_BLENDFACTOR_ZERO},
     /* OutReverse */
-    {0, 1, BRW_BLENDFACT_ZERO,          BRW_BLENDFACT_INV_SRC_ALPHA},
+    {0, 1, BRW_BLENDFACTOR_ZERO,          BRW_BLENDFACTOR_INV_SRC_ALPHA},
     /* Atop */
-    {1, 1, BRW_BLENDFACT_DST_ALPHA,     BRW_BLENDFACT_INV_SRC_ALPHA},
+    {1, 1, BRW_BLENDFACTOR_DST_ALPHA,     BRW_BLENDFACTOR_INV_SRC_ALPHA},
     /* AtopReverse */
-    {1, 1, BRW_BLENDFACT_INV_DST_ALPHA, BRW_BLENDFACT_SRC_ALPHA},
+    {1, 1, BRW_BLENDFACTOR_INV_DST_ALPHA, BRW_BLENDFACTOR_SRC_ALPHA},
     /* Xor */
-    {1, 1, BRW_BLENDFACT_INV_DST_ALPHA, BRW_BLENDFACT_INV_SRC_ALPHA},
+    {1, 1, BRW_BLENDFACTOR_INV_DST_ALPHA, BRW_BLENDFACTOR_INV_SRC_ALPHA},
     /* Add */
-    {0, 0, BRW_BLENDFACT_ONE,           BRW_BLENDFACT_ONE},
+    {0, 0, BRW_BLENDFACTOR_ONE,           BRW_BLENDFACTOR_ONE},
 };
 
 /* FIXME: surface format defined in brw_defines.h, shared Sampling engine 1.7.2*/
@@ -124,8 +127,8 @@ static struct formatinfo I965TexFormats[] = {
         {PICT_a8b8g8r8, BRW_SURFACEFORMAT_B8G8R8A8_UNORM },
         {PICT_x8b8g8r8, BRW_SURFACEFORMAT_B8G8R8X8_UNORM },
         {PICT_r5g6b5,   BRW_SURFACEFORMAT_B5G6R5_UNORM   },
-        {PICT_a1r5g5b5, BRW_SURFACEFORMAT_B5G6R5A1_UNORM },
-        {PICT_x1r5g5b5, BRW_SURFACEFORMAT_B5G6R5X1_UNORM },
+        {PICT_a1r5g5b5, BRW_SURFACEFORMAT_B5G5R5A1_UNORM },
+        {PICT_x1r5g5b5, BRW_SURFACEFORMAT_B5G5R5X1_UNORM },
         {PICT_a8,       BRW_SURFACEFORMAT_A8_UNORM	 },
 };
 
@@ -140,10 +143,10 @@ static void I965GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format,
      * it as always 1.
      */
     if (PICT_FORMAT_A(dst_format) == 0 && I965BlendOp[op].dst_alpha) {
-        if (*sblend == BRW_BLENDFACT_DST_ALPHA)
-            *sblend = BRW_BLENDFACT_ONE;
-        else if (*sblend == BRW_BLENDFACT_INV_DST_ALPHA)
-            *sblend = BRW_BLENDFACT_ZERO;
+        if (*sblend == BRW_BLENDFACTOR_DST_ALPHA)
+            *sblend = BRW_BLENDFACTOR_ONE;
+        else if (*sblend == BRW_BLENDFACTOR_INV_DST_ALPHA)
+            *sblend = BRW_BLENDFACTOR_ZERO;
     }
 
     /* If the source alpha is being used, then we should only be in a case where
@@ -151,10 +154,10 @@ static void I965GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format,
      * channels multiplied by the source picture's alpha.
      */
     if (pMask && pMask->componentAlpha && I965BlendOp[op].src_alpha) {
-        if (*dblend == BRW_BLENDFACT_SRC_ALPHA) {
-	    *dblend = BRW_BLENDFACT_SRC_COLR;
-        } else if (*dblend == BRW_BLENDFACT_INV_SRC_ALPHA) {
-	    *dblend = BRW_BLENDFACT_INV_SRC_COLR;
+        if (*dblend == BRW_BLENDFACTOR_SRC_ALPHA) {
+	    *dblend = BRW_BLENDFACTOR_SRC_COLOR;
+        } else if (*dblend == BRW_BLENDFACTOR_INV_SRC_ALPHA) {
+	    *dblend = BRW_BLENDFACTOR_INV_SRC_COLOR;
         }
     }
 
@@ -173,10 +176,10 @@ static Bool I965GetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
         *dst_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
         break;
     case PICT_a1r5g5b5:
-    	*dst_format = BRW_SURFACEFORMAT_B5G6R5A1_UNORM;
+    	*dst_format = BRW_SURFACEFORMAT_B5G5R5A1_UNORM;
 	break;
     case PICT_x1r5g5b5:
-        *dst_format = BRW_SURFACEFORMAT_B5G6R5X1_UNORM;
+        *dst_format = BRW_SURFACEFORMAT_B5G5R5X1_UNORM;
         break;
     /* COLR_BUF_8BIT is special for YUV surfaces.  While we may end up being
      * able to use it depending on how the hardware implements it, disable it
@@ -250,7 +253,7 @@ I965EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
          * source value that we get to blend with.
          */
         if (I965BlendOp[op].src_alpha &&
-            (I965BlendOp[op].src_blend != BRW_BLENDFACT_ZERO))
+            (I965BlendOp[op].src_blend != BRW_BLENDFACTOR_ZERO))
             	I830FALLBACK("Component alpha not supported with source "
                             "alpha and source value blending.\n");
 	/* XXX: fallback now for mask with componentAlpha */
@@ -297,7 +300,7 @@ struct brw_instruction *sip_kernel;
 CARD32 *binding_table;
 int binding_table_entries; 
 
-int dest_surf_offset, src_surf_offset;
+int dest_surf_offset, src_surf_offset, mask_surf_offset;
 int src_sampler_offset, mask_sampler_offset,vs_offset;
 int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
 int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
@@ -308,7 +311,7 @@ int state_base_offset;
 float *vb;
 int vb_size = 4 * 4 ; /* 4 DWORDS per vertex, 4 vertices for TRIFAN*/ 
 
-int src_blend, dst_blend;
+CARD32 src_blend, dst_blend;
 
 static const CARD32 sip_kernel_static[][4] = {
 /*    wait (1) a0<1>UW a145<0,1,0>UW { align1 +  } */
@@ -380,6 +383,8 @@ static const CARD32 sf_kernel_static[][4] = {
 };
 
 /* ps kernels */
+#define PS_KERNEL_NUM_GRF   32
+#define PS_MAX_THREADS	   32
 /* 1: no mask */
 static const CARD32 ps_kernel_static_nomask [][4] = {
 	#include "i965_composite_wm_nomask.h"
@@ -387,12 +392,12 @@ static const CARD32 ps_kernel_static_nomask [][4] = {
 
 /* 2: mask with componentAlpha, src * mask color, XXX: later */
 static const CARD32 ps_kernel_static_maskca [][4] = {
-	#include "i965_composite_wm_maskca.h"
+/*#include "i965_composite_wm_maskca.h" */
 };
 
 /* 3: mask without componentAlpha, src * mask alpha */
 static const CARD32 ps_kernel_static_masknoca [][4] = {
-	#include "i965_composite_wm_masknoca.h"
+/*#include "i965_composite_wm_masknoca.h" */
 };
 
 Bool
@@ -403,9 +408,8 @@ I965EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 src_offset, src_pitch;
-    CARD32 mask_offset, mask_pitch;
+    CARD32 mask_offset = 0, mask_pitch = 0;
     CARD32 dst_format, dst_offset, dst_pitch;
-    CARD32 blendctl;
  
 ErrorF("i965 prepareComposite\n");
 
@@ -437,7 +441,6 @@ ErrorF("i965 prepareComposite\n");
 	scale_units[1][1] = pMask->drawable.height;
     }
 
-/* FIXME */
 	/* setup 3d pipeline state */
 
    binding_table_entries = 2; /* default no mask */
@@ -602,7 +605,7 @@ ErrorF("i965 prepareComposite\n");
 //   cc_state->cc5.ia_src_blend_factor = BRW_BLENDFACTOR_ONE;
 //   cc_state->cc5.ia_dest_blend_factor = BRW_BLENDFACTOR_ONE;
    cc_state->cc6.blend_function = BRW_BLENDFUNCTION_ADD;
-   I965GetBlendCntl(op, pMask, pDstPicture->format, 
+   I965GetBlendCntl(op, pMaskPicture, pDstPicture->format, 
 		    &src_blend, &dst_blend);
    cc_state->cc6.src_blend_factor = src_blend;
    cc_state->cc6.dest_blend_factor = dst_blend;
@@ -703,7 +706,7 @@ ErrorF("i965 prepareComposite\n");
 
    /* PS kernel use this sampler */
    memset(src_sampler_state, 0, sizeof(*src_sampler_state));
-   src_sampler_state->ss0.lod_peclamp = 1; /* GL mode */
+   src_sampler_state->ss0.lod_preclamp = 1; /* GL mode */
    switch(pSrcPicture->filter) {
    case PictFilterNearest:
    	src_sampler_state->ss0.min_filter = BRW_MAPFILTER_NEAREST; 
@@ -733,7 +736,7 @@ ErrorF("i965 prepareComposite\n");
 
    if (pMask) {
    	memset(mask_sampler_state, 0, sizeof(*mask_sampler_state));
-   	mask_sampler_state->ss0.lod_peclamp = 1; /* GL mode */
+   	mask_sampler_state->ss0.lod_preclamp = 1; /* GL mode */
    	switch(pMaskPicture->filter) {
    	case PictFilterNearest:
    	    mask_sampler_state->ss0.min_filter = BRW_MAPFILTER_NEAREST; 
@@ -1065,6 +1068,8 @@ void
 I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		int dstX, int dstY, int w, int h)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
     int srcXend, srcYend, maskXend, maskYend;
     PictVector v;
     int pMask = 1, i = 0;

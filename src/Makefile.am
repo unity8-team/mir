@@ -94,6 +94,7 @@ i810_drv_la_SOURCES = \
 	 i830_xaa.c \
 	 i830_exa_render.c \
 	 i915_exa_render.c \
+	 i965_composite_wm_nomask.h \
 	 i965_exa_render.c
 
 if HAVE_GEN4ASM
