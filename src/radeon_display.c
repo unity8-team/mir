@@ -2557,6 +2557,11 @@ static void
 radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		  DisplayModePtr adjusted_mode)
 {
+    ScrnInfoPtr	    pScrn = output->scrn;
+    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    
+    //    RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[0], );
 }
 
 static xf86OutputStatus

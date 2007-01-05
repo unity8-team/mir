@@ -238,7 +238,7 @@ int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 	last->next   = first;
 	first->prev  = last;
 	pScrn->modes = first;
-	RADEONSetPitch(pScrn);
+//	RADEONSetPitch(pScrn);
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -422,7 +422,7 @@ int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr *
 	last->next   = NULL; //first;
 	first->prev  = NULL; //last;
 	*modeList = first;
-	RADEONSetPitch(pScrn);
+	//RADEONSetPitch(pScrn);
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,

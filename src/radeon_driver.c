@@ -6282,7 +6282,7 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
           save->crtc2_offset_cntl &= ~RADEON_CRTC_TILE_EN;
     }
 
-    save->crtc2_pitch  = ((pScrn->displayWidth * pScrn->bitsPerPixel) +
+    save->crtc2_pitch  = ((info->CurrentLayout.displayWidth * pScrn->bitsPerPixel) +
 			  ((pScrn->bitsPerPixel * 8) -1)) / (pScrn->bitsPerPixel * 8);
     save->crtc2_pitch |= save->crtc2_pitch << 16;
 
@@ -6498,59 +6498,10 @@ Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
     RADEONInfoPtr  info0     = NULL;
     ScrnInfoPtr    pScrn0    = NULL;
 
-#if RADEON_DEBUG
-    if (crtc1) {
-	ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
-	       crtc1->name,
-	       dot_clock,
-	       
-	       crtc1->HDisplay,
-	       crtc1->HSyncStart,
-	       crtc1->HSyncEnd,
-	       crtc1->HTotal,
-	       
-	       crtc1->VDisplay,
-	       crtc1->VSyncStart,
-	       crtc1->VSyncEnd,
-	       crtc1->VTotal,
-	       pScrn->depth,
-	       pScrn->bitsPerPixel);
-	if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
-	if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
-	if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
-	if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
-	if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
-	if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
-	if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
-	ErrorF("\n");
-	ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
-	       crtc1->name,
-	       dot_clock,
-
-	       crtc1->CrtcHDisplay,
-	       crtc1->CrtcHSyncStart,
-	       crtc1->CrtcHSyncEnd,
-	       crtc1->CrtcHTotal,
-	       
-	       crtc1->CrtcVDisplay,
-	       crtc1->CrtcVSyncStart,
-	       crtc1->CrtcVSyncEnd,
-	       crtc1->CrtcVTotal,
-	       pScrn->depth,
-	       pScrn->bitsPerPixel);
-	if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
-	if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
-	if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
-	if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
-	if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
-	if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
-	if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
-	ErrorF("\n");
-	info->Flags = crtc1->Flags;
-    }
-#endif
-
-
+    if (crtc_mask & 1)
+      xf86PrintModeline(pScrn, crtc1);
+    if (crtc_mask & 2)
+      xf86PrintModeline(pScrn, crtc2);
 
     RADEONInitMemMapRegisters(pScrn, save, info);
     RADEONInitCommonRegisters(save, info);

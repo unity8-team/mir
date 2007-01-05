@@ -637,7 +637,7 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 
 	radeon_crtc->binding = info->IsSecondary ? 2 : 1;
 	if (mode) {
-
+  	    info->IsSwitching = TRUE;
 	    if (!RADEONCrtcSetMode (crtc, mode, TRUE))
 	    {
 		crtc->enabled = save_enabled;
@@ -655,7 +655,7 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	    RADEONBlank(pScrn);
 	    RADEONRestoreMode(pScrn, &info->ModeReg);
 	    RADEONUnblank(pScrn);
-	
+	    info->IsSwitching = FALSE;
 	}
 	    //	    if (info->DispPriority)
 	    //		RADEONInitDispBandwidth(pScrn);
