@@ -629,12 +629,13 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     if (changed) {
 	RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 	RADEONInfoPtr  info = RADEONPTR(pScrn);
-	RADEONCrtcPrivatePtr pRcrtc;
+	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 	crtc->enabled = mode != NULL;
 	
 	if (info->accelOn)
 	    RADEON_SYNC(info, pScrn);
-	
+
+	radeon_crtc->binding = info->IsSecondary ? 2 : 1;
 	if (mode) {
 
 	    if (!RADEONCrtcSetMode (crtc, mode, TRUE))
