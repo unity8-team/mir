@@ -47,6 +47,8 @@
 #include "radeon_version.h"
 #include "radeon_mergedfb.h"
 
+
+void radeon_crtc_load_lut(xf86CrtcPtr crtc);
 extern int getRADEONEntityIndex(void);
 
 const char *MonTypeName[7] = {
@@ -2391,7 +2393,47 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 static void
 radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
+  int mask;
+  ScrnInfoPtr pScrn = crtc->scrn;
+  RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+  RADEONInfoPtr info = RADEONPTR(pScrn);
+  unsigned char *RADEONMMIO = info->MMIO;
+    
+  mask = radeon_crtc->crtc_id ? (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS | RADEON_CRTC2_HSYNC_DIS) : (RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS | RADEON_CRTC_VSYNC_DIS);
 
+  switch(mode) {
+  case DPMSModeOn:
+    if (radeon_crtc->crtc_id) {
+      OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~mask);
+    } else {
+      OUTREGP(RADEON_CRTC_EXT_CNTL, 0, ~mask);
+    }
+    break;
+  case DPMSModeStandby:
+    if (radeon_crtc->crtc_id) {
+      OUTREGP(RADEON_CRTC2_GEN_CNTL, (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_HSYNC_DIS), ~mask);
+    } else {
+      OUTREGP(RADEON_CRTC_EXT_CNTL, (RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS), ~mask);
+    }
+    break;
+  case DPMSModeSuspend:
+    if (radeon_crtc->crtc_id) {
+      OUTREGP(RADEON_CRTC2_GEN_CNTL, (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS), ~mask);
+    } else {
+      OUTREGP(RADEON_CRTC_EXT_CNTL, (RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_VSYNC_DIS), ~mask);
+    }
+    break;
+  case DPMSModeOff:
+    if (radeon_crtc->crtc_id) {
+      OUTREGP(RADEON_CRTC2_GEN_CNTL, mask, ~mask);
+    } else {
+      OUTREGP(RADEON_CRTC_EXT_CNTL, mask, ~mask);
+    }
+    break;
+  }
+  
+  if (mode != DPMSModeOff)
+    radeon_crtc_load_lut(crtc);  
 }
 
 static Bool
@@ -2474,6 +2516,15 @@ radeon_dpms(xf86OutputPtr output, int mode)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
     
+    switch(mode) {
+    case DPMSModeOn:
+      RADEONDPMSSetOn(pScrn, output);
+      break;
+    case DPMSModeOff:
+    case DPMSModeSuspend:
+    case DPMSModeStandby:
+      RADEONDPMSSetOff(pScrn, output);
+    }
 }
 
 static void

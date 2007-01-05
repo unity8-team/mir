@@ -3266,6 +3266,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitXv(pScrn))                 goto fail;
 
+   info->CurrentLayout.displayWidth = pScrn->displayWidth;
 
     if (!xf86RandR12PreInit (pScrn))
     {
@@ -4296,11 +4297,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     /* Init DPMS */
     RADEONTRACE(("Initializing DPMS\n"));
-#if 1
-    xf86DPMSInit(pScreen, RADEONDisplayPowerManagementSet, 0);
-#else
     xf86DPMSInit(pScreen, xf86DPMSSet, 0);
-#endif
 
     RADEONTRACE(("Initializing Cursor\n"));
 
@@ -7001,7 +6998,8 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
 	for (i = 0; i < xf86_config->num_crtc; i++)
 	{
 	    xf86CrtcPtr	crtc = xf86_config->crtc[i];
-	    
+	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+	    radeon_crtc->binding = info->IsSecondary ? 2 : 1;
 	    /* Mark that we'll need to re-set the mode for sure */
 	    memset(&crtc->curMode, 0, sizeof(crtc->curMode));
 	    if (!crtc->desiredMode.CrtcHDisplay)
