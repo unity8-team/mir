@@ -691,10 +691,10 @@ ErrorF("i965 prepareComposite\n");
    }
 
    memset(default_color_state, 0, sizeof(*default_color_state));
-   default_color_state->color[0] = 1.0; /* RGBA format */
-   default_color_state->color[1] = 0.0; 
-   default_color_state->color[2] = 0.0; 
-   default_color_state->color[3] = 0.0; 
+   default_color_state->color[0] = 0.0; /* R */
+   default_color_state->color[1] = 0.0; /* G */
+   default_color_state->color[2] = 0.0; /* B */
+   default_color_state->color[3] = 1.0; /* A */
 
    src_sampler_state->ss0.default_color_mode = 0; /* GL mode */
 
