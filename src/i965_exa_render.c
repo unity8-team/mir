@@ -233,16 +233,12 @@ Bool
 I965EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 		      PicturePtr pDstPicture)
 {
-	/* check op*/
-	/* check op with mask's componentAlpha*/
-	/* check textures */
-	/* check dst buffer format */
     CARD32 tmp1;
     
     /* Check for unsupported compositing operations. */
     if (op >= sizeof(I965BlendOp) / sizeof(I965BlendOp[0]))
         I830FALLBACK("Unsupported Composite op 0x%x\n", op);
-                                                                                                                                                            
+
     if (pMaskPicture != NULL && pMaskPicture->componentAlpha) {
         /* Check if it's component alpha that relies on a source alpha and on
          * the source value.  We can only get one of those into the single
@@ -305,7 +301,7 @@ int next_offset, total_state_size;
 char *state_base;
 int state_base_offset;
 float *vb;
-int vb_size = 4 * 4 ; /* 4 DWORDS per vertex, 4 vertices for TRIFAN*/ 
+int vb_size = (4 * 4) * 4 ; /* 4 DWORDS per vertex*/ 
 
 CARD32 src_blend, dst_blend;
 
