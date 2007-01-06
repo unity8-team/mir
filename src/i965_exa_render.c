@@ -376,11 +376,6 @@ I965EXAPrepareComposite(int op, PicturePtr pSrcPicture,
  
 ErrorF("i965 prepareComposite\n");
 
-//    i965_3d_pipeline_setup(pScrn);
-//    i965_surf_setup(pScrn, pSrcPicture, pMaskPicture, pDstPicture,
-//   			pSrc, pMask, pDst);
-    // then setup blend, and shader program 
-    
     /* FIXME: fallback in pMask for now, would be enable after finish
 	wm kernel program */
     if (pMask)
@@ -819,62 +814,65 @@ ErrorF("i965 prepareComposite\n");
     * rendering pipe
     */
    {
-   
-   BEGIN_LP_RING((pMask?48:46));
-   // MI_FLUSH prior to PIPELINE_SELECT
-   OUT_RING(MI_FLUSH | 
+	BEGIN_LP_RING(2);
+   	OUT_RING(MI_FLUSH | 
 	    MI_STATE_INSTRUCTION_CACHE_FLUSH |
 	    BRW_MI_GLOBAL_SNAPSHOT_RESET);
+	OUT_RING(MI_NOOP);
+	ADVANCE_LP_RING();
+   }
+   {
+        BEGIN_LP_RING(12);
    
-   /* Match Mesa driver setup */
-   OUT_RING(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
+        /* Match Mesa driver setup */
+        OUT_RING(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
    
+   	OUT_RING(BRW_CS_URB_STATE | 0);
+   	OUT_RING((0 << 4) |  /* URB Entry Allocation Size */
+            (0 << 0));  /* Number of URB Entries */
+
    /* Zero out the two base address registers so all offsets are absolute */
-   // XXX: zero out...
-   OUT_RING(BRW_STATE_BASE_ADDRESS | 4);
-   // why this's not state_base_offset? -> because later we'll always add on
-   // state_base_offset to offset params. see SIP
-   OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* Generate state base address */
-   OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* Surface state base address */
-   OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* media base addr, don't care */
-   OUT_RING(0x10000000 | BASE_ADDRESS_MODIFY);  /* general state max addr, disabled */
-   OUT_RING(0x10000000 | BASE_ADDRESS_MODIFY);  /* media object state max addr, disabled */
+   	OUT_RING(BRW_STATE_BASE_ADDRESS | 4);
+   	OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* Generate state base address */
+   	OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* Surface state base address */
+   	OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* media base addr, don't care */
+   	OUT_RING(0x10000000 | BASE_ADDRESS_MODIFY);  /* general state max addr, disabled */
+   	OUT_RING(0x10000000 | BASE_ADDRESS_MODIFY);  /* media object state max addr, disabled */
 
    /* Set system instruction pointer */
-   OUT_RING(BRW_STATE_SIP | 0);
-   OUT_RING(state_base_offset + sip_kernel_offset); /* system instruction pointer */
-      
+   	OUT_RING(BRW_STATE_SIP | 0);
+   	OUT_RING(state_base_offset + sip_kernel_offset); /* system instruction pointer */
+	OUT_RING(MI_NOOP);
+	ADVANCE_LP_RING();
+   }
+   {
+	BEGIN_LP_RING(26);
    /* Pipe control */
-   // XXX: pipe control write cache before enabling color blending
-   // vol2, geometry pipeline 1.8.4
-   OUT_RING(BRW_PIPE_CONTROL |
+   	OUT_RING(BRW_PIPE_CONTROL |
 	    BRW_PIPE_CONTROL_NOWRITE |
 	    BRW_PIPE_CONTROL_IS_FLUSH |
 	    2);
-   OUT_RING(0);			       /* Destination address */
-   OUT_RING(0);			       /* Immediate data low DW */
-   OUT_RING(0);			       /* Immediate data high DW */
+   	OUT_RING(0);			       /* Destination address */
+   	OUT_RING(0);			       /* Immediate data low DW */
+   	OUT_RING(0);			       /* Immediate data high DW */
 
    /* Binding table pointers */
-   OUT_RING(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
-   OUT_RING(0); /* vs */
-   OUT_RING(0); /* gs */
-   OUT_RING(0); /* clip */
-   OUT_RING(0); /* sf */
+   	OUT_RING(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
+   	OUT_RING(0); /* vs */
+   	OUT_RING(0); /* gs */
+   	OUT_RING(0); /* clip */
+   	OUT_RING(0); /* sf */
    /* Only the PS uses the binding table */
-   OUT_RING(state_base_offset + binding_table_offset); /* ps */
-
-   //ring 20
+   	OUT_RING(state_base_offset + binding_table_offset); /* ps */
 
    /* The drawing rectangle clipping is always on.  Set it to values that
     * shouldn't do any clipping.
     */
-    //XXX: fix for picture size
-   OUT_RING(BRW_3DSTATE_DRAWING_RECTANGLE | 2);	/* XXX 3 for BLC or CTG */
-   OUT_RING(0x00000000);	/* ymin, xmin */
-   OUT_RING((pScrn->virtualX - 1) |
-	    (pScrn->virtualY - 1) << 16); /* ymax, xmax */
-   OUT_RING(0x00000000);	/* yorigin, xorigin */
+   	OUT_RING(BRW_3DSTATE_DRAWING_RECTANGLE | 2);	/* XXX 3 for BLC or CTG */
+   	OUT_RING(0x00000000);	/* ymin, xmin */
+   	OUT_RING((pScrn->virtualX - 1) |
+ 	         (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+   	OUT_RING(0x00000000);	/* yorigin, xorigin */
 
    /* skip the depth buffer */
    /* skip the polygon stipple */
@@ -882,90 +880,82 @@ ErrorF("i965 prepareComposite\n");
    /* skip the line stipple */
    
    /* Set the pointers to the 3d pipeline state */
-   OUT_RING(BRW_3DSTATE_PIPELINED_POINTERS | 5);
-   OUT_RING(state_base_offset + vs_offset);  /* 32 byte aligned */
-   OUT_RING(BRW_GS_DISABLE);		     /* disable GS, resulting in passthrough */
-   OUT_RING(BRW_CLIP_DISABLE);		     /* disable CLIP, resulting in passthrough */
-   OUT_RING(state_base_offset + sf_offset);  /* 32 byte aligned */
-   OUT_RING(state_base_offset + wm_offset);  /* 32 byte aligned */
-   OUT_RING(state_base_offset + cc_offset);  /* 64 byte aligned */
+   	OUT_RING(BRW_3DSTATE_PIPELINED_POINTERS | 5);
+   	OUT_RING(state_base_offset + vs_offset);  /* 32 byte aligned */
+   	OUT_RING(BRW_GS_DISABLE);		     /* disable GS, resulting in passthrough */
+   	OUT_RING(BRW_CLIP_DISABLE);		     /* disable CLIP, resulting in passthrough */
+   	OUT_RING(state_base_offset + sf_offset);  /* 32 byte aligned */
+   	OUT_RING(state_base_offset + wm_offset);  /* 32 byte aligned */
+   	OUT_RING(state_base_offset + cc_offset);  /* 64 byte aligned */
 
    /* URB fence */
-   // XXX: CS for const URB needed? if not, cs_fence should be equal to sf_fence
-   OUT_RING(BRW_URB_FENCE |
-	    UF0_CS_REALLOC |
-	    UF0_SF_REALLOC |
-	    UF0_CLIP_REALLOC |
-	    UF0_GS_REALLOC |
-	    UF0_VS_REALLOC |
-	    1);
-   OUT_RING(((urb_clip_start + urb_clip_size) << UF1_CLIP_FENCE_SHIFT) |
-	    ((urb_gs_start + urb_gs_size) << UF1_GS_FENCE_SHIFT) |
-	    ((urb_vs_start + urb_vs_size) << UF1_VS_FENCE_SHIFT));
-   OUT_RING(((urb_cs_start + urb_cs_size) << UF2_CS_FENCE_SHIFT) |
-	    ((urb_sf_start + urb_sf_size) << UF2_SF_FENCE_SHIFT));
+   	OUT_RING(BRW_URB_FENCE |
+        	 UF0_CS_REALLOC |
+	    	 UF0_SF_REALLOC |
+	    	 UF0_CLIP_REALLOC |
+	         UF0_GS_REALLOC |
+	         UF0_VS_REALLOC |
+	    	 1);
+   	OUT_RING(((urb_clip_start + urb_clip_size) << UF1_CLIP_FENCE_SHIFT) |
+	    	 ((urb_gs_start + urb_gs_size) << UF1_GS_FENCE_SHIFT) |
+	    	 ((urb_vs_start + urb_vs_size) << UF1_VS_FENCE_SHIFT));
+   	OUT_RING(((urb_cs_start + urb_cs_size) << UF2_CS_FENCE_SHIFT) |
+	     	 ((urb_sf_start + urb_sf_size) << UF2_SF_FENCE_SHIFT));
 
    /* Constant buffer state */
-   // XXX: needed? seems no usage, as we don't have CONSTANT_BUFFER definition
-   OUT_RING(BRW_CS_URB_STATE | 0);
-   OUT_RING(((URB_CS_ENTRY_SIZE - 1) << 4) | /* URB Entry Allocation Size */
-	    (URB_CS_ENTRIES << 0));	     /* Number of URB Entries */
-   
+   	OUT_RING(BRW_CS_URB_STATE | 0);
+   	OUT_RING(((URB_CS_ENTRY_SIZE - 1) << 4) | /* URB Entry Allocation Size */
+	    	 (URB_CS_ENTRIES << 0));	     /* Number of URB Entries */
+	ADVANCE_LP_RING();
+   }
+   {
+        int nelem = pMask ? 3: 2;
+   	BEGIN_LP_RING(pMask?12:10);
    /* Set up the pointer to our vertex buffer */
-   // XXX: double check
-  // int vb_pitch = 4 * 4;  // XXX: pitch should include mask's coords? possible
-  // all three coords on one row?
-   int nelem = pMask ? 3: 2;
-   OUT_RING(BRW_3DSTATE_VERTEX_BUFFERS | 3); //XXX: should be 4n-1 -> 3
-   OUT_RING((0 << VB0_BUFFER_INDEX_SHIFT) |
-	    VB0_VERTEXDATA |
-	    ((4 * 2 * nelem) << VB0_BUFFER_PITCH_SHIFT)); 
-   		// pitch includes all vertex data, 4bytes for 1 dword, each
-		// element has 2 coords (x,y)(s0,t0), nelem to reflect possible
-		// mask
-   OUT_RING(state_base_offset + vb_offset);
-   OUT_RING(4 * nelem); // max index, prim has 4 coords
-   OUT_RING(0); // ignore for VERTEXDATA, but still there
+   	OUT_RING(BRW_3DSTATE_VERTEX_BUFFERS | 3); 
+   	OUT_RING((0 << VB0_BUFFER_INDEX_SHIFT) |
+	    	 VB0_VERTEXDATA |
+	    	 ((4 * 2 * nelem) << VB0_BUFFER_PITCH_SHIFT)); 
+   	OUT_RING(state_base_offset + vb_offset);
+   	OUT_RING(2); // max index, prim has 4 coords
+   	OUT_RING(0); // ignore for VERTEXDATA, but still there
 
    /* Set up our vertex elements, sourced from the single vertex buffer. */
-   OUT_RING(BRW_3DSTATE_VERTEX_ELEMENTS | ((2 * nelem) - 1));  // XXX: 2n-1, (x,y) + (s0,t0) +
-						//   possible (s1, t1)
+   	OUT_RING(BRW_3DSTATE_VERTEX_ELEMENTS | ((2 * nelem) - 1));  
    /* offset 0: X,Y -> {X, Y, 1.0, 1.0} */
-   OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-	    VE0_VALID |
-	    (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-	    (0 << VE0_OFFSET_SHIFT));
-   OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
-	    (0 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
-   /* offset 8: S0, T0 -> {S0, T0, 1.0, 1.0} */
-   OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-	    VE0_VALID |
-	    (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-	    (8 << VE0_OFFSET_SHIFT));
-   OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
-	    (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
-
-   if (pMask) {
    	OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-	    VE0_VALID |
-	    (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-	    (16 << VE0_OFFSET_SHIFT));
-	OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-	    (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
-	    (8 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); 
-		//XXX: is this has alignment issue? and thread access problem?
-   }
+	    	 VE0_VALID |
+	    	 (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+	    	 (0 << VE0_OFFSET_SHIFT));
+   	OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+	    	 (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+	     	 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+	    	 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+	    	 (0 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+   /* offset 8: S0, T0 -> {S0, T0, 1.0, 1.0} */
+   	OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+	    	 VE0_VALID |
+	    	 (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+	    	 (8 << VE0_OFFSET_SHIFT));
+   	OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+	    	 (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+	    	 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+	     	 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+	    	 (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+
+   	if (pMask) {
+   		OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+	    		 VE0_VALID |
+	    		 (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+	    		 (16 << VE0_OFFSET_SHIFT));
+		OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+	    		 (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+	    		 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+	    		 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+	    		 (8 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); 
+   	}
    
-   ADVANCE_LP_RING();
-    
+   	ADVANCE_LP_RING();
    }
 
 #ifdef I830DEBUG
@@ -983,7 +973,7 @@ I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     I830Ptr pI830 = I830PTR(pScrn);
     int srcXend, srcYend, maskXend, maskYend;
     PictVector v;
-    int pMask = 1, i = 0;
+    int pMask = 1, i;
 
     DPRINTF(PFX, "Composite: srcX %d, srcY %d\n\t maskX %d, maskY %d\n\t"
 	    "dstX %d, dstY %d\n\twidth %d, height %d\n\t"
@@ -999,8 +989,10 @@ I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     srcXend = srcX + w;
     srcYend = srcY + h;
-    maskXend = maskX + w;
-    maskYend = maskY + h;
+    if (pMask) {
+        maskXend = maskX + w;
+        maskYend = maskY + h;
+    }
     if (is_transform[0]) {
         v.vector[0] = IntToxFixed(srcX);
         v.vector[1] = IntToxFixed(srcY);
@@ -1035,51 +1027,45 @@ I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		"dstX %d, dstY %d\n", srcX, srcY, srcXend, srcYend,
 		maskX, maskY, maskXend, maskYend, dstX, dstY);
 
- 
-    vb[i++] = (float)dstX;
-    vb[i++] = (float)dstY;
-    vb[i++] = (float)srcX / scale_units[0][0];
-    vb[i++] = (float)srcY / scale_units[0][1];
-    if (pMask) {
-        vb[i++] = (float)maskX / scale_units[1][0];
-        vb[i++] = (float)maskY / scale_units[1][1];
-    }
-
-    vb[i++] = (float)dstX;
-    vb[i++] = (float)(dstY + h);
-    vb[i++] = (float)srcX / scale_units[0][0];
-    vb[i++] = (float)srcYend / scale_units[0][1];
-    if (pMask) {
-        vb[i++] = (float)maskX / scale_units[1][0];
-        vb[i++] = (float)maskYend / scale_units[1][1];
-    }
-
-    vb[i++] = (float)(dstX + w);
-    vb[i++] = (float)(dstY + h);
-    vb[i++] = (float)srcXend / scale_units[0][0];
-    vb[i++] = (float)srcYend / scale_units[0][1];
+    i = 0;
+    /* rect (x2,y2) */
+    vb[i++] = (float)(srcXend) / scale_units[0][0];
+    vb[i++] = (float)(srcYend) / scale_units[0][1];
     if (pMask) {
         vb[i++] = (float)maskXend / scale_units[1][0];
         vb[i++] = (float)maskYend / scale_units[1][1];
     }
-
     vb[i++] = (float)(dstX + w);
-    vb[i++] = (float)dstY;
-    vb[i++] = (float)srcXend / scale_units[0][0];
-    vb[i++] = (float)srcY / scale_units[0][1];
+    vb[i++] = (float)(dstY + h);
+
+    /* rect (x1,y2) */
+    vb[i++] = (float)(srcX)/ scale_units[0][0];
+    vb[i++] = (float)(srcYend)/ scale_units[0][1];
     if (pMask) {
-        vb[i++] = (float)maskXend / scale_units[1][0];
+        vb[i++] = (float)maskX / scale_units[1][0];
+        vb[i++] = (float)maskYend / scale_units[1][1];
+    }
+    vb[i++] = (float)dstX;
+    vb[i++] = (float)(dstY + h);
+
+    /* rect (x1,y1) */
+    vb[i++] = (float)(srcX) / scale_units[0][0];
+    vb[i++] = (float)(srcY) / scale_units[0][1];
+    if (pMask) {
+        vb[i++] = (float)maskX / scale_units[1][0];
         vb[i++] = (float)maskY / scale_units[1][1];
     }
-
+    vb[i++] = (float)dstX;
+    vb[i++] = (float)dstY;
+   
     {
       BEGIN_LP_RING(6);
       OUT_RING(BRW_3DPRIMITIVE | 
 	       BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
-	       (_3DPRIM_TRIFAN << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) | 
+	       (_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) | 
 	       (0 << 9) |  /* CTG - indirect vertex count */
 	       4);
-      OUT_RING(4);  /* vertex count per instance */
+      OUT_RING(3);  /* vertex count per instance */
       OUT_RING(0); /* start vertex offset */
       OUT_RING(1); /* single instance */
       OUT_RING(0); /* start instance location */
@@ -1090,4 +1076,19 @@ I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     ErrorF("sync after 3dprimitive");
     I830Sync(pScrn);
 #endif
+    /* we must be sure that the pipeline is flushed before next exa draw,
+       because that will be new state, binding state and instructions*/
+    {
+	BEGIN_LP_RING(4);
+   	OUT_RING(BRW_PIPE_CONTROL |
+	    BRW_PIPE_CONTROL_NOWRITE |
+	    BRW_PIPE_CONTROL_WC_FLUSH |
+	    BRW_PIPE_CONTROL_IS_FLUSH |
+	    (1 << 10) |  /* XXX texture cache flush for BLC/CTG */
+	    2);
+   	OUT_RING(0); /* Destination address */
+   	OUT_RING(0); /* Immediate data low DW */
+   	OUT_RING(0); /* Immediate data high DW */
+	ADVANCE_LP_RING();
+    }
 }
