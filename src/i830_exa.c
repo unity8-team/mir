@@ -57,9 +57,9 @@ do { 							\
 } while(0) 
 #endif
 
-float scale_units[2][2];
+static float scale_units[2][2];
 
-const int I830CopyROP[16] =
+const static int I830CopyROP[16] =
 {
    ROP_0,               /* GXclear */
    ROP_DSa,             /* GXand */
@@ -79,7 +79,7 @@ const int I830CopyROP[16] =
    ROP_1                /* GXset */
 };
 
-const int I830PatternROP[16] =
+const static int I830PatternROP[16] =
 {
     ROP_0,
     ROP_DPa,
@@ -111,8 +111,8 @@ union intfloat {
 	OUT_RING(tmp.ui);			\
 } while(0)				
 
-Bool is_transform[2];
-PictTransform *transform[2];
+static Bool is_transform[2];
+static PictTransform *transform[2];
 
 extern Bool I830EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
 extern Bool I830EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
