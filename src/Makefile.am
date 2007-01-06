@@ -94,7 +94,6 @@ i810_drv_la_SOURCES = \
 	 i830_xaa.c \
 	 i830_exa_render.c \
 	 i915_exa_render.c \
-	 i965_composite_wm_nomask.h \
 	 i965_exa_render.c
 
 if HAVE_GEN4ASM
@@ -102,8 +101,14 @@ sf_prog.h: packed_yuv_sf.g4a
 	intel-gen4asm -o sf_prog.h packed_yuv_sf.g4a
 wm_prog.h: packed_yuv_wm.g4a
 	intel-gen4asm -o wm_prog.h packed_yuv_wm.g4a
+exa_sf_prog.h: exa_sf.g4a
+	intel-gen4asm -o exa_sf_prog.h exa_sf.g4a
+exa_sf_mask_prog.h: exa_sf_mask.g4a
+	intel-gen4asm -o exa_sf_mask_prog.h exa_sf_mask.g4a
 exa_wm_nomask_prog.h: exa_wm_nomask.g4a
 	intel-gen4asm -o exa_wm_nomask_prog.h exa_wm_nomask.g4a
+exa_wm_masknoca_prog.h: exa_wm_masknoca.g4a
+	intel-gen4asm -o exa_wm_masknoca_prog.h exa_wm_masknoca.g4a
 endif
 
 if DRI
