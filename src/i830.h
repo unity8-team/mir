@@ -288,6 +288,7 @@ typedef struct _I830Rec {
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
    I830MemRange RotatedMem;
    I830MemRange RotatedMem2;
+   I830MemRange RotateStateMem; /* for G965 state buffer */
    Rotation rotation;
    int InitialRotation;
    int displayWidth;

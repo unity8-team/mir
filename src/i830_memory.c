@@ -531,6 +531,28 @@ I830AllocateRotatedBuffer(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 		  "%sAllocated %ld kB for the rotated buffer at 0x%lx.\n", s,
 		  alloced / 1024, pI830->RotatedMem.Start);
+
+#define BRW_LINEAR_EXTRA (32*1024)
+   if (IS_I965G(pI830)) {
+       memset(&(pI830->RotateStateMem), 0, sizeof(I830MemRange));
+       pI830->RotateStateMem.Key = -1;
+       size = ROUND_TO_PAGE(BRW_LINEAR_EXTRA);
+       align = GTT_PAGE_SIZE;
+       alloced = I830AllocVidMem(pScrn, &(pI830->RotateStateMem),
+				&(pI830->StolenPool), size, align,
+				flags | FROM_ANYWHERE | ALLOCATE_AT_TOP);
+       if (alloced < size) {
+          if (!dryrun) {
+	     xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "G965: Failed to allocate rotate state buffer space.\n");
+          }
+          return FALSE;
+       }
+       xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		  "%sAllocated %ld kB for the G965 rotate state buffer at 0x%lx - 0x%lx.\n", s, 
+		alloced / 1024, pI830->RotateStateMem.Start, pI830->RotateStateMem.End);
+   }
+  
    return TRUE;
 }
 
@@ -1743,8 +1765,13 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
    int i;
 
    /* Clear out */
-   for (i = 0; i < 8; i++)
-      pI830->ModeReg.Fence[i] = 0;
+   if (IS_I965G(pI830)) {
+      for (i = 0; i < FENCE_NEW_NR*2; i++)
+	 pI830->ModeReg.Fence[i] = 0;
+   } else {
+      for (i = 0; i < 8; i++)
+         pI830->ModeReg.Fence[i] = 0;
+   }
 
    nextTile = 0;
    tileGeneration = -1;
@@ -1814,6 +1841,9 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
       }
    }
 	
+/* XXX tiled rotate mem not ready on G965*/
+ 
+  if(!IS_I965G(pI830)) {
    if (pI830->RotatedMem.Alignment >= KB(512)) {
       if (MakeTiles(pScrn, &(pI830->RotatedMem), FENCE_XMAJOR)) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1824,7 +1854,7 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
 		    "MakeTiles failed for the rotated buffer.\n");
       }
    }
-
+  }
 #if 0
    if (pI830->RotatedMem2.Alignment >= KB(512)) {
       if (MakeTiles(pScrn, &(pI830->RotatedMem2), FENCE_XMAJOR)) {
