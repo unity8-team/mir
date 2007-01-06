@@ -342,7 +342,7 @@ static const CARD32 sip_kernel_static[][4] = {
 #define SF_MAX_THREADS	   4
 
 static const CARD32 sf_kernel_static[][4] = {
-#include "sf_prog.h"
+#include "exa_sf_prog.h"
 };
 
 /* ps kernels */
@@ -350,7 +350,7 @@ static const CARD32 sf_kernel_static[][4] = {
 #define PS_MAX_THREADS	   32
 /* 1: no mask */
 static const CARD32 ps_kernel_static_nomask [][4] = {
-	#include "i965_composite_wm_nomask.h"
+	#include "exa_wm_nomask_prog.h"
 };
 
 /* 2: mask with componentAlpha, src * mask color, XXX: later */

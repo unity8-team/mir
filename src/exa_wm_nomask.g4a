@@ -1,8 +1,6 @@
 /*
  * This's for exa composite operation in no mask picture case.
  * The simplest case is just sending what src picture has to dst picture.
- * XXX: This is still experimental, and should be fixed to support multiple texture
- * map, and conditional mul actions. 
  */
 
 /* I think this should be same as in g4a program for texture video,
@@ -95,6 +93,7 @@ send (16) 0 		/* msg reg index */
 			 /* here(src->dst) we should use src_sampler and src_surface */
 	mlen 5 rlen 8 { align1 };   /* required message len 5, readback len 8 */
 
+mov (8) g19<1>UD g19<8,8,1>UD { align1 };  /* wait sampler return */
 /* if we set up read-back reg correctly, emit dataport write 'send' cmd with EOT */
 
 /* m0, m1 are all direct passed by PS thread payload */
@@ -119,8 +118,11 @@ mov (8) m7<1>F g15<8,8,1>F { align1 };
 mov (8) m8<1>F g17<8,8,1>F { align1 };
 mov (8) m9<1>F g19<8,8,1>F { align1 };
 
+/* m0, m1 are all direct passed by PS thread payload */
+mov (8) m1<1>UD g1<8,8,1>UD { align1 mask_disable };
+
 /* write */
-send (16) 0 null g0<8,8,1>UW write (
+send (16) 0 acc0<1>UW g0<8,8,1>UW write (
 	0,  /* binding_table */
 	8,  /* pixel scordboard clear, msg type simd16 single source */
 	4,  /* render target write */
