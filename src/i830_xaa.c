@@ -214,7 +214,6 @@ I830XAAInit(ScreenPtr pScreen)
 
     {
 	Bool shared_accel = FALSE;
-	int i;
 
 	for(i = 0; i < pScrn->numEntities; i++) {
 	    if(xf86IsEntityShared(pScrn->entityList[i]))

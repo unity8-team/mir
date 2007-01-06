@@ -155,7 +155,7 @@ typedef struct {
  * These values account for -1s required.
  */
 
-const tv_mode_t tv_modes[] = {
+const static tv_mode_t tv_modes[] = {
     {
 	.name		= "NTSC 480i",
 	.oversample	= TV_OVERSAMPLE_8X,
@@ -1092,7 +1092,7 @@ i830_tv_get_modes(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
     I830Ptr	    pI830 = I830PTR(pScrn);
-    DisplayModePtr  new, first = NULL, *tail = &first;;
+    DisplayModePtr  new, first = NULL, *tail = &first;
     int		    i;
 
     (void) pI830;

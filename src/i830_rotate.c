@@ -1560,7 +1560,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
    if (pI830->rotation != RR_Rotate_0)
       shadowAdd (pScrn->pScreen, 
 		 (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen),
-		 func, I830WindowLinear, pI830->rotation, 0);
+		 func, I830WindowLinear, pI830->rotation, NULL);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)
@@ -1786,7 +1786,7 @@ BAIL0:
    if (pI830->rotation != RR_Rotate_0)
       shadowAdd (pScrn->pScreen, 
 		 (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen),
-		 func, I830WindowLinear, pI830->rotation, 0);
+		 func, I830WindowLinear, pI830->rotation, NULL);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)

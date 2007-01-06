@@ -180,10 +180,12 @@ I830EmitFlush(ScrnInfoPtr pScrn)
    if (IS_I965G(pI830))
       flags = 0;
 
-   BEGIN_LP_RING(2);
-   OUT_RING(MI_FLUSH | flags);
-   OUT_RING(MI_NOOP);		/* pad to quadword */
-   ADVANCE_LP_RING();
+   {
+       BEGIN_LP_RING(2);
+       OUT_RING(MI_FLUSH | flags);
+       OUT_RING(MI_NOOP);		/* pad to quadword */
+       ADVANCE_LP_RING();
+   }
 }
 
 void

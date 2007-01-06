@@ -2695,13 +2695,13 @@ I830FreeSurface(XF86SurfacePtr surface)
 static int
 I830GetSurfaceAttribute(ScrnInfoPtr pScrn, Atom attribute, INT32 * value)
 {
-   return I830GetPortAttribute(pScrn, attribute, value, 0);
+   return I830GetPortAttribute(pScrn, attribute, value, NULL);
 }
 
 static int
 I830SetSurfaceAttribute(ScrnInfoPtr pScrn, Atom attribute, INT32 value)
 {
-   return I830SetPortAttribute(pScrn, attribute, value, 0);
+   return I830SetPortAttribute(pScrn, attribute, value, NULL);
 }
 
 static int
@@ -2880,10 +2880,10 @@ i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
       /* Check we have an LFP connected */
       if (i830PipeHasType(xf86_config->crtc[pPriv->pipe],
 			  I830_OUTPUT_LVDS)) {
+	 int vtotal_reg = pPriv->pipe ? VTOTAL_A : VTOTAL_B;
 	 size = pPriv->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
 	 hsize = (size >> 16) & 0x7FF;
 	 vsize = size & 0x7FF;
-	 int vtotal_reg = pPriv->pipe ? VTOTAL_A : VTOTAL_B;
 	 active = INREG(vtotal_reg) & 0x7FF;
 
 	 if (vsize < active && hsize > 1024)
