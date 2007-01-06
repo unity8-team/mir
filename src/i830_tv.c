@@ -250,6 +250,53 @@ const tv_mode_t tv_modes[] = {
 	    .ru =-0.0957, .gu =-0.1879, .bu = 0.2836, .au = 1.0000,
 	    .rv = 0.3992, .gv =-0.3343, .bv =-0.0649, .av = 1.0000,
 	},
+    },
+    {
+	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
+	.name	    = "PAL 576i",
+	.oversample	= TV_OVERSAMPLE_8X,
+
+	.hsync_end	= 64,		    .hblank_end		= 128,
+	.hblank_start	= 844,		    .htotal		= 863,
+	
+	.progressive	= FALSE,
+	
+	.vsync_start_f1	= 6,		    .vsync_start_f2	= 7,
+	.vsync_len	= 6,
+	
+	.veq_ena	= TRUE,		    .veq_start_f1    	= 0,
+	.veq_start_f2	= 1,		    .veq_len		= 18,
+
+	.vi_end_f1	= 24,		    .vi_end_f2		= 25,
+	.nbr_end	= 286,
+
+	.burst_ena	= TRUE,
+	.hburst_start	= 73,		    .hburst_len		= 34,
+	.vburst_start_f1 = 8,		    .vburst_end_f1	= 285,
+	.vburst_start_f2 = 8,		    .vburst_end_f2	= 286,
+	.vburst_start_f3 = 9,		    .vburst_end_f3	= 286, 
+	.vburst_start_f4 = 9,		    .vburst_end_f4	= 285,
+
+	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
+	.dda1_inc	=    168,
+	.dda2_inc	=  18557,	.dda2_size	=  20625,
+	.dda3_inc	=      0,	.dda3_size	=      0,
+	.sc_reset   = TV_SC_RESET_EVERY_8,
+	.pal_burst  = TRUE,
+	
+	.composite_levels = { .blank = 237, .black = 237, .burst = 118 },
+	.composite_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5379,
+	    .ru =-0.0793, .gu =-0.1557, .bu = 0.2350, .au = 1.0000,
+	    .rv = 0.3307, .gv =-0.2769, .bv =-0.0538, .av = 1.0000,
+	},
+
+	.svideo_levels    = { .blank = 280, .black = 280, .burst = 139 },
+	.svideo_color = {
+	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6357,
+	    .ru =-0.0937, .gu =-0.1840, .bu = 0.2777, .au = 1.0000,
+	    .rv = 0.3908, .gv =-0.3273, .bv =-0.0636, .av = 1.0000,
+	},
     }
 #if 0
     {
@@ -802,22 +849,122 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 }
 
 static const DisplayModeRec reported_modes[] = {
-    {
-	.name = "NTSC 480i",
-	.Clock = TV_PLL_CLOCK,
-	
-	.HDisplay   = 1024,
-	.HSyncStart = 1048,
-	.HSyncEnd   = 1184,
-	.HTotal     = 1344,
+	{
+		.name = "NTSC 480i",
+		.Clock = TV_PLL_CLOCK,
+		.HDisplay   = 1280,
+		.HSyncStart = 1368,
+		.HSyncEnd   = 1496,
+		.HTotal     = 1712,
 
-	.VDisplay   = 768,
-	.VSyncStart = 771,
-	.VSyncEnd   = 777,
-	.VTotal     = 806,
+		.VDisplay   = 1024,
+		.VSyncStart = 1027,
+		.VSyncEnd   = 1034,
+		.VTotal     = 1104,
+		.type       = M_T_DRIVER
+	},
+	{
+		.name = "NTSC 480i",
+		.Clock = TV_PLL_CLOCK,
+		.HDisplay   = 1024,
+		.HSyncStart = 1080,
+		.HSyncEnd   = 1184,
+		.HTotal     = 1344,
 
-	.type       = M_T_DRIVER
-    }
+		.VDisplay   = 768,
+		.VSyncStart = 771,
+		.VSyncEnd   = 777,
+		.VTotal     = 806,
+		.type       = M_T_DRIVER
+	},
+	{
+		.name = "NTSC 480i",
+		.Clock = TV_PLL_CLOCK,
+		.HDisplay   = 800,
+		.HSyncStart = 832,
+		.HSyncEnd   = 912,
+		.HTotal     = 1024,
+
+		.VDisplay   = 600,
+		.VSyncStart = 603,
+		.VSyncEnd   = 607,
+		.VTotal     = 650,
+		.type       = M_T_DRIVER
+	},
+	{
+		.name = "NTSC 480i",
+		.Clock = TV_PLL_CLOCK,
+		.HDisplay   = 640,
+		.HSyncStart = 664,
+		.HSyncEnd   = 720,
+		.HTotal     = 800,
+
+		.VDisplay   = 480,
+		.VSyncStart = 483,
+		.VSyncEnd   = 487,
+		.VTotal     = 552,
+		.type       = M_T_DRIVER
+	},
+	{
+		.name = "PAL 576i",
+		.Clock = TV_PLL_CLOCK,
+		.HDisplay   = 1280,
+		.HSyncStart = 1352,
+		.HSyncEnd   = 1480,
+		.HTotal     = 1680,
+
+		.VDisplay   = 1024,
+		.VSyncStart = 1027,
+		.VSyncEnd   = 1034,
+		.VTotal     = 1092,
+
+		.type       = M_T_DRIVER
+	},
+	{
+		.name = "PAL 576i",
+		.Clock = TV_PLL_CLOCK,
+		.HDisplay   = 1024,
+		.HSyncStart = 1072,
+		.HSyncEnd   = 1168,
+		.HTotal     = 1312,
+		.VDisplay   = 768,
+		.VSyncStart = 771,
+		.VSyncEnd   = 775,
+		.VTotal     = 820,
+		.VRefresh   = 50.0f,
+
+		.type       = M_T_DRIVER
+	},
+	{
+		.name = "PAL 576i",
+		.Clock = TV_PLL_CLOCK,
+		.HDisplay   = 800,
+		.HSyncStart = 832,
+		.HSyncEnd   = 904,
+		.HTotal     = 1008,
+		.VDisplay   = 600,
+		.VSyncStart = 603,
+		.VSyncEnd   = 607,
+		.VTotal     = 642,
+		.VRefresh   = 50.0f,
+
+		.type       = M_T_DRIVER
+	},
+	{
+		.name = "PAL 576i",
+		.Clock = TV_PLL_CLOCK,
+		.HDisplay   = 640,
+		.HSyncStart = 664,
+		.HSyncEnd   = 720,
+		.HTotal     = 800,
+
+		.VDisplay   = 480,
+		.VSyncStart = 483,
+		.VSyncEnd   = 487,
+		.VTotal     = 516,
+		.VRefresh   = 50.0f,
+		.type       = M_T_DRIVER
+	},
 };
 
 /**
