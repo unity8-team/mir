@@ -425,7 +425,6 @@ IntelEXADoneComposite(PixmapPtr pDst)
 #endif
 }
 
-#define BRW_LINEAR_EXTRA (32*1024)
 /*
  * TODO:
  *   - Dual head?
@@ -448,11 +447,7 @@ I830EXAInit(ScreenPtr pScreen)
     pI830->EXADriverPtr->exa_minor = 0;
     pI830->EXADriverPtr->memoryBase = pI830->FbBase;
     pI830->EXADriverPtr->offScreenBase = pI830->Offscreen.Start;
-    if (IS_I965G(pI830))
-    	pI830->EXADriverPtr->memorySize = pI830->Offscreen.End -
-					BRW_LINEAR_EXTRA; /* BRW needs state buffer*/
-    else
-    	pI830->EXADriverPtr->memorySize = pI830->Offscreen.End;
+    pI830->EXADriverPtr->memorySize = pI830->Offscreen.End;
 	   
     DPRINTF(PFX, "EXA Mem: memoryBase 0x%x, end 0x%x, offscreen base 0x%x, memorySize 0x%x\n",
 		pI830->EXADriverPtr->memoryBase,

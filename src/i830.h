@@ -73,6 +73,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef I830_USE_EXA
 #include "exa.h"
 Bool I830EXAInit(ScreenPtr pScreen);
+#define EXA_LINEAR_EXTRA	(64*1024)
 #endif
 
 #ifdef I830_USE_XAA
@@ -267,6 +268,7 @@ typedef struct _I830Rec {
    I830MemRange Scratch2;
 #ifdef I830_USE_EXA
    I830MemRange Offscreen;
+   I830MemRange EXAStateMem;  /* specific exa state for G965 */
 #endif
    /* Regions allocated either from the above pools, or from agpgart. */
    I830MemRange	*CursorMem;
