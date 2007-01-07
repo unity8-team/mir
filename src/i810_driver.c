@@ -381,7 +381,7 @@ static int i810_pitches[] = {
 #endif
 #endif
 
-static int I830EntityIndex = -1;
+int I830EntityIndex = -1;
 
 #ifdef XFree86LOADER
 

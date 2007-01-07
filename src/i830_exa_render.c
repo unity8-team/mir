@@ -51,10 +51,6 @@ do { 							\
 } while(0) 
 #endif
 
-extern float scale_units[2][2];
-extern Bool is_transform[2];
-extern PictTransform *transform[2];
-
 struct blendinfo {
     Bool dst_alpha;
     Bool src_alpha;
@@ -274,8 +270,8 @@ I830TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     pitch = exaGetPixmapPitch(pPix);
     w = pPict->pDrawable->width;
     h = pPict->pDrawable->height;
-    scale_units[unit][0] = pPix->drawable.width;
-    scale_units[unit][1] = pPix->drawable.height;
+    pI830->scale_units[unit][0] = pPix->drawable.width;
+    pI830->scale_units[unit][1] = pPix->drawable.height;
 
     for (i = 0; i < sizeof(I830TexFormats) / sizeof(I830TexFormats[0]); i++) {
         if (I830TexFormats[i].fmt == pPict->format)
@@ -344,10 +340,10 @@ I830TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 
 	/* XXX */
     if (pPict->transform != 0) {
-        is_transform[unit] = TRUE;
-        transform[unit] = pPict->transform;
+        pI830->is_transform[unit] = TRUE;
+        pI830->transform[unit] = pPict->transform;
     } else {
-        is_transform[unit] = FALSE;
+        pI830->is_transform[unit] = FALSE;
     }
 
 #ifdef I830DEBUG
@@ -412,9 +408,9 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	if (!I830TextureSetup(pMaskPicture, pMask, 1))
 		I830FALLBACK("fail to setup mask texture\n");
     } else {
-	is_transform[1] = FALSE;
-	scale_units[1][0] = -1;
-	scale_units[1][1] = -1;
+	pI830->is_transform[1] = FALSE;
+	pI830->scale_units[1][0] = -1;
+	pI830->scale_units[1][1] = -1;
     }
 
     {

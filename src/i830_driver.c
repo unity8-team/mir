@@ -322,9 +322,6 @@ static CARD32 I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg);
 static Bool SaveHWState(ScrnInfoPtr pScrn);
 static Bool RestoreHWState(ScrnInfoPtr pScrn);
 
-
-extern int I830EntityIndex;
-
 /* temporary */
 extern void xf86SetCursor(ScreenPtr pScreen, CursorPtr pCurs, int x, int y);
 
