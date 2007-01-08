@@ -64,15 +64,6 @@ struct blendinfo {
     CARD32 dst_blend;
 };
 
-extern Bool
-I915EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
-		      PicturePtr pDstPicture);
-
-extern Bool
-I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
-			PicturePtr pMaskPicture, PicturePtr pDstPicture,
-			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
-
 static struct blendinfo I915BlendOp[] = {
     /* Clear */
     {0, 0, BLENDFACT_ZERO,          BLENDFACT_ZERO},

@@ -109,18 +109,6 @@ union intfloat {
 	OUT_RING(tmp.ui);			\
 } while(0)				
 
-extern Bool I830EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I830EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
-extern Bool I915EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I915EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
-
-extern Bool I965EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I965EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
-extern void I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, 
-			int maskY, int dstX, int dstY, int width, int height);
 /**
  * I830EXASync - wait for a command to finish
  * @pScreen: current screen

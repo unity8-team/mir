@@ -55,19 +55,6 @@ do { 							\
 } while(0) 
 #endif
 
-extern Bool
-I965EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
-		      PicturePtr pDstPicture);
-
-extern Bool
-I965EXAPrepareComposite(int op, PicturePtr pSrcPicture,
-			PicturePtr pMaskPicture, PicturePtr pDstPicture,
-			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
-
-extern void
-I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
-		int dstX, int dstY, int width, int height);
-
 static void I965GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format, 
 			     CARD32 *sblend, CARD32 *dblend);
 

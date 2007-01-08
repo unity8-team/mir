@@ -63,16 +63,6 @@ struct formatinfo {
     CARD32 card_fmt;
 };
 
-extern Bool
-I830EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
-		      PicturePtr pDstPicture);
-
-extern Bool
-I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
-			PicturePtr pMaskPicture, PicturePtr pDstPicture,
-			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
-
-
 #define TB0C_LAST_STAGE	(1 << 31)
 #define TB0C_RESULT_SCALE_1X		(0 << 29)
 #define TB0C_RESULT_SCALE_2X		(1 << 29)
