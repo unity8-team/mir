@@ -124,7 +124,7 @@ static Bool i830_sdvo_write_byte(xf86OutputPtr output,
 
 #define SDVO_CMD_NAME_ENTRY(cmd) {cmd, #cmd}
 /** Mapping of command numbers to names, for debug output */
-const struct _sdvo_cmd_name {
+const static struct _sdvo_cmd_name {
     CARD8 cmd;
     char *name;
 } sdvo_cmd_names[] = {

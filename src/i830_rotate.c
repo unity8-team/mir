@@ -62,6 +62,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_3d.h"
 #include "i830_xf86Crtc.h"
 #include "i830_randr.h"
+#include "brw_defines.h"
+#include "brw_structs.h"
 
 #include "brw_defines.h"
 #include "brw_structs.h"
@@ -1824,7 +1826,7 @@ I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode)
    if (pI830->rotation != RR_Rotate_0)
       shadowAdd (pScrn->pScreen, 
 		 (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen),
-		 func, I830WindowLinear, pI830->rotation, 0);
+		 func, I830WindowLinear, pI830->rotation, NULL);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)
@@ -2050,7 +2052,7 @@ BAIL0:
    if (pI830->rotation != RR_Rotate_0)
       shadowAdd (pScrn->pScreen, 
 		 (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen),
-		 func, I830WindowLinear, pI830->rotation, 0);
+		 func, I830WindowLinear, pI830->rotation, NULL);
 
    if (I830IsPrimary(pScrn)) {
       if (pI830->rotation != RR_Rotate_0)
