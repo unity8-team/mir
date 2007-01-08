@@ -1095,6 +1095,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     output->doubleScanAllowed = FALSE;
     
     dev_priv = (struct i830_sdvo_priv *) (intel_output + 1);
+    intel_output->type = I830_OUTPUT_SDVO;
 
     /* While it's the same bus, we just initialize a new copy to avoid trouble
      * with tracking refcounting ourselves, since the XFree86 DDX bits don't.
@@ -1218,7 +1219,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 
     i830_sdvo_get_input_pixel_clock_range(output, &dev_priv->pixel_clock_min,
 					  &dev_priv->pixel_clock_max);
-    intel_output->type = I830_OUTPUT_SDVO;
+
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "%s device VID/DID: %02X:%02X.%02X, "
 	       "clock range %.1fMHz - %.1fMHz, "

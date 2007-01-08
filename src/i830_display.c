@@ -821,9 +821,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	((adjusted_mode->CrtcVBlankEnd - 1) << 16));
     OUTREG(vsync_reg, (adjusted_mode->CrtcVSyncStart - 1) |
 	((adjusted_mode->CrtcVSyncEnd - 1) << 16));
-  /* XXX we might always set real line stride, rotation can change it */
-  //  OUTREG(dspstride_reg, pScrn->displayWidth * pI830->cpp);
-    OUTREG(dspstride_reg, pI830->displayWidth * pI830->cpp);
+    OUTREG(dspstride_reg, pScrn->displayWidth * pI830->cpp);
     /* pipesrc and dspsize control the size that is scaled from, which should
      * always be the user's requested size.
      */

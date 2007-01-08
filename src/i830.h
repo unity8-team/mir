@@ -195,8 +195,6 @@ extern const char *i830_output_type_names[];
 
 typedef struct _I830CrtcPrivateRec {
     int			    pipe;
-    Rotation 		    rotation;    /* current rotation, mirror from pI830->rotation */
-    Rotation		    rotations;  /* all */
     /* Lookup table values to be set when the CRTC is enabled */
     CARD8 lut_r[256], lut_g[256], lut_b[256];
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;

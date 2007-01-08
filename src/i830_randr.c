@@ -371,14 +371,6 @@ xf86RandR12GetRotation(ScreenPtr pScreen)
     return randrp->rotation;
 }
 
-Rotation
-xf86RandR12GetRotation12(RRCrtcPtr randr_crtc)
-{
-    xf86CrtcPtr		crtc = randr_crtc->devPrivate;
-    I830CrtcPrivatePtr  intel_crtc = I830CrtcPrivate(crtc);
-    return intel_crtc->rotation;
-}
-
 Bool
 xf86RandR12CreateScreenResources (ScreenPtr pScreen)
 {
@@ -498,29 +490,12 @@ xf86RandR12Init (ScreenPtr pScreen)
     return TRUE;
 }
 
-/* RandR12 should have been initialized, so we might set rotations
-   to Crtc object. 
- */
 void
 xf86RandR12SetRotations (ScreenPtr pScreen, Rotation rotations)
 {
     XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
-#if RANDR_12_INTERFACE
-    ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
-    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int c;
-#endif
 
     randrp->supported_rotations = rotations;
-#if RANDR_12_INTERFACE
-    for (c = 0; c < config->num_crtc ; c++) {
-	xf86CrtcPtr    crtc = config->crtc[c];
-	I830CrtcPrivatePtr intel_crtc = I830CrtcPrivate(crtc);
-	crtc->randr_crtc->rotations = rotations;
-	intel_crtc->rotations = rotations;
-	intel_crtc->rotation = RR_Rotate_0; /*XXX initial rotation fix */
-    }
-#endif
 }
 
 void
@@ -566,7 +541,7 @@ xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
 	return FALSE;
     x = crtc->x;
     y = crtc->y;
-    rotation = xf86RandR12GetRotation12(randr_crtc);
+    rotation = RR_Rotate_0;
     numOutputs = 0;
     randr_mode = NULL;
     for (i = 0; i < config->num_output; i++)
@@ -597,9 +572,6 @@ xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
     return ret;
 }
 
-extern Bool i830RandR12Rotate(ScreenPtr pScreen, RRCrtcPtr randr_crtc, 
-		DisplayModePtr mode, Rotation rotation);
-
 static Bool
 xf86RandR12CrtcSet (ScreenPtr	pScreen,
 		  RRCrtcPtr	randr_crtc,
@@ -616,8 +588,6 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     DisplayModePtr	mode = randr_mode ? randr_mode->devPrivate : NULL;
     Bool		changed = FALSE;
     Bool		pos_changed;
-    Bool		rotation_changed = FALSE;
-    Rotation 		old_rotation;
     int			o, ro;
     xf86CrtcPtr		*save_crtcs;
     Bool		save_enabled = crtc->enabled;
@@ -631,14 +601,6 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     pos_changed = changed;
     if (x != crtc->x || y != crtc->y)
 	pos_changed = TRUE;
-
-    old_rotation = xf86RandR12GetRotation12(randr_crtc);
-    if (rotation != old_rotation) {
-	changed = TRUE;
-	rotation_changed = TRUE;
-	pos_changed = TRUE;
-    }
-
     for (o = 0; o < config->num_output; o++) 
     {
 	xf86OutputPtr  output = config->output[o];
@@ -673,14 +635,6 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	    (*pI830->AccelInfoRec->Sync)(pScrn);
 	    pI830->AccelInfoRec->NeedToSync = FALSE;
 	}
-
-	/* rotation should take effect when crtc enabled*/
-	if (rotation_changed && crtc->enabled) {
-	    randr_crtc->rotation = rotation;
-	    if (!i830RandR12Rotate(pScreen, randr_crtc, mode, rotation)) {
-	        randr_crtc->rotation = old_rotation;
-  	    }
-        }
 
 	if (mode)
 	{
