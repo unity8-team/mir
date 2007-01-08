@@ -91,11 +91,6 @@ static void I830SubsequentImageWriteScanline(ScrnInfoPtr pScrn, int bufno);
 #endif
 static void I830RestoreAccelState(ScrnInfoPtr pScrn);
 
-#ifdef I830_USE_EXA
-extern const int I830PatternROP[16];
-extern const int I830CopyROP[16];
-#endif
-
 Bool
 I830XAAInit(ScreenPtr pScreen)
 {

@@ -379,6 +379,14 @@ typedef struct _I830Rec {
    Bool *overlayOn;
 #endif
 
+   /* EXA render state */
+   float scale_units[2][2];
+   Bool is_transform[2];
+   PictTransform *transform[2];
+   /* i915 EXA render state */
+   CARD32 mapstate[6];
+   CARD32 samplerstate[6];
+
    Bool directRenderingDisabled;	/* DRI disabled in PreInit. */
    Bool directRenderingEnabled;		/* DRI enabled this generation. */
 
@@ -494,6 +502,11 @@ typedef struct _I830Rec {
 #define I830_SELECT_FRONT	0
 #define I830_SELECT_BACK	1
 #define I830_SELECT_DEPTH	2
+
+#ifdef I830_USE_EXA
+extern const int I830PatternROP[16];
+extern const int I830CopyROP[16];
+#endif
 
 /* I830 specific functions */
 extern int I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis);
