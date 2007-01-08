@@ -77,6 +77,7 @@ extern const OptionInfoRec *I830AvailableOptions(int chipid, int busid);
 extern void I830InitpScrn(ScrnInfoPtr pScrn);
 
 /* Symbol lists shared by the i810 and i830 parts. */
+extern int I830EntityIndex;
 extern const char *I810vgahwSymbols[];
 extern const char *I810ramdacSymbols[];
 extern const char *I810int10Symbols[];

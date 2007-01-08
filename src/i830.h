@@ -379,6 +379,14 @@ typedef struct _I830Rec {
    Bool *overlayOn;
 #endif
 
+   /* EXA render state */
+   float scale_units[2][2];
+   Bool is_transform[2];
+   PictTransform *transform[2];
+   /* i915 EXA render state */
+   CARD32 mapstate[6];
+   CARD32 samplerstate[6];
+
    Bool directRenderingDisabled;	/* DRI disabled in PreInit. */
    Bool directRenderingEnabled;		/* DRI enabled this generation. */
 
@@ -607,6 +615,32 @@ DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
 /* i830_tv.c */
 void i830_tv_init(ScrnInfoPtr pScrn);
 
+#ifdef I830_USE_EXA
+extern Bool I830EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+extern Bool I830EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
+				PixmapPtr, PixmapPtr, PixmapPtr);
+extern Bool I915EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+extern Bool I915EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
+				PixmapPtr, PixmapPtr, PixmapPtr);
+
+extern Bool I965EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+extern Bool I965EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
+				PixmapPtr, PixmapPtr, PixmapPtr);
+extern void I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, 
+			int maskY, int dstX, int dstY, int width, int height);
+
+extern Bool
+I830EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
+		      PicturePtr pDstPicture);
+
+extern Bool
+I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
+			PicturePtr pMaskPicture, PicturePtr pDstPicture,
+			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
+
+extern const int I830PatternROP[16];
+extern const int I830CopyROP[16];
+#endif
 /* Flags for memory allocation function */
 #define FROM_ANYWHERE			0x00000000
 #define FROM_POOL_ONLY			0x00000001

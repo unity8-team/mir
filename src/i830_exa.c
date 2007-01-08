@@ -57,9 +57,7 @@ do { 							\
 } while(0) 
 #endif
 
-static float scale_units[2][2];
-
-const static int I830CopyROP[16] =
+const int I830CopyROP[16] =
 {
    ROP_0,               /* GXclear */
    ROP_DSa,             /* GXand */
@@ -79,7 +77,7 @@ const static int I830CopyROP[16] =
    ROP_1                /* GXset */
 };
 
-const static int I830PatternROP[16] =
+const int I830PatternROP[16] =
 {
     ROP_0,
     ROP_DPa,
@@ -111,21 +109,6 @@ union intfloat {
 	OUT_RING(tmp.ui);			\
 } while(0)				
 
-static Bool is_transform[2];
-static PictTransform *transform[2];
-
-extern Bool I830EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I830EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
-extern Bool I915EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I915EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
-
-extern Bool I965EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I965EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
-extern void I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, 
-			int maskY, int dstX, int dstY, int width, int height);
 /**
  * I830EXASync - wait for a command to finish
  * @pScreen: current screen
@@ -314,10 +297,10 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	    "src_scale_x %f, src_scale_y %f, "
 	    "mask_scale_x %f, mask_scale_y %f\n",
 	    srcX, srcY, maskX, maskY, dstX, dstY, w, h,
-	    scale_units[0][0], scale_units[0][1],
-	    scale_units[1][0], scale_units[1][1]);
+	    pI830->scale_units[0][0], pI830->scale_units[0][1],
+	    pI830->scale_units[1][0], pI830->scale_units[1][1]);
 
-    if (scale_units[1][0] == -1 || scale_units[1][1] == -1) {
+    if (pI830->scale_units[1][0] == -1 || pI830->scale_units[1][1] == -1) {
 	pMask = 0;
     }
 
@@ -325,31 +308,31 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     srcYend = srcY + h;
     maskXend = maskX + w;
     maskYend = maskY + h;
-    if (is_transform[0]) {
+    if (pI830->is_transform[0]) {
         v.vector[0] = IntToxFixed(srcX);
         v.vector[1] = IntToxFixed(srcY);
         v.vector[2] = xFixed1;
-        PictureTransformPoint(transform[0], &v);
+        PictureTransformPoint(pI830->transform[0], &v);
         srcX = xFixedToInt(v.vector[0]);
         srcY = xFixedToInt(v.vector[1]);
         v.vector[0] = IntToxFixed(srcXend);
         v.vector[1] = IntToxFixed(srcYend);
         v.vector[2] = xFixed1;
-        PictureTransformPoint(transform[0], &v);
+        PictureTransformPoint(pI830->transform[0], &v);
         srcXend = xFixedToInt(v.vector[0]);
         srcYend = xFixedToInt(v.vector[1]);
     }
-    if (is_transform[1]) {
+    if (pI830->is_transform[1]) {
         v.vector[0] = IntToxFixed(maskX);
         v.vector[1] = IntToxFixed(maskY);
         v.vector[2] = xFixed1;
-        PictureTransformPoint(transform[1], &v);
+        PictureTransformPoint(pI830->transform[1], &v);
         maskX = xFixedToInt(v.vector[0]);
         maskY = xFixedToInt(v.vector[1]);
         v.vector[0] = IntToxFixed(maskXend);
         v.vector[1] = IntToxFixed(maskYend);
         v.vector[2] = xFixed1;
-        PictureTransformPoint(transform[1], &v);
+        PictureTransformPoint(pI830->transform[1], &v);
         maskXend = xFixedToInt(v.vector[0]);
         maskYend = xFixedToInt(v.vector[1]);
     }
@@ -378,38 +361,38 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
 	OUT_RING_F(dstX);
 	OUT_RING_F(dstY);
-	OUT_RING_F(srcX / scale_units[0][0]);
-	OUT_RING_F(srcY / scale_units[0][1]);
+	OUT_RING_F(srcX / pI830->scale_units[0][0]);
+	OUT_RING_F(srcY / pI830->scale_units[0][1]);
 	if (pMask) {
-		OUT_RING_F(maskX / scale_units[1][0]);
-		OUT_RING_F(maskY / scale_units[1][1]);
+		OUT_RING_F(maskX / pI830->scale_units[1][0]);
+		OUT_RING_F(maskY / pI830->scale_units[1][1]);
 	}
 
 	OUT_RING_F(dstX);
 	OUT_RING_F(dstY + h);
-	OUT_RING_F(srcX / scale_units[0][0]);
-	OUT_RING_F(srcYend / scale_units[0][1]);
+	OUT_RING_F(srcX / pI830->scale_units[0][0]);
+	OUT_RING_F(srcYend / pI830->scale_units[0][1]);
 	if (pMask) {
-		OUT_RING_F(maskX / scale_units[1][0]);
-		OUT_RING_F(maskYend / scale_units[1][1]);
+		OUT_RING_F(maskX / pI830->scale_units[1][0]);
+		OUT_RING_F(maskYend / pI830->scale_units[1][1]);
 	}
 
 	OUT_RING_F(dstX + w);
 	OUT_RING_F(dstY + h);
-	OUT_RING_F(srcXend / scale_units[0][0]);
-	OUT_RING_F(srcYend / scale_units[0][1]);
+	OUT_RING_F(srcXend / pI830->scale_units[0][0]);
+	OUT_RING_F(srcYend / pI830->scale_units[0][1]);
 	if (pMask) {
-		OUT_RING_F(maskXend / scale_units[1][0]);
-		OUT_RING_F(maskYend / scale_units[1][1]);
+		OUT_RING_F(maskXend / pI830->scale_units[1][0]);
+		OUT_RING_F(maskYend / pI830->scale_units[1][1]);
 	}
 
 	OUT_RING_F(dstX + w);
 	OUT_RING_F(dstY);
-	OUT_RING_F(srcXend / scale_units[0][0]);
-	OUT_RING_F(srcY / scale_units[0][1]);
+	OUT_RING_F(srcXend / pI830->scale_units[0][0]);
+	OUT_RING_F(srcY / pI830->scale_units[0][1]);
 	if (pMask) {
-		OUT_RING_F(maskXend / scale_units[1][0]);
-		OUT_RING_F(maskY / scale_units[1][1]);
+		OUT_RING_F(maskXend / pI830->scale_units[1][0]);
+		OUT_RING_F(maskY / pI830->scale_units[1][1]);
 	}
 	ADVANCE_LP_RING();
     }

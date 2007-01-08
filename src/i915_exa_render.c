@@ -52,12 +52,6 @@ do { 							\
 } while(0)
 #endif
 
-extern float scale_units[2][2];
-extern Bool is_transform[2];
-extern PictTransform *transform[2];
-static CARD32 mapstate[6];
-static CARD32 samplerstate[6];
-
 struct formatinfo {
     int fmt;
     CARD32 card_fmt;
@@ -69,15 +63,6 @@ struct blendinfo {
     CARD32 src_blend;
     CARD32 dst_blend;
 };
-
-extern Bool
-I915EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
-		      PicturePtr pDstPicture);
-
-extern Bool
-I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
-			PicturePtr pMaskPicture, PicturePtr pDstPicture,
-			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
 
 static struct blendinfo I915BlendOp[] = {
     /* Clear */
@@ -267,8 +252,8 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     pitch = exaGetPixmapPitch(pPix);
     w = pPict->pDrawable->width;
     h = pPict->pDrawable->height;
-    scale_units[unit][0] = pPix->drawable.width;
-    scale_units[unit][1] = pPix->drawable.height;
+    pI830->scale_units[unit][0] = pPix->drawable.width;
+    pI830->scale_units[unit][1] = pPix->drawable.height;
 
     for (i = 0; i < sizeof(I915TexFormats) / sizeof(I915TexFormats[0]); i++) {
         if (I915TexFormats[i].fmt == pPict->format)
@@ -295,27 +280,27 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
         I830FALLBACK("Bad filter 0x%x\n", pPict->filter);
     }
 
-    mapstate[unit * 3 + 0] = offset;
-    mapstate[unit * 3 + 1] = format |
+    pI830->mapstate[unit * 3 + 0] = offset;
+    pI830->mapstate[unit * 3 + 1] = format |
 	((pPix->drawable.height - 1) << MS3_HEIGHT_SHIFT) |
 	((pPix->drawable.width - 1) << MS3_WIDTH_SHIFT);
     if (!pI830->disableTiling)
-	samplerstate[unit * 3 + 1] |= MS3_USE_FENCE_REGS;
-    mapstate[unit * 3 + 2] = ((pitch / 4) - 1) << MS4_PITCH_SHIFT;
+	pI830->samplerstate[unit * 3 + 1] |= MS3_USE_FENCE_REGS;
+    pI830->mapstate[unit * 3 + 2] = ((pitch / 4) - 1) << MS4_PITCH_SHIFT;
 
-    samplerstate[unit * 3 + 0] = (MIPFILTER_NONE << SS2_MIP_FILTER_SHIFT);
-    samplerstate[unit * 3 + 0] |= filter;
-    samplerstate[unit * 3 + 1] = SS3_NORMALIZED_COORDS;
-    samplerstate[unit * 3 + 1] |= wrap_mode << SS3_TCX_ADDR_MODE_SHIFT;
-    samplerstate[unit * 3 + 1] |= wrap_mode << SS3_TCY_ADDR_MODE_SHIFT;
-    samplerstate[unit * 3 + 1] |= unit << SS3_TEXTUREMAP_INDEX_SHIFT;
-    samplerstate[unit * 3 + 2] = 0x00000000; /* border color */
+    pI830->samplerstate[unit * 3 + 0] = (MIPFILTER_NONE << SS2_MIP_FILTER_SHIFT);
+    pI830->samplerstate[unit * 3 + 0] |= filter;
+    pI830->samplerstate[unit * 3 + 1] = SS3_NORMALIZED_COORDS;
+    pI830->samplerstate[unit * 3 + 1] |= wrap_mode << SS3_TCX_ADDR_MODE_SHIFT;
+    pI830->samplerstate[unit * 3 + 1] |= wrap_mode << SS3_TCY_ADDR_MODE_SHIFT;
+    pI830->samplerstate[unit * 3 + 1] |= unit << SS3_TEXTUREMAP_INDEX_SHIFT;
+    pI830->samplerstate[unit * 3 + 2] = 0x00000000; /* border color */
 
     if (pPict->transform != 0) {
-        is_transform[unit] = TRUE;
-        transform[unit] = pPict->transform;
+        pI830->is_transform[unit] = TRUE;
+        pI830->transform[unit] = pPict->transform;
     } else {
-        is_transform[unit] = FALSE;
+        pI830->is_transform[unit] = FALSE;
     }
 
     return TRUE;
@@ -348,44 +333,44 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	if (!I915TextureSetup(pMaskPicture, pMask, 1))
 		I830FALLBACK("fail to setup mask texture\n");
     } else {
-	is_transform[1] = FALSE;
-	scale_units[1][0] = -1;
-	scale_units[1][1] = -1;
+	pI830->is_transform[1] = FALSE;
+	pI830->scale_units[1][0] = -1;
+	pI830->scale_units[1][1] = -1;
     }
 
     if (pMask == NULL) {
 	BEGIN_LP_RING(10);
 	OUT_RING(_3DSTATE_MAP_STATE | 3);
 	OUT_RING(0x00000001); /* map 0 */
-	OUT_RING(mapstate[0]);
-	OUT_RING(mapstate[1]);
-	OUT_RING(mapstate[2]);
+	OUT_RING(pI830->mapstate[0]);
+	OUT_RING(pI830->mapstate[1]);
+	OUT_RING(pI830->mapstate[2]);
 
 	OUT_RING(_3DSTATE_SAMPLER_STATE | 3);
 	OUT_RING(0x00000001); /* sampler 0 */
-	OUT_RING(samplerstate[0]);
-	OUT_RING(samplerstate[1]);
-	OUT_RING(samplerstate[2]);
+	OUT_RING(pI830->samplerstate[0]);
+	OUT_RING(pI830->samplerstate[1]);
+	OUT_RING(pI830->samplerstate[2]);
 	ADVANCE_LP_RING();
     } else {
 	BEGIN_LP_RING(16);
 	OUT_RING(_3DSTATE_MAP_STATE | 6);
 	OUT_RING(0x00000003); /* map 0,1 */
-	OUT_RING(mapstate[0]);
-	OUT_RING(mapstate[1]);
-	OUT_RING(mapstate[2]);
-	OUT_RING(mapstate[3]);
-	OUT_RING(mapstate[4]);
-	OUT_RING(mapstate[5]);
+	OUT_RING(pI830->mapstate[0]);
+	OUT_RING(pI830->mapstate[1]);
+	OUT_RING(pI830->mapstate[2]);
+	OUT_RING(pI830->mapstate[3]);
+	OUT_RING(pI830->mapstate[4]);
+	OUT_RING(pI830->mapstate[5]);
 
 	OUT_RING(_3DSTATE_SAMPLER_STATE | 6);
 	OUT_RING(0x00000003); /* sampler 0,1 */
-	OUT_RING(samplerstate[0]);
-	OUT_RING(samplerstate[1]);
-	OUT_RING(samplerstate[2]);
-	OUT_RING(samplerstate[3]);
-	OUT_RING(samplerstate[4]);
-	OUT_RING(samplerstate[5]);
+	OUT_RING(pI830->samplerstate[0]);
+	OUT_RING(pI830->samplerstate[1]);
+	OUT_RING(pI830->samplerstate[2]);
+	OUT_RING(pI830->samplerstate[3]);
+	OUT_RING(pI830->samplerstate[4]);
+	OUT_RING(pI830->samplerstate[5]);
 	ADVANCE_LP_RING();
     }
     {
