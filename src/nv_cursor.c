@@ -51,8 +51,10 @@
 
 #define TRANSPARENT_PIXEL   0
 
-#define ConvertToRGB555(c) \
-(((c & 0xf80000) >> 9 ) | ((c & 0xf800) >> 6 ) | ((c & 0xf8) >> 3 ) | 0x8000)
+#define ConvertToRGB555(c)  (((c & 0xf80000) >> 9 ) | /* Blue  */           \
+                            ((c & 0xf800) >> 6 )    | /* Green */           \
+                            ((c & 0xf8) >> 3 )      | /* Red   */           \
+                            0x8000)                   /* Set upper bit, else we get complete transparency. */
 
 #define ConvertToRGB888(c) (c | 0xff000000)
 
@@ -61,6 +63,11 @@
                          ((c & 0xff00) << 8) |       \
                          ((c & 0xff) << 24)
 
+/* Limit non-alpha cursors to 32x32 (x2 bytes) */
+#define MAX_CURSOR_SIZE 32
+
+/* Limit alpha cursors to 32x32 (x4 bytes) */
+#define MAX_CURSOR_SIZE_ALPHA (MAX_CURSOR_SIZE * 2)
 
 static void 
 ConvertCursor1555(NVPtr pNv, CARD32 *src, CARD16 *dst)
@@ -68,10 +75,10 @@ ConvertCursor1555(NVPtr pNv, CARD32 *src, CARD16 *dst)
     CARD32 b, m;
     int i, j;
     
-    for ( i = 0; i < 32; i++ ) {
+    for ( i = 0; i < MAX_CURSOR_SIZE; i++ ) {
         b = *src++;
         m = *src++;
-        for ( j = 0; j < 32; j++ ) {
+        for ( j = 0; j < MAX_CURSOR_SIZE; j++ ) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
             if ( m & 0x80000000)
                 *dst = ( b & 0x80000000) ? pNv->curFg : pNv->curBg;
@@ -99,10 +106,11 @@ ConvertCursor8888(NVPtr pNv, CARD32 *src, CARD32 *dst)
     CARD32 b, m;
     int i, j;
    
-    for ( i = 0; i < 128; i++ ) {
+    /* Iterate over each byte in the cursor. */
+    for ( i = 0; i < MAX_CURSOR_SIZE * 4; i++ ) {
         b = *src++;
         m = *src++;
-        for ( j = 0; j < 32; j++ ) {
+        for ( j = 0; j < MAX_CURSOR_SIZE; j++ ) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
             if ( m & 0x80000000)
                 *dst = ( b & 0x80000000) ? pNv->curFg : pNv->curBg;
@@ -132,11 +140,11 @@ TransformCursor (NVPtr pNv)
 
     /* convert to color cursor */
     if(pNv->alphaCursor) {
-       dwords = 64 * 64;
+       dwords = MAX_CURSOR_SIZE_ALPHA * MAX_CURSOR_SIZE_ALPHA;
        if(!(tmp = ALLOCATE_LOCAL(dwords * 4))) return;
        ConvertCursor8888(pNv, pNv->curImage, tmp);
     } else {
-       dwords = (32 * 32) >> 1;
+       dwords = (MAX_CURSOR_SIZE * MAX_CURSOR_SIZE) >> 1;
        if(!(tmp = ALLOCATE_LOCAL(dwords * 4))) return;
        ConvertCursor1555(pNv, pNv->curImage, (CARD16*)tmp);
     }
@@ -227,7 +235,7 @@ NVUseHWCursor(ScreenPtr pScreen, CursorPtr pCurs)
 static Bool 
 NVUseHWCursorARGB(ScreenPtr pScreen, CursorPtr pCurs)
 {
-    if((pCurs->bits->width <= 64) && (pCurs->bits->height <= 64))
+    if((pCurs->bits->width <= MAX_CURSOR_SIZE_ALPHA) && (pCurs->bits->height <= MAX_CURSOR_SIZE_ALPHA))
         return TRUE;
 
     return FALSE;
@@ -264,20 +272,20 @@ NVLoadCursorARGB(ScrnInfoPtr pScrn, CursorPtr pCurs)
              *dst++ = tmp;
 #endif
          }
-         for(; x < 64; x++)
+         for(; x < MAX_CURSOR_SIZE_ALPHA; x++)
              *dst++ = 0;
       }
     } else {
        for(y = 0; y < h; y++) {
           for(x = 0; x < w; x++)
               *dst++ = *image++;
-          for(; x < 64; x++)
+          for(; x < MAX_CURSOR_SIZE_ALPHA; x++)
               *dst++ = 0;
        }
     }
 
-    if(y < 64)
-      memset(dst, 0, 64 * (64 - y) * 4);
+    if(y < MAX_CURSOR_SIZE_ALPHA)
+      memset(dst, 0, MAX_CURSOR_SIZE_ALPHA * (MAX_CURSOR_SIZE_ALPHA - y) * 4);
 }
 #endif
 
@@ -294,9 +302,9 @@ NVCursorInit(ScreenPtr pScreen)
     pNv->CursorInfoRec = infoPtr;
 
     if(pNv->alphaCursor)
-       infoPtr->MaxWidth = infoPtr->MaxHeight = 64;
+       infoPtr->MaxWidth = infoPtr->MaxHeight = MAX_CURSOR_SIZE_ALPHA;
     else
-       infoPtr->MaxWidth = infoPtr->MaxHeight = 32;
+       infoPtr->MaxWidth = infoPtr->MaxHeight = MAX_CURSOR_SIZE;
 
     infoPtr->Flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
                      HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32; 
