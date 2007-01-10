@@ -627,14 +627,10 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     /* XXX need device-independent mode setting code through an API */
     if (changed)
     {
-	I830Ptr pI830 = I830PTR(pScrn);
 	crtc->enabled = mode != NULL;
 
 	/* Sync the engine before adjust mode */
-	if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-	    (*pI830->AccelInfoRec->Sync)(pScrn);
-	    pI830->AccelInfoRec->NeedToSync = FALSE;
-	}
+        i830WaitSync(pScrn);
 
 	if (mode)
 	{

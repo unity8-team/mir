@@ -3016,10 +3016,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    if (crtc && crtc->enabled)
    {
       /* Sync the engine before adjust frame */
-      if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-	 (*pI830->AccelInfoRec->Sync)(pScrn);
-	 pI830->AccelInfoRec->NeedToSync = FALSE;
-      }
+      i830WaitSync(pScrn);
       i830PipeSetBase(crtc, output->initial_x + x, output->initial_y + y);
    }
 }

@@ -2358,10 +2358,7 @@ I830PutImage(ScrnInfoPtr pScrn,
        * acceleration to finish before writing the new video data into
        * framebuffer.
        */
-      if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-	 (*pI830->AccelInfoRec->Sync)(pScrn);
-	 pI830->AccelInfoRec->NeedToSync = FALSE;
-      }
+      i830WaitSync(pScrn);
    }
 
    switch (id) {
