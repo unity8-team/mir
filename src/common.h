@@ -339,10 +339,6 @@ extern int I810_DEBUG;
 #define I810_CURSOR_X			64
 #define I810_CURSOR_Y			I810_CURSOR_X
 
-/* XXX Need to check if these are reasonable. */
-#define MAX_DISPLAY_PITCH		2048
-#define MAX_DISPLAY_HEIGHT		2048
-
 #define PIPE_NAME(n)			('A' + (n))
 
 #endif /* _INTEL_COMMON_H_ */
