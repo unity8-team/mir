@@ -128,10 +128,19 @@ I830FreeMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear);
 static Atom xvBrightness, xvContrast, xvSaturation, xvColorKey, xvPipe, xvDoubleBuffer;
 static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 
+/* Limits for the overlay/textured video source sizes.  The actual hardware
+ * limits are 2048x2048 or better for overlay and both of our textured video
+ * implementations.  However, we run into the bigrequests limit of (currently)
+ * 4MB, which even the planar format's 2048*2048*1.5 bytes is larger than.
+ * Conveniently, the HD resolution, even in packed format, takes
+ * (1920*1088*2) bytes, which is just shy of 4MB.
+ *
+ * While the HD resolution is actually 1920x1080, we increase our advertised
+ * size to 1088 because some software wants to send an image aligned to
+ * 16-pixel boundaries.
+ */
 #define IMAGE_MAX_WIDTH		1920
 #define IMAGE_MAX_HEIGHT	1088
-#define IMAGE_MAX_WIDTH_LEGACY	1024
-#define IMAGE_MAX_HEIGHT_LEGACY	1088
 
 /* overlay debugging printf function */
 #if 0
@@ -669,11 +678,6 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
    adapt->name = "Intel(R) Video Overlay";
    adapt->nEncodings = 1;
    adapt->pEncodings = DummyEncoding;
-   /* update the DummyEncoding for these two chipsets */
-   if (IS_845G(pI830) || IS_I830(pI830)) {
-      adapt->pEncodings->width = IMAGE_MAX_WIDTH_LEGACY;
-      adapt->pEncodings->height = IMAGE_MAX_HEIGHT_LEGACY;
-   }
    adapt->nFormats = NUM_FORMATS;
    adapt->pFormats = Formats;
    adapt->nPorts = 1;
@@ -777,7 +781,6 @@ static XF86VideoAdaptorPtr
 I830SetupImageVideoTextured(ScreenPtr pScreen)
 {
    XF86VideoAdaptorPtr adapt;
-   XF86VideoEncodingPtr encoding;
    XF86AttributePtr attrs;
    I830PortPrivPtr portPrivs;
    DevUnion *devUnions;
@@ -791,15 +794,13 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
    adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec));
    portPrivs = xcalloc(nports, sizeof(I830PortPrivRec));
    devUnions = xcalloc(nports, sizeof(DevUnion));
-   encoding = xcalloc(1, sizeof(XF86VideoEncodingRec));
    attrs = xcalloc(nAttributes, sizeof(XF86AttributeRec));
    if (adapt == NULL || portPrivs == NULL || devUnions == NULL ||
-       encoding == NULL || attrs == NULL)
+       attrs == NULL)
    {
       xfree(adapt);
       xfree(portPrivs);
       xfree(devUnions);
-      xfree(encoding);
       xfree(attrs);
       return NULL;
    }
@@ -808,13 +809,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
    adapt->flags = 0;
    adapt->name = "Intel(R) Textured Video";
    adapt->nEncodings = 1;
-   adapt->pEncodings = encoding;
-   adapt->pEncodings[0].id = 0;
-   adapt->pEncodings[0].name = "XV_IMAGE";
-   adapt->pEncodings[0].width = 2048;
-   adapt->pEncodings[0].height = 2048;
-   adapt->pEncodings[0].rate.numerator = 1;
-   adapt->pEncodings[0].rate.denominator = 1;
+   adapt->pEncodings = DummyEncoding;
    adapt->nFormats = NUM_FORMATS;
    adapt->pFormats = Formats;
    adapt->nPorts = nports;
@@ -2439,26 +2434,16 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
 			 unsigned short *w, unsigned short *h,
 			 int *pitches, int *offsets, Bool textured)
 {
-   I830Ptr pI830 = I830PTR(pScrn);
    int size, tmp;
 
 #if 0
    ErrorF("I830QueryImageAttributes: w is %d, h is %d\n", *w, *h);
 #endif
 
-   if (!textured) {
-      if (IS_845G(pI830) || IS_I830(pI830)) {
-	 if (*w > IMAGE_MAX_WIDTH_LEGACY)
-	    *w = IMAGE_MAX_WIDTH_LEGACY;
-	 if (*h > IMAGE_MAX_HEIGHT_LEGACY)
-	    *h = IMAGE_MAX_HEIGHT_LEGACY;
-      } else {
-	 if (*w > IMAGE_MAX_WIDTH)
-	    *w = IMAGE_MAX_WIDTH;
-	 if (*h > IMAGE_MAX_HEIGHT)
-	    *h = IMAGE_MAX_HEIGHT;
-      }
-   }
+   if (*w > IMAGE_MAX_WIDTH)
+       *w = IMAGE_MAX_WIDTH;
+   if (*h > IMAGE_MAX_HEIGHT)
+       *h = IMAGE_MAX_HEIGHT;
 
    *w = (*w + 1) & ~1;
    if (offsets)
@@ -2596,13 +2581,8 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
 
    OVERLAY_DEBUG("I830AllocateSurface\n");
 
-   if (IS_845G(pI830) || IS_I830(pI830)) {
-      if ((w > IMAGE_MAX_WIDTH_LEGACY) || (h > IMAGE_MAX_HEIGHT_LEGACY))
-         return BadAlloc;
-   } else {
-      if ((w > IMAGE_MAX_WIDTH) || (h > IMAGE_MAX_HEIGHT))
-         return BadAlloc;
-   }
+   if ((w > IMAGE_MAX_WIDTH) || (h > IMAGE_MAX_HEIGHT))
+       return BadAlloc;
 
    /* What to do when rotated ?? */
    if (pI830->rotation != RR_Rotate_0)
@@ -2804,8 +2784,6 @@ static void
 I830InitOffscreenImages(ScreenPtr pScreen)
 {
    XF86OffscreenImagePtr offscreenImages;
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I830Ptr pI830 = I830PTR(pScrn);
 
    /* need to free this someplace */
    if (!(offscreenImages = xalloc(sizeof(XF86OffscreenImageRec)))) {
@@ -2820,13 +2798,8 @@ I830InitOffscreenImages(ScreenPtr pScreen)
    offscreenImages[0].stop = I830StopSurface;
    offscreenImages[0].setAttribute = I830SetSurfaceAttribute;
    offscreenImages[0].getAttribute = I830GetSurfaceAttribute;
-   if (IS_845G(pI830) || IS_I830(pI830)) {
-      offscreenImages[0].max_width = IMAGE_MAX_WIDTH_LEGACY;
-      offscreenImages[0].max_height = IMAGE_MAX_HEIGHT_LEGACY;
-   } else {
-      offscreenImages[0].max_width = IMAGE_MAX_WIDTH;
-      offscreenImages[0].max_height = IMAGE_MAX_HEIGHT; 
-   }
+   offscreenImages[0].max_width = IMAGE_MAX_WIDTH;
+   offscreenImages[0].max_height = IMAGE_MAX_HEIGHT;
    offscreenImages[0].num_attributes = 1;
    offscreenImages[0].attributes = Attributes;
 
