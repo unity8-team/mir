@@ -1139,14 +1139,13 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* Allocate an xf86CrtcConfig */
    xf86CrtcConfigInit (pScrn);
    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-   
-   if (IS_I965G(pI830))
-   {
-      max_width = 16384;
-      max_height = 4096;
-   }
-   else
-   {
+
+   /* See i830_exa.c comments for why we limit the framebuffer size like this.
+    */
+   if (IS_I965G(pI830)) {
+      max_width = 8192;
+      max_height = 8192;
+   } else {
       max_width = 2048;
       max_height = 2048;
    }
