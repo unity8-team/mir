@@ -1566,8 +1566,14 @@ ATIProbe
             /* Next, look for sparse I/O Mach64's */
             for (i = 0;  (pVideo = xf86PciVideoInfo[i++]);  )
             {
+            /* For some Radeons, pvideo->size[1] is not there but the card 
+             * still works properly. Thus adding check that if the chip was 
+             * correctly identified as being Rage128 or a Radeon, continue 
+             * also in that case. See fd.o bug 6796. */
+                Chip = ATIChipID(pVideo->chipType, pVideo->chipRev);
                 if ((pVideo->vendor != PCI_VENDOR_ATI) ||
                     (pVideo->chipType == PCI_CHIP_MACH32) ||
+                    (Chip > ATI_CHIP_Mach64) || 
                     pVideo->size[1])
                     continue;
 
@@ -1728,9 +1734,13 @@ ATIProbe
         /* Lastly, look for block I/O devices */
         for (i = 0;  (pVideo = xf86PciVideoInfo[i++]);  )
         {
+        /* For some Radeons, !pvideo->size[1] applies but the card still 
+         * works properly. Thus don't make !pVideo->size[1] check to continue 
+         * automatically (instead check that the chip actually is below 
+         * ATI_CHIP_Mach64 (includes ATI_CHIP_NONE)). See fd.o bug 6796. */
             if ((pVideo->vendor != PCI_VENDOR_ATI) ||
                 (pVideo->chipType == PCI_CHIP_MACH32) ||
-                !pVideo->size[1])
+                (!pVideo->size[1] && Chip < ATI_CHIP_Mach64))
                 continue;
 
             /* Check for Rage128's, Radeon's and later adapters */
