@@ -345,9 +345,9 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	int vertex_count; 
 
 	if (pMask)
-		vertex_count = 4*6;
+		vertex_count = 3*6;
 	else
-		vertex_count = 4*4;
+		vertex_count = 3*4;
 
 	BEGIN_LP_RING(6+vertex_count);
 
@@ -357,7 +357,7 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	OUT_RING(MI_NOOP);
 	OUT_RING(MI_NOOP);
 
-	OUT_RING(PRIM3D_INLINE | PRIM3D_TRIFAN | (vertex_count-1));
+	OUT_RING(PRIM3D_INLINE | PRIM3D_RECTLIST | (vertex_count-1));
 
 	OUT_RING_F(dstX);
 	OUT_RING_F(dstY);
@@ -384,15 +384,6 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	if (pMask) {
 		OUT_RING_F(maskXend / pI830->scale_units[1][0]);
 		OUT_RING_F(maskYend / pI830->scale_units[1][1]);
-	}
-
-	OUT_RING_F(dstX + w);
-	OUT_RING_F(dstY);
-	OUT_RING_F(srcXend / pI830->scale_units[0][0]);
-	OUT_RING_F(srcY / pI830->scale_units[0][1]);
-	if (pMask) {
-		OUT_RING_F(maskXend / pI830->scale_units[1][0]);
-		OUT_RING_F(maskY / pI830->scale_units[1][1]);
 	}
 	ADVANCE_LP_RING();
     }
