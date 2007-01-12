@@ -2359,9 +2359,6 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn)
     if (!pRADEONEnt->Controller[0])
         return FALSE;
     
-    if (!pRADEONEnt->HasCRTC2)
-	return TRUE;
-
     pRADEONEnt->Controller[1] = xcalloc(sizeof(RADEONController), 1);
     if (!pRADEONEnt->Controller[1])
     {
