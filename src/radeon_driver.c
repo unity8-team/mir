@@ -5233,7 +5233,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONCrtcPrivatePtr pCRTC1 = pRADEONEnt->Controller[0];
     RADEONCrtcPrivatePtr pCRTC2 = pRADEONEnt->Controller[1];
-    xf86OutputPtr pPort;
+    xf86OutputPtr output;
     RADEONTRACE(("RADEONRestoreMode(%p)\n", restore));
 
     /* For Non-dual head card, we don't have private field in the Entity */
@@ -5271,9 +5271,9 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	    RADEONRestoreCrtc2Registers(pScrn, restore);
 	    RADEONRestorePLL2Registers(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
-	    pPort = RADEONGetCrtcConnector(pScrn, 2);
-	    if (pPort) {
-		RADEONEnableDisplay(pScrn, pPort, TRUE);
+	    output = RADEONGetCrtcConnector(pScrn, 2);
+	    if (output) {
+		RADEONEnableDisplay(pScrn, output, TRUE);
 		pCRTC2->IsActive = TRUE;
 	    }
 	} else {
@@ -5287,15 +5287,15 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
             RADEONRestoreCrtcRegisters(pScrn, restore);
             RADEONRestorePLLRegisters(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
-	    pPort = RADEONGetCrtcConnector(pScrn, 1);
-	    if (pPort) {
-		RADEONEnableDisplay(pScrn, pPort, TRUE);
+	    output = RADEONGetCrtcConnector(pScrn, 1);
+	    if (output) {
+		RADEONEnableDisplay(pScrn, output, TRUE);
 		pCRTC1->IsActive = TRUE;
 	    }
 	    if (pCRTC2->binding == 1) {
-		pPort = RADEONGetCrtcConnector(pScrn, 2);
-		if (pPort) {
-		    RADEONEnableDisplay(pScrn, pPort, TRUE);
+		output = RADEONGetCrtcConnector(pScrn, 2);
+		if (output) {
+		    RADEONEnableDisplay(pScrn, output, TRUE);
 		    pCRTC2->IsActive = TRUE;
 		}
 	    }
@@ -5311,15 +5311,15 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	RADEONRestoreCrtcRegisters(pScrn, restore);
 	RADEONRestorePLLRegisters(pScrn, restore);
 	RADEONRestoreFPRegisters(pScrn, restore);
-	pPort = RADEONGetCrtcConnector(pScrn, 1);
-	if (pPort) {
-	    RADEONEnableDisplay(pScrn, pPort, TRUE);
+	output = RADEONGetCrtcConnector(pScrn, 1);
+	if (output) {
+	    RADEONEnableDisplay(pScrn, output, TRUE);
 	    pCRTC1->IsActive = TRUE;
 	}
 	if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
-	    pPort = RADEONGetCrtcConnector(pScrn, 2);
-	    if (pPort) {
-		RADEONEnableDisplay(pScrn, pPort, TRUE);
+	    output = RADEONGetCrtcConnector(pScrn, 2);
+	    if (output) {
+		RADEONEnableDisplay(pScrn, output, TRUE);
 		pCRTC2->IsActive = TRUE;
 	    }
 	}
@@ -5989,24 +5989,24 @@ static void RADEONInitDAC2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     }
 }
 
-static void RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save, DisplayModePtr mode, xf86OutputPtr pPort, int crtc_num)
+static void RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save, DisplayModePtr mode, xf86OutputPtr output, int crtc_num)
 {
     Bool IsPrimary = crtc_num == 1 ? TRUE : FALSE;
-    RADEONOutputPrivatePtr pRPort = pPort->driver_private;
-    if (pRPort->MonType == MT_CRT) {
-	if (pRPort->DACType == DAC_PRIMARY) {
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    if (radeon_output->MonType == MT_CRT) {
+	if (radeon_output->DACType == DAC_PRIMARY) {
 	    RADEONInitDACRegisters(pScrn, save, mode, IsPrimary);
 	} else {
 	    RADEONInitDAC2Registers(pScrn, save, mode, IsPrimary);
 	}
-    } else if (pRPort->MonType == MT_LCD) {
+    } else if (radeon_output->MonType == MT_LCD) {
 	if (crtc_num == 1)
 	    RADEONInitRMXRegisters(pScrn, save, mode);
 	RADEONInitLVDSRegisters(pScrn, save, mode, IsPrimary);
-    } else if (pRPort->MonType == MT_DFP) {
+    } else if (radeon_output->MonType == MT_DFP) {
 	if (crtc_num == 1)
 	    RADEONInitRMXRegisters(pScrn, save, mode);
-	if (pRPort->TMDSType == TMDS_INT) {
+	if (radeon_output->TMDSType == TMDS_INT) {
 	    RADEONInitFPRegisters(pScrn, save, mode, IsPrimary);
 	} else {
 	    RADEONInitFP2Registers(pScrn, save, mode, IsPrimary);

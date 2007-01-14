@@ -556,7 +556,7 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
     unsigned long DDCReg;
     RADEONMonitorType MonType = MT_NONE;
     xf86MonPtr* MonInfo = &port->MonInfo;
-    RADEONOutputPrivatePtr pRPort = port->driver_private;
+    RADEONOutputPrivatePtr radeon_output = port->driver_private;
     int i, j;
 
     DDCReg = info->DDCReg;
@@ -651,7 +651,7 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
 	     * Also for laptop, when X starts with lid closed (no DVI connection)
 	     * both LDVS and TMDS are disable, we still need to treat it as a LVDS panel.
 	     */
-	    if (pRPort->TMDSType == TMDS_EXT) MonType = MT_DFP;
+	    if (radeon_output->TMDSType == TMDS_EXT) MonType = MT_DFP;
 	    else {
 		if ((INREG(RADEON_FP_GEN_CNTL) & RADEON_FP_EN_TMDS) || !info->IsMobility)
 		    MonType = MT_DFP;
@@ -1160,15 +1160,15 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
     }
 }
 
-static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr pPort)
+static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    RADEONOutputPrivatePtr pRPort = pPort->driver_private;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     if (info->IsMobility) {
-      switch(pRPort->num) {
+      switch(radeon_output->num) {
       case 0:
 	/* non-DDC laptop panel connected on primary */
 	if (INREG(RADEON_BIOS_4_SCRATCH) & 4)
@@ -1189,19 +1189,19 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 /* Primary Head (DVI or Laptop Int. panel)*/
 /* A ddc capable display connected on DVI port */
 /* Secondary Head (mostly VGA, can be DVI on some OEM boards)*/
-void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr pPort)
+void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    RADEONOutputPrivatePtr pRPort = pPort->driver_private;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     
-    if (pRPort->MonType == MT_UNKNOWN) {
-      if ((pRPort->MonType = RADEONDisplayDDCConnected(pScrn,
-						     pRPort->DDCType,
-						     pPort)));
-      else if((pRPort->MonType = RADEONPortCheckNonDDC(pScrn, pPort)));
+    if (radeon_output->MonType == MT_UNKNOWN) {
+      if ((radeon_output->MonType = RADEONDisplayDDCConnected(pScrn,
+						     radeon_output->DDCType,
+						     output)));
+      else if((radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output)));
       else
-	pRPort->MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(pRPort->DACType));
+	radeon_output->MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(radeon_output->DACType));
     }
 }
 
@@ -1310,7 +1310,7 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     Bool head_reversed = FALSE;
     xf86OutputPtr connector;
-    RADEONOutputPrivatePtr pRPort;
+    RADEONOutputPrivatePtr radeon_output;
 
     info->MergeType = MT_NONE;
 
@@ -1390,51 +1390,51 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
     if(pRADEONEnt->HasCRTC2) {
 	if(info->IsSecondary) {
 	    connector = RADEONGetCrtcConnector(pScrn, 2);
-	    pRPort = connector->driver_private;
+	    radeon_output = connector->driver_private;
   	    pRADEONEnt->Controller[1]->binding = 2;
 	    if (connector) {
-		info->DisplayType = pRPort->MonType;
+		info->DisplayType = radeon_output->MonType;
 		pScrn->monitor->DDC = connector->MonInfo;
 	    }
 	} else {
 	    connector = RADEONGetCrtcConnector(pScrn, 1);
-	    pRPort = connector->driver_private;
+	    radeon_output = connector->driver_private;
   	    pRADEONEnt->Controller[0]->binding = 1;
 	    if (connector) {
-		info->DisplayType = pRPort->MonType; 
+		info->DisplayType = radeon_output->MonType; 
 		pScrn->monitor->DDC = connector->MonInfo;
 	    }
 	}
 	
 	if(!pRADEONEnt->HasSecondary) {
 	    connector = RADEONGetCrtcConnector(pScrn, 2);
-	    pRPort = connector->driver_private;
+	    radeon_output = connector->driver_private;
 	    if (connector)
-		info->MergeType = pRPort->MonType;
+		info->MergeType = radeon_output->MonType;
 	    if (info->MergeType)
   	    	pRADEONEnt->Controller[1]->binding = 1;
 	} 
     } else {
 	connector = RADEONGetCrtcConnector(pScrn, 1);
-	pRPort = connector->driver_private;
+	radeon_output = connector->driver_private;
 	if (connector) {
-	    if (pRPort->MonType == MT_NONE) 
-		pRPort->MonType = MT_CRT;
-	    info->DisplayType = pRPort->MonType; 
+	    if (radeon_output->MonType == MT_NONE) 
+		radeon_output->MonType = MT_CRT;
+	    info->DisplayType = radeon_output->MonType; 
 	    pScrn->monitor->DDC = connector->MonInfo;
 	}
 	connector = RADEONGetCrtcConnector(pScrn, 2);
-	pRPort = connector->driver_private;
+	radeon_output = connector->driver_private;
 	if (connector)
-	    pRPort->MonType = MT_NONE;
+	    radeon_output->MonType = MT_NONE;
 	pRADEONEnt->Controller[1]->binding = 1;
     }
 
     if (!info->IsSecondary) {
 	connector = RADEONGetCrtcConnector(pScrn, 2);
-	pRPort = connector->driver_private;
+	radeon_output = connector->driver_private;
         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Primary Head:   Port%d ---- \n", head_reversed?2:1);
-	if (pRPort->MonType != MT_NONE)
+	if (radeon_output->MonType != MT_NONE)
             xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Secondary Head: Port%d ----\n", head_reversed?1:2);
  	else
             xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Secondary Head: Not used ----\n");
@@ -1588,23 +1588,23 @@ void RADEONDisableDisplays(ScrnInfoPtr pScrn) {
 }
 
 /* This is to be used enable/disable displays dynamically */
-void RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr pPort, BOOL bEnable)
+void RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr output, BOOL bEnable)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONSavePtr save = &info->ModeReg;
     unsigned char * RADEONMMIO = info->MMIO;
     unsigned long tmp;
-    RADEONOutputPrivatePtr pRPort;
-    pRPort = pPort->driver_private;
+    RADEONOutputPrivatePtr radeon_output;
+    radeon_output = output->driver_private;
 
     if (bEnable) {
-        if (pRPort->MonType == MT_CRT) {
-            if (pRPort->DACType == DAC_PRIMARY) {
+        if (radeon_output->MonType == MT_CRT) {
+            if (radeon_output->DACType == DAC_PRIMARY) {
                 tmp = INREG(RADEON_CRTC_EXT_CNTL);
                 tmp |= RADEON_CRTC_CRT_ON;                    
                 OUTREG(RADEON_CRTC_EXT_CNTL, tmp);
                 save->crtc_ext_cntl |= RADEON_CRTC_CRT_ON;
-            } else if (pRPort->DACType == DAC_TVDAC) {
+            } else if (radeon_output->DACType == DAC_TVDAC) {
                 if (info->ChipFamily == CHIP_FAMILY_R200) {
                     tmp = INREG(RADEON_FP2_GEN_CNTL);
                     tmp |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
@@ -1617,20 +1617,20 @@ void RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr pPort, BOOL bEnable)
                     save->crtc2_gen_cntl |= RADEON_CRTC2_CRT2_ON;
                 }
             }
-	    RADEONDacPowerSet(pScrn, bEnable, (pRPort->DACType == DAC_PRIMARY));
-        } else if (pRPort->MonType == MT_DFP) {
-            if (pRPort->TMDSType == TMDS_INT) {
+	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
+        } else if (radeon_output->MonType == MT_DFP) {
+            if (radeon_output->TMDSType == TMDS_INT) {
                 tmp = INREG(RADEON_FP_GEN_CNTL);
                 tmp |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
                 OUTREG(RADEON_FP_GEN_CNTL, tmp);
                 save->fp_gen_cntl |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
-            } else if (pRPort->TMDSType == TMDS_EXT) {
+            } else if (radeon_output->TMDSType == TMDS_EXT) {
                 tmp = INREG(RADEON_FP2_GEN_CNTL);
                 tmp |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
                 OUTREG(RADEON_FP2_GEN_CNTL, tmp);
                 save->fp2_gen_cntl |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
             }
-        } else if (pRPort->MonType == MT_LCD) {
+        } else if (radeon_output->MonType == MT_LCD) {
             tmp = INREG(RADEON_LVDS_GEN_CNTL);
             tmp |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
             tmp &= ~(RADEON_LVDS_DISPLAY_DIS);
@@ -1640,13 +1640,13 @@ void RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr pPort, BOOL bEnable)
             save->lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS);
         } 
     } else {
-        if (pRPort->MonType == MT_CRT || pRPort->MonType == NONE) {
-            if (pRPort->DACType == DAC_PRIMARY) {
+        if (radeon_output->MonType == MT_CRT || radeon_output->MonType == NONE) {
+            if (radeon_output->DACType == DAC_PRIMARY) {
                 tmp = INREG(RADEON_CRTC_EXT_CNTL);
                 tmp &= ~RADEON_CRTC_CRT_ON;                    
                 OUTREG(RADEON_CRTC_EXT_CNTL, tmp);
                 save->crtc_ext_cntl &= ~RADEON_CRTC_CRT_ON;
-            } else if (pRPort->DACType == DAC_TVDAC) {
+            } else if (radeon_output->DACType == DAC_TVDAC) {
                 if (info->ChipFamily == CHIP_FAMILY_R200) {
                     tmp = INREG(RADEON_FP2_GEN_CNTL);
                     tmp &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
@@ -1659,16 +1659,16 @@ void RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr pPort, BOOL bEnable)
                     save->crtc2_gen_cntl &= ~RADEON_CRTC2_CRT2_ON;
                 }
             }
-	    RADEONDacPowerSet(pScrn, bEnable, (pRPort->DACType == DAC_PRIMARY));
+	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
         }
 
-        if (pRPort->MonType == MT_DFP || pRPort->MonType == NONE) {
-            if (pRPort->TMDSType == TMDS_INT) {
+        if (radeon_output->MonType == MT_DFP || radeon_output->MonType == NONE) {
+            if (radeon_output->TMDSType == TMDS_INT) {
                 tmp = INREG(RADEON_FP_GEN_CNTL);
                 tmp &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
                 OUTREG(RADEON_FP_GEN_CNTL, tmp);
                 save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
-            } else if (pRPort->TMDSType == TMDS_EXT) {
+            } else if (radeon_output->TMDSType == TMDS_EXT) {
                 tmp = INREG(RADEON_FP2_GEN_CNTL);
                 tmp &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
                 OUTREG(RADEON_FP2_GEN_CNTL, tmp);
@@ -1676,8 +1676,8 @@ void RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr pPort, BOOL bEnable)
             }
         }
 
-        if (pRPort->MonType == MT_LCD || 
-            (pRPort->MonType == NONE && pRPort->ConnectorType == CONNECTOR_PROPRIETARY)) {
+        if (radeon_output->MonType == MT_LCD || 
+            (radeon_output->MonType == NONE && radeon_output->ConnectorType == CONNECTOR_PROPRIETARY)) {
 	    unsigned long tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
 	    if (info->IsMobility || info->IsIGP) {
 	    /* Asic bug, when turning off LVDS_ON, we have to make sure
@@ -2084,19 +2084,20 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
     }
 }
 
-static void RADEONDPMSSetOn(ScrnInfoPtr pScrn, xf86OutputPtr pPort)
+static void RADEONDPMSSetOn(xf86OutputPtr output)
 {
+  ScrnInfoPtr pScrn = output->scrn;
   RADEONInfoPtr  info       = RADEONPTR(pScrn);
   RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
   unsigned char *RADEONMMIO = info->MMIO;
   RADEONMonitorType MonType;
   RADEONTmdsType TmdsType;
   RADEONDacType DacType;
-  RADEONOutputPrivatePtr pRPort = pPort->driver_private;
+  RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-  MonType = pRPort->MonType;
-  TmdsType = pRPort->TMDSType;
-  DacType = pRPort->DACType;
+  MonType = radeon_output->MonType;
+  TmdsType = radeon_output->TMDSType;
+  DacType = radeon_output->DACType;
 
   switch(MonType) {
   case MT_LCD:
@@ -2123,8 +2124,9 @@ static void RADEONDPMSSetOn(ScrnInfoPtr pScrn, xf86OutputPtr pPort)
   }
 }
 
-static void RADEONDPMSSetOff(ScrnInfoPtr pScrn, xf86OutputPtr pPort)
+static void RADEONDPMSSetOff(xf86OutputPtr output)
 {
+  ScrnInfoPtr pScrn = output->scrn;
   RADEONInfoPtr  info       = RADEONPTR(pScrn);
   RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
   unsigned char *RADEONMMIO = info->MMIO;
@@ -2132,11 +2134,11 @@ static void RADEONDPMSSetOff(ScrnInfoPtr pScrn, xf86OutputPtr pPort)
   RADEONTmdsType TmdsType;
   RADEONDacType DacType;
   unsigned long tmpPixclksCntl;
-  RADEONOutputPrivatePtr pRPort = pPort->driver_private;
+  RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-  MonType = pRPort->MonType;
-  TmdsType = pRPort->TMDSType;
-  DacType = pRPort->DACType;
+  MonType = radeon_output->MonType;
+  TmdsType = radeon_output->TMDSType;
+  DacType = radeon_output->DACType;
 
   switch(MonType) {
   case MT_LCD:
@@ -2179,7 +2181,7 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    xf86OutputPtr pPort;
+    xf86OutputPtr output;
     if (!pScrn->vtSema) return;
 
     RADEONTRACE(("RADEONDisplayPowerManagementSet(%d,0x%x)\n", PowerManagementMode, flags));
@@ -2260,20 +2262,20 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 	}
 
 	if (PowerManagementMode == DPMSModeOn) {
-  	    pPort = RADEONGetCrtcConnector(pScrn, info->IsSecondary ? 2 : 1);
-   	    RADEONDPMSSetOn(pScrn, pPort);
+  	    output = RADEONGetCrtcConnector(pScrn, info->IsSecondary ? 2 : 1);
+   	    RADEONDPMSSetOn(output);
 	    if (pRADEONEnt->Controller[1]->binding == 1) {
-	      pPort = RADEONGetCrtcConnector(pScrn, 2);
-	      RADEONDPMSSetOn(pScrn, pPort);
+	      output = RADEONGetCrtcConnector(pScrn, 2);
+	      RADEONDPMSSetOn(output);
 	    }
 	} else if ((PowerManagementMode == DPMSModeOff) ||
 		   (PowerManagementMode == DPMSModeSuspend) ||
 		   (PowerManagementMode == DPMSModeStandby)) {
-	    pPort = RADEONGetCrtcConnector(pScrn, info->IsSecondary ? 2 : 1);
-	    RADEONDPMSSetOff(pScrn, pPort);
+	    output = RADEONGetCrtcConnector(pScrn, info->IsSecondary ? 2 : 1);
+	    RADEONDPMSSetOff(output);
 	    if (pRADEONEnt->Controller[1]->binding == 1) {
-	        pPort = RADEONGetCrtcConnector(pScrn, 2);	        
-	        RADEONDPMSSetOff(pScrn, pPort);
+	        output = RADEONGetCrtcConnector(pScrn, 2);	        
+	        RADEONDPMSSetOff(output);
 	    }
         }
     }
@@ -2407,16 +2409,15 @@ static const xf86CrtcFuncsRec radeon_crtc_funcs = {
 static void
 radeon_dpms(xf86OutputPtr output, int mode)
 {
-    ScrnInfoPtr	    pScrn = output->scrn;
-    
     switch(mode) {
     case DPMSModeOn:
-      RADEONDPMSSetOn(pScrn, output);
+      RADEONDPMSSetOn(output);
       break;
     case DPMSModeOff:
     case DPMSModeSuspend:
     case DPMSModeStandby:
-      RADEONDPMSSetOff(pScrn, output);
+      RADEONDPMSSetOff(output);
+      break;
     }
 }
 
@@ -2558,12 +2559,12 @@ Bool RADEONAllocatePortInfo(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr pRPort)
+void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     RADEONOutputType output;
     if (info->IsAtomBios) {
-	switch(pRPort->ConnectorType) {
+	switch(radeon_output->ConnectorType) {
 	case 0: output = OUTPUT_NONE; break;
 	case 1: output = OUTPUT_VGA; break;
 	case 2:
@@ -2579,7 +2580,7 @@ void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr pRPort)
 	}
     }
     else {
-	switch(pRPort->ConnectorType) {
+	switch(radeon_output->ConnectorType) {
 	case 0: output = OUTPUT_NONE; break;
 	case 1: output = OUTPUT_LVDS; break;
 	case 2: output = OUTPUT_VGA; break;
@@ -2590,7 +2591,7 @@ void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr pRPort)
 	default: output = OUTPUT_NONE; break;
 	}
     }
-    pRPort->type = output;
+    radeon_output->type = output;
 }
 
 Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)

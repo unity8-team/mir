@@ -600,19 +600,19 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    RADEONOutputPrivatePtr pRPort = output->driver_private;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     DisplayModePtr ddc_modes, mode;
     DisplayModePtr test;
 
     /* force reprobe */
-    pRPort->MonType = MT_UNKNOWN;
+    radeon_output->MonType = MT_UNKNOWN;
 	
     RADEONConnectorFindMonitor(pScrn, output);
     
     /* okay we got DDC info */
     if (output->MonInfo) {
       /* Debug info for now, at least */
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", pRPort->num);
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", radeon_output->num);
       xf86PrintEDID(output->MonInfo);
       
       ddc_modes = xf86DDCGetModes(pScrn->scrnIndex, output->MonInfo);
@@ -633,7 +633,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
       MonRec fixed_mon;
       DisplayModePtr modes;
       
-      switch(pRPort->MonType) {
+      switch(radeon_output->MonType) {
       case MT_CRT:
       case MT_DFP:
 	
