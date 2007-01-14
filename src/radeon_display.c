@@ -2813,6 +2813,7 @@ RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
 	goto done;
     }
 
+#if 0
     /* Disable the outputs and CRTCs before setting the mode. */
     for (i = 0; i < xf86_config->num_output; i++) {
 	xf86OutputPtr output = xf86_config->output[i];
@@ -2825,6 +2826,7 @@ RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
     }
 
     crtc->funcs->dpms(crtc, DPMSModeOff);
+#endif
 
     /* Set up the DPLL and any output state that needs to adjust or depend
      * on the DPLL.
@@ -2836,6 +2838,7 @@ RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
 	    output->funcs->mode_set(output, pMode, adjusted_mode);
     }
 
+#if 0
     /* Now, enable the clocks, plane, pipe, and outputs that we set up. */
     crtc->funcs->dpms(crtc, DPMSModeOn);
     for (i = 0; i < xf86_config->num_output; i++) {
@@ -2843,7 +2846,7 @@ RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
 	if (output->crtc == crtc)
 	    output->funcs->dpms(output, DPMSModeOn);
     }
-
+#endif
     crtc->curMode = *pMode;
     
     /* XXX free adjustedmode */

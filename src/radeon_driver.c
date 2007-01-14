@@ -3222,12 +3222,13 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
      */
     info->directRenderingEnabled = RADEONPreInitDRI(pScrn);
 #endif
-
-    xf86CrtcSetSizeRange (pScrn, 320, 200, 2048, 2048);
     if (!RADEONPreInitVRAM(pScrn))
 	goto fail;
 
     RADEONPreInitColorTiling(pScrn);
+
+    xf86CrtcSetSizeRange (pScrn, 320, 200, 3072, 3072) ;//nfo->MaxSurfaceWidth, info->MaxLines);
+
 
     RADEONPreInitDDC(pScrn);
 
