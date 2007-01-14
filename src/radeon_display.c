@@ -2036,158 +2036,51 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     RADEONInitDispBandwidth2(pScrn, info, info2, mode1, mode2);
 }
 
-static void RADEONBlankSet(ScrnInfoPtr pScrn, xf86OutputPtr pPort)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    RADEONOutputPrivatePtr pRPort;
-    pRPort = pPort->driver_private;
-
-    switch(pRPort->MonType) {
-    case MT_LCD:
-        OUTREGP(RADEON_LVDS_GEN_CNTL, RADEON_LVDS_DISPLAY_DIS, ~RADEON_LVDS_DISPLAY_DIS);
-        break;
-
-    case MT_CRT:
-       if ((info->ChipFamily == CHIP_FAMILY_R200) && 
- 	  (pRPort->DACType == DAC_TVDAC))
-	    OUTREGP(RADEON_FP2_GEN_CNTL, RADEON_FP2_BLANK_EN, ~RADEON_FP2_BLANK_EN);
-      
-        break;
-    case MT_DFP:
-        if (pRPort->TMDSType == TMDS_EXT)
-  	    OUTREGP(RADEON_FP2_GEN_CNTL, RADEON_FP2_BLANK_EN, ~RADEON_FP2_BLANK_EN);
-        else
-	    OUTREGP(RADEON_FP_GEN_CNTL, RADEON_FP_BLANK_EN, ~RADEON_FP_BLANK_EN);
-      
-        break;
-    case MT_NONE:
-    default:
-        break;
-    }   
-}
-
-/* Blank screen */
 void RADEONBlank(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    xf86OutputPtr pPort;
+    xf86OutputPtr output;
+    xf86CrtcPtr crtc;
+    int o, c;
 
-    if (!pRADEONEnt->HasSecondary ||
-	(pRADEONEnt->HasSecondary && !info->IsSwitching) ||
-	(info->IsSwitching && (!info->IsSecondary))) {
-        pPort = RADEONGetCrtcConnector(pScrn, 1);
-	if (pPort)
-	    RADEONBlankSet(pScrn, pPort);
-	OUTREGP (RADEON_CRTC_EXT_CNTL,
-		 RADEON_CRTC_DISPLAY_DIS |
-		 RADEON_CRTC_VSYNC_DIS |
-		 RADEON_CRTC_HSYNC_DIS,
-		 ~(RADEON_CRTC_DISPLAY_DIS |
-		   RADEON_CRTC_VSYNC_DIS | 
-		   RADEON_CRTC_HSYNC_DIS));
+    for (c = 0; c < xf86_config->num_crtc; c++) {
+	crtc = xf86_config->crtc[c];
+    	for (o = 0; o < xf86_config->num_output; o++) {
+	    output = xf86_config->output[o];
+	    if (output->crtc != crtc)
+		continue;
 
-	if (!pRADEONEnt->HasCRTC2) return;
-
-	if (pRADEONEnt->Controller[1]->binding == 1) {
-	    pPort = RADEONGetCrtcConnector(pScrn, 2);
-	    if (pPort)
-		RADEONBlankSet(pScrn, pPort);
-	    OUTREGP (RADEON_CRTC2_GEN_CNTL,
-		     RADEON_CRTC2_DISP_DIS |
-		     RADEON_CRTC2_VSYNC_DIS |
-		     RADEON_CRTC2_HSYNC_DIS,
-		     ~(RADEON_CRTC2_DISP_DIS |
-		       RADEON_CRTC2_VSYNC_DIS | 
-		       RADEON_CRTC2_HSYNC_DIS));
+	    output->funcs->dpms(output, DPMSModeOff);
 	}
-    }
-
-    if ((pRADEONEnt->HasSecondary && !info->IsSwitching) ||
-	(info->IsSwitching && info->IsSecondary)) {
-	pPort = RADEONGetCrtcConnector(pScrn, 2);
-	if (pPort)
-	    RADEONBlankSet(pScrn, pPort);
-	OUTREGP (RADEON_CRTC2_GEN_CNTL,
-		 RADEON_CRTC2_DISP_DIS |
-		 RADEON_CRTC2_VSYNC_DIS |
-		 RADEON_CRTC2_HSYNC_DIS,
-		 ~(RADEON_CRTC2_DISP_DIS |
-		   RADEON_CRTC2_VSYNC_DIS | 
-		   RADEON_CRTC2_HSYNC_DIS));
+	crtc->funcs->dpms(crtc, DPMSModeOff);
     }
 }
 
-static void RADEONUnblankSet(ScrnInfoPtr pScrn, xf86OutputPtr pPort)
-{
-    RADEONInfoPtr info = RADEONPTR (pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    RADEONOutputPrivatePtr pRPort = pPort->driver_private;
-
-    switch(pRPort->MonType) {
-    case MT_LCD:
-        OUTREGP(RADEON_LVDS_GEN_CNTL, 0, ~RADEON_LVDS_DISPLAY_DIS);
-        break;
-    case MT_CRT:
-        if ((info->ChipFamily == CHIP_FAMILY_R200) &&
-	  (pRPort->DACType == DAC_TVDAC))
-	      OUTREGP(RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_BLANK_EN);
-        break;
-    case MT_DFP:
-        if (pRPort->TMDSType == TMDS_EXT)
-	    OUTREGP(RADEON_FP2_GEN_CNTL, 0, ~RADEON_FP2_BLANK_EN);
-        else
-	    OUTREGP(RADEON_FP_GEN_CNTL, 0, ~RADEON_FP_BLANK_EN);
-        break;
-    case MT_NONE:
-    default:
-        break;
-    }
-}
-
-/* Unblank screen */
 void RADEONUnblank(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    xf86OutputPtr pPort;
+    xf86OutputPtr output;
+    xf86CrtcPtr crtc;
+    int o, c;
 
-    if (!pRADEONEnt->HasSecondary || (info->IsSwitching  && !info->IsSecondary)) {
-	pPort = RADEONGetCrtcConnector(pScrn, 1);
-	if (pPort)
-	    RADEONUnblankSet(pScrn, pPort);
-	OUTREGP(RADEON_CRTC_EXT_CNTL,
-		0,
-		~(RADEON_CRTC_DISPLAY_DIS |
-		  RADEON_CRTC_VSYNC_DIS |
-		  RADEON_CRTC_HSYNC_DIS));
+    for (c = 0; c < xf86_config->num_crtc; c++) {
+	crtc = xf86_config->crtc[c];
+	if(!crtc->enabled)
+		continue;
+	crtc->funcs->dpms(crtc, DPMSModeOn);
+    	for (o = 0; o < xf86_config->num_output; o++) {
+	    output = xf86_config->output[o];
+	    if (output->crtc != crtc)
+		continue;
 
-      if (!pRADEONEnt->HasCRTC2) return;
-
-      if (pRADEONEnt->Controller[1]->binding == 1) {
-	pPort = RADEONGetCrtcConnector(pScrn, 2);
-	if (pPort)
-	    RADEONUnblankSet(pScrn, pPort);
-	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0,
-		~(RADEON_CRTC2_DISP_DIS |
-		  RADEON_CRTC2_VSYNC_DIS |
-		  RADEON_CRTC2_HSYNC_DIS));
-      }
-    }
-
-    if (info->IsSwitching && info->IsSecondary) {
-	pPort = RADEONGetCrtcConnector(pScrn, 2);
-	if (pPort)
-	    RADEONUnblankSet(pScrn, pPort);
-	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0,
-		~(RADEON_CRTC2_DISP_DIS |
-		  RADEON_CRTC2_VSYNC_DIS |
-		  RADEON_CRTC2_HSYNC_DIS));
+	    output->funcs->dpms(output, DPMSModeOn);
+	}
     }
 }
 
