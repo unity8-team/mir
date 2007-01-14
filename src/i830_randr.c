@@ -541,7 +541,7 @@ xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
 	return FALSE;
     x = crtc->x;
     y = crtc->y;
-    rotation = RR_Rotate_0;
+    rotation = crtc->curRotation;
     numOutputs = 0;
     randr_mode = NULL;
     for (i = 0; i < config->num_output; i++)
@@ -638,7 +638,7 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 
 	if (mode)
 	{
-	    if (!i830PipeSetMode (crtc, mode, TRUE))
+	    if (!xf86CrtcSetMode (crtc, mode, rotation))
 	    {
 		crtc->enabled = save_enabled;
 		for (o = 0; o < config->num_output; o++)
@@ -651,7 +651,7 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	    }
 	    crtc->desiredMode = *mode;
 	}
-	i830DisableUnusedFunctions (pScrn);
+	xf86DisableUnusedFunctions (pScrn);
 
 	i830DumpRegs(pScrn);
     }

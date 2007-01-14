@@ -337,7 +337,7 @@ xf86PrintModeline(int scrnIndex,DisplayModePtr mode)
  * This is not in xf86Modes.c, but would be part of the proposed new API.
  */
 void
-i830xf86ValidateModesFlags(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+xf86ValidateModesFlags(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 			    int flags)
 {
     DisplayModePtr mode;
@@ -358,7 +358,7 @@ i830xf86ValidateModesFlags(ScrnInfoPtr pScrn, DisplayModePtr modeList,
  * This is not in xf86Modes.c, but would be part of the proposed new API.
  */
 void
-i830xf86ValidateModesSize(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+xf86ValidateModesSize(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 			  int maxX, int maxY, int maxPitch)
 {
     DisplayModePtr mode;
@@ -387,7 +387,7 @@ i830xf86ValidateModesSize(ScrnInfoPtr pScrn, DisplayModePtr modeList,
  * This is not in xf86Modes.c, but would be part of the proposed new API.
  */
 void
-i830xf86ValidateModesSync(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+xf86ValidateModesSync(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 			  MonPtr mon)
 {
     DisplayModePtr mode;
@@ -434,7 +434,7 @@ i830xf86ValidateModesSync(ScrnInfoPtr pScrn, DisplayModePtr modeList,
  * This is not in xf86Modes.c, but would be part of the proposed new API.
  */
 void
-i830xf86ValidateModesClocks(ScrnInfoPtr pScrn, DisplayModePtr modeList,
+xf86ValidateModesClocks(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 			    int *min, int *max, int n_ranges)
 {
     DisplayModePtr mode;
@@ -468,7 +468,7 @@ i830xf86ValidateModesClocks(ScrnInfoPtr pScrn, DisplayModePtr modeList,
  * This is not in xf86Modes.c, but would be part of the proposed new API.
  */
 void
-i830xf86ValidateModesUserConfig(ScrnInfoPtr pScrn, DisplayModePtr modeList)
+xf86ValidateModesUserConfig(ScrnInfoPtr pScrn, DisplayModePtr modeList)
 {
     DisplayModePtr mode;
 
@@ -502,7 +502,7 @@ i830xf86ValidateModesUserConfig(ScrnInfoPtr pScrn, DisplayModePtr modeList)
  * This is not in xf86Modes.c, but would be part of the proposed new API.
  */
 void
-i830xf86PruneInvalidModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
+xf86PruneInvalidModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
 			  Bool verbose)
 {
     DisplayModePtr mode;
@@ -558,7 +558,7 @@ xf86ModesAdd(DisplayModePtr modes, DisplayModePtr new)
  * Build a mode list from a list of config file modes
  */
 static DisplayModePtr
-i830xf86GetConfigModes (XF86ConfModeLinePtr conf_mode)
+xf86GetConfigModes (XF86ConfModeLinePtr conf_mode)
 {
     DisplayModePtr  head = NULL, prev = NULL, mode;
     
@@ -604,7 +604,7 @@ i830xf86GetConfigModes (XF86ConfModeLinePtr conf_mode)
  * Build a mode list from a monitor configuration
  */
 DisplayModePtr
-i830xf86GetMonitorModes (ScrnInfoPtr pScrn, XF86ConfMonitorPtr conf_monitor)
+xf86GetMonitorModes (ScrnInfoPtr pScrn, XF86ConfMonitorPtr conf_monitor)
 {
     DisplayModePtr	    modes = NULL;
     XF86ConfModesLinkPtr    modes_link;
@@ -625,18 +625,18 @@ i830xf86GetMonitorModes (ScrnInfoPtr pScrn, XF86ConfMonitorPtr conf_monitor)
 						  xf86configptr->conf_modes_lst);
 	if (modes_link->ml_modes)
 	    modes = xf86ModesAdd (modes,
-				  i830xf86GetConfigModes (modes_link->ml_modes->mon_modeline_lst));
+				  xf86GetConfigModes (modes_link->ml_modes->mon_modeline_lst));
     }
 
     return xf86ModesAdd (modes,
-			 i830xf86GetConfigModes (conf_monitor->mon_modeline_lst));
+			 xf86GetConfigModes (conf_monitor->mon_modeline_lst));
 }
 
 /**
  * Build a mode list containing all of the default modes
  */
 DisplayModePtr
-i830xf86GetDefaultModes (Bool interlaceAllowed, Bool doubleScanAllowed)
+xf86GetDefaultModes (Bool interlaceAllowed, Bool doubleScanAllowed)
 {
     DisplayModePtr  head = NULL, prev = NULL, mode;
     int		    i;

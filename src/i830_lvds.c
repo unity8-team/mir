@@ -254,10 +254,10 @@ i830_lvds_get_modes(xf86OutputPtr output)
     xf86MonPtr		    edid_mon;
     DisplayModePtr	    modes;
 
-    edid_mon = i830_xf86OutputGetEDID (output, intel_output->pDDCBus);
-    i830_xf86OutputSetEDID (output, edid_mon);
+    edid_mon = xf86OutputGetEDID (output, intel_output->pDDCBus);
+    xf86OutputSetEDID (output, edid_mon);
     
-    modes = i830_xf86OutputGetEDIDModes (output);
+    modes = xf86OutputGetEDIDModes (output);
     if (modes != NULL)
 	return modes;
 

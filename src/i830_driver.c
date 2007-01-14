@@ -3131,7 +3131,7 @@ I830EnterVT(int scrnIndex, int flags)
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
-   i830DisableUnusedFunctions(pScrn);
+   xf86DisableUnusedFunctions(pScrn);
 
    for (i = 0; i < xf86_config->num_crtc; i++)
    {
@@ -3140,9 +3140,12 @@ I830EnterVT(int scrnIndex, int flags)
       /* Mark that we'll need to re-set the mode for sure */
       memset(&crtc->curMode, 0, sizeof(crtc->curMode));
       if (!crtc->desiredMode.CrtcHDisplay)
+      {
 	 crtc->desiredMode = *i830PipeFindClosestMode (crtc, pScrn->currentMode);
+	 crtc->desiredRotation = RR_Rotate_0;
+      }
       
-      if (!i830PipeSetMode (crtc, &crtc->desiredMode, TRUE))
+      if (!xf86CrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation))
 	 return FALSE;
    }
 
@@ -3223,45 +3226,11 @@ I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
    Bool ret = TRUE;
-   PixmapPtr pspix = (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen);
 
    DPRINTF(PFX, "I830SwitchMode: mode == %p\n", mode);
 
-   /* Sync the engine before mode switch */
-   i830WaitSync(pScrn);
-
-   /* Check if our currentmode is about to change. We do this so if we
-    * are rotating, we don't need to call the mode setup again.
-    */
-   if (pI830->currentMode != mode) {
-      if (!i830SetMode(pScrn, mode))
-         ret = FALSE;
-   }
-
-   /* Kludge to detect Rotate or Vidmode switch. Not very elegant, but
-    * workable given the implementation currently. We only need to call
-    * the rotation function when we know that the framebuffer has been
-    * disabled by the EnableDisableFBAccess() function.
-    *
-    * The extra WindowTable check detects a rotation at startup.
-    */
-   if ( (!WindowTable[pScrn->scrnIndex] || pspix->devPrivate.ptr == NULL) &&
-         !pI830->DGAactive && (pScrn->PointerMoved == I830PointerMoved)) {
-      if (!I830Rotate(pScrn, mode))
-         ret = FALSE;
-   }
-
-   /* Either the original setmode or rotation failed, so restore the previous
-    * video mode here, as we'll have already re-instated the original rotation.
-    */
-   if (!ret) {
-      if (!i830SetMode(pScrn, pI830->currentMode)) {
-	 xf86DrvMsg(scrnIndex, X_INFO,
-		    "Failed to restore previous mode (SwitchMode)\n");
-      }
-   } else {
+   if (!i830SetMode(pScrn, mode, pI830->rotation))
       pI830->currentMode = mode;
-   }
 
    return ret;
 }
