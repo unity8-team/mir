@@ -651,7 +651,7 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	    }
 	    crtc->desiredMode = *mode;
 
-	
+	    RADEONDisableUnusedFunctions(pScrn);
 	    RADEONBlank(pScrn);
 	    RADEONRestoreMode(pScrn, &info->ModeReg);
 	    RADEONUnblank(pScrn);

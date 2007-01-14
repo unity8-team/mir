@@ -7079,7 +7079,6 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
 #endif /* USE_XAA */
 
     if (pScrn->vtSema) {
-	RADEONDisplayPowerManagementSet(pScrn, DPMSModeOn, 0);
 	RADEONRestore(pScrn);
     }
 

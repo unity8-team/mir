@@ -1467,7 +1467,7 @@ static void RADEONDacPowerSet(ScrnInfoPtr pScrn, Bool IsOn, Bool IsPrimaryDAC)
 	CARD32 dac_cntl;
 	CARD32 dac_macro_cntl = 0;
 	dac_cntl = INREG(RADEON_DAC_CNTL);
-	if ((!info->IsMobility) || (info->ChipFamily == CHIP_FAMILY_RV350)) 
+	if ((!info->IsMobility) || (info->ChipFamily >= CHIP_FAMILY_RV350)) 
 	    dac_macro_cntl = INREG(RADEON_DAC_MACRO_CNTL);
 	if (IsOn) {
 	    dac_cntl &= ~RADEON_DAC_PDWN;
@@ -1480,8 +1480,9 @@ static void RADEONDacPowerSet(ScrnInfoPtr pScrn, Bool IsOn, Bool IsPrimaryDAC)
 			       RADEON_DAC_PDWN_G |
 			       RADEON_DAC_PDWN_B);
 	}
+	ErrorF("Setting IsOn %d DAC CNTL %08X and DAC MACRO_CNTL %08X\n", IsOn, dac_cntl, dac_macro_cntl);
 	OUTREG(RADEON_DAC_CNTL, dac_cntl);
-	if ((!info->IsMobility) || (info->ChipFamily == CHIP_FAMILY_RV350)) 
+	if ((!info->IsMobility) || (info->ChipFamily >= CHIP_FAMILY_RV350)) 
 	    OUTREG(RADEON_DAC_MACRO_CNTL, dac_macro_cntl);
     } else {
 	CARD32 tv_dac_cntl;
@@ -2099,6 +2100,8 @@ static void RADEONDPMSSetOn(xf86OutputPtr output)
   TmdsType = radeon_output->TMDSType;
   DacType = radeon_output->DACType;
 
+  ErrorF("radeon_dpms_on %d %d %d\n", radeon_output->num, MonType, DacType);
+
   switch(MonType) {
   case MT_LCD:
     OUTREGP (RADEON_LVDS_GEN_CNTL, RADEON_LVDS_BLON, ~RADEON_LVDS_BLON);
@@ -2172,118 +2175,6 @@ static void RADEONDPMSSetOff(xf86OutputPtr output)
   }
 }
 
-
-/* Sets VESA Display Power Management Signaling (DPMS) Mode */
-void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
-					    int PowerManagementMode,
-					    int flags)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    xf86OutputPtr output;
-    if (!pScrn->vtSema) return;
-
-    RADEONTRACE(("RADEONDisplayPowerManagementSet(%d,0x%x)\n", PowerManagementMode, flags));
-
-#ifdef XF86DRI
-    if (info->CPStarted) DRILock(pScrn->pScreen, 0);
-#endif
-
-    if (info->accelOn)
-        RADEON_SYNC(info, pScrn);
-
-    if (info->FBDev) {
-	fbdevHWDPMSSet(pScrn, PowerManagementMode, flags);
-    } else {
-	int             mask1     = (RADEON_CRTC_DISPLAY_DIS |
-				     RADEON_CRTC_HSYNC_DIS |
-				     RADEON_CRTC_VSYNC_DIS);
-	int             mask2     = (RADEON_CRTC2_DISP_DIS |
-				     RADEON_CRTC2_VSYNC_DIS |
-				     RADEON_CRTC2_HSYNC_DIS);
-
-	switch (PowerManagementMode) {
-	case DPMSModeOn:
-	    /* Screen: On; HSync: On, VSync: On */
-	    if (info->IsSecondary)
-		OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~mask2);
-	    else {
-		if (pRADEONEnt->Controller[1]->binding == 1)
-		    OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~mask2);
-		OUTREGP(RADEON_CRTC_EXT_CNTL, 0, ~mask1);
-	    }
-	    break;
-
-	case DPMSModeStandby:
-	    /* Screen: Off; HSync: Off, VSync: On */
-	    if (info->IsSecondary)
-		OUTREGP(RADEON_CRTC2_GEN_CNTL,
-			(RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_HSYNC_DIS),
-			~mask2);
-	    else {
-		if (pRADEONEnt->Controller[1]->binding == 1)
-		    OUTREGP(RADEON_CRTC2_GEN_CNTL,
-			    (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_HSYNC_DIS),
-			    ~mask2);
-		OUTREGP(RADEON_CRTC_EXT_CNTL,
-			(RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS),
-			~mask1);
-	    }
-	    break;
-
-	case DPMSModeSuspend:
-	    /* Screen: Off; HSync: On, VSync: Off */
-	    if (info->IsSecondary)
-		OUTREGP(RADEON_CRTC2_GEN_CNTL,
-			(RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS),
-			~mask2);
-	    else {
-		if (pRADEONEnt->Controller[1]->binding == 1)
-		    OUTREGP(RADEON_CRTC2_GEN_CNTL,
-			    (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS),
-			    ~mask2);
-		OUTREGP(RADEON_CRTC_EXT_CNTL,
-			(RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_VSYNC_DIS),
-			~mask1);
-	    }
-	    break;
-
-	case DPMSModeOff:
-	    /* Screen: Off; HSync: Off, VSync: Off */
-	    if (info->IsSecondary)
-		OUTREGP(RADEON_CRTC2_GEN_CNTL, mask2, ~mask2);
-	    else {
-		if (pRADEONEnt->Controller[1]->binding == 1)
-		    OUTREGP(RADEON_CRTC2_GEN_CNTL, mask2, ~mask2);
-		OUTREGP(RADEON_CRTC_EXT_CNTL, mask1, ~mask1);
-	    }
-	    break;
-	}
-
-	if (PowerManagementMode == DPMSModeOn) {
-  	    output = RADEONGetCrtcConnector(pScrn, info->IsSecondary ? 2 : 1);
-   	    RADEONDPMSSetOn(output);
-	    if (pRADEONEnt->Controller[1]->binding == 1) {
-	      output = RADEONGetCrtcConnector(pScrn, 2);
-	      RADEONDPMSSetOn(output);
-	    }
-	} else if ((PowerManagementMode == DPMSModeOff) ||
-		   (PowerManagementMode == DPMSModeSuspend) ||
-		   (PowerManagementMode == DPMSModeStandby)) {
-	    output = RADEONGetCrtcConnector(pScrn, info->IsSecondary ? 2 : 1);
-	    RADEONDPMSSetOff(output);
-	    if (pRADEONEnt->Controller[1]->binding == 1) {
-	        output = RADEONGetCrtcConnector(pScrn, 2);	        
-	        RADEONDPMSSetOff(output);
-	    }
-        }
-    }
-
-#ifdef XF86DRI
-    if (info->CPStarted) DRIUnlock(pScrn->pScreen);
-#endif
-}
 
 static void
 radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
@@ -2469,9 +2360,9 @@ radeon_detect(xf86OutputPtr output)
     RADEONConnectorFindMonitor(pScrn, output);
     if (radeon_output->MonType == MT_UNKNOWN)
 	return XF86OutputStatusUnknown;
-    else if (radeon_output->MonType == MT_NONE)
+    else if (radeon_output->MonType == MT_NONE) {
 	return XF86OutputStatusDisconnected;
-    else
+    } else
 	return XF86OutputStatusConnected;
 
 }
@@ -2849,4 +2740,20 @@ RADEONCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
 	pMode = pBest;
     }
     return pMode;
+}
+
+void
+RADEONDisableUnusedFunctions(ScrnInfoPtr pScrn)
+{
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int o, c;
+
+    for (c = 0; c < xf86_config->num_crtc; c++)
+    {
+	xf86CrtcPtr crtc = xf86_config->crtc[c];
+	if (!crtc->enabled)
+		memset(&crtc->curMode, 0, sizeof(crtc->curMode));
+
+    }
+
 }
