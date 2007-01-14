@@ -2592,6 +2592,8 @@ radeon_get_modes(xf86OutputPtr output)
 static void
 radeon_destroy (xf86OutputPtr output)
 {
+    if(output->driver_private)
+        xfree(output->driver_private);
 }
 
 static const xf86OutputFuncsRec radeon_output_funcs = {
@@ -2719,8 +2721,12 @@ Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
 	
 	pRADEONEnt->pOutput[i]->driver_private = pRADEONEnt->PortInfo[i];
 	pRADEONEnt->PortInfo[i]->num = i;
-	
-	pRADEONEnt->pOutput[i]->possible_crtcs = (1<<0) | (1<<1);
+
+	pRADEONEnt->pOutput[i]->possible_crtcs = (1<<0);
+	if (pRADEONEnt->PortInfo[i]->type != OUTPUT_LVDS)
+ 	    pRADEONEnt->pOutput[i]->possible_crtcs |= (1<<1);
+
+	pRADEONEnt->pOutput[i]->possible_clones = 0;
     }
     
 
