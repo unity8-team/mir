@@ -270,6 +270,9 @@ typedef enum {
    OPTION_SECONDHSYNC,
    OPTION_SECONDVREFRESH,
    OPTION_SECONDPOSITION,
+   OPTION_SECONDISSCRN0,
+   OPTION_MERGEDFBNONRECT,
+   OPTION_MERGEDFBMOUSER,
    OPTION_INTELXINERAMA,
    OPTION_INTELTEXPOOL,
    OPTION_INTELMMSIZE
@@ -299,6 +302,9 @@ static OptionInfoRec I830BIOSOptions[] = {
    {OPTION_SECONDHSYNC,	"SecondMonitorHorizSync",OPTV_STRING,	{0}, FALSE },
    {OPTION_SECONDVREFRESH,"SecondMonitorVertRefresh",OPTV_STRING,{0}, FALSE },
    {OPTION_SECONDPOSITION,"SecondPosition",OPTV_STRING,	{0},	FALSE },
+   {OPTION_SECONDISSCRN0,"MergedXineramaSecondIsScreen0", OPTV_BOOLEAN, {0}, FALSE },
+   {OPTION_MERGEDFBNONRECT,"MergedNonRectangular",OPTV_BOOLEAN,	{0},	FALSE},
+   {OPTION_MERGEDFBMOUSER,"MergedMouseRestriction",OPTV_BOOLEAN, {0},    FALSE},
    {OPTION_INTELXINERAMA,"MergedXinerama",OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_INTELMMSIZE, "AperTexSize",  OPTV_INTEGER,	{0},	FALSE},
@@ -4755,6 +4761,27 @@ I830BIOSPreInit(ScrnInfoPtr pScrn, int flags)
          }
          xfree(tempstr);
       }
+
+      /* If OPTION_SECONDISSCRN0 is true then swap screens */
+      if(xf86GetOptValBool(pI830->Options, OPTION_SECONDISSCRN0, TRUE)) {
+         if (pI830->SecondIsScrn0) 
+	    pI830->SecondIsScrn0 = FALSE;
+         else 
+	    pI830->SecondIsScrn0 = TRUE;
+      }
+
+      /* Set pI830->NonRect according to OPTION_MERGEDFBNONRECT */
+      if(xf86GetOptValBool(pI830->Options, OPTION_MERGEDFBNONRECT, TRUE))
+	 pI830->NonRect = TRUE;
+      else
+	 pI830->NonRect = FALSE;
+	
+      /* Set pI830->MouseRestrictions according to OPTION_MERGEDFBMOUSER */
+      if(xf86GetOptValBool(pI830->Options, OPTION_MERGEDFBMOUSER, TRUE))
+         pI830->MouseRestrictions = TRUE;
+      else
+         pI830->MouseRestrictions = FALSE;
+							 
       if((s = (char *)xf86GetOptValString(pI830->Options, OPTION_METAMODES))) {
          pI830->MetaModes = xalloc(strlen(s) + 1);
 	 if(pI830->MetaModes) 
