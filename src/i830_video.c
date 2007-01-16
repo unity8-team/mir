@@ -128,6 +128,19 @@ I830FreeMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear);
 static Atom xvBrightness, xvContrast, xvSaturation, xvColorKey, xvPipe, xvDoubleBuffer;
 static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 
+/* Limits for the overlay/textured video source sizes.  The documented hardware
+ * limits are 2048x2048 or better for overlay and both of our textured video
+ * implementations.  However, we run into the bigrequests limit of (currently)
+ * 4MB, which even the planar format's 2048*2048*1.5 bytes is larger than.
+ * Conveniently, the HD resolution, even in packed format, takes
+ * (1920*1088*2) bytes, which is just shy of 4MB.  Additionally, on the 830
+ * and 845, larger sizes resulted in the card hanging, so we keep the limits
+ * lower there.
+ *
+ * While the HD resolution is actually 1920x1080, we increase our advertised
+ * size to 1088 because some software wants to send an image aligned to
+ * 16-pixel boundaries.
+ */
 #define IMAGE_MAX_WIDTH		1920
 #define IMAGE_MAX_HEIGHT	1088
 #define IMAGE_MAX_WIDTH_LEGACY	1024
@@ -777,7 +790,6 @@ static XF86VideoAdaptorPtr
 I830SetupImageVideoTextured(ScreenPtr pScreen)
 {
    XF86VideoAdaptorPtr adapt;
-   XF86VideoEncodingPtr encoding;
    XF86AttributePtr attrs;
    I830PortPrivPtr portPrivs;
    DevUnion *devUnions;
@@ -791,15 +803,13 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
    adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec));
    portPrivs = xcalloc(nports, sizeof(I830PortPrivRec));
    devUnions = xcalloc(nports, sizeof(DevUnion));
-   encoding = xcalloc(1, sizeof(XF86VideoEncodingRec));
    attrs = xcalloc(nAttributes, sizeof(XF86AttributeRec));
    if (adapt == NULL || portPrivs == NULL || devUnions == NULL ||
-       encoding == NULL || attrs == NULL)
+       attrs == NULL)
    {
       xfree(adapt);
       xfree(portPrivs);
       xfree(devUnions);
-      xfree(encoding);
       xfree(attrs);
       return NULL;
    }
@@ -808,13 +818,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
    adapt->flags = 0;
    adapt->name = "Intel(R) Textured Video";
    adapt->nEncodings = 1;
-   adapt->pEncodings = encoding;
-   adapt->pEncodings[0].id = 0;
-   adapt->pEncodings[0].name = "XV_IMAGE";
-   adapt->pEncodings[0].width = 2048;
-   adapt->pEncodings[0].height = 2048;
-   adapt->pEncodings[0].rate.numerator = 1;
-   adapt->pEncodings[0].rate.denominator = 1;
+   adapt->pEncodings = DummyEncoding;
    adapt->nFormats = NUM_FORMATS;
    adapt->pFormats = Formats;
    adapt->nPorts = nports;
@@ -2358,10 +2362,7 @@ I830PutImage(ScrnInfoPtr pScrn,
        * acceleration to finish before writing the new video data into
        * framebuffer.
        */
-      if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-	 (*pI830->AccelInfoRec->Sync)(pScrn);
-	 pI830->AccelInfoRec->NeedToSync = FALSE;
-      }
+      i830WaitSync(pScrn);
    }
 
    switch (id) {
@@ -2449,18 +2450,16 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
    ErrorF("I830QueryImageAttributes: w is %d, h is %d\n", *w, *h);
 #endif
 
-   if (!textured) {
-      if (IS_845G(pI830) || IS_I830(pI830)) {
-	 if (*w > IMAGE_MAX_WIDTH_LEGACY)
-	    *w = IMAGE_MAX_WIDTH_LEGACY;
-	 if (*h > IMAGE_MAX_HEIGHT_LEGACY)
-	    *h = IMAGE_MAX_HEIGHT_LEGACY;
-      } else {
-	 if (*w > IMAGE_MAX_WIDTH)
-	    *w = IMAGE_MAX_WIDTH;
-	 if (*h > IMAGE_MAX_HEIGHT)
-	    *h = IMAGE_MAX_HEIGHT;
-      }
+   if (IS_845G(pI830) || IS_I830(pI830)) {
+      if (*w > IMAGE_MAX_WIDTH_LEGACY)
+	 *w = IMAGE_MAX_WIDTH_LEGACY;
+      if (*h > IMAGE_MAX_HEIGHT_LEGACY)
+	 *h = IMAGE_MAX_HEIGHT_LEGACY;
+   } else {
+      if (*w > IMAGE_MAX_WIDTH)
+	 *w = IMAGE_MAX_WIDTH;
+      if (*h > IMAGE_MAX_HEIGHT)
+	 *h = IMAGE_MAX_HEIGHT;
    }
 
    *w = (*w + 1) & ~1;

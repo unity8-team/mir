@@ -84,9 +84,12 @@ This allows the user to change the amount of graphics memory used for
 2D acceleration and video.  Decreasing this amount leaves more for 3D
 textures.  Increasing it can improve 2D performance at the expense of
 3D performance.
+.TP
+This option only takes effect when XAA acceleration is enabled.
+.TP
 Default: depends on the resolution, depth, and available video memory.  The
-driver attempts to allocate at least enough to hold two DVD-sized YUV buffers
-by default.  The default used for a specific configuration can be found
+driver attempts to allocate space for at 3 screenfuls of pixmaps plus an
+HD-sized XV video.  The default used for a specific configuration can be found
 by examining the __xservername__ log file.
 .TP
 .BI "Option \*qDRI\*q \*q" boolean \*q

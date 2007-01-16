@@ -1139,14 +1139,13 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* Allocate an xf86CrtcConfig */
    xf86CrtcConfigInit (pScrn);
    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-   
-   if (IS_I965G(pI830))
-   {
-      max_width = 16384;
-      max_height = 4096;
-   }
-   else
-   {
+
+   /* See i830_exa.c comments for why we limit the framebuffer size like this.
+    */
+   if (IS_I965G(pI830)) {
+      max_width = 8192;
+      max_height = 8192;
+   } else {
       max_width = 2048;
       max_height = 2048;
    }
@@ -3016,11 +3015,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    if (crtc && crtc->enabled)
    {
       /* Sync the engine before adjust frame */
-      if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-	 (*pI830->AccelInfoRec->Sync)(pScrn);
-	 pI830->AccelInfoRec->NeedToSync = FALSE;
-      }
-      /* XXX should have xf86-based frame adjuster */
+      i830WaitSync(pScrn);
       i830PipeSetBase(crtc, output->initial_x + x, output->initial_y + y);
       crtc->x = output->initial_x + x;
       crtc->y = output->initial_y + y;

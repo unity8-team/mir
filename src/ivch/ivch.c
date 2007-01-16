@@ -92,7 +92,7 @@ ivch_init(I2CBusPtr b, I2CSlaveAddr addr)
     xf86DrvMsg(b->scrnIndex, X_INFO, "detecting ivch\n");
 
     priv = xcalloc(1, sizeof(struct ivch_priv));
-    if (priv = NULL)
+    if (priv == NULL)
 	return NULL;
 
     priv->d.DevName = "i82807aa \"ivch\" LVDS/CMOS panel controller";
