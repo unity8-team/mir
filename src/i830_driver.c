@@ -3020,7 +3020,10 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 	 (*pI830->AccelInfoRec->Sync)(pScrn);
 	 pI830->AccelInfoRec->NeedToSync = FALSE;
       }
+      /* XXX should have xf86-based frame adjuster */
       i830PipeSetBase(crtc, output->initial_x + x, output->initial_y + y);
+      crtc->x = output->initial_x + x;
+      crtc->y = output->initial_y + y;
    }
 }
 
@@ -3138,14 +3141,17 @@ I830EnterVT(int scrnIndex, int flags)
       xf86CrtcPtr	crtc = xf86_config->crtc[i];
 
       /* Mark that we'll need to re-set the mode for sure */
-      memset(&crtc->curMode, 0, sizeof(crtc->curMode));
+      memset(&crtc->mode, 0, sizeof(crtc->mode));
       if (!crtc->desiredMode.CrtcHDisplay)
       {
 	 crtc->desiredMode = *i830PipeFindClosestMode (crtc, pScrn->currentMode);
 	 crtc->desiredRotation = RR_Rotate_0;
+	 crtc->desiredX = 0;
+	 crtc->desiredY = 0;
       }
       
-      if (!xf86CrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation))
+      if (!xf86CrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation,
+			    crtc->desiredX, crtc->desiredY))
 	 return FALSE;
    }
 

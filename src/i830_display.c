@@ -358,9 +358,6 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
 	(void) INREG(dspbase);
     }
-
-    crtc->x = x;
-    crtc->y = y;
 }
 
 /**
@@ -601,7 +598,8 @@ i830_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
  */
 static void
 i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
-		   DisplayModePtr adjusted_mode)
+		   DisplayModePtr adjusted_mode,
+		   int x, int y)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -837,7 +835,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     
     OUTREG(dspcntr_reg, dspcntr);
     /* Flush the plane changes */
-    i830PipeSetBase(crtc, crtc->x, crtc->y);
+    i830PipeSetBase(crtc, x, y);
     
     i830WaitForVblank(pScrn);
 }
@@ -901,7 +899,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, Rotation rotation)
     {
 	ok = xf86CrtcSetMode(crtc,
 			     i830PipeFindClosestMode(crtc, pMode),
-			     rotation);
+			     rotation, 0, 0);
 	if (!ok)
 	    goto done;
 	crtc->desiredMode = *pMode;

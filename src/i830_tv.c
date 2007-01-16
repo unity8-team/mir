@@ -1065,7 +1065,7 @@ i830_tv_detect(xf86OutputPtr output)
 	    /* we only need the pixel clock set correctly here */
 	    mode = reported_modes[0];
 	    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
-	    xf86CrtcSetMode (crtc, &mode, RR_Rotate_0);
+	    xf86CrtcSetMode (crtc, &mode, RR_Rotate_0, 0, 0);
 	}
 	i830_tv_detect_type (crtc, output);
 	i830ReleaseLoadDetectPipe (output);

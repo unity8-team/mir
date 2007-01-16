@@ -87,7 +87,7 @@ xf86CrtcCreate (ScrnInfoPtr		scrn,
 #ifdef RANDR_12_INTERFACE
     crtc->randr_crtc = NULL;
 #endif
-    crtc->curRotation = RR_Rotate_0;
+    crtc->rotation = RR_Rotate_0;
     crtc->desiredRotation = RR_Rotate_0;
     if (xf86_config->crtc)
 	crtcs = xrealloc (xf86_config->crtc,
@@ -145,7 +145,8 @@ xf86CrtcInUse (xf86CrtcPtr crtc)
  * Sets the given video mode on the given crtc
  */
 Bool
-xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation)
+xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation,
+		 int x, int y)
 {
     ScrnInfoPtr		scrn = crtc->scrn;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
@@ -166,6 +167,8 @@ xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation)
 
     didLock = crtc->funcs->lock (crtc);
 
+    /* XXX short-circuit changes to base location only */
+    
     /* Pass our mode to the outputs and the CRTC to give them a chance to
      * adjust it according to limitations or output properties, and also
      * a chance to reject the mode entirely.
@@ -211,7 +214,7 @@ xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation)
     /* Set up the DPLL and any output state that needs to adjust or depend
      * on the DPLL.
      */
-    crtc->funcs->mode_set(crtc, mode, adjusted_mode);
+    crtc->funcs->mode_set(crtc, mode, adjusted_mode, x, y);
     for (i = 0; i < xf86_config->num_output; i++) 
     {
 	xf86OutputPtr output = xf86_config->output[i];
@@ -228,7 +231,10 @@ xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation)
 	    output->funcs->dpms(output, DPMSModeOn);
     }
 
-    crtc->curMode = *mode;
+    crtc->mode = *mode;
+    crtc->x = x;
+    crtc->y = y;
+    crtc->rotation = rotation;
 
     /* XXX free adjustedmode */
     ret = TRUE;
@@ -1401,7 +1407,7 @@ xf86DisableUnusedFunctions(ScrnInfoPtr pScrn)
 	if (!crtc->enabled) 
 	{
 	    crtc->funcs->dpms(crtc, DPMSModeOff);
-	    memset(&crtc->curMode, 0, sizeof(crtc->curMode));
+	    memset(&crtc->mode, 0, sizeof(crtc->mode));
 	}
     }
 }

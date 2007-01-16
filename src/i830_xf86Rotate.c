@@ -128,7 +128,7 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
     transform.matrix[2][2] = 1;
     transform.matrix[0][2] = crtc->x;
     transform.matrix[1][2] = crtc->y;
-    switch (crtc->curRotation & 0xf) {
+    switch (crtc->rotation & 0xf) {
     case RR_Rotate_0:
 	transform.matrix[0][0] = 1;
 	transform.matrix[1][1] = 1;
@@ -137,28 +137,28 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
 	/* XXX probably wrong */
 	transform.matrix[0][1] = 1;
 	transform.matrix[1][0] = -1;
-	transform.matrix[1][2] += crtc->curMode.HDisplay;
+	transform.matrix[1][2] += crtc->mode.HDisplay;
 	break;
     case RR_Rotate_180:
 	/* XXX probably wrong */
 	transform.matrix[0][0] = -1;
 	transform.matrix[1][1] = -1;
-	transform.matrix[0][2] += crtc->curMode.HDisplay;
-	transform.matrix[1][2] += crtc->curMode.VDisplay;
+	transform.matrix[0][2] += crtc->mode.HDisplay;
+	transform.matrix[1][2] += crtc->mode.VDisplay;
 	break;
     case RR_Rotate_270:
 	/* XXX probably wrong */
 	transform.matrix[0][1] = -1;
 	transform.matrix[1][0] = 1;
-	transform.matrix[0][2] += crtc->curMode.VDisplay;
+	transform.matrix[0][2] += crtc->mode.VDisplay;
 	break;
     }
     /* handle reflection */
-    if (crtc->curRotation & RR_Reflect_X)
+    if (crtc->rotation & RR_Reflect_X)
     {
 	/* XXX figure this out */
     }
-    if (crtc->curRotation & RR_Reflect_Y)
+    if (crtc->rotation & RR_Reflect_Y)
     {
 	/* XXX figure this out too */
     }
@@ -191,16 +191,16 @@ xf86RotateRedisplay(ScreenPtr pScreen)
 	{
 	    xf86CrtcPtr	    crtc = xf86_config->crtc[c];
 
-	    if (crtc->curRotation != RR_Rotate_0)
+	    if (crtc->rotation != RR_Rotate_0)
 	    {
 		BoxRec	    box;
 		RegionRec   crtc_damage;
 
 		/* compute portion of damage that overlaps crtc */
 		box.x1 = crtc->x;
-		box.x2 = crtc->x + mode_width (&crtc->curMode, crtc->curRotation);
+		box.x2 = crtc->x + mode_width (&crtc->mode, crtc->rotation);
 		box.y1 = crtc->y;
-		box.y2 = crtc->y + mode_height (&crtc->curMode, crtc->curRotation);
+		box.y2 = crtc->y + mode_height (&crtc->mode, crtc->rotation);
 		REGION_INIT(pScreen, &crtc_damage, &box, 1);
 		REGION_INTERSECT (pScreen, &crtc_damage, &crtc_damage, region);
 		
@@ -319,6 +319,5 @@ bail1:
     }
     
     /* All done */
-    crtc->curRotation = rotation;
     return TRUE;
 }

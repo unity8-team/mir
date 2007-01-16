@@ -492,7 +492,7 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
     for (pipe = 0; pipe < xf86_config->num_crtc; pipe++)
     {
 	xf86CrtcPtr    crtc = xf86_config->crtc[pipe];
-	DisplayModePtr	    mode = &crtc->curMode;
+	DisplayModePtr	    mode = &crtc->mode;
 	int		    thisx = x - crtc->x;
 	int		    thisy = y - crtc->y;
 

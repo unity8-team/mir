@@ -70,7 +70,6 @@ typedef struct _xf86CrtcFuncs {
    void
     (*restore)(xf86CrtcPtr	crtc);
 
-
     /**
      * Lock CRTC prior to mode setting, mostly for DRI.
      * Returns whether unlock is needed
@@ -102,7 +101,8 @@ typedef struct _xf86CrtcFuncs {
     void
     (*mode_set)(xf86CrtcPtr crtc,
 		DisplayModePtr mode,
-		DisplayModePtr adjusted_mode);
+		DisplayModePtr adjusted_mode,
+		int x, int y);
 
     /* Set the color ramps for the CRTC to the given values. */
     void
@@ -141,13 +141,6 @@ struct _xf86Crtc {
      */
     Bool	    enabled;
     
-    /**
-     * Position on screen
-     *
-     * Locates this CRTC within the frame buffer
-     */
-    int		    x, y;
-    
     /** Track whether cursor is within CRTC range  */
     Bool	    cursorInRange;
     
@@ -161,9 +154,15 @@ struct _xf86Crtc {
      * It will be cleared when the VT is not active or
      * during server startup
      */
-    DisplayModeRec  curMode;
-    Rotation	    curRotation;
+    DisplayModeRec  mode;
+    Rotation	    rotation;
     PixmapPtr	    rotatedPixmap;
+    /**
+     * Position on screen
+     *
+     * Locates this CRTC within the frame buffer
+     */
+    int		    x, y;
     
     /**
      * Desired mode
@@ -175,6 +174,7 @@ struct _xf86Crtc {
      */
     DisplayModeRec  desiredMode;
     Rotation	    desiredRotation;
+    int		    desiredX, desiredY;
     
     /** crtc-specific functions */
     const xf86CrtcFuncsRec *funcs;
@@ -396,6 +396,10 @@ typedef struct _xf86CrtcConfig {
     
     /* For crtc-based rotation */
     DamagePtr   rotationDamage;
+
+    /* DGA */
+    unsigned int dga_flags;
+
 } xf86CrtcConfigRec, *xf86CrtcConfigPtr;
 
 extern int xf86CrtcConfigPrivateIndex;
@@ -448,7 +452,8 @@ xf86FreeCrtc (xf86CrtcPtr		crtc);
  * Sets the given video mode on the given crtc
  */
 Bool
-xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation);
+xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation,
+		 int x, int y);
 
 /*
  * Assign crtc rotation during mode set
