@@ -52,6 +52,8 @@ typedef enum {
     DDC_QUIRK_DT_SYNC_HM_VP = 1 << 0,
     /* First detailed mode is bogus, prefer largest mode at 60hz */
     DDC_QUIRK_PREFER_LARGE_60 = 1 << 1,
+    /* 135MHz clock is too high, drop a bit */
+    DDC_QUIRK_135_CLOCK_TOO_HIGH = 1 << 2
 } ddc_quirk_t;
 
 static Bool quirk_dt_sync_hm_vp (int scrnIndex, xf86MonPtr DDC)
@@ -78,6 +80,16 @@ static Bool quirk_prefer_large_60 (int scrnIndex, xf86MonPtr DDC)
     return FALSE;
 }
 
+static Bool quirk_135_clock_too_high (int scrnIndex, xf86MonPtr DDC)
+{
+    /* Envision Peripherals, Inc. EN-7100e.  See bug #9550. */
+    if (memcmp (DDC->vendor.name, "EPI", 4) == 0 &&
+	DDC->vendor.prod_id == 59264)
+	return TRUE;
+    
+    return FALSE;
+}
+
 typedef struct {
     Bool	(*detect) (int scrnIndex, xf86MonPtr DDC);
     ddc_quirk_t	quirk;
@@ -92,6 +104,10 @@ static const ddc_quirk_map_t ddc_quirks[] = {
     {
 	quirk_prefer_large_60,   DDC_QUIRK_PREFER_LARGE_60,
 	"Detailed timing is not preferred, use largest mode at 60Hz"
+    },
+    {
+	quirk_135_clock_too_high,   DDC_QUIRK_135_CLOCK_TOO_HIGH,
+	"Recommended 135MHz pixel clock is too high"
     },
     { 
 	NULL,		DDC_QUIRK_NONE,
@@ -197,7 +213,11 @@ DDCModeFromDetailedTiming(int scrnIndex, struct detailed_timings *timing,
     if (preferred)
 	Mode->type |= M_T_PREFERRED;
 
-    Mode->Clock = timing->clock / 1000.0;
+    if( ( quirks & DDC_QUIRK_135_CLOCK_TOO_HIGH ) &&
+	timing->clock == 135000000 )
+        Mode->Clock = 108880;
+    else
+        Mode->Clock = timing->clock / 1000.0;
 
     Mode->HDisplay = timing->h_active;
     Mode->HSyncStart = timing->h_active + timing->h_sync_off;
