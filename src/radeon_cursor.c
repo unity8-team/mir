@@ -266,60 +266,6 @@ RADEONRandrSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 
 }
 
-/* Set cursor position to (x,y) with offset into cursor bitmap at
- * (xorigin,yorigin)
- */
-static void RADEONSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
-{
-    RADEONInfoPtr      info       = RADEONPTR(pScrn);
-    unsigned char     *RADEONMMIO = info->MMIO;
-    xf86CursorInfoPtr  cursor     = info->cursor;
-    int                xorigin    = 0;
-    int                yorigin    = 0;
-    int                total_y    = pScrn->frameY1 - pScrn->frameY0;
-    int		       stride     = 256;
-
-    if(info->MergedFB) {
-       RADEONCTRACE(("RADEONSetCursorPositionMerged\n"));
-       RADEONSetCursorPositionMerged(pScrn, x, y);
-       return;
-    }
-
-    RADEONCTRACE(("RADEONSetCursorPosition\n"));
-
-    
-#if 0
-    if (x < 0)                        xorigin = -x+1;
-    if (y < 0)                        yorigin = -y+1;
-    if (y > total_y)                  y       = total_y;
-    if (info->Flags & V_DBLSCAN)      y       *= 2;
-    if (xorigin >= cursor->MaxWidth)  xorigin = cursor->MaxWidth - 1;
-    if (yorigin >= cursor->MaxHeight) yorigin = cursor->MaxHeight - 1;
-
-    if (!info->IsSecondary) {
-	OUTREG(RADEON_CUR_HORZ_VERT_OFF,  (RADEON_CUR_LOCK
-					   | (xorigin << 16)
-					   | yorigin));
-	OUTREG(RADEON_CUR_HORZ_VERT_POSN, (RADEON_CUR_LOCK
-					   | ((xorigin ? 0 : x) << 16)
-					   | (yorigin ? 0 : y)));
-	RADEONCTRACE(("cursor_offset: 0x%x, yorigin: %d, stride: %d\n",
-		     info->cursor_offset + pScrn->fbOffset, yorigin, stride));
-	OUTREG(RADEON_CUR_OFFSET,
-	       info->cursor_offset + pScrn->fbOffset + yorigin * stride);
-    } else {
-	OUTREG(RADEON_CUR2_HORZ_VERT_OFF,  (RADEON_CUR2_LOCK
-					    | (xorigin << 16)
-					    | yorigin));
-	OUTREG(RADEON_CUR2_HORZ_VERT_POSN, (RADEON_CUR2_LOCK
-					    | ((xorigin ? 0 : x) << 16)
-					    | (yorigin ? 0 : y)));
-	OUTREG(RADEON_CUR2_OFFSET,
-	       info->cursor_offset + pScrn->fbOffset + yorigin * stride);
-    }
-#endif
-}
-
 /* Copy cursor image from `image' to video memory.  RADEONSetCursorPosition
  * will be called after this, so we can ignore xorigin and yorigin.
  */
@@ -336,6 +282,7 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
     CARD32         i, j;
 
     RADEONCTRACE(("RADEONLoadCursorImage (at %x)\n", info->cursor_offset));
+
 
     if (!info->IsSecondary) {
 	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
@@ -382,8 +329,7 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
     if (!info->IsSecondary)
 	OUTREG(RADEON_CRTC_GEN_CNTL, save1);
 
-    if (info->IsSecondary || info->MergedFB)
-	OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
+    OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
 
 }
 
@@ -392,14 +338,12 @@ static void RADEONHideCursor(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int c;
     RADEONCTRACE(("RADEONHideCursor\n"));
 
-    if (info->IsSecondary || info->MergedFB)
-	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~RADEON_CRTC2_CUR_EN);
-
-    if (!info->IsSecondary)
-	OUTREGP(RADEON_CRTC_GEN_CNTL, 0, ~RADEON_CRTC_CUR_EN);
+    for (c = 0; c < xf86_config->num_crtc; c++)
+        RADEONCrtcCursor(xf86_config->crtc[c], TRUE);
 }
 
 /* Show hardware cursor. */
@@ -407,16 +351,13 @@ static void RADEONShowCursor(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int c;
 
     RADEONCTRACE(("RADEONShowCursor\n"));
 
-    if (info->IsSecondary || info->MergedFB)
-	OUTREGP(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_CUR_EN,
-		~RADEON_CRTC2_CUR_EN);
-
-    if (!info->IsSecondary)
-	OUTREGP(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_CUR_EN,
-		~RADEON_CRTC_CUR_EN);
+    for (c = 0; c < xf86_config->num_crtc; c++)
+        RADEONCrtcCursor(xf86_config->crtc[c], FALSE);
 }
 
 /* Determine if hardware cursor is in use. */
