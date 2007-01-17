@@ -5639,7 +5639,7 @@ void RADEONRestore(ScrnInfoPtr pScrn)
     if (!info->IsSecondary)
 	RADEONRestoreSurfaces(pScrn, restore);
 
-#if 0
+#if 1
     /* Temp fix to "solve" VT switch problems.  When switching VTs on
      * some systems, the console can either hang or the fonts can be
      * corrupted.  This hack solves the problem 99% of the time.  A
@@ -5681,8 +5681,19 @@ void RADEONRestore(ScrnInfoPtr pScrn)
        }
     }
 #endif
+#if 0
+    {
+        xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
+	for (i = 0; i <= xf86_config->num_crtc; i++) {
+		if (i == 0)
+			xf86_config->crtc[i]->enabled = 1;
+		else
+			xf86_config->crtc[i]->enabled = 0;
+    	}
+    }
     RADEONUnblank(pScrn);
-
+#endif
 #if 0
     RADEONWaitForVerticalSync(pScrn);
 #endif
@@ -7037,7 +7048,6 @@ _X_EXPORT void RADEONLeaveVT(int scrnIndex, int flags)
     }
 
     RADEONRestore(pScrn);
-
     RADEONTRACE(("Ok, leaving now...\n"));
 }
 
