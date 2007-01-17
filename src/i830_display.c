@@ -960,13 +960,14 @@ i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
 	if (output->crtc == crtc)
 	    output->funcs->mode_set(output, pMode, adjusted_mode);
     }
-
-    /* Now, enable the clocks, plane, pipe, and outputs that we set up. */
-    crtc->funcs->dpms(crtc, DPMSModeOn);
-    for (i = 0; i < xf86_config->num_output; i++) {
-	xf86OutputPtr output = xf86_config->output[i];
-	if (output->crtc == crtc)
-	    output->funcs->dpms(output, DPMSModeOn);
+    if (plane_enable) {
+	    /* Now, enable the clocks, plane, pipe, and outputs that we set up. */
+	    crtc->funcs->dpms(crtc, DPMSModeOn);
+	    for (i = 0; i < xf86_config->num_output; i++) {
+		    xf86OutputPtr output = xf86_config->output[i];
+		    if (output->crtc == crtc)
+			    output->funcs->dpms(output, DPMSModeOn);
+	    }
     }
 
 #if 0

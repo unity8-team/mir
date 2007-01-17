@@ -37,7 +37,6 @@
 #include "i830.h"
 #include "i830_display.h"
 #include <string.h>
-
 enum tv_type {
     TV_TYPE_NONE,
     TV_TYPE_UNKNOWN,
@@ -96,9 +95,10 @@ typedef struct {
 
 typedef struct {
     char *name;
+    int	clock;
     CARD32 oversample;
     int hsync_end, hblank_start, hblank_end, htotal;
-    Bool progressive;
+    Bool progressive, trilevel_sync;
     int vsync_start_f1, vsync_start_f2, vsync_len;
     Bool veq_ena;
     int veq_start_f1, veq_start_f2, veq_len;
@@ -158,15 +158,15 @@ typedef struct {
 const static tv_mode_t tv_modes[] = {
     {
 	.name		= "NTSC 480i",
+	.clock		= 107520,	
 	.oversample	= TV_OVERSAMPLE_8X,
-	
 	/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 3.580MHz */
 
 	.hsync_end	= 64,		    .hblank_end		= 124,
 	.hblank_start	= 836,		    .htotal		= 857,
 	
-	.progressive	= FALSE,
-	
+	.progressive	= FALSE,	    .trilevel_sync = FALSE,
+
 	.vsync_start_f1	= 6,		    .vsync_start_f2	= 7,
 	.vsync_len	= 6,
 	
@@ -206,14 +206,15 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name		= "NTSC-Japan 480i",
+	.clock		= 107520,	
 	.oversample	= TV_OVERSAMPLE_8X,
 	
 	/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 3.580MHz */
 	.hsync_end	= 64,		    .hblank_end		= 124,
 	.hblank_start	= 836,		    .htotal		= 857,
 	
-	.progressive	= FALSE,
-	
+	.progressive	= FALSE,	    .trilevel_sync = FALSE,
+
 	.vsync_start_f1	= 6,		    .vsync_start_f2	= 7,
 	.vsync_len	= 6,
 	
@@ -254,12 +255,14 @@ const static tv_mode_t tv_modes[] = {
     {
 	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 	.name	    = "PAL 576i",
+	.clock		= 107520,	
 	.oversample	= TV_OVERSAMPLE_8X,
 
 	.hsync_end	= 64,		    .hblank_end		= 128,
 	.hblank_start	= 844,		    .htotal		= 863,
 	
-	.progressive	= FALSE,
+	.progressive	= FALSE,	   .trilevel_sync = FALSE,
+	
 	
 	.vsync_start_f1	= 6,		    .vsync_start_f2	= 7,
 	.vsync_len	= 6,
@@ -297,105 +300,145 @@ const static tv_mode_t tv_modes[] = {
 	    .ru =-0.0937, .gu =-0.1840, .bu = 0.2777, .au = 1.0000,
 	    .rv = 0.3908, .gv =-0.3273, .bv =-0.0636, .av = 1.0000,
 	},
-    }
-#if 0
+    },
     {
-	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
-	.name	    = "PAL",
-	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
-	.dda1_inc	=    168,
-	.dda2_inc	=  18557,	.dda2_size	=  20625,
-	.dda3_inc	=      0,	.dda3_size	=      0,
-	.sc_reset   = TV_SC_RESET_EVERY_8,
-	.pal_burst  = TRUE
+	    .name       = "480p",
+	    .clock 	= 107520,	
+	    .oversample     = TV_OVERSAMPLE_4X,
+
+	    .hsync_end      = 64,               .hblank_end         = 122,
+	    .hblank_start   = 842,              .htotal             = 857,
+
+	    .progressive    = TRUE,.trilevel_sync = FALSE,
+
+	    .vsync_start_f1 = 12,               .vsync_start_f2     = 12,
+	    .vsync_len      = 12,
+
+	    .veq_ena        = FALSE,
+
+	    .vi_end_f1      = 44,               .vi_end_f2          = 44,
+	    .nbr_end        = 496,
+
+	    .burst_ena      = FALSE,
+
+	    .composite_levels = { .blank = 237, .black = 237, .burst = 118 },
+	    .composite_color = {
+		    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5379,
+		    .ru =-0.0793, .gu =-0.1557, .bu = 0.2350, .au = 1.0000,
+		    .rv = 0.3307, .gv =-0.2769, .bv =-0.0538, .av = 1.0000,
+	    },
+
+	    .svideo_levels    = { .blank = 280, .black = 280, .burst = 139 },
+	    .svideo_color = {
+		    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6357,
+		    .ru =-0.0937, .gu =-0.1840, .bu = 0.2777, .au = 1.0000,
+		    .rv = 0.3908, .gv =-0.3273, .bv =-0.0636, .av = 1.0000,
+	    },
+    },
+    {
+	    .name       = "576p",
+	    .clock 	= 107520,	
+	    .oversample     = TV_OVERSAMPLE_4X,
+
+	    .hsync_end      = 64,               .hblank_end         = 139,
+	    .hblank_start   = 859,              .htotal             = 863,
+
+	    .progressive    = TRUE,		.trilevel_sync = FALSE,
+
+	    .vsync_start_f1 = 10,               .vsync_start_f2     = 10,
+	    .vsync_len      = 10,
+
+	    .veq_ena        = FALSE,
+
+	    .vi_end_f1      = 48,               .vi_end_f2          = 48,
+	    .nbr_end        = 575,
+
+	    .burst_ena      = FALSE,
+
+	    .composite_levels = { .blank = 237, .black = 237, .burst = 118 },
+	    .composite_color = {
+		    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5379,
+		    .ru =-0.0793, .gu =-0.1557, .bu = 0.2350, .au = 1.0000,
+		    .rv = 0.3307, .gv =-0.2769, .bv =-0.0538, .av = 1.0000,
+	    },
+
+	    .svideo_levels    = { .blank = 280, .black = 280, .burst = 139 },
+	    .svideo_color = {
+		    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6357,
+		    .ru =-0.0937, .gu =-0.1840, .bu = 0.2777, .au = 1.0000,
+		    .rv = 0.3908, .gv =-0.3273, .bv =-0.0636, .av = 1.0000,
+	    },
+    },
+    {
+        .name       = "720p",
+	.clock		= 148800,	
+        .oversample     = TV_OVERSAMPLE_2X,
+
+        .hsync_end      = 80,               .hblank_end         = 300,
+        .hblank_start   = 1580,             .htotal             = 1649,
+
+        .progressive    = TRUE, 	    .trilevel_sync = TRUE,
+
+        .vsync_start_f1 = 10,               .vsync_start_f2     = 10,
+        .vsync_len      = 10,
+
+        .veq_ena        = FALSE,
+
+        .vi_end_f1      = 29,               .vi_end_f2          = 29,
+        .nbr_end        = 719,
+
+        .burst_ena      = FALSE,
+
+        .composite_levels = { .blank = 237, .black = 237, .burst = 118 },
+        .composite_color = {
+            .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5379,
+            .ru =-0.0793, .gu =-0.1557, .bu = 0.2350, .au = 1.0000,
+            .rv = 0.3307, .gv =-0.2769, .bv =-0.0538, .av = 1.0000,
+        },
+
+        .svideo_levels    = { .blank = 280, .black = 280, .burst = 139 },
+        .svideo_color = {
+            .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6357,
+            .ru =-0.0937, .gu =-0.1840, .bu = 0.2777, .au = 1.0000,
+            .rv = 0.3908, .gv =-0.3273, .bv =-0.0636, .av = 1.0000,
+        },
+    },
+    {
+        .name       = "1080i",
+	.clock		= 148800,	
+        .oversample     = TV_OVERSAMPLE_2X,
+
+        .hsync_end      = 88,               .hblank_end         = 235,
+        .hblank_start   = 2155,             .htotal             = 2639,
+
+        .progressive    = FALSE, 	    .trilevel_sync = TRUE,
+
+        .vsync_start_f1 = 4,               .vsync_start_f2     = 5,
+        .vsync_len      = 10,
+
+	.veq_ena	= TRUE,		    .veq_start_f1    	= 4,
+	.veq_start_f2	= 4,		    .veq_len		= 10,
 	
-	.composite_levels = { .blank = 237, .black = 237, .burst = 118 },
-	.composite_color = {
-	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5379,
-	    .ru =-0.0793, .gu =-0.1557, .bu = 0.2350, .au = 1.0000,
-	    .rv = 0.3307, .gv =-0.2769, .bv =-0.0538, .av = 1.0000,
-	},
 
-	.svideo_levels    = { .blank = 280, .black = 280, .burst = 139 },
-	.svideo_color = {
-	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6357,
-	    .ru =-0.0937, .gu =-0.1840, .bu = 0.2777, .au = 1.0000,
-	    .rv = 0.3908, .gv =-0.3273, .bv =-0.0636, .av = 1.0000,
-	},
+        .vi_end_f1      = 21,               .vi_end_f2          = 22,
+        .nbr_end        = 539,
+
+        .burst_ena      = FALSE,
+
+        .composite_levels = { .blank = 237, .black = 237, .burst = 118 },
+        .composite_color = {
+            .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5379,
+            .ru =-0.0793, .gu =-0.1557, .bu = 0.2350, .au = 1.0000,
+            .rv = 0.3307, .gv =-0.2769, .bv =-0.0538, .av = 1.0000,
+        },
+
+        .svideo_levels    = { .blank = 280, .black = 280, .burst = 139 },
+        .svideo_color = {
+            .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6357,
+            .ru =-0.0937, .gu =-0.1840, .bu = 0.2777, .au = 1.0000,
+            .rv = 0.3908, .gv =-0.3273, .bv =-0.0636, .av = 1.0000,
+        },
     },
-    {
-	/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 3.576MHz */
-	.name	    = "PAL M",
-	/* desired 3.5756110 actual 3.5756110 clock 107.52 */
-	.dda1_inc	=    136,
-	.dda2_inc	=   5611,	.dda2_size	=  26250,
-	.dda3_inc	=      0,	.dda3_size	=      0,
-	.sc_reset   = TV_SC_RESET_EVERY_8,
-	.pal_burst  = TRUE
-	
-	.composite_levels = { .blank = 225, .black = 267, .burst = 113 },
-	.composite_color = {
-	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5082,
-	    .ru =-0.0749, .gu =-0.1471, .bu = 0.2220, .au = 1.0000,
-	    .rv = 0.3125, .gv =-0.2616, .bv =-0.0508, .av = 1.0000,
-	},
-
-	.svideo_levels    = { .blank = 266, .black = 316, .burst = 133 },
-	.svideo_color = {
-	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6006,
-	    .ru =-0.0885, .gu =-0.1738, .bu = 0.2624, .au = 1.0000,
-	    .rv = 0.3693, .gv =-0.3092, .bv =-0.0601, .av = 1.0000,
-	},
-    },
-    {
-	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 3.582MHz */
-	.name	    = "PAL Nc",
-	/* desired 3.5820560 actual 3.5820560 clock 107.52 */
-	.dda1_inc	=    136,
-	.dda2_inc	=  12056,	.dda2_size	=  26250,
-	.dda3_inc	=      0,	.dda3_size	=      0,
-	.sc_reset   = TV_SC_RESET_EVERY_8,
-	.pal_burst  = TRUE
-	
-	.composite_levels = { .blank = 225, .black = 267, .burst = 113 },
-	.composite_color = {
-	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5082,
-	    .ru =-0.0749, .gu =-0.1471, .bu = 0.2220, .au = 1.0000,
-	    .rv = 0.3125, .gv =-0.2616, .bv =-0.0508, .av = 1.0000,
-	},
-
-	.svideo_levels    = { .blank = 266, .black = 316, .burst = 133 },
-	.svideo_color = {
-	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6006,
-	    .ru =-0.0885, .gu =-0.1738, .bu = 0.2624, .au = 1.0000,
-	    .rv = 0.3693, .gv =-0.3092, .bv =-0.0601, .av = 1.0000,
-	},
-    },
-    {
-	/* 525 lines, 60 fields, 15.734KHz line, Sub-Carrier 4.43MHz */
-	.name	    = "NTSC-4.43(nonstandard)",
-	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
-	.dda1_inc	=    168,
-	.dda2_inc	=  18557,	.dda2_size	=  20625,
-	.dda3_inc	=      0,	.dda3_size	=      0,
-	.sc_reset   = TV_SC_RESET_NEVER,
-	.pal_burst  = FALSE
-
-	.composite_levels = { .blank = 225, .black = 267, .burst = 113 },
-	.composite_color = {
-	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5082,
-	    .ru =-0.0749, .gu =-0.1471, .bu = 0.2220, .au = 1.0000,
-	    .rv = 0.3125, .gv =-0.2616, .bv =-0.0508, .av = 1.0000,
-	},
-
-	.svideo_levels    = { .blank = 266, .black = 316, .burst = 133 },
-	.svideo_color = {
-	    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.6006,
-	    .ru =-0.0885, .gu =-0.1738, .bu = 0.2624, .au = 1.0000,
-	    .rv = 0.3693, .gv =-0.3092, .bv =-0.0601, .av = 1.0000,
-	},
-    },
-#endif
 };
 
 static const video_levels_t component_level = {
@@ -674,7 +717,7 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
     struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
     const tv_mode_t	    *tv_mode;
-    CARD32		    tv_ctl, tv_filter_ctl;
+    CARD32		    tv_ctl;
     CARD32		    hctl1, hctl2, hctl3;
     CARD32		    vctl1, vctl2, vctl3, vctl4, vctl5, vctl6, vctl7;
     CARD32		    scctl1, scctl2, scctl3;
@@ -687,7 +730,12 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
      * mode.  For now, just set the first one in the list, with
      * NTSC format.
      */
-    tv_mode = &tv_modes[0];
+	
+    for (i = 0; i < sizeof(tv_modes) / sizeof (tv_modes[0]); i++) {
+	    tv_mode = &tv_modes[i];
+	    if (strstr(mode->name, tv_mode->name)) 
+		    break;	
+    }
     
     tv_ctl = 0;
 
@@ -755,15 +803,17 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     if (intel_crtc->pipe == 1)
 	tv_ctl |= TV_ENC_PIPEB_SELECT;
-
     tv_ctl |= tv_mode->oversample;
+
     if (tv_mode->progressive)
 	tv_ctl |= TV_PROGRESSIVE;
+    if (tv_mode->trilevel_sync)
+	tv_ctl |= TV_TRILEVEL_SYNC;
     if (tv_mode->pal_burst)
 	tv_ctl |= TV_PAL_BURST;
+    if (tv_mode->oversample == TV_OVERSAMPLE_8X)
+	    scctl1 = TV_SC_DDA1_EN;
 
-    scctl1 = TV_SC_DDA1_EN;
-    
     if (tv_mode->dda2_inc)
 	scctl1 |= TV_SC_DDA2_EN;
     
@@ -784,9 +834,6 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     if (pI830->PciInfo->chipType < PCI_CHIP_I945_G)
 	tv_ctl |= TV_ENC_C0_FIX | TV_ENC_SDP_FIX;
 
-    tv_filter_ctl = TV_AUTO_SCALE;
-    if (mode->HDisplay > 1024)
-	tv_ctl |= TV_V_FILTER_BYPASS;
 
     OUTREG(TV_H_CTL_1, hctl1);
     OUTREG(TV_H_CTL_2, hctl2);
@@ -828,13 +875,47 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     OUTREG(TV_CLR_KNOBS, 0x00606000);
     OUTREG(TV_CLR_LEVEL, ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 			  (video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
+    {
+	int pipeconf_reg = (intel_crtc->pipe == 0)?PIPEACONF:PIPEBCONF;
+        int dspcntr_reg = (intel_crtc->pipe == 0)?DSPACNTR : DSPBCNTR;
+	int pipeconf = INREG(pipeconf_reg);
+	int dspcntr = INREG(dspcntr_reg);
+	int dspbase_reg = (intel_crtc->pipe == 0) ? DSPABASE : DSPBBASE;
+	int xpos = 0x0, ypos = 0x0;
+	unsigned int xsize, ysize;
+	/* Pipe must be off here */
+	OUTREG(dspcntr_reg, dspcntr & ~DISPLAY_PLANE_ENABLE);
+	/* Flush the plane changes */
+	OUTREG(dspbase_reg, INREG(dspbase_reg));
+
+	if (!IS_I9XX(pI830)) {
+            /* Wait for vblank for the disable to take effect */
+            i830WaitForVblank(pScrn);
+        }
+
+	OUTREG(pipeconf_reg, pipeconf & ~PIPEACONF_ENABLE);
+	/* Wait for vblank for the disable to take effect. */
+        i830WaitForVblank(pScrn);
+
+	/* Filter ctl must be set before TV_WIN_SIZE and TV_WIN_POS */
+    	OUTREG(TV_FILTER_CTL_1, TV_AUTO_SCALE);
+
+	xsize = tv_mode->hblank_start - tv_mode->hblank_end;
+	if (tv_mode->progressive)
+		ysize = tv_mode->nbr_end + 1;
+	else
+		ysize = 2*tv_mode->nbr_end + 1;
+
+	OUTREG(TV_WIN_POS, (xpos<<16)|ypos);
+	OUTREG(TV_WIN_SIZE, (xsize<<16)|ysize);
+
+	OUTREG(pipeconf_reg, pipeconf);
+	OUTREG(dspcntr_reg, dspcntr);
+        /* Flush the plane changes */
+        OUTREG(dspbase_reg, INREG(dspbase_reg));
+
+    } 	
     
-    OUTREG(TV_WIN_POS, 0x00360024);
-    OUTREG(TV_WIN_SIZE, 0x02640198);
-    
-    OUTREG(TV_FILTER_CTL_1, 0x8000085E);
-    OUTREG(TV_FILTER_CTL_2, 0x00017878);
-    OUTREG(TV_FILTER_CTL_3, 0x0000BC3C);
     for (i = 0; i < 60; i++)
 	OUTREG(TV_H_LUMA_0 + (i <<2), h_luma[i]);
     for (i = 0; i < 60; i++)
@@ -861,108 +942,6 @@ static const DisplayModeRec reported_modes[] = {
 		.VSyncStart = 1027,
 		.VSyncEnd   = 1034,
 		.VTotal     = 1104,
-		.type       = M_T_DRIVER
-	},
-	{
-		.name = "NTSC 480i",
-		.Clock = TV_PLL_CLOCK,
-		.HDisplay   = 1024,
-		.HSyncStart = 1080,
-		.HSyncEnd   = 1184,
-		.HTotal     = 1344,
-
-		.VDisplay   = 768,
-		.VSyncStart = 771,
-		.VSyncEnd   = 777,
-		.VTotal     = 806,
-		.type       = M_T_DRIVER
-	},
-	{
-		.name = "NTSC 480i",
-		.Clock = TV_PLL_CLOCK,
-		.HDisplay   = 800,
-		.HSyncStart = 832,
-		.HSyncEnd   = 912,
-		.HTotal     = 1024,
-
-		.VDisplay   = 600,
-		.VSyncStart = 603,
-		.VSyncEnd   = 607,
-		.VTotal     = 650,
-		.type       = M_T_DRIVER
-	},
-	{
-		.name = "NTSC 480i",
-		.Clock = TV_PLL_CLOCK,
-		.HDisplay   = 640,
-		.HSyncStart = 664,
-		.HSyncEnd   = 720,
-		.HTotal     = 800,
-
-		.VDisplay   = 480,
-		.VSyncStart = 483,
-		.VSyncEnd   = 487,
-		.VTotal     = 552,
-		.type       = M_T_DRIVER
-	},
-	{
-		.name = "PAL 576i",
-		.Clock = TV_PLL_CLOCK,
-		.HDisplay   = 1280,
-		.HSyncStart = 1352,
-		.HSyncEnd   = 1480,
-		.HTotal     = 1680,
-
-		.VDisplay   = 1024,
-		.VSyncStart = 1027,
-		.VSyncEnd   = 1034,
-		.VTotal     = 1092,
-
-		.type       = M_T_DRIVER
-	},
-	{
-		.name = "PAL 576i",
-		.Clock = TV_PLL_CLOCK,
-		.HDisplay   = 1024,
-		.HSyncStart = 1072,
-		.HSyncEnd   = 1168,
-		.HTotal     = 1312,
-		.VDisplay   = 768,
-		.VSyncStart = 771,
-		.VSyncEnd   = 775,
-		.VTotal     = 820,
-		.VRefresh   = 50.0f,
-
-		.type       = M_T_DRIVER
-	},
-	{
-		.name = "PAL 576i",
-		.Clock = TV_PLL_CLOCK,
-		.HDisplay   = 800,
-		.HSyncStart = 832,
-		.HSyncEnd   = 904,
-		.HTotal     = 1008,
-		.VDisplay   = 600,
-		.VSyncStart = 603,
-		.VSyncEnd   = 607,
-		.VTotal     = 642,
-		.VRefresh   = 50.0f,
-
-		.type       = M_T_DRIVER
-	},
-	{
-		.name = "PAL 576i",
-		.Clock = TV_PLL_CLOCK,
-		.HDisplay   = 640,
-		.HSyncStart = 664,
-		.HSyncEnd   = 720,
-		.HTotal     = 800,
-
-		.VDisplay   = 480,
-		.VSyncStart = 483,
-		.VSyncEnd   = 487,
-		.VTotal     = 516,
-		.VRefresh   = 50.0f,
 		.type       = M_T_DRIVER
 	},
 };
@@ -1081,34 +1060,78 @@ i830_tv_detect(xf86OutputPtr output)
     }
 }
 
+struct input_res {
+	char *name;
+	int w, h;	
+}input_res_table[] = 
+{
+	{"640x480", 640, 480},
+	{"800x600", 800, 600},
+	{"1024x768", 1024, 768},
+	{"1280x1024", 1280, 1024},
+	{"848x480", 848, 480},
+	{"1280x720", 1280, 720}
+};
+
 /**
  * Stub get_modes function.
  *
  * This should probably return a set of fixed modes, unless we can figure out
  * how to probe modes off of TV connections.
  */
+
 static DisplayModePtr
 i830_tv_get_modes(xf86OutputPtr output)
 {
-    ScrnInfoPtr	    pScrn = output->scrn;
-    I830Ptr	    pI830 = I830PTR(pScrn);
-    DisplayModePtr  new, first = NULL, *tail = &first;
-    int		    i;
-
-    (void) pI830;
-
-    for (i = 0; i < sizeof (reported_modes) / sizeof (reported_modes[0]); i++)
+    DisplayModePtr  ret = NULL, mode_ptr;
+    int		    i, j;
+    	
+    for (i = 0; i < sizeof(tv_modes) / sizeof (tv_modes[0]); i++) 
     {
-	new             = xnfcalloc(1, sizeof (DisplayModeRec));
+	const tv_mode_t *tv_mode = &tv_modes[i];
+	unsigned int hactive = tv_mode->hblank_start - tv_mode->hblank_end;
+	unsigned int vactive = tv_mode->progressive
+		?tv_mode->nbr_end + 1: 2*(tv_mode->nbr_end + 1);
+	unsigned int htotal = tv_mode->htotal + 1;
+	unsigned int vtotal = tv_mode->progressive
+		?tv_mode->nbr_end + 1 + tv_mode->vi_end_f2:
+			2*(tv_mode->nbr_end+1) + 2*(tv_mode->vi_end_f2);
+	
+	for (j = 0; j < sizeof(input_res_table)/sizeof(input_res_table[0]); j++)	{
+	        struct input_res *input = &input_res_table[j];
+		unsigned int hactive_s = input->w;
+		unsigned int vactive_s = input->h;
+		unsigned int htotal_s = htotal*hactive_s/hactive;
+		unsigned int vtotal_s = vtotal*vactive_s/vactive;
+	
+		mode_ptr = xnfcalloc(1, sizeof(DisplayModeRec));
+		mode_ptr->name = xnfalloc(strlen(tv_mode->name) + 
+			strlen(input->name) + 4);
+		sprintf(mode_ptr->name, "%s %s", tv_mode->name, input->name);
+		
+		mode_ptr->Clock = tv_mode->clock;
 
-	*new = reported_modes[i];
-	new->name = xnfalloc(strlen(reported_modes[i].name) + 1);
-	strcpy(new->name, reported_modes[i].name);
-	*tail = new;
-	tail = &new->next;
+		mode_ptr->HDisplay = hactive_s;
+		mode_ptr->HSyncStart = hactive_s + 1;
+		mode_ptr->HSyncEnd = htotal_s - 20;  
+		if ( mode_ptr->HSyncEnd <= mode_ptr->HSyncStart)
+			mode_ptr->HSyncEnd = mode_ptr->HSyncStart  + 1;
+		mode_ptr->HTotal = htotal_s;
+
+		mode_ptr->VDisplay = vactive_s;
+		mode_ptr->VSyncStart = vactive_s + 1;
+		mode_ptr->VSyncEnd = vtotal_s - 20;
+		if ( mode_ptr->VSyncEnd <= mode_ptr->VSyncStart)
+			mode_ptr->VSyncEnd = mode_ptr->VSyncStart  + 1;
+		mode_ptr->VTotal = vtotal_s;
+
+		mode_ptr->type = M_T_DRIVER;
+		mode_ptr->next = ret;
+		ret = mode_ptr;
+	} 
     }
 
-    return first;
+    return ret;
 }
 
 static void
