@@ -154,6 +154,9 @@ xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation,
     Bool		ret = FALSE;
     Bool		didLock = FALSE;
     DisplayModePtr	adjusted_mode;
+    DisplayModeRec	saved_mode;
+    int			saved_x, saved_y;
+    Rotation		saved_rotation;
 
     adjusted_mode = xf86DuplicateMode(mode);
 
@@ -166,6 +169,18 @@ xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation,
     }
 
     didLock = crtc->funcs->lock (crtc);
+
+    saved_mode = crtc->mode;
+    saved_x = crtc->x;
+    saved_y = crtc->y;
+    saved_rotation = crtc->rotation;
+    /* Update crtc values up front so the driver can rely on them for mode
+     * setting.
+     */
+    crtc->mode = *mode;
+    crtc->x = x;
+    crtc->y = y;
+    crtc->rotation = rotation;
 
     /* XXX short-circuit changes to base location only */
     
@@ -180,18 +195,15 @@ xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation,
 	    continue;
 
 	if (!output->funcs->mode_fixup(output, mode, adjusted_mode)) {
-	    ret = FALSE;
 	    goto done;
 	}
     }
 
     if (!crtc->funcs->mode_fixup(crtc, mode, adjusted_mode)) {
-	ret = FALSE;
 	goto done;
     }
 
     if (!xf86CrtcRotate (crtc, mode, rotation)) {
-	ret = FALSE;
 	goto done;
     }
 
@@ -228,14 +240,16 @@ xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation,
 	    output->funcs->dpms(output, DPMSModeOn);
     }
 
-    crtc->mode = *mode;
-    crtc->x = x;
-    crtc->y = y;
-    crtc->rotation = rotation;
-
     /* XXX free adjustedmode */
     ret = TRUE;
 done:
+    if (!ret) {
+	crtc->x = saved_x;
+	crtc->y = saved_y;
+	crtc->rotation = saved_rotation;
+	crtc->mode = saved_mode;
+    }
+
     if (didLock)
 	crtc->funcs->unlock (crtc);
 
