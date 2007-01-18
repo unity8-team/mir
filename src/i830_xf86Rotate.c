@@ -144,23 +144,20 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
 	transform.matrix[1][1] = IntToxFixed(1);
 	break;
     case RR_Rotate_90:
-	/* XXX probably wrong */
-	transform.matrix[0][1] = IntToxFixed(1);
-	transform.matrix[1][0] = IntToxFixed(-1);
-	transform.matrix[1][2] += IntToxFixed(crtc->mode.HDisplay);
+	transform.matrix[0][1] = IntToxFixed(-1);
+	transform.matrix[1][0] = IntToxFixed(1);
+	transform.matrix[0][2] += IntToxFixed(crtc->mode.VDisplay);
 	break;
     case RR_Rotate_180:
-	/* XXX probably wrong */
 	transform.matrix[0][0] = IntToxFixed(-1);
 	transform.matrix[1][1] = IntToxFixed(-1);
 	transform.matrix[0][2] += IntToxFixed(crtc->mode.HDisplay);
 	transform.matrix[1][2] += IntToxFixed(crtc->mode.VDisplay);
 	break;
     case RR_Rotate_270:
-	/* XXX probably wrong */
-	transform.matrix[0][1] = IntToxFixed(-1);
-	transform.matrix[1][0] = IntToxFixed(1);
-	transform.matrix[0][2] += IntToxFixed(crtc->mode.VDisplay);
+	transform.matrix[0][1] = IntToxFixed(1);
+	transform.matrix[1][0] = IntToxFixed(-1);
+	transform.matrix[1][2] += IntToxFixed(crtc->mode.VDisplay);
 	break;
     }
 
