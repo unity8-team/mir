@@ -32,6 +32,34 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i830_bios.h"
+#include "X11/Xatom.h"
+
+/**
+ * Sets the backlight level.
+ *
+ * \param level backlight level, from 0 to i830_lvds_get_max_backlight().
+ */
+static void
+i830_lvds_set_backlight(ScrnInfoPtr pScrn, int level)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 blc_pwm_ctl;
+
+    blc_pwm_ctl = INREG(BLC_PWM_CTL) & ~BACKLIGHT_DUTY_CYCLE_MASK;
+    OUTREG(BLC_PWM_CTL, blc_pwm_ctl | (level << BACKLIGHT_DUTY_CYCLE_SHIFT));
+}
+
+/**
+ * Returns the maximum level of the backlight duty cycle field.
+ */
+static CARD32
+i830_lvds_get_max_backlight(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    
+    return ((INREG(BLC_PWM_CTL) & BACKLIGHT_MODULATION_FREQ_MASK) >>
+	BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
+}
 
 /**
  * Sets the power state for the panel.
@@ -41,25 +69,16 @@ i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 pp_status;
-    CARD32 blc_pwm_ctl;
-    int backlight_duty_cycle;
-
-    blc_pwm_ctl = INREG (BLC_PWM_CTL);
-    backlight_duty_cycle = blc_pwm_ctl & BACKLIGHT_DUTY_CYCLE_MASK;
-    if (backlight_duty_cycle)
-        pI830->backlight_duty_cycle = backlight_duty_cycle;
 
     if (on) {
 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
 	do {
 	    pp_status = INREG(PP_STATUS);
 	} while ((pp_status & PP_ON) == 0);
-	OUTREG(BLC_PWM_CTL,
-	       (blc_pwm_ctl & ~BACKLIGHT_DUTY_CYCLE_MASK) |
-	       pI830->backlight_duty_cycle);
+
+	i830_lvds_set_backlight(pScrn, pI830->backlight_duty_cycle);
     } else {
-	OUTREG(BLC_PWM_CTL,
-	       (blc_pwm_ctl & ~BACKLIGHT_DUTY_CYCLE_MASK));
+	i830_lvds_set_backlight(pScrn, 0);
 
 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
 	do {
@@ -99,11 +118,8 @@ i830_lvds_save (xf86OutputPtr output)
     /*
      * If the light is off at server startup, just make it full brightness
      */
-    if (pI830->backlight_duty_cycle == 0) {
-	pI830->backlight_duty_cycle =
-	    (pI830->saveBLC_PWM_CTL & BACKLIGHT_MODULATION_FREQ_MASK) >>
-	    BACKLIGHT_MODULATION_FREQ_SHIFT;
-    }
+    if (pI830->backlight_duty_cycle == 0)
+	pI830->backlight_duty_cycle = i830_lvds_get_max_backlight(pScrn);
 }
 
 static void
@@ -294,7 +310,80 @@ i830_lvds_destroy (xf86OutputPtr output)
 	xfree (intel_output);
 }
 
+#ifdef RANDR_12_INTERFACE
+#define BACKLIGHT_NAME	"BACKLIGHT"
+static Atom backlight_atom;
+#endif /* RANDR_12_INTERFACE */
+
+static void
+i830_lvds_create_resources(xf86OutputPtr output)
+{
+#ifdef RANDR_12_INTERFACE
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    INT32 range[2];
+    int data, err;
+
+    /* Set up the backlight property, which takes effect immediately
+     * and accepts values only within the range.
+     *
+     * XXX: Currently, RandR doesn't verify that properties set are
+     * within the range.
+     */
+    backlight_atom = MakeAtom(BACKLIGHT_NAME, sizeof(BACKLIGHT_NAME) - 1,
+	TRUE);
+
+    range[0] = 0;
+    range[1] = i830_lvds_get_max_backlight(pScrn);
+    err = RRConfigureOutputProperty(output->randr_output, backlight_atom,
+				    FALSE, TRUE, FALSE, 2, range);
+    if (err != 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "RRConfigureOutputProperty error, %d\n", err);
+    }
+    /* Set the current value of the backlight property */
+    data = pI830->backlight_duty_cycle;
+    err = RRChangeOutputProperty(output->randr_output, backlight_atom,
+				 XA_INTEGER, 32, PropModeReplace, 4, &data,
+				 FALSE);
+    if (err != 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "RRChangeOutputProperty error, %d\n", err);
+    }
+
+#endif /* RANDR_12_INTERFACE */
+}
+
+static Bool
+i830_lvds_set_property(xf86OutputPtr output, Atom property,
+		       RRPropertyValuePtr value)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    
+    if (property == backlight_atom) {
+	INT32 val;
+
+	if (value->type != XA_INTEGER || value->format != 32 ||
+	    value->size != 1)
+	{
+	    return FALSE;
+	}
+
+	val = *(INT32 *)value->data;
+	if (val < 0 || val > i830_lvds_get_max_backlight(pScrn))
+	    return FALSE;
+
+	i830_lvds_set_backlight(pScrn, val);
+	pI830->backlight_duty_cycle = val;
+	return TRUE;
+    }
+
+    return TRUE;
+}
+
 static const xf86OutputFuncsRec i830_lvds_output_funcs = {
+    .create_resources = i830_lvds_create_resources,
     .dpms = i830_lvds_dpms,
     .save = i830_lvds_save,
     .restore = i830_lvds_restore,
@@ -303,6 +392,7 @@ static const xf86OutputFuncsRec i830_lvds_output_funcs = {
     .mode_set = i830_lvds_mode_set,
     .detect = i830_lvds_detect,
     .get_modes = i830_lvds_get_modes,
+    .set_property = i830_lvds_set_property,
     .destroy = i830_lvds_destroy
 };
 
