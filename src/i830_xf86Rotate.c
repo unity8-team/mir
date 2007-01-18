@@ -127,7 +127,13 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
 	ErrorF("couldn't create src pict\n");
 	return;
     }
-    SetPictureClipRegion (src, 0, 0, region);
+    /* Unfortunately, we don't do clipping on transformed source pictures.
+     * So we can't use this.  Instead, we'll just repaint the whole screen
+     * for now, and do transform of the source region into a dest region
+     * later.
+     */
+    /* SetPictureClipRegion (src, 0, 0, region); */
+
     memset (&transform, '\0', sizeof (transform));
     transform.matrix[2][2] = IntToxFixed(1);
     transform.matrix[0][2] = IntToxFixed(crtc->x);
