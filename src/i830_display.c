@@ -342,7 +342,7 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 
-    if (intel_crtc->rotate_mem.Start != 0) {
+    if (crtc->rotation != RR_Rotate_0) {
 	Start = intel_crtc->rotate_mem.Start;
     } else if (I830IsPrimary(pScrn)) {
 	Start = pI830->FrontBuffer.Start;
