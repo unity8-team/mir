@@ -769,6 +769,63 @@ I830AllocateFramebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
    return TRUE;
 }
 
+/**
+ * Allocates memory for the rotated shadow buffers.
+ *
+ * This memory would be better allocated normally through the linear allocator,
+ * but it gets rotation working for now.
+ */
+static Bool
+I830AllocateRotateBuffers(xf86CrtcPtr crtc, const int flags)
+{
+   ScrnInfoPtr pScrn = crtc->scrn;
+   I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+   I830Ptr pI830 = I830PTR(pScrn);
+   Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
+   unsigned long avail, lineSize;
+   int verbosity = dryrun ? 4 : 1;
+   const char *s = dryrun ? "[dryrun] " : "";
+   int align, alignflags;
+   long size, alloced;
+   int rotate_width, rotate_height;
+
+   memset(&intel_crtc->rotate_mem, 0, sizeof(intel_crtc->rotate_mem));
+
+   rotate_width = pScrn->displayWidth;
+   if (pScrn->virtualX > pScrn->virtualY)
+      rotate_height = pScrn->virtualX;
+   else
+      rotate_height = pScrn->virtualY;
+
+   lineSize = pScrn->displayWidth * pI830->cpp;
+   avail = pScrn->videoRam * 1024;
+
+   align = KB(64);
+   alignflags = 0;
+
+   size = lineSize * rotate_height;
+   size = ROUND_TO_PAGE(size);
+   xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		  "%sInitial %sshadow framebuffer allocation size: "
+		  "%ld kByte\n",
+		  s, (intel_crtc->pipe == 0) ? "" : "secondary ",
+		  size / 1024);
+   alloced = I830AllocVidMem(pScrn, &intel_crtc->rotate_mem,
+			     &pI830->StolenPool, size, align,
+			     flags | alignflags |
+			     FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
+   if (alloced < size) {
+      if (!dryrun) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
+		    "%sshadow framebuffer. Is your VideoRAM set too low?\n",
+		    (intel_crtc->pipe == 0) ? "" : "secondary ");
+      }
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
 /*
  * Allocate memory for 2D operation.  This includes the (front) framebuffer,
  * ring buffer, scratch memory, HW cursor.
@@ -782,7 +839,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
    int verbosity = dryrun ? 4 : 1;
    const char *s = dryrun ? "[dryrun] " : "";
    Bool tileable;
-   int align, alignflags;
+   int align, alignflags, i;
 
    DPRINTF(PFX, "I830Allocate2DMemory: inital is %s\n",
 	   BOOLTOSTRING(flags & ALLOC_INITIAL));
@@ -814,6 +871,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 	   pI830->StolenPool.Free.Size);
 
    if (flags & ALLOC_INITIAL) {
+      xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
       if (pI830->NeedRingBufferLow)
 	 AllocateRingBuffer(pScrn, flags | FORCE_LOW);
@@ -837,6 +895,10 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 				   FALSE, flags))
       {
 	 return FALSE;
+      }
+
+      for (i = 0; i < xf86_config->num_crtc; i++) {
+	 I830AllocateRotateBuffers(xf86_config->crtc[i], flags);
       }
 
 #ifdef I830_USE_EXA

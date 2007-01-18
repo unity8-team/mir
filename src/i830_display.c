@@ -342,9 +342,11 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 
-    if (I830IsPrimary(pScrn))
+    if (intel_crtc->rotate_mem.Start != 0) {
+	Start = intel_crtc->rotate_mem.Start;
+    } else if (I830IsPrimary(pScrn)) {
 	Start = pI830->FrontBuffer.Start;
-    else {
+    } else {
 	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
 	Start = pI8301->FrontBuffer2.Start;
     }
@@ -883,6 +885,45 @@ i830_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 }
 
 /**
+ * Creates a locked-in-framebuffer pixmap of the given width and height for
+ * this CRTC's rotated shadow framebuffer.
+ *
+ * The current implementation uses fixed buffers allocated at startup at the
+ * maximal size.
+ */
+static PixmapPtr
+i830_crtc_shadow_create(xf86CrtcPtr crtc, int width, int height)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+    unsigned long rotate_pitch;
+    PixmapPtr rotate_pixmap;
+    pointer rotate_offset;
+
+    if (intel_crtc->rotate_mem.Start == 0)
+	return NULL;
+
+    rotate_pitch = pI830->displayWidth * pI830->cpp;
+    rotate_offset = pI830->FbBase + intel_crtc->rotate_mem.Start;
+
+    rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
+					   width, height,
+					   pScrn->depth,
+					   pScrn->bitsPerPixel,
+					   rotate_pitch,
+					   rotate_offset);
+    return rotate_pixmap;
+}
+
+static void
+i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap)
+{
+    FreeScratchPixmapHeader(rotate_pixmap);
+}
+
+
+/**
  * This function configures the screens in clone mode on
  * all active outputs using a mode similar to the specified mode.
  */
@@ -1038,6 +1079,8 @@ static const xf86CrtcFuncsRec i830_crtc_funcs = {
     .mode_fixup = i830_crtc_mode_fixup,
     .mode_set = i830_crtc_mode_set,
     .gamma_set = i830_crtc_gamma_set,
+    .shadow_create = i830_crtc_shadow_create,
+    .shadow_destroy = i830_crtc_shadow_destroy,
     .destroy = NULL, /* XXX */
 };
 

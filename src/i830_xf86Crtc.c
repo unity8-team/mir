@@ -190,13 +190,10 @@ xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation,
 	goto done;
     }
 
-#if 0
-    if (!xf86CrtcRotate (crtc, mode, rotation))
-    {
+    if (!xf86CrtcRotate (crtc, mode, rotation)) {
 	ret = FALSE;
 	goto done;
     }
-#endif
 
     /* Disable the outputs and CRTCs before setting the mode. */
     for (i = 0; i < xf86_config->num_output; i++) {
