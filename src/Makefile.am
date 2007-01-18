@@ -79,7 +79,7 @@ radeon_drv_la_LTLIBRARIES = radeon_drv.la
 radeon_drv_la_LDFLAGS = -module -avoid-version
 radeon_drv_ladir = @moduledir@/drivers
 radeon_drv_la_SOURCES = \
-	radeon_accel.c radeon_mergedfb.c radeon_cursor.c radeon_dga.c \
+	radeon_accel.c radeon_cursor.c radeon_dga.c \
 	radeon_driver.c radeon_video.c radeon_bios.c radeon_mm_i2c.c \
 	radeon_vip.c radeon_misc.c radeon_display.c radeon_modes.c \
 	radeon_xf86Crtc.c radeon_xf86Modes.c radeon_randr.c \
@@ -187,7 +187,6 @@ EXTRA_DIST = \
 	radeon_exa_funcs.c \
 	radeon.h \
 	radeon_macros.h \
-	radeon_mergedfb.h \
 	radeon_probe.h \
 	radeon_reg.h \
 	radeon_sarea.h \
