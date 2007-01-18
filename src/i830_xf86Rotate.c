@@ -247,6 +247,8 @@ xf86CrtcRotate (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation)
 	if (xf86_config->rotationDamage)
 	{
 	    /* Free damage structure */
+	    DamageUnregister (&(*pScreen->GetScreenPixmap)(pScreen)->drawable,
+			      xf86_config->rotationDamage);
 	    DamageDestroy (xf86_config->rotationDamage);
 	    xf86_config->rotationDamage = NULL;
 	    /* Free block/wakeup handler */
@@ -274,6 +276,7 @@ xf86CrtcRotate (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation)
 	    shadow = crtc->funcs->shadow_create (crtc, width, height);
 	    if (!shadow)
 		goto bail1;
+	    crtc->rotatedPixmap = shadow;
 	}
 	
 	if (!xf86_config->rotationDamage)
