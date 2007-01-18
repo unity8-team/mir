@@ -112,8 +112,10 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
 			 NULL,
 			 serverClient,
 			 &error);
-    if (!src)
+    if (!src) {
+	ErrorF("couldn't create src pict\n");
 	return;
+    }
     dst = CreatePicture (None,
 			 &dst_pixmap->drawable,
 			 format,
@@ -121,38 +123,41 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
 			 NULL,
 			 serverClient,
 			 &error);
-    if (!dst)
+    if (!dst) {
+	ErrorF("couldn't create src pict\n");
 	return;
+    }
     SetPictureClipRegion (src, 0, 0, region);
     memset (&transform, '\0', sizeof (transform));
-    transform.matrix[2][2] = 1;
-    transform.matrix[0][2] = crtc->x;
-    transform.matrix[1][2] = crtc->y;
+    transform.matrix[2][2] = IntToxFixed(1);
+    transform.matrix[0][2] = IntToxFixed(crtc->x);
+    transform.matrix[1][2] = IntToxFixed(crtc->y);
     switch (crtc->rotation & 0xf) {
     case RR_Rotate_0:
-	transform.matrix[0][0] = 1;
-	transform.matrix[1][1] = 1;
+	transform.matrix[0][0] = IntToxFixed(1);
+	transform.matrix[1][1] = IntToxFixed(1);
 	break;
     case RR_Rotate_90:
 	/* XXX probably wrong */
-	transform.matrix[0][1] = 1;
-	transform.matrix[1][0] = -1;
-	transform.matrix[1][2] += crtc->mode.HDisplay;
+	transform.matrix[0][1] = IntToxFixed(1);
+	transform.matrix[1][0] = IntToxFixed(-1);
+	transform.matrix[1][2] += IntToxFixed(crtc->mode.HDisplay);
 	break;
     case RR_Rotate_180:
 	/* XXX probably wrong */
-	transform.matrix[0][0] = -1;
-	transform.matrix[1][1] = -1;
-	transform.matrix[0][2] += crtc->mode.HDisplay;
-	transform.matrix[1][2] += crtc->mode.VDisplay;
+	transform.matrix[0][0] = IntToxFixed(-1);
+	transform.matrix[1][1] = IntToxFixed(-1);
+	transform.matrix[0][2] += IntToxFixed(crtc->mode.HDisplay);
+	transform.matrix[1][2] += IntToxFixed(crtc->mode.VDisplay);
 	break;
     case RR_Rotate_270:
 	/* XXX probably wrong */
-	transform.matrix[0][1] = -1;
-	transform.matrix[1][0] = 1;
-	transform.matrix[0][2] += crtc->mode.VDisplay;
+	transform.matrix[0][1] = IntToxFixed(-1);
+	transform.matrix[1][0] = IntToxFixed(1);
+	transform.matrix[0][2] += IntToxFixed(crtc->mode.VDisplay);
 	break;
     }
+
     /* handle reflection */
     if (crtc->rotation & RR_Reflect_X)
     {
@@ -162,7 +167,13 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
     {
 	/* XXX figure this out too */
     }
-    SetPictureTransform (src, &transform);
+
+    error = SetPictureTransform (src, &transform);
+    if (error) {
+	ErrorF("Couldn't set transform\n");
+	return;
+    }
+
     CompositePicture (PictOpSrc,
 		      src, NULL, dst,
 		      0, 0, 0, 0, 0, 0,
