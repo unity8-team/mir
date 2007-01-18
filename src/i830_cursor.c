@@ -456,48 +456,49 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 temp;
     Bool inrange;
-    int oldx = x, oldy = y;
-    int hotspotx = 0, hotspoty = 0;
+    int root_x = x, root_y = y;
     int pipe;
 
-    oldx += pScrn->frameX0; /* undo what xf86HWCurs did */
-    oldy += pScrn->frameY0;
-
-    switch (pI830->rotation) {
-    case RR_Rotate_0:
-	x = oldx;
-	y = oldy;
-	break;
-    case RR_Rotate_90:
-	x = oldy;
-	y = pScrn->pScreen->width - oldx;
-	hotspoty = I810_CURSOR_X;
-	break;
-    case RR_Rotate_180:
-	x = pScrn->pScreen->width - oldx;
-	y = pScrn->pScreen->height - oldy;
-	hotspotx = I810_CURSOR_X;
-	hotspoty = I810_CURSOR_Y;
-	break;
-    case RR_Rotate_270:
-	x = pScrn->pScreen->height - oldy;
-	y = oldx;
-	hotspotx = I810_CURSOR_Y;
-	break;
-    }
-
-    x -= hotspotx;
-    y -= hotspoty;
+    root_x = x + pScrn->frameX0; /* undo what xf86HWCurs did */
+    root_y = y + pScrn->frameY0;
 
     for (pipe = 0; pipe < xf86_config->num_crtc; pipe++)
     {
-	xf86CrtcPtr    crtc = xf86_config->crtc[pipe];
+	xf86CrtcPtr	    crtc = xf86_config->crtc[pipe];
 	DisplayModePtr	    mode = &crtc->mode;
-	int		    thisx = x - crtc->x;
-	int		    thisy = y - crtc->y;
+	int		    thisx;
+	int		    thisy;
+	int hotspotx = 0, hotspoty = 0;
 
 	if (!crtc->enabled)
 	    continue;
+
+	/* XXX: deal with hotspot issues */
+	switch (crtc->rotation) {
+	case RR_Rotate_0:
+	    thisx = (root_x - crtc->x);
+	    thisy = (root_y - crtc->y);
+	    break;
+	case RR_Rotate_90:
+	    thisx = (root_y - crtc->y);
+	    thisy = mode->VDisplay - (root_x - crtc->x);
+	    /*hotspoty = I810_CURSOR_X;*/
+	    break;
+	case RR_Rotate_180:
+	    thisx = mode->HDisplay - (root_x - crtc->x);
+	    thisy = mode->VDisplay - (root_y - crtc->y);
+	    /*hotspotx = I810_CURSOR_X;
+	      hotspoty = I810_CURSOR_Y;*/
+	    break;
+	case RR_Rotate_270:
+	    thisx = mode->VDisplay - (root_y - crtc->y);
+	    thisy = (root_x - crtc->x);
+	    /*hotspotx = I810_CURSOR_Y;*/
+	    break;
+	}
+
+	thisx -= hotspotx;
+	thisy -= hotspoty;
 
 	/*
 	 * There is a screen display problem when the cursor position is set
