@@ -765,12 +765,6 @@ PreInitCleanup(ScrnInfoPtr pScrn)
       if (pI830->LpRing)
          xfree(pI830->LpRing);
       pI830->LpRing = NULL;
-      if (pI830->CursorMem)
-         xfree(pI830->CursorMem);
-      pI830->CursorMem = NULL;
-      if (pI830->CursorMemARGB) 
-         xfree(pI830->CursorMemARGB);
-      pI830->CursorMemARGB = NULL;
       if (pI830->OverlayMem)
          xfree(pI830->OverlayMem);
       pI830->OverlayMem = NULL;
@@ -1527,12 +1521,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* Alloc our pointers for the primary head */
    if (I830IsPrimary(pScrn)) {
       pI830->LpRing = xalloc(sizeof(I830RingBuffer));
-      pI830->CursorMem = xalloc(sizeof(I830MemRange));
-      pI830->CursorMemARGB = xalloc(sizeof(I830MemRange));
       pI830->OverlayMem = xalloc(sizeof(I830MemRange));
       pI830->overlayOn = xalloc(sizeof(Bool));
       pI830->used3D = xalloc(sizeof(int));
-      if (!pI830->LpRing || !pI830->CursorMem || !pI830->CursorMemARGB ||
+      if (!pI830->LpRing ||
           !pI830->OverlayMem || !pI830->overlayOn || !pI830->used3D) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "Could not allocate primary data structures.\n");
@@ -2583,17 +2575,13 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (I830IsPrimary(pScrn)) {
       if (!pI830->LpRing)
          pI830->LpRing = xalloc(sizeof(I830RingBuffer));
-      if (!pI830->CursorMem)
-         pI830->CursorMem = xalloc(sizeof(I830MemRange));
-      if (!pI830->CursorMemARGB)
-         pI830->CursorMemARGB = xalloc(sizeof(I830MemRange));
       if (!pI830->OverlayMem)
          pI830->OverlayMem = xalloc(sizeof(I830MemRange));
       if (!pI830->overlayOn)
          pI830->overlayOn = xalloc(sizeof(Bool));
       if (!pI830->used3D)
          pI830->used3D = xalloc(sizeof(int));
-      if (!pI830->LpRing || !pI830->CursorMem || !pI830->CursorMemARGB ||
+      if (!pI830->LpRing ||
           !pI830->OverlayMem || !pI830->overlayOn || !pI830->used3D) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "Could not allocate primary data structures.\n");
@@ -2608,8 +2596,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!I830IsPrimary(pScrn)) {
       pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
       pI830->LpRing = pI8301->LpRing;
-      pI830->CursorMem = pI8301->CursorMem;
-      pI830->CursorMemARGB = pI8301->CursorMemARGB;
       pI830->OverlayMem = pI8301->OverlayMem;
       pI830->overlayOn = pI8301->overlayOn;
       pI830->used3D = pI8301->used3D;
@@ -2655,15 +2641,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		     "Disabling acceleration because the ring buffer "
 		      "allocation failed.\n");
 	   pI830->noAccel = TRUE;
-      }
-   }
-
-   if (!pI830->SWCursor) {
-      if (pI830->CursorMem->Size == 0) {
-	  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		     "Disabling HW cursor because the cursor memory "
-		      "allocation failed.\n");
-	   pI830->SWCursor = TRUE;
       }
    }
 
@@ -3354,10 +3331,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
       xfree(pI830->LpRing);
       pI830->LpRing = NULL;
-      xfree(pI830->CursorMem);
-      pI830->CursorMem = NULL;
-      xfree(pI830->CursorMemARGB);
-      pI830->CursorMemARGB = NULL;
       xfree(pI830->OverlayMem);
       pI830->OverlayMem = NULL;
       xfree(pI830->overlayOn);

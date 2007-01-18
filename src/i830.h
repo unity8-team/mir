@@ -200,6 +200,8 @@ typedef struct _I830CrtcPrivateRec {
     CARD8 lut_r[256], lut_g[256], lut_b[256];
 
     I830MemRange rotate_mem;
+    I830MemRange cursor_mem;
+    I830MemRange cursor_mem_argb;
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;
 
 #define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
@@ -276,8 +278,6 @@ typedef struct _I830Rec {
    I830MemRange EXAStateMem;  /* specific exa state for G965 */
 #endif
    /* Regions allocated either from the above pools, or from agpgart. */
-   I830MemRange	*CursorMem;
-   I830MemRange	*CursorMemARGB;
    I830RingBuffer *LpRing;
 
 #if REMAP_RESERVED
