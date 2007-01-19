@@ -369,6 +369,16 @@ I965EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     CARD32 mask_offset = 0, mask_pitch = 0;
     CARD32 dst_format, dst_offset, dst_pitch;
 
+#ifdef XF86DRI
+    if (pI830->directRenderingEnabled) {
+        drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+
+        pSAREAPriv->ctxOwner = DRIGetContext(pScrn->pScreen);
+    }
+#endif
+
+    pI830->last_3d = LAST_3D_RENDER;
+
     src_offset = exaGetPixmapOffset(pSrc);
     src_pitch = exaGetPixmapPitch(pSrc);
     dst_offset = exaGetPixmapOffset(pDst);
