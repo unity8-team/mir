@@ -244,7 +244,7 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 	}
 	
 	/* temporary lock step versioning */
-	if (pNv->pKernelDRMVersion->version_patchlevel != 2) {
+	if (pNv->pKernelDRMVersion->version_patchlevel != 3) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"wrong DRM version\n");
 		return FALSE;
