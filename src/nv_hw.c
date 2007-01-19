@@ -1141,11 +1141,17 @@ void NVLoadStateExt (
               nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_4, 0x10008000);
               nvWriteGRAPH(pNv, NV_PGRAPH_LIMIT_VIOL_PIX, 0xf04b1f36);
               nvWriteGRAPH(pNv, 0x0B80, 0x1003d888);
+              nvWriteGRAPH(pNv, 0x0B84, 0x0c000000);
               nvWriteGRAPH(pNv, 0x0B88, 0x62ff0f7f);
+              nvWriteGRAPH(pNv, 0x0098, 0x000000c0);
+              nvWriteGRAPH(pNv, 0x009C, 0x0005dc00);
+              nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_2_NV04, 0x62ff0f7f);
+              nvWriteGRAPH(pNv, 0x00a0, 0x00000000);
+              nvWriteGRAPH(pNv, 0x00a4, 0x00000008);
            } else {
-              nvWriteGRAPH(pNv, 0x0084, 0x00118700);
-              nvWriteGRAPH(pNv, 0x008C, 0xF20E0431);
-              nvWriteGRAPH(pNv, 0x0090, 0x00000000);
+              nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_1, 0x00118700);
+              nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0xF20E0431);
+              nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_4, 0x00000000);
               nvWriteGRAPH(pNv, 0x009C, 0x00000040);
 
               if((pNv->Chipset & 0x0ff0) >= CHIPSET_NV25) {
