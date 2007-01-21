@@ -55,7 +55,6 @@
 #include "radeon_version.h"
 #include "radeon_reg.h"
 #include "radeon_macros.h"
-#include "radeon_mergedfb.h"
 
 				/* X and server generic header files */
 #include "xf86.h"

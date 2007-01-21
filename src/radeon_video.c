@@ -12,7 +12,6 @@
 #include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
-#include "radeon_mergedfb.h"
 #include "radeon_video.h"
 
 #include "xf86.h"
@@ -2470,10 +2469,6 @@ RADEONDisplayVideo(
     y_mult = 1;
 
     if (info->MergedFB) {
-        if (info->OverlayOnCRTC2)
-	    overlay_mode = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2;
-	else
-	    overlay_mode = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT1;
 	if (overlay_mode->Flags & V_INTERLACE)
 	    v_inc_shift++;
     	if (overlay_mode->Flags & V_DBLSCAN) {
@@ -2604,19 +2599,6 @@ RADEONDisplayVideo(
 	x_off = 0;
 
     /* needed to make the overlay work on crtc1 in leftof and above modes */
-    if (info->MergedFB) {
-	RADEONScrn2Rel srel =
-	    ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2Position;
-	overlay_mode = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2;
-	if (srel == radeonLeftOf) {
-    	    x_off -= overlay_mode->CrtcHDisplay;
-	    /* y_off -= pScrn->frameY0; */
-	}
-	if (srel == radeonAbove) {
-    	    y_off -= overlay_mode->CrtcVDisplay;
-	    /* x_off -= pScrn->frameX0; */
-	}
-    }
 
     /* Put the hardware overlay on CRTC2:
      *
@@ -2767,8 +2749,8 @@ RADEONPutImage(
    dstBox.y1 = drw_y;
    dstBox.y2 = drw_y + drw_h;
 
-   if (info->MergedFB)
-	RADEONChooseOverlayCRTC(pScrn, &dstBox);
+ //  if (info->MergedFB)
+//	RADEONChooseOverlayCRTC(pScrn, &dstBox);
 
    if(!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb,
 			     clipBoxes, width, height))
@@ -3130,8 +3112,8 @@ RADEONDisplaySurface(
     dstBox.y1 = drw_y;
     dstBox.y2 = drw_y + drw_h;
 
-    if (info->MergedFB)
-        RADEONChooseOverlayCRTC(pScrn, &dstBox);
+    //if (info->MergedFB)
+     //   RADEONChooseOverlayCRTC(pScrn, &dstBox);
 
     if (!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb, clipBoxes, 
 			       surface->width, surface->height))
@@ -3271,8 +3253,8 @@ RADEONPutVideo(
 	   else
 	   vbi_line_width = 2000; /* might need adjustment */
 
-   if (info->MergedFB)
-        RADEONChooseOverlayCRTC(pScrn, &dstBox);
+   //if (info->MergedFB)
+    //    RADEONChooseOverlayCRTC(pScrn, &dstBox);
         
    if(!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb, clipBoxes, width, height))
         return Success;

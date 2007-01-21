@@ -74,7 +74,6 @@
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
-#include "radeon_mergedfb.h"
 
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
@@ -119,7 +118,6 @@ static void RADEONSave(ScrnInfoPtr pScrn);
 //static void RADEONRestore(ScrnInfoPtr pScrn);
 static Bool RADEONModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
 
-static void RADEONGetMergedFBOptions(ScrnInfoPtr pScrn);
 static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode);
 static void RADEONForceSomeClocks(ScrnInfoPtr pScrn);
 static void RADEONSaveMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
@@ -163,16 +161,6 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_MONITOR_LAYOUT, "MonitorLayout",    OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_IGNORE_EDID,    "IgnoreEDID",       OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_FBDEV,          "UseFBDev",         OPTV_BOOLEAN, {0}, FALSE },
-    { OPTION_MERGEDFB,	     "MergedFB",      	 OPTV_BOOLEAN, {0}, FALSE },
-    { OPTION_CRT2HSYNC,	     "CRT2HSync",        OPTV_ANYSTR,  {0}, FALSE },
-    { OPTION_CRT2VREFRESH,   "CRT2VRefresh",     OPTV_ANYSTR,  {0}, FALSE },
-    { OPTION_CRT2POS,        "CRT2Position",	 OPTV_ANYSTR,  {0}, FALSE },
-    { OPTION_METAMODES,      "MetaModes",        OPTV_ANYSTR,  {0}, FALSE },
-    { OPTION_MERGEDDPI,	     "MergedDPI", 	 OPTV_ANYSTR,  {0}, FALSE },
-    { OPTION_RADEONXINERAMA, "MergedXinerama", OPTV_BOOLEAN, {0}, FALSE },
-    { OPTION_CRT2ISSCRN0,    "MergedXineramaCRT2IsScreen0", OPTV_BOOLEAN, {0}, FALSE },
-    { OPTION_MERGEDFBNONRECT, "MergedNonRectangular", OPTV_BOOLEAN,   {0}, FALSE },
-    { OPTION_MERGEDFBMOUSER,  "MergedMouseRestriction", OPTV_BOOLEAN,   {0}, FALSE },
     { OPTION_DISP_PRIORITY,  "DisplayPriority",  OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_PANEL_SIZE,     "PanelSize",        OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_MIN_DOTCLOCK,   "ForceMinDotClock", OPTV_FREQ,    {0}, FALSE },
@@ -1988,394 +1976,6 @@ static Bool RADEONPreInitGamma(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-/* This is called by RADEONPreInit to validate modes and compute
- * parameters for all of the valid modes.
- */
-static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
-{
-    RADEONInfoPtr  info = RADEONPTR(pScrn);
-    ClockRangePtr  clockRanges;
-    int            modesFound;
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-    char           *s;
-    xf86OutputPtr connector;
-    /* This option has two purposes:
-     *
-     * 1. For CRT, if this option is on, xf86ValidateModes (to
-     *    LOOKUP_BEST_REFRESH) is not going to be used for mode
-     *    validation.  Instead, we'll validate modes by matching exactly
-     *    the modes supported from the DDC data.  This option can be
-     *    used (a) to enable non-standard modes listed in the Detailed
-     *    Timings block of EDID, like 2048x1536 (not included in
-     *    xf86DefModes), (b) to avoid unstable modes for some flat
-     *    panels working in analog mode (some modes validated by
-     *    xf86ValidateModes don't really work with these panels).
-     *
-     * 2. For DFP on primary head, with this option on, the validation
-     *    routine will try to use supported modes from DDC data first
-     *    before trying on-chip RMX streching.  By default, native mode
-     *    + RMX streching is used for all non-native modes, it appears
-     *    more reliable. Some non-native modes listed in the DDC data
-     *    may not work properly if they are used directly. This seems to
-     *    only happen to a few panels (haven't nailed this down yet, it
-     *    may related to the incorrect setting in TMDS_PLL_CNTL when
-     *    pixel clock is changed).  Use this option may give you better
-     *    refresh rate for some non-native modes.  The 2nd DVI port will
-     *    always use DDC modes directly (only have one on-chip RMX
-     *    unit).
-     *
-     * Note: This option will be dismissed if no DDC data is available.
-     */
-
-    if (info->MergedFB) {
-	if (!(pScrn->display->virtualX))
-	    info->NoVirtual = TRUE;
-	else
-	    info->NoVirtual = FALSE;
-    }
-
-    info->ddc_mode =
-	xf86ReturnOptValBool(info->Options, OPTION_DDC_MODE, FALSE);
-
-    /* don't use RMX if we have a dual-tmds panels */
-    
-    if ((connector = RADEONGetCrtcConnector(pScrn, 2))) {
-	RADEONOutputPrivatePtr radconnector = connector->driver_private;
-	if (radconnector->MonType == MT_DFP)
-	    info->ddc_mode = TRUE;
-    }
-    /* don't use RMX if we are Dell Server */  
-    if (info->IsDellServer)
-    {
-	info->ddc_mode = TRUE;
-    }
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Validating modes on %s head ---------\n",
-	       info->IsSecondary ? "Secondary" : "Primary");
-
-    if (!pRADEONEnt->pOutput[0]->MonInfo && !pRADEONEnt->pOutput[1]->MonInfo && info->ddc_mode) {
-	info->ddc_mode = FALSE;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "No DDC data available, DDCMode option is dismissed\n");
-    }
-
-    if ((info->DisplayType == MT_DFP) ||
-	(info->DisplayType == MT_LCD)) {
-	if ((s = xf86GetOptValString(info->Options, OPTION_PANEL_SIZE))) {
-	    int PanelX, PanelY;
-	    DisplayModePtr  tmp_mode         = NULL;
-	    if (sscanf(s, "%dx%d", &PanelX, &PanelY) == 2) {
-		info->PanelXRes = PanelX;
-		info->PanelYRes = PanelY;
-		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-			   "Panel size is forced to: %s\n", s);
-
-		/* We can't trust BIOS or DDC timings anymore, 
-		   Use whatever specified in the Modeline.
-		   If no Modeline specified, we'll just pick the VESA mode at 
-		   60Hz refresh rate which is likely to be the best for a flat panel.
-		*/ 
-		info->ddc_mode = FALSE;
-		pScrn->monitor->DDC = NULL;
-		tmp_mode = pScrn->monitor->Modes;
-		while(tmp_mode) {
-		    if ((tmp_mode->HDisplay == PanelX) && 
-			(tmp_mode->VDisplay == PanelY)) {
-
-			float  refresh =
-			    (float)tmp_mode->Clock * 1000.0 / tmp_mode->HTotal / tmp_mode->VTotal;
-			if ((abs(60.0 - refresh) < 1.0) ||
-			    (tmp_mode->type == 0)) {
-			    info->HBlank     = tmp_mode->HTotal - tmp_mode->HDisplay;
-			    info->HOverPlus  = tmp_mode->HSyncStart - tmp_mode->HDisplay;
-			    info->HSyncWidth = tmp_mode->HSyncEnd - tmp_mode->HSyncStart;
-			    info->VBlank     = tmp_mode->VTotal - tmp_mode->VDisplay;
-			    info->VOverPlus  = tmp_mode->VSyncStart - tmp_mode->VDisplay;
-			    info->VSyncWidth = tmp_mode->VSyncEnd - tmp_mode->VSyncStart;
-			    info->DotClock   = tmp_mode->Clock;
-			    info->Flags = 0;
-			    break;
-			}
-		    }
-		    tmp_mode = tmp_mode->next;
-		}
-		if (info->DotClock == 0) {
-		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			       "No valid timing info for specified panel size.\n"
-			       "Please specify the Modeline for this panel\n");
-		    return FALSE;
-		}
-	    } else {
-		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-			   "Invalid PanelSize value: %s\n", s);
-	    }
-        } else
-            RADEONGetPanelInfo(pScrn);
-    }
-
-    if (pScrn->monitor->DDC) {
-        /* If we still don't know sync range yet, let's try EDID.
-         *
-         * Note that, since we can have dual heads, Xconfigurator
-         * may not be able to probe both monitors correctly through
-         * vbe probe function (RADEONProbeDDC). Here we provide an
-         * additional way to auto-detect sync ranges if they haven't
-         * been added to XF86Config manually.
-         */
-        if (pScrn->monitor->nHsync <= 0)
-            RADEONSetSyncRangeFromEdid(pScrn, 1);
-        if (pScrn->monitor->nVrefresh <= 0)
-            RADEONSetSyncRangeFromEdid(pScrn, 0);
-    }
-
-    /* Get mode information */
-    pScrn->progClock               = TRUE;
-    clockRanges                    = xnfcalloc(sizeof(*clockRanges), 1);
-    clockRanges->next              = NULL;
-    clockRanges->minClock          = info->pll.min_pll_freq;
-    clockRanges->maxClock          = info->pll.max_pll_freq * 10;
-    clockRanges->clockIndex        = -1;
-    clockRanges->interlaceAllowed  = (info->DisplayType == MT_CRT);
-    clockRanges->doubleScanAllowed = (info->DisplayType == MT_CRT);
-
-    /* We'll use our own mode validation routine for DFP/LCD, since
-     * xf86ValidateModes does not work correctly with the DFP/LCD modes
-     * 'stretched' from their native mode.
-     */
-    if (info->DisplayType == MT_CRT && !info->ddc_mode) {
-
-	modesFound =
-	    xf86ValidateModes(pScrn,
-			      pScrn->monitor->Modes,
-			      pScrn->display->modes,
-			      clockRanges,
-			      NULL,                  /* linePitches */
-			      8 * 64,                /* minPitch */
-			      8 * 1024,              /* maxPitch */
-			      info->allowColorTiling ? 2048 :
-			          64 * pScrn->bitsPerPixel, /* pitchInc */
-			      128,                   /* minHeight */
-			      info->MaxLines,        /* maxHeight */
-			      pScrn->display->virtualX,
-			      pScrn->display->virtualY,
-			      info->FbMapSize,
-			      LOOKUP_BEST_REFRESH);
-
-	if (modesFound < 1 && info->FBDev) {
-	    fbdevHWUseBuildinMode(pScrn);
-	    pScrn->displayWidth = fbdevHWGetLineLength(pScrn)
-				/ info->CurrentLayout.pixel_bytes;
-	    modesFound = 1;
-	}
-
-	if (modesFound == -1) return FALSE;
-
-	xf86PruneDriverModes(pScrn);
-	if (!modesFound || !pScrn->modes) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes found\n");
-	    return FALSE;
-	}
-
-    } else {
-	/* First, free any allocated modes during configuration, since
-	 * we don't need them
-	 */
-	while (pScrn->modes)
-	    xf86DeleteMode(&pScrn->modes, pScrn->modes);
-	while (pScrn->modePool)
-	    xf86DeleteMode(&pScrn->modePool, pScrn->modePool);
-
-	/* Next try to add DDC modes */
-	modesFound = RADEONValidateDDCModes(pScrn, pScrn->display->modes,
-					    info->DisplayType, 0);
-
-	/* If that fails and we're connect to a flat panel, then try to
-         * add the flat panel modes
-	 */
-	if (info->DisplayType != MT_CRT) {
-
-	    /* some panels have DDC, but don't have internal scaler.
-	     * in this case, we need to validate additional modes
-	     * by using on-chip RMX.
-	     */
-	    int user_modes_asked = 0, user_modes_found = 0, i;
-	    DisplayModePtr  tmp_mode = pScrn->modes;
-	    while (pScrn->display->modes[user_modes_asked]) user_modes_asked++;
-	    if (tmp_mode) {
-		for (i = 0; i < modesFound; i++) {
-		    if (tmp_mode->type & M_T_USERDEF) user_modes_found++;
-		    tmp_mode = tmp_mode->next;
-		}
-	    }
-
-	    if ((modesFound <= 1) || (user_modes_found < user_modes_asked)) {
-		/* when panel size is not valid, try to validate
-		 * mode using xf86ValidateModes routine
-		 * This can happen when DDC is disabled.
-		 */
-		if (info->PanelXRes < 320 || info->PanelYRes < 200)
-		    modesFound =
-			xf86ValidateModes(pScrn,
-					  pScrn->monitor->Modes,
-					  pScrn->display->modes,
-					  clockRanges,
-					  NULL,                  /* linePitches */
-					  8 * 64,                /* minPitch */
-					  8 * 1024,              /* maxPitch */
-					  info->allowColorTiling ? 2048 :
-					      64 * pScrn->bitsPerPixel, /* pitchInc */
-					  128,                   /* minHeight */
-					  info->MaxLines,        /* maxHeight */
-					  pScrn->display->virtualX,
-					  pScrn->display->virtualY,
-					  info->FbMapSize,
-					  LOOKUP_BEST_REFRESH);
-		else if (!info->IsSecondary)
-		  modesFound = RADEONValidateFPModes(pScrn, pScrn->display->modes, &pScrn->monitor->Modes);
-	    }
-        }
-
-	/* Setup the screen's clockRanges for the VidMode extension */
-	if (!pScrn->clockRanges) {
-	    pScrn->clockRanges = xnfcalloc(sizeof(*(pScrn->clockRanges)), 1);
-	    memcpy(pScrn->clockRanges, clockRanges, sizeof(*clockRanges));
-	    pScrn->clockRanges->strategy = LOOKUP_BEST_REFRESH;
-	}
-
-	/* Fail if we still don't have any valid modes */
-	if (modesFound < 1) {
-	    if (info->DisplayType == MT_CRT) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "No valid DDC modes found for this CRT\n");
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Try turning off the \"DDCMode\" option\n");
-	    } else {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "No valid mode found for this DFP/LCD\n");
-	    }
-	    return FALSE;
-	}
-    }
-
-    xf86SetCrtcForModes(pScrn, 0);
-
-    if (pRADEONEnt->HasCRTC2) {
-	if (pRADEONEnt->Controller[1]->binding == 1) {
-
-	    /* If we have 2 screens from the config file, we don't need
-	     * to do clone thing, let each screen handles one head.
-	     */
-	    if (!pRADEONEnt->HasSecondary) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Validating CRTC2 modes for MergedFB ------------ \n");
-
-		modesFound = RADEONValidateMergeModes(pScrn);
-		if (modesFound < 1) {
-		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			       "No valid mode found for CRTC2, disabling MergedFB\n");
-		    info->MergedFB = FALSE;
-		}
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Total of %d CRTC2 modes found for MergedFB------------ \n",
-			   modesFound);
-	    }
-	}
-    }
-
-    pScrn->currentMode = pScrn->modes;
-    if(info->MergedFB) {
-       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-       	   "Modes for CRT1: ********************\n");
-    }
-    xf86PrintModes(pScrn);
-
-    if(pRADEONEnt->Controller[1]->binding == 1) {
-
-       xf86SetCrtcForModes(info->CRT2pScrn, INTERLACE_HALVE_V);
-
-       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-           "Modes for CRT2: ********************\n");
-
-       xf86PrintModes(info->CRT2pScrn);
-
-       info->CRT1Modes = pScrn->modes;
-       info->CRT1CurrentMode = pScrn->currentMode;
-
-       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Generating MergedFB mode list\n");
-
-       if (info->NoVirtual) {
-           pScrn->display->virtualX = 0;
-           pScrn->display->virtualY = 0;
-       }
-       pScrn->modes = RADEONGenerateModeList(pScrn, info->MetaModes,
-	            	                  info->CRT1Modes, info->CRT2pScrn->modes,
-					  info->CRT2Position);
-
-       if(!pScrn->modes) {
-
-	  xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-	      "Failed to parse MetaModes or no modes found. MergeFB mode disabled.\n");
-	  if(info->CRT2pScrn) {
-	     if(info->CRT2pScrn->modes) {
-	        while(info->CRT2pScrn->modes)
-		   xf86DeleteMode(&info->CRT2pScrn->modes, info->CRT2pScrn->modes);
-	     }
-	     if(info->CRT2pScrn->monitor) {
-	        if(info->CRT2pScrn->monitor->Modes) {
-	           while(info->CRT2pScrn->monitor->Modes)
-		      xf86DeleteMode(&info->CRT2pScrn->monitor->Modes, info->CRT2pScrn->monitor->Modes);
-	        }
-		if(info->CRT2pScrn->monitor->DDC) xfree(info->CRT2pScrn->monitor->DDC);
-	        xfree(info->CRT2pScrn->monitor);
-	     }
-             xfree(info->CRT2pScrn);
-	     info->CRT2pScrn = NULL;
-	  }
-	  pScrn->modes = info->CRT1Modes;
-	  info->CRT1Modes = NULL;
-	  info->MergedFB = FALSE;
-
-       }
-    }
-
-    if (info->MergedFB) {
-       /* If no virtual dimension was given by the user,
-        * calculate a sane one now. Adapts pScrn->virtualX,
-	* pScrn->virtualY and pScrn->displayWidth.
-	*/
-       RADEONRecalcDefaultVirtualSize(pScrn);
-       info->CRT2pScrn->virtualX = pScrn->virtualX;
-       info->CRT2pScrn->virtualY = pScrn->virtualY;
-       RADEONSetPitch(pScrn);
-       RADEONSetPitch(info->CRT2pScrn);
-
-       pScrn->modes = pScrn->modes->next;  /* We get the last from GenerateModeList() */
-       pScrn->currentMode = pScrn->modes;
-
-       /* Update CurrentLayout */
-       info->CurrentLayout.mode = pScrn->currentMode;
-       info->CurrentLayout.displayWidth = pScrn->displayWidth;
-    }
-
-				/* Set DPI */
-    /* xf86SetDpi(pScrn, 0, 0); */
-
-    if (info->MergedFB) {
-	RADEONMergedFBSetDpi(pScrn, info->CRT2pScrn, info->CRT2Position);
-    } else {
-	xf86SetDpi(pScrn, 0, 0);
-        info->RADEONDPIVX = pScrn->virtualX;
-        info->RADEONDPIVY = pScrn->virtualY;
-    }
-
-			
-
-    info->CurrentLayout.displayWidth = pScrn->displayWidth;
-    info->CurrentLayout.mode = pScrn->currentMode;
-
-    return TRUE;
-}
-
 /* This is called by RADEONPreInit to initialize the hardware cursor */
 static Bool RADEONPreInitCursor(ScrnInfoPtr pScrn)
 {
@@ -3252,13 +2852,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     xf86LoaderReqSymLists(fbSymbols, NULL);
 
-    /* collect MergedFB options */
-    /* only parse mergedfb options on the primary head. 
-       Mergedfb is already disabled in xinerama/screen based
-       multihead */
-    if (!info->IsSecondary)
-	RADEONGetMergedFBOptions(pScrn);
-
     if (!RADEONPreInitGamma(pScrn))              goto fail;
 
     if (!RADEONPreInitCursor(pScrn))             goto fail;
@@ -3406,111 +2999,6 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
       crtc->funcs->gamma_set(crtc, lut_r, lut_g, lut_b, 256);
 #endif
       }
-#if 0
-	/* If the second monitor is connected, we also need to deal with
-	 * the secondary palette
-	 */
-	if (info->IsSecondary) j = 1;
-	else j = 0;
-
-	PAL_SELECT(j);
-
-	if (info->CurrentLayout.depth == 15) {
-	    /* 15bpp mode.  This sends 32 values. */
-	    for (i = 0; i < numColors; i++) {
-		idx = indices[i];
-		r   = colors[idx].red;
-		g   = colors[idx].green;
-		b   = colors[idx].blue;
-		OUTPAL(idx * 8, r, g, b);
-	    }
-	} else if (info->CurrentLayout.depth == 16) {
-	    /* 16bpp mode.  This sends 64 values.
-	     *
-	     * There are twice as many green values as there are values
-	     * for red and blue.  So, we take each red and blue pair,
-	     * and combine it with each of the two green values.
-	     */
-	    for (i = 0; i < numColors; i++) {
-		idx = indices[i];
-		r   = colors[idx / 2].red;
-		g   = colors[idx].green;
-		b   = colors[idx / 2].blue;
-		RADEONWaitForFifo(pScrn, 32); /* delay */
-		OUTPAL(idx * 4, r, g, b);
-
-		/* AH - Added to write extra green data - How come this isn't
-		 * needed on R128?  We didn't load the extra green data in the
-		 * other routine
-		 */
-		if (idx <= 31) {
-		    r   = colors[idx].red;
-		    g   = colors[(idx * 2) + 1].green;
-		    b   = colors[idx].blue;
-		    RADEONWaitForFifo(pScrn, 32); /* delay */
-		    OUTPAL(idx * 8, r, g, b);
-		}
-	    }
-	} else {
-	    /* 8bpp mode.  This sends 256 values. */
-	    for (i = 0; i < numColors; i++) {
-		idx = indices[i];
-		r   = colors[idx].red;
-		b   = colors[idx].blue;
-		g   = colors[idx].green;
-		RADEONWaitForFifo(pScrn, 32); /* delay */
-		OUTPAL(idx, r, g, b);
-	    }
-	}
-
-	if (info->MergedFB) {
-	    PAL_SELECT(1);
-	    if (info->CurrentLayout.depth == 15) {
-		/* 15bpp mode.  This sends 32 values. */
-		for (i = 0; i < numColors; i++) {
-		    idx = indices[i];
-		    r   = colors[idx].red;
-		    g   = colors[idx].green;
-		    b   = colors[idx].blue;
-		    OUTPAL(idx * 8, r, g, b);
-		}
-	    } else if (info->CurrentLayout.depth == 16) {
-		/* 16bpp mode.  This sends 64 values.
-		 *
-		 * There are twice as many green values as there are values
-		 * for red and blue.  So, we take each red and blue pair,
-		 * and combine it with each of the two green values.
-		 */
-		for (i = 0; i < numColors; i++) {
-		    idx = indices[i];
-		    r   = colors[idx / 2].red;
-		    g   = colors[idx].green;
-		    b   = colors[idx / 2].blue;
-		    OUTPAL(idx * 4, r, g, b);
-
-		    /* AH - Added to write extra green data - How come
-		     * this isn't needed on R128?  We didn't load the
-		     * extra green data in the other routine.
-		     */
-		    if (idx <= 31) {
-			r   = colors[idx].red;
-			g   = colors[(idx * 2) + 1].green;
-			b   = colors[idx].blue;
-			OUTPAL(idx * 8, r, g, b);
-		    }
-		}
-	    } else {
-		/* 8bpp mode.  This sends 256 values. */
-		for (i = 0; i < numColors; i++) {
-		    idx = indices[i];
-		    r   = colors[idx].red;
-		    b   = colors[idx].blue;
-		    g   = colors[idx].green;
-		    OUTPAL(idx, r, g, b);
-		}
-	    }
-	}
-#endif
     }
 
 #ifdef XF86DRI
@@ -3934,17 +3422,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	info->allowColorTiling = FALSE;
     }
     if (info->allowColorTiling) {
-	if (info->MergedFB) {
-	    if ((((RADEONMergedDisplayModePtr)pScrn->currentMode->Private)->CRT1->Flags &
-		(V_DBLSCAN | V_INTERLACE)) ||
-		(((RADEONMergedDisplayModePtr)pScrn->currentMode->Private)->CRT2->Flags &
-		(V_DBLSCAN | V_INTERLACE)))
-		info->tilingEnabled = FALSE;
-	    else info->tilingEnabled = TRUE;
-	}
-	else {
-            info->tilingEnabled = (pScrn->currentMode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
-	}
+        info->tilingEnabled = (pScrn->currentMode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
     }
 
     /* Visual setup */
@@ -4275,10 +3753,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	RADEONChangeSurfaces(pScrn);
     }
 
-    if(info->MergedFB)
-	/* need this here to fix up sarea values */
-	RADEONAdjustFrameMerged(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-
     /* Enable aceleration */
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	 RADEONTRACE(("Initializing Acceleration\n"));
@@ -4343,26 +3817,9 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     RADEONTRACE(("Initializing DGA\n"));
     RADEONDGAInit(pScreen);
 
-    /* Wrap some funcs for MergedFB */
-    if(info->MergedFB) {
-       info->PointerMoved = pScrn->PointerMoved;
-       pScrn->PointerMoved = RADEONMergePointerMoved;
-       /* Psuedo xinerama */
-       if(info->UseRADEONXinerama) {
-          RADEONnoPanoramiXExtension = FALSE;
-          RADEONXineramaExtensionInit(pScrn);
-       } else {
-	  info->MouseRestrictions = FALSE;
-       }
-    }
-
     /* Init Xv */
     RADEONTRACE(("Initializing Xv\n"));
     RADEONInitVideo(pScreen);
-
-    if(info->MergedFB)
-	/* need this here to fix up sarea values */
-	RADEONAdjustFrameMerged(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 
     /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
     /* Wrap CloseScreen */
@@ -6587,9 +6044,6 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
 
     if (info->IsSecondary) {
         return RADEONInit2(pScrn, NULL, mode, 2, save, info->DisplayType);
-    } else if (info->MergedFB) {
-        return RADEONInit2(pScrn, ((RADEONMergedDisplayModePtr)mode->Private)->CRT1,
-			   ((RADEONMergedDisplayModePtr)mode->Private)->CRT2, 3, save, info->MergeType);
     } else {
         return RADEONInit2(pScrn, mode, NULL, 1, save, info->DisplayType);
     }
@@ -6672,17 +6126,7 @@ _X_EXPORT Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     RADEONTRACE(("RADEONSwitchMode() !n"));
 
     if (info->allowColorTiling) {
-	if (info->MergedFB) {
-	    if ((((RADEONMergedDisplayModePtr)mode->Private)->CRT1->Flags &
-		(V_DBLSCAN | V_INTERLACE)) ||
-		(((RADEONMergedDisplayModePtr)mode->Private)->CRT2->Flags &
-		(V_DBLSCAN | V_INTERLACE)))
-		info->tilingEnabled = FALSE;
-	    else info->tilingEnabled = TRUE;
-	}
-	else {
-            info->tilingEnabled = (mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
-	}
+        info->tilingEnabled = (mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
 #ifdef XF86DRI	
 	if (info->directRenderingEnabled && (info->tilingEnabled != tilingOld)) {
 	    RADEONSAREAPrivPtr pSAREAPriv;
@@ -6740,10 +6184,7 @@ _X_EXPORT Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     /* Since RandR (indirectly) uses SwitchMode(), we need to
      * update our Xinerama info here, too, in case of resizing
      */
-    if (info->MergedFB) {
-        RADEONMergedFBResetDpi(pScrn, FALSE);
-        RADEONUpdateXineramaScreenInfo(pScrn);
-    } else if(info->constantDPI) {
+    if(info->constantDPI) {
        RADEONResetDPI(pScrn, FALSE);
     }
 
@@ -6907,9 +6348,7 @@ _X_EXPORT void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
     if (info->accelOn)
         RADEON_SYNC(info, pScrn);
 
-    if(info->MergedFB) {
-    	RADEONAdjustFrameMerged(scrnIndex, x, y, flags);
-    } else if (info->FBDev) {
+    if (info->FBDev) {
 	fbdevHWAdjustFrame(scrnIndex, x, y, flags);
     } else {
 	RADEONDoAdjustFrame(pScrn, x, y, FALSE);
@@ -7180,244 +6619,6 @@ _X_EXPORT void RADEONFreeScreen(int scrnIndex, int flags)
 	vgaHWFreeHWRec(pScrn);
 #endif
     RADEONFreeRec(pScrn);
-}
-
-static void
-RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr      info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    xf86OutputPtr pOutput;
-    char        *strptr;
-    char	*default_hsync = "28-33";
-    char	*default_vrefresh = "43-72";
-    Bool	val;
-    Bool	default_range = FALSE;
-    static const char *mybadparm = "\"%s\" is is not a valid parameter for option \"%s\"\n";
-
-    if (info->FBDev == TRUE) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-	    "MergedFB does not work with Option UseFBDev, MergedFB mode is disabled\n");
-	info->MergedFB = FALSE;
-	return;
-    }
-
-#if RANDR_12_INTERFACE
-    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-              "MergedFB does not work with Randr 1.2\n");
-    info->MergedFB = FALSE;
-    return;
-#endif
-
-
-			/* collect MergedFB options */
-    info->MergedFB = TRUE;
-    info->UseRADEONXinerama = TRUE;
-    info->CRT2IsScrn0 = FALSE;
-    info->CRT2Position = radeonClone;
-    info->MergedFBXDPI = info->MergedFBYDPI = 0;
-    info->CRT1XOffs = info->CRT1YOffs = info->CRT2XOffs = info->CRT2YOffs = 0;
-    info->NonRect = info->HaveNonRect = info->HaveOffsRegions = FALSE;
-    info->MBXNR1XMAX = info->MBXNR1YMAX = info->MBXNR2XMAX = info->MBXNR2YMAX = 65536;
-    info->MouseRestrictions = TRUE;
-
-    if (info->MergeType == MT_NONE) {
-	info->MergedFB = FALSE;
-        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-        "Failed to detect secondary monitor, MergedFB/Clone mode disabled\n");
-    } else if ((pOutput = RADEONGetCrtcConnector(pScrn, 2))) {
-	if (!pOutput->MonInfo) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Failed to detect secondary monitor DDC, default HSync and VRefresh used\n");
-	    default_range = TRUE;
-	}
-    }
-
-    if (xf86GetOptValBool(info->Options, OPTION_MERGEDFB, &val)) {
-        if (val) {
-	    info->MergedFB = TRUE;
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	    "MergedFB mode forced on.\n");
-        } else {
-	    info->MergedFB = FALSE;
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	    "MergedFB mode forced off.\n");
-        }
-    }
-
-    /* Do some MergedFB mode initialisation */
-    if(info->MergedFB) {
-       info->CRT2pScrn = xalloc(sizeof(ScrnInfoRec));
-       if(!info->CRT2pScrn) {
-          xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-	  	"Failed to allocate memory for merged pScrn, MergedFB mode is disabled\n");
-	  info->MergedFB = FALSE;
-       } else {
-          memcpy(info->CRT2pScrn, pScrn, sizeof(ScrnInfoRec));
-       }
-    }
-    if(info->MergedFB) {
-	  int result, ival;
-	  Bool valid = FALSE;
-	  char *tempstr;
-	  strptr = (char *)xf86GetOptValString(info->Options, OPTION_CRT2POS);
-	  if (strptr) {
-	      tempstr = xalloc(strlen(strptr) + 1);
-	      result = sscanf(strptr, "%s %d", tempstr, &ival);
-	  } else { 	      /* Not specified - default is "Clone" */
-	      tempstr = NULL;
-	      result = 0;
-	      info->CRT2Position = radeonClone;
-	      valid = TRUE;
-	  }
-	  if(result >= 1) {
-       	        if(!xf86NameCmp(tempstr,"LeftOf")) {
-                   info->CRT2Position = radeonLeftOf;
-		   valid = TRUE;
-		   if(result == 2) {
-		      if(ival < 0) info->CRT1YOffs = -ival;
-		      else info->CRT2YOffs = ival;
-		   }
-		   info->CRT2IsScrn0 = TRUE;
- 	        } else if(!xf86NameCmp(tempstr,"RightOf")) {
-                   info->CRT2Position = radeonRightOf;
-		   valid = TRUE;
-		   if(result == 2) {
-		      if(ival < 0) info->CRT1YOffs = -ival;
-		      else info->CRT2YOffs = ival;
-		   }
-		   info->CRT2IsScrn0 = FALSE;
-	        } else if(!xf86NameCmp(tempstr,"Above")) {
-                   info->CRT2Position = radeonAbove;
-		   valid = TRUE;
-		   if(result == 2) {
-		      if(ival < 0) info->CRT1XOffs = -ival;
-		      else info->CRT2XOffs = ival;
-		   }
-		   info->CRT2IsScrn0 = FALSE;
-	        } else if(!xf86NameCmp(tempstr,"Below")) {
-                   info->CRT2Position = radeonBelow;
-		   valid = TRUE;
-		   if(result == 2) {
-		      if(ival < 0) info->CRT1XOffs = -ival;
-		      else info->CRT2XOffs = ival;
-		   }
-		   info->CRT2IsScrn0 = TRUE;
-	        } else if(!xf86NameCmp(tempstr,"Clone")) {
-                   info->CRT2Position = radeonClone;
-		   if(result == 1) valid = TRUE;
-		   /*info->CRT2IsScrn0 = TRUE;*/
-	        } 
-	  }
-	  if(!valid) {
-	        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-	            "\"%s\" is not a valid parameter for Option \"CRT2Position\"\n", strptr);
-	    	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	            "Valid parameters are \"RightOf\", \"LeftOf\", \"Above\", \"Below\", or \"Clone\"\n");
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	            "Except for \"Clone\", the parameter may be followed by an integer.\n");
-	  }
-	  xfree(tempstr);
-
-	  strptr = (char *)xf86GetOptValString(info->Options, OPTION_METAMODES);
-	  if(strptr) {
-	     info->MetaModes = xalloc(strlen(strptr) + 1);
-	     if(info->MetaModes) memcpy(info->MetaModes, strptr, strlen(strptr) + 1);
-	  }
-	  strptr = (char *)xf86GetOptValString(info->Options, OPTION_CRT2HSYNC);
-	  if(strptr) {
-	      info->CRT2HSync = xalloc(strlen(strptr) + 1);
-	      if(info->CRT2HSync) memcpy(info->CRT2HSync, strptr, strlen(strptr) + 1);
-	  }
-	  strptr = (char *)xf86GetOptValString(info->Options, OPTION_CRT2VREFRESH);
-	  if(strptr) {
-	      info->CRT2VRefresh = xalloc(strlen(strptr) + 1);
-	      if(info->CRT2VRefresh) memcpy(info->CRT2VRefresh, strptr, strlen(strptr) + 1);
-	  }
-
-	if(xf86GetOptValBool(info->Options, OPTION_RADEONXINERAMA, &val)) {
-	    if (!val)
-		info->UseRADEONXinerama = FALSE;
-	}
-	if(info->UseRADEONXinerama) {
-	        if(xf86GetOptValBool(info->Options, OPTION_CRT2ISSCRN0, &val)) {
-		   if(val) info->CRT2IsScrn0 = TRUE;
-		   else    info->CRT2IsScrn0 = FALSE;
-		}
-                if(xf86GetOptValBool(info->Options, OPTION_MERGEDFBNONRECT, &val)) {
-  	            info->NonRect = val ? TRUE : FALSE;
-  	        }
-  	        if(xf86GetOptValBool(info->Options, OPTION_MERGEDFBMOUSER, &val)) {
-  	            info->MouseRestrictions = val ? TRUE : FALSE;
-  	        }
-	}
-	strptr = (char *)xf86GetOptValString(info->Options, OPTION_MERGEDDPI);
-	if(strptr) {
-	    int val1 = 0, val2 = 0;
-	    sscanf(strptr, "%d %d", &val1, &val2);
-	    if(val1 && val2) {
-	        info->MergedFBXDPI = val1;
-		info->MergedFBYDPI = val2;
-	     } else {
-	        xf86DrvMsg(pScrn->scrnIndex, X_WARNING, mybadparm, strptr, "MergedDPI");
-	     }
- 	}
-    }
-
-    if(info->MergedFB) {
-          /* fill in monitor */
-       info->CRT2pScrn->monitor = xalloc(sizeof(MonRec));
-       if(info->CRT2pScrn->monitor) {
-          DisplayModePtr tempm = NULL, currentm = NULL, newm = NULL;
-          memcpy(info->CRT2pScrn->monitor, pScrn->monitor, sizeof(MonRec));
-          info->CRT2pScrn->monitor->DDC = NULL;
-	  info->CRT2pScrn->monitor->Modes = NULL;
-	  info->CRT2pScrn->monitor->id = "CRT2 Monitor";
-	  tempm = pScrn->monitor->Modes;
-	  while(tempm) {
-	         if(!(newm = xalloc(sizeof(DisplayModeRec)))) break;
-	         memcpy(newm, tempm, sizeof(DisplayModeRec));
-	         if(!(newm->name = xalloc(strlen(tempm->name) + 1))) {
-	            xfree(newm);
-		    break;
-	         }
-	         strcpy(newm->name, tempm->name);
-	         if(!info->CRT2pScrn->monitor->Modes) 
-		    info->CRT2pScrn->monitor->Modes = newm;
-	         if(currentm) {
-	            currentm->next = newm;
-		    newm->prev = currentm;
-	         }
-	         currentm = newm;
-	         tempm = tempm->next;
-	  }
-
-	  /* xf86SetDDCproperties(info->CRT2pScrn, pRADEONEnt->MonInfo2); */
-	  if ((pOutput = RADEONGetCrtcConnector(pScrn, 2)))
-	      info->CRT2pScrn->monitor->DDC = pOutput->MonInfo;
-	  else
-	      info->CRT2pScrn->monitor->DDC = NULL;
-          if (default_range) {
-             RADEONStrToRanges(info->CRT2pScrn->monitor->hsync, default_hsync, MAX_HSYNC);
-             RADEONStrToRanges(info->CRT2pScrn->monitor->vrefresh, default_vrefresh, MAX_VREFRESH);
-          }
-          if(info->CRT2HSync) {
-             info->CRT2pScrn->monitor->nHsync =
-	    	RADEONStrToRanges(info->CRT2pScrn->monitor->hsync, info->CRT2HSync, MAX_HSYNC);
-          }
-          if(info->CRT2VRefresh) {
-             info->CRT2pScrn->monitor->nVrefresh =
-	    	RADEONStrToRanges(info->CRT2pScrn->monitor->vrefresh, info->CRT2VRefresh, MAX_VREFRESH);
-          }
-
-       } else {
-          xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-	  	"Failed to allocate memory for CRT2 monitor, MergedFB mode disabled.\n");
-	  if(info->CRT2pScrn) xfree(info->CRT2pScrn);
-    	  info->CRT2pScrn = NULL;
-	  info->MergedFB = FALSE;
-       }
-    }
 }
 
 static void RADEONForceSomeClocks(ScrnInfoPtr pScrn)

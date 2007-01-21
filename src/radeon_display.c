@@ -45,7 +45,6 @@
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
-#include "radeon_mergedfb.h"
 
 
 void radeon_crtc_load_lut(xf86CrtcPtr crtc);
@@ -2025,10 +2024,7 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     } else if (pRADEONEnt->Controller[1]->binding == 1) info2 = info;
 
     mode1 = info->CurrentLayout.mode;
-    if (info->MergedFB) {
-	mode1 = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT1;
-	mode2 = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2;
-    } else if ((pRADEONEnt->HasSecondary) && info2) {
+    if ((pRADEONEnt->HasSecondary) && info2) {
 	mode2 = info2->CurrentLayout.mode;
     } else {
 	mode2 = NULL;
