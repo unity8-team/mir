@@ -656,8 +656,8 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	    RADEONUnblank(pScrn);
 	    info->IsSwitching = FALSE;
 	}
-	    //	    if (info->DispPriority)
-	    //		RADEONInitDispBandwidth(pScrn);
+	if (info->DispPriority)
+	  RADEONInitDispBandwidth(pScrn);
     
     }
     if (pos_changed && mode)

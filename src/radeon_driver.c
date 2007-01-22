@@ -6374,6 +6374,9 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
 	RADEONBlank(pScrn);
 	RADEONRestoreMode(pScrn, &info->ModeReg);
 	RADEONUnblank(pScrn);
+
+	if (info->DispPriority)
+ 	    RADEONInitDispBandwidth(pScrn);
     }
 #if 0
       if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;

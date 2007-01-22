@@ -1699,8 +1699,7 @@ void RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr output, BOOL bEnable)
 }
 
 /* Calculate display buffer watermark to prevent buffer underflow */
-void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, RADEONInfoPtr info2,
-			      DisplayModePtr mode1, DisplayModePtr mode2)
+void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_bytes2, DisplayModePtr mode1, DisplayModePtr mode2)
 {
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -1750,11 +1749,6 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, RADEONInfoP
     /* R420 and RV410 family not supported yet */
     if (info->ChipFamily == CHIP_FAMILY_R420 || info->ChipFamily == CHIP_FAMILY_RV410) return; 
 
-    if (pRADEONEnt->pSecondaryScrn) {
-	if (info->IsSecondary) return;
-	info2 = RADEONPTR(pRADEONEnt->pSecondaryScrn);
-    }  else if (pRADEONEnt->Controller[1]->binding == 1) info2 = info;
-
     /*
      * Determine if there is enough bandwidth for current display mode
      */
@@ -1767,8 +1761,8 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, RADEONInfoP
 	pix_clk2 = 0;
 
     peak_disp_bw = (pix_clk * info->CurrentLayout.pixel_bytes);
-    if (info2) 
-	peak_disp_bw +=	(pix_clk2 * info2->CurrentLayout.pixel_bytes);
+    if (pixel_bytes2)
+      peak_disp_bw += (pix_clk2 * pixel_bytes2);
 
     if (peak_disp_bw >= mem_bw * min_mem_eff) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
@@ -1908,8 +1902,8 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, RADEONInfoP
       Find the drain rate of the display buffer.
     */
     disp_drain_rate = pix_clk / (16.0/info->CurrentLayout.pixel_bytes);
-    if (info2)
-	disp_drain_rate2 = pix_clk2 / (16.0/info2->CurrentLayout.pixel_bytes);
+    if (pixel_bytes2)
+	disp_drain_rate2 = pix_clk2 / (16.0/pixel_bytes2);
     else
 	disp_drain_rate2 = 0;
 
@@ -1962,7 +1956,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, RADEONInfoP
 		 (unsigned int)info->SavedReg.grph_buffer_cntl, INREG(RADEON_GRPH_BUFFER_CNTL)));
 
     if (mode2) {
-	stop_req = mode2->HDisplay * info2->CurrentLayout.pixel_bytes / 16;
+	stop_req = mode2->HDisplay * pixel_bytes2 / 16;
 
 	if (stop_req > max_stop_req) stop_req = max_stop_req;
 
@@ -2015,8 +2009,11 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     DisplayModePtr mode1, mode2;
     RADEONInfoPtr info2 = NULL;
+    xf86CrtcPtr crtc;
+    int pixel_bytes2 = 0;
 
     if (pRADEONEnt->pSecondaryScrn) {
 	if (info->IsSecondary) return;
@@ -2030,7 +2027,27 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
 	mode2 = NULL;
     }
 
-    RADEONInitDispBandwidth2(pScrn, info, info2, mode1, mode2);
+    if (info2) 
+      pixel_bytes2 = info2->CurrentLayout.pixel_bytes;
+    
+    
+    if (xf86_config->num_crtc == 2) {
+      pixel_bytes2 = 0;
+      mode2 = NULL;
+
+      if (xf86_config->crtc[1]->enabled && xf86_config->crtc[0]->enabled) {
+	pixel_bytes2 = info->CurrentLayout.pixel_bytes;
+	mode1 = &xf86_config->crtc[0]->curMode;
+	mode2 = &xf86_config->crtc[1]->curMode;
+      } else if (xf86_config->crtc[0]->enabled) {
+	mode1 = &xf86_config->crtc[0]->curMode;
+      } else if (xf86_config->crtc[1]->enabled) {
+	mode1 = &xf86_config->crtc[1]->curMode;
+      } else
+	return;
+    }
+
+    RADEONInitDispBandwidth2(pScrn, info, pixel_bytes2, mode1, mode2);
 }
 
 void RADEONBlank(ScrnInfoPtr pScrn)
