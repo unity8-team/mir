@@ -784,16 +784,7 @@ typedef struct {
     RADEONMonitorType   MergeType;
     RADEONDDCType       MergeDDCType;
     void        	(*PointerMoved)(int index, int x, int y);
-    /* pseudo xinerama support for mergedfb */
-    ExtensionEntry 	*XineramaExtEntry;
-    int			RADEONXineramaVX, RADEONXineramaVY;
-    Bool		AtLeastOneNonClone;
-    int			MergedFBXDPI, MergedFBYDPI;
     Bool		NoVirtual;
-    int                 CRT1XOffs, CRT1YOffs, CRT2XOffs, CRT2YOffs;
-    int                 MBXNR1XMAX, MBXNR1YMAX, MBXNR2XMAX, MBXNR2YMAX;
-    Bool                NonRect, HaveNonRect, HaveOffsRegions, MouseRestrictions;
-    region              NonRectDead, OffDead1, OffDead2;
 
     int			constantDPI; /* -1 = auto, 0 = off, 1 = on */
     int			RADEONDPIVX, RADEONDPIVY;
