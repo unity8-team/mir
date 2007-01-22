@@ -2765,16 +2765,17 @@ RADEONChooseOverlayCRTC(ScrnInfoPtr pScrn, BoxPtr dstBox)
 
     for (c = 0; c < xf86_config->num_crtc; c++)
     {
-	xf86CrtcPtr crtc = xf86_config->crtc[c];
+        xf86CrtcPtr crtc = xf86_config->crtc[c];
+
 	if (!crtc->enabled)
-	  continue;
+	    continue;
 
 	if ((dstBox->x1 >= crtc->x) && (dstBox->y1 >= crtc->y))
-	  crtc_num = c;
+	    crtc_num = c;
     }
 
     if (crtc_num == 1)
-      info->OverlayOnCRTC2 = TRUE;
+        info->OverlayOnCRTC2 = TRUE;
     else
-      info->OverlayOnCRTC2 = FALSE;
+        info->OverlayOnCRTC2 = FALSE;
 }

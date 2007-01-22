@@ -781,19 +781,10 @@ typedef struct {
     ScrnInfoPtr		CRT2pScrn;
     DisplayModePtr	CRT1Modes;
     DisplayModePtr	CRT1CurrentMode;
-    int			CRT1frameX0;
-    int			CRT1frameY0;
-    int			CRT1frameX1;
-    int			CRT1frameY1;
     RADEONMonitorType   MergeType;
     RADEONDDCType       MergeDDCType;
     void        	(*PointerMoved)(int index, int x, int y);
     /* pseudo xinerama support for mergedfb */
-    int			maxCRT1_X1, maxCRT1_X2, maxCRT1_Y1, maxCRT1_Y2;
-    int			maxCRT2_X1, maxCRT2_X2, maxCRT2_Y1, maxCRT2_Y2;
-    int			maxClone_X1, maxClone_X2, maxClone_Y1, maxClone_Y2;
-    Bool		UseRADEONXinerama;
-    Bool		CRT2IsScrn0;
     ExtensionEntry 	*XineramaExtEntry;
     int			RADEONXineramaVX, RADEONXineramaVY;
     Bool		AtLeastOneNonClone;
