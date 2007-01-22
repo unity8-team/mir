@@ -2749,8 +2749,7 @@ RADEONPutImage(
    dstBox.y1 = drw_y;
    dstBox.y2 = drw_y + drw_h;
 
- //  if (info->MergedFB)
-//	RADEONChooseOverlayCRTC(pScrn, &dstBox);
+   RADEONChooseOverlayCRTC(pScrn, &dstBox);
 
    if(!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb,
 			     clipBoxes, width, height))
@@ -3112,8 +3111,7 @@ RADEONDisplaySurface(
     dstBox.y1 = drw_y;
     dstBox.y2 = drw_y + drw_h;
 
-    //if (info->MergedFB)
-     //   RADEONChooseOverlayCRTC(pScrn, &dstBox);
+    RADEONChooseOverlayCRTC(pScrn, &dstBox);
 
     if (!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb, clipBoxes, 
 			       surface->width, surface->height))
@@ -3253,8 +3251,7 @@ RADEONPutVideo(
 	   else
 	   vbi_line_width = 2000; /* might need adjustment */
 
-   //if (info->MergedFB)
-    //    RADEONChooseOverlayCRTC(pScrn, &dstBox);
+   RADEONChooseOverlayCRTC(pScrn, &dstBox);
         
    if(!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb, clipBoxes, width, height))
         return Success;
