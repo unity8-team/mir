@@ -452,6 +452,9 @@ xf86InitialConfiguration (ScrnInfoPtr pScrn);
 void
 xf86DPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags);
     
+Bool
+xf86SaveScreen(ScreenPtr pScreen, int mode);
+
 /**
  * Set the EDID information for the specified output
  */

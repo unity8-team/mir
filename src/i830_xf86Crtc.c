@@ -1237,6 +1237,9 @@ xf86DPMSSet(ScrnInfoPtr pScrn, int mode, int flags)
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
     int			i;
 
+    if (!pScrn->vtSema)
+	return;
+
     if (mode == DPMSModeOff) {
 	for (i = 0; i < config->num_output; i++) {
 	    xf86OutputPtr output = config->output[i];
@@ -1258,6 +1261,25 @@ xf86DPMSSet(ScrnInfoPtr pScrn, int mode, int flags)
 		(*output->funcs->dpms) (output, mode);
 	}
     }
+}
+
+/**
+ * Implement the screensaver by just calling down into the driver DPMS hooks.
+ *
+ * Even for monitors with no DPMS support, by the definition of our DPMS hooks,
+ * the outputs will still get disabled (blanked).
+ */
+Bool
+xf86SaveScreen(ScreenPtr pScreen, int mode)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+
+    if (xf86IsUnblank(mode))
+	xf86DPMSSet(pScrn, DPMSModeOn, 0);
+    else
+	xf86DPMSSet(pScrn, DPMSModeOff, 0);
+
+    return TRUE;
 }
 
 #ifdef RANDR_12_INTERFACE
