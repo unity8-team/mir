@@ -774,22 +774,12 @@ typedef struct {
   DisplayModePtr currentMode, savedCurrentMode;
     /* merged fb stuff, also covers clone modes */
     Bool		MergedFB;
-    RADEONScrn2Rel	CRT2Position;
-    char *		CRT2HSync;
-    char *		CRT2VRefresh;
-    char *		MetaModes;
-    ScrnInfoPtr		CRT2pScrn;
-    DisplayModePtr	CRT1Modes;
-    DisplayModePtr	CRT1CurrentMode;
     RADEONMonitorType   MergeType;
-    RADEONDDCType       MergeDDCType;
     void        	(*PointerMoved)(int index, int x, int y);
     Bool		NoVirtual;
 
     int			constantDPI; /* -1 = auto, 0 = off, 1 = on */
     int			RADEONDPIVX, RADEONDPIVY;
-    RADEONScrn2Rel	MergedDPISRel;
-    int			RADEONMergedDPIVX, RADEONMergedDPIVY, RADEONMergedDPIRot;
 
     /* special handlings for DELL triple-head server */
     Bool		IsDellServer; 

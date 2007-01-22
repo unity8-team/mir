@@ -539,46 +539,6 @@ static Bool RADEONGetRec(ScrnInfoPtr pScrn)
 static void RADEONFreeRec(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    if(info->CRT2HSync) xfree(info->CRT2HSync);
-    info->CRT2HSync = NULL;
-    if(info->CRT2VRefresh) xfree(info->CRT2VRefresh);
-    info->CRT2VRefresh = NULL;
-    if(info->MetaModes) xfree(info->MetaModes);
-    info->MetaModes = NULL;
-    if(info->CRT2pScrn) {
-       if(info->CRT2pScrn->modes) {
-          while(info->CRT2pScrn->modes)
-             xf86DeleteMode(&info->CRT2pScrn->modes, info->CRT2pScrn->modes);
-       }
-       if(info->CRT2pScrn->monitor) {
-          if(info->CRT2pScrn->monitor->Modes) {
-	     while(info->CRT2pScrn->monitor->Modes)
-	        xf86DeleteMode(&info->CRT2pScrn->monitor->Modes, info->CRT2pScrn->monitor->Modes);
-	  }
-	  if(info->CRT2pScrn->monitor->DDC) xfree(info->CRT2pScrn->monitor->DDC);
-          xfree(info->CRT2pScrn->monitor);
-       }
-       xfree(info->CRT2pScrn);
-       info->CRT2pScrn = NULL;
-    }
-    if(info->CRT1Modes) {
-       if(info->CRT1Modes != pScrn->modes) {
-          if(pScrn->modes) {
-             pScrn->currentMode = pScrn->modes;
-             do {
-                DisplayModePtr p = pScrn->currentMode->next;
-                if(pScrn->currentMode->Private)
-                   xfree(pScrn->currentMode->Private);
-                xfree(pScrn->currentMode);
-                pScrn->currentMode = p;
-             } while(pScrn->currentMode != pScrn->modes);
-          }
-          pScrn->currentMode = info->CRT1CurrentMode;
-          pScrn->modes = info->CRT1Modes;
-          info->CRT1CurrentMode = NULL;
-          info->CRT1Modes = NULL;
-       }
-    }
 
     if (!pScrn || !pScrn->driverPrivate) return;
     xfree(pScrn->driverPrivate);
@@ -6579,40 +6539,6 @@ _X_EXPORT void RADEONFreeScreen(int scrnIndex, int flags)
 
     /* when server quits at PreInit, we don't need do this anymore*/
     if (!info) return;
-
-    if(info->MergedFB) {
-       if(pScrn->modes) {
-          pScrn->currentMode = pScrn->modes;
-          do {
-            DisplayModePtr p = pScrn->currentMode->next;
-            if(pScrn->currentMode->Private)
-                xfree(pScrn->currentMode->Private);
-            xfree(pScrn->currentMode);
-            pScrn->currentMode = p;
-          } while(pScrn->currentMode != pScrn->modes);
-       }
-       pScrn->currentMode = info->CRT1CurrentMode;
-       pScrn->modes = info->CRT1Modes;
-       info->CRT1CurrentMode = NULL;
-       info->CRT1Modes = NULL;
-
-       if(info->CRT2pScrn) {
-          if(info->CRT2pScrn->modes) {
-             while(info->CRT2pScrn->modes)
-                xf86DeleteMode(&info->CRT2pScrn->modes, info->CRT2pScrn->modes);
-          }
-          if(info->CRT2pScrn->monitor) {
-	     if(info->CRT2pScrn->monitor->Modes) {
-	        while(info->CRT2pScrn->monitor->Modes)
-		   xf86DeleteMode(&info->CRT2pScrn->monitor->Modes, info->CRT2pScrn->monitor->Modes);
-	     }
-	     if(info->CRT2pScrn->monitor->DDC) xfree(info->CRT2pScrn->monitor->DDC);
-             xfree(info->CRT2pScrn->monitor);
-	  }
-          xfree(info->CRT2pScrn);
-          info->CRT2pScrn = NULL;
-       }
-    }
 
 #ifdef WITH_VGAHW
     if (info->VGAAccess && xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
