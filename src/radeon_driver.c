@@ -2401,6 +2401,7 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
     int i;
+
     if (!info->IsSecondary) {
       
       if (!RADEONAllocatePortInfo(pScrn))
@@ -4691,7 +4692,6 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	    output = RADEONGetCrtcConnector(pScrn, 2);
 	    if (output) {
 		RADEONEnableDisplay(pScrn, output, TRUE);
-		pCRTC2->IsActive = TRUE;
 	    }
 	} else {
 	    RADEONRestoreMemMapRegisters(pScrn, restore);
@@ -4707,13 +4707,11 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	    output = RADEONGetCrtcConnector(pScrn, 1);
 	    if (output) {
 		RADEONEnableDisplay(pScrn, output, TRUE);
-		pCRTC1->IsActive = TRUE;
 	    }
 	    if (pCRTC2->binding == 1) {
 		output = RADEONGetCrtcConnector(pScrn, 2);
 		if (output) {
 		    RADEONEnableDisplay(pScrn, output, TRUE);
-		    pCRTC2->IsActive = TRUE;
 		}
 	    }
 	}
@@ -4731,13 +4729,11 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	output = RADEONGetCrtcConnector(pScrn, 1);
 	if (output) {
 	    RADEONEnableDisplay(pScrn, output, TRUE);
-	    pCRTC1->IsActive = TRUE;
 	}
 	if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
 	    output = RADEONGetCrtcConnector(pScrn, 2);
 	    if (output) {
 		RADEONEnableDisplay(pScrn, output, TRUE);
-		pCRTC2->IsActive = TRUE;
 	    }
 	}
     }
@@ -5453,8 +5449,6 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     xf86OutputPtr connector;
 
-    pRADEONEnt->Controller[0]->IsUsed = TRUE;
-    pRADEONEnt->Controller[0]->IsActive = TRUE;
     pRADEONEnt->pCrtc[0]->curMode = *mode;
 
     switch (info->CurrentLayout.pixel_code) {
@@ -5643,8 +5637,6 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     if (info->IsSecondary)
 	info0 = RADEONPTR(pRADEONEnt->pPrimaryScrn);
 
-    pRADEONEnt->Controller[1]->IsUsed = TRUE;
-    pRADEONEnt->Controller[1]->IsActive = TRUE;
     pRADEONEnt->pCrtc[1]->curMode = *mode;
 
     switch (info->CurrentLayout.pixel_code) {

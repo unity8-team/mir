@@ -952,7 +952,6 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     const char *s;
-    Bool ignore_edid = FALSE;
     int i = 0, second = 0, max_mt = 5;
 
     /* We first get the information about all connectors from BIOS.
@@ -968,10 +967,6 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	pRADEONEnt->PortInfo[i]->TMDSType = TMDS_UNKNOWN;
 	pRADEONEnt->PortInfo[i]->ConnectorType = CONNECTOR_NONE;
     }
-    pRADEONEnt->Controller[0]->IsUsed = FALSE;
-    pRADEONEnt->Controller[1]->IsUsed = FALSE;
-    pRADEONEnt->Controller[0]->IsActive = FALSE;
-    pRADEONEnt->Controller[1]->IsActive = FALSE;
 
     if (!RADEONGetConnectorInfoFromBIOS(pScrn) ||
         ((pRADEONEnt->PortInfo[0]->DDCType == 0) &&
@@ -1027,18 +1022,6 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
         }
     } else if (!pRADEONEnt->HasCRTC2) {
         pRADEONEnt->PortInfo[0]->DACType = DAC_PRIMARY;
-    }
-
-    /* IgnoreEDID option is different from the NoDDCxx options used by DDC module
-     * When IgnoreEDID is used, monitor detection will still use DDC
-     * detection, but all EDID data will not be used in mode validation.
-     * You can use this option when you have a DDC monitor but want specify your own
-     * monitor timing parameters by using HSync, VRefresh and Modeline,
-     */
-    if (xf86GetOptValBool(info->Options, OPTION_IGNORE_EDID, &ignore_edid)) {
-        if (ignore_edid)
-            xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-                       "IgnoreEDID is specified, EDID data will be ignored\n");
     }
 
     /*
@@ -1738,7 +1721,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
      */
     if ((info->DispPriority == 2) && IS_R300_VARIANT) {
         CARD32 mc_init_misc_lat_timer = INREG(R300_MC_INIT_MISC_LAT_TIMER);
-	if (pRADEONEnt->Controller[1]->IsActive) {
+	if (pRADEONEnt->pCrtc[1]->enabled) {
 	    mc_init_misc_lat_timer |= 0x1100; /* display 0 and 1 */
 	} else {
 	    mc_init_misc_lat_timer |= 0x0100; /* display 0 only */
@@ -2518,7 +2501,6 @@ Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
 	if (!pRADEONEnt->pOutput[i])
 	    return FALSE;
 	
-	
 	pRADEONEnt->pOutput[i]->driver_private = pRADEONEnt->PortInfo[i];
 	pRADEONEnt->PortInfo[i]->num = i;
 
@@ -2528,7 +2510,6 @@ Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
 
 	pRADEONEnt->pOutput[i]->possible_clones = 0;
     }
-    
 
     return TRUE;
 }
