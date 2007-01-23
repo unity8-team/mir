@@ -114,11 +114,12 @@ RADEONCrtcCursor(xf86CrtcPtr crtc,  Bool force)
     Bool		show;
     unsigned char     *RADEONMMIO = info->MMIO;
     CARD32 save1 = 0, save2 = 0;
-    if (!crtc->enabled)
-	return;
+
+    if (!crtc->enabled && !crtc->cursorShown)
+      return;
 
     
-    show = crtc->cursorInRange;
+    show = crtc->cursorInRange && crtc->enabled;
     if (show && (force || !crtc->cursorShown))
     {
 	if (crtc_id == 0) 
@@ -205,7 +206,7 @@ RADEONRandrSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 	int thisx = x - crtc->x;
 	int thisy = y - crtc->y;
 	
-	if (!crtc->enabled)
+	if (!crtc->enabled && !crtc->cursorShown)
 	    continue;
 
 	/*

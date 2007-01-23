@@ -542,6 +542,7 @@ RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac)
 	    OUTREG(RADEON_TV_PRE_DAC_MUX_CNTL, ulOrigTV_PRE_DAC_MUX_CNTL);
 	}
 #endif
+	return MT_UNKNOWN;
     }
 
     return(bConnected ? MT_CRT : MT_NONE);
@@ -2297,6 +2298,7 @@ radeon_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green,
 	radeon_crtc->lut_b[i] = blue[i] >> 8;
     }
 
+    ErrorF("Loading lut %d\n", radeon_crtc->crtc_id);
     radeon_crtc_load_lut(crtc);
 }
 
@@ -2761,13 +2763,24 @@ RADEONDisableUnusedFunctions(ScrnInfoPtr pScrn)
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int o, c;
 
+    for (o = 0; o < xf86_config->num_output; o++)
+    {
+	xf86OutputPtr output = xf86_config->output[o];
+
+	if (output->crtc == NULL) {
+		radeon_dpms(output, DPMSModeOff);
+	}
+    }
+
     for (c = 0; c < xf86_config->num_crtc; c++)
     {
 	xf86CrtcPtr crtc = xf86_config->crtc[c];
-	if (!crtc->enabled)
+	if (!crtc->enabled) {
 		memset(&crtc->curMode, 0, sizeof(crtc->curMode));
-
+		radeon_crtc_dpms(crtc, DPMSModeOff);
+	}
     }
+
 
 }
 
