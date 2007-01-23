@@ -354,6 +354,7 @@ i830_lvds_create_resources(xf86OutputPtr output)
 #endif /* RANDR_12_INTERFACE */
 }
 
+#ifdef RANDR_12_INTERFACE
 static Bool
 i830_lvds_set_property(xf86OutputPtr output, Atom property,
 		       RRPropertyValuePtr value)
@@ -381,6 +382,7 @@ i830_lvds_set_property(xf86OutputPtr output, Atom property,
 
     return TRUE;
 }
+#endif /* RANDR_12_INTERFACE */
 
 static const xf86OutputFuncsRec i830_lvds_output_funcs = {
     .create_resources = i830_lvds_create_resources,
@@ -392,7 +394,9 @@ static const xf86OutputFuncsRec i830_lvds_output_funcs = {
     .mode_set = i830_lvds_mode_set,
     .detect = i830_lvds_detect,
     .get_modes = i830_lvds_get_modes,
+#ifdef RANDR_12_INTERFACE
     .set_property = i830_lvds_set_property,
+#endif
     .destroy = i830_lvds_destroy
 };
 

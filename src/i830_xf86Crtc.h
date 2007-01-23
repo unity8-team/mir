@@ -252,6 +252,7 @@ typedef struct _xf86OutputFuncs {
     DisplayModePtr
     (*get_modes)(xf86OutputPtr	    output);
 
+#ifdef RANDR_12_INTERFACE
     /**
      * Callback when an output's property has changed.
      */
@@ -259,7 +260,7 @@ typedef struct _xf86OutputFuncs {
     (*set_property)(xf86OutputPtr output,
 		    Atom property,
 		    RRPropertyValuePtr value);
-
+#endif
     /**
      * Clean up driver-specific bits of the output
      */
