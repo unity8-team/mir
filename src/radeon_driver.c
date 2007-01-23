@@ -4618,32 +4618,6 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
     RADEONSaveSurfaces(pScrn, &info->ModeReg);
 }
 
-#if 0
-/* Write palette data */
-static void RADEONRestorePalette(ScrnInfoPtr pScrn, RADEONSavePtr restore)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    int            i;
-
-    if (!restore->palette_valid) return;
-
-    PAL_SELECT(1);
-    OUTPAL_START(0);
-    for (i = 0; i < 256; i++) {
-	RADEONWaitForFifo(pScrn, 32); /* delay */
-	OUTPAL_NEXT_CARD32(restore->palette2[i]);
-    }
-
-    PAL_SELECT(0);
-    OUTPAL_START(0);
-    for (i = 0; i < 256; i++) {
-	RADEONWaitForFifo(pScrn, 32); /* delay */
-	OUTPAL_NEXT_CARD32(restore->palette[i]);
-    }
-}
-#endif
-
 /* Write out state to define a new video mode */
 void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
