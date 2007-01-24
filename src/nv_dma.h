@@ -88,8 +88,8 @@ enum DMASubchannel {
 };
 
 #define NVDmaNext(pNv, data) do {                        \
-     (pNv)->dmaBase[(pNv)->dmaCurrent++] = (data);       \
-     NVDEBUG("\tNVDmaNext: 0x%08x\n", (data));           \
+	NVDEBUG("\tNVDmaNext: @0x%08x  0x%08x\n", ((pNv)->dmaCurrent),(data));           \
+	(pNv)->dmaBase[(pNv)->dmaCurrent++] = (data);       \
 } while(0)
 
 #define NVDmaFloat(pNv, data) do {      \
