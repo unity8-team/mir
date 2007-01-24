@@ -62,7 +62,7 @@ void NVDmaWait (NVPtr pNv, int size)
 static void NVDumpLockupInfo(NVPtr pNv)
 {
 	int i,start;
-	start=READ_GET(pNv)-10;
+	start=READ_GET(pNv)-20;
 	if (start<0) start=0;
 	xf86DrvMsg(0, X_INFO, "Fifo dump (lockup 0x%04x,0x%04x):\n",READ_GET(pNv),pNv->dmaPut);
 	for(i=start;i<pNv->dmaPut+10;i++)
