@@ -214,11 +214,67 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 	ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
-	NVDmaStart(pNv, NvSubImageBlit, BLIT_POINT_SRC, 3);
-	NVDmaNext (pNv, (srcY << 16) | srcX);
-	NVDmaNext (pNv, (dstY << 16) | dstX);
-	NVDmaNext (pNv, (height  << 16) | width);
-
+	/* Now check whether we have the same values for srcY and dstY and
+	   whether the used chipset is buggy. Currently we flag all of G70
+	   cards as buggy, which is probably much to broad. KoalaBR 
+	   10 is an abritrary threshold. It should define the maximum number
+	   of lines between dstY and srcY  If the number of lines is below
+	   we guess, that the bug won't trigger...
+	 */
+	if ( (abs(srcY - dstY)>= 16)&&(abs(srcX-dstX)>=16) /*&& 
+			(((pNv->Chipset & 0xfff0) == CHIPSET_G70) ||
+			 ((pNv->Chipset & 0xfff0) == CHIPSET_G71) ||
+			 ((pNv->Chipset & 0xfff0) == CHIPSET_G72) ||
+			 ((pNv->Chipset & 0xfff0) == CHIPSET_G73) ||
+			 ((pNv->Chipset & 0xfff0) == CHIPSET_C512))*/)
+	{
+		NVDEBUG("ExaCopy: Using default path\n");
+		NVDmaStart(pNv, NvSubImageBlit, BLIT_POINT_SRC, 3);
+		NVDmaNext (pNv, (srcY << 16) | srcX);
+		NVDmaNext (pNv, (dstY << 16) | dstX);
+		NVDmaNext (pNv, (height  << 16) | width);
+	} else {
+		int dx=abs(srcX - dstX),dy=abs(srcY - dstY);
+		// Ok, let's do it manually unless someone comes up with a better idea
+		// 1. If dstY and srcY are really the same, do a copy rowwise
+		if (dy<dx) {
+			int i,xpos,inc;
+			NVDEBUG("ExaCopy: Lines identical:\n");
+			if (srcX>=dstX) {
+				xpos=0;
+				inc=1;
+			} else {
+				xpos=width-1;
+				inc=-1;
+			}
+			for (i = 0; i < width; i++) {
+				NVDmaStart(pNv, NvSubImageBlit, BLIT_POINT_SRC, 3);
+				NVDmaNext (pNv, (srcY << 16) | (srcX+xpos));
+				NVDmaNext (pNv, (dstY << 16) | (dstX+xpos));
+				NVDmaNext (pNv, (height  << 16) | 1);
+				xpos+=inc;
+			}
+		} else {
+			// 2. Otherwise we will try a line by line copy in the hope to avoid
+			//    the card's bug.
+			int i,ypos,inc;
+			NVDEBUG("ExaCopy: Lines nearly the same srcY=%d, dstY=%d:\n", srcY, dstY);
+			if (srcY>=dstY) {
+				ypos=0;
+				inc=1;
+			} else {
+				ypos=height-1;
+				inc=-1;
+			}
+			for (i = 0; i < height; i++) {
+				NVDmaStart(pNv, NvSubImageBlit, BLIT_POINT_SRC, 3);
+				NVDmaNext (pNv, ((srcY+ypos) << 16) | srcX);
+				NVDmaNext (pNv, ((dstY+ypos) << 16) | dstX);
+				NVDmaNext (pNv, (1  << 16) | width);
+				ypos+=inc;
+			}
+		} 
+	}
 	if((width * height) >= 512)
 		NVDmaKickoff(pNv); 
 }

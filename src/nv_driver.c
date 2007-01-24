@@ -630,7 +630,7 @@ NVAvailableOptions(int chipid, int busid)
 static void
 NVIdentify(int flags)
 {
-    xf86DrvMsg(0, X_INFO, NV_NAME " driver " NV_DRIVER_DATE);
+    xf86DrvMsg(0, X_INFO, NV_NAME " driver " NV_DRIVER_DATE "\n");
     xf86PrintChipsets(NV_NAME, "driver for NVIDIA chipsets", NVKnownChipsets);
 }
 
