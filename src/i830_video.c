@@ -2117,7 +2117,7 @@ I830AllocateMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear, int size,
       }
 
       xf86PurgeUnlockedOffscreenAreas(pScreen);
-      linear->xaa = xf86AllocateOffscreenLinear(pScreen, size, 4,
+      linear->xaa = xf86AllocateOffscreenLinear(pScreen, size, align,
 						NULL, NULL, NULL);
       linear->offset = XAA_OFFSET_TO_OFFSET(linear->xaa->offset);
    }
