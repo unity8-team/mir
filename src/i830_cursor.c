@@ -486,8 +486,8 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
     {
 	xf86CrtcPtr	    crtc = xf86_config->crtc[pipe];
 	DisplayModePtr	    mode = &crtc->mode;
-	int		    thisx;
-	int		    thisy;
+	int		    thisx = 0;
+	int		    thisy = 0;
 	int hotspotx = 0, hotspoty = 0;
 
 	if (!crtc->enabled)
