@@ -1,8 +1,6 @@
-  $XFree86:
-  xc/programs/Xserver/hw/xfree86/doc/sgml/i810.sgml,v 1.4
-  2001/04/04 01:34:18 dawes Exp $ Information for i810 Users
-  Precision Insight, Inc.
-  3 March 2000
+  Information for Intel graphics driver users
+  Eric Anholt
+  2006-08-04
   ____________________________________________________________
 
   Table of Contents
@@ -12,88 +10,85 @@
   2. Supported Hardware
   3. Features
   4. Technical Notes
-  5. Reported Working Video Cards
-  6. Configuration
-  7. Driver Options
-  8. Known Limitations
-  9. Author
+  5. Configuration
+  6. Driver Options
+  7. Known Limitations
+  8. Author
 
 
   ______________________________________________________________________
 
-  [1m1.  Introduction[0m
+  11..  IInnttrroodduuccttiioonn
 
-  This document provides a brief summary of the i810/i815 support
-  provided by the i810 driver.  Support for later chipsets is not
-  covered here.  More up to date information about the i810 driver can
-  be found in the i810(4) manual page.
-
-
-  [1m2.  Supported Hardware[0m
+  This document provides a brief summary of the Intel graphics support
+  provided by the xf86-video-intel driver.  More information can also be
+  found in the i810(4) manual page.
 
 
-  +o  Intel 810 motherboards:
-
-     +o  i810,
-
-     +o  i810-dc100,
-
-     +o  i810e
-
-     +o  i815
+  22..  SSuuppppoorrtteedd HHaarrddwwaarree
 
 
+  +o  i810,
 
-  [1m3.  Features[0m
+  +o  i810-dc100,
+
+  +o  i810e
+
+  +o  i815
+
+  +o  i830
+
+  +o  i845
+
+  +o  i852
+
+  +o  i855
+
+  +o  i915
+
+  +o  i945
+
+  +o  i965
+
+
+
+  33..  FFeeaattuurreess
 
 
   +o  Full support for 8, 15, 16, and 24 bit pixel depths.
 
-  +o  Hardware cursor support to reduce sprite flicker.
-
   +o  Hardware accelerated 2D drawing engine support for 8, 15, 16 and 24
      bit pixel depths.
 
-  +o  Support for high resolution video modes up to 1600x1200.
+  +o  Hardware accelerated 3D drawing using OpenGL and the DRI.
 
-  +o  Fully programmable clock supported.
+  +o  Hardware cursor support to reduce sprite flicker.
 
-  +o  Robust text mode restore for VT switching.
+  +o  Textured video XV implementation on i915 through i965.
+
+  +o  Hardware overlay XV implementation up through i945.
+
+  +o  Screen resize and rotation on chipsets up through i945.
+
+  +o  Screen resize on i965.
 
 
 
-  [1m4.  Technical Notes[0m
+  44..  TTeecchhnniiccaall NNootteess
 
-
-  +o  Hardware acceleration is not possible when using the framebuffer in
-     32 bit per pixel format, and this mode is not supported by this
-     driver.
 
   +o  Interlace modes cannot be supported.
 
-  +o  This driver currently only works for Linux/ix86 and recent versions
-     of FreeBSD.  It requires the agpgart kernel support, which is
-     included in Linux kernels 2.3.42 and higher, and FreeBSD 4.1 and
-     higher.
+  +o  This driver  requires kernel support for AGP, which is included in
+     Linux kernels 2.3.42 and higher, and FreeBSD 4.1 and higher.
 
 
 
-  [1m5.  Reported Working Video Cards[0m
-
-
-  +o  Intel evaluation hardware - i810, i810-dc100, i810e and i815.
-
-  +o  Tyan Tomcat Motherboard.
-
-  +o  HappyPC set-top box.
-
-
-
-  [1m6.  Configuration[0m
+  55..  CCoonnffiigguurraattiioonn
 
   The driver auto-detects all device information necessary to initialize
-  the card.  The only lines you need in the "Device" section of your
-  xorg.conf file are:
+  the card.  The only lines you should need in the "Device" section of
+  your xorg.conf file are:
 
          Section "Device"
              Identifier "Intel i810"
@@ -101,54 +96,68 @@
          EndSection
 
 
-  or let xorgconfig do this for you.
 
-  However, if you have problems with auto-detection, you can specify:
+  In order to use most resolutions, it is necessary to install the
+  "agpgart.o" module.  You will probably have to compile the module
+  yourself (see the notes in the module).
 
-  +o  DacSpeed - in MHz
 
-  +o  MemBase  - physical address of the linear framebuffer
+  66..  DDrriivveerr OOppttiioonnss
 
-  +o  IOBase   - physical address of the memory mapped IO registers
-
-  In order to use most resolutions, it is necessary to install the (see
-  the notes in the module).
-
-  Note: the i810 driver detects whether your motherboard has display
-  cache video memory.  This memory is has reduced bandwidth compared to
-  normal system memory, and isn't used by the server.  The main function
-  of this memory is for ancillary buffers (eg. z buffer) in a
-  forthcoming 3d capable server.
+  Please refer to the i810(4) manual page for information on
+  configuration options.
 
 
 
-  [1m7.  Driver Options[0m
+  77..  KKnnoowwnn LLiimmiittaattiioonnss
 
 
-  +o  "NoAccel"  - Turn off hardware acceleration
+  +o  Many systems with Intel graphics have issues with setting video
+     modes at larger than some small maximum resolution.  This is not
+     fixed in the current release, but is being actively worked on in
+     the modesetting branch.
+
+  +o  Bug #5795: Some systems have issues with VT switching.  This should
+     be fixed with the modesetting brach integration.
+
+  +o  Bug #5817: Hotkey switching from LVDS to CRT breaks CRT output.
+     This is a known issue, but will not be fixed in the current
+     release.
+
+  +o  Bug #6635: Video is output from an incorrect offset in the
+     framebuffer.  This is expected to be fixed with the modesetting
+     branch integration.
+
+  +o  GL_EXT_texture_compression_s3tc is not supported.  We can't support
+     the extension due to patent restrictions on compression, but may be
+     able to support an option for partial extension support in the
+     future.  For now, this prevents Quake4 and some other games from
+     running.
+
+  +o  Some X Test Suite cases sometimes fail due to a timeout. These
+     cases include: Xt8/XtResizeWindow, Xt8/XtQueryGeometry,
+     Xt9/XtAppAddInput, Xt9/XtRemoveInput, Xt9/XtAppAddTimeOut,
+     Xt9/XtRemoveTimeOut, Xt9/XtAddGrab, Xt9/XtRemoveGrab.
+
+  +o  Some X Test Suite cases fail in 64-bit mode: Xlib9/XDrawArc,
+     XDrawImageString, XDrawLine, XDrawRectangle, XDrawSegments,
+     XFillArc, XFillPolygon, XFillRectangle, XPutImage,
+     Xt11/XtVaGetSubresources, XtSetSubvalues, and XtVaSetSubvalues.
+
+  +o  Some GLEAN test cases fail if DRI is enabled: pointAtten,
+     readPixSanity, texCombine, texCube, texEnv, texgen,
+     coloredTexPerf2, and coloredLitPerf2.
 
 
-  +o  "SWCursor" - Request a software cursor (hardware is default)
 
-  +o  "Dac6Bit"  - Force the use of a 6 Bit Dac (8 Bit is the default)
-
-
-  [1m8.  Known Limitations[0m
+  88..  AAuutthhoorr
 
 
-  +o  No 3D support in this release.
-
-  +o  Running two X servers on different VTs is not supported at this
-     time.
-
-
-
-  [1m9.  Author[0m
-
+  +o  Eric Anholt
 
   +o  Keith Whitwell
 
-  The X11R6.8 version of this driver originally came from XFree86 4.4
+  The X11R7.1 version of this driver originally came from XFree86 4.4
   rc2.
 
   The XFree86 version of this driver was donated to The XFree86 Project
@@ -160,7 +169,9 @@
 
 
 
-  http://www.precisioninsight.com
+  The X.Org version of this driver is maintained by Intel Corporation.
+
+  http://www.intellinuxgraphics.org
 
 
 

@@ -26,9 +26,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
 
+/** @file
+ * Register names and fields for Intel graphics.
+ */
+
 /*
  * Authors:
  *   Keith Whitwell <keith@tungstengraphics.com>
+ *   Eric Anholt <eric@anholt.net>
  *
  *   based on the i740 driver by
  *        Kevin E. Martin <kevin@precisioninsight.com> 
@@ -93,6 +98,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PACKED_MODE_ENABLE     0x04
 #define LINEAR_MODE_ENABLE     0x02
 #define PAGE_MAPPING_ENABLE    0x01
+
+#define HOTKEY_VBIOS_SWITCH_BLOCK	0x80
+#define HOTKEY_SWITCH			0x20
+#define HOTKEY_TOGGLE			0x10
 
 /* Blitter control, p378
  */
@@ -267,15 +276,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define GPIOG			0x5028
 #define GPIOH			0x502c
 # define GPIO_CLOCK_DIR_MASK		(1 << 0)
+# define GPIO_CLOCK_DIR_IN		(0 << 1)
 # define GPIO_CLOCK_DIR_OUT		(1 << 1)
 # define GPIO_CLOCK_VAL_MASK		(1 << 2)
 # define GPIO_CLOCK_VAL_OUT		(1 << 3)
 # define GPIO_CLOCK_VAL_IN		(1 << 4)
+# define GPIO_CLOCK_PULLUP_DISABLE	(1 << 5)
 # define GPIO_DATA_DIR_MASK		(1 << 8)
+# define GPIO_DATA_DIR_IN		(0 << 9)
 # define GPIO_DATA_DIR_OUT		(1 << 9)
 # define GPIO_DATA_VAL_MASK		(1 << 10)
 # define GPIO_DATA_VAL_OUT		(1 << 11)
 # define GPIO_DATA_VAL_IN		(1 << 12)
+# define GPIO_DATA_PULLUP_DISABLE	(1 << 13)
 
 /* p317, 319
  */
@@ -310,8 +323,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define STATE_VAR_UPDATE_DISABLE     0x02
 #define PAL_STIP_DISABLE             0x01
 
-#define INST_DONE                0x2090
-#define INST_PS                  0x20c4
 
 #define MEMMODE                  0x20dc
 
@@ -320,6 +331,66 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #define IPEIR                  0x2088
 #define IPEHR                  0x208C
+#define INST_DONE                0x2090
+#define INST_PS                  0x20c4
+#define IPEIR_I965                  0x2064 /* i965 */
+#define IPEHR_I965                  0x2068 /* i965 */
+#define INST_DONE_I965              0x206c
+#define INST_PS_I965                0x2070
+#define ACTHD                 0x2074
+#define DMA_FADD_P             0x2078
+#define INST_DONE_1              0x207c
+
+#define CACHE_MODE_0           0x2120
+#define CACHE_MODE_1           0x2124
+#define MI_ARB_STATE           0x20e4
+
+#define WIZ_CTL                0x7c00
+#define WIZ_CTL_SINGLE_SUBSPAN  (1<<6)
+#define WIZ_CTL_IGNORE_STALLS  (1<<5)
+
+#define SVG_WORK_CTL           0x7408
+
+#define TS_CTL                 0x7e00
+#define TS_MUX_ERR_CODE        (0<<8)
+#define TS_MUX_URB_0           (1<<8)
+#define TS_MUX_DISPATCH_ID_0   (10<<8)
+#define TS_MUX_ERR_CODE_VALID  (15<<8)
+#define TS_MUX_TID_0           (16<<8)
+#define TS_MUX_EUID_0          (18<<8)
+#define TS_MUX_FFID_0          (22<<8)
+#define TS_MUX_EOT             (26<<8)
+#define TS_MUX_SIDEBAND_0      (27<<8)
+#define TS_SNAP_ALL_CHILD      (1<<2)
+#define TS_SNAP_ALL_ROOT       (1<<1)
+#define TS_SNAP_ENABLE         (1<<0)
+
+#define TS_DEBUG_DATA          0x7e0c
+
+#define TD_CTL                 0x8000
+#define TD_CTL2                0x8004
+
+
+#define ECOSKPD 0x21d0
+#define EXCC    0x2028
+
+/* I965 debug regs:
+ */
+#define IA_VERTICES_COUNT_QW   0x2310
+#define IA_PRIMITIVES_COUNT_QW 0x2318
+#define VS_INVOCATION_COUNT_QW 0x2320
+#define GS_INVOCATION_COUNT_QW 0x2328
+#define GS_PRIMITIVES_COUNT_QW 0x2330
+#define CL_INVOCATION_COUNT_QW 0x2338
+#define CL_PRIMITIVES_COUNT_QW 0x2340
+#define PS_INVOCATION_COUNT_QW 0x2348
+#define PS_DEPTH_COUNT_QW      0x2350
+#define TIMESTAMP_QW           0x2358
+#define CLKCMP_QW              0x2360
+
+
+
+
 
 
 /* General error reporting regs, p296
@@ -327,8 +398,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define EIR               0x20B0
 #define EMR               0x20B4
 #define ESR               0x20B8
-#define IP_ERR                    0x0001
-#define ERROR_RESERVED            0xffc6
+# define ERR_VERTEX_MAX				(1 << 5) /* lpt/cst */
+# define ERR_PGTBL_ERROR			(1 << 4)
+# define ERR_DISPLAY_OVERLAY_UNDERRUN		(1 << 3)
+# define ERR_MAIN_MEMORY_REFRESH		(1 << 2)
+# define ERR_INSTRUCTION_ERROR			(1 << 0)
 
 
 /* Interrupt Control Registers 
@@ -383,6 +457,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define FENCE            0x2000
 #define FENCE_NR         8
 
+#define FENCE_NEW        0x3000
+#define FENCE_NEW_NR     16
+
+#define FENCE_LINEAR     0
+#define FENCE_XMAJOR	 1
+#define FENCE_YMAJOR  	 2
+
 #define I915G_FENCE_START_MASK	0x0ff00000
 
 #define I830_FENCE_START_MASK	0x07f80000
@@ -423,9 +504,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PGETBL_ADDR_MASK    0xFFFFF000
 #define PGETBL_ENABLE_MASK  0x00000001
 #define PGETBL_ENABLED      0x00000001
+/** Added in 965G, this field has the actual size of the global GTT */
+#define PGETBL_SIZE_MASK    0x0000000e
+#define PGETBL_SIZE_512KB   (0 << 1)
+#define PGETBL_SIZE_256KB   (1 << 1)
+#define PGETBL_SIZE_128KB   (2 << 1)
 
-/* Register containing pge table error results, p276
+/** @defgroup PGE_ERR
+ * @{
  */
+/** Page table debug register for i845 */
 #define PGE_ERR          0x2024
 #define PGE_ERR_ADDR_MASK   0xFFFFF000
 #define PGE_ERR_ID_MASK     0x00000038
@@ -445,8 +533,33 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PGE_ERR_ILLEGAL_TRX 0x00000004
 #define PGE_ERR_LOCAL_MEM   0x00000005
 #define PGE_ERR_TILED       0x00000006
+/** @} */
 
-
+/** @defgroup PGTBL_ER
+ * @{
+ */
+/** Page table debug register for i945 */
+# define PGTBL_ER	0x2024
+# define PGTBL_ERR_MT_TILING			(1 << 27)
+# define PGTBL_ERR_MT_GTT_PTE			(1 << 26)
+# define PGTBL_ERR_LC_TILING			(1 << 25)
+# define PGTBL_ERR_LC_GTT_PTE			(1 << 24)
+# define PGTBL_ERR_BIN_VERTEXDATA_GTT_PTE	(1 << 23)
+# define PGTBL_ERR_BIN_INSTRUCTION_GTT_PTE	(1 << 22)
+# define PGTBL_ERR_CS_VERTEXDATA_GTT_PTE	(1 << 21)
+# define PGTBL_ERR_CS_INSTRUCTION_GTT_PTE	(1 << 20)
+# define PGTBL_ERR_CS_GTT		(1 << 19)
+# define PGTBL_ERR_OVERLAY_TILING		(1 << 18)
+# define PGTBL_ERR_OVERLAY_GTT_PTE		(1 << 16)
+# define PGTBL_ERR_DISPC_TILING			(1 << 14)
+# define PGTBL_ERR_DISPC_GTT_PTE		(1 << 12)
+# define PGTBL_ERR_DISPB_TILING			(1 << 10)
+# define PGTBL_ERR_DISPB_GTT_PTE		(1 << 8)
+# define PGTBL_ERR_DISPA_TILING			(1 << 6)
+# define PGTBL_ERR_DISPA_GTT_PTE		(1 << 4)
+# define PGTBL_ERR_HOST_PTE_DATA		(1 << 1)
+# define PGTBL_ERR_HOST_GTT_PTE			(1 << 0)
+/** @} */
 
 /* Page table entries loaded via mmio region, p323
  */
@@ -665,6 +778,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define VSYNC_A 	0x60014
 #define PIPEASRC	0x6001c
 #define BCLRPAT_A	0x60020
+#define VSYNCSHIFT_A	0x60028
 
 #define HTOTAL_B	0x61000
 #define HBLANK_B	0x61004
@@ -674,9 +788,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define VSYNC_B 	0x61014
 #define PIPEBSRC	0x6101c
 #define BCLRPAT_B	0x61020
+#define VSYNCSHIFT_B	0x61028
 
 #define PP_STATUS	0x61200
 # define PP_ON					(1 << 31)
+/**
+ * Indicates that all dependencies of the panel are on:
+ *
+ * - PLL enabled
+ * - pipe enabled
+ * - LVDS/DVOB/DVOC on
+ */
+# define PP_READY				(1 << 30)
+# define PP_SEQUENCE_NONE			(0 << 28)
+# define PP_SEQUENCE_ON				(1 << 28)
+# define PP_SEQUENCE_OFF			(2 << 28)
+# define PP_SEQUENCE_MASK			0x30000000
 
 #define PP_CONTROL	0x61204
 # define POWER_TARGET_ON			(1 << 0)
@@ -711,38 +838,148 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define DPLL_VGA_MODE_DIS			(1 << 28)
 # define DPLLB_MODE_DAC_SERIAL			(1 << 26) /* i915 */
 # define DPLLB_MODE_LVDS			(2 << 26) /* i915 */
+# define DPLL_MODE_MASK				(3 << 26)
 # define DPLL_DAC_SERIAL_P2_CLOCK_DIV_10	(0 << 24) /* i915 */
 # define DPLL_DAC_SERIAL_P2_CLOCK_DIV_5		(1 << 24) /* i915 */
 # define DPLLB_LVDS_P2_CLOCK_DIV_14		(0 << 24) /* i915 */
 # define DPLLB_LVDS_P2_CLOCK_DIV_7		(1 << 24) /* i915 */
 # define DPLL_P2_CLOCK_DIV_MASK			0x03000000 /* i915 */
 # define DPLL_FPA01_P1_POST_DIV_MASK		0x00ff0000 /* i915 */
+# define DPLL_FPA01_P1_POST_DIV_SHIFT		16
 # define PLL_P2_DIVIDE_BY_4			(1 << 23) /* i830, required in DVO non-gang */
 # define DPLL_FPA01_P1_POS_DIV_MASK_I830	0x001f0000 /* i830 */
 # define PLL_P1_DIVIDE_BY_TWO			(1 << 21) /* i830 */
 # define PLL_REF_INPUT_DREFCLK			(0 << 13)
 # define PLL_REF_INPUT_TVCLKINA			(1 << 13) /* i830 */
-# define PLL_REF_INPUT_TVCLKINBC		(2 << 13)
+# define PLL_REF_INPUT_TVCLKINBC		(2 << 13) /* SDVO TVCLKIN */
 # define PLLB_REF_INPUT_SPREADSPECTRUMIN	(3 << 13)
+# define PLL_REF_INPUT_MASK			(3 << 13)
+# define PLL_LOAD_PULSE_PHASE_SHIFT		9
+/*
+ * Parallel to Serial Load Pulse phase selection.
+ * Selects the phase for the 10X DPLL clock for the PCIe
+ * digital display port. The range is 4 to 13; 10 or more
+ * is just a flip delay. The default is 6
+ */
+# define PLL_LOAD_PULSE_PHASE_MASK		(0xf << PLL_LOAD_PULSE_PHASE_SHIFT)
 # define DISPLAY_RATE_SELECT_FPA1		(1 << 8)
+
+/**
+ * SDVO multiplier for 945G/GM. Not used on 965.
+ *
+ * \sa DPLL_MD_UDI_MULTIPLIER_MASK
+ */
 # define SDVO_MULTIPLIER_MASK			0x000000ff
 # define SDVO_MULTIPLIER_SHIFT_HIRES		4
 # define SDVO_MULTIPLIER_SHIFT_VGA		0
 
+/** @defgroup DPLL_MD
+ * @{
+ */
+/** Pipe A SDVO/UDI clock multiplier/divider register for G965. */
+#define DPLL_A_MD		0x0601c
+/** Pipe B SDVO/UDI clock multiplier/divider register for G965. */
+#define DPLL_B_MD		0x06020
+/**
+ * UDI pixel divider, controlling how many pixels are stuffed into a packet.
+ *
+ * Value is pixels minus 1.  Must be set to 1 pixel for SDVO.
+ */
+# define DPLL_MD_UDI_DIVIDER_MASK		0x3f000000
+# define DPLL_MD_UDI_DIVIDER_SHIFT		24
+/** UDI pixel divider for VGA, same as DPLL_MD_UDI_DIVIDER_MASK. */
+# define DPLL_MD_VGA_UDI_DIVIDER_MASK		0x003f0000
+# define DPLL_MD_VGA_UDI_DIVIDER_SHIFT		16
+/**
+ * SDVO/UDI pixel multiplier.
+ *
+ * SDVO requires that the bus clock rate be between 1 and 2 Ghz, and the bus
+ * clock rate is 10 times the DPLL clock.  At low resolution/refresh rate
+ * modes, the bus rate would be below the limits, so SDVO allows for stuffing
+ * dummy bytes in the datastream at an increased clock rate, with both sides of
+ * the link knowing how many bytes are fill.
+ *
+ * So, for a mode with a dotclock of 65Mhz, we would want to double the clock
+ * rate to 130Mhz to get a bus rate of 1.30Ghz.  The DPLL clock rate would be
+ * set to 130Mhz, and the SDVO multiplier set to 2x in this register and
+ * through an SDVO command.
+ *
+ * This register field has values of multiplication factor minus 1, with
+ * a maximum multiplier of 5 for SDVO.
+ */
+# define DPLL_MD_UDI_MULTIPLIER_MASK		0x00003f00
+# define DPLL_MD_UDI_MULTIPLIER_SHIFT		8
+/** SDVO/UDI pixel multiplier for VGA, same as DPLL_MD_UDI_MULTIPLIER_MASK. 
+ * This best be set to the default value (3) or the CRT won't work. No,
+ * I don't entirely understand what this does...
+ */
+# define DPLL_MD_VGA_UDI_MULTIPLIER_MASK	0x0000003f
+# define DPLL_MD_VGA_UDI_MULTIPLIER_SHIFT	0
+/** @} */
+
+#define DPLL_TEST		0x606c
+# define DPLLB_TEST_SDVO_DIV_1			(0 << 22)
+# define DPLLB_TEST_SDVO_DIV_2			(1 << 22)
+# define DPLLB_TEST_SDVO_DIV_4			(2 << 22)
+# define DPLLB_TEST_SDVO_DIV_MASK		(3 << 22)
+# define DPLLB_TEST_N_BYPASS			(1 << 19)
+# define DPLLB_TEST_M_BYPASS			(1 << 18)
+# define DPLLB_INPUT_BUFFER_ENABLE		(1 << 16)
+# define DPLLA_TEST_N_BYPASS			(1 << 3)
+# define DPLLA_TEST_M_BYPASS			(1 << 2)
+# define DPLLA_INPUT_BUFFER_ENABLE		(1 << 0)
+
+#define D_STATE			0x6104
+#define DSPCLK_GATE_D		0x6200
+#define RENCLK_GATE_D1		0x6204
+#define RENCLK_GATE_D2		0x6208
+#define RAMCLK_GATE_D		0x6210		/* CRL only */
+
 #define BLC_PWM_CTL		0x61254
 #define BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
+/**
+ * This is the most significant 15 bits of the number of backlight cycles in a
+ * complete cycle of the modulated backlight control.
+ *
+ * The actual value is this field multiplied by two.
+ */
 #define BACKLIGHT_MODULATION_FREQ_MASK		(0x7fff << 17)
 #define BLM_LEGACY_MODE				(1 << 16)
+/**
+ * This is the number of cycles out of the backlight modulation cycle for which
+ * the backlight is on.
+ *
+ * This field must be no greater than the number of cycles in the complete
+ * backlight modulation cycle.
+ */
 #define BACKLIGHT_DUTY_CYCLE_SHIFT		(0)
 #define BACKLIGHT_DUTY_CYCLE_MASK		(0xffff)
+
+#define BLM_CTL			0x61260
+#define BLM_THRESHOLD_0		0x61270
+#define BLM_THRESHOLD_1		0x61274
+#define BLM_THRESHOLD_2		0x61278
+#define BLM_THRESHOLD_3		0x6127c
+#define BLM_THRESHOLD_4		0x61280
+#define BLM_THRESHOLD_5		0x61284
+
+#define BLM_ACCUMULATOR_0	0x61290
+#define BLM_ACCUMULATOR_1	0x61294
+#define BLM_ACCUMULATOR_2	0x61298
+#define BLM_ACCUMULATOR_3	0x6129c
+#define BLM_ACCUMULATOR_4	0x612a0
+#define BLM_ACCUMULATOR_5	0x612a4
 
 #define FPA0		0x06040
 #define FPA1		0x06044
 #define FPB0		0x06048
 #define FPB1		0x0604c
 # define FP_N_DIV_MASK				0x003f0000
+# define FP_N_DIV_SHIFT				16
 # define FP_M1_DIV_MASK				0x00003f00
+# define FP_M1_DIV_SHIFT			8
 # define FP_M2_DIV_MASK				0x0000003f
+# define FP_M2_DIV_SHIFT			0
 
 #define PORT_HOTPLUG_EN		0x61110
 # define SDVOB_HOTPLUG_INT_EN			(1 << 26)
@@ -760,7 +997,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define CRT_HOTPLUG_MONITOR_NONE		(0 << 8)
 # define SDVOC_HOTPLUG_INT_STATUS		(1 << 7)
 # define SDVOB_HOTPLUG_INT_STATUS		(1 << 6)
-#define SDVOB_PRESERVE_MASK			((1 << 17) | (1 << 16) | (1 << 14))
 
 #define SDVOB			0x61140
 #define SDVOC			0x61160
@@ -768,7 +1004,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SDVO_PIPE_B_SELECT			(1 << 30)
 #define SDVO_STALL_SELECT			(1 << 29)
 #define SDVO_INTERRUPT_ENABLE			(1 << 26)
-/* Programmed value is multiplier - 1, up to 5x.  alv, gdg only */
+/**
+ * 915G/GM SDVO pixel multiplier.
+ *
+ * Programmed value is multiplier - 1, up to 5x.
+ *
+ * \sa DPLL_MD_UDI_MULTIPLIER_MASK
+ */
 #define SDVO_PORT_MULTIPLY_MASK			(7 << 23)
 #define SDVO_PORT_MULTIPLY_SHIFT		23
 #define SDVO_PHASE_SELECT_MASK			(15 << 19)
@@ -779,7 +1021,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SDVOB_PCIE_CONCURRENCY			(1 << 3)
 #define SDVO_DETECTED				(1 << 2)
 /* Bits to be preserved when writing */
+#define SDVOB_PRESERVE_MASK			((1 << 17) | (1 << 16) | (1 << 14))
 #define SDVOC_PRESERVE_MASK			(1 << 17)
+
+#define UDIB_SVB_SHB_CODES    		0x61144
+#define UDIB_SHA_BLANK_CODES		0x61148
+#define UDIB_START_END_FILL_CODES	0x6114c
+
+
+#define SDVOUDI				0x61150
 
 #define I830_HTOTAL_MASK 	0xfff0000
 #define I830_HACTIVE_MASK	0x7ff
@@ -859,6 +1109,583 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define LVDS_CLKA_POWER_DOWN		(0 << 8)
 # define LVDS_CLKA_POWER_UP		(3 << 8)
 
+/** @defgroup TV_CTL
+ * @{
+ */
+#define TV_CTL			0x68000
+/** Enables the TV encoder */
+# define TV_ENC_ENABLE			(1 << 31)
+/** Sources the TV encoder input from pipe B instead of A. */
+# define TV_ENC_PIPEB_SELECT		(1 << 30)
+/** Outputs composite video (DAC A only) */
+# define TV_ENC_OUTPUT_COMPOSITE	(0 << 28)
+/** Outputs SVideo video (DAC B/C) */
+# define TV_ENC_OUTPUT_SVIDEO		(1 << 28)
+/** Outputs Component video (DAC A/B/C) */
+# define TV_ENC_OUTPUT_COMPONENT	(2 << 28)
+/** Outputs Composite and SVideo (DAC A/B/C) */
+# define TV_ENC_OUTPUT_SVIDEO_COMPOSITE	(3 << 28)
+# define TV_TRILEVEL_SYNC		(1 << 21)
+/** Enables slow sync generation (945GM only) */
+# define TV_SLOW_SYNC			(1 << 20)
+/** Selects 4x oversampling for 480i and 576p */
+# define TV_OVERSAMPLE_4X		(0 << 18)
+/** Selects 2x oversampling for 720p and 1080i */
+# define TV_OVERSAMPLE_2X		(1 << 18)
+/** Selects no oversampling for 1080p */
+# define TV_OVERSAMPLE_NONE		(2 << 18)
+/** Selects 8x oversampling */
+# define TV_OVERSAMPLE_8X		(3 << 18)
+/** Selects progressive mode rather than interlaced */
+# define TV_PROGRESSIVE			(1 << 17)
+/** Sets the colorburst to PAL mode.  Required for non-M PAL modes. */
+# define TV_PAL_BURST			(1 << 16)
+/** Field for setting delay of Y compared to C */
+# define TV_YC_SKEW_MASK		(7 << 12)
+/** Enables a fix for 480p/576p standard definition modes on the 915GM only */
+# define TV_ENC_SDP_FIX			(1 << 11)
+/**
+ * Enables a fix for the 915GM only.
+ *
+ * Not sure what it does.
+ */
+# define TV_ENC_C0_FIX			(1 << 10)
+/** Bits that must be preserved by software */
+# define TV_CTL_SAVE			((3 << 8) | (3 << 6))
+# define TV_FUSE_STATE_MASK		(3 << 4)
+/** Read-only state that reports all features enabled */
+# define TV_FUSE_STATE_ENABLED		(0 << 4)
+/** Read-only state that reports that Macrovision is disabled in hardware*/
+# define TV_FUSE_STATE_NO_MACROVISION	(1 << 4)
+/** Read-only state that reports that TV-out is disabled in hardware. */
+# define TV_FUSE_STATE_DISABLED		(2 << 4)
+/** Normal operation */
+# define TV_TEST_MODE_NORMAL		(0 << 0)
+/** Encoder test pattern 1 - combo pattern */
+# define TV_TEST_MODE_PATTERN_1		(1 << 0)
+/** Encoder test pattern 2 - full screen vertical 75% color bars */
+# define TV_TEST_MODE_PATTERN_2		(2 << 0)
+/** Encoder test pattern 3 - full screen horizontal 75% color bars */
+# define TV_TEST_MODE_PATTERN_3		(3 << 0)
+/** Encoder test pattern 4 - random noise */
+# define TV_TEST_MODE_PATTERN_4		(4 << 0)
+/** Encoder test pattern 5 - linear color ramps */
+# define TV_TEST_MODE_PATTERN_5		(5 << 0)
+/**
+ * This test mode forces the DACs to 50% of full output.
+ *
+ * This is used for load detection in combination with TVDAC_SENSE_MASK
+ */
+# define TV_TEST_MODE_MONITOR_DETECT	(7 << 0)
+# define TV_TEST_MODE_MASK		(7 << 0)
+/** @} */
+
+/** @defgroup TV_DAC
+ * @{
+ */
+#define TV_DAC			0x68004
+/**
+ * Reports that DAC state change logic has reported change (RO).
+ *
+ * This gets cleared when TV_DAC_STATE_EN is cleared
+*/
+# define TVDAC_STATE_CHG		(1 << 31)
+# define TVDAC_SENSE_MASK		(7 << 28)
+/** Reports that DAC A voltage is above the detect threshold */
+# define TVDAC_A_SENSE			(1 << 30)
+/** Reports that DAC B voltage is above the detect threshold */
+# define TVDAC_B_SENSE			(1 << 29)
+/** Reports that DAC C voltage is above the detect threshold */
+# define TVDAC_C_SENSE			(1 << 28)
+/**
+ * Enables DAC state detection logic, for load-based TV detection.
+ *
+ * The PLL of the chosen pipe (in TV_CTL) must be running, and the encoder set
+ * to off, for load detection to work.
+ */
+# define TVDAC_STATE_CHG_EN		(1 << 27)
+/** Sets the DAC A sense value to high */
+# define TVDAC_A_SENSE_CTL		(1 << 26)
+/** Sets the DAC B sense value to high */
+# define TVDAC_B_SENSE_CTL		(1 << 25)
+/** Sets the DAC C sense value to high */
+# define TVDAC_C_SENSE_CTL		(1 << 24)
+/** Overrides the ENC_ENABLE and DAC voltage levels */
+# define DAC_CTL_OVERRIDE		(1 << 7)
+/** Sets the slew rate.  Must be preserved in software */
+# define ENC_TVDAC_SLEW_FAST		(1 << 6)
+# define DAC_A_1_3_V			(0 << 4)
+# define DAC_A_1_1_V			(1 << 4)
+# define DAC_A_0_7_V			(2 << 4)
+# define DAC_A_OFF			(3 << 4)
+# define DAC_B_1_3_V			(0 << 2)
+# define DAC_B_1_1_V			(1 << 2)
+# define DAC_B_0_7_V			(2 << 2)
+# define DAC_B_OFF			(3 << 2)
+# define DAC_C_1_3_V			(0 << 0)
+# define DAC_C_1_1_V			(1 << 0)
+# define DAC_C_0_7_V			(2 << 0)
+# define DAC_C_OFF			(3 << 0)
+/** @} */
+
+/**
+ * CSC coefficients are stored in a floating point format with 9 bits of
+ * mantissa and 2 or 3 bits of exponent.  The exponent is represented as 2**-n,
+ * where 2-bit exponents are unsigned n, and 3-bit exponents are signed n with
+ * -1 (0x3) being the only legal negative value.
+ */
+#define TV_CSC_Y		0x68010
+# define TV_RY_MASK			0x07ff0000
+# define TV_RY_SHIFT			16
+# define TV_GY_MASK			0x00000fff
+# define TV_GY_SHIFT			0
+
+#define TV_CSC_Y2		0x68014
+# define TV_BY_MASK			0x07ff0000
+# define TV_BY_SHIFT			16
+/**
+ * Y attenuation for component video.
+ *
+ * Stored in 1.9 fixed point.
+ */
+# define TV_AY_MASK			0x000003ff
+# define TV_AY_SHIFT			0
+
+#define TV_CSC_U		0x68018
+# define TV_RU_MASK			0x07ff0000
+# define TV_RU_SHIFT			16
+# define TV_GU_MASK			0x000007ff
+# define TV_GU_SHIFT			0
+
+#define TV_CSC_U2		0x6801c
+# define TV_BU_MASK			0x07ff0000
+# define TV_BU_SHIFT			16
+/**
+ * U attenuation for component video.
+ *
+ * Stored in 1.9 fixed point.
+ */
+# define TV_AU_MASK			0x000003ff
+# define TV_AU_SHIFT			0
+
+#define TV_CSC_V		0x68020
+# define TV_RV_MASK			0x0fff0000
+# define TV_RV_SHIFT			16
+# define TV_GV_MASK			0x000007ff
+# define TV_GV_SHIFT			0
+
+#define TV_CSC_V2		0x68024
+# define TV_BV_MASK			0x07ff0000
+# define TV_BV_SHIFT			16
+/**
+ * V attenuation for component video.
+ *
+ * Stored in 1.9 fixed point.
+ */
+# define TV_AV_MASK			0x000007ff
+# define TV_AV_SHIFT			0
+
+/** @defgroup TV_CSC_KNOBS
+ * @{
+ */
+#define TV_CLR_KNOBS		0x68028
+/** 2s-complement brightness adjustment */
+# define TV_BRIGHTNESS_MASK		0xff000000
+# define TV_BRIGHTNESS_SHIFT		24
+/** Contrast adjustment, as a 2.6 unsigned floating point number */
+# define TV_CONTRAST_MASK		0x00ff0000
+# define TV_CONTRAST_SHIFT		16
+/** Saturation adjustment, as a 2.6 unsigned floating point number */
+# define TV_SATURATION_MASK		0x0000ff00
+# define TV_SATURATION_SHIFT		8
+/** Hue adjustment, as an integer phase angle in degrees */
+# define TV_HUE_MASK			0x000000ff
+# define TV_HUE_SHIFT			0
+/** @} */
+
+/** @defgroup TV_CLR_LEVEL
+ * @{
+ */
+#define TV_CLR_LEVEL		0x6802c
+/** Controls the DAC level for black */
+# define TV_BLACK_LEVEL_MASK		0x01ff0000
+# define TV_BLACK_LEVEL_SHIFT		16
+/** Controls the DAC level for blanking */
+# define TV_BLANK_LEVEL_MASK		0x000001ff
+# define TV_BLANK_LEVEL_SHIFT		0
+/* @} */
+
+/** @defgroup TV_H_CTL_1
+ * @{
+ */
+#define TV_H_CTL_1		0x68030
+/** Number of pixels in the hsync. */
+# define TV_HSYNC_END_MASK		0x1fff0000
+# define TV_HSYNC_END_SHIFT		16
+/** Total number of pixels minus one in the line (display and blanking). */
+# define TV_HTOTAL_MASK			0x00001fff
+# define TV_HTOTAL_SHIFT		0
+/** @} */
+
+/** @defgroup TV_H_CTL_2
+ * @{
+ */
+#define TV_H_CTL_2		0x68034
+/** Enables the colorburst (needed for non-component color) */
+# define TV_BURST_ENA			(1 << 31)
+/** Offset of the colorburst from the start of hsync, in pixels minus one. */
+# define TV_HBURST_START_SHIFT		16
+# define TV_HBURST_START_MASK		0x1fff0000
+/** Length of the colorburst */
+# define TV_HBURST_LEN_SHIFT		0
+# define TV_HBURST_LEN_MASK		0x0001fff
+/** @} */
+
+/** @defgroup TV_H_CTL_3
+ * @{
+ */
+#define TV_H_CTL_3		0x68038
+/** End of hblank, measured in pixels minus one from start of hsync */
+# define TV_HBLANK_END_SHIFT		16
+# define TV_HBLANK_END_MASK		0x1fff0000
+/** Start of hblank, measured in pixels minus one from start of hsync */
+# define TV_HBLANK_START_SHIFT		0
+# define TV_HBLANK_START_MASK		0x0001fff
+/** @} */
+
+/** @defgroup TV_V_CTL_1
+ * @{
+ */
+#define TV_V_CTL_1		0x6803c
+/** XXX */
+# define TV_NBR_END_SHIFT		16
+# define TV_NBR_END_MASK		0x07ff0000
+/** XXX */
+# define TV_VI_END_F1_SHIFT		8
+# define TV_VI_END_F1_MASK		0x00003f00
+/** XXX */
+# define TV_VI_END_F2_SHIFT		0
+# define TV_VI_END_F2_MASK		0x0000003f
+/** @} */
+
+/** @defgroup TV_V_CTL_2
+ * @{
+ */
+#define TV_V_CTL_2		0x68040
+/** Length of vsync, in half lines */
+# define TV_VSYNC_LEN_MASK		0x07ff0000
+# define TV_VSYNC_LEN_SHIFT		16
+/** Offset of the start of vsync in field 1, measured in one less than the
+ * number of half lines.
+ */
+# define TV_VSYNC_START_F1_MASK		0x00007f00
+# define TV_VSYNC_START_F1_SHIFT	8
+/**
+ * Offset of the start of vsync in field 2, measured in one less than the
+ * number of half lines.
+ */
+# define TV_VSYNC_START_F2_MASK		0x0000007f
+# define TV_VSYNC_START_F2_SHIFT	0
+/** @} */
+
+/** @defgroup TV_V_CTL_3
+ * @{
+ */
+#define TV_V_CTL_3		0x68044
+/** Enables generation of the equalization signal */
+# define TV_EQUAL_ENA			(1 << 31)
+/** Length of vsync, in half lines */
+# define TV_VEQ_LEN_MASK		0x007f0000
+# define TV_VEQ_LEN_SHIFT		16
+/** Offset of the start of equalization in field 1, measured in one less than
+ * the number of half lines.
+ */
+# define TV_VEQ_START_F1_MASK		0x0007f00
+# define TV_VEQ_START_F1_SHIFT		8
+/**
+ * Offset of the start of equalization in field 2, measured in one less than
+ * the number of half lines.
+ */
+# define TV_VEQ_START_F2_MASK		0x000007f
+# define TV_VEQ_START_F2_SHIFT		0
+/** @} */
+
+/** @defgroup TV_V_CTL_4
+ * @{
+ */
+#define TV_V_CTL_4		0x68048
+/**
+ * Offset to start of vertical colorburst, measured in one less than the
+ * number of lines from vertical start.
+ */
+# define TV_VBURST_START_F1_MASK	0x003f0000
+# define TV_VBURST_START_F1_SHIFT	16
+/**
+ * Offset to the end of vertical colorburst, measured in one less than the
+ * number of lines from the start of NBR.
+ */
+# define TV_VBURST_END_F1_MASK		0x000000ff
+# define TV_VBURST_END_F1_SHIFT		0
+/** @} */
+
+/** @defgroup TV_V_CTL_5
+ * @{
+ */
+#define TV_V_CTL_5		0x6804c
+/**
+ * Offset to start of vertical colorburst, measured in one less than the
+ * number of lines from vertical start.
+ */
+# define TV_VBURST_START_F2_MASK	0x003f0000
+# define TV_VBURST_START_F2_SHIFT	16
+/**
+ * Offset to the end of vertical colorburst, measured in one less than the
+ * number of lines from the start of NBR.
+ */
+# define TV_VBURST_END_F2_MASK		0x000000ff
+# define TV_VBURST_END_F2_SHIFT		0
+/** @} */
+
+/** @defgroup TV_V_CTL_6
+ * @{
+ */
+#define TV_V_CTL_6		0x68050
+/**
+ * Offset to start of vertical colorburst, measured in one less than the
+ * number of lines from vertical start.
+ */
+# define TV_VBURST_START_F3_MASK	0x003f0000
+# define TV_VBURST_START_F3_SHIFT	16
+/**
+ * Offset to the end of vertical colorburst, measured in one less than the
+ * number of lines from the start of NBR.
+ */
+# define TV_VBURST_END_F3_MASK		0x000000ff
+# define TV_VBURST_END_F3_SHIFT		0
+/** @} */
+
+/** @defgroup TV_V_CTL_7
+ * @{
+ */
+#define TV_V_CTL_7		0x68054
+/**
+ * Offset to start of vertical colorburst, measured in one less than the
+ * number of lines from vertical start.
+ */
+# define TV_VBURST_START_F4_MASK	0x003f0000
+# define TV_VBURST_START_F4_SHIFT	16
+/**
+ * Offset to the end of vertical colorburst, measured in one less than the
+ * number of lines from the start of NBR.
+ */
+# define TV_VBURST_END_F4_MASK		0x000000ff
+# define TV_VBURST_END_F4_SHIFT		0
+/** @} */
+
+/** @defgroup TV_SC_CTL_1
+ * @{
+ */
+#define TV_SC_CTL_1		0x68060
+/** Turns on the first subcarrier phase generation DDA */
+# define TV_SC_DDA1_EN			(1 << 31)
+/** Turns on the first subcarrier phase generation DDA */
+# define TV_SC_DDA2_EN			(1 << 30)
+/** Turns on the first subcarrier phase generation DDA */
+# define TV_SC_DDA3_EN			(1 << 29)
+/** Sets the subcarrier DDA to reset frequency every other field */
+# define TV_SC_RESET_EVERY_2		(0 << 24)
+/** Sets the subcarrier DDA to reset frequency every fourth field */
+# define TV_SC_RESET_EVERY_4		(1 << 24)
+/** Sets the subcarrier DDA to reset frequency every eighth field */
+# define TV_SC_RESET_EVERY_8		(2 << 24)
+/** Sets the subcarrier DDA to never reset the frequency */
+# define TV_SC_RESET_NEVER		(3 << 24)
+/** Sets the peak amplitude of the colorburst.*/
+# define TV_BURST_LEVEL_MASK		0x00ff0000
+# define TV_BURST_LEVEL_SHIFT		16
+/** Sets the increment of the first subcarrier phase generation DDA */
+# define TV_SCDDA1_INC_MASK		0x00000fff
+# define TV_SCDDA1_INC_SHIFT		0
+/** @} */
+
+/** @defgroup TV_SC_CTL_2
+ * @{
+ */
+#define TV_SC_CTL_2		0x68064
+/** Sets the rollover for the second subcarrier phase generation DDA */
+# define TV_SCDDA2_SIZE_MASK		0x7fff0000
+# define TV_SCDDA2_SIZE_SHIFT		16
+/** Sets the increent of the second subcarrier phase generation DDA */
+# define TV_SCDDA2_INC_MASK		0x00007fff
+# define TV_SCDDA2_INC_SHIFT		0
+/** @} */
+
+/** @defgroup TV_SC_CTL_3
+ * @{
+ */
+#define TV_SC_CTL_3		0x68068
+/** Sets the rollover for the third subcarrier phase generation DDA */
+# define TV_SCDDA3_SIZE_MASK		0x7fff0000
+# define TV_SCDDA3_SIZE_SHIFT		16
+/** Sets the increent of the third subcarrier phase generation DDA */
+# define TV_SCDDA3_INC_MASK		0x00007fff
+# define TV_SCDDA3_INC_SHIFT		0
+/** @} */
+
+/** @defgroup TV_WIN_POS
+ * @{
+ */
+#define TV_WIN_POS		0x68070
+/** X coordinate of the display from the start of horizontal active */
+# define TV_XPOS_MASK			0x1fff0000
+# define TV_XPOS_SHIFT			16
+/** Y coordinate of the display from the start of vertical active (NBR) */
+# define TV_YPOS_MASK			0x00000fff
+# define TV_YPOS_SHIFT			0
+/** @} */
+
+/** @defgroup TV_WIN_SIZE
+ * @{
+ */
+#define TV_WIN_SIZE		0x68074
+/** Horizontal size of the display window, measured in pixels*/
+# define TV_XSIZE_MASK			0x1fff0000
+# define TV_XSIZE_SHIFT			16
+/**
+ * Vertical size of the display window, measured in pixels.
+ *
+ * Must be even for interlaced modes.
+ */
+# define TV_YSIZE_MASK			0x00000fff
+# define TV_YSIZE_SHIFT			0
+/** @} */
+
+/** @defgroup TV_FILTER_CTL_1
+ * @{
+ */
+#define TV_FILTER_CTL_1		0x68080
+/**
+ * Enables automatic scaling calculation.
+ *
+ * If set, the rest of the registers are ignored, and the calculated values can
+ * be read back from the register.
+ */
+# define TV_AUTO_SCALE			(1 << 31)
+/**
+ * Disables the vertical filter.
+ *
+ * This is required on modes more than 1024 pixels wide */
+# define TV_V_FILTER_BYPASS		(1 << 29)
+/** Enables adaptive vertical filtering */
+# define TV_VADAPT			(1 << 28)
+# define TV_VADAPT_MODE_MASK		(3 << 26)
+/** Selects the least adaptive vertical filtering mode */
+# define TV_VADAPT_MODE_LEAST		(0 << 26)
+/** Selects the moderately adaptive vertical filtering mode */
+# define TV_VADAPT_MODE_MODERATE	(1 << 26)
+/** Selects the most adaptive vertical filtering mode */
+# define TV_VADAPT_MODE_MOST		(3 << 26)
+/**
+ * Sets the horizontal scaling factor.
+ *
+ * This should be the fractional part of the horizontal scaling factor divided
+ * by the oversampling rate.  TV_HSCALE should be less than 1, and set to:
+ *
+ * (src width - 1) / ((oversample * dest width) - 1)
+ */
+# define TV_HSCALE_FRAC_MASK		0x00003fff
+# define TV_HSCALE_FRAC_SHIFT		0
+/** @} */
+
+/** @defgroup TV_FILTER_CTL_2
+ * @{
+ */
+#define TV_FILTER_CTL_2		0x68084
+/**
+ * Sets the integer part of the 3.15 fixed-point vertical scaling factor.
+ *
+ * TV_VSCALE should be (src height - 1) / ((interlace * dest height) - 1)
+ */
+# define TV_VSCALE_INT_MASK		0x00038000
+# define TV_VSCALE_INT_SHIFT		15
+/**
+ * Sets the fractional part of the 3.15 fixed-point vertical scaling factor.
+ *
+ * \sa TV_VSCALE_INT_MASK
+ */
+# define TV_VSCALE_FRAC_MASK		0x00007fff
+# define TV_VSCALE_FRAC_SHIFT		0
+/** @} */
+
+/** @defgroup TV_FILTER_CTL_3
+ * @{
+ */
+#define TV_FILTER_CTL_3		0x68088
+/**
+ * Sets the integer part of the 3.15 fixed-point vertical scaling factor.
+ *
+ * TV_VSCALE should be (src height - 1) / (1/4 * (dest height - 1))
+ *
+ * For progressive modes, TV_VSCALE_IP_INT should be set to zeroes.
+ */
+# define TV_VSCALE_IP_INT_MASK		0x00038000
+# define TV_VSCALE_IP_INT_SHIFT		15
+/**
+ * Sets the fractional part of the 3.15 fixed-point vertical scaling factor.
+ *
+ * For progressive modes, TV_VSCALE_IP_INT should be set to zeroes.
+ *
+ * \sa TV_VSCALE_IP_INT_MASK
+ */
+# define TV_VSCALE_IP_FRAC_MASK		0x00007fff
+# define TV_VSCALE_IP_FRAC_SHIFT		0
+/** @} */
+
+/** @defgroup TV_CC_CONTROL
+ * @{
+ */
+#define TV_CC_CONTROL		0x68090
+# define TV_CC_ENABLE			(1 << 31)
+/**
+ * Specifies which field to send the CC data in.
+ *
+ * CC data is usually sent in field 0.
+ */
+# define TV_CC_FID_MASK			(1 << 27)
+# define TV_CC_FID_SHIFT		27
+/** Sets the horizontal position of the CC data.  Usually 135. */
+# define TV_CC_HOFF_MASK		0x03ff0000
+# define TV_CC_HOFF_SHIFT		16
+/** Sets the vertical position of the CC data.  Usually 21 */
+# define TV_CC_LINE_MASK		0x0000003f
+# define TV_CC_LINE_SHIFT		0
+/** @} */
+
+/** @defgroup TV_CC_DATA
+ * @{
+ */
+#define TV_CC_DATA		0x68094
+# define TV_CC_RDY			(1 << 31)
+/** Second word of CC data to be transmitted. */
+# define TV_CC_DATA_2_MASK		0x007f0000
+# define TV_CC_DATA_2_SHIFT		16
+/** First word of CC data to be transmitted. */
+# define TV_CC_DATA_1_MASK		0x0000007f
+# define TV_CC_DATA_1_SHIFT		0
+/** @}
+ */
+
+/** @{ */
+#define TV_H_LUMA_0		0x68100
+#define TV_H_LUMA_59		0x681ec
+#define TV_H_CHROMA_0		0x68200
+#define TV_H_CHROMA_59		0x682ec
+#define TV_V_LUMA_0		0x68300
+#define TV_V_LUMA_42		0x683a8
+#define TV_V_CHROMA_0		0x68400
+#define TV_V_CHROMA_42		0x684a8
+/** @} */
+
 #define PIPEACONF 0x70008
 #define PIPEACONF_ENABLE	(1<<31)
 #define PIPEACONF_DISABLE	0
@@ -869,6 +1696,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PIPEACONF_PALETTE	0
 #define PIPEACONF_GAMMA 	(1<<24)
 #define PIPECONF_FORCE_BORDER	(1<<25)
+#define PIPECONF_PROGRESSIVE	(0 << 21)
+#define PIPECONF_INTERLACE_W_FIELD_INDICATION	(6 << 21)
+#define PIPECONF_INTERLACE_FIELD_0_ONLY		(7 << 21)
+
+#define PIPEAGCMAXRED		0x70010
+#define PIPEAGCMAXGREEN		0x70014
+#define PIPEAGCMAXBLUE		0x70018
+#define PIPEASTAT		0x70024
+
+#define DSPARB			0x70030
+#define DSPFW1			0x70034
+#define DSPFW2			0x70038
+#define DSPFW3			0x7003c
+#define PIPEAFRAMEHIGH		0x70040
+#define PIPEAFRAMEPIXEL		0x70044
+
 
 #define PIPEBCONF 0x71008
 #define PIPEBCONF_ENABLE	(1<<31)
@@ -877,6 +1720,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PIPEBCONF_DISABLE	0
 #define PIPEBCONF_GAMMA 	(1<<24)
 #define PIPEBCONF_PALETTE	0
+
+#define PIPEBGCMAXRED		0x71010
+#define PIPEBGCMAXGREEN		0x71014
+#define PIPEBGCMAXBLUE		0x71018
+#define PIPEBSTAT		0x71024
+#define PIPEBFRAMEHIGH		0x71040
+#define PIPEBFRAMEPIXEL		0x71044
 
 #define DSPACNTR		0x70180
 #define DSPBCNTR		0x71180
@@ -914,10 +1764,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DSPBADDR		DSPBBASE
 #define DSPBSTRIDE		0x71188
 
+#define DSPAKEYVAL		0x70194
+#define DSPAKEYMASK		0x70198
+
 #define DSPAPOS			0x7018C /* reserved */
 #define DSPASIZE		0x70190
 #define DSPBPOS			0x7118C
 #define DSPBSIZE		0x71190
+
+#define DSPASURF		0x7019C
+#define DSPATILEOFF		0x701A4
+
+#define DSPBSURF		0x7119C
+#define DSPBTILEOFF		0x711A4
 
 #define VGACNTRL		0x71400
 # define VGA_DISP_DISABLE			(1 << 31)
@@ -1018,15 +1877,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define XY_MONO_SRC_BLT_WRITE_ALPHA	(1<<21)
 #define XY_MONO_SRC_BLT_WRITE_RGB	(1<<20)
 
-/* 3d state */
 #define STATE3D_FOG_MODE		((3<<29)|(0x1d<<24)|(0x89<<16)|2)
 #define FOG_MODE_VERTEX 		(1<<31)
-#define STATE3D_MAP_COORD_TRANSFORM	((3<<29)|(0x1d<<24)|(0x8c<<16))
+
 #define DISABLE_TEX_TRANSFORM		(1<<28)
 #define TEXTURE_SET(x)			(x<<29)
-#define STATE3D_RASTERIZATION_RULES	((3<<29)|(0x07<<24))
-#define POINT_RASTER_ENABLE		(1<<15)
-#define POINT_RASTER_OGL		(1<<13)
+
 #define STATE3D_VERTEX_TRANSFORM	((3<<29)|(0x1d<<24)|(0x8b<<16))
 #define DISABLE_VIEWPORT_TRANSFORM	(1<<31)
 #define DISABLE_PERSPECTIVE_DIVIDE	(1<<29)
@@ -1059,7 +1915,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MI_WRITE_DIRTY_STATE		(1<<4)
 #define MI_END_SCENE			(1<<3)
 #define MI_INHIBIT_RENDER_CACHE_FLUSH	(1<<2)
+#define MI_STATE_INSTRUCTION_CACHE_FLUSH (1<<1)
 #define MI_INVALIDATE_MAP_CACHE		(1<<0)
+/* broadwater flush bits */
+#define BRW_MI_GLOBAL_SNAPSHOT_RESET   (1 << 3)
 
 /* Noop */
 #define MI_NOOP				0x00
@@ -1073,6 +1932,244 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ENABLE_FOG_CONST	(1<<24)
 #define ENABLE_FOG_DENSITY	(1<<23)
 
+/*
+ * New regs for broadwater -- we need to split this file up sensibly somehow.
+ */
+#define BRW_3D(Pipeline,Opcode,Subopcode) ((3 << 29) | \
+					   ((Pipeline) << 27) | \
+					   ((Opcode) << 24) | \
+					   ((Subopcode) << 16))
+
+#define BRW_URB_FENCE				BRW_3D(0, 0, 0)
+#define BRW_CS_URB_STATE			BRW_3D(0, 0, 1)
+#define BRW_CONSTANT_BUFFER			BRW_3D(0, 0, 2)
+#define BRW_STATE_PREFETCH			BRW_3D(0, 0, 3)
+
+#define BRW_STATE_BASE_ADDRESS			BRW_3D(0, 1, 1)
+#define BRW_STATE_SIP				BRW_3D(0, 1, 2)
+#define BRW_PIPELINE_SELECT			BRW_3D(0, 1, 4)
+
+#define BRW_MEDIA_STATE_POINTERS		BRW_3D(2, 0, 0)
+#define BRW_MEDIA_OBJECT			BRW_3D(2, 1, 0)
+
+#define BRW_3DSTATE_PIPELINED_POINTERS		BRW_3D(3, 0, 0)
+#define BRW_3DSTATE_BINDING_TABLE_POINTERS	BRW_3D(3, 0, 1)
+#define BRW_3DSTATE_VERTEX_BUFFERS		BRW_3D(3, 0, 8)
+#define BRW_3DSTATE_VERTEX_ELEMENTS		BRW_3D(3, 0, 9)
+#define BRW_3DSTATE_INDEX_BUFFER		BRW_3D(3, 0, 0xa)
+#define BRW_3DSTATE_VF_STATISTICS		BRW_3D(3, 0, 0xb)
+
+#define BRW_3DSTATE_DRAWING_RECTANGLE		BRW_3D(3, 1, 0)
+#define BRW_3DSTATE_CONSTANT_COLOR		BRW_3D(3, 1, 1)
+#define BRW_3DSTATE_SAMPLER_PALETTE_LOAD	BRW_3D(3, 1, 2)
+#define BRW_3DSTATE_CHROMA_KEY			BRW_3D(3, 1, 4)
+#define BRW_3DSTATE_DEPTH_BUFFER		BRW_3D(3, 1, 5)
+#define BRW_3DSTATE_POLY_STIPPLE_OFFSET		BRW_3D(3, 1, 6)
+#define BRW_3DSTATE_POLY_STIPPLE_PATTERN	BRW_3D(3, 1, 7)
+#define BRW_3DSTATE_LINE_STIPPLE		BRW_3D(3, 1, 8)
+#define BRW_3DSTATE_GLOBAL_DEPTH_OFFSET_CLAMP	BRW_3D(3, 1, 9)
+/* These two are BLC and CTG only, not BW or CL */
+#define BRW_3DSTATE_AA_LINE_PARAMS		BRW_3D(3, 1, 0xa)
+#define BRW_3DSTATE_GS_SVB_INDEX		BRW_3D(3, 1, 0xb)
+
+#define BRW_PIPE_CONTROL			BRW_3D(3, 2, 0)
+
+#define BRW_3DPRIMITIVE				BRW_3D(3, 3, 0)
+
+#define PIPELINE_SELECT_3D		0
+#define PIPELINE_SELECT_MEDIA		1
+
+#define UF0_CS_REALLOC			(1 << 13)
+#define UF0_VFE_REALLOC			(1 << 12)
+#define UF0_SF_REALLOC			(1 << 11)
+#define UF0_CLIP_REALLOC		(1 << 10)
+#define UF0_GS_REALLOC			(1 << 9)
+#define UF0_VS_REALLOC			(1 << 8)
+#define UF1_CLIP_FENCE_SHIFT		20
+#define UF1_GS_FENCE_SHIFT		10
+#define UF1_VS_FENCE_SHIFT		0
+#define UF2_CS_FENCE_SHIFT		20
+#define UF2_VFE_FENCE_SHIFT		10
+#define UF2_SF_FENCE_SHIFT		0
+
+/* for BRW_STATE_BASE_ADDRESS */
+#define BASE_ADDRESS_MODIFY		(1 << 0)
+
+/* for BRW_3DSTATE_PIPELINED_POINTERS */
+#define BRW_GS_DISABLE		       0
+#define BRW_GS_ENABLE		       1
+#define BRW_CLIP_DISABLE	       0
+#define BRW_CLIP_ENABLE		       1
+
+/* for BRW_PIPE_CONTROL */
+#define BRW_PIPE_CONTROL_NOWRITE       (0 << 14)
+#define BRW_PIPE_CONTROL_WRITE_QWORD   (1 << 14)
+#define BRW_PIPE_CONTROL_WRITE_DEPTH   (2 << 14)
+#define BRW_PIPE_CONTROL_WRITE_TIME    (3 << 14)
+#define BRW_PIPE_CONTROL_DEPTH_STALL   (1 << 13)
+#define BRW_PIPE_CONTROL_WC_FLUSH      (1 << 12)
+#define BRW_PIPE_CONTROL_IS_FLUSH      (1 << 11)
+#define BRW_PIPE_CONTROL_NOTIFY_ENABLE (1 << 8)
+#define BRW_PIPE_CONTROL_GLOBAL_GTT    (1 << 2)
+#define BRW_PIPE_CONTROL_LOCAL_PGTT    (0 << 2)
+
+/* VERTEX_BUFFER_STATE Structure */
+#define VB0_BUFFER_INDEX_SHIFT		27
+#define VB0_VERTEXDATA			(0 << 26)
+#define VB0_INSTANCEDATA		(1 << 26)
+#define VB0_BUFFER_PITCH_SHIFT		0
+
+/* VERTEX_ELEMENT_STATE Structure */
+#define VE0_VERTEX_BUFFER_INDEX_SHIFT	27
+#define VE0_VALID			(1 << 26)
+#define VE0_FORMAT_SHIFT		16
+#define VE0_OFFSET_SHIFT		0
+#define VE1_VFCOMPONENT_0_SHIFT		28
+#define VE1_VFCOMPONENT_1_SHIFT		24
+#define VE1_VFCOMPONENT_2_SHIFT		20
+#define VE1_VFCOMPONENT_3_SHIFT		16
+#define VE1_DESTINATION_ELEMENT_OFFSET_SHIFT	0
+
+/* 3DPRIMITIVE bits */
+#define BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL (0 << 15)
+#define BRW_3DPRIMITIVE_VERTEX_RANDOM	  (1 << 15)
+/* Primitive types are in brw_defines.h */
+#define BRW_3DPRIMITIVE_TOPOLOGY_SHIFT	  10
+
+#define BRW_SVG_CTL		       0x7400
+
+#define BRW_SVG_CTL_GS_BA	       (0 << 8)
+#define BRW_SVG_CTL_SS_BA	       (1 << 8)
+#define BRW_SVG_CTL_IO_BA	       (2 << 8)
+#define BRW_SVG_CTL_GS_AUB	       (3 << 8)
+#define BRW_SVG_CTL_IO_AUB	       (4 << 8)
+#define BRW_SVG_CTL_SIP		       (5 << 8)
+
+#define BRW_SVG_RDATA		       0x7404
+#define BRW_SVG_WORK_CTL	       0x7408
+
+#define BRW_VF_CTL		       0x7500
+
+#define BRW_VF_CTL_SNAPSHOT_COMPLETE		   (1 << 31)
+#define BRW_VF_CTL_SNAPSHOT_MUX_SELECT_THREADID	   (0 << 8)
+#define BRW_VF_CTL_SNAPSHOT_MUX_SELECT_VF_DEBUG	   (1 << 8)
+#define BRW_VF_CTL_SNAPSHOT_TYPE_VERTEX_SEQUENCE   (0 << 4)
+#define BRW_VF_CTL_SNAPSHOT_TYPE_VERTEX_INDEX	   (1 << 4)
+#define BRW_VF_CTL_SKIP_INITIAL_PRIMITIVES	   (1 << 3)
+#define BRW_VF_CTL_MAX_PRIMITIVES_LIMIT_ENABLE	   (1 << 2)
+#define BRW_VF_CTL_VERTEX_RANGE_LIMIT_ENABLE	   (1 << 1)
+#define BRW_VF_CTL_SNAPSHOT_ENABLE	     	   (1 << 0)
+
+#define BRW_VF_STRG_VAL		       0x7504
+#define BRW_VF_STR_VL_OVR	       0x7508
+#define BRW_VF_VC_OVR		       0x750c
+#define BRW_VF_STR_PSKIP	       0x7510
+#define BRW_VF_MAX_PRIM		       0x7514
+#define BRW_VF_RDATA		       0x7518
+
+#define BRW_VS_CTL		       0x7600
+#define BRW_VS_CTL_SNAPSHOT_COMPLETE		   (1 << 31)
+#define BRW_VS_CTL_SNAPSHOT_MUX_VERTEX_0	   (0 << 8)
+#define BRW_VS_CTL_SNAPSHOT_MUX_VERTEX_1	   (1 << 8)
+#define BRW_VS_CTL_SNAPSHOT_MUX_VALID_COUNT	   (2 << 8)
+#define BRW_VS_CTL_SNAPSHOT_MUX_VS_KERNEL_POINTER  (3 << 8)
+#define BRW_VS_CTL_SNAPSHOT_ALL_THREADS		   (1 << 2)
+#define BRW_VS_CTL_THREAD_SNAPSHOT_ENABLE	   (1 << 1)
+#define BRW_VS_CTL_SNAPSHOT_ENABLE		   (1 << 0)
+
+#define BRW_VS_STRG_VAL		       0x7604
+#define BRW_VS_RDATA		       0x7608
+
+#define BRW_SF_CTL		       0x7b00
+#define BRW_SF_CTL_SNAPSHOT_COMPLETE		   (1 << 31)
+#define BRW_SF_CTL_SNAPSHOT_MUX_VERTEX_0_FF_ID	   (0 << 8)
+#define BRW_SF_CTL_SNAPSHOT_MUX_VERTEX_0_REL_COUNT (1 << 8)
+#define BRW_SF_CTL_SNAPSHOT_MUX_VERTEX_1_FF_ID	   (2 << 8)
+#define BRW_SF_CTL_SNAPSHOT_MUX_VERTEX_1_REL_COUNT (3 << 8)
+#define BRW_SF_CTL_SNAPSHOT_MUX_VERTEX_2_FF_ID	   (4 << 8)
+#define BRW_SF_CTL_SNAPSHOT_MUX_VERTEX_2_REL_COUNT (5 << 8)
+#define BRW_SF_CTL_SNAPSHOT_MUX_VERTEX_COUNT	   (6 << 8)
+#define BRW_SF_CTL_SNAPSHOT_MUX_SF_KERNEL_POINTER  (7 << 8)
+#define BRW_SF_CTL_MIN_MAX_PRIMITIVE_RANGE_ENABLE  (1 << 4)
+#define BRW_SF_CTL_DEBUG_CLIP_RECTANGLE_ENABLE	   (1 << 3)
+#define BRW_SF_CTL_SNAPSHOT_ALL_THREADS		   (1 << 2)
+#define BRW_SF_CTL_THREAD_SNAPSHOT_ENABLE	   (1 << 1)
+#define BRW_SF_CTL_SNAPSHOT_ENABLE		   (1 << 0)
+
+#define BRW_SF_STRG_VAL		       0x7b04
+#define BRW_SF_RDATA		       0x7b18
+
+#define BRW_WIZ_CTL		       0x7c00
+#define BRW_WIZ_CTL_SNAPSHOT_COMPLETE		   (1 << 31)
+#define BRW_WIZ_CTL_SUBSPAN_INSTANCE_SHIFT	   16
+#define BRW_WIZ_CTL_SNAPSHOT_MUX_WIZ_KERNEL_POINTER   (0 << 8)
+#define BRW_WIZ_CTL_SNAPSHOT_MUX_SUBSPAN_INSTANCE     (1 << 8)
+#define BRW_WIZ_CTL_SNAPSHOT_MUX_PRIMITIVE_SEQUENCE   (2 << 8)
+#define BRW_WIZ_CTL_SINGLE_SUBSPAN_DISPATCH	      (1 << 6)
+#define BRW_WIZ_CTL_IGNORE_COLOR_SCOREBOARD_STALLS    (1 << 5)
+#define BRW_WIZ_CTL_ENABLE_SUBSPAN_INSTANCE_COMPARE   (1 << 4)
+#define BRW_WIZ_CTL_USE_UPSTREAM_SNAPSHOT_FLAG	      (1 << 3)
+#define BRW_WIZ_CTL_SNAPSHOT_ALL_THREADS	      (1 << 2)
+#define BRW_WIZ_CTL_THREAD_SNAPSHOT_ENABLE	      (1 << 1)
+#define BRW_WIZ_CTL_SNAPSHOT_ENABLE		      (1 << 0)
+
+#define BRW_WIZ_STRG_VAL			      0x7c04
+#define BRW_WIZ_RDATA				      0x7c18
+
+#define BRW_TS_CTL		       0x7e00
+#define BRW_TS_CTL_SNAPSHOT_COMPLETE		   (1 << 31)
+#define BRW_TS_CTL_SNAPSHOT_MESSAGE_ERROR	   (0 << 8)
+#define BRW_TS_CTL_SNAPSHOT_INTERFACE_DESCRIPTOR   (3 << 8)
+#define BRW_TS_CTL_SNAPSHOT_ALL_CHILD_THREADS	   (1 << 2)
+#define BRW_TS_CTL_SNAPSHOT_ALL_ROOT_THREADS  	   (1 << 1)
+#define BRW_TS_CTL_SNAPSHOT_ENABLE		   (1 << 0)
+
+#define BRW_TS_STRG_VAL		       0x7e04
+#define BRW_TS_RDATA		       0x7e08
+
+#define BRW_TD_CTL		       0x8000
+#define BRW_TD_CTL_MUX_SHIFT	       8
+#define BRW_TD_CTL_EXTERNAL_HALT_R0_DEBUG_MATCH	   (1 << 7)
+#define BRW_TD_CTL_FORCE_EXTERNAL_HALT		   (1 << 6)
+#define BRW_TD_CTL_EXCEPTION_MASK_OVERRIDE	   (1 << 5)
+#define BRW_TD_CTL_FORCE_THREAD_BREAKPOINT_ENABLE  (1 << 4)
+#define BRW_TD_CTL_BREAKPOINT_ENABLE		   (1 << 2)
+#define BRW_TD_CTL2		       0x8004
+#define BRW_TD_CTL2_ILLEGAL_OPCODE_EXCEPTION_OVERRIDE (1 << 28)
+#define BRW_TD_CTL2_MASKSTACK_EXCEPTION_OVERRIDE      (1 << 26)
+#define BRW_TD_CTL2_SOFTWARE_EXCEPTION_OVERRIDE	      (1 << 25)
+#define BRW_TD_CTL2_ACTIVE_THREAD_LIMIT_SHIFT	      16
+#define BRW_TD_CTL2_ACTIVE_THREAD_LIMIT_ENABLE	      (1 << 8)
+#define BRW_TD_CTL2_THREAD_SPAWNER_EXECUTION_MASK_ENABLE (1 << 7)
+#define BRW_TD_CTL2_WIZ_EXECUTION_MASK_ENABLE	      (1 << 6)
+#define BRW_TD_CTL2_SF_EXECUTION_MASK_ENABLE	      (1 << 5)
+#define BRW_TD_CTL2_CLIPPER_EXECUTION_MASK_ENABLE     (1 << 4)
+#define BRW_TD_CTL2_GS_EXECUTION_MASK_ENABLE	      (1 << 3)
+#define BRW_TD_CTL2_VS_EXECUTION_MASK_ENABLE	      (1 << 0)
+#define BRW_TD_VF_VS_EMSK	       0x8008
+#define BRW_TD_GS_EMSK		       0x800c
+#define BRW_TD_CLIP_EMSK	       0x8010
+#define BRW_TD_SF_EMSK		       0x8014
+#define BRW_TD_WIZ_EMSK		       0x8018
+#define BRW_TD_0_6_EHTRG_VAL	       0x801c
+#define BRW_TD_0_7_EHTRG_VAL	       0x8020
+#define BRW_TD_0_6_EHTRG_MSK           0x8024
+#define BRW_TD_0_7_EHTRG_MSK	       0x8028
+#define BRW_TD_RDATA		       0x802c
+#define BRW_TD_TS_EMSK		       0x8030
+
+#define BRW_EU_CTL		       0x8800
+#define BRW_EU_CTL_SELECT_SHIFT	       16
+#define BRW_EU_CTL_DATA_MUX_SHIFT      8
+#define BRW_EU_ATT_0		       0x8810
+#define BRW_EU_ATT_1		       0x8814
+#define BRW_EU_ATT_DATA_0	       0x8820
+#define BRW_EU_ATT_DATA_1	       0x8824
+#define BRW_EU_ATT_CLR_0	       0x8830
+#define BRW_EU_ATT_CLR_1	       0x8834
+#define BRW_EU_RDATA		       0x8840
+
+/* End regs for broadwater */
 
 #define MAX_DISPLAY_PIPES	2
 
@@ -1081,12 +2178,11 @@ typedef enum {
    TvIndex,
    DfpIndex,
    LfpIndex,
+   Crt2Index,
    Tv2Index,
    Dfp2Index,
-   UnknownIndex,
-   Unknown2Index,
-   NumDisplayTypes,
-   NumKnownDisplayTypes = UnknownIndex
+   Lfp2Index,
+   NumDisplayTypes
 } DisplayType;
 
 /* What's connected to the pipes (as reported by the BIOS) */
@@ -1095,10 +2191,10 @@ typedef enum {
 #define PIPE_TV_ACTIVE			(1 << TvIndex)
 #define PIPE_DFP_ACTIVE			(1 << DfpIndex)
 #define PIPE_LCD_ACTIVE			(1 << LfpIndex)
+#define PIPE_CRT2_ACTIVE		(1 << Crt2Index)
 #define PIPE_TV2_ACTIVE			(1 << Tv2Index)
 #define PIPE_DFP2_ACTIVE		(1 << Dfp2Index)
-#define PIPE_UNKNOWN_ACTIVE		((1 << UnknownIndex) |	\
-					 (1 << Unknown2Index))
+#define PIPE_LCD2_ACTIVE		(1 << Lfp2Index)
 
 #define PIPE_SIZED_DISP_MASK		(PIPE_DFP_ACTIVE |	\
 					 PIPE_LCD_ACTIVE |	\

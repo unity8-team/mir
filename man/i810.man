@@ -17,30 +17,29 @@ i810 \- Intel 8xx integrated graphics chipsets
 is an __xservername__ driver for Intel integrated graphics chipsets.
 The driver supports depths 8, 15, 16 and 24.  All visual types are
 supported in depth 8.  For the i810/i815 other depths support the
-TrueColor and DirectColor visuals.  For the 830M and later, only the
+TrueColor and DirectColor visuals.  For the i830M and later, only the
 TrueColor visual is supported for depths greater than 8.  The driver
 supports hardware accelerated 3D via the Direct Rendering Infrastructure
 (DRI), but only in depth 16 for the i810/i815 and depths 16 and 24 for
 the 830M and later.
 .SH SUPPORTED HARDWARE
 .B i810
-supports the i810, i810-DC100, i810e, i815, 830M, 845G, 852GM, 855GM,
-865G, 915G and 915GM chipsets.
+supports the i810, i810-DC100, i810e, i815, i830M, 845G, 852GM, 855GM,
+865G, 915G, 915GM, 945G, 945GM, 965G, 965Q and 946GZ chipsets.
 
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
 details.  This section only covers configuration details specific to this
 driver.
 .PP
-The Intel 8xx family of integrated graphics chipsets has a unified memory
-architecture and uses system memory for video ram.  For the i810 and
+The Intel 8xx and 9xx families of integrated graphics chipsets has a unified
+memory architecture and uses system memory for video ram.  For the i810 and
 i815 family of chipset, operating system support for allocating system
-memory for video use is required in order to use this driver.  For the
-830M and later, this is required in order for the driver to use more
-video ram than has been pre-allocated at boot time by the BIOS.  This
-is usually achieved with an "agpgart" or "agp" kernel driver.  Linux,
-and recent versions of FreeBSD, OpenBSD and NetBSD have such kernel
-drivers available.
+memory for video use is required in order to use this driver.  For the 830M
+and later, this is required in order for the driver to use more video ram
+than has been pre-allocated at boot time by the BIOS.  This is usually
+achieved with an "agpgart" or "agp" kernel driver.  Linux, and recent
+versions of FreeBSD, OpenBSD and NetBSD have such kernel drivers available.
 .PP
 By default 8 Megabytes
 of system memory are used for graphics.  For the 830M and later, the
@@ -50,7 +49,7 @@ DRI is enabled.  This amount may be changed with the
 entry in the config file
 .B "Device"
 section.  It may be set to any reasonable value up to 64MB for older
-chipsets or 128MB for newer chipets.  It is advisable to check the
+chipsets or 128MB for newer chipsets.  It is advisable to check the
 __xservername__
 log file to check if any features have been disabled because of insufficient
 video memory.  In particular, DRI support or tiling mode may be disabled
@@ -85,9 +84,12 @@ This allows the user to change the amount of graphics memory used for
 2D acceleration and video.  Decreasing this amount leaves more for 3D
 textures.  Increasing it can improve 2D performance at the expense of
 3D performance.
+.TP
+This option only takes effect when XAA acceleration is enabled.
+.TP
 Default: depends on the resolution, depth, and available video memory.  The
-driver attempts to allocate at least enough to hold two DVD-sized YUV buffers
-by default.  The default used for a specific configuration can be found
+driver attempts to allocate space for at 3 screenfuls of pixmaps plus an
+HD-sized XV video.  The default used for a specific configuration can be found
 by examining the __xservername__ log file.
 .TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
@@ -116,13 +118,6 @@ Default: XvMC is disabled.
 The following driver
 .B Options
 are supported for the 830M and later chipsets:
-.TP
-.BI "Option \*qVBERestore\*q \*q" boolean \*q
-Enable or disable the use of VBE save/restore for saving and restoring
-the initial text mode.  This is disabled by default because it causes
-lockups on some platforms.  However, there are some cases where it must
-enabled for the correct restoration of the initial video mode.  If you are
-having a problem with that, try enabling this option.  Default: Disabled.
 .TP
 .BI "Option \*qVideoKey\*q \*q" integer \*q
 This is the same as the
@@ -179,13 +174,6 @@ NOTE: Using this option may cause text mode to be restored incorrectly,
 and thus should be used with caution.
 Default: disabled.
 .TP
-.BI "Option \*qDevicePresence\*q \*q" boolean \*q
-Tell the driver to perform an active detect of the currently connected
-monitors. This option is useful if the monitor was not connected when
-the machine has booted, but unfortunately it doesn't always work and
-is extremely dependent upon the Video BIOS.
-Default: disabled
-.TP
 .BI "Option \*qRotate\*q \*q90\*q"
 Rotate the desktop 90 degrees counterclockwise. Other valid options are
 0, 90, 180 and 270 degrees. The RandR extension is used for rotation 
@@ -196,15 +184,46 @@ Default: 0 degrees.
 .BI "Option \*qLinearAlloc\*q \*q" integer \*q
 Allows more memory for the offscreen allocator. This usually helps in
 situations where HDTV movies are required to play but not enough offscreen
-memory is usually available. Set this to 6144 for upto 1920x1080 HDTV support.
+memory is usually available. Set this to 8160 for upto 1920x1080 HDTV support.
 Default 0KB (off).
+.TP
+.BI "Option \*qLegacy3D\*q \*q" boolean \*q
+Enable support for the legacy i915_dri.so 3D driver.
+This will, among other things, make the 2D driver tell libGL to
+load the 3D driver i915_dri.so instead of the newer i915tex_dri.so.
+This option is only used for chipsets in the range i830-i945. 
+Default for i830-i945 series: Enabled for i915 drm versions < 1.7.0. Otherwise
+disabled. 
+Default for i810: The option is not used.
+Default for i965: The option is always true.
+.TP
+.BI "Option \*qAperTexSize\*q \*q" integer \*q
+Give the size in kiB of the AGP aperture area that is reserved for the
+DRM memory manager present in i915 drm from version 1.7.0 and upwards,
+and that is used with the 3D driver in Mesa from version 6.5.2 and
+upwards. If the size is set too high to make room for pre-allocated
+VideoRam, the driver will try to reduce it automatically. If you use only
+older Mesa or DRM versions, you may set this value to zero, and
+atctivate the legacy texture pool (see 
+.B "Option \*qLegacy3D\*q"
+). If you run 3D programs with large texture memory requirements, you might
+gain some performance by increasing this value.
+Default: 32768.
+.TP
+.BI "Option \*qAccelMethod\*q \*q" string \*q
+Choose acceleration architecture, either "XAA" or "EXA".  XAA is the old
+(but stable) XFree86 based acceleration architecture.  EXA is a newer and
+simpler acceleration architecture designed to better accelerate the X Render
+extension.  Default: "XAA".
 
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .SH AUTHORS
-Authors include: Keith Whitwell, and also Jonathan Bian, Matthew J Sottek, 
+Authors include: Keith Whitwell, and also Jonathan Bian, Matthew J Sottek,
 Jeff Hartmann, Mark Vojkovich, Alan Hourihane, H. J. Lu.  830M and 845G
-support reworked for XFree86 4.3 by David Dawes and Keith Whitwell.
-852GM, 855GM, and 865G support added by David Dawes and Keith Whitwell.
-915G and 915GM support added by Alan Hourihane and Keith Whitwell.
-Dual Head, Clone and lid status support added by Alan Hourihane.
+support reworked for XFree86 4.3 by David Dawes and Keith Whitwell.  852GM,
+855GM, and 865G support added by David Dawes and Keith Whitwell.  915G,
+915GM, 945G, 945GM, 965G, 965Q and 946GZ support added by Alan Hourihane and
+Keith Whitwell.  Dual Head, Clone and lid status support added by Alan
+Hourihane. Textured video support for 915G and later chips added by Keith
+Packard and Eric Anholt.

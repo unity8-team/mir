@@ -39,13 +39,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _INTEL_COMMON_H_
 #define _INTEL_COMMON_H_
 
-#ifdef __GNUC__
+/* Provide substitutes for gcc's __FUNCTION__ on other compilers */
+#ifndef __GNUC__
+# if defined(__STDC__) && (__STDC_VERSION__>=199901L) /* C99 */
+#  define __FUNCTION__ __func__
+# else
+#  define __FUNCTION__ ""
+# endif
+#endif
+
+
 #define PFX __FILE__,__LINE__,__FUNCTION__
 #define FUNCTION_NAME __FUNCTION__
-#else
-#define PFX __FILE__,__LINE__,""
-#define FUNCTION_NAME ""
-#endif
 
 #ifdef I830DEBUG
 #define MARKER() ErrorF("\n### %s:%d: >>> %s <<< ###\n\n", \
@@ -68,10 +73,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 /* I830 hooks for the I810 driver setup/probe. */
-extern const OptionInfoRec *I830BIOSAvailableOptions(int chipid, int busid);
+extern const OptionInfoRec *I830AvailableOptions(int chipid, int busid);
 extern void I830InitpScrn(ScrnInfoPtr pScrn);
 
 /* Symbol lists shared by the i810 and i830 parts. */
+extern int I830EntityIndex;
 extern const char *I810vgahwSymbols[];
 extern const char *I810ramdacSymbols[];
 extern const char *I810int10Symbols[];
@@ -91,7 +97,7 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 			     const char *function, const char *fmt, ...);
 
 #ifdef _I830_H_
-#define PrintErrorState I830PrintErrorState
+#define PrintErrorState i830_dump_error_state
 #define WaitRingFunc I830WaitLpRing
 #define RecPtr pI830
 #else
@@ -126,13 +132,17 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 
 #define ADVANCE_LP_RING() do {						\
    if (ringused > needed)          \
-      ErrorF("%s: ADVANCE_LP_RING: exceeded allocation %d/%d\n ",      \
-	     __FUNCTION__, ringused, needed);     \
+      FatalError("%s: ADVANCE_LP_RING: exceeded allocation %d/%d\n ",	\
+	     __FUNCTION__, ringused, needed);   			\
+   else if (ringused < needed)						\
+      FatalError("%s: ADVANCE_LP_RING: under-used allocation %d/%d\n ",	\
+	     __FUNCTION__, ringused, needed);   			\
    RecPtr->LpRing->tail = outring;					\
    RecPtr->LpRing->space -= ringused;					\
    if (outring & 0x07)							\
-      ErrorF("ADVANCE_LP_RING: "					\
-	     "outring (0x%x) isn't on a QWord boundary\n", outring);	\
+      FatalError("%s: ADVANCE_LP_RING: "					\
+	     "outring (0x%x) isn't on a QWord boundary\n",		\
+	     __FUNCTION__, outring);					\
    OUTREG(LP_RING + RING_TAIL, outring);				\
 } while (0)
 
@@ -273,6 +283,26 @@ extern int I810_DEBUG;
 #define PCI_CHIP_I945_GM_BRIDGE 0x27A0
 #endif
 
+#ifndef PCI_CHIP_I965_G_1
+#define PCI_CHIP_I965_G_1		0x2982
+#define PCI_CHIP_I965_G_1_BRIDGE 	0x2980
+#endif
+
+#ifndef PCI_CHIP_I965_Q
+#define PCI_CHIP_I965_Q		0x2992
+#define PCI_CHIP_I965_Q_BRIDGE 	0x2990
+#endif
+
+#ifndef PCI_CHIP_I965_G
+#define PCI_CHIP_I965_G		0x29A2
+#define PCI_CHIP_I965_G_BRIDGE 	0x29A0
+#endif
+
+#ifndef PCI_CHIP_I946_GZ
+#define PCI_CHIP_I946_GZ		0x2972
+#define PCI_CHIP_I946_GZ_BRIDGE 	0x2970
+#endif
+
 #define IS_I810(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I810 ||	\
 			pI810->PciInfo->chipType == PCI_CHIP_I810_DC100 || \
 			pI810->PciInfo->chipType == PCI_CHIP_I810_E)
@@ -288,7 +318,8 @@ extern int I810_DEBUG;
 #define IS_I915GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I915_GM)
 #define IS_I945G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_G)
 #define IS_I945GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_GM)
-#define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810))
+#define IS_I965G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_G || pI810->PciInfo->chipType == PCI_CHIP_I965_G_1 || pI810->PciInfo->chipType == PCI_CHIP_I965_Q || pI810->PciInfo->chipType == PCI_CHIP_I946_GZ)
+#define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810))
 
 #define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810))
 
@@ -307,10 +338,6 @@ extern int I810_DEBUG;
 /* Use a 64x64 HW cursor */
 #define I810_CURSOR_X			64
 #define I810_CURSOR_Y			I810_CURSOR_X
-
-/* XXX Need to check if these are reasonable. */
-#define MAX_DISPLAY_PITCH		2048
-#define MAX_DISPLAY_HEIGHT		2048
 
 #define PIPE_NAME(n)			('A' + (n))
 

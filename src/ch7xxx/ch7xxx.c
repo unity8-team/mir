@@ -25,248 +25,279 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <string.h>
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"
 #include "compiler.h"
 #include "miscstruct.h"
 #include "xf86i2c.h"
-
-#include <string.h>
+#include "i830_xf86Crtc.h"
+#define DPMS_SERVER
+#include <X11/extensions/dpms.h>
 
 #include "../i2c_vid.h"
 #include "ch7xxx.h"
 #include "ch7xxx_reg.h"
 
-static void ch7xxxSaveRegs(void *d);
+/** @file
+ * driver for the Chrontel 7xxx DVI chip over DVO.
+ */
+
+static struct ch7xxx_id_struct {
+    int vid;
+    char *name;
+} ch7xxx_ids[] = { 
+	{ CH7011_VID, "CH7011" },
+	{ CH7009A_VID, "CH7009A" },
+	{ CH7009B_VID, "CH7009B" },
+};
+
+#define ID_ARRAY_SIZE (sizeof(ch7xxx_ids) / sizeof(ch7xxx_ids[0]))
+
+struct ch7xxx_reg_state {
+    CARD8 regs[CH7xxx_NUM_REGS];
+};
+
+struct ch7xxx_priv {
+    I2CDevRec d;
+    struct ch7xxx_reg_state SavedReg;
+    struct ch7xxx_reg_state ModeReg;
+    CARD8 save_TCTL, save_TPCP, save_TPD, save_TPVT;
+    CARD8 save_TLPF, save_TCT, save_PM, save_IDF;
+};
+
+static void ch7xxx_save(I2CDevPtr d);
 
 static CARD8 ch7xxxFreqRegs[][7] =
   { { 0, 0x23, 0x08, 0x16, 0x30, 0x60, 0x00 },
     { 0, 0x23, 0x04, 0x26, 0x30, 0x60, 0x00 },
     { 0, 0x2D, 0x07, 0x26, 0x30, 0xE0, 0x00 } };
 
-
-static Bool ch7xxxReadByte(CH7xxxPtr ch7xxx, int addr, unsigned char *ch)
+static char *ch7xxx_get_id(int vid)
 {
-  if (!xf86I2CReadByte(&(ch7xxx->d), addr, ch)) {
-    xf86DrvMsg(ch7xxx->d.pI2CBus->scrnIndex, X_ERROR, "Unable to read from %s Slave %d.\n", ch7xxx->d.pI2CBus->BusName, ch7xxx->d.SlaveAddr);
-    return FALSE;
-  }
-  return TRUE;
-}
+    int i;
 
-static Bool ch7xxxWriteByte(CH7xxxPtr ch7xxx, int addr, unsigned char ch)
-{
-  if (!xf86I2CWriteByte(&(ch7xxx->d), addr, ch)) {
-    xf86DrvMsg(ch7xxx->d.pI2CBus->scrnIndex, X_ERROR, "Unable to write to %s Slave %d.\n", ch7xxx->d.pI2CBus->BusName, ch7xxx->d.SlaveAddr);
-    return FALSE;
-  }
-  return TRUE;
-}
+    for (i = 0; i < ID_ARRAY_SIZE; i++) {
+        if (ch7xxx_ids[i].vid == vid)
+		return ch7xxx_ids[i].name;
+    }
 
-/* Ch7xxxicon Image 164 driver for chip on i2c bus */
-static void *ch7xxxDetect(I2CBusPtr b, I2CSlaveAddr addr)
-{
-  /* this will detect the CH7xxx chip on the specified i2c bus */
-  CH7xxxPtr ch7xxx;
-  unsigned char ch;
-
-  xf86DrvMsg(b->scrnIndex, X_ERROR, "detecting ch7xxx\n");
-  
-  ch7xxx = xcalloc(1, sizeof(CH7xxxRec));
-  if (ch7xxx == NULL)
     return NULL;
-
-  ch7xxx->d.DevName = "CH7xxx TMDS Controller";
-  ch7xxx->d.SlaveAddr = addr;
-  ch7xxx->d.pI2CBus = b;
-  ch7xxx->d.StartTimeout = b->StartTimeout;
-  ch7xxx->d.BitTimeout = b->BitTimeout;
-  ch7xxx->d.AcknTimeout = b->AcknTimeout;
-  ch7xxx->d.ByteTimeout = b->ByteTimeout;
-  ch7xxx->d.DriverPrivate.ptr = ch7xxx;
-
-  if (!ch7xxxReadByte(ch7xxx, CH7xxx_REG_VID, &ch))
-    goto out;
-
-  ErrorF("VID is %02X", ch);
-  if (ch!=(CH7xxx_VID & 0xFF))
-  {
-    xf86DrvMsg(ch7xxx->d.pI2CBus->scrnIndex, X_ERROR, "ch7xxx not detected got %d: from %s Slave %d.\n", ch, ch7xxx->d.pI2CBus->BusName, ch7xxx->d.SlaveAddr);
-    goto out;
-  }
-
-
-  if (!ch7xxxReadByte(ch7xxx, CH7xxx_REG_DID, &ch))
-    goto out;
-
-  ErrorF("DID is %02X", ch);
-  if (ch!=(CH7xxx_DID & 0xFF))
-  {
-    xf86DrvMsg(ch7xxx->d.pI2CBus->scrnIndex, X_ERROR, "ch7xxx not detected got %d: from %s Slave %d.\n", ch, ch7xxx->d.pI2CBus->BusName, ch7xxx->d.SlaveAddr);
-    goto out;
-  }
-
-
-  if (!xf86I2CDevInit(&(ch7xxx->d)))
-  {
-    goto out;
-  }
-
-  return ch7xxx;
-  
- out:
-  xfree(ch7xxx);
-  return NULL;
 }
 
-
-static Bool ch7xxxInit(I2CDevPtr d)
+/** Reads an 8 bit register */
+static Bool
+ch7xxx_read(struct ch7xxx_priv *dev_priv, int addr, unsigned char *ch)
 {
-  CH7xxxPtr ch7xxx = CH7PTR(d);
+    if (!xf86I2CReadByte(&dev_priv->d, addr, ch)) {
+	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex,
+		   X_ERROR, "Unable to read from %s Slave %d.\n",
+		   dev_priv->d.pI2CBus->BusName, dev_priv->d.SlaveAddr);
+	return FALSE;
+    }
 
-  /* not much to do */
-  return TRUE;
+    return TRUE;
 }
 
-static ModeStatus ch7xxxModeValid(I2CDevPtr d, DisplayModePtr mode)
+/** Writes an 8 bit register */
+static Bool
+ch7xxx_write(struct ch7xxx_priv *dev_priv, int addr, unsigned char ch)
 {
-  CH7xxxPtr ch7xxx = CH7PTR(d);
-  
-  return MODE_OK;
+    if (!xf86I2CWriteByte(&dev_priv->d, addr, ch)) {
+	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_ERROR,
+		   "Unable to write to %s Slave %d.\n",
+		   dev_priv->d.pI2CBus->BusName, dev_priv->d.SlaveAddr);
+	return FALSE;
+    }
+
+    return TRUE;
 }
 
-static void ch7xxxMode(I2CDevPtr d, DisplayModePtr mode)
+static void *
+ch7xxx_init(I2CBusPtr b, I2CSlaveAddr addr)
 {
-  CH7xxxPtr ch7xxx = CH7PTR(d);
-  int ret;
-  unsigned char pm, idf;
-  unsigned char tpcp, tpd, tpf, cm;
-  CARD8 *freq_regs;
-  int i;
-  ErrorF("Clock is %d\n", mode->Clock);
+    /* this will detect the CH7xxx chip on the specified i2c bus */
+    struct ch7xxx_priv *dev_priv;
+    CARD8 vendor, device;
+    unsigned char ch;
+    char *name;
 
-  if (mode->Clock < 75000)
-    freq_regs = ch7xxxFreqRegs[0];
-  else if (mode->Clock < 125000)
-    freq_regs = ch7xxxFreqRegs[1];
-  else
-    freq_regs = ch7xxxFreqRegs[2];
+    dev_priv = xcalloc(1, sizeof(struct ch7xxx_priv));
+    if (dev_priv == NULL)
+	return NULL;
 
-  for (i = 0x31; i < 0x37; i++) {
-    ch7xxx->ModeReg.regs[i] = freq_regs[i - 0x31];
-    ch7xxxWriteByte(ch7xxx, i, ch7xxx->ModeReg.regs[i]);
-  }
-    
-#if 0
+    dev_priv->d.DevName = "CH7xxx TMDS Controller";
+    dev_priv->d.SlaveAddr = addr;
+    dev_priv->d.pI2CBus = b;
+    dev_priv->d.StartTimeout = b->StartTimeout;
+    dev_priv->d.BitTimeout = b->BitTimeout;
+    dev_priv->d.AcknTimeout = b->AcknTimeout;
+    dev_priv->d.ByteTimeout = b->ByteTimeout;
+    dev_priv->d.DriverPrivate.ptr = dev_priv;
 
-  xf86DrvMsg(ch7xxx->d.pI2CBus->scrnIndex, X_ERROR, "ch7xxx idf is 0x%02x, 0x%02x, 0x%02x, 0x%02x\n", idf, tpcp, tpd, tpf);
+    if (!ch7xxx_read(dev_priv, CH7xxx_REG_VID, &vendor))
+	goto out;
 
-  xf86DrvMsg(ch7xxx->d.pI2CBus->scrnIndex, X_ERROR, "ch7xxx pm is %02X\n", pm);
+    name = ch7xxx_get_id(vendor);
+    if (!name) {
+	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_INFO,
+		   "ch7xxx not detected; got 0x%02x from %s slave %d.\n",
+		   vendor, dev_priv->d.pI2CBus->BusName,
+		   dev_priv->d.SlaveAddr);
+	goto out;
+    }
 
-  if (mode->Clock < 65000) {
-    tpcp = 0x08;
-    tpd = 0x16;
-    tpf = 0x60;
-  } else {
-    tpcp = 0x06;
-    tpd = 0x26;
-    tpf = 0xa0;
-  }
 
-  idf &= ~(CH7xxx_IDF_HSP | CH7xxx_IDF_VSP);
-  if (mode->Flags & V_PHSYNC)
-    idf |= CH7xxx_IDF_HSP;
+    if (!ch7xxx_read(dev_priv, CH7xxx_REG_DID, &device))
+	goto out;
 
-  if (mode->Flags & V_PVSYNC)
-    idf |= CH7xxx_IDF_HSP;
-  
-  /* setup PM Registers */
-  pm &= ~CH7xxx_PM_FPD;
-  pm |= CH7xxx_PM_DVIL | CH7xxx_PM_DVIP;
+    if (device != CH7xxx_DID) {
+	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_INFO,
+		   "ch7xxx not detected; got 0x%02x from %s slave %d.\n",
+		   device, dev_priv->d.pI2CBus->BusName,
+		   dev_priv->d.SlaveAddr);
+	goto out;
+    }
+	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_INFO,
+		   "Detected %s chipset, vendor/device ID 0x%02x/0x%02x\n",
+		   name, vendor, device);
 
-  //  cm |= 1;
+    if (!xf86I2CDevInit(&dev_priv->d)) {
+	goto out;
+    }
 
-  ch7xxxWriteByte(ch7xxx, CH7xxx_CM, cm);
-  ch7xxxWriteByte(ch7xxx, CH7xxx_TPCP, tpcp);
-  ch7xxxWriteByte(ch7xxx, CH7xxx_TPD, tpd);
-  ch7xxxWriteByte(ch7xxx, CH7xxx_TPF, tpf);
-  ch7xxxWriteByte(ch7xxx, CH7xxx_TPF, idf);
-  ch7xxxWriteByte(ch7xxx, CH7xxx_PM, pm);
+    return dev_priv;
 
-#endif
-  /* don't do much */
-  return;
+out:
+    xfree(dev_priv);
+    return NULL;
+}
+
+static xf86OutputStatus
+ch7xxx_detect(I2CDevPtr d)
+{
+    struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
+    CARD8 cdet;
+    ch7xxx_read(dev_priv, CH7xxx_CONNECTION_DETECT, &cdet);
+
+    if (cdet & CH7xxx_CDET_DVI) 
+    	return XF86OutputStatusConnected;
+    return XF86OutputStatusDisconnected;
+}
+
+static ModeStatus
+ch7xxx_mode_valid(I2CDevPtr d, DisplayModePtr mode)
+{
+    if (mode->Clock > 165000)
+	return MODE_CLOCK_HIGH;
+
+    return MODE_OK;
+}
+
+static void
+ch7xxx_mode_set(I2CDevPtr d, DisplayModePtr mode)
+{
+    struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
+    CARD8 tvco, tpcp, tpd, tlpf, idf;
+
+    if (mode->Clock <= 65000) {
+	tvco = 0x23;
+	tpcp = 0x08;
+	tpd = 0x16;
+	tlpf = 0x60;
+    } else {
+	tvco = 0x2d;
+	tpcp = 0x06;
+	tpd = 0x26;
+	tlpf = 0xa0;
+    }
+
+    ch7xxx_write(dev_priv, CH7xxx_TCTL, 0x00);
+    ch7xxx_write(dev_priv, CH7xxx_TVCO, tvco);
+    ch7xxx_write(dev_priv, CH7xxx_TPCP, tpcp);
+    ch7xxx_write(dev_priv, CH7xxx_TPD, tpd);
+    ch7xxx_write(dev_priv, CH7xxx_TPVT, 0x30);
+    ch7xxx_write(dev_priv, CH7xxx_TLPF, tlpf);
+    ch7xxx_write(dev_priv, CH7xxx_TCT, 0x00);
+
+    ch7xxx_read(dev_priv, CH7xxx_IDF, &idf);
+
+    idf &= ~(CH7xxx_IDF_HSP | CH7xxx_IDF_VSP);
+    if (mode->Flags & V_PHSYNC)
+	idf |= CH7xxx_IDF_HSP;
+
+    if (mode->Flags & V_PVSYNC)
+	idf |= CH7xxx_IDF_HSP;
+
+    ch7xxx_write(dev_priv, CH7xxx_IDF, idf);
 }
 
 /* set the CH7xxx power state */
-static void ch7xxxPower(I2CDevPtr d, Bool On)
+static void
+ch7xxx_dpms(I2CDevPtr d, int mode)
 {
-  CH7xxxPtr ch7xxx = CH7PTR(d);
-  int ret;
-  unsigned char ch;
+    struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
 
-
-  ret = ch7xxxReadByte(ch7xxx, CH7xxx_PM, &ch);
-  if (ret == FALSE)
-    return;
-  
-  xf86DrvMsg(ch7xxx->d.pI2CBus->scrnIndex, X_ERROR, "ch7xxx pm is %02X\n", ch);
-  
-#if 0  
-  ret = ch7xxxReadByte(ch7xxx, CH7xxx_REG8, &ch);
-  if (ret)
-    return;
-
-  if (On)
-    ch |= CH7xxx_8_PD;
-  else
-    ch &= ~CH7xxx_8_PD;
-
-  ch7xxxWriteByte(ch7xxx, CH7xxx_REG8, ch);
-#endif
-  return;
+    if (mode == DPMSModeOn)
+	ch7xxx_write(dev_priv, CH7xxx_PM, CH7xxx_PM_DVIL | CH7xxx_PM_DVIP);
+    else
+	ch7xxx_write(dev_priv, CH7xxx_PM, CH7xxx_PM_FPD);
 }
 
-static void ch7xxxPrintRegs(I2CDevPtr d)
+static void
+ch7xxx_dump_regs(I2CDevPtr d)
 {
-  CH7xxxPtr ch7xxx = CH7PTR(d);
-  int i;
+    struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
+    int i;
 
-  ch7xxxSaveRegs(d);
-
-  for (i = 0; i < CH7xxx_NUM_REGS; i++) {
-    if (( i % 8 ) == 0 )
-      ErrorF("\n %02X: ", i);
-    ErrorF("%02X ", ch7xxx->ModeReg.regs[i]);
-
-  }
+    for (i = 0; i < CH7xxx_NUM_REGS; i++) {
+	if (( i % 8 ) == 0 )
+	    ErrorF("\n %02X: ", i);
+	ErrorF("%02X ", dev_priv->ModeReg.regs[i]);
+    }
 }
 
-static void ch7xxxSaveRegs(void *d)
+static void
+ch7xxx_save(I2CDevPtr d)
 {
-  CH7xxxPtr ch7xxx = CH7PTR(((I2CDevPtr)d));
-  int ret;
-  int i;
+    struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
 
-  for (i = 0; i < CH7xxx_NUM_REGS; i++) {
-    ret = ch7xxxReadByte(ch7xxx, i, &ch7xxx->SavedReg.regs[i]);
-    if (ret == FALSE)
-      break;
-  }
+    ch7xxx_read(dev_priv, CH7xxx_TCTL, &dev_priv->save_TCTL);
+    ch7xxx_read(dev_priv, CH7xxx_TPCP, &dev_priv->save_TPCP);
+    ch7xxx_read(dev_priv, CH7xxx_TPD, &dev_priv->save_TPD);
+    ch7xxx_read(dev_priv, CH7xxx_TPVT, &dev_priv->save_TPVT);
+    ch7xxx_read(dev_priv, CH7xxx_TLPF, &dev_priv->save_TLPF);
+    ch7xxx_read(dev_priv, CH7xxx_PM, &dev_priv->save_PM);
+    ch7xxx_read(dev_priv, CH7xxx_IDF, &dev_priv->save_IDF);
+}
 
-  memcpy(ch7xxx->ModeReg.regs, ch7xxx->SavedReg.regs, CH7xxx_NUM_REGS);
+static void
+ch7xxx_restore(I2CDevPtr d)
+{
+    struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
 
-  return;
+    ch7xxx_write(dev_priv, CH7xxx_TCTL, dev_priv->save_TCTL);
+    ch7xxx_write(dev_priv, CH7xxx_TPCP, dev_priv->save_TPCP);
+    ch7xxx_write(dev_priv, CH7xxx_TPD, dev_priv->save_TPD);
+    ch7xxx_write(dev_priv, CH7xxx_TPVT, dev_priv->save_TPVT);
+    ch7xxx_write(dev_priv, CH7xxx_TLPF, dev_priv->save_TLPF);
+    ch7xxx_write(dev_priv, CH7xxx_IDF, dev_priv->save_IDF);
+    ch7xxx_write(dev_priv, CH7xxx_PM, dev_priv->save_PM);
 }
 
 I830I2CVidOutputRec CH7xxxVidOutput = {
-  ch7xxxDetect,
-  ch7xxxInit,
-  ch7xxxModeValid,
-  ch7xxxMode,
-  ch7xxxPower,
-  ch7xxxPrintRegs,
-  ch7xxxSaveRegs,
-  NULL,
+    .init = ch7xxx_init,
+    .detect = ch7xxx_detect,
+    .mode_valid = ch7xxx_mode_valid,
+    .mode_set = ch7xxx_mode_set,
+    .dpms = ch7xxx_dpms,
+    .dump_regs = ch7xxx_dump_regs,
+    .save = ch7xxx_save,
+    .restore = ch7xxx_restore,
 };
