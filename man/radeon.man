@@ -15,9 +15,8 @@ radeon \- ATI RADEON video driver
 .B radeon
 is an __xservername__ driver for ATI RADEON based video cards.  It contains
 full support for 8, 15, 16 and 24 bit pixel depths, dual-head setup,
-flat panel, hardware 2D acceleration, hardware 3D acceleration
-(experimental on R300 and R400 series cards), hardware cursor, XV extension,
-and the Xinerama extension.
+flat panel, hardware 2D acceleration, hardware 3D acceleration, hardware cursor, 
+XV extension, and the Xinerama extension.
 .SH SUPPORTED HARDWARE
 The
 .B radeon
