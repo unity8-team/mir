@@ -769,63 +769,6 @@ I830AllocateFramebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
    return TRUE;
 }
 
-/**
- * Allocates memory for the rotated shadow buffers.
- *
- * This memory would be better allocated normally through the linear allocator,
- * but it gets rotation working for now.
- */
-static Bool
-I830AllocateRotateBuffers(xf86CrtcPtr crtc, const int flags)
-{
-   ScrnInfoPtr pScrn = crtc->scrn;
-   I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-   I830Ptr pI830 = I830PTR(pScrn);
-   Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
-   unsigned long avail, lineSize;
-   int verbosity = dryrun ? 4 : 1;
-   const char *s = dryrun ? "[dryrun] " : "";
-   int align, alignflags;
-   long size, alloced;
-   int rotate_width, rotate_height;
-
-   memset(&intel_crtc->rotate_mem, 0, sizeof(intel_crtc->rotate_mem));
-
-   rotate_width = pScrn->displayWidth;
-   if (pScrn->virtualX > pScrn->virtualY)
-      rotate_height = pScrn->virtualX;
-   else
-      rotate_height = pScrn->virtualY;
-
-   lineSize = pScrn->displayWidth * pI830->cpp;
-   avail = pScrn->videoRam * 1024;
-
-   align = KB(64);
-   alignflags = 0;
-
-   size = lineSize * rotate_height;
-   size = ROUND_TO_PAGE(size);
-   xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		  "%sInitial %sshadow framebuffer allocation size: "
-		  "%ld kByte\n",
-		  s, (intel_crtc->pipe == 0) ? "" : "secondary ",
-		  size / 1024);
-   alloced = I830AllocVidMem(pScrn, &intel_crtc->rotate_mem,
-			     &pI830->StolenPool, size, align,
-			     flags | alignflags |
-			     FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
-   if (alloced < size) {
-      if (!dryrun) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
-		    "%sshadow framebuffer. Is your VideoRAM set too low?\n",
-		    (intel_crtc->pipe == 0) ? "" : "secondary ");
-      }
-      return FALSE;
-   }
-
-   return TRUE;
-}
-
 static Bool
 I830AllocateCursorBuffers(xf86CrtcPtr crtc, const int flags)
 {
@@ -979,10 +922,6 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 				   FALSE, flags))
       {
 	 return FALSE;
-      }
-
-      for (i = 0; i < xf86_config->num_crtc; i++) {
-	 I830AllocateRotateBuffers(xf86_config->crtc[i], flags);
       }
 
 #ifdef I830_USE_EXA
@@ -1619,7 +1558,6 @@ I830FixupOffsets(ScrnInfoPtr pScrn)
    for (i = 0; i < xf86_config->num_crtc; i++) {
       I830CrtcPrivatePtr intel_crtc = xf86_config->crtc[i]->driver_private;
 
-      I830FixOffset(pScrn, &intel_crtc->rotate_mem);
       I830FixOffset(pScrn, &intel_crtc->cursor_mem);
       I830FixOffset(pScrn, &intel_crtc->cursor_mem_argb);
    }
@@ -2028,8 +1966,6 @@ I830BindAGPMemory(ScrnInfoPtr pScrn)
       for (i = 0; i < xf86_config->num_crtc; i++) {
 	 I830CrtcPrivatePtr intel_crtc = xf86_config->crtc[i]->driver_private;
 
-	 if (!BindMemRange(pScrn, &intel_crtc->rotate_mem))
-	    return FALSE;
 	 if (!BindMemRange(pScrn, &intel_crtc->cursor_mem))
 	    return FALSE;
 	 if (!BindMemRange(pScrn, &intel_crtc->cursor_mem_argb))
@@ -2130,8 +2066,6 @@ I830UnbindAGPMemory(ScrnInfoPtr pScrn)
       for (i = 0; i < xf86_config->num_crtc; i++) {
 	 I830CrtcPrivatePtr intel_crtc = xf86_config->crtc[i]->driver_private;
 
-	 if (!UnbindMemRange(pScrn, &intel_crtc->rotate_mem))
-	    return FALSE;
 	 if (!UnbindMemRange(pScrn, &intel_crtc->cursor_mem))
 	    return FALSE;
 	 if (!UnbindMemRange(pScrn, &intel_crtc->cursor_mem_argb))
@@ -2209,3 +2143,41 @@ I830CheckAvailableMemory(ScrnInfoPtr pScrn)
 
    return maxPages * 4;
 }
+
+#ifdef I830_USE_XAA
+/**
+ * Allocates memory from the XF86 linear allocator, but also purges
+ * memory if possible to cause the allocation to succeed.
+ */
+FBLinearPtr
+i830_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
+				 int granularity,
+				 MoveLinearCallbackProcPtr moveCB,
+				 RemoveLinearCallbackProcPtr removeCB,
+				 pointer privData)
+{
+   FBLinearPtr linear;
+   int max_size;
+
+   linear = xf86AllocateOffscreenLinear(pScreen, length, granularity, moveCB,
+					removeCB, privData);
+   if (linear != NULL)
+      return linear;
+
+   /* The above allocation didn't succeed, so purge unlocked stuff and try
+    * again.
+    */
+   xf86QueryLargestOffscreenLinear(pScreen, &max_size, granularity,
+				   PRIORITY_EXTREME);
+
+   if (max_size < length)
+      return NULL;
+
+   xf86PurgeUnlockedOffscreenAreas(pScreen);
+
+   linear = xf86AllocateOffscreenLinear(pScreen, length, granularity, moveCB,
+					removeCB, privData);
+
+   return linear;
+}
+#endif

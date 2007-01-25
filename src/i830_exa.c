@@ -418,7 +418,7 @@ I830EXAInit(ScreenPtr pScreen)
     
     pI830->bufferOffset = 0;
     pI830->EXADriverPtr->exa_major = 2;
-    pI830->EXADriverPtr->exa_minor = 0;
+    pI830->EXADriverPtr->exa_minor = 1;
     pI830->EXADriverPtr->memoryBase = pI830->FbBase;
     pI830->EXADriverPtr->offScreenBase = pI830->Offscreen.Start;
     pI830->EXADriverPtr->memorySize = pI830->Offscreen.End;
@@ -520,9 +520,14 @@ I830EXAInit(ScreenPtr pScreen)
     }
 
     if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {
-	xfree(pI830->EXADriverPtr);
-	pI830->noAccel = TRUE;
-	return FALSE;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "EXA initialization failed; trying older version\n");
+	pI830->EXADriverPtr->exa_minor = 0;
+	if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {
+	    xfree(pI830->EXADriverPtr);
+	    pI830->noAccel = TRUE;
+	    return FALSE;
+	}
     }
 
     I830SelectBuffer(pScrn, I830_SELECT_FRONT);

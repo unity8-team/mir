@@ -2073,8 +2073,6 @@ I830AllocateMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear, int size,
 #endif /* I830_USE_EXA */
 #ifdef I830_USE_XAA
    if (!pI830->useEXA) {
-      int max_size;
-
       /* Converts an offset from XAA's linear allocator to an offset from the
        * start of fb.
        */
@@ -2100,25 +2098,11 @@ I830AllocateMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear, int size,
 	 xf86FreeOffscreenLinear(linear->xaa);
       }
 
-      linear->xaa = xf86AllocateOffscreenLinear(pScreen, size, align,
-						NULL, NULL, NULL);
-      if (linear->xaa != NULL) {
-	 linear->offset = XAA_OFFSET_TO_OFFSET(linear->xaa->offset);
+      linear->xaa = i830_xf86AllocateOffscreenLinear(pScreen, size, align,
+						     NULL, NULL, NULL);
+      if (linear->xaa == NULL)
 	 return;
-      }
 
-      xf86QueryLargestOffscreenLinear(pScreen, &max_size, align,
-				      PRIORITY_EXTREME);
-
-      if (max_size < size) {
-	 ErrorF("No memory available\n");
-	 linear->offset = 0;
-	 return;
-      }
-
-      xf86PurgeUnlockedOffscreenAreas(pScreen);
-      linear->xaa = xf86AllocateOffscreenLinear(pScreen, size, align,
-						NULL, NULL, NULL);
       linear->offset = XAA_OFFSET_TO_OFFSET(linear->xaa->offset);
    }
 #endif /* I830_USE_XAA */

@@ -2879,7 +2879,23 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       shadowSetup(pScreen);
       /* support all rotations */
       xf86RandR12Init (pScreen);
-      xf86RandR12SetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
+      if (pI830->useEXA) {
+#ifdef I830_USE_EXA
+	 if (pI830->EXADriverPtr->exa_minor >= 1) {
+	    xf86RandR12SetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 |
+				     RR_Rotate_180 | RR_Rotate_270);
+	 } else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "EXA version %d.%d too old to support rotation\n",
+		       pI830->EXADriverPtr->exa_major,
+		       pI830->EXADriverPtr->exa_minor);
+	    xf86RandR12SetRotations (pScreen, RR_Rotate_0);
+	 }
+#endif /* I830_USE_EXA */
+      } else {
+	 xf86RandR12SetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 |
+				  RR_Rotate_180 | RR_Rotate_270);
+      }
       pI830->PointerMoved = pScrn->PointerMoved;
       pScrn->PointerMoved = I830PointerMoved;
       pI830->CreateScreenResources = pScreen->CreateScreenResources;

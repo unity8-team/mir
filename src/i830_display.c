@@ -342,8 +342,9 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 
-    if (crtc->rotation != RR_Rotate_0) {
-	Start = intel_crtc->rotate_mem.Start;
+    if (crtc->rotatedPixmap != NULL) {
+	Start = (char *)crtc->rotatedPixmap->devPrivate.ptr -
+	    (char *)pI830->FbBase;
     } else if (I830IsPrimary(pScrn)) {
 	Start = pI830->FrontBuffer.Start;
     } else {
@@ -895,31 +896,92 @@ static PixmapPtr
 i830_crtc_shadow_create(xf86CrtcPtr crtc, int width, int height)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
+    ScreenPtr pScreen = pScrn->pScreen;
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     unsigned long rotate_pitch;
     PixmapPtr rotate_pixmap;
-    pointer rotate_offset;
-
-    if (intel_crtc->rotate_mem.Start == 0)
-	return NULL;
+    unsigned long rotate_offset;
+    int align = KB(4), size;
 
     rotate_pitch = pI830->displayWidth * pI830->cpp;
-    rotate_offset = pI830->FbBase + intel_crtc->rotate_mem.Start;
+    size = rotate_pitch * height;
+
+#ifdef I830_USE_EXA
+    /* We could get close to what we want here by just creating a pixmap like
+     * normal, but we have to lock it down in framebuffer, and there is no
+     * setter for offscreen area locking in EXA currently.  So, we just
+     * allocate offscreen memory and fake up a pixmap header for it.
+     */
+    if (pI830->useEXA) {
+	assert(intel_crtc->rotate_mem_exa == NULL);
+
+	intel_crtc->rotate_mem_exa = exaOffscreenAlloc(pScreen, size, align,
+						       TRUE, NULL, NULL);
+	if (intel_crtc->rotate_mem_exa == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Couldn't allocate shadow memory for rotated CRTC\n");
+	    return NULL;
+	}
+	rotate_offset = intel_crtc->rotate_mem_exa->offset;
+    }
+#endif /* I830_USE_EXA */
+#ifdef I830_USE_XAA
+    if (!pI830->useEXA) {
+	/* The XFree86 linear allocator operates in units of screen pixels,
+	 * sadly.
+	 */
+	size = (size + pI830->cpp - 1) / pI830->cpp;
+	align = (align + pI830->cpp - 1) / pI830->cpp;
+
+	assert(intel_crtc->rotate_mem_xaa == NULL);
+
+	intel_crtc->rotate_mem_xaa =
+	    i830_xf86AllocateOffscreenLinear(pScreen, size, align,
+					     NULL, NULL, NULL);
+	if (intel_crtc->rotate_mem_xaa == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Couldn't allocate shadow memory for rotated CRTC\n");
+	    return NULL;
+	}
+	rotate_offset = pI830->FrontBuffer.Start +
+	    intel_crtc->rotate_mem_xaa->offset * pI830->cpp;
+    }
+#endif /* I830_USE_XAA */
 
     rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
 					   width, height,
 					   pScrn->depth,
 					   pScrn->bitsPerPixel,
 					   rotate_pitch,
-					   rotate_offset);
+					   pI830->FbBase + rotate_offset);
+    if (rotate_pixmap == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Couldn't allocate shadow pixmap for rotated CRTC\n");
+    }
     return rotate_pixmap;
 }
 
 static void
 i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap)
 {
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+
     FreeScratchPixmapHeader(rotate_pixmap);
+#ifdef I830_USE_EXA
+    if (pI830->useEXA && intel_crtc->rotate_mem_exa != NULL) {
+	exaOffscreenFree(pScrn->pScreen, intel_crtc->rotate_mem_exa);
+	intel_crtc->rotate_mem_exa = NULL;
+    }
+#endif /* I830_USE_EXA */
+#ifdef I830_USE_XAA
+    if (!pI830->useEXA) {
+	xf86FreeOffscreenLinear(intel_crtc->rotate_mem_xaa);
+	intel_crtc->rotate_mem_xaa = NULL;
+    }
+#endif /* I830_USE_XAA */
 }
 
 
