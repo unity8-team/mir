@@ -54,43 +54,43 @@ Radeon 9100 IGP
 Radeon 9200 IGP
 .TP 12
 .B RS400
-Radeon XPRESS 200/200M IGP
+Radeon XPRESS 200/200M IGP (2d only)
 .TP 12
 .B RV280
 Radeon 9200PRO/9200/9200SE, M9+
 .TP 12
 .B R300
-Radeon 9700PRO/9700/9500PRO/9500/9600TX, FireGL X1/Z1 (2D only)
+Radeon 9700PRO/9700/9500PRO/9500/9600TX, FireGL X1/Z1
 .TP 12
 .B R350
-Radeon 9800PRO/9800SE/9800, FireGL X2 (2D only)
+Radeon 9800PRO/9800SE/9800, FireGL X2
 .TP 12
 .B R360
-Radeon 9800XT (2d only)
+Radeon 9800XT
 .TP 12
 .B RV350
-Radeon 9600PRO/9600SE/9600, M10/M11, FireGL T2 (2D only)
+Radeon 9600PRO/9600SE/9600, M10/M11, FireGL T2
 .TP 12
 .B RV360 
-Radeon 9600XT (2d only)
+Radeon 9600XT
 .TP 12
 .B RV370
-Radeon X300, M22 (2d only)
+Radeon X300, M22
 .TP 12
 .B RV380
-Radeon X600, M24 (2d only)
+Radeon X600, M24
 .TP 12
 .B RV410
-Radeon X700, M26 PCIE (2d only)
+Radeon X700, M26 PCIE
 .TP 12
 .B R420
-Radeon X800 AGP (2d only)
+Radeon X800 AGP
 .TP 12
 .B R423/R430
-Radeon X800, M28 PCIE (2d only)
+Radeon X800, M28 PCIE
 .TP 12
 .B R480/R481
-Radeon X850 PCIE/AGP (2d only)
+Radeon X850 PCIE/AGP
 
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
