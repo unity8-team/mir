@@ -627,14 +627,10 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     /* XXX need device-independent mode setting code through an API */
     if (changed)
     {
-	I830Ptr pI830 = I830PTR(pScrn);
 	crtc->enabled = mode != NULL;
 
 	/* Sync the engine before adjust mode */
-	if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-	    (*pI830->AccelInfoRec->Sync)(pScrn);
-	    pI830->AccelInfoRec->NeedToSync = FALSE;
-	}
+        i830WaitSync(pScrn);
 
 	if (mode)
 	{
@@ -674,6 +670,23 @@ xf86RandR12CrtcSetGamma (ScreenPtr    pScreen,
 			   randr_crtc->gammaBlue, randr_crtc->gammaSize);
 
     return TRUE;
+}
+
+static Bool
+xf86RandR12OutputSetProperty (ScreenPtr pScreen,
+			      RROutputPtr randr_output,
+			      Atom property,
+			      RRPropertyValuePtr value)
+{
+    xf86OutputPtr output = randr_output->devPrivate;
+
+    /* If we don't have any property handler, then we don't care what the
+     * user is setting properties to.
+     */
+    if (output->funcs->set_property == NULL)
+	return TRUE;
+
+    return output->funcs->set_property(output, property, value);
 }
 
 /**
@@ -865,6 +878,9 @@ xf86RandR12CreateObjects12 (ScreenPtr pScreen)
 					       strlen (output->name),
 					       output);
 	RROutputAttachScreen (output->randr_output, pScreen);
+
+	if (output->funcs->create_resources != NULL)
+	    output->funcs->create_resources(output);
     }
     return TRUE;
 }
@@ -901,6 +917,7 @@ xf86RandR12Init12 (ScreenPtr pScreen)
     rp->rrScreenSetSize = xf86RandR12ScreenSetSize;
     rp->rrCrtcSet = xf86RandR12CrtcSet;
     rp->rrCrtcSetGamma = xf86RandR12CrtcSetGamma;
+    rp->rrOutputSetProperty = xf86RandR12OutputSetProperty;
     rp->rrSetConfig = NULL;
     pScrn->PointerMoved = xf86RandR12PointerMoved;
     if (!xf86RandR12CreateObjects12 (pScreen))

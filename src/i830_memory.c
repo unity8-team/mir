@@ -637,6 +637,13 @@ GetFreeSpace(ScrnInfoPtr pScrn)
    return extra;
 }
 
+/* This is the 2D rendering vertical coordinate limit.  We can ignore
+ * the 3D rendering limits in our 2d pixmap cache allocation, because XAA
+ * doesn't do any 3D rendering to/from the cache lines when using an offset
+ * at the start of framebuffer.
+ */
+#define MAX_2D_HEIGHT		65536
+
 /**
  * Allocates a framebuffer for a screen.
  *
@@ -698,25 +705,19 @@ I830AllocateFramebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 		    "maxCacheLines < 0 in I830Allocate2DMemory()\n");
 	 maxCacheLines = 0;
       }
-      if (maxCacheLines > (MAX_DISPLAY_HEIGHT - pScrn->virtualY))
-	 maxCacheLines = MAX_DISPLAY_HEIGHT - pScrn->virtualY;
+      if (maxCacheLines > (MAX_2D_HEIGHT - pScrn->virtualY))
+	 maxCacheLines = MAX_2D_HEIGHT - pScrn->virtualY;
 
       if (pI830->CacheLines >= 0) {
 	 cacheLines = pI830->CacheLines;
       } else {
-#if 1
-	 /* Make sure there is enough for two DVD sized YUV buffers */
-	 cacheLines = (pScrn->depth == 24) ? 256 : 384;
-	 if (pScrn->displayWidth <= 1024)
-	    cacheLines *= 2;
-#else
-	 /*
-	  * Make sure there is enough for two DVD sized YUV buffers.
-	  * Make that 1.5MB, which is around what was allocated with
-	  * the old algorithm
-	  */
-	 cacheLines = (MB(1) + KB(512)) / pI830->cpp / pScrn->displayWidth;
-#endif
+	 int size;
+
+	 size = 3 * lineSize * pScrn->virtualY;
+	 size += 1920 * 1088 * 2 * 2;
+	 size = ROUND_TO_PAGE(size);
+
+	 cacheLines = (size + lineSize - 1) / lineSize;
       }
       if (cacheLines > maxCacheLines)
 	 cacheLines = maxCacheLines;
@@ -902,8 +903,8 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
       maxFb = pI830->FrontBuffer.Size + extra;
       lineSize = pScrn->displayWidth * pI830->cpp;
       maxFb = ROUND_DOWN_TO(maxFb, lineSize);
-      if (maxFb > lineSize * MAX_DISPLAY_HEIGHT)
-	 maxFb = lineSize * MAX_DISPLAY_HEIGHT;
+      if (maxFb > lineSize * MAX_2D_HEIGHT)
+	 maxFb = lineSize * MAX_2D_HEIGHT;
       if (0/*maxFb > pI830->FrontBuffer.Size*/) {
 	 unsigned long oldsize;
 	 /*

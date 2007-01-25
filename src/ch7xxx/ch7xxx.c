@@ -182,7 +182,13 @@ out:
 static xf86OutputStatus
 ch7xxx_detect(I2CDevPtr d)
 {
-    return XF86OutputStatusUnknown;
+    struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
+    CARD8 cdet;
+    ch7xxx_read(dev_priv, CH7xxx_CONNECTION_DETECT, &cdet);
+
+    if (cdet & CH7xxx_CDET_DVI) 
+    	return XF86OutputStatusConnected;
+    return XF86OutputStatusDisconnected;
 }
 
 static ModeStatus

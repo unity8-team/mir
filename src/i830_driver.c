@@ -318,7 +318,6 @@ const char *i830_output_type_names[] = {
 
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
 static Bool I830CloseScreen(int scrnIndex, ScreenPtr pScreen);
-static Bool I830SaveScreen(ScreenPtr pScreen, int unblack);
 static Bool I830EnterVT(int scrnIndex, int flags);
 static CARD32 I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg);
 static Bool SaveHWState(ScrnInfoPtr pScrn);
@@ -1144,14 +1143,13 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* Allocate an xf86CrtcConfig */
    xf86CrtcConfigInit (pScrn);
    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-   
-   if (IS_I965G(pI830))
-   {
-      max_width = 16384;
-      max_height = 4096;
-   }
-   else
-   {
+
+   /* See i830_exa.c comments for why we limit the framebuffer size like this.
+    */
+   if (IS_I965G(pI830)) {
+      max_width = 8192;
+      max_height = 8192;
+   } else {
       max_width = 2048;
       max_height = 2048;
    }
@@ -2897,7 +2895,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Not available\n");
 #endif
 
-   pScreen->SaveScreen = I830SaveScreen;
+   pScreen->SaveScreen = xf86SaveScreen;
    pI830->CloseScreen = pScreen->CloseScreen;
    pScreen->CloseScreen = I830CloseScreen;
 
@@ -3021,10 +3019,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    if (crtc && crtc->enabled)
    {
       /* Sync the engine before adjust frame */
-      if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-	 (*pI830->AccelInfoRec->Sync)(pScrn);
-	 pI830->AccelInfoRec->NeedToSync = FALSE;
-      }
+      i830WaitSync(pScrn);
       i830PipeSetBase(crtc, output->initial_x + x, output->initial_y + y);
    }
 }
@@ -3269,57 +3264,6 @@ I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
    }
 
    return ret;
-}
-
-static Bool
-I830SaveScreen(ScreenPtr pScreen, int mode)
-{
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-   I830Ptr pI830 = I830PTR(pScrn);
-   Bool on = xf86IsUnblank(mode);
-   CARD32 temp, ctrl, base, surf;
-   int i;
-
-   DPRINTF(PFX, "I830SaveScreen: %d, on is %s\n", mode, BOOLTOSTRING(on));
-
-   if (pScrn->vtSema) {
-      for (i = 0; i < xf86_config->num_crtc; i++) {
-        if (i == 0) {
-	    ctrl = DSPACNTR;
-	    base = DSPABASE;
-	    surf = DSPASURF;
-        } else {
-	    ctrl = DSPBCNTR;
-	    base = DSPBADDR;
-	    surf = DSPBSURF;
-        }
-        if (xf86_config->crtc[i]->enabled) {
-	   temp = INREG(ctrl);
-	   if (on)
-	      temp |= DISPLAY_PLANE_ENABLE;
-	   else
-	      temp &= ~DISPLAY_PLANE_ENABLE;
-	   OUTREG(ctrl, temp);
-	   /* Flush changes */
-	   temp = INREG(base);
-	   OUTREG(base, temp);
-	   if (IS_I965G(pI830)) {
-	      temp = INREG(surf);
-	      OUTREG(surf, temp);
-	   }
-        }
-      }
-
-      if (pI830->CursorInfoRec && !pI830->SWCursor && pI830->cursorOn) {
-	 if (on)
-	    pI830->CursorInfoRec->ShowCursor(pScrn);
-	 else
-	    pI830->CursorInfoRec->HideCursor(pScrn);
-	 pI830->cursorOn = TRUE;
-      }
-   }
-   return TRUE;
 }
 
 static Bool

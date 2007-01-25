@@ -805,10 +805,7 @@ I965UpdateRotate (ScreenPtr      pScreen,
 	 /* Since we use the same little vertex buffer over and over, sync for
 	  * subsequent rectangles.
 	  */
-	 if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-	    (*pI830->AccelInfoRec->Sync)(pScrn);
-	    pI830->AccelInfoRec->NeedToSync = FALSE;
-	 }
+	 i830WaitSync(pScrn);
       }
 
       pbox++;
@@ -895,12 +892,10 @@ I965UpdateRotate (ScreenPtr      pScreen,
       ADVANCE_LP_RING();
 
       first_output = FALSE;
-      if (pI830->AccelInfoRec)
-	 pI830->AccelInfoRec->NeedToSync = TRUE;
+      i830MarkSync(pScrn);
    }
 
-   if (pI830->AccelInfoRec)
-      (*pI830->AccelInfoRec->Sync)(pScrn);
+   i830WaitSync(pScrn);
 #ifdef XF86DRI
    if (didLock)
       I830DRIUnlock(pScrn1);

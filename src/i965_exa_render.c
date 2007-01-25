@@ -369,6 +369,16 @@ I965EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     CARD32 mask_offset = 0, mask_pitch = 0;
     CARD32 dst_format, dst_offset, dst_pitch;
 
+#ifdef XF86DRI
+    if (pI830->directRenderingEnabled) {
+        drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+
+        pSAREAPriv->ctxOwner = DRIGetContext(pScrn->pScreen);
+    }
+#endif
+
+    pI830->last_3d = LAST_3D_RENDER;
+
     src_offset = exaGetPixmapOffset(pSrc);
     src_pitch = exaGetPixmapPitch(pSrc);
     dst_offset = exaGetPixmapOffset(pDst);
@@ -403,6 +413,9 @@ I965EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	/* setup 3d pipeline state */
 
    binding_table_entries = 2; /* default no mask */
+
+   /* Wait for sync before we start setting up our new state */
+   i830WaitSync(pScrn);
 
    /* Set up our layout of state in framebuffer.  First the general state: */
    next_offset = 0;
@@ -1024,6 +1037,11 @@ I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		"dstX %d, dstY %d\n", srcX, srcY, srcXend, srcYend,
 		maskX, maskY, maskXend, maskYend, dstX, dstY);
 
+    /* Wait for any existing composite rectangles to land before we overwrite
+     * the VB with the next one.
+     */
+    i830WaitSync(pScrn);
+
     i = 0;
     /* rect (x2,y2) */
     vb[i++] = (float)(srcXend) / pI830->scale_units[0][0];
@@ -1088,4 +1106,9 @@ I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
    	OUT_RING(0); /* Immediate data high DW */
 	ADVANCE_LP_RING();
     }
+
+    /* Mark sync so we can wait for it before setting up the VB on the next
+     * rectangle.
+     */
+    i830MarkSync(pScrn);
 }

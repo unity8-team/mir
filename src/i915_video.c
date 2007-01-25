@@ -433,7 +433,6 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       ADVANCE_LP_RING();
    }
 
-   if (pI830->AccelInfoRec)
-      pI830->AccelInfoRec->NeedToSync = TRUE;
+   i830MarkSync(pScrn);
 }
 

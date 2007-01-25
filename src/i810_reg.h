@@ -937,8 +937,21 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define BLC_PWM_CTL		0x61254
 #define BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
+/**
+ * This is the most significant 15 bits of the number of backlight cycles in a
+ * complete cycle of the modulated backlight control.
+ *
+ * The actual value is this field multiplied by two.
+ */
 #define BACKLIGHT_MODULATION_FREQ_MASK		(0x7fff << 17)
 #define BLM_LEGACY_MODE				(1 << 16)
+/**
+ * This is the number of cycles out of the backlight modulation cycle for which
+ * the backlight is on.
+ *
+ * This field must be no greater than the number of cycles in the complete
+ * backlight modulation cycle.
+ */
 #define BACKLIGHT_DUTY_CYCLE_SHIFT		(0)
 #define BACKLIGHT_DUTY_CYCLE_MASK		(0xffff)
 

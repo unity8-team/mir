@@ -171,6 +171,13 @@ struct _xf86Crtc {
 
 typedef struct _xf86OutputFuncs {
     /**
+     * Called to allow the output a chance to create properties after the
+     * RandR objects have been created.
+     */
+    void
+    (*create_resources)(xf86OutputPtr output);
+
+    /**
      * Turns the output on/off, or sets intermediate power levels if available.
      *
      * Unsupported intermediate modes drop to the lower power setting.  If the
@@ -245,6 +252,15 @@ typedef struct _xf86OutputFuncs {
     DisplayModePtr
     (*get_modes)(xf86OutputPtr	    output);
 
+#ifdef RANDR_12_INTERFACE
+    /**
+     * Callback when an output's property has changed.
+     */
+    Bool
+    (*set_property)(xf86OutputPtr output,
+		    Atom property,
+		    RRPropertyValuePtr value);
+#endif
     /**
      * Clean up driver-specific bits of the output
      */
@@ -437,6 +453,9 @@ xf86InitialConfiguration (ScrnInfoPtr pScrn);
 void
 xf86DPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags);
     
+Bool
+xf86SaveScreen(ScreenPtr pScreen, int mode);
+
 /**
  * Set the EDID information for the specified output
  */
