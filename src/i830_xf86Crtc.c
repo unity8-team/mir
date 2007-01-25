@@ -30,7 +30,7 @@
 
 #include "xf86.h"
 #include "xf86DDC.h"
-/*#include "i830.h" */
+#include "i830.h"
 #include "i830_xf86Crtc.h"
 #include "i830_xf86Modes.h"
 #include "i830_randr.h"
@@ -793,6 +793,7 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn, int maxX, int maxY)
     for (o = 0; o < config->num_output; o++) 
     {
 	xf86OutputPtr	    output = config->output[o];
+	I830OutputPrivatePtr intel_output = output->driver_private;
 	DisplayModePtr	    mode;
 	DisplayModePtr	    config_modes = NULL, output_modes, default_modes;
 	char		    *preferred_mode;
@@ -803,7 +804,6 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn, int maxX, int maxY)
 	int		    max_clock = 0;
 	double		    clock;
 	enum { sync_config, sync_edid, sync_default } sync_source = sync_default;
-	
 	while (output->probed_modes != NULL)
 	    xf86DeleteMode(&output->probed_modes, output->probed_modes);
 
@@ -902,8 +902,8 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn, int maxX, int maxY)
 	    mon_rec.nVrefresh = 1;
 	}
 	default_modes = i830xf86GetDefaultModes (output->interlaceAllowed,
-						 output->doubleScanAllowed);
-	
+			output->doubleScanAllowed);
+
 	if (sync_source == sync_config)
 	{
 	    /* 
@@ -926,8 +926,9 @@ xf86ProbeOutputModes (ScrnInfoPtr pScrn, int maxX, int maxY)
 	output->probed_modes = NULL;
 	output->probed_modes = xf86ModesAdd (output->probed_modes, config_modes);
 	output->probed_modes = xf86ModesAdd (output->probed_modes, output_modes);
-	output->probed_modes = xf86ModesAdd (output->probed_modes, default_modes);
-	
+	if (intel_output->type != I830_OUTPUT_TVOUT)	
+		output->probed_modes = xf86ModesAdd (output->probed_modes, default_modes);
+
 	/*
 	 * Check all modes against max size
 	 */
