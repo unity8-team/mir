@@ -80,118 +80,6 @@ typedef struct _ATIGDev
 #ifndef AVOID_CPIO
 
 /*
- * Definitions for I/O conflict avoidance.
- */
-#define LongPort(_Port) GetBits(_Port, PCIGETIO(SPARSE_IO_BASE))
-#define Allowed        (1 << 3)
-#define DoProbe        (1 << 4)
-typedef struct
-{
-    IOADDRESS Base;
-    CARD8     Size;
-    CARD8     Flag;
-} PortRec, *PortPtr;
-
-/*
- * ATIScanPCIBases --
- *
- * This function loops though a device's PCI registered bases and accumulates
- * a list of block I/O bases in use in the system.
- */
-static void
-ATIScanPCIBases
-(
-    PortPtr      *PCIPorts,
-    int          *nPCIPort,
-    const CARD32 *pBase,
-    const int    *pSize,
-    const CARD8  ProbeFlag
-)
-{
-    IOADDRESS Base;
-    int       i, j;
-
-    for (i = 6;  --i >= 0;  pBase++, pSize++)
-    {
-        if (*pBase & PCI_MAP_IO)
-        {
-            Base = *pBase & ~IO_BYTE_SELECT;
-            for (j = 0;  ;  j++)
-            {
-                if (j >= *nPCIPort)
-                {
-                    (*nPCIPort)++;
-                    *PCIPorts = (PortPtr)xnfrealloc(*PCIPorts,
-                        *nPCIPort * SizeOf(PortRec));
-                    (*PCIPorts)[j].Base = Base;
-                    (*PCIPorts)[j].Size = (CARD8)*pSize;
-                    (*PCIPorts)[j].Flag = ProbeFlag;
-                    break;
-                }
-
-                if (Base == (*PCIPorts)[j].Base)
-                    break;
-            }
-
-            continue;
-        }
-
-        /* Allow for 64-bit addresses */
-        if (!PCI_MAP_IS64BITMEM(*pBase))
-            continue;
-
-        i--;
-        pBase++;
-        pSize++;
-    }
-}
-
-/*
- * ATICheckSparseIOBases --
- *
- * This function checks whether a sparse I/O base can safely be probed.
- */
-static CARD8
-ATICheckSparseIOBases
-(
-    pciVideoPtr     pVideo,
-    CARD8           *ProbeFlags,
-    const IOADDRESS IOBase,
-    const int       Count,
-    const Bool      Override
-)
-{
-    CARD32 FirstPort, LastPort;
-
-    if (!pVideo || !xf86IsPrimaryPci(pVideo))
-    {
-        FirstPort = LongPort(IOBase);
-        LastPort  = LongPort(IOBase + Count - 1);
-
-        for (;  FirstPort <= LastPort;  FirstPort++)
-        {
-            CARD8 ProbeFlag = ProbeFlags[FirstPort];
-
-            if (ProbeFlag & DoProbe)
-                continue;
-
-            if (!(ProbeFlag & Allowed))
-                return ProbeFlag;
-
-            if (Override)
-                continue;
-
-            /* User might wish to override this decision */
-            xf86Msg(X_WARNING,
-                ATI_NAME ":  Sparse I/O base 0x%04lX not probed.\n", IOBase);
-            return Allowed;
-        }
-    }
-
-    return DoProbe;
-}
-
-/*
  * ATIVGAWonderProbe --
  *
  * This function determines if ATI extended VGA registers can be accessed
@@ -202,24 +90,11 @@ static void
 ATIVGAWonderProbe
 (
     pciVideoPtr pVideo,
-    ATIPtr      pATI,
-    CARD8       *ProbeFlags
+    ATIPtr      pATI
 )
 {
     CARD8 IOValue1, IOValue2, IOValue3, IOValue4, IOValue5, IOValue6;
 
-    switch (ATICheckSparseIOBases(pVideo, ProbeFlags,
-        pATI->CPIO_VGAWonder, 2, TRUE))
-    {
-        case 0:
-            xf86Msg(X_WARNING,
-                ATI_NAME ":  Expected VGA Wonder capability could not be"
-                " detected at I/O port 0x%04lX because it would conflict with"
-                " a non-video PCI/AGP device.\n", pATI->CPIO_VGAWonder);
-            pATI->CPIO_VGAWonder = 0;
-            break;
-
-        default:                /* Must be DoProbe */
             if (pVideo && !xf86IsPrimaryPci(pVideo) &&
                 (pATI->Chip <= ATI_CHIP_88800GXD))
             {
@@ -259,8 +134,6 @@ ATIVGAWonderProbe
                     " 0x%04lX was not detected.\n", pATI->CPIO_VGAWonder);
                 pATI->CPIO_VGAWonder = 0;
             }
-            break;
-    }
 }
 
 #endif /* AVOID_CPIO */
@@ -502,13 +375,12 @@ static void
 ATIAssignVGA
 (
     pciVideoPtr pVideo,
-    ATIPtr      pATI,
-    CARD8       *ProbeFlags
+    ATIPtr      pATI
 )
 {
     if (pATI->CPIO_VGAWonder)
     {
-        ATIVGAWonderProbe(pVideo, pATI, ProbeFlags);
+        ATIVGAWonderProbe(pVideo, pATI);
         if (!pATI->CPIO_VGAWonder)
         {
             /*
@@ -518,7 +390,7 @@ ATIAssignVGA
              * of I/O through the bus tree.
              */
             pATI->CPIO_VGAWonder = GRAX;
-            ATIVGAWonderProbe(pVideo, pATI, ProbeFlags);
+            ATIVGAWonderProbe(pVideo, pATI);
         }
     }
 }
@@ -533,8 +405,7 @@ static void
 ATIFindVGA
 (
     pciVideoPtr pVideo,
-    ATIPtr      pATI,
-    CARD8       *ProbeFlags
+    ATIPtr      pATI
 )
 {
         /*
@@ -545,7 +416,7 @@ ATIFindVGA
         outb(GENVS, 0x01U);
         outb(GENENA, 0x0EU);
 
-    ATIAssignVGA(pVideo, pATI, ProbeFlags);
+    ATIAssignVGA(pVideo, pATI);
 }
 
 #endif /* AVOID_CPIO */
@@ -582,11 +453,7 @@ ATIProbe
 
 #ifndef AVOID_CPIO
 
-    pciConfigPtr           *xf86PciInfo = xf86GetPciConfigInfo();
-    PortPtr                PCIPorts = NULL;
-    int                    nPCIPort = 0;
     static const IOADDRESS Mach64SparseIOBases[] = {0x02ECU, 0x01CCU, 0x01C8U};
-    CARD8                  ProbeFlags[LongPort(SPARSE_IO_BASE) + 1];
 
 #endif /* AVOID_CPIO */
 
@@ -660,100 +527,6 @@ ATIProbe
             DoRadeon = TRUE;
     }
 
-#ifndef AVOID_CPIO
-
-    /*
-     * Collect hardware information.  This must be done with care to avoid
-     * lockups due to overlapping I/O port assignments.
-     *
-     * First, scan PCI configuration space for registered I/O ports (which will
-     * be block I/O bases).  Each such port is used to generate a list of
-     * sparse I/O bases it precludes.  This list is then used to decide whether
-     * or not certain sparse I/O probes are done.  Unfortunately, this assumes
-     * that any registered I/O base actually reserves upto the full 256 ports
-     * allowed by the PCI specification.  This assumption holds true for PCI
-     * Mach64, but probably doesn't for other device types.  For some things,
-     * such as video devices, the number of ports a base represents is
-     * determined by the server's PCI probe, but, for other devices, this
-     * cannot be done by a user-level process without jeopardizing system
-     * integrity.  This information should ideally be retrieved from the OS's
-     * own PCI probe (if any), but there's currently no portable way of doing
-     * so.  The following allows sparse I/O probes to be forced in certain
-     * circumstances when an appropriate chipset specification is used in any
-     * XF86Config Device section.
-     *
-     * Note that this is not bullet-proof.  Lockups can still occur, but they
-     * will usually be due to devices that are misconfigured to respond to the
-     * same I/O ports as 8514/A's or ATI sparse I/O devices without registering
-     * them in PCI configuration space.
-     */
-    if (nATIGDev)
-    {
-        if (xf86PciVideoInfo)
-        {
-            for (i = 0;  (pVideo = xf86PciVideoInfo[i++]);  )
-            {
-                if ((pVideo->vendor == PCI_VENDOR_ATI) ||
-                    !(pPCI = pVideo->thisCard))
-                    continue;
-
-                ATIScanPCIBases(&PCIPorts, &nPCIPort,
-                    &pPCI->pci_base0, pVideo->size,
-                    (pciReadLong(pPCI->tag, PCI_CMD_STAT_REG) &
-                     PCI_CMD_IO_ENABLE) ? 0 : Allowed);
-            }
-        }
-
-        /* Check non-video PCI devices for I/O bases */
-        if (xf86PciInfo)
-        {
-            for (i = 0;  (pPCI = xf86PciInfo[i++]);  )
-            {
-                if ((pPCI->pci_vendor == PCI_VENDOR_ATI) ||
-                    (pPCI->pci_base_class == PCI_CLASS_BRIDGE) ||
-                    (pPCI->pci_header_type &
-                      ~GetByte(PCI_HEADER_MULTIFUNCTION, 2)))
-                    continue;
-
-                ATIScanPCIBases(&PCIPorts, &nPCIPort,
-                    &pPCI->pci_base0, pPCI->basesize,
-                    (pciReadLong(pPCI->tag, PCI_CMD_STAT_REG) &
-                     PCI_CMD_IO_ENABLE) ? 0 : Allowed);
-            }
-        }
-
-        /* Generate ProbeFlags array from list of registered PCI I/O bases */
-        (void)memset(ProbeFlags, Allowed | DoProbe, SizeOf(ProbeFlags));
-        for (i = 0;  i < nPCIPort;  i++)
-        {
-            CARD32 Base = PCIPorts[i].Base;
-            CARD16 Count = (1 << PCIPorts[i].Size) - 1;
-            CARD8  ProbeFlag = PCIPorts[i].Flag;
-
-            /*
-             * The following reduction of Count is based on the assumption that
-             * PCI-registered I/O port ranges do not overlap.
-             */
-            for (j = 0;  j < nPCIPort;  j++)
-            {
-                CARD32 Base2 = PCIPorts[j].Base;
-
-                if (Base < Base2)
-                    while ((Base + Count) >= Base2)
-                        Count >>= 1;
-            }
-
-            Base = LongPort(Base);
-            Count = LongPort((Count | IO_BYTE_SELECT) + 1);
-            while (Count--)
-                ProbeFlags[Base++] &= ProbeFlag;
-        }
-
-        xfree(PCIPorts);
-    }
-
-#endif /* AVOID_CPIO */
-
     if (xf86PciVideoInfo)
     {
         if (nATIGDev)
@@ -789,18 +562,8 @@ ATIProbe
                         " sparse, I/O base.\n",
                         pVideo->bus, pVideo->device, pVideo->func);
                 }
-                else switch(ATICheckSparseIOBases(pVideo, ProbeFlags,
-                    Mach64SparseIOBases[j], 4, TRUE))
+                else
                 {
-                    case 0:
-                        xf86Msg(X_WARNING,
-                            ATI_NAME ":  PCI Mach64 in slot %d:%d:%d will not"
-                            " be enabled\n because it conflicts with another"
-                            " non-video PCI device.\n",
-                            pVideo->bus, pVideo->device, pVideo->func);
-                        break;
-
-                    default:        /* Must be DoProbe */
                         if (!xf86CheckPciSlot(pVideo->bus,
                                               pVideo->device,
                                               pVideo->func))
@@ -836,11 +599,10 @@ ATIProbe
                             pATI->PCIInfo = pVideo;
 
                             if (pATI->VGAAdapter)
-                                ATIFindVGA(pVideo, pATI, ProbeFlags);
+                                ATIFindVGA(pVideo, pATI);
                         }
 
                         xf86SetPciVideo(NULL, NONE);
-                        break;
                 }
             }
 
@@ -952,7 +714,7 @@ ATIProbe
 #ifndef AVOID_CPIO
 
                 if (pATI->VGAAdapter)
-                    ATIFindVGA(pVideo, pATI, ProbeFlags);
+                    ATIFindVGA(pVideo, pATI);
 
 #endif /* AVOID_CPIO */
 
