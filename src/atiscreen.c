@@ -61,9 +61,6 @@
 #include "shadowfb.h"
 #include "xf86cmap.h"
 
-#include "xf1bpp.h"
-#include "xf4bpp.h"
-
 #include "fb.h"
 
 #include "mibank.h"
@@ -457,23 +454,6 @@ ATIScreenInit
     /* Initialise framebuffer layer */
     switch (pATI->bitsPerPixel)
     {
-
-#ifndef AVOID_CPIO
-
-        case 1:
-            pATI->Closeable = xf1bppScreenInit(pScreen, pFB,
-                pScreenInfo->virtualX, pScreenInfo->virtualY,
-                pScreenInfo->xDpi, pScreenInfo->yDpi, pATI->displayWidth);
-            break;
-
-        case 4:
-            pATI->Closeable = xf4bppScreenInit(pScreen, pFB,
-                pScreenInfo->virtualX, pScreenInfo->virtualY,
-                pScreenInfo->xDpi, pScreenInfo->yDpi, pATI->displayWidth);
-            break;
-
-#endif /* AVOID_CPIO */
-
         case 8:
         case 16:
         case 24:
@@ -512,7 +492,6 @@ ATIScreenInit
     }
 
     /* If applicable, initialise RENDER extension */
-    if (pATI->bitsPerPixel > 4)
     {
         if (pATI->OptionShadowFB)
         {
@@ -612,23 +591,10 @@ ATIScreenInit
     if (!miCreateDefColormap(pScreen))
         return FALSE;
 
-#ifdef AVOID_CPIO
-
     if (!xf86HandleColormaps(pScreen, 256, pATI->rgbBits, ATILoadPalette, NULL,
                              CMAP_PALETTED_TRUECOLOR |
                              CMAP_LOAD_EVEN_IF_OFFSCREEN))
             return FALSE;
-
-#else /* AVOID_CPIO */
-
-    if (pATI->depth > 1)
-        if (!xf86HandleColormaps(pScreen, (pATI->depth == 4) ? 16 : 256,
-                                 pATI->rgbBits, ATILoadPalette, NULL,
-                                 CMAP_PALETTED_TRUECOLOR |
-                                 CMAP_LOAD_EVEN_IF_OFFSCREEN))
-            return FALSE;
-
-#endif /* AVOID_CPIO */
 
     /* Initialise shadow framebuffer */
     if (pATI->OptionShadowFB &&

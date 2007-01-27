@@ -222,12 +222,6 @@ ATIDSPCalculate
         pATI->ClockDescriptor.PostDividers[pATIHW->PostDivider];
     Divider = pATIHW->FeedbackDivider * pATI->XCLKReferenceDivider;
 
-#ifndef AVOID_CPIO
-
-    if (pATI->depth >= 8)
-
-#endif /* AVOID_CPIO */
-
     {
         Divider *= pATI->bitsPerPixel / 4;
     }

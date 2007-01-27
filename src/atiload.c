@@ -62,22 +62,6 @@ const char *ATIvbeSymbols[] =
     NULL
 };
 
-#ifndef AVOID_CPIO
-
-const char *ATIxf1bppSymbols[] =
-{
-    "xf1bppScreenInit",
-    NULL
-};
-
-const char *ATIxf4bppSymbols[] =
-{
-    "xf4bppScreenInit",
-    NULL
-};
-
-#endif /* AVOID_CPIO */
-
 #ifdef XF86DRI_DEVEL
 
 const char *ATIdrmSymbols[] = {
@@ -228,19 +212,6 @@ ATILoadModules
     /* Load depth-specific entry points */
     switch (pATI->bitsPerPixel)
     {
-
-#ifndef AVOID_CPIO
-
-        case 1:
-            fbPtr = ATILoadModule(pScreenInfo, "xf1bpp", ATIxf1bppSymbols);
-            break;
-
-        case 4:
-            fbPtr = ATILoadModule(pScreenInfo, "xf4bpp", ATIxf4bppSymbols);
-            break;
-
-#endif /* AVOID_CPIO */
-
         case 8:
         case 16:
         case 24:

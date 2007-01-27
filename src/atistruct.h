@@ -256,7 +256,6 @@ typedef struct _ATIRec
      */
     IOADDRESS CPIO_VGAWonder;
     CARD8 B2Reg;        /* The B2 mirror */
-    CARD8 VGAOffset;    /* Low index for CPIO_VGAWonder */
 
 #endif /* AVOID_CPIO */
 

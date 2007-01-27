@@ -54,21 +54,6 @@ ATIAdjustPreInit
 {
     unsigned long MaxBase;
 
-#ifndef AVOID_CPIO
-
-    if ((pATI->CPIO_VGAWonder) &&
-        (pATI->Chip <= ATI_CHIP_18800_1) &&
-        (pATI->VideoRAM == 256) &&
-        (pATI->depth >= 8))
-    {
-        /* Strange, to say the least ... */
-        pATI->AdjustDepth = (pATI->bitsPerPixel + 3) >> 2;
-        pATI->AdjustMask = (unsigned long)(-32);
-    }
-    else
-
-#endif /* AVOID_CPIO */
-
     {
         pATI->AdjustDepth = (pATI->bitsPerPixel + 7) >> 3;
 
@@ -89,16 +74,10 @@ ATIAdjustPreInit
             if (pATI->Chip >= ATI_CHIP_264CT)
             {
                 pATI->AdjustMaxBase = MaxBits(CRTC_OFFSET_VGA) << 2;
-                if (pATI->depth <= 4)
-                    pATI->AdjustMaxBase <<= 1;
             }
             else if (!pATI->CPIO_VGAWonder)
             {
                 pATI->AdjustMaxBase = 0xFFFFU << 3;
-            }
-            else if (pATI->Chip <= ATI_CHIP_28800_6)
-            {
-                pATI->AdjustMaxBase = 0x03FFFFU << 3;
             }
             else /* Mach32 & Mach64 */
             {
@@ -185,10 +164,6 @@ ATIAdjustFrame
 
         if (pATI->CPIO_VGAWonder)
         {
-            if (pATI->Chip <= ATI_CHIP_18800_1)
-                ATIModifyExtReg(pATI, 0xB0U, -1, 0x3FU, Base >> 10);
-            else
-            {
                 ATIModifyExtReg(pATI, 0xB0U, -1, 0xBFU, Base >> 10);
                 ATIModifyExtReg(pATI, 0xA3U, -1, 0xEFU, Base >> 13);
 
@@ -196,23 +171,8 @@ ATIAdjustFrame
                  * I don't know if this also applies to Mach64's, but give it a
                  * shot...
                  */
-                if (pATI->Chip >= ATI_CHIP_68800)
                     ATIModifyExtReg(pATI, 0xADU, -1, 0xF3U, Base >> 16);
-            }
         }
-    }
-    else
-    /*
-     * On integrated controllers, there is only one set of CRTC control bits,
-     * many of which are simultaneously accessible through both VGA and
-     * accelerator I/O ports.  Given VGA's architectural limitations, setting
-     * the CRTC's offset register to more than 256k needs to be done through
-     * the accelerator port.
-     */
-    if (pATI->depth <= 4)
-    {
-        outr(CRTC_OFF_PITCH, SetBits(pATI->displayWidth >> 4, CRTC_PITCH) |
-            SetBits(Base, CRTC_OFFSET));
     }
     else
 

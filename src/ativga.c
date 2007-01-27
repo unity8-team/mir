@@ -27,7 +27,6 @@
 #include "ati.h"
 #include "atiadapter.h"
 #include "atichip.h"
-#include "atimono.h"
 #include "atistruct.h"
 #include "ativga.h"
 #include "ativgaio.h"
@@ -56,65 +55,30 @@ ATIVGAPreInit
 
     /* Initialise sequencer register values */
     pATIHW->seq[0] = 0x03U;
-    if (pATI->depth == 1)
-        pATIHW->seq[2] = 0x01U << BIT_PLANE;
-    else
         pATIHW->seq[2] = 0x0FU;
-    if (pATI->depth <= 4)
-        pATIHW->seq[4] = 0x06U;
-    else if (pATI->Adapter == ATI_ADAPTER_VGA)
-        pATIHW->seq[4] = 0x0EU;
-    else
         pATIHW->seq[4] = 0x0AU;
 
     /* Initialise CRTC register values */
-    if ((pATI->depth >= 8) &&
-        ((pATI->Chip >= ATI_CHIP_264CT) ||
-         (pATI->CPIO_VGAWonder &&
-          (pATI->Chip <= ATI_CHIP_18800_1) &&
-          (pATI->VideoRAM == 256))))
+    if (((pATI->Chip >= ATI_CHIP_264CT)))
         pATIHW->crt[19] = pATI->displayWidth >> 3;
     else
         pATIHW->crt[19] = pATI->displayWidth >> 4;
-    if ((pATI->depth >= 8) && (pATI->Adapter == ATI_ADAPTER_VGA))
-        pATIHW->crt[23] = 0xC3U;
-    else
+
         pATIHW->crt[23] = 0xE3U;
     pATIHW->crt[24] = 0xFFU;
 
     /* Initialise attribute controller register values */
-    if (pATI->depth == 1)
-    {
-        Bool FlipPixels = xf86GetFlipPixels();
-
-        for (Index = 0;  Index < 16;  Index++)
-            if (((Index & (0x01U << BIT_PLANE)) != 0) != FlipPixels)
-                pATIHW->attr[Index] = MONO_WHITE;
-            else
-                pATIHW->attr[Index] = MONO_BLACK;
-        pATIHW->attr[16] = 0x01U;
-        pATIHW->attr[17] = MONO_OVERSCAN;
-    }
-    else
     {
         for (Index = 0;  Index < 16;  Index++)
             pATIHW->attr[Index] = Index;
-        if (pATI->depth <= 4)
-            pATIHW->attr[16] = 0x81U;
-        else if (pATI->Adapter == ATI_ADAPTER_VGA)
-            pATIHW->attr[16] = 0x41U;
-        else
+
             pATIHW->attr[16] = 0x01U;
         pATIHW->attr[17] = 0xFFU;
     }
     pATIHW->attr[18] = 0x0FU;
 
     /* Initialise graphics controller register values */
-    if (pATI->depth == 1)
-        pATIHW->gra[4] = BIT_PLANE;
-    else if (pATI->depth <= 4)
-        pATIHW->gra[5] = 0x02U;
-    else if (pATI->Chip >= ATI_CHIP_264CT)
+    if (pATI->Chip >= ATI_CHIP_264CT)
         pATIHW->gra[5] = 0x40U;
     if (pATI->UseSmallApertures && (pATI->Chip >= ATI_CHIP_264CT) &&
         ((pATI->Chip >= ATI_CHIP_264VT) || !pATI->LinearBase))

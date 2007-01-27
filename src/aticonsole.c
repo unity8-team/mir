@@ -46,12 +46,6 @@
 #include "atidri.h"
 #endif
 
-#include "mach64_common.h"
-
-
-
-#include "xf86.h"
-
 #ifdef TV_OUT
 
 #include "atichip.h"
@@ -147,11 +141,6 @@ ATISetDPMSMode
 
             /* Assume EGA/VGA */
             ATIVGASetDPMSMode(pATI, DPMSMode);
-            break;
-
-        case ATI_ADAPTER_NONE:
-        case ATI_ADAPTER_8514A:
-        case ATI_ADAPTER_MACH8:
 
 #endif /* AVOID_CPIO */
 

@@ -34,27 +34,6 @@
 typedef enum
 {
     ATI_CHIP_NONE = 0,
-
-#ifndef AVOID_CPIO
-
-    ATI_CHIP_VGA,               /* Generic VGA */
-    ATI_CHIP_18800,
-    ATI_CHIP_18800_1,
-    ATI_CHIP_28800_2,
-    ATI_CHIP_28800_4,
-    ATI_CHIP_28800_5,
-    ATI_CHIP_28800_6,
-    ATI_CHIP_8514A,             /* 8514/A */
-    ATI_CHIP_CT480,             /* 8514/A clone */
-    ATI_CHIP_38800_1,           /* Mach8 */
-    ATI_CHIP_68800,             /* Mach32 */
-    ATI_CHIP_68800_3,           /* Mach32 */
-    ATI_CHIP_68800_6,           /* Mach32 */
-    ATI_CHIP_68800LX,           /* Mach32 */
-    ATI_CHIP_68800AX,           /* Mach32 */
-
-#endif /* AVOID_CPIO */
-
     ATI_CHIP_88800GXC,          /* Mach64 */
     ATI_CHIP_88800GXD,          /* Mach64 */
     ATI_CHIP_88800GXE,          /* Mach64 */

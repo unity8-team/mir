@@ -32,25 +32,6 @@
 const char *ATIAdapterNames[] =
 {
     "Unknown",
-
-#ifndef AVOID_CPIO
-
-    "ATI EGA Wonder800",
-    "ATI EGA Wonder800+",
-    "IBM VGA or compatible",
-    "ATI VGA Basic16",
-    "ATI VGA Wonder V3",
-    "ATI VGA Wonder V4",
-    "ATI VGA Wonder V5",
-    "ATI VGA Wonder+",
-    "ATI VGA Wonder XL or XL24",
-    "ATI VGA Wonder VLB or PCI",
-    "IBM 8514/A or compatible",
-    "ATI Mach8",
-    "ATI Mach32",
-
-#endif /* AVOID_CPIO */
-
     "ATI Mach64",
     "ATI Rage128",
     "ATI Radeon"

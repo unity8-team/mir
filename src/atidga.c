@@ -422,7 +422,7 @@ ATIDGAInit
          * banked framebuffers.  Also, disable DGA when non-DGA server modes
          * are planar.
          */
-        if (pATI->BankInfo.BankSize || (pScreenInfo->depth <= 4))
+        if (pATI->BankInfo.BankSize)
             return FALSE;
 
 #endif /* AVOID_CPIO */
@@ -459,8 +459,7 @@ ATIDGAInit
         ATIDGAAddModes(pScreenInfo, pATI, flags,
             8, 8, 0, 0, 0, PseudoColor);
 
-        if ((pATI->Chip >= ATI_CHIP_264CT) &&
-            (pATI->Chipset == ATI_CHIPSET_ATI))
+        if ((pATI->Chip >= ATI_CHIP_264CT))
         {
             ATIDGAAddModes(pScreenInfo, pATI, flags,
                 15, 16, 0x7C00U, 0x03E0U, 0x001FU, TrueColor);

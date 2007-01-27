@@ -55,12 +55,6 @@ ATIUnlock
         return;
     pATI->Unlocked = TRUE;
 
-#ifndef AVOID_CPIO
-
-    if (pATI->Chip >= ATI_CHIP_88800GXC)
-
-#endif /* AVOID_CPIO */
-
     {
         /* Reset everything */
         pATI->LockData.bus_cntl = inr(BUS_CNTL);
@@ -182,10 +176,9 @@ ATIUnlock
                 }
             }
         }
+    }
 
 #ifndef AVOID_CPIO
-
-    }
 
     if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
     {
@@ -207,11 +200,9 @@ ATIUnlock
             ATIModifyExtReg(pATI, 0xB8U, pATI->LockData.b8, 0xC0U, 0x00U);
             pATI->LockData.b9 = ATIGetExtReg(0xB9U);
             ATIModifyExtReg(pATI, 0xB9U, pATI->LockData.b9, 0x7FU, 0x00U);
-            if (pATI->Chip > ATI_CHIP_18800)
             {
                 pATI->LockData.be = ATIGetExtReg(0xBEU);
                 ATIModifyExtReg(pATI, 0xBEU, pATI->LockData.be, 0xFAU, 0x01U);
-                if (pATI->Chip >= ATI_CHIP_28800_2)
                 {
                     pATI->LockData.a6 = ATIGetExtReg(0xA6U);
                     ATIModifyExtReg(pATI, 0xA6U, pATI->LockData.a6,
@@ -380,10 +371,10 @@ ATIUnlock
                 out8(LCD_INDEX, GetByte(pATI->LockData.lcd_index, 0));
             }
         }
+    }
 
 #endif /* AVOID_CPIO */
 
-    }
 }
 
 /*
@@ -482,10 +473,8 @@ ATILock
             ATIModifyExtReg(pATI, 0xB6U, -1, 0xDDU, pATI->LockData.b6);
             ATIModifyExtReg(pATI, 0xB8U, -1, 0xC0U, pATI->LockData.b8 & 0x03U);
             ATIModifyExtReg(pATI, 0xB9U, -1, 0x7FU, pATI->LockData.b9);
-            if (pATI->Chip > ATI_CHIP_18800)
             {
                 ATIModifyExtReg(pATI, 0xBEU, -1, 0xFAU, pATI->LockData.be);
-                if (pATI->Chip >= ATI_CHIP_28800_2)
                 {
                     ATIModifyExtReg(pATI, 0xA6U, -1, 0x7FU, pATI->LockData.a6);
                     ATIModifyExtReg(pATI, 0xABU, -1, 0xE7U, pATI->LockData.ab);
@@ -494,8 +483,6 @@ ATILock
             ATIModifyExtReg(pATI, 0xB8U, -1, 0xC0U, pATI->LockData.b8);
         }
     }
-
-    if (pATI->Chip >= ATI_CHIP_88800GXC)
 
 #endif /* AVOID_CPIO */
 

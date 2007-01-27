@@ -84,16 +84,6 @@ ATIMach64PreInit
 {
     CARD32 bus_cntl, config_cntl;
 
-#ifndef AVOID_CPIO
-
-    if (pATI->depth <= 4)
-    {
-        pATIHW->crtc_off_pitch = SetBits(pATI->displayWidth >> 4, CRTC_PITCH);
-    }
-    else
-
-#endif /* AVOID_CPIO */
-
     {
         pATIHW->crtc_off_pitch = SetBits(pATI->displayWidth >> 3, CRTC_PITCH);
     }
@@ -722,19 +712,6 @@ ATIMach64Calculate
         CRTC_EXT_DISP_EN | CRTC_EN | CRTC_VGA_LINEAR | CRTC_CNT_EN;
     switch (pATI->depth)
     {
-
-#ifndef AVOID_CPIO
-
-        case 1:
-            pATIHW->crtc_gen_cntl |= SetBits(PIX_WIDTH_1BPP, CRTC_PIX_WIDTH);
-            break;
-
-        case 4:
-            pATIHW->crtc_gen_cntl |= SetBits(PIX_WIDTH_4BPP, CRTC_PIX_WIDTH);
-            break;
-
-#endif /* AVOID_CPIO */
-
         case 8:
             pATIHW->crtc_gen_cntl |= SetBits(PIX_WIDTH_8BPP, CRTC_PIX_WIDTH);
             break;

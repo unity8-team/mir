@@ -365,7 +365,7 @@ ATIPrintRegisters
 
 #ifndef AVOID_CPIO
 
-    CARD8 genmo, seq1 = 0;
+    CARD8 genmo;
 
     crtc = ATI_CRTC_VGA;
 
@@ -469,8 +469,7 @@ ATIPrintRegisters
         ATIPrintIndexedRegisters(SEQX, 0, 8, "Sequencer", 0);
 
         if (pATI->CPIO_VGAWonder)
-            ATIPrintIndexedRegisters(pATI->CPIO_VGAWonder,
-                xf86ServerIsOnlyProbing() ? 0x80U : pATI->VGAOffset, 0xC0U,
+            ATIPrintIndexedRegisters(pATI->CPIO_VGAWonder, 0x80U, 0xC0U,
                 "ATI extended VGA", 0);
     }
 
@@ -540,13 +539,6 @@ ATIPrintRegisters
         xf86ErrorFVerb(4, "\n");
     }
     else
-
-#ifndef AVOID_CPIO
-
-    if (pATI->Chip >= ATI_CHIP_88800GXC)
-
-#endif /* AVOID_CPIO */
-
     {
 
 #ifdef AVOID_CPIO
@@ -609,14 +601,6 @@ ATIPrintRegisters
 
     ATISetDACIOPorts(pATI, crtc);
 
-    /* Temporarily turn off CLKDIV2 while reading DAC's LUT */
-    if (pATI->Adapter == ATI_ADAPTER_NONISA)
-    {
-        seq1 = GetReg(SEQX, 0x01U);
-        if (seq1 & 0x08U)
-            PutReg(SEQX, 0x01U, seq1 & ~0x08U);
-    }
-
     dac_read = inb(pATI->CPIO_DAC_READ);
     DACDelay;
     dac_write = inb(pATI->CPIO_DAC_WRITE);
@@ -652,9 +636,6 @@ ATIPrintRegisters
     DACDelay;
     outb(pATI->CPIO_DAC_READ, dac_read);
     DACDelay;
-
-    if ((pATI->Adapter == ATI_ADAPTER_NONISA) && (seq1 & 0x08U))
-        PutReg(SEQX, 0x01U, seq1);
 
 #endif /* AVOID_CPIO */
 

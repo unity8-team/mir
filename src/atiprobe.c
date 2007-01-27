@@ -226,8 +226,7 @@ ATIVGAWonderProbe
             {
                 /* Set up extended VGA register addressing */
                 PutReg(GRAX, 0x50U, GetByte(pATI->CPIO_VGAWonder, 0));
-                PutReg(GRAX, 0x51U,
-                    GetByte(pATI->CPIO_VGAWonder, 1) | pATI->VGAOffset);
+                PutReg(GRAX, 0x51U, GetByte(pATI->CPIO_VGAWonder, 1) | 0x80U);
             }
             /*
              * Register 0xBB is used by the BIOS to keep track of various
@@ -243,10 +242,7 @@ ATIVGAWonderProbe
             ATIPutExtReg(0xBBU, IOValue3 ^ 0x55U);
             IOValue5 = ATIGetExtReg(0xBBU);
             ATIPutExtReg(0xBBU, IOValue3);
-            if (pATI->Chip <= ATI_CHIP_18800_1)
-                IOValue6 = 0;
-            else
-                IOValue6 = ATIGetExtReg(0xBCU);
+            IOValue6 = ATIGetExtReg(0xBCU);
             ATIPutExtReg(IOValue1, IOValue2);
 
             if ((IOValue4 == (IOValue3 ^ 0xAAU)) &&
@@ -496,7 +492,6 @@ ATIMach64Probe
         {
             pATI->VGAAdapter = ATI_ADAPTER_MACH64;
             pATI->CPIO_VGAWonder = 0x01CEU;
-            pATI->VGAOffset = 0x80U;
         }
     }
 
@@ -1012,15 +1007,6 @@ ATIProbe
         {
             pATI = ATIPtrs[i];
 
-#ifndef AVOID_CPIO
-
-            if ((pATI->Adapter != ATI_ADAPTER_VGA) &&
-                ((pATI->Adapter != ATI_ADAPTER_8514A) ||
-                 ((pATI->VGAAdapter != ATI_ADAPTER_VGA) &&
-                  (pATI->VGAAdapter != ATI_ADAPTER_NONE))))
-
-#endif /* AVOID_CPIO */
-
             {
                 ProbeSuccess = TRUE;
                 pGDev = xf86AddDeviceToConfigure(ATI_DRIVER_NAME,
@@ -1062,51 +1048,8 @@ ATIProbe
                 switch (pATIGDev->Chipset)
                 {
                     case ATI_CHIPSET_ATI:
-
-#ifndef AVOID_CPIO
-
-                        if (pATI->Adapter == ATI_ADAPTER_VGA)
-                            continue;
-                        if (pATI->Adapter != ATI_ADAPTER_8514A)
-                            break;
-                        /* Fall through */
-
-                    case ATI_CHIPSET_ATIVGA:
-                        if (pATI->VGAAdapter == ATI_ADAPTER_VGA)
-                            continue;
-                        /* Fall through */
-
-                    case ATI_CHIPSET_IBMVGA:
-                        if (pATI->VGAAdapter == ATI_ADAPTER_NONE)
-                            continue;
-                        break;
-
-                    case ATI_CHIPSET_VGAWONDER:
-                        if (!pATI->CPIO_VGAWonder)
-                            continue;
-                        break;
-
-                    case ATI_CHIPSET_IBM8514:
-                        if (pATI->Adapter == ATI_ADAPTER_8514A)
-                            break;
-                        /* Fall through */
-
-                    case ATI_CHIPSET_MACH8:
-                        if (pATI->Adapter == ATI_ADAPTER_MACH8)
-                            break;
-                        /* Fall through */
-
-                    case ATI_CHIPSET_MACH32:
-                        if (pATI->Adapter == ATI_ADAPTER_MACH32)
-                            break;
-                        continue;
-
-#endif /* AVOID_CPIO */
-
                     case ATI_CHIPSET_MACH64:
-                        if (pATI->Adapter == ATI_ADAPTER_MACH64)
-                            break;
-                        continue;
+                        break;
 
                     default:
                         continue;
@@ -1321,12 +1264,6 @@ ATIProbe
         {
             if (!(pATI = ATIPtrs[i]))
                 continue;
-
-#ifndef AVOID_CPIO
-
-            if (pATI->Adapter > ATI_ADAPTER_VGA)
-
-#endif /* AVOID_CPIO */
 
             {
                 if (pATI->iEntity < 0)

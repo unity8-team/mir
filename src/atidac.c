@@ -29,7 +29,6 @@
 #include "ati.h"
 #include "atidac.h"
 #include "atimach64io.h"
-#include "atimono.h"
 
 /*
  * RAMDAC-related definitions.
@@ -188,41 +187,6 @@ ATIDACPreInit
         }
 
 #ifndef AVOID_CPIO
-
-        if (pATI->depth == 1)
-        {
-            rgb blackColour = pScreenInfo->display->blackColour,
-                whiteColour = pScreenInfo->display->whiteColour;
-
-            if (blackColour.red > maxColour)
-                blackColour.red = maxColour;
-            if (blackColour.green > maxColour)
-                blackColour.green = maxColour;
-            if (blackColour.blue > maxColour)
-                blackColour.blue = maxColour;
-            if (whiteColour.red > maxColour)
-                whiteColour.red = maxColour;
-            if (whiteColour.green > maxColour)
-                whiteColour.green = maxColour;
-            if (whiteColour.blue > maxColour)
-                whiteColour.blue = maxColour;
-
-            if ((blackColour.red == whiteColour.red) &&
-                (blackColour.green == whiteColour.green) &&
-                (blackColour.blue == whiteColour.blue))
-            {
-                blackColour.red ^= maxColour;
-                blackColour.green ^= maxColour;
-                blackColour.blue ^= maxColour;
-            }
-
-            pATIHW->lut[(MONO_BLACK * 3) + 0] = blackColour.red;
-            pATIHW->lut[(MONO_BLACK * 3) + 1] = blackColour.green;
-            pATIHW->lut[(MONO_BLACK * 3) + 2] = blackColour.blue;
-            pATIHW->lut[(MONO_WHITE * 3) + 0] = whiteColour.red;
-            pATIHW->lut[(MONO_WHITE * 3) + 1] = whiteColour.green;
-            pATIHW->lut[(MONO_WHITE * 3) + 2] = whiteColour.blue;
-        }
 
         if (pATIHW->crtc == ATI_CRTC_VGA)
         {

@@ -141,7 +141,6 @@ EXTRA_DIST = \
 	atimach64xv.h \
 	atimode.h \
 	atimodule.h \
-	atimono.h \
 	atioption.h \
 	atipreinit.h \
 	atiprint.h \

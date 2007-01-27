@@ -74,21 +74,12 @@ ATIVGAWonderPreInit
 )
 {
     pATIHW->b3 = ATIGetExtReg(0xB3U) & 0x20U;
-    if (pATI->depth <= 4)
-        pATIHW->b6 = 0x40U;
-    else
         pATIHW->b6 = 0x04U;
-    if (pATI->Chip <= ATI_CHIP_18800)
-        pATIHW->ba = 0x08U;
-    else if (pATI->Chip >= ATI_CHIP_28800_2)
-    {
-        if (pATI->VideoRAM > 256)
-            pATIHW->b6 |= 0x01U;
+        pATIHW->b6 |= 0x01U;
         pATIHW->bf = ATIGetExtReg(0xBFU) & 0x5FU;
         pATIHW->a3 = ATIGetExtReg(0xA3U) & 0x67U;
         pATIHW->ab = ATIGetExtReg(0xABU) & 0xE7U;
         pATIHW->ae = ATIGetExtReg(0xAEU) & 0xE0U;
-    }
 }
 
 /*
@@ -114,10 +105,8 @@ ATIVGAWonderSave
     pATIHW->b9 = ATIGetExtReg(0xB9U);
     pATIHW->ba = ATIGetExtReg(0xBAU);
     pATIHW->bd = ATIGetExtReg(0xBDU);
-    if (pATI->Chip > ATI_CHIP_18800)
     {
         pATIHW->be = ATIGetExtReg(0xBEU);
-        if (pATI->Chip >= ATI_CHIP_28800_2)
         {
             pATIHW->bf = ATIGetExtReg(0xBFU);
             pATIHW->a3 = ATIGetExtReg(0xA3U);
@@ -143,12 +132,8 @@ ATIVGAWonderSet
     ATIHWPtr    pATIHW
 )
 {
-    if (pATI->Chip <= ATI_CHIP_18800)
-        ATIModifyExtReg(pATI, 0xB2U, -1, 0x00U, pATIHW->b2);
-    else
     {
         ATIModifyExtReg(pATI, 0xBEU, -1, 0x00U, pATIHW->be);
-        if (pATI->Chip >= ATI_CHIP_28800_2)
         {
             ATIModifyExtReg(pATI, 0xBFU, -1, 0x00U, pATIHW->bf);
             ATIModifyExtReg(pATI, 0xA3U, -1, 0x00U, pATIHW->a3);

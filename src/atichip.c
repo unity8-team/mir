@@ -36,27 +36,6 @@
 const char *ATIChipNames[] =
 {
     "Unknown",
-
-#ifndef AVOID_CPIO
-
-    "IBM VGA or compatible",
-    "ATI 18800",
-    "ATI 18800-1",
-    "ATI 28800-2",
-    "ATI 28800-4",
-    "ATI 28800-5",
-    "ATI 28800-6",
-    "IBM 8514/A",
-    "Chips & Technologies 82C480",
-    "ATI 38800-1",
-    "ATI 68800",
-    "ATI 68800-3",
-    "ATI 68800-6",
-    "ATI 68800LX",
-    "ATI 68800AX",
-
-#endif /* AVOID_CPIO */
-
     "ATI 88800GX-C",
     "ATI 88800GX-D",
     "ATI 88800GX-E",
@@ -410,23 +389,6 @@ ATIChipID
 {
     switch (ChipID)
     {
-
-#ifndef AVOID_CPIO
-
-        case OldChipID('A', 'A'):  case NewChipID('A', 'A'):
-            return ATI_CHIP_68800_3;
-
-        case OldChipID('X', 'X'):  case NewChipID('X', 'X'):
-            return ATI_CHIP_68800_6;
-
-        case OldChipID('L', 'X'):
-            return ATI_CHIP_68800LX;
-
-        case OldChipID('A', 'X'):  case NewChipID('A', 'X'):
-            return ATI_CHIP_68800AX;
-
-#endif /* AVOID_CPIO */
-
         case OldChipID('G', 'X'):  case NewChipID('G', 'X'):
             switch (ChipRev)
             {

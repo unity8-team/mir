@@ -40,13 +40,6 @@
 
 const char *ATIBusNames[] =
 {
-    "16-Bit ISA",
-    "EISA",
-    "16-Bit MicroChannel",
-    "32-Bit MicroChannel",
-    "386SX Local Bus",
-    "386DX Local Bus",
-    "VESA Local Bus",
     "PCI",
     "AGP"
 };
