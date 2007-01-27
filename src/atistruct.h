@@ -250,7 +250,6 @@ typedef struct _ATIRec
      * Processor I/O port definitions for VGA Wonder.
      */
     IOADDRESS CPIO_VGAWonder;
-    CARD8 B2Reg;        /* The B2 mirror */
 
 #endif /* AVOID_CPIO */
 
@@ -305,9 +304,7 @@ typedef struct _ATIRec
     /*
      * Banking interface.
      */
-    miBankInfoRec BankInfo;
     pointer pBank;
-    CARD8 UseSmallApertures;
 
 #endif /* AVOID_CPIO */
 

@@ -716,14 +716,6 @@ ATIEnterVT
         return TRUE;
     }
 
-#ifndef AVOID_CPIO
-
-    /* If used, modify banking interface */
-    if (!miModifyBanking(pScreen, &pATI->BankInfo))
-        return FALSE;
-
-#endif /* AVOID_CPIO */
-
     pScreenPixmap = (*pScreen->GetScreenPixmap)(pScreen);
     PixmapPrivate = pScreenPixmap->devPrivate;
     if (!PixmapPrivate.ptr)

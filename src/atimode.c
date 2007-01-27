@@ -230,16 +230,6 @@ ATISwap
 
     /* Back to bank 0 */
     (*pATIHW->SetBank)(pATI, 0);
-
-    /*
-     * If restoring video memory for a server video mode, free the frame buffer
-     * save area.
-     */
-    if (ToFB && (pATIHW == &pATI->NewHW))
-    {
-        xfree(pATIHW->frame_buffer);
-        pATIHW->frame_buffer = NULL;
-    }
 }
 
 #endif /* AVOID_CPIO */
@@ -505,24 +495,15 @@ ATIModeSave
     /* Save RAMDAC state */
     ATIDACSave(pATI, pATIHW);
 
-    /*
-     * The server has already saved video memory contents when switching out of
-     * its virtual console, so don't do it again.
-     */
     if (pATIHW != &pATI->NewHW)
     {
         pATIHW->FeedbackDivider = 0;    /* Don't programme clock */
+    }
 
 #ifndef AVOID_CPIO
 
         /* Save video memory */
         ATISwap(pScreenInfo->scrnIndex, pATI, pATIHW, FALSE);
-
-#endif /* AVOID_CPIO */
-
-    }
-
-#ifndef AVOID_CPIO
 
     if (pATI->VGAAdapter)
         ATIVGASaveScreen(pATI, SCREEN_SAVER_OFF);       /* Turn on screen */
@@ -1037,7 +1018,7 @@ ATIModeSet
 
 #ifndef AVOID_CPIO
 
-            if (pATI->UseSmallApertures)
+            if (pATI->VGAAdapter)
             {
                 /* Oddly enough, these need to be set also, maybe others */
                 PutReg(SEQX, 0x02U, pATIHW->seq[2]);

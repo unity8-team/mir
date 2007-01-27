@@ -472,16 +472,6 @@ ATIPreInit
     /* Finish private area initialisation */
     pATI->DAC = ATI_DAC_GENERIC;
 
-#ifndef AVOID_CPIO
-
-    pATI->NewHW.SetBank = ATIx8800SetBank;
-    pATI->BankInfo.SetSourceBank = ATIx8800SetRead;
-    pATI->BankInfo.SetDestinationBank = ATIx8800SetWrite;
-    pATI->BankInfo.SetSourceAndDestinationBanks = ATIx8800SetReadWrite;
-    pATI->BankInfo.BankSize = 0x00010000U;      /* 64kB */
-
-#endif /* AVOID_CPIO */
-
     pATI->LCDPanelID = -1;
     pATI->nFIFOEntries = 16;                    /* For now */
     pATI->Audio = ATI_AUDIO_NONE;
@@ -2000,24 +1990,6 @@ ATIPreInit
             }
         }
 
-#ifndef AVOID_CPIO
-
-        if (pATI->VGAAdapter)
-        {
-            pATI->UseSmallApertures = TRUE;
-
-            /* Set banking functions */
-            {
-                pATI->NewHW.SetBank = ATIMach64SetBankPacked;
-                pATI->BankInfo.SetSourceBank = ATIMach64SetReadPacked;
-                pATI->BankInfo.SetDestinationBank = ATIMach64SetWritePacked;
-                pATI->BankInfo.SetSourceAndDestinationBanks =
-                    ATIMach64SetReadWritePacked;
-            }
-        }
-
-#endif /* AVOID_CPIO */
-
         if (!pATI->LinearBase || !pATI->LinearSize)
         {
                 xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
@@ -2104,40 +2076,36 @@ ATIPreInit
 
     if (!pATI->VGAAdapter)
     {
+        pATI->NewHW.SetBank = ATIx8800SetBank;
+        pATI->NewHW.nPlane = 0;
+
         pATIHW->crtc = pATI->NewHW.crtc;
 
         pATIHW->SetBank = (ATIBankProcPtr)NoopDDA;
-        pATI->BankInfo.BankSize = 0;            /* No banking */
     }
     else
     {
+        Bool ext_disp_en = (pATI->LockData.crtc_gen_cntl & CRTC_EXT_DISP_EN);
+        Bool vga_ap_en = (pATI->LockData.config_cntl & CFG_MEM_VGA_AP_EN);
+        Bool vga_color_256 = (GetReg(SEQX, 0x04U) & 0x08U);
+
+        pATI->NewHW.SetBank = ATIMach64SetBankPacked;
+        pATI->NewHW.nPlane = 1;
+
         pATIHW->crtc = ATI_CRTC_VGA;
-        if ((pATI->LockData.crtc_gen_cntl & CRTC_EXT_DISP_EN))
-        {
+
+        if (ext_disp_en)
             pATIHW->crtc = ATI_CRTC_MACH64;
-        }
 
-        {
-            pATI->BankInfo.nBankDepth = pATI->depth;
-            pATI->NewHW.nPlane = 1;
-        }
-
-        if ((pATIHW->crtc != ATI_CRTC_VGA) || (GetReg(SEQX, 0x04U) & 0x08U))
+        if ((pATIHW->crtc != ATI_CRTC_VGA) || vga_color_256)
             pATIHW->nPlane = 1;
         else
             pATIHW->nPlane = 4;
 
-        pATIHW->nBank = ATIDivide(pATI->VideoRAM,
-            pATIHW->nPlane * pATI->BankInfo.BankSize, 10, 1);
-        pATI->NewHW.nBank = ATIDivide(pATI->VideoRAM,
-            pATI->NewHW.nPlane * pATI->BankInfo.BankSize, 10, 1);
+        /* VideoRAM is a multiple of 512kB and BankSize is 64kB */
+        pATIHW->nBank = pATI->VideoRAM / (pATIHW->nPlane * 0x40U);
 
-        if (!pATI->UseSmallApertures)
-        {
-            pATIHW->SetBank = pATI->NewHW.SetBank;
-        }
-        else if ((pATIHW->crtc == ATI_CRTC_VGA) &&
-                 !(pATI->LockData.config_cntl & CFG_MEM_VGA_AP_EN))
+        if ((pATIHW->crtc == ATI_CRTC_VGA) && !vga_ap_en)
         {
             pATIHW->SetBank = (ATIBankProcPtr)NoopDDA;
             pATIHW->nBank = 1;
@@ -2150,10 +2118,6 @@ ATIPreInit
         {
             pATIHW->SetBank = ATIMach64SetBankPlanar;
         }
-
-        if (((ApertureSize * pATI->depth) / pATI->BankInfo.nBankDepth) >=
-            (unsigned)(pScreenInfo->videoRam * 1024))
-            pATI->BankInfo.BankSize = 0;        /* No banking */
     }
 
 #else /* AVOID_CPIO */
@@ -2167,18 +2131,6 @@ ATIPreInit
     if (pATI->OptionShadowFB)
     {
         /* Until ShadowFB becomes a true screen wrapper, if it ever does... */
-
-#ifndef AVOID_CPIO
-
-        if (pATI->BankInfo.BankSize)
-        {
-            xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
-                "Cannot shadow a banked frame buffer.\n");
-            pATI->OptionShadowFB = FALSE;
-        }
-        else
-
-#endif /* AVOID_CPIO */
 
         if (pATI->OptionAccel)
         {

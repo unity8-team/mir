@@ -146,7 +146,7 @@ ATIMach64PreInit
 
 #ifndef AVOID_CPIO
 
-    if (pATI->UseSmallApertures)
+    if (pATI->VGAAdapter)
     {
         pATIHW->config_cntl |= CFG_MEM_VGA_AP_EN;
     }

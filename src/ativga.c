@@ -74,7 +74,7 @@ ATIVGAPreInit
     /* Initialise graphics controller register values */
     if (pATI->Chip >= ATI_CHIP_264CT)
         pATIHW->gra[5] = 0x40U;
-    if (pATI->UseSmallApertures && (pATI->Chip >= ATI_CHIP_264VT))
+    if (pATI->Chip >= ATI_CHIP_264VT)
         pATIHW->gra[6] = 0x01U;         /* 128kB aperture */
     else
         pATIHW->gra[6] = 0x05U;         /* 64kB aperture */

@@ -63,7 +63,6 @@
 
 #include "fb.h"
 
-#include "mibank.h"
 #include "micmap.h"
 #include "mipointer.h"
 
@@ -136,11 +135,6 @@ ATIMach64SetupMemXAA_NoDRI
     int maxScanlines = ATIMach64MaxY;
     int maxPixelArea, PixelArea;
 
-#ifndef AVOID_CPIO
-
-    if (!pATI->BankInfo.BankSize)
-
-#endif /* AVOID_CPIO */
     {
         /*
          * Note:  If PixelArea exceeds the engine's maximum, the excess is
@@ -500,19 +494,6 @@ ATIScreenInit
                     "RENDER extension not supported with a shadowed"
                     " framebuffer.\n");
         }
-
-#ifndef AVOID_CPIO
-
-        else if (pATI->BankInfo.BankSize)
-        {
-            if (serverGeneration == 1)
-                xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
-                    "RENDER extension not supported with a banked"
-                    " framebuffer.\n");
-        }
-
-#endif /* AVOID_CPIO */
-
         else if (!fbPictureInit(pScreen, NULL, 0) &&
                  (serverGeneration == 1))
         {
@@ -522,16 +503,6 @@ ATIScreenInit
     }
 
     xf86SetBlackWhitePixels(pScreen);
-
-#ifndef AVOID_CPIO
-
-    /* Initialise banking if needed */
-    if (!miInitializeBanking(pScreen,
-                             pScreenInfo->virtualX, pScreenInfo->virtualY,
-                             pATI->displayWidth, &pATI->BankInfo))
-        return FALSE;
-
-#endif /* AVOID_CPIO */
 
 #ifdef USE_XAA
 

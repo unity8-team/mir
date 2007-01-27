@@ -32,93 +32,6 @@
 #ifndef AVOID_CPIO
 
 /*
- * ATI VGA Wonder V4 and V5 adapters use an ATI 18800-1 chip.  Bank selection
- * is done with ATI extended VGA register index 0xB2.  The format is:
- *
- *   0xE0 - Read bank select bits 0x07
- *   0x1E - Write bank select bits 0x0F
- *   0x01 - Read bank select bit 0x08.
- */
-
-/*
- * ATIV4V5SetBank --
- *
- * Set an ATI 18800-1's read and write bank numbers.
- */
-void
-ATIV4V5SetBank
-(
-    ATIPtr       pATI,
-    unsigned int iBank
-)
-{
-    pATI->B2Reg = SetBits(iBank, 0x1EU) | SetBits(iBank, 0xE0U) |
-        SetBits(GetBits(iBank, 0x08U), 0x01U);
-    ATIPutExtReg(0xB2U, pATI->B2Reg);
-}
-
-/*
- * ATIV4V5SetRead --
- *
- * Set an ATI 18800-1's read bank number.
- */
-int
-ATIV4V5SetRead
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    ATIPtr pATI  = ATIPTR(XF86SCRNINFO(pScreen));
-    CARD8  B2Reg = (pATI->B2Reg & 0x1EU) | SetBits(iBank, 0xE0U) |
-                   SetBits(GetBits(iBank, 0x08U), 0x01U);
-
-    if (B2Reg != pATI->B2Reg)
-    {
-        ATIPutExtReg(0xB2U, B2Reg);
-        pATI->B2Reg = B2Reg;
-    }
-
-    return 0;
-}
-
-/*
- * ATIV4V5SetWrite --
- *
- * Set an ATI 18800-1's write bank number.
- */
-int
-ATIV4V5SetWrite
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    ATIPtr pATI = ATIPTR(XF86SCRNINFO(pScreen));
-    CARD8  B2Reg = (pATI->B2Reg & 0xE1U) | SetBits(iBank, 0x1EU);
-
-    if (B2Reg != pATI->B2Reg)
-    {
-        ATIPutExtReg(0xB2U, B2Reg);
-        pATI->B2Reg = B2Reg;
-    }
-    return 0;
-}
-
-/*
- * In addition to ATI extended register index 0xB2, 28800's, 68800's and
- * 88800's define banking bits in bits 0x0F of ATI extended VGA register index
- * 0xAE.  These are only needed for adapters with more than 1MB of video
- * memory, and it is questionable whether or not they are actually implemented
- * by 28800's and 88800's.  ATI extended VGA register index 0xAE is defined as
- * follows:
- *
- *    0xF0 - reserved
- *    0x0C - read bank select bits 0x30
- *    0x03 - write bank select bits 0x30
- */
-
-/*
  * ATIx8800SetBank --
  *
  * Set an ATI 28800's, 68800's or 88800's read and write bank numbers.
@@ -130,62 +43,10 @@ ATIx8800SetBank
     unsigned int iBank
 )
 {
-    ATIV4V5SetBank(pATI, iBank);
-    iBank = GetBits(iBank, 0x30U);
-    ATIModifyExtReg(pATI, 0xAEU, -1, (CARD8)(~0x0FU),
-        SetBits(iBank, 0x03U) | SetBits(iBank, 0x0CU));
-}
+    (void)iBank; /* always called with iBank = 0 */
 
-/*
- * ATIx8800SetRead --
- *
- * Set an ATI 28800's, 68800's or 88800's read bank numbers.
- */
-int
-ATIx8800SetRead
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    (void)ATIV4V5SetRead(pScreen, iBank);
-    ATIModifyExtReg(ATIPTR(XF86SCRNINFO(pScreen)), 0xAEU, -1, (CARD8)(~0x0CU),
-        SetBits(GetBits(iBank, 0x30U), 0x0CU));
-    return 0;
-}
-
-/*
- * ATIx8800SetWrite --
- *
- * Set an ATI 28800's, 68800's or 88800's write bank numbers.
- */
-int
-ATIx8800SetWrite
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    (void)ATIV4V5SetWrite(pScreen, iBank);
-    ATIModifyExtReg(ATIPTR(XF86SCRNINFO(pScreen)), 0xAEU, -1, (CARD8)(~0x03U),
-        SetBits(GetBits(iBank, 0x30U), 0x03U));
-    return 0;
-}
-
-/*
- * ATIx8800SetReadWrite --
- *
- * Set an ATI 28800's, 68800's or 88800's read and write bank numbers.
- */
-int
-ATIx8800SetReadWrite
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    ATIx8800SetBank(ATIPTR(XF86SCRNINFO(pScreen)), iBank);
-    return 0;
+    ATIPutExtReg(0xB2U, 0x00U);
+    ATIModifyExtReg(pATI, 0xAEU, -1, (CARD8)(~0x0FU), 0x00U);
 }
 
 /*
@@ -220,58 +81,6 @@ ATIMach64SetBankPacked
 
     outr(MEM_VGA_RP_SEL, tmp);
     outr(MEM_VGA_WP_SEL, tmp);
-}
-
-/*
- * ATIMach64SetReadPacked --
- *
- * Set read bank number for small dual paged apertures.
- */
-int
-ATIMach64SetReadPacked
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    ATIPtr pATI = ATIPTR(XF86SCRNINFO(pScreen));
-
-    outr(MEM_VGA_RP_SEL, ATIMach64MassagePackedBankNumber(iBank));
-    return 0;
-}
-
-/*
- * ATIMach64SetWritePacked --
- *
- * Set write bank number for small dual paged apertures.
- */
-int
-ATIMach64SetWritePacked
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    ATIPtr pATI = ATIPTR(XF86SCRNINFO(pScreen));
-
-    outr(MEM_VGA_WP_SEL, ATIMach64MassagePackedBankNumber(iBank));
-    return 0;
-}
-
-/*
- * ATIMach64SetReadWritePacked --
- *
- * Set read and write bank numbers for small dual paged apertures.
- */
-int
-ATIMach64SetReadWritePacked
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    ATIMach64SetBankPacked(ATIPTR(XF86SCRNINFO(pScreen)), iBank);
-    return 0;
 }
 
 static CARD32

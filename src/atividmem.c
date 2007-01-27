@@ -86,7 +86,7 @@ ATIUnmapVGA
 
     xf86UnMapVidMem(iScreen, pATI->pBank, 0x00010000U);
 
-    pATI->pBank = pATI->BankInfo.pBankA = pATI->BankInfo.pBankB = NULL;
+    pATI->pBank = NULL;
 }
 
 #endif /* AVOID_CPIO */
@@ -192,9 +192,6 @@ ATIMapApertures
 
         if (!pATI->pBank)
             return FALSE;
-
-            pATI->BankInfo.pBankA =
-            pATI->BankInfo.pBankB = pATI->pBank;
 
         pATI->Mapped = TRUE;
     }

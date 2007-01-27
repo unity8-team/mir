@@ -414,19 +414,6 @@ ATIDGAInit
 
     if (!pATI->nDGAMode)
     {
-
-#ifndef AVOID_CPIO
-
-        /*
-         * Contrary to previous extension versions, DGA 2 does not support
-         * banked framebuffers.  Also, disable DGA when non-DGA server modes
-         * are planar.
-         */
-        if (pATI->BankInfo.BankSize)
-            return FALSE;
-
-#endif /* AVOID_CPIO */
-
         /* Set up DGA callbacks */
         pATI->ATIDGAFunctions.OpenFramebuffer = ATIDGAOpenFramebuffer;
         pATI->ATIDGAFunctions.SetMode         = ATIDGASetMode;

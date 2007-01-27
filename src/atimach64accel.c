@@ -981,16 +981,7 @@ ATIMach64AccelInit
     if (pATI->XModifier == 1)
     {
         pXAAInfo->Flags = PIXMAP_CACHE | OFFSCREEN_PIXMAPS;
-
-#ifndef AVOID_CPIO
-
-        if (!pATI->BankInfo.BankSize)
-
-#endif /* AVOID_CPIO */
-
-        {
-            pXAAInfo->Flags |= LINEAR_FRAMEBUFFER;
-        }
+        pXAAInfo->Flags |= LINEAR_FRAMEBUFFER;
     }
 
     /* Sync */
