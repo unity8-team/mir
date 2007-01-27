@@ -564,7 +564,7 @@ xf86GetConfigModes (XF86ConfModeLinePtr conf_mode)
     
     for (; conf_mode; conf_mode = (XF86ConfModeLinePtr) conf_mode->list.next)
     {
-        mode = xalloc(sizeof(DisplayModeRec));
+        mode = xcalloc(1, sizeof(DisplayModeRec));
 	if (!mode)
 	    continue;
         mode->name       = xstrdup(conf_mode->ml_identifier);
@@ -573,8 +573,6 @@ xf86GetConfigModes (XF86ConfModeLinePtr conf_mode)
 	    xfree (mode);
 	    continue;
 	}
-	
-        memset(mode,'\0',sizeof(DisplayModeRec));
 	mode->type       = 0;
         mode->Clock      = conf_mode->ml_clock;
         mode->HDisplay   = conf_mode->ml_hdisplay;
