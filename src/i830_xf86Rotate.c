@@ -94,6 +94,46 @@ compWindowFormat (WindowPtr pWin)
 }
 
 static void
+xf86RotateBox (BoxPtr dst, BoxPtr src, Rotation rotation,
+	       int dest_width, int dest_height)
+{
+    switch (rotation & 0xf) {
+    default:
+    case RR_Rotate_0:
+	*dst = *src;
+	break;
+    case RR_Rotate_90:
+	dst->x1 = src->y1;
+	dst->y1 = dest_height - src->x2;
+	dst->x2 = src->y2;
+	dst->y2 = dest_height - src->x1;
+	break;
+    case RR_Rotate_180:
+	dst->x1 = dest_width - src->x2;
+	dst->y1 = dest_height - src->y2;
+	dst->x2 = dest_width - src->x1;
+	dst->y2 = dest_height - src->y1;
+	break;
+    case RR_Rotate_270:
+	dst->x1 = dest_width - src->y2;
+	dst->y1 = src->x1;
+	dst->y2 = src->x2;
+	dst->x2 = dest_width - src->y1;
+	break;
+    }
+    if (rotation & RR_Reflect_X) {
+	int x1 = dst->x1;
+	dst->x1 = dest_width - dst->x2;
+	dst->x2 = dest_width - x1;
+    }
+    if (rotation & RR_Reflect_Y) {
+	int y1 = dst->y1;
+	dst->y1 = dest_height - dst->y2;
+	dst->y2 = dest_height - y1;
+    }
+}
+
+static void
 xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
 {
     ScrnInfoPtr		scrn = crtc->scrn;
@@ -104,6 +144,8 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
     int			error;
     PicturePtr		src, dst;
     PictTransform	transform;
+    int			n = REGION_NUM_RECTS(region);
+    BoxPtr		b = REGION_RECTS(region);
     
     src = CreatePicture (None,
 			 &src_pixmap->drawable,
@@ -127,18 +169,13 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
 	ErrorF("couldn't create src pict\n");
 	return;
     }
-    /* Unfortunately, we don't do clipping on transformed source pictures.
-     * So we can't use this.  Instead, we'll just repaint the whole screen
-     * for now, and do transform of the source region into a dest region
-     * later.
-     */
-    /* SetPictureClipRegion (src, 0, 0, region); */
 
     memset (&transform, '\0', sizeof (transform));
     transform.matrix[2][2] = IntToxFixed(1);
     transform.matrix[0][2] = IntToxFixed(crtc->x);
     transform.matrix[1][2] = IntToxFixed(crtc->y);
     switch (crtc->rotation & 0xf) {
+    default:
     case RR_Rotate_0:
 	transform.matrix[0][0] = IntToxFixed(1);
 	transform.matrix[1][1] = IntToxFixed(1);
@@ -177,11 +214,19 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
 	return;
     }
 
-    CompositePicture (PictOpSrc,
-		      src, NULL, dst,
-		      0, 0, 0, 0, 0, 0,
-		      dst_pixmap->drawable.width,
-		      dst_pixmap->drawable.height);
+    while (n--)
+    {
+	BoxRec	dst_box;
+
+	xf86RotateBox (&dst_box, b, crtc->rotation,
+		       crtc->mode.HDisplay, crtc->mode.VDisplay);
+	CompositePicture (PictOpSrc,
+			  src, NULL, dst,
+			  dst_box.x1, dst_box.y1, 0, 0, dst_box.x1, dst_box.y1,
+			  dst_box.x2 - dst_box.x1,
+			  dst_box.y2 - dst_box.y1);
+	b++;
+    }
     FreePicture (src, None);
     FreePicture (dst, None);
 }
@@ -220,7 +265,7 @@ xf86RotateRedisplay(ScreenPtr pScreen)
 		
 		/* update damaged region */
 		if (REGION_NOTEMPTY(pScreen, &crtc_damage))
-		    xf86RotateCrtcRedisplay (crtc, &crtc_damage);
+    		    xf86RotateCrtcRedisplay (crtc, &crtc_damage);
 		
 		REGION_UNINIT (pScreen, &crtc_damage);
 	    }
@@ -273,8 +318,13 @@ xf86CrtcRotate (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation)
     }
     else
     {
-	int	    width = mode_width (mode, rotation);
-	int	    height = mode_height (mode, rotation);
+	/* 
+	 * these are the size of the shadow pixmap, which
+	 * matches the mode, not the pre-rotated copy in the
+	 * frame buffer
+	 */
+	int	    width = mode->HDisplay;
+	int	    height = mode->VDisplay;
 	PixmapPtr   shadow = crtc->rotatedPixmap;
 	int	    old_width = shadow ? shadow->drawable.width : 0;
 	int	    old_height = shadow ? shadow->drawable.height : 0;
