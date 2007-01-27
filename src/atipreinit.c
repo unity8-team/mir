@@ -54,250 +54,6 @@
 #include "vbe.h"
 #include "xf86RAC.h"
 
-#ifndef AVOID_CPIO
-
-typedef CARD16 Colour;          /* The correct spelling should be OK :-) */
-
-/*
- * Bit patterns which are extremely unlikely to show up when reading from
- * nonexistant memory (which normally shows up as either all bits set or all
- * bits clear).
- */
-static const Colour Test_Pixel[] = {0x5AA5U, 0x55AAU, 0xA55AU, 0xCA53U};
-
-static const struct
-{
-    int videoRamSize;
-    int Miscellaneous_Options_Setting;
-    struct
-    {
-        short int x, y;
-    }
-    Coordinates[NumberOf(Test_Pixel) + 1];
-}
-Test_Case[] =
-{
-    /*
-     * Given the engine settings used, only a 4M card will have enough memory
-     * to back up the 1025th line of the display.  Since the pixel coordinates
-     * are zero-based, line 1024 will be the first one which is only backed on
-     * 4M cards.
-     *
-     * <Mark_Weaver@brown.edu>:
-     * In case memory is being wrapped, (0,0) and (0,1024) to make sure they
-     * can each hold a unique value.
-     */
-    {4096, MEM_SIZE_4M, {{0,0}, {0,1024}, {-1,-1}}},
-
-    /*
-     * This card has 2M or less.  On a 1M card, the first 2M of the card's
-     * memory will have even doublewords backed by physical memory and odd
-     * doublewords unbacked.
-     *
-     * Pixels 0 and 1 of a row will be in the zeroth doubleword, while pixels 2
-     * and 3 will be in the first.  Check both pixels 2 and 3 in case this is a
-     * pseudo-1M card (one chip pulled to turn a 2M card into a 1M card).
-     *
-     * <Mark_Weaver@brown.edu>:
-     * I don't have a 1M card, so I'm taking a stab in the dark.  Maybe memory
-     * wraps every 512 lines, or maybe odd doublewords are aliases of their
-     * even doubleword counterparts.  I try everything here.
-     */
-    {2048, MEM_SIZE_2M, {{0,0}, {0,512}, {2,0}, {3,0}, {-1,-1}}},
-
-    /*
-     * This is a either a 1M card or a 512k card.  Test pixel 1, since it is an
-     * odd word in an even doubleword.
-     *
-     * <Mark_Weaver@brown.edu>:
-     * This is the same idea as the test above.
-     */
-    {1024, MEM_SIZE_1M, {{0,0}, {0,256}, {1,0}, {-1,-1}}},
-
-    /*
-     * Assume it is a 512k card by default, since that is the minimum
-     * configuration.
-     */
-    {512, MEM_SIZE_512K, {{-1,-1}}}
-};
-
-/*
- * ATIMach32ReadPixel --
- *
- * Return the colour of the specified screen location.  Called from
- * ATIMach32videoRam function below.
- */
-static Colour
-ATIMach32ReadPixel
-(
-    const short int X,
-    const short int Y
-)
-{
-    Colour Pixel_Colour;
-
-    /* Wait for idle engine */
-    ProbeWaitIdleEmpty();
-
-    /* Set up engine for pixel read */
-    ATIWaitQueue(7);
-    outw(RD_MASK, (CARD16)(~0));
-    outw(DP_CONFIG, FG_COLOR_SRC_BLIT | DATA_WIDTH | DRAW | DATA_ORDER);
-    outw(CUR_X, X);
-    outw(CUR_Y, Y);
-    outw(DEST_X_START, X);
-    outw(DEST_X_END, X + 1);
-    outw(DEST_Y_END, Y + 1);
-
-    /* Wait for data to become ready */
-    ATIWaitQueue(16);
-    WaitDataReady();
-
-    /* Read pixel colour */
-    Pixel_Colour = inw(PIX_TRANS);
-    ProbeWaitIdleEmpty();
-    return Pixel_Colour;
-}
-
-/*
- * ATIMach32WritePixel --
- *
- * Set the colour of the specified screen location.  Called from
- * ATIMach32videoRam function below.
- */
-static void
-ATIMach32WritePixel
-(
-    const short int X,
-    const short int Y,
-    const Colour    Pixel_Colour
-)
-{
-    /* Set up engine for pixel write */
-    ATIWaitQueue(9);
-    outw(WRT_MASK, (CARD16)(~0));
-    outw(DP_CONFIG, FG_COLOR_SRC_FG | DRAW | READ_WRITE);
-    outw(ALU_FG_FN, MIX_FN_PAINT);
-    outw(FRGD_COLOR, Pixel_Colour);
-    outw(CUR_X, X);
-    outw(CUR_Y, Y);
-    outw(DEST_X_START, X);
-    outw(DEST_X_END, X + 1);
-    outw(DEST_Y_END, Y + 1);
-}
-
-/*
- * ATIMach32videoRam --
- *
- * Determine the amount of video memory installed on an 68800-6 based adapter.
- * This is done because these chips exhibit a bug that causes their
- * MISC_OPTIONS register to report 1M rather than the true amount of memory.
- *
- * This function is adapted from a similar function in mach32mem.c written by
- * Robert Wolff, David Dawes and Mark Weaver.
- */
-static int
-ATIMach32videoRam
-(
-    void
-)
-{
-    CARD16 clock_sel, mem_bndry, misc_options, ext_ge_config;
-    Colour saved_Pixel[NumberOf(Test_Pixel)];
-    unsigned int Case_Number, Pixel_Number;
-    Bool AllPixelsOK;
-
-    /* Save register values to be modified */
-    clock_sel = inw(CLOCK_SEL);
-    mem_bndry = inw(MEM_BNDRY);
-    misc_options = inw(MISC_OPTIONS) & ~MEM_SIZE_ALIAS;
-    ext_ge_config = inw(R_EXT_GE_CONFIG);
-
-    /* Wait for enough FIFO entries */
-    ATIWaitQueue(7);
-
-    /* Enable accelerator */
-    outw(CLOCK_SEL, clock_sel | DISABPASSTHRU);
-
-    /* Make accelerator and VGA share video memory */
-    outw(MEM_BNDRY, mem_bndry & ~(MEM_PAGE_BNDRY | MEM_BNDRY_ENA));
-
-    /* Prevent video memory wrap */
-    outw(MISC_OPTIONS, misc_options | MEM_SIZE_4M);
-
-    /*
-     * Set up the drawing engine for a pitch of 1024 at 16 bits per pixel.  No
-     * need to mess with the CRT because the results of this test are not
-     * intended to be seen.
-     */
-    outw(EXT_GE_CONFIG, PIXEL_WIDTH_16 | ORDER_16BPP_565 | MONITOR_8514 |
-        ALIAS_ENA);
-    outw(GE_PITCH, 1024 >> 3);
-    outw(GE_OFFSET_HI, 0);
-    outw(GE_OFFSET_LO, 0);
-
-    for (Case_Number = 0;
-         Case_Number < (NumberOf(Test_Case) - 1);
-         Case_Number++)
-    {
-        /* Reduce redundancy as per Mark_Weaver@brown.edu */
-#       define TestPixel Test_Case[Case_Number].Coordinates[Pixel_Number]
-#       define ForEachTestPixel        \
-            for (Pixel_Number = 0;  TestPixel.x >= 0;  Pixel_Number++)
-
-        /* Save pixel colours that will be clobbered */
-        ForEachTestPixel
-            saved_Pixel[Pixel_Number] =
-                ATIMach32ReadPixel(TestPixel.x, TestPixel.y);
-
-        /* Write test patterns */
-        ForEachTestPixel
-            ATIMach32WritePixel(TestPixel.x, TestPixel.y,
-                Test_Pixel[Pixel_Number]);
-
-        /* Test for lost pixels */
-        AllPixelsOK = TRUE;
-        ForEachTestPixel
-        {
-            if (ATIMach32ReadPixel(TestPixel.x, TestPixel.y) !=
-                Test_Pixel[Pixel_Number])
-            {
-                AllPixelsOK = FALSE;
-                break;
-            }
-        }
-
-        /* Restore clobbered pixels */
-        ForEachTestPixel
-            ATIMach32WritePixel(TestPixel.x, TestPixel.y,
-                saved_Pixel[Pixel_Number]);
-
-        /* End test on success */
-        if (AllPixelsOK)
-            break;
-
-        /* Completeness */
-#       undef ForEachTestPixel
-#       undef TestPixel
-    }
-
-    /* Restore what was changed and correct MISC_OPTIONS register */
-    ATIWaitQueue(4);
-    outw(EXT_GE_CONFIG, ext_ge_config);
-    misc_options |= Test_Case[Case_Number].Miscellaneous_Options_Setting;
-    outw(MISC_OPTIONS, misc_options);
-    outw(MEM_BNDRY, mem_bndry);
-    outw(CLOCK_SEL, clock_sel);
-
-    /* Wait for activity to die down */
-    ProbeWaitIdleEmpty();
-
-    /* Tell ATIPreInit the REAL story */
-    return Test_Case[Case_Number].videoRamSize;
-}
-
-#endif /* AVOID_CPIO */
-
 /*
  * ATIReportMemory --
  *
@@ -316,19 +72,6 @@ ATIReportMemory
     Message = Buffer +
         snprintf(Buffer, SizeOf(Buffer), "%d kB of %s detected",
             pATI->VideoRAM, MemoryTypeName);
-
-#ifndef AVOID_CPIO
-
-    if (pATI->depth == 1)
-    {
-        /* 1bpp only uses one plane of four */
-        pScreenInfo->videoRam /= 4;
-        Message += snprintf(Message, Buffer + SizeOf(Buffer) - Message,
-            " (using %d kB)", pScreenInfo->videoRam);
-    }
-    else
-
-#endif /* AVOID_CPIO */
 
     if (pATI->VideoRAM > pScreenInfo->videoRam)
     {
@@ -487,28 +230,6 @@ ATIPreInit
         /* Promote chipset specification */
         switch (pATI->Chipset)
         {
-
-#ifndef AVOID_CPIO
-
-            case ATI_CHIPSET_IBMVGA:
-                if (pATI->Adapter == ATI_ADAPTER_VGA)
-                    break;      /* XXX */
-                /* Fall through */
-
-            case ATI_CHIPSET_VGAWONDER:
-                pATI->Chipset = ATI_CHIPSET_ATIVGA;
-                break;
-
-            case ATI_CHIPSET_IBM8514:
-                if (pATI->Adapter == ATI_ADAPTER_8514A)
-                    break;      /* XXX */
-                /* Fall through */
-
-            case ATI_CHIPSET_MACH8:
-            case ATI_CHIPSET_MACH32:
-
-#endif /* AVOID_CPIO */
-
             case ATI_CHIPSET_MACH64:
             case ATI_CHIPSET_RAGE128:
             case ATI_CHIPSET_RADEON:
@@ -523,8 +244,7 @@ ATIPreInit
         pScreenInfo->monitor = pScreenInfo->confScreen->monitor;
 
         /* Set depth, bpp, etc. */
-        if ((pATI->Chipset != ATI_CHIPSET_ATI) ||
-            (pATI->Chip < ATI_CHIP_264CT))
+        if ((pATI->Chip < ATI_CHIP_264CT))
         {
             i = NoDepth24Support;       /* No support for >8bpp either */
             DefaultDepth = 8;
@@ -542,15 +262,6 @@ ATIPreInit
         {
             static const CARD8 AllowedDepthBpp[][2] =
             {
-
-#ifndef AVOID_CPIO
-
-                { 1,  1},
-                { 4,  4},
-                { 4,  8},
-
-#endif /* AVOID_CPIO */
-
                 { 8,  8},
                 {15, 16},
                 {16, 16},
@@ -781,70 +492,6 @@ ATIPreInit
     /* Finish probing the adapter */
     switch (pATI->Adapter)
     {
-
-#ifndef AVOID_CPIO
-
-        case ATI_ADAPTER_NONE:
-        case ATI_ADAPTER_EGA:
-        case ATI_ADAPTER_EGA_PLUS:
-        case ATI_ADAPTER_VGA:
-        case ATI_ADAPTER_BASIC:
-            pATI->NewHW.SetBank = (ATIBankProcPtr)NoopDDA;
-            pATI->BankInfo.SetSourceBank =
-                pATI->BankInfo.SetDestinationBank =
-                pATI->BankInfo.SetSourceAndDestinationBanks =
-                    (miBankProcPtr)NoopDDA;
-            break;
-
-        case ATI_ADAPTER_V3:
-            pATI->NewHW.SetBank = ATIV3SetBank;
-            pATI->BankInfo.SetSourceBank = ATIV3SetRead;
-            pATI->BankInfo.SetDestinationBank = ATIV3SetWrite;
-            pATI->BankInfo.SetSourceAndDestinationBanks = ATIV3SetReadWrite;
-            break;
-
-        case ATI_ADAPTER_V4:
-        case ATI_ADAPTER_V5:
-            pATI->NewHW.SetBank = ATIV4V5SetBank;
-            pATI->BankInfo.SetSourceBank = ATIV4V5SetRead;
-            pATI->BankInfo.SetDestinationBank = ATIV4V5SetWrite;
-            pATI->BankInfo.SetSourceAndDestinationBanks = ATIV4V5SetReadWrite;
-            break;
-
-        case ATI_ADAPTER_XL:
-            pATI->DAC = ATI_DAC_SC11483;
-            break;
-
-        case ATI_ADAPTER_8514A:
-            pATI->VideoRAM =
-                videoRamSizes[GetBits(inw(SUBSYS_STAT), _8PLANE) + 2];
-            break;
-
-        case ATI_ADAPTER_MACH8:
-            pATI->VideoRAM =
-                videoRamSizes[GetBits(inw(CONFIG_STATUS_1), MEM_INSTALLED) + 2];
-            break;
-
-        case ATI_ADAPTER_MACH32:
-            IOValue = inw(CONFIG_STATUS_1);
-            pATI->DAC = ATI_DAC(GetBits(IOValue, DACTYPE), 0);
-            pATI->MemoryType = GetBits(IOValue, MEM_TYPE);
-
-            IOValue = inw(MISC_OPTIONS);
-            pATI->VideoRAM =
-                videoRamSizes[GetBits(IOValue, MEM_SIZE_ALIAS) + 2];
-
-            /*
-             * The 68800-6 doesn't necessarily report the correct video memory
-             * size.
-             */
-            if ((pATI->Chip == ATI_CHIP_68800_6) && (pATI->VideoRAM == 1024))
-                pATI->VideoRAM = ATIMach32videoRam();
-
-            break;
-
-#endif /* AVOID_CPIO */
-
         case ATI_ADAPTER_MACH64:
             do
             {
@@ -1035,13 +682,6 @@ ATIPreInit
      * For Mach64 adapters, pick up, from the BIOS, the type of programmable
      * clock generator (if any), and various information about it.
      */
-
-#ifndef AVOID_CPIO
-
-    if (pATI->Chip >= ATI_CHIP_88800GXC)
-
-#endif /* AVOID_CPIO */
-
     {
         CARD16 ClockDac;
 
@@ -1161,9 +801,7 @@ ATIPreInit
              * accelerator modes.
              */
             if ((pATI->ProgrammableClock == ATI_CLOCK_ICS2595) &&
-                (pATI->DAC == ATI_DAC_IBMRGB514) &&
-                (pScreenInfo->depth >= 8) &&
-                (pATI->Chipset == ATI_CHIPSET_ATI))
+                (pATI->DAC == ATI_DAC_IBMRGB514))
                 pATI->ProgrammableClock = ATI_CLOCK_IBMRGB514;
 
             pATI->ClockDescriptor =
@@ -1414,28 +1052,9 @@ ATIPreInit
 
     ATIUnlock(pATI);            /* Unlock registers */
 
-#ifndef AVOID_CPIO
-
-    /* Sometimes, the BIOS lies about the chip */
-    if ((pATI->Chip >= ATI_CHIP_28800_4) && (pATI->Chip <= ATI_CHIP_28800_6))
-    {
-        IOValue = GetBits(ATIGetExtReg(0xAAU), 0x0FU) +
-            (ATI_CHIP_28800_4 - 4);
-        if ((IOValue <= ATI_CHIP_28800_6) && (IOValue > pATI->Chip))
-            pATI->Chip = IOValue;
-    }
-
-#endif /* AVOID_CPIO */
-
     /* Report what was found */
     xf86DrvMsg(pScreenInfo->scrnIndex, X_PROBED,
         "%s graphics controller detected.\n", ATIChipNames[pATI->Chip]);
-
-#ifndef AVOID_CPIO
-
-    if ((pATI->Chip >= ATI_CHIP_68800) && (pATI->Chip != ATI_CHIP_68800_3))
-
-#endif /* AVOID_CPIO */
 
     {
         Message = Buffer + snprintf(Buffer, SizeOf(Buffer), "Chip type %04X",
@@ -1458,19 +1077,12 @@ ATIPreInit
             Buffer, pATI->ChipClass, pATI->ChipRevision);
     }
 
-#ifndef AVOID_CPIO
-
-    if (pATI->Adapter >= ATI_ADAPTER_MACH8)
-
-#endif /* AVOID_CPIO */
-
     {
         Message = Buffer + snprintf(Buffer, SizeOf(Buffer),
             "%s bus interface detected", ATIBusNames[pATI->BusType]);
 
 #ifndef AVOID_CPIO
 
-        if (pATI->Adapter >= ATI_ADAPTER_MACH64)
         {
             Message += snprintf(Message, Buffer + SizeOf(Buffer) - Message,
                 ";  %s I/O base is 0x%04lX",
@@ -1605,14 +1217,6 @@ ATIPreInit
     /*
      * Set colour gamma.
      */
-
-#ifndef AVOID_CPIO
-
-    if (pScreenInfo->depth > 1)
-
-#endif /* AVOID_CPIO */
-
-    {
         if (!xf86SetGamma(pScreenInfo, defaultGamma))
         {
             ATILock(pATI);
@@ -1620,7 +1224,6 @@ ATIPreInit
             ATIUnmapApertures(pScreenInfo->scrnIndex, pATI);
             return FALSE;
         }
-    }
 
     pATI->depth = pScreenInfo->depth;
     pATI->bitsPerPixel = pScreenInfo->bitsPerPixel;
@@ -1630,14 +1233,6 @@ ATIPreInit
     /*
      * Determine which CRT controller to use for video modes.
      */
-
-#ifndef AVOID_CPIO
-
-    if ((pATI->Chip >= ATI_CHIP_88800GXC) &&
-        (pATI->depth >= 8) &&
-        (pATI->Chipset == ATI_CHIPSET_ATI))
-
-#endif /* AVOID_CPIO */
 
     {
         pATI->NewHW.crtc = ATI_CRTC_MACH64;
@@ -1681,14 +1276,6 @@ ATIPreInit
     }
 
 #ifndef AVOID_CPIO
-
-    else
-    {
-        pATI->NewHW.crtc = ATI_CRTC_VGA;
-
-        xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO,
-            "Using VGA CRTC.\n");
-    }
 
     /* Complain if VGA is needed but not there */
     if ((pATI->NewHW.crtc == ATI_CRTC_VGA) || !pATI->OptionLinear)
@@ -2317,31 +1904,12 @@ ATIPreInit
 #ifndef AVOID_CPIO
 
     AcceleratorVideoRAM = pScreenInfo->videoRam;
-    if (pATI->Chip == ATI_CHIP_VGA)
-    {
-        if (pATI->depth <= 4)
-            VGAVideoRAM = 256;
-        else
-            VGAVideoRAM = 64;
-
-        /* For VGA, allow a lower override */
-        if ((pGDev->videoRam > 0) && (pGDev->videoRam < VGAVideoRAM))
-            VGAVideoRAM = pGDev->videoRam;
-    }
-    else if (pATI->CPIO_VGAWonder)
+    if (pATI->CPIO_VGAWonder)
     {
         /*
          * XXX There's an assumption here that the values retrieved are those
          * set by BIOS initialisation.
          */
-        if (pATI->Chip <= ATI_CHIP_18800_1)
-        {
-            VGAVideoRAM =
-                videoRamSizes[GetBits(ATIGetExtReg(0xBBU), 0x20U) + 1];
-            if (AcceleratorVideoRAM > 512)
-                AcceleratorVideoRAM = 512;
-        }
-        else
         {
             IOValue = ATIGetExtReg(0xB0U);
             if (IOValue & 0x08U)
@@ -2359,30 +1927,6 @@ ATIPreInit
     if (!AcceleratorVideoRAM)
     {
         pScreenInfo->videoRam = pATI->VideoRAM = VGAVideoRAM;
-
-        /*
-         * VGA Wonder V3's, V4's and V5's don't appear to support banking in
-         * planar modes.
-         */
-        if ((pATI->depth <= 4) &&
-            (pATI->Chip <= ATI_CHIP_18800_1) &&
-            (VGAVideoRAM > 256))
-        {
-            if (pATI->OptionDevel)
-            {
-                xf86DrvMsg(pScreenInfo->scrnIndex, X_NOTICE,
-                    "Virtual resolutions requiring more than %s kB\n of video"
-                    " memory might not function properly.\n",
-                    (pATI->depth == 1) ? "64" : "256");
-            }
-            else
-            {
-                xf86DrvMsg(pScreenInfo->scrnIndex, X_NOTICE,
-                    "VideoRAM reduced to 256 kB due to hardware"
-                    " limitations.\n");
-                pScreenInfo->videoRam = 256;
-            }
-        }
     }
     else if ((pATI->NewHW.crtc == ATI_CRTC_MACH64) ||
              (pATI->Chip >= ATI_CHIP_264CT))
@@ -2390,13 +1934,6 @@ ATIPreInit
 #endif /* AVOID_CPIO */
 
     {
-
-#ifndef AVOID_CPIO
-
-        if (pATI->depth >= 8)
-
-#endif /* AVOID_CPIO */
-
         {
             /* Get adapter's linear aperture configuration */
             pATIHW->config_cntl = inr(CONFIG_CNTL);
@@ -2598,15 +2135,6 @@ ATIPreInit
             pATI->UseSmallApertures = TRUE;
 
             /* Set banking functions */
-            if (pATI->depth <= 4)
-            {
-                pATI->NewHW.SetBank = ATIMach64SetBankPlanar;
-                pATI->BankInfo.SetSourceBank = ATIMach64SetReadPlanar;
-                pATI->BankInfo.SetDestinationBank = ATIMach64SetWritePlanar;
-                pATI->BankInfo.SetSourceAndDestinationBanks =
-                    ATIMach64SetReadWritePlanar;
-            }
-            else
             {
                 pATI->NewHW.SetBank = ATIMach64SetBankPacked;
                 pATI->BankInfo.SetSourceBank = ATIMach64SetReadPacked;
@@ -2688,8 +2216,7 @@ ATIPreInit
      * However, it's possible that there is more video memory than VGA Wonder
      * can architecturally handle.
      */
-    if (((pATI->Chip < ATI_CHIP_68800) || (pATI->Chip > ATI_CHIP_68800AX)) &&
-        (AcceleratorVideoRAM < pScreenInfo->videoRam))
+    if ((AcceleratorVideoRAM < pScreenInfo->videoRam))
     {
         if (pATI->OptionDevel)
         {
@@ -2780,12 +2307,6 @@ ATIPreInit
         }
     }
 
-#ifndef AVOID_CPIO
-
-    if (pATI->Adapter >= ATI_ADAPTER_MACH32)
-
-#endif /* AVOID_CPIO */
-
     {
         if (pATI->Chip >= ATI_CHIP_264CT)
             ATIReportMemory(pScreenInfo, pATI,
@@ -2797,20 +2318,6 @@ ATIPreInit
             ATIReportMemory(pScreenInfo, pATI,
                 ATIMemoryTypeNames_Mach[pATI->MemoryType]);
     }
-
-#ifndef AVOID_CPIO
-
-    else if (pATI->Adapter >= ATI_ADAPTER_V3)
-    {
-        ATIReportMemory(pScreenInfo, pATI,
-            (ATIGetExtReg(0xB7U) & 0x04U) ? "DRAM" : "VRAM");
-    }
-    else
-    {
-        ATIReportMemory(pScreenInfo, pATI, "video memory");
-    }
-
-#endif /* AVOID_CPIO */
 
     /*
      * Finish banking setup.  This needs to be fixed to not assume the mode on
@@ -2840,18 +2347,11 @@ ATIPreInit
     else
     {
         pATIHW->crtc = ATI_CRTC_VGA;
-        if ((pATI->Chip >= ATI_CHIP_88800GXC) &&
-            (pATI->LockData.crtc_gen_cntl & CRTC_EXT_DISP_EN))
+        if ((pATI->LockData.crtc_gen_cntl & CRTC_EXT_DISP_EN))
         {
             pATIHW->crtc = ATI_CRTC_MACH64;
         }
 
-        if (pATI->depth <= 4)
-        {
-            pATI->BankInfo.nBankDepth = 1;
-            pATI->NewHW.nPlane = 4;
-        }
-        else
         {
             pATI->BankInfo.nBankDepth = pATI->depth;
             pATI->NewHW.nPlane = 1;
@@ -2867,13 +2367,7 @@ ATIPreInit
         pATI->NewHW.nBank = ATIDivide(pATI->VideoRAM,
             pATI->NewHW.nPlane * pATI->BankInfo.BankSize, 10, 1);
 
-        if (pATI->VGAAdapter == ATI_ADAPTER_VGA)
-        {
-            pATIHW->SetBank = pATI->NewHW.SetBank =
-                (ATIBankProcPtr)NoopDDA;
-            pATIHW->nBank = pATI->NewHW.nBank = 1;
-        }
-        else if (!pATI->UseSmallApertures)
+        if (!pATI->UseSmallApertures)
         {
             pATIHW->SetBank = pATI->NewHW.SetBank;
         }
@@ -2909,12 +2403,6 @@ ATIPreInit
         {
             xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
                 "Cannot shadow a banked frame buffer.\n");
-            pATI->OptionShadowFB = FALSE;
-        }
-        else if (pATI->depth < 8)
-        {
-            xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
-                "Cannot shadow a planar frame buffer.\n");
             pATI->OptionShadowFB = FALSE;
         }
         else
@@ -2981,12 +2469,6 @@ ATIPreInit
                 pATI->ReferenceNumerator;
             Denominator = pATI->ClockDescriptor.MinM *
                 pATI->XCLKReferenceDivider * pATI->ReferenceDenominator;
-
-#ifndef AVOID_CPIO
-
-            if (pATI->depth >= 8)
-
-#endif /* AVOID_CPIO */
 
             {
                 Denominator *= pATI->bitsPerPixel / 4;
@@ -3092,19 +2574,7 @@ ATIPreInit
 
 #ifndef AVOID_CPIO
 
-                /*
-                 * 80 MHz is too high in some cases.  Limit 18800-x's to 40
-                 * MHz.  Don't exceed the memory clock on VGA Wonder capables
-                 * with less than 1 MB, if using a packed mode.
-                 */
-                if ((pATI->Chip == ATI_CHIP_18800) ||
-                    (pATI->Chip == ATI_CHIP_18800_1))
-                {
-                    DefaultmaxClock = 40000;
-                }
-                else if (pATI->CPIO_VGAWonder &&
-                        (pATI->VideoRAM < 1024) &&
-                        (pATI->depth >= 8))
+                if (pATI->CPIO_VGAWonder && (pATI->VideoRAM < 1024))
                 {
                     DefaultmaxClock =
                         (GetBits(BIOSByte(0x44U), 0x04U) * 5000) + 40000;
@@ -3144,42 +2614,16 @@ ATIPreInit
      * Mode validation.
      */
 
-#ifdef AVOID_CPIO
-
     if (pATI->Chip >= ATI_CHIP_264CT)
     {
         minPitch = 8;
     }
-
-#else /* AVOID_CPIO */
-
-    if ((pATI->depth >= 8) && (pATI->Chip >= ATI_CHIP_264CT))
-    {
-        minPitch = 8;
-    }
-    else if (pATI->CPIO_VGAWonder &&
-             (pATI->Chip <= ATI_CHIP_18800_1) &&
-             (pATI->VideoRAM == 256) &&
-             (pATI->depth >= 8))
-    {
-        minPitch = 32;          /* Very strange, but true */
-        maxPitch = 0x3FU;
-    }
-
-#endif /* AVOID_CPIO */
-
     else
     {
         minPitch = 16;
     }
 
     pATI->pitchInc = minPitch;
-
-#ifndef AVOID_CPIO
-
-    if (pATI->depth >= 8)
-
-#endif /* AVOID_CPIO */
 
     {
         pATI->pitchInc *= pATI->bitsPerPixel;
@@ -3191,12 +2635,6 @@ ATIPreInit
 #ifndef AVOID_CPIO
 
         case ATI_CRTC_VGA:
-            /*
-             * IBM's VGA doesn't allow for interlaced modes.
-             */
-            if (pATI->Adapter <= ATI_ADAPTER_VGA)
-                ATIClockRange.interlaceAllowed = FALSE;
-
             pScreenInfo->maxHValue = (0xFFU + 1) << 3;  /* max HTotal */
 
             /*
@@ -3205,26 +2643,11 @@ ATIPreInit
              * Finer-grained checks are done in ATIValidateMode().
              */
             pScreenInfo->maxVValue = 0x03FFU + 1;
-            if (pATI->Adapter > ATI_ADAPTER_VGA)
             {
                 pScreenInfo->maxVValue <<= 1;
                 if (ATIClockRange.interlaceAllowed &&
                     (pATI->Chip < ATI_CHIP_264CT))
                     pScreenInfo->maxVValue <<= 1;
-            }
-
-            /*
-             * 18800-x and 28800-x do not support interlaced modes when the
-             * scanline pitch is 2048 pixels or more.  For 18800-x's with 256
-             * kB of video memory, the limit for 8bpp is 1024.
-             */
-            if (ATIClockRange.interlaceAllowed &&
-                (pATI->Chip <= ATI_CHIP_28800_6))
-            {
-                if (minPitch == 32)
-                    pATI->MaximumInterlacedPitch = 0x1FU * 32;
-                else
-                    pATI->MaximumInterlacedPitch = 0x7FU * minPitch;
             }
 
             Strategy |= LOOKUP_CLKDIV2;

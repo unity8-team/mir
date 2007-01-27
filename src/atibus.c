@@ -30,7 +30,7 @@
 #include "atiadapter.h"
 #include "atibus.h"
 #include "atichip.h"
-#include "atiio.h"
+#include "atimach64io.h"
 #include "atistruct.h"
 #include "ativersion.h"
 

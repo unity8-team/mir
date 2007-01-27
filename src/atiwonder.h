@@ -31,7 +31,6 @@
 
 extern void ATIVGAWonderPreInit(ATIPtr, ATIHWPtr);
 extern void ATIVGAWonderSave(ATIPtr, ATIHWPtr);
-extern void ATIVGAWonderCalculate(ATIPtr, ATIHWPtr, DisplayModePtr);
 extern void ATIVGAWonderSet(ATIPtr, ATIHWPtr);
 
 #endif /* AVOID_CPIO */

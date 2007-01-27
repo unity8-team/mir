@@ -32,45 +32,6 @@
 #ifndef AVOID_CPIO
 
 /*
- * ATI VGA Wonder V3 adapters use an ATI 18800 chip and are single-banked.
- * Bank selection is done with bits 0x1E of ATI extended VGA register index
- * 0xB2.
- */
-
-/*
- * ATIV3SetBank --
- *
- * Set an ATI 18800's bank number.
- */
-void
-ATIV3SetBank
-(
-    ATIPtr       pATI,
-    unsigned int iBank
-)
-{
-    ATIModifyExtReg(pATI, 0xB2U, -1, (CARD8)(~0x1EU), SetBits(iBank, 0x1EU));
-}
-
-/*
- * ATIV3SetReadWrite --
- *
- * Set an ATI 18800's bank number.
- */
-int
-ATIV3SetReadWrite
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    ATIPtr pATI = ATIPTR(XF86SCRNINFO(pScreen));
-
-    ATIModifyExtReg(pATI, 0xB2U, -1, (CARD8)(~0x1EU), SetBits(iBank, 0x1EU));
-    return 0;
-}
-
-/*
  * ATI VGA Wonder V4 and V5 adapters use an ATI 18800-1 chip.  Bank selection
  * is done with ATI extended VGA register index 0xB2.  The format is:
  *
@@ -141,22 +102,6 @@ ATIV4V5SetWrite
         ATIPutExtReg(0xB2U, B2Reg);
         pATI->B2Reg = B2Reg;
     }
-    return 0;
-}
-
-/*
- * ATIV4V5SetReadWrite --
- *
- * Set an ATI 18800-1's read and write bank numbers.
- */
-int
-ATIV4V5SetReadWrite
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    ATIV4V5SetBank(ATIPTR(XF86SCRNINFO(pScreen)), iBank);
     return 0;
 }
 
@@ -355,58 +300,6 @@ ATIMach64SetBankPlanar
 
     outr(MEM_VGA_RP_SEL, tmp);
     outr(MEM_VGA_WP_SEL, tmp);
-}
-
-/*
- * ATIMach64SetReadPlanar --
- *
- * Set read bank number for small dual paged apertures.
- */
-int
-ATIMach64SetReadPlanar
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    ATIPtr pATI = ATIPTR(XF86SCRNINFO(pScreen));
-
-    outr(MEM_VGA_RP_SEL, ATIMach64MassagePlanarBankNumber(iBank));
-    return 0;
-}
-
-/*
- * ATIMach64SetWritePlanar --
- *
- * Set write bank number for small dual paged apertures.
- */
-int
-ATIMach64SetWritePlanar
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    ATIPtr pATI = ATIPTR(XF86SCRNINFO(pScreen));
-
-    outr(MEM_VGA_WP_SEL, ATIMach64MassagePlanarBankNumber(iBank));
-    return 0;
-}
-
-/*
- * ATIMach64SetReadWritePlanar --
- *
- * Set read and write bank numbers for small dual paged apertures.
- */
-int
-ATIMach64SetReadWritePlanar
-(
-    ScreenPtr    pScreen,
-    unsigned int iBank
-)
-{
-    ATIMach64SetBankPlanar(ATIPTR(XF86SCRNINFO(pScreen)), iBank);
-    return 0;
 }
 
 #endif /* AVOID_CPIO */

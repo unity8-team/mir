@@ -444,9 +444,6 @@ typedef struct _ATIRec
 
         CARD32 config_cntl;
 
-        /* Mach8/Mach32 registers */
-        CARD16 clock_sel, misc_options, mem_bndry, mem_cfg;
-
         /* VGA Wonder registers */
         CARD8 a6, ab, b1, b4, b5, b6, b8, b9, be;
 
@@ -462,8 +459,6 @@ typedef struct _ATIRec
 
     /* Mode data */
     ATIHWRec OldHW, NewHW;
-    int MaximumInterlacedPitch;
-    Bool InterlacedSeen;
 
     /*
      * Resource Access Control entity index.

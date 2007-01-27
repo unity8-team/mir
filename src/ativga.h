@@ -31,7 +31,6 @@
 
 extern void ATIVGAPreInit(ATIPtr, ATIHWPtr);
 extern void ATIVGASave(ATIPtr, ATIHWPtr);
-extern void ATIVGACalculate(ATIPtr, ATIHWPtr, DisplayModePtr);
 extern void ATIVGASet(ATIPtr, ATIHWPtr);
 
 extern void ATIVGASaveScreen(ATIPtr, int);

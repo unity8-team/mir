@@ -48,7 +48,6 @@ ATIValidMode
 {
     ScrnInfoPtr pScreenInfo = xf86Screens[iScreen];
     ATIPtr      pATI        = ATIPTR(pScreenInfo);
-    Bool        InterlacedSeen;
     int         HBlankWidth, HAdjust, VScan, VInterlace;
 
 #ifndef AVOID_CPIO
@@ -59,31 +58,6 @@ ATIValidMode
 
     if (flags & MODECHECK_FINAL)
     {
-        /*
-         * This is the final check before the common layer accepts a mode.
-         * pScreenInfo->displayWidth is set to the proposed virtual pitch
-         * should the mode be accepted.  The only check needed here is for
-         * 18800's and 28800's, which don't support interlaced modes if the
-         * pitch is over half the chipset's maximum pitch.
-         */
-        if (pATI->MaximumInterlacedPitch)
-        {
-            /*
-             * Ensure no interlaced modes have a scanline pitch larger than the
-             * limit.
-             */
-            if (pMode->Flags & V_INTERLACE)
-                InterlacedSeen = TRUE;
-            else
-                InterlacedSeen = pATI->InterlacedSeen;
-
-            if (InterlacedSeen &&
-                (pScreenInfo->displayWidth > pATI->MaximumInterlacedPitch))
-                return MODE_INTERLACE_WIDTH;
-
-            pATI->InterlacedSeen = InterlacedSeen;
-        }
-
         return MODE_OK;
     }
 
@@ -212,12 +186,6 @@ ATIValidMode
             }
 
             if ((VDisplay > 2048) || (VTotal > 2050))
-                return MODE_BAD_VVALUE;
-
-            if (pATI->Adapter != ATI_ADAPTER_VGA)
-                break;
-
-            if ((VDisplay > 1024) || (VTotal > 1025))
                 return MODE_BAD_VVALUE;
 
             break;

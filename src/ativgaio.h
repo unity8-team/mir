@@ -29,8 +29,10 @@
 
 #define ___ATIVGAIO_H___ 1
 
-#include "atiio.h"
+#include "atiregs.h"
 #include "atipriv.h"
+
+#include "compiler.h"
 
 #ifndef AVOID_CPIO
 

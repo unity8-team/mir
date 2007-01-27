@@ -130,7 +130,6 @@ EXTRA_DIST = \
 	ati.h \
 	atii2c.h \
 	atiident.h \
-	atiio.h \
 	atiload.h \
 	atilock.h \
 	atimach64accel.h \
