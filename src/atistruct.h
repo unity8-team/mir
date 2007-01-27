@@ -211,10 +211,6 @@ typedef struct _Mach64ContextRegs3D
  */
 typedef struct _ATIRec
 {
-    /*
-     * Definitions related to XF86Config "Chipset" specifications.
-     */
-    CARD8 Chipset;
 
 #ifndef AVOID_CPIO
 

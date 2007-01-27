@@ -32,20 +32,6 @@
 #include "r128_probe.h"
 #include "radeon_probe.h"
 
-const char *ATIChipsetNames[] =
-{
-    "ati",
-    "mach64",
-    "rage128",
-    "radeon"
-};
-
-static SymTabRec ATIPublicChipsetNames[] =
-{
-    {ATI_CHIPSET_ATI, "ati"},
-    {-1, NULL}
-};
-
 /*
  * ATIIdentify --
  *
@@ -57,45 +43,8 @@ ATIIdentify
     int flags
 )
 {
-    xf86PrintChipsets(ATI_NAME,
-        (NumberOf(ATIPublicChipsetNames) <= 2) ?
-            "ATI driver (version " ATI_VERSION_NAME ") for chipset" :
-            "ATI driver (version " ATI_VERSION_NAME ") for chipsets",
-        ATIPublicChipsetNames);
+    xf86Msg(X_INFO, "%s: %s\n", ATI_NAME,
+            "ATI driver (version " ATI_VERSION_NAME ") for chipset: mach64");
     R128Identify(flags);
     RADEONIdentify(flags);
-}
-
-/*
- * ATIIdentProbe --
- *
- * This function determines if the user specified a chipset name acceptable to
- * the driver.  It returns an ATIChipsetType or -1.
- */
-int
-ATIIdentProbe
-(
-    const char *ChipsetName
-)
-{
-    int              Chipset;
-
-    static SymTabRec SpecificNames[] =
-    {
-        {ATI_CHIPSET_MACH64, "mach64"},
-        {ATI_CHIPSET_RAGE128, "rage128"},
-        {ATI_CHIPSET_RADEON, "radeon"},
-        {-1, NULL}
-    };
-
-    /* If no Chipset specification, default to "ati" */
-    if (!ChipsetName || !*ChipsetName)
-        return ATI_CHIPSET_ATI;
-
-    Chipset = xf86StringToToken(ATIPublicChipsetNames, ChipsetName);
-    if (Chipset != -1)
-        return Chipset;
-
-    /* Check for some other chipset names */
-    return xf86StringToToken(SpecificNames, ChipsetName);
 }

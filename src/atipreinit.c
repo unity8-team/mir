@@ -236,23 +236,6 @@ ATIPreInit
 
     if (!(flags & PROBE_DETECT))
     {
-        xf86DrvMsg(pScreenInfo->scrnIndex,
-            pATI->Chipset ? X_CONFIG : X_DEFAULT,
-            "Chipset:  \"%s\".\n", ATIChipsetNames[pATI->Chipset]);
-
-        /* Promote chipset specification */
-        switch (pATI->Chipset)
-        {
-            case ATI_CHIPSET_MACH64:
-            case ATI_CHIPSET_RAGE128:
-            case ATI_CHIPSET_RADEON:
-                pATI->Chipset = ATI_CHIPSET_ATI;
-                break;
-
-            default:
-                break;
-        }
-
         /* Set monitor */
         pScreenInfo->monitor = pScreenInfo->confScreen->monitor;
 
@@ -2539,7 +2522,7 @@ ATIPreInit
     ATII2CPreInit(pScreenInfo, pATI);
 
     if (!pScreenInfo->chipset || !*pScreenInfo->chipset)
-        pScreenInfo->chipset = (char *)ATIChipsetNames[0];
+        pScreenInfo->chipset = "mach64";
 
     ATILock(pATI);
     ATIPrintNoiseIfRequested(pATI, BIOS, BIOSSize);

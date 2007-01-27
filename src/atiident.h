@@ -23,18 +23,6 @@
 #ifndef ___ATIIDENT_H___
 #define ___ATIIDENT_H___ 1
 
-typedef enum
-{
-    ATI_CHIPSET_ATI,
-    ATI_CHIPSET_MACH64,
-    ATI_CHIPSET_RAGE128,
-    ATI_CHIPSET_RADEON,
-    ATI_CHIPSET_MAX             /* Must be last */
-} ATIChipsetType;
-
-extern const char *ATIChipsetNames[];
-
 extern void ATIIdentify(int);
-extern int  ATIIdentProbe(const char *);
 
 #endif /* ___ATIIDENT_H___ */
