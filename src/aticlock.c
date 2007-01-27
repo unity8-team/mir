@@ -197,7 +197,6 @@
 
 #include <stdlib.h>
 #include "ati.h"
-#include "atiadapter.h"
 #include "atichip.h"
 #include "atidac.h"
 #include "atidsp.h"
@@ -711,7 +710,7 @@ ProbeClocks:
 
 #ifndef AVOID_CPIO
 
-        if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+        if (pATI->VGAAdapter)
         {
             /*
              * The current video state needs to be saved before the clock
@@ -909,7 +908,7 @@ ProbeClocks:
 
 #ifndef AVOID_CPIO
 
-        if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+        if (pATI->VGAAdapter)
         {
             /* Restore video state */
             ATIModeSet(pScreenInfo, pATI, &pATI->OldHW);

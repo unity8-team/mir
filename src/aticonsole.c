@@ -29,7 +29,6 @@
 #endif
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "aticonsole.h"
 #include "aticrtc.h"
 #include "atii2c.h"
@@ -129,22 +128,8 @@ ATISetDPMSMode
 
     pATI = ATIPTR(pScreenInfo);
 
-    switch (pATI->Adapter)
     {
-        case ATI_ADAPTER_MACH64:
             ATIMach64SetDPMSMode(pScreenInfo, pATI, DPMSMode);
-            break;
-
-        default:
-
-#ifndef AVOID_CPIO
-
-            /* Assume EGA/VGA */
-            ATIVGASetDPMSMode(pATI, DPMSMode);
-
-#endif /* AVOID_CPIO */
-
-            break;
     }
 }
 

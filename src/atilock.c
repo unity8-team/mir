@@ -25,7 +25,6 @@
 #endif
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "atichip.h"
 #include "atilock.h"
 #include "atimach64io.h"
@@ -180,7 +179,7 @@ ATIUnlock
 
 #ifndef AVOID_CPIO
 
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
     {
         if (pATI->CPIO_VGAWonder)
         {
@@ -401,7 +400,7 @@ ATILock
 
 #ifndef AVOID_CPIO
 
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
     {
         if (pATI->LCDPanelID >= 0)
         {

@@ -28,7 +28,6 @@
 #include <stdio.h>
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "atiadjust.h"
 #include "atiaudio.h"
 #include "atibus.h"
@@ -490,9 +489,7 @@ ATIPreInit
     pATI->Audio = ATI_AUDIO_NONE;
 
     /* Finish probing the adapter */
-    switch (pATI->Adapter)
     {
-        case ATI_ADAPTER_MACH64:
             do
             {
                 /*
@@ -671,11 +668,6 @@ ATIPreInit
              */
             if (pATI->DAC < ATI_DAC_ATI68875)
                 pATI->DAC += ATI_DAC_INTERNAL;
-
-            break;
-
-        default:
-            break;
     }
 
     /*
@@ -1105,7 +1097,7 @@ ATIPreInit
 #endif /* AVOID_CPIO */
 
     xf86DrvMsg(pScreenInfo->scrnIndex, X_PROBED,
-        "%s adapter detected.\n", ATIAdapterNames[pATI->Adapter]);
+        "ATI Mach64 adapter detected.\n");
 
     if (pATI->Chip >= ATI_CHIP_264GT)
         xf86DrvMsg(pScreenInfo->scrnIndex, X_NOTICE,
@@ -1242,7 +1234,7 @@ ATIPreInit
 
 #ifndef AVOID_CPIO
 
-        if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+        if (pATI->VGAAdapter)
         {
             /*
              * No need for VGA I/O resources during operating state (but they
@@ -1281,7 +1273,7 @@ ATIPreInit
     if ((pATI->NewHW.crtc == ATI_CRTC_VGA) || !pATI->OptionLinear)
     {
         /* VGA is required at this point */
-        if (pATI->VGAAdapter == ATI_ADAPTER_NONE)
+        if (!pATI->VGAAdapter)
         {
             xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
                 "VGA is not available through this adapter.\n");
@@ -2129,8 +2121,7 @@ ATIPreInit
 
 #ifndef AVOID_CPIO
 
-        /* Set up for a banked aperture */
-        if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+        if (pATI->VGAAdapter)
         {
             pATI->UseSmallApertures = TRUE;
 
@@ -2166,7 +2157,7 @@ ATIPreInit
 
 #ifndef AVOID_CPIO
 
-            if (pATI->VGAAdapter == ATI_ADAPTER_NONE)
+            if (!pATI->VGAAdapter)
 
 #endif /* AVOID_CPIO */
 
@@ -2246,7 +2237,7 @@ ATIPreInit
                 "Linear aperture not supported in this configuration.\n");
             pATI->OptionLinear = FALSE;
         }
-        else if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+        else if (pATI->VGAAdapter)
         {
             /*
              * Free VGA memory aperture during operating state (but it is still
@@ -2326,24 +2317,13 @@ ATIPreInit
 
 #ifndef AVOID_CPIO
 
-    if (pATI->VGAAdapter == ATI_ADAPTER_NONE)
-
-#endif /* AVOID_CPIO */
-
+    if (!pATI->VGAAdapter)
     {
         pATIHW->crtc = pATI->NewHW.crtc;
 
-#ifndef AVOID_CPIO
-
         pATIHW->SetBank = (ATIBankProcPtr)NoopDDA;
         pATI->BankInfo.BankSize = 0;            /* No banking */
-
-#endif /* AVOID_CPIO */
-
     }
-
-#ifndef AVOID_CPIO
-
     else
     {
         pATIHW->crtc = ATI_CRTC_VGA;
@@ -2389,6 +2369,12 @@ ATIPreInit
         if (((ApertureSize * pATI->depth) / pATI->BankInfo.nBankDepth) >=
             (unsigned)(pScreenInfo->videoRam * 1024))
             pATI->BankInfo.BankSize = 0;        /* No banking */
+    }
+
+#else /* AVOID_CPIO */
+
+    {
+        pATIHW->crtc = pATI->NewHW.crtc;
     }
 
 #endif /* AVOID_CPIO */

@@ -27,7 +27,6 @@
 #include <string.h>
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "atibus.h"
 #include "atichip.h"
 #include "atimach64io.h"
@@ -66,7 +65,7 @@ ATIClaimResources
     resRange Resources[2] = {{0, 0, 0}, _END};
 
     /* Claim VGA and VGAWonder resources */
-    if ((pATI->VGAAdapter != ATI_ADAPTER_NONE) && (Active))
+    if ((pATI->VGAAdapter) && (Active))
     {
         /*
          * 18800-x's are the only ATI controllers that decode all ISA aliases
@@ -93,8 +92,7 @@ ATIClaimResources
         return;
 
     /* Claim Mach64 sparse I/O resources */
-    if ((pATI->Adapter == ATI_ADAPTER_MACH64) &&
-        (pATI->CPIODecoding == SPARSE_IO))
+    if ((pATI->CPIODecoding == SPARSE_IO))
     {
         Resources[0].type = ResShrIoSparse | ResBus;
         Resources[0].rBase = pATI->CPIOBase;

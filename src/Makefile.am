@@ -52,7 +52,7 @@ ati_drv_la_LTLIBRARIES = ati_drv.la
 ati_drv_la_LDFLAGS = -module -avoid-version
 ati_drv_ladir = @moduledir@/drivers
 ati_drv_la_SOURCES = \
-	ati.c atiadapter.c atibus.c atichip.c atiident.c atioption.c \
+	ati.c atibus.c atichip.c atiident.c atioption.c \
 	atiprobe.c atividmem.c atimodule.c $(ATI_CPIO_SOURCES) \
 	radeon_probe.c r128_probe.c
 
@@ -109,7 +109,6 @@ EXTRA_DIST = \
 	radeon_accelfuncs.c \
 	\
 	atiaccel.h \
-	atiadapter.h \
 	atiadjust.h \
 	atiaudio.h \
 	atibank.h \

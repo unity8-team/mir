@@ -24,7 +24,6 @@
 #include "config.h"
 #endif
 
-#include "atiadapter.h"
 #include "atimach64xv.h"
 #include "atistruct.h"
 #include "atixv.h"
@@ -68,16 +67,9 @@ ATIXVInitializeAdaptor
     XF86VideoAdaptorPtr *ppAdaptor = NULL;
     int                 nAdaptor;
 
-    switch (pATI->Adapter)
     {
-        case ATI_ADAPTER_MACH64:
             nAdaptor = ATIMach64XVInitialiseAdaptor(pScreen, pScreenInfo, pATI,
                 &ppAdaptor);
-            break;
-
-        default:
-            nAdaptor = 0;
-            break;
     }
 
     if (pppAdaptor)
@@ -156,13 +148,5 @@ ATICloseXVideo
     ATIPtr      pATI
 )
 {
-    switch (pATI->Adapter)
-    {
-        case ATI_ADAPTER_MACH64:
             ATIMach64CloseXVideo(pScreen, pScreenInfo, pATI);
-            break;
-
-        default:
-            break;
-    }
 }

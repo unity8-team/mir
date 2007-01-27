@@ -28,7 +28,6 @@
 #include <stdio.h>
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "atiadjust.h"
 #include "atibus.h"
 #include "atichip.h"
@@ -281,6 +280,7 @@ ATIMach64Detect
 )
 {
     CARD32 IOValue, bus_cntl, gen_test_cntl;
+    Bool DetectSuccess = FALSE;
 
     (void)ATIMapApertures(-1, pATI);    /* Ignore errors */
 
@@ -330,7 +330,7 @@ ATIMach64Detect
             ATIMach64ChipID(pATI, ChipType);
             if ((pATI->Chip != ATI_CHIP_Mach64) ||
                 (pATI->CPIODecoding == BLOCK_IO))
-                pATI->Adapter = ATI_ADAPTER_MACH64;
+                DetectSuccess = TRUE;
         }
     }
 
@@ -338,7 +338,7 @@ ATIMach64Detect
     outr(SCRATCH_REG0, IOValue);
 
     /* If no Mach64 was detected, return now */
-    if (pATI->Adapter != ATI_ADAPTER_MACH64)
+    if (!DetectSuccess)
     {
         outr(GEN_TEST_CNTL, gen_test_cntl);
         outr(BUS_CNTL, bus_cntl);
@@ -479,7 +479,7 @@ ATIMach64Probe
      */
     if (pATI->Chip >= ATI_CHIP_264CT)
     {
-        pATI->VGAAdapter = ATI_ADAPTER_MACH64;
+        pATI->VGAAdapter = TRUE;
     }
     else
     {
@@ -490,7 +490,7 @@ ATIMach64Probe
             IOValue |= CFG_VGA_EN;
         if (IOValue == (CFG_VGA_EN | CFG_CHIP_EN))
         {
-            pATI->VGAAdapter = ATI_ADAPTER_MACH64;
+            pATI->VGAAdapter = TRUE;
             pATI->CPIO_VGAWonder = 0x01CEU;
         }
     }
@@ -835,7 +835,7 @@ ATIProbe
                             AddAdapter(pATI);
                             pATI->PCIInfo = pVideo;
 
-                            if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+                            if (pATI->VGAAdapter)
                                 ATIFindVGA(pVideo, pATI, ProbeFlags);
                         }
 
@@ -951,7 +951,7 @@ ATIProbe
 
 #ifndef AVOID_CPIO
 
-                if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+                if (pATI->VGAAdapter)
                     ATIFindVGA(pVideo, pATI, ProbeFlags);
 
 #endif /* AVOID_CPIO */
@@ -1071,8 +1071,7 @@ ATIProbe
                     if ((pATI->ChipType != pGDev->chipID) &&
                         (!pVideo || (pGDev->chipID != pVideo->chipType)))
                     {
-                        if ((pATI->Adapter != ATI_ADAPTER_MACH64) ||
-                            (pATI->Chip != ATI_CHIP_Mach64))
+                        if ((pATI->Chip != ATI_CHIP_Mach64))
                             continue;
 
                         Chip = ATIChipID(pGDev->chipID, 0);

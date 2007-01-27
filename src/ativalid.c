@@ -24,7 +24,6 @@
 #include "config.h"
 #endif
 
-#include "atiadapter.h"
 #include "atichip.h"
 #include "aticrtc.h"
 #include "atistruct.h"

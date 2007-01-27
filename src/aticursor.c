@@ -24,7 +24,6 @@
 #include "config.h"
 #endif
 
-#include "atiadapter.h"
 #include "aticursor.h"
 #include "atimach64cursor.h"
 #include "atistruct.h"
@@ -53,14 +52,8 @@ ATIInitializeCursor
     if (!(pATI->pCursorInfo = xf86CreateCursorInfoRec()))
         return FALSE;
 
-    switch (pATI->Adapter)
+    if (!ATIMach64CursorInit(pATI->pCursorInfo))
     {
-        case ATI_ADAPTER_MACH64:
-            if (ATIMach64CursorInit(pATI->pCursorInfo))
-                break;
-            /* Fall through */
-
-        default:
             xf86DestroyCursorInfoRec(pATI->pCursorInfo);
             pATI->pCursorInfo = NULL;
             return FALSE;

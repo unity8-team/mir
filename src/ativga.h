@@ -34,7 +34,6 @@ extern void ATIVGASave(ATIPtr, ATIHWPtr);
 extern void ATIVGASet(ATIPtr, ATIHWPtr);
 
 extern void ATIVGASaveScreen(ATIPtr, int);
-extern void ATIVGASetDPMSMode(ATIPtr, int);
 
 #endif /* AVOID_CPIO */
 

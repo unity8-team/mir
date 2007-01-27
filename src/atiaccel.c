@@ -28,7 +28,6 @@
 #endif
 
 #include "atiaccel.h"
-#include "atiadapter.h"
 #include "atimach64accel.h"
 #include "atistruct.h"
 
@@ -52,14 +51,8 @@ ATIInitializeAcceleration
         if (!(pATI->pXAAInfo = XAACreateInfoRec()))
             return FALSE;
 
-        switch (pATI->Adapter)
         {
-            case ATI_ADAPTER_MACH64:
                 ATIMach64AccelInit(pATI, pATI->pXAAInfo);
-                break;
-
-            default:
-                break;
         }
     }
 

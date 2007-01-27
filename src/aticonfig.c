@@ -30,7 +30,6 @@
 #include <string.h>
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "atichip.h"
 #include "aticonfig.h"
 #include "aticursor.h"
@@ -163,13 +162,6 @@ ATIProcessOptions
     xf86CollectOptions(pScreenInfo, NULL);
 
     /* Set non-zero defaults */
-
-#ifndef AVOID_CPIO
-
-    if (pATI->Adapter >= ATI_ADAPTER_MACH64)
-
-#endif /* AVOID_CPIO */
-
     {
         Accel = CacheMMIO = HWCursor = TRUE;
 

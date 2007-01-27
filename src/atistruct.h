@@ -219,11 +219,6 @@ typedef struct _ATIRec
      */
     CARD8 Chipset;
 
-    /*
-     * Adapter-related definitions.
-     */
-    CARD8 Adapter;
-
 #ifndef AVOID_CPIO
 
     CARD8 VGAAdapter;

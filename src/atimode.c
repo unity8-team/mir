@@ -27,7 +27,6 @@
 #include <string.h>
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "atichip.h"
 #include "atidac.h"
 #include "atidsp.h"
@@ -263,7 +262,7 @@ ATIModePreInit
 
 #ifndef AVOID_CPIO
 
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
     {
         /* Fill in VGA data */
         ATIVGAPreInit(pATI, pATIHW);
@@ -435,7 +434,7 @@ ATIModeSave
 
 #ifndef AVOID_CPIO
 
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
     {
         /* Save VGA data */
         ATIVGASave(pATI, pATIHW);
@@ -525,7 +524,7 @@ ATIModeSave
 
 #ifndef AVOID_CPIO
 
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
         ATIVGASaveScreen(pATI, SCREEN_SAVER_OFF);       /* Turn on screen */
 
 #endif /* AVOID_CPIO */
@@ -1139,7 +1138,7 @@ ATIModeSet
     /* Restore video memory */
     ATISwap(pScreenInfo->scrnIndex, pATI, pATIHW, TRUE);
 
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
         ATIVGASaveScreen(pATI, SCREEN_SAVER_OFF);       /* Turn on screen */
 
 #endif /* AVOID_CPIO */

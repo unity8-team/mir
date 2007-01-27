@@ -28,7 +28,6 @@
 #include <ctype.h>
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "atichip.h"
 #include "atidac.h"
 #include "atimach64io.h"
@@ -369,7 +368,7 @@ ATIPrintRegisters
 
     crtc = ATI_CRTC_VGA;
 
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
     {
         xf86ErrorFVerb(4, "\n Miscellaneous output register value:  0x%02X.\n",
             genmo = inb(R_GENMO));

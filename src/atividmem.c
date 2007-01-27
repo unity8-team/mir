@@ -25,7 +25,6 @@
 #endif
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "atistruct.h"
 #include "atividmem.h"
 
@@ -188,7 +187,7 @@ ATIMapApertures
 
 #ifndef AVOID_CPIO
 
-    if (pATI->VGAAdapter == ATI_ADAPTER_NONE)
+    if (!pATI->VGAAdapter)
 
 #endif /* AVOID_CPIO */
 
@@ -207,7 +206,7 @@ ATIMapApertures
 #ifndef AVOID_CPIO
 
     /* Map VGA aperture */
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
     {
         /*
          * No relocation, resizing, caching or write-combining of this
