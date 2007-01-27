@@ -646,14 +646,15 @@ ATIMach64Calculate
     {
         pMode->Flags &= ~(V_PHSYNC | V_NHSYNC | V_PVSYNC | V_NVSYNC);
 
-        if (pATI->OptionPanelDisplay && (pATI->LCDPanelID >= 0)
-#ifdef TV_OUT
-       && !pATI->tvActive
-#endif
-)
+        if (pATI->OptionPanelDisplay && (pATI->LCDPanelID >= 0))
             VDisplay = pATI->LCDVertical;
         else
             VDisplay = pMode->CrtcVDisplay;
+
+#ifdef TV_OUT
+        if (pATI->tvActive)
+            VDisplay = pMode->CrtcVDisplay;
+#endif
 
         if (VDisplay < 400)
             pMode->Flags |= V_PHSYNC | V_NVSYNC;

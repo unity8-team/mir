@@ -741,16 +741,17 @@ ATIModeCalculate
             MaxScalerClock = 80000;     /* Conservative */
         pATIHW->pll_vclk_cntl &= ~PLL_ECP_DIV;
 #ifdef TV_OUT
-	if (!pATI->OptionTvOut) {
-#endif /* TV_OUT */
+	if (pATI->OptionTvOut) {
 	   /* XXX Don't do this for TVOut! */
+	}
+	else
+#endif /* TV_OUT */
+	{
 	   ECPClock = pMode->SynthClock;
 	   for (Index = 0;  (ECPClock > MaxScalerClock) && (Index < 2);  Index++)
 	      ECPClock >>= 1;
 	   pATIHW->pll_vclk_cntl |= SetBits(Index, PLL_ECP_DIV);
-#ifdef TV_OUT
 	}
-#endif /* TV_OUT */
     }
     else if (pATI->DAC == ATI_DAC_IBMRGB514)
     {

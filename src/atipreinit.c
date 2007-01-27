@@ -178,7 +178,7 @@ ATIPreInit
 #ifndef AVOID_CPIO
 
     xf86Int10InfoPtr pInt10Info = NULL;
-    vbeInfoPtr       pVBE;
+    vbeInfoPtr       pVBE = NULL;
     pointer          pInt10Module, pDDCModule = NULL, pVBEModule = NULL;
 
 #endif /* AVOID_CPIO */
@@ -301,14 +301,7 @@ ATIPreInit
         ATIProcessOptions(pScreenInfo, pATI);
     }
 
-#ifdef AVOID_CPIO
-
-    else /* if (flags & PROBE_DETECT) */
-    {
-        return TRUE;
-    }
-
-#else /* AVOID_CPIO */
+#ifndef AVOID_CPIO
 
 #ifdef TV_OUT
 
@@ -349,17 +342,7 @@ ATIPreInit
             if ((pVBE = VBEInit(pInt10Info, pATI->iEntity)))
             {
                 ConfiguredMonitor = vbeDoEDID(pVBE, pDDCModule);
-#ifdef TV_OUT
-		pATI->pInt10 = pInt10Info;
-		pATI->pVBE = pVBE;
-		pVBE = NULL;
-#else
-                vbeFree(pVBE);
-#endif /* TV_OUT */
             }
-#ifndef TV_OUT
-            xf86UnloadSubModule(pVBEModule);
-#endif /* TV_OUT */
         }
 
         if (!(flags & PROBE_DETECT))
@@ -383,20 +366,21 @@ ATIPreInit
     }
 
 #ifndef TV_OUT
+    /* De-activate VBE */
+    vbeFree(pVBE);
+    xf86UnloadSubModule(pVBEModule);
+
     /* De-activate int10 */
     xf86FreeInt10(pInt10Info);
     xf86UnloadSubModule(pInt10Module);
 #else
+    pATI->pInt10 = pInt10Info;
+    pATI->pVBE = pVBE;
+    pVBE = NULL;
     pInt10Info = NULL;
 #endif /* TV_OUT */
 
-    if (flags & PROBE_DETECT)
-    {
-        xf86UnloadSubModule(pDDCModule);
-        return TRUE;
-    }
-
-    if (ConfiguredMonitor)
+    if (ConfiguredMonitor && !(flags & PROBE_DETECT))
     {
         xf86PrintEDID(ConfiguredMonitor);
         xf86SetDDCproperties(pScreenInfo, ConfiguredMonitor);
@@ -406,6 +390,11 @@ ATIPreInit
     xf86UnloadSubModule(pDDCModule);
 
 #endif /* AVOID_CPIO */
+
+    if (flags & PROBE_DETECT)
+    {
+        return TRUE;
+    }
 
     pATI->Block0Base = 0;       /* Might no longer be valid */
     if ((pVideo = pATI->PCIInfo))
