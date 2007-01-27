@@ -328,6 +328,8 @@ xf86CrtcRotate (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation)
 	PixmapPtr   shadow = crtc->rotatedPixmap;
 	int	    old_width = shadow ? shadow->drawable.width : 0;
 	int	    old_height = shadow ? shadow->drawable.height : 0;
+	BoxRec	    damage_box;
+	RegionRec   damage_region;
 	
 	/* Allocate memory for rotation */
 	if (old_width != width || old_height != height)
@@ -363,6 +365,14 @@ xf86CrtcRotate (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation)
 	    {
 		goto bail3;
 	    }
+	    damage_box.x1 = 0;
+	    damage_box.y1 = 0;
+	    damage_box.x2 = mode_width (mode, rotation);
+	    damage_box.y2 = mode_height (mode, rotation);
+	    REGION_INIT (pScreen, &damage_region, &damage_box, 1);
+	    DamageDamageRegion (&(*pScreen->GetScreenPixmap)(pScreen)->drawable,
+				&damage_region);
+	    REGION_UNINIT (pScreen, &damage_region);
 	}
 	if (0)
 	{
