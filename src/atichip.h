@@ -136,12 +136,6 @@ typedef enum
 
 extern const char *ATIFoundryNames[];
 
-#ifndef AVOID_CPIO
-
-extern void        ATIMach32ChipID(ATIPtr);
-
-#endif /* AVOID_CPIO */
-
 extern void        ATIMach64ChipID(ATIPtr, const CARD16);
 extern ATIChipType ATIChipID(const CARD16, const CARD8);
 

@@ -474,31 +474,6 @@ ATIPrintRegisters
                 "ATI extended VGA", 0);
     }
 
-    if (pATI->ChipHasSUBSYS_CNTL)
-    {
-        xf86ErrorFVerb(4, "\n 8514/A register values:");
-        for (Index = 0x02E8U;  Index <= 0x0FEE8;  Index += 0x0400U)
-        {
-            if (!((Index - 0x02E8U) & 0x0C00U))
-                xf86ErrorFVerb(4, "\n 0x%04X: ", Index);
-            xf86ErrorFVerb(4, " %04X", inw(Index));
-        }
-
-        if (pATI->Adapter >= ATI_ADAPTER_MACH8)
-        {
-            xf86ErrorFVerb(4, "\n\n Mach8/Mach32 register values:");
-            for (Index = 0x02EEU;  Index <= 0x0FEEE;  Index += 0x0400U)
-            {
-                if (!((Index - 0x02EEU) & 0x0C00U))
-                    xf86ErrorFVerb(4, "\n 0x%04X: ", Index);
-                xf86ErrorFVerb(4, " %04X", inw(Index));
-            }
-        }
-
-        xf86ErrorFVerb(4, "\n");
-    }
-    else
-
 #endif /* AVOID_CPIO */
 
     if (pATI->Chip == ATI_CHIP_264LT)

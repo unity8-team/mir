@@ -57,44 +57,7 @@ ATIUnlock
 
 #ifndef AVOID_CPIO
 
-    if (pATI->ChipHasSUBSYS_CNTL)
-    {
-        /* Save register values to be modified */
-        pATI->LockData.clock_sel = inw(CLOCK_SEL);
-        if (pATI->Chip >= ATI_CHIP_68800)
-        {
-            pATI->LockData.misc_options = inw(MISC_OPTIONS);
-            pATI->LockData.mem_bndry = inw(MEM_BNDRY);
-            pATI->LockData.mem_cfg = inw(MEM_CFG);
-        }
-
-        tmp = inw(SUBSYS_STAT) & _8PLANE;
-
-        /* Reset the 8514/A and disable all interrupts */
-        outw(SUBSYS_CNTL, tmp | (GPCTRL_RESET | CHPTEST_NORMAL));
-        outw(SUBSYS_CNTL, tmp | (GPCTRL_ENAB | CHPTEST_NORMAL | RVBLNKFLG |
-            RPICKFLAG | RINVALIDIO | RGPIDLE));
-
-        /* Ensure VGA is enabled */
-        outw(CLOCK_SEL, pATI->LockData.clock_sel &~DISABPASSTHRU);
-        if (pATI->Chip >= ATI_CHIP_68800)
-        {
-            outw(MISC_OPTIONS, pATI->LockData.misc_options &
-                ~(DISABLE_VGA | DISABLE_DAC));
-
-            /* Disable any video memory boundary */
-            outw(MEM_BNDRY, pATI->LockData.mem_bndry &
-                ~(MEM_PAGE_BNDRY | MEM_BNDRY_ENA));
-
-            /* Disable direct video memory aperture */
-            outw(MEM_CFG, pATI->LockData.mem_cfg &
-                ~(MEM_APERT_SEL | MEM_APERT_PAGE | MEM_APERT_LOC));
-        }
-
-        /* Wait for all activity to die down */
-        ProbeWaitIdleEmpty();
-    }
-    else if (pATI->Chip >= ATI_CHIP_88800GXC)
+    if (pATI->Chip >= ATI_CHIP_88800GXC)
 
 #endif /* AVOID_CPIO */
 
@@ -437,7 +400,7 @@ ATILock
 
 #ifndef AVOID_CPIO
 
-    CARD32 tmp, saved_lcd_gen_ctrl = 0, lcd_gen_ctrl = 0;
+    CARD32 saved_lcd_gen_ctrl = 0, lcd_gen_ctrl = 0;
 
 #endif /* AVOID_CPIO */
 
@@ -532,28 +495,7 @@ ATILock
         }
     }
 
-    if (pATI->ChipHasSUBSYS_CNTL)
-    {
-        tmp = inw(SUBSYS_STAT) & _8PLANE;
-
-        /* Reset the 8514/A and disable all interrupts */
-        outw(SUBSYS_CNTL, tmp | (GPCTRL_RESET | CHPTEST_NORMAL));
-        outw(SUBSYS_CNTL, tmp | (GPCTRL_ENAB | CHPTEST_NORMAL | RVBLNKFLG |
-            RPICKFLAG | RINVALIDIO | RGPIDLE));
-
-        /* Restore modified accelerator registers */
-        outw(CLOCK_SEL, pATI->LockData.clock_sel);
-        if (pATI->Chip >= ATI_CHIP_68800)
-        {
-            outw(MISC_OPTIONS, pATI->LockData.misc_options);
-            outw(MEM_BNDRY, pATI->LockData.mem_bndry);
-            outw(MEM_CFG, pATI->LockData.mem_cfg);
-        }
-
-        /* Wait for all activity to die down */
-        ProbeWaitIdleEmpty();
-    }
-    else if (pATI->Chip >= ATI_CHIP_88800GXC)
+    if (pATI->Chip >= ATI_CHIP_88800GXC)
 
 #endif /* AVOID_CPIO */
 

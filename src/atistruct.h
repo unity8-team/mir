@@ -238,12 +238,6 @@ typedef struct _ATIRec
     CARD8 Chip;
     CARD8 ChipClass, ChipRevision, ChipRev, ChipVersion, ChipFoundry;
 
-#ifndef AVOID_CPIO
-
-    CARD8 Coprocessor, ChipHasSUBSYS_CNTL;
-
-#endif /* AVOID_CPIO */
-
     /*
      * Processor I/O decoding definitions.
      */
@@ -285,11 +279,9 @@ typedef struct _ATIRec
      */
     pciVideoPtr PCIInfo;
     CARD8 BusType;
-    CARD8 SharedAccelerator;
 
 #ifndef AVOID_CPIO
 
-    CARD8 SharedVGA;
     resRange VGAWonderResources[2];
 
 #endif /* AVOID_CPIO */

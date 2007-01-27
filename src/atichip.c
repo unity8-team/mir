@@ -122,52 +122,6 @@ const char *ATIChipNames[] =
 const char *ATIFoundryNames[] =
     { "SGS", "NEC", "KCS", "UMC", "TSMC", "5", "6", "UMC" };
 
-#ifndef AVOID_CPIO
-
-/*
- * ATIMach32ChipID --
- *
- * Set variables whose value is dependent upon an 68800's CHIP_ID register.
- */
-void
-ATIMach32ChipID
-(
-    ATIPtr pATI
-)
-{
-    CARD16 IOValue     = inw(CHIP_ID);
-    pATI->ChipType     = GetBits(IOValue, CHIP_CODE_0 | CHIP_CODE_1);
-    pATI->ChipClass    = GetBits(IOValue, CHIP_CLASS);
-    pATI->ChipRevision = GetBits(IOValue, CHIP_REV);
-    pATI->ChipRev      = pATI->ChipRevision;
-    if (IOValue == 0xFFFFU)
-        IOValue = 0;
-    switch (GetBits(IOValue, CHIP_CODE_0 | CHIP_CODE_1))
-    {
-        case OldChipID('A', 'A'):
-            pATI->Chip = ATI_CHIP_68800_3;
-            break;
-
-        case OldChipID('X', 'X'):
-            pATI->Chip = ATI_CHIP_68800_6;
-            break;
-
-        case OldChipID('L', 'X'):
-            pATI->Chip = ATI_CHIP_68800LX;
-            break;
-
-        case OldChipID('A', 'X'):
-            pATI->Chip = ATI_CHIP_68800AX;
-            break;
-
-        default:
-            pATI->Chip = ATI_CHIP_68800;
-            break;
-    }
-}
-
-#endif /* AVOID_CPIO */
-
 /*
  * ATIMach64ChipID --
  *

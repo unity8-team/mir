@@ -465,8 +465,7 @@ ATIPreInit
     pResources = pEntity->resources;
     xfree(pEntity);
     if (!pResources)
-        pResources = xf86RegisterResources(pATI->iEntity, NULL,
-            pATI->SharedAccelerator ? ResShared : ResExclusive);
+        pResources = xf86RegisterResources(pATI->iEntity, NULL, ResShared);
     if (pResources)
     {
         xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
@@ -1491,12 +1490,6 @@ ATIPreInit
             "VGA Wonder registers at I/O port 0x%04lX.\n",
             pATI->CPIO_VGAWonder);
 
-    if (pATI->Coprocessor != ATI_CHIP_NONE)
-        xf86DrvMsg(pScreenInfo->scrnIndex, X_PROBED,
-            "%s graphics accelerator detected,\n with %d kB of coprocessor"
-            " memory.\n",
-            ATIChipNames[pATI->Coprocessor], pATI->VideoRAM);
-
 #endif /* AVOID_CPIO */
 
     xf86DrvMsg(pScreenInfo->scrnIndex, X_PROBED,
@@ -1709,15 +1702,6 @@ ATIPreInit
             ATIPrintNoiseIfRequested(pATI, BIOS, BIOSSize);
             ATIUnmapApertures(pScreenInfo->scrnIndex, pATI);
             return FALSE;
-        }
-
-        if (pATI->Coprocessor != ATI_CHIP_NONE)
-        {
-            /* Ignore any 8514/A or Mach8 accelerator from this point on */
-            pATI->Adapter = pATI->VGAAdapter;
-
-            /* Accelerator and VGA cannot share memory */
-            pATI->VideoRAM = 0;
         }
     }
 
@@ -2856,12 +2840,6 @@ ATIPreInit
     else
     {
         pATIHW->crtc = ATI_CRTC_VGA;
-#if 0 /* ___NOT_YET___ */
-        if (pATI->ChipHasSUBSYS_CNTL)
-        {
-        }
-        else
-#endif
         if ((pATI->Chip >= ATI_CHIP_88800GXC) &&
             (pATI->LockData.crtc_gen_cntl & CRTC_EXT_DISP_EN))
         {

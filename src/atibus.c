@@ -67,14 +67,13 @@ ATIClaimResources
     Bool   Active
 )
 {
-    resPtr   pResources;
 
 #ifndef AVOID_CPIO
 
     resRange Resources[2] = {{0, 0, 0}, _END};
 
     /* Claim VGA and VGAWonder resources */
-    if ((pATI->VGAAdapter != ATI_ADAPTER_NONE) && (Active || !pATI->SharedVGA))
+    if ((pATI->VGAAdapter != ATI_ADAPTER_NONE) && (Active))
     {
         /*
          * 18800-x's are the only ATI controllers that decode all ISA aliases
@@ -82,23 +81,13 @@ ATIClaimResources
          * VGA aliases, but do decode VGA Wonder aliases whose most significant
          * nibble is zero.
          */
-        xf86ClaimFixedResources(
-            (pATI->Chip <= ATI_CHIP_18800_1) ?
-            (pATI->SharedVGA ? resVgaSparseShared : resVgaSparseExclusive) :
-            (pATI->SharedVGA ? resVgaShared : resVgaExclusive),
-            pATI->iEntity);
+        xf86ClaimFixedResources(resVgaShared, pATI->iEntity);
 
         if (pATI->CPIO_VGAWonder)
         {
-            if (pATI->SharedVGA)
-                Resources[0].type = ResShrIoSparse | ResBus;
-            else
-                Resources[0].type = ResExcIoSparse | ResBus;
+            Resources[0].type = ResShrIoSparse | ResBus;
             Resources[0].rBase = pATI->CPIO_VGAWonder;
-            if (pATI->Chip <= ATI_CHIP_18800_1)
-                Resources[0].rMask = 0x03FEU;
-            else
-                Resources[0].rMask = 0xF3FEU;
+            Resources[0].rMask = 0xF3FEU;
 
             xf86ClaimFixedResources(Resources, pATI->iEntity);
 
@@ -107,54 +96,22 @@ ATIClaimResources
         }
     }
 
-    if (!Active && pATI->SharedAccelerator)
+    if (!Active)
         return;
-
-    /* Claim 8514/A resources */
-    if (pATI->ChipHasSUBSYS_CNTL)
-        xf86ClaimFixedResources(
-            pATI->SharedAccelerator ? res8514Shared : res8514Exclusive,
-            pATI->iEntity);
 
     /* Claim Mach64 sparse I/O resources */
     if ((pATI->Adapter == ATI_ADAPTER_MACH64) &&
         (pATI->CPIODecoding == SPARSE_IO))
     {
-        if (pATI->SharedAccelerator)
-            Resources[0].type = ResShrIoSparse | ResBus;
-        else
-            Resources[0].type = ResExcIoSparse | ResBus;
+        Resources[0].type = ResShrIoSparse | ResBus;
         Resources[0].rBase = pATI->CPIOBase;
         Resources[0].rMask = 0x03FCU;
 
         xf86ClaimFixedResources(Resources, pATI->iEntity);
     }
 
-    if (Active)
-        return;
-
-#else /* AVOID_CPIO */
-
-    if (pATI->SharedAccelerator)
-        return;
-
 #endif /* AVOID_CPIO */
 
-    /* Register unshared relocatable resources for inactive adapters */
-    do
-    {
-        pResources = xf86RegisterResources(pATI->iEntity, NULL, ResExclusive);
-        if (!pResources)
-            return;
-
-        pResources = xf86ReallocatePciResources(pATI->iEntity, pResources);
-    } while (!pResources);
-
-    xf86Msg(X_WARNING,
-        ATI_NAME ":  Unable to register the following resources for inactive"
-        " adapter:\n");
-    xf86PrintResList(1, pResources);
-    xf86FreeResList(pResources);
 }
 
 /*
