@@ -1270,7 +1270,7 @@ ATIPreInit
 #ifndef AVOID_CPIO
 
     /* Complain if VGA is needed but not there */
-    if ((pATI->NewHW.crtc == ATI_CRTC_VGA) || !pATI->OptionLinear)
+    if (!pATI->OptionLinear)
     {
         /* VGA is required at this point */
         if (!pATI->VGAAdapter)
@@ -1920,8 +1920,7 @@ ATIPreInit
     {
         pScreenInfo->videoRam = pATI->VideoRAM = VGAVideoRAM;
     }
-    else if ((pATI->NewHW.crtc == ATI_CRTC_MACH64) ||
-             (pATI->Chip >= ATI_CHIP_264CT))
+    else
 
 #endif /* AVOID_CPIO */
 
@@ -2197,38 +2196,6 @@ ATIPreInit
 
 #ifndef AVOID_CPIO
 
-    else
-    /*
-     * After BIOS initialisation, the accelerator (if any) and the VGA won't
-     * necessarily agree on the amount of video memory, depending on whether or
-     * where the memory boundary is configured.  Any discrepancy will be
-     * resolved by ATIModePreInit().
-     *
-     * However, it's possible that there is more video memory than VGA Wonder
-     * can architecturally handle.
-     */
-    if ((AcceleratorVideoRAM < pScreenInfo->videoRam))
-    {
-        if (pATI->OptionDevel)
-        {
-            if (pATI->depth == 1)
-                AcceleratorVideoRAM /= 4;
-
-            xf86DrvMsg(pScreenInfo->scrnIndex, X_NOTICE,
-                "Virtual resolutions requiring more than %d kB\n of video"
-                " memory might not function correctly.\n",
-                AcceleratorVideoRAM);
-        }
-        else
-        {
-            xf86DrvMsg(pScreenInfo->scrnIndex, X_NOTICE,
-                "VideoRAM reduced to %d kB due to hardware limitations.\n",
-                AcceleratorVideoRAM);
-
-            pScreenInfo->videoRam = AcceleratorVideoRAM;
-        }
-    }
-
     if (pATI->OptionLinear)
     {
         if (!pATI->LinearBase)
@@ -2281,7 +2248,7 @@ ATIPreInit
 
 #ifndef AVOID_CPIO
 
-        if (!pATI->Block0Base || (pATI->NewHW.crtc == ATI_CRTC_VGA))
+        if (!pATI->Block0Base)
         {
             xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
                 "Acceleration not supported in this configuration.\n");
@@ -2462,13 +2429,6 @@ ATIPreInit
 
             i = (6 - 2) - pATI->XCLKPostDivider;
 
-#ifndef AVOID_CPIO
-
-            if (pATI->NewHW.crtc == ATI_CRTC_VGA)
-               i--;
-
-#endif /* AVOID_CPIO */
-
             i = (ATIDivide(Numerator, Denominator, i, -1) / 1000) * 1000;
             if (i < ATIClockRange.maxClock)
                 ATIClockRange.maxClock = i;
@@ -2540,17 +2500,6 @@ ATIPreInit
 
             case ATI_DAC_IBMRGB514:
                 pATI->maxClock = 220000;
-
-#ifndef AVOID_CPIO
-
-                if (pATI->NewHW.crtc == ATI_CRTC_VGA)
-                {
-                    DefaultmaxClock = 100000;
-                }
-                else
-
-#endif /* AVOID_CPIO */
-
                 {
                     DefaultmaxClock = 220000;
                 }
@@ -2615,34 +2564,7 @@ ATIPreInit
         pATI->pitchInc *= pATI->bitsPerPixel;
     }
 
-    switch (pATI->NewHW.crtc)
     {
-
-#ifndef AVOID_CPIO
-
-        case ATI_CRTC_VGA:
-            pScreenInfo->maxHValue = (0xFFU + 1) << 3;  /* max HTotal */
-
-            /*
-             * The maximum VTotal value set here applies to all modes,
-             * including interlaced, doublescanned or multiscanned modes.
-             * Finer-grained checks are done in ATIValidateMode().
-             */
-            pScreenInfo->maxVValue = 0x03FFU + 1;
-            {
-                pScreenInfo->maxVValue <<= 1;
-                if (ATIClockRange.interlaceAllowed &&
-                    (pATI->Chip < ATI_CHIP_264CT))
-                    pScreenInfo->maxVValue <<= 1;
-            }
-
-            Strategy |= LOOKUP_CLKDIV2;
-
-            break;
-
-#endif /* AVOID_CPIO */
-
-        case ATI_CRTC_MACH64:
             pScreenInfo->maxHValue = (MaxBits(CRTC_H_TOTAL) + 1) << 3;
 
             if (pATI->Chip < ATI_CHIP_264VT)
@@ -2662,11 +2584,6 @@ ATIPreInit
             pScreenInfo->maxVValue = MaxBits(CRTC_V_TOTAL) + 1;
 
             maxPitch = MaxBits(CRTC_PITCH);
-
-            break;
-
-        default:
-            break;
     }
 
     maxPitch *= minPitch;

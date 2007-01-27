@@ -27,7 +27,6 @@
 #include "ati.h"
 #include "atiadjust.h"
 #include "atichip.h"
-#include "aticrtc.h"
 #include "atilock.h"
 #include "atimach64io.h"
 #include "atiwonderio.h"
@@ -65,35 +64,8 @@ ATIAdjustPreInit
               1);
     }
 
-    switch (pATI->NewHW.crtc)
     {
-
-#ifndef AVOID_CPIO
-
-        case ATI_CRTC_VGA:
-            if (pATI->Chip >= ATI_CHIP_264CT)
-            {
-                pATI->AdjustMaxBase = MaxBits(CRTC_OFFSET_VGA) << 2;
-            }
-            else if (!pATI->CPIO_VGAWonder)
-            {
-                pATI->AdjustMaxBase = 0xFFFFU << 3;
-            }
-            else /* Mach32 & Mach64 */
-            {
-                pATI->AdjustMaxBase = 0x0FFFFFU << 3;
-            }
-            break;
-
-#endif /* AVOID_CPIO */
-
-        case ATI_CRTC_MACH64:
             pATI->AdjustMaxBase = MaxBits(CRTC_OFFSET) << 3;
-            break;
-
-        default:
-            pATI->AdjustMaxBase = 0;
-            break;
     }
 
     MaxBase = (pATI->AdjustMaxBase / (unsigned long)pATI->AdjustDepth) |
@@ -155,38 +127,7 @@ ATIAdjustFrame
     /* Unlock registers */
     ATIUnlock(pATI);
 
-#ifndef AVOID_CPIO
-
-    if ((pATI->NewHW.crtc == ATI_CRTC_VGA) && (pATI->Chip < ATI_CHIP_264CT))
     {
-        PutReg(CRTX(pATI->CPIO_VGABase), 0x0CU, GetByte(Base, 1));
-        PutReg(CRTX(pATI->CPIO_VGABase), 0x0DU, GetByte(Base, 0));
-
-        if (pATI->CPIO_VGAWonder)
-        {
-                ATIModifyExtReg(pATI, 0xB0U, -1, 0xBFU, Base >> 10);
-                ATIModifyExtReg(pATI, 0xA3U, -1, 0xEFU, Base >> 13);
-
-                /*
-                 * I don't know if this also applies to Mach64's, but give it a
-                 * shot...
-                 */
-                    ATIModifyExtReg(pATI, 0xADU, -1, 0xF3U, Base >> 16);
-        }
-    }
-    else
-
-#endif /* AVOID_CPIO */
-
-    {
-
-#ifndef AVOID_CPIO
-
-        if (pATI->NewHW.crtc == ATI_CRTC_VGA)
-            Base <<= 1;                 /* LSBit must be zero */
-
-#endif /* AVOID_CPIO */
-
         outr(CRTC_OFF_PITCH, SetBits(pATI->displayWidth >> 3, CRTC_PITCH) |
             SetBits(Base, CRTC_OFFSET));
     }

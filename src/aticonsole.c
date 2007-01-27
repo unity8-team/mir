@@ -30,7 +30,6 @@
 
 #include "ati.h"
 #include "aticonsole.h"
-#include "aticrtc.h"
 #include "atii2c.h"
 #include "atilock.h"
 #include "atimach64.h"
@@ -85,23 +84,8 @@ ATISaveScreen
         return TRUE;
 
     pATI = ATIPTR(pScreenInfo);
-    switch (pATI->NewHW.crtc)
     {
-
-#ifndef AVOID_CPIO
-
-        case ATI_CRTC_VGA:
-            ATIVGASaveScreen(pATI, Mode);
-            break;
-
-#endif /* AVOID_CPIO */
-
-        case ATI_CRTC_MACH64:
             ATIMach64SaveScreen(pATI, Mode);
-            break;
-
-        default:
-            break;
     }
 
     return TRUE;

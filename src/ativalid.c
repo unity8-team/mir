@@ -25,7 +25,6 @@
 #endif
 
 #include "atichip.h"
-#include "aticrtc.h"
 #include "atistruct.h"
 #include "ativalid.h"
 
@@ -48,12 +47,6 @@ ATIValidMode
     ScrnInfoPtr pScreenInfo = xf86Screens[iScreen];
     ATIPtr      pATI        = ATIPTR(pScreenInfo);
     int         HBlankWidth, HAdjust, VScan, VInterlace;
-
-#ifndef AVOID_CPIO
-
-    int VDisplay, VTotal;
-
-#endif /* AVOID_CPIO */
 
     if (flags & MODECHECK_FINAL)
     {
@@ -159,46 +152,9 @@ ATIValidMode
     if (!HBlankWidth)
         return MODE_HBLANK_NARROW;
 
-    switch (pATI->NewHW.crtc)
     {
-
-#ifndef AVOID_CPIO
-
-        case ATI_CRTC_VGA:
-            /* Prevent overscans */
-            if (HBlankWidth > 63)
-                return MODE_HBLANK_WIDE;
-
-            if (pMode->HDisplay > 2048)
-                return MODE_BAD_HVALUE;
-
-            if (VScan > 64)
-                return MODE_BAD_VSCAN;
-
-            VDisplay = pMode->VDisplay * VScan;
-            VTotal = pMode->VTotal * VScan;
-
-            if ((pMode->Flags & V_INTERLACE) && (pATI->Chip < ATI_CHIP_264CT))
-            {
-                VDisplay >>= 1;
-                VTotal >>= 1;
-            }
-
-            if ((VDisplay > 2048) || (VTotal > 2050))
-                return MODE_BAD_VVALUE;
-
-            break;
-
-#endif /* AVOID_CPIO */
-
-        case ATI_CRTC_MACH64:
             if (VScan > 2)
                 return MODE_NO_VSCAN;
-
-            break;
-
-        default:
-            break;
     }
 
     return MODE_OK;

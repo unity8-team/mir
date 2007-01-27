@@ -564,18 +564,6 @@ ATIClockPreInit
             pScreenInfo->progClock = TRUE;
 
             /* Set internal clock ordering */
-
-#ifndef AVOID_CPIO
-
-            if (pATI->NewHW.crtc == ATI_CRTC_VGA)
-            {
-                pATI->NewHW.ClockMap = ATIVGAProgrammableClockMap;
-                pATI->NewHW.ClockUnmap = ATIVGAProgrammableClockUnmap;
-            }
-            else
-
-#endif /* AVOID_CPIO */
-
             {
                 pATI->NewHW.ClockMap = ATIProgrammableClockMap;
                 pATI->NewHW.ClockUnmap = ATIProgrammableClockUnmap;
@@ -654,18 +642,6 @@ ProbeClocks:
                  * When selecting clocks, all ATI accelerators use a different
                  * clock ordering.
                  */
-
-#ifndef AVOID_CPIO
-
-                if (pATI->NewHW.crtc == ATI_CRTC_VGA)
-                {
-                    pATI->NewHW.ClockMap = ATIMachVGAClockMap;
-                    pATI->NewHW.ClockUnmap = ATIMachVGAClockUnmap;
-                }
-                else
-
-#endif /* AVOID_CPIO */
-
                 {
                     pATI->NewHW.ClockMap = ATIAcceleratorClockMap;
                     pATI->NewHW.ClockUnmap = ATIAcceleratorClockUnmap;
@@ -1275,43 +1251,9 @@ ATIClockCalculate
     pATIHW->clock = ClockSelect;        /* Save pre-map clock number */
     ClockSelect = MapClockIndex(pATIHW->ClockMap, ClockSelect);
 
-    switch (pATIHW->crtc)
     {
-
-#ifndef AVOID_CPIO
-
-        case ATI_CRTC_VGA:
-            pATIHW->genmo = (pATIHW->genmo & 0xF3U) |
-                ((ClockSelect << 2) & 0x0CU);
-
-            if (pATI->CPIO_VGAWonder)
-            {
-                /* Set ATI clock select bits */
-                {
-                    pATIHW->be = (pATIHW->be & 0xEFU) |
-                        ((ClockSelect << 2) & 0x10U);
-                    {
-                        ClockSelect >>= 1;
-                        pATIHW->b9 = (pATIHW->b9 & 0xFDU) |
-                            ((ClockSelect >> 1) & 0x02U);
-                    }
-                }
-
-                /* Set clock divider bits */
-                pATIHW->b8 = (pATIHW->b8 & 0x3FU) |
-                    ((ClockSelect << 3) & 0xC0U);
-            }
-            break;
-
-#endif /* AVOID_CPIO */
-
-        case ATI_CRTC_MACH64:
             pATIHW->clock_cntl = CLOCK_STROBE |
                 SetBits(ClockSelect, CLOCK_SELECT | CLOCK_DIVIDER);
-            break;
-
-        default:
-            break;
     }
 
     return TRUE;
