@@ -67,6 +67,18 @@ ATIVGAWonderProbe
 {
     CARD8 IOValue1, IOValue2, IOValue3, IOValue4, IOValue5, IOValue6;
 
+            if (!pATI->OptionProbeSparse)
+            {
+                xf86Msg(X_WARNING,
+                    ATI_NAME ":  Expected VGA Wonder capability at I/O port"
+                    " 0x%04lX will not be probed\n"
+                    "set option \"probe_sparse\" to force probing.\n",
+                    pATI->CPIO_VGAWonder);
+
+                pATI->CPIO_VGAWonder = 0;
+                return;
+            }
+
             if (pVideo && !xf86IsPrimaryPci(pVideo) &&
                 (pATI->Chip <= ATI_CHIP_88800GXD))
             {
@@ -414,7 +426,19 @@ ATIMach64ProbeIO
          * build a list of registered I/O ports. If there was a conflict
          * between a mach64 sparse I/O base and a registered I/0 port, probing
          * that port was not allowed...
+         *
+         * We just add an option and let the user decide, this will not work
+         * with "X -configure" though...
          */
+        if (!pATI->OptionProbeSparse)
+        {
+            xf86Msg(X_WARNING, ATI_NAME ": "
+                "PCI Mach64 in slot %d:%d:%d will not be probed\n"
+                "set option \"probe_sparse\" to force sparse I/O probing.\n",
+                pVideo->bus, pVideo->device, pVideo->func);
+
+            goto SkipSparse;
+        }
 
         /* Possibly fix block I/O indicator */
         if (PciReg & 0x00000004U)

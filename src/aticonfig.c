@@ -112,6 +112,7 @@ ATIProcessOptions
 
     (void)memcpy(PublicOption, ATIPublicOptions, ATIPublicOptionSize);
 
+#   define ProbeSparse   PublicOption[ATI_OPTION_PROBE_SPARSE].value.bool
 #   define Accel         PublicOption[ATI_OPTION_ACCEL].value.bool
 #   define BIOSDisplay   PrivateOption[ATI_OPTION_BIOS_DISPLAY].value.bool
 #   define Blend         PrivateOption[ATI_OPTION_BLEND].value.bool
@@ -188,6 +189,7 @@ ATIProcessOptions
         PrivateOption);
 
     /* Move option values into driver private structure */
+    pATI->OptionProbeSparse = ProbeSparse;
     pATI->OptionAccel = Accel;
     pATI->OptionBIOSDisplay = BIOSDisplay;
     pATI->OptionBlend = Blend;

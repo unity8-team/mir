@@ -454,6 +454,7 @@ typedef struct _ATIRec
     /*
      * Driver options.
      */
+    unsigned int OptionProbeSparse:1;  /* Force probe for fixed (sparse) I/O */
     unsigned int OptionAccel:1;        /* Use hardware draw engine */
     unsigned int OptionBIOSDisplay:1;  /* Allow BIOS interference */
     unsigned int OptionBlend:1;        /* Force horizontal blending */

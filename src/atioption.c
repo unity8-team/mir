@@ -61,6 +61,13 @@ const char *ATITVStandardNames[ATI_TV_STDS_MAX_VALID+1] = {
 const OptionInfoRec ATIPublicOptions[] =
 {
     {
+        ATI_OPTION_PROBE_SPARSE,
+        "probe_sparse",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
         ATI_OPTION_ACCEL,
         "accel",
         OPTV_BOOLEAN,
