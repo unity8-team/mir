@@ -121,12 +121,6 @@ ATIProcessOptions
 #   define Devel         PrivateOption[ATI_OPTION_DEVEL].value.bool
 #   define HWCursor      PublicOption[ATI_OPTION_HWCURSOR].value.bool
 
-#ifndef AVOID_CPIO
-
-#   define Linear        PublicOption[ATI_OPTION_LINEAR].value.bool
-
-#endif /* AVOID_CPIO */
-
 #ifdef XF86DRI_DEVEL
 
 #   define IsPCI       PublicOption[ATI_OPTION_IS_PCI].value.bool
@@ -165,12 +159,6 @@ ATIProcessOptions
     {
         Accel = CacheMMIO = HWCursor = TRUE;
 
-#ifndef AVOID_CPIO
-
-        Linear = TRUE;
-
-#endif /* AVOID_CPIO */
-
 #ifdef TV_OUT
 
 	TvStd = "None";  /* No tv standard change requested */
@@ -200,19 +188,6 @@ ATIProcessOptions
     xf86ProcessOptions(pScreenInfo->scrnIndex, pScreenInfo->options,
         PrivateOption);
 
-#ifndef AVOID_CPIO
-
-    /* Disable linear apertures if the OS doesn't support them */
-    if (!xf86LinearVidMem() && Linear)
-    {
-        if (PublicOption[ATI_OPTION_LINEAR].found)
-            xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
-                "OS does not support linear apertures.\n");
-        Linear = FALSE;
-    }
-
-#endif /* AVOID_CPIO */
-
     /* Move option values into driver private structure */
     pATI->OptionAccel = Accel;
     pATI->OptionBIOSDisplay = BIOSDisplay;
@@ -220,12 +195,6 @@ ATIProcessOptions
     pATI->OptionCRTDisplay = CRTDisplay;
     pATI->OptionCSync = CSync;
     pATI->OptionDevel = Devel;
-
-#ifndef AVOID_CPIO
-
-    pATI->OptionLinear = Linear;
-
-#endif /* AVOID_CPIO */
 
 #ifdef TV_OUT
 

@@ -469,12 +469,6 @@ typedef struct _ATIRec
     unsigned int OptionCSync:1;        /* Use composite sync */
     unsigned int OptionDevel:1;        /* Intentionally undocumented */
 
-#ifndef AVOID_CPIO
-
-    unsigned int OptionLinear:1;       /* Use linear aperture if available */
-
-#endif /* AVOID_CPIO */
- 
 #ifdef TV_OUT
 
     CARD8 OptionTvOut;          /* Enable TV out if TV is connected */

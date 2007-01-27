@@ -38,12 +38,6 @@ typedef enum
     ATI_OPTION_CSYNC,
     ATI_OPTION_HWCURSOR,
 
-#ifndef AVOID_CPIO
-
-    ATI_OPTION_LINEAR,
-
-#endif /* AVOID_CPIO */
-
 #ifdef XF86DRI_DEVEL
 
     ATI_OPTION_IS_PCI,

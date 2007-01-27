@@ -92,15 +92,6 @@ ATIXVPreInit
     ATIPtr      pATI
 )
 {
-
-#ifndef AVOID_CPIO
-
-    /* Currently a linear aperture is needed ... */
-    if (!pATI->LinearBase)
-        return;
-
-#endif /* AVOID_CPIO */
-
     (void)xf86XVRegisterGenericAdaptorDriver(ATIXVInitializeAdaptor);
 }
 
@@ -121,9 +112,7 @@ ATIInitializeXVideo
     int                 nAdaptor;
     Bool                result;
 
-    if (!(pScreenInfo->memPhysBase = pATI->LinearBase))
-        return FALSE;
-
+    pScreenInfo->memPhysBase = pATI->LinearBase;
     pScreenInfo->fbOffset = 0;
 
     nAdaptor = xf86XVListGenericAdaptors(pScreenInfo, &ppAdaptor);

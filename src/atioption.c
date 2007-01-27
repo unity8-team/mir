@@ -89,18 +89,6 @@ const OptionInfoRec ATIPublicOptions[] =
         FALSE,
     },
 
-#ifndef AVOID_CPIO
-
-    {
-        ATI_OPTION_LINEAR,
-        "linear",
-        OPTV_BOOLEAN,
-        {0, },
-        FALSE
-    },
-
-#endif /* AVOID_CPIO */
-
 #ifdef XF86DRI_DEVEL
 
     {

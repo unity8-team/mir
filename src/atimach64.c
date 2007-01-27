@@ -158,7 +158,7 @@ ATIMach64PreInit
         pATIHW->config_cntl &= ~CFG_MEM_VGA_AP_EN;
     }
 
-    if (pATI->LinearBase && (pATI->Chip < ATI_CHIP_264CT))
+    if ((pATI->Chip < ATI_CHIP_264CT))
     {
         /* Replace linear aperture size and address */
         pATIHW->config_cntl &= ~(CFG_MEM_AP_LOC | CFG_MEM_AP_SIZE);
