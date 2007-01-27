@@ -195,32 +195,6 @@ ATICheckSparseIOBases
     return DoProbe;
 }
 
-#ifndef AVOID_NON_PCI
-
-/*
- * ATIClaimSparseIOBases --
- *
- * This function updates the sparse I/O base table with information from the
- * hardware probes.
- */
-static void
-ATIClaimSparseIOBases
-(
-    CARD8           *ProbeFlags,
-    const IOADDRESS IOBase,
-    const int       Count,
-    const CARD8     ProbeFlag
-)
-{
-    CARD32 FirstPort = LongPort(IOBase),
-           LastPort  = LongPort(IOBase + Count - 1);
-
-    for (;  FirstPort <= LastPort;  FirstPort++)
-        ProbeFlags[FirstPort] = ProbeFlag;
-}
-
-#endif /* AVOID_NON_PCI */
-
 /*
  * ATIVGAProbe --
  *
@@ -908,38 +882,6 @@ ATIAssignVGA
     xf86MsgVerb(X_INFO, 3, ATI_NAME ":  VGA assigned to this adapter.\n");
 }
 
-#ifndef AVOID_NON_PCI
-
-/*
- * ATIClaimVGA --
- *
- * Attempt to assign a non-shareable VGA to an accelerator.  If successful,
- * update ProbeFlags array.
- */
-static void
-ATIClaimVGA
-(
-    pciVideoPtr pVideo,
-    ATIPtr      *ppVGA,
-    ATIPtr      pATI,
-    ATIPtr      p8514,
-    CARD8       *ProbeFlags,
-    int         Detected
-)
-{
-    ATIAssignVGA(pVideo, ppVGA, pATI, p8514, ProbeFlags);
-    if (pATI->VGAAdapter == ATI_ADAPTER_NONE)
-        return;
-
-    ATIClaimSparseIOBases(ProbeFlags, MonochromeIOBase, 48, Detected);
-    if (!pATI->CPIO_VGAWonder)
-        return;
-
-    ATIClaimSparseIOBases(ProbeFlags, pATI->CPIO_VGAWonder, 2, Detected);
-}
-
-#endif /* AVOID_NON_PCI */
-
 /*
  * ATIFindVGA --
  *
@@ -1005,14 +947,10 @@ ATIProbe
     int                    Chipset;
     ATIChipType            Chip;
 
-#if !defined(AVOID_NON_PCI) || !defined(AVOID_CPIO)
+#ifndef AVOID_CPIO
     pciConfigPtr           pPCI;
     CARD32                 PciReg;
-#endif /* AVOID_NON_PCI || AVOID_CPIO */
-
-#ifndef AVOID_NON_PCI
-    ATIPtr                 pMach64[3] = {NULL, NULL, NULL};
-#endif
+#endif /* AVOID_CPIO */
 
 #ifndef AVOID_CPIO
 
@@ -1207,130 +1145,6 @@ ATIProbe
         }
 
         xfree(PCIPorts);
-
-#ifndef AVOID_NON_PCI
-
-        /*
-         * A note on probe strategy.  I/O and memory response by certain PCI
-         * devices has been disabled by the common layer at this point,
-         * including any devices this driver might be interested in.  The
-         * following does sparse I/O probes, followed by block I/O probes.
-         * Block I/O probes are dictated by what is found to be of interest in
-         * PCI configuration space.  All this will detect ATI adapters that do
-         * not implement this disablement, pre-PCI or not.
-         *
-         * PCI configuration space is then scanned again for ATI devices that
-         * failed to be detected the first time around.  Each such device is
-         * probed for again, this time with I/O temporarily enabled through
-         * PCI.
-         */
-        if (ATICheckSparseIOBases(NULL, ProbeFlags, ATTRX, 16, TRUE) ==
-            DoProbe)
-        {
-            pATI = ATIVGAProbe(NULL);
-            if (pATI->Adapter == ATI_ADAPTER_NONE)
-            {
-                xfree(pATI);
-
-                xf86MsgVerb(X_INFO, 4,
-                    ATI_NAME ":  Unshared VGA not detected.\n");
-            }
-            else
-            {
-                /*
-                 * Claim all MDA/HGA/CGA/EGA/VGA I/O ports.  This might need to
-                 * be more selective.
-                 */
-                ATIClaimSparseIOBases(ProbeFlags, MonochromeIOBase, 48,
-                    DetectedVGA);
-
-                pVGA = pATI;
-                strcpy(Identifier, "Unshared VGA");
-                xf86MsgVerb(X_INFO, 3,
-                    ATI_NAME ":  %s detected.\n", Identifier);
-            }
-        }
-        else
-        {
-            xf86MsgVerb(X_INFO, 2, ATI_NAME ":  Unshared VGA not probed.\n");
-        }
-
-	/* 
-	 *  Mach8/32 probing doesn't work well on some legacy free ia64 
-	 *  However if we use AVOID_CPIO we don't get here at all.
-	 */
-        if (ATICheckSparseIOBases(NULL, ProbeFlags, 0x02E8U, 8,
-                fChipsets[ATI_CHIPSET_IBM8514] ||
-                fChipsets[ATI_CHIPSET_MACH8] ||
-                fChipsets[ATI_CHIPSET_MACH32]) == DoProbe)
-        {
-            if ((pATI = ATI8514Probe(NULL)))
-            {
-                strcpy(Identifier, "Unshared 8514/A");
-                xf86MsgVerb(X_INFO, 3,
-                    ATI_NAME ":  %s detected.\n", Identifier);
-
-                AddAdapter(p8514 = pATI);
-
-                if ((pATI->VGAAdapter != ATI_ADAPTER_NONE) ||
-                    (pATI->Coprocessor != ATI_CHIP_NONE))
-                    ATIClaimVGA(NULL, &pVGA, pATI, p8514, ProbeFlags,
-                        Detected8514A);
-
-                ATIClaimSparseIOBases(ProbeFlags, 0x02E8U, 8, Detected8514A);
-            }
-            else
-            {
-                xf86MsgVerb(X_INFO, 4,
-                    ATI_NAME ":  Unshared 8514/A not detected.\n");
-            }
-        }
-        else
-        {
-            xf86MsgVerb(X_INFO, 2,
-                ATI_NAME ":  Unshared 8514/A not probed.\n");
-        }
-
-	/* 
-	 * Also NONPCI Mach64 probing is evil on legacy free platforms.
-	 * However if we use AVOID_CPIO we don't get here at all.
-	 */
-        for (i = 0;  i < NumberOf(Mach64SparseIOBases);  i++)
-        {
-            if (ATICheckSparseIOBases(NULL, ProbeFlags, Mach64SparseIOBases[i],
-                    4, fChipsets[ATI_CHIPSET_MACH64]) != DoProbe)
-            {
-                xf86MsgVerb(X_INFO, 2,
-                    ATI_NAME ":  Unshared Mach64 at PIO base 0x%04lX not"
-                    " probed.\n",
-                    Mach64SparseIOBases[i]);
-                continue;
-            }
-
-            pATI = ATIMach64Probe(NULL, Mach64SparseIOBases[i], SPARSE_IO, 0);
-            if (!pATI)
-            {
-                xf86MsgVerb(X_INFO, 4,
-                    ATI_NAME ":  Unshared Mach64 at PIO base 0x%04lX not"
-                    " detected.\n", Mach64SparseIOBases[i]);
-                continue;
-            }
-
-            sprintf(Identifier, "Unshared Mach64 at sparse PIO base 0x%04lX",
-                Mach64SparseIOBases[i]);
-            xf86MsgVerb(X_INFO, 3, ATI_NAME ":  %s detected.\n", Identifier);
-
-            AddAdapter(pMach64[i] = pATI);
-
-            if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
-                ATIClaimVGA(NULL, &pVGA, pATI, p8514, ProbeFlags,
-                    DetectedMach64);
-
-            ATIClaimSparseIOBases(ProbeFlags, Mach64SparseIOBases[i], 4,
-                DetectedMach64);
-        }
-#endif /* AVOID_NON_PCI */
-
     }
 
 #endif /* AVOID_CPIO */
@@ -1339,92 +1153,6 @@ ATIProbe
     {
         if (nATIGDev)
         {
-
-#ifndef AVOID_NON_PCI
-
-#ifdef AVOID_CPIO
-
-            /* PCI sparse I/O adapters can still be used through MMIO */
-            for (i = 0;  (pVideo = xf86PciVideoInfo[i++]);  )
-            {
-                if ((pVideo->vendor != PCI_VENDOR_ATI) ||
-                    (pVideo->chipType == PCI_CHIP_MACH32) ||
-                    pVideo->size[1] ||
-                    !(pPCI = pVideo->thisCard))
-                    continue;
-
-                PciReg = pciReadLong(pPCI->tag, PCI_REG_USERCONFIG);
-
-                /* Possibly fix block I/O indicator */
-                if (PciReg & 0x00000004U)
-                    pciWriteLong(pPCI->tag, PCI_REG_USERCONFIG,
-                        PciReg & ~0x00000004U);
-
-                Chip = ATIChipID(pVideo->chipType, pVideo->chipRev);
-
-                /*
-                 * The CPIO base used by the adapter is of little concern here.
-                 */
-                pATI = ATIMach64Probe(pVideo, 0, SPARSE_IO, Chip);
-                if (!pATI)
-                    continue;
-
-                sprintf(Identifier,
-                    "Unshared PCI sparse I/O Mach64 in slot %d:%d:%d",
-                    pVideo->bus, pVideo->device, pVideo->func);
-                xf86MsgVerb(X_INFO, 3,
-                    ATI_NAME ":  %s detected through Block 0 at 0x%08lX.\n",
-                    Identifier, pATI->Block0Base);
-                AddAdapter(pATI);
-                pATI->PCIInfo = pVideo;
-            }
-
-#endif /* AVOID_CPIO */
-
-            for (i = 0;  (pVideo = xf86PciVideoInfo[i++]);  )
-            {
-                if ((pVideo->vendor != PCI_VENDOR_ATI) ||
-                    (pVideo->chipType == PCI_CHIP_MACH32) ||
-                    !pVideo->size[1])
-                    continue;
-
-                /* For now, ignore Rage128's and Radeon's */
-                Chip = ATIChipID(pVideo->chipType, pVideo->chipRev);
-                if ((Chip > ATI_CHIP_Mach64) ||
-                    !(pPCI = pVideo->thisCard))
-                    continue;
-
-                /*
-                 * Possibly fix block I/O indicator in PCI configuration space.
-                 */
-                PciReg = pciReadLong(pPCI->tag, PCI_REG_USERCONFIG);
-                if (!(PciReg & 0x00000004U))
-                    pciWriteLong(pPCI->tag, PCI_REG_USERCONFIG,
-                        PciReg | 0x00000004U);
-
-                pATI =
-                    ATIMach64Probe(pVideo, pVideo->ioBase[1], BLOCK_IO, Chip);
-                if (!pATI)
-                    continue;
-
-                sprintf(Identifier, "Unshared PCI/AGP Mach64 in slot %d:%d:%d",
-                    pVideo->bus, pVideo->device, pVideo->func);
-                xf86MsgVerb(X_INFO, 3,
-                    ATI_NAME ":  %s detected.\n", Identifier);
-                AddAdapter(pATI);
-
-#ifndef AVOID_CPIO
-
-                /* This is probably not necessary */
-                if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
-                    ATIClaimVGA(pVideo, &pVGA, pATI, p8514,
-                        ProbeFlags, DetectedMach64);
-
-#endif /* AVOID_CPIO */
-
-            }
-
-#endif /* AVOID_NON_PCI */
 
 #ifndef AVOID_CPIO
 
@@ -1495,31 +1223,6 @@ ATIProbe
                             " non-video PCI/AGP device.\n",
                             pVideo->bus, pVideo->device, pVideo->func);
                         break;
-
-#ifndef AVOID_NON_PCI
-
-                    case Detected8514A:
-                        if ((p8514->BusType >= ATI_BUS_PCI) && !p8514->PCIInfo)
-                            p8514->PCIInfo = pVideo;
-                        else
-                            xf86Msg(X_WARNING,
-                                ATI_NAME ":  PCI Mach32 in slot %d:%d:%d will"
-                                " not be enabled\n because it conflicts with"
-                                " another %s %s.\n",
-                                pVideo->bus, pVideo->device, pVideo->func,
-                                ATIBusNames[p8514->BusType],
-                                ATIAdapterNames[p8514->Adapter]);
-                        break;
-
-                    case DetectedMach64:
-                        xf86Msg(X_WARNING,
-                            ATI_NAME ":  PCI Mach32 in slot %d:%d:%d will not"
-                            " be enabled\n because it conflicts with a Mach64"
-                            " at I/O base 0x02EC.\n",
-                            pVideo->bus, pVideo->device, pVideo->func);
-                        break;
-
-#endif /* AVOID_NON_PCI */
 
                     default:    /* Must be DoProbe */
                         if (!xf86CheckPciSlot(pVideo->bus,
@@ -1601,33 +1304,6 @@ ATIProbe
                             " non-video PCI device.\n",
                             pVideo->bus, pVideo->device, pVideo->func);
                         break;
-
-#ifndef AVOID_NON_PCI
-
-                    case Detected8514A:
-                        xf86Msg(X_WARNING,
-                            ATI_NAME ":  PCI Mach64 in slot %d:%d:%d will not"
-                            " be enabled\n because it conflicts with an %s.\n",
-                            pVideo->bus, pVideo->device, pVideo->func,
-                            ATIAdapterNames[p8514->Adapter]);
-                        break;
-
-                    case DetectedMach64:
-                        pATI = pMach64[j];
-                        if ((pATI->BusType >= ATI_BUS_PCI) && !pATI->PCIInfo)
-                            pATI->PCIInfo = pVideo;
-                        else
-                            xf86Msg(X_WARNING,
-                                ATI_NAME ":  PCI Mach64 in slot %d:%d:%d will"
-                                " not be enabled\n because it conflicts with"
-                                " another %s Mach64 at sparse I/O base"
-                                " 0x%04lX.\n",
-                                pVideo->bus, pVideo->device, pVideo->func,
-                                ATIBusNames[pATI->BusType],
-                                Mach64SparseIOBases[j]);
-                        break;
-
-#endif /* AVOID_NON_PCI */
 
                     default:        /* Must be DoProbe */
                         if (!xf86CheckPciSlot(pVideo->bus,

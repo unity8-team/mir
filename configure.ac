@@ -115,14 +115,10 @@ fi
 
 # AVOID_CPIO: Only x86, amd64, and alpha are cool with CPIO.  It needs a
 # little-endian, undirected PIO space of at least 64kB.
-# AVOID_NON_PCI: Platforms which don't deal with PCI master aborts should
-# stick to PCI-only probing, stick their fingers in their ears, and pretend
-# that ISA cards simply don't exist.
 # AVOID_DGA: ???
 # ATI_TV_OUT: This only works on x86.
 
 ATIMISC_CPIO=no
-ATIMISC_NON_PCI=yes
 ATIMISC_DGA=yes
 ATIMISC_TV_OUT=no
 
@@ -137,9 +133,6 @@ case $host_cpu in
   sparc)
     ATIMISC_DGA=no
     ;;
-  powerpc)
-    ATIMISC_NON_PCI=no
-    ;;
   *)
     ;;
 esac
@@ -151,15 +144,6 @@ if test "x$ATIMISC_CPIO" = xyes; then
 else
 	AC_DEFINE(AVOID_CPIO, 1, [Avoid PIO and use MMIO for atimisc.])
 	AC_MSG_RESULT([no, MMIO])
-fi
-
-AC_MSG_CHECKING([whether to include support for non-PCI devices])
-AM_CONDITIONAL(ATIMISC_NON_PCI, test "x$ATIMISC_NON_PCI" = xyes)
-if test "x$ATI_AVOID_NON_PCI" = xyes; then
-	AC_MSG_RESULT([yes, PCI and ISA])
-else
-	AC_DEFINE(AVOID_NON_PCI, 1, [Only probe PCI cards; do not probe ISA.])
-	AC_MSG_RESULT([no, PCI only])
 fi
 
 AC_MSG_CHECKING([whether to include DGA support])
