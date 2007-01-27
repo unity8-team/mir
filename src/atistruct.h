@@ -160,9 +160,6 @@ typedef struct _ATIHWRec
            scaler_buf0_offset_u, scaler_buf0_offset_v, scaler_buf1_offset_u,
            scaler_buf1_offset_v;
 
-    /* Clock map pointers */
-    const CARD8 *ClockMap, *ClockUnmap;
-
     /* Clock programming data */
     int FeedbackDivider, ReferenceDivider, PostDivider;
 
@@ -361,8 +358,6 @@ typedef struct _ATIRec
     int ClockNumberToProgramme, ReferenceNumerator, ReferenceDenominator;
     int ProgrammableClock, maxClock;
     ClockRec ClockDescriptor;
-    CARD16 BIOSClocks[16];
-    CARD8 Clock;
 
     /*
      * DSP register data.
@@ -476,7 +471,6 @@ typedef struct _ATIRec
     unsigned int OptionMMIOCache:1;    /* Cache MMIO writes */
     unsigned int OptionTestMMIOCache:1;/* Test MMIO cache integrity */
     unsigned int OptionPanelDisplay:1; /* Prefer digital panel over CRT */
-    unsigned int OptionProbeClocks:1;  /* Force probe for fixed clocks */
     unsigned int OptionShadowFB:1;     /* Use shadow frame buffer */
     unsigned int OptionLCDSync:1;      /* Temporary */
 

@@ -773,8 +773,7 @@ ATIMach64Set
 #endif /* AVOID_CPIO */
 
     {
-        if ((pATIHW->FeedbackDivider > 0) &&
-            (pATI->ProgrammableClock != ATI_CLOCK_NONE))
+        if ((pATIHW->FeedbackDivider > 0))
             ATIClockSet(pATI, pATIHW);          /* Programme clock */
 
         if (pATI->DAC == ATI_DAC_IBMRGB514)

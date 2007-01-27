@@ -373,9 +373,6 @@ ATIModeSave
 
 #endif /* AVOID_CPIO */
 
-    /* Save clock data */
-    ATIClockSave(pScreenInfo, pATI, pATIHW);
-
     if (pATI->Chip >= ATI_CHIP_264CT)
     {
         pATIHW->pll_vclk_cntl = ATIMach64GetPLLReg(PLL_VCLK_CNTL) |
@@ -956,8 +953,7 @@ ATIModeSet
             PutReg(SEQX, 0x00U, 0x00U);
 
             /* Set pixel clock */
-            if ((pATIHW->FeedbackDivider > 0) &&
-                (pATI->ProgrammableClock > ATI_CLOCK_FIXED))
+            if ((pATIHW->FeedbackDivider > 0))
                 ATIClockSet(pATI, pATIHW);
 
             /* Set up RAMDAC */

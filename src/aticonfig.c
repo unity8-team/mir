@@ -142,7 +142,6 @@ ATIProcessOptions
 #   define CacheMMIO     PublicOption[ATI_OPTION_MMIO_CACHE].value.bool
 #   define TestCacheMMIO PublicOption[ATI_OPTION_TEST_MMIO_CACHE].value.bool
 #   define PanelDisplay  PublicOption[ATI_OPTION_PANEL_DISPLAY].value.bool
-#   define ProbeClocks   PublicOption[ATI_OPTION_PROBE_CLOCKS].value.bool
 #   define ShadowFB      PublicOption[ATI_OPTION_SHADOW_FB].value.bool
 #   define SWCursor      PublicOption[ATI_OPTION_SWCURSOR].value.bool
 #   define AccelMethod   PublicOption[ATI_OPTION_ACCELMETHOD].value.str
@@ -223,7 +222,6 @@ ATIProcessOptions
 
     pATI->OptionMMIOCache = CacheMMIO;
     pATI->OptionTestMMIOCache = TestCacheMMIO;
-    pATI->OptionProbeClocks = ProbeClocks;
     pATI->OptionShadowFB = ShadowFB;
     pATI->OptionLCDSync = LCDSync;
 

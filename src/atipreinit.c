@@ -165,7 +165,7 @@ ATIPreInit
     int              i, j;
     int              Numerator, Denominator;
     int              MinX, MinY;
-    ClockRange       ATIClockRange = {NULL, 0, 80000, 0, TRUE, TRUE, 1, 1, 0};
+    ClockRange       ATIClockRange = {NULL, 0, 80000, -1, TRUE, TRUE, 1, 1, 0};
     int              DefaultmaxClock = 0;
     int              minPitch, maxPitch = 0xFFU, maxHeight = 0;
     int              ApertureSize = 0x00010000U;
@@ -704,16 +704,6 @@ ATIPreInit
 
         if (ClockTable > 0)
         {
-            FrequencyTable = BIOSWord(ClockTable - 0x02U);
-            if ((FrequencyTable > 0) &&
-                ((FrequencyTable + 0x20U) <= BIOSSize))
-            {
-                for (i = 0;  i < 16;  i++)
-                {
-                    pATI->BIOSClocks[i] = BIOSWord(FrequencyTable);
-                    FrequencyTable += 2;
-                }
-            }
             pATI->ProgrammableClock = BIOSByte(ClockTable);
             pATI->ClockNumberToProgramme = BIOSByte(ClockTable + 0x06U);
             switch (BIOSWord(ClockTable + 0x08U) / 10)
@@ -2171,8 +2161,6 @@ ATIPreInit
          */
         if (pATI->ProgrammableClock == ATI_CLOCK_INTERNAL)
             Numerator <<= 1;
-        else if (pATI->depth > 8)
-            Denominator *= (pATI->bitsPerPixel / 8);
 
         ATIClockRange.maxClock = (Numerator / (Denominator * 1000)) * 1000;
 
@@ -2299,21 +2287,22 @@ ATIPreInit
             ATIClockRange.maxClock = DefaultmaxClock;
     }
 
-    if (pATI->ClockDescriptor.MaxN <= 0)
-    {
-        ATIClockRange.maxClock = DefaultmaxClock;
-        xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO,
-            "Maximum pixel clock:  %.3f MHz.\n",
-            (double)ATIClockRange.maxClock / 1000.0);
-    }
-
     /*
      * Determine available pixel clock frequencies.
      */
 
-    ATIClockPreInit(pScreenInfo, pATI, pGDev, &ATIClockRange);
-    if (pATI->ProgrammableClock > ATI_CLOCK_FIXED)
-        Strategy = LOOKUP_BEST_REFRESH;
+    if ((pATI->ProgrammableClock <= ATI_CLOCK_FIXED) ||
+        (pATI->ProgrammableClock >= ATI_CLOCK_MAX))
+    {
+        xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
+            "Unsupported or non-programmable clock generator.\n");
+        ATIPrintNoiseIfRequested(pATI, BIOS, BIOSSize);
+        ATIUnmapApertures(pScreenInfo->scrnIndex, pATI);
+        return FALSE;
+    }
+
+    ATIClockPreInit(pScreenInfo, pATI);
+    Strategy = LOOKUP_BEST_REFRESH;
 
     /*
      * Mode validation.

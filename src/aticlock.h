@@ -28,24 +28,6 @@
 #include "xf86str.h"
 
 /*
- * Definitions related to non-programmable clock generators.
- */
-typedef enum
-{
-    ATI_CLOCK_NONE = 0,
-    ATI_CLOCK_VGA = 1,
-    ATI_CLOCK_CRYSTALS = 2,
-    ATI_CLOCK_18810,
-    ATI_CLOCK_18811_0,
-    ATI_CLOCK_18811_1,
-    ATI_CLOCK_2494AM,
-    ATI_CLOCK_MACH64A,
-    ATI_CLOCK_MACH64B,
-    ATI_CLOCK_MACH64C
-} ATIClockType;
-extern const char *ATIClockNames[];
-
-/*
  * Definitions related to programmable clock generators.
  */
 typedef enum
@@ -73,8 +55,7 @@ typedef struct
 } ClockRec, *ClockPtr;
 extern ClockRec ATIClockDescriptors[];
 
-extern void ATIClockPreInit(ScrnInfoPtr, ATIPtr, GDevPtr, ClockRangePtr);
-extern void ATIClockSave(ScrnInfoPtr, ATIPtr, ATIHWPtr);
+extern void ATIClockPreInit(ScrnInfoPtr, ATIPtr);
 extern Bool ATIClockCalculate(int, ATIPtr, ATIHWPtr, DisplayModePtr);
 extern void ATIClockSet(ATIPtr, ATIHWPtr);
 

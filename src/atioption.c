@@ -178,13 +178,6 @@ const OptionInfoRec ATIPublicOptions[] =
         FALSE
     },
     {
-        ATI_OPTION_PROBE_CLOCKS,
-        "probe_clocks",
-        OPTV_BOOLEAN,
-        {0, },
-        FALSE
-    },
-    {
         ATI_OPTION_REFERENCE_CLOCK,
         "reference_clock",
         OPTV_FREQ,
