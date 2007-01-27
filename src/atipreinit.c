@@ -54,6 +54,20 @@
 #include "xf86RAC.h"
 
 /*
+ * FreeScreen handles the clean-up.
+ */
+static Bool
+Mach64GetRec(ScrnInfoPtr pScrn)
+{
+    if (!pScrn->driverPrivate) {
+        pScrn->driverPrivate = xnfcalloc(sizeof(ATIRec), 1);
+        memset(pScrn->driverPrivate, 0, sizeof(ATIRec));
+    }
+
+    return TRUE;
+}
+
+/*
  * ATIReportMemory --
  *
  * This function reports on the amount and type of video memory found.
@@ -190,20 +204,22 @@ ATIPreInit
         return FALSE;
     }
 
+    if (!Mach64GetRec(pScreenInfo))
+        return FALSE;
+
     pATI = ATIPTR(pScreenInfo);
 
-    if (pATI->iEntity != pScreenInfo->entityList[0])
-    {
-        xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
-            "Logic error:  Entity mismatch.\n");
-        return FALSE;
-    }
-
     /* Register resources */
-    pEntity = xf86GetEntityInfo(pATI->iEntity);
+    pEntity = xf86GetEntityInfo(pScreenInfo->entityList[0]);
     pGDev = pEntity->device;
     pResources = pEntity->resources;
+
+    pATI->iEntity = pEntity->index;
+    pATI->Chip = pEntity->chipset;
+    pVideo = xf86GetPciInfoForEntity(pATI->iEntity);
+
     xfree(pEntity);
+
     if (!pResources)
         pResources = xf86RegisterResources(pATI->iEntity, NULL, ResShared);
     if (pResources)
@@ -300,6 +316,11 @@ ATIPreInit
         /* Pick up XF86Config options */
         ATIProcessOptions(pScreenInfo, pATI);
     }
+
+    if (!ATIMach64ProbeIO(pVideo, pATI))
+        return FALSE;
+
+    ATIClaimBusSlot(pGDev->active, pATI);
 
 #ifndef AVOID_CPIO
 
@@ -424,39 +445,6 @@ ATIPreInit
     pScreenInfo->racMemFlags = RAC_FB | RAC_CURSOR;
 
 #endif /* AVOID_CPIO */
-
-    /* Deal with ChipID & ChipRev overrides */
-    if (pGDev->chipID >= 0)
-    {
-        ATIChipType Chip;
-
-        Chip = ATIChipID(pGDev->chipID,
-            (pGDev->chipRev < 0) ? pATI->ChipRev : pGDev->chipRev);
-        if (Chip != pATI->Chip)
-        {
-            pATI->Chip = Chip;
-            pATI->ChipType = pGDev->chipID;
-            if (pGDev->chipRev < 0)
-            {
-                xf86DrvMsg(pScreenInfo->scrnIndex, X_CONFIG,
-                    "Driver messages reflect ChipID 0x%04X override.\n",
-                    pATI->ChipType);
-            }
-            else
-            {
-                pATI->ChipRev = pGDev->chipRev;
-                pATI->ChipVersion = GetBits(pATI->ChipRev,
-                    GetBits(CFG_CHIP_VERSION, CFG_CHIP_REV));
-                pATI->ChipFoundry = GetBits(pATI->ChipRev,
-                    GetBits(CFG_CHIP_FOUNDRY, CFG_CHIP_REV));
-                pATI->ChipRevision = GetBits(pATI->ChipRev,
-                    GetBits(CFG_CHIP_REVISION, CFG_CHIP_REV));
-                xf86DrvMsg(pScreenInfo->scrnIndex, X_CONFIG,
-                    "Driver messages reflect ChipID 0x%04X and ChipRev 0x%02X"
-                    " overrides.\n", pATI->ChipType, pATI->ChipRev);
-            }
-        }
-    }
 
     /* Finish private area initialisation */
     pATI->DAC = ATI_DAC_GENERIC;

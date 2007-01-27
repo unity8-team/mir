@@ -44,6 +44,7 @@ typedef enum
 
 extern const char *ATIBusNames[];
 
-extern int ATIClaimBusSlot(DriverPtr, int, GDevPtr, Bool, ATIPtr);
+extern Bool ATIMach64ProbeIO(pciVideoPtr, ATIPtr);
+extern int  ATIClaimBusSlot(Bool, ATIPtr);
 
 #endif /* ___ATIBUS_H___ */

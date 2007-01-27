@@ -113,22 +113,10 @@ ATIClaimResources
 int
 ATIClaimBusSlot
 (
-    DriverPtr pDriver,
-    int       Chipset,
-    GDevPtr   pGDev,
     Bool      Active,
     ATIPtr    pATI
 )
 {
-    pciVideoPtr pVideo = pATI->PCIInfo;
-
-    if (pVideo)
-        pATI->iEntity =
-            xf86ClaimPciSlot(pVideo->bus, pVideo->device, pVideo->func,
-                pDriver, Chipset, pGDev, Active);
-    else
-        pATI->iEntity = xf86ClaimIsaSlot(pDriver, Chipset, pGDev, Active);
-
     if (pATI->iEntity >= 0)
         ATIClaimResources(pATI, Active);
 
