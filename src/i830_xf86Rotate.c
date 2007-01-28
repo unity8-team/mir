@@ -138,7 +138,7 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
 {
     ScrnInfoPtr		scrn = crtc->scrn;
     ScreenPtr		screen = scrn->pScreen;
-    PixmapPtr		src_pixmap = (*screen->GetScreenPixmap) (screen);
+    WindowPtr		root = WindowTable[screen->myNum];
     PixmapPtr		dst_pixmap = crtc->rotatedPixmap;
     PictFormatPtr	format = compWindowFormat (WindowTable[screen->myNum]);
     int			error;
@@ -146,12 +146,13 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
     PictTransform	transform;
     int			n = REGION_NUM_RECTS(region);
     BoxPtr		b = REGION_RECTS(region);
+    XID			include_inferiors = IncludeInferiors;
     
     src = CreatePicture (None,
-			 &src_pixmap->drawable,
+			 &root->drawable,
 			 format,
-			 0L,
-			 NULL,
+			 CPSubwindowMode,
+			 &include_inferiors,
 			 serverClient,
 			 &error);
     if (!src) {
