@@ -389,7 +389,7 @@ static void I830CRTCLoadCursorARGB (xf86CrtcPtr crtc, CursorPtr pCurs)
 {
    I830Ptr pI830 = I830PTR(crtc->scrn);
    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-   CARD32 *dst = (CARD32 *) (pI830->FbBase + intel_crtc->cursor_mem.Start);
+   CARD32 *dst = (CARD32 *) (pI830->FbBase + intel_crtc->cursor_mem_argb.Start);
    CARD32 *image = (CARD32 *)pCurs->bits->argb;
    int x, y, w, h;
 
