@@ -1600,25 +1600,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       PreInitCleanup(pScrn);
       return FALSE;
    }
-
-   /*
-    * Fix up modes to make hblank start at hsync start.
-    * I don't know why the xf86 code mangles this...
-    */
-    {
-	DisplayModePtr	p;
-
-	for (p = pScrn->modes; p;) {
-	    xf86DrvMsg (pScrn->scrnIndex,
-			X_INFO, "move blank start from %d to %d\n",
-			p->CrtcHBlankStart, p->CrtcHDisplay);
-	    p->CrtcHBlankStart = p->CrtcHDisplay;
-	    p = p->next;
-	    if (p == pScrn->modes)
-		break;
-	}
-    }
-   
    pScrn->currentMode = pScrn->modes;
 
    pI830->disableTiling = FALSE;
