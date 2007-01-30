@@ -393,8 +393,8 @@ xf86RandR12CreateScreenResources (ScreenPtr pScreen)
     for (c = 0; c < config->num_crtc; c++)
     {
 	xf86CrtcPtr crtc = config->crtc[c];
-	int	    crtc_width = crtc->x + crtc->curMode.HDisplay;
-	int	    crtc_height = crtc->y + crtc->curMode.VDisplay;
+	int	    crtc_width = crtc->x + crtc->mode.HDisplay;
+	int	    crtc_height = crtc->y + crtc->mode.VDisplay;
 	
 	if (crtc->enabled && crtc_width > width)
 	    width = crtc_width;
@@ -494,8 +494,19 @@ void
 xf86RandR12SetRotations (ScreenPtr pScreen, Rotation rotations)
 {
     XF86RandRInfoPtr	randrp = XF86RANDRINFO(pScreen);
+    ScrnInfoPtr		pScrn = xf86Screens[pScreen->myNum];
+    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int			c;
 
     randrp->supported_rotations = rotations;
+
+#if RANDR_12_INTERFACE
+    for (c = 0; c < config->num_crtc; c++) {
+	xf86CrtcPtr    crtc = config->crtc[c];
+
+	RRCrtcSetRotations (crtc->randr_crtc, rotations);
+    }
+#endif
 }
 
 void
@@ -533,7 +544,7 @@ xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
     xf86CrtcPtr		crtc = randr_crtc->devPrivate;
     xf86OutputPtr	output;
     int			i, j;
-    DisplayModePtr	curMode = &crtc->curMode;
+    DisplayModePtr	mode = &crtc->mode;
     Bool		ret;
 
     randr_outputs = ALLOCATE_LOCAL(config->num_output * sizeof (RROutputPtr));
@@ -541,7 +552,7 @@ xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
 	return FALSE;
     x = crtc->x;
     y = crtc->y;
-    rotation = RR_Rotate_0;
+    rotation = crtc->rotation;
     numOutputs = 0;
     randr_mode = NULL;
     for (i = 0; i < config->num_output; i++)
@@ -558,7 +569,7 @@ xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
 	    for (j = 0; j < randr_output->numModes; j++)
 	    {
 		DisplayModePtr	outMode = randr_output->modes[j]->devPrivate;
-		if (xf86ModesEqual(curMode, outMode))
+		if (xf86ModesEqual(mode, outMode))
 		{
 		    randr_mode = randr_output->modes[j];
 		    break;
@@ -587,7 +598,6 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     xf86CrtcPtr		crtc = randr_crtc->devPrivate;
     DisplayModePtr	mode = randr_mode ? randr_mode->devPrivate : NULL;
     Bool		changed = FALSE;
-    Bool		pos_changed;
     int			o, ro;
     xf86CrtcPtr		*save_crtcs;
     Bool		save_enabled = crtc->enabled;
@@ -595,12 +605,11 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     save_crtcs = ALLOCATE_LOCAL(config->num_crtc * sizeof (xf86CrtcPtr));
     if ((mode != NULL) != crtc->enabled)
 	changed = TRUE;
-    else if (mode && !xf86ModesEqual (&crtc->curMode, mode))
+    else if (mode && !xf86ModesEqual (&crtc->mode, mode))
 	changed = TRUE;
     
-    pos_changed = changed;
     if (x != crtc->x || y != crtc->y)
-	pos_changed = TRUE;
+	changed = TRUE;
     for (o = 0; o < config->num_output; o++) 
     {
 	xf86OutputPtr  output = config->output[o];
@@ -629,12 +638,9 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     {
 	crtc->enabled = mode != NULL;
 
-	/* Sync the engine before adjust mode */
-        i830WaitSync(pScrn);
-
 	if (mode)
 	{
-	    if (!i830PipeSetMode (crtc, mode, TRUE))
+	    if (!xf86CrtcSetMode (crtc, mode, rotation, x, y))
 	    {
 		crtc->enabled = save_enabled;
 		for (o = 0; o < config->num_output; o++)
@@ -645,14 +651,16 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 		DEALLOCATE_LOCAL(save_crtcs);
 		return FALSE;
 	    }
+	    /*
+	     * Save the last successful setting for EnterVT
+	     */
 	    crtc->desiredMode = *mode;
+	    crtc->desiredRotation = rotation;
+	    crtc->desiredX = x;
+	    crtc->desiredY = y;
 	}
-	i830DisableUnusedFunctions (pScrn);
-
-	i830DumpRegs(pScrn);
+	xf86DisableUnusedFunctions (pScrn);
     }
-    if (pos_changed && mode)
-	i830PipeSetBase(crtc, x, y);
     DEALLOCATE_LOCAL(save_crtcs);
     return xf86RandR12CrtcNotify (randr_crtc);
 }
@@ -829,6 +837,8 @@ xf86RandR12SetInfo12 (ScreenPtr pScreen)
     DEALLOCATE_LOCAL (clones);
     return TRUE;
 }
+
+
 
 /*
  * Query the hardware for the current state, then mirror

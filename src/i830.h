@@ -195,8 +195,19 @@ extern const char *i830_output_type_names[];
 
 typedef struct _I830CrtcPrivateRec {
     int			    pipe;
+
     /* Lookup table values to be set when the CRTC is enabled */
     CARD8 lut_r[256], lut_g[256], lut_b[256];
+
+#ifdef I830_USE_XAA
+    FBLinearPtr rotate_mem_xaa;
+#endif
+#ifdef I830_USE_EXA
+    ExaOffscreenArea *rotate_mem_exa;
+#endif
+
+    I830MemRange cursor_mem;
+    I830MemRange cursor_mem_argb;
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;
 
 #define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
@@ -221,6 +232,7 @@ enum last_3d {
     LAST_3D_ROTATION
 };
 
+#if 0
 typedef struct _I830PipeRec {
    Bool		  enabled;
    int		  x;
@@ -233,6 +245,7 @@ typedef struct _I830PipeRec {
    RRCrtcPtr	  randr_crtc;
 #endif
 } I830PipeRec, *I830PipePtr;
+#endif
 
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
@@ -271,8 +284,6 @@ typedef struct _I830Rec {
    I830MemRange EXAStateMem;  /* specific exa state for G965 */
 #endif
    /* Regions allocated either from the above pools, or from agpgart. */
-   I830MemRange	*CursorMem;
-   I830MemRange	*CursorMemARGB;
    I830RingBuffer *LpRing;
 
 #if REMAP_RESERVED
@@ -608,6 +619,14 @@ extern void i830WaitSync(ScrnInfoPtr pScrn);
 /* i830_memory.c */
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
+#ifdef I830_USE_XAA
+FBLinearPtr
+i830_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
+				 int granularity,
+				 MoveLinearCallbackProcPtr moveCB,
+				 RemoveLinearCallbackProcPtr removeCB,
+				 pointer privData);
+#endif /* I830_USE_EXA */
 
 /* i830_modes.c */
 DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);

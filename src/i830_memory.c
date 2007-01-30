@@ -769,6 +769,91 @@ I830AllocateFramebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
    return TRUE;
 }
 
+static Bool
+I830AllocateCursorBuffers(xf86CrtcPtr crtc, const int flags)
+{
+   ScrnInfoPtr pScrn = crtc->scrn;
+   I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+   I830Ptr pI830 = I830PTR(pScrn);
+   Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
+   int verbosity = dryrun ? 4 : 1;
+   const char *s = dryrun ? "[dryrun] " : "";
+   long size, alloced;
+   int cursFlags = 0;
+
+   /* Clear cursor info */
+   memset(&intel_crtc->cursor_mem, 0, sizeof(I830MemRange));
+   intel_crtc->cursor_mem.Key = -1;
+   memset(&intel_crtc->cursor_mem_argb, 0, sizeof(I830MemRange));
+   intel_crtc->cursor_mem_argb.Key = -1;
+
+   if (pI830->SWCursor)
+      return FALSE;
+
+   /*
+    * Mouse cursor -- The i810-i830 need a physical address in system
+    * memory from which to upload the cursor.  We get this from
+    * the agpgart module using a special memory type.
+    */
+
+   size = HWCURSOR_SIZE;
+   cursFlags = FROM_ANYWHERE | ALLOCATE_AT_TOP;
+   if (pI830->CursorNeedsPhysical)
+      cursFlags |= NEED_PHYSICAL_ADDR;
+
+   alloced = I830AllocVidMem(pScrn, &intel_crtc->cursor_mem,
+			     &pI830->StolenPool, size,
+			     GTT_PAGE_SIZE, flags | cursFlags);
+   if (alloced < size ||
+       (pI830->CursorNeedsPhysical && !intel_crtc->cursor_mem.Physical))
+   {
+      if (!dryrun) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Failed to allocate HW cursor space.\n");
+	 return FALSE;
+      }
+   } else {
+      xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		     "%sAllocated %ld kB for HW cursor at 0x%lx", s,
+		     alloced / 1024, intel_crtc->cursor_mem.Start);
+      if (pI830->CursorNeedsPhysical) {
+	 xf86ErrorFVerb(verbosity, " (0x%08lx)",
+			intel_crtc->cursor_mem.Physical);
+      }
+      xf86ErrorFVerb(verbosity, "\n");
+   }
+
+   /* Allocate the ARGB cursor space.  Its success is optional -- we won't set
+    * SWCursor if it fails.
+    */
+   size = HWCURSOR_SIZE_ARGB;
+   cursFlags = FROM_ANYWHERE | ALLOCATE_AT_TOP;
+   if (pI830->CursorNeedsPhysical)
+      cursFlags |= NEED_PHYSICAL_ADDR;
+
+   alloced = I830AllocVidMem(pScrn, &intel_crtc->cursor_mem_argb,
+			     &pI830->StolenPool, size,
+			     GTT_PAGE_SIZE, flags | cursFlags);
+   if (alloced < size ||
+       (pI830->CursorNeedsPhysical && !intel_crtc->cursor_mem_argb.Physical)) {
+      if (!dryrun) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Failed to allocate HW (ARGB) cursor space.\n");
+      }
+   } else {
+      xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		     "%sAllocated %ld kB for HW (ARGB) cursor at 0x%lx", s,
+		     alloced / 1024, intel_crtc->cursor_mem_argb.Start);
+      if (pI830->CursorNeedsPhysical) {
+	 xf86ErrorFVerb(verbosity, " (0x%08lx)",
+			intel_crtc->cursor_mem_argb.Physical);
+      }
+      xf86ErrorFVerb(verbosity, "\n");
+   }
+
+   return FALSE;
+}
+
 /*
  * Allocate memory for 2D operation.  This includes the (front) framebuffer,
  * ring buffer, scratch memory, HW cursor.
@@ -777,12 +862,13 @@ Bool
 I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    long size, alloced;
    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
    int verbosity = dryrun ? 4 : 1;
    const char *s = dryrun ? "[dryrun] " : "";
    Bool tileable;
-   int align, alignflags;
+   int align, alignflags, i;
 
    DPRINTF(PFX, "I830Allocate2DMemory: inital is %s\n",
 	   BOOLTOSTRING(flags & ALLOC_INITIAL));
@@ -814,7 +900,6 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 	   pI830->StolenPool.Free.Size);
 
    if (flags & ALLOC_INITIAL) {
-
       if (pI830->NeedRingBufferLow)
 	 AllocateRingBuffer(pScrn, flags | FORCE_LOW);
 
@@ -979,63 +1064,18 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
    }
 #endif
 
-   /* Clear cursor info */
-   memset(pI830->CursorMem, 0, sizeof(I830MemRange));
-   pI830->CursorMem->Key = -1;
-   memset(pI830->CursorMemARGB, 0, sizeof(I830MemRange));
-   pI830->CursorMemARGB->Key = -1;
-
-   if (!pI830->SWCursor) {
-      int cursFlags = 0;
-      /*
-       * Mouse cursor -- The i810-i830 need a physical address in system
-       * memory from which to upload the cursor.  We get this from
-       * the agpgart module using a special memory type.
-       */
-
-      size = HWCURSOR_SIZE;
-      cursFlags = FROM_ANYWHERE | ALLOCATE_AT_TOP;
-      if (pI830->CursorNeedsPhysical)
-	 cursFlags |= NEED_PHYSICAL_ADDR;
-
-      alloced = I830AllocVidMem(pScrn, pI830->CursorMem,
-				&(pI830->StolenPool), size,
-				GTT_PAGE_SIZE, flags | cursFlags);
-      if (alloced < size) {
-	 if (!dryrun) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to allocate HW cursor space.\n");
-	 }
-      } else {
-	 xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-			"%sAllocated %ld kB for HW cursor at 0x%lx", s,
-			alloced / 1024, pI830->CursorMem->Start);
-	 if (pI830->CursorNeedsPhysical)
-	    xf86ErrorFVerb(verbosity, " (0x%08lx)", pI830->CursorMem->Physical);
-	 xf86ErrorFVerb(verbosity, "\n");
-      }
-
-      size = HWCURSOR_SIZE_ARGB;
-      cursFlags = FROM_ANYWHERE | ALLOCATE_AT_TOP;
-      if (pI830->CursorNeedsPhysical)
-	 cursFlags |= NEED_PHYSICAL_ADDR;
-
-      alloced = I830AllocVidMem(pScrn, pI830->CursorMemARGB,
-				&(pI830->StolenPool), size,
-				GTT_PAGE_SIZE, flags | cursFlags);
-      if (alloced < size) {
-	 if (!dryrun) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to allocate HW (ARGB) cursor space.\n");
-	 }
-      } else {
-	 xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-			"%sAllocated %ld kB for HW (ARGB) cursor at 0x%lx", s,
-			alloced / 1024, pI830->CursorMemARGB->Start);
-	 if (pI830->CursorNeedsPhysical)
-	    xf86ErrorFVerb(verbosity, " (0x%08lx)", pI830->CursorMemARGB->Physical);
-	 xf86ErrorFVerb(verbosity, "\n");
-      }
+   if (!pI830->SWCursor && !dryrun) {
+       for (i = 0; i < xf86_config->num_crtc; i++) {
+	   if (!I830AllocateCursorBuffers(xf86_config->crtc[i], flags) &&
+	       pI830->SWCursor)
+	   {
+	       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			  "Disabling HW cursor because the cursor memory "
+			  "allocation failed.\n");
+	       pI830->SWCursor = TRUE;
+	       break;
+	   }
+       }
    }
 
 #ifdef I830_XV
@@ -1505,6 +1545,8 @@ Bool
 I830FixupOffsets(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+   int i;
 
    DPRINTF(PFX, "I830FixupOffsets\n");
 
@@ -1512,8 +1554,14 @@ I830FixupOffsets(ScrnInfoPtr pScrn)
    if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2)
       I830FixOffset(pScrn, &(pI830->FrontBuffer2));
    I830FixOffset(pScrn, &(pI830->FrontBuffer));
-   I830FixOffset(pScrn, pI830->CursorMem);
-   I830FixOffset(pScrn, pI830->CursorMemARGB);
+
+   for (i = 0; i < xf86_config->num_crtc; i++) {
+      I830CrtcPrivatePtr intel_crtc = xf86_config->crtc[i]->driver_private;
+
+      I830FixOffset(pScrn, &intel_crtc->cursor_mem);
+      I830FixOffset(pScrn, &intel_crtc->cursor_mem_argb);
+   }
+
    I830FixOffset(pScrn, &(pI830->LpRing->mem));
    I830FixOffset(pScrn, &(pI830->Scratch));
    if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2)
@@ -1896,6 +1944,9 @@ I830BindAGPMemory(ScrnInfoPtr pScrn)
       return TRUE;
 
    if (xf86AgpGARTSupported() && !pI830->GttBound) {
+      xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+      int i;
+
       if (!xf86AcquireGART(pScrn->scrnIndex))
 	 return FALSE;
 
@@ -1911,10 +1962,15 @@ I830BindAGPMemory(ScrnInfoPtr pScrn)
 	    return FALSE;
       if (!BindMemRange(pScrn, &(pI830->FrontBuffer)))
 	 return FALSE;
-      if (!BindMemRange(pScrn, pI830->CursorMem))
-	 return FALSE;
-      if (!BindMemRange(pScrn, pI830->CursorMemARGB))
-	 return FALSE;
+
+      for (i = 0; i < xf86_config->num_crtc; i++) {
+	 I830CrtcPrivatePtr intel_crtc = xf86_config->crtc[i]->driver_private;
+
+	 if (!BindMemRange(pScrn, &intel_crtc->cursor_mem))
+	    return FALSE;
+	 if (!BindMemRange(pScrn, &intel_crtc->cursor_mem_argb))
+	    return FALSE;
+      }
       if (!BindMemRange(pScrn, &(pI830->LpRing->mem)))
 	 return FALSE;
       if (!BindMemRange(pScrn, &(pI830->Scratch)))
@@ -1991,6 +2047,8 @@ I830UnbindAGPMemory(ScrnInfoPtr pScrn)
       return TRUE;
 
    if (xf86AgpGARTSupported() && pI830->GttBound) {
+      xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+      int i;
 
 #if REMAP_RESERVED
       /* "unbind" the pre-allocated region. */
@@ -2004,10 +2062,16 @@ I830UnbindAGPMemory(ScrnInfoPtr pScrn)
 	    return FALSE;
       if (!UnbindMemRange(pScrn, &(pI830->FrontBuffer)))
 	 return FALSE;
-      if (!UnbindMemRange(pScrn, pI830->CursorMem))
-	 return FALSE;
-      if (!UnbindMemRange(pScrn, pI830->CursorMemARGB))
-	 return FALSE;
+
+      for (i = 0; i < xf86_config->num_crtc; i++) {
+	 I830CrtcPrivatePtr intel_crtc = xf86_config->crtc[i]->driver_private;
+
+	 if (!UnbindMemRange(pScrn, &intel_crtc->cursor_mem))
+	    return FALSE;
+	 if (!UnbindMemRange(pScrn, &intel_crtc->cursor_mem_argb))
+	    return FALSE;
+      }
+
       if (!UnbindMemRange(pScrn, &(pI830->LpRing->mem)))
 	 return FALSE;
       if (!UnbindMemRange(pScrn, &(pI830->Scratch)))
@@ -2079,3 +2143,41 @@ I830CheckAvailableMemory(ScrnInfoPtr pScrn)
 
    return maxPages * 4;
 }
+
+#ifdef I830_USE_XAA
+/**
+ * Allocates memory from the XF86 linear allocator, but also purges
+ * memory if possible to cause the allocation to succeed.
+ */
+FBLinearPtr
+i830_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
+				 int granularity,
+				 MoveLinearCallbackProcPtr moveCB,
+				 RemoveLinearCallbackProcPtr removeCB,
+				 pointer privData)
+{
+   FBLinearPtr linear;
+   int max_size;
+
+   linear = xf86AllocateOffscreenLinear(pScreen, length, granularity, moveCB,
+					removeCB, privData);
+   if (linear != NULL)
+      return linear;
+
+   /* The above allocation didn't succeed, so purge unlocked stuff and try
+    * again.
+    */
+   xf86QueryLargestOffscreenLinear(pScreen, &max_size, granularity,
+				   PRIORITY_EXTREME);
+
+   if (max_size < length)
+      return NULL;
+
+   xf86PurgeUnlockedOffscreenAreas(pScreen);
+
+   linear = xf86AllocateOffscreenLinear(pScreen, length, granularity, moveCB,
+					removeCB, privData);
+
+   return linear;
+}
+#endif
