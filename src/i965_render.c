@@ -552,10 +552,10 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     urb_cs_start = urb_sf_start + urb_sf_size;
     urb_cs_size = URB_CS_ENTRIES * URB_CS_ENTRY_SIZE;
 
-    /* We'll be poking the state buffers that could be in use by the 3d
-     * hardware here, but we should have synced the 3D engine already in
-     * I830PutImage. XXX
+    /* Because we only have a single static buffer for our state currently,
+     * we have to sync before updating it every time.
      */
+    i830WaitSync(pScrn);
 
     memset (cc_viewport, 0, sizeof (*cc_viewport));
     cc_viewport->min_depth = -1.e35;
