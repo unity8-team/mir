@@ -243,22 +243,22 @@ I830XAAInit(ScreenPtr pScreen)
 	if (IS_I865G(pI830) || IS_I855(pI830) ||
 	    IS_845G(pI830) || IS_I830(pI830))
 	{
-	    pI830->EXADriverPtr->CheckComposite = i830_check_composite;
-	    pI830->EXADriverPtr->PrepareComposite = i830_prepare_composite;
-	    pI830->EXADriverPtr->Composite = i830_composite;
-	    pI830->EXADriverPtr->DoneComposite = i830_done_composite;
+	    pI830->xaa_check_composite = i830_check_composite;
+	    pI830->xaa_prepare_composite = i830_prepare_composite;
+	    pI830->xaa_composite = i830_composite;
+	    pI830->xaa_done_composite = i830_done_composite;
 	} else if (IS_I915G(pI830) || IS_I915GM(pI830) ||
 		   IS_I945G(pI830) || IS_I945GM(pI830))
 	{
-	    pI830->EXADriverPtr->CheckComposite = i915_check_composite;
-	    pI830->EXADriverPtr->PrepareComposite = i915_prepare_composite;
-	    pI830->EXADriverPtr->Composite = i830_composite;
-	    pI830->EXADriverPtr->DoneComposite = i830_done_composite;
+	    pI830->xaa_check_composite = i915_check_composite;
+	    pI830->xaa_prepare_composite = i915_prepare_composite;
+	    pI830->xaa_composite = i830_composite;
+	    pI830->xaa_done_composite = i830_done_composite;
 	} else {
-	    pI830->EXADriverPtr->CheckComposite = i965_check_composite;
-	    pI830->EXADriverPtr->PrepareComposite = i965_prepare_composite;
-	    pI830->EXADriverPtr->Composite = i965_composite;
-	    pI830->EXADriverPtr->DoneComposite = i830_done_composite;
+	    pI830->xaa_check_composite = i965_check_composite;
+	    pI830->xaa_prepare_composite = i965_prepare_composite;
+	    pI830->xaa_composite = i965_composite;
+	    pI830->xaa_done_composite = i830_done_composite;
 	}
 
 	pI830->saved_composite = ps->Composite;
