@@ -379,13 +379,13 @@ I965EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 
     pI830->last_3d = LAST_3D_RENDER;
 
-    src_offset = exaGetPixmapOffset(pSrc);
-    src_pitch = exaGetPixmapPitch(pSrc);
-    dst_offset = exaGetPixmapOffset(pDst);
-    dst_pitch = exaGetPixmapPitch(pDst);
+    src_offset = intel_get_pixmap_offset(pSrc);
+    src_pitch = intel_get_pixmap_pitch(pSrc);
+    dst_offset = intel_get_pixmap_offset(pDst);
+    dst_pitch = intel_get_pixmap_pitch(pDst);
     if (pMask) {
-	mask_offset = exaGetPixmapOffset(pMask);
-	mask_pitch = exaGetPixmapPitch(pMask);
+	mask_offset = intel_get_pixmap_offset(pMask);
+	mask_pitch = intel_get_pixmap_pitch(pMask);
     }
     pI830->scale_units[0][0] = pSrc->drawable.width;
     pI830->scale_units[0][1] = pSrc->drawable.height;

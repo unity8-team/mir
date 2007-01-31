@@ -256,8 +256,8 @@ I830TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     int w, h, i;
     CARD32 wrap_mode = TEXCOORDMODE_CLAMP; 
 
-    offset = exaGetPixmapOffset(pPix);
-    pitch = exaGetPixmapPitch(pPix);
+    offset = intel_get_pixmap_offset(pPix);
+    pitch = intel_get_pixmap_pitch(pPix);
     w = pPict->pDrawable->width;
     h = pPict->pDrawable->height;
     pI830->scale_units[unit][0] = pPix->drawable.width;
@@ -381,8 +381,8 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     CARD32 dst_format, dst_offset, dst_pitch;
 
     I830GetDestFormat(pDstPicture, &dst_format);
-    dst_offset = exaGetPixmapOffset(pDst);
-    dst_pitch = exaGetPixmapPitch(pDst);
+    dst_offset = intel_get_pixmap_offset(pDst);
+    dst_pitch = intel_get_pixmap_pitch(pDst);
 
     pI830->last_3d = LAST_3D_RENDER;
 

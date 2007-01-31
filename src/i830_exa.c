@@ -314,7 +314,7 @@ i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
  *
  * This function is shared between i830 and i915 generation code.
  */
-static void
+void
 IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		 int dstX, int dstY, int w, int h)
 {
@@ -396,7 +396,7 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     }
 }
 
-static void
+void
 IntelEXADoneComposite(PixmapPtr pDst)
 {
 #if ALWAYS_SYNC

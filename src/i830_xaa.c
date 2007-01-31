@@ -52,6 +52,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xaarop.h"
 #include "i830.h"
 #include "i810_reg.h"
+#include "mipict.h"
 
 #ifndef DO_SCANLINE_IMAGE_WRITE
 #define DO_SCANLINE_IMAGE_WRITE 0
@@ -91,11 +92,26 @@ static void I830SubsequentImageWriteScanline(ScrnInfoPtr pScrn, int bufno);
 #endif
 static void I830RestoreAccelState(ScrnInfoPtr pScrn);
 
+void
+i830_xaa_composite(CARD8	op,
+		   PicturePtr	pSrc,
+		   PicturePtr	pMask,
+		   PicturePtr	pDst,
+		   INT16	xSrc,
+		   INT16	ySrc,
+		   INT16	xMask,
+		   INT16	yMask,
+		   INT16	xDst,
+		   INT16	yDst,
+		   CARD16	width,
+		   CARD16	height);
+
 Bool
 I830XAAInit(ScreenPtr pScreen)
 {
     XAAInfoRecPtr infoPtr;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    PictureScreenPtr ps = GetPictureScreenIfSet(pScreen);
     I830Ptr pI830 = I830PTR(pScrn);
     int i;
     int width = 0;
@@ -220,7 +236,37 @@ I830XAAInit(ScreenPtr pScreen)
 
     I830SelectBuffer(pScrn, I830_SELECT_FRONT);
 
-    return XAAInit(pScreen, infoPtr);
+    if (!XAAInit(pScreen, infoPtr))
+	return FALSE;
+
+    if (ps != NULL) {
+	if (IS_I915G(pI830) || IS_I915GM(pI830) ||
+	    IS_I945G(pI830) || IS_I945GM(pI830))
+	{
+	    pI830->xaa_check_composite = I915EXACheckComposite;
+	    pI830->xaa_prepare_composite = I915EXAPrepareComposite;
+	    pI830->xaa_composite = IntelEXAComposite;
+	    pI830->xaa_done_composite = IntelEXADoneComposite;
+	} else if (IS_I865G(pI830) || IS_I855(pI830) ||
+		   IS_845G(pI830) || IS_I830(pI830)) {
+	    pI830->xaa_check_composite = I830EXACheckComposite;
+	    pI830->xaa_prepare_composite = I830EXAPrepareComposite;
+	    pI830->xaa_composite = IntelEXAComposite;
+	    pI830->xaa_done_composite = IntelEXADoneComposite;
+	} else if (IS_I965G(pI830)) {
+	    pI830->xaa_check_composite = I965EXACheckComposite;
+	    pI830->xaa_prepare_composite = I965EXAPrepareComposite;
+	    pI830->xaa_composite = I965EXAComposite;
+	    pI830->xaa_done_composite = IntelEXADoneComposite;
+	} else {
+	    return TRUE;
+	}
+
+	pI830->saved_composite = ps->Composite;
+	ps->Composite = i830_xaa_composite;
+    }
+
+    return TRUE;
 }
 
 #ifdef XF86DRI
@@ -693,6 +739,126 @@ I830SubsequentImageWriteScanline(ScrnInfoPtr pScrn, int bufno)
 }
 #endif /* DO_SCANLINE_IMAGE_WRITE */
 /* Support for multiscreen */
+
+/**
+ * Special case acceleration for Render acceleration of rotation operations
+ * by xf86Rotate.c
+ */
+void
+i830_xaa_composite(CARD8	op,
+		   PicturePtr	pSrc,
+		   PicturePtr	pMask,
+		   PicturePtr	pDst,
+		   INT16	xSrc,
+		   INT16	ySrc,
+		   INT16	xMask,
+		   INT16	yMask,
+		   INT16	xDst,
+		   INT16	yDst,
+		   CARD16	width,
+		   CARD16	height)
+{
+    ScreenPtr pScreen = pDst->pDrawable->pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    PictureScreenPtr ps;
+    PixmapPtr pSrcPixmap, pDstPixmap;
+    RegionRec region;
+    BoxPtr pbox;
+    int nbox;
+    int	i;
+
+    /* Throw out cases that aren't going to be our rotation first */
+    if (pMask != NULL || op != PictOpSrc || pSrc->pDrawable == NULL)
+	goto fallback;
+
+    if (pSrc->pDrawable->type != DRAWABLE_PIXMAP ||
+	pDst->pDrawable->type != DRAWABLE_PIXMAP)
+    {
+	goto fallback;
+    }
+    pSrcPixmap = (PixmapPtr)pSrc->pDrawable;
+    pDstPixmap = (PixmapPtr)pDst->pDrawable;
+
+    /* Check if the dest is one of our shadow pixmaps */
+    for (i = 0; i < xf86_config->num_crtc; i++) {
+	xf86CrtcPtr crtc = xf86_config->crtc[i];
+
+	if (crtc->rotatedPixmap == pDstPixmap)
+	    break;
+    }
+    if (i == xf86_config->num_crtc)
+	goto fallback;
+
+    if (pSrcPixmap != pScreen->GetScreenPixmap(pScreen))
+	goto fallback;
+
+    /* OK, so we've got a Render operation on one of our shadow pixmaps, with
+     * the source being the real framebuffer.  We know that both of these are
+     * in framebuffer, with no x/y offsets, i.e. normal pixmaps like our EXA-
+     * based Render acceleration code expects.
+     */
+    assert(pSrcPixmap->drawable.x == 0);
+    assert(pSrcPixmap->drawable.y == 0);
+    assert(pDstPixmap->drawable.x == 0);
+    assert(pDstPixmap->drawable.y == 0);
+
+    if (!miComputeCompositeRegion (&region, pSrc, NULL, pDst,
+				   xSrc, ySrc, 0, 0, xDst, yDst,
+				   width, height))
+	return;
+
+    if (!pI830->xaa_check_composite(op, pSrc, NULL, pDst)) {
+	REGION_UNINIT(pScreen, &region);
+	goto fallback;
+    }
+
+    if (!pI830->xaa_prepare_composite(op, pSrc, NULL, pDst,
+				      pSrcPixmap, NULL, pDstPixmap))
+    {
+	REGION_UNINIT(pScreen, &region);
+	goto fallback;
+    }
+
+    nbox = REGION_NUM_RECTS(&region);
+    pbox = REGION_RECTS(&region);
+
+    xSrc -= xDst;
+    ySrc -= yDst;
+
+    while (nbox--)
+    {
+	pI830->xaa_composite(pDstPixmap,
+			     pbox->x1 + xSrc,
+			     pbox->y1 + ySrc,
+			     0, 0,
+			     pbox->x1,
+			     pbox->y1,
+			     pbox->x2 - pbox->x1,
+			     pbox->y2 - pbox->y1);
+	pbox++;
+    }
+
+    REGION_UNINIT(pDst->pDrawable->pScreen, &region);
+
+    pI830->xaa_done_composite(pDstPixmap);
+    i830MarkSync(pScrn);
+
+    return;
+
+fallback:
+    /* Fallback path: Call down to the next level (XAA) */
+    ps = GetPictureScreenIfSet(pScreen);
+
+    ps->Composite = pI830->saved_composite;
+
+    ps->Composite(op, pSrc, pMask, pDst, xSrc, ySrc, xMask, yMask, xDst, yDst,
+		  width, height);
+
+    pI830->saved_composite = ps->Composite;
+    ps->Composite = i830_xaa_composite;
+}
 
 static void
 I830RestoreAccelState(ScrnInfoPtr pScrn)

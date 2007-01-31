@@ -60,6 +60,36 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i810_reg.h"
 #include "i830_debug.h"
 
+unsigned long
+intel_get_pixmap_offset(PixmapPtr pPix)
+{
+    ScreenPtr pScreen = pPix->drawable.pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+#ifdef I830_USE_EXA
+    if (pI830->useEXA)
+	return exaGetPixmapOffset(pPix);
+#endif
+    return (unsigned long)pPix->devPrivate.ptr - (unsigned long)pI830->FbBase;
+}
+
+unsigned long
+intel_get_pixmap_pitch(PixmapPtr pPix)
+{
+    ScreenPtr pScreen = pPix->drawable.pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+#ifdef I830_USE_EXA
+    if (pI830->useEXA)
+	return exaGetPixmapPitch(pPix);
+#endif
+#ifdef I830_USE_XAA
+    return (unsigned long)pPix->devKind;
+#endif
+}
+
 int
 I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 {
