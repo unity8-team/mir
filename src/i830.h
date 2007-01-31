@@ -657,6 +657,10 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 			PicturePtr pMaskPicture, PicturePtr pDstPicture,
 			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
 
+void
+i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
+				 float *x_out, float *y_out);
+
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];
 #endif

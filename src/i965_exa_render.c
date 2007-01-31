@@ -975,59 +975,34 @@ I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    int srcXend, srcYend, maskXend, maskYend;
-    PictVector v;
-    int pMask = 1, i;
+    Bool has_mask;
+    float src_x[3], src_y[3], mask_x[3], mask_y[3];
+    int i;
 
-    DPRINTF(PFX, "Composite: srcX %d, srcY %d\n\t maskX %d, maskY %d\n\t"
-	    "dstX %d, dstY %d\n\twidth %d, height %d\n\t"
-	    "src_scale_x %f, src_scale_y %f, "
-	    "mask_scale_x %f, mask_scale_y %f\n",
-	    srcX, srcY, maskX, maskY, dstX, dstY, w, h,
-	    pI830->scale_units[0][0], pI830->scale_units[0][1],
-	    pI830->scale_units[1][0], pI830->scale_units[1][1]);
+    i830_get_transformed_coordinates(srcX, srcY,
+				     pI830->transform[0],
+				     &src_x[0], &src_y[0]);
+    i830_get_transformed_coordinates(srcX, srcY + h,
+				     pI830->transform[0],
+				     &src_x[1], &src_y[1]);
+    i830_get_transformed_coordinates(srcX + w, srcY + h,
+				     pI830->transform[0],
+				     &src_x[2], &src_y[2]);
 
     if (pI830->scale_units[1][0] == -1 || pI830->scale_units[1][1] == -1) {
-	pMask = 0;
+	has_mask = FALSE;
+    } else {
+	has_mask = TRUE;
+	i830_get_transformed_coordinates(maskX, maskY,
+					 pI830->transform[1],
+					 &mask_x[0], &mask_y[0]);
+	i830_get_transformed_coordinates(maskX, maskY + h,
+					 pI830->transform[1],
+					 &mask_x[1], &mask_y[1]);
+	i830_get_transformed_coordinates(maskX + w, maskY + h,
+					 pI830->transform[1],
+					 &mask_x[2], &mask_y[2]);
     }
-
-    srcXend = srcX + w;
-    srcYend = srcY + h;
-    maskXend = maskX + w;
-    maskYend = maskY + h;
-    if (pI830->transform[0] != NULL) {
-        v.vector[0] = IntToxFixed(srcX);
-        v.vector[1] = IntToxFixed(srcY);
-        v.vector[2] = xFixed1;
-        PictureTransformPoint(pI830->transform[0], &v);
-        srcX = xFixedToInt(v.vector[0]);
-        srcY = xFixedToInt(v.vector[1]);
-        v.vector[0] = IntToxFixed(srcXend);
-        v.vector[1] = IntToxFixed(srcYend);
-        v.vector[2] = xFixed1;
-        PictureTransformPoint(pI830->transform[0], &v);
-        srcXend = xFixedToInt(v.vector[0]);
-        srcYend = xFixedToInt(v.vector[1]);
-    }
-    if (pI830->transform[1] != NULL) {
-        v.vector[0] = IntToxFixed(maskX);
-        v.vector[1] = IntToxFixed(maskY);
-        v.vector[2] = xFixed1;
-        PictureTransformPoint(pI830->transform[1], &v);
-        maskX = xFixedToInt(v.vector[0]);
-        maskY = xFixedToInt(v.vector[1]);
-        v.vector[0] = IntToxFixed(maskXend);
-        v.vector[1] = IntToxFixed(maskYend);
-        v.vector[2] = xFixed1;
-        PictureTransformPoint(pI830->transform[1], &v);
-        maskXend = xFixedToInt(v.vector[0]);
-        maskYend = xFixedToInt(v.vector[1]);
-    }
-
-    DPRINTF(PFX, "After transform: srcX %d, srcY %d,srcXend %d, srcYend %d\n\t"
-		"maskX %d, maskY %d, maskXend %d, maskYend %d\n\t"
-		"dstX %d, dstY %d\n", srcX, srcY, srcXend, srcYend,
-		maskX, maskY, maskXend, maskYend, dstX, dstY);
 
     /* Wait for any existing composite rectangles to land before we overwrite
      * the VB with the next one.
@@ -1036,31 +1011,31 @@ I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     i = 0;
     /* rect (x2,y2) */
-    vb[i++] = (float)(srcXend) / pI830->scale_units[0][0];
-    vb[i++] = (float)(srcYend) / pI830->scale_units[0][1];
-    if (pMask) {
-        vb[i++] = (float)maskXend / pI830->scale_units[1][0];
-        vb[i++] = (float)maskYend / pI830->scale_units[1][1];
+    vb[i++] = src_x[2] / pI830->scale_units[0][0];
+    vb[i++] = src_y[2] / pI830->scale_units[0][1];
+    if (has_mask) {
+        vb[i++] = mask_x[2] / pI830->scale_units[1][0];
+        vb[i++] = mask_y[2] / pI830->scale_units[1][1];
     }
     vb[i++] = (float)(dstX + w);
     vb[i++] = (float)(dstY + h);
 
     /* rect (x1,y2) */
-    vb[i++] = (float)(srcX)/ pI830->scale_units[0][0];
-    vb[i++] = (float)(srcYend)/ pI830->scale_units[0][1];
-    if (pMask) {
-        vb[i++] = (float)maskX / pI830->scale_units[1][0];
-        vb[i++] = (float)maskYend / pI830->scale_units[1][1];
+    vb[i++] = src_x[1] / pI830->scale_units[0][0];
+    vb[i++] = src_y[1] / pI830->scale_units[0][1];
+    if (has_mask) {
+        vb[i++] = mask_x[1] / pI830->scale_units[1][0];
+        vb[i++] = mask_y[1] / pI830->scale_units[1][1];
     }
     vb[i++] = (float)dstX;
     vb[i++] = (float)(dstY + h);
 
     /* rect (x1,y1) */
-    vb[i++] = (float)(srcX) / pI830->scale_units[0][0];
-    vb[i++] = (float)(srcY) / pI830->scale_units[0][1];
-    if (pMask) {
-        vb[i++] = (float)maskX / pI830->scale_units[1][0];
-        vb[i++] = (float)maskY / pI830->scale_units[1][1];
+    vb[i++] = src_x[0] / pI830->scale_units[0][0];
+    vb[i++] = src_y[0] / pI830->scale_units[0][1];
+    if (has_mask) {
+        vb[i++] = mask_x[0] / pI830->scale_units[1][0];
+        vb[i++] = mask_y[0] / pI830->scale_units[1][1];
     }
     vb[i++] = (float)dstX;
     vb[i++] = (float)dstY;
