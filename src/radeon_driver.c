@@ -198,6 +198,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_ACCELMETHOD,    "AccelMethod",      OPTV_STRING,  {0}, FALSE },
     { OPTION_CONSTANTDPI,    "ConstantDPI",	 OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_REVERSE_DISPLAY,"ReverseDisplay",   OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_RN50_3D,        "RN50Force3D",      OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -2511,9 +2512,16 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 
     if (info->Chipset == PCI_CHIP_RN50_515E ||
 	info->Chipset == PCI_CHIP_RN50_5969) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Direct rendering not supported on RN50\n");
-	return FALSE;
+    	if (xf86ReturnOptValBool(info->Options, OPTION_RN50_3D, FALSE)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		"Direct rendering for RN50 forced on -- "
+		"This is NOT officially supported at the hardware level "
+		"and may cause instability or lockups\n");
+    	} else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"Direct rendering not officially supported on RN50\n");
+	    return FALSE;
+	}
     }
 
     if (info->Chipset == PCI_CHIP_RS400_5A41 ||

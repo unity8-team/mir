@@ -26,7 +26,7 @@ driver supports PCI and AGP video cards based on the following ATI chips
 Radeon 7200
 .TP 12
 .B RV100
-Radeon 7000(VE), M6
+Radeon 7000(VE), M6, RN50/ES1000
 .TP 12
 .B RS100
 Radeon IGP320(M)
@@ -624,6 +624,12 @@ the current value programmed in the chip when X is launched in that
 case.  This is only useful for LVDS panels (laptop internal panels).
 The default is
 .B on.
+.TP
+.BI "Option \*qRN50Force3D\*q \*q" boolean \*q
+Enable DRI support for RN50/ES1000 chips.  The 3D engine on these chips has
+not been validated at the hardware level and is not likely to work in most 
+cases. If it does, you got lucky.  The default is
+.B off.
 .TP
 
 .SH SEE ALSO

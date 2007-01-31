@@ -156,7 +156,8 @@ typedef enum {
     OPTION_LVDS_PROBE_PLL,
     OPTION_ACCELMETHOD,
     OPTION_CONSTANTDPI,
-    OPTION_REVERSE_DISPLAY
+    OPTION_REVERSE_DISPLAY,
+    OPTION_RN50_3D
 } RADEONOpts;
 
 /* ------- mergedfb support ------------- */
