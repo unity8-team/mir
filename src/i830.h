@@ -639,30 +639,29 @@ DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
 /* i830_tv.c */
 void i830_tv_init(ScrnInfoPtr pScrn);
 
-extern Bool I830EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I830EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
-extern Bool I915EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I915EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
-
-extern Bool I965EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I965EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
-extern void I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, 
-			int maskY, int dstX, int dstY, int width, int height);
-void IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY,
-		       int maskX, int maskY, int dstX, int dstY, int w, int h);
-void IntelEXADoneComposite(PixmapPtr pDst);
-
-extern Bool
-I830EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
-		      PicturePtr pDstPicture);
-
-extern Bool
-I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
-			PicturePtr pMaskPicture, PicturePtr pDstPicture,
-			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
+/* i830_render.c */
+Bool i830_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			  PicturePtr pDst);
+Bool i830_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			    PicturePtr pDst, PixmapPtr pSrcPixmap,
+			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
+void i830_composite(PixmapPtr pDst, int srcX, int srcY,
+		    int maskX, int maskY, int dstX, int dstY, int w, int h);
+void i830_done_composite(PixmapPtr pDst);
+/* i915_render.c */
+Bool i915_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			  PicturePtr pDst);
+Bool i915_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			    PicturePtr pDst, PixmapPtr pSrcPixmap,
+			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
+/* i965_render.c */
+Bool i965_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			  PicturePtr pDst);
+Bool i965_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			    PicturePtr pDst, PixmapPtr pSrcPixmap,
+			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
+void i965_composite(PixmapPtr pDst, int srcX, int srcY,
+		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 
 void
 i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,

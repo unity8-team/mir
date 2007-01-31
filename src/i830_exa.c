@@ -398,23 +398,25 @@ I830EXAInit(ScreenPtr pScreen)
     pI830->EXADriverPtr->DoneCopy = I830EXADoneCopy;
 
     /* Composite */
-    if (IS_I915G(pI830) || IS_I915GM(pI830) || 
-	IS_I945G(pI830) || IS_I945GM(pI830)) {   		
-	pI830->EXADriverPtr->CheckComposite = I915EXACheckComposite;
-   	pI830->EXADriverPtr->PrepareComposite = I915EXAPrepareComposite;
-    	pI830->EXADriverPtr->Composite = IntelEXAComposite;
-    	pI830->EXADriverPtr->DoneComposite = IntelEXADoneComposite;
-    } else if (IS_I865G(pI830) || IS_I855(pI830) || 
-	IS_845G(pI830) || IS_I830(pI830)) { 
-    	pI830->EXADriverPtr->CheckComposite = I830EXACheckComposite;
-    	pI830->EXADriverPtr->PrepareComposite = I830EXAPrepareComposite;
-    	pI830->EXADriverPtr->Composite = IntelEXAComposite;
-    	pI830->EXADriverPtr->DoneComposite = IntelEXADoneComposite;
-    } else if (IS_I965G(pI830)) {
- 	pI830->EXADriverPtr->CheckComposite = I965EXACheckComposite;
- 	pI830->EXADriverPtr->PrepareComposite = I965EXAPrepareComposite;
- 	pI830->EXADriverPtr->Composite = I965EXAComposite;
- 	pI830->EXADriverPtr->DoneComposite = IntelEXADoneComposite;
+    if (IS_I865G(pI830) || IS_I855(pI830) ||
+	       IS_845G(pI830) || IS_I830(pI830))
+    {
+    	pI830->EXADriverPtr->CheckComposite = i830_check_composite;
+    	pI830->EXADriverPtr->PrepareComposite = i830_prepare_composite;
+    	pI830->EXADriverPtr->Composite = i830_composite;
+    	pI830->EXADriverPtr->DoneComposite = i830_done_composite;
+    } else if (IS_I915G(pI830) || IS_I915GM(pI830) ||
+	       IS_I945G(pI830) || IS_I945GM(pI830))
+    {
+	pI830->EXADriverPtr->CheckComposite = i915_check_composite;
+   	pI830->EXADriverPtr->PrepareComposite = i915_prepare_composite;
+    	pI830->EXADriverPtr->Composite = i830_composite;
+    	pI830->EXADriverPtr->DoneComposite = i830_done_composite;
+    } else {
+ 	pI830->EXADriverPtr->CheckComposite = i965_check_composite;
+ 	pI830->EXADriverPtr->PrepareComposite = i965_prepare_composite;
+ 	pI830->EXADriverPtr->Composite = i965_composite;
+ 	pI830->EXADriverPtr->DoneComposite = i830_done_composite;
     }
 
     if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {
