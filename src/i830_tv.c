@@ -800,7 +800,6 @@ const static tv_mode_t tv_modes[] = {
 	    .filter_table = filter_table_hres,
 	    .max_srcw = 800
     },
-/*
     {
 	    .name       = "1080i@50Hz",
 	    .clock		= 148800,	
@@ -894,7 +893,6 @@ const static tv_mode_t tv_modes[] = {
 	    },
 	    .filter_table = filter_table_hres,
     },
-*/
 };
 
 static const video_levels_t component_level = {
