@@ -342,11 +342,8 @@ const char *I810driSymbols[] = {
 #endif /* I830_ONLY */
 
 const char *I810shadowSymbols[] = {
-    "shadowInit",
     "shadowSetup",
     "shadowAdd",
-    "shadowRemove",
-    "shadowUpdateRotatePacked",
     NULL
 };
 

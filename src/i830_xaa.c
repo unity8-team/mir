@@ -280,8 +280,6 @@ CheckTiling(ScrnInfoPtr pScrn)
    if (IS_I965G(pI830)) {
       if (pI830->bufferOffset == pScrn->fbOffset && pI830->front_tiled == FENCE_XMAJOR)
          tiled = 1;
-      if (pI830->bufferOffset == pI830->RotatedMem.Start && pI830->rotated_tiled == FENCE_XMAJOR)
-         tiled = 1;
       if (pI830->bufferOffset == pI830->BackBuffer.Start && pI830->back_tiled == FENCE_XMAJOR)
          tiled = 1;
       /* not really supported as it's always YMajor tiled */

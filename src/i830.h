@@ -297,11 +297,7 @@ typedef struct _I830Rec {
 #endif
    unsigned long LinearAlloc;
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
-   I830MemRange RotatedMem;
-   I830MemRange RotatedMem2;
-   I830MemRange RotateStateMem; /* for G965 state buffer */
    Rotation rotation;
-   int InitialRotation;
    int displayWidth;
    void (*PointerMoved)(int, int, int);
    CreateScreenResourcesProcPtr    CreateScreenResources;
@@ -321,8 +317,6 @@ typedef struct _I830Rec {
    unsigned int front_tiled;
    unsigned int back_tiled;
    unsigned int depth_tiled;
-   unsigned int rotated_tiled;
-   unsigned int rotated2_tiled;
 #endif
 
    Bool NeedRingBufferLow;
@@ -550,8 +544,6 @@ extern void I830InitVideo(ScreenPtr pScreen);
 extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
 #endif
 
-extern Bool I830AllocateRotatedBuffer(ScrnInfoPtr pScrn, const int flags);
-extern Bool I830AllocateRotated2Buffer(ScrnInfoPtr pScrn, const int flags);
 #ifdef XF86DRI
 extern Bool I830Allocate3DMemory(ScrnInfoPtr pScrn, const int flags);
 extern Bool I830AllocateBackBuffer(ScrnInfoPtr pScrn, const int flags);
@@ -606,7 +598,6 @@ extern void I830ReadAllRegisters(I830Ptr pI830, I830RegPtr i830Reg);
 extern void I830ChangeFrontbuffer(ScrnInfoPtr pScrn,int buffer);
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
-extern Bool I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode);
 extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);

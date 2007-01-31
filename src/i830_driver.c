@@ -276,7 +276,6 @@ typedef enum {
    OPTION_MONITOR_LAYOUT,
    OPTION_CHECKDEVICES,
    OPTION_FIXEDPIPE,
-   OPTION_ROTATE,
    OPTION_LINEARALLOC,
    OPTION_INTELTEXPOOL,
    OPTION_INTELMMSIZE
@@ -297,7 +296,6 @@ static OptionInfoRec I830Options[] = {
    {OPTION_MONITOR_LAYOUT, "MonitorLayout", OPTV_ANYSTR,{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FIXEDPIPE,   "FixedPipe",    OPTV_ANYSTR, 	{0},	FALSE},
-   {OPTION_ROTATE,      "Rotate",       OPTV_ANYSTR,    {0},    FALSE},
    {OPTION_LINEARALLOC, "LinearAlloc",  OPTV_INTEGER,   {0},    FALSE},
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_INTELMMSIZE, "AperTexSize",  OPTV_INTEGER,	{0},	FALSE},
@@ -1368,17 +1366,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    RestoreHWState(pScrn);
 
    pScrn->displayWidth = (pScrn->virtualX + 63) & ~63;
-    
+
+   /* XXX This should go away, replaced by xf86Crtc.c support for it */
    pI830->rotation = RR_Rotate_0;
-   if ((s = xf86GetOptValString(pI830->Options, OPTION_ROTATE))) {
-      pI830->InitialRotation = 0;
-      if(!xf86NameCmp(s, "CW") || !xf86NameCmp(s, "270"))
-         pI830->InitialRotation = 270;
-      if(!xf86NameCmp(s, "CCW") || !xf86NameCmp(s, "90"))
-         pI830->InitialRotation = 90;
-      if(!xf86NameCmp(s, "180"))
-         pI830->InitialRotation = 180;
-   }
 
    /*
     * Let's setup the mobile systems to check the lid status
@@ -2495,19 +2485,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    pScrn->displayWidth = pI830->displayWidth;
 
-   if (I830IsPrimary(pScrn)) {
-      /* Rotated Buffer */
-      memset(&(pI830->RotatedMem), 0, sizeof(pI830->RotatedMem));
-      pI830->RotatedMem.Key = -1;
-      /* Rotated2 Buffer */
-      memset(&(pI830->RotatedMem2), 0, sizeof(pI830->RotatedMem2));
-      pI830->RotatedMem2.Key = -1;
-      if (IS_I965G(pI830)) {
-          memset(&(pI830->RotateStateMem), 0, sizeof(pI830->RotateStateMem));
-          pI830->RotateStateMem.Key = -1;
-      }
-   }
-
 #ifdef HAS_MTRR_SUPPORT
    {
       int fd;
@@ -2906,29 +2883,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->closing = FALSE;
    pI830->suspended = FALSE;
 
-   switch (pI830->InitialRotation) {
-      case 0:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 0 degrees\n");
-         pI830->rotation = RR_Rotate_0;
-         break;
-      case 90:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 90 degrees\n");
-         pI830->rotation = RR_Rotate_90;
-         break;
-      case 180:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 180 degrees\n");
-         pI830->rotation = RR_Rotate_180;
-         break;
-      case 270:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 270 degrees\n");
-         pI830->rotation = RR_Rotate_270;
-         break;
-      default:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bad rotation setting - defaulting to 0 degrees\n");
-         pI830->rotation = RR_Rotate_0;
-         break;
-   }
-
 #ifdef XF86DRI_MM
    if (pI830->directRenderingEnabled && (pI830->mmModeFlags & I830_KERNEL_MM)) {
       unsigned long aperEnd = ROUND_DOWN_TO(pI830->FbMapSize, GTT_PAGE_SIZE) 
@@ -3187,7 +3141,7 @@ I830EnterVT(int scrnIndex, int flags)
 
    pI830->currentMode = pScrn->currentMode;
 
-   /* Force invarient state when rotated to be emitted */
+   /* Force invarient 3D state to be emitted */
    *pI830->used3D = 1<<31;
 
    return TRUE;

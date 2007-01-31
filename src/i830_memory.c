@@ -471,156 +471,6 @@ IsTileable(ScrnInfoPtr pScrn, int pitch)
    }
 }
 
-Bool
-I830AllocateRotatedBuffer(ScrnInfoPtr pScrn, int flags)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   unsigned long size, alloced;
-   Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
-   int verbosity = dryrun ? 4 : 1;
-   const char *s = dryrun ? "[dryrun] " : "";
-   int align;
-   Bool tileable;
-   int lines;
-   int height = (pI830->rotation & (RR_Rotate_0 | RR_Rotate_180)) ? pScrn->virtualY : pScrn->virtualX;
-
-   /* Rotated Buffer */
-   memset(&(pI830->RotatedMem), 0, sizeof(I830MemRange));
-   pI830->RotatedMem.Key = -1;
-   tileable = !(flags & ALLOC_NO_TILING) &&
-	      IsTileable(pScrn, pScrn->displayWidth * pI830->cpp);
-   if (tileable) {
-      /* Make the height a multiple of the tile height (16) */
-      lines = (height + 15) / 16 * 16;
-   } else {
-      lines = height;
-   }
-
-   size = ROUND_TO_PAGE(pScrn->displayWidth * lines * pI830->cpp);
-   /*
-    * Try to allocate on the best tile-friendly boundaries.
-    */
-   alloced = 0;
-   if (tileable) {
-      align = GetBestTileAlignment(size);
-      for (align = GetBestTileAlignment(size); align >= (IS_I9XX(pI830) ? MB(1) : KB(512)); align >>= 1) {
-	 alloced = I830AllocVidMem(pScrn, &(pI830->RotatedMem),
-				   &(pI830->StolenPool), size, align,
-				   flags | FROM_ANYWHERE | ALLOCATE_AT_TOP |
-				   ALIGN_BOTH_ENDS);
-	 if (alloced >= size)
-	    break;
-      }
-   }
-   if (alloced < size) {
-      /* Give up on trying to tile */
-      tileable = FALSE;
-      size = ROUND_TO_PAGE(pScrn->displayWidth * height * pI830->cpp);
-      align = GTT_PAGE_SIZE;
-      alloced = I830AllocVidMem(pScrn, &(pI830->RotatedMem),
-				&(pI830->StolenPool), size, align,
-				flags | FROM_ANYWHERE | ALLOCATE_AT_TOP);
-   }
-   if (alloced < size) {
-      if (!dryrun) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Failed to allocate rotated buffer space.\n");
-      }
-      return FALSE;
-   }
-   xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		  "%sAllocated %ld kB for the rotated buffer at 0x%lx.\n", s,
-		  alloced / 1024, pI830->RotatedMem.Start);
-
-#define BRW_LINEAR_EXTRA (32*1024)
-   if (IS_I965G(pI830)) {
-       memset(&(pI830->RotateStateMem), 0, sizeof(I830MemRange));
-       pI830->RotateStateMem.Key = -1;
-       size = ROUND_TO_PAGE(BRW_LINEAR_EXTRA);
-       align = GTT_PAGE_SIZE;
-       alloced = I830AllocVidMem(pScrn, &(pI830->RotateStateMem),
-				&(pI830->StolenPool), size, align,
-				flags | FROM_ANYWHERE | ALLOCATE_AT_TOP);
-       if (alloced < size) {
-          if (!dryrun) {
-	     xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "G965: Failed to allocate rotate state buffer space.\n");
-          }
-          return FALSE;
-       }
-       xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		  "%sAllocated %ld kB for the G965 rotate state buffer at 0x%lx - 0x%lx.\n", s, 
-		alloced / 1024, pI830->RotateStateMem.Start, pI830->RotateStateMem.End);
-   }
-  
-   return TRUE;
-}
-
-Bool
-I830AllocateRotated2Buffer(ScrnInfoPtr pScrn, int flags)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   unsigned long size, alloced;
-   Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
-   int verbosity = dryrun ? 4 : 1;
-   const char *s = dryrun ? "[dryrun] " : "";
-   int align;
-   Bool tileable;
-   int lines;
-   I830EntPtr pI830Ent = pI830->entityPrivate;
-   I830Ptr pI8302 = I830PTR(pI830Ent->pScrn_2);
-   int height = (pI8302->rotation & (RR_Rotate_0 | RR_Rotate_180)) ? pI830Ent->pScrn_2->virtualY : pI830Ent->pScrn_2->virtualX;
-
-   /* Rotated Buffer */
-   memset(&(pI830->RotatedMem2), 0, sizeof(I830MemRange));
-   pI830->RotatedMem2.Key = -1;
-   tileable = !(flags & ALLOC_NO_TILING) &&
-	      IsTileable(pScrn, pI830Ent->pScrn_2->displayWidth * pI8302->cpp);
-   if (tileable) {
-      /* Make the height a multiple of the tile height (16) */
-      lines = (height + 15) / 16 * 16;
-   } else {
-      lines = height;
-   }
-
-   size = ROUND_TO_PAGE(pI830Ent->pScrn_2->displayWidth * lines * pI8302->cpp);
-   /*
-    * Try to allocate on the best tile-friendly boundaries.
-    */
-   alloced = 0;
-   if (tileable) {
-      align = GetBestTileAlignment(size);
-      for (align = GetBestTileAlignment(size); align >= (IS_I9XX(pI830) ? MB(1) : KB(512)); align >>= 1) {
-	 alloced = I830AllocVidMem(pScrn, &(pI830->RotatedMem2),
-				   &(pI830->StolenPool), size, align,
-				   flags | FROM_ANYWHERE | ALLOCATE_AT_TOP |
-				   ALIGN_BOTH_ENDS);
-	 if (alloced >= size)
-	    break;
-      }
-   }
-   if (alloced < size) {
-      /* Give up on trying to tile */
-      tileable = FALSE;
-      size = ROUND_TO_PAGE(pI830Ent->pScrn_2->displayWidth * height * pI8302->cpp);
-      align = GTT_PAGE_SIZE;
-      alloced = I830AllocVidMem(pScrn, &(pI830->RotatedMem2),
-				&(pI830->StolenPool), size, align,
-				flags | FROM_ANYWHERE | ALLOCATE_AT_TOP);
-   }
-   if (alloced < size) {
-      if (!dryrun) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Failed to allocate rotated2 buffer space.\n");
-      }
-      return FALSE;
-   }
-   xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		  "%sAllocated %ld kB for the rotated2 buffer at 0x%lx.\n", s,
-		  alloced / 1024, pI830->RotatedMem2.Start);
-   return TRUE;
-}
-
 static unsigned long
 GetFreeSpace(ScrnInfoPtr pScrn)
 {
@@ -1840,8 +1690,6 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
    pI830->front_tiled = FENCE_LINEAR;
    pI830->back_tiled = FENCE_LINEAR;
    pI830->depth_tiled = FENCE_LINEAR;
-   pI830->rotated_tiled = FENCE_LINEAR;
-   pI830->rotated2_tiled = FENCE_LINEAR;
 
    if (pI830->allowPageFlip) {
       if (pI830->allowPageFlip && pI830->FrontBuffer.Alignment >= KB(512)) {
@@ -1888,35 +1736,7 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "MakeTiles failed for the depth buffer.\n");
       }
-   }
-	
-/* XXX tiled rotate mem not ready on G965*/
- 
-  if(!IS_I965G(pI830)) {
-   if (pI830->RotatedMem.Alignment >= KB(512)) {
-      if (MakeTiles(pScrn, &(pI830->RotatedMem), FENCE_XMAJOR)) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Activating tiled memory for the rotated buffer.\n");
-         pI830->rotated_tiled = FENCE_XMAJOR;
-      } else {
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "MakeTiles failed for the rotated buffer.\n");
-      }
-   }
-  }
-#if 0
-   if (pI830->RotatedMem2.Alignment >= KB(512)) {
-      if (MakeTiles(pScrn, &(pI830->RotatedMem2), FENCE_XMAJOR)) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Activating tiled memory for the rotated2 buffer.\n");
-         pI830->rotated2_tiled = FENCE_XMAJOR;
-      } else {
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "MakeTiles failed for the rotated buffer.\n");
-      }
-   }
-#endif
-}
+   }}
 #endif /* XF86DRI */
 
 static Bool
@@ -1987,13 +1807,6 @@ I830BindAGPMemory(ScrnInfoPtr pScrn)
 	       return FALSE;
       }
 #endif
-      if (pI830->RotatedMem.Start)
-         if (!BindMemRange(pScrn, &(pI830->RotatedMem)))
-	    return FALSE;
-      if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2 &&
-	  pI830->RotatedMem2.Start)
-         if (!BindMemRange(pScrn, &(pI830->RotatedMem2)))
-	    return FALSE;
 #ifdef XF86DRI
       if (pI830->directRenderingEnabled) {
 	 if (!BindMemRange(pScrn, &(pI830->ContextMem)))
@@ -2088,13 +1901,6 @@ I830UnbindAGPMemory(ScrnInfoPtr pScrn)
    	       return FALSE;
       }
 #endif
-      if (pI830->RotatedMem.Start)
-         if (!UnbindMemRange(pScrn, &(pI830->RotatedMem)))
-	    return FALSE;
-      if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2 &&
-	  pI830->RotatedMem2.Start)
-         if (!UnbindMemRange(pScrn, &(pI830->RotatedMem2)))
-	    return FALSE;
 #ifdef XF86DRI
       if (pI830->directRenderingEnabled) {
 	 if (!UnbindMemRange(pScrn, &(pI830->ContextMem)))
