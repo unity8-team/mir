@@ -266,6 +266,7 @@ typedef struct {
     video_levels_t	composite_levels, svideo_levels;
     color_conversion_t	composite_color, svideo_color;
     const CARD32 *filter_table;
+    int max_srcw;
 } tv_mode_t;
 
 
@@ -769,6 +770,38 @@ const static tv_mode_t tv_modes[] = {
 	    .filter_table = filter_table_hres,
     },
     {
+	    .name       = "720p@50Hz",
+	    .clock		= 148800,	
+	    .oversample     = TV_OVERSAMPLE_2X,
+	    .component_only = 1,
+
+	    .hsync_end      = 80,               .hblank_end         = 300,
+	    .hblank_start   = 1580,             .htotal             = 1979,
+
+	    .progressive    = TRUE, 	        .trilevel_sync = TRUE,
+
+	    .vsync_start_f1 = 10,               .vsync_start_f2     = 10,
+	    .vsync_len      = 10,
+
+	    .veq_ena        = FALSE,
+
+	    .vi_end_f1      = 29,               .vi_end_f2          = 29,
+	    .nbr_end        = 719,
+
+	    .burst_ena      = FALSE,
+
+	    .pal_burst  = TRUE,
+	    .composite_levels = { .blank = 237, .black = 237, .burst = 118 },
+	    .composite_color = {
+		    .ry = 0.2990, .gy = 0.5870, .by = 0.1140, .ay = 0.5379,
+		    .ru =-0.0793, .gu =-0.1557, .bu = 0.2350, .au = 1.0000,
+		    .rv = 0.3307, .gv =-0.2769, .bv =-0.0538, .av = 1.0000,
+	    },
+	    .filter_table = filter_table_hres,
+	    .max_srcw = 800
+    },
+/*
+    {
 	    .name       = "1080i@50Hz",
 	    .clock		= 148800,	
 	    .oversample     = TV_OVERSAMPLE_2X,
@@ -800,7 +833,7 @@ const static tv_mode_t tv_modes[] = {
 	    .filter_table = filter_table_hres,
     },
     {
-	    .name       = "1080i@30Hz",
+	    .name       = "1080i@60Hz",
 	    .clock		= 148800,	
 	    .oversample     = TV_OVERSAMPLE_2X,
 	    .component_only = 1,
@@ -831,7 +864,7 @@ const static tv_mode_t tv_modes[] = {
 	    .filter_table = filter_table_hres,
     },
     {
-	    .name       = "1080i@29.97Hz",
+	    .name       = "1080i@59.94Hz",
 	    .clock		= 148800,	
 	    .oversample     = TV_OVERSAMPLE_2X,
 	    .component_only = 1,
@@ -861,6 +894,7 @@ const static tv_mode_t tv_modes[] = {
 	    },
 	    .filter_table = filter_table_hres,
     },
+*/
 };
 
 static const video_levels_t component_level = {
@@ -1281,8 +1315,7 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		i830WaitForVblank(pScrn);
 
 		/* Filter ctl must be set before TV_WIN_SIZE and TV_WIN_POS */
-		OUTREG(TV_FILTER_CTL_1, TV_AUTO_SCALE);
-
+		OUTREG(TV_FILTER_CTL_1, TV_AUTO_SCALE); 
 		xsize = tv_mode->hblank_start - tv_mode->hblank_end;
 		if (tv_mode->progressive)
 			ysize = tv_mode->nbr_end + 1;
@@ -1490,7 +1523,8 @@ i830_tv_get_modes(xf86OutputPtr output)
 			unsigned int vactive_s = input->h;
 			unsigned int htotal_s = htotal*hactive_s/hactive;
 			unsigned int vtotal_s = vtotal*vactive_s/vactive;
-
+			if (tv_mode->max_srcw && input->w > tv_mode->max_srcw)
+				continue;
 			mode_ptr = xnfcalloc(1, sizeof(DisplayModeRec));
 			mode_ptr->name = xnfalloc(strlen(tv_mode->name) + 
 					strlen(input->name) + 4);
