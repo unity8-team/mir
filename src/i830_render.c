@@ -492,3 +492,100 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     return TRUE;
 }
 
+
+/**
+ * Do a single rectangle composite operation.
+ *
+ * This function is shared between i830 and i915 generation code.
+ */
+void
+IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
+		 int dstX, int dstY, int w, int h)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    Bool has_mask;
+    float src_x[3], src_y[3], mask_x[3], mask_y[3];
+
+    i830_get_transformed_coordinates(srcX, srcY,
+				     pI830->transform[0],
+				     &src_x[0], &src_y[0]);
+    i830_get_transformed_coordinates(srcX, srcY + h,
+				     pI830->transform[0],
+				     &src_x[1], &src_y[1]);
+    i830_get_transformed_coordinates(srcX + w, srcY + h,
+				     pI830->transform[0],
+				     &src_x[2], &src_y[2]);
+
+    if (pI830->scale_units[1][0] == -1 || pI830->scale_units[1][1] == -1) {
+	has_mask = FALSE;
+    } else {
+	has_mask = TRUE;
+	i830_get_transformed_coordinates(maskX, maskY,
+					 pI830->transform[1],
+					 &mask_x[0], &mask_y[0]);
+	i830_get_transformed_coordinates(maskX, maskY + h,
+					 pI830->transform[1],
+					 &mask_x[1], &mask_y[1]);
+	i830_get_transformed_coordinates(maskX + w, maskY + h,
+					 pI830->transform[1],
+					 &mask_x[2], &mask_y[2]);
+    }
+
+    {
+	int vertex_count; 
+
+	if (has_mask)
+		vertex_count = 3*6;
+	else
+		vertex_count = 3*4;
+
+	BEGIN_LP_RING(6+vertex_count);
+
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_NOOP);
+
+	OUT_RING(PRIM3D_INLINE | PRIM3D_RECTLIST | (vertex_count-1));
+
+	OUT_RING_F(dstX);
+	OUT_RING_F(dstY);
+	OUT_RING_F(src_x[0] / pI830->scale_units[0][0]);
+	OUT_RING_F(src_y[0] / pI830->scale_units[0][1]);
+	if (has_mask) {
+		OUT_RING_F(mask_x[0] / pI830->scale_units[1][0]);
+		OUT_RING_F(mask_y[0] / pI830->scale_units[1][1]);
+	}
+
+	OUT_RING_F(dstX);
+	OUT_RING_F(dstY + h);
+	OUT_RING_F(src_x[1] / pI830->scale_units[0][0]);
+	OUT_RING_F(src_y[1] / pI830->scale_units[0][1]);
+	if (has_mask) {
+		OUT_RING_F(mask_x[1] / pI830->scale_units[1][0]);
+		OUT_RING_F(mask_y[1] / pI830->scale_units[1][1]);
+	}
+
+	OUT_RING_F(dstX + w);
+	OUT_RING_F(dstY + h);
+	OUT_RING_F(src_x[2] / pI830->scale_units[0][0]);
+	OUT_RING_F(src_y[2] / pI830->scale_units[0][1]);
+	if (has_mask) {
+		OUT_RING_F(mask_x[2] / pI830->scale_units[1][0]);
+		OUT_RING_F(mask_y[2] / pI830->scale_units[1][1]);
+	}
+	ADVANCE_LP_RING();
+    }
+}
+
+void
+IntelEXADoneComposite(PixmapPtr pDst)
+{
+#if ALWAYS_SYNC
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+
+    I830Sync(pScrn);
+#endif
+}
