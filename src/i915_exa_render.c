@@ -296,12 +296,7 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     pI830->samplerstate[unit * 3 + 1] |= unit << SS3_TEXTUREMAP_INDEX_SHIFT;
     pI830->samplerstate[unit * 3 + 2] = 0x00000000; /* border color */
 
-    if (pPict->transform != 0) {
-        pI830->is_transform[unit] = TRUE;
-        pI830->transform[unit] = pPict->transform;
-    } else {
-        pI830->is_transform[unit] = FALSE;
-    }
+    pI830->transform[unit] = pPict->transform;
 
     return TRUE;
 }
@@ -333,7 +328,7 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	if (!I915TextureSetup(pMaskPicture, pMask, 1))
 		I830FALLBACK("fail to setup mask texture\n");
     } else {
-	pI830->is_transform[1] = FALSE;
+	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
 	pI830->scale_units[1][1] = -1;
     }

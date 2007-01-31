@@ -328,13 +328,7 @@ I830TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	ADVANCE_LP_RING();
     }
 
-	/* XXX */
-    if (pPict->transform != 0) {
-        pI830->is_transform[unit] = TRUE;
-        pI830->transform[unit] = pPict->transform;
-    } else {
-        pI830->is_transform[unit] = FALSE;
-    }
+    pI830->transform[unit] = pPict->transform;
 
 #ifdef I830DEBUG
     ErrorF("try to sync to show any errors...");
@@ -398,7 +392,7 @@ I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	if (!I830TextureSetup(pMaskPicture, pMask, 1))
 		I830FALLBACK("fail to setup mask texture\n");
     } else {
-	pI830->is_transform[1] = FALSE;
+	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
 	pI830->scale_units[1][1] = -1;
     }

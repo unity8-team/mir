@@ -308,7 +308,7 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     srcYend = srcY + h;
     maskXend = maskX + w;
     maskYend = maskY + h;
-    if (pI830->is_transform[0]) {
+    if (pI830->transform[0] != NULL) {
         v.vector[0] = IntToxFixed(srcX);
         v.vector[1] = IntToxFixed(srcY);
         v.vector[2] = xFixed1;
@@ -322,7 +322,7 @@ IntelEXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
         srcXend = xFixedToInt(v.vector[0]);
         srcYend = xFixedToInt(v.vector[1]);
     }
-    if (pI830->is_transform[1]) {
+    if (pI830->transform[1] != NULL) {
         v.vector[0] = IntToxFixed(maskX);
         v.vector[1] = IntToxFixed(maskY);
         v.vector[2] = xFixed1;

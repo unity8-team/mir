@@ -390,22 +390,14 @@ I965EXAPrepareComposite(int op, PicturePtr pSrcPicture,
     pI830->scale_units[0][0] = pSrc->drawable.width;
     pI830->scale_units[0][1] = pSrc->drawable.height;
 
-    if (pSrcPicture->transform) {
-	pI830->is_transform[0] = TRUE;
-	pI830->transform[0] = pSrcPicture->transform;
-    } else 
-	pI830->is_transform[0] = FALSE;
+    pI830->transform[0] = pSrcPicture->transform;
 
     if (!pMask) {
-	pI830->is_transform[1] = FALSE;
+	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
 	pI830->scale_units[1][1] = -1;
     } else {
-	if (pMaskPicture->transform) {
-	    pI830->is_transform[1] = TRUE;
-	    pI830->transform[1] = pMaskPicture->transform;
-	} else
-	    pI830->is_transform[1] = FALSE;
+	pI830->transform[1] = pMaskPicture->transform;
 	pI830->scale_units[1][0] = pMask->drawable.width;
 	pI830->scale_units[1][1] = pMask->drawable.height;
     }
@@ -1003,7 +995,7 @@ I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     srcYend = srcY + h;
     maskXend = maskX + w;
     maskYend = maskY + h;
-    if (pI830->is_transform[0]) {
+    if (pI830->transform[0] != NULL) {
         v.vector[0] = IntToxFixed(srcX);
         v.vector[1] = IntToxFixed(srcY);
         v.vector[2] = xFixed1;
@@ -1017,7 +1009,7 @@ I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
         srcXend = xFixedToInt(v.vector[0]);
         srcYend = xFixedToInt(v.vector[1]);
     }
-    if (pI830->is_transform[1]) {
+    if (pI830->transform[1] != NULL) {
         v.vector[0] = IntToxFixed(maskX);
         v.vector[1] = IntToxFixed(maskY);
         v.vector[2] = xFixed1;

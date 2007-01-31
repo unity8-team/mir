@@ -392,7 +392,7 @@ typedef struct _I830Rec {
 
    /* EXA render state */
    float scale_units[2][2];
-   Bool is_transform[2];
+  /** Transform pointers for src/mask, or NULL if identity */
    PictTransform *transform[2];
    /* i915 EXA render state */
    CARD32 mapstate[6];
