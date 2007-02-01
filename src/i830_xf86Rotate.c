@@ -30,7 +30,8 @@
 
 #include "xf86.h"
 #include "xf86DDC.h"
-/*#include "i830.h" */
+#include "fb.h"
+#include "windowstr.h"
 #include "i830_xf86Crtc.h"
 #include "i830_xf86Modes.h"
 #include "i830_randr.h"
