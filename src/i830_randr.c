@@ -608,6 +608,9 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     else if (mode && !xf86ModesEqual (&crtc->mode, mode))
 	changed = TRUE;
     
+    if (rotation != crtc->rotation)
+	changed = TRUE;
+
     if (x != crtc->x || y != crtc->y)
 	changed = TRUE;
     for (o = 0; o < config->num_output; o++) 
