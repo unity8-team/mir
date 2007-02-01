@@ -444,8 +444,7 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
     if (!info->IsSecondary)
 	OUTREG(RADEON_CRTC_GEN_CNTL, save1);
 
-    if (info->IsSecondary || info->MergedFB)
-	OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
+    OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
 
 }
 
