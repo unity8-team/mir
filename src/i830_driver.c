@@ -3042,8 +3042,8 @@ I830EnterVT(int scrnIndex, int flags)
          return FALSE;
 
    if (i830_check_error_state(pScrn)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Existing errors found in hardware state\n");
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		 "Existing errors found in hardware state.\n");
    }
 
    ResetState(pScrn, FALSE);
