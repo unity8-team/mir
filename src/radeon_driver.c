@@ -112,6 +112,7 @@
 
 
 				/* Forward definitions for driver functions */
+void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore);
 static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode);
 static void RADEONSave(ScrnInfoPtr pScrn);
@@ -3635,10 +3636,14 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	    xf86CrtcPtr	crtc = xf86_config->crtc[i];
 	    
 	    /* Mark that we'll need to re-set the mode for sure */
-	    memset(&crtc->curMode, 0, sizeof(crtc->curMode));
-	    if (!crtc->desiredMode.CrtcHDisplay)
+	    memset(&crtc->mode, 0, sizeof(crtc->mode));
+	    if (!crtc->desiredMode.CrtcHDisplay) {
 		crtc->desiredMode = *RADEONCrtcFindClosestMode (crtc, pScrn->currentMode);
-	    
+		crtc->desiredRotation = RR_Rotate_0;
+		crtc->desiredX = 0;
+		crtc->desiredY = 0;
+	    }
+
 	    if (!RADEONCrtcSetMode (crtc, &crtc->desiredMode, TRUE))
 		return FALSE;
 
@@ -5423,8 +5428,6 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     xf86OutputPtr connector;
 
-    pRADEONEnt->pCrtc[0]->curMode = *mode;
-
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
     case 8:  format = 2; break;
@@ -5610,8 +5613,6 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     RADEONInfoPtr info0 = NULL;
     if (info->IsSecondary)
 	info0 = RADEONPTR(pRADEONEnt->pPrimaryScrn);
-
-    pRADEONEnt->pCrtc[1]->curMode = *mode;
 
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
@@ -6329,10 +6330,14 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
 	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 	    radeon_crtc->binding = info->IsSecondary ? 2 : 1;
 	    /* Mark that we'll need to re-set the mode for sure */
-	    memset(&crtc->curMode, 0, sizeof(crtc->curMode));
-	    if (!crtc->desiredMode.CrtcHDisplay)
+	    memset(&crtc->mode, 0, sizeof(crtc->mode));
+	    if (!crtc->desiredMode.CrtcHDisplay) {
 		crtc->desiredMode = *RADEONCrtcFindClosestMode (crtc, pScrn->currentMode);
-	    
+		crtc->desiredRotation = RR_Rotate_0;
+		crtc->desiredX = 0;
+		crtc->desiredY = 0;
+	    }
+
 	    if (!RADEONCrtcSetMode (crtc, &crtc->desiredMode, TRUE))
 		return FALSE;
 

@@ -45,6 +45,7 @@
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
+#include "radeon_xf86Modes.h"
 
 
 void radeon_crtc_load_lut(xf86CrtcPtr crtc);
@@ -2021,12 +2022,12 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
 
       if (xf86_config->crtc[1]->enabled && xf86_config->crtc[0]->enabled) {
 	pixel_bytes2 = info->CurrentLayout.pixel_bytes;
-	mode1 = &xf86_config->crtc[0]->curMode;
-	mode2 = &xf86_config->crtc[1]->curMode;
+	mode1 = &xf86_config->crtc[0]->mode;
+	mode2 = &xf86_config->crtc[1]->mode;
       } else if (xf86_config->crtc[0]->enabled) {
-	mode1 = &xf86_config->crtc[0]->curMode;
+	mode1 = &xf86_config->crtc[0]->mode;
       } else if (xf86_config->crtc[1]->enabled) {
-	mode1 = &xf86_config->crtc[1]->curMode;
+	mode1 = &xf86_config->crtc[1]->mode;
       } else
 	return;
     }
@@ -2228,7 +2229,7 @@ radeon_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 static void
 radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
-		   DisplayModePtr adjusted_mode)
+		     DisplayModePtr adjusted_mode, int x, int y)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -2285,6 +2286,24 @@ radeon_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green,
     radeon_crtc_load_lut(crtc);
 }
 
+static Bool
+radeon_crtc_lock(xf86CrtcPtr crtc)
+{
+#ifdef XF86DRI
+	/* TODO */
+#endif
+    return FALSE;
+}
+
+static void
+radeon_crtc_unlock(xf86CrtcPtr crtc)
+{
+#ifdef XF86DRI
+	/* TODO */
+#endif
+
+}
+
 static const xf86CrtcFuncsRec radeon_crtc_funcs = {
     .dpms = radeon_crtc_dpms,
     .save = NULL, /* XXX */
@@ -2292,6 +2311,8 @@ static const xf86CrtcFuncsRec radeon_crtc_funcs = {
     .mode_fixup = radeon_crtc_mode_fixup,
     .mode_set = radeon_crtc_mode_set,
     .gamma_set = radeon_crtc_gamma_set,
+    .lock = radeon_crtc_lock,
+    .unlock = radeon_crtc_unlock,
     .destroy = NULL, /* XXX */
 };
 
@@ -2556,22 +2577,42 @@ RADEONCrtcInUse(xf86CrtcPtr crtc)
 }
 
 Bool
-RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
+RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation,
+		  int x, int y)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);  
     DisplayModePtr adjusted_mode;
+    Bool		didLock = FALSE;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     int i , ret;
-    /* XXX: curMode */
+    DisplayModeRec	saved_mode;
+    int saved_x, saved_y;
+    Rotation saved_rotation;
+    /* XXX: mode */
 
-    adjusted_mode = xf86DuplicateMode(pMode);
+    adjusted_mode = xf86DuplicateMode(mode);
     
     crtc->enabled = RADEONCrtcInUse (crtc);
 
     if (!crtc->enabled) {
       return TRUE;
     }
+
+    didLock = crtc->funcs->lock (crtc);
+
+    saved_mode = crtc->mode;
+    saved_x = crtc->x;
+    saved_y = crtc->y;
+    saved_rotation = crtc->rotation;
+
+    /* Update crtc values up front so the driver can rely on them for mode
+     * setting.
+     */
+    crtc->mode = *mode;
+    crtc->x = x;
+    crtc->y = y;
+    crtc->rotation = rotation;
 
     /* Pass our mode to the outputs and the CRTC to give them a chance to
      * adjust it according to limitations or output properties, and also
@@ -2583,14 +2624,18 @@ RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
 	if (output->crtc != crtc)
 	    continue;
 
-	if (!output->funcs->mode_fixup(output, pMode, adjusted_mode)) {
+	if (!output->funcs->mode_fixup(output, mode, adjusted_mode)) {
 	    ret = FALSE;
 	    goto done;
 	}
     }
 
-    if (!crtc->funcs->mode_fixup(crtc, pMode, adjusted_mode)) {
+    if (!crtc->funcs->mode_fixup(crtc, mode, adjusted_mode)) {
 	ret = FALSE;
+	goto done;
+    }
+
+    if (!xf86CrtcRotate (crtc, mode, rotation)) {
 	goto done;
     }
 
@@ -2612,11 +2657,11 @@ RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
     /* Set up the DPLL and any output state that needs to adjust or depend
      * on the DPLL.
      */
-    crtc->funcs->mode_set(crtc, pMode, adjusted_mode);
+    crtc->funcs->mode_set(crtc, mode, adjusted_mode, x, y);
     for (i = 0; i < xf86_config->num_output; i++) {
 	xf86OutputPtr output = xf86_config->output[i];
 	if (output->crtc == crtc)
-	    output->funcs->mode_set(output, pMode, adjusted_mode);
+	    output->funcs->mode_set(output, mode, adjusted_mode);
     }
 
 #if 0
@@ -2628,12 +2673,21 @@ RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
 	    output->funcs->dpms(output, DPMSModeOn);
     }
 #endif
-    crtc->curMode = *pMode;
     
     /* XXX free adjustedmode */
     ret = TRUE;
 
  done:
+    if (!ret) {
+	crtc->x = saved_x;
+	crtc->y = saved_y;
+	crtc->rotation = saved_rotation;
+	crtc->mode = saved_mode;
+    }
+
+    if (didLock)
+	crtc->funcs->unlock (crtc);
+
     return ret;
 }
 
@@ -2757,7 +2811,7 @@ RADEONDisableUnusedFunctions(ScrnInfoPtr pScrn)
     {
 	xf86CrtcPtr crtc = xf86_config->crtc[c];
 	if (!crtc->enabled) {
-		memset(&crtc->curMode, 0, sizeof(crtc->curMode));
+		memset(&crtc->mode, 0, sizeof(crtc->mode));
 		radeon_crtc_dpms(crtc, DPMSModeOff);
 	}
     }

@@ -291,7 +291,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 	    mode->status = MODE_CLOCK_RANGE;
 	}
       }
-      RADEONxf86PruneInvalidModes(pScrn, &ddc_modes, TRUE);
+      xf86PruneInvalidModes(pScrn, &ddc_modes, TRUE);
       
       /* do some physcial size stuff */
     }
@@ -316,9 +316,9 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 	fixed_mon.vrefresh[0].lo = 50.0;
 	fixed_mon.vrefresh[0].hi = 70.0;
 	
-	modes = RADEON_xf86DuplicateModes(pScrn, pScrn->monitor->Modes);
-	RADEONxf86ValidateModesSync(pScrn, modes, &fixed_mon);
-	RADEONxf86PruneInvalidModes(pScrn, &modes, TRUE);
+	modes = xf86DuplicateModes(pScrn, pScrn->monitor->Modes);
+	xf86ValidateModesSync(pScrn, modes, &fixed_mon);
+	xf86PruneInvalidModes(pScrn, &modes, TRUE);
 	/* fill out CRT of FP mode table */
 	output->probed_modes = modes;
 	break;
@@ -332,9 +332,9 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     }
     
     if (output->probed_modes) {
-      RADEONxf86ValidateModesUserConfig(pScrn,
+      xf86ValidateModesUserConfig(pScrn,
 					output->probed_modes);
-      RADEONxf86PruneInvalidModes(pScrn, &output->probed_modes,
+      xf86PruneInvalidModes(pScrn, &output->probed_modes,
 				  FALSE);
     }
 }

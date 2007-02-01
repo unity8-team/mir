@@ -202,7 +202,7 @@ RADEONRandrSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 
     for (c = 0 ; c < xf86_config->num_crtc; c++) {
 	xf86CrtcPtr crtc = xf86_config->crtc[c];
-	DisplayModePtr mode = &crtc->curMode;
+	DisplayModePtr mode = &crtc->mode;
 	int thisx = x - crtc->x;
 	int thisy = y - crtc->y;
 	

@@ -392,8 +392,8 @@ xf86RandR12CreateScreenResources (ScreenPtr pScreen)
     for (c = 0; c < config->num_crtc; c++)
     {
 	xf86CrtcPtr crtc = config->crtc[c];
-	int	    crtc_width = crtc->x + crtc->curMode.HDisplay;
-	int	    crtc_height = crtc->y + crtc->curMode.VDisplay;
+	int	    crtc_width = crtc->x + crtc->mode.HDisplay;
+	int	    crtc_height = crtc->y + crtc->mode.VDisplay;
 	
 	if (crtc->enabled && crtc_width > width)
 	    width = crtc_width;
@@ -532,7 +532,7 @@ xf86RandR12CrtcNotify (RRCrtcPtr	randr_crtc)
     xf86CrtcPtr		crtc = randr_crtc->devPrivate;
     xf86OutputPtr	output;
     int			i, j;
-    DisplayModePtr	curMode = &crtc->curMode;
+    DisplayModePtr	curMode = &crtc->mode;
     Bool		ret;
 
     randr_outputs = ALLOCATE_LOCAL(config->num_output * sizeof (RROutputPtr));
@@ -595,7 +595,7 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     save_crtcs = ALLOCATE_LOCAL(config->num_crtc * sizeof (xf86CrtcPtr));
     if ((mode != NULL) != crtc->enabled)
     changed = TRUE;
-    else if (mode && !xf86ModesEqual (&crtc->curMode, mode))
+    else if (mode && !xf86ModesEqual (&crtc->mode, mode))
 	changed = TRUE;
     
     pos_changed = changed;
