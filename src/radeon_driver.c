@@ -1922,9 +1922,7 @@ static void RADEONPreInitDDC(ScrnInfoPtr pScrn)
     if (info->ddc2) {
 	if (xf86LoadSubModule(pScrn, "i2c")) {
 	    xf86LoaderReqSymLists(i2cSymbols,NULL);
-	    info->ddc2 = RADEONI2cInit(pScrn);
 	}
-	else info->ddc2 = FALSE;
     }
 }
 

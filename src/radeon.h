@@ -476,8 +476,6 @@ typedef struct {
     Bool              ddc_bios;
     Bool              ddc1;
     Bool              ddc2;
-    I2CBusPtr         pI2CBus;
-    CARD32            DDCReg;
 
     RADEONPLLRec      pll;
     RADEONTMDSPll     tmds_pll[4];

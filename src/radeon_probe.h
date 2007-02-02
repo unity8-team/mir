@@ -132,6 +132,8 @@ typedef struct _RADEONOutputPrivateRec {
     RADEONConnectorType ConnectorType;
     RADEONMonitorType MonType;
     int crtc_num;
+    int DDCReg;
+    I2CBusPtr         pI2CBus;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 #define RADEON_MAX_CONNECTOR 2

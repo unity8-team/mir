@@ -177,7 +177,7 @@ static void RADEONI2CGetBits(I2CBusPtr b, int *Clock, int *data)
     unsigned char *RADEONMMIO = info->MMIO;
 
     /* Get the result */
-    val = INREG(info->DDCReg);
+    val = INREG(b->DriverPrivate.uval);
 
     *Clock = (val & RADEON_GPIO_Y_1) != 0;
     *data  = (val & RADEON_GPIO_Y_0) != 0;
@@ -190,29 +190,32 @@ static void RADEONI2CPutBits(I2CBusPtr b, int Clock, int data)
     unsigned long  val;
     unsigned char *RADEONMMIO = info->MMIO;
 
-    val = INREG(info->DDCReg) & (CARD32)~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1);
+    val = INREG(b->DriverPrivate.uval) & (CARD32)~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1);
     val |= (Clock ? 0:RADEON_GPIO_EN_1);
     val |= (data ? 0:RADEON_GPIO_EN_0);
-    OUTREG(info->DDCReg, val);
+    OUTREG(b->DriverPrivate.uval, val);
 
     /* read back to improve reliability on some cards. */
-    val = INREG(info->DDCReg);
+    val = INREG(b->DriverPrivate.uval);
 }
 
-Bool RADEONI2cInit(ScrnInfoPtr pScrn)
+Bool RADEONI2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
 {
-    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    I2CBusPtr pI2CBus;
 
-    info->pI2CBus = xf86CreateI2CBusRec();
-    if (!info->pI2CBus) return FALSE;
+    pI2CBus = xf86CreateI2CBusRec();
+    if (!pI2CBus) return FALSE;
 
-    info->pI2CBus->BusName    = "DDC";
-    info->pI2CBus->scrnIndex  = pScrn->scrnIndex;
-    info->pI2CBus->I2CPutBits = RADEONI2CPutBits;
-    info->pI2CBus->I2CGetBits = RADEONI2CGetBits;
-    info->pI2CBus->AcknTimeout = 5;
+    pI2CBus->BusName    = name;
+    pI2CBus->scrnIndex  = pScrn->scrnIndex;
+    pI2CBus->I2CPutBits = RADEONI2CPutBits;
+    pI2CBus->I2CGetBits = RADEONI2CGetBits;
+    pI2CBus->AcknTimeout = 5;
+    pI2CBus->DriverPrivate.uval = i2c_reg;
 
-    if (!xf86I2CBusInit(info->pI2CBus)) return FALSE;
+    if (!xf86I2CBusInit(pI2CBus)) return FALSE;
+
+    *bus_ptr = pI2CBus;
     return TRUE;
 }
 
@@ -550,88 +553,71 @@ RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac)
 }
 
 
-static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCType DDCType, xf86OutputPtr port)
+static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCType DDCType, xf86OutputPtr output)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned long DDCReg;
     RADEONMonitorType MonType = MT_NONE;
-    xf86MonPtr* MonInfo = &port->MonInfo;
-    RADEONOutputPrivatePtr radeon_output = port->driver_private;
+    xf86MonPtr* MonInfo = &output->MonInfo;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int i, j;
 
-    DDCReg = info->DDCReg;
-    switch(DDCType)
-    {
-    case DDC_MONID:
-	info->DDCReg = RADEON_GPIO_MONID;
-	break;
-    case DDC_DVI:
-	info->DDCReg = RADEON_GPIO_DVI_DDC;
-	break;
-    case DDC_VGA:
-	info->DDCReg = RADEON_GPIO_VGA_DDC;
-	break;
-    case DDC_CRT2:
-	info->DDCReg = RADEON_GPIO_CRT2_DDC;
-	break;
-    default:
-	info->DDCReg = DDCReg;
-	return MT_NONE;
-    }
+    DDCReg = radeon_output->DDCReg;
 
     /* Read and output monitor info using DDC2 over I2C bus */
-    if (info->pI2CBus && info->ddc2) {
-	OUTREG(info->DDCReg, INREG(info->DDCReg) &
+    if (radeon_output->pI2CBus && info->ddc2) {
+
+	OUTREG(DDCReg, INREG(DDCReg) &
 	       (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
 
 	/* For some old monitors (like Compaq Presario FP500), we need
 	 * following process to initialize/stop DDC
 	 */
-	OUTREG(info->DDCReg, INREG(info->DDCReg) & ~(RADEON_GPIO_EN_1));
+	OUTREG(DDCReg, INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
 	for (j = 0; j < 3; j++) {
-	    OUTREG(info->DDCReg,
-		   INREG(info->DDCReg) & ~(RADEON_GPIO_EN_0));
+	    OUTREG(DDCReg,
+		   INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
 	    usleep(13000);
 
-	    OUTREG(info->DDCReg,
-		   INREG(info->DDCReg) & ~(RADEON_GPIO_EN_1));
+	    OUTREG(DDCReg,
+		   INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
 	    for (i = 0; i < 10; i++) {
 		usleep(15000);
-		if (INREG(info->DDCReg) & RADEON_GPIO_Y_1)
+		if (INREG(DDCReg) & RADEON_GPIO_Y_1)
 		    break;
 	    }
 	    if (i == 10) continue;
 
 	    usleep(15000);
 
-	    OUTREG(info->DDCReg, INREG(info->DDCReg) | RADEON_GPIO_EN_0);
+	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
 	    usleep(15000);
 
-	    OUTREG(info->DDCReg, INREG(info->DDCReg) | RADEON_GPIO_EN_1);
+	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
 	    usleep(15000);
-	    OUTREG(info->DDCReg,
-		   INREG(info->DDCReg) & ~(RADEON_GPIO_EN_0));
+	    OUTREG(DDCReg,
+		   INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
 	    usleep(15000);
-	    *MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex, info->pI2CBus);
+	    *MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex, radeon_output->pI2CBus);
 
-	    OUTREG(info->DDCReg, INREG(info->DDCReg) | RADEON_GPIO_EN_1);
-	    OUTREG(info->DDCReg, INREG(info->DDCReg) | RADEON_GPIO_EN_0);
+	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
+	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
 	    usleep(15000);
-	    OUTREG(info->DDCReg,
-		   INREG(info->DDCReg) & ~(RADEON_GPIO_EN_1));
+	    OUTREG(DDCReg,
+		   INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
 	    for (i = 0; i < 5; i++) {
 		usleep(15000);
-		if (INREG(info->DDCReg) & RADEON_GPIO_Y_1)
+		if (INREG(DDCReg) & RADEON_GPIO_Y_1)
 		    break;
 	    }
 	    usleep(15000);
-	    OUTREG(info->DDCReg,
-		   INREG(info->DDCReg) & ~(RADEON_GPIO_EN_0));
+	    OUTREG(DDCReg,
+		   INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
 	    usleep(15000);
 
-	    OUTREG(info->DDCReg, INREG(info->DDCReg) | RADEON_GPIO_EN_1);
-	    OUTREG(info->DDCReg, INREG(info->DDCReg) | RADEON_GPIO_EN_0);
+	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
+	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
 	    usleep(15000);
 	    if(*MonInfo) break;
 	}
@@ -640,7 +626,7 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
 	MonType = MT_NONE;
     }
 
-    OUTREG(info->DDCReg, INREG(info->DDCReg) &
+    OUTREG(DDCReg, INREG(DDCReg) &
 	   ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
 
     if (*MonInfo) {
@@ -661,8 +647,6 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
 	    }
 	} else MonType = MT_CRT;
     } else MonType = MT_NONE;
-
-    info->DDCReg = DDCReg;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "DDC Type: %d, Detected Type: %d\n", DDCType, MonType);
@@ -1140,7 +1124,24 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
             pRADEONEnt->PortInfo[1]->ConnectorType = CONNECTOR_DVI_I;
             pRADEONEnt->PortInfo[0]->TMDSType = TMDS_UNKNOWN;
 	}
+    }
 
+    for (i = 0; i < 2; i++) {
+      int DDCReg = 0;
+      char *names[] = { "DDC1", "DDC2" };
+
+      switch(pRADEONEnt->PortInfo[i]->DDCType) {
+      case DDC_MONID: DDCReg = RADEON_GPIO_MONID; break;
+      case DDC_DVI  : DDCReg = RADEON_GPIO_DVI_DDC; break;
+      case DDC_VGA: DDCReg = RADEON_GPIO_VGA_DDC; break;
+      case DDC_CRT2: DDCReg = RADEON_GPIO_CRT2_DDC; break;
+      default: break;
+      }
+      
+      if (DDCReg) {
+	pRADEONEnt->PortInfo[i]->DDCReg = DDCReg;
+	RADEONI2CInit(pScrn, &pRADEONEnt->PortInfo[i]->pI2CBus, DDCReg, names[i]);
+      }
     }
 }
 

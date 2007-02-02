@@ -269,65 +269,49 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    DisplayModePtr ddc_modes, mode;
+    DisplayModePtr mode;
     DisplayModePtr test;
+    xf86MonPtr		    edid_mon;
+    DisplayModePtr	    modes;
 
     /* force reprobe */
     radeon_output->MonType = MT_UNKNOWN;
 	
     RADEONConnectorFindMonitor(pScrn, output);
-    
-    /* okay we got DDC info */
-    if (output->MonInfo) {
-      /* Debug info for now, at least */
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", radeon_output->num);
-      xf86PrintEDID(output->MonInfo);
+
+    if (radeon_output->type == OUTPUT_DVI || radeon_output->type == OUTPUT_VGA) {
+      edid_mon = xf86OutputGetEDID (output, radeon_output->pI2CBus);
+      xf86OutputSetEDID (output, edid_mon);
       
-      ddc_modes = xf86DDCGetModes(pScrn->scrnIndex, output->MonInfo);
-      
-      for (mode = ddc_modes; mode != NULL; mode = mode->next) {
-	if (mode->Flags & V_DBLSCAN) {
-	  if ((mode->CrtcHDisplay >= 1024) || (mode->CrtcVDisplay >= 768))
-	    mode->status = MODE_CLOCK_RANGE;
-	}
-      }
-      xf86PruneInvalidModes(pScrn, &ddc_modes, TRUE);
-      
-      /* do some physcial size stuff */
+      output->probed_modes = xf86OutputGetEDIDModes (output);
+      return;
     }
-    
-    
-    if (output->probed_modes == NULL) {
-      MonRec fixed_mon;
-      DisplayModePtr modes;
-      
-      switch(radeon_output->MonType) {
-      case MT_CRT:
-      case MT_DFP:
+    if (radeon_output->type == OUTPUT_LVDS) {
+      /* okay we got DDC info */
+      if (output->MonInfo) {
+	/* Debug info for now, at least */
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", radeon_output->num);
+	xf86PrintEDID(output->MonInfo);
 	
-	/* We've got a potentially-connected monitor that we can't DDC.  Return a
-	 * fixed set of VESA plus user modes for a presumed multisync monitor with
-	 * some reasonable limits.
-	 */
-	fixed_mon.nHsync = 1;
-	fixed_mon.hsync[0].lo = 31.0;
-	fixed_mon.hsync[0].hi = 100.0;
-	fixed_mon.nVrefresh = 1;
-	fixed_mon.vrefresh[0].lo = 50.0;
-	fixed_mon.vrefresh[0].hi = 70.0;
+	modes = xf86DDCGetModes(pScrn->scrnIndex, output->MonInfo);
 	
-	modes = xf86DuplicateModes(pScrn, pScrn->monitor->Modes);
-	xf86ValidateModesSync(pScrn, modes, &fixed_mon);
+	for (mode = modes; mode != NULL; mode = mode->next) {
+	  if (mode->Flags & V_DBLSCAN) {
+	    if ((mode->CrtcHDisplay >= 1024) || (mode->CrtcVDisplay >= 768))
+	    mode->status = MODE_CLOCK_RANGE;
+	  }
+	}
 	xf86PruneInvalidModes(pScrn, &modes, TRUE);
-	/* fill out CRT of FP mode table */
-	output->probed_modes = modes;
-	break;
 	
-      case MT_LCD:
+	/* do some physcial size stuff */
+      }
+      
+      
+      if (output->probed_modes == NULL) {
+	MonRec fixed_mon;
+	DisplayModePtr modes;
+	
 	RADEONValidateFPModes(pScrn, pScrn->display->modes, &output->probed_modes);
-	break;
-      default:
-	break;
       }
     }
     
@@ -338,43 +322,5 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 				  FALSE);
     }
 }
-
-/**
- * Takes the output mode lists and decides the default root window size
- * and framebuffer pitch.
- */
-void
-RADEON_set_default_screen_size(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    int maxX = -1, maxY = -1;
-    int i;
-
-    /* Set up a virtual size that will cover any clone mode we'd want to
-     * set for the currently-connected outputs.
-     */
-    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
-	DisplayModePtr mode;
-
-	for (mode = pRADEONEnt->pOutput[i]->probed_modes; mode != NULL;
-	     mode = mode->next)
-	{
-	    if (mode->HDisplay > maxX)
-		maxX = mode->HDisplay;
-	    if (mode->VDisplay > maxY)
-		maxY = mode->VDisplay;
-	}
-    }
-    /* let the user specify a bigger virtual size if they like */
-    if (pScrn->display->virtualX > maxX)
-	maxX = pScrn->display->virtualX;
-    if (pScrn->display->virtualY > maxY)
-	maxY = pScrn->display->virtualY;
-    pScrn->virtualX = maxX;
-    pScrn->virtualY = maxY;
-    pScrn->displayWidth = (maxX + 63) & ~63;
-}
-
 
 
