@@ -1294,7 +1294,7 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     Bool head_reversed = FALSE;
-    xf86OutputPtr connector;
+    xf86OutputPtr output;
     RADEONOutputPrivatePtr radeon_output;
 
     info->MergeType = MT_NONE;
@@ -1374,50 +1374,50 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 
     if(pRADEONEnt->HasCRTC2) {
 	if(info->IsSecondary) {
-	    connector = RADEONGetCrtcConnector(pScrn, 2);
-	    radeon_output = connector->driver_private;
+	    output = RADEONGetCrtcConnector(pScrn, 2);
+	    radeon_output = output->driver_private;
   	    pRADEONEnt->Controller[1]->binding = 2;
-	    if (connector) {
+	    if (output) {
 		info->DisplayType = radeon_output->MonType;
-		pScrn->monitor->DDC = connector->MonInfo;
+		pScrn->monitor->DDC = output->MonInfo;
 	    }
 	} else {
-	    connector = RADEONGetCrtcConnector(pScrn, 1);
-	    radeon_output = connector->driver_private;
+	    output = RADEONGetCrtcConnector(pScrn, 1);
+	    radeon_output = output->driver_private;
   	    pRADEONEnt->Controller[0]->binding = 1;
-	    if (connector) {
+	    if (output) {
 		info->DisplayType = radeon_output->MonType; 
-		pScrn->monitor->DDC = connector->MonInfo;
+		pScrn->monitor->DDC = output->MonInfo;
 	    }
 	}
 	
 	if(!pRADEONEnt->HasSecondary) {
-	    connector = RADEONGetCrtcConnector(pScrn, 2);
-	    radeon_output = connector->driver_private;
-	    if (connector)
+	    output = RADEONGetCrtcConnector(pScrn, 2);
+	    radeon_output = output->driver_private;
+	    if (output)
 		info->MergeType = radeon_output->MonType;
 	    if (info->MergeType)
   	    	pRADEONEnt->Controller[1]->binding = 1;
 	} 
     } else {
-	connector = RADEONGetCrtcConnector(pScrn, 1);
-	radeon_output = connector->driver_private;
-	if (connector) {
+	output = RADEONGetCrtcConnector(pScrn, 1);
+	radeon_output = output->driver_private;
+	if (output) {
 	    if (radeon_output->MonType == MT_NONE) 
 		radeon_output->MonType = MT_CRT;
 	    info->DisplayType = radeon_output->MonType; 
-	    pScrn->monitor->DDC = connector->MonInfo;
+	    pScrn->monitor->DDC = output->MonInfo;
 	}
-	connector = RADEONGetCrtcConnector(pScrn, 2);
-	radeon_output = connector->driver_private;
-	if (connector)
+	output = RADEONGetCrtcConnector(pScrn, 2);
+	radeon_output = output->driver_private;
+	if (output)
 	    radeon_output->MonType = MT_NONE;
 	pRADEONEnt->Controller[1]->binding = 1;
     }
 
     if (!info->IsSecondary) {
-	connector = RADEONGetCrtcConnector(pScrn, 2);
-	radeon_output = connector->driver_private;
+	output = RADEONGetCrtcConnector(pScrn, 2);
+	radeon_output = output->driver_private;
         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Primary Head:   Port%d ---- \n", head_reversed?2:1);
 	if (radeon_output->MonType != MT_NONE)
             xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Secondary Head: Port%d ----\n", head_reversed?1:2);
