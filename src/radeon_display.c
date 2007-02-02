@@ -2409,8 +2409,9 @@ radeon_detect(xf86OutputPtr output)
 static DisplayModePtr
 radeon_get_modes(xf86OutputPtr output)
 {
-    RADEONProbeOutputModes(output);
-    return output->probed_modes;
+  DisplayModePtr modes;
+  modes = RADEONProbeOutputModes(output);
+  return modes;
 }
 
 static void

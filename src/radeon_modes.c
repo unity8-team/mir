@@ -261,7 +261,7 @@ int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr *
     return count;
 }
 
-void
+DisplayModePtr
 RADEONProbeOutputModes(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
@@ -272,7 +272,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     DisplayModePtr mode;
     DisplayModePtr test;
     xf86MonPtr		    edid_mon;
-    DisplayModePtr	    modes;
+    DisplayModePtr	    modes = NULL;
 
     /* force reprobe */
     radeon_output->MonType = MT_UNKNOWN;
@@ -283,8 +283,8 @@ RADEONProbeOutputModes(xf86OutputPtr output)
       edid_mon = xf86OutputGetEDID (output, radeon_output->pI2CBus);
       xf86OutputSetEDID (output, edid_mon);
       
-      output->probed_modes = xf86OutputGetEDIDModes (output);
-      return;
+      modes = xf86OutputGetEDIDModes (output);
+      return modes;
     }
     if (radeon_output->type == OUTPUT_LVDS) {
       /* okay we got DDC info */
@@ -307,20 +307,20 @@ RADEONProbeOutputModes(xf86OutputPtr output)
       }
       
       
-      if (output->probed_modes == NULL) {
+      if (modes == NULL) {
 	MonRec fixed_mon;
 	DisplayModePtr modes;
 	
-	RADEONValidateFPModes(pScrn, pScrn->display->modes, &output->probed_modes);
+	RADEONValidateFPModes(pScrn, pScrn->display->modes, &modes);
       }
     }
     
-    if (output->probed_modes) {
-      xf86ValidateModesUserConfig(pScrn,
-					output->probed_modes);
-      xf86PruneInvalidModes(pScrn, &output->probed_modes,
+    if (modes) {
+      xf86ValidateModesUserConfig(pScrn, modes);
+      xf86PruneInvalidModes(pScrn, &modes,
 				  FALSE);
     }
+    return modes;
 }
 
 
