@@ -683,6 +683,23 @@ xf86RandR12CrtcSetGamma (ScreenPtr    pScreen,
     return TRUE;
 }
 
+static Bool
+xf86RandR12OutputSetProperty (ScreenPtr pScreen,
+                              RROutputPtr randr_output,
+                              Atom property,
+                              RRPropertyValuePtr value)
+{
+    xf86OutputPtr output = randr_output->devPrivate;
+
+    /* If we don't have any property handler, then we don't care what the
+     * user is setting properties to.
+     */
+    if (output->funcs->set_property == NULL)
+        return TRUE;
+
+    return output->funcs->set_property(output, property, value);
+}
+
 /**
  * Given a list of xf86 modes and a RandR Output object, construct
  * RandR modes and assign them to the output
@@ -908,6 +925,7 @@ xf86RandR12Init12 (ScreenPtr pScreen)
     rp->rrScreenSetSize = xf86RandR12ScreenSetSize;
     rp->rrCrtcSet = xf86RandR12CrtcSet;
     rp->rrCrtcSetGamma = xf86RandR12CrtcSetGamma;
+    rp->rrOutputSetProperty = xf86RandR12OutputSetProperty;
     rp->rrSetConfig = NULL;
     pScrn->PointerMoved = xf86RandR12PointerMoved;
     if (!xf86RandR12CreateObjects12 (pScreen))
