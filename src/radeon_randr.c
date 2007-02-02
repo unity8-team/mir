@@ -635,7 +635,7 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	radeon_crtc->binding = info->IsSecondary ? 2 : 1;
 	if (mode) {
   	    info->IsSwitching = TRUE;
-	    if (!RADEONCrtcSetMode (crtc, mode, TRUE))
+	    if (!RADEONCrtcSetMode (crtc, mode, rotation, x, y))
 	    {
 		crtc->enabled = save_enabled;
 		for (o = 0; o < config->num_output; o++)

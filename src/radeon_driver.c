@@ -3644,7 +3644,7 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 		crtc->desiredY = 0;
 	    }
 
-	    if (!RADEONCrtcSetMode (crtc, &crtc->desiredMode, TRUE))
+	    if (!RADEONCrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation, crtc->desiredX, crtc->desiredY))
 		return FALSE;
 
 	}
@@ -6338,7 +6338,8 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
 		crtc->desiredY = 0;
 	    }
 
-	    if (!RADEONCrtcSetMode (crtc, &crtc->desiredMode, TRUE))
+	    if (!RADEONCrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation,
+				    crtc->desiredX, crtc->desiredY))
 		return FALSE;
 
 	}

@@ -2583,19 +2583,6 @@ RADEONCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 }
 
 Bool
-RADEONCrtcInUse(xf86CrtcPtr crtc)
-{
-    ScrnInfoPtr pScrn = crtc->scrn;
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int	i;
-    
-    for (i = 0; i < xf86_config->num_output; i++)
-	if (xf86_config->output[i]->crtc == crtc)
-	    return TRUE;
-    return FALSE;
-}
-
-Bool
 RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation,
 		  int x, int y)
 {
@@ -2606,13 +2593,13 @@ RADEONCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation,
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     int i , ret;
     DisplayModeRec	saved_mode;
-    int saved_x, saved_y;
-    Rotation saved_rotation;
+    int 		saved_x, saved_y;
+    Rotation 		saved_rotation;
     /* XXX: mode */
 
     adjusted_mode = xf86DuplicateMode(mode);
     
-    crtc->enabled = RADEONCrtcInUse (crtc);
+    crtc->enabled = xf86CrtcInUse (crtc);
 
     if (!crtc->enabled) {
       return TRUE;
