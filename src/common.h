@@ -314,11 +314,6 @@ extern int I810_DEBUG;
 #define PCI_CHIP_I946_GZ_BRIDGE 	0x2970
 #endif
 
-#ifndef PCI_CHIP_CRESTLINE		//XXX: fix with official name
-#define PCI_CHIP_CRESTLINE		0x2A02
-#define PCI_CHIP_CRESTLINE_BRIDGE 	0x2A00
-#endif
-
 #define IS_I810(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I810 ||	\
 			pI810->PciInfo->chipType == PCI_CHIP_I810_DC100 || \
 			pI810->PciInfo->chipType == PCI_CHIP_I810_E)
@@ -334,11 +329,10 @@ extern int I810_DEBUG;
 #define IS_I915GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I915_GM)
 #define IS_I945G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_G)
 #define IS_I945GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_GM)
-#define IS_I965G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_G || pI810->PciInfo->chipType == PCI_CHIP_I965_G_1 || pI810->PciInfo->chipType == PCI_CHIP_I965_Q || pI810->PciInfo->chipType == PCI_CHIP_I946_GZ || pI810->PciInfo->chipType == PCI_CHIP_CRESTLINE)
+#define IS_I965G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_G || pI810->PciInfo->chipType == PCI_CHIP_I965_G_1 || pI810->PciInfo->chipType == PCI_CHIP_I965_Q || pI810->PciInfo->chipType == PCI_CHIP_I946_GZ)
 #define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810))
-#define IS_CRESTLINE(pI810) (pI810->PciInfo->chipType == PCI_CHIP_CRESTLINE) // XXX: IS_965GM ?
 
-#define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_CRESTLINE(pI810))
+#define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810))
 
 #define GTT_PAGE_SIZE			KB(4)
 #define ROUND_TO(x, y)			(((x) + (y) - 1) / (y) * (y))

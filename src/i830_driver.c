@@ -232,7 +232,6 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_I965_G_1,		"965G"},
    {PCI_CHIP_I965_Q,		"965Q"},
    {PCI_CHIP_I946_GZ,		"946GZ"},
-   {PCI_CHIP_CRESTLINE,		"Crestline"},
    {-1,				NULL}
 };
 
@@ -250,7 +249,6 @@ static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_I965_G_1,		PCI_CHIP_I965_G_1,	RES_SHARED_VGA},
    {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	RES_SHARED_VGA},
    {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	RES_SHARED_VGA},
-   {PCI_CHIP_CRESTLINE,		PCI_CHIP_CRESTLINE,	RES_SHARED_VGA},
    {-1,				-1,			RES_UNDEFINED}
 };
 
@@ -1046,9 +1044,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       break;
    case PCI_CHIP_I946_GZ:
       chipname = "946GZ";
-      break;
-   case PCI_CHIP_CRESTLINE:
-      chipname = "Crestline";
       break;
    default:
       chipname = "unknown chipset";
