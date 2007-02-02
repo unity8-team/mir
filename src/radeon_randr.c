@@ -586,7 +586,6 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     xf86CrtcPtr		crtc = randr_crtc->devPrivate;
     DisplayModePtr	mode = randr_mode ? randr_mode->devPrivate : NULL;
     Bool		changed = FALSE;
-    Bool		pos_changed;
     int			o, ro;
     xf86CrtcPtr		*save_crtcs;
     Bool save_enabled = crtc->enabled;
@@ -598,9 +597,8 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     else if (mode && !xf86ModesEqual (&crtc->mode, mode))
 	changed = TRUE;
     
-    pos_changed = changed;
     if (x != crtc->x || y != crtc->y)
-	pos_changed = TRUE;
+	changed = TRUE;
     
     for (o = 0; o < config->num_output; o++) {
 	xf86OutputPtr  output = config->output[o];
@@ -649,6 +647,9 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 		return FALSE;
 	    }
 	    crtc->desiredMode = *mode;
+	    crtc->desiredRotation = rotation;
+	    crtc->desiredX = x;
+	    crtc->desiredY = y;
 
 	    RADEONDisableUnusedFunctions(pScrn);
 	    RADEONBlank(pScrn);
@@ -660,7 +661,7 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	  RADEONInitDispBandwidth(pScrn);
     
     }
-    if (pos_changed && mode)
+    if (changed && mode)
 	RADEONCrtcSetBase(crtc, x, y);
     DEALLOCATE_LOCAL(save_crtcs);
     return xf86RandR12CrtcNotify (randr_crtc);
