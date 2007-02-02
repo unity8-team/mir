@@ -314,7 +314,7 @@ i830_crt_detect(xf86OutputPtr output)
 	if (intel_output->load_detect_temp)
 	{
 	    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
-	    i830PipeSetMode (crtc, &mode, FALSE);
+	    xf86CrtcSetMode (crtc, &mode, RR_Rotate_0, 0, 0);
 	}
 	connected = i830_crt_detect_load (crtc, output);
 

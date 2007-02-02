@@ -183,8 +183,19 @@ static xf86OutputStatus
 ch7xxx_detect(I2CDevPtr d)
 {
     struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
-    CARD8 cdet;
+    CARD8 cdet, gpio, orig_pm, pm;
+
+    ch7xxx_read(dev_priv, CH7xxx_PM, &orig_pm);
+
+    pm = orig_pm;
+    pm &= ~CH7xxx_PM_FPD;
+    pm |= CH7xxx_PM_DVIL | CH7xxx_PM_DVIP;
+
+    ch7xxx_write(dev_priv, CH7xxx_PM, pm);
+
     ch7xxx_read(dev_priv, CH7xxx_CONNECTION_DETECT, &cdet);
+
+    ch7xxx_write(dev_priv, CH7xxx_PM, orig_pm);
 
     if (cdet & CH7xxx_CDET_DVI) 
     	return XF86OutputStatusConnected;

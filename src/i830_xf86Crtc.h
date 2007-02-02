@@ -24,8 +24,10 @@
 
 #include <edid.h>
 #include "randrstr.h"
+#include "i830_xf86Rename.h"
 #include "i830_xf86Modes.h"
 #include "xf86Parser.h"
+#include "damage.h"
 
 /* Compat definitions for older X Servers. */
 #ifndef M_T_PREFERRED
@@ -68,7 +70,19 @@ typedef struct _xf86CrtcFuncs {
    void
     (*restore)(xf86CrtcPtr	crtc);
 
-
+    /**
+     * Lock CRTC prior to mode setting, mostly for DRI.
+     * Returns whether unlock is needed
+     */
+    Bool
+    (*lock) (xf86CrtcPtr crtc);
+    
+    /**
+     * Unlock CRTC after mode setting, mostly for DRI
+     */
+    void
+    (*unlock) (xf86CrtcPtr crtc);
+    
     /**
      * Callback to adjust the mode to be set in the CRTC.
      *
@@ -87,12 +101,25 @@ typedef struct _xf86CrtcFuncs {
     void
     (*mode_set)(xf86CrtcPtr crtc,
 		DisplayModePtr mode,
-		DisplayModePtr adjusted_mode);
+		DisplayModePtr adjusted_mode,
+		int x, int y);
 
     /* Set the color ramps for the CRTC to the given values. */
     void
     (*gamma_set)(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 		 int size);
+
+    /**
+     * Create shadow pixmap for rotation support
+     */
+    PixmapPtr
+    (*shadow_create) (xf86CrtcPtr crtc, int width, int height);
+    
+    /**
+     * Destroy shadow pixmap
+     */
+    void
+    (*shadow_destroy) (xf86CrtcPtr crtc, PixmapPtr pPixmap);
 
     /**
      * Clean up driver-specific bits of the crtc
@@ -114,13 +141,6 @@ struct _xf86Crtc {
      */
     Bool	    enabled;
     
-    /**
-     * Position on screen
-     *
-     * Locates this CRTC within the frame buffer
-     */
-    int		    x, y;
-    
     /** Track whether cursor is within CRTC range  */
     Bool	    cursorInRange;
     
@@ -134,7 +154,15 @@ struct _xf86Crtc {
      * It will be cleared when the VT is not active or
      * during server startup
      */
-    DisplayModeRec  curMode;
+    DisplayModeRec  mode;
+    Rotation	    rotation;
+    PixmapPtr	    rotatedPixmap;
+    /**
+     * Position on screen
+     *
+     * Locates this CRTC within the frame buffer
+     */
+    int		    x, y;
     
     /**
      * Desired mode
@@ -145,6 +173,8 @@ struct _xf86Crtc {
      * on VT switch.
      */
     DisplayModeRec  desiredMode;
+    Rotation	    desiredRotation;
+    int		    desiredX, desiredY;
     
     /** crtc-specific functions */
     const xf86CrtcFuncsRec *funcs;
@@ -379,6 +409,13 @@ typedef struct _xf86CrtcConfig {
 
     int			minWidth, minHeight;
     int			maxWidth, maxHeight;
+    
+    /* For crtc-based rotation */
+    DamagePtr   rotationDamage;
+
+    /* DGA */
+    unsigned int dga_flags;
+
 } xf86CrtcConfigRec, *xf86CrtcConfigPtr;
 
 extern int xf86CrtcConfigPrivateIndex;
@@ -427,6 +464,25 @@ xf86AllocCrtc (xf86OutputPtr		output);
 void
 xf86FreeCrtc (xf86CrtcPtr		crtc);
 
+/**
+ * Sets the given video mode on the given crtc
+ */
+Bool
+xf86CrtcSetMode (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation,
+		 int x, int y);
+
+/*
+ * Assign crtc rotation during mode set
+ */
+Bool
+xf86CrtcRotate (xf86CrtcPtr crtc, DisplayModePtr mode, Rotation rotation);
+
+/**
+ * Return whether any output is assigned to the crtc
+ */
+Bool
+xf86CrtcInUse (xf86CrtcPtr crtc);
+
 /*
  * Output functions
  */
@@ -456,20 +512,23 @@ xf86DPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags);
 Bool
 xf86SaveScreen(ScreenPtr pScreen, int mode);
 
+void
+xf86DisableUnusedFunctions(ScrnInfoPtr pScrn);
+
 /**
  * Set the EDID information for the specified output
  */
 void
-i830_xf86OutputSetEDID (xf86OutputPtr output, xf86MonPtr edid_mon);
+xf86OutputSetEDID (xf86OutputPtr output, xf86MonPtr edid_mon);
 
 /**
  * Return the list of modes supported by the EDID information
  * stored in 'output'
  */
 DisplayModePtr
-i830_xf86OutputGetEDIDModes (xf86OutputPtr output);
+xf86OutputGetEDIDModes (xf86OutputPtr output);
 
 xf86MonPtr
-i830_xf86OutputGetEDID (xf86OutputPtr output, I2CBusPtr pDDCBus);
+xf86OutputGetEDID (xf86OutputPtr output, I2CBusPtr pDDCBus);
 
 #endif /* _XF86CRTC_H_ */

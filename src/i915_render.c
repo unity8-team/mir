@@ -64,7 +64,7 @@ struct blendinfo {
     CARD32 dst_blend;
 };
 
-static struct blendinfo I915BlendOp[] = {
+static struct blendinfo i915_blend_op[] = {
     /* Clear */
     {0, 0, BLENDFACT_ZERO,          BLENDFACT_ZERO},
     /* Src */
@@ -93,42 +93,42 @@ static struct blendinfo I915BlendOp[] = {
     {0, 0, BLENDFACT_ONE,           BLENDFACT_ONE},
 };
 
-static struct formatinfo I915TexFormats[] = {
-        {PICT_a8r8g8b8, MAPSURF_32BIT | MT_32BIT_ARGB8888 },
-        {PICT_x8r8g8b8, MAPSURF_32BIT | MT_32BIT_XRGB8888 },
-        {PICT_a8b8g8r8, MAPSURF_32BIT | MT_32BIT_ABGR8888 },
-        {PICT_x8b8g8r8, MAPSURF_32BIT | MT_32BIT_XBGR8888 },
-        {PICT_r5g6b5,   MAPSURF_16BIT | MT_16BIT_RGB565   },
-        {PICT_a1r5g5b5, MAPSURF_16BIT | MT_16BIT_ARGB1555 },
-        {PICT_x1r5g5b5, MAPSURF_16BIT | MT_16BIT_ARGB1555 },
-        {PICT_a4r4g4b4, MAPSURF_16BIT | MT_16BIT_ARGB4444 },
-        {PICT_x4r4g4b4, MAPSURF_16BIT | MT_16BIT_ARGB4444 },
-        {PICT_a8,       MAPSURF_8BIT | MT_8BIT_A8 	  },
+static struct formatinfo i915_tex_formats[] = {
+    {PICT_a8r8g8b8, MAPSURF_32BIT | MT_32BIT_ARGB8888 },
+    {PICT_x8r8g8b8, MAPSURF_32BIT | MT_32BIT_XRGB8888 },
+    {PICT_a8b8g8r8, MAPSURF_32BIT | MT_32BIT_ABGR8888 },
+    {PICT_x8b8g8r8, MAPSURF_32BIT | MT_32BIT_XBGR8888 },
+    {PICT_r5g6b5,   MAPSURF_16BIT | MT_16BIT_RGB565   },
+    {PICT_a1r5g5b5, MAPSURF_16BIT | MT_16BIT_ARGB1555 },
+    {PICT_x1r5g5b5, MAPSURF_16BIT | MT_16BIT_ARGB1555 },
+    {PICT_a4r4g4b4, MAPSURF_16BIT | MT_16BIT_ARGB4444 },
+    {PICT_x4r4g4b4, MAPSURF_16BIT | MT_16BIT_ARGB4444 },
+    {PICT_a8,       MAPSURF_8BIT | MT_8BIT_A8 	  },
 };
 
-static CARD32 I915GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
+static CARD32 i915_get_blend_cntl(int op, PicturePtr pMask, CARD32 dst_format)
 {
     CARD32 sblend, dblend;
 
-    sblend = I915BlendOp[op].src_blend;
-    dblend = I915BlendOp[op].dst_blend;
+    sblend = i915_blend_op[op].src_blend;
+    dblend = i915_blend_op[op].dst_blend;
 
     /* If there's no dst alpha channel, adjust the blend op so that we'll treat
      * it as always 1.
      */
-    if (PICT_FORMAT_A(dst_format) == 0 && I915BlendOp[op].dst_alpha) {
+    if (PICT_FORMAT_A(dst_format) == 0 && i915_blend_op[op].dst_alpha) {
         if (sblend == BLENDFACT_DST_ALPHA)
             sblend = BLENDFACT_ONE;
         else if (sblend == BLENDFACT_INV_DST_ALPHA)
             sblend = BLENDFACT_ZERO;
     }
 
-    /* If the source alpha is being used, then we should only be in a case where
-     * the source blend factor is 0, and the source blend value is the mask
-     * channels multiplied by the source picture's alpha.
+    /* If the source alpha is being used, then we should only be in a case
+     * where the source blend factor is 0, and the source blend value is the
+     * mask channels multiplied by the source picture's alpha.
      */
     if (pMask && pMask->componentAlpha && PICT_FORMAT_RGB(pMask->format) &&
-	I915BlendOp[op].src_alpha)
+	i915_blend_op[op].src_alpha)
     {
         if (dblend == BLENDFACT_SRC_ALPHA) {
 	    dblend = BLENDFACT_SRC_COLR;
@@ -141,7 +141,7 @@ static CARD32 I915GetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
 	(dblend << S6_CBUF_DST_BLEND_FACT_SHIFT);
 }
 
-static Bool I915GetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
+static Bool i915_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
 {
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
@@ -171,13 +171,13 @@ static Bool I915GetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
 	break;
     default:
         I830FALLBACK("Unsupported dest format 0x%x\n",
-                        (int)pDstPicture->format);
+		     (int)pDstPicture->format);
     }
 
     return TRUE;
 }
 
-static Bool I915CheckCompositeTexture(PicturePtr pPict, int unit)
+static Bool i915_check_composite_texture(PicturePtr pPict, int unit)
 {
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
@@ -186,14 +186,15 @@ static Bool I915CheckCompositeTexture(PicturePtr pPict, int unit)
     if ((w > 0x7ff) || (h > 0x7ff))
         I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
 
-    for (i = 0; i < sizeof(I915TexFormats) / sizeof(I915TexFormats[0]); i++)
+    for (i = 0; i < sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]);
+	 i++)
     {
-        if (I915TexFormats[i].fmt == pPict->format)
+        if (i915_tex_formats[i].fmt == pPict->format)
             break;
     }
-    if (i == sizeof(I915TexFormats) / sizeof(I915TexFormats[0]))
+    if (i == sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]))
         I830FALLBACK("Unsupported picture format 0x%x\n",
-                         (int)pPict->format);
+		     (int)pPict->format);
 
     if (pPict->repeat && pPict->repeatType != RepeatNormal)
 	I830FALLBACK("extended repeat (%d) not supported\n",
@@ -207,13 +208,13 @@ static Bool I915CheckCompositeTexture(PicturePtr pPict, int unit)
 }
 
 Bool
-I915EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
-		      PicturePtr pDstPicture)
+i915_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
+		     PicturePtr pDstPicture)
 {
     CARD32 tmp1;
 
     /* Check for unsupported compositing operations. */
-    if (op >= sizeof(I915BlendOp) / sizeof(I915BlendOp[0]))
+    if (op >= sizeof(i915_blend_op) / sizeof(i915_blend_op[0]))
         I830FALLBACK("Unsupported Composite op 0x%x\n", op);
     if (pMaskPicture != NULL && pMaskPicture->componentAlpha &&
 	PICT_FORMAT_RGB(pMaskPicture->format))
@@ -222,25 +223,25 @@ I915EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
          * the source value.  We can only get one of those into the single
          * source value that we get to blend with.
          */
-        if (I915BlendOp[op].src_alpha &&
-            (I915BlendOp[op].src_blend != BLENDFACT_ZERO))
+        if (i915_blend_op[op].src_alpha &&
+            (i915_blend_op[op].src_blend != BLENDFACT_ZERO))
             	I830FALLBACK("Component alpha not supported with source "
-                            "alpha and source value blending.\n");
+			     "alpha and source value blending.\n");
     }
 
-    if (!I915CheckCompositeTexture(pSrcPicture, 0))
+    if (!i915_check_composite_texture(pSrcPicture, 0))
         I830FALLBACK("Check Src picture texture\n");
-    if (pMaskPicture != NULL && !I915CheckCompositeTexture(pMaskPicture, 1))
+    if (pMaskPicture != NULL && !i915_check_composite_texture(pMaskPicture, 1))
         I830FALLBACK("Check Mask picture texture\n");
 
-    if (!I915GetDestFormat(pDstPicture, &tmp1))
+    if (!i915_get_dest_format(pDstPicture, &tmp1))
 	I830FALLBACK("Get Color buffer format\n");
 
     return TRUE;
 }
 
 static Bool
-I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
+i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
@@ -248,20 +249,22 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     int w, h, i;
     CARD32 wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
 
-    offset = exaGetPixmapOffset(pPix);
-    pitch = exaGetPixmapPitch(pPix);
+    offset = intel_get_pixmap_offset(pPix);
+    pitch = intel_get_pixmap_pitch(pPix);
     w = pPict->pDrawable->width;
     h = pPict->pDrawable->height;
     pI830->scale_units[unit][0] = pPix->drawable.width;
     pI830->scale_units[unit][1] = pPix->drawable.height;
 
-    for (i = 0; i < sizeof(I915TexFormats) / sizeof(I915TexFormats[0]); i++) {
-        if (I915TexFormats[i].fmt == pPict->format)
+    for (i = 0; i < sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]);
+	 i++)
+    {
+        if (i915_tex_formats[i].fmt == pPict->format)
 	    break;
     }
-    if (i == sizeof(I915TexFormats)/ sizeof(I915TexFormats[0]))
+    if (i == sizeof(i915_tex_formats)/ sizeof(i915_tex_formats[0]))
 	I830FALLBACK("unknown texture format\n");
-    format = I915TexFormats[i].card_fmt;
+    format = i915_tex_formats[i].card_fmt;
 
     if (pPict->repeat)
 	wrap_mode = TEXCOORDMODE_WRAP;
@@ -269,11 +272,11 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     switch (pPict->filter) {
     case PictFilterNearest:
         filter = (FILTER_NEAREST << SS2_MAG_FILTER_SHIFT) |
-			(FILTER_NEAREST << SS2_MIN_FILTER_SHIFT);
+	    (FILTER_NEAREST << SS2_MIN_FILTER_SHIFT);
         break;
     case PictFilterBilinear:
         filter = (FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
-			(FILTER_LINEAR << SS2_MIN_FILTER_SHIFT);
+	    (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT);
         break;
     default:
 	filter = 0;
@@ -288,7 +291,8 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	pI830->samplerstate[unit * 3 + 1] |= MS3_USE_FENCE_REGS;
     pI830->mapstate[unit * 3 + 2] = ((pitch / 4) - 1) << MS4_PITCH_SHIFT;
 
-    pI830->samplerstate[unit * 3 + 0] = (MIPFILTER_NONE << SS2_MIP_FILTER_SHIFT);
+    pI830->samplerstate[unit * 3 + 0] = (MIPFILTER_NONE <<
+					 SS2_MIP_FILTER_SHIFT);
     pI830->samplerstate[unit * 3 + 0] |= filter;
     pI830->samplerstate[unit * 3 + 1] = SS3_NORMALIZED_COORDS;
     pI830->samplerstate[unit * 3 + 1] |= wrap_mode << SS3_TCX_ADDR_MODE_SHIFT;
@@ -296,20 +300,15 @@ I915TextureSetup(PicturePtr pPict, PixmapPtr pPix, int unit)
     pI830->samplerstate[unit * 3 + 1] |= unit << SS3_TEXTUREMAP_INDEX_SHIFT;
     pI830->samplerstate[unit * 3 + 2] = 0x00000000; /* border color */
 
-    if (pPict->transform != 0) {
-        pI830->is_transform[unit] = TRUE;
-        pI830->transform[unit] = pPict->transform;
-    } else {
-        pI830->is_transform[unit] = FALSE;
-    }
+    pI830->transform[unit] = pPict->transform;
 
     return TRUE;
 }
 
 Bool
-I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
-			PicturePtr pMaskPicture, PicturePtr pDstPicture,
-			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
+i915_prepare_composite(int op, PicturePtr pSrcPicture,
+		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
+		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
@@ -322,18 +321,18 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 
     pI830->last_3d = LAST_3D_RENDER;
 
-    I915GetDestFormat(pDstPicture, &dst_format);
-    dst_offset = exaGetPixmapOffset(pDst);
-    dst_pitch = exaGetPixmapPitch(pDst);
+    i915_get_dest_format(pDstPicture, &dst_format);
+    dst_offset = intel_get_pixmap_offset(pDst);
+    dst_pitch = intel_get_pixmap_pitch(pDst);
     FS_LOCALS(20);
 
-    if (!I915TextureSetup(pSrcPicture, pSrc, 0))
+    if (!i915_texture_setup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
     if (pMask != NULL) {
-	if (!I915TextureSetup(pMaskPicture, pMask, 1))
-		I830FALLBACK("fail to setup mask texture\n");
+	if (!i915_texture_setup(pMaskPicture, pMask, 1))
+	    I830FALLBACK("fail to setup mask texture\n");
     } else {
-	pI830->is_transform[1] = FALSE;
+	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
 	pI830->scale_units[1][1] = -1;
     }
@@ -404,7 +403,7 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	OUT_RING(ss2);
 	OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
 		 S4_CULLMODE_NONE| S4_VFMT_XY);
-	blendctl = I915GetBlendCntl(op, pMaskPicture, pDstPicture->format);
+	blendctl = i915_get_blend_cntl(op, pMaskPicture, pDstPicture->format);
 	OUT_RING(0x00000000); /* Disable stencil buffer */
 	OUT_RING(S6_CBUF_BLEND_ENABLE | S6_COLOR_WRITE_ENABLE |
 		 (BLENDFUNC_ADD << S6_CBUF_BLEND_FUNC_SHIFT) | blendctl);
@@ -464,7 +463,7 @@ I915EXAPrepareComposite(int op, PicturePtr pSrcPicture,
 	if (pMaskPicture->componentAlpha &&
 	    PICT_FORMAT_RGB(pMaskPicture->format))
 	{
-	    if (I915BlendOp[op].src_alpha) {
+	    if (i915_blend_op[op].src_alpha) {
 		i915_fs_mul(FS_OC, i915_fs_operand(FS_R0, W, W, W, W),
 			    i915_fs_operand_reg(FS_R1));
 	    } else {

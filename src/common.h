@@ -130,6 +130,17 @@ extern void I830DPRINTF_stub(const char *filename, int line,
    outring &= ringmask;							\
 } while (0)
 
+union intfloat {
+	float f;
+	unsigned int ui;
+};
+
+#define OUT_RING_F(x) do {			\
+	union intfloat tmp;			\
+	tmp.f = (float)(x);			\
+	OUT_RING(tmp.ui);			\
+} while(0)				
+
 #define ADVANCE_LP_RING() do {						\
    if (ringused > needed)          \
       FatalError("%s: ADVANCE_LP_RING: exceeded allocation %d/%d\n ",	\

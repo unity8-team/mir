@@ -1446,22 +1446,13 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    sarea->front_tiled = pI830->front_tiled;
    sarea->back_tiled = pI830->back_tiled;
    sarea->depth_tiled = pI830->depth_tiled;
-   sarea->rotated_tiled = pI830->rotated_tiled;
-#if 0
-   sarea->rotated2_tiled = pI830->rotated2_tiled;
-#endif
+   sarea->rotated_tiled = FALSE;
 
-   if (pI830->rotation == RR_Rotate_0) {
-      sarea->front_offset = pI830->FrontBuffer.Start;
-      /* Don't use FrontBuffer.Size here as it includes the pixmap cache area
-       * Instead, calculate the entire framebuffer.
-       */
-      sarea->front_size = pI830->displayWidth * pScrn->virtualY * pI830->cpp;
-   } else {
-      /* Need to deal with rotated2 once we have dual head DRI */
-      sarea->front_offset = pI830->RotatedMem.Start;
-      sarea->front_size = pI830->RotatedMem.Size;
-   }
+   sarea->front_offset = pI830->FrontBuffer.Start;
+   /* Don't use FrontBuffer.Size here as it includes the pixmap cache area
+    * Instead, calculate the entire framebuffer.
+    */
+   sarea->front_size = pI830->displayWidth * pScrn->virtualY * pI830->cpp;
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
               "[drm] init sarea width,height = %d x %d (pitch %d)\n",
@@ -1480,32 +1471,12 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    sarea->virtualX = pScrn->virtualX;
    sarea->virtualY = pScrn->virtualY;
 
-   switch (pI830->rotation) {
-      case RR_Rotate_0:
-         sarea->rotation = 0;
-         break;
-      case RR_Rotate_90:
-         sarea->rotation = 90;
-         break;
-      case RR_Rotate_180:
-         sarea->rotation = 180;
-         break;
-      case RR_Rotate_270:
-         sarea->rotation = 270;
-         break;
-      default:
-         sarea->rotation = 0;
-   }
-   if (pI830->rotation == RR_Rotate_0) {
-      sarea->rotated_offset = -1;
-      sarea->rotated_size = 0;
-   }
-   else {
-      sarea->rotated_offset = pI830->FrontBuffer.Start;
-      sarea->rotated_size = pI830->FrontBuffer.Size;
-   }
-
-   /* This is the original pitch */
+   /* The rotation is now handled entirely by the X Server, so just leave the
+    * DRI unaware.
+    */
+   sarea->rotation = 0;
+   sarea->rotated_offset = -1;
+   sarea->rotated_size = 0;
    sarea->rotated_pitch = pI830->displayWidth;
 
    success = I830DRIMapScreenRegions(pScrn, sarea);

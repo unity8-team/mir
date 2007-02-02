@@ -272,13 +272,7 @@ typedef enum {
    OPTION_XVIDEO,
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
-   OPTION_VBE_RESTORE,
-   OPTION_DISPLAY_INFO,
-   OPTION_DEVICE_PRESENCE,
-   OPTION_MONITOR_LAYOUT,
    OPTION_CHECKDEVICES,
-   OPTION_FIXEDPIPE,
-   OPTION_ROTATE,
    OPTION_LINEARALLOC,
    OPTION_INTELTEXPOOL,
    OPTION_INTELMMSIZE
@@ -296,10 +290,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_XVIDEO,	"XVideo",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_MONITOR_LAYOUT, "MonitorLayout", OPTV_ANYSTR,{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_FIXEDPIPE,   "FixedPipe",    OPTV_ANYSTR, 	{0},	FALSE},
-   {OPTION_ROTATE,      "Rotate",       OPTV_ANYSTR,    {0},    FALSE},
    {OPTION_LINEARALLOC, "LinearAlloc",  OPTV_INTEGER,   {0},    FALSE},
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_INTELMMSIZE, "AperTexSize",  OPTV_INTEGER,	{0},	FALSE},
@@ -766,12 +757,6 @@ PreInitCleanup(ScrnInfoPtr pScrn)
       if (pI830->LpRing)
          xfree(pI830->LpRing);
       pI830->LpRing = NULL;
-      if (pI830->CursorMem)
-         xfree(pI830->CursorMem);
-      pI830->CursorMem = NULL;
-      if (pI830->CursorMemARGB) 
-         xfree(pI830->CursorMemARGB);
-      pI830->CursorMemARGB = NULL;
       if (pI830->OverlayMem)
          xfree(pI830->OverlayMem);
       pI830->OverlayMem = NULL;
@@ -1379,17 +1364,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    RestoreHWState(pScrn);
 
    pScrn->displayWidth = (pScrn->virtualX + 63) & ~63;
-    
+
+   /* XXX This should go away, replaced by xf86Crtc.c support for it */
    pI830->rotation = RR_Rotate_0;
-   if ((s = xf86GetOptValString(pI830->Options, OPTION_ROTATE))) {
-      pI830->InitialRotation = 0;
-      if(!xf86NameCmp(s, "CW") || !xf86NameCmp(s, "270"))
-         pI830->InitialRotation = 270;
-      if(!xf86NameCmp(s, "CCW") || !xf86NameCmp(s, "90"))
-         pI830->InitialRotation = 90;
-      if(!xf86NameCmp(s, "180"))
-         pI830->InitialRotation = 180;
-   }
 
    /*
     * Let's setup the mobile systems to check the lid status
@@ -1531,12 +1508,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* Alloc our pointers for the primary head */
    if (I830IsPrimary(pScrn)) {
       pI830->LpRing = xalloc(sizeof(I830RingBuffer));
-      pI830->CursorMem = xalloc(sizeof(I830MemRange));
-      pI830->CursorMemARGB = xalloc(sizeof(I830MemRange));
       pI830->OverlayMem = xalloc(sizeof(I830MemRange));
       pI830->overlayOn = xalloc(sizeof(Bool));
       pI830->used3D = xalloc(sizeof(int));
-      if (!pI830->LpRing || !pI830->CursorMem || !pI830->CursorMemARGB ||
+      if (!pI830->LpRing ||
           !pI830->OverlayMem || !pI830->overlayOn || !pI830->used3D) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "Could not allocate primary data structures.\n");
@@ -1605,25 +1580,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       PreInitCleanup(pScrn);
       return FALSE;
    }
-
-   /*
-    * Fix up modes to make hblank start at hsync start.
-    * I don't know why the xf86 code mangles this...
-    */
-    {
-	DisplayModePtr	p;
-
-	for (p = pScrn->modes; p;) {
-	    xf86DrvMsg (pScrn->scrnIndex,
-			X_INFO, "move blank start from %d to %d\n",
-			p->CrtcHBlankStart, p->CrtcHDisplay);
-	    p->CrtcHBlankStart = p->CrtcHDisplay;
-	    p = p->next;
-	    if (p == pScrn->modes)
-		break;
-	}
-    }
-   
    pScrn->currentMode = pScrn->modes;
 
    pI830->disableTiling = FALSE;
@@ -2527,19 +2483,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    pScrn->displayWidth = pI830->displayWidth;
 
-   if (I830IsPrimary(pScrn)) {
-      /* Rotated Buffer */
-      memset(&(pI830->RotatedMem), 0, sizeof(pI830->RotatedMem));
-      pI830->RotatedMem.Key = -1;
-      /* Rotated2 Buffer */
-      memset(&(pI830->RotatedMem2), 0, sizeof(pI830->RotatedMem2));
-      pI830->RotatedMem2.Key = -1;
-      if (IS_I965G(pI830)) {
-          memset(&(pI830->RotateStateMem), 0, sizeof(pI830->RotateStateMem));
-          pI830->RotateStateMem.Key = -1;
-      }
-   }
-
 #ifdef HAS_MTRR_SUPPORT
    {
       int fd;
@@ -2587,17 +2530,13 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (I830IsPrimary(pScrn)) {
       if (!pI830->LpRing)
          pI830->LpRing = xalloc(sizeof(I830RingBuffer));
-      if (!pI830->CursorMem)
-         pI830->CursorMem = xalloc(sizeof(I830MemRange));
-      if (!pI830->CursorMemARGB)
-         pI830->CursorMemARGB = xalloc(sizeof(I830MemRange));
       if (!pI830->OverlayMem)
          pI830->OverlayMem = xalloc(sizeof(I830MemRange));
       if (!pI830->overlayOn)
          pI830->overlayOn = xalloc(sizeof(Bool));
       if (!pI830->used3D)
          pI830->used3D = xalloc(sizeof(int));
-      if (!pI830->LpRing || !pI830->CursorMem || !pI830->CursorMemARGB ||
+      if (!pI830->LpRing ||
           !pI830->OverlayMem || !pI830->overlayOn || !pI830->used3D) {
          xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "Could not allocate primary data structures.\n");
@@ -2612,8 +2551,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!I830IsPrimary(pScrn)) {
       pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
       pI830->LpRing = pI8301->LpRing;
-      pI830->CursorMem = pI8301->CursorMem;
-      pI830->CursorMemARGB = pI8301->CursorMemARGB;
       pI830->OverlayMem = pI8301->OverlayMem;
       pI830->overlayOn = pI8301->overlayOn;
       pI830->used3D = pI8301->used3D;
@@ -2659,15 +2596,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		     "Disabling acceleration because the ring buffer "
 		      "allocation failed.\n");
 	   pI830->noAccel = TRUE;
-      }
-   }
-
-   if (!pI830->SWCursor) {
-      if (pI830->CursorMem->Size == 0) {
-	  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		     "Disabling HW cursor because the cursor memory "
-		      "allocation failed.\n");
-	   pI830->SWCursor = TRUE;
       }
    }
 
@@ -2906,7 +2834,23 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       shadowSetup(pScreen);
       /* support all rotations */
       xf86RandR12Init (pScreen);
-      xf86RandR12SetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270);
+      if (pI830->useEXA) {
+#ifdef I830_USE_EXA
+	 if (pI830->EXADriverPtr->exa_minor >= 1) {
+	    xf86RandR12SetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 |
+				     RR_Rotate_180 | RR_Rotate_270);
+	 } else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "EXA version %d.%d too old to support rotation\n",
+		       pI830->EXADriverPtr->exa_major,
+		       pI830->EXADriverPtr->exa_minor);
+	    xf86RandR12SetRotations (pScreen, RR_Rotate_0);
+	 }
+#endif /* I830_USE_EXA */
+      } else {
+	 xf86RandR12SetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 |
+				  RR_Rotate_180 | RR_Rotate_270);
+      }
       pI830->PointerMoved = pScrn->PointerMoved;
       pScrn->PointerMoved = I830PointerMoved;
       pI830->CreateScreenResources = pScreen->CreateScreenResources;
@@ -2936,29 +2880,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->starting = FALSE;
    pI830->closing = FALSE;
    pI830->suspended = FALSE;
-
-   switch (pI830->InitialRotation) {
-      case 0:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 0 degrees\n");
-         pI830->rotation = RR_Rotate_0;
-         break;
-      case 90:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 90 degrees\n");
-         pI830->rotation = RR_Rotate_90;
-         break;
-      case 180:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 180 degrees\n");
-         pI830->rotation = RR_Rotate_180;
-         break;
-      case 270:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rotating to 270 degrees\n");
-         pI830->rotation = RR_Rotate_270;
-         break;
-      default:
-         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bad rotation setting - defaulting to 0 degrees\n");
-         pI830->rotation = RR_Rotate_0;
-         break;
-   }
 
 #ifdef XF86DRI_MM
    if (pI830->directRenderingEnabled && (pI830->mmModeFlags & I830_KERNEL_MM)) {
@@ -3021,6 +2942,8 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
       /* Sync the engine before adjust frame */
       i830WaitSync(pScrn);
       i830PipeSetBase(crtc, output->initial_x + x, output->initial_y + y);
+      crtc->x = output->initial_x + x;
+      crtc->y = output->initial_y + y;
    }
 }
 
@@ -3124,25 +3047,31 @@ I830EnterVT(int scrnIndex, int flags)
          return FALSE;
 
    if (i830_check_error_state(pScrn)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Existing errors found in hardware state\n");
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		 "Existing errors found in hardware state.\n");
    }
 
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
-   i830DisableUnusedFunctions(pScrn);
+   xf86DisableUnusedFunctions(pScrn);
 
    for (i = 0; i < xf86_config->num_crtc; i++)
    {
       xf86CrtcPtr	crtc = xf86_config->crtc[i];
 
       /* Mark that we'll need to re-set the mode for sure */
-      memset(&crtc->curMode, 0, sizeof(crtc->curMode));
+      memset(&crtc->mode, 0, sizeof(crtc->mode));
       if (!crtc->desiredMode.CrtcHDisplay)
+      {
 	 crtc->desiredMode = *i830PipeFindClosestMode (crtc, pScrn->currentMode);
+	 crtc->desiredRotation = RR_Rotate_0;
+	 crtc->desiredX = 0;
+	 crtc->desiredY = 0;
+      }
       
-      if (!i830PipeSetMode (crtc, &crtc->desiredMode, TRUE))
+      if (!xf86CrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation,
+			    crtc->desiredX, crtc->desiredY))
 	 return FALSE;
    }
 
@@ -3210,7 +3139,7 @@ I830EnterVT(int scrnIndex, int flags)
 
    pI830->currentMode = pScrn->currentMode;
 
-   /* Force invarient state when rotated to be emitted */
+   /* Force invarient 3D state to be emitted */
    *pI830->used3D = 1<<31;
 
    return TRUE;
@@ -3223,45 +3152,11 @@ I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
    Bool ret = TRUE;
-   PixmapPtr pspix = (*pScrn->pScreen->GetScreenPixmap) (pScrn->pScreen);
 
    DPRINTF(PFX, "I830SwitchMode: mode == %p\n", mode);
 
-   /* Sync the engine before mode switch */
-   i830WaitSync(pScrn);
-
-   /* Check if our currentmode is about to change. We do this so if we
-    * are rotating, we don't need to call the mode setup again.
-    */
-   if (pI830->currentMode != mode) {
-      if (!i830SetMode(pScrn, mode))
-         ret = FALSE;
-   }
-
-   /* Kludge to detect Rotate or Vidmode switch. Not very elegant, but
-    * workable given the implementation currently. We only need to call
-    * the rotation function when we know that the framebuffer has been
-    * disabled by the EnableDisableFBAccess() function.
-    *
-    * The extra WindowTable check detects a rotation at startup.
-    */
-   if ( (!WindowTable[pScrn->scrnIndex] || pspix->devPrivate.ptr == NULL) &&
-         !pI830->DGAactive && (pScrn->PointerMoved == I830PointerMoved)) {
-      if (!I830Rotate(pScrn, mode))
-         ret = FALSE;
-   }
-
-   /* Either the original setmode or rotation failed, so restore the previous
-    * video mode here, as we'll have already re-instated the original rotation.
-    */
-   if (!ret) {
-      if (!i830SetMode(pScrn, pI830->currentMode)) {
-	 xf86DrvMsg(scrnIndex, X_INFO,
-		    "Failed to restore previous mode (SwitchMode)\n");
-      }
-   } else {
+   if (!i830SetMode(pScrn, mode, pI830->rotation))
       pI830->currentMode = mode;
-   }
 
    return ret;
 }
@@ -3333,10 +3228,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
       xfree(pI830->LpRing);
       pI830->LpRing = NULL;
-      xfree(pI830->CursorMem);
-      pI830->CursorMem = NULL;
-      xfree(pI830->CursorMemARGB);
-      pI830->CursorMemARGB = NULL;
       xfree(pI830->OverlayMem);
       pI830->OverlayMem = NULL;
       xfree(pI830->overlayOn);

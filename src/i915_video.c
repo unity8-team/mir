@@ -39,18 +39,6 @@
 #include "i915_reg.h"
 #include "i915_3d.h"
 
-union intfloat {
-   CARD32 ui;
-   float f;
-};
-
-#define OUT_RING_F(x) do {						\
-   union intfloat _tmp;							\
-   _tmp.f = x;								\
-   OUT_RING(_tmp.ui);							\
-} while (0)
-
-
 void
 I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 RegionPtr dstRegion,

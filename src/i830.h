@@ -195,8 +195,19 @@ extern const char *i830_output_type_names[];
 
 typedef struct _I830CrtcPrivateRec {
     int			    pipe;
+
     /* Lookup table values to be set when the CRTC is enabled */
     CARD8 lut_r[256], lut_g[256], lut_b[256];
+
+#ifdef I830_USE_XAA
+    FBLinearPtr rotate_mem_xaa;
+#endif
+#ifdef I830_USE_EXA
+    ExaOffscreenArea *rotate_mem_exa;
+#endif
+
+    I830MemRange cursor_mem;
+    I830MemRange cursor_mem_argb;
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;
 
 #define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
@@ -221,6 +232,7 @@ enum last_3d {
     LAST_3D_ROTATION
 };
 
+#if 0
 typedef struct _I830PipeRec {
    Bool		  enabled;
    int		  x;
@@ -233,6 +245,7 @@ typedef struct _I830PipeRec {
    RRCrtcPtr	  randr_crtc;
 #endif
 } I830PipeRec, *I830PipePtr;
+#endif
 
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
@@ -271,8 +284,6 @@ typedef struct _I830Rec {
    I830MemRange EXAStateMem;  /* specific exa state for G965 */
 #endif
    /* Regions allocated either from the above pools, or from agpgart. */
-   I830MemRange	*CursorMem;
-   I830MemRange	*CursorMemARGB;
    I830RingBuffer *LpRing;
 
 #if REMAP_RESERVED
@@ -286,11 +297,7 @@ typedef struct _I830Rec {
 #endif
    unsigned long LinearAlloc;
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
-   I830MemRange RotatedMem;
-   I830MemRange RotatedMem2;
-   I830MemRange RotateStateMem; /* for G965 state buffer */
    Rotation rotation;
-   int InitialRotation;
    int displayWidth;
    void (*PointerMoved)(int, int, int);
    CreateScreenResourcesProcPtr    CreateScreenResources;
@@ -310,8 +317,6 @@ typedef struct _I830Rec {
    unsigned int front_tiled;
    unsigned int back_tiled;
    unsigned int depth_tiled;
-   unsigned int rotated_tiled;
-   unsigned int rotated2_tiled;
 #endif
 
    Bool NeedRingBufferLow;
@@ -354,6 +359,18 @@ typedef struct _I830Rec {
    Bool cursorOn;
 #ifdef I830_USE_XAA
    XAAInfoRecPtr AccelInfoRec;
+
+   /* additional XAA accelerated Composite support */
+   CompositeProcPtr saved_composite;
+   Bool (*xaa_check_composite)(int op, PicturePtr pSrc, PicturePtr pMask,
+			       PicturePtr pDst);
+   Bool (*xaa_prepare_composite)(int op, PicturePtr pSrc, PicturePtr pMask,
+				 PicturePtr pDst, PixmapPtr pSrcPixmap,
+				 PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
+   void (*xaa_composite)(PixmapPtr pDst, int xSrc, int ySrc,
+			 int xMask, int yMask, int xDst, int yDst,
+			 int w, int h);
+   void (*xaa_done_composite)(PixmapPtr pDst);
 #endif
    xf86CursorInfoPtr CursorInfoRec;
    CloseScreenProcPtr CloseScreen;
@@ -381,7 +398,7 @@ typedef struct _I830Rec {
 
    /* EXA render state */
    float scale_units[2][2];
-   Bool is_transform[2];
+  /** Transform pointers for src/mask, or NULL if identity */
    PictTransform *transform[2];
    /* i915 EXA render state */
    CARD32 mapstate[6];
@@ -527,8 +544,6 @@ extern void I830InitVideo(ScreenPtr pScreen);
 extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
 #endif
 
-extern Bool I830AllocateRotatedBuffer(ScrnInfoPtr pScrn, const int flags);
-extern Bool I830AllocateRotated2Buffer(ScrnInfoPtr pScrn, const int flags);
 #ifdef XF86DRI
 extern Bool I830Allocate3DMemory(ScrnInfoPtr pScrn, const int flags);
 extern Bool I830AllocateBackBuffer(ScrnInfoPtr pScrn, const int flags);
@@ -549,6 +564,8 @@ extern Bool I830DRILock(ScrnInfoPtr pScrn);
 extern Bool I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on);
 #endif
 
+unsigned long intel_get_pixmap_offset(PixmapPtr pPix);
+unsigned long intel_get_pixmap_pitch(PixmapPtr pPix);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 extern void I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir,
 					   int ydir, int rop,
@@ -581,7 +598,6 @@ extern void I830ReadAllRegisters(I830Ptr pI830, I830RegPtr i830Reg);
 extern void I830ChangeFrontbuffer(ScrnInfoPtr pScrn,int buffer);
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
-extern Bool I830Rotate(ScrnInfoPtr pScrn, DisplayModePtr mode);
 extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
@@ -608,6 +624,14 @@ extern void i830WaitSync(ScrnInfoPtr pScrn);
 /* i830_memory.c */
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
+#ifdef I830_USE_XAA
+FBLinearPtr
+i830_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
+				 int granularity,
+				 MoveLinearCallbackProcPtr moveCB,
+				 RemoveLinearCallbackProcPtr removeCB,
+				 pointer privData);
+#endif /* I830_USE_EXA */
 
 /* i830_modes.c */
 DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
@@ -615,32 +639,37 @@ DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
 /* i830_tv.c */
 void i830_tv_init(ScrnInfoPtr pScrn);
 
-#ifdef I830_USE_EXA
-extern Bool I830EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I830EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
-extern Bool I915EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I915EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
+/* i830_render.c */
+Bool i830_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			  PicturePtr pDst);
+Bool i830_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			    PicturePtr pDst, PixmapPtr pSrcPixmap,
+			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
+void i830_composite(PixmapPtr pDst, int srcX, int srcY,
+		    int maskX, int maskY, int dstX, int dstY, int w, int h);
+void i830_done_composite(PixmapPtr pDst);
+/* i915_render.c */
+Bool i915_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			  PicturePtr pDst);
+Bool i915_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			    PicturePtr pDst, PixmapPtr pSrcPixmap,
+			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
+/* i965_render.c */
+Bool i965_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			  PicturePtr pDst);
+Bool i965_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
+			    PicturePtr pDst, PixmapPtr pSrcPixmap,
+			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
+void i965_composite(PixmapPtr pDst, int srcX, int srcY,
+		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 
-extern Bool I965EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-extern Bool I965EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr, 
-				PixmapPtr, PixmapPtr, PixmapPtr);
-extern void I965EXAComposite(PixmapPtr pDst, int srcX, int srcY, int maskX, 
-			int maskY, int dstX, int dstY, int width, int height);
-
-extern Bool
-I830EXACheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
-		      PicturePtr pDstPicture);
-
-extern Bool
-I830EXAPrepareComposite(int op, PicturePtr pSrcPicture,
-			PicturePtr pMaskPicture, PicturePtr pDstPicture,
-			PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
+void
+i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
+				 float *x_out, float *y_out);
 
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];
-#endif
+
 /* Flags for memory allocation function */
 #define FROM_ANYWHERE			0x00000000
 #define FROM_POOL_ONLY			0x00000001

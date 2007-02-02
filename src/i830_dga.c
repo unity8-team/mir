@@ -397,17 +397,11 @@ I830_CloseFramebuffer(ScrnInfoPtr pScrn)
    };
 
    if (I830IsPrimary(pScrn)) {
-      if (pI830->rotation != RR_Rotate_0)
-         pScrn->fbOffset = pI830->RotatedMem.Start;
-      else
-         pScrn->fbOffset = pI830->FrontBuffer.Start;
+     pScrn->fbOffset = pI830->FrontBuffer.Start;
    } else {
       I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
 
-      if (pI830->rotation != RR_Rotate_0)
-         pScrn->fbOffset = pI8301->RotatedMem2.Start;
-      else
-         pScrn->fbOffset = pI8301->FrontBuffer2.Start;
+      pScrn->fbOffset = pI8301->FrontBuffer2.Start;
    }
    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
 

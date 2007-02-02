@@ -1399,33 +1399,33 @@ i830_tv_detect_type (xf86CrtcPtr    crtc,
 static xf86OutputStatus
 i830_tv_detect(xf86OutputPtr output)
 {
-	xf86CrtcPtr		    crtc;
-	DisplayModeRec	    mode;
-	I830OutputPrivatePtr    intel_output = output->driver_private;
-	struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+    xf86CrtcPtr		    crtc;
+    DisplayModeRec	    mode;
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
 
-	crtc = i830GetLoadDetectPipe (output);
-	if (crtc)
-	{
-		if (intel_output->load_detect_temp)
-		{
-			/* we only need the pixel clock set correctly here */
-			mode = reported_modes[0];
-			xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
-			i830PipeSetMode (crtc, &mode, FALSE);
-		}
-		i830_tv_detect_type (crtc, output);
-		i830ReleaseLoadDetectPipe (output);
-	}
+    crtc = i830GetLoadDetectPipe (output);
+    if (crtc)
+    {
+        if (intel_output->load_detect_temp)
+        {
+            /* we only need the pixel clock set correctly here */
+            mode = reported_modes[0];
+            xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
+            xf86CrtcSetMode (crtc, &mode, RR_Rotate_0, 0, 0);
+        }
+        i830_tv_detect_type (crtc, output);
+        i830ReleaseLoadDetectPipe (output);
+    }
 
-	switch (dev_priv->type) {
-		case TV_TYPE_NONE:
-			return XF86OutputStatusDisconnected;
-		case TV_TYPE_UNKNOWN:
-			return XF86OutputStatusUnknown;
-		default:
-			return XF86OutputStatusConnected;
-	}
+    switch (dev_priv->type) {
+    case TV_TYPE_NONE:
+        return XF86OutputStatusDisconnected;
+    case TV_TYPE_UNKNOWN:
+        return XF86OutputStatusUnknown;
+    default:
+        return XF86OutputStatusConnected;
+    }
 }
 
 struct input_res {
