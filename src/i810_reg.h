@@ -401,7 +401,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define ERR_VERTEX_MAX				(1 << 5) /* lpt/cst */
 # define ERR_PGTBL_ERROR			(1 << 4)
 # define ERR_DISPLAY_OVERLAY_UNDERRUN		(1 << 3)
-# define ERR_MAIN_MEMORY_REFRESH		(1 << 2)
+# define ERR_MAIN_MEMORY_REFRESH		(1 << 1)
 # define ERR_INSTRUCTION_ERROR			(1 << 0)
 
 

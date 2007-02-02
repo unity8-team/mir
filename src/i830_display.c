@@ -342,9 +342,12 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 
-    if (I830IsPrimary(pScrn))
+    if (crtc->rotatedPixmap != NULL) {
+	Start = (char *)crtc->rotatedPixmap->devPrivate.ptr -
+	    (char *)pI830->FbBase;
+    } else if (I830IsPrimary(pScrn)) {
 	Start = pI830->FrontBuffer.Start;
-    else {
+    } else {
 	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
 	Start = pI8301->FrontBuffer2.Start;
     }
@@ -358,9 +361,6 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
 	(void) INREG(dspbase);
     }
-
-    crtc->x = x;
-    crtc->y = y;
 }
 
 /**
@@ -465,23 +465,6 @@ i830PipeFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
 }
 
 /**
- * Return whether any outputs are connected to the specified pipe
- */
-
-Bool
-i830PipeInUse (xf86CrtcPtr crtc)
-{
-    ScrnInfoPtr pScrn = crtc->scrn;
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int	i;
-    
-    for (i = 0; i < xf86_config->num_output; i++)
-	if (xf86_config->output[i]->crtc == crtc)
-	    return TRUE;
-    return FALSE;
-}
-
-/**
  * Sets the power management mode of the pipe and plane.
  *
  * This code should probably grow support for turning the cursor off and back
@@ -581,6 +564,27 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 }
 
 static Bool
+i830_crtc_lock (xf86CrtcPtr crtc)
+{
+   /* Sync the engine before mode switch */
+   i830WaitSync(crtc->scrn);
+
+#ifdef XF86DRI
+    return I830DRILock(crtc->scrn);
+#else
+    return FALSE;
+#endif
+}
+
+static void
+i830_crtc_unlock (xf86CrtcPtr crtc)
+{
+#ifdef XF86DRI
+    I830DRIUnlock (crtc->scrn);
+#endif
+}
+
+static Bool
 i830_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
@@ -597,7 +601,8 @@ i830_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
  */
 static void
 i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
-		   DisplayModePtr adjusted_mode)
+		   DisplayModePtr adjusted_mode,
+		   int x, int y)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -833,7 +838,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     
     OUTREG(dspcntr_reg, dspcntr);
     /* Flush the plane changes */
-    i830PipeSetBase(crtc, crtc->x, crtc->y);
+    i830PipeSetBase(crtc, x, y);
     
     i830WaitForVblank(pScrn);
 }
@@ -881,165 +886,111 @@ i830_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 }
 
 /**
- * Sets the given video mode on the given pipe.
+ * Creates a locked-in-framebuffer pixmap of the given width and height for
+ * this CRTC's rotated shadow framebuffer.
  *
- * Plane A is always output to pipe A, and plane B to pipe B.  The plane
- * will not be enabled if plane_enable is FALSE, which is used for
- * load detection, when something else will be output to the pipe other than
- * display data.
+ * The current implementation uses fixed buffers allocated at startup at the
+ * maximal size.
  */
-Bool
-i830PipeSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode,
-		Bool plane_enable)
+static PixmapPtr
+i830_crtc_shadow_create(xf86CrtcPtr crtc, int width, int height)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int i;
-    Bool ret = FALSE;
-#ifdef XF86DRI
-    Bool didLock = FALSE;
-#endif
-    DisplayModePtr adjusted_mode;
+    ScreenPtr pScreen = pScrn->pScreen;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+    unsigned long rotate_pitch;
+    PixmapPtr rotate_pixmap;
+    unsigned long rotate_offset;
+    int align = KB(4), size;
 
-    /* XXX: curMode */
+    rotate_pitch = pI830->displayWidth * pI830->cpp;
+    size = rotate_pitch * height;
 
-    adjusted_mode = xf86DuplicateMode(pMode);
-
-    crtc->enabled = i830PipeInUse (crtc);
-    
-    if (!crtc->enabled)
-    {
-	/* XXX disable crtc? */
-	return TRUE;
-    }
-
-#ifdef XF86DRI
-    didLock = I830DRILock(pScrn);
-#endif
-
-    /* Pass our mode to the outputs and the CRTC to give them a chance to
-     * adjust it according to limitations or output properties, and also
-     * a chance to reject the mode entirely.
+#ifdef I830_USE_EXA
+    /* We could get close to what we want here by just creating a pixmap like
+     * normal, but we have to lock it down in framebuffer, and there is no
+     * setter for offscreen area locking in EXA currently.  So, we just
+     * allocate offscreen memory and fake up a pixmap header for it.
      */
-    for (i = 0; i < xf86_config->num_output; i++) {
-	xf86OutputPtr output = xf86_config->output[i];
+    if (pI830->useEXA) {
+	assert(intel_crtc->rotate_mem_exa == NULL);
 
-	if (output->crtc != crtc)
-	    continue;
-
-	if (!output->funcs->mode_fixup(output, pMode, adjusted_mode)) {
-	    ret = FALSE;
-	    goto done;
+	intel_crtc->rotate_mem_exa = exaOffscreenAlloc(pScreen, size, align,
+						       TRUE, NULL, NULL);
+	if (intel_crtc->rotate_mem_exa == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Couldn't allocate shadow memory for rotated CRTC\n");
+	    return NULL;
 	}
+	rotate_offset = intel_crtc->rotate_mem_exa->offset;
     }
+#endif /* I830_USE_EXA */
+#ifdef I830_USE_XAA
+    if (!pI830->useEXA) {
+	/* The XFree86 linear allocator operates in units of screen pixels,
+	 * sadly.
+	 */
+	size = (size + pI830->cpp - 1) / pI830->cpp;
+	align = (align + pI830->cpp - 1) / pI830->cpp;
 
-    if (!crtc->funcs->mode_fixup(crtc, pMode, adjusted_mode)) {
-	ret = FALSE;
-	goto done;
+	assert(intel_crtc->rotate_mem_xaa == NULL);
+
+	intel_crtc->rotate_mem_xaa =
+	    i830_xf86AllocateOffscreenLinear(pScreen, size, align,
+					     NULL, NULL, NULL);
+	if (intel_crtc->rotate_mem_xaa == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Couldn't allocate shadow memory for rotated CRTC\n");
+	    return NULL;
+	}
+	rotate_offset = pI830->FrontBuffer.Start +
+	    intel_crtc->rotate_mem_xaa->offset * pI830->cpp;
     }
+#endif /* I830_USE_XAA */
 
-    /* Disable the outputs and CRTCs before setting the mode. */
-    for (i = 0; i < xf86_config->num_output; i++) {
-	xf86OutputPtr output = xf86_config->output[i];
-
-	if (output->crtc != crtc)
-	    continue;
-
-	/* Disable the output as the first thing we do. */
-	output->funcs->dpms(output, DPMSModeOff);
+    rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
+					   width, height,
+					   pScrn->depth,
+					   pScrn->bitsPerPixel,
+					   rotate_pitch,
+					   pI830->FbBase + rotate_offset);
+    if (rotate_pixmap == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Couldn't allocate shadow pixmap for rotated CRTC\n");
     }
-
-    crtc->funcs->dpms(crtc, DPMSModeOff);
-
-    /* Set up the DPLL and any output state that needs to adjust or depend
-     * on the DPLL.
-     */
-    crtc->funcs->mode_set(crtc, pMode, adjusted_mode);
-    for (i = 0; i < xf86_config->num_output; i++) {
-	xf86OutputPtr output = xf86_config->output[i];
-	if (output->crtc == crtc)
-	    output->funcs->mode_set(output, pMode, adjusted_mode);
-    }
-
-    /* Now, enable the clocks, plane, pipe, and outputs that we set up. */
-    crtc->funcs->dpms(crtc, DPMSModeOn);
-    for (i = 0; i < xf86_config->num_output; i++) {
-	xf86OutputPtr output = xf86_config->output[i];
-	if (output->crtc == crtc)
-	    output->funcs->dpms(output, DPMSModeOn);
-    }
-
-#if 0
-    /*
-     * If the display isn't solid, it may be running out
-     * of memory bandwidth. This code will dump out the
-     * pipe status, if bit 31 is on, the fifo underran
-     */
-    for (i = 0; i < 4; i++) {
-	i830WaitForVblank(pScrn);
-    
-	OUTREG(pipestat_reg, INREG(pipestat_reg) | 0x80000000);
-    
-	i830WaitForVblank(pScrn);
-    
-	temp = INREG(pipestat_reg);
-	ErrorF ("pipe status 0x%x\n", temp);
-    }
-#endif
-    
-    crtc->curMode = *pMode;
-
-    /* XXX free adjustedmode */
-    ret = TRUE;
-done:
-#ifdef XF86DRI
-    if (didLock)
-	I830DRIUnlock(pScrn);
-#endif
-    return ret;
+    return rotate_pixmap;
 }
 
-void
-i830DisableUnusedFunctions(ScrnInfoPtr pScrn)
+static void
+i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap)
 {
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int o, pipe;
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling unused functions\n");
-
-    for (o = 0; o < xf86_config->num_output; o++) 
-    {
-	xf86OutputPtr  output = xf86_config->output[o];
-	if (!output->crtc) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling output %s\n",
-		       output->name);
-	    (*output->funcs->dpms)(output, DPMSModeOff);
-	}
+    FreeScratchPixmapHeader(rotate_pixmap);
+#ifdef I830_USE_EXA
+    if (pI830->useEXA && intel_crtc->rotate_mem_exa != NULL) {
+	exaOffscreenFree(pScrn->pScreen, intel_crtc->rotate_mem_exa);
+	intel_crtc->rotate_mem_exa = NULL;
     }
-
-    for (pipe = 0; pipe < xf86_config->num_crtc; pipe++) 
-    {
-	xf86CrtcPtr crtc = xf86_config->crtc[pipe];
-	I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
-	int		    pipe = intel_crtc->pipe;
-	char	    *pipe_name = pipe == 0 ? "A" : "B";
-
-	if (!crtc->enabled) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling CRTC %s\n",
-		       pipe_name);
-	    crtc->funcs->dpms(crtc, DPMSModeOff);
-
-	    memset(&crtc->curMode, 0, sizeof(crtc->curMode));
-	}
+#endif /* I830_USE_EXA */
+#ifdef I830_USE_XAA
+    if (!pI830->useEXA) {
+	xf86FreeOffscreenLinear(intel_crtc->rotate_mem_xaa);
+	intel_crtc->rotate_mem_xaa = NULL;
     }
+#endif /* I830_USE_XAA */
 }
+
 
 /**
  * This function configures the screens in clone mode on
  * all active outputs using a mode similar to the specified mode.
  */
 Bool
-i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
+i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, Rotation rotation)
 {
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
     Bool ok = TRUE;
@@ -1049,9 +1000,9 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 
     if (crtc && crtc->enabled)
     {
-	ok = i830PipeSetMode(crtc,
-			     i830PipeFindClosestMode(crtc, pMode), 
-			     TRUE);
+	ok = xf86CrtcSetMode(crtc,
+			     i830PipeFindClosestMode(crtc, pMode),
+			     rotation, 0, 0);
 	if (!ok)
 	    goto done;
 	crtc->desiredMode = *pMode;
@@ -1061,7 +1012,7 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode)
 	       (int)(pMode->HDisplay * pMode->VDisplay *
 		     pMode->VRefresh / 1000000));
 
-    i830DisableUnusedFunctions(pScrn);
+    xf86DisableUnusedFunctions(pScrn);
 
     i830DescribeOutputConfiguration(pScrn);
 
@@ -1153,7 +1104,7 @@ i830GetLoadDetectPipe(xf86OutputPtr output)
 	return output->crtc;
 
     for (i = 0; i < xf86_config->num_crtc; i++)
-	if (!i830PipeInUse(xf86_config->crtc[i]))
+	if (!xf86CrtcInUse (xf86_config->crtc[i]))
 	    break;
 
     if (i == xf86_config->num_crtc)
@@ -1177,7 +1128,7 @@ i830ReleaseLoadDetectPipe(xf86OutputPtr output)
     {
 	output->crtc = NULL;
 	intel_output->load_detect_temp = FALSE;
-	i830DisableUnusedFunctions(pScrn);
+	xf86DisableUnusedFunctions(pScrn);
     }
 }
 
@@ -1185,9 +1136,13 @@ static const xf86CrtcFuncsRec i830_crtc_funcs = {
     .dpms = i830_crtc_dpms,
     .save = NULL, /* XXX */
     .restore = NULL, /* XXX */
+    .lock = i830_crtc_lock,
+    .unlock = i830_crtc_unlock,
     .mode_fixup = i830_crtc_mode_fixup,
     .mode_set = i830_crtc_mode_set,
     .gamma_set = i830_crtc_gamma_set,
+    .shadow_create = i830_crtc_shadow_create,
+    .shadow_destroy = i830_crtc_shadow_destroy,
     .destroy = NULL, /* XXX */
 };
 

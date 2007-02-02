@@ -44,6 +44,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define CH7xxx_CM_MCP (1<<2)
 #define CH7xxx_INPUT_CLOCK 0x1D
 #define CH7xxx_GPIO 0x1E
+#define CH7xxx_GPIO_HPIR (1<<3)
 #define CH7xxx_IDF 0x1F
 
 #define CH7xxx_IDF_HSP (1<<3)
