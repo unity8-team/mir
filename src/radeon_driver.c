@@ -1429,7 +1429,6 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
      * be able to be adjusted by user with a config option. */
     if (info->IsPrimary) {
         pScrn->videoRam /= 2;
-	info->MergedFB = FALSE;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 		"Using %dk of videoram for primary head\n",
 		pScrn->videoRam);
@@ -2076,7 +2075,7 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 		   "Direct Rendering Disabled -- "
 		   "Dual-head configuration is not working with "
 		   "DRI at present.\n"
-		   "Please use the radeon MergedFB option if you "
+		   "Please use the radeon randr 1.2 support option if you "
 		   "want Dual-head with DRI.\n");
 	return FALSE;
     }
@@ -2419,7 +2418,22 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
 	return FALSE;
     }
 
+    if (!info->IsSecondary) {
+      RADEONQueryConnectedDisplays(pScrn);
+    }
+      
     RADEONMapControllers(pScrn);
+
+    info->HBlank     = 0;
+    info->HOverPlus  = 0;
+    info->HSyncWidth = 0;
+    info->VBlank     = 0;
+    info->VOverPlus  = 0;
+    info->VSyncWidth = 0;
+    info->DotClock   = 0;
+    info->UseBiosDividers = FALSE;
+
+    info->OverlayOnCRTC2 = FALSE;
 
     RADEONGetClockInfo(pScrn);
     RADEONGetPanelInfo(pScrn);
@@ -2464,7 +2478,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     info               = RADEONPTR(pScrn);
     info->IsSecondary  = FALSE;
     info->IsPrimary     = FALSE;
-    info->MergedFB     = FALSE;
     info->IsSwitching  = FALSE;
     info->MMIO         = NULL;
 
@@ -3604,16 +3617,6 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	else if (strcmp(s, "NONE") == 0) subPixelOrder = SubPixelNone;
 	PictureSetSubpixelOrder (pScreen, subPixelOrder);
     } 
-
-    if (PictureGetSubpixelOrder (pScreen) == SubPixelUnknown) {
-	switch (info->DisplayType) {
-	case MT_NONE:	subPixelOrder = SubPixelUnknown; break;
-	case MT_LCD:	subPixelOrder = SubPixelHorizontalRGB; break;
-	case MT_DFP:	subPixelOrder = SubPixelHorizontalRGB; break;
-	default:	subPixelOrder = SubPixelNone; break;
-	}
-	PictureSetSubpixelOrder (pScreen, subPixelOrder);
-    }
 #endif
 
     pScrn->vtSema = TRUE;
@@ -4061,11 +4064,9 @@ static void RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
 	CARD32        tmp;
         RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
-	if (pRADEONEnt->HasSecondary || info->MergedFB) {
-	    tmp = INREG(RADEON_DAC_CNTL2);
-	    OUTREG(RADEON_DAC_CNTL2, tmp & ~RADEON_DAC2_DAC_CLK_SEL);
-	    usleep(100000);
-	}
+	tmp = INREG(RADEON_DAC_CNTL2);
+	OUTREG(RADEON_DAC_CNTL2, tmp & ~RADEON_DAC2_DAC_CLK_SEL);
+	usleep(100000);
     }
 }
 
@@ -5968,9 +5969,9 @@ static Bool RADEONInit(ScrnInfoPtr pScrn, DisplayModePtr mode,
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
     if (info->IsSecondary) {
-        return RADEONInit2(pScrn, NULL, mode, 2, save, info->DisplayType);
+        return RADEONInit2(pScrn, NULL, mode, 2, save, 0);
     } else {
-        return RADEONInit2(pScrn, mode, NULL, 1, save, info->DisplayType);
+        return RADEONInit2(pScrn, mode, NULL, 1, save, 0);
     }
 }
 

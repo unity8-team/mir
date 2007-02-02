@@ -887,21 +887,7 @@ void RADEONGetPanelInfo (ScrnInfoPtr pScrn)
             xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Invalid PanelSize option: %s\n", s);
             RADEONGetPanelInfoFromReg(pScrn);
         }
-    } else {
-
-        if(info->DisplayType == MT_LCD) {
-            RADEONGetLVDSInfo(pScrn);
-	    if (info->MergeType == MT_DFP) {
-		RADEONGetTMDSInfo(pScrn);
-	    }
-        } else if ((info->DisplayType == MT_DFP) || (info->MergeType == MT_DFP)) {
-            RADEONGetTMDSInfo(pScrn);
-            if (!pScrn->monitor->DDC)
-                RADEONGetHardCodedEDIDFromBIOS(pScrn);
-            else if (!info->IsSecondary)
-               RADEONUpdatePanelSize(pScrn);
-        }
-    }
+    } 
 }
 
 void RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn)
@@ -1127,10 +1113,12 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
     }
 
     for (i = 0; i < 2; i++) {
+      RADEONOutputPrivatePtr radeon_output = pRADEONEnt->PortInfo[i];
+
       int DDCReg = 0;
       char *names[] = { "DDC1", "DDC2" };
 
-      switch(pRADEONEnt->PortInfo[i]->DDCType) {
+      switch(radeon_output->DDCType) {
       case DDC_MONID: DDCReg = RADEON_GPIO_MONID; break;
       case DDC_DVI  : DDCReg = RADEON_GPIO_DVI_DDC; break;
       case DDC_VGA: DDCReg = RADEON_GPIO_VGA_DDC; break;
@@ -1139,10 +1127,27 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
       }
       
       if (DDCReg) {
-	pRADEONEnt->PortInfo[i]->DDCReg = DDCReg;
-	RADEONI2CInit(pScrn, &pRADEONEnt->PortInfo[i]->pI2CBus, DDCReg, names[i]);
+	radeon_output->DDCReg = DDCReg;
+	RADEONI2CInit(pScrn, &radeon_output->pI2CBus, DDCReg, names[i]);
       }
+
+      if (radeon_output->type == OUTPUT_LVDS) {
+	RADEONGetLVDSInfo(pScrn);
+      }
+
+      if (radeon_output->type == OUTPUT_DVI) {
+	RADEONGetTMDSInfo(pScrn);
+
+	RADEONGetHardCodedEDIDFromBios(pScrn);
+
+	RADEONUpdatePanelSize(pScrn);
+
+      }
+
+
     }
+
+    
 }
 
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output)
@@ -1190,7 +1195,7 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
     }
 }
 
-static void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
+void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 {
 
     RADEONInfoPtr info       = RADEONPTR(pScrn);
@@ -1297,11 +1302,7 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
     xf86OutputPtr output;
     RADEONOutputPrivatePtr radeon_output;
 
-    info->MergeType = MT_NONE;
-
     if (!info->IsSecondary) {
-      RADEONQueryConnectedDisplays(pScrn);
-
       pRADEONEnt->PortInfo[0]->crtc_num = 1;
       pRADEONEnt->PortInfo[1]->crtc_num = 2;
 
@@ -1378,7 +1379,6 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 	    radeon_output = output->driver_private;
   	    pRADEONEnt->Controller[1]->binding = 2;
 	    if (output) {
-		info->DisplayType = radeon_output->MonType;
 		pScrn->monitor->DDC = output->MonInfo;
 	    }
 	} else {
@@ -1386,18 +1386,12 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 	    radeon_output = output->driver_private;
   	    pRADEONEnt->Controller[0]->binding = 1;
 	    if (output) {
-		info->DisplayType = radeon_output->MonType; 
 		pScrn->monitor->DDC = output->MonInfo;
 	    }
 	}
 	
 	if(!pRADEONEnt->HasSecondary) {
-	    output = RADEONGetCrtcConnector(pScrn, 2);
-	    radeon_output = output->driver_private;
-	    if (output)
-		info->MergeType = radeon_output->MonType;
-	    if (info->MergeType)
-  	    	pRADEONEnt->Controller[1]->binding = 1;
+	  pRADEONEnt->Controller[1]->binding = 1;
 	} 
     } else {
 	output = RADEONGetCrtcConnector(pScrn, 1);
@@ -1405,7 +1399,6 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 	if (output) {
 	    if (radeon_output->MonType == MT_NONE) 
 		radeon_output->MonType = MT_CRT;
-	    info->DisplayType = radeon_output->MonType; 
 	    pScrn->monitor->DDC = output->MonInfo;
 	}
 	output = RADEONGetCrtcConnector(pScrn, 2);
@@ -1425,16 +1418,6 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
             xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Secondary Head: Not used ----\n");
     }
 
-    info->HBlank     = 0;
-    info->HOverPlus  = 0;
-    info->HSyncWidth = 0;
-    info->VBlank     = 0;
-    info->VOverPlus  = 0;
-    info->VSyncWidth = 0;
-    info->DotClock   = 0;
-    info->UseBiosDividers = FALSE;
-
-    info->OverlayOnCRTC2 = FALSE;
 
     return TRUE;
 }
@@ -2236,13 +2219,24 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONMonitorType montype;
+    int i = 0;
+
+    for (i = 0; i < xf86_config->num_output; i++) {
+      xf86OutputPtr output = xf86_config->output[i];
+      RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+      if (output->crtc == crtc) {
+	montype = radeon_output->MonType;
+      }
+    }
     
     switch (radeon_crtc->crtc_id) {
     case 0: 
-      RADEONInit2(pScrn, mode, NULL, 1, &info->ModeReg, MT_CRT);
+      RADEONInit2(pScrn, mode, NULL, 1, &info->ModeReg, montype);
       break;
     case 1: 
-      RADEONInit2(pScrn, NULL, mode, 2, &info->ModeReg, MT_CRT);
+      RADEONInit2(pScrn, NULL, mode, 2, &info->ModeReg, montype);
       break;
     }
 }
@@ -2397,12 +2391,23 @@ radeon_detect(xf86OutputPtr output)
     
     radeon_output->MonType = MT_UNKNOWN;
     RADEONConnectorFindMonitor(pScrn, output);
-    if (radeon_output->MonType == MT_UNKNOWN)
+    if (radeon_output->MonType == MT_UNKNOWN) {
+        output->subpixel_order = SubPixelUnknown;
 	return XF86OutputStatusUnknown;
+    }
     else if (radeon_output->MonType == MT_NONE) {
+        output->subpixel_order = SubPixelUnknown;
 	return XF86OutputStatusDisconnected;
-    } else
-	return XF86OutputStatusConnected;
+    } else {
+
+      switch(radeon_output->MonType) {
+      case MT_LCD:
+      case MT_DFP: output->subpixel_order = SubPixelHorizontalRGB; break;
+      default: output->subpixel_order = SubPixelNone; break;
+      }
+      
+      return XF86OutputStatusConnected;
+    }
 
 }
 

@@ -1332,7 +1332,7 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
      */
 
     /* Figure out which head we are on */
-    if ((info->MergedFB && info->OverlayOnCRTC2) || info->IsSecondary)
+    if ((info->OverlayOnCRTC2) || info->IsSecondary)
 	dot_clock = info->ModeReg.dot_clock_freq_2;
     else
 	dot_clock = info->ModeReg.dot_clock_freq;
@@ -2469,7 +2469,7 @@ RADEONDisplayVideo(
     y_mult = 1;
 
     /* TODO NO IDEA WHAT THIS IS ABOUT */
-    if (info->MergedFB) {
+    if (0) {//info->MergedFB) {
 	if (overlay_mode->Flags & V_INTERLACE)
 	    v_inc_shift++;
     	if (overlay_mode->Flags & V_DBLSCAN) {

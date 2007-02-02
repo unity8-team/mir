@@ -440,11 +440,6 @@ typedef struct {
                                            framebuffer */
     int               Flags;            /* Saved copy of mode flags          */
 
-				/* VE/M6 support */
-    RADEONMonitorType DisplayType;      /* Monitor connected on              */
-    RADEONDDCType     DDCType;
-    RADEONConnectorType ConnectorType;
-
     Bool              IsMobility;       /* Mobile chips for laptops */
     Bool              IsIGP;            /* IGP chips */
     Bool              HasSingleDAC;     /* only TVDAC on chip */
@@ -771,8 +766,6 @@ typedef struct {
 
   DisplayModePtr currentMode, savedCurrentMode;
     /* merged fb stuff, also covers clone modes */
-    Bool		MergedFB;
-    RADEONMonitorType   MergeType;
     void        	(*PointerMoved)(int index, int x, int y);
     Bool		NoVirtual;
 
