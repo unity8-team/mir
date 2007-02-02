@@ -270,12 +270,7 @@ typedef enum {
    OPTION_XVIDEO,
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
-   OPTION_VBE_RESTORE,
-   OPTION_DISPLAY_INFO,
-   OPTION_DEVICE_PRESENCE,
-   OPTION_MONITOR_LAYOUT,
    OPTION_CHECKDEVICES,
-   OPTION_FIXEDPIPE,
    OPTION_LINEARALLOC,
    OPTION_INTELTEXPOOL,
    OPTION_INTELMMSIZE
@@ -293,9 +288,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_XVIDEO,	"XVideo",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_MONITOR_LAYOUT, "MonitorLayout", OPTV_ANYSTR,{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_FIXEDPIPE,   "FixedPipe",    OPTV_ANYSTR, 	{0},	FALSE},
    {OPTION_LINEARALLOC, "LinearAlloc",  OPTV_INTEGER,   {0},    FALSE},
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_INTELMMSIZE, "AperTexSize",  OPTV_INTEGER,	{0},	FALSE},
@@ -3049,8 +3042,8 @@ I830EnterVT(int scrnIndex, int flags)
          return FALSE;
 
    if (i830_check_error_state(pScrn)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Existing errors found in hardware state\n");
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		 "Existing errors found in hardware state.\n");
    }
 
    ResetState(pScrn, FALSE);

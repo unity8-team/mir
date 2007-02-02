@@ -462,7 +462,7 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
 	    break;
 	default:
 	    p2 = 1;
-	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR, "p2 out of range\n");
+	    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "p2 out of range\n");
 	    break;
 	}
 	switch ((dpll >> 16) & 0xff) {
@@ -484,33 +484,39 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
 	    p1 = 8; break;
 	default:
 	    p1 = 1;
-	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR, "p1 out of range\n");
+	    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "p1 out of range\n");
 	    break;
 	}
 	switch ((dpll >> 13) & 0x3) {
 	case 0:
 	    ref = 96000;
 	    break;
+	case 3:
+	    ref = 100000;
+	    break;
 	default:
 	    ref = 0;
-	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR, "ref out of range\n");
+	    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "ref out of range\n");
 	    break;
 	}
-	phase = (dpll >> 9) & 0xf;
-	switch (phase) {
-	case 6:
-	    break;
-	default:
-	    xf86DrvMsg (pScrn->scrnIndex, X_INFO,
-			"SDVO phase shift %d out of range -- probobly not "
-			"an issue.\n", phase);
-	    break;
+	if (IS_I965G(pI830)) {
+	    phase = (dpll >> 9) & 0xf;
+	    switch (phase) {
+	    case 6:
+		break;
+	    default:
+		xf86DrvMsg (pScrn->scrnIndex, X_INFO,
+			    "SDVO phase shift %d out of range -- probobly not "
+			    "an issue.\n", phase);
+		break;
+	    }
 	}
 	switch ((dpll >> 8) & 1) {
 	case 0:
 	    break;
 	default:
-	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR, "fp select out of range\n");
+	    xf86DrvMsg (pScrn->scrnIndex, X_WARNING,
+			"fp select out of range\n");
 	    break;
 	}
 	n = ((fp >> 16) & 0x3f);
@@ -645,13 +651,18 @@ i830_check_error_state(ScrnInfoPtr pScrn)
 
     temp = INREG16(ESR);
     if (temp != 0) {
+	Bool vertex_max = !IS_I965G(pI830) && (temp & ERR_VERTEX_MAX);
+	Bool pgtbl = temp & ERR_PGTBL_ERROR;
+	Bool underrun = !IS_I965G(pI830) &&
+	    (temp & ERR_DISPLAY_OVERLAY_UNDERRUN);
+	Bool instruction = !IS_I965G(pI830) && (temp & ERR_INSTRUCTION_ERROR);
+
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "ESR is 0x%08lx%s%s%s%s\n", temp,
-		   temp & ERR_VERTEX_MAX ? ", max vertices exceeded" : "",
-		   temp & ERR_PGTBL_ERROR ? ", page table error" : "",
-		   temp & ERR_DISPLAY_OVERLAY_UNDERRUN ?
-		   ", display/overlay underrun" : "",
-		   temp & ERR_INSTRUCTION_ERROR ? ", instruction error" : "");
+		   vertex_max ? ", max vertices exceeded" : "",
+		   pgtbl ? ", page table error" : "",
+		   underrun ? ", display/overlay underrun" : "",
+		   instruction ? ", instruction error" : "");
 	errors++;
     }
     /* Check first for page table errors */
@@ -665,7 +676,7 @@ i830_check_error_state(ScrnInfoPtr pScrn)
     } else {
 	temp = INREG(PGTBL_ER);
 	if (temp != 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "PGTBL_ER is 0x%08lx"
 		       "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", temp,
 		       temp & PGTBL_ERR_HOST_GTT_PTE ? ", host gtt pte" : "",

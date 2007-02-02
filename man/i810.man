@@ -129,51 +129,6 @@ other drivers.
 Disable or enable XVideo support.
 Default: XVideo is enabled for configurations where it is supported.
 .TP
-.BI "Option \*qMonitorLayout\*q \*q" anystr \*q
-Allow different monitor configurations. e.g. \*qCRT,LFP\*q will 
-configure a CRT on Pipe A and an LFP on Pipe B. Regardless of the 
-primary heads' pipe it is always configured as \*q<PIPEA>,<PIPEB>\*q. 
-Additionally you can add different configurations such as 
-\*qCRT+DFP,LFP\*q which would put a digital flat panel and a CRT 
-on pipe A, and a local flat panel on pipe B.
-For single pipe configurations you can just specify the monitors types
-on Pipe A, such as \*qCRT+DFP\*q which will enable the CRT and DFP
-on Pipe A.
-Valid monitors are CRT, LFP, DFP, TV, CRT2, LFP2, DFP2, TV2 and NONE.
-NOTE: Some configurations of monitor types may fail, this depends on
-the Video BIOS and system configuration.
-Default: Not configured, and will use the current head's pipe and monitor.
-.TP
-.BI "Option \*qClone\*q \*q" boolean \*q
-Enable Clone mode on pipe B. This will setup the second head as a complete
-mirror of the monitor attached to pipe A. 
-NOTE: Video overlay functions will not work on the second head in this mode.
-If you require this, then use the MonitorLayout above and do (as an example)
-\*qCRT+DFP,NONE\*q to configure both a CRT and DFP on Pipe A to achieve
-local mirroring and disable the use of this option.
-Default: Clone mode on pipe B is disabled.
-.TP
-.BI "Option \*qCloneRefresh\*q \*q" integer \*q
-When the Clone option is specified we can drive the second monitor at a
-different refresh rate than the primary. 
-Default: 60Hz.
-.TP
-.BI "Option \*qCheckLid\*q \*q" boolean \*q
-On mobile platforms it's desirable to monitor the lid status and switch
-the outputs accordingly when the lid is opened or closed. By default this
-option is on, but may incur a very minor performance penalty as we need
-to poll a register on the card to check for this activity. It can be
-turned off using this option. This only works with the 830M, 852GM and 855GM
-systems.
-Default: enabled.
-.TP
-.BI "Option \*qFlipPrimary\*q \*q" boolean \*q
-When using a dual pipe system, it may be preferable to switch the primary
-screen to the alternate pipe to display on the other monitor connection.
-NOTE: Using this option may cause text mode to be restored incorrectly,
-and thus should be used with caution.
-Default: disabled.
-.TP
 .BI "Option \*qRotate\*q \*q90\*q"
 Rotate the desktop 90 degrees counterclockwise. Other valid options are
 0, 90, 180 and 270 degrees. The RandR extension is used for rotation 
