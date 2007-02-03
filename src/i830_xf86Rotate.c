@@ -196,7 +196,7 @@ xf86RotateCrtcRedisplay (xf86CrtcPtr crtc, RegionPtr region)
     case RR_Rotate_270:
 	transform.matrix[0][1] = IntToxFixed(1);
 	transform.matrix[1][0] = IntToxFixed(-1);
-	transform.matrix[1][2] += IntToxFixed(crtc->mode.VDisplay);
+	transform.matrix[1][2] += IntToxFixed(crtc->mode.HDisplay);
 	break;
     }
 

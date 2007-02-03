@@ -510,7 +510,7 @@ I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 	    hotspoty = I810_CURSOR_Y;
 	    break;
 	case RR_Rotate_270:
-	    thisx = mode->VDisplay - (root_y - crtc->y);
+	    thisx = mode->HDisplay - (root_y - crtc->y);
 	    thisy = (root_x - crtc->x);
 	    hotspotx = I810_CURSOR_Y;
 	    break;
