@@ -943,6 +943,11 @@ i830_tv_restore(xf86OutputPtr output)
 	struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
 	int			    i;
 
+	xf86CrtcPtr	    crtc = output->crtc;
+	I830CrtcPrivatePtr  intel_crtc;
+	if (!crtc)
+		return;
+	intel_crtc = crtc->driver_private;
 	OUTREG(TV_H_CTL_1, dev_priv->save_TV_H_CTL_1);
 	OUTREG(TV_H_CTL_2, dev_priv->save_TV_H_CTL_2);
 	OUTREG(TV_H_CTL_3, dev_priv->save_TV_H_CTL_3);
@@ -967,8 +972,6 @@ i830_tv_restore(xf86OutputPtr output)
 	OUTREG(TV_CLR_LEVEL, dev_priv->save_TV_CLR_LEVEL);
 
 	{
-		xf86CrtcPtr	    crtc = output->crtc;
-		I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
 		int pipeconf_reg = (intel_crtc->pipe == 0)?PIPEACONF:PIPEBCONF;
 		int dspcntr_reg = (intel_crtc->pipe == 0)?DSPACNTR : DSPBCNTR;
 		int pipeconf = INREG(pipeconf_reg);
