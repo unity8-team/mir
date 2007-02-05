@@ -168,15 +168,7 @@ ATIProcessOptions
 
     ReferenceClock = ((double)157500000.0) / ((double)11.0);
 
-#ifndef AVOID_CPIO
-
-    if (pATI->PCIInfo)
-
-#endif /* AVOID_CPIO */
-
-    {
-        ShadowFB = TRUE;
-    }
+    ShadowFB = TRUE;
 
     Blend = PanelDisplay = TRUE;
 #ifdef XF86DRI_DEVEL

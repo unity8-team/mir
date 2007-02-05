@@ -355,8 +355,8 @@ ATIPrintRegisters
     ATIPtr pATI
 )
 {
-    pciVideoPtr  pVideo;
-    pciConfigPtr pPCI;
+    pciVideoPtr  pVideo = pATI->PCIInfo;
+    pciConfigPtr pPCI = pVideo->thisCard;
     int          Index;
     CARD32       lcd_index, tv_out_index, lcd_gen_ctrl;
     CARD8        dac_read, dac_mask, dac_write;
@@ -638,9 +638,7 @@ ATIPrintRegisters
 
 #endif /* AVOID_CPIO */
 
-    if ((pVideo = pATI->PCIInfo))
     {
-        pPCI = pVideo->thisCard;
         xf86ErrorFVerb(4, "\n\n PCI configuration register values:");
         for (Index = 0;  Index < 256;  Index+= 4)
         {
@@ -661,18 +659,9 @@ ATIPrintRegisters
     else
         xf86ErrorFVerb(4, "\n No banked aperture.");
 
-    if (pATI->pMemory == pATI->pBank)
-    {
-        xf86ErrorFVerb(4, "\n No linear aperture.\n");
-    }
-    else
-
-#else /* AVOID_CPIO */
-
-    if (pATI->pMemory)
-
 #endif /* AVOID_CPIO */
 
+    if (pATI->pMemory)
     {
         xf86ErrorFVerb(4, "\n Linear aperture at %p.\n", pATI->pMemory);
     }
