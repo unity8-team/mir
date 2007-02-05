@@ -30,10 +30,11 @@
 #include "atichip.h"
 #include "atimach64accel.h"
 #include "atimach64io.h"
-#include "atimach64xv.h"
+#include "atixv.h"
 
 #include <X11/extensions/Xv.h>
 #include "fourcc.h"
+#include "xf86xv.h"
 
 #define MAKE_ATOM(string) MakeAtom(string, strlen(string), TRUE)
 #define MaxScale          (CARD32)(CARD16)(-1)
@@ -1529,13 +1530,62 @@ ATIXVPreInit
 }
 
 /*
+ * ATIXVFreeAdaptorInfo --
+ *
+ * Free XVideo adaptor information.
+ */
+static void
+ATIXVFreeAdaptorInfo
+(
+    XF86VideoAdaptorPtr *ppAdaptor,
+    int                 nAdaptor
+)
+{
+    if (!ppAdaptor)
+        return;
+
+    while (nAdaptor > 0)
+        xfree(ppAdaptor[--nAdaptor]);
+
+    xfree(ppAdaptor);
+}
+
+/*
+ * ATIInitializeXVideo --
+ *
+ * This function is called to initialise XVideo extension support on a screen.
+ */
+Bool
+ATIInitializeXVideo
+(
+    ScreenPtr   pScreen,
+    ScrnInfoPtr pScreenInfo,
+    ATIPtr      pATI
+)
+{
+    XF86VideoAdaptorPtr *ppAdaptor;
+    int                 nAdaptor;
+    Bool                result;
+
+    pScreenInfo->memPhysBase = pATI->LinearBase;
+    pScreenInfo->fbOffset = 0;
+
+    nAdaptor = xf86XVListGenericAdaptors(pScreenInfo, &ppAdaptor);
+    result = xf86XVScreenInit(pScreen, ppAdaptor, nAdaptor);
+
+    ATIXVFreeAdaptorInfo(ppAdaptor, nAdaptor);
+
+    return result;
+}
+
+/*
  * ATIMach64CloseXVideo --
  *
  * This function is called during screen termination to clean up after
  * initialisation of Mach64 XVideo support.
  */
 void
-ATIMach64CloseXVideo
+ATICloseXVideo
 (
     ScreenPtr   pScreen,
     ScrnInfoPtr pScreenInfo,

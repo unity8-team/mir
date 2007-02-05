@@ -65,7 +65,7 @@ atimisc_drv_la_SOURCES = \
 	atilock.c atimach64.c atimach64accel.c atimach64cursor.c \
 	atimach64i2c.c atimach64io.c atimach64xv.c atimode.c atipreinit.c \
 	atiprint.c atirgb514.c atiscreen.c atituner.c atiutil.c ativalid.c \
-	atixv.c atiload.c atimisc.c $(ATIMISC_DRI_SRCS) $(ATIMISC_DGA_SOURCES) \
+	atiload.c atimisc.c $(ATIMISC_DRI_SRCS) $(ATIMISC_DGA_SOURCES) \
 	$(ATIMISC_CPIO_SOURCES) $(ATIMISC_EXA_SOURCES)
 
 r128_drv_la_LTLIBRARIES = r128_drv.la
@@ -135,7 +135,6 @@ EXTRA_DIST = \
 	atimach64i2c.h \
 	atimach64io.h \
 	atimach64render.c \
-	atimach64xv.h \
 	atimode.h \
 	atimodule.h \
 	atioption.h \
