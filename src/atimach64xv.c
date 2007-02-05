@@ -1404,17 +1404,21 @@ static XF86OffscreenImageRec ATIMach64Surface_C[] =
  * This function is called to make a Mach64's hardware overlay support
  * available as an XVideo adaptor.
  */
-int
+static int
 ATIMach64XVInitialiseAdaptor
 (
-    ScreenPtr           pScreen,
     ScrnInfoPtr         pScreenInfo,
-    ATIPtr              pATI,
     XF86VideoAdaptorPtr **pppAdaptor
 )
 {
+    ScreenPtr           pScreen    = screenInfo.screens[pScreenInfo->scrnIndex];
+    ATIPtr              pATI       = ATIPTR(pScreenInfo);
+    XF86VideoAdaptorPtr *ppAdaptor = NULL;
     XF86VideoAdaptorPtr pAdaptor;
     int                 Index;
+
+    if (pppAdaptor)
+        *pppAdaptor = NULL;
 
     if (!pATI->Block1Base)
         return 0;
@@ -1422,8 +1426,8 @@ ATIMach64XVInitialiseAdaptor
     if (!(pAdaptor = xf86XVAllocateVideoAdaptorRec(pScreenInfo)))
         return 0;
 
-    *pppAdaptor = xnfalloc(sizeof(pAdaptor));
-    **pppAdaptor = pAdaptor;
+    ppAdaptor = xnfalloc(sizeof(pAdaptor));
+    ppAdaptor[0] = pAdaptor;
 
     pAdaptor->nPorts = 1;
     pAdaptor->pPortPrivates = pATI->XVPortPrivate;
@@ -1499,7 +1503,29 @@ ATIMach64XVInitialiseAdaptor
             ATIMach64Surface_C, nATIMach64Surface_C);
     }
 
+    if (pppAdaptor)
+        *pppAdaptor = ppAdaptor;
+    else {
+        xfree(ppAdaptor[0]);
+        xfree(ppAdaptor);
+    }
+
     return 1;
+}
+
+/*
+ * ATIXVPreInit --
+ *
+ * This function is called by ATIPreInit() to set up the environment required
+ * to support the XVideo extension.
+ */
+void
+ATIXVPreInit
+(
+    ATIPtr      pATI
+)
+{
+    (void)xf86XVRegisterGenericAdaptorDriver(ATIMach64XVInitialiseAdaptor);
 }
 
 /*

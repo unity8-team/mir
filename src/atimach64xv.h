@@ -28,9 +28,6 @@
 #include "xf86str.h"
 #include "xf86xv.h"
 
-extern int  ATIMach64XVInitialiseAdaptor(ScreenPtr, ScrnInfoPtr, ATIPtr,
-                                         XF86VideoAdaptorPtr **);
-
 extern void ATIMach64CloseXVideo(ScreenPtr, ScrnInfoPtr, ATIPtr);
 
 #endif /* ___ATIMACH64XV_H___ */

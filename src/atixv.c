@@ -50,52 +50,6 @@ ATIXVFreeAdaptorInfo
 }
 
 /*
- * ATIXVInitializeAdaptor --
- *
- * This is called by the server's XVideo support layer to initialise an XVideo
- * adapter.
- */
-static int
-ATIXVInitializeAdaptor
-(
-    ScrnInfoPtr         pScreenInfo,
-    XF86VideoAdaptorPtr **pppAdaptor
-)
-{
-    ScreenPtr           pScreen    = screenInfo.screens[pScreenInfo->scrnIndex];
-    ATIPtr              pATI       = ATIPTR(pScreenInfo);
-    XF86VideoAdaptorPtr *ppAdaptor = NULL;
-    int                 nAdaptor;
-
-    {
-            nAdaptor = ATIMach64XVInitialiseAdaptor(pScreen, pScreenInfo, pATI,
-                &ppAdaptor);
-    }
-
-    if (pppAdaptor)
-        *pppAdaptor = ppAdaptor;
-    else
-        ATIXVFreeAdaptorInfo(ppAdaptor, nAdaptor);
-
-    return nAdaptor;
-}
-
-/*
- * ATIXVPreInit --
- *
- * This function is called by ATIPreInit() to set up the environment required
- * to support the XVideo extension.
- */
-void
-ATIXVPreInit
-(
-    ATIPtr      pATI
-)
-{
-    (void)xf86XVRegisterGenericAdaptorDriver(ATIXVInitializeAdaptor);
-}
-
-/*
  * ATIInitializeXVideo --
  *
  * This function is called to initialise XVideo extension support on a screen.
