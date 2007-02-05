@@ -183,12 +183,8 @@ ATIMapApertures
          * No relocation, resizing, caching or write-combining of this
          * aperture is supported.  Hence, the hard-coded values here...
          */
-        if (pVideo)
-            pATI->pBank = xf86MapPciMem(iScreen, VIDMEM_MMIO,
+            pATI->pBank = xf86MapDomainMemory(iScreen, VIDMEM_MMIO_32BIT,
                 Tag, 0x000A0000U, 0x00010000U);
-        else
-            pATI->pBank = xf86MapVidMem(iScreen, VIDMEM_MMIO,
-                0x000A0000U, 0x00010000U);
 
         if (!pATI->pBank)
             return FALSE;
@@ -201,12 +197,8 @@ ATIMapApertures
     /* Map linear aperture */
     if (pATI->LinearBase)
     {
-        if (pVideo)
             pATI->pMemory = xf86MapPciMem(iScreen, VIDMEM_FRAMEBUFFER,
                 Tag, pATI->LinearBase, pATI->LinearSize);
-        else
-            pATI->pMemory = xf86MapVidMem(iScreen, VIDMEM_FRAMEBUFFER,
-                pATI->LinearBase, pATI->LinearSize);
 
         if (!pATI->pMemory)
         {
@@ -237,7 +229,6 @@ ATIMapApertures
          * Map the little-endian aperture (used for video, etc.).  Note that
          * caching of this area is _not_ wanted.
          */
-        if (pVideo)
         {
             pATI->pMemoryLE = xf86MapPciMem(iScreen, VIDMEM_MMIO, Tag,
                 pATI->LinearBase - 0x00800000U, pATI->LinearSize);
@@ -266,12 +257,8 @@ ATIMapApertures
     {
         unsigned long MMIOBase = pATI->Block0Base & ~(PageSize - 1);
 
-        if (pVideo)
             pATI->pMMIO = xf86MapPciMem(iScreen, VIDMEM_MMIO,
                 Tag, MMIOBase, PageSize);
-        else
-            pATI->pMMIO = xf86MapVidMem(iScreen, VIDMEM_MMIO,
-                MMIOBase, PageSize);
 
         if (!pATI->pMMIO)
         {
@@ -321,12 +308,8 @@ ATIMapApertures
     {
         unsigned long CursorBase = pATI->CursorBase & ~(PageSize - 1);
 
-        if (pVideo)
             pATI->pCursorPage = xf86MapPciMem(iScreen, VIDMEM_FRAMEBUFFER,
                 Tag, CursorBase, PageSize);
-        else
-            pATI->pCursorPage = xf86MapVidMem(iScreen, VIDMEM_FRAMEBUFFER,
-                CursorBase, PageSize);
 
         if (!pATI->pCursorPage)
         {
