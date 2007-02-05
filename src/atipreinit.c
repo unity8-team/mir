@@ -400,22 +400,6 @@ ATIPreInit
         return TRUE;
     }
 
-    pATI->Block0Base = 0;       /* Might no longer be valid */
-    if ((pVideo = pATI->PCIInfo))
-    {
-        if (pATI->CPIODecoding == BLOCK_IO)
-            pATI->CPIOBase = pVideo->ioBase[1];
-
-        /* Set MMIO address from PCI configuration space, if available */
-        if ((pATI->Block0Base = pVideo->memBase[2]))
-        {
-            if (pATI->Block0Base >= (CARD32)(-1 << pVideo->size[2]))
-                pATI->Block0Base = 0;
-            else
-                pATI->Block0Base += 0x0400U;
-        }
-    }
-
 #ifdef AVOID_CPIO
 
     pScreenInfo->racMemFlags =
@@ -438,16 +422,29 @@ ATIPreInit
 
     /* Finish probing the adapter */
     {
+
+        if (pATI->CPIODecoding == BLOCK_IO)
+            pATI->CPIOBase = pVideo->ioBase[1];
+
+        /* Set MMIO address from PCI configuration space, if available */
+        if ((pATI->Block0Base = pVideo->memBase[2]))
+        {
+            if (pATI->Block0Base >= (CARD32)(-1 << pVideo->size[2]))
+                pATI->Block0Base = 0;
+            else
+                pATI->Block0Base += 0x0400U;
+        }
+
+            Block0Base = pATI->Block0Base; /* save */
+
             do
             {
                 /*
                  * Find and mmap() MMIO area.  Allow only auxiliary aperture if
                  * it exists.
                  */
-                if (!(Block0Base = pATI->Block0Base))
+                if (!pATI->Block0Base)
                 {
-                    if (pVideo)
-                    {
                         /* Check tail end of linear (8MB or 4MB) aperture */
                         if ((pATI->Block0Base = pVideo->memBase[0]))
                         {
@@ -461,7 +458,6 @@ ATIPreInit
                             if (pATI->pBlock[0])
                                 break;
                         }
-                    }
 
                     /* Check VGA MMIO aperture */
                     pATI->Block0Base = 0x000BFC00U;
@@ -469,7 +465,8 @@ ATIPreInit
 
                 ATIMach64Map(pScreenInfo->scrnIndex, pATI);
             } while (0);
-            pATI->Block0Base = Block0Base;
+
+            pATI->Block0Base = Block0Base; /* restore */
 
 #ifdef AVOID_CPIO
 
