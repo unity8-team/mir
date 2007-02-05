@@ -30,6 +30,4 @@
 
 extern Bool        ATIInitializeAcceleration(ScreenPtr, ScrnInfoPtr, ATIPtr);
 
-extern FBLinearPtr ATIResizeOffscreenLinear(ScreenPtr, FBLinearPtr, int);
-
 #endif /* ___ATIACCEL_H___ */

@@ -27,7 +27,6 @@
 #include <string.h>
 
 #include "ati.h"
-#include "atiaccel.h"
 #include "atichip.h"
 #include "atimach64accel.h"
 #include "atimach64io.h"
@@ -1521,6 +1520,57 @@ ATIMach64CloseXVideo
 
     REGION_UNINIT(pScreen, &pATI->VideoClip);
 }
+
+/* Functions for offscreen memory management */
+
+#ifdef USE_XAA
+static FBLinearPtr
+ATIResizeOffscreenLinear
+(
+    ScreenPtr   pScreen,
+    FBLinearPtr pLinear,
+    int         Size
+)
+{
+    if (Size <= 0)
+    {
+        xf86FreeOffscreenLinear(pLinear);
+        return NULL;
+    }
+
+    if (pLinear)
+    {
+        if ((pLinear->size >= Size) ||
+            xf86ResizeOffscreenLinear(pLinear, Size))
+        {
+            pLinear->MoveLinearCallback = NULL;
+            pLinear->RemoveLinearCallback = NULL;
+            return pLinear;
+        }
+
+        xf86FreeOffscreenLinear(pLinear);
+    }
+
+    pLinear = xf86AllocateOffscreenLinear(pScreen, Size, 16, NULL, NULL, NULL);
+
+    if (!pLinear)
+    {
+        int maxSize;
+
+        xf86QueryLargestOffscreenLinear(pScreen, &maxSize, 16,
+            PRIORITY_EXTREME);
+
+        if (maxSize < Size)
+            return NULL;
+
+        xf86PurgeUnlockedOffscreenAreas(pScreen);
+        pLinear =
+            xf86AllocateOffscreenLinear(pScreen, Size, 16, NULL, NULL, NULL);
+    }
+
+    return pLinear;
+}
+#endif /* USE_XAA */
 
 static pointer
 ATIMach64XVMemAlloc
