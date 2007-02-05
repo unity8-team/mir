@@ -34,7 +34,6 @@
 #include "ati.h"
 #include "atibus.h"
 #include "atichip.h"
-#include "atiaccel.h"
 #include "aticonsole.h"
 #include "aticursor.h"
 #include "atidac.h"
@@ -525,7 +524,7 @@ ATIScreenInit
 
     /* Setup acceleration */
 
-    if (!ATIInitializeAcceleration(pScreen, pScreenInfo, pATI))
+    if (pATI->OptionAccel && !ATIMach64AccelInit(pScreen))
         return FALSE;
 
     }

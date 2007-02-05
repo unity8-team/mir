@@ -35,7 +35,7 @@
 extern Bool ATIMach64ExaInit(ScreenPtr);
 #endif
 #ifdef USE_XAA
-extern int  ATIMach64AccelInit(ATIPtr, XAAInfoRecPtr);
+extern Bool ATIMach64AccelInit(ScreenPtr);
 #endif
 extern void ATIMach64Sync(ScrnInfoPtr);
 

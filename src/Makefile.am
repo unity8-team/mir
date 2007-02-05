@@ -60,7 +60,7 @@ atimisc_drv_la_LTLIBRARIES = atimisc_drv.la
 atimisc_drv_la_LDFLAGS = -module -avoid-version
 atimisc_drv_ladir = @moduledir@/drivers
 atimisc_drv_la_SOURCES = \
-	atiaccel.c atiadjust.c atiaudio.c aticlock.c aticonfig.c aticonsole.c \
+	atiadjust.c atiaudio.c aticlock.c aticonfig.c aticonsole.c \
 	aticursor.c atidac.c atidecoder.c atidsp.c atifillin.c atii2c.c \
 	atilock.c atimach64.c atimach64accel.c atimach64cursor.c \
 	atimach64i2c.c atimach64io.c atimach64xv.c atimode.c atipreinit.c \
@@ -108,7 +108,6 @@ EXTRA_DIST = \
 	radeon_render.c \
 	radeon_accelfuncs.c \
 	\
-	atiaccel.h \
 	atiadjust.h \
 	atiaudio.h \
 	atibank.h \
