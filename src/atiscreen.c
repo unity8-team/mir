@@ -554,7 +554,7 @@ ATIScreenInit
     xf86SetBackingStore(pScreen);
 
     /* Initialise cursor */
-    if (!ATIInitializeCursor(pScreen, pATI))
+    if (!ATIMach64CursorInit(pScreen))
         return FALSE;
 
     /* Create default colourmap */

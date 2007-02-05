@@ -37,6 +37,6 @@ typedef enum
     ATI_CURSOR_DAC              /* Hardware cursor provided by RAMDAC */
 } ATICursorType;
 
-extern Bool ATIInitializeCursor(ScreenPtr, ATIPtr);
+extern Bool ATIMach64CursorInit(ScreenPtr);
 
 #endif /* ___ATICURSOR_H___ */

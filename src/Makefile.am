@@ -61,7 +61,7 @@ atimisc_drv_la_LDFLAGS = -module -avoid-version
 atimisc_drv_ladir = @moduledir@/drivers
 atimisc_drv_la_SOURCES = \
 	atiadjust.c atiaudio.c aticlock.c aticonfig.c aticonsole.c \
-	aticursor.c atidac.c atidecoder.c atidsp.c atifillin.c atii2c.c \
+	atidac.c atidecoder.c atidsp.c atifillin.c atii2c.c \
 	atilock.c atimach64.c atimach64accel.c atimach64cursor.c \
 	atimach64i2c.c atimach64io.c atimach64xv.c atimode.c atipreinit.c \
 	atiprint.c atirgb514.c atiscreen.c atituner.c atiutil.c ativalid.c \
@@ -131,7 +131,6 @@ EXTRA_DIST = \
 	atiload.h \
 	atilock.h \
 	atimach64accel.h \
-	atimach64cursor.h \
 	atimach64.h \
 	atimach64i2c.h \
 	atimach64io.h \
