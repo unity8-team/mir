@@ -29,9 +29,7 @@
 #endif
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "aticonsole.h"
-#include "aticrtc.h"
 #include "atii2c.h"
 #include "atilock.h"
 #include "atimach64.h"
@@ -45,12 +43,6 @@
 #include "mach64_common.h"
 #include "atidri.h"
 #endif
-
-#include "mach64_common.h"
-
-
-
-#include "xf86.h"
 
 #ifdef TV_OUT
 
@@ -92,23 +84,8 @@ ATISaveScreen
         return TRUE;
 
     pATI = ATIPTR(pScreenInfo);
-    switch (pATI->NewHW.crtc)
     {
-
-#ifndef AVOID_CPIO
-
-        case ATI_CRTC_VGA:
-            ATIVGASaveScreen(pATI, Mode);
-            break;
-
-#endif /* AVOID_CPIO */
-
-        case ATI_CRTC_MACH64:
             ATIMach64SaveScreen(pATI, Mode);
-            break;
-
-        default:
-            break;
     }
 
     return TRUE;
@@ -135,27 +112,8 @@ ATISetDPMSMode
 
     pATI = ATIPTR(pScreenInfo);
 
-    switch (pATI->Adapter)
     {
-        case ATI_ADAPTER_MACH64:
             ATIMach64SetDPMSMode(pScreenInfo, pATI, DPMSMode);
-            break;
-
-        default:
-
-#ifndef AVOID_CPIO
-
-            /* Assume EGA/VGA */
-            ATIVGASetDPMSMode(pATI, DPMSMode);
-            break;
-
-        case ATI_ADAPTER_NONE:
-        case ATI_ADAPTER_8514A:
-        case ATI_ADAPTER_MACH8:
-
-#endif /* AVOID_CPIO */
-
-            break;
     }
 }
 
@@ -757,14 +715,6 @@ ATIEnterVT
 
         return TRUE;
     }
-
-#ifndef AVOID_CPIO
-
-    /* If used, modify banking interface */
-    if (!miModifyBanking(pScreen, &pATI->BankInfo))
-        return FALSE;
-
-#endif /* AVOID_CPIO */
 
     pScreenPixmap = (*pScreen->GetScreenPixmap)(pScreen);
     PixmapPrivate = pScreenPixmap->devPrivate;

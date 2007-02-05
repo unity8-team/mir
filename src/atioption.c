@@ -61,6 +61,13 @@ const char *ATITVStandardNames[ATI_TV_STDS_MAX_VALID+1] = {
 const OptionInfoRec ATIPublicOptions[] =
 {
     {
+        ATI_OPTION_PROBE_SPARSE,
+        "probe_sparse",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
         ATI_OPTION_ACCEL,
         "accel",
         OPTV_BOOLEAN,
@@ -88,18 +95,6 @@ const OptionInfoRec ATIPublicOptions[] =
         {0, },
         FALSE,
     },
-
-#ifndef AVOID_CPIO
-
-    {
-        ATI_OPTION_LINEAR,
-        "linear",
-        OPTV_BOOLEAN,
-        {0, },
-        FALSE
-    },
-
-#endif /* AVOID_CPIO */
 
 #ifdef XF86DRI_DEVEL
 
@@ -185,13 +180,6 @@ const OptionInfoRec ATIPublicOptions[] =
     {
         ATI_OPTION_PANEL_DISPLAY,
         "panel_display",
-        OPTV_BOOLEAN,
-        {0, },
-        FALSE
-    },
-    {
-        ATI_OPTION_PROBE_CLOCKS,
-        "probe_clocks",
         OPTV_BOOLEAN,
         {0, },
         FALSE

@@ -27,7 +27,6 @@
 #include "ati.h"
 #include "atiadjust.h"
 #include "atichip.h"
-#include "aticrtc.h"
 #include "atilock.h"
 #include "atimach64io.h"
 #include "atiwonderio.h"
@@ -54,21 +53,6 @@ ATIAdjustPreInit
 {
     unsigned long MaxBase;
 
-#ifndef AVOID_CPIO
-
-    if ((pATI->CPIO_VGAWonder) &&
-        (pATI->Chip <= ATI_CHIP_18800_1) &&
-        (pATI->VideoRAM == 256) &&
-        (pATI->depth >= 8))
-    {
-        /* Strange, to say the least ... */
-        pATI->AdjustDepth = (pATI->bitsPerPixel + 3) >> 2;
-        pATI->AdjustMask = (unsigned long)(-32);
-    }
-    else
-
-#endif /* AVOID_CPIO */
-
     {
         pATI->AdjustDepth = (pATI->bitsPerPixel + 7) >> 3;
 
@@ -80,41 +64,8 @@ ATIAdjustPreInit
               1);
     }
 
-    switch (pATI->NewHW.crtc)
     {
-
-#ifndef AVOID_CPIO
-
-        case ATI_CRTC_VGA:
-            if (pATI->Chip >= ATI_CHIP_264CT)
-            {
-                pATI->AdjustMaxBase = MaxBits(CRTC_OFFSET_VGA) << 2;
-                if (pATI->depth <= 4)
-                    pATI->AdjustMaxBase <<= 1;
-            }
-            else if (!pATI->CPIO_VGAWonder)
-            {
-                pATI->AdjustMaxBase = 0xFFFFU << 3;
-            }
-            else if (pATI->Chip <= ATI_CHIP_28800_6)
-            {
-                pATI->AdjustMaxBase = 0x03FFFFU << 3;
-            }
-            else /* Mach32 & Mach64 */
-            {
-                pATI->AdjustMaxBase = 0x0FFFFFU << 3;
-            }
-            break;
-
-#endif /* AVOID_CPIO */
-
-        case ATI_CRTC_MACH64:
             pATI->AdjustMaxBase = MaxBits(CRTC_OFFSET) << 3;
-            break;
-
-        default:
-            pATI->AdjustMaxBase = 0;
-            break;
     }
 
     MaxBase = (pATI->AdjustMaxBase / (unsigned long)pATI->AdjustDepth) |
@@ -176,57 +127,7 @@ ATIAdjustFrame
     /* Unlock registers */
     ATIUnlock(pATI);
 
-#ifndef AVOID_CPIO
-
-    if ((pATI->NewHW.crtc == ATI_CRTC_VGA) && (pATI->Chip < ATI_CHIP_264CT))
     {
-        PutReg(CRTX(pATI->CPIO_VGABase), 0x0CU, GetByte(Base, 1));
-        PutReg(CRTX(pATI->CPIO_VGABase), 0x0DU, GetByte(Base, 0));
-
-        if (pATI->CPIO_VGAWonder)
-        {
-            if (pATI->Chip <= ATI_CHIP_18800_1)
-                ATIModifyExtReg(pATI, 0xB0U, -1, 0x3FU, Base >> 10);
-            else
-            {
-                ATIModifyExtReg(pATI, 0xB0U, -1, 0xBFU, Base >> 10);
-                ATIModifyExtReg(pATI, 0xA3U, -1, 0xEFU, Base >> 13);
-
-                /*
-                 * I don't know if this also applies to Mach64's, but give it a
-                 * shot...
-                 */
-                if (pATI->Chip >= ATI_CHIP_68800)
-                    ATIModifyExtReg(pATI, 0xADU, -1, 0xF3U, Base >> 16);
-            }
-        }
-    }
-    else
-    /*
-     * On integrated controllers, there is only one set of CRTC control bits,
-     * many of which are simultaneously accessible through both VGA and
-     * accelerator I/O ports.  Given VGA's architectural limitations, setting
-     * the CRTC's offset register to more than 256k needs to be done through
-     * the accelerator port.
-     */
-    if (pATI->depth <= 4)
-    {
-        outr(CRTC_OFF_PITCH, SetBits(pATI->displayWidth >> 4, CRTC_PITCH) |
-            SetBits(Base, CRTC_OFFSET));
-    }
-    else
-
-#endif /* AVOID_CPIO */
-
-    {
-
-#ifndef AVOID_CPIO
-
-        if (pATI->NewHW.crtc == ATI_CRTC_VGA)
-            Base <<= 1;                 /* LSBit must be zero */
-
-#endif /* AVOID_CPIO */
-
         outr(CRTC_OFF_PITCH, SetBits(pATI->displayWidth >> 3, CRTC_PITCH) |
             SetBits(Base, CRTC_OFFSET));
     }

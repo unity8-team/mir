@@ -25,7 +25,6 @@
 #endif
 
 #include "ati.h"
-#include "aticrtc.h"
 #include "atimach64accel.h"
 #include "atimach64cursor.h"
 #include "atimach64io.h"
@@ -352,20 +351,6 @@ ATIMach64UseHWCursor
 
     if (!pATI->CursorBase)
         return FALSE;
-
-#ifndef AVOID_CPIO
-
-    /*
-     * For some reason, the hardware cursor isn't vertically scaled when a VGA
-     * doublescanned or multiscanned mode is in effect.
-     */
-    if (pATI->NewHW.crtc == ATI_CRTC_MACH64)
-        return TRUE;
-    if ((pScreenInfo->currentMode->Flags & V_DBLSCAN) ||
-        (pScreenInfo->currentMode->VScan > 1))
-        return FALSE;
-
-#endif /* AVOID_CPIO */
 
     return TRUE;
 }

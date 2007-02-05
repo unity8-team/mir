@@ -60,29 +60,6 @@ ATIModifyExtReg
     if (CurrentValue == NewValue)
         return;
 
-    /*
-     * The following is taken from ATI's VGA Wonder programmer's reference
-     * manual which says that this is needed to "ensure the proper state of the
-     * 8/16 bit ROM toggle".  I suspect a timing glitch appeared in the 18800
-     * after its die was cast.  18800-1 and later chips do not exhibit this
-     * problem.
-     */
-    if ((pATI->Chip <= ATI_CHIP_18800) && (Index == 0xB2U) &&
-       ((NewValue ^ 0x40U) & CurrentValue & 0x40U))
-    {
-        CARD8 misc = inb(R_GENMO);
-        CARD8 bb = ATIGetExtReg(0xBBU);
-
-        outb(GENMO, (misc & 0xF3U) | 0x04U | ((bb & 0x10U) >> 1));
-        CurrentValue &= (CARD8)(~0x40U);
-        ATIPutExtReg(0xB2U, CurrentValue);
-        ATIDelay(5);
-        outb(GENMO, misc);
-        ATIDelay(5);
-        if (CurrentValue != NewValue)
-            ATIPutExtReg(0xB2U, NewValue);
-    }
-    else
         ATIPutExtReg(Index, NewValue);
 }
 

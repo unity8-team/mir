@@ -24,9 +24,7 @@
 #include "config.h"
 #endif
 
-#include "atiadapter.h"
 #include "atichip.h"
-#include "aticrtc.h"
 #include "atistruct.h"
 #include "ativalid.h"
 
@@ -48,42 +46,10 @@ ATIValidMode
 {
     ScrnInfoPtr pScreenInfo = xf86Screens[iScreen];
     ATIPtr      pATI        = ATIPTR(pScreenInfo);
-    Bool        InterlacedSeen;
     int         HBlankWidth, HAdjust, VScan, VInterlace;
-
-#ifndef AVOID_CPIO
-
-    int VDisplay, VTotal;
-
-#endif /* AVOID_CPIO */
 
     if (flags & MODECHECK_FINAL)
     {
-        /*
-         * This is the final check before the common layer accepts a mode.
-         * pScreenInfo->displayWidth is set to the proposed virtual pitch
-         * should the mode be accepted.  The only check needed here is for
-         * 18800's and 28800's, which don't support interlaced modes if the
-         * pitch is over half the chipset's maximum pitch.
-         */
-        if (pATI->MaximumInterlacedPitch)
-        {
-            /*
-             * Ensure no interlaced modes have a scanline pitch larger than the
-             * limit.
-             */
-            if (pMode->Flags & V_INTERLACE)
-                InterlacedSeen = TRUE;
-            else
-                InterlacedSeen = pATI->InterlacedSeen;
-
-            if (InterlacedSeen &&
-                (pScreenInfo->displayWidth > pATI->MaximumInterlacedPitch))
-                return MODE_INTERLACE_WIDTH;
-
-            pATI->InterlacedSeen = InterlacedSeen;
-        }
-
         return MODE_OK;
     }
 
@@ -186,52 +152,9 @@ ATIValidMode
     if (!HBlankWidth)
         return MODE_HBLANK_NARROW;
 
-    switch (pATI->NewHW.crtc)
     {
-
-#ifndef AVOID_CPIO
-
-        case ATI_CRTC_VGA:
-            /* Prevent overscans */
-            if (HBlankWidth > 63)
-                return MODE_HBLANK_WIDE;
-
-            if (pMode->HDisplay > 2048)
-                return MODE_BAD_HVALUE;
-
-            if (VScan > 64)
-                return MODE_BAD_VSCAN;
-
-            VDisplay = pMode->VDisplay * VScan;
-            VTotal = pMode->VTotal * VScan;
-
-            if ((pMode->Flags & V_INTERLACE) && (pATI->Chip < ATI_CHIP_264CT))
-            {
-                VDisplay >>= 1;
-                VTotal >>= 1;
-            }
-
-            if ((VDisplay > 2048) || (VTotal > 2050))
-                return MODE_BAD_VVALUE;
-
-            if (pATI->Adapter != ATI_ADAPTER_VGA)
-                break;
-
-            if ((VDisplay > 1024) || (VTotal > 1025))
-                return MODE_BAD_VVALUE;
-
-            break;
-
-#endif /* AVOID_CPIO */
-
-        case ATI_CRTC_MACH64:
             if (VScan > 2)
                 return MODE_NO_VSCAN;
-
-            break;
-
-        default:
-            break;
     }
 
     return MODE_OK;

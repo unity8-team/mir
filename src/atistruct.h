@@ -160,9 +160,6 @@ typedef struct _ATIHWRec
            scaler_buf0_offset_u, scaler_buf0_offset_v, scaler_buf1_offset_u,
            scaler_buf1_offset_v;
 
-    /* Clock map pointers */
-    const CARD8 *ClockMap, *ClockUnmap;
-
     /* Clock programming data */
     int FeedbackDivider, ReferenceDivider, PostDivider;
 
@@ -214,15 +211,6 @@ typedef struct _Mach64ContextRegs3D
  */
 typedef struct _ATIRec
 {
-    /*
-     * Definitions related to XF86Config "Chipset" specifications.
-     */
-    CARD8 Chipset;
-
-    /*
-     * Adapter-related definitions.
-     */
-    CARD8 Adapter;
 
 #ifndef AVOID_CPIO
 
@@ -237,12 +225,6 @@ typedef struct _ATIRec
     CARD16 ChipType;
     CARD8 Chip;
     CARD8 ChipClass, ChipRevision, ChipRev, ChipVersion, ChipFoundry;
-
-#ifndef AVOID_CPIO
-
-    CARD8 Coprocessor, ChipHasSUBSYS_CNTL;
-
-#endif /* AVOID_CPIO */
 
     /*
      * Processor I/O decoding definitions.
@@ -261,8 +243,6 @@ typedef struct _ATIRec
      * Processor I/O port definitions for VGA Wonder.
      */
     IOADDRESS CPIO_VGAWonder;
-    CARD8 B2Reg;        /* The B2 mirror */
-    CARD8 VGAOffset;    /* Low index for CPIO_VGAWonder */
 
 #endif /* AVOID_CPIO */
 
@@ -285,11 +265,9 @@ typedef struct _ATIRec
      */
     pciVideoPtr PCIInfo;
     CARD8 BusType;
-    CARD8 SharedAccelerator;
 
 #ifndef AVOID_CPIO
 
-    CARD8 SharedVGA;
     resRange VGAWonderResources[2];
 
 #endif /* AVOID_CPIO */
@@ -319,9 +297,7 @@ typedef struct _ATIRec
     /*
      * Banking interface.
      */
-    miBankInfoRec BankInfo;
     pointer pBank;
-    CARD8 UseSmallApertures;
 
 #endif /* AVOID_CPIO */
 
@@ -378,8 +354,6 @@ typedef struct _ATIRec
     int ClockNumberToProgramme, ReferenceNumerator, ReferenceDenominator;
     int ProgrammableClock, maxClock;
     ClockRec ClockDescriptor;
-    CARD16 BIOSClocks[16];
-    CARD8 Clock;
 
     /*
      * DSP register data.
@@ -452,9 +426,6 @@ typedef struct _ATIRec
 
         CARD32 config_cntl;
 
-        /* Mach8/Mach32 registers */
-        CARD16 clock_sel, misc_options, mem_bndry, mem_cfg;
-
         /* VGA Wonder registers */
         CARD8 a6, ab, b1, b4, b5, b6, b8, b9, be;
 
@@ -470,8 +441,6 @@ typedef struct _ATIRec
 
     /* Mode data */
     ATIHWRec OldHW, NewHW;
-    int MaximumInterlacedPitch;
-    Bool InterlacedSeen;
 
     /*
      * Resource Access Control entity index.
@@ -481,6 +450,7 @@ typedef struct _ATIRec
     /*
      * Driver options.
      */
+    unsigned int OptionProbeSparse:1;  /* Force probe for fixed (sparse) I/O */
     unsigned int OptionAccel:1;        /* Use hardware draw engine */
     unsigned int OptionBIOSDisplay:1;  /* Allow BIOS interference */
     unsigned int OptionBlend:1;        /* Force horizontal blending */
@@ -488,12 +458,6 @@ typedef struct _ATIRec
     unsigned int OptionCSync:1;        /* Use composite sync */
     unsigned int OptionDevel:1;        /* Intentionally undocumented */
 
-#ifndef AVOID_CPIO
-
-    unsigned int OptionLinear:1;       /* Use linear aperture if available */
-
-#endif /* AVOID_CPIO */
- 
 #ifdef TV_OUT
 
     CARD8 OptionTvOut;          /* Enable TV out if TV is connected */
@@ -504,7 +468,6 @@ typedef struct _ATIRec
     unsigned int OptionMMIOCache:1;    /* Cache MMIO writes */
     unsigned int OptionTestMMIOCache:1;/* Test MMIO cache integrity */
     unsigned int OptionPanelDisplay:1; /* Prefer digital panel over CRT */
-    unsigned int OptionProbeClocks:1;  /* Force probe for fixed clocks */
     unsigned int OptionShadowFB:1;     /* Use shadow frame buffer */
     unsigned int OptionLCDSync:1;      /* Temporary */
 

@@ -24,7 +24,6 @@
 #include "config.h"
 #endif
 
-#include "atiadapter.h"
 #include "atii2c.h"
 #include "atiload.h"
 #include "atimach64i2c.h"
@@ -366,18 +365,10 @@ ATII2CPreInit
     ATIPtr      pATI
 )
 {
-    switch (pATI->Adapter)
-    {
-        case ATI_ADAPTER_MACH64:
             if (!ATILoadModule(pScreenInfo, "i2c", ATIi2cSymbols))
                 return;
 
             ATIMach64I2CPreInit(pScreenInfo, pATI);
-            break;
-
-        default:
-            break;
-    }
 }
 
 /*

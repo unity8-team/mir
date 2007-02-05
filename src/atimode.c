@@ -27,7 +27,6 @@
 #include <string.h>
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "atichip.h"
 #include "atidac.h"
 #include "atidsp.h"
@@ -231,16 +230,6 @@ ATISwap
 
     /* Back to bank 0 */
     (*pATIHW->SetBank)(pATI, 0);
-
-    /*
-     * If restoring video memory for a server video mode, free the frame buffer
-     * save area.
-     */
-    if (ToFB && (pATIHW == &pATI->NewHW))
-    {
-        xfree(pATIHW->frame_buffer);
-        pATIHW->frame_buffer = NULL;
-    }
 }
 
 #endif /* AVOID_CPIO */
@@ -263,7 +252,7 @@ ATIModePreInit
 
 #ifndef AVOID_CPIO
 
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
     {
         /* Fill in VGA data */
         ATIVGAPreInit(pATI, pATIHW);
@@ -272,8 +261,6 @@ ATIModePreInit
         if (pATI->CPIO_VGAWonder)
             ATIVGAWonderPreInit(pATI, pATIHW);
     }
-
-    if (pATI->Chip >= ATI_CHIP_88800GXC)
 
 #endif /* AVOID_CPIO */
 
@@ -386,9 +373,6 @@ ATIModeSave
 
 #endif /* AVOID_CPIO */
 
-    /* Save clock data */
-    ATIClockSave(pScreenInfo, pATI, pATIHW);
-
     if (pATI->Chip >= ATI_CHIP_264CT)
     {
         pATIHW->pll_vclk_cntl = ATIMach64GetPLLReg(PLL_VCLK_CNTL) |
@@ -437,7 +421,7 @@ ATIModeSave
 
 #ifndef AVOID_CPIO
 
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
     {
         /* Save VGA data */
         ATIVGASave(pATI, pATIHW);
@@ -446,8 +430,6 @@ ATIModeSave
         if (pATI->CPIO_VGAWonder)
             ATIVGAWonderSave(pATI, pATIHW);
     }
-
-    if (pATI->Chip >= ATI_CHIP_88800GXC)
 
 #endif /* AVOID_CPIO */
 
@@ -507,47 +489,20 @@ ATIModeSave
             ATIRGB514Save(pATI, pATIHW);
     }
 
-#ifndef AVOID_CPIO
-
-    /*
-     * For some unknown reason, CLKDIV2 needs to be turned off to save the
-     * DAC's LUT reliably on VGA Wonder VLB adapters.
-     */
-    if ((pATI->Adapter == ATI_ADAPTER_NONISA) && (pATIHW->seq[1] & 0x08U))
-        PutReg(SEQX, 0x01U, pATIHW->seq[1] & ~0x08U);
-
-#endif /* AVOID_CPIO */
-
     /* Save RAMDAC state */
     ATIDACSave(pATI, pATIHW);
 
-#ifndef AVOID_CPIO
-
-    if ((pATI->Adapter == ATI_ADAPTER_NONISA) && (pATIHW->seq[1] & 0x08U))
-        PutReg(SEQX, 0x01U, pATIHW->seq[1]);
-
-#endif /* AVOID_CPIO */
-
-    /*
-     * The server has already saved video memory contents when switching out of
-     * its virtual console, so don't do it again.
-     */
     if (pATIHW != &pATI->NewHW)
     {
         pATIHW->FeedbackDivider = 0;    /* Don't programme clock */
+    }
 
 #ifndef AVOID_CPIO
 
         /* Save video memory */
         ATISwap(pScreenInfo->scrnIndex, pATI, pATIHW, FALSE);
 
-#endif /* AVOID_CPIO */
-
-    }
-
-#ifndef AVOID_CPIO
-
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
         ATIVGASaveScreen(pATI, SCREEN_SAVER_OFF);       /* Turn on screen */
 
 #endif /* AVOID_CPIO */
@@ -588,29 +543,13 @@ ATIModeCalculate
          * limitations.
          */
         VScan = pATI->LCDVertical / pMode->VDisplay;
-        switch (pATIHW->crtc)
         {
-
-#ifndef AVOID_CPIO
-
-            case ATI_CRTC_VGA:
-                if (VScan > 64)
-                    VScan = 64;
-                pMode->VScan = VScan;
-                break;
-
-#endif /* AVOID_CPIO */
-
-            case ATI_CRTC_MACH64:
                 pMode->VScan = 0;
-                if (VScan <= 1)
-                    break;
+                if (VScan > 1)
+                {
                 VScan = 2;
                 pMode->Flags |= V_DBLSCAN;
-                break;
-
-            default:
-                break;
+                }
         }
 
         pMode->HSyncStart = pMode->HDisplay + pATI->LCDHSyncStart;
@@ -625,132 +564,9 @@ ATIModeCalculate
             ATIDivide(pATI->LCDVBlankWidth, VScan, 0, 0);
     }
 
-    switch (pATIHW->crtc)
     {
-
-#ifndef AVOID_CPIO
-
-        case ATI_CRTC_VGA:
-            /* Fill in VGA data */
-            ATIVGACalculate(pATI, pATIHW, pMode);
-
-            /* Fill in VGA Wonder data */
-            if (pATI->CPIO_VGAWonder)
-                ATIVGAWonderCalculate(pATI, pATIHW, pMode);
-
-            if (pATI->Chip >= ATI_CHIP_88800GXC)
-            {
-                if (pATI->Chip >= ATI_CHIP_264CT)
-                {
-                    /*
-                     * Selected bits of accelerator & VGA CRTC registers are
-                     * actually copies of each other.
-                     */
-                    pATIHW->crtc_h_total_disp =
-                        SetBits(pMode->CrtcHTotal, CRTC_H_TOTAL) |
-                            SetBits(pMode->CrtcHDisplay, CRTC_H_DISP);
-                    pATIHW->crtc_h_sync_strt_wid =
-                        SetBits(pMode->CrtcHSyncStart, CRTC_H_SYNC_STRT) |
-                            SetBits(pMode->CrtcHSkew, CRTC_H_SYNC_DLY) | /* ? */
-                            SetBits(GetBits(pMode->CrtcHSyncStart, 0x0100U),
-                                CRTC_H_SYNC_STRT_HI) |
-                            SetBits(pMode->CrtcHSyncEnd, CRTC_H_SYNC_WID);
-                    if (pMode->Flags & V_NHSYNC)
-                        pATIHW->crtc_h_sync_strt_wid |= CRTC_H_SYNC_POL;
-
-                    pATIHW->crtc_v_total_disp =
-                        SetBits(pMode->CrtcVTotal, CRTC_V_TOTAL) |
-                            SetBits(pMode->CrtcVDisplay, CRTC_V_DISP);
-                    pATIHW->crtc_v_sync_strt_wid =
-                        SetBits(pMode->CrtcVSyncStart, CRTC_V_SYNC_STRT) |
-                            SetBits(pMode->CrtcVSyncEnd, CRTC_V_SYNC_END_VGA);
-                    if (pMode->Flags & V_NVSYNC)
-                        pATIHW->crtc_v_sync_strt_wid |= CRTC_V_SYNC_POL;
-                }
-
-                pATIHW->crtc_gen_cntl = inr(CRTC_GEN_CNTL) &
-                    ~(CRTC_DBL_SCAN_EN | CRTC_INTERLACE_EN |
-                      CRTC_HSYNC_DIS | CRTC_VSYNC_DIS | CRTC_CSYNC_EN |
-                      CRTC_PIX_BY_2_EN | CRTC_DISPLAY_DIS |
-                      CRTC_VGA_XOVERSCAN | CRTC_PIX_WIDTH |
-                      CRTC_BYTE_PIX_ORDER | CRTC_VGA_128KAP_PAGING |
-                      CRTC_VFC_SYNC_TRISTATE |
-                      CRTC_LOCK_REGS |  /* Already off, but ... */
-                      CRTC_SYNC_TRISTATE | CRTC_EXT_DISP_EN |
-                      CRTC_DISP_REQ_EN | CRTC_VGA_LINEAR | CRTC_VGA_TEXT_132 |
-                      CRTC_CUR_B_TEST);
-                /* Some of these are not relevent, but that doesn't matter */
-                switch (pATI->depth)
-                {
-                    case 1:
-                        pATIHW->crtc_gen_cntl |=
-                            SetBits(PIX_WIDTH_1BPP, CRTC_PIX_WIDTH);
-                        break;
-
-                    case 4:
-                        pATIHW->crtc_gen_cntl |=
-                            SetBits(PIX_WIDTH_4BPP, CRTC_PIX_WIDTH);
-                        break;
-
-                    case 8:
-                        pATIHW->crtc_gen_cntl |=
-                            SetBits(PIX_WIDTH_8BPP, CRTC_PIX_WIDTH);
-                        break;
-
-                    case 15:
-                        pATIHW->crtc_gen_cntl |=
-                            SetBits(PIX_WIDTH_15BPP, CRTC_PIX_WIDTH);
-                        break;
-
-                    case 16:
-                        pATIHW->crtc_gen_cntl |=
-                            SetBits(PIX_WIDTH_16BPP, CRTC_PIX_WIDTH);
-                        break;
-
-                    case 24:
-                        if (pATI->bitsPerPixel == 24)
-                        {
-                            pATIHW->crtc_gen_cntl |=
-                                SetBits(PIX_WIDTH_24BPP, CRTC_PIX_WIDTH);
-                            break;
-                        }
-                        if (pATI->bitsPerPixel != 32)
-                            break;
-                        /* Fall through */
-
-                    case 32:
-                        pATIHW->crtc_gen_cntl |=
-                            SetBits(PIX_WIDTH_32BPP, CRTC_PIX_WIDTH);
-                        break;
-
-                    default:
-                        break;
-                }
-#if 0           /* This isn't needed, but is kept for reference */
-                if (pMode->Flags & V_DBLSCAN)
-                    pATIHW->crtc_gen_cntl |= CRTC_DBL_SCAN_EN;
-#endif
-                if (pMode->Flags & V_INTERLACE)
-                    pATIHW->crtc_gen_cntl |= CRTC_INTERLACE_EN;
-                if ((pMode->Flags & (V_CSYNC | V_PCSYNC)) || pATI->OptionCSync)
-                    pATIHW->crtc_gen_cntl |= CRTC_CSYNC_EN;
-                if (pATI->depth <= 4)
-                    pATIHW->crtc_gen_cntl |= CRTC_EN | CRTC_CNT_EN;
-                else
-                    pATIHW->crtc_gen_cntl |=
-                        CRTC_EN | CRTC_VGA_LINEAR | CRTC_CNT_EN;
-            }
-            break;
-
-#endif /* AVOID_CPIO */
-
-        case ATI_CRTC_MACH64:
             /* Fill in Mach64 data */
             ATIMach64Calculate(pATI, pATIHW, pMode);
-            break;
-
-        default:
-            break;
     }
 
     /* Set up LCD register values */
@@ -925,16 +741,17 @@ ATIModeCalculate
             MaxScalerClock = 80000;     /* Conservative */
         pATIHW->pll_vclk_cntl &= ~PLL_ECP_DIV;
 #ifdef TV_OUT
-	if (!pATI->OptionTvOut) {
-#endif /* TV_OUT */
+	if (pATI->OptionTvOut) {
 	   /* XXX Don't do this for TVOut! */
+	}
+	else
+#endif /* TV_OUT */
+	{
 	   ECPClock = pMode->SynthClock;
 	   for (Index = 0;  (ECPClock > MaxScalerClock) && (Index < 2);  Index++)
 	      ECPClock >>= 1;
 	   pATIHW->pll_vclk_cntl |= SetBits(Index, PLL_ECP_DIV);
-#ifdef TV_OUT
 	}
-#endif /* TV_OUT */
     }
     else if (pATI->DAC == ATI_DAC_IBMRGB514)
     {
@@ -1070,7 +887,6 @@ ATIModeSet
 
 #endif /* AVOID_CPIO */
 
-    if (pATI->Chip >= ATI_CHIP_88800GXC)
     {
         /* Stop CRTC */
         outr(CRTC_GEN_CNTL,
@@ -1138,8 +954,7 @@ ATIModeSet
             PutReg(SEQX, 0x00U, 0x00U);
 
             /* Set pixel clock */
-            if ((pATIHW->FeedbackDivider > 0) &&
-                (pATI->ProgrammableClock > ATI_CLOCK_FIXED))
+            if ((pATIHW->FeedbackDivider > 0))
                 ATIClockSet(pATI, pATIHW);
 
             /* Set up RAMDAC */
@@ -1154,7 +969,6 @@ ATIModeSet
             ATIVGASet(pATI, pATIHW);
 
             /* Load Mach64 registers */
-            if (pATI->Chip >= ATI_CHIP_88800GXC)
             {
                 /* Load MMIO registers */
                 if (pATI->Block0Base)
@@ -1201,7 +1015,7 @@ ATIModeSet
 
 #ifndef AVOID_CPIO
 
-            if (pATI->UseSmallApertures)
+            if (pATI->VGAAdapter)
             {
                 /* Oddly enough, these need to be set also, maybe others */
                 PutReg(SEQX, 0x02U, pATIHW->seq[2]);
@@ -1302,7 +1116,7 @@ ATIModeSet
     /* Restore video memory */
     ATISwap(pScreenInfo->scrnIndex, pATI, pATIHW, TRUE);
 
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
         ATIVGASaveScreen(pATI, SCREEN_SAVER_OFF);       /* Turn on screen */
 
 #endif /* AVOID_CPIO */

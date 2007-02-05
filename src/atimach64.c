@@ -84,16 +84,6 @@ ATIMach64PreInit
 {
     CARD32 bus_cntl, config_cntl;
 
-#ifndef AVOID_CPIO
-
-    if (pATI->depth <= 4)
-    {
-        pATIHW->crtc_off_pitch = SetBits(pATI->displayWidth >> 4, CRTC_PITCH);
-    }
-    else
-
-#endif /* AVOID_CPIO */
-
     {
         pATIHW->crtc_off_pitch = SetBits(pATI->displayWidth >> 3, CRTC_PITCH);
     }
@@ -156,7 +146,7 @@ ATIMach64PreInit
 
 #ifndef AVOID_CPIO
 
-    if (pATI->UseSmallApertures)
+    if (pATI->VGAAdapter)
     {
         pATIHW->config_cntl |= CFG_MEM_VGA_AP_EN;
     }
@@ -168,7 +158,7 @@ ATIMach64PreInit
         pATIHW->config_cntl &= ~CFG_MEM_VGA_AP_EN;
     }
 
-    if (pATI->LinearBase && (pATI->Chip < ATI_CHIP_264CT))
+    if ((pATI->Chip < ATI_CHIP_264CT))
     {
         /* Replace linear aperture size and address */
         pATIHW->config_cntl &= ~(CFG_MEM_AP_LOC | CFG_MEM_AP_SIZE);
@@ -656,14 +646,15 @@ ATIMach64Calculate
     {
         pMode->Flags &= ~(V_PHSYNC | V_NHSYNC | V_PVSYNC | V_NVSYNC);
 
-        if (pATI->OptionPanelDisplay && (pATI->LCDPanelID >= 0)
-#ifdef TV_OUT
-       && !pATI->tvActive
-#endif
-)
+        if (pATI->OptionPanelDisplay && (pATI->LCDPanelID >= 0))
             VDisplay = pATI->LCDVertical;
         else
             VDisplay = pMode->CrtcVDisplay;
+
+#ifdef TV_OUT
+        if (pATI->tvActive)
+            VDisplay = pMode->CrtcVDisplay;
+#endif
 
         if (VDisplay < 400)
             pMode->Flags |= V_PHSYNC | V_NVSYNC;
@@ -722,19 +713,6 @@ ATIMach64Calculate
         CRTC_EXT_DISP_EN | CRTC_EN | CRTC_VGA_LINEAR | CRTC_CNT_EN;
     switch (pATI->depth)
     {
-
-#ifndef AVOID_CPIO
-
-        case 1:
-            pATIHW->crtc_gen_cntl |= SetBits(PIX_WIDTH_1BPP, CRTC_PIX_WIDTH);
-            break;
-
-        case 4:
-            pATIHW->crtc_gen_cntl |= SetBits(PIX_WIDTH_4BPP, CRTC_PIX_WIDTH);
-            break;
-
-#endif /* AVOID_CPIO */
-
         case 8:
             pATIHW->crtc_gen_cntl |= SetBits(PIX_WIDTH_8BPP, CRTC_PIX_WIDTH);
             break;
@@ -796,8 +774,7 @@ ATIMach64Set
 #endif /* AVOID_CPIO */
 
     {
-        if ((pATIHW->FeedbackDivider > 0) &&
-            (pATI->ProgrammableClock != ATI_CLOCK_NONE))
+        if ((pATIHW->FeedbackDivider > 0))
             ATIClockSet(pATI, pATIHW);          /* Programme clock */
 
         if (pATI->DAC == ATI_DAC_IBMRGB514)

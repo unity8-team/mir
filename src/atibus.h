@@ -38,19 +38,13 @@
  */
 typedef enum
 {
-    ATI_BUS_ISA = 0,
-    ATI_BUS_EISA,
-    ATI_BUS_MCA16,
-    ATI_BUS_MCA32,
-    ATI_BUS_SXLB,
-    ATI_BUS_DXLB,
-    ATI_BUS_VLB,
     ATI_BUS_PCI,
     ATI_BUS_AGP
 } ATIBusType;
 
 extern const char *ATIBusNames[];
 
-extern int ATIClaimBusSlot(DriverPtr, int, GDevPtr, Bool, ATIPtr);
+extern Bool ATIMach64ProbeIO(pciVideoPtr, ATIPtr);
+extern int  ATIClaimBusSlot(Bool, ATIPtr);
 
 #endif /* ___ATIBUS_H___ */

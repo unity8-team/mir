@@ -25,7 +25,6 @@
 #endif
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "atistruct.h"
 #include "atividmem.h"
 
@@ -87,7 +86,7 @@ ATIUnmapVGA
 
     xf86UnMapVidMem(iScreen, pATI->pBank, 0x00010000U);
 
-    pATI->pBank = pATI->BankInfo.pBankA = pATI->BankInfo.pBankB = NULL;
+    pATI->pBank = NULL;
 }
 
 #endif /* AVOID_CPIO */
@@ -104,18 +103,7 @@ ATIUnmapLinear
     ATIPtr pATI
 )
 {
-
-#ifdef AVOID_CPIO
-
-    if (!pATI->pMemory)
-        return;
-
-#else /* AVOID_CPIO */
-
-    if (pATI->pMemory != pATI->pBank)
-
-#endif /* AVOID_CPIO */
-
+    if (pATI->pMemory)
     {
         xf86UnMapVidMem(iScreen, pATI->pMemory, pATI->LinearSize);
 
@@ -179,35 +167,17 @@ ATIMapApertures
     ATIPtr pATI
 )
 {
-    pciVideoPtr   pVideo;
-    PCITAG        Tag;
-    unsigned long PageSize;
+    pciVideoPtr   pVideo = pATI->PCIInfo;
+    PCITAG        Tag = ((pciConfigPtr)(pVideo->thisCard))->tag;
+    unsigned long PageSize = getpagesize();
 
     if (pATI->Mapped)
         return TRUE;
 
 #ifndef AVOID_CPIO
 
-    if (pATI->VGAAdapter == ATI_ADAPTER_NONE)
-
-#endif /* AVOID_CPIO */
-
-    {
-        if (!pATI->LinearBase && !pATI->Block0Base)
-            return FALSE;
-    }
-
-    PageSize = getpagesize();
-
-    if ((pVideo = pATI->PCIInfo))
-        Tag = ((pciConfigPtr)(pVideo->thisCard))->tag;
-    else
-        Tag = 0;
-
-#ifndef AVOID_CPIO
-
     /* Map VGA aperture */
-    if (pATI->VGAAdapter != ATI_ADAPTER_NONE)
+    if (pATI->VGAAdapter)
     {
         /*
          * No relocation, resizing, caching or write-combining of this
@@ -222,10 +192,6 @@ ATIMapApertures
 
         if (!pATI->pBank)
             return FALSE;
-
-        pATI->pMemory =
-            pATI->BankInfo.pBankA =
-            pATI->BankInfo.pBankB = pATI->pBank;
 
         pATI->Mapped = TRUE;
     }

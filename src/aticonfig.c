@@ -30,7 +30,6 @@
 #include <string.h>
 
 #include "ati.h"
-#include "atiadapter.h"
 #include "atichip.h"
 #include "aticonfig.h"
 #include "aticursor.h"
@@ -113,6 +112,7 @@ ATIProcessOptions
 
     (void)memcpy(PublicOption, ATIPublicOptions, ATIPublicOptionSize);
 
+#   define ProbeSparse   PublicOption[ATI_OPTION_PROBE_SPARSE].value.bool
 #   define Accel         PublicOption[ATI_OPTION_ACCEL].value.bool
 #   define BIOSDisplay   PrivateOption[ATI_OPTION_BIOS_DISPLAY].value.bool
 #   define Blend         PrivateOption[ATI_OPTION_BLEND].value.bool
@@ -121,12 +121,6 @@ ATIProcessOptions
 #   define CSync         PublicOption[ATI_OPTION_CSYNC].value.bool
 #   define Devel         PrivateOption[ATI_OPTION_DEVEL].value.bool
 #   define HWCursor      PublicOption[ATI_OPTION_HWCURSOR].value.bool
-
-#ifndef AVOID_CPIO
-
-#   define Linear        PublicOption[ATI_OPTION_LINEAR].value.bool
-
-#endif /* AVOID_CPIO */
 
 #ifdef XF86DRI_DEVEL
 
@@ -149,7 +143,6 @@ ATIProcessOptions
 #   define CacheMMIO     PublicOption[ATI_OPTION_MMIO_CACHE].value.bool
 #   define TestCacheMMIO PublicOption[ATI_OPTION_TEST_MMIO_CACHE].value.bool
 #   define PanelDisplay  PublicOption[ATI_OPTION_PANEL_DISPLAY].value.bool
-#   define ProbeClocks   PublicOption[ATI_OPTION_PROBE_CLOCKS].value.bool
 #   define ShadowFB      PublicOption[ATI_OPTION_SHADOW_FB].value.bool
 #   define SWCursor      PublicOption[ATI_OPTION_SWCURSOR].value.bool
 #   define AccelMethod   PublicOption[ATI_OPTION_ACCELMETHOD].value.str
@@ -163,21 +156,8 @@ ATIProcessOptions
     xf86CollectOptions(pScreenInfo, NULL);
 
     /* Set non-zero defaults */
-
-#ifndef AVOID_CPIO
-
-    if (pATI->Adapter >= ATI_ADAPTER_MACH64)
-
-#endif /* AVOID_CPIO */
-
     {
         Accel = CacheMMIO = HWCursor = TRUE;
-
-#ifndef AVOID_CPIO
-
-        Linear = TRUE;
-
-#endif /* AVOID_CPIO */
 
 #ifdef TV_OUT
 
@@ -208,32 +188,14 @@ ATIProcessOptions
     xf86ProcessOptions(pScreenInfo->scrnIndex, pScreenInfo->options,
         PrivateOption);
 
-#ifndef AVOID_CPIO
-
-    /* Disable linear apertures if the OS doesn't support them */
-    if (!xf86LinearVidMem() && Linear)
-    {
-        if (PublicOption[ATI_OPTION_LINEAR].found)
-            xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
-                "OS does not support linear apertures.\n");
-        Linear = FALSE;
-    }
-
-#endif /* AVOID_CPIO */
-
     /* Move option values into driver private structure */
+    pATI->OptionProbeSparse = ProbeSparse;
     pATI->OptionAccel = Accel;
     pATI->OptionBIOSDisplay = BIOSDisplay;
     pATI->OptionBlend = Blend;
     pATI->OptionCRTDisplay = CRTDisplay;
     pATI->OptionCSync = CSync;
     pATI->OptionDevel = Devel;
-
-#ifndef AVOID_CPIO
-
-    pATI->OptionLinear = Linear;
-
-#endif /* AVOID_CPIO */
 
 #ifdef TV_OUT
 
@@ -262,7 +224,6 @@ ATIProcessOptions
 
     pATI->OptionMMIOCache = CacheMMIO;
     pATI->OptionTestMMIOCache = TestCacheMMIO;
-    pATI->OptionProbeClocks = ProbeClocks;
     pATI->OptionShadowFB = ShadowFB;
     pATI->OptionLCDSync = LCDSync;
 

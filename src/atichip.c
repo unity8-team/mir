@@ -36,27 +36,6 @@
 const char *ATIChipNames[] =
 {
     "Unknown",
-
-#ifndef AVOID_CPIO
-
-    "IBM VGA or compatible",
-    "ATI 18800",
-    "ATI 18800-1",
-    "ATI 28800-2",
-    "ATI 28800-4",
-    "ATI 28800-5",
-    "ATI 28800-6",
-    "IBM 8514/A",
-    "Chips & Technologies 82C480",
-    "ATI 38800-1",
-    "ATI 68800",
-    "ATI 68800-3",
-    "ATI 68800-6",
-    "ATI 68800LX",
-    "ATI 68800AX",
-
-#endif /* AVOID_CPIO */
-
     "ATI 88800GX-C",
     "ATI 88800GX-D",
     "ATI 88800GX-E",
@@ -121,52 +100,6 @@ const char *ATIChipNames[] =
 
 const char *ATIFoundryNames[] =
     { "SGS", "NEC", "KCS", "UMC", "TSMC", "5", "6", "UMC" };
-
-#ifndef AVOID_CPIO
-
-/*
- * ATIMach32ChipID --
- *
- * Set variables whose value is dependent upon an 68800's CHIP_ID register.
- */
-void
-ATIMach32ChipID
-(
-    ATIPtr pATI
-)
-{
-    CARD16 IOValue     = inw(CHIP_ID);
-    pATI->ChipType     = GetBits(IOValue, CHIP_CODE_0 | CHIP_CODE_1);
-    pATI->ChipClass    = GetBits(IOValue, CHIP_CLASS);
-    pATI->ChipRevision = GetBits(IOValue, CHIP_REV);
-    pATI->ChipRev      = pATI->ChipRevision;
-    if (IOValue == 0xFFFFU)
-        IOValue = 0;
-    switch (GetBits(IOValue, CHIP_CODE_0 | CHIP_CODE_1))
-    {
-        case OldChipID('A', 'A'):
-            pATI->Chip = ATI_CHIP_68800_3;
-            break;
-
-        case OldChipID('X', 'X'):
-            pATI->Chip = ATI_CHIP_68800_6;
-            break;
-
-        case OldChipID('L', 'X'):
-            pATI->Chip = ATI_CHIP_68800LX;
-            break;
-
-        case OldChipID('A', 'X'):
-            pATI->Chip = ATI_CHIP_68800AX;
-            break;
-
-        default:
-            pATI->Chip = ATI_CHIP_68800;
-            break;
-    }
-}
-
-#endif /* AVOID_CPIO */
 
 /*
  * ATIMach64ChipID --
@@ -456,23 +389,6 @@ ATIChipID
 {
     switch (ChipID)
     {
-
-#ifndef AVOID_CPIO
-
-        case OldChipID('A', 'A'):  case NewChipID('A', 'A'):
-            return ATI_CHIP_68800_3;
-
-        case OldChipID('X', 'X'):  case NewChipID('X', 'X'):
-            return ATI_CHIP_68800_6;
-
-        case OldChipID('L', 'X'):
-            return ATI_CHIP_68800LX;
-
-        case OldChipID('A', 'X'):  case NewChipID('A', 'X'):
-            return ATI_CHIP_68800AX;
-
-#endif /* AVOID_CPIO */
-
         case OldChipID('G', 'X'):  case NewChipID('G', 'X'):
             switch (ChipRev)
             {

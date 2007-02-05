@@ -34,12 +34,6 @@
 
 extern const char *ATIint10Symbols[], *ATIddcSymbols[], *ATIvbeSymbols[],
 
-#ifndef AVOID_CPIO
-
-                  *ATIxf1bppSymbols[], *ATIxf4bppSymbols[],
-
-#endif /* AVOID_CPIO */
-
 #ifdef XF86DRI_DEVEL
  
                   *ATIdrmSymbols[], *ATIdriSymbols[],

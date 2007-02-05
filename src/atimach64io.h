@@ -33,16 +33,16 @@
 
 #define ___ATIMACH64IO_H___ 1
 
-#include "atiio.h"
+#include "atiregs.h"
 #include "atistruct.h"
+
+#include "compiler.h"
 
 /*
  * A few important notes on some of the I/O statements provided:
  *
  * inl/outl     32-bit R/W through PIO space.  The register is specified as the
  *              actual PIO address.  These are actually defined in compiler.h.
- *
- * inw/outw     16-bit counterparts to inl/outl.  Not used for Mach64 support.
  *
  * inb/outb     8-bit counterparts to inl/outl.
  *
@@ -88,6 +88,13 @@
  *                                    accessed (nor by what).
  */
 
+/* I/O decoding definitions */
+typedef enum
+{
+    SPARSE_IO,
+    BLOCK_IO
+} ATIIODecodingType;
+
 #define inm(_Register)                                                   \
     MMIO_IN32(pATI->pBlock[GetBits(_Register, BLOCK_SELECT)],            \
               (_Register) & MM_IO_SELECT)
@@ -111,17 +118,13 @@
 
 /* Cause a cpp syntax error if any of these are used */
 #undef inb
-#undef inw
 #undef inl
 #undef outb
-#undef outw
 #undef outl
 
 #define inb()            /* Nothing */
-#define inw()            /* Nothing */
 #define inl()            /* Nothing */
 #define outb()           /* Nothing */
-#define outw()           /* Nothing */
 #define outl()           /* Nothing */
 
 #else /* AVOID_CPIO */

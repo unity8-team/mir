@@ -24,7 +24,6 @@
 #include "config.h"
 #endif
 
-#include "atiadapter.h"
 #include "atimach64xv.h"
 #include "atistruct.h"
 #include "atixv.h"
@@ -68,16 +67,9 @@ ATIXVInitializeAdaptor
     XF86VideoAdaptorPtr *ppAdaptor = NULL;
     int                 nAdaptor;
 
-    switch (pATI->Adapter)
     {
-        case ATI_ADAPTER_MACH64:
             nAdaptor = ATIMach64XVInitialiseAdaptor(pScreen, pScreenInfo, pATI,
                 &ppAdaptor);
-            break;
-
-        default:
-            nAdaptor = 0;
-            break;
     }
 
     if (pppAdaptor)
@@ -100,15 +92,6 @@ ATIXVPreInit
     ATIPtr      pATI
 )
 {
-
-#ifndef AVOID_CPIO
-
-    /* Currently a linear aperture is needed ... */
-    if (!pATI->LinearBase)
-        return;
-
-#endif /* AVOID_CPIO */
-
     (void)xf86XVRegisterGenericAdaptorDriver(ATIXVInitializeAdaptor);
 }
 
@@ -129,9 +112,7 @@ ATIInitializeXVideo
     int                 nAdaptor;
     Bool                result;
 
-    if (!(pScreenInfo->memPhysBase = pATI->LinearBase))
-        return FALSE;
-
+    pScreenInfo->memPhysBase = pATI->LinearBase;
     pScreenInfo->fbOffset = 0;
 
     nAdaptor = xf86XVListGenericAdaptors(pScreenInfo, &ppAdaptor);
@@ -156,13 +137,5 @@ ATICloseXVideo
     ATIPtr      pATI
 )
 {
-    switch (pATI->Adapter)
-    {
-        case ATI_ADAPTER_MACH64:
             ATIMach64CloseXVideo(pScreen, pScreenInfo, pATI);
-            break;
-
-        default:
-            break;
-    }
 }

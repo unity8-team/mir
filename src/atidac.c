@@ -29,7 +29,6 @@
 #include "ati.h"
 #include "atidac.h"
 #include "atimach64io.h"
-#include "atimono.h"
 
 /*
  * RAMDAC-related definitions.
@@ -186,55 +185,6 @@ ATIDACPreInit
             pATIHW->lut[Index2 + 1] = 0x00U;
             pATIHW->lut[Index2 + 2] = maxColour;
         }
-
-#ifndef AVOID_CPIO
-
-        if (pATI->depth == 1)
-        {
-            rgb blackColour = pScreenInfo->display->blackColour,
-                whiteColour = pScreenInfo->display->whiteColour;
-
-            if (blackColour.red > maxColour)
-                blackColour.red = maxColour;
-            if (blackColour.green > maxColour)
-                blackColour.green = maxColour;
-            if (blackColour.blue > maxColour)
-                blackColour.blue = maxColour;
-            if (whiteColour.red > maxColour)
-                whiteColour.red = maxColour;
-            if (whiteColour.green > maxColour)
-                whiteColour.green = maxColour;
-            if (whiteColour.blue > maxColour)
-                whiteColour.blue = maxColour;
-
-            if ((blackColour.red == whiteColour.red) &&
-                (blackColour.green == whiteColour.green) &&
-                (blackColour.blue == whiteColour.blue))
-            {
-                blackColour.red ^= maxColour;
-                blackColour.green ^= maxColour;
-                blackColour.blue ^= maxColour;
-            }
-
-            pATIHW->lut[(MONO_BLACK * 3) + 0] = blackColour.red;
-            pATIHW->lut[(MONO_BLACK * 3) + 1] = blackColour.green;
-            pATIHW->lut[(MONO_BLACK * 3) + 2] = blackColour.blue;
-            pATIHW->lut[(MONO_WHITE * 3) + 0] = whiteColour.red;
-            pATIHW->lut[(MONO_WHITE * 3) + 1] = whiteColour.green;
-            pATIHW->lut[(MONO_WHITE * 3) + 2] = whiteColour.blue;
-        }
-
-        if (pATIHW->crtc == ATI_CRTC_VGA)
-        {
-            /* Initialise overscan to black */
-            Index = pATIHW->attr[17] * 3;
-            pATIHW->lut[Index + 0] =
-                pATIHW->lut[Index + 1] =
-                pATIHW->lut[Index + 2] = 0x00U;
-        }
-
-#endif /* AVOID_CPIO */
-
     }
 }
 
@@ -370,6 +320,44 @@ ATIDACSet
 }
 
 /*
+ * ATISetLUTEntry --
+ *
+ * This function is called to set one of a DAC's LUT entries.
+ */
+static void
+ATISetLUTEntry
+(
+    ATIPtr pATI,
+    int    Index,
+    CARD8  *LUTEntry
+)
+{
+#ifdef AVOID_CPIO
+
+    out8(M64_DAC_WRITE, Index);
+    DACDelay;
+    out8(M64_DAC_DATA, LUTEntry[0]);
+    DACDelay;
+    out8(M64_DAC_DATA, LUTEntry[1]);
+    DACDelay;
+    out8(M64_DAC_DATA, LUTEntry[2]);
+    DACDelay;
+
+#else /* AVOID_CPIO */
+
+    outb(pATI->CPIO_DAC_WRITE, Index);
+    DACDelay;
+    outb(pATI->CPIO_DAC_DATA, LUTEntry[0]);
+    DACDelay;
+    outb(pATI->CPIO_DAC_DATA, LUTEntry[1]);
+    DACDelay;
+    outb(pATI->CPIO_DAC_DATA, LUTEntry[2]);
+    DACDelay;
+
+#endif /* AVOID_CPIO */
+}
+
+/*
  * ATILoadPalette --
  *
  * This function updates the RAMDAC's LUT and the in-memory copy of it in
@@ -450,35 +438,8 @@ ATILoadPalette
             for (Index = 0;
                  Index < (SizeOf(pATI->NewHW.lut) / 3);
                  Index += i, LUTEntry += i * 3)
-            {
-                if (!fChanged[Index])
-                    continue;
-
-#ifdef AVOID_CPIO
-
-                out8(M64_DAC_WRITE, Index);
-                DACDelay;
-                out8(M64_DAC_DATA, LUTEntry[0]);
-                DACDelay;
-                out8(M64_DAC_DATA, LUTEntry[1]);
-                DACDelay;
-                out8(M64_DAC_DATA, LUTEntry[2]);
-                DACDelay;
-
-#else /* AVOID_CPIO */
-
-                outb(pATI->CPIO_DAC_WRITE, Index);
-                DACDelay;
-                outb(pATI->CPIO_DAC_DATA, LUTEntry[0]);
-                DACDelay;
-                outb(pATI->CPIO_DAC_DATA, LUTEntry[1]);
-                DACDelay;
-                outb(pATI->CPIO_DAC_DATA, LUTEntry[2]);
-                DACDelay;
-
-#endif /* AVOID_CPIO */
-
-            }
+                if (fChanged[Index])
+                    ATISetLUTEntry(pATI, Index, LUTEntry);
         }
     }
     else
@@ -495,33 +456,7 @@ ATILoadPalette
             LUTEntry[2] = Colours[Index].blue;
 
             if (pScreenInfo->vtSema || pATI->currentMode)
-            {
-
-#ifdef AVOID_CPIO
-
-                out8(M64_DAC_WRITE, Index);
-                DACDelay;
-                out8(M64_DAC_DATA, LUTEntry[0]);
-                DACDelay;
-                out8(M64_DAC_DATA, LUTEntry[1]);
-                DACDelay;
-                out8(M64_DAC_DATA, LUTEntry[2]);
-                DACDelay;
-
-#else /* AVOID_CPIO */
-
-                outb(pATI->CPIO_DAC_WRITE, Index);
-                DACDelay;
-                outb(pATI->CPIO_DAC_DATA, LUTEntry[0]);
-                DACDelay;
-                outb(pATI->CPIO_DAC_DATA, LUTEntry[1]);
-                DACDelay;
-                outb(pATI->CPIO_DAC_DATA, LUTEntry[2]);
-                DACDelay;
-
-#endif /* AVOID_CPIO */
-
-            }
+                ATISetLUTEntry(pATI, Index, LUTEntry);
         }
     }
 }
