@@ -374,7 +374,7 @@ I830EXAInit(ScreenPtr pScreen)
      */
     if (IS_I965G(pI830)) {
 	pI830->EXADriverPtr->pixmapOffsetAlign = 4 * 2;
-	pI830->EXADriverPtr->pixmapPitchAlign = 1;
+	pI830->EXADriverPtr->pixmapPitchAlign = 16;
 	pI830->EXADriverPtr->maxX = 8192;
 	pI830->EXADriverPtr->maxY = 8192;
     } else {
