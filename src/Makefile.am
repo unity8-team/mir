@@ -94,7 +94,16 @@ intel_drv_la_SOURCES = \
 	 i830_xaa.c \
 	 i830_render.c \
 	 i915_render.c \
-	 i965_render.c
+	 i965_render.c \
+	 i830_xf86Rename.h \
+	 local_xf86Rename.h \
+	 xf86Parser.h \
+	 xf86Optrec.h \
+	 i830_randr.h
+
+EXTRA_DIST = \
+	packed_yuv_sf.g4a \
+	packed_yuv_wm.g4a
 
 if HAVE_GEN4ASM
 sf_prog.h: packed_yuv_sf.g4a
@@ -109,6 +118,14 @@ exa_wm_nomask_prog.h: exa_wm_nomask.g4a
 	intel-gen4asm -o exa_wm_nomask_prog.h exa_wm_nomask.g4a
 exa_wm_masknoca_prog.h: exa_wm_masknoca.g4a
 	intel-gen4asm -o exa_wm_masknoca_prog.h exa_wm_masknoca.g4a
+else
+EXTRA_DIST += \
+	sf_prog.h		\
+	wm_prog.h 		\
+	exa_sf_prog.h 		\
+	exa_sf_mask_prog.h	\
+	exa_wm_nomask_prog.h 	\
+	exa_wm_masknoca_prog.h
 endif
 
 if DRI
@@ -119,10 +136,6 @@ intel_drv_la_SOURCES += \
          i810_hwmc.c \
          i830_dri.h 
 endif
-
-EXTRA_DIST = \
-	packed_yuv_sf.g4a \
-	packed_yuv_wm.g4a
 
 install-data-local: install-intel_drv_laLTLIBRARIES
 	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so && ln -s intel_drv.so i810_drv.so)
