@@ -932,7 +932,6 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
      */
     for (i = 0; i < 2; i++) {
 	pRADEONEnt->PortInfo[i]->MonType = MT_UNKNOWN;
-	pRADEONEnt->pOutput[i]->MonInfo = NULL;
 	pRADEONEnt->PortInfo[i]->DDCType = DDC_NONE_DETECTED;
 	pRADEONEnt->PortInfo[i]->DACType = DAC_UNKNOWN;
 	pRADEONEnt->PortInfo[i]->TMDSType = TMDS_UNKNOWN;
@@ -944,14 +943,12 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
         (pRADEONEnt->PortInfo[1]->DDCType == 0))) {
 	/* Below is the most common setting, but may not be true */
 	pRADEONEnt->PortInfo[0]->MonType = MT_UNKNOWN;
-	pRADEONEnt->pOutput[0]->MonInfo = NULL;
 	pRADEONEnt->PortInfo[0]->DDCType = DDC_DVI;
 	pRADEONEnt->PortInfo[0]->DACType = DAC_TVDAC;
 	pRADEONEnt->PortInfo[0]->TMDSType = TMDS_INT;
 	pRADEONEnt->PortInfo[0]->ConnectorType = CONNECTOR_DVI_I;
 
 	pRADEONEnt->PortInfo[1]->MonType = MT_UNKNOWN;
-	pRADEONEnt->pOutput[1]->MonInfo = NULL;
 	pRADEONEnt->PortInfo[1]->DDCType = DDC_VGA;
 	pRADEONEnt->PortInfo[1]->DACType = DAC_PRIMARY;
 	pRADEONEnt->PortInfo[1]->TMDSType = TMDS_EXT;
