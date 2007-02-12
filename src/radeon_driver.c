@@ -2424,17 +2424,6 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
       
     RADEONMapControllers(pScrn);
 
-    info->HBlank     = 0;
-    info->HOverPlus  = 0;
-    info->HSyncWidth = 0;
-    info->VBlank     = 0;
-    info->VOverPlus  = 0;
-    info->VSyncWidth = 0;
-    info->DotClock   = 0;
-    info->UseBiosDividers = FALSE;
-
-    info->OverlayOnCRTC2 = FALSE;
-
     RADEONGetClockInfo(pScrn);
     RADEONGetPanelInfo(pScrn);
     RADEONGetTVDacAdjInfo(pScrn);

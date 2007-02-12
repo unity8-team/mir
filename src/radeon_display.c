@@ -1115,6 +1115,7 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
       int DDCReg = 0;
       char *names[] = { "DDC1", "DDC2" };
 
+      RADEONSetOutputType(pScrn, radeon_output);
       switch(radeon_output->DDCType) {
       case DDC_MONID: DDCReg = RADEON_GPIO_MONID; break;
       case DDC_DVI  : DDCReg = RADEON_GPIO_DVI_DDC; break;
@@ -1135,7 +1136,8 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
       if (radeon_output->type == OUTPUT_DVI) {
 	RADEONGetTMDSInfo(pScrn);
 
-	RADEONGetHardCodedEDIDFromBios(pScrn);
+	if (i == 0)
+		RADEONGetHardCodedEDIDFromBios(pScrn);
 
 	RADEONUpdatePanelSize(pScrn);
 
@@ -2519,7 +2521,6 @@ Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
     /* for now always allocate max connectors */
     for (i = 0 ; i < RADEON_MAX_CONNECTOR; i++) {
 
-	RADEONSetOutputType(pScrn, pRADEONEnt->PortInfo[i]);
 
 	pRADEONEnt->pOutput[i] = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[pRADEONEnt->PortInfo[i]->type]);
 	if (!pRADEONEnt->pOutput[i])

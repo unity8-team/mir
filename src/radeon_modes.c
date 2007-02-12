@@ -309,7 +309,6 @@ RADEONProbeOutputModes(xf86OutputPtr output)
       
       if (modes == NULL) {
 	MonRec fixed_mon;
-	DisplayModePtr modes;
 	
 	RADEONValidateFPModes(pScrn, pScrn->display->modes, &modes);
       }
