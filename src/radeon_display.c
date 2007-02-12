@@ -2277,7 +2277,6 @@ radeon_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green,
 	radeon_crtc->lut_b[i] = blue[i] >> 8;
     }
 
-    ErrorF("Loading lut %d\n", radeon_crtc->crtc_id);
     radeon_crtc_load_lut(crtc);
 }
 
@@ -2287,14 +2286,7 @@ radeon_crtc_lock(xf86CrtcPtr crtc)
   ScrnInfoPtr		pScrn = crtc->scrn;
   RADEONInfoPtr  info = RADEONPTR(pScrn);
   Bool           CPStarted   = info->CPStarted;
-  if (info->accelOn)
-    RADEON_SYNC(info, pScrn);
-#ifdef XF86DRI
-    if (info->CPStarted) {
-	DRILock(pScrn->pScreen, 0);
-	RADEONCP_STOP(pScrn, info);
-    }
-#endif
+
     return FALSE;
 }
 
@@ -2303,18 +2295,6 @@ radeon_crtc_unlock(xf86CrtcPtr crtc)
 {
   ScrnInfoPtr		pScrn = crtc->scrn;
   RADEONInfoPtr  info = RADEONPTR(pScrn);
-
-  if (info->accelOn) {
-    RADEON_SYNC(info, pScrn);
-    RADEONEngineRestore(pScrn);
-    
-}
-#ifdef XF86DRI
-  if (info->CPStarted) {
-    RADEONCP_START(pScrn, info);
-    DRIUnlock(pScrn->pScreen);
-  }
-#endif
 
 }
 

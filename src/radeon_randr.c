@@ -628,7 +628,13 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	RADEONInfoPtr  info = RADEONPTR(pScrn);
 	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 	crtc->enabled = mode != NULL;
-	
+
+#if 0//def XF86DRI
+	if (info->CPStarted) {
+	  DRILock(pScrn->pScreen, 0);
+	  RADEONCP_STOP(pScrn, info);
+	}
+#endif	
 	if (info->accelOn)
 	    RADEON_SYNC(info, pScrn);
 
@@ -659,7 +665,18 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	}
 	if (info->DispPriority)
 	  RADEONInitDispBandwidth(pScrn);
-    
+
+	if (info->accelOn) {
+	  RADEON_SYNC(info, pScrn);
+//	  RADEONEngineRestore(pScrn);
+	}
+
+#if 0 //ef XF86DRI
+	if (info->CPStarted) {
+	  RADEONCP_START(pScrn, info);
+	  DRIUnlock(pScrn->pScreen);
+	}
+#endif
     }
     if (changed && mode)
 	RADEONCrtcSetBase(crtc, x, y);
