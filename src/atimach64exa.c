@@ -638,15 +638,6 @@ Bool ATIMach64ExaInit(ScreenPtr pScreen)
     ATIPtr pATI = ATIPTR(pScreenInfo);
     ExaDriverPtr pExa;
 
-    /* FIXME: which chips support EXA ? */
-    if (pATI->Chip < ATI_CHIP_264CT)
-    {
-        xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
-            "EXA is not supported for ATI chips earlier than "
-            "the ATI Mach64.\n");
-        return FALSE;
-    }
-
     pExa = exaDriverAlloc();
     if (!pExa)
         return FALSE;

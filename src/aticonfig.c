@@ -156,23 +156,24 @@ ATIProcessOptions
     xf86CollectOptions(pScreenInfo, NULL);
 
     /* Set non-zero defaults */
-    {
-        Accel = CacheMMIO = HWCursor = TRUE;
-
-#ifdef TV_OUT
-
-	TvStd = "None";  /* No tv standard change requested */
-
-#endif
-    }
+    Accel = CacheMMIO = HWCursor = TRUE;
 
     ReferenceClock = ((double)157500000.0) / ((double)11.0);
 
     ShadowFB = TRUE;
 
     Blend = PanelDisplay = TRUE;
+
+#ifdef USE_EXA
+    RenderAccel = TRUE;
+#endif
+
 #ifdef XF86DRI_DEVEL
     DMAMode = "async";
+#endif
+
+#ifdef TV_OUT
+    TvStd = "None";  /* No tv standard change requested */
 #endif
 
     xf86ProcessOptions(pScreenInfo->scrnIndex, pScreenInfo->options,
@@ -315,9 +316,11 @@ ATIProcessOptions
             pATI->useEXA ? "EXA" : "XAA");
 
 #if defined(USE_EXA)
-        pATI->RenderAccelEnabled = FALSE;
-        if (pATI->useEXA && RenderAccel)
+        if (pATI->useEXA && pATI->Chip >= ATI_CHIP_264GTPRO)
             pATI->RenderAccelEnabled = TRUE;
+
+        if (pATI->useEXA && !RenderAccel)
+            pATI->RenderAccelEnabled = FALSE;
 #endif
     }
 
