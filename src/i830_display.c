@@ -1132,6 +1132,91 @@ i830ReleaseLoadDetectPipe(xf86OutputPtr output)
     }
 }
 
+/* Returns the clock of the currently programmed mode of the given pipe. */
+static int
+i830_crtc_clock_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    int pipe = intel_crtc->pipe;
+    CARD32 dpll = INREG((pipe == 0) ? DPLL_A : DPLL_B);
+    CARD32 fp;
+    intel_clock_t clock;
+
+    if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
+	fp = INREG((pipe == 0) ? FPA0 : FPB0);
+    else
+	fp = INREG((pipe == 0) ? FPA1 : FPB1);
+
+    clock.m1 = (fp & FP_M1_DIV_MASK) >> FP_M1_DIV_SHIFT;
+    clock.m2 = (fp & FP_M2_DIV_MASK) >> FP_M2_DIV_SHIFT;
+    clock.n = (fp & FP_N_DIV_MASK) >> FP_N_DIV_SHIFT;
+    clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK) >>
+		   DPLL_FPA01_P1_POST_DIV_SHIFT);
+    switch (dpll & DPLL_MODE_MASK) {
+    case DPLLB_MODE_DAC_SERIAL:
+	clock.p2 = dpll & DPLL_DAC_SERIAL_P2_CLOCK_DIV_5 ? 5 : 10;
+	break;
+    case DPLLB_MODE_LVDS:
+	clock.p2 = dpll & DPLLB_LVDS_P2_CLOCK_DIV_7 ? 7 : 14;
+	break;
+    default:
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Unknown DPLL mode %08x in programmed mode\n",
+		   (int)(dpll & DPLL_MODE_MASK));
+	return 0;
+    }
+    
+    /* XXX: Handle the 100Mhz refclk */
+    if (IS_I9XX(pI830))
+	i9xx_clock(96000, &clock);
+    else
+	i9xx_clock(48000, &clock);
+
+    if (!i830PllIsValid(crtc, &clock)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Bad clock found programmed in pipe %c\n",
+		   pipe == 0 ? 'A' : 'B');
+	i830PrintPll("", &clock);
+    }
+
+    return clock.dot;
+}
+
+/** Returns the currently programmed mode of the given pipe. */
+DisplayModePtr
+i830_crtc_mode_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    int pipe = intel_crtc->pipe;
+    DisplayModePtr mode;
+    int htot = INREG((pipe == 0) ? HTOTAL_A : HTOTAL_B);
+    int hsync = INREG((pipe == 0) ? HSYNC_A : HSYNC_B);
+    int vtot = INREG((pipe == 0) ? VTOTAL_A : VTOTAL_B);
+    int vsync = INREG((pipe == 0) ? VSYNC_A : VSYNC_B);
+
+    mode = xcalloc(1, sizeof(DisplayModeRec));
+    if (mode == NULL)
+	return NULL;
+
+    memset(mode, 0, sizeof(*mode));
+
+    mode->Clock = i830_crtc_clock_get(pScrn, crtc);
+    mode->HDisplay = (htot & 0xffff) + 1;
+    mode->HTotal = ((htot & 0xffff0000) >> 16) + 1;
+    mode->HSyncStart = (hsync & 0xffff) + 1;
+    mode->HSyncEnd = ((hsync & 0xffff0000) >> 16) + 1;
+    mode->VDisplay = (vtot & 0xffff) + 1;
+    mode->VTotal = ((vtot & 0xffff0000) >> 16) + 1;
+    mode->VSyncStart = (vsync & 0xffff) + 1;
+    mode->VSyncEnd = ((vsync & 0xffff0000) >> 16) + 1;
+    xf86SetModeDefaultName(mode);
+    xf86SetModeCrtc(mode, 0);
+
+    return mode;
+}
+
 static const xf86CrtcFuncsRec i830_crtc_funcs = {
     .dpms = i830_crtc_dpms,
     .save = NULL, /* XXX */

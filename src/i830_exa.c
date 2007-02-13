@@ -346,7 +346,8 @@ I830EXAInit(ScreenPtr pScreen)
      * i965 limits 3D surface to 4kB-aligned offset if tiled.
      * i965 limits 3D surfaces to w,h of ?,8192.
      * i965 limits 3D surface to pitch of 1B - 128kB.
-     * i965 limits 3D surface pitch alignment to 512B, only if tiled.
+     * i965 limits 3D surface pitch alignment to 1 or 2 times the element size.
+     * i965 limits 3D surface pitch alignment to 512B if tiled.
      * i965 limits 3D destination drawing rect to w,h of 8192,8192.
      *
      * i915 limits 3D textures to 4B-aligned offset if un-tiled.
@@ -374,7 +375,7 @@ I830EXAInit(ScreenPtr pScreen)
      */
     if (IS_I965G(pI830)) {
 	pI830->EXADriverPtr->pixmapOffsetAlign = 4 * 2;
-	pI830->EXADriverPtr->pixmapPitchAlign = 1;
+	pI830->EXADriverPtr->pixmapPitchAlign = 16;
 	pI830->EXADriverPtr->maxX = 8192;
 	pI830->EXADriverPtr->maxY = 8192;
     } else {

@@ -21,10 +21,10 @@
 # Process this file with autoconf to produce a configure script
 
 AC_PREREQ(2.57)
-AC_INIT([xf86-video-i810],
+AC_INIT([xf86-video-intel],
         1.7.2,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
-        xf86-video-i810)
+        xf86-video-intel)
 
 AC_DEFINE_UNQUOTED([INTEL_VERSION_MAJOR],
 		   [$(echo $PACKAGE_VERSION | sed -e 's/^\([[0-9]]\)\.[[0-9]]\.[[0-9]]/\1/')],
@@ -139,7 +139,7 @@ AC_SUBST([XORG_CFLAGS])
 AC_SUBST([WARN_CFLAGS])
 AC_SUBST([moduledir])
 
-DRIVER_NAME=i810
+DRIVER_NAME=intel
 AC_SUBST([DRIVER_NAME])
 
 XORG_MANPAGE_SECTIONS

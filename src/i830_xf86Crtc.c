@@ -273,6 +273,7 @@ typedef enum {
     OPTION_DISABLE,
     OPTION_MIN_CLOCK,
     OPTION_MAX_CLOCK,
+    OPTION_IGNORE,
 } OutputOpts;
 
 static OptionInfoRec xf86OutputOptions[] = {
@@ -286,6 +287,7 @@ static OptionInfoRec xf86OutputOptions[] = {
     {OPTION_DISABLE,	    "Disable",		OPTV_BOOLEAN, {0}, FALSE },
     {OPTION_MIN_CLOCK,	    "MinClock",		OPTV_FREQ,    {0}, FALSE },
     {OPTION_MAX_CLOCK,	    "MaxClock",		OPTV_FREQ,    {0}, FALSE },
+    {OPTION_IGNORE,	    "Ignore",		OPTV_BOOLEAN, {0}, FALSE },
     {-1,		    NULL,		OPTV_NONE,    {0}, FALSE },
 };
 
@@ -295,6 +297,9 @@ xf86OutputSetMonitor (xf86OutputPtr output)
     char    *option_name;
     static const char monitor_prefix[] = "monitor-";
     char    *monitor;
+
+    if (!output->name)
+	return;
 
     if (output->options)
 	xfree (output->options);
@@ -332,6 +337,12 @@ xf86OutputEnabled (xf86OutputPtr    output)
     return TRUE;
 }
 
+static Bool
+xf86OutputIgnored (xf86OutputPtr    output)
+{
+    return xf86ReturnOptValBool (output->options, OPTION_IGNORE, FALSE);
+}
+
 xf86OutputPtr
 xf86OutputCreate (ScrnInfoPtr		    scrn,
 		  const xf86OutputFuncsRec *funcs,
@@ -339,20 +350,37 @@ xf86OutputCreate (ScrnInfoPtr		    scrn,
 {
     xf86OutputPtr	output, *outputs;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-    int			len = strlen (name);
+    int			len;
 
-    output = xcalloc (sizeof (xf86OutputRec) + len + 1, 1);
+    if (name)
+	len = strlen (name) + 1;
+    else
+	len = 0;
+
+    output = xcalloc (sizeof (xf86OutputRec) + len, 1);
     if (!output)
 	return NULL;
     output->scrn = scrn;
     output->funcs = funcs;
-    output->name = (char *) (output + 1);
+    if (name)
+    {
+	output->name = (char *) (output + 1);
+	strcpy (output->name, name);
+    }
     output->subpixel_order = SubPixelUnknown;
-    strcpy (output->name, name);
 #ifdef RANDR_12_INTERFACE
     output->randr_output = NULL;
 #endif
-    xf86OutputSetMonitor (output);
+    if (name)
+    {
+	xf86OutputSetMonitor (output);
+	if (xf86OutputIgnored (output))
+	{
+	    xfree (output);
+	    return FALSE;
+	}
+    }
+    
     
     if (xf86_config->output)
 	outputs = xrealloc (xf86_config->output,
@@ -374,17 +402,19 @@ xf86OutputCreate (ScrnInfoPtr		    scrn,
 Bool
 xf86OutputRename (xf86OutputPtr output, const char *name)
 {
-    int	    len = strlen(name);
-    char    *newname = xalloc (len + 1);
+    int	    len = strlen(name) + 1;
+    char    *newname = xalloc (len);
     
     if (!newname)
 	return FALSE;	/* so sorry... */
     
     strcpy (newname, name);
-    if (output->name != (char *) (output + 1))
+    if (output->name && output->name != (char *) (output + 1))
 	xfree (output->name);
     output->name = newname;
     xf86OutputSetMonitor (output);
+    if (xf86OutputIgnored (output))
+	return FALSE;
     return TRUE;
 }
 
@@ -407,7 +437,7 @@ xf86OutputDestroy (xf86OutputPtr output)
 	    xf86_config->num_output--;
 	    break;
 	}
-    if (output->name != (char *) (output + 1))
+    if (output->name && output->name != (char *) (output + 1))
 	xfree (output->name);
     xfree (output);
 }

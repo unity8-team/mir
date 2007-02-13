@@ -232,21 +232,6 @@ enum last_3d {
     LAST_3D_ROTATION
 };
 
-#if 0
-typedef struct _I830PipeRec {
-   Bool		  enabled;
-   int		  x;
-   int		  y;
-   Bool		  cursorInRange;
-   Bool		  cursorShown;
-   DisplayModeRec curMode;
-   DisplayModeRec desiredMode;
-#ifdef RANDR_12_INTERFACE
-   RRCrtcPtr	  randr_crtc;
-#endif
-} I830PipeRec, *I830PipePtr;
-#endif
-
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
    unsigned char *FbBase;
@@ -604,6 +589,9 @@ extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 
 /* return a mask of output indices matching outputs against type_mask */
 int i830_output_clones (ScrnInfoPtr pScrn, int type_mask);
+
+/* i830_bios.c */
+DisplayModePtr i830_bios_get_panel_mode(ScrnInfoPtr pScrn);
 
 /* i830_display.c */
 Bool
