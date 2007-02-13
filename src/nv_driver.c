@@ -87,6 +87,28 @@ _X_EXPORT DriverRec NV = {
         0
 };
 
+struct NvFamily
+{
+  char *name;
+  char *chipset;
+};
+
+static struct NvFamily NVKnownFamilies[] =
+{
+  { "RIVA 128",    "NV03" },
+  { "RIVA TNT",    "NV04" },
+  { "RIVA TNT2",   "NV05" },
+  { "GeForce 256", "NV10" },
+  { "GeForce 2",   "NV11, NV15" },
+  { "GeForce 4MX", "NV17, NV18" },
+  { "GeForce 3",   "NV20" },
+  { "GeForce 4Ti", "NV25, NV28" },
+  { "GeForce FX",  "NV3x" },
+  { "GeForce 6",   "NV4x" },
+  { "GeForce 7",   "G7x" },
+  { NULL, NULL}
+};
+
 /* Known cards as of 2006/06/16 */
 
 static SymTabRec NVKnownChipsets[] =
@@ -509,7 +531,7 @@ NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
 	memalloc.region_offset = 0;
 	if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_ALLOC, &memalloc,
 				sizeof(memalloc))) {
-		ErrorF("NOUVEAU_MEM_ALLOC failed.  flags=0x%08x, size=%d (%d)\n",
+		ErrorF("NOUVEAU_MEM_ALLOC failed.  flags=0x%08x, size=%lld (%d)\n",
 				mem->type, mem->size, errno);
 		free(mem);
 		return NULL;
@@ -517,7 +539,7 @@ NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
 	mem->offset=memalloc.region_offset;
 
 	if (drmMap(pNv->drm_fd, mem->offset, mem->size, &mem->map)) {
-		ErrorF("drmMap() failed. offset=0x%llx, size=%d (%d)\n",
+		ErrorF("drmMap() failed. offset=0x%llx, size=%lld (%d)\n",
 				mem->offset, mem->size, errno);
 		mem->map  = NULL;
 		NVFreeMemory(pNv, mem);
@@ -534,7 +556,7 @@ void NVFreeMemory(NVPtr pNv, NVAllocRec *mem)
 	if (mem) {
 		if (mem->map) {
 			if (drmUnmap(mem->map, mem->size))
-				ErrorF("drmUnmap() failed. map=%p, size=%d\n", mem->map, mem->size);
+				ErrorF("drmUnmap() failed. map=%p, size=%lld\n", mem->map, mem->size);
 		}
 
 		memfree.flags = mem->type;
@@ -630,8 +652,34 @@ NVAvailableOptions(int chipid, int busid)
 static void
 NVIdentify(int flags)
 {
+    struct NvFamily *family;
+    size_t maxLen=0;
+
     xf86DrvMsg(0, X_INFO, NV_NAME " driver " NV_DRIVER_DATE "\n");
-    xf86PrintChipsets(NV_NAME, "driver for NVIDIA chipsets", NVKnownChipsets);
+    xf86DrvMsg(0, X_INFO, NV_NAME " driver for NVIDIA chipset families :\n");
+
+    /* maximum length for alignment */
+    family = NVKnownFamilies;
+    while(family->name && family->chipset)
+    {
+        maxLen = max(maxLen, strlen(family->name));
+        family++;
+    }
+
+    /* display */
+    family = NVKnownFamilies;
+    while(family->name && family->chipset)
+    {
+        size_t len = strlen(family->name);
+        xf86ErrorF("\t%s", family->name);
+        while(len<maxLen+1)
+        {
+            xf86ErrorF(" ");
+            len++;
+        }
+        xf86ErrorF("(%s)\n", family->chipset);
+        family++;
+    }
 }
 
 
@@ -1687,7 +1735,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"Allocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
+			"Allocated %lldMiB VRAM for framebuffer + offscreen pixmaps\n",
 			pNv->FB->size >> 20
 			);
 
