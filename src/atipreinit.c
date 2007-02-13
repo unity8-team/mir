@@ -2241,29 +2241,25 @@ ATIPreInit
 
     pitchInc = minPitch * pATI->bitsPerPixel;
 
+    pScreenInfo->maxHValue = (MaxBits(CRTC_H_TOTAL) + 1) << 3;
+
+    if (pATI->Chip < ATI_CHIP_264VT)
     {
-            pScreenInfo->maxHValue = (MaxBits(CRTC_H_TOTAL) + 1) << 3;
+        /*
+         * ATI finally fixed accelerated doublescanning in the 264VT
+         * and later.  On 88800's, the bit is documented to exist, but
+         * only doubles the vertical timings.  On the 264CT and 264ET,
+         * the bit is ignored.
+         */
+        ATIClockRange.doubleScanAllowed = FALSE;
 
-            if (pATI->Chip < ATI_CHIP_264VT)
-            {
-                /*
-                 * ATI finally fixed accelerated doublescanning in the 264VT
-                 * and later.  On 88800's, the bit is documented to exist, but
-                 * only doubles the vertical timings.  On the 264CT and 264ET,
-                 * the bit is ignored.
-                 */
-                ATIClockRange.doubleScanAllowed = FALSE;
-
-                /* CRTC_H_TOTAL is one bit narrower */
-                pScreenInfo->maxHValue >>= 1;
-            }
-
-            pScreenInfo->maxVValue = MaxBits(CRTC_V_TOTAL) + 1;
-
-            maxPitch = MaxBits(CRTC_PITCH);
+        /* CRTC_H_TOTAL is one bit narrower */
+        pScreenInfo->maxHValue >>= 1;
     }
 
-    maxPitch *= minPitch;
+    pScreenInfo->maxVValue = MaxBits(CRTC_V_TOTAL) + 1;
+
+    maxPitch = minPitch * MaxBits(CRTC_PITCH);
 
     if (pATI->OptionAccel)
     {
@@ -2273,6 +2269,7 @@ ATIPreInit
          */
         if (maxPitch > (ATIMach64MaxX / pATI->XModifier))
             maxPitch = ATIMach64MaxX / pATI->XModifier;
+
         maxHeight = ATIMach64MaxY;
 
         /*
