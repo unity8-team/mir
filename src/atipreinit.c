@@ -181,7 +181,7 @@ ATIPreInit
     int              MinX, MinY;
     ClockRange       ATIClockRange = {NULL, 0, 80000, -1, TRUE, TRUE, 1, 1, 0};
     int              DefaultmaxClock = 0;
-    int              minPitch, maxPitch = 0xFFU, maxHeight = 0;
+    int              minPitch, maxPitch = 0xFFU, pitchInc, maxHeight = 0;
     int              ApertureSize = 0x00010000U;
     int              ModeType = M_T_BUILTIN;
     LookupModeFlags  Strategy = LOOKUP_CLOSEST_CLOCK;
@@ -2239,11 +2239,7 @@ ATIPreInit
         minPitch = 16;
     }
 
-    pATI->pitchInc = minPitch;
-
-    {
-        pATI->pitchInc *= pATI->bitsPerPixel;
-    }
+    pitchInc = minPitch * pATI->bitsPerPixel;
 
     {
             pScreenInfo->maxHValue = (MaxBits(CRTC_H_TOTAL) + 1) << 3;
@@ -2286,7 +2282,7 @@ ATIPreInit
         if ((pATI->Chip >= ATI_CHIP_264CT) &&
             ((pATI->Chip >= ATI_CHIP_264VTB) ||
              (pATI->MemoryType >= MEM_264_SGRAM)))
-            pATI->pitchInc = pATI->XModifier * (64 * 8);
+            pitchInc = pATI->XModifier * (64 * 8);
     }
 
     if (pATI->OptionPanelDisplay && (pATI->LCDPanelID >= 0))
@@ -2415,7 +2411,7 @@ ATIPreInit
     i = xf86ValidateModes(pScreenInfo,
             pScreenInfo->monitor->Modes, pScreenInfo->display->modes,
             &ATIClockRange, NULL, minPitch, maxPitch,
-            pATI->pitchInc, 0, maxHeight,
+            pitchInc, 0, maxHeight,
             pScreenInfo->display->virtualX, pScreenInfo->display->virtualY,
             ApertureSize, Strategy);
     if (i <= 0)

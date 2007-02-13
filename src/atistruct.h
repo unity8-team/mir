@@ -382,7 +382,6 @@ typedef struct _ATIRec
     DisplayModePtr currentMode;
     CARD8 depth, bitsPerPixel;
     short int displayWidth;
-    int pitchInc;
     rgb weight;
 
 #ifndef AVOID_DGA
