@@ -66,7 +66,11 @@ static Bool quirk_dt_sync_hm_vp (int scrnIndex, xf86MonPtr DDC)
     if (memcmp (DDC->vendor.name, "MAX", 4) == 0 &&
 	DDC->vendor.prod_id == 2007)
 	return TRUE;
-    
+    /* ViewSonic VX2025wm (bug #9941) */
+    if (memcmp (DDC->vendor.name, "VSC", 4) == 0 &&
+	DDC->vendor.prod_id == 58653)
+	return TRUE;
+
     return FALSE;
 }
 
