@@ -39,3 +39,4 @@ xf86CrtcPtr i830GetLoadDetectPipe(xf86OutputPtr output);
 void i830ReleaseLoadDetectPipe(xf86OutputPtr output);
 void i830_crtc_init(ScrnInfoPtr pScrn, int pipe);
 void i830_crtc_load_lut(xf86CrtcPtr crtc);
+DisplayModePtr i830_crtc_mode_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc);

@@ -1332,10 +1332,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    I830PreInitDDC(pScrn);
-   I830SetupOutputs(pScrn);
    for (i = 0; i < num_pipe; i++) {
        i830_crtc_init(pScrn, i);
    }
+   I830SetupOutputs(pScrn);
 
    SaveHWState(pScrn);
    /* Do an initial detection of the outputs while none are configured on yet.
