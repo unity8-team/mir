@@ -527,6 +527,5 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 
 disable_exit:
     xf86DestroyI2CBusRec(intel_output->pDDCBus, TRUE, TRUE);
-    xfree(intel_output);
     xf86OutputDestroy(output);
 }
