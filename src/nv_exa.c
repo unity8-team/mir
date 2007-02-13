@@ -221,12 +221,12 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 	   of lines between dstY and srcY  If the number of lines is below
 	   we guess, that the bug won't trigger...
 	 */
-	if ( (abs(srcY - dstY)>= 16)&&(abs(srcX-dstX)>=16) /*&& 
-			(((pNv->Chipset & 0xfff0) == CHIPSET_G70) ||
+	if ( (abs(srcY - dstY)>= 16)&&(abs(srcX-dstX)>=16) && 
+			(!(((pNv->Chipset & 0xfff0) == CHIPSET_G70) ||
 			 ((pNv->Chipset & 0xfff0) == CHIPSET_G71) ||
 			 ((pNv->Chipset & 0xfff0) == CHIPSET_G72) ||
 			 ((pNv->Chipset & 0xfff0) == CHIPSET_G73) ||
-			 ((pNv->Chipset & 0xfff0) == CHIPSET_C512))*/)
+			 ((pNv->Chipset & 0xfff0) == CHIPSET_C512))) )
 	{
 		NVDEBUG("ExaCopy: Using default path\n");
 		NVDmaStart(pNv, NvSubImageBlit, BLIT_POINT_SRC, 3);
