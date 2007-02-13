@@ -232,21 +232,6 @@ enum last_3d {
     LAST_3D_ROTATION
 };
 
-#if 0
-typedef struct _I830PipeRec {
-   Bool		  enabled;
-   int		  x;
-   int		  y;
-   Bool		  cursorInRange;
-   Bool		  cursorShown;
-   DisplayModeRec curMode;
-   DisplayModeRec desiredMode;
-#ifdef RANDR_12_INTERFACE
-   RRCrtcPtr	  randr_crtc;
-#endif
-} I830PipeRec, *I830PipePtr;
-#endif
-
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
    unsigned char *FbBase;
