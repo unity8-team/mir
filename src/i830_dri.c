@@ -107,6 +107,7 @@ static void I830DRITransitionTo2d(ScreenPtr pScreen);
 static void I830DRITransitionTo3d(ScreenPtr pScreen);
 static void I830DRITransitionMultiToSingle3d(ScreenPtr pScreen);
 static void I830DRITransitionSingleToMulti3d(ScreenPtr pScreen);
+static void I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num);
 
 #if 0
 static void I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf);
@@ -551,10 +552,31 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->InitBuffers = I830DRIInitBuffers;
    pDRIInfo->MoveBuffers = I830DRIMoveBuffers;
    pDRIInfo->bufferRequests = DRI_ALL_WINDOWS;
-   pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
-   pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
-   pDRIInfo->TransitionSingleToMulti3D = I830DRITransitionSingleToMulti3d;
-   pDRIInfo->TransitionMultiToSingle3D = I830DRITransitionMultiToSingle3d;
+
+#if DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1
+   {
+      int major, minor, patch;
+
+      DRIQueryVersion(&major, &minor, &patch);
+
+      if (minor >= 1)
+#endif
+#if DRIINFO_MAJOR_VERSION > 5 || \
+    (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1)
+	 pDRIInfo->ClipNotify = I830DRIClipNotify;
+#endif
+   }
+
+#if DRIINFO_MAJOR_VERSION > 5 || \
+    (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1)
+   if (!pDRIInfo->ClipNotify)
+#endif
+   {
+      pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
+      pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
+      pDRIInfo->TransitionSingleToMulti3D = I830DRITransitionSingleToMulti3d;
+      pDRIInfo->TransitionMultiToSingle3D = I830DRITransitionMultiToSingle3d;
+   }
 
    /* do driver-independent DRI screen initialization here */
    if (!DRIScreenInit(pScreen, pDRIInfo, &pI830->drmSubFD)) {
@@ -1354,24 +1376,15 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
  */
 
 static void
-I830EnablePageFlip(ScreenPtr pScreen)
+I830DRISetPfMask(ScreenPtr pScreen, int pfMask)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
    drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
    pSAREAPriv->pf_enabled = pI830->allowPageFlip;
-   pSAREAPriv->pf_active = pI830->allowPageFlip;
+   pSAREAPriv->pf_active = pfMask;
 }
-
-static void
-I830DisablePageFlip(ScreenPtr pScreen)
-{
-   drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScreen);
-
-   pSAREAPriv->pf_active = 0;
-}
-
 
 static void
 I830DRITransitionSingleToMulti3d(ScreenPtr pScreen)
@@ -1380,15 +1393,18 @@ I830DRITransitionSingleToMulti3d(ScreenPtr pScreen)
     *   -- Field in sarea, plus bumping the window counters.
     *   -- DRM needs to cope with Front-to-Back swapbuffers.
     */
-   I830DisablePageFlip(pScreen);
+   I830DRISetPfMask(pScreen, 0);
 }
 
 static void
 I830DRITransitionMultiToSingle3d(ScreenPtr pScreen)
 {
+   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
+
    /* Let the remaining 3d app start page flipping again.
     */
-   I830EnablePageFlip(pScreen);
+   I830DRISetPfMask(pScreen, pI830->allowPageFlip ? 0x3 : 0);
 }
 
 static void
@@ -1397,7 +1413,7 @@ I830DRITransitionTo3d(ScreenPtr pScreen)
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
 
-   I830EnablePageFlip(pScreen);
+   I830DRISetPfMask(pScreen, pI830->allowPageFlip ? 0x3 : 0);
    pI830->have3DWindows = 1;
 }
 
@@ -1417,9 +1433,44 @@ I830DRITransitionTo2d(ScreenPtr pScreen)
       xf86DrvMsg(pScreen->myNum, X_WARNING,
 		 "[dri] %s: kernel failed to unflip buffers.\n", __func__);
 
-   I830DisablePageFlip(pScreen);
+   I830DRISetPfMask(pScreen, 0);
 
    pI830->have3DWindows = 0;
+}
+
+static void
+I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
+{
+   unsigned pfMask = 0;
+
+   if (num > 0) {
+      drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
+      BoxRec crtcBox[2];
+      unsigned numvisible[2] = { 0, 0 };
+      int i, j;
+
+      crtcBox[0].x1 = sPriv->pipeA_x;
+      crtcBox[0].y1 = sPriv->pipeA_y;
+      crtcBox[0].x2 = crtcBox[0].x1 + sPriv->pipeA_w;
+      crtcBox[0].y2 = crtcBox[0].y1 + sPriv->pipeA_h;
+      crtcBox[1].x1 = sPriv->pipeB_x;
+      crtcBox[1].y1 = sPriv->pipeB_y;
+      crtcBox[1].x2 = crtcBox[0].x1 + sPriv->pipeB_w;
+      crtcBox[1].y2 = crtcBox[0].y1 + sPriv->pipeB_h;
+
+      for (i = 0; i < 2; i++) {
+	 for (j = 0; j < num; j++) {
+	    if (ppWin[j] && RECT_IN_REGION(pScreen, &ppWin[j]->clipList,
+					   &crtcBox[i]) != rgnOUT)
+	       numvisible[i]++;
+	 }
+
+	 if (numvisible[i] == 1)
+	    pfMask |= 1 << i;
+      }
+   }
+
+   I830DRISetPfMask(pScreen, pfMask);
 }
 
 
