@@ -361,6 +361,31 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
 	(void) INREG(dspbase);
     }
+
+#ifdef XF86DRI
+    if (pI830->directRenderingEnabled) {
+	drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn->pScreen);
+
+	switch (pipe) {
+	case 0:
+	    sPriv->pipeA_x = x;
+	    sPriv->pipeA_y = y;
+	    sPriv->pipeA_w = crtc->mode.HDisplay;
+	    sPriv->pipeA_h = crtc->mode.VDisplay;
+	    break;
+	case 1:
+	    sPriv->pipeB_x = x;
+	    sPriv->pipeB_y = y;
+	    sPriv->pipeB_w = crtc->mode.HDisplay;
+	    sPriv->pipeB_h = crtc->mode.VDisplay;
+	    break;
+	default:
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Can't update pipe %d in SAREA\n", pipe);
+	    break;
+	}
+    }
+#endif
 }
 
 /**
