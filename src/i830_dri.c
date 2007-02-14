@@ -1497,7 +1497,10 @@ I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on)
     if (pI830->directRenderingEnabled && pI830->drmMinor >= 5) {
 	if (on) {
 	    if (xf86_config->num_crtc > 1 && xf86_config->crtc[1]->enabled)
-		pipe.pipe = DRM_I830_VBLANK_PIPE_B;
+		if (pI830->drmMinor >= 6)
+		    pipe.pipe = DRM_I830_VBLANK_PIPE_A | DRM_I830_VBLANK_PIPE_B;
+		else
+		    pipe.pipe = DRM_I830_VBLANK_PIPE_B;
 	    else
 		pipe.pipe = DRM_I830_VBLANK_PIPE_A;
 	} else {
