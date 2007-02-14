@@ -59,7 +59,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "vbe.h"
 #include "vgaHW.h"
 #include "i830_xf86Crtc.h"
-#include "i830_randr.h"
+#include "i830_xf86RandR12.h"
 
 #ifdef XF86DRI
 #include "xf86drm.h"

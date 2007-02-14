@@ -64,5 +64,14 @@
 #define xf86ValidateModesUserConfig XF86NAME(xf86ValidateModesUserConfig)
 #define xf86DiDGAInit XF86NAME(xf86DiDGAInit)
 #define xf86DiDGAReInit XF86NAME(xf86DiDGAReInit)
+#define xf86DDCGetModes XF86NAME(xf86DDCGetModes)
+#define xf86RandR12CreateScreenResources XF86NAME(xf86RandR12CreateScreenResources)
+#define xf86RandR12GetOriginalVirtualSize XF86NAME(xf86RandR12GetOriginalVirtualSize)
+#define xf86RandR12GetRotation XF86NAME(xf86RandR12GetRotation)
+#define xf86RandR12Init XF86NAME(xf86RandR12Init)
+#define xf86RandR12PreInit XF86NAME(xf86RandR12PreInit)
+#define xf86RandR12SetConfig XF86NAME(xf86RandR12SetConfig)
+#define xf86RandR12SetRotations XF86NAME(xf86RandR12SetRotations)
+#define xf86SaveScreen XF86NAME(xf86SaveScreen)
 
 #endif /* _XF86RENAME_H_ */

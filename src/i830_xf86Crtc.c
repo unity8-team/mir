@@ -33,7 +33,7 @@
 /*#include "i830.h" */
 #include "i830_xf86Crtc.h"
 #include "i830_xf86Modes.h"
-#include "i830_randr.h"
+#include "i830_xf86RandR12.h"
 #include "X11/extensions/render.h"
 #define DPMS_SERVER
 #include "X11/extensions/dpms.h"
@@ -886,7 +886,7 @@ xf86PruneDuplicateMonitorModes (MonPtr Monitor)
 /** Return - 0 + if a should be earlier, same or later than b in list
  */
 static int
-i830xf86ModeCompare (DisplayModePtr a, DisplayModePtr b)
+xf86ModeCompare (DisplayModePtr a, DisplayModePtr b)
 {
     int	diff;
 
@@ -904,7 +904,7 @@ i830xf86ModeCompare (DisplayModePtr a, DisplayModePtr b)
  * Insertion sort input in-place and return the resulting head
  */
 static DisplayModePtr
-i830xf86SortModes (DisplayModePtr input)
+xf86SortModes (DisplayModePtr input)
 {
     DisplayModePtr  output = NULL, i, o, n, *op, prev;
 
@@ -914,7 +914,7 @@ i830xf86SortModes (DisplayModePtr input)
 	i = input;
 	input = input->next;
 	for (op = &output; (o = *op); op = &o->next)
-	    if (i830xf86ModeCompare (o, i) > 0)
+	    if (xf86ModeCompare (o, i) > 0)
 		break;
 	i->next = *op;
 	*op = i;
@@ -1109,7 +1109,7 @@ xf86ProbeOutputModes (ScrnInfoPtr scrn, int maxX, int maxY)
 	
 	xf86PruneInvalidModes(scrn, &output->probed_modes, TRUE);
 	
-	output->probed_modes = i830xf86SortModes (output->probed_modes);
+	output->probed_modes = xf86SortModes (output->probed_modes);
 	
 	/* Check for a configured preference for a particular mode */
 	preferred_mode = xf86GetOptValString (output->options,

@@ -63,7 +63,6 @@ intel_drv_la_SOURCES = \
 	 i830_display.h \
          i830_driver.c \
 	 i830_dvo.c \
-         i830_edid_modes.c \
          i830.h \
          i830_i2c.c \
          i830_io.c \
@@ -73,18 +72,10 @@ intel_drv_la_SOURCES = \
          i830_video.c \
          i830_video.h \
 	 i830_reg.h \
-	 i830_randr.c \
 	 i830_sdvo.c \
 	 i830_sdvo.h \
 	 i830_sdvo_regs.h \
 	 i830_tv.c \
-	 i830_xf86Modes.h \
-	 i830_xf86Modes.c \
-	 i830_xf86cvt.c \
-	 i830_xf86Crtc.h \
-	 i830_xf86Crtc.c \
-	 i830_xf86Rotate.c \
-	 i830_xf86DiDGA.c \
 	 i915_3d.c \
 	 i915_3d.h \
 	 i915_reg.h \
@@ -99,7 +90,16 @@ intel_drv_la_SOURCES = \
 	 local_xf86Rename.h \
 	 xf86Parser.h \
 	 xf86Optrec.h \
-	 i830_randr.h
+	 i830_xf86Modes.h \
+	 i830_xf86Modes.c \
+	 i830_xf86cvt.c \
+	 i830_xf86Crtc.h \
+	 i830_xf86Crtc.c \
+         i830_xf86EdidModes.c \
+	 i830_xf86RandR12.c \
+	 i830_xf86RandR12.h \
+	 i830_xf86Rotate.c \
+	 i830_xf86DiDGA.c
 
 EXTRA_DIST = \
 	packed_yuv_sf.g4a \

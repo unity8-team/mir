@@ -40,7 +40,7 @@
 #include <X11/extensions/render.h>
 
 #include "i830_xf86Crtc.h"
-#include "i830_randr.h"
+#include "i830_xf86RandR12.h"
 
 typedef struct _xf86RandR12Info {
     int				    virtualX;

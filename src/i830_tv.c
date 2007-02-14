@@ -1310,7 +1310,7 @@ i830_tv_detect(xf86OutputPtr output)
     }
 }
 
-struct input_res {
+static struct input_res {
     char *name;
     int w, h;	
 } input_res_table[] = 

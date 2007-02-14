@@ -34,7 +34,7 @@
 #include "windowstr.h"
 #include "i830_xf86Crtc.h"
 #include "i830_xf86Modes.h"
-#include "i830_randr.h"
+#include "i830_xf86RandR12.h"
 #include "X11/extensions/render.h"
 #define DPMS_SERVER
 #include "X11/extensions/dpms.h"
