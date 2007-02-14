@@ -41,9 +41,6 @@
 
 #include "i830_xf86Crtc.h"
 #include "i830_randr.h"
-#include "i830_debug.h"
-#include "i830_display.h"
-#include "i830.h"
 
 typedef struct _xf86RandR12Info {
     int				    virtualX;
@@ -97,7 +94,7 @@ xf86RandR12GetInfo (ScreenPtr pScreen, Rotation *rotations)
     /* Re-probe the outputs for new monitors or modes */
     xf86ProbeOutputModes (scrp, 0, 0);
     xf86SetScrnInfoModes (scrp);
-    I830DGAReInit (pScreen);
+    xf86_dga_reinit (pScreen);
 
     for (mode = scrp->modes; ; mode = mode->next)
     {
@@ -854,7 +851,7 @@ xf86RandR12GetInfo12 (ScreenPtr pScreen, Rotation *rotations)
 
     xf86ProbeOutputModes (pScrn, 0, 0);
     xf86SetScrnInfoModes (pScrn);
-    I830DGAReInit (pScreen);
+    xf86_dga_reinit (pScreen);
     return xf86RandR12SetInfo12 (pScreen);
 }
 

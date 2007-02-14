@@ -521,9 +521,6 @@ extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 extern void I830RefreshRing(ScrnInfoPtr pScrn);
 extern void I830EmitFlush(ScrnInfoPtr pScrn);
 
-extern Bool I830DGAReInit(ScreenPtr pScreen);
-extern Bool I830DGAInit(ScreenPtr pScreen);
-
 #ifdef I830_XV
 extern void I830InitVideo(ScreenPtr pScreen);
 extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);

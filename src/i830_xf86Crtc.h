@@ -531,4 +531,18 @@ xf86OutputGetEDIDModes (xf86OutputPtr output);
 xf86MonPtr
 xf86OutputGetEDID (xf86OutputPtr output, I2CBusPtr pDDCBus);
 
+/**
+ * Initialize dga for this screen
+ */
+
+Bool
+xf86_dga_init (ScreenPtr pScreen);
+
+/**
+ * Re-initialize dga for this screen (as when the set of modes changes)
+ */
+
+Bool
+xf86_dga_reinit (ScreenPtr pScreen);
+
 #endif /* _XF86CRTC_H_ */

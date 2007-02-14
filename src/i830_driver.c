@@ -2727,7 +2727,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    xf86SetBlackWhitePixels(pScreen);
 
-   I830DGAInit(pScreen);
+   xf86_dga_init (pScreen);
 
    DPRINTF(PFX,
 	   "assert( if(!I830InitFBManager(pScreen, &(pI830->FbMemBox))) )\n");
@@ -3393,7 +3393,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
       
       xf86ProbeOutputModes (pScrn, 0, 0);
       xf86SetScrnInfoModes (pScrn);
-      I830DGAReInit (pScrn->pScreen);
+      xf86_dga_reinit (pScrn->pScreen);
       xf86SwitchMode(pScrn->pScreen, pScrn->currentMode);
 
       /* Clear the BIOS's hotkey press flags */
