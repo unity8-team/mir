@@ -94,7 +94,7 @@ xf86RandR12GetInfo (ScreenPtr pScreen, Rotation *rotations)
     /* Re-probe the outputs for new monitors or modes */
     xf86ProbeOutputModes (scrp, 0, 0);
     xf86SetScrnInfoModes (scrp);
-    xf86_dga_reinit (pScreen);
+    xf86DiDGAReInit (pScreen);
 
     for (mode = scrp->modes; ; mode = mode->next)
     {
@@ -851,7 +851,7 @@ xf86RandR12GetInfo12 (ScreenPtr pScreen, Rotation *rotations)
 
     xf86ProbeOutputModes (pScrn, 0, 0);
     xf86SetScrnInfoModes (pScrn);
-    xf86_dga_reinit (pScreen);
+    xf86DiDGAReInit (pScreen);
     return xf86RandR12SetInfo12 (pScreen);
 }
 

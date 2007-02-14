@@ -414,7 +414,12 @@ typedef struct _xf86CrtcConfig {
     DamagePtr   rotationDamage;
 
     /* DGA */
-    unsigned int dga_flags;
+    unsigned int	dga_flags;
+    unsigned long	dga_address;
+    DGAModePtr		dga_modes;
+    int			dga_nmode;
+    int			dga_width, dga_height, dga_stride;
+    DisplayModePtr	dga_save_mode;
 
 } xf86CrtcConfigRec, *xf86CrtcConfigPtr;
 
@@ -536,13 +541,13 @@ xf86OutputGetEDID (xf86OutputPtr output, I2CBusPtr pDDCBus);
  */
 
 Bool
-xf86_dga_init (ScreenPtr pScreen);
+xf86DiDGAInit (ScreenPtr pScreen, unsigned long dga_address);
 
 /**
  * Re-initialize dga for this screen (as when the set of modes changes)
  */
 
 Bool
-xf86_dga_reinit (ScreenPtr pScreen);
+xf86DiDGAReInit (ScreenPtr pScreen);
 
 #endif /* _XF86CRTC_H_ */

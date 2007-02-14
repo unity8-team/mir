@@ -62,5 +62,7 @@
 #define xf86ValidateModesSize XF86NAME(xf86ValidateModesSize)
 #define xf86ValidateModesSync XF86NAME(xf86ValidateModesSync)
 #define xf86ValidateModesUserConfig XF86NAME(xf86ValidateModesUserConfig)
+#define xf86DiDGAInit XF86NAME(xf86DiDGAInit)
+#define xf86DiDGAReInit XF86NAME(xf86DiDGAReInit)
 
 #endif /* _XF86RENAME_H_ */
