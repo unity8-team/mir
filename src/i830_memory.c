@@ -515,7 +515,7 @@ I830AllocateFramebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
    int verbosity = dryrun ? 4 : 1;
    const char *s = dryrun ? "[dryrun] " : "";
    Bool tileable;
-   int align, alignflags;
+   int align;
    long size, alloced, fb_height;
 
    /* Clear everything first. */
@@ -586,16 +586,6 @@ I830AllocateFramebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 
    tileable = !(flags & ALLOC_NO_TILING) && pI830->allowPageFlip &&
       IsTileable(pScrn, pScrn->displayWidth * pI830->cpp);
-   if (tileable) {
-      if (IS_I9XX(pI830))
-	 align = MB(1);
-      else
-	 align = KB(512);
-      alignflags = ALIGN_BOTH_ENDS;
-   } else {
-      align = KB(64);
-      alignflags = 0;
-   }
 
    size = lineSize * (fb_height + cacheLines);
    size = ROUND_TO_PAGE(size);
@@ -603,10 +593,26 @@ I830AllocateFramebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 		  "%sInitial %sframebuffer allocation size: %ld kByte\n",
 		  s, secondary ? "secondary " : "",
 		  size / 1024);
-   alloced = I830AllocVidMem(pScrn, FrontBuffer,
-			     StolenPool, size, align,
-			     flags | alignflags |
-			     FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
+
+   if (tileable) {
+      align = GetBestTileAlignment(size);
+
+      for (align = GetBestTileAlignment(size);
+	   align >= (IS_I9XX(pI830) ? MB(1) : KB(512)); align >>= 1) {
+	 alloced = I830AllocVidMem(pScrn, FrontBuffer, StolenPool, size, align,
+				   flags | FROM_ANYWHERE | ALLOCATE_AT_TOP |
+				   ALIGN_BOTH_ENDS);
+	 if (alloced >= size)
+	    break;
+      }
+   } else {
+      align = KB(64);
+
+      alloced = I830AllocVidMem(pScrn, FrontBuffer,
+				StolenPool, size, align,
+				flags | FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
+   }
+
    if (alloced < size) {
       if (!dryrun) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
@@ -718,7 +724,7 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
    int verbosity = dryrun ? 4 : 1;
    const char *s = dryrun ? "[dryrun] " : "";
    Bool tileable;
-   int align, alignflags, i;
+   int align, i;
 
    DPRINTF(PFX, "I830Allocate2DMemory: inital is %s\n",
 	   BOOLTOSTRING(flags & ALLOC_INITIAL));
@@ -877,20 +883,26 @@ I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags)
 	 pI830->FbMemBox.y2 = maxFb / lineSize;
 	 tileable = !(flags & ALLOC_NO_TILING) && pI830->allowPageFlip &&
 		 IsTileable(pScrn, pScrn->displayWidth * pI830->cpp);
+
 	 if (tileable) {
-            if (IS_I9XX(pI830))
-               align = MB(1);
-            else
-	       align = KB(512);
-	    alignflags = ALIGN_BOTH_ENDS;
+	    align = GetBestTileAlignment(size);
+
+	    for (align = GetBestTileAlignment(size);
+		 align >= (IS_I9XX(pI830) ? MB(1) : KB(512)); align >>= 1) {
+	       alloced = I830AllocVidMem(pScrn, &(pI830->FrontBuffer),
+					 &(pI830->StolenPool), size, align,
+					 flags | FROM_ANYWHERE |
+					 ALLOCATE_AT_TOP | ALIGN_BOTH_ENDS);
+	       if (alloced >= size)
+		  break;
+	    }
 	 } else {
-	    align = KB(64);
-	    alignflags = 0;
+	    alloced = I830AllocVidMem(pScrn, &(pI830->FrontBuffer),
+				      &(pI830->StolenPool), maxFb, align,
+				      flags |
+				      FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
 	 }
-	 alloced = I830AllocVidMem(pScrn, &(pI830->FrontBuffer),
-				   &(pI830->StolenPool), maxFb, align,
-				   flags | alignflags |
-				   FROM_ANYWHERE | ALLOCATE_AT_BOTTOM);
+
 	 if (alloced < maxFb) {
 	    if (!dryrun) {
 	       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,

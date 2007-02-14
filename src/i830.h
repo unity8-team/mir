@@ -68,6 +68,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dri.h"
 #include "GL/glxint.h"
 #include "i830_dri.h"
+#ifdef DAMAGE
+#include "damage.h"
+#endif
 #endif
 
 #ifdef I830_USE_EXA
@@ -302,6 +305,10 @@ typedef struct _I830Rec {
    unsigned int front_tiled;
    unsigned int back_tiled;
    unsigned int depth_tiled;
+
+#ifdef DAMAGE
+   DamagePtr pDamage;
+#endif
 #endif
 
    Bool NeedRingBufferLow;

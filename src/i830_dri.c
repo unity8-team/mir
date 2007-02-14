@@ -984,17 +984,6 @@ I830DRIFinishScreenInit(ScreenPtr pScreen)
 
    DPRINTF(PFX, "I830DRIFinishScreenInit\n");
 
-   /* Have shadow run only while there is 3d active.
-    */
-#if 0
-   if (pI830->allowPageFlip && pI830->drmMinor >= 1) {
-      shadowAdd(pScreen, 0, I830DRIShadowUpdate, 0, 0, 0);
-   }
-   else
-#endif
-      pI830->allowPageFlip = 0;
-
-
    if (!DRIFinishScreenInit(pScreen))
       return FALSE;
 
@@ -1025,6 +1014,49 @@ I830DRIFinishScreenInit(ScreenPtr pScreen)
    }
 }
 
+#ifdef DAMAGE
+/* This should be done *before* XAA syncs,
+ * Otherwise will have to sync again???
+ */
+static void
+I830DRIRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   int i, cmd, br13 = (pScrn->displayWidth * pI830->cpp) | (0xcc << 16);
+   drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+
+   /* Don't want to do this when no 3d is active and pages are
+    * right-way-round :
+    */
+   if (!pSAREAPriv->pf_active && pSAREAPriv->pf_current_page == 0)
+      return;
+
+   if (pScrn->bitsPerPixel == 32) {
+      cmd = (XY_SRC_COPY_BLT_CMD | XY_SRC_COPY_BLT_WRITE_ALPHA |
+	     XY_SRC_COPY_BLT_WRITE_RGB);
+      br13 |= 3 << 24;
+   } else {
+      cmd = (XY_SRC_COPY_BLT_CMD);
+      br13 |= 1 << 24;
+   }
+
+   for (i = 0 ; i < num ; i++, pbox++) {
+      BEGIN_LP_RING(8);
+      OUT_RING(cmd);
+      OUT_RING(br13);
+      OUT_RING((pbox->y1 << 16) | pbox->x1);
+      OUT_RING((pbox->y2 << 16) | pbox->x2);
+      OUT_RING(pI830->BackBuffer.Start);
+      OUT_RING((pbox->y1 << 16) | pbox->x1);
+      OUT_RING(br13 & 0xffff);
+      OUT_RING(pI830->FrontBuffer.Start);
+      ADVANCE_LP_RING();
+   }
+
+   DamageEmpty(pI830->pDamage);
+}
+#endif
+
 static void
 I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 		   DRIContextType oldContextType, void *oldContext,
@@ -1045,12 +1077,47 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
      	 return;
       pI830->LockHeld = 1;
       I830RefreshRing(pScrn);
+
+#ifdef DAMAGE
+      if (!pI830->pDamage && pI830->allowPageFlip) {
+	 PixmapPtr pPix  = pScreen->GetScreenPixmap(pScreen);
+	 pI830->pDamage = DamageCreate(NULL, NULL, DamageReportNone, TRUE,
+				       pScreen, pPix);
+
+	 if (pI830->pDamage == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                       "No screen damage record, page flipping disabled\n");
+            pI830->allowPageFlip = 0;
+	 } else {
+	    DamageRegister(&pPix->drawable, pI830->pDamage);
+
+	    DamageDamageRegion(&pPix->drawable,
+			       &WindowTable[pScreen->myNum]->winSize);
+
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                       "Damage tracking initialized for page flipping\n");
+	 }
+    }
+#endif
    } else if (syncType == DRI_2D_SYNC &&
 	      oldContextType == DRI_NO_CONTEXT &&
 	      newContextType == DRI_2D_CONTEXT) {
       pI830->LockHeld = 0;
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("i830DRISwapContext (out)\n");
+
+#ifdef DAMAGE
+      if (pI830->pDamage) {
+	 RegionPtr pDamageReg = DamageRegion(pI830->pDamage);
+
+	 if (pDamageReg) {
+	    int nrects = REGION_NUM_RECTS(pDamageReg);
+
+	    if (nrects)
+	       I830DRIRefreshArea(pScrn, nrects, REGION_RECTS(pDamageReg));
+	 }
+      }
+#endif
    } else if (I810_DEBUG & DEBUG_VERBOSE_DRI)
       ErrorF("i830DRISwapContext (other)\n");
 }
@@ -1286,54 +1353,6 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
  * might be faster, but seems like a lot more work...
  */
 
-
-#if 0
-/* This should be done *before* XAA syncs,
- * Otherwise will have to sync again???
- */
-static void
-I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf)
-{
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I830Ptr pI830 = I830PTR(pScrn);
-   RegionPtr damage = &pBuf->damage;
-   int i, num =  REGION_NUM_RECTS(damage);
-   BoxPtr pbox = REGION_RECTS(damage);
-   drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScreen);
-   int cmd, br13;
-
-   /* Don't want to do this when no 3d is active and pages are
-    * right-way-round :
-    */
-   if (!pSAREAPriv->pf_active && pSAREAPriv->pf_current_page == 0)
-      return;
-
-   br13 = (pScrn->displayWidth * pI830->cpp) | (0xcc << 16);
-
-   if (pScrn->bitsPerPixel == 32) {
-      cmd = (XY_SRC_COPY_BLT_CMD | XY_SRC_COPY_BLT_WRITE_ALPHA |
-	     XY_SRC_COPY_BLT_WRITE_RGB);
-      br13 |= 3 << 24;
-   } else {
-      cmd = (XY_SRC_COPY_BLT_CMD);
-      br13 |= 1 << 24;
-   }
-
-   for (i = 0 ; i < num ; i++, pbox++) {
-      BEGIN_LP_RING(8);
-      OUT_RING(cmd);
-      OUT_RING(br13);
-      OUT_RING((pbox->y1 << 16) | pbox->x1);
-      OUT_RING((pbox->y2 << 16) | pbox->x2);
-      OUT_RING(pI830->BackBuffer.Start);
-      OUT_RING((pbox->y1 << 16) | pbox->x1);
-      OUT_RING(br13 & 0xffff);
-      OUT_RING(pI830->FrontBuffer.Start);
-      ADVANCE_LP_RING();
-   }
-}
-#endif
-
 static void
 I830EnablePageFlip(ScreenPtr pScreen)
 {
@@ -1342,32 +1361,7 @@ I830EnablePageFlip(ScreenPtr pScreen)
    drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
    pSAREAPriv->pf_enabled = pI830->allowPageFlip;
-   pSAREAPriv->pf_active = 0;
-
-   if (pI830->allowPageFlip) {
-      int br13 = (pScrn->displayWidth * pI830->cpp) | (0xcc << 16);
-
-      BEGIN_LP_RING(8);
-      if (pScrn->bitsPerPixel == 32) {
-	 OUT_RING(XY_SRC_COPY_BLT_CMD | XY_SRC_COPY_BLT_WRITE_ALPHA |
-		  XY_SRC_COPY_BLT_WRITE_RGB);
-	 br13 |= 3 << 24;
-      } else {
-	 OUT_RING(XY_SRC_COPY_BLT_CMD);
-	 br13 |= 1 << 24;
-      }
-
-      OUT_RING(br13);
-      OUT_RING(0);
-      OUT_RING((pScrn->virtualY << 16) | pScrn->virtualX);
-      OUT_RING(pI830->BackBuffer.Start);
-      OUT_RING(0);
-      OUT_RING(br13 & 0xffff);
-      OUT_RING(pI830->FrontBuffer.Start);
-      ADVANCE_LP_RING();
-
-      pSAREAPriv->pf_active = 1;
-   }
+   pSAREAPriv->pf_active = pI830->allowPageFlip;
 }
 
 static void
@@ -1419,14 +1413,13 @@ I830DRITransitionTo2d(ScreenPtr pScreen)
    if (sPriv->pf_current_page == 1)
       drmCommandNone(pI830->drmSubFD, DRM_I830_FLIP);
 
-   /* Shut down shadowing if we've made it back to the front page:
-    */
-   if (sPriv->pf_current_page == 0) {
-      I830DisablePageFlip(pScreen);
-   }
+   if (sPriv->pf_current_page == 1)
+      xf86DrvMsg(pScreen->myNum, X_WARNING,
+		 "[dri] %s: kernel failed to unflip buffers.\n", __func__);
+
+   I830DisablePageFlip(pScreen);
 
    pI830->have3DWindows = 0;
-
 }
 
 

@@ -3168,6 +3168,15 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    pI830->closing = TRUE;
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
+#ifdef DAMAGE
+      if (pI830->pDamage) {
+	 PixmapPtr pPix = pScreen->GetScreenPixmap(pScreen);
+
+	 DamageUnregister(&pPix->drawable, pI830->pDamage);
+	 DamageDestroy(pI830->pDamage);
+	 pI830->pDamage = NULL;
+      }
+#endif
 #ifdef XF86DRI_MM
       if (pI830->mmModeFlags & I830_KERNEL_MM) {
 #ifndef XSERVER_LIBDRM_MM
