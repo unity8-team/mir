@@ -591,6 +591,59 @@ i830_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
     return TRUE;
 }
 
+/** Returns the core display clock speed for i830 - i945 */
+static int
+i830_get_core_clock_speed(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    /* Core clock values taken from the published datasheets.
+     * The 830 may go up to 166 Mhz, which we should check.
+     */
+    if (IS_I945G(pI830))
+	return 400000;
+    else if (IS_I915G(pI830))
+	return 333000;
+    else if (IS_I945GM(pI830) || IS_845G(pI830))
+	return 200000;
+    else if (IS_I915GM(pI830)) {
+	CARD16 gcfgc = pciReadWord(pI830->PciTag, I915_GCFGC);
+
+	if (gcfgc & I915_LOW_FREQUENCY_ENABLE)
+	    return 133000;
+	else {
+	    switch (gcfgc & I915_DISPLAY_CLOCK_MASK) {
+	    case I915_DISPLAY_CLOCK_333_MHZ:
+		return 333000;
+	    default:
+	    case I915_DISPLAY_CLOCK_190_200_MHZ:
+		return 190000;
+	    }
+	}
+    } else if (IS_I865G(pI830))
+	return 266000;
+    else if (IS_I855(pI830)) {
+	PCITAG bridge = pciTag(0, 0, 0); /* This is always the host bridge */
+	CARD16 hpllcc = pciReadWord(bridge, I855_HPLLCC);
+
+	/* Assume that the hardware is in the high speed state.  This
+	 * should be the default.
+	 */
+	switch (hpllcc & I855_CLOCK_CONTROL_MASK) {
+	case I855_CLOCK_133_200:
+	case I855_CLOCK_100_200:
+	    return 200000;
+	case I855_CLOCK_166_250:
+	    return 250000;
+	case I855_CLOCK_100_133:
+	    return 133000;
+	}
+    } else /* 852, 830 */
+	return 133000;
+
+    return 0; /* Silence gcc warning */
+}
+
 /**
  * Sets up registers for the given mode/adjusted_mode pair.
  *
@@ -749,23 +802,15 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	dspcntr |= DISPPLANE_SEL_PIPE_B;
 
     pipeconf = INREG(pipeconf_reg);
-    if (pipe == 0) 
+    if (pipe == 0 && !IS_I965G(pI830))
     {
-	/*
-	 * The docs say this is needed when the dot clock is > 90% of the
-	 * core speed. Core speeds are indicated by bits in the PCI
-	 * config space, but that's a pain to go read, so we just guess
-	 * based on the hardware age. AGP hardware is assumed to run
-	 * at 133MHz while PCI-E hardware is assumed to run at 200MHz
+	/* Enable pixel doubling when the dot clock is > 90% of the (display)
+	 * core speed.
+	 *
+	 * XXX: No double-wide on 915GM pipe B. Is that the only reason for the
+	 * pipe == 0 check?
 	 */
-	int core_clock;
-	
-	if (IS_I9XX(pI830))
-	    core_clock = 200000;
-	else
-	    core_clock = 133000;
-	
-	if (mode->Clock > core_clock * 9 / 10)
+	if (mode->Clock > i830_get_core_clock_speed(pScrn) * 9 / 10)
 	    pipeconf |= PIPEACONF_DOUBLE_WIDE;
 	else
 	    pipeconf &= ~PIPEACONF_DOUBLE_WIDE;

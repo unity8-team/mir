@@ -1848,6 +1848,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define I852_GME				0x2
 #define I852_GM					0x5
 
+#define I915_GCFGC			0xf0
+#define I915_LOW_FREQUENCY_ENABLE		(1 << 7)
+#define I915_DISPLAY_CLOCK_190_200_MHZ		(0 << 4)
+#define I915_DISPLAY_CLOCK_333_MHZ		(4 << 4)
+#define I915_DISPLAY_CLOCK_MASK			(7 << 4)
+
+#define I855_HPLLCC			0xc0
+#define I855_CLOCK_CONTROL_MASK			(3 << 0)
+#define I855_CLOCK_133_200			(0 << 0)
+#define I855_CLOCK_100_200			(1 << 0)
+#define I855_CLOCK_100_133			(2 << 0)
+#define I855_CLOCK_166_250			(3 << 0)
+
 /* BLT commands */
 #define COLOR_BLT_CMD		((2<<29)|(0x40<<22)|(0x3))
 #define COLOR_BLT_WRITE_ALPHA	(1<<21)
