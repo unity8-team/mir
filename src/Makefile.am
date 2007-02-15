@@ -28,6 +28,8 @@ SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164
 AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ \
 	-DI830_XV -DI830_USE_XAA -DI830_USE_EXA
 
+AM_INCLUDES=-Iparser -Imodes
+
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
@@ -86,20 +88,20 @@ intel_drv_la_SOURCES = \
 	 i830_render.c \
 	 i915_render.c \
 	 i965_render.c \
-	 i830_xf86Rename.h \
 	 local_xf86Rename.h \
-	 xf86Parser.h \
-	 xf86Optrec.h \
-	 i830_xf86Modes.h \
-	 i830_xf86Modes.c \
-	 i830_xf86cvt.c \
-	 i830_xf86Crtc.h \
-	 i830_xf86Crtc.c \
-         i830_xf86EdidModes.c \
-	 i830_xf86RandR12.c \
-	 i830_xf86RandR12.h \
-	 i830_xf86Rotate.c \
-	 i830_xf86DiDGA.c
+	 parser/xf86Rename.h \
+	 parser/xf86Parser.h \
+	 parser/xf86Optrec.h \
+	 modes/xf86Modes.h \
+	 modes/xf86Modes.c \
+	 modes/xf86cvt.c \
+	 modes/xf86Crtc.h \
+	 modes/xf86Crtc.c \
+         modes/xf86EdidModes.c \
+	 modes/xf86RandR12.c \
+	 modes/xf86RandR12.h \
+	 modes/xf86Rotate.c \
+	 modes/xf86DiDGA.c
 
 EXTRA_DIST = \
 	packed_yuv_sf.g4a \

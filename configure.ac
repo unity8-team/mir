@@ -70,6 +70,42 @@ AC_ARG_ENABLE(video-debug, AC_HELP_STRING([--enable-video-debug],
               [VIDEO_DEBUG="$enableval"],
               [VIDEO_DEBUG=no])
 
+AC_ARG_WITH(xserver-source,AC_HELP_STRING([--with-xserver-source=XSERVER_SOURCE],
+					  [Path to X server source tree]),
+			   [ XSERVER_SOURCE="$withval" ],
+			   [ XSERVER_SOURCE="" ])
+
+
+PKG_CHECK_MODULES(XORG_XSERVER, xorg-server >= 1.2.99, [XMODES=yes], [XMODES=no])
+
+AM_CONDITIONAL(XMODES, [test "x$XMODES" = xyes])
+
+if test "x$XMODES" = xyes; then
+	AC_DEFINE(XMODES, 1,[X server as built-in mode code])
+else
+	if test "x$XSERVER_SOURCE" = x; then
+		if test -d ../../xserver; then
+			XSERVER_SOURCE="`cd ../../xserver && pwd`"
+		fi
+	fi
+	
+	if test "x$XSERVER_SOURCE" = x; then
+		AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
+	fi
+	
+	if test -f src/modes/xf86Crtc.h; then
+		:
+	else
+		ln -s $XSERVER_SOURCE/hw/xfree86/modes src/modes
+	fi
+	
+	if test -f src/parser/xf86Parser.h; then
+		:
+	else
+		ln -s $XSERVER_SOURCE/hw/xfree86/parser src/parser
+	fi
+
+fi
 
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
