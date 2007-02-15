@@ -69,8 +69,12 @@ DEBUGSTRING(i830_debug_dspcntr)
 DEBUGSTRING(i830_debug_pipeconf)
 {
     char *enabled = val & PIPEACONF_ENABLE ? "enabled" : "disabled";
-    char *wide = val & PIPEACONF_DOUBLE_WIDE ? "double-wide" : "single-wide";
-    return XNFprintf("%s, %s", enabled, wide);
+    char *bit30;
+    if (IS_I965G(pI830))
+	bit30 = val & I965_PIPECONF_ACTIVE ? "active" : "inactive";
+    else
+	bit30 = val & PIPEACONF_DOUBLE_WIDE ? "double-wide" : "single-wide";
+    return XNFprintf("%s, %s", enabled, bit30);
 }
 
 DEBUGSTRING(i830_debug_hvtotal)
