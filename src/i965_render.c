@@ -133,7 +133,8 @@ static void i965_get_blend_cntl(int op, PicturePtr pMask, CARD32 dst_format,
      * the source blend factor is 0, and the source blend value is the mask
      * channels multiplied by the source picture's alpha.
      */
-    if (pMask && pMask->componentAlpha && i965_blend_op[op].src_alpha) {
+    if (pMask && pMask->componentAlpha && PICT_FORMAT_RGB(pMask->format)
+            && i965_blend_op[op].src_alpha) {
         if (*dblend == BRW_BLENDFACTOR_SRC_ALPHA) {
 	    *dblend = BRW_BLENDFACTOR_SRC_COLOR;
         } else if (*dblend == BRW_BLENDFACTOR_INV_SRC_ALPHA) {
@@ -223,7 +224,8 @@ i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
     if (op >= sizeof(i965_blend_op) / sizeof(i965_blend_op[0]))
         I830FALLBACK("Unsupported Composite op 0x%x\n", op);
 
-    if (pMaskPicture != NULL && pMaskPicture->componentAlpha) {
+    if (pMaskPicture && pMaskPicture->componentAlpha &&
+            PICT_FORMAT_RGB(pMaskPicture->format)) {
         /* Check if it's component alpha that relies on a source alpha and on
          * the source value.  We can only get one of those into the single
          * source value that we get to blend with.
@@ -234,9 +236,7 @@ i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 	    I830FALLBACK("Component alpha not supported with source "
 			 "alpha and source value blending.\n");
 	}
-	/* XXX: fallback now for mask with componentAlpha */
-	I830FALLBACK("mask componentAlpha not ready.\n");
-    }
+    } 
 
     if (!i965_check_composite_texture(pSrcPicture, 0))
         I830FALLBACK("Check Src picture texture\n");
@@ -337,17 +337,19 @@ static const CARD32 sf_kernel_static_mask[][4] = {
 /* ps kernels */
 #define PS_KERNEL_NUM_GRF   32
 #define PS_MAX_THREADS	   32
-/* 1: no mask */
+
 static const CARD32 ps_kernel_static_nomask [][4] = {
 #include "exa_wm_nomask_prog.h"
 };
 
-/* 2: mask with componentAlpha, src * mask color, XXX: later */
 static const CARD32 ps_kernel_static_maskca [][4] = {
-/*#include "i965_composite_wm_maskca.h" */
+#include "exa_wm_maskca_prog.h"
 };
 
-/* 3: mask without componentAlpha, src * mask alpha */
+static const CARD32 ps_kernel_static_maskca_srcalpha [][4] = {
+#include "exa_wm_maskca_srcalpha_prog.h"
+};
+
 static const CARD32 ps_kernel_static_masknoca [][4] = {
 #include "exa_wm_masknoca_prog.h"
 };
@@ -442,13 +444,20 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     else
 	next_offset = sf_kernel_offset + sizeof (sf_kernel_static);
 
-    /* XXX: ps_kernel may be seperated, fix with offset */
     ps_kernel_offset = ALIGN(next_offset, 64);
     if (pMask) {
-	if (pMaskPicture->componentAlpha)
-	    next_offset = ps_kernel_offset + sizeof(ps_kernel_static_maskca);
-	else
-	    next_offset = ps_kernel_offset + sizeof(ps_kernel_static_masknoca);
+	if (pMaskPicture->componentAlpha && 
+                PICT_FORMAT_RGB(pMaskPicture->format)) {
+            if (i965_blend_op[op].src_alpha) {
+                next_offset = ps_kernel_offset + 
+                    sizeof(ps_kernel_static_maskca_srcalpha);
+            } else {
+                next_offset = ps_kernel_offset + 
+                    sizeof(ps_kernel_static_maskca);
+            }
+        } else
+	    next_offset = ps_kernel_offset + 
+                          sizeof(ps_kernel_static_masknoca);
     } else {
    	next_offset = ps_kernel_offset + sizeof (ps_kernel_static_nomask);
     }
@@ -746,7 +755,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     vs_state->vs6.vs_enable = 0;
     vs_state->vs6.vert_cache_disable = 1;
 
-    /* XXX: sf_kernel? keep it as now */
     /* Set up the SF kernel to do coord interp: for each attribute,
      * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
      * back to SF which then hands pixels off to WM.
@@ -788,10 +796,15 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
    /* Set up the PS kernel (dispatched by WM) */
     if (pMask) {
-	if (pMaskPicture->componentAlpha)
-   	    memcpy(ps_kernel, ps_kernel_static_maskca,
-		   sizeof (ps_kernel_static_maskca));
-	else
+	if (pMaskPicture->componentAlpha && 
+                PICT_FORMAT_RGB(pMaskPicture->format)) {
+            if (i965_blend_op[op].src_alpha) 
+                memcpy(ps_kernel, ps_kernel_static_maskca_srcalpha,
+                        sizeof (ps_kernel_static_maskca_srcalpha));
+            else
+                memcpy(ps_kernel, ps_kernel_static_maskca,
+                        sizeof (ps_kernel_static_maskca));
+        } else
    	    memcpy(ps_kernel, ps_kernel_static_masknoca,
 		   sizeof (ps_kernel_static_masknoca));
     } else {
@@ -812,7 +825,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     wm_state->thread2.scratch_space_base_pointer = (state_base_offset +
 						    wm_scratch_offset)>>10;
     wm_state->thread2.per_thread_scratch_space = 0;
-    // XXX: urb allocation
     wm_state->thread3.const_urb_entry_read_length = 0;
     wm_state->thread3.const_urb_entry_read_offset = 0;
     /* Each pair of attributes (src/mask coords) is one URB entry */
