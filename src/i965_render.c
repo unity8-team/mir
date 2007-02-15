@@ -698,7 +698,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     default_color_state->color[0] = 0.0; /* R */
     default_color_state->color[1] = 0.0; /* G */
     default_color_state->color[2] = 0.0; /* B */
-    default_color_state->color[3] = 1.0; /* A */
+    default_color_state->color[3] = 0.0; /* A */
 
     src_sampler_state->ss0.default_color_mode = 0; /* GL mode */
 
