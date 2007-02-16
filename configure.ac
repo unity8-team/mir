@@ -76,37 +76,6 @@ AC_ARG_WITH(xserver-source,AC_HELP_STRING([--with-xserver-source=XSERVER_SOURCE]
 			   [ XSERVER_SOURCE="" ])
 
 
-PKG_CHECK_MODULES(XORG_XSERVER, xorg-server >= 1.2.99, [XMODES=yes], [XMODES=no])
-
-AM_CONDITIONAL(XMODES, [test "x$XMODES" = xyes])
-
-if test "x$XMODES" = xyes; then
-	AC_DEFINE(XMODES, 1,[X server as built-in mode code])
-else
-	if test "x$XSERVER_SOURCE" = x; then
-		if test -d ../../xserver; then
-			XSERVER_SOURCE="`cd ../../xserver && pwd`"
-		fi
-	fi
-	
-	if test "x$XSERVER_SOURCE" = x; then
-		AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
-	fi
-	
-	if test -f src/modes/xf86Crtc.h; then
-		:
-	else
-		ln -s $XSERVER_SOURCE/hw/xfree86/modes src/modes
-	fi
-	
-	if test -f src/parser/xf86Parser.h; then
-		:
-	else
-		ln -s $XSERVER_SOURCE/hw/xfree86/parser src/parser
-	fi
-
-fi
-
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
@@ -143,6 +112,46 @@ if test x$DRI = xauto; then
         fi
 fi
 AC_MSG_RESULT([$DRI])
+
+save_CFLAGS="$CFLAGS"
+CFLAGS="$XORG_CFLAGS"
+AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
+CFLAGS="$save_CFLAGS"
+
+AM_CONDITIONAL(XMODES, test "x$XMODES" = xno)
+
+if test "x$XMODES" = xyes; then
+	echo built-in mode code
+	AC_DEFINE(XMODES, 1,[X server has built-in mode code])
+	XMODES_CFLAGS=
+else
+	echo symlink mode code
+	if test "x$XSERVER_SOURCE" = x; then
+		if test -d ../../xserver; then
+			XSERVER_SOURCE="`cd ../../xserver && pwd`"
+		fi
+	fi
+	
+	if test "x$XSERVER_SOURCE" = x; then
+		AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
+	fi
+	XMODES_CFLAGS='-DXF86_MODES_RENAME -I$(top_srcdir)/src/modes -I$(top_srcdir)/src/parser'
+fi
+
+if test -d "$XSERVER_SOURCE"; then
+	if test -f src/modes/xf86Modes.h; then
+		:
+	else
+		ln -s $XSERVER_SOURCE/hw/xfree86/modes src/modes
+	fi
+	
+	if test -f src/parser/xf86Parser.h; then
+		:
+	else
+		ln -s $XSERVER_SOURCE/hw/xfree86/parser src/parser
+	fi
+fi
+AC_SUBST([XMODES_CFLAGS])
 
 dnl Use lots of warning flags with GCC
 

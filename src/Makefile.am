@@ -25,12 +25,31 @@ SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164
 # -avoid-version prevents gratuitous .0.0.0 version numbers on the end
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
-AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ -Iparser -Imodes \
-	-DI830_XV -DI830_USE_XAA -DI830_USE_EXA -DXF86_MODES_RENAME
+
+AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ @XMODES_CFLAGS@ \
+	-DI830_XV -DI830_USE_XAA -DI830_USE_EXA
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
+
+if XMODES
+XMODE_SRCS=\
+	 local_xf86Rename.h \
+	 parser/xf86Rename.h \
+	 parser/xf86Parser.h \
+	 parser/xf86Optrec.h \
+	 modes/xf86Modes.h \
+	 modes/xf86Modes.c \
+	 modes/xf86cvt.c \
+	 modes/xf86Crtc.h \
+	 modes/xf86Crtc.c \
+         modes/xf86EdidModes.c \
+	 modes/xf86RandR12.c \
+	 modes/xf86RandR12.h \
+	 modes/xf86Rotate.c \
+	 modes/xf86DiDGA.c
+endif
 
 intel_drv_la_SOURCES = \
          brw_defines.h \
@@ -86,20 +105,7 @@ intel_drv_la_SOURCES = \
 	 i830_render.c \
 	 i915_render.c \
 	 i965_render.c \
-	 local_xf86Rename.h \
-	 parser/xf86Rename.h \
-	 parser/xf86Parser.h \
-	 parser/xf86Optrec.h \
-	 modes/xf86Modes.h \
-	 modes/xf86Modes.c \
-	 modes/xf86cvt.c \
-	 modes/xf86Crtc.h \
-	 modes/xf86Crtc.c \
-         modes/xf86EdidModes.c \
-	 modes/xf86RandR12.c \
-	 modes/xf86RandR12.h \
-	 modes/xf86Rotate.c \
-	 modes/xf86DiDGA.c
+	 $(XMODE_SRCS)
 
 EXTRA_DIST = \
 	packed_yuv_sf.g4a \

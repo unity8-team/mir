@@ -1,4 +1,4 @@
-AM_CFLAGS = @XORG_CFLAGS@
+AM_CFLAGS = @XORG_CFLAGS@ @XMODES_CFLAGS@
 
 noinst_PROGRAMS = bios_reader
 

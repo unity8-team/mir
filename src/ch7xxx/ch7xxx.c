@@ -37,7 +37,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "compiler.h"
 #include "miscstruct.h"
 #include "xf86i2c.h"
-#include "i830_xf86Crtc.h"
+#include "xf86Crtc.h"
 #define DPMS_SERVER
 #include <X11/extensions/dpms.h>
 
