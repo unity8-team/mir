@@ -625,11 +625,13 @@ case.  This is only useful for LVDS panels (laptop internal panels).
 The default is
 .B on.
 .TP
-.BI "Option \*qRN50Force3D\*q \*q" boolean \*q
-Enable DRI support for RN50/ES1000 chips.  The 3D engine on these chips has
-not been validated at the hardware level and is not likely to work in most 
-cases. If it does, you got lucky.  The default is
-.B off.
+.BI "Option \*qDRI\*q \*q" boolean \*q
+Enable DRI support.  This option allows you to enable to disable the DRI.  
+The default is
+.B off 
+for RN50/ES1000 and
+.B on 
+for others.
 .TP
 
 .SH SEE ALSO

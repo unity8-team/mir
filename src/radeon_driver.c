@@ -198,7 +198,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_ACCELMETHOD,    "AccelMethod",      OPTV_STRING,  {0}, FALSE },
     { OPTION_CONSTANTDPI,    "ConstantDPI",	 OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_REVERSE_DISPLAY,"ReverseDisplay",   OPTV_BOOLEAN, {0}, FALSE },
-    { OPTION_RN50_3D,        "RN50Force3D",      OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_DRI,            "DRI",       	 OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -2512,7 +2512,7 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 
     if (info->Chipset == PCI_CHIP_RN50_515E ||
 	info->Chipset == PCI_CHIP_RN50_5969) {
-    	if (xf86ReturnOptValBool(info->Options, OPTION_RN50_3D, FALSE)) {
+    	if (xf86ReturnOptValBool(info->Options, OPTION_DRI, FALSE)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		"Direct rendering for RN50 forced on -- "
 		"This is NOT officially supported at the hardware level "
@@ -2534,6 +2534,12 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	info->Chipset == PCI_CHIP_RS482_5975) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Direct rendering broken on XPRESS 200 and 200M\n");
+	return FALSE;
+    }
+
+    if (!xf86ReturnOptValBool(info->Options, OPTION_DRI, TRUE)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"Direct rendering forced off\n");
 	return FALSE;
     }
 

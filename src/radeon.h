@@ -157,7 +157,7 @@ typedef enum {
     OPTION_ACCELMETHOD,
     OPTION_CONSTANTDPI,
     OPTION_REVERSE_DISPLAY,
-    OPTION_RN50_3D
+    OPTION_DRI
 } RADEONOpts;
 
 /* ------- mergedfb support ------------- */
