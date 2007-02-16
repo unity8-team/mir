@@ -41,7 +41,7 @@
 #include "i830_bios.h"
 #include "i830_display.h"
 #include "i830_debug.h"
-#include "i830_xf86Modes.h"
+#include "xf86Modes.h"
 
 typedef struct {
     /* given values */    
@@ -342,9 +342,8 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 
-    if (crtc->rotatedPixmap != NULL) {
-	Start = (char *)crtc->rotatedPixmap->devPrivate.ptr -
-	    (char *)pI830->FbBase;
+    if (crtc->rotatedData != NULL) {
+	Start = (char *)crtc->rotatedData - (char *)pI830->FbBase;
     } else if (I830IsPrimary(pScrn)) {
 	Start = pI830->FrontBuffer.Start;
     } else {
@@ -931,21 +930,18 @@ i830_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 }
 
 /**
- * Creates a locked-in-framebuffer pixmap of the given width and height for
- * this CRTC's rotated shadow framebuffer.
- *
- * The current implementation uses fixed buffers allocated at startup at the
- * maximal size.
+ * Allocates memory for a locked-in-framebuffer shadow of the given
+ * width and height for this CRTC's rotated shadow framebuffer.
  */
-static PixmapPtr
-i830_crtc_shadow_create(xf86CrtcPtr crtc, int width, int height)
+ 
+static void *
+i830_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     ScreenPtr pScreen = pScrn->pScreen;
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     unsigned long rotate_pitch;
-    PixmapPtr rotate_pixmap;
     unsigned long rotate_offset;
     int align = KB(4), size;
 
@@ -994,12 +990,32 @@ i830_crtc_shadow_create(xf86CrtcPtr crtc, int width, int height)
     }
 #endif /* I830_USE_XAA */
 
+    return pI830->FbBase + rotate_offset;
+}
+    
+/**
+ * Creates a pixmap for this CRTC's rotated shadow framebuffer.
+ */
+static PixmapPtr
+i830_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    unsigned long rotate_pitch;
+    PixmapPtr rotate_pixmap;
+
+    if (!data)
+	data = i830_crtc_shadow_allocate (crtc, width, height);
+    
+    rotate_pitch = pI830->displayWidth * pI830->cpp;
+
     rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
 					   width, height,
 					   pScrn->depth,
 					   pScrn->bitsPerPixel,
 					   rotate_pitch,
-					   pI830->FbBase + rotate_offset);
+					   data);
+
     if (rotate_pixmap == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Couldn't allocate shadow pixmap for rotated CRTC\n");
@@ -1008,25 +1024,30 @@ i830_crtc_shadow_create(xf86CrtcPtr crtc, int width, int height)
 }
 
 static void
-i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap)
+i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
 
-    FreeScratchPixmapHeader(rotate_pixmap);
+    if (rotate_pixmap)
+	FreeScratchPixmapHeader(rotate_pixmap);
+    
+    if (data)
+    {
 #ifdef I830_USE_EXA
-    if (pI830->useEXA && intel_crtc->rotate_mem_exa != NULL) {
-	exaOffscreenFree(pScrn->pScreen, intel_crtc->rotate_mem_exa);
-	intel_crtc->rotate_mem_exa = NULL;
-    }
+	if (pI830->useEXA && intel_crtc->rotate_mem_exa != NULL) {
+	    exaOffscreenFree(pScrn->pScreen, intel_crtc->rotate_mem_exa);
+	    intel_crtc->rotate_mem_exa = NULL;
+	}
 #endif /* I830_USE_EXA */
 #ifdef I830_USE_XAA
-    if (!pI830->useEXA) {
-	xf86FreeOffscreenLinear(intel_crtc->rotate_mem_xaa);
-	intel_crtc->rotate_mem_xaa = NULL;
-    }
+	if (!pI830->useEXA) {
+	    xf86FreeOffscreenLinear(intel_crtc->rotate_mem_xaa);
+	    intel_crtc->rotate_mem_xaa = NULL;
+	}
 #endif /* I830_USE_XAA */
+    }
 }
 
 
@@ -1272,6 +1293,7 @@ static const xf86CrtcFuncsRec i830_crtc_funcs = {
     .mode_set = i830_crtc_mode_set,
     .gamma_set = i830_crtc_gamma_set,
     .shadow_create = i830_crtc_shadow_create,
+    .shadow_allocate = i830_crtc_shadow_allocate,
     .shadow_destroy = i830_crtc_shadow_destroy,
     .destroy = NULL, /* XXX */
 };

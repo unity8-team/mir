@@ -2695,6 +2695,30 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
 
+   if (!pI830->useEXA) {
+      if (I830IsPrimary(pScrn)) {
+	 if (!I830InitFBManager(pScreen, &(pI830->FbMemBox))) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to init memory manager\n");
+	 }
+
+	 if (pI830->LinearAlloc &&
+	     xf86InitFBManagerLinear(pScreen,
+				     pI830->LinearMem.Offset / pI830->cpp,
+				     pI830->LinearMem.Size / pI830->cpp))
+	 {
+            xf86DrvMsg(scrnIndex, X_INFO,
+		       "Using %ld bytes of offscreen memory for linear "
+		       "(offset=0x%lx)\n", pI830->LinearMem.Size,
+		       pI830->LinearMem.Offset);
+	 }
+      } else {
+	 if (!I830InitFBManager(pScreen, &(pI8301->FbMemBox2))) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to init memory manager\n");
+	 }
+      }
+   }
    if (!I830EnterVT(scrnIndex, 0))
       return FALSE;
 
@@ -2731,30 +2755,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    DPRINTF(PFX,
 	   "assert( if(!I830InitFBManager(pScreen, &(pI830->FbMemBox))) )\n");
-   if (!pI830->useEXA) {
-      if (I830IsPrimary(pScrn)) {
-	 if (!I830InitFBManager(pScreen, &(pI830->FbMemBox))) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to init memory manager\n");
-	 }
-
-	 if (pI830->LinearAlloc &&
-	     xf86InitFBManagerLinear(pScreen,
-				     pI830->LinearMem.Offset / pI830->cpp,
-				     pI830->LinearMem.Size / pI830->cpp))
-	 {
-            xf86DrvMsg(scrnIndex, X_INFO,
-		       "Using %ld bytes of offscreen memory for linear "
-		       "(offset=0x%lx)\n", pI830->LinearMem.Size,
-		       pI830->LinearMem.Offset);
-	 }
-      } else {
-	 if (!I830InitFBManager(pScreen, &(pI8301->FbMemBox2))) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to init memory manager\n");
-	 }
-      }
-   }
 
    if (!pI830->noAccel) {
       if (!I830AccelInit(pScreen)) {

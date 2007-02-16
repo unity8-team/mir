@@ -58,8 +58,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86int10.h"
 #include "vbe.h"
 #include "vgaHW.h"
-#include "i830_xf86Crtc.h"
-#include "i830_xf86RandR12.h"
+#include "xf86Crtc.h"
+#include "xf86RandR12.h"
 
 #ifdef XF86DRI
 #include "xf86drm.h"
