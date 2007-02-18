@@ -33,10 +33,8 @@ intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
 
-if XMODES
 XMODE_SRCS=\
 	 local_xf86Rename.h \
-	 parser/xf86Rename.h \
 	 parser/xf86Parser.h \
 	 parser/xf86Optrec.h \
 	 modes/xf86Modes.h \
@@ -47,9 +45,16 @@ XMODE_SRCS=\
          modes/xf86EdidModes.c \
 	 modes/xf86RandR12.c \
 	 modes/xf86RandR12.h \
+	 modes/xf86Rename.h \
 	 modes/xf86Rotate.c \
 	 modes/xf86DiDGA.c
-endif
+	 
+INTEL_DRI_SRCS = \
+         i810_dri.c \
+         i810_dri.h \
+         i830_dri.c \
+         i810_hwmc.c \
+         i830_dri.h 
 
 intel_drv_la_SOURCES = \
          brw_defines.h \
@@ -104,43 +109,70 @@ intel_drv_la_SOURCES = \
 	 i830_xaa.c \
 	 i830_render.c \
 	 i915_render.c \
-	 i965_render.c \
-	 $(XMODE_SRCS)
+	 i965_render.c
 
-EXTRA_DIST = \
-	packed_yuv_sf.g4a \
-	packed_yuv_wm.g4a
+INTEL_G4A =				\
+	packed_yuv_sf.g4a		\
+	packed_yuv_wm.g4a		\
+	exa_sf.g4a 			\
+	exa_sf_mask.g4a 		\
+	exa_wm_maskca.g4a 		\
+	exa_wm_maskca_srcalpha.g4a 	\
+	exa_wm_masknoca.g4a 		\
+	exa_wm_nomask.g4a
 
+INTEL_G4H = 				\
+	sf_prog.h			\
+	wm_prog.h 			\
+	exa_sf_mask_prog.h		\
+	exa_sf_prog.h 			\
+	exa_wm_maskca_prog.h		\
+	exa_wm_maskca_srcalpha_prog.h	\
+	exa_wm_masknoca_prog.h		\
+	exa_wm_nomask_prog.h
+
+EXTRA_DIST = 		\
+	$(XMODE_SRCS)	\
+	$(INTEL_G4A)	\
+	$(INTEL_G4H)	\
+	$(INTEL_DRI_SRCS)
+	
 if HAVE_GEN4ASM
+
 sf_prog.h: packed_yuv_sf.g4a
 	intel-gen4asm -o sf_prog.h packed_yuv_sf.g4a
+	
 wm_prog.h: packed_yuv_wm.g4a
 	intel-gen4asm -o wm_prog.h packed_yuv_wm.g4a
-exa_sf_prog.h: exa_sf.g4a
-	intel-gen4asm -o exa_sf_prog.h exa_sf.g4a
+	
 exa_sf_mask_prog.h: exa_sf_mask.g4a
 	intel-gen4asm -o exa_sf_mask_prog.h exa_sf_mask.g4a
-exa_wm_nomask_prog.h: exa_wm_nomask.g4a
-	intel-gen4asm -o exa_wm_nomask_prog.h exa_wm_nomask.g4a
+	
+exa_sf_prog.h: exa_sf.g4a
+	intel-gen4asm -o exa_sf_prog.h exa_sf.g4a
+	
+exa_wm_maskca_prog.h: exa_wm_maskca.g4a
+	intel-gen4asm -o exa_wm_maskca_prog.h exa_wm_maskca.g4a
+
+exa_wm_maskca_srcalpha_prog.h: exa_wm_maskca_srcalpha.g4a
+	intel-gen4asm -o exa_wm_maskca_srcalpha_prog.h exa_wm_maskca_srcalpha.g4a
+
 exa_wm_masknoca_prog.h: exa_wm_masknoca.g4a
 	intel-gen4asm -o exa_wm_masknoca_prog.h exa_wm_masknoca.g4a
-else
-EXTRA_DIST += \
-	sf_prog.h		\
-	wm_prog.h 		\
-	exa_sf_prog.h 		\
-	exa_sf_mask_prog.h	\
-	exa_wm_nomask_prog.h 	\
-	exa_wm_masknoca_prog.h
+	
+exa_wm_nomask_prog.h: exa_wm_nomask.g4a
+	intel-gen4asm -o exa_wm_nomask_prog.h exa_wm_nomask.g4a
+	
+endif
+
+if XMODES
+intel_drv_la_SOURCES += \
+	$(XMODE_SRCS)
 endif
 
 if DRI
 intel_drv_la_SOURCES += \
-         i810_dri.c \
-         i810_dri.h \
-         i830_dri.c \
-         i810_hwmc.c \
-         i830_dri.h 
+	$(INTEL_DRI_SRCS)
 endif
 
 install-data-local: install-intel_drv_laLTLIBRARIES
@@ -148,4 +180,3 @@ install-data-local: install-intel_drv_laLTLIBRARIES
 
 uninstall-local:
 	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so)
-	

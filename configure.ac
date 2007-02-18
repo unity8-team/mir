@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-intel],
-        1.7.2,
+        1.9.90,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-intel)
 
@@ -120,18 +120,18 @@ CFLAGS="$save_CFLAGS"
 
 AM_CONDITIONAL(XMODES, test "x$XMODES" = xno)
 
+if test "x$XSERVER_SOURCE" = x; then
+	if test -d ../../xserver; then
+		XSERVER_SOURCE="`cd ../../xserver && pwd`"
+	fi
+fi
+	
 if test "x$XMODES" = xyes; then
 	echo built-in mode code
 	AC_DEFINE(XMODES, 1,[X server has built-in mode code])
 	XMODES_CFLAGS=
 else
 	echo symlink mode code
-	if test "x$XSERVER_SOURCE" = x; then
-		if test -d ../../xserver; then
-			XSERVER_SOURCE="`cd ../../xserver && pwd`"
-		fi
-	fi
-	
 	if test "x$XSERVER_SOURCE" = x; then
 		AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
 	fi
