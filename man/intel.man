@@ -159,6 +159,13 @@ atctivate the legacy texture pool (see
 gain some performance by increasing this value.
 Default: 32768.
 .TP
+.BI "Option \*qPageFlip\*q \*q" boolean \*q
+Enable support for page flipping. This should improve 3D performance at the
+potential cost of worse performance or artifacts with mixed 2D/3D. Also note
+that this gives no benefit without corresponding support in the Mesa 3D driver.
+Default for i810: The option is not used.
+Default for i9xx: Disabled.
+.TP
 .BI "Option \*qAccelMethod\*q \*q" string \*q
 Choose acceleration architecture, either "XAA" or "EXA".  XAA is the old
 (but stable) XFree86 based acceleration architecture.  EXA is a newer and
