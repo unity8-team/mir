@@ -1382,8 +1382,11 @@ I830DRISetPfMask(ScreenPtr pScreen, int pfMask)
    I830Ptr pI830 = I830PTR(pScrn);
    drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
-   pSAREAPriv->pf_enabled = pI830->allowPageFlip;
-   pSAREAPriv->pf_active = pfMask;
+   if (pI830->allowPageFlip && pfMask) {
+      pSAREAPriv->pf_enabled = pI830->allowPageFlip;
+      pSAREAPriv->pf_active = pfMask;
+   } else
+      pSAREAPriv->pf_enabled = pSAREAPriv->pf_active = 0;
 }
 
 static void
