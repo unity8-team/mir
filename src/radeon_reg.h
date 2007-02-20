@@ -841,7 +841,20 @@
 
        /* Multimedia I2C bus */
 #define RADEON_I2C_CNTL_0		    0x0090
+#define RADEON_I2C_DONE (1<<0)
+#define RADEON_I2C_NACK (1<<1)
+#define RADEON_I2C_HALT (1<<2)
+#define RADEON_I2C_SOFT_RST (1<<5)
+#define RADEON_I2C_DRIVE_EN (1<<6)
+#define RADEON_I2C_DRIVE_SEL (1<<7)
+#define RADEON_I2C_START (1<<8)
+#define RADEON_I2C_STOP (1<<9)
+#define RADEON_I2C_RECEIVE (1<<10)
+#define RADEON_I2C_ABORT (1<<11)
+#define RADEON_I2C_GO (1<<12)
 #define RADEON_I2C_CNTL_1                   0x0094
+#define RADEON_I2C_SEL         (1<<16)
+#define RADEON_I2C_EN          (1<<17)
 #define RADEON_I2C_DATA			    0x0098
 
 #define RADEON_DVI_I2C_CNTL_0		    0x02e0

@@ -23,20 +23,6 @@
 #include "i2c_def.h"
 
 
-#define I2C_DONE        (1<<0)
-#define I2C_NACK        (1<<1)
-#define I2C_HALT        (1<<2)
-#define I2C_SOFT_RST    (1<<5)
-#define I2C_DRIVE_EN    (1<<6)
-#define I2C_DRIVE_SEL   (1<<7)
-#define I2C_START       (1<<8)
-#define I2C_STOP        (1<<9)
-#define I2C_RECEIVE     (1<<10)
-#define I2C_ABORT       (1<<11)
-#define I2C_GO          (1<<12)
-#define I2C_SEL         (1<<16)
-#define I2C_EN          (1<<17)
-
 static void RADEON_TDA9885_Init(RADEONPortPrivPtr pPriv);
 
 /* Wait for 10ms at the most for the I2C_GO register to drop. */
@@ -46,9 +32,9 @@ static void RADEON_TDA9885_Init(RADEONPortPrivPtr pPriv);
 	write_mem_barrier(); \
 	while (i2ctries < 10) { \
 		reg = INREG8(RADEON_I2C_CNTL_0+1); \
-		if (!(reg & (I2C_GO >> 8))) \
+		if (!(reg & (RADEON_I2C_GO >> 8))) \
 			break; \
-		if (reg & (I2C_ABORT >> 8)) \
+		if (reg & (RADEON_I2C_ABORT >> 8)) \
 			break; \
 		usleep(1000); \
 		i2ctries++; \
@@ -60,9 +46,9 @@ static void RADEON_TDA9885_Init(RADEONPortPrivPtr pPriv);
  * status register. */
 #define I2C_WAIT_WITH_STATUS() { \
 	I2C_WAIT_FOR_GO() \
-	if (reg & ((I2C_ABORT >> 8) | (I2C_GO >> 8))) { \
+	if (reg & ((RADEON_I2C_ABORT >> 8) | (RADEON_I2C_GO >> 8))) { \
 		RADEON_I2C_Halt(pScrn); \
-		status = I2C_ABORT; \
+		status = RADEON_I2C_ABORT; \
 	} \
 	else \
 		status = RADEON_I2C_WaitForAck(pScrn, pPriv); \
@@ -90,24 +76,24 @@ static CARD8 RADEON_I2C_WaitForAck (ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     {
         RADEONWaitForIdleMMIO(pScrn); 
         retval = INREG8(RADEON_I2C_CNTL_0);
-        if (retval & I2C_HALT)
+        if (retval & RADEON_I2C_HALT)
         {
-            return (I2C_HALT);
+            return (RADEON_I2C_HALT);
         }
-        if (retval & I2C_NACK)
+        if (retval & RADEON_I2C_NACK)
         {
-            return (I2C_NACK);
+            return (RADEON_I2C_NACK);
         }
-        if(retval & I2C_DONE)
+        if(retval & RADEON_I2C_DONE)
         {
-            return I2C_DONE;
+            return RADEON_I2C_DONE;
         }       
         counter++;
 	/* 50ms ought to be long enough. */
         if(counter > 50)
         {
              xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Timeout condition on Radeon i2c bus\n");
-             return I2C_HALT;
+             return RADEON_I2C_HALT;
         }
 	usleep(1000);
     }
@@ -121,13 +107,13 @@ static void RADEON_I2C_Halt (ScrnInfoPtr pScrn)
 
     /* reset status flags */
     RADEONWaitForIdleMMIO(pScrn);
-    reg = INREG8 (RADEON_I2C_CNTL_0 + 0) & ~(I2C_DONE|I2C_NACK|I2C_HALT);
+    reg = INREG8 (RADEON_I2C_CNTL_0 + 0) & ~(RADEON_I2C_DONE|RADEON_I2C_NACK|RADEON_I2C_HALT);
     OUTREG8 (RADEON_I2C_CNTL_0 + 0, reg);
 
     /* issue ABORT call */
     RADEONWaitForIdleMMIO(pScrn);
     reg = INREG8 (RADEON_I2C_CNTL_0 + 1) & 0xE7;
-    OUTREG8 (RADEON_I2C_CNTL_0 + 1, (reg |((I2C_GO|I2C_ABORT) >> 8)));
+    OUTREG8 (RADEON_I2C_CNTL_0 + 1, (reg |((RADEON_I2C_GO|RADEON_I2C_ABORT) >> 8)));
 
     /* wait for GO bit to go low */
     I2C_WAIT_FOR_GO();
@@ -145,14 +131,14 @@ static Bool RADEONI2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    status=I2C_DONE;
+    status=RADEON_I2C_DONE;
 
     RADEONWaitForIdleMMIO(pScrn);
     if(nWrite>0){
 /*       RADEONWaitForFifo(pScrn, 4+nWrite); */
 
        /* Clear the status bits of the I2C Controller */
-       OUTREG(RADEON_I2C_CNTL_0, I2C_DONE | I2C_NACK | I2C_HALT | I2C_SOFT_RST);
+       OUTREG(RADEON_I2C_CNTL_0, RADEON_I2C_DONE | RADEON_I2C_NACK | RADEON_I2C_HALT | RADEON_I2C_SOFT_RST);
 
        /* Write the address into the buffer first */
        OUTREG(RADEON_I2C_DATA, (CARD32) (d->SlaveAddr) & ~(1));
@@ -163,17 +149,17 @@ static Bool RADEONI2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
           OUTREG8(RADEON_I2C_DATA, WriteBuffer[loop]);
        }
 
-       i2c_cntl_1 = (pPriv->radeon_i2c_timing << 24) | I2C_EN | I2C_SEL |
+       i2c_cntl_1 = (pPriv->radeon_i2c_timing << 24) | RADEON_I2C_EN | RADEON_I2C_SEL |
                         nWrite | 0x100;
        OUTREG(RADEON_I2C_CNTL_1, i2c_cntl_1);
     
        i2c_cntl_0 = (pPriv->radeon_N << 24) | (pPriv->radeon_M << 16) | 
-                        I2C_GO | I2C_START | ((nRead >0)?0:I2C_STOP) | I2C_DRIVE_EN;
+                        RADEON_I2C_GO | RADEON_I2C_START | ((nRead >0)?0:RADEON_I2C_STOP) | RADEON_I2C_DRIVE_EN;
        OUTREG(RADEON_I2C_CNTL_0, i2c_cntl_0);
     
        I2C_WAIT_WITH_STATUS();
 
-       if(status!=I2C_DONE){
+       if(status!=RADEON_I2C_DONE){
           RADEON_I2C_Halt(pScrn);
           return FALSE;
           }
@@ -183,17 +169,17 @@ static Bool RADEONI2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
     if(nRead > 0) {
        RADEONWaitForFifo(pScrn, 4+nRead);
     
-       OUTREG(RADEON_I2C_CNTL_0, I2C_DONE | I2C_NACK | I2C_HALT | I2C_SOFT_RST); 
+       OUTREG(RADEON_I2C_CNTL_0, RADEON_I2C_DONE | RADEON_I2C_NACK | RADEON_I2C_HALT | RADEON_I2C_SOFT_RST); 
 
        /* Write the address into the buffer first */
        OUTREG(RADEON_I2C_DATA, (CARD32) (d->SlaveAddr) | (1));
 
-       i2c_cntl_1 = (pPriv->radeon_i2c_timing << 24) | I2C_EN | I2C_SEL | 
+       i2c_cntl_1 = (pPriv->radeon_i2c_timing << 24) | RADEON_I2C_EN | RADEON_I2C_SEL | 
                         nRead | 0x100;
        OUTREG(RADEON_I2C_CNTL_1, i2c_cntl_1);
     
        i2c_cntl_0 = (pPriv->radeon_N << 24) | (pPriv->radeon_M << 16) | 
-                        I2C_GO | I2C_START | I2C_STOP | I2C_DRIVE_EN | I2C_RECEIVE;
+                        RADEON_I2C_GO | RADEON_I2C_START | RADEON_I2C_STOP | RADEON_I2C_DRIVE_EN | RADEON_I2C_RECEIVE;
        OUTREG(RADEON_I2C_CNTL_0, i2c_cntl_0);
     
        I2C_WAIT_WITH_STATUS();
@@ -202,7 +188,7 @@ static Bool RADEONI2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
        for (loop = 0; loop < nRead; loop++)
        {
           RADEONWaitForFifo(pScrn, 1);
-          if((status == I2C_HALT) || (status == I2C_NACK))
+          if((status == RADEON_I2C_HALT) || (status == RADEON_I2C_NACK))
           {
           ReadBuffer[loop]=0xff;
           } else {
@@ -212,7 +198,7 @@ static Bool RADEONI2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
        }
     }
     
-    if(status!=I2C_DONE){
+    if(status!=RADEON_I2C_DONE){
        RADEON_I2C_Halt(pScrn);
        return FALSE;
        }
@@ -230,14 +216,14 @@ static Bool R200_I2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    status=I2C_DONE;
+    status=RADEON_I2C_DONE;
 
     RADEONWaitForIdleMMIO(pScrn);
     if(nWrite>0){
 /*       RADEONWaitForFifo(pScrn, 4+nWrite); */
 
        /* Clear the status bits of the I2C Controller */
-       OUTREG(RADEON_I2C_CNTL_0, I2C_DONE | I2C_NACK | I2C_HALT | I2C_SOFT_RST);
+       OUTREG(RADEON_I2C_CNTL_0, RADEON_I2C_DONE | RADEON_I2C_NACK | RADEON_I2C_HALT | RADEON_I2C_SOFT_RST);
 
        /* Write the address into the buffer first */
        OUTREG(RADEON_I2C_DATA, (CARD32) (d->SlaveAddr) & ~(1));
@@ -248,17 +234,17 @@ static Bool R200_I2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
           OUTREG8(RADEON_I2C_DATA, WriteBuffer[loop]);
        }
 
-       i2c_cntl_1 = (pPriv->radeon_i2c_timing << 24) | I2C_EN | I2C_SEL |
+       i2c_cntl_1 = (pPriv->radeon_i2c_timing << 24) | RADEON_I2C_EN | RADEON_I2C_SEL |
                         nWrite | 0x010;
        OUTREG(RADEON_I2C_CNTL_1, i2c_cntl_1);
     
        i2c_cntl_0 = (pPriv->radeon_N << 24) | (pPriv->radeon_M << 16) | 
-                        I2C_GO | I2C_START | ((nRead >0)?0:I2C_STOP) | I2C_DRIVE_EN;
+                        RADEON_I2C_GO | RADEON_I2C_START | ((nRead >0)?0:RADEON_I2C_STOP) | RADEON_I2C_DRIVE_EN;
        OUTREG(RADEON_I2C_CNTL_0, i2c_cntl_0);
     
        I2C_WAIT_WITH_STATUS();
 
-       if(status!=I2C_DONE){
+       if(status!=RADEON_I2C_DONE){
           RADEON_I2C_Halt(pScrn);
           return FALSE;
           }
@@ -268,17 +254,17 @@ static Bool R200_I2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
     if(nRead > 0) {
        RADEONWaitForFifo(pScrn, 4+nRead);
     
-       OUTREG(RADEON_I2C_CNTL_0, I2C_DONE | I2C_NACK | I2C_HALT | I2C_SOFT_RST); 
+       OUTREG(RADEON_I2C_CNTL_0, RADEON_I2C_DONE | RADEON_I2C_NACK | RADEON_I2C_HALT | RADEON_I2C_SOFT_RST); 
 
        /* Write the address into the buffer first */
        OUTREG(RADEON_I2C_DATA, (CARD32) (d->SlaveAddr) | (1));
 
-       i2c_cntl_1 = (pPriv->radeon_i2c_timing << 24) | I2C_EN | I2C_SEL | 
+       i2c_cntl_1 = (pPriv->radeon_i2c_timing << 24) | RADEON_I2C_EN | RADEON_I2C_SEL | 
                         nRead | 0x010;
        OUTREG(RADEON_I2C_CNTL_1, i2c_cntl_1);
     
        i2c_cntl_0 = (pPriv->radeon_N << 24) | (pPriv->radeon_M << 16) | 
-                        I2C_GO | I2C_START | I2C_STOP | I2C_DRIVE_EN | I2C_RECEIVE;
+                        RADEON_I2C_GO | RADEON_I2C_START | RADEON_I2C_STOP | RADEON_I2C_DRIVE_EN | RADEON_I2C_RECEIVE;
        OUTREG(RADEON_I2C_CNTL_0, i2c_cntl_0);
     
        I2C_WAIT_WITH_STATUS();
@@ -287,7 +273,7 @@ static Bool R200_I2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
        /* Write Value into the buffer */
        for (loop = 0; loop < nRead; loop++)
        {
-          if((status == I2C_HALT) || (status == I2C_NACK))
+          if((status == RADEON_I2C_HALT) || (status == RADEON_I2C_NACK))
           {
           ReadBuffer[loop]=0xff;
           } else {
@@ -296,7 +282,7 @@ static Bool R200_I2CWriteRead(I2CDevPtr d, I2CByte *WriteBuffer, int nWrite,
        }
     }
     
-    if(status!=I2C_DONE){
+    if(status!=RADEON_I2C_DONE){
        RADEON_I2C_Halt(pScrn);
        return FALSE;
        }
@@ -370,8 +356,8 @@ void RADEONResetI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     unsigned char *RADEONMMIO = info->MMIO;
 
     RADEONWaitForFifo(pScrn, 2);
-    OUTREG8(RADEON_I2C_CNTL_1+2, ((I2C_SEL | I2C_EN)>>16));
-    OUTREG8(RADEON_I2C_CNTL_0+0, (I2C_DONE | I2C_NACK | I2C_HALT | I2C_SOFT_RST | I2C_DRIVE_EN | I2C_DRIVE_SEL));
+    OUTREG8(RADEON_I2C_CNTL_1+2, ((RADEON_I2C_SEL | RADEON_I2C_EN)>>16));
+    OUTREG8(RADEON_I2C_CNTL_0+0, (RADEON_I2C_DONE | RADEON_I2C_NACK | RADEON_I2C_HALT | RADEON_I2C_SOFT_RST | RADEON_I2C_DRIVE_EN | RADEON_I2C_DRIVE_SEL));
 }
 
 void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
