@@ -273,7 +273,8 @@ typedef enum {
    OPTION_CHECKDEVICES,
    OPTION_LINEARALLOC,
    OPTION_INTELTEXPOOL,
-   OPTION_INTELMMSIZE
+   OPTION_INTELMMSIZE,
+   OPTION_TRIPLEBUFFER,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -292,6 +293,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_LINEARALLOC, "LinearAlloc",  OPTV_INTEGER,   {0},    FALSE},
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_INTELMMSIZE, "AperTexSize",  OPTV_INTEGER,	{0},	FALSE},
+   {OPTION_TRIPLEBUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	FALSE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -1485,6 +1487,16 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "page flipping %s\n",
 		 enable ? "enabled" : "disabled");
    }
+#endif
+
+#ifdef XF86DRI
+   pI830->TripleBuffer = FALSE;
+   from =  (!pI830->directRenderingDisabled &&
+	    xf86GetOptValBool(pI830->Options, OPTION_TRIPLEBUFFER,
+			      &pI830->TripleBuffer)) ? X_CONFIG : X_DEFAULT;
+
+   xf86DrvMsg(pScrn->scrnIndex, from, "Triple buffering %sabled\n",
+	      pI830->TripleBuffer ? "en" : "dis");
 #endif
 
    /*

@@ -281,6 +281,8 @@ CheckTiling(ScrnInfoPtr pScrn)
          tiled = 1;
       if (pI830->bufferOffset == pI830->BackBuffer.Start && pI830->back_tiled == FENCE_XMAJOR)
          tiled = 1;
+      if (pI830->bufferOffset == pI830->ThirdBuffer.Start && pI830->third_tiled == FENCE_XMAJOR)
+         tiled = 1;
       /* not really supported as it's always YMajor tiled */
       if (pI830->bufferOffset == pI830->DepthBuffer.Start && pI830->depth_tiled == FENCE_XMAJOR)
          tiled = 1;

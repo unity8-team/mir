@@ -294,6 +294,7 @@ typedef struct _I830Rec {
    I830MemRange ContextMem;
 #ifdef XF86DRI
    I830MemRange BackBuffer;
+   I830MemRange ThirdBuffer;
    I830MemRange DepthBuffer;
    I830MemRange TexMem;
    int TexGranularity;
@@ -304,6 +305,7 @@ typedef struct _I830Rec {
 
    unsigned int front_tiled;
    unsigned int back_tiled;
+   unsigned int third_tiled;
    unsigned int depth_tiled;
 
 #ifdef DAMAGE
@@ -313,6 +315,7 @@ typedef struct _I830Rec {
 
    Bool NeedRingBufferLow;
    Bool allowPageFlip;
+   Bool TripleBuffer;
    Bool disableTiling;
 
    int backPitch;
@@ -511,6 +514,7 @@ typedef struct _I830Rec {
 #define I830_SELECT_FRONT	0
 #define I830_SELECT_BACK	1
 #define I830_SELECT_DEPTH	2
+#define I830_SELECT_THIRD	3
 
 /* I830 specific functions */
 extern int I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis);
@@ -539,6 +543,7 @@ extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
 #ifdef XF86DRI
 extern Bool I830Allocate3DMemory(ScrnInfoPtr pScrn, const int flags);
 extern Bool I830AllocateBackBuffer(ScrnInfoPtr pScrn, const int flags);
+extern Bool I830AllocateThirdBuffer(ScrnInfoPtr pScrn, const int flags);
 extern Bool I830AllocateDepthBuffer(ScrnInfoPtr pScrn, const int flags);
 extern Bool I830AllocateTextureMemory(ScrnInfoPtr pScrn, const int flags);
 extern void I830SetupMemoryTiling(ScrnInfoPtr pScrn);

@@ -228,6 +228,9 @@ I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
    case I830_SELECT_BACK:
       pI830->bufferOffset = pI830->BackBuffer.Start;
       break;
+   case I830_SELECT_THIRD:
+      pI830->bufferOffset = pI830->ThirdBuffer.Start;
+      break;
    case I830_SELECT_DEPTH:
       pI830->bufferOffset = pI830->DepthBuffer.Start;
       break;

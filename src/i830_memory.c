@@ -1118,6 +1118,69 @@ I830AllocateBackBuffer(ScrnInfoPtr pScrn, const int flags)
 }
 
 Bool
+I830AllocateThirdBuffer(ScrnInfoPtr pScrn, const int flags)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   unsigned long size, alloced, align = 0;
+   Bool tileable;
+   Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
+   int verbosity = dryrun ? 4 : 1;
+   const char *s = dryrun ? "[dryrun] " : "";
+   int lines;
+   int height = (pI830->rotation & (RR_Rotate_0 | RR_Rotate_180)) ? pScrn->virtualY : pScrn->virtualX;
+
+   /* Third Buffer */
+   memset(&(pI830->ThirdBuffer), 0, sizeof(pI830->ThirdBuffer));
+   pI830->ThirdBuffer.Key = -1;
+   tileable = !(flags & ALLOC_NO_TILING) &&
+	      IsTileable(pScrn, pScrn->displayWidth * pI830->cpp);
+   if (tileable) {
+      /* Make the height a multiple of the tile height (16) */
+      lines = (height + 15) / 16 * 16;
+   } else {
+      lines = height;
+   }
+
+   size = ROUND_TO_PAGE(pScrn->displayWidth * lines * pI830->cpp);
+   /*
+    * Try to allocate on the best tile-friendly boundaries.
+    */
+   alloced = 0;
+   if (tileable) {
+      align = GetBestTileAlignment(size);
+      for (align = GetBestTileAlignment(size); align >= (IS_I9XX(pI830) ? MB(1) : KB(512)); align >>= 1) {
+	 alloced = I830AllocVidMem(pScrn, &(pI830->ThirdBuffer),
+				   &(pI830->StolenPool), size, align,
+				   flags | FROM_ANYWHERE | ALLOCATE_AT_TOP |
+				   ALIGN_BOTH_ENDS);
+	 if (alloced >= size)
+	    break;
+      }
+   }
+   if (alloced < size) {
+      /* Give up on trying to tile */
+      tileable = FALSE;
+      size = ROUND_TO_PAGE(pScrn->displayWidth * height * pI830->cpp);
+      align = GTT_PAGE_SIZE;
+      alloced = I830AllocVidMem(pScrn, &(pI830->ThirdBuffer),
+				&(pI830->StolenPool), size, align,
+				flags | FROM_ANYWHERE | ALLOCATE_AT_TOP);
+   }
+   if (alloced < size) {
+      if (!dryrun) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Failed to allocate third buffer space.\n");
+      }
+      return FALSE;
+   }
+   xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		  "%sAllocated %ld kB for the third buffer at 0x%lx.\n", s,
+		  alloced / 1024, pI830->ThirdBuffer.Start);
+
+   return TRUE;
+}
+
+Bool
 I830AllocateDepthBuffer(ScrnInfoPtr pScrn, const int flags)
 {
    I830Ptr pI830 = I830PTR(pScrn);
@@ -1269,6 +1332,9 @@ I830Allocate3DMemory(ScrnInfoPtr pScrn, const int flags)
 		  alloced / 1024, pI830->ContextMem.Start);
 
    if (!I830AllocateBackBuffer(pScrn, flags))
+      return FALSE;
+
+   if (pI830->TripleBuffer && !I830AllocateThirdBuffer(pScrn, flags))
       return FALSE;
 
    if (!I830AllocateDepthBuffer(pScrn, flags))
@@ -1439,6 +1505,7 @@ I830FixupOffsets(ScrnInfoPtr pScrn)
    if (pI830->directRenderingEnabled) {
       I830FixOffset(pScrn, &(pI830->ContextMem));
       I830FixOffset(pScrn, &(pI830->BackBuffer));
+      I830FixOffset(pScrn, &(pI830->ThirdBuffer));
       I830FixOffset(pScrn, &(pI830->DepthBuffer));
       if (pI830->mmModeFlags & I830_KERNEL_TEX) {
 	 I830FixOffset(pScrn, &(pI830->TexMem));
@@ -1701,6 +1768,7 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
 
    pI830->front_tiled = FENCE_LINEAR;
    pI830->back_tiled = FENCE_LINEAR;
+   pI830->third_tiled = FENCE_LINEAR;
    pI830->depth_tiled = FENCE_LINEAR;
 
    if (pI830->allowPageFlip) {
@@ -1735,6 +1803,18 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
       } else {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "MakeTiles failed for the back buffer.\n");
+	 pI830->allowPageFlip = FALSE;
+      }
+   }
+
+   if (pI830->ThirdBuffer.Alignment >= KB(512)) {
+      if (MakeTiles(pScrn, &(pI830->ThirdBuffer), FENCE_XMAJOR)) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "Activating tiled memory for the third buffer.\n");
+         pI830->third_tiled = FENCE_XMAJOR;
+      } else {
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "MakeTiles failed for the third buffer.\n");
 	 pI830->allowPageFlip = FALSE;
       }
    }
@@ -1824,6 +1904,8 @@ I830BindAGPMemory(ScrnInfoPtr pScrn)
 	 if (!BindMemRange(pScrn, &(pI830->ContextMem)))
 	    return FALSE;
 	 if (!BindMemRange(pScrn, &(pI830->BackBuffer)))
+	    return FALSE;
+	 if (pI830->TripleBuffer && !BindMemRange(pScrn, &(pI830->ThirdBuffer)))
 	    return FALSE;
 	 if (!BindMemRange(pScrn, &(pI830->DepthBuffer)))
 	    return FALSE;
@@ -1918,6 +2000,8 @@ I830UnbindAGPMemory(ScrnInfoPtr pScrn)
 	 if (!UnbindMemRange(pScrn, &(pI830->ContextMem)))
 	    return FALSE;
 	 if (!UnbindMemRange(pScrn, &(pI830->BackBuffer)))
+	    return FALSE;
+	 if (pI830->TripleBuffer && !UnbindMemRange(pScrn, &(pI830->ThirdBuffer)))
 	    return FALSE;
 	 if (!UnbindMemRange(pScrn, &(pI830->DepthBuffer)))
 	    return FALSE;

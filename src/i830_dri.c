@@ -751,6 +751,20 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Back Buffer = 0x%08x\n",
               (int)sarea->back_handle);
 
+   if (pI830->TripleBuffer) {
+      if (drmAddMap(pI830->drmSubFD,
+		    (drm_handle_t)(sarea->third_offset + pI830->LinearAddr),
+		    sarea->third_size, DRM_AGP, 0,
+		    (drmAddress) &sarea->third_handle) < 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "[drm] drmAddMap(third_handle) failed. Disabling DRI\n");
+	DRICloseScreen(pScreen);
+	return FALSE;
+      }
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Third Buffer = 0x%08x\n",
+		 (int)sarea->third_handle);
+   }
+
    if (drmAddMap(pI830->drmSubFD,
                  (drm_handle_t)sarea->depth_offset + pI830->LinearAddr,
                  sarea->depth_size, DRM_AGP, 0,
@@ -793,6 +807,10 @@ I830DRIUnmapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    if (sarea->back_handle) {
       drmRmMap(pI830->drmSubFD, sarea->back_handle);
       sarea->back_handle = 0;
+   }
+   if (sarea->third_handle) {
+      drmRmMap(pI830->drmSubFD, sarea->third_handle);
+      sarea->third_handle = 0;
    }
    if (sarea->depth_handle) {
       drmRmMap(pI830->drmSubFD, sarea->depth_handle);
@@ -870,6 +888,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
    /* init to zero to be safe */
    sarea->front_handle = 0;
    sarea->back_handle = 0;
+   sarea->third_handle = 0;
    sarea->depth_handle = 0;
    sarea->tex_handle = 0;
 
@@ -1041,17 +1060,10 @@ I830DRIFinishScreenInit(ScreenPtr pScreen)
  * Otherwise will have to sync again???
  */
 static void
-I830DRIRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox)
+I830DRIDoRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox, CARD32 dst)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    int i, cmd, br13 = (pScrn->displayWidth * pI830->cpp) | (0xcc << 16);
-   drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
-
-   /* Don't want to do this when no 3d is active and pages are
-    * right-way-round :
-    */
-   if (!pSAREAPriv->pf_active && pSAREAPriv->pf_current_page == 0)
-      return;
 
    if (pScrn->bitsPerPixel == 32) {
       cmd = (XY_SRC_COPY_BLT_CMD | XY_SRC_COPY_BLT_WRITE_ALPHA |
@@ -1068,11 +1080,30 @@ I830DRIRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox)
       OUT_RING(br13);
       OUT_RING((pbox->y1 << 16) | pbox->x1);
       OUT_RING((pbox->y2 << 16) | pbox->x2);
-      OUT_RING(pI830->BackBuffer.Start);
+      OUT_RING(dst);
       OUT_RING((pbox->y1 << 16) | pbox->x1);
       OUT_RING(br13 & 0xffff);
       OUT_RING(pI830->FrontBuffer.Start);
       ADVANCE_LP_RING();
+   }
+}
+
+static void
+I830DRIRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+
+   /* Don't want to do this when no 3d is active and pages are
+    * right-way-round :
+    */
+   if (!pSAREAPriv->pf_active && pSAREAPriv->pf_current_page == 0)
+      return;
+
+   I830DRIDoRefreshArea(pScrn, num, pbox, pI830->BackBuffer.Start);
+
+   if (pI830->TripleBuffer) {
+      I830DRIDoRefreshArea(pScrn, num, pbox, pI830->ThirdBuffer.Start);
    }
 
    DamageEmpty(pI830->pDamage);
@@ -1160,6 +1191,13 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
       I830SelectBuffer(pScrn, I830_SELECT_BACK);
       I830SubsequentSolidFillRect(pScrn, pbox->x1, pbox->y1,
 				  pbox->x2 - pbox->x1, pbox->y2 - pbox->y1);
+
+      if (I830PTR(pScrn)->TripleBuffer) {
+	 I830SelectBuffer(pScrn, I830_SELECT_THIRD);
+	 I830SubsequentSolidFillRect(pScrn, pbox->x1, pbox->y1,
+				     pbox->x2 - pbox->x1, pbox->y2 - pbox->y1);
+      }
+
       pbox++;
    }
 
@@ -1333,6 +1371,10 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
       I830SelectBuffer(pScrn, I830_SELECT_BACK);
       I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
+      if (pI830->TripleBuffer) {
+	 I830SelectBuffer(pScrn, I830_SELECT_THIRD);
+	 I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
+      }
       if (!IS_I965G(pI830)) {
          I830SelectBuffer(pScrn, I830_SELECT_DEPTH);
          I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
@@ -1492,6 +1534,7 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 
    sarea->front_tiled = pI830->front_tiled;
    sarea->back_tiled = pI830->back_tiled;
+   sarea->third_tiled = pI830->third_tiled;
    sarea->depth_tiled = pI830->depth_tiled;
    sarea->rotated_tiled = FALSE;
 
@@ -1509,6 +1552,8 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    sarea->height = pScreen->height;
    sarea->back_offset = pI830->BackBuffer.Start;
    sarea->back_size = pI830->BackBuffer.Size;
+   sarea->third_offset = pI830->ThirdBuffer.Start;
+   sarea->third_size = pI830->ThirdBuffer.Size;
    sarea->depth_offset = pI830->DepthBuffer.Start;
    sarea->depth_size = pI830->DepthBuffer.Size;
    sarea->tex_offset = pI830->TexMem.Start;
