@@ -644,6 +644,33 @@ i830_get_core_clock_speed(ScrnInfoPtr pScrn)
 }
 
 /**
+ * Return the pipe currently connected to the panel fitter,
+ * or -1 if the panel fitter is not present or not in use
+ */
+static int
+i830_panel_fitter_pipe (I830Ptr	pI830)
+{
+    CARD32  pfit_control;
+    
+    /* i830 doesn't have a panel fitter */
+    if (IS_I830(pI830))
+	return -1;
+    
+    pfit_control = INREG(PFIT_CONTROL);
+    
+    /* See if the panel fitter is in use */
+    if ((pfit_control & PFIT_ENABLE) == 0)
+	return -1;
+    
+    /* 965 can place panel fitter on either pipe */
+    if (IS_I965G(pI830))
+	return (pfit_control >> 29) & 0x3;
+
+    /* older chips can only use pipe 1 */
+    return 1;
+}
+
+/**
  * Sets up registers for the given mode/adjusted_mode pair.
  *
  * The clocks, CRTCs and outputs attached to this CRTC must be off.
@@ -830,7 +857,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     }
     
     /* Disable the panel fitter if it was on our pipe */
-    if (!IS_I830(pI830) && ((INREG(PFIT_CONTROL) >> 29) & 0x3) == pipe)
+    if (i830_panel_fitter_pipe (pI830) == pipe)
 	OUTREG(PFIT_CONTROL, 0);
 
     i830PrintPll("chosen", &clock);
