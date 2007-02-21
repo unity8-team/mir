@@ -2858,9 +2858,10 @@ RADEONPutImage(
    case FOURCC_YV12:
    case FOURCC_I420:
 	/* need 16bytes alignment for u,v plane, so 2 times that for width
-	   but blitter needs 64bytes alignment */
+	   but blitter needs 64bytes alignment. 128byte is a waste but dstpitch
+	   for uv planes needs to be dstpitch yplane >> 1 for now. */
 	dstPitch = ((width + 127) & ~127);
-	srcPitch = width;
+	srcPitch = (width + 3) & ~3;
 	break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
@@ -2872,7 +2873,7 @@ RADEONPutImage(
 
    new_size = dstPitch * height;
    if (id == FOURCC_YV12 || id == FOURCC_I420) {
-      new_size += (dstPitch >> 1) * height;
+      new_size += (dstPitch >> 1) * ((height + 1) & ~1);
    }
    pPriv->video_offset = RADEONAllocateMemory(pScrn, &pPriv->video_memory,
 					      (pPriv->doubleBuffer ?
@@ -2898,15 +2899,16 @@ RADEONPutImage(
    case FOURCC_YV12:
    case FOURCC_I420:
 /* meh. Such a mess just for someone who wants to watch half the video clipped */
+	top &= ~1;
 	/* odd number of pixels? That may not work correctly */
-	srcPitch2 = width >> 1;
-	/* odd number of lines? See above... */
-	s2offset = (srcPitch * height);
-	s3offset = s2offset + srcPitch2 * (height >> 1);
+	srcPitch2 = ((width >> 1) + 3) & ~3;
+	/* odd number of lines? Maybe... */
+	s2offset = srcPitch * ((height + 1) & ~1);
+	s3offset = s2offset + srcPitch2 * ((height + 1) >> 1);
 	s2offset += (top >> 1) * srcPitch2 + (left >> 1);
 	s3offset += (top >> 1) * srcPitch2 + (left >> 1);
 	d2line = (height * dstPitch);
-	d3line = d2line + (height >> 1) * (dstPitch >> 1);
+	d3line = d2line + ((height + 1) >> 1) * (dstPitch >> 1);
 	nlines = ((yb + 0xffff) >> 16) - top;
 	d2line += (top >> 1) * (dstPitch >> 1) - (top * dstPitch);
 	d3line += (top >> 1) * (dstPitch >> 1) - (top * dstPitch);
@@ -2918,9 +2920,9 @@ RADEONPutImage(
         RADEONCopyData(pScrn, buf + (top * srcPitch) + left, dst_start + left,
 		srcPitch, dstPitch, nlines, npixels, 1);
         RADEONCopyData(pScrn, buf + s2offset, dst_start + d2line + (left >> 1),
-		srcPitch2, dstPitch >> 1, nlines >> 1, npixels >> 1, 1);
+		srcPitch2, dstPitch >> 1, (nlines + 1) >> 1, npixels >> 1, 1);
         RADEONCopyData(pScrn, buf + s3offset, dst_start + d3line + (left >> 1),
-		srcPitch2, dstPitch >> 1, nlines >> 1, npixels >> 1, 1);
+		srcPitch2, dstPitch >> 1, (nlines + 1) >> 1, npixels >> 1, 1);
 
 	break;
     case FOURCC_RGBT16:
