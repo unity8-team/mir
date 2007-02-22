@@ -1135,6 +1135,8 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
       pI830->LockHeld = 1;
       I830RefreshRing(pScrn);
 
+      I830EmitFlush(pScrn);
+
 #ifdef DAMAGE
       if (!pI830->pDamage && pI830->allowPageFlip) {
 	 PixmapPtr pPix  = pScreen->GetScreenPixmap(pScreen);
@@ -1159,9 +1161,11 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
    } else if (syncType == DRI_2D_SYNC &&
 	      oldContextType == DRI_NO_CONTEXT &&
 	      newContextType == DRI_2D_CONTEXT) {
-      pI830->LockHeld = 0;
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("i830DRISwapContext (out)\n");
+
+      if (!pScrn->vtSema)
+     	 return;
 
 #ifdef DAMAGE
       if (pI830->pDamage) {
@@ -1181,6 +1185,10 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 	 }
       }
 #endif
+
+      I830EmitFlush(pScrn);
+
+      pI830->LockHeld = 0;
    } else if (I810_DEBUG & DEBUG_VERBOSE_DRI)
       ErrorF("i830DRISwapContext (other)\n");
 }
