@@ -980,6 +980,10 @@ I830DRICloseScreen(ScreenPtr pScreen)
 
    DPRINTF(PFX, "I830DRICloseScreen\n");
 
+#ifdef DAMAGE
+   REGION_UNINIT(pScreen, &pI830->driRegion);
+#endif
+
    if (pI830DRI->irq) {
        drmCtlUninstHandler(pI830->drmSubFD);
        pI830DRI->irq = 0;
@@ -1164,10 +1168,16 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 	 RegionPtr pDamageReg = DamageRegion(pI830->pDamage);
 
 	 if (pDamageReg) {
-	    int nrects = REGION_NUM_RECTS(pDamageReg);
+	    RegionRec region;
+	    int nrects;
 
-	    if (nrects)
-	       I830DRIRefreshArea(pScrn, nrects, REGION_RECTS(pDamageReg));
+	    REGION_NULL(pScreen, &region);
+	    REGION_SUBTRACT(pScreen, &region, pDamageReg, &pI830->driRegion);
+
+	    if ((nrects = REGION_NUM_RECTS(&region)))
+	       I830DRIRefreshArea(pScrn, nrects, REGION_RECTS(&region));
+
+	    REGION_UNINIT(pScreen, &region);
 	 }
       }
 #endif
@@ -1486,7 +1496,12 @@ I830DRITransitionTo2d(ScreenPtr pScreen)
 static void
 I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
 {
+   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
    unsigned pfMask = 0;
+
+   REGION_UNINIT(pScreen, &pI830->driRegion);
+   REGION_NULL(pScreen, &pI830->driRegion);
 
    if (num > 0) {
       drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
@@ -1505,15 +1520,24 @@ I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
 
       for (i = 0; i < 2; i++) {
 	 for (j = 0; j < num; j++) {
-	    if (ppWin[j] && RECT_IN_REGION(pScreen, &ppWin[j]->clipList,
-					   &crtcBox[i]) != rgnOUT)
-	       numvisible[i]++;
+	    WindowPtr pWin = ppWin[j];
+
+	    if (pWin) {
+	       if (RECT_IN_REGION(pScreen, &pWin->clipList, &crtcBox[i]) !=
+		   rgnOUT)
+		  numvisible[i]++;
+
+	       if (i == 0)
+		  REGION_UNION(pScreen, &pI830->driRegion, &pWin->clipList,
+			       &pI830->driRegion);
+	    }
 	 }
 
 	 if (numvisible[i] == 1)
 	    pfMask |= 1 << i;
       }
-   }
+   } else
+      REGION_NULL(pScreen, &pI830->driRegion);
 
    I830DRISetPfMask(pScreen, pfMask);
 }

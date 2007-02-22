@@ -310,6 +310,7 @@ typedef struct _I830Rec {
 
 #ifdef DAMAGE
    DamagePtr pDamage;
+   RegionRec driRegion;
 #endif
 #endif
 
