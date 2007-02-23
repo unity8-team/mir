@@ -145,17 +145,17 @@ I830InitDma(ScrnInfoPtr pScrn)
    memset(&info, 0, sizeof(drmI830Init));
    info.func = I830_INIT_DMA;
 
-   info.ring_start = ring->mem.Start + pI830->LinearAddr;
-   info.ring_end = ring->mem.End + pI830->LinearAddr;
-   info.ring_size = ring->mem.Size;
+   info.ring_start = ring->mem->offset + pI830->LinearAddr;
+   info.ring_end = ring->mem->end + pI830->LinearAddr;
+   info.ring_size = ring->mem->size;
 
    info.mmio_offset = (unsigned int)pI830DRI->regs;
 
    info.sarea_priv_offset = sizeof(XF86DRISAREARec);
 
-   info.front_offset = pI830->FrontBuffer.Start;
-   info.back_offset = pI830->BackBuffer.Start;
-   info.depth_offset = pI830->DepthBuffer.Start;
+   info.front_offset = pI830->front_buffer->offset;
+   info.back_offset = pI830->back_buffer->offset;
+   info.depth_offset = pI830->depth_buffer->offset;
    info.w = pScrn->virtualX;
    info.h = pScrn->virtualY;
    info.pitch = pI830->displayWidth;
@@ -509,7 +509,7 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->ddxDriverPatchVersion = I830_PATCHLEVEL;
 #if 1 /* Remove this soon - see bug 5714 */
    pDRIInfo->frameBufferPhysicalAddress = (char *) pI830->LinearAddr +
-					  pI830->FrontBuffer.Start;
+					  pI830->front_buffer->offset;
    pDRIInfo->frameBufferSize = ROUND_TO_PAGE(pScrn->displayWidth *
 					     pScrn->virtualY * pI830->cpp);
 #else
@@ -829,8 +829,8 @@ I830DRIDoMappings(ScreenPtr pScreen)
 	      (int)pI830DRI->regs);
 
    if (drmAddMap(pI830->drmSubFD,
-		 (drm_handle_t)pI830->LpRing->mem.Start + pI830->LinearAddr,
-		 pI830->LpRing->mem.Size, DRM_AGP, 0,
+		 (drm_handle_t)pI830->LpRing->mem->offset + pI830->LinearAddr,
+		 pI830->LpRing->mem->size, DRM_AGP, 0,
 		 (drmAddress) &pI830->ring_map) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[drm] drmAddMap(ring_map) failed. Disabling DRI\n");
@@ -1325,10 +1325,10 @@ I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf)
       OUT_RING(br13);
       OUT_RING((pbox->y1 << 16) | pbox->x1);
       OUT_RING((pbox->y2 << 16) | pbox->x2);
-      OUT_RING(pI830->BackBuffer.Start);
+      OUT_RING(pI830->back_buffer->offset);
       OUT_RING((pbox->y1 << 16) | pbox->x1);
       OUT_RING(br13 & 0xffff);
-      OUT_RING(pI830->FrontBuffer.Start);
+      OUT_RING(pI830->front_buffer->offset);
       ADVANCE_LP_RING();
    }
 }
@@ -1360,10 +1360,10 @@ I830EnablePageFlip(ScreenPtr pScreen)
       OUT_RING(br13);
       OUT_RING(0);
       OUT_RING((pScrn->virtualY << 16) | pScrn->virtualX);
-      OUT_RING(pI830->BackBuffer.Start);
+      OUT_RING(pI830->back_buffer->offset);
       OUT_RING(0);
       OUT_RING(br13 & 0xffff);
-      OUT_RING(pI830->FrontBuffer.Start);
+      OUT_RING(pI830->front_buffer->offset);
       ADVANCE_LP_RING();
 
       pSAREAPriv->pf_active = 1;
@@ -1448,8 +1448,8 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    sarea->depth_tiled = pI830->depth_tiled;
    sarea->rotated_tiled = FALSE;
 
-   sarea->front_offset = pI830->FrontBuffer.Start;
-   /* Don't use FrontBuffer.Size here as it includes the pixmap cache area
+   sarea->front_offset = pI830->front_buffer->offset;
+   /* Don't use front_buffer->size here as it includes the pixmap cache area
     * Instead, calculate the entire framebuffer.
     */
    sarea->front_size = pI830->displayWidth * pScrn->virtualY * pI830->cpp;
@@ -1460,12 +1460,12 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 
    sarea->width = pScreen->width;
    sarea->height = pScreen->height;
-   sarea->back_offset = pI830->BackBuffer.Start;
-   sarea->back_size = pI830->BackBuffer.Size;
-   sarea->depth_offset = pI830->DepthBuffer.Start;
-   sarea->depth_size = pI830->DepthBuffer.Size;
-   sarea->tex_offset = pI830->TexMem.Start;
-   sarea->tex_size = pI830->TexMem.Size;
+   sarea->back_offset = pI830->back_buffer->offset;
+   sarea->back_size = pI830->back_buffer->size;
+   sarea->depth_offset = pI830->depth_buffer->offset;
+   sarea->depth_size = pI830->depth_buffer->size;
+   sarea->tex_offset = pI830->textures->offset;
+   sarea->tex_size = pI830->textures->size;
    sarea->log_tex_granularity = pI830->TexGranularity;
    sarea->pitch = pScrn->displayWidth;
    sarea->virtualX = pScrn->virtualX;

@@ -345,10 +345,10 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     if (crtc->rotatedData != NULL) {
 	Start = (char *)crtc->rotatedData - (char *)pI830->FbBase;
     } else if (I830IsPrimary(pScrn)) {
-	Start = pI830->FrontBuffer.Start;
+	Start = pI830->front_buffer->offset;
     } else {
 	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-	Start = pI8301->FrontBuffer2.Start;
+	Start = pI8301->front_buffer_2->offset;
     }
 
     if (IS_I965G(pI830)) {
@@ -1012,7 +1012,7 @@ i830_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 		       "Couldn't allocate shadow memory for rotated CRTC\n");
 	    return NULL;
 	}
-	rotate_offset = pI830->FrontBuffer.Start +
+	rotate_offset = pI830->front_buffer->offset +
 	    intel_crtc->rotate_mem_xaa->offset * pI830->cpp;
     }
 #endif /* I830_USE_XAA */
