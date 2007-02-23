@@ -158,9 +158,9 @@ I830InitDma(ScrnInfoPtr pScrn)
    info.depth_offset = pI830->depth_buffer->offset;
    info.w = pScrn->virtualX;
    info.h = pScrn->virtualY;
-   info.pitch = pI830->displayWidth;
-   info.back_pitch = pI830->displayWidth;
-   info.depth_pitch = pI830->displayWidth;
+   info.pitch = pScrn->displayWidth;
+   info.back_pitch = pScrn->displayWidth;
+   info.depth_pitch = pScrn->displayWidth;
    info.cpp = pI830->cpp;
 
    if (drmCommandWrite(pI830->drmSubFD, DRM_I830_INIT,
@@ -1452,7 +1452,7 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    /* Don't use front_buffer->size here as it includes the pixmap cache area
     * Instead, calculate the entire framebuffer.
     */
-   sarea->front_size = pI830->displayWidth * pScrn->virtualY * pI830->cpp;
+   sarea->front_size = pScrn->displayWidth * pScrn->virtualY * pI830->cpp;
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
               "[drm] init sarea width,height = %d x %d (pitch %d)\n",
@@ -1477,7 +1477,7 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    sarea->rotation = 0;
    sarea->rotated_offset = -1;
    sarea->rotated_size = 0;
-   sarea->rotated_pitch = pI830->displayWidth;
+   sarea->rotated_pitch = pScrn->displayWidth;
 
    success = I830DRIMapScreenRegions(pScrn, sarea);
 

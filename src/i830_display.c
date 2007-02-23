@@ -972,7 +972,7 @@ i830_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
     unsigned long rotate_offset;
     int align = KB(4), size;
 
-    rotate_pitch = pI830->displayWidth * pI830->cpp;
+    rotate_pitch = pScrn->displayWidth * pI830->cpp;
     size = rotate_pitch * height;
 
 #ifdef I830_USE_EXA
@@ -1034,7 +1034,7 @@ i830_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
     if (!data)
 	data = i830_crtc_shadow_allocate (crtc, width, height);
     
-    rotate_pitch = pI830->displayWidth * pI830->cpp;
+    rotate_pitch = pScrn->displayWidth * pI830->cpp;
 
     rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
 					   width, height,

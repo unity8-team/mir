@@ -291,7 +291,6 @@ typedef struct _I830Rec {
    unsigned long LinearAlloc;
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
    Rotation rotation;
-   int displayWidth;
    void (*PointerMoved)(int, int, int);
    CreateScreenResourcesProcPtr    CreateScreenResources;
    int *used3D;
@@ -579,9 +578,10 @@ Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
 void i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity,
 			       const char *prefix);
 void i830_reset_allocations(ScrnInfoPtr pScrn);
+void i830_free_3d_memory(ScrnInfoPtr pScrn);
 extern long I830CheckAvailableMemory(ScrnInfoPtr pScrn);
-Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn, const int flags);
-Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn, const int flags);
+Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
+Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
 
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
@@ -665,11 +665,6 @@ extern const int I830CopyROP[16];
 /* Flags for memory allocation function */
 #define NEED_PHYSICAL_ADDR		0x00000001
 #define ALIGN_BOTH_ENDS			0x00000002
-
-#define ALLOC_NO_TILING			0x00001000
-#define ALLOC_INITIAL			0x00002000
-
-#define ALLOCATE_DRY_RUN		0x80000000
 
 /* Chipset registers for VIDEO BIOS memory RW access */
 #define _855_DRAM_RW_CONTROL 0x58

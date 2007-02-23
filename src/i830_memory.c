@@ -247,6 +247,23 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     memset(pI830->fence, 0, sizeof(pI830->fence));
 }
 
+void
+i830_free_3d_memory(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    i830_free_memory(pScrn, pI830->logical_context);
+    pI830->logical_context = NULL;
+    i830_free_memory(pScrn, pI830->back_buffer);
+    pI830->back_buffer = NULL;
+    i830_free_memory(pScrn, pI830->depth_buffer);
+    pI830->depth_buffer = NULL;
+    i830_free_memory(pScrn, pI830->textures);
+    pI830->textures = NULL;
+    i830_free_memory(pScrn, pI830->memory_manager);
+    pI830->memory_manager = NULL;
+}
+
 /**
  * Initialize's the driver's video memory allocator to allocate in the
  * given range.
@@ -585,10 +602,9 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 }
 
 static Bool
-i830_allocate_ringbuffer(ScrnInfoPtr pScrn, int flags)
+i830_allocate_ringbuffer(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
 
     if (pI830->noAccel || pI830->LpRing->mem != NULL)
 	return TRUE;
@@ -597,10 +613,8 @@ i830_allocate_ringbuffer(ScrnInfoPtr pScrn, int flags)
 					      PRIMARY_RINGBUFFER_SIZE,
 					      GTT_PAGE_SIZE, 0);
     if (pI830->LpRing->mem == NULL) {
-	if (!dryrun) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to allocate Ring Buffer space\n");
-	}
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Failed to allocate Ring Buffer space\n");
 	return FALSE;
     }
 
@@ -614,10 +628,9 @@ i830_allocate_ringbuffer(ScrnInfoPtr pScrn, int flags)
  * requested)
  */
 static Bool
-i830_allocate_overlay(ScrnInfoPtr pScrn, int flags)
+i830_allocate_overlay(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
 
     /* Only allocate if overlay is going to be enabled. */
     if (!pI830->XvEnabled || IS_I965G(pI830))
@@ -628,11 +641,9 @@ i830_allocate_overlay(ScrnInfoPtr pScrn, int flags)
 						   OVERLAY_SIZE, GTT_PAGE_SIZE,
 						   NEED_PHYSICAL_ADDR);
 	if (pI830->overlay_regs == NULL) {
-	    if (!dryrun) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to allocate Overlay register space.\n");
-		/* This failure isn't fatal. */
-	    }
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to allocate Overlay register space.\n");
+	    /* This failure isn't fatal. */
 	}
     }
 
@@ -641,10 +652,8 @@ i830_allocate_overlay(ScrnInfoPtr pScrn, int flags)
 						 KB(pI830->LinearAlloc),
 						 GTT_PAGE_SIZE, 0);
 	if (pI830->xaa_linear == NULL) {
-	    if (!dryrun) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to allocate linear buffer space\n");
-	    }
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to allocate linear buffer space\n");
 	}
     }
 
@@ -707,12 +716,9 @@ static i830_memory *
 i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 			  Bool secondary, int flags)
 {
-    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
     unsigned long minspace, avail;
     int cacheLines, maxCacheLines;
-    int verbosity = dryrun ? 4 : 1;
-    const char *s = dryrun ? "[dryrun] " : "";
     int align;
     long size, fb_height;
     char *name;
@@ -770,9 +776,9 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 
 	FbMemBox->y2 += cacheLines;
 
-	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		       "%sAllocating at least %d scanlines for pixmap cache\n",
-		       s, cacheLines);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Allocating %d scanlines for pixmap cache\n",
+		   cacheLines);
     } else {
 	/* For EXA, we have a separate allocation for the linear allocator
 	 * which also does the pixmap cache.
@@ -786,7 +792,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
     name = secondary ? "secondary front buffer" : "front buffer";
 
     /* Attempt to allocate it tiled first if we have page flipping on. */
-    if (!flags & ALLOC_NO_TILING && pI830->allowPageFlip &&
+    if (!pI830->disableTiling && pI830->allowPageFlip &&
 	IsTileable(pScrn, pitch))
     {
 	/* XXX: probably not the case on 965 */
@@ -796,7 +802,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 	    align = KB(512);
 	front_buffer = i830_allocate_memory_tiled(pScrn, name, size,
 						  pitch, align,
-						  flags, TILING_XMAJOR);
+						  0, TILING_XMAJOR);
 	pI830->front_tiled = FENCE_XMAJOR;
     }
 
@@ -807,11 +813,9 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
     }
 
     if (front_buffer == NULL) {
-	if (!dryrun) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
-		       "%sframebuffer. Is your VideoRAM set too low?\n",
-		       secondary ? "secondary " : "");
-	}
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
+		   "%sframebuffer. Is your VideoRAM set too low?\n",
+		   secondary ? "secondary " : "");
 	return NULL;
     }
 
@@ -819,13 +823,13 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 }
 
 static Bool
-i830_allocate_cursor_buffers(xf86CrtcPtr crtc, int flags)
+i830_allocate_cursor_buffers(xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     I830Ptr pI830 = I830PTR(pScrn);
-    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
     long size;
+    int flags = pI830->CursorNeedsPhysical ? NEED_PHYSICAL_ADDR : 0;
 
     if (pI830->SWCursor)
 	return FALSE;
@@ -836,18 +840,14 @@ i830_allocate_cursor_buffers(xf86CrtcPtr crtc, int flags)
      */
 
     size = HWCURSOR_SIZE;
-    if (pI830->CursorNeedsPhysical)
-	flags |= NEED_PHYSICAL_ADDR;
 
     if (intel_crtc->cursor_mem == NULL) {
 	intel_crtc->cursor_mem = i830_allocate_memory(pScrn, "HW cursor",
 						      size, GTT_PAGE_SIZE,
 						      flags);
 	if (intel_crtc->cursor_mem == NULL) {
-	    if (!dryrun) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to allocate HW cursor space.\n");
-	    }
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to allocate HW cursor space.\n");
 	    return FALSE;
 	}
     }
@@ -862,10 +862,8 @@ i830_allocate_cursor_buffers(xf86CrtcPtr crtc, int flags)
 							   GTT_PAGE_SIZE,
 							   flags);
 	if (intel_crtc->cursor_mem_argb == NULL) {
-	    if (!dryrun) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to allocate HW (ARGB) cursor space.\n");
-	    }
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to allocate HW (ARGB) cursor space.\n");
 	}
     }
 
@@ -877,38 +875,32 @@ i830_allocate_cursor_buffers(xf86CrtcPtr crtc, int flags)
  * ring buffer, scratch memory, HW cursor.
  */
 Bool
-i830_allocate_2d_memory(ScrnInfoPtr pScrn, const int flags)
+i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
     long size;
-    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
     int i;
-
-    DPRINTF(PFX, "i830_allocate_2d_memory: inital is %s\n",
-	    BOOLTOSTRING(flags & ALLOC_INITIAL));
 
     if (!pI830->StolenOnly &&
 	(!xf86AgpGARTSupported() || !xf86AcquireGART(pScrn->scrnIndex))) {
-	if (!dryrun) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "AGP GART support is either not available or cannot "
-		       "be used.\n"
-		       "\tMake sure your kernel has agpgart support or has\n"
-		       "\tthe agpgart module loaded.\n");
-	}
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "AGP GART support is either not available or cannot "
+		   "be used.\n"
+		   "\tMake sure your kernel has agpgart support or has\n"
+		   "\tthe agpgart module loaded.\n");
 	return FALSE;
     }
 
     /* Allocate the ring buffer first, so it ends up in stolen mem. */
-    i830_allocate_ringbuffer(pScrn, flags);
+    i830_allocate_ringbuffer(pScrn);
 
     /* Next, allocate other fixed-size allocations we have. */
     if (!pI830->SWCursor) {
 	/* Allocate cursor memory */
 	for (i = 0; i < xf86_config->num_crtc; i++) {
-	    if (!i830_allocate_cursor_buffers(xf86_config->crtc[i], flags) &&
+	    if (!i830_allocate_cursor_buffers(xf86_config->crtc[i]) &&
 		!pI830->SWCursor)
 		{
 		    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -925,7 +917,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn, const int flags)
      * space.  The second head in zaphod mode will share the space.
      */
     if (I830IsPrimary(pScrn))
-	i830_allocate_overlay(pScrn, flags);
+	i830_allocate_overlay(pScrn);
 #endif
 
 #ifdef I830_USE_EXA
@@ -943,12 +935,10 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn, const int flags)
 	    size = ROUND_TO_PAGE(size);
 
 	    pI830->exa_offscreen = i830_allocate_memory(pScrn, "exa offscreen",
-							size, 1, flags);
+							size, 1, 0);
 	    if (pI830->exa_offscreen == NULL) {
-		if (!dryrun) {
-		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
-			       "offscreen memory.  Not enough VRAM?\n");
-		}
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
+			   "offscreen memory.  Not enough VRAM?\n");
 		return FALSE;
 	    }
 	}
@@ -956,86 +946,66 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn, const int flags)
 	if (IS_I965G(pI830) && pI830->exa_965_state == NULL) {
 	    pI830->exa_965_state =
 		i830_allocate_memory(pScrn, "exa G965 state buffer",
-				     EXA_LINEAR_EXTRA, GTT_PAGE_SIZE,
-				     flags);
+				     EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, 0);
 	    if (pI830->exa_965_state == NULL) {
-		if (!dryrun) {
-		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			       "G965: Failed to allocate exa state buffer "
-			       "space.\n");
-		}
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "G965: Failed to allocate exa state buffer "
+			   "space.\n");
 		return FALSE;
 	    }
 	}
     }
 #endif /* I830_USE_EXA */
 
-    if (flags & ALLOC_INITIAL) {
+    if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2) {
+	I830EntPtr pI830Ent = pI830->entityPrivate;
+	I830Ptr pI8302 = I830PTR(pI830Ent->pScrn_2);
 
-	/* Unfortunately this doesn't run on the DRY_RUN pass because our
-	 * second head hasn't been created yet..... */
-	if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2) {
-	    I830EntPtr pI830Ent = pI830->entityPrivate;
-	    I830Ptr pI8302 = I830PTR(pI830Ent->pScrn_2);
-
-	    pI830->front_buffer_2 =
-		i830_allocate_framebuffer(pI830Ent->pScrn_2, pI8302,
-					  &pI830->FbMemBox2,
-					  TRUE, flags);
-	    if (pI830->front_buffer_2 == NULL)
-		return FALSE;
-	}
-	pI830->front_buffer =
-	    i830_allocate_framebuffer(pScrn, pI830, &pI830->FbMemBox,
-				      FALSE, flags);
-	if (pI830->front_buffer == NULL)
+	pI830->front_buffer_2 =
+	    i830_allocate_framebuffer(pI830Ent->pScrn_2, pI8302,
+				      &pI830->FbMemBox2, TRUE, 0);
+	if (pI830->front_buffer_2 == NULL)
 	    return FALSE;
     }
+    pI830->front_buffer =
+	i830_allocate_framebuffer(pScrn, pI830, &pI830->FbMemBox, FALSE, 0);
+    if (pI830->front_buffer == NULL)
+	return FALSE;
 
     if (!pI830->noAccel && !pI830->useEXA) {
+	pI830->xaa_scratch =
+	    i830_allocate_memory(pScrn, "xaa scratch", MAX_SCRATCH_BUFFER_SIZE,
+				 GTT_PAGE_SIZE, 0);
 	if (pI830->xaa_scratch == NULL) {
 	    pI830->xaa_scratch =
 		i830_allocate_memory(pScrn, "xaa scratch",
-				     MAX_SCRATCH_BUFFER_SIZE, GTT_PAGE_SIZE,
-				     flags);
+				     MIN_SCRATCH_BUFFER_SIZE, GTT_PAGE_SIZE,
+				     0);
 	    if (pI830->xaa_scratch == NULL) {
-		pI830->xaa_scratch =
-		    i830_allocate_memory(pScrn, "xaa scratch",
-					 MIN_SCRATCH_BUFFER_SIZE,
-					 GTT_PAGE_SIZE,
-					 flags);
-		if (pI830->xaa_scratch == NULL) {
-		    if (!dryrun) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Failed to allocate scratch buffer "
-				   "space\n");
-		    }
-		    return FALSE;
-		}
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to allocate scratch buffer "
+			   "space\n");
+		return FALSE;
 	    }
 	}
 
 	/* Let's allocate another scratch buffer for the second head */
 	/* Again, this code won't execute on the dry run pass */
-	if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2 &&
-	    pI830->xaa_scratch_2 == NULL)
+	if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2)
 	{
 	    pI830->xaa_scratch_2 =
 		i830_allocate_memory(pScrn, "xaa scratch 2",
 				     MAX_SCRATCH_BUFFER_SIZE, GTT_PAGE_SIZE,
-				     flags);
+				     0);
 	    if (pI830->xaa_scratch_2 == NULL) {
 		pI830->xaa_scratch_2 =
 		    i830_allocate_memory(pScrn, "xaa scratch 2",
 					 MIN_SCRATCH_BUFFER_SIZE,
-					 GTT_PAGE_SIZE,
-					 flags);
+					 GTT_PAGE_SIZE, 0);
 		if (pI830->xaa_scratch_2 == NULL) {
-		    if (!dryrun) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Failed to allocate secondary scratch "
-				   "buffer space\n");
-		    }
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			       "Failed to allocate secondary scratch "
+			       "buffer space\n");
 		    return FALSE;
 		}
 	    }
@@ -1059,12 +1029,11 @@ myLog2(unsigned int n)
 }
 
 static Bool
-i830_allocate_backbuffer(ScrnInfoPtr pScrn, const int flags)
+i830_allocate_backbuffer(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
     unsigned long size;
-    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
     int height;
 
     if (pI830->rotation & (RR_Rotate_0 | RR_Rotate_180))
@@ -1073,13 +1042,13 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn, const int flags)
 	height = pScrn->virtualX;
 
     /* Try to allocate on the best tile-friendly boundaries. */
-    if (!(flags & ALLOC_NO_TILING) && IsTileable(pScrn, pitch))
+    if (!pI830->disableTiling && IsTileable(pScrn, pitch))
     {
 	size = ROUND_TO_PAGE(pitch * ALIGN(height, 16));
 	pI830->back_buffer =
 	    i830_allocate_memory_tiled(pScrn, "back buffer",
 				       size, pitch, GTT_PAGE_SIZE,
-				       flags | ALIGN_BOTH_ENDS,
+				       ALIGN_BOTH_ENDS,
 				       TILING_XMAJOR);
 	pI830->back_tiled = FENCE_XMAJOR;
     }
@@ -1089,15 +1058,13 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn, const int flags)
 	size = ROUND_TO_PAGE(pitch * height);
 	pI830->back_buffer = i830_allocate_memory(pScrn, "back buffer",
 						  size, GTT_PAGE_SIZE,
-						  flags | ALIGN_BOTH_ENDS);
+						  ALIGN_BOTH_ENDS);
 	pI830->back_tiled = FENCE_LINEAR;
     }
 
     if (pI830->back_buffer == NULL) {
-	if (!dryrun) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to allocate back buffer space.\n");
-	}
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Failed to allocate back buffer space.\n");
 	return FALSE;
     }
 
@@ -1105,11 +1072,10 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn, const int flags)
 }
 
 static Bool
-i830_allocate_depthbuffer(ScrnInfoPtr pScrn, const int flags)
+i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned long size;
-    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
     int height;
 
@@ -1120,13 +1086,13 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn, const int flags)
 	height = pScrn->virtualX;
 
     /* First try allocating it tiled */
-    if (!(flags & ALLOC_NO_TILING) && IsTileable(pScrn, pitch))
+    if (!pI830->disableTiling && IsTileable(pScrn, pitch))
     {
 	size = ROUND_TO_PAGE(pitch * ALIGN(height, 16));
 
 	pI830->depth_buffer =
 	    i830_allocate_memory_tiled(pScrn, "depth buffer", size, pitch,
-				       GTT_PAGE_SIZE, flags | ALIGN_BOTH_ENDS,
+				       GTT_PAGE_SIZE, ALIGN_BOTH_ENDS,
 				       TILING_YMAJOR);
 	pI830->depth_tiled = FENCE_YMAJOR;
     }
@@ -1136,15 +1102,13 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn, const int flags)
 	size = ROUND_TO_PAGE(pitch * height);
 	pI830->depth_buffer =
 	    i830_allocate_memory(pScrn, "depth buffer", size, GTT_PAGE_SIZE,
-				 flags);
+				 0);
 	pI830->depth_tiled = FENCE_LINEAR;
     }
 
     if (pI830->depth_buffer == NULL) {
-	if (!dryrun) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to allocate depth buffer space.\n");
-	}
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Failed to allocate depth buffer space.\n");
 	return FALSE;
     }
 
@@ -1152,18 +1116,17 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn, const int flags)
 }
 
 static Bool
-i830_allocate_texture_memory(ScrnInfoPtr pScrn, const int flags)
+i830_allocate_texture_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned long size;
     int i;
-    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
 
     if (pI830->mmModeFlags & I830_KERNEL_MM) {
 	pI830->memory_manager =
 	    i830_allocate_aperture(pScrn, "DRI memory manager",
 				   pI830->mmSize, GTT_PAGE_SIZE,
-				   flags | ALIGN_BOTH_ENDS);
+				   ALIGN_BOTH_ENDS);
 	/* XXX: try memory manager size backoff here? */
 	if (pI830->memory_manager == NULL)
 	    return FALSE;
@@ -1172,8 +1135,6 @@ i830_allocate_texture_memory(ScrnInfoPtr pScrn, const int flags)
     if (pI830->mmModeFlags & I830_KERNEL_TEX) {
 	/* XXX: auto-sizing */
 	size = MB(32);
-	if (dryrun && (size < MB(1)))
-	    size = MB(1);
 	i = myLog2(size / I830_NR_TEX_REGIONS);
 	if (i < I830_LOG_MIN_TEX_REGION_SIZE)
 	    i = I830_LOG_MIN_TEX_REGION_SIZE;
@@ -1182,21 +1143,17 @@ i830_allocate_texture_memory(ScrnInfoPtr pScrn, const int flags)
 	size >>= i;
 	size <<= i;
 	if (size < KB(512)) {
-	    if (!dryrun) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Less than 512 kBytes for texture space (real %ld"
-			   "kBytes).\n",
-			   size / 1024);
-	    }
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Less than 512 kBytes for texture space (real %ld"
+		       "kBytes).\n",
+		       size / 1024);
 	    return FALSE;
 	}
 	pI830->textures = i830_allocate_memory(pScrn, "textures", size,
-					       GTT_PAGE_SIZE, flags);
+					       GTT_PAGE_SIZE, 0);
 	if (pI830->textures == NULL) {
-	    if (!dryrun) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to allocate texture space.\n");
-	    }
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to allocate texture space.\n");
 	    return FALSE;
 	}
     }
@@ -1205,32 +1162,28 @@ i830_allocate_texture_memory(ScrnInfoPtr pScrn, const int flags)
 }
 
 Bool
-i830_allocate_3d_memory(ScrnInfoPtr pScrn, const int flags)
+i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    Bool dryrun = ((flags & ALLOCATE_DRY_RUN) != 0);
 
     DPRINTF(PFX, "I830Allocate3DMemory\n");
 
     /* Space for logical context.  32k is fine for right now. */
     pI830->logical_context = i830_allocate_memory(pScrn, "logical 3D context",
-						  KB(32), GTT_PAGE_SIZE,
-						  flags);
+						  KB(32), GTT_PAGE_SIZE, 0);
     if (pI830->logical_context == NULL) {
-	if (!dryrun) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to allocate logical context space.\n");
-	}
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Failed to allocate logical context space.\n");
 	return FALSE;
     }
 
-    if (!i830_allocate_backbuffer(pScrn, flags))
+    if (!i830_allocate_backbuffer(pScrn))
 	return FALSE;
 
-    if (!i830_allocate_depthbuffer(pScrn, flags))
+    if (!i830_allocate_depthbuffer(pScrn))
 	return FALSE;
 
-    if (!i830_allocate_texture_memory(pScrn, flags))
+    if (!i830_allocate_texture_memory(pScrn))
 	return FALSE;
 
     return TRUE;
