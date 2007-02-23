@@ -812,27 +812,6 @@ i830SetHotkeyControl(ScrnInfoPtr pScrn, int mode)
    pI830->writeControl(pI830, GRX, 0x18, gr18);
 }
 
-#ifdef XF86DRI
-static void 
-I830ReduceMMSize(ScrnInfoPtr pScrn, unsigned long newSize,
-		 const char *reason)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   newSize = ROUND_DOWN_TO(newSize, GTT_PAGE_SIZE);
-   if (newSize / GTT_PAGE_SIZE > I830_MM_MINPAGES) {
-      pI830->mmSize = newSize / 1024;
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "DRM memory manager aperture size is reduced to %d kiB\n"
-		 "\t%s\n", pI830->mmSize, reason);
-   } else {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "DRM memory manager will be disabled\n\t%s\n", reason);
-      pI830->mmSize = 0;
-   }
-}
-#endif
-
 /**
  * This is called per zaphod head (so usually just once) to do initialization
  * before the Screen is created.
@@ -2158,7 +2137,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    I830Ptr pI8301 = NULL;
    unsigned long sys_mem;
    int i;
-   Bool allocation_done;
+   Bool allocation_done = FALSE;
    MessageType from;
 #ifdef XF86DRI
    Bool driDisabled;
@@ -2268,7 +2247,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       pI830->mmSize = 0;
    }
 
-   if (I830IsPrimary(pScrn) && !pI830->directRenderingDisabled) {
+   if (!pI830->directRenderingDisabled) {
       int savedDisplayWidth = pScrn->displayWidth;
       Bool tiled = FALSE;
 
@@ -2306,69 +2285,79 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 }
       }
 
-      allocation_done = FALSE;
-      /*
-       * If the displayWidth is a tilable pitch, test if there's enough
-       * memory available to enable tiling.
+      /* Attempt several rounds of allocation to get 2d and 3d memory to fit:
+       *
+       * 0: tiled, large memory manager
+       * 1: tiled, small memory manager
+       * 2: untiled, large
+       * 3: untiled, small
        */
+
+      pI830->disableTiling = FALSE;
       savedMMSize = pI830->mmSize;
-      if (tiled) {
-retry_dryrun:
-	 i830_reset_allocations(pScrn);
-	 if (!i830_allocate_2d_memory(pScrn) ||
-	     !i830_allocate_3d_memory(pScrn))
-	 {
-	    /* Failure to set up allocations, so try reducing the DRI memory
-	     * manager's size if we haven't yet.
-	     */
-	    if (KB(pI830->mmSize) > I830_MM_MINPAGES * GTT_PAGE_SIZE) {
-	       I830ReduceMMSize(pScrn, I830_MM_MINPAGES * GTT_PAGE_SIZE,
-				"to make room for tiling.");
-	       goto retry_dryrun;
-	    }
-	    /* Otherwise, disable tiling. */
+      for (i = 0; i < 4; i++) {
+	 if (!tiled && i < 2)
+	    continue;
+
+	 if (i >= 2) {
+	    /* For further allocations, disable tiling */
+	    pI830->disableTiling = TRUE;
 	    pScrn->displayWidth = savedDisplayWidth;
 	    pI830->allowPageFlip = FALSE;
-	 } else if (pScrn->displayWidth != savedDisplayWidth) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Increasing the scanline pitch to allow tiling mode "
-		       "(%d -> %d).\n",
-		       savedDisplayWidth, pScrn->displayWidth);
-	    allocation_done = TRUE;
 	 }
-      }
-      if (!allocation_done) {
-	 /*
-	  * Tiling can't be enabled.  Check if there's enough memory for DRI
-	  * without tiling.
-	  */
-	 pI830->mmSize = savedMMSize;
-	 pI830->disableTiling = TRUE;
-retry_dryrun2:
-	 i830_reset_allocations(pScrn);
-	 if (!i830_allocate_2d_memory(pScrn) ||
-	     !i830_allocate_3d_memory(pScrn))
-	 {
-	    /* Failure to set up allocations, so try reducing the DRI memory
-	     * manager's size if we haven't yet.
+
+	 if (i & 1) {
+	    /* For this allocation, switch to a smaller DRI memory manager
+	     * size.
 	     */
-	    if (KB(pI830->mmSize) > I830_MM_MINPAGES * GTT_PAGE_SIZE) {
-	       I830ReduceMMSize(pScrn, I830_MM_MINPAGES * GTT_PAGE_SIZE,
-				"to save AGP aperture space for video "
-				"memory.");
-	       goto retry_dryrun2;
-	    }
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Not enough video memory.  Disabling DRI.");
-	    pI830->mmSize = 0;
-	    pI830->directRenderingDisabled = TRUE;
+	    pI830->mmSize = I830_MM_MINPAGES * GTT_PAGE_SIZE;
 	 } else {
-	    allocation_done = TRUE;
+	    pI830->mmSize = savedMMSize;
 	 }
+
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "Attempting memory allocation with %s buffers and \n"
+		    "\t       %s DRI memory manager reservation:\n",
+		    (i & 2) ? "untiled" : "tiled",
+		    (i & 1) ? "small" : "large");
+
+	 if (i830_allocate_2d_memory(pScrn) &&
+	     i830_allocate_3d_memory(pScrn))
+	 {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Success.\n");
+	    if (pScrn->displayWidth != savedDisplayWidth) {
+	       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			  "Increasing the scanline pitch to allow tiling mode "
+			  "(%d -> %d).\n",
+			  savedDisplayWidth, pScrn->displayWidth);
+	    }
+	    allocation_done = TRUE;
+	    break;
+	 }
+
+	 i830_reset_allocations(pScrn);
+      }
+
+      if (i == 4) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "Not enough video memory.  Disabling DRI.\n");
+	 pI830->mmSize = 0;
+	 pI830->directRenderingDisabled = TRUE;
       }
    } else
 #endif
       pI830->disableTiling = TRUE; /* no DRI - so disableTiling */
+
+   if (!allocation_done) {
+      if (!i830_allocate_2d_memory(pScrn)) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Couldn't allocate video memory\n");
+	 return FALSE;
+      }
+      allocation_done = TRUE;
+   }
+
+   i830_describe_allocations(pScrn, 1, "");
 
    if (!IS_I965G(pI830) && pScrn->displayWidth > 2048) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -2537,7 +2526,6 @@ retry_dryrun2:
    pI830->directRenderingEnabled = FALSE;
 #endif
 
-   i830_describe_allocations(pScrn, 1, "");
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled)
       pI830->directRenderingEnabled = I830DRIDoMappings(pScreen);

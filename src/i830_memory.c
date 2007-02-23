@@ -183,6 +183,9 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 static void
 i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 {
+    if (mem == NULL)
+	return;
+
     i830_unbind_memory(pScrn, mem);
 
     /* Disconnect from the list of allocations */
@@ -641,7 +644,7 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
 						   OVERLAY_SIZE, GTT_PAGE_SIZE,
 						   NEED_PHYSICAL_ADDR);
 	if (pI830->overlay_regs == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Failed to allocate Overlay register space.\n");
 	    /* This failure isn't fatal. */
 	}
@@ -652,7 +655,7 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
 						 KB(pI830->LinearAlloc),
 						 GTT_PAGE_SIZE, 0);
 	if (pI830->xaa_linear == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Failed to allocate linear buffer space\n");
 	}
     }
@@ -937,8 +940,8 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	    pI830->exa_offscreen = i830_allocate_memory(pScrn, "exa offscreen",
 							size, 1, 0);
 	    if (pI830->exa_offscreen == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
-			   "offscreen memory.  Not enough VRAM?\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Failed to allocate EXA offscreen memory.");
 		return FALSE;
 	    }
 	}
@@ -948,9 +951,8 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 		i830_allocate_memory(pScrn, "exa G965 state buffer",
 				     EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, 0);
 	    if (pI830->exa_965_state == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "G965: Failed to allocate exa state buffer "
-			   "space.\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Failed to allocate exa state buffer for 965.\n");
 		return FALSE;
 	    }
 	}
@@ -982,9 +984,8 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 				     MIN_SCRATCH_BUFFER_SIZE, GTT_PAGE_SIZE,
 				     0);
 	    if (pI830->xaa_scratch == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to allocate scratch buffer "
-			   "space\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Failed to allocate scratch buffer space\n");
 		return FALSE;
 	    }
 	}
@@ -1003,7 +1004,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 					 MIN_SCRATCH_BUFFER_SIZE,
 					 GTT_PAGE_SIZE, 0);
 		if (pI830->xaa_scratch_2 == NULL) {
-		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			       "Failed to allocate secondary scratch "
 			       "buffer space\n");
 		    return FALSE;
@@ -1063,7 +1064,7 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn)
     }
 
     if (pI830->back_buffer == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "Failed to allocate back buffer space.\n");
 	return FALSE;
     }
@@ -1107,7 +1108,7 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
     }
 
     if (pI830->depth_buffer == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "Failed to allocate depth buffer space.\n");
 	return FALSE;
     }
@@ -1152,7 +1153,7 @@ i830_allocate_texture_memory(ScrnInfoPtr pScrn)
 	pI830->textures = i830_allocate_memory(pScrn, "textures", size,
 					       GTT_PAGE_SIZE, 0);
 	if (pI830->textures == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Failed to allocate texture space.\n");
 	    return FALSE;
 	}
@@ -1172,7 +1173,7 @@ i830_allocate_3d_memory(ScrnInfoPtr pScrn)
     pI830->logical_context = i830_allocate_memory(pScrn, "logical 3D context",
 						  KB(32), GTT_PAGE_SIZE, 0);
     if (pI830->logical_context == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "Failed to allocate logical context space.\n");
 	return FALSE;
     }
