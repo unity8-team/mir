@@ -255,8 +255,6 @@ i830_free_3d_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    i830_free_memory(pScrn, pI830->logical_context);
-    pI830->logical_context = NULL;
     i830_free_memory(pScrn, pI830->back_buffer);
     pI830->back_buffer = NULL;
     i830_free_memory(pScrn, pI830->depth_buffer);
@@ -915,6 +913,15 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	}
     }
 
+    /* Space for the X Server's 3D context.  32k is fine for right now. */
+    pI830->logical_context = i830_allocate_memory(pScrn, "logical 3D context",
+						  KB(32), GTT_PAGE_SIZE, 0);
+    if (pI830->logical_context == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Failed to allocate logical context space.\n");
+	return FALSE;
+    }
+
 #ifdef I830_XV
     /* Allocate overlay register space and optional XAA linear allocator
      * space.  The second head in zaphod mode will share the space.
@@ -1165,18 +1172,7 @@ i830_allocate_texture_memory(ScrnInfoPtr pScrn)
 Bool
 i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    DPRINTF(PFX, "I830Allocate3DMemory\n");
-
-    /* Space for logical context.  32k is fine for right now. */
-    pI830->logical_context = i830_allocate_memory(pScrn, "logical 3D context",
-						  KB(32), GTT_PAGE_SIZE, 0);
-    if (pI830->logical_context == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Failed to allocate logical context space.\n");
-	return FALSE;
-    }
+    DPRINTF(PFX, "i830_allocate_3d_memory\n");
 
     if (!i830_allocate_backbuffer(pScrn))
 	return FALSE;
