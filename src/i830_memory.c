@@ -241,6 +241,10 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->textures = NULL;
     pI830->memory_manager = NULL;
     pI830->LpRing->mem = NULL;
+
+    /* Reset the fence register allocation. */
+    pI830->next_fence = 0;
+    memset(pI830->fence, 0, sizeof(pI830->fence));
 }
 
 /**
@@ -1278,8 +1282,8 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
             break;
 	}
 
-	/* XXX Is it the next page, or the last page of the fenced region? */
-	pI830->fence[FENCE_NEW_NR + nr] = offset + size;
+	/* The end marker is the address of the last page in the allocation. */
+	pI830->fence[FENCE_NEW_NR + nr] = offset + size - 4096;
 	return;
     }
 
