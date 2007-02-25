@@ -880,6 +880,8 @@ extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 extern int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr *modeList);
 extern void RADEONSetPitch (ScrnInfoPtr pScrn);
 
+DisplayModePtr
+RADEONProbeOutputModes(xf86OutputPtr output);
 extern Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 			DisplayModePtr crtc2, int crtc_mask,
 			RADEONSavePtr save, RADEONMonitorType montype);

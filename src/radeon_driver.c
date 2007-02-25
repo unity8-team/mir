@@ -3634,15 +3634,10 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 		crtc->desiredY = 0;
 	    }
 
-	    if (!RADEONCrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation, crtc->desiredX, crtc->desiredY))
+	    if (!xf86CrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation, crtc->desiredX, crtc->desiredY))
 		return FALSE;
 
 	}
-	RADEONBlank(pScrn);
-	RADEONRestoreMode(pScrn, &info->ModeReg);
-	RADEONUnblank(pScrn);
-
-	//if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
     }
 
     RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
@@ -6326,17 +6321,11 @@ _X_EXPORT Bool RADEONEnterVT(int scrnIndex, int flags)
 		crtc->desiredY = 0;
 	    }
 
-	    if (!RADEONCrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation,
+	    if (!xf86CrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation,
 				    crtc->desiredX, crtc->desiredY))
 		return FALSE;
 
 	}
-	RADEONBlank(pScrn);
-	RADEONRestoreMode(pScrn, &info->ModeReg);
-	RADEONUnblank(pScrn);
-
-	if (info->DispPriority)
- 	    RADEONInitDispBandwidth(pScrn);
     }
 #if 0
       if (!RADEONModeInit(pScrn, pScrn->currentMode)) return FALSE;
