@@ -50,7 +50,7 @@
 
 #include "radeon_version.h"
 
-#include "radeon_xf86Modes.h"
+#include "xf86Modes.h"
 				/* DDC support */
 #include "xf86DDC.h"
 #include <randrstr.h>

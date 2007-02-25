@@ -77,7 +77,7 @@
 #endif
 #endif
 
-#include "radeon_xf86Crtc.h"
+#include "xf86Crtc.h"
 
 				/* Render support */
 #ifdef RENDER

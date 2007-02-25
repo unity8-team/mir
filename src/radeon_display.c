@@ -38,6 +38,7 @@
 #include "xf86_OSproc.h"
 #include "fbdevhw.h"
 #include "vgaHW.h"
+#include "xf86Modes.h"
 
 /* Driver data structures */
 #include "radeon.h"
@@ -45,7 +46,6 @@
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
-#include "radeon_xf86Modes.h"
 
 
 void radeon_crtc_load_lut(xf86CrtcPtr crtc);

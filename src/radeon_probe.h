@@ -43,7 +43,7 @@
 #define _XF86MISC_SERVER_
 #include <X11/extensions/xf86misc.h>
 
-#include "radeon_xf86Crtc.h"
+#include "xf86Crtc.h"
 
 typedef enum
 {
