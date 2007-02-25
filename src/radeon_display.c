@@ -1137,7 +1137,7 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	RADEONGetTMDSInfo(pScrn);
 
 	if (i == 0)
-		RADEONGetHardCodedEDIDFromBios(pScrn);
+		RADEONGetHardCodedEDIDFromBIOS(pScrn);
 
 	RADEONUpdatePanelSize(pScrn);
 
