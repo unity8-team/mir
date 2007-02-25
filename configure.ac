@@ -21,10 +21,10 @@
 # Process this file with autoconf to produce a configure script
 
 AC_PREREQ(2.57)
-AC_INIT([xf86-video-i810],
-        1.7.2,
+AC_INIT([xf86-video-intel],
+        1.9.90,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
-        xf86-video-i810)
+        xf86-video-intel)
 
 AC_DEFINE_UNQUOTED([INTEL_VERSION_MAJOR],
 		   [$(echo $PACKAGE_VERSION | sed -e 's/^\([[0-9]]\)\.[[0-9]]\.[[0-9]]/\1/')],
@@ -70,6 +70,11 @@ AC_ARG_ENABLE(video-debug, AC_HELP_STRING([--enable-video-debug],
               [VIDEO_DEBUG="$enableval"],
               [VIDEO_DEBUG=no])
 
+AC_ARG_WITH(xserver-source,AC_HELP_STRING([--with-xserver-source=XSERVER_SOURCE],
+					  [Path to X server source tree]),
+			   [ XSERVER_SOURCE="$withval" ],
+			   [ XSERVER_SOURCE="" ])
+
 
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
@@ -108,6 +113,46 @@ if test x$DRI = xauto; then
 fi
 AC_MSG_RESULT([$DRI])
 
+save_CFLAGS="$CFLAGS"
+CFLAGS="$XORG_CFLAGS"
+AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
+CFLAGS="$save_CFLAGS"
+
+AM_CONDITIONAL(XMODES, test "x$XMODES" = xno)
+
+if test "x$XSERVER_SOURCE" = x; then
+	if test -d ../../xserver; then
+		XSERVER_SOURCE="`cd ../../xserver && pwd`"
+	fi
+fi
+	
+if test "x$XMODES" = xyes; then
+	echo built-in mode code
+	AC_DEFINE(XMODES, 1,[X server has built-in mode code])
+	XMODES_CFLAGS=
+else
+	echo symlink mode code
+	if test "x$XSERVER_SOURCE" = x; then
+		AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
+	fi
+	XMODES_CFLAGS='-DXF86_MODES_RENAME -I$(top_srcdir)/src/modes -I$(top_srcdir)/src/parser'
+fi
+
+if test -d "$XSERVER_SOURCE"; then
+	if test -f src/modes/xf86Modes.h; then
+		:
+	else
+		ln -s $XSERVER_SOURCE/hw/xfree86/modes src/modes
+	fi
+	
+	if test -f src/parser/xf86Parser.h; then
+		:
+	else
+		ln -s $XSERVER_SOURCE/hw/xfree86/parser src/parser
+	fi
+fi
+AC_SUBST([XMODES_CFLAGS])
+
 dnl Use lots of warning flags with GCC
 
 WARN_CFLAGS=""
@@ -139,7 +184,7 @@ AC_SUBST([XORG_CFLAGS])
 AC_SUBST([WARN_CFLAGS])
 AC_SUBST([moduledir])
 
-DRIVER_NAME=i810
+DRIVER_NAME=intel
 AC_SUBST([DRIVER_NAME])
 
 XORG_MANPAGE_SECTIONS

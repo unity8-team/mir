@@ -1337,10 +1337,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    I830PreInitDDC(pScrn);
-   I830SetupOutputs(pScrn);
    for (i = 0; i < num_pipe; i++) {
        i830_crtc_init(pScrn, i);
    }
+   I830SetupOutputs(pScrn);
 
    SaveHWState(pScrn);
    /* Do an initial detection of the outputs while none are configured on yet.
@@ -2700,6 +2700,30 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
 
+   if (!pI830->useEXA) {
+      if (I830IsPrimary(pScrn)) {
+	 if (!I830InitFBManager(pScreen, &(pI830->FbMemBox))) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to init memory manager\n");
+	 }
+
+	 if (pI830->LinearAlloc &&
+	     xf86InitFBManagerLinear(pScreen,
+				     pI830->LinearMem.Offset / pI830->cpp,
+				     pI830->LinearMem.Size / pI830->cpp))
+	 {
+            xf86DrvMsg(scrnIndex, X_INFO,
+		       "Using %ld bytes of offscreen memory for linear "
+		       "(offset=0x%lx)\n", pI830->LinearMem.Size,
+		       pI830->LinearMem.Offset);
+	 }
+      } else {
+	 if (!I830InitFBManager(pScreen, &(pI8301->FbMemBox2))) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to init memory manager\n");
+	 }
+      }
+   }
    if (!I830EnterVT(scrnIndex, 0))
       return FALSE;
 
@@ -2732,34 +2756,10 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    xf86SetBlackWhitePixels(pScreen);
 
-   I830DGAInit(pScreen);
+   xf86DiDGAInit (pScreen, pI830->LinearAddr + pScrn->fbOffset);
 
    DPRINTF(PFX,
 	   "assert( if(!I830InitFBManager(pScreen, &(pI830->FbMemBox))) )\n");
-   if (!pI830->useEXA) {
-      if (I830IsPrimary(pScrn)) {
-	 if (!I830InitFBManager(pScreen, &(pI830->FbMemBox))) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to init memory manager\n");
-	 }
-
-	 if (pI830->LinearAlloc &&
-	     xf86InitFBManagerLinear(pScreen,
-				     pI830->LinearMem.Offset / pI830->cpp,
-				     pI830->LinearMem.Size / pI830->cpp))
-	 {
-            xf86DrvMsg(scrnIndex, X_INFO,
-		       "Using %ld bytes of offscreen memory for linear "
-		       "(offset=0x%lx)\n", pI830->LinearMem.Size,
-		       pI830->LinearMem.Offset);
-	 }
-      } else {
-	 if (!I830InitFBManager(pScreen, &(pI8301->FbMemBox2))) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to init memory manager\n");
-	 }
-      }
-   }
 
    if (!pI830->noAccel) {
       if (!I830AccelInit(pScreen)) {
@@ -3398,7 +3398,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
       
       xf86ProbeOutputModes (pScrn, 0, 0);
       xf86SetScrnInfoModes (pScrn);
-      I830DGAReInit (pScrn->pScreen);
+      xf86DiDGAReInit (pScrn->pScreen);
       xf86SwitchMode(pScrn->pScreen, pScrn->currentMode);
 
       /* Clear the BIOS's hotkey press flags */

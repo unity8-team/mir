@@ -32,6 +32,7 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i830_bios.h"
+#include "i830_display.h"
 #include "X11/Xatom.h"
 
 /**
@@ -406,42 +407,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     I830Ptr		    pI830 = I830PTR(pScrn);
     xf86OutputPtr	    output;
     I830OutputPrivatePtr    intel_output;
-
-
-    /* Get the LVDS fixed mode out of the BIOS.  We should support LVDS with
-     * the BIOS being unavailable or broken, but lack the configuration options
-     * for now.
-     */
-    if (!i830GetLVDSInfoFromBIOS(pScrn))
-	return;
-
-    /* Blacklist machines with BIOSes that list an LVDS panel without actually
-     * having one.
-     */
-    if (pI830->PciInfo->chipType == PCI_CHIP_I945_GM) {
-	if (pI830->PciInfo->subsysVendor == 0xa0a0)  /* aopen mini pc */
-	    return;
-
-	if ((pI830->PciInfo->subsysVendor == 0x8086) &&
-	    (pI830->PciInfo->subsysCard == 0x7270)) {
-	    /* It's a Mac Mini or Macbook Pro.
-	     *
-	     * Apple hardware is out to get us.  The macbook pro has a real
-	     * LVDS panel, but the mac mini does not, and they have the same
-	     * device IDs.  We'll distinguish by panel size, on the assumption
-	     * that Apple isn't about to make any machines with an 800x600
-	     * display.
-	     */
-
-	    if (pI830->panel_fixed_mode != NULL &&
-		pI830->panel_fixed_mode->HDisplay == 800 &&
-		pI830->panel_fixed_mode->VDisplay == 600) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Suspected Mac Mini, ignoring the LVDS\n");
-		return;
-	    }
-	}
-   }
+    DisplayModePtr	    modes, scan, bios_mode;
 
     output = xf86OutputCreate (pScrn, &i830_lvds_output_funcs, "LVDS");
     if (!output)
@@ -462,4 +428,104 @@ i830_lvds_init(ScrnInfoPtr pScrn)
      * be useful if available.
      */
     I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOC, "LVDSDDC_C");
+
+    /* Attempt to get the fixed panel mode from DDC.  Assume that the preferred
+     * mode is the right one.
+     */
+    modes = i830_ddc_get_modes(output);
+    for (scan = modes; scan != NULL; scan = scan->next) {
+	if (scan->type & M_T_PREFERRED)
+	    break;
+    }
+    if (scan != NULL) {
+	/* Pull our chosen mode out and make it the fixed mode */
+	if (modes == scan)
+	    modes = modes->next;
+	if (scan->prev != NULL)
+	    scan->prev = scan->next;
+	if (scan->next != NULL)
+	    scan->next = scan->prev;
+	pI830->panel_fixed_mode = scan;
+    }
+    /* Delete the mode list */
+    while (modes != NULL)
+	xf86DeleteMode(&modes, modes);
+
+    /* If we didn't get EDID, try checking if the panel is already turned on.
+     * If so, assume that whatever is currently programmed is the correct mode.
+     */
+    if (pI830->panel_fixed_mode == NULL) {
+	CARD32 lvds = INREG(LVDS);
+	int pipe = (lvds & LVDS_PIPEB_SELECT) ? 1 : 0;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	xf86CrtcPtr crtc = xf86_config->crtc[pipe];
+
+	if (lvds & LVDS_PORT_EN) {
+	    pI830->panel_fixed_mode = i830_crtc_mode_get(pScrn, crtc);
+	    if (pI830->panel_fixed_mode != NULL)
+		pI830->panel_fixed_mode->type |= M_T_PREFERRED;
+	}
+    }
+
+    /* Get the LVDS fixed mode out of the BIOS.  We should support LVDS with
+     * the BIOS being unavailable or broken, but lack the configuration options
+     * for now.
+     */
+    bios_mode = i830_bios_get_panel_mode(pScrn);
+    if (bios_mode != NULL) {
+	if (pI830->panel_fixed_mode != NULL) {
+	    if (!xf86ModesEqual(pI830->panel_fixed_mode, bios_mode)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "BIOS panel mode data doesn't match probed data, "
+			   "continuing with probed.\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIOS mode:\n");
+		xf86PrintModeline(pScrn->scrnIndex, bios_mode);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "probed mode:\n");
+		xf86PrintModeline(pScrn->scrnIndex, pI830->panel_fixed_mode);
+		xfree(bios_mode->name);
+		xfree(bios_mode);
+	    }
+	}  else {
+	    pI830->panel_fixed_mode = bios_mode;
+	}
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Couldn't detect panel mode.  Disabling panel\n");
+	goto disable_exit;
+    }
+
+    /* Blacklist machines with BIOSes that list an LVDS panel without actually
+     * having one.
+     */
+    if (pI830->PciInfo->chipType == PCI_CHIP_I945_GM) {
+	if (pI830->PciInfo->subsysVendor == 0xa0a0)  /* aopen mini pc */
+	    goto disable_exit;
+
+	if ((pI830->PciInfo->subsysVendor == 0x8086) &&
+	    (pI830->PciInfo->subsysCard == 0x7270)) {
+	    /* It's a Mac Mini or Macbook Pro.
+	     *
+	     * Apple hardware is out to get us.  The macbook pro has a real
+	     * LVDS panel, but the mac mini does not, and they have the same
+	     * device IDs.  We'll distinguish by panel size, on the assumption
+	     * that Apple isn't about to make any machines with an 800x600
+	     * display.
+	     */
+
+	    if (pI830->panel_fixed_mode != NULL &&
+		pI830->panel_fixed_mode->HDisplay == 800 &&
+		pI830->panel_fixed_mode->VDisplay == 600)
+	    {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Suspected Mac Mini, ignoring the LVDS\n");
+		goto disable_exit;
+	    }
+	}
+    }
+
+    return;
+
+disable_exit:
+    xf86DestroyI2CBusRec(intel_output->pDDCBus, TRUE, TRUE);
+    xf86OutputDestroy(output);
 }

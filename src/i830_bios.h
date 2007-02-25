@@ -114,6 +114,3 @@ struct lvds_bdb_2 {
     CARD8 table_size;	/* not sure on this one */
     struct lvds_bdb_2_entry panels[16];
 } __attribute__((packed));
-
-Bool
-i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn);

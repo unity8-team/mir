@@ -58,8 +58,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86int10.h"
 #include "vbe.h"
 #include "vgaHW.h"
-#include "i830_xf86Crtc.h"
-#include "i830_randr.h"
+#include "xf86Crtc.h"
+#include "xf86RandR12.h"
 
 #ifdef XF86DRI
 #include "xf86drm.h"
@@ -231,21 +231,6 @@ enum last_3d {
     LAST_3D_RENDER,
     LAST_3D_ROTATION
 };
-
-#if 0
-typedef struct _I830PipeRec {
-   Bool		  enabled;
-   int		  x;
-   int		  y;
-   Bool		  cursorInRange;
-   Bool		  cursorShown;
-   DisplayModeRec curMode;
-   DisplayModeRec desiredMode;
-#ifdef RANDR_12_INTERFACE
-   RRCrtcPtr	  randr_crtc;
-#endif
-} I830PipeRec, *I830PipePtr;
-#endif
 
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
@@ -536,9 +521,6 @@ extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 extern void I830RefreshRing(ScrnInfoPtr pScrn);
 extern void I830EmitFlush(ScrnInfoPtr pScrn);
 
-extern Bool I830DGAReInit(ScreenPtr pScreen);
-extern Bool I830DGAInit(ScreenPtr pScreen);
-
 #ifdef I830_XV
 extern void I830InitVideo(ScreenPtr pScreen);
 extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
@@ -604,6 +586,9 @@ extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 
 /* return a mask of output indices matching outputs against type_mask */
 int i830_output_clones (ScrnInfoPtr pScrn, int type_mask);
+
+/* i830_bios.c */
+DisplayModePtr i830_bios_get_panel_mode(ScrnInfoPtr pScrn);
 
 /* i830_display.c */
 Bool

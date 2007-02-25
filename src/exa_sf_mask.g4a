@@ -22,25 +22,25 @@ mul (1) g7<1>F g7<0,1,0>F g6<0,1,0>F { align1 };
 /* Cy[0] */
 mul (1) g7.4<1>F g7.4<0,1,0>F g6.4<0,1,0>F { align1 };
 /* Cx[2] */
-mul (1) g7.16<1>F g7.16<0,1,0>F g6<0,1,0>F { align1 };
+mul (1) g7.8<1>F g7.8<0,1,0>F g6<0,1,0>F { align1 };
 /* Cy[2] */
-mul (1) g7.20<1>F g7.20<0,1,0>F g6.4<0,1,0>F { align1 };
+mul (1) g7.12<1>F g7.12<0,1,0>F g6.4<0,1,0>F { align1 };
 
 /* src Cx[0], Cx[1] */
 mov (8) m1<1>F g7<0,1,0>F { align1 };
 /* mask Cx[2], Cx[3] */
-mov (1) m1.8<1>F g7.16<0,1,0>F { align1 };
-mov (1) m1.12<1>F g7.16<0,1,0>F { align1 };
+mov (1) m1.8<1>F g7.8<0,1,0>F { align1 };
+mov (1) m1.12<1>F g7.8<0,1,0>F { align1 };
 /* src Cy[0], Cy[1] */
 mov (8) m2<1>F g7.4<0,1,0>F { align1 };
 /* mask Cy[2], Cy[3] */
-mov (1) m2.8<1>F g7.20<0,1,0>F { align1 };
-mov (1) m2.12<1>F g7.20<0,1,0>F { align1 };
+mov (1) m2.8<1>F g7.12<0,1,0>F { align1 };
+mov (1) m2.12<1>F g7.12<0,1,0>F { align1 };
 /* src Co[0], Co[1] */
 mov (8) m3<1>F g3<8,8,1>F { align1 };
 /* mask Co[2], Co[3] */
-mov (1) m3.8<1>F g3.16<0,1,0>F { align1 };
-mov (1) m3.12<1>F g3.20<0,1,0>F { align1 };
+mov (1) m3.8<1>F g3.8<0,1,0>F { align1 };
+mov (1) m3.12<1>F g3.12<0,1,0>F { align1 };
 
 send (8) 0 null g0<8,8,1>F urb 0 transpose used complete mlen 4 rlen 0 { align1 EOT };
 nop;

@@ -25,14 +25,38 @@ SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164
 # -avoid-version prevents gratuitous .0.0.0 version numbers on the end
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
-AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ \
+
+AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ @XMODES_CFLAGS@ \
 	-DI830_XV -DI830_USE_XAA -DI830_USE_EXA
 
-i810_drv_la_LTLIBRARIES = i810_drv.la
-i810_drv_la_LDFLAGS = -module -avoid-version
-i810_drv_ladir = @moduledir@/drivers
+intel_drv_la_LTLIBRARIES = intel_drv.la
+intel_drv_la_LDFLAGS = -module -avoid-version
+intel_drv_ladir = @moduledir@/drivers
 
-i810_drv_la_SOURCES = \
+XMODE_SRCS=\
+	 local_xf86Rename.h \
+	 parser/xf86Parser.h \
+	 parser/xf86Optrec.h \
+	 modes/xf86Modes.h \
+	 modes/xf86Modes.c \
+	 modes/xf86cvt.c \
+	 modes/xf86Crtc.h \
+	 modes/xf86Crtc.c \
+         modes/xf86EdidModes.c \
+	 modes/xf86RandR12.c \
+	 modes/xf86RandR12.h \
+	 modes/xf86Rename.h \
+	 modes/xf86Rotate.c \
+	 modes/xf86DiDGA.c
+	 
+INTEL_DRI_SRCS = \
+         i810_dri.c \
+         i810_dri.h \
+         i830_dri.c \
+         i810_hwmc.c \
+         i830_dri.h 
+
+intel_drv_la_SOURCES = \
          brw_defines.h \
          brw_structs.h \
 	 sf_prog.h \
@@ -59,12 +83,10 @@ i810_drv_la_SOURCES = \
          i830_cursor.c \
 	 i830_debug.c \
 	 i830_debug.h \
-         i830_dga.c \
 	 i830_display.c \
 	 i830_display.h \
          i830_driver.c \
 	 i830_dvo.c \
-         i830_edid_modes.c \
          i830.h \
          i830_i2c.c \
          i830_io.c \
@@ -74,17 +96,10 @@ i810_drv_la_SOURCES = \
          i830_video.c \
          i830_video.h \
 	 i830_reg.h \
-	 i830_randr.c \
 	 i830_sdvo.c \
 	 i830_sdvo.h \
 	 i830_sdvo_regs.h \
 	 i830_tv.c \
-	 i830_xf86Modes.h \
-	 i830_xf86Modes.c \
-	 i830_xf86cvt.c \
-	 i830_xf86Crtc.h \
-	 i830_xf86Crtc.c \
-	 i830_xf86Rotate.c \
 	 i915_3d.c \
 	 i915_3d.h \
 	 i915_reg.h \
@@ -96,30 +111,72 @@ i810_drv_la_SOURCES = \
 	 i915_render.c \
 	 i965_render.c
 
+INTEL_G4A =				\
+	packed_yuv_sf.g4a		\
+	packed_yuv_wm.g4a		\
+	exa_sf.g4a 			\
+	exa_sf_mask.g4a 		\
+	exa_wm_maskca.g4a 		\
+	exa_wm_maskca_srcalpha.g4a 	\
+	exa_wm_masknoca.g4a 		\
+	exa_wm_nomask.g4a
+
+INTEL_G4H = 				\
+	sf_prog.h			\
+	wm_prog.h 			\
+	exa_sf_mask_prog.h		\
+	exa_sf_prog.h 			\
+	exa_wm_maskca_prog.h		\
+	exa_wm_maskca_srcalpha_prog.h	\
+	exa_wm_masknoca_prog.h		\
+	exa_wm_nomask_prog.h
+
+EXTRA_DIST = 		\
+	$(XMODE_SRCS)	\
+	$(INTEL_G4A)	\
+	$(INTEL_G4H)	\
+	$(INTEL_DRI_SRCS)
+	
 if HAVE_GEN4ASM
+
 sf_prog.h: packed_yuv_sf.g4a
 	intel-gen4asm -o sf_prog.h packed_yuv_sf.g4a
+	
 wm_prog.h: packed_yuv_wm.g4a
 	intel-gen4asm -o wm_prog.h packed_yuv_wm.g4a
-exa_sf_prog.h: exa_sf.g4a
-	intel-gen4asm -o exa_sf_prog.h exa_sf.g4a
+	
 exa_sf_mask_prog.h: exa_sf_mask.g4a
 	intel-gen4asm -o exa_sf_mask_prog.h exa_sf_mask.g4a
-exa_wm_nomask_prog.h: exa_wm_nomask.g4a
-	intel-gen4asm -o exa_wm_nomask_prog.h exa_wm_nomask.g4a
+	
+exa_sf_prog.h: exa_sf.g4a
+	intel-gen4asm -o exa_sf_prog.h exa_sf.g4a
+	
+exa_wm_maskca_prog.h: exa_wm_maskca.g4a
+	intel-gen4asm -o exa_wm_maskca_prog.h exa_wm_maskca.g4a
+
+exa_wm_maskca_srcalpha_prog.h: exa_wm_maskca_srcalpha.g4a
+	intel-gen4asm -o exa_wm_maskca_srcalpha_prog.h exa_wm_maskca_srcalpha.g4a
+
 exa_wm_masknoca_prog.h: exa_wm_masknoca.g4a
 	intel-gen4asm -o exa_wm_masknoca_prog.h exa_wm_masknoca.g4a
+	
+exa_wm_nomask_prog.h: exa_wm_nomask.g4a
+	intel-gen4asm -o exa_wm_nomask_prog.h exa_wm_nomask.g4a
+	
+endif
+
+if XMODES
+intel_drv_la_SOURCES += \
+	$(XMODE_SRCS)
 endif
 
 if DRI
-i810_drv_la_SOURCES += \
-         i810_dri.c \
-         i810_dri.h \
-         i830_dri.c \
-         i810_hwmc.c \
-         i830_dri.h 
+intel_drv_la_SOURCES += \
+	$(INTEL_DRI_SRCS)
 endif
 
-EXTRA_DIST = \
-	packed_yuv_sf.g4a \
-	packed_yuv_wm.g4a
+install-data-local: install-intel_drv_laLTLIBRARIES
+	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so && ln -s intel_drv.so i810_drv.so)
+
+uninstall-local:
+	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so)

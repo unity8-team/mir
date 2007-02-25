@@ -1079,8 +1079,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     char		    *name_prefix;
     char		    *name_suffix;
 
-    output = xf86OutputCreate (pScrn, &i830_sdvo_output_funcs,
-			       "ADD2 PCIE card");
+    output = xf86OutputCreate (pScrn, &i830_sdvo_output_funcs,NULL);
     if (!output)
 	return;
     intel_output = xnfcalloc (sizeof (I830OutputPrivateRec) +
