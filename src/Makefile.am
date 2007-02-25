@@ -79,9 +79,10 @@ radeon_drv_la_LTLIBRARIES = radeon_drv.la
 radeon_drv_la_LDFLAGS = -module -avoid-version
 radeon_drv_ladir = @moduledir@/drivers
 radeon_drv_la_SOURCES = \
-	radeon_accel.c radeon_mergedfb.c radeon_cursor.c radeon_dga.c \
+	radeon_accel.c radeon_cursor.c radeon_dga.c \
 	radeon_driver.c radeon_video.c radeon_bios.c radeon_mm_i2c.c \
-	radeon_vip.c radeon_misc.c radeon_display.c radeon_modes.c $(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES)
+	radeon_vip.c radeon_misc.c radeon_display.c radeon_modes.c \
+	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES)
 
 theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
 theatre_detect_drv_la_LDFLAGS = -module -avoid-version
@@ -178,12 +179,13 @@ EXTRA_DIST = \
 	radeon_exa_funcs.c \
 	radeon.h \
 	radeon_macros.h \
-	radeon_mergedfb.h \
 	radeon_probe.h \
 	radeon_reg.h \
 	radeon_sarea.h \
 	radeon_version.h \
 	radeon_video.h \
+	radeon_xf86Modes.h \
+	radeon_xf86Crtc.h \
 	theatre200.h \
 	theatre_detect.h \
 	theatre.h \

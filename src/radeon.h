@@ -77,6 +77,8 @@
 #endif
 #endif
 
+#include "xf86Crtc.h"
+
 				/* Render support */
 #ifdef RENDER
 #include "picturestr.h"
@@ -439,11 +441,6 @@ typedef struct {
                                            framebuffer */
     int               Flags;            /* Saved copy of mode flags          */
 
-				/* VE/M6 support */
-    RADEONMonitorType DisplayType;      /* Monitor connected on              */
-    RADEONDDCType     DDCType;
-    RADEONConnectorType ConnectorType;
-
     Bool              IsMobility;       /* Mobile chips for laptops */
     Bool              IsIGP;            /* IGP chips */
     Bool              HasSingleDAC;     /* only TVDAC on chip */
@@ -475,8 +472,6 @@ typedef struct {
     Bool              ddc_bios;
     Bool              ddc1;
     Bool              ddc2;
-    I2CBusPtr         pI2CBus;
-    CARD32            DDCReg;
 
     RADEONPLLRec      pll;
     RADEONTMDSPll     tmds_pll[4];
@@ -772,42 +767,13 @@ typedef struct {
     /* X itself has the 3D context */
     Bool              XInited3D;
 
+  DisplayModePtr currentMode, savedCurrentMode;
     /* merged fb stuff, also covers clone modes */
-    Bool		MergedFB;
-    RADEONScrn2Rel	CRT2Position;
-    char *		CRT2HSync;
-    char *		CRT2VRefresh;
-    char *		MetaModes;
-    ScrnInfoPtr		CRT2pScrn;
-    DisplayModePtr	CRT1Modes;
-    DisplayModePtr	CRT1CurrentMode;
-    int			CRT1frameX0;
-    int			CRT1frameY0;
-    int			CRT1frameX1;
-    int			CRT1frameY1;
-    RADEONMonitorType   MergeType;
-    RADEONDDCType       MergeDDCType;
     void        	(*PointerMoved)(int index, int x, int y);
-    /* pseudo xinerama support for mergedfb */
-    int			maxCRT1_X1, maxCRT1_X2, maxCRT1_Y1, maxCRT1_Y2;
-    int			maxCRT2_X1, maxCRT2_X2, maxCRT2_Y1, maxCRT2_Y2;
-    int			maxClone_X1, maxClone_X2, maxClone_Y1, maxClone_Y2;
-    Bool		UseRADEONXinerama;
-    Bool		CRT2IsScrn0;
-    ExtensionEntry 	*XineramaExtEntry;
-    int			RADEONXineramaVX, RADEONXineramaVY;
-    Bool		AtLeastOneNonClone;
-    int			MergedFBXDPI, MergedFBYDPI;
     Bool		NoVirtual;
-    int                 CRT1XOffs, CRT1YOffs, CRT2XOffs, CRT2YOffs;
-    int                 MBXNR1XMAX, MBXNR1YMAX, MBXNR2XMAX, MBXNR2YMAX;
-    Bool                NonRect, HaveNonRect, HaveOffsRegions, MouseRestrictions;
-    region              NonRectDead, OffDead1, OffDead2;
 
     int			constantDPI; /* -1 = auto, 0 = off, 1 = on */
     int			RADEONDPIVX, RADEONDPIVY;
-    RADEONScrn2Rel	MergedDPISRel;
-    int			RADEONMergedDPIVX, RADEONMergedDPIVY, RADEONMergedDPIRot;
 
     /* special handlings for DELL triple-head server */
     Bool		IsDellServer; 
@@ -819,6 +785,7 @@ typedef struct {
 
     CARD32            tv_dac_adj;
 
+    CreateScreenResourcesProcPtr CreateScreenResources;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
@@ -898,7 +865,7 @@ extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
 extern void        RADEONSetSyncRangeFromEdid(ScrnInfoPtr pScrn, int flag);
 extern void        RADEONSetupConnectors(ScrnInfoPtr pScrn);
 extern Bool        RADEONMapControllers(ScrnInfoPtr pScrn);
-extern void        RADEONEnableDisplay(ScrnInfoPtr pScrn, RADEONConnector* pPort, BOOL bEnable);
+extern void        RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr pPort, BOOL bEnable);
 extern void        RADEONDisableDisplays(ScrnInfoPtr pScrn);
 extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
 extern void        RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn);
@@ -909,13 +876,18 @@ extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 						   int flags);
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn);
 extern Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn);
-extern RADEONConnector *RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num);
+extern xf86OutputPtr RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num);
 extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 				  RADEONMonitorType DisplayType, int crtc2);
-extern int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName);
+extern int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr *modeList);
 extern void RADEONSetPitch (ScrnInfoPtr pScrn);
 
+DisplayModePtr
+RADEONProbeOutputModes(xf86OutputPtr output);
+extern Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
+			DisplayModePtr crtc2, int crtc_mask,
+			RADEONSavePtr save, RADEONMonitorType montype);
 
 #ifdef XF86DRI
 #ifdef USE_XAA

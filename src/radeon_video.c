@@ -12,7 +12,6 @@
 #include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
-#include "radeon_mergedfb.h"
 #include "radeon_video.h"
 
 #include "xf86.h"
@@ -1334,7 +1333,7 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
      */
 
     /* Figure out which head we are on */
-    if ((info->MergedFB && info->OverlayOnCRTC2) || info->IsSecondary)
+    if ((info->OverlayOnCRTC2) || info->IsSecondary)
 	dot_clock = info->ModeReg.dot_clock_freq_2;
     else
 	dot_clock = info->ModeReg.dot_clock_freq;
@@ -2455,7 +2454,7 @@ RADEONDisplayVideo(
        workarounds for chip erratas */
 
     /* Figure out which head we are on for dot clock */
-    if ((info->MergedFB && info->OverlayOnCRTC2) || info->IsSecondary)
+    if (info->OverlayOnCRTC2 || info->IsSecondary)
         dot_clock = info->ModeReg.dot_clock_freq_2;
     else
         dot_clock = info->ModeReg.dot_clock_freq;
@@ -2480,11 +2479,8 @@ RADEONDisplayVideo(
     v_inc_shift = 20;
     y_mult = 1;
 
-    if (info->MergedFB) {
-        if (info->OverlayOnCRTC2)
-	    overlay_mode = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2;
-	else
-	    overlay_mode = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT1;
+    /* TODO NO IDEA WHAT THIS IS ABOUT */
+    if (0) {//info->MergedFB) {
 	if (overlay_mode->Flags & V_INTERLACE)
 	    v_inc_shift++;
     	if (overlay_mode->Flags & V_DBLSCAN) {
@@ -2651,19 +2647,6 @@ RADEONDisplayVideo(
 	x_off = 0;
 
     /* needed to make the overlay work on crtc1 in leftof and above modes */
-    if (info->MergedFB) {
-	RADEONScrn2Rel srel =
-	    ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2Position;
-	overlay_mode = ((RADEONMergedDisplayModePtr)info->CurrentLayout.mode->Private)->CRT2;
-	if (srel == radeonLeftOf) {
-    	    x_off -= overlay_mode->CrtcHDisplay;
-	    /* y_off -= pScrn->frameY0; */
-	}
-	if (srel == radeonAbove) {
-    	    y_off -= overlay_mode->CrtcVDisplay;
-	    /* x_off -= pScrn->frameX0; */
-	}
-    }
 
     /* Put the hardware overlay on CRTC2:
      *
@@ -2672,7 +2655,7 @@ RADEONDisplayVideo(
      * rendering for the second head.
      */
 
-    if ((info->MergedFB && info->OverlayOnCRTC2) || info->IsSecondary) {
+    if (info->OverlayOnCRTC2 || info->IsSecondary) {
         x_off = 0;
         OUTREG(RADEON_OV1_Y_X_START, ((dstBox->x1 + x_off) |
                                       ((dstBox->y1*y_mult) << 16)));
@@ -2780,6 +2763,7 @@ RADEONPutImage(
   DrawablePtr pDraw
 ){
    RADEONInfoPtr info = RADEONPTR(pScrn);
+   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
    INT32 xa, xb, ya, yb;
    unsigned char *dst_start;
@@ -2789,6 +2773,7 @@ RADEONPutImage(
    int top, left, npixels, nlines, bpp;
    BoxRec dstBox;
    CARD32 tmp;
+   xf86CrtcPtr crtc;
 
    /*
     * s2offset, s3offset - byte offsets into U and V plane of the
@@ -2821,24 +2806,21 @@ RADEONPutImage(
    dstBox.y1 = drw_y;
    dstBox.y2 = drw_y + drw_h;
 
-   if (info->MergedFB)
-	RADEONChooseOverlayCRTC(pScrn, &dstBox);
+   RADEONChooseOverlayCRTC(pScrn, &dstBox);
 
    if(!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb,
 			     clipBoxes, width, height))
 	return Success;
 
-   if (info->MergedFB && info->OverlayOnCRTC2) {
-	dstBox.x1 -= info->CRT2pScrn->frameX0;
-	dstBox.x2 -= info->CRT2pScrn->frameX0;
-	dstBox.y1 -= info->CRT2pScrn->frameY0;
-	dstBox.y2 -= info->CRT2pScrn->frameY0;
-   } else {
-	dstBox.x1 -= pScrn->frameX0;
-	dstBox.x2 -= pScrn->frameX0;
-	dstBox.y1 -= pScrn->frameY0;
-	dstBox.y2 -= pScrn->frameY0;
-   }
+   if (info->OverlayOnCRTC2)
+     crtc = xf86_config->crtc[1];
+   else
+     crtc = xf86_config->crtc[0];
+
+   dstBox.x1 -= crtc->x;
+   dstBox.x2 -= crtc->x;
+   dstBox.y1 -= crtc->y;
+   dstBox.y2 -= crtc->y;
 
    bpp = pScrn->bitsPerPixel >> 3;
 
@@ -3180,12 +3162,13 @@ RADEONDisplaySurface(
 ){
     OffscreenPrivPtr pPriv = (OffscreenPrivPtr)surface->devPrivate.ptr;
     ScrnInfoPtr pScrn = surface->pScrn;
-
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONPortPrivPtr portPriv = info->adaptor->pPortPrivates[0].ptr;
 
     INT32 xa, ya, xb, yb;
     BoxRec dstBox;
+    xf86CrtcPtr crtc;
 
     if (src_w > (drw_w << 4))
 	drw_w = src_w >> 4;
@@ -3202,24 +3185,21 @@ RADEONDisplaySurface(
     dstBox.y1 = drw_y;
     dstBox.y2 = drw_y + drw_h;
 
-    if (info->MergedFB)
-        RADEONChooseOverlayCRTC(pScrn, &dstBox);
+    RADEONChooseOverlayCRTC(pScrn, &dstBox);
 
     if (!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb, clipBoxes, 
 			       surface->width, surface->height))
 	return Success;
 
-    if (info->MergedFB && info->OverlayOnCRTC2) {
-	dstBox.x1 -= info->CRT2pScrn->frameX0;
-	dstBox.x2 -= info->CRT2pScrn->frameX0;
-	dstBox.y1 -= info->CRT2pScrn->frameY0;
-	dstBox.y2 -= info->CRT2pScrn->frameY0;
-    } else {
-	dstBox.x1 -= pScrn->frameX0;
-	dstBox.x2 -= pScrn->frameX0;
-	dstBox.y1 -= pScrn->frameY0;
-	dstBox.y2 -= pScrn->frameY0;
-    }
+    if (info->OverlayOnCRTC2)
+        crtc = xf86_config->crtc[1];
+    else
+        crtc = xf86_config->crtc[0];
+    
+    dstBox.x1 -= crtc->x;
+    dstBox.x2 -= crtc->x;
+    dstBox.y1 -= crtc->y;
+    dstBox.y2 -= crtc->y;
 
 #if 0
     /* this isn't needed */
@@ -3291,6 +3271,7 @@ RADEONPutVideo(
 ){
    RADEONInfoPtr info = RADEONPTR(pScrn);
    RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
+   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    unsigned char *RADEONMMIO = info->MMIO;
    INT32 xa, xb, ya, yb, top;
    unsigned int pitch, new_size, alloc_size;
@@ -3303,6 +3284,7 @@ RADEONPutVideo(
    int width, height;
    int mult;
    int vbi_line_width, vbi_start, vbi_end;
+   xf86CrtcPtr crtc;
 
     RADEON_SYNC(info, pScrn);
    /*
@@ -3344,23 +3326,20 @@ RADEONPutVideo(
 	   else
 	   vbi_line_width = 2000; /* might need adjustment */
 
-   if (info->MergedFB)
-        RADEONChooseOverlayCRTC(pScrn, &dstBox);
+   RADEONChooseOverlayCRTC(pScrn, &dstBox);
         
    if(!xf86XVClipVideoHelper(&dstBox, &xa, &xb, &ya, &yb, clipBoxes, width, height))
         return Success;
 
-   if (info->MergedFB && info->OverlayOnCRTC2) {
-	dstBox.x1 -= info->CRT2pScrn->frameX0;
-	dstBox.x2 -= info->CRT2pScrn->frameX0;
-	dstBox.y1 -= info->CRT2pScrn->frameY0;
-	dstBox.y2 -= info->CRT2pScrn->frameY0;
-   } else {
-	dstBox.x1 -= pScrn->frameX0;
-	dstBox.x2 -= pScrn->frameX0;
-	dstBox.y1 -= pScrn->frameY0;
-	dstBox.y2 -= pScrn->frameY0;
-   }
+   if (info->OverlayOnCRTC2)
+     crtc = xf86_config->crtc[1];
+   else
+     crtc = xf86_config->crtc[0];
+
+   dstBox.x1 -= crtc->x;
+   dstBox.x2 -= crtc->x;
+   dstBox.y1 -= crtc->y;
+   dstBox.y2 -= crtc->y;
 
    bpp = pScrn->bitsPerPixel >> 3;
    pitch = bpp * pScrn->displayWidth;

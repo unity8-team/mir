@@ -38,9 +38,12 @@
 
 #include "xf86str.h"
 #include "xf86DDC.h"
+#include "randrstr.h"
 
 #define _XF86MISC_SERVER_
 #include <X11/extensions/xf86misc.h>
+
+#include "xf86Crtc.h"
 
 typedef enum
 {
@@ -102,28 +105,36 @@ typedef enum
     TMDS_EXT     = 1
 } RADEONTmdsType;
 
-typedef struct
+typedef enum
 {
-    Bool IsUsed;
-    Bool IsActive;
-    int binding; // which instance of the driver "owns" this controller
-    DisplayModePtr pCurMode;
-} RADEONController;
+    OUTPUT_NONE,
+    OUTPUT_VGA,
+    OUTPUT_DVI,
+    OUTPUT_LVDS,
+    OUTPUT_STV,
+    OUTPUT_CTV,
+} RADEONOutputType;
 
-typedef struct
-{
+typedef struct _RADEONCrtcPrivateRec {
+    int crtc_id;
+    int binding;
+    /* Lookup table values to be set when the CRTC is enabled */
+    CARD8 lut_r[256], lut_g[256], lut_b[256];
+} RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
+
+typedef struct _RADEONOutputPrivateRec {
+    int num;
+    RADEONOutputType type;
+    void *dev_priv;
     RADEONDDCType DDCType;
     RADEONDacType DACType;
     RADEONTmdsType TMDSType;
     RADEONConnectorType ConnectorType;
     RADEONMonitorType MonType;
-    xf86MonPtr MonInfo;
-
-    /* one connector can be bound to one CRTC */
     int crtc_num;
-} RADEONConnector;
-
-
+    int DDCReg;
+    I2CBusPtr         pI2CBus;
+} RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 #define RADEON_MAX_CONNECTOR 2
 #define RADEON_MAX_CRTC 2
@@ -144,8 +155,12 @@ typedef struct
 
     Bool ReversedDAC;	  /* TVDAC used as primary dac */
     Bool ReversedTMDS;    /* DDC_DVI is used for external TMDS */
-    RADEONConnector *PortInfo[RADEON_MAX_CONNECTOR];
-    RADEONController *Controller[RADEON_MAX_CRTC]; /* pointer to a controller */
+    xf86OutputPtr pOutput[RADEON_MAX_CONNECTOR];
+    RADEONOutputPrivatePtr PortInfo[RADEON_MAX_CONNECTOR];
+
+    xf86CrtcPtr pCrtc[RADEON_MAX_CRTC];
+    RADEONCrtcPrivatePtr Controller[RADEON_MAX_CRTC];
+
 } RADEONEntRec, *RADEONEntPtr;
 
 /* radeon_probe.c */
