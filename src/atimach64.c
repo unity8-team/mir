@@ -580,12 +580,12 @@ ATIMach64Save
 }
 
 /*
- * ATIMach64Calculate --
+ * ATIMach64ModeAdjust --
  *
- * This function is called to fill in the Mach64 portion of an ATIHWRec.
+ * This function is called to adjust horizontal and vertical timings.
  */
-void
-ATIMach64Calculate
+static void
+ATIMach64ModeAdjust
 (
     ATIPtr         pATI,
     ATIHWPtr       pATIHW,
@@ -711,6 +711,22 @@ ATIMach64Calculate
          (int)MaxBits(CRTC_V_SYNC_WID))
         pMode->CrtcVSyncEnd = pMode->CrtcVSyncStart + MaxBits(CRTC_V_SYNC_WID);
     pMode->CrtcVAdjusted = TRUE;                /* Redundant */
+}
+
+/*
+ * ATIMach64Calculate --
+ *
+ * This function is called to fill in the Mach64 portion of an ATIHWRec.
+ */
+void
+ATIMach64Calculate
+(
+    ATIPtr         pATI,
+    ATIHWPtr       pATIHW,
+    DisplayModePtr pMode
+)
+{
+    ATIMach64ModeAdjust(pATI, pATIHW, pMode);
 
     /* Build register contents */
     pATIHW->crtc_h_total_disp =
