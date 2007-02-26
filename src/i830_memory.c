@@ -344,7 +344,14 @@ i830_allocate_aperture(ScrnInfoPtr pScrn, const char *name,
 	alignment = GTT_PAGE_SIZE;
 
     for (scan = pI830->memory_list; scan->next != NULL; scan = scan->next) {
-	mem->offset = ROUND_TO(scan->end, alignment);
+	mem->offset = scan->end;
+	/* For allocations requiring physical addresses, we have to use AGP
+	 * memory, so move the allocation up out of stolen memory.
+	 */
+	if ((flags & NEED_PHYSICAL_ADDR) && mem->offset < pI830->stolen_size)
+	    mem->offset = pI830->stolen_size;
+	mem->offset = ROUND_TO(mem->offset, alignment);
+
 	mem->end = mem->offset + size;
 	if (flags & ALIGN_BOTH_ENDS)
 	    mem->end = ROUND_TO(mem->end, alignment);
@@ -381,8 +388,11 @@ i830_allocate_agp_memory(ScrnInfoPtr pScrn, i830_memory *mem, int flags)
     if (mem->key != -1)
 	return TRUE;
 
-    if (mem->offset + mem->size <= pI830->stolen_size)
+    if (mem->offset + mem->size <= pI830->stolen_size &&
+	!(flags & NEED_PHYSICAL_ADDR))
+    {
 	return TRUE;
+    }
 
     if (mem->offset < pI830->stolen_size)
 	mem->agp_offset = pI830->stolen_size;
@@ -564,7 +574,7 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
     for (mem = pI830->memory_list->next; mem->next != NULL; mem = mem->next) {
 
 	if (mem->offset >= pI830->stolen_size &&
-	    mem->prev->offset <= pI830->stolen_size)
+	    mem->prev->offset < pI830->stolen_size)
 	{
 	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 			   "%s0x%08lx:            end of stolen memory\n",
@@ -578,7 +588,7 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 			   mem->size / 1024);
 	} else {
 	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-			   "%s0x%08lx-0x%08lx: %s (%ld kB, %08lx physical)\n",
+			   "%s0x%08lx-0x%08lx: %s (%ld kB, 0x%08lx physical)\n",
 			   prefix,
 			   mem->offset, mem->end - 1, mem->name,
 			   mem->size / 1024, mem->bus_addr);
