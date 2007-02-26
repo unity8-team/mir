@@ -342,7 +342,13 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 
-    if (crtc->rotatedData != NULL) {
+    if (pI830->front_buffer == NULL) {
+	/* During startup we may be called as part of monitor detection while
+	 * there is no memory allocation done, so just supply a dummy base
+	 * address.
+	 */
+	Start = 0;
+    } else if (crtc->rotatedData != NULL) {
 	Start = (char *)crtc->rotatedData - (char *)pI830->FbBase;
     } else if (I830IsPrimary(pScrn)) {
 	Start = pI830->front_buffer->offset;
