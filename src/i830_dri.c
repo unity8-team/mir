@@ -1449,7 +1449,8 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    /* Don't use front_buffer->size here as it includes the pixmap cache area
     * Instead, calculate the entire framebuffer.
     */
-   sarea->front_size = pScrn->displayWidth * pScrn->virtualY * pI830->cpp;
+   sarea->front_size = ROUND_TO_PAGE(pScrn->displayWidth * pScrn->virtualY *
+				     pI830->cpp);
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
               "[drm] init sarea width,height = %d x %d (pitch %d)\n",

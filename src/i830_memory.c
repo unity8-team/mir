@@ -338,6 +338,8 @@ i830_allocate_aperture(ScrnInfoPtr pScrn, const char *name,
 	xfree(mem);
 	return NULL;
     }
+    /* Only allocate page-sized increments. */
+    size = ALIGN(size, GTT_PAGE_SIZE);
     mem->size = size;
 
     if (alignment < GTT_PAGE_SIZE)
@@ -465,6 +467,9 @@ i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
 
     if (tile_format == TILING_NONE)
 	return i830_allocate_memory(pScrn, name, size, alignment, flags);
+
+    /* Only allocate page-sized increments. */
+    size = ALIGN(size, GTT_PAGE_SIZE);
 
     /* Check for maximum tiled region size */
     if (IS_I9XX(pI830)) {
