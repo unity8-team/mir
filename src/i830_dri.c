@@ -654,21 +654,18 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	    return FALSE;
 	 }
 	 pI830->drmMinor = version->version_minor;
-	 if (!(pI830->mmModeFlags & I830_KERNEL_TEX)) {
-#ifdef XF86DRI_MM	    
-	    if ((version->version_major > 1) ||
-		((version->version_minor >= 7) && 
-		 (version->version_major == 1))) {
-	       pI830->mmModeFlags |= I830_KERNEL_MM;
-	    } else 
-#endif
-	    {
-	       pI830->mmModeFlags |= I830_KERNEL_TEX;
-	    }		
-	 } else {
-	    xf86DrvMsg(pScreen->myNum, X_INFO, 
-		       "Not enabling the DRM memory manager.\n");
-	 } 
+	 if (version->version_minor < 7) {
+	    if (pI830->mmModeFlags & I830_KERNEL_MM) {
+	       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			  "DRM version %d.%d older than required 1.7 for "
+			  "DRM memory manager.  Disabling.\n",
+			  version->version_major, version->version_minor);
+	       pI830->mmModeFlags &= ~I830_KERNEL_MM;
+
+	       i830_free_memory(pScrn, pI830->memory_manager);
+	       pI830->memory_manager = NULL;
+	    }
+	 }
 	 drmFreeVersion(version);
       }
    }
@@ -1464,8 +1461,13 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    sarea->back_size = pI830->back_buffer->size;
    sarea->depth_offset = pI830->depth_buffer->offset;
    sarea->depth_size = pI830->depth_buffer->size;
-   sarea->tex_offset = pI830->textures->offset;
-   sarea->tex_size = pI830->textures->size;
+   if (pI830->textures != NULL) {
+      sarea->tex_offset = pI830->textures->offset;
+      sarea->tex_size = pI830->textures->size;
+   } else {
+      sarea->tex_offset = 0;
+      sarea->tex_size = 0;
+   }
    sarea->log_tex_granularity = pI830->TexGranularity;
    sarea->pitch = pScrn->displayWidth;
    sarea->virtualX = pScrn->virtualX;

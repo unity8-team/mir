@@ -1229,8 +1229,11 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       if (!pI830->directRenderingDisabled) {
 	 Bool tmp = FALSE;
 
-	 if (IS_I965G(pI830))
-	    pI830->mmModeFlags |= I830_KERNEL_TEX;
+	 pI830->mmModeFlags |= I830_KERNEL_TEX;
+#ifdef XF86DRI_MM
+	 if (!IS_I965G(pI830))
+	    pI830->mmModeFlags |= I830_KERNEL_MM;
+#endif
 
 	 from = X_PROBED;
 	 if (xf86GetOptValBool(pI830->Options, 
@@ -1242,14 +1245,12 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	       pI830->mmModeFlags &= ~I830_KERNEL_TEX;
 	    }	       
 	 }
-	 if (from == X_CONFIG || 
-	     (pI830->mmModeFlags & I830_KERNEL_TEX)) { 
-	    xf86DrvMsg(pScrn->scrnIndex, from, 
-		       "Will %stry to allocate texture pool "
-		       "for old Mesa 3D driver.\n",
-		       (pI830->mmModeFlags & I830_KERNEL_TEX) ? 
-		       "" : "not ");
-	 }
+	 xf86DrvMsg(pScrn->scrnIndex, from,
+		    "Will %stry to allocate texture pool "
+		    "for old Mesa 3D driver.\n",
+		    (pI830->mmModeFlags & I830_KERNEL_TEX) ?
+		    "" : "not ");
+
 	 pI830->mmSize = I830_MM_MAXSIZE;
 	 from = X_INFO;
 	 if (xf86GetOptValInteger(pI830->Options, OPTION_INTELMMSIZE,

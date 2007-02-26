@@ -180,7 +180,7 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     }
 }
 
-static void
+void
 i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 {
     if (mem == NULL)
@@ -1133,7 +1133,7 @@ i830_allocate_texture_memory(ScrnInfoPtr pScrn)
     if (pI830->mmModeFlags & I830_KERNEL_MM) {
 	pI830->memory_manager =
 	    i830_allocate_aperture(pScrn, "DRI memory manager",
-				   pI830->mmSize, GTT_PAGE_SIZE,
+				   pI830->mmSize * KB(1), GTT_PAGE_SIZE,
 				   ALIGN_BOTH_ENDS);
 	/* XXX: try memory manager size backoff here? */
 	if (pI830->memory_manager == NULL)
