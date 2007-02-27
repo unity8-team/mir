@@ -273,7 +273,7 @@ static void nv3GetConfig (NVPtr pNv)
         pNv->RamAmountKBytes = 1024 * 8;
         break;
     }
-    pNv->CrystalFreqKHz   = (nvReadPEXTDEV(pNv, 0x0000) & 0x00000040) ? 14318 : 13500;
+    pNv->CrystalFreqKHz   = (nvReadEXTDEV(pNv, 0x0000) & 0x00000040) ? 14318 : 13500;
     pNv->CURSOR           = &(pNv->PRAMIN[0x00008000/4 - 0x0800/4]);
     pNv->MinVClockFreqKHz = 12000;
     pNv->MaxVClockFreqKHz = 256000;
