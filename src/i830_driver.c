@@ -752,15 +752,6 @@ PreInitCleanup(ScrnInfoPtr pScrn)
    if (I830IsPrimary(pScrn)) {
       if (pI830->entityPrivate)
 	 pI830->entityPrivate->pScrn_1 = NULL;
-      if (pI830->LpRing)
-         xfree(pI830->LpRing);
-      pI830->LpRing = NULL;
-      if (pI830->overlayOn)
-         xfree(pI830->overlayOn);
-      pI830->overlayOn = NULL;
-      if (pI830->used3D)
-         xfree(pI830->used3D);
-      pI830->used3D = NULL;
    } else {
       if (pI830->entityPrivate)
          pI830->entityPrivate->pScrn_2 = NULL;
@@ -1368,22 +1359,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
          PreInitCleanup(pScrn);
 	 return FALSE;
       }
-   }
-
-   /* Alloc our pointers for the primary head */
-   if (I830IsPrimary(pScrn)) {
-      pI830->LpRing = xcalloc(1, sizeof(I830RingBuffer));
-      pI830->overlayOn = xalloc(sizeof(Bool));
-      pI830->used3D = xalloc(sizeof(int));
-      if (!pI830->LpRing || !pI830->overlayOn || !pI830->used3D) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Could not allocate primary data structures.\n");
-         PreInitCleanup(pScrn);
-         return FALSE;
-      }
-      *pI830->overlayOn = FALSE;
-      if (pI830->entityPrivate)
-         pI830->entityPrivate->XvInUse = -1;
    }
 
    /* Check if the HW cursor needs physical address. */
@@ -2237,6 +2212,31 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    pI830->disableTiling = FALSE;
 
+   if (I830IsPrimary(pScrn)) {
+      /* Alloc our pointers for the primary head */
+      if (!pI830->LpRing)
+         pI830->LpRing = xcalloc(1, sizeof(I830RingBuffer));
+      if (!pI830->overlayOn)
+         pI830->overlayOn = xalloc(sizeof(Bool));
+      if (!pI830->used3D)
+         pI830->used3D = xalloc(sizeof(int));
+      if (!pI830->LpRing || !pI830->overlayOn || !pI830->used3D) {
+         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		 "Could not allocate primary data structures.\n");
+         return FALSE;
+      }
+      *pI830->overlayOn = FALSE;
+      if (pI830->entityPrivate)
+         pI830->entityPrivate->XvInUse = -1;
+   } else {
+      /* Make our second head point to the first heads structures */
+      pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
+      pI830->LpRing = pI8301->LpRing;
+      pI830->overlay_regs = pI8301->overlay_regs;
+      pI830->overlayOn = pI8301->overlayOn;
+      pI830->used3D = pI8301->used3D;
+   }
+
 #if defined(XF86DRI)
    /*
     * If DRI is potentially usable, check if there is enough memory available
@@ -2411,33 +2411,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #endif
 
    pI830->starting = TRUE;
-
-   /* Alloc our pointers for the primary head */
-   if (I830IsPrimary(pScrn)) {
-      if (!pI830->LpRing)
-         pI830->LpRing = xalloc(sizeof(I830RingBuffer));
-      if (!pI830->overlayOn)
-         pI830->overlayOn = xalloc(sizeof(Bool));
-      if (!pI830->used3D)
-         pI830->used3D = xalloc(sizeof(int));
-      if (!pI830->LpRing || !pI830->overlayOn || !pI830->used3D) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Could not allocate primary data structures.\n");
-         return FALSE;
-      }
-      *pI830->overlayOn = FALSE;
-      if (pI830->entityPrivate)
-         pI830->entityPrivate->XvInUse = -1;
-   }
-
-   /* Make our second head point to the first heads structures */
-   if (!I830IsPrimary(pScrn)) {
-      pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-      pI830->LpRing = pI8301->LpRing;
-      pI830->overlay_regs = pI8301->overlay_regs;
-      pI830->overlayOn = pI8301->overlayOn;
-      pI830->used3D = pI8301->used3D;
-   }
 
    miClearVisualTypes();
    if (!miSetVisualTypes(pScrn->depth,
