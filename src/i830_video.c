@@ -2175,7 +2175,8 @@ I830PutImage(ScrnInfoPtr pScrn,
    if (pPriv->textured)
        overlay = NULL;
    else
-       (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
+       overlay = (I830OverlayRegPtr) (pI830->FbBase + 
+	       pI830->overlay_regs->offset);
 
 #if 0
    ErrorF("I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
