@@ -472,7 +472,9 @@ I830InitVideo(ScreenPtr pScreen)
    }
 
    /* Set up overlay video if we can do it at this depth. */
-   if (!IS_I965G(pI830) && pScrn->bitsPerPixel != 8) {
+   if (!IS_I965G(pI830) && pScrn->bitsPerPixel != 8 &&
+       pI830->overlay_regs != NULL)
+   {
       overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
       if (overlayAdaptor != NULL) {
 	 adaptors[num_adaptors++] = overlayAdaptor;
@@ -925,8 +927,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 {
    I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
    I830Ptr pI830 = I830PTR(pScrn);
-   I830OverlayRegPtr overlay =
-	 (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
+   I830OverlayRegPtr overlay;
 
    if (pPriv->textured) {
       /* XXX: Currently the brightness/saturation attributes aren't hooked up.
@@ -935,6 +936,8 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
        */
       return Success;
    }
+
+   overlay = (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
 
    if (attribute == xvBrightness) {
       if ((value < -128) || (value > 127))
@@ -2160,8 +2163,7 @@ I830PutImage(ScrnInfoPtr pScrn,
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-   I830OverlayRegPtr overlay =
-	 (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
+   I830OverlayRegPtr overlay;
    PixmapPtr pPixmap;
    INT32 x1, x2, y1, y2;
    int srcPitch, srcPitch2 = 0, dstPitch, destId;
@@ -2169,6 +2171,11 @@ I830PutImage(ScrnInfoPtr pScrn,
    BoxRec dstBox;
    int pitchAlignMask;
    int extraLinear;
+
+   if (pPriv->textured)
+       overlay = NULL;
+   else
+       (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
 
 #if 0
    ErrorF("I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
