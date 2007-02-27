@@ -342,13 +342,19 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 
-    if (crtc->rotatedData != NULL) {
+    if (pI830->front_buffer == NULL) {
+	/* During startup we may be called as part of monitor detection while
+	 * there is no memory allocation done, so just supply a dummy base
+	 * address.
+	 */
+	Start = 0;
+    } else if (crtc->rotatedData != NULL) {
 	Start = (char *)crtc->rotatedData - (char *)pI830->FbBase;
     } else if (I830IsPrimary(pScrn)) {
-	Start = pI830->FrontBuffer.Start;
+	Start = pI830->front_buffer->offset;
     } else {
 	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-	Start = pI8301->FrontBuffer2.Start;
+	Start = pI8301->front_buffer_2->offset;
     }
 
     if (IS_I965G(pI830)) {
@@ -972,7 +978,7 @@ i830_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
     unsigned long rotate_offset;
     int align = KB(4), size;
 
-    rotate_pitch = pI830->displayWidth * pI830->cpp;
+    rotate_pitch = pScrn->displayWidth * pI830->cpp;
     size = rotate_pitch * height;
 
 #ifdef I830_USE_EXA
@@ -1012,7 +1018,7 @@ i830_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 		       "Couldn't allocate shadow memory for rotated CRTC\n");
 	    return NULL;
 	}
-	rotate_offset = pI830->FrontBuffer.Start +
+	rotate_offset = pI830->front_buffer->offset +
 	    intel_crtc->rotate_mem_xaa->offset * pI830->cpp;
     }
 #endif /* I830_USE_XAA */
@@ -1034,7 +1040,7 @@ i830_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
     if (!data)
 	data = i830_crtc_shadow_allocate (crtc, width, height);
     
-    rotate_pitch = pI830->displayWidth * pI830->cpp;
+    rotate_pitch = pScrn->displayWidth * pI830->cpp;
 
     rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
 					   width, height,
