@@ -2579,8 +2579,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 }
       }
    }
-   if (!I830EnterVT(scrnIndex, 0))
-      return FALSE;
 
     if (pScrn->virtualX > pScrn->displayWidth)
 	pScrn->displayWidth = pScrn->virtualX;
@@ -2622,6 +2620,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		    "Hardware acceleration initialization failed\n");
       }
    }
+
+   if (!I830EnterVT(scrnIndex, 0))
+      return FALSE;
 
    miInitializeBackingStore(pScreen);
    xf86SetBackingStore(pScreen);
