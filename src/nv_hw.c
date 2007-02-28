@@ -1016,7 +1016,10 @@ void NVLoadStateExt (
        nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_1, 0x72111101);
        nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_2_NV04, 0x11D5F071);
        nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x0004FF31);
-       nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x4004FF31);
+       nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x4004FF31 |
+		       0x00d00000 | /* DATA_CHECK/DATA_CHECK_FAIL/DMA_CHECK */
+		       (1<<29) /* CTX_METHODS_ENABLED */ |
+		       (1<<31) /* IGNORE_PATCHVALID_ENABLED */);
 
        if (!pNv->IRQ) {
 	   nvWriteGRAPH(pNv, NV_PGRAPH_INTR_EN, 0x0);
@@ -1047,7 +1050,9 @@ void NVLoadStateExt (
        if(pNv->Architecture == NV_ARCH_10) {
            nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_1, 0x00118700);
            nvWriteGRAPH(pNv, 0x0088, 0x24E00810);
-           nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x55DE0030);
+           nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x55DE0030 |
+			   (1<<29) /* CTX_METHODS_ENABLED */ |
+			   (1<<31) /* IGNORE_PATCHVALID_ENABLED */);
 
            /* nv10 second surfaces */
            /* this is a copy of the surfaces. What is it for ? */
@@ -1065,7 +1070,7 @@ void NVLoadStateExt (
        } else {
            if(pNv->Architecture >= NV_ARCH_40) {
               nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_1, 0x401287c0);
-              nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0x60de8055);
+              nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_3, 0xe0de8055);
               nvWriteGRAPH(pNv, NV_PGRAPH_DEBUG_4, 0x00008000);
               nvWriteGRAPH(pNv, NV_PGRAPH_LIMIT_VIOL_PIX, 0x00be3c5f);
 

@@ -123,6 +123,8 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 	}
 	pNv->dmaFree -= SKIPS;
 
+	NVAccelCommonInit(pScrn);
+
 	/* EXA + XAA + Xv */
 	NVDmaSetObjectOnSubchannel(pNv, NvSubContextSurfaces, NvContextSurfaces);
 	NVDmaSetObjectOnSubchannel(pNv, NvSubRectangle   , NvRectangle      );
@@ -189,19 +191,42 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 	/*NVDmaKickoff(pNv);*/
 }
 
-Bool NVDmaCreateDMAObject(NVPtr pNv, int handle, int target, CARD32 base_address, CARD32 size, int access)
+Bool NVDmaCreateDMAObject(NVPtr pNv, uint32_t handle, int class,
+				     int target,
+				     CARD32 offset, CARD32 size, int access)
 {
 	drm_nouveau_dma_object_init_t dma;
 	int ret;
 
 	dma.handle = handle;
+	dma.class  = class;
 	dma.access = access;
 	dma.target = target;
-	dma.size= size;
-	dma.offset = base_address;
-	ret = drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_DMA_OBJECT_INIT, &dma, sizeof(dma));
+	dma.size   = size;
+	dma.offset = offset;
+	ret = drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_DMA_OBJECT_INIT,
+					   &dma, sizeof(dma));
 
 	return ret == 0;
+}
+
+Bool NVDmaCreateDMAObjectFromMem(NVPtr pNv, uint32_t handle, int class,
+					    NVAllocRec *mem, int access)
+{
+	uint32_t offset = mem->offset;
+	int      target;
+
+	target = mem->type & (NOUVEAU_MEM_FB | NOUVEAU_MEM_AGP);
+	if (!target)
+		return FALSE;
+
+	if (target & NOUVEAU_MEM_FB)
+		offset -= pNv->VRAMPhysical;
+	else if (target & NOUVEAU_MEM_AGP)
+		offset -= pNv->AGPPhysical;
+
+	return NVDmaCreateDMAObject(pNv, handle, class, target,
+					 offset, mem->size, access);
 }
 
 /*
@@ -219,12 +244,9 @@ NVAllocRec *NVDmaCreateNotifier(NVPtr pNv, int handle)
 	if (!notifier)
 		notifier = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 256);
 
-	if (!NVDmaCreateDMAObject(pNv, handle,
-			notifier->type & NOUVEAU_MEM_AGP ?
-				NV_DMA_TARGET_AGP : NV_DMA_TARGET_VIDMEM,
-			notifier->offset,
-			notifier->size,
-			NV_DMA_ACCES_RW)) {
+	if (!NVDmaCreateDMAObjectFromMem(pNv, handle, NV_DMA_IN_MEMORY,
+					      notifier,
+					      NOUVEAU_MEM_ACCESS_RW)) {
 		NVFreeMemory(pNv, notifier);
 		return NULL;
 	}
@@ -291,20 +313,15 @@ Bool NVDmaWaitForNotifier(NVPtr pNv, void *notifier)
 	return TRUE;
 }
 
-Bool NVDmaCreateContextObject(NVPtr pNv, int handle, int class, CARD32 flags,
-			      CARD32 dma_in, CARD32 dma_out, CARD32 dma_notifier)
+Bool NVDmaCreateContextObject(NVPtr pNv, int handle, int class)
 {
 	drm_nouveau_object_init_t cto;
 	int ret;
 
 	cto.handle = handle;
 	cto.class  = class;
-	cto.flags  = flags;
-	cto.dma0= dma_in;
-	cto.dma1= dma_out;
-	cto.dma_notifier = dma_notifier;
-	ret = drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_OBJECT_INIT, &cto, sizeof(cto));
-
+	ret = drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_OBJECT_INIT,
+					   &cto, sizeof(cto));
 	return ret == 0;
 }
 
@@ -342,6 +359,7 @@ static void NVInitDmaCB(ScrnInfoPtr pScrn)
 Bool NVInitDma(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	int i;
 
 	NVInitDmaCB(pScrn);
 
@@ -368,117 +386,13 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "  DMA cmdbuf length : %d KiB\n", pNv->fifo.cmdbuf_size / 1024);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "  DMA base PUT      : 0x%08x\n", pNv->fifo.put_base);
 
-	NVDmaCreateDMAObject(pNv, NvDmaFB, NV_DMA_TARGET_VIDMEM, 0, pNv->VRAMPhysicalSize, NV_DMA_ACCES_RW);
+	pNv->dmaPut = pNv->dmaCurrent = READ_GET(pNv);
+	pNv->dmaMax = (pNv->fifo.cmdbuf_size >> 2) - 1;
+	pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
 
-	/* EXA + XAA + Xv */
-	NVDmaCreateContextObject(pNv, NvContextSurfaces,
-				 (pNv->Architecture >= NV_ARCH_10) ? NV10_CONTEXT_SURFACES_2D : NV04_SURFACE,
-				 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
-				 NvDmaFB, NvDmaFB, 0);
-	NVDmaCreateContextObject(pNv, NvRectangle,
-				 NV04_GDI_RECTANGLE_TEXT,
-				 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_MONO,
-				 0, 0, 0);
-	if (pNv->Chipset<=CHIPSET_NV04)
-		NVDmaCreateContextObject(pNv, NvScaledImage,
-					 NV04_SCALED_IMAGE_FROM_MEMORY, 
-					 NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
-					 NvDmaFB, NvDmaFB, 0);
-	else if (pNv->Architecture==NV_ARCH_04)
-		NVDmaCreateContextObject(pNv, NvScaledImage,
-					 NV05_SCALED_IMAGE_FROM_MEMORY, 
-					 NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
-					 NvDmaFB, NvDmaFB, 0);
-	else
-		NVDmaCreateContextObject(pNv, NvScaledImage,
-					 NV10_SCALED_IMAGE_FROM_MEMORY, 
-					 NV_DMA_CONTEXT_FLAGS_PATCH_SRCCOPY, 
-					 NvDmaFB, NvDmaFB, 0);
-	/* EXA + XAA */
-	NVDmaCreateContextObject(pNv, NvRop,
-				 NV03_PRIMITIVE_RASTER_OP,
-				 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
-				 0, 0, 0);
-	NVDmaCreateContextObject(pNv, NvImagePattern,
-				 NV04_IMAGE_PATTERN, 
-				 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_MONO,
-				 0, 0, 0);
-	NVDmaCreateContextObject(pNv, NvImageBlit,
-				 pNv->WaitVSyncPossible ? NV10_IMAGE_BLIT : NV_IMAGE_BLIT,
-				 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND, 
-				 NvDmaFB, NvDmaFB, 0);
-	if (pNv->useEXA) {
-		unsigned int class_3d = 0;
-
-#ifdef NV_ENABLE_3D
-		switch (pNv->Architecture) {
-		case NV_ARCH_30:
-		case NV_ARCH_40:
-			if (!NV30EXAPreInit(pScrn))
-				break;
-			pNv->Reset3D   = NV30EXAResetGraphics;
-			pNv->InitEXA3D = NV30EXAInstallHooks;
-			switch (pNv->Chipset & 0xff0) {
-			case CHIPSET_NV40:
-				class_3d = NV30_TCL_PRIMITIVE_3D|0x4000;
-				break;
-			case CHIPSET_C51:
-			case CHIPSET_NV44A:
-				class_3d = NV30_TCL_PRIMITIVE_3D|0x4400;
-				break;
-			default:
-				xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-						"3D: Unknown chipset=0x%x\n",
-						pNv->Chipset);
-				break;
-			}
-			break;
-		default:
-			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-					"3D: Unknown arch=0x%x\n",\
-					pNv->Architecture);
-			break;
-		}
-
-		if (class_3d) {
-			NVDmaCreateContextObject(pNv, Nv3D, class_3d,
-						 0,
-						 0, 0, 0);
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-					"Enabled experimental EXA-on-3D code\n");
-			pNv->use3D = 1;
-		}
-#endif
-	} else {
-		NVDmaCreateContextObject(pNv, NvClipRectangle,
-					 NV01_CONTEXT_CLIP_RECTANGLE, 
-					 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND,
-					 0, 0, 0);
-		NVDmaCreateContextObject(pNv, NvSolidLine,
-					 NV04_SOLID_LINE,
-					 NV_DMA_CONTEXT_FLAGS_PATCH_ROP_AND|NV_DMA_CONTEXT_FLAGS_CLIP_ENABLE,
-					 0, 0, 0);
-	}
-
-	if (pNv->useEXA && NVInitAGP(pScrn) && pNv->AGPScratch) {
-		pNv->Notifier0 = NVDmaCreateNotifier(pNv, NvDmaNotifier0);
-		if (pNv->Notifier0) {
-			NVDmaCreateDMAObject(pNv, NvDmaAGP, NV_DMA_TARGET_AGP,
-					     pNv->AGPScratch->offset,
-					     pNv->AGPScratch->size,
-					     NV_DMA_ACCES_RW);
-
-			NVDmaCreateContextObject(pNv, NvMemFormat,
-						 NV_MEMORY_TO_MEMORY_FORMAT,
-						 0,
-						 0, 0, NvDmaNotifier0);
-		} else {
-			/* FIXME */
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to create DMA notifier - DMA transfers disabled\n");
-			NVFreeMemory(pNv, pNv->AGPScratch);
-			pNv->AGPScratch = NULL;
-		}
-	}
+	for (i=0; i<SKIPS; i++)
+		NVDmaNext(pNv,0);
+	pNv->dmaFree -= SKIPS;
 
 	return TRUE;
 }

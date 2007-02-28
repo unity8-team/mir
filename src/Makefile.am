@@ -29,6 +29,7 @@ nouveau_drv_la_LDFLAGS = -module -avoid-version
 nouveau_drv_ladir = @moduledir@/drivers
 
 nouveau_drv_la_SOURCES = \
+         nv_accel_common.c \
          nv_bios.c \
          nv_const.h \
          nv_cursor.c \
@@ -42,6 +43,7 @@ nouveau_drv_la_SOURCES = \
          nv_hw.c \
          nv_include.h \
          nv_local.h \
+         nv_mem.c \
          nv_proto.h \
          nvreg.h \
          nv_setup.c \

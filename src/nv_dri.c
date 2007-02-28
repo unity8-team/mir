@@ -244,7 +244,11 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 	}
 	
 	/* temporary lock step versioning */
-	if (pNv->pKernelDRMVersion->version_patchlevel != 3) {
+#if NOUVEAU_DRM_HEADER_PATCHLEVEL != 4
+#error nouveau_drm.h doesn't match expected patchlevel, update libdrm.
+#endif
+	if (pNv->pKernelDRMVersion->version_patchlevel !=
+			NOUVEAU_DRM_HEADER_PATCHLEVEL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"wrong DRM version\n");
 		return FALSE;
@@ -386,37 +390,4 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 
 	return TRUE;
 }
-
-Bool NVInitAGP(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	unsigned long agp_size;
-
-	agp_size = drmAgpSize(pNv->drm_fd);
-	if (agp_size==0)
-		return FALSE;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"AGP: aperture is %dMB\n", (unsigned int)(agp_size>>20));
-
-	if (agp_size > 16*1024*1024)
-		agp_size = 16*1024*1024;
-
-	pNv->AGPScratch = NVAllocateMemory(pNv, NOUVEAU_MEM_AGP, agp_size);
-	if (!pNv->AGPScratch) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"Unable to alloc AGP memory - DMA transfers disabled\n");
-		return FALSE;
-	}
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"AGP: mapped %dMB at %p\n",
-			(unsigned int)(pNv->AGPScratch->size>>20),
-			pNv->AGPScratch->map);
-
-	return TRUE;
-}
-
-
-
-
 

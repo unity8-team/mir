@@ -136,12 +136,22 @@ typedef struct _NVRec {
     int                 ChipRev;
     Bool                Primary;
     CARD32              IOAddress;
-	unsigned long       VRAMPhysical;
-	unsigned long		VRAMPhysicalSize;
-	NVAllocRec *        FB;
-	NVAllocRec *        Cursor;
-	NVAllocRec *        ScratchBuffer;
-	NVAllocRec *        AGPScratch;
+
+    /* VRAM physical address */
+    unsigned long	VRAMPhysical;
+    /* Size of VRAM BAR */
+    unsigned long	VRAMPhysicalSize;
+    /* Accesible VRAM size (by the GPU) */
+    unsigned long	VRAMSize;
+    /* AGP physical address */
+    unsigned long	AGPPhysical;
+    /* Accesible AGP size */
+    unsigned long	AGPSize;
+
+    NVAllocRec *        FB;
+    NVAllocRec *        Cursor;
+    NVAllocRec *        ScratchBuffer;
+    NVAllocRec *        AGPScratch;
     Bool                NoAccel;
     Bool                HWCursor;
     Bool                FpScale;

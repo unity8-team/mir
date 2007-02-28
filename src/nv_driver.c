@@ -514,62 +514,6 @@ _X_EXPORT XF86ModuleData nouveauModuleData = { &nouveauVersRec, nouveauSetup, NU
  */
 static int pix24bpp = 0;
 
-NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
-{
-	drm_nouveau_mem_alloc_t memalloc;
-	NVAllocRec *mem;
-
-	mem = malloc(sizeof(NVAllocRec));
-	if (!mem)
-		return NULL;
-	mem->type = type | NOUVEAU_MEM_MAPPED;
-	mem->size = size;
-
-	memalloc.flags         = mem->type;
-	memalloc.size          = mem->size;
-	memalloc.alignment     = 0;
-	memalloc.region_offset = 0;
-	if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_ALLOC, &memalloc,
-				sizeof(memalloc))) {
-		ErrorF("NOUVEAU_MEM_ALLOC failed.  flags=0x%08x, size=%lld (%d)\n",
-				mem->type, mem->size, errno);
-		free(mem);
-		return NULL;
-	}
-	mem->offset=memalloc.region_offset;
-
-	if (drmMap(pNv->drm_fd, mem->offset, mem->size, &mem->map)) {
-		ErrorF("drmMap() failed. offset=0x%llx, size=%lld (%d)\n",
-				mem->offset, mem->size, errno);
-		mem->map  = NULL;
-		NVFreeMemory(pNv, mem);
-		return NULL;
-	}
-
-	return mem;
-}
-
-void NVFreeMemory(NVPtr pNv, NVAllocRec *mem)
-{
-	drm_nouveau_mem_free_t memfree;
-
-	if (mem) {
-		if (mem->map) {
-			if (drmUnmap(mem->map, mem->size))
-				ErrorF("drmUnmap() failed. map=%p, size=%lld\n", mem->map, mem->size);
-		}
-
-		memfree.flags = mem->type;
-		memfree.region_offset = mem->offset;
-		if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_FREE, &memfree,
-					sizeof(memfree))) {
-			ErrorF("NOUVEAU_MEM_FREE failed.  flags=0x%08x, offset=0x%llx (%d)\n",
-					mem->type, mem->size, errno);
-		}
-		free(mem);
-	}
-}
-
 static Bool
 NVGetRec(ScrnInfoPtr pScrn)
 {
@@ -1739,6 +1683,37 @@ NVMapMem(ScrnInfoPtr pScrn)
 			pNv->FB->size >> 20
 			);
 
+	/*XXX: have to get these after we've allocated something, otherwise
+	 *     they're uninitialised in the DRM!
+	 */
+	pNv->VRAMSize     = NVDRMGetParam(pNv, NOUVEAU_GETPARAM_FB_SIZE);
+	pNv->VRAMPhysical = NVDRMGetParam(pNv, NOUVEAU_GETPARAM_FB_PHYSICAL);
+	pNv->AGPSize      = NVDRMGetParam(pNv, NOUVEAU_GETPARAM_AGP_SIZE);
+	pNv->AGPPhysical  = NVDRMGetParam(pNv, NOUVEAU_GETPARAM_AGP_PHYSICAL);
+
+	if (pNv->AGPSize) {
+		int gart_scratch_size;
+
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "AGP: %dMiB available\n",
+				(unsigned int)pNv->AGPSize >> 20);
+
+		if (pNv->AGPSize > (16*1024*1024))
+			gart_scratch_size = 16*1024*1024;
+		else
+			gart_scratch_size = pNv->AGPSize;
+
+		pNv->AGPScratch = NVAllocateMemory(pNv, NOUVEAU_MEM_AGP,
+							gart_scratch_size);
+		if (!pNv->AGPScratch)
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+					"Unable to allocate AGP memory\n");
+		else
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					"AGP: mapped %dMiB at %p\n",
+					(unsigned int)pNv->AGPScratch->size>>20,
+					pNv->AGPScratch->map);
+	}
+
 	pNv->Cursor = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 64*1024);
 	if (!pNv->Cursor) {
 		ErrorF("Failed to allocate memory for hardware cursor\n");
@@ -1987,8 +1962,12 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!NVMapMem(pScrn))
 		return FALSE;
 
-	/* Init DRM - Alloc FIFO, setup graphics objects */
+	/* Init DRM - Alloc FIFO */
 	if (!NVInitDma(pScrn))
+		return FALSE;
+
+	/* setup graphics objects */
+	if (!NVAccelCommonInit(pScrn))
 		return FALSE;
 
 	/* Save the current state */
