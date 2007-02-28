@@ -102,6 +102,28 @@ DEBUGSTRING(i830_debug_fp)
 		     ((val & FP_M2_DIV_MASK) >> FP_M2_DIV_SHIFT));
 }
 
+DEBUGSTRING(i830_debug_vga_pd)
+{
+    int vga0_p1, vga0_p2, vga1_p1, vga1_p2;
+
+    /* XXX: i9xx version */
+
+    if (val & VGA0_PD_P1_DIV_2)
+	vga0_p1 = 2;
+    else
+	vga0_p1 = ((val & VGA0_PD_P1_MASK) >> VGA0_PD_P1_SHIFT) + 2;
+    vga0_p2 = (val & VGA0_PD_P2_DIV_4) ? 4 : 2;
+
+    if (val & VGA1_PD_P1_DIV_2)
+	vga1_p1 = 2;
+    else
+	vga1_p1 = ((val & VGA1_PD_P1_MASK) >> VGA1_PD_P1_SHIFT) + 2;
+    vga1_p2 = (val & VGA1_PD_P2_DIV_4) ? 4 : 2;
+
+    return XNFprintf("vga0 p1 = %d, p2 = %d, vga1 p1 = %d, p2 = %d",
+		     vga0_p1, vga0_p2, vga1_p1, vga1_p2);
+}
+
 DEBUGSTRING(i830_debug_pp_status)
 {
     char *status = val & PP_ON ? "on" : "off";
@@ -140,18 +162,44 @@ DEBUGSTRING(i830_debug_dpll)
     char sdvoextra[20];
     int p1, p2 = 0;
 
-    p1 = ffs((val & DPLL_FPA01_P1_POST_DIV_MASK) >>
-	     DPLL_FPA01_P1_POST_DIV_SHIFT);
-    switch (val & DPLL_MODE_MASK) {
-    case DPLLB_MODE_DAC_SERIAL:
-	mode = "dac/serial";
-	p2 = val & DPLL_DAC_SERIAL_P2_CLOCK_DIV_5 ? 5 : 10;
-	break;
-    case DPLLB_MODE_LVDS:
-	mode = "LVDS";
-	p2 = val & DPLLB_LVDS_P2_CLOCK_DIV_7 ? 7 : 14;
-	break;
+    if (IS_I9XX(pI830)) {
+	p1 = ffs((val & DPLL_FPA01_P1_POST_DIV_MASK) >>
+		 DPLL_FPA01_P1_POST_DIV_SHIFT);
+	switch (val & DPLL_MODE_MASK) {
+	case DPLLB_MODE_DAC_SERIAL:
+	    mode = "DAC/serial";
+	    p2 = val & DPLL_DAC_SERIAL_P2_CLOCK_DIV_5 ? 5 : 10;
+	    break;
+	case DPLLB_MODE_LVDS:
+	    mode = "LVDS";
+	    p2 = val & DPLLB_LVDS_P2_CLOCK_DIV_7 ? 7 : 14;
+	    break;
+	}
+    } else {
+	Bool is_lvds = (INREG(LVDS) & LVDS_PORT_EN) && (reg == DPLL_B);
+
+	if (val & PLL_P2_DIVIDE_BY_4)
+	    p2 = 4;
+	else
+	    p2 = 2;
+
+	if (is_lvds) {
+	    mode = "LVDS";
+	    /* Map the bit number set from (1, 6) to (-1, 4). */
+	    p1 = ffs((val & DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS) >>
+		     DPLL_FPA01_P1_POST_DIV_SHIFT);
+	} else {
+	    mode = "DAC/serial";
+	    if (val & PLL_P1_DIVIDE_BY_TWO) {
+		p1 = 2;
+	    } else {
+		/* Map the number in the field to (1, 31) */
+		p1 = ((val & DPLL_FPA01_P1_POST_DIV_MASK_I830) >>
+		      DPLL_FPA01_P1_POST_DIV_SHIFT) + 2;
+	    }
+	}
     }
+
     switch (val & PLL_REF_INPUT_MASK) {
     case PLL_REF_INPUT_DREFCLK:
 	clock = "default";
@@ -162,7 +210,12 @@ DEBUGSTRING(i830_debug_dpll)
     case PLL_REF_INPUT_TVCLKINBC:
 	clock = "TV B/C";
 	break;
+    case PLLB_REF_INPUT_SPREADSPECTRUMIN:
+	if (reg == DPLL_B)
+	    clock = "spread spectrum";
+	break;
     }
+
     if (IS_I945G(pI830) || IS_I945GM(pI830)) {
 	sprintf(sdvoextra, ", SDVO mult %d",
 		(int)((val & SDVO_MULTIPLIER_MASK) >>
@@ -171,9 +224,9 @@ DEBUGSTRING(i830_debug_dpll)
 	sdvoextra[0] = '\0';
     }
 
-    return XNFprintf("%s, %s%s, %s mode, %s clock, p1 = %d, "
+    return XNFprintf("%s, %s%s, %s clock, %s mode, p1 = %d, "
 		     "p2 = %d%s%s",
-		     enabled, dvomode, vgamode, mode, clock, p1, p2,
+		     enabled, dvomode, vgamode, clock, mode, p1, p2,
 		     fpextra, sdvoextra);
 }
 
@@ -233,9 +286,9 @@ static struct i830SnapshotRec {
     char *(*debug_output)(I830Ptr pI830, int reg, CARD32 val);
     CARD32 val;
 } i830_snapshot[] = {
-    DEFINEREG(VCLK_DIVISOR_VGA0),
-    DEFINEREG(VCLK_DIVISOR_VGA1),
-    DEFINEREG(VCLK_POST_DIV),
+    DEFINEREG2(VCLK_DIVISOR_VGA0, i830_debug_fp),
+    DEFINEREG2(VCLK_DIVISOR_VGA1, i830_debug_fp),
+    DEFINEREG2(VCLK_POST_DIV, i830_debug_vga_pd),
     DEFINEREG2(DPLL_TEST, i830_debug_dpll_test),
     DEFINEREG(D_STATE),
     DEFINEREG(DSPCLK_GATE_D),

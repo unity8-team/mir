@@ -299,6 +299,20 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define VCLK_DIVISOR_VGA0   0x6000
 #define VCLK_DIVISOR_VGA1   0x6004
 #define VCLK_POST_DIV	    0x6010
+/** Selects a post divisor of 4 instead of 2. */
+# define VGA1_PD_P2_DIV_4	(1 << 15)
+/** Overrides the p2 post divisor field */
+# define VGA1_PD_P1_DIV_2	(1 << 13)
+# define VGA1_PD_P1_SHIFT	8
+/** P1 value is 2 greater than this field */
+# define VGA1_PD_P1_MASK	(0x1f << 8)
+/** Selects a post divisor of 4 instead of 2. */
+# define VGA0_PD_P2_DIV_4	(1 << 7)
+/** Overrides the p2 post divisor field */
+# define VGA0_PD_P1_DIV_2	(1 << 5)
+# define VGA0_PD_P1_SHIFT	0
+/** P1 value is 2 greater than this field */
+# define VGA0_PD_P1_MASK	(0x1f << 0)
 
 #define POST_DIV_SELECT        0x70
 #define POST_DIV_1             0x00
@@ -847,9 +861,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define DPLLB_LVDS_P2_CLOCK_DIV_7		(1 << 24) /* i915 */
 # define DPLL_P2_CLOCK_DIV_MASK			0x03000000 /* i915 */
 # define DPLL_FPA01_P1_POST_DIV_MASK		0x00ff0000 /* i915 */
+/**
+ *  The i830 generation, in DAC/serial mode, defines p1 as two plus this
+ * bitfield, or just 2 if PLL_P1_DIVIDE_BY_TWO is set.
+ */
+# define DPLL_FPA01_P1_POST_DIV_MASK_I830	0x001f0000
+/**
+ * The i830 generation, in LVDS mode, defines P1 as the bit number set within
+ * this field (only one bit may be set).
+ */
+# define DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS	0x003f0000
 # define DPLL_FPA01_P1_POST_DIV_SHIFT		16
 # define PLL_P2_DIVIDE_BY_4			(1 << 23) /* i830, required in DVO non-gang */
-# define DPLL_FPA01_P1_POS_DIV_MASK_I830	0x001f0000 /* i830 */
 # define PLL_P1_DIVIDE_BY_TWO			(1 << 21) /* i830 */
 # define PLL_REF_INPUT_DREFCLK			(0 << 13)
 # define PLL_REF_INPUT_TVCLKINA			(1 << 13) /* i830 */
