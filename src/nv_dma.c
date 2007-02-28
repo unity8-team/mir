@@ -239,10 +239,15 @@ NVAllocRec *NVDmaCreateNotifier(NVPtr pNv, int handle)
 	NVAllocRec *notifier = NULL;
 
 #ifndef __powerpc__
-	notifier = NVAllocateMemory(pNv, NOUVEAU_MEM_AGP, 256);
+	notifier = NVAllocateMemory(pNv, NOUVEAU_MEM_AGP |
+					 NOUVEAU_MEM_FB_ACCEPTABLE,
+					 256);
+#else
+	notifier = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 256);
 #endif
+
 	if (!notifier)
-		notifier = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 256);
+		return NULL;
 
 	if (!NVDmaCreateDMAObjectFromMem(pNv, handle, NV_DMA_IN_MEMORY,
 					      notifier,
