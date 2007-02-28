@@ -73,7 +73,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef I830_USE_EXA
 #include "exa.h"
 Bool I830EXAInit(ScreenPtr pScreen);
-#define EXA_LINEAR_EXTRA	(80*1024)
+#define EXA_LINEAR_EXTRA	(64*1024)
 #endif
 
 #ifdef I830_USE_XAA
