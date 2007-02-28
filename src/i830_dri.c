@@ -1523,8 +1523,8 @@ I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
       crtcBox[0].y2 = crtcBox[0].y1 + sPriv->pipeA_h;
       crtcBox[1].x1 = sPriv->pipeB_x;
       crtcBox[1].y1 = sPriv->pipeB_y;
-      crtcBox[1].x2 = crtcBox[0].x1 + sPriv->pipeB_w;
-      crtcBox[1].y2 = crtcBox[0].y1 + sPriv->pipeB_h;
+      crtcBox[1].x2 = crtcBox[1].x1 + sPriv->pipeB_w;
+      crtcBox[1].y2 = crtcBox[1].y1 + sPriv->pipeB_h;
 
       for (i = 0; i < 2; i++) {
 	 for (j = 0; j < num; j++) {
