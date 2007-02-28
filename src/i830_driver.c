@@ -3085,10 +3085,6 @@ I830EnterVT(int scrnIndex, int flags)
    i830DumpRegs (pScrn);
    i830DescribeOutputConfiguration(pScrn);
 
-#ifdef XF86DRI
-   I830DRISetVBlankInterrupt (pScrn, TRUE);
-#endif
-
    ResetState(pScrn, TRUE);
    SetHWOperatingState(pScrn);
 

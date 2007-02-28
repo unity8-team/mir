@@ -864,6 +864,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     OUTREG(dspcntr_reg, dspcntr);
     /* Flush the plane changes */
     i830PipeSetBase(crtc, x, y);
+#ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, TRUE);
+#endif
     
     i830WaitForVblank(pScrn);
 }
@@ -1041,9 +1044,6 @@ i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, Rotation rotation)
 
     i830DescribeOutputConfiguration(pScrn);
 
-#ifdef XF86DRI
-   I830DRISetVBlankInterrupt (pScrn, TRUE);
-#endif
 done:
     i830DumpRegs (pScrn);
     i830_sdvo_dump(pScrn);
