@@ -25,6 +25,11 @@
  *
  */
 
+#ifdef REG_DUMPER
+#include "reg_dumper/reg_dumper.h"
+
+#else
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -33,6 +38,10 @@
 #include "i830.h"
 #include "i830_debug.h"
 #include <strings.h>
+
+#endif
+
+#include "i810_reg.h"
 
 #define DEBUGSTRING(func) static char *func(I830Ptr pI830, int reg, CARD32 val)
 
@@ -410,6 +419,7 @@ static struct i830SnapshotRec {
 #undef DEFINEREG
 #define NUM_I830_SNAPSHOTREGS (sizeof(i830_snapshot) / sizeof(i830_snapshot[0]))
 
+#ifndef REG_DUMPER
 void i830TakeRegSnapshot(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -454,6 +464,7 @@ void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn, char *where)
 	}
     }
 }
+#endif /* !REG_DUMPER */
 
 static void i830DumpIndexed (ScrnInfoPtr pScrn, char *name, int id, int val, int min, int max)
 {
@@ -587,6 +598,7 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
     xf86DrvMsg (pScrn->scrnIndex, X_INFO, "DumpRegsEnd\n");
 }
 
+#ifndef REG_DUMPER
 /* Famous last words
  */
 void
@@ -799,3 +811,4 @@ i830_check_error_state(ScrnInfoPtr pScrn)
 
     return (errors != 0);
 }
+#endif /* !REG_DUMPER */

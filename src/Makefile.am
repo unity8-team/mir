@@ -18,7 +18,11 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164
+if HAVE_PCIACCESS
+REGDUMPER = reg_dumper
+endif
+
+SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 $(REGDUMPER)
 
 # this is obnoxious:
 # -module lets us name the module exactly how we want
