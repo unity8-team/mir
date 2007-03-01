@@ -72,6 +72,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DELAY(x) do {;} while (0)
 #endif
 
+#ifndef REG_DUMPER
 /* I830 hooks for the I810 driver setup/probe. */
 extern const OptionInfoRec *I830AvailableOptions(int chipid, int busid);
 extern void I830InitpScrn(ScrnInfoPtr pScrn);
@@ -242,6 +243,7 @@ extern int I810_DEBUG;
 #define DEBUG_ALWAYS_SYNC    0x80
 #define DEBUG_VERBOSE_DRI    0x100
 #define DEBUG_VERBOSE_BIOS   0x200
+#endif /* !REG_DUMPER */
 
 /* Size of the mmio region.
  */

@@ -87,6 +87,9 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 PKG_CHECK_MODULES(XORG, [xorg-server xproto xvmc fontsproto $REQUIRED_MODULES])
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
+PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.5.0], have_pciaccess=yes, have_pciaccess=no)
+AM_CONDITIONAL(HAVE_PCIACCESS, test "x$have_pciaccess" = xyes)
+
 # Checks for libraries.
 
 # Checks for header files.
@@ -200,6 +203,7 @@ AC_OUTPUT([
 	src/ch7017/Makefile
 	src/ch7xxx/Makefile
 	src/ivch/Makefile
+	src/reg_dumper/Makefile
 	src/sil164/Makefile
 	man/Makefile
 ])
