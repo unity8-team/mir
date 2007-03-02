@@ -945,6 +945,21 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	i830_allocate_overlay(pScrn);
 #endif
 
+    if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2) {
+	I830EntPtr pI830Ent = pI830->entityPrivate;
+	I830Ptr pI8302 = I830PTR(pI830Ent->pScrn_2);
+
+	pI830->front_buffer_2 =
+	    i830_allocate_framebuffer(pI830Ent->pScrn_2, pI8302,
+				      &pI830->FbMemBox2, TRUE, 0);
+	if (pI830->front_buffer_2 == NULL)
+	    return FALSE;
+    }
+    pI830->front_buffer =
+	i830_allocate_framebuffer(pScrn, pI830, &pI830->FbMemBox, FALSE, 0);
+    if (pI830->front_buffer == NULL)
+	return FALSE;
+
 #ifdef I830_USE_EXA
     if (pI830->useEXA) {
 	if (pI830->exa_offscreen == NULL) {
@@ -980,21 +995,6 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	}
     }
 #endif /* I830_USE_EXA */
-
-    if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2) {
-	I830EntPtr pI830Ent = pI830->entityPrivate;
-	I830Ptr pI8302 = I830PTR(pI830Ent->pScrn_2);
-
-	pI830->front_buffer_2 =
-	    i830_allocate_framebuffer(pI830Ent->pScrn_2, pI8302,
-				      &pI830->FbMemBox2, TRUE, 0);
-	if (pI830->front_buffer_2 == NULL)
-	    return FALSE;
-    }
-    pI830->front_buffer =
-	i830_allocate_framebuffer(pScrn, pI830, &pI830->FbMemBox, FALSE, 0);
-    if (pI830->front_buffer == NULL)
-	return FALSE;
 
     if (!pI830->noAccel && !pI830->useEXA) {
 	pI830->xaa_scratch =
