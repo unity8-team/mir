@@ -131,6 +131,43 @@ extern void I830DPRINTF_stub(const char *filename, int line,
    outring &= ringmask;							\
 } while (0)
 
+static inline void memset_volatile(volatile void *b, int c, size_t len)
+{
+    int i;
+    
+    for (i = 0; i < len; i++)
+	((volatile char *)b)[i] = c;
+}
+
+static inline void memcpy_volatile(volatile void *dst, const void *src,
+				   size_t len)
+{
+    int i;
+    
+    for (i = 0; i < len; i++)
+	((volatile char *)dst)[i] = ((volatile char *)src)[i];
+}
+
+/** Copies a given number of bytes to the ring */
+#define OUT_RING_COPY(n, ptr) do {					\
+    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
+	ErrorF("OUT_RING_DATA %d bytes\n", n);				\
+    memcpy_volatile(virt + outring, ptr, n);				\
+    outring += n;							\
+    ringused += n;							\
+    outring &= ringmask;						\
+} while (0)
+
+/** Pads the ring with a given number of zero bytes */
+#define OUT_RING_PAD(n) do {						\
+    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
+	ErrorF("OUT_RING_PAD %d bytes\n", n);				\
+    memset_volatile(virt + outring, 0, n);				\
+    outring += n;							\
+    ringused += n;							\
+    outring &= ringmask;						\
+} while (0)
+
 union intfloat {
 	float f;
 	unsigned int ui;

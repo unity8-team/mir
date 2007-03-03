@@ -372,7 +372,7 @@ static Bool I830UseHWCursorARGB (ScreenPtr pScreen, CursorPtr pCurs)
    for (i = 0; i < xf86_config->num_crtc; i++) {
       I830CrtcPrivatePtr intel_crtc = xf86_config->crtc[i]->driver_private;
 
-      if (!intel_crtc->cursor_mem_argb->offset)
+      if (intel_crtc->cursor_mem_argb == NULL)
 	 return FALSE;
    }
 
