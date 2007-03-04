@@ -41,20 +41,11 @@
 
 static unsigned long ATIMach64XVAtomGeneration = (unsigned long)(-1);
 
-static XF86VideoEncodingRec ATIMach64VideoEncoding_A[] =
-{
-    { 0, "XV_IMAGE", 384, 2048, {1, 1} }
-};
-#define nATIMach64VideoEncoding_A NumberOf(ATIMach64VideoEncoding_A)
-
-static XF86VideoEncodingRec ATIMach64VideoEncoding_B[] =
+static XF86VideoEncodingRec ATIMach64VideoEncoding[] =
 {
     { 0, "XV_IMAGE", 720, 2048, {1, 1} }
 };
-#define nATIMach64VideoEncoding_B NumberOf(ATIMach64VideoEncoding_B)
-
-/* nATIMach64VideoEncoding_[AB] should be equal */
-#define nATIMach64VideoEncoding nATIMach64VideoEncoding_A
+#define nATIMach64VideoEncoding NumberOf(ATIMach64VideoEncoding)
 
 static XF86VideoFormatRec ATIMach64VideoFormat[] =
 {
@@ -1306,69 +1297,7 @@ ATIMach64SetSurfaceAttribute
 }
 
 /* XVideo surface registration data */
-static XF86OffscreenImageRec ATIMach64Surface_A[] =
-{
-    {
-        &ATIMach64Image[0],             /* YUY2 */
-        VIDEO_OVERLAID_IMAGES | VIDEO_CLIP_TO_VIEWPORT,
-        ATIMach64AllocateSurface,
-        ATIMach64FreeSurface,
-        ATIMach64DisplaySurface,
-        ATIMach64StopSurface,
-        ATIMach64GetSurfaceAttribute,
-        ATIMach64SetSurfaceAttribute,
-        384, 2048,
-        nATIMach64Attribute - 5,        /* No double-buffering */
-        ATIMach64Attribute + 4          /* No saturation nor brightness */
-    },
-    {
-        &ATIMach64Image[1],             /* UYVY */
-        VIDEO_OVERLAID_IMAGES | VIDEO_CLIP_TO_VIEWPORT,
-        ATIMach64AllocateSurface,
-        ATIMach64FreeSurface,
-        ATIMach64DisplaySurface,
-        ATIMach64StopSurface,
-        ATIMach64GetSurfaceAttribute,
-        ATIMach64SetSurfaceAttribute,
-        384, 2048,
-        nATIMach64Attribute - 5,        /* No double-buffering */
-        ATIMach64Attribute + 4          /* No saturation nor brightness */
-    }
-};
-#define nATIMach64Surface_A NumberOf(ATIMach64Surface_A)
-
-static XF86OffscreenImageRec ATIMach64Surface_B[] =
-{
-    {
-        &ATIMach64Image[0],             /* YUY2 */
-        VIDEO_OVERLAID_IMAGES | VIDEO_CLIP_TO_VIEWPORT,
-        ATIMach64AllocateSurface,
-        ATIMach64FreeSurface,
-        ATIMach64DisplaySurface,
-        ATIMach64StopSurface,
-        ATIMach64GetSurfaceAttribute,
-        ATIMach64SetSurfaceAttribute,
-        720, 2048,
-        nATIMach64Attribute - 5,        /* No double-buffering */
-        ATIMach64Attribute + 4          /* No saturation nor brightness */
-    },
-    {
-        &ATIMach64Image[1],             /* UYVY */
-        VIDEO_OVERLAID_IMAGES | VIDEO_CLIP_TO_VIEWPORT,
-        ATIMach64AllocateSurface,
-        ATIMach64FreeSurface,
-        ATIMach64DisplaySurface,
-        ATIMach64StopSurface,
-        ATIMach64GetSurfaceAttribute,
-        ATIMach64SetSurfaceAttribute,
-        720, 2048,
-        nATIMach64Attribute - 5,        /* No double-buffering */
-        ATIMach64Attribute + 4          /* No saturation nor brightness */
-    }
-};
-#define nATIMach64Surface_B NumberOf(ATIMach64Surface_B)
-
-static XF86OffscreenImageRec ATIMach64Surface_C[] =
+static XF86OffscreenImageRec ATIMach64Surface[] =
 {
     {
         &ATIMach64Image[0],             /* YUY2 */
@@ -1397,7 +1326,7 @@ static XF86OffscreenImageRec ATIMach64Surface_C[] =
         ATIMach64Attribute
     }
 };
-#define nATIMach64Surface_C NumberOf(ATIMach64Surface_C)
+#define nATIMach64Surface NumberOf(ATIMach64Surface)
 
 /*
  * ATIMach64XVInitialiseAdaptor --
@@ -1417,6 +1346,10 @@ ATIMach64XVInitialiseAdaptor
     XF86VideoAdaptorPtr *ppAdaptor = NULL;
     XF86VideoAdaptorPtr pAdaptor;
     int                 Index;
+
+    XF86VideoEncodingPtr  enc = &(ATIMach64VideoEncoding[0]);
+    XF86OffscreenImagePtr surf0 = &(ATIMach64Surface[0]);
+    XF86OffscreenImagePtr surf1 = &(ATIMach64Surface[1]);
 
     if (pppAdaptor)
         *pppAdaptor = NULL;
@@ -1440,14 +1373,14 @@ ATIMach64XVInitialiseAdaptor
 
     if (pATI->Chip < ATI_CHIP_264VTB)
     {
-        pAdaptor->nEncodings = nATIMach64VideoEncoding_A;
-        pAdaptor->pEncodings = ATIMach64VideoEncoding_A;
+        enc->width = 384;
     }
     else
     {
-        pAdaptor->nEncodings = nATIMach64VideoEncoding_B;
-        pAdaptor->pEncodings = ATIMach64VideoEncoding_B;
+        /* Do nothing */
     }
+    pAdaptor->nEncodings = nATIMach64VideoEncoding;
+    pAdaptor->pEncodings = ATIMach64VideoEncoding;
 
     pAdaptor->nFormats = nATIMach64VideoFormat;
     pAdaptor->pFormats = ATIMach64VideoFormat;
@@ -1490,19 +1423,23 @@ ATIMach64XVInitialiseAdaptor
 
     if (pATI->Chip < ATI_CHIP_264VTB)
     {
-        xf86XVRegisterOffscreenImages(pScreen,
-            ATIMach64Surface_A, nATIMach64Surface_A);
-    }
-    else if (pATI->Chip < ATI_CHIP_264GTPRO)
-    {
-        xf86XVRegisterOffscreenImages(pScreen,
-            ATIMach64Surface_B, nATIMach64Surface_B);
+        surf0->max_width = 384;
+        surf1->max_width = 384;
     }
     else
     {
-        xf86XVRegisterOffscreenImages(pScreen,
-            ATIMach64Surface_C, nATIMach64Surface_C);
+        /* Do nothing */
     }
+
+    if (pATI->Chip < ATI_CHIP_264GTPRO)
+    {
+        /* No saturation nor brightness */
+        surf0->num_attributes -= 4;
+        surf1->num_attributes -= 4;
+        surf0->attributes += 4;
+        surf1->attributes += 4;
+    }
+    xf86XVRegisterOffscreenImages(pScreen, ATIMach64Surface, nATIMach64Surface);
 
     if (pppAdaptor)
         *pppAdaptor = ppAdaptor;
