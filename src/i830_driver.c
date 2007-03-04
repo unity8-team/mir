@@ -778,6 +778,18 @@ I830IsPrimary(ScrnInfoPtr pScrn)
    return TRUE;
 }
 
+static Bool
+i830_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
+{
+    scrn->virtualX = width;
+    scrn->virtualY = height;
+    return TRUE;
+}
+
+static const xf86CrtcConfigFuncsRec i830_xf86crtc_config_funcs = {
+    i830_xf86crtc_resize
+};
+
 #define HOTKEY_BIOS_SWITCH	0
 #define HOTKEY_DRIVER_NOTIFY	1
 
@@ -1091,7 +1103,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	      (unsigned long)pI830->MMIOAddr);
 
    /* Allocate an xf86CrtcConfig */
-   xf86CrtcConfigInit (pScrn);
+   xf86CrtcConfigInit (pScrn, &i830_xf86crtc_config_funcs);
    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
    /* See i830_exa.c comments for why we limit the framebuffer size like this.
@@ -1282,7 +1294,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       output->status = (*output->funcs->detect) (output);
    }
 
-   if (!xf86InitialConfiguration (pScrn))
+   if (!xf86InitialConfiguration (pScrn, FALSE))
    {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       RestoreHWState(pScrn);
