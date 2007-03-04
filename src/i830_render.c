@@ -557,17 +557,17 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
 	OUT_RING(PRIM3D_INLINE | PRIM3D_RECTLIST | (vertex_count-1));
 
-	OUT_RING_F(dstX);
-	OUT_RING_F(dstY);
-	OUT_RING_F(src_x[0] / pI830->scale_units[0][0]);
-	OUT_RING_F(src_y[0] / pI830->scale_units[0][1]);
+	OUT_RING_F(-0.125 + dstX + w);
+	OUT_RING_F(-0.125 + dstY + h);
+	OUT_RING_F(src_x[2] / pI830->scale_units[0][0]);
+	OUT_RING_F(src_y[2] / pI830->scale_units[0][1]);
 	if (has_mask) {
-	    OUT_RING_F(mask_x[0] / pI830->scale_units[1][0]);
-	    OUT_RING_F(mask_y[0] / pI830->scale_units[1][1]);
+	    OUT_RING_F(mask_x[2] / pI830->scale_units[1][0]);
+	    OUT_RING_F(mask_y[2] / pI830->scale_units[1][1]);
 	}
 
-	OUT_RING_F(dstX);
-	OUT_RING_F(dstY + h);
+	OUT_RING_F(-0.125 + dstX);
+	OUT_RING_F(-0.125 + dstY + h);
 	OUT_RING_F(src_x[1] / pI830->scale_units[0][0]);
 	OUT_RING_F(src_y[1] / pI830->scale_units[0][1]);
 	if (has_mask) {
@@ -575,13 +575,13 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	    OUT_RING_F(mask_y[1] / pI830->scale_units[1][1]);
 	}
 
-	OUT_RING_F(dstX + w);
-	OUT_RING_F(dstY + h);
-	OUT_RING_F(src_x[2] / pI830->scale_units[0][0]);
-	OUT_RING_F(src_y[2] / pI830->scale_units[0][1]);
+	OUT_RING_F(-0.125 + dstX);
+	OUT_RING_F(-0.125 + dstY);
+	OUT_RING_F(src_x[0] / pI830->scale_units[0][0]);
+	OUT_RING_F(src_y[0] / pI830->scale_units[0][1]);
 	if (has_mask) {
-	    OUT_RING_F(mask_x[2] / pI830->scale_units[1][0]);
-	    OUT_RING_F(mask_y[2] / pI830->scale_units[1][1]);
+	    OUT_RING_F(mask_x[0] / pI830->scale_units[1][0]);
+	    OUT_RING_F(mask_y[0] / pI830->scale_units[1][1]);
 	}
 	ADVANCE_LP_RING();
     }

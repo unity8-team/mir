@@ -122,8 +122,16 @@ i830GetBIOS(ScrnInfoPtr pScrn)
     return bios;
 }
 
-Bool
-i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
+/**
+ * Returns the BIOS's fixed panel mode.
+ *
+ * Note that many BIOSes will have the appropriate tables for a panel even when
+ * a panel is not attached.  Additionally, many BIOSes adjust table sizes or
+ * offsets, such that this parsing fails.  Thus, almost any other method for
+ * detecting the panel mode is preferable.
+ */
+DisplayModePtr
+i830_bios_get_panel_mode(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct vbt_header *vbt;
@@ -131,12 +139,11 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
     int vbt_off, bdb_off, bdb_block_off, block_size;
     int panel_type = -1;
     unsigned char *bios;
-    Bool found_panel_info = FALSE;
 
     bios = i830GetBIOS(pScrn);
 
     if (bios == NULL)
-	return FALSE;
+	return NULL;
 
     vbt_off = INTEL_BIOS_16(0x1a);
     vbt = (struct vbt_header *)(bios + vbt_off);
@@ -146,7 +153,7 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
     if (memcmp(bdb->signature, "BIOS_DATA_BLOCK ", 16) != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad BDB signature\n");
 	xfree(bios);
-	return FALSE;
+	return NULL;
     }
 
     for (bdb_block_off = bdb->header_size; bdb_block_off < bdb->bdb_size;
@@ -163,7 +170,6 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 
 	id = INTEL_BIOS_8(start);
 	block_size = INTEL_BIOS_16(start + 1) + 3;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found BDB block type %d\n", id);
 	switch (id) {
 	case 40:
 	    lvds1 = (struct lvds_bdb_1 *)(bios + start);
@@ -227,13 +233,11 @@ i830GetLVDSInfoFromBIOS(ScrnInfoPtr pScrn)
 		       "Found panel mode in BIOS VBT tables:\n");
 	    xf86PrintModeline(pScrn->scrnIndex, fixed_mode);
 
-	    pI830->panel_fixed_mode = fixed_mode;
-
-	    found_panel_info = TRUE;
-	    break;
+	    xfree(bios);
+	    return fixed_mode;
 	}
     }
 
     xfree(bios);
-    return found_panel_info;
+    return NULL;
 }

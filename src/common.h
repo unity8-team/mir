@@ -72,6 +72,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DELAY(x) do {;} while (0)
 #endif
 
+#ifndef REG_DUMPER
 /* I830 hooks for the I810 driver setup/probe. */
 extern const OptionInfoRec *I830AvailableOptions(int chipid, int busid);
 extern void I830InitpScrn(ScrnInfoPtr pScrn);
@@ -128,6 +129,43 @@ extern void I830DPRINTF_stub(const char *filename, int line,
    *(volatile unsigned int *)(virt + outring) = n;			\
    outring += 4; ringused += 4;							\
    outring &= ringmask;							\
+} while (0)
+
+static inline void memset_volatile(volatile void *b, int c, size_t len)
+{
+    int i;
+    
+    for (i = 0; i < len; i++)
+	((volatile char *)b)[i] = c;
+}
+
+static inline void memcpy_volatile(volatile void *dst, const void *src,
+				   size_t len)
+{
+    int i;
+    
+    for (i = 0; i < len; i++)
+	((volatile char *)dst)[i] = ((volatile char *)src)[i];
+}
+
+/** Copies a given number of bytes to the ring */
+#define OUT_RING_COPY(n, ptr) do {					\
+    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
+	ErrorF("OUT_RING_DATA %d bytes\n", n);				\
+    memcpy_volatile(virt + outring, ptr, n);				\
+    outring += n;							\
+    ringused += n;							\
+    outring &= ringmask;						\
+} while (0)
+
+/** Pads the ring with a given number of zero bytes */
+#define OUT_RING_PAD(n) do {						\
+    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
+	ErrorF("OUT_RING_PAD %d bytes\n", n);				\
+    memset_volatile(virt + outring, 0, n);				\
+    outring += n;							\
+    ringused += n;							\
+    outring &= ringmask;						\
 } while (0)
 
 union intfloat {
@@ -242,6 +280,7 @@ extern int I810_DEBUG;
 #define DEBUG_ALWAYS_SYNC    0x80
 #define DEBUG_VERBOSE_DRI    0x100
 #define DEBUG_VERBOSE_BIOS   0x200
+#endif /* !REG_DUMPER */
 
 /* Size of the mmio region.
  */

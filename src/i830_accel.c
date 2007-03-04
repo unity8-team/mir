@@ -117,7 +117,7 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
       ring->space = ring->head - (ring->tail + 8);
 
       if (ring->space < 0)
-	 ring->space += ring->mem.Size;
+	 ring->space += ring->mem->size;
 
       iters++;
       now = GetTimeInMillis();
@@ -195,9 +195,9 @@ I830Sync(ScrnInfoPtr pScrn)
       ADVANCE_LP_RING();
    }
 
-   I830WaitLpRing(pScrn, pI830->LpRing->mem.Size - 8, 0);
+   I830WaitLpRing(pScrn, pI830->LpRing->mem->size - 8, 0);
 
-   pI830->LpRing->space = pI830->LpRing->mem.Size - 8;
+   pI830->LpRing->space = pI830->LpRing->mem->size - 8;
    pI830->nextColorExpandBuf = 0;
 }
 
@@ -226,10 +226,10 @@ I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
    switch (buffer) {
 #ifdef XF86DRI
    case I830_SELECT_BACK:
-      pI830->bufferOffset = pI830->BackBuffer.Start;
+      pI830->bufferOffset = pI830->back_buffer->offset;
       break;
    case I830_SELECT_DEPTH:
-      pI830->bufferOffset = pI830->DepthBuffer.Start;
+      pI830->bufferOffset = pI830->depth_buffer->offset;
       break;
 #endif
    default:
@@ -252,7 +252,7 @@ I830RefreshRing(ScrnInfoPtr pScrn)
    pI830->LpRing->tail = INREG(LP_RING + RING_TAIL);
    pI830->LpRing->space = pI830->LpRing->head - (pI830->LpRing->tail + 8);
    if (pI830->LpRing->space < 0)
-      pI830->LpRing->space += pI830->LpRing->mem.Size;
+      pI830->LpRing->space += pI830->LpRing->mem->size;
    i830MarkSync(pScrn);
 }
 

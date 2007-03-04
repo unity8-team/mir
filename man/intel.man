@@ -1,19 +1,18 @@
-.\" $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810.man,v 1.5 2003/10/18 02:27:07 dawes Exp $ 
 .\" shorthand for double quote that works everywhere.
 .ds q \N'34'
-.TH I810 __drivermansuffix__ __vendorversion__
+.TH intel  __drivermansuffix__ __vendorversion__
 .SH NAME
-i810 \- Intel 8xx integrated graphics chipsets
+intel \- Intel integrated graphics chipsets
 .SH SYNOPSIS
 .nf
 .B "Section \*qDevice\*q"
 .BI "  Identifier \*q"  devname \*q
-.B  "  Driver \*qi810\*q"
+.B  "  Driver \*qintel\*q"
 \ \ ...
 .B EndSection
 .fi
 .SH DESCRIPTION
-.B i810
+.B intel
 is an __xservername__ driver for Intel integrated graphics chipsets.
 The driver supports depths 8, 15, 16 and 24.  All visual types are
 supported in depth 8.  For the i810/i815 other depths support the
@@ -23,7 +22,7 @@ supports hardware accelerated 3D via the Direct Rendering Infrastructure
 (DRI), but only in depth 16 for the i810/i815 and depths 16 and 24 for
 the 830M and later.
 .SH SUPPORTED HARDWARE
-.B i810
+.B intel
 supports the i810, i810-DC100, i810e, i815, i830M, 845G, 852GM, 855GM,
 865G, 915G, 915GM, 945G, 945GM, 965G, 965Q and 946GZ chipsets.
 
@@ -57,11 +56,6 @@ with insufficient video memory.  Either of these being disabled will
 reduce performance for 3D applications.  Note however, that increasing
 this value too much will reduce the amount of system memory available
 for other applications.
-.PP
-The driver makes use of the video BIOS to program video modes for the 830M
-and later.  This limits the video modes that can be used to those provided
-by the video BIOS, and to those that will fit into the amount of video memory
-that the video BIOS is aware of.
 .PP
 The following driver
 .B Options
@@ -179,6 +173,7 @@ Jeff Hartmann, Mark Vojkovich, Alan Hourihane, H. J. Lu.  830M and 845G
 support reworked for XFree86 4.3 by David Dawes and Keith Whitwell.  852GM,
 855GM, and 865G support added by David Dawes and Keith Whitwell.  915G,
 915GM, 945G, 945GM, 965G, 965Q and 946GZ support added by Alan Hourihane and
-Keith Whitwell.  Dual Head, Clone and lid status support added by Alan
-Hourihane. Textured video support for 915G and later chips added by Keith
-Packard and Eric Anholt.
+Keith Whitwell. Lid status support added by Alan Hourihane. Textured video
+support for 915G and later chips, RandR 1.2 and hardware modesetting added
+by Eric Anholt and Keith Packard. EXA and Render acceleration added by Wang
+Zhenyu. TV out support added by Zou Nan Hai and Keith Packard.
