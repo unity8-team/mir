@@ -162,20 +162,20 @@ I830XAAInit(ScreenPtr pScreen)
 
     /* On the primary screen */
     if (pI830->init == 0) {
-	if (pI830->Scratch.Size != 0) {
+	if (pI830->xaa_scratch->size != 0) {
 	    width = ((pScrn->displayWidth + 31) & ~31) / 8;
-	    nr_buffers = pI830->Scratch.Size / width;
-	    ptr = pI830->FbBase + pI830->Scratch.Start;
+	    nr_buffers = pI830->xaa_scratch->size / width;
+	    ptr = pI830->FbBase + pI830->xaa_scratch->offset;
 	}
     } else {
 	/* On the secondary screen */
 	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-	if (pI8301->Scratch2.Size != 0) {
+	if (pI8301->xaa_scratch_2->size != 0) {
 	    width = ((pScrn->displayWidth + 31) & ~31) / 8;
-	    nr_buffers = pI8301->Scratch2.Size / width;
+	    nr_buffers = pI8301->xaa_scratch_2->size / width;
 	    /* We have to use the primary screen's FbBase, as that's where
-	     * we allocated Scratch2, so we get the correct pointer */
-	    ptr = pI8301->FbBase + pI8301->Scratch2.Start;
+	     * we allocated xaa_scratch_2, so we get the correct pointer */
+	    ptr = pI8301->FbBase + pI8301->xaa_scratch_2->offset;
 	}
     }
 
@@ -279,11 +279,15 @@ CheckTiling(ScrnInfoPtr pScrn)
    if (IS_I965G(pI830)) {
       if (pI830->bufferOffset == pScrn->fbOffset && pI830->front_tiled == FENCE_XMAJOR)
          tiled = 1;
-      if (pI830->bufferOffset == pI830->BackBuffer.Start && pI830->back_tiled == FENCE_XMAJOR)
+      if (pI830->bufferOffset == pI830->back_buffer->offset &&
+	  pI830->back_tiled == FENCE_XMAJOR) {
          tiled = 1;
+      }
       /* not really supported as it's always YMajor tiled */
-      if (pI830->bufferOffset == pI830->DepthBuffer.Start && pI830->depth_tiled == FENCE_XMAJOR)
+      if (pI830->bufferOffset == pI830->depth_buffer->offset &&
+	  pI830->depth_tiled == FENCE_XMAJOR) {
          tiled = 1;
+      }
    }
 
    return tiled;
@@ -600,7 +604,7 @@ I830SubsequentColorExpandScanline(ScrnInfoPtr pScrn, int bufno)
 	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
 
 	/* We have to use the primary screen's FbBase, as that's where
-	 * we allocated Scratch2, so we get the correct pointer */
+	 * we allocated xaa_scratch_2, so we get the correct pointer */
 	pI830->BR[12] = (pI830->AccelInfoRec->ScanlineColorExpandBuffers[0] -
 			 pI8301->FbBase);
     }
@@ -700,7 +704,7 @@ I830SubsequentImageWriteScanline(ScrnInfoPtr pScrn, int bufno)
 	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
 
 	/* We have to use the primary screen's FbBase, as that's where
-	 * we allocated Scratch2, so we get the correct pointer */
+	 * we allocated xaa_scratch_2, so we get the correct pointer */
 	pI830->BR[12] = (pI830->AccelInfoRec->ScanlineColorExpandBuffers[0] -
 			 pI8301->FbBase);
     }

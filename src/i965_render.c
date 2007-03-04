@@ -501,9 +501,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     next_offset = default_color_offset + sizeof(*default_color_state);
 
     total_state_size = next_offset;
-    assert(total_state_size < EXA_LINEAR_EXTRA);
+    assert(total_state_size < pI830->exa_965_state->size);
 
-    state_base_offset = pI830->EXAStateMem.Start;
+    state_base_offset = pI830->exa_965_state->offset;
     state_base_offset = ALIGN(state_base_offset, 64);
     state_base = (char *)(pI830->FbBase + state_base_offset);
 
