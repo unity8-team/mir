@@ -241,8 +241,9 @@ i830_lvds_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		    VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
 		    VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR);
 
-    if (pI830->panel_wants_dither)
-	pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+    if (!IS_I965G(pI830))
+	if (pI830->panel_wants_dither)
+	    pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 
     OUTREG(PFIT_CONTROL, pfit_control);
 }

@@ -884,11 +884,21 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
     if (is_lvds)
     {
+	CARD32	lvds = INREG(LVDS);
+
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
 	 * This is an exception to the general rule that mode_set doesn't turn
 	 * things on.
 	 */
-	OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
+	lvds |= LVDS_PORT_EN | LVDS_PIPEB_SELECT;
+	if (IS_I965G(pI830))
+	{
+	    if (pI830->panel_wants_dither)
+		lvds |= LVDS_DITHER_ENABLE;
+	    else
+		lvds &= ~LVDS_DITHER_ENABLE;
+	}
+	OUTREG(LVDS, lvds);
     }
     
     /* Disable the panel fitter if it was on our pipe */
