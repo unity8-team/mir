@@ -110,6 +110,7 @@ typedef enum {
     OPTION_XV_DMA,
     OPTION_FBTEX_PERCENT,
     OPTION_DEPTH_BITS,
+    OPTION_PCIAPER_SIZE,
 #ifdef USE_EXA
     OPTION_ACCEL_DFS,
 #endif
@@ -607,6 +608,7 @@ typedef struct {
 #endif
     Bool              have3DWindows;    /* Are there any 3d clients? */
 
+    unsigned int      pciAperSize;
     drmSize           gartSize;
     drm_handle_t         agpMemHandle;     /* Handle from drmAgpAlloc */
     unsigned long     gartOffset;
@@ -832,6 +834,7 @@ extern RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn);
 extern void        RADEONWaitForFifoFunction(ScrnInfoPtr pScrn, int entries);
 extern void        RADEONWaitForIdleMMIO(ScrnInfoPtr pScrn);
 #ifdef XF86DRI
+extern int RADEONDRISetParam(ScrnInfoPtr pScrn, unsigned int param, int64_t value);
 extern void        RADEONWaitForIdleCP(ScrnInfoPtr pScrn);
 #endif
 

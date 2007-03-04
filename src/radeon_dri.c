@@ -2078,7 +2078,11 @@ void RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen)
     if (info->FbSecureSize==0)
       return;
 
-    info->pciGartSize = RADEON_PCIGART_TABLE_SIZE;
+    /* set the old default size of pci gart table */
+    if (info->pKernelDRMVersion->version_minor < 26)
+      info->pciGartSize = 32768;
+
+    info->pciGartSize = RADEONDRIGetPciAperTableSize(pScrn);
 
     /* allocate space to back up PCIEGART table */
     info->pciGartBackup = xnfcalloc(1, info->pciGartSize);
@@ -2088,4 +2092,32 @@ void RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen)
     info->pciGartOffset = (info->FbMapSize - info->FbSecureSize);
 
 
+}
+
+int RADEONDRIGetPciAperTableSize(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    int page_size  = getpagesize();
+    int ret_size;
+    int num_pages;
+
+    num_pages = (info->pciAperSize * 1024 * 1024) / page_size;
+    
+    ret_size = num_pages * sizeof(unsigned int);
+
+    return ret_size;
+}
+
+int RADEONDRISetParam(ScrnInfoPtr pScrn, unsigned int param, int64_t value)
+{
+    drmRadeonSetParam  radeonsetparam;
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    int ret;
+
+    memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
+    radeonsetparam.param = param;
+    radeonsetparam.value = value;
+    ret = drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
+			  &radeonsetparam, sizeof(drmRadeonSetParam));
+    return ret;
 }

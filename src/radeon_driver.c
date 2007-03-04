@@ -153,6 +153,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_XV_DMA,         "DMAForXv",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_FBTEX_PERCENT,  "FBTexPercent",     OPTV_INTEGER, {0}, FALSE },
     { OPTION_DEPTH_BITS,     "DepthBits",        OPTV_INTEGER, {0}, FALSE },
+    { OPTION_PCIAPER_SIZE,  "PCIAPERSize",      OPTV_INTEGER, {0}, FALSE },
 #ifdef USE_EXA
     { OPTION_ACCEL_DFS,      "AccelDFS",         OPTV_BOOLEAN, {0}, FALSE },
 #endif
@@ -1482,7 +1483,8 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
     /* if the card is PCI Express reserve the last 32k for the gart table */
 #ifdef XF86DRI
     if (info->cardType == CARD_PCIE && info->directRenderingEnabled)
-        info->FbSecureSize = RADEON_PCIGART_TABLE_SIZE;
+      /* work out the size of pcie aperture */
+        info->FbSecureSize = RADEONDRIGetPciAperTableSize(pScrn);
     else
 #endif
 	info->FbSecureSize = 0;
@@ -2573,7 +2575,7 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     info->ringSize      = RADEON_DEFAULT_RING_SIZE;
     info->bufSize       = RADEON_DEFAULT_BUFFER_SIZE;
     info->gartTexSize   = RADEON_DEFAULT_GART_TEX_SIZE;
-
+    info->pciAperSize   = RADEON_DEFAULT_PCI_APER_SIZE;
     info->CPusecTimeout = RADEON_DEFAULT_CP_TIMEOUT;
 
     if ((xf86GetOptValInteger(info->Options,
@@ -2606,6 +2608,23 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	    return FALSE;
 	}
     }
+
+    if (xf86GetOptValInteger(info->Options,
+			     OPTION_PCIAPER_SIZE, &(info->pciAperSize))) {
+      switch(info->pciAperSize) {
+      case 32:
+      case 64:
+      case 128:
+      case 256:
+	break;
+      default:
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Illegal pci aper size: %d MB\n",
+		       info->pciAperSize);
+	return FALSE;
+      }
+    }
+
 
     if (xf86GetOptValInteger(info->Options,
 			     OPTION_BUFFER_SIZE, &(info->bufSize))) {
@@ -3973,21 +3992,17 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	}
     }
 
+#if defined(XF86DRI)
     /* Tell DRI about new memory map */
     if (info->directRenderingEnabled && info->newMemoryMap) {
-	drmRadeonSetParam  radeonsetparam;
-	RADEONTRACE(("DRI New memory map param\n"));
-	memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
-	radeonsetparam.param = RADEON_SETPARAM_NEW_MEMMAP;
-	radeonsetparam.value = 1;
-	if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
-			    &radeonsetparam, sizeof(drmRadeonSetParam)) < 0) {
+        if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_NEW_MEMMAP, 1) < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "[drm] failed to enable new memory map\n");
 		RADEONDRICloseScreen(pScreen);
 		info->directRenderingEnabled = FALSE;		
 	}
     }
+#endif
     RADEONTRACE(("Initializing fb layer\n"));
 
     /* Init fb layer */
@@ -4065,15 +4080,15 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     if (info->directRenderingEnabled && info->cardType==CARD_PCIE &&
         info->pKernelDRMVersion->version_minor >= 19)
     {
-      drmRadeonSetParam  radeonsetparam;
-      RADEONTRACE(("DRI PCIGART param\n"));
-      memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
-      radeonsetparam.param = RADEON_SETPARAM_PCIGART_LOCATION;
-      radeonsetparam.value = info->pciGartOffset;
-      if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
-			  &radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
+      if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_PCIGART_LOCATION, info->pciGartOffset) < 0)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "[drm] failed set pci gart location\n");
+
+      if (info->pKernelDRMVersion->version_minor >= 26) {
+	if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_PCIGART_TABLE_SIZE, info->pciGartSize) < 0)
+	  xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		     "[drm] failed set pci gart table size\n");
+      }
     }
     if (info->directRenderingEnabled) {
         RADEONTRACE(("DRI Finishing init !\n"));
@@ -4094,14 +4109,9 @@ _X_EXPORT Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
 	/* we might already be in tiled mode, tell drm about it */
 	if (info->directRenderingEnabled && info->tilingEnabled) {
-	    drmRadeonSetParam  radeonsetparam;
-	    memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
-	    radeonsetparam.param = RADEON_SETPARAM_SWITCH_TILING;
-	    radeonsetparam.value = info->tilingEnabled ? 1 : 0; 
-	    if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
-		&radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "[drm] failed changing tiling status\n");
+	  if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_SWITCH_TILING, (info->tilingEnabled ? 1 : 0)) < 0)
+  	      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			 "[drm] failed changing tiling status\n");
 	}
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
@@ -6542,14 +6552,9 @@ _X_EXPORT Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 #ifdef XF86DRI	
 	if (info->directRenderingEnabled && (info->tilingEnabled != tilingOld)) {
 	    RADEONSAREAPrivPtr pSAREAPriv;
-	    drmRadeonSetParam  radeonsetparam;
-	    memset(&radeonsetparam, 0, sizeof(drmRadeonSetParam));
-	    radeonsetparam.param = RADEON_SETPARAM_SWITCH_TILING;
-	    radeonsetparam.value = info->tilingEnabled ? 1 : 0;
-	    if (drmCommandWrite(info->drmFD, DRM_RADEON_SETPARAM,
-		&radeonsetparam, sizeof(drmRadeonSetParam)) < 0)
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "[drm] failed changing tiling status\n");
+	  if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_SWITCH_TILING, (info->tilingEnabled ? 1 : 0)) < 0)
+  	      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			 "[drm] failed changing tiling status\n");
 	    pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
 	    info->tilingEnabled = pSAREAPriv->tiling_enabled ? TRUE : FALSE;
 	}

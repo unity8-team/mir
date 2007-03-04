@@ -430,7 +430,7 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 	if (info->cardType==CARD_PCIE)
 	  xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		     "Will use %d kb for PCI GART at offset 0x%08x\n",
-		     RADEON_PCIGART_TABLE_SIZE / 1024,
+		     info->pciGartSize / 1024,
 		     (int)info->pciGartOffset);
 
 	/* Reserve a static area for the back buffer the same size as the
