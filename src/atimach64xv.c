@@ -765,8 +765,10 @@ ATIMach64ClipVideo
     CARD32 HScale, VScale;
 
     /* Check hardware limits */
-    if ((Height <= 0) || (Height > 2048) || (Width <= 0) || (Width > 720) ||
-        ((Width > 384) && (pATI->Chip < ATI_CHIP_264VTB)))
+    if ((Height <= 0) || (Height > 2048) || (Width <= 0) || (Width > 768) ||
+        ((Width > 384) && (pATI->Chip < ATI_CHIP_264VTB)) ||
+        ((Width > 720) && (pATI->Chip < ATI_CHIP_264GTPRO ||
+                           pATI->Chip > ATI_CHIP_264LTPRO)))
         return FALSE;
 
     ATIMach64ScaleVideo(pATI, pScreenInfo->currentMode,
@@ -1132,8 +1134,10 @@ ATIMach64AllocateSurface
     if (pATI->ActiveSurface)
         return BadAlloc;
 
-    if ((Height <= 0) || (Height > 2048) || (Width <= 0) || (Width > 720) ||
-        ((Width > 384) && (pATI->Chip < ATI_CHIP_264VTB)))
+    if ((Height <= 0) || (Height > 2048) || (Width <= 0) || (Width > 768) ||
+        ((Width > 384) && (pATI->Chip < ATI_CHIP_264VTB)) ||
+        ((Width > 720) && (pATI->Chip < ATI_CHIP_264GTPRO ||
+                           pATI->Chip > ATI_CHIP_264LTPRO)))
         return BadValue;
 
     Width = (Width + 1) & ~1;
@@ -1375,9 +1379,14 @@ ATIMach64XVInitialiseAdaptor
     {
         enc->width = 384;
     }
-    else
+    else if (pATI->Chip < ATI_CHIP_264GTPRO ||
+             pATI->Chip > ATI_CHIP_264LTPRO)
     {
         /* Do nothing */
+    }
+    else
+    {
+        enc->width = 768;
     }
     pAdaptor->nEncodings = nATIMach64VideoEncoding;
     pAdaptor->pEncodings = ATIMach64VideoEncoding;
@@ -1426,9 +1435,15 @@ ATIMach64XVInitialiseAdaptor
         surf0->max_width = 384;
         surf1->max_width = 384;
     }
-    else
+    else if (pATI->Chip < ATI_CHIP_264GTPRO ||
+             pATI->Chip > ATI_CHIP_264LTPRO)
     {
         /* Do nothing */
+    }
+    else
+    {
+        surf0->max_width = 768;
+        surf1->max_width = 768;
     }
 
     if (pATI->Chip < ATI_CHIP_264GTPRO)
