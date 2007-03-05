@@ -2764,13 +2764,17 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 I830DRICloseScreen(pScreen);
 	 pI830->directRenderingEnabled = FALSE;
       } else {
+	 unsigned long aperEnd = ROUND_DOWN_TO(pI830->memory_manager->offset +
+					       pI830->memory_manager->size,
+					       GTT_PAGE_SIZE) / GTT_PAGE_SIZE;
+	 unsigned long aperStart = ROUND_TO(pI830->memory_manager->offset,
+					    GTT_PAGE_SIZE) / GTT_PAGE_SIZE;
+
 #ifndef XSERVER_LIBDRM_MM
-	 if (I830DrmMMInit(pI830->drmSubFD, pI830->memory_manager->offset,
-			   pI830->memory_manager->size,
+	 if (I830DrmMMInit(pI830->drmSubFD, aperStart, aperEnd - aperStart,
 			   DRM_BO_MEM_TT)) {
 #else
-	 if (drmMMInit(pI830->drmSubFD, pI830->memory_manager->offset,
-		       pI830->memory_manager->size,
+	 if (drmMMInit(pI830->drmSubFD, aperStart, aperEnd - aperStart,
 		       DRM_BO_MEM_TT)) {
 #endif	   
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
