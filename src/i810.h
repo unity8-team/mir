@@ -62,8 +62,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "common.h"
 
 #define I810_VERSION 4000
-#define I810_NAME "I810"
-#define I810_DRIVER_NAME "i810"
+#define I810_NAME "intel"
+#define I810_DRIVER_NAME "intel"
+#define I810_LEGACY_DRIVER_NAME "i810"
 
 /* HWMC Surfaces */
 #define I810_MAX_SURFACES 7

@@ -72,11 +72,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DELAY(x) do {;} while (0)
 #endif
 
+#ifndef REG_DUMPER
 /* I830 hooks for the I810 driver setup/probe. */
-extern const OptionInfoRec *I830BIOSAvailableOptions(int chipid, int busid);
+extern const OptionInfoRec *I830AvailableOptions(int chipid, int busid);
 extern void I830InitpScrn(ScrnInfoPtr pScrn);
 
 /* Symbol lists shared by the i810 and i830 parts. */
+extern int I830EntityIndex;
 extern const char *I810vgahwSymbols[];
 extern const char *I810ramdacSymbols[];
 extern const char *I810int10Symbols[];
@@ -90,12 +92,13 @@ extern const char *I810shadowSymbols[];
 extern const char *I810driSymbols[];
 extern const char *I810drmSymbols[];
 #endif
+extern const char *I810i2cSymbols[];
 
 extern void I830DPRINTF_stub(const char *filename, int line,
 			     const char *function, const char *fmt, ...);
 
 #ifdef _I830_H_
-#define PrintErrorState I830PrintErrorState
+#define PrintErrorState i830_dump_error_state
 #define WaitRingFunc I830WaitLpRing
 #define RecPtr pI830
 #else
@@ -106,8 +109,8 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 
 /* BIOS debug macro */
 #define xf86ExecX86int10_wrapper(pInt, pScrn) do {			\
+   ErrorF("Executing (ax == 0x%x) BIOS call at %s:%d\n", pInt->ax, __FILE__, __LINE__);	\
    if (I810_DEBUG & DEBUG_VERBOSE_BIOS) {				\
-      ErrorF("\n\n\n\nExecuting (ax == 0x%x) BIOS call\n", pInt->ax);	\
       ErrorF("Checking Error state before execution\n");		\
       PrintErrorState(pScrn);						\
    }									\
@@ -127,6 +130,54 @@ extern void I830DPRINTF_stub(const char *filename, int line,
    outring += 4; ringused += 4;							\
    outring &= ringmask;							\
 } while (0)
+
+static inline void memset_volatile(volatile void *b, int c, size_t len)
+{
+    int i;
+    
+    for (i = 0; i < len; i++)
+	((volatile char *)b)[i] = c;
+}
+
+static inline void memcpy_volatile(volatile void *dst, const void *src,
+				   size_t len)
+{
+    int i;
+    
+    for (i = 0; i < len; i++)
+	((volatile char *)dst)[i] = ((volatile char *)src)[i];
+}
+
+/** Copies a given number of bytes to the ring */
+#define OUT_RING_COPY(n, ptr) do {					\
+    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
+	ErrorF("OUT_RING_DATA %d bytes\n", n);				\
+    memcpy_volatile(virt + outring, ptr, n);				\
+    outring += n;							\
+    ringused += n;							\
+    outring &= ringmask;						\
+} while (0)
+
+/** Pads the ring with a given number of zero bytes */
+#define OUT_RING_PAD(n) do {						\
+    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
+	ErrorF("OUT_RING_PAD %d bytes\n", n);				\
+    memset_volatile(virt + outring, 0, n);				\
+    outring += n;							\
+    ringused += n;							\
+    outring &= ringmask;						\
+} while (0)
+
+union intfloat {
+	float f;
+	unsigned int ui;
+};
+
+#define OUT_RING_F(x) do {			\
+	union intfloat tmp;			\
+	tmp.f = (float)(x);			\
+	OUT_RING(tmp.ui);			\
+} while(0)				
 
 #define ADVANCE_LP_RING() do {						\
    if (ringused > needed)          \
@@ -229,6 +280,7 @@ extern int I810_DEBUG;
 #define DEBUG_ALWAYS_SYNC    0x80
 #define DEBUG_VERBOSE_DRI    0x100
 #define DEBUG_VERBOSE_BIOS   0x200
+#endif /* !REG_DUMPER */
 
 /* Size of the mmio region.
  */
@@ -336,10 +388,6 @@ extern int I810_DEBUG;
 /* Use a 64x64 HW cursor */
 #define I810_CURSOR_X			64
 #define I810_CURSOR_Y			I810_CURSOR_X
-
-/* XXX Need to check if these are reasonable. */
-#define MAX_DISPLAY_PITCH		2048
-#define MAX_DISPLAY_HEIGHT		2048
 
 #define PIPE_NAME(n)			('A' + (n))
 

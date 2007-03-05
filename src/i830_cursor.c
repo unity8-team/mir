@@ -1,4 +1,4 @@
-
+/* -*- c-basic-offset: 3 -*- */
 /**************************************************************************
 
 Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
@@ -79,52 +79,130 @@ static void I830LoadCursorARGB(ScrnInfoPtr pScrn, CursorPtr pCurs);
 static Bool I830UseHWCursorARGB(ScreenPtr pScrn, CursorPtr pCurs);
 #endif
 
+static void
+I830SetPipeCursorBase (xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr		pScrn = crtc->scrn;
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    int			pipe = intel_crtc->pipe;
+    I830Ptr		pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int			cursor_base = (pipe == 0 ? CURSOR_A_BASE : CURSOR_B_BASE);
+    i830_memory		*cursor_mem;
+
+    if (pipe >= xf86_config->num_crtc)
+	FatalError("Bad pipe number for cursor base setting\n");
+
+    if (pI830->CursorIsARGB)
+	cursor_mem = intel_crtc->cursor_mem_argb;
+    else
+	cursor_mem = intel_crtc->cursor_mem;
+
+    if (pI830->CursorNeedsPhysical) {
+	OUTREG(cursor_base, cursor_mem->bus_addr);
+    } else {
+	OUTREG(cursor_base, cursor_mem->offset);
+    }
+}
+
+void
+I830SetPipeCursor (xf86CrtcPtr crtc, Bool force)
+{
+    ScrnInfoPtr		pScrn = crtc->scrn;
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    int			pipe = intel_crtc->pipe;
+    I830Ptr		pI830 = I830PTR(pScrn);
+    CARD32		temp;
+    Bool		show;
+    
+    if (!crtc->enabled)
+	return;
+
+    show = pI830->cursorOn && crtc->cursorInRange;
+    if (show && (force || !crtc->cursorShown))
+    {
+	if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
+	    int	cursor_control;
+	    if (pipe == 0)
+		cursor_control = CURSOR_A_CONTROL;
+	    else
+		cursor_control = CURSOR_B_CONTROL;
+	    temp = INREG(cursor_control);
+	    temp &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
+	    if (pI830->CursorIsARGB) {
+		temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+	    } else
+		temp |= CURSOR_MODE_64_4C_AX;
+	    
+	    temp |= (pipe << 28); /* Connect to correct pipe */
+	    /* Need to set mode, then address. */
+	    OUTREG(cursor_control, temp);
+	} else {
+	    temp = INREG(CURSOR_CONTROL);
+	    temp &= ~(CURSOR_FORMAT_MASK);
+	    temp |= CURSOR_ENABLE;
+	    if (pI830->CursorIsARGB) {
+		temp |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
+	    } else
+		temp |= CURSOR_FORMAT_3C;
+	    OUTREG(CURSOR_CONTROL, temp);
+	}
+	crtc->cursorShown = TRUE;
+    }
+    else if (!show && (force || crtc->cursorShown))
+    {
+	if (IS_MOBILE(pI830) || IS_I9XX(pI830)) 
+	{
+	    int	cursor_control;
+	    if (pipe == 0)
+		cursor_control = CURSOR_A_CONTROL;
+	    else
+		cursor_control = CURSOR_B_CONTROL;
+	    temp = INREG(cursor_control);
+	    temp &= ~(CURSOR_MODE|MCURSOR_GAMMA_ENABLE);
+	    temp |= CURSOR_MODE_DISABLE;
+	    OUTREG(cursor_control, temp);
+	} else {
+	    temp = INREG(CURSOR_CONTROL);
+	    temp &= ~(CURSOR_ENABLE|CURSOR_GAMMA_ENABLE);
+	    OUTREG(CURSOR_CONTROL, temp);
+	}
+	crtc->cursorShown = FALSE;
+    }
+
+    /* Flush cursor changes. */
+    I830SetPipeCursorBase(crtc);
+}
+
 void
 I830InitHWCursor(ScrnInfoPtr pScrn)
 {
+   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
    CARD32 temp;
+   int i;
 
    DPRINTF(PFX, "I830InitHWCursor\n");
+   for (i = 0; i < xf86_config->num_crtc; i++) 
+      xf86_config->crtc[i]->cursorShown = FALSE;
+
    /* Initialise the HW cursor registers, leaving the cursor hidden. */
    if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
-      temp = INREG(CURSOR_A_CONTROL);
-      temp &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE | MCURSOR_MEM_TYPE_LOCAL |
-		MCURSOR_PIPE_SELECT);
-      temp |= CURSOR_MODE_DISABLE;
-      temp |= (pI830->pipe << 28);
-      if (pI830->CursorIsARGB)
-         temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
-      else
-         temp |= CURSOR_MODE_64_4C_AX;
-      /* Need to set control, then address. */
-      OUTREG(CURSOR_A_CONTROL, temp);
-      if (pI830->CursorNeedsPhysical) {
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
-         else
-            OUTREG(CURSOR_A_BASE, pI830->CursorMem->Physical);
-      } else {
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Start);
-         else
-            OUTREG(CURSOR_A_BASE, pI830->CursorMem->Start);
-      }
-      if (pI830->Clone || pI830->MergedFB) {
-         temp &= ~MCURSOR_PIPE_SELECT;
-         temp |= (!pI830->pipe << 28);
-         OUTREG(CURSOR_B_CONTROL, temp);
-         if (pI830->CursorNeedsPhysical) {
-            if (pI830->CursorIsARGB)
-               OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Physical);
-            else
-               OUTREG(CURSOR_B_BASE, pI830->CursorMem->Physical);
-	 } else {
-            if (pI830->CursorIsARGB)
-               OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Start);
-            else
-               OUTREG(CURSOR_B_BASE, pI830->CursorMem->Start);
-	 }
+      for (i = 0; i < xf86_config->num_crtc; i++)
+      {
+	 int   cursor_control = i == 0 ? CURSOR_A_CONTROL : CURSOR_B_CONTROL;
+	 temp = INREG(cursor_control);
+	 temp &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE |
+		   MCURSOR_MEM_TYPE_LOCAL |
+		   MCURSOR_PIPE_SELECT);
+	 temp |= (i << 28);
+	 if (pI830->CursorIsARGB)
+	    temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+	 else
+	    temp |= CURSOR_MODE_64_4C_AX;
+	 /* Need to set control, then address. */
+	 OUTREG(cursor_control, temp);
+	 I830SetPipeCursorBase(xf86_config->crtc[i]);
       }
    } else {
       temp = INREG(CURSOR_CONTROL);
@@ -137,10 +215,7 @@ I830InitHWCursor(ScrnInfoPtr pScrn)
       /* This initialises the format and leave the cursor disabled. */
       OUTREG(CURSOR_CONTROL, temp);
       /* Need to set address and size after disabling. */
-      if (pI830->CursorIsARGB)
-         OUTREG(CURSOR_BASEADDR, pI830->CursorMemARGB->Start);
-      else
-         OUTREG(CURSOR_BASEADDR, pI830->CursorMem->Start);
+      I830SetPipeCursorBase(xf86_config->crtc[0]);
       temp = ((I810_CURSOR_X & CURSOR_SIZE_MASK) << CURSOR_SIZE_HSHIFT) |
 	     ((I810_CURSOR_Y & CURSOR_SIZE_MASK) << CURSOR_SIZE_VSHIFT);
       OUTREG(CURSOR_SIZE, temp);
@@ -176,21 +251,13 @@ I830CursorInit(ScreenPtr pScreen)
    infoPtr->HideCursor = I830HideCursor;
    infoPtr->ShowCursor = I830ShowCursor;
    infoPtr->UseHWCursor = I830UseHWCursor;
+#ifdef ARGB_CURSOR
+   infoPtr->UseHWCursorARGB = I830UseHWCursorARGB;
+   infoPtr->LoadCursorARGB = I830LoadCursorARGB;
+#endif
 
    pI830->pCurs = NULL;
 
-#ifdef ARGB_CURSOR
-   pI830->CursorIsARGB = FALSE;
-
-   if (pI830->CursorMemARGB->Start) {
-      /* Use ARGB if we were able to allocate the 16kb needed */
-      infoPtr->UseHWCursorARGB = I830UseHWCursorARGB;
-      infoPtr->LoadCursorARGB = I830LoadCursorARGB;
-   }
-#endif
-
-   if (pI830->CursorNeedsPhysical && !pI830->CursorMem->Physical) 
-      return FALSE;
 
    I830HideCursor(pScrn);
 
@@ -205,18 +272,16 @@ I830UseHWCursor(ScreenPtr pScreen, CursorPtr pCurs)
 
    pI830->pCurs = pCurs;
 
-   DPRINTF(PFX, "I830UseHWCursor\n");
-   if (pI830->CursorNeedsPhysical && !pI830->CursorMem->Physical) 
-      return FALSE;
-
    return TRUE;
 }
 
 static void
-I830LoadCursorImage(ScrnInfoPtr pScrn, unsigned char *src)
+I830CRTCLoadCursorImage(xf86CrtcPtr crtc, unsigned char *src)
 {
+   ScrnInfoPtr pScrn = crtc->scrn;
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD8 *pcurs = (CARD8 *) (pI830->FbBase + pI830->CursorMem->Start);
+   I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+   CARD8 *pcurs = (CARD8 *) (pI830->FbBase + intel_crtc->cursor_mem->offset);
    int x, y;
 
    DPRINTF(PFX, "I830LoadCursorImage\n");
@@ -235,7 +300,7 @@ I830LoadCursorImage(ScrnInfoPtr pScrn, unsigned char *src)
     (*(image + (x) / 8 + (y) * (128/8)) |=\
      (int) (1 <<  (7-((x) % 8))))
 
-   switch (pI830->rotation) {
+   switch (crtc->rotation) {
       case RR_Rotate_90:
          for (y = 0; y < 64; y++) {
             for (x = 0; x < 64; x++) {
@@ -278,6 +343,17 @@ I830LoadCursorImage(ScrnInfoPtr pScrn, unsigned char *src)
    }
 }
 
+static void
+I830LoadCursorImage(ScrnInfoPtr pScrn, unsigned char *src)
+{
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int pipe;
+
+    for (pipe = 0; pipe < xf86_config->num_crtc; pipe++) {
+       I830CRTCLoadCursorImage(xf86_config->crtc[pipe], src);
+    }
+}
+
 #ifdef ARGB_CURSOR
 #include "cursorstr.h"
 
@@ -285,15 +361,22 @@ static Bool I830UseHWCursorARGB (ScreenPtr pScreen, CursorPtr pCurs)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
+   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+   int i;
 
    DPRINTF(PFX, "I830UseHWCursorARGB\n");
 
    pI830->pCurs = pCurs;
 
-   if (pScrn->bitsPerPixel == 8)
-      return FALSE;
+   /* Check that our ARGB allocations succeeded */
+   for (i = 0; i < xf86_config->num_crtc; i++) {
+      I830CrtcPrivatePtr intel_crtc = xf86_config->crtc[i]->driver_private;
 
-   if (pI830->CursorNeedsPhysical && !pI830->CursorMemARGB->Physical) 
+      if (intel_crtc->cursor_mem_argb == NULL)
+	 return FALSE;
+   }
+
+   if (pScrn->bitsPerPixel == 8)
       return FALSE;
 
    if (pCurs->bits->height <= 64 && pCurs->bits->width <= 64) 
@@ -302,10 +385,12 @@ static Bool I830UseHWCursorARGB (ScreenPtr pScreen, CursorPtr pCurs)
    return FALSE;
 }
 
-static void I830LoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
+static void I830CRTCLoadCursorARGB (xf86CrtcPtr crtc, CursorPtr pCurs)
 {
-   I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 *dst = (CARD32 *) (pI830->FbBase + pI830->CursorMemARGB->Start);
+   I830Ptr pI830 = I830PTR(crtc->scrn);
+   I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+   CARD32 *dst = (CARD32 *) (pI830->FbBase +
+			     intel_crtc->cursor_mem_argb->offset);
    CARD32 *image = (CARD32 *)pCurs->bits->argb;
    int x, y, w, h;
 
@@ -319,7 +404,7 @@ static void I830LoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
    w = pCurs->bits->width;
    h = pCurs->bits->height;
 
-   switch (pI830->rotation) {
+   switch (crtc->rotation) {
       case RR_Rotate_90:
          for (y = 0; y < h; y++) {
             for (x = 0; x < w; x++)
@@ -372,343 +457,142 @@ static void I830LoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
           *dst++ = 0;
    }
 }
-#endif
-
-#define CDMPTR    ((I830ModePrivatePtr)pI830->currentMode->Private)->merged
 
 static void
-I830SetCursorPositionMerged(ScrnInfoPtr pScrn, int x, int y)
+I830LoadCursorARGB(ScrnInfoPtr pScrn, CursorPtr pCurs)
 {
-   I830Ptr pI830 = I830PTR(pScrn);
-   ScrnInfoPtr    pScrn2 = pI830->pScrn_2;
-   DisplayModePtr mode1 = CDMPTR.First;
-   Bool hide = FALSE, show = FALSE;
-   DisplayModePtr mode2 = CDMPTR.Second;
-   int x1, y1, x2, y2;
-   int total_y1 = pScrn->frameY1 - pScrn->frameY0;
-   int total_y2 = pScrn2->frameY1 - pScrn2->frameY0;
-   CARD32 temp = 0, temp2 = 0;
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int pipe;
 
-   x += pScrn->frameX0;
-   y += pScrn->frameY0;
-
-   x1 = x - pI830->FirstframeX0;
-   y1 = y - pI830->FirstframeY0;
-
-   x2 = x - pScrn2->frameX0;
-   y2 = y - pScrn2->frameY0;
-
-   if (y1 > total_y1)
-      y1 = total_y1;
-   if (y2 > total_y2)                  
-      y2 = total_y2;
-
-   /* move cursor offscreen */
-   if (y1 >= 0 && y2 >= mode2->VDisplay) {
-      y2 = -I810_CURSOR_Y;  
-   } else if (y2 >= 0 && y1 >= mode1->VDisplay) {
-      y1 = -I810_CURSOR_Y;  
-   }
-   if (x1 >= 0 && x2 >= mode2->HDisplay) {
-      x2 = -I810_CURSOR_X;  
-   } else if (x2 >= 0 && x1 >= mode1->HDisplay) {
-      x1 = -I810_CURSOR_X;  
-   }
-
-   /* Clamp the cursor position to the visible screen area */
-   if (x1 >= mode1->HDisplay) x1 = mode1->HDisplay - 1;
-   if (y1 >= mode1->VDisplay) y1 = mode1->VDisplay - 1;
-   if (x1 <= -I810_CURSOR_X) x1 = -I810_CURSOR_X + 1;
-   if (y1 <= -I810_CURSOR_Y) y1 = -I810_CURSOR_Y + 1;
-   if (x2 >= mode2->HDisplay) x2 = mode2->HDisplay - 1;
-   if (y2 >= mode2->VDisplay) y2 = mode2->VDisplay - 1;
-   if (x2 <= -I810_CURSOR_X) x2 = -I810_CURSOR_X + 1;
-   if (y2 <= -I810_CURSOR_Y) y2 = -I810_CURSOR_Y + 1;
-
-   if (x1 < 0) {
-      temp |= (CURSOR_POS_SIGN << CURSOR_X_SHIFT);
-      x1 = -x1;
-   }
-   if (y1 < 0) {
-      temp |= (CURSOR_POS_SIGN << CURSOR_Y_SHIFT);
-      y1 = -y1;
-   }
-   if (x2 < 0) {
-      temp2 |= (CURSOR_POS_SIGN << CURSOR_X_SHIFT);
-      x2 = -x2;
-   }
-   if (y2 < 0) {
-      temp2 |= (CURSOR_POS_SIGN << CURSOR_Y_SHIFT);
-      y2 = -y2;
-   }
-
-   temp |= ((x1 & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
-   temp |= ((y1 & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
-   temp2 |= ((x2 & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
-   temp2 |= ((y2 & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
-
-   OUTREG(CURSOR_A_POSITION, temp);
-   OUTREG(CURSOR_B_POSITION, temp2);
-
-   if (pI830->cursorOn) {
-      if (hide)
-	 pI830->CursorInfoRec->HideCursor(pScrn);
-      else if (show)
-	 pI830->CursorInfoRec->ShowCursor(pScrn);
-      pI830->cursorOn = TRUE;
-   }
-
-   /* have to upload the base for the new position */
-   if (IS_I9XX(pI830)) {
-      if (pI830->CursorIsARGB) {
-         OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
-         OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Physical);
-      } else {
-         OUTREG(CURSOR_A_BASE, pI830->CursorMem->Physical);
-         OUTREG(CURSOR_B_BASE, pI830->CursorMem->Physical);
-      }
-   }
+    for (pipe = 0; pipe < xf86_config->num_crtc; pipe++) {
+       I830CRTCLoadCursorARGB(xf86_config->crtc[pipe], pCurs);
+    }
 }
+#endif
 
 static void
 I830SetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 {
-   I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 temp = 0;
-   Bool hide = FALSE, show = FALSE;
-   int oldx = x, oldy = y;
-   int hotspotx = 0, hotspoty = 0;
-#if 0
-   static Bool outsideViewport = FALSE;
-#endif
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 temp;
+    Bool inrange;
+    int root_x = x, root_y = y;
+    int pipe;
 
-   if (pI830->MergedFB) {
-      I830SetCursorPositionMerged(pScrn, x, y);
-      return;
-   }
+    root_x = x + pScrn->frameX0; /* undo what xf86HWCurs did */
+    root_y = y + pScrn->frameY0;
 
-   oldx += pScrn->frameX0; /* undo what xf86HWCurs did */
-   oldy += pScrn->frameY0;
+    for (pipe = 0; pipe < xf86_config->num_crtc; pipe++)
+    {
+	xf86CrtcPtr	    crtc = xf86_config->crtc[pipe];
+	DisplayModePtr	    mode = &crtc->mode;
+	int		    thisx = 0;
+	int		    thisy = 0;
+	int hotspotx = 0, hotspoty = 0;
 
-   switch (pI830->rotation) {
-      case RR_Rotate_0:
-         x = oldx;
-         y = oldy;
-         break;
-      case RR_Rotate_90:
-         x = oldy;
-         y = pScrn->pScreen->width - oldx;
-         hotspoty = I810_CURSOR_X;
-         break;
-      case RR_Rotate_180:
-         x = pScrn->pScreen->width - oldx;
-         y = pScrn->pScreen->height - oldy;
-         hotspotx = I810_CURSOR_X;
-         hotspoty = I810_CURSOR_Y;
-         break;
-      case RR_Rotate_270:
-         x = pScrn->pScreen->height - oldy;
-         y = oldx;
-         hotspotx = I810_CURSOR_Y;
-         break;
-   }
+	if (!crtc->enabled)
+	    continue;
 
-   x -= hotspotx;
-   y -= hotspoty;
+	switch (crtc->rotation) {
+	case RR_Rotate_0:
+	    thisx = (root_x - crtc->x);
+	    thisy = (root_y - crtc->y);
+	    break;
+	case RR_Rotate_90:
+	    thisx = (root_y - crtc->y);
+	    thisy = mode->VDisplay - (root_x - crtc->x);
+	    hotspoty = I810_CURSOR_X;
+	    break;
+	case RR_Rotate_180:
+	    thisx = mode->HDisplay - (root_x - crtc->x);
+	    thisy = mode->VDisplay - (root_y - crtc->y);
+	    hotspotx = I810_CURSOR_X;
+	    hotspoty = I810_CURSOR_Y;
+	    break;
+	case RR_Rotate_270:
+	    thisx = mode->HDisplay - (root_y - crtc->y);
+	    thisy = (root_x - crtc->x);
+	    hotspotx = I810_CURSOR_Y;
+	    break;
+	}
 
-   /* Now, readjust */
-   x -= pScrn->frameX0;
-   y -= pScrn->frameY0;
+	thisx -= hotspotx;
+	thisy -= hotspoty;
 
-   if (pScrn->currentMode) {
-      /* Clamp the cursor position to the visible screen area */
-      if (x >= pScrn->currentMode->HDisplay) x = pScrn->currentMode->HDisplay - 1;
-      if (y >= pScrn->currentMode->VDisplay) y = pScrn->currentMode->VDisplay - 1;
-      if (x <= -I810_CURSOR_X) x = -I810_CURSOR_X + 1;
-      if (y <= -I810_CURSOR_Y) y = -I810_CURSOR_Y + 1;
-   } else {
-      /* Can't ensure the cursor will be visible, so hide it */
-      hide = TRUE;
-      show = FALSE;
-   }
+	/*
+	 * There is a screen display problem when the cursor position is set
+	 * wholely outside of the viewport.  We trap that here, turning the
+	 * cursor off when that happens, and back on when it comes back into
+	 * the viewport.
+	 */
+	inrange = TRUE;
+	if (thisx >= mode->HDisplay ||
+	    thisy >= mode->VDisplay ||
+	    thisx <= -I810_CURSOR_X || thisy <= -I810_CURSOR_Y) 
+	{
+	    inrange = FALSE;
+	    thisx = 0;
+	    thisy = 0;
+	}
 
-#if 0
-   /*
-    * There is a screen display problem when the cursor position is set
-    * wholely outside of the viewport.  We trap that here, turning the
-    * cursor off when that happens, and back on when it comes back into
-    * the viewport.
-    */
-   if (x >= pScrn->currentMode->HDisplay ||
-       y >= pScrn->currentMode->VDisplay ||
-       x <= -I810_CURSOR_X || y <= -I810_CURSOR_Y) {
-      hide = TRUE;
-      outsideViewport = TRUE;
-   } else if (outsideViewport) {
-      show = TRUE;
-      outsideViewport = FALSE;
-   }
-#endif
+	temp = 0;
+	if (thisx < 0) {
+	    temp |= (CURSOR_POS_SIGN << CURSOR_X_SHIFT);
+	    thisx = -thisx;
+	}
+	if (thisy < 0) {
+	    temp |= (CURSOR_POS_SIGN << CURSOR_Y_SHIFT);
+	    thisy = -thisy;
+	}
+	temp |= ((thisx & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
+	temp |= ((thisy & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
 
-   if (x < 0) {
-      temp |= (CURSOR_POS_SIGN << CURSOR_X_SHIFT);
-      x = -x;
-   }
-   if (y < 0) {
-      temp |= (CURSOR_POS_SIGN << CURSOR_Y_SHIFT);
-      y = -y;
-   }
-   temp |= ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
-   temp |= ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
+	if (pipe == 0)
+	    OUTREG(CURSOR_A_POSITION, temp);
+	if (pipe == 1)
+	    OUTREG(CURSOR_B_POSITION, temp);
 
-   OUTREG(CURSOR_A_POSITION, temp);
-   if (pI830->Clone)
-      OUTREG(CURSOR_B_POSITION, temp);
-
-   if (pI830->cursorOn) {
-      if (hide)
-	 pI830->CursorInfoRec->HideCursor(pScrn);
-      else if (show)
-	 pI830->CursorInfoRec->ShowCursor(pScrn);
-      pI830->cursorOn = TRUE;
-   }
-
-   /* have to upload the base for the new position */
-   if (IS_I9XX(pI830)) {
-      if (pI830->CursorNeedsPhysical) {
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
-         else
-            OUTREG(CURSOR_A_BASE, pI830->CursorMem->Physical);
-      } else {
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Start);
-         else
-            OUTREG(CURSOR_A_BASE, pI830->CursorMem->Start);
-      }
-      if (pI830->Clone) {
-         if (pI830->CursorNeedsPhysical) {
-            if (pI830->CursorIsARGB)
-               OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Physical);
-            else
-               OUTREG(CURSOR_B_BASE, pI830->CursorMem->Physical);
-	 } else {
-            if (pI830->CursorIsARGB)
-               OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Start);
-            else
-               OUTREG(CURSOR_B_BASE, pI830->CursorMem->Start);
-	 }
-      }
-   }
+	crtc->cursorInRange = inrange;
+	
+        I830SetPipeCursor (crtc, FALSE);
+    }
 }
 
 static void
 I830ShowCursor(ScrnInfoPtr pScrn)
 {
-   I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 temp;
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    I830Ptr pI830 = I830PTR(pScrn);
+    int pipe;
 
-   DPRINTF(PFX, "I830ShowCursor\n");
-   DPRINTF(PFX,
-	   "Value of CursorMem->Physical is %x, "
-	   " Value of CursorMem->Start is %x ",
-	   pI830->CursorMem->Physical, pI830->CursorMem->Start);
-   DPRINTF(PFX,
-	   "Value of CursorMemARGB->Physical is %x, "
-	   " Value of CursorMemARGB->Start is %x ",
-	   pI830->CursorMemARGB->Physical, pI830->CursorMemARGB->Start);
+    DPRINTF(PFX, "I830ShowCursor\n");
 
-   pI830->cursorOn = TRUE;
-   if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
-      temp = INREG(CURSOR_A_CONTROL);
-      temp &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT | MCURSOR_GAMMA_ENABLE);
-      if (pI830->CursorIsARGB)
-         temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
-      else
-         temp |= CURSOR_MODE_64_4C_AX;
-      temp |= (pI830->pipe << 28); /* Connect to correct pipe */
-      /* Need to set mode, then address. */
-      OUTREG(CURSOR_A_CONTROL, temp);
-      if (pI830->CursorNeedsPhysical) {
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
-         else
-            OUTREG(CURSOR_A_BASE, pI830->CursorMem->Physical);
-      } else {
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Start);
-         else
-            OUTREG(CURSOR_A_BASE, pI830->CursorMem->Start);
-      }
-      if (pI830->Clone || pI830->MergedFB) {
-         temp &= ~MCURSOR_PIPE_SELECT;
-         temp |= (!pI830->pipe << 28);
-         OUTREG(CURSOR_B_CONTROL, temp);
-         if (pI830->CursorNeedsPhysical) {
-            if (pI830->CursorIsARGB)
-               OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Physical);
-            else
-               OUTREG(CURSOR_B_BASE, pI830->CursorMem->Physical);
-	 } else {
-            if (pI830->CursorIsARGB)
-               OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Start);
-            else
-               OUTREG(CURSOR_B_BASE, pI830->CursorMem->Start);
-	 }
-      }
-   } else {
-      temp = INREG(CURSOR_CONTROL);
-      temp &= ~(CURSOR_FORMAT_MASK | CURSOR_GAMMA_ENABLE);
-      temp |= CURSOR_ENABLE;
-      if (pI830->CursorIsARGB)
-         temp |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
-      else 
-         temp |= CURSOR_FORMAT_3C;
-      OUTREG(CURSOR_CONTROL, temp);
-      if (pI830->CursorIsARGB)
-         OUTREG(CURSOR_BASEADDR, pI830->CursorMemARGB->Start);
-      else
-         OUTREG(CURSOR_BASEADDR, pI830->CursorMem->Start);
-   }
+    pI830->cursorOn = TRUE;
+    for (pipe = 0; pipe < xf86_config->num_crtc; pipe++)
+	I830SetPipeCursor (xf86_config->crtc[pipe], TRUE);
 }
 
 static void
 I830HideCursor(ScrnInfoPtr pScrn)
 {
-   CARD32 temp;
+   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
+    int pipe;
 
    DPRINTF(PFX, "I830HideCursor\n");
 
    pI830->cursorOn = FALSE;
-   if (IS_MOBILE(pI830) || IS_I9XX(pI830)) {
-      temp = INREG(CURSOR_A_CONTROL);
-      temp &= ~CURSOR_MODE;
-      temp |= CURSOR_MODE_DISABLE;
-      OUTREG(CURSOR_A_CONTROL, temp);
-      /* This is needed to flush the above change. */
-      if (pI830->CursorIsARGB)
-         OUTREG(CURSOR_A_BASE, pI830->CursorMemARGB->Physical);
-      else
-         OUTREG(CURSOR_A_BASE, pI830->CursorMem->Physical);
-      if (pI830->Clone || pI830->MergedFB) {
-         OUTREG(CURSOR_B_CONTROL, temp);
-         if (pI830->CursorIsARGB)
-            OUTREG(CURSOR_B_BASE, pI830->CursorMemARGB->Physical);
-         else
-            OUTREG(CURSOR_B_BASE, pI830->CursorMem->Physical);
-      }
-   } else {
-      temp = INREG(CURSOR_CONTROL);
-      temp &= ~CURSOR_ENABLE;
-      OUTREG(CURSOR_CONTROL, temp);
-   }
+    for (pipe = 0; pipe < xf86_config->num_crtc; pipe++)
+	I830SetPipeCursor (xf86_config->crtc[pipe], TRUE);
 }
 
 static void
 I830SetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 {
+   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
+   int pipe; 
 
 #ifdef ARGB_CURSOR
     /* Don't recolour cursors set with SetCursorARGB. */
@@ -718,14 +602,17 @@ I830SetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 
    DPRINTF(PFX, "I830SetCursorColors\n");
 
-   OUTREG(CURSOR_A_PALETTE0, bg & 0x00ffffff);
-   OUTREG(CURSOR_A_PALETTE1, fg & 0x00ffffff);
-   OUTREG(CURSOR_A_PALETTE2, fg & 0x00ffffff);
-   OUTREG(CURSOR_A_PALETTE3, bg & 0x00ffffff);
-   if (pI830->Clone || pI830->MergedFB) {
-      OUTREG(CURSOR_B_PALETTE0, bg & 0x00ffffff);
-      OUTREG(CURSOR_B_PALETTE1, fg & 0x00ffffff);
-      OUTREG(CURSOR_B_PALETTE2, fg & 0x00ffffff);
-      OUTREG(CURSOR_B_PALETTE3, bg & 0x00ffffff);
+   for (pipe = 0; pipe < xf86_config->num_crtc; pipe++)
+   {
+      xf86CrtcPtr	crtc = xf86_config->crtc[pipe];
+      int		pal0 = pipe == 0 ? CURSOR_A_PALETTE0 : CURSOR_B_PALETTE0;
+
+      if (crtc->enabled)
+      {
+	 OUTREG(pal0 +  0, bg & 0x00ffffff);
+	 OUTREG(pal0 +  4, fg & 0x00ffffff);
+	 OUTREG(pal0 +  8, fg & 0x00ffffff);
+	 OUTREG(pal0 + 12, bg & 0x00ffffff);
+      }
    }
 }

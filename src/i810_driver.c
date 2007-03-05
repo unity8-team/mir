@@ -342,9 +342,14 @@ const char *I810driSymbols[] = {
 #endif /* I830_ONLY */
 
 const char *I810shadowSymbols[] = {
-    "shadowInit",
     "shadowSetup",
     "shadowAdd",
+    NULL
+};
+
+const char *I810i2cSymbols[] = {
+    "xf86CreateI2CBusRec",
+    "xf86I2CBusInit",
     NULL
 };
 
@@ -379,6 +384,21 @@ int I830EntityIndex = -1;
 
 static MODULESETUPPROTO(i810Setup);
 
+static XF86ModuleVersionInfo intelVersRec = {
+   "intel",
+   MODULEVENDORSTRING,
+   MODINFOSTRING1,
+   MODINFOSTRING2,
+   XORG_VERSION_CURRENT,
+   INTEL_VERSION_MAJOR, INTEL_VERSION_MINOR, INTEL_VERSION_PATCH,
+   ABI_CLASS_VIDEODRV,
+   ABI_VIDEODRV_VERSION,
+   MOD_CLASS_VIDEODRV,
+   {0, 0, 0, 0}
+};
+
+_X_EXPORT XF86ModuleData intelModuleData = { &intelVersRec, i810Setup, NULL };
+
 static XF86ModuleVersionInfo i810VersRec = {
    "i810",
    MODULEVENDORSTRING,
@@ -392,7 +412,7 @@ static XF86ModuleVersionInfo i810VersRec = {
    {0, 0, 0, 0}
 };
 
-_X_EXPORT XF86ModuleData i810ModuleData = { &i810VersRec, i810Setup, 0 };
+_X_EXPORT XF86ModuleData i810ModuleData = { &i810VersRec, i810Setup, NULL };
 
 static pointer
 i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
@@ -460,7 +480,7 @@ I810FreeRec(ScrnInfoPtr pScrn)
    if (!pScrn->driverPrivate)
       return;
    xfree(pScrn->driverPrivate);
-   pScrn->driverPrivate = 0;
+   pScrn->driverPrivate = NULL;
 }
 #endif
 
@@ -484,11 +504,11 @@ I810AvailableOptions(int chipid, int busid)
 #ifndef I830_ONLY
    const OptionInfoRec *pOptions;
 
-   if ((pOptions = I830BIOSAvailableOptions(chipid, busid)))
+   if ((pOptions = I830AvailableOptions(chipid, busid)))
       return pOptions;
    return I810Options;
 #else
-   return I830BIOSAvailableOptions(chipid, busid);
+   return I830AvailableOptions(chipid, busid);
 #endif
 }
 
@@ -516,7 +536,9 @@ I810Probe(DriverPtr drv, int flags)
     * driver, and return if there are none.
     */
    if ((numDevSections =
-	xf86MatchDevice(I810_DRIVER_NAME, &devSections)) <= 0) {
+	xf86MatchDevice(I810_DRIVER_NAME, &devSections)) <= 0 &&
+       (numDevSections =
+	xf86MatchDevice(I810_LEGACY_DRIVER_NAME, &devSections)) <= 0) {
       return FALSE;
    }
 
@@ -569,7 +591,8 @@ I810Probe(DriverPtr drv, int flags)
 
 	 /* Allocate new ScrnInfoRec and claim the slot */
 	 if ((pScrn = xf86ConfigPciEntity(pScrn, 0, usedChips[i],
-					  I810PciChipsets, 0, 0, 0, 0, 0))) {
+					  I810PciChipsets, NULL, NULL, NULL,
+					  NULL, NULL))) {
 	    EntityInfoPtr pEnt;
 
 	    pEnt = xf86GetEntityInfo(usedChips[i]);
@@ -601,23 +624,23 @@ I810Probe(DriverPtr drv, int flags)
     	       if (I830EntityIndex < 0)					
 		  I830EntityIndex = xf86AllocateEntityPrivateIndex();	
 
-    	       pPriv = xf86GetEntityPrivate(pScrn->entityList[0],		
+    	       pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
 						I830EntityIndex);	
-    	       if (!pPriv->ptr) {						
-		  pPriv->ptr = xnfcalloc(sizeof(I830EntRec), 1);		
-		  pI830Ent = pPriv->ptr;					
-		  pI830Ent->lastInstance = -1;				
-    	       } else {							
-		  pI830Ent = pPriv->ptr;					
+    	       if (!pPriv->ptr) {
+		  pPriv->ptr = xnfcalloc(sizeof(I830EntRec), 1);
+		  pI830Ent = pPriv->ptr;
+		  pI830Ent->lastInstance = -1;
+    	       } else {
+		   pI830Ent = pPriv->ptr;
     	       }
-								
-    	       /*								
-     	        * Set the entity instance for this instance of the driver.	
-     	        * For dual head per card, instance 0 is the "master" 	
-     	        * instance, driving the primary head, and instance 1 is 	
-     	        * the "slave".						
-     	        */								
-    	       pI830Ent->lastInstance++;					
+
+    	       /*
+		* Set the entity instance for this instance of the driver.
+     	        * For dual head per card, instance 0 is the "master"
+     	        * instance, driving the primary head, and instance 1 is
+     	        * the "slave".
+     	        */
+    	       pI830Ent->lastInstance++;
                xf86SetEntityInstanceForScreen(pScrn,			
 			pScrn->entityList[0], pI830Ent->lastInstance);	
 	       I830InitpScrn(pScrn);
@@ -738,7 +761,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    pI810->PciTag = pciTag(pI810->PciInfo->bus, pI810->PciInfo->device,
 			  pI810->PciInfo->func);
 
-   if (xf86RegisterResources(pI810->pEnt->index, 0, ResNone))
+   if (xf86RegisterResources(pI810->pEnt->index, NULL, ResNone))
       return FALSE;
    pScrn->racMemFlags = RAC_FB | RAC_COLORMAP;
 
@@ -1214,7 +1237,7 @@ I810UnmapMMIO(ScrnInfoPtr pScrn)
 
    xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI810->MMIOBase,
 		   I810_REG_SIZE);
-   pI810->MMIOBase = 0;
+   pI810->MMIOBase = NULL;
 }
 
 static Bool
@@ -1224,7 +1247,7 @@ I810UnmapMem(ScrnInfoPtr pScrn)
 
    xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI810->FbBase,
 		   pI810->FbMapSize);
-   pI810->FbBase = 0;
+   pI810->FbBase = NULL;
    I810UnmapMMIO(pScrn);
    return TRUE;
 }

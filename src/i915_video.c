@@ -39,30 +39,18 @@
 #include "i915_reg.h"
 #include "i915_3d.h"
 
-union intfloat {
-   CARD32 ui;
-   float f;
-};
-
-#define OUT_RING_F(x) do {						\
-   union intfloat _tmp;							\
-   _tmp.f = x;								\
-   OUT_RING(_tmp.ui);							\
-} while (0)
-
-
 void
 I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 RegionPtr dstRegion,
 			 short width, short height, int video_pitch,
 			 int x1, int y1, int x2, int y2,
 			 short src_w, short src_h, short drw_w, short drw_h,
-			 DrawablePtr pDraw)
+			 PixmapPtr pPixmap)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 format, ms3, s2;
+   CARD32 format, ms3, s2, s5;
    BoxPtr pbox;
-   int nbox, dxo, dyo;
+   int nbox, dxo, dyo, pix_xoff, pix_yoff;
    Bool planar;
 
 #if 0
@@ -93,35 +81,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     */
    *pI830->used3D |= 1 << 30;
 
-   BEGIN_LP_RING(44);
+   pI830->last_3d = LAST_3D_VIDEO;
 
-   /* invarient state */
-   OUT_RING(MI_NOOP);
-   OUT_RING(_3DSTATE_AA_CMD |
-	    AA_LINE_ECAAR_WIDTH_ENABLE | AA_LINE_ECAAR_WIDTH_1_0 |
-	    AA_LINE_REGION_WIDTH_ENABLE | AA_LINE_REGION_WIDTH_1_0);
-
-   OUT_RING(_3DSTATE_DFLT_DIFFUSE_CMD);
-   OUT_RING(0x00000000);
-
-   OUT_RING(_3DSTATE_DFLT_SPEC_CMD);
-   OUT_RING(0x00000000);
-
-   OUT_RING(_3DSTATE_DFLT_Z_CMD);
-   OUT_RING(0x00000000);
-
-   OUT_RING(_3DSTATE_COORD_SET_BINDINGS | CSB_TCB(0, 0) | CSB_TCB(1, 1) |
-	    CSB_TCB(2,2) | CSB_TCB(3,3) | CSB_TCB(4,4) | CSB_TCB(5,5) |
-	    CSB_TCB(6,6) | CSB_TCB(7,7));
-
-   OUT_RING(_3DSTATE_RASTER_RULES_CMD |
-	    ENABLE_TRI_FAN_PROVOKE_VRTX | TRI_FAN_PROVOKE_VRTX(2) |
-	    ENABLE_LINE_STRIP_PROVOKE_VRTX | LINE_STRIP_PROVOKE_VRTX(1) |
-	    ENABLE_TEXKILL_3D_4D | TEXKILL_4D |
-	    ENABLE_POINT_RASTER_RULE | OGL_POINT_RASTER_RULE);
-
-   OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 1);
-   OUT_RING(0x00000000); /* texture coordinate wrap */
+   BEGIN_LP_RING(24);
 
    /* flush map & render cache */
    OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
@@ -129,32 +91,21 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    /* draw rect -- just clipping */
    OUT_RING(_3DSTATE_DRAW_RECT_CMD);
-   OUT_RING(0x00000000);	/* flags */
+   OUT_RING(DRAW_DITHER_OFS_X(pPixmap->drawable.x & 3) |
+	    DRAW_DITHER_OFS_Y(pPixmap->drawable.y & 3));
    OUT_RING(0x00000000);	/* ymin, xmin */
    OUT_RING((pScrn->virtualX - 1) |
 	    (pScrn->virtualY - 1) << 16); /* ymax, xmax */
    OUT_RING(0x00000000);	/* yorigin, xorigin */
    OUT_RING(MI_NOOP);
 
-   /* scissor */
-   OUT_RING(_3DSTATE_SCISSOR_ENABLE_CMD | DISABLE_SCISSOR_RECT);
-   OUT_RING(_3DSTATE_SCISSOR_RECT_0_CMD);
-   OUT_RING(0x00000000);	/* ymin, xmin */
-   OUT_RING(0x00000000);	/* ymax, xmax */
-
    OUT_RING(0x7c000003);	/* unknown command */
    OUT_RING(0x7d070000);
    OUT_RING(0x00000000);
    OUT_RING(0x68000002);
 
-   /* context setup */
-   OUT_RING(_3DSTATE_MODES_4_CMD |
-	    ENABLE_LOGIC_OP_FUNC | LOGIC_OP_FUNC(LOGICOP_COPY) |
-	    ENABLE_STENCIL_WRITE_MASK | STENCIL_WRITE_MASK(0xff) |
-	    ENABLE_STENCIL_TEST_MASK | STENCIL_TEST_MASK(0xff));
-
    OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
-	    I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 4);
+	    I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
    s2 = S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D);
    if (planar)
       s2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_2D);
@@ -169,17 +120,14 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_RING(s2);
    OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
 	    S4_CULLMODE_NONE | S4_VFMT_XY);
-   OUT_RING(0x00000000); /* S5 - enable bits */
+   s5 = 0x0;
+   if (pI830->cpp == 2)
+      s5 |= S5_COLOR_DITHER_ENABLE;
+   OUT_RING(s5); /* S5 - enable bits */
    OUT_RING((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
 	    (2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
 	    (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) | S6_COLOR_WRITE_ENABLE |
 	    (2 << S6_TRISTRIP_PV_SHIFT));
-
-   OUT_RING(_3DSTATE_INDEPENDENT_ALPHA_BLEND_CMD |
-	    IAB_MODIFY_ENABLE |
-	    IAB_MODIFY_FUNC | (BLENDFUNC_ADD << IAB_FUNC_SHIFT) |
-	    IAB_MODIFY_SRC_FACTOR | (BLENDFACT_ONE << IAB_SRC_FACTOR_SHIFT) |
-	    IAB_MODIFY_DST_FACTOR | (BLENDFACT_ZERO << IAB_DST_FACTOR_SHIFT));
 
    OUT_RING(_3DSTATE_CONST_BLEND_COLOR_CMD);
    OUT_RING(0x00000000);
@@ -193,14 +141,11 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_RING(LOD_PRECLAMP_OGL |
      DSTORG_HORT_BIAS(0x80) | DSTORG_VERT_BIAS(0x80) | format);
 
-   OUT_RING(_3DSTATE_STIPPLE);
-   OUT_RING(0x00000000);
-
    /* front buffer, pitch, offset */
    OUT_RING(_3DSTATE_BUF_INFO_CMD);
    OUT_RING(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
-	    (((pI830->displayWidth * pI830->cpp) / 4) << 2));
-   OUT_RING(pI830->bufferOffset);
+	    BUF_3D_PITCH(pPixmap->devKind));
+   OUT_RING(BUF_3D_ADDR((long)pPixmap->devPrivate.ptr - (long)pI830->FbBase));
    ADVANCE_LP_RING();
 
    if (!planar) {
@@ -384,6 +329,17 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       ADVANCE_LP_RING();
    }
 
+   /* Set up the offset for translating from the given region (in screen
+    * coordinates) to the backing pixmap.
+    */
+#ifdef COMPOSITE
+   pix_xoff = -pPixmap->screen_x + pPixmap->drawable.x;
+   pix_yoff = -pPixmap->screen_y + pPixmap->drawable.y;
+#else
+   pix_xoff = 0;
+   pix_yoff = 0;
+#endif
+
    dxo = dstRegion->extents.x1;
    dyo = dstRegion->extents.y1;
 
@@ -424,8 +380,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	       (vert_data_count - 1));
 
       /* bottom right */
-      OUT_RING_F(box_x2);
-      OUT_RING_F(box_y2);
+      OUT_RING_F(box_x2 + pix_xoff);
+      OUT_RING_F(box_y2 + pix_yoff);
       if (!planar) {
 	 OUT_RING_F((box_x2 - dxo) * src_scale_x);
 	 OUT_RING_F((box_y2 - dyo) * src_scale_y);
@@ -437,8 +393,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       }
 
       /* bottom left */
-      OUT_RING_F(box_x1);
-      OUT_RING_F(box_y2);
+      OUT_RING_F(box_x1 + pix_xoff);
+      OUT_RING_F(box_y2 + pix_yoff);
       if (!planar) {
 	 OUT_RING_F((box_x1 - dxo) * src_scale_x);
 	 OUT_RING_F((box_y2 - dyo) * src_scale_y);
@@ -450,8 +406,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       }
 
       /* top left */
-      OUT_RING_F(box_x1);
-      OUT_RING_F(box_y1);
+      OUT_RING_F(box_x1 + pix_xoff);
+      OUT_RING_F(box_y1 + pix_yoff);
       if (!planar) {
 	 OUT_RING_F((box_x1 - dxo) * src_scale_x);
 	 OUT_RING_F((box_y1 - dyo) * src_scale_y);
@@ -465,7 +421,6 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       ADVANCE_LP_RING();
    }
 
-   if (pI830->AccelInfoRec)
-      pI830->AccelInfoRec->NeedToSync = TRUE;
+   i830MarkSync(pScrn);
 }
 

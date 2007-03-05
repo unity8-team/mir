@@ -1,0 +1,13 @@
+AM_CFLAGS = @XORG_CFLAGS@ @XMODES_CFLAGS@
+
+noinst_PROGRAMS = bios_reader  $(BIOS_DUMPER)
+
+if HAVE_PCIACCESS
+BIOS_DUMPER = bios_dumper
+
+bios_dumper_SOURCES = bios_dumper.c
+
+bios_dumper_CFLAGS = $(PCIACCESS_CFLAGS)
+bios_dumper_LDADD = $(PCIACCESS_LIBS)
+
+endif
