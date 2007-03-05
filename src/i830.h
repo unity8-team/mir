@@ -58,8 +58,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86int10.h"
 #include "vbe.h"
 #include "vgaHW.h"
-#include "i830_xf86Crtc.h"
-#include "i830_randr.h"
+#include "xf86Crtc.h"
+#include "xf86RandR12.h"
 
 #ifdef XF86DRI
 #include "xf86drm.h"
@@ -116,39 +116,57 @@ typedef CARD8(*I830ReadIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
 typedef void (*I830WriteByteFunc)(I830Ptr pI830, IOADDRESS addr, CARD8 value);
 typedef CARD8(*I830ReadByteFunc)(I830Ptr pI830, IOADDRESS addr);
 
-/* Linear region allocated in framebuffer. */
-typedef struct _I830MemPool *I830MemPoolPtr;
-typedef struct _I830MemRange *I830MemRangePtr;
-typedef struct _I830MemRange {
-   long Start;
-   long End;
-   long Size;
-   unsigned long Physical;
-   unsigned long Offset;		/* Offset of AGP-allocated portion */
-   unsigned long Alignment;
-   int Key;
-   I830MemPoolPtr Pool;
-} I830MemRange;
+/** Record of a linear allocation in the aperture. */
+typedef struct _i830_memory i830_memory;
+struct _i830_memory {
+    /** Offset of the allocation in card VM */
+    unsigned long offset;
+    /** End of the allocation in card VM */
+    unsigned long end;
+    /**
+     * Requested size of the allocation: doesn't count padding.
+     *
+     * Any bound memory will cover offset to (offset + size).
+     */
+    unsigned long size;
+    /**
+     * Physical (or more properly, bus) address of the allocation.
+     * Only set if requested during allocation.
+     */
+    unsigned long bus_addr;
+    /** AGP memory handle */
+    int key;
+    /**
+     * Whether or not the AGP memory (if any) is currently bound.
+     */
+    Bool bound;
+    /**
+     * Offset that the AGP-allocated memory (if any) is to be bound to.
+     *
+     * This is either @offset or pI830->stolen_size
+     */
+    unsigned long agp_offset;
 
-typedef struct _I830MemPool {
-   I830MemRange Total;
-   I830MemRange Free;
-   I830MemRange Fixed;
-   I830MemRange Allocated;
-} I830MemPool;
+    /** Description of the allocation, for logging */
+    char *name;
+
+    /** @{
+     * Memory allocator linked list pointers
+     */
+    i830_memory *next;
+    i830_memory *prev;
+    /** @} */
+
+};
 
 typedef struct {
    int tail_mask;
-   I830MemRange mem;
+   i830_memory *mem;
    unsigned char *virtual_start;
    int head;
    int tail;
    int space;
 } I830RingBuffer;
-
-typedef struct {
-   unsigned int Fence[FENCE_NEW_NR * 2];
-} I830RegRec, *I830RegPtr;
 
 typedef struct {
    int            lastInstance;
@@ -209,8 +227,8 @@ typedef struct _I830CrtcPrivateRec {
     ExaOffscreenArea *rotate_mem_exa;
 #endif
 
-    I830MemRange cursor_mem;
-    I830MemRange cursor_mem_argb;
+    i830_memory *cursor_mem;
+    i830_memory *cursor_mem_argb;
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;
 
 #define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
@@ -252,51 +270,42 @@ typedef struct _I830Rec {
 
    /* These are set in PreInit and never changed. */
    long FbMapSize;
-   long TotalVideoRam;
-   I830MemRange StolenMemory;		/* pre-allocated memory */
 
-   /* These change according to what has been allocated. */
-   long FreeMemory;
-   I830MemRange MemoryAperture;
-   I830MemPool StolenPool;
-   long allocatedMemory;
+   i830_memory *memory_list;	/**< Linked list of video memory allocations */
+   long stolen_size;		/**< bytes of pre-bound stolen memory */
+   int gtt_acquired;		/**< whether we currently own the AGP */
 
-   /* Regions allocated either from the above pools, or from agpgart. */
-   /* for single and dual head configurations */
-   I830MemRange FrontBuffer;
-   I830MemRange FrontBuffer2;
-   I830MemRange Scratch;
-   I830MemRange Scratch2;
+   i830_memory *front_buffer;
+   i830_memory *front_buffer_2;
+   i830_memory *xaa_scratch;
+   i830_memory *xaa_scratch_2;
 #ifdef I830_USE_EXA
-   I830MemRange Offscreen;
-   I830MemRange EXAStateMem;  /* specific exa state for G965 */
+   i830_memory *exa_offscreen;
+   i830_memory *exa_965_state;
 #endif
    /* Regions allocated either from the above pools, or from agpgart. */
    I830RingBuffer *LpRing;
 
-#if REMAP_RESERVED
-   I830MemRange Dummy;
-#endif
-
 #ifdef I830_XV
    /* For Xvideo */
-   I830MemRange *OverlayMem;
-   I830MemRange LinearMem;
+   i830_memory *overlay_regs;
+   i830_memory *xaa_linear;
 #endif
    unsigned long LinearAlloc;
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
    Rotation rotation;
-   int displayWidth;
    void (*PointerMoved)(int, int, int);
    CreateScreenResourcesProcPtr    CreateScreenResources;
    int *used3D;
 
-   I830MemRange ContextMem;
+   i830_memory *logical_context;
 #ifdef XF86DRI
-   I830MemRange BackBuffer;
-   I830MemRange ThirdBuffer;
-   I830MemRange DepthBuffer;
-   I830MemRange TexMem;
+   i830_memory *back_buffer;
+   i830_memory *third_buffer;
+   i830_memory *depth_buffer;
+   i830_memory *textures;		/**< Compatibility texture memory */
+   i830_memory *memory_manager;		/**< DRI memory manager aperture */
+
    int TexGranularity;
    int drmMinor;
    Bool have3DWindows;
@@ -341,13 +350,21 @@ typedef struct _I830Rec {
 
    unsigned int BR[20];
 
-   int GttBound;
-
    unsigned char **ScanlineColorExpandBuffers;
    int NumScanlineColorExpandBuffers;
    int nextColorExpandBuf;
 
-   I830RegRec ModeReg;
+    /**
+     * Values to be programmed into the fence registers.
+     *
+     * Pre-965, this is a list of FENCE_NR (8) CARD32 registers that
+     * contain their start, size, and pitch.  On the 965, it is a list of
+     * FENCE_NEW_NR CARD32s for the start and pitch fields (low 32 bits) of
+     * the fence registers followed by FENCE_NEW_NR CARD32s for the end fields
+     * (high 32 bits) of the fence registers.
+     */
+   unsigned int fence[FENCE_NEW_NR * 2];
+   unsigned int next_fence;
 
    Bool useEXA;
    Bool noAccel;
@@ -418,7 +435,6 @@ typedef struct _I830Rec {
    /* Broken-out options. */
    OptionInfoPtr Options;
 
-   /* Stolen memory support */
    Bool StolenOnly;
 
    Bool swfSaved;
@@ -510,7 +526,6 @@ typedef struct _I830Rec {
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
-#define I830REGPTR(p) (&(I830PTR(p)->ModeReg))
 
 #define I830_SELECT_FRONT	0
 #define I830_SELECT_BACK	1
@@ -533,9 +548,6 @@ extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 extern void I830RefreshRing(ScrnInfoPtr pScrn);
 extern void I830EmitFlush(ScrnInfoPtr pScrn);
 
-extern Bool I830DGAReInit(ScreenPtr pScreen);
-extern Bool I830DGAInit(ScreenPtr pScreen);
-
 #ifdef I830_XV
 extern void I830InitVideo(ScreenPtr pScreen);
 extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
@@ -543,10 +555,6 @@ extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
 
 #ifdef XF86DRI
 extern Bool I830Allocate3DMemory(ScrnInfoPtr pScrn, const int flags);
-extern Bool I830AllocateBackBuffer(ScrnInfoPtr pScrn, const int flags);
-extern Bool I830AllocateThirdBuffer(ScrnInfoPtr pScrn, const int flags);
-extern Bool I830AllocateDepthBuffer(ScrnInfoPtr pScrn, const int flags);
-extern Bool I830AllocateTextureMemory(ScrnInfoPtr pScrn, const int flags);
 extern void I830SetupMemoryTiling(ScrnInfoPtr pScrn);
 extern Bool I830DRIScreenInit(ScreenPtr pScreen);
 extern Bool I830CheckDRIAvailable(ScrnInfoPtr pScrn);
@@ -577,26 +585,19 @@ extern void I830SetupForSolidFill(ScrnInfoPtr pScrn, int color, int rop,
 extern void I830SubsequentSolidFillRect(ScrnInfoPtr pScrn, int x, int y,
 					int w, int h);
 
-extern void I830ResetAllocations(ScrnInfoPtr pScrn, const int flags);
+Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
+			 unsigned long size);
+void i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity,
+			       const char *prefix);
+void i830_reset_allocations(ScrnInfoPtr pScrn);
+void i830_free_3d_memory(ScrnInfoPtr pScrn);
+void i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem);
 extern long I830CheckAvailableMemory(ScrnInfoPtr pScrn);
-extern long I830GetExcessMemoryAllocations(ScrnInfoPtr pScrn);
-extern Bool I830Allocate2DMemory(ScrnInfoPtr pScrn, const int flags);
-extern Bool I830DoPoolAllocation(ScrnInfoPtr pScrn, I830MemPool *pool);
-extern Bool I830FixupOffsets(ScrnInfoPtr pScrn);
-extern Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
-extern Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
-extern unsigned long I830AllocVidMem(ScrnInfoPtr pScrn, I830MemRange *result,
-				     I830MemPool *pool, long size,
-				     unsigned long alignment, int flags);
-extern void I830FreeVidMem(ScrnInfoPtr pScrn, I830MemRange *range);
+Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
+Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
 
-extern void I830PrintAllRegisters(I830RegPtr i830Reg);
-extern void I830ReadAllRegisters(I830Ptr pI830, I830RegPtr i830Reg);
-
-extern void I830ChangeFrontbuffer(ScrnInfoPtr pScrn,int buffer);
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
-extern Bool I830FixOffset(ScrnInfoPtr pScrn, I830MemRange *mem);
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
 
@@ -623,6 +624,9 @@ extern void i830MarkSync(ScrnInfoPtr pScrn);
 extern void i830WaitSync(ScrnInfoPtr pScrn);
 
 /* i830_memory.c */
+Bool i830_bind_all_memory(ScrnInfoPtr pScrn);
+Bool i830_unbind_all_memory(ScrnInfoPtr pScrn);
+
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
 #ifdef I830_USE_XAA
@@ -672,23 +676,8 @@ extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];
 
 /* Flags for memory allocation function */
-#define FROM_ANYWHERE			0x00000000
-#define FROM_POOL_ONLY			0x00000001
-#define FROM_NEW_ONLY			0x00000002
-#define FROM_MASK			0x0000000f
-
-#define ALLOCATE_AT_TOP			0x00000010
-#define ALLOCATE_AT_BOTTOM		0x00000020
-#define FORCE_GAPS			0x00000040
-
-#define NEED_PHYSICAL_ADDR		0x00000100
-#define ALIGN_BOTH_ENDS			0x00000200
-#define FORCE_LOW			0x00000400
-
-#define ALLOC_NO_TILING			0x00001000
-#define ALLOC_INITIAL			0x00002000
-
-#define ALLOCATE_DRY_RUN		0x80000000
+#define NEED_PHYSICAL_ADDR		0x00000001
+#define ALIGN_BOTH_ENDS			0x00000002
 
 /* Chipset registers for VIDEO BIOS memory RW access */
 #define _855_DRAM_RW_CONTROL 0x58

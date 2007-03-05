@@ -31,7 +31,7 @@
 
 #include "xf86.h"
 #include "i830.h"
-#include "i830_xf86Modes.h"
+#include "xf86Modes.h"
 #include "i830_display.h"
 
 static void
@@ -341,7 +341,9 @@ static const xf86OutputFuncsRec i830_crt_output_funcs = {
     .restore = i830_crt_restore,
     .mode_valid = i830_crt_mode_valid,
     .mode_fixup = i830_crt_mode_fixup,
+    .prepare = i830_output_prepare,
     .mode_set = i830_crt_mode_set,
+    .commit = i830_output_commit,
     .detect = i830_crt_detect,
     .get_modes = i830_ddc_get_modes,
     .destroy = i830_crt_destroy

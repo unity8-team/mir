@@ -1310,7 +1310,7 @@ i830_tv_detect(xf86OutputPtr output)
     }
 }
 
-struct input_res {
+static struct input_res {
     char *name;
     int w, h;	
 } input_res_table[] = 
@@ -1406,7 +1406,9 @@ static const xf86OutputFuncsRec i830_tv_output_funcs = {
     .restore = i830_tv_restore,
     .mode_valid = i830_tv_mode_valid,
     .mode_fixup = i830_tv_mode_fixup,
+    .prepare = i830_output_prepare,
     .mode_set = i830_tv_mode_set,
+    .commit = i830_output_commit,
     .detect = i830_tv_detect,
     .get_modes = i830_tv_get_modes,
     .destroy = i830_tv_destroy

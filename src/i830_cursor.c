@@ -88,20 +88,20 @@ I830SetPipeCursorBase (xf86CrtcPtr crtc)
     I830Ptr		pI830 = I830PTR(pScrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int			cursor_base = (pipe == 0 ? CURSOR_A_BASE : CURSOR_B_BASE);
-    I830MemRange	*cursor_mem;
+    i830_memory		*cursor_mem;
 
     if (pipe >= xf86_config->num_crtc)
 	FatalError("Bad pipe number for cursor base setting\n");
 
     if (pI830->CursorIsARGB)
-	cursor_mem = &intel_crtc->cursor_mem_argb;
+	cursor_mem = intel_crtc->cursor_mem_argb;
     else
-	cursor_mem = &intel_crtc->cursor_mem;
+	cursor_mem = intel_crtc->cursor_mem;
 
     if (pI830->CursorNeedsPhysical) {
-	OUTREG(cursor_base, cursor_mem->Physical);
+	OUTREG(cursor_base, cursor_mem->bus_addr);
     } else {
-	OUTREG(cursor_base, cursor_mem->Start);
+	OUTREG(cursor_base, cursor_mem->offset);
     }
 }
 
@@ -281,7 +281,7 @@ I830CRTCLoadCursorImage(xf86CrtcPtr crtc, unsigned char *src)
    ScrnInfoPtr pScrn = crtc->scrn;
    I830Ptr pI830 = I830PTR(pScrn);
    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-   CARD8 *pcurs = (CARD8 *) (pI830->FbBase + intel_crtc->cursor_mem.Start);
+   CARD8 *pcurs = (CARD8 *) (pI830->FbBase + intel_crtc->cursor_mem->offset);
    int x, y;
 
    DPRINTF(PFX, "I830LoadCursorImage\n");
@@ -372,7 +372,7 @@ static Bool I830UseHWCursorARGB (ScreenPtr pScreen, CursorPtr pCurs)
    for (i = 0; i < xf86_config->num_crtc; i++) {
       I830CrtcPrivatePtr intel_crtc = xf86_config->crtc[i]->driver_private;
 
-      if (!intel_crtc->cursor_mem_argb.Start)
+      if (intel_crtc->cursor_mem_argb == NULL)
 	 return FALSE;
    }
 
@@ -389,7 +389,8 @@ static void I830CRTCLoadCursorARGB (xf86CrtcPtr crtc, CursorPtr pCurs)
 {
    I830Ptr pI830 = I830PTR(crtc->scrn);
    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-   CARD32 *dst = (CARD32 *) (pI830->FbBase + intel_crtc->cursor_mem_argb.Start);
+   CARD32 *dst = (CARD32 *) (pI830->FbBase +
+			     intel_crtc->cursor_mem_argb->offset);
    CARD32 *image = (CARD32 *)pCurs->bits->argb;
    int x, y, w, h;
 

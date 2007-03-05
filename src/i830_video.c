@@ -184,9 +184,9 @@ void exaMoveInPixmap (PixmapPtr pPixmap);
 	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);		\
       }									\
       if (IS_I965G(pI830)) 						\
-         OUT_RING(pI830->OverlayMem->Start | OFC_UPDATE); 		\
+         OUT_RING(pI830->overlay_regs->offset | OFC_UPDATE); 		\
       else								\
-	 OUT_RING(pI830->OverlayMem->Physical | OFC_UPDATE);		\
+	 OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);		\
       OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);		\
       OUT_RING(MI_NOOP);						\
       ADVANCE_LP_RING();						\
@@ -202,9 +202,9 @@ void exaMoveInPixmap (PixmapPtr pPixmap);
          OUT_RING(MI_NOOP);    						\
 	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_OFF);		\
          if (IS_I965G(pI830)) 						\
-            OUT_RING(pI830->OverlayMem->Start | OFC_UPDATE); 		\
+            OUT_RING(pI830->overlay_regs->offset | OFC_UPDATE);		\
          else								\
-	    OUT_RING(pI830->OverlayMem->Physical | OFC_UPDATE);		\
+	    OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);	\
 	 OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);	\
 	 OUT_RING(MI_NOOP);						\
 	 ADVANCE_LP_RING();						\
@@ -472,7 +472,9 @@ I830InitVideo(ScreenPtr pScreen)
    }
 
    /* Set up overlay video if we can do it at this depth. */
-   if (!IS_I965G(pI830) && pScrn->bitsPerPixel != 8) {
+   if (!IS_I965G(pI830) && pScrn->bitsPerPixel != 8 &&
+       pI830->overlay_regs != NULL)
+   {
       overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
       if (overlayAdaptor != NULL) {
 	 adaptors[num_adaptors++] = overlayAdaptor;
@@ -496,10 +498,10 @@ I830ResetVideo(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
    I830OverlayRegPtr overlay =
-	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
+	 (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
 
    OVERLAY_DEBUG("I830ResetVideo: base: %p, offset: 0x%lx, obase: %p\n",
-	   pI830->FbBase, pI830->OverlayMem->Start, overlay);
+	   pI830->FbBase, pI830->overlay_regs->offset, overlay);
    /*
     * Default to maximum image size in YV12
     */
@@ -925,8 +927,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 {
    I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
    I830Ptr pI830 = I830PTR(pScrn);
-   I830OverlayRegPtr overlay =
-	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
+   I830OverlayRegPtr overlay;
 
    if (pPriv->textured) {
       /* XXX: Currently the brightness/saturation attributes aren't hooked up.
@@ -936,11 +937,15 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       return Success;
    }
 
+   overlay = (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
+
    if (attribute == xvBrightness) {
       if ((value < -128) || (value > 127))
 	 return BadValue;
       pPriv->brightness = value;
       overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
+      if (*pI830->overlayOn)
+         OVERLAY_UPDATE;
       OVERLAY_DEBUG("BRIGHTNESS\n");
       OVERLAY_UPDATE;
    } else if (attribute == xvContrast) {
@@ -949,7 +954,8 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       pPriv->contrast = value;
       overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
       OVERLAY_DEBUG("CONTRAST\n");
-      OVERLAY_UPDATE;
+      if (*pI830->overlayOn)
+         OVERLAY_UPDATE;
    } else if (attribute == xvSaturation) {
       if ((value < 0) || (value > 1023))
 	 return BadValue;
@@ -970,7 +976,8 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       else 
          overlay->OCONFIG |= OVERLAY_PIPE_B;
       OVERLAY_DEBUG("PIPE CHANGE\n");
-      OVERLAY_UPDATE;
+      if (*pI830->overlayOn)
+         OVERLAY_UPDATE;
    } else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
       pPriv->gamma0 = value; 
    } else if (attribute == xvGamma1 && (IS_I9XX(pI830))) {
@@ -997,7 +1004,8 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	 break;
       }
       OVERLAY_DEBUG("COLORKEY\n");
-      OVERLAY_UPDATE;
+      if (*pI830->overlayOn)
+         OVERLAY_UPDATE;
       REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
    } else if(attribute == xvDoubleBuffer) {
       if ((value < 0) || (value > 1))
@@ -1015,13 +1023,8 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
         attribute == xvGamma3 ||
         attribute == xvGamma4 ||
         attribute == xvGamma5) && (IS_I9XX(pI830))) {
-	CARD32 r = overlay->OCMD & OVERLAY_ENABLE;
         OVERLAY_DEBUG("GAMMA\n");
-        overlay->OCMD &= ~OVERLAY_ENABLE;
-        OVERLAY_UPDATE;
 	I830UpdateGamma(pScrn);
-        overlay->OCMD |= r;
-        OVERLAY_UPDATE;
    }
 
    return Success;
@@ -1553,7 +1556,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
    I830OverlayRegPtr overlay =
-	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
+	 (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
    unsigned int swidth;
    unsigned int mask, shift, offsety, offsetu;
    int tmp;
@@ -2076,7 +2079,8 @@ I830AllocateMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear, int size,
       /* Converts an offset from XAA's linear allocator to an offset from the
        * start of fb.
        */
-#define XAA_OFFSET_TO_OFFSET(x) (pI830->FrontBuffer.Start + (x * pI830->cpp))
+#define XAA_OFFSET_TO_OFFSET(x) \
+	(pI830->front_buffer->offset + (x * pI830->cpp))
 
       /* The XFree86 linear allocator operates in units of screen pixels,
        * sadly.
@@ -2159,8 +2163,7 @@ I830PutImage(ScrnInfoPtr pScrn,
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-   I830OverlayRegPtr overlay =
-	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
+   I830OverlayRegPtr overlay;
    PixmapPtr pPixmap;
    INT32 x1, x2, y1, y2;
    int srcPitch, srcPitch2 = 0, dstPitch, destId;
@@ -2168,6 +2171,12 @@ I830PutImage(ScrnInfoPtr pScrn,
    BoxRec dstBox;
    int pitchAlignMask;
    int extraLinear;
+
+   if (pPriv->textured)
+       overlay = NULL;
+   else
+       overlay = (I830OverlayRegPtr) (pI830->FbBase + 
+	       pI830->overlay_regs->offset);
 
 #if 0
    ErrorF("I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
@@ -2700,7 +2709,7 @@ I830DisplaySurface(XF86SurfacePtr surface,
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pI830Priv = GET_PORT_PRIVATE(pScrn);
    I830OverlayRegPtr overlay =
-	 (I830OverlayRegPtr) (pI830->FbBase + pI830->OverlayMem->Start);
+	 (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
    INT32 x1, y1, x2, y2;
    INT32 loops = 0;
    BoxRec dstBox;

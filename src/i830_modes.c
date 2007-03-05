@@ -52,7 +52,7 @@
 #include "X11/Xatom.h"
 #include "i830.h"
 #include "i830_display.h"
-#include "i830_xf86Modes.h"
+#include "xf86Modes.h"
 #include <randrstr.h>
 
 DisplayModePtr

@@ -41,7 +41,7 @@
 #include "i830_bios.h"
 #include "i830_display.h"
 #include "i830_debug.h"
-#include "i830_xf86Modes.h"
+#include "xf86Modes.h"
 
 typedef struct {
     /* given values */    
@@ -85,10 +85,15 @@ typedef struct {
 #define I8XX_M2_MAX		     16
 #define I8XX_P_MIN		      4
 #define I8XX_P_MAX		    128
+/* LVDS p1 value can go from 1 to 6, while DAC goes from 2 to 33.  These
+ * values below get 2 added in the clock calculations.
+ */
 #define I8XX_P1_MIN		      0
-#define I8XX_P1_MAX		     30
-#define I8XX_P2_SLOW		      1
-#define I8XX_P2_FAST		      0
+#define I8XX_P1_MAX		     31
+#define I8XX_P1_LVDS_MIN	      -1
+#define I8XX_P1_LVDS_MAX	      4
+#define I8XX_P2_SLOW		      1	/* this is a bit shift amount */
+#define I8XX_P2_FAST		      0	/* this is a bit shift amount */
 #define I8XX_P2_SLOW_LIMIT	 165000
 
 #define I9XX_DOT_MIN		  20000
@@ -116,12 +121,13 @@ typedef struct {
 #define I9XX_P2_LVDS_FAST		      7
 #define I9XX_P2_LVDS_SLOW_LIMIT		 112000
 
-#define INTEL_LIMIT_I8XX	    0
-#define INTEL_LIMIT_I9XX_SDVO_DAC   1
-#define INTEL_LIMIT_I9XX_LVDS	    2
+#define INTEL_LIMIT_I8XX_DVO_DAC    0
+#define INTEL_LIMIT_I8XX_LVDS	    1
+#define INTEL_LIMIT_I9XX_SDVO_DAC   2
+#define INTEL_LIMIT_I9XX_LVDS	    3
 
 static const intel_limit_t intel_limits[] = {
-    {
+    { /* INTEL_LIMIT_I8XX_DVO_DAC */
         .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
         .vco = { .min = I8XX_VCO_MIN,		.max = I8XX_VCO_MAX },
         .n   = { .min = I8XX_N_MIN,		.max = I8XX_N_MAX },
@@ -133,7 +139,19 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_SLOW,	.p2_fast = I8XX_P2_FAST },
     },
-    {
+    { /* INTEL_LIMIT_I8XX_LVDS */
+        .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
+        .vco = { .min = I8XX_VCO_MIN,		.max = I8XX_VCO_MAX },
+        .n   = { .min = I8XX_N_MIN,		.max = I8XX_N_MAX },
+        .m   = { .min = I8XX_M_MIN,		.max = I8XX_M_MAX },
+        .m1  = { .min = I8XX_M1_MIN,		.max = I8XX_M1_MAX },
+        .m2  = { .min = I8XX_M2_MIN,		.max = I8XX_M2_MAX },
+        .p   = { .min = I8XX_P_MIN,		.max = I8XX_P_MAX },
+        .p1  = { .min = I8XX_P1_LVDS_MIN,	.max = I8XX_P1_LVDS_MAX },
+	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
+		 .p2_slow = I8XX_P2_FAST,	.p2_fast = I8XX_P2_FAST },
+    },
+    { /* INTEL_LIMIT_I9XX_SDVO_DAC */
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
         .vco = { .min = I9XX_VCO_MIN,		.max = I9XX_VCO_MAX },
         .n   = { .min = I9XX_N_MIN,		.max = I9XX_N_MAX },
@@ -145,7 +163,7 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
     },
-    {
+    { /* INTEL_LIMIT_I9XX_LVDS */
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
         .vco = { .min = I9XX_VCO_MIN,		.max = I9XX_VCO_MAX },
         .n   = { .min = I9XX_N_MIN,		.max = I9XX_N_MAX },
@@ -168,15 +186,18 @@ static const intel_limit_t *intel_limit (xf86CrtcPtr crtc)
     I830Ptr	pI830 = I830PTR(pScrn);
     const intel_limit_t *limit;
 
-    if (IS_I9XX(pI830)) 
-    {
+    if (IS_I9XX(pI830)) {
 	if (i830PipeHasType (crtc, I830_OUTPUT_LVDS))
 	    limit = &intel_limits[INTEL_LIMIT_I9XX_LVDS];
 	else
 	    limit = &intel_limits[INTEL_LIMIT_I9XX_SDVO_DAC];
+    } else {
+	if (i830PipeHasType (crtc, I830_OUTPUT_LVDS))
+	    limit = &intel_limits[INTEL_LIMIT_I8XX_LVDS];
+	else
+	    limit = &intel_limits[INTEL_LIMIT_I8XX_DVO_DAC];
     }
-    else
-        limit = &intel_limits[INTEL_LIMIT_I8XX];
+
     return limit;
 }
 
@@ -338,27 +359,35 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     int pipe = intel_crtc->pipe;
-    unsigned long Start;
+    unsigned long Start, Offset;
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 
-    if (crtc->rotatedPixmap != NULL) {
-	Start = (char *)crtc->rotatedPixmap->devPrivate.ptr -
-	    (char *)pI830->FbBase;
+    Offset = ((y * pScrn->displayWidth + x) * pI830->cpp);
+    if (pI830->front_buffer == NULL) {
+	/* During startup we may be called as part of monitor detection while
+	 * there is no memory allocation done, so just supply a dummy base
+	 * address.
+	 */
+	Start = 0;
+    } else if (crtc->rotatedData != NULL) {
+	/* offset is done by shadow painting code, not here */
+	Start = (char *)crtc->rotatedData - (char *)pI830->FbBase;
+	Offset = 0;
     } else if (I830IsPrimary(pScrn)) {
-	Start = pI830->FrontBuffer.Start;
+	Start = pI830->front_buffer->offset;
     } else {
 	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-	Start = pI8301->FrontBuffer2.Start;
+	Start = pI8301->front_buffer_2->offset;
     }
 
     if (IS_I965G(pI830)) {
-        OUTREG(dspbase, ((y * pScrn->displayWidth + x) * pI830->cpp));
+        OUTREG(dspbase, Offset);
 	(void) INREG(dspbase);
         OUTREG(dspsurf, Start);
 	(void) INREG(dspsurf);
     } else {
-	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+	OUTREG(dspbase, Start + Offset);
 	(void) INREG(dspbase);
     }
 
@@ -609,11 +638,115 @@ i830_crtc_unlock (xf86CrtcPtr crtc)
 #endif
 }
 
+static void
+i830_crtc_prepare (xf86CrtcPtr crtc)
+{
+    crtc->funcs->dpms (crtc, DPMSModeOff);
+}
+
+static void
+i830_crtc_commit (xf86CrtcPtr crtc)
+{
+    crtc->funcs->dpms (crtc, DPMSModeOn);
+}
+
+void
+i830_output_prepare (xf86OutputPtr output)
+{
+    output->funcs->dpms (output, DPMSModeOff);
+}
+
+void
+i830_output_commit (xf86OutputPtr output)
+{
+    output->funcs->dpms (output, DPMSModeOn);
+}
+
 static Bool
 i830_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
     return TRUE;
+}
+
+/** Returns the core display clock speed for i830 - i945 */
+static int
+i830_get_core_clock_speed(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    /* Core clock values taken from the published datasheets.
+     * The 830 may go up to 166 Mhz, which we should check.
+     */
+    if (IS_I945G(pI830))
+	return 400000;
+    else if (IS_I915G(pI830))
+	return 333000;
+    else if (IS_I945GM(pI830) || IS_845G(pI830))
+	return 200000;
+    else if (IS_I915GM(pI830)) {
+	CARD16 gcfgc = pciReadWord(pI830->PciTag, I915_GCFGC);
+
+	if (gcfgc & I915_LOW_FREQUENCY_ENABLE)
+	    return 133000;
+	else {
+	    switch (gcfgc & I915_DISPLAY_CLOCK_MASK) {
+	    case I915_DISPLAY_CLOCK_333_MHZ:
+		return 333000;
+	    default:
+	    case I915_DISPLAY_CLOCK_190_200_MHZ:
+		return 190000;
+	    }
+	}
+    } else if (IS_I865G(pI830))
+	return 266000;
+    else if (IS_I855(pI830)) {
+	PCITAG bridge = pciTag(0, 0, 0); /* This is always the host bridge */
+	CARD16 hpllcc = pciReadWord(bridge, I855_HPLLCC);
+
+	/* Assume that the hardware is in the high speed state.  This
+	 * should be the default.
+	 */
+	switch (hpllcc & I855_CLOCK_CONTROL_MASK) {
+	case I855_CLOCK_133_200:
+	case I855_CLOCK_100_200:
+	    return 200000;
+	case I855_CLOCK_166_250:
+	    return 250000;
+	case I855_CLOCK_100_133:
+	    return 133000;
+	}
+    } else /* 852, 830 */
+	return 133000;
+
+    return 0; /* Silence gcc warning */
+}
+
+/**
+ * Return the pipe currently connected to the panel fitter,
+ * or -1 if the panel fitter is not present or not in use
+ */
+static int
+i830_panel_fitter_pipe (I830Ptr	pI830)
+{
+    CARD32  pfit_control;
+    
+    /* i830 doesn't have a panel fitter */
+    if (IS_I830(pI830))
+	return -1;
+    
+    pfit_control = INREG(PFIT_CONTROL);
+    
+    /* See if the panel fitter is in use */
+    if ((pfit_control & PFIT_ENABLE) == 0)
+	return -1;
+    
+    /* 965 can place panel fitter on either pipe */
+    if (IS_I965G(pI830))
+	return (pfit_control >> 29) & 0x3;
+
+    /* older chips can only use pipe 1 */
+    return 1;
 }
 
 /**
@@ -732,7 +865,15 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	if (IS_I965G(pI830))
 	    dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
     } else {
-	dpll |= clock.p1 << 16;
+	if (is_lvds) {
+	    /* map (-1 to 4) to ((1 << 0) to (1 << 5)). */
+	    dpll |= (1 << (clock.p1 + 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+	} else {
+	    if (clock.p1 == 0)
+		dpll |= PLL_P1_DIVIDE_BY_TWO;
+	    else
+		dpll |= clock.p1 << DPLL_FPA01_P1_POST_DIV_SHIFT;
+	}
 	dpll |= clock.p2 << 23;
     }
 
@@ -774,23 +915,15 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	dspcntr |= DISPPLANE_SEL_PIPE_B;
 
     pipeconf = INREG(pipeconf_reg);
-    if (pipe == 0) 
+    if (pipe == 0 && !IS_I965G(pI830))
     {
-	/*
-	 * The docs say this is needed when the dot clock is > 90% of the
-	 * core speed. Core speeds are indicated by bits in the PCI
-	 * config space, but that's a pain to go read, so we just guess
-	 * based on the hardware age. AGP hardware is assumed to run
-	 * at 133MHz while PCI-E hardware is assumed to run at 200MHz
+	/* Enable pixel doubling when the dot clock is > 90% of the (display)
+	 * core speed.
+	 *
+	 * XXX: No double-wide on 915GM pipe B. Is that the only reason for the
+	 * pipe == 0 check?
 	 */
-	int core_clock;
-	
-	if (IS_I9XX(pI830))
-	    core_clock = 200000;
-	else
-	    core_clock = 133000;
-	
-	if (mode->Clock > core_clock * 9 / 10)
+	if (mode->Clock > i830_get_core_clock_speed(pScrn) * 9 / 10)
 	    pipeconf |= PIPEACONF_DOUBLE_WIDE;
 	else
 	    pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
@@ -811,7 +944,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     }
     
     /* Disable the panel fitter if it was on our pipe */
-    if (!IS_I830(pI830) && ((INREG(PFIT_CONTROL) >> 29) & 0x3) == pipe)
+    if (i830_panel_fitter_pipe (pI830) == pipe)
 	OUTREG(PFIT_CONTROL, 0);
 
     i830PrintPll("chosen", &clock);
@@ -914,25 +1047,22 @@ i830_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 }
 
 /**
- * Creates a locked-in-framebuffer pixmap of the given width and height for
- * this CRTC's rotated shadow framebuffer.
- *
- * The current implementation uses fixed buffers allocated at startup at the
- * maximal size.
+ * Allocates memory for a locked-in-framebuffer shadow of the given
+ * width and height for this CRTC's rotated shadow framebuffer.
  */
-static PixmapPtr
-i830_crtc_shadow_create(xf86CrtcPtr crtc, int width, int height)
+ 
+static void *
+i830_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     ScreenPtr pScreen = pScrn->pScreen;
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     unsigned long rotate_pitch;
-    PixmapPtr rotate_pixmap;
     unsigned long rotate_offset;
     int align = KB(4), size;
 
-    rotate_pitch = pI830->displayWidth * pI830->cpp;
+    rotate_pitch = pScrn->displayWidth * pI830->cpp;
     size = rotate_pitch * height;
 
 #ifdef I830_USE_EXA
@@ -972,17 +1102,37 @@ i830_crtc_shadow_create(xf86CrtcPtr crtc, int width, int height)
 		       "Couldn't allocate shadow memory for rotated CRTC\n");
 	    return NULL;
 	}
-	rotate_offset = pI830->FrontBuffer.Start +
+	rotate_offset = pI830->front_buffer->offset +
 	    intel_crtc->rotate_mem_xaa->offset * pI830->cpp;
     }
 #endif /* I830_USE_XAA */
+
+    return pI830->FbBase + rotate_offset;
+}
+    
+/**
+ * Creates a pixmap for this CRTC's rotated shadow framebuffer.
+ */
+static PixmapPtr
+i830_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    unsigned long rotate_pitch;
+    PixmapPtr rotate_pixmap;
+
+    if (!data)
+	data = i830_crtc_shadow_allocate (crtc, width, height);
+    
+    rotate_pitch = pScrn->displayWidth * pI830->cpp;
 
     rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
 					   width, height,
 					   pScrn->depth,
 					   pScrn->bitsPerPixel,
 					   rotate_pitch,
-					   pI830->FbBase + rotate_offset);
+					   data);
+
     if (rotate_pixmap == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Couldn't allocate shadow pixmap for rotated CRTC\n");
@@ -991,25 +1141,30 @@ i830_crtc_shadow_create(xf86CrtcPtr crtc, int width, int height)
 }
 
 static void
-i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap)
+i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
 
-    FreeScratchPixmapHeader(rotate_pixmap);
+    if (rotate_pixmap)
+	FreeScratchPixmapHeader(rotate_pixmap);
+    
+    if (data)
+    {
 #ifdef I830_USE_EXA
-    if (pI830->useEXA && intel_crtc->rotate_mem_exa != NULL) {
-	exaOffscreenFree(pScrn->pScreen, intel_crtc->rotate_mem_exa);
-	intel_crtc->rotate_mem_exa = NULL;
-    }
+	if (pI830->useEXA && intel_crtc->rotate_mem_exa != NULL) {
+	    exaOffscreenFree(pScrn->pScreen, intel_crtc->rotate_mem_exa);
+	    intel_crtc->rotate_mem_exa = NULL;
+	}
 #endif /* I830_USE_EXA */
 #ifdef I830_USE_XAA
-    if (!pI830->useEXA) {
-	xf86FreeOffscreenLinear(intel_crtc->rotate_mem_xaa);
-	intel_crtc->rotate_mem_xaa = NULL;
-    }
+	if (!pI830->useEXA) {
+	    xf86FreeOffscreenLinear(intel_crtc->rotate_mem_xaa);
+	    intel_crtc->rotate_mem_xaa = NULL;
+	}
 #endif /* I830_USE_XAA */
+    }
 }
 
 
@@ -1176,34 +1331,58 @@ i830_crtc_clock_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
     clock.m1 = (fp & FP_M1_DIV_MASK) >> FP_M1_DIV_SHIFT;
     clock.m2 = (fp & FP_M2_DIV_MASK) >> FP_M2_DIV_SHIFT;
     clock.n = (fp & FP_N_DIV_MASK) >> FP_N_DIV_SHIFT;
-    clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK) >>
-		   DPLL_FPA01_P1_POST_DIV_SHIFT);
-    switch (dpll & DPLL_MODE_MASK) {
-    case DPLLB_MODE_DAC_SERIAL:
-	clock.p2 = dpll & DPLL_DAC_SERIAL_P2_CLOCK_DIV_5 ? 5 : 10;
-	break;
-    case DPLLB_MODE_LVDS:
-	clock.p2 = dpll & DPLLB_LVDS_P2_CLOCK_DIV_7 ? 7 : 14;
-	break;
-    default:
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Unknown DPLL mode %08x in programmed mode\n",
-		   (int)(dpll & DPLL_MODE_MASK));
-	return 0;
-    }
-    
-    /* XXX: Handle the 100Mhz refclk */
-    if (IS_I9XX(pI830))
-	i9xx_clock(96000, &clock);
-    else
-	i9xx_clock(48000, &clock);
+    if (IS_I9XX(pI830)) {
+	clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK) >>
+		       DPLL_FPA01_P1_POST_DIV_SHIFT);
 
-    if (!i830PllIsValid(crtc, &clock)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Bad clock found programmed in pipe %c\n",
-		   pipe == 0 ? 'A' : 'B');
-	i830PrintPll("", &clock);
+	switch (dpll & DPLL_MODE_MASK) {
+	case DPLLB_MODE_DAC_SERIAL:
+	    clock.p2 = dpll & DPLL_DAC_SERIAL_P2_CLOCK_DIV_5 ? 5 : 10;
+	    break;
+	case DPLLB_MODE_LVDS:
+	    clock.p2 = dpll & DPLLB_LVDS_P2_CLOCK_DIV_7 ? 7 : 14;
+	    break;
+	default:
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Unknown DPLL mode %08x in programmed mode\n",
+		       (int)(dpll & DPLL_MODE_MASK));
+	    return 0;
+	}
+
+	/* XXX: Handle the 100Mhz refclk */
+	i9xx_clock(96000, &clock);
+    } else {
+	Bool is_lvds = (pipe == 1) && (INREG(LVDS) & LVDS_PORT_EN);
+
+	if (is_lvds) {
+	    /* Map the bit number set from (1, 6) to (-1, 4). */
+	    clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS) >>
+			   DPLL_FPA01_P1_POST_DIV_SHIFT) - 2;
+	    clock.p2 = 0;
+	} else {
+	    if (dpll & PLL_P1_DIVIDE_BY_TWO) {
+		clock.p1 = 0;
+	    } else {
+		/* Map the number in the field to (1, 31) */
+		clock.p1 = ((dpll & DPLL_FPA01_P1_POST_DIV_MASK_I830) >>
+		    DPLL_FPA01_P1_POST_DIV_SHIFT);
+	    }
+	    if (dpll & PLL_P2_DIVIDE_BY_4)
+		clock.p2 = 1;
+	    else
+		clock.p2 = 0;
+	}
+
+	/* XXX: Deal with other refclocks */
+	i8xx_clock(48000, &clock);
     }
+
+    /* XXX: It would be nice to validate the clocks, but we can't reuse
+     * i830PllIsValid() because it relies on the xf86_config output
+     * configuration being accurate, which it isn't necessarily.
+     */
+    if (0)
+	i830PrintPll("probed", &clock);
 
     return clock.dot;
 }
@@ -1224,8 +1403,6 @@ i830_crtc_mode_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
     mode = xcalloc(1, sizeof(DisplayModeRec));
     if (mode == NULL)
 	return NULL;
-
-    memset(mode, 0, sizeof(*mode));
 
     mode->Clock = i830_crtc_clock_get(pScrn, crtc);
     mode->HDisplay = (htot & 0xffff) + 1;
@@ -1249,9 +1426,12 @@ static const xf86CrtcFuncsRec i830_crtc_funcs = {
     .lock = i830_crtc_lock,
     .unlock = i830_crtc_unlock,
     .mode_fixup = i830_crtc_mode_fixup,
+    .prepare = i830_crtc_prepare,
     .mode_set = i830_crtc_mode_set,
+    .commit = i830_crtc_commit,
     .gamma_set = i830_crtc_gamma_set,
     .shadow_create = i830_crtc_shadow_create,
+    .shadow_allocate = i830_crtc_shadow_allocate,
     .shadow_destroy = i830_crtc_shadow_destroy,
     .destroy = NULL, /* XXX */
 };
