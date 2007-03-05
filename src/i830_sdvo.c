@@ -647,16 +647,20 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     }
 
     /* Set the SDVO control regs. */
-    sdvox = INREG(dev_priv->output_device);
-    switch (dev_priv->output_device) {
-    case SDVOB:
-	sdvox &= SDVOB_PRESERVE_MASK;
-	break;
-    case SDVOC:
-	sdvox &= SDVOC_PRESERVE_MASK;
-	break;
+    if (IS_I965GM(pI830)) {
+	sdvox = SDVO_BORDER_ENABLE;
+    } else {
+	sdvox = INREG(dev_priv->output_device);
+	switch (dev_priv->output_device) {
+	case SDVOB:
+	    sdvox &= SDVOB_PRESERVE_MASK;
+	    break;
+	case SDVOC:
+	    sdvox &= SDVOC_PRESERVE_MASK;
+	    break;
+	}
+	sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
     }
-    sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
     if (intel_crtc->pipe == 1)
 	sdvox |= SDVO_PIPE_B_SELECT;
 
@@ -1060,7 +1064,9 @@ static const xf86OutputFuncsRec i830_sdvo_output_funcs = {
     .restore = i830_sdvo_restore,
     .mode_valid = i830_sdvo_mode_valid,
     .mode_fixup = i830_sdvo_mode_fixup,
+    .prepare = i830_output_prepare,
     .mode_set = i830_sdvo_mode_set,
+    .commit = i830_output_commit,
     .detect = i830_sdvo_detect,
     .get_modes = i830_sdvo_get_modes,
     .destroy = i830_sdvo_destroy

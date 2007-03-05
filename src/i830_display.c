@@ -613,6 +613,30 @@ i830_crtc_unlock (xf86CrtcPtr crtc)
 #endif
 }
 
+static void
+i830_crtc_prepare (xf86CrtcPtr crtc)
+{
+    crtc->funcs->dpms (crtc, DPMSModeOff);
+}
+
+static void
+i830_crtc_commit (xf86CrtcPtr crtc)
+{
+    crtc->funcs->dpms (crtc, DPMSModeOn);
+}
+
+void
+i830_output_prepare (xf86OutputPtr output)
+{
+    output->funcs->dpms (output, DPMSModeOff);
+}
+
+void
+i830_output_commit (xf86OutputPtr output)
+{
+    output->funcs->dpms (output, DPMSModeOn);
+}
+
 static Bool
 i830_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
@@ -1387,7 +1411,9 @@ static const xf86CrtcFuncsRec i830_crtc_funcs = {
     .lock = i830_crtc_lock,
     .unlock = i830_crtc_unlock,
     .mode_fixup = i830_crtc_mode_fixup,
+    .prepare = i830_crtc_prepare,
     .mode_set = i830_crtc_mode_set,
+    .commit = i830_crtc_commit,
     .gamma_set = i830_crtc_gamma_set,
     .shadow_create = i830_crtc_shadow_create,
     .shadow_allocate = i830_crtc_shadow_allocate,
