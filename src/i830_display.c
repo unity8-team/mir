@@ -359,10 +359,11 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     int pipe = intel_crtc->pipe;
-    unsigned long Start;
+    unsigned long Start, Offset;
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 
+    Offset = ((y * pScrn->displayWidth + x) * pI830->cpp);
     if (pI830->front_buffer == NULL) {
 	/* During startup we may be called as part of monitor detection while
 	 * there is no memory allocation done, so just supply a dummy base
@@ -370,7 +371,9 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	 */
 	Start = 0;
     } else if (crtc->rotatedData != NULL) {
+	/* offset is done by shadow painting code, not here */
 	Start = (char *)crtc->rotatedData - (char *)pI830->FbBase;
+	Offset = 0;
     } else if (I830IsPrimary(pScrn)) {
 	Start = pI830->front_buffer->offset;
     } else {
@@ -379,12 +382,12 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     }
 
     if (IS_I965G(pI830)) {
-        OUTREG(dspbase, ((y * pScrn->displayWidth + x) * pI830->cpp));
+        OUTREG(dspbase, Offset);
 	(void) INREG(dspbase);
         OUTREG(dspsurf, Start);
 	(void) INREG(dspsurf);
     } else {
-	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+	OUTREG(dspbase, Start + Offset);
 	(void) INREG(dspbase);
     }
 }
