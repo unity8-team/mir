@@ -359,10 +359,11 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     int pipe = intel_crtc->pipe;
-    unsigned long Start;
+    unsigned long Start, Offset;
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 
+    Offset = ((y * pScrn->displayWidth + x) * pI830->cpp);
     if (pI830->front_buffer == NULL) {
 	/* During startup we may be called as part of monitor detection while
 	 * there is no memory allocation done, so just supply a dummy base
@@ -370,7 +371,9 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	 */
 	Start = 0;
     } else if (crtc->rotatedData != NULL) {
+	/* offset is done by shadow painting code, not here */
 	Start = (char *)crtc->rotatedData - (char *)pI830->FbBase;
+	Offset = 0;
     } else if (I830IsPrimary(pScrn)) {
 	Start = pI830->front_buffer->offset;
     } else {
@@ -379,12 +382,12 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     }
 
     if (IS_I965G(pI830)) {
-        OUTREG(dspbase, ((y * pScrn->displayWidth + x) * pI830->cpp));
+        OUTREG(dspbase, Offset);
 	(void) INREG(dspbase);
         OUTREG(dspsurf, Start);
 	(void) INREG(dspsurf);
     } else {
-	OUTREG(dspbase, Start + ((y * pScrn->displayWidth + x) * pI830->cpp));
+	OUTREG(dspbase, Start + Offset);
 	(void) INREG(dspbase);
     }
 }
@@ -608,6 +611,30 @@ i830_crtc_unlock (xf86CrtcPtr crtc)
 #ifdef XF86DRI
     I830DRIUnlock (crtc->scrn);
 #endif
+}
+
+static void
+i830_crtc_prepare (xf86CrtcPtr crtc)
+{
+    crtc->funcs->dpms (crtc, DPMSModeOff);
+}
+
+static void
+i830_crtc_commit (xf86CrtcPtr crtc)
+{
+    crtc->funcs->dpms (crtc, DPMSModeOn);
+}
+
+void
+i830_output_prepare (xf86OutputPtr output)
+{
+    output->funcs->dpms (output, DPMSModeOff);
+}
+
+void
+i830_output_commit (xf86OutputPtr output)
+{
+    output->funcs->dpms (output, DPMSModeOn);
 }
 
 static Bool
@@ -1384,7 +1411,9 @@ static const xf86CrtcFuncsRec i830_crtc_funcs = {
     .lock = i830_crtc_lock,
     .unlock = i830_crtc_unlock,
     .mode_fixup = i830_crtc_mode_fixup,
+    .prepare = i830_crtc_prepare,
     .mode_set = i830_crtc_mode_set,
+    .commit = i830_crtc_commit,
     .gamma_set = i830_crtc_gamma_set,
     .shadow_create = i830_crtc_shadow_create,
     .shadow_allocate = i830_crtc_shadow_allocate,

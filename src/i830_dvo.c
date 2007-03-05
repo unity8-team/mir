@@ -31,6 +31,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "xf86.h"
 #include "i830.h"
+#include "i830_display.h"
 #include "i810_reg.h"
 
 #include "sil164/sil164.h"
@@ -226,7 +227,9 @@ static const xf86OutputFuncsRec i830_dvo_output_funcs = {
     .restore = i830_dvo_restore,
     .mode_valid = i830_dvo_mode_valid,
     .mode_fixup = i830_dvo_mode_fixup,
+    .prepare = i830_output_prepare,
     .mode_set = i830_dvo_mode_set,
+    .commit = i830_output_commit,
     .detect = i830_dvo_detect,
     .get_modes = i830_ddc_get_modes,
     .destroy = i830_dvo_destroy
