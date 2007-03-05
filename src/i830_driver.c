@@ -2010,7 +2010,7 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
    drmI830Sarea *sarea;
 #endif
 
-   if (pI830->noAccel)
+   if (pI830->noAccel || !I830IsPrimary(pScrn))
       return;
 
 #ifdef XF86DRI

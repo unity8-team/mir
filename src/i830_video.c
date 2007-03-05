@@ -944,6 +944,8 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	 return BadValue;
       pPriv->brightness = value;
       overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
+      if (*pI830->overlayOn)
+         OVERLAY_UPDATE;
       OVERLAY_DEBUG("BRIGHTNESS\n");
       OVERLAY_UPDATE;
    } else if (attribute == xvContrast) {
@@ -952,7 +954,8 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       pPriv->contrast = value;
       overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
       OVERLAY_DEBUG("CONTRAST\n");
-      OVERLAY_UPDATE;
+      if (*pI830->overlayOn)
+         OVERLAY_UPDATE;
    } else if (attribute == xvSaturation) {
       if ((value < 0) || (value > 1023))
 	 return BadValue;
@@ -973,7 +976,8 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       else 
          overlay->OCONFIG |= OVERLAY_PIPE_B;
       OVERLAY_DEBUG("PIPE CHANGE\n");
-      OVERLAY_UPDATE;
+      if (*pI830->overlayOn)
+         OVERLAY_UPDATE;
    } else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
       pPriv->gamma0 = value; 
    } else if (attribute == xvGamma1 && (IS_I9XX(pI830))) {
@@ -1000,7 +1004,8 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	 break;
       }
       OVERLAY_DEBUG("COLORKEY\n");
-      OVERLAY_UPDATE;
+      if (*pI830->overlayOn)
+         OVERLAY_UPDATE;
       REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
    } else if(attribute == xvDoubleBuffer) {
       if ((value < 0) || (value > 1))
@@ -1018,13 +1023,8 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
         attribute == xvGamma3 ||
         attribute == xvGamma4 ||
         attribute == xvGamma5) && (IS_I9XX(pI830))) {
-	CARD32 r = overlay->OCMD & OVERLAY_ENABLE;
         OVERLAY_DEBUG("GAMMA\n");
-        overlay->OCMD &= ~OVERLAY_ENABLE;
-        OVERLAY_UPDATE;
 	I830UpdateGamma(pScrn);
-        overlay->OCMD |= r;
-        OVERLAY_UPDATE;
    }
 
    return Success;
