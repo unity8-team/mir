@@ -392,7 +392,9 @@ static const xf86OutputFuncsRec i830_lvds_output_funcs = {
     .restore = i830_lvds_restore,
     .mode_valid = i830_lvds_mode_valid,
     .mode_fixup = i830_lvds_mode_fixup,
+    .prepare = i830_output_prepare,
     .mode_set = i830_lvds_mode_set,
+    .commit = i830_output_commit,
     .detect = i830_lvds_detect,
     .get_modes = i830_lvds_get_modes,
 #ifdef RANDR_12_INTERFACE
