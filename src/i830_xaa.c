@@ -279,12 +279,14 @@ CheckTiling(ScrnInfoPtr pScrn)
    if (IS_I965G(pI830)) {
       if (pI830->bufferOffset == pScrn->fbOffset && pI830->front_tiled == FENCE_XMAJOR)
          tiled = 1;
-      if (pI830->bufferOffset == pI830->back_buffer->offset &&
+      if (pI830->back_buffer != NULL &&
+	  pI830->bufferOffset == pI830->back_buffer->offset &&
 	  pI830->back_tiled == FENCE_XMAJOR) {
          tiled = 1;
       }
       /* not really supported as it's always YMajor tiled */
-      if (pI830->bufferOffset == pI830->depth_buffer->offset &&
+      if (pI830->depth_buffer != NULL &&
+	  pI830->bufferOffset == pI830->depth_buffer->offset &&
 	  pI830->depth_tiled == FENCE_XMAJOR) {
          tiled = 1;
       }
