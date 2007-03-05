@@ -118,7 +118,8 @@ NVAccelGetCtxSurf2DFormatFromPixmap(PixmapPtr pPix, int *fmt_ret)
 {
 	switch (pPix->drawable.bitsPerPixel) {
 	case 32:
-		*fmt_ret = SURFACE_FORMAT_A8R8G8B8;
+		//*fmt_ret = SURFACE_FORMAT_A8R8G8B8;
+		*fmt_ret = 0xb; // SURFACE_FORMAT_Y32
 		break;
 	case 24:
 		*fmt_ret = SURFACE_FORMAT_X8R8G8B8;
