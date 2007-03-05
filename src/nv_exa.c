@@ -63,87 +63,6 @@ static void setM2MFDirection(NVPtr pNv, int dir)
 	}
 }
 
-static CARD32 getPitch(DrawablePtr pDrawable)
-{
-	return (pDrawable->width*(pDrawable->bitsPerPixel >> 3) + 63) & ~63;
-}
-
-static CARD32 getOffset(NVPtr pNv, DrawablePtr pDrawable)
-{
-	PixmapPtr pPixmap;
-	CARD32 offset;
-
-	if (pDrawable->type == DRAWABLE_WINDOW) {
-		offset = pNv->FB->offset - pNv->VRAMPhysical;
-	} else {
-		pPixmap = (PixmapPtr)pDrawable;
-		offset  = (CARD32)((unsigned long)pPixmap->devPrivate.ptr -
-				(unsigned long)pNv->FB->map);
-		offset += pNv->FB->offset - pNv->VRAMPhysical;
-	}
-
-	return offset;
-}
-
-static Bool
-NVAccelGetCtxSurf2DFormatFromPixmap(PixmapPtr pPix, int *fmt_ret)
-{
-	switch (pPix->drawable.bitsPerPixel) {
-	case 32:
-		*fmt_ret = SURFACE_FORMAT_A8R8G8B8;
-		break;
-	case 24:
-		*fmt_ret = SURFACE_FORMAT_X8R8G8B8;
-		break;
-	case 16:
-		*fmt_ret = SURFACE_FORMAT_R5G6B5;
-		break;
-	case 8:
-		*fmt_ret = SURFACE_FORMAT_Y8;
-		break;
-	default:
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
-static Bool
-NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPict, int *fmt_ret)
-{
-	switch (pPict->format) {
-	case PICT_a8r8g8b8:
-		*fmt_ret = SURFACE_FORMAT_A8R8G8B8;
-		break;
-	case PICT_x8r8g8b8:
-		*fmt_ret = SURFACE_FORMAT_X8R8G8B8;
-		break;
-	case PICT_r5g6b5:
-		*fmt_ret = SURFACE_FORMAT_R5G6B5;
-		break;
-	case PICT_a8:
-		*fmt_ret = SURFACE_FORMAT_Y8;
-		break;
-	default:
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
-static Bool
-NVAccelSetCtxSurf2D(NVPtr pNv, PixmapPtr psPix, PixmapPtr pdPix, int format)
-{
-	NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 4);
-	NVDmaNext (pNv, format);
-	NVDmaNext (pNv, ((uint32_t)exaGetPixmapPitch(pdPix) << 16) |
-			 (uint32_t)exaGetPixmapPitch(psPix));
-	NVDmaNext (pNv, getOffset(pNv, &psPix->drawable));
-	NVDmaNext (pNv, getOffset(pNv, &pdPix->drawable));
-
-	return TRUE;
-}
-
 static CARD32 rectFormat(DrawablePtr pDrawable)
 {
 	switch(pDrawable->bitsPerPixel) {
@@ -345,8 +264,8 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 	CARD32 offset_in, pitch_in, max_lines, line_length;
 	Bool ret = TRUE;
 
-	pitch_in = getPitch(&pSrc->drawable);
-	offset_in = getOffset(pNv, &pSrc->drawable);
+	pitch_in = exaGetPixmapPitch(pSrc);
+	offset_in = NVAccelGetPixmapOffset(pNv, pSrc);
 	offset_in += y*pitch_in;
 	offset_in += x * (pSrc->drawable.bitsPerPixel >> 3);
 	max_lines = 65536/dst_pitch + 1;
@@ -408,8 +327,8 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	h = pDst->drawable.height;
 #endif
 
-	pitch_out = getPitch(&pDst->drawable);
-	offset_out = getOffset(pNv, &pDst->drawable);
+	pitch_out = exaGetPixmapPitch(pDst);
+	offset_out = NVAccelGetPixmapOffset(pNv, pDst);
 	offset_out += y*pitch_out;
 	offset_out += x * (pDst->drawable.bitsPerPixel >> 3);
 
@@ -523,10 +442,10 @@ static Bool NVPrepareComposite(int	  op,
 
 	src_size = ((pSrcPicture->pDrawable->width+3)&~3) |
 		(pSrcPicture->pDrawable->height << 16);
-	src_pitch  = getPitch(pSrcPicture->pDrawable)
+	src_pitch  = exaGetPixmapPitch(pSrc)
 		| (STRETCH_BLIT_SRC_FORMAT_ORIGIN_CORNER << 16)
 		| (STRETCH_BLIT_SRC_FORMAT_FILTER_POINT_SAMPLE << 24);
-	src_offset = getOffset(pNv, pSrcPicture->pDrawable);
+	src_offset = NVAccelGetPixmapOffset(pNv, pSrc);
 
 	return TRUE;
 }

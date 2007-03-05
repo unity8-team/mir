@@ -32,6 +32,22 @@ NVAccelInitDmaFB(NVPtr pNv)
 	return TRUE;
 }
 
+uint32_t
+NVAccelGetPixmapOffset(NVPtr pNv, PixmapPtr pPix)
+{
+	CARD32 offset;
+
+	if (pPix->drawable.type == DRAWABLE_WINDOW) {
+		offset = pNv->FB->offset - pNv->VRAMPhysical;
+	} else {
+		offset  = (uint32_t)((unsigned long)pPix->devPrivate.ptr -
+				(unsigned long)pNv->FB->map);
+		offset += pNv->FB->offset - pNv->VRAMPhysical;
+	}
+
+	return offset;
+}
+
 static Bool
 NVAccelInitDmaAGP(NVPtr pNv)
 {
@@ -93,6 +109,65 @@ NVAccelInitContextSurfaces(NVPtr pNv)
 	NVDmaStart(pNv, NvSubContextSurfaces, NV04_SURFACE_DMA_IMAGE_SOURCE, 2);
 	NVDmaNext (pNv, NvDmaFB);
 	NVDmaNext (pNv, NvDmaFB);
+
+	return TRUE;
+}
+
+Bool
+NVAccelGetCtxSurf2DFormatFromPixmap(PixmapPtr pPix, int *fmt_ret)
+{
+	switch (pPix->drawable.bitsPerPixel) {
+	case 32:
+		*fmt_ret = SURFACE_FORMAT_A8R8G8B8;
+		break;
+	case 24:
+		*fmt_ret = SURFACE_FORMAT_X8R8G8B8;
+		break;
+	case 16:
+		*fmt_ret = SURFACE_FORMAT_R5G6B5;
+		break;
+	case 8:
+		*fmt_ret = SURFACE_FORMAT_Y8;
+		break;
+	default:
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+Bool
+NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPict, int *fmt_ret)
+{
+	switch (pPict->format) {
+	case PICT_a8r8g8b8:
+		*fmt_ret = SURFACE_FORMAT_A8R8G8B8;
+		break;
+	case PICT_x8r8g8b8:
+		*fmt_ret = SURFACE_FORMAT_X8R8G8B8;
+		break;
+	case PICT_r5g6b5:
+		*fmt_ret = SURFACE_FORMAT_R5G6B5;
+		break;
+	case PICT_a8:
+		*fmt_ret = SURFACE_FORMAT_Y8;
+		break;
+	default:
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+Bool
+NVAccelSetCtxSurf2D(NVPtr pNv, PixmapPtr psPix, PixmapPtr pdPix, int format)
+{
+	NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 4);
+	NVDmaNext (pNv, format);
+	NVDmaNext (pNv, ((uint32_t)exaGetPixmapPitch(pdPix) << 16) |
+			 (uint32_t)exaGetPixmapPitch(psPix));
+	NVDmaNext (pNv, NVAccelGetPixmapOffset(pNv, psPix));
+	NVDmaNext (pNv, NVAccelGetPixmapOffset(pNv, pdPix));
 
 	return TRUE;
 }
