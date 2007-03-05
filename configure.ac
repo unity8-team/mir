@@ -145,13 +145,13 @@ if test -d "$XSERVER_SOURCE"; then
 	if test -f src/modes/xf86Modes.h; then
 		:
 	else
-		ln -s $XSERVER_SOURCE/hw/xfree86/modes src/modes
+		ln -sf $XSERVER_SOURCE/hw/xfree86/modes src/modes
 	fi
 	
 	if test -f src/parser/xf86Parser.h; then
 		:
 	else
-		ln -s $XSERVER_SOURCE/hw/xfree86/parser src/parser
+		ln -sf $XSERVER_SOURCE/hw/xfree86/parser src/parser
 	fi
 fi
 AC_SUBST([XMODES_CFLAGS])
