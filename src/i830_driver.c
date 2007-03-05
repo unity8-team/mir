@@ -853,7 +853,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    int i;
    char *s;
    pointer pVBEModule = NULL;
-   Bool enable;
    const char *chipname;
    int num_pipe;
    int max_width, max_height;
@@ -1479,14 +1478,14 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	      pI830->colorKey);
 #endif
 
-   pI830->allowPageFlip = FALSE;
-   enable = xf86ReturnOptValBool(pI830->Options, OPTION_PAGEFLIP, FALSE);
 #ifdef XF86DRI
-   if (!pI830->directRenderingDisabled) {
-      pI830->allowPageFlip = enable;
-      xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "page flipping %s\n",
-		 enable ? "enabled" : "disabled");
-   }
+   pI830->allowPageFlip = FALSE;
+   from = (!pI830->directRenderingDisabled &&
+	   xf86GetOptValBool(pI830->Options, OPTION_PAGEFLIP,
+			     &pI830->allowPageFlip)) ? X_CONFIG : X_DEFAULT;
+
+   xf86DrvMsg(pScrn->scrnIndex, from, "Will%s try to enable page flipping\n",
+	      pI830->allowPageFlip ? "" : " not");
 #endif
 
 #ifdef XF86DRI
@@ -1676,6 +1675,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 			     -pI830->MemoryAperture.Size / 1024);
 	       }
 	       pScrn->displayWidth = savedDisplayWidth;
+	       if (pI830->allowPageFlip)
+		  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			     "Can't enable page flipping due to the above\n");
 	       pI830->allowPageFlip = FALSE;
 	    } else if (pScrn->displayWidth != savedDisplayWidth) {
 	       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2682,6 +2684,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       I830SetupMemoryTiling(pScrn);
       pI830->directRenderingEnabled = I830DRIDoMappings(pScreen);
    }
+
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Page Flipping %sabled\n",
+	      pI830->allowPageFlip ? "en" : "dis");
 #endif
 
    DPRINTF(PFX, "assert( if(!I830MapMem(pScrn)) )\n");

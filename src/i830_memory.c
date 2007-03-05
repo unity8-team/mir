@@ -1762,6 +1762,9 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		 "I830SetupMemoryTiling: Not tileable 0x%x\n",
 		 pScrn->displayWidth * pI830->cpp);
+      if (pI830->allowPageFlip)
+	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "Can't enable page flipping due to the above\n");
       pI830->allowPageFlip = FALSE;
       return;
    }
@@ -1778,14 +1781,20 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
 		       "Activating tiled memory for the front buffer\n");
             pI830->front_tiled = FENCE_XMAJOR;
 	 } else {
-	    pI830->allowPageFlip = FALSE;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "MakeTiles failed for the front buffer\n");
+	    if (pI830->allowPageFlip)
+	       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			  "Can't enable page flipping due to the above\n");
+	    pI830->allowPageFlip = FALSE;
 	 }
       } else {
-	 pI830->allowPageFlip = FALSE;
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		 "Alignment bad for the front buffer\n");
+	 if (pI830->allowPageFlip)
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Can't enable page flipping due to the above\n");
+	 pI830->allowPageFlip = FALSE;
       }
    }
 
@@ -1803,6 +1812,9 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
       } else {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "MakeTiles failed for the back buffer.\n");
+	 if (pI830->allowPageFlip)
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Can't enable page flipping due to the above\n");
 	 pI830->allowPageFlip = FALSE;
       }
    }
@@ -1815,6 +1827,9 @@ I830SetupMemoryTiling(ScrnInfoPtr pScrn)
       } else {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "MakeTiles failed for the third buffer.\n");
+	 if (pI830->allowPageFlip)
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Can't enable page flipping due to the above\n");
 	 pI830->allowPageFlip = FALSE;
       }
    }

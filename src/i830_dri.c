@@ -1146,7 +1146,7 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 	 if (pI830->pDamage == NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                        "No screen damage record, page flipping disabled\n");
-            pI830->allowPageFlip = 0;
+            pI830->allowPageFlip = FALSE;
 	 } else {
 	    DamageRegister(&pPix->drawable, pI830->pDamage);
 
