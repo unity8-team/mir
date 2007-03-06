@@ -28,9 +28,6 @@
 #include "xorgVersion.h"
 
 /* i830_display.c */
-DisplayModePtr
-i830PipeFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
-Bool i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, Rotation rotation);
 void i830PipeSetBase(xf86CrtcPtr crtc, int x, int y);
 void i830WaitForVblank(ScrnInfoPtr pScrn);
 void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);

@@ -258,8 +258,6 @@ typedef struct _I830Rec {
    unsigned char *FbBase;
    int cpp;
 
-   DisplayModePtr currentMode;
-
    I830EntPtr entityPrivate;	
    int init;
 
