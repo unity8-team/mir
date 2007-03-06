@@ -2206,6 +2206,11 @@ radeon_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 }
 
 static void
+radeon_crtc_mode_prepare(xf86CrtcPtr crtc)
+{
+}
+
+static void
 radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode, int x, int y)
 {
@@ -2239,6 +2244,11 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     if (info->DispPriority)
         RADEONInitDispBandwidth(pScrn);
     RADEONUnblank(pScrn);
+}
+
+static void
+radeon_crtc_mode_commit(xf86CrtcPtr crtc)
+{
 }
 
 void radeon_crtc_load_lut(xf86CrtcPtr crtc)
@@ -2307,7 +2317,9 @@ static const xf86CrtcFuncsRec radeon_crtc_funcs = {
     .save = NULL, /* XXX */
     .restore = NULL, /* XXX */
     .mode_fixup = radeon_crtc_mode_fixup,
+    .prepare = radeon_crtc_mode_prepare,
     .mode_set = radeon_crtc_mode_set,
+    .commit = radeon_crtc_mode_commit,
     .gamma_set = radeon_crtc_gamma_set,
     .lock = radeon_crtc_lock,
     .unlock = radeon_crtc_unlock,
@@ -2356,6 +2368,11 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 }
 
 static void
+radeon_mode_prepare(xf86OutputPtr output)
+{
+}
+
+static void
 radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		  DisplayModePtr adjusted_mode)
 {
@@ -2364,6 +2381,11 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     
     //    RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[0], );
+}
+
+static void
+radeon_mode_commit(xf86OutputPtr output)
+{
 }
 
 static xf86OutputStatus
@@ -2416,7 +2438,9 @@ static const xf86OutputFuncsRec radeon_output_funcs = {
     .restore = radeon_restore,
     .mode_valid = radeon_mode_valid,
     .mode_fixup = radeon_mode_fixup,
+    .prepare = radeon_mode_prepare,
     .mode_set = radeon_mode_set,
+    .commit = radeon_mode_commit,
     .detect = radeon_detect,
     .get_modes = radeon_get_modes,
     .destroy = radeon_destroy
