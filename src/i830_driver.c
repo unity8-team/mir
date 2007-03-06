@@ -1913,18 +1913,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
 }
 
 static void
-InitRegisterRec(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int i;
-
-   if (!I830IsPrimary(pScrn)) return;
-
-   for (i = 0; i < 8; i++)
-      pI830->fence[i] = 0;
-}
-
-static void
 I830PointerMoved(int index, int x, int y)
 {
    ScrnInfoPtr pScrn = xf86Screens[index];
@@ -2504,8 +2492,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       }
    }
 #endif
-
-   InitRegisterRec(pScrn);
 
 #ifdef XF86DRI
    /*
