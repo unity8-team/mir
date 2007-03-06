@@ -2885,9 +2885,7 @@ static Bool
 I830EnterVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr  pI830 = I830PTR(pScrn);
-   int	    i;
 
    DPRINTF(PFX, "Enter VT\n");
 
@@ -2902,12 +2900,6 @@ I830EnterVT(int scrnIndex, int flags)
 
    pI830->leaving = FALSE;
 
-#if 1
-   /* Clear the framebuffer */
-   memset(pI830->FbBase + pScrn->fbOffset, 0,
-	  pScrn->virtualY * pScrn->displayWidth * pI830->cpp);
-#endif
-
    if (I830IsPrimary(pScrn))
       if (!i830_bind_all_memory(pScrn))
          return FALSE;
@@ -2920,27 +2912,13 @@ I830EnterVT(int scrnIndex, int flags)
    ResetState(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
-   for (i = 0; i < xf86_config->num_crtc; i++)
-   {
-      xf86CrtcPtr	crtc = xf86_config->crtc[i];
+   /* Clear the framebuffer */
+   memset(pI830->FbBase + pScrn->fbOffset, 0,
+	  pScrn->virtualY * pScrn->displayWidth * pI830->cpp);
 
-      /* Mark that we'll need to re-set the mode for sure */
-      memset(&crtc->mode, 0, sizeof(crtc->mode));
-      if (!crtc->desiredMode.CrtcHDisplay)
-      {
-	 crtc->desiredMode = *i830PipeFindClosestMode (crtc, pScrn->currentMode);
-	 crtc->desiredRotation = RR_Rotate_0;
-	 crtc->desiredX = 0;
-	 crtc->desiredY = 0;
-      }
-      
-      if (!xf86CrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation,
-			    crtc->desiredX, crtc->desiredY))
-	 return FALSE;
-   }
-
-   xf86DisableUnusedFunctions(pScrn);
-
+   if (!xf86SetDesiredModes (pScrn))
+      return FALSE;
+   
    i830DumpRegs (pScrn);
    i830DescribeOutputConfiguration(pScrn);
 
@@ -3003,8 +2981,6 @@ I830EnterVT(int scrnIndex, int flags)
    if (pI830->checkDevices)
       pI830->devicesTimer = TimerSet(NULL, 0, 1000, I830CheckDevicesTimer, pScrn);
 
-   pI830->currentMode = pScrn->currentMode;
-
    /* Force invarient 3D state to be emitted */
    *pI830->used3D = 1<<31;
 
@@ -3014,17 +2990,10 @@ I830EnterVT(int scrnIndex, int flags)
 static Bool
 I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
-
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
-   Bool ret = TRUE;
 
-   DPRINTF(PFX, "I830SwitchMode: mode == %p\n", mode);
-
-   if (!i830SetMode(pScrn, mode, pI830->rotation))
-      pI830->currentMode = mode;
-
-   return ret;
+   return xf86SetSingleMode (pScrn, mode, pI830->rotation);
 }
 
 static Bool

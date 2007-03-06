@@ -835,6 +835,8 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 	return NULL;
     }
 
+    if (pI830->FbBase)
+	memset (pI830->FbBase + front_buffer->offset, 0, size);
     return front_buffer;
 }
 
