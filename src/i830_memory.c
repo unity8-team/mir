@@ -1064,7 +1064,8 @@ myLog2(unsigned int n)
 }
 
 static Bool
-i830_allocate_backbuffer(ScrnInfoPtr pScrn)
+i830_allocate_backbuffer(ScrnInfoPtr pScrn, i830_memory **buffer,
+			 unsigned int *tiled, const char *name)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
@@ -1080,69 +1081,23 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn)
     if (!pI830->disableTiling && IsTileable(pScrn, pitch))
     {
 	size = ROUND_TO_PAGE(pitch * ALIGN(height, 16));
-	pI830->back_buffer =
-	    i830_allocate_memory_tiled(pScrn, "back buffer",
-				       size, pitch, GTT_PAGE_SIZE,
-				       ALIGN_BOTH_ENDS,
-				       TILING_XMAJOR);
-	pI830->back_tiled = FENCE_XMAJOR;
+	*buffer = i830_allocate_memory_tiled(pScrn, name, size, pitch,
+					     GTT_PAGE_SIZE, ALIGN_BOTH_ENDS,
+					     TILING_XMAJOR);
+	*tiled = FENCE_XMAJOR;
     }
 
     /* Otherwise, just allocate it linear */
-    if (pI830->back_buffer == NULL) {
+    if (*buffer == NULL) {
 	size = ROUND_TO_PAGE(pitch * height);
-	pI830->back_buffer = i830_allocate_memory(pScrn, "back buffer",
-						  size, GTT_PAGE_SIZE,
-						  ALIGN_BOTH_ENDS);
-	pI830->back_tiled = FENCE_LINEAR;
+	*buffer = i830_allocate_memory(pScrn, name, size, GTT_PAGE_SIZE,
+				       ALIGN_BOTH_ENDS);
+	*tiled = FENCE_LINEAR;
     }
 
-    if (pI830->back_buffer == NULL) {
+    if (*buffer == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Failed to allocate back buffer space.\n");
-	return FALSE;
-    }
-
-    return TRUE;
-}
-
-static Bool
-i830_allocate_thirdbuffer(ScrnInfoPtr pScrn)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    unsigned int pitch = pScrn->displayWidth * pI830->cpp;
-    unsigned long size;
-    int height;
-
-    if (pI830->rotation & (RR_Rotate_0 | RR_Rotate_180))
-	height = pScrn->virtualY;
-    else
-	height = pScrn->virtualX;
-
-    /* Try to allocate on the best tile-friendly boundaries. */
-    if (!pI830->disableTiling && IsTileable(pScrn, pitch))
-    {
-	size = ROUND_TO_PAGE(pitch * ALIGN(height, 16));
-	pI830->third_buffer =
-	    i830_allocate_memory_tiled(pScrn, "third buffer",
-				       size, pitch, GTT_PAGE_SIZE,
-				       ALIGN_BOTH_ENDS,
-				       TILING_XMAJOR);
-	pI830->third_tiled = FENCE_XMAJOR;
-    }
-
-    /* Otherwise, just allocate it linear */
-    if (pI830->third_buffer == NULL) {
-	size = ROUND_TO_PAGE(pitch * height);
-	pI830->third_buffer = i830_allocate_memory(pScrn, "third buffer",
-						   size, GTT_PAGE_SIZE,
-						   ALIGN_BOTH_ENDS);
-	pI830->third_tiled = FENCE_LINEAR;
-    }
-
-    if (pI830->third_buffer == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Failed to allocate third buffer space.\n");
+		   "Failed to allocate %s space.\n", name);
 	return FALSE;
     }
 
@@ -1246,10 +1201,14 @@ i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 
     DPRINTF(PFX, "i830_allocate_3d_memory\n");
 
-    if (!i830_allocate_backbuffer(pScrn))
+    if (!i830_allocate_backbuffer(pScrn, &pI830->back_buffer,
+				  &pI830->back_tiled, "back buffer"))
 	return FALSE;
 
-    if (pI830->TripleBuffer && !i830_allocate_thirdbuffer(pScrn)) {
+    if (pI830->TripleBuffer && !i830_allocate_backbuffer(pScrn,
+							 &pI830->third_buffer,
+							 &pI830->third_tiled,
+							 "third buffer")) {
        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		  "Failed to allocate third buffer, triple buffering "
 		  "inactive\n");
