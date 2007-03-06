@@ -748,18 +748,19 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Back Buffer = 0x%08x\n",
               (int)sarea->back_handle);
 
-   if (pI830->TripleBuffer) {
+   if (pI830->third_buffer) {
       if (drmAddMap(pI830->drmSubFD,
 		    (drm_handle_t)(sarea->third_offset + pI830->LinearAddr),
 		    sarea->third_size, DRM_AGP, 0,
 		    (drmAddress) &sarea->third_handle) < 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "[drm] drmAddMap(third_handle) failed. Disabling DRI\n");
-	DRICloseScreen(pScreen);
-	return FALSE;
-      }
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Third Buffer = 0x%08x\n",
-		 (int)sarea->third_handle);
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "[drm] drmAddMap(third_handle) failed. Triple buffering "
+		    "inactive\n");
+	 i830_free_memory(pI830->third_buffer);
+	 sarea->third_handle = pI830->third_buffer = NULL;
+      } else
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Third Buffer = 0x%08x\n",
+		    (int)sarea->third_handle);
    }
 
    if (drmAddMap(pI830->drmSubFD,
@@ -1103,7 +1104,7 @@ I830DRIRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 
    I830DRIDoRefreshArea(pScrn, num, pbox, pI830->back_buffer->offset);
 
-   if (pI830->TripleBuffer) {
+   if (pI830->third_buffer) {
       I830DRIDoRefreshArea(pScrn, num, pbox, pI830->third_buffer->offset);
    }
 
@@ -1207,7 +1208,7 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
       I830SubsequentSolidFillRect(pScrn, pbox->x1, pbox->y1,
 				  pbox->x2 - pbox->x1, pbox->y2 - pbox->y1);
 
-      if (I830PTR(pScrn)->TripleBuffer) {
+      if (I830PTR(pScrn)->third_buffer) {
 	 I830SelectBuffer(pScrn, I830_SELECT_THIRD);
 	 I830SubsequentSolidFillRect(pScrn, pbox->x1, pbox->y1,
 				     pbox->x2 - pbox->x1, pbox->y2 - pbox->y1);
@@ -1386,7 +1387,7 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
       I830SelectBuffer(pScrn, I830_SELECT_BACK);
       I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
-      if (pI830->TripleBuffer) {
+      if (pI830->third_buffer) {
 	 I830SelectBuffer(pScrn, I830_SELECT_THIRD);
 	 I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
       }
@@ -1582,8 +1583,13 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    sarea->height = pScreen->height;
    sarea->back_offset = pI830->back_buffer->offset;
    sarea->back_size = pI830->back_buffer->size;
-   sarea->third_offset = pI830->third_buffer->offset;
-   sarea->third_size = pI830->third_buffer->size;
+   if (pI830->third_buffer != NULL) {
+      sarea->third_offset = pI830->third_buffer->offset;
+      sarea->third_size = pI830->third_buffer->size;
+   } else {
+      sarea->third_offset = 0;
+      sarea->third_size = 0;
+   }
    sarea->depth_offset = pI830->depth_buffer->offset;
    sarea->depth_size = pI830->depth_buffer->size;
    if (pI830->textures != NULL) {
