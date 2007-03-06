@@ -2346,7 +2346,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	    /* For this allocation, switch to a smaller DRI memory manager
 	     * size.
 	     */
-	    pI830->mmSize = I830_MM_MINPAGES * GTT_PAGE_SIZE;
+	    pI830->mmSize = I830_MM_MINPAGES * GTT_PAGE_SIZE / KB(1);
 	 } else {
 	    pI830->mmSize = savedMMSize;
 	 }
