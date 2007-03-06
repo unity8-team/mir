@@ -274,8 +274,10 @@ typedef enum {
    OPTION_COLOR_KEY,
    OPTION_CHECKDEVICES,
    OPTION_LINEARALLOC,
+#ifdef XF86DRI_MM
    OPTION_INTELTEXPOOL,
    OPTION_INTELMMSIZE
+#endif
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -292,8 +294,10 @@ static OptionInfoRec I830Options[] = {
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_LINEARALLOC, "LinearAlloc",  OPTV_INTEGER,   {0},    FALSE},
+#ifdef XF86DRI_MM
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_INTELMMSIZE, "AperTexSize",  OPTV_INTEGER,	{0},	FALSE},
+#endif
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -1235,30 +1239,38 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->mmModeFlags = 0;
 
       if (!pI830->directRenderingDisabled) {
+#ifdef XF86DRI_MM
 	 Bool tmp = FALSE;
 
-	 pI830->mmModeFlags |= I830_KERNEL_TEX;
-#ifdef XF86DRI_MM
 	 if (!IS_I965G(pI830))
 	    pI830->mmModeFlags |= I830_KERNEL_MM;
+	 else
 #endif
+	    pI830->mmModeFlags |= I830_KERNEL_TEX;
 
 	 from = X_PROBED;
+
+#ifdef XF86DRI_MM
 	 if (xf86GetOptValBool(pI830->Options, 
 			       OPTION_INTELTEXPOOL, &tmp)) {
 	    from = X_CONFIG;
 	    if (tmp) {
 	       pI830->mmModeFlags |= I830_KERNEL_TEX;
+	       pI830->mmModeFlags &= ~I830_KERNEL_MM;
 	    } else {
 	       pI830->mmModeFlags &= ~I830_KERNEL_TEX;
+	       pI830->mmModeFlags |= I830_KERNEL_MM;
 	    }	       
 	 }
+#endif
+
 	 xf86DrvMsg(pScrn->scrnIndex, from,
 		    "Will %stry to allocate texture pool "
 		    "for old Mesa 3D driver.\n",
 		    (pI830->mmModeFlags & I830_KERNEL_TEX) ?
 		    "" : "not ");
 
+#ifdef XF86DRI_MM
 	 pI830->mmSize = I830_MM_MAXSIZE;
 	 from = X_INFO;
 	 if (xf86GetOptValInteger(pI830->Options, OPTION_INTELMMSIZE,
@@ -1271,6 +1283,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 		    pI830->mmSize);
       }
    } 
+#endif
    
 #endif
 
@@ -2134,7 +2147,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    MessageType from;
 #ifdef XF86DRI
    Bool driDisabled;
+#ifdef XF86DRI_MM
    unsigned long savedMMSize;
+#endif
 #endif
 
    pScrn = xf86Screens[pScreen->myNum];
@@ -2262,7 +2277,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    if (!I830CheckDRIAvailable(pScrn)) {
       pI830->directRenderingDisabled = TRUE;
+#ifdef XF86DRI_MM
       pI830->mmSize = 0;
+#endif
    }
 
    if (!pI830->directRenderingDisabled) {
@@ -2312,18 +2329,24 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
        */
 
       pI830->disableTiling = FALSE;
+#ifdef XF86DRI_MM
       savedMMSize = pI830->mmSize;
-      for (i = 0; i < 4; i++) {
+#define MM_TURNS 4
+#else
+#define MM_TURNS 2
+#endif
+      for (i = 0; i < MM_TURNS; i++) {
 	 if (!tiled && i < 2)
 	    continue;
 
-	 if (i >= 2) {
+	 if (i >= MM_TURNS/2) {
 	    /* For further allocations, disable tiling */
 	    pI830->disableTiling = TRUE;
 	    pScrn->displayWidth = savedDisplayWidth;
 	    pI830->allowPageFlip = FALSE;
 	 }
 
+#ifdef XF86DRI_MM
 	 if (i & 1) {
 	    /* For this allocation, switch to a smaller DRI memory manager
 	     * size.
@@ -2338,6 +2361,11 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		    "\t       %s DRI memory manager reservation:\n",
 		    (i & 2) ? "untiled" : "tiled",
 		    (i & 1) ? "small" : "large");
+#else
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "Attempting memory allocation with %s buffers:\n",
+		    (i & 1) ? "untiled" : "tiled");
+#endif
 
 	 if (i830_allocate_2d_memory(pScrn) &&
 	     i830_allocate_3d_memory(pScrn))
@@ -2356,10 +2384,12 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 i830_reset_allocations(pScrn);
       }
 
-      if (i == 4) {
+      if (i == MM_TURNS) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		    "Not enough video memory.  Disabling DRI.\n");
+#ifdef XF86DRI_MM
 	 pI830->mmSize = 0;
+#endif
 	 pI830->directRenderingDisabled = TRUE;
       }
    } else
@@ -2739,13 +2769,17 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 I830DRICloseScreen(pScreen);
 	 pI830->directRenderingEnabled = FALSE;
       } else {
+	 unsigned long aperEnd = ROUND_DOWN_TO(pI830->memory_manager->offset +
+					       pI830->memory_manager->size,
+					       GTT_PAGE_SIZE) / GTT_PAGE_SIZE;
+	 unsigned long aperStart = ROUND_TO(pI830->memory_manager->offset,
+					    GTT_PAGE_SIZE) / GTT_PAGE_SIZE;
+
 #ifndef XSERVER_LIBDRM_MM
-	 if (I830DrmMMInit(pI830->drmSubFD, pI830->memory_manager->offset,
-			   pI830->memory_manager->size,
+	 if (I830DrmMMInit(pI830->drmSubFD, aperStart, aperEnd - aperStart,
 			   DRM_BO_MEM_TT)) {
 #else
-	 if (drmMMInit(pI830->drmSubFD, pI830->memory_manager->offset,
-		       pI830->memory_manager->size,
+	 if (drmMMInit(pI830->drmSubFD, aperStart, aperEnd - aperStart,
 		       DRM_BO_MEM_TT)) {
 #endif	   
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
