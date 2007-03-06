@@ -1234,14 +1234,13 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->mmModeFlags = 0;
 
       if (!pI830->directRenderingDisabled) {
+	 pI830->mmModeFlags = I830_KERNEL_TEX;
 #ifdef XF86DRI_MM
 	 Bool tmp = FALSE;
 
 	 if (!IS_I965G(pI830))
 	    pI830->mmModeFlags |= I830_KERNEL_MM;
-	 else
 #endif
-	    pI830->mmModeFlags |= I830_KERNEL_TEX;
 
 	 from = X_PROBED;
 
