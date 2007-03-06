@@ -537,8 +537,10 @@ I830MapMem(ScrnInfoPtr pScrn)
    if (!pI830->FbBase)
       return FALSE;
 
-   if (I830IsPrimary(pScrn))
-   pI830->LpRing->virtual_start = pI830->FbBase + pI830->LpRing->mem->offset;
+   if (I830IsPrimary(pScrn) && pI830->LpRing->mem != NULL) {
+      pI830->LpRing->virtual_start =
+	 pI830->FbBase + pI830->LpRing->mem->offset;
+   }
 
    return TRUE;
 }
