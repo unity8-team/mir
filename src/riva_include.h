@@ -3,9 +3,7 @@
 #ifndef __RIVA_INCLUDE_H__
 #define __RIVA_INCLUDE_H__
 
-#if !USE_LIBC_WRAPPER
 #include <string.h>
-#endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -15,9 +13,6 @@
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86Resources.h"
-#if USE_LIBC_WRAPPER
-#include "xf86_ansic.h"
-#endif
 #include "compiler.h"
 
 /* Drivers for PCI hardware need this */

@@ -46,9 +46,6 @@
  * HW.  Put all affected includes, typdefs, etc. here so the riva_hw.* files
  * can stay generic in nature.
  */ 
-#if USE_LIBC_WRAPPER
-#include "xf86_ansic.h"
-#endif
 #include "compiler.h"
 #include "xf86_OSproc.h"
 

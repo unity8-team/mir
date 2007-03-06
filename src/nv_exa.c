@@ -44,10 +44,6 @@
 #include "nv_include.h"
 #include "exa.h"
 
-#if (EXA_VERSION_MAJOR < 2)
-#error You need EXA >=2.0.0
-#endif
-
 #include "nv_dma.h"
 #include "nv_local.h"
 
