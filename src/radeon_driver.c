@@ -2542,6 +2542,18 @@ RADEONProbeDDC(ScrnInfoPtr pScrn, int indx)
     }
 }
 
+static Bool
+RADEONCRTCResize(ScrnInfoPtr scrn, int width, int height)
+{
+    scrn->virtualX = width;
+    scrn->virtualY = height;
+    return TRUE;
+}
+
+static const xf86CrtcConfigFuncsRec RADEONCRTCResizeFuncs = {
+    RADEONCRTCResize
+};
+
 _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 {
     xf86CrtcConfigPtr   xf86_config;
@@ -2651,7 +2663,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     pScrn->monitor     = pScrn->confScreen->monitor;
 
    /* Allocate an xf86CrtcConfig */
-   xf86CrtcConfigInit (pScrn);
+    xf86CrtcConfigInit (pScrn, &RADEONCRTCResizeFuncs);
    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
 
@@ -2779,7 +2791,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
        goto fail;
 
 
-   if (!xf86InitialConfiguration (pScrn))
+    if (!xf86InitialConfiguration (pScrn, FALSE))
    {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       goto fail;
