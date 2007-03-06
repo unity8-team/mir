@@ -756,8 +756,9 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "[drm] drmAddMap(third_handle) failed. Triple buffering "
 		    "inactive\n");
-	 i830_free_memory(pI830->third_buffer);
-	 sarea->third_handle = pI830->third_buffer = NULL;
+	 i830_free_memory(pScrn, pI830->third_buffer);
+	 pI830->third_buffer = NULL;
+	 sarea->third_handle = 0;
       } else
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Third Buffer = 0x%08x\n",
 		    (int)sarea->third_handle);
