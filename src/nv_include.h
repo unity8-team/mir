@@ -66,7 +66,6 @@
 #endif
 
 #define NV_DMA_DEBUG 0
-//#define NV_ENABLE_3D
 #include "nv_local.h"
 #include "nv_type.h"
 #include "nv_proto.h"
