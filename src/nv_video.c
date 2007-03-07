@@ -17,6 +17,8 @@
 #include <X11/extensions/Xv.h>
 #include "xaa.h"
 #include "xaalocal.h"
+#include "exa.h"
+#include "damage.h"
 #include "dixstruct.h"
 #include "fourcc.h"
 
@@ -342,49 +344,108 @@ NVPutOverlayImage(ScrnInfoPtr pScrnInfo, int offset, int id,
 	pPriv->videoStatus = CLIENT_VIDEO_ON;
 }
 
-
+#ifndef ExaOffscreenMarkUsed
+extern void ExaOffscreenMarkUsed(PixmapPtr);
+#endif
+#ifndef exaGetDrawablePixmap
+extern PixmapPtr exaGetDrawablePixmap(DrawablePtr);
+#endif
+#ifndef exaPixmapIsOffscreen
+extern Bool exaPixmapIsOffscreen(PixmapPtr p);
+#endif
+/* To support EXA 2.0, 2.1 has this in the header */
+#ifndef exaMoveInPixmap
+extern void exaMoveInPixmap(PixmapPtr pPixmap);
+#endif
 
 static void
-NVPutBlitImage(ScrnInfoPtr pScrnInfo, int offset, int id,
-	       int dstPitch, BoxPtr dstBox,
+NVPutBlitImage(ScrnInfoPtr pScrnInfo, int src_offset, int id,
+	       int src_pitch, BoxPtr dstBox,
 	       int x1, int y1, int x2, int y2,
 	       short width, short height,
 	       short src_w, short src_h,
 	       short drw_w, short drw_h,
-	       RegionPtr clipBoxes)
+	       RegionPtr clipBoxes,
+	       DrawablePtr pDraw)
 {
 	NVPtr          pNv   = NVPTR(pScrnInfo);
 	NVPortPrivPtr  pPriv = GET_BLIT_PRIVATE(pNv);
-	BoxPtr         pbox  = REGION_RECTS(clipBoxes);
-	int            nbox  = REGION_NUM_RECTS(clipBoxes);
-	CARD32         dsdx, dtdy, size, point, srcpoint, format;
+	BoxPtr         pbox;
+	int            nbox;
+	CARD32         dsdx, dtdy;
+	CARD32         dst_size, dst_point;
+	CARD32         src_point, src_format;
+
+	if (pNv->useEXA) {
+		ScreenPtr pScreen = pScrnInfo->pScreen;
+		PixmapPtr pPix    = exaGetDrawablePixmap(pDraw);
+		int dst_format;
+
+		/* Try to get the dest drawable into vram */
+		if (!exaPixmapIsOffscreen(pPix)) {
+			exaMoveInPixmap(pPix);
+			ExaOffscreenMarkUsed(pPix);
+		}
+
+		/* If we failed, draw directly onto the screen pixmap.
+		 * Not sure if this is the best approach, maybe failing
+		 * with BadAlloc would be better?
+		 */
+		if (!exaPixmapIsOffscreen(pPix)) {
+			xf86DrvMsg(pScrnInfo->scrnIndex, X_ERROR,
+				"XV: couldn't move dst surface into vram\n");
+			pPix = pScreen->GetScreenPixmap(pScreen);
+		}
+
+		NVAccelGetCtxSurf2DFormatFromPixmap(pPix, &dst_format);
+		NVAccelSetCtxSurf2D(pNv, pPix, pPix, dst_format);
+
+#ifdef COMPOSITE
+		/* Adjust coordinates if drawing to an offscreen pixmap */
+		if (pPix->screen_x || pPix->screen_y) {
+			REGION_TRANSLATE(pScrnInfo->pScreen, clipBoxes,
+							     -pPix->screen_x,
+							     -pPix->screen_y);
+			dstBox->x1 -= pPix->screen_x;
+			dstBox->x2 -= pPix->screen_x;
+			dstBox->y1 -= pPix->screen_y;
+			dstBox->y2 -= pPix->screen_y;
+		}
+
+		DamageDamageRegion((DrawablePtr)pPix, clipBoxes);
+#endif
+	} else {
+		if (pNv->CurrentLayout.depth == 15) {
+			NVDmaStart(pNv, NvSubContextSurfaces,
+					SURFACE_FORMAT, 1);
+			NVDmaNext (pNv, SURFACE_FORMAT_X1R5G5B5);
+		}
+	}
+
+	pbox = REGION_RECTS(clipBoxes);
+	nbox = REGION_NUM_RECTS(clipBoxes);
 
 	dsdx = (src_w << 20) / drw_w;
 	dtdy = (src_h << 20) / drw_h;
 
-	size = ((dstBox->y2 - dstBox->y1) << 16) | (dstBox->x2 - dstBox->x1);
-	point = (dstBox->y1 << 16) | dstBox->x1;
+	dst_size  = ((dstBox->y2 - dstBox->y1) << 16) |
+		     (dstBox->x2 - dstBox->x1);
+	dst_point = (dstBox->y1 << 16) | dstBox->x1;
 
-	dstPitch |= (STRETCH_BLIT_SRC_FORMAT_ORIGIN_CENTER << 16) |
+	src_pitch |= (STRETCH_BLIT_SRC_FORMAT_ORIGIN_CENTER << 16) |
 		    (STRETCH_BLIT_SRC_FORMAT_FILTER_BILINEAR << 24);
-
-	srcpoint = ((y1 << 4) & 0xffff0000) | (x1 >> 12);
+	src_point = ((y1 << 4) & 0xffff0000) | (x1 >> 12);
 
 	switch(id) {
 	case FOURCC_RGB:
-		format = STRETCH_BLIT_FORMAT_X8R8G8B8;
+		src_format = STRETCH_BLIT_FORMAT_X8R8G8B8;
 		break;
 	case FOURCC_UYVY:
-		format = STRETCH_BLIT_FORMAT_UYVY;
+		src_format = STRETCH_BLIT_FORMAT_UYVY;
 		break;
 	default:
-		format = STRETCH_BLIT_FORMAT_YUYV;
+		src_format = STRETCH_BLIT_FORMAT_YUYV;
 		break;
-	}
-
-	if(pNv->CurrentLayout.depth == 15) {
-		NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 1);
-		NVDmaNext (pNv, SURFACE_FORMAT_X1R5G5B5);
 	}
 
 	if(pPriv->SyncToVBlank) {
@@ -394,11 +455,11 @@ NVPutBlitImage(ScrnInfoPtr pScrnInfo, int offset, int id,
 
 	if(pNv->BlendingPossible) {
 		NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_FORMAT, 2);
-		NVDmaNext (pNv, format);
+		NVDmaNext (pNv, src_format);
 		NVDmaNext (pNv, STRETCH_BLIT_OPERATION_COPY);
 	} else {
 		NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_FORMAT, 1);
-		NVDmaNext (pNv, format);
+		NVDmaNext (pNv, src_format);
 	}
 
 	while(nbox--) {
@@ -407,23 +468,27 @@ NVPutBlitImage(ScrnInfoPtr pScrnInfo, int offset, int id,
 
 		NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_CLIP_POINT, 6);
 		NVDmaNext (pNv, (pbox->y1 << 16) | pbox->x1); 
-		NVDmaNext (pNv, ((pbox->y2 - pbox->y1) << 16) | (pbox->x2 - pbox->x1));
-		NVDmaNext (pNv, point);
-		NVDmaNext (pNv, size);
+		NVDmaNext (pNv, ((pbox->y2 - pbox->y1) << 16) |
+				 (pbox->x2 - pbox->x1));
+		NVDmaNext (pNv, dst_point);
+		NVDmaNext (pNv, dst_size);
 		NVDmaNext (pNv, dsdx);
 		NVDmaNext (pNv, dtdy);
 
 		NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_SRC_SIZE, 4);
 		NVDmaNext (pNv, (height << 16) | width);
-		NVDmaNext (pNv, dstPitch);
-		NVDmaNext (pNv, offset);
-		NVDmaNext (pNv, srcpoint);
+		NVDmaNext (pNv, src_pitch);
+		NVDmaNext (pNv, src_offset);
+		NVDmaNext (pNv, src_point);
 		pbox++;
 	}
 
-	if(pNv->CurrentLayout.depth == 15) {
-		NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 1);
-		NVDmaNext (pNv, SURFACE_FORMAT_R5G6B5);
+	if (!pNv->useEXA) {
+		if(pNv->CurrentLayout.depth == 15) {
+			NVDmaStart(pNv, NvSubContextSurfaces,
+					SURFACE_FORMAT, 1);
+			NVDmaNext (pNv, SURFACE_FORMAT_R5G6B5);
+		}
 	}
 
 	NVDmaKickoff(pNv);
@@ -925,7 +990,7 @@ NVPutImage(ScrnInfoPtr  pScrnInfo, short src_x, short src_y,
 				       xa, ya, xb, yb,
 				       width, height,
 				       src_w, src_h, drw_w, drw_h,
-				       clipBoxes);
+				       clipBoxes, pDraw);
 		} else {
 			NVPutOverlayImage(pScrnInfo, offset, id,
 					  dstPitch, &dstBox, 
@@ -1311,38 +1376,66 @@ NVInitOffscreenImages (ScreenPtr pScreen)
 	xf86XVRegisterOffscreenImages(pScreen, NVOffscreenImages, 2);
 }
 
+static Bool
+NVChipsetHasOverlay(NVPtr pNv)
+{
+	switch (pNv->Architecture) {
+	case NV_ARCH_10:
+	case NV_ARCH_20:
+	case NV_ARCH_30:
+		return TRUE;
+	case NV_ARCH_40:
+		if ((pNv->Chipset & 0xfff0) == CHIPSET_NV40)
+			return TRUE;
+		break;
+	default:
+		break;
+	}
+
+	return FALSE;
+}
+
+static XF86VideoAdaptorPtr
+NVSetupOverlayVideo(ScreenPtr pScreen)
+{
+	ScrnInfoPtr          pScrn = xf86Screens[pScreen->myNum];
+	XF86VideoAdaptorPtr  overlayAdaptor = NULL;
+	NVPtr                pNv   = NVPTR(pScrn);
+
+	if (!NVChipsetHasOverlay(pNv))
+		return NULL;
+
+	/*XXX: Do we still want to provide the overlay anyway, but make the
+	 *     blit adaptor the default if composite is enabled?
+	 */
+#ifdef COMPOSITE
+	if (!noCompositeExtension) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"XV: Video overlay not available, composite enabled\n");
+		return NULL;
+	}
+#endif
+
+	overlayAdaptor = NV10SetupOverlayVideo(pScreen);
+	if (overlayAdaptor)
+		NVInitOffscreenImages(pScreen);
+
+	return overlayAdaptor;
+}
+
 void NVInitVideo (ScreenPtr pScreen)
 {
 	ScrnInfoPtr          pScrn = xf86Screens[pScreen->myNum];
 	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr  overlayAdaptor = NULL;
 	XF86VideoAdaptorPtr  blitAdaptor = NULL;
-	NVPtr                pNv   = NVPTR(pScrn);
 	int                  num_adaptors;
 
 	if (pScrn->bitsPerPixel == 8)
 		return;
 
-	switch (pNv->Architecture) {
-	case NV_ARCH_04:
-		/* TODO */
-		break;
-	case NV_ARCH_10:
-	case NV_ARCH_20:
-	case NV_ARCH_30:
-	case NV_ARCH_40:
-		if ((pNv->Chipset & 0xfff0) != CHIPSET_NV40)
-			break;
-		overlayAdaptor = NV10SetupOverlayVideo(pScreen);
-		break;
-	default:
-		break;
-	}
-
-	if (overlayAdaptor)
-		NVInitOffscreenImages(pScreen);
-
-	blitAdaptor = NVSetupBlitVideo(pScreen);
+	overlayAdaptor = NVSetupOverlayVideo(pScreen);
+	blitAdaptor    = NVSetupBlitVideo(pScreen);
 
 	num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
 	if(blitAdaptor || overlayAdaptor) {
