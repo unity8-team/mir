@@ -2962,6 +2962,8 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
       pI830->CursorInfoRec = 0;
    }
 
+   i830_reset_allocations(pScrn);
+
    if (I830IsPrimary(pScrn)) {
       xf86GARTCloseScreen(scrnIndex);
 
