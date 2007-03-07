@@ -108,10 +108,6 @@ static void I830DRITransitionTo3d(ScreenPtr pScreen);
 static void I830DRITransitionMultiToSingle3d(ScreenPtr pScreen);
 static void I830DRITransitionSingleToMulti3d(ScreenPtr pScreen);
 
-#if 0
-static void I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf);
-#endif
-
 extern void GlxSetVisualConfigs(int nconfigs,
 				__GLXvisualConfig * configs,
 				void **configprivs);
@@ -981,16 +977,7 @@ I830DRIFinishScreenInit(ScreenPtr pScreen)
 
    DPRINTF(PFX, "I830DRIFinishScreenInit\n");
 
-   /* Have shadow run only while there is 3d active.
-    */
-#if 0
-   if (pI830->allowPageFlip && pI830->drmMinor >= 1) {
-      shadowAdd(pScreen, 0, I830DRIShadowUpdate, 0, 0, 0);
-   }
-   else
-#endif
-      pI830->allowPageFlip = 0;
-
+   pI830->allowPageFlip = 0;
 
    if (!DRIFinishScreenInit(pScreen))
       return FALSE;
@@ -1266,70 +1253,6 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
  * Also see tdfx driver for example of using these callbacks to
  * allocate and free 3d-specific memory on demand.
  */
-
-
-
-
-
-/* Use the miext/shadow module to maintain a list of dirty rectangles.
- * These are blitted to the back buffer to keep both buffers clean
- * during page-flipping when the 3d application isn't fullscreen.
- *
- * Unlike most use of the shadow code, both buffers are in video
- * memory.
- *
- * An alternative to this would be to organize for all on-screen
- * drawing operations to be duplicated for the two buffers.  That
- * might be faster, but seems like a lot more work...
- */
-
-
-#if 0
-/* This should be done *before* XAA syncs,
- * Otherwise will have to sync again???
- */
-static void
-I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf)
-{
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I830Ptr pI830 = I830PTR(pScrn);
-   RegionPtr damage = &pBuf->damage;
-   int i, num =  REGION_NUM_RECTS(damage);
-   BoxPtr pbox = REGION_RECTS(damage);
-   drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScreen);
-   int cmd, br13;
-
-   /* Don't want to do this when no 3d is active and pages are
-    * right-way-round :
-    */
-   if (!pSAREAPriv->pf_active && pSAREAPriv->pf_current_page == 0)
-      return;
-
-   br13 = (pScrn->displayWidth * pI830->cpp) | (0xcc << 16);
-
-   if (pScrn->bitsPerPixel == 32) {
-      cmd = (XY_SRC_COPY_BLT_CMD | XY_SRC_COPY_BLT_WRITE_ALPHA |
-	     XY_SRC_COPY_BLT_WRITE_RGB);
-      br13 |= 3 << 24;
-   } else {
-      cmd = (XY_SRC_COPY_BLT_CMD);
-      br13 |= 1 << 24;
-   }
-
-   for (i = 0 ; i < num ; i++, pbox++) {
-      BEGIN_LP_RING(8);
-      OUT_RING(cmd);
-      OUT_RING(br13);
-      OUT_RING((pbox->y1 << 16) | pbox->x1);
-      OUT_RING((pbox->y2 << 16) | pbox->x2);
-      OUT_RING(pI830->back_buffer->offset);
-      OUT_RING((pbox->y1 << 16) | pbox->x1);
-      OUT_RING(br13 & 0xffff);
-      OUT_RING(pI830->front_buffer->offset);
-      ADVANCE_LP_RING();
-   }
-}
-#endif
 
 static void
 I830EnablePageFlip(ScreenPtr pScreen)
