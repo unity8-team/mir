@@ -539,8 +539,10 @@ I830MapMem(ScrnInfoPtr pScrn)
    if (!pI830->FbBase)
       return FALSE;
 
-   if (I830IsPrimary(pScrn))
-   pI830->LpRing->virtual_start = pI830->FbBase + pI830->LpRing->mem->offset;
+   if (I830IsPrimary(pScrn) && pI830->LpRing->mem != NULL) {
+      pI830->LpRing->virtual_start =
+	 pI830->FbBase + pI830->LpRing->mem->offset;
+   }
 
    return TRUE;
 }
@@ -1239,14 +1241,13 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->mmModeFlags = 0;
 
       if (!pI830->directRenderingDisabled) {
+	 pI830->mmModeFlags = I830_KERNEL_TEX;
 #ifdef XF86DRI_MM
 	 Bool tmp = FALSE;
 
 	 if (!IS_I965G(pI830))
 	    pI830->mmModeFlags |= I830_KERNEL_MM;
-	 else
 #endif
-	    pI830->mmModeFlags |= I830_KERNEL_TEX;
 
 	 from = X_PROBED;
 
@@ -1301,17 +1302,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    I830SetupOutputs(pScrn);
 
    SaveHWState(pScrn);
-   /* Do an initial detection of the outputs while none are configured on yet.
-    * This will give us some likely legitimate response for later if both
-    * pipes are already allocated and we're asked to do a detect.
-    */
-   for (i = 0; i < xf86_config->num_output; i++) 
-   {
-      xf86OutputPtr	      output = xf86_config->output[i];
-
-      output->status = (*output->funcs->detect) (output);
-   }
-
    if (!xf86InitialConfiguration (pScrn, FALSE))
    {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
@@ -1418,13 +1408,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->SWCursor = TRUE;
    }
 
-   if (!xf86RandR12PreInit (pScrn))
-   {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "RandR initialization failure\n");
-      PreInitCleanup(pScrn);
-      return FALSE;
-   }	
-
    if (pScrn->modes == NULL) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes.\n");
       PreInitCleanup(pScrn);
@@ -1471,7 +1454,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
       memset(&req, 0, sizeof(req));
       req.majorversion = 2;
-      req.minorversion = 0;
+      req.minorversion = 1;
       if (!LoadSubModule(pScrn->module, "exa", NULL, NULL, NULL, &req,
 		&errmaj, &errmin)) {
 	 LoaderErrorMsg(NULL, "exa", errmaj, errmin);
@@ -1514,29 +1497,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       }
    }
 #endif
-
-   /* rotation requires the newer libshadow */
-   if (I830IsPrimary(pScrn)) {
-      int errmaj, errmin;
-      pI830->shadowReq.majorversion = 1;
-      pI830->shadowReq.minorversion = 1;
-
-      if (!LoadSubModule(pScrn->module, "shadow", NULL, NULL, NULL,
-			       &pI830->shadowReq, &errmaj, &errmin)) {
-         pI830->shadowReq.minorversion = 0;
-         if (!LoadSubModule(pScrn->module, "shadow", NULL, NULL, NULL,
-			       &pI830->shadowReq, &errmaj, &errmin)) {
-            LoaderErrorMsg(NULL, "shadow", errmaj, errmin);
-	    return FALSE;
-         }
-      }
-   } else {
-      I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-      pI830->shadowReq.majorversion = pI8301->shadowReq.majorversion;
-      pI830->shadowReq.minorversion = pI8301->shadowReq.minorversion;
-      pI830->shadowReq.patchlevel = pI8301->shadowReq.patchlevel;
-   }
-   xf86LoaderReqSymLists(I810shadowSymbols, NULL);
 
    pI830->preinit = FALSE;
 
@@ -1919,18 +1879,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
 }
 
 static void
-InitRegisterRec(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int i;
-
-   if (!I830IsPrimary(pScrn)) return;
-
-   for (i = 0; i < 8; i++)
-      pI830->fence[i] = 0;
-}
-
-static void
 I830PointerMoved(int index, int x, int y)
 {
    ScrnInfoPtr pScrn = xf86Screens[index];
@@ -1955,22 +1903,6 @@ I830PointerMoved(int index, int x, int y)
    }
 
    (*pI830->PointerMoved)(index, newX, newY);
-}
-
-static Bool
-I830CreateScreenResources (ScreenPtr pScreen)
-{
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   pScreen->CreateScreenResources = pI830->CreateScreenResources;
-   if (!(*pScreen->CreateScreenResources)(pScreen))
-      return FALSE;
-
-   if (!xf86RandR12CreateScreenResources (pScreen))
-      return FALSE;
-
-   return TRUE;
 }
 
 static Bool
@@ -2351,7 +2283,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	    /* For this allocation, switch to a smaller DRI memory manager
 	     * size.
 	     */
-	    pI830->mmSize = I830_MM_MINPAGES * GTT_PAGE_SIZE;
+	    pI830->mmSize = I830_MM_MINPAGES * GTT_PAGE_SIZE / KB(1);
 	 } else {
 	    pI830->mmSize = savedMMSize;
 	 }
@@ -2510,8 +2442,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       }
    }
 #endif
-
-   InitRegisterRec(pScrn);
 
 #ifdef XF86DRI
    /*
@@ -2703,38 +2633,12 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->CloseScreen = pScreen->CloseScreen;
    pScreen->CloseScreen = I830CloseScreen;
 
-   if (pI830->shadowReq.minorversion >= 1) {
-      /* Rotation */
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
-      xf86DisableRandR(); /* Disable built-in RandR extension */
-      shadowSetup(pScreen);
-      /* support all rotations */
-      xf86RandR12Init (pScreen);
-      if (pI830->useEXA) {
-#ifdef I830_USE_EXA
-	 if (pI830->EXADriverPtr->exa_minor >= 1) {
-	    xf86RandR12SetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 |
-				     RR_Rotate_180 | RR_Rotate_270);
-	 } else {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "EXA version %d.%d too old to support rotation\n",
-		       pI830->EXADriverPtr->exa_major,
-		       pI830->EXADriverPtr->exa_minor);
-	    xf86RandR12SetRotations (pScreen, RR_Rotate_0);
-	 }
-#endif /* I830_USE_EXA */
-      } else {
-	 xf86RandR12SetRotations (pScreen, RR_Rotate_0 | RR_Rotate_90 |
-				  RR_Rotate_180 | RR_Rotate_270);
-      }
-      pI830->PointerMoved = pScrn->PointerMoved;
-      pScrn->PointerMoved = I830PointerMoved;
-      pI830->CreateScreenResources = pScreen->CreateScreenResources;
-      pScreen->CreateScreenResources = I830CreateScreenResources;
-   } else {
-      /* Rotation */
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "libshadow is version %d.%d.%d, required 1.1.0 or greater for rotation.\n",pI830->shadowReq.majorversion,pI830->shadowReq.minorversion,pI830->shadowReq.patchlevel);
-   }
+   if (!xf86CrtcScreenInit (pScreen))
+       return FALSE;
+       
+   /* Wrap pointer motion to flip touch screen around */
+   pI830->PointerMoved = pScrn->PointerMoved;
+   pScrn->PointerMoved = I830PointerMoved;
 
    if (serverGeneration == 1)
       xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);

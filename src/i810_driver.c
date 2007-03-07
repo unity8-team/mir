@@ -343,12 +343,6 @@ const char *I810driSymbols[] = {
 
 #endif /* I830_ONLY */
 
-const char *I810shadowSymbols[] = {
-    "shadowSetup",
-    "shadowAdd",
-    NULL
-};
-
 const char *I810i2cSymbols[] = {
     "xf86CreateI2CBusRec",
     "xf86I2CBusInit",
@@ -437,7 +431,6 @@ i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
 			I810drmSymbols,
 			I810driSymbols,
 #endif
-			I810shadowSymbols,
 			I810shadowFBSymbols,
 			I810vbeSymbols, vbeOptionalSymbols,
 			I810ddcSymbols, I810int10Symbols, NULL);
