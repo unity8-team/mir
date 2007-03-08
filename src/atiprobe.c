@@ -28,26 +28,14 @@
 #include <stdio.h>
 
 #include "ati.h"
-#include "atiadjust.h"
 #include "atibus.h"
 #include "atichip.h"
-#include "aticonsole.h"
-#include "atifillin.h"
-#include "atiident.h"
 #include "atimach64io.h"
 #include "atimodule.h"
-#include "atipreinit.h"
 #include "atiprobe.h"
-#include "atiscreen.h"
-#include "ativalid.h"
 #include "ativersion.h"
 #include "atividmem.h"
 #include "atiwonderio.h"
-
-#include "radeon_probe.h"
-#include "radeon_version.h"
-#include "r128_probe.h"
-#include "r128_version.h"
 
 #ifndef AVOID_CPIO
 
@@ -280,7 +268,7 @@ LastProbe:
  * This function looks for a Mach64 at a particular PIO address and returns an
  * ATIRec if one is found.
  */
-ATIPtr
+static ATIPtr
 ATIMach64Probe
 (
     ATIPtr            pATI,
@@ -527,217 +515,6 @@ SkipSparse:
                 pVideo->bus, pVideo->device, pVideo->func);
         }
     }
-
-    return ProbeSuccess;
-}
-
-static SymTabRec
-Mach64Chipsets[] = {
-    {ATI_CHIP_88800GXC, "ATI 88800GX-C"},
-    {ATI_CHIP_88800GXD, "ATI 88800GX-D"},
-    {ATI_CHIP_88800GXE, "ATI 88800GX-E"},
-    {ATI_CHIP_88800GXF, "ATI 88800GX-F"},
-    {ATI_CHIP_88800GX,  "ATI 88800GX"},
-    {ATI_CHIP_88800CX,  "ATI 88800CX"},
-    {ATI_CHIP_264CT,    "ATI 264CT"},
-    {ATI_CHIP_264ET,    "ATI 264ET"},
-    {ATI_CHIP_264VT,    "ATI 264VT"},
-    {ATI_CHIP_264VTB,   "ATI 264VT-B"},
-    {ATI_CHIP_264GT,    "ATI 3D Rage"},
-    {ATI_CHIP_264GTB,   "ATI 3D Rage II"},
-    {ATI_CHIP_264VT3,   "ATI 264VT3"},
-    {ATI_CHIP_264GTDVD, "ATI 3D Rage II+DVD"},
-    {ATI_CHIP_264LT,    "ATI 3D Rage LT"},
-    {ATI_CHIP_264VT4,   "ATI 264VT4"},
-    {ATI_CHIP_264GT2C,  "ATI 3D Rage IIc"},
-    {ATI_CHIP_264GTPRO, "ATI 3D Rage Pro"},
-    {ATI_CHIP_264LTPRO, "ATI 3D Rage LT Pro"},
-    {ATI_CHIP_264XL,    "ATI 3D Rage XL or XC"},
-    {ATI_CHIP_MOBILITY, "ATI 3D Rage Mobility"},
-    {-1,      NULL }
-};
-
-/*
- * This table maps a PCI device ID to a chipset family identifier.
- */
-static PciChipsets
-Mach64PciChipsets[] = {
-    {ATI_CHIP_88800GX,   PCI_CHIP_MACH64GX,  RES_SHARED_VGA},
-    {ATI_CHIP_88800CX,   PCI_CHIP_MACH64CX,  RES_SHARED_VGA},
-    {ATI_CHIP_264CT,     PCI_CHIP_MACH64CT,  RES_SHARED_VGA},
-    {ATI_CHIP_264ET,     PCI_CHIP_MACH64ET,  RES_SHARED_VGA},
-    {ATI_CHIP_264VT,     PCI_CHIP_MACH64VT,  RES_SHARED_VGA},
-    {ATI_CHIP_264GT,     PCI_CHIP_MACH64GT,  RES_SHARED_VGA},
-    {ATI_CHIP_264VT3,    PCI_CHIP_MACH64VU,  RES_SHARED_VGA},
-    {ATI_CHIP_264GTDVD,  PCI_CHIP_MACH64GU,  RES_SHARED_VGA},
-    {ATI_CHIP_264LT,     PCI_CHIP_MACH64LG,  RES_SHARED_VGA},
-    {ATI_CHIP_264VT4,    PCI_CHIP_MACH64VV,  RES_SHARED_VGA},
-    {ATI_CHIP_264GT2C,   PCI_CHIP_MACH64GV,  RES_SHARED_VGA},
-    {ATI_CHIP_264GT2C,   PCI_CHIP_MACH64GW,  RES_SHARED_VGA},
-    {ATI_CHIP_264GT2C,   PCI_CHIP_MACH64GY,  RES_SHARED_VGA},
-    {ATI_CHIP_264GT2C,   PCI_CHIP_MACH64GZ,  RES_SHARED_VGA},
-    {ATI_CHIP_264GTPRO,  PCI_CHIP_MACH64GB,  RES_SHARED_VGA},
-    {ATI_CHIP_264GTPRO,  PCI_CHIP_MACH64GD,  RES_SHARED_VGA},
-    {ATI_CHIP_264GTPRO,  PCI_CHIP_MACH64GI,  RES_SHARED_VGA},
-    {ATI_CHIP_264GTPRO,  PCI_CHIP_MACH64GP,  RES_SHARED_VGA},
-    {ATI_CHIP_264GTPRO,  PCI_CHIP_MACH64GQ,  RES_SHARED_VGA},
-    {ATI_CHIP_264LTPRO,  PCI_CHIP_MACH64LB,  RES_SHARED_VGA},
-    {ATI_CHIP_264LTPRO,  PCI_CHIP_MACH64LD,  RES_SHARED_VGA},
-    {ATI_CHIP_264LTPRO,  PCI_CHIP_MACH64LI,  RES_SHARED_VGA},
-    {ATI_CHIP_264LTPRO,  PCI_CHIP_MACH64LP,  RES_SHARED_VGA},
-    {ATI_CHIP_264LTPRO,  PCI_CHIP_MACH64LQ,  RES_SHARED_VGA},
-    {ATI_CHIP_264XL,     PCI_CHIP_MACH64GL,  RES_SHARED_VGA},
-    {ATI_CHIP_264XL,     PCI_CHIP_MACH64GM,  RES_SHARED_VGA},
-    {ATI_CHIP_264XL,     PCI_CHIP_MACH64GN,  RES_SHARED_VGA},
-    {ATI_CHIP_264XL,     PCI_CHIP_MACH64GO,  RES_SHARED_VGA},
-    {ATI_CHIP_264XL,     PCI_CHIP_MACH64GR,  RES_SHARED_VGA},
-    {ATI_CHIP_264XL,     PCI_CHIP_MACH64GS,  RES_SHARED_VGA},
-    {ATI_CHIP_MOBILITY,  PCI_CHIP_MACH64LM,  RES_SHARED_VGA},
-    {ATI_CHIP_MOBILITY,  PCI_CHIP_MACH64LN,  RES_SHARED_VGA},
-    {ATI_CHIP_MOBILITY,  PCI_CHIP_MACH64LR,  RES_SHARED_VGA},
-    {ATI_CHIP_MOBILITY,  PCI_CHIP_MACH64LS,  RES_SHARED_VGA},
-    {-1, -1, RES_UNDEFINED}
-};
-
-/*
- * Mach64Probe --
- *
- * This function is called once, at the start of the first server generation to
- * do a minimal probe for supported hardware.
- */
-static Bool
-Mach64Probe(DriverPtr pDriver, int flags)
-{
-    GDevPtr  *devSections;
-    int  *usedChips;
-    int  numDevSections;
-    int  numUsed;
-    Bool  ProbeSuccess = FALSE;
-
-    if ((numDevSections = xf86MatchDevice(ATI_DRIVER_NAME, &devSections)) <= 0)
-        return FALSE;
-
-    if (xf86GetPciVideoInfo() == NULL)
-        return FALSE;
-
-    numUsed = xf86MatchPciInstances(ATI_DRIVER_NAME, PCI_VENDOR_ATI,
-                                    Mach64Chipsets, Mach64PciChipsets,
-                                    devSections, numDevSections,
-                                    pDriver, &usedChips);
-    xfree(devSections);
-
-    if (numUsed <= 0)
-        return FALSE;
-
-    if (flags & PROBE_DETECT) {
-        ProbeSuccess = TRUE;
-    } else {
-        int  i;
-
-        for (i = 0; i < numUsed; i++) {
-            ScrnInfoPtr pScrn;
-            EntityInfoPtr pEnt;
-            pciVideoPtr pVideo;
-
-            pScrn = xf86ConfigPciEntity(NULL, 0, usedChips[i], Mach64PciChipsets,
-                                        0, 0, 0, 0, NULL);
-
-            if (!pScrn)
-                continue;
-
-            pEnt = xf86GetEntityInfo(usedChips[i]);
-            pVideo = xf86GetPciInfoForEntity(usedChips[i]);
-
-#ifdef XFree86LOADER
-
-            if (!xf86LoadSubModule(pScrn, "atimisc"))
-            {
-                xf86Msg(X_ERROR,
-                    ATI_NAME ":  Failed to load \"atimisc\" module.\n");
-                xf86DeleteScreen(pScrn->scrnIndex, 0);
-                continue;
-            }
-
-            xf86LoaderReqSymLists(ATISymbols, NULL);
-
-#endif
-
-            ATIFillInScreenInfo(pScrn);
-
-            pScrn->Probe = Mach64Probe;
-
-            ProbeSuccess = TRUE;
-        }
-    }
-
-    return ProbeSuccess;
-}
-
-/*
- * ATIProbe --
- *
- * This function is called once, at the start of the first server generation to
- * do a minimal probe for supported hardware.
- */
-Bool
-ATIProbe
-(
-    DriverPtr pDriver,
-    int       flags
-)
-{
-    pciVideoPtr pVideo, *xf86PciVideoInfo = xf86GetPciVideoInfo();
-    Bool        ProbeSuccess = FALSE;
-    Bool        DoMach64 = FALSE;
-    Bool        DoRage128 = FALSE, DoRadeon = FALSE;
-    int         i;
-    ATIChipType Chip;
-
-    if (!(flags & PROBE_DETECT))
-    {
-        if (xf86MatchDevice(ATI_NAME, NULL) > 0)
-            DoMach64 = TRUE;
-        if (xf86MatchDevice(R128_NAME, NULL) > 0)
-            DoRage128 = TRUE;
-        if (xf86MatchDevice(RADEON_NAME, NULL) > 0)
-            DoRadeon = TRUE;
-    }
-
-    if (xf86PciVideoInfo)
-    {
-        for (i = 0;  (pVideo = xf86PciVideoInfo[i++]);  )
-        {
-            if ((pVideo->vendor != PCI_VENDOR_ATI) ||
-                (pVideo->chipType == PCI_CHIP_MACH32))
-                continue;
-
-            /* Check for Rage128's, Radeon's and later adapters */
-            Chip = ATIChipID(pVideo->chipType, pVideo->chipRev);
-            if (Chip > ATI_CHIP_Mach64)
-            {
-                if (Chip <= ATI_CHIP_Rage128)
-                    DoRage128 = TRUE;
-                else if (Chip <= ATI_CHIP_Radeon)
-                    DoRadeon = TRUE;
-
-                continue;
-            }
-
-            DoMach64 = TRUE;
-        }
-    }
-
-    /* Call Mach64 driver probe */
-    if (DoMach64 && Mach64Probe(pDriver, flags))
-        ProbeSuccess = TRUE;
-
-    /* Call Rage 128 driver probe */
-    if (DoRage128 && R128Probe(pDriver, flags))
-        ProbeSuccess = TRUE;
-
-    /* Call Radeon driver probe */
-    if (DoRadeon && RADEONProbe(pDriver, flags))
-        ProbeSuccess = TRUE;
 
     return ProbeSuccess;
 }

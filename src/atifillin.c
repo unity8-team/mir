@@ -36,7 +36,6 @@ _X_EXPORT void ATIFillInScreenInfo(ScrnInfoPtr pScreenInfo)
     pScreenInfo->driverVersion = ATI_VERSION_CURRENT;
     pScreenInfo->driverName    = ATI_DRIVER_NAME;
     pScreenInfo->name          = ATI_NAME;
-    pScreenInfo->Probe         = ATIProbe;
     pScreenInfo->PreInit       = ATIPreInit;
     pScreenInfo->ScreenInit    = ATIScreenInit;
     pScreenInfo->SwitchMode    = ATISwitchMode;

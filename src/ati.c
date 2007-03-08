@@ -57,10 +57,102 @@
 #include "config.h"
 #endif
 
-#include "atiident.h"
+#include "ati.h"
+#include "atichip.h"
 #include "atioption.h"
-#include "atiprobe.h"
 #include "ativersion.h"
+#include "atimach64probe.h"
+
+#include "radeon_probe.h"
+#include "radeon_version.h"
+#include "r128_probe.h"
+#include "r128_version.h"
+
+/*
+ * ATIIdentify --
+ *
+ * Print the driver's list of chipset names.
+ */
+static void
+ATIIdentify
+(
+    int flags
+)
+{
+    xf86Msg(X_INFO, "%s: %s\n", ATI_NAME,
+            "ATI driver (version " ATI_VERSION_NAME ") for chipset: mach64");
+    R128Identify(flags);
+    RADEONIdentify(flags);
+}
+
+/*
+ * ATIProbe --
+ *
+ * This function is called once, at the start of the first server generation to
+ * do a minimal probe for supported hardware.
+ */
+static Bool
+ATIProbe
+(
+    DriverPtr pDriver,
+    int       flags
+)
+{
+    pciVideoPtr pVideo, *xf86PciVideoInfo = xf86GetPciVideoInfo();
+    Bool        ProbeSuccess = FALSE;
+    Bool        DoMach64 = FALSE;
+    Bool        DoRage128 = FALSE, DoRadeon = FALSE;
+    int         i;
+    ATIChipType Chip;
+
+    if (!(flags & PROBE_DETECT))
+    {
+        if (xf86MatchDevice(ATI_NAME, NULL) > 0)
+            DoMach64 = TRUE;
+        if (xf86MatchDevice(R128_NAME, NULL) > 0)
+            DoRage128 = TRUE;
+        if (xf86MatchDevice(RADEON_NAME, NULL) > 0)
+            DoRadeon = TRUE;
+    }
+
+    if (xf86PciVideoInfo)
+    {
+        for (i = 0;  (pVideo = xf86PciVideoInfo[i++]);  )
+        {
+            if ((pVideo->vendor != PCI_VENDOR_ATI) ||
+                (pVideo->chipType == PCI_CHIP_MACH32))
+                continue;
+
+            /* Check for Rage128's, Radeon's and later adapters */
+            Chip = ATIChipID(pVideo->chipType, pVideo->chipRev);
+            if (Chip > ATI_CHIP_Mach64)
+            {
+                if (Chip <= ATI_CHIP_Rage128)
+                    DoRage128 = TRUE;
+                else if (Chip <= ATI_CHIP_Radeon)
+                    DoRadeon = TRUE;
+
+                continue;
+            }
+
+            DoMach64 = TRUE;
+        }
+    }
+
+    /* Call Mach64 driver probe */
+    if (DoMach64 && Mach64Probe(pDriver, flags))
+        ProbeSuccess = TRUE;
+
+    /* Call Rage 128 driver probe */
+    if (DoRage128 && R128Probe(pDriver, flags))
+        ProbeSuccess = TRUE;
+
+    /* Call Radeon driver probe */
+    if (DoRadeon && RADEONProbe(pDriver, flags))
+        ProbeSuccess = TRUE;
+
+    return ProbeSuccess;
+}
 
 /* The root of all evil... */
 _X_EXPORT DriverRec ATI =

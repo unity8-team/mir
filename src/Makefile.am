@@ -33,8 +33,7 @@ RADEON_DRI_SRCS = radeon_dri.c
 endif
 
 if ATIMISC_CPIO
-ATI_CPIO_SOURCES = ativgaio.c
-ATIMISC_CPIO_SOURCES = ativga.c atibank.c atiwonder.c atiwonderio.c
+ATIMISC_CPIO_SOURCES = ativga.c ativgaio.c atibank.c atiwonder.c atiwonderio.c
 endif
 
 if ATIMISC_DGA
@@ -52,14 +51,14 @@ ati_drv_la_LTLIBRARIES = ati_drv.la
 ati_drv_la_LDFLAGS = -module -avoid-version
 ati_drv_ladir = @moduledir@/drivers
 ati_drv_la_SOURCES = \
-	ati.c atibus.c atichip.c atiident.c atioption.c \
-	atiprobe.c atividmem.c atimodule.c $(ATI_CPIO_SOURCES) \
+	ati.c atichip.c atioption.c atimodule.c atimach64probe.c \
 	radeon_probe.c r128_probe.c
 
 atimisc_drv_la_LTLIBRARIES = atimisc_drv.la
 atimisc_drv_la_LDFLAGS = -module -avoid-version
 atimisc_drv_ladir = @moduledir@/drivers
 atimisc_drv_la_SOURCES = \
+	atibus.c atiprobe.c atividmem.c \
 	atiadjust.c atiaudio.c aticlock.c aticonfig.c aticonsole.c \
 	atidac.c atidecoder.c atidsp.c atifillin.c atii2c.c \
 	atilock.c atimach64.c atimach64accel.c atimach64cursor.c \
@@ -105,6 +104,7 @@ theatre200_drv_la_SOURCES = \
 	theatre200.c theatre200_module.c
 
 EXTRA_DIST = \
+	atimach64render.c \
 	radeon_render.c \
 	radeon_accelfuncs.c \
 	\
@@ -127,14 +127,13 @@ EXTRA_DIST = \
 	atifillin.h \
 	ati.h \
 	atii2c.h \
-	atiident.h \
 	atiload.h \
 	atilock.h \
 	atimach64accel.h \
 	atimach64.h \
 	atimach64i2c.h \
 	atimach64io.h \
-	atimach64render.c \
+	atimach64probe.h \
 	atimode.h \
 	atimodule.h \
 	atioption.h \

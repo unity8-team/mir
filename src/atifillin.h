@@ -30,7 +30,6 @@
 /* include headers corresponding to fields touched by ATIFillInScreenInfo() */
 
 #include "ativersion.h"
-#include "atiprobe.h"
 #include "atipreinit.h"
 #include "atiscreen.h"
 #include "aticonsole.h"

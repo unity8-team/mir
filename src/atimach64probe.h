@@ -20,9 +20,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef ___ATIIDENT_H___
-#define ___ATIIDENT_H___ 1
+#ifndef ___ATIMACH64PROBE_H___
+#define ___ATIMACH64PROBE_H___ 1
 
-extern void ATIIdentify(int);
+#include "xf86str.h"
 
-#endif /* ___ATIIDENT_H___ */
+extern Bool Mach64Probe(DriverPtr, int);
+
+#endif /* ___ATIMACH64PROBE_H___ */
