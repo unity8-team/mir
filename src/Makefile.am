@@ -51,7 +51,7 @@ ati_drv_la_LTLIBRARIES = ati_drv.la
 ati_drv_la_LDFLAGS = -module -avoid-version
 ati_drv_ladir = @moduledir@/drivers
 ati_drv_la_SOURCES = \
-	ati.c atichip.c atioption.c atimodule.c atimach64probe.c \
+	ati.c atichip.c atimodule.c atimach64probe.c \
 	radeon_probe.c r128_probe.c
 
 atimisc_drv_la_LTLIBRARIES = atimisc_drv.la
@@ -114,7 +114,6 @@ EXTRA_DIST = \
 	atibus.h \
 	atichip.h \
 	aticlock.h \
-	aticonfig.h \
 	aticonsole.h \
 	aticrtc.h \
 	aticursor.h \

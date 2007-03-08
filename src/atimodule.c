@@ -42,6 +42,7 @@ const char *ATISymbols[] =
     "ATILeaveVT",
     "ATIFreeScreen",
     "ATIValidMode",
+    "ATIOptionsWeak",
     "ATIFillInScreenInfo",
     NULL
 };

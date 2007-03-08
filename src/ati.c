@@ -59,7 +59,6 @@
 
 #include "ati.h"
 #include "atichip.h"
-#include "atioption.h"
 #include "ativersion.h"
 #include "atimach64probe.h"
 
@@ -152,6 +151,29 @@ ATIProbe
         ProbeSuccess = TRUE;
 
     return ProbeSuccess;
+}
+
+/*
+ * ATIAvailableOptions --
+ *
+ * Return recognised options that are intended for public consumption.
+ */
+const OptionInfoRec *
+ATIAvailableOptions
+(
+    int ChipId,
+    int BusId
+)
+{
+    const OptionInfoRec *pOptions;
+
+    if ((pOptions = R128AvailableOptions(ChipId, BusId)))
+        return pOptions;
+
+    if ((pOptions = RADEONAvailableOptions(ChipId, BusId)))
+        return pOptions;
+
+    return Mach64AvailableOptions(ChipId, BusId);
 }
 
 /* The root of all evil... */

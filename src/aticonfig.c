@@ -31,12 +31,211 @@
 
 #include "ati.h"
 #include "atichip.h"
-#include "aticonfig.h"
 #include "aticursor.h"
 #include "atioption.h"
 #include "atistruct.h"
 
 #include "mach64_common.h"
+
+#ifdef TV_OUT
+
+/*
+ * List of supported TV standard names
+ */
+const char *ATITVStandardNames[ATI_TV_STDS_MAX_VALID+1] = {
+    "NTSC",
+    "PAL",
+    "PAL-M",
+    "PAL-60",
+    "NTSC-J",
+    "PAL-CN",
+    "PAL-N",
+    "Reserved1",
+    "Reserved2",
+    "SCART-PAL",
+    "None",
+    "Invalid"
+};
+
+#endif /* TV_OUT */
+
+/*
+ * Recognised XF86Config options.
+ */
+static const OptionInfoRec ATIPublicOptions[] =
+{
+    {
+        ATI_OPTION_PROBE_SPARSE,
+        "probe_sparse",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
+        ATI_OPTION_ACCEL,
+        "accel",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
+        ATI_OPTION_CRT_DISPLAY,
+        "crt_display",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
+        ATI_OPTION_CSYNC,
+        "composite_sync",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
+        ATI_OPTION_HWCURSOR,
+        "hw_cursor",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE,
+    },
+
+#ifdef XF86DRI_DEVEL
+
+    {
+        ATI_OPTION_IS_PCI,
+        "force_pci_mode",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE,
+    },
+    {
+        ATI_OPTION_DMA_MODE,
+        "dma_mode",
+        OPTV_STRING,
+        {0, },
+        FALSE,
+    },
+    {
+        ATI_OPTION_AGP_MODE,
+        "agp_mode",
+        OPTV_INTEGER,
+        {0, },
+        FALSE,
+    },
+    {
+        ATI_OPTION_AGP_SIZE,
+        "agp_size",
+        OPTV_INTEGER,
+        {0, },
+        FALSE,
+    },
+    {
+        ATI_OPTION_LOCAL_TEXTURES,
+        "local_textures",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE,
+    },
+    {
+        ATI_OPTION_BUFFER_SIZE,
+        "buffer_size",
+        OPTV_INTEGER,
+        {0, },
+        FALSE,
+    },
+
+#endif /* XF86DRI_DEVEL */
+
+#ifdef TV_OUT
+    {
+        ATI_OPTION_TV_OUT,
+        "tv_out",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
+        ATI_OPTION_TV_STD,
+        "tv_standard",
+        OPTV_STRING,
+        {0, },
+        FALSE
+    },
+
+#endif /* TV_OUT */
+
+    {
+        ATI_OPTION_MMIO_CACHE,
+        "mmio_cache",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+
+
+    {
+        ATI_OPTION_TEST_MMIO_CACHE,
+        "test_mmio_cache",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
+        ATI_OPTION_PANEL_DISPLAY,
+        "panel_display",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
+        ATI_OPTION_REFERENCE_CLOCK,
+        "reference_clock",
+        OPTV_FREQ,
+        {0, },
+        FALSE
+    },
+    {
+        ATI_OPTION_SHADOW_FB,
+        "shadow_fb",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
+        ATI_OPTION_SWCURSOR,
+        "sw_cursor",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE,
+    },
+    {
+        ATI_OPTION_ACCELMETHOD,
+        "AccelMethod",
+        OPTV_STRING,
+        {0, },
+        FALSE
+    },
+    {
+        ATI_OPTION_RENDER_ACCEL,
+        "RenderAccel",
+        OPTV_BOOLEAN,
+        {0, },
+        FALSE
+    },
+    {
+        -1,
+        NULL,
+        OPTV_NONE,
+        {0, },
+        FALSE
+    }
+};
+
+static const unsigned long ATIPublicOptionSize = SizeOf(ATIPublicOptions);
+
+_X_EXPORT const OptionInfoRec *
+ATIOptionsWeak(void) { return ATIPublicOptions; }
 
 /*
  * Non-publicised XF86Config options.

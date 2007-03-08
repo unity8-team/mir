@@ -30,6 +30,7 @@
 #include "atimodule.h"
 #include "atimach64io.h"
 #include "atimach64probe.h"
+#include "atioption.h"
 #include "ativersion.h"
 
 static SymTabRec
@@ -99,6 +100,16 @@ Mach64PciChipsets[] = {
     {ATI_CHIP_MOBILITY,  PCI_CHIP_MACH64LS,  RES_SHARED_VGA},
     {-1, -1, RES_UNDEFINED}
 };
+
+const OptionInfoRec *
+Mach64AvailableOptions(int chipid, int busid)
+{
+    /*
+     * Return options defined in the atimisc submodule which will have been
+     * loaded by this point.
+     */
+    return ATIOptionsWeak();
+}
 
 /*
  * Mach64Probe --

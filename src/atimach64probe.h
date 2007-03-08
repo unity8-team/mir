@@ -25,6 +25,7 @@
 
 #include "xf86str.h"
 
-extern Bool Mach64Probe(DriverPtr, int);
+extern const OptionInfoRec * Mach64AvailableOptions(int, int);
+extern Bool                  Mach64Probe(DriverPtr, int);
 
 #endif /* ___ATIMACH64PROBE_H___ */
