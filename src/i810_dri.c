@@ -222,6 +222,7 @@ I810InitVisualConfigs(ScreenPtr pScreen)
 	       pConfigs[i].redSize = 5;
 	       pConfigs[i].greenSize = 6;
 	       pConfigs[i].blueSize = 5;
+	       pConfigs[i].alphaSize = 0;
 	       pConfigs[i].redMask = 0x0000F800;
 	       pConfigs[i].greenMask = 0x000007E0;
 	       pConfigs[i].blueMask = 0x0000001F;
@@ -1173,7 +1174,9 @@ I810DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
       pbox++;
    }
    I810SelectBuffer(pScrn, I810_SELECT_FRONT);
-   pI810->AccelInfoRec->NeedToSync = TRUE;
+
+   if (pI810->AccelInfoRec)
+   	pI810->AccelInfoRec->NeedToSync = TRUE;
 }
 
 /* This routine is a modified form of XAADoBitBlt with the calls to
@@ -1332,7 +1335,8 @@ I810DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
       DEALLOCATE_LOCAL(pboxNew1);
    }
 
-   pI810->AccelInfoRec->NeedToSync = TRUE;
+   if (pI810->AccelInfoRec)
+	pI810->AccelInfoRec->NeedToSync = TRUE;
 }
 
 
