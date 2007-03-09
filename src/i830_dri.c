@@ -109,10 +109,6 @@ static void I830DRITransitionMultiToSingle3d(ScreenPtr pScreen);
 static void I830DRITransitionSingleToMulti3d(ScreenPtr pScreen);
 static void I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num);
 
-#if 0
-static void I830DRIShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf);
-#endif
-
 extern void GlxSetVisualConfigs(int nconfigs,
 				__GLXvisualConfig * configs,
 				void **configprivs);
@@ -1417,10 +1413,6 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
  * Also see tdfx driver for example of using these callbacks to
  * allocate and free 3d-specific memory on demand.
  */
-
-
-
-
 
 /* Use the miext/shadow module to maintain a list of dirty rectangles.
  * These are blitted to the back buffer to keep both buffers clean

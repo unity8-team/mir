@@ -1126,8 +1126,8 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
 	pI830->depth_buffer =
 	    i830_allocate_memory_tiled(pScrn, "depth buffer", size, pitch,
 				       GTT_PAGE_SIZE, ALIGN_BOTH_ENDS,
-				       TILING_YMAJOR);
-	pI830->depth_tiled = FENCE_YMAJOR;
+				       TILING_XMAJOR);
+	pI830->depth_tiled = FENCE_XMAJOR;
     }
 
     /* Otherwise, allocate it linear. */
@@ -1386,7 +1386,9 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
    	}
     }
 
-    if (IS_I9XX(pI830))
+    if ((IS_I945G(pI830) || IS_I945GM(pI830)) && tile_format == TILING_YMAJOR)
+	fence_pitch = pitch / 128;
+    else if (IS_I9XX(pI830))
 	fence_pitch = pitch / 512;
     else
 	fence_pitch = pitch / 128;
