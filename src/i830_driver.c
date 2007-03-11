@@ -165,6 +165,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PRINT_MODE_INFO 0
 #endif
 
+#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>

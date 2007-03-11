@@ -99,6 +99,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
+#include <assert.h>
 #include <string.h>
 
 #include "xf86.h"
