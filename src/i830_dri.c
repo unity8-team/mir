@@ -549,8 +549,8 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->MoveBuffers = I830DRIMoveBuffers;
    pDRIInfo->bufferRequests = DRI_ALL_WINDOWS;
 
-#if DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1
    {
+#if DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1
       int major, minor, patch;
 
       DRIQueryVersion(&major, &minor, &patch);
