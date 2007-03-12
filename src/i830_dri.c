@@ -1468,7 +1468,6 @@ I830DRITransitionTo3d(ScreenPtr pScreen)
    I830Ptr pI830 = I830PTR(pScrn);
 
    I830DRISetPfMask(pScreen, pI830->allowPageFlip ? 0x3 : 0);
-   pI830->have3DWindows = 1;
 }
 
 
@@ -1488,8 +1487,6 @@ I830DRITransitionTo2d(ScreenPtr pScreen)
 		 "[dri] %s: kernel failed to unflip buffers.\n", __func__);
 
    I830DRISetPfMask(pScreen, 0);
-
-   pI830->have3DWindows = 0;
 }
 
 static void
