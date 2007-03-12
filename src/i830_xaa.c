@@ -48,6 +48,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
+#include <assert.h>
 #include "xf86.h"
 #include "xaarop.h"
 #include "i830.h"
@@ -282,6 +283,11 @@ CheckTiling(ScrnInfoPtr pScrn)
       if (pI830->back_buffer != NULL &&
 	  pI830->bufferOffset == pI830->back_buffer->offset &&
 	  pI830->back_tiled == FENCE_XMAJOR) {
+         tiled = 1;
+      }
+      if (pI830->third_buffer != NULL &&
+	  pI830->bufferOffset == pI830->third_buffer->offset &&
+	  pI830->third_tiled == FENCE_XMAJOR) {
          tiled = 1;
       }
       /* not really supported as it's always YMajor tiled */

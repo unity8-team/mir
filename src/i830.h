@@ -68,6 +68,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dri.h"
 #include "GL/glxint.h"
 #include "i830_dri.h"
+#ifdef DAMAGE
+#include "damage.h"
+#endif
 #endif
 
 #ifdef I830_USE_EXA
@@ -296,6 +299,7 @@ typedef struct _I830Rec {
    i830_memory *logical_context;
 #ifdef XF86DRI
    i830_memory *back_buffer;
+   i830_memory *third_buffer;
    i830_memory *depth_buffer;
    i830_memory *textures;		/**< Compatibility texture memory */
    i830_memory *memory_manager;		/**< DRI memory manager aperture */
@@ -308,11 +312,18 @@ typedef struct _I830Rec {
 
    unsigned int front_tiled;
    unsigned int back_tiled;
+   unsigned int third_tiled;
    unsigned int depth_tiled;
+
+#ifdef DAMAGE
+   DamagePtr pDamage;
+   RegionRec driRegion;
+#endif
 #endif
 
    Bool NeedRingBufferLow;
    Bool allowPageFlip;
+   Bool TripleBuffer;
    Bool disableTiling;
 
    int backPitch;
@@ -517,6 +528,7 @@ typedef struct _I830Rec {
 #define I830_SELECT_FRONT	0
 #define I830_SELECT_BACK	1
 #define I830_SELECT_DEPTH	2
+#define I830_SELECT_THIRD	3
 
 /* I830 specific functions */
 extern int I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis);

@@ -165,6 +165,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PRINT_MODE_INFO 0
 #endif
 
+#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -276,8 +277,9 @@ typedef enum {
    OPTION_LINEARALLOC,
 #ifdef XF86DRI_MM
    OPTION_INTELTEXPOOL,
-   OPTION_INTELMMSIZE
+   OPTION_INTELMMSIZE,
 #endif
+   OPTION_TRIPLEBUFFER,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -298,6 +300,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_INTELMMSIZE, "AperTexSize",  OPTV_INTEGER,	{0},	FALSE},
 #endif
+   {OPTION_TRIPLEBUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	FALSE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -845,7 +848,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    char *s;
    pointer pVBEModule = NULL;
    const char *chipname;
-   Bool enable;
    int num_pipe;
    int max_width, max_height;
 
@@ -1358,14 +1360,24 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	      pI830->colorKey);
 #endif
 
-   pI830->allowPageFlip = FALSE;
-   enable = xf86ReturnOptValBool(pI830->Options, OPTION_PAGEFLIP, FALSE);
 #ifdef XF86DRI
-   if (!pI830->directRenderingDisabled) {
-      pI830->allowPageFlip = enable;
-      xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "page flipping %s\n",
-		 enable ? "enabled" : "disabled");
-   }
+   pI830->allowPageFlip = FALSE;
+   from = (!pI830->directRenderingDisabled &&
+	   xf86GetOptValBool(pI830->Options, OPTION_PAGEFLIP,
+			     &pI830->allowPageFlip)) ? X_CONFIG : X_DEFAULT;
+
+   xf86DrvMsg(pScrn->scrnIndex, from, "Will%s try to enable page flipping\n",
+	      pI830->allowPageFlip ? "" : " not");
+#endif
+
+#ifdef XF86DRI
+   pI830->TripleBuffer = FALSE;
+   from =  (!pI830->directRenderingDisabled &&
+	    xf86GetOptValBool(pI830->Options, OPTION_TRIPLEBUFFER,
+			      &pI830->TripleBuffer)) ? X_CONFIG : X_DEFAULT;
+
+   xf86DrvMsg(pScrn->scrnIndex, from, "Triple buffering %sabled\n",
+	      pI830->TripleBuffer ? "en" : "dis");
 #endif
 
    /*
@@ -2275,6 +2287,10 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	    /* For further allocations, disable tiling */
 	    pI830->disableTiling = TRUE;
 	    pScrn->displayWidth = savedDisplayWidth;
+	    if (pI830->allowPageFlip)
+	       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			  "Couldn't allocate tiled memory, page flipping "
+			  "disabled\n");
 	    pI830->allowPageFlip = FALSE;
 	 }
 
@@ -2480,6 +2496,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled)
       pI830->directRenderingEnabled = I830DRIDoMappings(pScreen);
+
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Page Flipping %sabled\n",
+	      pI830->allowPageFlip ? "en" : "dis");
 #endif
 
    DPRINTF(PFX, "assert( if(!I830MapMem(pScrn)) )\n");
@@ -2831,10 +2850,6 @@ I830EnterVT(int scrnIndex, int flags)
    i830DumpRegs (pScrn);
    i830DescribeOutputConfiguration(pScrn);
 
-#ifdef XF86DRI
-   I830DRISetVBlankInterrupt (pScrn, TRUE);
-#endif
-
    ResetState(pScrn, TRUE);
    SetHWOperatingState(pScrn);
 
@@ -2917,6 +2932,15 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    pI830->closing = TRUE;
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
+#ifdef DAMAGE
+      if (pI830->pDamage) {
+	 PixmapPtr pPix = pScreen->GetScreenPixmap(pScreen);
+
+	 DamageUnregister(&pPix->drawable, pI830->pDamage);
+	 DamageDestroy(pI830->pDamage);
+	 pI830->pDamage = NULL;
+      }
+#endif
 #ifdef XF86DRI_MM
       if (pI830->mmModeFlags & I830_KERNEL_MM) {
 #ifndef XSERVER_LIBDRM_MM
@@ -2966,6 +2990,8 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
       xf86DestroyCursorInfoRec(pI830->CursorInfoRec);
       pI830->CursorInfoRec = 0;
    }
+
+   i830_reset_allocations(pScrn);
 
    if (I830IsPrimary(pScrn)) {
       xf86GARTCloseScreen(scrnIndex);

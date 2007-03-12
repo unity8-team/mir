@@ -390,6 +390,30 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	OUTREG(dspbase, Start + Offset);
 	(void) INREG(dspbase);
     }
+
+#ifdef XF86DRI
+    if (pI830->directRenderingEnabled) {
+	drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn->pScreen);
+
+	if (!sPriv)
+	    return;
+
+	switch (pipe) {
+	case 0:
+	    sPriv->pipeA_x = x;
+	    sPriv->pipeA_y = y;
+	    break;
+	case 1:
+	    sPriv->pipeB_x = x;
+	    sPriv->pipeB_y = y;
+	    break;
+	default:
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Can't update pipe %d in SAREA\n", pipe);
+	    break;
+	}
+    }
+#endif
 }
 
 /**
@@ -489,6 +513,31 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	usleep(150);
 	break;
     }
+
+#ifdef XF86DRI
+    if (pI830->directRenderingEnabled) {
+	drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn->pScreen);
+	Bool enabled = crtc->enabled && mode != DPMSModeOff;
+
+	if (!sPriv)
+	    return;
+
+	switch (pipe) {
+	case 0:
+	    sPriv->pipeA_w = enabled ? crtc->mode.HDisplay : 0;
+	    sPriv->pipeA_h = enabled ? crtc->mode.VDisplay : 0;
+	    break;
+	case 1:
+	    sPriv->pipeB_w = enabled ? crtc->mode.HDisplay : 0;
+	    sPriv->pipeB_h = enabled ? crtc->mode.VDisplay : 0;
+	    break;
+	default:
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Can't update pipe %d in SAREA\n", pipe);
+	    break;
+	}
+    }
+#endif
 }
 
 static Bool
@@ -881,6 +930,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     OUTREG(dspcntr_reg, dspcntr);
     /* Flush the plane changes */
     i830PipeSetBase(crtc, x, y);
+#ifdef XF86DRI
+   I830DRISetVBlankInterrupt (pScrn, TRUE);
+#endif
     
     i830WaitForVblank(pScrn);
 }
