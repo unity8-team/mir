@@ -81,6 +81,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830.h"
 #include "i830_dri.h"
 
+#include "i915_drm.h"
+
 #include "dristruct.h"
 
 static char I830KernelDriverName[] = "i915";
@@ -563,12 +565,13 @@ I830DRIScreenInit(ScreenPtr pScreen)
 #endif
    }
 
+   pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
+
 #if DRIINFO_MAJOR_VERSION > 5 || \
     (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1)
    if (!pDRIInfo->ClipNotify)
 #endif
    {
-      pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
       pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
       pDRIInfo->TransitionSingleToMulti3D = I830DRITransitionSingleToMulti3d;
       pDRIInfo->TransitionMultiToSingle3D = I830DRITransitionMultiToSingle3d;
@@ -1470,6 +1473,22 @@ I830DRITransitionTo3d(ScreenPtr pScreen)
    I830DRISetPfMask(pScreen, pI830->allowPageFlip ? 0x3 : 0);
 }
 
+/* This block and the corresponding configure test can be removed when
+ * libdrm >= 2.3.1 is required.
+ */
+#ifndef HAVE_I915_FLIP
+
+#define DRM_VBLANK_FLIP 0x8000000
+
+typedef struct drm_i915_flip {
+   int pipes;
+} drm_i915_flip_t;
+
+#undef DRM_IOCTL_I915_FLIP
+#define DRM_IOCTL_I915_FLIP DRM_IOW(DRM_COMMAND_BASE + DRM_I915_FLIP, \
+				    drm_i915_flip_t)
+
+#endif
 
 static void
 I830DRITransitionTo2d(ScreenPtr pScreen)
@@ -1479,10 +1498,27 @@ I830DRITransitionTo2d(ScreenPtr pScreen)
    drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
 
    /* Try flipping back to the front page if necessary */
-   if (sPriv->pf_current_page == 1)
-      drmCommandNone(pI830->drmSubFD, DRM_I830_FLIP);
+   if (sPriv->pf_current_page != 0) {
+      drm_i915_flip_t flip = { .pipes = 0 };
 
-   if (sPriv->pf_current_page == 1)
+      if (sPriv->pf_current_page & (0x3 << 2)) {
+	 sPriv->pf_current_page = sPriv->pf_current_page & 0x3;
+	 sPriv->pf_current_page |= (sPriv->third_handle ? 2 : 1) << 2;
+
+	 flip.pipes |= 0x2;
+      }
+
+      if (sPriv->pf_current_page & 0x3) {
+	 sPriv->pf_current_page = sPriv->pf_current_page & (0x3 << 2);
+	 sPriv->pf_current_page |= sPriv->third_handle ? 2 : 1;
+
+	 flip.pipes |= 0x1;
+      }
+
+      drmCommandWrite(pI830->drmSubFD, DRM_I915_FLIP, &flip, sizeof(flip));
+   }
+
+   if (sPriv->pf_current_page != 0)
       xf86DrvMsg(pScreen->myNum, X_WARNING,
 		 "[dri] %s: kernel failed to unflip buffers.\n", __func__);
 
