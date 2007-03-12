@@ -687,6 +687,14 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	       pI830->memory_manager = NULL;
 	    }
 	 }
+#ifdef DAMAGE
+	 if (pI830->allowPageFlip && pI830->drmMinor < 9) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "DRM version 1.9 or newer required for Page flipping. "
+		       "Disabling.\n");
+	    pI830->allowPageFlip = FALSE;
+	 }
+#endif	 
 	 drmFreeVersion(version);
       }
    }
