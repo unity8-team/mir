@@ -1167,6 +1167,8 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
    } else if (syncType == DRI_2D_SYNC &&
 	      oldContextType == DRI_NO_CONTEXT &&
 	      newContextType == DRI_2D_CONTEXT) {
+      drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
+
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("i830DRISwapContext (out)\n");
 
@@ -1193,6 +1195,33 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 #endif
 
       I830EmitFlush(pScrn);
+
+#ifdef DAMAGE
+      /* Try flipping back to the front page if necessary */
+      if (sPriv && !sPriv->pf_enabled && sPriv->pf_current_page != 0) {
+	 drm_i915_flip_t flip = { .pipes = 0 };
+
+	 if (sPriv->pf_current_page & (0x3 << 2)) {
+	    sPriv->pf_current_page = sPriv->pf_current_page & 0x3;
+	    sPriv->pf_current_page |= (sPriv->third_handle ? 2 : 1) << 2;
+
+	    flip.pipes |= 0x2;
+	 }
+
+	 if (sPriv->pf_current_page & 0x3) {
+	    sPriv->pf_current_page = sPriv->pf_current_page & (0x3 << 2);
+	    sPriv->pf_current_page |= sPriv->third_handle ? 2 : 1;
+
+	    flip.pipes |= 0x1;
+	 }
+
+	 drmCommandWrite(pI830->drmSubFD, DRM_I915_FLIP, &flip, sizeof(flip));
+
+	 if (sPriv->pf_current_page != 0)
+	    xf86DrvMsg(pScreen->myNum, X_WARNING,
+		       "[dri] %s: kernel failed to unflip buffers.\n", __func__);
+      }
+#endif
 
       pI830->LockHeld = 0;
    } else if (I810_DEBUG & DEBUG_VERBOSE_DRI)
@@ -1448,7 +1477,7 @@ I830DRISetPfMask(ScreenPtr pScreen, int pfMask)
       pSAREAPriv->pf_enabled = pI830->allowPageFlip;
       pSAREAPriv->pf_active = pfMask;
    } else
-      pSAREAPriv->pf_enabled = pSAREAPriv->pf_active = 0;
+      pSAREAPriv->pf_active = 0;
 }
 
 static void
@@ -1501,36 +1530,11 @@ typedef struct drm_i915_flip {
 static void
 I830DRITransitionTo2d(ScreenPtr pScreen)
 {
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I830Ptr pI830 = I830PTR(pScrn);
    drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
 
-   /* Try flipping back to the front page if necessary */
-   if (sPriv->pf_current_page != 0) {
-      drm_i915_flip_t flip = { .pipes = 0 };
-
-      if (sPriv->pf_current_page & (0x3 << 2)) {
-	 sPriv->pf_current_page = sPriv->pf_current_page & 0x3;
-	 sPriv->pf_current_page |= (sPriv->third_handle ? 2 : 1) << 2;
-
-	 flip.pipes |= 0x2;
-      }
-
-      if (sPriv->pf_current_page & 0x3) {
-	 sPriv->pf_current_page = sPriv->pf_current_page & (0x3 << 2);
-	 sPriv->pf_current_page |= sPriv->third_handle ? 2 : 1;
-
-	 flip.pipes |= 0x1;
-      }
-
-      drmCommandWrite(pI830->drmSubFD, DRM_I915_FLIP, &flip, sizeof(flip));
-   }
-
-   if (sPriv->pf_current_page != 0)
-      xf86DrvMsg(pScreen->myNum, X_WARNING,
-		 "[dri] %s: kernel failed to unflip buffers.\n", __func__);
-
    I830DRISetPfMask(pScreen, 0);
+
+   sPriv->pf_enabled = 0;
 }
 
 static void
