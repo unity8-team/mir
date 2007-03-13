@@ -1122,12 +1122,19 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
     /* First try allocating it tiled */
     if (!pI830->disableTiling && IsTileable(pScrn, pitch))
     {
+	enum tile_format tile_format;
+
 	size = ROUND_TO_PAGE(pitch * ALIGN(height, 16));
+
+	/* The 965 requires that the depth buffer be in Y Major format, while
+	 * the rest appear to fail when handed that format.
+	 */
+	tile_format = IS_I965G(pI830) ? TILING_YMAJOR: TILING_XMAJOR;
 
 	pI830->depth_buffer =
 	    i830_allocate_memory_tiled(pScrn, "depth buffer", size, pitch,
 				       GTT_PAGE_SIZE, ALIGN_BOTH_ENDS,
-				       TILING_XMAJOR);
+				       tile_format);
 	pI830->depth_tiled = FENCE_XMAJOR;
     }
 
