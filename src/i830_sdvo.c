@@ -1205,6 +1205,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 		   "%s: No active TMDS outputs (0x%02x%02x)\n",
 		   SDVO_NAME(dev_priv),
 		   bytes[0], bytes[1]);
+	name_prefix="Unknown";
     }
     strcpy (name, name_prefix);
     strcat (name, name_suffix);
