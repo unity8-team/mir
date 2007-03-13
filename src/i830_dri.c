@@ -81,6 +81,25 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830.h"
 #include "i830_dri.h"
 
+#include "i915_drm.h"
+
+/* This block and the corresponding configure test can be removed when
+ * libdrm >= 2.3.1 is required.
+ */
+#ifndef HAVE_I915_FLIP
+
+#define DRM_VBLANK_FLIP 0x8000000
+
+typedef struct drm_i915_flip {
+   int pipes;
+} drm_i915_flip_t;
+
+#undef DRM_IOCTL_I915_FLIP
+#define DRM_IOCTL_I915_FLIP DRM_IOW(DRM_COMMAND_BASE + DRM_I915_FLIP, \
+				    drm_i915_flip_t)
+
+#endif
+
 #include "dristruct.h"
 
 static char I830KernelDriverName[] = "i915";
@@ -563,12 +582,13 @@ I830DRIScreenInit(ScreenPtr pScreen)
 #endif
    }
 
+   pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
+
 #if DRIINFO_MAJOR_VERSION > 5 || \
     (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1)
    if (!pDRIInfo->ClipNotify)
 #endif
    {
-      pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
       pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
       pDRIInfo->TransitionSingleToMulti3D = I830DRITransitionSingleToMulti3d;
       pDRIInfo->TransitionMultiToSingle3D = I830DRITransitionMultiToSingle3d;
@@ -684,6 +704,14 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	       pI830->memory_manager = NULL;
 	    }
 	 }
+#ifdef DAMAGE
+	 if (pI830->allowPageFlip && pI830->drmMinor < 9) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "DRM version 1.9 or newer required for Page flipping. "
+		       "Disabling.\n");
+	    pI830->allowPageFlip = FALSE;
+	 }
+#endif	 
 	 drmFreeVersion(version);
       }
    }
@@ -1156,6 +1184,8 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
    } else if (syncType == DRI_2D_SYNC &&
 	      oldContextType == DRI_NO_CONTEXT &&
 	      newContextType == DRI_2D_CONTEXT) {
+      drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
+
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("i830DRISwapContext (out)\n");
 
@@ -1182,6 +1212,33 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 #endif
 
       I830EmitFlush(pScrn);
+
+#ifdef DAMAGE
+      /* Try flipping back to the front page if necessary */
+      if (sPriv && !sPriv->pf_enabled && sPriv->pf_current_page != 0) {
+	 drm_i915_flip_t flip = { .pipes = 0 };
+
+	 if (sPriv->pf_current_page & (0x3 << 2)) {
+	    sPriv->pf_current_page = sPriv->pf_current_page & 0x3;
+	    sPriv->pf_current_page |= (sPriv->third_handle ? 2 : 1) << 2;
+
+	    flip.pipes |= 0x2;
+	 }
+
+	 if (sPriv->pf_current_page & 0x3) {
+	    sPriv->pf_current_page = sPriv->pf_current_page & (0x3 << 2);
+	    sPriv->pf_current_page |= sPriv->third_handle ? 2 : 1;
+
+	    flip.pipes |= 0x1;
+	 }
+
+	 drmCommandWrite(pI830->drmSubFD, DRM_I915_FLIP, &flip, sizeof(flip));
+
+	 if (sPriv->pf_current_page != 0)
+	    xf86DrvMsg(pScreen->myNum, X_WARNING,
+		       "[dri] %s: kernel failed to unflip buffers.\n", __func__);
+      }
+#endif
 
       pI830->LockHeld = 0;
    } else if (I810_DEBUG & DEBUG_VERBOSE_DRI)
@@ -1437,7 +1494,7 @@ I830DRISetPfMask(ScreenPtr pScreen, int pfMask)
       pSAREAPriv->pf_enabled = pI830->allowPageFlip;
       pSAREAPriv->pf_active = pfMask;
    } else
-      pSAREAPriv->pf_enabled = pSAREAPriv->pf_active = 0;
+      pSAREAPriv->pf_active = 0;
 }
 
 static void
@@ -1468,28 +1525,16 @@ I830DRITransitionTo3d(ScreenPtr pScreen)
    I830Ptr pI830 = I830PTR(pScrn);
 
    I830DRISetPfMask(pScreen, pI830->allowPageFlip ? 0x3 : 0);
-   pI830->have3DWindows = 1;
 }
-
 
 static void
 I830DRITransitionTo2d(ScreenPtr pScreen)
 {
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I830Ptr pI830 = I830PTR(pScrn);
    drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
-
-   /* Try flipping back to the front page if necessary */
-   if (sPriv->pf_current_page == 1)
-      drmCommandNone(pI830->drmSubFD, DRM_I830_FLIP);
-
-   if (sPriv->pf_current_page == 1)
-      xf86DrvMsg(pScreen->myNum, X_WARNING,
-		 "[dri] %s: kernel failed to unflip buffers.\n", __func__);
 
    I830DRISetPfMask(pScreen, 0);
 
-   pI830->have3DWindows = 0;
+   sPriv->pf_enabled = 0;
 }
 
 static void

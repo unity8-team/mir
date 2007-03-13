@@ -306,7 +306,6 @@ typedef struct _I830Rec {
 
    int TexGranularity;
    int drmMinor;
-   Bool have3DWindows;
    int mmModeFlags;
    int mmSize;
 
