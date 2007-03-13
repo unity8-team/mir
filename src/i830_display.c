@@ -447,12 +447,15 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	if ((temp & DPLL_VCO_ENABLE) == 0)
 	{
 	    OUTREG(dpll_reg, temp);
+	    (void)INREG(dpll_reg);
 	    /* Wait for the clocks to stabilize. */
 	    usleep(150);
 	    OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
+	    (void)INREG(dpll_reg);
 	    /* Wait for the clocks to stabilize. */
 	    usleep(150);
 	    OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
+	    (void)INREG(dpll_reg);
 	    /* Wait for the clocks to stabilize. */
 	    usleep(150);
 	}
@@ -490,6 +493,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
 	    /* Flush the plane changes */
 	    OUTREG(dspbase_reg, INREG(dspbase_reg));
+	    (void)INREG(dspbase_reg);
 	}
 
 	if (!IS_I9XX(pI830)) {
@@ -499,15 +503,19 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 	/* Next, disable display pipes */
 	temp = INREG(pipeconf_reg);
-	if ((temp & PIPEACONF_ENABLE) != 0)
+	if ((temp & PIPEACONF_ENABLE) != 0) {
 	    OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
+	    (void)INREG(pipeconf_reg);
+	}
 
 	/* Wait for vblank for the disable to take effect. */
 	i830WaitForVblank(pScrn);
 
 	temp = INREG(dpll_reg);
-	if ((temp & DPLL_VCO_ENABLE) != 0)
+	if ((temp & DPLL_VCO_ENABLE) != 0) {
 	    OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
+	    (void)INREG(dpll_reg);
+	}
 
 	/* Wait for the clocks to turn off. */
 	usleep(150);
@@ -856,15 +864,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     pipeconf |= PIPEACONF_ENABLE;
     dpll |= DPLL_VCO_ENABLE;
 #endif
-
-    if (is_lvds)
-    {
-	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
-	 * This is an exception to the general rule that mode_set doesn't turn
-	 * things on.
-	 */
-	OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
-    }
     
     /* Disable the panel fitter if it was on our pipe */
     if (i830_panel_fitter_pipe (pI830) == pipe)
@@ -877,10 +876,23 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     {
 	OUTREG(fp_reg, fp);
 	OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
+	(void)INREG(dpll_reg);
 	usleep(150);
     }
+
+    if (is_lvds)
+    {
+	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
+	 * This is an exception to the general rule that mode_set doesn't turn
+	 * things on.
+	 */
+	OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
+	(void)INREG(LVDS);
+    }
+
     OUTREG(fp_reg, fp);
     OUTREG(dpll_reg, dpll);
+    (void)INREG(dpll_reg);
     /* Wait for the clocks to stabilize. */
     usleep(150);
     
@@ -889,9 +901,10 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	OUTREG(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
 	       ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
     } else {
-       /* write it again -- the BIOS does, after all */
-       OUTREG(dpll_reg, dpll);
+	/* write it again -- the BIOS does, after all */
+	OUTREG(dpll_reg, dpll);
     }
+    (void)INREG(dpll_reg);
     /* Wait for the clocks to stabilize. */
     usleep(150);
 
@@ -915,8 +928,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     OUTREG(dsppos_reg, 0);
     OUTREG(pipesrc_reg, ((mode->HDisplay - 1) << 16) | (mode->VDisplay - 1));
     OUTREG(pipeconf_reg, pipeconf);
+    (void)INREG(pipeconf_reg);
     i830WaitForVblank(pScrn);
-    
+
     OUTREG(dspcntr_reg, dspcntr);
     /* Flush the plane changes */
     i830PipeSetBase(crtc, x, y);
