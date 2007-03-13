@@ -336,7 +336,7 @@ i830I2CPutBits(I2CBusPtr b, int clock, int data)
 	clock_bits = GPIO_CLOCK_DIR_OUT|GPIO_CLOCK_DIR_MASK|GPIO_CLOCK_VAL_MASK;
     
     OUTREG(b->DriverPrivate.uval, reserved | data_bits | clock_bits);
-    (void)INREG(b->DriverPrivate.uval);
+    POSTING_READ(b->DriverPrivate.uval);
 }
 
 #endif

@@ -383,12 +383,12 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 
     if (IS_I965G(pI830)) {
         OUTREG(dspbase, Offset);
-	(void) INREG(dspbase);
+	POSTING_READ(dspbase);
         OUTREG(dspsurf, Start);
-	(void) INREG(dspsurf);
+	POSTING_READ(dspsurf);
     } else {
 	OUTREG(dspbase, Start + Offset);
-	(void) INREG(dspbase);
+	POSTING_READ(dspbase);
     }
 
 #ifdef XF86DRI
@@ -447,15 +447,15 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	if ((temp & DPLL_VCO_ENABLE) == 0)
 	{
 	    OUTREG(dpll_reg, temp);
-	    (void)INREG(dpll_reg);
+	    POSTING_READ(dpll_reg);
 	    /* Wait for the clocks to stabilize. */
 	    usleep(150);
 	    OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
-	    (void)INREG(dpll_reg);
+	    POSTING_READ(dpll_reg);
 	    /* Wait for the clocks to stabilize. */
 	    usleep(150);
 	    OUTREG(dpll_reg, temp | DPLL_VCO_ENABLE);
-	    (void)INREG(dpll_reg);
+	    POSTING_READ(dpll_reg);
 	    /* Wait for the clocks to stabilize. */
 	    usleep(150);
 	}
@@ -493,7 +493,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
 	    /* Flush the plane changes */
 	    OUTREG(dspbase_reg, INREG(dspbase_reg));
-	    (void)INREG(dspbase_reg);
+	    POSTING_READ(dspbase_reg);
 	}
 
 	if (!IS_I9XX(pI830)) {
@@ -505,7 +505,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	temp = INREG(pipeconf_reg);
 	if ((temp & PIPEACONF_ENABLE) != 0) {
 	    OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
-	    (void)INREG(pipeconf_reg);
+	    POSTING_READ(pipeconf_reg);
 	}
 
 	/* Wait for vblank for the disable to take effect. */
@@ -514,7 +514,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	temp = INREG(dpll_reg);
 	if ((temp & DPLL_VCO_ENABLE) != 0) {
 	    OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
-	    (void)INREG(dpll_reg);
+	    POSTING_READ(dpll_reg);
 	}
 
 	/* Wait for the clocks to turn off. */
@@ -876,7 +876,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     {
 	OUTREG(fp_reg, fp);
 	OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
-	(void)INREG(dpll_reg);
+	POSTING_READ(dpll_reg);
 	usleep(150);
     }
 
@@ -887,12 +887,12 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	 * things on.
 	 */
 	OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
-	(void)INREG(LVDS);
+	POSTING_READ(LVDS);
     }
 
     OUTREG(fp_reg, fp);
     OUTREG(dpll_reg, dpll);
-    (void)INREG(dpll_reg);
+    POSTING_READ(dpll_reg);
     /* Wait for the clocks to stabilize. */
     usleep(150);
     
@@ -904,7 +904,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	/* write it again -- the BIOS does, after all */
 	OUTREG(dpll_reg, dpll);
     }
-    (void)INREG(dpll_reg);
+    POSTING_READ(dpll_reg);
     /* Wait for the clocks to stabilize. */
     usleep(150);
 
@@ -928,7 +928,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     OUTREG(dsppos_reg, 0);
     OUTREG(pipesrc_reg, ((mode->HDisplay - 1) << 16) | (mode->VDisplay - 1));
     OUTREG(pipeconf_reg, pipeconf);
-    (void)INREG(pipeconf_reg);
+    POSTING_READ(pipeconf_reg);
     i830WaitForVblank(pScrn);
 
     OUTREG(dspcntr_reg, dspcntr);
