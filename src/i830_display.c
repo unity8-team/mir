@@ -85,15 +85,14 @@ typedef struct {
 #define I8XX_M2_MAX		     16
 #define I8XX_P_MIN		      4
 #define I8XX_P_MAX		    128
-/* LVDS p1 value can go from 1 to 6, while DAC goes from 2 to 33.  These
- * values below get 2 added in the clock calculations.
- */
-#define I8XX_P1_MIN		      0
-#define I8XX_P1_MAX		     31
-#define I8XX_P1_LVDS_MIN	      -1
-#define I8XX_P1_LVDS_MAX	      4
-#define I8XX_P2_SLOW		      1	/* this is a bit shift amount */
-#define I8XX_P2_FAST		      0	/* this is a bit shift amount */
+#define I8XX_P1_MIN		      2
+#define I8XX_P1_MAX		     33
+#define I8XX_P1_LVDS_MIN	      1
+#define I8XX_P1_LVDS_MAX	      6
+#define I8XX_P2_SLOW		      4
+#define I8XX_P2_FAST		      2
+#define I8XX_P2_LVDS_SLOW	      14
+#define I8XX_P2_LVDS_FAST	      14 /* No fast option */
 #define I8XX_P2_SLOW_LIMIT	 165000
 
 #define I9XX_DOT_MIN		  20000
@@ -149,7 +148,7 @@ static const intel_limit_t intel_limits[] = {
         .p   = { .min = I8XX_P_MIN,		.max = I8XX_P_MAX },
         .p1  = { .min = I8XX_P1_LVDS_MIN,	.max = I8XX_P1_LVDS_MAX },
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
-		 .p2_slow = I8XX_P2_FAST,	.p2_fast = I8XX_P2_FAST },
+		 .p2_slow = I8XX_P2_LVDS_SLOW,	.p2_fast = I8XX_P2_LVDS_FAST },
     },
     { /* INTEL_LIMIT_I9XX_SDVO_DAC */
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
@@ -206,7 +205,7 @@ static const intel_limit_t *intel_limit (xf86CrtcPtr crtc)
 static void i8xx_clock(int refclk, intel_clock_t *clock)
 {
     clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
-    clock->p = (clock->p1 + 2) << (clock->p2 + 1);
+    clock->p = clock->p1 * clock->p2;
     clock->vco = refclk * clock->m / (clock->n + 2);
     clock->dot = clock->vco / clock->p;
 }
@@ -797,15 +796,15 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
     } else {
 	if (is_lvds) {
-	    /* map (-1 to 4) to ((1 << 0) to (1 << 5)). */
-	    dpll |= (1 << (clock.p1 + 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+	    dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
 	} else {
-	    if (clock.p1 == 0)
+	    if (clock.p1 == 2)
 		dpll |= PLL_P1_DIVIDE_BY_TWO;
 	    else
-		dpll |= clock.p1 << DPLL_FPA01_P1_POST_DIV_SHIFT;
+		dpll |= (clock.p1 - 2) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+	    if (clock.p2 == 4)
+		dpll |= PLL_P2_DIVIDE_BY_4;
 	}
-	dpll |= clock.p2 << 23;
     }
 
     if (is_tv)
@@ -1255,26 +1254,28 @@ i830_crtc_clock_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
 	Bool is_lvds = (pipe == 1) && (INREG(LVDS) & LVDS_PORT_EN);
 
 	if (is_lvds) {
-	    /* Map the bit number set from (1, 6) to (-1, 4). */
 	    clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS) >>
-			   DPLL_FPA01_P1_POST_DIV_SHIFT) - 2;
-	    clock.p2 = 0;
+			   DPLL_FPA01_P1_POST_DIV_SHIFT);
+	    clock.p2 = 14;
+
+	    if ((dpll & PLL_REF_INPUT_MASK) == PLLB_REF_INPUT_SPREADSPECTRUMIN)
+		i8xx_clock(66000, &clock); /* XXX: might not be 66MHz */
+	    else
+		i8xx_clock(48000, &clock);		
 	} else {
 	    if (dpll & PLL_P1_DIVIDE_BY_TWO) {
-		clock.p1 = 0;
+		clock.p1 = 2;
 	    } else {
-		/* Map the number in the field to (1, 31) */
 		clock.p1 = ((dpll & DPLL_FPA01_P1_POST_DIV_MASK_I830) >>
-		    DPLL_FPA01_P1_POST_DIV_SHIFT);
+		    DPLL_FPA01_P1_POST_DIV_SHIFT) + 2;
 	    }
 	    if (dpll & PLL_P2_DIVIDE_BY_4)
-		clock.p2 = 1;
+		clock.p2 = 4;
 	    else
-		clock.p2 = 0;
-	}
+		clock.p2 = 2;
 
-	/* XXX: Deal with other refclocks */
-	i8xx_clock(48000, &clock);
+	    i8xx_clock(48000, &clock);
+	}
     }
 
     /* XXX: It would be nice to validate the clocks, but we can't reuse
