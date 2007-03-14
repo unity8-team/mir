@@ -702,6 +702,16 @@ I830DRIScreenInit(ScreenPtr pScreen)
 
 	       i830_free_memory(pScrn, pI830->memory_manager);
 	       pI830->memory_manager = NULL;
+
+	       if (!(pI830->mmModeFlags & I830_KERNEL_TEX)) {
+		  pI830->mmModeFlags |= I830_KERNEL_TEX;
+
+		  if (!i830_allocate_texture_memory(pScrn)) {
+		     I830DRICloseScreen(pScreen);
+		     drmFreeVersion(version);
+		     return FALSE;
+		  }
+	       }
 	    }
 	 }
 #ifdef DAMAGE

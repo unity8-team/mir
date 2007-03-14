@@ -591,6 +591,7 @@ void i830_free_3d_memory(ScrnInfoPtr pScrn);
 void i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem);
 extern long I830CheckAvailableMemory(ScrnInfoPtr pScrn);
 Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
+Bool i830_allocate_texture_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
 
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);

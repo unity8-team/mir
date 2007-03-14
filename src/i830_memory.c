@@ -1156,7 +1156,7 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-static Bool
+Bool
 i830_allocate_texture_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
