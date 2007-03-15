@@ -2217,7 +2217,7 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       }
    }
 
-   fbPictureInit(pScreen, 0, 0);
+   fbPictureInit(pScreen, NULL, 0);
 
    xf86SetBlackWhitePixels(pScreen);
 
@@ -2276,18 +2276,18 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    /* Use driver specific palette load routines for Direct Color support. -jens */
    if (pScrn->bitsPerPixel == 16) {
       if (pScrn->depth == 15) {
-	 if (!xf86HandleColormaps(pScreen, 256, 8, I810LoadPalette15, 0,
+	 if (!xf86HandleColormaps(pScreen, 256, 8, I810LoadPalette15, NULL,
 				  CMAP_PALETTED_TRUECOLOR |
 				  CMAP_RELOAD_ON_MODE_SWITCH))
 	    return FALSE;
       } else {
-	 if (!xf86HandleColormaps(pScreen, 256, 8, I810LoadPalette16, 0,
+	 if (!xf86HandleColormaps(pScreen, 256, 8, I810LoadPalette16, NULL,
 				  CMAP_PALETTED_TRUECOLOR |
 				  CMAP_RELOAD_ON_MODE_SWITCH))
 	    return FALSE;
       }
    } else {
-      if (!xf86HandleColormaps(pScreen, 256, 8, I810LoadPalette24, 0,
+      if (!xf86HandleColormaps(pScreen, 256, 8, I810LoadPalette24, NULL,
 			       CMAP_PALETTED_TRUECOLOR |
 			       CMAP_RELOAD_ON_MODE_SWITCH))
 	 return FALSE;
@@ -2535,19 +2535,19 @@ I810CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
    if (pI810->ScanlineColorExpandBuffers) {
       xfree(pI810->ScanlineColorExpandBuffers);
-      pI810->ScanlineColorExpandBuffers = 0;
+      pI810->ScanlineColorExpandBuffers = NULL;
    }
 
    if (infoPtr) {
       if (infoPtr->ScanlineColorExpandBuffers)
 	 xfree(infoPtr->ScanlineColorExpandBuffers);
       XAADestroyInfoRec(infoPtr);
-      pI810->AccelInfoRec = 0;
+      pI810->AccelInfoRec = NULL;
    }
 
    if (pI810->CursorInfoRec) {
       xf86DestroyCursorInfoRec(pI810->CursorInfoRec);
-      pI810->CursorInfoRec = 0;
+      pI810->CursorInfoRec = NULL;
    }
 
    /* Free all allocated video ram.

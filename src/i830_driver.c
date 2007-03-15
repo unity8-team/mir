@@ -555,7 +555,7 @@ I830UnmapMMIO(ScrnInfoPtr pScrn)
 
    xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI830->MMIOBase,
 		   I810_REG_SIZE);
-   pI830->MMIOBase = 0;
+   pI830->MMIOBase = NULL;
 }
 
 static Bool
@@ -565,7 +565,7 @@ I830UnmapMem(ScrnInfoPtr pScrn)
 
    xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI830->FbBase,
 		   pI830->FbMapSize);
-   pI830->FbBase = 0;
+   pI830->FbBase = NULL;
    I830UnmapMMIO(pScrn);
    return TRUE;
 }
@@ -903,7 +903,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
     } else 
         pI830->entityPrivate = NULL;
 
-   if (xf86RegisterResources(pI830->pEnt->index, 0, ResNone)) {
+   if (xf86RegisterResources(pI830->pEnt->index, NULL, ResNone)) {
       PreInitCleanup(pScrn);
       return FALSE;
    }
@@ -2568,7 +2568,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       }
    }
 
-   fbPictureInit(pScreen, 0, 0);
+   fbPictureInit(pScreen, NULL, 0);
 
    xf86SetBlackWhitePixels(pScreen);
 
@@ -2605,7 +2605,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       return FALSE;
 
    DPRINTF(PFX, "assert( if(!xf86HandleColormaps(pScreen, ...)) )\n");
-   if (!xf86HandleColormaps(pScreen, 256, 8, I830LoadPalette, 0,
+   if (!xf86HandleColormaps(pScreen, 256, 8, I830LoadPalette, NULL,
 			    CMAP_RELOAD_ON_MODE_SWITCH |
 			    CMAP_PALETTED_TRUECOLOR)) {
       return FALSE;
@@ -2962,7 +2962,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
    if (pI830->ScanlineColorExpandBuffers) {
       xfree(pI830->ScanlineColorExpandBuffers);
-      pI830->ScanlineColorExpandBuffers = 0;
+      pI830->ScanlineColorExpandBuffers = NULL;
    }
 #ifdef I830_USE_XAA
    if (infoPtr) {
