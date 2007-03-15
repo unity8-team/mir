@@ -769,7 +769,14 @@ do {                                                            \
     _v.argb = _col;                                             \
 } while (0)
 
-#define FVAL(_fval) (*(CARD32 *)&(_fval))
+static __inline__ CARD32
+FVAL(float f)
+{
+    union { float f; CARD32 c; } fc;
+
+    fc.f = f;
+    return fc.c;
+}
 
 #define VTX_OUT(_v, n)                    \
 do {                                      \
