@@ -1563,9 +1563,8 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
    OUTREG(LP_RING + RING_HEAD, 0);
    OUTREG(LP_RING + RING_TAIL, 0);
    OUTREG(LP_RING + RING_START, 0);
-  
-   if (pI830->CursorInfoRec && pI830->CursorInfoRec->HideCursor)
-      pI830->CursorInfoRec->HideCursor(pScrn);
+
+   xf86_hide_cursors (pScrn);
 }
 
 static void
@@ -2585,9 +2584,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       }
    }
 
-   if (!I830EnterVT(scrnIndex, 0))
-      return FALSE;
-
    miInitializeBackingStore(pScreen);
    xf86SetBackingStore(pScreen);
    xf86SetSilkenMouse(pScreen);
@@ -2600,6 +2596,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		    "Hardware cursor initialization failed\n");
    } else
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initializing SW Cursor!\n");
+
+   if (!I830EnterVT(scrnIndex, 0))
+      return FALSE;
 
    DPRINTF(PFX, "assert( if(!miCreateDefColormap(pScreen)) )\n");
    if (!miCreateDefColormap(pScreen))
@@ -2785,8 +2784,7 @@ I830LeaveVT(int scrnIndex, int flags)
    }
 #endif
 
-   if (pI830->CursorInfoRec && pI830->CursorInfoRec->HideCursor)
-      pI830->CursorInfoRec->HideCursor(pScrn);
+   xf86_hide_cursors (pScrn);
 
    ResetState(pScrn, TRUE);
 
@@ -2981,10 +2979,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
        pI830->EXADriverPtr = NULL;
    }
 #endif
-   if (pI830->CursorInfoRec) {
-      xf86DestroyCursorInfoRec(pI830->CursorInfoRec);
-      pI830->CursorInfoRec = 0;
-   }
+   xf86_cursors_fini (pScreen);
 
    i830_reset_allocations(pScrn);
 
