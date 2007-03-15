@@ -608,7 +608,7 @@ typedef struct {
 #endif
     Bool              have3DWindows;    /* Are there any 3d clients? */
 
-    unsigned int      pciAperSize;
+    int               pciAperSize;
     drmSize           gartSize;
     drm_handle_t         agpMemHandle;     /* Handle from drmAgpAlloc */
     unsigned long     gartOffset;
@@ -930,6 +930,7 @@ extern void        RADEONDRICloseScreen(ScreenPtr pScreen);
 extern void        RADEONDRIResume(ScreenPtr pScreen);
 extern Bool        RADEONDRIFinishScreenInit(ScreenPtr pScreen);
 extern void        RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen);
+extern int         RADEONDRIGetPciAperTableSize(ScrnInfoPtr pScrn);
 extern void        RADEONDRIStop(ScreenPtr pScreen);
 
 extern drmBufPtr   RADEONCPGetBuffer(ScrnInfoPtr pScrn);
