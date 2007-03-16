@@ -578,7 +578,8 @@ static void
 i830_crtc_commit (xf86CrtcPtr crtc)
 {
     crtc->funcs->dpms (crtc, DPMSModeOn);
-    xf86_reload_cursors (crtc->scrn->pScreen);
+    if (crtc->scrn->pScreen != NULL)
+	xf86_reload_cursors (crtc->scrn->pScreen);
 }
 
 void
