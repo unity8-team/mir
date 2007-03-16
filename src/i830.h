@@ -227,8 +227,14 @@ typedef struct _I830CrtcPrivateRec {
     ExaOffscreenArea *rotate_mem_exa;
 #endif
 
-    i830_memory *cursor_mem;
-    i830_memory *cursor_mem_argb;
+    /* Card virtual address of the cursor */
+    unsigned long cursor_offset;
+    unsigned long cursor_argb_offset;
+    /* Physical or virtual addresses of the cursor for setting in the cursor
+     * registers.
+     */
+    unsigned long cursor_addr;
+    unsigned long cursor_argb_addr;
     Bool	cursor_is_argb;
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;
 
@@ -276,6 +282,7 @@ typedef struct _I830Rec {
 
    i830_memory *front_buffer;
    i830_memory *front_buffer_2;
+   i830_memory *cursor_mem;
    i830_memory *xaa_scratch;
    i830_memory *xaa_scratch_2;
 #ifdef I830_USE_EXA

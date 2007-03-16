@@ -75,21 +75,14 @@ I830SetPipeCursorBase (xf86CrtcPtr crtc)
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     int			pipe = intel_crtc->pipe;
     I830Ptr		pI830 = I830PTR(pScrn);
-    int			cursor_base = (pipe == 0 ? CURSOR_A_BASE : CURSOR_B_BASE);
-    i830_memory		*cursor_mem;
-    CARD32		value;
+    int			cursor_base;
 
-    if (intel_crtc->cursor_is_argb)
-	cursor_mem = intel_crtc->cursor_mem_argb;
-    else
-	cursor_mem = intel_crtc->cursor_mem;
-
-    if (pI830->CursorNeedsPhysical)
-	value = cursor_mem->bus_addr;
-    else
-	value = cursor_mem->offset;
+    cursor_base = (pipe == 0) ? CURSOR_A_BASE : CURSOR_B_BASE;
     
-    OUTREG(cursor_base, value);
+    if (intel_crtc->cursor_is_argb)
+       OUTREG(cursor_base, intel_crtc->cursor_argb_addr);
+    else
+       OUTREG(cursor_base, intel_crtc->cursor_addr);
 }
 
 void
@@ -143,11 +136,11 @@ I830CursorInit(ScreenPtr pScreen)
 void
 i830_crtc_load_cursor_image (xf86CrtcPtr crtc, unsigned char *src)
 {
-    ScrnInfoPtr		scrn = crtc->scrn;
-    I830Ptr		pI830 = I830PTR(scrn);
+    I830Ptr		pI830 = I830PTR(crtc->scrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
-    CARD8		*pcurs = (CARD8 *) (pI830->FbBase +
-					    intel_crtc->cursor_mem->offset);
+    CARD8		*pcurs;
+
+    pcurs = pI830->FbBase + intel_crtc->cursor_offset;
 
     intel_crtc->cursor_is_argb = FALSE;
     memcpy (pcurs, src, I810_CURSOR_X * I810_CURSOR_Y / 4);
@@ -157,11 +150,11 @@ i830_crtc_load_cursor_image (xf86CrtcPtr crtc, unsigned char *src)
 void
 i830_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
-    ScrnInfoPtr		scrn = crtc->scrn;
-    I830Ptr		pI830 = I830PTR(scrn);
+    I830Ptr		pI830 = I830PTR(crtc->scrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
-    CARD32		*pcurs = (CARD32 *) (pI830->FbBase +
-					     intel_crtc->cursor_mem_argb->offset);
+    CARD32		*pcurs;
+
+    pcurs = pI830->FbBase + intel_crtc->cursor_argb_offset;
 
     intel_crtc->cursor_is_argb = TRUE;
     memcpy (pcurs, image, I810_CURSOR_Y * I810_CURSOR_X * 4);
