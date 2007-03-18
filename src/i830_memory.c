@@ -62,7 +62,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * The allocations we might do:
  *
  * - Ring buffer
- * - HW cursor block
+ * - HW cursor block (either one block or four)
  * - Overlay registers
  * - XAA linear allocator (optional)
  * - EXA 965 state buffer
@@ -211,6 +211,7 @@ void
 i830_reset_allocations(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    int	    p;
 
     /* While there is any memory between the start and end markers, free it. */
     while (pI830->memory_list->next->next != NULL)
@@ -220,6 +221,10 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
      * kind of gross, but at least it's just one place now.
      */
     pI830->cursor_mem = NULL;
+    for (p = 0; p < 2; p++) {
+	pI830->cursor_mem_classic[p] = NULL;
+	pI830->cursor_mem_argb[p] = NULL;
+    }
     pI830->front_buffer = NULL;
     pI830->front_buffer_2 = NULL;
     pI830->xaa_scratch = NULL;
@@ -882,7 +887,47 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 	return TRUE;
     }
 
-    return FALSE;
+    /*
+     * Allocate four separate buffers when the kernel doesn't support
+     * large allocations as on Linux. If any of these fail, just
+     * bail back to software cursors everywhere
+     */
+    for (i = 0; i < xf86_config->num_crtc; i++)
+    {
+	xf86CrtcPtr	    crtc = xf86_config->crtc[i];
+	I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
+	
+	pI830->cursor_mem_classic[i] = i830_allocate_memory (pScrn, 
+							     "Core cursor",
+							     HWCURSOR_SIZE,
+							     GTT_PAGE_SIZE,
+							     flags);
+	if (!pI830->cursor_mem_classic[i])
+	    return FALSE;
+	pI830->cursor_mem_argb[i] = i830_allocate_memory (pScrn, "ARGB cursor",
+							  HWCURSOR_SIZE_ARGB,
+							  GTT_PAGE_SIZE,
+							  flags);
+	if (!pI830->cursor_mem_argb[i])
+	    return FALSE;
+
+	/*
+	 * Set up the pointers into the allocations
+	 */
+	if (pI830->CursorNeedsPhysical)
+	{
+	    intel_crtc->cursor_addr = pI830->cursor_mem_classic[i]->bus_addr;
+	    intel_crtc->cursor_argb_addr = pI830->cursor_mem_argb[i]->bus_addr;
+	}
+	else
+	{
+	    intel_crtc->cursor_addr = pI830->cursor_mem_classic[i]->offset;
+	    intel_crtc->cursor_argb_addr = pI830->cursor_mem_argb[i]->offset;
+	}
+	intel_crtc->cursor_offset = pI830->cursor_mem_classic[i]->offset;
+	intel_crtc->cursor_argb_offset = pI830->cursor_mem_argb[i]->offset;
+    }
+    return TRUE;
 }
 
 /*
