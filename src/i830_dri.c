@@ -126,7 +126,14 @@ static void I830DRITransitionTo2d(ScreenPtr pScreen);
 static void I830DRITransitionTo3d(ScreenPtr pScreen);
 static void I830DRITransitionMultiToSingle3d(ScreenPtr pScreen);
 static void I830DRITransitionSingleToMulti3d(ScreenPtr pScreen);
+#if DRIINFO_MAJOR_VERSION > 5 || \
+    (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1)
+#define DRI_SUPPORTS_CLIP_NOTIFY 1
+#endif
+
+#ifdef DRI_SUPPORTS_CLIP_NOTIFY
 static void I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num);
+#endif
 
 extern void GlxSetVisualConfigs(int nconfigs,
 				__GLXvisualConfig * configs,
@@ -576,8 +583,7 @@ I830DRIScreenInit(ScreenPtr pScreen)
 
       if (minor >= 1)
 #endif
-#if DRIINFO_MAJOR_VERSION > 5 || \
-    (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1)
+#if DRI_SUPPORTS_CLIP_NOTIFY
 	 pDRIInfo->ClipNotify = I830DRIClipNotify;
 #endif
    }
@@ -1547,6 +1553,7 @@ I830DRITransitionTo2d(ScreenPtr pScreen)
    sPriv->pf_enabled = 0;
 }
 
+#if DRI_SUPPORTS_CLIP_NOTIFY
 static void
 I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
 {
@@ -1595,7 +1602,7 @@ I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
 
    I830DRISetPfMask(pScreen, pfMask);
 }
-
+#endif /* DRI_SUPPORTS_CLIP_NOTIFY */
 
 /**
  * Update the SAREA fields with the most recent values.
