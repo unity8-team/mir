@@ -154,7 +154,7 @@ i830_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     CARD32		*pcurs;
 
-    pcurs = pI830->FbBase + intel_crtc->cursor_argb_offset;
+    pcurs = (CARD32 *) (pI830->FbBase + intel_crtc->cursor_argb_offset);
 
     intel_crtc->cursor_is_argb = TRUE;
     memcpy (pcurs, image, I810_CURSOR_Y * I810_CURSOR_X * 4);
