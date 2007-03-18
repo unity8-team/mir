@@ -1280,8 +1280,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 		    "\tfor the DRM memory manager.\n",
 		    pI830->mmSize);
       }
-   } 
 #endif
+   } 
    
 #endif
 
