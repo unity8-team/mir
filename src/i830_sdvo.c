@@ -90,12 +90,26 @@ static void i830_sdvo_write_sdvox(xf86OutputPtr output, CARD32 val)
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
     I830Ptr		    pI830 = I830PTR(pScrn);
+    CARD32		    bval = val, cval = val;
+    int			    i;
 
-    if (dev_priv->output_device == SDVOC)
-	OUTREG(SDVOB, INREG(SDVOB));
-    OUTREG(dev_priv->output_device, val);
     if (dev_priv->output_device == SDVOB)
-	OUTREG(SDVOC, INREG(SDVOC));
+	cval = INREG(SDVOC);
+    else
+	bval = INREG(SDVOB);
+    
+    /*
+     * Write the registers twice for luck. Sometimes,
+     * writing them only once doesn't appear to 'stick'.
+     * The BIOS does this too. Yay, magic
+     */
+    for (i = 0; i < 2; i++)
+    {
+	OUTREG(SDVOB, bval);
+	POSTING_READ(SDVOB);
+	OUTREG(SDVOC, cval);
+	POSTING_READ(SDVOC);
+    }
 }
 
 /** Read a single byte from the given address on the SDVO device. */
@@ -740,7 +754,6 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
 	    temp = INREG(dev_priv->output_device);
 	    if ((temp & SDVO_ENABLE) != 0) {
 		i830_sdvo_write_sdvox(output, temp & ~SDVO_ENABLE);
-		POSTING_READ(dev_priv->output_device);
 	    }
 	}
     } else {
@@ -750,19 +763,7 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
 
 	temp = INREG(dev_priv->output_device);
 	if ((temp & SDVO_ENABLE) == 0)
-	{
 	    i830_sdvo_write_sdvox(output, temp | SDVO_ENABLE);
-	    POSTING_READ(dev_priv->output_device);
-#if 0
-	    /* Do it again!  If we remove this below register write, or the
-	     * exact same one 2 lines up, the mac mini SDVO output doesn't
-	     * turn on.
-	     */
-	    i830_sdvo_write_sdvox(output, INREG(dev_priv->output_device) |
-				  SDVO_ENABLE);
-	    POSTING_READ(dev_priv->output_device);
-#endif
-	}
 	for (i = 0; i < 2; i++)
 	    i830WaitForVblank(pScrn);
 
