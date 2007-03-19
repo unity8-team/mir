@@ -95,6 +95,9 @@ I830InitHWCursor(ScrnInfoPtr pScrn)
 
     DPRINTF(PFX, "I830InitHWCursor\n");
 
+    if (!IS_I9XX(pI830))
+       OUTREG(CURSOR_SIZE, (I810_CURSOR_Y << 12) | I810_CURSOR_X);
+
     /* Initialise the HW cursor registers, leaving the cursor hidden. */
     for (i = 0; i < xf86_config->num_crtc; i++)
     {
