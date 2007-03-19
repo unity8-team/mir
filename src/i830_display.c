@@ -870,8 +870,17 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     if (i830_panel_fitter_pipe (pI830) == pipe)
 	OUTREG(PFIT_CONTROL, 0);
 
+#if 1
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
+    xf86PrintModeline(pScrn->scrnIndex, mode);
+    if (!xf86ModesEqual(mode, adjusted_mode)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Adjusted mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
+	xf86PrintModeline(pScrn->scrnIndex, mode);
+    }
     i830PrintPll("chosen", &clock);
-    ErrorF("clock regs: 0x%08x, 0x%08x\n", (int)dpll, (int)fp);
+#endif
 
     if (dpll & DPLL_VCO_ENABLE)
     {
