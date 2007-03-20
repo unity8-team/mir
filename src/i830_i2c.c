@@ -336,6 +336,7 @@ i830I2CPutBits(I2CBusPtr b, int clock, int data)
 	clock_bits = GPIO_CLOCK_DIR_OUT|GPIO_CLOCK_DIR_MASK|GPIO_CLOCK_VAL_MASK;
     
     OUTREG(b->DriverPrivate.uval, reserved | data_bits | clock_bits);
+    POSTING_READ(b->DriverPrivate.uval);
 }
 
 #endif
@@ -367,11 +368,16 @@ I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
 
     /* Assume all busses are used for DDCish stuff */
     
+    /* 
+     * These were set incorrectly in the server pre-1.3, Having
+     * duplicate settings is sub-optimal, but this lets the driver
+     * work with older servers
+     */
     pI2CBus->ByteTimeout = 2200; /* VESA DDC spec 3 p. 43 (+10 %) */
     pI2CBus->StartTimeout = 550;
     pI2CBus->BitTimeout = 40;
-    pI2CBus->ByteTimeout = 40;
     pI2CBus->AcknTimeout = 40;
+    pI2CBus->RiseFallTime = 20;
 
     if (!xf86I2CBusInit(pI2CBus))
 	return FALSE;

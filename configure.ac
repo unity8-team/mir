@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-intel],
-        1.9.90,
+        1.9.92,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-intel)
 
@@ -102,6 +102,8 @@ if test "$DRI" != no; then
                       [have_sarea_h="yes"], [have_sarea_h="no"])
         AC_CHECK_FILE([${sdkdir}/dristruct.h],
                       [have_dristruct_h="yes"], [have_dristruct_h="no"])
+	AC_CHECK_FILE([${sdkdir}/damage.h],
+                      [have_damage_h="yes"], [have_damage_h="no"])
 fi
 
 AC_MSG_CHECKING([whether to include DRI support])
@@ -175,6 +177,17 @@ if test "$DRI" = yes; then
 	if test "x$DRI_MM" = xyes; then
 		AC_DEFINE(XF86DRI_MM,1,[Extended DRI memory management])
 	fi
+	if test "$have_damage_h" = yes; then
+		AC_DEFINE(DAMAGE,1,[Use Damage extension])
+	fi
+
+	save_CFLAGS="$CFLAGS"
+	CFLAGS="$DRI_CFLAGS"
+	AC_CHECK_TYPE(drm_i915_flip_t,
+		      [AC_DEFINE(HAVE_I915_FLIP, 1,
+			         [Have drm_i915_flip_t and related definitions])],
+		      [], [#include <i915_drm.h>])
+	CFLAGS="$save_CFLAGS"
 fi
 
 AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)

@@ -62,10 +62,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * The allocations we might do:
  *
  * - Ring buffer
- * - HW cursor 1
- * - HW cursor 2
- * - HW ARGB cursor 1
- * - HW ARGB cursor 2
+ * - HW cursor block (either one block or four)
  * - Overlay registers
  * - XAA linear allocator (optional)
  * - EXA 965 state buffer
@@ -99,6 +96,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
+#include <assert.h>
 #include <string.h>
 
 #include "xf86.h"
@@ -213,8 +211,7 @@ void
 i830_reset_allocations(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int i;
+    int	    p;
 
     /* While there is any memory between the start and end markers, free it. */
     while (pI830->memory_list->next->next != NULL)
@@ -223,13 +220,11 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     /* Null out the pointers for all the allocations we just freed.  This is
      * kind of gross, but at least it's just one place now.
      */
-    for (i = 0; i < xf86_config->num_crtc; i++) {
-	I830CrtcPrivatePtr intel_crtc = xf86_config->crtc[i]->driver_private;
-
-	intel_crtc->cursor_mem = NULL;
-	intel_crtc->cursor_mem_argb = NULL;
+    pI830->cursor_mem = NULL;
+    for (p = 0; p < 2; p++) {
+	pI830->cursor_mem_classic[p] = NULL;
+	pI830->cursor_mem_argb[p] = NULL;
     }
-
     pI830->front_buffer = NULL;
     pI830->front_buffer_2 = NULL;
     pI830->xaa_scratch = NULL;
@@ -240,6 +235,7 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->xaa_linear = NULL;
     pI830->logical_context = NULL;
     pI830->back_buffer = NULL;
+    pI830->third_buffer = NULL;
     pI830->depth_buffer = NULL;
     pI830->textures = NULL;
     pI830->memory_manager = NULL;
@@ -257,6 +253,8 @@ i830_free_3d_memory(ScrnInfoPtr pScrn)
 
     i830_free_memory(pScrn, pI830->back_buffer);
     pI830->back_buffer = NULL;
+    i830_free_memory(pScrn, pI830->third_buffer);
+    pI830->third_buffer = NULL;
     i830_free_memory(pScrn, pI830->depth_buffer);
     pI830->depth_buffer = NULL;
     i830_free_memory(pScrn, pI830->textures);
@@ -611,6 +609,10 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 	i830_describe_tiling(pScrn, verbosity, prefix, pI830->back_buffer,
 			     pI830->back_tiled);
     }
+    if (pI830->third_buffer != NULL) {
+	i830_describe_tiling(pScrn, verbosity, prefix, pI830->third_buffer,
+			     pI830->third_tiled);
+    }
     if (pI830->depth_buffer != NULL) {
 	i830_describe_tiling(pScrn, verbosity, prefix, pI830->depth_buffer,
 			     pI830->depth_tiled);
@@ -835,54 +837,96 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 	return NULL;
     }
 
+    if (pI830->FbBase)
+	memset (pI830->FbBase + front_buffer->offset, 0, size);
     return front_buffer;
 }
 
 static Bool
-i830_allocate_cursor_buffers(xf86CrtcPtr crtc)
+i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     I830Ptr pI830 = I830PTR(pScrn);
-    long size;
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int flags = pI830->CursorNeedsPhysical ? NEED_PHYSICAL_ADDR : 0;
+    int i;
+    long size;
 
-    if (pI830->SWCursor)
-	return FALSE;
-
-    /* Mouse cursor -- The i810-i830 need a physical address in system
-     * memory from which to upload the cursor.  We get this from
-     * the agpgart module using a special memory type.
+    /* Try to allocate one big blob for our cursor memory.  This works
+     * around a limitation in the FreeBSD AGP driver that allows only one
+     * physical allocation larger than a page, and could allos us
+     * to pack the cursors smaller.
      */
+    size = xf86_config->num_crtc * (HWCURSOR_SIZE + HWCURSOR_SIZE_ARGB);
 
-    size = HWCURSOR_SIZE;
+    pI830->cursor_mem = i830_allocate_memory(pScrn, "HW cursors",
+					     size, GTT_PAGE_SIZE,
+					     flags);
+    if (pI830->cursor_mem != NULL) {
+	unsigned long cursor_offset_base = pI830->cursor_mem->offset;
+	unsigned long cursor_addr_base, offset = 0;
 
-    if (intel_crtc->cursor_mem == NULL) {
-	intel_crtc->cursor_mem = i830_allocate_memory(pScrn, "HW cursor",
-						      size, GTT_PAGE_SIZE,
-						      flags);
-	if (intel_crtc->cursor_mem == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to allocate HW cursor space.\n");
+	if (pI830->CursorNeedsPhysical)
+	    cursor_addr_base = pI830->cursor_mem->bus_addr;
+	else
+	    cursor_addr_base = pI830->cursor_mem->offset;
+
+	/* Set up the offsets for our cursors in each CRTC. */
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+	    xf86CrtcPtr crtc = xf86_config->crtc[i];
+	    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+
+	    intel_crtc->cursor_argb_addr = cursor_addr_base + offset;
+	    intel_crtc->cursor_argb_offset = cursor_offset_base + offset;
+	    offset += HWCURSOR_SIZE_ARGB;
+
+	    intel_crtc->cursor_addr = cursor_addr_base + offset;
+	    intel_crtc->cursor_offset = cursor_offset_base + offset;
+	    offset += HWCURSOR_SIZE;
+	}
+
+	return TRUE;
+    }
+
+    /*
+     * Allocate four separate buffers when the kernel doesn't support
+     * large allocations as on Linux. If any of these fail, just
+     * bail back to software cursors everywhere
+     */
+    for (i = 0; i < xf86_config->num_crtc; i++)
+    {
+	xf86CrtcPtr	    crtc = xf86_config->crtc[i];
+	I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
+	
+	pI830->cursor_mem_classic[i] = i830_allocate_memory (pScrn, 
+							     "Core cursor",
+							     HWCURSOR_SIZE,
+							     GTT_PAGE_SIZE,
+							     flags);
+	if (!pI830->cursor_mem_classic[i])
 	    return FALSE;
-	}
-    }
+	pI830->cursor_mem_argb[i] = i830_allocate_memory (pScrn, "ARGB cursor",
+							  HWCURSOR_SIZE_ARGB,
+							  GTT_PAGE_SIZE,
+							  flags);
+	if (!pI830->cursor_mem_argb[i])
+	    return FALSE;
 
-    if (intel_crtc->cursor_mem_argb == NULL) {
-	/* Allocate the ARGB cursor space.  Its success is optional -- we won't
-	 * set SWCursor if it fails.
+	/*
+	 * Set up the pointers into the allocations
 	 */
-	intel_crtc->cursor_mem_argb = i830_allocate_memory(pScrn,
-							   "HW ARGB cursor",
-							   HWCURSOR_SIZE_ARGB,
-							   GTT_PAGE_SIZE,
-							   flags);
-	if (intel_crtc->cursor_mem_argb == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to allocate HW (ARGB) cursor space.\n");
+	if (pI830->CursorNeedsPhysical)
+	{
+	    intel_crtc->cursor_addr = pI830->cursor_mem_classic[i]->bus_addr;
+	    intel_crtc->cursor_argb_addr = pI830->cursor_mem_argb[i]->bus_addr;
 	}
+	else
+	{
+	    intel_crtc->cursor_addr = pI830->cursor_mem_classic[i]->offset;
+	    intel_crtc->cursor_argb_addr = pI830->cursor_mem_argb[i]->offset;
+	}
+	intel_crtc->cursor_offset = pI830->cursor_mem_classic[i]->offset;
+	intel_crtc->cursor_argb_offset = pI830->cursor_mem_argb[i]->offset;
     }
-
     return TRUE;
 }
 
@@ -894,10 +938,8 @@ Bool
 i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
     long size;
-    int i;
 
     if (!pI830->StolenOnly &&
 	(!xf86AgpGARTSupported() || !xf86AcquireGART(pScrn->scrnIndex))) {
@@ -913,19 +955,11 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     i830_allocate_ringbuffer(pScrn);
 
     /* Next, allocate other fixed-size allocations we have. */
-    if (!pI830->SWCursor) {
-	/* Allocate cursor memory */
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-	    if (!i830_allocate_cursor_buffers(xf86_config->crtc[i]) &&
-		!pI830->SWCursor)
-		{
-		    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			       "Disabling HW cursor because the cursor memory "
-			       "allocation failed.\n");
-		    pI830->SWCursor = TRUE;
-		    break;
-		}
-	}
+    if (!pI830->SWCursor && !i830_allocate_cursor_buffers(pScrn)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Disabling HW cursor because the cursor memory "
+		   "allocation failed.\n");
+	pI830->SWCursor = TRUE;
     }
 
     /* Space for the X Server's 3D context.  32k is fine for right now. */
@@ -936,6 +970,20 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 		   "Failed to allocate logical context space.\n");
 	return FALSE;
     }
+#ifdef I830_USE_EXA
+    if (pI830->useEXA) {
+	if (IS_I965G(pI830) && pI830->exa_965_state == NULL) {
+	    pI830->exa_965_state =
+		i830_allocate_memory(pScrn, "exa G965 state buffer",
+				     EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, 0);
+	    if (pI830->exa_965_state == NULL) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Failed to allocate exa state buffer for 965.\n");
+		return FALSE;
+	    }
+	}
+    }
+#endif
 
 #ifdef I830_XV
     /* Allocate overlay register space and optional XAA linear allocator
@@ -979,17 +1027,6 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	    if (pI830->exa_offscreen == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Failed to allocate EXA offscreen memory.");
-		return FALSE;
-	    }
-	}
-
-	if (IS_I965G(pI830) && pI830->exa_965_state == NULL) {
-	    pI830->exa_965_state =
-		i830_allocate_memory(pScrn, "exa G965 state buffer",
-				     EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, 0);
-	    if (pI830->exa_965_state == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Failed to allocate exa state buffer for 965.\n");
 		return FALSE;
 	    }
 	}
@@ -1052,7 +1089,8 @@ myLog2(unsigned int n)
 }
 
 static Bool
-i830_allocate_backbuffer(ScrnInfoPtr pScrn)
+i830_allocate_backbuffer(ScrnInfoPtr pScrn, i830_memory **buffer,
+			 unsigned int *tiled, const char *name)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
@@ -1068,26 +1106,23 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn)
     if (!pI830->disableTiling && IsTileable(pScrn, pitch))
     {
 	size = ROUND_TO_PAGE(pitch * ALIGN(height, 16));
-	pI830->back_buffer =
-	    i830_allocate_memory_tiled(pScrn, "back buffer",
-				       size, pitch, GTT_PAGE_SIZE,
-				       ALIGN_BOTH_ENDS,
-				       TILING_XMAJOR);
-	pI830->back_tiled = FENCE_XMAJOR;
+	*buffer = i830_allocate_memory_tiled(pScrn, name, size, pitch,
+					     GTT_PAGE_SIZE, ALIGN_BOTH_ENDS,
+					     TILING_XMAJOR);
+	*tiled = FENCE_XMAJOR;
     }
 
     /* Otherwise, just allocate it linear */
-    if (pI830->back_buffer == NULL) {
+    if (*buffer == NULL) {
 	size = ROUND_TO_PAGE(pitch * height);
-	pI830->back_buffer = i830_allocate_memory(pScrn, "back buffer",
-						  size, GTT_PAGE_SIZE,
-						  ALIGN_BOTH_ENDS);
-	pI830->back_tiled = FENCE_LINEAR;
+	*buffer = i830_allocate_memory(pScrn, name, size, GTT_PAGE_SIZE,
+				       ALIGN_BOTH_ENDS);
+	*tiled = FENCE_LINEAR;
     }
 
-    if (pI830->back_buffer == NULL) {
+    if (*buffer == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Failed to allocate back buffer space.\n");
+		   "Failed to allocate %s space.\n", name);
 	return FALSE;
     }
 
@@ -1111,13 +1146,20 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
     /* First try allocating it tiled */
     if (!pI830->disableTiling && IsTileable(pScrn, pitch))
     {
+	enum tile_format tile_format;
+
 	size = ROUND_TO_PAGE(pitch * ALIGN(height, 16));
+
+	/* The 965 requires that the depth buffer be in Y Major format, while
+	 * the rest appear to fail when handed that format.
+	 */
+	tile_format = IS_I965G(pI830) ? TILING_YMAJOR: TILING_XMAJOR;
 
 	pI830->depth_buffer =
 	    i830_allocate_memory_tiled(pScrn, "depth buffer", size, pitch,
 				       GTT_PAGE_SIZE, ALIGN_BOTH_ENDS,
-				       TILING_YMAJOR);
-	pI830->depth_tiled = FENCE_YMAJOR;
+				       tile_format);
+	pI830->depth_tiled = FENCE_XMAJOR;
     }
 
     /* Otherwise, allocate it linear. */
@@ -1138,7 +1180,7 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-static Bool
+Bool
 i830_allocate_texture_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -1187,10 +1229,22 @@ i830_allocate_texture_memory(ScrnInfoPtr pScrn)
 Bool
 i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
+
     DPRINTF(PFX, "i830_allocate_3d_memory\n");
 
-    if (!i830_allocate_backbuffer(pScrn))
+    if (!i830_allocate_backbuffer(pScrn, &pI830->back_buffer,
+				  &pI830->back_tiled, "back buffer"))
 	return FALSE;
+
+    if (pI830->TripleBuffer && !i830_allocate_backbuffer(pScrn,
+							 &pI830->third_buffer,
+							 &pI830->third_tiled,
+							 "third buffer")) {
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		  "Failed to allocate third buffer, triple buffering "
+		  "inactive\n");
+    }
 
     if (!i830_allocate_depthbuffer(pScrn))
 	return FALSE;
@@ -1364,7 +1418,9 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
    	}
     }
 
-    if (IS_I9XX(pI830))
+    if ((IS_I945G(pI830) || IS_I945GM(pI830)) && tile_format == TILING_YMAJOR)
+	fence_pitch = pitch / 128;
+    else if (IS_I9XX(pI830))
 	fence_pitch = pitch / 512;
     else
 	fence_pitch = pitch / 128;
