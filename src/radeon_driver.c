@@ -3404,14 +3404,6 @@ static void RADEONBlockHandler(int i, pointer blockData,
     ScrnInfoPtr    pScrn   = xf86Screens[i];
     RADEONInfoPtr  info    = RADEONPTR(pScrn);
 
-#ifdef XF86DRI
-    if (info->directRenderingInited) {
-	FLUSH_RING();
-    }
-#endif
-#ifdef USE_EXA
-    info->engineMode = EXA_ENGINEMODE_UNKNOWN;
-#endif
     pScreen->BlockHandler = info->BlockHandler;
     (*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
     pScreen->BlockHandler = RADEONBlockHandler;
@@ -3422,6 +3414,10 @@ static void RADEONBlockHandler(int i, pointer blockData,
 #if defined(RENDER) && defined(USE_XAA)
     if(info->RenderCallback)
 	(*info->RenderCallback)(pScrn);
+#endif
+
+#ifdef USE_EXA
+    info->engineMode = EXA_ENGINEMODE_UNKNOWN;
 #endif
 }
 
