@@ -409,13 +409,7 @@ static void RADEONLeaveServer(ScreenPtr pScreen)
     /* The CP is always running, but if we've generated any CP commands
      * we must flush them to the kernel module now.
      */
-    if (info->CPInUse) {
-	RADEON_FLUSH_CACHE();
-	RADEON_WAIT_UNTIL_IDLE();
-	RADEONCPReleaseIndirect(pScrn);
-
-	info->CPInUse = FALSE;
-    }
+    RADEONCP_RELEASE(pScrn, info);
 
 #ifdef USE_EXA
     info->engineMode = EXA_ENGINEMODE_UNKNOWN;
@@ -1703,13 +1697,7 @@ void RADEONDRIStop(ScreenPtr pScreen)
 	/* If we've generated any CP commands, we must flush them to the
 	 * kernel module now.
 	 */
-	if (info->CPInUse) {
-	    RADEON_FLUSH_CACHE();
-	    RADEON_WAIT_UNTIL_IDLE();
-	    RADEONCPReleaseIndirect(pScrn);
-
-	    info->CPInUse = FALSE;
-	}
+	RADEONCP_RELEASE(pScrn, info);
 	RADEONCP_STOP(pScrn, info);
     }
     info->directRenderingInited = FALSE;

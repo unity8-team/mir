@@ -964,6 +964,16 @@ do {									\
     info->CPStarted = TRUE;                                             \
 } while (0)
 
+#define RADEONCP_RELEASE(pScrn, info)					\
+do {									\
+    if (info->CPInUse) {						\
+	RADEON_PURGE_CACHE();						\
+	RADEON_WAIT_UNTIL_IDLE();					\
+	RADEONCPReleaseIndirect(pScrn);					\
+	info->CPInUse = FALSE;						\
+    }									\
+} while (0)
+
 #define RADEONCP_STOP(pScrn, info)					\
 do {									\
     int _ret;								\
@@ -1125,14 +1135,6 @@ do {									\
     OUT_RING((RADEON_WAIT_2D_IDLECLEAN |				\
 	      RADEON_WAIT_3D_IDLECLEAN |				\
 	      RADEON_WAIT_HOST_IDLECLEAN));				\
-    ADVANCE_RING();							\
-} while (0)
-
-#define RADEON_FLUSH_CACHE()						\
-do {									\
-    BEGIN_RING(2);							\
-    OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));		\
-    OUT_RING(RADEON_RB3D_DC_FLUSH);					\
     ADVANCE_RING();							\
 } while (0)
 
