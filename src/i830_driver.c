@@ -557,7 +557,7 @@ I830UnmapMMIO(ScrnInfoPtr pScrn)
 
    xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI830->MMIOBase,
 		   I810_REG_SIZE);
-   pI830->MMIOBase = 0;
+   pI830->MMIOBase = NULL;
 }
 
 static Bool
@@ -567,7 +567,7 @@ I830UnmapMem(ScrnInfoPtr pScrn)
 
    xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI830->FbBase,
 		   pI830->FbMapSize);
-   pI830->FbBase = 0;
+   pI830->FbBase = NULL;
    I830UnmapMMIO(pScrn);
    return TRUE;
 }
@@ -905,7 +905,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
     } else 
         pI830->entityPrivate = NULL;
 
-   if (xf86RegisterResources(pI830->pEnt->index, 0, ResNone)) {
+   if (xf86RegisterResources(pI830->pEnt->index, NULL, ResNone)) {
       PreInitCleanup(pScrn);
       return FALSE;
    }
@@ -1285,8 +1285,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 		    "\tfor the DRM memory manager.\n",
 		    pI830->mmSize);
       }
-   } 
 #endif
+   } 
    
 #endif
 
@@ -1568,9 +1568,8 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
    OUTREG(LP_RING + RING_HEAD, 0);
    OUTREG(LP_RING + RING_TAIL, 0);
    OUTREG(LP_RING + RING_START, 0);
-  
-   if (pI830->CursorInfoRec && pI830->CursorInfoRec->HideCursor)
-      pI830->CursorInfoRec->HideCursor(pScrn);
+
+   xf86_hide_cursors (pScrn);
 }
 
 static void
@@ -2574,7 +2573,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       }
    }
 
-   fbPictureInit(pScreen, 0, 0);
+   fbPictureInit(pScreen, NULL, 0);
 
    xf86SetBlackWhitePixels(pScreen);
 
@@ -2590,9 +2589,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       }
    }
 
-   if (!I830EnterVT(scrnIndex, 0))
-      return FALSE;
-
    miInitializeBackingStore(pScreen);
    xf86SetBackingStore(pScreen);
    xf86SetSilkenMouse(pScreen);
@@ -2606,12 +2602,15 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    } else
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initializing SW Cursor!\n");
 
+   if (!I830EnterVT(scrnIndex, 0))
+      return FALSE;
+
    DPRINTF(PFX, "assert( if(!miCreateDefColormap(pScreen)) )\n");
    if (!miCreateDefColormap(pScreen))
       return FALSE;
 
    DPRINTF(PFX, "assert( if(!xf86HandleColormaps(pScreen, ...)) )\n");
-   if (!xf86HandleColormaps(pScreen, 256, 8, I830LoadPalette, 0,
+   if (!xf86HandleColormaps(pScreen, 256, 8, I830LoadPalette, NULL,
 			    CMAP_RELOAD_ON_MODE_SWITCH |
 			    CMAP_PALETTED_TRUECOLOR)) {
       return FALSE;
@@ -2790,8 +2789,7 @@ I830LeaveVT(int scrnIndex, int flags)
    }
 #endif
 
-   if (pI830->CursorInfoRec && pI830->CursorInfoRec->HideCursor)
-      pI830->CursorInfoRec->HideCursor(pScrn);
+   xf86_hide_cursors (pScrn);
 
    ResetState(pScrn, TRUE);
 
@@ -2969,7 +2967,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
    if (pI830->ScanlineColorExpandBuffers) {
       xfree(pI830->ScanlineColorExpandBuffers);
-      pI830->ScanlineColorExpandBuffers = 0;
+      pI830->ScanlineColorExpandBuffers = NULL;
    }
 #ifdef I830_USE_XAA
    if (infoPtr) {
@@ -2986,10 +2984,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
        pI830->EXADriverPtr = NULL;
    }
 #endif
-   if (pI830->CursorInfoRec) {
-      xf86DestroyCursorInfoRec(pI830->CursorInfoRec);
-      pI830->CursorInfoRec = 0;
-   }
+   xf86_cursors_fini (pScreen);
 
    i830_reset_allocations(pScrn);
 

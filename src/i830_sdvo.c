@@ -79,6 +79,39 @@ struct i830_sdvo_priv {
     /** @} */
 };
 
+/**
+ * Writes the SDVOB or SDVOC with the given value, but always writes both
+ * SDVOB and SDVOC to work around apparent hardware issues (according to
+ * comments in the BIOS).
+ */
+static void i830_sdvo_write_sdvox(xf86OutputPtr output, CARD32 val)
+{
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    CARD32		    bval = val, cval = val;
+    int			    i;
+
+    if (dev_priv->output_device == SDVOB)
+	cval = INREG(SDVOC);
+    else
+	bval = INREG(SDVOB);
+    
+    /*
+     * Write the registers twice for luck. Sometimes,
+     * writing them only once doesn't appear to 'stick'.
+     * The BIOS does this too. Yay, magic
+     */
+    for (i = 0; i < 2; i++)
+    {
+	OUTREG(SDVOB, bval);
+	POSTING_READ(SDVOB);
+	OUTREG(SDVOC, cval);
+	POSTING_READ(SDVOC);
+    }
+}
+
 /** Read a single byte from the given address on the SDVO device. */
 static Bool i830_sdvo_read_byte(xf86OutputPtr output, int addr,
 				unsigned char *ch)
@@ -163,6 +196,9 @@ const static struct _sdvo_cmd_name {
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPPORTED_TV_FORMATS),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_TV_FORMAT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_TV_FORMAT),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPPORTED_POWER_STATES),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_ENCODER_POWER_STATE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_ENCODER_POWER_STATE),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_TV_RESOLUTION_SUPPORT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_CONTROL_BUS_SWITCH),
 };
@@ -341,6 +377,34 @@ i830_sdvo_set_active_outputs(xf86OutputPtr output,
 
     i830_sdvo_write_cmd(output, SDVO_CMD_SET_ACTIVE_OUTPUTS, &outputs,
 			sizeof(outputs));
+    status = i830_sdvo_read_response(output, NULL, 0);
+
+    return (status == SDVO_CMD_STATUS_SUCCESS);
+}
+
+static Bool
+i830_sdvo_set_encoder_power_state(xf86OutputPtr output, int mode)
+{
+    CARD8 status;
+    CARD8 state;
+
+    switch (mode) {
+    case DPMSModeOn:
+	state = SDVO_ENCODER_STATE_ON;
+	break;
+    case DPMSModeStandby:
+	state = SDVO_ENCODER_STATE_STANDBY;
+	break;
+    case DPMSModeSuspend:
+	state = SDVO_ENCODER_STATE_SUSPEND;
+	break;
+    case DPMSModeOff:
+	state = SDVO_ENCODER_STATE_OFF;
+	break;
+    }
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_SET_ENCODER_POWER_STATE, &state,
+			sizeof(state));
     status = i830_sdvo_read_response(output, NULL, 0);
 
     return (status == SDVO_CMD_STATUS_SUCCESS);
@@ -673,7 +737,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	sdvox |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
     }
 
-    OUTREG(dev_priv->output_device, sdvox);
+    i830_sdvo_write_sdvox(output, sdvox);
 }
 
 static void
@@ -687,9 +751,15 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
 
     if (mode != DPMSModeOn) {
 	i830_sdvo_set_active_outputs(output, 0);
-	temp = INREG(dev_priv->output_device);
-	if ((temp & SDVO_ENABLE) != 0)
-	    OUTREG(dev_priv->output_device, temp & ~SDVO_ENABLE);
+	if (0)
+	    i830_sdvo_set_encoder_power_state(output, mode);
+
+	if (mode == DPMSModeOff) {
+	    temp = INREG(dev_priv->output_device);
+	    if ((temp & SDVO_ENABLE) != 0) {
+		i830_sdvo_write_sdvox(output, temp & ~SDVO_ENABLE);
+	    }
+	}
     } else {
 	Bool input1, input2;
 	int i;
@@ -697,16 +767,7 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
 
 	temp = INREG(dev_priv->output_device);
 	if ((temp & SDVO_ENABLE) == 0)
-	{
-	    OUTREG(dev_priv->output_device, temp | SDVO_ENABLE);
-#if 0
-	    /* Do it again!  If we remove this below register write, or the exact
-	     * same one 2 lines up, the mac mini SDVO output doesn't turn on.
-	     */
-	    OUTREG(dev_priv->output_device,
-		   INREG(dev_priv->output_device) | SDVO_ENABLE);
-#endif
-	}
+	    i830_sdvo_write_sdvox(output, temp | SDVO_ENABLE);
 	for (i = 0; i < 2; i++)
 	    i830WaitForVblank(pScrn);
 
@@ -719,6 +780,8 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
 		       SDVO_NAME(dev_priv));
 	}
 
+	if (0)
+	    i830_sdvo_set_encoder_power_state(output, mode);
 	i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
     }
 }
@@ -766,7 +829,6 @@ i830_sdvo_restore(xf86OutputPtr output)
     ScrnInfoPtr		    pScrn = output->scrn;
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
-    I830Ptr		    pI830 = I830PTR(pScrn);
     int			    o;
     int			    i;
     Bool		    input1, input2;
@@ -796,7 +858,7 @@ i830_sdvo_restore(xf86OutputPtr output)
 
     i830_sdvo_set_clock_rate_mult(output, dev_priv->save_sdvo_mult);
 
-    OUTREG(dev_priv->output_device, dev_priv->save_SDVOX);
+    i830_sdvo_write_sdvox(output, dev_priv->save_SDVOX);
 
     if (dev_priv->save_SDVOX & SDVO_ENABLE)
     {
@@ -1209,6 +1271,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 		   "%s: No active TMDS outputs (0x%02x%02x)\n",
 		   SDVO_NAME(dev_priv),
 		   bytes[0], bytes[1]);
+	name_prefix="Unknown";
     }
     strcpy (name, name_prefix);
     strcat (name, name_suffix);

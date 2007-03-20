@@ -233,6 +233,7 @@ union intfloat {
 #define INREG8(addr)        *(volatile CARD8  *)(RecPtr->MMIOBase + (addr))
 #define INREG16(addr)       *(volatile CARD16 *)(RecPtr->MMIOBase + (addr))
 #define INREG(addr)         *(volatile CARD32 *)(RecPtr->MMIOBase + (addr))
+#define POSTING_READ(addr)  (void)INREG(addr)
 
 #define OUTREG8(addr, val) do {						\
    *(volatile CARD8 *)(RecPtr->MMIOBase  + (addr)) = (val);		\

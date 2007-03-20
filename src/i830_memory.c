@@ -62,10 +62,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * The allocations we might do:
  *
  * - Ring buffer
- * - HW cursor 1
- * - HW cursor 2
- * - HW ARGB cursor 1
- * - HW ARGB cursor 2
+ * - HW cursor block (either one block or four)
  * - Overlay registers
  * - XAA linear allocator (optional)
  * - EXA 965 state buffer
@@ -214,8 +211,7 @@ void
 i830_reset_allocations(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int i;
+    int	    p;
 
     /* While there is any memory between the start and end markers, free it. */
     while (pI830->memory_list->next->next != NULL)
@@ -224,13 +220,11 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     /* Null out the pointers for all the allocations we just freed.  This is
      * kind of gross, but at least it's just one place now.
      */
-    for (i = 0; i < xf86_config->num_crtc; i++) {
-	I830CrtcPrivatePtr intel_crtc = xf86_config->crtc[i]->driver_private;
-
-	intel_crtc->cursor_mem = NULL;
-	intel_crtc->cursor_mem_argb = NULL;
+    pI830->cursor_mem = NULL;
+    for (p = 0; p < 2; p++) {
+	pI830->cursor_mem_classic[p] = NULL;
+	pI830->cursor_mem_argb[p] = NULL;
     }
-
     pI830->front_buffer = NULL;
     pI830->front_buffer_2 = NULL;
     pI830->xaa_scratch = NULL;
@@ -849,50 +843,90 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 }
 
 static Bool
-i830_allocate_cursor_buffers(xf86CrtcPtr crtc)
+i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     I830Ptr pI830 = I830PTR(pScrn);
-    long size;
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int flags = pI830->CursorNeedsPhysical ? NEED_PHYSICAL_ADDR : 0;
+    int i;
+    long size;
 
-    if (pI830->SWCursor)
-	return FALSE;
-
-    /* Mouse cursor -- The i810-i830 need a physical address in system
-     * memory from which to upload the cursor.  We get this from
-     * the agpgart module using a special memory type.
+    /* Try to allocate one big blob for our cursor memory.  This works
+     * around a limitation in the FreeBSD AGP driver that allows only one
+     * physical allocation larger than a page, and could allos us
+     * to pack the cursors smaller.
      */
+    size = xf86_config->num_crtc * (HWCURSOR_SIZE + HWCURSOR_SIZE_ARGB);
 
-    size = HWCURSOR_SIZE;
+    pI830->cursor_mem = i830_allocate_memory(pScrn, "HW cursors",
+					     size, GTT_PAGE_SIZE,
+					     flags);
+    if (pI830->cursor_mem != NULL) {
+	unsigned long cursor_offset_base = pI830->cursor_mem->offset;
+	unsigned long cursor_addr_base, offset = 0;
 
-    if (intel_crtc->cursor_mem == NULL) {
-	intel_crtc->cursor_mem = i830_allocate_memory(pScrn, "HW cursor",
-						      size, GTT_PAGE_SIZE,
-						      flags);
-	if (intel_crtc->cursor_mem == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to allocate HW cursor space.\n");
+	if (pI830->CursorNeedsPhysical)
+	    cursor_addr_base = pI830->cursor_mem->bus_addr;
+	else
+	    cursor_addr_base = pI830->cursor_mem->offset;
+
+	/* Set up the offsets for our cursors in each CRTC. */
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+	    xf86CrtcPtr crtc = xf86_config->crtc[i];
+	    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+
+	    intel_crtc->cursor_argb_addr = cursor_addr_base + offset;
+	    intel_crtc->cursor_argb_offset = cursor_offset_base + offset;
+	    offset += HWCURSOR_SIZE_ARGB;
+
+	    intel_crtc->cursor_addr = cursor_addr_base + offset;
+	    intel_crtc->cursor_offset = cursor_offset_base + offset;
+	    offset += HWCURSOR_SIZE;
+	}
+
+	return TRUE;
+    }
+
+    /*
+     * Allocate four separate buffers when the kernel doesn't support
+     * large allocations as on Linux. If any of these fail, just
+     * bail back to software cursors everywhere
+     */
+    for (i = 0; i < xf86_config->num_crtc; i++)
+    {
+	xf86CrtcPtr	    crtc = xf86_config->crtc[i];
+	I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
+	
+	pI830->cursor_mem_classic[i] = i830_allocate_memory (pScrn, 
+							     "Core cursor",
+							     HWCURSOR_SIZE,
+							     GTT_PAGE_SIZE,
+							     flags);
+	if (!pI830->cursor_mem_classic[i])
 	    return FALSE;
-	}
-    }
+	pI830->cursor_mem_argb[i] = i830_allocate_memory (pScrn, "ARGB cursor",
+							  HWCURSOR_SIZE_ARGB,
+							  GTT_PAGE_SIZE,
+							  flags);
+	if (!pI830->cursor_mem_argb[i])
+	    return FALSE;
 
-    if (intel_crtc->cursor_mem_argb == NULL) {
-	/* Allocate the ARGB cursor space.  Its success is optional -- we won't
-	 * set SWCursor if it fails.
+	/*
+	 * Set up the pointers into the allocations
 	 */
-	intel_crtc->cursor_mem_argb = i830_allocate_memory(pScrn,
-							   "HW ARGB cursor",
-							   HWCURSOR_SIZE_ARGB,
-							   GTT_PAGE_SIZE,
-							   flags);
-	if (intel_crtc->cursor_mem_argb == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to allocate HW (ARGB) cursor space.\n");
+	if (pI830->CursorNeedsPhysical)
+	{
+	    intel_crtc->cursor_addr = pI830->cursor_mem_classic[i]->bus_addr;
+	    intel_crtc->cursor_argb_addr = pI830->cursor_mem_argb[i]->bus_addr;
 	}
+	else
+	{
+	    intel_crtc->cursor_addr = pI830->cursor_mem_classic[i]->offset;
+	    intel_crtc->cursor_argb_addr = pI830->cursor_mem_argb[i]->offset;
+	}
+	intel_crtc->cursor_offset = pI830->cursor_mem_classic[i]->offset;
+	intel_crtc->cursor_argb_offset = pI830->cursor_mem_argb[i]->offset;
     }
-
     return TRUE;
 }
 
@@ -904,10 +938,8 @@ Bool
 i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
     long size;
-    int i;
 
     if (!pI830->StolenOnly &&
 	(!xf86AgpGARTSupported() || !xf86AcquireGART(pScrn->scrnIndex))) {
@@ -923,19 +955,11 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     i830_allocate_ringbuffer(pScrn);
 
     /* Next, allocate other fixed-size allocations we have. */
-    if (!pI830->SWCursor) {
-	/* Allocate cursor memory */
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-	    if (!i830_allocate_cursor_buffers(xf86_config->crtc[i]) &&
-		!pI830->SWCursor)
-		{
-		    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			       "Disabling HW cursor because the cursor memory "
-			       "allocation failed.\n");
-		    pI830->SWCursor = TRUE;
-		    break;
-		}
-	}
+    if (!pI830->SWCursor && !i830_allocate_cursor_buffers(pScrn)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Disabling HW cursor because the cursor memory "
+		   "allocation failed.\n");
+	pI830->SWCursor = TRUE;
     }
 
     /* Space for the X Server's 3D context.  32k is fine for right now. */
@@ -1156,7 +1180,7 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-static Bool
+Bool
 i830_allocate_texture_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);

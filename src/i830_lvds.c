@@ -225,13 +225,9 @@ i830_lvds_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 pfit_control;
 
-#if 0
-    /* The LVDS pin pair needs to be on before the DPLLs are enabled.
-     * This is an exception to the general rule that mode_set doesn't turn
-     * things on.
+    /* The LVDS pin pair will already have been turned on in the
+     * i830_crtc_mode_set since it has a large impact on the DPLL settings.
      */
-    OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
-#endif
 
     /* Enable automatic panel scaling so that non-native modes fill the
      * screen.  Should be enabled before the pipe is enabled, according to

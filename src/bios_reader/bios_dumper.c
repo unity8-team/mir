@@ -60,14 +60,14 @@ int main(int argc, char **argv)
     if (dev == NULL)
 	errx(1, "Couldn't find graphics card");
 
-    if (dev->vendor_id != 0x8086)
-	errx(1, "Graphics card is non-intel");
-
     err = pci_device_probe(dev);
     if (err != 0) {
 	fprintf(stderr, "Couldn't probe graphics card: %s\n", strerror(err));
 	exit(1);
     }
+
+    if (dev->vendor_id != 0x8086)
+	errx(1, "Graphics card is non-intel");
 
     bios = malloc(dev->rom_size);
     if (bios == NULL)

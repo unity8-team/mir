@@ -226,9 +226,15 @@ typedef struct _I830CrtcPrivateRec {
 #ifdef I830_USE_EXA
     ExaOffscreenArea *rotate_mem_exa;
 #endif
-
-    i830_memory *cursor_mem;
-    i830_memory *cursor_mem_argb;
+    /* Card virtual address of the cursor */
+    unsigned long cursor_offset;
+    unsigned long cursor_argb_offset;
+    /* Physical or virtual addresses of the cursor for setting in the cursor
+     * registers.
+     */
+    unsigned long cursor_addr;
+    unsigned long cursor_argb_addr;
+    Bool	cursor_is_argb;
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;
 
 #define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
@@ -275,6 +281,11 @@ typedef struct _I830Rec {
 
    i830_memory *front_buffer;
    i830_memory *front_buffer_2;
+   /* One big buffer for all cursors for kernels that support this */
+   i830_memory *cursor_mem;
+   /* separate small buffers for kernels that support this */
+   i830_memory *cursor_mem_classic[2];
+   i830_memory *cursor_mem_argb[2];
    i830_memory *xaa_scratch;
    i830_memory *xaa_scratch_2;
 #ifdef I830_USE_EXA
@@ -328,9 +339,7 @@ typedef struct _I830Rec {
    int backPitch;
 
    Bool CursorNeedsPhysical;
-   Bool CursorIsARGB;
-   CursorPtr pCurs;
-
+ 
    DGAModePtr DGAModes;
    int numDGAModes;
    Bool DGAactive;
@@ -366,7 +375,6 @@ typedef struct _I830Rec {
    Bool useEXA;
    Bool noAccel;
    Bool SWCursor;
-   Bool cursorOn;
 #ifdef I830_USE_XAA
    XAAInfoRecPtr AccelInfoRec;
 
@@ -382,7 +390,6 @@ typedef struct _I830Rec {
 			 int w, int h);
    void (*xaa_done_composite)(PixmapPtr pDst);
 #endif
-   xf86CursorInfoPtr CursorInfoRec;
    CloseScreenProcPtr CloseScreen;
 
 #ifdef I830_USE_EXA
@@ -542,6 +549,27 @@ extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I915EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 
+/* CRTC-based cursor functions */
+void
+i830_crtc_load_cursor_image (xf86CrtcPtr crtc, unsigned char *src);
+
+#ifdef ARGB_CURSOR
+void
+i830_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image);
+#endif
+
+void
+i830_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);
+
+void
+i830_crtc_show_cursor (xf86CrtcPtr crtc);
+
+void
+i830_crtc_hide_cursor (xf86CrtcPtr crtc);
+
+void
+i830_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg);
+
 extern void I830RefreshRing(ScrnInfoPtr pScrn);
 extern void I830EmitFlush(ScrnInfoPtr pScrn);
 
@@ -591,6 +619,7 @@ void i830_free_3d_memory(ScrnInfoPtr pScrn);
 void i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem);
 extern long I830CheckAvailableMemory(ScrnInfoPtr pScrn);
 Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
+Bool i830_allocate_texture_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
 
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);

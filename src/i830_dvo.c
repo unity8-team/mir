@@ -72,7 +72,7 @@ struct _I830DVODriver i830_dvo_drivers[] =
     */
     /*
     { I830_DVO_CHIP_LVDS, "ch7017", "ch7017_methods",
-      (CH7017_ADDR_1 << 1), ch7017_symbols, NULL, NULL, NULL }
+      0xea, ch7017_symbols, NULL, NULL, NULL }
     */
 };
 

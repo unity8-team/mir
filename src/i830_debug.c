@@ -187,25 +187,24 @@ DEBUGSTRING(i830_debug_dpll)
     } else {
 	Bool is_lvds = (INREG(LVDS) & LVDS_PORT_EN) && (reg == DPLL_B);
 
-	if (val & PLL_P2_DIVIDE_BY_4)
-	    p2 = 4;
-	else
-	    p2 = 2;
-
 	if (is_lvds) {
 	    mode = "LVDS";
-	    /* Map the bit number set from (1, 6) to (-1, 4). */
 	    p1 = ffs((val & DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS) >>
 		     DPLL_FPA01_P1_POST_DIV_SHIFT);
+	    p2 = 14;
 	} else {
 	    mode = "DAC/serial";
 	    if (val & PLL_P1_DIVIDE_BY_TWO) {
 		p1 = 2;
 	    } else {
-		/* Map the number in the field to (1, 31) */
+		/* Map the number in the field to (3, 33) */
 		p1 = ((val & DPLL_FPA01_P1_POST_DIV_MASK_I830) >>
 		      DPLL_FPA01_P1_POST_DIV_SHIFT) + 2;
 	    }
+	    if (val & PLL_P2_DIVIDE_BY_4)
+		p2 = 4;
+	    else
+		p2 = 2;
 	}
     }
 
@@ -253,6 +252,17 @@ DEBUGSTRING(i830_debug_dpll_test)
     return XNFprintf("%s%s%s%s%s%s",
 		     dpllandiv, dpllamdiv, dpllainput,
 		     dpllbndiv, dpllbmdiv, dpllbinput);
+}
+
+DEBUGSTRING(i830_debug_adpa)
+{
+    char pipe = (val & ADPA_PIPE_B_SELECT) ? 'B' : 'A';
+    char *enable = (val & ADPA_DAC_ENABLE) ? "enabled" : "disabled";
+    char hsync = (val & ADPA_HSYNC_ACTIVE_HIGH) ? '+' : '-';
+    char vsync = (val & ADPA_VSYNC_ACTIVE_HIGH) ? '+' : '-';
+
+    return XNFprintf("%s, pipe %c, %chsync, %cvsync",
+		     enable, pipe, hsync, vsync);
 }
 
 DEBUGSTRING(i830_debug_lvds)
@@ -314,7 +324,7 @@ static struct i830SnapshotRec {
     DEFINEREG(DSPFW2),
     DEFINEREG(DSPFW3),
 
-    DEFINEREG(ADPA),
+    DEFINEREG2(ADPA, i830_debug_adpa),
     DEFINEREG2(LVDS, i830_debug_lvds),
     DEFINEREG(DVOA),
     DEFINEREG(DVOB),
