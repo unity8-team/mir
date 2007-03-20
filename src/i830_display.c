@@ -298,8 +298,9 @@ i830PllIsValid(xf86CrtcPtr crtc, intel_clock_t *clock)
 }
 
 /**
- * Returns a set of divisors for the desired target clock with the given refclk,
- * or FALSE.  Divisor values are the actual divisors for
+ * Returns a set of divisors for the desired target clock with the given
+ * refclk, or FALSE.  The returned values represent the clock equation:
+ * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
  */
 static Bool
 i830FindBestPLL(xf86CrtcPtr crtc, int target, int refclk, intel_clock_t *best_clock)
@@ -310,10 +311,23 @@ i830FindBestPLL(xf86CrtcPtr crtc, int target, int refclk, intel_clock_t *best_cl
     const intel_limit_t   *limit = intel_limit (crtc);
     int err = target;
 
-    if (target < limit->p2.dot_limit)
-	clock.p2 = limit->p2.p2_slow;
-    else
-	clock.p2 = limit->p2.p2_fast;
+    if (IS_I9XX(pI830) && i830PipeHasType(crtc, I830_OUTPUT_LVDS) &&
+	(INREG(LVDS) & LVDS_PORT_EN) != 0)
+    {
+	/* For LVDS, if the panel is on, just rely on its current settings for
+	 * dual-channel.  We haven't figured out how to reliably set up
+	 * different single/dual channel state, if we even can.
+	 */
+	if ((INREG(LVDS) & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
+	    clock.p2 = limit->p2.p2_fast;
+	else
+	    clock.p2 = limit->p2.p2_slow;
+    } else {
+	if (target < limit->p2.dot_limit)
+	    clock.p2 = limit->p2.p2_slow;
+	else
+	    clock.p2 = limit->p2.p2_fast;
+    }
 
     memset (best_clock, 0, sizeof (*best_clock));
 
@@ -890,13 +904,29 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	usleep(150);
     }
 
+    /* The LVDS pin pair needs to be on before the DPLLs are enabled.
+     * This is an exception to the general rule that mode_set doesn't turn
+     * things on.
+     */
     if (is_lvds)
     {
-	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
-	 * This is an exception to the general rule that mode_set doesn't turn
-	 * things on.
+	CARD32 lvds = INREG(LVDS);
+
+	lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP | LVDS_PIPEB_SELECT;
+	/* Set the B0-B3 data pairs corresponding to whether we're going to
+	 * set the DPLLs for dual-channel mode or not.
 	 */
-	OUTREG(LVDS, INREG(LVDS) | LVDS_PORT_EN | LVDS_PIPEB_SELECT);
+	if (adjusted_mode->Clock >= I9XX_P2_LVDS_SLOW_LIMIT)
+	    lvds |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
+	else
+	    lvds &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
+
+	/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
+	 * appropriately here, but we need to look more thoroughly into how
+	 * panels behave in the two modes.
+	 */
+
+	OUTREG(LVDS, lvds);
 	POSTING_READ(LVDS);
     }
 

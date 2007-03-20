@@ -1729,6 +1729,8 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveSWF[15] = INREG(SWF31);
    pI830->saveSWF[16] = INREG(SWF32);
 
+   if (IS_MOBILE(pI830) && !IS_I830(pI830))
+      pI830->saveLVDS = INREG(LVDS);
    pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
 
    for (i = 0; i < xf86_config->num_output; i++) {
@@ -1770,6 +1772,9 @@ RestoreHWState(ScrnInfoPtr pScrn)
       crtc->funcs->dpms(crtc, DPMSModeOff);
    }
    i830WaitForVblank(pScrn);
+
+   if (IS_MOBILE(pI830) && !IS_I830(pI830))
+      OUTREG(LVDS, pI830->saveLVDS);
 
    if (!IS_I830(pI830) && !IS_845G(pI830))
      OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
