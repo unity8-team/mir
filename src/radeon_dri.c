@@ -1244,7 +1244,7 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
 
     /* Check the DRI version */
     DRIQueryVersion(&major, &minor, &patch);
-    if (major != DRIINFO_MAJOR_VERSION || minor < DRIINFO_MINOR_VERSION) {
+    if (major != DRIINFO_MAJOR_VERSION || minor < 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "[dri] RADEONDRIGetVersion failed because of a version "
 		   "mismatch.\n"
@@ -1252,7 +1252,7 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
 		   "needed.\n"
 		   "[dri] Disabling DRI.\n",
 		   major, minor, patch,
-                   DRIINFO_MAJOR_VERSION, DRIINFO_MINOR_VERSION);
+                   DRIINFO_MAJOR_VERSION, 0);
 	return FALSE;
     }
 
