@@ -6874,6 +6874,19 @@ _X_EXPORT void RADEONLeaveVT(int scrnIndex, int flags)
             /* we need to backup the PCIE GART TABLE from fb memory */
             memcpy(info->pciGartBackup, (info->FB + info->pciGartOffset), info->pciGartSize);
         }
+
+	/* Make sure 3D clients will re-upload textures to video RAM */
+	if (info->textureSize) {
+	    RADEONSAREAPrivPtr pSAREAPriv =
+		(RADEONSAREAPrivPtr)DRIGetSAREAPrivate(pScrn->pScreen);
+	    drmTextureRegionPtr list = pSAREAPriv->texList[0];
+	    int age = ++pSAREAPriv->texAge[0], i = 0;
+
+	    do {
+		list[i].age = age;
+		i = list[i].next;
+	    } while (i != 0);
+	}
     }
 #endif
 
