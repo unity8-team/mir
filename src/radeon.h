@@ -497,6 +497,8 @@ typedef struct {
 
 #ifdef USE_EXA
     ExaDriverPtr      exa;
+    int               exaSyncMarker;
+    int               exaMarkerSynced;
     int               engineMode;
 #define EXA_ENGINEMODE_UNKNOWN 0
 #define EXA_ENGINEMODE_2D      1
