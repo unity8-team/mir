@@ -98,7 +98,7 @@ i830_lvds_dpms (xf86OutputPtr output, int mode)
     else
 	i830SetLVDSPanelPower(pScrn, FALSE);
 
-    /* XXX: We never power down the LVDS pair. */
+    /* XXX: We never power down the LVDS pairs. */
 }
 
 static void
@@ -109,7 +109,6 @@ i830_lvds_save (xf86OutputPtr output)
 
     pI830->savePP_ON = INREG(LVDSPP_ON);
     pI830->savePP_OFF = INREG(LVDSPP_OFF);
-    pI830->saveLVDS = INREG(LVDS);
     pI830->savePP_CONTROL = INREG(PP_CONTROL);
     pI830->savePP_CYCLE = INREG(PP_CYCLE);
     pI830->saveBLC_PWM_CTL = INREG(BLC_PWM_CTL);
@@ -133,7 +132,6 @@ i830_lvds_restore(xf86OutputPtr output)
     OUTREG(LVDSPP_ON, pI830->savePP_ON);
     OUTREG(LVDSPP_OFF, pI830->savePP_OFF);
     OUTREG(PP_CYCLE, pI830->savePP_CYCLE);
-    OUTREG(LVDS, pI830->saveLVDS);
     OUTREG(PP_CONTROL, pI830->savePP_CONTROL);
     if (pI830->savePP_CONTROL & POWER_TARGET_ON)
 	i830SetLVDSPanelPower(pScrn, TRUE);
@@ -203,11 +201,6 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	adjusted_mode->Clock = pI830->panel_fixed_mode->Clock;
 	xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
     }
-
-    /* XXX: if we don't have BIOS fixed timings (or we have
-     * a preferred mode from DDC, probably), we should use the
-     * DDC mode as the fixed timing.
-     */
 
     /* XXX: It would be nice to support lower refresh rates on the
      * panels to reduce power consumption, and perhaps match the

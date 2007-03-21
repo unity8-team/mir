@@ -269,8 +269,21 @@ DEBUGSTRING(i830_debug_lvds)
 {
     char pipe = val & LVDS_PIPEB_SELECT ? 'B' : 'A';
     char *enable = val & LVDS_PORT_EN ? "enabled" : "disabled";
+    int depth;
+    char *channels;
 
-    return XNFprintf("%s, pipe %c", enable, pipe);
+    if ((val & LVDS_A3_POWER_MASK) == LVDS_A3_POWER_UP)
+	depth = 24;
+    else
+	depth = 18;
+    if ((val & LVDS_B0B3_POWER_MASK) == LVDS_B0B3_POWER_UP)
+	channels = "2 channels";
+    else
+	channels = "1 channel";
+
+
+    return XNFprintf("%s, pipe %c, %d bit, %s",
+		     enable, pipe, depth, channels);
 }
 
 DEBUGSTRING(i830_debug_sdvo)
