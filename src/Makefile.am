@@ -120,20 +120,24 @@ INTEL_G4A =				\
 	packed_yuv_wm.g4a		\
 	exa_sf.g4a 			\
 	exa_sf_mask.g4a 		\
+	exa_sf_rotation.g4a		\
 	exa_wm_maskca.g4a 		\
 	exa_wm_maskca_srcalpha.g4a 	\
 	exa_wm_masknoca.g4a 		\
-	exa_wm_nomask.g4a
+	exa_wm_nomask.g4a		\
+	exa_wm_rotation.g4a
 
 INTEL_G4H = 				\
 	sf_prog.h			\
 	wm_prog.h 			\
 	exa_sf_mask_prog.h		\
 	exa_sf_prog.h 			\
+	exa_sf_rotation_prog.h		\
 	exa_wm_maskca_prog.h		\
 	exa_wm_maskca_srcalpha_prog.h	\
 	exa_wm_masknoca_prog.h		\
-	exa_wm_nomask_prog.h
+	exa_wm_nomask_prog.h		\
+	exa_wm_rotation_prog.h
 
 EXTRA_DIST = 		\
 	$(XMODE_SRCS)	\
@@ -154,6 +158,9 @@ exa_sf_mask_prog.h: exa_sf_mask.g4a
 	
 exa_sf_prog.h: exa_sf.g4a
 	intel-gen4asm -o exa_sf_prog.h exa_sf.g4a
+
+exa_sf_rotation_prog.h: exa_sf_rotation.g4a
+	intel-gen4asm -o exa_sf_rotation_prog.h exa_sf_rotation.g4a
 	
 exa_wm_maskca_prog.h: exa_wm_maskca.g4a
 	intel-gen4asm -o exa_wm_maskca_prog.h exa_wm_maskca.g4a
@@ -166,6 +173,9 @@ exa_wm_masknoca_prog.h: exa_wm_masknoca.g4a
 	
 exa_wm_nomask_prog.h: exa_wm_nomask.g4a
 	intel-gen4asm -o exa_wm_nomask_prog.h exa_wm_nomask.g4a
+
+exa_wm_rotation_prog.h: exa_wm_rotation.g4a
+	intel-gen4asm -o exa_wm_rotation_prog.h exa_wm_rotation.g4a
 	
 endif
 
