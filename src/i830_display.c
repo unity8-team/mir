@@ -673,23 +673,23 @@ i830_get_core_clock_speed(ScrnInfoPtr pScrn)
  * or -1 if the panel fitter is not present or not in use
  */
 static int
-i830_panel_fitter_pipe (I830Ptr	pI830)
+i830_panel_fitter_pipe(I830Ptr pI830)
 {
     CARD32  pfit_control;
-    
+
     /* i830 doesn't have a panel fitter */
     if (IS_I830(pI830))
 	return -1;
-    
+
     pfit_control = INREG(PFIT_CONTROL);
-    
+
     /* See if the panel fitter is in use */
     if ((pfit_control & PFIT_ENABLE) == 0)
 	return -1;
-    
+
     /* 965 can place panel fitter on either pipe */
     if (IS_I965G(pI830))
-	return (pfit_control >> 29) & 0x3;
+	return (pfit_control & PFIT_PIPE_MASK) >> PFIT_PIPE_SHIFT;
 
     /* older chips can only use pipe 1 */
     return 1;
