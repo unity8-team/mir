@@ -100,24 +100,6 @@ static const rgb   defaultWeight = {0, 0, 0};
 static const Gamma defaultGamma  = {0.0, 0.0, 0.0};
 
 /*
- * ATIMach64Map --
- *
- * This function attempts to mmap() a Mach64's MMIO aperture.
- */
-static void
-ATIMach64Map
-(
-    int    iScreen,
-    ATIPtr pATI
-)
-{
-    (void)ATIMapApertures(iScreen, pATI);
-    if (!pATI->pBlock[0] ||
-        (pATI->config_chip_id != inr(CONFIG_CHIP_ID)))
-        ATIUnmapApertures(iScreen, pATI);
-}
-
-/*
  * ATIPrintNoiseIfRequested --
  *
  * This function formats debugging information on the server's stderr when
@@ -174,7 +156,6 @@ ATIPreInit
     resPtr           pResources;
     pciVideoPtr      pVideo;
     DisplayModePtr   pMode;
-    unsigned long    Block0Base;
     CARD32           IOValue;
     int              i, j;
     int              Numerator, Denominator;
@@ -401,6 +382,8 @@ ATIPreInit
         return TRUE;
     }
 
+#ifndef AVOID_CPIO
+
     /* I/O bases might no longer be valid after BIOS initialisation */
     {
         if (pATI->CPIODecoding == BLOCK_IO)
@@ -414,6 +397,8 @@ ATIPreInit
             pATI->Block0Base += 0x0400U;
         }
     }
+
+#endif /* AVOID_CPIO */
 
 #ifdef AVOID_CPIO
 
@@ -437,38 +422,17 @@ ATIPreInit
 
     /* Finish probing the adapter */
     {
-
-            Block0Base = pATI->Block0Base; /* save */
-
-            do
-            {
-                /*
-                 * Find and mmap() MMIO area.  Allow only auxiliary aperture if
-                 * it exists.
-                 */
-                if (!pATI->Block0Base)
-                {
-                        /* Check tail end of linear (8MB or 4MB) aperture */
-                        if ((pATI->Block0Base = PCI_REGION_BASE(pVideo, 0, REGION_MEM)))
-                        {
-                            pATI->MMIOInLinear = TRUE;
-
-                            pATI->Block0Base += 0x007FFC00U;
-                            ATIMach64Map(pScreenInfo->scrnIndex, pATI);
-                            if (pATI->pBlock[0])
-                                break;
-
-                            pATI->Block0Base -= 0x00400000U;
-                            ATIMach64Map(pScreenInfo->scrnIndex, pATI);
-                            if (pATI->pBlock[0])
-                                break;
-                        }
-                }
-
-                ATIMach64Map(pScreenInfo->scrnIndex, pATI);
-            } while (0);
-
-            pATI->Block0Base = Block0Base; /* restore */
+        /*
+         * For MMIO register access, the MMIO address is computed when probing
+         * and there are no BIOS calls. This mapping should always succeed.
+         *
+         * For CPIO register access, the MMIO address is computed above in the
+         * presence of an auxiliary aperture. Otherwise, it is set to zero and
+         * gets computed when we read the linear aperture configuration. This
+         * mapping is either irrelevant or a no-op.
+         */
+        if (!ATIMapApertures(pScreenInfo->scrnIndex, pATI))
+            return FALSE;
 
 #ifdef AVOID_CPIO
 
@@ -481,15 +445,25 @@ ATIPreInit
 
 #endif /* AVOID_CPIO */
 
+            /*
+             * Verify register access by comparing against the CONFIG_CHIP_ID
+             * value saved by adapter detection.
+             */
+            if (pATI->config_chip_id != inr(CONFIG_CHIP_ID))
+            {
+                xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
+                    "Adapter registers not mapped correctly.\n");
+                ATIUnmapApertures(pScreenInfo->scrnIndex, pATI);
+                return FALSE;
+            }
+
             pATIHW->crtc_gen_cntl = inr(CRTC_GEN_CNTL);
             if (!(pATIHW->crtc_gen_cntl & CRTC_EN) &&
                 (pATI->Chip >= ATI_CHIP_264CT))
             {
                 xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
                     "Adapter has not been initialised.\n");
-                ATIPrintNoiseIfRequested(pATI, BIOS, BIOSSize);
-                ATIUnmapApertures(pScreenInfo->scrnIndex, pATI);
-                return FALSE;
+                goto bail_locked;
             }
 
 #ifdef AVOID_CPIO
@@ -499,9 +473,7 @@ ATIPreInit
                 xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
                     "Adapters found to be in VGA mode on server entry are not"
                     " supported by the MMIO-only version of this driver.\n");
-                ATIPrintNoiseIfRequested(pATI, BIOS, BIOSSize);
-                ATIUnmapApertures(pScreenInfo->scrnIndex, pATI);
-                return FALSE;
+                goto bail_locked;
             }
 
 #endif /* AVOID_CPIO */
@@ -1810,7 +1782,7 @@ ATIPreInit
             {
                 int AcceleratorVideoRAM = 0, ServerVideoRAM;
 
-                pATI->MMIOInLinear = FALSE;
+#ifndef AVOID_CPIO
 
                 /*
                  * Unless specified in PCI configuration space, set MMIO
@@ -1822,6 +1794,8 @@ ATIPreInit
                         pATI->LinearBase + pATI->LinearSize - 0x00000400U;
                     pATI->MMIOInLinear = TRUE;
                 }
+
+#endif /* AVOID_CPIO */
 
                 AcceleratorVideoRAM = pATI->LinearSize >> 10;
 
@@ -2479,6 +2453,8 @@ ATIPreInit
 
 bail:
     ATILock(pATI);
+
+bail_locked:
     ATIPrintNoiseIfRequested(pATI, BIOS, BIOSSize);
     ATIUnmapApertures(pScreenInfo->scrnIndex, pATI);
 
