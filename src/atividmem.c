@@ -164,7 +164,6 @@ ATIMapApertures
 )
 {
     pciVideoPtr   pVideo = pATI->PCIInfo;
-    PCITAG        Tag = ((pciConfigPtr)(pVideo->thisCard))->tag;
     int           mode;
 
     if (pATI->Mapped)
@@ -180,7 +179,7 @@ ATIMapApertures
          * aperture is supported.  Hence, the hard-coded values here...
          */
             pATI->pBank = xf86MapDomainMemory(iScreen, VIDMEM_MMIO_32BIT,
-                Tag, 0x000A0000U, 0x00010000U);
+                PCI_CFG_TAG(pVideo), 0x000A0000U, 0x00010000U);
 
         if (!pATI->pBank)
             return FALSE;
@@ -201,7 +200,7 @@ ATIMapApertures
         if (pATI->MMIOInLinear)
             mode = VIDMEM_MMIO;
 
-        pATI->pMemoryLE = xf86MapPciMem(iScreen, mode, Tag,
+        pATI->pMemoryLE = xf86MapPciMem(iScreen, mode, PCI_CFG_TAG(pVideo),
                                         pVideo->memBase[0],
                                         (1U << pVideo->size[0]));
 
@@ -242,7 +241,7 @@ ATIMapApertures
     if (pATI->Block0Base && !pATI->MMIOInLinear)
     {
         mode = VIDMEM_MMIO;
-        pATI->pMMIO = xf86MapPciMem(iScreen, mode, Tag,
+        pATI->pMMIO = xf86MapPciMem(iScreen, mode, PCI_CFG_TAG(pVideo),
                                     pVideo->memBase[2],
                                     getpagesize());
 
@@ -271,9 +270,9 @@ ATIMapApertures
     {
         unsigned long mmio_offset, linear_size;
 
-        mmio_offset = pATI->Block0Base - pVideo->memBase[0];
+        mmio_offset = pATI->Block0Base - PCI_REGION_BASE(pVideo, 0, REGION_MEM);
 
-        linear_size = (1 << pVideo->size[0]);
+        linear_size = PCI_REGION_SIZE(pVideo, 0);
 
         pATI->pMMIO = NULL;
 

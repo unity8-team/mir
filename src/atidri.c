@@ -774,8 +774,8 @@ static Bool ATIDRISetAgpMode( ScreenPtr pScreen )
    xf86DrvMsg( pScreen->myNum, X_INFO,
 	       "[agp] Mode 0x%08lx [AGP 0x%04x/0x%04x; Card 0x%04x/0x%04x]\n",
 	       mode, vendor, device,
-	       pATI->PCIInfo->vendor,
-	       pATI->PCIInfo->chipType );
+	       PCI_DEV_VENDOR_ID(pATI->PCIInfo),
+	       PCI_DEV_DEVICE_ID(pATI->PCIInfo) );
 
    if ( drmAgpEnable( pATI->drmFD, mode ) < 0 ) {
       xf86DrvMsg( pScreen->myNum, X_ERROR, "[agp] AGP not enabled\n" );
@@ -1134,18 +1134,15 @@ static Bool ATIDRIIrqInit( ScreenPtr pScreen )
 
    if ( pATI->irq <= 0 ) {
       pATI->irq = drmGetInterruptFromBusID(pATI->drmFD,
-					   ((pciConfigPtr)pATI->PCIInfo
-					    ->thisCard)->busnum,
-					   ((pciConfigPtr)pATI->PCIInfo
-					    ->thisCard)->devnum,
-					   ((pciConfigPtr)pATI->PCIInfo
-					    ->thisCard)->funcnum);
+					   PCI_CFG_BUS(pATI->PCIInfo),
+					   PCI_CFG_DEV(pATI->PCIInfo),
+					   PCI_CFG_FUNC(pATI->PCIInfo));
       if ( pATI->irq <= 0 ) {
 	 xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
 		    "[drm] Couldn't find IRQ for bus id %d:%d:%d\n",
-		    ((pciConfigPtr)pATI->PCIInfo->thisCard)->busnum,
-		    ((pciConfigPtr)pATI->PCIInfo->thisCard)->devnum,
-		    ((pciConfigPtr)pATI->PCIInfo->thisCard)->funcnum);
+		    PCI_CFG_BUS(pATI->PCIInfo),
+		    PCI_CFG_DEV(pATI->PCIInfo),
+		    PCI_CFG_FUNC(pATI->PCIInfo));
 	 pATI->irq = 0;
       } else if ((drmCtlInstHandler(pATI->drmFD, pATI->irq)) != 0) {
  	 xf86DrvMsg(pScreenInfo->scrnIndex, X_ERROR,
@@ -1243,9 +1240,9 @@ Bool ATIDRIScreenInit( ScreenPtr pScreen )
       pDRIInfo->busIdString = xalloc( 64 );
       sprintf( pDRIInfo->busIdString,
 	       "PCI:%d:%d:%d",
-	       pATI->PCIInfo->bus,
-	       pATI->PCIInfo->device,
-	       pATI->PCIInfo->func );
+	       PCI_DEV_BUS(pATI->PCIInfo),
+	       PCI_DEV_DEV(pATI->PCIInfo),
+	       PCI_DEV_FUNC(pATI->PCIInfo) );
    }
    pDRIInfo->ddxDriverMajorVersion = ATI_VERSION_MAJOR;
    pDRIInfo->ddxDriverMinorVersion = ATI_VERSION_MINOR;

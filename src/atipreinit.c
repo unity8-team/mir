@@ -427,12 +427,12 @@ ATIPreInit
 
         /* Set CPIO address from PCI configuration space, for block I/O */
         if (pATI->CPIODecoding == BLOCK_IO)
-            pATI->CPIOBase = pVideo->ioBase[1];
+            pATI->CPIOBase = PCI_REGION_BASE(pVideo, 1, REGION_IO);
 
         pATI->MMIOInLinear = FALSE;
 
         /* Set MMIO address from PCI configuration space, if available */
-        if ((pATI->Block0Base = pVideo->memBase[2]))
+        if ((pATI->Block0Base = PCI_REGION_BASE(pVideo, 2, REGION_MEM)))
         {
             pATI->Block0Base += 0x0400U;
         }
@@ -448,7 +448,7 @@ ATIPreInit
                 if (!pATI->Block0Base)
                 {
                         /* Check tail end of linear (8MB or 4MB) aperture */
-                        if ((pATI->Block0Base = pVideo->memBase[0]))
+                        if ((pATI->Block0Base = PCI_REGION_BASE(pVideo, 0, REGION_MEM)))
                         {
                             pATI->MMIOInLinear = TRUE;
 

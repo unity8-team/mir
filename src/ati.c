@@ -57,6 +57,8 @@
 #include "config.h"
 #endif
 
+#include "atipcirename.h"
+
 #include "ati.h"
 #include "atichip.h"
 #include "ativersion.h"
@@ -118,12 +120,13 @@ ATIProbe
     {
         for (i = 0;  (pVideo = xf86PciVideoInfo[i++]);  )
         {
-            if ((pVideo->vendor != PCI_VENDOR_ATI) ||
-                (pVideo->chipType == PCI_CHIP_MACH32))
+            if ((PCI_DEV_VENDOR_ID(pVideo) != PCI_VENDOR_ATI) ||
+                (PCI_DEV_DEVICE_ID(pVideo) == PCI_CHIP_MACH32))
                 continue;
 
             /* Check for Rage128's, Radeon's and later adapters */
-            Chip = ATIChipID(pVideo->chipType, pVideo->chipRev);
+            Chip = ATIChipID(PCI_DEV_DEVICE_ID(pVideo), PCI_DEV_REVISION(pVideo));
+
             if (Chip > ATI_CHIP_Mach64)
             {
                 if (Chip <= ATI_CHIP_Rage128)
