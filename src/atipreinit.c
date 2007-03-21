@@ -401,6 +401,20 @@ ATIPreInit
         return TRUE;
     }
 
+    /* I/O bases might no longer be valid after BIOS initialisation */
+    {
+        if (pATI->CPIODecoding == BLOCK_IO)
+            pATI->CPIOBase = PCI_REGION_BASE(pVideo, 1, REGION_IO);
+
+        pATI->MMIOInLinear = FALSE;
+
+        /* Set MMIO address from PCI configuration space, if available */
+        if ((pATI->Block0Base = PCI_REGION_BASE(pVideo, 2, REGION_MEM)))
+        {
+            pATI->Block0Base += 0x0400U;
+        }
+    }
+
 #ifdef AVOID_CPIO
 
     pScreenInfo->racMemFlags =
@@ -423,19 +437,6 @@ ATIPreInit
 
     /* Finish probing the adapter */
     {
-        /* I/O bases might no longer be valid after BIOS initialisation */
-
-        /* Set CPIO address from PCI configuration space, for block I/O */
-        if (pATI->CPIODecoding == BLOCK_IO)
-            pATI->CPIOBase = PCI_REGION_BASE(pVideo, 1, REGION_IO);
-
-        pATI->MMIOInLinear = FALSE;
-
-        /* Set MMIO address from PCI configuration space, if available */
-        if ((pATI->Block0Base = PCI_REGION_BASE(pVideo, 2, REGION_MEM)))
-        {
-            pATI->Block0Base += 0x0400U;
-        }
 
             Block0Base = pATI->Block0Base; /* save */
 
