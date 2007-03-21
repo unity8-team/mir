@@ -830,6 +830,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define PFIT_CONTROL	0x61230
 # define PFIT_ENABLE				(1 << 31)
+# define PFIT_PIPE_MASK				(3 << 29)
+# define PFIT_PIPE_SHIFT			29
 # define VERT_INTERP_DISABLE			(0 << 10)
 # define VERT_INTERP_BILINEAR			(1 << 10)
 # define VERT_INTERP_MASK			(3 << 10)
@@ -1128,8 +1130,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DVO_SRCDIM_HORIZONTAL_SHIFT	12
 #define DVO_SRCDIM_VERTICAL_SHIFT	0
 
+/** @defgroup LVDS
+ * @{
+ */
+/**
+ * This register controls the LVDS output enable, pipe selection, and data
+ * format selection.
+ *
+ * All of the clock/data pairs are force powered down by power sequencing.
+ */
 #define LVDS			0x61180
+/**
+ * Enables the LVDS port.  This bit must be set before DPLLs are enabled, as
+ * the DPLL semantics change when the LVDS is assigned to that pipe.
+ */
 # define LVDS_PORT_EN			(1 << 31)
+/** Selects pipe B for LVDS data.  Must be set on pre-965. */
 # define LVDS_PIPEB_SELECT		(1 << 30)
 
 /* on 965, dithering is enabled in this register, not PFIT_CONTROL */
@@ -1189,18 +1205,39 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 # define LVDS_POWER_DOWN_TRI_STATE	(1 << 10)
 
-/*
- * Clock A control; overridden by LVDS power sequencing
+/**
+ * Enables the A0-A2 data pairs and CLKA, containing 18 bits of color data per
+ * pixel.
  */
+# define LVDS_A0A2_CLKA_POWER_MASK	(3 << 8)
+# define LVDS_A0A2_CLKA_POWER_DOWN	(0 << 8)
+# define LVDS_A0A2_CLKA_POWER_UP	(3 << 8)
+/**
+ * Controls the A3 data pair, which contains the additional LSBs for 24 bit
+ * mode.  Only enabled if LVDS_A0A2_CLKA_POWER_UP also indicates it should be
+ * on.
+ */
+# define LVDS_A3_POWER_MASK		(3 << 6)
+# define LVDS_A3_POWER_DOWN		(0 << 6)
+# define LVDS_A3_POWER_UP		(3 << 6)
+/**
+ * Controls the CLKB pair.  This should only be set when LVDS_B0B3_POWER_UP
+ * is set.
+ */
+# define LVDS_CLKB_POWER_MASK		(3 << 4)
+# define LVDS_CLKB_POWER_DOWN		(0 << 4)
+# define LVDS_CLKB_POWER_UP		(3 << 4)
 
-/* power down everything including A3 (0V) */
-# define LVDS_CLKA_POWER_DOWN		(0 << 8)
+/**
+ * Controls the B0-B3 data pairs.  This must be set to match the DPLL p2
+ * setting for whether we are in dual-channel mode.  The B3 pair will
+ * additionally only be powered up when LVDS_A3_POWER_UP is set.
+ */
+# define LVDS_B0B3_POWER_MASK		(3 << 2)
+# define LVDS_B0B3_POWER_DOWN		(0 << 2)
+# define LVDS_B0B3_POWER_UP		(3 << 2)
 
-/* Partially active. A0, A1, A2 set to 0, timing active, clock active */
-# define LVDS_CLKA_POWER_PARTIAL	(1 << 8)
-
-/* running, data and clock active */
-# define LVDS_CLKA_POWER_UP		(3 << 8)
+/** @} */
 
 /*
  * Two channel clock control. Turn this on if you need clkb for two channel mode
