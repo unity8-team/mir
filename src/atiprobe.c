@@ -227,7 +227,10 @@ ATIMach64Probe
             (pATI->Block0Base < (CARD32)(-1 << pVideo->size[2])))
         {
             pATI->Block0Base += 0x00000400U;
-            goto LastProbe;
+            if (ATIMach64Detect(pATI, ChipType, Chip))
+                return pATI;
+
+            return NULL;
         }
 
         /*
@@ -245,17 +248,6 @@ ATIMach64Probe
             if (ATIMach64Detect(pATI, ChipType, Chip))
                 return pATI;
         }
-
-    /*
-     * A last, perhaps desparate, probe attempt.  Note that if this succeeds,
-     * there's a VGA in the system and it's likely the PIO version of the
-     * driver should be used instead (barring OS issues).
-     */
-    pATI->Block0Base = 0x000BFC00U;
-
-LastProbe:
-    if (ATIMach64Detect(pATI, ChipType, Chip))
-        return pATI;
 
     return NULL;
 }

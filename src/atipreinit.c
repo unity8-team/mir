@@ -423,7 +423,9 @@ ATIPreInit
 
     /* Finish probing the adapter */
     {
+        /* I/O bases might no longer be valid after BIOS initialisation */
 
+        /* Set CPIO address from PCI configuration space, for block I/O */
         if (pATI->CPIODecoding == BLOCK_IO)
             pATI->CPIOBase = pVideo->ioBase[1];
 
@@ -459,9 +461,6 @@ ATIPreInit
                             if (pATI->pBlock[0])
                                 break;
                         }
-
-                    /* Check VGA MMIO aperture */
-                    pATI->Block0Base = 0x000BFC00U;
                 }
 
                 ATIMach64Map(pScreenInfo->scrnIndex, pATI);
@@ -1807,8 +1806,7 @@ ATIPreInit
 
             if (pATI->LinearBase && pATI->LinearSize)
             {
-                int AcceleratorVideoRAM = pATI->LinearSize >> 10;
-                int ServerVideoRAM = pATI->VideoRAM;
+                int AcceleratorVideoRAM = 0, ServerVideoRAM;
 
                 /*
                  * Unless specified in PCI configuration space, set MMIO
@@ -1821,12 +1819,16 @@ ATIPreInit
                     pATI->MMIOInLinear = TRUE;
                 }
 
+                AcceleratorVideoRAM = pATI->LinearSize >> 10;
+
                 /*
                  * Account for MMIO area at the tail end of the linear
                  * aperture, if it is needed or if it cannot be disabled.
                  */
                 if (pATI->MMIOInLinear || (pATI->Chip < ATI_CHIP_264VTB))
                     AcceleratorVideoRAM -= 2;
+
+                ServerVideoRAM = pATI->VideoRAM;
 
                 if (pATI->Cursor > ATI_CURSOR_SOFTWARE)
                 {
