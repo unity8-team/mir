@@ -434,10 +434,7 @@ ATIPreInit
         /* Set MMIO address from PCI configuration space, if available */
         if ((pATI->Block0Base = pVideo->memBase[2]))
         {
-            if (pATI->Block0Base >= (CARD32)(-1 << pVideo->size[2]))
-                pATI->Block0Base = 0;
-            else
-                pATI->Block0Base += 0x0400U;
+            pATI->Block0Base += 0x0400U;
         }
 
             Block0Base = pATI->Block0Base; /* save */

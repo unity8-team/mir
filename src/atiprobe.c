@@ -225,8 +225,7 @@ ATIMach64Probe
          * further.
          */
         if ((pVideo->size[2] >= 12) &&
-            (pATI->Block0Base = pVideo->memBase[2]) &&
-            (pATI->Block0Base < (CARD32)(-1 << pVideo->size[2])))
+            (pATI->Block0Base = pVideo->memBase[2]))
         {
             pATI->Block0Base += 0x00000400U;
             if (ATIMach64Detect(pATI, ChipType, Chip))
@@ -277,8 +276,7 @@ ATIMach64Probe
     CARD16 ChipType = pVideo->chipType;
 
         if ((pATI->CPIODecoding == BLOCK_IO) &&
-            ((pVideo->size[1] < 8) ||
-             (pATI->CPIOBase >= (CARD32)(-1 << pVideo->size[1]))))
+            (pVideo->size[1] < 8))
             return NULL;
 
     if (!ATIMach64Detect(pATI, ChipType, Chip))
