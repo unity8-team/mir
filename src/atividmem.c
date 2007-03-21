@@ -182,7 +182,7 @@ ATIMapApertures
                 PCI_CFG_TAG(pVideo), 0x000A0000U, 0x00010000U);
 
         if (!pATI->pBank)
-            return FALSE;
+            goto bail;
 
         pATI->Mapped = TRUE;
     }
@@ -205,17 +205,7 @@ ATIMapApertures
                                         (1U << pVideo->size[0]));
 
         if (!pATI->pMemoryLE)
-        {
-
-#ifndef AVOID_CPIO
-
-            ATIUnmapVGA(iScreen, pATI);
-
-#endif /* AVOID_CPIO */
-
-            pATI->Mapped = FALSE;
-            return FALSE;
-        }
+            goto bail;
 
         pATI->Mapped = TRUE;
 
@@ -246,18 +236,7 @@ ATIMapApertures
                                     getpagesize());
 
         if (!pATI->pMMIO)
-        {
-            ATIUnmapLinear(iScreen, pATI);
-
-#ifndef AVOID_CPIO
-
-            ATIUnmapVGA(iScreen, pATI);
-
-#endif /* AVOID_CPIO */
-
-            pATI->Mapped = FALSE;
-            return FALSE;
-        }
+            goto bail;
 
         pATI->Mapped = TRUE;
 
@@ -282,18 +261,7 @@ ATIMapApertures
          * extended BE aperture which would give a size of 8MB).
          */
         if (mmio_offset + 0x00000400U > linear_size)
-        {
-            ATIUnmapLinear(iScreen, pATI);
-
-#ifndef AVOID_CPIO
-
-            ATIUnmapVGA(iScreen, pATI);
-
-#endif /* AVOID_CPIO */
-
-            pATI->Mapped = FALSE;
-            return FALSE;
-        }
+            goto bail;
 
         pATI->Mapped = TRUE;
 
@@ -304,6 +272,20 @@ ATIMapApertures
     }
 
     return TRUE;
+
+bail:
+
+    ATIUnmapLinear(iScreen, pATI);
+
+#ifndef AVOID_CPIO
+
+    ATIUnmapVGA(iScreen, pATI);
+
+#endif /* AVOID_CPIO */
+
+    pATI->Mapped = FALSE;
+
+    return FALSE;
 }
 
 /*
