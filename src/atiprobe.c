@@ -217,6 +217,8 @@ ATIMach64Probe
 {
     CARD16 ChipType = pVideo->chipType;
 
+        pATI->MMIOInLinear = FALSE;
+
         /*
          * Probe through auxiliary MMIO aperture if one exists.  Because such
          * apertures can be enabled/disabled only through PCI, this probes no
@@ -237,8 +239,11 @@ ATIMach64Probe
          * Probe through the primary MMIO aperture that exists at the tail end
          * of the linear aperture.  Test for both 8MB and 4MB linear apertures.
          */
-        if ((pVideo->size[0] >= 22) && (pATI->Block0Base = pVideo->memBase[0]))
+        if ((pVideo->size[0] >= 22) &&
+            (pATI->Block0Base = pVideo->memBase[0]))
         {
+            pATI->MMIOInLinear = TRUE;
+
             pATI->Block0Base += 0x007FFC00U;
             if ((pVideo->size[0] >= 23) &&
                 ATIMach64Detect(pATI, ChipType, Chip))

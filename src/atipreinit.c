@@ -429,6 +429,8 @@ ATIPreInit
         if (pATI->CPIODecoding == BLOCK_IO)
             pATI->CPIOBase = pVideo->ioBase[1];
 
+        pATI->MMIOInLinear = FALSE;
+
         /* Set MMIO address from PCI configuration space, if available */
         if ((pATI->Block0Base = pVideo->memBase[2]))
         {
@@ -451,6 +453,8 @@ ATIPreInit
                         /* Check tail end of linear (8MB or 4MB) aperture */
                         if ((pATI->Block0Base = pVideo->memBase[0]))
                         {
+                            pATI->MMIOInLinear = TRUE;
+
                             pATI->Block0Base += 0x007FFC00U;
                             ATIMach64Map(pScreenInfo->scrnIndex, pATI);
                             if (pATI->pBlock[0])
@@ -1807,6 +1811,8 @@ ATIPreInit
             if (pATI->LinearBase && pATI->LinearSize)
             {
                 int AcceleratorVideoRAM = 0, ServerVideoRAM;
+
+                pATI->MMIOInLinear = FALSE;
 
                 /*
                  * Unless specified in PCI configuration space, set MMIO
