@@ -817,7 +817,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     sf_state->thread3.const_urb_entry_read_length = 0; /* no const URBs */
     sf_state->thread3.const_urb_entry_read_offset = 0; /* no const URBs */
     sf_state->thread3.urb_entry_read_length = 1; /* 1 URB per vertex */
-    sf_state->thread3.urb_entry_read_offset = 0;
+    /* don't smash vertex header, read start from dw8 */
+    sf_state->thread3.urb_entry_read_offset = 1;
     sf_state->thread3.dispatch_grf_start_reg = 3;
     sf_state->thread4.max_threads = SF_MAX_THREADS - 1;
     sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
@@ -1005,37 +1006,38 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	/* Set up our vertex elements, sourced from the single vertex buffer.
 	 */
    	OUT_RING(BRW_3DSTATE_VERTEX_ELEMENTS | ((2 * nelem) - 1));
+	/* vertex coordinates */
    	OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
 	    	 VE0_VALID |
 	    	 (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
 	    	 (0 << VE0_OFFSET_SHIFT));
    	OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
 	    	 (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-	     	 ((pMask ? BRW_VFCOMPONENT_NOSTORE: BRW_VFCOMPONENT_STORE_1_FLT)
-		  << VE1_VFCOMPONENT_2_SHIFT) |
-	    	 ((pMask ? BRW_VFCOMPONENT_NOSTORE: BRW_VFCOMPONENT_STORE_1_FLT)
-		  << VE1_VFCOMPONENT_3_SHIFT) |
-	    	 (0 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+	     	 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+	    	 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+	    	 (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+	/* u0, v0 */
+   	OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+	    	 VE0_VALID |
+	    	 (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+	    	 (8 << VE0_OFFSET_SHIFT)); /* offset vb in bytes */
+   	OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+	    	 (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+	    	 (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_2_SHIFT) |
+	    	 (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_3_SHIFT) |
+	    	 (8 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
+	/* u1, v1 */
    	if (pMask) {
 	    OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
 		     VE0_VALID |
 		     (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		     (8 << VE0_OFFSET_SHIFT));
+		     (16 << VE0_OFFSET_SHIFT));
 	    OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
 		     (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
 		     (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_2_SHIFT) |
 		     (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_3_SHIFT) |
-		     (2 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+		     (10 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
    	}
-   	OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-	    	 VE0_VALID |
-	    	 (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-	    	 ((pMask?16:8) << VE0_OFFSET_SHIFT)); /* offset vb in bytes */
-   	OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-	    	 (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-	    	 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-	    	 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
-	    	 (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
 
    	ADVANCE_LP_RING();
     }
@@ -1089,34 +1091,34 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     i = 0;
     /* rect (x2,y2) */
+    vb[i++] = (float)(dstX + w);
+    vb[i++] = (float)(dstY + h);
     vb[i++] = src_x[2] / pI830->scale_units[0][0];
     vb[i++] = src_y[2] / pI830->scale_units[0][1];
     if (has_mask) {
         vb[i++] = mask_x[2] / pI830->scale_units[1][0];
         vb[i++] = mask_y[2] / pI830->scale_units[1][1];
     }
-    vb[i++] = (float)(dstX + w);
-    vb[i++] = (float)(dstY + h);
 
     /* rect (x1,y2) */
+    vb[i++] = (float)dstX;
+    vb[i++] = (float)(dstY + h);
     vb[i++] = src_x[1] / pI830->scale_units[0][0];
     vb[i++] = src_y[1] / pI830->scale_units[0][1];
     if (has_mask) {
         vb[i++] = mask_x[1] / pI830->scale_units[1][0];
         vb[i++] = mask_y[1] / pI830->scale_units[1][1];
     }
-    vb[i++] = (float)dstX;
-    vb[i++] = (float)(dstY + h);
 
     /* rect (x1,y1) */
+    vb[i++] = (float)dstX;
+    vb[i++] = (float)dstY;
     vb[i++] = src_x[0] / pI830->scale_units[0][0];
     vb[i++] = src_y[0] / pI830->scale_units[0][1];
     if (has_mask) {
         vb[i++] = mask_x[0] / pI830->scale_units[1][0];
         vb[i++] = mask_y[0] / pI830->scale_units[1][1];
     }
-    vb[i++] = (float)dstX;
-    vb[i++] = (float)dstY;
 
     {
       BEGIN_LP_RING(6);
