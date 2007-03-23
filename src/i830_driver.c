@@ -2903,6 +2903,7 @@ I830EnterVT(int scrnIndex, int flags)
 
    /* Force invarient 3D state to be emitted */
    *pI830->used3D = 1<<31;
+   pI830->last_3d = LAST_3D_OTHER;
 
    return TRUE;
 }
