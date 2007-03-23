@@ -2734,7 +2734,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    {
       /* Sync the engine before adjust frame */
       i830WaitSync(pScrn);
-      i830PipeSetBase(crtc, output->initial_x + x, output->initial_y + y);
+      i830PipeSetBase(crtc, crtc->desiredX + x, crtc->desiredY + y);
       crtc->x = output->initial_x + x;
       crtc->y = output->initial_y + y;
    }
@@ -2850,8 +2850,6 @@ I830EnterVT(int scrnIndex, int flags)
 
    ResetState(pScrn, TRUE);
    SetHWOperatingState(pScrn);
-
-   pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled) {
