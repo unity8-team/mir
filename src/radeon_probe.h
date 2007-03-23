@@ -172,6 +172,4 @@ extern ModeStatus           RADEONValidMode(int, DisplayModePtr, Bool, int);
 
 extern const OptionInfoRec *RADEONOptionsWeak(void);
 
-extern void                 RADEONFillInScreenInfo(ScrnInfoPtr);
-
 #endif /* _RADEON_PROBE_H_ */

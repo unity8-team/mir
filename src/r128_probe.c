@@ -41,7 +41,6 @@
  * Modified by Marc Aurele La France <tsi@xfree86.org> for ATI driver merge.
  */
 
-#include "atimodule.h"
 #include "ativersion.h"
 
 #include "r128_probe.h"
@@ -194,8 +193,18 @@ R128Probe(DriverPtr drv, int flags)
         if((pScrn = xf86ConfigPciEntity(pScrn, 0, usedChips[i],
              R128PciChipsets, 0, 0, 0, 0, 0)))
 	{
+	    pScrn->driverVersion = R128_VERSION_CURRENT;
+	    pScrn->driverName    = R128_DRIVER_NAME;
+	    pScrn->name          = R128_NAME;
 	    pScrn->Probe         = R128Probe;
-	    R128FillInScreenInfo(pScrn);
+	    pScrn->PreInit       = R128PreInit;
+	    pScrn->ScreenInit    = R128ScreenInit;
+	    pScrn->SwitchMode    = R128SwitchMode;
+	    pScrn->AdjustFrame   = R128AdjustFrame;
+	    pScrn->EnterVT       = R128EnterVT;
+	    pScrn->LeaveVT       = R128LeaveVT;
+	    pScrn->FreeScreen    = R128FreeScreen;
+	    pScrn->ValidMode     = R128ValidMode;
 
 	    foundScreen          = TRUE;
 

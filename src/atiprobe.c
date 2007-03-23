@@ -31,7 +31,6 @@
 #include "atibus.h"
 #include "atichip.h"
 #include "atimach64io.h"
-#include "atimodule.h"
 #include "atiprobe.h"
 #include "ativersion.h"
 #include "atividmem.h"

@@ -40,7 +40,6 @@
  * Modified by Marc Aurele La France <tsi@xfree86.org> for ATI driver merge.
  */
 
-#include "atimodule.h"
 #include "ativersion.h"
 
 #include "radeon_probe.h"
@@ -285,8 +284,22 @@ RADEONProbe(DriverPtr drv, int flags)
 	    if ((pScrn = xf86ConfigPciEntity(pScrn, 0, usedChips[i],
 					     RADEONPciChipsets, 0, 0, 0,
 					     0, 0))) {
+		pScrn->driverVersion = RADEON_VERSION_CURRENT;
+		pScrn->driverName    = RADEON_DRIVER_NAME;
+		pScrn->name          = RADEON_NAME;
 		pScrn->Probe         = RADEONProbe;
-		RADEONFillInScreenInfo(pScrn);
+		pScrn->PreInit       = RADEONPreInit;
+		pScrn->ScreenInit    = RADEONScreenInit;
+		pScrn->SwitchMode    = RADEONSwitchMode;
+#ifdef X_XF86MiscPassMessage
+		pScrn->HandleMessage = RADEONHandleMessage;
+#endif
+		pScrn->AdjustFrame   = RADEONAdjustFrame;
+		pScrn->EnterVT       = RADEONEnterVT;
+		pScrn->LeaveVT       = RADEONLeaveVT;
+		pScrn->FreeScreen    = RADEONFreeScreen;
+		pScrn->ValidMode     = RADEONValidMode;
+
 		foundScreen          = TRUE;
 	    }
 

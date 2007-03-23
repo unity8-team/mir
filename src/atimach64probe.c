@@ -26,12 +26,17 @@
 
 #include "ati.h"
 #include "atichip.h"
-#include "atifillin.h"
-#include "atimodule.h"
 #include "atimach64io.h"
 #include "atimach64probe.h"
 #include "atioption.h"
 #include "ativersion.h"
+
+/* include headers corresponding to ScrnInfoPtr fields */
+#include "atipreinit.h"
+#include "atiscreen.h"
+#include "aticonsole.h"
+#include "atiadjust.h"
+#include "ativalid.h"
 
 static SymTabRec
 Mach64Chipsets[] = {
@@ -135,16 +140,16 @@ Mach64Identify
 _X_EXPORT Bool
 Mach64Probe(DriverPtr pDriver, int flags)
 {
-    GDevPtr  *devSections;
-    int  *usedChips;
-    int  numDevSections;
-    int  numUsed;
-    Bool  ProbeSuccess = FALSE;
-
-    if ((numDevSections = xf86MatchDevice(ATI_DRIVER_NAME, &devSections)) <= 0)
-        return FALSE;
+    GDevPtr *devSections;
+    int     *usedChips;
+    int     numDevSections;
+    int     numUsed;
+    Bool    ProbeSuccess = FALSE;
 
     if (xf86GetPciVideoInfo() == NULL)
+        return FALSE;
+
+    if ((numDevSections = xf86MatchDevice(ATI_DRIVER_NAME, &devSections)) <= 0)
         return FALSE;
 
     numUsed = xf86MatchPciInstances(ATI_DRIVER_NAME, PCI_VENDOR_ATI,
@@ -163,8 +168,6 @@ Mach64Probe(DriverPtr pDriver, int flags)
 
         for (i = 0; i < numUsed; i++) {
             ScrnInfoPtr pScrn;
-            EntityInfoPtr pEnt;
-            pciVideoPtr pVideo;
 
             pScrn = xf86ConfigPciEntity(NULL, 0, usedChips[i], Mach64PciChipsets,
                                         0, 0, 0, 0, NULL);
@@ -172,16 +175,24 @@ Mach64Probe(DriverPtr pDriver, int flags)
             if (!pScrn)
                 continue;
 
-            pEnt = xf86GetEntityInfo(usedChips[i]);
-            pVideo = xf86GetPciInfoForEntity(usedChips[i]);
-
-            ATIFillInScreenInfo(pScrn);
-
-            pScrn->Probe = Mach64Probe;
+            pScrn->driverVersion = ATI_VERSION_CURRENT;
+            pScrn->driverName    = ATI_DRIVER_NAME;
+            pScrn->name          = ATI_NAME;
+            pScrn->Probe         = Mach64Probe;
+            pScrn->PreInit       = ATIPreInit;
+            pScrn->ScreenInit    = ATIScreenInit;
+            pScrn->SwitchMode    = ATISwitchMode;
+            pScrn->AdjustFrame   = ATIAdjustFrame;
+            pScrn->EnterVT       = ATIEnterVT;
+            pScrn->LeaveVT       = ATILeaveVT;
+            pScrn->FreeScreen    = ATIFreeScreen;
+            pScrn->ValidMode     = ATIValidMode;
 
             ProbeSuccess = TRUE;
         }
     }
+
+    xfree(usedChips);
 
     return ProbeSuccess;
 }

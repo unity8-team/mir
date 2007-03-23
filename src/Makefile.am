@@ -59,7 +59,7 @@ atimisc_drv_ladir = @moduledir@/drivers
 atimisc_drv_la_SOURCES = \
 	atibus.c atiprobe.c atividmem.c \
 	atiadjust.c atiaudio.c aticlock.c aticonfig.c aticonsole.c \
-	atidac.c atidecoder.c atidsp.c atifillin.c atii2c.c \
+	atidac.c atidecoder.c atidsp.c atii2c.c \
 	atilock.c atimach64.c atimach64accel.c atimach64cursor.c \
 	atimach64i2c.c atimach64io.c atimach64xv.c atimode.c atipreinit.c \
 	atiprint.c atirgb514.c atiscreen.c atituner.c atiutil.c ativalid.c \
@@ -123,7 +123,6 @@ EXTRA_DIST = \
 	atidri.h \
 	atidripriv.h \
 	atidsp.h \
-	atifillin.h \
 	ati.h \
 	atii2c.h \
 	atiload.h \

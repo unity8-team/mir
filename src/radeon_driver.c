@@ -7619,21 +7619,3 @@ static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode)
 	    break;
     }
 }
-
-void RADEONFillInScreenInfo(ScrnInfoPtr pScrn)
-{
-    pScrn->driverVersion = RADEON_VERSION_CURRENT;
-    pScrn->driverName    = RADEON_DRIVER_NAME;
-    pScrn->name          = RADEON_NAME;
-    pScrn->PreInit       = RADEONPreInit;
-    pScrn->ScreenInit    = RADEONScreenInit;
-    pScrn->SwitchMode    = RADEONSwitchMode;
-#ifdef X_XF86MiscPassMessage
-    pScrn->HandleMessage = RADEONHandleMessage;
-#endif
-    pScrn->AdjustFrame   = RADEONAdjustFrame;
-    pScrn->EnterVT       = RADEONEnterVT;
-    pScrn->LeaveVT       = RADEONLeaveVT;
-    pScrn->FreeScreen    = RADEONFreeScreen;
-    pScrn->ValidMode     = RADEONValidMode;
-}

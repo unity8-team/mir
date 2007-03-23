@@ -73,6 +73,4 @@ extern ModeStatus            R128ValidMode(int, DisplayModePtr, Bool, int);
 
 extern const OptionInfoRec * R128OptionsWeak(void);
 
-extern void                  R128FillInScreenInfo(ScrnInfoPtr);
-
 #endif /* _R128_PROBE_H_ */

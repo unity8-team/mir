@@ -4605,18 +4605,3 @@ static int r128_set_backlight_enable(ScrnInfoPtr pScrn, int on)
 
 	return 0;
 }
-
-void R128FillInScreenInfo(ScrnInfoPtr pScrn)
-{
-	pScrn->driverVersion = R128_VERSION_CURRENT;
-	pScrn->driverName    = R128_DRIVER_NAME;
-	pScrn->name          = R128_NAME;
-	pScrn->PreInit       = R128PreInit;
-	pScrn->ScreenInit    = R128ScreenInit;
-	pScrn->SwitchMode    = R128SwitchMode;
-	pScrn->AdjustFrame   = R128AdjustFrame;
-	pScrn->EnterVT       = R128EnterVT;
-	pScrn->LeaveVT       = R128LeaveVT;
-	pScrn->FreeScreen    = R128FreeScreen;
-	pScrn->ValidMode     = R128ValidMode;
-}
