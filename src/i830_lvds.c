@@ -334,7 +334,7 @@ i830_lvds_create_resources(xf86OutputPtr output)
     /* Set the current value of the backlight property */
     data = pI830->backlight_duty_cycle;
     err = RRChangeOutputProperty(output->randr_output, backlight_atom,
-				 XA_INTEGER, 32, PropModeReplace, 4, &data,
+				 XA_INTEGER, 32, PropModeReplace, 1, &data,
 				 FALSE, TRUE);
     if (err != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -356,7 +356,7 @@ i830_lvds_set_property(xf86OutputPtr output, Atom property,
 	INT32 val;
 
 	if (value->type != XA_INTEGER || value->format != 32 ||
-	    value->size != 4)
+	    value->size != 1)
 	{
 	    return FALSE;
 	}

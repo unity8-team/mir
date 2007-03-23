@@ -1511,7 +1511,7 @@ i830_tv_create_resources(xf86OutputPtr output)
 	/* Set the current value of the tv_format property */
 	err = RRChangeOutputProperty(output->randr_output, margin_atoms[i],
 				     XA_INTEGER, 32, PropModeReplace,
-				     4, &dev_priv->margin[i],
+				     1, &dev_priv->margin[i],
 				     FALSE, TRUE);
 	RRPostPendingProperty (output->randr_output, margin_atoms[i]);
 	if (err != 0) {
