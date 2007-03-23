@@ -335,7 +335,7 @@ i830_lvds_create_resources(xf86OutputPtr output)
     data = pI830->backlight_duty_cycle;
     err = RRChangeOutputProperty(output->randr_output, backlight_atom,
 				 XA_INTEGER, 32, PropModeReplace, 4, &data,
-				 FALSE);
+				 FALSE, TRUE);
     if (err != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "RRChangeOutputProperty error, %d\n", err);
@@ -356,7 +356,7 @@ i830_lvds_set_property(xf86OutputPtr output, Atom property,
 	INT32 val;
 
 	if (value->type != XA_INTEGER || value->format != 32 ||
-	    value->size != 1)
+	    value->size != 4)
 	{
 	    return FALSE;
 	}
@@ -365,8 +365,11 @@ i830_lvds_set_property(xf86OutputPtr output, Atom property,
 	if (val < 0 || val > i830_lvds_get_max_backlight(pScrn))
 	    return FALSE;
 
-	i830_lvds_set_backlight(pScrn, val);
-	pI830->backlight_duty_cycle = val;
+	if (val != pI830->backlight_duty_cycle)
+	{
+	    i830_lvds_set_backlight(pScrn, val);
+	    pI830->backlight_duty_cycle = val;
+	}
 	return TRUE;
     }
 
