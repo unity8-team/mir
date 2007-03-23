@@ -107,7 +107,7 @@ PciChipsets R128PciChipsets[] = {
 int gR128EntityIndex = -1;
 
 /* Return the options for supported chipset 'n'; NULL otherwise */
-const OptionInfoRec *
+_X_EXPORT const OptionInfoRec *
 R128AvailableOptions(int chipid, int busid)
 {
     int i;
@@ -126,7 +126,7 @@ R128AvailableOptions(int chipid, int busid)
 }
 
 /* Return the string name for supported chipset 'n'; NULL otherwise. */
-void
+_X_EXPORT void
 R128Identify(int flags)
 {
     xf86PrintChipsets(R128_NAME,
@@ -135,7 +135,7 @@ R128Identify(int flags)
 }
 
 /* Return TRUE if chipset is present; FALSE otherwise. */
-Bool
+_X_EXPORT Bool
 R128Probe(DriverPtr drv, int flags)
 {
     int           numUsed;
@@ -194,20 +194,6 @@ R128Probe(DriverPtr drv, int flags)
         if((pScrn = xf86ConfigPciEntity(pScrn, 0, usedChips[i],
              R128PciChipsets, 0, 0, 0, 0, 0)))
 	{
-
-#ifdef XFree86LOADER
-
-	    if (!xf86LoadSubModule(pScrn, "r128")) {
-		xf86Msg(X_ERROR,
-		    R128_NAME ":  Failed to load \"r128\" module.\n");
-		xf86DeleteScreen(pScrn->scrnIndex, 0);
-		continue;
-	    }
-
-	    xf86LoaderReqSymLists(R128Symbols, NULL);
-
-#endif
-
 	    pScrn->Probe         = R128Probe;
 	    R128FillInScreenInfo(pScrn);
 

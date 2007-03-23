@@ -59,6 +59,7 @@
 
 #include "ati.h"
 #include "atichip.h"
+#include "atimodule.h"
 #include "ativersion.h"
 #include "atimach64probe.h"
 
@@ -78,10 +79,13 @@ ATIIdentify
     int flags
 )
 {
+    /*
+     * Only print chip families here, chip lists are printed when a subdriver
+     * is loaded.
+     */
     xf86Msg(X_INFO, "%s: %s\n", ATI_NAME,
-            "ATI driver (version " ATI_VERSION_NAME ") for chipset: mach64");
-    R128Identify(flags);
-    RADEONIdentify(flags);
+            "ATI driver wrapper (version " ATI_VERSION_NAME ") for chipsets: "
+            "mach64, rage128, radeon");
 }
 
 /*
@@ -98,7 +102,6 @@ ATIProbe
 )
 {
     pciVideoPtr pVideo, *xf86PciVideoInfo = xf86GetPciVideoInfo();
-    Bool        ProbeSuccess = FALSE;
     Bool        DoMach64 = FALSE;
     Bool        DoRage128 = FALSE, DoRadeon = FALSE;
     int         i;
@@ -138,19 +141,73 @@ ATIProbe
         }
     }
 
-    /* Call Mach64 driver probe */
-    if (DoMach64 && Mach64Probe(pDriver, flags))
-        ProbeSuccess = TRUE;
+    /* Call Radeon driver probe */
+    if (DoRadeon)
+    {
+        pointer radeon = xf86LoadDrvSubModule(pDriver, "radeon");
+
+        if (!radeon)
+        {
+            xf86Msg(X_ERROR,
+                ATI_NAME ":  Failed to load \"radeon\" module.\n");
+            return FALSE;
+        }
+
+        xf86LoaderReqSymLists(RADEONSymbols, NULL);
+
+        RADEONIdentify(flags);
+
+        if (RADEONProbe(pDriver, flags))
+            return TRUE;
+
+        xf86UnloadSubModule(radeon);
+    }
 
     /* Call Rage 128 driver probe */
-    if (DoRage128 && R128Probe(pDriver, flags))
-        ProbeSuccess = TRUE;
+    if (DoRage128)
+    {
+        pointer r128 = xf86LoadDrvSubModule(pDriver, "r128");
 
-    /* Call Radeon driver probe */
-    if (DoRadeon && RADEONProbe(pDriver, flags))
-        ProbeSuccess = TRUE;
+        if (!r128)
+        {
+            xf86Msg(X_ERROR,
+                ATI_NAME ":  Failed to load \"r128\" module.\n");
+            return FALSE;
+        }
 
-    return ProbeSuccess;
+        xf86LoaderReqSymLists(R128Symbols, NULL);
+
+        R128Identify(flags);
+
+        if (R128Probe(pDriver, flags))
+            return TRUE;
+
+        xf86UnloadSubModule(r128);
+    }
+
+    /* Call Mach64 driver probe */
+    if (DoMach64)
+    {
+        pointer atimisc = xf86LoadDrvSubModule(pDriver, "atimisc");
+
+        if (!atimisc)
+        {
+            xf86Msg(X_ERROR,
+                ATI_NAME ":  Failed to load \"atimisc\" module.\n");
+            return FALSE;
+        }
+
+        xf86LoaderReqSymLists(ATISymbols, NULL);
+
+        Mach64Identify(flags);
+
+        if (Mach64Probe(pDriver, flags))
+            return TRUE;
+
+        xf86UnloadSubModule(atimisc);
+    }
+
+    return FALSE;
 }
 
 /*
@@ -158,22 +215,27 @@ ATIProbe
  *
  * Return recognised options that are intended for public consumption.
  */
-const OptionInfoRec *
+static const OptionInfoRec *
 ATIAvailableOptions
 (
     int ChipId,
     int BusId
 )
 {
-    const OptionInfoRec *pOptions;
+    CARD16      ChipType = ChipId & 0xffff;
+    ATIChipType Chip;
 
-    if ((pOptions = R128AvailableOptions(ChipId, BusId)))
-        return pOptions;
+    /* Probe should have loaded the appropriate subdriver by this point */
 
-    if ((pOptions = RADEONAvailableOptions(ChipId, BusId)))
-        return pOptions;
+    Chip = ATIChipID(ChipType, 0x0); /* chip revision is don't care */
+    if (Chip <= ATI_CHIP_Mach64)
+        return Mach64AvailableOptions(ChipId, BusId);
+    else if (Chip <= ATI_CHIP_Rage128)
+        return R128AvailableOptions(ChipId, BusId);
+    else if (Chip <= ATI_CHIP_Radeon)
+        return RADEONAvailableOptions(ChipId, BusId);
 
-    return Mach64AvailableOptions(ChipId, BusId);
+    return NULL;
 }
 
 /* The root of all evil... */

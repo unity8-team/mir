@@ -51,8 +51,7 @@ ati_drv_la_LTLIBRARIES = ati_drv.la
 ati_drv_la_LDFLAGS = -module -avoid-version
 ati_drv_ladir = @moduledir@/drivers
 ati_drv_la_SOURCES = \
-	ati.c atichip.c atimodule.c atimach64probe.c \
-	radeon_probe.c r128_probe.c
+	ati.c atichip.c atimodule.c
 
 atimisc_drv_la_LTLIBRARIES = atimisc_drv.la
 atimisc_drv_la_LDFLAGS = -module -avoid-version
@@ -64,15 +63,15 @@ atimisc_drv_la_SOURCES = \
 	atilock.c atimach64.c atimach64accel.c atimach64cursor.c \
 	atimach64i2c.c atimach64io.c atimach64xv.c atimode.c atipreinit.c \
 	atiprint.c atirgb514.c atiscreen.c atituner.c atiutil.c ativalid.c \
-	atiload.c atimisc.c $(ATIMISC_DRI_SRCS) $(ATIMISC_DGA_SOURCES) \
-	$(ATIMISC_CPIO_SOURCES) $(ATIMISC_EXA_SOURCES)
+	atiload.c atimisc.c atimach64probe.c $(ATIMISC_CPIO_SOURCES) \
+	$(ATIMISC_DGA_SOURCES) $(ATIMISC_DRI_SRCS) $(ATIMISC_EXA_SOURCES)
 
 r128_drv_la_LTLIBRARIES = r128_drv.la
 r128_drv_la_LDFLAGS = -module -avoid-version
 r128_drv_ladir = @moduledir@/drivers
 r128_drv_la_SOURCES = \
 	r128_accel.c r128_cursor.c r128_dga.c r128_driver.c \
-	r128_video.c r128_misc.c $(R128_DRI_SRCS)
+	r128_video.c r128_misc.c r128_probe.c $(R128_DRI_SRCS)
 
 radeon_drv_la_LTLIBRARIES = radeon_drv.la
 radeon_drv_la_LDFLAGS = -module -avoid-version
@@ -80,7 +79,8 @@ radeon_drv_ladir = @moduledir@/drivers
 radeon_drv_la_SOURCES = \
 	radeon_accel.c radeon_mergedfb.c radeon_cursor.c radeon_dga.c \
 	radeon_driver.c radeon_video.c radeon_bios.c radeon_mm_i2c.c \
-	radeon_vip.c radeon_misc.c radeon_display.c radeon_modes.c $(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES)
+	radeon_vip.c radeon_misc.c radeon_probe.c radeon_display.c \
+	radeon_modes.c $(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES)
 
 theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
 theatre_detect_drv_la_LDFLAGS = -module -avoid-version

@@ -101,7 +101,7 @@ Mach64PciChipsets[] = {
     {-1, -1, RES_UNDEFINED}
 };
 
-const OptionInfoRec *
+_X_EXPORT const OptionInfoRec *
 Mach64AvailableOptions(int chipid, int busid)
 {
     /*
@@ -112,12 +112,27 @@ Mach64AvailableOptions(int chipid, int busid)
 }
 
 /*
+ * Mach64Identify --
+ *
+ * Print the driver's list of chipset names.
+ */
+_X_EXPORT void
+Mach64Identify
+(
+    int flags
+)
+{
+    xf86Msg(X_INFO, "%s: %s\n", ATI_NAME,
+            "Driver for ATI Mach64 chipsets");
+}
+
+/*
  * Mach64Probe --
  *
  * This function is called once, at the start of the first server generation to
  * do a minimal probe for supported hardware.
  */
-Bool
+_X_EXPORT Bool
 Mach64Probe(DriverPtr pDriver, int flags)
 {
     GDevPtr  *devSections;
@@ -159,20 +174,6 @@ Mach64Probe(DriverPtr pDriver, int flags)
 
             pEnt = xf86GetEntityInfo(usedChips[i]);
             pVideo = xf86GetPciInfoForEntity(usedChips[i]);
-
-#ifdef XFree86LOADER
-
-            if (!xf86LoadSubModule(pScrn, "atimisc"))
-            {
-                xf86Msg(X_ERROR,
-                    ATI_NAME ":  Failed to load \"atimisc\" module.\n");
-                xf86DeleteScreen(pScrn->scrnIndex, 0);
-                continue;
-            }
-
-            xf86LoaderReqSymLists(ATISymbols, NULL);
-
-#endif
 
             ATIFillInScreenInfo(pScrn);
 
