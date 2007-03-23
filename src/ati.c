@@ -101,44 +101,31 @@ ATIProbe
     int       flags
 )
 {
-    pciVideoPtr pVideo, *xf86PciVideoInfo = xf86GetPciVideoInfo();
+    pciVideoPtr pVideo;
+    pciVideoPtr *xf86PciVideoInfo;
     Bool        DoMach64 = FALSE;
     Bool        DoRage128 = FALSE, DoRadeon = FALSE;
-    int         i;
     ATIChipType Chip;
 
-    if (!(flags & PROBE_DETECT))
+    xf86PciVideoInfo = xf86GetPciVideoInfo();
+
+    if (xf86PciVideoInfo == NULL)
+        return FALSE;
+
+    while ((pVideo = *xf86PciVideoInfo++) != NULL)
     {
-        if (xf86MatchDevice(ATI_NAME, NULL) > 0)
+        if ((pVideo->vendor != PCI_VENDOR_ATI) ||
+            (pVideo->chipType == PCI_CHIP_MACH32))
+            continue;
+
+        /* Check for Rage128's, Radeon's and later adapters */
+        Chip = ATIChipID(pVideo->chipType, pVideo->chipRev);
+        if (Chip <= ATI_CHIP_Mach64)
             DoMach64 = TRUE;
-        if (xf86MatchDevice(R128_NAME, NULL) > 0)
+        else if (Chip <= ATI_CHIP_Rage128)
             DoRage128 = TRUE;
-        if (xf86MatchDevice(RADEON_NAME, NULL) > 0)
+        else if (Chip <= ATI_CHIP_Radeon)
             DoRadeon = TRUE;
-    }
-
-    if (xf86PciVideoInfo)
-    {
-        for (i = 0;  (pVideo = xf86PciVideoInfo[i++]);  )
-        {
-            if ((pVideo->vendor != PCI_VENDOR_ATI) ||
-                (pVideo->chipType == PCI_CHIP_MACH32))
-                continue;
-
-            /* Check for Rage128's, Radeon's and later adapters */
-            Chip = ATIChipID(pVideo->chipType, pVideo->chipRev);
-            if (Chip > ATI_CHIP_Mach64)
-            {
-                if (Chip <= ATI_CHIP_Rage128)
-                    DoRage128 = TRUE;
-                else if (Chip <= ATI_CHIP_Radeon)
-                    DoRadeon = TRUE;
-
-                continue;
-            }
-
-            DoMach64 = TRUE;
-        }
     }
 
     /* Call Radeon driver probe */
