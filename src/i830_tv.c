@@ -36,7 +36,9 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i830_display.h"
+#include "X11/Xatom.h"
 #include <string.h>
+
 enum tv_type {
     TV_TYPE_NONE,
     TV_TYPE_UNKNOWN,
@@ -45,9 +47,16 @@ enum tv_type {
     TV_TYPE_COMPONENT
 };
 
+enum tv_margin {
+    TV_MARGIN_LEFT, TV_MARGIN_TOP,
+    TV_MARGIN_RIGHT, TV_MARGIN_BOTTOM
+};
+
 /** Private structure for the integrated TV support */
 struct i830_tv_priv {
     int type;
+    char *tv_format;
+    int margin[4];
     CARD32 save_TV_H_CTL_1;
     CARD32 save_TV_H_CTL_2;
     CARD32 save_TV_H_CTL_3;
@@ -151,6 +160,7 @@ static const CARD32 filter_table[] = {
 typedef struct {
     char *name;
     int	clock;
+    double refresh;
     CARD32 oversample;
     int hsync_end, hblank_start, hblank_end, htotal;
     Bool progressive, trilevel_sync, component_only;
@@ -215,6 +225,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name		= "NTSC-M",
 	.clock		= 107520,	
+	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
 	/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 3.580MHz */
@@ -265,6 +276,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name		= "NTSC-443",
 	.clock		= 107520,	
+	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
 	/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 4.43MHz */
@@ -314,6 +326,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name		= "NTSC-J",
 	.clock		= 107520,	
+	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
 
@@ -364,6 +377,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name		= "PAL-M",
 	.clock		= 107520,	
+	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
 
@@ -415,6 +429,7 @@ const static tv_mode_t tv_modes[] = {
 	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 	.name	    = "PAL-N",
 	.clock		= 107520,	
+	.refresh	= 25.0,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
 
@@ -467,6 +482,7 @@ const static tv_mode_t tv_modes[] = {
 	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 	.name	    = "PAL",
 	.clock		= 107520,	
+	.refresh	= 25.0,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
 
@@ -516,6 +532,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name       = "480p@59.94Hz",
 	.clock 	= 107520,	
+	.refresh	= 59.94,
 	.oversample     = TV_OVERSAMPLE_4X,
 	.component_only = 1,
 
@@ -539,6 +556,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name       = "480p@60Hz",
 	.clock 	= 107520,	
+	.refresh	= 60.0,
 	.oversample     = TV_OVERSAMPLE_4X,
 	.component_only = 1,
 
@@ -562,6 +580,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name       = "576p",
 	.clock 	= 107520,	
+	.refresh	= 59.94,
 	.oversample     = TV_OVERSAMPLE_4X,
 	.component_only = 1,
 
@@ -585,6 +604,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name       = "720p@60Hz",
 	.clock		= 148800,	
+	.refresh	= 60.0,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
 
@@ -608,6 +628,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name       = "720p@59.94Hz",
 	.clock		= 148800,	
+	.refresh	= 59.94,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
 
@@ -631,6 +652,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name       = "720p@50Hz",
 	.clock		= 148800,	
+	.refresh	= 50.0,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
 
@@ -655,6 +677,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name       = "1080i@50Hz",
 	.clock		= 148800,	
+	.refresh	= 25.0,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
 
@@ -680,6 +703,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name       = "1080i@60Hz",
 	.clock		= 148800,	
+	.refresh	= 30.0,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
 
@@ -705,6 +729,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name       = "1080i@59.94Hz",
 	.clock		= 148800,	
+	.refresh	= 29.97,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
 
@@ -895,10 +920,38 @@ i830_tv_restore(xf86OutputPtr output)
     OUTREG(TV_CTL, dev_priv->save_TV_CTL);
 }
 
-static int
-i830_tv_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
+static const tv_mode_t *
+i830_tv_mode_lookup (char *tv_format)
 {
+    int			    i;
+    
+    for (i = 0; i < sizeof(tv_modes) / sizeof (tv_modes[0]); i++) 
+    {
+	const tv_mode_t	*tv_mode = &tv_modes[i];
+
+	if (xf86nameCompare (tv_format, tv_mode->name) == 0)
+	    return tv_mode;
+    }
+    return NULL;
+}
+
+static const tv_mode_t *
+i830_tv_mode_find (xf86OutputPtr output)
+{
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+
+    return i830_tv_mode_lookup (dev_priv->tv_format);
+}
+
+static int
+i830_tv_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
+{
+    const tv_mode_t	*tv_mode = i830_tv_mode_find (output);
+    
+    if (tv_mode && fabs (tv_mode->refresh - xf86ModeVRefresh (mode)) < 1.0)
 	return MODE_OK;
+    return MODE_CLOCK_RANGE;
 }
 
 
@@ -906,24 +959,24 @@ static Bool
 i830_tv_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		DisplayModePtr adjusted_mode)
 {
-	ScrnInfoPtr pScrn = output->scrn;
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int i;
+    ScrnInfoPtr		pScrn = output->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int			i;
+    const tv_mode_t	*tv_mode = i830_tv_mode_find (output);
 
-	for (i = 0; i < xf86_config->num_output; i++) {
-		xf86OutputPtr other_output = xf86_config->output[i];
+    if (!tv_mode)
+	return FALSE;
+    
+    for (i = 0; i < xf86_config->num_output; i++) 
+    {
+	xf86OutputPtr other_output = xf86_config->output[i];
 
-		if (other_output != output && other_output->crtc == output->crtc) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-					"Can't enable TV and another output on the same "
-					"pipe\n");
-			return FALSE;
-		}
-	}
+	if (other_output != output && other_output->crtc == output->crtc)
+	    return FALSE;
+    }
 
-	/* XXX: fill me in */
-
-	return TRUE;
+    adjusted_mode->Clock = tv_mode->clock;
+    return TRUE;
 }
 
 static CARD32
@@ -973,7 +1026,7 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     I830OutputPrivatePtr    intel_output = output->driver_private;
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
     struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
-    const tv_mode_t	    *tv_mode;
+    const tv_mode_t	    *tv_mode = i830_tv_mode_find (output);
     CARD32		    tv_ctl;
     CARD32		    hctl1, hctl2, hctl3;
     CARD32		    vctl1, vctl2, vctl3, vctl4, vctl5, vctl6, vctl7;
@@ -982,11 +1035,10 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     const video_levels_t	*video_levels;
     const color_conversion_t	*color_conversion;
     Bool burst_ena;
-    for (i = 0; i < sizeof(tv_modes) / sizeof (tv_modes[0]); i++) {
-	tv_mode = &tv_modes[i];
-	if (strstr(mode->name, tv_mode->name))
-	    break;	
-    }
+    
+    if (!tv_mode)
+	return;	/* can't happen (mode_prepare prevents this) */
+    
     tv_ctl = 0;
 
     switch (dev_priv->type) {
@@ -1157,6 +1209,12 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	else
 	    ysize = 2*tv_mode->nbr_end + 1;
 
+	xpos += dev_priv->margin[TV_MARGIN_LEFT];
+	ypos += dev_priv->margin[TV_MARGIN_TOP];
+	xsize -= (dev_priv->margin[TV_MARGIN_LEFT] + 
+		  dev_priv->margin[TV_MARGIN_RIGHT]);
+	ysize -= (dev_priv->margin[TV_MARGIN_TOP] + 
+		  dev_priv->margin[TV_MARGIN_BOTTOM]);
 	OUTREG(TV_WIN_POS, (xpos<<16)|ypos);
 	OUTREG(TV_WIN_SIZE, (xsize<<16)|ysize);
 
@@ -1333,62 +1391,51 @@ static struct input_res {
 static DisplayModePtr
 i830_tv_get_modes(xf86OutputPtr output)
 {
-    DisplayModePtr  ret = NULL, mode_ptr;
-    int		    i, j;
-    I830OutputPrivatePtr    intel_output = output->driver_private;
-    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+    DisplayModePtr	ret = NULL, mode_ptr;
+    int			j;
+    const tv_mode_t	*tv_mode = i830_tv_mode_find (output);
 
-    for (i = 0; i < sizeof(tv_modes) / sizeof (tv_modes[0]); i++) 
+    for (j = 0; j < sizeof(input_res_table)/sizeof(input_res_table[0]); j++)
     {
-	const tv_mode_t *tv_mode = &tv_modes[i];
-	unsigned int hactive = tv_mode->hblank_start - tv_mode->hblank_end;
-	unsigned int vactive = tv_mode->progressive
-	    ?tv_mode->nbr_end + 1: 2*(tv_mode->nbr_end + 1);
-	unsigned int htotal = tv_mode->htotal + 1;
-	unsigned int vtotal = tv_mode->progressive
-	    ?tv_mode->nbr_end + 1 + tv_mode->vi_end_f2:
-	    2*(tv_mode->nbr_end+1) + 2*(tv_mode->vi_end_f2);
-
-	if (dev_priv->type != TV_TYPE_COMPONENT && tv_mode->component_only)
+	struct input_res *input = &input_res_table[j];
+	unsigned int hactive_s = input->w;
+	unsigned int vactive_s = input->h;
+	
+	if (tv_mode->max_srcw && input->w > tv_mode->max_srcw)
 	    continue;
 
-	for (j = 0; j < sizeof(input_res_table)/sizeof(input_res_table[0]); j++)	{
-	    struct input_res *input = &input_res_table[j];
-	    unsigned int hactive_s = input->w;
-	    unsigned int vactive_s = input->h;
-	    unsigned int htotal_s = htotal*hactive_s/hactive;
-	    unsigned int vtotal_s = vtotal*vactive_s/vactive;
-	    if (tv_mode->max_srcw && input->w > tv_mode->max_srcw)
-		continue;
-	    if (input->w > 1024 && (!tv_mode->progressive 
-			&& !tv_mode->component_only))
-		continue;
-	    mode_ptr = xnfcalloc(1, sizeof(DisplayModeRec));
-	    mode_ptr->name = xnfalloc(strlen(tv_mode->name) + 
-		    strlen(input->name) + 4);
-	    sprintf(mode_ptr->name, "%s %s", tv_mode->name, input->name);
+	if (input->w > 1024 && (!tv_mode->progressive 
+				&& !tv_mode->component_only))
+	    continue;
 
-	    mode_ptr->Clock = tv_mode->clock;
+	mode_ptr = xnfcalloc(1, sizeof(DisplayModeRec));
+    	mode_ptr->name = xnfalloc(strlen(tv_mode->name) + 
+				  strlen(input->name) + 4);
+	sprintf(mode_ptr->name, "%s", input->name);
 
-	    mode_ptr->HDisplay = hactive_s;
-	    mode_ptr->HSyncStart = hactive_s + 1;
-	    mode_ptr->HSyncEnd = htotal_s - 20;  
-	    if ( mode_ptr->HSyncEnd <= mode_ptr->HSyncStart)
-		mode_ptr->HSyncEnd = mode_ptr->HSyncStart  + 1;
-	    mode_ptr->HTotal = htotal_s;
 
-	    mode_ptr->VDisplay = vactive_s;
-	    mode_ptr->VSyncStart = vactive_s + 1;
-	    mode_ptr->VSyncEnd = vtotal_s - 20;
-	    if ( mode_ptr->VSyncEnd <= mode_ptr->VSyncStart)
-		mode_ptr->VSyncEnd = mode_ptr->VSyncStart  + 1;
-	    mode_ptr->VTotal = vtotal_s;
+	mode_ptr->HDisplay = hactive_s;
+	mode_ptr->HSyncStart = hactive_s + 1;
+	mode_ptr->HSyncEnd = hactive_s + 64;
+	if ( mode_ptr->HSyncEnd <= mode_ptr->HSyncStart)
+	    mode_ptr->HSyncEnd = mode_ptr->HSyncStart  + 1;
+	mode_ptr->HTotal = hactive_s + 96;
 
-	    mode_ptr->type = M_T_DRIVER;
-	    mode_ptr->next = ret;
-	    ret = mode_ptr;
-	} 
-    }
+	mode_ptr->VDisplay = vactive_s;
+	mode_ptr->VSyncStart = vactive_s + 1;
+	mode_ptr->VSyncEnd = vactive_s + 32;
+	if ( mode_ptr->VSyncEnd <= mode_ptr->VSyncStart)
+	    mode_ptr->VSyncEnd = mode_ptr->VSyncStart  + 1;
+	mode_ptr->VTotal = vactive_s + 33;
+
+	mode_ptr->Clock = (int) (tv_mode->refresh * 
+				 mode_ptr->VTotal * 
+				 mode_ptr->HTotal / 1000.0);
+	
+	mode_ptr->type = M_T_DRIVER;
+	mode_ptr->next = ret;
+	ret = mode_ptr;
+    } 
 
     return ret;
 }
@@ -1400,7 +1447,145 @@ i830_tv_destroy (xf86OutputPtr output)
 	xfree (output->driver_private);
 }
 
+#ifdef RANDR_12_INTERFACE
+#define TV_FORMAT_NAME	"TV_FORMAT"
+static Atom tv_format_atom;
+static Atom margin_atoms[4];
+static char *margin_names[4] = {
+    "LEFT", "TOP", "RIGHT", "BOTTOM"
+};
+#endif /* RANDR_12_INTERFACE */
+
+static void
+i830_tv_create_resources(xf86OutputPtr output)
+{
+#ifdef RANDR_12_INTERFACE
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+    int			    err;
+    int			    i;
+
+    /* Set up the tv_format property, which takes effect on mode set
+     * and accepts strings that match exactly
+     */
+    tv_format_atom = MakeAtom(TV_FORMAT_NAME, sizeof(TV_FORMAT_NAME) - 1,
+	TRUE);
+
+    err = RRConfigureOutputProperty(output->randr_output, tv_format_atom,
+				    TRUE, FALSE, FALSE, 0, NULL);
+    
+    if (err != 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "RRConfigureOutputProperty error, %d\n", err);
+    }
+
+    /* Set the current value of the tv_format property */
+    err = RRChangeOutputProperty(output->randr_output, tv_format_atom,
+				 XA_STRING, 8, PropModeReplace,
+				 strlen (dev_priv->tv_format),
+				 dev_priv->tv_format,
+				 FALSE, TRUE);
+    RRPostPendingProperty (output->randr_output, tv_format_atom);
+    if (err != 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "RRChangeOutputProperty error, %d\n", err);
+    }
+
+    for (i = 0; i < 4; i++)
+    {
+	INT32	range[2];
+	margin_atoms[i] = MakeAtom(margin_names[i], strlen (margin_names[i]),
+				   TRUE);
+
+	range[0] = 0;
+	range[1] = 100;
+	err = RRConfigureOutputProperty(output->randr_output, margin_atoms[i],
+				    TRUE, TRUE, FALSE, 2, range);
+    
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+
+	/* Set the current value of the tv_format property */
+	err = RRChangeOutputProperty(output->randr_output, margin_atoms[i],
+				     XA_INTEGER, 32, PropModeReplace,
+				     1, &dev_priv->margin[i],
+				     FALSE, TRUE);
+	RRPostPendingProperty (output->randr_output, margin_atoms[i]);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
+#endif /* RANDR_12_INTERFACE */
+}
+
+static void
+i830_tv_commit (xf86OutputPtr output)
+{
+#ifdef RANDR_12_INTERFACE
+    if (output->randr_output)
+	RRPostPendingProperty (output->randr_output, tv_format_atom);
+#endif    
+    i830_output_commit (output);
+}
+
+#ifdef RANDR_12_INTERFACE
+static Bool
+i830_tv_set_property(xf86OutputPtr output, Atom property,
+		       RRPropertyValuePtr value)
+{
+    int	i;
+    
+    if (property == tv_format_atom) 
+    {
+	I830OutputPrivatePtr    intel_output = output->driver_private;
+	struct i830_tv_priv	*dev_priv = intel_output->dev_priv;
+	char			*val;
+
+	if (value->type != XA_STRING || value->format != 8)
+	    return FALSE;
+
+	val = xalloc (value->size + 1);
+	if (!val)
+	    return FALSE;
+	memcpy (val, value->data, value->size);
+	val[value->size] = '\0';
+	if (!i830_tv_mode_lookup (val))
+	{
+	    xfree (val);
+	    return FALSE;
+	}
+	xfree (dev_priv->tv_format);
+	dev_priv->tv_format = val;
+	return TRUE;
+    }
+    for (i = 0; i < 4; i++)
+    {
+	if (property == margin_atoms[i])
+	{
+	    I830OutputPrivatePtr    intel_output = output->driver_private;
+	    struct i830_tv_priv	*dev_priv = intel_output->dev_priv;
+	    INT32		val;
+
+	    if (value->type != XA_INTEGER || value->format != 32 ||
+		value->size != 1)
+		return FALSE;
+
+	    memcpy (&val, value->data, 4);
+	    dev_priv->margin[i] = val;
+	    return TRUE;
+	}
+    }
+
+    return TRUE;
+}
+#endif /* RANDR_12_INTERFACE */
+
 static const xf86OutputFuncsRec i830_tv_output_funcs = {
+    .create_resources = i830_tv_create_resources,
     .dpms = i830_tv_dpms,
     .save = i830_tv_save,
     .restore = i830_tv_restore,
@@ -1408,10 +1593,13 @@ static const xf86OutputFuncsRec i830_tv_output_funcs = {
     .mode_fixup = i830_tv_mode_fixup,
     .prepare = i830_output_prepare,
     .mode_set = i830_tv_mode_set,
-    .commit = i830_output_commit,
+    .commit = i830_tv_commit,
     .detect = i830_tv_detect,
     .get_modes = i830_tv_get_modes,
-    .destroy = i830_tv_destroy
+    .destroy = i830_tv_destroy,
+#ifdef RANDR_12_INTERFACE
+    .set_property = i830_tv_set_property,
+#endif
 };
 
 void
@@ -1466,6 +1654,25 @@ i830_tv_init(ScrnInfoPtr pScrn)
     intel_output->dev_priv = dev_priv;
     dev_priv->type = TV_TYPE_UNKNOWN;
 
+    dev_priv->tv_format = NULL;
+    
+    /* BIOS margin values */
+    dev_priv->margin[TV_MARGIN_LEFT] = 54;
+    dev_priv->margin[TV_MARGIN_TOP] = 36;
+    dev_priv->margin[TV_MARGIN_RIGHT] = 46;
+    dev_priv->margin[TV_MARGIN_BOTTOM] = 37;
+    
+    if (output->conf_monitor)
+    {
+	char	*tv_format;
+	
+	tv_format = xf86findOptionValue (output->conf_monitor->mon_option_lst, "TV Format");
+	if (tv_format)
+	    dev_priv->tv_format = xstrdup (tv_format);
+    }
+    if (!dev_priv->tv_format)
+	dev_priv->tv_format = xstrdup (tv_modes[0].name);
+    
     output->driver_private = intel_output;
     output->interlaceAllowed = FALSE;
     output->doubleScanAllowed = FALSE;
