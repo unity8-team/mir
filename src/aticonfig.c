@@ -234,7 +234,7 @@ static const OptionInfoRec ATIPublicOptions[] =
 
 static const unsigned long ATIPublicOptionSize = SizeOf(ATIPublicOptions);
 
-_X_EXPORT const OptionInfoRec *
+const OptionInfoRec *
 ATIOptionsWeak(void) { return ATIPublicOptions; }
 
 /*

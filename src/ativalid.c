@@ -35,7 +35,7 @@
  *
  * This checks for hardware-related limits on mode timings.
  */
-_X_EXPORT ModeStatus
+ModeStatus
 ATIValidMode
 (
     int iScreen,

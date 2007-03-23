@@ -146,7 +146,7 @@ ATIPrintNoiseIfRequested
  * This function is only called once per screen at the start of the first
  * server generation.
  */
-_X_EXPORT Bool
+Bool
 ATIPreInit
 (
     ScrnInfoPtr pScreenInfo,

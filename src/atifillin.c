@@ -31,7 +31,7 @@
 
 #include "atifillin.h"
 
-_X_EXPORT void ATIFillInScreenInfo(ScrnInfoPtr pScreenInfo)
+void ATIFillInScreenInfo(ScrnInfoPtr pScreenInfo)
 {
     pScreenInfo->driverVersion = ATI_VERSION_CURRENT;
     pScreenInfo->driverName    = ATI_DRIVER_NAME;
