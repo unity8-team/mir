@@ -1486,7 +1486,6 @@ i830_tv_create_resources(xf86OutputPtr output)
 				 strlen (dev_priv->tv_format),
 				 dev_priv->tv_format,
 				 FALSE, TRUE);
-    RRPostPendingProperty (output->randr_output, tv_format_atom);
     if (err != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "RRChangeOutputProperty error, %d\n", err);
@@ -1513,23 +1512,12 @@ i830_tv_create_resources(xf86OutputPtr output)
 				     XA_INTEGER, 32, PropModeReplace,
 				     1, &dev_priv->margin[i],
 				     FALSE, TRUE);
-	RRPostPendingProperty (output->randr_output, margin_atoms[i]);
 	if (err != 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRChangeOutputProperty error, %d\n", err);
 	}
     }
 #endif /* RANDR_12_INTERFACE */
-}
-
-static void
-i830_tv_commit (xf86OutputPtr output)
-{
-#ifdef RANDR_12_INTERFACE
-    if (output->randr_output)
-	RRPostPendingProperty (output->randr_output, tv_format_atom);
-#endif    
-    i830_output_commit (output);
 }
 
 #ifdef RANDR_12_INTERFACE
@@ -1593,7 +1581,7 @@ static const xf86OutputFuncsRec i830_tv_output_funcs = {
     .mode_fixup = i830_tv_mode_fixup,
     .prepare = i830_output_prepare,
     .mode_set = i830_tv_mode_set,
-    .commit = i830_tv_commit,
+    .commit = i830_output_commit,
     .detect = i830_tv_detect,
     .get_modes = i830_tv_get_modes,
     .destroy = i830_tv_destroy,
