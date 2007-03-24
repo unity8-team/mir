@@ -41,6 +41,7 @@
 #include "atimach64.h"
 #include "atimach64accel.h"
 #include "atimach64io.h"
+#include "atimach64probe.h"
 #include "atimode.h"
 #include "atioption.h"
 #include "atipreinit.h"
@@ -982,7 +983,8 @@ ATIPreInit
 
     /* Report what was found */
     xf86DrvMsg(pScreenInfo->scrnIndex, X_PROBED,
-        "%s graphics controller detected.\n", ATIChipNames[pATI->Chip]);
+        "%s graphics controller detected.\n",
+        xf86TokenToString(Mach64Chipsets, pATI->Chip));
 
     {
         Message = Buffer + snprintf(Buffer, SizeOf(Buffer), "Chip type %04X",

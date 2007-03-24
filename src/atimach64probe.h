@@ -25,6 +25,8 @@
 
 #include "xf86str.h"
 
+extern SymTabRec             Mach64Chipsets[];
+
 extern const OptionInfoRec * Mach64AvailableOptions(int, int);
 extern void                  Mach64Identify(int);
 extern Bool                  Mach64Probe(DriverPtr, int);

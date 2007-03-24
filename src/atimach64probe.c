@@ -38,7 +38,7 @@
 #include "atiadjust.h"
 #include "ativalid.h"
 
-static SymTabRec
+SymTabRec
 Mach64Chipsets[] = {
     {ATI_CHIP_88800GXC, "ATI 88800GX-C"},
     {ATI_CHIP_88800GXD, "ATI 88800GX-D"},
