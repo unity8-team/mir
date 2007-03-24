@@ -51,13 +51,13 @@ ati_drv_la_LTLIBRARIES = ati_drv.la
 ati_drv_la_LDFLAGS = -module -avoid-version
 ati_drv_ladir = @moduledir@/drivers
 ati_drv_la_SOURCES = \
-	ati.c atichip.c atimodule.c
+	ati.c atimodule.c
 
 atimisc_drv_la_LTLIBRARIES = atimisc_drv.la
 atimisc_drv_la_LDFLAGS = -module -avoid-version
 atimisc_drv_ladir = @moduledir@/drivers
 atimisc_drv_la_SOURCES = \
-	atibus.c atiprobe.c atividmem.c \
+	atibus.c atichip.c atiprobe.c atividmem.c \
 	atiadjust.c atiaudio.c aticlock.c aticonfig.c aticonsole.c \
 	atidac.c atidecoder.c atidsp.c atii2c.c \
 	atilock.c atimach64.c atimach64accel.c atimach64cursor.c \
