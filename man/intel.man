@@ -38,7 +38,7 @@ memory for video use is required in order to use this driver.  For the 830M
 and later, this is required in order for the driver to use more video ram
 than has been pre-allocated at boot time by the BIOS.  This is usually
 achieved with an "agpgart" or "agp" kernel driver.  Linux, FreeBSD, OpenBSD,
-and NetBSD have such kernel drivers available.
+NetBSD, and Solaris have such kernel drivers available.
 .PP
 By default, the i810 will use 8 megabytes
 of system memory for graphics.  For the 830M and later, the driver will
