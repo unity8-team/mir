@@ -754,6 +754,8 @@ const static tv_mode_t tv_modes[] = {
     },
 };
 
+#define NUM_TV_MODES sizeof(tv_modes) / sizeof (tv_modes[0])
+
 static const video_levels_t component_level = {
 	.blank = 279, .black = 279 
 };
@@ -1450,10 +1452,29 @@ i830_tv_destroy (xf86OutputPtr output)
 #ifdef RANDR_12_INTERFACE
 #define TV_FORMAT_NAME	"TV_FORMAT"
 static Atom tv_format_atom;
+static Atom tv_format_name_atoms[NUM_TV_MODES];
 static Atom margin_atoms[4];
 static char *margin_names[4] = {
     "LEFT", "TOP", "RIGHT", "BOTTOM"
 };
+
+static Bool
+i830_tv_format_set_property (xf86OutputPtr output)
+{
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+    const tv_mode_t	    *tv_mode = i830_tv_mode_lookup (dev_priv->tv_format);
+    int			    err;
+
+    if (!tv_mode)
+	tv_mode = &tv_modes[0];
+    err = RRChangeOutputProperty (output->randr_output, tv_format_atom,
+				  XA_ATOM, 32, PropModeReplace, 1,
+				  &tv_format_name_atoms[tv_mode - tv_modes],
+				  FALSE, TRUE);
+    return err == Success;
+}
+
 #endif /* RANDR_12_INTERFACE */
 
 static void
@@ -1472,8 +1493,14 @@ i830_tv_create_resources(xf86OutputPtr output)
     tv_format_atom = MakeAtom(TV_FORMAT_NAME, sizeof(TV_FORMAT_NAME) - 1,
 	TRUE);
 
+    for (i = 0; i < NUM_TV_MODES; i++)
+	tv_format_name_atoms[i] = MakeAtom (tv_modes[i].name,
+					    strlen (tv_modes[i].name),
+					    TRUE);
+
     err = RRConfigureOutputProperty(output->randr_output, tv_format_atom,
-				    TRUE, FALSE, FALSE, 0, NULL);
+				    TRUE, FALSE, FALSE, 
+				    NUM_TV_MODES, (INT32 *) tv_format_name_atoms);
     
     if (err != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -1481,15 +1508,9 @@ i830_tv_create_resources(xf86OutputPtr output)
     }
 
     /* Set the current value of the tv_format property */
-    err = RRChangeOutputProperty(output->randr_output, tv_format_atom,
-				 XA_STRING, 8, PropModeReplace,
-				 strlen (dev_priv->tv_format),
-				 dev_priv->tv_format,
-				 FALSE, TRUE);
-    if (err != 0) {
+    if (!i830_tv_format_set_property (output))
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "RRChangeOutputProperty error, %d\n", err);
-    }
 
     for (i = 0; i < 4; i++)
     {
@@ -1502,20 +1523,17 @@ i830_tv_create_resources(xf86OutputPtr output)
 	err = RRConfigureOutputProperty(output->randr_output, margin_atoms[i],
 				    TRUE, TRUE, FALSE, 2, range);
     
-	if (err != 0) {
+	if (err != 0)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRConfigureOutputProperty error, %d\n", err);
-	}
 
-	/* Set the current value of the tv_format property */
 	err = RRChangeOutputProperty(output->randr_output, margin_atoms[i],
 				     XA_INTEGER, 32, PropModeReplace,
 				     1, &dev_priv->margin[i],
 				     FALSE, TRUE);
-	if (err != 0) {
+	if (err != 0)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRChangeOutputProperty error, %d\n", err);
-	}
     }
 #endif /* RANDR_12_INTERFACE */
 }
@@ -1531,16 +1549,20 @@ i830_tv_set_property(xf86OutputPtr output, Atom property,
     {
 	I830OutputPrivatePtr    intel_output = output->driver_private;
 	struct i830_tv_priv	*dev_priv = intel_output->dev_priv;
+	Atom			atom;
+	char			*name;
 	char			*val;
 
-	if (value->type != XA_STRING || value->format != 8)
+	if (value->type != XA_ATOM || value->format != 32 || value->size != 1)
 	    return FALSE;
 
-	val = xalloc (value->size + 1);
+	memcpy (&atom, value->data, 4);
+	name = NameForAtom (atom);
+	
+	val = xalloc (strlen (name) + 1);
 	if (!val)
 	    return FALSE;
-	memcpy (val, value->data, value->size);
-	val[value->size] = '\0';
+	strcpy (val, name);
 	if (!i830_tv_mode_lookup (val))
 	{
 	    xfree (val);
