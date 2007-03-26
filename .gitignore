@@ -15,6 +15,7 @@ config.log
 config.status
 config.sub
 configure
+configure.lineno
 depcomp
 install-sh
 libtool
@@ -22,3 +23,4 @@ ltmain.sh
 missing
 stamp-h1
 i810.4
+intel.4
