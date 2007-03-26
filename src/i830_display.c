@@ -916,7 +916,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	/* Set the B0-B3 data pairs corresponding to whether we're going to
 	 * set the DPLLs for dual-channel mode or not.
 	 */
-	if (adjusted_mode->Clock >= I9XX_P2_LVDS_SLOW_LIMIT)
+	if (clock.p2 == 7)
 	    lvds |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
 	else
 	    lvds &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
