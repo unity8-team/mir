@@ -37,25 +37,23 @@ i815 family of chipset, operating system support for allocating system
 memory for video use is required in order to use this driver.  For the 830M
 and later, this is required in order for the driver to use more video ram
 than has been pre-allocated at boot time by the BIOS.  This is usually
-achieved with an "agpgart" or "agp" kernel driver.  Linux, and recent
-versions of FreeBSD, OpenBSD and NetBSD have such kernel drivers available.
+achieved with an "agpgart" or "agp" kernel driver.  Linux, FreeBSD, OpenBSD,
+and NetBSD have such kernel drivers available.
 .PP
-By default 8 Megabytes
-of system memory are used for graphics.  For the 830M and later, the
-default is 8 Megabytes when DRI is not enabled and 32 Megabytes with
-DRI is enabled.  This amount may be changed with the
+By default, the i810 will use 8 megabytes
+of system memory for graphics.  For the 830M and later, the driver will
+automatically size its memory allocation according to the features it will
+support.  The amount of memory used may be limited by using the
 .B VideoRam
 entry in the config file
 .B "Device"
-section.  It may be set to any reasonable value up to 64MB for older
-chipsets or 128MB for newer chipsets.  It is advisable to check the
+section.  Limiting the amount of memory used may result in features being
+disabled, so if you choose to configure it, it is advisable to check the
 __xservername__
-log file to check if any features have been disabled because of insufficient
+log file to see if any features have been disabled because of insufficient
 video memory.  In particular, DRI support or tiling mode may be disabled
 with insufficient video memory.  Either of these being disabled will
-reduce performance for 3D applications.  Note however, that increasing
-this value too much will reduce the amount of system memory available
-for other applications.
+reduce performance for 3D applications.
 .PP
 The following driver
 .B Options
@@ -123,13 +121,6 @@ other drivers.
 Disable or enable XVideo support.
 Default: XVideo is enabled for configurations where it is supported.
 .TP
-.BI "Option \*qRotate\*q \*q90\*q"
-Rotate the desktop 90 degrees counterclockwise. Other valid options are
-0, 90, 180 and 270 degrees. The RandR extension is used for rotation 
-functionality. So this option allows the Xserver to start with a rotated
-mode of operation.
-Default: 0 degrees.
-.TP
 .BI "Option \*qLinearAlloc\*q \*q" integer \*q
 Allows more memory for the offscreen allocator. This usually helps in
 situations where HDTV movies are required to play but not enough offscreen
@@ -184,6 +175,13 @@ Choose acceleration architecture, either "XAA" or "EXA".  XAA is the old
 (but stable) XFree86 based acceleration architecture.  EXA is a newer and
 simpler acceleration architecture designed to better accelerate the X Render
 extension.  Default: "XAA".
+
+.PP
+The 830M and newer driver supports RandR 1.2, exposing the VGA, LVDS
+(laptop panel), TMDS (DVI on SDVO/DVO cards), and TV (on 915GM/945GM)
+outputs.  Per-output configuration is done through the
+.B Monitor
+section of __xconfigfile__(__filemansuffix__).
 
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
