@@ -6336,7 +6336,7 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
     if (crtc1 && (crtc_mask & 1)) {
     	ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
 	   crtc1->name,
-	   crtc1->clock,
+	   crtc1->Clock/1000.0,
 
 	   crtc1->HDisplay,
 	   crtc1->HSyncStart,
