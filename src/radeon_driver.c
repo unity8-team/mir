@@ -6328,7 +6328,7 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 {
     RADEONInfoPtr  info      = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    double         dot_clock = crtc1->Clock/1000.0;
+    double         dot_clock;
     RADEONInfoPtr  info0     = NULL;
     ScrnInfoPtr    pScrn0    = NULL;
 
@@ -6358,7 +6358,7 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
     ErrorF("\n");
     ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
 	   crtc1->name,
-	   dot_clock,
+	   crtc1->Clock/1000.0,
 
 	   crtc1->CrtcHDisplay,
 	   crtc1->CrtcHSyncStart,
