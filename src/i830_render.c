@@ -486,7 +486,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 
 	blendctl = i830_get_blend_cntl(op, pMaskPicture, pDstPicture->format);
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(8) | 0);
-	OUT_RING(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD |(blendctl<<4) |
+	OUT_RING(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD | blendctl | 
 		 S8_ENABLE_COLOR_BUFFER_WRITE);
 	ADVANCE_LP_RING();
     }
