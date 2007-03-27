@@ -648,6 +648,7 @@
 #define    MT_8BIT_IDX_ARGB8888	           (7<<3)
 #define    MT_8BIT_I8		           (0<<3) /* SURFACE_8BIT */
 #define    MT_8BIT_L8		           (1<<3)
+#define    MT_8BIT_A8		           (4<<3)
 #define    MT_16BIT_RGB565 		   (0<<3) /* SURFACE_16BIT */
 #define    MT_16BIT_ARGB1555		   (1<<3)
 #define    MT_16BIT_ARGB4444		   (2<<3)

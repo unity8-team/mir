@@ -149,12 +149,11 @@ static struct formatinfo i830_tex_formats[] = {
     {PICT_r5g6b5,   MT_16BIT_RGB565	  },
     {PICT_a1r5g5b5, MT_16BIT_ARGB1555 },
     {PICT_x1r5g5b5, MT_16BIT_ARGB1555 },
-    {PICT_a8,       MT_8BIT_I8       },
+    {PICT_a8,       MT_8BIT_A8       },	 /* mesa does I8 */
 };
 
 static Bool i830_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
 {
-    /* XXX: color buffer format for i830 */
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
     case PICT_x8r8g8b8:
@@ -167,9 +166,11 @@ static Bool i830_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
     case PICT_x1r5g5b5:
         *dst_format = COLR_BUF_ARGB1555;
         break;
+	/*
     case PICT_a8:
         *dst_format = COLR_BUF_8BIT;
         break;
+	*/
     case PICT_a4r4g4b4:
     case PICT_x4r4g4b4:
 	*dst_format = COLR_BUF_ARGB4444;
@@ -235,9 +236,8 @@ static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
         I830FALLBACK("Unsupported picture format 0x%x\n",
 		     (int)pPict->format);
 
-    /* FIXME: fix repeat support */
-    if (pPict->repeat)
-	I830FALLBACK("repeat unsupport now\n");
+    if (pPict->repeat && pPict->repeatType != RepeatNormal)
+	I830FALLBACK("unsupport repeat type\n");
 
     if (pPict->filter != PictFilterNearest &&
         pPict->filter != PictFilterBilinear)
@@ -248,6 +248,19 @@ static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
     return TRUE;
 }
 
+static CARD32
+i8xx_get_card_format(PicturePtr pPict)
+{
+    int i;
+    for (i = 0; i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);
+	    i++)
+    {
+	if (i830_tex_formats[i].fmt == pPict->format)
+	    break;
+    }
+    return i830_tex_formats[i].card_fmt;
+}
+
 static Bool
 i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 {
@@ -255,28 +268,18 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
     ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 format, offset, pitch, filter;
-    int w, h, i;
-    CARD32 wrap_mode = TEXCOORDMODE_CLAMP;
+    CARD32 wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
 
     offset = intel_get_pixmap_offset(pPix);
     pitch = intel_get_pixmap_pitch(pPix);
-    w = pPict->pDrawable->width;
-    h = pPict->pDrawable->height;
     pI830->scale_units[unit][0] = pPix->drawable.width;
     pI830->scale_units[unit][1] = pPix->drawable.height;
+    pI830->transform[unit] = pPict->transform;
 
-    for (i = 0; i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);
-	 i++)
-    {
-        if (i830_tex_formats[i].fmt == pPict->format)
-	    break;
-    }
-    if (i == sizeof(i830_tex_formats)/ sizeof(i830_tex_formats[0]))
-	I830FALLBACK("unknown texture format\n");
-    format = i830_tex_formats[i].card_fmt;
+    format = i8xx_get_card_format(pPict);
 
     if (pPict->repeat)
-	wrap_mode = TEXCOORDMODE_WRAP; /* XXX: correct ? */
+	wrap_mode = TEXCOORDMODE_WRAP;
 
     switch (pPict->filter) {
     case PictFilterNearest:
@@ -291,51 +294,32 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	filter = 0;
         I830FALLBACK("Bad filter 0x%x\n", pPict->filter);
     }
+    filter |= (MIPFILTER_NONE << TM0S3_MIP_FILTER_SHIFT); 
 
     {
 	if (pPix->drawable.bitsPerPixel == 8)
-		format |= MAP_SURFACE_8BIT;
+	    format |= MAPSURF_8BIT;
 	else if (pPix->drawable.bitsPerPixel == 16)
-		format |= MAP_SURFACE_16BIT;
+	    format |= MAPSURF_16BIT;
 	else
-		format |= MAP_SURFACE_32BIT;
+	    format |= MAPSURF_32BIT;
 
-	BEGIN_LP_RING(6);
-	OUT_RING(_3DSTATE_MAP_INFO_CMD);
-	OUT_RING(format | TEXMAP_INDEX(unit) | MAP_FORMAT_2D);
-	OUT_RING(((pPix->drawable.height - 1) << 16) |
-		 (pPix->drawable.width - 1)); /* height, width */
-	OUT_RING(offset); /* map address */
-	OUT_RING(((pitch / 4) - 1) << 2); /* map pitch */
-	OUT_RING(0);
-	ADVANCE_LP_RING();
-     }
-
-     {
-	BEGIN_LP_RING(2);
-	/* coord sets */
+	BEGIN_LP_RING(8);
+	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_2 | LOAD_TEXTURE_MAP(unit) | 4);
+	OUT_RING((offset & TM0S0_ADDRESS_MASK) | TM0S0_USE_FENCE); 
+	OUT_RING(((pPix->drawable.height - 1) << TM0S1_HEIGHT_SHIFT) |
+		((pPix->drawable.width - 1) << TM0S1_WIDTH_SHIFT) | format);
+	OUT_RING((pitch/4 - 1) << TM0S2_PITCH_SHIFT | TM0S2_MAP_2D);
+	OUT_RING(filter);
+	OUT_RING(0); /* default color */
 	OUT_RING(_3DSTATE_MAP_COORD_SET_CMD | TEXCOORD_SET(unit) |
 		 ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL |
 		 TEXCOORDTYPE_CARTESIAN | ENABLE_ADDR_V_CNTL |
 		 TEXCOORD_ADDR_V_MODE(wrap_mode) |
 		 ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
 	OUT_RING(MI_NOOP);
-
-	/* XXX: filter seems hang engine...*/
-#if 0
-	OUT_RING(I830_STATE3D_MAP_FILTER | FILTER_MAP_INDEX(unit) |
-		 ENABLE_KEYS| DISABLE_COLOR_KEY | DISABLE_CHROMA_KEY |
-		 DISABLE_KILL_PIXEL |ENABLE_MIP_MODE_FILTER |
-		 MIPFILTER_NONE | filter);
-	OUT_RING(0);
-#endif
-
-	/* max & min mip level ? or base mip level? */
-
 	ADVANCE_LP_RING();
-    }
-
-    pI830->transform[unit] = pPict->transform;
+     }
 
 #ifdef I830DEBUG
     ErrorF("try to sync to show any errors...");
@@ -382,7 +366,6 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
 		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
-    /* XXX: setup texture map from pixmap, vertex format, blend cntl */
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 dst_format, dst_offset, dst_pitch;
@@ -407,7 +390,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     {
 	CARD32 cblend, ablend, blendctl, vf2;
 
-	BEGIN_LP_RING(22+6);
+	BEGIN_LP_RING(34);
 
 	/* color buffer */
 	OUT_RING(_3DSTATE_BUF_INFO_CMD);
@@ -429,6 +412,14 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 
 	OUT_RING(_3DSTATE_DFLT_SPEC_CMD);
 	OUT_RING(0);
+
+	OUT_RING(_3DSTATE_DRAW_RECT_CMD);
+	OUT_RING(0);
+	OUT_RING(0); /* ymin, xmin */
+	OUT_RING(DRAW_YMAX(pDst->drawable.height - 1) |
+		DRAW_XMAX(pDst->drawable.width - 1));
+	OUT_RING(0); /* yorig, xorig */
+	OUT_RING(MI_NOOP);
 
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 0);
 	OUT_RING((1 << S3_POINT_WIDTH_SHIFT) | (2 << S3_LINE_WIDTH_SHIFT) |
