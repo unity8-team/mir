@@ -6333,9 +6333,10 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
     ScrnInfoPtr    pScrn0    = NULL;
 
 #if RADEON_DEBUG
-    ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
+    if (crtc1 && (crtc_mask & 1)) {
+    	ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
 	   crtc1->name,
-	   dot_clock,
+	   crtc1->clock,
 
 	   crtc1->HDisplay,
 	   crtc1->HSyncStart,
@@ -6348,40 +6349,44 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 	   crtc1->VTotal,
 	   pScrn->depth,
 	   pScrn->bitsPerPixel);
-    if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
-    if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
-    if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
-    if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
-    if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
-    if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
-    if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
-    ErrorF("\n");
-    ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
-	   crtc1->name,
-	   crtc1->Clock/1000.0,
+    	if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
+    	if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
+    	if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
+    	if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
+    	if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
+    	if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
+    	if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
+    	ErrorF("\n");
+    }
+    if (crtc2 && (crtc_mask & 2)) {
+        ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
+	   crtc2->name,
+	   crtc2->Clock/1000.0,
 
-	   crtc1->CrtcHDisplay,
-	   crtc1->CrtcHSyncStart,
-	   crtc1->CrtcHSyncEnd,
-	   crtc1->CrtcHTotal,
+	   crtc2->CrtcHDisplay,
+	   crtc2->CrtcHSyncStart,
+	   crtc2->CrtcHSyncEnd,
+	   crtc2->CrtcHTotal,
 
-	   crtc1->CrtcVDisplay,
-	   crtc1->CrtcVSyncStart,
-	   crtc1->CrtcVSyncEnd,
-	   crtc1->CrtcVTotal,
+	   crtc2->CrtcVDisplay,
+	   crtc2->CrtcVSyncStart,
+	   crtc2->CrtcVSyncEnd,
+	   crtc2->CrtcVTotal,
 	   pScrn->depth,
 	   pScrn->bitsPerPixel);
-    if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
-    if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
-    if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
-    if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
-    if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
-    if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
-    if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
-    ErrorF("\n");
+        if (crtc2->Flags & V_DBLSCAN)   ErrorF(" D");
+        if (crtc2->Flags & V_CSYNC)     ErrorF(" C");
+        if (crtc2->Flags & V_INTERLACE) ErrorF(" I");
+        if (crtc2->Flags & V_PHSYNC)    ErrorF(" +H");
+        if (crtc2->Flags & V_NHSYNC)    ErrorF(" -H");
+        if (crtc2->Flags & V_PVSYNC)    ErrorF(" +V");
+        if (crtc2->Flags & V_NVSYNC)    ErrorF(" -V");
+    	ErrorF("\n");
+    }
 #endif
 
-    info->Flags = crtc1->Flags;
+    if (crtc1 && (crtc_mask & 1))
+        info->Flags = crtc1->Flags;
 
     RADEONInitMemMapRegisters(pScrn, save, info);
     RADEONInitCommonRegisters(save, info);
