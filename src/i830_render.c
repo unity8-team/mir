@@ -205,7 +205,8 @@ static CARD32 i830_get_blend_cntl(int op, PicturePtr pMask, CARD32 dst_format)
      * where the source blend factor is 0, and the source blend value is the
      * mask channels multiplied by the source picture's alpha.
      */
-    if (pMask && pMask->componentAlpha && i830_blend_op[op].src_alpha) {
+    if (pMask && pMask->componentAlpha && PICT_FORMAT_RGB(pMask->format) 
+	    && i830_blend_op[op].src_alpha) {
         if (dblend == BLENDFACTOR_SRC_ALPHA) {
             dblend = BLENDFACTOR_SRC_COLR;
         } else if (dblend == BLENDFACTOR_INV_SRC_ALPHA) {
@@ -339,7 +340,8 @@ i830_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
     if (op >= sizeof(i830_blend_op) / sizeof(i830_blend_op[0]))
         I830FALLBACK("Unsupported Composite op 0x%x\n", op);
 
-    if (pMaskPicture != NULL && pMaskPicture->componentAlpha) {
+    if (pMaskPicture != NULL && pMaskPicture->componentAlpha &&
+	    PICT_FORMAT_RGB(pMaskPicture->format)) {
         /* Check if it's component alpha that relies on a source alpha and on
          * the source value.  We can only get one of those into the single
          * source value that we get to blend with.
@@ -456,10 +458,17 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	cblend |= TB0C_ARG1_SEL_TEXEL0;
 	ablend |= TB0A_ARG1_SEL_TEXEL0;
 	if (pMask) {
-	    if (pMaskPicture->componentAlpha && pDstPicture->format != PICT_a8)
-		cblend |= TB0C_ARG2_SEL_TEXEL1;
-	    else
-		cblend |= (TB0C_ARG2_SEL_TEXEL1 | TB0C_ARG2_REPLICATE_ALPHA);
+	    if (pMaskPicture->componentAlpha && 
+		    PICT_FORMAT_RGB(pMaskPicture->format)) {
+		if (i830_blend_op[op].src_alpha)
+		    cblend |= (TB0C_ARG2_SEL_TEXEL1 | 
+			    TB0C_ARG1_REPLICATE_ALPHA);
+		else 
+		    cblend |= TB0C_ARG2_SEL_TEXEL1;
+	    } else {
+		cblend |= (TB0C_ARG2_SEL_TEXEL1 | 
+			TB0C_ARG2_REPLICATE_ALPHA);
+	    }
 	    ablend |= TB0A_ARG2_SEL_TEXEL1;
 	} else {
 	    cblend |= TB0C_ARG2_SEL_ONE;
