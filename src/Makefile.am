@@ -46,19 +46,19 @@ XMODE_SRCS=\
 	 modes/xf86cvt.c \
 	 modes/xf86Crtc.h \
 	 modes/xf86Crtc.c \
-         modes/xf86EdidModes.c \
+	 modes/xf86EdidModes.c \
 	 modes/xf86RandR12.c \
 	 modes/xf86RandR12.h \
 	 modes/xf86Rename.h \
 	 modes/xf86Rotate.c \
 	 modes/xf86DiDGA.c
-	 
+
 INTEL_DRI_SRCS = \
          i810_dri.c \
          i810_dri.h \
          i830_dri.c \
          i810_hwmc.c \
-         i830_dri.h 
+         i830_dri.h
 
 intel_drv_la_SOURCES = \
          brw_defines.h \
@@ -144,24 +144,24 @@ EXTRA_DIST = 		\
 	$(INTEL_G4A)	\
 	$(INTEL_G4H)	\
 	$(INTEL_DRI_SRCS)
-	
+
 if HAVE_GEN4ASM
 
 sf_prog.h: packed_yuv_sf.g4a
 	intel-gen4asm -o sf_prog.h packed_yuv_sf.g4a
-	
+
 wm_prog.h: packed_yuv_wm.g4a
 	intel-gen4asm -o wm_prog.h packed_yuv_wm.g4a
-	
+
 exa_sf_mask_prog.h: exa_sf_mask.g4a
 	intel-gen4asm -o exa_sf_mask_prog.h exa_sf_mask.g4a
-	
+
 exa_sf_prog.h: exa_sf.g4a
 	intel-gen4asm -o exa_sf_prog.h exa_sf.g4a
 
 exa_sf_rotation_prog.h: exa_sf_rotation.g4a
 	intel-gen4asm -o exa_sf_rotation_prog.h exa_sf_rotation.g4a
-	
+
 exa_wm_maskca_prog.h: exa_wm_maskca.g4a
 	intel-gen4asm -o exa_wm_maskca_prog.h exa_wm_maskca.g4a
 
@@ -170,13 +170,13 @@ exa_wm_maskca_srcalpha_prog.h: exa_wm_maskca_srcalpha.g4a
 
 exa_wm_masknoca_prog.h: exa_wm_masknoca.g4a
 	intel-gen4asm -o exa_wm_masknoca_prog.h exa_wm_masknoca.g4a
-	
+
 exa_wm_nomask_prog.h: exa_wm_nomask.g4a
 	intel-gen4asm -o exa_wm_nomask_prog.h exa_wm_nomask.g4a
 
 exa_wm_rotation_prog.h: exa_wm_rotation.g4a
 	intel-gen4asm -o exa_wm_rotation_prog.h exa_wm_rotation.g4a
-	
+
 endif
 
 if XMODES
