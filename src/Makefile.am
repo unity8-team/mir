@@ -46,6 +46,7 @@ XMODE_SRCS=\
 	 modes/xf86cvt.c \
 	 modes/xf86Crtc.h \
 	 modes/xf86Crtc.c \
+	 modes/xf86Cursors.c \
 	 modes/xf86EdidModes.c \
 	 modes/xf86RandR12.c \
 	 modes/xf86RandR12.h \
