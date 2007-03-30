@@ -2247,7 +2247,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 	    /* If we have 2 screens from the config file, we don't need
 	     * to do clone thing, let each screen handles one head.
 	     */
-	    if (!pRADEONEnt->HasSecondary) {
+	    if (info->MergedFB) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Validating CRTC2 modes for MergedFB ------------ \n");
 
@@ -2273,7 +2273,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 
 
     if (pRADEONEnt->HasCRTC2) {
-	if(pRADEONEnt->Controller[1]->binding == 1) {
+	if(pRADEONEnt->Controller[1]->binding == 1 && info->MergedFB) {
 	    
 	    xf86SetCrtcForModes(info->CRT2pScrn, INTERLACE_HALVE_V);
 	    
