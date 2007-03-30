@@ -830,6 +830,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define PFIT_CONTROL	0x61230
 # define PFIT_ENABLE				(1 << 31)
+# define PFIT_PIPE_MASK				(3 << 29)
+# define PFIT_PIPE_SHIFT			29
 # define VERT_INTERP_DISABLE			(0 << 10)
 # define VERT_INTERP_BILINEAR			(1 << 10)
 # define VERT_INTERP_MASK			(3 << 10)
@@ -1146,6 +1148,63 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /** Selects pipe B for LVDS data.  Must be set on pre-965. */
 # define LVDS_PIPEB_SELECT		(1 << 30)
 
+/* on 965, dithering is enabled in this register, not PFIT_CONTROL */
+# define LVDS_DITHER_ENABLE		(1 << 25)
+
+/*
+ * Selects between .0 and .1 formats:
+ *
+ * 0 = 1x18.0, 2x18.0, 1x24.0 or 2x24.0
+ * 1 = 1x24.1 or 2x24.1
+ */
+# define LVDS_DATA_FORMAT_DOT_ONE	(1 << 24)
+
+/* Using LE instead of HS on second channel control signal */
+# define LVDS_LE_CONTROL_ENABLE		(1 << 23)
+
+/* Using LF instead of VS on second channel control signal */
+# define LVDS_LF_CONTROL_ENABLE		(1 << 22)
+
+/* invert vsync signal polarity */
+# define LVDS_VSYNC_POLARITY_INVERT	(1 << 21)
+
+/* invert hsync signal polarity */
+# define LVDS_HSYNC_POLARITY_INVERT	(1 << 20)
+
+/* invert display enable signal polarity */
+# define LVDS_DE_POLARITY_INVERT	(1 << 19)
+
+/*
+ * Control signals for second channel, ignored in single channel modes
+ */
+
+/* send DE, HS, VS on second channel */
+# define LVDS_SECOND_CHANNEL_DE_HS_VS	(0 << 17)
+
+# define LVDS_SECOND_CHANNEL_RESERVED	(1 << 17)
+
+/* Send zeros instead of DE, HS, VS on second channel */
+# define LVDS_SECOND_CHANNEL_ZEROS	(2 << 17)
+
+/* Set DE=0, HS=LE, VS=LF on second channel */
+# define LVDS_SECOND_CHANNEL_HS_VS	(3 << 17)
+
+/*
+ * Send duplicate data for channel reserved bits, otherwise send zeros
+ */
+# define LVDS_CHANNEL_DUP_RESERVED	(1 << 16)
+
+/*
+ * Enable border for unscaled (or aspect-scaled) display
+ */
+# define LVDS_BORDER_ENABLE		(1 << 15)
+
+/*
+ * Tri-state the LVDS buffers when powered down, otherwise
+ * they are set to 0V
+ */
+# define LVDS_POWER_DOWN_TRI_STATE	(1 << 10)
+
 /**
  * Enables the A0-A2 data pairs and CLKA, containing 18 bits of color data per
  * pixel.
@@ -1179,6 +1238,36 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define LVDS_B0B3_POWER_UP		(3 << 2)
 
 /** @} */
+
+/*
+ * Two channel clock control. Turn this on if you need clkb for two channel mode
+ * Overridden by global LVDS power sequencing
+ */
+
+/* clkb off */
+# define LVDS_CLKB_POWER_DOWN		(0 << 4)
+
+/* powered up, but clkb forced to 0 */
+# define LVDS_CLKB_POWER_PARTIAL	(1 << 4)
+
+/* clock B running */
+# define LVDS_CLKB_POWER_UP		(3 << 4)
+
+/*
+ * Two channel mode B0-B2 control. Sets state when power is on.
+ * Set to POWER_DOWN in single channel mode, other settings enable
+ * two channel mode. The CLKB power control controls whether that clock
+ * is enabled during two channel mode.
+ *
+ */
+/* Everything is off, including B3 and CLKB */
+# define LVDS_B_POWER_DOWN		(0 << 2)
+
+/* B0, B1, B2 and data lines forced to 0. timing is active */
+# define LVDS_B_POWER_PARTIAL		(1 << 2)
+
+/* data lines active (both timing and colour) */
+# define LVDS_B_POWER_UP		(3 << 2)
 
 /** @defgroup TV_CTL
  * @{

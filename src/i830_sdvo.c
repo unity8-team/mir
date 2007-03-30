@@ -711,16 +711,20 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     }
 
     /* Set the SDVO control regs. */
-    sdvox = INREG(dev_priv->output_device);
-    switch (dev_priv->output_device) {
-    case SDVOB:
-	sdvox &= SDVOB_PRESERVE_MASK;
-	break;
-    case SDVOC:
-	sdvox &= SDVOC_PRESERVE_MASK;
-	break;
+    if (IS_I965GM(pI830)) {
+	sdvox = SDVO_BORDER_ENABLE;
+    } else {
+	sdvox = INREG(dev_priv->output_device);
+	switch (dev_priv->output_device) {
+	case SDVOB:
+	    sdvox &= SDVOB_PRESERVE_MASK;
+	    break;
+	case SDVOC:
+	    sdvox &= SDVOC_PRESERVE_MASK;
+	    break;
+	}
+	sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
     }
-    sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
     if (intel_crtc->pipe == 1)
 	sdvox |= SDVO_PIPE_B_SELECT;
 
