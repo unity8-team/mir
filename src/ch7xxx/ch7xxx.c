@@ -74,11 +74,6 @@ struct ch7xxx_priv {
 
 static void ch7xxx_save(I2CDevPtr d);
 
-static CARD8 ch7xxxFreqRegs[][7] =
-  { { 0, 0x23, 0x08, 0x16, 0x30, 0x60, 0x00 },
-    { 0, 0x23, 0x04, 0x26, 0x30, 0x60, 0x00 },
-    { 0, 0x2D, 0x07, 0x26, 0x30, 0xE0, 0x00 } };
-
 static char *ch7xxx_get_id(int vid)
 {
     int i;
@@ -125,7 +120,6 @@ ch7xxx_init(I2CBusPtr b, I2CSlaveAddr addr)
     /* this will detect the CH7xxx chip on the specified i2c bus */
     struct ch7xxx_priv *dev_priv;
     CARD8 vendor, device;
-    unsigned char ch;
     char *name;
 
     dev_priv = xcalloc(1, sizeof(struct ch7xxx_priv));
@@ -183,7 +177,7 @@ static xf86OutputStatus
 ch7xxx_detect(I2CDevPtr d)
 {
     struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
-    CARD8 cdet, gpio, orig_pm, pm;
+    CARD8 cdet, orig_pm, pm;
 
     ch7xxx_read(dev_priv, CH7xxx_PM, &orig_pm);
 
