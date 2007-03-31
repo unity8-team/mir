@@ -59,6 +59,8 @@ struct ch7017_priv {
 
 static void
 ch7017_dump_regs(I2CDevPtr d);
+static void
+ch7017_dpms(I2CDevPtr d, int mode);
 
 static Bool
 ch7017_read(struct ch7017_priv *priv, int addr, CARD8 *val)
@@ -193,7 +195,7 @@ ch7017_mode_set(I2CDevPtr d, DisplayModePtr mode)
 
     lvds_power_down = (mode->HDisplay & 0x0f00) >> 8;
 
-    ch7017Power(d, FALSE);
+    ch7017_dpms(d, DPMSModeOff);
     ch7017_write(priv, CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT,
 		    horizontal_active_pixel_input);
     ch7017_write(priv, CH7017_HORIZONTAL_ACTIVE_PIXEL_OUTPUT,
@@ -210,7 +212,7 @@ ch7017_mode_set(I2CDevPtr d, DisplayModePtr mode)
 
     xf86DrvMsg(priv->d.pI2CBus->scrnIndex, X_INFO,
 	       "Registers after mode setting\n");
-    ch7017PrintRegs(d);
+    ch7017_dump_regs(d);
 }
 
 /* set the CH7017 power state */
@@ -279,7 +281,7 @@ ch7017_restore(I2CDevPtr d)
     struct ch7017_priv *priv = d->DriverPrivate.ptr;
 
     /* Power down before changing mode */
-    ch7017Power(d, FALSE);
+    ch7017_dpms(d, DPMSModeOff);
 
     ch7017_write(priv, CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT, priv->save_hapi);
     ch7017_write(priv, CH7017_VERTICAL_ACTIVE_LINE_OUTPUT, priv->save_valo);
