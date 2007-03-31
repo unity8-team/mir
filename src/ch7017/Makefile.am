@@ -5,6 +5,8 @@
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 AM_CFLAGS = @XMODES_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ -I$(srcdir)/.. -I$(srcdir)/../modes
 
+AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ @XMODES_CFLAGS@
+
 ch7017_la_LTLIBRARIES = ch7017.la
 ch7017_la_LDFLAGS = -module -avoid-version
 ch7017_ladir = @moduledir@/drivers
