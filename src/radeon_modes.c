@@ -86,10 +86,16 @@ static void RADEONSortModes(DisplayModePtr *new, DisplayModePtr *first,
 
     p = *last;
     while (p) {
-	if ((((*new)->HDisplay < p->HDisplay) &&
+	if (((*new)->HDisplay < p->HDisplay) ||
+	    (((*new)->HDisplay == p->HDisplay) &&
 	     ((*new)->VDisplay < p->VDisplay)) ||
 	    (((*new)->HDisplay == p->HDisplay) &&
 	     ((*new)->VDisplay == p->VDisplay) &&
+	     ((*new)->type < p->type) && 
+	     !(((*new)->type == M_T_USERDEF) || (!(*new)->type))) ||
+	    (((*new)->HDisplay == p->HDisplay) &&
+	     ((*new)->VDisplay == p->VDisplay) &&
+	     ((*new)->type == p->type) && 
 	     ((*new)->Clock < p->Clock))) {
 
 	    if (p->next) p->next->prev = *new;
@@ -181,9 +187,8 @@ static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 #ifdef M_T_PREFERRED
 	    if (PREFERRED_TIMING_MODE(ddc->features.msc))
 	      new->type     = M_T_PREFERRED;
-	    else
 #endif
-	      new->type     = M_T_DEFAULT;
+	      new->type     |= M_T_DRIVER;
 
 	    if (d_timings->sync == 3) {
 		switch (d_timings->misc) {
@@ -207,8 +212,10 @@ static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
     for (j = 0; j < 8; j++) {
         if (ddc->timings2[j].hsize == 0 || ddc->timings2[j].vsize == 0)
                continue;
-	for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
+	for (p = pScrn->monitor->Modes; p && p->next; p = p->next) {
 	    /* Ignore all double scan modes */
+	    if (p->Flags & V_DBLSCAN)
+		continue;
 	    if ((ddc->timings2[j].hsize == p->HDisplay) &&
 		(ddc->timings2[j].vsize == p->VDisplay)) {
 		float  refresh =
@@ -221,7 +228,8 @@ static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 		    new->name = xnfalloc(strlen(p->name) + 1);
 		    strcpy(new->name, p->name);
 		    new->status = MODE_OK;
-		    new->type   = M_T_DEFAULT;
+		    if ((new->type != M_T_USERDEF) && (new->type))
+		    	new->type   = M_T_DEFAULT;
 
 		    count++;
 
@@ -240,7 +248,10 @@ static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
     tmp = (ddc->timings1.t1 << 8) | ddc->timings1.t2;
     for (j = 0; j < 16; j++) {
 	if (tmp & (1 << j)) {
-	    for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
+	    for (p = pScrn->monitor->Modes; p && p->next; p = p->next) {
+		/* Ignore all double scan modes */
+		if (p->Flags & V_DBLSCAN)
+		    continue;
 		if ((est_timings[j].hsize == p->HDisplay) &&
 		    (est_timings[j].vsize == p->VDisplay)) {
 		    float  refresh =
@@ -253,7 +264,8 @@ static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 			new->name = xnfalloc(strlen(p->name) + 1);
 			strcpy(new->name, p->name);
 			new->status = MODE_OK;
-			new->type   = M_T_DEFAULT;
+		    	if ((new->type != M_T_USERDEF) && (new->type))
+		    	    new->type   = M_T_DEFAULT;
 
 			count++;
 
