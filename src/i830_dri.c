@@ -701,9 +701,8 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	 pI830->drmMinor = version->version_minor;
 	 if (version->version_minor < 7) {
 	    if (pI830->mmModeFlags & I830_KERNEL_MM) {
-	       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			  "DRM version %d.%d older than required 1.7 for "
-			  "DRM memory manager.  Disabling.\n",
+	       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			  "Unable to use TTM-based memory manager with DRM version %d.%d\n",
 			  version->version_major, version->version_minor);
 	       pI830->mmModeFlags &= ~I830_KERNEL_MM;
 
