@@ -675,7 +675,7 @@ int RADEONValidateMergeModes(ScrnInfoPtr pScrn1)
      * 'stretched' from their native mode.
      */
     if (info->MergeType == MT_CRT && !info->ddc_mode) {
- 
+	xf86SetDDCproperties(pScrn, pScrn->monitor->DDC); 
 	modesFound =
 	    xf86ValidateModes(pScrn,
 			      pScrn->monitor->Modes,

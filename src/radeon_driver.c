@@ -2125,7 +2125,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
      * 'stretched' from their native mode.
      */
     if (info->DisplayType == MT_CRT && !info->ddc_mode) {
-
+	xf86SetDDCproperties(pScrn, pScrn->monitor->DDC);
 	modesFound =
 	    xf86ValidateModes(pScrn,
 			      pScrn->monitor->Modes,
