@@ -175,6 +175,10 @@ Choose acceleration architecture, either "XAA" or "EXA".  XAA is the old
 (but stable) XFree86 based acceleration architecture.  EXA is a newer and
 simpler acceleration architecture designed to better accelerate the X Render
 extension.  Default: "XAA".
+.TP
+.BI "Option \*qModeDebug\*q \*q" boolean \*q
+Enable printing of additional debugging information about modesetting to
+the server log.
 
 .PP
 The 830M and newer driver supports RandR 1.2, exposing the VGA, LVDS

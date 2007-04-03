@@ -1312,20 +1312,28 @@ i830_tv_detect_type (xf86CrtcPtr    crtc,
      *  0 0 0 Component
      */
     if ((tv_dac & TVDAC_SENSE_MASK) == (TVDAC_B_SENSE | TVDAC_C_SENSE)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Detected Composite TV connection\n");
+	if (pI830->debug_modes) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Detected Composite TV connection\n");
+	}
 	type = TV_TYPE_COMPOSITE;
     } else if ((tv_dac & (TVDAC_A_SENSE|TVDAC_B_SENSE)) == TVDAC_A_SENSE) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Detected S-Video TV connection\n");
+	if (pI830->debug_modes) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Detected S-Video TV connection\n");
+	}
 	type = TV_TYPE_SVIDEO;
     } else if ((tv_dac & TVDAC_SENSE_MASK) == 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Detected Component TV connection\n");
+	if (pI830->debug_modes) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Detected Component TV connection\n");
+	}
 	type = TV_TYPE_COMPONENT;
     } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"No TV connection detected\n");
+	if (pI830->debug_modes) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "No TV connection detected\n");
+	}
 	type = TV_TYPE_NONE;
     }
 

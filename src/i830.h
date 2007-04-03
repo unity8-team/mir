@@ -527,6 +527,9 @@ typedef struct _I830Rec {
    CARD32 saveBLC_PWM_CTL;
 
    enum last_3d last_3d;
+
+   /** Enables logging of debug output related to mode switching. */
+   Bool debug_modes;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))

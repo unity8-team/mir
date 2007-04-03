@@ -229,9 +229,11 @@ i830_bios_get_panel_mode(ScrnInfoPtr pScrn)
 
 	    xf86SetModeDefaultName(fixed_mode);
 
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Found panel mode in BIOS VBT tables:\n");
-	    xf86PrintModeline(pScrn->scrnIndex, fixed_mode);
+	    if (pI830->debug_modes) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Found panel mode in BIOS VBT tables:\n");
+		xf86PrintModeline(pScrn->scrnIndex, fixed_mode);
+	    }
 
 	    xfree(bios);
 	    return fixed_mode;

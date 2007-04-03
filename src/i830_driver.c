@@ -275,6 +275,7 @@ typedef enum {
    OPTION_COLOR_KEY,
    OPTION_CHECKDEVICES,
    OPTION_LINEARALLOC,
+   OPTION_MODEDEBUG,
 #ifdef XF86DRI_MM
    OPTION_INTELTEXPOOL,
    OPTION_INTELMMSIZE,
@@ -296,6 +297,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_LINEARALLOC, "LinearAlloc",  OPTV_INTEGER,   {0},    FALSE},
+   {OPTION_MODEDEBUG,	"ModeDebug",	OPTV_BOOLEAN,	{0},	FALSE},
 #ifdef XF86DRI_MM
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_INTELMMSIZE, "AperTexSize",  OPTV_INTEGER,	{0},	FALSE},
@@ -975,6 +977,12 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    memcpy(pI830->Options, I830Options, sizeof(I830Options));
    xf86ProcessOptions(pScrn->scrnIndex, pScrn->options, pI830->Options);
 
+   if (xf86ReturnOptValBool(pI830->Options, OPTION_MODEDEBUG, FALSE)) {
+      pI830->debug_modes = TRUE;
+   } else {
+      pI830->debug_modes = FALSE;
+   }
+
    /* We have to use PIO to probe, because we haven't mapped yet. */
    I830SetPIOAccess(pI830);
 
@@ -1133,8 +1141,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* Some of the probing needs MMIO access, so map it here. */
    I830MapMMIO(pScrn);
 
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Hardware state on X startup:\n");
-   i830DumpRegs (pScrn);
+   if (pI830->debug_modes) {
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Hardware state on X startup:\n");
+      i830DumpRegs (pScrn);
+   }
 
    i830TakeRegSnapshot(pScrn);
 
@@ -2800,8 +2810,10 @@ I830LeaveVT(int scrnIndex, int flags)
 
    RestoreHWState(pScrn);
 
-   i830CompareRegsToSnapshot(pScrn, "After LeaveVT");
-   i830DumpRegs (pScrn);
+   if (pI830->debug_modes) {
+      i830CompareRegsToSnapshot(pScrn, "After LeaveVT");
+      i830DumpRegs (pScrn);
+   }
 
    if (I830IsPrimary(pScrn))
       i830_unbind_all_memory(pScrn);
@@ -2850,7 +2862,10 @@ I830EnterVT(int scrnIndex, int flags)
    if (!xf86SetDesiredModes (pScrn))
       return FALSE;
    
-   i830DumpRegs (pScrn);
+   if (pI830->debug_modes) {
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Hardware state at EnterVT:\n");
+      i830DumpRegs (pScrn);
+   }
    i830DescribeOutputConfiguration(pScrn);
 
    ResetState(pScrn, TRUE);

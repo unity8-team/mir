@@ -473,7 +473,9 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     bios_mode = i830_bios_get_panel_mode(pScrn);
     if (bios_mode != NULL) {
 	if (pI830->panel_fixed_mode != NULL) {
-	    if (!xf86ModesEqual(pI830->panel_fixed_mode, bios_mode)) {
+	    if (pI830->debug_modes &&
+		!xf86ModesEqual(pI830->panel_fixed_mode, bios_mode))
+	    {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "BIOS panel mode data doesn't match probed data, "
 			   "continuing with probed.\n");
