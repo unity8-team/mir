@@ -1,6 +1,6 @@
 Information for Intel graphics driver users
 Eric Anholt
-2006-04-02
+2007-04-02
 
 This document provides a brief summary of the Intel graphics support provided
 by the xf86-video-intel driver.  More information can also be found in the
