@@ -581,8 +581,10 @@ RADEONRecalcDefaultVirtualSize(ScrnInfoPtr pScrn)
   	               info->CRT1XOffs = info->CRT2XOffs = 0;
   	               maxh -= (info->CRT1XOffs + info->CRT2XOffs);
   	}
-  	pScrn->virtualX = maxh;
-  	pScrn->displayWidth = maxh;
+	if (maxh > pScrn->virtualX)
+	    pScrn->virtualX = maxh;
+	if (maxh > pScrn->displayWidth)
+	    pScrn->displayWidth = maxh;
   	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, str, "width", maxh);
     } else {
   	if(maxh < pScrn->display->virtualX) {
@@ -592,7 +594,8 @@ RADEONRecalcDefaultVirtualSize(ScrnInfoPtr pScrn)
     }
 
     if(!(pScrn->display->virtualY)) {
-        pScrn->virtualY = maxv;
+	if (maxv > pScrn->virtualY)
+	    pScrn->virtualY = maxv;
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, str, "height", maxv);
     } else {
 	if(maxv < pScrn->display->virtualY) {
