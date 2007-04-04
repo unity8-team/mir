@@ -1,5 +1,5 @@
 #!/usr/bin/make -f
-# debian/rules for the Debian xserver-xorg-driver-intel package.
+# debian/rules for the Debian xserver-xorg-driver-i810 package.
 # Copyright © 2004 Scott James Remnant <scott@netsplit.com>
 # Copyright © 2005 Daniel Stone <daniel@fooishbar.org>
 # Copyright © 2005 David Nusinow <dnusinow@debian.org>
@@ -31,20 +31,21 @@ endif
 # kbd_drv.a isn't phenomenally useful; kbd_drv.so more so
 confflags += --disable-static
 
-build: build-stamp
+build: patch build-stamp
 build-stamp:
 	dh_testdir
 
-	mkdir obj-$(DEB_BUILD_GNU_TYPE)
+	test -d obj-$(DEB_BUILD_GNU_TYPE) || mkdir obj-$(DEB_BUILD_GNU_TYPE)
 	cd obj-$(DEB_BUILD_GNU_TYPE) && \
 	../configure --prefix=/usr --mandir=\$${prefix}/share/man \
+	             --with-xserver-source=/ \
 	             --infodir=\$${prefix}/share/info $(confflags) \
 	             CFLAGS="$(CFLAGS)" 
 	cd obj-$(DEB_BUILD_GNU_TYPE) && $(MAKE)
 
 	touch build-stamp
 
-clean:
+clean: xsfclean
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp
@@ -66,19 +67,21 @@ install: build
 	cd obj-$(DEB_BUILD_GNU_TYPE) && $(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
 
 # Build architecture-dependent files here.
-binary-arch: build install
+binary-arch: build install serverabi
 	dh_testdir
 	dh_testroot
 
 	dh_installdocs
 	dh_installchangelogs
-	dh_install --sourcedir=debian/tmp
+	dh_install --sourcedir=debian/tmp --list-missing --exclude=.la --exclude=usr/share/man/man4
+	dh_installman
 	dh_link
 	dh_strip
 	dh_compress
 	dh_fixperms
-	dh_installdeb
+	dh_makeshlibs
 	dh_shlibdeps
+	dh_installdeb
 	dh_gencontrol
 	dh_md5sums
 	dh_builddeb

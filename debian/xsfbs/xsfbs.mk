@@ -1,5 +1,5 @@
 #!/usr/bin/make -f
-# $Id: rules 593 2005-09-03 20:48:30Z dnusinow $
+# $Id$
 
 # Debian rules file for xorg-x11 source package
 
@@ -137,6 +137,10 @@ $(STAMP_DIR)/prepare: $(STAMP_DIR)/stampdir
 stampdir_targets+=patch
 patch: $(STAMP_DIR)/patch
 $(STAMP_DIR)/patch: $(STAMP_DIR)/prepare
+	if ! [ `which quilt` ]; then \
+		echo "Couldn't find quilt. Please install it or add it to the build-depends for this package."; \
+		exit 1; \
+	fi; \
 	if quilt next; then \
 	  echo -n "Applying patches..."; \
 	  if quilt push -a -v >$(STAMP_DIR)/log/patch 2>&1; then \
@@ -349,6 +353,27 @@ $(STAMP_DIR)/genscripts: $(STAMP_DIR)/stampdir
 # Generate the shlibs.local file.
 debian/shlibs.local:
 	cat debian/*.shlibs >$@
+
+SERVERMINVERS = $(shell cat /usr/share/xserver-xorg/serverminver 2>/dev/null)
+VIDEOABI = $(shell cat /usr/share/xserver-xorg/videoabiver 2>/dev/null)
+INPUTABI = $(shell cat /usr/share/xserver-xorg/inputabiver 2>/dev/null)
+SERVER_DEPENDS = xserver-xorg-core (>= $(SERVERMINVERS))
+VIDDRIVER_PROVIDES = xserver-xorg-video-$(VIDEOABI)
+INPDRIVER_PROVIDES = xserver-xorg-input-$(INPUTABI)
+ifeq ($(PACKAGE),)
+PACKAGE=$(shell awk '/^Package:/ { print $$2; exit }' < debian/control)
+endif
+
+.PHONY: serverabi
+serverabi:
+ifeq ($(SERVERMINVERS),)
+	@echo error: xserver-xorg-dev needs to be installed
+	@exit 1
+else
+	echo "xserver:Depends=$(SERVER_DEPENDS)" >> debian/$(PACKAGE).substvars
+	echo "xviddriver:Provides=$(VIDDRIVER_PROVIDES)" >> debian/$(PACKAGE).substvars
+	echo "xinpdriver:Provides=$(INPDRIVER_PROVIDES)" >> debian/$(PACKAGE).substvars
+endif
 
 include debian/xsfbs/xsfbs-autoreconf.mk
 

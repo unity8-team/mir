@@ -3,14 +3,14 @@
 #define I2C_VID_H
 
 typedef struct _I830I2CVidOutputRec {
-  void *(*Detect)(I2CBusPtr b, I2CSlaveAddr addr);
-  Bool (*Init)(I2CDevPtr d);
-  ModeStatus (*ModeValid)(I2CDevPtr d, DisplayModePtr mode);
-  void (*Mode)(I2CDevPtr d, DisplayModePtr mode);
-  void (*Power)(I2CDevPtr d, Bool On);
-  void (*PrintRegs)(I2CDevPtr d);
-  void (*SaveRegs)(I2CDevPtr d);
-  void (*RestoreRegs)(I2CDevPtr d);
+    void *(*init)(I2CBusPtr b, I2CSlaveAddr addr);
+    xf86OutputStatus (*detect)(I2CDevPtr d);
+    ModeStatus (*mode_valid)(I2CDevPtr d, DisplayModePtr mode);
+    void (*mode_set)(I2CDevPtr d, DisplayModePtr mode);
+    void (*dpms)(I2CDevPtr d, int mode);
+    void (*dump_regs)(I2CDevPtr d);
+    void (*save)(I2CDevPtr d);
+    void (*restore)(I2CDevPtr d);
 } I830I2CVidOutputRec, *I830I2CVidOutputPtr;
 
 #endif

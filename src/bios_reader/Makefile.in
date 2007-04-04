@@ -36,17 +36,24 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-noinst_PROGRAMS = bios_reader$(EXEEXT)
+noinst_PROGRAMS = bios_reader$(EXEEXT) $(am__EXEEXT_1)
 subdir = src/bios_reader
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
-mkinstalldirs = $(install_sh) -d
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
+@HAVE_PCIACCESS_TRUE@am__EXEEXT_1 = bios_dumper$(EXEEXT)
 PROGRAMS = $(noinst_PROGRAMS)
+am__bios_dumper_SOURCES_DIST = bios_dumper.c
+@HAVE_PCIACCESS_TRUE@am_bios_dumper_OBJECTS =  \
+@HAVE_PCIACCESS_TRUE@	bios_dumper-bios_dumper.$(OBJEXT)
+bios_dumper_OBJECTS = $(am_bios_dumper_OBJECTS)
+am__DEPENDENCIES_1 =
+@HAVE_PCIACCESS_TRUE@bios_dumper_DEPENDENCIES = $(am__DEPENDENCIES_1)
 bios_reader_SOURCES = bios_reader.c
 bios_reader_OBJECTS = bios_reader.$(OBJEXT)
 bios_reader_LDADD = $(LDADD)
@@ -61,8 +68,8 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = bios_reader.c
-DIST_SOURCES = bios_reader.c
+SOURCES = $(bios_dumper_SOURCES) bios_reader.c
+DIST_SOURCES = $(am__bios_dumper_SOURCES_DIST) bios_reader.c
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -101,6 +108,8 @@ DRIVER_NAME = @DRIVER_NAME@
 DRI_CFLAGS = @DRI_CFLAGS@
 DRI_FALSE = @DRI_FALSE@
 DRI_LIBS = @DRI_LIBS@
+DRI_MM_CFLAGS = @DRI_MM_CFLAGS@
+DRI_MM_LIBS = @DRI_MM_LIBS@
 DRI_TRUE = @DRI_TRUE@
 ECHO = @ECHO@
 ECHO_C = @ECHO_C@
@@ -113,6 +122,10 @@ FFLAGS = @FFLAGS@
 FILE_MAN_DIR = @FILE_MAN_DIR@
 FILE_MAN_SUFFIX = @FILE_MAN_SUFFIX@
 GREP = @GREP@
+HAVE_GEN4ASM_FALSE = @HAVE_GEN4ASM_FALSE@
+HAVE_GEN4ASM_TRUE = @HAVE_GEN4ASM_TRUE@
+HAVE_PCIACCESS_FALSE = @HAVE_PCIACCESS_FALSE@
+HAVE_PCIACCESS_TRUE = @HAVE_PCIACCESS_TRUE@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
@@ -144,6 +157,8 @@ PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PCIACCESS_CFLAGS = @PCIACCESS_CFLAGS@
+PCIACCESS_LIBS = @PCIACCESS_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
 PS2PDF = @PS2PDF@
 RANLIB = @RANLIB@
@@ -151,6 +166,12 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
+VIDEO_DEBUG_FALSE = @VIDEO_DEBUG_FALSE@
+VIDEO_DEBUG_TRUE = @VIDEO_DEBUG_TRUE@
+WARN_CFLAGS = @WARN_CFLAGS@
+XMODES_CFLAGS = @XMODES_CFLAGS@
+XMODES_FALSE = @XMODES_FALSE@
+XMODES_TRUE = @XMODES_TRUE@
 XORG_CFLAGS = @XORG_CFLAGS@
 XORG_LIBS = @XORG_LIBS@
 ac_ct_CC = @ac_ct_CC@
@@ -176,6 +197,7 @@ datarootdir = @datarootdir@
 docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
+gen4asm = @gen4asm@
 host = @host@
 host_alias = @host_alias@
 host_cpu = @host_cpu@
@@ -201,7 +223,11 @@ sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
-AM_CFLAGS = @XORG_CFLAGS@
+AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @XMODES_CFLAGS@
+@HAVE_PCIACCESS_TRUE@BIOS_DUMPER = bios_dumper
+@HAVE_PCIACCESS_TRUE@bios_dumper_SOURCES = bios_dumper.c
+@HAVE_PCIACCESS_TRUE@bios_dumper_CFLAGS = $(PCIACCESS_CFLAGS)
+@HAVE_PCIACCESS_TRUE@bios_dumper_LDADD = $(PCIACCESS_LIBS)
 all: all-am
 
 .SUFFIXES:
@@ -242,6 +268,9 @@ clean-noinstPROGRAMS:
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
+bios_dumper$(EXEEXT): $(bios_dumper_OBJECTS) $(bios_dumper_DEPENDENCIES) 
+	@rm -f bios_dumper$(EXEEXT)
+	$(LINK) $(bios_dumper_LDFLAGS) $(bios_dumper_OBJECTS) $(bios_dumper_LDADD) $(LIBS)
 bios_reader$(EXEEXT): $(bios_reader_OBJECTS) $(bios_reader_DEPENDENCIES) 
 	@rm -f bios_reader$(EXEEXT)
 	$(LINK) $(bios_reader_LDFLAGS) $(bios_reader_OBJECTS) $(bios_reader_LDADD) $(LIBS)
@@ -252,6 +281,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bios_dumper-bios_dumper.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bios_reader.Po@am__quote@
 
 .c.o:
@@ -274,6 +304,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
+
+bios_dumper-bios_dumper.o: bios_dumper.c
+@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(bios_dumper_CFLAGS) $(CFLAGS) -MT bios_dumper-bios_dumper.o -MD -MP -MF "$(DEPDIR)/bios_dumper-bios_dumper.Tpo" -c -o bios_dumper-bios_dumper.o `test -f 'bios_dumper.c' || echo '$(srcdir)/'`bios_dumper.c; \
+@am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/bios_dumper-bios_dumper.Tpo" "$(DEPDIR)/bios_dumper-bios_dumper.Po"; else rm -f "$(DEPDIR)/bios_dumper-bios_dumper.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='bios_dumper.c' object='bios_dumper-bios_dumper.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(bios_dumper_CFLAGS) $(CFLAGS) -c -o bios_dumper-bios_dumper.o `test -f 'bios_dumper.c' || echo '$(srcdir)/'`bios_dumper.c
+
+bios_dumper-bios_dumper.obj: bios_dumper.c
+@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(bios_dumper_CFLAGS) $(CFLAGS) -MT bios_dumper-bios_dumper.obj -MD -MP -MF "$(DEPDIR)/bios_dumper-bios_dumper.Tpo" -c -o bios_dumper-bios_dumper.obj `if test -f 'bios_dumper.c'; then $(CYGPATH_W) 'bios_dumper.c'; else $(CYGPATH_W) '$(srcdir)/bios_dumper.c'; fi`; \
+@am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/bios_dumper-bios_dumper.Tpo" "$(DEPDIR)/bios_dumper-bios_dumper.Po"; else rm -f "$(DEPDIR)/bios_dumper-bios_dumper.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='bios_dumper.c' object='bios_dumper-bios_dumper.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(bios_dumper_CFLAGS) $(CFLAGS) -c -o bios_dumper-bios_dumper.obj `if test -f 'bios_dumper.c'; then $(CYGPATH_W) 'bios_dumper.c'; else $(CYGPATH_W) '$(srcdir)/bios_dumper.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo

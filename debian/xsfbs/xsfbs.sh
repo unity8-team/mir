@@ -1,4 +1,16 @@
-# $Id: shell-lib.sh 586 2005-09-03 18:37:47Z branden $
+# $Id$
+
+# This is the X Strike Force shell library for X Window System package
+# maintainer scripts.  It serves to define shell functions commonly used by
+# such packages, and performs some error checking necessary for proper operation
+# of those functions.  By itself, it does not "do" much; the maintainer scripts
+# invoke the functions defined here to accomplish package installation and
+# removal tasks.
+
+# If you are reading this within a Debian package maintainer script (e.g.,
+# /var/lib/dpkg)info/PACKAGE.{config,preinst,postinst,prerm,postrm}), you can
+# skip past this library by scanning forward in this file to the string
+# "GOBSTOPPER".
 
 SOURCE_VERSION=@SOURCE_VERSION@
 OFFICIAL_BUILD=@OFFICIAL_BUILD@
@@ -43,6 +55,29 @@ the same name to file a report against version $SOURCE_VERSION of the
 "$THIS_PACKAGE" package.
 EOF
   exit $SHELL_LIB_USAGE_ERROR
+fi
+
+ARCHITECTURE="$(dpkg --print-installation-architecture)"
+
+LAPTOP=""
+if [ -n "$(which laptop-detect)" ]; then
+    if laptop-detect >/dev/null; then
+	LAPTOP=true
+    fi
+fi
+
+if [ "$1" = "reconfigure" ] || [ -n "$DEBCONF_RECONFIGURE" ]; then
+  RECONFIGURE="true"
+else
+  RECONFIGURE=
+fi
+
+if ([ "$1" = "install" ] || [ "$1" = "configure" ]) && [ -z "$2" ]; then
+  FIRSTINST="yes"
+fi
+
+if [ -z "$RECONFIGURE" ] && [ -z "$FIRSTINST" ]; then
+  UPGRADE="yes"
 fi
 
 trap "message;\
@@ -178,6 +213,10 @@ maplink () {
   # returns what symlink should point to; i.e., what the "sane" answer is
   # Keep this in sync with the debian/*.links files.
   # This is only needed for symlinks to directories.
+  #
+  # XXX: Most of these look wrong in the X11R7 world and need to be fixed.
+  # If we've stopped using this function, fixing it might enable us to re-enable
+  # it again and catch more errors.
   case "$1" in
     /etc/X11/xkb/compiled) echo /var/lib/xkb ;;
     /etc/X11/xkb/xkbcomp) echo /usr/X11R6/bin/xkbcomp ;;
@@ -238,7 +277,7 @@ find_culprits () {
       _possible_culprits=$(ls -1 $_dpkg_info_dir/*.list | egrep -v \
         "(xbase-clients|x11-common|xfs|xlibs)")
       if [ -n "$_possible_culprits" ]; then
-        _smoking_guns=$(grep -l "$1" $_possible_culprits)
+        _smoking_guns=$(grep -l "$1" $_possible_culprits || true)
         if [ -n "$_smoking_guns" ]; then
           _bad_packages=$(printf "\\n")
           for f in $_smoking_guns; do
@@ -863,4 +902,6 @@ migrate_dir_to_symlink () {
   make_symlink_sane "$_old" "$_new"
 }
 
-# vim:set ai et sts=2 sw=2 tw=80:
+# vim:set ai et sw=2 ts=2 tw=80:
+
+# GOBSTOPPER: The X Strike Force shell library ends here.

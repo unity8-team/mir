@@ -1,25 +1,38 @@
 Source: xserver-xorg-video-intel
 Section: x11
 Priority: optional
-Maintainer: Debian X Strike Force <debian-x@lists.debian.org>
-Uploaders: David Nusinow <dnusinow@debian.org>, Branden Robinson <branden@debian.org>, Fabio M. Di Nitto <fabbione@fabbione.net>
-Build-Depends: debhelper (>= 4.0.0), pkg-config, xserver-xorg-dev (>= 1:1.1.1-0ubuntu7), x11proto-gl-dev, x11proto-video-dev, libgl1-mesa-dev (>= 6.5.0.git.20060810-0ubuntu1), libxvmc-dev (>= 1:1.0.1-1), x11proto-core-dev, x11proto-fonts-dev, x11proto-randr-dev, x11proto-render-dev, libdrm-dev (>= 2.0.2+git20060809-0ubuntu1), x11proto-xf86dri-dev, x11proto-xinerama-dev
-Standards-Version: 3.6.1.0
+Maintainer: Ubuntu Core Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Debian X Strike Force <debian-x@lists.debian.org>
+Uploaders: David Nusinow <dnusinow@debian.org>, Branden Robinson <branden@debian.org>, Fabio M. Di Nitto <fabbione@fabbione.net>, Drew Parsons <dparsons@debian.org>
+Build-Depends: debhelper (>= 5), quilt, pkg-config, xserver-xorg-dev (>= 2:1.2), x11proto-gl-dev, x11proto-video-dev, libgl1-mesa-dev | libgl-dev, libxvmc-dev (>= 1:1.0.1-1), x11proto-core-dev, x11proto-fonts-dev, x11proto-randr-dev (>= 1.2), x11proto-render-dev, x11proto-xinerama-dev, libdrm-dev (>= 2.2) [!hurd-i386], x11proto-xf86dri-dev
+Standards-Version: 3.7.2
+XS-Vcs-Git: git://anongit.freedesktop.org/git/xorg/driver/xf86-video-intel
 
 Package: xserver-xorg-video-intel
-Architecture: alpha amd64 arm hppa hurd-i386 i386 ia64 kfreebsd-i386 m68k mips mipsel netbsd-i386 powerpc
-Depends: ${shlibs:Depends}, ${misc:Depends}, xserver-xorg-core (>= 1:1.1.1-0ubuntu7), xserver-xorg-video-i810
-Provides: xserver-xorg-video
-Replaces: xserver-xorg (<< 6.8.2-35)
+Architecture: alpha amd64 arm armeb armel hppa hurd-i386 i386 ia64 kfreebsd-i386 m68k mips mipsel netbsd-i386 powerpc
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${xserver:Depends}
+Provides: ${xviddriver:Provides}
+Replaces: xserver-xorg (<< 6.8.2-35), xserver-xorg-video-i810 (<< 2:1.9.91-1), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810
+Conflicts: xserver-xorg-video-i810 (<< 2:1.9.91-1), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810
 Description: X.Org X server -- Intel i8xx, i9xx display driver
- This package provides an alternative driver for the Intel i8xx and i9xx 
- family of chipsets, including i810, i815, i830, i845, i855, i865, i915, 
- and i945 series chips.
+ This package provides the driver for the Intel i8xx and i9xx family
+ of chipsets, including i810, i815, i830, i845, i855, i865, i915, and
+ i945 series chips.
  .
  This package also provides an XvMC (XVideo Motion Compensation) driver
  for the same chipsets.
  .
  More information about X.Org can be found at:
+ <URL:http://www.X.org>
  <URL:http://xorg.freedesktop.org>
  <URL:http://lists.freedesktop.org/mailman/listinfo/xorg>
  .
+ This package is built from the X.org xf86-video-intel driver module.
+
+Package: xserver-xorg-video-i810
+Architecture: all
+Section: oldlibs
+Depends: xserver-xorg-video-intel
+Description: X.Org X server -- Intel i8xx, i9xx display driver
+ This is a transitional package providing the Xorg video driver for the
+ Intel i8xx and i9xx family of chipsets, and can be safely removed.

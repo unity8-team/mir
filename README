@@ -1,166 +1,103 @@
-  $XFree86:
-  xc/programs/Xserver/hw/xfree86/doc/sgml/i810.sgml,v 1.4
-  2001/04/04 01:34:18 dawes Exp $ Information for i810 Users
-  Precision Insight, Inc.
-  3 March 2000
-  ____________________________________________________________
-
-  Table of Contents
-
-
-  1. Introduction
-  2. Supported Hardware
-  3. Features
-  4. Technical Notes
-  5. Reported Working Video Cards
-  6. Configuration
-  7. Driver Options
-  8. Known Limitations
-  9. Author
-
-
-  ______________________________________________________________________
-
-  [1m1.  Introduction[0m
-
-  This document provides a brief summary of the i810/i815 support
-  provided by the i810 driver.  Support for later chipsets is not
-  covered here.  More up to date information about the i810 driver can
-  be found in the i810(4) manual page.
-
-
-  [1m2.  Supported Hardware[0m
-
-
-  +o  Intel 810 motherboards:
-
-     +o  i810,
-
-     +o  i810-dc100,
-
-     +o  i810e
-
-     +o  i815
-
-
-
-  [1m3.  Features[0m
-
-
-  +o  Full support for 8, 15, 16, and 24 bit pixel depths.
-
-  +o  Hardware cursor support to reduce sprite flicker.
-
-  +o  Hardware accelerated 2D drawing engine support for 8, 15, 16 and 24
-     bit pixel depths.
-
-  +o  Support for high resolution video modes up to 1600x1200.
-
-  +o  Fully programmable clock supported.
-
-  +o  Robust text mode restore for VT switching.
-
-
-
-  [1m4.  Technical Notes[0m
-
-
-  +o  Hardware acceleration is not possible when using the framebuffer in
-     32 bit per pixel format, and this mode is not supported by this
-     driver.
-
-  +o  Interlace modes cannot be supported.
-
-  +o  This driver currently only works for Linux/ix86 and recent versions
-     of FreeBSD.  It requires the agpgart kernel support, which is
-     included in Linux kernels 2.3.42 and higher, and FreeBSD 4.1 and
-     higher.
-
-
-
-  [1m5.  Reported Working Video Cards[0m
-
-
-  +o  Intel evaluation hardware - i810, i810-dc100, i810e and i815.
-
-  +o  Tyan Tomcat Motherboard.
-
-  +o  HappyPC set-top box.
-
-
-
-  [1m6.  Configuration[0m
-
-  The driver auto-detects all device information necessary to initialize
-  the card.  The only lines you need in the "Device" section of your
-  xorg.conf file are:
-
-         Section "Device"
-             Identifier "Intel i810"
-             Driver     "i810"
-         EndSection
-
-
-  or let xorgconfig do this for you.
-
-  However, if you have problems with auto-detection, you can specify:
-
-  +o  DacSpeed - in MHz
-
-  +o  MemBase  - physical address of the linear framebuffer
-
-  +o  IOBase   - physical address of the memory mapped IO registers
-
-  In order to use most resolutions, it is necessary to install the (see
-  the notes in the module).
-
-  Note: the i810 driver detects whether your motherboard has display
-  cache video memory.  This memory is has reduced bandwidth compared to
-  normal system memory, and isn't used by the server.  The main function
-  of this memory is for ancillary buffers (eg. z buffer) in a
-  forthcoming 3d capable server.
-
-
-
-  [1m7.  Driver Options[0m
-
-
-  +o  "NoAccel"  - Turn off hardware acceleration
-
-
-  +o  "SWCursor" - Request a software cursor (hardware is default)
-
-  +o  "Dac6Bit"  - Force the use of a 6 Bit Dac (8 Bit is the default)
-
-
-  [1m8.  Known Limitations[0m
-
-
-  +o  No 3D support in this release.
-
-  +o  Running two X servers on different VTs is not supported at this
-     time.
-
-
-
-  [1m9.  Author[0m
-
-
-  +o  Keith Whitwell
-
-  The X11R6.8 version of this driver originally came from XFree86 4.4
-  rc2.
-
-  The XFree86 version of this driver was donated to The XFree86 Project
-  by:
-
-      Precision Insight, Inc.
-      Cedar Park, TX
-      USA
-
-
-
-  http://www.precisioninsight.com
-
-
-
+Information for Intel graphics driver users
+Eric Anholt
+2006-04-02
+
+This document provides a brief summary of the Intel graphics support provided
+by the xf86-video-intel driver.  More information can also be found in the
+intel(4) manual page.
+
+Supported Hardware:
+	i810,
+  	i810-dc100,
+	i810e
+	i815
+	i830
+	i845
+	i852
+	i855
+	i915
+	i945
+	i965
+
+Features
+- Full support for 8, 15, 16, and 24 bit pixel depths.
+- Hardware accelerated 2D drawing engine support for 8, 15, 16 and 24 bit
+  pixel depths.
+- Hardware accelerated 3D drawing using OpenGL and the DRI.
+- Hardware cursor support to reduce sprite flicker.
+- Textured video XV implementation on i915 through i965.
+- Hardware overlay XV implementation up through i945.
+- Screen resize and rotation.
+
+Technical Notes
+- Interlace modes cannot be supported.
+- This driver  requires kernel support for AGP, which is included in Linux
+  kernels 2.3.42 and higher, and FreeBSD 4.1 and higher.
+- This driver may be built against xserver 1.2.0 or newer.  If built
+  from git source against an older server, a copy of xserver 1.3.0 source is
+  needed to complete the build, which is chosen with the --with-xserver-source
+  argument to ./configure.  The compatibility mode with xserver 1.2.0 will have
+  limited functionality, in particular by not supporting RandR 1.2 or the
+  new Damage 1.1 updated needed for 3D applications to work with display
+  rotation.
+
+Configuration
+
+The driver auto-detects all device information necessary to
+initialize the card.  The only lines you should need in the "Device"
+section of your xorg.conf file are:
+
+       Section "Device"
+           Identifier "intel"
+           Driver     "intel"
+       EndSection
+
+Please refer to the intel(4) manual page for information on configuration
+options.
+
+
+Known Limitations
+- Bug #8534: i830 laptop panels not supported.  The driver
+  will fail to recognize them, and only function through VGA output.  Two
+  partial DVO chip drivers (ivch and ch7017) are included which contain some of
+  the code necessary for i830 laptop panel support, but some I2C debugging will
+  be necessary to get those drivers to attach.
+- No support for "zaphod mode" dualhead.  This is the mode in which two
+  Device sections are placed in the config file, and doesn't support DRI or
+  many other features.  Instead, only "MergedFB-style" dualhead is supported.
+- No support for X Screens larger than 2048 pixels in either direction
+  before the 965.  This reflects hardware limitations in the x direction on
+  those older chips, and limits dualhead functionality.  It may be possible to
+  extend the limit vertically on these older chips.
+- i855 XV may cause hangs.  This was present in the previous release, and no
+  workaround is known.
+- SDVO TV-out cards not supported.  This should be fixed in the next
+  release.
+- Gray output with integrated TV-out and PAL TVs.
+- EXA support unstable on i845.
+
+Common issues not caused by the driver
+- Font sizes (DPI) are wrong.  Some displays incorrectly report their
+  physical size, which is harmless on most OSes that always assume 96dpi
+  displays.  This can be fixed through quirks for specific monitors in the X
+  Server, and the output of xrandr --prop along with a physical measurement of
+  the screen size in a bug report against the server can help get that fixed.
+- gnome-panel is located in the middle of the screen.  gnome-panel places
+  itself within head #0's boundaries, which doesn't work well with a second
+  head covering the same area as head #0 but larger.
+- Older resolution-changing applicationss have poor results in
+  multihead systems.  Previous extensions such as RandR 1.1 exposed only a
+  single output to client programs, and those requests map poorly to multi-head
+  systems.  Currently, those requests map to just one of the outputs in the
+  RandR 1.2 environment, and those applications need to be updated to RandR 1.2
+  API when available for better results.
+
+The X11R6 version of this driver originally came from XFree86 4.4 rc2.
+
+The XFree86 version of this driver was donated to The XFree86 Project by:
+    Precision Insight, Inc.
+    Cedar Park, TX
+    USA
+
+The X.Org version of this driver is maintained by Intel Corporation.
+<http://www.intellinuxgraphics.org>

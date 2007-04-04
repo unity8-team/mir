@@ -26,5 +26,9 @@
  */
 
 void i830TakeRegSnapshot(ScrnInfoPtr pScrn);
-void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn);
+void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn, char *where);
 void i830DumpRegs (ScrnInfoPtr pScrn);
+void i830_dump_error_state(ScrnInfoPtr pScrn);
+void i965_dump_error_state(ScrnInfoPtr pScrn);
+Bool i830_check_error_state(ScrnInfoPtr pScrn);
+
