@@ -373,15 +373,7 @@ int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 			    if (p == ddcModes) ddcModes = p->next;
 
 			    /* Add to used modes */
-			    if (last) {
-				last->next = p;
-				p->prev = last;
-			    } else {
-				first = p;
-				p->prev = NULL;
-			    }
-			    p->next = NULL;
-			    last = p;
+			    RADEONSortModes(&p, &first, &last);
 
 			    break;
 			}
@@ -402,15 +394,7 @@ int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 		    if (p == ddcModes) ddcModes = p->next;
 
 		    /* Add to used modes */
-		    if (last) {
-			last->next = p;
-			p->prev = last;
-		    } else {
-			first = p;
-			p->prev = NULL;
-		    }
-		    p->next = NULL;
-		    last = p;
+		    RADEONSortModes(&p, &first, &last);
 		}
 	    }
 
@@ -558,12 +542,7 @@ int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName)
 
 	new->type      |= M_T_USERDEF;
 
-	new->next       = NULL;
-	new->prev       = last;
-
-	if (last) last->next = new;
-	last = new;
-	if (!first) first = new;
+	RADEONSortModes(&new, &first, &last);
 
 	pScrn->display->virtualX =
 	    pScrn->virtualX = MAX(pScrn->virtualX, width);
@@ -609,12 +588,7 @@ int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName)
 
 		new->type      |= M_T_DEFAULT;
 
-		new->next       = NULL;
-		new->prev       = last;
-
-		if (last) last->next = new;
-		last = new;
-		if (!first) first = new;
+		RADEONSortModes(&new, &first, &last);
 	    }
 	}
     }
