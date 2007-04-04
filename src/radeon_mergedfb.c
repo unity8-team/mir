@@ -536,12 +536,33 @@ RADEONGenerateModeList(ScrnInfoPtr pScrn, char* str,
            DisplayModePtr p, q, result = NULL;
 
            xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                "Clone mode, list all common modes\n");
-           for (p = i; p->next != i; p = p->next)
-                for (q = j; q->next != j; q = q->next)
-                   if ((p->HDisplay == q->HDisplay) &&
-                        (p->VDisplay == q->VDisplay))
-                        result = RADEONCopyModeNLink(pScrn, result, p, q, srel);
+                      "Clone mode, linking all nearest modes\n");
+
+           p = i;
+           q = j;
+
+           result = RADEONCopyModeNLink(pScrn, result, p, q, srel);
+
+           while (p->next != i || q->next != j) {
+              DisplayModePtr next_p = p;
+
+              if (q->next == j || (p->next != i &&
+                                   (p->HDisplay > q->HDisplay ||
+                                    (p->HDisplay == q->HDisplay &&
+                                     p->VDisplay >= q->VDisplay))))
+                 next_p = p->next;
+
+              if (p->next == i || (q->next != j &&
+                                   (q->HDisplay > p->HDisplay ||
+                                    (q->HDisplay == p->HDisplay &&
+                                     q->VDisplay >= p->VDisplay))))
+                 q = q->next;
+
+              p = next_p;
+
+              result = RADEONCopyModeNLink(pScrn, result, p, q, srel);
+           }
+
            return result;
         } else {
            xf86DrvMsg(pScrn->scrnIndex, X_INFO,
