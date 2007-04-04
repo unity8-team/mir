@@ -25,14 +25,18 @@
  *
  */
 
-/* i830_display.c */
-Bool i830SetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
-Bool i830DetectCRT(ScrnInfoPtr pScrn, Bool allow_disturb);
-void i830SetLVDSPanelPower(ScrnInfoPtr pScrn, Bool on);
-void i830PipeSetBase(ScrnInfoPtr pScrn, int pipe, int x, int y);
+#include "xorgVersion.h"
 
-/* i830_sdvo.c */
-I830SDVOPtr I830SDVOInit(ScrnInfoPtr pScrn, int output_index,
-			 CARD32 output_device);
-Bool I830SDVOPreSetMode(I830SDVOPtr s, DisplayModePtr mode);
-Bool I830SDVOPostSetMode(I830SDVOPtr s, DisplayModePtr mode);
+/* i830_display.c */
+void i830PipeSetBase(xf86CrtcPtr crtc, int x, int y);
+void i830WaitForVblank(ScrnInfoPtr pScrn);
+void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
+
+xf86CrtcPtr i830GetLoadDetectPipe(xf86OutputPtr output);
+void i830ReleaseLoadDetectPipe(xf86OutputPtr output);
+void i830_crtc_init(ScrnInfoPtr pScrn, int pipe);
+void i830_crtc_load_lut(xf86CrtcPtr crtc);
+DisplayModePtr i830_crtc_mode_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc);
+void i830_output_prepare (xf86OutputPtr output);
+void i830_output_commit (xf86OutputPtr output);
+

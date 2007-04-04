@@ -10,8 +10,7 @@
 
 static MODULESETUPPROTO(ch7xxxSetup);
 
-static XF86ModuleVersionInfo ch7xxxVersRec = 
-  {
+static XF86ModuleVersionInfo ch7xxxVersRec =  {
     "ch7xxx",
     MODULEVENDORSTRING,
     MODINFOSTRING1,
@@ -22,15 +21,15 @@ static XF86ModuleVersionInfo ch7xxxVersRec =
     ABI_VIDEODRV_VERSION,
     MOD_CLASS_NONE,
     { 0,0,0,0 }
-  };
+};
 
 _X_EXPORT XF86ModuleData ch7xxxModuleData = {
-  &ch7xxxVersRec,
-  ch7xxxSetup,
-  NULL
+    &ch7xxxVersRec,
+    ch7xxxSetup,
+    NULL
 };
 
 static pointer
 ch7xxxSetup(pointer module, pointer opts, int *errmaj, int *errmin) {
-  return (pointer)1;
+    return (pointer)1;
 }

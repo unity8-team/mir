@@ -39,13 +39,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _INTEL_COMMON_H_
 #define _INTEL_COMMON_H_
 
-#ifdef __GNUC__
+/* Provide substitutes for gcc's __FUNCTION__ on other compilers */
+#ifndef __GNUC__
+# if defined(__STDC__) && (__STDC_VERSION__>=199901L) /* C99 */
+#  define __FUNCTION__ __func__
+# else
+#  define __FUNCTION__ ""
+# endif
+#endif
+
+
 #define PFX __FILE__,__LINE__,__FUNCTION__
 #define FUNCTION_NAME __FUNCTION__
-#else
-#define PFX __FILE__,__LINE__,""
-#define FUNCTION_NAME ""
-#endif
 
 #ifdef I830DEBUG
 #define MARKER() ErrorF("\n### %s:%d: >>> %s <<< ###\n\n", \
@@ -67,11 +72,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DELAY(x) do {;} while (0)
 #endif
 
+#ifndef REG_DUMPER
 /* I830 hooks for the I810 driver setup/probe. */
-extern const OptionInfoRec *I830BIOSAvailableOptions(int chipid, int busid);
+extern const OptionInfoRec *I830AvailableOptions(int chipid, int busid);
 extern void I830InitpScrn(ScrnInfoPtr pScrn);
 
 /* Symbol lists shared by the i810 and i830 parts. */
+extern int I830EntityIndex;
 extern const char *I810vgahwSymbols[];
 extern const char *I810ramdacSymbols[];
 extern const char *I810int10Symbols[];
@@ -80,7 +87,6 @@ extern const char *I810ddcSymbols[];
 extern const char *I810fbSymbols[];
 extern const char *I810xaaSymbols[];
 extern const char *I810shadowFBSymbols[];
-extern const char *I810shadowSymbols[];
 #ifdef XF86DRI
 extern const char *I810driSymbols[];
 extern const char *I810drmSymbols[];
@@ -91,7 +97,7 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 			     const char *function, const char *fmt, ...);
 
 #ifdef _I830_H_
-#define PrintErrorState I830PrintErrorState
+#define PrintErrorState i830_dump_error_state
 #define WaitRingFunc I830WaitLpRing
 #define RecPtr pI830
 #else
@@ -124,15 +130,67 @@ extern void I830DPRINTF_stub(const char *filename, int line,
    outring &= ringmask;							\
 } while (0)
 
+static inline void memset_volatile(volatile void *b, int c, size_t len)
+{
+    int i;
+    
+    for (i = 0; i < len; i++)
+	((volatile char *)b)[i] = c;
+}
+
+static inline void memcpy_volatile(volatile void *dst, const void *src,
+				   size_t len)
+{
+    int i;
+    
+    for (i = 0; i < len; i++)
+	((volatile char *)dst)[i] = ((volatile char *)src)[i];
+}
+
+/** Copies a given number of bytes to the ring */
+#define OUT_RING_COPY(n, ptr) do {					\
+    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
+	ErrorF("OUT_RING_DATA %d bytes\n", n);				\
+    memcpy_volatile(virt + outring, ptr, n);				\
+    outring += n;							\
+    ringused += n;							\
+    outring &= ringmask;						\
+} while (0)
+
+/** Pads the ring with a given number of zero bytes */
+#define OUT_RING_PAD(n) do {						\
+    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
+	ErrorF("OUT_RING_PAD %d bytes\n", n);				\
+    memset_volatile(virt + outring, 0, n);				\
+    outring += n;							\
+    ringused += n;							\
+    outring &= ringmask;						\
+} while (0)
+
+union intfloat {
+	float f;
+	unsigned int ui;
+};
+
+#define OUT_RING_F(x) do {			\
+	union intfloat tmp;			\
+	tmp.f = (float)(x);			\
+	OUT_RING(tmp.ui);			\
+} while(0)				
+
 #define ADVANCE_LP_RING() do {						\
    if (ringused > needed)          \
-      ErrorF("%s: ADVANCE_LP_RING: exceeded allocation %d/%d\n ",      \
-	     __FUNCTION__, ringused, needed);     \
+      FatalError("%s: ADVANCE_LP_RING: exceeded allocation %d/%d\n ",	\
+	     __FUNCTION__, ringused, needed);   			\
+   else if (ringused < needed)						\
+      FatalError("%s: ADVANCE_LP_RING: under-used allocation %d/%d\n ",	\
+	     __FUNCTION__, ringused, needed);   			\
    RecPtr->LpRing->tail = outring;					\
    RecPtr->LpRing->space -= ringused;					\
    if (outring & 0x07)							\
-      ErrorF("ADVANCE_LP_RING: "					\
-	     "outring (0x%x) isn't on a QWord boundary\n", outring);	\
+      FatalError("%s: ADVANCE_LP_RING: "					\
+	     "outring (0x%x) isn't on a QWord boundary\n",		\
+	     __FUNCTION__, outring);					\
    OUTREG(LP_RING + RING_TAIL, outring);				\
 } while (0)
 
@@ -175,6 +233,7 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 #define INREG8(addr)        *(volatile CARD8  *)(RecPtr->MMIOBase + (addr))
 #define INREG16(addr)       *(volatile CARD16 *)(RecPtr->MMIOBase + (addr))
 #define INREG(addr)         *(volatile CARD32 *)(RecPtr->MMIOBase + (addr))
+#define POSTING_READ(addr)  (void)INREG(addr)
 
 #define OUTREG8(addr, val) do {						\
    *(volatile CARD8 *)(RecPtr->MMIOBase  + (addr)) = (val);		\
@@ -221,6 +280,7 @@ extern int I810_DEBUG;
 #define DEBUG_ALWAYS_SYNC    0x80
 #define DEBUG_VERBOSE_DRI    0x100
 #define DEBUG_VERBOSE_BIOS   0x200
+#endif /* !REG_DUMPER */
 
 /* Size of the mmio region.
  */
@@ -273,6 +333,31 @@ extern int I810_DEBUG;
 #define PCI_CHIP_I945_GM_BRIDGE 0x27A0
 #endif
 
+#ifndef PCI_CHIP_I965_G_1
+#define PCI_CHIP_I965_G_1		0x2982
+#define PCI_CHIP_I965_G_1_BRIDGE 	0x2980
+#endif
+
+#ifndef PCI_CHIP_I965_Q
+#define PCI_CHIP_I965_Q		0x2992
+#define PCI_CHIP_I965_Q_BRIDGE 	0x2990
+#endif
+
+#ifndef PCI_CHIP_I965_G
+#define PCI_CHIP_I965_G		0x29A2
+#define PCI_CHIP_I965_G_BRIDGE 	0x29A0
+#endif
+
+#ifndef PCI_CHIP_I946_GZ
+#define PCI_CHIP_I946_GZ		0x2972
+#define PCI_CHIP_I946_GZ_BRIDGE 	0x2970
+#endif
+
+#ifndef PCI_CHIP_I965_GM
+#define PCI_CHIP_I965_GM        0x2A02
+#define PCI_CHIP_I965_GM_BRIDGE 0x2A00
+#endif
+
 #define IS_I810(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I810 ||	\
 			pI810->PciInfo->chipType == PCI_CHIP_I810_DC100 || \
 			pI810->PciInfo->chipType == PCI_CHIP_I810_E)
@@ -288,9 +373,11 @@ extern int I810_DEBUG;
 #define IS_I915GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I915_GM)
 #define IS_I945G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_G)
 #define IS_I945GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_GM)
-#define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810))
+#define IS_I965GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_GM)
+#define IS_I965G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_G || pI810->PciInfo->chipType == PCI_CHIP_I965_G_1 || pI810->PciInfo->chipType == PCI_CHIP_I965_Q || pI810->PciInfo->chipType == PCI_CHIP_I946_GZ || pI810->PciInfo->chipType == PCI_CHIP_I965_GM)
+#define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810))
 
-#define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810))
+#define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810))
 
 #define GTT_PAGE_SIZE			KB(4)
 #define ROUND_TO(x, y)			(((x) + (y) - 1) / (y) * (y))
@@ -307,10 +394,6 @@ extern int I810_DEBUG;
 /* Use a 64x64 HW cursor */
 #define I810_CURSOR_X			64
 #define I810_CURSOR_Y			I810_CURSOR_X
-
-/* XXX Need to check if these are reasonable. */
-#define MAX_DISPLAY_PITCH		2048
-#define MAX_DISPLAY_HEIGHT		2048
 
 #define PIPE_NAME(n)			('A' + (n))
 
