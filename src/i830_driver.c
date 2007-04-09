@@ -1559,7 +1559,7 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
    /* God this is ugly */
 #define flush_ring() do { \
       temp = INREG(LP_RING + RING_LEN); \
-      if (temp & 1) { \
+      if (temp & RING_VALID) { \
 	 I830RefreshRing(pScrn); \
 	 I830Sync(pScrn); \
 	 DO_RING_IDLE(); \
@@ -1569,7 +1569,7 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
    if (!pI830->useEXA && flush && pI830->AccelInfoRec)
        flush_ring();
 #endif
-#ifdef I830_USE_XAA
+#ifdef I830_USE_EXA
    if (pI830->useEXA && flush && pI830->EXADriverPtr)
        flush_ring();
 #endif
