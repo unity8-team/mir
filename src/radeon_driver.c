@@ -953,7 +953,8 @@ static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
     if (ref_div < 2) {
        CARD32 tmp;
        tmp = INPLL(pScrn, RADEON_PPLL_REF_DIV);
-       if (IS_R300_VARIANT || (info->ChipFamily == CHIP_FAMILY_RS300))
+       if (IS_R300_VARIANT || (info->ChipFamily == CHIP_FAMILY_RS300)
+			   || (info->ChipFamily == CHIP_FAMILY_RS400))
            ref_div = (tmp & R300_PPLL_REF_DIV_ACC_MASK) >>
                    R300_PPLL_REF_DIV_ACC_SHIFT;
        else
@@ -1033,7 +1034,8 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 	    CARD32 tmp;
 	    tmp = INPLL(pScrn, RADEON_PPLL_REF_DIV);
 	    if (IS_R300_VARIANT ||
-		(info->ChipFamily == CHIP_FAMILY_RS300)) {
+		(info->ChipFamily == CHIP_FAMILY_RS300) ||
+		(info->ChipFamily == CHIP_FAMILY_RS400)) {
 		pll->reference_div = (tmp & R300_PPLL_REF_DIV_ACC_MASK) >> R300_PPLL_REF_DIV_ACC_SHIFT;
 	    } else {
 		pll->reference_div = tmp & RADEON_PPLL_REF_DIV_MASK;
@@ -1903,9 +1905,14 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	}
     }
 
+
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s card detected\n",
 	       (info->cardType==CARD_PCI) ? "PCI" :
 		(info->cardType==CARD_PCIE) ? "PCIE" : "AGP");
+
+    /* treat PCIE IGP cards as PCI */
+    if (info->cardType == CARD_PCIE && info->IsIGP)
+		info->cardType = CARD_PCI;
 
     if ((s = xf86GetOptValString(info->Options, OPTION_BUS_TYPE))) {
 	if (strcmp(s, "AGP") == 0) {
@@ -2526,18 +2533,6 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	}
     }
 
-    if (info->Chipset == PCI_CHIP_RS400_5A41 ||
-	info->Chipset == PCI_CHIP_RS400_5A42 ||
-	info->Chipset == PCI_CHIP_RC410_5A61 ||
-	info->Chipset == PCI_CHIP_RC410_5A62 ||
-	info->Chipset == PCI_CHIP_RS480_5954 ||
-	info->Chipset == PCI_CHIP_RS480_5955 ||
-	info->Chipset == PCI_CHIP_RS482_5974 ||
-	info->Chipset == PCI_CHIP_RS482_5975) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Direct rendering broken on XPRESS 200 and 200M\n");
-	return FALSE;
-    }
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_DRI, TRUE)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2563,6 +2558,24 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	       info->pKernelDRMVersion->version_major,
 	       info->pKernelDRMVersion->version_minor,
 	       info->pKernelDRMVersion->version_patchlevel);
+
+    if (info->Chipset == PCI_CHIP_RS400_5A41 ||
+	info->Chipset == PCI_CHIP_RS400_5A42 ||
+	info->Chipset == PCI_CHIP_RC410_5A61 ||
+	info->Chipset == PCI_CHIP_RC410_5A62 ||
+	info->Chipset == PCI_CHIP_RS480_5954 ||
+	info->Chipset == PCI_CHIP_RS480_5955 ||
+	info->Chipset == PCI_CHIP_RS482_5974 ||
+	info->Chipset == PCI_CHIP_RS482_5975) {
+
+	if (info->pKernelDRMVersion->version_minor < 27) {
+ 	     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Direct rendering broken on XPRESS 200 and 200M with DRI less than 1.27\n");
+	     return FALSE;
+	}
+ 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	"Direct rendering experimental on RS400/Xpress 200 enabled\n");
+    }
 
     if (xf86ReturnOptValBool(info->Options, OPTION_CP_PIO, FALSE)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Forcing CP into PIO mode\n");
@@ -4734,7 +4747,8 @@ static void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
     RADEONPllErrataAfterIndex(info);
 
     if (IS_R300_VARIANT ||
-	(info->ChipFamily == CHIP_FAMILY_RS300)) {
+	(info->ChipFamily == CHIP_FAMILY_RS300) ||
+	(info->ChipFamily == CHIP_FAMILY_RS400)) {
 	if (restore->ppll_ref_div & R300_PPLL_REF_DIV_ACC_MASK) {
 	    /* When restoring console mode, use saved PPLL_REF_DIV
 	     * setting.
