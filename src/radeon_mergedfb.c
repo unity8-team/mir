@@ -389,7 +389,7 @@ RADEONGenerateModeListFromLargestModes(ScrnInfoPtr pScrn,
     if(srel != radeonClone) {
        if(mode3 && mode4 && !info->NonRect) {
 	  mode1 = mode3;
-	  mode2 = mode2;
+	  mode2 = mode4;
        }
     }
 
