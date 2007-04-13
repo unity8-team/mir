@@ -651,7 +651,7 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
 
     /* Only allocate if overlay is going to be enabled. */
-    if (!pI830->XvEnabled || IS_I965G(pI830))
+    if (!pI830->XvEnabled)
 	return TRUE;
 
     if (!IS_I965G(pI830)) {
