@@ -2328,7 +2328,11 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 		
 	    }
 	}
+	else
+	    info->MergedFB = FALSE;
     }
+    else
+	info->MergedFB = FALSE;
 
     if (info->MergedFB) {
        /* If no virtual dimension was given by the user,
