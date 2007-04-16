@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:1.9.94-1ubuntu2) feisty; urgency=low
+
+  * src/ch7017/Makefile.{am,in}
+    - [FTBFS] Fix AM_CFLAGS to include '-I$(srcdir)/..' and 
+      '-I$(srcdir)/../modes'.
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Mon, 16 Apr 2007 15:47:59 +0300
+
 xserver-xorg-video-intel (2:1.9.94-1ubuntu1) feisty; urgency=low
 
   * Merge with Debian, remaining changes:
