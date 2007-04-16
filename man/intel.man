@@ -24,7 +24,7 @@ the 830M and later.
 .SH SUPPORTED HARDWARE
 .B intel
 supports the i810, i810-DC100, i810e, i815, i830M, 845G, 852GM, 855GM,
-865G, 915G, 915GM, 945G, 945GM, 965G, 965Q and 946GZ chipsets.
+865G, 915G, 915GM, 945G, 945GM, 965G, 965Q, 946GZ and 965GM chipsets.
 
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
@@ -198,4 +198,5 @@ support reworked for XFree86 4.3 by David Dawes and Keith Whitwell.  852GM,
 Keith Whitwell. Lid status support added by Alan Hourihane. Textured video
 support for 915G and later chips, RandR 1.2 and hardware modesetting added
 by Eric Anholt and Keith Packard. EXA and Render acceleration added by Wang
-Zhenyu. TV out support added by Zou Nan Hai and Keith Packard.
+Zhenyu. TV out support added by Zou Nan Hai and Keith Packard. 965GM support
+added by Wang Zhenyu.
