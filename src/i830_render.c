@@ -305,7 +305,7 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	else
 	    format |= MAPSURF_32BIT;
 
-	BEGIN_LP_RING(8);
+	BEGIN_LP_RING(10);
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_2 | LOAD_TEXTURE_MAP(unit) | 4);
 	OUT_RING((offset & TM0S0_ADDRESS_MASK) | TM0S0_USE_FENCE); 
 	OUT_RING(((pPix->drawable.height - 1) << TM0S1_HEIGHT_SHIFT) |
@@ -318,7 +318,24 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 		 TEXCOORDTYPE_CARTESIAN | ENABLE_ADDR_V_CNTL |
 		 TEXCOORD_ADDR_V_MODE(wrap_mode) |
 		 ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
-	OUT_RING(MI_NOOP);
+	/* map texel stream */
+	OUT_RING(_3DSTATE_MAP_COORD_SETBIND_CMD);
+	if (unit == 0)
+	    OUT_RING(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
+		    TEXBIND_SET1(TEXCOORDSRC_KEEP) |
+		    TEXBIND_SET2(TEXCOORDSRC_KEEP) |
+		    TEXBIND_SET3(TEXCOORDSRC_KEEP));
+	else
+	    OUT_RING(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
+		    TEXBIND_SET1(TEXCOORDSRC_VTXSET_1) |
+		    TEXBIND_SET2(TEXCOORDSRC_KEEP) |
+		    TEXBIND_SET3(TEXCOORDSRC_KEEP));
+	OUT_RING(_3DSTATE_MAP_TEX_STREAM_CMD | (unit << 16) |
+		DISABLE_TEX_STREAM_BUMP | 
+		ENABLE_TEX_STREAM_COORD_SET |
+		TEX_STREAM_COORD_SET(unit) |
+		ENABLE_TEX_STREAM_MAP_IDX |
+		TEX_STREAM_MAP_IDX(unit));
 	ADVANCE_LP_RING();
      }
 
@@ -392,7 +409,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     {
 	CARD32 cblend, ablend, blendctl, vf2;
 
-	BEGIN_LP_RING(34);
+	BEGIN_LP_RING(26);
 
 	/* color buffer */
 	OUT_RING(_3DSTATE_BUF_INFO_CMD);
@@ -403,8 +420,6 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_RING(_3DSTATE_DST_BUF_VARS_CMD);
 	OUT_RING(dst_format);
 
-      	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
-      	OUT_RING(MI_NOOP);		/* pad to quadword */
 	/* defaults */
 	OUT_RING(_3DSTATE_DFLT_Z_CMD);
 	OUT_RING(0);
@@ -421,32 +436,16 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_RING(DRAW_YMAX(pDst->drawable.height - 1) |
 		DRAW_XMAX(pDst->drawable.width - 1));
 	OUT_RING(0); /* yorig, xorig */
-	OUT_RING(MI_NOOP);
 
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 0);
-	OUT_RING((1 << S3_POINT_WIDTH_SHIFT) | (2 << S3_LINE_WIDTH_SHIFT) |
-		S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | 0);
+	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | 
+		I1_LOAD_S(3) | 1);
 	if (pMask)
 	    vf2 = 2 << 12; /* 2 texture coord sets */
 	else
 	    vf2 = 1 << 12;
-	vf2 |= (TEXCOORDFMT_2D << 16);
-	if (pMask)
-	    vf2 |= (TEXCOORDFMT_2D << 18);
-	else
-	    vf2 |= (TEXCOORDFMT_1D << 18);
+	OUT_RING(vf2); /* TEXCOORDFMT_2D */
+	OUT_RING(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
 
-	vf2 |= (TEXCOORDFMT_1D << 20);
-	vf2 |= (TEXCOORDFMT_1D << 22);
-	vf2 |= (TEXCOORDFMT_1D << 24);
-	vf2 |= (TEXCOORDFMT_1D << 26);
-	vf2 |= (TEXCOORDFMT_1D << 28);
-	vf2 |= (TEXCOORDFMT_1D << 30);
-	OUT_RING(vf2);
-
-      	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
-      	OUT_RING(MI_NOOP);		/* pad to quadword */
 	/* For (src In mask) operation */
 	/* IN operator: Multiply src by mask components or mask alpha.*/
 	/* TEXBLENDOP_MODULE: arg1*arg2 */
@@ -480,9 +479,6 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_RING(cblend);
 	OUT_RING(ablend);
 	OUT_RING(0);
-
-      	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
-      	OUT_RING(MI_NOOP);		/* pad to quadword */
 
 	blendctl = i830_get_blend_cntl(op, pMaskPicture, pDstPicture->format);
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(8) | 0);
