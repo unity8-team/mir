@@ -143,10 +143,10 @@ static struct blendinfo i830_blend_op[] = {
 
 static struct formatinfo i830_tex_formats[] = {
     {PICT_a8r8g8b8, MT_32BIT_ARGB8888 },
-    {PICT_x8r8g8b8, MT_32BIT_ARGB8888 },
+    {PICT_x8r8g8b8, MT_32BIT_XRGB8888 },
     {PICT_a8b8g8r8, MT_32BIT_ABGR8888 },
-    {PICT_x8b8g8r8, MT_32BIT_ABGR8888 },
-    {PICT_r5g6b5,   MT_16BIT_RGB565	  },
+    {PICT_x8b8g8r8, MT_32BIT_XBGR8888 },
+    {PICT_r5g6b5,   MT_16BIT_RGB565   },
     {PICT_a1r5g5b5, MT_16BIT_ARGB1555 },
     {PICT_x1r5g5b5, MT_16BIT_ARGB1555 },
     {PICT_a8,       MT_8BIT_A8       },	 /* mesa does I8 */
