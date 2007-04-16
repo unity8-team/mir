@@ -149,7 +149,7 @@ static struct formatinfo i830_tex_formats[] = {
     {PICT_r5g6b5,   MT_16BIT_RGB565   },
     {PICT_a1r5g5b5, MT_16BIT_ARGB1555 },
     {PICT_x1r5g5b5, MT_16BIT_ARGB1555 },
-    {PICT_a8,       MT_8BIT_A8       },	 /* mesa does I8 */
+    {PICT_a8,       MT_8BIT_A8        },
 };
 
 static Bool i830_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
@@ -220,6 +220,8 @@ static CARD32 i830_get_blend_cntl(int op, PicturePtr pMask, CARD32 dst_format)
 
 static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i;
@@ -236,6 +238,13 @@ static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
     if (i == sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]))
         I830FALLBACK("Unsupported picture format 0x%x\n",
 		     (int)pPict->format);
+
+    if (IS_I830(pI830) || IS_845G(pI830)) {
+	if (pPict->format == PICT_x8r8g8b8 || 
+		pPict->format == PICT_x8b8g8r8 || 
+		pPict->format == PICT_a8)
+	    I830FALLBACK("830/845G don't support a8, x8r8g8b8, x8b8g8r8\n");
+    }
 
     if (pPict->repeat && pPict->repeatType != RepeatNormal)
 	I830FALLBACK("unsupport repeat type\n");
