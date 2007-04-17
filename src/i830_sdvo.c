@@ -1074,12 +1074,19 @@ i830_sdvo_detect(xf86OutputPtr output)
 {
     CARD8 response[2];
     CARD8 status;
+    CARD8 retry = 50;
 
     i830_sdvo_write_cmd(output, SDVO_CMD_GET_ATTACHED_DISPLAYS, NULL, 0);
-    status = i830_sdvo_read_response(output, &response, 2);
 
-    if (status != SDVO_CMD_STATUS_SUCCESS)
-	return XF86OutputStatusUnknown;
+    while (retry--) {
+    	status = i830_sdvo_read_response(output, &response, 2);
+
+	if (status == SDVO_CMD_STATUS_SUCCESS)
+	    break;
+    
+    	if (status != SDVO_CMD_STATUS_PENDING)
+	    return XF86OutputStatusUnknown;
+    }
 
     if (response[0] != 0 || response[1] != 0)
 	return XF86OutputStatusConnected;
