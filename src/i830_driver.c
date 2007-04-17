@@ -2545,7 +2545,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		       "Failed to init memory manager\n");
 	 }
 
-	 if (pI830->LinearAlloc &&
+	 if (pI830->xaa_linear != NULL &&
 	     xf86InitFBManagerLinear(pScreen,
 				     pI830->xaa_linear->offset / pI830->cpp,
 				     pI830->xaa_linear->size / pI830->cpp))
