@@ -487,9 +487,7 @@ I830EXAInit(ScreenPtr pScreen)
     pI830->EXADriverPtr->DoneCopy = I830EXADoneCopy;
 
     /* Composite */
-    if (IS_I865G(pI830) || IS_I855(pI830) ||
-	       IS_845G(pI830) || IS_I830(pI830))
-    {
+    if (!IS_I9XX(pI830)) {
     	pI830->EXADriverPtr->CheckComposite = i830_check_composite;
     	pI830->EXADriverPtr->PrepareComposite = i830_prepare_composite;
     	pI830->EXADriverPtr->Composite = i830_composite;
