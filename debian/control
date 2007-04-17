@@ -29,10 +29,3 @@ Description: X.Org X server -- Intel i8xx, i9xx display driver
  .
  This package is built from the X.org xf86-video-intel driver module.
 
-Package: xserver-xorg-video-i810
-Architecture: all
-Section: oldlibs
-Depends: xserver-xorg-video-intel
-Description: X.Org X server -- Intel i8xx, i9xx display driver
- This is a transitional package providing the Xorg video driver for the
- Intel i8xx and i9xx family of chipsets, and can be safely removed.
