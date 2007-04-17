@@ -83,6 +83,7 @@ struct formatinfo {
 #define TB0C_ARG2_SEL_TEXEL3		(9 << 12)
 #define TB0C_ARG1_REPLICATE_ALPHA 	(1<<11)
 #define TB0C_ARG1_INVERT		(1<<10)
+#define TB0C_ARG1_SEL_ONE		(0 << 6)
 #define TB0C_ARG1_SEL_TEXEL0		(6 << 6)
 #define TB0C_ARG1_SEL_TEXEL1		(7 << 6)
 #define TB0C_ARG1_SEL_TEXEL2		(8 << 6)
@@ -107,6 +108,7 @@ struct formatinfo {
 #define TB0A_ARG2_SEL_TEXEL2		(8 << 12)
 #define TB0A_ARG2_SEL_TEXEL3		(9 << 12)
 #define TB0A_ARG1_INVERT		(1<<10)
+#define TB0A_ARG1_SEL_ONE		(0 << 6)
 #define TB0A_ARG1_SEL_TEXEL0		(6 << 6)
 #define TB0A_ARG1_SEL_TEXEL1		(7 << 6)
 #define TB0A_ARG1_SEL_TEXEL2		(8 << 6)
@@ -418,7 +420,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     {
 	CARD32 cblend, ablend, blendctl, vf2;
 
-	BEGIN_LP_RING(26);
+	BEGIN_LP_RING(30);
 
 	/* color buffer */
 	OUT_RING(_3DSTATE_BUF_INFO_CMD);
@@ -455,16 +457,28 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_RING(vf2); /* TEXCOORDFMT_2D */
 	OUT_RING(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
 
-	/* For (src In mask) operation */
-	/* IN operator: Multiply src by mask components or mask alpha.*/
-	/* TEXBLENDOP_MODULE: arg1*arg2 */
+	/* We use two pipes for color and alpha, and do (src In mask)
+	   in one stage. Arg1 is from src pict, and arg2 is from mask pict.
+	   Be sure to force 1.0 when src or mask pict has no alpha channel.
+	 */
 	cblend = TB0C_LAST_STAGE | TB0C_RESULT_SCALE_1X | TB0C_OP_MODULE |
 		 TB0C_OUTPUT_WRITE_CURRENT;
 	ablend = TB0A_RESULT_SCALE_1X | TB0A_OP_MODULE |
 		 TB0A_OUTPUT_WRITE_CURRENT;
 
-	cblend |= TB0C_ARG1_SEL_TEXEL0;
-	ablend |= TB0A_ARG1_SEL_TEXEL0;
+	if (PICT_FORMAT_A(pSrcPicture->format) != 0) {
+	    ablend |= TB0A_ARG1_SEL_TEXEL0;
+	    cblend |= TB0C_ARG1_SEL_TEXEL0;
+	} else {
+	    ablend |= TB0A_ARG1_SEL_ONE;
+	    if (pMask && pMaskPicture->componentAlpha 
+		    && PICT_FORMAT_RGB(pMaskPicture->format)
+		    && i830_blend_op[op].src_alpha)
+		cblend |= TB0C_ARG1_SEL_ONE;
+	    else
+		cblend |= TB0C_ARG1_SEL_TEXEL0;
+	}
+
 	if (pMask) {
 	    if (pMaskPicture->componentAlpha && 
 		    PICT_FORMAT_RGB(pMaskPicture->format)) {
@@ -474,10 +488,16 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		else 
 		    cblend |= TB0C_ARG2_SEL_TEXEL1;
 	    } else {
-		cblend |= (TB0C_ARG2_SEL_TEXEL1 | 
-			TB0C_ARG2_REPLICATE_ALPHA);
+		if (PICT_FORMAT_A(pMaskPicture->format) != 0)
+		    cblend |= (TB0C_ARG2_SEL_TEXEL1 | 
+			    TB0C_ARG2_REPLICATE_ALPHA);
+		else
+		    cblend |= TB0C_ARG2_SEL_ONE;
 	    }
-	    ablend |= TB0A_ARG2_SEL_TEXEL1;
+	    if (PICT_FORMAT_A(pMaskPicture->format) != 0)
+		ablend |= TB0A_ARG2_SEL_TEXEL1;
+	    else
+		ablend |= TB0A_ARG2_SEL_ONE;
 	} else {
 	    cblend |= TB0C_ARG2_SEL_ONE;
 	    ablend |= TB0A_ARG2_SEL_ONE;
@@ -490,9 +510,14 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_RING(0);
 
 	blendctl = i830_get_blend_cntl(op, pMaskPicture, pDstPicture->format);
+	OUT_RING(_3DSTATE_INDPT_ALPHA_BLEND_CMD | DISABLE_INDPT_ALPHA_BLEND);
+	OUT_RING(MI_NOOP);
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(8) | 0);
 	OUT_RING(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD | blendctl | 
 		 S8_ENABLE_COLOR_BUFFER_WRITE);
+	/* We have to explicitly say we don't want write disabled */
+	OUT_RING(_3DSTATE_ENABLES_2_CMD | ENABLE_COLOR_MASK);
+	OUT_RING(MI_NOOP); 
 	ADVANCE_LP_RING();
     }
 
