@@ -776,7 +776,7 @@ static void RADEONUpdatePanelSize(ScrnInfoPtr pScrn)
     for (j = 0; j < 8; j++) {
 	if ((info->PanelXRes < ddc->timings2[j].hsize) &&
 	    (info->PanelYRes < ddc->timings2[j].vsize)) {
-	    for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
+	    for (p = pScrn->monitor->Modes; p; p = p->next) {
 		if ((ddc->timings2[j].hsize == p->HDisplay) &&
 		    (ddc->timings2[j].vsize == p->VDisplay)) {
 		    float  refresh =

@@ -212,7 +212,7 @@ static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
     for (j = 0; j < 8; j++) {
         if (ddc->timings2[j].hsize == 0 || ddc->timings2[j].vsize == 0)
                continue;
-	for (p = pScrn->monitor->Modes; p && p->next; p = p->next) {
+	for (p = pScrn->monitor->Modes; p; p = p->next) {
 	    /* Ignore all double scan modes */
 	    if (p->Flags & V_DBLSCAN)
 		continue;
@@ -248,7 +248,7 @@ static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
     tmp = (ddc->timings1.t1 << 8) | ddc->timings1.t2;
     for (j = 0; j < 16; j++) {
 	if (tmp & (1 << j)) {
-	    for (p = pScrn->monitor->Modes; p && p->next; p = p->next) {
+	    for (p = pScrn->monitor->Modes; p; p = p->next) {
 		/* Ignore all double scan modes */
 		if (p->Flags & V_DBLSCAN)
 		    continue;
@@ -560,7 +560,7 @@ int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName)
     }
 
     /* add in all default vesa modes smaller than panel size, used for randr*/
-    for (p = pScrn->monitor->Modes; p && p->next; p = p->next->next) {
+    for (p = pScrn->monitor->Modes; p; p = p->next) {
 	if ((p->HDisplay <= info->PanelXRes) && (p->VDisplay <= info->PanelYRes)) {
 	    tmp = first;
 	    while (tmp) {
