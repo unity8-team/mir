@@ -755,13 +755,11 @@ static void RADEONUpdatePanelSize(ScrnInfoPtr pScrn)
 		info->VSyncWidth = d_timings->v_sync_width;
 		info->VBlank     = d_timings->v_blanking;
                 info->Flags      = (d_timings->interlaced ? V_INTERLACE : 0);
-                if (d_timings->sync == 3) {
-                   switch (d_timings->misc) {
-                   case 0: info->Flags |= V_NHSYNC | V_NVSYNC; break;
-                   case 1: info->Flags |= V_PHSYNC | V_NVSYNC; break;
-                   case 2: info->Flags |= V_NHSYNC | V_PVSYNC; break;
-                   case 3: info->Flags |= V_PHSYNC | V_PVSYNC; break;
-                   }
+                switch (d_timings->misc) {
+                case 0: info->Flags |= V_NHSYNC | V_NVSYNC; break;
+                case 1: info->Flags |= V_PHSYNC | V_NVSYNC; break;
+                case 2: info->Flags |= V_NHSYNC | V_PVSYNC; break;
+                case 3: info->Flags |= V_PHSYNC | V_PVSYNC; break;
                 }
                 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Panel infos found from DDC detailed: %dx%d\n",
                            info->PanelXRes, info->PanelYRes);

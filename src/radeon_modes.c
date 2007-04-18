@@ -190,13 +190,11 @@ static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 #endif
 	      new->type     |= M_T_DRIVER;
 
-	    if (d_timings->sync == 3) {
-		switch (d_timings->misc) {
-		case 0: new->Flags |= V_NHSYNC | V_NVSYNC; break;
-		case 1: new->Flags |= V_PHSYNC | V_NVSYNC; break;
-		case 2: new->Flags |= V_NHSYNC | V_PVSYNC; break;
-		case 3: new->Flags |= V_PHSYNC | V_PVSYNC; break;
-		}
+	    switch (d_timings->misc) {
+	    case 0: new->Flags |= V_NHSYNC | V_NVSYNC; break;
+	    case 1: new->Flags |= V_PHSYNC | V_NVSYNC; break;
+	    case 2: new->Flags |= V_NHSYNC | V_PVSYNC; break;
+	    case 3: new->Flags |= V_PHSYNC | V_PVSYNC; break;
 	    }
 	    count++;
 
