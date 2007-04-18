@@ -305,7 +305,7 @@ i830_sdvo_read_response(xf86OutputPtr output, void *response, int response_len)
         usleep(50);
     }
 
-    return SDVO_CMD_STATUS_SUCCESS;
+    return status;
 }
 
 int
