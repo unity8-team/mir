@@ -271,33 +271,41 @@ i830_sdvo_read_response(xf86OutputPtr output, void *response, int response_len)
     I830OutputPrivatePtr    intel_output = output->driver_private;
     int			    i;
     CARD8		    status;
+    CARD8		    retry = 50;
 
-    /* Read the command response */
-    for (i = 0; i < response_len; i++) {
-	i830_sdvo_read_byte(output, SDVO_I2C_RETURN_0 + i,
+    while (retry--) {
+    	/* Read the command response */
+    	for (i = 0; i < response_len; i++) {
+	    i830_sdvo_read_byte(output, SDVO_I2C_RETURN_0 + i,
 			    &((CARD8 *)response)[i]);
-    }
+    	}
 
-    /* Read the return status */
-    i830_sdvo_read_byte(output, SDVO_I2C_CMD_STATUS, &status);
+    	/* Read the return status */
+    	i830_sdvo_read_byte(output, SDVO_I2C_CMD_STATUS, &status);
 
-    /* Write the SDVO command logging */
-    if (pI830->debug_modes) {
-	xf86DrvMsg(intel_output->pI2CBus->scrnIndex, X_INFO,
+    	/* Write the SDVO command logging */
+    	if (pI830->debug_modes) {
+	    xf86DrvMsg(intel_output->pI2CBus->scrnIndex, X_INFO,
 		   "%s: R: ", SDVO_NAME(SDVO_PRIV(intel_output)));
-	for (i = 0; i < response_len; i++)
-	    LogWrite(1, "%02X ", ((CARD8 *)response)[i]);
-	for (; i < 8; i++)
-	    LogWrite(1, "   ");
-	if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP) {
-	    LogWrite(1, "(%s)", cmd_status_names[status]);
-	} else {
-	    LogWrite(1, "(??? %d)", status);
-	}
-	LogWrite(1, "\n");
+	    for (i = 0; i < response_len; i++)
+	    	LogWrite(1, "%02X ", ((CARD8 *)response)[i]);
+	    for (; i < 8; i++)
+	    	LogWrite(1, "   ");
+	    if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP) {
+	    	LogWrite(1, "(%s)", cmd_status_names[status]);
+	    } else {
+	    	LogWrite(1, "(??? %d)", status);
+	    }
+	    LogWrite(1, "\n");
+    	}
+
+	if (status != SDVO_CMD_STATUS_PENDING)
+	    return status;
+
+        usleep(50);
     }
 
-    return status;
+    return SDVO_CMD_STATUS_SUCCESS;
 }
 
 int
@@ -1074,19 +1082,12 @@ i830_sdvo_detect(xf86OutputPtr output)
 {
     CARD8 response[2];
     CARD8 status;
-    CARD8 retry = 50;
 
     i830_sdvo_write_cmd(output, SDVO_CMD_GET_ATTACHED_DISPLAYS, NULL, 0);
+    status = i830_sdvo_read_response(output, &response, 2);
 
-    while (retry--) {
-    	status = i830_sdvo_read_response(output, &response, 2);
-
-	if (status == SDVO_CMD_STATUS_SUCCESS)
-	    break;
-    
-    	if (status != SDVO_CMD_STATUS_PENDING)
-	    return XF86OutputStatusUnknown;
-    }
+    if (status != SDVO_CMD_STATUS_SUCCESS)
+	return XF86OutputStatusUnknown;
 
     if (response[0] != 0 || response[1] != 0)
 	return XF86OutputStatusConnected;
