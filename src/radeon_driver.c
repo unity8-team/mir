@@ -2029,15 +2029,19 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 	xf86ReturnOptValBool(info->Options, OPTION_DDC_MODE, FALSE);
 
     /* don't use RMX if we have a dual-tmds panels */
-    
     if ((connector = RADEONGetCrtcConnector(pScrn, 2)))
 	if (connector->MonType == MT_DFP)
 	    info->ddc_mode = TRUE;
     /* don't use RMX if we are Dell Server */  
     if (info->IsDellServer)
-    {
 	info->ddc_mode = TRUE;
+    /* IBM Lewis server have troubles using the on-chip RMX mode */
+    if (info->ChipFamily == CHIP_FAMILY_RV100 && !info->HasCRTC2 && pRADEONEnt->PortInfo[0]->MonInfo) {
+	struct vendor *ven = &pRADEONEnt->PortInfo[0].MonInfo->vendor;
+	if (ven && ven->prod_id == 0x029a && ven->serial == 0x01010101)
+	    info->ddc_mode = TRUE;
     }
+
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Validating modes on %s head ---------\n",
 	       info->IsSecondary ? "Secondary" : "Primary");
@@ -2219,7 +2223,7 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 					  pScrn->display->virtualY,
 					  info->FbMapSize,
 					  LOOKUP_BEST_REFRESH);
-		else if (!info->IsSecondary)
+		else if (!info->IsSecondary && !info->ddc_mode)
 		    modesFound = RADEONValidateFPModes(pScrn, pScrn->display->modes);
 	    }
         }
