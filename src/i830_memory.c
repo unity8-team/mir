@@ -184,8 +184,6 @@ i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     if (mem == NULL)
 	return;
 
-    i830_unbind_memory(pScrn, mem);
-
     /* Disconnect from the list of allocations */
     if (mem->prev != NULL)
 	mem->prev->next = mem->next;
@@ -368,7 +366,7 @@ i830_allocate_aperture(ScrnInfoPtr pScrn, const char *name,
     mem->prev = scan;
     mem->next = scan->next;
     scan->next = mem;
-    mem->next->prev = scan;
+    mem->next->prev = mem;
 
     return mem;
 }
