@@ -302,7 +302,7 @@ i830_sdvo_read_response(xf86OutputPtr output, void *response, int response_len)
 	if (status != SDVO_CMD_STATUS_PENDING)
 	    return status;
 
-        usleep(50);
+        intel_output->pI2CBus->I2CUDelay(intel_output->pI2CBus, 50);
     }
 
     return status;
