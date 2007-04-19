@@ -1294,8 +1294,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 		    "Will try to reserve %d kiB of AGP aperture space\n"
 		    "\tfor the DRM memory manager.\n",
 		    pI830->mmSize);
-      }
 #endif
+      }
    } 
    
 #endif
