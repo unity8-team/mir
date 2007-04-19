@@ -121,12 +121,6 @@ other drivers.
 Disable or enable XVideo support.
 Default: XVideo is enabled for configurations where it is supported.
 .TP
-.BI "Option \*qLinearAlloc\*q \*q" integer \*q
-Allows more memory for the offscreen allocator. This usually helps in
-situations where HDTV movies are required to play but not enough offscreen
-memory is usually available. Set this to 8160 for upto 1920x1080 HDTV support.
-Default 0KB (off).
-.TP
 .BI "Option \*qLegacy3D\*q \*q" boolean \*q
 Enable support for the legacy i915_dri.so 3D driver.
 This will, among other things, make the 2D driver tell libGL to

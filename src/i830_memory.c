@@ -230,7 +230,6 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->exa_offscreen = NULL;
     pI830->exa_965_state = NULL;
     pI830->overlay_regs = NULL;
-    pI830->xaa_linear = NULL;
     pI830->logical_context = NULL;
     pI830->back_buffer = NULL;
     pI830->third_buffer = NULL;
@@ -660,16 +659,6 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Failed to allocate Overlay register space.\n");
 	    /* This failure isn't fatal. */
-	}
-    }
-
-    if (!pI830->useEXA && pI830->LinearAlloc) {
-	pI830->xaa_linear = i830_allocate_memory(pScrn, "XAA linear memory",
-						 KB(pI830->LinearAlloc),
-						 GTT_PAGE_SIZE, 0);
-	if (pI830->xaa_linear == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Failed to allocate linear buffer space\n");
 	}
     }
 
