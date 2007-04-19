@@ -131,19 +131,14 @@ if test "x$XSERVER_SOURCE" = x; then
 	fi
 fi
 	
-if test "x$XMODES" = xyes; then
-	echo built-in mode code
-	AC_DEFINE(XMODES, 1,[X server has built-in mode code])
-	XMODES_CFLAGS=
-else
-	echo symlink mode code
-	if test "x$XSERVER_SOURCE" = x; then
-		AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
-	fi
-	XMODES_CFLAGS='-DXF86_MODES_RENAME -I$(top_srcdir)/src/modes -I$(top_srcdir)/src/parser'
-fi
-
 if test -d "$XSERVER_SOURCE"; then
+	case "$XSERVER_SOURCE" in
+	/*)
+		;;
+	*)
+		XSERVER_SOURCE="`cd $XSERVER_SOURCE && pwd`"
+		;;
+	esac
 	if test -f src/modes/xf86Modes.h; then
 		:
 	else
@@ -156,6 +151,20 @@ if test -d "$XSERVER_SOURCE"; then
 		ln -sf $XSERVER_SOURCE/hw/xfree86/parser src/parser
 	fi
 fi
+
+if test "x$XMODES" = xyes; then
+	AC_MSG_NOTICE([X server has new mode code])
+	AC_DEFINE(XMODES, 1,[X server has built-in mode code])
+	XMODES_CFLAGS=
+else
+	if test -f src/modes/xf86Modes.h -a -f src/parser/xf86Parser.h; then
+		AC_MSG_NOTICE([X server is missing new mode code, using local copy])
+	else
+		AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
+	fi
+	XMODES_CFLAGS='-DXF86_MODES_RENAME -I$(top_srcdir)/src -I$(top_srcdir)/src/modes -I$(top_srcdir)/src/parser'
+fi
+
 AC_SUBST([XMODES_CFLAGS])
 
 dnl Use lots of warning flags with GCC
