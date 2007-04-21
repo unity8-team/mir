@@ -2036,8 +2036,8 @@ static Bool RADEONPreInitModes(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
     if (info->IsDellServer)
 	info->ddc_mode = TRUE;
     /* IBM Lewis server have troubles using the on-chip RMX mode */
-    if (info->ChipFamily == CHIP_FAMILY_RV100 && !info->HasCRTC2 && pRADEONEnt->PortInfo[0]->MonInfo) {
-	struct vendor *ven = &pRADEONEnt->PortInfo[0].MonInfo->vendor;
+    if (info->ChipFamily == CHIP_FAMILY_RV100 && !pRADEONEnt->HasCRTC2 && pRADEONEnt->PortInfo[0]->MonInfo) {
+	struct vendor *ven = &pRADEONEnt->PortInfo[0]->MonInfo->vendor;
 	if (ven && ven->prod_id == 0x029a && ven->serial == 0x01010101)
 	    info->ddc_mode = TRUE;
     }
