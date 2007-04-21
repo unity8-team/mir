@@ -186,9 +186,11 @@ static DisplayModePtr RADEONDDCModes(ScrnInfoPtr pScrn, xf86MonPtr ddc)
 	    new->status     = MODE_OK;
 #ifdef M_T_PREFERRED
 	    if (PREFERRED_TIMING_MODE(ddc->features.msc))
-	      new->type     = M_T_PREFERRED;
+	      new->type     |= M_T_PREFERRED;
 #endif
+#ifdef M_T_DRIVER
 	      new->type     |= M_T_DRIVER;
+#endif
 
 	    switch (d_timings->misc) {
 	    case 0: new->Flags |= V_NHSYNC | V_NVSYNC; break;
