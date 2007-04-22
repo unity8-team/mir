@@ -48,7 +48,8 @@ typedef enum
     DDC_MONID,
     DDC_DVI,
     DDC_VGA,
-    DDC_CRT2
+    DDC_CRT2,
+    DDC_LCD,
 } RADEONDDCType;
 
 typedef enum

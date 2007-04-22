@@ -181,6 +181,9 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 			    case RADEON_GPIO_CRT2_DDC:
 				pRADEONEnt->PortInfo[crtc]->DDCType = DDC_CRT2;
 				break;
+			    case RADEON_LCD_GPIO_MASK:
+				pRADEONEnt->PortInfo[crtc]->DDCType = DDC_LCD;
+				break;
 			    default:
 				pRADEONEnt->PortInfo[crtc]->DDCType = DDC_NONE_DETECTED;
 				break;
@@ -290,7 +293,7 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	        if ((tmp0 = RADEON_BIOS16(tmp + 0x15))) {
 		    if ((tmp1 = RADEON_BIOS8(tmp0+2) & 0x07)) {	    
 			pRADEONEnt->PortInfo[0]->DDCType	= tmp1;      
-			if (pRADEONEnt->PortInfo[0]->DDCType > DDC_CRT2) {
+			if (pRADEONEnt->PortInfo[0]->DDCType > DDC_LCD) {
 			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 				       "Unknown DDCType %d found\n",
 				       pRADEONEnt->PortInfo[0]->DDCType);
