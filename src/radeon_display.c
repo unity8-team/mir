@@ -75,12 +75,13 @@ const char *TMDSTypeName[3] = {
   "External"
 };
 
-const char *DDCTypeName[5] = {
+const char *DDCTypeName[6] = {
   "NONE",
   "MONID",
   "DVI_DDC",
   "VGA_DDC",
-  "CRT2_DDC"
+  "CRT2_DDC",
+  "LCD_DDC"
 };
 
 const char *DACTypeName[3] = {
@@ -166,10 +167,16 @@ static void RADEONI2CGetBits(I2CBusPtr b, int *Clock, int *data)
     unsigned char *RADEONMMIO = info->MMIO;
 
     /* Get the result */
-    val = INREG(info->DDCReg);
 
-    *Clock = (val & RADEON_GPIO_Y_1) != 0;
-    *data  = (val & RADEON_GPIO_Y_0) != 0;
+    if (info->DDCReg == RADEON_LCD_GPIO_MASK) { 
+        val = INREG(info->DDCReg+4);
+        *Clock = (val & (1<<13)) != 0;
+        *data  = (val & (1<<12)) != 0;
+    } else {
+        val = INREG(info->DDCReg);
+        *Clock = (val & RADEON_GPIO_Y_1) != 0;
+        *data  = (val & RADEON_GPIO_Y_0) != 0;
+    }
 }
 
 static void RADEONI2CPutBits(I2CBusPtr b, int Clock, int data)
@@ -179,11 +186,17 @@ static void RADEONI2CPutBits(I2CBusPtr b, int Clock, int data)
     unsigned long  val;
     unsigned char *RADEONMMIO = info->MMIO;
 
-    val = INREG(info->DDCReg) & (CARD32)~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1);
-    val |= (Clock ? 0:RADEON_GPIO_EN_1);
-    val |= (data ? 0:RADEON_GPIO_EN_0);
-    OUTREG(info->DDCReg, val);
-
+    if (info->DDCReg == RADEON_LCD_GPIO_MASK) {
+        val = INREG(info->DDCReg) & (CARD32)~((1<<12) | (1<<13));
+        val |= (Clock ? 0:(1<<13));
+        val |= (data ? 0:(1<<12));
+        OUTREG(info->DDCReg, val);
+    } else {
+        val = INREG(info->DDCReg) & (CARD32)~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1);
+        val |= (Clock ? 0:RADEON_GPIO_EN_1);
+        val |= (data ? 0:RADEON_GPIO_EN_0);
+        OUTREG(info->DDCReg, val);
+   }
     /* read back to improve reliability on some cards. */
     val = INREG(info->DDCReg);
 }
@@ -562,13 +575,16 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
     case DDC_CRT2:
 	info->DDCReg = RADEON_GPIO_CRT2_DDC;
 	break;
+    case DDC_LCD:
+	info->DDCReg = RADEON_LCD_GPIO_MASK;
+	break;
     default:
 	info->DDCReg = DDCReg;
 	return MT_NONE;
     }
 
     /* Read and output monitor info using DDC2 over I2C bus */
-    if (info->pI2CBus && info->ddc2) {
+    if (info->pI2CBus && info->ddc2 && (info->DDCReg != RADEON_LCD_GPIO_MASK)) {
 	OUTREG(info->DDCReg, INREG(info->DDCReg) &
 	       (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
 
@@ -620,15 +636,17 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
 	    OUTREG(info->DDCReg, INREG(info->DDCReg) | RADEON_GPIO_EN_1);
 	    OUTREG(info->DDCReg, INREG(info->DDCReg) | RADEON_GPIO_EN_0);
 	    usleep(15000);
-	    if(*MonInfo) break;
+	    if(*MonInfo)  break;
 	}
+    } else if (info->pI2CBus && info->ddc2 && info->DDCReg == RADEON_LCD_GPIO_MASK) {
+         *MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex, info->pI2CBus);
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DDC2/I2C is not properly initialized\n");
 	MonType = MT_NONE;
     }
 
     OUTREG(info->DDCReg, INREG(info->DDCReg) &
-	   ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
+        ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
 
     if (*MonInfo) {
 	if ((*MonInfo)->rawData[0x14] & 0x80) {
