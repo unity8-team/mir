@@ -782,12 +782,12 @@ i830_xaa_composite(CARD8	op,
     if (pMask != NULL || op != PictOpSrc || pSrc->pDrawable == NULL)
 	goto fallback;
 
-    if (pSrc->pDrawable->type != DRAWABLE_PIXMAP ||
+    if (pSrc->pDrawable->type != DRAWABLE_WINDOW ||
 	pDst->pDrawable->type != DRAWABLE_PIXMAP)
     {
 	goto fallback;
     }
-    pSrcPixmap = (PixmapPtr)pSrc->pDrawable;
+    pSrcPixmap = (*pScreen->GetWindowPixmap) ((WindowPtr) pSrc->pDrawable);
     pDstPixmap = (PixmapPtr)pDst->pDrawable;
 
     /* Check if the dest is one of our shadow pixmaps */
