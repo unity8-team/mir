@@ -45,13 +45,11 @@ static const char *CH7xxxSymbols[] = {
     "CH7xxxVidOutput",
     NULL
 };
-
-#if 0
 static const char *ivch_symbols[] = {
     "ivch_methods",
     NULL
 };
-#endif
+
 #if 0
 static const char *ch7017_symbols[] = {
     "ch7017_methods",
@@ -66,9 +64,9 @@ struct _I830DVODriver i830_dvo_drivers[] =
      (SIL164_ADDR_1<<1), SIL164Symbols, NULL , NULL, NULL},
     {I830_DVO_CHIP_TMDS | I830_DVO_CHIP_TVOUT, "ch7xxx", "CH7xxxVidOutput",
      (CH7xxx_ADDR_1<<1), CH7xxxSymbols, NULL , NULL, NULL},
-    /*
     {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",
      0x04, ivch_symbols, NULL, NULL, NULL},
+    /*
     {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",
      0x44, ivch_symbols, NULL, NULL, NULL},
     {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",

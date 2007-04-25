@@ -60,26 +60,69 @@ ivch_dump_regs(I2CDevPtr d);
 static Bool
 ivch_read(struct ivch_priv *priv, int addr, CARD16 *data)
 {
-    if (!xf86I2CReadWord(&priv->d, addr, data)) {
-	xf86DrvMsg(priv->d.pI2CBus->scrnIndex, X_ERROR,
-		   "Unable to read register 0x%02x from %s:%d.\n",
-		   addr, priv->d.pI2CBus->BusName, priv->d.SlaveAddr);
-	return FALSE;
-    }
-    return TRUE;
-}
+    I2CBusPtr b = priv->d.pI2CBus;
+    I2CByte *p = (I2CByte *) data;
 
+    if (!b->I2CStart(b, priv->d.StartTimeout))
+	goto fail;
+
+    if (!b->I2CPutByte(&priv->d, priv->d.SlaveAddr | 1))
+	goto fail;
+
+    if (!b->I2CPutByte(&priv->d, addr))
+	goto fail;
+
+    if (!b->I2CGetByte(&priv->d, p++, FALSE))
+	goto fail;
+
+    if (!b->I2CGetByte(&priv->d, p++, TRUE))
+	goto fail;
+
+    b->I2CStop(&priv->d);
+
+    return TRUE;
+
+ fail:
+    xf86DrvMsg(priv->d.pI2CBus->scrnIndex, X_ERROR,
+	       "ivch: Unable to read register 0x%02x from %s:%02x.\n",
+	       addr, priv->d.pI2CBus->BusName, priv->d.SlaveAddr);
+    b->I2CStop(&priv->d);
+
+    return FALSE;
+}
+ 
 /** Writes a 16-bit register on the ivch */
 static Bool
 ivch_write(struct ivch_priv *priv, int addr, CARD16 data)
 {
-    if (!xf86I2CWriteWord(&priv->d, addr, data)) {
-	xf86DrvMsg(priv->d.pI2CBus->scrnIndex, X_ERROR,
-		   "Unable to write register 0x%02x to %s:%d.\n",
-		   addr, priv->d.pI2CBus->BusName, priv->d.SlaveAddr);
-	return FALSE;
-    }
+    I2CBusPtr b = priv->d.pI2CBus;
+
+    if (!b->I2CStart(b, priv->d.StartTimeout))
+	goto fail;
+
+    if (!b->I2CPutByte(&priv->d, priv->d.SlaveAddr))
+	goto fail;
+
+    if (!b->I2CPutByte(&priv->d, addr))
+	goto fail;
+
+    if (!b->I2CPutByte(&priv->d, data & 0xff))
+	goto fail;
+
+    if (!b->I2CPutByte(&priv->d, data >> 8))
+	goto fail;
+
+    b->I2CStop(&priv->d);
+
     return TRUE;
+
+ fail:
+    b->I2CStop(&priv->d);
+    xf86DrvMsg(priv->d.pI2CBus->scrnIndex, X_ERROR,
+	       "Unable to write register 0x%02x to %s:%d.\n",
+	       addr, priv->d.pI2CBus->BusName, priv->d.SlaveAddr);
+
+    return FALSE;
 }
 
 /** Probes the given bus and slave address for an ivch */
@@ -104,18 +147,18 @@ ivch_init(I2CBusPtr b, I2CSlaveAddr addr)
     priv->d.ByteTimeout = b->ByteTimeout;
     priv->d.DriverPrivate.ptr = priv;
 
-    if (!xf86I2CReadWord(&priv->d, VR00, &temp))
+    if (!ivch_read(priv, VR00, &temp))
 	goto out;
 
     /* Since the identification bits are probably zeroes, which doesn't seem
      * very unique, check that the value in the base address field matches
      * the address it's responding on.
      */
-    if ((temp & VR00_BASE_ADDRESS_MASK) != priv->d.SlaveAddr) {
+    if ((temp & VR00_BASE_ADDRESS_MASK) != (priv->d.SlaveAddr >> 1)) {
 	xf86DrvMsg(priv->d.pI2CBus->scrnIndex, X_ERROR,
 		   "ivch detect failed due to address mismatch "
 		   "(%d vs %d)\n",
-		   (temp & VR00_BASE_ADDRESS_MASK), priv->d.SlaveAddr);
+		   (temp & VR00_BASE_ADDRESS_MASK), priv->d.SlaveAddr >> 1);
     }
 
     if (!xf86I2CDevInit(&priv->d)) {
