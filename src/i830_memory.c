@@ -957,20 +957,18 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 		   "Failed to allocate logical context space.\n");
 	return FALSE;
     }
-#ifdef I830_USE_EXA
-    if (pI830->useEXA) {
-	if (IS_I965G(pI830) && pI830->exa_965_state == NULL) {
-	    pI830->exa_965_state =
-		i830_allocate_memory(pScrn, "exa G965 state buffer",
-				     EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, 0);
-	    if (pI830->exa_965_state == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Failed to allocate exa state buffer for 965.\n");
-		return FALSE;
-	    }
+
+    /* even in XAA, 965G needs state mem buffer for rendering */
+    if (IS_I965G(pI830) && !pI830->noAccel && pI830->exa_965_state == NULL) {
+	pI830->exa_965_state =
+	    i830_allocate_memory(pScrn, "exa G965 state buffer",
+		    EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, 0);
+	if (pI830->exa_965_state == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "Failed to allocate exa state buffer for 965.\n");
+	    return FALSE;
 	}
     }
-#endif
 
 #ifdef I830_XV
     /* Allocate overlay register space and optional XAA linear allocator
