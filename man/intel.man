@@ -43,17 +43,10 @@ NetBSD, and Solaris have such kernel drivers available.
 By default, the i810 will use 8 megabytes
 of system memory for graphics.  For the 830M and later, the driver will
 automatically size its memory allocation according to the features it will
-support.  The amount of memory used may be limited by using the
+support.  The
 .B VideoRam
-entry in the config file
-.B "Device"
-section.  Limiting the amount of memory used may result in features being
-disabled, so if you choose to configure it, it is advisable to check the
-__xservername__
-log file to see if any features have been disabled because of insufficient
-video memory.  In particular, DRI support or tiling mode may be disabled
-with insufficient video memory.  Either of these being disabled will
-reduce performance for 3D applications.
+option, which in the past had been necessary to allow more than some small
+amount of memory to be allocated, is now ignored.
 .PP
 The following driver
 .B Options

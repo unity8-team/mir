@@ -2162,8 +2162,30 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       from = X_DEFAULT;
       pScrn->videoRam = pI830->FbMapSize / KB(1);
    } else {
+#if 0
       from = X_CONFIG;
       pScrn->videoRam = pI830->pEnt->device->videoRam;
+#else
+      /* Disable VideoRam configuration, at least for now.  Previously,
+       * VideoRam was necessary to avoid overly low limits on allocated
+       * memory, so users created larger, yet still small, fixed allocation
+       * limits in their config files.  Now, the driver wants to allocate more,
+       * and the old intention of the VideoRam lines that had been entered is
+       * obsolete.
+       */
+      from = X_DEFAULT;
+      pScrn->videoRam = pI830->FbMapSize / KB(1);
+
+      if (pScrn->videoRam != pI830->pEnt->device->videoRam) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "VideoRam configuration found, which is no longer "
+		    "recommended.\n");
+	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "Continuing with default %dkB VideoRam instead of %d "
+		    "kB.\n",
+		    pScrn->videoRam, pI830->pEnt->device->videoRam);
+      }
+#endif
    }
 
    /* Limit videoRam to how much we might be able to allocate from AGP */
