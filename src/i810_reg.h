@@ -526,6 +526,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PGETBL_SIZE_256KB   (1 << 1)
 #define PGETBL_SIZE_128KB   (2 << 1)
 
+#define I830_PTE_BASE			0x10000
+#define PTE_ADDRESS_MASK		0xfffff000
+#define PTE_ADDRESS_MASK_HIGH		0x000000f0 /* i915+ */
+#define PTE_MAPPING_TYPE_UNCACHED	(0 << 1)
+#define PTE_MAPPING_TYPE_DCACHE		(1 << 1) /* i830 only */
+#define PTE_MAPPING_TYPE_CACHED		(3 << 1)
+#define PTE_MAPPING_TYPE_MASK		(3 << 1)
+#define PTE_VALID			(1 << 0)
+
 /** @defgroup PGE_ERR
  * @{
  */
@@ -576,18 +585,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define PGTBL_ERR_HOST_PTE_DATA		(1 << 1)
 # define PGTBL_ERR_HOST_GTT_PTE			(1 << 0)
 /** @} */
-
-/* Page table entries loaded via mmio region, p323
- */
-#define PTE_BASE         0x10000
-#define PTE_ADDR_MASK       0x3FFFF000
-#define PTE_TYPE_MASK       0x00000006
-#define PTE_LOCAL           0x00000002
-#define PTE_MAIN_UNCACHED   0x00000000
-#define PTE_MAIN_CACHED     0x00000006
-#define PTE_VALID_MASK      0x00000001
-#define PTE_VALID           0x00000001
-
 
 /* Ring buffer registers, p277, overview p19
  */

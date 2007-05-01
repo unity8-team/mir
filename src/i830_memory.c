@@ -309,6 +309,86 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
     return TRUE;
 }
 
+/**
+ * Reads a GTT entry for the memory at the given offset and returns the
+ * physical address.
+ *
+ * \return physical address if successful.
+ * \return (unsigned long)-1 if unsuccessful.
+ */
+static unsigned long
+i830_get_gtt_physical(ScrnInfoPtr pScrn, unsigned long offset)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 gttentry = INGTT(offset / 1024);
+
+    /* Mask out these reserved bits on this hardware. */
+    if (!IS_I965G(pI830))
+	gttentry &= ~PTE_ADDRESS_MASK_HIGH;
+
+    /* If it's not a mapping type we know, then bail. */
+    if ((gttentry & PTE_MAPPING_TYPE_MASK) != PTE_MAPPING_TYPE_UNCACHED &&
+	(gttentry & PTE_MAPPING_TYPE_MASK) != PTE_MAPPING_TYPE_CACHED)
+    {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Unusable physical mapping type 0x%08x\n",
+		   (unsigned int)(gttentry & PTE_MAPPING_TYPE_MASK));
+	return -1;
+    }
+    /* If we can't represent the address with an unsigned long, bail. */
+    if (sizeof(unsigned long) == 4 &&
+	(gttentry & PTE_ADDRESS_MASK_HIGH) != 0)
+    {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "High memory PTE (0x%08x) on 32-bit system\n",
+		   (unsigned int)gttentry);
+	return -1;
+    }
+    assert((gttentry & PTE_VALID) != 0);
+
+    return (gttentry & PTE_ADDRESS_MASK) |
+	(gttentry & PTE_ADDRESS_MASK_HIGH << (32 - 4));
+}
+
+/**
+ * Reads the GTT entries for stolen memory at the given offset, returning the
+ * physical address.
+ *
+ * \return physical address if successful.
+ * \return (unsigned long)-1 if unsuccessful.
+ */
+static unsigned long
+i830_get_stolen_physical(ScrnInfoPtr pScrn, unsigned long offset,
+			 unsigned long size)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    unsigned long physical, scan;
+
+    /* Check that the requested region is within stolen memory. */
+    if (offset + size >= pI830->stolen_size)
+	return -1;
+
+    physical = i830_get_gtt_physical(pScrn, offset);
+    if (physical == -1)
+	return -1;
+
+    /* Check that the following pages in our allocation follow the first page
+     * contiguously.
+     */
+    for (scan = offset + 4096; scan < offset + size; scan += 4096) {
+	unsigned long scan_physical = i830_get_gtt_physical(pScrn, scan);
+
+	if ((scan - offset) != (scan_physical - physical)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Non-contiguous GTT entries: (%ld,%ld) vs (%ld,%ld)\n",
+		       scan, scan_physical, offset, physical);
+	    return -1;
+	}
+    }
+
+    return physical;
+}
+
 /* Allocate aperture space for the given size and alignment, and returns the
  * memory allocation.
  *
@@ -341,13 +421,25 @@ i830_allocate_aperture(ScrnInfoPtr pScrn, const char *name,
 	alignment = GTT_PAGE_SIZE;
 
     for (scan = pI830->memory_list; scan->next != NULL; scan = scan->next) {
-	mem->offset = scan->end;
-	/* For allocations requiring physical addresses, we have to use AGP
-	 * memory, so move the allocation up out of stolen memory.
-	 */
-	if ((flags & NEED_PHYSICAL_ADDR) && mem->offset < pI830->stolen_size)
-	    mem->offset = pI830->stolen_size;
-	mem->offset = ROUND_TO(mem->offset, alignment);
+	mem->offset = ROUND_TO(scan->end, alignment);
+	if ((flags & NEED_PHYSICAL_ADDR) && mem->offset < pI830->stolen_size) {
+	    /* If the allocation is entirely within stolen memory, and we're
+	     * able to get the physical addresses out of the GTT and check that
+	     * it's contiguous (it ought to be), then we can do our physical
+	     * allocations there and not bother the kernel about it.  This
+	     * helps avoid aperture fragmentation from our physical
+	     * allocations.
+	     */
+	    mem->bus_addr = i830_get_stolen_physical(pScrn, mem->offset,
+						     mem->size);
+
+	    if (mem->bus_addr == ((unsigned long)-1)) {
+		/* Move the start of the allocation to just past the end of
+		 * stolen memory.
+		 */
+		mem->offset = ROUND_TO(pI830->stolen_size, alignment);
+	    }
+	}
 
 	mem->end = mem->offset + size;
 	if (flags & ALIGN_BOTH_ENDS)
@@ -385,11 +477,8 @@ i830_allocate_agp_memory(ScrnInfoPtr pScrn, i830_memory *mem, int flags)
     if (mem->key != -1)
 	return TRUE;
 
-    if (mem->offset + mem->size <= pI830->stolen_size &&
-	!(flags & NEED_PHYSICAL_ADDR))
-    {
+    if (mem->offset + mem->size <= pI830->stolen_size)
 	return TRUE;
-    }
 
     if (mem->offset < pI830->stolen_size)
 	mem->agp_offset = pI830->stolen_size;

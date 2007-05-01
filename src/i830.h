@@ -261,6 +261,7 @@ enum last_3d {
 
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
+   unsigned char *GTTBase;
    unsigned char *FbBase;
    int cpp;
 

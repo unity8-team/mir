@@ -521,6 +521,32 @@ I830MapMMIO(ScrnInfoPtr pScrn)
 				   pI830->MMIOAddr, I810_REG_SIZE);
    if (!pI830->MMIOBase)
       return FALSE;
+
+   /* Set up the GTT mapping for the various places it has been moved over
+    * time.
+    */
+   if (IS_I9XX(pI830)) {
+      if (IS_I965G(pI830)) {
+	 pI830->GTTBase = xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
+					pI830->PciTag,
+					pI830->MMIOAddr + (512 * 1024),
+					512 * 1024);
+	 if (pI830->GTTBase == NULL)
+	    return FALSE;
+      } else {
+	 CARD32 gttaddr = pI830->PciInfo->memBase[3] & 0xFFFFFF00;
+
+	 pI830->GTTBase = xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
+					pI830->PciTag,
+					gttaddr,
+					pI830->FbMapSize / 1024);
+	 if (pI830->GTTBase == NULL)
+	    return FALSE;
+      }
+   } else {
+      pI830->GTTBase = pI830->MMIOBase + I830_PTE_BASE;
+   }
+
    return TRUE;
 }
 
@@ -1136,6 +1162,27 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
    xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, max_height);
 
+   if (IS_I830(pI830) || IS_845G(pI830)) {
+      PCITAG bridge;
+      CARD16 gmch_ctrl;
+
+      bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
+      gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
+      if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_128M) {
+	 pI830->FbMapSize = 0x8000000;
+      } else {
+	 pI830->FbMapSize = 0x4000000; /* 64MB - has this been tested ?? */
+      }
+   } else {
+      if (IS_I9XX(pI830)) {
+	 pI830->FbMapSize = 1UL << pciGetBaseSize(pI830->PciTag, 2, TRUE,
+						  NULL);
+      } else {
+	 /* 128MB aperture for later i8xx series. */
+	 pI830->FbMapSize = 0x8000000;
+      }
+   }
+
    /* Some of the probing needs MMIO access, so map it here. */
    I830MapMMIO(pScrn);
 
@@ -1158,27 +1205,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    OUTREG(SWF4, (pI830->saveSWF4 & ~((3 << 19) | (7 << 16))) |
 		(1 << 23) | (2 << 16));
 #endif
-
-   if (IS_I830(pI830) || IS_845G(pI830)) {
-      PCITAG bridge;
-      CARD16 gmch_ctrl;
-
-      bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
-      gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
-      if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_128M) {
-	 pI830->FbMapSize = 0x8000000;
-      } else {
-	 pI830->FbMapSize = 0x4000000; /* 64MB - has this been tested ?? */
-      }
-   } else {
-      if (IS_I9XX(pI830)) {
-	 pI830->FbMapSize = 1UL << pciGetBaseSize(pI830->PciTag, 2, TRUE,
-						  NULL);
-      } else {
-	 /* 128MB aperture for later i8xx series. */
-	 pI830->FbMapSize = 0x8000000;
-      }
-   }
 
    if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
       num_pipe = 1;
