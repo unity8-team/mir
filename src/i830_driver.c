@@ -1653,6 +1653,19 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
 
    DPRINTF(PFX, "SetHWOperatingState\n");
 
+   /* Disable clock gating reported to work incorrectly according to the specs.
+    */
+   if (IS_I965GM(pI830)) {
+      OUTREG(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
+   } else if (IS_I965G(pI830)) {
+      OUTREG(RENCLK_GATE_D1,
+	     I965_RCC_CLOCK_GATE_DISABLE | I965_ISC_CLOCK_GATE_DISABLE);
+   } else if (IS_I855(pI830) || IS_I865G(pI830)) {
+      OUTREG(RENCLK_GATE_D1, SV_CLOCK_GATE_DISABLE);
+   } else if (IS_I830(pI830)) {
+      OUTREG(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
+   }
+
    if (!pI830->noAccel)
       SetRingRegs(pScrn);
    SetFenceRegs(pScrn);
