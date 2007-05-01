@@ -231,11 +231,13 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->exa_965_state = NULL;
     pI830->overlay_regs = NULL;
     pI830->logical_context = NULL;
+#ifdef XF86DRI
     pI830->back_buffer = NULL;
     pI830->third_buffer = NULL;
     pI830->depth_buffer = NULL;
     pI830->textures = NULL;
     pI830->memory_manager = NULL;
+#endif
     pI830->LpRing->mem = NULL;
 
     /* Reset the fence register allocation. */
@@ -248,6 +250,7 @@ i830_free_3d_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
+#ifdef XF86_DRI
     i830_free_memory(pScrn, pI830->back_buffer);
     pI830->back_buffer = NULL;
     i830_free_memory(pScrn, pI830->third_buffer);
@@ -258,6 +261,7 @@ i830_free_3d_memory(ScrnInfoPtr pScrn)
     pI830->textures = NULL;
     i830_free_memory(pScrn, pI830->memory_manager);
     pI830->memory_manager = NULL;
+#endif
 }
 
 /**
@@ -691,6 +695,7 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 	i830_describe_tiling(pScrn, verbosity, prefix, pI830->front_buffer,
 			     pI830->front_tiled);
     }
+#ifdef XF86DRI
     if (pI830->back_buffer != NULL) {
 	i830_describe_tiling(pScrn, verbosity, prefix, pI830->back_buffer,
 			     pI830->back_tiled);
@@ -703,6 +708,7 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 	i830_describe_tiling(pScrn, verbosity, prefix, pI830->depth_buffer,
 			     pI830->depth_tiled);
     }
+#endif
 }
 
 static Bool
@@ -1330,7 +1336,6 @@ i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 }
 #endif
 
-#ifdef XF86DRI
 /**
  * Sets up a fence area for the hardware.
  *
@@ -1529,7 +1534,6 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
 
     pI830->fence[nr] = val;
 }
-#endif
 
 /**
  * Called at EnterVT to grab the AGP GART and bind our allocations.

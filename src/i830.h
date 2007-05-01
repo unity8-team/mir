@@ -307,6 +307,9 @@ typedef struct _I830Rec {
    int *used3D;
 
    i830_memory *logical_context;
+
+   unsigned int front_tiled;
+
 #ifdef XF86DRI
    i830_memory *back_buffer;
    i830_memory *third_buffer;
@@ -319,7 +322,6 @@ typedef struct _I830Rec {
    int mmModeFlags;
    int mmSize;
 
-   unsigned int front_tiled;
    unsigned int back_tiled;
    unsigned int third_tiled;
    unsigned int depth_tiled;
