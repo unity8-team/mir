@@ -89,13 +89,19 @@ i830_dvo_dpms(xf86OutputPtr output, int mode)
     I830Ptr		    pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
     void *		    dev_priv = intel_output->i2c_drv->dev_priv;
+    unsigned int	    dvo_reg;
+
+    if (intel_output->i2c_drv->type & I830_DVO_CHIP_LVDS)
+	dvo_reg = DVOA;
+    else
+	dvo_reg = DVOC;
 
     if (mode == DPMSModeOn) {
-	OUTREG(DVOC, INREG(DVOC) | DVO_ENABLE);
+	OUTREG(dvo_reg, INREG(dvo_reg) | DVO_ENABLE);
 	(*intel_output->i2c_drv->vid_rec->dpms)(dev_priv, mode);
     } else {
 	(*intel_output->i2c_drv->vid_rec->dpms)(dev_priv, mode);
-	OUTREG(DVOC, INREG(DVOC) & ~DVO_ENABLE);
+	OUTREG(dvo_reg, INREG(dvo_reg) & ~DVO_ENABLE);
     }
 }
 
@@ -166,18 +172,27 @@ i830_dvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     I830OutputPrivatePtr    intel_output = output->driver_private;
     int			    pipe = intel_crtc->pipe;
     CARD32		    dvo;
+    unsigned int	    dvo_reg, dvo_srcdim_reg;
     int			    dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
+
+    if (intel_output->i2c_drv->type & I830_DVO_CHIP_LVDS) {
+	dvo_reg = DVOA;
+	dvo_srcdim_reg = DVOA_SRCDIM;
+    } else {
+	dvo_reg = DVOC;
+	dvo_srcdim_reg = DVOC_SRCDIM;
+    }
 
     intel_output->i2c_drv->vid_rec->mode_set(intel_output->i2c_drv->dev_priv,
 					     mode);
 
     /* Save the data order, since I don't know what it should be set to. */
-    dvo = INREG(DVOC) & (DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
+    dvo = INREG(dvo_reg) & (DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
     dvo |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE | DVO_BLANK_ACTIVE_HIGH;
 
     if (pipe == 1)
 	dvo |= DVO_PIPE_B_SELECT;
-
+    dvo |= DVO_PIPE_STALL;
     if (adjusted_mode->Flags & V_PHSYNC)
 	dvo |= DVO_HSYNC_ACTIVE_HIGH;
     if (adjusted_mode->Flags & V_PVSYNC)
@@ -188,11 +203,11 @@ i830_dvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     /*OUTREG(DVOB_SRCDIM,
       (adjusted_mode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
       (adjusted_mode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));*/
-    OUTREG(DVOC_SRCDIM,
+    OUTREG(dvo_srcdim_reg,
 	   (adjusted_mode->HDisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
 	   (adjusted_mode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));
     /*OUTREG(DVOB, dvo);*/
-    OUTREG(DVOC, dvo);
+    OUTREG(dvo_reg, dvo);
 }
 
 /**
@@ -207,6 +222,33 @@ i830_dvo_detect(xf86OutputPtr output)
     void *dev_priv = intel_output->i2c_drv->dev_priv;
 
     return intel_output->i2c_drv->vid_rec->detect(dev_priv);
+}
+
+static DisplayModePtr
+i830_dvo_get_modes(xf86OutputPtr output)
+{
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    DisplayModePtr	    modes;
+
+    /* We should probably have an i2c driver get_modes function for those
+     * devices which will have a fixed set of modes determined by the chip
+     * (TV-out, for example), but for now with just TMDS and LVDS, that's not
+     * the case.
+     */
+    modes = i830_ddc_get_modes(output);
+    if (modes != NULL)
+	return modes;
+
+    if (intel_output->i2c_drv->type & I830_DVO_CHIP_LVDS &&
+	pI830->panel_fixed_mode != NULL)
+    {
+	xf86PrintModeline(pScrn->scrnIndex, pI830->panel_fixed_mode);
+	return xf86DuplicateMode(pI830->panel_fixed_mode);
+    }
+
+    return NULL;
 }
 
 static void
@@ -235,9 +277,46 @@ static const xf86OutputFuncsRec i830_dvo_output_funcs = {
     .mode_set = i830_dvo_mode_set,
     .commit = i830_output_commit,
     .detect = i830_dvo_detect,
-    .get_modes = i830_ddc_get_modes,
+    .get_modes = i830_dvo_get_modes,
     .destroy = i830_dvo_destroy
 };
+
+/**
+ * Attempts to get a fixed panel timing for LVDS (currently only the i830).
+ *
+ * Other chips with DVO LVDS will need to extend this to deal with the LVDS
+ * chip being on DVOB/C and having multiple pipes.
+ */
+static void
+i830_dvo_get_panel_timings(xf86OutputPtr output)
+{
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    CARD32 dvoa = INREG(DVOA);
+
+    if (!IS_I830(pI830))
+	return;
+
+    assert(pI830->fixed_panel_mode == NULL);
+
+    /* If the DVOA port is active, that'll be the LVDS, so we can pull out
+     * its timings to get how the BIOS set up the panel.
+     */
+    if (dvoa & DVO_ENABLE) {
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int pipe = (dvoa & DVO_PIPE_B_SELECT) ? 1 : 0;
+	xf86CrtcPtr crtc = xf86_config->crtc[pipe];
+
+	pI830->panel_fixed_mode = i830_crtc_mode_get(pScrn, crtc);
+	if (pI830->panel_fixed_mode != NULL)
+	    pI830->panel_fixed_mode->type |= M_T_PREFERRED;
+
+	if (dvoa & DVO_HSYNC_ACTIVE_HIGH)
+	    pI830->panel_fixed_mode->Flags |= V_PHSYNC;
+	if (dvoa & DVO_VSYNC_ACTIVE_HIGH)
+	    pI830->panel_fixed_mode->Flags |= V_PVSYNC;
+    }
+}
 
 void
 i830_dvo_init(ScrnInfoPtr pScrn)
@@ -314,6 +393,9 @@ i830_dvo_init(ScrnInfoPtr pScrn)
 		xf86UnloadSubModule(drv->modhandle);
 		return;
 	    }
+
+	    if (drv->type & I830_DVO_CHIP_LVDS)
+		i830_dvo_get_panel_timings(output);
 
 	    output->driver_private = intel_output;
 	    output->subpixel_order = SubPixelHorizontalRGB;
