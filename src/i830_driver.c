@@ -647,7 +647,7 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 	 for (i = 0; i < numColors; i++) {
 	    index = indices[i];
 
-	    if (i <= 31) {
+	    if (index <= 31) {
 	       for (j = 0; j < 8; j++) {
 		  lut_r[index * 8 + j] = colors[index].red << 8;
 		  lut_b[index * 8 + j] = colors[index].blue << 8;
