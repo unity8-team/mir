@@ -242,7 +242,6 @@ static const xf86OutputFuncsRec i830_dvo_output_funcs = {
 void
 i830_dvo_init(ScrnInfoPtr pScrn)
 {
-    xf86OutputPtr output;
     I830OutputPrivatePtr intel_output;
     int ret;
     int i;
@@ -251,27 +250,15 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     int gpio_inited = 0;
     I2CBusPtr pI2CBus = NULL;
 
-    output = xf86OutputCreate (pScrn, &i830_dvo_output_funcs,
-				   "TMDS");
-    if (!output)
-	return;
     intel_output = xnfcalloc (sizeof (I830OutputPrivateRec), 1);
     if (!intel_output)
-    {
-	xf86OutputDestroy (output);
 	return;
-    }
     intel_output->type = I830_OUTPUT_DVO;
-    output->driver_private = intel_output;
-    output->subpixel_order = SubPixelHorizontalRGB;
-    output->interlaceAllowed = FALSE;
-    output->doubleScanAllowed = FALSE;
-    
+
     /* Set up the DDC bus */
     ret = I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOD, "DVODDC_D");
-    if (!ret)
-    {
-	xf86OutputDestroy (output);
+    if (!ret) {
+	xfree(intel_output);
 	return;
     }
 
@@ -311,6 +298,28 @@ i830_dvo_init(ScrnInfoPtr pScrn)
 	    ret_ptr = drv->vid_rec->init(pI2CBus, drv->address);
 
 	if (ret_ptr != NULL) {
+	    xf86OutputPtr output;
+
+	    if (drv->type & I830_DVO_CHIP_LVDS) {
+		output = xf86OutputCreate(pScrn, &i830_dvo_output_funcs,
+					  "LVDS");
+	    } else {
+		output = xf86OutputCreate(pScrn, &i830_dvo_output_funcs,
+					  "TMDS");
+	    }
+	    if (output == NULL) {
+		xf86DestroyI2CBusRec(pI2CBus, TRUE, TRUE);
+		xf86DestroyI2CBusRec(intel_output->pDDCBus, TRUE, TRUE);
+		xfree(intel_output);
+		xf86UnloadSubModule(drv->modhandle);
+		return;
+	    }
+
+	    output->driver_private = intel_output;
+	    output->subpixel_order = SubPixelHorizontalRGB;
+	    output->interlaceAllowed = FALSE;
+	    output->doubleScanAllowed = FALSE;
+
 	    drv->dev_priv = ret_ptr;
 	    intel_output->i2c_drv = drv;
 	    intel_output->pI2CBus = pI2CBus;
@@ -322,5 +331,6 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     /* Didn't find a chip, so tear down. */
     if (pI2CBus != NULL)
 	xf86DestroyI2CBusRec(pI2CBus, TRUE, TRUE);
-    xf86OutputDestroy (output);
+    xf86DestroyI2CBusRec(intel_output->pDDCBus, TRUE, TRUE);
+    xfree(intel_output);
 }
