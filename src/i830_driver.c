@@ -2870,6 +2870,8 @@ I830EnterVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr  pI830 = I830PTR(pScrn);
+   xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
+   int o;
 
    DPRINTF(PFX, "Enter VT\n");
 
@@ -2899,6 +2901,11 @@ I830EnterVT(int scrnIndex, int flags)
    /* Clear the framebuffer */
    memset(pI830->FbBase + pScrn->fbOffset, 0,
 	  pScrn->virtualY * pScrn->displayWidth * pI830->cpp);
+
+   for (o = 0; o < config->num_output; o++) {
+   	xf86OutputPtr  output = config->output[o];
+	output->funcs->dpms(output, DPMSModeOff);
+   }
 
    if (!xf86SetDesiredModes (pScrn))
       return FALSE;
