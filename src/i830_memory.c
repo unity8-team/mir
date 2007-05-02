@@ -250,7 +250,7 @@ i830_free_3d_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-#ifdef XF86_DRI
+#ifdef XF86DRI
     i830_free_memory(pScrn, pI830->back_buffer);
     pI830->back_buffer = NULL;
     i830_free_memory(pScrn, pI830->third_buffer);
