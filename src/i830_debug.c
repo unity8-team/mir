@@ -286,6 +286,33 @@ DEBUGSTRING(i830_debug_lvds)
 		     enable, pipe, depth, channels);
 }
 
+DEBUGSTRING(i830_debug_dvo)
+{
+    char *enable = val & DVO_ENABLE ? "enabled" : "disabled";
+    char pipe = val & DVO_PIPE_B_SELECT ? 'B' : 'A';
+    char *stall;
+    char hsync = val & DVO_HSYNC_ACTIVE_HIGH ? '+' : '-';
+    char vsync = val & DVO_VSYNC_ACTIVE_HIGH ? '+' : '-';
+
+    switch (val & DVO_PIPE_STALL_MASK) {
+    case DVO_PIPE_STALL_UNUSED:
+	stall = "no stall";
+	break;
+    case DVO_PIPE_STALL:
+	stall = "stall";
+	break;
+    case DVO_PIPE_STALL_TV:
+	stall = "TV stall";
+	break;
+    default:
+	stall = "unknown stall";
+	break;
+    }
+
+    return XNFprintf("%s, pipe %c, %s, %chsync, %cvsync",
+		     enable, pipe, stall, hsync, vsync);
+}
+
 DEBUGSTRING(i830_debug_sdvo)
 {
     char *enable = val & SDVO_ENABLE ? "enabled" : "disabled";
@@ -339,9 +366,9 @@ static struct i830SnapshotRec {
 
     DEFINEREG2(ADPA, i830_debug_adpa),
     DEFINEREG2(LVDS, i830_debug_lvds),
-    DEFINEREG(DVOA),
-    DEFINEREG(DVOB),
-    DEFINEREG(DVOC),
+    DEFINEREG2(DVOA, i830_debug_dvo),
+    DEFINEREG2(DVOB, i830_debug_dvo),
+    DEFINEREG2(DVOC, i830_debug_dvo),
     DEFINEREG(DVOA_SRCDIM),
     DEFINEREG(DVOB_SRCDIM),
     DEFINEREG(DVOC_SRCDIM),
