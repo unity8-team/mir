@@ -544,7 +544,10 @@ I830MapMMIO(ScrnInfoPtr pScrn)
 	    return FALSE;
       }
    } else {
-      pI830->GTTBase = pI830->MMIOBase + I830_PTE_BASE;
+      /* The GTT aperture on i830 is write-only.  We could probably map the
+       * actual physical pages that back it, but leave it alone for now.
+       */
+      pI830->GTTBase = NULL;
    }
 
    return TRUE;
@@ -584,6 +587,15 @@ I830UnmapMMIO(ScrnInfoPtr pScrn)
    xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI830->MMIOBase,
 		   I810_REG_SIZE);
    pI830->MMIOBase = NULL;
+
+   if (IS_I9XX(pI830)) {
+      if (IS_I965G(pI830))
+	 xf86UnMapVidMem(pScrn->scrnIndex, pI830->GTTBase, 512 * 1024);
+      else {
+	 xf86UnMapVidMem(pScrn->scrnIndex, pI830->GTTBase,
+			 pI830->FbMapSize / 1024);
+      }
+   }
 }
 
 static Bool
@@ -2279,6 +2291,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       pI830->used3D = pI8301->used3D;
    }
 
+   /* Need MMIO mapped to do GTT lookups during memory allocation. */
+   I830MapMMIO(pScrn);
+
 #if defined(XF86DRI)
    /*
     * If DRI is potentially usable, check if there is enough memory available
@@ -2418,6 +2433,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       }
       allocation_done = TRUE;
    }
+
+   I830UnmapMMIO(pScrn);
 
    i830_describe_allocations(pScrn, 1, "");
 

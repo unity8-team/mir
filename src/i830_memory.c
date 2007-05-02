@@ -324,7 +324,13 @@ static unsigned long
 i830_get_gtt_physical(ScrnInfoPtr pScrn, unsigned long offset)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 gttentry = INGTT(offset / 1024);
+    CARD32 gttentry;
+
+    /* We don't have GTTBase set up on i830 yet. */
+    if (pI830->GTTBase == NULL)
+	return -1;
+
+    gttentry = INGTT(offset / 1024);
 
     /* Mask out these reserved bits on this hardware. */
     if (!IS_I965G(pI830))
