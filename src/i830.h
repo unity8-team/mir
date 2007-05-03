@@ -326,6 +326,7 @@ typedef struct _I830Rec {
    unsigned int third_tiled;
    unsigned int depth_tiled;
 
+   Bool want_vblank_interrupts;
 #ifdef DAMAGE
    DamagePtr pDamage;
    RegionRec driRegion;
