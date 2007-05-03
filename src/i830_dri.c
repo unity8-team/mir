@@ -590,13 +590,13 @@ I830DRIScreenInit(ScreenPtr pScreen)
    }
 
    pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
+   pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
 
 #if DRIINFO_MAJOR_VERSION > 5 || \
     (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1)
    if (!pDRIInfo->ClipNotify)
 #endif
    {
-      pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
       pDRIInfo->TransitionSingleToMulti3D = I830DRITransitionSingleToMulti3d;
       pDRIInfo->TransitionMultiToSingle3D = I830DRITransitionMultiToSingle3d;
    }
@@ -1543,16 +1543,24 @@ I830DRITransitionTo3d(ScreenPtr pScreen)
    I830Ptr pI830 = I830PTR(pScrn);
 
    I830DRISetPfMask(pScreen, pI830->allowPageFlip ? 0x3 : 0);
+
+   pI830->want_vblank_interrupts = TRUE;
+   I830DRISetVBlankInterrupt(pScrn, TRUE);
 }
 
 static void
 I830DRITransitionTo2d(ScreenPtr pScreen)
 {
+   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
    drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
 
    I830DRISetPfMask(pScreen, 0);
 
    sPriv->pf_enabled = 0;
+
+   pI830->want_vblank_interrupts = FALSE;
+   I830DRISetVBlankInterrupt(pScrn, FALSE);
 }
 
 #if DRI_SUPPORTS_CLIP_NOTIFY
@@ -1683,6 +1691,12 @@ I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on)
     I830Ptr pI830 = I830PTR(pScrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     drmI830VBlankPipe pipe;
+
+    /* If we have no 3d running, then don't bother enabling the vblank
+     * interrupt.
+     */
+    if (!pI830->want_vblank_interrupts)
+	on = FALSE;
 
     if (pI830->directRenderingEnabled && pI830->drmMinor >= 5) {
 	if (on) {
