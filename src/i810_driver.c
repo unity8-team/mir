@@ -848,11 +848,11 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 
    if (!pI810->directRenderingDisabled) {
      if (pI810->noAccel) {
-       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI is disabled because it "
 		  "needs 2D acceleration.\n");
        pI810->directRenderingDisabled=TRUE;
      } else if (pScrn->depth!=16) {
-       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI is disabled because it "
 		  "runs only at 16-bit depth.\n");
        pI810->directRenderingDisabled=TRUE;
      }
