@@ -185,49 +185,27 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
     int crtc_id = radeon_crtc->crtc_id;
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
     unsigned char     *RADEONMMIO = info->MMIO;
-    int temp;
-    int oldx = x, oldy = y;
-    int hotspotx = 0, hotspoty = 0;
-    int c;
-    int xorigin, yorigin;
-    int		       stride     = 256;
-    int thisx, thisy;
-
-    oldx += pScrn->frameX0; /* undo what xf86HWCurs did */
-    oldy += pScrn->frameY0;
-
-    x = oldx;
-    y = oldy;
-
+    int xorigin = 0, yorigin = 0;
+    int stride = 256;
     DisplayModePtr mode = &crtc->mode;
-    thisx = x - crtc->x;
-    thisy = y - crtc->y;
 
-    if (thisx >= mode->HDisplay ||
-	thisy >= mode->VDisplay) 
-    {
-	thisx = 0;
-	thisy = 0;
-    }
+    if (x < 0)                        xorigin = -x+1;
+    if (y < 0)                        yorigin = -y+1;
+    if (xorigin >= CURSOR_WIDTH)  xorigin = CURSOR_WIDTH - 1;
+    if (yorigin >= CURSOR_HEIGHT) yorigin = CURSOR_HEIGHT - 1;
 
-    temp = 0;
-    xorigin = 0;
-    yorigin = 0;
-    if (thisx < 0) xorigin = -thisx+1;
-    if (thisy < 0) yorigin = -thisy+1;
-#if 0
-    if (xorigin >= cursor->MaxWidth) xorigin = cursor->MaxWidth - 1;
-    if (yorigin >= cursor->MaxHeight) yorigin = cursor->MaxHeight - 1;
-#endif
-    temp |= (xorigin ? 0 : thisx) << 16;
-    temp |= (yorigin ? 0 : thisy);
+    if (mode->Flags & V_INTERLACE)
+	y /= 2;
+    else if (mode->Flags & V_DBLSCAN)
+	y *= 2;
 
     if (crtc_id == 0) {
 	OUTREG(RADEON_CUR_HORZ_VERT_OFF,  (RADEON_CUR_LOCK
 					   | (xorigin << 16)
 					   | yorigin));
-	OUTREG(RADEON_CUR_HORZ_VERT_POSN, (RADEON_CUR_LOCK |
-					   temp));
+	OUTREG(RADEON_CUR_HORZ_VERT_POSN, (RADEON_CUR_LOCK
+					   | ((xorigin ? 0 : x) << 16)
+					   | (yorigin ? 0 : y)));
 	RADEONCTRACE(("cursor_offset: 0x%x, yorigin: %d, stride: %d, temp %08X\n",
 			info->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
 	OUTREG(RADEON_CUR_OFFSET,
@@ -236,8 +214,9 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	OUTREG(RADEON_CUR2_HORZ_VERT_OFF,  (RADEON_CUR2_LOCK
 					    | (xorigin << 16)
 					    | yorigin));
-	OUTREG(RADEON_CUR2_HORZ_VERT_POSN, (RADEON_CUR2_LOCK |
-					    temp));
+	OUTREG(RADEON_CUR2_HORZ_VERT_POSN, (RADEON_CUR2_LOCK
+					   | ((xorigin ? 0 : x) << 16)
+					   | (yorigin ? 0 : y)));
 	RADEONCTRACE(("cursor_offset2: 0x%x, yorigin: %d, stride: %d, temp %08X\n",
 			info->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
 	OUTREG(RADEON_CUR2_OFFSET,
@@ -285,119 +264,7 @@ radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg)
     info->cursor_bg = bg;
 }
 
-/* Copy cursor image from `image' to video memory.  RADEONSetCursorPosition
- * will be called after this, so we can ignore xorigin and yorigin.
- */
-static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    CARD8         *s          = (CARD8 *)(pointer)image;
-    CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
-    CARD32         save1      = 0;
-    CARD32         save2      = 0;
-    CARD8	   chunk;
-    CARD32         i, j;
-
-    RADEONCTRACE(("RADEONLoadCursorImage (at %x)\n", info->cursor_offset));
-
-
-    if (!info->IsSecondary) {
-	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
-	save1 |= (CARD32) (2 << 20);
-	OUTREG(RADEON_CRTC_GEN_CNTL, save1 & (CARD32)~RADEON_CRTC_CUR_EN);
-
-	if (pRADEONEnt->HasCRTC2) {
-	    save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
-	    save2 |= (CARD32) (2 << 20);
-	    OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
-	}
-    }
-
-    if (info->IsSecondary) {
-	save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
-	save2 |= (CARD32) (2 << 20);
-	OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
-    }
-
 #ifdef ARGB_CURSOR
-    info->cursor_argb = FALSE;
-#endif
-
-    /*
-     * Convert the bitmap to ARGB32.
-     *
-     * HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_1 always places
-     * source in the low bit of the pair and mask in the high bit,
-     * and MSBFirst machines set HARDWARE_CURSOR_BIT_ORDER_MSBFIRST
-     * (which actually bit swaps the image) to make the bits LSBFirst
-     */
-    CURSOR_SWAPPING_START();
-#define ARGB_PER_CHUNK	(8 * sizeof (chunk) / 2)
-    for (i = 0; i < (CURSOR_WIDTH * CURSOR_HEIGHT / ARGB_PER_CHUNK); i++) {
-        chunk = *s++;
-	for (j = 0; j < ARGB_PER_CHUNK; j++, chunk >>= 2)
-	    *d++ = mono_cursor_color[chunk & 3];
-    }
-    CURSOR_SWAPPING_END();
-
-    info->cursor_bg = mono_cursor_color[2];
-    info->cursor_fg = mono_cursor_color[3];
-
-    if (!info->IsSecondary)
-	OUTREG(RADEON_CRTC_GEN_CNTL, save1);
-
-    OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
-
-}
-
-/* Hide hardware cursor. */
-static void RADEONHideCursor(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int c;
-    RADEONCTRACE(("RADEONHideCursor\n"));
-
-    for (c = 0; c < xf86_config->num_crtc; c++)
-        RADEONCrtcCursor(xf86_config->crtc[c], TRUE);
-}
-
-/* Show hardware cursor. */
-static void RADEONShowCursor(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int c;
-
-    RADEONCTRACE(("RADEONShowCursor\n"));
-
-    for (c = 0; c < xf86_config->num_crtc; c++)
-        RADEONCrtcCursor(xf86_config->crtc[c], FALSE);
-}
-
-/* Determine if hardware cursor is in use. */
-static Bool RADEONUseHWCursor(ScreenPtr pScreen, CursorPtr pCurs)
-{
-    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
-    RADEONInfoPtr  info  = RADEONPTR(pScrn);
-
-    return info->cursor ? TRUE : FALSE;
-}
-
-#ifdef ARGB_CURSOR
-#include "cursorstr.h"
-
-static Bool RADEONUseHWCursorARGB (ScreenPtr pScreen, CursorPtr pCurs)
-{
-    if (RADEONUseHWCursor(pScreen, pCurs) &&
-	pCurs->bits->height <= CURSOR_HEIGHT && pCurs->bits->width <= CURSOR_WIDTH)
-	return TRUE;
-    return FALSE;
-}
 
 void
 radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
@@ -426,9 +293,7 @@ radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 	OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
     }
 
-#ifdef ARGB_CURSOR
     info->cursor_argb = TRUE;
-#endif
 
     CURSOR_SWAPPING_START();
 
@@ -464,74 +329,6 @@ radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
     } else if (crtc_id == 1) {
 	OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
     }
-}
-
-static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
-    int            x, y, w, h;
-    CARD32         save1      = 0;
-    CARD32         save2      = 0;
-    CARD32	  *image = pCurs->bits->argb;
-    CARD32	  *i;
-
-    RADEONCTRACE(("RADEONLoadCursorARGB\n"));
-
-    if (!info->IsSecondary) {
-	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
-	save1 |= (CARD32) (2 << 20);
-	OUTREG(RADEON_CRTC_GEN_CNTL, save1 & (CARD32)~RADEON_CRTC_CUR_EN);
-
-	if (pRADEONEnt->HasCRTC2) {
-	    save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
-	    save2 |= (CARD32) (2 << 20);
-	    OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
-	}
-    }
-
-    if (info->IsSecondary) {
-	save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
-	save2 |= (CARD32) (2 << 20);
-	OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
-    }
-
-#ifdef ARGB_CURSOR
-    info->cursor_argb = TRUE;
-#endif
-
-    CURSOR_SWAPPING_START();
-
-    w = pCurs->bits->width;
-    if (w > CURSOR_WIDTH)
-	w = CURSOR_WIDTH;
-    h = pCurs->bits->height;
-    if (h > CURSOR_HEIGHT)
-	h = CURSOR_HEIGHT;
-    for (y = 0; y < h; y++)
-    {
-	i = image;
-	image += pCurs->bits->width;
-	for (x = 0; x < w; x++)
-	    *d++ = *i++;
-	/* pad to the right with transparent */
-	for (; x < CURSOR_WIDTH; x++)
-	    *d++ = 0;
-    }
-    /* pad below with transparent */
-    for (; y < CURSOR_HEIGHT; y++)
-	for (x = 0; x < CURSOR_WIDTH; x++)
-	    *d++ = 0;
-
-    CURSOR_SWAPPING_END ();
-
-    if (!info->IsSecondary)
-	OUTREG(RADEON_CRTC_GEN_CNTL, save1);
-
-    OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
-
 }
 
 #endif
