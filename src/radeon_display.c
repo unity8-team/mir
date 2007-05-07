@@ -1431,8 +1431,7 @@ static void RADEONDacPowerSet(ScrnInfoPtr pScrn, Bool IsOn, Bool IsPrimaryDAC)
 	CARD32 dac_cntl;
 	CARD32 dac_macro_cntl = 0;
 	dac_cntl = INREG(RADEON_DAC_CNTL);
-	if ((!info->IsMobility) || (info->ChipFamily >= CHIP_FAMILY_RV350)) 
-	    dac_macro_cntl = INREG(RADEON_DAC_MACRO_CNTL);
+	dac_macro_cntl = INREG(RADEON_DAC_MACRO_CNTL);
 	if (IsOn) {
 	    dac_cntl &= ~RADEON_DAC_PDWN;
 	    dac_macro_cntl &= ~(RADEON_DAC_PDWN_R |
@@ -1446,8 +1445,7 @@ static void RADEONDacPowerSet(ScrnInfoPtr pScrn, Bool IsOn, Bool IsPrimaryDAC)
 	}
 	ErrorF("Setting IsOn %d DAC CNTL %08X and DAC MACRO_CNTL %08X\n", IsOn, dac_cntl, dac_macro_cntl);
 	OUTREG(RADEON_DAC_CNTL, dac_cntl);
-	if ((!info->IsMobility) || (info->ChipFamily >= CHIP_FAMILY_RV350)) 
-	    OUTREG(RADEON_DAC_MACRO_CNTL, dac_macro_cntl);
+	OUTREG(RADEON_DAC_MACRO_CNTL, dac_macro_cntl);
     } else {
 	CARD32 tv_dac_cntl;
 	CARD32 fp2_gen_cntl;

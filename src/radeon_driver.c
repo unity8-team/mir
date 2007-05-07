@@ -5302,10 +5302,6 @@ static void RADEONInitDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
         } else {
             save->dac2_cntl = info->SavedReg.dac2_cntl & ~(RADEON_DAC2_DAC_CLK_SEL);
         }
-        save->dac_cntl = (RADEON_DAC_MASK_ALL
-			  | RADEON_DAC_VGA_ADR_EN
-			  | (info->dac6bits ? 0 : RADEON_DAC_8BIT_EN));
-
     } else {
         if ((info->ChipFamily == CHIP_FAMILY_R200) || IS_R300_VARIANT) {
             save->disp_output_cntl = info->SavedReg.disp_output_cntl &
@@ -5315,6 +5311,9 @@ static void RADEONInitDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
             save->dac2_cntl = info->SavedReg.dac2_cntl | RADEON_DAC2_DAC_CLK_SEL;
         }
     }
+    save->dac_cntl = (RADEON_DAC_MASK_ALL
+		      | RADEON_DAC_VGA_ADR_EN
+		      | (info->dac6bits ? 0 : RADEON_DAC_8BIT_EN));
 }
 
 static void RADEONInitDAC2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
@@ -5432,7 +5431,8 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 			      ? RADEON_CRTC_INTERLACE_EN
 			      : 0));
 
-    save->crtc_ext_cntl |= (RADEON_CRTC_CRT_ON |
+    save->crtc_ext_cntl |= (RADEON_XCRT_CNT_EN|
+			    RADEON_CRTC_CRT_ON |
 			    RADEON_CRTC_VSYNC_DIS |
 			    RADEON_CRTC_HSYNC_DIS |
 			    RADEON_CRTC_DISPLAY_DIS);
@@ -5871,9 +5871,9 @@ Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
     ScrnInfoPtr    pScrn0    = NULL;
 
     if (crtc_mask & 1)
-      xf86PrintModeline(pScrn, crtc1);
+      xf86PrintModeline(pScrn->scrnIndex, crtc1);
     if (crtc_mask & 2)
-      xf86PrintModeline(pScrn, crtc2);
+      xf86PrintModeline(pScrn->scrnIndex, crtc2);
 
     RADEONInitMemMapRegisters(pScrn, save, info);
     RADEONInitCommonRegisters(save, info);
