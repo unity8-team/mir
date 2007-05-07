@@ -889,6 +889,19 @@ extern Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 			DisplayModePtr crtc2, int crtc_mask,
 			RADEONSavePtr save, RADEONMonitorType montype);
 
+void
+radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);
+void
+radeon_crtc_show_cursor (xf86CrtcPtr crtc);
+void
+radeon_crtc_hide_cursor (xf86CrtcPtr crtc);
+void
+radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);
+void
+radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg);
+void
+radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image);
+
 #ifdef XF86DRI
 #ifdef USE_XAA
 extern void        RADEONAccelInitCP(ScreenPtr pScreen, XAAInfoRecPtr a);

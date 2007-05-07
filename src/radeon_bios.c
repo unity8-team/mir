@@ -286,6 +286,11 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		else connector_found = 3;
 	    }
 
+	    /* some bioses seem to list the LVDS port as DVI hack around that here */
+	    if (pRADEONEnt->PortInfo[0]->ConnectorType == CONNECTOR_DVI_D) {
+		pRADEONEnt->PortInfo[0]->ConnectorType = CONNECTOR_PROPRIETARY;
+	    }
+
 	    if ((tmp = RADEON_BIOS16(info->ROMHeaderStart + 0x42))) {
 	        if ((tmp0 = RADEON_BIOS16(tmp + 0x15))) {
 		    if ((tmp1 = RADEON_BIOS8(tmp0+2) & 0x07)) {	    

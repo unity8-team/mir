@@ -2241,6 +2241,12 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
     RADEONBlank(pScrn);
     RADEONRestoreMode(pScrn, &info->ModeReg);
+
+    if (radeon_crtc->crtc_id == 0)
+	RADEONDoAdjustFrame(pScrn, x, y, FALSE);
+    else if (radeon_crtc->crtc_id == 1)
+	RADEONDoAdjustFrame(pScrn, x, y, TRUE);
+
     if (info->DispPriority)
         RADEONInitDispBandwidth(pScrn);
     RADEONUnblank(pScrn);
@@ -2323,6 +2329,12 @@ static const xf86CrtcFuncsRec radeon_crtc_funcs = {
     .gamma_set = radeon_crtc_gamma_set,
     .lock = radeon_crtc_lock,
     .unlock = radeon_crtc_unlock,
+    .set_cursor_colors = radeon_crtc_set_cursor_colors,
+    .set_cursor_position = radeon_crtc_set_cursor_position,
+    .show_cursor = radeon_crtc_show_cursor,
+    .hide_cursor = radeon_crtc_hide_cursor,
+/*    .load_cursor_image = i830_crtc_load_cursor_image, */
+    .load_cursor_argb = radeon_crtc_load_cursor_argb,
     .destroy = NULL, /* XXX */
 };
 
