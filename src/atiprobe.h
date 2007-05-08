@@ -25,6 +25,6 @@
 
 #include "xf86str.h"
 
-extern Bool ATIProbe(DriverPtr, int);
+extern Bool ATIMach64ProbeIO(pciVideoPtr, ATIPtr);
 
 #endif /* ___ATIPROBE_H___ */

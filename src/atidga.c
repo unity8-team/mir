@@ -32,7 +32,6 @@
 #include "atichip.h"
 #include "atidac.h"
 #include "atidga.h"
-#include "atiident.h"
 #include "atimode.h"
 #include "atistruct.h"
 

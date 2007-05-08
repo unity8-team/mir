@@ -91,9 +91,8 @@ extern const char          * ATITVStandardNames[];
 
 #endif /* TV_OUT */
 
-extern const OptionInfoRec   ATIPublicOptions[];
-extern const unsigned long   ATIPublicOptionSize;
+extern const OptionInfoRec * ATIOptionsWeak(void);
 
-extern const OptionInfoRec * ATIAvailableOptions(int, int);
+extern void                  ATIProcessOptions(ScrnInfoPtr, ATIPtr);
 
 #endif /* ___ATIOPTION_H___ */

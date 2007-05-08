@@ -82,12 +82,6 @@ ATIMach64PreInit
     ATIHWPtr    pATIHW
 )
 {
-    CARD32 bus_cntl, config_cntl;
-
-    {
-        pATIHW->crtc_off_pitch = SetBits(pATI->displayWidth >> 3, CRTC_PITCH);
-    }
-
     if ((pATI->LockData.crtc_gen_cntl & CRTC_CSYNC_EN) && !pATI->OptionCSync)
     {
         xf86DrvMsg(pScreenInfo->scrnIndex, X_NOTICE,
@@ -95,7 +89,7 @@ ATIMach64PreInit
         pATI->OptionCSync = TRUE;
     }
 
-    pATIHW->bus_cntl = bus_cntl = inr(BUS_CNTL);
+    pATIHW->bus_cntl = inr(BUS_CNTL);
     if (pATI->Chip < ATI_CHIP_264VT4)
         pATIHW->bus_cntl = (pATIHW->bus_cntl & ~BUS_HOST_ERR_INT_EN) |
             BUS_HOST_ERR_INT;
@@ -142,7 +136,7 @@ ATIMach64PreInit
     if (pATI->DAC == ATI_DAC_IBMRGB514)
         pATIHW->gen_test_cntl |= GEN_OVR_OUTPUT_EN;
 
-    pATIHW->config_cntl = config_cntl = inr(CONFIG_CNTL);
+    pATIHW->config_cntl = inr(CONFIG_CNTL);
 
 #ifndef AVOID_CPIO
 
@@ -212,6 +206,9 @@ ATIMach64PreInit
     /* Draw engine setup */
     if (pATI->Block0Base)
     {
+        CARD32 bus_cntl = inr(BUS_CNTL);
+        CARD32 config_cntl = inr(CONFIG_CNTL);
+
         /* Ensure apertures are enabled */
         outr(BUS_CNTL, pATIHW->bus_cntl);
         outr(CONFIG_CNTL, pATIHW->config_cntl);
@@ -580,12 +577,12 @@ ATIMach64Save
 }
 
 /*
- * ATIMach64Calculate --
+ * ATIMach64ModeAdjust --
  *
- * This function is called to fill in the Mach64 portion of an ATIHWRec.
+ * This function is called to adjust horizontal and vertical timings.
  */
-void
-ATIMach64Calculate
+static void
+ATIMach64ModeAdjust
 (
     ATIPtr         pATI,
     ATIHWPtr       pATIHW,
@@ -593,6 +590,43 @@ ATIMach64Calculate
 )
 {
     int VDisplay;
+
+    /* Clobber mode timings */
+    if (pATI->OptionPanelDisplay && (pATI->LCDPanelID >= 0))
+    {
+        if (!pMode->CrtcHAdjusted && !pMode->CrtcVAdjusted &&
+            (!pATI->OptionLCDSync || (pMode->type & M_T_BUILTIN)))
+        {
+        int VScan;
+
+        pMode->Clock = pATI->LCDClock;
+        pMode->Flags &= ~(V_DBLSCAN | V_INTERLACE | V_CLKDIV2);
+
+        pMode->VScan = 0;
+
+        /*
+         * Use doublescanning or multiscanning to get around vertical blending
+         * limitations.
+         */
+        VScan = pATI->LCDVertical / pMode->VDisplay;
+        if (VScan > 1)
+        {
+            VScan = 2;
+            pMode->Flags |= V_DBLSCAN;
+        }
+
+        pMode->HSyncStart = pMode->HDisplay + pATI->LCDHSyncStart;
+        pMode->HSyncEnd = pMode->HSyncStart + pATI->LCDHSyncWidth;
+        pMode->HTotal = pMode->HDisplay + pATI->LCDHBlankWidth;
+
+        pMode->VSyncStart = pMode->VDisplay +
+            ATIDivide(pATI->LCDVSyncStart, VScan, 0, 0);
+        pMode->VSyncEnd = pMode->VSyncStart +
+            ATIDivide(pATI->LCDVSyncWidth, VScan, 0, 1);
+        pMode->VTotal = pMode->VDisplay +
+            ATIDivide(pATI->LCDVBlankWidth, VScan, 0, 0);
+        }
+    }
 
     /* If not already done adjust horizontal timings */
     if (!pMode->CrtcHAdjusted)
@@ -675,30 +709,47 @@ ATIMach64Calculate
          (int)MaxBits(CRTC_V_SYNC_WID))
         pMode->CrtcVSyncEnd = pMode->CrtcVSyncStart + MaxBits(CRTC_V_SYNC_WID);
     pMode->CrtcVAdjusted = TRUE;                /* Redundant */
+}
+
+/*
+ * ATIMach64Calculate --
+ *
+ * This function is called to fill in the Mach64 portion of an ATIHWRec.
+ */
+void
+ATIMach64Calculate
+(
+    ATIPtr         pATI,
+    ATIHWPtr       pATIHW,
+    DisplayModePtr pMode
+)
+{
+    ATIMach64ModeAdjust(pATI, pATIHW, pMode);
 
     /* Build register contents */
     pATIHW->crtc_h_total_disp =
         SetBits(pMode->CrtcHTotal, CRTC_H_TOTAL) |
-            SetBits(pMode->CrtcHDisplay, CRTC_H_DISP);
+        SetBits(pMode->CrtcHDisplay, CRTC_H_DISP);
+
     pATIHW->crtc_h_sync_strt_wid =
         SetBits(pMode->CrtcHSyncStart, CRTC_H_SYNC_STRT) |
-            SetBits(pMode->CrtcHSkew, CRTC_H_SYNC_DLY) |         /* ? */
-            SetBits(GetBits(pMode->CrtcHSyncStart, 0x0100U),
-                CRTC_H_SYNC_STRT_HI) |
-            SetBits(pMode->CrtcHSyncEnd - pMode->CrtcHSyncStart,
-                CRTC_H_SYNC_WID);
+        SetBits(pMode->CrtcHSkew, CRTC_H_SYNC_DLY) |         /* ? */
+        SetBits(GetBits(pMode->CrtcHSyncStart, 0x0100U), CRTC_H_SYNC_STRT_HI) |
+        SetBits(pMode->CrtcHSyncEnd - pMode->CrtcHSyncStart, CRTC_H_SYNC_WID);
     if (pMode->Flags & V_NHSYNC)
         pATIHW->crtc_h_sync_strt_wid |= CRTC_H_SYNC_POL;
 
     pATIHW->crtc_v_total_disp =
         SetBits(pMode->CrtcVTotal, CRTC_V_TOTAL) |
-            SetBits(pMode->CrtcVDisplay, CRTC_V_DISP);
+        SetBits(pMode->CrtcVDisplay, CRTC_V_DISP);
+
     pATIHW->crtc_v_sync_strt_wid =
         SetBits(pMode->CrtcVSyncStart, CRTC_V_SYNC_STRT) |
-            SetBits(pMode->CrtcVSyncEnd - pMode->CrtcVSyncStart,
-                CRTC_V_SYNC_WID);
+        SetBits(pMode->CrtcVSyncEnd - pMode->CrtcVSyncStart, CRTC_V_SYNC_WID);
     if (pMode->Flags & V_NVSYNC)
         pATIHW->crtc_v_sync_strt_wid |= CRTC_V_SYNC_POL;
+
+    pATIHW->crtc_off_pitch = SetBits(pATI->displayWidth >> 3, CRTC_PITCH);
 
     pATIHW->crtc_gen_cntl = inr(CRTC_GEN_CNTL) &
         ~(CRTC_DBL_SCAN_EN | CRTC_INTERLACE_EN |

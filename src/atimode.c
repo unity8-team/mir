@@ -528,46 +528,8 @@ ATIModeCalculate
     CARD32 lcd_index;
     int Index, ECPClock, MaxScalerClock;
 
-    /* Clobber mode timings */
-    if (pATI->OptionPanelDisplay && (pATI->LCDPanelID >= 0) &&
-        !pMode->CrtcHAdjusted && !pMode->CrtcVAdjusted &&
-        (!pATI->OptionLCDSync || (pMode->type & M_T_BUILTIN)))
-    {
-        int VScan;
-
-        pMode->Clock = pATI->LCDClock;
-        pMode->Flags &= ~(V_DBLSCAN | V_INTERLACE | V_CLKDIV2);
-
-        /*
-         * Use doublescanning or multiscanning to get around vertical blending
-         * limitations.
-         */
-        VScan = pATI->LCDVertical / pMode->VDisplay;
-        {
-                pMode->VScan = 0;
-                if (VScan > 1)
-                {
-                VScan = 2;
-                pMode->Flags |= V_DBLSCAN;
-                }
-        }
-
-        pMode->HSyncStart = pMode->HDisplay + pATI->LCDHSyncStart;
-        pMode->HSyncEnd = pMode->HSyncStart + pATI->LCDHSyncWidth;
-        pMode->HTotal = pMode->HDisplay + pATI->LCDHBlankWidth;
-
-        pMode->VSyncStart = pMode->VDisplay +
-            ATIDivide(pATI->LCDVSyncStart, VScan, 0, 0);
-        pMode->VSyncEnd = pMode->VSyncStart +
-            ATIDivide(pATI->LCDVSyncWidth, VScan, 0, 1);
-        pMode->VTotal = pMode->VDisplay +
-            ATIDivide(pATI->LCDVBlankWidth, VScan, 0, 0);
-    }
-
-    {
-            /* Fill in Mach64 data */
-            ATIMach64Calculate(pATI, pATIHW, pMode);
-    }
+    /* Fill in Mach64 data */
+    ATIMach64Calculate(pATI, pATIHW, pMode);
 
     /* Set up LCD register values */
     if (pATI->LCDPanelID >= 0)

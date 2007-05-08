@@ -30,74 +30,6 @@
 #include "atimach64io.h"
 #include "ativersion.h"
 
-/*
- * Chip-related definitions.
- */
-const char *ATIChipNames[] =
-{
-    "Unknown",
-    "ATI 88800GX-C",
-    "ATI 88800GX-D",
-    "ATI 88800GX-E",
-    "ATI 88800GX-F",
-    "ATI 88800GX",
-    "ATI 88800CX",
-    "ATI 264CT",
-    "ATI 264ET",
-    "ATI 264VT",
-    "ATI 3D Rage",
-    "ATI 264VT-B",
-    "ATI 3D Rage II",
-    "ATI 264VT3",
-    "ATI 3D Rage II+DVD",
-    "ATI 3D Rage LT",
-    "ATI 264VT4",
-    "ATI 3D Rage IIc",
-    "ATI 3D Rage Pro",
-    "ATI 3D Rage LT Pro",
-    "ATI 3D Rage XL or XC",
-    "ATI 3D Rage Mobility",
-    "ATI unknown Mach64",
-    "ATI Rage 128 GL",
-    "ATI Rage 128 VR",
-    "ATI Rage 128 Pro GL",
-    "ATI Rage 128 Pro VR",
-    "ATI Rage 128 Pro ULTRA",
-    "ATI Rage 128 Mobility M3",
-    "ATI Rage 128 Mobility M4",
-    "ATI unknown Rage 128"
-    "ATI Radeon 7200",
-    "ATI Radeon 7000 (VE)",
-    "ATI Radeon Mobility M6",
-    "ATI Radeon IGP320",
-    "ATI Radeon IGP330/340/350",
-    "ATI Radeon 7000 IGP",
-    "ATI Radeon 7500",
-    "ATI Radeon Mobility M7",
-    "ATI Radeon 8500/9100",
-    "ATI Radeon 9000",
-    "ATI Radeon Mobility M9",
-    "ATI Radeon 9100 IGP",
-    "ATI Radeon 9200 IGP",
-    "ATI Radeon 9200",
-    "ATI Radeon Mobility M9+",
-    "ATI Radeon 9700/9500",
-    "ATI Radeon 9600/9550",
-    "ATI Radeon 9800",
-    "ATI Radeon 9800XT",
-    "ATI Radeon X300/X550/M22",
-    "ATI Radeon X600/X550/M24",
-    "ATI Radeon X800/M18 AGP",
-    "ATI Radeon X800/M28 PCIE",
-    "ATI Radeon X800XL PCIE",
-    "ATI Radeon X850 PCIE",
-    "ATI Radeon X850 AGP",
-    "ATI Radeon X700",
-    "ATI Xpress 200"
-    "ATI unknown Radeon",
-    "ATI Rage HDTV"
-};
-
 const char *ATIFoundryNames[] =
     { "SGS", "NEC", "KCS", "UMC", "TSMC", "5", "6", "UMC" };
 
@@ -115,18 +47,18 @@ ATIMach64ChipID
 )
 {
     pATI->config_chip_id = inr(CONFIG_CHIP_ID);
-    pATI->ChipType       = GetBits(pATI->config_chip_id, 0xFFFFU);
+    pATI->ChipType       = GetBits(pATI->config_chip_id, CFG_CHIP_TYPE);
     pATI->ChipClass      = GetBits(pATI->config_chip_id, CFG_CHIP_CLASS);
-    pATI->ChipRevision   = GetBits(pATI->config_chip_id, CFG_CHIP_REV);
+    pATI->ChipRev        = GetBits(pATI->config_chip_id, CFG_CHIP_REV);
     pATI->ChipVersion    = GetBits(pATI->config_chip_id, CFG_CHIP_VERSION);
     pATI->ChipFoundry    = GetBits(pATI->config_chip_id, CFG_CHIP_FOUNDRY);
-    pATI->ChipRev        = pATI->ChipRevision;
+    pATI->ChipRevision   = GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
     switch (pATI->ChipType)
     {
         case OldChipID('G', 'X'):
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('G', 'X'):
-            switch (pATI->ChipRevision)
+            switch (pATI->ChipRev)
             {
                 case 0x00U:
                     pATI->Chip = ATI_CHIP_88800GXC;
@@ -159,8 +91,6 @@ ATIMach64ChipID
         case OldChipID('C', 'T'):
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('C', 'T'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264CT;
             pATI->BusType = ATI_BUS_PCI;
             break;
@@ -168,8 +98,6 @@ ATIMach64ChipID
         case OldChipID('E', 'T'):
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('E', 'T'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264ET;
             pATI->BusType = ATI_BUS_PCI;
             break;
@@ -177,8 +105,6 @@ ATIMach64ChipID
         case OldChipID('V', 'T'):
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('V', 'T'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264VT;
             pATI->BusType = ATI_BUS_PCI;
             /* Some early GT's are detected as VT's */
@@ -199,8 +125,6 @@ ATIMach64ChipID
         case OldChipID('G', 'T'):
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('G', 'T'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->BusType = ATI_BUS_PCI;
             if (!pATI->ChipVersion)
                 pATI->Chip = ATI_CHIP_264GT;
@@ -211,8 +135,6 @@ ATIMach64ChipID
         case OldChipID('V', 'U'):
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('V', 'U'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264VT3;
             pATI->BusType = ATI_BUS_PCI;
             break;
@@ -220,8 +142,6 @@ ATIMach64ChipID
         case OldChipID('G', 'U'):
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('G', 'U'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264GTDVD;
             pATI->BusType = ATI_BUS_PCI;
             break;
@@ -229,8 +149,6 @@ ATIMach64ChipID
         case OldChipID('L', 'G'):
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('L', 'G'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264LT;
             pATI->BusType = ATI_BUS_PCI;
             break;
@@ -238,8 +156,6 @@ ATIMach64ChipID
         case OldChipID('V', 'V'):
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('V', 'V'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264VT4;
             pATI->BusType = ATI_BUS_PCI;
             break;
@@ -249,8 +165,6 @@ ATIMach64ChipID
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('G', 'V'):
         case NewChipID('G', 'Y'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264GT2C;
             pATI->BusType = ATI_BUS_PCI;
             break;
@@ -260,8 +174,6 @@ ATIMach64ChipID
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('G', 'W'):
         case NewChipID('G', 'Z'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264GT2C;
             pATI->BusType = ATI_BUS_AGP;
             break;
@@ -273,8 +185,6 @@ ATIMach64ChipID
         case NewChipID('G', 'I'):
         case NewChipID('G', 'P'):
         case NewChipID('G', 'Q'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264GTPRO;
             pATI->BusType = ATI_BUS_PCI;
             break;
@@ -284,8 +194,6 @@ ATIMach64ChipID
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('G', 'B'):
         case NewChipID('G', 'D'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264GTPRO;
             pATI->BusType = ATI_BUS_AGP;
             break;
@@ -297,8 +205,6 @@ ATIMach64ChipID
         case NewChipID('L', 'I'):
         case NewChipID('L', 'P'):
         case NewChipID('L', 'Q'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264LTPRO;
             pATI->BusType = ATI_BUS_PCI;
             pATI->LCDVBlendFIFOSize = 800;
@@ -309,8 +215,6 @@ ATIMach64ChipID
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('L', 'B'):
         case NewChipID('L', 'D'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264LTPRO;
             pATI->BusType = ATI_BUS_AGP;
             pATI->LCDVBlendFIFOSize = 800;
@@ -325,8 +229,6 @@ ATIMach64ChipID
         case NewChipID('G', 'O'):
         case NewChipID('G', 'R'):
         case NewChipID('G', 'S'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264XL;
             pATI->BusType = ATI_BUS_PCI;
             pATI->LCDVBlendFIFOSize = 1024;
@@ -337,8 +239,6 @@ ATIMach64ChipID
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('G', 'M'):
         case NewChipID('G', 'N'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_264XL;
             pATI->BusType = ATI_BUS_AGP;
             pATI->LCDVBlendFIFOSize = 1024;
@@ -349,8 +249,6 @@ ATIMach64ChipID
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('L', 'R'):
         case NewChipID('L', 'S'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_MOBILITY;
             pATI->BusType = ATI_BUS_PCI;
             pATI->LCDVBlendFIFOSize = 1024;
@@ -361,8 +259,6 @@ ATIMach64ChipID
             pATI->ChipType = OldToNewChipID(pATI->ChipType);
         case NewChipID('L', 'M'):
         case NewChipID('L', 'N'):
-            pATI->ChipRevision =
-                GetBits(pATI->config_chip_id, CFG_CHIP_REVISION);
             pATI->Chip = ATI_CHIP_MOBILITY;
             pATI->BusType = ATI_BUS_AGP;
             pATI->LCDVBlendFIFOSize = 1024;
@@ -371,401 +267,5 @@ ATIMach64ChipID
         default:
             pATI->Chip = ATI_CHIP_Mach64;
             break;
-    }
-}
-
-/*
- * ATIChipID --
- *
- * This returns the ATI_CHIP_* value (generally) associated with a particular
- * ChipID/ChipRev combination.
- */
-ATIChipType
-ATIChipID
-(
-    const CARD16 ChipID,
-    const CARD8  ChipRev
-)
-{
-    switch (ChipID)
-    {
-        case OldChipID('G', 'X'):  case NewChipID('G', 'X'):
-            switch (ChipRev)
-            {
-                case 0x00U:
-                    return ATI_CHIP_88800GXC;
-
-                case 0x01U:
-                    return ATI_CHIP_88800GXD;
-
-                case 0x02U:
-                    return ATI_CHIP_88800GXE;
-
-                case 0x03U:
-                    return ATI_CHIP_88800GXF;
-
-                default:
-                    return ATI_CHIP_88800GX;
-            }
-
-        case OldChipID('C', 'X'):  case NewChipID('C', 'X'):
-            return ATI_CHIP_88800CX;
-
-        case OldChipID('C', 'T'):  case NewChipID('C', 'T'):
-            return ATI_CHIP_264CT;
-
-        case OldChipID('E', 'T'):  case NewChipID('E', 'T'):
-            return ATI_CHIP_264ET;
-
-        case OldChipID('V', 'T'):  case NewChipID('V', 'T'):
-            /* For simplicity, ignore ChipID discrepancy that can occur here */
-            if (!(ChipRev & GetBits(CFG_CHIP_VERSION, CFG_CHIP_REV)))
-                return ATI_CHIP_264VT;
-            return ATI_CHIP_264VTB;
-
-        case OldChipID('G', 'T'):  case NewChipID('G', 'T'):
-            if (!(ChipRev & GetBits(CFG_CHIP_VERSION, CFG_CHIP_REV)))
-                return ATI_CHIP_264GT;
-            return ATI_CHIP_264GTB;
-
-        case OldChipID('V', 'U'):  case NewChipID('V', 'U'):
-            return ATI_CHIP_264VT3;
-
-        case OldChipID('G', 'U'):  case NewChipID('G', 'U'):
-            return ATI_CHIP_264GTDVD;
-
-        case OldChipID('L', 'G'):  case NewChipID('L', 'G'):
-            return ATI_CHIP_264LT;
-
-        case OldChipID('V', 'V'):  case NewChipID('V', 'V'):
-            return ATI_CHIP_264VT4;
-
-        case OldChipID('G', 'V'):  case NewChipID('G', 'V'):
-        case OldChipID('G', 'W'):  case NewChipID('G', 'W'):
-        case OldChipID('G', 'Y'):  case NewChipID('G', 'Y'):
-        case OldChipID('G', 'Z'):  case NewChipID('G', 'Z'):
-            return ATI_CHIP_264GT2C;
-
-        case OldChipID('G', 'B'):  case NewChipID('G', 'B'):
-        case OldChipID('G', 'D'):  case NewChipID('G', 'D'):
-        case OldChipID('G', 'I'):  case NewChipID('G', 'I'):
-        case OldChipID('G', 'P'):  case NewChipID('G', 'P'):
-        case OldChipID('G', 'Q'):  case NewChipID('G', 'Q'):
-            return ATI_CHIP_264GTPRO;
-
-        case OldChipID('L', 'B'):  case NewChipID('L', 'B'):
-        case OldChipID('L', 'D'):  case NewChipID('L', 'D'):
-        case OldChipID('L', 'I'):  case NewChipID('L', 'I'):
-        case OldChipID('L', 'P'):  case NewChipID('L', 'P'):
-        case OldChipID('L', 'Q'):  case NewChipID('L', 'Q'):
-            return ATI_CHIP_264LTPRO;
-
-        case OldChipID('G', 'L'):  case NewChipID('G', 'L'):
-        case OldChipID('G', 'M'):  case NewChipID('G', 'M'):
-        case OldChipID('G', 'N'):  case NewChipID('G', 'N'):
-        case OldChipID('G', 'O'):  case NewChipID('G', 'O'):
-        case OldChipID('G', 'R'):  case NewChipID('G', 'R'):
-        case OldChipID('G', 'S'):  case NewChipID('G', 'S'):
-            return ATI_CHIP_264XL;
-
-        case OldChipID('L', 'M'):  case NewChipID('L', 'M'):
-        case OldChipID('L', 'N'):  case NewChipID('L', 'N'):
-        case OldChipID('L', 'R'):  case NewChipID('L', 'R'):
-        case OldChipID('L', 'S'):  case NewChipID('L', 'S'):
-            return ATI_CHIP_MOBILITY;
-
-        case NewChipID('R', 'E'):
-        case NewChipID('R', 'F'):
-        case NewChipID('R', 'G'):
-        case NewChipID('S', 'K'):
-        case NewChipID('S', 'L'):
-        case NewChipID('S', 'M'):
-        /* "SN" is listed as ATI_CHIP_RAGE128_4X in ATI docs */
-        case NewChipID('S', 'N'):
-            return ATI_CHIP_RAGE128GL;
-
-        case NewChipID('R', 'K'):
-        case NewChipID('R', 'L'):
-        /*
-         * ATI documentation lists SE/SF/SG under both ATI_CHIP_RAGE128VR
-         * and ATI_CHIP_RAGE128_4X, and lists SH/SK/SL under Rage 128 4X only.
-         * I'm stuffing them here for now until this can be clarified as ATI
-         * documentation doesn't mention their details. <mharris@redhat.com>
-         */
-        case NewChipID('S', 'E'):
-        case NewChipID('S', 'F'):
-        case NewChipID('S', 'G'):
-        case NewChipID('S', 'H'):
-            return ATI_CHIP_RAGE128VR;
-
-     /* case NewChipID('S', 'H'): */
-     /* case NewChipID('S', 'K'): */
-     /* case NewChipID('S', 'L'): */
-     /* case NewChipID('S', 'N'): */
-     /*     return ATI_CHIP_RAGE128_4X; */
-
-        case NewChipID('P', 'A'):
-        case NewChipID('P', 'B'):
-        case NewChipID('P', 'C'):
-        case NewChipID('P', 'D'):
-        case NewChipID('P', 'E'):
-        case NewChipID('P', 'F'):
-            return ATI_CHIP_RAGE128PROGL;
-
-        case NewChipID('P', 'G'):
-        case NewChipID('P', 'H'):
-        case NewChipID('P', 'I'):
-        case NewChipID('P', 'J'):
-        case NewChipID('P', 'K'):
-        case NewChipID('P', 'L'):
-        case NewChipID('P', 'M'):
-        case NewChipID('P', 'N'):
-        case NewChipID('P', 'O'):
-        case NewChipID('P', 'P'):
-        case NewChipID('P', 'Q'):
-        case NewChipID('P', 'R'):
-        case NewChipID('P', 'S'):
-        case NewChipID('P', 'T'):
-        case NewChipID('P', 'U'):
-        case NewChipID('P', 'V'):
-        case NewChipID('P', 'W'):
-        case NewChipID('P', 'X'):
-            return ATI_CHIP_RAGE128PROVR;
-
-        case NewChipID('T', 'F'):
-        case NewChipID('T', 'L'):
-        case NewChipID('T', 'R'):
-        case NewChipID('T', 'S'):
-        case NewChipID('T', 'T'):
-        case NewChipID('T', 'U'):
-            return ATI_CHIP_RAGE128PROULTRA;
-
-        case NewChipID('L', 'E'):
-        case NewChipID('L', 'F'):
-        /*
-         * "LK" and "LL" are not in any ATI documentation I can find
-         * - mharris
-         */
-        case NewChipID('L', 'K'):
-        case NewChipID('L', 'L'):
-            return ATI_CHIP_RAGE128MOBILITY3;
-
-        case NewChipID('M', 'F'):
-        case NewChipID('M', 'L'):
-            return ATI_CHIP_RAGE128MOBILITY4;
-
-        case NewChipID('Q', 'D'):
-        case NewChipID('Q', 'E'):
-        case NewChipID('Q', 'F'):
-        case NewChipID('Q', 'G'):
-            return ATI_CHIP_RADEON;
-
-        case NewChipID('Q', 'Y'):
-        case NewChipID('Q', 'Z'):
-        case NewChipID('Q', '^'):
-            return ATI_CHIP_RADEONVE;
-
-        case NewChipID('L', 'Y'):
-        case NewChipID('L', 'Z'):
-            return ATI_CHIP_RADEONMOBILITY6;
-
-        case NewChipID('A', '6'):
-        case NewChipID('C', '6'):
-             return ATI_CHIP_RS100;
-
-        case NewChipID('A', '7'):
-        case NewChipID('C', '7'):
-             return ATI_CHIP_RS200;
-
-        case NewChipID('D', '7'):
-        case NewChipID('B', '7'):
-             return ATI_CHIP_RS250;
-
-        case NewChipID('L', 'W'):
-        case NewChipID('L', 'X'):
-            return ATI_CHIP_RADEONMOBILITY7;
-
-        case NewChipID('Q', 'H'):
-        case NewChipID('Q', 'I'):
-        case NewChipID('Q', 'J'):
-        case NewChipID('Q', 'K'):
-        case NewChipID('Q', 'L'):
-        case NewChipID('Q', 'M'):
-        case NewChipID('Q', 'N'):
-        case NewChipID('Q', 'O'):
-        case NewChipID('Q', 'h'):
-        case NewChipID('Q', 'i'):
-        case NewChipID('Q', 'j'):
-        case NewChipID('Q', 'k'):
-        case NewChipID('Q', 'l'):
-        case NewChipID('B', 'B'):
-            return ATI_CHIP_R200;
-
-        case NewChipID('Q', 'W'):
-        case NewChipID('Q', 'X'):
-            return ATI_CHIP_RV200;
-
-        case NewChipID('I', 'f'):
-        case NewChipID('I', 'g'):
-            return ATI_CHIP_RV250;
-
-        case NewChipID('L', 'd'):
-        case NewChipID('L', 'f'):
-        case NewChipID('L', 'g'):
-            return ATI_CHIP_RADEONMOBILITY9;
-
-        case NewChipID('X', '4'):
-        case NewChipID('X', '5'):
-             return ATI_CHIP_RS300;
-
-        case NewChipID('x', '4'):
-        case NewChipID('x', '5'):
-             return ATI_CHIP_RS350;
-
-        case NewChipID('Y', '\''):
-        case NewChipID('Y', 'a'):
-        case NewChipID('Y', 'b'):
-        case NewChipID('Y', 'd'):
-        case NewChipID('Y', 'e'):
-            return ATI_CHIP_RV280;
-
-        case NewChipID('\\', 'a'):
-        case NewChipID('\\', 'c'):
-            return ATI_CHIP_RADEONMOBILITY9PLUS;
-
-        case NewChipID('A', 'D'):
-        case NewChipID('A', 'E'):
-        case NewChipID('A', 'F'):
-        case NewChipID('A', 'G'):
-        case NewChipID('N', 'D'):
-        case NewChipID('N', 'E'):
-        case NewChipID('N', 'F'):
-        case NewChipID('N', 'G'):
-            return ATI_CHIP_R300;
-
-        case NewChipID('A', 'H'):
-        case NewChipID('A', 'I'):
-        case NewChipID('A', 'J'):
-        case NewChipID('A', 'K'):
-        case NewChipID('N', 'H'):
-        case NewChipID('N', 'I'):
-        case NewChipID('N', 'K'):
-            return ATI_CHIP_R350;
-
-        case NewChipID('A', 'P'):
-        case NewChipID('A', 'Q'):
-        case NewChipID('A', 'R'):
-        case NewChipID('A', 'S'):
-        case NewChipID('A', 'T'):
-        case NewChipID('A', 'U'):
-        case NewChipID('A', 'V'):
-        case NewChipID('N', 'P'):
-        case NewChipID('N', 'Q'):
-        case NewChipID('N', 'R'):
-        case NewChipID('N', 'S'):
-        case NewChipID('N', 'T'):
-        case NewChipID('N', 'V'):
-            return ATI_CHIP_RV350;
-
-        case NewChipID('N', 'J'):
-            return ATI_CHIP_R360;
-
-        case NewChipID('[', '\''):
-        case NewChipID('[', 'b'):
-        case NewChipID('[', 'c'):
-        case NewChipID('[', 'd'):
-        case NewChipID('[', 'e'):
-        case NewChipID('T', '\''):
-        case NewChipID('T', 'b'):
-        case NewChipID('T', 'd'):
-	    return ATI_CHIP_RV370;
-
-        case NewChipID('>', 'P'):
-        case NewChipID('>', 'T'):
-        case NewChipID('1', 'P'):
-        case NewChipID('1', 'R'):
-        case NewChipID('1', 'T'):
-	    return ATI_CHIP_RV380;
-
-        case NewChipID('J', 'H'):
-        case NewChipID('J', 'I'):
-        case NewChipID('J', 'J'):
-        case NewChipID('J', 'K'):
-        case NewChipID('J', 'L'):
-        case NewChipID('J', 'M'):
-        case NewChipID('J', 'N'):
-        case NewChipID('J', 'O'):
-        case NewChipID('J', 'P'):
-        case NewChipID('J', 'T'):
-	    return ATI_CHIP_R420;
-
-        case NewChipID('U', 'H'):
-        case NewChipID('U', 'I'):
-        case NewChipID('U', 'J'):
-        case NewChipID('U', 'K'):
-        case NewChipID('U', 'P'):
-        case NewChipID('U', 'Q'):
-        case NewChipID('U', 'R'):
-        case NewChipID('U', 'T'):
-        case NewChipID(']', 'W'):
-        /* those are m28, not 100% certain they are r423 could
-	   be r480 but not r430 as their pci id names indicate... */
-        case NewChipID(']', 'H'):
-        case NewChipID(']', 'I'):
-        case NewChipID(']', 'J'):
-	    return ATI_CHIP_R423;
-
-        case NewChipID('U', 'L'):
-        case NewChipID('U', 'M'):
-        case NewChipID('U', 'N'):
-        case NewChipID('U', 'O'):
-	    return ATI_CHIP_R430;
-
-        case NewChipID(']', 'L'):
-        case NewChipID(']', 'M'):
-        case NewChipID(']', 'N'):
-        case NewChipID(']', 'O'):
-        case NewChipID(']', 'P'):
-        case NewChipID(']', 'R'):
-	    return ATI_CHIP_R480;
-
-        case NewChipID('K', 'I'):
-        case NewChipID('K', 'J'):
-        case NewChipID('K', 'K'):
-        case NewChipID('K', 'L'):
-	    return ATI_CHIP_R481;
-
-        case NewChipID('^', 'H'):
-        case NewChipID('^', 'J'):
-        case NewChipID('^', 'K'):
-        case NewChipID('^', 'L'):
-        case NewChipID('^', 'M'):
-        case NewChipID('^', 'O'):
-        case NewChipID('V', 'J'):
-        case NewChipID('V', 'K'):
-        case NewChipID('V', 'O'):
-        case NewChipID('V', 'R'):
-        case NewChipID('V', 'S'):
-	    return ATI_CHIP_RV410;
-
-        case NewChipID('Z', 'A'):
-        case NewChipID('Z', 'B'):
-        case NewChipID('Z', 'a'):
-        case NewChipID('Z', 'b'):
-        case NewChipID('Y', 'T'):
-        case NewChipID('Y', 'U'):
-        case NewChipID('Y', 't'):
-        case NewChipID('Y', 'u'):
-	    return ATI_CHIP_RS400;
-
-        case NewChipID('H', 'D'):
-            return ATI_CHIP_HDTV;
-
-        default:
-            /*
-             * Treat anything else as an unknown Radeon.  Please keep the above
-             * up-to-date however, as it serves as a central chip list.
-             */
-            return ATI_CHIP_Radeon;
     }
 }

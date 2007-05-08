@@ -51,7 +51,8 @@ typedef enum
     DDC_MONID,
     DDC_DVI,
     DDC_VGA,
-    DDC_CRT2
+    DDC_CRT2,
+    DDC_LCD,
 } RADEONDDCType;
 
 typedef enum
@@ -186,7 +187,5 @@ extern void                 RADEONFreeScreen(int, int);
 extern ModeStatus           RADEONValidMode(int, DisplayModePtr, Bool, int);
 
 extern const OptionInfoRec *RADEONOptionsWeak(void);
-
-extern void                 RADEONFillInScreenInfo(ScrnInfoPtr);
 
 #endif /* _RADEON_PROBE_H_ */

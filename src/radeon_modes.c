@@ -76,7 +76,6 @@ void RADEONSetPitch (ScrnInfoPtr pScrn)
     pScrn->displayWidth = dummy;
 }
 
-
 /* This is used only when no mode is specified for FP and no ddc is
  * available.  We force it to native mode, if possible.
  */
@@ -191,7 +190,7 @@ int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr *
 
 	if (last) last->next = new;
 	last = new;
-	if (!first) first = new;
+        if (!first) first = new;
 
 	pScrn->display->virtualX =
 	    pScrn->virtualX = MAX(pScrn->virtualX, width);
@@ -237,11 +236,8 @@ int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr *
 
 		new->type      |= M_T_DEFAULT;
 
-		new->next       = NULL;
-		new->prev       = last;
-
 		if (last) last->next = new;
-		last = new;
+	        last = new;
 		if (!first) first = new;
 	    }
 	}
@@ -309,7 +305,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
       
       if (modes == NULL) {
 	MonRec fixed_mon;
-	
+
 	RADEONValidateFPModes(pScrn, pScrn->display->modes, &modes);
       }
     }
@@ -321,5 +317,4 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     }
     return modes;
 }
-
 

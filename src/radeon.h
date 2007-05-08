@@ -112,6 +112,7 @@ typedef enum {
     OPTION_XV_DMA,
     OPTION_FBTEX_PERCENT,
     OPTION_DEPTH_BITS,
+    OPTION_PCIAPER_SIZE,
 #ifdef USE_EXA
     OPTION_ACCEL_DFS,
 #endif
@@ -491,6 +492,8 @@ typedef struct {
 
 #ifdef USE_EXA
     ExaDriverPtr      exa;
+    int               exaSyncMarker;
+    int               exaMarkerSynced;
     int               engineMode;
 #define EXA_ENGINEMODE_UNKNOWN 0
 #define EXA_ENGINEMODE_2D      1
@@ -602,6 +605,7 @@ typedef struct {
 #endif
     Bool              have3DWindows;    /* Are there any 3d clients? */
 
+    int               pciAperSize;
     drmSize           gartSize;
     drm_handle_t         agpMemHandle;     /* Handle from drmAgpAlloc */
     unsigned long     gartOffset;
@@ -799,6 +803,7 @@ extern RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn);
 extern void        RADEONWaitForFifoFunction(ScrnInfoPtr pScrn, int entries);
 extern void        RADEONWaitForIdleMMIO(ScrnInfoPtr pScrn);
 #ifdef XF86DRI
+extern int RADEONDRISetParam(ScrnInfoPtr pScrn, unsigned int param, int64_t value);
 extern void        RADEONWaitForIdleCP(ScrnInfoPtr pScrn);
 #endif
 
@@ -912,6 +917,7 @@ extern void        RADEONDRICloseScreen(ScreenPtr pScreen);
 extern void        RADEONDRIResume(ScreenPtr pScreen);
 extern Bool        RADEONDRIFinishScreenInit(ScreenPtr pScreen);
 extern void        RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen);
+extern int         RADEONDRIGetPciAperTableSize(ScrnInfoPtr pScrn);
 extern void        RADEONDRIStop(ScreenPtr pScreen);
 
 extern drmBufPtr   RADEONCPGetBuffer(ScrnInfoPtr pScrn);
@@ -943,6 +949,16 @@ do {									\
 		   "%s: CP start %d\n", __FUNCTION__, _ret);		\
     }									\
     info->CPStarted = TRUE;                                             \
+} while (0)
+
+#define RADEONCP_RELEASE(pScrn, info)					\
+do {									\
+    if (info->CPInUse) {						\
+	RADEON_PURGE_CACHE();						\
+	RADEON_WAIT_UNTIL_IDLE();					\
+	RADEONCPReleaseIndirect(pScrn);					\
+	info->CPInUse = FALSE;						\
+    }									\
 } while (0)
 
 #define RADEONCP_STOP(pScrn, info)					\
@@ -1106,14 +1122,6 @@ do {									\
     OUT_RING((RADEON_WAIT_2D_IDLECLEAN |				\
 	      RADEON_WAIT_3D_IDLECLEAN |				\
 	      RADEON_WAIT_HOST_IDLECLEAN));				\
-    ADVANCE_RING();							\
-} while (0)
-
-#define RADEON_FLUSH_CACHE()						\
-do {									\
-    BEGIN_RING(2);							\
-    OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));		\
-    OUT_RING(RADEON_RB3D_DC_FLUSH);					\
     ADVANCE_RING();							\
 } while (0)
 

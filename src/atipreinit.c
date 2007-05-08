@@ -32,20 +32,21 @@
 #include "atiaudio.h"
 #include "atibus.h"
 #include "atichip.h"
-#include "aticonfig.h"
 #include "aticursor.h"
 #include "atidac.h"
 #include "atidsp.h"
 #include "atii2c.h"
-#include "atiident.h"
 #include "atiload.h"
 #include "atilock.h"
 #include "atimach64.h"
 #include "atimach64accel.h"
 #include "atimach64io.h"
+#include "atimach64probe.h"
 #include "atimode.h"
+#include "atioption.h"
 #include "atipreinit.h"
 #include "atiprint.h"
+#include "atiprobe.h"
 #include "atividmem.h"
 #include "atiwonderio.h"
 #include "atixv.h"
@@ -146,7 +147,7 @@ ATIPrintNoiseIfRequested
  * This function is only called once per screen at the start of the first
  * server generation.
  */
-_X_EXPORT Bool
+Bool
 ATIPreInit
 (
     ScrnInfoPtr pScreenInfo,
@@ -982,7 +983,8 @@ ATIPreInit
 
     /* Report what was found */
     xf86DrvMsg(pScreenInfo->scrnIndex, X_PROBED,
-        "%s graphics controller detected.\n", ATIChipNames[pATI->Chip]);
+        "%s graphics controller detected.\n",
+        xf86TokenToString(Mach64Chipsets, pATI->Chip));
 
     {
         Message = Buffer + snprintf(Buffer, SizeOf(Buffer), "Chip type %04X",

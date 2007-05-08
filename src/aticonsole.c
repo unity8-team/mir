@@ -628,7 +628,7 @@ ATILeaveGraphics
  *
  * This function switches to another graphics video state.
  */
-_X_EXPORT Bool
+Bool
 ATISwitchMode
 (
     int            iScreen,
@@ -681,7 +681,7 @@ ATISwitchMode
  *
  * This function sets the server's virtual console to a graphics video state.
  */
-_X_EXPORT Bool
+Bool
 ATIEnterVT
 (
     int iScreen,
@@ -751,7 +751,7 @@ ATIEnterVT
  * This function restores the server's virtual console to its state on server
  * entry.
  */
-_X_EXPORT void
+void
 ATILeaveVT
 (
     int iScreen,
@@ -780,7 +780,7 @@ ATILeaveVT
  *
  * This function frees all driver data related to a screen.
  */
-_X_EXPORT void
+void
 ATIFreeScreen
 (
     int iScreen,

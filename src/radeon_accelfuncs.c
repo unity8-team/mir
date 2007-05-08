@@ -1204,8 +1204,14 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
        hardware accel two point lines */
     miSetZeroLineBias(pScreen, (OCTANT5 | OCTANT6 | OCTANT7 | OCTANT8));
 
-    a->SubsequentSolidTwoPointLine
-	= FUNC_NAME(RADEONSubsequentSolidTwoPointLine);
+#ifdef ACCEL_CP
+    /* RV280s lock up with this using the CP for reasons to be determined.
+     * See https://bugs.freedesktop.org/show_bug.cgi?id=5986 .
+     */
+    if (info->ChipFamily != CHIP_FAMILY_RV280)
+#endif
+	a->SubsequentSolidTwoPointLine
+	    = FUNC_NAME(RADEONSubsequentSolidTwoPointLine);
 
     /* Disabled on RV200 and newer because it does not pass XTest */
     if (info->ChipFamily < CHIP_FAMILY_RV200) {
