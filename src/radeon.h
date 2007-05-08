@@ -163,30 +163,6 @@ typedef enum {
     OPTION_DRI
 } RADEONOpts;
 
-/* ------- mergedfb support ------------- */
-		/* Psuedo Xinerama support */
-#define NEED_REPLIES  		/* ? */
-#define EXTENSION_PROC_ARGS void *
-#include "extnsionst.h"  	/* required */
-#include <X11/extensions/panoramiXproto.h>  	/* required */
-#define RADEON_XINERAMA_MAJOR_VERSION  1
-#define RADEON_XINERAMA_MINOR_VERSION  1
-
-
-/* Relative merge position */
-typedef enum {
-   radeonLeftOf,
-   radeonRightOf,
-   radeonAbove,
-   radeonBelow,
-   radeonClone
-} RADEONScrn2Rel;
-
-typedef struct _region {
-    int x0,x1,y0,y1;
-} region;
-
-/* ------------------------------------- */
 
 #define RADEON_DEBUG            1 /* Turn off debugging output               */
 #define RADEON_IDLE_RETRY      16 /* Fall out of idle loops after this count */
