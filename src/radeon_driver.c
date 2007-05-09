@@ -2555,7 +2555,9 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
       xf86OutputPtr	      output = config->output[i];
       
       output->status = (*output->funcs->detect) (output);
+      ErrorF("finished output detect: %d\n", i);
     }
+    ErrorF("finished all detect\n");
     return TRUE;
 }
 
@@ -2819,11 +2821,15 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
        goto fail;
 
 
+    ErrorF("before xf86InitialConfiguration\n");
+
     if (!xf86InitialConfiguration (pScrn, FALSE))
    {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
       goto fail;
    }
+
+    ErrorF("after xf86InitialConfiguration\n");
 
    pScrn->displayWidth = (pScrn->virtualX + 63) & ~63;
 
@@ -4370,6 +4376,9 @@ static void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
     OUTPLLP(pScrn, RADEON_VCLK_ECP_CNTL,
 	    RADEON_VCLK_SRC_SEL_PPLLCLK,
 	    ~(RADEON_VCLK_SRC_SEL_MASK));
+
+    ErrorF("finished PLL1\n");
+
 }
 
 
@@ -4429,6 +4438,9 @@ static void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
     OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL,
 	    RADEON_PIX2CLK_SRC_SEL_P2PLLCLK,
 	    ~(RADEON_PIX2CLK_SRC_SEL_MASK));
+
+    ErrorF("finished PLL2\n");
+
 }
 
 
@@ -4616,13 +4628,14 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 }
 
 static void
-RADEONEnableOuputs(ScrnInfoPtr pScrn, int crtc_num)
+RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num)
 {
+    RADEONInfoPtr      info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     int i;
     xf86OutputPtr output;
 
-    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
+    for (i = 0; i < info->max_connectors; i++) {
         if (pRADEONEnt->PortInfo[i]->crtc_num == crtc_num) {
 	    output = pRADEONEnt->pOutput[i];
             RADEONEnableDisplay(pScrn, output, TRUE);
@@ -4655,7 +4668,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
        get set by RADEONEnableDisplay()
      */
     if (!info->IsSwitching && !info->IsSecondary)
-	RADEONDisableDisplays(pScrn);
+        RADEONDisableDisplays(pScrn);
 
     /* When changing mode with Dual-head card, care must be taken for
      * the special order in setting registers. CRTC2 has to be set
@@ -4704,13 +4717,18 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	RADEONRestoreCrtcRegisters(pScrn, restore);
 	RADEONRestorePLLRegisters(pScrn, restore);
 	RADEONRestoreFPRegisters(pScrn, restore);
+	ErrorF("finished FP restore\n");
 
-	RADEONEnableOuputs(pScrn, 1);
+	RADEONEnableOutputs(pScrn, 1);
+	ErrorF("enable output1 done\n");
 
 	if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
-	    RADEONEnableOuputs(pScrn, 2);
+	    RADEONEnableOutputs(pScrn, 2);
+	    ErrorF("enable output2 done\n");
 	}
     }
+
+    ErrorF("finished modeset\n");
 
 #if 0
     RADEONRestorePalette(pScrn, &info->SavedReg);
@@ -5570,9 +5588,11 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     }
 
     /* get the output connected to this CRTC */
-    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
-      if (pRADEONEnt->PortInfo[i]->crtc_num == 1)
+    for (i = 0; i < info->max_connectors; i++) {
+      if (pRADEONEnt->PortInfo[i]->crtc_num == 1) {
+	ErrorF("init output for crtc1\n");
         RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[i], 1);
+      }
     }
 #if 0
     if (pRADEONEnt->PortInfo[0]->crtc_num == 1) {
@@ -5708,9 +5728,11 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
 
     /* get the output connected to this CRTC */
-    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
-      if (pRADEONEnt->PortInfo[i]->crtc_num == 2)
-        RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[i], 1);
+    for (i = 0; i < info->max_connectors; i++) {
+      if (pRADEONEnt->PortInfo[i]->crtc_num == 2) {
+	ErrorF("init output for crtc2\n");
+        RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[i], 2);
+      }
     }
 #if 0
     if (pRADEONEnt->PortInfo[0]->crtc_num == 2) {

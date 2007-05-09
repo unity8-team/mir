@@ -270,10 +270,14 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     xf86MonPtr		    edid_mon;
     DisplayModePtr	    modes = NULL;
 
+#if 0
     /* force reprobe */
     radeon_output->MonType = MT_UNKNOWN;
 	
     RADEONConnectorFindMonitor(pScrn, output);
+#endif
+    ErrorF("in RADEONProbeOutputModes\n");
+
 
     if (radeon_output->type == OUTPUT_DVI || radeon_output->type == OUTPUT_VGA) {
       edid_mon = xf86OutputGetEDID (output, radeon_output->pI2CBus);

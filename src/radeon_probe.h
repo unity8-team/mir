@@ -137,7 +137,7 @@ typedef struct _RADEONOutputPrivateRec {
     I2CBusPtr         pI2CBus;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
-#define RADEON_MAX_CONNECTOR 2
+#define RADEON_MAX_CONNECTOR 3 /* actually 4: DVI/VGA, DVI on docks, TV, LVDS */
 #define RADEON_MAX_CRTC 2
 
 typedef struct

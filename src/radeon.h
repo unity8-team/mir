@@ -765,6 +765,8 @@ typedef struct {
 
     CARD32            tv_dac_adj;
 
+  int               max_connectors;
+
     CreateScreenResourcesProcPtr CreateScreenResources;
 } RADEONInfoRec, *RADEONInfoPtr;
 
