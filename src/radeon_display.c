@@ -943,7 +943,7 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
      * The information should be correct even on a OEM card.
      * If not, we may have problem -- need to use MonitorLayout option.
      */
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
 	pRADEONEnt->PortInfo[i]->MonType = MT_UNKNOWN;
 	pRADEONEnt->PortInfo[i]->DDCType = DDC_NONE_DETECTED;
 	pRADEONEnt->PortInfo[i]->DACType = DAC_UNKNOWN;
@@ -2571,7 +2571,6 @@ Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
     /* for now always allocate max connectors */
     for (i = 0 ; i < RADEON_MAX_CONNECTOR; i++) {
 
-
 	pRADEONEnt->pOutput[i] = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[pRADEONEnt->PortInfo[i]->type]);
 	if (!pRADEONEnt->pOutput[i])
 	    return FALSE;
@@ -2579,11 +2578,11 @@ Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
 	pRADEONEnt->pOutput[i]->driver_private = pRADEONEnt->PortInfo[i];
 	pRADEONEnt->PortInfo[i]->num = i;
 
-	pRADEONEnt->pOutput[i]->possible_crtcs = (1<<0);
+	pRADEONEnt->pOutput[i]->possible_crtcs = 1;
 	if (pRADEONEnt->PortInfo[i]->type != OUTPUT_LVDS)
- 	    pRADEONEnt->pOutput[i]->possible_crtcs |= (1<<1);
+ 	    pRADEONEnt->pOutput[i]->possible_crtcs |= 2;
 
-	pRADEONEnt->pOutput[i]->possible_clones = 0;
+	pRADEONEnt->pOutput[i]->possible_clones = 1|2;
     }
 
     return TRUE;
@@ -2594,11 +2593,12 @@ Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
 xf86OutputPtr RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num)
 {
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    int i;
 
-    if (pRADEONEnt->PortInfo[0]->crtc_num == crtc_num)
-      return pRADEONEnt->pOutput[0];
-    else if (pRADEONEnt->PortInfo[1]->crtc_num == crtc_num)
-      return pRADEONEnt->pOutput[1];
+    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
+        if (pRADEONEnt->PortInfo[i]->crtc_num == crtc_num)
+	    return pRADEONEnt->pOutput[i];
+    }
     return NULL;
 }
 
