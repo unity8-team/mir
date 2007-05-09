@@ -6235,7 +6235,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    int            reg, Base, regcntl, crtcoffsetcntl, xytilereg, crtcxytile = 0;
+    int            Base, regcntl, crtcoffsetcntl, xytilereg, crtcxytile = 0;
 #ifdef XF86DRI
     RADEONSAREAPrivPtr pSAREAPriv;
     XF86DRISAREAPtr pSAREA;
@@ -6263,11 +6263,9 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
      only after a vsync. We'd probably need to wait (in drm) for vsync and only then update
      OFFSET and OFFSET_CNTL, if the y coord has changed. Seems hard to fix. */
     if (clone || info->IsSecondary) {
-        reg = RADEON_CRTC2_OFFSET;
 	regcntl = RADEON_CRTC2_OFFSET_CNTL;
 	xytilereg = R300_CRTC2_TILE_X0_Y0;
     } else {
-        reg = RADEON_CRTC_OFFSET;
 	regcntl = RADEON_CRTC_OFFSET_CNTL;
 	xytilereg = R300_CRTC_TILE_X0_Y0;
     }
@@ -6337,14 +6335,16 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
     }
 #endif
 
-    OUTREG(reg, Base);
-
     if (IS_R300_VARIANT) {
         OUTREG(xytilereg, crtcxytile);
     } else {
         OUTREG(regcntl, crtcoffsetcntl);
     }
 
+    if (clone)
+        info->ModeReg.crtc2_offset = Base;
+    else
+        info->ModeReg.crtc_offset = Base;
 }
 
 void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)

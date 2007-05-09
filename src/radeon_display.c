@@ -2296,14 +2296,13 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     }
 
     RADEONBlank(pScrn);
-    RADEONRestoreMode(pScrn, &info->ModeReg);
-
-    ErrorF("mode restored\n");
-
     if (radeon_crtc->crtc_id == 0)
 	RADEONDoAdjustFrame(pScrn, x, y, FALSE);
     else if (radeon_crtc->crtc_id == 1)
 	RADEONDoAdjustFrame(pScrn, x, y, TRUE);
+    RADEONRestoreMode(pScrn, &info->ModeReg);
+
+    ErrorF("mode restored\n");
 
     ErrorF("frame adjusted\n");
 
