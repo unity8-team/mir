@@ -2288,10 +2288,10 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     
     switch (radeon_crtc->crtc_id) {
     case 0: 
-      RADEONInit2(pScrn, mode, NULL, 1, &info->ModeReg, montype);
+      RADEONInit2(pScrn, adjusted_mode, NULL, 1, &info->ModeReg, montype);
       break;
     case 1: 
-      RADEONInit2(pScrn, NULL, mode, 2, &info->ModeReg, montype);
+      RADEONInit2(pScrn, NULL, adjusted_mode, 2, &info->ModeReg, montype);
       break;
     }
 
@@ -2430,6 +2430,18 @@ radeon_restore(xf86OutputPtr restore)
 static int
 radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
+    ScrnInfoPtr	pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    DisplayModePtr m;
+
+    if (radeon_output->type != OUTPUT_LVDS)
+	return MODE_OK;
+
+    if (pMode->HDisplay > info->PanelXRes ||
+	pMode->VDisplay > info->PanelYRes)
+	return MODE_PANEL;
+
     return MODE_OK;
 }
 
@@ -2437,8 +2449,18 @@ static Bool
 radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		    DisplayModePtr adjusted_mode)
 {
-    return TRUE;
+    ScrnInfoPtr	pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
+    if (radeon_output->type != OUTPUT_LVDS)
+	return TRUE;
+
+    if (mode->HDisplay < info->PanelXRes ||
+	mode->VDisplay < info->PanelYRes)
+	adjusted_mode->Flags |= RADEON_USE_RMX;
+
+    return TRUE;
 }
 
 static void
