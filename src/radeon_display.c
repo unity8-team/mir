@@ -1192,6 +1192,7 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 /* Secondary Head (mostly VGA, can be DVI on some OEM boards)*/
 void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     
@@ -1202,6 +1203,15 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
       else if((radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output)));
       else
 	radeon_output->MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(radeon_output->DACType));
+    }
+
+    if (output->MonInfo) {
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on connector: %s ----------------------\n",
+		 info->IsAtomBios ?
+		 ConnectorTypeNameATOM[radeon_output->ConnectorType]:
+		 ConnectorTypeName[radeon_output->ConnectorType]
+		 );
+      xf86PrintEDID( output->MonInfo );
     }
 }
 
@@ -1312,10 +1322,7 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
     xf86OutputPtr output;
     int o;
 
-    /*
-      pRADEONEnt->PortInfo[0]->crtc_num = 1;
-      pRADEONEnt->PortInfo[1]->crtc_num = 2;
-    */
+
     for (o = 0; o < xf86_config->num_output; o++) {
       output = xf86_config->output[o];
       radeon_output = output->driver_private;
@@ -2604,7 +2611,7 @@ Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
 }
 
 
-
+#if 0
 xf86OutputPtr RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num)
 {
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
@@ -2616,7 +2623,7 @@ xf86OutputPtr RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num)
     }
     return NULL;
 }
-
+#endif
 
 /**
  * In the current world order, there are lists of modes per output, which may

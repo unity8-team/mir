@@ -2543,10 +2543,6 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
       if (!RADEONAllocateConnectors(pScrn))
 	return FALSE;
     }
-
-    if (!info->IsSecondary) {
-      RADEONQueryConnectedDisplays(pScrn);
-    }
       
     RADEONMapControllers(pScrn);
 
