@@ -1307,23 +1307,36 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    Bool head_reversed = FALSE;
-    xf86OutputPtr output;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONOutputPrivatePtr radeon_output;
+    xf86OutputPtr output;
+    int o;
 
+      pRADEONEnt->PortInfo[0]->crtc_num = 1;
+      pRADEONEnt->PortInfo[1]->crtc_num = 2;
+
+    for (o = 0; o < xf86_config->num_output; o++) {
+      output = xf86_config->output[o];
+      radeon_output = output->driver_private;
+
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+		 "Port%d:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n", 
+	  o,
+	  MonTypeName[radeon_output->MonType+1],
+	  info->IsAtomBios ? 
+	  ConnectorTypeNameATOM[radeon_output->ConnectorType]:
+	  ConnectorTypeName[radeon_output->ConnectorType],
+	  DACTypeName[radeon_output->DACType+1],
+	  TMDSTypeName[radeon_output->TMDSType+1],
+	  DDCTypeName[radeon_output->DDCType]);
+
+    }
+
+#if 0
     if (!info->IsSecondary) {
       pRADEONEnt->PortInfo[0]->crtc_num = 1;
       pRADEONEnt->PortInfo[1]->crtc_num = 2;
 
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		 "Port1:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n", 
-		 MonTypeName[pRADEONEnt->PortInfo[0]->MonType+1], 
-		 info->IsAtomBios ? 
-		 ConnectorTypeNameATOM[pRADEONEnt->PortInfo[0]->ConnectorType]:
-		 ConnectorTypeName[pRADEONEnt->PortInfo[0]->ConnectorType],
-		 DACTypeName[pRADEONEnt->PortInfo[0]->DACType+1],
-		 TMDSTypeName[pRADEONEnt->PortInfo[0]->TMDSType+1],
-		 DDCTypeName[pRADEONEnt->PortInfo[0]->DDCType]);
 
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 		 "Port2:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n", 
@@ -1426,7 +1439,7 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
  	else
             xf86DrvMsg(pScrn->scrnIndex, X_INFO, "---- Secondary Head: Not used ----\n");
     }
-
+#endif
 
     return TRUE;
 }
