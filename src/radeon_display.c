@@ -1312,9 +1312,10 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
     xf86OutputPtr output;
     int o;
 
+    /*
       pRADEONEnt->PortInfo[0]->crtc_num = 1;
       pRADEONEnt->PortInfo[1]->crtc_num = 2;
-
+    */
     for (o = 0; o < xf86_config->num_output; o++) {
       output = xf86_config->output[o];
       radeon_output = output->driver_private;
@@ -2251,6 +2252,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
       if (output->crtc == crtc) {
 	montype = radeon_output->MonType;
+	radeon_output->crtc_num = radeon_crtc->crtc_id + 1;
       }
     }
     

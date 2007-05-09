@@ -5420,8 +5420,9 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     int    hsync_start;
     int    hsync_wid;
     int    vsync_wid;
+    int i;
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    xf86OutputPtr connector;
+
 
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
@@ -5570,11 +5571,17 @@ static Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     }
 
     /* get the output connected to this CRTC */
+    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
+      if (pRADEONEnt->PortInfo[i]->crtc_num == 1)
+        RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[i], 1);
+    }
+#if 0
     if (pRADEONEnt->PortInfo[0]->crtc_num == 1) {
 	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[0], 1);
     } else if (pRADEONEnt->PortInfo[1]->crtc_num == 1) {
 	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[1], 1);
     }
+#endif
 
     if (info->IsDellServer) {
 	save->dac2_cntl = info->SavedReg.dac2_cntl;
@@ -5604,9 +5611,10 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     int    hsync_start;
     int    hsync_wid;
     int    vsync_wid;
-
+    int i;
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     RADEONInfoPtr info0 = NULL;
+
     if (info->IsSecondary)
 	info0 = RADEONPTR(pRADEONEnt->pPrimaryScrn);
 
@@ -5701,11 +5709,17 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
 
     /* get the output connected to this CRTC */
+    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
+      if (pRADEONEnt->PortInfo[i]->crtc_num == 2)
+        RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[i], 1);
+    }
+#if 0
     if (pRADEONEnt->PortInfo[0]->crtc_num == 2) {
 	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[0], 2);
     } else if (pRADEONEnt->PortInfo[1]->crtc_num == 2) {
 	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[1], 2);
     }
+#endif
 
     /* We must set SURFACE_CNTL properly on the second screen too */
     save->surface_cntl = 0;
