@@ -4619,6 +4619,22 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
     RADEONSaveSurfaces(pScrn, &info->ModeReg);
 }
 
+static void
+RADEONEnableOuputs(ScrnInfoPtr pScrn, int crtc_num)
+{
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    int i;
+    xf86OutputPtr output;
+
+    for (i = 0; i < RADEON_MAX_CONNECTOR; i++) {
+        if (pRADEONEnt->PortInfo[i]->crtc_num == crtc_num) {
+	    output = pRADEONEnt->pOutput[i];
+            RADEONEnableDisplay(pScrn, output, TRUE);
+        }
+    }
+
+}
+
 /* Write out state to define a new video mode */
 void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
@@ -4664,10 +4680,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	    RADEONRestoreCrtc2Registers(pScrn, restore);
 	    RADEONRestorePLL2Registers(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
-	    output = RADEONGetCrtcConnector(pScrn, 2);
-	    if (output) {
-		RADEONEnableDisplay(pScrn, output, TRUE);
-	    }
+	    RADEONEnableOuputs(pScrn, 2);
 	} else {
 	    RADEONRestoreMemMapRegisters(pScrn, restore);
 	    RADEONRestoreCommonRegisters(pScrn, restore);
@@ -4679,15 +4692,9 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
             RADEONRestoreCrtcRegisters(pScrn, restore);
             RADEONRestorePLLRegisters(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
-	    output = RADEONGetCrtcConnector(pScrn, 1);
-	    if (output) {
-		RADEONEnableDisplay(pScrn, output, TRUE);
-	    }
+	    RADEONEnableOuputs(pScrn, 1);
 	    if (pCRTC2->binding == 1) {
-		output = RADEONGetCrtcConnector(pScrn, 2);
-		if (output) {
-		    RADEONEnableDisplay(pScrn, output, TRUE);
-		}
+	      RADEONEnableOuputs(pScrn, 2);
 	    }
 	}
     } else {
@@ -4701,15 +4708,11 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	RADEONRestoreCrtcRegisters(pScrn, restore);
 	RADEONRestorePLLRegisters(pScrn, restore);
 	RADEONRestoreFPRegisters(pScrn, restore);
-	output = RADEONGetCrtcConnector(pScrn, 1);
-	if (output) {
-	    RADEONEnableDisplay(pScrn, output, TRUE);
-	}
+
+	RADEONEnableOuputs(pScrn, 1);
+
 	if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
-	    output = RADEONGetCrtcConnector(pScrn, 2);
-	    if (output) {
-		RADEONEnableDisplay(pScrn, output, TRUE);
-	    }
+	    RADEONEnableOuputs(pScrn, 2);
 	}
     }
 
