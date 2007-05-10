@@ -884,6 +884,8 @@ void
 radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg);
 void
 radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image);
+void
+RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num);
 
 #ifdef XF86DRI
 #ifdef USE_XAA

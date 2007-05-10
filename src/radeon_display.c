@@ -2217,6 +2217,11 @@ radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
     
   mask = radeon_crtc->crtc_id ? (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS | RADEON_CRTC2_HSYNC_DIS) : (RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS | RADEON_CRTC_VSYNC_DIS);
 
+  if (radeon_crtc->crtc_id)
+      ErrorF("crtc2 mode: %d", mode);
+  else
+      ErrorF("crtc1 mode: %d", mode);
+
   switch(mode) {
   case DPMSModeOn:
     if (radeon_crtc->crtc_id) {
@@ -2274,6 +2279,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONMonitorType montype;
     int i = 0;
+    double         dot_clock = 0;
 
     for (i = 0; i < xf86_config->num_output; i++) {
       xf86OutputPtr output = xf86_config->output[i];
@@ -2286,30 +2292,85 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
       }
     }
     
+    ErrorF("init memmap\n");
+    RADEONInitMemMapRegisters(pScrn, &info->ModeReg, info);
+    ErrorF("init common\n");
+    RADEONInitCommonRegisters(&info->ModeReg, info);
+
     switch (radeon_crtc->crtc_id) {
-    case 0: 
-      RADEONInit2(pScrn, adjusted_mode, NULL, 1, &info->ModeReg, montype);
-      break;
+    case 0:
+	ErrorF("init crtc1\n");
+	RADEONInitCrtcRegisters(pScrn, &info->ModeReg, adjusted_mode, info);
+        dot_clock = adjusted_mode->Clock / 1000.0;
+        if (dot_clock) {
+	    ErrorF("init pll1\n");
+	    RADEONInitPLLRegisters(pScrn, info, &info->ModeReg, &info->pll, dot_clock);
+        } else {
+            info->ModeReg.ppll_ref_div = info->SavedReg.ppll_ref_div;
+            info->ModeReg.ppll_div_3   = info->SavedReg.ppll_div_3;
+            info->ModeReg.htotal_cntl  = info->SavedReg.htotal_cntl;
+        }
+	/*RADEONInit2(pScrn, adjusted_mode, NULL, 1, &info->ModeReg, montype);*/
+	break;
     case 1: 
-      RADEONInit2(pScrn, NULL, adjusted_mode, 2, &info->ModeReg, montype);
-      break;
+	ErrorF("init crtc2\n");
+        RADEONInitCrtc2Registers(pScrn, &info->ModeReg, adjusted_mode, info);
+        dot_clock = adjusted_mode->Clock / 1000.0;
+        if (dot_clock) {
+	    ErrorF("init pll2\n");
+	    RADEONInitPLL2Registers(pScrn, &info->ModeReg, &info->pll, dot_clock, montype != MT_CRT);
+        }
+	/*RADEONInit2(pScrn, NULL, adjusted_mode, 2, &info->ModeReg, montype);*/
+	break;
     }
 
-    RADEONBlank(pScrn);
-    if (radeon_crtc->crtc_id == 0)
+    radeon_crtc_dpms(crtc, DPMSModeOff);
+
+    ErrorF("restore memmap\n");
+    RADEONRestoreMemMapRegisters(pScrn, &info->ModeReg);
+    ErrorF("restore common\n");
+    RADEONRestoreCommonRegisters(pScrn, &info->ModeReg);    
+
+    switch (radeon_crtc->crtc_id) {
+    case 0:
+	ErrorF("adjustframe 1\n");
 	RADEONDoAdjustFrame(pScrn, x, y, FALSE);
-    else if (radeon_crtc->crtc_id == 1)
+	ErrorF("restore crtc1\n");
+	RADEONRestoreCrtcRegisters(pScrn, &info->ModeReg);
+	ErrorF("restore FP1\n");
+	RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
+	ErrorF("restore dac\n");
+	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);
+	ErrorF("restore pll1\n");
+	RADEONRestorePLLRegisters(pScrn, &info->ModeReg);
+	ErrorF("enable 1\n");
+	RADEONEnableOutputs(pScrn, 1);
+	break;
+    case 1:
+	ErrorF("adjustframe 2\n");
 	RADEONDoAdjustFrame(pScrn, x, y, TRUE);
-    RADEONRestoreMode(pScrn, &info->ModeReg);
+	ErrorF("restore crtc2\n");
+	RADEONRestoreCrtc2Registers(pScrn, &info->ModeReg);
+	ErrorF("restore fp2\n");
+	RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
+	ErrorF("restore dac2\n");
+	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);
+	ErrorF("restore pll2\n");
+	RADEONRestorePLL2Registers(pScrn, &info->ModeReg);
+	ErrorF("enable 2\n");
+	RADEONEnableOutputs(pScrn, 2);
+	break;
+    }
 
-    ErrorF("mode restored\n");
 
-    ErrorF("frame adjusted\n");
+    /*    RADEONRestoreMode(pScrn, &info->ModeReg);*/
 
     if (info->DispPriority)
         RADEONInitDispBandwidth(pScrn);
     ErrorF("bandwidth set\n");
-    RADEONUnblank(pScrn);
+    /*RADEONUnblank(pScrn);*/
+    radeon_crtc_dpms(crtc, DPMSModeOn);
+
     ErrorF("unblank\n");
 }
 
