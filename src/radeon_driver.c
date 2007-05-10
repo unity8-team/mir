@@ -4670,6 +4670,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	RADEONRestoreCommonRegisters(pScrn, restore);
 	RADEONRestoreCrtcRegisters(pScrn, restore);
 	RADEONRestoreFPRegisters(pScrn, restore);
+	RADEONRestoreDACRegisters(pScrn, restore);
 	RADEONRestorePLLRegisters(pScrn, restore);
 	return;
     }
@@ -4699,6 +4700,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	    RADEONRestoreCrtc2Registers(pScrn, restore);
 	    RADEONRestorePLL2Registers(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
+	    RADEONRestoreDACRegisters(pScrn, restore);
 	    RADEONEnableOuputs(pScrn, 2);
 	} else {
 	    RADEONRestoreMemMapRegisters(pScrn, restore);
@@ -4711,6 +4713,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
             RADEONRestoreCrtcRegisters(pScrn, restore);
             RADEONRestorePLLRegisters(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
+	    RADEONRestoreDACRegisters(pScrn, restore);
 	    RADEONEnableOuputs(pScrn, 1);
 	    if (pCRTC2->binding == 1) {
 	      RADEONEnableOuputs(pScrn, 2);
@@ -4727,6 +4730,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	RADEONRestoreCrtcRegisters(pScrn, restore);
 	RADEONRestorePLLRegisters(pScrn, restore);
 	RADEONRestoreFPRegisters(pScrn, restore);
+	RADEONRestoreDACRegisters(pScrn, restore);
 	ErrorF("finished FP restore\n");
 
 	RADEONEnableOutputs(pScrn, 1);
