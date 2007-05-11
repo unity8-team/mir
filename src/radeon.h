@@ -426,8 +426,9 @@ typedef struct {
     Bool              R300CGWorkaround;
 
 				/* EDID or BIOS values for FPs */
-    /*    int               PanelXRes;
+    int               PanelXRes;
     int               PanelYRes;
+#if 0
     int               HOverPlus;
     int               HSyncWidth;
     int               HBlank;
@@ -436,7 +437,8 @@ typedef struct {
     int               VBlank;
     int               PanelPwrDly;
     int               DotClock;
-    */
+#endif
+    // move these to crtc priv rec
     int               RefDivider;
     int               FeedbackDivider;
     int               PostDivider;

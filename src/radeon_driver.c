@@ -5529,21 +5529,6 @@ Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
         save->crtc_more_cntl |= RADEON_CRTC_H_CUTOFF_ACTIVE_EN;
     }
 
-    // fix me, move to output
-    /*
-    if (mode->Flags & RADEON_USE_RMX) {
-      mode->CrtcHTotal     = mode->CrtcHDisplay + info->HBlank;
-      mode->CrtcHSyncStart = mode->CrtcHDisplay + info->HOverPlus;
-      mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + info->HSyncWidth;
-      mode->CrtcVTotal     = mode->CrtcVDisplay + info->VBlank;
-      mode->CrtcVSyncStart = mode->CrtcVDisplay + info->VOverPlus;
-      mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + info->VSyncWidth;
-      mode->Clock          = info->DotClock;
-      mode->Flags          = info->Flags | RADEON_USE_RMX;
-    }
-    */
-
-
     save->crtc_h_total_disp = ((((mode->CrtcHTotal / 8) - 1) & 0x3ff)
 			       | ((((mode->CrtcHDisplay / 8) - 1) & 0x1ff)
 				  << 16));

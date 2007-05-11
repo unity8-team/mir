@@ -2479,33 +2479,17 @@ RADEONDisplayVideo(
     v_inc_shift = 20;
     y_mult = 1;
 
-    /* TODO NO IDEA WHAT THIS IS ABOUT */
-    if (0) {//info->MergedFB) {
-	if (overlay_mode->Flags & V_INTERLACE)
-	    v_inc_shift++;
-    	if (overlay_mode->Flags & V_DBLSCAN) {
-	    v_inc_shift--;
-	    y_mult = 2;
-	}
-	// FIXME
-	/*    	if (overlay_mode->Flags & RADEON_USE_RMX) {
-	    v_inc = ((src_h * overlay_mode->CrtcVDisplay / info->PanelYRes) << v_inc_shift) / drw_h;
-	    } else {*/
-	    v_inc = (src_h << v_inc_shift) / drw_h;
-	    /*}*/
+    if (pScrn->currentMode->Flags & V_INTERLACE)
+	v_inc_shift++;
+    if (pScrn->currentMode->Flags & V_DBLSCAN) {
+	v_inc_shift--;
+	y_mult = 2;
+    }
+    // FIXME
+    if (pScrn->currentMode->Flags & RADEON_USE_RMX) {
+	v_inc = ((src_h * pScrn->currentMode->CrtcVDisplay / info->PanelYRes) << v_inc_shift) / drw_h;
     } else {
-	if (pScrn->currentMode->Flags & V_INTERLACE)
-	    v_inc_shift++;
-    	if (pScrn->currentMode->Flags & V_DBLSCAN) {
-	    v_inc_shift--;
-	    y_mult = 2;
-	}
-	// FIXME
-	/*    	if (pScrn->currentMode->Flags & RADEON_USE_RMX) {
-	    v_inc = ((src_h * pScrn->currentMode->CrtcVDisplay / info->PanelYRes) << v_inc_shift) / drw_h;
-	    } else {*/
-	    v_inc = (src_h << v_inc_shift) / drw_h;
-	    /*}*/
+	v_inc = (src_h << v_inc_shift) / drw_h;
     }
 
     h_inc = (1 << (12 + ecp_div));

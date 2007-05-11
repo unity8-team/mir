@@ -695,6 +695,7 @@ static void RADEONGetPanelInfoFromReg (xf86OutputPtr output)
 	radeon_output->PanelYRes = 480;
     }
 
+    // move this to crtc function
     if (xf86ReturnOptValBool(info->Options, OPTION_LVDS_PROBE_PLL, TRUE)) {
            CARD32 ppll_div_sel, ppll_val;
 
@@ -703,10 +704,10 @@ static void RADEONGetPanelInfoFromReg (xf86OutputPtr output)
 	   ppll_val = INPLL(pScrn, RADEON_PPLL_DIV_0 + ppll_div_sel);
            if ((ppll_val & 0x000707ff) == 0x1bb)
 		   goto noprobe;
-	   radeon_output->FeedbackDivider = ppll_val & 0x7ff;
-	   radeon_output->PostDivider = (ppll_val >> 16) & 0x7;
-	   radeon_output->RefDivider = info->pll.reference_div;
-	   radeon_output->UseBiosDividers = TRUE;
+	   info->FeedbackDivider = ppll_val & 0x7ff;
+	   info->PostDivider = (ppll_val >> 16) & 0x7;
+	   info->RefDivider = info->pll.reference_div;
+	   info->UseBiosDividers = TRUE;
 
            xf86DrvMsg(pScrn->scrnIndex, X_INFO,
                       "Existing panel PLL dividers will be used.\n");
@@ -733,7 +734,8 @@ static void RADEONUpdatePanelSize(xf86OutputPtr output)
     xf86MonPtr      ddc  = pScrn->monitor->DDC;
     DisplayModePtr  p;
 
-    if ((radeon_output->UseBiosDividers && radeon_output->DotClock != 0) || (ddc == NULL))
+    // crtc should handle?
+    if ((info->UseBiosDividers && radeon_output->DotClock != 0) || (ddc == NULL))
        return;
 
     /* Go thru detailed timing table first */
@@ -758,7 +760,7 @@ static void RADEONUpdatePanelSize(xf86OutputPtr output)
             */
 	    if (radeon_output->PanelXRes < d_timings->h_active &&
                radeon_output->PanelYRes < d_timings->v_active &&
-               !radeon_output->UseBiosDividers)
+               !info->UseBiosDividers)
                match = 1;
 
              if (match) {
@@ -784,7 +786,7 @@ static void RADEONUpdatePanelSize(xf86OutputPtr output)
 	}
     }
 
-    if (radeon_output->UseBiosDividers && radeon_output->DotClock != 0)
+    if (info->UseBiosDividers && radeon_output->DotClock != 0)
        return;
 
     /* Search thru standard VESA modes from EDID */
@@ -2537,6 +2539,20 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
     if (mode->HDisplay < radeon_output->PanelXRes ||
 	mode->VDisplay < radeon_output->PanelYRes)
 	adjusted_mode->Flags |= RADEON_USE_RMX;
+
+    if (adjusted_mode->Flags & RADEON_USE_RMX) {
+	adjusted_mode->CrtcHTotal     = mode->CrtcHDisplay + radeon_output->HBlank;
+	adjusted_mode->CrtcHSyncStart = mode->CrtcHDisplay + radeon_output->HOverPlus;
+	adjusted_mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + radeon_output->HSyncWidth;
+	adjusted_mode->CrtcVTotal     = mode->CrtcVDisplay + radeon_output->VBlank;
+	adjusted_mode->CrtcVSyncStart = mode->CrtcVDisplay + radeon_output->VOverPlus;
+	adjusted_mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + radeon_output->VSyncWidth;
+	adjusted_mode->Clock          = radeon_output->DotClock;
+	adjusted_mode->Flags          = radeon_output->Flags | RADEON_USE_RMX;
+	/* save these for Xv with RMX */
+	info->PanelYRes = radeon_output->PanelYRes;
+	info->PanelXRes = radeon_output->PanelXRes;
+    }
 
     return TRUE;
 }
