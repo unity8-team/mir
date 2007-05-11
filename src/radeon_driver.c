@@ -2532,23 +2532,24 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
 	return FALSE;
 
       if (!RADEONAllocateControllers(pScrn))
-	return FALSE;
+	  return FALSE;
     }
+
+    /*    if (!info->IsSecondary) {
+      if (!RADEONAllocateConnectors(pScrn))
+	return FALSE;
+	}*/
 
     RADEONGetBIOSInfo(pScrn, pInt10);
 
     RADEONSetupConnectors(pScrn);
 
-    if (!info->IsSecondary) {
-      if (!RADEONAllocateConnectors(pScrn))
-	return FALSE;
-    }
       
     RADEONMapControllers(pScrn);
 
     RADEONGetClockInfo(pScrn);
-    RADEONGetPanelInfo(pScrn);
-    RADEONGetTVDacAdjInfo(pScrn);
+    /*    RADEONGetPanelInfo(pScrn);
+	  RADEONGetTVDacAdjInfo(pScrn);*/
 
     for (i = 0; i < config->num_output; i++) 
     {
@@ -5170,18 +5171,20 @@ static void RADEONInitTvDacCntl(ScrnInfoPtr pScrn, RADEONSavePtr save)
 			 info->tv_dac_adj);
 }
 
-static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
+static void RADEONInitFPRegisters(xf86OutputPtr output, RADEONSavePtr save,
 				  DisplayModePtr mode, BOOL IsPrimary)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    RADEONEntPtr  pRADEONEnt = RADEONEntPriv(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int i;
     CARD32 tmp = info->SavedReg.tmds_pll_cntl & 0xfffff;
 
     for (i=0; i<4; i++) {
-	if (info->tmds_pll[i].freq == 0) break;
-	if ((CARD32)(mode->Clock/10) < info->tmds_pll[i].freq) {
-	    tmp = info->tmds_pll[i].value ;
+	if (radeon_output->tmds_pll[i].freq == 0) break;
+	if ((CARD32)(mode->Clock/10) < radeon_output->tmds_pll[i].freq) {
+	    tmp = radeon_output->tmds_pll[i].value ;
 	    break;
 	}
     }
@@ -5232,10 +5235,12 @@ static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
 }
 
-static void RADEONInitFP2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
+static void RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
 				   DisplayModePtr mode, BOOL IsPrimary)
 {
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+
 
     if (pScrn->rgbBits == 8) 
 	save->fp2_gen_cntl = info->SavedReg.fp2_gen_cntl |
@@ -5279,10 +5284,12 @@ static void RADEONInitFP2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
 }
 
-static void RADEONInitLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
+static void RADEONInitLVDSRegisters(xf86OutputPtr output, RADEONSavePtr save,
 				    DisplayModePtr mode, BOOL IsPrimary)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+
 /* XXX saved but never used??? */
     if (IsPrimary)
 	save->lvds_gen_cntl = info->SavedReg.lvds_gen_cntl &
@@ -5293,24 +5300,25 @@ static void RADEONInitLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 
 }
 
-static void RADEONInitRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
+static void RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
 				   DisplayModePtr mode)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int    xres = mode->HDisplay;
     int    yres = mode->VDisplay;
     float  Hratio, Vratio;
 
-
-    if (info->PanelXRes == 0 || info->PanelYRes == 0) {
+    if (radeon_output->PanelXRes == 0 || radeon_output->PanelYRes == 0) {
 	Hratio = 1.0;
 	Vratio = 1.0;
     } else {
-	if (xres > info->PanelXRes) xres = info->PanelXRes;
-	if (yres > info->PanelYRes) yres = info->PanelYRes;
+	if (xres > radeon_output->PanelXRes) xres = radeon_output->PanelXRes;
+	if (yres > radeon_output->PanelYRes) yres = radeon_output->PanelYRes;
 	    
-	Hratio = (float)xres/(float)info->PanelXRes;
-	Vratio = (float)yres/(float)info->PanelYRes;
+	Hratio = (float)xres/(float)radeon_output->PanelXRes;
+	Vratio = (float)yres/(float)radeon_output->PanelYRes;
     }
 
 	save->fp_vert_stretch = info->SavedReg.fp_vert_stretch &
@@ -5326,7 +5334,7 @@ static void RADEONInitRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				     0.5)) & RADEON_HORZ_STRETCH_RATIO_MASK) |
 				    RADEON_HORZ_STRETCH_BLEND |
 				    RADEON_HORZ_STRETCH_ENABLE |
-				    ((info->PanelXRes/8-1)<<16));
+				    ((radeon_output->PanelXRes/8-1)<<16));
     }
 
     if (Vratio == 1.0 || !(mode->Flags & RADEON_USE_RMX)) {
@@ -5336,14 +5344,15 @@ static void RADEONInitRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 						0.5)) & RADEON_VERT_STRETCH_RATIO_MASK) |
 				      RADEON_VERT_STRETCH_ENABLE |
 				      RADEON_VERT_STRETCH_BLEND |
-				      ((info->PanelYRes-1)<<12));
+				      ((radeon_output->PanelYRes-1)<<12));
     }
 
 }
 
-static void RADEONInitDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
+static void RADEONInitDACRegisters(xf86OutputPtr output, RADEONSavePtr save,
 				  DisplayModePtr mode, BOOL IsPrimary)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
     if (IsPrimary) {
@@ -5367,9 +5376,10 @@ static void RADEONInitDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 		      | (info->dac6bits ? 0 : RADEON_DAC_8BIT_EN));
 }
 
-static void RADEONInitDAC2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
+static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
 				  DisplayModePtr mode, BOOL IsPrimary)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
     /*0x0028023;*/
@@ -5424,21 +5434,21 @@ static void RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save, Dis
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     if (radeon_output->MonType == MT_CRT) {
 	if (radeon_output->DACType == DAC_PRIMARY) {
-	    RADEONInitDACRegisters(pScrn, save, mode, IsPrimary);
+	    RADEONInitDACRegisters(output, save, mode, IsPrimary);
 	} else {
-	    RADEONInitDAC2Registers(pScrn, save, mode, IsPrimary);
+	    RADEONInitDAC2Registers(output, save, mode, IsPrimary);
 	}
     } else if (radeon_output->MonType == MT_LCD) {
 	if (crtc_num == 1)
-	    RADEONInitRMXRegisters(pScrn, save, mode);
-	RADEONInitLVDSRegisters(pScrn, save, mode, IsPrimary);
+	    RADEONInitRMXRegisters(output, save, mode);
+	RADEONInitLVDSRegisters(output, save, mode, IsPrimary);
     } else if (radeon_output->MonType == MT_DFP) {
 	if (crtc_num == 1)
-	    RADEONInitRMXRegisters(pScrn, save, mode);
+	    RADEONInitRMXRegisters(output, save, mode);
 	if (radeon_output->TMDSType == TMDS_INT) {
-	    RADEONInitFPRegisters(pScrn, save, mode, IsPrimary);
+	    RADEONInitFPRegisters(output, save, mode, IsPrimary);
 	} else {
-	    RADEONInitFP2Registers(pScrn, save, mode, IsPrimary);
+	    RADEONInitFP2Registers(output, save, mode, IsPrimary);
 	}
     }
 }
@@ -5519,6 +5529,8 @@ Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
         save->crtc_more_cntl |= RADEON_CRTC_H_CUTOFF_ACTIVE_EN;
     }
 
+    // fix me, move to output
+    /*
     if (mode->Flags & RADEON_USE_RMX) {
       mode->CrtcHTotal     = mode->CrtcHDisplay + info->HBlank;
       mode->CrtcHSyncStart = mode->CrtcHDisplay + info->HOverPlus;
@@ -5529,7 +5541,7 @@ Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
       mode->Clock          = info->DotClock;
       mode->Flags          = info->Flags | RADEON_USE_RMX;
     }
-
+    */
 
 
     save->crtc_h_total_disp = ((((mode->CrtcHTotal / 8) - 1) & 0x3ff)
@@ -5997,8 +6009,8 @@ Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
     }
 #endif
 
-    if (crtc1 && (crtc_mask & 1))
-        info->Flags = crtc1->Flags;
+    /*    if (crtc1 && (crtc_mask & 1))
+	  info->Flags = crtc1->Flags;*/
 
     RADEONInitMemMapRegisters(pScrn, save, info);
     RADEONInitCommonRegisters(save, info);

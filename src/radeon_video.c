@@ -2487,11 +2487,12 @@ RADEONDisplayVideo(
 	    v_inc_shift--;
 	    y_mult = 2;
 	}
-    	if (overlay_mode->Flags & RADEON_USE_RMX) {
+	// FIXME
+	/*    	if (overlay_mode->Flags & RADEON_USE_RMX) {
 	    v_inc = ((src_h * overlay_mode->CrtcVDisplay / info->PanelYRes) << v_inc_shift) / drw_h;
-    	} else {
+	    } else {*/
 	    v_inc = (src_h << v_inc_shift) / drw_h;
-    	}
+	    /*}*/
     } else {
 	if (pScrn->currentMode->Flags & V_INTERLACE)
 	    v_inc_shift++;
@@ -2499,11 +2500,12 @@ RADEONDisplayVideo(
 	    v_inc_shift--;
 	    y_mult = 2;
 	}
-    	if (pScrn->currentMode->Flags & RADEON_USE_RMX) {
+	// FIXME
+	/*    	if (pScrn->currentMode->Flags & RADEON_USE_RMX) {
 	    v_inc = ((src_h * pScrn->currentMode->CrtcVDisplay / info->PanelYRes) << v_inc_shift) / drw_h;
-    	} else {
+	    } else {*/
 	    v_inc = (src_h << v_inc_shift) / drw_h;
-    	}
+	    /*}*/
     }
 
     h_inc = (1 << (12 + ecp_div));

@@ -106,6 +106,11 @@ typedef enum
     TMDS_EXT     = 1
 } RADEONTmdsType;
 
+typedef struct {
+    CARD32 freq;
+    CARD32 value;
+}RADEONTMDSPll;
+
 typedef enum
 {
     OUTPUT_NONE,
@@ -135,6 +140,24 @@ typedef struct _RADEONOutputPrivateRec {
     int crtc_num;
     int DDCReg;
     I2CBusPtr         pI2CBus;
+    CARD32            tv_dac_adj;
+    /* panel stuff */
+    int               PanelXRes;
+    int               PanelYRes;
+    int               HOverPlus;
+    int               HSyncWidth;
+    int               HBlank;
+    int               VOverPlus;
+    int               VSyncWidth;
+    int               VBlank;
+    int               Flags;            /* Saved copy of mode flags          */
+    int               PanelPwrDly;
+    int               DotClock;
+    int               RefDivider;
+    int               FeedbackDivider;
+    int               PostDivider;
+    Bool              UseBiosDividers;
+    RADEONTMDSPll     tmds_pll[4];
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 #define RADEON_MAX_CONNECTOR 3 /* actually 4: DVI/VGA, DVI on docks, TV, LVDS */

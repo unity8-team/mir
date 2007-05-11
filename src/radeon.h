@@ -380,11 +380,6 @@ typedef enum {
 } RADEONCardType;
 
 typedef struct {
-    CARD32 freq;
-    CARD32 value;
-}RADEONTMDSPll;
-
-typedef struct {
     EntityInfoPtr     pEnt;
     pciVideoPtr       PciInfo;
     PCITAG            PciTag;
@@ -416,7 +411,7 @@ typedef struct {
     unsigned long     FbMapSize;        /* Size of frame buffer, in bytes    */
     unsigned long     FbSecureSize;     /* Size of secured fb area at end of
                                            framebuffer */
-    int               Flags;            /* Saved copy of mode flags          */
+    /*int               Flags;*/            /* Saved copy of mode flags          */
 
     Bool              IsMobility;       /* Mobile chips for laptops */
     Bool              IsIGP;            /* IGP chips */
@@ -431,7 +426,7 @@ typedef struct {
     Bool              R300CGWorkaround;
 
 				/* EDID or BIOS values for FPs */
-    int               PanelXRes;
+    /*    int               PanelXRes;
     int               PanelYRes;
     int               HOverPlus;
     int               HSyncWidth;
@@ -441,6 +436,7 @@ typedef struct {
     int               VBlank;
     int               PanelPwrDly;
     int               DotClock;
+    */
     int               RefDivider;
     int               FeedbackDivider;
     int               PostDivider;
@@ -451,7 +447,7 @@ typedef struct {
     Bool              ddc2;
 
     RADEONPLLRec      pll;
-    RADEONTMDSPll     tmds_pll[4];
+    /*RADEONTMDSPll     tmds_pll[4];*/
     int               RamWidth;
     float	      sclk;		/* in MHz */
     float	      mclk;		/* in MHz */
@@ -839,9 +835,9 @@ extern void        RADEONPllErrataAfterData(RADEONInfoPtr info);
 extern Bool        RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10);
 extern Bool        RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn);
 extern Bool        RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetLVDSInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetTMDSInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetHardCodedEDIDFromBIOS (ScrnInfoPtr pScrn);
+extern Bool        RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output);
+extern Bool        RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output);
+extern Bool        RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output);
 
 extern void        RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
@@ -851,7 +847,7 @@ extern Bool        RADEONMapControllers(ScrnInfoPtr pScrn);
 extern void        RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr pPort, BOOL bEnable);
 extern void        RADEONDisableDisplays(ScrnInfoPtr pScrn);
 extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
-extern void        RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn);
+extern void        RADEONGetTVDacAdjInfo(xf86OutputPtr output);
 extern void        RADEONUnblank(ScrnInfoPtr pScrn);
 extern void        RADEONBlank(ScrnInfoPtr pScrn);
 extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
@@ -863,7 +859,7 @@ extern xf86OutputPtr RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num);
 extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 				  RADEONMonitorType DisplayType, int crtc2);
-extern int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName, DisplayModePtr *modeList);
+extern int RADEONValidateFPModes(xf86OutputPtr output, char **ppModeName, DisplayModePtr *modeList);
 extern void RADEONSetPitch (ScrnInfoPtr pScrn);
 
 DisplayModePtr

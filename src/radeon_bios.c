@@ -398,36 +398,40 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-Bool RADEONGetLVDSInfoFromBIOS (ScrnInfoPtr pScrn)
+Bool RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output)
 {
-    RADEONInfoPtr info     = RADEONPTR(pScrn);
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     unsigned long tmp, i;
+
+    ErrorF("grabbing LVDS from bios");
 
     if (!info->VBIOS) return FALSE;
 
     if (info->IsAtomBios) {
 	if((tmp = RADEON_BIOS16 (info->MasterDataStart + 16))) {
 
-	    info->PanelXRes = RADEON_BIOS16(tmp+6);
-	    info->PanelYRes = RADEON_BIOS16(tmp+10);
-	    info->DotClock   = RADEON_BIOS16(tmp+4)*10;
-	    info->HBlank     = RADEON_BIOS16(tmp+8);
-	    info->HOverPlus  = RADEON_BIOS16(tmp+14);
-	    info->HSyncWidth = RADEON_BIOS16(tmp+16);
-	    info->VBlank     = RADEON_BIOS16(tmp+12);
-	    info->VOverPlus  = RADEON_BIOS16(tmp+18);
-	    info->VSyncWidth = RADEON_BIOS16(tmp+20);
-	    info->PanelPwrDly = RADEON_BIOS16(tmp+40);
+	    radeon_output->PanelXRes = RADEON_BIOS16(tmp+6);
+	    radeon_output->PanelYRes = RADEON_BIOS16(tmp+10);
+	    radeon_output->DotClock   = RADEON_BIOS16(tmp+4)*10;
+	    radeon_output->HBlank     = RADEON_BIOS16(tmp+8);
+	    radeon_output->HOverPlus  = RADEON_BIOS16(tmp+14);
+	    radeon_output->HSyncWidth = RADEON_BIOS16(tmp+16);
+	    radeon_output->VBlank     = RADEON_BIOS16(tmp+12);
+	    radeon_output->VOverPlus  = RADEON_BIOS16(tmp+18);
+	    radeon_output->VSyncWidth = RADEON_BIOS16(tmp+20);
+	    radeon_output->PanelPwrDly = RADEON_BIOS16(tmp+40);
 
-	    info->Flags = 0;
+	    radeon_output->Flags = 0;
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
 		       "LVDS Info:\n"
 		       "XRes: %d, YRes: %d, DotClock: %d\n"
 		       "HBlank: %d, HOverPlus: %d, HSyncWidth: %d\n"
 		       "VBlank: %d, VOverPlus: %d, VSyncWidth: %d\n",
-		       info->PanelXRes, info->PanelYRes, info->DotClock,
-		       info->HBlank,info->HOverPlus, info->HSyncWidth,
-		       info->VBlank, info->VOverPlus, info->VSyncWidth);
+		       radeon_output->PanelXRes, radeon_output->PanelYRes, radeon_output->DotClock,
+		       radeon_output->HBlank, radeon_output->HOverPlus, radeon_output->HSyncWidth,
+		       radeon_output->VBlank, radeon_output->VOverPlus, radeon_output->VSyncWidth);
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "No LVDS Info Table found in BIOS!\n");
@@ -452,14 +456,14 @@ Bool RADEONGetLVDSInfoFromBIOS (ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Panel ID string: %s\n", stmp);
 
-	    info->PanelXRes = RADEON_BIOS16(tmp+25);
-	    info->PanelYRes = RADEON_BIOS16(tmp+27);
+	    radeon_output->PanelXRes = RADEON_BIOS16(tmp+25);
+	    radeon_output->PanelYRes = RADEON_BIOS16(tmp+27);
 	    xf86DrvMsg(0, X_INFO, "Panel Size from BIOS: %dx%d\n",
-		       info->PanelXRes, info->PanelYRes);
+		       radeon_output->PanelXRes, radeon_output->PanelYRes);
 	
-	    info->PanelPwrDly = RADEON_BIOS16(tmp+44);
-	    if (info->PanelPwrDly > 2000 || info->PanelPwrDly < 0)
-		info->PanelPwrDly = 2000;
+	    radeon_output->PanelPwrDly = RADEON_BIOS16(tmp+44);
+	    if (radeon_output->PanelPwrDly > 2000 || radeon_output->PanelPwrDly < 0)
+		radeon_output->PanelPwrDly = 2000;
 
 	    /* some panels only work well with certain divider combinations.
 	     */
@@ -480,20 +484,20 @@ Bool RADEONGetLVDSInfoFromBIOS (ScrnInfoPtr pScrn)
 	    for (i = 0; i < 32; i++) {
 		tmp0 = RADEON_BIOS16(tmp+64+i*2);
 		if (tmp0 == 0) break;
-		if ((RADEON_BIOS16(tmp0) == info->PanelXRes) &&
-		    (RADEON_BIOS16(tmp0+2) == info->PanelYRes)) {
-		    info->HBlank     = (RADEON_BIOS16(tmp0+17) -
+		if ((RADEON_BIOS16(tmp0) == radeon_output->PanelXRes) &&
+		    (RADEON_BIOS16(tmp0+2) == radeon_output->PanelYRes)) {
+		    radeon_output->HBlank     = (RADEON_BIOS16(tmp0+17) -
 					RADEON_BIOS16(tmp0+19)) * 8;
-		    info->HOverPlus  = (RADEON_BIOS16(tmp0+21) -
+		    radeon_output->HOverPlus  = (RADEON_BIOS16(tmp0+21) -
 					RADEON_BIOS16(tmp0+19) - 1) * 8;
-		    info->HSyncWidth = RADEON_BIOS8(tmp0+23) * 8;
-		    info->VBlank     = (RADEON_BIOS16(tmp0+24) -
+		    radeon_output->HSyncWidth = RADEON_BIOS8(tmp0+23) * 8;
+		    radeon_output->VBlank     = (RADEON_BIOS16(tmp0+24) -
 					RADEON_BIOS16(tmp0+26));
-		    info->VOverPlus  = ((RADEON_BIOS16(tmp0+28) & 0x7ff) -
+		    radeon_output->VOverPlus  = ((RADEON_BIOS16(tmp0+28) & 0x7ff) -
 					RADEON_BIOS16(tmp0+26));
-		    info->VSyncWidth = ((RADEON_BIOS16(tmp0+28) & 0xf800) >> 11);
-		    info->DotClock   = RADEON_BIOS16(tmp0+9) * 10;
-		    info->Flags = 0;
+		    radeon_output->VSyncWidth = ((RADEON_BIOS16(tmp0+28) & 0xf800) >> 11);
+		    radeon_output->DotClock   = RADEON_BIOS16(tmp0+9) * 10;
+		    radeon_output->Flags = 0;
 		}
 	    }
 	}
@@ -501,9 +505,11 @@ Bool RADEONGetLVDSInfoFromBIOS (ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-Bool RADEONGetHardCodedEDIDFromBIOS (ScrnInfoPtr pScrn)
+Bool RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output)
 {
-    RADEONInfoPtr info     = RADEONPTR(pScrn);
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     unsigned long tmp;
     char EDID[256];
 
@@ -519,26 +525,30 @@ Bool RADEONGetHardCodedEDIDFromBIOS (ScrnInfoPtr pScrn)
 
 	memcpy(EDID, (char*)(info->VBIOS + tmp), 256);
 
-	info->DotClock = (*(CARD16*)(EDID+54)) * 10;
-	info->PanelXRes = (*(CARD8*)(EDID+56)) + ((*(CARD8*)(EDID+58))>>4)*256;
-	info->HBlank = (*(CARD8*)(EDID+57)) + ((*(CARD8*)(EDID+58)) & 0xf)*256;
-	info->HOverPlus = (*(CARD8*)(EDID+62)) + ((*(CARD8*)(EDID+65)>>6)*256);
-	info->HSyncWidth = (*(CARD8*)(EDID+63)) + (((*(CARD8*)(EDID+65)>>4) & 3)*256);
-	info->PanelYRes = (*(CARD8*)(EDID+59)) + ((*(CARD8*)(EDID+61))>>4)*256;
-	info->VBlank = ((*(CARD8*)(EDID+60)) + ((*(CARD8*)(EDID+61)) & 0xf)*256);
-	info->VOverPlus = (((*(CARD8*)(EDID+64))>>4) + (((*(CARD8*)(EDID+65)>>2) & 3)*16));
-	info->VSyncWidth = (((*(CARD8*)(EDID+64)) & 0xf) + ((*(CARD8*)(EDID+65)) & 3)*256);
-	info->Flags      = V_NHSYNC | V_NVSYNC; /**(CARD8*)(EDID+71);*/
+	radeon_output->DotClock = (*(CARD16*)(EDID+54)) * 10;
+	radeon_output->PanelXRes = (*(CARD8*)(EDID+56)) + ((*(CARD8*)(EDID+58))>>4)*256;
+	radeon_output->HBlank = (*(CARD8*)(EDID+57)) + ((*(CARD8*)(EDID+58)) & 0xf)*256;
+	radeon_output->HOverPlus = (*(CARD8*)(EDID+62)) + ((*(CARD8*)(EDID+65)>>6)*256);
+	radeon_output->HSyncWidth = (*(CARD8*)(EDID+63)) + (((*(CARD8*)(EDID+65)>>4) & 3)*256);
+	radeon_output->PanelYRes = (*(CARD8*)(EDID+59)) + ((*(CARD8*)(EDID+61))>>4)*256;
+	radeon_output->VBlank = ((*(CARD8*)(EDID+60)) + ((*(CARD8*)(EDID+61)) & 0xf)*256);
+	radeon_output->VOverPlus = (((*(CARD8*)(EDID+64))>>4) + (((*(CARD8*)(EDID+65)>>2) & 3)*16));
+	radeon_output->VSyncWidth = (((*(CARD8*)(EDID+64)) & 0xf) + ((*(CARD8*)(EDID+65)) & 3)*256);
+	radeon_output->Flags      = V_NHSYNC | V_NVSYNC; /**(CARD8*)(EDID+71);*/
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Hardcoded EDID data will be used for TMDS panel\n");
     }
     return TRUE;
 }
 
-Bool RADEONGetTMDSInfoFromBIOS (ScrnInfoPtr pScrn)
+Bool RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output)
 {
-    RADEONInfoPtr info     = RADEONPTR(pScrn);
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     CARD32 tmp, maxfreq;
     int i, n;
+
+    ErrorF("grabbing LVDS from bios");
 
     if (!info->VBIOS) return FALSE;
 
@@ -548,18 +558,18 @@ Bool RADEONGetTMDSInfoFromBIOS (ScrnInfoPtr pScrn)
 	    maxfreq = RADEON_BIOS16(tmp+4);
 	    
 	    for (i=0; i<4; i++) {
-		info->tmds_pll[i].freq = RADEON_BIOS16(tmp+i*6+6);
+		radeon_output->tmds_pll[i].freq = RADEON_BIOS16(tmp+i*6+6);
 		/* This assumes each field in TMDS_PLL has 6 bit as in R300/R420 */
-		info->tmds_pll[i].value = ((RADEON_BIOS8(tmp+i*6+8) & 0x3f) |
+		radeon_output->tmds_pll[i].value = ((RADEON_BIOS8(tmp+i*6+8) & 0x3f) |
 					   ((RADEON_BIOS8(tmp+i*6+10) & 0x3f)<<6) |
 					   ((RADEON_BIOS8(tmp+i*6+9) & 0xf)<<12) |
 					   ((RADEON_BIOS8(tmp+i*6+11) & 0xf)<<16));
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 			   "TMDS PLL from BIOS: %ld %lx\n", 
-			   info->tmds_pll[i].freq, info->tmds_pll[i].value);
+			   radeon_output->tmds_pll[i].freq, radeon_output->tmds_pll[i].value);
 		       
-		if (maxfreq == info->tmds_pll[i].freq) {
-		    info->tmds_pll[i].freq = 0xffffffff;
+		if (maxfreq == radeon_output->tmds_pll[i].freq) {
+		    radeon_output->tmds_pll[i].freq = 0xffffffff;
 		    break;
 		}
 	    }
@@ -575,8 +585,8 @@ Bool RADEONGetTMDSInfoFromBIOS (ScrnInfoPtr pScrn)
 		n = RADEON_BIOS8(tmp + 5) + 1;
 		if (n > 4) n = 4;
 		for (i=0; i<n; i++) {
-		    info->tmds_pll[i].value = RADEON_BIOS32(tmp+i*10+0x08);
-		    info->tmds_pll[i].freq = RADEON_BIOS16(tmp+i*10+0x10);
+		    radeon_output->tmds_pll[i].value = RADEON_BIOS32(tmp+i*10+0x08);
+		    radeon_output->tmds_pll[i].freq = RADEON_BIOS16(tmp+i*10+0x10);
 		}
 		return TRUE;
 	    } else if (RADEON_BIOS8(tmp) == 4) {
@@ -584,8 +594,8 @@ Bool RADEONGetTMDSInfoFromBIOS (ScrnInfoPtr pScrn)
 		n = RADEON_BIOS8(tmp + 5) + 1;
 		if (n > 4) n = 4;
 		for (i=0; i<n; i++) {
-		    info->tmds_pll[i].value = RADEON_BIOS32(tmp+stride+0x08);
-		    info->tmds_pll[i].freq = RADEON_BIOS16(tmp+stride+0x10);
+		    radeon_output->tmds_pll[i].value = RADEON_BIOS32(tmp+stride+0x08);
+		    radeon_output->tmds_pll[i].freq = RADEON_BIOS16(tmp+stride+0x10);
 		    if (i == 0) stride += 10;
 		    else stride += 6;
 		}
@@ -600,8 +610,8 @@ Bool RADEONGetTMDSInfoFromBIOS (ScrnInfoPtr pScrn)
 		  n = RADEON_BIOS8(tmp + 5) + 1;
 		  if (n > 4) n = 4;
 		  for (i=0; i<n; i++) {
-		  info->tmds_pll[i].value = RADEON_BIOS32(tmp+stride+0x08);
-		  info->tmds_pll[i].freq = RADEON_BIOS16(tmp+stride+0x10);
+		  radeon_output->tmds_pll[i].value = RADEON_BIOS32(tmp+stride+0x08);
+		  radeon_output->tmds_pll[i].freq = RADEON_BIOS16(tmp+stride+0x10);
 		  if (i == 0) stride += 10;
 		  else stride += 6;
 		  }
