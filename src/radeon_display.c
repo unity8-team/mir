@@ -1714,7 +1714,6 @@ void RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr output, BOOL bEnable)
 	    }
         }
     }
-    ErrorF("finished output enable\n");
 }
 
 /* Calculate display buffer watermark to prevent buffer underflow */
@@ -2217,10 +2216,6 @@ radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
     
   mask = radeon_crtc->crtc_id ? (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS | RADEON_CRTC2_HSYNC_DIS) : (RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS | RADEON_CRTC_VSYNC_DIS);
 
-  if (radeon_crtc->crtc_id)
-      ErrorF("crtc2 mode: %d", mode);
-  else
-      ErrorF("crtc1 mode: %d", mode);
 
   switch(mode) {
   case DPMSModeOn:
@@ -2334,34 +2329,21 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	RADEONDoAdjustFrame(pScrn, x, y, FALSE);
 	ErrorF("restore crtc1\n");
 	RADEONRestoreCrtcRegisters(pScrn, &info->ModeReg);
-	/*	ErrorF("restore FP1\n");
-	RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
-	ErrorF("restore dac\n");
-	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);
-	ErrorF("restore pll1\n");*/
+	ErrorF("restore pll1\n");
 	RADEONRestorePLLRegisters(pScrn, &info->ModeReg);
-	/*	ErrorF("enable 1\n");
-		RADEONEnableOutputs(pScrn, 1);*/
 	break;
     case 1:
 	ErrorF("adjustframe 2\n");
 	RADEONDoAdjustFrame(pScrn, x, y, TRUE);
 	ErrorF("restore crtc2\n");
 	RADEONRestoreCrtc2Registers(pScrn, &info->ModeReg);
-	/*	ErrorF("restore fp2\n");
-	RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
-	ErrorF("restore dac2\n");
-	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);*/
 	ErrorF("restore pll2\n");
 	RADEONRestorePLL2Registers(pScrn, &info->ModeReg);
-	/*	ErrorF("enable 2\n");
-		RADEONEnableOutputs(pScrn, 2);*/
 	break;
     }
 
     if (info->DispPriority)
         RADEONInitDispBandwidth(pScrn);
-    ErrorF("bandwidth set\n");
 
 }
 
@@ -2463,15 +2445,19 @@ static const xf86CrtcFuncsRec radeon_crtc_funcs = {
 static void
 radeon_dpms(xf86OutputPtr output, int mode)
 {
+    ScrnInfoPtr	pScrn = output->scrn;
+
     switch(mode) {
     case DPMSModeOn:
-      RADEONDPMSSetOn(output);
-      break;
+	RADEONEnableDisplay(pScrn, output, TRUE);
+	/*      RADEONDPMSSetOn(output);*/
+	break;
     case DPMSModeOff:
     case DPMSModeSuspend:
     case DPMSModeStandby:
-      RADEONDPMSSetOff(output);
-      break;
+	RADEONEnableDisplay(pScrn, output, FALSE);
+	/*RADEONDPMSSetOff(output);*/
+	break;
     }
 }
 
