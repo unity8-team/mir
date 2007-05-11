@@ -2267,6 +2267,7 @@ radeon_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 static void
 radeon_crtc_mode_prepare(xf86CrtcPtr crtc)
 {
+    radeon_crtc_dpms(crtc, DPMSModeOff);
 }
 
 static void
@@ -2323,9 +2324,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	/*RADEONInit2(pScrn, NULL, adjusted_mode, 2, &info->ModeReg, montype);*/
 	break;
     }
-
-    radeon_crtc_dpms(crtc, DPMSModeOff);
-
+    
     ErrorF("restore memmap\n");
     RADEONRestoreMemMapRegisters(pScrn, &info->ModeReg);
     ErrorF("restore common\n");
@@ -2362,21 +2361,16 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	break;
     }
 
-
-    /*    RADEONRestoreMode(pScrn, &info->ModeReg);*/
-
     if (info->DispPriority)
         RADEONInitDispBandwidth(pScrn);
     ErrorF("bandwidth set\n");
-    /*RADEONUnblank(pScrn);*/
-    radeon_crtc_dpms(crtc, DPMSModeOn);
 
-    ErrorF("unblank\n");
 }
 
 static void
 radeon_crtc_mode_commit(xf86CrtcPtr crtc)
 {
+    radeon_crtc_dpms(crtc, DPMSModeOn);
 }
 
 void radeon_crtc_load_lut(xf86CrtcPtr crtc)
@@ -2425,6 +2419,10 @@ radeon_crtc_lock(xf86CrtcPtr crtc)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     Bool           CPStarted   = info->CPStarted;
 
+#ifdef XF86DRI
+    if (info->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
+#endif
+
     if (info->accelOn)
         RADEON_SYNC(info, pScrn);
     return FALSE;
@@ -2435,6 +2433,10 @@ radeon_crtc_unlock(xf86CrtcPtr crtc)
 {
     ScrnInfoPtr		pScrn = crtc->scrn;
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+
+#ifdef XF86DRI
+	if (info->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
+#endif
 
     if (info->accelOn)
         RADEON_SYNC(info, pScrn);
