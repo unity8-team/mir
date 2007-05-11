@@ -2311,7 +2311,6 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
             info->ModeReg.ppll_div_3   = info->SavedReg.ppll_div_3;
             info->ModeReg.htotal_cntl  = info->SavedReg.htotal_cntl;
         }
-	/*RADEONInit2(pScrn, adjusted_mode, NULL, 1, &info->ModeReg, montype);*/
 	break;
     case 1: 
 	ErrorF("init crtc2\n");
@@ -2321,7 +2320,6 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    ErrorF("init pll2\n");
 	    RADEONInitPLL2Registers(pScrn, &info->ModeReg, &info->pll, dot_clock, montype != MT_CRT);
         }
-	/*RADEONInit2(pScrn, NULL, adjusted_mode, 2, &info->ModeReg, montype);*/
 	break;
     }
     
@@ -2336,28 +2334,28 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	RADEONDoAdjustFrame(pScrn, x, y, FALSE);
 	ErrorF("restore crtc1\n");
 	RADEONRestoreCrtcRegisters(pScrn, &info->ModeReg);
-	ErrorF("restore FP1\n");
+	/*	ErrorF("restore FP1\n");
 	RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
 	ErrorF("restore dac\n");
 	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);
-	ErrorF("restore pll1\n");
+	ErrorF("restore pll1\n");*/
 	RADEONRestorePLLRegisters(pScrn, &info->ModeReg);
-	ErrorF("enable 1\n");
-	RADEONEnableOutputs(pScrn, 1);
+	/*	ErrorF("enable 1\n");
+		RADEONEnableOutputs(pScrn, 1);*/
 	break;
     case 1:
 	ErrorF("adjustframe 2\n");
 	RADEONDoAdjustFrame(pScrn, x, y, TRUE);
 	ErrorF("restore crtc2\n");
 	RADEONRestoreCrtc2Registers(pScrn, &info->ModeReg);
-	ErrorF("restore fp2\n");
+	/*	ErrorF("restore fp2\n");
 	RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
 	ErrorF("restore dac2\n");
-	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);
+	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);*/
 	ErrorF("restore pll2\n");
 	RADEONRestorePLL2Registers(pScrn, &info->ModeReg);
-	ErrorF("enable 2\n");
-	RADEONEnableOutputs(pScrn, 2);
+	/*	ErrorF("enable 2\n");
+		RADEONEnableOutputs(pScrn, 2);*/
 	break;
     }
 
@@ -2535,10 +2533,21 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		  DisplayModePtr adjusted_mode)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
-    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    
-    //    RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[0], );
+
+    switch(radeon_output->MonType) {
+    case MT_LCD:
+    case MT_DFP:
+	ErrorF("restore FP\n");
+	RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
+	break;
+    default:
+	ErrorF("restore dac\n");
+	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);
+    }
+
+    RADEONEnableDisplay(pScrn, output, TRUE);
 }
 
 static void
