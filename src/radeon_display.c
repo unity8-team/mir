@@ -740,11 +740,20 @@ Bool RADEONGetLVDSInfo (xf86OutputPtr output)
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    char* s;
 
     ErrorF("LVDS get info");
 
     if (!RADEONGetLVDSInfoFromBIOS(output))
-        RADEONGetPanelInfoFromReg(output);
+	RADEONGetPanelInfoFromReg(output);
+
+    if ((s = xf86GetOptValString(info->Options, OPTION_PANEL_SIZE))) {
+	radeon_output->PanelPwrDly = 200;
+	if (sscanf (s, "%dx%d", &radeon_output->PanelXRes, &radeon_output->PanelYRes) != 2) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Invalid PanelSize option: %s\n", s);
+	    RADEONGetPanelInfoFromReg(output);
+	}
+    }
 
     /* The panel size we collected from BIOS may not be the
      * maximum size supported by the panel.  If not, we update

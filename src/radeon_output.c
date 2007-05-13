@@ -68,10 +68,11 @@ const RADEONMonitorType MonTypeID[7] = {
   MT_STV,     /* STV -> STV */
 };
 
-const char *TMDSTypeName[3] = {
-  "NONE",
+const char *TMDSTypeName[4] = {
+  "Unknown",
   "Internal",
-  "External"
+  "External",
+  "None"
 };
 
 const char *DDCTypeName[6] = {
@@ -83,15 +84,16 @@ const char *DDCTypeName[6] = {
   "LCD_DDC"
 };
 
-const char *DACTypeName[3] = {
+const char *DACTypeName[4] = {
   "Unknown",
   "Primary",
   "TVDAC/ExtDAC",
+  "None"
 };
 
 const char *ConnectorTypeName[8] = {
   "None",
-  "Proprietary",
+  "Proprietary/LVDS",
   "VGA",
   "DVI-I",
   "DVI-D",
@@ -473,7 +475,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     xf86OutputPtr output;
-    const char *s;
+    char *optstr;
     int i = 0, second = 0, max_mt = 5;
 
 
@@ -553,6 +555,21 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
         info->BiosConnector[0].DACType = DAC_PRIMARY;
     }
 
+    /* parse connector table option */
+    if (optstr = (char *)xf86GetOptValString(info->Options, OPTION_CONNECTORTABLE)) {
+	if (sscanf(optstr, "%d,%d,%d,%d,%d,%d,%d,%d",
+		   &info->BiosConnector[0].DDCType,
+		   &info->BiosConnector[0].DACType,
+		   &info->BiosConnector[0].TMDSType,
+		   &info->BiosConnector[0].ConnectorType,
+		   &info->BiosConnector[1].DDCType,
+		   &info->BiosConnector[1].DACType,
+		   &info->BiosConnector[1].TMDSType,
+		   &info->BiosConnector[1].ConnectorType) != 8) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Invalid ConnectorTable option: %s\n", optstr);
+	}
+    }
+
     for (i = 0 ; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
 	if (!radeon_output) {
@@ -562,7 +579,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
 	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM) ||
 	    radeon_output->ConnectorType == CONNECTOR_DVI_D)
-	    radeon_output->DACType = DAC_UNKNOWN;
+	    radeon_output->DACType = DAC_NONE;
 	else
 	    radeon_output->DACType = info->BiosConnector[i].DACType;
 	radeon_output->DDCType = info->BiosConnector[i].DDCType;
@@ -595,8 +612,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		}
 		radeon_output->MonType = MT_UNKNOWN;
 		radeon_output->DDCType = DDC_LCD;
-		radeon_output->DACType = DAC_UNKNOWN;
-		radeon_output->TMDSType = TMDS_UNKNOWN;
+		radeon_output->DACType = DAC_NONE;
+		radeon_output->TMDSType = TMDS_NONE;
 		radeon_output->ConnectorType = CONNECTOR_LVDS_ATOM;
 		RADEONSetOutputType(pScrn, radeon_output);
 		output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
@@ -620,8 +637,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		}
 		radeon_output->MonType = MT_UNKNOWN;
 		radeon_output->DDCType = DDC_LCD;
-		radeon_output->DACType = DAC_UNKNOWN;
-		radeon_output->TMDSType = TMDS_UNKNOWN;
+		radeon_output->DACType = DAC_NONE;
+		radeon_output->TMDSType = TMDS_NONE;
 		radeon_output->ConnectorType = CONNECTOR_PROPRIETARY;
 		RADEONSetOutputType(pScrn, radeon_output);
 		output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);

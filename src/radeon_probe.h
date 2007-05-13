@@ -96,14 +96,16 @@ typedef enum
 {
     DAC_UNKNOWN = -1,
     DAC_PRIMARY = 0,
-    DAC_TVDAC   = 1
+    DAC_TVDAC   = 1,
+    DAC_NONE    = 2
 } RADEONDacType;
 
 typedef enum
 {
     TMDS_UNKNOWN = -1,
     TMDS_INT     = 0,
-    TMDS_EXT     = 1
+    TMDS_EXT     = 1,
+    TMDS_NONE    = 2
 } RADEONTmdsType;
 
 typedef struct {
