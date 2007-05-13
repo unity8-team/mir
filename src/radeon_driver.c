@@ -4643,7 +4643,7 @@ RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num)
     RADEONInfoPtr      info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    xf86CrtcPtr crtc = pRADEONEnt->pCrtc[0];
+    xf86CrtcPtr crtc = pRADEONEnt->pCrtc[crtc_num];
     int i;
 
     /* get the output connected to this CRTC */
@@ -4702,7 +4702,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	    RADEONRestorePLL2Registers(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
 	    RADEONRestoreDACRegisters(pScrn, restore);
-	    RADEONEnableOutputs(pScrn, 2);
+	    RADEONEnableOutputs(pScrn, 1);
 	} else {
 	    RADEONRestoreMemMapRegisters(pScrn, restore);
 	    RADEONRestoreCommonRegisters(pScrn, restore);
@@ -4715,9 +4715,9 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
             RADEONRestorePLLRegisters(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
 	    RADEONRestoreDACRegisters(pScrn, restore);
-	    RADEONEnableOutputs(pScrn, 1);
+	    RADEONEnableOutputs(pScrn, 0);
 	    if (pCRTC2->binding == 1) {
-	      RADEONEnableOutputs(pScrn, 2);
+	      RADEONEnableOutputs(pScrn, 1);
 	    }
 	}
     } else {
@@ -4734,11 +4734,11 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	RADEONRestoreDACRegisters(pScrn, restore);
 	ErrorF("finished FP restore\n");
 
-	RADEONEnableOutputs(pScrn, 1);
+	RADEONEnableOutputs(pScrn, 0);
 	ErrorF("enable output1 done\n");
 
 	if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
-	    RADEONEnableOutputs(pScrn, 2);
+	    RADEONEnableOutputs(pScrn, 1);
 	    ErrorF("enable output2 done\n");
 	}
     }
