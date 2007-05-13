@@ -2042,7 +2042,6 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	if (output->crtc == crtc) {
 	    montype = radeon_output->MonType;
-	    radeon_output->crtc_num = radeon_crtc->crtc_id + 1;
 	}
     }
     
@@ -2054,7 +2053,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     switch (radeon_crtc->crtc_id) {
     case 0:
 	ErrorF("init crtc1\n");
-	RADEONInitCrtcRegisters(crtc, &info->ModeReg, adjusted_mode, info);
+	RADEONInitCrtcRegisters(crtc, &info->ModeReg, adjusted_mode, x, y);
         dot_clock = adjusted_mode->Clock / 1000.0;
         if (dot_clock) {
 	    ErrorF("init pll1\n");
@@ -2067,7 +2066,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	break;
     case 1:
 	ErrorF("init crtc2\n");
-        RADEONInitCrtc2Registers(crtc, &info->ModeReg, adjusted_mode, info);
+        RADEONInitCrtc2Registers(crtc, &info->ModeReg, adjusted_mode, x, y);
         dot_clock = adjusted_mode->Clock / 1000.0;
         if (dot_clock) {
 	    ErrorF("init pll2\n");
@@ -2083,16 +2082,12 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
     switch (radeon_crtc->crtc_id) {
     case 0:
-	ErrorF("adjustframe 1\n");
-	RADEONDoAdjustFrame(pScrn, x, y, FALSE);
 	ErrorF("restore crtc1\n");
 	RADEONRestoreCrtcRegisters(pScrn, &info->ModeReg);
 	ErrorF("restore pll1\n");
 	RADEONRestorePLLRegisters(pScrn, &info->ModeReg);
 	break;
     case 1:
-	ErrorF("adjustframe 2\n");
-	RADEONDoAdjustFrame(pScrn, x, y, TRUE);
 	ErrorF("restore crtc2\n");
 	RADEONRestoreCrtc2Registers(pScrn, &info->ModeReg);
 	ErrorF("restore pll2\n");

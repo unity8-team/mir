@@ -240,6 +240,7 @@ typedef struct {
     CARD32            disp_merge_cntl;
     CARD32            grph_buffer_cntl;
     CARD32            crtc_more_cntl;
+    CARD32            crtc_tile_x0_y0;
 
 				/* CRTC2 registers */
     CARD32            crtc2_gen_cntl;
@@ -257,6 +258,8 @@ typedef struct {
     CARD32            crtc2_offset;
     CARD32            crtc2_offset_cntl;
     CARD32            crtc2_pitch;
+    CARD32            crtc2_tile_x0_y0;
+
 				/* Flat panel registers */
     CARD32            fp_crtc_h_total_disp;
     CARD32            fp_crtc_v_total_disp;
@@ -784,7 +787,7 @@ extern void        RADEONWaitForIdleCP(ScrnInfoPtr pScrn);
 #endif
 
 extern void        RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y,
-				       int clone);
+				       Bool clone);
 
 extern void        RADEONEngineReset(ScrnInfoPtr pScrn);
 extern void        RADEONEngineFlush(ScrnInfoPtr pScrn);

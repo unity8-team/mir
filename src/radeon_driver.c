@@ -4147,8 +4147,11 @@ void RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
     OUTREG(RADEON_FP_CRTC_H_TOTAL_DISP, restore->fp_crtc_h_total_disp);
     OUTREG(RADEON_FP_CRTC_V_TOTAL_DISP, restore->fp_crtc_v_total_disp);
 
-    OUTREG(RADEON_CRTC_OFFSET,          restore->crtc_offset);
+    if (IS_R300_VARIANT)
+	OUTREG(R300_CRTC_TILE_X0_Y0, restore->crtc_tile_x0_y0);
     OUTREG(RADEON_CRTC_OFFSET_CNTL,     restore->crtc_offset_cntl);
+    OUTREG(RADEON_CRTC_OFFSET,          restore->crtc_offset);
+
     OUTREG(RADEON_CRTC_PITCH,           restore->crtc_pitch);
     OUTREG(RADEON_DISP_MERGE_CNTL,      restore->disp_merge_cntl);
     OUTREG(RADEON_CRTC_MORE_CNTL,       restore->crtc_more_cntl);
@@ -4196,8 +4199,11 @@ void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
     OUTREG(RADEON_FP_H2_SYNC_STRT_WID,   restore->fp_h2_sync_strt_wid);
     OUTREG(RADEON_FP_V2_SYNC_STRT_WID,   restore->fp_v2_sync_strt_wid);
 
-    OUTREG(RADEON_CRTC2_OFFSET,          restore->crtc2_offset);
+    if (IS_R300_VARIANT)
+	OUTREG(R300_CRTC2_TILE_X0_Y0, restore->crtc2_tile_x0_y0);
     OUTREG(RADEON_CRTC2_OFFSET_CNTL,     restore->crtc2_offset_cntl);
+    OUTREG(RADEON_CRTC2_OFFSET,          restore->crtc2_offset);
+
     OUTREG(RADEON_CRTC2_PITCH,           restore->crtc2_pitch);
     OUTREG(RADEON_DISP2_MERGE_CNTL,      restore->disp2_merge_cntl);
 
@@ -4827,6 +4833,9 @@ static void RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->disp_merge_cntl      = INREG(RADEON_DISP_MERGE_CNTL);
     save->crtc_more_cntl       = INREG(RADEON_CRTC_MORE_CNTL);
 
+    if (IS_R300_VARIANT)
+	save->crtc_tile_x0_y0 =  INREG(R300_CRTC_TILE_X0_Y0);
+
     if (info->IsDellServer) {
 	save->tv_dac_cntl      = INREG(RADEON_TV_DAC_CNTL);
 	save->dac2_cntl        = INREG(RADEON_DAC_CNTL2);
@@ -4879,6 +4888,9 @@ static void RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->crtc2_offset          = INREG(RADEON_CRTC2_OFFSET);
     save->crtc2_offset_cntl     = INREG(RADEON_CRTC2_OFFSET_CNTL);
     save->crtc2_pitch           = INREG(RADEON_CRTC2_PITCH);
+
+    if (IS_R300_VARIANT)
+	save->crtc2_tile_x0_y0 =  INREG(R300_CRTC2_TILE_X0_Y0);
 
     save->fp_h2_sync_strt_wid   = INREG (RADEON_FP_H2_SYNC_STRT_WID);
     save->fp_v2_sync_strt_wid   = INREG (RADEON_FP_V2_SYNC_STRT_WID);
@@ -5449,18 +5461,23 @@ static void RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save, Dis
 
 /* Define CRTC registers for requested video mode */
 Bool RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
-				  DisplayModePtr mode, RADEONInfoPtr info)
+				  DisplayModePtr mode, int x, int y)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+    //RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
     int    format;
     int    hsync_start;
     int    hsync_wid;
     int    vsync_wid;
-    int i;
-
+    int i, Base;
+#ifdef XF86DRI
+    RADEONSAREAPrivPtr pSAREAPriv;
+    XF86DRISAREAPtr pSAREA;
+#endif
 
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
@@ -5603,6 +5620,79 @@ Bool RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 	}
     }
 
+    Base = pScrn->fbOffset;
+
+    if (info->tilingEnabled) {
+        if (IS_R300_VARIANT) {
+	/* On r300/r400 when tiling is enabled crtc_offset is set to the address of
+	 * the surface.  the x/y offsets are handled by the X_Y tile reg for each crtc
+	 * Makes tiling MUCH easier.
+	 */
+             save->crtc_tile_x0_y0 = x | (y << 16);
+             Base &= ~0x7ff;
+         } else {
+	     /* note we cannot really simply use the info->ModeReg.crtc_offset_cntl value, since the
+		drm might have set FLIP_CNTL since we wrote that. Unfortunately FLIP_CNTL causes
+		flickering when scrolling vertically in a virtual screen, possibly because crtc will
+		pick up the new offset value at the end of each scanline, but the new offset_cntl value
+		only after a vsync. We'd probably need to wait (in drm) for vsync and only then update
+		OFFSET and OFFSET_CNTL, if the y coord has changed. Seems hard to fix. */
+	     save->crtc_offset_cntl = INREG(RADEON_CRTC_OFFSET_CNTL) & ~0xf;
+#if 0
+	     /* try to get rid of flickering when scrolling at least for 2d */
+#ifdef XF86DRI
+	     if (!info->have3DWindows)
+#endif
+		 save->crtc_offset_cntl &= ~RADEON_CRTC_OFFSET_FLIP_CNTL;
+#endif
+	     
+             int byteshift = info->CurrentLayout.bitsPerPixel >> 4;
+             /* crtc uses 256(bytes)x8 "half-tile" start addresses? */
+             int tile_addr = (((y >> 3) * info->CurrentLayout.displayWidth + x) >> (8 - byteshift)) << 11;
+             Base += tile_addr + ((x << byteshift) % 256) + ((y % 8) << 8);
+             save->crtc_offset_cntl = save->crtc_offset_cntl | (y % 16);
+         }
+    }
+    else {
+       int offset = y * info->CurrentLayout.displayWidth + x;
+       switch (info->CurrentLayout.pixel_code) {
+       case 15:
+       case 16: offset *= 2; break;
+       case 24: offset *= 3; break;
+       case 32: offset *= 4; break;
+       }
+       Base += offset;
+    }
+
+    Base &= ~7;                 /* 3 lower bits are always 0 */
+
+
+#ifdef XF86DRI
+    if (info->directRenderingInited) {
+	/* note cannot use pScrn->pScreen since this is unitialized when called from
+	   RADEONScreenInit, and we need to call from there to get mergedfb + pageflip working */
+        /*** NOTE: r3/4xx will need sarea and drm pageflip updates to handle the xytile regs for
+	 *** pageflipping!
+	 ***/
+	pSAREAPriv = DRIGetSAREAPrivate(screenInfo.screens[pScrn->scrnIndex]);
+	/* can't get at sarea in a semi-sane way? */
+	pSAREA = (void *)((char*)pSAREAPriv - sizeof(XF86DRISAREARec));
+
+	pSAREA->frame.x = (Base  / info->CurrentLayout.pixel_bytes)
+	    % info->CurrentLayout.displayWidth;
+	pSAREA->frame.y = (Base / info->CurrentLayout.pixel_bytes)
+	    / info->CurrentLayout.displayWidth;
+	pSAREA->frame.width = pScrn->frameX1 - x + 1;
+	pSAREA->frame.height = pScrn->frameY1 - y + 1;
+
+	if (pSAREAPriv->pfCurrentPage == 1) {
+	    Base += info->backOffset - info->frontOffset;
+	}
+    }
+#endif
+    save->crtc_offset = Base;
+
+
     if (info->IsDellServer) {
 	save->dac2_cntl = info->SavedReg.dac2_cntl;
 	save->tv_dac_cntl = info->SavedReg.tv_dac_cntl;
@@ -5625,17 +5715,23 @@ Bool RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 
 /* Define CRTC2 registers for requested video mode */
 Bool RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
-				     DisplayModePtr mode, RADEONInfoPtr info)
+				     DisplayModePtr mode, int x, int y)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+    //RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
     int    format;
     int    hsync_start;
     int    hsync_wid;
     int    vsync_wid;
-    int i;
+    int i, Base;
+#ifdef XF86DRI
+    RADEONSAREAPrivPtr pSAREAPriv;
+    XF86DRISAREAPtr pSAREA;
+#endif
 
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
@@ -5734,6 +5830,73 @@ Bool RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 	    RADEONInitOutputRegisters(pScrn, save, mode, output, 2);
 	}
     }
+
+    Base = pScrn->fbOffset;
+
+    if (info->tilingEnabled) {
+        if (IS_R300_VARIANT) {
+	/* On r300/r400 when tiling is enabled crtc_offset is set to the address of
+	 * the surface.  the x/y offsets are handled by the X_Y tile reg for each crtc
+	 * Makes tiling MUCH easier.
+	 */
+             save->crtc2_tile_x0_y0 = x | (y << 16);
+             Base &= ~0x7ff;
+         } else {
+	     /* note we cannot really simply use the info->ModeReg.crtc_offset_cntl value, since the
+		drm might have set FLIP_CNTL since we wrote that. Unfortunately FLIP_CNTL causes
+		flickering when scrolling vertically in a virtual screen, possibly because crtc will
+		pick up the new offset value at the end of each scanline, but the new offset_cntl value
+		only after a vsync. We'd probably need to wait (in drm) for vsync and only then update
+		OFFSET and OFFSET_CNTL, if the y coord has changed. Seems hard to fix. */
+	     save->crtc2_offset_cntl = INREG(RADEON_CRTC2_OFFSET_CNTL) & ~0xf;
+#if 0
+	     /* try to get rid of flickering when scrolling at least for 2d */
+#ifdef XF86DRI
+	     if (!info->have3DWindows)
+#endif
+		 save->crtc2_offset_cntl &= ~RADEON_CRTC_OFFSET_FLIP_CNTL;
+#endif
+
+             int byteshift = info->CurrentLayout.bitsPerPixel >> 4;
+             /* crtc uses 256(bytes)x8 "half-tile" start addresses? */
+             int tile_addr = (((y >> 3) * info->CurrentLayout.displayWidth + x) >> (8 - byteshift)) << 11;
+             Base += tile_addr + ((x << byteshift) % 256) + ((y % 8) << 8);
+             save->crtc2_offset_cntl = save->crtc_offset_cntl | (y % 16);
+         }
+    }
+    else {
+       int offset = y * info->CurrentLayout.displayWidth + x;
+       switch (info->CurrentLayout.pixel_code) {
+       case 15:
+       case 16: offset *= 2; break;
+       case 24: offset *= 3; break;
+       case 32: offset *= 4; break;
+       }
+       Base += offset;
+    }
+
+    Base &= ~7;                 /* 3 lower bits are always 0 */
+    save->crtc2_offset = Base;
+
+#ifdef XF86DRI
+    if (info->directRenderingInited) {
+	/* note cannot use pScrn->pScreen since this is unitialized when called from
+	   RADEONScreenInit, and we need to call from there to get mergedfb + pageflip working */
+        /*** NOTE: r3/4xx will need sarea and drm pageflip updates to handle the xytile regs for
+	 *** pageflipping!
+	 ***/
+	pSAREAPriv = DRIGetSAREAPrivate(screenInfo.screens[pScrn->scrnIndex]);
+	/* can't get at sarea in a semi-sane way? */
+	pSAREA = (void *)((char*)pSAREAPriv - sizeof(XF86DRISAREARec));
+
+	pSAREAPriv->crtc2_base = Base;
+
+	if (pSAREAPriv->pfCurrentPage == 1) {
+	    Base += info->backOffset - info->frontOffset;
+	}
+    }
+#endif
+    save->crtc2_offset = Base;
 
     /* We must set SURFACE_CNTL properly on the second screen too */
     save->surface_cntl = 0;
@@ -6226,11 +6389,11 @@ ModeStatus RADEONValidMode(int scrnIndex, DisplayModePtr mode,
 /* Adjust viewport into virtual desktop such that (0,0) in viewport
  * space is (x,y) in virtual space.
  */
-void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
+void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, Bool crtc2)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    int            Base, regcntl, crtcoffsetcntl, xytilereg, crtcxytile = 0;
+    int            Base, reg, regcntl, crtcoffsetcntl, xytilereg, crtcxytile = 0;
 #ifdef XF86DRI
     RADEONSAREAPrivPtr pSAREAPriv;
     XF86DRISAREAPtr pSAREA;
@@ -6257,10 +6420,12 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
      pick up the new offset value at the end of each scanline, but the new offset_cntl value
      only after a vsync. We'd probably need to wait (in drm) for vsync and only then update
      OFFSET and OFFSET_CNTL, if the y coord has changed. Seems hard to fix. */
-    if (clone || info->IsSecondary) {
+    if (crtc2 || info->IsSecondary) {
+	reg = RADEON_CRTC2_OFFSET;
 	regcntl = RADEON_CRTC2_OFFSET_CNTL;
 	xytilereg = R300_CRTC2_TILE_X0_Y0;
     } else {
+	reg = RADEON_CRTC_OFFSET;
 	regcntl = RADEON_CRTC_OFFSET_CNTL;
 	xytilereg = R300_CRTC_TILE_X0_Y0;
     }
@@ -6312,7 +6477,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 	/* can't get at sarea in a semi-sane way? */
 	pSAREA = (void *)((char*)pSAREAPriv - sizeof(XF86DRISAREARec));
 
-	if (clone || info->IsSecondary) {
+	if (crtc2 || info->IsSecondary) {
 	    pSAREAPriv->crtc2_base = Base;
 	}
 	else {
@@ -6331,15 +6496,15 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 #endif
 
     if (IS_R300_VARIANT) {
-        OUTREG(xytilereg, crtcxytile);
+	OUTREG(xytilereg, crtcxytile);
     } else {
-        OUTREG(regcntl, crtcoffsetcntl);
+	OUTREG(regcntl, crtcoffsetcntl);
     }
 
-    if (clone)
-        info->ModeReg.crtc2_offset = Base;
+    if (crtc2)
+	OUTREG(reg, Base);
     else
-        info->ModeReg.crtc_offset = Base;
+	OUTREG(reg, Base);
 }
 
 void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
@@ -6457,7 +6622,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     }
 #endif
 
-    pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+    //    pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 
     return TRUE;
 }
