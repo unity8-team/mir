@@ -1370,8 +1370,9 @@ void RADEONDisableDisplays(ScrnInfoPtr pScrn) {
 }
 
 /* This is to be used enable/disable displays dynamically */
-void RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr output, BOOL bEnable)
+void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONSavePtr save = &info->ModeReg;
     unsigned char * RADEONMMIO = info->MMIO;
@@ -2216,13 +2217,13 @@ radeon_dpms(xf86OutputPtr output, int mode)
 
     switch(mode) {
     case DPMSModeOn:
-	RADEONEnableDisplay(pScrn, output, TRUE);
+	RADEONEnableDisplay(output, TRUE);
 	/*      RADEONDPMSSetOn(output);*/
 	break;
     case DPMSModeOff:
     case DPMSModeSuspend:
     case DPMSModeStandby:
-	RADEONEnableDisplay(pScrn, output, FALSE);
+	RADEONEnableDisplay(output, FALSE);
 	/*RADEONDPMSSetOff(output);*/
 	break;
     }
@@ -2314,7 +2315,7 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);
     }
 
-    RADEONEnableDisplay(pScrn, output, TRUE);
+    RADEONEnableDisplay(output, TRUE);
 }
 
 static void

@@ -4644,7 +4644,7 @@ RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num)
     for (i = 0; i < xf86_config->num_output; i++) {
 	xf86OutputPtr output = xf86_config->output[i];
 	if (output->crtc == crtc) {
-	    RADEONEnableDisplay(pScrn, output, TRUE);
+	    RADEONEnableDisplay(output, TRUE);
 	}
     }
 }
