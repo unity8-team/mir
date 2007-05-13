@@ -566,7 +566,7 @@ RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac)
 }
 
 
-static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCType DDCType, xf86OutputPtr output)
+static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -574,8 +574,8 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
     RADEONMonitorType MonType = MT_NONE;
     xf86MonPtr* MonInfo = &output->MonInfo;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONDDCType DDCType = radeon_output->DDCType;
     int i, j;
-
 
     DDCReg = radeon_output->DDCReg;
 
@@ -645,21 +645,13 @@ static RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, RADEONDDCT
 	   ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
 
     if (*MonInfo) {
+	/* if it's digital */
 	if ((*MonInfo)->rawData[0x14] & 0x80) {
-	    /* Note some laptops have a DVI output that uses internal TMDS,
-	     * when its DVI is enabled by hotkey, LVDS panel is not used.
-	     * In this case, the laptop is configured as DVI+VGA as a normal 
-	     * desktop card.
-	     * Also for laptop, when X starts with lid closed (no DVI connection)
-	     * both LDVS and TMDS are disable, we still need to treat it as a LVDS panel.
-	     */
-	    if (radeon_output->TMDSType == TMDS_EXT) MonType = MT_DFP;
-	    else {
-		if (INREG(RADEON_FP_GEN_CNTL) & RADEON_FP_EN_TMDS)
-		    MonType = MT_DFP;
-		else
-		    MonType = MT_LCD;
-	    }
+	    if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_LVDS_ATOM) ||
+		radeon_output->ConnectorType == CONNECTOR_PROPRIETARY)
+		MonType = MT_LCD;
+	    else
+		MonType = MT_DFP;
 	} else MonType = MT_CRT;
     } else MonType = MT_NONE;
 
@@ -979,9 +971,7 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     
     if (radeon_output->MonType == MT_UNKNOWN) {
-      if ((radeon_output->MonType = RADEONDisplayDDCConnected(pScrn,
-						     radeon_output->DDCType,
-						     output)));
+      if ((radeon_output->MonType = RADEONDisplayDDCConnected(pScrn, output)));
       else if((radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output)));
       else if (radeon_output->DACType == DAC_PRIMARY) 
 	  radeon_output->MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(radeon_output->DACType));
