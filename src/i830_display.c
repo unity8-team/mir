@@ -1255,6 +1255,7 @@ i830ReleaseLoadDetectPipe(xf86OutputPtr output)
     
     if (intel_output->load_detect_temp) 
     {
+	output->crtc->enabled = FALSE;
 	output->crtc = NULL;
 	intel_output->load_detect_temp = FALSE;
 	xf86DisableUnusedFunctions(pScrn);

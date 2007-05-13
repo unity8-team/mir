@@ -744,6 +744,12 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
 	 break;
       case I830_OUTPUT_ANALOG:
 	 crtc_mask = ((1 << 0));
+	 /*
+	  * 915 cannot do double-wide on pipe B
+	  * 830 cannot put CRT on pipe B
+	  */
+	 if (!IS_I915G(pI830) && !IS_I915GM (pI830) && !IS_I830(pI830))
+	    crtc_mask |= ((1 << 1));
 	 clone_mask = ((1 << I830_OUTPUT_ANALOG) |
 		       (1 << I830_OUTPUT_DVO) |
 		       (1 << I830_OUTPUT_SDVO));
@@ -1735,6 +1741,7 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveVTOTAL_A = INREG(VTOTAL_A);
    pI830->saveVBLANK_A = INREG(VBLANK_A);
    pI830->saveVSYNC_A = INREG(VSYNC_A);
+   pI830->saveBCLRPAT_A = INREG(BCLRPAT_A);
    pI830->saveDSPASTRIDE = INREG(DSPASTRIDE);
    pI830->saveDSPASIZE = INREG(DSPASIZE);
    pI830->saveDSPAPOS = INREG(DSPAPOS);
@@ -1759,6 +1766,7 @@ SaveHWState(ScrnInfoPtr pScrn)
       pI830->saveVTOTAL_B = INREG(VTOTAL_B);
       pI830->saveVBLANK_B = INREG(VBLANK_B);
       pI830->saveVSYNC_B = INREG(VSYNC_B);
+      pI830->saveBCLRPAT_B = INREG(BCLRPAT_B);
       pI830->saveDSPBSTRIDE = INREG(DSPBSTRIDE);
       pI830->saveDSPBSIZE = INREG(DSPBSIZE);
       pI830->saveDSPBPOS = INREG(DSPBPOS);
@@ -1857,6 +1865,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(VTOTAL_A, pI830->saveVTOTAL_A);
    OUTREG(VBLANK_A, pI830->saveVBLANK_A);
    OUTREG(VSYNC_A, pI830->saveVSYNC_A);
+   OUTREG(BCLRPAT_A, pI830->saveBCLRPAT_A);
    
    OUTREG(DSPASTRIDE, pI830->saveDSPASTRIDE);
    OUTREG(DSPASIZE, pI830->saveDSPASIZE);
@@ -1894,6 +1903,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(VTOTAL_B, pI830->saveVTOTAL_B);
       OUTREG(VBLANK_B, pI830->saveVBLANK_B);
       OUTREG(VSYNC_B, pI830->saveVSYNC_B);
+      OUTREG(BCLRPAT_B, pI830->saveBCLRPAT_B);
       OUTREG(DSPBSTRIDE, pI830->saveDSPBSTRIDE);
       OUTREG(DSPBSIZE, pI830->saveDSPBSIZE);
       OUTREG(DSPBPOS, pI830->saveDSPBPOS);
