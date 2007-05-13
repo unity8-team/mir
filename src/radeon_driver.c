@@ -160,7 +160,6 @@ static const OptionInfoRec RADEONOptions[] = {
 #endif
 #endif
     { OPTION_DDC_MODE,       "DDCMode",          OPTV_BOOLEAN, {0}, FALSE },
-    { OPTION_MONITOR_LAYOUT, "MonitorLayout",    OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_IGNORE_EDID,    "IgnoreEDID",       OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_FBDEV,          "UseFBDev",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DISP_PRIORITY,  "DisplayPriority",  OPTV_ANYSTR,  {0}, FALSE },
@@ -189,7 +188,6 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_LVDS_PROBE_PLL, "LVDSProbePLL",     OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_ACCELMETHOD,    "AccelMethod",      OPTV_STRING,  {0}, FALSE },
     { OPTION_CONSTANTDPI,    "ConstantDPI",	 OPTV_BOOLEAN, {0}, FALSE },
-    { OPTION_REVERSE_DISPLAY,"ReverseDisplay",   OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DRI,            "DRI",       	 OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
