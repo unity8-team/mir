@@ -763,7 +763,7 @@ typedef struct {
 
     CARD32            tv_dac_adj;
 
-  int               max_connectors;
+    RADEONBIOSConnector BiosConnector[RADEON_MAX_BIOS_CONNECTOR];
 
     CreateScreenResourcesProcPtr CreateScreenResources;
 } RADEONInfoRec, *RADEONInfoPtr;
@@ -844,7 +844,7 @@ extern Bool        RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output);
 extern void        RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
 extern void        RADEONSetSyncRangeFromEdid(ScrnInfoPtr pScrn, int flag);
-extern void        RADEONSetupConnectors(ScrnInfoPtr pScrn);
+extern Bool        RADEONSetupConnectors(ScrnInfoPtr pScrn);
 extern Bool        RADEONMapControllers(ScrnInfoPtr pScrn);
 extern void        RADEONEnableDisplay(ScrnInfoPtr pScrn, xf86OutputPtr pPort, BOOL bEnable);
 extern void        RADEONDisableDisplays(ScrnInfoPtr pScrn);

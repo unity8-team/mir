@@ -132,6 +132,13 @@ typedef struct _RADEONCrtcPrivateRec {
     Bool              UseBiosDividers;
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
+typedef struct {
+    RADEONDDCType DDCType;
+    RADEONDacType DACType;
+    RADEONTmdsType TMDSType;
+    RADEONConnectorType ConnectorType;
+} RADEONBIOSConnector;
+
 typedef struct _RADEONOutputPrivateRec {
     int num;
     RADEONOutputType type;
@@ -160,8 +167,8 @@ typedef struct _RADEONOutputPrivateRec {
     RADEONTMDSPll     tmds_pll[4];
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
-#define RADEON_MAX_CONNECTOR 3 /* actually 4: DVI/VGA, DVI on docks, TV, LVDS */
 #define RADEON_MAX_CRTC 2
+#define RADEON_MAX_BIOS_CONNECTOR 2
 
 typedef struct
 {
@@ -179,9 +186,6 @@ typedef struct
 
     Bool ReversedDAC;	  /* TVDAC used as primary dac */
     Bool ReversedTMDS;    /* DDC_DVI is used for external TMDS */
-    xf86OutputPtr pOutput[RADEON_MAX_CONNECTOR];
-    RADEONOutputPrivatePtr PortInfo[RADEON_MAX_CONNECTOR];
-
     xf86CrtcPtr pCrtc[RADEON_MAX_CRTC];
     RADEONCrtcPrivatePtr Controller[RADEON_MAX_CRTC];
 

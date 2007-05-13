@@ -117,7 +117,7 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode);
 static void RADEONSave(ScrnInfoPtr pScrn);
 //static void RADEONRestore(ScrnInfoPtr pScrn);
-static Bool RADEONModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
+//static Bool RADEONModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
 
 static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode);
 static void RADEONForceSomeClocks(ScrnInfoPtr pScrn);
@@ -2528,28 +2528,20 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
 
     if (!info->IsSecondary) {
       
-      if (!RADEONAllocatePortInfo(pScrn))
-	return FALSE;
-
       if (!RADEONAllocateControllers(pScrn))
 	  return FALSE;
     }
 
-    /*    if (!info->IsSecondary) {
-      if (!RADEONAllocateConnectors(pScrn))
-	return FALSE;
-	}*/
-
     RADEONGetBIOSInfo(pScrn, pInt10);
 
-    RADEONSetupConnectors(pScrn);
+    if (!RADEONSetupConnectors(pScrn)) {
+	return FALSE;
+    }
 
       
     RADEONMapControllers(pScrn);
 
     RADEONGetClockInfo(pScrn);
-    /*    RADEONGetPanelInfo(pScrn);
-	  RADEONGetTVDacAdjInfo(pScrn);*/
 
     for (i = 0; i < config->num_output; i++) 
     {
@@ -4638,21 +4630,23 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
     RADEONSaveSurfaces(pScrn, &info->ModeReg);
 }
 
+// hack, but it's going away soon
 void
 RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num)
 {
     RADEONInfoPtr      info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    xf86CrtcPtr crtc = pRADEONEnt->pCrtc[0];
     int i;
-    xf86OutputPtr output;
 
-    for (i = 0; i < info->max_connectors; i++) {
-        if (pRADEONEnt->PortInfo[i]->crtc_num == crtc_num) {
-	    output = pRADEONEnt->pOutput[i];
-            RADEONEnableDisplay(pScrn, output, TRUE);
-        }
+    /* get the output connected to this CRTC */
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
+	if (output->crtc == crtc) {
+	    RADEONEnableDisplay(pScrn, output, TRUE);
+	}
     }
-
 }
 
 /* Write out state to define a new video mode */
@@ -4702,7 +4696,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	    RADEONRestorePLL2Registers(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
 	    RADEONRestoreDACRegisters(pScrn, restore);
-	    RADEONEnableOuputs(pScrn, 2);
+	    RADEONEnableOutputs(pScrn, 2);
 	} else {
 	    RADEONRestoreMemMapRegisters(pScrn, restore);
 	    RADEONRestoreCommonRegisters(pScrn, restore);
@@ -4715,9 +4709,9 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
             RADEONRestorePLLRegisters(pScrn, restore);
 	    RADEONRestoreFPRegisters(pScrn, restore);
 	    RADEONRestoreDACRegisters(pScrn, restore);
-	    RADEONEnableOuputs(pScrn, 1);
+	    RADEONEnableOutputs(pScrn, 1);
 	    if (pCRTC2->binding == 1) {
-	      RADEONEnableOuputs(pScrn, 2);
+	      RADEONEnableOutputs(pScrn, 2);
 	    }
 	}
     } else {
@@ -5454,15 +5448,18 @@ static void RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save, Dis
 }
 
 /* Define CRTC registers for requested video mode */
-Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
+Bool RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 				  DisplayModePtr mode, RADEONInfoPtr info)
 {
+    ScrnInfoPtr pScrn = crtc->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     int    format;
     int    hsync_start;
     int    hsync_wid;
     int    vsync_wid;
     int i;
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
 
     switch (info->CurrentLayout.pixel_code) {
@@ -5599,19 +5596,12 @@ Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     }
 
     /* get the output connected to this CRTC */
-    for (i = 0; i < info->max_connectors; i++) {
-      if (pRADEONEnt->PortInfo[i]->crtc_num == 1) {
-	ErrorF("init output for crtc1\n");
-        RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[i], 1);
-      }
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
+	if (output->crtc == crtc) {
+	    RADEONInitOutputRegisters(pScrn, save, mode, output, 1);
+	}
     }
-#if 0
-    if (pRADEONEnt->PortInfo[0]->crtc_num == 1) {
-	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[0], 1);
-    } else if (pRADEONEnt->PortInfo[1]->crtc_num == 1) {
-	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[1], 1);
-    }
-#endif
 
     if (info->IsDellServer) {
 	save->dac2_cntl = info->SavedReg.dac2_cntl;
@@ -5634,19 +5624,18 @@ Bool RADEONInitCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 }
 
 /* Define CRTC2 registers for requested video mode */
-Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
+Bool RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 				     DisplayModePtr mode, RADEONInfoPtr info)
 {
+    ScrnInfoPtr pScrn = crtc->scrn;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     int    format;
     int    hsync_start;
     int    hsync_wid;
     int    vsync_wid;
     int i;
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    RADEONInfoPtr info0 = NULL;
-
-    if (info->IsSecondary)
-	info0 = RADEONPTR(pRADEONEnt->pPrimaryScrn);
 
     switch (info->CurrentLayout.pixel_code) {
     case 4:  format = 1; break;
@@ -5739,19 +5728,12 @@ Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
 
     /* get the output connected to this CRTC */
-    for (i = 0; i < info->max_connectors; i++) {
-      if (pRADEONEnt->PortInfo[i]->crtc_num == 2) {
-	ErrorF("init output for crtc2\n");
-        RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[i], 2);
-      }
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
+	if (output->crtc == crtc) {
+	    RADEONInitOutputRegisters(pScrn, save, mode, output, 2);
+	}
     }
-#if 0
-    if (pRADEONEnt->PortInfo[0]->crtc_num == 2) {
-	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[0], 2);
-    } else if (pRADEONEnt->PortInfo[1]->crtc_num == 2) {
-	RADEONInitOutputRegisters(pScrn, save, mode, pRADEONEnt->pOutput[1], 2);
-    }
-#endif
 
     /* We must set SURFACE_CNTL properly on the second screen too */
     save->surface_cntl = 0;
@@ -5925,6 +5907,7 @@ static void RADEONInitPalette(RADEONSavePtr save)
 }
 #endif
 
+#if 0
 /* Define registers for a requested video mode */
 Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 		 DisplayModePtr crtc2, int crtc_mask,
@@ -6095,6 +6078,7 @@ static Bool RADEONModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
     return TRUE;
 }
+#endif
 
 static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode)
 {
@@ -6177,7 +6161,7 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 	RADEONRestoreFBDevRegisters(pScrn, &info->ModeReg);
     } else {
 	info->IsSwitching = TRUE;
-	ret = RADEONModeInit(xf86Screens[scrnIndex], mode);
+	ret = TRUE; //RADEONModeInit(xf86Screens[scrnIndex], mode);
 	info->IsSwitching = FALSE;
     }
 

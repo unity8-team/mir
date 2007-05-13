@@ -871,7 +871,7 @@ static Bool RADEONGetLVDSInfo (xf86OutputPtr output)
 		tmp_mode = tmp_mode->next;
 	    }
 	}
-	if ((radeon_output->DotClock == 0) && !pRADEONEnt->pOutput[0]->MonInfo) {
+	if ((radeon_output->DotClock == 0) && !output->MonInfo) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Panel size is not correctly detected.\n"
 		       "Please try to use PanelSize option for correct settings.\n");
@@ -934,283 +934,14 @@ void RADEONGetTVDacAdjInfo(xf86OutputPtr output)
 
 static void RADEONSwapOutputs(ScrnInfoPtr pScrn)
 {
-    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    xf86OutputPtr connector;
-    RADEONOutputPrivatePtr conn_priv;
-    
-    connector = pRADEONEnt->pOutput[0];
-    pRADEONEnt->pOutput[0] = pRADEONEnt->pOutput[1];
-    pRADEONEnt->pOutput[1] = connector;
-    
-    conn_priv = pRADEONEnt->PortInfo[0];
-    pRADEONEnt->PortInfo[0] = pRADEONEnt->PortInfo[1];
-    pRADEONEnt->PortInfo[1] = conn_priv;
-}
-#if 0
-/*
- * initialise the static data sos we don't have to re-do at randr change */
-void RADEONSetupConnectors(ScrnInfoPtr pScrn)
-{
     RADEONInfoPtr info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    xf86OutputPtr output;
-    const char *s;
-    int i = 0, second = 0, max_mt = 5;
-
-    /* We first get the information about all connectors from BIOS.
-     * This is how the card is phyiscally wired up.
-     * The information should be correct even on a OEM card.
-     * If not, we may have problem -- need to use MonitorLayout option.
-     */
-    for (i = 0; i < info->max_connectors; i++) {
-	pRADEONEnt->PortInfo[i]->MonType = MT_UNKNOWN;
-	pRADEONEnt->PortInfo[i]->DDCType = DDC_NONE_DETECTED;
-	pRADEONEnt->PortInfo[i]->DACType = DAC_UNKNOWN;
-	pRADEONEnt->PortInfo[i]->TMDSType = TMDS_UNKNOWN;
-	pRADEONEnt->PortInfo[i]->ConnectorType = CONNECTOR_NONE;
-    }
-
-    if (!RADEONGetConnectorInfoFromBIOS(pScrn) ||
-        ((pRADEONEnt->PortInfo[0]->DDCType == 0) &&
-        (pRADEONEnt->PortInfo[1]->DDCType == 0))) {
-	/* Below is the most common setting, but may not be true */
-	pRADEONEnt->PortInfo[0]->MonType = MT_UNKNOWN;
-	pRADEONEnt->PortInfo[0]->DDCType = DDC_DVI;
-	pRADEONEnt->PortInfo[0]->DACType = DAC_TVDAC;
-	pRADEONEnt->PortInfo[0]->TMDSType = TMDS_INT;
-	pRADEONEnt->PortInfo[0]->ConnectorType = CONNECTOR_DVI_I;
-
-	pRADEONEnt->PortInfo[1]->MonType = MT_UNKNOWN;
-	pRADEONEnt->PortInfo[1]->DDCType = DDC_VGA;
-	pRADEONEnt->PortInfo[1]->DACType = DAC_PRIMARY;
-	pRADEONEnt->PortInfo[1]->TMDSType = TMDS_EXT;
-	pRADEONEnt->PortInfo[1]->ConnectorType = CONNECTOR_CRT;
-
-
-       /* Some cards have the DDC lines swapped and we have no way to
-        * detect it yet (Mac cards)
-        */
-       if (xf86ReturnOptValBool(info->Options, OPTION_REVERSE_DDC, FALSE)) {
-           pRADEONEnt->PortInfo[0]->DDCType = DDC_VGA;
-           pRADEONEnt->PortInfo[1]->DDCType = DDC_DVI;
-        }
-    }
-
-    /* always make TMDS_INT port first*/
-    if (pRADEONEnt->PortInfo[1]->TMDSType == TMDS_INT) {
-	RADEONSwapOutputs(pScrn);
-    } else if ((pRADEONEnt->PortInfo[0]->TMDSType != TMDS_INT &&
-                pRADEONEnt->PortInfo[1]->TMDSType != TMDS_INT)) {
-        /* no TMDS_INT port, make primary DAC port first */
-	/* On my Inspiron 8600 both internal and external ports are
-	   marked DAC_PRIMARY in BIOS. So be extra careful - only
-	   swap when the first port is not DAC_PRIMARY */
-        if ((!(pRADEONEnt->PortInfo[0]->ConnectorType == CONNECTOR_PROPRIETARY)) &&  (pRADEONEnt->PortInfo[1]->DACType == DAC_PRIMARY) &&
-	     (pRADEONEnt->PortInfo[0]->DACType != DAC_PRIMARY)) {
-	    RADEONSwapOutputs(pScrn);
-        }
-    }
-
-    if (info->HasSingleDAC) {
-        /* For RS300/RS350/RS400 chips, there is no primary DAC. Force VGA port to use TVDAC*/
-        if (pRADEONEnt->PortInfo[0]->ConnectorType == CONNECTOR_CRT) {
-            pRADEONEnt->PortInfo[0]->DACType = DAC_TVDAC;
-            pRADEONEnt->PortInfo[1]->DACType = DAC_PRIMARY;
-        } else {
-            pRADEONEnt->PortInfo[1]->DACType = DAC_TVDAC;
-            pRADEONEnt->PortInfo[0]->DACType = DAC_PRIMARY;
-        }
-    } else if (!pRADEONEnt->HasCRTC2) {
-        pRADEONEnt->PortInfo[0]->DACType = DAC_PRIMARY;
-    }
-
-    /*
-     * MonitorLayout option takes a string for two monitors connected in following format:
-     * Option "MonitorLayout" "primary-port-display, secondary-port-display"
-     * primary and secondary port displays can have one of following:
-     *    NONE, CRT, LVDS, TMDS
-     * With this option, driver will bring up monitors as specified,
-     * not using auto-detection routines to probe monitors.
-     *
-     * This option can be used when the false monitor detection occurs.
-     *
-     * This option can also be used to disable one connected display.
-     * For example, if you have a laptop connected to an external CRT
-     * and you want to disable the internal LCD panel, you can specify
-     * Option "MonitorLayout" "NONE, CRT"
-     *
-     * This option can also used to disable Clone mode. One there is only
-     * one monitor is specified, clone mode will be turned off automatically
-     * even you have two monitors connected.
-     *
-     * Another usage of this option is you want to config the server
-     * to start up with a certain monitor arrangement even one monitor
-     * is not plugged in when server starts.
-     * For example, you can config your laptop with 
-     * Option "MonitorLayout" "LVDS, CRT"
-     * Option "CloneHSync" "40-150"
-     * Option "CloneVRefresh" "60-120"
-     * With these options, you can connect in your CRT monitor later
-     * after the X server has started.
-     */
-    if ((s = xf86GetOptValString(info->Options, OPTION_MONITOR_LAYOUT))) {
-        char s1[5], s2[5];
-        i = 0;
-        /* When using user specified monitor types, we will not do DDC detection
-         *
-         */
-        do {
-            switch(*s) {
-            case ',':
-                s1[i] = '\0';
-                i = 0;
-                second = 1;
-                break;
-            case ' ':
-            case '\t':
-            case '\n':
-            case '\r':
-                break;
-            default:
-                if (second)
-                    s2[i] = *s;
-                else
-                    s1[i] = *s;
-                i++;
-                break;
-            }
-            if (i > 4) i = 4;
-        } while(*s++);
-        s2[i] = '\0';
-
-        for (i = 0; i < max_mt; i++)
-        {
-            if (strcmp(s1, MonTypeName[i]) == 0) 
-            {
-                pRADEONEnt->PortInfo[0]->MonType = MonTypeID[i];
-                break;
-            }
-        }
-        if (i ==  max_mt)
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-                       "Invalid Monitor type specified for 1st port \n"); 
-
-        for (i = 0; i < max_mt; i++)
-        {
-            if (strcmp(s2, MonTypeName[i]) == 0) 
-            {
-                pRADEONEnt->PortInfo[1]->MonType = MonTypeID[i];
-                break;
-            }
-
-        }
-        if (i ==  max_mt)
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-                       "Invalid Monitor type specified for 2nd port \n"); 
-
-	if (i ==  max_mt)
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Invalid Monitor type specified for 2nd port \n");
-
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-		   "MonitorLayout Option: \n\tMonitor1--Type %s, Monitor2--Type %s\n\n", s1, s2);
-#if 0
-	if (pRADEONEnt->PortInfo[1]->MonType == MT_CRT) {
-	    pRADEONEnt->PortInfo[1]->DACType = DAC_PRIMARY;
-	    pRADEONEnt->PortInfo[1]->TMDSType = TMDS_UNKNOWN;
-	    pRADEONEnt->PortInfo[1]->DDCType = DDC_VGA;
-	    pRADEONEnt->PortInfo[1]->ConnectorType = CONNECTOR_CRT;
-	    pRADEONEnt->PortInfo[0]->DACType = DAC_TVDAC;
-	    pRADEONEnt->PortInfo[0]->TMDSType = TMDS_UNKNOWN;
-	    pRADEONEnt->PortInfo[0]->DDCType = DDC_NONE_DETECTED;
-	    pRADEONEnt->PortInfo[0]->ConnectorType = pRADEONEnt->PortInfo[0]->MonType+1;
-	    pRADEONEnt->PortInfo[0]->MonInfo = NULL;
-        }
-#endif
-
-        /* some thinkpads and powerbooks use lvds and internal tmds 
-	 * at the same time.  --AGD
-	 */
-	if ((pRADEONEnt->PortInfo[0]->MonType  == MT_LCD) &&
-	    (pRADEONEnt->PortInfo[1]->MonType == MT_DFP)) {
-	    pRADEONEnt->PortInfo[1]->DDCType = DDC_DVI;
-	    pRADEONEnt->PortInfo[0]->DDCType = DDC_MONID;
-            pRADEONEnt->PortInfo[1]->TMDSType = TMDS_INT;
-            pRADEONEnt->PortInfo[1]->ConnectorType = CONNECTOR_DVI_I;
-            pRADEONEnt->PortInfo[0]->TMDSType = TMDS_UNKNOWN;
-	}
-    }
-
-#if 1
-    if (info->IsMobility) {
-        pRADEONEnt->PortInfo[2]->DDCType = DDC_DVI;
-        pRADEONEnt->PortInfo[2]->TMDSType = TMDS_INT;
-        pRADEONEnt->PortInfo[2]->ConnectorType = CONNECTOR_DVI_D;
-        pRADEONEnt->PortInfo[0]->TMDSType = TMDS_UNKNOWN;
-	if (pRADEONEnt->PortInfo[0]->DDCType == DDC_DVI) {
-	    pRADEONEnt->PortInfo[0]->DDCType = DDC_MONID;
-	}
-	if (pRADEONEnt->PortInfo[0]->TMDSType == TMDS_INT) {
-	    pRADEONEnt->PortInfo[0]->TMDSType = TMDS_UNKNOWN;
-	}
-    }
-#endif
-
-    //    for (i = 0; i < xf86_config->num_output; i++) {
-    for (i = 0 ; i < info->max_connectors; i++) {
-	RADEONOutputPrivatePtr radeon_output = pRADEONEnt->PortInfo[i];
-
-	int DDCReg = 0;
-	char *names[] = { "DDC1", "DDC2", "DDC3" };
-
-	RADEONSetOutputType(pScrn, radeon_output);
-
-	pRADEONEnt->pOutput[i] = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[pRADEONEnt->PortInfo[i]->type]);
-	if (!pRADEONEnt->pOutput[i])
-	    return FALSE;
-	
-	pRADEONEnt->pOutput[i]->driver_private = pRADEONEnt->PortInfo[i];
-	pRADEONEnt->PortInfo[i]->num = i;
-
-	pRADEONEnt->pOutput[i]->possible_crtcs = 1;
-	if (pRADEONEnt->PortInfo[i]->type != OUTPUT_LVDS)
- 	    pRADEONEnt->pOutput[i]->possible_crtcs |= 2;
-
-	pRADEONEnt->pOutput[i]->possible_clones = 0 /*1|2*/;
-
-	switch(radeon_output->DDCType) {
-	case DDC_MONID: DDCReg = RADEON_GPIO_MONID; break;
-	case DDC_DVI  : DDCReg = RADEON_GPIO_DVI_DDC; break;
-	case DDC_VGA: DDCReg = RADEON_GPIO_VGA_DDC; break;
-	case DDC_CRT2: DDCReg = RADEON_GPIO_CRT2_DDC; break;
-	default: break;
-	}
-
-	if (DDCReg) {
-	    radeon_output->DDCReg = DDCReg;
-	    RADEONI2CInit(pScrn, &radeon_output->pI2CBus, DDCReg, names[i]);
-	}
-
-	if (radeon_output->type == OUTPUT_LVDS) {
-	    RADEONGetLVDSInfo(output);
-	}
-
-	if (radeon_output->type == OUTPUT_DVI) {
-	    RADEONGetTMDSInfo(output);
-
-	    if (i == 0)
-		RADEONGetHardCodedEDIDFromBIOS(output);
-
-	    /*RADEONUpdatePanelSize(output);*/
-	}
-
-	if (radeon_output->DACType == DAC_TVDAC) {
-	    RADEONGetTVDacAdjInfo(output);
-	}
-    }
+    RADEONBIOSConnector tmp;
+    
+    tmp = info->BiosConnector[0];
+    info->BiosConnector[0] = info->BiosConnector[1];
+    info->BiosConnector[1] = tmp;
+    
 }
-#endif
 
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
@@ -1266,6 +997,7 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
     }
 }
 
+#if 0
 void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 {
 
@@ -1362,6 +1094,7 @@ void RADEONQueryConnectedDisplays(ScrnInfoPtr pScrn)
 
     return;
 }
+#endif
 
 Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 {
@@ -2330,7 +2063,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     switch (radeon_crtc->crtc_id) {
     case 0:
 	ErrorF("init crtc1\n");
-	RADEONInitCrtcRegisters(pScrn, &info->ModeReg, adjusted_mode, info);
+	RADEONInitCrtcRegisters(crtc, &info->ModeReg, adjusted_mode, info);
         dot_clock = adjusted_mode->Clock / 1000.0;
         if (dot_clock) {
 	    ErrorF("init pll1\n");
@@ -2343,7 +2076,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	break;
     case 1:
 	ErrorF("init crtc2\n");
-        RADEONInitCrtc2Registers(pScrn, &info->ModeReg, adjusted_mode, info);
+        RADEONInitCrtc2Registers(crtc, &info->ModeReg, adjusted_mode, info);
         dot_clock = adjusted_mode->Clock / 1000.0;
         if (dot_clock) {
 	    ErrorF("init pll2\n");
@@ -2684,6 +2417,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+#if 0
 Bool RADEONAllocatePortInfo(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr      info = RADEONPTR(pScrn);
@@ -2711,6 +2445,7 @@ Bool RADEONAllocatePortInfo(ScrnInfoPtr pScrn)
     }
     return TRUE;
 }
+#endif
 
 void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output)
 {
@@ -2747,113 +2482,133 @@ void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output
     radeon_output->type = output;
 }
 
-Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
+void RADEONInitConnector(xf86OutputPtr output)
 {
-    RADEONInfoPtr      info = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-    int i;
+    ScrnInfoPtr	    pScrn = output->scrn;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int DDCReg = 0;
+    char* name = "DDC Bus";//OutputType[radeon_output->type];
 
-    if (pRADEONEnt->pOutput[0])
-        return TRUE;
-
-    /* for now always allocate max connectors */
-    for (i = 0 ; i < info->max_connectors; i++) {
-
-	pRADEONEnt->pOutput[i] = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[pRADEONEnt->PortInfo[i]->type]);
-	if (!pRADEONEnt->pOutput[i])
-	    return FALSE;
-	
-	pRADEONEnt->pOutput[i]->driver_private = pRADEONEnt->PortInfo[i];
-	pRADEONEnt->PortInfo[i]->num = i;
-
-	pRADEONEnt->pOutput[i]->possible_crtcs = 1;
-	if (pRADEONEnt->PortInfo[i]->type != OUTPUT_LVDS)
- 	    pRADEONEnt->pOutput[i]->possible_crtcs |= 2;
-
-	pRADEONEnt->pOutput[i]->possible_clones = 0 /*1|2*/;
+    switch(radeon_output->DDCType) {
+    case DDC_MONID: DDCReg = RADEON_GPIO_MONID; break;
+    case DDC_DVI  : DDCReg = RADEON_GPIO_DVI_DDC; break;
+    case DDC_VGA: DDCReg = RADEON_GPIO_VGA_DDC; break;
+    case DDC_CRT2: DDCReg = RADEON_GPIO_CRT2_DDC; break;
+    default: break;
+    }
+    
+    if (DDCReg) {
+	radeon_output->DDCReg = DDCReg;
+	RADEONI2CInit(pScrn, &radeon_output->pI2CBus, DDCReg, name);
     }
 
-    return TRUE;
+    if (radeon_output->type == OUTPUT_LVDS) {
+	RADEONGetLVDSInfo(output);
+    }
+
+    if (radeon_output->type == OUTPUT_DVI) {
+	RADEONGetTMDSInfo(output);
+
+	// FIXME
+	/*if (i == 0)
+	  RADEONGetHardCodedEDIDFromBIOS(output);*/
+
+	/*RADEONUpdatePanelSize(output);*/
+    }
+
+    if (radeon_output->DACType == DAC_TVDAC) {
+	RADEONGetTVDacAdjInfo(output);
+    }
+
 }
 
 /*
  * initialise the static data sos we don't have to re-do at randr change */
-void RADEONSetupConnectors(ScrnInfoPtr pScrn)
+Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     xf86OutputPtr output;
     const char *s;
     int i = 0, second = 0, max_mt = 5;
+
 
     /* We first get the information about all connectors from BIOS.
      * This is how the card is phyiscally wired up.
      * The information should be correct even on a OEM card.
      * If not, we may have problem -- need to use MonitorLayout option.
      */
-    for (i = 0; i < info->max_connectors; i++) {
-	pRADEONEnt->PortInfo[i]->MonType = MT_UNKNOWN;
-	pRADEONEnt->PortInfo[i]->DDCType = DDC_NONE_DETECTED;
-	pRADEONEnt->PortInfo[i]->DACType = DAC_UNKNOWN;
-	pRADEONEnt->PortInfo[i]->TMDSType = TMDS_UNKNOWN;
-	pRADEONEnt->PortInfo[i]->ConnectorType = CONNECTOR_NONE;
+    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	info->BiosConnector[i].DDCType = DDC_NONE_DETECTED;
+	info->BiosConnector[i].DACType = DAC_UNKNOWN;
+	info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
+	info->BiosConnector[i].ConnectorType = CONNECTOR_NONE;
     }
 
     if (!RADEONGetConnectorInfoFromBIOS(pScrn) ||
-        ((pRADEONEnt->PortInfo[0]->DDCType == 0) &&
-        (pRADEONEnt->PortInfo[1]->DDCType == 0))) {
-	/* Below is the most common setting, but may not be true */
-	pRADEONEnt->PortInfo[0]->MonType = MT_UNKNOWN;
-	pRADEONEnt->PortInfo[0]->DDCType = DDC_DVI;
-	pRADEONEnt->PortInfo[0]->DACType = DAC_TVDAC;
-	pRADEONEnt->PortInfo[0]->TMDSType = TMDS_INT;
-	pRADEONEnt->PortInfo[0]->ConnectorType = CONNECTOR_DVI_I;
+        ((info->BiosConnector[0].DDCType == 0) &&
+        (info->BiosConnector[1].DDCType == 0))) {
+	if (info->IsMobility) {
+	    /* Below is the most common setting, but may not be true */
+	    info->BiosConnector[0].DDCType = DDC_LCD;
+	    info->BiosConnector[0].DACType = DAC_UNKNOWN;
+	    info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
+	    info->BiosConnector[0].ConnectorType = CONNECTOR_PROPRIETARY;
 
-	pRADEONEnt->PortInfo[1]->MonType = MT_UNKNOWN;
-	pRADEONEnt->PortInfo[1]->DDCType = DDC_VGA;
-	pRADEONEnt->PortInfo[1]->DACType = DAC_PRIMARY;
-	pRADEONEnt->PortInfo[1]->TMDSType = TMDS_EXT;
-	pRADEONEnt->PortInfo[1]->ConnectorType = CONNECTOR_CRT;
+	    info->BiosConnector[1].DDCType = DDC_VGA;
+	    info->BiosConnector[1].DACType = DAC_PRIMARY;
+	    info->BiosConnector[1].TMDSType = TMDS_EXT;
+	    info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
+	} else {
+	    /* Below is the most common setting, but may not be true */
+	    info->BiosConnector[0].DDCType = DDC_DVI;
+	    info->BiosConnector[0].DACType = DAC_TVDAC;
+	    info->BiosConnector[0].TMDSType = TMDS_INT;
+	    info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
 
+	    info->BiosConnector[1].DDCType = DDC_VGA;
+	    info->BiosConnector[1].DACType = DAC_PRIMARY;
+	    info->BiosConnector[1].TMDSType = TMDS_EXT;
+	    info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
+	}
 
        /* Some cards have the DDC lines swapped and we have no way to
         * detect it yet (Mac cards)
         */
        if (xf86ReturnOptValBool(info->Options, OPTION_REVERSE_DDC, FALSE)) {
-           pRADEONEnt->PortInfo[0]->DDCType = DDC_VGA;
-           pRADEONEnt->PortInfo[1]->DDCType = DDC_DVI;
+           info->BiosConnector[0].DDCType = DDC_VGA;
+           info->BiosConnector[1].DDCType = DDC_DVI;
         }
     }
 
     /* always make TMDS_INT port first*/
-    if (pRADEONEnt->PortInfo[1]->TMDSType == TMDS_INT) {
+    if (info->BiosConnector[1].TMDSType == TMDS_INT) {
 	RADEONSwapOutputs(pScrn);
-    } else if ((pRADEONEnt->PortInfo[0]->TMDSType != TMDS_INT &&
-                pRADEONEnt->PortInfo[1]->TMDSType != TMDS_INT)) {
+    } else if ((info->BiosConnector[0].TMDSType != TMDS_INT &&
+                info->BiosConnector[1].TMDSType != TMDS_INT)) {
         /* no TMDS_INT port, make primary DAC port first */
 	/* On my Inspiron 8600 both internal and external ports are
 	   marked DAC_PRIMARY in BIOS. So be extra careful - only
 	   swap when the first port is not DAC_PRIMARY */
-        if ((!(pRADEONEnt->PortInfo[0]->ConnectorType == CONNECTOR_PROPRIETARY)) &&  (pRADEONEnt->PortInfo[1]->DACType == DAC_PRIMARY) &&
-	     (pRADEONEnt->PortInfo[0]->DACType != DAC_PRIMARY)) {
+        if ((!(info->BiosConnector[0].ConnectorType == CONNECTOR_PROPRIETARY)) &&  (info->BiosConnector[1].DACType == DAC_PRIMARY) &&
+	     (info->BiosConnector[0].DACType != DAC_PRIMARY)) {
 	    RADEONSwapOutputs(pScrn);
         }
     }
 
     if (info->HasSingleDAC) {
         /* For RS300/RS350/RS400 chips, there is no primary DAC. Force VGA port to use TVDAC*/
-        if (pRADEONEnt->PortInfo[0]->ConnectorType == CONNECTOR_CRT) {
-            pRADEONEnt->PortInfo[0]->DACType = DAC_TVDAC;
-            pRADEONEnt->PortInfo[1]->DACType = DAC_PRIMARY;
+        if (info->BiosConnector[0].ConnectorType == CONNECTOR_CRT) {
+            info->BiosConnector[0].DACType = DAC_TVDAC;
+            info->BiosConnector[1].DACType = DAC_PRIMARY;
         } else {
-            pRADEONEnt->PortInfo[1]->DACType = DAC_TVDAC;
-            pRADEONEnt->PortInfo[0]->DACType = DAC_PRIMARY;
+            info->BiosConnector[1].DACType = DAC_TVDAC;
+            info->BiosConnector[0].DACType = DAC_PRIMARY;
         }
     } else if (!pRADEONEnt->HasCRTC2) {
-        pRADEONEnt->PortInfo[0]->DACType = DAC_PRIMARY;
+        info->BiosConnector[0].DACType = DAC_PRIMARY;
     }
-
+#if 0
     /*
      * MonitorLayout option takes a string for two monitors connected in following format:
      * Option "MonitorLayout" "primary-port-display, secondary-port-display"
@@ -2971,7 +2726,6 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	}
     }
 
-#if 1
     if (info->IsMobility) {
         pRADEONEnt->PortInfo[2]->DDCType = DDC_DVI;
         pRADEONEnt->PortInfo[2]->TMDSType = TMDS_INT;
@@ -2986,18 +2740,103 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
     }
 #endif
 
-    //    for (i = 0; i < xf86_config->num_output; i++) {
-    for (i = 0 ; i < info->max_connectors; i++) {
-	RADEONOutputPrivatePtr radeon_output = pRADEONEnt->PortInfo[i];
-
-	int DDCReg = 0;
-	char *names[] = { "DDC1", "DDC2", "DDC3" };
-
+    for (i = 0 ; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
+	if (!radeon_output) {
+	    return FALSE;
+	}
+	radeon_output->MonType = MT_UNKNOWN;
+	radeon_output->DDCType = info->BiosConnector[i].DDCType;
+	radeon_output->DACType = info->BiosConnector[i].DACType;
+	radeon_output->TMDSType = info->BiosConnector[i].TMDSType;
+	radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
 	RADEONSetOutputType(pScrn, radeon_output);
+	output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
+	if (!output) {
+	    return FALSE;
+	}
+	output->driver_private = radeon_output;
+	output->possible_crtcs = 1;
+	if (radeon_output->type != OUTPUT_LVDS)
+ 	    output->possible_crtcs |= 2;
+
+	output->possible_clones = 0 /*1|2*/;
+
+	RADEONInitConnector(output);
+    }
+
+    /* if it's a mobility make sure we have a LVDS port */
+    if (info->IsMobility) {
+	if (info->IsAtomBios) {
+	    if (info->BiosConnector[0].ConnectorType != CONNECTOR_LVDS_ATOM &&
+		info->BiosConnector[1].ConnectorType != CONNECTOR_LVDS_ATOM) {
+		/* add LVDS port */
+		RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
+		if (!radeon_output) {
+		    return FALSE;
+		}
+		radeon_output->MonType = MT_UNKNOWN;
+		radeon_output->DDCType = DDC_LCD;
+		radeon_output->DACType = DAC_UNKNOWN;
+		radeon_output->TMDSType = TMDS_UNKNOWN;
+		radeon_output->ConnectorType = CONNECTOR_LVDS_ATOM;
+		RADEONSetOutputType(pScrn, radeon_output);
+		output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
+		if (!output) {
+		    return FALSE;
+		}
+		output->driver_private = radeon_output;
+		output->possible_crtcs = 1;
+		output->possible_clones = 0 /*1|2*/;
+
+		RADEONInitConnector(output);
+
+	    }
+	} else {
+	    if (info->BiosConnector[0].ConnectorType != CONNECTOR_PROPRIETARY &&
+		info->BiosConnector[1].ConnectorType != CONNECTOR_PROPRIETARY) {
+		/* add LVDS port */
+		RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
+		if (!radeon_output) {
+		    return FALSE;
+		}
+		radeon_output->MonType = MT_UNKNOWN;
+		radeon_output->DDCType = DDC_LCD;
+		radeon_output->DACType = DAC_UNKNOWN;
+		radeon_output->TMDSType = TMDS_UNKNOWN;
+		radeon_output->ConnectorType = CONNECTOR_PROPRIETARY;
+		RADEONSetOutputType(pScrn, radeon_output);
+		output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
+		if (!output) {
+		    return FALSE;
+		}
+		output->driver_private = radeon_output;
+		output->possible_crtcs = 1;
+		output->possible_clones = 0 /*1|2*/;
+
+		RADEONInitConnector(output);
+	    }
+	}
+    }
+    return TRUE;
+}
+
+#if 0
+Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr      info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    int i;
+
+    if (pRADEONEnt->pOutput[0])
+        return TRUE;
+
+    /* for now always allocate max connectors */
+    for (i = 0 ; i < info->max_connectors; i++) {
 
 	pRADEONEnt->pOutput[i] = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[pRADEONEnt->PortInfo[i]->type]);
-	/*if (!pRADEONEnt->pOutput[i])
-	  return FALSE;*/
+	if (!pRADEONEnt->pOutput[i])
+	    return FALSE;
 	
 	pRADEONEnt->pOutput[i]->driver_private = pRADEONEnt->PortInfo[i];
 	pRADEONEnt->PortInfo[i]->num = i;
@@ -3007,40 +2846,11 @@ void RADEONSetupConnectors(ScrnInfoPtr pScrn)
  	    pRADEONEnt->pOutput[i]->possible_crtcs |= 2;
 
 	pRADEONEnt->pOutput[i]->possible_clones = 0 /*1|2*/;
-
-	output = pRADEONEnt->pOutput[i];
-
-	switch(radeon_output->DDCType) {
-	case DDC_MONID: DDCReg = RADEON_GPIO_MONID; break;
-	case DDC_DVI  : DDCReg = RADEON_GPIO_DVI_DDC; break;
-	case DDC_VGA: DDCReg = RADEON_GPIO_VGA_DDC; break;
-	case DDC_CRT2: DDCReg = RADEON_GPIO_CRT2_DDC; break;
-	default: break;
-	}
-
-	if (DDCReg) {
-	    radeon_output->DDCReg = DDCReg;
-	    RADEONI2CInit(pScrn, &radeon_output->pI2CBus, DDCReg, names[i]);
-	}
-
-	if (radeon_output->type == OUTPUT_LVDS) {
-	    RADEONGetLVDSInfo(output);
-	}
-
-	if (radeon_output->type == OUTPUT_DVI) {
-	    RADEONGetTMDSInfo(output);
-
-	    if (i == 0)
-		RADEONGetHardCodedEDIDFromBIOS(output);
-
-	    /*RADEONUpdatePanelSize(output);*/
-	}
-
-	if (radeon_output->DACType == DAC_TVDAC) {
-	    RADEONGetTVDacAdjInfo(output);
-	}
     }
+
+    return TRUE;
 }
+#endif
 
 #if 0
 xf86OutputPtr RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num)
