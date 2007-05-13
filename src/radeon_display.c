@@ -2473,7 +2473,7 @@ void RADEONInitConnector(xf86OutputPtr output)
     ScrnInfoPtr	    pScrn = output->scrn;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int DDCReg = 0;
-    char* name = "DDC Bus";//OutputType[radeon_output->type];
+    char* name = OutputType[radeon_output->type];
 
     switch(radeon_output->DDCType) {
     case DDC_MONID: DDCReg = RADEON_GPIO_MONID; break;
@@ -2732,10 +2732,15 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    return FALSE;
 	}
 	radeon_output->MonType = MT_UNKNOWN;
-	radeon_output->DDCType = info->BiosConnector[i].DDCType;
-	radeon_output->DACType = info->BiosConnector[i].DACType;
-	radeon_output->TMDSType = info->BiosConnector[i].TMDSType;
 	radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
+	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM) ||
+	    radeon_output->ConnectorType == CONNECTOR_DVI_D)
+	    radeon_output->DACType = DAC_UNKNOWN;
+	else
+	    radeon_output->DACType = info->BiosConnector[i].DACType;
+	radeon_output->DDCType = info->BiosConnector[i].DDCType;
+	radeon_output->TMDSType = info->BiosConnector[i].TMDSType;
+
 	RADEONSetOutputType(pScrn, radeon_output);
 	output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
 	if (!output) {
