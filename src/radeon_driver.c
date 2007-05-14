@@ -1427,23 +1427,6 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, from,
 	       "Mapped VideoRAM: %d kByte (%d bit %s SDRAM)\n", pScrn->videoRam, info->RamWidth, info->IsDDR?"DDR":"SDR");
 
-    /* FIXME: For now, split FB into two equal sections. This should
-     * be able to be adjusted by user with a config option. */
-    if (info->IsPrimary) {
-        pScrn->videoRam /= 2;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		"Using %dk of videoram for primary head\n",
-		pScrn->videoRam);
-    }
-
-    if (info->IsSecondary) {  
-        pScrn->videoRam /= 2;
-        info->LinearAddr += pScrn->videoRam * 1024;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		"Using %dk of videoram for secondary head\n",
-		pScrn->videoRam);
-    }
-
     pScrn->videoRam  &= ~1023;
     info->FbMapSize  = pScrn->videoRam * 1024;
 
@@ -2078,18 +2061,6 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     info->pLibDRMVersion = NULL;
     info->pKernelDRMVersion = NULL;
 
-    if (xf86IsEntityShared(info->pEnt->index)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Direct Rendering Disabled -- "
-		   "Dual-head configuration is not working with "
-		   "DRI at present.\n"
-		   "Please use the radeon randr 1.2 support option if you "
-		   "want Dual-head with DRI.\n");
-	return FALSE;
-    }
-    if (info->IsSecondary)
-        return FALSE;
-
     if (info->Chipset == PCI_CHIP_RN50_515E ||
 	info->Chipset == PCI_CHIP_RN50_5969) {
     	if (xf86ReturnOptValBool(info->Options, OPTION_DRI, FALSE)) {
@@ -2312,14 +2283,7 @@ static void RADEONPreInitColorTiling(ScrnInfoPtr pScrn)
     }
 #endif /* XF86DRI */
 
-    if ((info->allowColorTiling) && (info->IsSecondary)) {
-	/* can't have tiling on the 2nd head (as long as it can't use drm).
-	 * We'd never get the surface save/restore (vt switching) right...
-	 */
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Color tiling disabled for 2nd head\n");
-	info->allowColorTiling = FALSE;
-    }
-    else if ((info->allowColorTiling) && (info->FBDev)) {
+    if ((info->allowColorTiling) && (info->FBDev)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "Color tiling not supported with UseFBDev option\n");
 	info->allowColorTiling = FALSE;
@@ -2525,11 +2489,8 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
     int i;
 
-    if (!info->IsSecondary) {
-      
-      if (!RADEONAllocateControllers(pScrn))
-	  return FALSE;
-    }
+    if (!RADEONAllocateControllers(pScrn))
+	return FALSE;
 
     RADEONGetBIOSInfo(pScrn, pInt10);
 
@@ -2590,8 +2551,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     if (!RADEONGetRec(pScrn)) return FALSE;
 
     info               = RADEONPTR(pScrn);
-    info->IsSecondary  = FALSE;
-    info->IsPrimary     = FALSE;
     info->IsSwitching  = FALSE;
     info->MMIO         = NULL;
 
@@ -2635,30 +2594,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
      */
     RADEONPreInt10Save(pScrn, &int10_save);
 #endif
-
-    if (xf86IsEntityShared(info->pEnt->index)) {
-	if (xf86IsPrimInitDone(info->pEnt->index)) {
-
-	    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-
-	    info->IsSecondary = TRUE;
-	    if (!pRADEONEnt->HasSecondary) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Only one monitor detected, Second screen "
-			   "will NOT be created\n");
-		goto fail2;
-	    }
-	    pRADEONEnt->pSecondaryScrn = pScrn;
-	} else {
-	    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-
-	    info->IsPrimary = TRUE;
-
-	    xf86SetPrimInitDone(info->pEnt->index);
-
-	    pRADEONEnt->pPrimaryScrn        = pScrn;
-	}
-    }
 
     if (flags & PROBE_DETECT) {
 	RADEONProbeDDC(pScrn, info->pEnt->index);
@@ -2874,10 +2809,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
 fail:
 				/* Pre-init failed. */
-    if (info->IsSecondary) {
-        RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-	pRADEONEnt->HasSecondary = FALSE;
-    }
 				/* Free the video bios (if applicable) */
     if (info->VBIOS) {
 	xfree(info->VBIOS);
@@ -3368,7 +3299,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     info->accel        = NULL;
 #endif
     pScrn->fbOffset    = info->frontOffset;
-    if (info->IsSecondary) pScrn->fbOffset = pScrn->videoRam * 1024;
     if (!RADEONMapMem(pScrn)) return FALSE;
 
 #ifdef XF86DRI
@@ -3380,7 +3310,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     RADEONSave(pScrn);
 
-    if ((!info->IsSecondary) && info->IsMobility) {
+    if (info->IsMobility) {
         if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
 	    RADEONSetDynamicClock(pScrn, 1);
         } else {
@@ -3388,8 +3318,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
         }
     }
 
-    if ((!info->IsSecondary) && (IS_R300_VARIANT || IS_RV100_VARIANT))
-      RADEONForceSomeClocks(pScrn);
+    if (IS_R300_VARIANT || IS_RV100_VARIANT)
+	RADEONForceSomeClocks(pScrn);
 
     if (info->allowColorTiling && (pScrn->virtualX > info->MaxSurfaceWidth)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -3439,15 +3369,13 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
      */
     RADEONInitMemoryMap(pScrn);
 
-    if (!info->IsSecondary) {
-	/* empty the surfaces */
-	unsigned char *RADEONMMIO = info->MMIO;
-	unsigned int i;
-	for (i = 0; i < 8; i++) {
-	    OUTREG(RADEON_SURFACE0_INFO + 16 * i, 0);
-	    OUTREG(RADEON_SURFACE0_LOWER_BOUND + 16 * i, 0);
-	    OUTREG(RADEON_SURFACE0_UPPER_BOUND + 16 * i, 0);
-	}
+    /* empty the surfaces */
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned int i;
+    for (i = 0; i < 8; i++) {
+	OUTREG(RADEON_SURFACE0_INFO + 16 * i, 0);
+	OUTREG(RADEON_SURFACE0_LOWER_BOUND + 16 * i, 0);
+	OUTREG(RADEON_SURFACE0_UPPER_BOUND + 16 * i, 0);
     }
 
 #ifdef XF86DRI
@@ -3467,10 +3395,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 #endif
 
     /* Initial setup of surfaces */
-    if (!info->IsSecondary) {
-	RADEONTRACE(("Setting up initial surfaces\n"));
-	RADEONChangeSurfaces(pScrn);
-    }
+    RADEONTRACE(("Setting up initial surfaces\n"));
+    RADEONChangeSurfaces(pScrn);
 
 				/* Memory manager setup */
 
@@ -3704,10 +3630,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 #endif
 
     /* Make sure surfaces are allright since DRI setup may have changed them */
-    if (!info->IsSecondary) {
-	RADEONTRACE(("Setting up final surfaces\n"));
-	RADEONChangeSurfaces(pScrn);
-    }
+    RADEONTRACE(("Setting up final surfaces\n"));
+    RADEONChangeSurfaces(pScrn);
 
     /* Enable aceleration */
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
@@ -4614,27 +4538,24 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	unsigned int surf_info = swap_pattern;
 	unsigned char *RADEONMMIO = info->MMIO;
 	/* we don't need anything like WaitForFifo, no? */
-	if (!info->IsSecondary) {
-	    if (info->tilingEnabled) {
-		if (IS_R300_VARIANT)
-		   surf_info |= (width_bytes / 8) | color_pattern;
-		else
-		   surf_info |= (width_bytes / 16) | color_pattern;
-	    }
-	    OUTREG(RADEON_SURFACE0_INFO, surf_info);
-	    OUTREG(RADEON_SURFACE0_LOWER_BOUND, 0);
-	    OUTREG(RADEON_SURFACE0_UPPER_BOUND, bufferSize - 1);
+	if (info->tilingEnabled) {
+	    if (IS_R300_VARIANT)
+		surf_info |= (width_bytes / 8) | color_pattern;
+	    else
+		surf_info |= (width_bytes / 16) | color_pattern;
+	}
+	OUTREG(RADEON_SURFACE0_INFO, surf_info);
+	OUTREG(RADEON_SURFACE0_LOWER_BOUND, 0);
+	OUTREG(RADEON_SURFACE0_UPPER_BOUND, bufferSize - 1);
 /*	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"surface0 set to %x, LB 0x%x UB 0x%x\n",
 		surf_info, 0, bufferSize - 1024);*/
-	}
     }
 
     /* Update surface images */
     RADEONSaveSurfaces(pScrn, &info->ModeReg);
 }
 
-// hack, but it's going away soon
 void
 RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num)
 {
@@ -4677,7 +4598,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     /* Disable all outputs at initial mode set.  the ones we want will
        get set by RADEONEnableDisplay()
      */
-    if (!info->IsSwitching && !info->IsSecondary)
+    if (!info->IsSwitching)
         RADEONDisableDisplays(pScrn);
 
     /* When changing mode with Dual-head card, care must be taken for
@@ -4693,30 +4614,20 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
      * in all cases
      */
     if (info->IsSwitching) {
-	if (info->IsSecondary) {
-	    RADEONRestoreMemMapRegisters(pScrn, restore);
-	    RADEONRestoreCommonRegisters(pScrn, restore);
+	RADEONRestoreMemMapRegisters(pScrn, restore);
+	RADEONRestoreCommonRegisters(pScrn, restore);
+	if (pCRTC2->binding == 1) {
 	    RADEONRestoreCrtc2Registers(pScrn, restore);
 	    RADEONRestorePLL2Registers(pScrn, restore);
-	    RADEONRestoreFPRegisters(pScrn, restore);
-	    RADEONRestoreDACRegisters(pScrn, restore);
-	    RADEONEnableOutputs(pScrn, 1);
-	} else {
-	    RADEONRestoreMemMapRegisters(pScrn, restore);
-	    RADEONRestoreCommonRegisters(pScrn, restore);
-	    if (pCRTC2->binding == 1) {
-		RADEONRestoreCrtc2Registers(pScrn, restore);
-		RADEONRestorePLL2Registers(pScrn, restore);
-	    }
+	}
 
-            RADEONRestoreCrtcRegisters(pScrn, restore);
-            RADEONRestorePLLRegisters(pScrn, restore);
-	    RADEONRestoreFPRegisters(pScrn, restore);
-	    RADEONRestoreDACRegisters(pScrn, restore);
-	    RADEONEnableOutputs(pScrn, 0);
-	    if (pCRTC2->binding == 1) {
-	      RADEONEnableOutputs(pScrn, 1);
-	    }
+	RADEONRestoreCrtcRegisters(pScrn, restore);
+	RADEONRestorePLLRegisters(pScrn, restore);
+	RADEONRestoreFPRegisters(pScrn, restore);
+	RADEONRestoreDACRegisters(pScrn, restore);
+	RADEONEnableOutputs(pScrn, 0);
+	if (pCRTC2->binding == 1) {
+	    RADEONEnableOutputs(pScrn, 1);
 	}
     } else {
 	RADEONRestoreMemMapRegisters(pScrn, restore);
@@ -4730,18 +4641,13 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	RADEONRestorePLLRegisters(pScrn, restore);
 	RADEONRestoreFPRegisters(pScrn, restore);
 	RADEONRestoreDACRegisters(pScrn, restore);
-	ErrorF("finished FP restore\n");
 
 	RADEONEnableOutputs(pScrn, 0);
-	ErrorF("enable output1 done\n");
 
 	if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
 	    RADEONEnableOutputs(pScrn, 1);
-	    ErrorF("enable output2 done\n");
 	}
     }
-
-    ErrorF("finished modeset\n");
 
 #if 0
     RADEONRestorePalette(pScrn, &info->SavedReg);
@@ -4959,21 +4865,14 @@ static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     RADEONTRACE(("RADEONSaveMode(%p)\n", save));
 
-    if (info->IsSecondary) {
-        RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-        RADEONInfoPtr info0 = RADEONPTR(pRADEONEnt->pPrimaryScrn);
-        memcpy(&info->SavedReg, &info0->SavedReg, sizeof(RADEONSaveRec));
-    } else {
-        RADEONSaveMemMapRegisters(pScrn, save);
-        RADEONSaveCommonRegisters(pScrn, save);
-        RADEONSavePLLRegisters (pScrn, save);
-        RADEONSaveCrtcRegisters (pScrn, save);
-        RADEONSaveFPRegisters (pScrn, save);
-        RADEONSaveCrtc2Registers (pScrn, save);
-        RADEONSavePLL2Registers (pScrn, save);
-	/*RADEONSavePalette(pScrn, save);*/
-	/*memcpy(&info->ModeReg, &info->SavedReg, sizeof(RADEONSaveRec));*/
-    }
+    RADEONSaveMemMapRegisters(pScrn, save);
+    RADEONSaveCommonRegisters(pScrn, save);
+    RADEONSavePLLRegisters (pScrn, save);
+    RADEONSaveCrtcRegisters (pScrn, save);
+    RADEONSaveFPRegisters (pScrn, save);
+    RADEONSaveCrtc2Registers (pScrn, save);
+    RADEONSavePLL2Registers (pScrn, save);
+    /*RADEONSavePalette(pScrn, save);*/
 
     RADEONTRACE(("RADEONSaveMode returns %p\n", save));
 }
@@ -4992,35 +4891,33 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 	return;
     }
 
-    if (!info->IsSecondary) {
-#ifdef WITH_VGAHW
-        if (info->VGAAccess) {
-           vgaHWPtr hwp = VGAHWPTR(pScrn);
 
-            vgaHWUnlock(hwp);
+#ifdef WITH_VGAHW
+    if (info->VGAAccess) {
+	vgaHWPtr hwp = VGAHWPTR(pScrn);
+
+	vgaHWUnlock(hwp);
 # if defined(__powerpc__)
-           /* temporary hack to prevent crashing on PowerMacs when trying to
-            * read VGA fonts and colormap, will find a better solution
-            * in the future. TODO: Check if there's actually some VGA stuff
-            * setup in the card at all !!
-            */
-           vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE); /* Save mode only */
+	/* temporary hack to prevent crashing on PowerMacs when trying to
+	 * read VGA fonts and colormap, will find a better solution
+	 * in the future. TODO: Check if there's actually some VGA stuff
+	 * setup in the card at all !!
+	 */
+	vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE); /* Save mode only */
 # else
-           /* Save mode * & fonts & cmap */
-           vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS);
+	/* Save mode * & fonts & cmap */
+	vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS);
 # endif
-           vgaHWLock(hwp);
-       }
-#endif
-	save->dp_datatype      = INREG(RADEON_DP_DATATYPE);
-	save->rbbm_soft_reset  = INREG(RADEON_RBBM_SOFT_RESET);
-	save->clock_cntl_index = INREG(RADEON_CLOCK_CNTL_INDEX);
-	RADEONPllErrataAfterIndex(info);
+	vgaHWLock(hwp);
     }
+#endif
+    save->dp_datatype      = INREG(RADEON_DP_DATATYPE);
+    save->rbbm_soft_reset  = INREG(RADEON_RBBM_SOFT_RESET);
+    save->clock_cntl_index = INREG(RADEON_CLOCK_CNTL_INDEX);
+    RADEONPllErrataAfterIndex(info);
 
     RADEONSaveMode(pScrn, save);
-    if (!info->IsSecondary)
-	RADEONSaveSurfaces(pScrn, save);
+    RADEONSaveSurfaces(pScrn, save);
 }
 
 /* Restore the original (text) mode */
@@ -5060,8 +4957,7 @@ void RADEONRestore(ScrnInfoPtr pScrn)
 #endif
 
     RADEONRestoreMode(pScrn, restore);
-    if (!info->IsSecondary)
-	RADEONRestoreSurfaces(pScrn, restore);
+    RADEONRestoreSurfaces(pScrn, restore);
 
 #if 1
     /* Temp fix to "solve" VT switch problems.  When switching VTs on
@@ -5075,34 +4971,16 @@ void RADEONRestore(ScrnInfoPtr pScrn)
 #ifdef WITH_VGAHW
     if (info->VGAAccess) {
        vgaHWPtr hwp = VGAHWPTR(pScrn);
-        if (!info->IsSecondary) {
-            vgaHWUnlock(hwp);
+       vgaHWUnlock(hwp);
 # if defined(__powerpc__)
-           /* Temporary hack to prevent crashing on PowerMacs when trying to
-            * write VGA fonts, will find a better solution in the future
-            */
-           vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE );
+       /* Temporary hack to prevent crashing on PowerMacs when trying to
+	* write VGA fonts, will find a better solution in the future
+	*/
+       vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE );
 # else
-           vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
+       vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
 # endif
-           vgaHWLock(hwp);
-        } else {
-            RADEONEntPtr  pRADEONEnt = RADEONEntPriv(pScrn);
-           ScrnInfoPtr   pScrn0 = pRADEONEnt->pPrimaryScrn;
-            RADEONInfoPtr info0 = RADEONPTR(pScrn0);
-           vgaHWPtr      hwp0;
-
-           if (info0->VGAAccess) {
-               hwp0 = VGAHWPTR(pScrn0);
-               vgaHWUnlock(hwp0);
-#if defined(__powerpc__)
-               vgaHWRestore(pScrn0, &hwp0->SavedReg, VGA_SR_MODE);
-#else
-               vgaHWRestore(pScrn0, &hwp0->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
-#endif
-               vgaHWLock(hwp0);
-           }
-       }
+       vgaHWLock(hwp);
     }
 #endif
 #if 0
@@ -6244,7 +6122,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, Bool crtc2)
      pick up the new offset value at the end of each scanline, but the new offset_cntl value
      only after a vsync. We'd probably need to wait (in drm) for vsync and only then update
      OFFSET and OFFSET_CNTL, if the y coord has changed. Seems hard to fix. */
-    if (crtc2 || info->IsSecondary) {
+    if (crtc2) {
 	reg = RADEON_CRTC2_OFFSET;
 	regcntl = RADEON_CRTC2_OFFSET_CNTL;
 	xytilereg = R300_CRTC2_TILE_X0_Y0;
@@ -6301,7 +6179,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, Bool crtc2)
 	/* can't get at sarea in a semi-sane way? */
 	pSAREA = (void *)((char*)pSAREAPriv - sizeof(XF86DRISAREARec));
 
-	if (crtc2 || info->IsSecondary) {
+	if (crtc2) {
 	    pSAREAPriv->crtc2_base = Base;
 	}
 	else {
@@ -6401,7 +6279,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 	{
 	    xf86CrtcPtr	crtc = xf86_config->crtc[i];
 	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-	    radeon_crtc->binding = info->IsSecondary ? 2 : 1;
+	    radeon_crtc->binding = 1;
 	    /* Mark that we'll need to re-set the mode for sure */
 	    memset(&crtc->mode, 0, sizeof(crtc->mode));
 	    if (!crtc->desiredMode.CrtcHDisplay) {
@@ -6418,8 +6296,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 	}
     }
 
-    if (!info->IsSecondary)
-	RADEONRestoreSurfaces(pScrn, &info->ModeReg);
+    RADEONRestoreSurfaces(pScrn, &info->ModeReg);
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
     	if (info->cardType == CARD_PCIE && info->pKernelDRMVersion->version_minor >= 19 && info->FbSecureSize)

@@ -179,9 +179,6 @@ typedef struct
     Bool IsSecondaryRestored;
     Bool RestorePrimary;
 
-    ScrnInfoPtr pSecondaryScrn;
-    ScrnInfoPtr pPrimaryScrn;
-
     Bool ReversedDAC;	  /* TVDAC used as primary dac */
     Bool ReversedTMDS;    /* DDC_DVI is used for external TMDS */
     xf86CrtcPtr pCrtc[RADEON_MAX_CRTC];

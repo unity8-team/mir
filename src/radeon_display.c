@@ -1404,22 +1404,10 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     xf86CrtcPtr crtc;
     int pixel_bytes2 = 0;
 
-    if (pRADEONEnt->pSecondaryScrn) {
-	if (info->IsSecondary) return;
-	info2 = RADEONPTR(pRADEONEnt->pSecondaryScrn);
-    } else if (pRADEONEnt->Controller[1]->binding == 1) info2 = info;
-
     mode1 = info->CurrentLayout.mode;
-    if ((pRADEONEnt->HasSecondary) && info2) {
-	mode2 = info2->CurrentLayout.mode;
-    } else {
-	mode2 = NULL;
-    }
+    mode2 = NULL;
+    pixel_bytes2 = info->CurrentLayout.pixel_bytes;
 
-    if (info2) 
-      pixel_bytes2 = info2->CurrentLayout.pixel_bytes;
-    
-    
     if (xf86_config->num_crtc == 2) {
       pixel_bytes2 = 0;
       mode2 = NULL;

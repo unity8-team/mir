@@ -1333,7 +1333,7 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
      */
 
     /* Figure out which head we are on */
-    if ((info->OverlayOnCRTC2) || info->IsSecondary)
+    if (info->OverlayOnCRTC2)
 	dot_clock = info->ModeReg.dot_clock_freq_2;
     else
 	dot_clock = info->ModeReg.dot_clock_freq;
@@ -2454,7 +2454,7 @@ RADEONDisplayVideo(
        workarounds for chip erratas */
 
     /* Figure out which head we are on for dot clock */
-    if (info->OverlayOnCRTC2 || info->IsSecondary)
+    if (info->OverlayOnCRTC2)
         dot_clock = info->ModeReg.dot_clock_freq_2;
     else
         dot_clock = info->ModeReg.dot_clock_freq;
@@ -2575,14 +2575,6 @@ RADEONDisplayVideo(
 	offset5 += ((left >> 16) & ~7) << 1;
 	offset6 += ((left >> 16) & ~7) << 1;
     }
-    if (info->IsSecondary) {
-	offset1 += info->FbMapSize;
-	offset2 += info->FbMapSize;
-	offset3 += info->FbMapSize;
-	offset4 += info->FbMapSize;
-	offset5 += info->FbMapSize;
-	offset6 += info->FbMapSize;
-    }
 
     tmp = (left & 0x0003ffff) + 0x00028000 + (h_inc << 3);
     p1_h_accum_init = ((tmp <<  4) & 0x000f8000) |
@@ -2641,7 +2633,7 @@ RADEONDisplayVideo(
      * rendering for the second head.
      */
 
-    if (info->OverlayOnCRTC2 || info->IsSecondary) {
+    if (info->OverlayOnCRTC2) {
         x_off = 0;
         OUTREG(RADEON_OV1_Y_X_START, ((dstBox->x1 + x_off) |
                                       ((dstBox->y1*y_mult) << 16)));
