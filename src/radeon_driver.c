@@ -2551,7 +2551,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     if (!RADEONGetRec(pScrn)) return FALSE;
 
     info               = RADEONPTR(pScrn);
-    info->IsSwitching  = FALSE;
     info->MMIO         = NULL;
 
     info->pEnt         = xf86GetEntityInfo(pScrn->entityList[pScrn->numEntities - 1]);
@@ -3971,7 +3970,6 @@ void RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
      * CRT are connected.
      */
     if (pRADEONEnt->HasCRTC2 &&
-	!info->IsSwitching &&
 	info->ChipFamily != CHIP_FAMILY_R200 &&
 	!IS_R300_VARIANT) {
 	CARD32        tmp;
@@ -4598,8 +4596,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     /* Disable all outputs at initial mode set.  the ones we want will
        get set by RADEONEnableDisplay()
      */
-    if (!info->IsSwitching)
-        RADEONDisableDisplays(pScrn);
+    RADEONDisableDisplays(pScrn);
 
     /* When changing mode with Dual-head card, care must be taken for
      * the special order in setting registers. CRTC2 has to be set
@@ -4613,40 +4610,22 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
      * We always restore MemMap first, the saverec should be up to date
      * in all cases
      */
-    if (info->IsSwitching) {
-	RADEONRestoreMemMapRegisters(pScrn, restore);
-	RADEONRestoreCommonRegisters(pScrn, restore);
-	if (pCRTC2->binding == 1) {
-	    RADEONRestoreCrtc2Registers(pScrn, restore);
-	    RADEONRestorePLL2Registers(pScrn, restore);
-	}
+    RADEONRestoreMemMapRegisters(pScrn, restore);
+    RADEONRestoreCommonRegisters(pScrn, restore);
+    if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
+	RADEONRestoreCrtc2Registers(pScrn, restore);
+	RADEONRestorePLL2Registers(pScrn, restore);
+    }
 
-	RADEONRestoreCrtcRegisters(pScrn, restore);
-	RADEONRestorePLLRegisters(pScrn, restore);
-	RADEONRestoreFPRegisters(pScrn, restore);
-	RADEONRestoreDACRegisters(pScrn, restore);
-	RADEONEnableOutputs(pScrn, 0);
-	if (pCRTC2->binding == 1) {
-	    RADEONEnableOutputs(pScrn, 1);
-	}
-    } else {
-	RADEONRestoreMemMapRegisters(pScrn, restore);
-	RADEONRestoreCommonRegisters(pScrn, restore);
-	if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
-	    RADEONRestoreCrtc2Registers(pScrn, restore);
-	    RADEONRestorePLL2Registers(pScrn, restore);
-	}
+    RADEONRestoreCrtcRegisters(pScrn, restore);
+    RADEONRestorePLLRegisters(pScrn, restore);
+    RADEONRestoreFPRegisters(pScrn, restore);
+    RADEONRestoreDACRegisters(pScrn, restore);
 
-	RADEONRestoreCrtcRegisters(pScrn, restore);
-	RADEONRestorePLLRegisters(pScrn, restore);
-	RADEONRestoreFPRegisters(pScrn, restore);
-	RADEONRestoreDACRegisters(pScrn, restore);
+    RADEONEnableOutputs(pScrn, 0);
 
-	RADEONEnableOutputs(pScrn, 0);
-
-	if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
-	    RADEONEnableOutputs(pScrn, 1);
-	}
+    if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
+	RADEONEnableOutputs(pScrn, 1);
     }
 
 #if 0
@@ -5475,6 +5454,7 @@ Bool RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->fp_crtc_h_total_disp = save->crtc_h_total_disp;
     save->fp_crtc_v_total_disp = save->crtc_v_total_disp;
 
+#if 0
     /* Set following registers for all cases first, if a DFP/LCD is connected on
        internal TMDS/LVDS port, they will be set by RADEONInitFPRegister
     */
@@ -5486,6 +5466,7 @@ Bool RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 				  (RADEON_HORZ_FP_LOOP_STRETCH |
 				  RADEON_HORZ_AUTO_RATIO_INC);
     }
+#endif
 
     /* get the output connected to this CRTC */
     for (i = 0; i < xf86_config->num_output; i++) {
@@ -6025,9 +6006,7 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 
 	RADEONRestoreFBDevRegisters(pScrn, &info->ModeReg);
     } else {
-	info->IsSwitching = TRUE;
 	ret = xf86SetSingleMode (pScrn, mode, RR_Rotate_0);
-	info->IsSwitching = FALSE;
     }
 
     if (info->tilingEnabled != tilingOld) {

@@ -407,9 +407,6 @@ typedef struct {
     Bool              IsMobility;       /* Mobile chips for laptops */
     Bool              IsIGP;            /* IGP chips */
     Bool              HasSingleDAC;     /* only TVDAC on chip */
-    Bool              IsSecondary;      /* Second Screen                     */
-    Bool	      IsPrimary;        /* Primary Screen */
-    Bool              IsSwitching;      /* Flag for switching mode           */
     Bool              OverlayOnCRTC2;
     Bool              ddc_mode;         /* Validate mode by matching exactly
 					 * the modes supported in DDC data
