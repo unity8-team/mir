@@ -2536,7 +2536,6 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
     if (!RADEONSetupConnectors(pScrn)) {
 	return FALSE;
     }
-
       
     RADEONMapControllers(pScrn);
 
@@ -5295,7 +5294,6 @@ static void RADEONInitLVDSRegisters(xf86OutputPtr output, RADEONSavePtr save,
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
-/* XXX saved but never used??? */
     if (IsPrimary)
 	save->lvds_gen_cntl = info->SavedReg.lvds_gen_cntl &
 				~RADEON_LVDS_SEL_CRTC2;
@@ -6150,7 +6148,7 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 	RADEONRestoreFBDevRegisters(pScrn, &info->ModeReg);
     } else {
 	info->IsSwitching = TRUE;
-	ret = TRUE; //RADEONModeInit(xf86Screens[scrnIndex], mode);
+	ret = xf86SetSingleMode (pScrn, mode, RR_Rotate_0);
 	info->IsSwitching = FALSE;
     }
 
@@ -6327,16 +6325,16 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, Bool crtc2)
 	OUTREG(regcntl, crtcoffsetcntl);
     }
 
-    if (crtc2)
-	OUTREG(reg, Base);
-    else
-	OUTREG(reg, Base);
+    OUTREG(reg, Base);
 }
 
 void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
 {
     ScrnInfoPtr    pScrn      = xf86Screens[scrnIndex];
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
+    xf86OutputPtr  output = config->output[config->compat_output];
+    xf86CrtcPtr	crtc = output->crtc;
 
 #ifdef XF86DRI
     if (info->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
@@ -6345,11 +6343,16 @@ void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
     if (info->accelOn)
         RADEON_SYNC(info, pScrn);
 
-    if (info->FBDev) {
-	fbdevHWAdjustFrame(scrnIndex, x, y, flags);
-    } else {
-	RADEONDoAdjustFrame(pScrn, x, y, FALSE);
+    if (crtc && crtc->enabled) {
+	if (info->FBDev) {
+	    fbdevHWAdjustFrame(scrnIndex, crtc->desiredX + x, crtc->desiredY + y, flags);
+	} else {
+	    RADEONDoAdjustFrame(pScrn, crtc->desiredX + x, crtc->desiredY + y, FALSE);
+	}
+	crtc->x = output->initial_x + x;
+	crtc->y = output->initial_y + y;
     }
+
 
 #ifdef XF86DRI
 	if (info->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
