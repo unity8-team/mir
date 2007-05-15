@@ -980,7 +980,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
     RADEONOutputPrivatePtr radeon_output;
     radeon_output = output->driver_private;
 
-    ErrorF("montype: %d\n", radeon_output->MonType);
+    ErrorF("enable montype: %d\n", radeon_output->MonType);
 
     if (bEnable) {
         if (radeon_output->MonType == MT_CRT) {
@@ -1017,12 +1017,10 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
             }
         } else if (radeon_output->MonType == MT_LCD) {
             tmp = INREG(RADEON_LVDS_GEN_CNTL);
-	    ErrorF("read in LVDS reg\n");
             tmp |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
             tmp &= ~(RADEON_LVDS_DISPLAY_DIS);
 	    usleep (radeon_output->PanelPwrDly * 1000);
             OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
-	    ErrorF("wrote out LVDS reg\n");
             save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
             save->lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS);
         } 
