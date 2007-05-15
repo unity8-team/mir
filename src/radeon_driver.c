@@ -4692,7 +4692,6 @@ static void RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     save->crtc_gen_cntl        = INREG(RADEON_CRTC_GEN_CNTL);
     save->crtc_ext_cntl        = INREG(RADEON_CRTC_EXT_CNTL);
-    save->dac_cntl             = INREG(RADEON_DAC_CNTL);
     save->crtc_h_total_disp    = INREG(RADEON_CRTC_H_TOTAL_DISP);
     save->crtc_h_sync_strt_wid = INREG(RADEON_CRTC_H_SYNC_STRT_WID);
     save->crtc_v_total_disp    = INREG(RADEON_CRTC_V_TOTAL_DISP);
@@ -4718,6 +4717,21 @@ static void RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	save->disp_hw_debug    = INREG (RADEON_DISP_HW_DEBUG);
 	save->crtc2_gen_cntl   = INREG(RADEON_CRTC2_GEN_CNTL);
     }
+}
+
+/* Read DAC registers */
+static void RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    save->dac_cntl              = INREG(RADEON_DAC_CNTL);
+    save->dac2_cntl             = INREG(RADEON_DAC_CNTL2);
+    save->tv_dac_cntl           = INREG(RADEON_TV_DAC_CNTL);
+    save->disp_output_cntl      = INREG(RADEON_DISP_OUTPUT_CNTL);
+    save->disp_tv_out_cntl      = INREG(RADEON_DISP_TV_OUT_CNTL);
+    save->disp_hw_debug         = INREG(RADEON_DISP_HW_DEBUG);
+
 }
 
 /* Read flat panel registers */
@@ -4749,12 +4763,6 @@ static void RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-
-    save->dac2_cntl             = INREG(RADEON_DAC_CNTL2);
-    save->tv_dac_cntl           = INREG(RADEON_TV_DAC_CNTL);
-    save->disp_output_cntl      = INREG(RADEON_DISP_OUTPUT_CNTL);
-    save->disp_tv_out_cntl      = INREG(RADEON_DISP_TV_OUT_CNTL);
-    save->disp_hw_debug         = INREG (RADEON_DISP_HW_DEBUG);
 
     save->crtc2_gen_cntl        = INREG(RADEON_CRTC2_GEN_CNTL);
     save->crtc2_h_total_disp    = INREG(RADEON_CRTC2_H_TOTAL_DISP);
@@ -4842,6 +4850,7 @@ static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
     RADEONSavePLLRegisters (pScrn, save);
     RADEONSaveCrtcRegisters (pScrn, save);
     RADEONSaveFPRegisters (pScrn, save);
+    RADEONSaveDACRegisters (pScrn, save);
     RADEONSaveCrtc2Registers (pScrn, save);
     RADEONSavePLL2Registers (pScrn, save);
     /*RADEONSavePalette(pScrn, save);*/
