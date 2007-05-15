@@ -126,7 +126,7 @@ const char *OutputType[10] = {
 
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output);
 
-Bool RADEONMapControllers(ScrnInfoPtr pScrn)
+void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
@@ -135,9 +135,6 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
     RADEONOutputPrivatePtr radeon_output;
     xf86OutputPtr output;
     int o;
-
-    pRADEONEnt->Controller[0]->binding = 1;
-    pRADEONEnt->Controller[1]->binding = 1;
 
     for (o = 0; o < xf86_config->num_output; o++) {
       output = xf86_config->output[o];
@@ -156,7 +153,6 @@ Bool RADEONMapControllers(ScrnInfoPtr pScrn)
 
     }
 
-    return TRUE;
 }
 
 /* Primary Head (DVI or Laptop Int. panel)*/
@@ -433,13 +429,14 @@ void RADEONInitConnector(xf86OutputPtr output)
     ScrnInfoPtr	    pScrn = output->scrn;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int DDCReg = 0;
-    char* name = OutputType[radeon_output->type];
+    char* name = (char*) DDCTypeName[radeon_output->DDCType];
 
     switch(radeon_output->DDCType) {
     case DDC_MONID: DDCReg = RADEON_GPIO_MONID; break;
     case DDC_DVI  : DDCReg = RADEON_GPIO_DVI_DDC; break;
-    case DDC_VGA: DDCReg = RADEON_GPIO_VGA_DDC; break;
-    case DDC_CRT2: DDCReg = RADEON_GPIO_CRT2_DDC; break;
+    case DDC_VGA  : DDCReg = RADEON_GPIO_VGA_DDC; break;
+    case DDC_CRT2 : DDCReg = RADEON_GPIO_CRT2_DDC; break;
+    case DDC_LCD  : DDCReg = RADEON_LCD_GPIO_MASK; break;
     default: break;
     }
     
@@ -455,7 +452,7 @@ void RADEONInitConnector(xf86OutputPtr output)
     if (radeon_output->type == OUTPUT_DVI) {
 	RADEONGetTMDSInfo(output);
 
-	// FIXME
+	// FIXME -- this should be done in detect or getmodes
 	/*if (i == 0)
 	  RADEONGetHardCodedEDIDFromBIOS(output);*/
 

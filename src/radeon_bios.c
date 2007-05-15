@@ -408,8 +408,6 @@ Bool RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     unsigned long tmp, i;
 
-    ErrorF("grabbing LVDS from bios");
-
     if (!info->VBIOS) return FALSE;
 
     if (info->IsAtomBios) {
@@ -550,8 +548,6 @@ Bool RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     CARD32 tmp, maxfreq;
     int i, n;
-
-    ErrorF("grabbing LVDS from bios");
 
     if (!info->VBIOS) return FALSE;
 

@@ -742,8 +742,6 @@ Bool RADEONGetLVDSInfo (xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     char* s;
 
-    ErrorF("LVDS get info");
-
     if (!RADEONGetLVDSInfoFromBIOS(output))
 	RADEONGetPanelInfoFromReg(output);
 

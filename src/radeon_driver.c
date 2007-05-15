@@ -116,8 +116,6 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore);
 static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode);
 static void RADEONSave(ScrnInfoPtr pScrn);
-//static void RADEONRestore(ScrnInfoPtr pScrn);
-//static Bool RADEONModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
 
 static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode);
 static void RADEONForceSomeClocks(ScrnInfoPtr pScrn);
@@ -2498,7 +2496,7 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
 	return FALSE;
     }
       
-    RADEONMapControllers(pScrn);
+    RADEONPrintPortMap(pScrn);
 
     RADEONGetClockInfo(pScrn);
 
@@ -3577,7 +3575,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
 
-    pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+    //    pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 
     /* Backing store setup */
     RADEONTRACE(("Initializing backing store\n"));
@@ -4612,10 +4610,8 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
      */
     RADEONRestoreMemMapRegisters(pScrn, restore);
     RADEONRestoreCommonRegisters(pScrn, restore);
-    if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
-	RADEONRestoreCrtc2Registers(pScrn, restore);
-	RADEONRestorePLL2Registers(pScrn, restore);
-    }
+    RADEONRestoreCrtc2Registers(pScrn, restore);
+    RADEONRestorePLL2Registers(pScrn, restore);
 
     RADEONRestoreCrtcRegisters(pScrn, restore);
     RADEONRestorePLLRegisters(pScrn, restore);
@@ -4623,10 +4619,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONRestoreDACRegisters(pScrn, restore);
 
     RADEONEnableOutputs(pScrn, 0);
-
-    if ((pCRTC2->binding == 1) || pRADEONEnt->HasSecondary) {
-	RADEONEnableOutputs(pScrn, 1);
-    }
+    RADEONEnableOutputs(pScrn, 1);
 
 #if 0
     RADEONRestorePalette(pScrn, &info->SavedReg);
@@ -5732,7 +5725,6 @@ Bool RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
     }
 
     Base &= ~7;                 /* 3 lower bits are always 0 */
-    save->crtc2_offset = Base;
 
 #ifdef XF86DRI
     if (info->directRenderingInited) {
@@ -6189,6 +6181,7 @@ void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
 {
     ScrnInfoPtr    pScrn      = xf86Screens[scrnIndex];
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
     xf86OutputPtr  output = config->output[config->compat_output];
     xf86CrtcPtr	crtc = output->crtc;
@@ -6204,7 +6197,10 @@ void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
 	if (info->FBDev) {
 	    fbdevHWAdjustFrame(scrnIndex, crtc->desiredX + x, crtc->desiredY + y, flags);
 	} else {
-	    RADEONDoAdjustFrame(pScrn, crtc->desiredX + x, crtc->desiredY + y, FALSE);
+	    if (crtc == pRADEONEnt->pCrtc[0])
+		RADEONDoAdjustFrame(pScrn, crtc->desiredX + x, crtc->desiredY + y, FALSE);
+	    else
+		RADEONDoAdjustFrame(pScrn, crtc->desiredX + x, crtc->desiredY + y, TRUE);
 	}
 	crtc->x = output->initial_x + x;
 	crtc->y = output->initial_y + y;
@@ -6258,7 +6254,6 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 	{
 	    xf86CrtcPtr	crtc = xf86_config->crtc[i];
 	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-	    radeon_crtc->binding = 1;
 	    /* Mark that we'll need to re-set the mode for sure */
 	    memset(&crtc->mode, 0, sizeof(crtc->mode));
 	    if (!crtc->desiredMode.CrtcHDisplay) {

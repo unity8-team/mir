@@ -833,7 +833,7 @@ extern void        RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
 extern void        RADEONSetSyncRangeFromEdid(ScrnInfoPtr pScrn, int flag);
 extern Bool        RADEONSetupConnectors(ScrnInfoPtr pScrn);
-extern Bool        RADEONMapControllers(ScrnInfoPtr pScrn);
+extern void        RADEONPrintPortMap(ScrnInfoPtr pScrn);
 extern void        RADEONEnableDisplay(xf86OutputPtr pPort, BOOL bEnable);
 extern void        RADEONDisableDisplays(ScrnInfoPtr pScrn);
 extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
