@@ -205,6 +205,7 @@ struct _I830DVODriver {
    int type;
    char *modulename;
    char *fntablename;
+   unsigned int dvo_reg;
    int address;
    const char **symbols;
    I830I2CVidOutputRec *vid_rec;
@@ -466,13 +467,6 @@ typedef struct _I830Rec {
 
    int ddc2;
 
-   /* The BIOS's fixed timings for the LVDS */
-   DisplayModePtr panel_fixed_mode;
-
-   int backlight_duty_cycle;  /* restore backlight to this value */
-   
-   Bool panel_wants_dither;
-
    CARD32 saveDSPACNTR;
    CARD32 saveDSPBCNTR;
    CARD32 savePIPEACONF;
@@ -636,9 +630,6 @@ extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 
 /* return a mask of output indices matching outputs against type_mask */
 int i830_output_clones (ScrnInfoPtr pScrn, int type_mask);
-
-/* i830_bios.c */
-DisplayModePtr i830_bios_get_panel_mode(ScrnInfoPtr pScrn);
 
 /* i830_display.c */
 Bool

@@ -144,7 +144,7 @@ sil164_mode_valid(I2CDevPtr d, DisplayModePtr mode)
 }
 
 static void
-sil164_mode_set(I2CDevPtr d, DisplayModePtr mode)
+sil164_mode_set(I2CDevPtr d, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
     /* As long as the basics are set up, since we don't have clock dependencies
      * in the mode setup, we can just leave the registers alone and everything
