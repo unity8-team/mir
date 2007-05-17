@@ -157,8 +157,6 @@ ivch_init(I2CBusPtr b, I2CSlaveAddr addr)
     struct	ivch_priv *priv;
     CARD16	temp;
 
-    xf86DrvMsg(b->scrnIndex, X_INFO, "detecting ivch\n");
-
     priv = xcalloc(1, sizeof(struct ivch_priv));
     if (priv == NULL)
 	return NULL;
@@ -191,10 +189,6 @@ ivch_init(I2CBusPtr b, I2CSlaveAddr addr)
 	goto out;
     }
 
-    ivch_read (priv, VR01, &temp); xf86DrvMsg (priv->d.pI2CBus->scrnIndex, X_INFO,
-					       "ivch VR01 0x%x\n", temp);
-    ivch_read (priv, VR40, &temp); xf86DrvMsg (priv->d.pI2CBus->scrnIndex, X_INFO,
-					       "ivch VR40 0x%x\n", temp);
     return priv;
 
 out:
@@ -250,7 +244,9 @@ ivch_mode_valid(I2CDevPtr d, DisplayModePtr mode)
 
     if (panel_fixed_mode)
     {
-	if (!xf86ModesEqual (mode, panel_fixed_mode))
+	if (mode->HDisplay > panel_fixed_mode->HDisplay)
+	    return MODE_PANEL;
+	if (mode->VDisplay > panel_fixed_mode->VDisplay)
 	    return MODE_PANEL;
     }
     
@@ -280,8 +276,6 @@ ivch_dpms(I2CDevPtr d, int mode)
     else
 	vr01 &= ~(VR01_LCD_ENABLE | VR01_DVO_ENABLE);
 
-    vr01 &= ~VR01_PANEL_FIT_ENABLE;
-
     ivch_write(priv, VR01, vr01);
 
     /* Wait for the panel to make its state transition */
@@ -300,6 +294,27 @@ ivch_dpms(I2CDevPtr d, int mode)
 static Bool
 ivch_mode_fixup(I2CDevPtr d, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
+    struct ivch_priv	*priv = d->DriverPrivate.ptr;
+    DisplayModePtr	panel_fixed_mode = priv->panel_fixed_mode;
+    
+    /* If we have timings from the BIOS for the panel, put them in
+     * to the adjusted mode.  The CRTC will be set up for this mode,
+     * with the panel scaling set up to source from the H/VDisplay
+     * of the original mode.
+     */
+    if (panel_fixed_mode != NULL) {
+	adjusted_mode->HDisplay = panel_fixed_mode->HDisplay;
+	adjusted_mode->HSyncStart = panel_fixed_mode->HSyncStart;
+	adjusted_mode->HSyncEnd = panel_fixed_mode->HSyncEnd;
+	adjusted_mode->HTotal = panel_fixed_mode->HTotal;
+	adjusted_mode->VDisplay = panel_fixed_mode->VDisplay;
+	adjusted_mode->VSyncStart = panel_fixed_mode->VSyncStart;
+	adjusted_mode->VSyncEnd = panel_fixed_mode->VSyncEnd;
+	adjusted_mode->VTotal = panel_fixed_mode->VTotal;
+	adjusted_mode->Clock = panel_fixed_mode->Clock;
+	xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
+    }
+
     return TRUE;
 }
     
@@ -310,22 +325,32 @@ ivch_mode_set(I2CDevPtr d, DisplayModePtr mode, DisplayModePtr adjusted_mode)
     CARD16		vr40 = 0;
     CARD16		vr01;
 
-    ivch_read (priv, VR01, &vr01);
-    /* Disable panel fitting for now, until we can test. */
-    if (adjusted_mode->HDisplay != priv->width || adjusted_mode->VDisplay != priv->height)
+    vr01 = 0;
+    vr40 = (VR40_STALL_ENABLE |
+	    VR40_VERTICAL_INTERP_ENABLE |
+	    VR40_HORIZONTAL_INTERP_ENABLE);
+    
+    if (mode->HDisplay != adjusted_mode->HDisplay || 
+	mode->VDisplay != adjusted_mode->VDisplay)
     {
+	CARD16	x_ratio, y_ratio;
+	
 	vr01 |= VR01_PANEL_FIT_ENABLE;
-	vr40 |= VR40_AUTO_RATIO_ENABLE;
+	vr40 |= VR40_CLOCK_GATING_ENABLE;
+	x_ratio = (((mode->HDisplay - 1) << 16) / (adjusted_mode->HDisplay - 1)) >> 2;
+	y_ratio = (((mode->VDisplay - 1) << 16) / (adjusted_mode->VDisplay - 1)) >> 2;
+	ivch_write (priv, VR42, x_ratio);
+	ivch_write (priv, VR41, y_ratio);
     }
     else
     {
 	vr01 &= ~VR01_PANEL_FIT_ENABLE;
-	vr40 &= ~VR40_AUTO_RATIO_ENABLE;
+	vr40 &= ~VR40_CLOCK_GATING_ENABLE;
     }
+    vr40 &= ~VR40_AUTO_RATIO_ENABLE;
 
     ivch_write(priv, VR01, vr01);
     ivch_write(priv, VR40, vr40);
-    ivch_dpms(d, DPMSModeOn);
 
     ivch_dump_regs(d);
 }

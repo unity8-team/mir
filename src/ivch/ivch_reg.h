@@ -46,6 +46,9 @@
  * @{
  */
 #define VR01		0x01
+/**
+ * Enable the panel fitter
+ */
 # define VR01_PANEL_FIT_ENABLE		(1 << 3)
 /**
  * Enables the LCD display.
@@ -185,26 +188,33 @@
  */
 #define VR40		0x40
 # define VR40_STALL_ENABLE		(1 << 13)
-# define VR40_VERTICAL_INTERP_ENABLE	(1 << 11)
+# define VR40_VERTICAL_INTERP_ENABLE	(1 << 12)
+# define VR40_ENHANCED_PANEL_FITTING	(1 << 11)
 # define VR40_HORIZONTAL_INTERP_ENABLE	(1 << 10)
 # define VR40_AUTO_RATIO_ENABLE		(1 << 9)
-# define VR40_PANEL_FIT_ENABLE		(1 << 8)
+# define VR40_CLOCK_GATING_ENABLE	(1 << 8)
 /** @} */
 
 /** @defgroup VR41 Panel Fitting Vertical Ratio
  * @{
+ *
+ * (((image_height - 1) << 16) / ((panel_height - 1))) >> 2
  */
 /** @} */
+#define VR41		0x41
 
 /** @defgroup VR42 Panel Fitting Horizontal Ratio
  * @{
+ * (((image_width - 1) << 16) / ((panel_width - 1))) >> 2
  */
 /** @} */
+#define VR42		0x42
 
 /** @defgroup VR43 Horizontal Image Size
  * @{
  */
 /** @} */
+#define VR43		0x43
 
 /** @defgroup VR44 Panel Fitting Coefficient 0
  * @{
