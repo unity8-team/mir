@@ -191,15 +191,12 @@ typedef struct {
    external chips are via DVO or SDVO output */
 #define I830_OUTPUT_UNUSED 0
 #define I830_OUTPUT_ANALOG 1
-#define I830_OUTPUT_DVO 2
-#define I830_OUTPUT_SDVO 3
-#define I830_OUTPUT_LVDS 4
-#define I830_OUTPUT_TVOUT 5
-
-#define I830_DVO_CHIP_NONE 0
-#define I830_DVO_CHIP_LVDS 1
-#define I830_DVO_CHIP_TMDS 2
-#define I830_DVO_CHIP_TVOUT 4
+#define I830_OUTPUT_DVO_TMDS 2
+#define I830_OUTPUT_DVO_LVDS 3
+#define I830_OUTPUT_DVO_TVOUT 4
+#define I830_OUTPUT_SDVO 5
+#define I830_OUTPUT_LVDS 6
+#define I830_OUTPUT_TVOUT 7
 
 struct _I830DVODriver {
    int type;
@@ -246,6 +243,8 @@ typedef struct _I830OutputPrivateRec {
    I2CBusPtr		    pDDCBus;
    struct _I830DVODriver    *i2c_drv;
    Bool			    load_detect_temp;
+   int                      pipe_mask;
+   int			    clone_mask;
    /** Output-private structure.  Should replace i2c_drv */
    void			    *dev_priv;
 } I830OutputPrivateRec, *I830OutputPrivatePtr;

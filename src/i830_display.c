@@ -752,7 +752,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	case I830_OUTPUT_SDVO:
 	    is_sdvo = TRUE;
 	    break;
-	case I830_OUTPUT_DVO:
+	case I830_OUTPUT_DVO_TMDS:
+	case I830_OUTPUT_DVO_LVDS:
+	case I830_OUTPUT_DVO_TVOUT:
 	    is_dvo = TRUE;
 	    break;
 	case I830_OUTPUT_TVOUT:

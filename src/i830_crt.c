@@ -394,6 +394,9 @@ i830_crt_init(ScrnInfoPtr pScrn)
 	return;
     }
     i830_output->type = I830_OUTPUT_ANALOG;
+    i830_output->pipe_mask = ((1 << 0) | (1 << 1));
+    i830_output->clone_mask = ((1 << I830_OUTPUT_ANALOG) |
+			       (1 << I830_OUTPUT_DVO_TMDS));
     
     output->driver_private = i830_output;
     output->interlaceAllowed = FALSE;

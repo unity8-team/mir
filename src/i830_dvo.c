@@ -60,22 +60,22 @@ static const char *ch7017_symbols[] = {
 /* driver list */
 struct _I830DVODriver i830_dvo_drivers[] =
 {
-    {I830_DVO_CHIP_TMDS, "sil164", "SIL164VidOutput", DVOC,
+    {I830_OUTPUT_DVO_TMDS, "sil164", "SIL164VidOutput", DVOC,
      (SIL164_ADDR_1<<1), SIL164Symbols, NULL , NULL, NULL},
-    {I830_DVO_CHIP_TMDS | I830_DVO_CHIP_TVOUT, "ch7xxx", "CH7xxxVidOutput", DVOC,
+    {I830_OUTPUT_DVO_TMDS | I830_OUTPUT_DVO_TVOUT, "ch7xxx", "CH7xxxVidOutput", DVOC,
      (CH7xxx_ADDR_1<<1), CH7xxxSymbols, NULL , NULL, NULL},
-    {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods", DVOA,
+    {I830_OUTPUT_DVO_LVDS, "ivch", "ivch_methods", DVOA,
      0x04, ivch_symbols, NULL, NULL, NULL},
     /*
-    {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",
+    {I830_OUTPUT_DVO_LVDS, "ivch", "ivch_methods",
      0x44, ivch_symbols, NULL, NULL, NULL},
-    {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",
+    {I830_OUTPUT_DVO_LVDS, "ivch", "ivch_methods",
      0x84, ivch_symbols, NULL, NULL, NULL},
-    {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",
+    {I830_OUTPUT_DVO_LVDS, "ivch", "ivch_methods",
      0xc4, ivch_symbols, NULL, NULL, NULL},
     */
     /*
-    { I830_DVO_CHIP_LVDS, "ch7017", "ch7017_methods",
+    { I830_OUTPUT_DVO_LVDS, "ch7017", "ch7017_methods",
       0xea, ch7017_symbols, NULL, NULL, NULL }
     */
 };
@@ -351,7 +351,6 @@ i830_dvo_init(ScrnInfoPtr pScrn)
     intel_output = xnfcalloc (sizeof (I830OutputPrivateRec), 1);
     if (!intel_output)
 	return;
-    intel_output->type = I830_OUTPUT_DVO;
 
     /* Set up the DDC bus */
     ret = I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOD, "DVODDC_D");
@@ -374,7 +373,7 @@ i830_dvo_init(ScrnInfoPtr pScrn)
 	ret_ptr = NULL;
 	drv->vid_rec = LoaderSymbol(drv->fntablename);
 
-	if (drv->type & I830_DVO_CHIP_LVDS)
+	if (drv->type == I830_OUTPUT_DVO_LVDS)
 	    gpio = GPIOB;
 	else
 	    gpio = GPIOE;
@@ -396,14 +395,29 @@ i830_dvo_init(ScrnInfoPtr pScrn)
 	    ret_ptr = drv->vid_rec->init(pI2CBus, drv->address);
 
 	if (ret_ptr != NULL) {
-	    xf86OutputPtr output;
+	    xf86OutputPtr output = NULL;
 
-	    if (drv->type & I830_DVO_CHIP_LVDS) {
-		output = xf86OutputCreate(pScrn, &i830_dvo_output_funcs,
-					  "LVDS");
-	    } else {
+	    intel_output->type = drv->type;
+	    switch (drv->type) {
+	    case I830_OUTPUT_DVO_TMDS:
+		intel_output->pipe_mask = ((1 << 0) | (1 << 1));
+		intel_output->clone_mask = ((1 << I830_OUTPUT_ANALOG) |
+					    (1 << I830_OUTPUT_DVO_TMDS));
 		output = xf86OutputCreate(pScrn, &i830_dvo_output_funcs,
 					  "TMDS");
+		break;
+	    case I830_OUTPUT_DVO_LVDS:
+		intel_output->pipe_mask = (1 << 1);
+		intel_output->clone_mask = (1 << I830_OUTPUT_DVO_LVDS);
+		output = xf86OutputCreate(pScrn, &i830_dvo_output_funcs,
+					  "LVDS");
+		break;
+	    case I830_OUTPUT_DVO_TVOUT:
+		intel_output->pipe_mask = (1 << 1);
+		intel_output->clone_mask = (1 << I830_OUTPUT_DVO_TVOUT);
+		output = xf86OutputCreate(pScrn, &i830_dvo_output_funcs,
+					  "TV");
+		break;
 	    }
 	    if (output == NULL) {
 		xf86DestroyI2CBusRec(pI2CBus, TRUE, TRUE);

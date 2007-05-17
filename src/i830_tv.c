@@ -1669,6 +1669,8 @@ i830_tv_init(ScrnInfoPtr pScrn)
     }
     dev_priv = (struct i830_tv_priv *) (intel_output + 1);
     intel_output->type = I830_OUTPUT_TVOUT;
+    intel_output->pipe_mask = ((1 << 0) | (1 << 1));
+    intel_output->clone_mask = (1 << I830_OUTPUT_TVOUT);
     intel_output->dev_priv = dev_priv;
     dev_priv->type = TV_TYPE_UNKNOWN;
 

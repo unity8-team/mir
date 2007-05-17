@@ -445,6 +445,9 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 	return;
     }
     intel_output->type = I830_OUTPUT_LVDS;
+    intel_output->pipe_mask = (1 << 1);
+    intel_output->clone_mask = (1 << I830_OUTPUT_LVDS);
+    
     output->driver_private = intel_output;
     output->subpixel_order = SubPixelHorizontalRGB;
     output->interlaceAllowed = FALSE;
