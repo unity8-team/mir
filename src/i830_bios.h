@@ -25,6 +25,11 @@
  *
  */
 
+#ifndef _I830_BIOS_H_
+#define _I830_BIOS_H_
+
+#include <xf86str.h>
+
 struct vbt_header {
     char signature[20];			/**< Always starts with 'VBT$' */
     CARD16 version;			/**< decimal */
@@ -33,10 +38,7 @@ struct vbt_header {
     CARD8 vbt_checksum;
     CARD8 reserved0;
     CARD32 bdb_offset;			/**< from beginning of VBT */
-    CARD32 aim1_offset;			/**< from beginning of VBT */
-    CARD32 aim2_offset;			/**< from beginning of VBT */
-    CARD32 aim3_offset;			/**< from beginning of VBT */
-    CARD32 aim4_offset;			/**< from beginning of VBT */
+    CARD32 aim_offset[4];		/**< from beginning of VBT */
 } __attribute__((packed));
 
 struct bdb_header {
@@ -114,3 +116,45 @@ struct lvds_bdb_2 {
     CARD8 table_size;	/* not sure on this one */
     struct lvds_bdb_2_entry panels[16];
 } __attribute__((packed));
+
+struct aimdb_header {
+    char    signature[16];
+    char    oem_device[20];
+    CARD16  aimdb_version;
+    CARD16  aimdb_header_size;
+    CARD16  aimdb_size;
+} __attribute__((packed));
+
+struct aimdb_block {
+    CARD8   aimdb_id;
+    CARD16  aimdb_size;
+} __attribute__((packed));
+
+struct vch_bdb_20 {
+} __attribute__((packed));
+
+struct vch_panel_data {
+    CARD16	fp_timing_offset;
+    CARD8	fp_timing_size;
+    CARD16	dvo_timing_offset;
+    CARD8	dvo_timing_size;
+    CARD16	text_fitting_offset;
+    CARD8	text_fitting_size;
+    CARD16	graphics_fitting_offset;
+    CARD8	graphics_fitting_size;
+} __attribute__((packed));
+
+struct vch_bdb_22 {
+    struct aimdb_block	    aimdb_block;
+    struct vch_panel_data   panels[16];
+} __attribute__((packed));
+
+unsigned char *
+i830_bios_get (ScrnInfoPtr pScrn);
+
+DisplayModePtr i830_bios_get_panel_mode(ScrnInfoPtr pScrn, Bool *wants_dither);
+
+unsigned char *
+i830_bios_get_aim_data_block (ScrnInfoPtr pScrn, int aim, int data_block);
+
+#endif /* _I830_BIOS_H_ */

@@ -144,7 +144,7 @@ ch7017_mode_valid(I2CDevPtr d, DisplayModePtr mode)
 }
 
 static void
-ch7017_mode_set(I2CDevPtr d, DisplayModePtr mode)
+ch7017_mode_set(I2CDevPtr d, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
     struct ch7017_priv *priv = d->DriverPrivate.ptr;
     CARD8 lvds_pll_feedback_div, lvds_pll_vco_control;

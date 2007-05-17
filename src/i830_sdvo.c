@@ -1179,6 +1179,8 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     
     dev_priv = (struct i830_sdvo_priv *) (intel_output + 1);
     intel_output->type = I830_OUTPUT_SDVO;
+    intel_output->pipe_mask = ((1 << 0) | (1 << 1));
+    intel_output->clone_mask = (1 << I830_OUTPUT_SDVO);
 
     /* While it's the same bus, we just initialize a new copy to avoid trouble
      * with tracking refcounting ourselves, since the XFree86 DDX bits don't.

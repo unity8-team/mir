@@ -728,38 +728,20 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
    {
       xf86OutputPtr	   output = config->output[o];
       I830OutputPrivatePtr intel_output = output->driver_private;
-      int		   crtc_mask = 0, clone_mask = 0;
+      int		   crtc_mask;
+      int		   c;
       
-      /*
-       * Valid crtcs
-       */
-      switch (intel_output->type) {
-      case I830_OUTPUT_DVO:
-      case I830_OUTPUT_SDVO:
-	 crtc_mask = ((1 << 0)|
-		      (1 << 1));
-	 clone_mask = ((1 << I830_OUTPUT_ANALOG) |
-		       (1 << I830_OUTPUT_DVO) |
-		       (1 << I830_OUTPUT_SDVO));
-	 break;
-      case I830_OUTPUT_ANALOG:
-	 crtc_mask = ((1 << 0));
-	 clone_mask = ((1 << I830_OUTPUT_ANALOG) |
-		       (1 << I830_OUTPUT_DVO) |
-		       (1 << I830_OUTPUT_SDVO));
-	 break;
-      case I830_OUTPUT_LVDS:
-	 crtc_mask = (1 << 1);
-	 clone_mask = (1 << I830_OUTPUT_LVDS);
-	 break;
-      case I830_OUTPUT_TVOUT:
-	 crtc_mask = ((1 << 0) |
-		      (1 << 1));
-	 clone_mask = (1 << I830_OUTPUT_TVOUT);
-	 break;
+      crtc_mask = 0;
+      for (c = 0; c < config->num_crtc; c++)
+      {
+	 xf86CrtcPtr	      crtc = config->crtc[c];
+	 I830CrtcPrivatePtr   intel_crtc = crtc->driver_private;
+
+	 if (intel_output->pipe_mask & (1 << intel_crtc->pipe))
+	    crtc_mask |= (1 << c);
       }
       output->possible_crtcs = crtc_mask;
-      output->possible_clones = i830_output_clones (pScrn, clone_mask);
+      output->possible_clones = i830_output_clones (pScrn, intel_output->clone_mask);
    }
 }
 
@@ -1735,6 +1717,7 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveVTOTAL_A = INREG(VTOTAL_A);
    pI830->saveVBLANK_A = INREG(VBLANK_A);
    pI830->saveVSYNC_A = INREG(VSYNC_A);
+   pI830->saveBCLRPAT_A = INREG(BCLRPAT_A);
    pI830->saveDSPASTRIDE = INREG(DSPASTRIDE);
    pI830->saveDSPASIZE = INREG(DSPASIZE);
    pI830->saveDSPAPOS = INREG(DSPAPOS);
@@ -1759,6 +1742,7 @@ SaveHWState(ScrnInfoPtr pScrn)
       pI830->saveVTOTAL_B = INREG(VTOTAL_B);
       pI830->saveVBLANK_B = INREG(VBLANK_B);
       pI830->saveVSYNC_B = INREG(VSYNC_B);
+      pI830->saveBCLRPAT_B = INREG(BCLRPAT_B);
       pI830->saveDSPBSTRIDE = INREG(DSPBSTRIDE);
       pI830->saveDSPBSIZE = INREG(DSPBSIZE);
       pI830->saveDSPBPOS = INREG(DSPBPOS);
@@ -1857,6 +1841,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(VTOTAL_A, pI830->saveVTOTAL_A);
    OUTREG(VBLANK_A, pI830->saveVBLANK_A);
    OUTREG(VSYNC_A, pI830->saveVSYNC_A);
+   OUTREG(BCLRPAT_A, pI830->saveBCLRPAT_A);
    
    OUTREG(DSPASTRIDE, pI830->saveDSPASTRIDE);
    OUTREG(DSPASIZE, pI830->saveDSPASIZE);
@@ -1894,6 +1879,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(VTOTAL_B, pI830->saveVTOTAL_B);
       OUTREG(VBLANK_B, pI830->saveVBLANK_B);
       OUTREG(VSYNC_B, pI830->saveVSYNC_B);
+      OUTREG(BCLRPAT_B, pI830->saveBCLRPAT_B);
       OUTREG(DSPBSTRIDE, pI830->saveDSPBSTRIDE);
       OUTREG(DSPBSIZE, pI830->saveDSPBSIZE);
       OUTREG(DSPBPOS, pI830->saveDSPBPOS);
