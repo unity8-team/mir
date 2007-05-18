@@ -315,11 +315,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     CARD32 dst_format, dst_offset, dst_pitch;
     CARD32 blendctl;
 
-#ifdef I830DEBUG
-    ErrorF("Enter i915 prepareComposite\n");
-#endif
-
-    pI830->last_3d = LAST_3D_RENDER;
+    i830_enter_render(pScrn);
 
     i915_get_dest_format(pDstPicture, &dst_format);
     dst_offset = intel_get_pixmap_offset(pDst);

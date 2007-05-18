@@ -695,6 +695,8 @@ void
 i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
 				 float *x_out, float *y_out);
 
+void i830_enter_render(ScrnInfoPtr);
+
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];
 

@@ -400,11 +400,11 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 dst_format, dst_offset, dst_pitch;
 
+    i830_enter_render(pScrn);
+
     i830_get_dest_format(pDstPicture, &dst_format);
     dst_offset = intel_get_pixmap_offset(pDst);
     dst_pitch = intel_get_pixmap_pitch(pDst);
-
-    pI830->last_3d = LAST_3D_RENDER;
 
     if (!i830_texture_setup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
@@ -632,9 +632,5 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 void
 i830_done_composite(PixmapPtr pDst)
 {
-#if ALWAYS_SYNC
-    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-
-    I830Sync(pScrn);
-#endif
+    /* NO-OP */
 }
