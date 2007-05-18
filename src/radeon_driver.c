@@ -3307,6 +3307,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     RADEONSave(pScrn);
 
+    RADEONDisableDisplays(pScrn);
+
     if (info->IsMobility) {
         if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
 	    RADEONSetDynamicClock(pScrn, 1);
