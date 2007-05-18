@@ -540,6 +540,8 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn->pScreen);
 	Bool enabled = crtc->enabled && mode != DPMSModeOff;
 
+	I830DRISetVBlankInterrupt (pScrn, TRUE);
+
 	if (!sPriv)
 	    return;
 
