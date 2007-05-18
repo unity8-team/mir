@@ -402,7 +402,6 @@ typedef struct {
     unsigned long     FbMapSize;        /* Size of frame buffer, in bytes    */
     unsigned long     FbSecureSize;     /* Size of secured fb area at end of
                                            framebuffer */
-    /*int               Flags;*/            /* Saved copy of mode flags          */
 
     Bool              IsMobility;       /* Mobile chips for laptops */
     Bool              IsIGP;            /* IGP chips */
@@ -416,17 +415,7 @@ typedef struct {
 				/* EDID or BIOS values for FPs */
     int               PanelXRes;
     int               PanelYRes;
-#if 0
-    int               HOverPlus;
-    int               HSyncWidth;
-    int               HBlank;
-    int               VOverPlus;
-    int               VSyncWidth;
-    int               VBlank;
-    int               PanelPwrDly;
-    int               DotClock;
-#endif
-    // move these to crtc priv rec
+
     int               RefDivider;
     int               FeedbackDivider;
     int               PostDivider;
@@ -437,7 +426,7 @@ typedef struct {
     Bool              ddc2;
 
     RADEONPLLRec      pll;
-    /*RADEONTMDSPll     tmds_pll[4];*/
+
     int               RamWidth;
     float	      sclk;		/* in MHz */
     float	      mclk;		/* in MHz */
