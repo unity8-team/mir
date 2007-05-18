@@ -790,8 +790,8 @@ Bool RADEONGetLVDSInfo (xf86OutputPtr output)
 		    radeon_output->Flags = 0;
 		    break;
 		}
-		tmp_mode = tmp_mode->next;
 	    }
+	    tmp_mode = tmp_mode->next;
 	}
 	if ((radeon_output->DotClock == 0) && !output->MonInfo) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
