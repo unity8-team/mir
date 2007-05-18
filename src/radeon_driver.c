@@ -5458,19 +5458,6 @@ Bool RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->fp_crtc_h_total_disp = save->crtc_h_total_disp;
     save->fp_crtc_v_total_disp = save->crtc_v_total_disp;
 
-#if 0
-    /* Set following registers for all cases first, if a DFP/LCD is connected on
-       internal TMDS/LVDS port, they will be set by RADEONInitFPRegister
-    */
-    if (!info->IsSwitching) {
-	save->fp_gen_cntl = 0;
-	save->fp_vert_stretch = info->SavedReg.fp_vert_stretch &
-				  RADEON_VERT_STRETCH_RESERVED;
-	save->fp_horz_stretch = info->SavedReg.fp_horz_stretch &
-				  (RADEON_HORZ_FP_LOOP_STRETCH |
-				  RADEON_HORZ_AUTO_RATIO_INC);
-    }
-#endif
 
     /* get the output connected to this CRTC */
     for (i = 0; i < xf86_config->num_output; i++) {
