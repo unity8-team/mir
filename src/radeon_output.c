@@ -181,17 +181,6 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
     }
 }
 
-static void RADEONSwapOutputs(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr info       = RADEONPTR(pScrn);
-    RADEONBIOSConnector tmp;
-    
-    tmp = info->BiosConnector[0];
-    info->BiosConnector[0] = info->BiosConnector[1];
-    info->BiosConnector[1] = tmp;
-    
-}
-
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
@@ -524,29 +513,14 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
         }
     }
 
-    /* always make TMDS_INT port first*/
-    if (info->BiosConnector[1].TMDSType == TMDS_INT) {
-	RADEONSwapOutputs(pScrn);
-    } else if ((info->BiosConnector[0].TMDSType != TMDS_INT &&
-                info->BiosConnector[1].TMDSType != TMDS_INT)) {
-        /* no TMDS_INT port, make primary DAC port first */
-	/* On my Inspiron 8600 both internal and external ports are
-	   marked DAC_PRIMARY in BIOS. So be extra careful - only
-	   swap when the first port is not DAC_PRIMARY */
-        if ((!(info->BiosConnector[0].ConnectorType == CONNECTOR_PROPRIETARY)) &&  (info->BiosConnector[1].DACType == DAC_PRIMARY) &&
-	     (info->BiosConnector[0].DACType != DAC_PRIMARY)) {
-	    RADEONSwapOutputs(pScrn);
-        }
-    }
-
     if (info->HasSingleDAC) {
         /* For RS300/RS350/RS400 chips, there is no primary DAC. Force VGA port to use TVDAC*/
         if (info->BiosConnector[0].ConnectorType == CONNECTOR_CRT) {
             info->BiosConnector[0].DACType = DAC_TVDAC;
-            info->BiosConnector[1].DACType = DAC_PRIMARY;
+            info->BiosConnector[1].DACType = DAC_NONE;
         } else {
             info->BiosConnector[1].DACType = DAC_TVDAC;
-            info->BiosConnector[0].DACType = DAC_PRIMARY;
+            info->BiosConnector[0].DACType = DAC_NONE;
         }
     } else if (!pRADEONEnt->HasCRTC2) {
         info->BiosConnector[0].DACType = DAC_PRIMARY;
@@ -563,7 +537,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		   &info->BiosConnector[1].DACType,
 		   &info->BiosConnector[1].TMDSType,
 		   &info->BiosConnector[1].ConnectorType) != 8) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Invalid ConnectorTable option: %s\n", optstr);
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid ConnectorTable option: %s\n", optstr);
+	    return FALSE;
 	}
     }
 

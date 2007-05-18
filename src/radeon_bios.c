@@ -272,31 +272,6 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	}
 
 	if (info->IsMobility) {
-#if 0
-	    /* For the cases where only one VGA connector is found, 
-	       we assume LVDS is not listed in the connector table, 
-	       add it in here as the first port.
-	    */
-	    if ((connector_found < 3) && (info->BiosConnector[tmp1]->ConnectorType == CONNECTOR_CRT)) {
-		if (connector_found == 1) {
-		    memcpy (&info->BiosConnector[1], &info->BiosConnector[0], 
-			    sizeof (info->BiosConnector));
-		}
-		info->BiosConnector[0].DACType = DAC_TVDAC;
-		info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
-		info->BiosConnector[0].DDCType = DDC_NONE_DETECTED;
-		info->BiosConnector[0].ConnectorType = CONNECTOR_PROPRIETARY;
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "LVDS port is not in connector table, added in.\n");
-		if (connector_found == 0) connector_found = 1;
-		else connector_found = 3;
-	    }
-
-	    /* some bioses seem to list the LVDS port as DVI hack around that here */
-	    if (info->BiosConnector[0].ConnectorType == CONNECTOR_DVI_D) {
-		info->BiosConnector[0].ConnectorType = CONNECTOR_PROPRIETARY;
-	    }
-#endif
 	    if ((tmp = RADEON_BIOS16(info->ROMHeaderStart + 0x42))) {
 	        if ((tmp0 = RADEON_BIOS16(tmp + 0x15))) {
 		    if ((tmp1 = RADEON_BIOS8(tmp0+2) & 0x07)) {	    
