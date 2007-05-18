@@ -375,7 +375,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     {
 	CARD32 ss2;
 
-	BEGIN_LP_RING(18);
+	BEGIN_LP_RING(16);
 	/* color buffer
 	 * XXX: Need to add USE_FENCE if we ever tile the X Server's pixmaps or
 	 * visible screen.
@@ -407,10 +407,6 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_RING(0x00000000); /* Disable stencil buffer */
 	OUT_RING(S6_CBUF_BLEND_ENABLE | S6_COLOR_WRITE_ENABLE |
 		 (BLENDFUNC_ADD << S6_CBUF_BLEND_FUNC_SHIFT) | blendctl);
-
-	/* issue a flush */
-	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
-	OUT_RING(MI_NOOP);
 
 	/* draw rect is unconditional */
 	OUT_RING(_3DSTATE_DRAW_RECT_CMD);
