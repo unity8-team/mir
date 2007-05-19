@@ -553,14 +553,28 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	}
 	radeon_output->MonType = MT_UNKNOWN;
 	radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
-	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM) ||
-	    radeon_output->ConnectorType == CONNECTOR_DVI_D)
-	    radeon_output->DACType = DAC_NONE;
-	else
-	    radeon_output->DACType = info->BiosConnector[i].DACType;
 	radeon_output->DDCType = info->BiosConnector[i].DDCType;
-	radeon_output->TMDSType = info->BiosConnector[i].TMDSType;
+	if (info->IsAtomBios) {
+	    if (radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM)
+		radeon_output->DACType = DAC_NONE;
+	    else
+		radeon_output->DACType = info->BiosConnector[i].DACType;
 
+	    if (radeon_output->ConnectorType == CONNECTOR_VGA_ATOM)
+		radeon_output->TMDSType = TMDS_NONE;
+	    else
+		radeon_output->TMDSType = info->BiosConnector[i].TMDSType;
+	} else {
+	    if (radeon_output->ConnectorType == CONNECTOR_DVI_D)
+		radeon_output->DACType = DAC_NONE;
+	    else
+		radeon_output->DACType = info->BiosConnector[i].DACType;
+
+	    if (radeon_output->ConnectorType == CONNECTOR_CRT)
+		radeon_output->TMDSType = TMDS_NONE;
+	    else
+		radeon_output->TMDSType = info->BiosConnector[i].TMDSType;
+	}
 	RADEONSetOutputType(pScrn, radeon_output);
 	output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
 	if (!output) {
