@@ -482,7 +482,11 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
         (info->BiosConnector[1].DDCType == 0))) {
 	if (info->IsMobility) {
 	    /* Below is the most common setting, but may not be true */
+#if defined(__powerpc__)
+	    info->BiosConnector[0].DDCType = DDC_DVI;
+#else
 	    info->BiosConnector[0].DDCType = DDC_LCD;
+#endif
 	    info->BiosConnector[0].DACType = DAC_UNKNOWN;
 	    info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_PROPRIETARY;
