@@ -2971,7 +2971,9 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
 
     RADEONGetBIOSInfo(pScrn, pInt10);
 
-    RADEONSetupConnectors(pScrn);
+    if (!info->IsSecondary) {
+	RADEONSetupConnectors(pScrn);
+    }
     RADEONMapControllers(pScrn);
 
     RADEONGetClockInfo(pScrn);

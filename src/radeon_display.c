@@ -2135,7 +2135,9 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     RADEONConnector *pPort;
 
-    if (!pRADEONEnt->HasSecondary || (info->IsSwitching  && !info->IsSecondary)) {
+    if (!pRADEONEnt->HasSecondary ||
+	(pRADEONEnt->HasSecondary && !info->IsSwitching) ||
+	(info->IsSwitching && (!info->IsSecondary))) {
 	pPort = RADEONGetCrtcConnector(pScrn, 1);
 	if (pPort)
 	    RADEONUnblankSet(pScrn, pPort);
@@ -2158,7 +2160,8 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
       }
     }
 
-    if (info->IsSwitching && info->IsSecondary) {
+    if ((pRADEONEnt->HasSecondary && !info->IsSwitching) ||
+	(info->IsSwitching && info->IsSecondary)) {
 	pPort = RADEONGetCrtcConnector(pScrn, 2);
 	if (pPort)
 	    RADEONUnblankSet(pScrn, pPort);
