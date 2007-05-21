@@ -5292,10 +5292,11 @@ static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
     }
 }
 
-static void RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save, DisplayModePtr mode, xf86OutputPtr output, int crtc_num)
+void RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save, DisplayModePtr mode, xf86OutputPtr output, int crtc_num)
 {
-    Bool IsPrimary = crtc_num == 1 ? TRUE : FALSE;
+    Bool IsPrimary = crtc_num == 0 ? TRUE : FALSE;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
     if (radeon_output->MonType == MT_CRT) {
 	if (radeon_output->DACType == DAC_PRIMARY) {
 	    RADEONInitDACRegisters(output, save, mode, IsPrimary);
@@ -5303,11 +5304,11 @@ static void RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save, Dis
 	    RADEONInitDAC2Registers(output, save, mode, IsPrimary);
 	}
     } else if (radeon_output->MonType == MT_LCD) {
-	if (crtc_num == 1)
+	if (crtc_num == 0)
 	    RADEONInitRMXRegisters(output, save, mode);
 	RADEONInitLVDSRegisters(output, save, mode, IsPrimary);
     } else if (radeon_output->MonType == MT_DFP) {
-	if (crtc_num == 1)
+	if (crtc_num == 0)
 	    RADEONInitRMXRegisters(output, save, mode);
 	if (radeon_output->TMDSType == TMDS_INT) {
 	    RADEONInitFPRegisters(output, save, mode, IsPrimary);
@@ -5366,7 +5367,6 @@ Bool RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 			      : 0));
 
     save->crtc_ext_cntl |= (RADEON_XCRT_CNT_EN|
-			    RADEON_CRTC_CRT_ON |
 			    RADEON_CRTC_VSYNC_DIS |
 			    RADEON_CRTC_HSYNC_DIS |
 			    RADEON_CRTC_DISPLAY_DIS);
@@ -5457,15 +5457,6 @@ Bool RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->fp_v_sync_strt_wid = save->crtc_v_sync_strt_wid;
     save->fp_crtc_h_total_disp = save->crtc_h_total_disp;
     save->fp_crtc_v_total_disp = save->crtc_v_total_disp;
-
-
-    /* get the output connected to this CRTC */
-    for (i = 0; i < xf86_config->num_output; i++) {
-	xf86OutputPtr output = xf86_config->output[i];
-	if (output->crtc == crtc) {
-	    RADEONInitOutputRegisters(pScrn, save, mode, output, 1);
-	}
-    }
 
     Base = pScrn->fbOffset;
 
@@ -5649,7 +5640,6 @@ Bool RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->crtc2_pitch |= save->crtc2_pitch << 16;
 
     save->crtc2_gen_cntl = (RADEON_CRTC2_EN
-			    | RADEON_CRTC2_CRT2_ON
 			    | (format << 8)
 			    | RADEON_CRTC2_VSYNC_DIS
 			    | RADEON_CRTC2_HSYNC_DIS
@@ -5669,14 +5659,6 @@ Bool RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 
     save->fp_h2_sync_strt_wid = save->crtc2_h_sync_strt_wid;
     save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
-
-    /* get the output connected to this CRTC */
-    for (i = 0; i < xf86_config->num_output; i++) {
-	xf86OutputPtr output = xf86_config->output[i];
-	if (output->crtc == crtc) {
-	    RADEONInitOutputRegisters(pScrn, save, mode, output, 2);
-	}
-    }
 
     Base = pScrn->fbOffset;
 

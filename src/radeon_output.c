@@ -215,13 +215,11 @@ radeon_dpms(xf86OutputPtr output, int mode)
     switch(mode) {
     case DPMSModeOn:
 	RADEONEnableDisplay(output, TRUE);
-	/*      RADEONDPMSSetOn(output);*/
 	break;
     case DPMSModeOff:
     case DPMSModeSuspend:
     case DPMSModeStandby:
 	RADEONEnableDisplay(output, FALSE);
-	/*RADEONDPMSSetOff(output);*/
 	break;
     }
 }
@@ -299,7 +297,18 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 {
     ScrnInfoPtr	    pScrn = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int i;
+
+    /* get the outputs connected to this CRTC */
+    for (i = 0; i < xf86_config->num_crtc; i++) {
+	xf86CrtcPtr	crtc = xf86_config->crtc[i];
+	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+	if (output->crtc == crtc) {
+	    RADEONInitOutputRegisters(pScrn, &info->ModeReg, adjusted_mode, output, radeon_crtc->crtc_id);
+	}
+    }
 
     switch(radeon_output->MonType) {
     case MT_LCD:
@@ -312,12 +321,12 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);
     }
 
-    RADEONEnableDisplay(output, TRUE);
 }
 
 static void
 radeon_mode_commit(xf86OutputPtr output)
 {
+    RADEONEnableDisplay(output, TRUE);
 }
 
 static xf86OutputStatus

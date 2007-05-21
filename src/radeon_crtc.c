@@ -58,7 +58,7 @@ radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
   RADEONInfoPtr info = RADEONPTR(pScrn);
   unsigned char *RADEONMMIO = info->MMIO;
     
-  mask = radeon_crtc->crtc_id ? (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS | RADEON_CRTC2_HSYNC_DIS) : (RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS | RADEON_CRTC_VSYNC_DIS);
+  mask = radeon_crtc->crtc_id ? (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS | RADEON_CRTC2_HSYNC_DIS | RADEON_CRTC2_DISP_REQ_EN_B) : (RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS | RADEON_CRTC_VSYNC_DIS | RADEON_CRTC_DISP_REQ_EN_B);
 
 
   switch(mode) {
@@ -129,7 +129,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    montype = radeon_output->MonType;
 	}
     }
-    
+
     ErrorF("init memmap\n");
     RADEONInitMemMapRegisters(pScrn, &info->ModeReg, info);
     ErrorF("init common\n");
