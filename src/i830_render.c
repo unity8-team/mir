@@ -83,6 +83,7 @@ struct formatinfo {
 #define TB0C_ARG2_SEL_TEXEL3		(9 << 12)
 #define TB0C_ARG1_REPLICATE_ALPHA 	(1<<11)
 #define TB0C_ARG1_INVERT		(1<<10)
+#define TB0C_ARG1_SEL_ONE		(0 << 6)
 #define TB0C_ARG1_SEL_TEXEL0		(6 << 6)
 #define TB0C_ARG1_SEL_TEXEL1		(7 << 6)
 #define TB0C_ARG1_SEL_TEXEL2		(8 << 6)
@@ -107,6 +108,7 @@ struct formatinfo {
 #define TB0A_ARG2_SEL_TEXEL2		(8 << 12)
 #define TB0A_ARG2_SEL_TEXEL3		(9 << 12)
 #define TB0A_ARG1_INVERT		(1<<10)
+#define TB0A_ARG1_SEL_ONE		(0 << 6)
 #define TB0A_ARG1_SEL_TEXEL0		(6 << 6)
 #define TB0A_ARG1_SEL_TEXEL1		(7 << 6)
 #define TB0A_ARG1_SEL_TEXEL2		(8 << 6)
@@ -143,13 +145,13 @@ static struct blendinfo i830_blend_op[] = {
 
 static struct formatinfo i830_tex_formats[] = {
     {PICT_a8r8g8b8, MT_32BIT_ARGB8888 },
-    {PICT_x8r8g8b8, MT_32BIT_ARGB8888 },
+    {PICT_x8r8g8b8, MT_32BIT_XRGB8888 },
     {PICT_a8b8g8r8, MT_32BIT_ABGR8888 },
-    {PICT_x8b8g8r8, MT_32BIT_ABGR8888 },
-    {PICT_r5g6b5,   MT_16BIT_RGB565	  },
+    {PICT_x8b8g8r8, MT_32BIT_XBGR8888 },
+    {PICT_r5g6b5,   MT_16BIT_RGB565   },
     {PICT_a1r5g5b5, MT_16BIT_ARGB1555 },
     {PICT_x1r5g5b5, MT_16BIT_ARGB1555 },
-    {PICT_a8,       MT_8BIT_A8       },	 /* mesa does I8 */
+    {PICT_a8,       MT_8BIT_A8        },
 };
 
 static Bool i830_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
@@ -220,6 +222,8 @@ static CARD32 i830_get_blend_cntl(int op, PicturePtr pMask, CARD32 dst_format)
 
 static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i;
@@ -236,6 +240,13 @@ static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
     if (i == sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]))
         I830FALLBACK("Unsupported picture format 0x%x\n",
 		     (int)pPict->format);
+
+    if (IS_I830(pI830) || IS_845G(pI830)) {
+	if (pPict->format == PICT_x8r8g8b8 || 
+		pPict->format == PICT_x8b8g8r8 || 
+		pPict->format == PICT_a8)
+	    I830FALLBACK("830/845G don't support a8, x8r8g8b8, x8b8g8r8\n");
+    }
 
     if (pPict->repeat && pPict->repeatType != RepeatNormal)
 	I830FALLBACK("unsupport repeat type\n");
@@ -305,7 +316,7 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	else
 	    format |= MAPSURF_32BIT;
 
-	BEGIN_LP_RING(8);
+	BEGIN_LP_RING(10);
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_2 | LOAD_TEXTURE_MAP(unit) | 4);
 	OUT_RING((offset & TM0S0_ADDRESS_MASK) | TM0S0_USE_FENCE); 
 	OUT_RING(((pPix->drawable.height - 1) << TM0S1_HEIGHT_SHIFT) |
@@ -318,7 +329,24 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 		 TEXCOORDTYPE_CARTESIAN | ENABLE_ADDR_V_CNTL |
 		 TEXCOORD_ADDR_V_MODE(wrap_mode) |
 		 ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
-	OUT_RING(MI_NOOP);
+	/* map texel stream */
+	OUT_RING(_3DSTATE_MAP_COORD_SETBIND_CMD);
+	if (unit == 0)
+	    OUT_RING(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
+		    TEXBIND_SET1(TEXCOORDSRC_KEEP) |
+		    TEXBIND_SET2(TEXCOORDSRC_KEEP) |
+		    TEXBIND_SET3(TEXCOORDSRC_KEEP));
+	else
+	    OUT_RING(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
+		    TEXBIND_SET1(TEXCOORDSRC_VTXSET_1) |
+		    TEXBIND_SET2(TEXCOORDSRC_KEEP) |
+		    TEXBIND_SET3(TEXCOORDSRC_KEEP));
+	OUT_RING(_3DSTATE_MAP_TEX_STREAM_CMD | (unit << 16) |
+		DISABLE_TEX_STREAM_BUMP | 
+		ENABLE_TEX_STREAM_COORD_SET |
+		TEX_STREAM_COORD_SET(unit) |
+		ENABLE_TEX_STREAM_MAP_IDX |
+		TEX_STREAM_MAP_IDX(unit));
 	ADVANCE_LP_RING();
      }
 
@@ -392,7 +420,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     {
 	CARD32 cblend, ablend, blendctl, vf2;
 
-	BEGIN_LP_RING(34);
+	BEGIN_LP_RING(30);
 
 	/* color buffer */
 	OUT_RING(_3DSTATE_BUF_INFO_CMD);
@@ -403,8 +431,6 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_RING(_3DSTATE_DST_BUF_VARS_CMD);
 	OUT_RING(dst_format);
 
-      	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
-      	OUT_RING(MI_NOOP);		/* pad to quadword */
 	/* defaults */
 	OUT_RING(_3DSTATE_DFLT_Z_CMD);
 	OUT_RING(0);
@@ -421,42 +447,38 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_RING(DRAW_YMAX(pDst->drawable.height - 1) |
 		DRAW_XMAX(pDst->drawable.width - 1));
 	OUT_RING(0); /* yorig, xorig */
-	OUT_RING(MI_NOOP);
 
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | 0);
-	OUT_RING((1 << S3_POINT_WIDTH_SHIFT) | (2 << S3_LINE_WIDTH_SHIFT) |
-		S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | 0);
+	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | 
+		I1_LOAD_S(3) | 1);
 	if (pMask)
 	    vf2 = 2 << 12; /* 2 texture coord sets */
 	else
 	    vf2 = 1 << 12;
-	vf2 |= (TEXCOORDFMT_2D << 16);
-	if (pMask)
-	    vf2 |= (TEXCOORDFMT_2D << 18);
-	else
-	    vf2 |= (TEXCOORDFMT_1D << 18);
+	OUT_RING(vf2); /* TEXCOORDFMT_2D */
+	OUT_RING(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
 
-	vf2 |= (TEXCOORDFMT_1D << 20);
-	vf2 |= (TEXCOORDFMT_1D << 22);
-	vf2 |= (TEXCOORDFMT_1D << 24);
-	vf2 |= (TEXCOORDFMT_1D << 26);
-	vf2 |= (TEXCOORDFMT_1D << 28);
-	vf2 |= (TEXCOORDFMT_1D << 30);
-	OUT_RING(vf2);
-
-      	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
-      	OUT_RING(MI_NOOP);		/* pad to quadword */
-	/* For (src In mask) operation */
-	/* IN operator: Multiply src by mask components or mask alpha.*/
-	/* TEXBLENDOP_MODULE: arg1*arg2 */
+	/* We use two pipes for color and alpha, and do (src In mask)
+	   in one stage. Arg1 is from src pict, and arg2 is from mask pict.
+	   Be sure to force 1.0 when src or mask pict has no alpha channel.
+	 */
 	cblend = TB0C_LAST_STAGE | TB0C_RESULT_SCALE_1X | TB0C_OP_MODULE |
 		 TB0C_OUTPUT_WRITE_CURRENT;
 	ablend = TB0A_RESULT_SCALE_1X | TB0A_OP_MODULE |
 		 TB0A_OUTPUT_WRITE_CURRENT;
 
-	cblend |= TB0C_ARG1_SEL_TEXEL0;
-	ablend |= TB0A_ARG1_SEL_TEXEL0;
+	if (PICT_FORMAT_A(pSrcPicture->format) != 0) {
+	    ablend |= TB0A_ARG1_SEL_TEXEL0;
+	    cblend |= TB0C_ARG1_SEL_TEXEL0;
+	} else {
+	    ablend |= TB0A_ARG1_SEL_ONE;
+	    if (pMask && pMaskPicture->componentAlpha 
+		    && PICT_FORMAT_RGB(pMaskPicture->format)
+		    && i830_blend_op[op].src_alpha)
+		cblend |= TB0C_ARG1_SEL_ONE;
+	    else
+		cblend |= TB0C_ARG1_SEL_TEXEL0;
+	}
+
 	if (pMask) {
 	    if (pMaskPicture->componentAlpha && 
 		    PICT_FORMAT_RGB(pMaskPicture->format)) {
@@ -466,10 +488,16 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		else 
 		    cblend |= TB0C_ARG2_SEL_TEXEL1;
 	    } else {
-		cblend |= (TB0C_ARG2_SEL_TEXEL1 | 
-			TB0C_ARG2_REPLICATE_ALPHA);
+		if (PICT_FORMAT_A(pMaskPicture->format) != 0)
+		    cblend |= (TB0C_ARG2_SEL_TEXEL1 | 
+			    TB0C_ARG2_REPLICATE_ALPHA);
+		else
+		    cblend |= TB0C_ARG2_SEL_ONE;
 	    }
-	    ablend |= TB0A_ARG2_SEL_TEXEL1;
+	    if (PICT_FORMAT_A(pMaskPicture->format) != 0)
+		ablend |= TB0A_ARG2_SEL_TEXEL1;
+	    else
+		ablend |= TB0A_ARG2_SEL_ONE;
 	} else {
 	    cblend |= TB0C_ARG2_SEL_ONE;
 	    ablend |= TB0A_ARG2_SEL_ONE;
@@ -481,13 +509,15 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_RING(ablend);
 	OUT_RING(0);
 
-      	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
-      	OUT_RING(MI_NOOP);		/* pad to quadword */
-
 	blendctl = i830_get_blend_cntl(op, pMaskPicture, pDstPicture->format);
+	OUT_RING(_3DSTATE_INDPT_ALPHA_BLEND_CMD | DISABLE_INDPT_ALPHA_BLEND);
+	OUT_RING(MI_NOOP);
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(8) | 0);
 	OUT_RING(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD | blendctl | 
 		 S8_ENABLE_COLOR_BUFFER_WRITE);
+	/* We have to explicitly say we don't want write disabled */
+	OUT_RING(_3DSTATE_ENABLES_2_CMD | ENABLE_COLOR_MASK);
+	OUT_RING(MI_NOOP); 
 	ADVANCE_LP_RING();
     }
 

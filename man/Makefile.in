@@ -235,8 +235,12 @@ sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 drivermandir = $(DRIVER_MAN_DIR)
+DRIVER_MAN_DIR_SUFFIX = $(DRIVER_MAN_DIR:@mandir@/man%=%)
 driverman_PRE = @DRIVER_NAME@.man
-driverman_DATA = $(driverman_PRE:man=@DRIVER_MAN_SUFFIX@)
+driverman_DATA = \
+	$(driverman_PRE:man=@DRIVER_MAN_SUFFIX@) \
+	i810.@DRIVER_MAN_SUFFIX@
+
 EXTRA_DIST = @DRIVER_NAME@.man
 CLEANFILES = $(driverman_DATA)
 SED = sed
@@ -257,7 +261,9 @@ MAN_SUBSTS = \
 	-e 's|__filemansuffix__|$(FILE_MAN_SUFFIX)|g'
 
 SUFFIXES = .$(DRIVER_MAN_SUFFIX) .man
-all: all-am
+BUILT_SOURCES = shadows.DONE
+all: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
 .SUFFIXES: .$(DRIVER_MAN_SUFFIX) .man
@@ -352,13 +358,15 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
-check: check-am
+check: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) check-am
 all-am: Makefile $(DATA)
 installdirs:
 	for dir in "$(DESTDIR)$(drivermandir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
-install: install-am
+install: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) install-am
 install-exec: install-exec-am
 install-data: install-data-am
 uninstall: uninstall-am
@@ -383,6 +391,7 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-am
 
 clean-am: clean-generic clean-libtool mostlyclean-am
@@ -443,6 +452,11 @@ uninstall-am: uninstall-drivermanDATA uninstall-info-am
 
 .man.$(DRIVER_MAN_SUFFIX):
 	sed $(MAN_SUBSTS) < $< > $@
+
+shadows.DONE:
+	-rm -f i810.@DRIVER_MAN_SUFFIX@
+	echo .so man$(DRIVER_MAN_DIR_SUFFIX)/intel.$(DRIVER_MAN_SUFFIX) > \
+		i810.@DRIVER_MAN_SUFFIX@
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

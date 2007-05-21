@@ -1,29 +1,26 @@
-xserver-xorg-video-intel (2:1.9.94-1ubuntu3) feisty; urgency=low
+xserver-xorg-video-intel (2:2.0.0-1ubuntu1) gutsy; urgency=low
 
-  * Stop building the transitional xserver-xorg-video-i810, so that it doesnt
-    overwrite the identically-named package in main 
+  * Merge with Debian unstable, remaining changes:
+    - debian/control:
+      + Stop building the transitional xserver-xorg-video-i810, so that
+        it doesnt overwrite the identically-named package in main 
+      + Replace and Conflict xserver-xorg-driver-i810.
+      + Change Maintainer address.
 
- -- Sarah Hobbs <hobbsee@ubuntu.com>  Tue, 17 Apr 2007 15:10:03 +1000
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Mon, 21 May 2007 12:54:24 +0300
 
-xserver-xorg-video-intel (2:1.9.94-1ubuntu2) feisty; urgency=low
+xserver-xorg-video-intel (2:2.0.0-1) unstable; urgency=low
 
-  * src/ch7017/Makefile.{am,in}
-    - [FTBFS] Fix AM_CFLAGS to include '-I$(srcdir)/..' and 
-      '-I$(srcdir)/../modes'.
+  * New upstream release.
+  * Add XS-Vcs-*.
+  * Bump build-dep on xserver-xorg-dev to >= 2:1.3.0.0.
+  * Remove Fabio from Uploaders, with his permission.
+  * Install the bug script in the xserver-xorg-video-intel dir instead of
+    -i810.
+  * Install the upstream changelog.
+  * Upload to unstable.
 
- -- Timo Aaltonen <tepsipakki@ubuntu.com>  Mon, 16 Apr 2007 15:47:59 +0300
-
-xserver-xorg-video-intel (2:1.9.94-1ubuntu1) feisty; urgency=low
-
-  * Merge with Debian, remaining changes:
-    debian/control
-    - Change the Maintainer address.
-    - Replace and Conflict xserver-xorg-driver-i810
-    - Ease the dependancy on xserver-xorg-dev.
-    debian/rules:
-    - Add '--with-xserver-source=/' so configure uses the included headers.
-
- -- Timo Aaltonen <tepsipakki@ubuntu.com>  Wed,  4 Apr 2007 00:15:30 +0300
+ -- Julien Cristau <jcristau@debian.org>  Fri, 20 Apr 2007 08:54:20 +0200
 
 xserver-xorg-video-intel (2:1.9.94-1) experimental; urgency=low
 

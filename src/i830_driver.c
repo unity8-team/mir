@@ -274,7 +274,6 @@ typedef enum {
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
    OPTION_CHECKDEVICES,
-   OPTION_LINEARALLOC,
    OPTION_MODEDEBUG,
 #ifdef XF86DRI_MM
    OPTION_INTELTEXPOOL,
@@ -296,7 +295,6 @@ static OptionInfoRec I830Options[] = {
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_LINEARALLOC, "LinearAlloc",  OPTV_INTEGER,   {0},    FALSE},
    {OPTION_MODEDEBUG,	"ModeDebug",	OPTV_BOOLEAN,	{0},	FALSE},
 #ifdef XF86DRI_MM
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
@@ -1294,18 +1292,11 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 		    "Will try to reserve %d kiB of AGP aperture space\n"
 		    "\tfor the DRM memory manager.\n",
 		    pI830->mmSize);
-      }
 #endif
+      }
    } 
    
 #endif
-
-   pI830->LinearAlloc = 0;
-   if (xf86GetOptValULong(pI830->Options, OPTION_LINEARALLOC,
-			    &(pI830->LinearAlloc))) {
-      if (pI830->LinearAlloc < 0)
-         pI830->LinearAlloc = 0;
-   }
 
    I830PreInitDDC(pScrn);
    for (i = 0; i < num_pipe; i++) {
@@ -1559,7 +1550,7 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
    /* God this is ugly */
 #define flush_ring() do { \
       temp = INREG(LP_RING + RING_LEN); \
-      if (temp & 1) { \
+      if (temp & RING_VALID) { \
 	 I830RefreshRing(pScrn); \
 	 I830Sync(pScrn); \
 	 DO_RING_IDLE(); \
@@ -1569,7 +1560,7 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
    if (!pI830->useEXA && flush && pI830->AccelInfoRec)
        flush_ring();
 #endif
-#ifdef I830_USE_XAA
+#ifdef I830_USE_EXA
    if (pI830->useEXA && flush && pI830->EXADriverPtr)
        flush_ring();
 #endif
@@ -2543,17 +2534,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 if (!I830InitFBManager(pScreen, &(pI830->FbMemBox))) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Failed to init memory manager\n");
-	 }
-
-	 if (pI830->LinearAlloc &&
-	     xf86InitFBManagerLinear(pScreen,
-				     pI830->xaa_linear->offset / pI830->cpp,
-				     pI830->xaa_linear->size / pI830->cpp))
-	 {
-            xf86DrvMsg(scrnIndex, X_INFO,
-		       "Using %ld bytes of offscreen memory for linear "
-		       "(offset=0x%lx)\n", pI830->xaa_linear->size,
-		       pI830->xaa_linear->offset);
 	 }
       } else {
 	 if (!I830InitFBManager(pScreen, &(pI8301->FbMemBox2))) {

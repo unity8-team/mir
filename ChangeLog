@@ -1,8 +1,340 @@
+commit 31bf269afed0a830e79cbbd9d4b1ee9843af326c
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Apr 19 20:03:41 2007 -0700
+
+    Update version to 2.0.0
+
+commit 60e891915af7d0f522c9c3f966599fa07779f7aa
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Apr 19 14:02:23 2007 -0700
+
+    Eliminate LinearAlloc option and code.
+    
+    With the fixes to the 2D frame buffer allocation that allows up to 65536
+    lines of 2D frame buffer in XAA mode, the old linear allocation hacks are no
+    longer necessary.
+
+commit cca389769001c657435f056e1f1c26b0f52a48bd
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Apr 19 13:15:23 2007 -0700
+
+    Clean up 1.2 xserver build support.
+    
+    Convert relative X server source path to absolute.  Check for local copies
+    of needed header files before building, rather than requiring server source.
+    Remove extra duplicate -I elements in AM_CFLAGS in sub directories.
+
+commit 07797fee88d6be0dfb30394a419dd86f8a3c9095
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Apr 19 13:01:37 2007 -0700
+
+    Fix mismatching braces when XF86DRI_MM is not defined.
+    
+    A closing brace was left inside #ifdef XF86DRI_MM while the matching
+    open brace was outside.
+
+commit 163c565527e8cda1f5a47c7fd63f04c80feaf3c7
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Apr 19 13:00:03 2007 -0700
+
+    Use I2C delay function instead of usleep.
+    
+    usleep isn't always available, and we have an existing delay mechanism
+    available to use.
+
+commit 378ceea3d9ddbec7a08ac2f07f9a8cd9cf3cef36
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu Apr 19 17:30:28 2007 +0800
+
+    Fix mem list order and remove extra unbind call when free memory
+
+commit db4b9e18810990e8900bdf54aa3091b876ea2658
+Author: Alan Hourihane <alanh@fairlite.demon.co.uk>
+Date:   Wed Apr 18 13:52:08 2007 +0100
+
+    Fix return status
+
+commit 3f5111940e35989d334aa99cd1b0eb26293ebf1b
+Author: Alan Hourihane <alanh@fairlite.demon.co.uk>
+Date:   Wed Apr 18 13:27:59 2007 +0100
+
+    Update read_response to include the try on PENDING status
+    
+    and remove it from get attached displays call.
+
+commit 902388fa06f85486fe8010807ab53e4926cc979a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Apr 17 14:21:25 2007 -0700
+
+    Don't try to init the XAA linear region unless we allocated memory for it.
+    
+    Reported by JM Ibanez
+
+commit 8abecae202b609375b6754dbd5ecce3d59036daf
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Apr 17 12:28:43 2007 -0700
+
+    Fix i852 EXA Composite acceleration setup.
+    
+    Reported by JM Ibanez.
+
+commit 2dbe8d678b02b724c4f06255383f49bb4c2708b0
+Author: Timo Aaltonen <tjaalton@cc.hut.fi>
+Date:   Mon Apr 16 14:14:19 2007 -0700
+
+    Fix build against xserver 1.2.
+
+commit a089ac11beb4c801928c17780401e913bc0d5257
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Apr 17 11:01:05 2007 -0700
+
+    Add all the possible ivch slave addresses (still commented out).
+
+commit 37ee68a95ca8c86ebe9abafaaf55b060dd2a2f73
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Apr 17 10:50:02 2007 -0700
+
+    Bug #10438: Fix 965 XV when sourcing from less than the full image.
+    
+    Bob deinterlacing in MythTV, and the zoom options in totem would result in
+    attempting to source from outside the video instead of scaling appropriately.
+
+commit ac9181c014638dbeb334b40b4029d0ccb2b7a0fc
+Author: Alan Hourihane <alanh@fairlite.demon.co.uk>
+Date:   Tue Apr 17 16:30:17 2007 +0100
+
+    Check for the PENDING message when reading the attached
+    displays. Ensures the command has completed before continuing.
+    
+    (probably need to check PENDING in other SDVO calls too)
+
+commit ab5bdee8a62c842ae32aaef57eb841ebcb644d2b
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Tue Apr 17 16:23:46 2007 +0800
+
+    EXA: fix i830 render
+    
+    Fix tex blend pipeline in case that src/mask pict has no
+    alpha. Unmask color buffer write disable bits. These make
+    rendercheck run fine on 855GM.
+
+commit 1a29750b8dba1371d7d0802744cdf2f3bfa83c13
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Mon Apr 16 16:21:39 2007 +0800
+
+    EXA: fix 830/845G pict format
+    
+    Fallback in 830/845G when pict format is a8, x8r8g8b8 or
+    x8b8g8r8. The hw doesn't support them.
+
+commit 3a634bbd198650c1597dec4306d99928374c30f3
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Mon Apr 16 15:14:49 2007 +0800
+
+    EXA: Add i830 supported pict format XRGB8888, XBGR8888
+
+commit 3bcb9a0b4ba7f3df346b5708617a7aafcbe2490a
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Mon Apr 16 14:27:49 2007 +0800
+
+    EXA: i830 render misc fix and cleanups
+    
+    Try to map texture stream when setup texture map, and use
+    correct order in load_immediate_1 cmd, which fixed crash on
+    845GV. Also remove some flush cmds.
+
+commit 64c30cf896f8bde3ee74c92b970132ab91b418cd
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Mon Apr 16 13:58:50 2007 +0800
+
+    Update intel.man with 965GM chipset support
+
+commit b67adb6de34cede0e31f02f26cd5ec7b1adfa586
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Apr 13 22:34:52 2007 +0800
+
+    Fix crash on G965 XAA with LinearAlloc option
+    
+    We should alloc xaa_linear mem in LinearAlloc case, otherwise
+    we get crash when initializing xf86 fb manager.
+
+commit b5b243e4120d6a048fb6bbe8814fe3184271e9d9
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Apr 12 12:34:23 2007 -0700
+
+    Add license headers to 965 programs.
+
+commit 08cd5f9b0f086e51112008d50de48556372899f9
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Apr 10 11:26:46 2007 -0700
+
+    Bug #10520: i810 manpage not installed despite users expecting it to be there.
+    
+    Install it as an alias to intel.4x, since we're letting people load the driver
+    as "i810" still.
+
+commit bf9771e9711361632afe3abeeedca7ce03497005
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 9 15:26:05 2007 -0700
+
+    Don't use extended regexps in sed when not necessary.
+    
+    Some seds require a flag to enable extended regexps.
+
+commit 656fbd952542ba5ddc9b018071008ceb38b1bd19
+Author: Brice Goglin <brice.goglin@ens-lyon.org>
+Date:   Mon Apr 9 13:06:46 2007 -0700
+
+    Bug #10515: Fix module version number with more than one digit per field.
+
+commit aa850d3c633a510d787ee59e538e26e5c3acbf4a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 9 11:44:25 2007 -0700
+
+    Turn off ALWAYS_SYNC in EXA.
+    
+    This slipped in as a debugging aid, and never got turned off.  The driver
+    appears to work fine without it on an i915 system, and for the non-default EXA
+    option, we'd rather see issues found than continue running with debugging aids
+    and hiding them behind bad performance.
+
+commit d2e75d8acde2541b85a0050d9e47182c1db7fc2c
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 9 11:34:57 2007 -0700
+
+    Avoid a magic number and correct a (currently harmless) ifdef in ResetState().
+
+commit 9ed446e12bd21b7c8222c6e63a03a8e2ec6b97e2
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Apr 3 11:39:48 2007 -0700
+
+    It's 2007 now.  Didn't I get the memo?
+
+commit d9d05b553ca1f98efc230ef13f34576122311ac1
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Apr 3 00:15:02 2007 -0700
+
+    Bump version to 1.9.94 for 2.0 RC4.
+
+commit eb45315b07624cb0506d539f523728a651efb798
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 2 18:20:33 2007 -0700
+
+    Move README to being a plain old text file.
+
+commit 9b78208f1ef1a8ee98f2aa139956659169e234ab
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 2 18:20:15 2007 -0700
+
+    Move a bunch of debugging verbosity under Option "ModeDebug".
+
+commit 9ea83d440d6b9e30d4627e34168226a6b4b2a841
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 2 11:39:27 2007 -0700
+
+    Update README source for new release notes.
+
+commit c6d0bf9fb6033339159d98dc2b9fe44759ad9de5
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 2 10:09:43 2007 -0700
+
+    Remove long-stale TODO file.
+
+commit c59e5895a0ea1f219c8f63a02b429a024bd1ed66
+Author: Dave Airlie <airlied@linux.ie>
+Date:   Mon Apr 2 07:18:04 2007 +1000
+
+    make warning info only so ppl don't go reporting stupid bugs
+
+commit e119eaabb2ad1ffc1d83f18199f49c52ec71b0fe
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Mar 30 17:09:18 2007 -0700
+
+    Warnings cleanup in ch7xxx.
+
+commit fd98e88d1a6e0e8d35bda868e7afcb78d2d11524
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Mar 30 17:07:29 2007 -0700
+
+    Finish off some function renaming that was missed before.
+    
+    Thanks to alanc for catching this.
+
+commit 274b99e5e750228eba9a67773725a40ebaa9bf56
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Mar 30 17:06:43 2007 -0700
+
+    Don't forget the warnings CFLAGS in subdirectories.
+
+commit aa6a9abb34e93780c07563ab5b21d8c064ea0a1c
+Merge: 670c852... 107ac12...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Fri Mar 30 12:10:17 2007 -0700
+
+    Merge branch 'crestline-qa'
+
+commit 670c8521f18f01b9ea899ceb68d2a3dbb884b199
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Mar 29 13:43:31 2007 -0700
+
+    Add missing file for old server compatibility build.
+
+commit 89c84f939f2dbed1d03a5f0e1daae23a229e47bc
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Mar 29 13:40:52 2007 -0700
+
+    Whitespace cleanup in Makefile.
+
+commit 6cd3b2c2de4596886aab85988b16cf63e8887add
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Tue Mar 27 15:34:32 2007 +0800
+
+    EXA: i830 fix blend action
+    
+    i830_get_blend_cntl() has already added S8 offset.
+
+commit 35b3dd881a333569ce20ddf36b915b095757a1ba
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Tue Mar 27 15:33:43 2007 +0800
+
+    EXA: fix i830 componentAlpha support
+    
+    Pick fix from i915 render, change tex blend pipeline for CA.
+
+commit df96d9a11d038ad64673022ce14c24223b3bd34c
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Tue Mar 27 15:32:53 2007 +0800
+
+    EXA: fix i830 texture setup
+    
+    Use LOAD_IMM_2 helper cmd for tex setup. Enable RepeatNormal
+    support. Fix A8 format, i830 can support it now.
+
+commit aa78e67553ffe8ca986330f0ee49b5414c71a71f
+Merge: 768821b... 2191634...
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Mar 26 22:00:36 2007 -0700
+
+    Merge branch 'master' of git+ssh://git.freedesktop.org/git/xorg/driver/xf86-video-intel
+
+commit 107ac12867eda6b86212159db15c640d3490f2da
+Merge: 6548817... 2191634...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Tue Mar 27 12:51:45 2007 +0800
+
+    Merge git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
 commit 768821bd3832aad01e44856199e60c6b7726a83b
 Author: Eric Anholt <eric@anholt.net>
 Date:   Mon Mar 26 21:27:54 2007 -0700
 
     Bump version to 1.9.93 for 2.0RC3.
+
+commit 2191634dd67b3219bb88f365bcf951d5a58140e8
+Author: Alan Coopersmith <alan.coopersmith@sun.com>
+Date:   Mon Mar 26 14:58:41 2007 -0700
+
+    Add Solaris to list of OS'es with agpgart in man page
 
 commit 1c809f92467f97b098bcc89d66e60f6f88d9bade
 Author: Eric Anholt <eric@anholt.net>
@@ -28,6 +360,13 @@ Date:   Mon Mar 26 12:45:23 2007 -0700
     
     While here, update a few other bits as well.
 
+commit 654881794ae1ad7214e85091b9015ae0fbdc5ddc
+Merge: 6de3edc... d572771...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Mon Mar 26 17:00:11 2007 +0800
+
+    Merge git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
 commit d5727717c9141be28a69b1154ccd23c23207f8f6
 Author: Keith Packard <keithp@guitar.keithp.com>
 Date:   Sun Mar 25 23:44:59 2007 -0700
@@ -36,6 +375,13 @@ Date:   Sun Mar 25 23:44:59 2007 -0700
     
     This allows the driver to report the set of valid formats in the property
     data.
+
+commit 6de3edcb52e6258f1af75e4f4bef73de1698445d
+Merge: d874aa3... 1e6e675...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Sat Mar 24 17:00:13 2007 +0800
+
+    Merge git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
 
 commit 1e6e675524461ef0eb1983de89e2877426571a55
 Author: Keith Packard <keithp@neko.keithp.com>
@@ -64,6 +410,13 @@ Date:   Fri Mar 23 14:34:27 2007 -0700
     AdjustFrame is strictly for legacy compatibility; calling it on EnterVT
     wrecks crtc positions.
 
+commit d874aa31599da4777438cc51469afe9b66601f55
+Merge: 94dbc37... 26f32ef...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Fri Mar 23 17:00:12 2007 +0800
+
+    Merge git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
 commit 26f32ef680a19e63af4b7c8c84141fe32263f298
 Author: Keith Packard <keithp@guitar.keithp.com>
 Date:   Fri Mar 23 01:17:58 2007 -0700
@@ -83,6 +436,13 @@ Date:   Fri Mar 23 01:08:08 2007 -0700
     split the input resolution from the tv format. Add properties to set the
     blank area on all four sides of the image.
 
+commit 94dbc3725358d63fe0ac8e6749489c993d24ede2
+Merge: 28af380... 20b2685...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Thu Mar 22 17:00:15 2007 +0800
+
+    Merge git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
 commit 20b26854abdacb6dc45cba2d81d515b2e47e25f1
 Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
 Date:   Thu Mar 22 10:33:15 2007 +0800
@@ -95,6 +455,32 @@ Date:   Thu Mar 22 10:33:15 2007 +0800
     not do this. This also cleans up vertex elements state
     and makes vertex buffer order looks "normal".
 
+commit 28af380ab133eb14d21dc650c77bdbab66576255
+Merge: 300e893... e06c5f7...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Wed Mar 21 17:00:04 2007 +0800
+
+    Merge branch 'crestline' of git://otc-graphics.jf.intel.com/git/xorg/driver/xf86-video-intel into crestline
+
+commit e06c5f727fb2e2de111ac9e691a877c56d2ca1b4
+Merge: 0202399... 3025fa0...
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Mar 21 15:04:21 2007 +0800
+
+    Merge branch 'master' into crestline
+
+commit 02023998663cc7f0735fadfb1719d93dc2e5a112
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Mar 21 00:00:56 2007 -0700
+
+    Whitespace and symbolic reg names cleanup in i830_panel_fitter_pipe().
+
+commit 3e9ec78b4f54defb9986e11e6f2ac3475755849d
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Mar 20 23:58:48 2007 -0700
+
+    Set the panel fitter to the right pipe on Crestline.
+
 commit 3025fa0fb2bf5ace7076796e45e2560fe8410e8d
 Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
 Date:   Wed Mar 21 14:50:45 2007 +0800
@@ -103,6 +489,25 @@ Date:   Wed Mar 21 14:50:45 2007 +0800
     
     The new sf/wm should handle the texture sampling only in
     rotated case. Also fix possible hole in VUE slot.
+
+commit a50009604152bf9237c40bd098b3b1da3d018929
+Merge: 0a612e7... 2239448...
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Mar 20 23:32:19 2007 -0700
+
+    Merge branch 'master' into crestline
+    
+    Conflicts:
+    
+    	src/i810_reg.h
+    	src/i830_display.c
+
+commit 300e893cec19dca48e00ee25014b8714dc13b278
+Merge: 96e8699... 0202399...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Wed Mar 21 08:55:50 2007 +0800
+
+    Merge branch 'crestline' of git://otc-graphics.jf.intel.com/git/xorg/driver/xf86-video-intel into crestline
 
 commit 223944878cf38f86580df5a7d3102d86cfc061b9
 Author: Eric Anholt <eric@anholt.net>
@@ -116,6 +521,27 @@ Date:   Tue Mar 20 14:33:53 2007 -0700
       choose to go dual-channel or not.
     - Restore the LVDS register at the appropriate point (before DPLLs are
       re-programmed.
+
+commit 96e86994f3d1b4938e99a751454ee99bebfe40d3
+Merge: f465c23... 0a612e7...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Tue Mar 20 13:11:09 2007 +0800
+
+    Merge branch 'crestline' of git://otc-graphics.jf.intel.com/git/xorg/driver/xf86-video-intel into crestline
+
+commit 0a612e7115ff993bb8e9a00df13c0b0d20122fd6
+Merge: 8bb6778... 4c4faf2...
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Tue Mar 20 11:34:40 2007 +0800
+
+    Merge branch 'master' of git://proxy.ims.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+    
+    Conflicts:
+    
+    	src/i830_display.c
+    
+    Change LVDS output and postread like upstream. This might
+    need to be retested on 965GM LVDS.
 
 commit 4c4faf260eb4dad1b1919c6168fa9ef477b98a39
 Author: Eric Anholt <eric@anholt.net>
@@ -337,6 +763,13 @@ Date:   Tue Mar 13 09:53:35 2007 -0700
 
     Fix uninitialized string use in SDVO non-TMDS case.
 
+commit f465c23750adf908c0ea874f95aad98ebd2f1015
+Merge: d33e8da... 1ed3843...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Tue Mar 13 17:00:44 2007 +0800
+
+    Merge git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
 commit 1ed3843f73a0d8efa405daff3483ebe70bf6134f
 Author: Eric Anholt <eric@anholt.net>
 Date:   Mon Mar 12 17:47:32 2007 -0700
@@ -385,6 +818,13 @@ Author: Michel Dänzer <michel@tungstengraphics.com>
 Date:   Sat Mar 10 16:15:33 2007 +0100
 
     Remove unused have3DWindows from pI830.
+
+commit d33e8daa6874ced978d2a1f687c48922555f2524
+Merge: 58aeb87... 797aa6f...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Mon Mar 12 09:03:52 2007 +0800
+
+    Merge git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
 
 commit 797aa6fcb1231587bde1efb47bc8430c4c8d8110
 Author: Dave Airlie <airlied@linux.ie>
@@ -448,6 +888,13 @@ Date:   Wed Mar 7 13:00:03 2007 -0800
 
     Bug #10157: Fix cursor corruption on server regen.
 
+commit 58aeb87f2e335d15eba73ce9dd1982e867c52403
+Merge: a4e7e81... 81722a2...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Wed Mar 7 16:02:03 2007 -0500
+
+    Merge git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
 commit a5f0522b1d34236278861fe15bac2df099f0a2c7
 Author: Alan Hourihane <alanh@fairlite.demon.co.uk>
 Date:   Wed Mar 7 15:49:47 2007 +0000
@@ -488,6 +935,13 @@ Date:   Tue Mar 6 13:57:04 2007 -0800
     setting the Y tiling flag in the new version broke the depth buffer, so just
     switch the depth buffer to X tiling, which appears to work fine.
 
+commit a4e7e814a24dbe30a33e6ad45baeb41d190a2724
+Merge: 862088b... 4042b27...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Tue Mar 6 16:01:40 2007 -0500
+
+    Merge git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
 commit 30bb719ca0abc2599ffb89e59f297fa9a0a00c3c
 Author: Eric Anholt <eric@anholt.net>
 Date:   Tue Mar 6 12:23:43 2007 -0800
@@ -508,6 +962,13 @@ Date:   Tue Mar 6 16:54:16 2007 +0100
     Fix build failure.
     
     Not sure how I missed this before... Thanks to Todd Merrill for reporting.
+
+commit 862088ba6a91d3e7cf8d37126b1d9f4ee03a1f73
+Merge: 11e9158... d717d9d...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Tue Mar 6 07:43:16 2007 -0500
+
+    Merge git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
 
 commit 1e1b45fa6ed1683cba4ae73ac98933e74c3ab9d6
 Author: Michel Dänzer <michel@tungstengraphics.com>
@@ -583,6 +1044,20 @@ Date:   Tue Mar 6 12:44:04 2007 +0800
     I think this is a safe way to work around any possible chip
     error.
 
+commit 11e91586169b4f4bf2b41c0e0e620a69670c2f07
+Merge: a24962a... 0150270...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Mon Mar 5 16:00:20 2007 -0500
+
+    Merge git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
+commit a24962af9ed39fabca0152cae1265a29fe6237d3
+Merge: 35e9310... 8bb6778...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Mon Mar 5 16:00:11 2007 -0500
+
+    Merge branch 'crestline' of git://otc-graphics.jf.intel.com/git/xorg/driver/xf86-video-intel into crestline
+
 commit 50aa09425f54c4eeca7f8b0fae9579209b10b9c4
 Merge: d717d9d... c2c6255...
 Author: Keith Packard <keithp@neko.keithp.com>
@@ -599,6 +1074,19 @@ Date:   Sat Mar 3 23:12:54 2007 -0800
     Code to drive the global configuration from a single mode setting operation
     (from RandR 1.1, XFree86-VidModeExtension or XFree86-DGA) has been included
     in the X server now, so remove it from this driver.
+
+commit 35e9310ef59873877422dcaf9a65b38789fc8ad6
+Merge: c8e6f0b... b27fa2c...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Mon Mar 5 09:01:55 2007 -0500
+
+    Merge branch 'modesetting' of git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
+commit 8bb677889d3f71cde671f17a3589939acad2c3b3
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Mar 5 05:08:51 2007 -0800
+
+    Fix 965GM SDVO by not setting fields in SDVO[BC] which have new meanings.
 
 commit 330815251dee808754b328cd2fd60db39f2460eb
 Merge: 50ba1ff... 0150270...
@@ -623,6 +1111,13 @@ Date:   Mon Mar 5 12:57:21 2007 +0100
     Fix DRM memory manager initialization.
     
     It takes the offset and size in pages, not bytes.
+
+commit a0c83af3430b6705ab2ecae59085d1c74e890c19
+Merge: c0f99b4... bc20b54...
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Mar 5 03:37:53 2007 -0800
+
+    Merge branch 'modesetting' into crestline
 
 commit 7358642e64ab6d13bc1dc1a44703ee66d715ff61
 Author: Michel Dänzer <michel@tungstengraphics.com>
@@ -699,6 +1194,13 @@ Date:   Sun Mar 4 17:11:40 2007 -0800
     origin is always interpreted by the shadow copying code, the frame buffer
     itself doesn't move.
 
+commit c8e6f0bac13e0e407f9771b1bbf126f023c1511b
+Merge: 0ed5a2f... c0f99b4...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Sun Mar 4 09:00:12 2007 -0500
+
+    Merge branch 'crestline' of git://otc-graphics.jf.intel.com/git/xorg/driver/xf86-video-intel into crestline
+
 commit 7d08f720a95499e8d00dcd7174f06731de420017
 Merge: dd24d2a... 435d355...
 Author: Keith Packard <keithp@neko.keithp.com>
@@ -714,6 +1216,29 @@ Date:   Sat Mar 3 22:46:31 2007 -0800
     
     Add xf86CrtcConfigFuncs to xf86CrtcConfigInit
     Add canGrow option to xf86InitialConfiguration
+
+commit c0f99b4962553e560a5cb882a5060d95db5477a4
+Author: Keith Packard <keithp@gamba.jf.intel.com>
+Date:   Sat Mar 3 22:36:46 2007 -0800
+
+    LVDS dither control moved from PFIT to LVDS register for Crestline
+    
+    The LVDS register now contains lots of new controls for dual-channel LVDS control
+    along with dither enabling. The PFIT register has a lot fewer controls as a result.
+
+commit 0fa3d4f51b5ee0dba3882fd74b6ac4e7da708f8f
+Merge: 10655c4... fd52d63...
+Author: Keith Packard <keithp@gamba.jf.intel.com>
+Date:   Sat Mar 3 21:02:17 2007 -0800
+
+    Merge branch 'modesetting' into crestline
+
+commit 0ed5a2fdcfe9674175aa9af155c20695ef41cadc
+Merge: 7ba80cc... fd52d63...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Sat Mar 3 09:00:20 2007 -0500
+
+    Merge branch 'modesetting' of git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
 
 commit fd52d635603b7093c5a2b7fa9c987cf59f9be27c
 Author: Eric Anholt <eric@anholt.net>
@@ -739,11 +1264,25 @@ Date:   Fri Mar 2 11:03:16 2007 -0800
 
     Fix a crash when an ARGB cursor allocation had failed.
 
+commit 7ba80cc3a5e0f469e3ee55c7537fdc952cd85911
+Merge: 9796cb7... d5df52b...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Fri Mar 2 09:01:46 2007 -0500
+
+    Merge branch 'modesetting' of git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
 commit d5df52be59a7dd950e73336ce5698e73480108b0
 Author: Eric Anholt <eric@anholt.net>
 Date:   Thu Mar 1 08:35:13 2007 -0800
 
     Actually add the files for reg_dumper.
+
+commit 9796cb7ac4bd74d5336986bb194ff5875b028121
+Merge: 42deb1e... 1f5d166...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Thu Mar 1 09:02:22 2007 -0500
+
+    Merge branch 'modesetting' of git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
 
 commit 1f5d1666c8386ca4597c6f2c1ec239f9d821da4c
 Author: Eric Anholt <eric@anholt.net>
@@ -774,6 +1313,20 @@ Author: Michel Dänzer <michel@tungstengraphics.com>
 Date:   Wed Feb 28 17:50:56 2007 +0100
 
     I830DRIClipNotify: Fix initialization of crtcBox[1].[xy]2.
+
+commit 42deb1e10fc445d152b74e2b225daeaee2abb3d1
+Merge: 76aac38... 3e8e75e...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Wed Feb 28 09:00:24 2007 -0500
+
+    Merge branch 'modesetting' of git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
+commit 76aac382659bc1dab7dca078f703b9cf48b4ad74
+Merge: 42fc06c... 1ac83f5...
+Author: Nian Wu <nian@tinderbox.sh.intel.com>
+Date:   Tue Feb 27 14:42:42 2007 -0500
+
+    Merge branch 'modesetting' of git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
 
 commit 3e8e75e5d83a2fa7e9fc6e9a3fbb07dac548ea5a
 Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
@@ -851,6 +1404,25 @@ Author: Eric Anholt <eric@anholt.net>
 Date:   Mon Feb 26 09:13:17 2007 -0800
 
     Fix a crash in startup monitor detect.
+
+commit 10655c4674cdac8a231c50dd9afc5d43fe43b4bd
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Mon Feb 26 09:23:14 2007 +0800
+
+      for merge with external tree
+
+commit 9417af8630fce0476273b693ebac12129415e0cf
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Mon Feb 26 08:02:50 2007 +0800
+
+      fix conflict with external branch
+
+commit 42fc06c85a0c487cfa26b9d4aa396402dbc4c2fe
+Merge: 10655c4... 3bce8bf...
+Author: Nian Wu <nian@graphics.(none)>
+Date:   Sun Feb 25 12:53:47 2007 -0800
+
+    Merge branch 'modesetting' of git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
 
 commit 84a7429730ddd29072d696accb9fdd8fea40731a
 Author: Eric Anholt <eric@anholt.net>
@@ -1187,6 +1759,12 @@ Date:   Fri Feb 9 11:32:22 2007 +0800
 
      TV Enable
 
+commit 00dadaa115951c36de9caf2a9d78909811ef34bc
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Fri Feb 9 11:14:50 2007 +0800
+
+      set DPLL before detect
+
 commit 10712c7a781e50475ee7e8ccd5bfd2d820f863e2
 Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
 Date:   Thu Feb 8 08:56:42 2007 +0800
@@ -1203,6 +1781,22 @@ Date:   Wed Feb 7 17:30:51 2007 +0800
     
     Fix SF kernel with corrent coeffient work, and correct
     VUE storage in multi texture case.
+
+commit 920aeaf8478f706ab3b1de4f20f5d351e64a0197
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Feb 7 13:15:52 2007 +0800
+
+      Make TV code same with external tree.
+      Fallback to old filter table.
+      4 spaces indent reformat.
+      Auto scaling seem to not work well on some low res interlace mode when input width > 1024, filter those modes.
+      Fix some subcarriar number
+
+commit 6d9757e466863594300c83f3806fd4376bea0504
+Author: Zou Nanhai <nanhai.zou@intel.com>
+Date:   Mon Feb 5 14:59:53 2007 +0800
+
+    Fix hang when TV is not connect.
 
 commit 681b91924c364a1c00732f548539f2767929ba0e
 Author: Eric Anholt <eric@anholt.net>
@@ -1250,6 +1844,38 @@ Date:   Thu Feb 1 21:30:19 2007 -0800
     specified output does not exist at all. It will not be listed by the
     RandR1.2 extension, and the server will not attempt to detect monitors at
     startup time.
+
+commit b3633506dcd4fd58f0f9519cd67f6e75d6fb2042
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Feb 2 11:35:44 2007 +0800
+
+    Add Intel 965GM chipset support
+
+commit 380129a17c61c783d77a87685ad5333e8b1c253c
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Feb 2 11:33:46 2007 +0800
+
+    Revert original crestline pci id patch
+
+commit f7489bbec150349bf03bea8d9d55451dbc92bfc2
+Merge: f1285ec... ae6d358...
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Feb 2 11:26:57 2007 +0800
+
+    Merge branch 'modesetting' into crestline
+    
+    Conflicts:
+    
+    	src/i830_display.c
+    	src/i830_tv.c
+    	src/i830_xf86Crtc.c
+
+commit ae6d3585a4d96aa4dc05ca8563cebfa7796324ef
+Merge: 6d549ed... 1ba45a3...
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Feb 2 11:21:59 2007 +0800
+
+    Merge branch 'modesetting' of git://proxy.ims.intel.com:9419/git/xorg/driver/xf86-video-intel into modesetting
 
 commit 9f0acf1eb01ad8320f4da4cc5e498af25c0ecc5e
 Author: Keith Packard <keithp@neko.keithp.com>
@@ -1320,6 +1946,32 @@ Date:   Wed Jan 31 12:15:38 2007 -0800
     
     The now-generic (kind of) EXA code will be cleaned up and moved to generic
     files in a later commit.
+
+commit f1285ecb72e807ac10db398fa983bf69d4154d97
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Jan 31 14:58:08 2007 +0800
+
+      tune
+
+commit 0620a7650f758652d05a0c25d159587f641aaf3e
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Jan 31 11:21:11 2007 +0800
+
+      fix
+
+commit 12441e217a1968dea3a6b0646b6c5d0e2ede0e7e
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Jan 31 11:20:23 2007 +0800
+
+      add 720p@50Hz,
+      however 720p in this freq seems to not support src width,
+      hactive > 800, so skip those inputs.
+
+commit 726c7dd89627409820ee5cf9bf657d5a926b3648
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Jan 31 10:34:39 2007 +0800
+
+       TV fixes.
 
 commit 4cd552e8f4851e029e43bf778cd8340f6c2c4881
 Author: Eric Anholt <eric@anholt.net>
@@ -1445,6 +2097,31 @@ Date:   Thu Jan 25 15:31:22 2007 -0800
     For EXA, this requires version 2.1 of EXA to do rotation, as the VT switching
     issues were too complicated otherwise.
 
+commit 5a67f3d3690903a181ca854d060cfa8b4c2aca26
+Merge: 3cc583e... 9811059...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Thu Jan 25 13:40:50 2007 -0800
+
+    Merge branch 'crestline' of /git/xorg/driver/xf86-video-intel into crestline
+
+commit 3cc583ec8e79ec65103308220dd6047a4a7acddf
+Merge: 566e1d3... effe579...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Thu Jan 25 13:37:05 2007 -0800
+
+    Merge branch 'modesetting' of git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into crestline
+
+commit 6d549ed280d3fcf3fe611b095d9f8adc0196bfb6
+Merge: 75f4df2... effe579...
+Author: Nian Wu <nian.wu@intel.com>
+Date:   Thu Jan 25 13:36:33 2007 -0800
+
+    Merge branch 'modesetting' of git://proxy01.pd.intel.com:9419/git/xorg/driver/xf86-video-intel into modesetting
+    
+    Conflicts:
+    
+    	src/i830_driver.c
+
 commit 83cc4601b27d871484a2408f31154e9387064b9e
 Author: Eric Anholt <eric@anholt.net>
 Date:   Wed Jan 24 16:52:22 2007 +0800
@@ -1564,6 +2241,12 @@ Author: Eric Anholt <eric@anholt.net>
 Date:   Wed Jan 17 14:35:31 2007 -0800
 
     Set all CRTCs' allowable rotations when xf86RandR12SetRotations() is called.
+
+commit 98110591001dfaf2b8b5ac440bea0c38456da718
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Jan 17 10:45:59 2007 +0800
+
+      enable all TV modes
 
 commit 3094100cdd04560af1b098bbe8024ae5270a10f4
 Author: Gary Wong <gtw@gnu.org>
@@ -1729,6 +2412,13 @@ Date:   Mon Jan 8 16:53:07 2007 -0800
 
     Correct typo resulting in a crash with ivch.  = != ==.
 
+commit 566e1d397744d0b477de4da6a206919906176f49
+Merge: b13d638... da6a00f...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Mon Jan 8 12:37:49 2007 -0800
+
+    Merge branch 'modesetting' into crestline
+
 commit da6a00f787e4d13e6b75768c1976f1c44ae5bf72
 Author: Keith Packard <keithp@neko.keithp.com>
 Date:   Mon Jan 8 12:36:54 2007 -0800
@@ -1745,11 +2435,47 @@ Date:   Mon Jan 8 10:14:24 2007 -0800
 
     Merge branch 'modesetting-origin' into modesetting
 
+commit b13d6386dfb3a00bd9d21ac0695cdce9f812d1f3
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Sun Jan 7 22:56:37 2007 -0800
+
+    Back out rotation changes for RandR 1.2 which won't work.
+    
+    RandR 1.2 requires a new rotation structure for per-CRTC rotation.
+
+commit 7473e7d5297f94164e0f35822166713fb21a11bd
+Merge: cdde9e7... a87801f...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Sun Jan 7 22:50:27 2007 -0800
+
+    Merge branch 'crestline-otc' into crestline
+
+commit cdde9e7f4a0645ab1ee3e124de54433c1a250097
+Merge: 3110630... 0fd2752...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Sun Jan 7 22:50:12 2007 -0800
+
+    Merge branch 'modesetting' into crestline
+
 commit 0fd2752f199928f846fe03c9087f7b6d48cc28d9
 Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
 Date:   Thu Jan 4 14:35:55 2007 +0800
 
     minor fix on last exa mem binding commit
+
+commit 3110630e04f37e184609c91494fa7f9f4d59b93f
+Merge: be9b635... 736d82a...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Sun Jan 7 22:44:36 2007 -0800
+
+    Merge branch 'modesetting' into crestline
+    
+    Conflicts:
+    
+    	src/i830_rotate.c
+    
+    Pull in upstream changes to crestline branch leaving only
+    the PCI-IDs as local changes.
 
 commit 40af0ee6ba4ab7596fbc7fcc3ad04d109746ca6f
 Author: Keith Packard <keithp@mandolin.keithp.com>
@@ -1947,6 +2673,21 @@ Date:   Sat Jan 6 08:21:36 2007 -0800
     There are only a few sparse warnings left now: some bitfield warnings
     and a few 'mixing code and declarations' warnings from the ring macros.
 
+commit a87801f73a73e53524237be7835b8cd8b3eb282c
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu Jan 4 14:47:48 2007 +0800
+
+    Fix TV load detect
+    
+    Actually load TV, otherwise we don't have expected
+    reg state to probe.
+
+commit 9cf759a2cb2580c4ac5f8cdc983389642f3cfce0
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu Jan 4 14:35:55 2007 +0800
+
+    minor fix on last exa mem binding commit
+
 commit f9c3ef40100acb85fca6e49c5c0e98f5c9ac97ca
 Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
 Date:   Tue Oct 10 15:50:10 2006 +0800
@@ -2035,6 +2776,13 @@ Date:   Mon Sep 25 14:35:51 2006 +0800
     
     Signed-off-by: Keith Packard <keithp@neko.keithp.com>
 
+commit be9b635b82c0c77ccc0555f178f94de6e5338e27
+Merge: 9e48808... 5a793b0...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Wed Jan 3 22:15:53 2007 -0800
+
+    Merge branch 'modesetting' into crestline
+
 commit 5a793b0dcf2d5de408b55073858fcfba6d99f994
 Merge: f188525... 394124c...
 Author: Keith Packard <keithp@neko.keithp.com>
@@ -2047,6 +2795,37 @@ Author: Keith Packard <keithp@neko.keithp.com>
 Date:   Wed Jan 3 21:53:07 2007 -0800
 
     Add interlace defines for pipeconf regs
+
+commit 9e48808fccf5b153c2fb4027f9a09944574fdace
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu Jan 4 11:25:31 2007 +0800
+
+    Fix EXA mem binding
+    
+    We should check if EXA is really enabled.
+
+commit ebd636dbd62cb69ed7defbd86f297c6bc7dac5dd
+Merge: 75f0033... 3d9ea6f...
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu Jan 4 10:13:55 2007 +0800
+
+    Merge branch 'modesetting' into crestline
+    
+    Conflicts:
+    
+    	src/i830.h
+    	src/i830_randr.c
+
+commit 3d9ea6f3c8a274f930d286fc15d3665dfaa8327a
+Merge: 75f4df2... 394124c...
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu Jan 4 10:12:50 2007 +0800
+
+    Merge branch 'modesetting' of git+ssh://zhen@git.freedesktop.org/git/xorg/driver/xf86-video-intel into modesetting
+    
+    Conflicts:
+    
+    	src/i830_driver.c
 
 commit 394124ceaadb46d976ad5c3bdeb1b77d351c57f6
 Author: Eric Anholt <eric@anholt.net>
@@ -2182,6 +2961,14 @@ Date:   Sun Dec 31 14:21:12 2006 -0800
     This file retained the old MIT license with the embedded author name.
     Replace that with the version that uses generic 'copyright holders' instead.
 
+commit 75f0033ec41a34bbe695cfd4a9bc9aa60e919c99
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Sun Dec 31 15:16:59 2006 +0800
+
+    Issue current virtual size to mode valid.
+    
+    Revert change in rotation patch.
+
 commit 2330b341c925e60bc2c991b4ca8450badbc459a4
 Author: Keith Packard <keithp@neko.keithp.com>
 Date:   Sat Dec 30 22:47:58 2006 -0800
@@ -2252,6 +3039,22 @@ Date:   Thu Dec 28 22:18:57 2006 -0800
     Belinea 10 15 55 model monitor reports a preferred mode of 640x350, when in
     fact it wants a 1024x768 mode @ 60Hz. Add an edid quirk that selects the
     largest size mode, preferring those closer to 60hz among equal sized modes.
+
+commit fbd3f588f0d412c20cc3f86dfad73700734a9a76
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Dec 29 10:47:52 2006 +0800
+
+    rotation support for randr-1.2
+    
+    This patch trys to resolve rotation regression with randr-1.2.
+    Tested with Crestline VGA output. See bug 83.
+
+commit a1796bfb51d90fd545973909404e1a77ad27c9cc
+Merge: 84915ac... fabfccd...
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Dec 29 10:10:26 2006 +0800
+
+    Merge branch 'crestline' of git+ssh://zhen@otc-graphics.jf.intel.com/git/xorg/driver/xf86-video-intel into crestline
 
 commit bedab1654e2dfcf7800bd0101e6991800a544019
 Author: Eric Anholt <eric@anholt.net>
@@ -2348,6 +3151,22 @@ Date:   Thu Dec 21 16:21:28 2006 -0800
     DVO card sold that could be put in desktop machines, which would likely be on
     GPIOE like other ADD cards.  Given that we couldn't find one of these cards for
     purchase, I'm not worrying about it.
+
+commit fabfccd3d8a55a83138d361f66c53cb7e6d371a8
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Thu Dec 28 14:48:54 2006 +0800
+
+      Fix
+
+commit ddefce4f02eb3272ad37e890350f73f03eff73c9
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Thu Dec 28 14:45:53 2006 +0800
+
+     support NTSC 480i M-J 1280x1024 1024x768 800x600 640x480
+     PAL 576i 1280x1024 1024x768 800x600 640x480
+    
+     I still have problem with non-interlace mode and Hi Res mode.
+     also I don't know how to pickup those mode in xorg.conf
 
 commit c87462ded20904dbc6c6cbdb9547523b75fe5471
 Author: Eric Anholt <eric@anholt.net>
@@ -2490,6 +3309,13 @@ Date:   Thu Dec 21 21:17:03 2006 -0800
     m2 was ranging from min <= m2 < max instead of <= max resulting in
     inaccurate PLL frequencies for some modes.
 
+commit c5205595f2abacc9f736e1f53666302ec551cbc4
+Merge: b8f3ec7... 4c0c1aa...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Dec 21 02:51:33 2006 -0800
+
+    Merge branch 'modesetting' into crestline
+
 commit 4c0c1aa882cfec77b2183baec93cbc4cfaf4abe0
 Author: Keith Packard <keithp@guitar.keithp.com>
 Date:   Thu Dec 21 02:33:39 2006 -0800
@@ -2520,6 +3346,21 @@ Date:   Thu Dec 21 01:24:24 2006 -0800
     
     The result appears to generate stable NTSC video on the svideo connector.
 
+commit b8f3ec77104882fc755ddc88f2583cd5d15387a4
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Thu Dec 21 10:46:17 2006 +0800
+
+      This fix should be better, I830SetMode will call i830_sdvo_dump,
+      if the sdvo is not initialized, X will crash. So any application which
+      SetMode will crash X if there is no SDVO output.
+
+commit b83cbec34a8d1ff39bd303fcd27fc03dcdb1d6c3
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Dec 20 17:32:05 2006 +0800
+
+    fix null pointer reference,
+    I hit this when running doom3-demo
+
 commit 4ba72fc408e7fab7c384aff5e73f0cfb8fd86cf3
 Author: Keith Packard <keithp@guitar.keithp.com>
 Date:   Tue Dec 19 22:39:57 2006 -0800
@@ -2528,6 +3369,13 @@ Date:   Tue Dec 19 22:39:57 2006 -0800
     
     DGA has a copy of the current mode list (yes, this is broken).
     Regenerate it whenever the ddx mode list changes.
+
+commit 07d3f141712e2abf704cb68a59cd5d5c3390e2ca
+Merge: 0cd1a11... c28075e...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Tue Dec 19 22:01:02 2006 -0800
+
+    Merge branch 'modesetting' into crestline
 
 commit c28075e1d70c98b39fc9829a6a01da171a9b9426
 Author: Keith Packard <keithp@guitar.keithp.com>
@@ -2622,6 +3470,12 @@ Date:   Tue Dec 19 01:32:54 2006 -0800
     We were forcing bus lines to 1 which was breaking DDC for some monitors.
     Instead, make the PutBits function just tristate when writing 1 bits.
 
+commit 0cd1a11d4493ef4a2d05ccf8aadec743504dba5f
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Tue Dec 19 14:03:19 2006 +0800
+
+      fix for bug #108
+
 commit eedef7adc53dd8337d27c02551c5778fb43bae05
 Author: Eric Anholt <eric@anholt.net>
 Date:   Mon Dec 18 15:57:44 2006 -0800
@@ -2708,6 +3562,13 @@ Date:   Mon Dec 18 10:37:33 2006 -0800
     
     This is an un(der?)-documented part of the render protocol: If the mask is
     alpha only, then the component alpha flag is ignored on it.
+
+commit 65cd18b97bc533b24031d6eb882fd3074779ceba
+Merge: bf43f8c... 6823ca8...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Sun Dec 17 17:32:24 2006 -0800
+
+    Merge branch 'modesetting' into crestline
 
 commit 6823ca87f3b1ef3b28ed167254dcfce2a80467df
 Author: Keith Packard <keithp@mandolin.keithp.com>
@@ -2993,6 +3854,27 @@ Date:   Mon Dec 11 09:34:50 2006 -0800
 
     Add error messages for previous silent DRI initialization failures.
 
+commit bf43f8ce736d91659c2757fb39b13e63bc5891a4
+Merge: 684ea26... 9452321...
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Dec 8 14:17:43 2006 +0800
+
+    Merge branch 'modesetting' into crestline
+
+commit 94523215127a3458a28d0f1217224a27c8870884
+Merge: 75f4df2... fde52de...
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Dec 8 14:15:06 2006 +0800
+
+    Merge branch 'modesetting' of git+ssh://zhen@git.freedesktop.org/git/xorg/driver/xf86-video-intel into modesetting
+
+commit 684ea26b740d07ec8f6b0d223c1171e70c073bfa
+Merge: 64269de... 6b977f0...
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Dec 8 14:03:10 2006 +0800
+
+    Merge branch 'exa-i965' of git+ssh://zhen@git.freedesktop.org/git/xorg/driver/xf86-video-intel into crestline
+
 commit 99f6f84076b25af69dc226e6d4704c74d207e657
 Author: Alan Hourihane <alanh@fairlite.demon.co.uk>
 Date:   Thu Dec 7 09:47:34 2006 +0000
@@ -3032,6 +3914,13 @@ Author: Eric Anholt <eric@anholt.net>
 Date:   Wed Dec 6 20:26:53 2006 -0800
 
     Include render.h to get SubPixelUnknown define.
+
+commit 64269de3c34db047e78b788dc5681abdc009f8aa
+Merge: 8ddbc26... 182d2f5...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Wed Dec 6 18:09:28 2006 -0800
+
+    Merge branch 'modesetting' into crestline
 
 commit 182d2f503a7a1be90d93a4a15059585a564fd3ce
 Merge: 677c454... 6777d80...
@@ -3149,6 +4038,12 @@ Date:   Wed Dec 6 00:13:57 2006 -0800
     xf86 Crtc and Output structures as the basis for the default configuration
     computation (and, eventually, the config-file based configuration as well).
 
+commit 6b977f0eca388a295ca7348f5960bd8e0192cf1d
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Dec 6 13:24:44 2006 +0800
+
+    fix Makefile.am
+
 commit ffd8aacbe7c72b696ff7257609e3c1d45c057609
 Author: Keith Packard <keithp@mandolin.keithp.com>
 Date:   Tue Dec 5 19:48:39 2006 -0800
@@ -3166,6 +4061,16 @@ Author: Keith Packard <keithp@mandolin.keithp.com>
 Date:   Tue Dec 5 19:43:41 2006 -0800
 
     fix up misleading comment in i830_crt.c about border register
+
+commit 041f0029c78620ca1b50e7e5d11f5d022e189641
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Dec 6 10:43:29 2006 +0800
+
+    Formats fixes
+    
+    We should use card_fmt for src/mask picture, and use dest color
+    buffer format helper. Also fix wrong name for G965 texture formats,
+    and pict_x1r5g5b5 isn't supported by sampler engine.
 
 commit 1d94ec7de3387b70815679977cfc5d88200efa99
 Author: Eric Anholt <eric@anholt.net>
@@ -3220,6 +4125,20 @@ Date:   Mon Dec 4 14:02:30 2006 -0800
     but the driver PreInit function is not re-invoked. Recreate them
     manually in this case during ScreenInit.
 
+commit 583619cdb2b6a469299dd5bf658bf5b51ee999fe
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Mon Dec 4 15:48:04 2006 +0800
+
+    set correct default border color
+
+commit f28d5fc30ccf60d72d5832bb6542522dc7f1c463
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Mon Dec 4 15:47:31 2006 +0800
+
+    fix typo in ps kernel
+    
+    fix corrupt in some subspans
+
 commit 677c454469a6223460778033758e384e989cea47
 Merge: 16f9a56... 8fcf9a8...
 Author: Keith Packard <keithp@neko.keithp.com>
@@ -3269,11 +4188,27 @@ Date:   Fri Dec 1 12:48:57 2006 -0800
 
     Add the [ax]4r4g4b4 source picture formats.
 
+commit 8ddbc26b276016b922487f7b1e8997998b655a7d
+Merge: 93975a5... 16f9a56...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Fri Dec 1 10:57:16 2006 -0800
+
+    Merge branch 'modesetting' into crestline
+    
+    Use new TV output condition (all 9xx except 915g)
+
 commit 16f9a56070a01c7ada8e566d9b73fcf7900136e0
 Author: Keith Packard <keithp@neko.keithp.com>
 Date:   Fri Dec 1 10:50:27 2006 -0800
 
     TV output exists on all 9xx chips except for 915G
+
+commit 93975a526086432cdeb8d7ead721a862d632c1e7
+Merge: 08b6569... e603cd0...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Fri Dec 1 10:28:58 2006 -0800
+
+    Merge branch 'modesetting' into crestline
 
 commit e603cd0c73344ef137d3276b5cfcbcf4df340778
 Author: Keith Packard <keithp@neko.keithp.com>
@@ -3412,6 +4347,80 @@ Date:   Wed Nov 29 15:01:39 2006 -0800
     
     The GTT is definitely located at the end of stolen memory.  This commit
     apparently worked around mis-estimation of the GTT size.
+
+commit db391e8e4c4d87bfe3ccad0de14dd5b47b69b8fe
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 29 17:16:46 2006 +0800
+
+    shut up warning
+
+commit 290f15cd4cda97727ebcaadacbbbf7650278934b
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 29 17:14:55 2006 +0800
+
+    fix alpha blending state
+
+commit 3d4edd325f3859c749ee42df102bb4239eac5287
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 29 17:05:32 2006 +0800
+
+    Add in sf/wm program for mask picture without CA
+
+commit a704120b15efae47344a90d972e7f3da64a202a6
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 29 16:52:44 2006 +0800
+
+    misc cleanup for G965 vs/sf/wm states
+
+commit e3c70c68e39183226e498271c44e98ef1b96a681
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 29 16:40:15 2006 +0800
+
+    WM kernel needs scratch space
+
+commit aa515c54f0cfd9025fc38dc4b7938ff17a8a13fb
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 29 16:37:06 2006 +0800
+
+    Setup default border color for our samplers
+
+commit b6eba96584bcd2c024f6443d9f3728eb65b234fb
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 29 16:30:53 2006 +0800
+
+    fix vertex buffer size
+
+commit 453842c9ff733af45fa665d9db6a35164f45c60a
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 29 16:24:24 2006 +0800
+
+    clean up issue cmd to ring buffer
+    
+    Make it easy to track different part of ring state, and
+    use rectlist primitive instead.
+
+commit 18ad7d5cf04081d89a9f978ccc7794116f7c498b
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 29 16:04:16 2006 +0800
+
+    remove wrong scale_units
+
+commit 3d5bd0c14eea7951540f7a12eee257428f78e2d1
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 29 16:02:16 2006 +0800
+
+    Rename exa sf/wm program files
+    
+    Also fix some minors in wm program.
+
+commit a06beb5f80f097fac3b718e742742bb32f1c1194
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 29 15:47:19 2006 +0800
+
+    EXA state mem for G965
+    
+    Not split offscreen mem for exa, but alloc a dedicated one
+    for G965 states.
 
 commit 9e4e7d4fa25a64a2494e7531967599142e60e716
 Author: Eric Anholt <eric@anholt.net>
@@ -3595,6 +4604,19 @@ Date:   Mon Nov 20 15:17:32 2006 -0800
     Rework SDVO support so that it can deal with two channels correctly,
     also save/restore all connected output timings.
 
+commit 08b6569dc663ddf38cb36a6875de6d4ab55acac9
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sun Nov 19 16:15:45 2006 -0800
+
+    Enable TV output on Crestline (untested).
+
+commit 05202cabbd23f15330b811ae6b8d708ad042bc40
+Merge: ee502dd... b945a65...
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sun Nov 19 16:14:18 2006 -0800
+
+    Merge branch 'modesetting-origin' into crestline
+
 commit b945a650e952f98c2d101b71bd3ec0f390478da5
 Author: Keith Packard <keithp@guitar.keithp.com>
 Date:   Sun Nov 19 00:54:30 2006 -0800
@@ -3613,6 +4635,26 @@ Date:   Sun Nov 19 00:40:46 2006 -0800
     TV output is generating video with this patch, but the color burst
     signal is incorrect somehow.
 
+commit ee502dd92a3dfccdc2efcfb76fc652694bc89e3b
+Merge: 15ff17c... 2fe6107...
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Nov 17 14:57:41 2006 -0800
+
+    Merge branch 'crestline-origin' into crestline
+
+commit 15ff17c756e42f392306820e3f7ffbdcc56b9892
+Merge: 9cc2f33... 816fc1a...
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Nov 17 11:48:53 2006 -0800
+
+    Merge branch 'modesetting' into crestline
+    
+    This works for analog, but SDVO output appears to not work yet.
+    
+    Conflicts:
+    
+    	src/i830_driver.c
+
 commit 816fc1a76a5ac738e41b172ba8f43137c1521328
 Merge: 9948d83... 7a7bb33...
 Author: Eric Anholt <eric@anholt.net>
@@ -3628,6 +4670,12 @@ Date:   Thu Nov 16 21:19:20 2006 -0800
     
     During initial configuration, outputs which are disabled have null
     modes.
+
+commit 2fe6107ac68e86ed183d8602436633348340678d
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Nov 17 13:11:36 2006 +0800
+
+    Rotation support for 965GM
 
 commit c4508c1cadf323e9ef1d0e69dd77d5e841a6a978
 Author: Keith Packard <keithp@neko.keithp.com>
@@ -3658,6 +4706,12 @@ Date:   Thu Nov 16 19:47:24 2006 -0800
     	src/i830_dri.c
     	src/i830_driver.c
     	src/i830_video.c
+
+commit 9cc2f3313d77487dea372e6ab32d6d9c06617ae3
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Nov 16 15:12:43 2006 -0800
+
+    Replace broken PCI resource size detection with pciGetBaseSize() call.
 
 commit 45a27f80e1c783627f570c309e7a853dcc9af0c1
 Author: Keith Packard <keithp@neko.keithp.com>
@@ -3783,6 +4837,12 @@ Date:   Wed Nov 8 19:01:25 2006 +0000
 
     Disable some debug message
 
+commit 75f4df278e9db360967d77cdba4756cbde622d56
+Author: root <root@localhost.localdomain>
+Date:   Wed Nov 8 13:56:32 2006 +0800
+
+    855 fix
+
 commit f1ff01e31eb8e9dc05190bf1a8b318d4f587f64a
 Author: Keith Packard <keithp@neko.keithp.com>
 Date:   Sat Nov 4 00:46:18 2006 -0800
@@ -3848,6 +4908,13 @@ Date:   Sun Nov 5 18:51:28 2006 -0800
     965 chipset, in particular the the SDVO/UDI clock multiplier register
     needed to get set to the default value (3). No, I really don't know what
     this does, but it does get the CRT running at a wide range of sizes.
+
+commit 49a6bea7d969dbfd1dd542c0c3e02abc330d6850
+Merge: 64447c7... fbb376b...
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Mon Nov 6 10:25:23 2006 +0800
+
+    Merge branch 'master' into crestline
 
 commit 68c3185046b27ab936ca6c92b924b443b3cd6fce
 Author: Keith Packard <keithp@mandolin.keithp.com>
@@ -4067,6 +5134,12 @@ Author: Eric Anholt <eric@anholt.net>
 Date:   Wed Nov 1 11:50:51 2006 -0800
 
     Update for the move of RandR phyiscal size information.
+
+commit 64447c7a059775e7ea8649f4714df7565e932c60
+Author: Zou Nanhai <nanhai.zou@intel.com>
+Date:   Wed Nov 1 14:36:20 2006 +0800
+
+    walk around to VBIOS bug in Crestline B0
 
 commit 7195dfabd56239f08cdd8175a2ef3a66ef9600de
 Author: Eric Anholt <eric@anholt.net>
@@ -4395,6 +5468,18 @@ Date:   Tue Oct 10 12:41:01 2006 -0700
     
     Also, remove a couple of dead variables.
 
+commit 4198f1216eb13b30d1e92d4395e98861f4324c38
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Tue Oct 10 15:50:10 2006 +0800
+
+    Mark current ps kernel is experimential with little test.
+
+commit d485c1f2de11db92b515690fbe38b6aeb6207605
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Tue Oct 10 14:11:35 2006 +0800
+
+    Use sf_prog.h instead
+
 commit 2591c1fcf15608d96031be4760cf08534461ca34
 Author: Eric Anholt <eric@anholt.net>
 Date:   Mon Oct 9 14:20:49 2006 -0700
@@ -4579,6 +5664,35 @@ Date:   Thu Sep 28 13:49:44 2006 +0200
 
     Always call I830UpdateXineramaScreenInfo() unconditionally, and document why.
 
+commit 92c5020bbd31e02c7224798a8f094d237afa19a0
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu Sep 28 13:55:52 2006 +0800
+
+    Fix picture's transform checking
+
+commit 518802843284973f1f86132afd805c0e662e1ba6
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu Sep 28 11:15:33 2006 +0800
+
+    Fallback in mask picture for now
+    
+    Do it later after finish wm kernel program.
+
+commit 25ff5baad95c205c7c690da72fc0f252b3ed9289
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu Sep 28 11:09:52 2006 +0800
+
+    Fix compile, add wm header file.
+
+commit c3a49b5123d094280b5ff358ceef961958319ce4
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu Sep 28 10:36:00 2006 +0800
+
+    Add simplest wm kernel program for no mask picture composite
+    
+    This is a try to use new gen4asm language, and will finish
+    composite program for mask picture with or without CA case later.
+
 commit 6ea16bf6b06c8b3aed4d2c98679ab28304d1b56c
 Merge: fdb6de6... b970166...
 Author: Eric Anholt <eric@anholt.net>
@@ -4665,6 +5779,21 @@ Date:   Thu Aug 24 10:30:27 2006 +0200
     This makes sure we've been assigned a context ID, so the interrupt context
     won't mess things up if it grabs the HW lock.
 
+commit 185df8a18102eea79b8c8e11304dfee148ac2002
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Sep 27 16:48:43 2006 +0800
+
+    Add mask sampler state
+
+commit 1422d4f04ac2d57899eee91f6522f8670f7263da
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Sep 27 13:54:14 2006 +0800
+
+    change some src sampler states
+    
+    sampler for mask should also be set up, and fix
+    default border texel.
+
 commit 6614b4bda2e079fd1e56e0825894481b80e2df58
 Merge: d6ca9fe... b3ddcf3...
 Author: Alan Hourihane <alanh@fairlite.demon.co.uk>
@@ -4679,6 +5808,15 @@ Date:   Mon Sep 25 12:03:27 2006 +0100
     Fix bug #7943 where video flickers when changing
     attributes. This code was a leftover from testing lockups
     and shouldn't be needed anymore.
+
+commit 52a4f2a02b8f38108bfa866bf74b1596b8125512
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Mon Sep 25 14:35:51 2006 +0800
+
+    Add file for i965 exa composite
+    
+    This does not include ps program, which will be added
+    in g4a form.
 
 commit f272f0d811f9ee059e8f8617a516e6c8bff917a1
 Merge: ff202f8... b3ddcf3...
@@ -5068,6 +6206,15 @@ Author: Alan Hourihane <alanh@fairlite.demon.co.uk>
 Date:   Tue Aug 22 16:40:08 2006 +0100
 
     fix typo
+
+commit b7e57deebbda527e878326cf3e6358c0a48d7817
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Tue Aug 22 19:38:13 2006 +0800
+
+    pci id update for Crestline
+    
+    The "Crestline" banner should be replaced with official
+    name later.
 
 commit dc4128ea0781124984dee0cb41e7b6ee87e362a1
 Author: Alan Hourihane <alanh@fairlite.demon.co.uk>
