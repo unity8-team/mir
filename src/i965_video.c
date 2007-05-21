@@ -172,6 +172,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     struct brw_instruction *ps_kernel;
     struct brw_instruction *sip_kernel;
     float *vb;
+    float src_scale_x, src_scale_y;
     CARD32 *binding_table;
     Bool first_output = TRUE;
     int dest_surf_offset, src_surf_offset, src_sampler_offset, vs_offset;
@@ -672,6 +673,10 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     dxo = dstRegion->extents.x1;
     dyo = dstRegion->extents.y1;
 
+    /* Use normalized texture coordinates */
+    src_scale_x = ((float)src_w / width) / (float)drw_w;
+    src_scale_y = ((float)src_h / height) / (float)drw_h;
+
     pbox = REGION_RECTS(dstRegion);
     nbox = REGION_NUM_RECTS(dstRegion);
     while (nbox--) {
@@ -680,7 +685,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	int box_x2 = pbox->x2;
 	int box_y2 = pbox->y2;
 	int i;
-	float src_scale_x, src_scale_y;
 
 	if (!first_output) {
 	    /* Since we use the same little vertex buffer over and over, sync
@@ -690,10 +694,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	}
 
 	pbox++;
-
-	/* Use normalized texture coordinates */
-	src_scale_x = (float)1.0 / (float)drw_w;
-	src_scale_y = (float)1.0 / (float)drw_h;
 
 	i = 0;
 	vb[i++] = (box_x2 - dxo) * src_scale_x;

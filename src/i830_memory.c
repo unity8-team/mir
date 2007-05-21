@@ -184,8 +184,6 @@ i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     if (mem == NULL)
 	return;
 
-    i830_unbind_memory(pScrn, mem);
-
     /* Disconnect from the list of allocations */
     if (mem->prev != NULL)
 	mem->prev->next = mem->next;
@@ -232,7 +230,6 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->exa_offscreen = NULL;
     pI830->exa_965_state = NULL;
     pI830->overlay_regs = NULL;
-    pI830->xaa_linear = NULL;
     pI830->logical_context = NULL;
     pI830->back_buffer = NULL;
     pI830->third_buffer = NULL;
@@ -368,7 +365,7 @@ i830_allocate_aperture(ScrnInfoPtr pScrn, const char *name,
     mem->prev = scan;
     mem->next = scan->next;
     scan->next = mem;
-    mem->next->prev = scan;
+    mem->next->prev = mem;
 
     return mem;
 }
@@ -651,7 +648,7 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
 
     /* Only allocate if overlay is going to be enabled. */
-    if (!pI830->XvEnabled || IS_I965G(pI830))
+    if (!pI830->XvEnabled)
 	return TRUE;
 
     if (!IS_I965G(pI830)) {
@@ -662,16 +659,6 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Failed to allocate Overlay register space.\n");
 	    /* This failure isn't fatal. */
-	}
-    }
-
-    if (!pI830->useEXA && pI830->LinearAlloc) {
-	pI830->xaa_linear = i830_allocate_memory(pScrn, "XAA linear memory",
-						 KB(pI830->LinearAlloc),
-						 GTT_PAGE_SIZE, 0);
-	if (pI830->xaa_linear == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Failed to allocate linear buffer space\n");
 	}
     }
 

@@ -68,7 +68,13 @@ struct _I830DVODriver i830_dvo_drivers[] =
      (CH7xxx_ADDR_1<<1), CH7xxxSymbols, NULL , NULL, NULL},
     /*
     {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",
-     (0x2 << 1), ivch_symbols, NULL, NULL, NULL},
+     0x04, ivch_symbols, NULL, NULL, NULL},
+    {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",
+     0x44, ivch_symbols, NULL, NULL, NULL},
+    {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",
+     0x84, ivch_symbols, NULL, NULL, NULL},
+    {I830_DVO_CHIP_LVDS, "ivch", "ivch_methods",
+     0xc4, ivch_symbols, NULL, NULL, NULL},
     */
     /*
     { I830_DVO_CHIP_LVDS, "ch7017", "ch7017_methods",

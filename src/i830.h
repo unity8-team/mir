@@ -298,9 +298,7 @@ typedef struct _I830Rec {
 #ifdef I830_XV
    /* For Xvideo */
    i830_memory *overlay_regs;
-   i830_memory *xaa_linear;
 #endif
-   unsigned long LinearAlloc;
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
    Rotation rotation;
    void (*PointerMoved)(int, int, int);
