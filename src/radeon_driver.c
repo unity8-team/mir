@@ -626,7 +626,8 @@ static Bool RADEONMapFB(ScrnInfoPtr pScrn)
     if (info->FBDev) {
 	info->FB = fbdevHWMapVidmem(pScrn);
     } else {
-	RADEONTRACE(("Map: 0x%08lx, 0x%08lx\n", info->LinearAddr, info->FbMapSize));
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "Map: 0x%08lx, 0x%08lx\n", info->LinearAddr, info->FbMapSize);
 	info->FB = xf86MapPciMem(pScrn->scrnIndex,
 				 VIDMEM_FRAMEBUFFER,
 				 info->PciTag,
@@ -1285,10 +1286,14 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
      */
     info->mc_agp_location = 0xffffffc0;
 
-    RADEONTRACE(("RADEONInitMemoryMap() : \n"));
-    RADEONTRACE(("  mem_size         : 0x%08lx\n", mem_size));
-    RADEONTRACE(("  MC_FB_LOCATION   : 0x%08lx\n", info->mc_fb_location));
-    RADEONTRACE(("  MC_AGP_LOCATION  : 0x%08lx\n", info->mc_agp_location));
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "RADEONInitMemoryMap() : \n");
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "  mem_size         : 0x%08lx\n", mem_size);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "  MC_FB_LOCATION   : 0x%08lx\n", info->mc_fb_location);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "  MC_AGP_LOCATION  : 0x%08lx\n", info->mc_agp_location);
 }
 
 static void RADEONGetVRamType(ScrnInfoPtr pScrn)
@@ -3002,7 +3007,8 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     const char *s;
     MessageType from;
 
-    RADEONTRACE(("RADEONPreInit\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONPreInit\n");
     if (pScrn->numEntities != 1) return FALSE;
 
     if (!RADEONGetRec(pScrn)) return FALSE;
@@ -3793,8 +3799,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     char*          s;
 #endif
 
-    RADEONTRACE(("RADEONScreenInit %lx %ld %d\n",
-		 pScrn->memPhysBase, pScrn->fbOffset, info->frontOffset));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONScreenInit %lx %ld %d\n",
+		   pScrn->memPhysBase, pScrn->fbOffset, info->frontOffset);
 
     info->accelOn      = FALSE;
 #ifdef USE_XAA
@@ -3911,13 +3918,15 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     /* Initial setup of surfaces */
     if (!info->IsSecondary) {
-	RADEONTRACE(("Setting up initial surfaces\n"));
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "Setting up initial surfaces\n");
 	RADEONChangeSurfaces(pScrn);
     }
 
 				/* Memory manager setup */
 
-    RADEONTRACE(("Setting up accel memmap\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Setting up accel memmap\n");
 
 #ifdef USE_EXA
     if (info->useEXA) {
@@ -4022,7 +4031,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	}
     }
 #endif
-    RADEONTRACE(("Initializing fb layer\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Initializing fb layer\n");
 
     /* Init fb layer */
     if (!fbScreenInit(pScreen, info->FB + pScrn->fbOffset,
@@ -4090,7 +4100,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 
     /* Backing store setup */
-    RADEONTRACE(("Initializing backing store\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Initializing backing store\n");
     miInitializeBackingStore(pScreen);
     xf86SetBackingStore(pScreen);
 
@@ -4110,7 +4121,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
       }
     }
     if (info->directRenderingEnabled) {
-        RADEONTRACE(("DRI Finishing init !\n"));
+        xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "DRI Finishing init !\n");
 	info->directRenderingEnabled = RADEONDRIFinishScreenInit(pScreen);
     }
     if (info->directRenderingEnabled) {
@@ -4140,7 +4152,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     /* Make sure surfaces are allright since DRI setup may have changed them */
     if (!info->IsSecondary) {
-	RADEONTRACE(("Setting up final surfaces\n"));
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "Setting up final surfaces\n");
 	RADEONChangeSurfaces(pScrn);
     }
 
@@ -4150,7 +4163,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     /* Enable aceleration */
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
-	 RADEONTRACE(("Initializing Acceleration\n"));
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "Initializing Acceleration\n");
 	if (RADEONAccelInit(pScreen)) {
 	    xf86DrvMsg(scrnIndex, X_INFO, "Acceleration enabled\n");
 	    info->accelOn = TRUE;
@@ -4166,10 +4180,12 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     }
 
     /* Init DPMS */
-    RADEONTRACE(("Initializing DPMS\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Initializing DPMS\n");
     xf86DPMSInit(pScreen, RADEONDisplayPowerManagementSet, 0);
 
-    RADEONTRACE(("Initializing Cursor\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Initializing Cursor\n");
 
     /* Set Silken Mouse */
     xf86SetSilkenMouse(pScreen);
@@ -4207,7 +4223,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     }
 
     /* Colormap setup */
-    RADEONTRACE(("Initializing color map\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Initializing color map\n");
     if (!miCreateDefColormap(pScreen)) return FALSE;
     if (!xf86HandleColormaps(pScreen, 256, info->dac6bits ? 6 : 8,
 			     RADEONLoadPalette, NULL,
@@ -4218,7 +4235,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 			     | CMAP_RELOAD_ON_MODE_SWITCH)) return FALSE;
 
     /* DGA setup */
-    RADEONTRACE(("Initializing DGA\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Initializing DGA\n");
     RADEONDGAInit(pScreen);
 
     /* Wrap some funcs for MergedFB */
@@ -4235,7 +4253,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     }
 
     /* Init Xv */
-    RADEONTRACE(("Initializing Xv\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Initializing Xv\n");
     RADEONInitVideo(pScreen);
 
     if(info->MergedFB)
@@ -4254,7 +4273,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     if (serverGeneration == 1)
 	xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
-    RADEONTRACE(("RADEONScreenInit finished\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONScreenInit finished\n");
 
     return TRUE;
 }
@@ -4268,9 +4288,12 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
     unsigned char *RADEONMMIO = info->MMIO;
     int timeout;
 
-    RADEONTRACE(("RADEONRestoreMemMapRegisters() : \n"));
-    RADEONTRACE(("  MC_FB_LOCATION   : 0x%08lx\n", restore->mc_fb_location));
-    RADEONTRACE(("  MC_AGP_LOCATION  : 0x%08lx\n", restore->mc_agp_location));
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "RADEONRestoreMemMapRegisters() : \n");
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "  MC_FB_LOCATION   : 0x%08lx\n", restore->mc_fb_location);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "  MC_AGP_LOCATION  : 0x%08lx\n", restore->mc_agp_location);
 
     /* Write memory mapping registers only if their value change
      * since we must ensure no access is done while they are
@@ -4281,7 +4304,8 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	CARD32 crtc_ext_cntl, crtc_gen_cntl, crtc2_gen_cntl=0, ov0_scale_cntl;
 	CARD32 old_mc_status, status_idle;
 
-	RADEONTRACE(("  Map Changed ! Applying ...\n"));
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "  Map Changed ! Applying ...\n");
 
 	/* Make sure engine is idle. We assume the CCE is stopped
 	 * at this point
@@ -4354,7 +4378,8 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	/* Make sure map fully reached the chip */
 	(void)INREG(RADEON_MC_FB_LOCATION);
 
-	RADEONTRACE(("  Map applied, resetting engine ...\n"));
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "  Map applied, resetting engine ...\n");
 
 	/* Reset the engine and HDP */
 	RADEONEngineReset(pScrn);
@@ -4391,7 +4416,8 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	}
     }
 
-    RADEONTRACE(("Updating display base addresses...\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Updating display base addresses...\n");
 
     OUTREG(RADEON_DISPLAY_BASE_ADDR, restore->display_base_addr);
     if (pRADEONEnt->HasCRTC2)
@@ -4402,7 +4428,8 @@ static void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
     /* More paranoia delays, wait 100ms */
     usleep(100000);
 
-    RADEONTRACE(("Memory map updated.\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Memory map updated.\n");
  }
 
 #ifdef XF86DRI
@@ -4538,8 +4565,9 @@ static void RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    RADEONTRACE(("Programming CRTC1, offset: 0x%08lx\n",
-		 restore->crtc_offset));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Programming CRTC1, offset: 0x%08lx\n",
+		   restore->crtc_offset);
 
     /* We prevent the CRTC from hitting the memory controller until
      * fully programmed
@@ -4592,8 +4620,9 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32	   crtc2_gen_cntl;
 
-    RADEONTRACE(("Programming CRTC2, offset: 0x%08lx\n",
-		 restore->crtc2_offset));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Programming CRTC2, offset: 0x%08lx\n",
+		   restore->crtc2_offset);
 
     crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL) &
 	    (RADEON_CRTC2_VSYNC_DIS |
@@ -4798,15 +4827,17 @@ static void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
 	      | RADEON_PPLL_ATOMIC_UPDATE_EN
 	      | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN));
 
-    RADEONTRACE(("Wrote: 0x%08x 0x%08x 0x%08lx (0x%08x)\n",
-	       restore->ppll_ref_div,
-	       restore->ppll_div_3,
-	       restore->htotal_cntl,
-	       INPLL(pScrn, RADEON_PPLL_CNTL)));
-    RADEONTRACE(("Wrote: rd=%d, fd=%d, pd=%d\n",
-	       restore->ppll_ref_div & RADEON_PPLL_REF_DIV_MASK,
-	       restore->ppll_div_3 & RADEON_PPLL_FB3_DIV_MASK,
-	       (restore->ppll_div_3 & RADEON_PPLL_POST3_DIV_MASK) >> 16));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Wrote: 0x%08x 0x%08x 0x%08lx (0x%08x)\n",
+		   restore->ppll_ref_div,
+		   restore->ppll_div_3,
+		   restore->htotal_cntl,
+		   INPLL(pScrn, RADEON_PPLL_CNTL));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Wrote: rd=%d, fd=%d, pd=%d\n",
+		   restore->ppll_ref_div & RADEON_PPLL_REF_DIV_MASK,
+		   restore->ppll_div_3 & RADEON_PPLL_FB3_DIV_MASK,
+		   (restore->ppll_div_3 & RADEON_PPLL_POST3_DIV_MASK) >> 16);
 
     usleep(50000); /* Let the clock to lock */
 
@@ -4857,15 +4888,17 @@ static void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
 	      | RADEON_P2PLL_ATOMIC_UPDATE_EN
 	      | RADEON_P2PLL_VGA_ATOMIC_UPDATE_EN));
 
-    RADEONTRACE(("Wrote: 0x%08lx 0x%08lx 0x%08lx (0x%08x)\n",
-	       restore->p2pll_ref_div,
-	       restore->p2pll_div_0,
-	       restore->htotal_cntl2,
-	       INPLL(pScrn, RADEON_P2PLL_CNTL)));
-    RADEONTRACE(("Wrote: rd=%ld, fd=%ld, pd=%ld\n",
-	       restore->p2pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
-	       restore->p2pll_div_0 & RADEON_P2PLL_FB0_DIV_MASK,
-	       (restore->p2pll_div_0 & RADEON_P2PLL_POST0_DIV_MASK) >>16));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Wrote: 0x%08lx 0x%08lx 0x%08lx (0x%08x)\n",
+		   restore->p2pll_ref_div,
+		   restore->p2pll_div_0,
+		   restore->htotal_cntl2,
+		   INPLL(pScrn, RADEON_P2PLL_CNTL));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Wrote: rd=%ld, fd=%ld, pd=%ld\n",
+		   restore->p2pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
+		   restore->p2pll_div_0 & RADEON_P2PLL_FB0_DIV_MASK,
+		   (restore->p2pll_div_0 & RADEON_P2PLL_POST0_DIV_MASK) >>16);
 
     usleep(5000); /* Let the clock to lock */
 
@@ -5092,7 +5125,9 @@ static void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONController* pCRTC1 = pRADEONEnt->Controller[0];
     RADEONController* pCRTC2 = pRADEONEnt->Controller[1];
     RADEONConnector *pPort;
-    RADEONTRACE(("RADEONRestoreMode(%p)\n", restore));
+
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONRestoreMode(%p)\n", restore);
 
     /* For Non-dual head card, we don't have private field in the Entity */
     if (!pRADEONEnt->HasCRTC2) {
@@ -5338,14 +5373,16 @@ static void RADEONSavePLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->htotal_cntl  = INPLL(pScrn, RADEON_HTOTAL_CNTL);
     save->vclk_cntl    = INPLL(pScrn, RADEON_VCLK_ECP_CNTL);
 
-    RADEONTRACE(("Read: 0x%08x 0x%08x 0x%08lx\n",
-		 save->ppll_ref_div,
-		 save->ppll_div_3,
-		 save->htotal_cntl));
-    RADEONTRACE(("Read: rd=%d, fd=%d, pd=%d\n",
-		 save->ppll_ref_div & RADEON_PPLL_REF_DIV_MASK,
-		 save->ppll_div_3 & RADEON_PPLL_FB3_DIV_MASK,
-		 (save->ppll_div_3 & RADEON_PPLL_POST3_DIV_MASK) >> 16));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Read: 0x%08x 0x%08x 0x%08lx\n",
+		   save->ppll_ref_div,
+		   save->ppll_div_3,
+		   save->htotal_cntl);
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Read: rd=%d, fd=%d, pd=%d\n",
+		   save->ppll_ref_div & RADEON_PPLL_REF_DIV_MASK,
+		   save->ppll_div_3 & RADEON_PPLL_FB3_DIV_MASK,
+		   (save->ppll_div_3 & RADEON_PPLL_POST3_DIV_MASK) >> 16);
 }
 
 /* Read PLL registers */
@@ -5356,14 +5393,16 @@ static void RADEONSavePLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->htotal_cntl2  = INPLL(pScrn, RADEON_HTOTAL2_CNTL);
     save->pixclks_cntl  = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
 
-    RADEONTRACE(("Read: 0x%08lx 0x%08lx 0x%08lx\n",
-		 save->p2pll_ref_div,
-		 save->p2pll_div_0,
-		 save->htotal_cntl2));
-    RADEONTRACE(("Read: rd=%ld, fd=%ld, pd=%ld\n",
-		 save->p2pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
-		 save->p2pll_div_0 & RADEON_P2PLL_FB0_DIV_MASK,
-		 (save->p2pll_div_0 & RADEON_P2PLL_POST0_DIV_MASK) >> 16));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Read: 0x%08lx 0x%08lx 0x%08lx\n",
+		   save->p2pll_ref_div,
+		   save->p2pll_div_0,
+		   save->htotal_cntl2);
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Read: rd=%ld, fd=%ld, pd=%ld\n",
+		   save->p2pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
+		   save->p2pll_div_0 & RADEON_P2PLL_FB0_DIV_MASK,
+		   (save->p2pll_div_0 & RADEON_P2PLL_POST0_DIV_MASK) >> 16);
 }
 
 /* Read palette data */
@@ -5391,7 +5430,8 @@ static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
-    RADEONTRACE(("RADEONSaveMode(%p)\n", save));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONSaveMode(%p)\n", save);
 
     if (info->IsSecondary) {
         RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
@@ -5409,7 +5449,8 @@ static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	/*memcpy(&info->ModeReg, &info->SavedReg, sizeof(RADEONSaveRec));*/
     }
 
-    RADEONTRACE(("RADEONSaveMode returns %p\n", save));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONSaveMode returns %p\n", save);
 }
 
 /* Save everything needed to restore the original VC state */
@@ -5419,7 +5460,9 @@ static void RADEONSave(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr  save       = &info->SavedReg;
 
-    RADEONTRACE(("RADEONSave\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONSave\n");
+
     if (info->FBDev) {
 	RADEONSaveMemMapRegisters(pScrn, save);
 	fbdevHWSave(pScrn);
@@ -5464,7 +5507,8 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr  restore    = &info->SavedReg;
 
-    RADEONTRACE(("RADEONRestore\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONRestore\n");
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     RADEONWaitForFifo(pScrn, 1);
@@ -6251,11 +6295,12 @@ static void RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONInfoPtr info,
 				     pll->reference_freq);
     save->post_div       = post_div->divider;
 
-    RADEONTRACE(("dc=%ld, of=%ld, fd=%d, pd=%d\n",
-	       save->dot_clock_freq,
-	       save->pll_output_freq,
-	       save->feedback_div,
-	       save->post_div));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "dc=%ld, of=%ld, fd=%d, pd=%d\n",
+		   save->dot_clock_freq,
+		   save->pll_output_freq,
+		   save->feedback_div,
+		   save->post_div);
 
     save->ppll_ref_div   = pll->reference_div;
     save->ppll_div_3     = (save->feedback_div | (post_div->bitvalue << 16));
@@ -6318,11 +6363,12 @@ static void RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				       pll->reference_freq);
     save->post_div_2       = post_div->divider;
 
-    RADEONTRACE(("dc=%ld, of=%ld, fd=%d, pd=%d\n",
-	       save->dot_clock_freq_2,
-	       save->pll_output_freq_2,
-	       save->feedback_div_2,
-	       save->post_div_2));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "dc=%ld, of=%ld, fd=%d, pd=%d\n",
+		   save->dot_clock_freq_2,
+		   save->pll_output_freq_2,
+		   save->feedback_div_2,
+		   save->post_div_2);
 
     save->p2pll_ref_div    = pll->reference_div;
     save->p2pll_div_0      = (save->feedback_div_2 |
@@ -6356,23 +6402,23 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
     RADEONInfoPtr  info0     = NULL;
     ScrnInfoPtr    pScrn0    = NULL;
 
-#if RADEON_DEBUG
     if (crtc1 && (crtc_mask & 1)) {
-    	ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
-	   crtc1->name,
-	   crtc1->Clock/1000.0,
+    	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
+		       crtc1->name,
+		       crtc1->Clock/1000.0,
 
-	   crtc1->HDisplay,
-	   crtc1->HSyncStart,
-	   crtc1->HSyncEnd,
-	   crtc1->HTotal,
+		       crtc1->HDisplay,
+		       crtc1->HSyncStart,
+		       crtc1->HSyncEnd,
+		       crtc1->HTotal,
 
-	   crtc1->VDisplay,
-	   crtc1->VSyncStart,
-	   crtc1->VSyncEnd,
-	   crtc1->VTotal,
-	   pScrn->depth,
-	   pScrn->bitsPerPixel);
+		       crtc1->VDisplay,
+		       crtc1->VSyncStart,
+		       crtc1->VSyncEnd,
+		       crtc1->VTotal,
+		       pScrn->depth,
+		       pScrn->bitsPerPixel);
     	if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
     	if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
     	if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
@@ -6383,21 +6429,22 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
     	ErrorF("\n");
     }
     if (crtc2 && (crtc_mask & 2)) {
-        ErrorF("%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
-	   crtc2->name,
-	   crtc2->Clock/1000.0,
+        xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
+		       crtc2->name,
+		       crtc2->Clock/1000.0,
 
-	   crtc2->CrtcHDisplay,
-	   crtc2->CrtcHSyncStart,
-	   crtc2->CrtcHSyncEnd,
-	   crtc2->CrtcHTotal,
+		       crtc2->CrtcHDisplay,
+		       crtc2->CrtcHSyncStart,
+		       crtc2->CrtcHSyncEnd,
+		       crtc2->CrtcHTotal,
 
-	   crtc2->CrtcVDisplay,
-	   crtc2->CrtcVSyncStart,
-	   crtc2->CrtcVSyncEnd,
-	   crtc2->CrtcVTotal,
-	   pScrn->depth,
-	   pScrn->bitsPerPixel);
+		       crtc2->CrtcVDisplay,
+		       crtc2->CrtcVSyncStart,
+		       crtc2->CrtcVSyncEnd,
+		       crtc2->CrtcVTotal,
+		       pScrn->depth,
+		       pScrn->bitsPerPixel);
         if (crtc2->Flags & V_DBLSCAN)   ErrorF(" D");
         if (crtc2->Flags & V_CSYNC)     ErrorF(" C");
         if (crtc2->Flags & V_INTERLACE) ErrorF(" I");
@@ -6407,7 +6454,6 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
         if (crtc2->Flags & V_NVSYNC)    ErrorF(" -V");
     	ErrorF("\n");
     }
-#endif
 
     if (crtc1 && (crtc_mask & 1))
         info->Flags = crtc1->Flags;
@@ -6467,7 +6513,8 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 	return FALSE;
     }
 
-    RADEONTRACE(("RADEONInit returns %p\n", save));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONInit returns %p\n", save);
     return TRUE;
 }
 
@@ -6491,7 +6538,8 @@ static Bool RADEONModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
-    RADEONTRACE(("RADEONModeInit()\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONModeInit()\n");
 
     if (!RADEONInit(pScrn, mode, &info->ModeReg)) return FALSE;
 
@@ -6513,7 +6561,8 @@ static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode)
     ScrnInfoPtr  pScrn = xf86Screens[pScreen->myNum];
     Bool         unblank;
 
-    RADEONTRACE(("RADEONSaveScreen(%d)\n", mode));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONSaveScreen(%d)\n", mode);
 
     unblank = xf86IsUnblank(mode);
     if (unblank) SetTimeSinceLastInputEvent();
@@ -6560,7 +6609,8 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     }
 #endif
 
-    RADEONTRACE(("RADEONSwitchMode() !n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONSwitchMode() !n");
 
     if (info->allowColorTiling) {
 	if (info->MergedFB) {
@@ -6678,7 +6728,8 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, int clone)
 #endif
 
 #if 0 /* Verbose */
-    RADEONTRACE(("RADEONDoAdjustFrame(%d,%d,%d)\n", x, y, clone));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONDoAdjustFrame(%d,%d,%d)\n", x, y, clone);
 #endif
 
     if (info->showCache && y) {
@@ -6817,7 +6868,8 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    RADEONTRACE(("RADEONEnterVT\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONEnterVT\n");
 
     if (INREG(RADEON_CONFIG_MEMSIZE) == 0) { /* Softboot V_BIOS */
        xf86Int10InfoPtr pInt;
@@ -6888,7 +6940,8 @@ void RADEONLeaveVT(int scrnIndex, int flags)
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     RADEONSavePtr  save  = &info->ModeReg;
 
-    RADEONTRACE(("RADEONLeaveVT\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONLeaveVT\n");
 #ifdef XF86DRI
     if (RADEONPTR(pScrn)->directRenderingInited) {
 	DRILock(pScrn->pScreen, 0);
@@ -6926,7 +6979,8 @@ void RADEONLeaveVT(int scrnIndex, int flags)
 
     RADEONRestore(pScrn);
 
-    RADEONTRACE(("Ok, leaving now...\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Ok, leaving now...\n");
 }
 
 /* Called at the end of each server generation.  Restore the original
@@ -6938,7 +6992,8 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
-    RADEONTRACE(("RADEONCloseScreen\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONCloseScreen\n");
 
     /* Mark acceleration as stopped or we might try to access the engine at
      * wrong times, especially if we had DRI, after DRI has been stopped
@@ -6971,7 +7026,8 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	RADEONRestore(pScrn);
     }
 
-    RADEONTRACE(("Disposing accel...\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Disposing accel...\n");
 #ifdef USE_EXA
     if (info->exa) {
 	exaDriverFini(pScreen);
@@ -6991,14 +7047,17 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     }
 #endif /* USE_XAA */
 
-    RADEONTRACE(("Disposing cusor info\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Disposing cusor info\n");
     if (info->cursor) xf86DestroyCursorInfoRec(info->cursor);
     info->cursor = NULL;
 
-    RADEONTRACE(("Disposing DGA\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Disposing DGA\n");
     if (info->DGAModes) xfree(info->DGAModes);
     info->DGAModes = NULL;
-    RADEONTRACE(("Unmapping memory\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Unmapping memory\n");
     RADEONUnmapMem(pScrn);
 
     pScrn->vtSema = FALSE;
@@ -7015,7 +7074,8 @@ void RADEONFreeScreen(int scrnIndex, int flags)
     ScrnInfoPtr  pScrn = xf86Screens[scrnIndex];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     
-    RADEONTRACE(("RADEONFreeScreen\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONFreeScreen\n");
 
     /* when server quits at PreInit, we don't need do this anymore*/
     if (!info) return;

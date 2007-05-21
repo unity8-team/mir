@@ -1690,7 +1690,8 @@ void RADEONDRIStop(ScreenPtr pScreen)
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     RING_LOCALS;
 
-    RADEONTRACE(("RADEONDRIStop\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONDRIStop\n");
 
     /* Stop the CP */
     if (info->directRenderingInited) {
@@ -1712,7 +1713,8 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     drmRadeonInit  drmInfo;
 
-     RADEONTRACE(("RADEONDRICloseScreen\n"));
+     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		    "RADEONDRICloseScreen\n");
     
      if (info->irq) {
 	drmCtlUninstHandler(info->drmFD);

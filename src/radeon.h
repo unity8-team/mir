@@ -186,7 +186,6 @@ typedef struct _region {
 
 /* ------------------------------------- */
 
-#define RADEON_DEBUG            1 /* Turn off debugging output               */
 #define RADEON_IDLE_RETRY      16 /* Fall out of idle loops after this count */
 #define RADEON_TIMEOUT    2000000 /* Fall out of wait loops after this count */
 
@@ -198,15 +197,7 @@ typedef struct _region {
 				   * for something else.
 				   */
 
-#if RADEON_DEBUG
-#define RADEONTRACE(x)						\
-do {									\
-    ErrorF("(**) %s(%d): ", RADEON_NAME, pScrn->scrnIndex);		\
-    ErrorF x;								\
-} while(0)
-#else
-#define RADEONTRACE(x) do { } while(0)
-#endif
+#define RADEON_LOGLEVEL_DEBUG 4
 
 
 /* Other macros */
