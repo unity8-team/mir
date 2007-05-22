@@ -851,6 +851,7 @@ extern Bool        RADEONAccelInit(ScreenPtr pScreen);
 extern Bool        RADEONSetupMemEXA (ScreenPtr pScreen);
 extern Bool        RADEONDrawInitMMIO(ScreenPtr pScreen);
 #ifdef XF86DRI
+extern unsigned long long RADEONTexOffsetStart(PixmapPtr pPix);
 extern Bool        RADEONGetDatatypeBpp(int bpp, CARD32 *type);
 extern Bool        RADEONGetPixmapOffsetPitch(PixmapPtr pPix,
 					      CARD32 *pitch_offset);

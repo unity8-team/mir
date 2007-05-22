@@ -1475,6 +1475,22 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     pDRIInfo->createDummyCtx     = TRUE;
     pDRIInfo->createDummyCtxPriv = FALSE;
 
+#ifdef USE_EXA
+    if (info->useEXA) {
+#if DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3
+       int major, minor, patch;
+
+       DRIQueryVersion(&major, &minor, &patch);
+
+       if (minor >= 3)
+#endif
+#if DRIINFO_MAJOR_VERSION > 5 || \
+    (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3)
+	  pDRIInfo->texOffsetStart = RADEONTexOffsetStart;
+#endif
+    }
+#endif
+
     if (!DRIScreenInit(pScreen, pDRIInfo, &info->drmFD)) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
 		   "[dri] DRIScreenInit failed.  Disabling DRI.\n");
