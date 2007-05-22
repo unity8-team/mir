@@ -556,47 +556,49 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     }
 
     for (i = 0 ; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
-	RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
-	if (!radeon_output) {
-	    return FALSE;
+	if (info->BiosConnector[i].ConnectorType != CONNECTOR_NONE) {
+	    RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
+	    if (!radeon_output) {
+		return FALSE;
+	    }
+	    radeon_output->MonType = MT_UNKNOWN;
+	    radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
+	    radeon_output->DDCType = info->BiosConnector[i].DDCType;
+	    if (info->IsAtomBios) {
+		if (radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM)
+		    radeon_output->DACType = DAC_NONE;
+		else
+		    radeon_output->DACType = info->BiosConnector[i].DACType;
+
+		if (radeon_output->ConnectorType == CONNECTOR_VGA_ATOM)
+		    radeon_output->TMDSType = TMDS_NONE;
+		else
+		    radeon_output->TMDSType = info->BiosConnector[i].TMDSType;
+	    } else {
+		if (radeon_output->ConnectorType == CONNECTOR_DVI_D)
+		    radeon_output->DACType = DAC_NONE;
+		else
+		    radeon_output->DACType = info->BiosConnector[i].DACType;
+
+		if (radeon_output->ConnectorType == CONNECTOR_CRT)
+		    radeon_output->TMDSType = TMDS_NONE;
+		else
+		    radeon_output->TMDSType = info->BiosConnector[i].TMDSType;
+	    }
+	    RADEONSetOutputType(pScrn, radeon_output);
+	    output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
+	    if (!output) {
+		return FALSE;
+	    }
+	    output->driver_private = radeon_output;
+	    output->possible_crtcs = 1;
+	    if (radeon_output->type != OUTPUT_LVDS)
+		output->possible_crtcs |= 2;
+
+	    output->possible_clones = 0 /*1|2*/;
+
+	    RADEONInitConnector(output);
 	}
-	radeon_output->MonType = MT_UNKNOWN;
-	radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
-	radeon_output->DDCType = info->BiosConnector[i].DDCType;
-	if (info->IsAtomBios) {
-	    if (radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM)
-		radeon_output->DACType = DAC_NONE;
-	    else
-		radeon_output->DACType = info->BiosConnector[i].DACType;
-
-	    if (radeon_output->ConnectorType == CONNECTOR_VGA_ATOM)
-		radeon_output->TMDSType = TMDS_NONE;
-	    else
-		radeon_output->TMDSType = info->BiosConnector[i].TMDSType;
-	} else {
-	    if (radeon_output->ConnectorType == CONNECTOR_DVI_D)
-		radeon_output->DACType = DAC_NONE;
-	    else
-		radeon_output->DACType = info->BiosConnector[i].DACType;
-
-	    if (radeon_output->ConnectorType == CONNECTOR_CRT)
-		radeon_output->TMDSType = TMDS_NONE;
-	    else
-		radeon_output->TMDSType = info->BiosConnector[i].TMDSType;
-	}
-	RADEONSetOutputType(pScrn, radeon_output);
-	output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
-	if (!output) {
-	    return FALSE;
-	}
-	output->driver_private = radeon_output;
-	output->possible_crtcs = 1;
-	if (radeon_output->type != OUTPUT_LVDS)
- 	    output->possible_crtcs |= 2;
-
-	output->possible_clones = 0 /*1|2*/;
-
-	RADEONInitConnector(output);
     }
 
     /* if it's a mobility make sure we have a LVDS port */
