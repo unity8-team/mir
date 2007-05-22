@@ -576,17 +576,26 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->bufferRequests = DRI_ALL_WINDOWS;
 
    {
-#if DRI_SUPPORTS_CLIP_NOTIFY && DRIINFO_MAJOR_VERSION == 5 && \
-    DRIINFO_MINOR_VERSION >= 1
+#if DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1
       int major, minor, patch;
 
       DRIQueryVersion(&major, &minor, &patch);
 
+#if DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3
+      if (minor >= 3)
+#endif
+#if DRIINFO_MAJOR_VERSION > 5 || \
+    (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3)
+	 pDRIInfo->texOffsetStart = I830TexOffsetStart;
+#endif
+
+#if DRI_SUPPORTS_CLIP_NOTIFY && DRIINFO_MAJOR_VERSION == 5
       if (minor >= 1)
 #endif
 #if DRI_SUPPORTS_CLIP_NOTIFY
 	 pDRIInfo->ClipNotify = I830DRIClipNotify;
 #endif
+#endif /* DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1 */
    }
 
    pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;

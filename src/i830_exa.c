@@ -541,3 +541,19 @@ I830EXAInit(ScreenPtr pScreen)
 
     return TRUE;
 }
+
+#ifdef XF86DRI
+
+#ifndef ExaOffscreenMarkUsed
+extern void ExaOffscreenMarkUsed(PixmapPtr);
+#endif
+
+unsigned long long
+I830TexOffsetStart(PixmapPtr pPix)
+{
+    exaMoveInPixmap(pPix);
+    ExaOffscreenMarkUsed(pPix);
+
+    return exaGetPixmapOffset(pPix);
+}
+#endif

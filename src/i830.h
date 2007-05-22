@@ -77,6 +77,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "exa.h"
 Bool I830EXAInit(ScreenPtr pScreen);
 #define EXA_LINEAR_EXTRA	(64*1024)
+unsigned long long I830TexOffsetStart(PixmapPtr pPix);
 #endif
 
 #ifdef I830_USE_XAA
