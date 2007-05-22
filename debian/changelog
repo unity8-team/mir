@@ -1,3 +1,14 @@
+xserver-xorg-video-intel (2:2.0.0-1ubuntu2) gutsy; urgency=low
+
+  * Set Maintainer to core-dev.
+  * Allow xserver-xorg-video-i810 and xserver-xorg-video-intel to coexist
+    until -intel is able to replace it completely.
+    - Nuke /usr/lib/xorg/modules/drivers/i810_drv.so symlink
+    - Nuke /usr/share/man/man4/i810.4 conflict
+    - Nuke Conflicts and Replaces related to -i810.
+
+ -- Kyle McMartin <kyle@ubuntu.com>  Tue, 22 May 2007 18:53:04 +0000
+
 xserver-xorg-video-intel (2:2.0.0-1ubuntu1) gutsy; urgency=low
 
   * Merge with Debian unstable, remaining changes:
