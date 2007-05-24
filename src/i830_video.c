@@ -147,7 +147,7 @@ static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 #define IMAGE_MAX_HEIGHT_LEGACY	1088
 
 /* overlay debugging printf function */
-#if 0
+#if 1
 #define OVERLAY_DEBUG ErrorF
 #else
 #define OVERLAY_DEBUG if (0) ErrorF
@@ -157,68 +157,6 @@ static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 #ifndef exaMoveInPixmap
 void exaMoveInPixmap (PixmapPtr pPixmap);
 #endif
-
-/*
- * This is more or less the correct way to initalise, update, and shut down
- * the overlay.  Note OVERLAY_OFF should be used only after disabling the
- * overlay in OCMD and calling OVERLAY_UPDATE.
- *
- * XXX Need to make sure that the overlay engine is cleanly shutdown in
- * all modes of server exit.
- */
-
-#define OVERLAY_UPDATE						\
-   do { 								\
-      BEGIN_LP_RING(8);							\
-      OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);                       	\
-      OUT_RING(MI_NOOP);    						\
-      if (!*pI830->overlayOn) {						\
-	 OUT_RING(MI_NOOP);						\
-	 OUT_RING(MI_NOOP);						\
-	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_ON);		\
-	 OVERLAY_DEBUG("Overlay goes from off to on\n");		\
-	 *pI830->overlayOn = TRUE;					\
-      } else {								\
-	 OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);	\
-	 OUT_RING(MI_NOOP);						\
-	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);		\
-      }									\
-      if (IS_I965G(pI830)) 						\
-         OUT_RING(pI830->overlay_regs->offset | OFC_UPDATE); 		\
-      else								\
-	 OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);		\
-      OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);		\
-      OUT_RING(MI_NOOP);						\
-      ADVANCE_LP_RING();						\
-      OVERLAY_DEBUG("OVERLAY_UPDATE\n");				\
-   } while(0)
-
-#define OVERLAY_OFF							\
-   do { 								\
-      if (*pI830->overlayOn) {						\
-	 int spin = 1000000;						\
-	 BEGIN_LP_RING(6);						\
-         OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);                   	\
-         OUT_RING(MI_NOOP);    						\
-	 OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_OFF);		\
-         if (IS_I965G(pI830)) 						\
-            OUT_RING(pI830->overlay_regs->offset | OFC_UPDATE);		\
-         else								\
-	    OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);	\
-	 OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);	\
-	 OUT_RING(MI_NOOP);						\
-	 ADVANCE_LP_RING();						\
-	 *pI830->overlayOn = FALSE;					\
-	 OVERLAY_DEBUG("Overlay goes from on to off\n");		\
-         while (spin != 0 && (INREG(OCMD_REGISTER) & OVERLAY_ENABLE)){	\
-		OVERLAY_DEBUG("SPIN %d\n",spin);			\
-		spin--;							\
- 	 }								\
-	 if (spin == 0)							\
-		OVERLAY_DEBUG("OVERLAY FAILED TO GO OFF\n");		\
-	 OVERLAY_DEBUG("OVERLAY_OFF\n");				\
-      }									\
-   } while(0)
 
 /*
  * OCMD - Overlay Command Register
@@ -416,6 +354,79 @@ CompareOverlay(I830Ptr pI830, CARD32 * overlay, int size)
       OVERLAY_DEBUG("CompareOverlay: no differences\n");
 }
 #endif
+
+/*
+ * This is more or less the correct way to initalise, update, and shut down
+ * the overlay.  Note OVERLAY_OFF should be used only after disabling the
+ * overlay in OCMD and calling OVERLAY_UPDATE.
+ *
+ * XXX Need to make sure that the overlay engine is cleanly shutdown in
+ * all modes of server exit.
+ */
+
+static void
+i830_overlay_update(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    BEGIN_LP_RING(8);
+    OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
+    OUT_RING(MI_NOOP);
+    if (!*pI830->overlayOn) {
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_ON);
+	OVERLAY_DEBUG("Overlay goes from off to on\n");
+	*pI830->overlayOn = TRUE;
+    } else {
+	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);
+    }
+    if (IS_I965G(pI830))
+	OUT_RING(pI830->overlay_regs->offset | OFC_UPDATE);
+    else
+	OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);
+    OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+    OUT_RING(MI_NOOP);
+    ADVANCE_LP_RING();
+    OVERLAY_DEBUG("OVERLAY_UPDATE\n");
+}
+
+#define OVERLAY_UPDATE	i830_overlay_update(pScrn)
+
+static void
+i830_overlay_off(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    if (*pI830->overlayOn) {
+	int spin = 1000000;
+	BEGIN_LP_RING(6);
+	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_OFF);
+	if (IS_I965G(pI830))
+	    OUT_RING(pI830->overlay_regs->offset | OFC_UPDATE);
+	else
+	    OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);
+	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+	OUT_RING(MI_NOOP);
+	ADVANCE_LP_RING();
+	i830WaitSync(pScrn);
+	*pI830->overlayOn = FALSE;
+	OUTREG(OCMD_REGISTER, INREG(OCMD_REGISTER) & ~OVERLAY_ENABLE);
+	OVERLAY_DEBUG("Overlay goes from on to off\n");
+	while (spin != 0 && (INREG(OCMD_REGISTER) & OVERLAY_ENABLE)){
+	    OVERLAY_DEBUG("SPIN %d\n",spin);
+	    spin--;
+	}
+	if (spin == 0)
+	    OVERLAY_DEBUG("OVERLAY FAILED TO GO OFF\n");
+	OVERLAY_DEBUG("OVERLAY_OFF\n");
+    }
+}
+
+#define OVERLAY_OFF i830_overlay_off(pScrn)
 
 void
 I830InitVideo(ScreenPtr pScreen)
@@ -1557,6 +1568,39 @@ UpdateCoeff(int taps, double fCutoff, Bool isHoriz, Bool isY, coeffPtr pCoeff)
    }
 }
 
+static float
+I830CrtcVideoCoverage (xf86CrtcPtr crtc, BoxPtr video)
+{
+   BoxRec   dest;
+   BoxRec   pipe;
+
+   if (crtc->enabled)
+   {
+      pipe.x1 = crtc->x;
+      pipe.x2 = crtc->x + xf86ModeWidth (&crtc->mode, crtc->rotation);
+      pipe.y1 = crtc->y;
+      pipe.y2 = crtc->y + xf86ModeHeight (&crtc->mode, crtc->rotation);
+   }
+   else
+   {
+      pipe.x1 = pipe.x2 = 0;
+      pipe.y1 = pipe.y2 = 0;
+   }
+   dest.x1 = pipe.x1 > video->x1 ? pipe.x1 : video->x1;
+   dest.x2 = pipe.x2 < video->x2 ? pipe.x2 : video->x2;
+   dest.y1 = pipe.y1 > video->y1 ? pipe.y1 : video->y1;
+   dest.y2 = pipe.y2 < video->y2 ? pipe.y2 : video->y2;
+   if (dest.x1 >= dest.x2 || dest.y1 >= dest.y2)
+   {
+      dest.x1 = dest.x2 = 0;
+      dest.y1 = dest.y2 = 0;
+   }
+   if (video->x1 >= video->x2 || video->y1 >= video->y2)
+      return 0.0;
+   return (((float) (dest.x2 - dest.x1) * (float) (dest.y2 - dest.y1)) /
+	   ((float) (video->x2 - video->x1) * (float) (video->y2 - video->y1)));
+}
+
 static void
 I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 		 int dstPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
@@ -1568,6 +1612,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 	 (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
    unsigned int swidth;
    unsigned int mask, shift, offsety, offsetu;
+   xf86CrtcPtr crtc;
    int tmp;
 
    OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
@@ -1580,39 +1625,71 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
    CompareOverlay(pI830, (CARD32 *) overlay, 0x100);
 #endif
 
-   switch (pI830->rotation) {
+   {
+      float best_coverage = 0.0;
+      float coverage;
+      int c;
+      xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+      
+      crtc = NULL;
+      for (c = 0; c < xf86_config->num_crtc; c++)
+      {
+	 xf86CrtcPtr	this_crtc = xf86_config->crtc[c];
+	 coverage = I830CrtcVideoCoverage (this_crtc, dstBox);
+	 if (coverage)
+	 {
+	    if (this_crtc == pPriv->desired_crtc)
+	    {
+	       crtc = this_crtc;
+	       best_coverage = 1.0;
+	    }
+	    else if (coverage > best_coverage)
+	    {
+	       crtc = this_crtc;
+	       best_coverage = coverage;
+	    }
+	 }
+      }
+      if (crtc != pPriv->current_crtc)
+      {
+	 pPriv->current_crtc = crtc;
+	 I830ResetVideo (pScrn);
+      }
+   }
+
+   switch (crtc->rotation & 0xf) {
 	case RR_Rotate_0:
-		dstBox->x1 -= pScrn->frameX0;
-		dstBox->x2 -= pScrn->frameX0;
-		dstBox->y1 -= pScrn->frameY0;
-		dstBox->y2 -= pScrn->frameY0;
+		dstBox->x1 -= crtc->x;
+		dstBox->x2 -= crtc->x;
+		dstBox->y1 -= crtc->y;
+		dstBox->y2 -= crtc->y;
 		break;
 	case RR_Rotate_90:
 		tmp = dstBox->x1;
-		dstBox->x1 = dstBox->y1 - pScrn->frameX0;
-		dstBox->y1 = pScrn->virtualY - tmp - pScrn->frameY0;
+		dstBox->x1 = dstBox->y1 - crtc->x;
+		dstBox->y1 = pScrn->virtualY - tmp - crtc->y;
 		tmp = dstBox->x2;
-		dstBox->x2 = dstBox->y2 - pScrn->frameX0;
-		dstBox->y2 = pScrn->virtualY - tmp - pScrn->frameY0;
+		dstBox->x2 = dstBox->y2 - crtc->x;
+		dstBox->y2 = pScrn->virtualY - tmp - crtc->y;
 		tmp = dstBox->y1;
 		dstBox->y1 = dstBox->y2;
 		dstBox->y2 = tmp;
 		break;
 	case RR_Rotate_180:
 		tmp = dstBox->x1;
-		dstBox->x1 = pScrn->virtualX - dstBox->x2 - pScrn->frameX0;
-		dstBox->x2 = pScrn->virtualX - tmp - pScrn->frameX0;
+		dstBox->x1 = pScrn->virtualX - dstBox->x2 - crtc->x;
+		dstBox->x2 = pScrn->virtualX - tmp - crtc->x;
 		tmp = dstBox->y1;
-		dstBox->y1 = pScrn->virtualY - dstBox->y2 - pScrn->frameY0;
-		dstBox->y2 = pScrn->virtualY - tmp - pScrn->frameY0;
+		dstBox->y1 = pScrn->virtualY - dstBox->y2 - crtc->y;
+		dstBox->y2 = pScrn->virtualY - tmp - crtc->y;
 		break;
 	case RR_Rotate_270:
 		tmp = dstBox->x1;
-		dstBox->x1 = pScrn->virtualX - dstBox->y1 - pScrn->frameX0;
-		dstBox->y1 = tmp - pScrn->frameY0;
+		dstBox->x1 = pScrn->virtualX - dstBox->y1 - crtc->x;
+		dstBox->y1 = tmp - crtc->y;
 		tmp = dstBox->x2;
-		dstBox->x2 = pScrn->virtualX - dstBox->y2 - pScrn->frameX0;
-		dstBox->y2 = tmp - pScrn->frameY0;
+		dstBox->x2 = pScrn->virtualX - dstBox->y2 - crtc->x;
+		dstBox->y2 = tmp - crtc->y;
 		tmp = dstBox->x1;
 		dstBox->x1 = dstBox->x2;
 		dstBox->x2 = tmp;
@@ -1642,7 +1719,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       offset_x = (offset_x + 3) & ~3;
       offset_y = (offset_y + 3) & ~3;
 
-      if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
+      if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
          height -= offset_x;
          width -= offset_y;
       } else {
@@ -1670,7 +1747,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       }
    }
 
-   if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
+   if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
       tmp = width;
       width = height;
       height = tmp;
@@ -1696,6 +1773,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
        * in case an LFP is in use and it's not at it's native resolution.
        */
       int vactive = I830CrtcPipe (pPriv->current_crtc) ? (INREG(VTOTAL_B) & 0x7FF) : (INREG(VTOTAL_A) & 0x7FF);
+      int hactive = pPriv->current_crtc->mode.HDisplay;
 
       vactive += 1;
 
@@ -1705,16 +1783,16 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       if (dstBox->x2 < 0) dstBox->x2 = 0;
       if (dstBox->y1 > vactive) dstBox->y1 = vactive;
       if (dstBox->y2 > vactive) dstBox->y2 = vactive;
-      if (dstBox->x1 > pScrn->currentMode->HDisplay) dstBox->x1 = pScrn->currentMode->HDisplay - 1;
-      if (dstBox->x2 > pScrn->currentMode->HDisplay) dstBox->x2 = pScrn->currentMode->HDisplay - 1;
+      if (dstBox->x1 > hactive) dstBox->x1 = hactive;
+      if (dstBox->x2 > hactive) dstBox->x2 = hactive;
 
       /* nothing do to */
       if ((!dstBox->x1 && !dstBox->x2) || (!dstBox->y1 && !dstBox->y2)) {
          OVERLAY_DEBUG("NOTHING TO DO\n");
          return;
       }
-      if ((dstBox->x1 == (pScrn->currentMode->HDisplay - 1) && 
-           dstBox->x2 == (pScrn->currentMode->HDisplay - 1)) || 
+      if ((dstBox->x1 == (hactive) && 
+           dstBox->x2 == (hactive)) || 
           (dstBox->y1 == vactive && 
            dstBox->y2 == vactive)) {
          OVERLAY_DEBUG("NOTHING TO DO\n");
