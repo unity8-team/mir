@@ -357,79 +357,80 @@ CompareOverlay(I830Ptr pI830, CARD32 * overlay, int size)
 
 /*
  * This is more or less the correct way to initalise, update, and shut down
- * the overlay.  Note OVERLAY_OFF should be used only after disabling the
- * overlay in OCMD and calling OVERLAY_UPDATE.
+ * the overlay.
  *
  * XXX Need to make sure that the overlay engine is cleanly shutdown in
  * all modes of server exit.
  */
 
 static void
-i830_overlay_update(ScrnInfoPtr pScrn)
+i830_overlay_on(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    I830OverlayRegPtr	overlay = (I830OverlayRegPtr) (pI830->FbBase +
+						       pI830->overlay_regs->offset);
+    
+    if (*pI830->overlayOn)
+	return;
 
-    BEGIN_LP_RING(8);
+    overlay->OCMD &= ~OVERLAY_ENABLE;
+    BEGIN_LP_RING(6);
     OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
     OUT_RING(MI_NOOP);
-    if (!*pI830->overlayOn) {
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_ON);
-	OVERLAY_DEBUG("Overlay goes from off to on\n");
-	*pI830->overlayOn = TRUE;
-    } else {
-	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);
-    }
-    if (IS_I965G(pI830))
-	OUT_RING(pI830->overlay_regs->offset | OFC_UPDATE);
-    else
-	OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);
+    OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_ON);
+    OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);
     OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
     OUT_RING(MI_NOOP);
     ADVANCE_LP_RING();
-    OVERLAY_DEBUG("OVERLAY_UPDATE\n");
+    OVERLAY_DEBUG("overlay_on\n");
+    *pI830->overlayOn = TRUE;
 }
 
-#define OVERLAY_UPDATE	i830_overlay_update(pScrn)
+static void
+i830_overlay_continue(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830OverlayRegPtr	overlay = (I830OverlayRegPtr) (pI830->FbBase +
+						       pI830->overlay_regs->offset);
+
+    if (!*pI830->overlayOn)
+	return;
+
+    overlay->OCMD |= OVERLAY_ENABLE;
+    BEGIN_LP_RING(6);
+    OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
+    OUT_RING(MI_NOOP);
+    OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);
+    OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);
+    OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+    OUT_RING(MI_NOOP);
+    ADVANCE_LP_RING();
+    OVERLAY_DEBUG("overlay_continue\n");
+}
 
 static void
 i830_overlay_off(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    if (*pI830->overlayOn) {
-	int spin = 1000000;
-	I830OverlayRegPtr overlay =					
-	  (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
-	overlay->OCMD &= ~OVERLAY_ENABLE;
-	BEGIN_LP_RING(6);
-	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);
-	if (IS_I965G(pI830))
-	    OUT_RING(pI830->overlay_regs->offset | OFC_UPDATE);
-	else
-	    OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);
-	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-	OUT_RING(MI_NOOP);
-	ADVANCE_LP_RING();
-	i830WaitSync(pScrn);
-	*pI830->overlayOn = FALSE;
-	OUTREG(OCMD_REGISTER, INREG(OCMD_REGISTER) & ~OVERLAY_ENABLE);
-	OVERLAY_DEBUG("Overlay goes from on to off\n");
-	while (spin != 0 && (INREG(OCMD_REGISTER) & OVERLAY_ENABLE)){
-	    OVERLAY_DEBUG("SPIN %d\n",spin);
-	    spin--;
-	}
-	if (spin == 0)
-	    OVERLAY_DEBUG("OVERLAY FAILED TO GO OFF\n");
-	OVERLAY_DEBUG("OVERLAY_OFF\n");
-    }
+    I830OverlayRegPtr	overlay = (I830OverlayRegPtr) (pI830->FbBase +
+						       pI830->overlay_regs->offset);
+    
+    if (!*pI830->overlayOn)
+	return;
+    
+    overlay->OCMD &= ~OVERLAY_ENABLE;
+    BEGIN_LP_RING(6);
+    OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
+    OUT_RING(MI_NOOP);
+    OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);
+    OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);
+    OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+    OUT_RING(MI_NOOP);
+    ADVANCE_LP_RING();
+    i830WaitSync(pScrn);
+    *pI830->overlayOn = FALSE;
+    OVERLAY_DEBUG("overlay_off\n");
 }
-
-#define OVERLAY_OFF i830_overlay_off(pScrn)
 
 void
 I830InitVideo(ScreenPtr pScreen)
@@ -581,8 +582,6 @@ I830ResetVideo(ScrnInfoPtr pScrn)
       overlay->OCONFIG |= OVERLAY_PIPE_A;
    else 
       overlay->OCONFIG |= OVERLAY_PIPE_B;
-
-   overlay->OCMD = YUV_420;
 
 #if 0
    /* 
@@ -925,11 +924,7 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 
    if (shutdown) {
       if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
-
-	 I830ResetVideo(pScrn);
-	 OVERLAY_UPDATE;
-	 OVERLAY_OFF;
-
+	 i830_overlay_off(pScrn);
          if (pI830->entityPrivate)
             pI830->entityPrivate->XvInUse = -1;
       }
@@ -967,10 +962,9 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	 return BadValue;
       pPriv->brightness = value;
       overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
-      if (*pI830->overlayOn)
-         OVERLAY_UPDATE;
       OVERLAY_DEBUG("BRIGHTNESS\n");
-      OVERLAY_UPDATE;
+      if (*pI830->overlayOn)
+	 i830_overlay_continue (pScrn);
    } else if (attribute == xvContrast) {
       if ((value < 0) || (value > 255))
 	 return BadValue;
@@ -978,14 +972,14 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
       OVERLAY_DEBUG("CONTRAST\n");
       if (*pI830->overlayOn)
-         OVERLAY_UPDATE;
+	 i830_overlay_continue (pScrn);
    } else if (attribute == xvSaturation) {
       if ((value < 0) || (value > 1023))
 	 return BadValue;
       pPriv->saturation = value;
       overlay->OCLRC1 = pPriv->saturation;
-      overlay->OCMD &= ~OVERLAY_ENABLE;
-      OVERLAY_UPDATE;
+      if (*pI830->overlayOn)
+	 i830_overlay_continue (pScrn);
    } else if (attribute == xvPipe) {
       xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
       if ((value < -1) || (value > xf86_config->num_crtc))
@@ -994,6 +988,9 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	 pPriv->desired_crtc = NULL;
       else
 	 pPriv->desired_crtc = xf86_config->crtc[value];
+      /*
+       * Leave this to be updated at the next frame
+       */
    } else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
       pPriv->gamma0 = value; 
    } else if (attribute == xvGamma1 && (IS_I9XX(pI830))) {
@@ -1021,7 +1018,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       }
       OVERLAY_DEBUG("COLORKEY\n");
       if (*pI830->overlayOn)
-         OVERLAY_UPDATE;
+	 i830_overlay_continue (pScrn);
       REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
    } else if(attribute == xvDoubleBuffer) {
       if ((value < 0) || (value > 1))
@@ -1706,11 +1703,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       I830ResetVideo(pScrn);
 
    /* Ensure overlay is turned on with OVERLAY_ENABLE at 0 */
-   if (!*pI830->overlayOn) {
-      OVERLAY_DEBUG("TURNING ON OVERLAY BEFORE UPDATE\n");
-      I830ResetVideo(pScrn);
-      OVERLAY_UPDATE;
-   }
+   i830_overlay_on (pScrn);
 
    /* Fix up the dstBox if outside the visible screen */
    {
@@ -2117,7 +2110,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
    OVERLAY_DEBUG("OCMD is 0x%lx\n", overlay->OCMD);
 
-   OVERLAY_UPDATE;
+   i830_overlay_continue (pScrn);
 }
 
 #ifdef I830_USE_EXA
@@ -2641,9 +2634,7 @@ I830BlockHandler(int i,
 	    /* Turn off the overlay */
 	    OVERLAY_DEBUG("BLOCKHANDLER\n");
 
-	    I830ResetVideo(pScrn);
-            OVERLAY_UPDATE;
-            OVERLAY_OFF;
+	    i830_overlay_off (pScrn);
 
 	    pPriv->videoStatus = FREE_TIMER;
 	    pPriv->freeTime = now + FREE_DELAY;
@@ -2745,9 +2736,7 @@ I830StopSurface(XF86SurfacePtr surface)
 
       OVERLAY_DEBUG("StopSurface\n");
 
-      I830ResetVideo(pScrn);
-      OVERLAY_UPDATE;
-      OVERLAY_OFF;
+      i830_overlay_off (pScrn);
 
       if (pI830->entityPrivate)
          pI830->entityPrivate->XvInUse = -1;
@@ -2763,9 +2752,7 @@ I830FreeSurface(XF86SurfacePtr surface)
 {
    OffscreenPrivPtr pPriv = (OffscreenPrivPtr) surface->devPrivate.ptr;
 
-   if (pPriv->isOn) {
-      I830StopSurface(surface);
-   }
+   I830StopSurface(surface);
    I830FreeMemory(surface->pScrn, &pPriv->linear);
    xfree(surface->pitches);
    xfree(surface->offsets);
@@ -2798,8 +2785,6 @@ I830DisplaySurface(XF86SurfacePtr surface,
    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pI830Priv = GET_PORT_PRIVATE(pScrn);
-   I830OverlayRegPtr overlay =
-	 (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
    INT32 x1, y1, x2, y2;
    INT32 loops = 0;
    BoxRec dstBox;
@@ -2842,7 +2827,8 @@ I830DisplaySurface(XF86SurfacePtr surface,
 
    /* Make sure this buffer isn't in use */
    loops = 0;
-   if (*pI830->overlayOn && pI830Priv->doubleBuffer && (overlay->OCMD & OVERLAY_ENABLE)) {
+   if (*pI830->overlayOn && pI830Priv->doubleBuffer) 
+   {
       while (loops < 1000000) {
 #if USE_USLEEP_FOR_VIDEO
          usleep(10);
@@ -2860,10 +2846,7 @@ I830DisplaySurface(XF86SurfacePtr surface,
       }
 
       /* buffer swap */
-      if (pI830Priv->currentBuf == 0)
-         pI830Priv->currentBuf = 1;
-      else
-         pI830Priv->currentBuf = 0;
+      pI830Priv->currentBuf = !pI830Priv->currentBuf;
    }
 
    I830DisplayVideo(pScrn, surface->id, surface->width, surface->height,
