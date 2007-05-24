@@ -191,7 +191,7 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 
     if (info->IsMobility) {
         if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_LVDS_ATOM) ||
-	     radeon_output->ConnectorType == CONNECTOR_PROPRIETARY) {
+	    (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_PROPRIETARY)) {
 	     if (INREG(RADEON_BIOS_4_SCRATCH) & 4)
 	         MonType =  MT_LCD;
         }

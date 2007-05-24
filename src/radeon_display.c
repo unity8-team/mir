@@ -568,14 +568,17 @@ RADEONMonitorType RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr out
 	   ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
 
     if (*MonInfo) {
-	/* if it's digital */
-	if ((*MonInfo)->rawData[0x14] & 0x80) {
-	    if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_LVDS_ATOM) ||
-		radeon_output->ConnectorType == CONNECTOR_PROPRIETARY)
-		MonType = MT_LCD;
-	    else
-		MonType = MT_DFP;
-	} else MonType = MT_CRT;
+	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_LVDS_ATOM) ||
+	    (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_PROPRIETARY)) {
+	    MonType = MT_LCD;
+	} else if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM) ||
+		 (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D)) {
+	    MonType = MT_DFP;
+	} else if ((*MonInfo)->rawData[0x14] & 0x80) {	/* if it's digital */
+	    MonType = MT_DFP;
+	} else {
+	    MonType = MT_CRT;
+	}
     } else MonType = MT_NONE;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
