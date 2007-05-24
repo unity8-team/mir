@@ -361,13 +361,11 @@ i830_overlay_on(ScrnInfoPtr pScrn)
 	return;
 
     overlay->OCMD &= ~OVERLAY_ENABLE;
-    BEGIN_LP_RING(6);
+    BEGIN_LP_RING(4);
     OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
     OUT_RING(MI_NOOP);
     OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_ON);
     OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);
-    OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-    OUT_RING(MI_NOOP);
     ADVANCE_LP_RING();
     OVERLAY_DEBUG("overlay_on\n");
     *pI830->overlayOn = TRUE;
@@ -384,13 +382,11 @@ i830_overlay_continue(ScrnInfoPtr pScrn)
 	return;
 
     overlay->OCMD |= OVERLAY_ENABLE;
-    BEGIN_LP_RING(6);
+    BEGIN_LP_RING(4);
     OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
     OUT_RING(MI_NOOP);
     OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);
     OUT_RING(pI830->overlay_regs->bus_addr | OFC_UPDATE);
-    OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-    OUT_RING(MI_NOOP);
     ADVANCE_LP_RING();
     OVERLAY_DEBUG("overlay_continue\n");
 }
@@ -1551,8 +1547,12 @@ UpdateCoeff(int taps, double fCutoff, Bool isHoriz, Bool isY, coeffPtr pCoeff)
     }
 }
 
-static float
-I830CrtcVideoCoverage (xf86CrtcPtr crtc, BoxPtr video)
+/*
+ * Return the number of pixels from 'box' covered by 'crtc'.
+ * That is, the area of the intersection of 'box' and 'crtc'
+ */
+static int
+I830CrtcBoxCoverage (xf86CrtcPtr crtc, BoxPtr box)
 {
     BoxRec   dest;
     BoxRec   pipe;
@@ -1569,19 +1569,47 @@ I830CrtcVideoCoverage (xf86CrtcPtr crtc, BoxPtr video)
 	pipe.x1 = pipe.x2 = 0;
 	pipe.y1 = pipe.y2 = 0;
     }
-    dest.x1 = pipe.x1 > video->x1 ? pipe.x1 : video->x1;
-    dest.x2 = pipe.x2 < video->x2 ? pipe.x2 : video->x2;
-    dest.y1 = pipe.y1 > video->y1 ? pipe.y1 : video->y1;
-    dest.y2 = pipe.y2 < video->y2 ? pipe.y2 : video->y2;
+    dest.x1 = pipe.x1 > box->x1 ? pipe.x1 : box->x1;
+    dest.x2 = pipe.x2 < box->x2 ? pipe.x2 : box->x2;
+    dest.y1 = pipe.y1 > box->y1 ? pipe.y1 : box->y1;
+    dest.y2 = pipe.y2 < box->y2 ? pipe.y2 : box->y2;
     if (dest.x1 >= dest.x2 || dest.y1 >= dest.y2)
     {
 	dest.x1 = dest.x2 = 0;
 	dest.y1 = dest.y2 = 0;
     }
-    if (video->x1 >= video->x2 || video->y1 >= video->y2)
-	return 0.0;
-    return (((float) (dest.x2 - dest.x1) * (float) (dest.y2 - dest.y1)) /
-	    ((float) (video->x2 - video->x1) * (float) (video->y2 - video->y1)));
+    return (int) (dest.x2 - dest.x1) * (int) (dest.y2 - dest.y1);
+}
+
+/*
+ * Return the crtc covering 'box'. If two crtcs cover a portion of
+ * 'box', then prefer 'desired'. If 'desired' is NULL, then prefer the crtc
+ * with greater coverage
+ */
+
+static xf86CrtcPtr
+I830CoveringCrtc (ScrnInfoPtr pScrn, BoxPtr pBox, xf86CrtcPtr desired)
+{
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    xf86CrtcPtr		crtc, best_crtc;
+    int			coverage, best_coverage;
+    int			c;
+
+    best_crtc = NULL;
+    best_coverage = 0;
+    for (c = 0; c < xf86_config->num_crtc; c++)
+    {
+	crtc = xf86_config->crtc[c];
+	coverage = I830CrtcBoxCoverage (crtc, pBox);
+	if (coverage > best_coverage)
+	{
+	    if (crtc == desired)
+		return crtc;
+	    best_crtc = crtc;
+	    best_coverage = coverage;
+	}
+    }
+    return best_crtc;
 }
 
 static void
@@ -1608,35 +1636,11 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
     CompareOverlay(pI830, (CARD32 *) overlay, 0x100);
 #endif
 
+    crtc = I830CoveringCrtc (pScrn, dstBox, pPriv->desired_crtc);
+    if (crtc != pPriv->current_crtc)
     {
-	int		    coverage;
-	int		    c;
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-
-	crtc = NULL;
-	for (c = 0; c < xf86_config->num_crtc; c++)
-	{
-	    xf86CrtcPtr	this_crtc = xf86_config->crtc[c];
-	    coverage = I830CrtcVideoCoverage (this_crtc, dstBox);
-	    if (coverage)
-	    {
-		if (this_crtc == pPriv->desired_crtc)
-		{
-		    crtc = this_crtc;
-		    best_coverage = 1.0;
-		}
-		else if (coverage > best_coverage)
-		{
-		    crtc = this_crtc;
-		    best_coverage = coverage;
-		}
-	    }
-	}
-	if (crtc != pPriv->current_crtc)
-	{
-	    pPriv->current_crtc = crtc;
-	    I830ResetVideo (pScrn);
-	}
+        pPriv->current_crtc = crtc;
+        I830ResetVideo (pScrn);
     }
 
     /*
@@ -2221,7 +2225,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     PixmapPtr pPixmap;
     INT32 x1, x2, y1, y2;
     int srcPitch, srcPitch2 = 0, dstPitch, destId;
-    int top, left, npixels, nlines, size, loops;
+    int top, left, npixels, nlines, size;
     BoxRec dstBox;
     int pitchAlignMask;
     int extraLinear;
