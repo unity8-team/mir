@@ -649,6 +649,30 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
 }
 
 #ifndef REG_DUMPER
+
+#define NUM_RING_DUMP	64
+
+static void
+i830_dump_ring(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    unsigned int head, tail, ring, mask;
+    volatile unsigned char *virt;
+    
+    head = (INREG (LP_RING + RING_HEAD)) & I830_HEAD_MASK;
+    tail = INREG (LP_RING + RING_TAIL) & I830_TAIL_MASK;
+    mask = pI830->LpRing->tail_mask;
+    
+    virt = pI830->LpRing->virtual_start;
+    ErrorF ("Ring at virtual 0x%x head 0x%x tail 0x%x count %d\n",
+	    (unsigned int) virt, head, tail, (((tail + mask + 1) - head) & mask) >> 2);
+    for (ring = (head - 128) & mask; ring != tail; ring = (ring + 4) & mask)
+    {
+	ErrorF ("\t%08x: %08x\n", ring, *(volatile unsigned int *) (virt + ring));
+    }
+    ErrorF ("Ring end\n");
+}
+
 /* Famous last words
  */
 void
@@ -678,6 +702,7 @@ i830_dump_error_state(ScrnInfoPtr pScrn)
 
     ErrorF("hwstam: %x ier: %x imr: %x iir: %x\n",
 	   INREG16(HWSTAM), INREG16(IER), INREG16(IMR), INREG16(IIR));
+    i830_dump_ring (pScrn);
 }
 
 void
