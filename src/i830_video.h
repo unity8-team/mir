@@ -53,7 +53,8 @@ typedef struct {
    int brightness;
    int contrast;
    int saturation;
-   int pipe;
+   xf86CrtcPtr current_crtc;
+   xf86CrtcPtr desired_crtc;
    int doubleBuffer;
 
    RegionRec clip;

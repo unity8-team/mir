@@ -492,6 +492,14 @@ I830InitVideo(ScreenPtr pScreen)
    xfree(adaptors);
 }
 
+static int
+I830CrtcPipe (xf86CrtcPtr crtc)
+{
+   if (crtc == NULL)
+      return 0;
+   return ((I830CrtcPrivatePtr) crtc->driver_private)->pipe;
+}
+
 static void
 I830ResetVideo(ScrnInfoPtr pScrn)
 {
@@ -555,7 +563,7 @@ I830ResetVideo(ScrnInfoPtr pScrn)
     * Select which pipe the overlay is enabled on.
     */
    overlay->OCONFIG &= ~OVERLAY_PIPE_MASK;
-   if (pPriv->pipe == 0)
+   if (I830CrtcPipe (pPriv->current_crtc) == 0)
       overlay->OCONFIG |= OVERLAY_PIPE_A;
    else 
       overlay->OCONFIG |= OVERLAY_PIPE_B;
@@ -731,7 +739,8 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
    pPriv->brightness = 0;
    pPriv->contrast = 64;
    pPriv->saturation = 128;
-   pPriv->pipe = 0;  /* XXX must choose pipe wisely */
+   pPriv->current_crtc = NULL;
+   pPriv->desired_crtc = NULL;
    memset(&pPriv->linear, 0, sizeof(pPriv->linear));
    pPriv->currentBuf = 0;
    pPriv->gamma5 = 0xc0c0c0;
@@ -964,20 +973,13 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
       overlay->OCMD &= ~OVERLAY_ENABLE;
       OVERLAY_UPDATE;
    } else if (attribute == xvPipe) {
-      if ((value < 0) || (value > 1))
+      xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+      if ((value < -1) || (value > xf86_config->num_crtc))
          return BadValue;
-      pPriv->pipe = value;
-      /*
-       * Select which pipe the overlay is enabled on.
-       */
-      overlay->OCONFIG &= ~OVERLAY_PIPE_MASK;
-      if (pPriv->pipe == 0)
-         overlay->OCONFIG |= OVERLAY_PIPE_A;
-      else 
-         overlay->OCONFIG |= OVERLAY_PIPE_B;
-      OVERLAY_DEBUG("PIPE CHANGE\n");
-      if (*pI830->overlayOn)
-         OVERLAY_UPDATE;
+      if (value < 0)
+	 pPriv->desired_crtc = NULL;
+      else
+	 pPriv->desired_crtc = xf86_config->crtc[value];
    } else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
       pPriv->gamma0 = value; 
    } else if (attribute == xvGamma1 && (IS_I9XX(pI830))) {
@@ -1044,7 +1046,14 @@ I830GetPortAttribute(ScrnInfoPtr pScrn,
    } else if (attribute == xvSaturation) {
       *value = pPriv->saturation;
    } else if (attribute == xvPipe) {
-      *value = pPriv->pipe;
+      int		c;
+      xf86CrtcConfigPtr	xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+      for (c = 0; c < xf86_config->num_crtc; c++)
+	 if (xf86_config->crtc[c] == pPriv->desired_crtc)
+	    break;
+      if (c == xf86_config->num_crtc)
+	 c = -1;
+      *value = c;
    } else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
       *value = pPriv->gamma0;
    } else if (attribute == xvGamma1 && (IS_I9XX(pI830))) {
@@ -1686,7 +1695,7 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
       /* Keep the engine happy and clip to the real vertical size just
        * in case an LFP is in use and it's not at it's native resolution.
        */
-      int vactive = pPriv->pipe ? (INREG(VTOTAL_B) & 0x7FF) : (INREG(VTOTAL_A) & 0x7FF);
+      int vactive = I830CrtcPipe (pPriv->current_crtc) ? (INREG(VTOTAL_B) & 0x7FF) : (INREG(VTOTAL_A) & 0x7FF);
 
       vactive += 1;
 
@@ -2186,7 +2195,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 
    if (pI830->entityPrivate) {
 	 if (pI830->entityPrivate->XvInUse != -1 &&
-	     pI830->entityPrivate->XvInUse != pPriv->pipe) {
+	     pI830->entityPrivate->XvInUse != I830CrtcPipe (pPriv->current_crtc)) {
 #ifdef PANORAMIX
 		if (!noPanoramiXExtension) {
 			return Success; /* faked for trying to share it */
@@ -2197,7 +2206,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 		}
 	 }
 
-      pI830->entityPrivate->XvInUse = pPriv->pipe;
+      pI830->entityPrivate->XvInUse = I830CrtcPipe (pPriv->current_crtc);;
    }
 
    /* overlay limits */
@@ -2718,7 +2727,7 @@ I830DisplaySurface(XF86SurfacePtr surface,
 
    if (pI830->entityPrivate) {
 	 if (pI830->entityPrivate->XvInUse != -1 &&
-	     pI830->entityPrivate->XvInUse != pI830Priv->pipe) {
+	     pI830->entityPrivate->XvInUse != I830CrtcPipe (pI830Priv->current_crtc)) {
 #ifdef PANORAMIX
 		if (!noPanoramiXExtension) {
 			return Success; /* faked for trying to share it */
@@ -2729,7 +2738,7 @@ I830DisplaySurface(XF86SurfacePtr surface,
 		}
 	 }
 
-      pI830->entityPrivate->XvInUse = pI830Priv->pipe;
+      pI830->entityPrivate->XvInUse = I830CrtcPipe (pI830Priv->current_crtc);
    }
 
    x1 = src_x;
@@ -2832,7 +2841,6 @@ void
 i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
 {
    ScrnInfoPtr pScrn = crtc->scrn;
-   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
    I830PortPrivPtr pPriv;
    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
@@ -2846,14 +2854,14 @@ i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
 
    pPriv = GET_PORT_PRIVATE(pScrn);
 
-   /* Check if it's the pipe the overlay is on */
-   if (intel_crtc->pipe != pPriv->pipe)
+   /* Check if it's the crtc the overlay is on */
+   if (crtc != pPriv->current_crtc)
       return;
 
    if (on) {
       int size, hsize, vsize, active;
-      int pipeconf_reg = pPriv->pipe == 0 ? PIPEACONF : PIPEBCONF;
-      char pipename = pPriv->pipe == 0 ? 'A' : 'B';
+      int pipeconf_reg = intel_crtc->pipe == 0 ? PIPEACONF : PIPEBCONF;
+      char pipename = intel_crtc->pipe == 0 ? 'A' : 'B';
 
       pPriv->overlayOK = TRUE;
 
@@ -2870,10 +2878,9 @@ i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
       }
 
       /* Check we have an LFP connected */
-      if (i830PipeHasType(xf86_config->crtc[pPriv->pipe],
-			  I830_OUTPUT_LVDS)) {
-	 int vtotal_reg = pPriv->pipe ? VTOTAL_A : VTOTAL_B;
-	 size = pPriv->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
+      if (i830PipeHasType(crtc, I830_OUTPUT_LVDS)) {
+	 int vtotal_reg = intel_crtc->pipe ? VTOTAL_A : VTOTAL_B;
+	 size = intel_crtc->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
 	 hsize = (size >> 16) & 0x7FF;
 	 vsize = size & 0x7FF;
 	 active = INREG(vtotal_reg) & 0x7FF;
