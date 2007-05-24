@@ -134,7 +134,7 @@ static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
 #define IMAGE_MAX_HEIGHT_LEGACY	1088
 
 /* overlay debugging printf function */
-#if 1
+#if 0
 #define OVERLAY_DEBUG ErrorF
 #else
 #define OVERLAY_DEBUG if (0) ErrorF
@@ -950,23 +950,20 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	pPriv->brightness = value;
 	overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
 	OVERLAY_DEBUG("BRIGHTNESS\n");
-	if (*pI830->overlayOn)
-	    i830_overlay_continue (pScrn);
+	i830_overlay_continue (pScrn);
     } else if (attribute == xvContrast) {
 	if ((value < 0) || (value > 255))
 	    return BadValue;
 	pPriv->contrast = value;
 	overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
 	OVERLAY_DEBUG("CONTRAST\n");
-	if (*pI830->overlayOn)
-	    i830_overlay_continue (pScrn);
+	i830_overlay_continue (pScrn);
     } else if (attribute == xvSaturation) {
 	if ((value < 0) || (value > 1023))
 	    return BadValue;
 	pPriv->saturation = value;
 	overlay->OCLRC1 = pPriv->saturation;
-	if (*pI830->overlayOn)
-	    i830_overlay_continue (pScrn);
+	i830_overlay_continue (pScrn);
     } else if (attribute == xvPipe) {
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	if ((value < -1) || (value > xf86_config->num_crtc))
@@ -1004,8 +1001,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	    break;
 	}
 	OVERLAY_DEBUG("COLORKEY\n");
-	if (*pI830->overlayOn)
-	    i830_overlay_continue (pScrn);
+	i830_overlay_continue (pScrn);
 	REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
     } else if(attribute == xvDoubleBuffer) {
 	if ((value < 0) || (value > 1))
@@ -1613,9 +1609,8 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 #endif
 
     {
-	float best_coverage = 0.0;
-	float coverage;
-	int c;
+	int		    coverage;
+	int		    c;
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
 	crtc = NULL;
@@ -1643,6 +1638,18 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 	    I830ResetVideo (pScrn);
 	}
     }
+
+    /*
+     * If the video isn't visible on any CRTC, turn it off
+     */
+    if (!crtc)
+    {
+	i830_overlay_off (pScrn);
+	return;
+    }
+    
+    /* Ensure overlay is turned on with OVERLAY_ENABLE at 0 */
+    i830_overlay_on (pScrn);
 
     switch (crtc->rotation & 0xf) {
     case RR_Rotate_0:
@@ -1682,15 +1689,6 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 	dstBox->x2 = tmp;
 	break;
     }
-
-    /* When in dual head with different bpp setups we need to refresh the
-     * color key, so let's reset the video parameters and refresh here.
-     * In MergedFB mode, we may need to flip pipes too. */
-    if (pI830->entityPrivate)
-	I830ResetVideo(pScrn);
-
-    /* Ensure overlay is turned on with OVERLAY_ENABLE at 0 */
-    i830_overlay_on (pScrn);
 
     /* Fix up the dstBox if outside the visible screen */
     {
@@ -1770,22 +1768,8 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 	if (dstBox->x2 > hactive) dstBox->x2 = hactive;
 
 	/* nothing do to */
-	if ((!dstBox->x1 && !dstBox->x2) || (!dstBox->y1 && !dstBox->y2)) {
-	    OVERLAY_DEBUG("NOTHING TO DO\n");
-	    return;
-	}
-	if ((dstBox->x1 == (hactive) && 
-	     dstBox->x2 == (hactive)) || 
-	    (dstBox->y1 == vactive && 
-	     dstBox->y2 == vactive)) {
-	    OVERLAY_DEBUG("NOTHING TO DO\n");
-	    return;
-	}
-	if ((dstBox->y2 - dstBox->y1) <= N_VERT_Y_TAPS) {
-	    OVERLAY_DEBUG("NOTHING TO DO\n");
-	    return;
-	}
-	if ((dstBox->x2 - dstBox->x1) <= 2) {
+	if (dstBox->x2 - dstBox->x1 <= 2 || dstBox->y2 - dstBox->y1 < N_VERT_Y_TAPS)
+	{
 	    OVERLAY_DEBUG("NOTHING TO DO\n");
 	    return;
 	}
@@ -1874,8 +1858,8 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
     overlay->DWINPOS = (dstBox->y1 << 16) | dstBox->x1;
 
-    overlay->DWINSZ = ((dstBox->y2 - dstBox->y1) << 16) |
-    (dstBox->x2 - dstBox->x1);
+    overlay->DWINSZ = (((dstBox->y2 - dstBox->y1) << 16) |
+		       (dstBox->x2 - dstBox->x1));
 
     OVERLAY_DEBUG("dstBox: x1: %d, y1: %d, x2: %d, y2: %d\n",
 		  dstBox->x1, dstBox->y1, dstBox->x2, dstBox->y2);
@@ -2387,46 +2371,14 @@ I830PutImage(ScrnInfoPtr pScrn,
 	}
     }
 
-    /* Make sure this buffer isn't in use */
-    loops = 0;
-    if (!pPriv->textured && *pI830->overlayOn && pPriv->doubleBuffer &&
-	(overlay->OCMD & OVERLAY_ENABLE))
-    {
-	while (loops < 1000000) {
-#if USE_USLEEP_FOR_VIDEO
-	    usleep(10);
-#endif
-	    if (((INREG(DOVSTA) & OC_BUF) >> 20) == pPriv->currentBuf) {
-		break;
-	    }
-	    loops++;
-	}
-	if (loops >= 1000000) {
-	    ErrorF("loops (1) maxed out for buffer %d\n", pPriv->currentBuf);
-#if 0
-	    pPriv->currentBuf = !pPriv->currentBuf;
-#endif
-	}
-
-	/* buffer swap */
-	if (pPriv->currentBuf == 0)
-	    pPriv->currentBuf = 1;
-	else
-	    pPriv->currentBuf = 0;
-    }
+    /* Pick the idle buffer */
+    if (!pPriv->textured && *pI830->overlayOn && pPriv->doubleBuffer)
+	pPriv->currentBuf = !((INREG(DOVSTA) & OC_BUF) >> 20);
 
     /* copy data */
     top = y1 >> 16;
     left = (x1 >> 16) & ~1;
     npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
-
-    if (pPriv->textured) {
-	/* For textured video, we don't double buffer, and instead just wait for
-	 * acceleration to finish before writing the new video data into
-	 * framebuffer.
-	 */
-	i830WaitSync(pScrn);
-    }
 
     switch (id) {
     case FOURCC_YV12:
