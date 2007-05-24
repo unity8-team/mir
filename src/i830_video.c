@@ -401,10 +401,13 @@ i830_overlay_off(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     if (*pI830->overlayOn) {
 	int spin = 1000000;
+	I830OverlayRegPtr overlay =					
+	  (I830OverlayRegPtr) (pI830->FbBase + pI830->overlay_regs->offset);
+	overlay->OCMD &= ~OVERLAY_ENABLE;
 	BEGIN_LP_RING(6);
 	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
 	OUT_RING(MI_NOOP);
-	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_OFF);
+	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);
 	if (IS_I965G(pI830))
 	    OUT_RING(pI830->overlay_regs->offset | OFC_UPDATE);
 	else
