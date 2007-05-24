@@ -78,6 +78,7 @@
 #endif
 
 #include "xf86Crtc.h"
+#include "X11/Xatom.h"
 
 				/* Render support */
 #ifdef RENDER
@@ -174,6 +175,8 @@ do {									\
 #define RADEONTRACE(x) do { } while(0)
 #endif
 
+/* for Xv, outputs */
+#define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
 /* Other macros */
 #define RADEON_ARRAY_SIZE(x)  (sizeof(x)/sizeof(x[0]))

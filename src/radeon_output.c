@@ -373,7 +373,110 @@ radeon_destroy (xf86OutputPtr output)
         xfree(output->driver_private);
 }
 
+static Atom backlight_atom;
+static Atom rmx_atom;
+static Atom monitor_type_atom;
+
+static void
+radeon_create_resources(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    INT32 range[2];
+    int data, err;
+
+    /* backlight control */
+    if (radeon_output->type == OUTPUT_LVDS) {
+	backlight_atom = MAKE_ATOM("BACKLIGHT");
+
+	range[0] = 0;
+	range[1] = 255; // i830_lvds_get_max_backlight(pScrn);
+	err = RRConfigureOutputProperty(output->randr_output, backlight_atom,
+					FALSE, TRUE, FALSE, 2, range);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+	/* Set the current value of the backlight property */
+	data = 127; //pI830->backlight_duty_cycle;
+	err = RRChangeOutputProperty(output->randr_output, backlight_atom,
+				     XA_INTEGER, 32, PropModeReplace, 1, &data,
+				     FALSE, TRUE);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
+
+    /* RMX control - fullscreen, centered, keep ratio */
+    if (radeon_output->type == OUTPUT_LVDS ||
+	radeon_output->type == OUTPUT_DVI) {
+	rmx_atom = MAKE_ATOM("PANELSCALER");
+
+	range[0] = 0;
+	range[1] = 2; // i830_lvds_get_max_backlight(pScrn);
+	err = RRConfigureOutputProperty(output->randr_output, rmx_atom,
+					FALSE, TRUE, FALSE, 2, range);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+	/* Set the current value of the backlight property */
+	data = 0; //pI830->backlight_duty_cycle;
+	err = RRChangeOutputProperty(output->randr_output, rmx_atom,
+				     XA_INTEGER, 32, PropModeReplace, 1, &data,
+				     FALSE, TRUE);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
+
+    /* force analog/digital for DVI-I ports */
+    /* FIXME: make sure this is DVI-I */
+    if (radeon_output->type == OUTPUT_DVI) {
+	monitor_type_atom = MAKE_ATOM("MONITORTYPE");
+
+	range[0] = 0;
+	range[1] = 1; // i830_lvds_get_max_backlight(pScrn);
+	err = RRConfigureOutputProperty(output->randr_output, monitor_type_atom,
+					FALSE, TRUE, FALSE, 2, range);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+	/* Set the current value of the backlight property */
+	data = 0; //pI830->backlight_duty_cycle;
+	err = RRChangeOutputProperty(output->randr_output, monitor_type_atom,
+				     XA_INTEGER, 32, PropModeReplace, 1, &data,
+				     FALSE, TRUE);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
+
+}
+
+static Bool
+radeon_set_property(xf86OutputPtr output, Atom property,
+		       RRPropertyValuePtr value)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+
+    if (property == backlight_atom) {
+	return TRUE;
+    } else if (property == rmx_atom) {
+	return TRUE;
+    } else if (property == monitor_type_atom) {
+	return TRUE;
+    }
+
+    return TRUE;
+}
+
 static const xf86OutputFuncsRec radeon_output_funcs = {
+    .create_resources = radeon_create_resources,
     .dpms = radeon_dpms,
     .save = radeon_save,
     .restore = radeon_restore,
@@ -384,6 +487,7 @@ static const xf86OutputFuncsRec radeon_output_funcs = {
     .commit = radeon_mode_commit,
     .detect = radeon_detect,
     .get_modes = radeon_get_modes,
+    .set_property = radeon_set_property,
     .destroy = radeon_destroy
 };
 

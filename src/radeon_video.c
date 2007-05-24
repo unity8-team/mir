@@ -99,7 +99,7 @@ static void RADEON_TDA9885_SetEncoding(RADEONPortPrivPtr pPriv);
 static void RADEON_FI1236_SetEncoding(RADEONPortPrivPtr pPriv);
 
 
-#define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
+
 #define ClipValue(v,min,max) ((v) < (min) ? (min) : (v) > (max) ? (max) : (v))
 
 static Atom xvBrightness, xvColorKey, xvSaturation, xvDoubleBuffer;

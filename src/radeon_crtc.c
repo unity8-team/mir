@@ -279,7 +279,6 @@ static const xf86CrtcFuncsRec radeon_crtc_funcs = {
     .set_cursor_position = radeon_crtc_set_cursor_position,
     .show_cursor = radeon_crtc_show_cursor,
     .hide_cursor = radeon_crtc_hide_cursor,
-/*    .load_cursor_image = i830_crtc_load_cursor_image, */
     .load_cursor_argb = radeon_crtc_load_cursor_argb,
     .destroy = NULL, /* XXX */
 };
