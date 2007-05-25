@@ -189,15 +189,12 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
     RADEONMonitorType MonType = MT_NONE;
 
 
-    if (info->IsMobility) {
-        if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_LVDS_ATOM) ||
-	    (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_PROPRIETARY)) {
-	     if (INREG(RADEON_BIOS_4_SCRATCH) & 4)
-	         MonType =  MT_LCD;
-        }
-	/* non-DDC TMDS panel connected through DVO */
-	if (INREG(RADEON_FP2_GEN_CNTL) & RADEON_FP2_ON)
-	  MonType = MT_DFP;
+    if (radeon_output->type == OUTPUT_LVDS) {
+	if (INREG(RADEON_BIOS_4_SCRATCH) & 4)
+	    MonType =  MT_LCD;
+    } else if (radeon_output->type == OUTPUT_DVI) {
+	if (INREG(RADEON_FP_GEN_CNTL) & RADEON_FP_DETECT_SENSE)
+	    MonType = MT_DFP;
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
