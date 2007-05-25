@@ -742,6 +742,7 @@
 #       define RADEON_FP2_BLANK_EN             (1 <<  1)
 #       define RADEON_FP2_ON                   (1 <<  2)
 #       define RADEON_FP2_PANEL_FORMAT         (1 <<  3)
+#       define RADEON_FP2_DETECT_SENSE         (1 <<  8)
 #       define R200_FP2_SOURCE_SEL_MASK        (3 << 10)
 #       define R200_FP2_SOURCE_SEL_CRTC1       (0 <<  10)
 #       define R200_FP2_SOURCE_SEL_CRTC2       (1 << 10)
