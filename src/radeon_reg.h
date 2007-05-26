@@ -876,6 +876,9 @@
 #       define RADEON_LVDS_PANEL_TYPE       (1   <<  2)
 #       define RADEON_LVDS_PANEL_FORMAT     (1   <<  3)
 #       define RADEON_LVDS_EN               (1   <<  7)
+#       define RADEON_LVDS_BL_MOD_LEVEL_SHIFT 8
+#       define RADEON_LVDS_BL_MOD_LEVEL_MASK (0xff << 8)
+#       define RADEON_LVDS_BL_MOD_EN        (1   << 16)
 #       define RADEON_LVDS_DIGON            (1   << 18)
 #       define RADEON_LVDS_BLON             (1   << 19)
 #       define RADEON_LVDS_SEL_CRTC2        (1   << 23)

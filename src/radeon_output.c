@@ -391,9 +391,32 @@ radeon_destroy (xf86OutputPtr output)
         xfree(output->driver_private);
 }
 
+static void
+radeon_set_backlight_level(xf86OutputPtr output, int level)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    unsigned char * RADEONMMIO = info->MMIO;
+    CARD32 lvds_gen_cntl;
+
+#if 0
+    lvds_gen_cntl = INREG(RADEON_LVDS_GEN_CNTL);
+    lvds_gen_cntl |= RADEON_LVDS_BL_MOD_EN;
+    lvds_gen_cntl &= ~RADEON_LVDS_BL_MOD_LEVEL_MASK;
+    lvds_gen_cntl |= (level << RADEON_LVDS_BL_MOD_LEVEL_SHIFT) & RADEON_LVDS_BL_MOD_LEVEL_MASK;
+    //usleep (radeon_output->PanelPwrDly * 1000);
+    OUTREG(RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
+    lvds_gen_cntl &= ~RADEON_LVDS_BL_MOD_EN;
+    //usleep (radeon_output->PanelPwrDly * 1000);
+    OUTREG(RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
+#endif
+}
+
 static Atom backlight_atom;
 static Atom rmx_atom;
 static Atom monitor_type_atom;
+#define RADEON_MAX_BACKLIGHT_LEVEL 255
 
 static void
 radeon_create_resources(xf86OutputPtr output)
@@ -409,7 +432,7 @@ radeon_create_resources(xf86OutputPtr output)
 	backlight_atom = MAKE_ATOM("BACKLIGHT");
 
 	range[0] = 0;
-	range[1] = 255; // i830_lvds_get_max_backlight(pScrn);
+	range[1] = RADEON_MAX_BACKLIGHT_LEVEL;
 	err = RRConfigureOutputProperty(output->randr_output, backlight_atom,
 					FALSE, TRUE, FALSE, 2, range);
 	if (err != 0) {
@@ -417,7 +440,8 @@ radeon_create_resources(xf86OutputPtr output)
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
 	/* Set the current value of the backlight property */
-	data = 127; //pI830->backlight_duty_cycle;
+	//data = (info->SavedReg.lvds_gen_cntl & RADEON_LVDS_BL_MOD_LEVEL_MASK) >> RADEON_LVDS_BL_MOD_LEVEL_SHIFT;
+	data = RADEON_MAX_BACKLIGHT_LEVEL;
 	err = RRChangeOutputProperty(output->randr_output, backlight_atom,
 				     XA_INTEGER, 32, PropModeReplace, 1, &data,
 				     FALSE, TRUE);
@@ -433,7 +457,7 @@ radeon_create_resources(xf86OutputPtr output)
 	rmx_atom = MAKE_ATOM("PANELSCALER");
 
 	range[0] = 0;
-	range[1] = 2; // i830_lvds_get_max_backlight(pScrn);
+	range[1] = 2;
 	err = RRConfigureOutputProperty(output->randr_output, rmx_atom,
 					FALSE, TRUE, FALSE, 2, range);
 	if (err != 0) {
@@ -441,7 +465,7 @@ radeon_create_resources(xf86OutputPtr output)
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
 	/* Set the current value of the backlight property */
-	data = 0; //pI830->backlight_duty_cycle;
+	data = 0;
 	err = RRChangeOutputProperty(output->randr_output, rmx_atom,
 				     XA_INTEGER, 32, PropModeReplace, 1, &data,
 				     FALSE, TRUE);
@@ -490,11 +514,25 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 
 
     if (property == backlight_atom) {
-	return TRUE;
+	if (value->type != XA_INTEGER ||
+	    value->format != 32 ||
+	    value->size != 1) {
+	    return FALSE;
+	}
+
+	val = *(INT32 *)value->data;
+	if (val < 0 || val > RADEON_MAX_BACKLIGHT_LEVEL)
+	    return FALSE;
+
+#if defined(__powerpc__)
+	val = RADEON_MAX_BACKLIGHT_LEVEL - val;
+#endif
+
+	radeon_set_backlight_level(output, val);
+
     } else if (property == rmx_atom) {
 	return TRUE;
     } else if (property == monitor_type_atom) {
-
 	if (value->type != XA_INTEGER ||
 	    value->format != 32 ||
 	    value->size != 1) {
@@ -732,6 +770,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    }
 	    output->driver_private = radeon_output;
 	    output->possible_crtcs = 1;
+	    /* crtc2 can drive LVDS, it just doesn't have RMX */
 	    if (radeon_output->type != OUTPUT_LVDS)
 		output->possible_crtcs |= 2;
 
