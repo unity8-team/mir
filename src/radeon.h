@@ -725,10 +725,7 @@ typedef struct {
     /* X itself has the 3D context */
     Bool              XInited3D;
 
-  DisplayModePtr currentMode, savedCurrentMode;
-    /* merged fb stuff, also covers clone modes */
-    void        	(*PointerMoved)(int index, int x, int y);
-    Bool		NoVirtual;
+    DisplayModePtr currentMode, savedCurrentMode;
 
     int			constantDPI; /* -1 = auto, 0 = off, 1 = on */
     int			RADEONDPIVX, RADEONDPIVY;
@@ -745,6 +742,8 @@ typedef struct {
 
     RADEONBIOSConnector BiosConnector[RADEON_MAX_BIOS_CONNECTOR];
 
+    Rotation rotation;
+    void (*PointerMoved)(int, int, int);
     CreateScreenResourcesProcPtr CreateScreenResources;
 } RADEONInfoRec, *RADEONInfoPtr;
 

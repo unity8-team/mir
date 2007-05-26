@@ -3275,6 +3275,33 @@ Bool RADEONSetupMemXAA(int scrnIndex, ScreenPtr pScreen)
 }
 #endif /* USE_XAA */
 
+static void
+RADEONPointerMoved(int index, int x, int y)
+{
+    ScrnInfoPtr pScrn = xf86Screens[index];
+    RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    int newX = x, newY = y;
+
+    switch (info->rotation) {
+    case RR_Rotate_0:
+	break;
+    case RR_Rotate_90:
+	newX = y;
+	newY = pScrn->pScreen->width - x - 1;
+	break;
+    case RR_Rotate_180:
+	newX = pScrn->pScreen->width - x - 1;
+	newY = pScrn->pScreen->height - y - 1;
+	break;
+    case RR_Rotate_270:
+	newX = pScrn->pScreen->height - y - 1;
+	newY = x;
+	break;
+    }
+
+    (*info->PointerMoved)(index, newX, newY);
+}
+
 /* Called at the start of each server generation. */
 Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
                                 int argc, char **argv)
@@ -3708,6 +3735,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     info->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = RADEONBlockHandler;
 
+#if 0
     /* Rotation */
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
     xf86DisableRandR(); /* Disable built-in RandR extension */
@@ -3717,6 +3745,14 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     info->CreateScreenResources = pScreen->CreateScreenResources;
     pScreen->CreateScreenResources = RADEONCreateScreenResources;
+#endif
+
+   if (!xf86CrtcScreenInit (pScreen))
+       return FALSE;
+
+    /* Wrap pointer motion to flip touch screen around */
+    info->PointerMoved = pScrn->PointerMoved;
+    pScrn->PointerMoved = RADEONPointerMoved;
 
     /* Colormap setup */
     RADEONTRACE(("Initializing color map\n"));
