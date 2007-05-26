@@ -3735,18 +3735,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     info->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = RADEONBlockHandler;
 
-#if 0
-    /* Rotation */
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RandR enabled, ignore the following RandR disabled message.\n");
-    xf86DisableRandR(); /* Disable built-in RandR extension */
-
-    xf86RandR12Init (pScreen);
-    xf86RandR12SetRotations (pScreen, RR_Rotate_0);
-
-    info->CreateScreenResources = pScreen->CreateScreenResources;
-    pScreen->CreateScreenResources = RADEONCreateScreenResources;
-#endif
-
    if (!xf86CrtcScreenInit (pScreen))
        return FALSE;
 
