@@ -569,32 +569,45 @@ void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     RADEONOutputType output;
+
     if (info->IsAtomBios) {
 	switch(radeon_output->ConnectorType) {
-	case 0: output = OUTPUT_NONE; break;
-	case 1: output = OUTPUT_VGA; break;
-	case 2:
-	case 3:
-	case 4: output = OUTPUT_DVI; break;
-	case 5: output = OUTPUT_STV; break;
-	case 6: output = OUTPUT_CTV; break;
-	case 7:
-	case 8: output = OUTPUT_LVDS; break;
-	case 9:
+	case CONNECTOR_VGA_ATOM:
+	    output = OUTPUT_VGA; break;
+	case CONNECTOR_DVI_I_ATOM:
+	case CONNECTOR_DVI_D_ATOM:
+	case CONNECTOR_DVI_A_ATOM:
+	    output = OUTPUT_DVI; break;
+	case CONNECTOR_STV_ATOM:
+	    output = OUTPUT_STV; break;
+	case CONNECTOR_CTV_ATOM:
+	    output = OUTPUT_CTV; break;
+	case CONNECTOR_LVDS_ATOM:
+	case CONNECTOR_DIGITAL_ATOM:
+	    output = OUTPUT_LVDS; break;
+	case CONNECTOR_NONE_ATOM:
+	case CONNECTOR_UNSUPPORTED_ATOM:
 	default:
 	    output = OUTPUT_NONE; break;
 	}
     }
     else {
 	switch(radeon_output->ConnectorType) {
-	case 0: output = OUTPUT_NONE; break;
-	case 1: output = OUTPUT_LVDS; break;
-	case 2: output = OUTPUT_VGA; break;
-	case 3:
-	case 4: output = OUTPUT_DVI; break;
-	case 5: output = OUTPUT_STV; break;
-	case 6: output = OUTPUT_CTV; break;
-	default: output = OUTPUT_NONE; break;
+	case CONNECTOR_PROPRIETARY:
+	    output = OUTPUT_LVDS; break;
+	case CONNECTOR_CRT:
+	    output = OUTPUT_VGA; break;
+	case CONNECTOR_DVI_I:
+	case CONNECTOR_DVI_D:
+	    output = OUTPUT_DVI; break;
+	case CONNECTOR_CTV:
+	    output = OUTPUT_STV; break;
+	case CONNECTOR_STV:
+	    output = OUTPUT_CTV; break;
+	case CONNECTOR_NONE:
+	case CONNECTOR_UNSUPPORTED:
+	default:
+	    output = OUTPUT_NONE; break;
 	}
     }
     radeon_output->type = output;
