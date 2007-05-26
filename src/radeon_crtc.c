@@ -270,6 +270,167 @@ radeon_crtc_unlock(xf86CrtcPtr crtc)
         RADEON_SYNC(info, pScrn);
 }
 
+#ifdef USE_XAA
+/**
+ * Allocates memory from the XF86 linear allocator, but also purges
+ * memory if possible to cause the allocation to succeed.
+ */
+static FBLinearPtr
+radeon_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
+				 int granularity,
+				 MoveLinearCallbackProcPtr moveCB,
+				 RemoveLinearCallbackProcPtr removeCB,
+				 pointer privData)
+{
+    FBLinearPtr linear;
+    int max_size;
+
+    linear = xf86AllocateOffscreenLinear(pScreen, length, granularity, moveCB,
+					 removeCB, privData);
+    if (linear != NULL)
+	return linear;
+
+    /* The above allocation didn't succeed, so purge unlocked stuff and try
+     * again.
+     */
+    xf86QueryLargestOffscreenLinear(pScreen, &max_size, granularity,
+				    PRIORITY_EXTREME);
+
+    if (max_size < length)
+	return NULL;
+
+    xf86PurgeUnlockedOffscreenAreas(pScreen);
+
+    linear = xf86AllocateOffscreenLinear(pScreen, length, granularity, moveCB,
+					 removeCB, privData);
+
+    return linear;
+}
+#endif
+
+/**
+ * Allocates memory for a locked-in-framebuffer shadow of the given
+ * width and height for this CRTC's rotated shadow framebuffer.
+ */
+ 
+static void *
+radeon_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    ScreenPtr pScreen = pScrn->pScreen;
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    unsigned long rotate_pitch;
+    unsigned long rotate_offset;
+    int align = KB(4), size;
+    int cpp = pScrn->bitsPerPixel / 8;
+
+    rotate_pitch = pScrn->displayWidth * cpp;
+    size = rotate_pitch * height;
+
+#ifdef USE_EXA
+    /* We could get close to what we want here by just creating a pixmap like
+     * normal, but we have to lock it down in framebuffer, and there is no
+     * setter for offscreen area locking in EXA currently.  So, we just
+     * allocate offscreen memory and fake up a pixmap header for it.
+     */
+    if (info->useEXA) {
+	assert(radeon_crtc->rotate_mem_exa == NULL);
+
+	radeon_crtc->rotate_mem_exa = exaOffscreenAlloc(pScreen, size, align,
+						       TRUE, NULL, NULL);
+	if (radeon_crtc->rotate_mem_exa == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Couldn't allocate shadow memory for rotated CRTC\n");
+	    return NULL;
+	}
+	rotate_offset = radeon_crtc->rotate_mem_exa->offset;
+    }
+#endif /* USE_EXA */
+#ifdef USE_XAA
+    if (!info->useEXA) {
+	/* The XFree86 linear allocator operates in units of screen pixels,
+	 * sadly.
+	 */
+	size = (size + cpp - 1) / cpp;
+	align = (align + cpp - 1) / cpp;
+
+	assert(radeon_crtc->rotate_mem_xaa == NULL);
+
+	radeon_crtc->rotate_mem_xaa =
+	    radeon_xf86AllocateOffscreenLinear(pScreen, size, align,
+					       NULL, NULL, NULL);
+	if (radeon_crtc->rotate_mem_xaa == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Couldn't allocate shadow memory for rotated CRTC\n");
+	    return NULL;
+	}
+	rotate_offset = info->frontOffset +
+	    radeon_crtc->rotate_mem_xaa->offset * cpp;
+    }
+#endif /* USE_XAA */
+
+    return info->FB + rotate_offset;
+}
+    
+/**
+ * Creates a pixmap for this CRTC's rotated shadow framebuffer.
+ */
+static PixmapPtr
+radeon_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    unsigned long rotate_pitch;
+    PixmapPtr rotate_pixmap;
+    int cpp = pScrn->bitsPerPixel / 8;
+
+    if (!data)
+	data = radeon_crtc_shadow_allocate(crtc, width, height);
+    
+    rotate_pitch = pScrn->displayWidth * cpp;
+
+    rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
+					   width, height,
+					   pScrn->depth,
+					   pScrn->bitsPerPixel,
+					   rotate_pitch,
+					   data);
+
+    if (rotate_pixmap == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Couldn't allocate shadow pixmap for rotated CRTC\n");
+    }
+
+    return rotate_pixmap;
+}
+
+static void
+radeon_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+
+    if (rotate_pixmap)
+	FreeScratchPixmapHeader(rotate_pixmap);
+    
+    if (data) {
+#ifdef USE_EXA
+	if (info->useEXA && radeon_crtc->rotate_mem_exa != NULL) {
+	    exaOffscreenFree(pScrn->pScreen, radeon_crtc->rotate_mem_exa);
+	    radeon_crtc->rotate_mem_exa = NULL;
+	}
+#endif /* USE_EXA */
+#ifdef USE_XAA
+	if (!info->useEXA) {
+	    xf86FreeOffscreenLinear(radeon_crtc->rotate_mem_xaa);
+	    radeon_crtc->rotate_mem_xaa = NULL;
+	}
+#endif /* USE_XAA */
+    }
+}
+
 static const xf86CrtcFuncsRec radeon_crtc_funcs = {
     .dpms = radeon_crtc_dpms,
     .save = NULL, /* XXX */
@@ -281,6 +442,9 @@ static const xf86CrtcFuncsRec radeon_crtc_funcs = {
     .gamma_set = radeon_crtc_gamma_set,
     .lock = radeon_crtc_lock,
     .unlock = radeon_crtc_unlock,
+    .shadow_create = radeon_crtc_shadow_create,
+    .shadow_allocate = radeon_crtc_shadow_allocate,
+    .shadow_destroy = radeon_crtc_shadow_destroy,
     .set_cursor_colors = radeon_crtc_set_cursor_colors,
     .set_cursor_position = radeon_crtc_set_cursor_position,
     .show_cursor = radeon_crtc_show_cursor,

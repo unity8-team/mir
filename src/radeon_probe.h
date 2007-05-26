@@ -45,6 +45,13 @@
 
 #include "xf86Crtc.h"
 
+#ifdef USE_EXA
+#include "exa.h"
+#endif
+#ifdef USE_XAA
+#include "xaa.h"
+#endif
+
 typedef enum
 {
     DDC_NONE_DETECTED,
@@ -131,6 +138,12 @@ typedef enum
 } RADEONOutputType;
 
 typedef struct _RADEONCrtcPrivateRec {
+#ifdef USE_XAA
+    FBLinearPtr rotate_mem_xaa;
+#endif
+#ifdef USE_EXA
+    ExaOffscreenArea *rotate_mem_exa;
+#endif
     int crtc_id;
     int binding;
     /* Lookup table values to be set when the CRTC is enabled */
