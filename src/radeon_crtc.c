@@ -241,17 +241,16 @@ radeon_crtc_lock(xf86CrtcPtr crtc)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     Bool           CPStarted   = info->CPStarted;
 
-    if (info->accelOn)
-        RADEON_SYNC(info, pScrn);
-
 #ifdef XF86DRI
     if (info->CPStarted && pScrn->pScreen) {
 	DRILock(pScrn->pScreen, 0);
+	if (info->accelOn)
+	    RADEON_SYNC(info, pScrn);
 	return TRUE;
-    } else {
-	return FALSE;
     }
 #endif
+    if (info->accelOn)
+        RADEON_SYNC(info, pScrn);
 
     return FALSE;
 
