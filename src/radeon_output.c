@@ -787,7 +787,9 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    if (radeon_output->type != OUTPUT_LVDS)
 		output->possible_crtcs |= 2;
 
-	    output->possible_clones = 0 /*1|2*/;
+	    /* we can clone the DACs, and probably TV-out, 
+	       but I'm not sure it's worth the trouble */
+	    output->possible_clones = 0;
 
 	    RADEONInitConnector(output);
 	}
@@ -815,7 +817,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		}
 		output->driver_private = radeon_output;
 		output->possible_crtcs = 1;
-		output->possible_clones = 0 /*1|2*/;
+		output->possible_clones = 0;
 
 		RADEONInitConnector(output);
 
@@ -840,7 +842,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		}
 		output->driver_private = radeon_output;
 		output->possible_crtcs = 1;
-		output->possible_clones = 0 /*1|2*/;
+		output->possible_clones = 0;
 
 		RADEONInitConnector(output);
 	    }
