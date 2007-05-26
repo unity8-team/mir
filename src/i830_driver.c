@@ -2293,17 +2293,17 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #endif
    }
 
+#ifdef I830_XV
+    /*
+     * Set this so that the overlay allocation is factored in when
+     * appropriate.
+     */
+    pI830->XvEnabled = !pI830->XvDisabled;
+#endif
+
    if (!pI830->directRenderingDisabled) {
       int savedDisplayWidth = pScrn->displayWidth;
       Bool tiled = FALSE;
-
-#ifdef I830_XV
-      /*
-       * Set this so that the overlay allocation is factored in when
-       * appropriate.
-       */
-      pI830->XvEnabled = !pI830->XvDisabled;
-#endif
 
       if (IS_I965G(pI830)) {
 	 int tile_pixels = 512 / pI830->cpp;
