@@ -335,11 +335,27 @@ static xf86OutputStatus
 radeon_detect(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     
     radeon_output->MonType = MT_UNKNOWN;
     RADEONConnectorFindMonitor(pScrn, output);
+
+    /* force montype based on output property */
+    if (radeon_output->type == OUTPUT_DVI) {
+	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_I_ATOM) ||
+	    (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_I)) {
+	    if (radeon_output->MonType > MT_NONE) {
+		if (radeon_output->DVIType == DVI_ANALOG)
+		    radeon_output->MonType = MT_CRT;
+		else if (radeon_output->DVIType == DVI_DIGITAL)
+		    radeon_output->MonType = MT_DFP;
+	    }
+	}
+    }
+
+
     if (radeon_output->MonType == MT_UNKNOWN) {
         output->subpixel_order = SubPixelUnknown;
 	return XF86OutputStatusUnknown;
@@ -383,6 +399,7 @@ static void
 radeon_create_resources(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     INT32 range[2];
     int data, err;
@@ -434,27 +451,30 @@ radeon_create_resources(xf86OutputPtr output)
 	}
     }
 
-    /* force analog/digital for DVI-I ports */
-    /* FIXME: make sure this is DVI-I */
+    /* force auto/analog/digital for DVI-I ports */
     if (radeon_output->type == OUTPUT_DVI) {
-	monitor_type_atom = MAKE_ATOM("MONITORTYPE");
+	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_I_ATOM) ||
+	    (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_I)) {
+	    monitor_type_atom = MAKE_ATOM("MONITORTYPE");
 
-	range[0] = 0;
-	range[1] = 1; // i830_lvds_get_max_backlight(pScrn);
-	err = RRConfigureOutputProperty(output->randr_output, monitor_type_atom,
-					FALSE, TRUE, FALSE, 2, range);
-	if (err != 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "RRConfigureOutputProperty error, %d\n", err);
-	}
-	/* Set the current value of the backlight property */
-	data = 0; //pI830->backlight_duty_cycle;
-	err = RRChangeOutputProperty(output->randr_output, monitor_type_atom,
-				     XA_INTEGER, 32, PropModeReplace, 1, &data,
-				     FALSE, TRUE);
-	if (err != 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "RRChangeOutputProperty error, %d\n", err);
+	    range[0] = DVI_AUTO;
+	    range[1] = DVI_ANALOG;
+	    err = RRConfigureOutputProperty(output->randr_output, monitor_type_atom,
+					    FALSE, TRUE, FALSE, 2, range);
+	    if (err != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "RRConfigureOutputProperty error, %d\n", err);
+	    }
+	    /* Set the current value of the backlight property */
+	    radeon_output->DVIType = DVI_AUTO;
+	    data = DVI_AUTO;
+	    err = RRChangeOutputProperty(output->randr_output, monitor_type_atom,
+					 XA_INTEGER, 32, PropModeReplace, 1, &data,
+					 FALSE, TRUE);
+	    if (err != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "RRChangeOutputProperty error, %d\n", err);
+	    }
 	}
     }
 
@@ -465,13 +485,27 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 		       RRPropertyValuePtr value)
 {
     ScrnInfoPtr pScrn = output->scrn;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    INT32 val;
+
 
     if (property == backlight_atom) {
 	return TRUE;
     } else if (property == rmx_atom) {
 	return TRUE;
     } else if (property == monitor_type_atom) {
-	return TRUE;
+
+	if (value->type != XA_INTEGER ||
+	    value->format != 32 ||
+	    value->size != 1) {
+	    return FALSE;
+	}
+
+	val = *(INT32 *)value->data;
+	if (val < DVI_AUTO || val > DVI_ANALOG)
+	    return FALSE;
+
+	radeon_output->DVIType = val;
     }
 
     return TRUE;

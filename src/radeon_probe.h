@@ -108,6 +108,13 @@ typedef enum
     TMDS_NONE    = 2
 } RADEONTmdsType;
 
+typedef enum
+{
+    DVI_AUTO,
+    DVI_DIGITAL,
+    DVI_ANALOG
+} RADEONDviType;
+
 typedef struct {
     CARD32 freq;
     CARD32 value;
@@ -143,6 +150,7 @@ typedef struct _RADEONOutputPrivateRec {
     void *dev_priv;
     RADEONDDCType DDCType;
     RADEONDacType DACType;
+    RADEONDviType DVIType;
     RADEONTmdsType TMDSType;
     RADEONConnectorType ConnectorType;
     RADEONMonitorType MonType;
