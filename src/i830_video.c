@@ -1636,38 +1636,35 @@ UpdateCoeff(int taps, double fCutoff, Bool isHoriz, Bool isY, coeffPtr pCoeff)
     }
 }
 
-/*
- * Return the number of pixels from 'box' covered by 'crtc'.
- * That is, the area of the intersection of 'box' and 'crtc'
- */
-static int
-I830CrtcBoxCoverage (xf86CrtcPtr crtc, BoxPtr box)
+static void
+i830_box_intersect (BoxPtr dest, BoxPtr a, BoxPtr b)
 {
-    BoxRec   dest;
-    BoxRec   pipe;
+    dest->x1 = a->x1 > b->x1 ? a->x1 : b->x1;
+    dest->x2 = a->x2 < b->x2 ? a->x2 : b->x2;
+    dest->y1 = a->y1 > b->y1 ? a->y1 : b->y1;
+    dest->y2 = a->y2 < b->y2 ? a->y2 : b->y2;
+    if (dest->x1 >= dest->x2 || dest->y1 >= dest->y2)
+	dest->x1 = dest->x2 = dest->y1 = dest->y2 = 0;
+}
 
+static void
+i830_crtc_box (xf86CrtcPtr crtc, BoxPtr crtc_box)
+{
     if (crtc->enabled)
     {
-	pipe.x1 = crtc->x;
-	pipe.x2 = crtc->x + xf86ModeWidth (&crtc->mode, crtc->rotation);
-	pipe.y1 = crtc->y;
-	pipe.y2 = crtc->y + xf86ModeHeight (&crtc->mode, crtc->rotation);
+	crtc_box->x1 = crtc->x;
+	crtc_box->x2 = crtc->x + xf86ModeWidth (&crtc->mode, crtc->rotation);
+	crtc_box->y1 = crtc->y;
+	crtc_box->y2 = crtc->y + xf86ModeHeight (&crtc->mode, crtc->rotation);
     }
     else
-    {
-	pipe.x1 = pipe.x2 = 0;
-	pipe.y1 = pipe.y2 = 0;
-    }
-    dest.x1 = pipe.x1 > box->x1 ? pipe.x1 : box->x1;
-    dest.x2 = pipe.x2 < box->x2 ? pipe.x2 : box->x2;
-    dest.y1 = pipe.y1 > box->y1 ? pipe.y1 : box->y1;
-    dest.y2 = pipe.y2 < box->y2 ? pipe.y2 : box->y2;
-    if (dest.x1 >= dest.x2 || dest.y1 >= dest.y2)
-    {
-	dest.x1 = dest.x2 = 0;
-	dest.y1 = dest.y2 = 0;
-    }
-    return (int) (dest.x2 - dest.x1) * (int) (dest.y2 - dest.y1);
+	crtc_box->x1 = crtc_box->x2 = crtc_box->y1 = crtc_box->y2 = 0;
+}
+
+static int
+i830_box_area (BoxPtr box)
+{
+    return (int) (box->x2 - box->x1) * (int) (box->y2 - box->y1);
 }
 
 /*
@@ -1677,21 +1674,28 @@ I830CrtcBoxCoverage (xf86CrtcPtr crtc, BoxPtr box)
  */
 
 static xf86CrtcPtr
-I830CoveringCrtc (ScrnInfoPtr pScrn, BoxPtr pBox, xf86CrtcPtr desired)
+i830_covering_crtc (ScrnInfoPtr pScrn,
+		    BoxPtr	box,
+		    xf86CrtcPtr desired,
+		    BoxPtr	crtc_box_ret)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     xf86CrtcPtr		crtc, best_crtc;
     int			coverage, best_coverage;
     int			c;
+    BoxRec		crtc_box, cover_box;
 
     best_crtc = NULL;
     best_coverage = 0;
     for (c = 0; c < xf86_config->num_crtc; c++)
     {
 	crtc = xf86_config->crtc[c];
-	coverage = I830CrtcBoxCoverage (crtc, pBox);
+	i830_crtc_box (crtc, &crtc_box);
+	i830_box_intersect (&cover_box, &crtc_box, box);
+	coverage = i830_box_area (&cover_box);
 	if (coverage > best_coverage)
 	{
+	    *crtc_box_ret = crtc_box;
 	    if (crtc == desired)
 		return crtc;
 	    best_crtc = crtc;
@@ -1713,19 +1717,19 @@ i830_swidth (I830Ptr pI830, unsigned int offset,
 }
 
 static void
-I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
-		 int dstPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
-		 short src_w, short src_h, short drw_w, short drw_h)
+i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
+		   int id, short width, short height,
+		   int dstPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
+		   short src_w, short src_h, short drw_w, short drw_h)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
+    I830Ptr		pI830 = I830PTR(pScrn);
+    I830PortPrivPtr	pPriv = pI830->adaptor->pPortPrivates[0].ptr;
     I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
-    unsigned int swidth, swidthy, swidthuv;
-    unsigned int mask, shift, offsety, offsetu;
-    xf86CrtcPtr crtc;
-    int		tmp;
-    CARD32	OCMD;
-    Bool	scaleChanged = FALSE;
+    unsigned int	swidth, swidthy, swidthuv;
+    unsigned int	mask, shift, offsety, offsetu;
+    int			tmp;
+    CARD32		OCMD;
+    Bool		scaleChanged = FALSE;
 
     OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
 		  dstPitch);
@@ -1736,23 +1740,23 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 #if VIDEO_DEBUG
     CompareOverlay(pI830, (CARD32 *) overlay, 0x100);
 #endif
-
-    crtc = I830CoveringCrtc (pScrn, dstBox, pPriv->desired_crtc);
+    
+    /*
+     * If the video isn't visible on any CRTC, turn it off
+     */
+    if (!crtc)
+    {
+	pPriv->current_crtc = NULL;
+	i830_overlay_off (pScrn);
+	return;
+    }
+    
     if (crtc != pPriv->current_crtc)
     {
         pPriv->current_crtc = crtc;
         I830ResetVideo (pScrn);
     }
 
-    /*
-     * If the video isn't visible on any CRTC, turn it off
-     */
-    if (!crtc)
-    {
-	i830_overlay_off (pScrn);
-	return;
-    }
-    
     switch (crtc->rotation & 0xf) {
     case RR_Rotate_0:
 	dstBox->x1 -= crtc->x;
@@ -1792,44 +1796,6 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 	break;
     }
 
-    /* Fix up the dstBox if outside the visible screen */
-    {
-	int offset_x = (dstBox->x1 < 0) ? -dstBox->x1 : 0;
-	int offset_y = (dstBox->y1 < 0) ? -dstBox->y1 : 0;
-	int offset, offset2;
-
-	/* align */
-	offset_x = (offset_x + 3) & ~3;
-	offset_y = (offset_y + 3) & ~3;
-
-	if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-	    height -= offset_x;
-	    width -= offset_y;
-	} else {
-	    height -= offset_y;
-	    width -= offset_x;
-	}
-
-	if (id == FOURCC_I420 || id == FOURCC_YV12) {
-	    offset = ((offset_x/2) + (dstPitch * offset_y)) * 2;
-	    offset2 = ((offset_x/2) + ((dstPitch/2) * offset_y));
-	} else {
-	    offset = ((offset_x*2) + (dstPitch * offset_y));
-	    offset2 = ((offset_x*2) + ((dstPitch/2) * offset_y));
-	}
-
-	/* buffer locations */
-	pPriv->YBuf0offset += offset;
-	pPriv->UBuf0offset += offset2;
-	pPriv->VBuf0offset += offset2;
-
-	if(pPriv->doubleBuffer) {
-	    pPriv->YBuf1offset += offset;
-	    pPriv->UBuf1offset += offset2;
-	    pPriv->VBuf1offset += offset2;
-	}
-    }
-
     if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 	tmp = width;
 	width = height;
@@ -1849,32 +1815,6 @@ I830DisplayVideo(ScrnInfoPtr pScrn, int id, short width, short height,
 
 	/* Now, alter the height, so we scale to the correct size */
 	drw_h = ((drw_h * pPriv->scaleRatio) >> 16) + 1;
-    }
-
-    {
-	/* Keep the engine happy and clip to the real vertical size just
-	 * in case an LFP is in use and it's not at it's native resolution.
-	 */
-	int vactive = I830CrtcPipe (pPriv->current_crtc) ? (INREG(VTOTAL_B) & 0x7FF) : (INREG(VTOTAL_A) & 0x7FF);
-	int hactive = pPriv->current_crtc->mode.HDisplay;
-
-	vactive += 1;
-
-	if (dstBox->y1 < 0) dstBox->y1 = 0;
-	if (dstBox->y2 < 0) dstBox->y2 = 0;
-	if (dstBox->x1 < 0) dstBox->x1 = 0;
-	if (dstBox->x2 < 0) dstBox->x2 = 0;
-	if (dstBox->y1 > vactive) dstBox->y1 = vactive;
-	if (dstBox->y2 > vactive) dstBox->y2 = vactive;
-	if (dstBox->x1 > hactive) dstBox->x1 = hactive;
-	if (dstBox->x2 > hactive) dstBox->x2 = hactive;
-
-	/* nothing do to */
-	if (dstBox->x2 - dstBox->x1 <= 2 || dstBox->y2 - dstBox->y1 < N_VERT_Y_TAPS)
-	{
-	    OVERLAY_DEBUG("NOTHING TO DO\n");
-	    return;
-	}
     }
 
     if (IS_I9XX(pI830)) {
@@ -2220,6 +2160,84 @@ I830FreeMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear)
     linear->offset = 0;
 }
 
+static Bool
+i830_clip_video_helper (ScrnInfoPtr pScrn,
+			xf86CrtcPtr *crtc_ret,
+			BoxPtr	    dst,
+			INT32	    *xa,
+			INT32	    *xb,
+			INT32	    *ya,
+			INT32	    *yb,
+			RegionPtr   reg,
+			INT32	    width,
+			INT32	    height)
+{
+    Bool	ret;
+    RegionRec	crtc_region_local;
+    RegionPtr	crtc_region = reg;
+    
+    /*
+     * For overlay video, compute the relevant CRTC and
+     * clip video to that
+     */
+    if (crtc_ret)
+    {
+	I830Ptr		pI830 = I830PTR(pScrn);
+	I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
+	BoxRec		crtc_box;
+	xf86CrtcPtr	crtc = i830_covering_crtc (pScrn, dst,
+						   pPriv->desired_crtc,
+						   &crtc_box);
+	
+	if (crtc)
+	{
+	    REGION_INIT (pScreen, &crtc_region_local, &crtc_box, 1);
+	    crtc_region = &crtc_region_local;
+	    REGION_INTERSECT (pScreen, crtc_region, crtc_region, reg);
+	}
+	*crtc_ret = crtc;
+    }
+    ret = xf86XVClipVideoHelper (dst, xa, xb, ya, yb, 
+				 crtc_region, width, height);
+    if (crtc_region != reg)
+	REGION_UNINIT (pScreen, &crtc_region_local);
+    return ret;
+}
+
+static void
+i830_fill_colorkey (ScreenPtr pScreen, CARD32 key, RegionPtr clipboxes)
+{
+   DrawablePtr root = &WindowTable[pScreen->myNum]->drawable;
+   XID	       pval[2];
+   BoxPtr      pbox = REGION_RECTS(clipboxes);
+   int	       i, nbox = REGION_NUM_RECTS(clipboxes);
+   xRectangle  *rects;
+   GCPtr       gc;
+
+   if(!xf86Screens[pScreen->myNum]->vtSema) return;
+
+   gc = GetScratchGC(root->depth, pScreen);
+   pval[0] = key;
+   pval[1] = IncludeInferiors;
+   (void) ChangeGC(gc, GCForeground|GCSubwindowMode, pval);
+   ValidateGC(root, gc);
+
+   rects = xalloc (nbox * sizeof(xRectangle));
+
+   for(i = 0; i < nbox; i++, pbox++) 
+   {
+      rects[i].x = pbox->x1;
+      rects[i].y = pbox->y1;
+      rects[i].width = pbox->x2 - pbox->x1;
+      rects[i].height = pbox->y2 - pbox->y1;
+   }
+   
+   (*gc->ops->PolyFillRect)(root, gc, nbox, rects);
+   
+   xfree (rects);
+   FreeScratchGC (gc);
+}
+
 /*
  * The source rectangle of the video is defined by (src_x, src_y, src_w, src_h).
  * The dest rectangle of the video is defined by (drw_x, drw_y, drw_w, drw_h).
@@ -2255,6 +2273,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     BoxRec dstBox;
     int pitchAlignMask;
     int extraLinear;
+    xf86CrtcPtr	crtc;
 
     if (pPriv->textured)
 	overlay = NULL;
@@ -2301,8 +2320,10 @@ I830PutImage(ScrnInfoPtr pScrn,
     dstBox.y1 = drw_y;
     dstBox.y2 = drw_y + drw_h;
 
-    if (!xf86XVClipVideoHelper(&dstBox, &x1, &x2, &y1, &y2, clipBoxes,
-			       width, height))
+    if (!i830_clip_video_helper(pScrn, 
+				pPriv->textured ? NULL : &crtc,
+				&dstBox, &x1, &x2, &y1, &y2, clipBoxes,
+				width, height))
 	return Success;
 
     destId = id;
@@ -2455,14 +2476,15 @@ I830PutImage(ScrnInfoPtr pScrn,
     }
 
     if (!pPriv->textured) {
+	i830_display_video(pScrn, crtc, destId, width, height, dstPitch,
+			   x1, y1, x2, y2, &dstBox, src_w, src_h,
+			   drw_w, drw_h);
+	
 	/* update cliplist */
 	if (!RegionsEqual(&pPriv->clip, clipBoxes)) {
 	    REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
-	    xf86XVFillKeyHelper(pScreen, pPriv->colorKey, clipBoxes);
+	    i830_fill_colorkey (pScreen, pPriv->colorKey, clipBoxes);
 	}
-
-	I830DisplayVideo(pScrn, destId, width, height, dstPitch,
-			 x1, y1, x2, y2, &dstBox, src_w, src_h, drw_w, drw_h);
     } else if (IS_I965G(pI830)) {
 	I965DisplayVideoTextured(pScrn, pPriv, destId, clipBoxes, width, height,
 				 dstPitch, x1, y1, x2, y2,
@@ -2754,8 +2776,8 @@ I830DisplaySurface(XF86SurfacePtr surface,
     I830Ptr pI830 = I830PTR(pScrn);
     I830PortPrivPtr pI830Priv = GET_PORT_PRIVATE(pScrn);
     INT32 x1, y1, x2, y2;
-    INT32 loops = 0;
     BoxRec dstBox;
+    xf86CrtcPtr crtc;
 
     OVERLAY_DEBUG("I830DisplaySurface\n");
 
@@ -2785,43 +2807,24 @@ I830DisplaySurface(XF86SurfacePtr surface,
     dstBox.y1 = drw_y;
     dstBox.y2 = drw_y + drw_h;
 
-    if (!xf86XVClipVideoHelper(&dstBox, &x1, &x2, &y1, &y2, clipBoxes,
-			       surface->width, surface->height))
+    if (!i830_clip_video_helper (pScrn, &crtc, &dstBox,
+				 &x1, &x2, &y1, &y2, clipBoxes,
+				 surface->width, surface->height))
 	return Success;
 
     /* fixup pointers */
     pI830Priv->YBuf0offset = surface->offsets[0];
     pI830Priv->YBuf1offset = pI830Priv->YBuf0offset;
 
-    /* Make sure this buffer isn't in use */
-    loops = 0;
-    if (*pI830->overlayOn && pI830Priv->doubleBuffer) 
-    {
-	while (loops < 1000000) {
-#if USE_USLEEP_FOR_VIDEO
-	    usleep(10);
-#endif
-	    if (((INREG(DOVSTA) & OC_BUF) >> 20) == pI830Priv->currentBuf) {
-		break;
-	    }
-	    loops++;
-	}
-	if (loops >= 1000000) {
-	    ErrorF("loops (1) maxed out for buffer %d\n", pI830Priv->currentBuf);
-#if 0
-	    pI830Priv->currentBuf = !pI830Priv->currentBuf;
-#endif
-	}
+    /* Pick the idle buffer */
+    if (!pI830Priv->textured && *pI830->overlayOn && pI830Priv->doubleBuffer) 
+	pI830Priv->currentBuf = !((INREG(DOVSTA) & OC_BUF) >> 20);
 
-	/* buffer swap */
-	pI830Priv->currentBuf = !pI830Priv->currentBuf;
-    }
-
-    I830DisplayVideo(pScrn, surface->id, surface->width, surface->height,
+    i830_display_video(pScrn, crtc, surface->id, surface->width, surface->height,
 		     surface->pitches[0], x1, y1, x2, y2, &dstBox,
 		     src_w, src_h, drw_w, drw_h);
 
-    xf86XVFillKeyHelper(pScreen, pI830Priv->colorKey, clipBoxes);
+    i830_fill_colorkey (pScreen, pI830Priv->colorKey, clipBoxes);
 
     pPriv->isOn = TRUE;
     /* we've prempted the XvImage stream so set its free timer */
