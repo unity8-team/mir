@@ -382,6 +382,7 @@ i830_overlay_on(ScrnInfoPtr pScrn)
     I830Ptr		pI830 = I830PTR(pScrn);
     I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
     I830PortPrivPtr	pPriv = pI830->adaptor->pPortPrivates[0].ptr;
+    Bool		deactivate = FALSE;
     xf86CrtcPtr		crtc0 = NULL;
     
     if (*pI830->overlayOn)
@@ -393,30 +394,12 @@ i830_overlay_on(ScrnInfoPtr pScrn)
      * screen. Light up pipe A in this case to provide a clock
      * for the overlay hardware
      */
-    if (!pPriv->started_video)
+    if (pPriv->current_crtc && 
+	i830_crtc_pipe (pPriv->current_crtc) != 0 &&
+	!pPriv->started_video)
     {
 	pPriv->started_video = TRUE;
-	crtc0 = I830CrtcForPipe (pScrn, 0);
-	if (!crtc0->enabled)
-	{
-	    /* VESA 640x480x72Hz mode to set on the pipe */
-	    static DisplayModeRec   mode = {
-		NULL, NULL, "640x480", MODE_OK, M_T_DEFAULT,
-		31500,
-		640, 664, 704, 832, 0,
-		480, 489, 491, 520, 0,
-		V_NHSYNC | V_NVSYNC,
-		0, 0,
-		0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		FALSE, FALSE, 0, NULL, 0, 0.0, 0.0
-	    };
-	    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
-	    crtc0->funcs->mode_set (crtc0, &mode, &mode, 0, 0);
-	    crtc0->funcs->dpms (crtc0, DPMSModeOn);
-	}
-	else
-	    crtc0 = NULL;
+	deactivate = i830_pipe_a_require_activate (pScrn);
     }
 
     overlay->OCMD &= ~OVERLAY_ENABLE;
@@ -435,8 +418,8 @@ i830_overlay_on(ScrnInfoPtr pScrn)
      * If we turned pipe A on up above, turn it
      * back off
      */
-    if (crtc0)
-	crtc0->funcs->dpms (crtc0, DPMSModeOff);
+    if (deactivate)
+	i830_pipe_a_require_deactivate (pScrn);
 
     OVERLAY_DEBUG("overlay_on\n");
     *pI830->overlayOn = TRUE;

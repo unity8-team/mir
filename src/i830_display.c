@@ -429,6 +429,76 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 #endif
 }
 
+/*
+ * Both crtc activation and video overlay enablement on pipe B
+ * will fail on i830 if pipe A is not running. This function
+ * makes sure pipe A is active for these cases
+ */
+
+int
+i830_crtc_pipe (xf86CrtcPtr crtc)
+{
+    if (crtc == NULL)
+	return 0;
+    return ((I830CrtcPrivatePtr) crtc->driver_private)->pipe;
+}
+
+static xf86CrtcPtr
+i830_crtc_for_pipe (ScrnInfoPtr scrn, int pipe)
+{
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+    int			c;
+
+    for (c = 0; c < xf86_config->num_crtc; c++)
+    {
+	xf86CrtcPtr crtc = xf86_config->crtc[c];
+	if (i830_crtc_pipe (crtc) == pipe)
+	    return crtc;
+    }
+    return NULL;
+}
+
+Bool
+i830_pipe_a_require_activate (ScrnInfoPtr scrn)
+{
+    xf86CrtcPtr	crtc = i830_crtc_for_pipe (scrn, 0);
+    /* VESA 640x480x72Hz mode to set on the pipe */
+    static DisplayModeRec   mode = {
+	NULL, NULL, "640x480", MODE_OK, M_T_DEFAULT,
+	31500,
+	640, 664, 704, 832, 0,
+	480, 489, 491, 520, 0,
+	V_NHSYNC | V_NVSYNC,
+	0, 0,
+	0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0,
+	FALSE, FALSE, 0, NULL, 0, 0.0, 0.0
+    };
+
+    if (!crtc)
+	return FALSE;
+    if (crtc->enabled)
+	return FALSE;
+    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
+    crtc->funcs->mode_set (crtc, &mode, &mode, 0, 0);
+    crtc->funcs->dpms (crtc, DPMSModeOn);
+    return TRUE;
+}
+
+void
+i830_pipe_a_require_deactivate (ScrnInfoPtr scrn)
+{
+    xf86CrtcPtr	crtc = i830_crtc_for_pipe (scrn, 0);
+
+    if (!crtc)
+	return;
+    if (crtc->enabled)
+	return;
+    crtc->funcs->dpms (crtc, DPMSModeOff);
+    return;
+}
+
+
 /**
  * Sets the power management mode of the pipe and plane.
  *
@@ -593,9 +663,19 @@ i830_crtc_prepare (xf86CrtcPtr crtc)
 static void
 i830_crtc_commit (xf86CrtcPtr crtc)
 {
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    Bool		deactivate = FALSE;
+
+    if (!intel_crtc->enabled && intel_crtc->pipe != 0)
+	deactivate = i830_pipe_a_require_activate (crtc->scrn);
+    
+    intel_crtc->enabled = TRUE;
+    
     crtc->funcs->dpms (crtc, DPMSModeOn);
     if (crtc->scrn->pScreen != NULL)
 	xf86_reload_cursors (crtc->scrn->pScreen);
+    if (deactivate)
+	i830_pipe_a_require_deactivate (crtc->scrn);
 }
 
 void

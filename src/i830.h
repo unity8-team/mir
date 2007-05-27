@@ -216,6 +216,8 @@ extern const char *i830_output_type_names[];
 typedef struct _I830CrtcPrivateRec {
     int			    pipe;
 
+    Bool    		    enabled;
+    
     /* Lookup table values to be set when the CRTC is enabled */
     CARD8 lut_r[256], lut_g[256], lut_b[256];
 
@@ -578,6 +580,15 @@ extern void I830EmitFlush(ScrnInfoPtr pScrn);
 extern void I830InitVideo(ScreenPtr pScreen);
 extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
 #endif
+
+int
+i830_crtc_pipe (xf86CrtcPtr crtc);
+
+Bool
+i830_pipe_a_require_activate (ScrnInfoPtr scrn);
+
+void
+i830_pipe_a_require_deactivate (ScrnInfoPtr scrn);
 
 #ifdef XF86DRI
 extern Bool I830Allocate3DMemory(ScrnInfoPtr pScrn, const int flags);
