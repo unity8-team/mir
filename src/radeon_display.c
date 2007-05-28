@@ -1941,8 +1941,10 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, RADEONInfoP
     OUTREG(RADEON_GRPH_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
 				     (critical_point << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
 
-    RADEONTRACE(("GRPH_BUFFER_CNTL from %x to %x\n",
-		 (unsigned int)info->SavedReg.grph_buffer_cntl, INREG(RADEON_GRPH_BUFFER_CNTL)));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "GRPH_BUFFER_CNTL from %x to %x\n",
+		   (unsigned int)info->SavedReg.grph_buffer_cntl,
+		   INREG(RADEON_GRPH_BUFFER_CNTL));
 
     if (mode2) {
 	stop_req = mode2->HDisplay * info2->CurrentLayout.pixel_bytes / 16;
@@ -1989,8 +1991,10 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, RADEONInfoP
 	OUTREG(RADEON_GRPH2_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
 					  (critical_point2 << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
 
-	RADEONTRACE(("GRPH2_BUFFER_CNTL from %x to %x\n",
-		     (unsigned int)info->SavedReg.grph2_buffer_cntl, INREG(RADEON_GRPH2_BUFFER_CNTL)));
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "GRPH2_BUFFER_CNTL from %x to %x\n",
+		       (unsigned int)info->SavedReg.grph2_buffer_cntl,
+		       INREG(RADEON_GRPH2_BUFFER_CNTL));
     }
 }
 
@@ -2135,7 +2139,9 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     RADEONConnector *pPort;
 
-    if (!pRADEONEnt->HasSecondary || (info->IsSwitching  && !info->IsSecondary)) {
+    if (!pRADEONEnt->HasSecondary ||
+	(pRADEONEnt->HasSecondary && !info->IsSwitching) ||
+	(info->IsSwitching && (!info->IsSecondary))) {
 	pPort = RADEONGetCrtcConnector(pScrn, 1);
 	if (pPort)
 	    RADEONUnblankSet(pScrn, pPort);
@@ -2158,7 +2164,8 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
       }
     }
 
-    if (info->IsSwitching && info->IsSecondary) {
+    if ((pRADEONEnt->HasSecondary && !info->IsSwitching) ||
+	(info->IsSwitching && info->IsSecondary)) {
 	pPort = RADEONGetCrtcConnector(pScrn, 2);
 	if (pPort)
 	    RADEONUnblankSet(pScrn, pPort);
@@ -2263,7 +2270,9 @@ void RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
     RADEONConnector *pPort;
     if (!pScrn->vtSema) return;
 
-    RADEONTRACE(("RADEONDisplayPowerManagementSet(%d,0x%x)\n", PowerManagementMode, flags));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONDisplayPowerManagementSet(%d,0x%x)\n",
+		   PowerManagementMode, flags);
 
 #ifdef XF86DRI
     if (info->CPStarted) DRILock(pScrn->pScreen, 0);

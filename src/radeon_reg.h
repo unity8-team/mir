@@ -308,7 +308,7 @@
 #       define RADEON_CRTC_CSYNC_EN         (1 <<  4)
 #       define RADEON_CRTC_ICON_EN          (1 << 15)
 #       define RADEON_CRTC_CUR_EN           (1 << 16)
-#       define RADEON_CRTC_CUR_MODE_MASK    (7 << 17)
+#       define RADEON_CRTC_CUR_MODE_MASK    (7 << 20)
 #       define RADEON_CRTC_EXT_DISP_EN      (1 << 24)
 #       define RADEON_CRTC_EN               (1 << 25)
 #       define RADEON_CRTC_DISP_REQ_EN_B    (1 << 26)

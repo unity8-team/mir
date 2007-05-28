@@ -71,8 +71,6 @@ static CARD32 mono_cursor_color[] = {
 #define CURSOR_WIDTH	64
 #define CURSOR_HEIGHT	64
 
-#define COMMON_CURSOR_SWAPPING_START()	 RADEON_SYNC(info, pScrn)
-
 /*
  * The cursor bits are always 32bpp.  On MSBFirst buses,
  * configure byte swapping to swap 32 bit units when writing
@@ -84,7 +82,6 @@ static CARD32 mono_cursor_color[] = {
 #define CURSOR_SWAPPING_DECL_MMIO   unsigned char *RADEONMMIO = info->MMIO;
 #define CURSOR_SWAPPING_START() \
   do { \
-    COMMON_CURSOR_SWAPPING_START(); \
     OUTREG(RADEON_SURFACE_CNTL, \
 	   (info->ModeReg.surface_cntl | \
 	     RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP) & \
@@ -96,10 +93,7 @@ static CARD32 mono_cursor_color[] = {
 #else
 
 #define CURSOR_SWAPPING_DECL_MMIO
-#define CURSOR_SWAPPING_START() \
-  do { \
-    COMMON_CURSOR_SWAPPING_START(); \
-  } while (0)
+#define CURSOR_SWAPPING_START()
 #define CURSOR_SWAPPING_END()
 
 #endif
@@ -205,24 +199,10 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
     unsigned char *RADEONMMIO = info->MMIO;
     CARD8         *s          = (CARD8 *)(pointer)image;
     CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
-    CARD32         save1      = 0;
-    CARD32         save2      = 0;
     CARD8	   chunk;
     CARD32         i, j;
 
     RADEONCTRACE(("RADEONLoadCursorImage (at %x)\n", info->cursor_offset));
-
-    if (!info->IsSecondary) {
-	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
-	save1 |= (CARD32) (2 << 20);
-	OUTREG(RADEON_CRTC_GEN_CNTL, save1 & (CARD32)~RADEON_CRTC_CUR_EN);
-    }
-
-    if (info->IsSecondary || info->MergedFB) {
-	save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
-	save2 |= (CARD32) (2 << 20);
-	OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
-    }
 
 #ifdef ARGB_CURSOR
     info->cursor_argb = FALSE;
@@ -237,23 +217,18 @@ static void RADEONLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
      * (which actually bit swaps the image) to make the bits LSBFirst
      */
     CURSOR_SWAPPING_START();
+
 #define ARGB_PER_CHUNK	(8 * sizeof (chunk) / 2)
     for (i = 0; i < (CURSOR_WIDTH * CURSOR_HEIGHT / ARGB_PER_CHUNK); i++) {
         chunk = *s++;
 	for (j = 0; j < ARGB_PER_CHUNK; j++, chunk >>= 2)
 	    *d++ = mono_cursor_color[chunk & 3];
     }
+
     CURSOR_SWAPPING_END();
 
     info->cursor_bg = mono_cursor_color[2];
     info->cursor_fg = mono_cursor_color[3];
-
-    if (!info->IsSecondary)
-	OUTREG(RADEON_CRTC_GEN_CNTL, save1);
-
-    if (info->IsSecondary || info->MergedFB)
-	OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
-
 }
 
 /* Hide hardware cursor. */
@@ -263,6 +238,8 @@ static void RADEONHideCursor(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
 
     RADEONCTRACE(("RADEONHideCursor\n"));
+
+    RADEON_SYNC(info, pScrn);
 
     if (info->IsSecondary || info->MergedFB)
 	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~RADEON_CRTC2_CUR_EN);
@@ -279,13 +256,15 @@ static void RADEONShowCursor(ScrnInfoPtr pScrn)
 
     RADEONCTRACE(("RADEONShowCursor\n"));
 
+    RADEON_SYNC(info, pScrn);
+
     if (info->IsSecondary || info->MergedFB)
-	OUTREGP(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_CUR_EN,
-		~RADEON_CRTC2_CUR_EN);
+	OUTREGP(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_CUR_EN | 2 << 20,
+		~(RADEON_CRTC2_CUR_EN | RADEON_CRTC2_CUR_MODE_MASK));
 
     if (!info->IsSecondary)
-	OUTREGP(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_CUR_EN,
-		~RADEON_CRTC_CUR_EN);
+	OUTREGP(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_CUR_EN | 2 << 20,
+		~(RADEON_CRTC_CUR_EN | RADEON_CRTC_CUR_MODE_MASK));
 }
 
 /* Determine if hardware cursor is in use. */
@@ -314,24 +293,10 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
     int            x, y, w, h;
-    CARD32         save1      = 0;
-    CARD32         save2      = 0;
     CARD32	  *image = pCurs->bits->argb;
     CARD32	  *i;
 
     RADEONCTRACE(("RADEONLoadCursorARGB\n"));
-
-    if (!info->IsSecondary) {
-	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
-	save1 |= (CARD32) (2 << 20);
-	OUTREG(RADEON_CRTC_GEN_CNTL, save1 & (CARD32)~RADEON_CRTC_CUR_EN);
-    }
-
-    if (info->IsSecondary || info->MergedFB) {
-	save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
-	save2 |= (CARD32) (2 << 20);
-	OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
-    }
 
 #ifdef ARGB_CURSOR
     info->cursor_argb = TRUE;
@@ -361,13 +326,6 @@ static void RADEONLoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 	    *d++ = 0;
 
     CURSOR_SWAPPING_END ();
-
-    if (!info->IsSecondary)
-	OUTREG(RADEON_CRTC_GEN_CNTL, save1);
-
-    if (info->IsSecondary || info->MergedFB)
-	OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
-
 }
 
 #endif

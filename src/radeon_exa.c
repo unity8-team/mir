@@ -496,3 +496,20 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 
     return TRUE;
 }
+
+#ifdef XF86DRI
+
+#ifndef ExaOffscreenMarkUsed
+extern void ExaOffscreenMarkUsed(PixmapPtr);
+#endif
+
+unsigned long long
+RADEONTexOffsetStart(PixmapPtr pPix)
+{
+    exaMoveInPixmap(pPix);
+    ExaOffscreenMarkUsed(pPix);
+
+    return RADEONPTR(xf86Screens[pPix->drawable.pScreen->myNum])->fbLocation +
+	exaGetPixmapOffset(pPix);
+}
+#endif
