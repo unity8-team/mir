@@ -219,7 +219,7 @@ ivch_setup (I2CDevPtr d, xf86OutputPtr output)
 static xf86OutputStatus
 ivch_detect(I2CDevPtr d)
 {
-    return XF86OutputStatusUnknown;
+    return XF86OutputStatusConnected;
 }
 
 static DisplayModePtr
