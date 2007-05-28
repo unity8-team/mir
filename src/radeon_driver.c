@@ -1720,7 +1720,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     case PCI_CHIP_RS482_5974:
 	info->ChipFamily = CHIP_FAMILY_RS400;
 	info->IsIGP = TRUE;
-	/*info->HasSingleDAC = TRUE;*/ /* ??? */
+	info->HasSingleDAC = TRUE;
         break;
 
     case PCI_CHIP_RV410_564A:
