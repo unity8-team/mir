@@ -4665,7 +4665,10 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
     OUTREG(RADEON_DISP2_MERGE_CNTL,      restore->disp2_merge_cntl);
 
     if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	OUTREG(RADEON_RS480_UNK_e30, restore->rs480_unk_e30);
+	OUTREG(RADEON_RS480_UNK_e34, restore->rs480_unk_e34);
 	OUTREG(RADEON_RS480_UNK_e38, restore->rs480_unk_e38);
+	OUTREG(RADEON_RS480_UNK_e3c, restore->rs480_unk_e3c);
     }
     OUTREG(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
 
@@ -5363,8 +5366,12 @@ static void RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->fp_h2_sync_strt_wid   = INREG (RADEON_FP_H2_SYNC_STRT_WID);
     save->fp_v2_sync_strt_wid   = INREG (RADEON_FP_V2_SYNC_STRT_WID);
 
-    if (info->ChipFamily == CHIP_FAMILY_RS400)
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	save->rs480_unk_e30 = INREG(RADEON_RS480_UNK_e30);
+	save->rs480_unk_e34 = INREG(RADEON_RS480_UNK_e34);
 	save->rs480_unk_e38 = INREG(RADEON_RS480_UNK_e38);
+	save->rs480_unk_e3c = INREG(RADEON_RS480_UNK_e3c);
+    }
     
     save->disp2_merge_cntl      = INREG(RADEON_DISP2_MERGE_CNTL);
 }
@@ -6241,8 +6248,10 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 #endif
  
     if (info->ChipFamily == CHIP_FAMILY_RS400) {
-	save->rs480_unk_e38 = info->SavedReg.rs480_unk_e38 & ~(0x300);
-	save->rs480_unk_e38 |= 0x100;
+	save->rs480_unk_e30 = 0x105DC1CC; /* because I'm worth it */
+	save->rs480_unk_e34 = 0x2749D000; /* AMD really should */
+	save->rs480_unk_e38 = 0x29ca71dc; /* release docs */
+	save->rs480_unk_e3c = 0x28FBC3AC; /* this is so a trade secret */
     }
 
     return TRUE;

@@ -318,7 +318,10 @@ typedef struct {
 
     CARD32            tv_dac_cntl;
 
+    CARD32            rs480_unk_e30;
+    CARD32            rs480_unk_e34;
     CARD32            rs480_unk_e38;
+    CARD32            rs480_unk_e3c;
 } RADEONSaveRec, *RADEONSavePtr;
 
 typedef struct {
