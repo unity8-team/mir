@@ -34,11 +34,27 @@
 #include "xf86.h"
 #include "xf86_OSproc.h"
 
+#include "xf86PciInfo.h"
 #include "radeon.h"
 #include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "vbe.h"
+
+int RADEONBIOSApplyConnectorQuirks(ScrnInfoPtr pScrn, int connector_found)
+{
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+    /* quirk for compaq nx6125 - the bios lies about the VGA DDC */
+    if (info->PciInfo->subsysVendor == PCI_VENDOR_HP) {
+      if (info->PciInfo->subsysCard == 0x308b) {
+	if (pRADEONEnt->PortInfo[1]->DDCType == DDC_CRT2)
+	  pRADEONEnt->PortInfo[1]->DDCType        = DDC_MONID;
+      }
+    }
+    return connector_found;
+}
 
 /* Read the Video BIOS block and the FP registers (if applicable). */
 Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
@@ -313,6 +329,8 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    connector_found = 1;
 	}
 
+	connector_found = RADEONBIOSApplyConnectorQuirks(pScrn, connector_found);
+	
 	if (connector_found == 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No connector found in Connector Info Table.\n");
 	} else {
