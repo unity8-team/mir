@@ -3126,4 +3126,6 @@
 #       define RADEON_TVCLK_SRC_SEL_TVPLL        (1 << 30)
 #       define RADEON_TVPLL_SLEEP                (1 <<  3)
 #       define RADEON_TVPLL_REFCLK_SEL           (1 <<  4)
+
+#define RADEON_RS480_UNK_e38			0xe38
 #endif

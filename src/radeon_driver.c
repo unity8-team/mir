@@ -4664,6 +4664,9 @@ static void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
     OUTREG(RADEON_CRTC2_PITCH,           restore->crtc2_pitch);
     OUTREG(RADEON_DISP2_MERGE_CNTL,      restore->disp2_merge_cntl);
 
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	OUTREG(RADEON_RS480_UNK_e38, restore->rs480_unk_e38);
+    }
     OUTREG(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
 
 }
@@ -4858,11 +4861,10 @@ static void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
     OUTPLLP(pScrn,
 	    RADEON_P2PLL_CNTL,
 	    RADEON_P2PLL_RESET
-	    | RADEON_P2PLL_ATOMIC_UPDATE_EN
-	    | RADEON_P2PLL_VGA_ATOMIC_UPDATE_EN,
+	    | RADEON_P2PLL_ATOMIC_UPDATE_EN,
 	    ~(RADEON_P2PLL_RESET
-	      | RADEON_P2PLL_ATOMIC_UPDATE_EN
-	      | RADEON_P2PLL_VGA_ATOMIC_UPDATE_EN));
+	      | RADEON_P2PLL_ATOMIC_UPDATE_EN));
+
 
     OUTPLLP(pScrn, RADEON_P2PLL_REF_DIV,
 	    restore->p2pll_ref_div,
@@ -4885,17 +4887,16 @@ static void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
 	    0,
 	    ~(RADEON_P2PLL_RESET
 	      | RADEON_P2PLL_SLEEP
-	      | RADEON_P2PLL_ATOMIC_UPDATE_EN
-	      | RADEON_P2PLL_VGA_ATOMIC_UPDATE_EN));
+	      | RADEON_P2PLL_ATOMIC_UPDATE_EN));
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Wrote: 0x%08lx 0x%08lx 0x%08lx (0x%08x)\n",
+		   "Wrote2: 0x%08lx 0x%08lx 0x%08lx (0x%08x)\n",
 		   restore->p2pll_ref_div,
 		   restore->p2pll_div_0,
 		   restore->htotal_cntl2,
 		   INPLL(pScrn, RADEON_P2PLL_CNTL));
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Wrote: rd=%ld, fd=%ld, pd=%ld\n",
+		   "Wrote2: rd=%ld, fd=%ld, pd=%ld\n",
 		   restore->p2pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
 		   restore->p2pll_div_0 & RADEON_P2PLL_FB0_DIV_MASK,
 		   (restore->p2pll_div_0 & RADEON_P2PLL_POST0_DIV_MASK) >>16);
@@ -5362,6 +5363,9 @@ static void RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->fp_h2_sync_strt_wid   = INREG (RADEON_FP_H2_SYNC_STRT_WID);
     save->fp_v2_sync_strt_wid   = INREG (RADEON_FP_V2_SYNC_STRT_WID);
 
+    if (info->ChipFamily == CHIP_FAMILY_RS400)
+	save->rs480_unk_e38 = INREG(RADEON_RS480_UNK_e38);
+    
     save->disp2_merge_cntl      = INREG(RADEON_DISP2_MERGE_CNTL);
 }
 
@@ -5636,10 +5640,10 @@ static void RADEONInitTvDacCntl(ScrnInfoPtr pScrn, RADEONSavePtr save)
 			       RADEON_TV_DAC_GDACPD);
     }
     /* FIXME: doesn't make sense, this just replaces the previous value... */
-    save->tv_dac_cntl = (RADEON_TV_DAC_NBLANK |
+    save->tv_dac_cntl |= (RADEON_TV_DAC_NBLANK |
 			 RADEON_TV_DAC_NHOLD |
-			 RADEON_TV_DAC_STD_PS2 |
-			 info->tv_dac_adj);
+			  RADEON_TV_DAC_STD_PS2);
+			  //			 info->tv_dac_adj);
 }
 
 static void RADEONInitFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
@@ -6236,6 +6240,11 @@ static Bool RADEONInitCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     }
 #endif
  
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	save->rs480_unk_e38 = info->SavedReg.rs480_unk_e38 & ~(0x300);
+	save->rs480_unk_e38 |= 0x100;
+    }
+
     return TRUE;
 }
 
