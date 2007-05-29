@@ -168,11 +168,28 @@ Enable printing of additional debugging information about modesetting to
 the server log.
 
 .PP
-The 830M and newer driver supports RandR 1.2, exposing the VGA, LVDS
-(laptop panel), TMDS (DVI on SDVO/DVO cards), and TV (on 915GM/945GM)
-outputs.  Per-output configuration is done through the
-.B Monitor
-section of __xconfigfile__(__filemansuffix__).
+The 830M and newer driver supports the following outputs through RandR 1.2:
+.PP
+.TP
+.BI "VGA"
+Analog VGA output
+.TP
+.BI "LVDS"
+Laptop panel
+.TP
+.BI "TV"
+Integrated TV output
+.TP
+.BI "TMDS-1"
+First DVI SDVO output
+.TP
+.BI "TMDS-2"
+Second DVI SDVO output
+.PP
+SDVO and DVO TV outputs are not supported by the driver at this time.
+.PP
+See __xconfigfile__(__filemansuffix__) for information on associating Monitor
+sections with these outputs for configuration.
 
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
