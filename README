@@ -57,11 +57,6 @@ options.
 
 
 Known Limitations
-- Bug #8534: i830 laptop panels not supported.  The driver
-  will fail to recognize them, and only function through VGA output.  Two
-  partial DVO chip drivers (ivch and ch7017) are included which contain some of
-  the code necessary for i830 laptop panel support, but some I2C debugging will
-  be necessary to get those drivers to attach.
 - No support for "zaphod mode" dualhead.  This is the mode in which two
   Device sections are placed in the config file, and doesn't support DRI or
   many other features.  Instead, only "MergedFB-style" dualhead is supported.
