@@ -496,6 +496,22 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 	    dev_priv->panel_fixed_mode = i830_crtc_mode_get(pScrn, crtc);
 	    if (dev_priv->panel_fixed_mode != NULL)
 		dev_priv->panel_fixed_mode->type |= M_T_PREFERRED;
+
+	    /* Fixup for a 1280x768 panel with the horizontal trimmed
+	     * down to 1024 for text mode.
+	     */
+	    if (!xf86ModesEqual(dev_priv->panel_fixed_mode, bios_mode) &&
+		dev_priv->panel_fixed_mode->HDisplay == 1024 &&
+		dev_priv->panel_fixed_mode->HSyncStart == 1200 &&
+		dev_priv->panel_fixed_mode->HSyncEnd == 1312 &&
+		dev_priv->panel_fixed_mode->HTotal == 1688 &&
+		dev_priv->panel_fixed_mode->VDisplay == 768)
+	    {
+		dev_priv->panel_fixed_mode->HDisplay = 1280;
+		dev_priv->panel_fixed_mode->HSyncStart = 1328;
+		dev_priv->panel_fixed_mode->HSyncEnd = 1440;
+		dev_priv->panel_fixed_mode->HTotal = 1688;
+	    }
 	}
     }
 
