@@ -239,9 +239,9 @@ radeon_crtc_lock(xf86CrtcPtr crtc)
 {
     ScrnInfoPtr		pScrn = crtc->scrn;
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+#ifdef XF86DRI
     Bool           CPStarted   = info->CPStarted;
 
-#ifdef XF86DRI
     if (info->CPStarted && pScrn->pScreen) {
 	DRILock(pScrn->pScreen, 0);
 	if (info->accelOn)
@@ -365,8 +365,10 @@ radeon_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 		       "Couldn't allocate shadow memory for rotated CRTC\n");
 	    return NULL;
 	}
+#ifdef XF86DRI
 	rotate_offset = info->frontOffset +
 	    radeon_crtc->rotate_mem_xaa->offset * cpp;
+#endif
     }
 #endif /* USE_XAA */
 
