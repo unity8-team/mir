@@ -2422,7 +2422,6 @@ RADEONDisplayVideo(
     int y_off;
     CARD32 scaler_src;
     CARD32 dot_clock;
-    DisplayModePtr overlay_mode;
     int is_rgb;
     int is_planar;
     int i;

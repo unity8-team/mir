@@ -59,14 +59,6 @@
 				/* X and server generic header files */
 #include "xf86.h"
 
-/* Mono ARGB cursor colours (premultiplied). */
-static CARD32 mono_cursor_color[] = {
-	0x00000000, /* White, fully transparent. */
-	0x00000000, /* Black, fully transparent. */
-	0xffffffff, /* White, fully opaque. */
-	0xff000000, /* Black, fully opaque. */
-};
-
 #define CURSOR_WIDTH	64
 #define CURSOR_HEIGHT	64
 
@@ -129,44 +121,6 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
 	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~RADEON_CRTC2_CUR_EN);
 
 
-}
-
-/* Set cursor foreground and background colors */
-static void RADEONSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    CARD32        *pixels     = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
-    int            pixel, i;
-    CURSOR_SWAPPING_DECL_MMIO
-
-    RADEONCTRACE(("RADEONSetCursorColors\n"));
-
-#ifdef ARGB_CURSOR
-    /* Don't recolour cursors set with SetCursorARGB. */
-    if (info->cursor_argb)
-       return;
-#endif
-
-    fg |= 0xff000000;
-    bg |= 0xff000000;
-
-    /* Don't recolour the image if we don't have to. */
-    if (fg == info->cursor_fg && bg == info->cursor_bg)
-       return;
-
-    CURSOR_SWAPPING_START();
-
-    /* Note: We assume that the pixels are either fully opaque or fully
-     * transparent, so we won't premultiply them, and we can just
-     * check for non-zero pixel values; those are either fg or bg
-     */
-    for (i = 0; i < CURSOR_WIDTH * CURSOR_HEIGHT; i++, pixels++)
-       if ((pixel = *pixels))
-           *pixels = (pixel == info->cursor_fg) ? fg : bg;
-
-    CURSOR_SWAPPING_END();
-    info->cursor_fg = fg;
-    info->cursor_bg = bg;
 }
 
 void
@@ -262,14 +216,13 @@ void
 radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
-    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    int crtc_id = radeon_crtc->crtc_id;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
+#if 0
     int            x, y, w, h;
     CARD32	  *i;
+#endif
 
     RADEONCTRACE(("RADEONLoadCursorARGB\n"));
 
@@ -313,7 +266,6 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 {
     ScrnInfoPtr        pScrn   = xf86Screens[pScreen->myNum];
     RADEONInfoPtr      info    = RADEONPTR(pScrn);
-    xf86CursorInfoPtr  cursor;
     int                width;
     int		       width_bytes;
     int                height;

@@ -816,6 +816,26 @@ extern Bool        RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output);
 
+extern void        RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
+						RADEONSavePtr restore);
+extern void        RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
+						RADEONSavePtr restore);
+extern void        RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
+					      RADEONSavePtr restore);
+extern void        RADEONRestoreDACRegisters(ScrnInfoPtr pScrn,
+					     RADEONSavePtr restore);
+extern void        RADEONRestoreFPRegisters(ScrnInfoPtr pScrn,
+					    RADEONSavePtr restore);
+extern void        RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
+					     RADEONSavePtr restore);
+extern void        RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
+					       RADEONSavePtr restore);
+extern void        RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
+					      RADEONSavePtr restore);
+
+extern void        RADEONInitMemMapRegisters(ScrnInfoPtr pScrn,
+					     RADEONSavePtr save,
+					     RADEONInfoPtr info);
 extern void        RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
 extern void        RADEONSetSyncRangeFromEdid(ScrnInfoPtr pScrn, int flag);
@@ -859,6 +879,8 @@ void
 radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image);
 void
 RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num);
+void
+RADEONChooseOverlayCRTC(ScrnInfoPtr pScrn, BoxPtr dstBox);
 
 #ifdef XF86DRI
 #ifdef USE_XAA

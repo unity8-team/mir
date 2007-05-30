@@ -82,7 +82,6 @@ void RADEONSetPitch (ScrnInfoPtr pScrn)
 static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     DisplayModePtr  new   = NULL;
     char            stmp[32];
@@ -130,7 +129,6 @@ static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 int RADEONValidateFPModes(xf86OutputPtr output, char **ppModeName, DisplayModePtr *modeList)
 {
     ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     DisplayModePtr  last       = NULL;
     DisplayModePtr  new        = NULL;
@@ -265,12 +263,8 @@ DisplayModePtr
 RADEONProbeOutputModes(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
-    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
-    RADEONInfoPtr info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     DisplayModePtr mode;
-    DisplayModePtr test;
     xf86MonPtr		    edid_mon;
     DisplayModePtr	    modes = NULL;
 

@@ -44,7 +44,6 @@
 int RADEONBIOSApplyConnectorQuirks(ScrnInfoPtr pScrn, int connector_found)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
     /* quirk for compaq nx6125 - the bios lies about the VGA DDC */
     if (info->PciInfo->subsysVendor == PCI_VENDOR_HP) {
@@ -145,7 +144,6 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     int i = 0, j, tmp, tmp0=0, tmp1=0;
 
     if(!info->VBIOS) return FALSE;
