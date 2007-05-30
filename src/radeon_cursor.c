@@ -106,8 +106,6 @@ radeon_crtc_show_cursor (xf86CrtcPtr crtc)
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
     unsigned char     *RADEONMMIO = info->MMIO;
 
-    RADEON_SYNC(info, pScrn);
-
     if (crtc_id == 0) 
 	OUTREGP(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_CUR_EN | 2 << 20, 
 		~(RADEON_CRTC_CUR_EN | RADEON_CRTC_CUR_MODE_MASK));
@@ -124,8 +122,6 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
     int crtc_id = radeon_crtc->crtc_id;
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
     unsigned char     *RADEONMMIO = info->MMIO;
-
-    RADEON_SYNC(info, pScrn);
 
     if (crtc_id == 0)
 	OUTREGP(RADEON_CRTC_GEN_CNTL, 0, ~RADEON_CRTC_CUR_EN);
