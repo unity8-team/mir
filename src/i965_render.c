@@ -945,8 +945,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	 */
    	OUT_RING(BRW_3DSTATE_DRAWING_RECTANGLE | 2); /* XXX 3 for BLC or CTG */
    	OUT_RING(0x00000000);	/* ymin, xmin */
-   	OUT_RING((pScrn->virtualX - 1) |
- 	         (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+	OUT_RING(DRAW_YMAX(pDst->drawable.height - 1) |
+		 DRAW_XMAX(pDst->drawable.width - 1)); /* ymax, xmax */
    	OUT_RING(0x00000000);	/* yorigin, xorigin */
 
 	/* skip the depth buffer */
