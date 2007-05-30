@@ -3799,15 +3799,23 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     char*          s;
 #endif
 
+#ifdef XF86DRI
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONScreenInit %lx %ld %d\n",
 		   pScrn->memPhysBase, pScrn->fbOffset, info->frontOffset);
+#else
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONScreenInit %lx %ld\n",
+		   pScrn->memPhysBase, pScrn->fbOffset);
+#endif
 
     info->accelOn      = FALSE;
 #ifdef USE_XAA
     info->accel        = NULL;
 #endif
+#ifdef XF86DRI
     pScrn->fbOffset    = info->frontOffset;
+#endif
     if (info->IsSecondary) pScrn->fbOffset = pScrn->videoRam * 1024;
     if (!RADEONMapMem(pScrn)) return FALSE;
 
@@ -3997,6 +4005,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     /* Setup DRI after visuals have been established, but before fbScreenInit is
      * called.  fbScreenInit will eventually call the driver's InitGLXVisuals
      * call back. */
+#ifdef XF86DRI
     if (info->directRenderingEnabled) {
 	/* FIXME: When we move to dynamic allocation of back and depth
 	 * buffers, we will want to revisit the following check for 3
@@ -4020,7 +4029,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	}
     }
 
-#if defined(XF86DRI)
     /* Tell DRI about new memory map */
     if (info->directRenderingEnabled && info->newMemoryMap) {
         if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_NEW_MEMMAP, 1) < 0) {
