@@ -1340,8 +1340,10 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
     OUTREG(RADEON_GRPH_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
 				     (critical_point << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
 
-    RADEONTRACE(("GRPH_BUFFER_CNTL from %x to %x\n",
-		 (unsigned int)info->SavedReg.grph_buffer_cntl, INREG(RADEON_GRPH_BUFFER_CNTL)));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "GRPH_BUFFER_CNTL from %x to %x\n",
+		   (unsigned int)info->SavedReg.grph_buffer_cntl,
+		   INREG(RADEON_GRPH_BUFFER_CNTL));
 
     if (mode2) {
 	stop_req = mode2->HDisplay * pixel_bytes2 / 16;
@@ -1388,8 +1390,10 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
 	OUTREG(RADEON_GRPH2_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
 					  (critical_point2 << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
 
-	RADEONTRACE(("GRPH2_BUFFER_CNTL from %x to %x\n",
-		     (unsigned int)info->SavedReg.grph2_buffer_cntl, INREG(RADEON_GRPH2_BUFFER_CNTL)));
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "GRPH2_BUFFER_CNTL from %x to %x\n",
+		       (unsigned int)info->SavedReg.grph2_buffer_cntl,
+		       INREG(RADEON_GRPH2_BUFFER_CNTL));
     }
 }
 

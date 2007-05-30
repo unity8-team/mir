@@ -308,7 +308,7 @@
 #       define RADEON_CRTC_CSYNC_EN         (1 <<  4)
 #       define RADEON_CRTC_ICON_EN          (1 << 15)
 #       define RADEON_CRTC_CUR_EN           (1 << 16)
-#       define RADEON_CRTC_CUR_MODE_MASK    (7 << 17)
+#       define RADEON_CRTC_CUR_MODE_MASK    (7 << 20)
 #       define RADEON_CRTC_EXT_DISP_EN      (1 << 24)
 #       define RADEON_CRTC_EN               (1 << 25)
 #       define RADEON_CRTC_DISP_REQ_EN_B    (1 << 26)
@@ -3130,4 +3130,10 @@
 #       define RADEON_TVCLK_SRC_SEL_TVPLL        (1 << 30)
 #       define RADEON_TVPLL_SLEEP                (1 <<  3)
 #       define RADEON_TVPLL_REFCLK_SEL           (1 <<  4)
+
+#define RADEON_RS480_UNK_e30			0xe30
+#define RADEON_RS480_UNK_e34			0xe34
+#define RADEON_RS480_UNK_e38			0xe38
+#define RADEON_RS480_UNK_e3c			0xe3c
+
 #endif

@@ -70,8 +70,6 @@ static CARD32 mono_cursor_color[] = {
 #define CURSOR_WIDTH	64
 #define CURSOR_HEIGHT	64
 
-#define COMMON_CURSOR_SWAPPING_START()	 RADEON_SYNC(info, pScrn)
-
 /*
  * The cursor bits are always 32bpp.  On MSBFirst buses,
  * configure byte swapping to swap 32 bit units when writing
@@ -83,7 +81,6 @@ static CARD32 mono_cursor_color[] = {
 #define CURSOR_SWAPPING_DECL_MMIO   unsigned char *RADEONMMIO = info->MMIO;
 #define CURSOR_SWAPPING_START() \
   do { \
-    COMMON_CURSOR_SWAPPING_START(); \
     OUTREG(RADEON_SURFACE_CNTL, \
 	   (info->ModeReg.surface_cntl | \
 	     RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP) & \
@@ -95,10 +92,7 @@ static CARD32 mono_cursor_color[] = {
 #else
 
 #define CURSOR_SWAPPING_DECL_MMIO
-#define CURSOR_SWAPPING_START() \
-  do { \
-    COMMON_CURSOR_SWAPPING_START(); \
-  } while (0)
+#define CURSOR_SWAPPING_START()
 #define CURSOR_SWAPPING_END()
 
 #endif
@@ -112,14 +106,14 @@ radeon_crtc_show_cursor (xf86CrtcPtr crtc)
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
     unsigned char     *RADEONMMIO = info->MMIO;
 
+    RADEON_SYNC(info, pScrn);
+
     if (crtc_id == 0) 
-	OUTREGP(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_CUR_EN,
-		~RADEON_CRTC_CUR_EN);
+	OUTREGP(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_CUR_EN | 2 << 20, 
+		~(RADEON_CRTC_CUR_EN | RADEON_CRTC_CUR_MODE_MASK));
     else if (crtc_id == 1)
-	OUTREGP(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_CUR_EN,
-		~RADEON_CRTC2_CUR_EN);
-
-
+	OUTREGP(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_CUR_EN | 2 << 20,
+		~(RADEON_CRTC2_CUR_EN | RADEON_CRTC2_CUR_MODE_MASK));
 }
 
 void
@@ -130,6 +124,8 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
     int crtc_id = radeon_crtc->crtc_id;
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
     unsigned char     *RADEONMMIO = info->MMIO;
+
+    RADEON_SYNC(info, pScrn);
 
     if (crtc_id == 0)
 	OUTREGP(RADEON_CRTC_GEN_CNTL, 0, ~RADEON_CRTC_CUR_EN);
@@ -277,21 +273,9 @@ radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
     int            x, y, w, h;
-    CARD32         save1      = 0;
-    CARD32         save2      = 0;
     CARD32	  *i;
 
     RADEONCTRACE(("RADEONLoadCursorARGB\n"));
-
-    if (crtc_id == 0) {
-	save1 = INREG(RADEON_CRTC_GEN_CNTL) & ~(CARD32) (3 << 20);
-	save1 |= (CARD32) (2 << 20);
-	OUTREG(RADEON_CRTC_GEN_CNTL, save1 & (CARD32)~RADEON_CRTC_CUR_EN);
-    } else if (crtc_id == 1) {
-	save2 = INREG(RADEON_CRTC2_GEN_CNTL) & ~(CARD32) (3 << 20);
-	save2 |= (CARD32) (2 << 20);
-	OUTREG(RADEON_CRTC2_GEN_CNTL, save2 & (CARD32)~RADEON_CRTC2_CUR_EN);
-    }
 
     info->cursor_argb = TRUE;
 
@@ -323,12 +307,6 @@ radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 #endif
 
     CURSOR_SWAPPING_END ();
-
-    if (crtc_id == 0) {
-	OUTREG(RADEON_CRTC_GEN_CNTL, save1);
-    } else if (crtc_id == 1) {
-	OUTREG(RADEON_CRTC2_GEN_CNTL, save2);
-    }
 }
 
 #endif

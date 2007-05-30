@@ -153,7 +153,6 @@ typedef enum {
 } RADEONOpts;
 
 
-#define RADEON_DEBUG            1 /* Turn off debugging output               */
 #define RADEON_IDLE_RETRY      16 /* Fall out of idle loops after this count */
 #define RADEON_TIMEOUT    2000000 /* Fall out of wait loops after this count */
 
@@ -165,15 +164,7 @@ typedef enum {
 				   * for something else.
 				   */
 
-#if RADEON_DEBUG
-#define RADEONTRACE(x)						\
-do {									\
-    ErrorF("(**) %s(%d): ", RADEON_NAME, pScrn->scrnIndex);		\
-    ErrorF x;								\
-} while(0)
-#else
-#define RADEONTRACE(x) do { } while(0)
-#endif
+#define RADEON_LOGLEVEL_DEBUG 4
 
 /* for Xv, outputs */
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
@@ -299,6 +290,10 @@ typedef struct {
 
     CARD32            tv_dac_cntl;
 
+    CARD32            rs480_unk_e30;
+    CARD32            rs480_unk_e34;
+    CARD32            rs480_unk_e38;
+    CARD32            rs480_unk_e3c;
 } RADEONSaveRec, *RADEONSavePtr;
 
 typedef struct {
@@ -782,6 +777,7 @@ extern Bool        RADEONAccelInit(ScreenPtr pScreen);
 extern Bool        RADEONSetupMemEXA (ScreenPtr pScreen);
 extern Bool        RADEONDrawInitMMIO(ScreenPtr pScreen);
 #ifdef XF86DRI
+extern unsigned long long RADEONTexOffsetStart(PixmapPtr pPix);
 extern Bool        RADEONGetDatatypeBpp(int bpp, CARD32 *type);
 extern Bool        RADEONGetPixmapOffsetPitch(PixmapPtr pPix,
 					      CARD32 *pitch_offset);
