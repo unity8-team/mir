@@ -229,7 +229,7 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] = {
 
 #define CLONE_ATTRIBUTES 1
 static XF86AttributeRec CloneAttributes[CLONE_ATTRIBUTES] = {
-    {XvSettable | XvGettable, 0, 1, "XV_PIPE"}
+    {XvSettable | XvGettable, -1, 1, "XV_PIPE"}
 };
 
 #define NUM_ATTRIBUTES 5
