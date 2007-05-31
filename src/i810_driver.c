@@ -145,6 +145,7 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_I965_Q,		"965Q"},
    {PCI_CHIP_I946_GZ,		"946GZ"},
    {PCI_CHIP_I965_GM,		"965GM"},
+   {PCI_CHIP_I965_GME,		"965GME/GLE"},
    {-1,				NULL}
 };
 
@@ -169,6 +170,7 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	RES_SHARED_VGA},
    {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	RES_SHARED_VGA},
    {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	RES_SHARED_VGA},
+   {PCI_CHIP_I965_GME,		PCI_CHIP_I965_GME,	RES_SHARED_VGA},
    {-1,				-1, RES_UNDEFINED }
 };
 
@@ -614,6 +616,7 @@ I810Probe(DriverPtr drv, int flags)
 	    case PCI_CHIP_I965_Q:
 	    case PCI_CHIP_I946_GZ:
 	    case PCI_CHIP_I965_GM:
+	    case PCI_CHIP_I965_GME:
     	       xf86SetEntitySharable(usedChips[i]);
 
     	       /* Allocate an entity private if necessary */		

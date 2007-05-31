@@ -356,6 +356,7 @@ extern int I810_DEBUG;
 
 #ifndef PCI_CHIP_I965_GM
 #define PCI_CHIP_I965_GM        0x2A02
+#define PCI_CHIP_I965_GME	0x2A12
 #define PCI_CHIP_I965_GM_BRIDGE 0x2A00
 #endif
 
@@ -374,8 +375,8 @@ extern int I810_DEBUG;
 #define IS_I915GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I915_GM)
 #define IS_I945G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_G)
 #define IS_I945GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_GM)
-#define IS_I965GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_GM)
-#define IS_I965G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_G || pI810->PciInfo->chipType == PCI_CHIP_I965_G_1 || pI810->PciInfo->chipType == PCI_CHIP_I965_Q || pI810->PciInfo->chipType == PCI_CHIP_I946_GZ || pI810->PciInfo->chipType == PCI_CHIP_I965_GM)
+#define IS_I965GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_GM || pI810->PciInfo->chipType == PCI_CHIP_I965_GME)
+#define IS_I965G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_G || pI810->PciInfo->chipType == PCI_CHIP_I965_G_1 || pI810->PciInfo->chipType == PCI_CHIP_I965_Q || pI810->PciInfo->chipType == PCI_CHIP_I946_GZ || pI810->PciInfo->chipType == PCI_CHIP_I965_GM || pI810->PciInfo->chipType == PCI_CHIP_I965_GME)
 #define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810))
 
 #define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810))
