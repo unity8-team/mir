@@ -255,8 +255,10 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 				     : 0));
 
     save->crtc_offset      = pScrn->fbOffset;
+#ifdef XF86DRI
     if (info->allowPageFlip)
 	save->crtc_offset_cntl = RADEON_CRTC_OFFSET_FLIP_CNTL;
+#endif
 
     if (info->tilingEnabled) {
        if (IS_R300_VARIANT)
@@ -443,8 +445,10 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
     /* It seems all fancy options apart from pflip can be safely disabled
      */
     save->crtc2_offset      = pScrn->fbOffset;
+#ifdef XF86DRI
     if (info->allowPageFlip)
 	save->crtc2_offset_cntl = RADEON_CRTC_OFFSET_FLIP_CNTL;
+#endif
 
     if (info->tilingEnabled) {
        if (IS_R300_VARIANT)
