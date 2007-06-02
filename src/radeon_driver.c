@@ -2497,13 +2497,13 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10
 
     RADEONGetBIOSInfo(pScrn, pInt10);
 
+    RADEONGetClockInfo(pScrn);
+
     if (!RADEONSetupConnectors(pScrn)) {
 	return FALSE;
     }
       
     RADEONPrintPortMap(pScrn);
-
-    RADEONGetClockInfo(pScrn);
 
     for (i = 0; i < config->num_output; i++) 
     {
