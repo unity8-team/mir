@@ -107,7 +107,7 @@ static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 
 	new->Clock      = radeon_output->DotClock;
 	new->Flags      = 0;
-	new->type       = M_T_USERDEF;
+	new->type       = M_T_USERDEF | M_T_PREFERRED;
 
 	new->next       = NULL;
 	new->prev       = NULL;
