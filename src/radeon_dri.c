@@ -1352,6 +1352,25 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+Bool RADEONDRISetVBlankInterrupt(ScrnInfoPtr pScrn, Bool on)
+{
+    RADEONInfoPtr  info    = RADEONPTR(pScrn);
+    int value = 0;
+
+    if (info->directRenderingEnabled && info->pKernelDRMVersion->version_minor >= 28) {
+	/* we could do something with mergedfb here I'm sure */
+        if (on)
+	        value = DRM_RADEON_VBLANK_CRTC1;
+
+	if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_VBLANK_CRTC, value)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "RADEON Vblank Crtc Setup Failed %d\n", value);
+	    return FALSE;
+	}
+    }
+    return TRUE;
+}
+
+
 /* Initialize the screen-specific data structures for the DRI and the
  * Radeon.  This is the main entry point to the device-specific
  * initialization code.  It calls device-independent DRI functions to
@@ -2029,6 +2048,9 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen)
 
     RADEONChangeSurfaces(pScrn);
     RADEONEnablePageFlip(pScreen);
+    
+    info->want_vblank_interrupts = TRUE;
+    RADEONDRISetVBlankInterrupt(pScrn, TRUE);
 
     if (info->cursor)
 	xf86ForceHWCursor (pScreen, TRUE);
@@ -2067,6 +2089,9 @@ static void RADEONDRITransitionTo2d(ScreenPtr pScreen)
     info->have3DWindows = 0;
 
     RADEONChangeSurfaces(pScrn);
+
+    info->want_vblank_interrupts = FALSE;
+    RADEONDRISetVBlankInterrupt(pScrn, FALSE);
 
     if (info->cursor)
 	xf86ForceHWCursor (pScreen, FALSE);

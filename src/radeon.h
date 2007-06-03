@@ -818,6 +818,7 @@ typedef struct {
 
     CARD32            tv_dac_adj;
 
+    Bool want_vblank_interrupts;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
@@ -935,6 +936,7 @@ extern drmBufPtr   RADEONCPGetBuffer(ScrnInfoPtr pScrn);
 extern void        RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard);
 extern void        RADEONCPReleaseIndirect(ScrnInfoPtr pScrn);
 extern int         RADEONCPStop(ScrnInfoPtr pScrn,  RADEONInfoPtr info);
+extern Bool RADEONDRISetVBlankInterrupt(ScrnInfoPtr pScrn, Bool on);
 
 extern void        RADEONHostDataParams(ScrnInfoPtr pScrn, CARD8 *dst,
 					CARD32 pitch, int cpp,
