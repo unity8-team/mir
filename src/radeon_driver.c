@@ -5436,6 +5436,8 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 	/* get the DRI back into shape after resume */
 	RADEONDRIResume(pScrn->pScreen);
 	RADEONAdjustMemMapRegisters(pScrn, &info->ModeReg);
+
+	RADEONDRISetVBlankInterrupt (pScrn, TRUE);
     }
 #endif
     /* this will get XVideo going again, but only if XVideo was initialised
@@ -5471,6 +5473,8 @@ void RADEONLeaveVT(int scrnIndex, int flags)
 		   "RADEONLeaveVT\n");
 #ifdef XF86DRI
     if (RADEONPTR(pScrn)->directRenderingInited) {
+
+	RADEONDRISetVBlankInterrupt (pScrn, FALSE);
 	DRILock(pScrn->pScreen, 0);
 	RADEONCP_STOP(pScrn, info);
 
