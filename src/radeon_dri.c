@@ -1675,6 +1675,9 @@ Bool RADEONDRIFinishScreenInit(ScreenPtr pScreen)
     info->DRICloseScreen = pScreen->CloseScreen;
     pScreen->CloseScreen = RADEONDRIDoCloseScreen;
 
+    /* disable vblank at startup */
+    RADEONDRISetVBlankInterrupt (pScrn, FALSE);
+
     return TRUE;
 }
 
@@ -1752,6 +1755,7 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
 		    "RADEONDRICloseScreen\n");
     
      if (info->irq) {
+	RADEONDRISetVBlankInterrupt (pScrn, FALSE);
 	drmCtlUninstHandler(info->drmFD);
 	info->irq = 0;
 	info->ModeReg.gen_int_cntl = 0;
