@@ -147,6 +147,7 @@ static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
 };
 
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output);
+static void RADEONUpdatePanelSize(xf86OutputPtr output);
 
 void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 {
@@ -528,19 +529,23 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     
     if (radeon_output->MonType == MT_UNKNOWN) {
-      if ((radeon_output->MonType = RADEONDisplayDDCConnected(pScrn, output)));
-      else if((radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output)));
-      else if (radeon_output->DACType == DAC_PRIMARY) 
-	  radeon_output->MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(radeon_output->DACType));
+	if ((radeon_output->MonType = RADEONDisplayDDCConnected(pScrn, output)));
+	else if((radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output)));
+	else if (radeon_output->DACType == DAC_PRIMARY) 
+	    radeon_output->MonType = RADEONCrtIsPhysicallyConnected(pScrn, !(radeon_output->DACType));
     }
 
+    /* update panel info for RMX */
+    if (radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP)
+	RADEONUpdatePanelSize(output);
+
     if (output->MonInfo) {
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on connector: %s ----------------------\n",
-		 info->IsAtomBios ?
-		 ConnectorTypeNameATOM[radeon_output->ConnectorType]:
-		 ConnectorTypeName[radeon_output->ConnectorType]
-		 );
-      xf86PrintEDID( output->MonInfo );
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on connector: %s ----------------------\n",
+		   info->IsAtomBios ?
+		   ConnectorTypeNameATOM[radeon_output->ConnectorType]:
+		   ConnectorTypeName[radeon_output->ConnectorType]
+		   );
+	xf86PrintEDID( output->MonInfo );
     }
 }
 
@@ -622,25 +627,29 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-    if (radeon_output->type != OUTPUT_LVDS)
-	return TRUE;
+    if (radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP) {
+	xf86CrtcPtr crtc = output->crtc;
+	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-    if (mode->HDisplay < radeon_output->PanelXRes ||
-	mode->VDisplay < radeon_output->PanelYRes)
-	adjusted_mode->Flags |= RADEON_USE_RMX;
+	if ((mode->HDisplay < radeon_output->PanelXRes ||
+	     mode->VDisplay < radeon_output->PanelYRes) &&
+	    radeon_crtc->crtc_id == 0)
+	    adjusted_mode->Flags |= RADEON_USE_RMX;
 
-    if (adjusted_mode->Flags & RADEON_USE_RMX) {
-	adjusted_mode->CrtcHTotal     = mode->CrtcHDisplay + radeon_output->HBlank;
-	adjusted_mode->CrtcHSyncStart = mode->CrtcHDisplay + radeon_output->HOverPlus;
-	adjusted_mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + radeon_output->HSyncWidth;
-	adjusted_mode->CrtcVTotal     = mode->CrtcVDisplay + radeon_output->VBlank;
-	adjusted_mode->CrtcVSyncStart = mode->CrtcVDisplay + radeon_output->VOverPlus;
-	adjusted_mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + radeon_output->VSyncWidth;
-	adjusted_mode->Clock          = radeon_output->DotClock;
-	adjusted_mode->Flags          = radeon_output->Flags | RADEON_USE_RMX;
-	/* save these for Xv with RMX */
-	info->PanelYRes = radeon_output->PanelYRes;
-	info->PanelXRes = radeon_output->PanelXRes;
+	if (adjusted_mode->Flags & RADEON_USE_RMX) {
+	    adjusted_mode->CrtcHTotal     = mode->CrtcHDisplay + radeon_output->HBlank;
+	    adjusted_mode->CrtcHSyncStart = mode->CrtcHDisplay + radeon_output->HOverPlus;
+	    adjusted_mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + radeon_output->HSyncWidth;
+	    adjusted_mode->CrtcVTotal     = mode->CrtcVDisplay + radeon_output->VBlank;
+	    adjusted_mode->CrtcVSyncStart = mode->CrtcVDisplay + radeon_output->VOverPlus;
+	    adjusted_mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + radeon_output->VSyncWidth;
+	    adjusted_mode->Clock          = radeon_output->DotClock;
+	    adjusted_mode->Flags          = radeon_output->Flags | RADEON_USE_RMX;
+	    /* FIXME: do this properly in radeon_video.c */
+	    info->PanelYRes = radeon_output->PanelYRes;
+	    info->PanelXRes = radeon_output->PanelXRes;
+	}
+
     }
 
     return TRUE;
@@ -1121,7 +1130,7 @@ radeon_create_resources(xf86OutputPtr output)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
-	/* Set the current value of the backlight property */
+	/* Set the current value of the property */
 	data = 0;
 	err = RRChangeOutputProperty(output->randr_output, rmx_atom,
 				     XA_INTEGER, 32, PropModeReplace, 1, &data,
@@ -1395,7 +1404,8 @@ RADEONUpdatePanelSize(xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int             j;
     /* XXX: fixme */
-    xf86MonPtr      ddc  = pScrn->monitor->DDC;
+    //xf86MonPtr      ddc  = pScrn->monitor->DDC;
+    xf86MonPtr ddc = output->MonInfo;
     DisplayModePtr  p;
 
     // crtc should handle?
