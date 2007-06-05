@@ -496,7 +496,16 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 	    dev_priv->panel_fixed_mode = i830_crtc_mode_get(pScrn, crtc);
 	    if (dev_priv->panel_fixed_mode != NULL)
 		dev_priv->panel_fixed_mode->type |= M_T_PREFERRED;
+	}
+    }
 
+    /* Get the LVDS fixed mode out of the BIOS.  We should support LVDS with
+     * the BIOS being unavailable or broken, but lack the configuration options
+     * for now.
+     */
+    bios_mode = i830_bios_get_panel_mode(pScrn, &dev_priv->panel_wants_dither);
+    if (bios_mode != NULL) {
+	if (dev_priv->panel_fixed_mode != NULL) {
 	    /* Fixup for a 1280x768 panel with the horizontal trimmed
 	     * down to 1024 for text mode.
 	     */
@@ -512,16 +521,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 		dev_priv->panel_fixed_mode->HSyncEnd = 1440;
 		dev_priv->panel_fixed_mode->HTotal = 1688;
 	    }
-	}
-    }
 
-    /* Get the LVDS fixed mode out of the BIOS.  We should support LVDS with
-     * the BIOS being unavailable or broken, but lack the configuration options
-     * for now.
-     */
-    bios_mode = i830_bios_get_panel_mode(pScrn, &dev_priv->panel_wants_dither);
-    if (bios_mode != NULL) {
-	if (dev_priv->panel_fixed_mode != NULL) {
 	    if (pI830->debug_modes &&
 		!xf86ModesEqual(dev_priv->panel_fixed_mode, bios_mode))
 	    {
