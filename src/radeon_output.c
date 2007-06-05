@@ -158,20 +158,19 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
     int o;
 
     for (o = 0; o < xf86_config->num_output; o++) {
-      output = xf86_config->output[o];
-      radeon_output = output->driver_private;
+	output = xf86_config->output[o];
+	radeon_output = output->driver_private;
 
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		 "Port%d:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n", 
-	  o,
-	  MonTypeName[radeon_output->MonType+1],
-	  info->IsAtomBios ? 
-	  ConnectorTypeNameATOM[radeon_output->ConnectorType]:
-	  ConnectorTypeName[radeon_output->ConnectorType],
-	  DACTypeName[radeon_output->DACType+1],
-	  TMDSTypeName[radeon_output->TMDSType+1],
-	  DDCTypeName[radeon_output->DDCType]);
-
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+		   "Port%d:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n", 
+		   o,
+		   MonTypeName[radeon_output->MonType+1],
+		   info->IsAtomBios ? 
+		   ConnectorTypeNameATOM[radeon_output->ConnectorType]:
+		   ConnectorTypeName[radeon_output->ConnectorType],
+		   DACTypeName[radeon_output->DACType+1],
+		   TMDSTypeName[radeon_output->TMDSType+1],
+		   DDCTypeName[radeon_output->DDCType]);
     }
 
 }
