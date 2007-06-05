@@ -345,27 +345,55 @@ CompareOverlay(I830Ptr pI830, CARD32 * overlay, int size)
 }
 #endif
 
-static int
-I830CrtcPipe (xf86CrtcPtr crtc)
-{
-    if (crtc == NULL)
-	return 0;
-    return ((I830CrtcPrivatePtr) crtc->driver_private)->pipe;
-}
+static void
+I830SetOneLineModeRatio(ScrnInfoPtr pScrn);
 
-static xf86CrtcPtr
-I830CrtcForPipe (ScrnInfoPtr pScrn, int pipe)
+static void
+i830_overlay_switch_to_crtc (ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
 {
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int			c;
+    I830Ptr		pI830 = I830PTR(pScrn);
+    I830PortPrivPtr	pPriv = GET_PORT_PRIVATE(pScrn);
+    I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
+    int			pipeconf_reg = intel_crtc->pipe == 0 ? PIPEACONF : PIPEBCONF;
 
-    for (c = 0; c < xf86_config->num_crtc; c++)
+    if (INREG(pipeconf_reg) & PIPEACONF_DOUBLE_WIDE)
+	pPriv->overlayOK = FALSE;
+    else
+	pPriv->overlayOK = TRUE;
+    
+    if (!pPriv->overlayOK)
+	return;
+
+    /* Check we have an LFP connected */
+    if (i830PipeHasType(crtc, I830_OUTPUT_LVDS)) 
     {
-	xf86CrtcPtr crtc = xf86_config->crtc[c];
-	if (I830CrtcPipe (crtc) == pipe)
-	    return crtc;
+
+	int	vtotal_reg = intel_crtc->pipe ? VTOTAL_A : VTOTAL_B;
+	CARD32	size = intel_crtc->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
+	CARD32	active;
+	CARD32	hsize, vsize;
+
+	hsize = (size >> 16) & 0x7FF;
+	vsize = size & 0x7FF;
+	active = INREG(vtotal_reg) & 0x7FF;
+
+	if (vsize < active && hsize > 1024)
+	    I830SetOneLineModeRatio(pScrn);
+
+	if (pPriv->scaleRatio & 0xFFFE0000) 
+	{
+	    /* Possible bogus ratio, using in-accurate fallback */
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Bogus panel fit register, Xvideo positioning may not "
+		       "be accurate.\n");
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Using fallback ratio - was 0x%x, now 0x%x\n",
+		       pPriv->scaleRatio,
+		       (int)(((float)active * 65536)/(float)vsize));
+
+	    pPriv->scaleRatio = (int)(((float)active * 65536) / (float)vsize);
+	}
     }
-    return NULL;
 }
 
 /*
@@ -383,7 +411,6 @@ i830_overlay_on(ScrnInfoPtr pScrn)
     I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
     I830PortPrivPtr	pPriv = pI830->adaptor->pPortPrivates[0].ptr;
     Bool		deactivate = FALSE;
-    xf86CrtcPtr		crtc0 = NULL;
     
     if (*pI830->overlayOn)
 	return;
@@ -633,7 +660,7 @@ I830ResetVideo(ScrnInfoPtr pScrn)
      * Select which pipe the overlay is enabled on.
      */
     overlay->OCONFIG &= ~OVERLAY_PIPE_MASK;
-    if (I830CrtcPipe (pPriv->current_crtc) == 0)
+    if (i830_crtc_pipe (pPriv->current_crtc) == 0)
 	overlay->OCONFIG |= OVERLAY_PIPE_A;
     else 
 	overlay->OCONFIG |= OVERLAY_PIPE_B;
@@ -1717,9 +1744,6 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
 		  dstPitch);
 
-    if (!pPriv->overlayOK)
-	return;
-
 #if VIDEO_DEBUG
     CompareOverlay(pI830, (CARD32 *) overlay, 0x100);
 #endif
@@ -1737,8 +1761,13 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     if (crtc != pPriv->current_crtc)
     {
         pPriv->current_crtc = crtc;
-        I830ResetVideo (pScrn);
+	i830_overlay_switch_to_crtc (pScrn, crtc);
+	if (pPriv->overlayOK)
+	    I830ResetVideo (pScrn);
     }
+
+    if (!pPriv->overlayOK)
+	return;
 
     switch (crtc->rotation & 0xf) {
     case RR_Rotate_0:
@@ -2271,7 +2300,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 
     if (pI830->entityPrivate) {
 	if (pI830->entityPrivate->XvInUse != -1 &&
-	    pI830->entityPrivate->XvInUse != I830CrtcPipe (pPriv->current_crtc)) {
+	    pI830->entityPrivate->XvInUse != i830_crtc_pipe (pPriv->current_crtc)) {
 #ifdef PANORAMIX
 	    if (!noPanoramiXExtension) {
 		return Success; /* faked for trying to share it */
@@ -2282,7 +2311,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 	    }
 	}
 
-	pI830->entityPrivate->XvInUse = I830CrtcPipe (pPriv->current_crtc);;
+	pI830->entityPrivate->XvInUse = i830_crtc_pipe (pPriv->current_crtc);;
     }
 
     /* overlay limits */
@@ -2766,7 +2795,7 @@ I830DisplaySurface(XF86SurfacePtr surface,
 
     if (pI830->entityPrivate) {
 	if (pI830->entityPrivate->XvInUse != -1 &&
-	    pI830->entityPrivate->XvInUse != I830CrtcPipe (pI830Priv->current_crtc)) {
+	    pI830->entityPrivate->XvInUse != i830_crtc_pipe (pI830Priv->current_crtc)) {
 #ifdef PANORAMIX
 	    if (!noPanoramiXExtension) {
 		return Success; /* faked for trying to share it */
@@ -2777,7 +2806,7 @@ I830DisplaySurface(XF86SurfacePtr surface,
 	    }
 	}
 
-	pI830->entityPrivate->XvInUse = I830CrtcPipe (pI830Priv->current_crtc);
+	pI830->entityPrivate->XvInUse = i830_crtc_pipe (pI830Priv->current_crtc);
     }
 
     x1 = src_x;
@@ -2861,7 +2890,6 @@ i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     I830PortPrivPtr pPriv;
-    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
 
     if (pI830->adaptor == NULL)
 	return;
@@ -2872,53 +2900,12 @@ i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
 
     pPriv = GET_PORT_PRIVATE(pScrn);
 
-    /* Check if it's the crtc the overlay is on */
     if (crtc != pPriv->current_crtc)
 	return;
 
+    /* Check if it's the crtc the overlay is on */
     if (on) {
-	int size, hsize, vsize, active;
-	int pipeconf_reg = intel_crtc->pipe == 0 ? PIPEACONF : PIPEBCONF;
-	char pipename = intel_crtc->pipe == 0 ? 'A' : 'B';
-
-	pPriv->overlayOK = TRUE;
-
-	if (INREG(pipeconf_reg) & PIPEACONF_DOUBLE_WIDE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Disabling XVideo output because Pipe %c is in "
-		       "double-wide mode.\n", pipename);
-	    pPriv->overlayOK = FALSE;
-	} else if (!pPriv->overlayOK) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Re-enabling XVideo output because Pipe %c is now in "
-		       "single-wide mode.\n", pipename);
-	    pPriv->overlayOK = TRUE;
-	}
-
-	/* Check we have an LFP connected */
-	if (i830PipeHasType(crtc, I830_OUTPUT_LVDS)) {
-	    int vtotal_reg = intel_crtc->pipe ? VTOTAL_A : VTOTAL_B;
-	    size = intel_crtc->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
-	    hsize = (size >> 16) & 0x7FF;
-	    vsize = size & 0x7FF;
-	    active = INREG(vtotal_reg) & 0x7FF;
-
-	    if (vsize < active && hsize > 1024)
-		I830SetOneLineModeRatio(pScrn);
-
-	    if (pPriv->scaleRatio & 0xFFFE0000) {
-		/* Possible bogus ratio, using in-accurate fallback */
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Bogus panel fit register, Xvideo positioning may not "
-			   "be accurate.\n");
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Using fallback ratio - was 0x%x, now 0x%x\n",
-			   pPriv->scaleRatio,
-			   (int)(((float)active * 65536)/(float)vsize));
-
-		pPriv->scaleRatio = (int)(((float)active * 65536) / (float)vsize);
-	    }
-	}
+	i830_overlay_switch_to_crtc (pScrn, crtc);
     } else {
 	/* We stop the video when mode switching, so we don't lock up
 	 * the engine. The overlayOK will determine whether we can re-enable
