@@ -77,7 +77,6 @@ typedef struct {
    int oneLineMode;
    int scaleRatio;
    Bool textured;
-   Bool started_video;
 } I830PortPrivRec, *I830PortPrivPtr;
 
 #define GET_PORT_PRIVATE(pScrn) \

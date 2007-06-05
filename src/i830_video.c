@@ -416,18 +416,12 @@ i830_overlay_on(ScrnInfoPtr pScrn)
 	return;
 
     /*
-     * On I830, if pipe A is off the first time the overlay
-     * is enabled, it will fail to turn and blank the entire 
-     * screen. Light up pipe A in this case to provide a clock
-     * for the overlay hardware
+     * On I830, if pipe A is off when the overlayis enabled, it will fail to
+     * turn on and blank the entire screen or lock up the ring. Light up pipe
+     * A in this case to provide a clock for the overlay hardware
      */
-    if (pPriv->current_crtc && 
-	i830_crtc_pipe (pPriv->current_crtc) != 0 &&
-	!pPriv->started_video)
-    {
-	pPriv->started_video = TRUE;
+    if (pPriv->current_crtc && i830_crtc_pipe (pPriv->current_crtc) != 0)
 	deactivate = i830_pipe_a_require_activate (pScrn);
-    }
 
     overlay->OCMD &= ~OVERLAY_ENABLE;
     BEGIN_LP_RING(6);
