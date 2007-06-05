@@ -891,7 +891,6 @@ static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
     RADEONInitTvDacCntl(pScrn, save);
 
     if (IsPrimary) {
-	/*save->crtc2_gen_cntl = info->SavedReg.crtc2_gen_cntl | RADEON_CRTC2_CRT2_ON;*/
         save->dac2_cntl = info->SavedReg.dac2_cntl | RADEON_DAC2_DAC2_CLK_SEL;
         if (IS_R300_VARIANT) {
             save->disp_output_cntl = info->SavedReg.disp_output_cntl &
@@ -901,10 +900,6 @@ static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
 	    save->fp2_gen_cntl = info->SavedReg.fp2_gen_cntl &
 				  ~(R200_FP2_SOURCE_SEL_MASK |
 				    RADEON_FP2_DVO_RATE_SEL_SDR);
-            /*save->fp2_gen_cntl = info->SavedReg.fp2_gen_cntl |
-				    (RADEON_FP2_ON |
-				     RADEON_FP2_BLANK_EN |
-				     RADEON_FP2_DVO_EN);*/
 	} else {
             save->disp_hw_debug = info->SavedReg.disp_hw_debug | RADEON_CRT2_DISP1_SEL;
         }
@@ -919,12 +914,7 @@ static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
 	    save->fp2_gen_cntl = info->SavedReg.fp2_gen_cntl &
 				  ~(R200_FP2_SOURCE_SEL_MASK |
 				    RADEON_FP2_DVO_RATE_SEL_SDR);
-            save->fp2_gen_cntl |= (R200_FP2_SOURCE_SEL_CRTC2 /*|
-				   RADEON_FP2_BLANK_EN |
-                                   RADEON_FP2_ON |
-                                   RADEON_FP2_DVO_EN*/);
-	    /*save->fp_h2_sync_strt_wid = save->crtc2_h_sync_strt_wid;
-	    save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;*/
+            save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC2;
         } else {
             save->dac2_cntl = info->SavedReg.dac2_cntl | RADEON_DAC2_DAC2_CLK_SEL;
             save->disp_hw_debug = info->SavedReg.disp_hw_debug &
