@@ -232,6 +232,22 @@ I830SetParam(ScrnInfoPtr pScrn, int param, int value)
    return TRUE;
 }
 
+static Bool
+I830SetHWS(ScrnInfoPtr pScrn, int addr)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    drmI830HWS hws;
+
+    hws.addr = addr;
+
+    if (drmCommandWrite(pI830->drmSubFD, DRM_I830_HWS_PAGE_ADDR,
+		&hws, sizeof(drmI830HWS))) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		"G33 status page initialization Failed\n");
+	return FALSE;
+    }
+    return TRUE;
+}
 
 static Bool
 I830InitVisualConfigs(ScreenPtr pScreen)
@@ -933,6 +949,12 @@ I830DRIDoMappings(ScreenPtr pScreen)
       return FALSE;
    }
 
+   if (IS_G33CLASS(pI830)) {
+       if (!I830SetHWS(pScrn, pI830->hw_status->offset)) {
+	   DRICloseScreen(pScreen);
+	   return FALSE;
+       }
+   }
    /* init to zero to be safe */
    sarea->front_handle = 0;
    sarea->back_handle = 0;

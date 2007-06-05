@@ -319,6 +319,7 @@ typedef struct _I830Rec {
    i830_memory *depth_buffer;
    i830_memory *textures;		/**< Compatibility texture memory */
    i830_memory *memory_manager;		/**< DRI memory manager aperture */
+   i830_memory *hw_status;		/* for G33 hw status page alloc */
 
    int TexGranularity;
    int drmMinor;

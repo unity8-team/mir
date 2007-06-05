@@ -54,6 +54,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DRM_I830_DESTROY_HEAP             0x0c
 #define DRM_I830_SET_VBLANK_PIPE	  0x0d
 #define DRM_I830_GET_VBLANK_PIPE	  0x0e
+#define DRM_I830_HWS_PAGE_ADDR		  0x11
 
 
 typedef struct {
@@ -223,5 +224,9 @@ typedef struct {
 typedef struct {
 	int pipe;
 } drmI830VBlankPipe;
+
+typedef struct {
+	uint64_t addr;
+} drmI830HWS;
 
 #endif /* _I830_DRM_H_ */

@@ -509,7 +509,7 @@ I830EXAInit(ScreenPtr pScreen)
     	pI830->EXADriverPtr->Composite = i830_composite;
     	pI830->EXADriverPtr->DoneComposite = i830_done_composite;
     } else if (IS_I915G(pI830) || IS_I915GM(pI830) ||
-	       IS_I945G(pI830) || IS_I945GM(pI830))
+	       IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
     {
 	pI830->EXADriverPtr->CheckComposite = i915_check_composite;
    	pI830->EXADriverPtr->PrepareComposite = i915_prepare_composite;

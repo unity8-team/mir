@@ -236,6 +236,9 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_I946_GZ,		"946GZ"},
    {PCI_CHIP_I965_GM,		"965GM"},
    {PCI_CHIP_I965_GME,		"965GME/GLE"},
+   {PCI_CHIP_G33_G,		"G33"},
+   {PCI_CHIP_Q35_G,		"Q35"},
+   {PCI_CHIP_Q33_G,		"Q33"},
    {-1,				NULL}
 };
 
@@ -256,6 +259,9 @@ static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	RES_SHARED_VGA},
    {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	RES_SHARED_VGA},
    {PCI_CHIP_I965_GME,		PCI_CHIP_I965_GME,	RES_SHARED_VGA},
+   {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		RES_SHARED_VGA},
+   {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		RES_SHARED_VGA},
+   {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		RES_SHARED_VGA},
    {-1,				-1,			RES_UNDEFINED}
 };
 
@@ -436,6 +442,19 @@ I830DetectMemory(ScrnInfoPtr pScrn)
       default:
 	 FatalError("Unknown GTT size value: %08x\n", (int)INREG(PGETBL_CTL));
       }
+   } else if (IS_G33CLASS(pI830)) {
+      /* G33's GTT size is detect in GMCH_CTRL */
+      switch (gmch_ctrl & G33_PGETBL_SIZE_MASK) {
+      case G33_PGETBL_SIZE_1M:
+	 gtt_size = 1024;
+	 break;
+      case G33_PGETBL_SIZE_2M:
+	 gtt_size = 2048;
+	 break;
+      default:
+	 FatalError("Unknown GTT size value: %08x\n",
+		    (int)(gmch_ctrl & G33_PGETBL_SIZE_MASK));
+      }
    } else {
       /* Older chipsets only had GTT appropriately sized for the aperture. */
       gtt_size = pI830->FbMapSize / (1024*1024);
@@ -472,6 +491,14 @@ I830DetectMemory(ScrnInfoPtr pScrn)
       case I915G_GMCH_GMS_STOLEN_64M:
 	 if (IS_I9XX(pI830))
 	    memsize = MB(64) - KB(range);
+	 break;
+      case G33_GMCH_GMS_STOLEN_128M:
+	 if (IS_G33CLASS(pI830))
+	     memsize = MB(128) - KB(range);
+	 break;
+      case G33_GMCH_GMS_STOLEN_256M:
+	 if (IS_G33CLASS(pI830))
+	     memsize = MB(256) - KB(range);
 	 break;
       }
    } else {
@@ -1076,6 +1103,15 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    case PCI_CHIP_I965_GME:
       chipname = "965GME/GLE";
       break;
+   case PCI_CHIP_G33_G:
+      chipname = "G33";
+      break;
+   case PCI_CHIP_Q35_G:
+      chipname = "Q35";
+      break;
+   case PCI_CHIP_Q33_G:
+      chipname = "Q33";
+      break;
    default:
       chipname = "unknown chipset";
       break;
@@ -1430,7 +1466,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    else
       pI830->CursorNeedsPhysical = FALSE;
 
-   if (IS_I965G(pI830))
+   if (IS_I965G(pI830) || IS_G33CLASS(pI830))
       pI830->CursorNeedsPhysical = FALSE;
 
    /*
