@@ -967,18 +967,11 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 {
     ScrnInfoPtr	    pScrn = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    int i;
+    xf86CrtcPtr	crtc = output->crtc;
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-    /* get the outputs connected to this CRTC */
-    for (i = 0; i < xf86_config->num_crtc; i++) {
-	xf86CrtcPtr	crtc = xf86_config->crtc[i];
-	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-	if (output->crtc == crtc) {
-	    RADEONInitOutputRegisters(pScrn, &info->ModeReg, adjusted_mode, output, radeon_crtc->crtc_id);
-	}
-    }
+    RADEONInitOutputRegisters(pScrn, &info->ModeReg, adjusted_mode, output, radeon_crtc->crtc_id);
 
     switch(radeon_output->MonType) {
     case MT_LCD:
