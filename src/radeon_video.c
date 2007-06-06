@@ -2409,6 +2409,7 @@ RADEONDisplayVideo(
     int deinterlacing_method
 ){
     RADEONInfoPtr info = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 v_inc, h_inc, h_inc_uv, step_by_y, step_by_uv, tmp;
     double h_inc_d;
@@ -2431,6 +2432,10 @@ RADEONDisplayVideo(
     int predownscale=0;
     int src_w_d;
     int leftuv = 0;
+    xf86CrtcPtr crtc;
+    DisplayModePtr mode;
+    RADEONOutputPrivatePtr radeon_output;
+    xf86OutputPtr output;
 
     is_rgb=0; is_planar=0;
     switch(id){
@@ -2478,15 +2483,29 @@ RADEONDisplayVideo(
     v_inc_shift = 20;
     y_mult = 1;
 
-    if (pScrn->currentMode->Flags & V_INTERLACE)
+    if (info->OverlayOnCRTC2)
+	crtc = xf86_config->crtc[1];
+    else
+	crtc = xf86_config->crtc[0];
+
+    mode = &crtc->mode;
+
+    if (mode->Flags & V_INTERLACE)
 	v_inc_shift++;
-    if (pScrn->currentMode->Flags & V_DBLSCAN) {
+    if (mode->Flags & V_DBLSCAN) {
 	v_inc_shift--;
 	y_mult = 2;
     }
-    // FIXME
-    if (pScrn->currentMode->Flags & RADEON_USE_RMX) {
-	v_inc = ((src_h * pScrn->currentMode->CrtcVDisplay / info->PanelYRes) << v_inc_shift) / drw_h;
+
+    for (i = 0; i < xf86_config->num_output; i++) {
+	output = xf86_config->output[i];
+	if (output->crtc == crtc) {
+	    radeon_output = output->driver_private;
+	}
+    }
+
+    if (radeon_output->Flags & RADEON_USE_RMX) {
+	v_inc = ((src_h * mode->CrtcVDisplay / radeon_output->PanelYRes) << v_inc_shift) / drw_h;
     } else {
 	v_inc = (src_h << v_inc_shift) / drw_h;
     }
@@ -2624,6 +2643,15 @@ RADEONDisplayVideo(
 	x_off = 0;
 
     /* needed to make the overlay work on crtc1 in leftof and above modes */
+    /* XXX: may need to adjust x_off/y_off for dualhead like mergedfb -- need to test */
+    /*
+    if (srel == radeonLeftOf) {
+	x_off -= mode->CrtcHDisplay;
+    }
+    if (srel == radeonAbove) {
+	y_off -= mode->CrtcVDisplay;
+    }
+    */
 
     /* Put the hardware overlay on CRTC2:
      *

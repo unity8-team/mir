@@ -411,9 +411,6 @@ typedef struct {
     Bool              R300CGWorkaround;
 
 				/* EDID or BIOS values for FPs */
-    int               PanelXRes;
-    int               PanelYRes;
-
     int               RefDivider;
     int               FeedbackDivider;
     int               PostDivider;

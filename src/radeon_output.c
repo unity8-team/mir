@@ -643,11 +643,10 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	    adjusted_mode->CrtcVSyncStart = mode->CrtcVDisplay + radeon_output->VOverPlus;
 	    adjusted_mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + radeon_output->VSyncWidth;
 	    adjusted_mode->Clock          = radeon_output->DotClock;
-	    adjusted_mode->Flags          = radeon_output->Flags | RADEON_USE_RMX;
-	    /* FIXME: do this properly in radeon_video.c */
-	    info->PanelYRes = radeon_output->PanelYRes;
-	    info->PanelXRes = radeon_output->PanelXRes;
-	}
+	    radeon_output->Flags |= RADEON_USE_RMX;
+	    adjusted_mode->Flags          = radeon_output->Flags;
+	} else
+	    radeon_output->Flags &= ~RADEON_USE_RMX;
 
     }
 
