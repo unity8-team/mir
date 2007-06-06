@@ -399,6 +399,8 @@ extern int I810_DEBUG;
 #define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810) || IS_G33CLASS(pI810))
 
 #define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810))
+/* mark chipsets for using gfx VM offset for overlay */
+#define OVERLAY_NOPHYSICAL(pI810) (IS_G33CLASS(pI810))
 
 #define GTT_PAGE_SIZE			KB(4)
 #define ROUND_TO(x, y)			(((x) + (y) - 1) / (y) * (y))
