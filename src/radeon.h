@@ -174,6 +174,18 @@ typedef enum {
 #define RADEON_ALIGN(x,bytes) (((x) + ((bytes) - 1)) & ~((bytes) - 1))
 #define RADEONPTR(pScrn)      ((RADEONInfoPtr)(pScrn)->driverPrivate)
 
+typedef struct {
+    int    revision;
+    CARD16 rr1_offset;
+    CARD16 rr2_offset;
+    CARD16 dyn_clk_offset;
+    CARD16 pll_offset;
+    CARD16 mem_config_offset;
+    CARD16 mem_reset_offset;
+    CARD16 short_mem_offset;
+    CARD16 rr3_offset;
+    CARD16 rr4_offset;
+} RADEONBIOSInitTable;
 
 typedef struct {
 				/* Common registers */
@@ -734,6 +746,7 @@ typedef struct {
 
     Bool want_vblank_interrupts;
     RADEONBIOSConnector BiosConnector[RADEON_MAX_BIOS_CONNECTOR];
+    RADEONBIOSInitTable BiosTable;
 
     Rotation rotation;
     void (*PointerMoved)(int, int, int);

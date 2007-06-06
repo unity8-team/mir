@@ -612,3 +612,465 @@ Bool RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output)
     }
     return FALSE;
 }
+
+/* support for init from bios tables
+ *
+ * Based heavily on the netbsd radeonfb driver
+ * Written by Garrett D'Amore
+ * Copyright (c) 2006 Itronix Inc.
+ *
+ */
+
+/* bios table defines */
+
+#define RADEON_TABLE_ENTRY_FLAG_MASK    0xe000
+#define RADEON_TABLE_ENTRY_INDEX_MASK   0x1fff
+#define RADEON_TABLE_ENTRY_COMMAND_MASK 0x00ff
+
+#define RADEON_TABLE_FLAG_WRITE_INDEXED 0x0000
+#define RADEON_TABLE_FLAG_WRITE_DIRECT  0x2000
+#define RADEON_TABLE_FLAG_MASK_INDEXED  0x4000
+#define RADEON_TABLE_FLAG_MASK_DIRECT   0x6000
+#define RADEON_TABLE_FLAG_DELAY         0x8000
+#define RADEON_TABLE_FLAG_SCOMMAND      0xa000
+
+#define RADEON_TABLE_SCOMMAND_WAIT_MC_BUSY_MASK       0x03
+#define RADEON_TABLE_SCOMMAND_WAIT_MEM_PWRUP_COMPLETE 0x08
+
+#define RADEON_PLL_FLAG_MASK      0xc0
+#define RADEON_PLL_INDEX_MASK     0x3f
+
+#define RADEON_PLL_FLAG_WRITE     0x00
+#define RADEON_PLL_FLAG_MASK_BYTE 0x40
+#define RADEON_PLL_FLAG_WAIT      0x80
+
+#define RADEON_PLL_WAIT_150MKS                    1
+#define RADEON_PLL_WAIT_5MS                       2
+#define RADEON_PLL_WAIT_MC_BUSY_MASK              3
+#define RADEON_PLL_WAIT_DLL_READY_MASK            4
+#define RADEON_PLL_WAIT_CHK_SET_CLK_PWRMGT_CNTL24 5
+
+static CARD16
+RADEONValidateBIOSOffset(ScrnInfoPtr pScrn, CARD16 offset)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    CARD8 revision = RADEON_BIOS8(offset - 1);
+
+    if (revision > 0x10) {
+        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                   "Bad revision %d for BIOS table\n", revision);
+        return 0;
+    }
+
+    if (offset < 0x60) {
+        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                   "Bad offset 0x%x for BIOS Table\n", offset);
+        return 0;
+    }
+
+    return offset;
+}
+
+Bool
+RADEONGetBIOSInitTableOffsets(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    CARD8 val;
+
+    if (!info->VBIOS) {
+	return FALSE;
+    } else {
+	if (info->IsAtomBios) {
+	    return FALSE;
+	} else {
+	    info->BiosTable.revision = RADEON_BIOS8(info->ROMHeaderStart + 4);
+	    info->BiosTable.rr1_offset = RADEON_BIOS16(info->ROMHeaderStart + 0x0c);
+	    if (info->BiosTable.rr1_offset) {
+		info->BiosTable.rr1_offset =
+		    RADEONValidateBIOSOffset(pScrn, info->BiosTable.rr1_offset);
+	    }
+	    if (info->BiosTable.revision > 0x09)
+		return TRUE;
+	    info->BiosTable.rr2_offset = RADEON_BIOS16(info->ROMHeaderStart + 0x4e);
+	    if (info->BiosTable.rr2_offset) {
+		info->BiosTable.rr2_offset =
+		    RADEONValidateBIOSOffset(pScrn, info->BiosTable.rr2_offset);
+	    }
+	    info->BiosTable.dyn_clk_offset = RADEON_BIOS16(info->ROMHeaderStart + 0x52);
+	    if (info->BiosTable.dyn_clk_offset) {
+		info->BiosTable.dyn_clk_offset =
+		    RADEONValidateBIOSOffset(pScrn, info->BiosTable.dyn_clk_offset);
+	    }
+	    info->BiosTable.pll_offset = RADEON_BIOS16(info->ROMHeaderStart + 0x46);
+	    if (info->BiosTable.pll_offset) {
+		info->BiosTable.pll_offset =
+		    RADEONValidateBIOSOffset(pScrn, info->BiosTable.pll_offset);
+	    }
+	    info->BiosTable.mem_config_offset = RADEON_BIOS16(info->ROMHeaderStart + 0x48);
+	    if (info->BiosTable.mem_config_offset) {
+		info->BiosTable.mem_config_offset =
+		    RADEONValidateBIOSOffset(pScrn, info->BiosTable.mem_config_offset);
+	    }
+	    if (info->BiosTable.mem_config_offset) {
+		info->BiosTable.mem_reset_offset = RADEON_BIOS16(info->BiosTable.mem_config_offset);
+		if (info->BiosTable.mem_reset_offset) {
+		    while (RADEON_BIOS8(info->BiosTable.mem_reset_offset))
+			info->BiosTable.mem_reset_offset++;
+		    info->BiosTable.mem_reset_offset++;
+		    info->BiosTable.mem_reset_offset += 2;
+		}
+	    }
+	    if (info->BiosTable.mem_config_offset) {
+		info->BiosTable.short_mem_offset = RADEON_BIOS16(info->BiosTable.mem_config_offset);
+		if ((info->BiosTable.short_mem_offset != 0) &&
+		    (RADEON_BIOS8(info->BiosTable.short_mem_offset - 2) <= 64))
+		    info->BiosTable.short_mem_offset +=
+			RADEON_BIOS8(info->BiosTable.short_mem_offset - 3);
+	    }
+	    if (info->BiosTable.rr2_offset) {
+		info->BiosTable.rr3_offset = RADEON_BIOS16(info->BiosTable.rr2_offset);
+		if (info->BiosTable.rr3_offset) {
+		    while ((val = RADEON_BIOS8(info->BiosTable.rr3_offset + 1)) != 0) {
+			if (val & 0x40)
+			    info->BiosTable.rr3_offset += 10;
+			else if (val & 0x80)
+			    info->BiosTable.rr3_offset += 4;
+			else
+			    info->BiosTable.rr3_offset += 6;
+		    }
+		    info->BiosTable.rr3_offset += 2;
+		}
+	    }
+
+	    if (info->BiosTable.rr3_offset) {
+		info->BiosTable.rr4_offset = RADEON_BIOS16(info->BiosTable.rr3_offset);
+		if (info->BiosTable.rr4_offset) {
+		    while ((val = RADEON_BIOS8(info->BiosTable.rr4_offset + 1)) != 0) {
+			if (val & 0x40)
+			    info->BiosTable.rr4_offset += 10;
+			else if (val & 0x80)
+			    info->BiosTable.rr4_offset += 4;
+			else
+			    info->BiosTable.rr4_offset += 6;
+		    }
+		    info->BiosTable.rr4_offset += 2;
+		}
+	    }
+
+	    if (info->BiosTable.rr3_offset + 1 == info->BiosTable.pll_offset) {
+		info->BiosTable.rr3_offset = 0;
+		info->BiosTable.rr4_offset = 0;
+	    }
+
+	    return TRUE;
+
+	}
+    }
+}
+
+static void
+RADEONRestoreBIOSRegBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD16 offset = table_offset;
+    CARD16 value, flag, index, count;
+    CARD32 andmask, ormask, val, channel_complete_mask;
+    CARD8  command;
+
+    if (offset == 0)
+	return;
+
+    while ((value = RADEON_BIOS16(offset)) != 0) {
+	flag = value & RADEON_TABLE_ENTRY_FLAG_MASK;
+	index = value & RADEON_TABLE_ENTRY_INDEX_MASK;
+	command = value & RADEON_TABLE_ENTRY_COMMAND_MASK;
+
+	offset += 2;
+
+	switch (flag) {
+	case RADEON_TABLE_FLAG_WRITE_INDEXED:
+	    val = RADEON_BIOS32(offset);
+	    ErrorF("WRITE INDEXED: 0x%x 0x%x\n",
+		   index, val);
+	    OUTREG(RADEON_MM_INDEX, index);
+	    OUTREG(RADEON_MM_DATA, val);
+	    offset += 4;
+	    break;
+
+	case RADEON_TABLE_FLAG_WRITE_DIRECT:
+	    val = RADEON_BIOS32(offset);
+	    ErrorF("WRITE DIRECT: 0x%x 0x%x\n", index, val);
+	    OUTREG(index, val);
+	    offset += 4;
+	    break;
+
+	case RADEON_TABLE_FLAG_MASK_INDEXED:
+	    andmask = RADEON_BIOS32(offset);
+	    offset += 4;
+	    ormask = RADEON_BIOS32(offset);
+	    offset += 4;
+	    ErrorF("MASK INDEXED: 0x%x 0x%x 0x%x\n",
+		   index, andmask, ormask);
+	    OUTREG(RADEON_MM_INDEX, index);
+	    val = INREG(RADEON_MM_DATA);
+	    val = (val & andmask) | ormask;
+	    OUTREG(RADEON_MM_DATA, val);
+	    break;
+
+	case RADEON_TABLE_FLAG_MASK_DIRECT:
+	    andmask = RADEON_BIOS32(offset);
+	    offset += 4;
+	    ormask = RADEON_BIOS32(offset);
+	    offset += 4;
+	    ErrorF("MASK DIRECT: 0x%x 0x%x 0x%x\n",
+		   index, andmask, ormask);
+	    val = INREG(index);
+	    val = (val & andmask) | ormask;
+	    OUTREG(index, val);
+	    break;
+
+	case RADEON_TABLE_FLAG_DELAY:
+	    count = RADEON_BIOS16(offset);
+	    ErrorF("delay: %d\n", count);
+	    usleep(count);
+	    offset += 2;
+	    break;
+
+	case RADEON_TABLE_FLAG_SCOMMAND:
+	    ErrorF("SCOMMAND 0x%x\n", command); 
+	    switch (command) {
+	    case RADEON_TABLE_SCOMMAND_WAIT_MC_BUSY_MASK:
+		count = RADEON_BIOS16(offset);
+		ErrorF("SCOMMAND_WAIT_MC_BUSY_MASK %d\n", count);
+		while (count--) {
+		    if (!(INPLL(pScrn, RADEON_CLK_PWRMGT_CNTL) &
+			  RADEON_MC_BUSY))
+			break;
+		}
+		break;
+
+	    case RADEON_TABLE_SCOMMAND_WAIT_MEM_PWRUP_COMPLETE:
+		count = RADEON_BIOS16(offset);
+		ErrorF("SCOMMAND_WAIT_MEM_PWRUP_COMPLETE %d\n", count);
+		while (count--) {
+		    /* XXX: may need indexed access */
+		    /* may need to take into account how many memory channels
+		     * each card has
+		     */
+		    if (IS_R300_VARIANT)
+			channel_complete_mask = R300_MEM_PWRUP_COMPLETE;
+		    else
+			channel_complete_mask = RADEON_MEM_PWRUP_COMPLETE;
+		    if ((INREG(RADEON_MEM_STR_CNTL) &
+			 channel_complete_mask) ==
+		        channel_complete_mask)
+			break;
+		}
+		break;
+
+	    }
+	    offset += 2;
+	    break;
+	}
+    }
+}
+
+static void
+RADEONRestoreBIOSMemBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD16 offset = table_offset;
+    CARD16 count;
+    CARD32 ormask, val, channel_complete_mask;
+    CARD8  index;
+
+    if (offset == 0)
+	return;
+
+    while ((index = RADEON_BIOS8(offset)) != 0xff) {
+	offset++;
+	if (index == 0x0f) {
+	    count = 20000;
+	    ErrorF("MEM_WAIT_MEM_PWRUP_COMPLETE %d\n", count);
+	    while (count--) {
+		/* XXX: may need indexed access */
+		/* may need to take into account how many memory channels
+		 * each card has
+		 */
+		if (IS_R300_VARIANT)
+		    channel_complete_mask = R300_MEM_PWRUP_COMPLETE;
+		else
+		    channel_complete_mask = RADEON_MEM_PWRUP_COMPLETE;
+		if ((INREG(RADEON_MEM_STR_CNTL) &
+		     channel_complete_mask) ==
+		    channel_complete_mask)
+		    break;
+	    }
+	} else {
+	    ormask = RADEON_BIOS16(offset);
+	    offset += 2;
+
+	    ErrorF("INDEX RADEON_MEM_SDRAM_MODE_REG %x %x\n",
+		   RADEON_SDRAM_MODE_MASK, ormask);
+
+	    /* can this use direct access? */
+	    OUTREG(RADEON_MM_INDEX, RADEON_MEM_SDRAM_MODE_REG);
+	    val = INREG(RADEON_MM_DATA);
+	    val = (val & RADEON_SDRAM_MODE_MASK) | ormask;
+	    OUTREG(RADEON_MM_DATA, val);
+
+	    ormask = (CARD32)index << 24;
+
+	    ErrorF("INDEX RADEON_MEM_SDRAM_MODE_REG %x %x\n",
+		   RADEON_B3MEM_RESET_MASK, ormask);
+
+            /* can this use direct access? */
+            OUTREG(RADEON_MM_INDEX, RADEON_MEM_SDRAM_MODE_REG);
+            val = INREG(RADEON_MM_DATA);
+            val = (val & RADEON_B3MEM_RESET_MASK) | ormask;
+            OUTREG(RADEON_MM_DATA, val);
+	}
+    }
+}
+
+static void
+RADEONRestoreBIOSPllBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD16 offset = table_offset;
+    CARD8  index, shift;
+    CARD32 andmask, ormask, val, clk_pwrmgt_cntl;
+    CARD16 count;
+
+    if (offset == 0)
+	return;
+
+    while ((index = BIOS8(offset)) != 0) {
+	offset++;
+
+	switch (index & RADEON_PLL_FLAG_MASK) {
+	case RADEON_PLL_FLAG_WAIT:
+	    switch (index & RADEON_PLL_INDEX_MASK) {
+	    case RADEON_PLL_WAIT_150MKS:
+		ErrorF("delay: 150 us\n");
+		usleep(150);
+		break;
+	    case RADEON_PLL_WAIT_5MS:
+		usleep(5000);
+		ErrorF("delay: 5 ms\n");
+		break;
+
+	    case RADEON_PLL_WAIT_MC_BUSY_MASK:
+		count = 1000;
+		ErrorF("PLL_WAIT_MC_BUSY_MASK %d\n", count);
+		while (count--) {
+		    if (!(INPLL(pScrn, RADEON_CLK_PWRMGT_CNTL) &
+			  RADEON_MC_BUSY))
+			break;
+		}
+		break;
+
+	    case RADEON_PLL_WAIT_DLL_READY_MASK:
+		count = 1000;
+		ErrorF("PLL_WAIT_DLL_READY_MASK %d\n", count);
+		while (count--) {
+		    if (INPLL(pScrn, RADEON_CLK_PWRMGT_CNTL) &
+			RADEON_DLL_READY)
+			break;
+		}
+		break;
+
+	    case RADEON_PLL_WAIT_CHK_SET_CLK_PWRMGT_CNTL24:
+		ErrorF("PLL_WAIT_CHK_SET_CLK_PWRMGT_CNTL24\n");
+		clk_pwrmgt_cntl = INPLL(pScrn, RADEON_CLK_PWRMGT_CNTL);
+		if (clk_pwrmgt_cntl & RADEON_CG_NO1_DEBUG_0) {
+		    val = INPLL(pScrn, RADEON_MCLK_CNTL);
+		    /* is this right? */
+		    val = (val & 0xFFFF0000) | 0x1111; /* seems like we should clear these... */
+		    OUTPLL(pScrn, RADEON_MCLK_CNTL, val);
+		    usleep(10000);
+		    OUTPLL(pScrn, RADEON_CLK_PWRMGT_CNTL,
+			   clk_pwrmgt_cntl & ~RADEON_CG_NO1_DEBUG_0);
+		    usleep(10000);
+		}
+		break;
+	    }
+	    break;
+	    
+	case RADEON_PLL_FLAG_MASK_BYTE:
+	    shift = BIOS8(offset) * 8;
+	    offset++;
+
+	    andmask =
+		(((CARD32)BIOS8(offset)) << shift) |
+		~((CARD32)0xff << shift);
+	    offset++;
+
+	    ormask = ((CARD32)BIOS8(offset)) << shift;
+	    offset++;
+
+	    ErrorF("PLL_MASK_BYTE 0x%x 0x%x 0x%x 0x%x\n", 
+		   index, shift, andmask, ormask);
+	    val = INPLL(pScrn, index);
+	    val = (val & andmask) | ormask;
+	    OUTPLL(pScrn, index, val);
+	    break;
+
+	case RADEON_PLL_FLAG_WRITE:
+	    val = RADEON_BIOS32(offset);
+	    ErrorF("PLL_WRITE 0x%x 0x%x\n", index, val);
+	    OUTPLL(pScrn, index, val);
+	    offset += 4;
+	    break;
+	}
+    }
+}
+
+Bool
+RADEONPostCardFromBIOSTables(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+
+    if (!info->VBIOS) {
+	return FALSE;
+    } else {
+	if (info->IsAtomBios) {
+	    return FALSE;
+	} else {
+	    if (info->BiosTable.rr1_offset) {
+		ErrorF("rr1 restore\n");
+		RADEONRestoreBIOSRegBlock(pScrn, info->BiosTable.rr1_offset);
+	    }
+	    if (info->BiosTable.revision < 0x09) {
+		if (info->BiosTable.pll_offset) {
+		    ErrorF("pll restore\n");
+		    RADEONRestoreBIOSPllBlock(pScrn, info->BiosTable.pll_offset);
+		}
+		if (info->BiosTable.rr2_offset) {
+		    ErrorF("rr2 restore\n");
+		    RADEONRestoreBIOSRegBlock(pScrn, info->BiosTable.rr2_offset);
+		}
+		if (info->BiosTable.rr4_offset) {
+		    ErrorF("rr4 restore\n");
+		    RADEONRestoreBIOSRegBlock(pScrn, info->BiosTable.rr4_offset);
+		}
+		if (info->BiosTable.mem_reset_offset) {
+		    ErrorF("mem reset restore\n");
+		    RADEONRestoreBIOSMemBlock(pScrn, info->BiosTable.mem_reset_offset);
+		}
+		if (info->BiosTable.rr3_offset) {
+		    ErrorF("rr3 restore\n");
+		    RADEONRestoreBIOSRegBlock(pScrn, info->BiosTable.rr3_offset);
+		}
+		if (info->BiosTable.dyn_clk_offset) {
+		    ErrorF("dyn_clk restore\n");
+		    RADEONRestoreBIOSPllBlock(pScrn, info->BiosTable.dyn_clk_offset);
+		}
+	    }
+	}
+    }
+    return TRUE;
+}

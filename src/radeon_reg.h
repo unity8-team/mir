@@ -231,7 +231,13 @@
 #       define RADEON_ACTIVE_HILO_LAT_MASK  (3 << 13)
 #       define RADEON_ACTIVE_HILO_LAT_SHIFT 13
 #       define RADEON_DISP_DYN_STOP_LAT_MASK (1 << 12)
+#       define RADEON_MC_BUSY               (1 << 16)
+#       define RADEON_DLL_READY             (1 << 19)
+#       define RADEON_CG_NO1_DEBUG_0        (1 << 24)
+#       define RADEON_CG_NO1_DEBUG_MASK     (0x1f << 24)
 #       define RADEON_DYN_STOP_MODE_MASK    (7 << 21)
+#       define RADEON_TVPLL_PWRMGT_OFF      (1 << 30)
+#       define RADEON_TVCLK_TURNOFF         (1 << 31)
 #define RADEON_PLL_PWRMGT_CNTL              0x0015
 #       define RADEON_TCL_BYPASS_DISABLE    (1 << 20)
 #define RADEON_CLR_CMP_CLR_3D               0x1a24
@@ -889,9 +895,6 @@
 #define RADEON_MAX_LATENCY                  0x0f3f /* PCI */
 #define RADEON_MC_AGP_LOCATION              0x014c
 #define RADEON_MC_FB_LOCATION               0x0148
-#define RADEON_MC_STATUS                    0x0150
-#       define RADEON_MC_IDLE               (1 << 2)
-#       define R300_MC_IDLE                 (1 << 4)
 #define RADEON_DISPLAY_BASE_ADDR            0x23c
 #define RADEON_DISPLAY2_BASE_ADDR           0x33c
 #define RADEON_OV0_BASE_ADDR                0x43c
@@ -907,8 +910,8 @@
 #       define R300_DISABLE_MC_MCLKA        (1 << 21)
 #       define R300_DISABLE_MC_MCLKB        (1 << 21)
 #define RADEON_MCLK_MISC                    0x001f /* PLL */
-#       define RADEON_MC_MCLK_MAX_DYN_STOP_LAT (1<<12)
-#       define RADEON_IO_MCLK_MAX_DYN_STOP_LAT (1<<13)
+#       define RADEON_MC_MCLK_MAX_DYN_STOP_LAT (1 << 12)
+#       define RADEON_IO_MCLK_MAX_DYN_STOP_LAT (1 << 13)
 #       define RADEON_MC_MCLK_DYN_ENABLE    (1 << 14)
 #       define RADEON_IO_MCLK_DYN_ENABLE    (1 << 15)
 #define RADEON_LCD_GPIO_MASK                0x01a0
@@ -921,15 +924,26 @@
 #define RADEON_MEM_BASE                     0x0f10 /* PCI */
 #define RADEON_MEM_CNTL                     0x0140
 #       define RADEON_MEM_NUM_CHANNELS_MASK 0x01
-#       define RADEON_MEM_USE_B_CH_ONLY     (1<<1)
-#       define RV100_HALF_MODE              (1<<3)
+#       define RADEON_MEM_USE_B_CH_ONLY     (1 <<  1)
+#       define RV100_HALF_MODE              (1 <<  3)
 #       define R300_MEM_NUM_CHANNELS_MASK   0x03
-#       define R300_MEM_USE_CD_CH_ONLY      (1<<2)
+#       define R300_MEM_USE_CD_CH_ONLY      (1 <<  2)
 #define RADEON_MEM_TIMING_CNTL              0x0144 /* EXT_MEM_CNTL */
 #define RADEON_MEM_INIT_LAT_TIMER           0x0154
 #define RADEON_MEM_INTF_CNTL                0x014c
 #define RADEON_MEM_SDRAM_MODE_REG           0x0158
+#       define RADEON_SDRAM_MODE_MASK       0xffff0000
+#       define RADEON_B3MEM_RESET_MASK      0x6fffffff
 #define RADEON_MEM_STR_CNTL                 0x0150
+#       define RADEON_MEM_PWRUP_COMPL_A     (1 <<  0)
+#       define RADEON_MEM_PWRUP_COMPL_B     (1 <<  1)
+#       define R300_MEM_PWRUP_COMPL_C       (1 <<  2)
+#       define R300_MEM_PWRUP_COMPL_D       (1 <<  3)
+#       define RADEON_MEM_PWRUP_COMPLETE    0x03
+#       define R300_MEM_PWRUP_COMPLETE      0x0f
+#define RADEON_MC_STATUS                    0x0150
+#       define RADEON_MC_IDLE               (1 << 2)
+#       define R300_MC_IDLE                 (1 << 4)
 #define RADEON_MEM_VGA_RP_SEL               0x003c
 #define RADEON_MEM_VGA_WP_SEL               0x0038
 #define RADEON_MIN_GRANT                    0x0f3e /* PCI */
