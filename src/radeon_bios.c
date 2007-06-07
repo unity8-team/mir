@@ -712,7 +712,7 @@ RADEONGetBIOSInitTableOffsets(ScrnInfoPtr pScrn)
 		    RADEONValidateBIOSOffset(pScrn, info->BiosTable.mem_config_offset);
 	    }
 	    if (info->BiosTable.mem_config_offset) {
-		info->BiosTable.mem_reset_offset = RADEON_BIOS16(info->BiosTable.mem_config_offset);
+		info->BiosTable.mem_reset_offset = info->BiosTable.mem_config_offset;
 		if (info->BiosTable.mem_reset_offset) {
 		    while (RADEON_BIOS8(info->BiosTable.mem_reset_offset))
 			info->BiosTable.mem_reset_offset++;
@@ -721,14 +721,14 @@ RADEONGetBIOSInitTableOffsets(ScrnInfoPtr pScrn)
 		}
 	    }
 	    if (info->BiosTable.mem_config_offset) {
-		info->BiosTable.short_mem_offset = RADEON_BIOS16(info->BiosTable.mem_config_offset);
+		info->BiosTable.short_mem_offset = info->BiosTable.mem_config_offset;
 		if ((info->BiosTable.short_mem_offset != 0) &&
 		    (RADEON_BIOS8(info->BiosTable.short_mem_offset - 2) <= 64))
 		    info->BiosTable.short_mem_offset +=
 			RADEON_BIOS8(info->BiosTable.short_mem_offset - 3);
 	    }
 	    if (info->BiosTable.rr2_offset) {
-		info->BiosTable.rr3_offset = RADEON_BIOS16(info->BiosTable.rr2_offset);
+		info->BiosTable.rr3_offset = info->BiosTable.rr2_offset;
 		if (info->BiosTable.rr3_offset) {
 		    while ((val = RADEON_BIOS8(info->BiosTable.rr3_offset + 1)) != 0) {
 			if (val & 0x40)
@@ -743,7 +743,7 @@ RADEONGetBIOSInitTableOffsets(ScrnInfoPtr pScrn)
 	    }
 
 	    if (info->BiosTable.rr3_offset) {
-		info->BiosTable.rr4_offset = RADEON_BIOS16(info->BiosTable.rr3_offset);
+		info->BiosTable.rr4_offset = info->BiosTable.rr3_offset;
 		if (info->BiosTable.rr4_offset) {
 		    while ((val = RADEON_BIOS8(info->BiosTable.rr4_offset + 1)) != 0) {
 			if (val & 0x40)
@@ -853,15 +853,15 @@ RADEONRestoreBIOSRegBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 	    case RADEON_TABLE_SCOMMAND_WAIT_MEM_PWRUP_COMPLETE:
 		count = RADEON_BIOS16(offset);
 		ErrorF("SCOMMAND_WAIT_MEM_PWRUP_COMPLETE %d\n", count);
+		/* may need to take into account how many memory channels
+		 * each card has
+		 */
+		if (IS_R300_VARIANT)
+		    channel_complete_mask = R300_MEM_PWRUP_COMPLETE;
+		else
+		    channel_complete_mask = RADEON_MEM_PWRUP_COMPLETE;
 		while (count--) {
 		    /* XXX: may need indexed access */
-		    /* may need to take into account how many memory channels
-		     * each card has
-		     */
-		    if (IS_R300_VARIANT)
-			channel_complete_mask = R300_MEM_PWRUP_COMPLETE;
-		    else
-			channel_complete_mask = RADEON_MEM_PWRUP_COMPLETE;
 		    if ((INREG(RADEON_MEM_STR_CNTL) &
 			 channel_complete_mask) ==
 		        channel_complete_mask)
@@ -894,15 +894,15 @@ RADEONRestoreBIOSMemBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 	if (index == 0x0f) {
 	    count = 20000;
 	    ErrorF("MEM_WAIT_MEM_PWRUP_COMPLETE %d\n", count);
+	    /* may need to take into account how many memory channels
+	     * each card has
+	     */
+	    if (IS_R300_VARIANT)
+		channel_complete_mask = R300_MEM_PWRUP_COMPLETE;
+	    else
+		channel_complete_mask = RADEON_MEM_PWRUP_COMPLETE;
 	    while (count--) {
 		/* XXX: may need indexed access */
-		/* may need to take into account how many memory channels
-		 * each card has
-		 */
-		if (IS_R300_VARIANT)
-		    channel_complete_mask = R300_MEM_PWRUP_COMPLETE;
-		else
-		    channel_complete_mask = RADEON_MEM_PWRUP_COMPLETE;
 		if ((INREG(RADEON_MEM_STR_CNTL) &
 		     channel_complete_mask) ==
 		    channel_complete_mask)
@@ -948,7 +948,7 @@ RADEONRestoreBIOSPllBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
     if (offset == 0)
 	return;
 
-    while ((index = BIOS8(offset)) != 0) {
+    while ((index = RADEON_BIOS8(offset)) != 0) {
 	offset++;
 
 	switch (index & RADEON_PLL_FLAG_MASK) {
@@ -959,8 +959,8 @@ RADEONRestoreBIOSPllBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 		usleep(150);
 		break;
 	    case RADEON_PLL_WAIT_5MS:
-		usleep(5000);
 		ErrorF("delay: 5 ms\n");
+		usleep(5000);
 		break;
 
 	    case RADEON_PLL_WAIT_MC_BUSY_MASK:
@@ -1001,15 +1001,15 @@ RADEONRestoreBIOSPllBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 	    break;
 	    
 	case RADEON_PLL_FLAG_MASK_BYTE:
-	    shift = BIOS8(offset) * 8;
+	    shift = RADEON_BIOS8(offset) * 8;
 	    offset++;
 
 	    andmask =
-		(((CARD32)BIOS8(offset)) << shift) |
+		(((CARD32)RADEON_BIOS8(offset)) << shift) |
 		~((CARD32)0xff << shift);
 	    offset++;
 
-	    ormask = ((CARD32)BIOS8(offset)) << shift;
+	    ormask = ((CARD32)RADEON_BIOS8(offset)) << shift;
 	    offset++;
 
 	    ErrorF("PLL_MASK_BYTE 0x%x 0x%x 0x%x 0x%x\n", 
@@ -1041,32 +1041,32 @@ RADEONPostCardFromBIOSTables(ScrnInfoPtr pScrn)
 	    return FALSE;
 	} else {
 	    if (info->BiosTable.rr1_offset) {
-		ErrorF("rr1 restore\n");
+		ErrorF("rr1 restore, 0x%x\n", info->BiosTable.rr1_offset);
 		RADEONRestoreBIOSRegBlock(pScrn, info->BiosTable.rr1_offset);
 	    }
 	    if (info->BiosTable.revision < 0x09) {
 		if (info->BiosTable.pll_offset) {
-		    ErrorF("pll restore\n");
+		    ErrorF("pll restore, 0x%x\n", info->BiosTable.pll_offset);
 		    RADEONRestoreBIOSPllBlock(pScrn, info->BiosTable.pll_offset);
 		}
 		if (info->BiosTable.rr2_offset) {
-		    ErrorF("rr2 restore\n");
+		    ErrorF("rr2 restore, 0x%x\n", info->BiosTable.rr2_offset);
 		    RADEONRestoreBIOSRegBlock(pScrn, info->BiosTable.rr2_offset);
 		}
 		if (info->BiosTable.rr4_offset) {
-		    ErrorF("rr4 restore\n");
+		    ErrorF("rr4 restore, 0x%x\n", info->BiosTable.rr4_offset);
 		    RADEONRestoreBIOSRegBlock(pScrn, info->BiosTable.rr4_offset);
 		}
 		if (info->BiosTable.mem_reset_offset) {
-		    ErrorF("mem reset restore\n");
+		    ErrorF("mem reset restore, 0x%x\n", info->BiosTable.mem_reset_offset);
 		    RADEONRestoreBIOSMemBlock(pScrn, info->BiosTable.mem_reset_offset);
 		}
 		if (info->BiosTable.rr3_offset) {
-		    ErrorF("rr3 restore\n");
+		    ErrorF("rr3 restore, 0x%x\n", info->BiosTable.rr3_offset);
 		    RADEONRestoreBIOSRegBlock(pScrn, info->BiosTable.rr3_offset);
 		}
 		if (info->BiosTable.dyn_clk_offset) {
-		    ErrorF("dyn_clk restore\n");
+		    ErrorF("dyn_clk restore, 0x%x\n", info->BiosTable.dyn_clk_offset);
 		    RADEONRestoreBIOSPllBlock(pScrn, info->BiosTable.dyn_clk_offset);
 		}
 	    }

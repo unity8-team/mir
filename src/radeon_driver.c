@@ -2487,15 +2487,22 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
+static void RADEONPreInitBIOS(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
+{
+    RADEONGetBIOSInfo(pScrn, pInt10);
+#if 0
+    RADEONGetBIOSInitTableOffsets(pScrn);
+    RADEONPostCardFromBIOSTables(pScrn);
+#endif
+}
+
+static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn)
 {
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
     int i;
 
     if (!RADEONAllocateControllers(pScrn))
 	return FALSE;
-
-    RADEONGetBIOSInfo(pScrn, pInt10);
 
     RADEONGetClockInfo(pScrn);
 
@@ -2730,6 +2737,8 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     if (!RADEONPreInitChipType(pScrn))
 	goto fail;
 
+    RADEONPreInitBIOS(pScrn, pInt10);
+
 #ifdef XF86DRI
     /* PreInit DRI first of all since we need that for getting a proper
      * memory map
@@ -2746,7 +2755,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     RADEONPreInitDDC(pScrn);
 
-    if (!RADEONPreInitControllers(pScrn, pInt10))
+    if (!RADEONPreInitControllers(pScrn))
        goto fail;
 
 
