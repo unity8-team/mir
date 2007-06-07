@@ -181,8 +181,6 @@ EXTRA_DIST = \
 	radeon_sarea.h \
 	radeon_version.h \
 	radeon_video.h \
-	radeon_xf86Modes.h \
-	radeon_xf86Crtc.h \
 	theatre200.h \
 	theatre_detect.h \
 	theatre.h \
