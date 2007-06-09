@@ -1967,9 +1967,30 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DSPFW1			0x70034
 #define DSPFW2			0x70038
 #define DSPFW3			0x7003c
+/*
+ * The two pipe frame counter registers are not synchronized, so
+ * reading a stable value is somewhat tricky. The following code 
+ * should work:
+ *
+ *  do {
+ *    high1 = ((INREG(PIPEAFRAMEHIGH) & PIPE_FRAME_HIGH_MASK) >> PIPE_FRAME_HIGH_SHIFT;
+ *    low1 =  ((INREG(PIPEAFRAMEPIXEL) & PIPE_FRAME_LOW_MASK) >> PIPE_FRAME_LOW_SHIFT);
+ *    high2 = ((INREG(PIPEAFRAMEHIGH) & PIPE_FRAME_HIGH_MASK) >> PIPE_FRAME_HIGH_SHIFT);
+ *  } while (high1 != high2);
+ *  frame = (high1 << 8) | low1;
+ */
 #define PIPEAFRAMEHIGH		0x70040
+#define PIPE_FRAME_HIGH_MASK	0x0000ffff
+#define PIPE_FRAME_HIGH_SHIFT	0
 #define PIPEAFRAMEPIXEL		0x70044
-
+#define PIPE_FRAME_LOW_MASK	0xff000000
+#define PIPE_FRAME_LOW_SHIFT	24
+/*
+ * Pixel within the current frame is counted in the PIPEAFRAMEPIXEL register
+ * and is 24 bits wide.
+ */
+#define PIPE_PIXEL_MASK		0x00ffffff
+#define PIPE_PIXEL_SHIFT	0
 
 #define PIPEB_DSL		0x71000
 
