@@ -684,12 +684,14 @@ static void RADEONGetPanelInfoFromReg (ScrnInfoPtr pScrn)
 
     info->PanelPwrDly = 200;
     if (fp_vert_stretch & RADEON_VERT_STRETCH_ENABLE) {
-	info->PanelYRes = (fp_vert_stretch>>12) + 1;
+	info->PanelYRes = ((fp_vert_stretch & RADEON_VERT_PANEL_SIZE) >>
+			   RADEON_VERT_PANEL_SHIFT) + 1;
     } else {
 	info->PanelYRes = (INREG(RADEON_CRTC_V_TOTAL_DISP)>>16) + 1;
     }
     if (fp_horz_stretch & RADEON_HORZ_STRETCH_ENABLE) {
-	info->PanelXRes = ((fp_horz_stretch>>16) + 1) * 8;
+	info->PanelXRes = (((fp_horz_stretch & RADEON_HORZ_PANEL_SIZE) >>
+			    RADEON_HORZ_PANEL_SHIFT) + 1) * 8;
     } else {
 	info->PanelXRes = ((INREG(RADEON_CRTC_H_TOTAL_DISP)>>16) + 1) * 8;
     }
