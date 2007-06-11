@@ -6430,7 +6430,7 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 
     if (crtc1 && (crtc_mask & 1)) {
     	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		       "%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
+		       "%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)%s%s%s%s%s%s%s\n",
 		       crtc1->name,
 		       crtc1->Clock/1000.0,
 
@@ -6444,19 +6444,18 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 		       crtc1->VSyncEnd,
 		       crtc1->VTotal,
 		       pScrn->depth,
-		       pScrn->bitsPerPixel);
-    	if (crtc1->Flags & V_DBLSCAN)   ErrorF(" D");
-    	if (crtc1->Flags & V_CSYNC)     ErrorF(" C");
-    	if (crtc1->Flags & V_INTERLACE) ErrorF(" I");
-    	if (crtc1->Flags & V_PHSYNC)    ErrorF(" +H");
-    	if (crtc1->Flags & V_NHSYNC)    ErrorF(" -H");
-    	if (crtc1->Flags & V_PVSYNC)    ErrorF(" +V");
-    	if (crtc1->Flags & V_NVSYNC)    ErrorF(" -V");
-    	ErrorF("\n");
+		       pScrn->bitsPerPixel,
+		       (crtc1->Flags & V_DBLSCAN) ? " D" : "",
+		       (crtc1->Flags & V_CSYNC) ? " C" : "",
+		       (crtc1->Flags & V_INTERLACE) ? " I" : "",
+		       (crtc1->Flags & V_PHSYNC) ? " +H" : "",
+		       (crtc1->Flags & V_NHSYNC) ? " -H" : "",
+		       (crtc1->Flags & V_PVSYNC) ? " +V" : "",
+		       (crtc1->Flags & V_NVSYNC) ? " -V" : "");
     }
     if (crtc2 && (crtc_mask & 2)) {
         xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		       "%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)",
+		       "%-12.12s %7.2f  %4d %4d %4d %4d  %4d %4d %4d %4d (%d,%d)%s%s%s%s%s%s%s\n",
 		       crtc2->name,
 		       crtc2->Clock/1000.0,
 
@@ -6470,15 +6469,14 @@ static Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 		       crtc2->CrtcVSyncEnd,
 		       crtc2->CrtcVTotal,
 		       pScrn->depth,
-		       pScrn->bitsPerPixel);
-        if (crtc2->Flags & V_DBLSCAN)   ErrorF(" D");
-        if (crtc2->Flags & V_CSYNC)     ErrorF(" C");
-        if (crtc2->Flags & V_INTERLACE) ErrorF(" I");
-        if (crtc2->Flags & V_PHSYNC)    ErrorF(" +H");
-        if (crtc2->Flags & V_NHSYNC)    ErrorF(" -H");
-        if (crtc2->Flags & V_PVSYNC)    ErrorF(" +V");
-        if (crtc2->Flags & V_NVSYNC)    ErrorF(" -V");
-    	ErrorF("\n");
+		       pScrn->bitsPerPixel,
+		       (crtc2->Flags & V_DBLSCAN) ? " D" : "",
+		       (crtc2->Flags & V_CSYNC) ? " C" : "",
+		       (crtc2->Flags & V_INTERLACE) ? " I" : "",
+		       (crtc2->Flags & V_PHSYNC) ? " +H" : "",
+		       (crtc2->Flags & V_NHSYNC) ? " -H" : "",
+		       (crtc2->Flags & V_PVSYNC) ? " +V" : "",
+		       (crtc2->Flags & V_NVSYNC) ? " -V" : "");
     }
 
     if (crtc1 && (crtc_mask & 1))
