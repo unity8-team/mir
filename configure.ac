@@ -76,7 +76,7 @@ sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 AC_HEADER_STDC
 
 # Use -Wall all the time
-CFLAGS=-Wall
+CFLAGS="$CFLAGS -Wall"
 AC_SUBST([CFLAGS])
 
 AC_SUBST([XORG_CFLAGS])
