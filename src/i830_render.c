@@ -400,7 +400,8 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 dst_format, dst_offset, dst_pitch;
 
-    i830_enter_render(pScrn);
+    IntelEmitInvarientState(pScrn);
+    *pI830->last_3d = LAST_3D_RENDER;
 
     i830_get_dest_format(pDstPicture, &dst_format);
     dst_offset = intel_get_pixmap_offset(pDst);

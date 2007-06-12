@@ -307,7 +307,6 @@ typedef struct _I830Rec {
    Rotation rotation;
    void (*PointerMoved)(int, int, int);
    CreateScreenResourcesProcPtr    CreateScreenResources;
-   int *used3D;
 
    i830_memory *logical_context;
 
@@ -527,7 +526,7 @@ typedef struct _I830Rec {
    CARD32 saveSWF[17];
    CARD32 saveBLC_PWM_CTL;
 
-   enum last_3d last_3d;
+   enum last_3d *last_3d;
 
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;

@@ -404,7 +404,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     CARD32 dst_format, dst_offset, dst_pitch;
     Bool rotation_program = FALSE;
 
-    i830_enter_render(pScrn);
+    IntelEmitInvarientState(pScrn);
+    *pI830->last_3d = LAST_3D_RENDER;
 
     src_offset = intel_get_pixmap_offset(pSrc);
     src_pitch = intel_get_pixmap_pitch(pSrc);
