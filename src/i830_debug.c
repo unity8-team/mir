@@ -666,7 +666,8 @@ i830_dump_ring(ScrnInfoPtr pScrn)
     virt = pI830->LpRing->virtual_start;
     ErrorF ("Ring at virtual 0x%x head 0x%x tail 0x%x count %d\n",
 	    (unsigned int) virt, head, tail, (((tail + mask + 1) - head) & mask) >> 2);
-    for (ring = (head - 128) & mask; ring != tail; ring = (ring + 4) & mask)
+    for (ring = (head - 128) & mask; ring != ((head + 4) & mask);
+	 ring = (ring + 4) & mask)
     {
 	ErrorF ("\t%08x: %08x\n", ring, *(volatile unsigned int *) (virt + ring));
     }
