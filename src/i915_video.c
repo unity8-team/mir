@@ -83,7 +83,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    pI830->last_3d = LAST_3D_VIDEO;
 
-   BEGIN_LP_RING(24);
+   BEGIN_LP_RING(20);
 
    /* flush map & render cache */
    OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
@@ -94,15 +94,10 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_RING(DRAW_DITHER_OFS_X(pPixmap->drawable.x & 3) |
 	    DRAW_DITHER_OFS_Y(pPixmap->drawable.y & 3));
    OUT_RING(0x00000000);	/* ymin, xmin */
-   OUT_RING((pScrn->virtualX - 1) |
-	    (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+   OUT_RING((pPixmap->drawable.width - 1) |
+	    (pPixmap->drawable.height - 1) << 16); /* ymax, xmax */
    OUT_RING(0x00000000);	/* yorigin, xorigin */
    OUT_RING(MI_NOOP);
-
-   OUT_RING(0x7c000003);	/* unknown command */
-   OUT_RING(0x7d070000);
-   OUT_RING(0x00000000);
-   OUT_RING(0x68000002);
 
    OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
 	    I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
