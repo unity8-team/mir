@@ -189,14 +189,6 @@ if test "$DRI" = yes; then
 	if test "$have_damage_h" = yes; then
 		AC_DEFINE(DAMAGE,1,[Use Damage extension])
 	fi
-
-	save_CFLAGS="$CFLAGS"
-	CFLAGS="$DRI_CFLAGS"
-	AC_CHECK_TYPE(drm_i915_flip_t,
-		      [AC_DEFINE(HAVE_I915_FLIP, 1,
-			         [Have drm_i915_flip_t and related definitions])],
-		      [], [#include <i915_drm.h>])
-	CFLAGS="$save_CFLAGS"
 fi
 
 AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)
