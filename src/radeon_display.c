@@ -406,11 +406,11 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL, 0, ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
 	    }
             tmp = INREG(RADEON_LVDS_GEN_CNTL);
-            tmp |= (RADEON_LVDS_ON | RADEON_LVDS_DISPLAY_DIS);
-            tmp &= ~(RADEON_LVDS_BLON);
+            tmp |= RADEON_LVDS_DISPLAY_DIS;
+            tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
             OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
-            save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_DISPLAY_DIS);
-            save->lvds_gen_cntl &= ~(RADEON_LVDS_BLON);
+            save->lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
+            save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
 	    if (info->IsMobility || info->IsIGP) {
 		OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
 	    }
