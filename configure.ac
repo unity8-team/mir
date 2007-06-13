@@ -191,11 +191,14 @@ if test "$DRI" = yes; then
 	fi
 
 	save_CFLAGS="$CFLAGS"
-	CFLAGS="$DRI_CFLAGS"
+	CFLAGS="$XORG_CFLAGS $DRI_CFLAGS"
 	AC_CHECK_TYPE(drm_i915_flip_t,
 		      [AC_DEFINE(HAVE_I915_FLIP, 1,
 			         [Have drm_i915_flip_t and related definitions])],
-		      [], [#include <i915_drm.h>])
+		      [], [
+#include <inttypes.h>
+#include <i915_drm.h>
+])
 	CFLAGS="$save_CFLAGS"
 fi
 
