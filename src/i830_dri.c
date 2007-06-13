@@ -83,8 +83,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "i915_drm.h"
 
-/* This block can be removed when libdrm >= 2.3.1 is required. */
-#ifndef DRM_IOCTL_I915_FLIP
+/* This block and the corresponding configure test can be removed when
+ * libdrm >= 2.3.1 is required.
+ */
+#ifndef HAVE_I915_FLIP
 
 #define DRM_VBLANK_FLIP 0x8000000
 
