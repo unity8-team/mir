@@ -2347,9 +2347,8 @@ I830PutImage(ScrnInfoPtr pScrn,
     case FOURCC_I420:
 	srcPitch = (width + 3) & ~3;
 	srcPitch2 = ((width >> 1) + 3) & ~3;
-	if (pPriv->textured) {
+	if (pPriv->textured && IS_I965G(pI830))
 	    destId = FOURCC_YUY2;
-	}
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
@@ -2450,7 +2449,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     case FOURCC_I420:
 	top &= ~1;
 	nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
-	if (pPriv->textured) {
+	if (pPriv->textured && IS_I965G(pI830)) {
 	    I830CopyPlanarToPackedData(pScrn, pPriv, buf, srcPitch, srcPitch2,
 				       dstPitch, height, top, left, nlines,
 				       npixels, id);

@@ -48,7 +48,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 PixmapPtr pPixmap)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 format, ms3, s2, s5;
+   CARD32 format, ms3, s5;
    BoxPtr pbox;
    int nbox, dxo, dyo, pix_xoff, pix_yoff;
    Bool planar;
@@ -68,11 +68,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       planar = TRUE;
       break;
    default:
-#if 0
       ErrorF("Unknown format 0x%x\n", id);
-#endif
-      planar = FALSE;
-      break;
+      return;
    }
 
    IntelEmitInvarientState(pScrn);
@@ -96,18 +93,14 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
    OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
 	    I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
-   s2 = S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D);
-   if (planar)
-      s2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_2D);
-   else
-      s2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT);
-   s2 |= S2_TEXCOORD_FMT(2, TEXCOORDFMT_NOT_PRESENT) |
-      S2_TEXCOORD_FMT(3, TEXCOORDFMT_NOT_PRESENT) |
-      S2_TEXCOORD_FMT(4, TEXCOORDFMT_NOT_PRESENT) |
-      S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
-      S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
-      S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT);
-   OUT_RING(s2);
+   OUT_RING(S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D) |
+	    S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT) |
+	    S2_TEXCOORD_FMT(2, TEXCOORDFMT_NOT_PRESENT) |
+	    S2_TEXCOORD_FMT(3, TEXCOORDFMT_NOT_PRESENT) |
+	    S2_TEXCOORD_FMT(4, TEXCOORDFMT_NOT_PRESENT) |
+	    S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
+	    S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
+	    S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT));
    OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
 	    S4_CULLMODE_NONE | S4_VFMT_XY);
    s5 = 0x0;
@@ -148,7 +141,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	       (FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
 	       (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
       OUT_RING((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
-	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT));
+	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT) |
+	       (0 << SS3_TEXTUREMAP_INDEX_SHIFT) |
+	       SS3_NORMALIZED_COORDS);
       OUT_RING(0x00000000);
 
       OUT_RING(_3DSTATE_MAP_STATE | 3);
@@ -168,7 +163,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       if (!pI830->disableTiling)
 	 ms3 |= MS3_USE_FENCE_REGS;
       OUT_RING(ms3);
-      OUT_RING(((video_pitch / 4) - 1) << 21);
+      OUT_RING(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
       ADVANCE_LP_RING();
 
       FS_BEGIN();
@@ -179,8 +174,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    } else {
       FS_LOCALS(16);
 
-      BEGIN_LP_RING(1 + 18 + 11 + 11);
-      OUT_RING(MI_NOOP);
+      BEGIN_LP_RING(18 + 11 + 11);
       /* For the planar formats, we set up three samplers -- one for each plane,
        * in a Y8 format.  Because I couldn't get the special PLANAR_TO_PACKED
        * shader setup to work, I did the manual pixel shader:
@@ -226,23 +220,29 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_RING(_3DSTATE_SAMPLER_STATE | 9);
       OUT_RING(0x00000007);
       /* sampler 0 */
-      OUT_RING(0x00000000);
       OUT_RING((FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
 	       (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
       OUT_RING((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
-	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT));
+	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT) |
+	       (0 << SS3_TEXTUREMAP_INDEX_SHIFT) |
+	       SS3_NORMALIZED_COORDS);
+      OUT_RING(0x00000000);
       /* sampler 1 */
-      OUT_RING(0x00000000);
       OUT_RING((FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
 	       (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
       OUT_RING((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
-	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT));
+	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT) |
+	       (1 << SS3_TEXTUREMAP_INDEX_SHIFT) |
+	       SS3_NORMALIZED_COORDS);
+      OUT_RING(0x00000000);
       /* sampler 2 */
-      OUT_RING(0x00000000);
       OUT_RING((FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
 	       (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
       OUT_RING((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
-	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT));
+	       (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT) |
+	       (2 << SS3_TEXTUREMAP_INDEX_SHIFT) |
+	       SS3_NORMALIZED_COORDS);
+      OUT_RING(0x00000000);
 
       OUT_RING(_3DSTATE_MAP_STATE | 9);
       OUT_RING(0x00000007);
@@ -251,36 +251,39 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       ms3 = MAPSURF_8BIT | MT_8BIT_I8;
       ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
       ms3 |= (width - 1) << MS3_WIDTH_SHIFT;
+      if (!pI830->disableTiling)
+	 ms3 |= MS3_USE_FENCE_REGS;
       OUT_RING(ms3);
-      OUT_RING(((video_pitch * 2 / 4) - 1) << 21);
+      OUT_RING(((video_pitch * 2 / 4) - 1) << MS4_PITCH_SHIFT);
 
       OUT_RING(pPriv->UBuf0offset);
       ms3 = MAPSURF_8BIT | MT_8BIT_I8;
       ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
       ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
+      if (!pI830->disableTiling)
+	 ms3 |= MS3_USE_FENCE_REGS;
       OUT_RING(ms3);
-      OUT_RING(((video_pitch / 4) - 1) << 21);
+      OUT_RING(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
 
       OUT_RING(pPriv->VBuf0offset);
       ms3 = MAPSURF_8BIT | MT_8BIT_I8;
       ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
       ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
+      if (!pI830->disableTiling)
+	 ms3 |= MS3_USE_FENCE_REGS;
       OUT_RING(ms3);
-      OUT_RING(((video_pitch / 4) - 1) << 21);
+      OUT_RING(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
       ADVANCE_LP_RING();
 
       FS_BEGIN();
       /* Declare samplers */
-      i915_fs_dcl(FS_S0);
-      i915_fs_dcl(FS_S1);
-      i915_fs_dcl(FS_S2);
-      i915_fs_dcl(FS_T0);
-      i915_fs_dcl(FS_T1);
+      i915_fs_dcl(FS_S0); /* Y */
+      i915_fs_dcl(FS_S1); /* U */
+      i915_fs_dcl(FS_S2); /* V */
+      i915_fs_dcl(FS_T0); /* normalized coords */
 
-      /* Load samplers to temporaries.  Y (sampler 0) gets the un-halved coords-
-       * from t1.
-       */
-      i915_fs_texld(FS_R1, FS_S0, FS_T1);
+      /* Load samplers to temporaries. */
+      i915_fs_texld(FS_R1, FS_S0, FS_T0);
       i915_fs_texld(FS_R2, FS_S1, FS_T0);
       i915_fs_texld(FS_R3, FS_S2, FS_T0);
 
@@ -293,16 +296,17 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       i915_fs_add(FS_R0, i915_fs_operand_reg(FS_R0),
                  i915_fs_operand_reg(FS_C0));
       /* dot-product the YUV data in R0 by the vectors of coefficients for
-       * calculating R, G, and B, storing the results in the R, G, or B channels
-       * of the output color.
+       * calculating R, G, and B, storing the results in the R, G, or B
+       * channels of the output color.  The OC results are implicitly clamped
+       * at the end of the program.
        */
-      i915_fs_dp3_masked(FS_OC, MASK_X | MASK_SATURATE,
+      i915_fs_dp3_masked(FS_OC, MASK_X,
                         i915_fs_operand_reg(FS_R0),
                         i915_fs_operand_reg(FS_C1));
-      i915_fs_dp3_masked(FS_OC, MASK_Y | MASK_SATURATE,
+      i915_fs_dp3_masked(FS_OC, MASK_Y,
                         i915_fs_operand_reg(FS_R0),
                         i915_fs_operand_reg(FS_C2));
-      i915_fs_dp3_masked(FS_OC, MASK_Z | MASK_SATURATE,
+      i915_fs_dp3_masked(FS_OC, MASK_Z,
                         i915_fs_operand_reg(FS_R0),
                         i915_fs_operand_reg(FS_C3));
       /* Set alpha of the output to 1.0, by wiring W to 1 and not actually using
@@ -342,19 +346,13 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       int box_x2 = pbox->x2;
       int box_y2 = pbox->y2;
       float src_scale_x, src_scale_y;
-      int vert_data_count;
 
       pbox++;
 
-      src_scale_x = (float)src_w / (float)drw_w;
-      src_scale_y  = (float)src_h / (float)drw_h;
+      src_scale_x = ((float)src_w / width) / drw_w;
+      src_scale_y  = ((float)src_h / height) / drw_h;
 
-      if (!planar)
-	 vert_data_count = 12;
-      else
-	 vert_data_count = 18;
-
-      BEGIN_LP_RING(vert_data_count + 8);
+      BEGIN_LP_RING(8 + 12);
       OUT_RING(MI_NOOP);
       OUT_RING(MI_NOOP);
       OUT_RING(MI_NOOP);
@@ -366,47 +364,25 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       /* vertex data - rect list consists of bottom right, bottom left, and top
        * left vertices.
        */
-      OUT_RING(PRIM3D_INLINE | PRIM3D_RECTLIST |
-	       (vert_data_count - 1));
+      OUT_RING(PRIM3D_INLINE | PRIM3D_RECTLIST | (12 - 1));
 
       /* bottom right */
       OUT_RING_F(box_x2 + pix_xoff);
       OUT_RING_F(box_y2 + pix_yoff);
-      if (!planar) {
-	 OUT_RING_F((box_x2 - dxo) * src_scale_x);
-	 OUT_RING_F((box_y2 - dyo) * src_scale_y);
-      } else {
-	 OUT_RING_F((box_x2 - dxo) * src_scale_x / 2.0);
-	 OUT_RING_F((box_y2 - dyo) * src_scale_y / 2.0);
-	 OUT_RING_F((box_x2 - dxo) * src_scale_x);
-	 OUT_RING_F((box_y2 - dyo) * src_scale_y);
-      }
+      OUT_RING_F((box_x2 - dxo) * src_scale_x);
+      OUT_RING_F((box_y2 - dyo) * src_scale_y);
 
       /* bottom left */
       OUT_RING_F(box_x1 + pix_xoff);
       OUT_RING_F(box_y2 + pix_yoff);
-      if (!planar) {
-	 OUT_RING_F((box_x1 - dxo) * src_scale_x);
-	 OUT_RING_F((box_y2 - dyo) * src_scale_y);
-      } else {
-	 OUT_RING_F((box_x1 - dxo) * src_scale_x / 2.0);
-	 OUT_RING_F((box_y2 - dyo) * src_scale_y / 2.0);
-	 OUT_RING_F((box_x1 - dxo) * src_scale_x);
-	 OUT_RING_F((box_y2 - dyo) * src_scale_y);
-      }
+      OUT_RING_F((box_x1 - dxo) * src_scale_x);
+      OUT_RING_F((box_y2 - dyo) * src_scale_y);
 
       /* top left */
       OUT_RING_F(box_x1 + pix_xoff);
       OUT_RING_F(box_y1 + pix_yoff);
-      if (!planar) {
-	 OUT_RING_F((box_x1 - dxo) * src_scale_x);
-	 OUT_RING_F((box_y1 - dyo) * src_scale_y);
-      } else {
-	 OUT_RING_F((box_x1 - dxo) * src_scale_x / 2.0);
-	 OUT_RING_F((box_y1 - dyo) * src_scale_y / 2.0);
-	 OUT_RING_F((box_x1 - dxo) * src_scale_x);
-	 OUT_RING_F((box_y1 - dyo) * src_scale_y);
-      }
+      OUT_RING_F((box_x1 - dxo) * src_scale_x);
+      OUT_RING_F((box_y1 - dyo) * src_scale_y);
 
       ADVANCE_LP_RING();
    }
