@@ -4821,8 +4821,8 @@ static void RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->bios_5_scratch       = INREG(RADEON_BIOS_5_SCRATCH);
     save->bios_6_scratch       = INREG(RADEON_BIOS_6_SCRATCH);
 
-    save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_DISPLAY_DIS);
-    save->lvds_gen_cntl &= ~(RADEON_LVDS_BLON);
+    save->lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
+    save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
 
     if (info->ChipFamily == CHIP_FAMILY_RV280) {
 	/* bit 22 of TMDS_PLL_CNTL is read-back inverted */
