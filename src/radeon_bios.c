@@ -415,6 +415,9 @@ Bool RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output)
 	    radeon_output->VSyncWidth = RADEON_BIOS16(tmp+20);
 	    radeon_output->PanelPwrDly = RADEON_BIOS16(tmp+40);
 
+	    if (radeon_output->PanelPwrDly > 2000 || radeon_output->PanelPwrDly < 0)
+		radeon_output->PanelPwrDly = 2000;
+
 	    radeon_output->Flags = 0;
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
 		       "LVDS Info:\n"
