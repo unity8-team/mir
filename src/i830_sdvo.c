@@ -1280,6 +1280,18 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="TMDS";
     }
+    else if (dev_priv->caps.output_flags & SDVO_OUTPUT_RGB0)
+    {
+	dev_priv->active_outputs = SDVO_OUTPUT_RGB0;
+        output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="VGA";
+    }
+    else if (dev_priv->caps.output_flags & SDVO_OUTPUT_RGB1)
+    {
+	dev_priv->active_outputs = SDVO_OUTPUT_RGB1;
+        output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="VGA";
+    }
     else
     {
 	unsigned char	bytes[2];
@@ -1318,6 +1330,6 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	       dev_priv->pixel_clock_max / 1000.0,
 	       (dev_priv->caps.sdvo_inputs_mask & 0x1) ? 'Y' : 'N',
 	       (dev_priv->caps.sdvo_inputs_mask & 0x2) ? 'Y' : 'N',
-	       dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS0 ? 'Y' : 'N',
-	       dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS1 ? 'Y' : 'N');
+	       dev_priv->caps.output_flags & (SDVO_OUTPUT_RGB0 | SDVO_OUTPUT_TMDS0) ? 'Y' : 'N',
+	       dev_priv->caps.output_flags & (SDVO_OUTPUT_RGB1 | SDVO_OUTPUT_TMDS1) ? 'Y' : 'N');
 }
