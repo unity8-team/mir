@@ -7349,6 +7349,7 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 	         currentm = newm;
 	         tempm = tempm->next;
 	  }
+	  info->CRT2pScrn->monitor->Last = currentm;
 
 	  /* xf86SetDDCproperties(info->CRT2pScrn, pRADEONEnt->MonInfo2); */
 
