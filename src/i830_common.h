@@ -31,6 +31,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _I830_COMMON_H_
 #define _I830_COMMON_H_
 
+#include <stdint.h>
 
 #define I830_NR_TEX_REGIONS 255	/* maximum due to use of chars for next/prev */
 #define I830_LOG_MIN_TEX_REGION_SIZE 14
