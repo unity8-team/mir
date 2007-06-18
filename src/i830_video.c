@@ -569,7 +569,9 @@ I830InitVideo(ScreenPtr pScreen)
     /* Set up textured video if we can do it at this depth and we are on
      * supported hardware.
      */
-    if (pScrn->bitsPerPixel >= 16 && (IS_I9XX(pI830) || IS_I965G(pI830))) {
+    if (pScrn->bitsPerPixel >= 16 && (IS_I9XX(pI830) || IS_I965G(pI830)) &&
+	!(!IS_I965G(pI830) && pScrn->displayWidth > 2048))
+    {
 	texturedAdaptor = I830SetupImageVideoTextured(pScreen);
 	if (texturedAdaptor != NULL) {
 	    adaptors[num_adaptors++] = texturedAdaptor;
