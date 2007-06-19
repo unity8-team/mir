@@ -1561,19 +1561,21 @@ void RADEONDisableDisplays(ScrnInfoPtr pScrn) {
     OUTREG(RADEON_FP2_GEN_CNTL, tmp);
 
     /* LVDS */
-    tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
-    if (info->IsMobility || info->IsIGP) {
-	/* Asic bug, when turning off LVDS_ON, we have to make sure
-	   RADEON_PIXCLK_LVDS_ALWAYS_ON bit is off
-	 */
-	OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL, 0, ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
-    }
-    tmp = INREG(RADEON_LVDS_GEN_CNTL);
-    tmp |= RADEON_LVDS_DISPLAY_DIS;
-    tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
-    OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
-    if (info->IsMobility || info->IsIGP) {
-	OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
+    if (info->IsMobility) {
+	tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
+	if (info->IsMobility || info->IsIGP) {
+	    /* Asic bug, when turning off LVDS_ON, we have to make sure
+	       RADEON_PIXCLK_LVDS_ALWAYS_ON bit is off
+	    */
+	    OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL, 0, ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
+	}
+	tmp = INREG(RADEON_LVDS_GEN_CNTL);
+	tmp |= RADEON_LVDS_DISPLAY_DIS;
+	tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
+	OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
+	if (info->IsMobility || info->IsIGP) {
+	    OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
+	}
     }
 
 }
