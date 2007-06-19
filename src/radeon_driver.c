@@ -4097,6 +4097,9 @@ void RADEONRestoreDACRegisters(ScrnInfoPtr pScrn,
 	OUTREG(RADEON_DISP_HW_DEBUG, restore->disp_hw_debug);
     }
 
+    /* R200 DAC connected via DVO */
+    if (info->ChipFamily == CHIP_FAMILY_R200)
+	OUTREG(RADEON_FP2_GEN_CNTL, restore->fp2_gen_cntl);
 }
 
 /* Write CRTC registers */
@@ -4197,7 +4200,7 @@ void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
 
 }
 
-/* Write flat panel registers */
+/* Write TMDS registers */
 void RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
@@ -4206,10 +4209,7 @@ void RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     OUTREG(RADEON_TMDS_PLL_CNTL,        restore->tmds_pll_cntl);
     OUTREG(RADEON_TMDS_TRANSMITTER_CNTL,restore->tmds_transmitter_cntl);
-    OUTREG(RADEON_FP_HORZ_STRETCH,      restore->fp_horz_stretch);
-    OUTREG(RADEON_FP_VERT_STRETCH,      restore->fp_vert_stretch);
     OUTREG(RADEON_FP_GEN_CNTL,          restore->fp_gen_cntl);
-    OUTREG(RADEON_FP2_GEN_CNTL,         restore->fp2_gen_cntl);
 
     /* old AIW Radeon has some BIOS initialization problem
      * with display buffer underflow, only occurs to DFP
@@ -4218,8 +4218,41 @@ void RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	OUTREG(RADEON_GRPH_BUFFER_CNTL,
 	       INREG(RADEON_GRPH_BUFFER_CNTL) & ~0x7f0000);
 
+}
+
+/* Write FP2 registers */
+void RADEONRestoreFP2Registers(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(RADEON_FP2_GEN_CNTL,         restore->fp2_gen_cntl);
+
+}
+
+/* Write RMX registers */
+void RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(RADEON_FP_HORZ_STRETCH,      restore->fp_horz_stretch);
+    OUTREG(RADEON_FP_VERT_STRETCH,      restore->fp_vert_stretch);
+
+}
+
+/* Write LVDS registers */
+void RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
     if (info->IsMobility) {
 	OUTREG(RADEON_LVDS_GEN_CNTL,  restore->lvds_gen_cntl);
+	/*OUTREG(RADEON_LVDS_PLL_CNTL,  restore->lvds_pll_cntl);*/  
 	OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
 	OUTREG(RADEON_BIOS_5_SCRATCH, restore->bios_5_scratch);
 	OUTREG(RADEON_BIOS_6_SCRATCH, restore->bios_6_scratch);
@@ -4654,7 +4687,10 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	RADEONRestoreMemMapRegisters(pScrn, restore);
 	RADEONRestoreCommonRegisters(pScrn, restore);
 	RADEONRestoreCrtcRegisters(pScrn, restore);
+	RADEONRestoreRMXRegisters(pScrn, restore);
 	RADEONRestoreFPRegisters(pScrn, restore);
+	RADEONRestoreFP2Registers(pScrn, restore);
+	RADEONRestoreLVDSRegisters(pScrn, restore);
 	RADEONRestoreDACRegisters(pScrn, restore);
 	RADEONRestorePLLRegisters(pScrn, restore);
 	return;
@@ -4684,7 +4720,10 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     RADEONRestoreCrtcRegisters(pScrn, restore);
     RADEONRestorePLLRegisters(pScrn, restore);
+    RADEONRestoreRMXRegisters(pScrn, restore);
     RADEONRestoreFPRegisters(pScrn, restore);
+    RADEONRestoreFP2Registers(pScrn, restore);
+    RADEONRestoreLVDSRegisters(pScrn, restore);
     RADEONRestoreDACRegisters(pScrn, restore);
 
     RADEONEnableOutputs(pScrn, 0);

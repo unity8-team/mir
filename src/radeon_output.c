@@ -770,9 +770,11 @@ static void RADEONInitLVDSRegisters(xf86OutputPtr output, RADEONSavePtr save,
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
+    save->lvds_pll_cntl = info->SavedReg.lvds_pll_cntl;
+
     save->lvds_gen_cntl = info->SavedReg.lvds_gen_cntl;
-    save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_DISPLAY_DIS);
-    save->lvds_gen_cntl &= ~(RADEON_LVDS_BLON);
+    save->lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
+    save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
 
     if (IsPrimary)
 	save->lvds_gen_cntl &= ~RADEON_LVDS_SEL_CRTC2;
@@ -862,6 +864,7 @@ static void
 RADEONInitTvDacCntl(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+
     if (info->ChipFamily == CHIP_FAMILY_R420 ||
 	info->ChipFamily == CHIP_FAMILY_RV410) {
 	save->tv_dac_cntl = info->SavedReg.tv_dac_cntl &
@@ -973,9 +976,20 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     switch(radeon_output->MonType) {
     case MT_LCD:
+	ErrorF("restore LVDS\n");
+	if (radeon_crtc->crtc_id == 0)
+	    RADEONRestoreRMXRegisters(pScrn, &info->ModeReg);
+	RADEONRestoreLVDSRegisters(pScrn, &info->ModeReg);
     case MT_DFP:
-	ErrorF("restore FP\n");
-	RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
+	if (radeon_crtc->crtc_id == 0)
+	    RADEONRestoreRMXRegisters(pScrn, &info->ModeReg);
+	if (radeon_output->TMDSType == TMDS_INT) {
+	    ErrorF("restore FP\n");
+	    RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
+	} else {
+	    ErrorF("restore FP2\n");
+	    RADEONRestoreFP2Registers(pScrn, &info->ModeReg);
+	}
 	break;
     default:
 	ErrorF("restore dac\n");
