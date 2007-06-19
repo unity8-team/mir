@@ -310,7 +310,8 @@ i830_crt_detect(xf86OutputPtr output)
     I830Ptr		    pI830 = I830PTR(pScrn);
     xf86CrtcPtr	    crtc;
 
-    if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_I965G(pI830)) {
+    if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_I965G(pI830) ||
+	    IS_G33CLASS(pI830)) {
 	if (i830_crt_detect_hotplug(output))
 	    return XF86OutputStatusConnected;
 	else

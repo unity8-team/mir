@@ -747,7 +747,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     sdvo_pixel_multiply = i830_sdvo_get_pixel_multiplier(mode);
     if (IS_I965G(pI830)) {
 	/* done in crtc_mode_set as the dpll_md reg must be written early */
-    } else if (IS_I945G(pI830) || IS_I945GM(pI830)) {
+    } else if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830)) {
 	/* done in crtc_mode_set as it lives inside the dpll register */
     } else {
 	sdvox |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;

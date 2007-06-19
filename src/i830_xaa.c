@@ -249,7 +249,7 @@ I830XAAInit(ScreenPtr pScreen)
 	    pI830->xaa_composite = i830_composite;
 	    pI830->xaa_done_composite = i830_done_composite;
 	} else if (IS_I915G(pI830) || IS_I915GM(pI830) ||
-		   IS_I945G(pI830) || IS_I945GM(pI830))
+		   IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
 	{
 	    pI830->xaa_check_composite = i915_check_composite;
 	    pI830->xaa_prepare_composite = i915_prepare_composite;

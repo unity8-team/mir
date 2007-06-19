@@ -790,7 +790,7 @@ IsTileable(ScrnInfoPtr pScrn, int pitch)
     switch (pitch) {
     case 128:
     case 256:
-	if (IS_I945G(pI830) || IS_I945GM(pI830))
+	if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
 	    return TRUE;
 	else
 	    return FALSE;
@@ -1528,7 +1528,8 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
    	}
     }
 
-    if ((IS_I945G(pI830) || IS_I945GM(pI830)) && tile_format == TILING_YMAJOR)
+    if ((IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
+	    && tile_format == TILING_YMAJOR)
 	fence_pitch = pitch / 128;
     else if (IS_I9XX(pI830))
 	fence_pitch = pitch / 512;

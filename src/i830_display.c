@@ -706,7 +706,7 @@ i830_get_core_clock_speed(ScrnInfoPtr pScrn)
     /* Core clock values taken from the published datasheets.
      * The 830 may go up to 166 Mhz, which we should check.
      */
-    if (IS_I945G(pI830))
+    if (IS_I945G(pI830) || IS_G33CLASS(pI830))
 	return 400000;
     else if (IS_I915G(pI830))
 	return 333000;
@@ -869,7 +869,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	if (is_sdvo)
 	{
 	    dpll |= DPLL_DVO_HIGH_SPEED;
-	    if (IS_I945G(pI830) || IS_I945GM(pI830))
+	    if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
 	    {
 		int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
 		dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
