@@ -59,8 +59,18 @@ i830_lvds_set_backlight(xf86OutputPtr output, int level)
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 blc_pwm_ctl;
 
-    blc_pwm_ctl = INREG(BLC_PWM_CTL) & ~BACKLIGHT_DUTY_CYCLE_MASK;
-    OUTREG(BLC_PWM_CTL, blc_pwm_ctl | (level << BACKLIGHT_DUTY_CYCLE_SHIFT));
+    blc_pwm_ctl = INREG(BLC_PWM_CTL);
+    if (blc_pwm_ctl & BLM_LEGACY_MODE)
+    {
+	pciWriteByte (pI830->PciTag, 
+		      LEGACY_BACKLIGHT_BRIGHTNESS,
+		      level & 0xff);
+    }
+    else
+    {
+	blc_pwm_ctl &= ~BACKLIGHT_DUTY_CYCLE_MASK;
+	OUTREG(BLC_PWM_CTL, blc_pwm_ctl | (level << BACKLIGHT_DUTY_CYCLE_SHIFT));
+    }
 }
 
 /**
@@ -71,9 +81,13 @@ i830_lvds_get_max_backlight(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
+    CARD32	pwm_ctl = INREG(BLC_PWM_CTL);
     
-    return ((INREG(BLC_PWM_CTL) & BACKLIGHT_MODULATION_FREQ_MASK) >>
-	BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
+    if (pwm_ctl & BLM_LEGACY_MODE)
+	return 0xff;
+    else
+	return ((pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK) >>
+		BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
 }
 
 /**
@@ -129,8 +143,16 @@ i830_lvds_save (xf86OutputPtr output)
     pI830->savePP_CONTROL = INREG(PP_CONTROL);
     pI830->savePP_CYCLE = INREG(PP_CYCLE);
     pI830->saveBLC_PWM_CTL = INREG(BLC_PWM_CTL);
-    dev_priv->backlight_duty_cycle = (pI830->saveBLC_PWM_CTL &
-				      BACKLIGHT_DUTY_CYCLE_MASK);
+    if (pI830->saveBLC_PWM_CTL & BLM_LEGACY_MODE)
+    {
+	dev_priv->backlight_duty_cycle = pciReadByte (pI830->PciTag,
+						      LEGACY_BACKLIGHT_BRIGHTNESS);
+    }
+    else
+    {
+	dev_priv->backlight_duty_cycle = (pI830->saveBLC_PWM_CTL &
+					  BACKLIGHT_DUTY_CYCLE_MASK);
+    }
 
     /*
      * If the light is off at server startup, just make it full brightness

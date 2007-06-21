@@ -1056,6 +1056,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RENCLK_GATE_D2		0x6208
 #define RAMCLK_GATE_D		0x6210		/* CRL only */
 
+/*
+ * This is a PCI config space register to manipulate backlight brightness
+ * It is used when the BLM_LEGACY_MODE is turned on. When enabled, the first
+ * byte of this config register sets brightness within the range from
+ * 0 to 0xff
+ */
+#define LEGACY_BACKLIGHT_BRIGHTNESS 0xf4
+
 #define BLC_PWM_CTL		0x61254
 #define BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
 /**
