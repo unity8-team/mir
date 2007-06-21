@@ -179,6 +179,7 @@ i830_dvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     switch (dvo_reg) {
     case DVOA:
+    default:
 	dvo_srcdim_reg = DVOA_SRCDIM;
 	break;
     case DVOB:

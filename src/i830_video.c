@@ -1702,6 +1702,10 @@ i830_covering_crtc (ScrnInfoPtr pScrn,
 
     best_crtc = NULL;
     best_coverage = 0;
+    crtc_box_ret->x1 = 0;
+    crtc_box_ret->x2 = 0;
+    crtc_box_ret->y1 = 0;
+    crtc_box_ret->y2 = 0;
     for (c = 0; c < xf86_config->num_crtc; c++)
     {
 	crtc = xf86_config->crtc[c];
