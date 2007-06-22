@@ -5482,10 +5482,10 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     	}
 
 	/* get the DRI back into shape after resume */
+	RADEONDRISetVBlankInterrupt (pScrn, TRUE);
 	RADEONDRIResume(pScrn->pScreen);
 	RADEONAdjustMemMapRegisters(pScrn, &info->ModeReg);
 
-	RADEONDRISetVBlankInterrupt (pScrn, TRUE);
     }
 #endif
     /* this will get XVideo going again, but only if XVideo was initialised
