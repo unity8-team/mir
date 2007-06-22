@@ -36,9 +36,14 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "sil164/sil164.h"
 #include "ch7xxx/ch7xxx.h"
+#include "tfp410/tfp410.h"
 
 static const char *SIL164Symbols[] = {
     "Sil164VidOutput",
+    NULL
+};
+static const char *TFP410Symbols[] = {
+    "Tfp410VidOutput",
     NULL
 };
 static const char *CH7xxxSymbols[] = {
@@ -83,6 +88,14 @@ struct _I830DVODriver i830_dvo_drivers[] =
 	.dvo_reg = DVOA,
 	.address = 0x04, /* Might also be 0x44, 0x84, 0xc4 */
 	.symbols = ivch_symbols
+    },
+    {
+	.type = I830_OUTPUT_DVO_TMDS,
+	.modulename = "tfp410",
+	.fntablename = "TFP410VidOutput",
+	.dvo_reg = DVOC,
+	.address = (TFP410_ADDR_1<<1),
+	.symbols = TFP410Symbols
     },
     /*
     { I830_OUTPUT_DVO_LVDS, "ch7017", "ch7017_methods",

@@ -230,5 +230,6 @@ AC_OUTPUT([
 	src/ivch/Makefile
 	src/reg_dumper/Makefile
 	src/sil164/Makefile
+	src/tfp410/Makefile
 	man/Makefile
 ])
