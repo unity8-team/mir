@@ -963,7 +963,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
      * will be run after the mode is set. On 9xx, it helps.
      * On 855, it can lock up the chip (and the entire machine)
      */
-    if (IS_I9XX (pI830))
+    if (!IS_I85X (pI830))
     {
 	dspcntr |= DISPLAY_PLANE_ENABLE;
 	pipeconf |= PIPEACONF_ENABLE;
