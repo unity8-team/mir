@@ -2750,7 +2750,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     RADEONPreInitColorTiling(pScrn);
 
-    xf86CrtcSetSizeRange (pScrn, 320, 200, 2708, 1152);//nfo->MaxSurfaceWidth, info->MaxLines);
+    xf86CrtcSetSizeRange (pScrn, 320, 200, 2708, 1200);//nfo->MaxSurfaceWidth, info->MaxLines);
 
 
     RADEONPreInitDDC(pScrn);
