@@ -30,12 +30,6 @@ typedef struct _I830I2CVidOutputRec {
      * Returns NULL if the device does not exist.
      */
     void *(*init)(I2CBusPtr b, I2CSlaveAddr addr);
-    
-    /**
-     * Setup the device for use, after the relevant output has been created
-     */
-    Bool
-    (*setup) (I2CDevPtr d, xf86OutputPtr output);
 
     /**
      * Called to allow the output a chance to create properties after the

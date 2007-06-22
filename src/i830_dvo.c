@@ -60,20 +60,30 @@ static const char *ch7017_symbols[] = {
 /* driver list */
 struct _I830DVODriver i830_dvo_drivers[] =
 {
-    {I830_OUTPUT_DVO_TMDS, "sil164", "SIL164VidOutput", DVOC,
-     (SIL164_ADDR_1<<1), SIL164Symbols, NULL , NULL, NULL},
-    {I830_OUTPUT_DVO_TMDS | I830_OUTPUT_DVO_TVOUT, "ch7xxx", "CH7xxxVidOutput", DVOC,
-     (CH7xxx_ADDR_1<<1), CH7xxxSymbols, NULL , NULL, NULL},
-    {I830_OUTPUT_DVO_LVDS, "ivch", "ivch_methods", DVOA,
-     0x04, ivch_symbols, NULL, NULL, NULL},
-    /*
-    {I830_OUTPUT_DVO_LVDS, "ivch", "ivch_methods",
-     0x44, ivch_symbols, NULL, NULL, NULL},
-    {I830_OUTPUT_DVO_LVDS, "ivch", "ivch_methods",
-     0x84, ivch_symbols, NULL, NULL, NULL},
-    {I830_OUTPUT_DVO_LVDS, "ivch", "ivch_methods",
-     0xc4, ivch_symbols, NULL, NULL, NULL},
-    */
+    {
+	.type = I830_OUTPUT_DVO_TMDS,
+	.modulename = "sil164",
+	.fntablename = "SIL164VidOutput",
+	.dvo_reg = DVOC,
+	.address = (SIL164_ADDR_1<<1),
+	.symbols = SIL164Symbols
+    },
+    {
+	.type = I830_OUTPUT_DVO_TMDS,
+	.modulename = "ch7xxx",
+	.fntablename = "CH7xxxVidOutput",
+	.dvo_reg = DVOC,
+	.address = (CH7xxx_ADDR_1<<1),
+	.symbols = CH7xxxSymbols
+    },
+    {
+	.type = I830_OUTPUT_DVO_LVDS,
+	.modulename = "ivch",
+	.fntablename = "ivch_methods",
+	.dvo_reg = DVOA,
+	.address = 0x04, /* Might also be 0x44, 0x84, 0xc4 */
+	.symbols = ivch_symbols
+    },
     /*
     { I830_OUTPUT_DVO_LVDS, "ch7017", "ch7017_methods",
       0xea, ch7017_symbols, NULL, NULL, NULL }
@@ -140,12 +150,20 @@ static int
 i830_dvo_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
     I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct _I830DVODriver   *drv = intel_output->i2c_drv;
     void		    *dev_priv = intel_output->i2c_drv->dev_priv;
 
     if (pMode->Flags & V_DBLSCAN)
 	return MODE_NO_DBLESCAN;
 
     /* XXX: Validate clock range */
+
+    if (drv->panel_fixed_mode) {
+	if (pMode->HDisplay > drv->panel_fixed_mode->HDisplay)
+	    return MODE_PANEL;
+	if (pMode->VDisplay > drv->panel_fixed_mode->VDisplay)
+	    return MODE_PANEL;
+    }
 
     return intel_output->i2c_drv->vid_rec->mode_valid(dev_priv, pMode);
 }
@@ -155,6 +173,25 @@ i830_dvo_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		    DisplayModePtr adjusted_mode)
 {
     I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct _I830DVODriver   *drv = intel_output->i2c_drv;
+
+    /* If we have timings from the BIOS for the panel, put them in
+     * to the adjusted mode.  The CRTC will be set up for this mode,
+     * with the panel scaling set up to source from the H/VDisplay
+     * of the original mode.
+     */
+    if (drv->panel_fixed_mode != NULL) {
+	adjusted_mode->HDisplay = drv->panel_fixed_mode->HDisplay;
+	adjusted_mode->HSyncStart = drv->panel_fixed_mode->HSyncStart;
+	adjusted_mode->HSyncEnd = drv->panel_fixed_mode->HSyncEnd;
+	adjusted_mode->HTotal = drv->panel_fixed_mode->HTotal;
+	adjusted_mode->VDisplay = drv->panel_fixed_mode->VDisplay;
+	adjusted_mode->VSyncStart = drv->panel_fixed_mode->VSyncStart;
+	adjusted_mode->VSyncEnd = drv->panel_fixed_mode->VSyncEnd;
+	adjusted_mode->VTotal = drv->panel_fixed_mode->VTotal;
+	adjusted_mode->Clock = drv->panel_fixed_mode->Clock;
+	xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
+    }
 
     if (intel_output->i2c_drv->vid_rec->mode_fixup)
 	return intel_output->i2c_drv->vid_rec->mode_fixup (intel_output->i2c_drv->dev_priv,
@@ -235,6 +272,7 @@ static DisplayModePtr
 i830_dvo_get_modes(xf86OutputPtr output)
 {
     I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct _I830DVODriver   *drv = intel_output->i2c_drv;
     DisplayModePtr	    modes;
 
     /* We should probably have an i2c driver get_modes function for those
@@ -252,6 +290,9 @@ i830_dvo_get_modes(xf86OutputPtr output)
 	if (modes != NULL)
 	    return modes;
     }
+
+    if (drv->panel_fixed_mode != NULL)
+	return xf86DuplicateMode(drv->panel_fixed_mode);
 
     return NULL;
 }
@@ -436,7 +477,19 @@ i830_dvo_init(ScrnInfoPtr pScrn)
 	    drv->dev_priv = ret_ptr;
 	    intel_output->i2c_drv = drv;
 	    intel_output->pI2CBus = pI2CBus;
-	    drv->vid_rec->setup (drv->dev_priv, output);
+
+	    if (intel_output->type == I830_OUTPUT_DVO_LVDS) {
+		/* For our LVDS chipsets, we should hopefully be able to
+		 * dig the fixed panel mode out of the BIOS data.  However,
+		 * it's in a different format from the BIOS data on chipsets
+		 * with integrated LVDS (stored in AIM headers, liekly),
+		 * so for now, just get the current mode being output through
+		 * DVO.
+		 */
+		drv->panel_fixed_mode = i830_dvo_get_current_mode(output);
+		drv->panel_wants_dither = TRUE;
+	    }
+
 	    return;
 	}
 	xf86UnloadSubModule(drv->modhandle);

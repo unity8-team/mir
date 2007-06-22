@@ -49,9 +49,6 @@ struct ivch_priv {
 
     xf86OutputPtr   output;
 
-    DisplayModePtr  panel_fixed_mode;
-    Bool	    panel_wants_dither;
-
     CARD16    	    width;
     CARD16    	    height;
 
@@ -189,31 +186,14 @@ ivch_init(I2CBusPtr b, I2CSlaveAddr addr)
 	goto out;
     }
 
+    ivch_read(priv, VR20, &priv->width);
+    ivch_read(priv, VR21, &priv->height);
+
     return priv;
 
 out:
     xfree(priv);
     return NULL;
-}
-
-/** Gets the panel mode */
-static Bool
-ivch_setup (I2CDevPtr d, xf86OutputPtr output)
-{
-    struct ivch_priv	*priv = d->DriverPrivate.ptr;
-
-    priv->output = output;
-    ivch_read (priv, VR20, &priv->width);
-    ivch_read (priv, VR21, &priv->height);
-    
-    priv->panel_fixed_mode = i830_bios_get_panel_mode (output->scrn, &priv->panel_wants_dither);
-    if (!priv->panel_fixed_mode)
-    {
-	priv->panel_fixed_mode = i830_dvo_get_current_mode (output);
-	priv->panel_wants_dither = TRUE;
-    }
-
-    return TRUE;
 }
 
 static xf86OutputStatus
@@ -222,34 +202,12 @@ ivch_detect(I2CDevPtr d)
     return XF86OutputStatusConnected;
 }
 
-static DisplayModePtr
-ivch_get_modes (I2CDevPtr d)
-{
-    struct ivch_priv	*priv = d->DriverPrivate.ptr;
-
-    if (priv->panel_fixed_mode)
-	return xf86DuplicateMode (priv->panel_fixed_mode);
-
-    return NULL;
-}
-
 static ModeStatus
 ivch_mode_valid(I2CDevPtr d, DisplayModePtr mode)
 {
-    struct ivch_priv	*priv = d->DriverPrivate.ptr;
-    DisplayModePtr	panel_fixed_mode = priv->panel_fixed_mode;
-    
     if (mode->Clock > 112000)
 	return MODE_CLOCK_HIGH;
 
-    if (panel_fixed_mode)
-    {
-	if (mode->HDisplay > panel_fixed_mode->HDisplay)
-	    return MODE_PANEL;
-	if (mode->VDisplay > panel_fixed_mode->VDisplay)
-	    return MODE_PANEL;
-    }
-    
     return MODE_OK;
 }
 
@@ -291,33 +249,6 @@ ivch_dpms(I2CDevPtr d, int mode)
     usleep (16 * 1000);
 }
 
-static Bool
-ivch_mode_fixup(I2CDevPtr d, DisplayModePtr mode, DisplayModePtr adjusted_mode)
-{
-    struct ivch_priv	*priv = d->DriverPrivate.ptr;
-    DisplayModePtr	panel_fixed_mode = priv->panel_fixed_mode;
-    
-    /* If we have timings from the BIOS for the panel, put them in
-     * to the adjusted mode.  The CRTC will be set up for this mode,
-     * with the panel scaling set up to source from the H/VDisplay
-     * of the original mode.
-     */
-    if (panel_fixed_mode != NULL) {
-	adjusted_mode->HDisplay = panel_fixed_mode->HDisplay;
-	adjusted_mode->HSyncStart = panel_fixed_mode->HSyncStart;
-	adjusted_mode->HSyncEnd = panel_fixed_mode->HSyncEnd;
-	adjusted_mode->HTotal = panel_fixed_mode->HTotal;
-	adjusted_mode->VDisplay = panel_fixed_mode->VDisplay;
-	adjusted_mode->VSyncStart = panel_fixed_mode->VSyncStart;
-	adjusted_mode->VSyncEnd = panel_fixed_mode->VSyncEnd;
-	adjusted_mode->VTotal = panel_fixed_mode->VTotal;
-	adjusted_mode->Clock = panel_fixed_mode->Clock;
-	xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
-    }
-
-    return TRUE;
-}
-    
 static void
 ivch_mode_set(I2CDevPtr d, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
@@ -420,14 +351,11 @@ ivch_restore(I2CDevPtr d)
 
 I830I2CVidOutputRec ivch_methods = {
     .init = ivch_init,
-    .setup = ivch_setup,
     .dpms = ivch_dpms,
     .save = ivch_save,
     .restore = ivch_restore,
     .mode_valid = ivch_mode_valid,
-    .mode_fixup = ivch_mode_fixup,
     .mode_set = ivch_mode_set,
     .detect = ivch_detect,
-    .get_modes = ivch_get_modes,
     .dump_regs = ivch_dump_regs,
 };

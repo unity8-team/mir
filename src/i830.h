@@ -209,6 +209,8 @@ struct _I830DVODriver {
    I830I2CVidOutputRec *vid_rec;
    void *dev_priv;
    pointer modhandle;
+   DisplayModePtr panel_fixed_mode;
+   Bool panel_wants_dither;
 };
 
 extern const char *i830_output_type_names[];
