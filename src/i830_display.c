@@ -362,7 +362,7 @@ void
 i830WaitForVblank(ScrnInfoPtr pScreen)
 {
     /* Wait for 20ms, i.e. one cycle at 50hz. */
-    usleep(20000);
+    usleep(30000);
 }
 
 void
