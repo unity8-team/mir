@@ -49,8 +49,10 @@
 
 #include <sys/time.h>
 
-static void setM2MFDirection(NVPtr pNv, int dir)
+static void setM2MFDirection(ScrnInfoPtr pScrn, int dir)
 {
+	NVPtr pNv = NVPTR(pScrn);
+
 	if (pNv->M2MFDirection != dir) {
 		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
 		NVDmaNext (pNv, dir ? NvDmaTT : NvDmaFB);
@@ -112,7 +114,7 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	if (fmt == SURFACE_FORMAT_A8R8G8B8)
 		fmt = 0xb;
 
-	if (!NVAccelSetCtxSurf2D(pNv, pPixmap, pPixmap, fmt))
+	if (!NVAccelSetCtxSurf2D(pPixmap, pPixmap, fmt))
 		return FALSE;
 
 	NVDmaStart(pNv, NvSubRectangle, RECT_FORMAT, 1);
@@ -172,7 +174,7 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 
 	if (!NVAccelGetCtxSurf2DFormatFromPixmap(pDstPixmap, &fmt))
 		return FALSE;
-	if (!NVAccelSetCtxSurf2D(pNv, pSrcPixmap, pDstPixmap, fmt))
+	if (!NVAccelSetCtxSurf2D(pSrcPixmap, pDstPixmap, fmt))
 		return FALSE;
 
 	pNv->DMAKickoffCallback = NVDmaKickoffCallback;
@@ -269,13 +271,13 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 	Bool ret = TRUE;
 
 	pitch_in = exaGetPixmapPitch(pSrc);
-	offset_in = NVAccelGetPixmapOffset(pNv, pSrc);
+	offset_in = NVAccelGetPixmapOffset(pSrc);
 	offset_in += y*pitch_in;
 	offset_in += x * (pSrc->drawable.bitsPerPixel >> 3);
 	max_lines = 65536/dst_pitch + 1;
 	line_length = w * (pSrc->drawable.bitsPerPixel >> 3);
 
-	setM2MFDirection(pNv, 0);
+	setM2MFDirection(pScrn, 0);
 
 	NVDEBUG("NVDownloadFromScreen: x=%d, y=%d, w=%d, h=%d\n", x, y, w, h);
 	NVDEBUG("    pitch_in=%x dst_pitch=%x offset_in=%x",
@@ -332,14 +334,14 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 #endif
 
 	pitch_out = exaGetPixmapPitch(pDst);
-	offset_out = NVAccelGetPixmapOffset(pNv, pDst);
+	offset_out = NVAccelGetPixmapOffset(pDst);
 	offset_out += y*pitch_out;
 	offset_out += x * (pDst->drawable.bitsPerPixel >> 3);
 
 	max_lines = 65536/src_pitch + 1;
 	line_length = w * (pDst->drawable.bitsPerPixel >> 3);
 
-	setM2MFDirection(pNv, 1);
+	setM2MFDirection(pScrn, 1);
 
 	NVDEBUG("NVUploadToScreen: x=%d, y=%d, w=%d, h=%d\n", x, y, w, h);
 	while (h > 0) {
@@ -437,7 +439,7 @@ static Bool NVPrepareComposite(int	  op,
 
 	if (!NVAccelGetCtxSurf2DFormatFromPicture(pDstPicture, &dstFormat))
 		return FALSE;
-	if (!NVAccelSetCtxSurf2D(pNv, pDst, pDst, dstFormat))
+	if (!NVAccelSetCtxSurf2D(pDst, pDst, dstFormat))
 		return FALSE;
 
 	NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_FORMAT, 2);
@@ -450,7 +452,7 @@ static Bool NVPrepareComposite(int	  op,
 	src_pitch  = exaGetPixmapPitch(pSrc)
 		| (STRETCH_BLIT_SRC_FORMAT_ORIGIN_CORNER << 16)
 		| (STRETCH_BLIT_SRC_FORMAT_FILTER_POINT_SAMPLE << 24);
-	src_offset = NVAccelGetPixmapOffset(pNv, pSrc);
+	src_offset = NVAccelGetPixmapOffset(pSrc);
 
 	return TRUE;
 }

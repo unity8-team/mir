@@ -23,8 +23,9 @@ void NVDmaKickoffCallback(NVPtr pNv)
  */
 #define SKIPS  8
 
-void NVDmaWait (NVPtr pNv, int size)
+void NVDmaWait (ScrnInfoPtr pScrn, int size)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	int t_start;
 	int dmaGet;
 
@@ -43,7 +44,7 @@ void NVDmaWait (NVPtr pNv, int size)
 						WRITE_PUT(pNv, SKIPS + 1);
 					do {
 						if (GetTimeInMillis() - t_start > 2000)
-							NVDoSync(pNv);
+							NVSync(pScrn);
 						dmaGet = READ_GET(pNv);
 					} while(dmaGet <= SKIPS);
 				}
@@ -55,7 +56,7 @@ void NVDmaWait (NVPtr pNv, int size)
 			pNv->dmaFree = dmaGet - pNv->dmaCurrent - 1;
 
 		if (GetTimeInMillis() - t_start > 2000)
-			NVDoSync(pNv);
+			NVSync(pScrn);
 	}
 }
 
@@ -70,34 +71,51 @@ static void NVDumpLockupInfo(NVPtr pNv)
 	xf86DrvMsg(0, X_INFO, "End of fifo dump\n");
 }
 
-void NVDoSync(NVPtr pNv)
+static void
+NVLockedUp(ScrnInfoPtr pScrn)
 {
-	int t_start, timeout = 2000;
+	NVPtr pNv = NVPTR(pScrn);
 
-	if(pNv->DMAKickoffCallback)
-		(*pNv->DMAKickoffCallback)(pNv);
+	/* avoid re-entering FatalError on shutdown */
+	if (pNv->LockedUp)
+		return;
+	pNv->LockedUp = TRUE;
 
-	t_start = GetTimeInMillis();
-	/* Wait for entire FIFO to be processed */
-	while((GetTimeInMillis() - t_start) < timeout && (READ_GET(pNv) != pNv->dmaPut));
-	/* Wait for PGRAPH to go completely idle */
-	while((GetTimeInMillis() - t_start) < timeout && pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
+	NVDumpLockupInfo(pNv);
 
-	if ((GetTimeInMillis() - t_start) >= timeout) {
-		if (pNv->LockedUp)
-			return;
-		NVDumpLockupInfo(pNv);
-		pNv->LockedUp = TRUE; /* avoid re-entering FatalError on shutdown */
-		FatalError("DMA queue hang: dmaPut=%x, current=%x, status=%x\n",
-				pNv->dmaPut, READ_GET(pNv), pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
-	}
+	FatalError("DMA queue hang: dmaPut=%x, current=%x, status=%x\n",
+		   pNv->dmaPut, READ_GET(pNv), pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
 }
 
 void NVSync(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	if(pNv->NoAccel) return;
-	NVDoSync(pNv);
+	int t_start, timeout = 2000;
+
+	if(pNv->NoAccel)
+		return;
+
+	if(pNv->DMAKickoffCallback)
+		(*pNv->DMAKickoffCallback)(pNv);
+
+	/* Wait for entire FIFO to be processed */
+	t_start = GetTimeInMillis();
+	while((GetTimeInMillis() - t_start) < timeout &&
+			(READ_GET(pNv) != pNv->dmaPut));
+	if ((GetTimeInMillis() - t_start) >= timeout) {
+		NVLockedUp(pScrn);
+		return;
+	}
+
+	/* Wait for channel to go completely idle */
+	NVNotifierReset(pScrn, pNv->Notifier0);
+	NVDmaStart(pNv, NvSubImageBlit, 0x104, 1);
+	NVDmaNext (pNv, 0);
+	NVDmaStart(pNv, NvSubImageBlit, 0x100, 1);
+	NVDmaNext (pNv, 0);
+	NVDmaKickoff(pNv);
+	if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, timeout))
+		NVLockedUp(pScrn);
 }
 
 void NVResetGraphics(ScrnInfoPtr pScrn)
@@ -116,7 +134,7 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 
 	/* assert there's enough room for the skips */
 	if(pNv->dmaFree <= SKIPS)
-		NVDmaWait(pNv, SKIPS); 
+		NVDmaWait(pScrn, SKIPS); 
 	for (i=0; i<SKIPS; i++) {
 		NVDmaNext(pNv,0);
 		pNv->dmaBase[i]=0;

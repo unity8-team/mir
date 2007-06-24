@@ -100,7 +100,7 @@ enum DMASubchannel {
 
 #define NVDmaStart(pNv, subchannel, tag, size) do {                     \
         if((pNv)->dmaFree <= (size))                                    \
-            NVDmaWait(pNv, size);                                       \
+            NVDmaWait(pScrn, size);                                     \
         NVDEBUG("NVDmaStart: subc=%d, cmd=%x, num=%d\n", (subchannel), (tag), (size)); \
         NVDmaNext(pNv, ((size) << 18) | ((subchannel) << 13) | (tag));  \
         (pNv)->dmaFree -= ((size) + 1);                                 \

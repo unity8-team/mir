@@ -5,10 +5,10 @@
 
 /* in nv_accel_common.c */
 Bool NVAccelCommonInit(ScrnInfoPtr pScrn);
-uint32_t NVAccelGetPixmapOffset(NVPtr pNv, PixmapPtr pPix);
+uint32_t NVAccelGetPixmapOffset(PixmapPtr pPix);
 Bool NVAccelGetCtxSurf2DFormatFromPixmap(PixmapPtr pPix, int *fmt_ret);
 Bool NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPix, int *fmt_ret);
-Bool NVAccelSetCtxSurf2D(NVPtr pNv, PixmapPtr psPix, PixmapPtr pdPix, int fmt);
+Bool NVAccelSetCtxSurf2D(PixmapPtr psPix, PixmapPtr pdPix, int fmt);
 
 /* in nv_driver.c */
 Bool   NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
@@ -62,8 +62,7 @@ Bool   NVCursorInit(ScreenPtr pScreen);
 /* in nv_dma.c */
 void  NVDmaKickoff(NVPtr pNv);
 void  NVDmaKickoffCallback(NVPtr pNv);
-void  NVDmaWait(NVPtr pNv, int size);
-void  NVDoSync(NVPtr pNv);
+void  NVDmaWait(ScrnInfoPtr pScrn, int size);
 void  NVSync(ScrnInfoPtr pScrn);
 void  NVResetGraphics(ScrnInfoPtr pScrn);
 Bool  NVDmaCreateContextObject(NVPtr pNv, int handle, int class);
@@ -71,7 +70,7 @@ Bool  NVInitDma(ScrnInfoPtr pScrn);
 
 /* in nv_xaa.c */
 Bool   NVXaaInit(ScreenPtr pScreen);
-void   NVWaitVSync(NVPtr pNv);
+void   NVWaitVSync(ScrnInfoPtr pScrn);
 void   NVSetRopSolid(ScrnInfoPtr pScrn, CARD32 rop, CARD32 planemask);
 
 /* in nv_exa.c */
