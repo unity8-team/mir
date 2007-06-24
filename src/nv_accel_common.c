@@ -1,8 +1,9 @@
 #include "nv_include.h"
 
 static Bool
-NVAccelInitNullObject(NVPtr pNv)
+NVAccelInitNullObject(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 
 	if (!have_object) {
@@ -16,8 +17,9 @@ NVAccelInitNullObject(NVPtr pNv)
 }
 
 static Bool
-NVAccelInitDmaFB(NVPtr pNv)
+NVAccelInitDmaFB(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 
 	if (!have_object) {
@@ -49,8 +51,9 @@ NVAccelGetPixmapOffset(NVPtr pNv, PixmapPtr pPix)
 }
 
 static Bool
-NVAccelInitDmaAGP(NVPtr pNv)
+NVAccelInitDmaAGP(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 
 	if (!pNv->AGPSize)
@@ -72,8 +75,9 @@ NVAccelInitDmaAGP(NVPtr pNv)
 }
 
 static Bool
-NVAccelInitDmaNotifier0(NVPtr pNv)
+NVAccelInitDmaNotifier0(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 
 	if (!have_object) {
@@ -88,8 +92,9 @@ NVAccelInitDmaNotifier0(NVPtr pNv)
 
 /* FLAGS_ROP_AND, DmaFB, DmaFB, 0 */
 static Bool
-NVAccelInitContextSurfaces(NVPtr pNv)
+NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 	uint32_t   class;
 
@@ -174,8 +179,9 @@ NVAccelSetCtxSurf2D(NVPtr pNv, PixmapPtr psPix, PixmapPtr pdPix, int format)
 
 /* FLAGS_ROP_AND|FLAGS_MONO, 0, 0, 0 */
 static Bool
-NVAccelInitImagePattern(NVPtr pNv)
+NVAccelInitImagePattern(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 	uint32_t   class;
 
@@ -206,8 +212,9 @@ NVAccelInitImagePattern(NVPtr pNv)
 
 /* FLAGS_ROP_AND, 0, 0, 0 */
 static Bool
-NVAccelInitRasterOp(NVPtr pNv)
+NVAccelInitRasterOp(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 	uint32_t   class;
 
@@ -228,8 +235,9 @@ NVAccelInitRasterOp(NVPtr pNv)
 
 /* FLAGS_ROP_AND | FLAGS_MONO, 0, 0, 0 */
 static Bool
-NVAccelInitRectangle(NVPtr pNv)
+NVAccelInitRectangle(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 	uint32_t   class;
 
@@ -262,8 +270,9 @@ NVAccelInitRectangle(NVPtr pNv)
 
 /* FLAGS_ROP_AND, DmaFB, DmaFB, 0 */
 static Bool
-NVAccelInitImageBlit(NVPtr pNv)
+NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 	uint32_t   class;
 
@@ -294,8 +303,9 @@ NVAccelInitImageBlit(NVPtr pNv)
 
 /* FLAGS_SRCCOPY, DmaFB, DmaFB, 0 */
 static Bool
-NVAccelInitScaledImage(NVPtr pNv)
+NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 	uint32_t   class;
 
@@ -347,8 +357,9 @@ NVAccelInitScaledImage(NVPtr pNv)
 
 /* FLAGS_NONE, 0, 0, 0 */
 static Bool
-NVAccelInitClipRectangle(NVPtr pNv)
+NVAccelInitClipRectangle(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 	int class = NV01_CONTEXT_CLIP_RECTANGLE;
 
@@ -367,8 +378,9 @@ NVAccelInitClipRectangle(NVPtr pNv)
 
 /* FLAGS_ROP_AND | FLAGS_CLIP_ENABLE, 0, 0, 0 */
 static Bool
-NVAccelInitSolidLine(NVPtr pNv)
+NVAccelInitSolidLine(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 	int class = NV04_SOLID_LINE;
 
@@ -393,8 +405,9 @@ NVAccelInitSolidLine(NVPtr pNv)
 
 /* FLAGS_NONE, NvDmaFB, NvDmaAGP, NvDmaNotifier0 */
 static Bool
-NVAccelInitMemFormat(NVPtr pNv)
+NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 	uint32_t   class;
 
@@ -420,7 +433,7 @@ NVAccelInitMemFormat(NVPtr pNv)
 }
 
 #define INIT_CONTEXT_OBJECT(name) do {                                        \
-	ret = NVAccelInit##name(pNv);                                         \
+	ret = NVAccelInit##name(pScrn);                                       \
 	if (!ret) {                                                           \
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,                         \
 			   "Failed to initialise context object: "#name       \
