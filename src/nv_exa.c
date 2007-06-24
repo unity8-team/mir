@@ -318,65 +318,85 @@ error:
 	return ret;
 }
 
+Bool
+NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
+				     int dst_pitch, int src_pitch,
+				     int line_len, int line_count)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	setM2MFDirection(pScrn, 1);
+
+	while (line_count) {
+		char *dst = pNv->AGPScratch->map;
+		int lc, i;
+
+		/* Determine max amount of data we can DMA at once */
+		if (line_count * line_len <= pNv->AGPScratch->size) {
+			lc = line_count;
+		} else {
+			lc = pNv->AGPScratch->size / line_len;
+			if (lc > line_count)
+				lc = line_count;
+		}
+		/*XXX: and hw limitations? */
+
+		/* Upload to GART */
+		if (src_pitch == line_len) {
+			memcpy(dst, src, src_pitch * lc);
+		} else {
+			for (i = 0; i < lc; i++) {
+				memcpy(dst, src, line_len);
+				src += src_pitch;
+				dst += line_len;
+			}
+		}
+
+		/* DMA to VRAM */
+		NVNotifierReset(pScrn, pNv->Notifier0);
+		NVDmaStart(pNv, NvSubMemFormat,
+				NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
+		NVDmaNext (pNv, 0);
+
+		NVDmaStart(pNv, NvSubMemFormat,
+				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
+		NVDmaNext (pNv, (uint32_t)pNv->AGPScratch->offset);
+		NVDmaNext (pNv, (uint32_t)dst_offset);
+		NVDmaNext (pNv, line_len);
+		NVDmaNext (pNv, dst_pitch);
+		NVDmaNext (pNv, line_len);
+		NVDmaNext (pNv, lc);
+		NVDmaNext (pNv, (1<<8)|1);
+		NVDmaNext (pNv, 0);
+
+		NVDmaKickoff(pNv);
+		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
+			return FALSE;
+
+		line_count -= lc;
+	}
+
+	return TRUE;
+}
+
 static Bool NVUploadToScreen(PixmapPtr pDst,
 			     int x, int y, int w, int h,
 			     char *src, int src_pitch)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	CARD32 offset_out, pitch_out, max_lines, line_length;
-	Bool ret = TRUE;
-#if 0
-	x = 0;
-	y = 0;
-	w = pDst->drawable.width;
-	h = pDst->drawable.height;
-#endif
+	int dst_offset, dst_pitch, bpp;
+	Bool ret;
 
-	pitch_out = exaGetPixmapPitch(pDst);
-	offset_out = NVAccelGetPixmapOffset(pDst);
-	offset_out += y*pitch_out;
-	offset_out += x * (pDst->drawable.bitsPerPixel >> 3);
+	dst_offset = NVAccelGetPixmapOffset(pDst);
+	dst_pitch  = exaGetPixmapPitch(pDst);
+	bpp = pDst->drawable.bitsPerPixel >> 3;
 
-	max_lines = 65536/src_pitch + 1;
-	line_length = w * (pDst->drawable.bitsPerPixel >> 3);
-
-	setM2MFDirection(pScrn, 1);
-
-	NVDEBUG("NVUploadToScreen: x=%d, y=%d, w=%d, h=%d\n", x, y, w, h);
-	while (h > 0) {
-		NVDEBUG("     max_lines=%d, h=%d\n", max_lines, h);
-		int nlines = h > max_lines ? max_lines : h;
-
-		/* reset the notification object */
-		NVNotifierReset(pScrn, pNv->Notifier0);
-
-		memcpy(pNv->AGPScratch->map, src, nlines*src_pitch);
-		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_NOTIFY, 1);
-		NVDmaNext (pNv, 0);
-
-		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_OFFSET_IN, 8);
-		NVDmaNext (pNv, (uint32_t)pNv->AGPScratch->offset);
-		NVDmaNext (pNv, offset_out);
-		NVDmaNext (pNv, src_pitch);
-		NVDmaNext (pNv, pitch_out);
-		NVDmaNext (pNv, line_length);
-		NVDmaNext (pNv, nlines);
-		NVDmaNext (pNv, 0x101);
-		NVDmaNext (pNv, 0);
-
-		NVDmaKickoff(pNv);
-		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 2000)) {
-			ret = FALSE;
-			goto error;
-		}
-
-		h -= nlines;
-		offset_out += nlines*pitch_out;
-		src += nlines*src_pitch;
+	if (1) {
+		dst_offset += (y * dst_pitch) + (x * bpp);
+		ret = NVAccelUploadM2MF(pScrn, dst_offset, src,
+					       dst_pitch, src_pitch,
+					       w * bpp, h);
 	}
-
-error:
 	exaMarkSync(pDst->drawable.pScreen);
 	return ret;
 }
