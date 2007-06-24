@@ -917,7 +917,6 @@ NVPutImage(ScrnInfoPtr  pScrnInfo, short src_x, short src_y,
 
 	dst_start = pPriv->video_mem->map +
 			(offset - (uint32_t)pPriv->video_mem->offset);
-	offset -= pNv->VRAMPhysical;
 
 	/* We need to enlarge the copied rectangle by a pixel so the HW
 	 * filtering doesn't pick up junk laying outside of the source */

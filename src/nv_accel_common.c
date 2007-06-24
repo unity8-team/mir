@@ -40,11 +40,11 @@ NVAccelGetPixmapOffset(NVPtr pNv, PixmapPtr pPix)
 	CARD32 offset;
 
 	if (pPix->drawable.type == DRAWABLE_WINDOW) {
-		offset = pNv->FB->offset - pNv->VRAMPhysical;
+		offset = pNv->FB->offset;
 	} else {
 		offset  = (uint32_t)((unsigned long)pPix->devPrivate.ptr -
 				(unsigned long)pNv->FB->map);
-		offset += pNv->FB->offset - pNv->VRAMPhysical;
+		offset += pNv->FB->offset;
 	}
 
 	return offset;

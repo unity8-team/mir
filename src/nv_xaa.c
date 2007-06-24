@@ -105,10 +105,6 @@ static const int NVPatternROP[16] =
    0xFF
 };
 
-static CARD32 getOffset(NVPtr pNv, NVAllocRec *mem) {
-	return (mem->offset - pNv->VRAMPhysical);
-}
-
 void
 NVWaitVSync(NVPtr pNv)
 {
@@ -418,7 +414,7 @@ NVSubsequentScanlineImageWriteRect(
 
    NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_PITCH, 2);
    NVDmaNext (pNv, (_image_dstpitch << 16) | image_srcpitch);
-   NVDmaNext (pNv, getOffset(pNv, pNv->ScratchBuffer));
+   NVDmaNext (pNv, pNv->ScratchBuffer->offset);
 }
 
 static void NVSubsequentImageWriteScanline(ScrnInfoPtr pScrn, int bufno)
@@ -437,7 +433,7 @@ static void NVSubsequentImageWriteScanline(ScrnInfoPtr pScrn, int bufno)
    } else {
       NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_PITCH, 2);
       NVDmaNext (pNv, _image_dstpitch | (_image_dstpitch << 16));
-      NVDmaNext (pNv, getOffset(pNv, pNv->FB));
+      NVDmaNext (pNv, pNv->FB->offset);
    }
 }
 

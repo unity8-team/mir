@@ -170,8 +170,8 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 	NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 4);
 	NVDmaNext (pNv, surfaceFormat);
 	NVDmaNext (pNv, pitch | (pitch << 16));
-	NVDmaNext (pNv, (CARD32)(pNv->FB->offset - pNv->VRAMPhysical));
-	NVDmaNext (pNv, (CARD32)(pNv->FB->offset - pNv->VRAMPhysical));
+	NVDmaNext (pNv, (uint32_t)pNv->FB->offset);
+	NVDmaNext (pNv, (uint32_t)pNv->FB->offset);
 
 	NVDmaStart(pNv, NvSubImagePattern, PATTERN_FORMAT, 1);
 	NVDmaNext (pNv, patternFormat);
@@ -214,20 +214,14 @@ Bool NVDmaCreateDMAObject(NVPtr pNv, uint32_t handle, int class,
 Bool NVDmaCreateDMAObjectFromMem(NVPtr pNv, uint32_t handle, int class,
 					    NVAllocRec *mem, int access)
 {
-	uint32_t offset = mem->offset;
 	int      target;
 
 	target = mem->type & (NOUVEAU_MEM_FB | NOUVEAU_MEM_AGP);
 	if (!target)
 		return FALSE;
 
-	if (target & NOUVEAU_MEM_FB)
-		offset -= pNv->VRAMPhysical;
-	else if (target & NOUVEAU_MEM_AGP)
-		offset -= pNv->AGPPhysical;
-
 	return NVDmaCreateDMAObject(pNv, handle, class, target,
-					 offset, mem->size, access);
+					 mem->offset, mem->size, access);
 }
 
 /*

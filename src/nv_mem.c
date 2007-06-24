@@ -32,6 +32,11 @@ NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
 		return NULL;
 	}
 
+	if (mem->type & NOUVEAU_MEM_FB)
+		mem->offset -= pNv->VRAMPhysical;
+	else if (mem->type & NOUVEAU_MEM_AGP)
+		mem->offset -= pNv->AGPPhysical;
+
 	return mem;
 }
 

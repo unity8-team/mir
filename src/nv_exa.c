@@ -291,7 +291,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 
 		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_OFFSET_IN, 8);
 		NVDmaNext (pNv, offset_in);
-		NVDmaNext (pNv, (uint32_t)(pNv->AGPScratch->offset - pNv->AGPPhysical));
+		NVDmaNext (pNv, (uint32_t)pNv->AGPScratch->offset);
 		NVDmaNext (pNv, pitch_in);
 		NVDmaNext (pNv, dst_pitch);
 		NVDmaNext (pNv, line_length);
@@ -353,7 +353,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 		NVDmaNext (pNv, 0);
 
 		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_OFFSET_IN, 8);
-		NVDmaNext (pNv, (uint32_t)(pNv->AGPScratch->offset - pNv->AGPPhysical));
+		NVDmaNext (pNv, (uint32_t)pNv->AGPScratch->offset);
 		NVDmaNext (pNv, offset_out);
 		NVDmaNext (pNv, src_pitch);
 		NVDmaNext (pNv, pitch_out);

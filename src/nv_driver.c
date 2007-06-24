@@ -832,7 +832,7 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
     NVFBLayout *pLayout = &pNv->CurrentLayout;
 
     startAddr = (((y*pLayout->displayWidth)+x)*(pLayout->bitsPerPixel/8));
-	startAddr += (pNv->FB->offset - pNv->VRAMPhysical);
+    startAddr += pNv->FB->offset;
     NVSetStartAddress(pNv, startAddr);
 }
 

@@ -377,7 +377,7 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 	pNOUVEAUDRI->depth		= pScrn->depth;
 	pNOUVEAUDRI->bpp		= pScrn->bitsPerPixel;
 
-	pNOUVEAUDRI->front_offset 	= pNv->FB->offset - pNv->VRAMPhysical;
+	pNOUVEAUDRI->front_offset 	= pNv->FB->offset;
 	pNOUVEAUDRI->front_pitch	= pScrn->virtualX;
 	/* back/depth buffers will likely be allocated on a per-drawable
 	 * basis, but these may be useful if we want to support shared back

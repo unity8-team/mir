@@ -940,7 +940,7 @@ void NVCalcStateExt (
                                          &(state->arbitration0),
                                          &(state->arbitration1));
             }
-			CursorStart = pNv->Cursor->offset - pNv->VRAMPhysical;
+            CursorStart = pNv->Cursor->offset;
             state->cursor0  = 0x80 | (CursorStart >> 17);
             state->cursor1  = (CursorStart >> 11) << 2;
 	    state->cursor2  = CursorStart >> 24;
