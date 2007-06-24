@@ -429,6 +429,15 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 	/* EXA-only */
 	INIT_CONTEXT_OBJECT(MemFormat);
 
+	/* 3D init */
+	switch (pNv->Architecture) {
+	case NV_ARCH_40:
+		INIT_CONTEXT_OBJECT(NV40TCL);
+		break;
+	default:
+		break;
+	}
+
 	return TRUE;
 }
 

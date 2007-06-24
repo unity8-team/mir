@@ -100,5 +100,13 @@ void NVPointerMoved(int index, int x, int y);
 /* in nv_bios.c */
 unsigned int NVParseBios(ScrnInfoPtr pScrn);
 
+/* in nv30_exa.c */
+Bool NVAccelInitNV40TCL(ScrnInfoPtr pScrn);
+Bool NV30EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+Bool NV30EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
+				  PixmapPtr, PixmapPtr, PixmapPtr);
+void NV30EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
+void NV30EXADoneComposite(PixmapPtr);
+
 #endif /* __NV_PROTO_H__ */
 

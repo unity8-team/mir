@@ -93,9 +93,13 @@ enum DMASubchannel {
 	(pNv)->dmaBase[(pNv)->dmaCurrent++] = (data);       \
 } while(0)
 
-#define NVDmaFloat(pNv, data) do {      \
-	float f = (data);               \
-	NVDmaNext((pNv), *(CARD32*)&f); \
+#define NVDmaFloat(pNv, data) do { \
+	union {                    \
+		float v;           \
+		uint32_t u;        \
+	} c;                       \
+	c.v = (data);              \
+	NVDmaNext((pNv), c.u);     \
 } while(0)
 
 #define NVDmaStart(pNv, subchannel, tag, size) do {                     \

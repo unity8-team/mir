@@ -565,17 +565,21 @@ Bool NVExaInit(ScreenPtr pScreen)
 	pNv->EXADriverPtr->Solid = NVExaSolid;
 	pNv->EXADriverPtr->DoneSolid = NVExaDoneSolid;
 
-	/*darktama: Hard-disabled these for now, I get lockups often when
-	 *          starting e17 with them enabled.
-	 *marcheu:  Doesn't crash for me... was it related to the setup being
-	 *          called twice before ?
-	 */
-	if (pNv->BlendingPossible) {
-		/* install composite hooks */
-		pNv->EXADriverPtr->CheckComposite = NVCheckComposite;
+	switch (pNv->Architecture) {
+	case NV_ARCH_40:
+		pNv->EXADriverPtr->CheckComposite   = NV30EXACheckComposite;
+		pNv->EXADriverPtr->PrepareComposite = NV30EXAPrepareComposite;
+		pNv->EXADriverPtr->Composite        = NV30EXAComposite;
+		pNv->EXADriverPtr->DoneComposite    = NV30EXADoneComposite;
+		break;
+	default:
+		if (!pNv->BlendingPossible)
+			break;
+		pNv->EXADriverPtr->CheckComposite   = NVCheckComposite;
 		pNv->EXADriverPtr->PrepareComposite = NVPrepareComposite;
-		pNv->EXADriverPtr->Composite = NVComposite;
-		pNv->EXADriverPtr->DoneComposite = NVDoneComposite;
+		pNv->EXADriverPtr->Composite        = NVComposite;
+		pNv->EXADriverPtr->DoneComposite    = NVDoneComposite;
+		break;
 	}
 
 	/* If we're going to try and use 3D, let the card-specific function
