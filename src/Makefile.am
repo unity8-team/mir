@@ -46,6 +46,7 @@ nouveau_drv_la_SOURCES = \
          nv_dripriv.h \
          nv_local.h \
          nv_mem.c \
+         nv_notifier.c \
          nv_proto.h \
          nvreg.h \
          nv_setup.c \

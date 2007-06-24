@@ -67,7 +67,7 @@ enum DMAObjects {
 	NvMemFormat		= 0x80000018,
 	Nv3D			= 0x80000019,
 	NvDmaFB			= 0xD8000001,
-	NvDmaAGP		= 0xD8000002,
+	NvDmaTT			= 0xD8000002,
 	NvDmaNotifier0		= 0xD8000003
 };
 

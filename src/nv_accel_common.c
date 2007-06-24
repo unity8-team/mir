@@ -16,24 +16,6 @@ NVAccelInitNullObject(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
-static Bool
-NVAccelInitDmaFB(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
-
-	if (!have_object) {
-		if (!NVDmaCreateDMAObject(pNv, NvDmaFB, NV_DMA_IN_MEMORY,
-					  NOUVEAU_MEM_FB, 0,
-					  pNv->VRAMSize,
-					  NOUVEAU_MEM_ACCESS_RW))
-				return FALSE;
-		have_object = TRUE;
-	}
-
-	return TRUE;
-}
-
 uint32_t
 NVAccelGetPixmapOffset(NVPtr pNv, PixmapPtr pPix)
 {
@@ -51,37 +33,13 @@ NVAccelGetPixmapOffset(NVPtr pNv, PixmapPtr pPix)
 }
 
 static Bool
-NVAccelInitDmaAGP(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
-
-	if (!pNv->AGPSize)
-		return TRUE;
-
-	if (!have_object) {
-		if (!NVDmaCreateDMAObject(pNv, NvDmaAGP, NV_DMA_IN_MEMORY,
-					  NOUVEAU_MEM_AGP, 0,
-					  pNv->AGPSize,
-					  NOUVEAU_MEM_ACCESS_RW)) {
-			ErrorF("Couldn't create AGP object, disabling AGP\n");
-			NVFreeMemory(pNv, pNv->AGPScratch);
-			pNv->AGPScratch = NULL;
-		}
-		have_object = TRUE;
-	}
-
-	return TRUE;
-}
-
-static Bool
 NVAccelInitDmaNotifier0(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	static int have_object = FALSE;
 
 	if (!have_object) {
-		pNv->Notifier0 = NVDmaCreateNotifier(pNv, NvDmaNotifier0);
+		pNv->Notifier0 = NVNotifierAlloc(pScrn, NvDmaNotifier0);
 		if (!pNv->Notifier0)
 			return FALSE;
 		have_object = TRUE;
@@ -450,8 +408,6 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 	if(pNv->NoAccel) return TRUE;
 
 	INIT_CONTEXT_OBJECT(NullObject);
-	INIT_CONTEXT_OBJECT(DmaFB);
-	INIT_CONTEXT_OBJECT(DmaAGP);
 	INIT_CONTEXT_OBJECT(DmaNotifier0);
 
 	INIT_CONTEXT_OBJECT(ContextSurfaces);

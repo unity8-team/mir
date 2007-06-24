@@ -53,8 +53,8 @@ static void setM2MFDirection(NVPtr pNv, int dir)
 {
 	if (pNv->M2MFDirection != dir) {
 		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
-		NVDmaNext (pNv, dir ? NvDmaAGP : NvDmaFB);
-		NVDmaNext (pNv, dir ? NvDmaFB : NvDmaAGP);
+		NVDmaNext (pNv, dir ? NvDmaTT : NvDmaFB);
+		NVDmaNext (pNv, dir ? NvDmaFB : NvDmaTT);
 		pNv->M2MFDirection = dir;
 	}
 }
@@ -285,7 +285,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 		NVDEBUG("     max_lines=%d, h=%d\n", max_lines, h);
 
 		/* reset the notification object */
-		memset(pNv->Notifier0->map, 0xff, pNv->Notifier0->size);
+		NVNotifierReset(pScrn, pNv->Notifier0);
 		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_NOTIFY, 1);
 		NVDmaNext (pNv, 0);
 
@@ -300,7 +300,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 		NVDmaNext (pNv, 0);
 
 		NVDmaKickoff(pNv);
-		if (!NVDmaWaitForNotifier(pNv, pNv->Notifier0->map)) {
+		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 2000)) {
 			ret = FALSE;
 			goto error;
 		}
@@ -347,7 +347,8 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 		int nlines = h > max_lines ? max_lines : h;
 
 		/* reset the notification object */
-		memset(pNv->Notifier0->map, 0xff, pNv->Notifier0->size);
+		NVNotifierReset(pScrn, pNv->Notifier0);
+
 		memcpy(pNv->AGPScratch->map, src, nlines*src_pitch);
 		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_NOTIFY, 1);
 		NVDmaNext (pNv, 0);
@@ -363,7 +364,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 		NVDmaNext (pNv, 0);
 
 		NVDmaKickoff(pNv);
-		if (!NVDmaWaitForNotifier(pNv, pNv->Notifier0->map)) {
+		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 2000)) {
 			ret = FALSE;
 			goto error;
 		}
