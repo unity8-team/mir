@@ -219,10 +219,8 @@ radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
-#if 0
     int            x, y, w, h;
     CARD32	  *i;
-#endif
 
     RADEONCTRACE(("RADEONLoadCursorARGB\n"));
 
@@ -230,30 +228,14 @@ radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 
     CURSOR_SWAPPING_START();
 
-
-    memcpy (d, image, CURSOR_HEIGHT * CURSOR_WIDTH * 4);
-#if 0
-    w = pCurs->bits->width;
-    if (w > CURSOR_WIDTH)
-	w = CURSOR_WIDTH;
-    h = pCurs->bits->height;
-    if (h > CURSOR_HEIGHT)
-	h = CURSOR_HEIGHT;
-    for (y = 0; y < h; y++)
-    {
+    w = CURSOR_WIDTH;
+    h = CURSOR_HEIGHT;
+    for (y = 0; y < h; y++) {
 	i = image;
-	image += pCurs->bits->width;
+	image += w;
 	for (x = 0; x < w; x++)
 	    *d++ = *i++;
-	/* pad to the right with transparent */
-	for (; x < CURSOR_WIDTH; x++)
-	    *d++ = 0;
     }
-    /* pad below with transparent */
-    for (; y < CURSOR_HEIGHT; y++)
-	for (x = 0; x < CURSOR_WIDTH; x++)
-	    *d++ = 0;
-#endif
 
     CURSOR_SWAPPING_END ();
 }
