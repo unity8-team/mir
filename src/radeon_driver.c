@@ -2540,6 +2540,7 @@ RADEONCRTCResize(ScrnInfoPtr scrn, int width, int height)
 {
     scrn->virtualX = width;
     scrn->virtualY = height;
+    RADEONSetPitch(scrn);
     return TRUE;
 }
 
@@ -2791,7 +2792,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     ErrorF("after xf86InitialConfiguration\n");
 
-   pScrn->displayWidth = (pScrn->virtualX + 63) & ~63;
+   RADEONSetPitch(pScrn);
 
    /* Set display resolution */
    xf86SetDpi(pScrn, 0, 0);
