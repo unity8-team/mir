@@ -437,9 +437,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     binding_table_entries = 2; /* default no mask */
 
-    /* Wait for sync before we start setting up our new state */
-    i830WaitSync(pScrn);
-
     /* Set up our layout of state in framebuffer.  First the general state: */
     next_offset = 0;
     vs_offset = ALIGN(next_offset, 64);
