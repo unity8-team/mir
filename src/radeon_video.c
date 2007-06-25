@@ -1188,17 +1188,10 @@ static void RADEONSetupTheatre(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     /* Go and find Rage Theatre, if it exists */
     
-    switch(info->Chipset){
-    	case PCI_CHIP_RADEON_LY:
-	case PCI_CHIP_RADEON_LZ:
-	        xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility M6, not scanning for Rage Theatre\n");
-		break;
-	case PCI_CHIP_RADEON_LW:
-	        xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility M7, not scanning for Rage Theatre\n");
-		break;
-	default:
-	    pPriv->theatre=xf86_DetectTheatre(pPriv->VIP);
-	}
+    if (info->IsMobility)
+	xf86DrvMsg(pScrn->scrnIndex,X_INFO,"Detected Radeon Mobility, not scanning for Rage Theatre\n");
+    else
+	pPriv->theatre=xf86_DetectTheatre(pPriv->VIP);
 
     if(pPriv->theatre==NULL)return;
     
