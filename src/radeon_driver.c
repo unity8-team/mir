@@ -5123,8 +5123,8 @@ void RADEONRestore(ScrnInfoPtr pScrn)
 			xf86_config->crtc[i]->enabled = 0;
     	}
     }
-    RADEONUnblank(pScrn);
 #endif
+    RADEONUnblank(pScrn);
 #if 0
     RADEONWaitForVerticalSync(pScrn);
 #endif
