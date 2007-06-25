@@ -2261,6 +2261,7 @@ static void RADEONPreInitColorTiling(ScrnInfoPtr pScrn)
     info->allowColorTiling = xf86ReturnOptValBool(info->Options,
 				        OPTION_COLOR_TILING, TRUE);
     if (IS_R300_VARIANT) {
+	/* this may be 4096 on r4xx -- need to double check */
 	info->MaxSurfaceWidth = 3968; /* one would have thought 4096...*/
 	info->MaxLines = 4096;
     } else {
@@ -2554,6 +2555,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     void *int10_save = NULL;
     const char *s;
     MessageType from;
+    int crtc_max_X, crtc_max_Y;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONPreInit\n");
@@ -2750,8 +2752,28 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     RADEONPreInitColorTiling(pScrn);
 
-    xf86CrtcSetSizeRange (pScrn, 320, 200, 2708, 1200);//nfo->MaxSurfaceWidth, info->MaxLines);
+    /* we really need an FB manager... */
+    if (pScrn->display->virtualX) {
+	crtc_max_X = pScrn->display->virtualX;
+	crtc_max_Y = pScrn->display->virtualY;
+	if (info->allowColorTiling) {
+	    if (crtc_max_X > info->MaxSurfaceWidth)
+		crtc_max_X = info->MaxSurfaceWidth;
+	    if (crtc_max_Y > info->MaxLines)
+		crtc_max_Y = info->MaxLines;
+	} else {
+	    if (crtc_max_X > 8192)
+		crtc_max_X = 8192;
+	    if (crtc_max_Y > 8192)
+		crtc_max_Y = 8192;
+	}
+    } else {
+	crtc_max_X = 1600;
+	crtc_max_Y = 1200;
+    }
 
+    /*xf86CrtcSetSizeRange (pScrn, 320, 200, info->MaxSurfaceWidth, info->MaxLines);*/
+    xf86CrtcSetSizeRange (pScrn, 320, 200, crtc_max_X, crtc_max_Y);
 
     RADEONPreInitDDC(pScrn);
 

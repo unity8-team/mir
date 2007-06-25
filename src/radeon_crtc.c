@@ -746,8 +746,24 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONMonitorType montype = MT_NONE;
+    Bool           tilingOld   = info->tilingEnabled;
     int i = 0;
     double         dot_clock = 0;
+
+
+    if (info->allowColorTiling) {
+        info->tilingEnabled = (adjusted_mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
+#ifdef XF86DRI	
+	if (info->directRenderingEnabled && (info->tilingEnabled != tilingOld)) {
+	    RADEONSAREAPrivPtr pSAREAPriv;
+	  if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_SWITCH_TILING, (info->tilingEnabled ? 1 : 0)) < 0)
+  	      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			 "[drm] failed changing tiling status\n");
+	    pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+	    info->tilingEnabled = pSAREAPriv->tiling_enabled ? TRUE : FALSE;
+	}
+#endif
+    }
 
     for (i = 0; i < xf86_config->num_output; i++) {
 	xf86OutputPtr output = xf86_config->output[i];
@@ -810,6 +826,17 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
     if (info->DispPriority)
         RADEONInitDispBandwidth(pScrn);
+
+    if (info->tilingEnabled != tilingOld) {
+	/* need to redraw front buffer, I guess this can be considered a hack ? */
+	xf86EnableDisableFBAccess(pScrn->scrnIndex, FALSE);
+	RADEONChangeSurfaces(pScrn);
+	xf86EnableDisableFBAccess(pScrn->scrnIndex, TRUE);
+	/* xf86SetRootClip would do, but can't access that here */
+    }
+
+    /* reset ecp_div for Xv */
+    info->ecp_div = -1;
 
 }
 
