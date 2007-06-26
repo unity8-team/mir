@@ -264,8 +264,8 @@ static int urb_cs_start, urb_cs_size;
 static struct brw_surface_state *dest_surf_state, dest_surf_state_local;
 static struct brw_surface_state *src_surf_state, src_surf_state_local;
 static struct brw_surface_state *mask_surf_state, mask_surf_state_local;
-static struct brw_sampler_state *src_sampler_state;
-static struct brw_sampler_state *mask_sampler_state;
+static struct brw_sampler_state *src_sampler_state, src_sampler_state_local;
+static struct brw_sampler_state *mask_sampler_state, mask_sampler_state_local;
 static struct brw_sampler_default_color *default_color_state;
 
 static struct brw_vs_unit_state *vs_state;
@@ -539,10 +539,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     cc_viewport = (void *)(state_base + cc_viewport_offset);
 
-    src_sampler_state = (void *)(state_base + src_sampler_offset);
-    if (pMask)
-	mask_sampler_state = (void *)(state_base + mask_sampler_offset);
-
     binding_table = (void *)(state_base + binding_table_offset);
 
     vb = (void *)(state_base + vb_offset);
@@ -712,6 +708,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	binding_table[2] = state_base_offset + mask_surf_offset;
 
     /* PS kernel use this sampler */
+    src_sampler_state = &src_sampler_state_local;
     memset(src_sampler_state, 0, sizeof(*src_sampler_state));
     src_sampler_state->ss0.lod_preclamp = 1; /* GL mode */
     switch(pSrcPicture->filter) {
@@ -748,7 +745,11 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     }
     src_sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
 
+    src_sampler_state = (void *)(state_base + src_sampler_offset);
+    memcpy (src_sampler_state, &src_sampler_state_local, sizeof (src_sampler_state_local));
+
     if (pMask) {
+	mask_sampler_state = &mask_sampler_state_local;
    	memset(mask_sampler_state, 0, sizeof(*mask_sampler_state));
    	mask_sampler_state->ss0.lod_preclamp = 1; /* GL mode */
    	switch(pMaskPicture->filter) {
@@ -779,6 +780,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	    mask_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
     	}
    	mask_sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
+
+	mask_sampler_state = (void *)(state_base + mask_sampler_offset);
+	memcpy (mask_sampler_state, &mask_sampler_state_local, sizeof (mask_sampler_state_local));
     }
 
     /* Set up the vertex shader to be disabled (passthrough) */
