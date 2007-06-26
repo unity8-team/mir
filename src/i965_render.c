@@ -263,7 +263,7 @@ static int urb_cs_start, urb_cs_size;
 
 static struct brw_surface_state *dest_surf_state, dest_surf_state_local;
 static struct brw_surface_state *src_surf_state, src_surf_state_local;
-static struct brw_surface_state *mask_surf_state;
+static struct brw_surface_state *mask_surf_state, mask_surf_state_local;
 static struct brw_sampler_state *src_sampler_state;
 static struct brw_sampler_state *mask_sampler_state;
 static struct brw_sampler_default_color *default_color_state;
@@ -539,9 +539,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     cc_viewport = (void *)(state_base + cc_viewport_offset);
 
-    if (pMask)
-	mask_surf_state = (void *)(state_base + mask_surf_offset);
-
     src_sampler_state = (void *)(state_base + src_sampler_offset);
     if (pMask)
 	mask_sampler_state = (void *)(state_base + mask_sampler_offset);
@@ -681,6 +678,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     /* setup mask surface */
     if (pMask) {
+	mask_surf_state = &mask_surf_state_local;
    	memset(mask_surf_state, 0, sizeof(*mask_surf_state));
 	mask_surf_state->ss0.surface_type = BRW_SURFACE_2D;
    	mask_surf_state->ss0.surface_format =
@@ -702,6 +700,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	mask_surf_state->ss2.mip_count = 0;
    	mask_surf_state->ss2.render_target_rotation = 0;
    	mask_surf_state->ss3.pitch = mask_pitch - 1;
+
+	mask_surf_state = (void *)(state_base + mask_surf_offset);
+	memcpy (mask_surf_state, &mask_surf_state_local, sizeof (mask_surf_state_local));
     }
 
     /* Set up a binding table for our surfaces.  Only the PS will use it */
