@@ -271,7 +271,7 @@ static struct brw_sampler_default_color *default_color_state;
 static struct brw_vs_unit_state *vs_state;
 static struct brw_sf_unit_state *sf_state;
 static struct brw_wm_unit_state *wm_state;
-static struct brw_cc_unit_state *cc_state;
+static struct brw_cc_unit_state *cc_state, cc_state_local;
 static struct brw_cc_viewport *cc_viewport;
 
 static struct brw_instruction *sf_kernel;
@@ -533,7 +533,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     vs_state = (void *)(state_base + vs_offset);
     sf_state = (void *)(state_base + sf_offset);
     wm_state = (void *)(state_base + wm_offset);
-    cc_state = (void *)(state_base + cc_offset);
     sf_kernel = (void *)(state_base + sf_kernel_offset);
     ps_kernel = (void *)(state_base + ps_kernel_offset);
     sip_kernel = (void *)(state_base + sip_kernel_offset);
@@ -594,6 +593,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     cc_viewport->max_depth = 1.e35;
 
     /* Color calculator state */
+    cc_state = &cc_state_local;
     memset(cc_state, 0, sizeof(*cc_state));
     cc_state->cc0.stencil_enable = 0;   /* disable stencil */
     cc_state->cc2.depth_test = 0;       /* disable depth test */
@@ -620,6 +620,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     cc_state->cc6.clamp_post_alpha_blend = 1;
     cc_state->cc6.clamp_pre_alpha_blend = 1;
     cc_state->cc6.clamp_range = 0;  /* clamp range [0,1] */
+
+    cc_state = (void *)(state_base + cc_offset);
+    memcpy (cc_state, &cc_state_local, sizeof (cc_state_local));
 
     /* Upload system kernel */
     memcpy (sip_kernel, sip_kernel_static, sizeof (sip_kernel_static));
