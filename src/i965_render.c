@@ -261,7 +261,7 @@ static int urb_clip_start, urb_clip_size;
 static int urb_sf_start, urb_sf_size;
 static int urb_cs_start, urb_cs_size;
 
-static struct brw_surface_state *dest_surf_state;
+static struct brw_surface_state *dest_surf_state, dest_surf_state_local;
 static struct brw_surface_state *src_surf_state;
 static struct brw_surface_state *mask_surf_state;
 static struct brw_sampler_state *src_sampler_state;
@@ -539,7 +539,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     cc_viewport = (void *)(state_base + cc_viewport_offset);
 
-    dest_surf_state = (void *)(state_base + dest_surf_offset);
     src_surf_state = (void *)(state_base + src_surf_offset);
     if (pMask)
 	mask_surf_state = (void *)(state_base + mask_surf_offset);
@@ -628,6 +627,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     memcpy (sip_kernel, sip_kernel_static, sizeof (sip_kernel_static));
 
     /* Set up the state buffer for the destination surface */
+    dest_surf_state = &dest_surf_state_local;
     memset(dest_surf_state, 0, sizeof(*dest_surf_state));
     dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
     dest_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
@@ -650,6 +650,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     dest_surf_state->ss2.mip_count = 0;
     dest_surf_state->ss2.render_target_rotation = 0;
     dest_surf_state->ss3.pitch = dst_pitch - 1;
+
+    dest_surf_state = (void *)(state_base + dest_surf_offset);
+    memcpy (dest_surf_state, &dest_surf_state_local, sizeof (dest_surf_state_local));
 
     /* Set up the source surface state buffer */
     memset(src_surf_state, 0, sizeof(*src_surf_state));
