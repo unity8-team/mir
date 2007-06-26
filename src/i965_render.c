@@ -268,9 +268,9 @@ static struct brw_sampler_state *src_sampler_state, src_sampler_state_local;
 static struct brw_sampler_state *mask_sampler_state, mask_sampler_state_local;
 static struct brw_sampler_default_color *default_color_state;
 
-static struct brw_vs_unit_state *vs_state;
-static struct brw_sf_unit_state *sf_state;
-static struct brw_wm_unit_state *wm_state;
+static struct brw_vs_unit_state *vs_state, vs_state_local;
+static struct brw_sf_unit_state *sf_state, sf_state_local;
+static struct brw_wm_unit_state *wm_state, wm_state_local;
 static struct brw_cc_unit_state *cc_state, cc_state_local;
 static struct brw_cc_viewport *cc_viewport;
 
@@ -530,9 +530,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     state_base_offset = ALIGN(state_base_offset, 64);
     state_base = (char *)(pI830->FbBase + state_base_offset);
 
-    vs_state = (void *)(state_base + vs_offset);
-    sf_state = (void *)(state_base + sf_offset);
-    wm_state = (void *)(state_base + wm_offset);
     sf_kernel = (void *)(state_base + sf_kernel_offset);
     ps_kernel = (void *)(state_base + ps_kernel_offset);
     sip_kernel = (void *)(state_base + sip_kernel_offset);
@@ -786,11 +783,15 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     }
 
     /* Set up the vertex shader to be disabled (passthrough) */
+    vs_state = &vs_state_local;
     memset(vs_state, 0, sizeof(*vs_state));
     vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
     vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
     vs_state->vs6.vs_enable = 0;
     vs_state->vs6.vert_cache_disable = 1;
+
+    vs_state = (void *)(state_base + vs_offset);
+    memcpy (vs_state, &vs_state_local, sizeof (vs_state_local));
 
     /* Set up the SF kernel to do coord interp: for each attribute,
      * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
@@ -804,6 +805,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     else
 	memcpy(sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
 
+    sf_state = &sf_state_local;
     memset(sf_state, 0, sizeof(*sf_state));
     sf_state->thread0.kernel_start_pointer =
 	(state_base_offset + sf_kernel_offset) >> 6;
@@ -835,6 +837,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     sf_state->sf6.dest_org_vbias = 0x8;
     sf_state->sf6.dest_org_hbias = 0x8;
 
+    sf_state = (void *)(state_base + sf_offset);
+    memcpy (sf_state, &sf_state_local, sizeof (sf_state_local));
+
    /* Set up the PS kernel (dispatched by WM) */
     if (pMask) {
 	if (pMaskPicture->componentAlpha && 
@@ -856,6 +861,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	       sizeof (ps_kernel_static_nomask));
     }
 
+    wm_state = &wm_state_local;
     memset(wm_state, 0, sizeof (*wm_state));
     wm_state->thread0.kernel_start_pointer =
 	(state_base_offset + ps_kernel_offset) >> 6;
@@ -892,6 +898,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     wm_state->wm5.enable_16_pix = 1;
     wm_state->wm5.enable_8_pix = 0;
     wm_state->wm5.early_depth_test = 1;
+
+    wm_state = (void *)(state_base + wm_offset);
+    memcpy (wm_state, &wm_state_local, sizeof (wm_state_local));
 
     /* Begin the long sequence of commands needed to set up the 3D
      * rendering pipe
