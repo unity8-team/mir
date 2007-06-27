@@ -400,7 +400,7 @@ I830EXAInit(ScreenPtr pScreen)
 	return FALSE;
     }
     memset(pI830->EXADriverPtr, 0, sizeof(*pI830->EXADriverPtr));
-    
+
     pI830->bufferOffset = 0;
     pI830->EXADriverPtr->exa_major = 2;
     pI830->EXADriverPtr->exa_minor = 1;
@@ -408,21 +408,14 @@ I830EXAInit(ScreenPtr pScreen)
     pI830->EXADriverPtr->offScreenBase = pI830->exa_offscreen->offset;
     pI830->EXADriverPtr->memorySize = pI830->exa_offscreen->offset +
 	pI830->exa_offscreen->size;
-	   
+    pI830->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
+
     DPRINTF(PFX, "EXA Mem: memoryBase 0x%x, end 0x%x, offscreen base 0x%x, memorySize 0x%x\n",
 		pI830->EXADriverPtr->memoryBase,
 		pI830->EXADriverPtr->memoryBase + pI830->EXADriverPtr->memorySize,
 		pI830->EXADriverPtr->offScreenBase,
 		pI830->EXADriverPtr->memorySize);
 
-    if(pI830->EXADriverPtr->memorySize >
-       pI830->EXADriverPtr->offScreenBase)
-	pI830->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
-    else {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Not enough video RAM for "
-		   "offscreen memory manager. Xv disabled\n");
-	/* disable Xv here... */
-    }
 
     /* Limits are described in the BLT engine chapter under Graphics Data Size
      * Limitations, and the descriptions of SURFACE_STATE, 3DSTATE_BUFFER_INFO,
