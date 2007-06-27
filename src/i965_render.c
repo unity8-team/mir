@@ -429,6 +429,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	    rotation_program = TRUE;
     } else {
 	pI830->transform[1] = pMaskPicture->transform;
+	if (pI830->transform[1])
+	    I830FALLBACK("i965 mask transform not implemented!\n");
 	pI830->scale_units[1][0] = pMask->drawable.width;
 	pI830->scale_units[1][1] = pMask->drawable.height;
     }
