@@ -571,39 +571,91 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
     {
 	fp = INREG(pipe == 0 ? FPA0 : FPB0);
 	dpll = INREG(pipe == 0 ? DPLL_A : DPLL_B);
-	switch ((dpll >> 24) & 0x3) {
-	case 0:
-	    p2 = 10;
-	    break;
-	case 1:
-	    p2 = 5;
-	    break;
-	default:
-	    p2 = 1;
-	    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "p2 out of range\n");
-	    break;
+	if (IS_I9XX(pI830)) 
+	{
+	    CARD32  lvds = INREG(LVDS);
+	    if ((lvds & LVDS_PORT_EN) &&
+		(lvds & LVDS_PIPEB_SELECT) == (pipe << 30))
+	    {
+		if ((lvds & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
+		    p2 = 7;
+		else
+		    p2 = 14;
+	    }
+	    else
+	    {
+		switch ((dpll >> 24) & 0x3) {
+		case 0:
+		    p2 = 10;
+		    break;
+		case 1:
+		    p2 = 5;
+		    break;
+		default:
+		    p2 = 1;
+		    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "p2 out of range\n");
+		    break;
+		}
+	    }
+	    switch ((dpll >> 16) & 0xff) {
+	    case 1:
+		p1 = 1; break;
+	    case 2:
+		p1 = 2; break;
+	    case 4:
+		p1 = 3; break;
+	    case 8:
+		p1 = 4; break;
+	    case 16:
+		p1 = 5; break;
+	    case 32:
+		p1 = 6; break;
+	    case 64:
+		p1 = 7; break;
+	    case 128:
+		p1 = 8; break;
+	    default:
+		p1 = 1;
+		xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "p1 out of range\n");
+		break;
+	    }
 	}
-	switch ((dpll >> 16) & 0xff) {
-	case 1:
-	    p1 = 1; break;
-	case 2:
-	    p1 = 2; break;
-	case 4:
-	    p1 = 3; break;
-	case 8:
-	    p1 = 4; break;
-	case 16:
-	    p1 = 5; break;
-	case 32:
-	    p1 = 6; break;
-	case 64:
-	    p1 = 7; break;
-	case 128:
-	    p1 = 8; break;
-	default:
-	    p1 = 1;
-	    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "p1 out of range\n");
-	    break;
+	else
+	{
+	    CARD32  lvds = INREG(LVDS);
+	    if (IS_I85X (pI830) && 
+		(lvds & LVDS_PORT_EN) &&
+		(lvds & LVDS_PIPEB_SELECT) == (pipe << 30))
+	    {
+		if ((lvds & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
+		    p2 = 7;
+		else
+		    p2 = 14;
+		switch ((dpll >> 16) & 0x3f) {
+		case 0x01:  p1 = 1; break;
+		case 0x02:  p1 = 2; break;
+		case 0x04:  p1 = 3; break;
+		case 0x08:  p1 = 4; break;
+		case 0x10:  p1 = 5; break;
+		case 0x20:  p1 = 6; break;
+		default:
+		    p1 = 1;
+		    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "LVDS P1 0x%x invalid encoding\n",
+				(dpll >> 16) & 0x3f);
+		    break;
+		}
+	    }
+	    else
+	    {
+		if (dpll & (1 << 23))
+		    p2 = 4;
+		else
+		    p2 = 2;
+		if (dpll & PLL_P1_DIVIDE_BY_TWO)
+		    p1 = 2;
+		else
+		    p1 = ((dpll >> 16) & 0x3f) + 2;
+	    }
 	}
 	switch ((dpll >> 13) & 0x3) {
 	case 0:
