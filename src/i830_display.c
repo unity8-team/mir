@@ -92,7 +92,7 @@ typedef struct {
 #define I8XX_P2_SLOW		      4
 #define I8XX_P2_FAST		      2
 #define I8XX_P2_LVDS_SLOW	      14
-#define I8XX_P2_LVDS_FAST	      14 /* No fast option */
+#define I8XX_P2_LVDS_FAST	      7
 #define I8XX_P2_SLOW_LIMIT	 165000
 
 #define I9XX_DOT_MIN		  20000
@@ -311,8 +311,7 @@ i830FindBestPLL(xf86CrtcPtr crtc, int target, int refclk, intel_clock_t *best_cl
     const intel_limit_t   *limit = intel_limit (crtc);
     int err = target;
 
-    if (IS_I9XX(pI830) && i830PipeHasType(crtc, I830_OUTPUT_LVDS) &&
-	(INREG(LVDS) & LVDS_PORT_EN) != 0)
+    if (i830PipeHasType(crtc, I830_OUTPUT_LVDS))
     {
 	/* For LVDS, if the panel is on, just rely on its current settings for
 	 * dual-channel.  We haven't figured out how to reliably set up
@@ -1006,7 +1005,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	/* Set the B0-B3 data pairs corresponding to whether we're going to
 	 * set the DPLLs for dual-channel mode or not.
 	 */
-	if (clock.p2 == 7)
+	if (clock.p2 == I9XX_P2_LVDS_FAST)
 	    lvds |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
 	else
 	    lvds &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
