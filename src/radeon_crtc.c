@@ -143,6 +143,32 @@ RADEONInitCommonRegisters(RADEONSavePtr save, RADEONInfoPtr info)
 	save->bus_cntl |= RADEON_BUS_RD_DISCARD_EN;
 }
 
+static void
+RADEONInitSurfaceCntl(xf86CrtcPtr crtc, RADEONSavePtr save)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+
+    save->surface_cntl = 0;
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    /* We must set both apertures as they can be both used to map the entire
+     * video memory. -BenH.
+     */
+    switch (pScrn->bitsPerPixel) {
+    case 16:
+	save->surface_cntl |= RADEON_NONSURF_AP0_SWP_16BPP;
+	save->surface_cntl |= RADEON_NONSURF_AP1_SWP_16BPP;
+	break;
+
+    case 32:
+	save->surface_cntl |= RADEON_NONSURF_AP0_SWP_32BPP;
+	save->surface_cntl |= RADEON_NONSURF_AP1_SWP_32BPP;
+	break;
+    }
+#endif
+
+}
+
 static Bool
 RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 		   int x, int y)
@@ -301,26 +327,8 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 			    RADEON_CRTC_HSYNC_DIS |
 			    RADEON_CRTC_DISPLAY_DIS);
 
-    save->surface_cntl = 0;
     save->disp_merge_cntl = info->SavedReg.disp_merge_cntl;
     save->disp_merge_cntl &= ~RADEON_DISP_RGB_OFFSET_EN;
-
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* We must set both apertures as they can be both used to map the entire
-     * video memory. -BenH.
-     */
-    switch (pScrn->bitsPerPixel) {
-    case 16:
-	save->surface_cntl |= RADEON_NONSURF_AP0_SWP_16BPP;
-	save->surface_cntl |= RADEON_NONSURF_AP1_SWP_16BPP;
-	break;
-
-    case 32:
-	save->surface_cntl |= RADEON_NONSURF_AP0_SWP_32BPP;
-	save->surface_cntl |= RADEON_NONSURF_AP1_SWP_32BPP;
-	break;
-    }
-#endif
 
     save->crtc_more_cntl = 0;
     if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
@@ -577,25 +585,6 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->fp_h2_sync_strt_wid = save->crtc2_h_sync_strt_wid;
     save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
 
-    /* We must set SURFACE_CNTL properly on the second screen too */
-    save->surface_cntl = 0;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* We must set both apertures as they can be both used to map the entire
-     * video memory. -BenH.
-     */
-    switch (pScrn->bitsPerPixel) {
-    case 16:
-       save->surface_cntl |= RADEON_NONSURF_AP0_SWP_16BPP;
-       save->surface_cntl |= RADEON_NONSURF_AP1_SWP_16BPP;
-       break;
-
-    case 32:
-       save->surface_cntl |= RADEON_NONSURF_AP0_SWP_32BPP;
-       save->surface_cntl |= RADEON_NONSURF_AP1_SWP_32BPP;
-       break;
-    }
-#endif
- 
     if (info->ChipFamily == CHIP_FAMILY_RS400) {
 	save->rs480_unk_e30 = 0x105DC1CC; /* because I'm worth it */
 	save->rs480_unk_e34 = 0x2749D000; /* AMD really should */
@@ -797,6 +786,8 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     RADEONInitMemMapRegisters(pScrn, &info->ModeReg, info);
     ErrorF("init common\n");
     RADEONInitCommonRegisters(&info->ModeReg, info);
+
+    RADEONInitSurfaceCntl(crtc, &info->ModeReg);
 
     switch (radeon_crtc->crtc_id) {
     case 0:
