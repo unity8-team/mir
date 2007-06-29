@@ -2810,8 +2810,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitXv(pScrn))                 goto fail;
 
-   info->CurrentLayout.displayWidth = pScrn->displayWidth;
-
     if (!xf86RandR12PreInit (pScrn))
     {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "RandR initialization failure\n");

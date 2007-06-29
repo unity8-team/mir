@@ -74,6 +74,8 @@ void RADEONSetPitch (ScrnInfoPtr pScrn)
 	break;
     }
     pScrn->displayWidth = dummy;
+    info->CurrentLayout.displayWidth = pScrn->displayWidth;
+
 }
 
 /* This is used only when no mode is specified for FP and no ddc is
