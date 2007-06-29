@@ -3375,6 +3375,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     info->PaletteSavedOnVT = FALSE;
 
+    info->crtc_on = FALSE;
+    info->crtc2_on = FALSE;
+
     RADEONSave(pScrn);
 
     RADEONDisableDisplays(pScrn);
@@ -4812,6 +4815,13 @@ static void RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	save->disp_hw_debug    = INREG (RADEON_DISP_HW_DEBUG);
 	save->crtc2_gen_cntl   = INREG(RADEON_CRTC2_GEN_CNTL);
     }
+
+    /* track if the crtc is enabled for text restore */
+    if (save->crtc_ext_cntl & RADEON_CRTC_DISPLAY_DIS)
+	info->crtc_on = FALSE;
+    else
+	info->crtc_on = TRUE;
+
 }
 
 /* Read DAC registers */
@@ -4882,6 +4892,13 @@ static void RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     }
     
     save->disp2_merge_cntl      = INREG(RADEON_DISP2_MERGE_CNTL);
+
+    /* track if the crtc is enabled for text restore */
+    if (save->crtc2_gen_cntl & RADEON_CRTC2_DISP_DIS)
+	info->crtc2_on = FALSE;
+    else
+	info->crtc2_on = TRUE;
+
 }
 
 /* Read PLL registers */
@@ -5015,6 +5032,8 @@ void RADEONRestore(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr  restore    = &info->SavedReg;
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    xf86CrtcPtr crtc;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONRestore\n");
@@ -5073,19 +5092,18 @@ void RADEONRestore(ScrnInfoPtr pScrn)
        vgaHWLock(hwp);
     }
 #endif
-#if 0
-    {
-        xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int i;
-	for (i = 0; i <= xf86_config->num_crtc; i++) {
-		if (i == 0)
-			xf86_config->crtc[i]->enabled = 1;
-		else
-			xf86_config->crtc[i]->enabled = 0;
-    	}
+
+    /* need to make sure we don't enable a crtc by accident or we may get a hang */
+    /*RADEONUnblank(pScrn);*/
+    if (info->crtc_on) {
+	crtc = xf86_config->crtc[0];
+	crtc->funcs->dpms(crtc, DPMSModeOn);
     }
-#endif
-    RADEONUnblank(pScrn);
+    if (info->crtc2_on) {
+	crtc = xf86_config->crtc[1];
+	crtc->funcs->dpms(crtc, DPMSModeOn);
+    }
+
 #if 0
     RADEONWaitForVerticalSync(pScrn);
 #endif

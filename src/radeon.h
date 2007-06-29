@@ -748,6 +748,10 @@ typedef struct {
     RADEONBIOSConnector BiosConnector[RADEON_MAX_BIOS_CONNECTOR];
     RADEONBIOSInitTable BiosTable;
 
+    /* save crtc state for console restore */
+    Bool              crtc_on;
+    Bool              crtc2_on;
+
     Rotation rotation;
     void (*PointerMoved)(int, int, int);
     CreateScreenResourcesProcPtr CreateScreenResources;
