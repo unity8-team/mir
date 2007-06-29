@@ -4118,6 +4118,8 @@ void RADEONRestoreDACRegisters(ScrnInfoPtr pScrn,
 	OUTREG(RADEON_DISP_HW_DEBUG, restore->disp_hw_debug);
     }
 
+    OUTREG(RADEON_DAC_MACRO_CNTL, restore->dac_macro_cntl);
+
     /* R200 DAC connected via DVO */
     if (info->ChipFamily == CHIP_FAMILY_R200)
 	OUTREG(RADEON_FP2_GEN_CNTL, restore->fp2_gen_cntl);
@@ -4678,23 +4680,6 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
     RADEONSaveSurfaces(pScrn, &info->ModeReg);
 }
 
-void
-RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num)
-{
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    xf86CrtcPtr crtc = pRADEONEnt->pCrtc[crtc_num];
-    int i;
-
-    /* get the output connected to this CRTC */
-    for (i = 0; i < xf86_config->num_output; i++) {
-	xf86OutputPtr output = xf86_config->output[i];
-	if (output->crtc == crtc) {
-	    RADEONEnableDisplay(output, TRUE);
-	}
-    }
-}
-
 /* Write out state to define a new video mode */
 void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
@@ -4702,25 +4687,6 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONRestoreMode(%p)\n", restore);
-
-    /* For Non-dual head card, we don't have private field in the Entity */
-    if (!pRADEONEnt->HasCRTC2) {
-	RADEONRestoreMemMapRegisters(pScrn, restore);
-	RADEONRestoreCommonRegisters(pScrn, restore);
-	RADEONRestoreCrtcRegisters(pScrn, restore);
-	RADEONRestoreRMXRegisters(pScrn, restore);
-	RADEONRestoreFPRegisters(pScrn, restore);
-	RADEONRestoreFP2Registers(pScrn, restore);
-	RADEONRestoreLVDSRegisters(pScrn, restore);
-	RADEONRestoreDACRegisters(pScrn, restore);
-	RADEONRestorePLLRegisters(pScrn, restore);
-	return;
-    }
-
-    /* Disable all outputs at initial mode set.  the ones we want will
-       get set by RADEONEnableDisplay()
-     */
-    RADEONDisableDisplays(pScrn);
 
     /* When changing mode with Dual-head card, care must be taken for
      * the special order in setting registers. CRTC2 has to be set
@@ -4736,8 +4702,11 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
      */
     RADEONRestoreMemMapRegisters(pScrn, restore);
     RADEONRestoreCommonRegisters(pScrn, restore);
-    RADEONRestoreCrtc2Registers(pScrn, restore);
-    RADEONRestorePLL2Registers(pScrn, restore);
+
+    if (pRADEONEnt->HasCRTC2) {
+	RADEONRestoreCrtc2Registers(pScrn, restore);
+	RADEONRestorePLL2Registers(pScrn, restore);
+    }
 
     RADEONRestoreCrtcRegisters(pScrn, restore);
     RADEONRestorePLLRegisters(pScrn, restore);
@@ -4746,9 +4715,6 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONRestoreFP2Registers(pScrn, restore);
     RADEONRestoreLVDSRegisters(pScrn, restore);
     RADEONRestoreDACRegisters(pScrn, restore);
-
-    RADEONEnableOutputs(pScrn, 0);
-    RADEONEnableOutputs(pScrn, 1);
 
 #if 0
     RADEONRestorePalette(pScrn, &info->SavedReg);
@@ -4860,7 +4826,7 @@ static void RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->disp_output_cntl      = INREG(RADEON_DISP_OUTPUT_CNTL);
     save->disp_tv_out_cntl      = INREG(RADEON_DISP_TV_OUT_CNTL);
     save->disp_hw_debug         = INREG(RADEON_DISP_HW_DEBUG);
-
+    save->dac_macro_cntl        = INREG(RADEON_DAC_MACRO_CNTL);
 }
 
 /* Read flat panel registers */
@@ -4880,9 +4846,6 @@ static void RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->bios_4_scratch       = INREG(RADEON_BIOS_4_SCRATCH);
     save->bios_5_scratch       = INREG(RADEON_BIOS_5_SCRATCH);
     save->bios_6_scratch       = INREG(RADEON_BIOS_6_SCRATCH);
-
-    save->lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
-    save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
 
     if (info->ChipFamily == CHIP_FAMILY_RV280) {
 	/* bit 22 of TMDS_PLL_CNTL is read-back inverted */

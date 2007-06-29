@@ -238,7 +238,7 @@ typedef struct {
 
 				/* CRTC2 registers */
     CARD32            crtc2_gen_cntl;
-
+    CARD32            dac_macro_cntl;
     CARD32            dac2_cntl;
     CARD32            disp_output_cntl;
     CARD32            disp_tv_out_cntl;

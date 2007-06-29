@@ -857,6 +857,8 @@ static void RADEONInitDACRegisters(xf86OutputPtr output, RADEONSavePtr save,
     save->dac_cntl = (RADEON_DAC_MASK_ALL
 		      | RADEON_DAC_VGA_ADR_EN
 		      | (info->dac6bits ? 0 : RADEON_DAC_8BIT_EN));
+
+    save->dac_macro_cntl = info->SavedReg.dac_macro_cntl;
 }
 
 /* XXX: fix me */
