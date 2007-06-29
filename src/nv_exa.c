@@ -314,7 +314,6 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 	}
 
 error:
-	exaMarkSync(pSrc->drawable.pScreen);
 	return ret;
 }
 
@@ -397,7 +396,6 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 					       dst_pitch, src_pitch,
 					       w * bpp, h);
 	}
-	exaMarkSync(pDst->drawable.pScreen);
 	return ret;
 }
 
