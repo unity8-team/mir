@@ -580,11 +580,6 @@ Bool NVExaInit(ScreenPtr pScreen)
 		break;
 	}
 
-	/* If we're going to try and use 3D, let the card-specific function
-	 * override whatever hooks it wants.
-	 */
-	if (pNv->use3D) pNv->InitEXA3D(pNv);
-
 	return exaDriverInit(pScreen, pNv->EXADriverPtr);
 }
 
