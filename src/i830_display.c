@@ -1054,6 +1054,14 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	((adjusted_mode->CrtcHSyncEnd - 1) << 16));
     OUTREG(vtot_reg, (adjusted_mode->CrtcVDisplay - 1) |
 	((adjusted_mode->CrtcVTotal - 1) << 16));
+    
+    /*
+     * Give us some border at the bottom for load detection
+     */
+    adjusted_mode->CrtcVBlankStart = adjusted_mode->CrtcVSyncStart;
+    if (adjusted_mode->CrtcVBlankEnd - adjusted_mode->CrtcVBlankStart < 3)
+	adjusted_mode->CrtcVBlankStart = adjusted_mode->CrtcVBlankEnd - 3;
+    
     OUTREG(vblank_reg, (adjusted_mode->CrtcVBlankStart - 1) |
 	((adjusted_mode->CrtcVBlankEnd - 1) << 16));
     OUTREG(vsync_reg, (adjusted_mode->CrtcVSyncStart - 1) |
@@ -1322,7 +1330,7 @@ i830GetLoadDetectPipe(xf86OutputPtr output)
 	return output->crtc;
 
     for (i = 0; i < xf86_config->num_crtc; i++)
-	if (!xf86CrtcInUse (xf86_config->crtc[i]))
+	if (output->possible_crtcs & (1 << i))
 	    break;
 
     if (i == xf86_config->num_crtc)
@@ -1344,9 +1352,10 @@ i830ReleaseLoadDetectPipe(xf86OutputPtr output)
     
     if (intel_output->load_detect_temp) 
     {
-	output->crtc->enabled = FALSE;
+	xf86CrtcPtr crtc = output->crtc;
 	output->crtc = NULL;
 	intel_output->load_detect_temp = FALSE;
+	crtc->enabled = xf86CrtcInUse (crtc);
 	xf86DisableUnusedFunctions(pScrn);
     }
 }

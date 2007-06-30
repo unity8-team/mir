@@ -462,13 +462,13 @@ i830_dvo_init(ScrnInfoPtr pScrn)
 					  "TMDS");
 		break;
 	    case I830_OUTPUT_DVO_LVDS:
-		intel_output->pipe_mask = (1 << 1);
+		intel_output->pipe_mask = ((1 << 0) | (1 << 1));
 		intel_output->clone_mask = (1 << I830_OUTPUT_DVO_LVDS);
 		output = xf86OutputCreate(pScrn, &i830_dvo_output_funcs,
 					  "LVDS");
 		break;
 	    case I830_OUTPUT_DVO_TVOUT:
-		intel_output->pipe_mask = (1 << 1);
+		intel_output->pipe_mask = ((1 << 0) | (1 << 1));
 		intel_output->clone_mask = (1 << I830_OUTPUT_DVO_TVOUT);
 		output = xf86OutputCreate(pScrn, &i830_dvo_output_funcs,
 					  "TV");

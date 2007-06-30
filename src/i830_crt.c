@@ -201,15 +201,16 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	    i830_crtc = I830CrtcPrivate(crtc);
-    I830OutputPrivatePtr    intel_output = output->driver_private;
     CARD32		    save_bclrpat;
     CARD32		    save_vtotal;
     CARD32		    vtotal, vactive;
     CARD32		    vsample;
+    CARD32		    vblank, vblank_start, vblank_end;
     CARD32		    dsl;
     CARD8		    st00;
     int			    bclrpat_reg, pipeconf_reg, pipe_dsl_reg;
     int			    vtotal_reg;
+    int			    vblank_reg;
     int			    pipe = i830_crtc->pipe;
     int			    count, detect;
     Bool		    present;
@@ -218,6 +219,7 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     {
 	bclrpat_reg = BCLRPAT_A;
 	vtotal_reg = VTOTAL_A;
+	vblank_reg = VBLANK_A;
 	pipeconf_reg = PIPEACONF;
 	pipe_dsl_reg = PIPEA_DSL;
     }
@@ -225,18 +227,26 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     {
 	bclrpat_reg = BCLRPAT_B;
 	vtotal_reg = VTOTAL_B;
+	vblank_reg = VBLANK_B;
 	pipeconf_reg = PIPEBCONF;
 	pipe_dsl_reg = PIPEB_DSL;
     }
 
     save_bclrpat = INREG(bclrpat_reg);
     save_vtotal = INREG(vtotal_reg);
-
-    vtotal = (save_vtotal >> 16) & 0xfff;
-    vactive = save_vtotal & 0x7ff;
+    vblank = INREG(vblank_reg);
     
-    /* sample the middle of the blanking interval */
-    vsample = ((vtotal - 3) + (vactive)) >> 1;
+    vtotal = ((save_vtotal >> 16) & 0xfff) + 1;
+    vactive = (save_vtotal & 0x7ff) + 1;
+
+    vblank_start = (vblank & 0xfff) + 1;
+    vblank_end = ((vblank >> 16) & 0xfff) + 1;
+    
+    /* sample in the vertical border, selecting the larger one */
+    if (vblank_start - vactive >= vtotal - vblank_end)
+	vsample = (vblank_start + vactive) >> 1;
+    else
+	vsample = (vtotal + vblank_end) >> 1;
 
     /* Set the border color to purple. */
     OUTREG(bclrpat_reg, 0x500050);
@@ -271,8 +281,6 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
      * the screen
      */
     present = detect * 4 > count * 3;
-    xf86DrvMsg (pScrn->scrnIndex, X_ERROR, "present: %s (%d of %d) at %ld desired %ld temp %d\n",
-		present ? "TRUE" : "FALSE", detect, count, dsl, vsample, intel_output->load_detect_temp);
     return present;
 }
 
@@ -341,10 +349,15 @@ i830_crt_detect(xf86OutputPtr output)
 	Bool			connected;
 	I830OutputPrivatePtr	intel_output = output->driver_private;
 	
-	if (intel_output->load_detect_temp)
+	if (!crtc->enabled)
 	{
 	    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
 	    xf86CrtcSetMode (crtc, &mode, RR_Rotate_0, 0, 0);
+	}
+	else if (intel_output->load_detect_temp)
+	{
+	    output->funcs->mode_set (output, &crtc->mode, &crtc->mode);
+	    output->funcs->commit (output);
 	}
 	connected = i830_crt_detect_load (crtc, output);
 
@@ -384,6 +397,7 @@ i830_crt_init(ScrnInfoPtr pScrn)
 {
     xf86OutputPtr	    output;
     I830OutputPrivatePtr    i830_output;
+    I830Ptr		    pI830 = I830PTR(pScrn);
 
     output = xf86OutputCreate (pScrn, &i830_crt_output_funcs, "VGA");
     if (!output)
@@ -395,7 +409,11 @@ i830_crt_init(ScrnInfoPtr pScrn)
 	return;
     }
     i830_output->type = I830_OUTPUT_ANALOG;
-    i830_output->pipe_mask = ((1 << 0) | (1 << 1));
+    /* i830 (almador) cannot place the analog adaptor on pipe B */
+    if (IS_I830(pI830))
+	i830_output->pipe_mask = (1 << 0);
+    else
+	i830_output->pipe_mask = ((1 << 0) | (1 << 1));
     i830_output->clone_mask = ((1 << I830_OUTPUT_ANALOG) |
 			       (1 << I830_OUTPUT_DVO_TMDS));
     
