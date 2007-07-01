@@ -263,7 +263,7 @@ static void NVExaDoneCopy (PixmapPtr pDstPixmap) {}
 Bool NVAccelMemcpyRect(char *dst, const char *src, int height,
 		       int dst_pitch, int src_pitch, int line_len)
 {
-	if ((src_pitch == line_len) && (src_pitch  == dst_pitch)) {
+	if ((src_pitch == line_len) && (src_pitch == dst_pitch)) {
 		memcpy(dst, src, line_len*height);
 	} else {
 		while (height--) {
@@ -431,20 +431,27 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 			     char *src, int src_pitch)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
 	int dst_offset, dst_pitch, cpp;
-	Bool ret;
+	char *dst;
 
 	dst_offset = NVAccelGetPixmapOffset(pDst);
 	dst_pitch  = exaGetPixmapPitch(pDst);
 	cpp = pDst->drawable.bitsPerPixel >> 3;
 
-	if (1) {
+	if (pNv->AGPScratch) {
 		dst_offset += (y * dst_pitch) + (x * cpp);
-		ret = NVAccelUploadM2MF(pScrn, dst_offset, src,
-					       dst_pitch, src_pitch,
-					       w * cpp, h);
+		if (NVAccelUploadM2MF(pScrn, dst_offset, src, dst_pitch,
+				      src_pitch, w * cpp, h))
+			return TRUE;
 	}
-	return ret;
+
+	dst = pDst->devPrivate.ptr + (y * dst_pitch) + (x * cpp);
+	exaWaitSync(pDst->drawable.pScreen);
+	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp))
+		return TRUE;
+
+	return FALSE;
 }
 
 
@@ -599,9 +606,7 @@ Bool NVExaInit(ScreenPtr pScreen)
 
 	/* Install default hooks */
 	pNv->EXADriverPtr->DownloadFromScreen = NVDownloadFromScreen; 
-	if (pNv->AGPScratch) {
-		pNv->EXADriverPtr->UploadToScreen = NVUploadToScreen; 
-	}
+	pNv->EXADriverPtr->UploadToScreen = NVUploadToScreen; 
 
 	pNv->EXADriverPtr->PrepareCopy = NVExaPrepareCopy;
 	pNv->EXADriverPtr->Copy = NVExaCopy;
