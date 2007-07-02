@@ -902,8 +902,8 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
     name = secondary ? "secondary front buffer" : "front buffer";
 
     /* Attempt to allocate it tiled first if we have page flipping on. */
-    if (!pI830->disableTiling && pI830->allowPageFlip &&
-	IsTileable(pScrn, pitch))
+    if ((!pI830->disableTiling && pI830->allowPageFlip &&
+	 IsTileable(pScrn, pitch)) || pI830->fb_compression)
     {
 	/* XXX: probably not the case on 965 */
 	if (IS_I9XX(pI830))
@@ -1022,6 +1022,56 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    /* Only mobile chips since 845 support this feature */
+    if (!IS_MOBILE(pI830)) {
+	pI830->fb_compression = FALSE;
+	goto out;
+    }
+
+    /*
+     * Compressed framebuffer limitations:
+     *   - contiguous, physical, uncached memory
+     *   - ideally as large as the front buffer(s), smaller sizes cache less
+     *   - uncompressed buffer must be tiled w/pitch 2k-16k
+     *   - uncompressed fb is <= 2048 in width, 0 mod 8
+     *   - uncompressed fb is <= 1536 in height, 0 mod 2
+     *   - compressed fb stride is <= uncompressed stride
+     *   - SR display watermarks must be equal between 16bpp and 32bpp?
+     *   - both compressed and line buffers must be in stolen memory
+     */
+    pI830->compressed_front_buffer =
+	i830_allocate_memory(pScrn, "compressed frame buffer",
+			     MB(6), KB(4),
+			     NEED_PHYSICAL_ADDR);
+
+    if (!pI830->compressed_front_buffer) {
+	pI830->fb_compression = FALSE;
+	goto out;
+    }
+
+    pI830->compressed_ll_buffer =
+	i830_allocate_memory(pScrn, "compressed ll buffer",
+			     1568, KB(4), NEED_PHYSICAL_ADDR);
+    if (!pI830->compressed_ll_buffer) {
+	i830_free_memory(pScrn, pI830->compressed_front_buffer);
+	pI830->fb_compression = FALSE;
+	goto out;
+    }
+
+out:
+    if (pI830->fb_compression)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Framebuffer compression "
+		   "enabled\n");
+    else
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Allocation error, framebuffer"
+		   " compression disabled\n");
+	
+    return;
+}
 /*
  * Allocate memory for 2D operation.  This includes the (front) framebuffer,
  * ring buffer, scratch memory, HW cursor.
@@ -1045,6 +1095,9 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 
     /* Allocate the ring buffer first, so it ends up in stolen mem. */
     i830_allocate_ringbuffer(pScrn);
+
+    if (pI830->fb_compression)
+	i830_setup_fb_compression(pScrn);
 
     /* Next, allocate other fixed-size allocations we have. */
     if (!pI830->SWCursor && !i830_allocate_cursor_buffers(pScrn)) {

@@ -287,6 +287,8 @@ typedef struct _I830Rec {
 
    i830_memory *front_buffer;
    i830_memory *front_buffer_2;
+   i830_memory *compressed_front_buffer;
+   i830_memory *compressed_ll_buffer;
    /* One big buffer for all cursors for kernels that support this */
    i830_memory *cursor_mem;
    /* separate small buffers for kernels that support this */
@@ -342,6 +344,7 @@ typedef struct _I830Rec {
    Bool allowPageFlip;
    Bool TripleBuffer;
    Bool disableTiling;
+   Bool fb_compression;
 
    int backPitch;
 

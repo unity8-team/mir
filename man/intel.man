@@ -77,6 +77,13 @@ driver attempts to allocate space for at 3 screenfuls of pixmaps plus an
 HD-sized XV video.  The default used for a specific configuration can be found
 by examining the __xservername__ log file.
 .TP
+.BI "Option \*qFrameBufferCompression\*q \*q" boolean \*q
+This option controls whether the framebuffer compression feature is enabled.
+If possible, the front buffer will be allocated in a tiled format and compressed
+periodically to save memory bandwidth and power.
+.TP
+This option is only available on mobile chipsets.
+.TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
 Disable or enable DRI support.
 Default: DRI is enabled for configurations where it is supported.

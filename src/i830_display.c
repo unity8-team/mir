@@ -653,15 +653,110 @@ i830_crtc_unlock (xf86CrtcPtr crtc)
 #endif
 }
 
+#define FBC_CFB_BASE		0x03200 /* 4k page aligned */
+#define FBC_LL_BASE		0x03204 /* 4k page aligned */
+#define FBC_CONTROL		0x03208
+#define   FBC_CTL_EN		(1<<31)
+#define   FBC_CTL_PERIODIC	(1<<30)
+#define   FBC_CTL_INTERVAL_SHIFT (16)
+#define   FBC_CTL_STRIDE_SHIFT	(5)
+#define   FBC_CTL_FENCENO	(1<<0)
+#define FBC_COMMAND		0x0320c
+#define   FBC_CMD_COMPRESS	(1<<0)
+#define FBC_STATUS		0x03210
+#define   FBC_STAT_COMPRESSING	(1<<31)
+#define   FBC_STAT_COMPRESSED	(1<<30)
+#define   FBC_STAT_MODIFIED	(1<<29)
+#define   FBC_STAT_CURRENT_LINE	(1<<0)
+#define FBC_CONTROL2		0x03214
+#define   FBC_CTL_CPU_FENCE	(1<<1)
+#define   FBC_CTL_PIPEA		(0<<0)
+#define   FBC_CTL_PIPEB		(1<<0)
+
+#define FBC_COMPRESSED_LINES	(1536+32)
+
+/*
+ * Several restrictions:
+ *   - DSP[AB]CNTR - no line duplication && no pixel multiplier
+ *   - pixel format == 15 bit, 16 bit, or 32 bit xRGB_8888
+ *   - no alpha buffer discard
+ *   - no dual wide display
+ *   - progressive mode only (DSP[AB]CNTR)
+ *
+ * FIXME: verify above conditions are true
+ */
+static void
+i830_enable_fb_compression(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    uint32_t fbc_ctl;
+    unsigned long compressed_stride;
+    int pipe = intel_crtc->pipe;
+    int plane = (pipe == 0 ? FBC_CTL_PIPEA : FBC_CTL_PIPEB);
+    unsigned long uncompressed_stride = pScrn->displayWidth * pI830->cpp;
+    unsigned long interval = 1000;
+
+    compressed_stride = pI830->compressed_front_buffer->size /
+	FBC_COMPRESSED_LINES;
+
+    if (uncompressed_stride < compressed_stride)
+	compressed_stride = uncompressed_stride;
+
+    /* FBC_CTL wants 64B units */
+    compressed_stride = (compressed_stride / 64) - 1;
+
+    /* Set it up... */
+    OUTREG(FBC_CFB_BASE, pI830->compressed_front_buffer->bus_addr);
+    OUTREG(FBC_LL_BASE, pI830->compressed_ll_buffer->bus_addr);
+    OUTREG(FBC_CONTROL2, FBC_CTL_CPU_FENCE | plane);
+
+    /* enable it... */
+    fbc_ctl = INREG(FBC_CONTROL);
+    fbc_ctl |= FBC_CTL_EN | FBC_CTL_PERIODIC;
+    fbc_ctl |= (compressed_stride & 0xff) << FBC_CTL_STRIDE_SHIFT;
+    fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
+    OUTREG(FBC_CONTROL, fbc_ctl);
+
+    /* and request immediate compression */
+    OUTREG(FBC_COMMAND, FBC_CMD_COMPRESS);
+}
+
+static void
+i830_disable_fb_compression(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    uint32_t fbc_ctl;
+
+    /* Disable compression */
+    fbc_ctl = INREG(FBC_CONTROL);
+    fbc_ctl &= ~FBC_CTL_EN;
+    OUTREG(FBC_CONTROL, fbc_ctl);
+
+    /* Wait for compressing bit to clear */
+    while (INREG(FBC_STATUS) & FBC_STAT_COMPRESSING)
+	; /* nothing */
+}
+
 static void
 i830_crtc_prepare (xf86CrtcPtr crtc)
 {
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
     crtc->funcs->dpms (crtc, DPMSModeOff);
+
+    /* Temporarily turn off FB compression during modeset */
+    if (pI830->fb_compression)
+	i830_disable_fb_compression(crtc);
 }
 
 static void
 i830_crtc_commit (xf86CrtcPtr crtc)
 {
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     Bool		deactivate = FALSE;
 
@@ -675,6 +770,10 @@ i830_crtc_commit (xf86CrtcPtr crtc)
 	xf86_reload_cursors (crtc->scrn->pScreen);
     if (deactivate)
 	i830_pipe_a_require_deactivate (crtc->scrn);
+
+    /* Reenable FB compression if possible */
+    if (pI830->fb_compression)
+	i830_enable_fb_compression(crtc);
 }
 
 void

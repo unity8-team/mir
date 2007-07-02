@@ -285,6 +285,7 @@ typedef enum {
    OPTION_COLOR_KEY,
    OPTION_CHECKDEVICES,
    OPTION_MODEDEBUG,
+   OPTION_FBC,
 #ifdef XF86DRI_MM
    OPTION_INTELTEXPOOL,
    OPTION_INTELMMSIZE,
@@ -306,6 +307,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_MODEDEBUG,	"ModeDebug",	OPTV_BOOLEAN,	{0},	FALSE},
+   {OPTION_FBC,		"FrameBufferCompression", OPTV_BOOLEAN, {0}, FALSE},
 #ifdef XF86DRI_MM
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_INTELMMSIZE, "AperTexSize",  OPTV_INTEGER,	{0},	FALSE},
@@ -2304,6 +2306,11 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    } else {
       pI830->CacheLines = -1;
    }
+
+   if (xf86ReturnOptValBool(pI830->Options, OPTION_FBC, FALSE))
+       pI830->fb_compression = TRUE;
+   else
+       pI830->fb_compression = FALSE;
 
    pI830->disableTiling = FALSE;
 
