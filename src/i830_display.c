@@ -1019,9 +1019,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	if (IS_I965G(pI830))
 	{
 	    if ((lvds & LVDS_A3_POWER_MASK) == LVDS_A3_POWER_UP)
-		lvds |= LVDS_DITHER_ENABLE;
-	    else
 		lvds &= ~LVDS_DITHER_ENABLE;
+	    else
+		lvds |= LVDS_DITHER_ENABLE;
 	}
 
 	OUTREG(LVDS, lvds);
