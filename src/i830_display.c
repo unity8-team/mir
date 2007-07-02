@@ -38,6 +38,7 @@
 
 #include "xf86.h"
 #include "i830.h"
+#include "i830_reg.h"
 #include "i830_bios.h"
 #include "i830_display.h"
 #include "i830_debug.h"
@@ -653,28 +654,6 @@ i830_crtc_unlock (xf86CrtcPtr crtc)
 #endif
 }
 
-#define FBC_CFB_BASE		0x03200 /* 4k page aligned */
-#define FBC_LL_BASE		0x03204 /* 4k page aligned */
-#define FBC_CONTROL		0x03208
-#define   FBC_CTL_EN		(1<<31)
-#define   FBC_CTL_PERIODIC	(1<<30)
-#define   FBC_CTL_INTERVAL_SHIFT (16)
-#define   FBC_CTL_STRIDE_SHIFT	(5)
-#define   FBC_CTL_FENCENO	(1<<0)
-#define FBC_COMMAND		0x0320c
-#define   FBC_CMD_COMPRESS	(1<<0)
-#define FBC_STATUS		0x03210
-#define   FBC_STAT_COMPRESSING	(1<<31)
-#define   FBC_STAT_COMPRESSED	(1<<30)
-#define   FBC_STAT_MODIFIED	(1<<29)
-#define   FBC_STAT_CURRENT_LINE	(1<<0)
-#define FBC_CONTROL2		0x03214
-#define   FBC_CTL_CPU_FENCE	(1<<1)
-#define   FBC_CTL_PIPEA		(0<<0)
-#define   FBC_CTL_PIPEB		(1<<0)
-
-#define FBC_COMPRESSED_LINES	(1536+32)
-
 /*
  * Several restrictions:
  *   - DSP[AB]CNTR - no line duplication && no pixel multiplier
@@ -718,9 +697,6 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
     fbc_ctl |= (compressed_stride & 0xff) << FBC_CTL_STRIDE_SHIFT;
     fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
     OUTREG(FBC_CONTROL, fbc_ctl);
-
-    /* and request immediate compression */
-    OUTREG(FBC_COMMAND, FBC_CMD_COMPRESS);
 }
 
 static void

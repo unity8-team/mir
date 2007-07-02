@@ -104,6 +104,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "i830.h"
 #include "i810_reg.h"
+#include "i830_reg.h"
 
 #define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
 
@@ -1032,6 +1033,12 @@ static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
 	goto out;
     }
 
+    /* Clear out any stale state */
+    OUTREG(FBC_CFB_BASE, 0);
+    OUTREG(FBC_LL_BASE, 0);
+    OUTREG(FBC_CONTROL2, 0);
+    OUTREG(FBC_CONTROL, 0);
+
     /*
      * Compressed framebuffer limitations:
      *   - contiguous, physical, uncached memory
@@ -1302,7 +1309,8 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
 	    i830_allocate_memory_tiled(pScrn, "depth buffer", size, pitch,
 				       GTT_PAGE_SIZE, ALIGN_BOTH_ENDS,
 				       tile_format);
-	pI830->depth_tiled = FENCE_XMAJOR;
+	pI830->depth_tiled = (tile_format == TILING_YMAJOR) ? FENCE_YMAJOR :
+	    FENCE_XMAJOR;
     }
 
     /* Otherwise, allocate it linear. */

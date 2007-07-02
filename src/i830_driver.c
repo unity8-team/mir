@@ -192,6 +192,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "vbe.h"
 #include "shadow.h"
 #include "i830.h"
+#include "i830_reg.h"
 #include "i830_display.h"
 #include "i830_debug.h"
 #include "i830_bios.h"
@@ -1750,6 +1751,11 @@ SaveHWState(ScrnInfoPtr pScrn)
    vgaRegPtr vgaReg = &hwp->SavedReg;
    int i;
 
+   pI830->saveFBC_CFB_BASE = INREG(FBC_CFB_BASE);
+   pI830->saveFBC_LL_BASE = INREG(FBC_LL_BASE);
+   pI830->saveFBC_CONTROL2 = INREG(FBC_CONTROL2);
+   pI830->saveFBC_CONTROL = INREG(FBC_CONTROL);
+
    /* Save video mode information for native mode-setting. */
    pI830->saveDSPACNTR = INREG(DSPACNTR);
    pI830->savePIPEACONF = INREG(PIPEACONF);
@@ -1973,6 +1979,11 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(SWF30, pI830->saveSWF[14]);
    OUTREG(SWF31, pI830->saveSWF[15]);
    OUTREG(SWF32, pI830->saveSWF[16]);
+
+   OUTREG(FBC_CFB_BASE, pI830->saveFBC_CFB_BASE);
+   OUTREG(FBC_LL_BASE, pI830->saveFBC_LL_BASE);
+   OUTREG(FBC_CONTROL2, pI830->saveFBC_CONTROL2);
+   OUTREG(FBC_CONTROL, pI830->saveFBC_CONTROL);
 
    vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
    vgaHWLock(hwp);

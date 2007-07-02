@@ -530,6 +530,10 @@ typedef struct _I830Rec {
    CARD32 savePaletteB[256];
    CARD32 saveSWF[17];
    CARD32 saveBLC_PWM_CTL;
+   CARD32 saveFBC_CFB_BASE;
+   CARD32 saveFBC_LL_BASE;
+   CARD32 saveFBC_CONTROL2;
+   CARD32 saveFBC_CONTROL;
 
    enum last_3d *last_3d;
 
