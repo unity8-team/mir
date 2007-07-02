@@ -7323,7 +7323,7 @@ RADEONGetMergedFBOptions(ScrnInfoPtr pScrn)
 
     if(info->MergedFB) {
           /* fill in monitor */
-       info->CRT2pScrn->monitor = xalloc(sizeof(MonRec));
+       info->CRT2pScrn->monitor = xcalloc(1, sizeof(MonRec));
        if(info->CRT2pScrn->monitor) {
           DisplayModePtr tempm = NULL, currentm = NULL, newm = NULL;
           memcpy(info->CRT2pScrn->monitor, pScrn->monitor, sizeof(MonRec));
