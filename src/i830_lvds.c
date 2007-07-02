@@ -261,17 +261,23 @@ i830_lvds_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     I830CrtcPrivatePtr	    intel_crtc = output->crtc->driver_private;
     CARD32		    pfit_control;
 
-    /* The LVDS pin pair will already have been turned on in the
+    /* The LVDS pin pair will already have been turned on in
      * i830_crtc_mode_set since it has a large impact on the DPLL settings.
      */
 
-    /* Enable automatic panel scaling so that non-native modes fill the
-     * screen.  Should be enabled before the pipe is enabled, according to
+    /* Enable automatic panel scaling for non-native modes so that they fill
+     * the screen.  Should be enabled before the pipe is enabled, according to
      * register description and PRM.
      */
-    pfit_control = (PFIT_ENABLE |
-		    VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
-		    VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR);
+    if (mode->HDisplay != adjusted_mode->HDisplay ||
+	mode->VDisplay != adjusted_mode->VDisplay)
+    {
+	pfit_control = PFIT_ENABLE |
+	    VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
+	    VERT_INTERP_BILINEAR | HORIZ_INTERP_BILINEAR;
+    } else {
+	pfit_control = 0;
+    }
 
     if (!IS_I965G(pI830)) {
 	if (dev_priv->panel_wants_dither)
