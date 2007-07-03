@@ -232,6 +232,22 @@ I830SetParam(ScrnInfoPtr pScrn, int param, int value)
    return TRUE;
 }
 
+static Bool
+I830SetHWS(ScrnInfoPtr pScrn, int addr)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    drmI830HWS hws;
+
+    hws.addr = addr;
+
+    if (drmCommandWrite(pI830->drmSubFD, DRM_I830_HWS_PAGE_ADDR,
+		&hws, sizeof(drmI830HWS))) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		"G33 status page initialization Failed\n");
+	return FALSE;
+    }
+    return TRUE;
+}
 
 static Bool
 I830InitVisualConfigs(ScreenPtr pScreen)
@@ -576,27 +592,36 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->bufferRequests = DRI_ALL_WINDOWS;
 
    {
-#if DRI_SUPPORTS_CLIP_NOTIFY && DRIINFO_MAJOR_VERSION == 5 && \
-    DRIINFO_MINOR_VERSION >= 1
+#if DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1
       int major, minor, patch;
 
       DRIQueryVersion(&major, &minor, &patch);
 
+#if DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3
+      if (minor >= 3)
+#endif
+#if DRIINFO_MAJOR_VERSION > 5 || \
+    (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3)
+	 pDRIInfo->texOffsetStart = I830TexOffsetStart;
+#endif
+
+#if DRI_SUPPORTS_CLIP_NOTIFY && DRIINFO_MAJOR_VERSION == 5
       if (minor >= 1)
 #endif
 #if DRI_SUPPORTS_CLIP_NOTIFY
 	 pDRIInfo->ClipNotify = I830DRIClipNotify;
 #endif
+#endif /* DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1 */
    }
 
    pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
+   pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
 
 #if DRIINFO_MAJOR_VERSION > 5 || \
     (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1)
    if (!pDRIInfo->ClipNotify)
 #endif
    {
-      pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
       pDRIInfo->TransitionSingleToMulti3D = I830DRITransitionSingleToMulti3d;
       pDRIInfo->TransitionMultiToSingle3D = I830DRITransitionMultiToSingle3d;
    }
@@ -924,6 +949,12 @@ I830DRIDoMappings(ScreenPtr pScreen)
       return FALSE;
    }
 
+   if (IS_G33CLASS(pI830)) {
+       if (!I830SetHWS(pScrn, pI830->hw_status->offset)) {
+	   DRICloseScreen(pScreen);
+	   return FALSE;
+       }
+   }
    /* init to zero to be safe */
    sarea->front_handle = 0;
    sarea->back_handle = 0;
@@ -1167,7 +1198,7 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("i830DRISwapContext (in)\n");
 
-      pI830->last_3d = LAST_3D_OTHER;
+      *pI830->last_3d = LAST_3D_OTHER;
 
       if (!pScrn->vtSema)
      	 return;
@@ -1543,16 +1574,24 @@ I830DRITransitionTo3d(ScreenPtr pScreen)
    I830Ptr pI830 = I830PTR(pScrn);
 
    I830DRISetPfMask(pScreen, pI830->allowPageFlip ? 0x3 : 0);
+
+   pI830->want_vblank_interrupts = TRUE;
+   I830DRISetVBlankInterrupt(pScrn, TRUE);
 }
 
 static void
 I830DRITransitionTo2d(ScreenPtr pScreen)
 {
+   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
    drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
 
    I830DRISetPfMask(pScreen, 0);
 
    sPriv->pf_enabled = 0;
+
+   pI830->want_vblank_interrupts = FALSE;
+   I830DRISetVBlankInterrupt(pScrn, FALSE);
 }
 
 #if DRI_SUPPORTS_CLIP_NOTIFY
@@ -1683,6 +1722,12 @@ I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on)
     I830Ptr pI830 = I830PTR(pScrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     drmI830VBlankPipe pipe;
+
+    /* If we have no 3d running, then don't bother enabling the vblank
+     * interrupt.
+     */
+    if (!pI830->want_vblank_interrupts)
+	on = FALSE;
 
     if (pI830->directRenderingEnabled && pI830->drmMinor >= 5) {
 	if (on) {

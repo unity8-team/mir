@@ -224,7 +224,7 @@ DEBUGSTRING(i830_debug_dpll)
 	break;
     }
 
-    if (IS_I945G(pI830) || IS_I945GM(pI830)) {
+    if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830)) {
 	sprintf(sdvoextra, ", SDVO mult %d",
 		(int)((val & SDVO_MULTIPLIER_MASK) >>
 		SDVO_MULTIPLIER_SHIFT_HIRES) + 1);
@@ -286,6 +286,33 @@ DEBUGSTRING(i830_debug_lvds)
 		     enable, pipe, depth, channels);
 }
 
+DEBUGSTRING(i830_debug_dvo)
+{
+    char *enable = val & DVO_ENABLE ? "enabled" : "disabled";
+    char pipe = val & DVO_PIPE_B_SELECT ? 'B' : 'A';
+    char *stall;
+    char hsync = val & DVO_HSYNC_ACTIVE_HIGH ? '+' : '-';
+    char vsync = val & DVO_VSYNC_ACTIVE_HIGH ? '+' : '-';
+
+    switch (val & DVO_PIPE_STALL_MASK) {
+    case DVO_PIPE_STALL_UNUSED:
+	stall = "no stall";
+	break;
+    case DVO_PIPE_STALL:
+	stall = "stall";
+	break;
+    case DVO_PIPE_STALL_TV:
+	stall = "TV stall";
+	break;
+    default:
+	stall = "unknown stall";
+	break;
+    }
+
+    return XNFprintf("%s, pipe %c, %s, %chsync, %cvsync",
+		     enable, pipe, stall, hsync, vsync);
+}
+
 DEBUGSTRING(i830_debug_sdvo)
 {
     char *enable = val & SDVO_ENABLE ? "enabled" : "disabled";
@@ -339,9 +366,9 @@ static struct i830SnapshotRec {
 
     DEFINEREG2(ADPA, i830_debug_adpa),
     DEFINEREG2(LVDS, i830_debug_lvds),
-    DEFINEREG(DVOA),
-    DEFINEREG(DVOB),
-    DEFINEREG(DVOC),
+    DEFINEREG2(DVOA, i830_debug_dvo),
+    DEFINEREG2(DVOB, i830_debug_dvo),
+    DEFINEREG2(DVOC, i830_debug_dvo),
     DEFINEREG(DVOA_SRCDIM),
     DEFINEREG(DVOB_SRCDIM),
     DEFINEREG(DVOC_SRCDIM),
@@ -544,39 +571,91 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
     {
 	fp = INREG(pipe == 0 ? FPA0 : FPB0);
 	dpll = INREG(pipe == 0 ? DPLL_A : DPLL_B);
-	switch ((dpll >> 24) & 0x3) {
-	case 0:
-	    p2 = 10;
-	    break;
-	case 1:
-	    p2 = 5;
-	    break;
-	default:
-	    p2 = 1;
-	    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "p2 out of range\n");
-	    break;
+	if (IS_I9XX(pI830)) 
+	{
+	    CARD32  lvds = INREG(LVDS);
+	    if ((lvds & LVDS_PORT_EN) &&
+		(lvds & LVDS_PIPEB_SELECT) == (pipe << 30))
+	    {
+		if ((lvds & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
+		    p2 = 7;
+		else
+		    p2 = 14;
+	    }
+	    else
+	    {
+		switch ((dpll >> 24) & 0x3) {
+		case 0:
+		    p2 = 10;
+		    break;
+		case 1:
+		    p2 = 5;
+		    break;
+		default:
+		    p2 = 1;
+		    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "p2 out of range\n");
+		    break;
+		}
+	    }
+	    switch ((dpll >> 16) & 0xff) {
+	    case 1:
+		p1 = 1; break;
+	    case 2:
+		p1 = 2; break;
+	    case 4:
+		p1 = 3; break;
+	    case 8:
+		p1 = 4; break;
+	    case 16:
+		p1 = 5; break;
+	    case 32:
+		p1 = 6; break;
+	    case 64:
+		p1 = 7; break;
+	    case 128:
+		p1 = 8; break;
+	    default:
+		p1 = 1;
+		xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "p1 out of range\n");
+		break;
+	    }
 	}
-	switch ((dpll >> 16) & 0xff) {
-	case 1:
-	    p1 = 1; break;
-	case 2:
-	    p1 = 2; break;
-	case 4:
-	    p1 = 3; break;
-	case 8:
-	    p1 = 4; break;
-	case 16:
-	    p1 = 5; break;
-	case 32:
-	    p1 = 6; break;
-	case 64:
-	    p1 = 7; break;
-	case 128:
-	    p1 = 8; break;
-	default:
-	    p1 = 1;
-	    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "p1 out of range\n");
-	    break;
+	else
+	{
+	    CARD32  lvds = INREG(LVDS);
+	    if (IS_I85X (pI830) && 
+		(lvds & LVDS_PORT_EN) &&
+		(lvds & LVDS_PIPEB_SELECT) == (pipe << 30))
+	    {
+		if ((lvds & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
+		    p2 = 7;
+		else
+		    p2 = 14;
+		switch ((dpll >> 16) & 0x3f) {
+		case 0x01:  p1 = 1; break;
+		case 0x02:  p1 = 2; break;
+		case 0x04:  p1 = 3; break;
+		case 0x08:  p1 = 4; break;
+		case 0x10:  p1 = 5; break;
+		case 0x20:  p1 = 6; break;
+		default:
+		    p1 = 1;
+		    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "LVDS P1 0x%x invalid encoding\n",
+				(dpll >> 16) & 0x3f);
+		    break;
+		}
+	    }
+	    else
+	    {
+		if (dpll & (1 << 23))
+		    p2 = 4;
+		else
+		    p2 = 2;
+		if (dpll & PLL_P1_DIVIDE_BY_TWO)
+		    p1 = 2;
+		else
+		    p1 = ((dpll >> 16) & 0x3f) + 2;
+	    }
 	}
 	switch ((dpll >> 13) & 0x3) {
 	case 0:
@@ -622,6 +701,31 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
 }
 
 #ifndef REG_DUMPER
+
+#define NUM_RING_DUMP	64
+
+static void
+i830_dump_ring(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    unsigned int head, tail, ring, mask;
+    volatile unsigned char *virt;
+    
+    head = (INREG (LP_RING + RING_HEAD)) & I830_HEAD_MASK;
+    tail = INREG (LP_RING + RING_TAIL) & I830_TAIL_MASK;
+    mask = pI830->LpRing->tail_mask;
+    
+    virt = pI830->LpRing->virtual_start;
+    ErrorF ("Ring at virtual 0x%x head 0x%x tail 0x%x count %d\n",
+	    (unsigned int) virt, head, tail, (((tail + mask + 1) - head) & mask) >> 2);
+    for (ring = (head - 128) & mask; ring != ((head + 4) & mask);
+	 ring = (ring + 4) & mask)
+    {
+	ErrorF ("\t%08x: %08x\n", ring, *(volatile unsigned int *) (virt + ring));
+    }
+    ErrorF ("Ring end\n");
+}
+
 /* Famous last words
  */
 void
@@ -651,6 +755,7 @@ i830_dump_error_state(ScrnInfoPtr pScrn)
 
     ErrorF("hwstam: %x ier: %x imr: %x iir: %x\n",
 	   INREG16(HWSTAM), INREG16(IER), INREG16(IMR), INREG16(IIR));
+    i830_dump_ring (pScrn);
 }
 
 void

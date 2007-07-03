@@ -261,17 +261,17 @@ static int urb_clip_start, urb_clip_size;
 static int urb_sf_start, urb_sf_size;
 static int urb_cs_start, urb_cs_size;
 
-static struct brw_surface_state *dest_surf_state;
-static struct brw_surface_state *src_surf_state;
-static struct brw_surface_state *mask_surf_state;
-static struct brw_sampler_state *src_sampler_state;
-static struct brw_sampler_state *mask_sampler_state;
+static struct brw_surface_state *dest_surf_state, dest_surf_state_local;
+static struct brw_surface_state *src_surf_state, src_surf_state_local;
+static struct brw_surface_state *mask_surf_state, mask_surf_state_local;
+static struct brw_sampler_state *src_sampler_state, src_sampler_state_local;
+static struct brw_sampler_state *mask_sampler_state, mask_sampler_state_local;
 static struct brw_sampler_default_color *default_color_state;
 
-static struct brw_vs_unit_state *vs_state;
-static struct brw_sf_unit_state *sf_state;
-static struct brw_wm_unit_state *wm_state;
-static struct brw_cc_unit_state *cc_state;
+static struct brw_vs_unit_state *vs_state, vs_state_local;
+static struct brw_sf_unit_state *sf_state, sf_state_local;
+static struct brw_wm_unit_state *wm_state, wm_state_local;
+static struct brw_cc_unit_state *cc_state, cc_state_local;
 static struct brw_cc_viewport *cc_viewport;
 
 static struct brw_instruction *sf_kernel;
@@ -404,15 +404,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     CARD32 dst_format, dst_offset, dst_pitch;
     Bool rotation_program = FALSE;
 
-#ifdef XF86DRI
-    if (pI830->directRenderingEnabled) {
-        drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
-
-        pSAREAPriv->ctxOwner = DRIGetContext(pScrn->pScreen);
-    }
-#endif
-
-    pI830->last_3d = LAST_3D_RENDER;
+    IntelEmitInvarientState(pScrn);
+    *pI830->last_3d = LAST_3D_RENDER;
 
     src_offset = intel_get_pixmap_offset(pSrc);
     src_pitch = intel_get_pixmap_pitch(pSrc);
@@ -436,6 +429,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	    rotation_program = TRUE;
     } else {
 	pI830->transform[1] = pMaskPicture->transform;
+	if (pI830->transform[1])
+	    I830FALLBACK("i965 mask transform not implemented!\n");
 	pI830->scale_units[1][0] = pMask->drawable.width;
 	pI830->scale_units[1][1] = pMask->drawable.height;
     }
@@ -443,9 +438,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     /* setup 3d pipeline state */
 
     binding_table_entries = 2; /* default no mask */
-
-    /* Wait for sync before we start setting up our new state */
-    i830WaitSync(pScrn);
 
     /* Set up our layout of state in framebuffer.  First the general state: */
     next_offset = 0;
@@ -540,24 +532,11 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     state_base_offset = ALIGN(state_base_offset, 64);
     state_base = (char *)(pI830->FbBase + state_base_offset);
 
-    vs_state = (void *)(state_base + vs_offset);
-    sf_state = (void *)(state_base + sf_offset);
-    wm_state = (void *)(state_base + wm_offset);
-    cc_state = (void *)(state_base + cc_offset);
     sf_kernel = (void *)(state_base + sf_kernel_offset);
     ps_kernel = (void *)(state_base + ps_kernel_offset);
     sip_kernel = (void *)(state_base + sip_kernel_offset);
 
     cc_viewport = (void *)(state_base + cc_viewport_offset);
-
-    dest_surf_state = (void *)(state_base + dest_surf_offset);
-    src_surf_state = (void *)(state_base + src_surf_offset);
-    if (pMask)
-	mask_surf_state = (void *)(state_base + mask_surf_offset);
-
-    src_sampler_state = (void *)(state_base + src_sampler_offset);
-    if (pMask)
-	mask_sampler_state = (void *)(state_base + mask_sampler_offset);
 
     binding_table = (void *)(state_base + binding_table_offset);
 
@@ -604,6 +583,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     cc_viewport->max_depth = 1.e35;
 
     /* Color calculator state */
+    cc_state = &cc_state_local;
     memset(cc_state, 0, sizeof(*cc_state));
     cc_state->cc0.stencil_enable = 0;   /* disable stencil */
     cc_state->cc2.depth_test = 0;       /* disable depth test */
@@ -631,10 +611,14 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     cc_state->cc6.clamp_pre_alpha_blend = 1;
     cc_state->cc6.clamp_range = 0;  /* clamp range [0,1] */
 
+    cc_state = (void *)(state_base + cc_offset);
+    memcpy (cc_state, &cc_state_local, sizeof (cc_state_local));
+
     /* Upload system kernel */
     memcpy (sip_kernel, sip_kernel_static, sizeof (sip_kernel_static));
 
     /* Set up the state buffer for the destination surface */
+    dest_surf_state = &dest_surf_state_local;
     memset(dest_surf_state, 0, sizeof(*dest_surf_state));
     dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
     dest_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
@@ -658,7 +642,11 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     dest_surf_state->ss2.render_target_rotation = 0;
     dest_surf_state->ss3.pitch = dst_pitch - 1;
 
+    dest_surf_state = (void *)(state_base + dest_surf_offset);
+    memcpy (dest_surf_state, &dest_surf_state_local, sizeof (dest_surf_state_local));
+
     /* Set up the source surface state buffer */
+    src_surf_state = &src_surf_state_local;
     memset(src_surf_state, 0, sizeof(*src_surf_state));
     src_surf_state->ss0.surface_type = BRW_SURFACE_2D;
     src_surf_state->ss0.surface_format = i965_get_card_format(pSrcPicture);
@@ -680,8 +668,12 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     src_surf_state->ss2.render_target_rotation = 0;
     src_surf_state->ss3.pitch = src_pitch - 1;
 
+    src_surf_state = (void *)(state_base + src_surf_offset);
+    memcpy (src_surf_state, &src_surf_state_local, sizeof (src_surf_state_local));
+
     /* setup mask surface */
     if (pMask) {
+	mask_surf_state = &mask_surf_state_local;
    	memset(mask_surf_state, 0, sizeof(*mask_surf_state));
 	mask_surf_state->ss0.surface_type = BRW_SURFACE_2D;
    	mask_surf_state->ss0.surface_format =
@@ -703,6 +695,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	mask_surf_state->ss2.mip_count = 0;
    	mask_surf_state->ss2.render_target_rotation = 0;
    	mask_surf_state->ss3.pitch = mask_pitch - 1;
+
+	mask_surf_state = (void *)(state_base + mask_surf_offset);
+	memcpy (mask_surf_state, &mask_surf_state_local, sizeof (mask_surf_state_local));
     }
 
     /* Set up a binding table for our surfaces.  Only the PS will use it */
@@ -712,6 +707,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	binding_table[2] = state_base_offset + mask_surf_offset;
 
     /* PS kernel use this sampler */
+    src_sampler_state = &src_sampler_state_local;
     memset(src_sampler_state, 0, sizeof(*src_sampler_state));
     src_sampler_state->ss0.lod_preclamp = 1; /* GL mode */
     switch(pSrcPicture->filter) {
@@ -748,7 +744,11 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     }
     src_sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
 
+    src_sampler_state = (void *)(state_base + src_sampler_offset);
+    memcpy (src_sampler_state, &src_sampler_state_local, sizeof (src_sampler_state_local));
+
     if (pMask) {
+	mask_sampler_state = &mask_sampler_state_local;
    	memset(mask_sampler_state, 0, sizeof(*mask_sampler_state));
    	mask_sampler_state->ss0.lod_preclamp = 1; /* GL mode */
    	switch(pMaskPicture->filter) {
@@ -779,14 +779,21 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	    mask_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
     	}
    	mask_sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
+
+	mask_sampler_state = (void *)(state_base + mask_sampler_offset);
+	memcpy (mask_sampler_state, &mask_sampler_state_local, sizeof (mask_sampler_state_local));
     }
 
     /* Set up the vertex shader to be disabled (passthrough) */
+    vs_state = &vs_state_local;
     memset(vs_state, 0, sizeof(*vs_state));
     vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
     vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
     vs_state->vs6.vs_enable = 0;
     vs_state->vs6.vert_cache_disable = 1;
+
+    vs_state = (void *)(state_base + vs_offset);
+    memcpy (vs_state, &vs_state_local, sizeof (vs_state_local));
 
     /* Set up the SF kernel to do coord interp: for each attribute,
      * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
@@ -800,6 +807,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     else
 	memcpy(sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
 
+    sf_state = &sf_state_local;
     memset(sf_state, 0, sizeof(*sf_state));
     sf_state->thread0.kernel_start_pointer =
 	(state_base_offset + sf_kernel_offset) >> 6;
@@ -831,6 +839,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     sf_state->sf6.dest_org_vbias = 0x8;
     sf_state->sf6.dest_org_hbias = 0x8;
 
+    sf_state = (void *)(state_base + sf_offset);
+    memcpy (sf_state, &sf_state_local, sizeof (sf_state_local));
+
    /* Set up the PS kernel (dispatched by WM) */
     if (pMask) {
 	if (pMaskPicture->componentAlpha && 
@@ -852,6 +863,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	       sizeof (ps_kernel_static_nomask));
     }
 
+    wm_state = &wm_state_local;
     memset(wm_state, 0, sizeof (*wm_state));
     wm_state->thread0.kernel_start_pointer =
 	(state_base_offset + ps_kernel_offset) >> 6;
@@ -888,6 +900,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     wm_state->wm5.enable_16_pix = 1;
     wm_state->wm5.enable_8_pix = 0;
     wm_state->wm5.early_depth_test = 1;
+
+    wm_state = (void *)(state_base + wm_offset);
+    memcpy (wm_state, &wm_state_local, sizeof (wm_state_local));
 
     /* Begin the long sequence of commands needed to set up the 3D
      * rendering pipe
@@ -953,8 +968,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	 */
    	OUT_RING(BRW_3DSTATE_DRAWING_RECTANGLE | 2); /* XXX 3 for BLC or CTG */
    	OUT_RING(0x00000000);	/* ymin, xmin */
-   	OUT_RING((pScrn->virtualX - 1) |
- 	         (pScrn->virtualY - 1) << 16); /* ymax, xmax */
+	OUT_RING(DRAW_YMAX(pDst->drawable.height - 1) |
+		 DRAW_XMAX(pDst->drawable.width - 1)); /* ymax, xmax */
    	OUT_RING(0x00000000);	/* yorigin, xorigin */
 
 	/* skip the depth buffer */

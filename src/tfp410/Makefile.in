@@ -32,7 +32,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-subdir = src/ivch
+subdir = src/tfp410
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -47,15 +47,15 @@ am__vpath_adj = case $$p in \
     *) f=$$p;; \
   esac;
 am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
-am__installdirs = "$(DESTDIR)$(ivch_ladir)"
-ivch_laLTLIBRARIES_INSTALL = $(INSTALL)
-LTLIBRARIES = $(ivch_la_LTLIBRARIES)
-ivch_la_LIBADD =
-am_ivch_la_OBJECTS = ivch.lo ivch_module.lo
-ivch_la_OBJECTS = $(am_ivch_la_OBJECTS)
-ivch_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(ivch_la_LDFLAGS) \
-	$(LDFLAGS) -o $@
+am__installdirs = "$(DESTDIR)$(tfp410_ladir)"
+tfp410_laLTLIBRARIES_INSTALL = $(INSTALL)
+LTLIBRARIES = $(tfp410_la_LTLIBRARIES)
+tfp410_la_LIBADD =
+am_tfp410_la_OBJECTS = tfp410.lo tfp410_module.lo
+tfp410_la_OBJECTS = $(am_tfp410_la_OBJECTS)
+tfp410_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(tfp410_la_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I. -I$(top_builddir)@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -68,8 +68,8 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(ivch_la_SOURCES)
-DIST_SOURCES = $(ivch_la_SOURCES)
+SOURCES = $(tfp410_la_SOURCES)
+DIST_SOURCES = $(tfp410_la_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -218,13 +218,14 @@ top_srcdir = @top_srcdir@
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 AM_CFLAGS = @WARN_CFLAGS@ @XMODES_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@
-ivch_la_LTLIBRARIES = ivch.la
-ivch_la_LDFLAGS = -module -avoid-version
-ivch_ladir = @moduledir@/drivers
-ivch_la_SOURCES = \
-	ivch.c \
-	ivch_module.c \
-	ivch_reg.h
+tfp410_la_LTLIBRARIES = tfp410.la
+tfp410_la_LDFLAGS = -module -avoid-version
+tfp410_ladir = @moduledir@/drivers
+tfp410_la_SOURCES = \
+	tfp410.c \
+	tfp410_module.c \
+	tfp410.h \
+	tfp410_reg.h
 
 all: all-am
 
@@ -239,9 +240,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  src/ivch/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  src/tfp410/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu  src/ivch/Makefile
+	  $(AUTOMAKE) --gnu  src/tfp410/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -259,35 +260,35 @@ $(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
-install-ivch_laLTLIBRARIES: $(ivch_la_LTLIBRARIES)
+install-tfp410_laLTLIBRARIES: $(tfp410_la_LTLIBRARIES)
 	@$(NORMAL_INSTALL)
-	test -z "$(ivch_ladir)" || $(MKDIR_P) "$(DESTDIR)$(ivch_ladir)"
-	@list='$(ivch_la_LTLIBRARIES)'; for p in $$list; do \
+	test -z "$(tfp410_ladir)" || $(MKDIR_P) "$(DESTDIR)$(tfp410_ladir)"
+	@list='$(tfp410_la_LTLIBRARIES)'; for p in $$list; do \
 	  if test -f $$p; then \
 	    f=$(am__strip_dir) \
-	    echo " $(LIBTOOL) --mode=install $(ivch_laLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) '$$p' '$(DESTDIR)$(ivch_ladir)/$$f'"; \
-	    $(LIBTOOL) --mode=install $(ivch_laLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) "$$p" "$(DESTDIR)$(ivch_ladir)/$$f"; \
+	    echo " $(LIBTOOL) --mode=install $(tfp410_laLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) '$$p' '$(DESTDIR)$(tfp410_ladir)/$$f'"; \
+	    $(LIBTOOL) --mode=install $(tfp410_laLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) "$$p" "$(DESTDIR)$(tfp410_ladir)/$$f"; \
 	  else :; fi; \
 	done
 
-uninstall-ivch_laLTLIBRARIES:
+uninstall-tfp410_laLTLIBRARIES:
 	@$(NORMAL_UNINSTALL)
-	@list='$(ivch_la_LTLIBRARIES)'; for p in $$list; do \
+	@list='$(tfp410_la_LTLIBRARIES)'; for p in $$list; do \
 	  p=$(am__strip_dir) \
-	  echo " $(LIBTOOL) --mode=uninstall rm -f '$(DESTDIR)$(ivch_ladir)/$$p'"; \
-	  $(LIBTOOL) --mode=uninstall rm -f "$(DESTDIR)$(ivch_ladir)/$$p"; \
+	  echo " $(LIBTOOL) --mode=uninstall rm -f '$(DESTDIR)$(tfp410_ladir)/$$p'"; \
+	  $(LIBTOOL) --mode=uninstall rm -f "$(DESTDIR)$(tfp410_ladir)/$$p"; \
 	done
 
-clean-ivch_laLTLIBRARIES:
-	-test -z "$(ivch_la_LTLIBRARIES)" || rm -f $(ivch_la_LTLIBRARIES)
-	@list='$(ivch_la_LTLIBRARIES)'; for p in $$list; do \
+clean-tfp410_laLTLIBRARIES:
+	-test -z "$(tfp410_la_LTLIBRARIES)" || rm -f $(tfp410_la_LTLIBRARIES)
+	@list='$(tfp410_la_LTLIBRARIES)'; for p in $$list; do \
 	  dir="`echo $$p | sed -e 's|/[^/]*$$||'`"; \
 	  test "$$dir" != "$$p" || dir=.; \
 	  echo "rm -f \"$${dir}/so_locations\""; \
 	  rm -f "$${dir}/so_locations"; \
 	done
-ivch.la: $(ivch_la_OBJECTS) $(ivch_la_DEPENDENCIES) 
-	$(ivch_la_LINK) -rpath $(ivch_ladir) $(ivch_la_OBJECTS) $(ivch_la_LIBADD) $(LIBS)
+tfp410.la: $(tfp410_la_OBJECTS) $(tfp410_la_DEPENDENCIES) 
+	$(tfp410_la_LINK) -rpath $(tfp410_ladir) $(tfp410_la_OBJECTS) $(tfp410_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -295,8 +296,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ivch.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ivch_module.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tfp410.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tfp410_module.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -403,7 +404,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(LTLIBRARIES)
 installdirs:
-	for dir in "$(DESTDIR)$(ivch_ladir)"; do \
+	for dir in "$(DESTDIR)$(tfp410_ladir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -432,7 +433,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-ivch_laLTLIBRARIES clean-libtool \
+clean-am: clean-generic clean-libtool clean-tfp410_laLTLIBRARIES \
 	mostlyclean-am
 
 distclean: distclean-am
@@ -451,7 +452,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-ivch_laLTLIBRARIES
+install-data-am: install-tfp410_laLTLIBRARIES
 
 install-dvi: install-dvi-am
 
@@ -487,23 +488,23 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-ivch_laLTLIBRARIES
+uninstall-am: uninstall-tfp410_laLTLIBRARIES
 
 .MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
-	clean-ivch_laLTLIBRARIES clean-libtool ctags distclean \
+	clean-libtool clean-tfp410_laLTLIBRARIES ctags distclean \
 	distclean-compile distclean-generic distclean-libtool \
 	distclean-tags distdir dvi dvi-am html html-am info info-am \
 	install install-am install-data install-data-am install-dvi \
 	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am \
-	install-ivch_laLTLIBRARIES install-man install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
+	install-html-am install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip install-tfp410_laLTLIBRARIES installcheck \
+	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags uninstall uninstall-am uninstall-ivch_laLTLIBRARIES
+	tags uninstall uninstall-am uninstall-tfp410_laLTLIBRARIES
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

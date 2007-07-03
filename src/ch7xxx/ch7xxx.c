@@ -206,7 +206,7 @@ ch7xxx_mode_valid(I2CDevPtr d, DisplayModePtr mode)
 }
 
 static void
-ch7xxx_mode_set(I2CDevPtr d, DisplayModePtr mode)
+ch7xxx_mode_set(I2CDevPtr d, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
     struct ch7xxx_priv *dev_priv = d->DriverPrivate.ptr;
     CARD8 tvco, tpcp, tpd, tlpf, idf;

@@ -400,11 +400,12 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 dst_format, dst_offset, dst_pitch;
 
+    IntelEmitInvarientState(pScrn);
+    *pI830->last_3d = LAST_3D_RENDER;
+
     i830_get_dest_format(pDstPicture, &dst_format);
     dst_offset = intel_get_pixmap_offset(pDst);
     dst_pitch = intel_get_pixmap_pitch(pDst);
-
-    pI830->last_3d = LAST_3D_RENDER;
 
     if (!i830_texture_setup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
@@ -515,9 +516,16 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(8) | 0);
 	OUT_RING(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD | blendctl | 
 		 S8_ENABLE_COLOR_BUFFER_WRITE);
+
+	OUT_RING(_3DSTATE_ENABLES_1_CMD | DISABLE_LOGIC_OP | 
+		DISABLE_STENCIL_TEST | DISABLE_DEPTH_BIAS | 
+		DISABLE_SPEC_ADD | DISABLE_FOG | DISABLE_ALPHA_TEST | 
+		ENABLE_COLOR_BLEND | DISABLE_DEPTH_TEST);
 	/* We have to explicitly say we don't want write disabled */
-	OUT_RING(_3DSTATE_ENABLES_2_CMD | ENABLE_COLOR_MASK);
-	OUT_RING(MI_NOOP); 
+	OUT_RING(_3DSTATE_ENABLES_2_CMD | ENABLE_COLOR_MASK |
+		DISABLE_STENCIL_WRITE | ENABLE_TEX_CACHE |
+		DISABLE_DITHER | ENABLE_COLOR_WRITE |
+		DISABLE_DEPTH_WRITE);
 	ADVANCE_LP_RING();
     }
 
@@ -625,9 +633,5 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 void
 i830_done_composite(PixmapPtr pDst)
 {
-#if ALWAYS_SYNC
-    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-
-    I830Sync(pScrn);
-#endif
+    /* NO-OP */
 }

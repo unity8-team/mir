@@ -1357,13 +1357,18 @@ i830_tv_detect(xf86OutputPtr output)
     crtc = i830GetLoadDetectPipe (output);
     if (crtc)
     {
-        if (intel_output->load_detect_temp)
+	if (!crtc->enabled)
         {
             /* we only need the pixel clock set correctly here */
             mode = reported_modes[0];
             xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
 	    crtc->funcs->mode_set(crtc, &mode, &mode, 0, 0);
         }
+	else if (intel_output->load_detect_temp)
+	{
+	    output->funcs->mode_set (output, &crtc->mode, &crtc->mode);
+	    output->funcs->commit (output);
+	}
         i830_tv_detect_type (crtc, output);
         i830ReleaseLoadDetectPipe (output);
     }
@@ -1669,6 +1674,8 @@ i830_tv_init(ScrnInfoPtr pScrn)
     }
     dev_priv = (struct i830_tv_priv *) (intel_output + 1);
     intel_output->type = I830_OUTPUT_TVOUT;
+    intel_output->pipe_mask = ((1 << 0) | (1 << 1));
+    intel_output->clone_mask = (1 << I830_OUTPUT_TVOUT);
     intel_output->dev_priv = dev_priv;
     dev_priv->type = TV_TYPE_UNKNOWN;
 

@@ -140,11 +140,16 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_I915_GM,		"915GM"},
    {PCI_CHIP_I945_G,		"945G"},
    {PCI_CHIP_I945_GM,		"945GM"},
+   {PCI_CHIP_I945_GME,		"945GME"},
    {PCI_CHIP_I965_G,		"965G"},
    {PCI_CHIP_I965_G_1,		"965G"},
    {PCI_CHIP_I965_Q,		"965Q"},
    {PCI_CHIP_I946_GZ,		"946GZ"},
    {PCI_CHIP_I965_GM,		"965GM"},
+   {PCI_CHIP_I965_GME,		"965GME/GLE"},
+   {PCI_CHIP_G33_G,		"G33"},
+   {PCI_CHIP_Q35_G,		"Q35"},
+   {PCI_CHIP_Q33_G,		"Q33"},
    {-1,				NULL}
 };
 
@@ -164,11 +169,16 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	RES_SHARED_VGA},
    {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	RES_SHARED_VGA},
    {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	RES_SHARED_VGA},
+   {PCI_CHIP_I945_GME,		PCI_CHIP_I945_GME,	RES_SHARED_VGA},
    {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	RES_SHARED_VGA},
    {PCI_CHIP_I965_G_1,		PCI_CHIP_I965_G_1,	RES_SHARED_VGA},
    {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	RES_SHARED_VGA},
    {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	RES_SHARED_VGA},
    {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	RES_SHARED_VGA},
+   {PCI_CHIP_I965_GME,		PCI_CHIP_I965_GME,	RES_SHARED_VGA},
+   {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		RES_SHARED_VGA},
+   {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		RES_SHARED_VGA},
+   {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		RES_SHARED_VGA},
    {-1,				-1, RES_UNDEFINED }
 };
 
@@ -609,11 +619,16 @@ I810Probe(DriverPtr drv, int flags)
 	    case PCI_CHIP_I915_GM:
 	    case PCI_CHIP_I945_G:
 	    case PCI_CHIP_I945_GM:
+	    case PCI_CHIP_I945_GME:
 	    case PCI_CHIP_I965_G:
 	    case PCI_CHIP_I965_G_1:
 	    case PCI_CHIP_I965_Q:
 	    case PCI_CHIP_I946_GZ:
 	    case PCI_CHIP_I965_GM:
+	    case PCI_CHIP_I965_GME:
+ 	    case PCI_CHIP_G33_G:
+ 	    case PCI_CHIP_Q35_G:
+ 	    case PCI_CHIP_Q33_G:
     	       xf86SetEntitySharable(usedChips[i]);
 
     	       /* Allocate an entity private if necessary */		
@@ -848,11 +863,11 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 
    if (!pI810->directRenderingDisabled) {
      if (pI810->noAccel) {
-       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI is disabled because it "
 		  "needs 2D acceleration.\n");
        pI810->directRenderingDisabled=TRUE;
      } else if (pScrn->depth!=16) {
-       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI is disabled because it "
 		  "runs only at 16-bit depth.\n");
        pI810->directRenderingDisabled=TRUE;
      }

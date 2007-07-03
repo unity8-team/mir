@@ -200,20 +200,8 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
     assert((id == FOURCC_UYVY) || (id == FOURCC_YUY2));
 
-    /* Tell the rotation code that we have stomped its invariant state by
-     * setting a high bit.  We don't use any invariant 3D state for video, so
-     * we don't have to worry about it ourselves.
-     */
-    *pI830->used3D |= 1 << 30;
-
-#ifdef XF86DRI
-    /* Tell the DRI that we're smashing its state. */
-    if (pI830->directRenderingEnabled) {
-	drmI830Sarea *pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
-
-	pSAREAPriv->ctxOwner = DRIGetContext(pScrn->pScreen);
-    }
-#endif /* XF86DRI */
+    IntelEmitInvarientState(pScrn);
+    *pI830->last_3d = LAST_3D_VIDEO;
 
     next_offset = 0;
 

@@ -77,8 +77,8 @@ i830DumpBIOSToFile(ScrnInfoPtr pScrn, unsigned char *bios)
  * feed an updated VBT back through that, compared to what we'll fetch using
  * this method of groping around in the BIOS data.
  */
-static unsigned char *
-i830GetBIOS(ScrnInfoPtr pScrn)
+unsigned char *
+i830_bios_get (ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct vbt_header *vbt;
@@ -131,7 +131,7 @@ i830GetBIOS(ScrnInfoPtr pScrn)
  * detecting the panel mode is preferable.
  */
 DisplayModePtr
-i830_bios_get_panel_mode(ScrnInfoPtr pScrn)
+i830_bios_get_panel_mode(ScrnInfoPtr pScrn, Bool *wants_dither)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct vbt_header *vbt;
@@ -140,7 +140,7 @@ i830_bios_get_panel_mode(ScrnInfoPtr pScrn)
     int panel_type = -1;
     unsigned char *bios;
 
-    bios = i830GetBIOS(pScrn);
+    bios = i830_bios_get (pScrn);
 
     if (bios == NULL)
 	return NULL;
@@ -156,6 +156,7 @@ i830_bios_get_panel_mode(ScrnInfoPtr pScrn)
 	return NULL;
     }
 
+    *wants_dither = FALSE;
     for (bdb_block_off = bdb->header_size; bdb_block_off < bdb->bdb_size;
 	 bdb_block_off += block_size)
     {
@@ -175,7 +176,7 @@ i830_bios_get_panel_mode(ScrnInfoPtr pScrn)
 	    lvds1 = (struct lvds_bdb_1 *)(bios + start);
 	    panel_type = lvds1->panel_type;
 	    if (lvds1->caps & LVDS_CAP_DITHER)
-		pI830->panel_wants_dither = TRUE;
+		*wants_dither = TRUE;
 	    break;
 	case 41:
 	    if (panel_type == -1)
@@ -241,5 +242,53 @@ i830_bios_get_panel_mode(ScrnInfoPtr pScrn)
     }
 
     xfree(bios);
+    return NULL;
+}
+
+unsigned char *
+i830_bios_get_aim_data_block (ScrnInfoPtr pScrn, int aim, int data_block)
+{
+    unsigned char   *bios;
+    int		    bdb_off;
+    int		    vbt_off;
+    int		    aim_off;
+    struct vbt_header *vbt;
+    struct aimdb_header *aimdb;
+    struct aimdb_block *aimdb_block;
+
+    bios = i830_bios_get (pScrn);
+    if (!bios)
+	return NULL;
+
+    vbt_off = INTEL_BIOS_16(0x1a);
+    vbt = (struct vbt_header *)(bios + vbt_off);
+
+    aim_off = vbt->aim_offset[aim];
+    if (!aim_off)
+    {
+	free (bios);
+	return NULL;
+    }
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "aim_off %d\n", aim_off);
+    aimdb = (struct aimdb_header *) (bios + vbt_off + aim_off);
+    bdb_off = aimdb->aimdb_header_size;
+    while (bdb_off < aimdb->aimdb_size)
+    {
+	aimdb_block = (struct aimdb_block *) (bios + vbt_off + aim_off + bdb_off);
+	if (aimdb_block->aimdb_id == data_block)
+	{
+	    unsigned char   *aim = malloc (aimdb_block->aimdb_size + sizeof (struct aimdb_block));
+	    if (!aim)
+	    {
+		free (bios);
+		return NULL;
+	    }
+	    memcpy (aim, aimdb_block, aimdb_block->aimdb_size + sizeof (struct aimdb_block));
+	    free (bios);
+	    return aim;
+	}
+	bdb_off += aimdb_block->aimdb_size + sizeof (struct aimdb_block);
+    }
+    free (bios);
     return NULL;
 }

@@ -231,11 +231,13 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->exa_965_state = NULL;
     pI830->overlay_regs = NULL;
     pI830->logical_context = NULL;
+#ifdef XF86DRI
     pI830->back_buffer = NULL;
     pI830->third_buffer = NULL;
     pI830->depth_buffer = NULL;
     pI830->textures = NULL;
     pI830->memory_manager = NULL;
+#endif
     pI830->LpRing->mem = NULL;
 
     /* Reset the fence register allocation. */
@@ -248,6 +250,7 @@ i830_free_3d_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
+#ifdef XF86DRI
     i830_free_memory(pScrn, pI830->back_buffer);
     pI830->back_buffer = NULL;
     i830_free_memory(pScrn, pI830->third_buffer);
@@ -258,6 +261,7 @@ i830_free_3d_memory(ScrnInfoPtr pScrn)
     pI830->textures = NULL;
     i830_free_memory(pScrn, pI830->memory_manager);
     pI830->memory_manager = NULL;
+#endif
 }
 
 /**
@@ -309,6 +313,92 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
     return TRUE;
 }
 
+/**
+ * Reads a GTT entry for the memory at the given offset and returns the
+ * physical address.
+ *
+ * \return physical address if successful.
+ * \return (unsigned long)-1 if unsuccessful.
+ */
+static unsigned long
+i830_get_gtt_physical(ScrnInfoPtr pScrn, unsigned long offset)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 gttentry;
+
+    /* We don't have GTTBase set up on i830 yet. */
+    if (pI830->GTTBase == NULL)
+	return -1;
+
+    gttentry = INGTT(offset / 1024);
+
+    /* Mask out these reserved bits on this hardware. */
+    if (!IS_I965G(pI830))
+	gttentry &= ~PTE_ADDRESS_MASK_HIGH;
+
+    /* If it's not a mapping type we know, then bail. */
+    if ((gttentry & PTE_MAPPING_TYPE_MASK) != PTE_MAPPING_TYPE_UNCACHED &&
+	(gttentry & PTE_MAPPING_TYPE_MASK) != PTE_MAPPING_TYPE_CACHED)
+    {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Unusable physical mapping type 0x%08x\n",
+		   (unsigned int)(gttentry & PTE_MAPPING_TYPE_MASK));
+	return -1;
+    }
+    /* If we can't represent the address with an unsigned long, bail. */
+    if (sizeof(unsigned long) == 4 &&
+	(gttentry & PTE_ADDRESS_MASK_HIGH) != 0)
+    {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "High memory PTE (0x%08x) on 32-bit system\n",
+		   (unsigned int)gttentry);
+	return -1;
+    }
+    assert((gttentry & PTE_VALID) != 0);
+
+    return (gttentry & PTE_ADDRESS_MASK) |
+	(gttentry & PTE_ADDRESS_MASK_HIGH << (32 - 4));
+}
+
+/**
+ * Reads the GTT entries for stolen memory at the given offset, returning the
+ * physical address.
+ *
+ * \return physical address if successful.
+ * \return (unsigned long)-1 if unsuccessful.
+ */
+static unsigned long
+i830_get_stolen_physical(ScrnInfoPtr pScrn, unsigned long offset,
+			 unsigned long size)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    unsigned long physical, scan;
+
+    /* Check that the requested region is within stolen memory. */
+    if (offset + size >= pI830->stolen_size)
+	return -1;
+
+    physical = i830_get_gtt_physical(pScrn, offset);
+    if (physical == -1)
+	return -1;
+
+    /* Check that the following pages in our allocation follow the first page
+     * contiguously.
+     */
+    for (scan = offset + 4096; scan < offset + size; scan += 4096) {
+	unsigned long scan_physical = i830_get_gtt_physical(pScrn, scan);
+
+	if ((scan - offset) != (scan_physical - physical)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Non-contiguous GTT entries: (%ld,%ld) vs (%ld,%ld)\n",
+		       scan, scan_physical, offset, physical);
+	    return -1;
+	}
+    }
+
+    return physical;
+}
+
 /* Allocate aperture space for the given size and alignment, and returns the
  * memory allocation.
  *
@@ -341,13 +431,25 @@ i830_allocate_aperture(ScrnInfoPtr pScrn, const char *name,
 	alignment = GTT_PAGE_SIZE;
 
     for (scan = pI830->memory_list; scan->next != NULL; scan = scan->next) {
-	mem->offset = scan->end;
-	/* For allocations requiring physical addresses, we have to use AGP
-	 * memory, so move the allocation up out of stolen memory.
-	 */
-	if ((flags & NEED_PHYSICAL_ADDR) && mem->offset < pI830->stolen_size)
-	    mem->offset = pI830->stolen_size;
-	mem->offset = ROUND_TO(mem->offset, alignment);
+	mem->offset = ROUND_TO(scan->end, alignment);
+	if ((flags & NEED_PHYSICAL_ADDR) && mem->offset < pI830->stolen_size) {
+	    /* If the allocation is entirely within stolen memory, and we're
+	     * able to get the physical addresses out of the GTT and check that
+	     * it's contiguous (it ought to be), then we can do our physical
+	     * allocations there and not bother the kernel about it.  This
+	     * helps avoid aperture fragmentation from our physical
+	     * allocations.
+	     */
+	    mem->bus_addr = i830_get_stolen_physical(pScrn, mem->offset,
+						     mem->size);
+
+	    if (mem->bus_addr == ((unsigned long)-1)) {
+		/* Move the start of the allocation to just past the end of
+		 * stolen memory.
+		 */
+		mem->offset = ROUND_TO(pI830->stolen_size, alignment);
+	    }
+	}
 
 	mem->end = mem->offset + size;
 	if (flags & ALIGN_BOTH_ENDS)
@@ -385,11 +487,8 @@ i830_allocate_agp_memory(ScrnInfoPtr pScrn, i830_memory *mem, int flags)
     if (mem->key != -1)
 	return TRUE;
 
-    if (mem->offset + mem->size <= pI830->stolen_size &&
-	!(flags & NEED_PHYSICAL_ADDR))
-    {
+    if (mem->offset + mem->size <= pI830->stolen_size)
 	return TRUE;
-    }
 
     if (mem->offset < pI830->stolen_size)
 	mem->agp_offset = pI830->stolen_size;
@@ -602,6 +701,7 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 	i830_describe_tiling(pScrn, verbosity, prefix, pI830->front_buffer,
 			     pI830->front_tiled);
     }
+#ifdef XF86DRI
     if (pI830->back_buffer != NULL) {
 	i830_describe_tiling(pScrn, verbosity, prefix, pI830->back_buffer,
 			     pI830->back_tiled);
@@ -614,6 +714,7 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 	i830_describe_tiling(pScrn, verbosity, prefix, pI830->depth_buffer,
 			     pI830->depth_tiled);
     }
+#endif
 }
 
 static Bool
@@ -646,15 +747,19 @@ static Bool
 i830_allocate_overlay(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    int flags = NEED_PHYSICAL_ADDR;
 
     /* Only allocate if overlay is going to be enabled. */
     if (!pI830->XvEnabled)
 	return TRUE;
 
+    if (OVERLAY_NOPHYSICAL(pI830))
+	flags = 0;
+
     if (!IS_I965G(pI830)) {
 	pI830->overlay_regs = i830_allocate_memory(pScrn, "overlay registers",
 						   OVERLAY_SIZE, GTT_PAGE_SIZE,
-						   NEED_PHYSICAL_ADDR);
+						   flags);
 	if (pI830->overlay_regs == NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Failed to allocate Overlay register space.\n");
@@ -685,7 +790,7 @@ IsTileable(ScrnInfoPtr pScrn, int pitch)
     switch (pitch) {
     case 128:
     case 256:
-	if (IS_I945G(pI830) || IS_I945GM(pI830))
+	if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
 	    return TRUE;
 	else
 	    return FALSE;
@@ -957,20 +1062,18 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 		   "Failed to allocate logical context space.\n");
 	return FALSE;
     }
-#ifdef I830_USE_EXA
-    if (pI830->useEXA) {
-	if (IS_I965G(pI830) && pI830->exa_965_state == NULL) {
-	    pI830->exa_965_state =
-		i830_allocate_memory(pScrn, "exa G965 state buffer",
-				     EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, 0);
-	    if (pI830->exa_965_state == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Failed to allocate exa state buffer for 965.\n");
-		return FALSE;
-	    }
+
+    /* even in XAA, 965G needs state mem buffer for rendering */
+    if (IS_I965G(pI830) && !pI830->noAccel && pI830->exa_965_state == NULL) {
+	pI830->exa_965_state =
+	    i830_allocate_memory(pScrn, "exa G965 state buffer",
+		    EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, 0);
+	if (pI830->exa_965_state == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "Failed to allocate exa state buffer for 965.\n");
+	    return FALSE;
 	}
     }
-#endif
 
 #ifdef I830_XV
     /* Allocate overlay register space and optional XAA linear allocator
@@ -1213,12 +1316,33 @@ i830_allocate_texture_memory(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+static Bool
+i830_allocate_hwstatus(ScrnInfoPtr pScrn)
+{
+#define HWSTATUS_PAGE_SIZE (4*1024)
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    pI830->hw_status = i830_allocate_memory(pScrn, "G33 hw status",
+	    HWSTATUS_PAGE_SIZE, GTT_PAGE_SIZE, 0);
+    if (pI830->hw_status == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		"Failed to allocate hw status page for G33.\n");
+	return FALSE;
+    }
+    return TRUE;
+}
+
 Bool
 i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
     DPRINTF(PFX, "i830_allocate_3d_memory\n");
+
+    if (IS_G33CLASS(pI830)) {
+	if (!i830_allocate_hwstatus(pScrn))
+	    return FALSE;
+    }
 
     if (!i830_allocate_backbuffer(pScrn, &pI830->back_buffer,
 				  &pI830->back_tiled, "back buffer"))
@@ -1243,7 +1367,6 @@ i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 }
 #endif
 
-#ifdef XF86DRI
 /**
  * Sets up a fence area for the hardware.
  *
@@ -1405,7 +1528,8 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
    	}
     }
 
-    if ((IS_I945G(pI830) || IS_I945GM(pI830)) && tile_format == TILING_YMAJOR)
+    if ((IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
+	    && tile_format == TILING_YMAJOR)
 	fence_pitch = pitch / 128;
     else if (IS_I9XX(pI830))
 	fence_pitch = pitch / 512;
@@ -1442,7 +1566,6 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
 
     pI830->fence[nr] = val;
 }
-#endif
 
 /**
  * Called at EnterVT to grab the AGP GART and bind our allocations.

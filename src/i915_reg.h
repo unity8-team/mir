@@ -109,6 +109,13 @@
 /* 3DSTATE_CHROMA_KEY */
 
 /* 3DSTATE_CLEAR_PARAMETERS, p150 */
+#define _3DSTATE_CLEAR_PARAMETERS   (CMD_3D | (0x1d<<24) | (0x9c<<16) | 5)
+/* Dword 1 */
+#define CLEARPARAM_CLEAR_RECT	    (1 << 16)
+#define CLEARPARAM_ZONE_INIT	    (0 << 16)
+#define CLEARPARAM_WRITE_COLOR	    (1 << 2)
+#define CLEARPARAM_WRITE_DEPTH	    (1 << 1)
+#define CLEARPARAM_WRITE_STENCIL    (1 << 0)
 
 /* 3DSTATE_CONSTANT_BLEND_COLOR, p153 */
 #define _3DSTATE_CONST_BLEND_COLOR_CMD	(CMD_3D | (0x1d<<24) | (0x88<<16))
@@ -133,9 +140,9 @@
 #define _3DSTATE_DEPTH_OFFSET_SCALE       (CMD_3D | (0x1d<<24) | (0x97<<16))
 /* scale in dword 1 */
 
-
+/* The depth subrectangle is not supported, but must be disabled. */
 /* 3DSTATE_DEPTH_SUBRECT_DISABLE, p160 */
-#define _3DSTATE_DEPTH_SUBRECT_DISABLE    (CMD_3D | (0x1c<<24) | (0x11<19) | 0x2)
+#define _3DSTATE_DEPTH_SUBRECT_DISABLE	(CMD_3D | (0x1c<<24) | (0x11<<19) | (1 << 1) | (0 << 0))
 
 /* p161 */
 #define _3DSTATE_DST_BUF_VARS_CMD	(CMD_3D | (0x1d<<24) | (0x85<<16))

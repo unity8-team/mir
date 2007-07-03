@@ -22,7 +22,7 @@ if HAVE_PCIACCESS
 REGDUMPER = reg_dumper
 endif
 
-SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 $(REGDUMPER)
+SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 $(REGDUMPER)
 
 # this is obnoxious:
 # -module lets us name the module exactly how we want

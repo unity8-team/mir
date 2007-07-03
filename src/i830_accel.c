@@ -96,10 +96,10 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
    I830Ptr pI830 = I830PTR(pScrn);
    I830RingBuffer *ring = pI830->LpRing;
    int iters = 0;
-   int start = 0;
-   int now = 0;
+   unsigned int start = 0;
+   unsigned int now = 0;
    int last_head = 0;
-   int first = 0;
+   unsigned int first = 0;
 
    /* If your system hasn't moved the head pointer in 2 seconds, I'm going to
     * call it crashed.
@@ -128,9 +128,12 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 	 start = now;
 	 last_head = ring->head;
       } else if (now - start > timeout_millis) {
-	 ErrorF("Error in I830WaitLpRing(), now is %d, start is %d\n", now,
-		start);
-	 i830_dump_error_state(pScrn);
+	 ErrorF("Error in I830WaitLpRing(), timeout for %d seconds\n",
+		timeout_millis/1000);
+	 if (IS_I965G(pI830))
+	     i965_dump_error_state(pScrn);
+	 else
+	     i830_dump_error_state(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
 #ifdef XF86DRI
 	 if (pI830->directRenderingEnabled) {
@@ -153,7 +156,7 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
    if (I810_DEBUG & DEBUG_VERBOSE_ACCEL) {
       now = GetTimeInMillis();
       if (now - first) {
-	 ErrorF("Elapsed %d ms\n", now - first);
+	 ErrorF("Elapsed %u ms\n", now - first);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
       }
    }

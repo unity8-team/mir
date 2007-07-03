@@ -233,6 +233,7 @@ union intfloat {
 #define INREG8(addr)        *(volatile CARD8  *)(RecPtr->MMIOBase + (addr))
 #define INREG16(addr)       *(volatile CARD16 *)(RecPtr->MMIOBase + (addr))
 #define INREG(addr)         *(volatile CARD32 *)(RecPtr->MMIOBase + (addr))
+#define INGTT(addr)         *(volatile CARD32 *)(RecPtr->GTTBase + (addr))
 #define POSTING_READ(addr)  (void)INREG(addr)
 
 #define OUTREG8(addr, val) do {						\
@@ -330,6 +331,7 @@ extern int I810_DEBUG;
 
 #ifndef PCI_CHIP_I945_GM
 #define PCI_CHIP_I945_GM        0x27A2
+#define PCI_CHIP_I945_GME	0x27AE
 #define PCI_CHIP_I945_GM_BRIDGE 0x27A0
 #endif
 
@@ -355,7 +357,23 @@ extern int I810_DEBUG;
 
 #ifndef PCI_CHIP_I965_GM
 #define PCI_CHIP_I965_GM        0x2A02
+#define PCI_CHIP_I965_GME	0x2A12
 #define PCI_CHIP_I965_GM_BRIDGE 0x2A00
+#endif
+
+#ifndef PCI_CHIP_G33_G
+#define PCI_CHIP_G33_G		0x29C2
+#define PCI_CHIP_G33_G_BRIDGE 	0x29C0
+#endif
+
+#ifndef PCI_CHIP_Q35_G
+#define PCI_CHIP_Q35_G		0x29B2
+#define PCI_CHIP_Q35_G_BRIDGE 	0x29B0
+#endif
+
+#ifndef PCI_CHIP_Q33_G
+#define PCI_CHIP_Q33_G		0x29D2
+#define PCI_CHIP_Q33_G_BRIDGE 	0x29D0
 #endif
 
 #define IS_I810(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I810 ||	\
@@ -372,12 +390,17 @@ extern int I810_DEBUG;
 #define IS_I915G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I915_G || pI810->PciInfo->chipType == PCI_CHIP_E7221_G)
 #define IS_I915GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I915_GM)
 #define IS_I945G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_G)
-#define IS_I945GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_GM)
-#define IS_I965GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_GM)
-#define IS_I965G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_G || pI810->PciInfo->chipType == PCI_CHIP_I965_G_1 || pI810->PciInfo->chipType == PCI_CHIP_I965_Q || pI810->PciInfo->chipType == PCI_CHIP_I946_GZ || pI810->PciInfo->chipType == PCI_CHIP_I965_GM)
-#define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810))
+#define IS_I945GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I945_GM || pI810->PciInfo->chipType == PCI_CHIP_I945_GME)
+#define IS_I965GM(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_GM || pI810->PciInfo->chipType == PCI_CHIP_I965_GME)
+#define IS_I965G(pI810) (pI810->PciInfo->chipType == PCI_CHIP_I965_G || pI810->PciInfo->chipType == PCI_CHIP_I965_G_1 || pI810->PciInfo->chipType == PCI_CHIP_I965_Q || pI810->PciInfo->chipType == PCI_CHIP_I946_GZ || pI810->PciInfo->chipType == PCI_CHIP_I965_GM || pI810->PciInfo->chipType == PCI_CHIP_I965_GME)
+#define IS_G33CLASS(pI810) (pI810->PciInfo->chipType == PCI_CHIP_G33_G ||\
+ 			    pI810->PciInfo->chipType == PCI_CHIP_Q35_G ||\
+ 			    pI810->PciInfo->chipType == PCI_CHIP_Q33_G)
+#define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810) || IS_G33CLASS(pI810))
 
 #define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810))
+/* mark chipsets for using gfx VM offset for overlay */
+#define OVERLAY_NOPHYSICAL(pI810) (IS_G33CLASS(pI810))
 
 #define GTT_PAGE_SIZE			KB(4)
 #define ROUND_TO(x, y)			(((x) + (y) - 1) / (y) * (y))
