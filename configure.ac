@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-intel],
-        2.0.0,
+        2.1.0,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-intel)
 
@@ -48,6 +48,7 @@ AM_MAINTAINER_MODE
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 AC_PROG_CC
+AM_PROG_CC_C_O
 
 AC_CHECK_PROG(gen4asm, [intel-gen4asm], yes, no)
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
@@ -191,11 +192,14 @@ if test "$DRI" = yes; then
 	fi
 
 	save_CFLAGS="$CFLAGS"
-	CFLAGS="$DRI_CFLAGS"
+	CFLAGS="$XORG_CFLAGS $DRI_CFLAGS"
 	AC_CHECK_TYPE(drm_i915_flip_t,
 		      [AC_DEFINE(HAVE_I915_FLIP, 1,
 			         [Have drm_i915_flip_t and related definitions])],
-		      [], [#include <i915_drm.h>])
+		      [], [
+#include <inttypes.h>
+#include <i915_drm.h>
+])
 	CFLAGS="$save_CFLAGS"
 fi
 
@@ -227,5 +231,6 @@ AC_OUTPUT([
 	src/ivch/Makefile
 	src/reg_dumper/Makefile
 	src/sil164/Makefile
+	src/tfp410/Makefile
 	man/Makefile
 ])

@@ -97,6 +97,8 @@ static Bool
 i830_crt_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		    DisplayModePtr adjusted_mode)
 {
+    /* disable blanking so we can detect monitors */
+    adjusted_mode->CrtcVBlankStart = adjusted_mode->CrtcVTotal - 3;
     return TRUE;
 }
 
@@ -106,7 +108,7 @@ i830_crt_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
-    xf86CrtcPtr	    crtc = output->crtc;
+    xf86CrtcPtr		    crtc = output->crtc;
     I830CrtcPrivatePtr	    i830_crtc = crtc->driver_private;
     int			    dpll_md_reg;
     CARD32		    adpa, dpll_md;
@@ -132,9 +134,15 @@ i830_crt_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
     if (i830_crtc->pipe == 0)
+    {
 	adpa |= ADPA_PIPE_A_SELECT;
+	OUTREG(BCLRPAT_A, 0);
+    }
     else
+    {
 	adpa |= ADPA_PIPE_B_SELECT;
+	OUTREG(BCLRPAT_B, 0);
+    }
 
     OUTREG(ADPA, adpa);
 }
@@ -193,58 +201,87 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	    i830_crtc = I830CrtcPrivate(crtc);
-    CARD32		    save_adpa, adpa, pipeconf, bclrpat;
+    CARD32		    save_bclrpat;
+    CARD32		    save_vtotal;
+    CARD32		    vtotal, vactive;
+    CARD32		    vsample;
+    CARD32		    vblank, vblank_start, vblank_end;
+    CARD32		    dsl;
     CARD8		    st00;
-    int			    pipeconf_reg, bclrpat_reg, dpll_reg;
+    int			    bclrpat_reg, pipeconf_reg, pipe_dsl_reg;
+    int			    vtotal_reg;
+    int			    vblank_reg;
     int			    pipe = i830_crtc->pipe;
+    int			    count, detect;
+    Bool		    present;
 
     if (pipe == 0) 
     {
 	bclrpat_reg = BCLRPAT_A;
+	vtotal_reg = VTOTAL_A;
+	vblank_reg = VBLANK_A;
 	pipeconf_reg = PIPEACONF;
-	dpll_reg = DPLL_A;
+	pipe_dsl_reg = PIPEA_DSL;
     }
     else 
     {
 	bclrpat_reg = BCLRPAT_B;
+	vtotal_reg = VTOTAL_B;
+	vblank_reg = VBLANK_B;
 	pipeconf_reg = PIPEBCONF;
-	dpll_reg = DPLL_B;
+	pipe_dsl_reg = PIPEB_DSL;
     }
 
-    adpa = INREG(ADPA);
-    save_adpa = adpa;
+    save_bclrpat = INREG(bclrpat_reg);
+    save_vtotal = INREG(vtotal_reg);
+    vblank = INREG(vblank_reg);
+    
+    vtotal = ((save_vtotal >> 16) & 0xfff) + 1;
+    vactive = (save_vtotal & 0x7ff) + 1;
 
-    /* Enable CRT output. */
-    adpa |= ADPA_DAC_ENABLE;
-    if (pipe == 1)
- 	adpa |= ADPA_PIPE_B_SELECT;
+    vblank_start = (vblank & 0xfff) + 1;
+    vblank_end = ((vblank >> 16) & 0xfff) + 1;
+    
+    /* sample in the vertical border, selecting the larger one */
+    if (vblank_start - vactive >= vtotal - vblank_end)
+	vsample = (vblank_start + vactive) >> 1;
     else
- 	adpa &= ~ADPA_PIPE_B_SELECT;
-    adpa |= ADPA_VSYNC_CNTL_ENABLE | ADPA_HSYNC_CNTL_ENABLE;
-    OUTREG(ADPA, adpa);
+	vsample = (vtotal + vblank_end) >> 1;
 
     /* Set the border color to purple. */
-    bclrpat = INREG(bclrpat_reg);
-    OUTREG(bclrpat_reg, 0x00500050);
-
-    i830WaitForVblank(pScrn);
-
-    /* Force the border color through the active region */
-    pipeconf = INREG(pipeconf_reg);
-    OUTREG(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
-
-    /* Read the ST00 VGA status register */
-    st00 = pI830->readStandard(pI830, 0x3c2);
+    OUTREG(bclrpat_reg, 0x500050);
+    
+    /*
+     * Wait for the border to be displayed
+     */
+    while (INREG(pipe_dsl_reg) >= vactive)
+	;
+    while ((dsl = INREG(pipe_dsl_reg)) <= vsample)
+	;
+    /*
+     * Watch ST00 for an entire scanline
+     */
+    detect = 0;
+    count = 0;
+    do {
+	count++;
+	/* Read the ST00 VGA status register */
+	st00 = pI830->readStandard(pI830, 0x3c2);
+	if (st00 & (1 << 4))
+	    detect++;
+    } while ((INREG(pipe_dsl_reg) == dsl));
 
     /* Restore previous settings */
-    OUTREG(bclrpat_reg, bclrpat);
-    OUTREG(pipeconf_reg, pipeconf);
-    OUTREG(ADPA, save_adpa);
+    OUTREG(bclrpat_reg, save_bclrpat);
 
-    if (st00 & (1 << 4))
-	return TRUE;
-    else
-	return FALSE;
+    /*
+     * If more than 3/4 of the scanline detected a monitor,
+     * then it is assumed to be present. This works even on i830,
+     * where there isn't any way to force the border color across
+     * the screen
+     */
+    present = detect * 4 > count * 3;
+    return present;
 }
 
 /**
@@ -281,7 +318,8 @@ i830_crt_detect(xf86OutputPtr output)
     I830Ptr		    pI830 = I830PTR(pScrn);
     xf86CrtcPtr	    crtc;
 
-    if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_I965G(pI830)) {
+    if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_I965G(pI830) ||
+	    IS_G33CLASS(pI830)) {
 	if (i830_crt_detect_hotplug(output))
 	    return XF86OutputStatusConnected;
 	else
@@ -311,10 +349,15 @@ i830_crt_detect(xf86OutputPtr output)
 	Bool			connected;
 	I830OutputPrivatePtr	intel_output = output->driver_private;
 	
-	if (intel_output->load_detect_temp)
+	if (!crtc->enabled)
 	{
 	    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
 	    xf86CrtcSetMode (crtc, &mode, RR_Rotate_0, 0, 0);
+	}
+	else if (intel_output->load_detect_temp)
+	{
+	    output->funcs->mode_set (output, &crtc->mode, &crtc->mode);
+	    output->funcs->commit (output);
 	}
 	connected = i830_crt_detect_load (crtc, output);
 
@@ -354,6 +397,7 @@ i830_crt_init(ScrnInfoPtr pScrn)
 {
     xf86OutputPtr	    output;
     I830OutputPrivatePtr    i830_output;
+    I830Ptr		    pI830 = I830PTR(pScrn);
 
     output = xf86OutputCreate (pScrn, &i830_crt_output_funcs, "VGA");
     if (!output)
@@ -365,6 +409,13 @@ i830_crt_init(ScrnInfoPtr pScrn)
 	return;
     }
     i830_output->type = I830_OUTPUT_ANALOG;
+    /* i830 (almador) cannot place the analog adaptor on pipe B */
+    if (IS_I830(pI830))
+	i830_output->pipe_mask = (1 << 0);
+    else
+	i830_output->pipe_mask = ((1 << 0) | (1 << 1));
+    i830_output->clone_mask = ((1 << I830_OUTPUT_ANALOG) |
+			       (1 << I830_OUTPUT_DVO_TMDS));
     
     output->driver_private = i830_output;
     output->interlaceAllowed = FALSE;

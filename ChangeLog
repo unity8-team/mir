@@ -1,8 +1,804 @@
+commit 3c552af65d28fafec1d09484a8914b690b961349
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jul 2 18:33:47 2007 -0700
+
+    Update documentation and bump driver version to 2.1.0.
+
+commit 2b9961eb9ce8734565ecdb01cb11610714d7f610
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jul 2 15:16:33 2007 -0700
+
+    Fix reversed LVDS dither enabling logic on GM965.
+
+commit 3d9ee8b2991ec0da8cc21b8455ff7f00fd0335b5
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jul 2 14:38:28 2007 -0700
+
+    Bug #11365: Disable the panel fitter unless it's needed for the chosen mode.
+    
+    The automatic panel scaling appears to choose bad sampling on some GM965
+    hardware for 1:1 mapping modes, and there's no real sense in having it on
+    if we just want 1:1.
+
+commit 1e2e301348b4168aeed38b3fdc6b0e43d5678a86
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Sat Jun 30 12:45:24 2007 -0700
+
+    Fix load detection to use border region instead of blanking.
+    
+    Make sure there is some border area to use by changing how the pipe is
+    configured, then pick a scanline in the middle of the border for load
+    detection. This lets the load detect code use an active pipe instead of
+    requiring an idle one.
+
+commit 11862c2e1f23b77b56d7bd8b384579b5e3ae377b
+Author: Alan Coopersmith <alan.coopersmith@sun.com>
+Date:   Thu Jun 28 23:31:28 2007 -0700
+
+    Add *~ to .gitignore to skip emacs & patch backup files
+
+commit 6503eb45023d0db9a94cb9d1e14a26af07a6628d
+Author: Alan Coopersmith <alan.coopersmith@sun.com>
+Date:   Thu Jun 28 23:30:35 2007 -0700
+
+    Add AM_PROG_CC_C_O to configure.ac
+    
+    Clears automake-1.10 warning: src/bios_reader/Makefile.am:8: compiling
+     `bios_dumper.c' with per-target flags requires `AM_PROG_CC_C_O' in
+     `configure.ac'
+
+commit 5257e36f502676fd6a44bbb8e747d9138ed3bc5c
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Jun 28 15:29:52 2007 -0700
+
+    Handle dual-channel LVDS on i855.
+    
+    Just as with i9xx LVDS, the i855 LVDS can operate in dual-channel mode with
+    a modified P2 divisor value (7 instead of 14). Just using the existing 9xx
+    code for 855 appears to work fine.
+
+commit 16bfcb8042519f24b4494fd621814f39949ceeb6
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Jun 28 15:27:56 2007 -0700
+
+    Decode PLL registers in LVDS mode a bit better in debug code.
+    
+    LVDS mode changes how the PLL works in fairly dramatic ways; the debug code
+    wasn't properly accounting for those differences resulting in fairly bogus
+    debug output.
+
+commit 9675ccb30818bf831ac4c634751ab4bfe35f7bfe
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Jun 27 09:23:33 2007 +0800
+
+    EXA: fallback mask transform on i965
+    
+    It needs to fix shader programs which hasn't been done yet.
+
+commit 7a2300c88ae59f5b7c3ce89d33147e3f0ca23c18
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Jun 27 09:19:22 2007 +0800
+
+    EXA: don't have to check offscreen size
+    
+    DDX will check it for EXA_OFFSCREEN_PIXMAPS flag
+
+commit fff4a3b58fa18ee2ad91f998d190e90b77c051ab
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jun 25 23:15:58 2007 -0700
+
+    Use local structures for vs_state, sf_state, and wm_state
+
+commit 0a8a4afd3c59011d6b1f5b39aedfb9bce0e55c48
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jun 25 23:12:23 2007 -0700
+
+    Use local structure for src_sampler_state and mask_sampler_state
+
+commit 499166a60fcbf16021bd9ec233790ba55803aa44
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jun 25 23:09:17 2007 -0700
+
+    Use local structure for mask_surf_state
+
+commit a418ef7316808b239884a90c3fe890220bcc0242
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jun 25 23:07:19 2007 -0700
+
+    Use local structure for src_surf_state
+
+commit 0e3c0b17826b7b5a21ee2c1d789b084fc167f1ed
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jun 25 23:05:50 2007 -0700
+
+    Use local structure for dest_surf_state
+
+commit 41a2c0f15446d59678461648f476fa71d40d44e0
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jun 25 23:03:47 2007 -0700
+
+    Use local structure for cc_state
+
+commit 59f2150caca7eb374a2db43a472ba85f50d23274
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jun 25 11:28:57 2007 -0700
+
+    Remove redundant i830WaitSync from i965_prepare_composite
+    
+    There were two calls to i830WaitSync, and between them no state was
+    being changed---just offsets were being computed.
+
+commit 66aa0e61e1e8d2216a9c0555be5be004ed0a3192
+Author: Dave Mueller <dave.mueller@gmx.ch>
+Date:   Fri Jun 22 16:45:27 2007 -0700
+
+    Bug #11171: Add support for the Ti TFP410 DVO TMDS transmitter.
+
+commit f8d7cbc6e1322acad3351591336cefcfba7d9aaf
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Jun 22 16:29:21 2007 -0700
+
+    Move the ivch's fixed panel mode support to i830_dvo.c for other LVDS drivers.
+    
+    This also results in removal of the setup hook, which was being called
+    unconditionally and breaking non-ivch dvo drivers.
+
+commit ec236c76b93aea5f2ee1e8b8509cde4625974fcb
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Fri Jun 22 16:32:46 2007 +0100
+
+    I830 needs to have plane/pipe/pll started in mode_set.
+    
+    The patch for the i855 to stop enabling plane/pipe/pll in mode_set broke the
+    i830. Revert that just for the i830, leaving it enabled for the i855.
+
+commit d957c6b8e1dde8e11c1db3431e0ff58c5d984880
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Fri Jun 22 01:32:02 2007 +0100
+
+    Increase vblank wait timeout from 20ms to 30ms. 49.6Hz < 20ms.
+    
+    The x40 LVDS mode has a 49.6Hz vertical refresh. Waiting for only 20ms can
+    sometimes cause the driver to start programming the hardware before the
+    vblank has occurred, which will lock up the i855 chipset. Extend this to
+    30ms (the maximum timeout used by the BIOS) to ensure this doesn't happen.
+    
+    Detecting actual vblank occurance using the various status registers should
+    also be possible but isn't yet working.
+
+commit a67c2965385001bcb8987265f698ff0f5809cd11
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Jun 21 23:59:38 2007 +0100
+
+    Follow BIOS configuration for Legacy Backlight Brightness.
+    
+    The backlight control in the LVDS controller can either operate in 'normal'
+    mode or 'legacy' mode. In legacy mode, it uses the PCI config space register
+    0xf4 which can range from 0 to 0xff. In normal mode, it reads the range and
+    current value from the BLC_PWM_CTL register.
+
+commit d6e46f67ab3af1ad3bfa72acb0efd9fe79dbf1dc
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Jun 21 20:16:36 2007 +0100
+
+    Eliminate some uninitialized variable warnings
+
+commit 9d104634cf03bea82d1467f01e577cb8d2e4b554
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Jun 21 01:15:39 2007 +0100
+
+    Add 3DSTATE_CLEAR_PARAMETERS bits
+
+commit 3bbf313ba541526a893915f8b6c64b1eccf325e0
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Tue Jun 19 09:33:50 2007 +0800
+
+    Fix left G33 issues
+    
+    Be sure to check G33 chip type in:
+    - sdvo output
+    - Y-major tile
+    - crt detect
+    - and xaa composite
+    Sorry for that I should have fixed them very earlier...
+
+commit acef342c870f3b5b781e48c8bf44739aa5ee8ffa
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jun 18 11:57:48 2007 -0700
+
+    Bug #11295: Disable textured video on i915 with framebuffer width too large.
+
+commit fbbb41bc5e03478cb46ee8f64ef68b23ff3fc14b
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Sun Jun 17 14:59:24 2007 +0100
+
+    Let DPMS functions enable plane/pipe/output on 8xx hardware.
+    
+    On 855, letting crtc_mode_set enable the plane and pipe will occasionally
+    hang the chip. Instead, wait for crtc_enable to light things up. For 9xx,
+    leave things alone.
+
+commit d5ca000ece145a35fd6df0dcf3fb3460bd2d64e3
+Author: Rémi Cardona <remi@gentoo.org>
+Date:   Sat Jun 16 13:17:54 2007 +0100
+
+    Include stdint.h to get uint64_t
+
+commit 6b2ae93506d6795f87d6993bebfcb4e6632508ee
+Author: Dave Airlie <airlied@linux.ie>
+Date:   Fri Jun 15 23:30:04 2007 +1000
+
+    sdvo: add support for RGB outputs on SDVO
+    
+    This lights up my monitor VGA-1 - it doesn't look the best though
+
+commit 671ba03befebfdd7256855858987aabc28b2e8cd
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jun 13 16:30:26 2007 -0700
+
+    Fix and enable the 915-class planar textured video path.
+
+commit 6c29e0bae5f1e7cee02b678418394abb971594eb
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jun 13 13:40:39 2007 -0700
+
+    Improve the drm_i915_flip_t check.
+
+commit 420e41e7921d3cc07c784fd17936ec8a675f3b20
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jun 13 13:34:26 2007 -0700
+
+    Revert "Replace failure-prone configure test for fresh libdrm with a simple ifndef."
+    
+    This reverts commit c2b130354aecffbeb2a2d23c7371461feaf5766a.
+    
+    Sadly, a non-working DRM_IOCTL_I915_FLIP already existed.
+
+commit 51612e5ac3ddfb2bb172c58f2dfff9631093b69c
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Jun 12 16:09:54 2007 -0700
+
+    On hang, dump up to the head pointer, not just up to the tail.
+
+commit ceb6dd72443c094212b0281c42cbe92e9a29f682
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jun 4 16:37:53 2007 -0700
+
+    Fix context switching between DRI and X.
+    
+    Now, all 3D pipeline consumers in the driver just call
+    IntelEmitInvariantState(), which handles basic state setup, the caching of that
+    state setup, and notifying DRI clients.  This also removes a mistaken idle
+    wait in the Render code which was papering over the brokenness in the context
+    switching.
+
+commit c2b130354aecffbeb2a2d23c7371461feaf5766a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Jun 12 08:49:21 2007 -0700
+
+    Replace failure-prone configure test for fresh libdrm with a simple ifndef.
+
+commit 0e1deb607f94e4aa3ec4b9df8ff7a07a1c95e31d
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jun 11 17:33:33 2007 -0700
+
+    Fix a typo in _3DSTATE_DEPTH_SUBRECT_DISABLE definition.
+    
+    This is already fixed in the definition in the 3d driver.
+
+commit 8d7a0ccd4f674659eb781def2cfdc3a6e5a219ce
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jun 11 17:33:07 2007 -0700
+
+    Clean up some nits in i915_video.c setup.
+    
+    - The screen dimensions were used for the clipping despite drawing being done
+      to any pixmap, not necessarily the screen.
+    - One piece of state setup was not documented anywhere, and isn't used in other
+      3d hardware paths that also work.
+    - A 3DSTATE_MODES_1 command (830-class only) was issued even though it no
+      longer exists.
+
+commit 15caa64a497dcc0eacb0f91166d9b70206a8db35
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Fri Jun 8 18:44:28 2007 -0700
+
+    Add description for how to use the frame and pixel counter registers.
+    
+    The 24-bit frame and pixel counters were not described in detail and
+    will be useful for DRM.
+
+commit 404fd47573f855b0442d49a383542fc093825ad0
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Jun 6 11:01:48 2007 +0800
+
+    Enable overlay on G33 class chipsets
+    
+    Which have to use gfx vm offset fot setup overlay regs.
+
+commit f4c05973d391bdb0a9b0eadb155548310baa98fd
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Tue Jun 5 11:07:41 2007 -0700
+
+    Add support for the G33, Q33, and Q35 chipsets.
+    
+    These chipsets require that the hardware status page be referenced by an offset
+    in the GTT rather than a physical memory address, so the X Server allocates it
+    rather than the DRM.
+
+commit 36fcaeb2ef94db5399071540bba106dec3db81d5
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jun 4 15:58:31 2007 -0700
+
+    Fix misplaced merge of 1280x768 panel fixup.
+
+commit 8a19e7d57bc23dd163b45e0ab7deca4f074c934d
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Tue Jun 5 00:09:57 2007 -0700
+
+    Always ensure the pipe A is lit when activating overlay on pipe B.
+    
+    Ok, so moving video from pipe A to pipe B still requires that pipe A be
+    active during the transition. Instead of trying to be fancy, just ensure
+    that pipe A is running on each transition to pipe B.
+
+commit e986f6cb62f8644c5fa835bd7dfb7b014c2677c5
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Mon Jun 4 23:52:23 2007 -0700
+
+    Automatically switch overlay when crtcs are reconfigured.
+    
+    As crtcs are disabled and enabled, make sure the automatic crtc selection
+    mechanism drives overlay configuration at each request to display an image.
+
+commit 0984c1fc0963f1ebab31f5b8fce5ad4c387fbd2c
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu May 31 10:17:26 2007 +0800
+
+    Add pci ids for 945GME
+
+commit 88ee25ebad78e54d243d728b775a69365359b5fb
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Thu May 31 10:13:30 2007 +0800
+
+    Add pci ids for 965GME/GLE chip
+
+commit 92e4deb50e049cc83cbde4995ba0b901feceb15a
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Wed May 30 11:49:07 2007 -0600
+
+    Extend XV_PIPE range to include new -1 value
+
+commit 888a4a5f469bf955e3ee3e184b628808ae8a4498
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed May 30 14:42:35 2007 +0800
+
+    Fix i965 render's draw clip rectangle
+    
+    Use scrn's virtual size is not correct in rotation rendering.
+    This fixes initial rotation problem on i965.
+
+commit 516fb73ffee0aea7cf892e6703d37f8ecf52b812
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue May 29 10:22:25 2007 -0700
+
+    Remove README statement that 830M panels are unsupported.
+
+commit 72462568da589054828b72ace83232a71636ee73
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue May 29 10:21:12 2007 -0700
+
+    Expand manpage description of outputs supported.
+
+commit 906b974bfeeed18d79c244ad3db4f5d30e13e4c8
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue May 29 09:49:08 2007 -0700
+
+    Add a fixup to LVDS panel mode detection for 1280x768 panel from text mode.
+    
+    Apparently some BIOSes will program a small mode with large blanking instead of
+    using the pannel fitter.
+
+commit 4b2781291844b61b397e257a0fdb43e964e5f603
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Sat May 26 10:09:11 2007 -0700
+
+    Mark IVCH as connected when detected
+
+commit 2a365eab0178c28782fba97bdd22365f30ce8963
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Sun May 27 12:35:55 2007 -0700
+
+    On i830, Pipe B cannot be lit the first time unless Pipe A is running.
+    
+    I don't understand it, but just like the video overlay, if Pipe A is not
+    running, Pipe B will not turn the first time it is activated. This
+    patch restructures the code used for the video overlay to share it
+    with the crtc commit function.
+
+commit ff8c8cb869a3c780dbd826f7c94f06e4f3fda6af
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Fri May 25 20:29:59 2007 -0700
+
+    Compute and clip to crtc before call to xf86XVClipVideoHelper.
+    
+    By clipping to the crtc ahead of time, xf86XVClipVideoHelper will
+    correctly clip to the bounds of the crtc, eliminating the need for any
+    custom crtc clipping.
+    
+    Also, replace the broken xf86XVFillKeyHelper with a private version that
+    doesn't end up stuck with the wrong clip list when the root window changes
+    size.
+
+commit 33f635d79fe891079558fd909d564f3cf424c482
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Fri May 25 17:32:06 2007 -0700
+
+    Ensure Pipe A is active when enabling overlay the first time.
+    
+    The overlay on the i830 appears to be clocked by Pipe A when being enabled.
+    If pipe A is not running, it will freeze the overlay and blank the screen.
+    Setting a random mode on the Pipe and turning it on fixes this problem
+    nicely.
+
+commit ff0ac8ea63dd6e55573652c5826c482881da0d62
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Fri May 25 17:26:15 2007 -0700
+
+    Xv does not require directRendering
+
+commit 109e5d597b76f7414601cb39c07b133ebf1b0e61
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Thu May 24 11:40:50 2007 -0700
+
+    Clean up CRTC selection. Remove more overlay blocking.
+    
+    Create separate CRTC selection function, use ints instead of floats for
+    coverage measurement. Remove pipe stalls waiting for overlay update.
+
+commit dfb1ec9a07f74125cb1724d41ed4342c4714e12b
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Thu May 24 11:23:44 2007 -0700
+
+    Eliminate blocking for video overlay.
+    
+    No need to block for the overlay; just use the idle buffer.  This will
+    always work because the buffer switch occurs at vblank time, so there is
+    always plenty of time to get the next buffer contents in place before it
+    starts getting scanned to the screen.
+
+commit d172344599585e11388e59659dc9aaa86d7a31c1
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Wed May 23 20:00:16 2007 -0700
+
+    Reformat i830_video.c to four-space indents.
+    
+    Yes, I can't stand it anymore. it's a huge patch, but
+    git-diff -w shows no changes.
+
+commit 02935ced3fba598a01d908ae49ccc30cbcc765a8
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Wed May 23 19:24:25 2007 -0700
+
+    Clean up overlay management.
+    
+    Create separate on/continue/off functions for overlay.
+    Manage overlayOn boolean within those functions.
+    Eliminate redundant management code in other routines.
+
+commit 08753f9b79f3f09879a18b552d90d88dbf52d4be
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Wed May 23 18:59:10 2007 -0700
+
+    Use FLIP_CONTINUE with ~OVERLAY_ENABLE to turn overlay off.
+    
+    This makes the overlay work on i830 with the modesetting driver. I don't
+    know why the pre-modesetting driver worked without this, but it did.
+    A more 'correct' fix would be welcome, but this does seem to do the trick.
+
+commit aa187186dc4f2d770a642060fe54f547ea8952b3
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Mon May 21 10:49:08 2007 -0700
+
+    Automatically select crtc based on coverage.
+    
+    By default, select crtc based on which one covers more of the video output.
+    pipe property can be used to override selection when both have partial
+    coverage.
+
+commit f5017a06a271bba0ace3c5415b78e78bc0c96f22
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Sun May 20 17:25:33 2007 -0700
+
+    Use CRTCs instead of pipe indices for video pipe selection.
+    
+    Replace pipe indices with crtc indices and store references to the xf86Crtc
+    objects in the video private structure.
+
+commit 2df87256df755e972eb884bc742832038a020b2c
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Sun May 20 17:23:26 2007 -0700
+
+    Dump pending ring on crash.
+    
+    When the hardware locks up, dump the pending commands in the ring for
+    analysis.
+
+commit 9971fac87622c93503540196e1756fded3d4869e
+Author: Michel Dänzer <michel@tungstengraphics.com>
+Date:   Tue May 22 10:46:39 2007 +0200
+
+    i830: Provide new DRI texOffsetStart hook when available with EXA.
+
+commit 5390a2e2611950d3f48cc735df4a0c37bc5377a5
+Author: Michel Dänzer <michel@tungstengraphics.com>
+Date:   Fri May 18 17:51:36 2007 +0200
+
+    Update vblank pipes when a pipe gets disabled.
+
+commit 4120a20626998272424225261f2cf7960b7ec0ca
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri May 18 10:10:34 2007 +0800
+
+    EXA: add render enter helper function
+    
+    That notify mesa rendering is smashing the state, and check last 3d
+    operation to do sync after we're swapped in or others.
+
+commit 8db28aeaa6e908017b40bd9180f144a2972f6278
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri May 18 09:54:34 2007 +0800
+
+    Fix ring debug code
+    
+    Use proper unsigned type for timer variables, and try to dump 965G state.
+
+commit 16e50a91dd8b3676e8ce06052c549ab27e6843b7
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri May 18 09:53:36 2007 +0800
+
+    EXA: remove a flush cmd in i915 render code
+
+commit 12a9fcfe1b25cee850380d8ce11ef11cde9aaacb
+Merge: b930bb9... e89d5f2...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu May 17 15:11:29 2007 -0700
+
+    Merge branch 'master' of git+ssh://git.freedesktop.org/git/xorg/driver/xf86-video-intel
+
+commit e89d5f275442915cc7777e75d3fcf7e7ed0f2084
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Thu May 17 15:00:12 2007 -0700
+
+    Make each output control clones/crtcs. Split DVO into LVDS, TMDS, TV.
+    
+    Move clone/crtc config into each output where it's easier to understand (no
+    need for a switch statement in I830PrepareOutputs. Also, split DVO into
+    three sub-types (TMDS, LVDS, TVOUT) as those have different cloning
+    abilities.
+
+commit a441954630c6cdabbf463bfc3404160f97a04b4f
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Thu May 17 14:11:49 2007 -0700
+
+    Enable panel fitter on ivch DVO.
+    
+    Using BIOS source code as a guide, set up the panel fitter on the ivch. This
+    involves setting the pipe to the panel fixed mode, the DVO to the source
+    size and assigning vertical and horizontal scaling factors in the ivch
+    itself.
+
+commit c0daa0a982e7074af4b50653b4a45b0a6352b43d
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Wed May 16 14:02:00 2007 -0700
+
+    Change DVO module interface to pass more state across. Fix IVCH display.
+    
+    The DVO module interface reflected most of the xf86Output API to the
+    underlying functions; finish that work given the changes that have since
+    occurred in the xf86Output API.
+    
+    Move the LVDS-specific code into the IVCH module and make that work on the
+    Thinkpad X30 (an i830-based laptop). Panel scaling does not work yet.
+
+commit b28817a87a1608e849e4a9a736dda43533a84b0c
+Author: Keith Packard <keithp@dulcimer.keithp.com>
+Date:   Wed May 16 13:59:36 2007 -0700
+
+    Add i830_bios_get_aim_data_block to read AIM data from BIOS
+    
+    Add-in modules have per-module data in the BIOS which contains configuration
+    information which cannot be entirely discovered.
+
+commit b31bef1a8effa9acb6de7edd206b9d8c48d88144
+Author: Keith Packard <keithp@work.jf.intel.com>
+Date:   Sat May 12 20:04:31 2007 -0700
+
+    Deal with i830 CRT load detection which cannot use FORCE_BORDER.
+    
+    Chips newer than the i830 can force the border color for the active period
+    of the screen, allowing the load detection to easily see the right data. In
+    addition, newer chips appear to have more sensible load detection hardware
+    which either ignores inactive periods on the screen or performs some
+    longer-term averaging. The i830 appears to provide unfiltered samples of the
+    detected load.
+    
+    For the i830, then, emit a border at the bottom of the screen and, for load
+    detection, simply turn it purple and wait for the current line to be within
+    the border. Sample an entire scanline, counting the number of times the load
+    detection sees a monitor. In my testing, the presence of a monitor will
+    cause the detection to succeed every time, while the absense will cause it
+    to fail about 75% of the time. The code here, checks for presence at least
+    75% of the time, which should be adequate.
+    
+    Also, as the new mode configuration code has already taken care to enable
+    the CRT output, eliminate much of the load detection code which is simply
+    duplicating functionality from the general mode setting code. This should
+    result in faster load detection as this code will now run in no more than
+    one frame time. It does burn the CPU the whole time though, polling the
+    displayed scanline register.
+
+commit b930bb9d6da8c24dbe0949afb7bb2aa4bcb24687
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu May 3 13:44:12 2007 -0700
+
+    Disable vblank interrupts when no DRI clients are running.
+    (cherry picked from commit 6621dd71ada839f4c1742e9e5b272e924cee21d9)
+
+commit 3b769af53e0ef6ef9b56afd679446c73a0e63ea5
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu May 3 13:44:12 2007 -0700
+
+    Disable vblank interrupts when no DRI clients are running.
+
+commit 775fc125aa7ecd0f054959ef210be2df4dc54345
+Author: Dave Airlie <airlied@airlied2.(none)>
+Date:   Thu May 3 20:58:50 2007 +1000
+
+    i810: be a bit more verbose about disabling DRI
+
+commit 34f362d099d255f8f0bb34e9de30f953ee770163
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed May 2 15:40:49 2007 -0700
+
+    Fix typo s/i/index/ in LoadPalette for depth 16.
+    
+    Reported by:	Haihao Xiang <haihao.xiang@intel.com>
+
+commit f850d4727a2ad55c2116d0788f6684b2a0192d24
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed May 2 14:16:21 2007 -0700
+
+    Make up a fixed panel timing for DVO LVDS, and use DVOA for DVO LVDS.
+    
+    The fixed panel timing will only be available when the LVDS is already on
+    at X startup.
+    
+    So far, our only mostly-working LVDS driver is for the i830, and on i830 the
+    LVDS is always on DVOA, so use that for all LVDS chips.  This may need to
+    change if we support the ch7017 I've seen used on embedded i845, for example.
+
+commit f3168e3b0c5664a322ca6bb1c81fc94844cb30ab
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed May 2 14:08:30 2007 -0700
+
+    Disable non-working GTT decoding on i830, and fix map/unmap of GTT.
+
+commit 1fc630f24f8ad9e304cb0761f9cacca2224203c4
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed May 2 13:29:21 2007 -0700
+
+    Add DVO[ABC] register debugging.
+
+commit d0ec37e9c0ceab1080700cd7be4a7cc58552d465
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue May 1 15:56:37 2007 -0700
+
+    Make the DVO output name LVDS if it's an LVDS chip.
+
+commit 490d05f99d2b62dd612d514d9ae0badbac9285ce
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue May 1 15:47:01 2007 -0700
+
+    Fix typo in previous commit with s/XF86_DRI/XF86DRI/
+
+commit c7bb34e83d7c459d932d01070cfeffbbf6c703ac
+Author: Dave Airlie <airlied@linux.ie>
+Date:   Wed May 2 14:25:39 2007 +1000
+
+    disable all outputs on EnterVT
+    
+    This disables all outputs on EnterVT as the SDVO output can confuse
+    the VGA output if the BIOS has enabled it on the same pipe but X
+    isn't going to use the SDVO.
+    
+    Worked out on irc with keithp
+
+commit cae0ae237b79fa7d3a82dfc8d3fb595ccb6c63e1
+Author: Samuel Thibault <samuel.thibault@ens-lyon.org>
+Date:   Tue May 1 12:41:18 2007 -0700
+
+    Bug #10714: Fix build without DRI.
+
+commit 6748d620fbf39dd98982856c09256bdec0fc82a1
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 30 17:27:23 2007 -0700
+
+    Ignore VideoRam now that its original purpose is obsolete.
+    
+    It had been necessary to allow more than a small amount of memory to be
+    allocated, but now those old small allocations people had configured are
+    getting in the way.
+
+commit a4f1a7872f6f959bb4bc6568face710bee3589de
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 30 17:13:09 2007 -0700
+
+    Allow physical-memory allocations within stolen memory.
+    
+    Because stolen memory happens to be a contiguous block of high system memory,
+    we can just read the GTT entries for it to get physical addresses for our
+    allocations there if needed.  This reduces fragmentation of the aperture space,
+    and will often reclaim up to 7 MB of memory that had been left unused since the
+    simplified aperture manager was put in place, but without reintroducing the
+    complexities of the old aperture manager.
+
+commit 7d0d34cfdcc67d07e7667e13a9413743853134f8
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 30 10:39:54 2007 -0700
+
+    Disable some clock gating functions documented to work incorrectly.
+
+commit 138ac8f36cb4e4b3776f313955372522646acbb2
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Sun Apr 29 14:43:19 2007 +0800
+
+    Alloc state mem buffer on 965G for xaa rotation
+    
+    965G needs state mem buffer to setup render pipeline.
+    Thanks Barry Scrott for report this.
+
+commit 0cd524e5411e35c8483c02ecc5062625809e6fc6
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Wed Apr 25 18:09:10 2007 -0400
+
+    Implement the custom I2C protocol used by the ivch DVO.
+    
+    The ihch DVO uses a modified I2C addressing scheme as described
+    in section 5.2 of the data sheet.  Implement this by over-riding
+    the I2C read and write word routines.
+
+commit 880314aabe6326ed56517034940f0e10fb16e866
+Author: Keith Packard <keithp@guitar.keithp.com>
+Date:   Tue Apr 24 11:37:08 2007 -0700
+
+    CRTC Rotation under XAA wasn't hitting accelerated path.
+    
+    The server rotation code is now using the root window in IncludeInferiors
+    mode rather than using the screen pixmap. Change the XAA Composite code
+    to check for this case now.
+
+commit b23eae55c8cdd73e0aba1bf7ced283d402ee6470
+Merge: 31bf269... cebdb8b...
+Author: Keith Packard <keithp@neko.keithp.com>
+Date:   Thu Apr 19 20:38:18 2007 -0700
+
+    Merge branch 'origin'
+
 commit 31bf269afed0a830e79cbbd9d4b1ee9843af326c
 Author: Keith Packard <keithp@neko.keithp.com>
 Date:   Thu Apr 19 20:03:41 2007 -0700
 
     Update version to 2.0.0
+
+commit cebdb8bfc6170a0fb441039f4422917fd0c77e70
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Fri Apr 20 10:54:34 2007 +0800
+
+    EXA: set enabling bits properly for i830
+    
+    This was found when debug exa on a 865GV, we should set
+    pipeline state bits properly, otherwise the engine will hang.
 
 commit 60e891915af7d0f522c9c3f966599fa07779f7aa
 Author: Keith Packard <keithp@neko.keithp.com>

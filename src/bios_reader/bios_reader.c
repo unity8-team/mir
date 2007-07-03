@@ -30,15 +30,10 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "../i830_bios.h"
+
 #define _PARSE_EDID_
 #include "edid.h"
-
-/* Define some types so we can reuse i830_bios.h */
-typedef void *ScrnInfoPtr;
-typedef int Bool;
-#define TRUE 1
-#define FALSE 0
-#include "../i830_bios.h"
 
 
 /* Make a fake pI830 so we can easily pull i830_bios.c code in here. */

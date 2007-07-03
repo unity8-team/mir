@@ -1,5 +1,8 @@
-xserver-xorg-video-intel (2:2.0.0-1ubuntu2) gutsy; urgency=low
+xserver-xorg-video-intel (2:2.1.0-1ubuntu1) gutsy; urgency=low
 
+  [ Kyle McMartin ]
+
+  * Merge changes from 2.0.0-1ubuntu2.
   * Set Maintainer to core-dev.
   * Allow xserver-xorg-video-i810 and xserver-xorg-video-intel to coexist
     until -intel is able to replace it completely.
@@ -7,18 +10,65 @@ xserver-xorg-video-intel (2:2.0.0-1ubuntu2) gutsy; urgency=low
     - Nuke /usr/share/man/man4/i810.4 conflict
     - Nuke Conflicts and Replaces related to -i810.
 
- -- Kyle McMartin <kyle@ubuntu.com>  Tue, 22 May 2007 18:53:04 +0000
+ -- Kyle McMartin <kyle@ubuntu.com>  Tue, 03 Jul 2007 12:45:17 -0400
 
-xserver-xorg-video-intel (2:2.0.0-1ubuntu1) gutsy; urgency=low
+xserver-xorg-video-intel (2:2.1.0-1) unstable; urgency=low
 
-  * Merge with Debian unstable, remaining changes:
-    - debian/control:
-      + Stop building the transitional xserver-xorg-video-i810, so that
-        it doesnt overwrite the identically-named package in main 
-      + Replace and Conflict xserver-xorg-driver-i810.
-      + Change Maintainer address.
+  * New upstream release.
+  * Actually install the upstream README.
 
- -- Timo Aaltonen <tepsipakki@ubuntu.com>  Mon, 21 May 2007 12:54:24 +0300
+ -- Julien Cristau <jcristau@debian.org>  Tue, 03 Jul 2007 11:19:48 +0200
+
+xserver-xorg-video-intel (2:2.0.0-6) experimental; urgency=low
+
+  * Update to latest upstream (commit 1e2e3013).
+  * Add myself to uploaders.
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 02 Jul 2007 03:08:51 +0200
+
+xserver-xorg-video-intel (2:2.0.0-5) experimental; urgency=low
+
+  [ Drew Parsons ]
+  * The upstream README file looks interesting, include it with docs.
+
+  [ Julien Cristau ]
+  * Pull in latest upstream git.
+
+ -- Julien Cristau <jcristau@debian.org>  Fri, 22 Jun 2007 03:58:48 +0100
+
+xserver-xorg-video-intel (2:2.0.0-4) experimental; urgency=low
+
+  [ Julien Cristau ]
+  * Update watch file (s/i810/intel/).
+
+  [ Drew Parsons ]
+  * Pull in latest upstream git (probably contains final Xv fix).
+    Closes: #417860.
+
+ -- Drew Parsons <dparsons@debian.org>  Tue, 05 Jun 2007 18:35:50 +1000
+
+xserver-xorg-video-intel (2:2.0.0-3) experimental; urgency=low
+
+  *  Pull in latest upstream git (updated Xv fix)
+
+ -- Drew Parsons <dparsons@debian.org>  Wed, 30 May 2007 12:20:45 +1000
+
+xserver-xorg-video-intel (2:2.0.0-2) experimental; urgency=low
+
+  [ Julien Cristau ]
+  * Build xserver-xorg-video-i810 in binary-indep instead of binary-arch
+    (closes: #420240).  Thanks, Aaron M. Ucko!
+  * Mention i965 chipsets in the long description.
+
+  [ Timo Aaltonen ]
+  * Replaces/Conflicts: xserver-xorg-driver-i810.
+
+  [ Drew Parsons ]
+  * Pull in latest upstream git
+    - Restores Xv video overlay. Closes: #417860, #420281
+  * autoreconf
+
+ -- Drew Parsons <dparsons@debian.org>  Sat, 26 May 2007 18:08:33 +1000
 
 xserver-xorg-video-intel (2:2.0.0-1) unstable; urgency=low
 

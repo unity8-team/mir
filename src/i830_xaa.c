@@ -249,7 +249,7 @@ I830XAAInit(ScreenPtr pScreen)
 	    pI830->xaa_composite = i830_composite;
 	    pI830->xaa_done_composite = i830_done_composite;
 	} else if (IS_I915G(pI830) || IS_I915GM(pI830) ||
-		   IS_I945G(pI830) || IS_I945GM(pI830))
+		   IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
 	{
 	    pI830->xaa_check_composite = i915_check_composite;
 	    pI830->xaa_prepare_composite = i915_prepare_composite;
@@ -782,12 +782,12 @@ i830_xaa_composite(CARD8	op,
     if (pMask != NULL || op != PictOpSrc || pSrc->pDrawable == NULL)
 	goto fallback;
 
-    if (pSrc->pDrawable->type != DRAWABLE_PIXMAP ||
+    if (pSrc->pDrawable->type != DRAWABLE_WINDOW ||
 	pDst->pDrawable->type != DRAWABLE_PIXMAP)
     {
 	goto fallback;
     }
-    pSrcPixmap = (PixmapPtr)pSrc->pDrawable;
+    pSrcPixmap = (*pScreen->GetWindowPixmap) ((WindowPtr) pSrc->pDrawable);
     pDstPixmap = (PixmapPtr)pDst->pDrawable;
 
     /* Check if the dest is one of our shadow pixmaps */

@@ -525,6 +525,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PGETBL_SIZE_512KB   (0 << 1)
 #define PGETBL_SIZE_256KB   (1 << 1)
 #define PGETBL_SIZE_128KB   (2 << 1)
+#define G33_PGETBL_SIZE_MASK		(3 << 8)
+#define G33_PGETBL_SIZE_1M		(1 << 8)
+#define G33_PGETBL_SIZE_2M		(2 << 8)
+
+#define I830_PTE_BASE			0x10000
+#define PTE_ADDRESS_MASK		0xfffff000
+#define PTE_ADDRESS_MASK_HIGH		0x000000f0 /* i915+ */
+#define PTE_MAPPING_TYPE_UNCACHED	(0 << 1)
+#define PTE_MAPPING_TYPE_DCACHE		(1 << 1) /* i830 only */
+#define PTE_MAPPING_TYPE_CACHED		(3 << 1)
+#define PTE_MAPPING_TYPE_MASK		(3 << 1)
+#define PTE_VALID			(1 << 0)
 
 /** @defgroup PGE_ERR
  * @{
@@ -576,18 +588,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define PGTBL_ERR_HOST_PTE_DATA		(1 << 1)
 # define PGTBL_ERR_HOST_GTT_PTE			(1 << 0)
 /** @} */
-
-/* Page table entries loaded via mmio region, p323
- */
-#define PTE_BASE         0x10000
-#define PTE_ADDR_MASK       0x3FFFF000
-#define PTE_TYPE_MASK       0x00000006
-#define PTE_LOCAL           0x00000002
-#define PTE_MAIN_UNCACHED   0x00000000
-#define PTE_MAIN_CACHED     0x00000006
-#define PTE_VALID_MASK      0x00000001
-#define PTE_VALID           0x00000001
-
 
 /* Ring buffer registers, p277, overview p19
  */
@@ -958,9 +958,111 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define D_STATE			0x6104
 #define DSPCLK_GATE_D		0x6200
+# define TVRUNIT_CLOCK_GATE_DISABLE		(1 << 23) /* 915-945 */
+# define TVCUNIT_CLOCK_GATE_DISABLE		(1 << 22) /* 915-945 */
+# define TVFUNIT_CLOCK_GATE_DISABLE		(1 << 21) /* 915-945 */
+# define TVEUNIT_CLOCK_GATE_DISABLE		(1 << 20) /* 915-945 */
+# define DVSUNIT_CLOCK_GATE_DISABLE		(1 << 19) /* 915-945 */
+# define DSSUNIT_CLOCK_GATE_DISABLE		(1 << 18) /* 915-945 */
+# define DDBUNIT_CLOCK_GATE_DISABLE		(1 << 17) /* 915-945 */
+# define DPRUNIT_CLOCK_GATE_DISABLE		(1 << 16) /* 915-945 */
+# define DPFUNIT_CLOCK_GATE_DISABLE		(1 << 15) /* 915-945 */
+# define DPBMUNIT_CLOCK_GATE_DISABLE		(1 << 14) /* 915-945 */
+# define DPLSUNIT_CLOCK_GATE_DISABLE		(1 << 13) /* 915-945 */
+# define DPLUNIT_CLOCK_GATE_DISABLE		(1 << 12) /* 915-945 */
+# define DPOUNIT_CLOCK_GATE_DISABLE		(1 << 11)
+# define DPBUNIT_CLOCK_GATE_DISABLE		(1 << 10)
+# define DPCUNIT_CLOCK_GATE_DISABLE		(1 << 9)
+# define DPUNIT_CLOCK_GATE_DISABLE		(1 << 8)
+# define VRUNIT_CLOCK_GATE_DISABLE		(1 << 7) /* 915+: reserved */
+# define OVHUNIT_CLOCK_GATE_DISABLE		(1 << 6) /* 830-865 */
+# define DPIOUNIT_CLOCK_GATE_DISABLE		(1 << 6) /* 915-945 */
+# define OVFUNIT_CLOCK_GATE_DISABLE		(1 << 5)
+# define OVBUNIT_CLOCK_GATE_DISABLE		(1 << 4)
+/**
+ * This bit must be set on the 830 to prevent hangs when turning off the
+ * overlay scaler.
+ */
+# define OVRUNIT_CLOCK_GATE_DISABLE		(1 << 3)
+# define OVCUNIT_CLOCK_GATE_DISABLE		(1 << 2)
+# define OVUUNIT_CLOCK_GATE_DISABLE		(1 << 1)
+# define ZVUNIT_CLOCK_GATE_DISABLE		(1 << 0) /* 830 */
+# define OVLUNIT_CLOCK_GATE_DISABLE		(1 << 0) /* 845,865 */
+
 #define RENCLK_GATE_D1		0x6204
+# define BLITTER_CLOCK_GATE_DISABLE		(1 << 13) /* 945GM only */
+# define MPEG_CLOCK_GATE_DISABLE		(1 << 12) /* 945GM only */
+# define PC_FE_CLOCK_GATE_DISABLE		(1 << 11)
+# define PC_BE_CLOCK_GATE_DISABLE		(1 << 10)
+# define WINDOWER_CLOCK_GATE_DISABLE		(1 << 9)
+# define INTERPOLATOR_CLOCK_GATE_DISABLE	(1 << 8)
+# define COLOR_CALCULATOR_CLOCK_GATE_DISABLE	(1 << 7)
+# define MOTION_COMP_CLOCK_GATE_DISABLE		(1 << 6)
+# define MAG_CLOCK_GATE_DISABLE			(1 << 5)
+/** This bit must be unset on 855,865 */
+# define MECI_CLOCK_GATE_DISABLE		(1 << 4)
+# define DCMP_CLOCK_GATE_DISABLE		(1 << 3)
+# define MEC_CLOCK_GATE_DISABLE			(1 << 2)
+# define MECO_CLOCK_GATE_DISABLE		(1 << 1)
+/** This bit must be set on 855,865. */
+# define SV_CLOCK_GATE_DISABLE			(1 << 0)
+# define I915_MPEG_CLOCK_GATE_DISABLE		(1 << 16)
+# define I915_VLD_IP_PR_CLOCK_GATE_DISABLE	(1 << 15)
+# define I915_MOTION_COMP_CLOCK_GATE_DISABLE	(1 << 14)
+# define I915_BD_BF_CLOCK_GATE_DISABLE		(1 << 13)
+# define I915_SF_SE_CLOCK_GATE_DISABLE		(1 << 12)
+# define I915_WM_CLOCK_GATE_DISABLE		(1 << 11)
+# define I915_IZ_CLOCK_GATE_DISABLE		(1 << 10)
+# define I915_PI_CLOCK_GATE_DISABLE		(1 << 9)
+# define I915_DI_CLOCK_GATE_DISABLE		(1 << 8)
+# define I915_SH_SV_CLOCK_GATE_DISABLE		(1 << 7)
+# define I915_PL_DG_QC_FT_CLOCK_GATE_DISABLE	(1 << 6)
+# define I915_SC_CLOCK_GATE_DISABLE		(1 << 5)
+# define I915_FL_CLOCK_GATE_DISABLE		(1 << 4)
+# define I915_DM_CLOCK_GATE_DISABLE		(1 << 3)
+# define I915_PS_CLOCK_GATE_DISABLE		(1 << 2)
+# define I915_CC_CLOCK_GATE_DISABLE		(1 << 1)
+# define I915_BY_CLOCK_GATE_DISABLE		(1 << 0)
+
+# define I965_RCZ_CLOCK_GATE_DISABLE		(1 << 30)
+/** This bit must always be set on 965G/965GM */
+# define I965_RCC_CLOCK_GATE_DISABLE		(1 << 29)
+# define I965_RCPB_CLOCK_GATE_DISABLE		(1 << 28)
+# define I965_DAP_CLOCK_GATE_DISABLE		(1 << 27)
+# define I965_ROC_CLOCK_GATE_DISABLE		(1 << 26)
+# define I965_GW_CLOCK_GATE_DISABLE		(1 << 25)
+# define I965_TD_CLOCK_GATE_DISABLE		(1 << 24)
+/** This bit must always be set on 965G */
+# define I965_ISC_CLOCK_GATE_DISABLE		(1 << 23)
+# define I965_IC_CLOCK_GATE_DISABLE		(1 << 22)
+# define I965_EU_CLOCK_GATE_DISABLE		(1 << 21)
+# define I965_IF_CLOCK_GATE_DISABLE		(1 << 20)
+# define I965_TC_CLOCK_GATE_DISABLE		(1 << 19)
+# define I965_SO_CLOCK_GATE_DISABLE		(1 << 17)
+# define I965_FBC_CLOCK_GATE_DISABLE		(1 << 16)
+# define I965_MARI_CLOCK_GATE_DISABLE		(1 << 15)
+# define I965_MASF_CLOCK_GATE_DISABLE		(1 << 14)
+# define I965_MAWB_CLOCK_GATE_DISABLE		(1 << 13)
+# define I965_EM_CLOCK_GATE_DISABLE		(1 << 12)
+# define I965_UC_CLOCK_GATE_DISABLE		(1 << 11)
+# define I965_SI_CLOCK_GATE_DISABLE		(1 << 6)
+# define I965_MT_CLOCK_GATE_DISABLE		(1 << 5)
+# define I965_PL_CLOCK_GATE_DISABLE		(1 << 4)
+# define I965_DG_CLOCK_GATE_DISABLE		(1 << 3)
+# define I965_QC_CLOCK_GATE_DISABLE		(1 << 2)
+# define I965_FT_CLOCK_GATE_DISABLE		(1 << 1)
+# define I965_DM_CLOCK_GATE_DISABLE		(1 << 0)
+
 #define RENCLK_GATE_D2		0x6208
 #define RAMCLK_GATE_D		0x6210		/* CRL only */
+
+/*
+ * This is a PCI config space register to manipulate backlight brightness
+ * It is used when the BLM_LEGACY_MODE is turned on. When enabled, the first
+ * byte of this config register sets brightness within the range from
+ * 0 to 0xff
+ */
+#define LEGACY_BACKLIGHT_BRIGHTNESS 0xf4
 
 #define BLC_PWM_CTL		0x61254
 #define BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
@@ -1105,6 +1207,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DVO_PIPE_STALL_UNUSED		(0 << 28)
 #define DVO_PIPE_STALL			(1 << 28)
 #define DVO_PIPE_STALL_TV		(2 << 28)
+#define DVO_PIPE_STALL_MASK		(3 << 28)
 #define DVO_USE_VGA_SYNC		(1 << 15)
 #define DVO_DATA_ORDER_I740		(0 << 14)
 #define DVO_DATA_ORDER_FP		(1 << 14)
@@ -1846,6 +1949,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define TV_V_CHROMA_42		0x684a8
 /** @} */
 
+#define PIPEA_DSL		0x70000
+
 #define PIPEACONF 0x70008
 #define PIPEACONF_ENABLE	(1<<31)
 #define PIPEACONF_DISABLE	0
@@ -1870,9 +1975,32 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DSPFW1			0x70034
 #define DSPFW2			0x70038
 #define DSPFW3			0x7003c
+/*
+ * The two pipe frame counter registers are not synchronized, so
+ * reading a stable value is somewhat tricky. The following code 
+ * should work:
+ *
+ *  do {
+ *    high1 = ((INREG(PIPEAFRAMEHIGH) & PIPE_FRAME_HIGH_MASK) >> PIPE_FRAME_HIGH_SHIFT;
+ *    low1 =  ((INREG(PIPEAFRAMEPIXEL) & PIPE_FRAME_LOW_MASK) >> PIPE_FRAME_LOW_SHIFT);
+ *    high2 = ((INREG(PIPEAFRAMEHIGH) & PIPE_FRAME_HIGH_MASK) >> PIPE_FRAME_HIGH_SHIFT);
+ *  } while (high1 != high2);
+ *  frame = (high1 << 8) | low1;
+ */
 #define PIPEAFRAMEHIGH		0x70040
+#define PIPE_FRAME_HIGH_MASK	0x0000ffff
+#define PIPE_FRAME_HIGH_SHIFT	0
 #define PIPEAFRAMEPIXEL		0x70044
+#define PIPE_FRAME_LOW_MASK	0xff000000
+#define PIPE_FRAME_LOW_SHIFT	24
+/*
+ * Pixel within the current frame is counted in the PIPEAFRAMEPIXEL register
+ * and is 24 bits wide.
+ */
+#define PIPE_PIXEL_MASK		0x00ffffff
+#define PIPE_PIXEL_SHIFT	0
 
+#define PIPEB_DSL		0x71000
 
 #define PIPEBCONF 0x71008
 #define PIPEBCONF_ENABLE	(1<<31)
@@ -1980,12 +2108,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define I830_GMCH_MEM_64M	0x1
 #define I830_GMCH_MEM_128M	0
 
-#define I830_GMCH_GMS_MASK			0x70
-#define I830_GMCH_GMS_DISABLED		0x00
+#define I830_GMCH_GMS_MASK			0xF0
+#define I830_GMCH_GMS_DISABLED			0x00
 #define I830_GMCH_GMS_LOCAL			0x10
-#define I830_GMCH_GMS_STOLEN_512	0x20
-#define I830_GMCH_GMS_STOLEN_1024	0x30
-#define I830_GMCH_GMS_STOLEN_8192	0x40
+#define I830_GMCH_GMS_STOLEN_512		0x20
+#define I830_GMCH_GMS_STOLEN_1024		0x30
+#define I830_GMCH_GMS_STOLEN_8192		0x40
 
 #define I830_RDRAM_CHANNEL_TYPE		0x03010
 #define I830_RDRAM_ND(x)			(((x) & 0x20) >> 5)
@@ -2000,6 +2128,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define I855_GMCH_GMS_STOLEN_32M		(0x5 << 4)
 #define I915G_GMCH_GMS_STOLEN_48M		(0x6 << 4)
 #define I915G_GMCH_GMS_STOLEN_64M		(0x7 << 4)
+#define G33_GMCH_GMS_STOLEN_128M		(0x8 << 4)
+#define G33_GMCH_GMS_STOLEN_256M		(0x9 << 4)
 
 #define I85X_CAPID			0x44
 #define I85X_VARIANT_MASK			0x7
