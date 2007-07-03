@@ -1052,8 +1052,7 @@ static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
      */
     pI830->compressed_front_buffer =
 	i830_allocate_memory(pScrn, "compressed frame buffer",
-			     MB(6), KB(4),
-			     NEED_PHYSICAL_ADDR);
+			     MB(6), KB(4), NEED_PHYSICAL_ADDR);
 
     if (!pI830->compressed_front_buffer) {
 	pI830->fb_compression = FALSE;
@@ -1062,7 +1061,8 @@ static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
 
     pI830->compressed_ll_buffer =
 	i830_allocate_memory(pScrn, "compressed ll buffer",
-			     1568, KB(4), NEED_PHYSICAL_ADDR);
+			     FBC_LL_SIZE + FBC_LL_PAD, KB(4),
+			     NEED_PHYSICAL_ADDR);
     if (!pI830->compressed_ll_buffer) {
 	i830_free_memory(pScrn, pI830->compressed_front_buffer);
 	pI830->fb_compression = FALSE;
@@ -1443,6 +1443,8 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
     CARD32 val;
     CARD32 fence_mask = 0;
     unsigned int fence_pitch;
+
+    pitch = 512;
 
     DPRINTF(PFX, "i830_set_fence(): %d, 0x%08x, %d, %d kByte\n",
 	    nr, offset, pitch, size / 1024);

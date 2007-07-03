@@ -50,7 +50,8 @@
 #define   FBC_CTL_PIPEA		(0<<0)
 #define   FBC_CTL_PIPEB		(1<<0)
 
-#define FBC_COMPRESSED_LINES	(1536+32)
+#define FBC_LL_SIZE		(1536)
+#define FBC_LL_PAD		(32)
 
 #define I830_SET_FIELD( var, mask, value ) (var &= ~(mask), var |= value)
 

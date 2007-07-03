@@ -678,7 +678,7 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
     unsigned long interval = 1000;
 
     compressed_stride = pI830->compressed_front_buffer->size /
-	FBC_COMPRESSED_LINES;
+	FBC_LL_SIZE;
 
     if (uncompressed_stride < compressed_stride)
 	compressed_stride = uncompressed_stride;
@@ -688,7 +688,7 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
 
     /* Set it up... */
     OUTREG(FBC_CFB_BASE, pI830->compressed_front_buffer->bus_addr);
-    OUTREG(FBC_LL_BASE, pI830->compressed_ll_buffer->bus_addr);
+    OUTREG(FBC_LL_BASE, pI830->compressed_ll_buffer->bus_addr + FBC_LL_PAD);
     OUTREG(FBC_CONTROL2, FBC_CTL_CPU_FENCE | plane);
 
     /* enable it... */
