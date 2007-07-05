@@ -1,6 +1,6 @@
 Information for Intel graphics driver users
 Eric Anholt
-2007-04-02
+2007-07-02
 
 This document provides a brief summary of the Intel graphics support provided
 by the xf86-video-intel driver.  More information can also be found in the
@@ -15,9 +15,14 @@ Supported Hardware:
 	i845
 	i852
 	i855
-	i915
-	i945
-	i965
+	915G
+	915GM
+	945G
+	945GM/GME
+	946GZ
+	G965
+	GM/GME965
+	G33/Q33/Q35
 
 Features
 - Full support for 8, 15, 16, and 24 bit pixel depths.
@@ -70,6 +75,9 @@ Known Limitations
   release.
 - Gray output with integrated TV-out and PAL TVs.
 - EXA support unstable on i845.
+- Some GM965 systems, such as the Thinkpad T61, probe the TV as being connected
+  even when no output connector is available.  This results in the gnome-panel
+  issue noted below.
 
 Common issues not caused by the driver
 - Font sizes (DPI) are wrong.  Some displays incorrectly report their
@@ -80,7 +88,7 @@ Common issues not caused by the driver
 - gnome-panel is located in the middle of the screen.  gnome-panel places
   itself within head #0's boundaries, which doesn't work well with a second
   head covering the same area as head #0 but larger.
-- Older resolution-changing applicationss have poor results in
+- Older resolution-changing applications have poor results in
   multihead systems.  Previous extensions such as RandR 1.1 exposed only a
   single output to client programs, and those requests map poorly to multi-head
   systems.  Currently, those requests map to just one of the outputs in the
