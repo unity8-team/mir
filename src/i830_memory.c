@@ -1444,8 +1444,6 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
     CARD32 fence_mask = 0;
     unsigned int fence_pitch;
 
-    pitch = 512;
-
     DPRINTF(PFX, "i830_set_fence(): %d, 0x%08x, %d, %d kByte\n",
 	    nr, offset, pitch, size / 1024);
 
