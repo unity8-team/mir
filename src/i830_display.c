@@ -654,6 +654,34 @@ i830_crtc_unlock (xf86CrtcPtr crtc)
 #endif
 }
 
+static Bool
+i830_use_fb_compression(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    int pipe = intel_crtc->pipe;
+    int plane = (pipe == 0 ? FBC_CTL_PIPEA : FBC_CTL_PIPEB);
+
+    if (!pI830->fb_compression)
+	return FALSE;
+
+    /* Pre-965 only supports plane A, which is synonymous with pipe A for now */
+    if (!IS_I965GM(pI830) && plane != FBC_CTL_PIPEA)
+	return FALSE;
+
+    /* Need 15, 16, or 32 (w/alpha) pixel format */
+    if (!(pScrn->bitsPerPixel == 16 || /* covers 15 bit mode as well */
+	  pScrn->bitsPerPixel == 32)) /* mode_set dtrt if fbc is in use */
+	return FALSE;
+
+    /*
+     * No checks for pixel multiply, incl. horizontal, or interlaced modes
+     * since they're currently unused.
+     */
+    return TRUE;
+}
+
 /*
  * Several restrictions:
  *   - DSP[AB]CNTR - no line duplication && no pixel multiplier
@@ -661,6 +689,9 @@ i830_crtc_unlock (xf86CrtcPtr crtc)
  *   - no alpha buffer discard
  *   - no dual wide display
  *   - progressive mode only (DSP[AB]CNTR)
+ *   - uncompressed fb is <= 2048 in width, 0 mod 8
+ *   - uncompressed fb is <= 1536 in height, 0 mod 2
+ *   - SR display watermarks must be equal between 16bpp and 32bpp?
  *
  * FIXME: verify above conditions are true
  */
@@ -719,20 +750,14 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
 static void
 i830_crtc_prepare (xf86CrtcPtr crtc)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
-    crtc->funcs->dpms (crtc, DPMSModeOff);
-
     /* Temporarily turn off FB compression during modeset */
-    if (pI830->fb_compression)
-	i830_disable_fb_compression(crtc);
+    i830_disable_fb_compression(crtc);
+    crtc->funcs->dpms (crtc, DPMSModeOff);
 }
 
 static void
 i830_crtc_commit (xf86CrtcPtr crtc)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     Bool		deactivate = FALSE;
 
@@ -748,7 +773,7 @@ i830_crtc_commit (xf86CrtcPtr crtc)
 	i830_pipe_a_require_deactivate (crtc->scrn);
 
     /* Reenable FB compression if possible */
-    if (pI830->fb_compression)
+    if (i830_use_fb_compression(crtc))
 	i830_enable_fb_compression(crtc);
 }
 
@@ -1007,7 +1032,10 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    dspcntr |= DISPPLANE_16BPP;
 	break;
     case 32:
-	dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+	if (pI830->fb_compression)
+	    dspcntr |= DISPPLANE_32BPP;
+	else
+	    dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
 	break;
     default:
 	FatalError("unknown display bpp\n");
