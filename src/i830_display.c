@@ -1032,10 +1032,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    dspcntr |= DISPPLANE_16BPP;
 	break;
     case 32:
-	if (pI830->fb_compression)
-	    dspcntr |= DISPPLANE_32BPP;
-	else
-	    dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+	dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
 	break;
     default:
 	FatalError("unknown display bpp\n");
