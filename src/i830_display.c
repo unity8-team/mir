@@ -708,6 +708,14 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
     unsigned long uncompressed_stride = pScrn->displayWidth * pI830->cpp;
     unsigned long interval = 1000;
 
+    if (INREG(FBC_CONTROL) & FBC_CTL_EN) {
+	char cur_pipe = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "fbc already enabled on "
+		   "pipe %c, not enabling on pipe %c\n", cur_pipe, pipe ? 'b' :
+		   'a');
+	return;
+    }
+
     compressed_stride = pI830->compressed_front_buffer->size /
 	FBC_LL_SIZE;
 
@@ -730,7 +738,7 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
     OUTREG(FBC_CONTROL, fbc_ctl);
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc enabled on pipe %c\n", pipe ?
-	       "a" : "b");
+	       'b' : 'a');
 }
 
 static void
@@ -739,6 +747,7 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t fbc_ctl;
+    char pipe = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';;
 
     /* Disable compression */
     fbc_ctl = INREG(FBC_CONTROL);
@@ -748,7 +757,7 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
     /* Wait for compressing bit to clear */
     while (INREG(FBC_STATUS) & FBC_STAT_COMPRESSING)
 	; /* nothing */
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled\n");
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled on pipe %c\n", pipe);
 }
 
 static void
