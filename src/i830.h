@@ -727,6 +727,8 @@ static inline int i830_tiling_supported(I830Ptr pI830)
 
 static inline int i830_fb_compression_supported(I830Ptr pI830)
 {
+    if (!i830_tiling_supported(pI830))
+	return FALSE;
     if (!IS_MOBILE(pI830))
 	return FALSE;
     if (IS_I810(pI830) || IS_I815(pI830) || IS_I830(pI830))

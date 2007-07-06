@@ -2334,9 +2334,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
        pI830->fb_compression = TRUE;
    else
        pI830->fb_compression = FALSE;
-   /* ... but disable if requested */
-   if (!xf86ReturnOptValBool(pI830->Options, OPTION_FBC, TRUE))
-       pI830->fb_compression = FALSE;
+
+   if (xf86ReturnOptValBool(pI830->Options, OPTION_FBC, FALSE))
+       pI830->fb_compression = TRUE;
 
    if (pI830->fb_compression) {
        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Framebuffer compression enabled, "
