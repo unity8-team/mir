@@ -287,7 +287,7 @@ i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
     pI830->mapstate[unit * 3 + 1] = format |
 	((pPix->drawable.height - 1) << MS3_HEIGHT_SHIFT) |
 	((pPix->drawable.width - 1) << MS3_WIDTH_SHIFT);
-    if (!pI830->disableTiling)
+    if (pI830->tiling)
 	pI830->samplerstate[unit * 3 + 1] |= MS3_USE_FENCE_REGS;
     pI830->mapstate[unit * 3 + 2] = ((pitch / 4) - 1) << MS4_PITCH_SHIFT;
 

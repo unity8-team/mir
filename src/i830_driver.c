@@ -287,6 +287,7 @@ typedef enum {
    OPTION_CHECKDEVICES,
    OPTION_MODEDEBUG,
    OPTION_FBC,
+   OPTION_TILING,
 #ifdef XF86DRI_MM
    OPTION_INTELTEXPOOL,
    OPTION_INTELMMSIZE,
@@ -308,7 +309,8 @@ static OptionInfoRec I830Options[] = {
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_MODEDEBUG,	"ModeDebug",	OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_FBC,		"FrameBufferCompression", OPTV_BOOLEAN, {0}, FALSE},
+   {OPTION_FBC,		"FramebufferCompression", OPTV_BOOLEAN, {0}, TRUE},
+   {OPTION_TILING,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
 #ifdef XF86DRI_MM
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_INTELMMSIZE, "AperTexSize",  OPTV_INTEGER,	{0},	FALSE},
@@ -2318,12 +2320,34 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       pI830->CacheLines = -1;
    }
 
-   if (xf86ReturnOptValBool(pI830->Options, OPTION_FBC, FALSE))
+   /* Enable tiling by default where supported or if the user forced it on */
+   if (i830_tiling_supported(pI830))
+       pI830->tiling = TRUE;
+   else
+       pI830->tiling = FALSE;
+
+   if (xf86ReturnOptValBool(pI830->Options, OPTION_TILING, FALSE))
+       pI830->tiling = TRUE;
+
+   /* Enable FB compression if possible */
+   if (i830_fb_compression_supported(pI830))
        pI830->fb_compression = TRUE;
    else
        pI830->fb_compression = FALSE;
+   /* ... but disable if requested */
+   if (!xf86ReturnOptValBool(pI830->Options, OPTION_FBC, TRUE))
+       pI830->fb_compression = FALSE;
 
-   pI830->disableTiling = FALSE;
+   if (pI830->fb_compression) {
+       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Framebuffer compression enabled, "
+		  "forcing tiling on.\n");
+       pI830->tiling = TRUE;
+   }
+
+   xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Framebuffer compression %sabled\n",
+	      pI830->fb_compression ? "en" : "dis");
+   xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Tiling %sabled\n", pI830->tiling ?
+	      "en" : "dis");
 
    if (I830IsPrimary(pScrn)) {
       /* Alloc our pointers for the primary head */
@@ -2413,7 +2437,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
        * 3: untiled, small
        */
 
-      pI830->disableTiling = FALSE;
 #ifdef XF86DRI_MM
       savedMMSize = pI830->mmSize;
 #define MM_TURNS 4
@@ -2426,7 +2449,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 	 if (i >= MM_TURNS/2) {
 	    /* For further allocations, disable tiling */
-	    pI830->disableTiling = TRUE;
+	    pI830->tiling = FALSE;
 	    pScrn->displayWidth = savedDisplayWidth;
 	    if (pI830->allowPageFlip)
 	       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -2481,9 +2504,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #endif
 	 pI830->directRenderingDisabled = TRUE;
       }
-   } else
+   }
 #endif
-      pI830->disableTiling = TRUE; /* no DRI - so disableTiling */
 
    if (!allocation_done) {
       if (!i830_allocate_2d_memory(pScrn)) {
@@ -2501,7 +2523,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!IS_I965G(pI830) && pScrn->displayWidth > 2048) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "Cannot support DRI with frame buffer width > 2048.\n");
-      pI830->disableTiling = TRUE;
+      pI830->tiling = FALSE;
       pI830->directRenderingDisabled = TRUE;
    }
 

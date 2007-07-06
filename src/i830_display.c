@@ -728,6 +728,9 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
     fbc_ctl |= (compressed_stride & 0xff) << FBC_CTL_STRIDE_SHIFT;
     fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
     OUTREG(FBC_CONTROL, fbc_ctl);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc enabled on pipe %c\n", pipe ?
+	       "a" : "b");
 }
 
 static void
@@ -745,6 +748,7 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
     /* Wait for compressing bit to clear */
     while (INREG(FBC_STATUS) & FBC_STAT_COMPRESSING)
 	; /* nothing */
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled\n");
 }
 
 static void

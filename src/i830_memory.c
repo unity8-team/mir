@@ -903,9 +903,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
     name = secondary ? "secondary front buffer" : "front buffer";
 
     /* Attempt to allocate it tiled first if we have page flipping on. */
-    if ((!pI830->disableTiling && pI830->allowPageFlip &&
-	 IsTileable(pScrn, pitch)) || pI830->fb_compression)
-    {
+    if (pI830->tiling && IsTileable(pScrn, pitch)) {
 	/* XXX: probably not the case on 965 */
 	if (IS_I9XX(pI830))
 	    align = MB(1);
@@ -1253,7 +1251,7 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn, i830_memory **buffer,
 	height = pScrn->virtualX;
 
     /* Try to allocate on the best tile-friendly boundaries. */
-    if (!pI830->disableTiling && IsTileable(pScrn, pitch))
+    if (pI830->tiling && IsTileable(pScrn, pitch))
     {
 	size = ROUND_TO_PAGE(pitch * ALIGN(height, 16));
 	*buffer = i830_allocate_memory_tiled(pScrn, name, size, pitch,
@@ -1294,7 +1292,7 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
 	height = pScrn->virtualX;
 
     /* First try allocating it tiled */
-    if (!pI830->disableTiling && IsTileable(pScrn, pitch))
+    if (pI830->tiling && IsTileable(pScrn, pitch))
     {
 	enum tile_format tile_format;
 
