@@ -185,8 +185,9 @@ RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 #ifdef XF86DRI
     if (info->allowPageFlip)
 	save->crtc_offset_cntl = RADEON_CRTC_OFFSET_FLIP_CNTL;
+    else
 #endif
-
+	save->crtc_offset_cntl = 0;
 
     if (info->tilingEnabled) {
        if (IS_R300_VARIANT)
@@ -415,7 +416,9 @@ RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
 #ifdef XF86DRI
     if (info->allowPageFlip)
 	save->crtc2_offset_cntl = RADEON_CRTC_OFFSET_FLIP_CNTL;
+    else
 #endif
+	save->crtc2_offset_cntl = 0;
 
     if (info->tilingEnabled) {
        if (IS_R300_VARIANT)
