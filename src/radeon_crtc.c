@@ -175,7 +175,6 @@ RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     int    Base;
 #ifdef XF86DRI
     RADEONSAREAPrivPtr pSAREAPriv;
@@ -223,7 +222,7 @@ RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 		pick up the new offset value at the end of each scanline, but the new offset_cntl value
 		only after a vsync. We'd probably need to wait (in drm) for vsync and only then update
 		OFFSET and OFFSET_CNTL, if the y coord has changed. Seems hard to fix. */
-	     save->crtc_offset_cntl = INREG(RADEON_CRTC_OFFSET_CNTL) & ~0xf;
+	     /*save->crtc_offset_cntl = INREG(RADEON_CRTC_OFFSET_CNTL) & ~0xf;*/
 #if 0
 	     /* try to get rid of flickering when scrolling at least for 2d */
 #ifdef XF86DRI
@@ -404,7 +403,6 @@ RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     int    Base;
 #ifdef XF86DRI
     RADEONSAREAPrivPtr pSAREAPriv;
@@ -453,7 +451,7 @@ RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
 		pick up the new offset value at the end of each scanline, but the new offset_cntl value
 		only after a vsync. We'd probably need to wait (in drm) for vsync and only then update
 		OFFSET and OFFSET_CNTL, if the y coord has changed. Seems hard to fix. */
-	     save->crtc2_offset_cntl = INREG(RADEON_CRTC2_OFFSET_CNTL) & ~0xf;
+	     /*save->crtc2_offset_cntl = INREG(RADEON_CRTC2_OFFSET_CNTL) & ~0xf;*/
 #if 0
 	     /* try to get rid of flickering when scrolling at least for 2d */
 #ifdef XF86DRI
