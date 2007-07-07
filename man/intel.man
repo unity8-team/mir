@@ -80,12 +80,12 @@ This option controls whether the framebuffer compression feature is enabled.
 If possible, the front buffer will be allocated in a tiled format and compressed
 periodically to save memory bandwidth and power.
 This option is only available on mobile chipsets.
-Default: disabled.
+Default: enabled on supported configurations.
 .TP
 .BI "Option \*qTiling\*q \*q" boolean \*q
 This option controls whether memory buffers are allocated in tiled mode.  In
 many cases (especially for complex rendering), tiling can improve performance.
-Default: enabled.
+Default: enabled on supported configurations.
 .TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
 Disable or enable DRI support.
