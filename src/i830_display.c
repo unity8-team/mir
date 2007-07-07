@@ -661,13 +661,13 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     int pipe = intel_crtc->pipe;
-    int plane = (pipe == 0 ? FBC_CTL_PIPEA : FBC_CTL_PIPEB);
+    int plane = (pipe == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
 
     if (!pI830->fb_compression)
 	return FALSE;
 
-    /* Pre-965 only supports plane A, which is synonymous with pipe A for now */
-    if (!IS_I965GM(pI830) && plane != FBC_CTL_PIPEA)
+    /* Pre-965 only supports plane A */
+    if (!IS_I965GM(pI830) && plane != FBC_CTL_PLANEA)
 	return FALSE;
 
     /* Need 15, 16, or 32 (w/alpha) pixel format */
@@ -704,7 +704,7 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
     uint32_t fbc_ctl;
     unsigned long compressed_stride;
     int pipe = intel_crtc->pipe;
-    int plane = (pipe == 0 ? FBC_CTL_PIPEA : FBC_CTL_PIPEB);
+    int plane = (pipe == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
     unsigned long uncompressed_stride = pScrn->displayWidth * pI830->cpp;
     unsigned long interval = 1000;
 

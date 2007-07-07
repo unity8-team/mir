@@ -47,8 +47,8 @@
 #define   FBC_STAT_CURRENT_LINE	(1<<0)
 #define FBC_CONTROL2		0x03214
 #define   FBC_CTL_CPU_FENCE	(1<<1)
-#define   FBC_CTL_PIPEA		(0<<0)
-#define   FBC_CTL_PIPEB		(1<<0)
+#define   FBC_CTL_PLANEA	(0<<0)
+#define   FBC_CTL_PLANEB	(1<<0)
 
 #define FBC_LL_SIZE		(1536)
 #define FBC_LL_PAD		(32)
