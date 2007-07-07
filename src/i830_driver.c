@@ -1753,10 +1753,12 @@ SaveHWState(ScrnInfoPtr pScrn)
    vgaRegPtr vgaReg = &hwp->SavedReg;
    int i;
 
-   pI830->saveFBC_CFB_BASE = INREG(FBC_CFB_BASE);
-   pI830->saveFBC_LL_BASE = INREG(FBC_LL_BASE);
-   pI830->saveFBC_CONTROL2 = INREG(FBC_CONTROL2);
-   pI830->saveFBC_CONTROL = INREG(FBC_CONTROL);
+   if (pI830->fb_compression) {
+       pI830->saveFBC_CFB_BASE = INREG(FBC_CFB_BASE);
+       pI830->saveFBC_LL_BASE = INREG(FBC_LL_BASE);
+       pI830->saveFBC_CONTROL2 = INREG(FBC_CONTROL2);
+       pI830->saveFBC_CONTROL = INREG(FBC_CONTROL);
+   }
 
    /* Save video mode information for native mode-setting. */
    pI830->saveDSPACNTR = INREG(DSPACNTR);
@@ -1982,10 +1984,12 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(SWF31, pI830->saveSWF[15]);
    OUTREG(SWF32, pI830->saveSWF[16]);
 
-   OUTREG(FBC_CFB_BASE, pI830->saveFBC_CFB_BASE);
-   OUTREG(FBC_LL_BASE, pI830->saveFBC_LL_BASE);
-   OUTREG(FBC_CONTROL2, pI830->saveFBC_CONTROL2);
-   OUTREG(FBC_CONTROL, pI830->saveFBC_CONTROL);
+   if (pI830->fb_compression) {
+       OUTREG(FBC_CFB_BASE, pI830->saveFBC_CFB_BASE);
+       OUTREG(FBC_LL_BASE, pI830->saveFBC_LL_BASE);
+       OUTREG(FBC_CONTROL2, pI830->saveFBC_CONTROL2);
+       OUTREG(FBC_CONTROL, pI830->saveFBC_CONTROL);
+   }
 
    vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
    vgaHWLock(hwp);
@@ -2320,14 +2324,19 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       pI830->CacheLines = -1;
    }
 
-   /* Enable tiling by default where supported or if the user forced it on */
+   /* Enable tiling by default where supported */
    if (i830_tiling_supported(pI830))
        pI830->tiling = TRUE;
    else
        pI830->tiling = FALSE;
 
-   if (xf86ReturnOptValBool(pI830->Options, OPTION_TILING, FALSE))
-       pI830->tiling = TRUE;
+   /* Allow user override if they set a value */
+   if (xf86IsOptionSet(pI830->Options, OPTION_TILING)) {
+       if (xf86ReturnOptValBool(pI830->Options, OPTION_TILING, FALSE))
+	   pI830->tiling = TRUE;
+       else
+	   pI830->tiling = FALSE;
+   }
 
    /* Enable FB compression if possible */
    if (i830_fb_compression_supported(pI830))
@@ -2335,8 +2344,13 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    else
        pI830->fb_compression = FALSE;
 
-   if (xf86ReturnOptValBool(pI830->Options, OPTION_FBC, FALSE))
-       pI830->fb_compression = TRUE;
+   /* Again, allow user override if set */
+   if (xf86IsOptionSet(pI830->Options, OPTION_FBC)) {
+       if (xf86ReturnOptValBool(pI830->Options, OPTION_FBC, FALSE))
+	   pI830->fb_compression = TRUE;
+       else
+	   pI830->fb_compression = FALSE;
+   }
 
    if (pI830->fb_compression) {
        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Framebuffer compression enabled, "

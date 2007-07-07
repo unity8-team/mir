@@ -747,7 +747,7 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t fbc_ctl;
-    char pipe = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';;
+    char pipe = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
 
     /* Disable compression */
     fbc_ctl = INREG(FBC_CONTROL);
@@ -764,7 +764,8 @@ static void
 i830_crtc_prepare (xf86CrtcPtr crtc)
 {
     /* Temporarily turn off FB compression during modeset */
-    i830_disable_fb_compression(crtc);
+    if (i830_use_fb_compression(crtc))
+        i830_disable_fb_compression(crtc);
     crtc->funcs->dpms (crtc, DPMSModeOff);
 }
 
