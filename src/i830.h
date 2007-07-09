@@ -134,7 +134,7 @@ struct _i830_memory {
      * Physical (or more properly, bus) address of the allocation.
      * Only set if requested during allocation.
      */
-    unsigned long bus_addr;
+    uint64_t bus_addr;
     /** AGP memory handle */
     int key;
     /**
@@ -235,7 +235,7 @@ typedef struct _I830CrtcPrivateRec {
     /* Physical or virtual addresses of the cursor for setting in the cursor
      * registers.
      */
-    unsigned long cursor_addr;
+    uint64_t cursor_addr;
     unsigned long cursor_argb_addr;
     Bool	cursor_is_argb;
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;
