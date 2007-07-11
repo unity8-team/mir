@@ -373,12 +373,9 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	CARD32 ss2;
 
 	BEGIN_LP_RING(16);
-	/* color buffer
-	 * XXX: Need to add USE_FENCE if we ever tile the X Server's pixmaps or
-	 * visible screen.
-	 */
 	OUT_RING(_3DSTATE_BUF_INFO_CMD);
-	OUT_RING(BUF_3D_ID_COLOR_BACK| BUF_3D_PITCH(dst_pitch));
+	OUT_RING(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE|
+		BUF_3D_PITCH(dst_pitch));
 	OUT_RING(BUF_3D_ADDR(dst_offset));
 
 	OUT_RING(_3DSTATE_DST_BUF_VARS_CMD);
