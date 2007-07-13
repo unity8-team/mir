@@ -1509,6 +1509,8 @@ i830GetLoadDetectPipe(xf86OutputPtr output, DisplayModePtr mode, int *dpms_mode)
 	output->funcs->mode_set (output, &crtc->mode, &crtc->mode);
 	output->funcs->commit (output);
     }
+    /* let the output get through one full cycle before testing */
+    i830WaitForVblank (pScrn);
 
     return crtc;
 }

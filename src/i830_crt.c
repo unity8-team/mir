@@ -97,8 +97,6 @@ static Bool
 i830_crt_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		    DisplayModePtr adjusted_mode)
 {
-    /* disable blanking so we can detect monitors */
-    adjusted_mode->CrtcVBlankStart = adjusted_mode->CrtcVTotal - 3;
     return TRUE;
 }
 
@@ -360,8 +358,8 @@ i830_crt_detect(xf86OutputPtr output)
 	    return XF86OutputStatusDisconnected;
     }
 
-//    if (i830_crt_detect_ddc(output))
-//	return XF86OutputStatusConnected;
+    if (i830_crt_detect_ddc(output))
+	return XF86OutputStatusConnected;
 
     /* Use the load-detect method if we have no other way of telling. */
     crtc = i830GetLoadDetectPipe (output, NULL, &dpms_mode);
