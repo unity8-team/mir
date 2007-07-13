@@ -1169,13 +1169,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     OUTREG(vtot_reg, (adjusted_mode->CrtcVDisplay - 1) |
 	((adjusted_mode->CrtcVTotal - 1) << 16));
     
-    /*
-     * Give us some border at the bottom for load detection
-     */
-    adjusted_mode->CrtcVBlankStart = adjusted_mode->CrtcVSyncStart;
-    if (adjusted_mode->CrtcVBlankEnd - adjusted_mode->CrtcVBlankStart < 3)
-	adjusted_mode->CrtcVBlankStart = adjusted_mode->CrtcVBlankEnd - 3;
-    
     OUTREG(vblank_reg, (adjusted_mode->CrtcVBlankStart - 1) |
 	((adjusted_mode->CrtcVBlankEnd - 1) << 16));
     OUTREG(vsync_reg, (adjusted_mode->CrtcVSyncStart - 1) |
@@ -1437,25 +1430,36 @@ i830GetLoadDetectPipe(xf86OutputPtr output)
     ScrnInfoPtr		    pScrn = output->scrn;
     xf86CrtcConfigPtr	    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
-    xf86CrtcPtr	    crtc;
+    xf86CrtcPtr		    supported_crtc =NULL;
+    xf86CrtcPtr		    detect_crtc = NULL;
     int			    i;
 
     if (output->crtc) 
 	return output->crtc;
 
     for (i = 0; i < xf86_config->num_crtc; i++)
-	if (output->possible_crtcs & (1 << i))
+    {
+	xf86CrtcPtr crtc;
+	if (!(output->possible_crtcs & (1 << i)))
+	    continue;
+	crtc = xf86_config->crtc[i];
+	if (!crtc->enabled)
+	{
+	    detect_crtc = crtc;
 	    break;
-
-    if (i == xf86_config->num_crtc)
+	}
+	if (!supported_crtc)
+	    supported_crtc = crtc;
+    }
+    if (!detect_crtc)
+	detect_crtc = supported_crtc;
+    if (!detect_crtc)
 	return NULL;
 
-    crtc = xf86_config->crtc[i];
-
-    output->crtc = crtc;
+    output->crtc = detect_crtc;
     intel_output->load_detect_temp = TRUE;
 
-    return crtc;
+    return detect_crtc;
 }
 
 void
