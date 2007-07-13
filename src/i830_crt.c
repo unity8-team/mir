@@ -349,8 +349,9 @@ i830_crt_detect(xf86OutputPtr output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
-    xf86CrtcPtr	    crtc;
-
+    xf86CrtcPtr		    crtc;
+    int			    dpms_mode;
+    
     if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_I965G(pI830) ||
 	    IS_G33CLASS(pI830)) {
 	if (i830_crt_detect_hotplug(output))
@@ -359,49 +360,18 @@ i830_crt_detect(xf86OutputPtr output)
 	    return XF86OutputStatusDisconnected;
     }
 
-    if (i830_crt_detect_ddc(output))
-	return XF86OutputStatusConnected;
+//    if (i830_crt_detect_ddc(output))
+//	return XF86OutputStatusConnected;
 
     /* Use the load-detect method if we have no other way of telling. */
-    crtc = i830GetLoadDetectPipe (output);
+    crtc = i830GetLoadDetectPipe (output, NULL, &dpms_mode);
     
     if (crtc)
     {
-	/* VESA 640x480x72Hz mode to set on the pipe */
-	static DisplayModeRec   mode = {
-	    NULL, NULL, "640x480", MODE_OK, M_T_DEFAULT,
-	    31500,
-	    640, 664, 704, 832, 0,
-	    480, 489, 491, 520, 0,
-	    V_NHSYNC | V_NVSYNC,
-	    0, 0,
-	    0, 0, 0, 0, 0, 0, 0,
-	    0, 0, 0, 0, 0, 0,
-	    FALSE, FALSE, 0, NULL, 0, 0.0, 0.0
-	};
 	Bool			connected;
-	I830OutputPrivatePtr	intel_output = output->driver_private;
-	
-	if (!crtc->enabled)
-	{
-	    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
-	    /*
-	     * Give us some border at the bottom for load detection on i8xx
-	     */
-	    mode.CrtcVBlankStart = mode.CrtcVSyncStart;
-	    if (mode.CrtcVBlankEnd - mode.CrtcVBlankStart < 3)
-		mode.CrtcVBlankStart = mode.CrtcVBlankEnd - 3;
-	    xf86CrtcSetMode (crtc, &mode, RR_Rotate_0, 0, 0);
-	}
-	else if (intel_output->load_detect_temp)
-	{
-	    /* Add this output to the crtc */
-	    output->funcs->mode_set (output, &crtc->mode, &crtc->mode);
-	    output->funcs->commit (output);
-	}
-	connected = i830_crt_detect_load (crtc, output);
 
-	i830ReleaseLoadDetectPipe (output);
+	connected = i830_crt_detect_load (crtc, output);
+	i830ReleaseLoadDetectPipe (output, dpms_mode);
 	if (connected)
 	    return XF86OutputStatusConnected;
 	else

@@ -1353,24 +1353,15 @@ i830_tv_detect(xf86OutputPtr output)
     DisplayModeRec	    mode;
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+    int			    dpms_mode;
 
-    crtc = i830GetLoadDetectPipe (output);
+    mode = reported_modes[0];
+    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
+    crtc = i830GetLoadDetectPipe (output, &mode, &dpms_mode);
     if (crtc)
     {
-	if (!crtc->enabled)
-        {
-            /* we only need the pixel clock set correctly here */
-            mode = reported_modes[0];
-            xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
-	    crtc->funcs->mode_set(crtc, &mode, &mode, 0, 0);
-        }
-	else if (intel_output->load_detect_temp)
-	{
-	    output->funcs->mode_set (output, &crtc->mode, &crtc->mode);
-	    output->funcs->commit (output);
-	}
         i830_tv_detect_type (crtc, output);
-        i830ReleaseLoadDetectPipe (output);
+        i830ReleaseLoadDetectPipe (output, dpms_mode);
     }
 
     switch (dev_priv->type) {

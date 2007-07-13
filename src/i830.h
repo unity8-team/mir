@@ -220,6 +220,8 @@ typedef struct _I830CrtcPrivateRec {
 
     Bool    		    enabled;
     
+    int			    dpms_mode;
+    
     /* Lookup table values to be set when the CRTC is enabled */
     CARD8 lut_r[256], lut_g[256], lut_b[256];
 
