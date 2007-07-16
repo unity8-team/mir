@@ -85,7 +85,7 @@ XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
-PKG_CHECK_MODULES(XORG, [xorg-server xproto xvmc fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [pixman xorg-server xproto xvmc fontsproto $REQUIRED_MODULES])
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
 PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.5.0], have_pciaccess=yes, have_pciaccess=no)
@@ -183,7 +183,7 @@ if test "$DRI" = yes; then
         PKG_CHECK_MODULES(DRI, [libdrm xf86driproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
-	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.2],[DRI_MM=yes], [DRI_MM=no])
+	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.3.2],[DRI_MM=yes], [DRI_MM=no])
 	if test "x$DRI_MM" = xyes; then
 		AC_DEFINE(XF86DRI_MM,1,[Extended DRI memory management])
 	fi

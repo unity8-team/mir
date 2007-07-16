@@ -750,10 +750,4 @@ extern const int I830CopyROP[16];
 #define _845_DRAM_RW_CONTROL 0x90
 #define DRAM_WRITE    0x33330000
 
-/* 
- * Xserver MM compatibility. Remove code guarded by this when the
- * XServer contains the libdrm mm code
- */
-#undef XSERVER_LIBDRM_MM
-
 #endif /* _I830_H_ */

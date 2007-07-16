@@ -2116,83 +2116,6 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
    }
 }
 
-#ifdef XF86DRI_MM
-#ifndef XSERVER_LIBDRM_MM
-
-static int
-I830DrmMMInit(int drmFD, unsigned long pageOffs, unsigned long pageSize,
-	      unsigned memType)
-{
-
-   drm_mm_init_arg_t arg;
-   int ret;
-   
-   memset(&arg, 0, sizeof(arg));
-   arg.req.op = mm_init;
-   arg.req.p_offset = pageOffs;
-   arg.req.p_size = pageSize;
-   arg.req.mem_type = memType;
-
-   ret = ioctl(drmFD, DRM_IOCTL_MM_INIT, &arg);
-   
-   if (ret)
-      return -errno;
-   
-   return 0;
-   
-}
-
-static int
-I830DrmMMTakedown(int drmFD, unsigned memType)
-{
-   drm_mm_init_arg_t arg;
-   int ret = 0;
-   
-   memset(&arg, 0, sizeof(arg));
-   arg.req.op = mm_takedown;
-   arg.req.mem_type = memType;
-   if (ioctl(drmFD, DRM_IOCTL_MM_INIT, &arg)) {
-      ret = -errno;
-   }
-   
-   return ret;
-}
-
-static int I830DrmMMLock(int fd, unsigned memType)
-{
-    drm_mm_init_arg_t arg;
-    int ret;
-
-    memset(&arg, 0, sizeof(arg));
-    arg.req.op = mm_lock;
-    arg.req.mem_type = memType;
-
-    do{
-	ret = ioctl(fd, DRM_IOCTL_MM_INIT, &arg);
-    } while (ret && errno == EAGAIN);
-    
-    return ret;	
-}
-
-static int I830DrmMMUnlock(int fd, unsigned memType)
-{
-    drm_mm_init_arg_t arg;
-    int ret;
-
-    memset(&arg, 0, sizeof(arg));
-    arg.req.op = mm_unlock;
-    arg.req.mem_type = memType;
-
-    do{
-	ret = ioctl(fd, DRM_IOCTL_MM_INIT, &arg);
-    } while (ret && errno == EAGAIN);
-    
-    return ret;	
-}
-
-#endif
-#endif /* XF86DRI_MM */
-
 static Bool
 I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
@@ -2866,13 +2789,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 unsigned long aperStart = ROUND_TO(pI830->memory_manager->offset,
 					    GTT_PAGE_SIZE) / GTT_PAGE_SIZE;
 
-#ifndef XSERVER_LIBDRM_MM
-	 if (I830DrmMMInit(pI830->drmSubFD, aperStart, aperEnd - aperStart,
-			   DRM_BO_MEM_TT)) {
-#else
 	 if (drmMMInit(pI830->drmSubFD, aperStart, aperEnd - aperStart,
 		       DRM_BO_MEM_TT)) {
-#endif	   
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
 		       "Could not initialize the DRM memory manager.\n");
 	    
