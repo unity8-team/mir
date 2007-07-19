@@ -591,7 +591,9 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 			NVDmaNext (pNv, SURFACE_FORMAT_R5G6B5);
 		}
 	}
-
+	NVDmaStart(pNv, NvSubScaledImage,
+			NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
+	NVDmaNext (pNv, NvDmaFB); /* source object */
 	NVDmaKickoff(pNv);
 
 	if (pNv->useEXA)
@@ -1193,7 +1195,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 
 	if (!skip) {
 		if (pPriv->blitter) {
-			NVPutBlitImage(pScrn, offset, id,
+			NVPutBlitImage(pScrn, pNv->GARTScratch->offset, id,
 				       dstPitch, &dstBox,
 				       xa, ya, xb, yb,
 				       width, height,
