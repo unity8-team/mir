@@ -54,7 +54,6 @@ struct hwmc_buffer
 typedef struct 
 {
     unsigned ctxno; /* XvMC private context reference number */
-    drm_context_t drmcontext;
     struct hwmc_buffer sis;
     struct hwmc_buffer ssb;
     struct hwmc_buffer msb;

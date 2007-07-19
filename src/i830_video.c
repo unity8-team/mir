@@ -2383,8 +2383,8 @@ I830PutImage(ScrnInfoPtr pScrn,
     case FOURCC_YV12:
     case FOURCC_I420:
         if (pI830->IsXvMCSurface) {
-            srcPitch = (width + 0x400) & ~0x3ff;
-            srcPitch2 = ((width >> 1) + 0x400) & ~0x3ff;
+            srcPitch = (width + 0x3ff) & ~0x3ff;
+            srcPitch2 = ((width >> 1) + 0x3ff) & ~0x3ff;
         } else {
             srcPitch = (width + 0x3) & ~0x3;
             srcPitch2 = ((width >> 1) + 0x3) & ~0x3;

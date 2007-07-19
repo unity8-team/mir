@@ -35,6 +35,7 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_hwmc.h"
 #include <X11/Xlibint.h>
 #include <X11/Xutil.h>
+#include <signal.h>
 
 #define I915_SUBPIC_PALETTE_SIZE        16
 #define MAX_SUBCONTEXT_LEN              1024
@@ -111,6 +112,8 @@ typedef struct _i915XvMCContext {
 
     i915XvMCDrmMap corrdata;
     i915XvMCDrmMap batchbuffer;
+
+    sigset_t sa_mask;
 
     struct {
         unsigned start_offset;

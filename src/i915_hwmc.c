@@ -37,7 +37,6 @@
  * List Attributes for the XvMC extension to handle:
  * As long as the attribute is supported by the Xv adaptor, it needs only to
  * be added here to be supported also by XvMC.
- * Currently, only colorkey seems to be supported by Xv for Putimage.
  */
 static char *attrXvMC[I915_NUM_XVMC_ATTRIBUTES] = { 
     "XV_BRIGHTNESS",
