@@ -36,8 +36,11 @@ struct i915_mi_flush
 #define OPC_3DSTATE_PIXEL_SHADER_CONSTANTS      (0x06 + (0x1d << 8))
 #define OPC_3DSTATE_LOAD_INDIRECT               (0x07 + (0x1d << 8))
 
+#define OPC_3DSTATE_MODES_5                     (0x0c)
+#define OPC_3DSTATE_COORD_SET_BINDINGS          (0x16)
 #define OPC_3DPRIMITIVE                         (0x1f)
 
+#define OPC_3DSTATE_DRAWING_RECTANGLE           (0x80 + (0x1d << 8))
 #define OPC_3DSTATE_SCISSOR_RECTANGLE           (0x81 + (0x1d << 8))
 #define OPC_3DSTATE_DEST_BUFFER_VARIABLES       (0x85 + (0x1d << 8))
 #define OPC_3DSTATE_DEST_BUFFER_VARIABLES_MPEG  (0x87 + (0x1d << 8))
@@ -899,6 +902,68 @@ struct i915_3dprimitive
             unsigned opcode : 5;
             unsigned type : 3;
         } indirect_prim;            
+    } dw0;
+};
+
+struct i915_3dstate_coord_set_bindings
+{
+    struct {
+        unsigned itcs0_src : 3;
+        unsigned itcs1_src : 3;
+        unsigned itcs2_src : 3;
+        unsigned itcs3_src : 3;
+        unsigned itcs4_src : 3;
+        unsigned itcs5_src : 3;
+        unsigned itcs6_src : 3;
+        unsigned itcs7_src : 3;
+        unsigned opcode : 5;
+        unsigned type : 3;
+    } dw0;
+};
+
+struct i915_3dstate_drawing_rectangle
+{
+    struct {
+        unsigned length : 16;
+        unsigned opcode : 13;
+        unsigned type : 3;
+    } dw0;
+
+    struct {
+        unsigned pad0 : 24;
+        unsigned y_dither_offset : 2;
+        unsigned x_dither_offset : 2;
+        unsigned pad1 : 2;
+        unsigned dbco_disable : 1;
+        unsigned fsc_disable : 1;
+    } dw1;
+
+    struct {
+        unsigned x_min : 16;
+        unsigned y_min : 16;
+    } dw2;
+
+    struct {
+        unsigned x_max : 16;
+        unsigned y_max : 16;
+    } dw3;
+
+    struct {
+        unsigned x_origin : 16;
+        unsigned y_origin : 16;
+    } dw4;
+};
+
+struct i915_3dstate_modes_5
+{
+    struct {
+        unsigned pad0 : 16;
+        unsigned ptc_op : 1;
+        unsigned tc_disable : 1;
+        unsigned prc_op : 1;
+        unsigned pad1 : 5;
+        unsigned opcode : 5;
+        unsigned type : 3;
     } dw0;
 };
 

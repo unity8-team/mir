@@ -380,7 +380,7 @@ static void i915_unmap_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxp
 static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxpriv)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    int flags = (IS_I915G(pI830) || IS_I915GM(pI830)) ? 
+    int flags = (IS_I915G(pI830) || IS_I915GM(pI830) || IS_I945G(pI830) || IS_I945GM(pI830)) ? 
         (ALIGN_BOTH_ENDS | NEED_PHYSICAL_ADDR) : ALIGN_BOTH_ENDS;
     
     if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]Static Indirect State",

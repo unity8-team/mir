@@ -214,6 +214,46 @@ _STATIC_ void i915_flush_with_flush_bit_clear(i915XvMCContext *pI915XvMC)
     i915_flush(pI915XvMC, 1, 0);
 }
 
+_STATIC_ void i915_3d_initialization(XvMCContext *context)
+{
+    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
+    struct i915_3dstate_coord_set_bindings coord_set_bindings;
+    struct i915_3dstate_drawing_rectangle drawing_rectangle;
+    struct i915_3dstate_modes_5 modes_5;
+    i915_flush_with_flush_bit_clear(pI915XvMC);
+
+    memset(&coord_set_bindings, 0, sizeof(coord_set_bindings));
+    coord_set_bindings.dw0.type = CMD_3D;
+    coord_set_bindings.dw0.opcode = OPC_3DSTATE_COORD_SET_BINDINGS;
+    coord_set_bindings.dw0.itcs7_src = 7;
+    coord_set_bindings.dw0.itcs6_src = 6;
+    coord_set_bindings.dw0.itcs5_src = 5;
+    coord_set_bindings.dw0.itcs4_src = 4;
+    coord_set_bindings.dw0.itcs3_src = 3;
+    coord_set_bindings.dw0.itcs2_src = 2;
+    coord_set_bindings.dw0.itcs1_src = 1;
+    coord_set_bindings.dw0.itcs0_src = 0;
+    intelBatchbufferData(pI915XvMC, &coord_set_bindings, sizeof(coord_set_bindings), 0);
+
+    memset(&drawing_rectangle, 0, sizeof(drawing_rectangle));
+    drawing_rectangle.dw0.type = CMD_3D;
+    drawing_rectangle.dw0.opcode = OPC_3DSTATE_DRAWING_RECTANGLE;
+    drawing_rectangle.dw0.length = 3;
+    drawing_rectangle.dw2.x_min = 0;
+    drawing_rectangle.dw2.y_min = 0;
+    drawing_rectangle.dw3.x_max = 2047;
+    drawing_rectangle.dw3.y_max = 2047;
+    intelBatchbufferData(pI915XvMC, &drawing_rectangle, sizeof(drawing_rectangle), 0);
+
+    memset(&modes_5, 0, sizeof(modes_5));
+    modes_5.dw0.type = CMD_3D;
+    modes_5.dw0.opcode = OPC_3DSTATE_MODES_5;
+    modes_5.dw0.prc_op = 1;
+    modes_5.dw0.ptc_op = 1;
+    intelBatchbufferData(pI915XvMC, &modes_5, sizeof(modes_5), 0);
+}
+
+
 /* for MC picture rendering */
 _STATIC_ void i915_mc_static_indirect_state_buffer(XvMCContext *context, 
                                                    XvMCSurface *surface,
@@ -513,7 +553,9 @@ _STATIC_ void i915_mc_load_sis_msb_buffers(XvMCContext *context)
     load_indirect->dw0.length = (size >> 2) - 2;
 
     if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-        pI915XvMC->deviceID == PCI_CHIP_I915_GM)
+        pI915XvMC->deviceID == PCI_CHIP_I915_GM ||
+        pI915XvMC->deviceID == PCI_CHIP_I945_G ||
+        pI915XvMC->deviceID == PCI_CHIP_I945_GM)
         mem_select = 0;
 
     load_indirect->dw0.mem_select = mem_select;
@@ -528,7 +570,6 @@ _STATIC_ void i915_mc_load_sis_msb_buffers(XvMCContext *context)
         sis->dw0.buffer_address = (pI915XvMC->sis.offset >> 2);
     else
         sis->dw0.buffer_address = (pI915XvMC->sis.bus_addr >> 2);
-
 
     /* MSB */
     msb = (msb_state *)(++sis);
@@ -633,12 +674,6 @@ _STATIC_ void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock
     macroblock_1fbmv.header.dw1.coded_block_pattern = mb->coded_block_pattern; 
     macroblock_1fbmv.header.dw1.skipped_macroblocks = 0;      
 
-/*
-    fmv.s[0] = mb->PMV[0][0][1];
-    fmv.s[1] = mb->PMV[0][0][0];
-    bmv.s[0] = mb->PMV[0][1][1];
-    bmv.s[1] = mb->PMV[0][1][0];
-*/
     fmv.s[0] = mb->PMV[0][0][0];
     fmv.s[1] = mb->PMV[0][0][1];
     bmv.s[0] = mb->PMV[0][1][0];
@@ -1008,12 +1043,12 @@ _STATIC_ void i915_mc_one_time_state_initialization(XvMCContext *context)
     s6->alpha_test_enable = 0;
     s6->alpha_test_function = 0;
     s6->alpha_reference_value = 0;
-    s6->depth_test_enable = 1;
+    s6->depth_test_enable = 0;
     s6->depth_test_function = 0;
     s6->color_buffer_blend = 0;
     s6->color_blend_function = 0;
-    s6->src_blend_factor = 1;
-    s6->dest_blend_factor = 1;
+    s6->src_blend_factor = 0;
+    s6->dest_blend_factor = 0;
     s6->depth_buffer_write = 0;
     s6->color_buffer_write = 1;
     s6->triangle_pv = 0;
@@ -1034,7 +1069,9 @@ _STATIC_ void i915_mc_one_time_state_initialization(XvMCContext *context)
     load_indirect->dw0.length = (size >> 2) - 2;
 
     if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-        pI915XvMC->deviceID == PCI_CHIP_I915_GM)
+        pI915XvMC->deviceID == PCI_CHIP_I915_GM ||
+        pI915XvMC->deviceID == PCI_CHIP_I945_G ||
+        pI915XvMC->deviceID == PCI_CHIP_I945_GM)
         mem_select = 0;
 
     load_indirect->dw0.mem_select = mem_select;
@@ -1121,7 +1158,9 @@ _STATIC_ void i915_mc_invalidate_subcontext_buffers(XvMCContext *context, unsign
     load_indirect->dw0.opcode = OPC_3DSTATE_LOAD_INDIRECT;
 
     if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-        pI915XvMC->deviceID == PCI_CHIP_I915_GM)
+        pI915XvMC->deviceID == PCI_CHIP_I915_GM ||
+        pI915XvMC->deviceID == PCI_CHIP_I945_G ||
+        pI915XvMC->deviceID == PCI_CHIP_I945_GM)
         load_indirect->dw0.mem_select = 0;
     else
         load_indirect->dw0.mem_select = 1;
@@ -1880,7 +1919,9 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     pI915XvMC->psc.size = tmpComm->psc.size;
 
     if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-        pI915XvMC->deviceID == PCI_CHIP_I915_GM) {
+        pI915XvMC->deviceID == PCI_CHIP_I915_GM ||
+        pI915XvMC->deviceID == PCI_CHIP_I945_G ||
+        pI915XvMC->deviceID == PCI_CHIP_I945_GM) {
         pI915XvMC->sis.bus_addr = tmpComm->sis.bus_addr;
         pI915XvMC->ssb.bus_addr = tmpComm->ssb.bus_addr;
         pI915XvMC->msb.bus_addr = tmpComm->msb.bus_addr;
@@ -2356,6 +2397,7 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
 
     LOCK_HARDWARE(pI915XvMC);
     // if (!pI915XvMC->inited_mc) {
+    i915_3d_initialization(context);
     i915_mc_invalidate_subcontext_buffers(context, BLOCK_SIS | BLOCK_SSB 
                                           | BLOCK_MSB | BLOCK_PSP | BLOCK_PSC);
     i915_mc_sampler_state_buffer(context);
