@@ -65,6 +65,7 @@ typedef struct _I915XvMCSurfacePriv
 {
     i830_memory *surface;
     unsigned long offsets[I915_XVMC_MAX_BUFFERS];
+    drm_handle_t surface_handle;
 } I915XvMCSurfacePriv;
 
 typedef struct _I915XvMCContextPriv
@@ -192,14 +193,30 @@ static XF86MCAdaptorPtr ppAdapt[1] =
 
 static unsigned int stride(int w)
 {
-    return (w + 31) & ~31;
+    return (w + 3) & ~3;
+}
+
+static unsigned long size_y420(int w, int h)
+{
+   unsigned cpp = 1;
+   unsigned yPitch = stride(w) * cpp;
+   
+   return h * yPitch;
+}
+
+static unsigned long size_uv420(int w, int h)
+{
+   unsigned cpp = 1;
+   unsigned uvPitch = stride(w >> 1) * cpp;
+
+   return h / 2 * uvPitch;
 }
 
 static unsigned long size_yuv420(int w, int h)
 {
-    unsigned cpp = 4;
+    unsigned cpp = 1;
     unsigned yPitch = stride(w) * cpp;
-    unsigned uvPitch = stride(w / 2) * cpp;
+    unsigned uvPitch = stride(w >> 1) * cpp;
 
     return h * (yPitch + uvPitch);
 }
@@ -542,8 +559,9 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
     I830Ptr pI830 = I830PTR(pScrn);
     I915XvMCPtr pXvMC = pI830->xvmc;
     I915XvMCSurfacePriv *sfpriv = NULL;
+    I915XvMCCreateSurfaceRec *surfaceRec = NULL;
     XvMCContextPtr ctx = NULL;
-    unsigned int sfno, i, nbuffers;
+    unsigned int srfno;
     unsigned long bufsize;
 
     *priv = NULL;
@@ -555,22 +573,23 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
         return BadAlloc;
     }
 
-    sfpriv = (I915XvMCSurfacePriv *)xcalloc(1, sizeof(I915XvMCSurfacePriv));
+    *priv = xcalloc(1, sizeof(I915XvMCCreateSurfaceRec));
+    surfaceRec = (I915XvMCCreateSurfaceRec *)*priv;     
 
-    if (!sfpriv) {
+    if (!*priv) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[XvMC] I915XvMCCreateSurface: Unable to allocate memory!\n");
         return BadAlloc;
     }
 
-    nbuffers = 1;
-    *num_priv = nbuffers + 2;
-    *priv = (long *)xcalloc(*num_priv, sizeof(unsigned long));
-    
-    if (!*priv) {
+    *num_priv = sizeof(I915XvMCCreateSurfaceRec) >> 2;
+    sfpriv = (I915XvMCSurfacePriv *)xcalloc(1, sizeof(I915XvMCSurfacePriv));
+
+    if (!sfpriv) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[XvMC] I915XvMCCreateSurface: Unable to allocate memory!\n");
-        xfree(sfpriv);
+        xfree(*priv);
+        *priv = NULL;
         *num_priv = 0;
         return BadAlloc;
     }
@@ -578,7 +597,7 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
     ctx = pSurf->context;
     bufsize = size_yuv420(ctx->width, ctx->height);
 
-    if (!i830_allocate_xvmc_surface(pScrn, &(sfpriv->surface), nbuffers * bufsize)) {
+    if (!i830_allocate_xvmc_surface(pScrn, &(sfpriv->surface), bufsize)) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[XvMC] I915XvMCCreateSurface: Failed to allocate XvMC surface space!\n");
         xfree(sfpriv);
@@ -588,21 +607,37 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
         return BadAlloc;
     }
 
-    for (sfno = 0; sfno < I915_XVMC_MAX_SURFACES; ++sfno) {
-        if (!pXvMC->surfaces[sfno])
+    if (drmAddMap(pI830->drmSubFD,
+                  (drm_handle_t)(sfpriv->surface->offset + pI830->LinearAddr),
+                  sfpriv->surface->size, DRM_AGP, 0,
+                  (drmAddress)&sfpriv->surface_handle) < 0) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "[drm] drmAddMap(surface_handle) failed!\n");
+        i830_free_memory(pScrn, sfpriv->surface);
+        xfree(sfpriv);
+        xfree(*priv);
+        *priv = NULL;
+        *num_priv = 0;
+        return BadAlloc;
+    }
+
+    memset(pI830->FbBase + sfpriv->surface->offset, 0x5a, size_y420(ctx->width, ctx->height));
+    memset(pI830->FbBase + sfpriv->surface->offset + size_y420(ctx->width, ctx->height),
+           0x5c, size_uv420(ctx->width, ctx->height));
+    memset(pI830->FbBase + sfpriv->surface->offset + size_y420(ctx->width, ctx->height) + size_uv420(ctx->width, ctx->height),
+           0x5f, size_uv420(ctx->width, ctx->height));
+    for (srfno = 0; srfno < I915_XVMC_MAX_SURFACES; ++srfno) {
+        if (!pXvMC->surfaces[srfno])
             break;
     }
 
-    (*priv)[0] = sfno;
-    (*priv)[1] = nbuffers;
-    (*priv)[2] = sfpriv->offsets[0] = sfpriv->surface->offset;
+    surfaceRec->srfno = srfno;
+    surfaceRec->srf.handle = sfpriv->surface_handle;
+    surfaceRec->srf.offset = sfpriv->surface->offset;
+    surfaceRec->srf.size = sfpriv->surface->size;
 
-    for (i = 1; i < nbuffers; ++i) {
-        (*priv)[i + 2] = sfpriv->offsets[i] = sfpriv->offsets[i - 1] + bufsize;
-    }
-
-    pXvMC->surfaces[sfno] = pSurf->surface_id;
-    pXvMC->sfprivs[sfno]= sfpriv;
+    pXvMC->surfaces[srfno] = pSurf->surface_id;
+    pXvMC->sfprivs[srfno]= sfpriv;
     pXvMC->nsurfaces++;
 
     return Success;
@@ -614,36 +649,41 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
     I830Ptr pI830 = I830PTR(pScrn);
     I915XvMCPtr pXvMC = pI830->xvmc;
     I915XvMCSurfacePriv *sfpriv = NULL;
+    I915XvMCCreateSurfaceRec *surfaceRec = NULL;
     XvMCContextPtr ctx = NULL;
     unsigned srfno;
     unsigned bufsize;
 
-    if (I915_XVMC_MAX_SURFACES == pXvMC->nsurfaces) {
+    *priv = NULL;
+    *num_priv = 0;
+
+    if (pXvMC->nsurfaces >= I915_XVMC_MAX_SURFACES) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[XvMC] I915XvMCCreateSubpicture: Too many surfaces !\n");
         return BadAlloc;
     }
 
+    *priv = xcalloc(1, sizeof(I915XvMCCreateSurfaceRec));
+    surfaceRec = (I915XvMCCreateSurfaceRec *)*priv;     
+
+    if (!*priv) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "[XvMC] I915XvMCCreateSubpicture: Unable to allocate memory!\n");
+        return BadAlloc;
+    }
+
+    *num_priv = sizeof(I915XvMCCreateSurfaceRec) >> 2;
     sfpriv = (I915XvMCSurfacePriv *)xcalloc(1, sizeof(I915XvMCSurfacePriv));
 
     if (!sfpriv) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[XvMC] I915XvMCCreateSubpicture: Unable to allocate memory!\n");
+        xfree(*priv);
+        *priv = NULL;
         *num_priv = 0;
         return BadAlloc;
     }
 
-    *priv = (INT32 *)xcalloc(3, sizeof(INT32));
-
-    if (!*priv) {
-        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateSubpicture: Unable to allocate memory!\n");
-        *num_priv = 0;
-        xfree(sfpriv);
-        return BadAlloc;
-    }
-
-    *num_priv = 2;
     ctx = pSubp->context;
     bufsize = size_xx44(ctx->width, ctx->height);
 
@@ -651,7 +691,20 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[XvMC] I915XvMCCreateSurface: Failed to allocate XvMC surface space!\n");
         xfree(sfpriv);
-        sfpriv = NULL;
+        xfree(*priv);
+        *priv = NULL;
+        *num_priv = 0;
+        return BadAlloc;
+    }
+
+    if (drmAddMap(pI830->drmSubFD,
+                  (drm_handle_t)(sfpriv->surface->offset + pI830->LinearAddr),
+                  sfpriv->surface->size, DRM_AGP, 0,
+                  (drmAddress)&sfpriv->surface_handle) < 0) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "[drm] drmAddMap(surface_handle) failed!\n");
+        i830_free_memory(pScrn, sfpriv->surface);
+        xfree(sfpriv);
         xfree(*priv);
         *priv = NULL;
         *num_priv = 0;
@@ -659,12 +712,15 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
     }
 
     for (srfno = 0; srfno < I915_XVMC_MAX_SURFACES; ++srfno) {
-        if (0 == pXvMC->sfprivs[srfno])
+        if (!pXvMC->surfaces[srfno])
             break;
     }
 
-    (*priv)[0] = srfno;
-    (*priv)[1] = sfpriv->offsets[0] = sfpriv->surface->offset;
+    surfaceRec->srfno = srfno;
+    surfaceRec->srf.handle = sfpriv->surface_handle;
+    surfaceRec->srf.offset = sfpriv->surface->offset;
+    surfaceRec->srf.size = sfpriv->surface->size;
+
     pXvMC->sfprivs[srfno] = sfpriv;
     pXvMC->surfaces[srfno] = pSubp->subpicture_id;
     pXvMC->nsurfaces++;
@@ -818,12 +874,20 @@ static int I915XvMCInterceptPutImage(ScrnInfoPtr pScrn, short src_x, short src_y
 
             case I915_XVMC_COMMAND_DISPLAY:
                 for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
-                    if (pXvMC->surfaces[i] == i915XvMCData->srfNo) {
-                        i830_memory *mem = pXvMC->sfprivs[i]->surface;
-                        buf = pI830 + mem->offset;
-                        id = i915XvMCData->real_id;
-                        break;
-                    }
+                   i830_memory *mem = NULL;
+
+                   if ((i915XvMCData->srfNo >= I915_XVMC_MAX_SURFACES) ||
+                       !pXvMC->surfaces[i915XvMCData->srfNo] ||
+                       !pXvMC->sfprivs[i915XvMCData->srfNo]) {
+                      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                                 "[XvMC] I915XvMCInterceptPutImage: Invalid parameters !\n");
+                      return 1;
+                   }
+                   
+                   mem = pXvMC->sfprivs[i]->surface;
+                   buf = pI830->FbBase + mem->offset;
+                   id = i915XvMCData->real_id;
+                   break;
                 }
 
                 if (i >= I915_XVMC_MAX_SURFACES)
@@ -861,7 +925,6 @@ void I915InitMC(ScreenPtr pScreen)
     I915XvMCPtr pXvMC = NULL; 
 
     pI830->XvMCEnabled = FALSE;
-    return;
     if (!pI830->directRenderingEnabled) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                    "[XvMC] Cannot use XvMC without DRI!\n");
@@ -892,7 +955,6 @@ int I915XvMCInitXv(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
     GetPortAttributeFuncPtr getportattribute = XvAdapt->GetPortAttribute;
     PutImageFuncPtr putimage = XvAdapt->PutImage;
 
-    return Success;
     XvAdapt->GetPortAttribute = I915XvMCInterceptXvGetAttribute;
     XvAdapt->SetPortAttribute = I915XvMCInterceptXvAttribute;
     XvAdapt->PutImage = I915XvMCInterceptPutImage;
@@ -916,8 +978,8 @@ int I915XvMCInitXv(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
         vx->newAttribute = 1;
 
         /* set up wrappers */
-        vx->GetPortAttribute = setportattribute;
-        vx->SetPortAttribute = getportattribute;
+        vx->GetPortAttribute = getportattribute;
+        vx->SetPortAttribute = setportattribute;
         vx->PutImage = putimage;
 
         for (i = 0; i < I915_NUM_XVMC_ATTRIBUTES; ++i) {

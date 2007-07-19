@@ -61,4 +61,10 @@ typedef struct
     I915XvMCAttrHolder initAttrs;
 } I915XvMCCreateContextRec;
 
+typedef struct 
+{
+    unsigned srfno;
+    struct hwmc_buffer srf;
+} I915XvMCCreateSurfaceRec;
+
 #endif /* _I915_HWMC_H */

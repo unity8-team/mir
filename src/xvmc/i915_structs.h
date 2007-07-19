@@ -55,7 +55,7 @@ struct i915_3dmpeg_macroblock_header
     } dw0;
     
     struct {
-        unsigned intra : 1;
+        unsigned mb_intra : 1;
         unsigned forward : 1;
         unsigned backward : 1;
         unsigned h263_4mv : 1;
@@ -274,7 +274,7 @@ struct i915_3dstate_dest_buffer_variables_mpeg
         unsigned pad2 : 4;
         unsigned bidir_avrg_control : 1;
         unsigned rcontrol : 1;
-        unsigned decoder_mode : 2;
+        unsigned decode_mode : 2;
     } dw1;
         
     struct {

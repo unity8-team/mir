@@ -59,6 +59,7 @@ typedef struct _i915XvMCContext {
     unsigned last_flip;
     unsigned dual_prime; /* Flag to identify when dual prime is in use. */
     unsigned yStride;
+    unsigned uvStride;
     unsigned short ref;
     pthread_mutex_t ctxmutex;
     char busIdString[21]; /* PCI:0:1:0 or PCI:0:2:0 */
@@ -123,9 +124,9 @@ typedef struct _i915XvMCSubpicture {
     unsigned srfNo;
     unsigned last_render;
     unsigned last_flip;
-    unsigned offset;
     unsigned pitch;
     unsigned char palette[3][16];
+    i915XvMCDrmMap srf;
     i915XvMCContext *privContext;
 } i915XvMCSubpicture;
 
@@ -137,14 +138,13 @@ typedef struct _i915XvMCSubpicture {
 #define I830_MAX_BUFS 2                   /*Number of YUV buffers per surface */
 typedef struct _i915XvMCSurface {
     unsigned srfNo;                    /* XvMC private surface numbers */
-    unsigned num_buffers;              /* Number of picture buffers */
-    unsigned curbuf;                   /* Which is the current buffer? */
-    unsigned offsets[I830_MAX_BUFS];    /* Offsets of picture buffers */
     unsigned last_render;
     unsigned last_flip;
     unsigned yStride;                  /* Stride of YUV420 Y component. */
+    unsigned uvStride;
     unsigned width;                    /* Dimensions */
     unsigned height;
+    i915XvMCDrmMap srf;
     i915XvMCContext *privContext;
     i915XvMCSubpicture *privSubPic;     /* Subpicture to be blended when
                                          * displaying. NULL if none. */
