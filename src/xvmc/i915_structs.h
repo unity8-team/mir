@@ -20,6 +20,41 @@ struct i915_mi_flush
     } dw0;
 };
 
+/* BLT */
+#define CMD_2D          0x02
+#define OPC_COLOR_BLT                           (0x40)
+
+struct i915_color_blt
+{
+    struct {
+        unsigned length : 5;
+        unsigned pad0 : 15;
+        unsigned bpp_mask : 2;
+        unsigned opcode : 7;
+        unsigned type : 3;
+    } dw0;
+
+    struct {
+        unsigned pitch : 16;
+        unsigned rop : 8;
+        unsigned color_depth : 2;
+        unsigned pad0 : 6;
+    } dw1;
+
+    struct {
+        unsigned width : 16;
+        unsigned height : 16;
+    } dw2;
+
+    struct {
+        unsigned address;
+    } dw3;
+
+    struct {
+        unsigned pattern;
+    } dw4;
+};
+
 /* 3D_INSTRUCTION */
 #define CMD_3D          0x03
 
@@ -28,6 +63,8 @@ struct i915_mi_flush
 #define OPC_3DMPEG_MACROBLOCK                   (0x11 + (0x1e << 5))        
 #define OPC_3DMPEG_SLICE                        (0x12 + (0x1e << 5))
 #define OPC_3DMPEG_QM_PALETTE_LOAD              (0x13 + (0x1e << 5))
+
+#define OPC_3DSTATE_SCISSOR_ENABLE              (0x10 + (0x1c << 5))
 
 #define OPC_3DSTATE_MAP_STATE                   (0x00 + (0x1d << 8))
 #define OPC_3DSTATE_SAMPLER_STATE               (0x01 + (0x1d << 8))
@@ -178,6 +215,7 @@ struct i915_3dmpeg_qm_palette_load
 #define BUFFERID_COLOR_BACK     3
 #define BUFFERID_COLOR_AUX      4
 #define BUFFERID_MC_INTRA_CORR  5
+#define BUFFERID_DEPTH          7
 
 #define TILEWALK_XMAJOR         0
 #define TILEWALK_YMAJOR         1
@@ -209,6 +247,7 @@ struct i915_3dstate_buffer_info
     } dw2;
 };
 
+#define COLORBUFFER_8BIT         0x00
 #define COLORBUFFER_X1R5G5B5     0x01
 #define COLORBUFFER_R5G6B5       0x02
 #define COLORBUFFER_A8R8G8B8     0x03
@@ -363,8 +402,8 @@ struct i915_3dstate_map_state
     } dw0;
 
     struct {
-        unsigned pad0 : 16;
         unsigned map_mask : 16;
+        unsigned pad0 : 16;
     } dw1;
 //    struct texture_map *tms;
 };
@@ -904,67 +943,4 @@ struct i915_3dprimitive
         } indirect_prim;            
     } dw0;
 };
-
-struct i915_3dstate_coord_set_bindings
-{
-    struct {
-        unsigned itcs0_src : 3;
-        unsigned itcs1_src : 3;
-        unsigned itcs2_src : 3;
-        unsigned itcs3_src : 3;
-        unsigned itcs4_src : 3;
-        unsigned itcs5_src : 3;
-        unsigned itcs6_src : 3;
-        unsigned itcs7_src : 3;
-        unsigned opcode : 5;
-        unsigned type : 3;
-    } dw0;
-};
-
-struct i915_3dstate_drawing_rectangle
-{
-    struct {
-        unsigned length : 16;
-        unsigned opcode : 13;
-        unsigned type : 3;
-    } dw0;
-
-    struct {
-        unsigned pad0 : 24;
-        unsigned y_dither_offset : 2;
-        unsigned x_dither_offset : 2;
-        unsigned pad1 : 2;
-        unsigned dbco_disable : 1;
-        unsigned fsc_disable : 1;
-    } dw1;
-
-    struct {
-        unsigned x_min : 16;
-        unsigned y_min : 16;
-    } dw2;
-
-    struct {
-        unsigned x_max : 16;
-        unsigned y_max : 16;
-    } dw3;
-
-    struct {
-        unsigned x_origin : 16;
-        unsigned y_origin : 16;
-    } dw4;
-};
-
-struct i915_3dstate_modes_5
-{
-    struct {
-        unsigned pad0 : 16;
-        unsigned ptc_op : 1;
-        unsigned tc_disable : 1;
-        unsigned prc_op : 1;
-        unsigned pad1 : 5;
-        unsigned opcode : 5;
-        unsigned type : 3;
-    } dw0;
-};
-
 #endif /*_I915_STRUCTS_H */

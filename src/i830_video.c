@@ -275,7 +275,7 @@ static XF86ImageRec Images[NUM_IMAGES] = {
         FOURCC_XVMC,
         XvYUV,
         LSBFirst,
-        {'V', 'I', 'A', 0x00,
+        {'X', 'V', 'M', 'C',
          0x00, 0x00, 0x00, 0x10, 0x80, 0x00, 0x00, 0xAA, 0x00,
          0x38, 0x9B, 0x71},
         12,
