@@ -2720,6 +2720,12 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (pI830->directRenderingEnabled) {
       pI830->directRenderingEnabled = I830DRIFinishScreenInit(pScreen);
    }
+
+#ifdef XvMCExtension
+   if ((pI830->directRenderingEnabled) && IS_I9XX(pI830)) {
+       I915InitMC(pScreen);
+   }
+#endif
 #endif
 
    /* Setup 3D engine, needed for rotation too */

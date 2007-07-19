@@ -309,6 +309,11 @@ typedef struct _I830Rec {
    /* For Xvideo */
    i830_memory *overlay_regs;
 #endif
+   
+   /* For XvMC */
+   void *xvmc;
+   Bool XvMCEnabled;
+
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
    Rotation rotation;
    void (*PointerMoved)(int, int, int);
@@ -644,7 +649,10 @@ extern long I830CheckAvailableMemory(ScrnInfoPtr pScrn);
 Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_texture_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
-
+Bool i830_allocate_xvmc_surface(ScrnInfoPtr pScrn, i830_memory **surface,
+                                unsigned long size);
+Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
+                               i830_memory **buffer, unsigned long size);
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
@@ -737,6 +745,11 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
 	return FALSE;
     return TRUE;
 }
+
+/* i915 XvMC */
+int I915XvMCInitXv(ScrnInfoPtr, XF86VideoAdaptorPtr);
+void I915InitMC(ScreenPtr);
+unsigned long I915XvMCPutImageSize(ScrnInfoPtr);
 
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];

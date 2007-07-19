@@ -1758,4 +1758,42 @@ i830_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
 
     return linear;
 }
+
+/*
+ * Allocate memory for XvMC surface
+ */
+Bool
+i830_allocate_xvmc_surface(ScrnInfoPtr pScrn, i830_memory **surface, unsigned long size)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    *surface = i830_allocate_memory(pScrn, "XvMC surface", size,
+                                    GTT_PAGE_SIZE, ALIGN_BOTH_ENDS);
+
+    if (!*surface) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "Failed to allocate XvMC surface space.\n");
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+/*
+ * Allocate memory for MC compensation
+ */
+Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name, i830_memory **buffer, unsigned long size)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    *buffer = i830_allocate_memory(pScrn, name, size,
+                                   GTT_PAGE_SIZE, ALIGN_BOTH_ENDS);
+
+    if (!*buffer) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "Failed to allocate memory for %s.\n", name);
+        return FALSE;
+    }
+    return TRUE;
+}
 #endif

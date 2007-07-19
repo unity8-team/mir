@@ -74,6 +74,8 @@
 #include "dixstruct.h"
 #include "fourcc.h"
 
+#include "i915_hwmc.h"
+
 #ifndef USE_USLEEP_FOR_VIDEO
 #define USE_USLEEP_FOR_VIDEO 0
 #endif
@@ -576,6 +578,11 @@ I830InitVideo(ScreenPtr pScreen)
 	if (texturedAdaptor != NULL) {
 	    adaptors[num_adaptors++] = texturedAdaptor;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
+
+#ifdef XF86DRI
+            if (pI830->XvMCEnabled && IS_I9XX(pI830))
+               I915XvMCInitXv(pScrn, texturedAdaptor);
+#endif
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Failed to set up textured video\n");
@@ -2587,6 +2594,16 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
 	    ErrorF("size is %d\n", size);
 #endif
 	break;
+    case FOURCC_XVMC:
+        *h = (*h + 1) & ~1;
+#ifdef XF86DRI
+        size = I915XvMCPutImageSize(pScrn);
+#else
+        size = 0;
+#endif
+        if (pitches)
+            pitches[0] = size;
+        break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
