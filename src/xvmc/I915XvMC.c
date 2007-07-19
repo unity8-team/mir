@@ -26,12 +26,14 @@
 #include "xf86dri.h"
 #include "driDrawable.h"
 
+#define _STATIC_
+
 #define SAREAPTR(ctx) ((drmI830Sarea *)                     \
                        (((CARD8 *)(ctx)->sarea_address) +   \
                         (ctx)->sarea_priv_offset))
 
 /* Lookup tables to speed common calculations */
-static unsigned mb_bytes[] = {
+_STATIC_ unsigned mb_bytes[] = {
     000, 128, 128, 256, 128, 256, 256, 384,  // 0
     128, 256, 256, 384, 256, 384, 384, 512,  // 1
     128, 256, 256, 384, 256, 384, 384, 512,  // 10
@@ -47,11 +49,11 @@ typedef union {
     uint  u[2];
 } su_t;
 
-static char I915KernelDriverName[] = "i915";
-static int error_base;
-static int event_base;
+_STATIC_ char I915KernelDriverName[] = "i915";
+_STATIC_ int error_base;
+_STATIC_ int event_base;
 
-static int findOverlap(unsigned width, unsigned height,
+_STATIC_ int findOverlap(unsigned width, unsigned height,
                        short *dstX, short *dstY,
                        short *srcX, short *srcY, 
                        unsigned short *areaW, unsigned short *areaH)
@@ -87,7 +89,7 @@ static int findOverlap(unsigned width, unsigned height,
     return 0;
 }
 
-static void setupAttribDesc(Display * display, XvPortID port,
+_STATIC_ void setupAttribDesc(Display * display, XvPortID port,
                             const I915XvMCAttrHolder * attrib, XvAttribute attribDesc[])
 {  
     XvAttribute *XvAttribs, *curAD;
@@ -116,7 +118,7 @@ static void setupAttribDesc(Display * display, XvPortID port,
     XUnlockDisplay(display);
 }
 
-static void releaseAttribDesc(int numAttr, XvAttribute attribDesc[])
+_STATIC_ void releaseAttribDesc(int numAttr, XvAttribute attribDesc[])
 {
     int i;
 
@@ -126,20 +128,20 @@ static void releaseAttribDesc(int numAttr, XvAttribute attribDesc[])
     }
 }
 
-static __inline__ void renderError(void) 
+_STATIC_ __inline__ void renderError(void) 
 {
     printf("Invalid Macroblock Parameters found.\n");
     return;
 }
 
-static void I915XvMCContendedLock(i915XvMCContext *pI915XvMC, unsigned flags)
+_STATIC_ void I915XvMCContendedLock(i915XvMCContext *pI915XvMC, unsigned flags)
 {
     drmGetLock(pI915XvMC->fd, pI915XvMC->hHWContext, flags);
 }
 
 /* Lock the hardware and validate our state.
  */
-static void LOCK_HARDWARE(i915XvMCContext  *pI915XvMC)
+_STATIC_ void LOCK_HARDWARE(i915XvMCContext  *pI915XvMC)
 {
     char __ret = 0;
     pthread_mutex_lock(&pI915XvMC->ctxmutex);
@@ -156,7 +158,7 @@ static void LOCK_HARDWARE(i915XvMCContext  *pI915XvMC)
 
 /* Unlock the hardware using the global current context
  */
-static void UNLOCK_HARDWARE(i915XvMCContext *pI915XvMC)
+_STATIC_ void UNLOCK_HARDWARE(i915XvMCContext *pI915XvMC)
 {
     pI915XvMC->locked = 0;
     DRM_UNLOCK(pI915XvMC->fd, pI915XvMC->driHwLock, 
@@ -164,24 +166,61 @@ static void UNLOCK_HARDWARE(i915XvMCContext *pI915XvMC)
     pthread_mutex_unlock(&pI915XvMC->ctxmutex);
 }
 
-static unsigned stride(int w)
+_STATIC_ unsigned stride(int w)
 {
     return (w + 31) & ~31;
 }
 
-static unsigned long size_y(int w, int h)
+_STATIC_ unsigned long size_y(int w, int h)
 {
-    return stride(w) * h;
+    unsigned cpp = 4;
+
+    return h * stride(w) * cpp;
 }
 
-static unsigned long size_yuv420(int w, int h)
+_STATIC_ unsigned long size_uv(int w, int h)
 {
-    unsigned yPitch = stride(w);
+    unsigned cpp = 4;
 
-    return h * (yPitch + (yPitch >> 1));
+    return h / 2 * stride(w / 2) * cpp;
 }
 
-static void i915_flush(i915XvMCContext *pI915XvMC)
+_STATIC_ unsigned long size_yuv420(int w, int h)
+{
+    unsigned cpp = 4;
+    unsigned yPitch = stride(w) * cpp;
+    unsigned uvPitch = stride(w / 2) * cpp;
+
+    return h * (yPitch + uvPitch);
+}
+
+_STATIC_ void i915_flush_with_flush_bit_clear(i915XvMCContext *pI915XvMC)
+{
+    struct i915_mi_flush mi_flush;
+
+    memset(&mi_flush, 0, sizeof(mi_flush));
+    mi_flush.dw0.type = CMD_MI;
+    mi_flush.dw0.opcode = OPC_MI_FLUSH;
+    mi_flush.dw0.map_cache_invalidate = 1;
+    mi_flush.dw0.render_cache_flush_inhibit = 0;
+
+    intelBatchbufferData(pI915XvMC, &mi_flush, sizeof(mi_flush), 0);
+}
+
+_STATIC_ void i915_flush(i915XvMCContext *pI915XvMC)
+{
+    struct i915_mi_flush mi_flush;
+
+    memset(&mi_flush, 0, sizeof(mi_flush));
+    mi_flush.dw0.type = CMD_MI;
+    mi_flush.dw0.opcode = OPC_MI_FLUSH;
+    mi_flush.dw0.map_cache_invalidate = 1;
+    mi_flush.dw0.render_cache_flush_inhibit = 1;
+
+    intelBatchbufferData(pI915XvMC, &mi_flush, sizeof(mi_flush), 0);
+}
+
+_STATIC_ void __i915_flush(i915XvMCContext *pI915XvMC)
 {
     struct i915_mi_flush mi_flush;
     unsigned cmd[2];
@@ -198,7 +237,7 @@ static void i915_flush(i915XvMCContext *pI915XvMC)
 }
 
 /* for MC picture rendering */
-static void i915_mc_static_indirect_state_buffer(XvMCContext *context, 
+_STATIC_ void i915_mc_static_indirect_state_buffer(XvMCContext *context, 
                                                  XvMCSurface *surface,
                                                  unsigned int picture_coding_type)
 {
@@ -208,8 +247,10 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     i915XvMCSurface *pI915Surface = (i915XvMCSurface *)surface->privData;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
     unsigned w = surface->width, h = surface->height;
+    unsigned cpp = 4;
 
     /* 3DSTATE_BUFFER_INFO */
+    /* DEST Y */
     buffer_info = (struct i915_3dstate_buffer_info *)pI915XvMC->sis.map;
     memset(buffer_info, 0, sizeof(*buffer_info));
     buffer_info->dw0.type = CMD_3D;
@@ -223,6 +264,7 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     buffer_info->dw1.pitch = stride(w);
     buffer_info->dw2.base_address = pI915Surface->offsets[pI915Surface->curbuf];
 
+    /* DEST U */
     ++buffer_info;
     memset(buffer_info, 0, sizeof(*buffer_info));
     buffer_info->dw0.type = CMD_3D;
@@ -233,10 +275,11 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     buffer_info->dw1.fence_regs = 0;
     buffer_info->dw1.tiled_surface = 0;
     buffer_info->dw1.walk = TILEWALK_XMAJOR; 
-    buffer_info->dw1.pitch = stride(w) >> 1;
+    buffer_info->dw1.pitch = stride(w / 2);
     buffer_info->dw2.base_address = pI915Surface->offsets[pI915Surface->curbuf] 
         + size_y(w, h);
 
+    /* DEST V */
     ++buffer_info;
     memset(buffer_info, 0, sizeof(*buffer_info));
     buffer_info->dw0.type = CMD_3D;
@@ -247,9 +290,9 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     buffer_info->dw1.fence_regs = 0;
     buffer_info->dw1.tiled_surface = 0;
     buffer_info->dw1.walk = TILEWALK_XMAJOR; 
-    buffer_info->dw1.pitch = stride(w) >> 1;
+    buffer_info->dw1.pitch = stride(w / 2);
     buffer_info->dw2.base_address = pI915Surface->offsets[pI915Surface->curbuf] 
-        + size_y(w, h) + (size_y(w, h) >> 2);
+        + size_y(w, h) + size_uv(w, h);
 
     /* 3DSTATE_DEST_BUFFER_VARIABLES */
     dest_buffer_variables = (struct i915_3dstate_dest_buffer_variables *)(++buffer_info);
@@ -257,6 +300,8 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     dest_buffer_variables->dw0.type = CMD_3D;
     dest_buffer_variables->dw0.opcode = OPC_3DSTATE_DEST_BUFFER_VARIABLES;
     dest_buffer_variables->dw0.length = 0;
+    dest_buffer_variables->dw1.dest_v_bias = 8; /* 0.5 */
+    dest_buffer_variables->dw1.dest_h_bias = 8; /* 0.5 */
     dest_buffer_variables->dw1.v_ls = 0;         /* FIXME */
     dest_buffer_variables->dw1.v_ls_offset = 0;
 
@@ -269,19 +314,19 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     dest_buffer_variables_mpeg->dw1.decoder_mode = MPEG_DECODE_MC;
     dest_buffer_variables_mpeg->dw1.rcontrol = 0;       /* for MPEG-2/MPEG-1 */
     dest_buffer_variables_mpeg->dw1.bidir_avrg_control = 0; 
-    dest_buffer_variables_mpeg->dw1.intra8 = 0;         /* FIXME ? */
+    dest_buffer_variables_mpeg->dw1.intra8 = 0;         /* 16-bit formatted correction data */
     dest_buffer_variables_mpeg->dw1.tff = 0;            /* FIXME */
     dest_buffer_variables_mpeg->dw1.picture_width = w >> 4;
     dest_buffer_variables_mpeg->dw2.picture_coding_type = picture_coding_type;
 
     /* 3DSATE_BUFFER_INFO */
+    /* CORRECTION DATA */
     buffer_info = (struct i915_3dstate_buffer_info *)(++dest_buffer_variables_mpeg);
     memset(buffer_info, 0, sizeof(*buffer_info));
     buffer_info->dw0.type = CMD_3D;
     buffer_info->dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
     buffer_info->dw0.length = 1;
     buffer_info->dw1.aux_id = 0;
-    buffer_info->dw1.buffer_id = BUFFERID_MC_INTRA_CORR;
     buffer_info->dw1.buffer_id = BUFFERID_MC_INTRA_CORR;
     buffer_info->dw1.aux_id = 0;
     buffer_info->dw1.fence_regs = 0; 
@@ -291,7 +336,7 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     buffer_info->dw2.base_address = pI915XvMC->corrdata.offset;
 }
 
-static void i915_mc_map_state_buffer(XvMCContext *context, 
+_STATIC_ void i915_mc_map_state_buffer(XvMCContext *context, 
                                      XvMCSurface *target_surface,
                                      XvMCSurface *past_surface,
                                      XvMCSurface *future_surface)
@@ -320,7 +365,7 @@ static void i915_mc_map_state_buffer(XvMCContext *context,
 
     /* B Frame Test */
     if (!future_surface) {
-        privFuture = privPast;
+        privFuture = privTarget;
     } else {
         if (!future_surface->privData || !past_surface) {
             printf("Error, Invalid Future Surface or No Past Surface!\n");
@@ -340,7 +385,7 @@ static void i915_mc_map_state_buffer(XvMCContext *context,
     map_state->dw0.length = 6;
     map_state->dw1.map_mask = MAP_MAP0 | MAP_MAP1;
 
-    /* texture map: Forward */
+    /* texture map: Forward (Past) */
     tm = (struct texture_map *)(++map_state);
     memset(tm, 0, sizeof(*tm));
     tm->tm0.v_ls_offset = 0;
@@ -351,14 +396,14 @@ static void i915_mc_map_state_buffer(XvMCContext *context,
     tm->tm1.utilize_fence_regs = 0;
     tm->tm1.texel_fmt = 0;
     tm->tm1.surface_fmt = 1;
-    tm->tm1.width = w;
-    tm->tm1.height = h;
+    tm->tm1.width = w - 1;
+    tm->tm1.height = h - 1;
     tm->tm2.depth = 0;
     tm->tm2.max_lod = 0;
     tm->tm2.cube_face = 0;
-    tm->tm2.pitch = stride(w);
+    tm->tm2.pitch = stride(w) - 1;
 
-    /* texture map: Backward */
+    /* texture map: Backward (Future) */
     ++tm;
     memset(tm, 0, sizeof(*tm));
     tm->tm0.v_ls_offset = 0;
@@ -369,12 +414,12 @@ static void i915_mc_map_state_buffer(XvMCContext *context,
     tm->tm1.utilize_fence_regs = 0;
     tm->tm1.texel_fmt = 0;
     tm->tm1.surface_fmt = 1;
-    tm->tm1.width = w;
-    tm->tm1.height = h;
+    tm->tm1.width = w - 1;
+    tm->tm1.height = h - 1;
     tm->tm2.depth = 0;
     tm->tm2.max_lod = 0;
     tm->tm2.cube_face = 0;
-    tm->tm2.pitch = stride(w);
+    tm->tm2.pitch = stride(w) - 1;
 
     /* 3DSATE_MAP_STATE: U*/
     map_state = (struct i915_3dstate_map_state *)(++tm);
@@ -396,12 +441,12 @@ static void i915_mc_map_state_buffer(XvMCContext *context,
     tm->tm1.utilize_fence_regs = 0;
     tm->tm1.texel_fmt = 0;
     tm->tm1.surface_fmt = 1;
-    tm->tm1.width = w >> 1;
-    tm->tm1.height = h >> 1;
+    tm->tm1.width = (w >> 1) - 1;
+    tm->tm1.height = (h >> 1) - 1;
     tm->tm2.depth = 0;
     tm->tm2.max_lod = 0;
     tm->tm2.cube_face = 0;
-    tm->tm2.pitch = stride(w) >> 1;
+    tm->tm2.pitch = stride(w / 2) - 1;
 
     /* texture map: Backward */
     ++tm;
@@ -414,12 +459,12 @@ static void i915_mc_map_state_buffer(XvMCContext *context,
     tm->tm1.utilize_fence_regs = 0;
     tm->tm1.texel_fmt = 0;
     tm->tm1.surface_fmt = 1;
-    tm->tm1.width = w >> 1;
-    tm->tm1.height = h >> 1;
+    tm->tm1.width = (w >> 1) - 1;
+    tm->tm1.height = (h >> 1) - 1;
     tm->tm2.depth = 0;
     tm->tm2.max_lod = 0;
     tm->tm2.cube_face = 0;
-    tm->tm2.pitch = stride(w) >> 1;
+    tm->tm2.pitch = stride(w / 2) - 1;
 
     /* 3DSATE_MAP_STATE: V */
     map_state = (struct i915_3dstate_map_state *)(++tm);
@@ -435,39 +480,39 @@ static void i915_mc_map_state_buffer(XvMCContext *context,
     memset(tm, 0, sizeof(*tm));
     tm->tm0.v_ls_offset = 0;
     tm->tm0.v_ls = 0;
-    tm->tm0.base_address = privPast->offsets[privPast->curbuf] + size_y(w, h) + (size_y(w, h) >> 2);
+    tm->tm0.base_address = privPast->offsets[privPast->curbuf] + size_y(w, h) + size_uv(w, h);
     tm->tm1.tile_walk = TILEWALK_XMAJOR;
     tm->tm1.tiled_surface = 0;
     tm->tm1.utilize_fence_regs = 0;
     tm->tm1.texel_fmt = 0;
     tm->tm1.surface_fmt = 1;
-    tm->tm1.width = w >> 1;
-    tm->tm1.height = h >> 1;
+    tm->tm1.width = (w >> 1) - 1;
+    tm->tm1.height = (h >> 1) - 1;
     tm->tm2.depth = 0;
     tm->tm2.max_lod = 0;
     tm->tm2.cube_face = 0;
-    tm->tm2.pitch = stride(w) >> 1;
+    tm->tm2.pitch = stride(w / 2) - 1;
 
     /* texture map: Backward */
     ++tm;
     memset(tm, 0, sizeof(*tm));
     tm->tm0.v_ls_offset = 0;
     tm->tm0.v_ls = 0;
-    tm->tm0.base_address = privFuture->offsets[privFuture->curbuf] + size_y(w, h) + (size_y(w, h) >> 2);
+    tm->tm0.base_address = privFuture->offsets[privFuture->curbuf] + size_y(w, h) + size_uv(w, h);
     tm->tm1.tile_walk = TILEWALK_XMAJOR;
     tm->tm1.tiled_surface = 0;
     tm->tm1.utilize_fence_regs = 0;
     tm->tm1.texel_fmt = 0;
     tm->tm1.surface_fmt = 1;
-    tm->tm1.width = w >> 1;
-    tm->tm1.height = h >> 1;
+    tm->tm1.width = (w >> 1) - 1;
+    tm->tm1.height = (h >> 1) - 1;
     tm->tm2.depth = 0;
     tm->tm2.max_lod = 0;
     tm->tm2.cube_face = 0;
-    tm->tm2.pitch = stride(w) >> 1;
+    tm->tm2.pitch = stride(w / 2) - 1;
 }
 
-static void i915_mc_load_indirect_buffer(XvMCContext *context)
+_STATIC_ void i915_mc_load_indirect_buffer(XvMCContext *context)
 {
     struct i915_3dstate_load_indirect *load_indirect;
     sis_state *sis = NULL;
@@ -476,12 +521,15 @@ static void i915_mc_load_indirect_buffer(XvMCContext *context)
     void *base = NULL;
     unsigned size;
 
+    i915_flush_with_flush_bit_clear(pI915XvMC);
+
     /* 3DSTATE_LOAD_INDIRECT */
     size = sizeof(*load_indirect) + sizeof(*sis) + sizeof(*msb);
     base = calloc(1, size);
     load_indirect = (struct i915_3dstate_load_indirect *)base;
     load_indirect->dw0.type = CMD_3D;
     load_indirect->dw0.opcode = OPC_3DSTATE_LOAD_INDIRECT;
+    load_indirect->dw0.mem_select = 1;  /* Bearlake only */
     load_indirect->dw0.block_mask = BLOCK_SIS | BLOCK_MSB;
     load_indirect->dw0.length = 3;
 
@@ -501,7 +549,7 @@ static void i915_mc_load_indirect_buffer(XvMCContext *context)
     free(base);
 }
 
-static void i915_mc_mpeg_set_origin(XvMCContext *context, XvMCMacroBlock *mb)
+_STATIC_ void i915_mc_mpeg_set_origin(XvMCContext *context, XvMCMacroBlock *mb)
 {
     struct i915_3dmpeg_set_origin set_origin;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
@@ -517,7 +565,7 @@ static void i915_mc_mpeg_set_origin(XvMCContext *context, XvMCMacroBlock *mb)
     intelBatchbufferData(pI915XvMC, &set_origin, sizeof(set_origin), 0);
 }
 
-static void i915_mc_mpeg_macroblock_0mv(XvMCContext *context, XvMCMacroBlock *mb)
+_STATIC_ void i915_mc_mpeg_macroblock_0mv(XvMCContext *context, XvMCMacroBlock *mb)
 {
     struct i915_3dmpeg_macroblock_0mv macroblock_0mv;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
@@ -527,24 +575,24 @@ static void i915_mc_mpeg_macroblock_0mv(XvMCContext *context, XvMCMacroBlock *mb
     macroblock_0mv.header.dw0.type = CMD_3D;
     macroblock_0mv.header.dw0.opcode = OPC_3DMPEG_MACROBLOCK;
     macroblock_0mv.header.dw0.length = 0;
-    macroblock_0mv.header.dw1.intra = (mb->macroblock_type & XVMC_MB_TYPE_INTRA);
+    macroblock_0mv.header.dw1.intra = 1;        /* should be 1 */ 
     macroblock_0mv.header.dw1.forward = 0;      /* should be 0 */
     macroblock_0mv.header.dw1.backward = 0;     /* should be 0 */
     macroblock_0mv.header.dw1.h263_4mv = 0;     /* should be 0 */
     macroblock_0mv.header.dw1.dct_type = (mb->dct_type == XVMC_DCT_TYPE_FIELD);
     
-    if (!mb->coded_block_pattern)       /* FIXME */
+    if (!mb->coded_block_pattern)
         macroblock_0mv.header.dw1.dct_type = XVMC_DCT_TYPE_FRAME;
 
-    macroblock_0mv.header.dw1.motion_type = mb->motion_type;
-    macroblock_0mv.header.dw1.vertical_field_select = mb->motion_vertical_field_select;
-    macroblock_0mv.header.dw1.coded_block_pattern = mb->coded_block_pattern; /* FIXME */
-    macroblock_0mv.header.dw1.skipped_macroblocks = 0;      /* FIXME */
+    macroblock_0mv.header.dw1.motion_type = 0; // (mb->motion_type & 0x3)
+    macroblock_0mv.header.dw1.vertical_field_select = 0; // mb->motion_vertical_field_select & 0xf;
+    macroblock_0mv.header.dw1.coded_block_pattern = mb->coded_block_pattern;
+    macroblock_0mv.header.dw1.skipped_macroblocks = 0;
     
     intelBatchbufferData(pI915XvMC, &macroblock_0mv, sizeof(macroblock_0mv), 0);
 }
 
-static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *mb)
+_STATIC_ void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *mb)
 {
     struct i915_3dmpeg_macroblock_1fbmv macroblock_1fbmv;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
@@ -583,7 +631,7 @@ static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *
     intelBatchbufferData(pI915XvMC, &macroblock_1fbmv, sizeof(macroblock_1fbmv), 0);
 }
 
-static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext *context, XvMCMacroBlock *mb)
+_STATIC_ void i915_mc_mpeg_macroblock_2fbmv(XvMCContext *context, XvMCMacroBlock *mb)
 {
     struct i915_3dmpeg_macroblock_2fbmv macroblock_2fbmv;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
@@ -629,7 +677,7 @@ static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext *context, XvMCMacroBlock *
 }
 
 /* for MC context initialization */
-static void i915_mc_sampler_state_buffer(XvMCContext *context)
+_STATIC_ void i915_mc_sampler_state_buffer(XvMCContext *context)
 {
     struct i915_3dstate_sampler_state *sampler_state;
     struct texture_sampler *ts;
@@ -654,11 +702,11 @@ static void i915_mc_sampler_state_buffer(XvMCContext *context)
     ts->ts0.mip_filter = MIPFILTER_NONE;        /* NONE */
     ts->ts0.mag_filter = MAPFILTER_LINEAR;      /* LINEAR */
     ts->ts0.min_filter = MAPFILTER_LINEAR;      /* LINEAR */
-    ts->ts0.lod_bias = 0;
+    ts->ts0.lod_bias = 0;       /* 0.0 */
     ts->ts0.shadow_enable = 0;
     ts->ts0.max_anisotropy = ANISORATIO_2;
     ts->ts0.shadow_function = PREFILTEROP_ALWAYS;
-    ts->ts1.min_lod = 0;        /* Maximum Mip Level */
+    ts->ts1.min_lod = 0;        /* 0.0 Maximum Mip Level */
     ts->ts1.kill_pixel = 0;
     ts->ts1.keyed_texture_filter = 0;
     ts->ts1.chromakey_enable = 0;
@@ -681,11 +729,11 @@ static void i915_mc_sampler_state_buffer(XvMCContext *context)
     ts->ts0.mip_filter = MIPFILTER_NONE;        /* NONE */
     ts->ts0.mag_filter = MAPFILTER_LINEAR;      /* LINEAR */
     ts->ts0.min_filter = MAPFILTER_LINEAR;      /* LINEAR */
-    ts->ts0.lod_bias = 0;
+    ts->ts0.lod_bias = 0;       /* 0.0 */
     ts->ts0.shadow_enable = 0;
     ts->ts0.max_anisotropy = ANISORATIO_2;
     ts->ts0.shadow_function = PREFILTEROP_ALWAYS;
-    ts->ts1.min_lod = 0;        /* Maximum Mip Level */
+    ts->ts1.min_lod = 0;        /* 0.0 Maximum Mip Level */
     ts->ts1.kill_pixel = 0;
     ts->ts1.keyed_texture_filter = 0;
     ts->ts1.chromakey_enable = 0;
@@ -693,12 +741,12 @@ static void i915_mc_sampler_state_buffer(XvMCContext *context)
     ts->ts1.tcy_control = TEXCOORDMODE_CLAMP;
     ts->ts1.tcz_control = TEXCOORDMODE_CLAMP;
     ts->ts1.normalized_coor = 0;
-    ts->ts1.map_index = 0;
+    ts->ts1.map_index = 1;
     ts->ts1.east_deinterlacer = 0;
     ts->ts2.default_color = 0;
 }
 
-static void i915_inst_arith(unsigned *inst,
+_STATIC_ void i915_inst_arith(unsigned *inst,
                             unsigned op,
                             unsigned dest,
                             unsigned mask,
@@ -711,7 +759,7 @@ static void i915_inst_arith(unsigned *inst,
     *(inst++) = (A2_SRC1(src1) | A2_SRC2(src2));
 }
 
-static void i915_inst_decl(unsigned *inst, 
+_STATIC_ void i915_inst_decl(unsigned *inst, 
                            unsigned type,
                            unsigned nr,
                            unsigned d0_flags)
@@ -723,19 +771,19 @@ static void i915_inst_decl(unsigned *inst,
     *(inst++) = D2_MBZ;
 }
 
-static void i915_inst_texld(unsigned *inst,
-                            unsigned op,
-                            unsigned dest,
-                            unsigned sampler,
-                            unsigned coord)
+_STATIC_ void i915_inst_texld(unsigned *inst,
+                              unsigned op,
+                              unsigned dest,
+                              unsigned coord,
+                              unsigned sampler)
 {
-    dest = UREG(GET_UREG_TYPE(dest), GET_UREG_NR(dest));
-    *(inst++) = (op | T0_DEST(dest) | T0_SAMPLER(sampler));
-    *(inst++) = T1_ADDRESS_REG(coord);
-    *(inst++) = T2_MBZ;
+   dest = UREG(GET_UREG_TYPE(dest), GET_UREG_NR(dest));
+   *(inst++) = (op | T0_DEST(dest) | T0_SAMPLER(sampler));
+   *(inst++) = T1_ADDRESS_REG(coord);
+   *(inst++) = T2_MBZ;
 }
 
-static void i915_mc_pixel_shader_program_buffer(XvMCContext *context)
+_STATIC_ void i915_mc_pixel_shader_program_buffer(XvMCContext *context)
 {
     struct i915_3dstate_pixel_shader_program *pixel_shader_program;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
@@ -749,6 +797,7 @@ static void i915_mc_pixel_shader_program_buffer(XvMCContext *context)
     pixel_shader_program->dw0.opcode = OPC_3DSTATE_PIXEL_SHADER_PROGRAM;
     pixel_shader_program->dw0.retain = 1;
     pixel_shader_program->dw0.length = 2;
+    /* mov oC, c0.0000 */
     inst = (unsigned *)(++pixel_shader_program);
     dest = UREG(REG_TYPE_OC, 0);
     src0 = UREG(REG_TYPE_CONST, 0);
@@ -765,20 +814,25 @@ static void i915_mc_pixel_shader_program_buffer(XvMCContext *context)
     pixel_shader_program->dw0.opcode = OPC_3DSTATE_PIXEL_SHADER_PROGRAM;
     pixel_shader_program->dw0.retain = 1;
     pixel_shader_program->dw0.length = 14;
+    /* dcl t0.xy */
     inst = (unsigned *)(++pixel_shader_program);
     i915_inst_decl(inst, REG_TYPE_T, T_TEX0, D0_CHANNEL_XY);
+    /* dcl t1.xy */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_T, T_TEX1, D0_CHANNEL_XY);
+    /* dcl_2D s0 */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_S, 0, D0_SAMPLE_TYPE_2D);
+    /* texld r0, t0, s0 */
     inst += 3;
     dest = UREG(REG_TYPE_R, 0); 
-    src0 = UREG(REG_TYPE_S, 0); /* SAMPLER */
-    src1 = UREG(REG_TYPE_T, 0); /* COORD */
+    src0 = UREG(REG_TYPE_T, 0); /* COORD */
+    src1 = UREG(REG_TYPE_S, 0); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
+    /* mov oC, r0 */
     inst += 3;
     dest = UREG(REG_TYPE_OC, 0);
-    src0 = UREG(REG_TYPE_S, 0);
+    src0 = UREG(REG_TYPE_R, 0);
     src1 = src2 = 0;
     i915_inst_arith(inst, A0_MOV, dest, A0_DEST_CHANNEL_ALL,
                     A0_DEST_SATURATE, src0, src1, src2);
@@ -791,20 +845,25 @@ static void i915_mc_pixel_shader_program_buffer(XvMCContext *context)
     pixel_shader_program->dw0.opcode = OPC_3DSTATE_PIXEL_SHADER_PROGRAM;
     pixel_shader_program->dw0.retain = 1;
     pixel_shader_program->dw0.length = 14;
+    /* dcl t2.xy */
     inst = (unsigned *)(++pixel_shader_program);
     i915_inst_decl(inst, REG_TYPE_T, T_TEX2, D0_CHANNEL_XY);
+    /* dcl t3.xy */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_T, T_TEX3, D0_CHANNEL_XY);
+    /* dcl_2D s1 */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_S, 1, D0_SAMPLE_TYPE_2D);
+    /* texld r0, t2, s1 */
     inst += 3;
     dest = UREG(REG_TYPE_R, 0); 
-    src0 = UREG(REG_TYPE_S, 1); /* SAMPLER */
-    src1 = UREG(REG_TYPE_T, 2); /* COORD */
+    src0 = UREG(REG_TYPE_T, 2); /* COORD */
+    src1 = UREG(REG_TYPE_S, 1); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
+    /* mov oC, r0 */
     inst += 3;
     dest = UREG(REG_TYPE_OC, 0);
-    src0 = UREG(REG_TYPE_S, 0);
+    src0 = UREG(REG_TYPE_R, 0);
     src1 = src2 = 0;
     i915_inst_arith(inst, A0_MOV, dest, A0_DEST_CHANNEL_ALL,
                     A0_DEST_SATURATE, src0, src1, src2);
@@ -817,28 +876,37 @@ static void i915_mc_pixel_shader_program_buffer(XvMCContext *context)
     pixel_shader_program->dw0.opcode = OPC_3DSTATE_PIXEL_SHADER_PROGRAM;
     pixel_shader_program->dw0.retain = 1;
     pixel_shader_program->dw0.length = 29;
+    /* dcl t0.xy */
     inst = (unsigned *)(++pixel_shader_program);
     i915_inst_decl(inst, REG_TYPE_T, T_TEX0, D0_CHANNEL_XY);
+    /* dcl t1.xy */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_T, T_TEX1, D0_CHANNEL_XY);
+    /* dcl t2.xy */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_T, T_TEX2, D0_CHANNEL_XY);
+    /* dcl t3.xy */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_T, T_TEX3, D0_CHANNEL_XY);
+    /* dcl_2D s0 */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_S, 0, D0_SAMPLE_TYPE_2D);
+    /* dcl_2D s1 */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_S, 1, D0_SAMPLE_TYPE_2D);
+    /* texld r0, t0, s0 */
     inst += 3;
     dest = UREG(REG_TYPE_R, 0); 
-    src0 = UREG(REG_TYPE_S, 0); /* SAMPLER */
-    src1 = UREG(REG_TYPE_T, 0); /* COORD */
+    src0 = UREG(REG_TYPE_T, 0); /* COORD */
+    src1 = UREG(REG_TYPE_S, 0); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
+    /* texld r1, t2, s1 */
     inst += 3;
     dest = UREG(REG_TYPE_R, 1); 
-    src0 = UREG(REG_TYPE_S, 1); /* SAMPLER */
-    src1 = UREG(REG_TYPE_T, 2); /* COORD */
+    src0 = UREG(REG_TYPE_T, 2); /* COORD */
+    src1 = UREG(REG_TYPE_S, 1); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
+    /* add r0, r0, r1 */
     inst += 3;
     dest = UREG(REG_TYPE_R, 0);
     src0 = UREG(REG_TYPE_R, 0);
@@ -846,17 +914,18 @@ static void i915_mc_pixel_shader_program_buffer(XvMCContext *context)
     src2 = 0;
     i915_inst_arith(inst, A0_ADD, dest, A0_DEST_CHANNEL_ALL,
                     A0_DEST_SATURATE, src0, src1, src2);
+    /* mul oC, r0, c0 */
     inst += 3;
     dest = UREG(REG_TYPE_OC, 0);
     src0 = UREG(REG_TYPE_R, 0);
-    src1 = UREG(REG_TYPE_OC, 0);
+    src1 = UREG(REG_TYPE_CONST, 0);
     src2 = 0;
     i915_inst_arith(inst, A0_MUL, dest, A0_DEST_CHANNEL_ALL,
                     A0_DEST_SATURATE, src0, src1, src2);
     inst += 3;
 }
 
-static void i915_mc_pixel_shader_constants_buffer(XvMCContext *context)
+_STATIC_ void i915_mc_pixel_shader_constants_buffer(XvMCContext *context)
 {
     struct i915_3dstate_pixel_shader_constants *pixel_shader_constants;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
@@ -875,7 +944,7 @@ static void i915_mc_pixel_shader_constants_buffer(XvMCContext *context)
     *(value++) = 0.5;
 }
 
-static void i915_mc_one_time_state_initialization(XvMCContext *context)
+_STATIC_ void i915_mc_one_time_state_initialization(XvMCContext *context)
 {
     struct i915_3dstate_load_state_immediate_1 *load_state_immediate_1 = NULL;
     struct s3_dword *s3 = NULL;
@@ -926,12 +995,16 @@ static void i915_mc_one_time_state_initialization(XvMCContext *context)
     intelBatchbufferData(pI915XvMC, base, size, 0);
     free(base);
 
+    /* flush */
+    i915_flush_with_flush_bit_clear(pI915XvMC);
+
     /* 3DSTATE_LOAD_INDIRECT */
     size = sizeof(*load_indirect) + sizeof(*dis) + sizeof(*ssb) + sizeof(*psp) + sizeof(*psc);
     base = calloc(1, size);
     load_indirect = (struct i915_3dstate_load_indirect *)base;
     load_indirect->dw0.type = CMD_3D;
     load_indirect->dw0.opcode = OPC_3DSTATE_LOAD_INDIRECT;
+    load_indirect->dw0.mem_select = 1;      /* Bearlake only */
     load_indirect->dw0.block_mask = BLOCK_DIS | BLOCK_SSB | BLOCK_PSP | BLOCK_PSC;
     load_indirect->dw0.length = 6;
 
@@ -945,72 +1018,72 @@ static void i915_mc_one_time_state_initialization(XvMCContext *context)
     ssb = (ssb_state *)(++dis);
     ssb->dw0.valid = 1;
     ssb->dw0.buffer_address = pI915XvMC->ssb.offset;
-    ssb->dw1.length = 8;
+    ssb->dw1.length = 7; /* 8 - 1 */
 
     /* PSP */
     psp = (psp_state *)(++ssb);
     psp->dw0.valid = 1;
     psp->dw0.buffer_address = pI915XvMC->psp.offset;
-    psp->dw1.length = 67; // 4 + 16 + 16 + 31
+    psp->dw1.length = 66; /* 4 + 16 + 16 + 31 - 1 */
     
     /* PSC */
     psc = (psc_state *)(++psp);
     psc->dw0.valid = 1;
     psc->dw0.buffer_address = pI915XvMC->psc.offset;
-    psc->dw1.length = 6;
+    psc->dw1.length = 5; /* 6 - 1 */
 
     intelBatchbufferData(pI915XvMC, base, size, 0);
     free(base);
 }
 
-static int i915_xvmc_map_buffers(i915XvMCContext *pI915XvMC)
+_STATIC_ int i915_xvmc_map_buffers(i915XvMCContext *pI915XvMC)
 {
     if (drmMap(pI915XvMC->fd,
                pI915XvMC->sis.handle,
                pI915XvMC->sis.size,
-               (drmAddress *)pI915XvMC->sis.map) != 0) {
+               (drmAddress *)&pI915XvMC->sis.map) != 0) {
         return -1;
     }
 
     if (drmMap(pI915XvMC->fd,
                pI915XvMC->msb.handle,
                pI915XvMC->msb.size,
-               (drmAddress *)pI915XvMC->msb.map) != 0) {
+               (drmAddress *)&pI915XvMC->msb.map) != 0) {
         return -1;
     }
 
     if (drmMap(pI915XvMC->fd,
                pI915XvMC->ssb.handle,
                pI915XvMC->ssb.size,
-               (drmAddress *)pI915XvMC->ssb.map) != 0) {
+               (drmAddress *)&pI915XvMC->ssb.map) != 0) {
         return -1;
     }
 
     if (drmMap(pI915XvMC->fd,
                pI915XvMC->psp.handle,
                pI915XvMC->psp.size,
-               (drmAddress *)pI915XvMC->psp.map) != 0) {
+               (drmAddress *)&pI915XvMC->psp.map) != 0) {
         return -1;
     }
 
     if (drmMap(pI915XvMC->fd,
                pI915XvMC->psc.handle,
                pI915XvMC->psc.size,
-               (drmAddress *)pI915XvMC->psc.map) != 0) {
+               (drmAddress *)&pI915XvMC->psc.map) != 0) {
         return -1;
     }
 
     if (drmMap(pI915XvMC->fd,
                pI915XvMC->corrdata.handle,
                pI915XvMC->corrdata.size,
-               (drmAddress *)pI915XvMC->corrdata.map) != 0) {
+               (drmAddress *)&pI915XvMC->corrdata.map) != 0) {
         return -1;
     }
 
     return 0;
 }
 
-static void i915_xvmc_unmap_buffers(i915XvMCContext *pI915XvMC)
+_STATIC_ void i915_xvmc_unmap_buffers(i915XvMCContext *pI915XvMC)
 {
     if (pI915XvMC->sis.map) {
         drmUnmap(pI915XvMC->sis.map, pI915XvMC->sis.size);
@@ -1046,7 +1119,7 @@ static void i915_xvmc_unmap_buffers(i915XvMCContext *pI915XvMC)
 /*
  * Video post processing 
  */
-static void i915_yuv2rgb_map_state_buffer(XvMCSurface *target_surface)
+_STATIC_ void i915_yuv2rgb_map_state_buffer(XvMCSurface *target_surface)
 {
     struct i915_3dstate_map_state *map_state;
     struct texture_map *tm;
@@ -1120,7 +1193,7 @@ static void i915_yuv2rgb_map_state_buffer(XvMCSurface *target_surface)
     tm->tm2.pitch = (stride(w) >> 1) - 1;
 }
 
-static void i915_yuv2rgb_sampler_state_buffer(XvMCSurface *surface)
+_STATIC_ void i915_yuv2rgb_sampler_state_buffer(XvMCSurface *surface)
 {
     struct i915_3dstate_sampler_state *sampler_state;
     struct texture_sampler *ts;
@@ -1185,7 +1258,7 @@ static void i915_yuv2rgb_sampler_state_buffer(XvMCSurface *surface)
     ts->ts1.tcy_control = TEXCOORDMODE_CLAMP;
     ts->ts1.tcz_control = TEXCOORDMODE_CLAMP;
     ts->ts1.normalized_coor = 0;
-    ts->ts1.map_index = 0;
+    ts->ts1.map_index = 1;
     ts->ts1.east_deinterlacer = 0;
     ts->ts2.default_color = 0;
 
@@ -1212,12 +1285,12 @@ static void i915_yuv2rgb_sampler_state_buffer(XvMCSurface *surface)
     ts->ts1.tcy_control = TEXCOORDMODE_CLAMP;
     ts->ts1.tcz_control = TEXCOORDMODE_CLAMP;
     ts->ts1.normalized_coor = 0;
-    ts->ts1.map_index = 0;
+    ts->ts1.map_index = 2;
     ts->ts1.east_deinterlacer = 0;
     ts->ts2.default_color = 0;
 }
 
-static void i915_yuv2rgb_static_indirect_state_buffer(XvMCSurface *surface,
+_STATIC_ void i915_yuv2rgb_static_indirect_state_buffer(XvMCSurface *surface,
                                                       unsigned dstaddr, 
                                                       int dstpitch)
 {
@@ -1251,7 +1324,7 @@ static void i915_yuv2rgb_static_indirect_state_buffer(XvMCSurface *surface,
     dest_buffer_variables->dw1.color_fmt = COLORBUFFER_A8R8G8B8;  /* FIXME */
 }
 
-static void i915_yuv2rgb_pixel_shader_program_buffer(XvMCSurface *surface)
+_STATIC_ void i915_yuv2rgb_pixel_shader_program_buffer(XvMCSurface *surface)
 {
     struct i915_3dstate_pixel_shader_program *pixel_shader_program;
     i915XvMCSurface *privSurface = (i915XvMCSurface *)surface->privData;
@@ -1266,34 +1339,42 @@ static void i915_yuv2rgb_pixel_shader_program_buffer(XvMCSurface *surface)
     pixel_shader_program->dw0.opcode = OPC_3DSTATE_PIXEL_SHADER_PROGRAM;
     pixel_shader_program->dw0.retain = 0;
     pixel_shader_program->dw0.length = 23;
+    /* dcl      t0.xy */
     inst = (unsigned *)(++pixel_shader_program);
     i915_inst_decl(inst, REG_TYPE_T, T_TEX0, D0_CHANNEL_XY);
+    /* dcl         t1.xy */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_T, T_TEX1, D0_CHANNEL_XY);
+    /* dcl_2D   s0 */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_S, 0, D0_SAMPLE_TYPE_2D);
+    /* dcl_2D   s1 */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_S, 1, D0_SAMPLE_TYPE_2D);
+    /* dcl_2D   s2 */
     inst += 3;
     i915_inst_decl(inst, REG_TYPE_S, 2, D0_SAMPLE_TYPE_2D);
+    /* texld    r0 t1 s0 */
     inst += 3;
     dest = UREG(REG_TYPE_R, 0); 
-    src0 = UREG(REG_TYPE_S, 0); /* SAMPLER */
-    src1 = UREG(REG_TYPE_T, 1); /* COORD */
+    src0 = UREG(REG_TYPE_T, 1); /* COORD */
+    src1 = UREG(REG_TYPE_S, 0); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
+    /* texld    r0 t0 s1 */
     inst += 3;
     dest = UREG(REG_TYPE_R, 0); 
-    src0 = UREG(REG_TYPE_S, 1); /* SAMPLER */
-    src1 = UREG(REG_TYPE_T, 0); /* COORD */
+    src0 = UREG(REG_TYPE_T, 0); /* COORD */
+    src1 = UREG(REG_TYPE_S, 1); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
+    /* texld    oC t1 s2 */
     inst += 3;
     dest = UREG(REG_TYPE_OC, 0);
-    src0 = UREG(REG_TYPE_S, 2);
-    src1 = UREG(REG_TYPE_T, 1);
+    src0 = UREG(REG_TYPE_T, 1); /* COORD */
+    src1 = UREG(REG_TYPE_S, 2); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
 }
 
-static void i915_yuv2rgb_proc(XvMCSurface *surface)
+_STATIC_ void i915_yuv2rgb_proc(XvMCSurface *surface)
 {
     i915XvMCSurface *privSurface = (i915XvMCSurface *)surface->privData;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)privSurface->privContext;
@@ -1371,12 +1452,16 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
     scissor_rectangle.dw2.max_y = 2047;
     intelBatchbufferData(pI915XvMC, &scissor_rectangle, sizeof(scissor_rectangle), 0);
 
+    /* flush */
+    i915_flush_with_flush_bit_clear(pI915XvMC);
+
     /* 3DSTATE_LOAD_INDIRECT */
     size = sizeof(*load_indirect) + sizeof(*sis) + sizeof(*ssb) + sizeof(*msb) + sizeof(*psp);
     base = calloc(1, size);
     load_indirect = (struct i915_3dstate_load_indirect *)base;
     load_indirect->dw0.type = CMD_3D;
     load_indirect->dw0.opcode = OPC_3DSTATE_LOAD_INDIRECT;
+    load_indirect->dw0.mem_select = 1;  /* Bearlake only */
     load_indirect->dw0.block_mask = BLOCK_SIS | BLOCK_SSB | BLOCK_MSB | BLOCK_PSP;
     load_indirect->dw0.length = 7;
 
@@ -1453,7 +1538,7 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
 // Function: i915_release_resource
 // Description:
 ***************************************************************************/
-static void i915_release_resource(Display *display, XvMCContext *context)
+_STATIC_ void i915_release_resource(Display *display, XvMCContext *context)
 {
     i915XvMCContext *pI915XvMC;
 
@@ -1535,11 +1620,12 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 
     /* Limit use to root for now */
     /* FIXME: remove it ??? */
+/*
     if (geteuid()) {
         printf("Use of XvMC on i915 is currently limited to root\n");
         return BadAccess;
     }
-
+*/
     /*
      *FIXME: Check $DISPLAY for legal values here
      */
@@ -1571,7 +1657,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     /* FIXME: Check Major and Minor here */
 
     /* Allocate private Context data */
-    context->privData = (void *)malloc(sizeof(i915XvMCContext));
+    context->privData = (void *)calloc(1, sizeof(i915XvMCContext));
     if (!context->privData) {
         printf("Unable to allocate resources for XvMC context.\n");
         return BadAlloc;
@@ -2066,24 +2152,18 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
         block_ptr = &(blocks->blocks[mb->index << 6]);
 
         /* Lockup can happen if the coordinates are too far out of range */
-        if(mb->x > (target_surface->width >> 4)) {
+        if (mb->x > (target_surface->width >> 4))
             mb->x = 0;
-        }
-        if(mb->y > (target_surface->height >> 4)) {
+
+        if (mb->y > (target_surface->height >> 4))
             mb->y = 0;
-        }
 
         /* Catch no pattern case */
-        if (!(mb->macroblock_type & XVMC_MB_TYPE_PATTERN)) {
+        if (!(mb->macroblock_type & XVMC_MB_TYPE_PATTERN) &&
+            !(mb->macroblock_type & XVMC_MB_TYPE_INTRA)) 
             mb->coded_block_pattern = 0;
-        }
-
-        if (mb->macroblock_type & XVMC_MB_TYPE_INTRA) {
-            bspm = 768;
-        } else {
-            bspm = mb_bytes[mb->coded_block_pattern];
-        }
-
+        
+        bspm = mb_bytes[mb->coded_block_pattern];
         corrdata_size += bspm;
 
         if (corrdata_size > pI915XvMC->corrdata.size) {
@@ -2101,18 +2181,21 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
     i915_mc_pixel_shader_program_buffer(context);
     i915_mc_pixel_shader_constants_buffer(context);
     i915_mc_one_time_state_initialization(context);
+    intelFlushBatch(pI915XvMC, TRUE);
 
     i915_mc_static_indirect_state_buffer(context, target_surface, picture_structure);
     i915_mc_map_state_buffer(context, target_surface, past_surface, future_surface);
-    i915_flush(pI915XvMC);
     i915_mc_load_indirect_buffer(context);
     i915_mc_mpeg_set_origin(context, &macroblock_array->macro_blocks[first_macroblock]);
+    intelFlushBatch(pI915XvMC, TRUE);
     for (i = first_macroblock; i < (num_macroblocks + first_macroblock); i++) {
         mb = &macroblock_array->macro_blocks[i];
 
         /* Intra Blocks */
         if (mb->macroblock_type & XVMC_MB_TYPE_INTRA) {
             i915_mc_mpeg_macroblock_0mv(context, mb);
+            // i915_flush(pI915XvMC);
+            intelFlushBatch(pI915XvMC, TRUE);
             continue;
         }
 

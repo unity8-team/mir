@@ -238,25 +238,25 @@
 #define GET_CHANNEL_SRC( reg, channel ) ((reg<<(channel*4)) & (0xf<<20))
 #define CHANNEL_SRC( src, channel ) (src>>(channel*4))
 
-#define GET_UREG_TYPE(reg) (((reg)>>UREG_TYPE_SHIFT)&REG_TYPE_MASK)
-#define GET_UREG_NR(reg)   (((reg)>>UREG_NR_SHIFT)&REG_NR_MASK)
+#define GET_UREG_TYPE(reg) (((reg) >> UREG_TYPE_SHIFT) & REG_TYPE_MASK)
+#define GET_UREG_NR(reg)   (((reg) >> UREG_NR_SHIFT) & REG_NR_MASK)
 
 #define UREG_XYZW_CHANNEL_MASK 0x00ffff00
 
-#define A0_DEST(reg) (((reg) & UREG_TYPE_NR_MASK)>>UREG_A0_DEST_SHIFT_LEFT)
-#define D0_DEST(reg) (((reg) & UREG_TYPE_NR_MASK)>>UREG_A0_DEST_SHIFT_LEFT)
-#define T0_DEST(reg) (((reg) & UREG_TYPE_NR_MASK)>>UREG_A0_DEST_SHIFT_LEFT)
-#define A0_SRC0(reg) (((reg) & UREG_MASK)>>UREG_A0_SRC0_SHIFT_LEFT)
-#define A1_SRC0(reg) (((reg) & UREG_MASK)<<UREG_A1_SRC0_SHIFT_RIGHT)
-#define A1_SRC1(reg) (((reg) & UREG_MASK)>>UREG_A1_SRC1_SHIFT_LEFT)
-#define A2_SRC1(reg) (((reg) & UREG_MASK)<<UREG_A2_SRC1_SHIFT_RIGHT)
-#define A2_SRC2(reg) (((reg) & UREG_MASK)>>UREG_A2_SRC2_SHIFT_LEFT)
+#define A0_DEST(reg) (((reg) & UREG_TYPE_NR_MASK) >> UREG_A0_DEST_SHIFT_LEFT)
+#define D0_DEST(reg) (((reg) & UREG_TYPE_NR_MASK) >> UREG_A0_DEST_SHIFT_LEFT)
+#define T0_DEST(reg) (((reg) & UREG_TYPE_NR_MASK) >> UREG_A0_DEST_SHIFT_LEFT)
+#define A0_SRC0(reg) (((reg) & UREG_MASK) >> UREG_A0_SRC0_SHIFT_LEFT)
+#define A1_SRC0(reg) (((reg) & UREG_MASK) << UREG_A1_SRC0_SHIFT_RIGHT)
+#define A1_SRC1(reg) (((reg) & UREG_MASK) >> UREG_A1_SRC1_SHIFT_LEFT)
+#define A2_SRC1(reg) (((reg) & UREG_MASK) << UREG_A2_SRC1_SHIFT_RIGHT)
+#define A2_SRC2(reg) (((reg) & UREG_MASK) >> UREG_A2_SRC2_SHIFT_LEFT)
 
 /* These are special, and don't have swizzle/negate bits.
  */
-#define T0_SAMPLER( reg )     (GET_UREG_NR(reg)<<T0_SAMPLER_NR_SHIFT)
-#define T1_ADDRESS_REG( reg ) ((GET_UREG_NR(reg)<<T1_ADDRESS_REG_NR_SHIFT) | \
-                               (GET_UREG_TYPE(reg)<<T1_ADDRESS_REG_TYPE_SHIFT))
+#define T0_SAMPLER( reg )     (GET_UREG_NR(reg) << T0_SAMPLER_NR_SHIFT)
+#define T1_ADDRESS_REG( reg ) ((GET_UREG_NR(reg) << T1_ADDRESS_REG_NR_SHIFT) | \
+                               (GET_UREG_TYPE(reg) << T1_ADDRESS_REG_TYPE_SHIFT))
 
 
 /* Macros for translating UREG's into the various register fields used

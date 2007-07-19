@@ -197,9 +197,11 @@ static unsigned int stride(int w)
 
 static unsigned long size_yuv420(int w, int h)
 {
-    unsigned yPitch = stride(w);
+    unsigned cpp = 4;
+    unsigned yPitch = stride(w) * cpp;
+    unsigned uvPitch = stride(w / 2) * cpp;
 
-    return h * (yPitch + (yPitch >> 1));
+    return h * (yPitch + uvPitch);
 }
 
 static unsigned long size_xx44(int w, int h)
@@ -859,6 +861,7 @@ void I915InitMC(ScreenPtr pScreen)
     I915XvMCPtr pXvMC = NULL; 
 
     pI830->XvMCEnabled = FALSE;
+    return;
     if (!pI830->directRenderingEnabled) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                    "[XvMC] Cannot use XvMC without DRI!\n");
@@ -885,6 +888,14 @@ int I915XvMCInitXv(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
     I830PortPrivPtr pPriv;
     I915XvMCXVPriv *vx;
     unsigned i, j;
+    SetPortAttributeFuncPtr setportattribute = XvAdapt->SetPortAttribute;
+    GetPortAttributeFuncPtr getportattribute = XvAdapt->GetPortAttribute;
+    PutImageFuncPtr putimage = XvAdapt->PutImage;
+
+    return Success;
+    XvAdapt->GetPortAttribute = I915XvMCInterceptXvGetAttribute;
+    XvAdapt->SetPortAttribute = I915XvMCInterceptXvAttribute;
+    XvAdapt->PutImage = I915XvMCInterceptPutImage;
 
     for (j = 0; j < XvAdapt->nPorts; ++j) {
         pPriv = (I830PortPrivPtr) XvAdapt->pPortPrivates[j].ptr;
@@ -905,13 +916,9 @@ int I915XvMCInitXv(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
         vx->newAttribute = 1;
 
         /* set up wrappers */
-        vx->GetPortAttribute = XvAdapt->GetPortAttribute;
-        vx->SetPortAttribute = XvAdapt->SetPortAttribute;
-        vx->PutImage = XvAdapt->PutImage;
-
-        XvAdapt->GetPortAttribute = I915XvMCInterceptXvGetAttribute;
-        XvAdapt->SetPortAttribute = I915XvMCInterceptXvAttribute;
-        XvAdapt->PutImage = I915XvMCInterceptPutImage;
+        vx->GetPortAttribute = setportattribute;
+        vx->SetPortAttribute = getportattribute;
+        vx->PutImage = putimage;
 
         for (i = 0; i < I915_NUM_XVMC_ATTRIBUTES; ++i) {
             vx->xvAttr.attributes[i].attribute = attrAtoms[i];

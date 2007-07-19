@@ -580,7 +580,7 @@ I830InitVideo(ScreenPtr pScreen)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
 
 #ifdef XF86DRI
-            if (pI830->XvMCEnabled && IS_I9XX(pI830))
+            if (/* pI830->XvMCEnabled && */IS_I9XX(pI830))
                I915XvMCInitXv(pScrn, texturedAdaptor);
 #endif
 	} else {
