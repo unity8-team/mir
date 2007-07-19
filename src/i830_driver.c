@@ -2863,11 +2863,7 @@ I830LeaveVT(int scrnIndex, int flags)
       DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
 #ifdef XF86DRI_MM
       if (pI830->mmModeFlags & I830_KERNEL_MM) {
-#ifndef XSERVER_LIBDRM_MM
-	 I830DrmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT);
-#else
 	 drmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT);
-#endif
       }
 #endif /* XF86DRI_MM */
       I830DRISetVBlankInterrupt (pScrn, FALSE);
@@ -2972,11 +2968,7 @@ I830EnterVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI_MM
 	 if (pI830->mmModeFlags & I830_KERNEL_MM) {
-#ifndef XSERVER_LIBDRM_MM
-	    I830DrmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT);
-#else
 	    drmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT);
-#endif
 	 }
 #endif /* XF86DRI_MM */
 
@@ -3035,11 +3027,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 #endif
 #ifdef XF86DRI_MM
       if (pI830->mmModeFlags & I830_KERNEL_MM) {
-#ifndef XSERVER_LIBDRM_MM
-	 I830DrmMMTakedown(pI830->drmSubFD, DRM_BO_MEM_TT);
-#else
 	 drmMMTakedown(pI830->drmSubFD, DRM_BO_MEM_TT);	 
-#endif
       }
 #endif /* XF86DRI_MM */
       pI830->directRenderingOpen = FALSE;
