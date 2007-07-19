@@ -191,41 +191,6 @@ static XF86MCAdaptorPtr ppAdapt[1] =
     (XF86MCAdaptorPtr)&pAdapt
 };
 
-static unsigned int stride(int w)
-{
-    return (w + 3) & ~3;
-}
-
-static unsigned long size_y420(int w, int h)
-{
-   unsigned cpp = 1;
-   unsigned yPitch = stride(w) * cpp;
-   
-   return h * yPitch;
-}
-
-static unsigned long size_uv420(int w, int h)
-{
-   unsigned cpp = 1;
-   unsigned uvPitch = stride(w >> 1) * cpp;
-
-   return h / 2 * uvPitch;
-}
-
-static unsigned long size_yuv420(int w, int h)
-{
-    unsigned cpp = 1;
-    unsigned yPitch = stride(w) * cpp;
-    unsigned uvPitch = stride(w >> 1) * cpp;
-
-    return h * (yPitch + uvPitch);
-}
-
-static unsigned long size_xx44(int w, int h)
-{
-    return h * stride(w);
-}
-
 /*
  * Init and clean up the screen private parts of XvMC.
  */
@@ -641,7 +606,7 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
     }
 
     ctx = pSurf->context;
-    bufsize = size_yuv420(ctx->width, ctx->height);
+    bufsize = SIZE_YUV420(ctx->width, ctx->height);
 
     if (!i830_allocate_xvmc_buffer(pScrn, "XvMC surface", 
                                    &(sfpriv->surface), bufsize,
@@ -727,7 +692,7 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
     }
 
     ctx = pSubp->context;
-    bufsize = size_xx44(ctx->width, ctx->height);
+    bufsize = SIZE_XX44(ctx->width, ctx->height);
 
     if (!i830_allocate_xvmc_buffer(pScrn, "XvMC surface", 
                                    &(sfpriv->surface), bufsize,
@@ -900,12 +865,13 @@ static int I915XvMCInterceptPutImage(ScrnInfoPtr pScrn, short src_x, short src_y
                                      short height, Bool sync, RegionPtr clipBoxes, pointer data,
                                      DrawablePtr pDraw)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
     I830PortPrivPtr pPriv = (I830PortPrivPtr)data;
     I915XvMCXVPriv *vx = (I915XvMCXVPriv *)pPriv->xvmc_priv;
+    int ret;
 
     if (I830PTR(pScrn)->XvMCEnabled) {
         if (FOURCC_XVMC == id) {
-            I830Ptr pI830 = I830PTR(pScrn);
             I915XvMCPtr pXvMC = pI830->xvmc;
             I915XvMCCommandBuffer *i915XvMCData = (I915XvMCCommandBuffer *)buf;
             int i;
@@ -933,6 +899,7 @@ static int I915XvMCInterceptPutImage(ScrnInfoPtr pScrn, short src_x, short src_y
                    mem = pXvMC->sfprivs[i915XvMCData->srfNo]->surface;
                    buf = pI830->FbBase + mem->offset;
                    id = i915XvMCData->real_id;
+                   pI830->IsXvMCSurface = 1;
                    break;
                 }
 
@@ -944,8 +911,10 @@ static int I915XvMCInterceptPutImage(ScrnInfoPtr pScrn, short src_x, short src_y
         }
     }
 
-    return vx->PutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
+    ret = vx->PutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
                         drw_w, drw_h, id, buf, width, height, sync, clipBoxes, data, pDraw);
+    pI830->IsXvMCSurface = 0;
+    return ret;
 }
 
 /*********************************** Public Function **************************************/

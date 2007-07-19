@@ -77,7 +77,6 @@ typedef struct _i915XvMCContext {
     int lock;   /* Lightweight lock to avoid locking twice */
     int locked;
     volatile drmI830Sarea *sarea;
-    int inited_mc;
     
     drmLock *driHwLock;
     drm_context_t hHWContext; /* drmcontext; */
@@ -159,7 +158,6 @@ typedef struct _i915XvMCSurface {
     unsigned uvStride;
     unsigned width;                    /* Dimensions */
     unsigned height;
-    unsigned processing;
     i915XvMCDrmMap srf;
     i915XvMCContext *privContext;
     i915XvMCSubpicture *privSubPic;     /* Subpicture to be blended when

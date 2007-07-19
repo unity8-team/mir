@@ -2382,8 +2382,14 @@ I830PutImage(ScrnInfoPtr pScrn,
     switch (id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	srcPitch = (width + 3) & ~3;
-	srcPitch2 = ((width >> 1) + 3) & ~3;
+        if (pI830->IsXvMCSurface) {
+            srcPitch = (width + 0x400) & ~0x3ff;
+            srcPitch2 = ((width >> 1) + 0x400) & ~0x3ff;
+        } else {
+            srcPitch = (width + 0x3) & ~0x3;
+            srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
+        }
+
 	if (pPriv->textured && IS_I965G(pI830))
 	    destId = FOURCC_YUY2;
 	break;

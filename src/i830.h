@@ -313,7 +313,8 @@ typedef struct _I830Rec {
    /* For XvMC */
    void *xvmc;
    Bool XvMCEnabled;
-
+   Bool IsXvMCSurface;
+ 
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
    Rotation rotation;
    void (*PointerMoved)(int, int, int);
