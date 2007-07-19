@@ -979,6 +979,9 @@ ATIMach64PutImage
     if (pATI->ActiveSurface)
         return Success;
 
+    if (DstH < 16)
+	return Success;
+
     if (!ATIMach64ClipVideo(pScreenInfo, pATI, ImageID,
                             SrcX, SrcY, SrcW, SrcH,
                             DstX, DstY, &DstW, &DstH,
