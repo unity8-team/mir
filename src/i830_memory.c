@@ -1759,6 +1759,8 @@ i830_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
     return linear;
 }
 
+#endif
+
 /*
  * Allocate memory for MC compensation
  */
@@ -1777,4 +1779,3 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
 
     return TRUE;
 }
-#endif
