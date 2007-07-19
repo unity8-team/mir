@@ -1128,7 +1128,12 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			lc = pNv->GARTScratch->size / line_len;
 		}
 		
-	while (nlines) { /*actually Xv doesn't like looping here much, especially for YV12*/
+		
+	if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
+				//you lost
+				return FALSE;
+	
+	while (nlines >  0) { /*actually Xv doesn't like looping here much, especially for YV12*/
 		char *dst = pNv->GARTScratch->map;
 		
 		/* Upload to GART */
@@ -1172,9 +1177,10 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		NVDmaNext (pNv, 0);
 
 		NVDmaKickoff(pNv);
-		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
-			//you lost
-			return FALSE;
+		if ( (nlines - lc ) > 0 )
+			if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
+				//you lost
+				return FALSE;
 
 		nlines -= lc;
 	}
@@ -1201,6 +1207,8 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			pPriv->currentBuffer ^= 1;
 		}
 	}
+	
+	
 	return Success;
 }
 
