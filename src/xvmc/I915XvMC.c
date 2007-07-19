@@ -1,3 +1,29 @@
+/*
+ * Copyright © 2006 Intel Corporation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * Authors:
+ *    Xiang Haihao <haihao.xiang@intel.com>
+ *
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -1078,6 +1104,7 @@ _STATIC_ void i915_mc_one_time_state_initialization(XvMCContext *context)
     /* PSC */
     psc = (psc_state *)(++psp);
     psc->dw0.valid = 1;
+    psc->dw0.force = 1;
     psc->dw1.length = 5; /* 6 - 1 */
 
     if (mem_select)
@@ -2403,8 +2430,8 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
     } 
 
     i915_flush(pI915XvMC, 1, 0);
-    i915_mc_invalidate_subcontext_buffers(context, BLOCK_SIS | BLOCK_DIS | BLOCK_SSB 
-                                          | BLOCK_MSB | BLOCK_PSP | BLOCK_PSC);
+    // i915_mc_invalidate_subcontext_buffers(context, BLOCK_SIS | BLOCK_DIS | BLOCK_SSB 
+    // | BLOCK_MSB | BLOCK_PSP | BLOCK_PSC);
 
     i915_mc_sampler_state_buffer(context);
     i915_mc_pixel_shader_program_buffer(context);
