@@ -96,6 +96,7 @@ typedef struct _i915XvMCContext {
     i915XvMCDrmMap ssb;
     i915XvMCDrmMap psp;
     i915XvMCDrmMap psc;
+    i915XvMCDrmMap subcontexts;
     i915XvMCDrmMap corrdata;
 
     struct {

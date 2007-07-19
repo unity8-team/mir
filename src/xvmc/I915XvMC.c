@@ -265,7 +265,7 @@ _STATIC_ void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     buffer_info->dw1.tiled_surface = 0; /* linear */
     buffer_info->dw1.walk = TILEWALK_XMAJOR;
     buffer_info->dw1.pitch = (pI915Surface->yStride >> 2);      /* in DWords */
-    buffer_info->dw2.base_address = pI915Surface->srf.offset;
+    buffer_info->dw2.base_address = (pI915Surface->srf.offset >> 2);    /* starting DWORD address */
 
     /* DEST U */
     ++buffer_info;
@@ -279,8 +279,8 @@ _STATIC_ void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     buffer_info->dw1.tiled_surface = 0;
     buffer_info->dw1.walk = TILEWALK_XMAJOR; 
     buffer_info->dw1.pitch = (pI915Surface->uvStride >> 2);      /* in DWords */
-    buffer_info->dw2.base_address = pI915Surface->srf.offset +
-        size_y(w, h) + size_uv(w, h);
+    buffer_info->dw2.base_address = ((pI915Surface->srf.offset +
+                                      size_y(w, h) + size_uv(w, h)) >> 2);      /* starting DWORD address */
 
     /* DEST V */
     ++buffer_info;
@@ -294,8 +294,8 @@ _STATIC_ void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     buffer_info->dw1.tiled_surface = 0;
     buffer_info->dw1.walk = TILEWALK_XMAJOR; 
     buffer_info->dw1.pitch = (pI915Surface->uvStride >> 2);      /* in Dwords */
-    buffer_info->dw2.base_address = pI915Surface->srf.offset +
-        size_y(w, h);
+    buffer_info->dw2.base_address = ((pI915Surface->srf.offset +
+                                      size_y(w, h)) >> 2);      /* starting DWORD address */
 
     /* 3DSTATE_DEST_BUFFER_VARIABLES */
     dest_buffer_variables = (struct i915_3dstate_dest_buffer_variables *)(++buffer_info);
@@ -306,7 +306,15 @@ _STATIC_ void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     dest_buffer_variables->dw1.dest_v_bias = 8; /* 0.5 */
     dest_buffer_variables->dw1.dest_h_bias = 8; /* 0.5 */
     dest_buffer_variables->dw1.v_ls = 0;    
-    dest_buffer_variables->dw1.v_ls_offset = 1;
+    dest_buffer_variables->dw1.v_ls_offset = 0;
+
+    if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_FRAME_PICTURE) {
+        ;
+    } else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_TOP_FIELD) {
+        dest_buffer_variables->dw1.v_ls_offset = 1;
+    } else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_BOTTOM_FIELD) {
+        dest_buffer_variables->dw1.v_ls = 1;
+    }
 
     /* 3DSTATE_DEST_BUFFER_VARIABLES_MPEG */
     dest_buffer_variables_mpeg = (struct i915_3dstate_dest_buffer_variables_mpeg *)(++dest_buffer_variables);
@@ -351,7 +359,7 @@ _STATIC_ void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     buffer_info->dw1.tiled_surface = 0; 
     buffer_info->dw1.walk = 0;
     buffer_info->dw1.pitch = 0;
-    buffer_info->dw2.base_address = pI915XvMC->corrdata.offset;
+    buffer_info->dw2.base_address = (pI915XvMC->corrdata.offset >> 2);  /* starting DWORD address */
 }
 
 _STATIC_ void i915_mc_map_state_buffer(XvMCContext *context, 
@@ -378,7 +386,7 @@ _STATIC_ void i915_mc_map_state_buffer(XvMCContext *context,
     memset(tm, 0, sizeof(*tm));
     tm->tm0.v_ls_offset = 0;
     tm->tm0.v_ls = 0;
-    tm->tm0.base_address = privPast->srf.offset;
+    tm->tm0.base_address = (privPast->srf.offset >> 2);
     tm->tm1.tile_walk = TILEWALK_XMAJOR;
     tm->tm1.tiled_surface = 0;
     tm->tm1.utilize_fence_regs = 0;
@@ -396,7 +404,7 @@ _STATIC_ void i915_mc_map_state_buffer(XvMCContext *context,
     memset(tm, 0, sizeof(*tm));
     tm->tm0.v_ls_offset = 0;
     tm->tm0.v_ls = 0;
-    tm->tm0.base_address = privFuture->srf.offset;
+    tm->tm0.base_address = (privFuture->srf.offset >> 2);
     tm->tm1.tile_walk = TILEWALK_XMAJOR;
     tm->tm1.tiled_surface = 0;
     tm->tm1.utilize_fence_regs = 0;
@@ -423,8 +431,8 @@ _STATIC_ void i915_mc_map_state_buffer(XvMCContext *context,
     memset(tm, 0, sizeof(*tm));
     tm->tm0.v_ls_offset = 0;
     tm->tm0.v_ls = 0;
-    tm->tm0.base_address = privPast->srf.offset +
-        size_y(w, h) + size_uv(w, h);
+    tm->tm0.base_address = ((privPast->srf.offset +
+                             size_y(w, h) + size_uv(w, h)) >> 2);
     tm->tm1.tile_walk = TILEWALK_XMAJOR;
     tm->tm1.tiled_surface = 0;
     tm->tm1.utilize_fence_regs = 0;
@@ -442,8 +450,8 @@ _STATIC_ void i915_mc_map_state_buffer(XvMCContext *context,
     memset(tm, 0, sizeof(*tm));
     tm->tm0.v_ls_offset = 0;
     tm->tm0.v_ls = 0;
-    tm->tm0.base_address = privFuture->srf.offset +
-        size_y(w, h) + size_uv(w, h);
+    tm->tm0.base_address = ((privFuture->srf.offset +
+                             size_y(w, h) + size_uv(w, h)) >> 2);
     tm->tm1.tile_walk = TILEWALK_XMAJOR;
     tm->tm1.tiled_surface = 0;
     tm->tm1.utilize_fence_regs = 0;
@@ -470,8 +478,8 @@ _STATIC_ void i915_mc_map_state_buffer(XvMCContext *context,
     memset(tm, 0, sizeof(*tm));
     tm->tm0.v_ls_offset = 0;
     tm->tm0.v_ls = 0;
-    tm->tm0.base_address = privPast->srf.offset +
-        size_y(w, h);
+    tm->tm0.base_address = ((privPast->srf.offset +
+                            size_y(w, h)) >> 2);
     tm->tm1.tile_walk = TILEWALK_XMAJOR;
     tm->tm1.tiled_surface = 0;
     tm->tm1.utilize_fence_regs = 0;
@@ -489,8 +497,8 @@ _STATIC_ void i915_mc_map_state_buffer(XvMCContext *context,
     memset(tm, 0, sizeof(*tm));
     tm->tm0.v_ls_offset = 0;
     tm->tm0.v_ls = 0;
-    tm->tm0.base_address = privFuture->srf.offset +
-        size_y(w, h);
+    tm->tm0.base_address = ((privFuture->srf.offset +
+                             size_y(w, h)) >> 2);
     tm->tm1.tile_walk = TILEWALK_XMAJOR;
     tm->tm1.tiled_surface = 0;
     tm->tm1.utilize_fence_regs = 0;
@@ -528,13 +536,13 @@ _STATIC_ void i915_mc_load_indirect_buffer(XvMCContext *context)
     /* SIS */
     sis = (sis_state *)(++load_indirect);
     sis->dw0.valid = 1;
-    sis->dw0.buffer_address = pI915XvMC->sis.offset;
+    sis->dw0.buffer_address = (pI915XvMC->sis.offset >> 2);
     sis->dw1.length = 16; // 4 * 3 + 2 + 3 - 1
 
     /* MSB */
     msb = (msb_state *)(++sis);
     msb->dw0.valid = 1;
-    msb->dw0.buffer_address = pI915XvMC->msb.offset;
+    msb->dw0.buffer_address = (pI915XvMC->msb.offset >> 2);
     msb->dw1.length = 23; // 3 * 8 - 1
 
     intelBatchbufferData(pI915XvMC, base, size, 0);
@@ -576,7 +584,7 @@ _STATIC_ void i915_mc_mpeg_macroblock_0mv(XvMCContext *context, XvMCMacroBlock *
     if (!mb->coded_block_pattern)
         macroblock_0mv.header.dw1.dct_type = XVMC_DCT_TYPE_FRAME;
 
-    macroblock_0mv.header.dw1.motion_type = 0; // (mb->motion_type & 0x3)
+    macroblock_0mv.header.dw1.motion_type = 0; // (mb->motion_type & 0x3);
     macroblock_0mv.header.dw1.vertical_field_select = 0; // mb->motion_vertical_field_select & 0xf;
     macroblock_0mv.header.dw1.coded_block_pattern = mb->coded_block_pattern;
     macroblock_0mv.header.dw1.skipped_macroblocks = 0;
@@ -1021,20 +1029,88 @@ _STATIC_ void i915_mc_one_time_state_initialization(XvMCContext *context)
     /* SSB */
     ssb = (ssb_state *)(++dis);
     ssb->dw0.valid = 1;
-    ssb->dw0.buffer_address = pI915XvMC->ssb.offset;
+    ssb->dw0.buffer_address = (pI915XvMC->ssb.offset >> 2);
     ssb->dw1.length = 7; /* 8 - 1 */
 
     /* PSP */
     psp = (psp_state *)(++ssb);
     psp->dw0.valid = 1;
-    psp->dw0.buffer_address = pI915XvMC->psp.offset;
+    psp->dw0.buffer_address = (pI915XvMC->psp.offset >> 2);
     psp->dw1.length = 66; /* 4 + 16 + 16 + 31 - 1 */
     
     /* PSC */
     psc = (psc_state *)(++psp);
     psc->dw0.valid = 1;
-    psc->dw0.buffer_address = pI915XvMC->psc.offset;
+    psc->dw0.buffer_address = (pI915XvMC->psc.offset >> 2);
     psc->dw1.length = 5; /* 6 - 1 */
+
+    intelBatchbufferData(pI915XvMC, base, size, 0);
+    free(base);
+}
+
+_STATIC_ void i915_mc_finish_render(XvMCContext *context)
+{
+    struct i915_3dstate_load_indirect *load_indirect = NULL;
+    sis_state *sis = NULL;
+    dis_state *dis = NULL;
+    ssb_state *ssb = NULL;
+    msb_state *msb = NULL;
+    psp_state *psp = NULL;
+    psc_state *psc = NULL;
+    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
+    unsigned size;
+    void *base = NULL;
+
+    /* flush */
+    i915_flush_with_flush_bit_clear(pI915XvMC);
+
+    /* 3DSTATE_LOAD_INDIRECT */
+    size = sizeof(*load_indirect) + sizeof(*sis) + sizeof(*dis) + 
+        sizeof(*ssb) + sizeof(*msb) + sizeof(*psp) + sizeof(*psc);
+    base = calloc(1, size);
+    load_indirect = (struct i915_3dstate_load_indirect *)base;
+    load_indirect->dw0.type = CMD_3D;
+    load_indirect->dw0.opcode = OPC_3DSTATE_LOAD_INDIRECT;
+    load_indirect->dw0.mem_select = 1;      /* Bearlake only */
+    load_indirect->dw0.block_mask = BLOCK_SIS | BLOCK_DIS | 
+        BLOCK_SSB | BLOCK_MSB | BLOCK_PSP | BLOCK_PSC;
+    load_indirect->dw0.length = (size >> 2) - 2;
+
+    /* SIS */
+    sis = (sis_state *)(++load_indirect);
+    sis->dw0.valid = 0;
+    sis->dw0.buffer_address = 0;
+    sis->dw1.length = 0;
+
+    /* DIS */
+    dis = (dis_state *)(++sis);
+    dis->dw0.valid = 0;
+    dis->dw0.reset = 0;
+    dis->dw0.buffer_address = 0;
+
+    /* SSB */
+    ssb = (ssb_state *)(++dis);
+    ssb->dw0.valid = 0;
+    ssb->dw0.buffer_address = 0;
+    ssb->dw1.length = 0;
+
+    /* MSB */
+    msb = (msb_state *)(++ssb);
+    msb->dw0.valid = 0;
+    msb->dw0.buffer_address = 0;
+    msb->dw1.length = 0;
+
+    /* PSP */
+    psp = (psp_state *)(++msb);
+    psp->dw0.valid = 0;
+    psp->dw0.buffer_address = 0;
+    psp->dw1.length = 0;
+    
+    /* PSC */
+    psc = (psc_state *)(++psp);
+    psc->dw0.valid = 0;
+    psc->dw0.buffer_address = 0;
+    psc->dw1.length = 0;
 
     intelBatchbufferData(pI915XvMC, base, size, 0);
     free(base);
@@ -1043,37 +1119,9 @@ _STATIC_ void i915_mc_one_time_state_initialization(XvMCContext *context)
 _STATIC_ int i915_xvmc_map_buffers(i915XvMCContext *pI915XvMC)
 {
     if (drmMap(pI915XvMC->fd,
-               pI915XvMC->sis.handle,
-               pI915XvMC->sis.size,
-               (drmAddress *)&pI915XvMC->sis.map) != 0) {
-        return -1;
-    }
-
-    if (drmMap(pI915XvMC->fd,
-               pI915XvMC->msb.handle,
-               pI915XvMC->msb.size,
-               (drmAddress *)&pI915XvMC->msb.map) != 0) {
-        return -1;
-    }
-
-    if (drmMap(pI915XvMC->fd,
-               pI915XvMC->ssb.handle,
-               pI915XvMC->ssb.size,
-               (drmAddress *)&pI915XvMC->ssb.map) != 0) {
-        return -1;
-    }
-
-    if (drmMap(pI915XvMC->fd,
-               pI915XvMC->psp.handle,
-               pI915XvMC->psp.size,
-               (drmAddress *)&pI915XvMC->psp.map) != 0) {
-        return -1;
-    }
-
-    if (drmMap(pI915XvMC->fd,
-               pI915XvMC->psc.handle,
-               pI915XvMC->psc.size,
-               (drmAddress *)&pI915XvMC->psc.map) != 0) {
+               pI915XvMC->subcontexts.handle,
+               pI915XvMC->subcontexts.size,
+               (drmAddress *)&pI915XvMC->subcontexts.map) != 0) {
         return -1;
     }
 
@@ -1083,41 +1131,33 @@ _STATIC_ int i915_xvmc_map_buffers(i915XvMCContext *pI915XvMC)
                (drmAddress *)&pI915XvMC->corrdata.map) != 0) {
         return -1;
     }
+    
+    pI915XvMC->sis.map = pI915XvMC->subcontexts.map;
+    pI915XvMC->msb.map = pI915XvMC->subcontexts.map + 1 * 1024;
+    pI915XvMC->ssb.map = pI915XvMC->subcontexts.map + 2 * 1024;
+    pI915XvMC->psp.map = pI915XvMC->subcontexts.map + 3 * 1024;
+    pI915XvMC->psc.map = pI915XvMC->subcontexts.map + 4 * 1024;
 
     return 0;
 }
 
 _STATIC_ void i915_xvmc_unmap_buffers(i915XvMCContext *pI915XvMC)
 {
-    if (pI915XvMC->sis.map) {
-        drmUnmap(pI915XvMC->sis.map, pI915XvMC->sis.size);
-        pI915XvMC->sis.map = NULL;
-    }
-
-    if (pI915XvMC->msb.map) {
-        drmUnmap(pI915XvMC->msb.map, pI915XvMC->msb.size);
-        pI915XvMC->msb.map = NULL;
-    }
-
-    if (pI915XvMC->ssb.map) {
-        drmUnmap(pI915XvMC->ssb.map, pI915XvMC->ssb.size);
-        pI915XvMC->ssb.map = NULL;
-    }
-
-    if (pI915XvMC->psp.map) {
-        drmUnmap(pI915XvMC->psp.map, pI915XvMC->psp.size);
-        pI915XvMC->psp.map = NULL;
-    }
-
-    if (pI915XvMC->psc.map) {
-        drmUnmap(pI915XvMC->psc.map, pI915XvMC->psc.size);
-        pI915XvMC->psc.map = NULL;
+    if (pI915XvMC->subcontexts.map) {
+        drmUnmap(pI915XvMC->subcontexts.map, pI915XvMC->subcontexts.size);
+        pI915XvMC->subcontexts.map = NULL;
     }
 
     if (pI915XvMC->corrdata.map) {
         drmUnmap(pI915XvMC->corrdata.map, pI915XvMC->corrdata.size);
         pI915XvMC->corrdata.map = NULL;
     }
+
+    pI915XvMC->sis.map = NULL;
+    pI915XvMC->msb.map = NULL;
+    pI915XvMC->ssb.map = NULL;
+    pI915XvMC->psp.map = NULL;
+    pI915XvMC->psc.map = NULL;
 }
 
 /*
@@ -1702,21 +1742,19 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 
     tmpComm = (I915XvMCCreateContextRec *)priv_data;
     pI915XvMC->ctxno = tmpComm->ctxno;
-    pI915XvMC->sis.handle = tmpComm->sis.handle;
-    pI915XvMC->sis.offset = tmpComm->sis.offset;
-    pI915XvMC->sis.size = tmpComm->sis.size;
-    pI915XvMC->msb.handle = tmpComm->msb.handle;
-    pI915XvMC->msb.offset = tmpComm->msb.offset;
-    pI915XvMC->msb.size = tmpComm->msb.size;
-    pI915XvMC->ssb.handle = tmpComm->ssb.handle;
-    pI915XvMC->ssb.offset = tmpComm->ssb.offset;
-    pI915XvMC->ssb.size = tmpComm->ssb.size;
-    pI915XvMC->psp.handle = tmpComm->psp.handle;
-    pI915XvMC->psp.offset = tmpComm->psp.offset;
-    pI915XvMC->psp.size = tmpComm->psp.size;
-    pI915XvMC->psc.handle = tmpComm->psc.handle;
-    pI915XvMC->psc.offset = tmpComm->psc.offset;
-    pI915XvMC->psc.size = tmpComm->psc.size;
+    pI915XvMC->subcontexts.handle = tmpComm->subcontexts.handle;
+    pI915XvMC->subcontexts.offset = tmpComm->subcontexts.offset;
+    pI915XvMC->sis.offset = pI915XvMC->subcontexts.offset;
+    pI915XvMC->sis.size = 1024;
+    pI915XvMC->msb.offset = pI915XvMC->subcontexts.offset + 1 * 1024;
+    pI915XvMC->msb.size = 1024;
+    pI915XvMC->ssb.offset = pI915XvMC->subcontexts.offset + 2 * 1024;
+    pI915XvMC->ssb.size = 1024;
+    pI915XvMC->psp.offset = pI915XvMC->subcontexts.offset + 3 * 1024;
+    pI915XvMC->psp.size = 1024;
+    pI915XvMC->psc.offset = pI915XvMC->subcontexts.offset + 4 * 1024;
+    pI915XvMC->psc.size = 1024;
+    pI915XvMC->subcontexts.size = tmpComm->subcontexts.size;
     pI915XvMC->corrdata.handle = tmpComm->corrdata.handle;
     pI915XvMC->corrdata.offset = tmpComm->corrdata.offset;
     pI915XvMC->corrdata.size = tmpComm->corrdata.size;
@@ -2164,7 +2202,7 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
 
     /* B Frame Test */
     if (!future_surface) {
-        privFuture = privTarget;
+        privFuture = privPast; // privTarget;
     } else {
         if (!past_surface) {
             printf("Error, No Past Surface!\n");
@@ -2192,16 +2230,22 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
         block_ptr = &(blocks->blocks[mb->index << 6]);
 
         /* Lockup can happen if the coordinates are too far out of range */
-        if (mb->x > (target_surface->width >> 4))
+        if (mb->x > (target_surface->width >> 4)) {
             mb->x = 0;
+            printf("reset x\n");
+        }
 
-        if (mb->y > (target_surface->height >> 4))
+        if (mb->y > (target_surface->height >> 4)) {
             mb->y = 0;
+            printf("reset y\n");
+        }
 
         /* Catch no pattern case */
         if (!(mb->macroblock_type & XVMC_MB_TYPE_PATTERN) &&
-            !(mb->macroblock_type & XVMC_MB_TYPE_INTRA)) 
+            !(mb->macroblock_type & XVMC_MB_TYPE_INTRA)) {
             mb->coded_block_pattern = 0;
+            printf("no coded blocks present\n");
+        }
         
         bspm = mb_bytes[mb->coded_block_pattern];
         corrdata_size += bspm;
@@ -2228,11 +2272,12 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
                                          picture_coding_type);
     i915_mc_map_state_buffer(context, privTarget, privPast, privFuture);
     i915_mc_load_indirect_buffer(context);
-    i915_mc_mpeg_set_origin(context, 
-                            &macroblock_array->macro_blocks[first_macroblock]);
     intelFlushBatch(pI915XvMC, TRUE);
+    // i915_mc_mpeg_set_origin(context, &macroblock_array->macro_blocks[first_macroblock]);
     for (i = first_macroblock; i < (num_macroblocks + first_macroblock); i++) {
         mb = &macroblock_array->macro_blocks[i];
+        i915_mc_mpeg_set_origin(context, mb);
+        // &macroblock_array->macro_blocks[first_macroblock]);
 
         /* Intra Blocks */
         if (mb->macroblock_type & XVMC_MB_TYPE_INTRA) {
@@ -2282,46 +2327,12 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
         intelFlushBatch(pI915XvMC, TRUE);        
     }
 
+    i915_mc_finish_render(context);
     intelFlushBatch(pI915XvMC, TRUE);
     pI915XvMC->last_render = pI915XvMC->alloc.irq_emitted;
     privTarget->last_render = pI915XvMC->last_render;
 
     UNLOCK_HARDWARE(pI915XvMC);
-
-    {
-        int i;
-        corrdata_ptr = pI915XvMC->corrdata.map;
-
-        printf("correct data:\n");
-        for (i = 0; i < 32; i++) {
-            printf("%02x ", *corrdata_ptr++);
-        }
-        printf("\n");
-
-        printf("y data:\n");
-        corrdata_ptr = privTarget->srf.map;
-        for (i = 0; i < 32; i++) {
-            printf("%02x ", *corrdata_ptr++);
-        }
-        printf("\n");
-
-        printf("v data:\n");
-        corrdata_ptr = privTarget->srf.map + size_y(context->width, context->height);
-        for (i = 0; i < 32; i++) {
-            printf("%02x ", *corrdata_ptr++);
-        }
-        printf("\n");
-
-        printf("u data:\n");
-        corrdata_ptr = privTarget->srf.map + size_y(context->width, context->height) + 
-           size_uv(context->width, context->height);
-        for (i = 0; i < 32; i++) {
-            printf("%02x ", *corrdata_ptr++);
-        }
-        printf("\n");
-
-        fflush(NULL);
-    }
     return Success;
 }
 

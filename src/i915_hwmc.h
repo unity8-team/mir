@@ -48,11 +48,7 @@ typedef struct
 {
     unsigned ctxno; /* XvMC private context reference number */
     drm_context_t drmcontext;
-    struct hwmc_buffer sis;     /* Static Indirect State Buffer */
-    struct hwmc_buffer msb;     /* Map State Block */
-    struct hwmc_buffer ssb;     /* Sampler State Block */
-    struct hwmc_buffer psp;     /* Pixel Shader Program Buffer */
-    struct hwmc_buffer psc;     /* Pixel Shader Constants Buffer */
+    struct hwmc_buffer subcontexts;
     struct hwmc_buffer corrdata;/* Correction Data Buffer */
     unsigned sarea_size;
     unsigned sarea_priv_offset;
