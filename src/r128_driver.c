@@ -4257,6 +4257,9 @@ ModeStatus R128ValidMode(int scrnIndex, DisplayModePtr mode,
     ScrnInfoPtr   pScrn = xf86Screens[scrnIndex];
     R128InfoPtr   info  = R128PTR(pScrn);
 
+    if (info->BIOSDisplay == R128_BIOS_DISPLAY_CRT)
+	return MODE_OK;
+
     if(info->isDFP) {
         if(info->PanelXRes < mode->CrtcHDisplay ||
            info->PanelYRes < mode->CrtcVDisplay)
