@@ -1912,7 +1912,7 @@ Status XvMCCreateSurface(Display *display, XvMCContext *context, XvMCSurface *su
     pI915Surface->height = context->height;
     pI915Surface->privContext = pI915XvMC;
     pI915Surface->privSubPic = NULL;
-
+    pI915Surface->srf.map = NULL;
     XLockDisplay(display);
 
     if ((ret = _xvmc_create_surface(display, context, surface,
@@ -1984,8 +1984,11 @@ Status XvMCDestroySurface(Display *display, XvMCSurface *surface)
     if (pI915Surface->last_flip)
         XvMCSyncSurface(display,surface);
 
+    if (pI915Surface->srf.map)
+        drmUnmap(pI915Surface->srf.map, pI915Surface->srf.size);
+
     XLockDisplay(display);
-    _xvmc_destroy_surface(display,surface);
+    _xvmc_destroy_surface(display, surface);
     XUnlockDisplay(display);
 
     free(pI915Surface);
@@ -2626,6 +2629,7 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
                                        &priv_count, &priv_data))) {
         printf("Unable to create XvMCSubpicture.\n");
         free(pI915Subpicture);
+        subpicture->privData = NULL;
         return ret;
     }
 
@@ -2674,6 +2678,8 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
         break;
 
     default:
+        drmUnmap(pI915Subpicture->srf.map, pI915Subpicture->srf.size);
+        _xvmc_destroy_subpicture(display, subpicture);
         free(pI915Subpicture);
         subpicture->privData = NULL;
         return BadMatch;
@@ -2801,6 +2807,9 @@ Status XvMCDestroySubpicture(Display *display, XvMCSubpicture *subpicture)
 
     if (pI915Subpicture->last_render)
         XvMCSyncSubpicture(display, subpicture);
+
+    if (pI915Subpicture->srf.map)
+        drmUnmap(pI915Subpicture->srf.map, pI915Subpicture->srf.size);
 
     XLockDisplay(display);
     _xvmc_destroy_subpicture(display,subpicture);

@@ -757,6 +757,7 @@ static void I915XvMCDestroySurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
 
     for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
         if (pXvMC->surfaces[i] == pSurf->surface_id) {
+            drmRmMap(pI830->drmSubFD, pXvMC->sfprivs[i]->surface_handle);
             i830_free_memory(pScrn, pXvMC->sfprivs[i]->surface);            
             xfree(pXvMC->sfprivs[i]);
             pXvMC->nsurfaces--;
@@ -777,6 +778,7 @@ static void I915XvMCDestroySubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSub
 
     for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
         if (pXvMC->surfaces[i] == pSubp->subpicture_id) {
+            drmRmMap(pI830->drmSubFD, pXvMC->sfprivs[i]->surface_handle);
             i830_free_memory(pScrn, pXvMC->sfprivs[i]->surface);            
             xfree(pXvMC->sfprivs[i]);
             pXvMC->nsurfaces--;
