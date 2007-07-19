@@ -19,6 +19,8 @@
 #include "I915XvMC.h"
 #include "intel_batchbuffer.h"
 
+#define MI_BATCH_BUFFER_END     (0xA << 23)
+
 int intelEmitIrqLocked(i915XvMCContext *pI915XvMC)
 {
    drmI830IrqEmit ie;
@@ -56,7 +58,8 @@ void intelWaitIrq(i915XvMCContext *pI915XvMC, int seq)
 void intelDestroyBatchBuffer(i915XvMCContext *pI915XvMC)
 {
    if (pI915XvMC->alloc.offset) {
-      // FIXME: free the memory allocated from AGP
+       pI915XvMC->alloc.ptr = NULL;
+       pI915XvMC->alloc.offset = 0;
    } else if (pI915XvMC->alloc.ptr) {
       free(pI915XvMC->alloc.ptr);
       pI915XvMC->alloc.ptr = NULL;
@@ -68,11 +71,17 @@ void intelDestroyBatchBuffer(i915XvMCContext *pI915XvMC)
 
 void intelInitBatchBuffer(i915XvMCContext  *pI915XvMC)
 {
-   pI915XvMC->alloc.offset = 0;
-   pI915XvMC->alloc.size = 16 * 1024;
-   pI915XvMC->alloc.ptr = malloc(pI915XvMC->alloc.size);
-   pI915XvMC->alloc.active_buf = 0;
+    if (pI915XvMC->batchbuffer.map) {
+        pI915XvMC->alloc.size = pI915XvMC->batchbuffer.size;
+        pI915XvMC->alloc.offset = pI915XvMC->batchbuffer.offset;
+        pI915XvMC->alloc.ptr = pI915XvMC->batchbuffer.map;
+    } else {
+        pI915XvMC->alloc.size = 8 * 1024;
+        pI915XvMC->alloc.offset = 0;
+        pI915XvMC->alloc.ptr = malloc(pI915XvMC->alloc.size);
+    }
 
+   pI915XvMC->alloc.active_buf = 0;
    assert(pI915XvMC->alloc.ptr);
 }
 
@@ -85,37 +94,33 @@ void intelBatchbufferRequireSpace(i915XvMCContext *pI915XvMC, unsigned sz)
 void intelBatchbufferData(i915XvMCContext *pI915XvMC, const void *data, 
                           unsigned bytes, unsigned flags)
 {
-   int extra = 0;
-
    assert((bytes & 0x3) == 0);
 
-   if (bytes & 0x7)
-      extra = 1;
-
-   intelBatchbufferRequireSpace(pI915XvMC, bytes + extra << 2);
+   intelBatchbufferRequireSpace(pI915XvMC, bytes);
    memcpy(pI915XvMC->batch.ptr, data, bytes);
    pI915XvMC->batch.ptr += bytes;
    pI915XvMC->batch.space -= bytes;
 
-   if (extra) {
-      *(int *)(pI915XvMC->batch.ptr) = 0;
-      pI915XvMC->batch.ptr += 4;
-      pI915XvMC->batch.space -= 4;
-   }
-
    assert(pI915XvMC->batch.space >= 0);
 }
 
+#define MI_FLUSH                ((0 << 29) | (4 << 23))
+#define FLUSH_MAP_CACHE         (1 << 0)
+#define FLUSH_RENDER_CACHE      (0 << 2)
+#define FLUSH_WRITE_DIRTY_STATE (1 << 4)
 void intelRefillBatchLocked(i915XvMCContext *pI915XvMC, Bool allow_unlock )
 {
-   unsigned last_irq = pI915XvMC->alloc.irq_emitted;
    unsigned half = pI915XvMC->alloc.size >> 1;
    unsigned buf = (pI915XvMC->alloc.active_buf ^= 1);
+   unsigned dword[2];
 
+   dword[0] = MI_FLUSH | FLUSH_WRITE_DIRTY_STATE | FLUSH_RENDER_CACHE | FLUSH_MAP_CACHE;
+   dword[1] = 0;
+   intelCmdIoctl(pI915XvMC, (char *)&dword[0], sizeof(dword));
    pI915XvMC->alloc.irq_emitted = intelEmitIrqLocked(pI915XvMC);
 
-   if (last_irq) {
-      intelWaitIrq(pI915XvMC, last_irq);
+   if (pI915XvMC->alloc.irq_emitted) {
+       intelWaitIrq(pI915XvMC, pI915XvMC->alloc.irq_emitted);
    }
 
    pI915XvMC->batch.start_offset = pI915XvMC->alloc.offset + buf * half;
@@ -143,7 +148,16 @@ void intelFlushBatchLocked(i915XvMCContext *pI915XvMC,
       batch.DR4 = 0;
 
       if (pI915XvMC->alloc.offset) {
-         // FIXME: MI_BATCH_BUFFER_END
+          if ((batch.used & 0x4) == 0) {
+              ((int *)pI915XvMC->batch.ptr)[0] = 0;
+              ((int *)pI915XvMC->batch.ptr)[1] = MI_BATCH_BUFFER_END;
+              batch.used += 0x8;
+              pI915XvMC->batch.ptr += 0x8;
+          } else {
+              ((int *)pI915XvMC->batch.ptr)[0] = MI_BATCH_BUFFER_END;
+              batch.used += 0x4;
+              pI915XvMC->batch.ptr += 0x4;
+          }
       }
 
       pI915XvMC->batch.start_offset += batch.used;
@@ -165,7 +179,10 @@ void intelFlushBatchLocked(i915XvMCContext *pI915XvMC,
       assert(batch.start + batch.used <= pI915XvMC->alloc.offset + pI915XvMC->alloc.size);
 
       if (pI915XvMC->alloc.offset) {
-         // DRM_I830_BATCHBUFFER
+          if (drmCommandWrite(pI915XvMC->fd, DRM_I830_BATCHBUFFER, &batch, sizeof(batch))) {
+              fprintf(stderr, "DRM_I830_BATCHBUFFER: %d\n",  -errno);
+              exit(1);
+          }
       } else {
          drmI830CmdBuffer cmd;
          cmd.buf = (char *)pI915XvMC->alloc.ptr + batch.start;

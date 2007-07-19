@@ -649,10 +649,8 @@ extern long I830CheckAvailableMemory(ScrnInfoPtr pScrn);
 Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_texture_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
-Bool i830_allocate_xvmc_surface(ScrnInfoPtr pScrn, i830_memory **surface,
-                                unsigned long size);
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
-                               i830_memory **buffer, unsigned long size);
+                               i830_memory **buffer, unsigned long size, int flags);
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,

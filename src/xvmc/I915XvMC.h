@@ -37,14 +37,25 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <X11/Xutil.h>
 
 #define I915_SUBPIC_PALETTE_SIZE        16
+#define MAX_SUBCONTEXT_LEN              1024
+
+#define PCI_CHIP_I915_G                 0x2582
+#define PCI_CHIP_I915_GM                0x2592
+#define PCI_CHIP_I945_G                 0x2772
+#define PCI_CHIP_I945_GM                0x27A2
+#define PCI_CHIP_I945_GME               0x27AE
+#define PCI_CHIP_G33_G                  0x29C2
+#define PCI_CHIP_Q35_G                  0x29B2
+#define PCI_CHIP_Q33_G                  0x29D2
 
 /***************************************************************************
 // i915XvMCDrmMap: Holds the data about the DRM maps
 ***************************************************************************/
 typedef struct _i915XvMCDrmMap {
     drm_handle_t handle;
-    unsigned offset;
-    unsigned size;
+    unsigned long offset;
+    unsigned long size;
+    unsigned long bus_addr;
     drmAddress map;
 } i915XvMCDrmMap, *i915XvMCDrmMapPtr;
 
@@ -66,7 +77,8 @@ typedef struct _i915XvMCContext {
     int lock;   /* Lightweight lock to avoid locking twice */
     int locked;
     volatile drmI830Sarea *sarea;
-
+    int inited_mc;
+    
     drmLock *driHwLock;
     drm_context_t hHWContext; /* drmcontext; */
     drm_handle_t hsarea;                /* Handle to drm shared memory area */
@@ -90,14 +102,16 @@ typedef struct _i915XvMCContext {
     XID id;
     XVisualInfo visualInfo;
     void *drawHash;
+    int deviceID;
 
     i915XvMCDrmMap sis;
     i915XvMCDrmMap msb;
     i915XvMCDrmMap ssb;
     i915XvMCDrmMap psp;
     i915XvMCDrmMap psc;
-    i915XvMCDrmMap subcontexts;
+
     i915XvMCDrmMap corrdata;
+    i915XvMCDrmMap batchbuffer;
 
     struct {
         unsigned start_offset;

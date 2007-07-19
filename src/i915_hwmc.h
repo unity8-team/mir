@@ -39,21 +39,28 @@ typedef struct
 
 struct hwmc_buffer
 {
-    unsigned handle;
-    unsigned offset;
-    unsigned size;
+    drm_handle_t handle;
+    unsigned long offset;
+    unsigned long size;
+    unsigned long bus_addr;
 };
 
 typedef struct 
 {
     unsigned ctxno; /* XvMC private context reference number */
     drm_context_t drmcontext;
-    struct hwmc_buffer subcontexts;
+    struct hwmc_buffer sis;
+    struct hwmc_buffer ssb;
+    struct hwmc_buffer msb;
+    struct hwmc_buffer psp;
+    struct hwmc_buffer psc;
     struct hwmc_buffer corrdata;/* Correction Data Buffer */
+    struct hwmc_buffer batchbuffer;
     unsigned sarea_size;
     unsigned sarea_priv_offset;
     unsigned screen;
     unsigned depth;
+    int deviceID;
     I915XvMCAttrHolder initAttrs;
 } I915XvMCCreateContextRec;
 

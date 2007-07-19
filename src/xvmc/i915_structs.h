@@ -253,6 +253,13 @@ struct i915_3dstate_dest_buffer_variables
 #define MPEG_P_PICTURE          2
 #define MPEG_B_PICTURE          3
 
+#define MC_SUB_1H               0
+#define MC_SUB_2H               1
+#define MC_SUB_4H               2
+
+#define MC_SUB_1V               0
+#define MC_SUB_2V               1
+
 struct i915_3dstate_dest_buffer_variables_mpeg
 {
     struct {
