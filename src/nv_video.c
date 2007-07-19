@@ -558,6 +558,10 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 		NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_FORMAT, 1);
 		NVDmaNext (pNv, src_format);
 	}
+	
+	NVDmaStart(pNv, NvSubScaledImage,
+			NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
+	NVDmaNext (pNv, NvDmaTT); /* source object */
 
 	while(nbox--) {
 		NVDmaStart(pNv, NvSubRectangle, RECT_SOLID_COLOR, 1);
@@ -1128,10 +1132,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			lc = pNv->GARTScratch->size / line_len;
 		}
 		
-		
-	if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
-				//you lost
-				return FALSE;
+
 	
 	while (nlines >  0) { /*actually Xv doesn't like looping here much, especially for YV12*/
 		char *dst = pNv->GARTScratch->map;
@@ -1160,11 +1161,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		
 			
 		/* DMA to VRAM */
-		NVNotifierReset(pScrn, pNv->Notifier0);
-		NVDmaStart(pNv, NvSubMemFormat,
-				NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
-		NVDmaNext (pNv, 0);
-
+		
 		NVDmaStart(pNv, NvSubMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 		NVDmaNext (pNv, (uint32_t)pNv->GARTScratch->offset);
@@ -1176,11 +1173,16 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		NVDmaNext (pNv, (1<<8)|1);
 		NVDmaNext (pNv, 0);
 
+		NVNotifierReset(pScrn, pNv->Notifier0);
+		NVDmaStart(pNv, NvSubMemFormat,
+				NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
+		NVDmaNext (pNv, 0);
+		NVDmaStart(pNv, NvSubMemFormat, 0x100, 1);
+		NVDmaNext (pNv, 0);
 		NVDmaKickoff(pNv);
-		if ( (nlines - lc ) > 0 )
-			if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
-				//you lost
-				return FALSE;
+
+		if (!NVNotifierWaitStatusSleep(pScrn, pNv->Notifier0, 0, 0))
+			return FALSE;
 
 		nlines -= lc;
 	}
