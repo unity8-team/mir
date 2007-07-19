@@ -209,35 +209,6 @@ _STATIC_ void i915_flush_with_flush_bit_clear(i915XvMCContext *pI915XvMC)
     intelBatchbufferData(pI915XvMC, &mi_flush, sizeof(mi_flush), 0);
 }
 
-_STATIC_ void i915_flush(i915XvMCContext *pI915XvMC)
-{
-    struct i915_mi_flush mi_flush;
-
-    memset(&mi_flush, 0, sizeof(mi_flush));
-    mi_flush.dw0.type = CMD_MI;
-    mi_flush.dw0.opcode = OPC_MI_FLUSH;
-    mi_flush.dw0.map_cache_invalidate = 1;
-    mi_flush.dw0.render_cache_flush_inhibit = 1;
-
-    intelBatchbufferData(pI915XvMC, &mi_flush, sizeof(mi_flush), 0);
-}
-
-_STATIC_ void __i915_flush(i915XvMCContext *pI915XvMC)
-{
-    struct i915_mi_flush mi_flush;
-    unsigned cmd[2];
-
-    memset(&mi_flush, 0, sizeof(mi_flush));
-    mi_flush.dw0.type = CMD_MI;
-    mi_flush.dw0.opcode = OPC_MI_FLUSH;
-    mi_flush.dw0.map_cache_invalidate = 1;
-    mi_flush.dw0.render_cache_flush_inhibit = 1;
-
-    cmd[0] = *(unsigned *)((char *)&mi_flush);
-    cmd[1] = 0;
-    intelCmdIoctl(pI915XvMC, (char *)&cmd[0], sizeof(cmd));
-}
-
 /* for MC picture rendering */
 _STATIC_ void i915_mc_static_indirect_state_buffer(XvMCContext *context, 
                                                    XvMCSurface *surface,
@@ -311,9 +282,10 @@ _STATIC_ void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_FRAME_PICTURE) {
         ;
     } else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_TOP_FIELD) {
-        dest_buffer_variables->dw1.v_ls_offset = 1;
+        dest_buffer_variables->dw1.v_ls = 1;
     } else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_BOTTOM_FIELD) {
         dest_buffer_variables->dw1.v_ls = 1;
+        dest_buffer_variables->dw1.v_ls_offset = 1;
     }
 
     /* 3DSTATE_DEST_BUFFER_VARIABLES_MPEG */
@@ -387,7 +359,7 @@ _STATIC_ void i915_mc_map_state_buffer(XvMCContext *context,
     tm->tm0.v_ls_offset = 0;
     tm->tm0.v_ls = 0;
     tm->tm0.base_address = (privPast->srf.offset >> 2);
-    tm->tm1.tile_walk = TILEWALK_XMAJOR;
+    tm->tm1.tile_walk = TILEWALK_XMAJOR;        /* FIXME: tiled y for performace */
     tm->tm1.tiled_surface = 0;
     tm->tm1.utilize_fence_regs = 0;
     tm->tm1.texel_fmt = 0;      /* 8bit */
@@ -789,9 +761,9 @@ _STATIC_ void i915_inst_texld(unsigned *inst,
 {
    dest = UREG(GET_UREG_TYPE(dest), GET_UREG_NR(dest));
    *inst = (op | T0_DEST(dest) | T0_SAMPLER(sampler));
-    inst++;
+   inst++;
    *inst = T1_ADDRESS_REG(coord);
-    inst++;
+   inst++;
    *inst = T2_MBZ;
 }
 
@@ -925,7 +897,7 @@ _STATIC_ void i915_mc_pixel_shader_program_buffer(XvMCContext *context)
     src1 = UREG(REG_TYPE_R, 1);
     src2 = 0;
     i915_inst_arith(inst, A0_ADD, dest, A0_DEST_CHANNEL_ALL,
-                    A0_DEST_SATURATE, src0, src1, src2);
+                    0 /* A0_DEST_SATURATE */, src0, src1, src2);
     /* mul oC, r0, c0 */
     inst += 3;
     dest = UREG(REG_TYPE_OC, 0);
@@ -1048,7 +1020,7 @@ _STATIC_ void i915_mc_one_time_state_initialization(XvMCContext *context)
     free(base);
 }
 
-_STATIC_ void i915_mc_finish_render(XvMCContext *context)
+_STATIC_ void i915_mc_start_rendering(XvMCContext *context)
 {
     struct i915_3dstate_load_indirect *load_indirect = NULL;
     sis_state *sis = NULL;
@@ -1744,6 +1716,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     pI915XvMC->ctxno = tmpComm->ctxno;
     pI915XvMC->subcontexts.handle = tmpComm->subcontexts.handle;
     pI915XvMC->subcontexts.offset = tmpComm->subcontexts.offset;
+    pI915XvMC->subcontexts.size = tmpComm->subcontexts.size;
     pI915XvMC->sis.offset = pI915XvMC->subcontexts.offset;
     pI915XvMC->sis.size = 1024;
     pI915XvMC->msb.offset = pI915XvMC->subcontexts.offset + 1 * 1024;
@@ -1754,7 +1727,6 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     pI915XvMC->psp.size = 1024;
     pI915XvMC->psc.offset = pI915XvMC->subcontexts.offset + 4 * 1024;
     pI915XvMC->psc.size = 1024;
-    pI915XvMC->subcontexts.size = tmpComm->subcontexts.size;
     pI915XvMC->corrdata.handle = tmpComm->corrdata.handle;
     pI915XvMC->corrdata.offset = tmpComm->corrdata.offset;
     pI915XvMC->corrdata.size = tmpComm->corrdata.size;
@@ -2218,6 +2190,7 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
     }
 
     LOCK_HARDWARE(pI915XvMC);
+    i915_mc_start_rendering(context);
     intelFlushBatch(pI915XvMC, TRUE);
     UNLOCK_HARDWARE(pI915XvMC);
 
@@ -2242,9 +2215,10 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
 
         /* Catch no pattern case */
         if (!(mb->macroblock_type & XVMC_MB_TYPE_PATTERN) &&
-            !(mb->macroblock_type & XVMC_MB_TYPE_INTRA)) {
+            !(mb->macroblock_type & XVMC_MB_TYPE_INTRA) &&
+            mb->coded_block_pattern) {
             mb->coded_block_pattern = 0;
-            printf("no coded blocks present\n");
+            printf("no coded blocks present!\n");
         }
         
         bspm = mb_bytes[mb->coded_block_pattern];
@@ -2327,7 +2301,6 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
         intelFlushBatch(pI915XvMC, TRUE);        
     }
 
-    i915_mc_finish_render(context);
     intelFlushBatch(pI915XvMC, TRUE);
     pI915XvMC->last_render = pI915XvMC->alloc.irq_emitted;
     privTarget->last_render = pI915XvMC->last_render;

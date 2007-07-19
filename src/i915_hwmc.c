@@ -766,14 +766,11 @@ static int I915XvMCInterceptPutImage(ScrnInfoPtr pScrn, short src_x, short src_y
                       return 1;
                    }
                    
-                   mem = pXvMC->sfprivs[i]->surface;
+                   mem = pXvMC->sfprivs[i915XvMCData->srfNo]->surface;
                    buf = pI830->FbBase + mem->offset;
                    id = i915XvMCData->real_id;
                    break;
                 }
-
-                if (i >= I915_XVMC_MAX_SURFACES)
-                    return 1;
 
                 break;
 
