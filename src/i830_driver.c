@@ -2722,7 +2722,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 
 #ifdef XvMCExtension
-   if ((pI830->directRenderingEnabled) && IS_I9XX(pI830)) {
+   if (pI830->XvEnabled && (pI830->directRenderingEnabled) && IS_I9XX(pI830)) {
        I915InitMC(pScreen);
    }
 #endif
