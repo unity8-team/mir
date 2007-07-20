@@ -1841,8 +1841,8 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     /* Verify the XvMC extension exists */
     XLockDisplay(display);
     if (!XvMCQueryExtension(display, &event_base, &error_base)) {
-        printf("XvMCExtension is not available!\n");
         XUnlockDisplay(display);
+        printf("XvMCExtension is not available!\n");
         return BadAlloc;
     }
     /* Verify XvMC version */
@@ -1873,12 +1873,15 @@ Status XvMCCreateContext(Display *display, XvPortID port,
       Pass control to the X server to create a drm_context_t for us and
       validate the with/height and flags.
     */
+    XLockDisplay(display);
     if ((ret = _xvmc_create_context(display, context, &priv_count, &priv_data))) {
+        XUnlockDisplay(display);
         printf("Unable to create XvMC Context.\n");
         free(pI915XvMC);
         context->privData = NULL;
         return ret;
     }
+    XUnlockDisplay(display);
 
     if (priv_count != (sizeof(I915XvMCCreateContextRec) >> 2)) {
         printf("_xvmc_create_context() returned incorrect data size!\n");
