@@ -591,9 +591,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 			NVDmaNext (pNv, SURFACE_FORMAT_R5G6B5);
 		}
 	}
-	NVDmaStart(pNv, NvSubScaledImage,
-			NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
-	NVDmaNext (pNv, NvDmaFB); /* source object */
+
 	NVDmaKickoff(pNv);
 
 	if (pNv->useEXA)
@@ -1120,23 +1118,8 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 
 
 	/*Below is *almost* a copypaste from NvAccelUploadM2MF, cannot use it directly because of YV12 -> YUY2 conversion */	
-
-	NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
-	NVDmaNext (pNv, NvDmaTT);
-	NVDmaNext (pNv, NvDmaFB);
-	pNv->M2MFDirection = 1;
-	int lc;
-		
-		/* Determine max amount of data we can DMA at once */
-		if (nlines * line_len <= pNv->GARTScratch->size) {
-			lc = nlines;
-		} else {
-			lc = pNv->GARTScratch->size / line_len;
-		}
-		
-
-	
-	while (nlines >  0) { /*actually Xv doesn't like looping here much, especially for YV12*/
+	if ( nlines * line_len <= pNv->GARTScratch->size)
+		{
 		char *dst = pNv->GARTScratch->map;
 		
 		/* Upload to GART */
@@ -1148,54 +1131,84 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				buf + s2offset, buf + s3offset,
 				dst, srcPitch, srcPitch2,
 				dstPitch, nlines, npixels);
-			buf += srcPitch * lc; /*typically this will NOT WORK WITH YV12 so you need to have a large enough scratch zone.*/
 			
 			break;
 		case FOURCC_UYVY:
 		case FOURCC_YUY2:
 		case FOURCC_RGB:
-			memcpy(dst, buf, srcPitch * lc);
-			buf += srcPitch * lc;
+			memcpy(dst, buf, srcPitch * nlines);
 			break;
 		default:
 			return BadImplementation;
 		}
 		
-			
-		/* DMA to VRAM */
+		if ( !pPriv -> blitter ) 
+			{
+			NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
+			NVDmaNext (pNv, NvDmaTT);
+			NVDmaNext (pNv, NvDmaFB);
+			pNv->M2MFDirection = 1;
 		
-		NVDmaStart(pNv, NvSubMemFormat,
+			/* DMA to VRAM */
+			
+			NVDmaStart(pNv, NvSubMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		NVDmaNext (pNv, (uint32_t)pNv->GARTScratch->offset);
-		NVDmaNext (pNv, (uint32_t)offset);
-		NVDmaNext (pNv, line_len);
-		NVDmaNext (pNv, dstPitch);
-		NVDmaNext (pNv, line_len);
-		NVDmaNext (pNv, lc);
-		NVDmaNext (pNv, (1<<8)|1);
-		NVDmaNext (pNv, 0);
+			NVDmaNext (pNv, (uint32_t)pNv->GARTScratch->offset);
+			NVDmaNext (pNv, (uint32_t)offset);
+			NVDmaNext (pNv, line_len);
+			NVDmaNext (pNv, dstPitch);
+			NVDmaNext (pNv, line_len);
+			NVDmaNext (pNv, nlines);
+			NVDmaNext (pNv, (1<<8)|1);
+			NVDmaNext (pNv, 0);
 
-		NVNotifierReset(pScrn, pNv->Notifier0);
-		NVDmaStart(pNv, NvSubMemFormat,
+			NVNotifierReset(pScrn, pNv->Notifier0);
+			NVDmaStart(pNv, NvSubMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
-		NVDmaNext (pNv, 0);
-		NVDmaStart(pNv, NvSubMemFormat, 0x100, 1);
-		NVDmaNext (pNv, 0);
-		NVDmaKickoff(pNv);
+			NVDmaNext (pNv, 0);
+			NVDmaStart(pNv, NvSubMemFormat, 0x100, 1);
+			NVDmaNext (pNv, 0);
+			NVDmaKickoff(pNv);
 
-		if (!NVNotifierWaitStatusSleep(pScrn, pNv->Notifier0, 0, 0))
-			return FALSE;
-
-		nlines -= lc;
-	}
-	
-	
-	
+			if (!NVNotifierWaitStatusSleep(pScrn, pNv->Notifier0, 0, 0))
+				return FALSE;
+			}
+		else 
+			{
+			NVDmaStart(pNv, NvSubScaledImage, NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
+			NVDmaNext (pNv, NvDmaTT); /* source object */
+			
+			NVPutBlitImage(pScrn, pNv->GARTScratch->offset, id,
+				       dstPitch, &dstBox,
+				       xa, ya, xb, yb,
+				       width, height,
+				       src_w, src_h, drw_w, drw_h,
+				       clipBoxes, pDraw);
+			
+			NVNotifierReset(pScrn, pNv->Notifier0);
+			NVDmaStart(pNv, NvSubScaledImage,
+				NV10_IMAGE_BLIT_NOTIFY, 1);
+			NVDmaNext (pNv, 0);
+			NVDmaStart(pNv, NvSubScaledImage, 0x100, 1);
+			NVDmaNext (pNv, 0);
+			
+			NVDmaStart(pNv, NvSubScaledImage, NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
+			NVDmaNext (pNv, NvDmaFB); /* source object */
+			NVDmaKickoff(pNv);
+			if (!NVNotifierWaitStatusSleep(pScrn, pNv->Notifier0, 0, 0))
+				return FALSE;
+			return Success;
+			}
+		}
+	else //GART is too small, we fallback on CPU copy for simplicity
+		{
+		}
+		
 	
 
 	if (!skip) {
 		if (pPriv->blitter) {
-			NVPutBlitImage(pScrn, pNv->GARTScratch->offset, id,
+			NVPutBlitImage(pScrn, offset, id,
 				       dstPitch, &dstBox,
 				       xa, ya, xb, yb,
 				       width, height,
