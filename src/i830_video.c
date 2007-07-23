@@ -605,8 +605,11 @@ I830InitVideo(ScreenPtr pScreen)
 
 #ifdef XF86DRI
 #ifdef XvMCExtension
-            if (IS_I9XX(pI830))
+        if (IS_I915G(pI830) || IS_I915GM(pI830) || 
+            IS_I945G(pI830) || IS_I945GM(pI830) ||
+            IS_G33CLASS(pI830)) {
                I915XvMCInitXv(pScrn, texturedAdaptor);
+        }
 #endif
 #endif
 	} else {
