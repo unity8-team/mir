@@ -145,6 +145,7 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     int i = 0, j, tmp, tmp0=0, tmp1=0;
+    RADEONBIOSConnector tempConnector;
 
     if(!info->VBIOS) return FALSE;
 
@@ -225,6 +226,12 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		    }
 		}
 	    }
+
+	    /* R4xx seem to get the connector table backwards */
+	    tempConnector = info->BiosConnector[0];
+	    info->BiosConnector[0] = info->BiosConnector[1];
+	    info->BiosConnector[1] = tempConnector;
+
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
 	    for (i=0; i<2; i++) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-%d, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
