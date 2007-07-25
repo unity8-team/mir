@@ -254,6 +254,12 @@ I830RefreshRing(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
+   /* If we're reaching RefreshRing as a result of grabbing the DRI lock
+    * before we've set up the ringbuffer, don't bother.
+    */
+   if (pI830->LpRing->mem == NULL)
+       return;
+
    pI830->LpRing->head = INREG(LP_RING + RING_HEAD) & I830_HEAD_MASK;
    pI830->LpRing->tail = INREG(LP_RING + RING_TAIL);
    pI830->LpRing->space = pI830->LpRing->head - (pI830->LpRing->tail + 8);

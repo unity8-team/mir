@@ -158,6 +158,9 @@ struct _i830_memory {
     i830_memory *prev;
     /** @} */
 
+#ifdef XF86DRI_MM
+    drmBO bo;
+#endif
 };
 
 typedef struct {
@@ -328,8 +331,7 @@ typedef struct _I830Rec {
 
    int TexGranularity;
    int drmMinor;
-   int mmModeFlags;
-   int mmSize;
+   Bool allocate_classic_textures;
 
    unsigned int back_tiled;
    unsigned int third_tiled;
@@ -635,6 +637,7 @@ extern void I830SubsequentSolidFillRect(ScrnInfoPtr pScrn, int x, int y,
 
 Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
 			 unsigned long size);
+void i830_allocator_fini(ScrnInfoPtr pScrn);
 void i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity,
 			       const char *prefix);
 void i830_reset_allocations(ScrnInfoPtr pScrn);
@@ -744,6 +747,7 @@ extern const int I830CopyROP[16];
 /* Flags for memory allocation function */
 #define NEED_PHYSICAL_ADDR		0x00000001
 #define ALIGN_BOTH_ENDS			0x00000002
+#define NEED_NON_STOLEN			0x00000004
 
 /* Chipset registers for VIDEO BIOS memory RW access */
 #define _855_DRAM_RW_CONTROL 0x58

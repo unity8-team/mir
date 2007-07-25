@@ -546,16 +546,12 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->ddxDriverMajorVersion = I830_MAJOR_VERSION;
    pDRIInfo->ddxDriverMinorVersion = I830_MINOR_VERSION;
    pDRIInfo->ddxDriverPatchVersion = I830_PATCHLEVEL;
-#if 1 /* Remove this soon - see bug 5714 */
-   pDRIInfo->frameBufferPhysicalAddress = (char *) pI830->LinearAddr +
-					  pI830->front_buffer->offset;
-   pDRIInfo->frameBufferSize = ROUND_TO_PAGE(pScrn->displayWidth *
-					     pScrn->virtualY * pI830->cpp);
-#else
-   /* For rotation we map a 0 length framebuffer as we remap ourselves later */
-   pDRIInfo->frameBufferSize = 0;
-#endif
-   pDRIInfo->frameBufferStride = pScrn->displayWidth * pI830->cpp;
+   /* Supply a dummy mapping info required by DRI setup.  See bug #5714 for
+    * progress on removing this requirement.
+    */
+   pDRIInfo->frameBufferPhysicalAddress = (char *) pI830->LinearAddr;
+   pDRIInfo->frameBufferSize = GTT_PAGE_SIZE;
+   pDRIInfo->frameBufferStride = 1;
    pDRIInfo->ddxDrawableTableEntry = I830_MAX_DRAWABLES;
 
    if (SAREA_MAX_DRAWABLES < I830_MAX_DRAWABLES)
@@ -637,11 +633,11 @@ I830DRIScreenInit(ScreenPtr pScreen)
       return FALSE;
    }
 
-#if 0 /* disabled now, see frameBufferSize above being set to 0 */
-   /* for this driver, get rid of the front buffer mapping now */
+   /* Now, nuke dri.c's frontbuffer map setup. */
+#if 0
    if (xf86LoaderCheckSymbol("DRIGetScreenPrivate")) {
-      DRIScreenPrivPtr pDRIPriv 
-         = (DRIScreenPrivPtr) DRIGetScreenPrivate(pScreen);
+      DRIScreenPrivPtr pDRIPriv =
+	  (DRIScreenPrivPtr) DRIGetScreenPrivate(pScreen);
 
       if (pDRIPriv && pDRIPriv->drmFD && pDRIPriv->hFrameBuffer) {
          xf86DrvMsg(pScreen->myNum, X_ERROR,
@@ -652,11 +648,25 @@ I830DRIScreenInit(ScreenPtr pScreen)
                     "[intel] done removing original screen mapping\n");
       }
    }
-   else {
-      xf86DrvMsg(pScreen->myNum, X_ERROR,
-                 "[intel] DRIGetScreenPrivate not found!!!!\n");
-   }      
 #endif
+   {
+       int tmp;
+       unsigned int fb_handle;
+       void *ptmp;
+
+       /* With the compat method, it will continue to report
+	* the wrong map out of GetDeviceInfo, but we don't have any consumers
+	* of the frontbuffer handle from there.
+	*/
+       DRIGetDeviceInfo(pScreen, &fb_handle, &tmp, &tmp, &tmp, &tmp, &ptmp);
+       drmRmMap(pI830->drmSubFD, fb_handle);
+
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		  "Removed DRI frontbuffer mapping in compatibility mode.\n");
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		  "DRIGetDeviceInfo will report incorrect frontbuffer "
+		  "handle.\n");
+   }
 
    /* Check the i915 DRM versioning */
    {
@@ -724,27 +734,6 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	    return FALSE;
 	 }
 	 pI830->drmMinor = version->version_minor;
-	 if (version->version_minor < 7) {
-	    if (pI830->mmModeFlags & I830_KERNEL_MM) {
-	       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			  "Unable to use TTM-based memory manager with DRM version %d.%d\n",
-			  version->version_major, version->version_minor);
-	       pI830->mmModeFlags &= ~I830_KERNEL_MM;
-
-	       i830_free_memory(pScrn, pI830->memory_manager);
-	       pI830->memory_manager = NULL;
-
-	       if (!(pI830->mmModeFlags & I830_KERNEL_TEX)) {
-		  pI830->mmModeFlags |= I830_KERNEL_TEX;
-
-		  if (!i830_allocate_texture_memory(pScrn)) {
-		     I830DRICloseScreen(pScreen);
-		     drmFreeVersion(version);
-		     return FALSE;
-		  }
-	       }
-	    }
-	 }
 #ifdef DAMAGE
 	 if (pI830->allowPageFlip && pI830->drmMinor < 9) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -762,7 +751,7 @@ I830DRIScreenInit(ScreenPtr pScreen)
     */
 
    if ((pDRIInfo->clientDriverName == I830ClientDriverName) && 
-       (pI830->mmModeFlags & I830_KERNEL_TEX)) {
+       (pI830->allocate_classic_textures)) {
       pDRIInfo->clientDriverName = I830LegacyClientDriverName;
    }
 
@@ -780,26 +769,21 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 					     pScrn->virtualY * pI830->cpp);
 #endif
 
-   /* The I965G isn't ready for the front buffer mapping to be moved around,
-    * because of issues with rmmap, it seems.
-    */
-   if (!IS_I965G(pI830)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		 "[drm] Mapping front buffer\n");
-      if (drmAddMap(pI830->drmSubFD,
-		    (drm_handle_t)(sarea->front_offset + pI830->LinearAddr),
-		    sarea->front_size,
-		    DRM_AGP,
-		    0,
-		    (drmAddress) &sarea->front_handle) < 0) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "[drm] drmAddMap(front_handle) failed. Disabling DRI\n");
-	 DRICloseScreen(pScreen);
-	 return FALSE;
-      }
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Front Buffer = 0x%08x\n",
-		 (int)sarea->front_handle);
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	      "[drm] Mapping front buffer\n");
+   if (drmAddMap(pI830->drmSubFD,
+		 (drm_handle_t)(sarea->front_offset + pI830->LinearAddr),
+		 sarea->front_size,
+		 DRM_AGP,
+		 0,
+		 (drmAddress) &sarea->front_handle) < 0) {
+       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		  "[drm] drmAddMap(front_handle) failed. Disabling DRI\n");
+       DRICloseScreen(pScreen);
+       return FALSE;
    }
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Front Buffer = 0x%08x\n",
+	      (int)sarea->front_handle);
 
    if (drmAddMap(pI830->drmSubFD,
                  (drm_handle_t)(sarea->back_offset + pI830->LinearAddr),
@@ -841,7 +825,7 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Depth Buffer = 0x%08x\n",
               (int)sarea->depth_handle);
 
-   if (pI830->mmModeFlags & I830_KERNEL_TEX) {
+   if (pI830->allocate_classic_textures) {
       if (drmAddMap(pI830->drmSubFD,
 		    (drm_handle_t)sarea->tex_offset + pI830->LinearAddr,
 		    sarea->tex_size, DRM_AGP, 0,
@@ -1710,7 +1694,7 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 
    success = I830DRIMapScreenRegions(pScrn, sarea);
 
-   if (success && (pI830->mmModeFlags & I830_KERNEL_TEX))
+   if (success && pI830->allocate_classic_textures)
       I830InitTextureHeap(pScrn, sarea);
 
    return success;

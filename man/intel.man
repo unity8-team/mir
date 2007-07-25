@@ -128,9 +128,8 @@ Default: XVideo is enabled for configurations where it is supported.
 Enable support for the legacy i915_dri.so 3D driver.
 This will, among other things, make the 2D driver tell libGL to
 load the 3D driver i915_dri.so instead of the newer i915tex_dri.so.
-This option is only used for chipsets in the range i830-i945. 
-Default for i830-i945 series: Enabled for i915 drm versions < 1.7.0. Otherwise
-disabled. 
+This option is only used for chipsets in the range i830-i945.
+Default for i830-i945 series: Enabled.
 Default for i810: The option is not used.
 Default for i965: The option is always true.
 .TP
