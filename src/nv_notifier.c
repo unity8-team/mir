@@ -130,39 +130,3 @@ NVNotifierWaitStatus(ScrnInfoPtr pScrn,
 	return FALSE;
 }
 
-Bool
-NVNotifierWaitStatusSleep(ScrnInfoPtr pScrn,
-		     struct drm_nouveau_notifier_alloc *notifier,
-		     unsigned int status, unsigned int timeout)
-{
-	NOTIFIER(n);
-	unsigned int t_start, time = 0;
-
-	t_start = GetTimeInMillis();
-	while (time <= timeout) {
-#if 0
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "N(0x%08x)/%d = 0x%08x/0x%08x/0x%08x/0x%08x\n",
-			   notifier->handle, time, n[0], n[1], n[2], n[3]);
-#endif
-		if (n[NV_NOTIFY_STATE/4] & NV_NOTIFY_STATE_ERROR_CODE_MASK) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Notifier returned error: 0x%04x\n",
-				   NVNotifierErrorCode(pScrn, notifier));
-			return FALSE;
-		}
-
-		if ((n[NV_NOTIFY_STATE/4] >> NV_NOTIFY_STATE_STATUS_SHIFT)
-				== status)
-			return TRUE;
-
-		if (timeout)
-			time = GetTimeInMillis() - t_start;
-		sched_yield();
-	}
-
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Notifier (0x%08x) timeout!\n", notifier->handle);
-	return FALSE;
-}
-

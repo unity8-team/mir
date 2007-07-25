@@ -1170,7 +1170,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			NVDmaNext (pNv, 0);
 			NVDmaKickoff(pNv);
 
-			if (!NVNotifierWaitStatusSleep(pScrn, pNv->Notifier0, 0, 0))
+			if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
 				return FALSE;
 			}
 		else 
@@ -1190,12 +1190,12 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				NV10_IMAGE_BLIT_NOTIFY, 1);
 			NVDmaNext (pNv, 0);
 			NVDmaStart(pNv, NvSubScaledImage, 0x100, 1);
-			NVDmaNext (pNv, 0);
-			
+			NVDmaNext (pNv, 106);
+				
 			NVDmaStart(pNv, NvSubScaledImage, NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
 			NVDmaNext (pNv, NvDmaFB); /* source object */
 			NVDmaKickoff(pNv);
-			if (!NVNotifierWaitStatusSleep(pScrn, pNv->Notifier0, 0, 0))
+			if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
 				return FALSE;
 			return Success;
 			}
