@@ -263,8 +263,8 @@ NVAllocateTTMemory(ScrnInfoPtr pScrn, NVAllocRec *mem, int size)
 			return mem;
 		NVFreeMemory(pNv, mem);
 	}
-	/*We take only AGP memory, because PCI DMA is too slow and I prefer a fallback on CPU copy.*/
-	return NVAllocateMemory(pNv, NOUVEAU_MEM_AGP, size); /* align 32? */
+	/*We may take PCI memory, but that does not mean we won't fallback on CPU copy in that case.*/
+	return NVAllocateMemory(pNv, NOUVEAU_MEM_AGP | NOUVEAU_MEM_PCI_ACCEPTABLE, size); /* align 32? */
 }
 
 /**
@@ -1169,15 +1169,15 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	if ( pPriv->TT_mem_chunk[pPriv->currentHostBuffer] )
 		{
 		destination_buffer = pPriv->TT_mem_chunk[pPriv->currentHostBuffer];
-		//xf86DrvMsg(0, X_INFO, "Using private TT memory chunk #%d\n", pPriv->currentHostBuffer);
+		xf86DrvMsg(0, X_INFO, "Using private TT memory chunk #%d\n", pPriv->currentHostBuffer);
 		}
 	else 
 		{
-		destination_buffer = pNv->GARTScratch;
-		xf86DrvMsg(0, X_INFO, "Using global GART memory chunk\n");
+		/*destination_buffer = pNv->GARTScratch;
+		xf86DrvMsg(0, X_INFO, "Using global GART memory chunk\n");*/
+				destination_buffer = NULL;
 		}
 	
-	/*Below is *almost* a copypaste from NvAccelUploadM2MF, cannot use it directly because of YV12 -> YUY2 conversion */	
 	if ( !destination_buffer)
 		goto CPU_copy;
 	
@@ -1276,7 +1276,27 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		}
 	else { //GART is too small, we fallback on CPU copy for simplicity
 		CPU_copy:
-		xf86DrvMsg(0, X_ERROR, "Fallback on CPU copy not implemented yet\n");
+		xf86DrvMsg(0, X_INFO, "Fallback on CPU copy\n");
+		unsigned char * video_mem_destination = pPriv->video_mem->map + (offset - (uint32_t)pPriv->video_mem->offset);
+		switch(id) 
+			{
+			case FOURCC_YV12:
+			case FOURCC_I420:
+		
+				NVCopyData420(buf + (top * srcPitch) + left,
+					buf + s2offset, buf + s3offset,
+					video_mem_destination, srcPitch, srcPitch2,
+					dstPitch, nlines, npixels);
+			
+			break;
+			case FOURCC_UYVY:
+			case FOURCC_YUY2:
+			case FOURCC_RGB:
+				memcpy(video_mem_destination, buf, srcPitch * nlines);
+				break;
+			default:
+				return BadImplementation;
+			}
 		}
 		
 	pPriv->currentHostBuffer ^= 1;
