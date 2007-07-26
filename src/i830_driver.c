@@ -2403,8 +2403,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    I830UnmapMMIO(pScrn);
 
-   i830_describe_allocations(pScrn, 1, "");
-
    if (!IS_I965G(pI830) && pScrn->displayWidth > 2048) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "Cannot support DRI with frame buffer width > 2048.\n");
@@ -2632,6 +2630,14 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    } else
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initializing SW Cursor!\n");
 
+#ifdef XF86DRI
+   /* Must be called before EnterVT, so we can acquire the DRI lock when
+    * binding our memory.
+    */
+   if (pI830->directRenderingEnabled)
+      pI830->directRenderingEnabled = I830DRIFinishScreenInit(pScreen);
+#endif
+
    if (!I830EnterVT(scrnIndex, 0))
       return FALSE;
 
@@ -2652,11 +2658,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    /* Init video */
    if (pI830->XvEnabled)
       I830InitVideo(pScreen);
-#endif
-
-#ifdef XF86DRI
-   if (pI830->directRenderingEnabled)
-      pI830->directRenderingEnabled = I830DRIFinishScreenInit(pScreen);
 #endif
 
    /* Setup 3D engine, needed for rotation too */
@@ -2802,6 +2803,7 @@ static Bool
 I830EnterVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+   ScreenPtr pScreen = pScrn->pScreen;
    I830Ptr  pI830 = I830PTR(pScrn);
    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
    int o;
@@ -2822,6 +2824,18 @@ I830EnterVT(int scrnIndex, int flags)
    if (I830IsPrimary(pScrn))
       if (!i830_bind_all_memory(pScrn))
          return FALSE;
+
+   i830_describe_allocations(pScrn, 1, "");
+
+   /* Update buffer locations, which may have changed as a result of
+    * i830_bind_all_memory().
+    */
+   pScrn->fbOffset = pI830->front_buffer->offset;
+   if (!pScreen->ModifyPixmapHeader(pScreen->GetScreenPixmap(pScreen),
+				    -1, -1, -1, -1, -1,
+				    (pointer)(pI830->FbBase +
+					      pScrn->fbOffset)))
+       FatalError("Couldn't adjust screen pixmap\n");
 
    if (i830_check_error_state(pScrn)) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,

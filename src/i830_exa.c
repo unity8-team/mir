@@ -405,9 +405,14 @@ I830EXAInit(ScreenPtr pScreen)
     pI830->EXADriverPtr->exa_major = 2;
     pI830->EXADriverPtr->exa_minor = 1;
     pI830->EXADriverPtr->memoryBase = pI830->FbBase;
-    pI830->EXADriverPtr->offScreenBase = pI830->exa_offscreen->offset;
-    pI830->EXADriverPtr->memorySize = pI830->exa_offscreen->offset +
+    if (pI830->exa_offscreen) {
+	pI830->EXADriverPtr->offScreenBase = pI830->exa_offscreen->offset;
+	pI830->EXADriverPtr->memorySize = pI830->exa_offscreen->offset +
 	pI830->exa_offscreen->size;
+    } else {
+	pI830->EXADriverPtr->offScreenBase = pI830->FbMapSize;
+	pI830->EXADriverPtr->memorySize = pI830->FbMapSize;
+    }
     pI830->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
 
     DPRINTF(PFX, "EXA Mem: memoryBase 0x%x, end 0x%x, offscreen base 0x%x, memorySize 0x%x\n",

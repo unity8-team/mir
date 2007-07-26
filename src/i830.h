@@ -286,7 +286,13 @@ typedef struct _I830Rec {
    /* These are set in PreInit and never changed. */
    long FbMapSize;
 
-   i830_memory *memory_list;	/**< Linked list of video memory allocations */
+   /**
+    * Linked list of video memory allocations.  The head and tail are
+    * dummy entries that bound the allocation area.
+    */
+   i830_memory *memory_list;
+   /** Linked list of buffer object memory allocations */
+   i830_memory *bo_list;
    long stolen_size;		/**< bytes of pre-bound stolen memory */
    int gtt_acquired;		/**< whether we currently own the AGP */
 

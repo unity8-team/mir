@@ -155,10 +155,25 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (mem == NULL || mem->key == -1 || mem->bound || !pI830->gtt_acquired)
+    if (mem == NULL || mem->bound || !pI830->gtt_acquired)
 	return TRUE;
 
-    if (xf86BindGARTMemory(pScrn->scrnIndex, mem->key, mem->agp_offset)) {
+#ifdef XF86DRI_MM
+    if (mem->bo.size != 0) {
+	int ret;
+
+	ret = drmBOSetPin(pI830->drmSubFD, &mem->bo, 1);
+	mem->offset = mem->bo.offset;
+	mem->end = mem->offset + mem->size;
+	if (ret)
+	    return FALSE;
+	else
+	    return TRUE;
+    }
+#endif
+
+    if (mem->key == -1 ||
+	xf86BindGARTMemory(pScrn->scrnIndex, mem->key, mem->agp_offset)) {
 	mem->bound = TRUE;
 	return TRUE;
     } else {
@@ -171,10 +186,23 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 static Bool
 i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 {
-    if (mem == NULL || mem->key == -1 || !mem->bound)
+    if (mem == NULL || !mem->bound)
 	return TRUE;
 
-    if (xf86UnbindGARTMemory(pScrn->scrnIndex, mem->key)) {
+#ifdef XF86DRI_MM
+    if (mem->bo.size != 0) {
+	I830Ptr pI830 = I830PTR(pScrn);
+	int ret;
+
+	ret = drmBOSetPin(pI830->drmSubFD, &mem->bo, 0);
+	if (ret)
+	    return FALSE;
+	else
+	    return TRUE;
+    }
+#endif
+
+    if (mem->key == -1 || xf86UnbindGARTMemory(pScrn->scrnIndex, mem->key)) {
 	mem->bound = FALSE;
 	return TRUE;
     } else {
@@ -195,6 +223,12 @@ i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 #ifdef XF86DRI_MM
     if (mem->bo.size != 0) {
 	drmBOUnReference(pI830->drmSubFD, &mem->bo);
+	if (pI830->bo_list == mem)
+	    pI830->bo_list = mem->next;
+	if (mem->next)
+	    mem->next->prev = NULL;
+	if (mem->prev)
+	    mem->prev->next = NULL;
 	xfree(mem->name);
 	xfree(mem);
 	return;
@@ -615,7 +649,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 {
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *mem;
-    unsigned long hint, mask;
+    unsigned long mask;
     int ret;
 
     assert((flags & NEED_PHYSICAL_ADDR) == 0);
@@ -635,14 +669,10 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     }
 
     mask = DRM_BO_FLAG_READ | DRM_BO_FLAG_WRITE | DRM_BO_FLAG_MAPPABLE |
-	DRM_BO_FLAG_NO_EVICT | DRM_BO_FLAG_NO_MOVE;
-    hint = DRM_BO_HINT_DONT_FENCE | DRM_BO_HINT_DONT_BLOCK |
-	DRM_BO_HINT_ALLOW_UNFENCED_MAP;
+	DRM_BO_FLAG_MEM_TT;
 
-    I830DRILock(pScrn);
     ret = drmBOCreate(pI830->drmSubFD, 0, size, align / GTT_PAGE_SIZE, NULL,
-		      drm_bo_type_dc, mask, hint, &mem->bo);
-    I830DRIUnlock(pScrn);
+		      drm_bo_type_dc, mask, 0, &mem->bo);
     if (ret) {
 	xfree(mem->name);
 	xfree(mem);
@@ -652,6 +682,13 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     mem->offset = mem->bo.offset;
     mem->end = mem->bo.start + size;
     mem->size = size;
+
+    /* Insert new allocation into the list */
+    mem->prev = NULL;
+    mem->next = pI830->bo_list;
+    if (pI830->bo_list != NULL)
+	pI830->bo_list->prev = mem;
+    pI830->bo_list = mem;
 
     return mem;
 }
@@ -710,6 +747,12 @@ i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
 
     if (tile_format == TILING_NONE)
 	return i830_allocate_memory(pScrn, name, size, alignment, flags);
+
+    /* XXX: for now, refuse to tile with buffer object allocations,
+     * until we can move the set_fence (and failure recovery) into EnterVT.
+     */
+    if (pI830->memory_manager != NULL)
+	return NULL;
 
     /* Only allocate page-sized increments. */
     size = ALIGN(size, GTT_PAGE_SIZE);
@@ -811,7 +854,7 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
     }
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		   "%sMemory allocation layout:\n", prefix);
+		   "%sFixed memory allocation layout:\n", prefix);
 
     for (mem = pI830->memory_list->next; mem->next != NULL; mem = mem->next) {
 
@@ -831,7 +874,7 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 	} else {
 	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 			   "%s0x%08lx-0x%08lx: %s "
-			   "(%ld kB, 0x%16llx physical)\n",
+			   "(%ld kB, 0x%016llx physical)\n",
 			   prefix,
 			   mem->offset, mem->end - 1, mem->name,
 			   mem->size / 1024, mem->bus_addr);
@@ -840,6 +883,25 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 		   "%s0x%08lx:            end of aperture\n",
 		   prefix, pI830->FbMapSize);
+
+#ifdef XF86DRI_MM
+    if (pI830->memory_manager) {
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		       "%sBO memory allocation layout:\n", prefix);
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		       "%s0x%08lx:            start of memory manager\n",
+		       prefix, pI830->memory_manager->offset);
+	for (mem = pI830->bo_list; mem != NULL; mem = mem->next) {
+	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+			   "%s0x%08lx-0x%08lx: %s (%ld kB)\n", prefix,
+			   mem->offset, mem->end - 1, mem->name,
+			   mem->size / 1024);
+	}
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		       "%s0x%08lx:            end of memory manager\n",
+		       prefix, pI830->memory_manager->end);
+    }
+#endif /* XF86DRI_MM */
 
     if (pI830->front_buffer != NULL) {
 	i830_describe_tiling(pScrn, verbosity, prefix, pI830->front_buffer,
@@ -1305,7 +1367,12 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 
 #ifdef I830_USE_EXA
     if (pI830->useEXA) {
-	if (pI830->exa_offscreen == NULL) {
+	/* With the kernel memory manager, the exa offscreen allocation would
+	 * change locations at EnterVT, which EXA is unprepared for.  The
+	 * performance of EXA offscreen memory management was low enough
+	 * that just not using it is reasonable.
+	 */
+	if (pI830->exa_offscreen == NULL && pI830->memory_manager == NULL) {
 	    /* Default EXA to having 3 screens worth of offscreen memory space
 	     * (for pixmaps), plus a double-buffered, 1920x1088 video's worth.
 	     *
@@ -1799,6 +1866,10 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
 		FatalError("Couldn't bind memory for %s\n", mem->name);
 	    }
 	}
+	for (mem = pI830->bo_list; mem != NULL; mem = mem->next) {
+	    if (!i830_bind_memory(pScrn, mem))
+		FatalError("Couldn't bind memory for BO %s\n", mem->name);
+	}
     }
 
     return TRUE;
@@ -1821,6 +1892,8 @@ i830_unbind_all_memory(ScrnInfoPtr pScrn)
 	{
 	    i830_unbind_memory(pScrn, mem);
 	}
+	for (mem = pI830->bo_list; mem != NULL; mem = mem->next)
+	    i830_unbind_memory(pScrn, mem);
 
 	pI830->gtt_acquired = FALSE;
 
