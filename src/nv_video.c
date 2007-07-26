@@ -164,6 +164,7 @@ NVSetPortDefaults (ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 	pPriv->autopaintColorKey	= TRUE;
 	pPriv->doubleBuffer		= TRUE;
 	pPriv->iturbt_709		= FALSE;
+	pPriv->currentHostBuffer	= 0;
 }
 
 /**
@@ -1156,6 +1157,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	Either we rely on X's GARTScratch 
 	Either we fallback on CPU copy
 	*/
+	
 	pPriv->TT_mem_chunk[0] = NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[0], 
 							      newSize);
 	pPriv->TT_mem_chunk[1] = NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[1], 
@@ -1167,16 +1169,19 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	if ( pPriv->TT_mem_chunk[pPriv->currentHostBuffer] )
 		{
 		destination_buffer = pPriv->TT_mem_chunk[pPriv->currentHostBuffer];
-		xf86DrvMsg(0, X_INFO, "Using private TT memory chunk #%d\n", pPriv->currentHostBuffer);
+		//xf86DrvMsg(0, X_INFO, "Using private TT memory chunk #%d\n", pPriv->currentHostBuffer);
 		}
 	else 
 		{
 		destination_buffer = pNv->GARTScratch;
-		xf86DrvMsg(0, X_INFO, "Using global GART memory chunk\n", pPriv->currentHostBuffer);
+		xf86DrvMsg(0, X_INFO, "Using global GART memory chunk\n");
 		}
 	
 	/*Below is *almost* a copypaste from NvAccelUploadM2MF, cannot use it directly because of YV12 -> YUY2 conversion */	
-	if ( nlines * line_len <= destination_buffer->size)
+	if ( !destination_buffer)
+		goto CPU_copy;
+	
+	if(nlines * line_len <= destination_buffer->size)
 		{
 		unsigned char *dst = destination_buffer->map;
 		
@@ -1219,17 +1224,22 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			NVDmaNext (pNv, nlines);
 			NVDmaNext (pNv, (1<<8)|1);
 			NVDmaNext (pNv, 0);
-
-			NVNotifierReset(pScrn, pNv->Notifier0);
-			NVDmaStart(pNv, NvSubMemFormat,
-				NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
-			NVDmaNext (pNv, 0);
+			
+			if ( destination_buffer == pNv->GARTScratch ) 
+				{
+				NVNotifierReset(pScrn, pNv->Notifier0);
+				NVDmaStart(pNv, NvSubMemFormat,
+					NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
+				NVDmaNext (pNv, 0);
+				}
+				
 			NVDmaStart(pNv, NvSubMemFormat, 0x100, 1);
 			NVDmaNext (pNv, 0);
 			NVDmaKickoff(pNv);
-
-			if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
-				return FALSE;
+			
+			if ( destination_buffer == pNv->GARTScratch ) 
+				if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
+					return FALSE;
 			}
 		else 
 			{
@@ -1243,23 +1253,29 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				       src_w, src_h, drw_w, drw_h,
 				       clipBoxes, pDraw);
 			
-			NVNotifierReset(pScrn, pNv->Notifier0);
-			NVDmaStart(pNv, NvSubScaledImage,
-				NV10_IMAGE_BLIT_NOTIFY, 1);
-			NVDmaNext (pNv, 0);
+			if ( destination_buffer == pNv->GARTScratch ) 
+				{
+				NVNotifierReset(pScrn, pNv->Notifier0);
+				NVDmaStart(pNv, NvSubScaledImage,
+					NV10_IMAGE_BLIT_NOTIFY, 1);
+				NVDmaNext (pNv, 0);
+				}
+				
 			NVDmaStart(pNv, NvSubScaledImage, 0x100, 1);
 			NVDmaNext (pNv, 0);
 				
 			NVDmaStart(pNv, NvSubScaledImage, NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
 			NVDmaNext (pNv, NvDmaFB); /* source object */
 			NVDmaKickoff(pNv);
-			if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
-				return FALSE;
+				
+			if ( destination_buffer == pNv->GARTScratch ) 
+				if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
+					return FALSE;
 			return Success;
 			}
 		}
-	else //GART is too small, we fallback on CPU copy for simplicity
-		{
+	else { //GART is too small, we fallback on CPU copy for simplicity
+		CPU_copy:
 		xf86DrvMsg(0, X_ERROR, "Fallback on CPU copy not implemented yet\n");
 		}
 		
