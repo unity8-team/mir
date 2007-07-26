@@ -57,6 +57,8 @@ typedef struct _NVPortPrivRec {
 	NVAllocRec *	video_mem;
 	int		pitch;
 	int		offset;
+	NVAllocRec * 	TT_mem_chunk[2];
+	int		currentHostBuffer;
 } NVPortPrivRec, *NVPortPrivPtr;
 
 #define GET_OVERLAY_PRIVATE(pNv) \
@@ -209,23 +211,8 @@ NVStopOverlay (ScrnInfoPtr pScrn)
 }
 
 /**
- * NVAllocateOverlayMemory
- * allocates memory
- * 
- * - why does the funciton have "Overlay" in its name? It does not
- * have anything "Overlay"-specific in its function body and it is called by
- * non-"Overlay"-specific functions.
- * TODO: rename to something like NVAllocateVideoMemory or NVAllocateXvMemory
- * - the function only (re-)allocates memory if it absolutely necessary,
- * that is, if the requested size is larger than the current size. that means,
- * that the size of allocated memory never shrinks, even if the requested
- * does. from a performance point of view this is most likely the best
- * alternative. but how often does the requested size of memory for video
- * playback change? whenever video-size/scaling changes? probably not very
- * often. so maybe sacrifice a tiny bit of performance (whenever the video is
- * rescaled) and not waste (RAM-)resources?
- * - the function makes assumptions about the XAA fb manager being used. isn't
- * there a way to check? what aboaut EXA?
+ * NVAllocateVideoMemory
+ * allocates video memory for a given port
  * 
  * @param pScrn screen which requests the memory
  * @param mem pointer to previously allocated memory for reallocation
@@ -233,23 +220,50 @@ NVStopOverlay (ScrnInfoPtr pScrn)
  * @return pointer to the allocated memory
  */
 static NVAllocRec *
-NVAllocateOverlayMemory(ScrnInfoPtr pScrn, NVAllocRec *mem, int size)
+NVAllocateVideoMemory(ScrnInfoPtr pScrn, NVAllocRec *mem, int size)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	/* The code assumes the XAA fb manager is being used here,
-	 * which allocates in pixels.  We allocate in bytes so we
-	 * need to adjust the size here.
+	/* 
+	We allocate in bytes, so we need to adapt.
 	 */
 	size *= (pScrn->bitsPerPixel >> 3);
 
 	if(mem) {
-		if(mem->size >= size) // if(mem->size == size)
+		if(mem->size >= size)
 			return mem;
 		NVFreeMemory(pNv, mem);
 	}
 
 	return NVAllocateMemory(pNv, NOUVEAU_MEM_FB, size); /* align 32? */
+}
+
+/**
+ * NVAllocateTTMemory
+ * allocates TT memory for a given port
+ * 
+ * @param pScrn screen which requests the memory
+ * @param mem pointer to previously allocated memory for reallocation
+ * @param size size of requested memory segment
+ * @return pointer to the allocated memory
+ */
+static NVAllocRec *
+NVAllocateTTMemory(ScrnInfoPtr pScrn, NVAllocRec *mem, int size)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	/* 
+	We allocate in bytes, so we need to adapt.
+	 */
+	size *= (pScrn->bitsPerPixel >> 3);
+
+	if(mem) {
+		if(mem->size >= size)
+			return mem;
+		NVFreeMemory(pNv, mem);
+	}
+	/*We take only AGP memory, because PCI DMA is too slow and I prefer a fallback on CPU copy.*/
+	return NVAllocateMemory(pNv, NOUVEAU_MEM_AGP, size); /* align 32? */
 }
 
 /**
@@ -269,6 +283,16 @@ NVFreeOverlayMemory(ScrnInfoPtr pScrn)
 		NVFreeMemory(pNv, pPriv->video_mem);
 		pPriv->video_mem = NULL;
 	}
+	
+	if(pPriv->TT_mem_chunk[0]) {
+		NVFreeMemory(pNv, pPriv->video_mem);
+		pPriv->video_mem = NULL;
+	}
+	
+	if(pPriv->TT_mem_chunk[1]) {
+		NVFreeMemory(pNv, pPriv->video_mem);
+		pPriv->video_mem = NULL;
+	}
 }
 
 /**
@@ -284,6 +308,16 @@ NVFreeBlitMemory(ScrnInfoPtr pScrn)
 	NVPortPrivPtr pPriv = GET_BLIT_PRIVATE(pNv);
 
 	if(pPriv->video_mem) {
+		NVFreeMemory(pNv, pPriv->video_mem);
+		pPriv->video_mem = NULL;
+	}
+	
+	if(pPriv->TT_mem_chunk[0]) {
+		NVFreeMemory(pNv, pPriv->video_mem);
+		pPriv->video_mem = NULL;
+	}
+	
+	if(pPriv->TT_mem_chunk[1]) {
 		NVFreeMemory(pNv, pPriv->video_mem);
 		pPriv->video_mem = NULL;
 	}
@@ -737,7 +771,7 @@ NVGetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
 	else if (attribute == xvColorKey)
 		*value = pPriv->colorKey;
 	else if (attribute == xvAutopaintColorKey)
-		*value = (pPriv->autopaintColorKey) ? 1 : 0;
+	  	*value = (pPriv->autopaintColorKey) ? 1 : 0;
 	else if (attribute == xvITURBT709)
 		*value = (pPriv->iturbt_709) ? 1 : 0;
 	else
@@ -916,7 +950,7 @@ static inline void NVCopyData420(unsigned char *src1, unsigned char *src2,
 
 /**
  * NVPutImage
- * PutImage is "the" important function of the Xv extention.
+ * PutImage is "the" important function of the Xv extension.
  * a client (e.g. video player) calls this function for every
  * image (of the video) to be displayed. this function then
  * scales and displays the image.
@@ -1037,7 +1071,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	if (pPriv->doubleBuffer) // double buffering ...
                 newSize <<= 1; // ... means double the amount of VRAM needed
 	
-	pPriv->video_mem = NVAllocateOverlayMemory(pScrn, pPriv->video_mem, 
+	pPriv->video_mem = NVAllocateVideoMemory(pScrn, pPriv->video_mem, 
 							      newSize);
 	if (!pPriv->video_mem)
 		return BadAlloc;
@@ -1115,12 +1149,36 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		return BadImplementation;
 	}
 
+	//xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Got fence handle %lld\n", fence_id);
 
-
-	/*Below is *almost* a copypaste from NvAccelUploadM2MF, cannot use it directly because of YV12 -> YUY2 conversion */	
-	if ( nlines * line_len <= pNv->GARTScratch->size)
+	/*Now we take a decision regarding the way we send the data to the card.
+	Either we use double buffering of "private" TT memory
+	Either we rely on X's GARTScratch 
+	Either we fallback on CPU copy
+	*/
+	pPriv->TT_mem_chunk[0] = NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[0], 
+							      newSize);
+	pPriv->TT_mem_chunk[1] = NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[1], 
+							      newSize);
+	
+	
+	NVAllocRec * destination_buffer;
+	
+	if ( pPriv->TT_mem_chunk[pPriv->currentHostBuffer] )
 		{
-		char *dst = pNv->GARTScratch->map;
+		destination_buffer = pPriv->TT_mem_chunk[pPriv->currentHostBuffer];
+		xf86DrvMsg(0, X_INFO, "Using private TT memory chunk #%d\n", pPriv->currentHostBuffer);
+		}
+	else 
+		{
+		destination_buffer = pNv->GARTScratch;
+		xf86DrvMsg(0, X_INFO, "Using global GART memory chunk\n", pPriv->currentHostBuffer);
+		}
+	
+	/*Below is *almost* a copypaste from NvAccelUploadM2MF, cannot use it directly because of YV12 -> YUY2 conversion */	
+	if ( nlines * line_len <= destination_buffer->size)
+		{
+		unsigned char *dst = destination_buffer->map;
 		
 		/* Upload to GART */
 		switch(id) {
@@ -1153,7 +1211,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			
 			NVDmaStart(pNv, NvSubMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-			NVDmaNext (pNv, (uint32_t)pNv->GARTScratch->offset);
+			NVDmaNext (pNv, (uint32_t)destination_buffer->offset);
 			NVDmaNext (pNv, (uint32_t)offset);
 			NVDmaNext (pNv, line_len);
 			NVDmaNext (pNv, dstPitch);
@@ -1178,7 +1236,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			NVDmaStart(pNv, NvSubScaledImage, NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
 			NVDmaNext (pNv, NvDmaTT); /* source object */
 			
-			NVPutBlitImage(pScrn, pNv->GARTScratch->offset, id,
+			NVPutBlitImage(pScrn, destination_buffer->offset, id,
 				       dstPitch, &dstBox,
 				       xa, ya, xb, yb,
 				       width, height,
@@ -1190,7 +1248,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				NV10_IMAGE_BLIT_NOTIFY, 1);
 			NVDmaNext (pNv, 0);
 			NVDmaStart(pNv, NvSubScaledImage, 0x100, 1);
-			NVDmaNext (pNv, 106);
+			NVDmaNext (pNv, 0);
 				
 			NVDmaStart(pNv, NvSubScaledImage, NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
 			NVDmaNext (pNv, NvDmaFB); /* source object */
@@ -1202,10 +1260,11 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		}
 	else //GART is too small, we fallback on CPU copy for simplicity
 		{
+		xf86DrvMsg(0, X_ERROR, "Fallback on CPU copy not implemented yet\n");
 		}
 		
-	
-
+	pPriv->currentHostBuffer ^= 1;
+		
 	if (!skip) {
 		if (pPriv->blitter) {
 			NVPutBlitImage(pScrn, offset, id,
@@ -1225,7 +1284,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		}
 	}
 	
-	
+
 	return Success;
 }
 
@@ -1331,7 +1390,7 @@ NVAllocSurface(ScrnInfoPtr pScrn, int id,
 	pPriv->pitch = ((w << 1) + 63) & ~63;
 	size = h * pPriv->pitch / bpp;
 
-	pPriv->video_mem = NVAllocateOverlayMemory(pScrn,
+	pPriv->video_mem = NVAllocateVideoMemory(pScrn,
 						   pPriv->video_mem,
 						   size);
 	if (!pPriv->video_mem)
