@@ -281,7 +281,7 @@ typedef struct {
     unsigned          ppll_ref_div;
     unsigned          ppll_div_3;
     CARD32            htotal_cntl;
-    CARD32            vclk_cntl;
+    CARD32            vclk_ecp_cntl;
 
 				/* Computed values for PLL2 */
     CARD32            dot_clock_freq_2;

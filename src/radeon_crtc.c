@@ -670,7 +670,7 @@ RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONInfoPtr info,
     save->ppll_div_3     = (save->feedback_div | (post_div->bitvalue << 16));
     save->htotal_cntl    = 0;
 
-    save->vclk_cntl = (info->SavedReg.vclk_cntl &
+    save->vclk_ecp_cntl = (info->SavedReg.vclk_ecp_cntl &
 	    ~RADEON_VCLK_SRC_SEL_MASK) | RADEON_VCLK_SRC_SEL_PPLLCLK;
 
 }
