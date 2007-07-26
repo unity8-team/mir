@@ -4332,12 +4332,45 @@ static void RADEONPLL2WriteUpdate(ScrnInfoPtr pScrn)
 	    ~(RADEON_P2PLL_ATOMIC_UPDATE_W));
 }
 
+static CARD8 RADEONComputePLLGain(CARD16 reference_freq, CARD16 ref_div,
+				  CARD16 fb_div)
+{
+    unsigned vcoFreq;
+
+    vcoFreq = ((unsigned)reference_freq * fb_div) / ref_div;
+
+    /*
+     * This is horribly crude: the VCO frequency range is divided into
+     * 3 parts, each part having a fixed PLL gain value.
+     */
+    if (vcoFreq >= 30000)
+	/*
+	 * [300..max] MHz : 7
+	 */
+	return 7;
+    else if (vcoFreq >= 18000)
+	/*
+	 * [180..300) MHz : 4
+	 */
+        return 4;
+    else
+	/*
+	 * [0..180) MHz : 1
+	 */
+        return 1;
+}
+
 /* Write PLL registers */
 void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
-				      RADEONSavePtr restore)
+			       RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    CARD8 pllGain;
+
+    pllGain = RADEONComputePLLGain(info->pll.reference_freq,
+				   restore->ppll_ref_div & RADEON_PPLL_REF_DIV_MASK,
+				   restore->ppll_div_3 & RADEON_PPLL_FB3_DIV_MASK);
 
     if (info->IsMobility) {
         /* A temporal workaround for the occational blanking on certain laptop panels.
@@ -4365,10 +4398,12 @@ void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
 	    RADEON_PPLL_CNTL,
 	    RADEON_PPLL_RESET
 	    | RADEON_PPLL_ATOMIC_UPDATE_EN
-	    | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN,
+	    | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN
+	    | ((CARD32)pllGain << RADEON_PPLL_PVG_SHIFT),
 	    ~(RADEON_PPLL_RESET
 	      | RADEON_PPLL_ATOMIC_UPDATE_EN
-	      | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN));
+	      | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN
+	      | RADEON_PPLL_PVG_MASK));
 
     OUTREGP(RADEON_CLOCK_CNTL_INDEX,
 	    RADEON_PLL_DIV_SEL,
@@ -4443,8 +4478,16 @@ void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
 
 /* Write PLL2 registers */
 void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
-				       RADEONSavePtr restore)
+				RADEONSavePtr restore)
 {
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    CARD8 pllGain;
+
+    pllGain = RADEONComputePLLGain(info->pll.reference_freq,
+                                   restore->p2pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
+                                   restore->p2pll_div_0 & RADEON_P2PLL_FB0_DIV_MASK);
+
+
     OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL,
 	    RADEON_PIX2CLK_SRC_SEL_CPUCLK,
 	    ~(RADEON_PIX2CLK_SRC_SEL_MASK));
@@ -4452,9 +4495,11 @@ void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
     OUTPLLP(pScrn,
 	    RADEON_P2PLL_CNTL,
 	    RADEON_P2PLL_RESET
-	    | RADEON_P2PLL_ATOMIC_UPDATE_EN,
+	    | RADEON_P2PLL_ATOMIC_UPDATE_EN
+	    | ((CARD32)pllGain << RADEON_P2PLL_PVG_SHIFT),
 	    ~(RADEON_P2PLL_RESET
-	      | RADEON_P2PLL_ATOMIC_UPDATE_EN));
+	      | RADEON_P2PLL_ATOMIC_UPDATE_EN
+	      | RADEON_P2PLL_PVG_MASK));
 
 
     OUTPLLP(pScrn, RADEON_P2PLL_REF_DIV,

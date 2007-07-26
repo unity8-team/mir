@@ -1225,6 +1225,8 @@
 #define RADEON_P2PLL_CNTL                   0x002a /* P2PLL */
 #       define RADEON_P2PLL_RESET                (1 <<  0)
 #       define RADEON_P2PLL_SLEEP                (1 <<  1)
+#       define RADEON_P2PLL_PVG_MASK             (7 << 11)
+#       define RADEON_P2PLL_PVG_SHIFT            11
 #       define RADEON_P2PLL_ATOMIC_UPDATE_EN     (1 << 16)
 #       define RADEON_P2PLL_VGA_ATOMIC_UPDATE_EN (1 << 17)
 #       define RADEON_P2PLL_ATOMIC_UPDATE_VSYNC  (1 << 18)
@@ -1274,6 +1276,8 @@
 #define RADEON_PPLL_CNTL                    0x0002 /* PLL */
 #       define RADEON_PPLL_RESET                (1 <<  0)
 #       define RADEON_PPLL_SLEEP                (1 <<  1)
+#       define RADEON_PPLL_PVG_MASK             (7 << 11)
+#       define RADEON_PPLL_PVG_SHIFT            11
 #       define RADEON_PPLL_ATOMIC_UPDATE_EN     (1 << 16)
 #       define RADEON_PPLL_VGA_ATOMIC_UPDATE_EN (1 << 17)
 #       define RADEON_PPLL_ATOMIC_UPDATE_VSYNC  (1 << 18)
