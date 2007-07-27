@@ -124,11 +124,20 @@ static void I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
 static void I830DRITransitionTo2d(ScreenPtr pScreen);
 static void I830DRITransitionTo3d(ScreenPtr pScreen);
-static void I830DRITransitionMultiToSingle3d(ScreenPtr pScreen);
-static void I830DRITransitionSingleToMulti3d(ScreenPtr pScreen);
 #if defined(DAMAGE) && (DRIINFO_MAJOR_VERSION > 5 ||		\
 			(DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1))
 #define DRI_SUPPORTS_CLIP_NOTIFY 1
+#else
+#define DRI_SUPPORTS_CLIP_NOTIFY 0
+static void I830DRITransitionMultiToSingle3d(ScreenPtr pScreen);
+static void I830DRITransitionSingleToMulti3d(ScreenPtr pScreen);
+#endif
+
+#if (DRIINFO_MAJOR_VERSION > 5 || \
+     (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 4))
+#define DRI_DRIVER_FRAMEBUFFER_MAP 1
+#else
+#define DRI_DRIVER_FRAMEBUFFER_MAP 0
 #endif
 
 #ifdef DRI_SUPPORTS_CLIP_NOTIFY
@@ -491,7 +500,8 @@ I830CheckDRIAvailable(ScrnInfoPtr pScrn)
       int major, minor, patch;
 
       DRIQueryVersion(&major, &minor, &patch);
-      if (major != DRIINFO_MAJOR_VERSION || minor < DRIINFO_MINOR_VERSION) {
+      if (major != DRIINFO_MAJOR_VERSION || minor < DRIINFO_MINOR_VERSION ||
+	  major < 5) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "[dri] %s failed because of a version mismatch.\n"
 		    "[dri] libDRI version is %d.%d.%d but version %d.%d.x is needed.\n"
@@ -546,12 +556,6 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->ddxDriverMajorVersion = I830_MAJOR_VERSION;
    pDRIInfo->ddxDriverMinorVersion = I830_MINOR_VERSION;
    pDRIInfo->ddxDriverPatchVersion = I830_PATCHLEVEL;
-   /* Supply a dummy mapping info required by DRI setup.  See bug #5714 for
-    * progress on removing this requirement.
-    */
-   pDRIInfo->frameBufferPhysicalAddress = (char *) pI830->LinearAddr;
-   pDRIInfo->frameBufferSize = GTT_PAGE_SIZE;
-   pDRIInfo->frameBufferStride = 1;
    pDRIInfo->ddxDrawableTableEntry = I830_MAX_DRAWABLES;
 
    if (SAREA_MAX_DRAWABLES < I830_MAX_DRAWABLES)
@@ -587,40 +591,38 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pDRIInfo->MoveBuffers = I830DRIMoveBuffers;
    pDRIInfo->bufferRequests = DRI_ALL_WINDOWS;
 
-   {
-#if DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1
-      int major, minor, patch;
-
-      DRIQueryVersion(&major, &minor, &patch);
-
-#if DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3
-      if (minor >= 3)
-#endif
 #if DRIINFO_MAJOR_VERSION > 5 || \
     (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3)
-	 pDRIInfo->texOffsetStart = I830TexOffsetStart;
+      pDRIInfo->texOffsetStart = I830TexOffsetStart;
 #endif
 
-#if DRI_SUPPORTS_CLIP_NOTIFY && DRIINFO_MAJOR_VERSION == 5
-      if (minor >= 1)
-#endif
 #if DRI_SUPPORTS_CLIP_NOTIFY
-	 pDRIInfo->ClipNotify = I830DRIClipNotify;
+      pDRIInfo->ClipNotify = I830DRIClipNotify;
 #endif
-#endif /* DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1 */
-   }
+
+#if DRI_DRIVER_FRAMEBUFFER_MAP
+   /* DRI version is high enough that we can get the DRI code to not
+    * try to manage the framebuffer.
+    */
+   pDRIInfo->frameBufferPhysicalAddress = 0;
+   pDRIInfo->frameBufferSize = 0;
+   pDRIInfo->frameBufferStride = 0;
+   pDRIInfo->dontMapFrameBuffer = TRUE;
+#else
+   /* Supply a dummy mapping info required by DRI setup.
+    */
+   pDRIInfo->frameBufferPhysicalAddress = (char *) pI830->LinearAddr;
+   pDRIInfo->frameBufferSize = GTT_PAGE_SIZE;
+   pDRIInfo->frameBufferStride = 1;
+#endif
 
    pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
    pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
 
-#if DRIINFO_MAJOR_VERSION > 5 || \
-    (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1)
-   if (!pDRIInfo->ClipNotify)
+#if !DRI_SUPPORTS_CLIP_NOTIFY
+   pDRIInfo->TransitionSingleToMulti3D = I830DRITransitionSingleToMulti3d;
+   pDRIInfo->TransitionMultiToSingle3D = I830DRITransitionMultiToSingle3d;
 #endif
-   {
-      pDRIInfo->TransitionSingleToMulti3D = I830DRITransitionSingleToMulti3d;
-      pDRIInfo->TransitionMultiToSingle3D = I830DRITransitionMultiToSingle3d;
-   }
 
    /* do driver-independent DRI screen initialization here */
    if (!DRIScreenInit(pScreen, pDRIInfo, &pI830->drmSubFD)) {
@@ -633,30 +635,14 @@ I830DRIScreenInit(ScreenPtr pScreen)
       return FALSE;
    }
 
-   /* Now, nuke dri.c's frontbuffer map setup. */
-#if 0
-   if (xf86LoaderCheckSymbol("DRIGetScreenPrivate")) {
-      DRIScreenPrivPtr pDRIPriv =
-	  (DRIScreenPrivPtr) DRIGetScreenPrivate(pScreen);
-
-      if (pDRIPriv && pDRIPriv->drmFD && pDRIPriv->hFrameBuffer) {
-         xf86DrvMsg(pScreen->myNum, X_ERROR,
-                    "[intel] removing original screen mapping\n");
-         drmRmMap(pDRIPriv->drmFD, pDRIPriv->hFrameBuffer);
-         pDRIPriv->hFrameBuffer = 0;
-         xf86DrvMsg(pScreen->myNum, X_ERROR,
-                    "[intel] done removing original screen mapping\n");
-      }
-   }
-#endif
-   {
+   /* Now, nuke dri.c's dummy frontbuffer map setup if we did that. */
+   if (pDRIInfo->frameBufferSize != 0) {
        int tmp;
        unsigned int fb_handle;
        void *ptmp;
 
        /* With the compat method, it will continue to report
-	* the wrong map out of GetDeviceInfo, but we don't have any consumers
-	* of the frontbuffer handle from there.
+	* the wrong map out of GetDeviceInfo, which will break AIGLX.
 	*/
        DRIGetDeviceInfo(pScreen, &fb_handle, &tmp, &tmp, &tmp, &tmp, &ptmp);
        drmRmMap(pI830->drmSubFD, fb_handle);
@@ -763,11 +749,12 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 {
    ScreenPtr pScreen = pScrn->pScreen;
    I830Ptr pI830 = I830PTR(pScrn);
+   drm_handle_t front_handle;
 
-#if 1 /* Remove this soon - see bug 5714 */
-   pI830->pDRIInfo->frameBufferSize = ROUND_TO_PAGE(pScrn->displayWidth *
-					     pScrn->virtualY * pI830->cpp);
-#endif
+   pI830->pDRIInfo->frameBufferPhysicalAddress = (char *) pI830->LinearAddr;
+   pI830->pDRIInfo->frameBufferStride = pScrn->displayWidth * pI830->cpp;
+   pI830->pDRIInfo->frameBufferSize =
+      ROUND_TO_PAGE(pI830->pDRIInfo->frameBufferStride * pScrn->virtualY);
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	      "[drm] Mapping front buffer\n");
@@ -776,12 +763,17 @@ I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 		 sarea->front_size,
 		 DRM_AGP,
 		 0,
-		 (drmAddress) &sarea->front_handle) < 0) {
+		 &front_handle) < 0) {
        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		  "[drm] drmAddMap(front_handle) failed. Disabling DRI\n");
        DRICloseScreen(pScreen);
        return FALSE;
    }
+   sarea->front_handle = front_handle;
+#if DRI_DRIVER_FRAMEBUFFER_MAP
+   pI830->pDRIInfo->hFrameBuffer = front_handle;
+#endif
+
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] Front Buffer = 0x%08x\n",
 	      (int)sarea->front_handle);
 
@@ -1530,6 +1522,7 @@ I830DRISetPfMask(ScreenPtr pScreen, int pfMask)
       pSAREAPriv->pf_active = 0;
 }
 
+#if !DRI_SUPPORTS_CLIP_NOTIFY
 static void
 I830DRITransitionSingleToMulti3d(ScreenPtr pScreen)
 {
@@ -1550,6 +1543,7 @@ I830DRITransitionMultiToSingle3d(ScreenPtr pScreen)
     */
    I830DRISetPfMask(pScreen, pI830->allowPageFlip ? 0x3 : 0);
 }
+#endif /* !DRI_SUPPORTS_CLIP_NOTIFY */
 
 static void
 I830DRITransitionTo3d(ScreenPtr pScreen)
