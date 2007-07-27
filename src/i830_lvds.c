@@ -462,6 +462,9 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     DisplayModePtr	    modes, scan, bios_mode;
     struct i830_lvds_priv   *dev_priv;
 
+    if (pI830->quirk_flag & QUIRK_IGNORE_LVDS)
+	return;
+
     output = xf86OutputCreate (pScrn, &i830_lvds_output_funcs, "LVDS");
     if (!output)
 	return;
@@ -575,29 +578,23 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     /* Blacklist machines with BIOSes that list an LVDS panel without actually
      * having one.
      */
-    if (pI830->PciInfo->chipType == PCI_CHIP_I945_GM) {
-	if (pI830->PciInfo->subsysVendor == 0xa0a0)  /* aopen mini pc */
-	    goto disable_exit;
+    if (pI830->quirk_flag & QUIRK_IGNORE_MACMINI_LVDS) {
+	/* It's a Mac Mini or Macbook Pro.
+	 *
+	 * Apple hardware is out to get us.  The macbook pro has a real
+	 * LVDS panel, but the mac mini does not, and they have the same
+	 * device IDs.  We'll distinguish by panel size, on the assumption
+	 * that Apple isn't about to make any machines with an 800x600
+	 * display.
+	 */
 
-	if ((pI830->PciInfo->subsysVendor == 0x8086) &&
-	    (pI830->PciInfo->subsysCard == 0x7270)) {
-	    /* It's a Mac Mini or Macbook Pro.
-	     *
-	     * Apple hardware is out to get us.  The macbook pro has a real
-	     * LVDS panel, but the mac mini does not, and they have the same
-	     * device IDs.  We'll distinguish by panel size, on the assumption
-	     * that Apple isn't about to make any machines with an 800x600
-	     * display.
-	     */
-
-	    if (dev_priv->panel_fixed_mode != NULL &&
+	if (dev_priv->panel_fixed_mode != NULL &&
 		dev_priv->panel_fixed_mode->HDisplay == 800 &&
 		dev_priv->panel_fixed_mode->VDisplay == 600)
-	    {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Suspected Mac Mini, ignoring the LVDS\n");
-		goto disable_exit;
-	    }
+	{
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "Suspected Mac Mini, ignoring the LVDS\n");
+	    goto disable_exit;
 	}
     }
 

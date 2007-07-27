@@ -1625,6 +1625,9 @@ i830_tv_init(ScrnInfoPtr pScrn)
     struct i830_tv_priv	    *dev_priv;
     CARD32		    tv_dac_on, tv_dac_off, save_tv_dac;
 
+    if (pI830->quirk_flag & QUIRK_IGNORE_TV)
+	return;
+
     if ((INREG(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
 	return;
 
