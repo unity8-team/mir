@@ -1169,13 +1169,13 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	if ( pPriv->TT_mem_chunk[pPriv->currentHostBuffer] )
 		{
 		destination_buffer = pPriv->TT_mem_chunk[pPriv->currentHostBuffer];
-		xf86DrvMsg(0, X_INFO, "Using private TT memory chunk #%d\n", pPriv->currentHostBuffer);
+		//xf86DrvMsg(0, X_INFO, "Using private TT memory chunk #%d\n", pPriv->currentHostBuffer);
 		}
 	else 
 		{
-		/*destination_buffer = pNv->GARTScratch;
-		xf86DrvMsg(0, X_INFO, "Using global GART memory chunk\n");*/
-				destination_buffer = NULL;
+		destination_buffer = pNv->GARTScratch;
+		//xf86DrvMsg(0, X_INFO, "Using global GART memory chunk\n");
+		//destination_buffer = NULL;
 		}
 	
 	if ( !destination_buffer)
@@ -1276,7 +1276,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		}
 	else { //GART is too small, we fallback on CPU copy for simplicity
 		CPU_copy:
-		xf86DrvMsg(0, X_INFO, "Fallback on CPU copy\n");
+		//xf86DrvMsg(0, X_INFO, "Fallback on CPU copy\n");
 		unsigned char * video_mem_destination = pPriv->video_mem->map + (offset - (uint32_t)pPriv->video_mem->offset);
 		switch(id) 
 			{
