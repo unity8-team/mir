@@ -1780,11 +1780,11 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 	 *     blit adaptor the default if composite is enabled?
 	 */
 #ifdef COMPOSITE
-/*	if (!noCompositeExtension) {
+	if (!noCompositeExtension) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			"XV: Video overlay not available, composite enabled\n");
 		return NULL;
-	}*/
+	}
 #endif
 	overlayAdaptor = NV10SetupOverlayVideo(pScreen);
 	if (overlayAdaptor)
