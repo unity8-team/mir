@@ -712,6 +712,50 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    }
 }
 
+static void
+i830UpdateFrontOffset(ScrnInfoPtr pScrn)
+{
+   ScreenPtr pScreen = pScrn->pScreen;
+   I830Ptr pI830 = I830PTR(pScrn);
+
+   /* If we are still in ScreenInit, there is no screen pixmap to be updated
+    * yet.  We'll fix it up at CreateScreenResources.
+    */
+   if (pI830->starting)
+      return;
+
+   /* Update buffer locations, which may have changed as a result of
+    * i830_bind_all_memory().
+    */
+   pScrn->fbOffset = pI830->front_buffer->offset;
+   if (!pScreen->ModifyPixmapHeader(pScreen->GetScreenPixmap(pScreen),
+				    -1, -1, -1, -1, -1,
+				    (pointer)(pI830->FbBase +
+					      pScrn->fbOffset)))
+       FatalError("Couldn't adjust screen pixmap\n");
+}
+
+/**
+ * Adjust the screen pixmap for the current location of the front buffer.
+ * This is done at EnterVT when buffers are bound as long as the resources
+ * have already been created, but the first EnterVT happens before
+ * CreateScreenResources.
+ */
+static Bool
+i830CreateScreenResources(ScreenPtr pScreen)
+{
+   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
+
+   pScreen->CreateScreenResources = pI830->CreateScreenResources;
+   if (!(*pScreen->CreateScreenResources)(pScreen))
+      return FALSE;
+
+   i830UpdateFrontOffset(pScrn);
+
+   return TRUE;
+}
+
 int
 i830_output_clones (ScrnInfoPtr pScrn, int type_mask)
 {
@@ -2680,6 +2724,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pScreen->SaveScreen = xf86SaveScreen;
    pI830->CloseScreen = pScreen->CloseScreen;
    pScreen->CloseScreen = I830CloseScreen;
+   pI830->CreateScreenResources = pScreen->CreateScreenResources;
+   pScreen->CreateScreenResources = i830CreateScreenResources;
 
    if (!xf86CrtcScreenInit (pScreen))
        return FALSE;
@@ -2803,7 +2849,6 @@ static Bool
 I830EnterVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-   ScreenPtr pScreen = pScrn->pScreen;
    I830Ptr  pI830 = I830PTR(pScrn);
    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
    int o;
@@ -2827,15 +2872,7 @@ I830EnterVT(int scrnIndex, int flags)
 
    i830_describe_allocations(pScrn, 1, "");
 
-   /* Update buffer locations, which may have changed as a result of
-    * i830_bind_all_memory().
-    */
-   pScrn->fbOffset = pI830->front_buffer->offset;
-   if (!pScreen->ModifyPixmapHeader(pScreen->GetScreenPixmap(pScreen),
-				    -1, -1, -1, -1, -1,
-				    (pointer)(pI830->FbBase +
-					      pScrn->fbOffset)))
-       FatalError("Couldn't adjust screen pixmap\n");
+   i830UpdateFrontOffset(pScrn);
 
    if (i830_check_error_state(pScrn)) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
