@@ -1165,6 +1165,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	
 	
 	NVAllocRec * destination_buffer;
+	unsigned char * video_mem_destination; 
 	
 	if ( pPriv->TT_mem_chunk[pPriv->currentHostBuffer] )
 		{
@@ -1276,8 +1277,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		}
 	else { //GART is too small, we fallback on CPU copy for simplicity
 		CPU_copy:
-		//xf86DrvMsg(0, X_INFO, "Fallback on CPU copy\n");
-		unsigned char * video_mem_destination = pPriv->video_mem->map + (offset - (uint32_t)pPriv->video_mem->offset);
+		video_mem_destination = pPriv->video_mem->map + (offset - (uint32_t)pPriv->video_mem->offset);
 		switch(id) 
 			{
 			case FOURCC_YV12:
