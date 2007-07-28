@@ -59,6 +59,7 @@ typedef struct _NVPortPrivRec {
 	int		offset;
 	NVAllocRec * 	TT_mem_chunk[2];
 	int		currentHostBuffer;
+	struct drm_nouveau_notifier_alloc *DMANotifier[2];
 } NVPortPrivRec, *NVPortPrivPtr;
 
 #define GET_OVERLAY_PRIVATE(pNv) \
@@ -225,10 +226,6 @@ NVAllocateVideoMemory(ScrnInfoPtr pScrn, NVAllocRec *mem, int size)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	/* 
-	We allocate in bytes, so we need to adapt.
-	 */
-	size *= (pScrn->bitsPerPixel >> 3);
 
 	if(mem) {
 		if(mem->size >= size)
@@ -253,10 +250,6 @@ NVAllocateTTMemory(ScrnInfoPtr pScrn, NVAllocRec *mem, int size)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	/* 
-	We allocate in bytes, so we need to adapt.
-	 */
-	size *= (pScrn->bitsPerPixel >> 3);
 
 	if(mem) {
 		if(mem->size >= size)
@@ -421,7 +414,10 @@ NVPutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
 		/* we always paint V4L's color key */
 		if (!pPriv->grabbedByV4L)
 			REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
+		{
+		xf86DrvMsg(0, X_INFO, "calling xf86XVFillKeyHelper at %u, colorkey is %u\n", GetTimeInMillis(), pPriv->colorKey);
 		xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes);
+		}
 	}
 
 	if(pNv->CurrentLayout.mode->Flags & V_DBLSCAN) {
@@ -593,10 +589,6 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 		NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_FORMAT, 1);
 		NVDmaNext (pNv, src_format);
 	}
-	
-	NVDmaStart(pNv, NvSubScaledImage,
-			NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
-	NVDmaNext (pNv, NvDmaTT); /* source object */
 
 	while(nbox--) {
 		NVDmaStart(pNv, NvSubRectangle, RECT_SOLID_COLOR, 1);
@@ -990,26 +982,20 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 {
 	NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
 	NVPtr pNv = NVPTR(pScrn);
-	INT32 xa, xb, ya, yb;
-	int newSize, offset, s2offset, s3offset;
-	int srcPitch, srcPitch2, dstPitch;
-	int top, left, right, bottom, npixels, nlines, bpp;
+	INT32 xa = 0, xb = 0, ya = 0, yb = 0; //source box
+	int newSize = 0, offset = 0, s2offset = 0, s3offset = 0; //byte size of the whole source data, card VRAM offset, source offsets for U and V planes
+	int srcPitch = 0, srcPitch2 = 0, dstPitch = 0; //source pitch, source pitch of U and V planes in case of YV12, VRAM destination pitch
+	int top = 0, left = 0, right = 0, bottom = 0, npixels = 0, nlines = 0; //position of the given source data (using src_*), number of pixels and lines we are interested in
 	Bool skip = FALSE;
 	BoxRec dstBox;
-	CARD32 tmp;
-	int line_len;
-	
-	/* s2offset, s3offset - byte offsets into U and V plane of the
-	 *                      source where copying starts.  YV12 is indeed one plane of Y and two subsampled planes of U and V
-	 * offset - byte offset to the first line of the destination.
-	 * dst_start - byte address to the first displayed pel.
-	 */
+	CARD32 tmp = 0;
+	int line_len = 0; //length of a line, like npixels, but in bytes 
+	int DMAoffset = 0; //additional VRAM offset to start the DMA copy to
+	NVAllocRec * destination_buffer = NULL;
+	unsigned char * video_mem_destination = NULL;  
 
 	if (pPriv->grabbedByV4L)
 		return Success;
-
-	/* make the compiler happy */
-	s2offset = s3offset = srcPitch2 = 0;
 
 	if (!pPriv->blitter) { /* overlay hardware scaler limitation */
 		if (src_w > (drw_w << 3))
@@ -1017,6 +1003,8 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		if (src_h > (drw_h << 3))
 			drw_h = src_h >> 3;
 	}
+	
+	//xf86DrvMsg(0, X_INFO, "%s: src %hd,%hd->%hd,%hd dst %hd,%hd->%hd,%hd w %hd h %hd\n", pPriv->blitter ? "Blitter" : "Overlay", src_x, src_y, src_w, src_h, drw_x, drw_y, drw_w, drw_h, width, height);
 
 	/* Clip */
 	xa = src_x;
@@ -1041,9 +1029,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	}
 
 	
-	/* determine required memory size */
-	bpp = pScrn->bitsPerPixel >> 3; // bytes per pixel
-
+	/* Set up source and destination pitch (usually the same, except for YV12 that is converted to YUY2, and  some alignment considerations*/
 	switch(id) {
 	case FOURCC_YV12:
 	case FOURCC_I420:
@@ -1065,9 +1051,9 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	default:
 		return BadImplementation;
 	}
-	/* dstPitch = number of bytes per row
-	 but the allocation is done is pixel, hence the division to get the real number of bytes */
-	newSize = height * dstPitch / bpp;
+	
+
+	newSize = height * dstPitch;
 	
 	if (pPriv->doubleBuffer) // double buffering ...
                 newSize <<= 1; // ... means double the amount of VRAM needed
@@ -1078,24 +1064,26 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		return BadAlloc;
 
 	offset = pPriv->video_mem->offset;
+	
+	/*The overlay supports hardware double buffering. We handle this here*/
 	if (pPriv->doubleBuffer) {
 		int mask = 1 << (pPriv->currentBuffer << 2);
 
 		/* overwrite the newest buffer if there's not one free */
 		if (nvReadVIDEO(pNv, NV_PVIDEO_BUFFER) & mask) {
 			if (!pPriv->currentBuffer)
-				offset += (height + 1) * dstPitch;
+				offset += (height) * dstPitch;
 			skip = TRUE;
 		} else
 
 		if (pPriv->currentBuffer)
-			offset += (height + 1) * dstPitch;
+			offset += (height) * dstPitch;
 	}
 
 
 	/* We need to enlarge the copied rectangle by a pixel so the HW
 	 * filtering doesn't pick up junk laying outside of the source */
-	/* fixed point arithmetic */
+	/* This is fixed point arithmetic, as xf86XVClipVideoHelper probably turns its parameter into fixed point values */
 	left = (xa - 0x00010000) >> 16;
 	if (left < 0) left = 0;
 	top = (ya - 0x00010000) >> 16;
@@ -1105,9 +1093,12 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	bottom = (yb + 0x0001ffff) >> 16;
 	if (bottom > height) bottom = height;
 
+	/* Reason of this call probably has to do with flushing the GPU before being able to operate on VRAM. We could get rid of it now, at least in most cases. */
 	if(pPriv->blitter) NVSync(pScrn);
 
 	
+	/* Now we calculate the different values we need for the transfer : width and height of the rectangle of "interesting" data in the source buffer (usually everything,
+	but it may not be the case, e.g. with tvtime and overscanning. */	
 	switch(id) {
 	case FOURCC_YV12:
 	case FOURCC_I420:
@@ -1116,41 +1107,39 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		top &= ~1;
 		nlines = ((bottom + 1) & ~1) - top;
 
-		offset += (left << 1) + (top * dstPitch);
+		DMAoffset += (left << 1) + (top * dstPitch);
 		tmp = ((top >> 1) * srcPitch2) + (left >> 1);
 		s2offset += tmp;
 		s3offset += tmp;
+		line_len = npixels << 1;
 		if (id == FOURCC_I420) {
 			tmp = s2offset;
 			s2offset = s3offset;
 			s3offset = tmp;
 		}
-		line_len = dstPitch;
+		buf  += 0; //we do not touch it yet, because we need the base pointer to find the position of U and V planes
 		break;
 	case FOURCC_UYVY:
 	case FOURCC_YUY2:
 		left &= ~1;
 		npixels = ((right + 1) & ~1) - left;
 		nlines = bottom - top;
-
+		line_len = npixels << 1;
 		left <<= 1;
 		buf += (top * srcPitch) + left;
-		offset += left + (top * dstPitch);
-		line_len = width << 1;
+		DMAoffset += left + (top * dstPitch);
 		break;
 	case FOURCC_RGB:
 		npixels = right - left;
 		nlines = bottom - top;
 		left <<= 2;
 		buf += (top * srcPitch) + left;
-		offset += left + (top * dstPitch);
-		line_len = width << 2;
+		line_len = npixels << 2;
+		DMAoffset += left + (top * dstPitch);
 		break;
 	default:
 		return BadImplementation;
 	}
-
-	//xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Got fence handle %lld\n", fence_id);
 
 	/*Now we take a decision regarding the way we send the data to the card.
 	Either we use double buffering of "private" TT memory
@@ -1158,126 +1147,94 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	Either we fallback on CPU copy
 	*/
 	
+	/* Try to allocate host-side double buffers (this function will return if the memory has already been allocated)*/
 	pPriv->TT_mem_chunk[0] = NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[0], 
 							      newSize);
 	pPriv->TT_mem_chunk[1] = NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[1], 
 							      newSize);
 	
-	
-	NVAllocRec * destination_buffer;
-	unsigned char * video_mem_destination; 
-	
 	if ( pPriv->TT_mem_chunk[pPriv->currentHostBuffer] )
-		{
+		{ //if we have a private buffer
 		destination_buffer = pPriv->TT_mem_chunk[pPriv->currentHostBuffer];
-		//xf86DrvMsg(0, X_INFO, "Using private TT memory chunk #%d\n", pPriv->currentHostBuffer);
+		//xf86DrvMsg(0, X_INFO, "Using private mem chunk #%d\n", pPriv->currentHostBuffer);
 		}
 	else 
-		{
+		{ //otherwise we fall back of GART
 		destination_buffer = pNv->GARTScratch;
 		//xf86DrvMsg(0, X_INFO, "Using global GART memory chunk\n");
-		//destination_buffer = NULL;
 		}
-	
-	if ( !destination_buffer)
+
+	if ( !destination_buffer) //if we have no GART at all
 		goto CPU_copy;
 	
-	if(nlines * line_len <= destination_buffer->size)
+	if(nlines * line_len <= destination_buffer->size) /*XXX: update the check*/
 		{
 		unsigned char *dst = destination_buffer->map;
-		
+		int i = 0;
+			
 		/* Upload to GART */
 		switch(id) {
 		case FOURCC_YV12:
 		case FOURCC_I420:
-		
 			NVCopyData420(buf + (top * srcPitch) + left,
 				buf + s2offset, buf + s3offset,
 				dst, srcPitch, srcPitch2,
-				dstPitch, nlines, npixels);
-			
+				line_len, nlines, npixels);
 			break;
 		case FOURCC_UYVY:
 		case FOURCC_YUY2:
 		case FOURCC_RGB:
-			memcpy(dst, buf, srcPitch * nlines);
+			for ( i=0; i < nlines; i++)
+				{
+				memcpy(dst, buf, line_len);
+				dst += line_len;
+				buf += srcPitch;
+				}
 			break;
 		default:
 			return BadImplementation;
 		}
 		
-		if ( !pPriv -> blitter ) 
-			{
-			NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
-			NVDmaNext (pNv, NvDmaTT);
-			NVDmaNext (pNv, NvDmaFB);
-			pNv->M2MFDirection = 1;
+
+		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
+		NVDmaNext (pNv, NvDmaTT);
+		NVDmaNext (pNv, NvDmaFB);
+		pNv->M2MFDirection = 1;
 		
-			/* DMA to VRAM */
+		/* DMA to VRAM */
 			
-			NVDmaStart(pNv, NvSubMemFormat,
-				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-			NVDmaNext (pNv, (uint32_t)destination_buffer->offset);
-			NVDmaNext (pNv, (uint32_t)offset);
-			NVDmaNext (pNv, line_len);
-			NVDmaNext (pNv, dstPitch);
-			NVDmaNext (pNv, line_len);
-			NVDmaNext (pNv, nlines);
-			NVDmaNext (pNv, (1<<8)|1);
-			NVDmaNext (pNv, 0);
+		NVDmaStart(pNv, NvSubMemFormat,
+			NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
+		NVDmaNext (pNv, (uint32_t)destination_buffer->offset);
+		NVDmaNext (pNv, (uint32_t)offset + DMAoffset);
+		NVDmaNext (pNv, line_len);
+		NVDmaNext (pNv, dstPitch);
+		NVDmaNext (pNv, line_len);
+		NVDmaNext (pNv, nlines);
+		NVDmaNext (pNv, (1<<8)|1);
+		NVDmaNext (pNv, 0);
 			
-			if ( destination_buffer == pNv->GARTScratch ) 
-				{
-				NVNotifierReset(pScrn, pNv->Notifier0);
-				NVDmaStart(pNv, NvSubMemFormat,
-					NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
-				NVDmaNext (pNv, 0);
-				}
-				
-			NVDmaStart(pNv, NvSubMemFormat, 0x100, 1);
-			NVDmaNext (pNv, 0);
-			NVDmaKickoff(pNv);
-			
-			if ( destination_buffer == pNv->GARTScratch ) 
-				if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
-					return FALSE;
-			}
-		else 
+		if ( destination_buffer == pNv->GARTScratch ) 
 			{
-			NVDmaStart(pNv, NvSubScaledImage, NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
-			NVDmaNext (pNv, NvDmaTT); /* source object */
-			
-			NVPutBlitImage(pScrn, destination_buffer->offset, id,
-				       dstPitch, &dstBox,
-				       xa, ya, xb, yb,
-				       width, height,
-				       src_w, src_h, drw_w, drw_h,
-				       clipBoxes, pDraw);
-			
-			if ( destination_buffer == pNv->GARTScratch ) 
-				{
-				NVNotifierReset(pScrn, pNv->Notifier0);
-				NVDmaStart(pNv, NvSubScaledImage,
-					NV10_IMAGE_BLIT_NOTIFY, 1);
-				NVDmaNext (pNv, 0);
-				}
-				
-			NVDmaStart(pNv, NvSubScaledImage, 0x100, 1);
+			NVNotifierReset(pScrn, pNv->Notifier0);
+			NVDmaStart(pNv, NvSubMemFormat,
+				NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
 			NVDmaNext (pNv, 0);
-				
-			NVDmaStart(pNv, NvSubScaledImage, NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
-			NVDmaNext (pNv, NvDmaFB); /* source object */
-			NVDmaKickoff(pNv);
-				
-			if ( destination_buffer == pNv->GARTScratch ) 
-				if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
-					return FALSE;
-			return Success;
 			}
+				
+		NVDmaStart(pNv, NvSubMemFormat, 0x100, 1);
+		NVDmaNext (pNv, 0);
+		NVDmaKickoff(pNv);
+			
+		if ( destination_buffer == pNv->GARTScratch ) 
+			if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
+				return FALSE;
 		}
-	else { //GART is too small, we fallback on CPU copy for simplicity
+	else { //GART is too small, we fallback on CPU copy
 		CPU_copy:
 		video_mem_destination = pPriv->video_mem->map + (offset - (uint32_t)pPriv->video_mem->offset);
+		int i = 0;
+		//xf86DrvMsg(0, X_INFO, "Fallback on CPU copy\n");
 		switch(id) 
 			{
 			case FOURCC_YV12:
@@ -1292,7 +1249,32 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			case FOURCC_UYVY:
 			case FOURCC_YUY2:
 			case FOURCC_RGB:
-				memcpy(video_mem_destination, buf, srcPitch * nlines);
+				for ( i=0; i < nlines; i++)
+					{
+					int dwords = npixels << 1;
+					while (dwords & ~0x03) 
+						{
+						*video_mem_destination = *buf;
+						*(video_mem_destination + 1) = *(buf + 1);
+						*(video_mem_destination + 2) = *(buf + 2);
+						*(video_mem_destination + 3) = *(buf + 3);
+						video_mem_destination += 4;
+						buf += 4;
+						dwords -= 4;
+						}
+					switch ( dwords ) 
+						{
+						case 3:
+							*(video_mem_destination + 2) = *(buf + 2);
+						case 2:
+							*(video_mem_destination + 1) = *(buf + 1);
+						case 1:
+							*video_mem_destination = *buf;
+						}
+										
+					video_mem_destination += dstPitch - (npixels << 1);
+					buf += srcPitch - (npixels << 1);
+					}
 				break;
 			default:
 				return BadImplementation;
