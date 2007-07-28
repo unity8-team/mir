@@ -712,6 +712,10 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    }
 }
 
+#if 0
+/* This code ended up unused, but will be at least a reference when we let the
+ * front buffer move.
+ */
 static void
 i830UpdateFrontOffset(ScrnInfoPtr pScrn)
 {
@@ -755,6 +759,7 @@ i830CreateScreenResources(ScreenPtr pScreen)
 
    return TRUE;
 }
+#endif
 
 int
 i830_output_clones (ScrnInfoPtr pScrn, int type_mask)
@@ -2724,8 +2729,10 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pScreen->SaveScreen = xf86SaveScreen;
    pI830->CloseScreen = pScreen->CloseScreen;
    pScreen->CloseScreen = I830CloseScreen;
+#if 0
    pI830->CreateScreenResources = pScreen->CreateScreenResources;
    pScreen->CreateScreenResources = i830CreateScreenResources;
+#endif
 
    if (!xf86CrtcScreenInit (pScreen))
        return FALSE;
@@ -2872,7 +2879,9 @@ I830EnterVT(int scrnIndex, int flags)
 
    i830_describe_allocations(pScrn, 1, "");
 
+#if 0
    i830UpdateFrontOffset(pScrn);
+#endif
 
    if (i830_check_error_state(pScrn)) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
