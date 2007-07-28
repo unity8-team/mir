@@ -620,12 +620,14 @@ Bool NVExaInit(ScreenPtr pScreen)
 	pNv->EXADriverPtr->DoneSolid = NVExaDoneSolid;
 
 	switch (pNv->Architecture) {
+#if X_BYTE_ORDER == X_LITTLE_ENDIAN
 	case NV_ARCH_40:
 		pNv->EXADriverPtr->CheckComposite   = NV30EXACheckComposite;
 		pNv->EXADriverPtr->PrepareComposite = NV30EXAPrepareComposite;
 		pNv->EXADriverPtr->Composite        = NV30EXAComposite;
 		pNv->EXADriverPtr->DoneComposite    = NV30EXADoneComposite;
 		break;
+#endif
 	default:
 		if (!pNv->BlendingPossible)
 			break;
