@@ -360,12 +360,27 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
             OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
             save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
             save->lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS);
-        } 
+        } else if (radeon_output->MonType == MT_STV ||
+		   radeon_output->MonType == MT_CTV) {
+#if 0
+	    /* TV_MASTER_CNTL ??? */
+
+	    /* XXX: FIXME: STV vs CTV and DACPD bits */
+	    tmp = INREG(RADEON_TV_DAC_CNTL);
+	    tmp |= (TV_DAC_CNTL_NBLANK | TV_DAC_CNTL_NHOLD);
+	    tmp &= ~(TV_DAC_CNTL_BGSLEEP | TV_DAC_CNTL_RDACPD
+		     | TV_DAC_CNTL_GDACPD | TV_DAC_CNTL_BDACPD);
+	    OUTREG(RADEON_TV_DAC_CNTL, tmp);
+	    save->tv_dac_cntl |= (TV_DAC_CNTL_NBLANK | TV_DAC_CNTL_NHOLD);
+	    save->tv_dac_cntl &= ~(TV_DAC_CNTL_BGSLEEP | TV_DAC_CNTL_RDACPD
+				   | TV_DAC_CNTL_GDACPD | TV_DAC_CNTL_BDACPD);
+#endif
+	}
     } else {
         if (radeon_output->MonType == MT_CRT || radeon_output->MonType == NONE) {
             if (radeon_output->DACType == DAC_PRIMARY) {
                 tmp = INREG(RADEON_CRTC_EXT_CNTL);
-                tmp &= ~RADEON_CRTC_CRT_ON;                    
+                tmp &= ~RADEON_CRTC_CRT_ON;       
                 OUTREG(RADEON_CRTC_EXT_CNTL, tmp);
                 save->crtc_ext_cntl &= ~RADEON_CRTC_CRT_ON;
             } else if (radeon_output->DACType == DAC_TVDAC) {
@@ -417,6 +432,20 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
 	    }
         }
+
+	if (radeon_output->MonType == MT_STV ||
+	    radeon_output->MonType == MT_CTV) {
+
+	    /* TV_MASTER_CNTL ??? */
+#if 0
+	    tmp = INREG(RADEON_TV_DAC_CNTL);
+	    tmp &= ~(TV_DAC_CNTL_NBLANK | TV_DAC_CNTL_NHOLD);
+	    tmp |= (TV_DAC_CNTL_BGSLEEP | TV_DAC_CNTL_RDACPD | TV_DAC_CNTL_GDACPD | TV_DAC_CNTL_BDACPD);
+	    OUTREG(RADEON_TV_DAC_CNTL, tmp);
+	    save->tv_dac_cntl &= ~(TV_DAC_CNTL_NBLANK | TV_DAC_CNTL_NHOLD);
+	    save->tv_dac_cntl |= (TV_DAC_CNTL_BGSLEEP | TV_DAC_CNTL_RDACPD | TV_DAC_CNTL_GDACPD | TV_DAC_CNTL_BDACPD);
+#endif
+	}
     }
 }
 

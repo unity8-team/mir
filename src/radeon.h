@@ -65,6 +65,8 @@
 #include "xf86xv.h"
 
 #include "radeon_probe.h"
+#include "radeon_tv.h"
+
 				/* DRI support */
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
@@ -300,12 +302,54 @@ typedef struct {
     CARD32            palette[256];
     CARD32            palette2[256];
 
-    CARD32            tv_dac_cntl;
-
     CARD32            rs480_unk_e30;
     CARD32            rs480_unk_e34;
     CARD32            rs480_unk_e38;
     CARD32            rs480_unk_e3c;
+
+    /* TV out registers */
+    CARD32 	      tv_master_cntl;
+    CARD32 	      tv_htotal;
+    CARD32 	      tv_hsize;
+    CARD32 	      tv_hdisp;
+    CARD32 	      tv_hstart;
+    CARD32 	      tv_vtotal;
+    CARD32 	      tv_vdisp;
+    CARD32 	      tv_timing_cntl;
+    CARD32 	      tv_vscaler_cntl1;
+    CARD32 	      tv_vscaler_cntl2;
+    CARD32 	      tv_sync_size;
+    CARD32 	      tv_vrestart;
+    CARD32 	      tv_hrestart;
+    CARD32 	      tv_frestart;
+    CARD32 	      tv_ftotal;
+    CARD32 	      tv_clock_sel_cntl;
+    CARD32 	      tv_clkout_cntl;
+    CARD32 	      tv_data_delay_a;
+    CARD32 	      tv_data_delay_b;
+    CARD32 	      tv_dac_cntl;
+    CARD32 	      tv_pll_cntl;
+    CARD32	      tv_pll_fine_cntl;
+    CARD32 	      tv_modulator_cntl1;
+    CARD32 	      tv_modulator_cntl2;
+    CARD32 	      tv_frame_lock_cntl;
+    CARD32 	      tv_pre_dac_mux_cntl;
+    CARD32 	      tv_rgb_cntl;
+    CARD32 	      tv_y_saw_tooth_cntl;
+    CARD32 	      tv_y_rise_cntl;
+    CARD32 	      tv_y_fall_cntl;
+    CARD32 	      tv_uv_adr;
+    CARD32	      tv_upsamp_and_gain_cntl;
+    CARD32	      tv_gain_limit_settings;
+    CARD32	      tv_linear_gain_settings;
+    CARD32	      tv_crc_cntl;
+    CARD32            tv_sync_cntl;
+    CARD32	      gpiopad_a;
+    CARD32            pll_test_cntl;
+
+    CARD16	      h_code_timing[MAX_H_CODE_TIMING_LEN];
+    CARD16	      v_code_timing[MAX_V_CODE_TIMING_LEN];
+
 } RADEONSaveRec, *RADEONSavePtr;
 
 typedef struct {
@@ -752,6 +796,8 @@ typedef struct {
     Bool              crtc_on;
     Bool              crtc2_on;
 
+    Bool              InternalTVOut;
+
     Rotation rotation;
     void (*PointerMoved)(int, int, int);
     CreateScreenResourcesProcPtr CreateScreenResources;
@@ -902,6 +948,17 @@ void
 RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num);
 void
 RADEONChooseOverlayCRTC(ScrnInfoPtr pScrn, BoxPtr dstBox);
+
+extern void RADEONAdjustCrtcRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
+					   DisplayModePtr mode, xf86OutputPtr output);
+extern void RADEONAdjustPLLRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
+					  DisplayModePtr mode, xf86OutputPtr output);
+extern void RADEONAdjustCrtc2RegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
+					   DisplayModePtr mode, xf86OutputPtr output);
+extern void RADEONAdjustPLL2RegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
+					  DisplayModePtr mode, xf86OutputPtr output);
+extern void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
+                                  DisplayModePtr mode, BOOL IsPrimary);
 
 #ifdef XF86DRI
 #ifdef USE_XAA

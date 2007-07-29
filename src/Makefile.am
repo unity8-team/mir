@@ -80,7 +80,7 @@ radeon_drv_la_SOURCES = \
 	radeon_accel.c radeon_cursor.c radeon_dga.c \
 	radeon_driver.c radeon_video.c radeon_bios.c radeon_mm_i2c.c \
 	radeon_vip.c radeon_misc.c radeon_probe.c radeon_display.c \
-	radeon_crtc.c radeon_output.c radeon_modes.c \
+	radeon_crtc.c radeon_output.c radeon_modes.c radeon_tv.c \
 	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES)
 
 theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
@@ -181,6 +181,7 @@ EXTRA_DIST = \
 	radeon_sarea.h \
 	radeon_version.h \
 	radeon_video.h \
+	radeon_tv.h \
 	theatre200.h \
 	theatre_detect.h \
 	theatre.h \

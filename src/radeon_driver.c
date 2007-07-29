@@ -128,9 +128,9 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 
 DisplayModePtr
 RADEONCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
-/* psuedo xinerama support */
 
-extern Bool 		RADEONnoPanoramiXExtension;
+static void RADEONWaitPLLLock(ScrnInfoPtr pScrn, unsigned nTests,
+                              unsigned nWaitLoops, unsigned cntThreshold);
 
 static const OptionInfoRec RADEONOptions[] = {
     { OPTION_NOACCEL,        "NoAccel",          OPTV_BOOLEAN, {0}, FALSE },
@@ -1497,6 +1497,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     info->IsIGP = FALSE;
     info->IsDellServer = FALSE;
     info->HasSingleDAC = FALSE;
+    info->InternalTVOut = TRUE;
     switch (info->Chipset) {
     case PCI_CHIP_RADEON_LY:
     case PCI_CHIP_RADEON_LZ:
@@ -1556,6 +1557,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     case PCI_CHIP_R200_QL:
     case PCI_CHIP_R200_QM:
 	info->ChipFamily = CHIP_FAMILY_R200;
+	info->InternalTVOut = FALSE;
 	break;
 
     case PCI_CHIP_RADEON_LW:
@@ -1738,6 +1740,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	/* Original Radeon/7200 */
 	info->ChipFamily = CHIP_FAMILY_RADEON;
 	pRADEONEnt->HasCRTC2 = FALSE;
+	info->InternalTVOut = FALSE;
     }
 
 
@@ -4101,6 +4104,9 @@ void RADEONRestoreDACRegisters(ScrnInfoPtr pScrn,
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
+    if (IS_R300_VARIANT)
+	OUTREGP(RADEON_GPIOPAD_A, restore->gpiopad_a, ~1);
+
     OUTREGP(RADEON_DAC_CNTL,
 	    restore->dac_cntl,
 	    RADEON_DAC_RANGE_CNTL |
@@ -4108,14 +4114,14 @@ void RADEONRestoreDACRegisters(ScrnInfoPtr pScrn,
 
     OUTREG(RADEON_DAC_CNTL2, restore->dac2_cntl);
 
-    //OUTREG(RADEON_TV_DAC_CNTL, 0x00280203);
     if ((info->ChipFamily != CHIP_FAMILY_RADEON) &&
     	(info->ChipFamily != CHIP_FAMILY_R200)) 
     OUTREG (RADEON_TV_DAC_CNTL, restore->tv_dac_cntl);
 
+    OUTREG(RADEON_DISP_OUTPUT_CNTL, restore->disp_output_cntl);
+
     if ((info->ChipFamily == CHIP_FAMILY_R200) ||
 	IS_R300_VARIANT) {
-	OUTREG(RADEON_DISP_OUTPUT_CNTL, restore->disp_output_cntl);
 	OUTREG(RADEON_DISP_TV_OUT_CNTL, restore->disp_tv_out_cntl);
     } else {
 	OUTREG(RADEON_DISP_HW_DEBUG, restore->disp_hw_debug);
@@ -4273,7 +4279,6 @@ void RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 void RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
     if (info->IsMobility) {
@@ -4284,6 +4289,291 @@ void RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	OUTREG(RADEON_BIOS_6_SCRATCH, restore->bios_6_scratch);
     }
 
+}
+
+/* Write to TV FIFO RAM */
+static void RADEONWriteTVFIFO(ScrnInfoPtr pScrn, CARD16 addr,
+			      CARD32 value)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 tmp;
+
+
+    OUTREG(RADEON_TV_HOST_WRITE_DATA, value);
+
+    OUTREG(RADEON_TV_HOST_RD_WT_CNTL, addr);
+    OUTREG(RADEON_TV_HOST_RD_WT_CNTL, addr | RADEON_HOST_FIFO_WT);
+
+    do {
+	tmp = INREG(RADEON_TV_HOST_RD_WT_CNTL);
+    }
+    while ((tmp & RADEON_HOST_FIFO_WT_ACK) == 0);
+
+    OUTREG(RADEON_TV_HOST_RD_WT_CNTL, 0);
+}
+
+/* Read from RT FIFO RAM */
+static CARD32 RADEONReadTVFIFO(ScrnInfoPtr pScrn, CARD16 addr)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 tmp;
+  
+    OUTREG(RADEON_TV_HOST_RD_WT_CNTL, addr);
+    OUTREG(RADEON_TV_HOST_RD_WT_CNTL, addr | RADEON_HOST_FIFO_RD);
+
+    do {
+	tmp = INREG(RADEON_TV_HOST_RD_WT_CNTL);
+    } 
+    while ((tmp & RADEON_HOST_FIFO_RD_ACK) == 0);
+
+    OUTREG(RADEON_TV_HOST_RD_WT_CNTL, 0);
+
+    return INREG(RADEON_TV_HOST_READ_DATA);
+}
+
+/* Get FIFO addresses of horizontal & vertical code timing tables from
+ * settings of uv_adr register. 
+ */
+static CARD16 RADEONGetHTimingTablesAddr(CARD32 tv_uv_adr)
+{
+    CARD16 hTable;
+
+    switch ((tv_uv_adr & RADEON_HCODE_TABLE_SEL_MASK) >> RADEON_HCODE_TABLE_SEL_SHIFT) {
+    case 0:
+	hTable = RADEON_TV_MAX_FIFO_ADDR_INTERNAL;
+	break;
+
+    case 1:
+	hTable = ((tv_uv_adr & RADEON_TABLE1_BOT_ADR_MASK) >> RADEON_TABLE1_BOT_ADR_SHIFT) * 2;
+	break;
+
+    case 2:
+	hTable = ((tv_uv_adr & RADEON_TABLE3_TOP_ADR_MASK) >> RADEON_TABLE3_TOP_ADR_SHIFT) * 2;
+	break;
+
+    default:
+	/* Of course, this should never happen */
+	hTable = 0;
+	break;
+    }
+    return hTable;
+}
+
+static CARD16 RADEONGetVTimingTablesAddr(CARD32 tv_uv_adr)
+{
+    CARD16 vTable;
+
+    switch ((tv_uv_adr & RADEON_VCODE_TABLE_SEL_MASK) >> RADEON_VCODE_TABLE_SEL_SHIFT) {
+    case 0:
+	vTable = ((tv_uv_adr & RADEON_MAX_UV_ADR_MASK) >> RADEON_MAX_UV_ADR_SHIFT) * 2 + 1;
+	break;
+
+    case 1:
+	vTable = ((tv_uv_adr & RADEON_TABLE1_BOT_ADR_MASK) >> RADEON_TABLE1_BOT_ADR_SHIFT) * 2 + 1;
+	break;
+
+    case 2:
+	vTable = ((tv_uv_adr & RADEON_TABLE3_TOP_ADR_MASK) >> RADEON_TABLE3_TOP_ADR_SHIFT) * 2 + 1;
+	break;
+
+    default:
+	/* Of course, this should never happen */
+	vTable = 0;
+	break;
+    }
+    return vTable;
+}
+
+/* Restore horizontal/vertical timing code tables */
+static void RADEONRestoreTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD16 hTable;
+    CARD16 vTable;
+    CARD32 tmp;
+    unsigned i;
+
+    OUTREG(RADEON_TV_UV_ADR, restore->tv_uv_adr);
+    hTable = RADEONGetHTimingTablesAddr(restore->tv_uv_adr);
+    vTable = RADEONGetVTimingTablesAddr(restore->tv_uv_adr);
+
+    OUTREG(RADEON_TV_MASTER_CNTL, (RADEON_TV_ASYNC_RST
+				   | RADEON_CRT_ASYNC_RST
+				   | RADEON_RESTART_PHASE_FIX
+				   | RADEON_CRT_FIFO_CE_EN
+				   | RADEON_TV_FIFO_CE_EN
+				   | RADEON_TV_ON));
+
+    for (i = 0; i < MAX_H_CODE_TIMING_LEN; i += 2, hTable--) {
+	tmp = ((CARD32)restore->h_code_timing[ i ] << 14) | ((CARD32)restore->h_code_timing[ i + 1 ]);
+	RADEONWriteTVFIFO(pScrn, hTable, tmp);
+	if (restore->h_code_timing[ i ] == 0 || restore->h_code_timing[ i + 1 ] == 0)
+	    break;
+    }
+
+    for (i = 0; i < MAX_V_CODE_TIMING_LEN; i += 2, vTable++) {
+	tmp = ((CARD32)restore->v_code_timing[ i + 1 ] << 14) | ((CARD32)restore->v_code_timing[ i ]);
+	RADEONWriteFIFO(pScrn, vTable, tmp);
+	if (restore->v_code_timing[ i ] == 0 || restore->v_code_timing[ i + 1 ] == 0)
+	    break;
+    }
+}
+
+/* restore TV PLLs */
+static void RADEONRestoreTVPLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+
+    OUTPLLP(pScrn, RADEON_TV_PLL_CNTL1, 0, ~RADEON_TVCLK_SRC_SEL_TVPLL);
+    OUTPLL(pScrn, RADEON_TV_PLL_CNTL, restore->tv_pll_cntl);
+    OUTPLLP(pScrn, RADEON_TV_PLL_CNTL1, RADEON_TVPLL_RESET, ~RADEON_TVPLL_RESET);
+
+    RADEONWaitPLLLock(pScrn, 200, 800, 135);
+  
+    OUTPLLP(pScrn, RADEON_TV_PLL_CNTL1, 0, ~RADEON_TVPLL_RESET);
+
+    RADEONWaitPLLLock(pScrn, 300, 160, 27);
+    RADEONWaitPLLLock(pScrn, 200, 800, 135);
+  
+    OUTPLLP(pScrn, RADEON_TV_PLL_CNTL1, 0, ~0xf);
+    OUTPLLP(pScrn, RADEON_TV_PLL_CNTL1, RADEON_TVCLK_SRC_SEL_TVPLL, ~RADEON_TVCLK_SRC_SEL_TVPLL);
+  
+    OUTPLLP(pScrn, RADEON_TV_PLL_CNTL1, (1 << RADEON_TVPDC_SHIFT), ~RADEON_TVPDC_MASK);
+    OUTPLLP(pScrn, RADEON_TV_PLL_CNTL1, 0, ~RADEON_TVPLL_SLEEP);
+}
+
+/* Restore TV horizontal/vertical settings */
+static void RADEONRestoreTVHVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(RADEON_TV_RGB_CNTL, restore->tv_rgb_cntl);
+
+    OUTREG(RADEON_TV_HTOTAL, restore->tv_htotal);
+    OUTREG(RADEON_TV_HDISP, restore->tv_hdisp);
+    OUTREG(RADEON_TV_HSTART, restore->tv_hstart);
+
+    OUTREG(RADEON_TV_VTOTAL, restore->tv_vtotal);
+    OUTREG(RADEON_TV_VDISP, restore->tv_vdisp);
+
+    OUTREG(RADEON_TV_FTOTAL, restore->tv_ftotal);
+
+    OUTREG(RADEON_TV_VSCALER_CNTL1, restore->tv_vscaler_cntl1);
+    OUTREG(RADEON_TV_VSCALER_CNTL2, restore->tv_vscaler_cntl2);
+
+    OUTREG(RADEON_TV_Y_FALL_CNTL, restore->tv_y_fall_cntl);
+    OUTREG(RADEON_TV_Y_RISE_CNTL, restore->tv_y_rise_cntl);
+    OUTREG(RADEON_TV_Y_SAW_TOOTH_CNTL, restore->tv_y_saw_tooth_cntl);
+}
+
+/* restore TV RESTART registers */
+static void RADEONRestoreTVRestarts(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(RADEON_TV_FRESTART, restore->tv_frestart);
+    OUTREG(RADEON_TV_HRESTART, restore->tv_hrestart);
+    OUTREG(RADEON_TV_VRESTART, restore->tv_vrestart);
+}
+
+/* restore tv standard & output muxes */
+static void RADEONRestoreTVOutputStd(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(RADEON_TV_SYNC_CNTL, restore->tv_sync_cntl);
+  
+    OUTREG(RADEON_TV_TIMING_CNTL, restore->tv_timing_cntl);
+
+    OUTREG(RADEON_TV_MODULATOR_CNTL1, restore->tv_modulator_cntl1);
+    OUTREG(RADEON_TV_MODULATOR_CNTL2, restore->tv_modulator_cntl2);
+ 
+    OUTREG(RADEON_TV_PRE_DAC_MUX_CNTL, restore->tv_pre_dac_mux_cntl);
+
+    OUTREG(RADEON_TV_CRC_CNTL, restore->tv_crc_cntl);
+}
+
+/* Test if tv output would be enabled with a given value in TV_DAC_CNTL */
+static Bool RADEONTVIsOn(CARD32 tv_dac_cntl)
+{
+    /* XXX: Fixme for STV vs. CTV */
+    if (tv_dac_cntl & RADEON_TV_DAC_BGSLEEP)
+	return FALSE;
+    else if ((tv_dac_cntl &
+	      (RADEON_TV_DAC_RDACPD | RADEON_TV_DAC_GDACPD | RADEON_TV_DAC_BDACPD)) ==
+	     (RADEON_TV_DAC_RDACPD | RADEON_TV_DAC_GDACPD | RADEON_TV_DAC_BDACPD))
+	return FALSE;
+    else
+	return TRUE;
+}
+
+/* Restore TV out regs */
+void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    ErrorF("Entering Restore TV\n");
+
+    OUTREG(RADEON_TV_MASTER_CNTL, restore->tv_master_cntl | RADEON_TV_ON);
+
+    OUTREG(RADEON_TV_MASTER_CNTL, (restore->tv_master_cntl
+				   | RADEON_TV_ASYNC_RST
+				   | RADEON_CRT_ASYNC_RST
+				   | RADEON_RESTART_PHASE_FIX
+				   | RADEON_TV_FIFO_ASYNC_RST));
+
+    /* Temporarily turn the TV DAC off */
+    OUTREG(RADEON_TV_DAC_CNTL, ((restore->tv_dac_cntl & ~RADEON_TV_DAC_NBLANK)
+				| RADEON_TV_DAC_BGSLEEP
+				| RADEON_TV_DAC_RDACPD
+				| RADEON_TV_DAC_GDACPD
+				| RADEON_TV_DAC_BDACPD));
+
+    ErrorF("Restore TV PLL\n");
+    RADEONRestoreTVPLLRegisters(pScrn, restore);
+
+    ErrorF("Restore TVHV\n");
+    RADEONRestoreTVHVRegisters(pScrn, restore);
+
+    OUTREG(RADEON_TV_MASTER_CNTL, (restore->tv_master_cntl
+				   | RADEON_TV_ASYNC_RST
+				   | RADEON_CRT_ASYNC_RST
+				   | RADEON_RESTART_PHASE_FIX));
+
+    ErrorF("Restore TV Restarts\n");
+    RADEONRestoreTVRestarts(pScrn, restore);
+  
+    ErrorF("Restore Timing Tables\n");
+
+    /* Timing tables are only restored when tv output is active */
+    if (RADEONTVIsOn(restore->tv_dac_cntl))
+	RADEONRestoreTimingTables(pScrn, restore);
+  
+
+    OUTREG(RADEON_TV_MASTER_CNTL, (restore->tv_master_cntl
+				   | RADEON_TV_ASYNC_RST
+				   | RADEON_RESTART_PHASE_FIX));
+
+    ErrorF("Restore TV standard\n");
+    RADEONRestoreTVOutputStd(pScrn, restore);
+
+    OUTREG(RADEON_TV_MASTER_CNTL, restore->tv_master_cntl);
+
+    /*OUTREG(RADEON_DISP_MERGE_CNTL, restore->disp_merge_cntl);*/
+
+    OUTREG(RADEON_TV_GAIN_LIMIT_SETTINGS, restore->tv_gain_limit_settings);
+    OUTREG(RADEON_TV_LINEAR_GAIN_SETTINGS, restore->tv_linear_gain_settings);
+
+    /* XXX: taken care of in EnableDisplay() */
+    OUTREG(RADEON_TV_DAC_CNTL, restore->tv_dac_cntl);
+
+    ErrorF("Leaving Restore TV\n");
 }
 
 static void RADEONPLLWaitForReadUpdateComplete(ScrnInfoPtr pScrn)
@@ -4358,6 +4648,39 @@ static CARD8 RADEONComputePLLGain(CARD16 reference_freq, CARD16 ref_div,
 	 * [0..180) MHz : 1
 	 */
         return 1;
+}
+
+/* Wait for PLLs to lock */
+static void RADEONWaitPLLLock(ScrnInfoPtr pScrn, unsigned nTests,
+			      unsigned nWaitLoops, unsigned cntThreshold)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 savePLLTest;
+    unsigned i;
+    unsigned j;
+
+    OUTREG(RADEON_TEST_DEBUG_MUX, (INREG(RADEON_TEST_DEBUG_MUX) & 0xffff60ff) | 0x100);
+
+    savePLLTest = INPLL(pScrn, RADEON_PLL_TEST_CNTL);
+
+    OUTPLL(pScrn, RADEON_PLL_TEST_CNTL, savePLLTest & ~RADEON_PLL_MASK_READ_B);
+
+    /* XXX: these should probably be OUTPLL to avoid various PLL errata */
+
+    OUTREG8(RADEON_CLOCK_CNTL_INDEX, RADEON_PLL_TEST_CNTL);
+
+    for (i = 0; i < nTests; i++) {
+	OUTREG8(RADEON_CLOCK_CNTL_DATA + 3, 0);
+      
+	for (j = 0; j < nWaitLoops; j++)
+	    if (INREG8(RADEON_CLOCK_CNTL_DATA + 3) >= cntThreshold)
+		break;
+    }
+
+    OUTPLL(pScrn, RADEON_PLL_TEST_CNTL, savePLLTest);
+
+    OUTREG(RADEON_TEST_DEBUG_MUX, INREG(RADEON_TEST_DEBUG_MUX) & 0xffffe0ff);
 }
 
 /* Write PLL registers */
@@ -4733,6 +5056,7 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 /* Write out state to define a new video mode */
 void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
+    RADEONInfoPtr  info     = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -4765,6 +5089,8 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONRestoreFP2Registers(pScrn, restore);
     RADEONRestoreLVDSRegisters(pScrn, restore);
     RADEONRestoreDACRegisters(pScrn, restore);
+    if (info->InternalTVOut)
+	RADEONRestoreTVRegisters(pScrn, restore);
 
 #if 0
     RADEONRestorePalette(pScrn, &info->SavedReg);
@@ -4884,6 +5210,8 @@ static void RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->disp_tv_out_cntl      = INREG(RADEON_DISP_TV_OUT_CNTL);
     save->disp_hw_debug         = INREG(RADEON_DISP_HW_DEBUG);
     save->dac_macro_cntl        = INREG(RADEON_DAC_MACRO_CNTL);
+    save->gpiopad_a             = INREG(RADEON_GPIOPAD_A);
+
 }
 
 /* Read flat panel registers */
@@ -4946,6 +5274,95 @@ static void RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     else
 	info->crtc2_on = TRUE;
 
+}
+
+/* Save horizontal/vertical timing code tables */
+static void RADEONSaveTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD16 hTable;
+    CARD16 vTable;
+    CARD32 tmp;
+    unsigned i;
+
+    save->tv_uv_adr = INREG(RADEON_TV_UV_ADR);
+    hTable = RADEONGetHTimingTablesAddr(save->tv_uv_adr);
+    vTable = RADEONGetVTimingTablesAddr(save->tv_uv_adr);
+
+    /*
+     * Reset FIFO arbiter in order to be able to access FIFO RAM
+     */
+    OUTREG(RADEON_TV_MASTER_CNTL, save->tv_master_cntl | RADEON_TV_ON);
+
+    ErrorF("saveTimingTables: reading timing tables\n");
+
+    for (i = 0; i < MAX_H_CODE_TIMING_LEN; i += 2) {
+	tmp = RADEONReadTVFIFO(pScrn, hTable--);
+	save->h_code_timing[ i     ] = (CARD16)((tmp >> 14) & 0x3fff);
+	save->h_code_timing[ i + 1 ] = (CARD16)(tmp & 0x3fff);
+
+	if (save->h_code_timing[ i ] == 0 || save->h_code_timing[ i + 1 ] == 0)
+	    break;
+    }
+
+    for (i = 0; i < MAX_V_CODE_TIMING_LEN; i += 2) {
+	tmp = RADEONReadTVFIFO(pScrn, vTable++);
+	save->v_code_timing[ i     ] = (CARD16)(tmp & 0x3fff);
+	save->v_code_timing[ i + 1 ] = (CARD16)((tmp >> 14) & 0x3fff);
+
+	if (save->v_code_timing[ i ] == 0 || save->v_code_timing[ i + 1 ] == 0)
+	    break;
+    }
+}
+
+/* read TV regs */
+static void RADEONSaveTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned i;
+
+    ErrorF("Entering TV Save\n");
+
+    save->tv_crc_cntl = INREG(RADEON_TV_CRC_CNTL);
+    save->tv_frestart = INREG(RADEON_TV_FRESTART);
+    save->tv_hrestart = INREG(RADEON_TV_HRESTART);
+    save->tv_vrestart = INREG(RADEON_TV_VRESTART);
+    save->tv_gain_limit_settings = INREG(RADEON_TV_GAIN_LIMIT_SETTINGS);
+    save->tv_hdisp = INREG(RADEON_TV_HDISP);
+    save->tv_hstart = INREG(RADEON_TV_HSTART);
+    save->tv_htotal = INREG(RADEON_TV_HTOTAL);
+    save->tv_linear_gain_settings = INREG(RADEON_TV_LINEAR_GAIN_SETTINGS);
+    save->tv_master_cntl = INREG(RADEON_TV_MASTER_CNTL);
+    save->tv_rgb_cntl = INREG(RADEON_TV_RGB_CNTL);
+    save->tv_modulator_cntl1 = INREG(RADEON_TV_MODULATOR_CNTL1);
+    save->tv_modulator_cntl2 = INREG(RADEON_TV_MODULATOR_CNTL2);
+    save->tv_pre_dac_mux_cntl = INREG(RADEON_TV_PRE_DAC_MUX_CNTL);
+    save->tv_sync_cntl = INREG(RADEON_TV_SYNC_CNTL);
+    save->tv_timing_cntl = INREG(RADEON_TV_TIMING_CNTL);
+    save->tv_dac_cntl = INREG(RADEON_TV_DAC_CNTL);
+    save->tv_upsamp_and_gain_cntl = INREG(RADEON_TV_UPSAMP_AND_GAIN_CNTL);
+    save->tv_vdisp = INREG(RADEON_TV_VDISP);
+    save->tv_ftotal = INREG(RADEON_TV_FTOTAL);
+    save->tv_vscaler_cntl1 = INREG(RADEON_TV_VSCALER_CNTL1);
+    save->tv_vscaler_cntl2 = INREG(RADEON_TV_VSCALER_CNTL2);
+    save->tv_vtotal = INREG(RADEON_TV_VTOTAL);
+    save->tv_y_fall_cntl = INREG(RADEON_TV_Y_FALL_CNTL);
+    save->tv_y_rise_cntl = INREG(RADEON_TV_Y_RISE_CNTL);
+    save->tv_y_saw_tooth_cntl = INREG(RADEON_TV_Y_SAW_TOOTH_CNTL);
+
+    save->tv_pll_cntl = INPLL(pScrn, RADEON_TV_PLL_CNTL);
+      
+    /*
+     * Read H/V code timing tables (current tables only are saved)
+     * This step is skipped when tv output is disabled in current RT state
+     * (see RADEONRestoreTVRegisters)
+     */
+    if (RADEONTVIsOn(save->tv_dac_cntl))
+	RADEONSaveTimingTables(pScrn, save);
+
+    ErrorF("TV Save done\n");
 }
 
 /* Read PLL registers */
@@ -5016,12 +5433,13 @@ static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     RADEONSaveMemMapRegisters(pScrn, save);
     RADEONSaveCommonRegisters(pScrn, save);
-    RADEONSavePLLRegisters (pScrn, save);
-    RADEONSaveCrtcRegisters (pScrn, save);
-    RADEONSaveFPRegisters (pScrn, save);
-    RADEONSaveDACRegisters (pScrn, save);
-    RADEONSaveCrtc2Registers (pScrn, save);
-    RADEONSavePLL2Registers (pScrn, save);
+    RADEONSavePLLRegisters(pScrn, save);
+    RADEONSaveCrtcRegisters(pScrn, save);
+    RADEONSaveFPRegisters(pScrn, save);
+    RADEONSaveDACRegisters(pScrn, save);
+    RADEONSaveCrtc2Registers(pScrn, save);
+    RADEONSavePLL2Registers(pScrn, save);
+    RADEONSaveTVRegisters(pScrn, save);
     /*RADEONSavePalette(pScrn, save);*/
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,

@@ -753,6 +753,8 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     ScrnInfoPtr pScrn = crtc->scrn;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    xf86OutputPtr output;
+    RADEONOutputPrivatePtr radeon_output;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONMonitorType montype = MT_NONE;
     Bool           tilingOld   = info->tilingEnabled;
@@ -775,8 +777,8 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     }
 
     for (i = 0; i < xf86_config->num_output; i++) {
-	xf86OutputPtr output = xf86_config->output[i];
-	RADEONOutputPrivatePtr radeon_output = output->driver_private;
+	output = xf86_config->output[i];
+	radeon_output = output->driver_private;
 
 	if (output->crtc == crtc) {
 	    montype = radeon_output->MonType;
@@ -816,7 +818,20 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
         }
 	break;
     }
-    
+
+    if (montype == MT_STV || montype == MT_CTV) {
+	switch (radeon_crtc->crtc_id) {
+	case 0:
+	    RADEONAdjustCrtcRegistersForTV(pScrn, &info->ModeReg, adjusted_mode, output);
+	    RADEONAdjustPLLRegistersForTV(pScrn, &info->ModeReg, adjusted_mode, output);
+	    break;
+	case 1:
+	    RADEONAdjustCrtc2RegistersForTV(pScrn, &info->ModeReg, adjusted_mode, output);
+	    RADEONAdjustPLL2RegistersForTV(pScrn, &info->ModeReg, adjusted_mode, output);
+	    break;
+	}
+    }
+
     ErrorF("restore memmap\n");
     RADEONRestoreMemMapRegisters(pScrn, &info->ModeReg);
     ErrorF("restore common\n");
@@ -836,6 +851,10 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	RADEONRestorePLL2Registers(pScrn, &info->ModeReg);
 	break;
     }
+
+    /* pixclks_cntl handles tv-out clock routing */
+    if (montype == MT_STV || montype == MT_CTV)
+	RADEONRestorePLL2Registers(pScrn, &info->ModeReg);
 
     if (info->DispPriority)
         RADEONInitDispBandwidth(pScrn);

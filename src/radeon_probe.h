@@ -137,6 +137,18 @@ typedef enum
     OUTPUT_CTV,
 } RADEONOutputType;
 
+/* standards */
+typedef enum
+{
+    TV_STD_NTSC,
+    TV_STD_PAL,
+    TV_STD_PAL_M,
+    TV_STD_PAL_60,
+    TV_STD_NTSC_J,
+    TV_STD_PAL_CN,
+    TV_STD_PAL_N
+} TVStd;
+
 typedef struct _RADEONCrtcPrivateRec {
 #ifdef USE_XAA
     FBLinearPtr rotate_mem_xaa;
@@ -184,6 +196,11 @@ typedef struct _RADEONOutputPrivateRec {
     int               PanelPwrDly;
     int               DotClock;
     RADEONTMDSPll     tmds_pll[4];
+    /* TV out */
+    TVStd             tvStd;
+    int               hPos;
+    int               vPos;
+    int               hSize;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 #define RADEON_MAX_CRTC 2

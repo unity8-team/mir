@@ -78,6 +78,17 @@ void RADEONSetPitch (ScrnInfoPtr pScrn)
 
 }
 
+static DisplayModePtr RADEONTVModes(xf86OutputPtr output)
+{
+    DisplayModePtr new  = NULL;
+
+    /* just a place holder */    
+    new = xf86CVTMode(800, 600, 60.00, FALSE, FALSE);
+    new->type = M_T_DRIVER | M_T_PREFERRED;
+
+    return new;
+}
+
 /* This is used only when no mode is specified for FP and no ddc is
  * available.  We force it to native mode, if possible.
  */
@@ -284,6 +295,10 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 	xf86OutputSetEDID (output, edid_mon);
       
 	modes = xf86OutputGetEDIDModes (output);
+	return modes;
+    }
+    if (radeon_output->type == OUTPUT_STV || radeon_output->type == OUTPUT_CTV) {
+	modes = RADEONTVModes(output);
 	return modes;
     }
     if (radeon_output->type == OUTPUT_LVDS) {

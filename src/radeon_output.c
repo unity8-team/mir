@@ -46,6 +46,7 @@
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
+#include "radeon_tv.h"
 
 
 const char *MonTypeName[7] = {
@@ -890,7 +891,7 @@ RADEONInitTvDacCntl(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->tv_dac_cntl |= (RADEON_TV_DAC_NBLANK |
 			 RADEON_TV_DAC_NHOLD |
 			  RADEON_TV_DAC_STD_PS2);
-			  //			 info->tv_dac_adj);
+
 }
 
 static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
@@ -901,6 +902,9 @@ static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
 
     /*0x0028023;*/
     RADEONInitTvDacCntl(pScrn, save);
+
+    if (IS_R300_VARIANT)
+	save->gpiopad_a = info->SavedReg.gpiopad_a | 1;
 
     if (IsPrimary) {
         save->dac2_cntl = info->SavedReg.dac2_cntl | RADEON_DAC2_DAC2_CLK_SEL;
@@ -961,6 +965,9 @@ RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	} else {
 	    RADEONInitFP2Registers(output, save, mode, IsPrimary);
 	}
+    } else if (radeon_output->MonType == MT_STV ||
+	       radeon_output->MonType == MT_CTV) {
+	RADEONInitTVRegisters(output, save, mode, IsPrimary);
     }
 }
 
@@ -992,6 +999,12 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    ErrorF("restore FP2\n");
 	    RADEONRestoreFP2Registers(pScrn, &info->ModeReg);
 	}
+	break;
+    case MT_STV:
+    case MT_CTV:
+	ErrorF("restore tv\n");
+	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);
+	RADEONRestoreTVRegisters(pScrn, &info->ModeReg);
 	break;
     default:
 	ErrorF("restore dac\n");
@@ -1041,8 +1054,12 @@ radeon_detect(xf86OutputPtr output)
 
       switch(radeon_output->MonType) {
       case MT_LCD:
-      case MT_DFP: output->subpixel_order = SubPixelHorizontalRGB; break;
-      default: output->subpixel_order = SubPixelNone; break;
+      case MT_DFP:
+	  output->subpixel_order = SubPixelHorizontalRGB;
+	  break;
+      default:
+	  output->subpixel_order = SubPixelNone;
+	  break;
       }
       
       return XF86OutputStatusConnected;
