@@ -1,3 +1,7 @@
+/*
+ * Integrated TV out support based on the GATOS code by
+ * Federico Ulivi <fulivi@lycos.com>
+ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

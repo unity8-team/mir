@@ -1,4 +1,9 @@
 /*
+ * Integrated TV out support based on the GATOS code by
+ * Federico Ulivi <fulivi@lycos.com>
+ */
+
+/*
  * Maximum length of horizontal/vertical code timing tables for state storage
  */
 #define MAX_H_CODE_TIMING_LEN 32
