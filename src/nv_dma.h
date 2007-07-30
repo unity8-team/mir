@@ -68,7 +68,15 @@ enum DMAObjects {
 	Nv3D			= 0x80000019,
 	NvDmaFB			= 0xD8000001,
 	NvDmaTT			= 0xD8000002,
-	NvDmaNotifier0		= 0xD8000003
+	NvDmaNotifier0		= 0xD8000003,
+
+	/*XVideo notifiers need to have consecutive handles, be careful when remapping*/
+	NvDmaXvNotifier0	= 0xE8000000,
+	NvDmaXvNotifier1	= 0xE8000001,
+	NvDmaXvNotifier2	= 0xE8000002,
+	NvDmaXvNotifier3	= 0xE8000003,
+	NvDmaXvNotifier4	= 0xE8000004,
+	NvDmaXvNotifier5	= 0xE8000005,
 };
 
 enum DMASubchannel {

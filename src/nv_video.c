@@ -38,6 +38,10 @@
 
 #define NUM_BLIT_PORTS 32
 
+/* Value taken by pPriv -> currentHostBuffer when we failed to allocate the two private buffers in TT memory, so that we can catch this case
+and attempt no other allocation afterwards (performance reasons) */
+#define NO_PRIV_HOST_BUFFER_AVAILABLE 9999 
+
 typedef struct _NVPortPrivRec {
 	short		brightness;
 	short		contrast;
@@ -61,6 +65,20 @@ typedef struct _NVPortPrivRec {
 	int		currentHostBuffer;
 	struct drm_nouveau_notifier_alloc *DMANotifier[2];
 } NVPortPrivRec, *NVPortPrivPtr;
+
+
+/* Xv DMA notifiers status tracing */
+
+enum {
+XV_DMA_NOTIFIER_NOALLOC=0, //notifier not allocated 
+XV_DMA_NOTIFIER_INUSE=1,
+XV_DMA_NOTIFIER_FREE=2, //notifier allocated, ready for use
+};
+
+/* We have six notifiers available, they are not allocated at startup */
+int XvDMANotifierStatus[6]= { XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC ,
+					XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC };
+struct drm_nouveau_notifier_alloc * XvDMANotifiers[6];
 
 #define GET_OVERLAY_PRIVATE(pNv) \
 	(NVPortPrivPtr)((pNv)->overlayAdaptor->pPortPrivates[0].ptr)
@@ -213,6 +231,58 @@ NVStopOverlay (ScrnInfoPtr pScrn)
 }
 
 /**
+ * NVXvDMANotifierAlloc
+ * allocates a notifier from the table of 6 we have
+ *
+ * @return a notifier instance or NULL on error
+ */
+static struct drm_nouveau_notifier_alloc * NVXvDMANotifierAlloc(ScrnInfoPtr pScrn)
+{
+int i;
+for ( i = 0; i < 6; i ++ )
+	{
+	if ( XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_INUSE ) 
+		continue;
+	
+	if ( XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_FREE )
+		{
+		XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_INUSE;
+		return XvDMANotifiers[i];
+		}
+	
+	if ( XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_NOALLOC )
+		{
+		XvDMANotifiers[i] = NVNotifierAlloc(pScrn, NvDmaXvNotifier0 + i);
+		if (XvDMANotifiers[i]) 
+			{
+			XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_INUSE;
+			return XvDMANotifiers[i];
+			}
+		else return NULL;
+		}
+	}
+	
+return NULL;
+}
+
+/**
+ * NVXvDMANotifierFree
+ * frees a notifier from the table of 6 we have
+ *
+ * 
+ */
+static void NVXvDMANotifierFree(ScrnInfoPtr pScrn, struct drm_nouveau_notifier_alloc * target)
+{
+int i;
+for ( i = 0; i < 6; i ++ )
+	{
+	if ( XvDMANotifiers[i] == target )
+		break;
+	}
+XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_FREE;
+}
+
+/**
  * NVAllocateVideoMemory
  * allocates video memory for a given port
  * 
@@ -261,32 +331,58 @@ NVAllocateTTMemory(ScrnInfoPtr pScrn, NVAllocRec *mem, int size)
 }
 
 /**
- * NVFreeOverlayMemory
- * frees memory held by the overlay port
- * this function (unlike NVAllocateOverlayMemory) is "Overlay"-specific
+ * NVFreePortMemory
+ * frees memory held by a given port
  * 
- * @param pScrn screen whose overlay port wants to free memory
+ * @param pScrn screen whose port wants to free memory
+ * @param pPriv port to free memory of
  */
 static void
-NVFreeOverlayMemory(ScrnInfoPtr pScrn)
+NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 {
 	NVPtr         pNv   = NVPTR(pScrn);
-	NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
 
+	//xf86DrvMsg(0, X_INFO, "Freeing port memory - TTmem chunks %p %p, notifiers %p %p\n", pPriv->TT_mem_chunk[0], pPriv->TT_mem_chunk[1], pPriv->DMANotifier[0], pPriv->DMANotifier[1]);
+	
 	if(pPriv->video_mem) {
 		NVFreeMemory(pNv, pPriv->video_mem);
 		pPriv->video_mem = NULL;
 	}
 	
 	if(pPriv->TT_mem_chunk[0]) {
-		NVFreeMemory(pNv, pPriv->video_mem);
-		pPriv->video_mem = NULL;
+		NVFreeMemory(pNv, pPriv->TT_mem_chunk[0]);
+		pPriv->TT_mem_chunk[0] = NULL;
 	}
 	
 	if(pPriv->TT_mem_chunk[1]) {
-		NVFreeMemory(pNv, pPriv->video_mem);
-		pPriv->video_mem = NULL;
+		NVFreeMemory(pNv, pPriv->TT_mem_chunk[1]);
+		pPriv->TT_mem_chunk[1] = NULL;
 	}
+	
+	if(pPriv->DMANotifier[0]) {
+		NVXvDMANotifierFree(pScrn, pPriv->DMANotifier[0]);
+		pPriv->DMANotifier[0] = NULL;
+	}
+	
+	if(pPriv->DMANotifier[1]) {
+		NVXvDMANotifierFree(pScrn, pPriv->DMANotifier[1]);
+		pPriv->DMANotifier[1] = NULL;
+	}
+	
+}
+
+/**
+ * NVFreeOverlayMemory
+ * frees memory held by the overlay port
+ * 
+ * @param pScrn screen whose overlay port wants to free memory
+ */
+static void
+NVFreeOverlayMemory(ScrnInfoPtr pScrn)
+{
+	NVPtr	pNv = NVPTR(pScrn);
+	NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
+	NVFreePortMemory(pScrn, pPriv);
 }
 
 /**
@@ -298,23 +394,9 @@ NVFreeOverlayMemory(ScrnInfoPtr pScrn)
 static void
 NVFreeBlitMemory(ScrnInfoPtr pScrn)
 {
-	NVPtr         pNv   = NVPTR(pScrn);
+	NVPtr	pNv = NVPTR(pScrn);
 	NVPortPrivPtr pPriv = GET_BLIT_PRIVATE(pNv);
-
-	if(pPriv->video_mem) {
-		NVFreeMemory(pNv, pPriv->video_mem);
-		pPriv->video_mem = NULL;
-	}
-	
-	if(pPriv->TT_mem_chunk[0]) {
-		NVFreeMemory(pNv, pPriv->video_mem);
-		pPriv->video_mem = NULL;
-	}
-	
-	if(pPriv->TT_mem_chunk[1]) {
-		NVFreeMemory(pNv, pPriv->video_mem);
-		pPriv->video_mem = NULL;
-	}
+	NVFreePortMemory(pScrn, pPriv);
 }
 
 /**
@@ -415,7 +497,7 @@ NVPutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
 		if (!pPriv->grabbedByV4L)
 			REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
 		{
-		xf86DrvMsg(0, X_INFO, "calling xf86XVFillKeyHelper at %u, colorkey is %u\n", GetTimeInMillis(), pPriv->colorKey);
+		//xf86DrvMsg(0, X_INFO, "calling xf86XVFillKeyHelper at %u, colorkey is %u\n", GetTimeInMillis(), pPriv->colorKey);
 		xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes);
 		}
 	}
@@ -905,7 +987,7 @@ static inline void NVCopyData420(unsigned char *src1, unsigned char *src2,
 		s1 = src1;  s2 = src2;  s3 = src3;
 		i = w;
 
-		while (i > 4) { // wouldn't it be better to write (i >= 4) ?
+		while (i > 4) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 		dst[0] = (s1[0] << 24) | (s1[1] << 8) | (s3[0] << 16) | s2[0];
 		dst[1] = (s1[2] << 24) | (s1[3] << 8) | (s3[1] << 16) | s2[1];
@@ -1147,19 +1229,69 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	Either we fallback on CPU copy
 	*/
 	
-	/* Try to allocate host-side double buffers (this function will return if the memory has already been allocated)*/
-	pPriv->TT_mem_chunk[0] = NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[0], 
-							      newSize);
-	pPriv->TT_mem_chunk[1] = NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[1], 
-							      newSize);
+	/* Try to allocate host-side double buffers, unless we have already failed*/
+	/* We take only nlines * line_len bytes - that is, only the pixel data we are interested in - because the stuff in the GART is 
+		 written contiguously */
 	
-	if ( pPriv->TT_mem_chunk[pPriv->currentHostBuffer] )
+	if ( pPriv -> currentHostBuffer != NO_PRIV_HOST_BUFFER_AVAILABLE )
+		{
+		pPriv->TT_mem_chunk[0] = NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[0], 
+							      nlines * line_len);
+		if ( pPriv->TT_mem_chunk[0] )
+			{
+			pPriv->TT_mem_chunk[1] = NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[1], 
+							      nlines * line_len);
+			
+			if ( ! pPriv->TT_mem_chunk[1] )
+				{
+				NVFreeMemory(pNv, pPriv->TT_mem_chunk[0]);
+				pPriv->TT_mem_chunk[0] = NULL;
+				pPriv -> currentHostBuffer = NO_PRIV_HOST_BUFFER_AVAILABLE;
+				//xf86DrvMsg(0, X_INFO, "Alloc 1 failed\n");
+				}
+			}
+		else 
+			{
+			pPriv -> currentHostBuffer = NO_PRIV_HOST_BUFFER_AVAILABLE;
+			//xf86DrvMsg(0, X_INFO, "Alloc 0 failed\n");
+			}
+		}
+	
+	if ( pPriv->currentHostBuffer != NO_PRIV_HOST_BUFFER_AVAILABLE )
 		{ //if we have a private buffer
 		destination_buffer = pPriv->TT_mem_chunk[pPriv->currentHostBuffer];
 		//xf86DrvMsg(0, X_INFO, "Using private mem chunk #%d\n", pPriv->currentHostBuffer);
+			
+		/* We know where we are going to write, but we are not sure yet whether we can do it directly, because
+			the card could be working on the buffer for the last-but-one frame. So we check if we have a notifier ready or not. 
+			If we do, then we must wait for it before overwriting the buffer.
+			Else we need one, so we call the Xv notifier allocator.*/
+		if ( pPriv->DMANotifier [ pPriv->currentHostBuffer ] )
+			{
+			//xf86DrvMsg(0, X_INFO, "Waiting for notifier %p (%d)\n", pPriv->DMANotifier[pPriv->currentHostBuffer], pPriv->currentHostBuffer);
+			if (!NVNotifierWaitStatus(pScrn, pPriv->DMANotifier[pPriv->currentHostBuffer], 0, 0))
+				return FALSE;
+			}
+		else 
+			{
+			//xf86DrvMsg(0, X_INFO, "Allocating notifier...\n");
+			pPriv->DMANotifier [ pPriv->currentHostBuffer ] = NVXvDMANotifierAlloc(pScrn);
+			if (! pPriv->DMANotifier [ pPriv->currentHostBuffer ] )
+				{ /* In case we are out of notifiers (then our guy is watching 3 movies at a time!!), we fallback on global GART, and free the private buffers.
+					I know that's a lot of code but I believe it's necessary to properly handle all the cases*/
+				xf86DrvMsg(0, X_ERROR, "Ran out of Xv notifiers!\n");
+				NVFreeMemory(pNv, pPriv->TT_mem_chunk[0]);
+				pPriv->TT_mem_chunk[0] = NULL;
+				NVFreeMemory(pNv, pPriv->TT_mem_chunk[1]);
+				pPriv->TT_mem_chunk[1] = NULL;
+				pPriv -> currentHostBuffer = NO_PRIV_HOST_BUFFER_AVAILABLE;
+				}
+			//xf86DrvMsg(0, X_INFO, "Got notifier %p\n", pPriv->DMANotifier [ pPriv->currentHostBuffer ]);
+			}
 		}
-	else 
-		{ //otherwise we fall back of GART
+	
+	if ( pPriv -> currentHostBuffer == NO_PRIV_HOST_BUFFER_AVAILABLE )
+		{ //otherwise we fall back on DDX's GARTScratch
 		destination_buffer = pNv->GARTScratch;
 		//xf86DrvMsg(0, X_INFO, "Using global GART memory chunk\n");
 		}
@@ -1167,7 +1299,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	if ( !destination_buffer) //if we have no GART at all
 		goto CPU_copy;
 	
-	if(nlines * line_len <= destination_buffer->size) /*XXX: update the check*/
+	if(nlines * line_len <= destination_buffer->size)
 		{
 		unsigned char *dst = destination_buffer->map;
 		int i = 0;
@@ -1217,14 +1349,27 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		if ( destination_buffer == pNv->GARTScratch ) 
 			{
 			NVNotifierReset(pScrn, pNv->Notifier0);
-			NVDmaStart(pNv, NvSubMemFormat,
-				NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
-			NVDmaNext (pNv, 0);
 			}
-				
+		else {
+			NVNotifierReset(pScrn, pPriv->DMANotifier[pPriv->currentHostBuffer]);
+			NVDmaStart(pNv, NvSubMemFormat,
+			NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
+			NVDmaNext (pNv, pPriv->DMANotifier[pPriv->currentHostBuffer]->handle);
+			}
+			
+			
+		NVDmaStart(pNv, NvSubMemFormat,
+			NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
+		NVDmaNext (pNv, 0);
+			
 		NVDmaStart(pNv, NvSubMemFormat, 0x100, 1);
 		NVDmaNext (pNv, 0);
 		NVDmaKickoff(pNv);
+		
+		//Put back NvDmaNotifier0 for EXA
+		NVDmaStart(pNv, NvSubMemFormat,
+			NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
+		NVDmaNext (pNv, NvDmaNotifier0);
 			
 		if ( destination_buffer == pNv->GARTScratch ) 
 			if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
@@ -1281,7 +1426,8 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			}
 		}
 		
-	pPriv->currentHostBuffer ^= 1;
+	if ( pPriv->currentHostBuffer != NO_PRIV_HOST_BUFFER_AVAILABLE )
+		pPriv->currentHostBuffer ^= 1;
 		
 	if (!skip) {
 		if (pPriv->blitter) {
