@@ -456,8 +456,6 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
      */
     RADEONInitTVRestarts(output, save, mode);
 
-    /*save->hw_debug = 0x00000200;*/
-
     save->dac_cntl &= ~RADEON_DAC_TVO_EN;
 
     if (IS_R300_VARIANT)

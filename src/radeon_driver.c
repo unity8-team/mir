@@ -4409,14 +4409,14 @@ static void RADEONRestoreTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr restore
     hTable = RADEONGetHTimingTablesAddr(restore->tv_uv_adr);
     vTable = RADEONGetVTimingTablesAddr(restore->tv_uv_adr);
 
-    /*    OUTREG(RADEON_TV_MASTER_CNTL, (RADEON_TV_ASYNC_RST
+    OUTREG(RADEON_TV_MASTER_CNTL, (RADEON_TV_ASYNC_RST
 				   | RADEON_CRT_ASYNC_RST
 				   | RADEON_RESTART_PHASE_FIX
 				   | RADEON_CRT_FIFO_CE_EN
 				   | RADEON_TV_FIFO_CE_EN
-				   | RADEON_TV_ON));*/
+				   | RADEON_TV_ON));
 
-    OUTREG(RADEON_TV_MASTER_CNTL, restore->tv_master_cntl | RADEON_TV_ON);
+    /*OUTREG(RADEON_TV_MASTER_CNTL, restore->tv_master_cntl | RADEON_TV_ON);*/
 
     for (i = 0; i < MAX_H_CODE_TIMING_LEN; i += 2, hTable--) {
 	tmp = ((CARD32)restore->h_code_timing[ i ] << 14) | ((CARD32)restore->h_code_timing[ i + 1 ]);
@@ -4509,20 +4509,6 @@ static void RADEONRestoreTVOutputStd(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(RADEON_TV_CRC_CNTL, restore->tv_crc_cntl);
 }
 
-/* Test if tv output would be enabled with a given value in TV_DAC_CNTL */
-static Bool RADEONTVIsOn(CARD32 tv_dac_cntl)
-{
-    /* XXX: Fixme for STV vs. CTV */
-    if (tv_dac_cntl & RADEON_TV_DAC_BGSLEEP)
-	return FALSE;
-    else if ((tv_dac_cntl &
-	      (RADEON_TV_DAC_RDACPD | RADEON_TV_DAC_GDACPD | RADEON_TV_DAC_BDACPD)) ==
-	     (RADEON_TV_DAC_RDACPD | RADEON_TV_DAC_GDACPD | RADEON_TV_DAC_BDACPD))
-	return FALSE;
-    else
-	return TRUE;
-}
-
 /* Restore TV out regs */
 void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
@@ -4562,9 +4548,7 @@ void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
   
     ErrorF("Restore Timing Tables\n");
 
-    /* Timing tables are only restored when tv output is active */
-    if (RADEONTVIsOn(restore->tv_dac_cntl))
-	RADEONRestoreTVTimingTables(pScrn, restore);
+    RADEONRestoreTVTimingTables(pScrn, restore);
   
 
     OUTREG(RADEON_TV_MASTER_CNTL, (restore->tv_master_cntl
@@ -5304,7 +5288,15 @@ static void RADEONSaveTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr save)
     /*
      * Reset FIFO arbiter in order to be able to access FIFO RAM
      */
-    OUTREG(RADEON_TV_MASTER_CNTL, save->tv_master_cntl | RADEON_TV_ON);
+
+    OUTREG(RADEON_TV_MASTER_CNTL, (RADEON_TV_ASYNC_RST
+				   | RADEON_CRT_ASYNC_RST
+				   | RADEON_RESTART_PHASE_FIX
+				   | RADEON_CRT_FIFO_CE_EN
+				   | RADEON_TV_FIFO_CE_EN
+				   | RADEON_TV_ON));
+
+    /*OUTREG(RADEON_TV_MASTER_CNTL, save->tv_master_cntl | RADEON_TV_ON);*/
 
     ErrorF("saveTimingTables: reading timing tables\n");
 
@@ -5364,14 +5356,10 @@ static void RADEONSaveTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->tv_y_saw_tooth_cntl = INREG(RADEON_TV_Y_SAW_TOOTH_CNTL);
 
     save->tv_pll_cntl = INPLL(pScrn, RADEON_TV_PLL_CNTL);
-      
-    /*
-     * Read H/V code timing tables (current tables only are saved)
-     * This step is skipped when tv output is disabled in current RT state
-     * (see RADEONRestoreTVRegisters)
-     */
-    if (RADEONTVIsOn(save->tv_dac_cntl))
-	RADEONSaveTimingTables(pScrn, save);
+
+    ErrorF("Save TV timing tables\n");
+
+    RADEONSaveTimingTables(pScrn, save);
 
     ErrorF("TV Save done\n");
 }
