@@ -4298,7 +4298,7 @@ static void RADEONWriteTVFIFO(ScrnInfoPtr pScrn, CARD16 addr,
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 tmp;
-
+    int i = 0;
 
     OUTREG(RADEON_TV_HOST_WRITE_DATA, value);
 
@@ -4307,26 +4307,35 @@ static void RADEONWriteTVFIFO(ScrnInfoPtr pScrn, CARD16 addr,
 
     do {
 	tmp = INREG(RADEON_TV_HOST_RD_WT_CNTL);
+	if ((tmp & RADEON_HOST_FIFO_WT_ACK) == 0)
+	    break;
+	i++;
     }
-    while ((tmp & RADEON_HOST_FIFO_WT_ACK) == 0);
+    while (i < 100000);
+    /*while ((tmp & RADEON_HOST_FIFO_WT_ACK) == 0);*/
 
     OUTREG(RADEON_TV_HOST_RD_WT_CNTL, 0);
 }
 
-/* Read from RT FIFO RAM */
+/* Read from TV FIFO RAM */
 static CARD32 RADEONReadTVFIFO(ScrnInfoPtr pScrn, CARD16 addr)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 tmp;
+    int i = 0;
   
     OUTREG(RADEON_TV_HOST_RD_WT_CNTL, addr);
     OUTREG(RADEON_TV_HOST_RD_WT_CNTL, addr | RADEON_HOST_FIFO_RD);
 
     do {
 	tmp = INREG(RADEON_TV_HOST_RD_WT_CNTL);
-    } 
-    while ((tmp & RADEON_HOST_FIFO_RD_ACK) == 0);
+	if ((tmp & RADEON_HOST_FIFO_RD_ACK) == 0)
+	    break;
+	i++;
+    }
+    while (i < 100000);
+    /*while ((tmp & RADEON_HOST_FIFO_RD_ACK) == 0);*/
 
     OUTREG(RADEON_TV_HOST_RD_WT_CNTL, 0);
 
@@ -4400,12 +4409,14 @@ static void RADEONRestoreTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr restore
     hTable = RADEONGetHTimingTablesAddr(restore->tv_uv_adr);
     vTable = RADEONGetVTimingTablesAddr(restore->tv_uv_adr);
 
-    OUTREG(RADEON_TV_MASTER_CNTL, (RADEON_TV_ASYNC_RST
+    /*    OUTREG(RADEON_TV_MASTER_CNTL, (RADEON_TV_ASYNC_RST
 				   | RADEON_CRT_ASYNC_RST
 				   | RADEON_RESTART_PHASE_FIX
 				   | RADEON_CRT_FIFO_CE_EN
 				   | RADEON_TV_FIFO_CE_EN
-				   | RADEON_TV_ON));
+				   | RADEON_TV_ON));*/
+
+    OUTREG(RADEON_TV_MASTER_CNTL, restore->tv_master_cntl | RADEON_TV_ON);
 
     for (i = 0; i < MAX_H_CODE_TIMING_LEN; i += 2, hTable--) {
 	tmp = ((CARD32)restore->h_code_timing[ i ] << 14) | ((CARD32)restore->h_code_timing[ i + 1 ]);
@@ -4416,7 +4427,7 @@ static void RADEONRestoreTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr restore
 
     for (i = 0; i < MAX_V_CODE_TIMING_LEN; i += 2, vTable++) {
 	tmp = ((CARD32)restore->v_code_timing[ i + 1 ] << 14) | ((CARD32)restore->v_code_timing[ i ]);
-	RADEONWriteFIFO(pScrn, vTable, tmp);
+	RADEONWriteTVFIFO(pScrn, vTable, tmp);
 	if (restore->v_code_timing[ i ] == 0 || restore->v_code_timing[ i + 1 ] == 0)
 	    break;
     }
@@ -4553,7 +4564,7 @@ void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     /* Timing tables are only restored when tv output is active */
     if (RADEONTVIsOn(restore->tv_dac_cntl))
-	RADEONRestoreTimingTables(pScrn, restore);
+	RADEONRestoreTVTimingTables(pScrn, restore);
   
 
     OUTREG(RADEON_TV_MASTER_CNTL, (restore->tv_master_cntl

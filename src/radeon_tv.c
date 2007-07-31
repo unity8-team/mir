@@ -333,7 +333,8 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
 			    | RADEON_AUD_ASYNC_RST
 			    | RADEON_DVS_ASYNC_RST
 			    | RADEON_CRT_FIFO_CE_EN
-			    | RADEON_TV_FIFO_CE_EN);
+			    | RADEON_TV_FIFO_CE_EN
+			    | RADEON_TV_ON);
 
     save->tv_modulator_cntl1 = RADEON_SLEW_RATE_LIMIT
 	                       | RADEON_SYNC_TIP_LEVEL
