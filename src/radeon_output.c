@@ -1297,9 +1297,9 @@ void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output
 	case CONNECTOR_DVI_D:
 	    output = OUTPUT_DVI; break;
 	case CONNECTOR_CTV:
-	    output = OUTPUT_STV; break;
-	case CONNECTOR_STV:
 	    output = OUTPUT_CTV; break;
+	case CONNECTOR_STV:
+	    output = OUTPUT_STV; break;
 	case CONNECTOR_NONE:
 	case CONNECTOR_UNSUPPORTED:
 	default:
