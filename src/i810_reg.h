@@ -822,6 +822,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define PP_SEQUENCE_MASK			0x30000000
 
 #define PP_CONTROL	0x61204
+# define POWER_DOWN_ON_RESET			(1 << 1)
 # define POWER_TARGET_ON			(1 << 0)
 
 #define LVDSPP_ON       0x61208
@@ -1066,6 +1067,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define BLC_PWM_CTL		0x61254
 #define BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
+#define BACKLIGHT_MODULATION_FREQ_SHIFT2	(16)
 /**
  * This is the most significant 15 bits of the number of backlight cycles in a
  * complete cycle of the modulated backlight control.
@@ -1073,7 +1075,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * The actual value is this field multiplied by two.
  */
 #define BACKLIGHT_MODULATION_FREQ_MASK		(0x7fff << 17)
+#define BACKLIGHT_MODULATION_FREQ_MASK2		(0xffff << 16)
 #define BLM_LEGACY_MODE				(1 << 16)
+
 /**
  * This is the number of cycles out of the backlight modulation cycle for which
  * the backlight is on.
@@ -1083,6 +1087,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #define BACKLIGHT_DUTY_CYCLE_SHIFT		(0)
 #define BACKLIGHT_DUTY_CYCLE_MASK		(0xffff)
+
+/* On 965+ backlight control is in another register */
+#define BLC_PWM_CTL2			0x61250
+#define 	BLM_LEGACY_MODE2	(1 << 30)
 
 #define BLM_CTL			0x61260
 #define BLM_THRESHOLD_0		0x61270

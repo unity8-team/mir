@@ -46,6 +46,30 @@ struct i830_lvds_priv {
     int		    backlight_duty_cycle;
 };
 
+/**
+ * Use legacy backlight controls?
+ *
+ * \param pI830 device in question
+ *
+ * Returns TRUE if legacy backlight should be used, false otherwise.
+ */
+static int
+i830_lvds_backlight_legacy(I830Ptr pI830)
+{
+    CARD32 blc_pwm_ctl, blc_pwm_ctl2;
+
+    /* 965GM+ change the location of the legacy control bit */
+    if (IS_I965GM(pI830)) {
+	blc_pwm_ctl2 = INREG(BLC_PWM_CTL2);
+	if (blc_pwm_ctl2 & BLM_LEGACY_MODE2)
+	    return TRUE;
+    } else {
+	blc_pwm_ctl = INREG(BLC_PWM_CTL);
+	if (blc_pwm_ctl & BLM_LEGACY_MODE)
+	    return TRUE;
+    }
+    return FALSE;
+}
 
 /**
  * Sets the backlight level.
@@ -59,18 +83,12 @@ i830_lvds_set_backlight(xf86OutputPtr output, int level)
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 blc_pwm_ctl;
 
+    if (i830_lvds_backlight_legacy(pI830))
+	pciWriteByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS, 0xfe);
+
     blc_pwm_ctl = INREG(BLC_PWM_CTL);
-    if (blc_pwm_ctl & BLM_LEGACY_MODE)
-    {
-	pciWriteByte (pI830->PciTag, 
-		      LEGACY_BACKLIGHT_BRIGHTNESS,
-		      level & 0xff);
-    }
-    else
-    {
-	blc_pwm_ctl &= ~BACKLIGHT_DUTY_CYCLE_MASK;
-	OUTREG(BLC_PWM_CTL, blc_pwm_ctl | (level << BACKLIGHT_DUTY_CYCLE_SHIFT));
-    }
+    blc_pwm_ctl &= ~BACKLIGHT_DUTY_CYCLE_MASK;
+    OUTREG(BLC_PWM_CTL, blc_pwm_ctl | (level << BACKLIGHT_DUTY_CYCLE_SHIFT));
 }
 
 /**
@@ -82,12 +100,24 @@ i830_lvds_get_max_backlight(xf86OutputPtr output)
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
     CARD32	pwm_ctl = INREG(BLC_PWM_CTL);
+    CARD32	val;
+
+    if (IS_I965GM(pI830)) {
+	val = ((pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK2) >>
+	       BACKLIGHT_MODULATION_FREQ_SHIFT2);
+    } else {
+	val = ((pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK) >>
+	       BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
+    }
     
-    if (pwm_ctl & BLM_LEGACY_MODE)
-	return 0xff;
-    else
-	return ((pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK) >>
-		BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
+    /*
+     * In legacy control mode, backlight value is calculated:
+     * if (LBB[7:0] != 0xff)
+     *     backlight = BLC_PWM_CTL[15:0] *  BPC[7:0]
+     * else
+     *     backlight = BLC_PWM_CTL[15:0]
+     */
+    return val;
 }
 
 /**
@@ -138,21 +168,15 @@ i830_lvds_save (xf86OutputPtr output)
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
 
+    if (IS_I965GM(pI830))
+	pI830->saveBLC_PWM_CTL2 = INREG(BLC_PWM_CTL2);
     pI830->savePP_ON = INREG(LVDSPP_ON);
     pI830->savePP_OFF = INREG(LVDSPP_OFF);
     pI830->savePP_CONTROL = INREG(PP_CONTROL);
     pI830->savePP_CYCLE = INREG(PP_CYCLE);
     pI830->saveBLC_PWM_CTL = INREG(BLC_PWM_CTL);
-    if (pI830->saveBLC_PWM_CTL & BLM_LEGACY_MODE)
-    {
-	dev_priv->backlight_duty_cycle = pciReadByte (pI830->PciTag,
-						      LEGACY_BACKLIGHT_BRIGHTNESS);
-    }
-    else
-    {
-	dev_priv->backlight_duty_cycle = (pI830->saveBLC_PWM_CTL &
-					  BACKLIGHT_DUTY_CYCLE_MASK);
-    }
+    dev_priv->backlight_duty_cycle = (pI830->saveBLC_PWM_CTL &
+				      BACKLIGHT_DUTY_CYCLE_MASK);
 
     /*
      * If the light is off at server startup, just make it full brightness
@@ -167,6 +191,8 @@ i830_lvds_restore(xf86OutputPtr output)
     ScrnInfoPtr	pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
 
+    if (IS_I965GM(pI830))
+	OUTREG(BLC_PWM_CTL2, pI830->saveBLC_PWM_CTL2);
     OUTREG(BLC_PWM_CTL, pI830->saveBLC_PWM_CTL);
     OUTREG(LVDSPP_ON, pI830->savePP_ON);
     OUTREG(LVDSPP_OFF, pI830->savePP_OFF);
