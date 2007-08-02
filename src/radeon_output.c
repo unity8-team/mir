@@ -997,6 +997,7 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	if (radeon_crtc->crtc_id == 0)
 	    RADEONRestoreRMXRegisters(pScrn, &info->ModeReg);
 	RADEONRestoreLVDSRegisters(pScrn, &info->ModeReg);
+	break;
     case MT_DFP:
 	if (radeon_crtc->crtc_id == 0)
 	    RADEONRestoreRMXRegisters(pScrn, &info->ModeReg);
