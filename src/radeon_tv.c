@@ -46,11 +46,8 @@ typedef struct
     unsigned defRestart;
     CARD16 crtcPLL_N;
     CARD8  crtcPLL_M;
-    Bool   crtcPLL_divBy2;
-    CARD8  crtcPLL_byteClkDiv;
     CARD8  crtcPLL_postDiv;
     unsigned pixToTV;
-    CARD8  byteClkDelay;
 } TVModeConstants;
 
 static const CARD16 hor_timing_NTSC[] =
@@ -156,11 +153,8 @@ static const TVModeConstants availableTVModes[] =
 	625592,             /* defRestart */
 	592,                /* crtcPLL_N */
 	91,                 /* crtcPLL_M */
-	TRUE,               /* crtcPLL_divBy2 */
-	0,                  /* crtcPLL_byteClkDiv */
 	4,                  /* crtcPLL_postDiv */
 	1022,               /* pixToTV */
-	1,                  /* byteClkDelay */
     },
     { 
 	800,               /* horResolution */
@@ -174,11 +168,8 @@ static const TVModeConstants availableTVModes[] =
 	696700,            /* defRestart */
 	1382,              /* crtcPLL_N */
 	231,               /* crtcPLL_M */
-	TRUE,              /* crtcPLL_divBy2 */
-	0,                 /* crtcPLL_byteClkDiv */
 	4,                 /* crtcPLL_postDiv */
 	759,               /* pixToTV */
-	1,                 /* byteClkDelay */
     }
 };
 
