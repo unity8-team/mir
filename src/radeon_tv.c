@@ -44,25 +44,16 @@ typedef struct
     CARD16 horSyncStart;
     CARD16 verSyncStart;
     unsigned defRestart;
-    CARD32 vScalerCntl1;
-    CARD32 yRiseCntl;
-    CARD32 ySawtoothCntl;
     CARD16 crtcPLL_N;
     CARD8  crtcPLL_M;
     Bool   crtcPLL_divBy2;
     CARD8  crtcPLL_byteClkDiv;
     CARD8  crtcPLL_postDiv;
-    Bool   use888RGB; /* False: RGB data is 565 packed (2 bytes/pixel) */
-                      /* True : RGB data is 888 packed (3 bytes/pixel) */
     unsigned pixToTV;
     CARD8  byteClkDelay;
-    CARD32 tvoDataDelayA;
-    CARD32 tvoDataDelayB;
-    const CARD16 *horTimingTable;
-    const CARD16 *verTimingTable;
 } TVModeConstants;
 
-static const CARD16 horTimingNTSC_BIOS[] =
+static const CARD16 hor_timing_NTSC[] =
 {
     0x0007,
     0x003f,
@@ -84,7 +75,7 @@ static const CARD16 horTimingNTSC_BIOS[] =
     0
 };
 
-static const CARD16 verTimingNTSC_BIOS[] =
+static const CARD16 vert_timing_NTSC[] =
 {
     0x2001,
     0x200d,
@@ -102,7 +93,7 @@ static const CARD16 verTimingNTSC_BIOS[] =
     0
 };
 
-static const CARD16 horTimingPAL_BIOS[] =
+static const CARD16 hor_timing_PAL[] =
 {
     0x0007,
     0x0058,
@@ -124,7 +115,7 @@ static const CARD16 horTimingPAL_BIOS[] =
     0
 };
 
-static const CARD16 verTimingPAL_BIOS[] =
+static const CARD16 vert_timing_PAL[] =
 {
     0x2001,
     0x200c,
@@ -163,21 +154,13 @@ static const TVModeConstants availableTVModes[] =
 	824,                /* horSyncStart */
 	632,                /* verSyncStart */
 	625592,             /* defRestart */
-	0x0900b46b,         /* vScalerCntl1 */
-	0x00012c00,         /* yRiseCntl */
-	0x10002d1a,         /* ySawtoothCntl */
 	592,                /* crtcPLL_N */
 	91,                 /* crtcPLL_M */
 	TRUE,               /* crtcPLL_divBy2 */
 	0,                  /* crtcPLL_byteClkDiv */
 	4,                  /* crtcPLL_postDiv */
-	FALSE,              /* use888RGB */
 	1022,               /* pixToTV */
 	1,                  /* byteClkDelay */
-	0x0a0b0907,         /* tvoDataDelayA */
-	0x060a090a,         /* tvoDataDelayB */
-	horTimingNTSC_BIOS, /* horTimingTable */
-	verTimingNTSC_BIOS  /* verTimingTable */
     },
     { 
 	800,               /* horResolution */
@@ -189,25 +172,22 @@ static const TVModeConstants availableTVModes[] =
 	824,               /* horSyncStart */
 	669,               /* verSyncStart */
 	696700,            /* defRestart */
-	0x09009097,        /* vScalerCntl1 */
-	0x000007da,        /* yRiseCntl */
-	0x10002426,        /* ySawtoothCntl */
 	1382,              /* crtcPLL_N */
 	231,               /* crtcPLL_M */
 	TRUE,              /* crtcPLL_divBy2 */
 	0,                 /* crtcPLL_byteClkDiv */
 	4,                 /* crtcPLL_postDiv */
-	FALSE,             /* use888RGB */
 	759,               /* pixToTV */
 	1,                 /* byteClkDelay */
-	0x0a0b0907,        /* tvoDataDelayA */
-	0x060a090a,        /* tvoDataDelayB */
-	horTimingPAL_BIOS, /* horTimingTable */
-	verTimingPAL_BIOS  /* verTimingTable */
     }
 };
 
 #define N_AVAILABLE_MODES (sizeof(availableModes) / sizeof(availableModes[ 0 ]))
+
+static long YCOEF_value[5] = { 2, 2, 0, 4, 0 };
+static long YCOEF_EN_value[5] = { 1, 1, 0, 1, 0 };
+static long SLOPE_value[5] = { 1, 2, 2, 4, 8 };
+static long SLOPE_limit[5] = { 6, 5, 4, 3, 2 };
 
 
 /* Compute F,V,H restarts from default restart position and hPos & vPos
@@ -241,13 +221,17 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
     else
 	fTotal = PAL_TV_VFTOTAL + 1;
 
-    /*
-     * Adjust positions 1&2 in hor. code timing table
-     */
+    /* Adjust positions 1&2 in hor. code timing table */
     hOffset = radeon_output->hPos * H_POS_UNIT;
 
-    p1 = constPtr->horTimingTable[ H_TABLE_POS1 ];
-    p2 = constPtr->horTimingTable[ H_TABLE_POS2 ];
+    if (radeon_output->tvStd == TV_STD_NTSC) {
+	p1 = hor_timing_NTSC[ H_TABLE_POS1 ];
+	p2 = hor_timing_NTSC[ H_TABLE_POS2 ];
+    } else {
+	p1 = hor_timing_PAL[ H_TABLE_POS1 ];
+	p2 = hor_timing_PAL[ H_TABLE_POS2 ];
+    }
+
 
     p1 = (CARD16)((int)p1 + hOffset);
     p2 = (CARD16)((int)p2 - hOffset);
@@ -311,8 +295,11 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     unsigned i;
+    unsigned long vert_space, flicker_removal;
     CARD32 tmp;
     const TVModeConstants *constPtr;
+    const CARD16 *hor_timing;
+    const CARD16 *vert_timing;
 
     constPtr = &availableTVModes[radeon_output->tvStd];
 
@@ -361,7 +348,8 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
 				 | RADEON_CMP_BLU_EN
 				 | RADEON_DAC_DITHER_EN);
 
-    save->tv_rgb_cntl = 0x007b0004;
+    save->tv_rgb_cntl = (RADEON_RGB_DITHER_EN | RADEON_TVOUT_SCALE_EN
+			 | (0x0b << 16) | (0x07 << 20));
 
     if (IsPrimary) {
 	if (radeon_output->Flags & RADEON_USE_RMX)
@@ -375,14 +363,59 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     save->tv_sync_cntl = RADEON_SYNC_PUB | RADEON_TV_SYNC_IO_DRIVE;
 
     save->tv_sync_size = constPtr->horResolution + 8;
-  
-    tmp = (constPtr->vScalerCntl1 >> RADEON_UV_INC_SHIFT) & RADEON_UV_INC_MASK;
+
+    if (radeon_output->tvStd == TV_STD_NTSC)
+	vert_space = constPtr->verTotal * 2 * 10000 / NTSC_TV_LINES_PER_FRAME;
+    else
+	vert_space = constPtr->verTotal * 2 * 10000 / PAL_TV_LINES_PER_FRAME;
+
+    save->tv_vscaler_cntl1 = RADEON_Y_W_EN;
+    save->tv_vscaler_cntl1 =
+	(save->tv_vscaler_cntl1 & 0xe3ff0000) | (vert_space * (1 << FRAC_BITS) / 10000);
+    save->tv_vscaler_cntl1 |= RADEON_RESTART_FIELD;
+    if (constPtr->horResolution == 1024)
+	save->tv_vscaler_cntl1 |= (4 << RADEON_Y_DEL_W_SIG_SHIFT);
+    else
+	save->tv_vscaler_cntl1 |= (2 << RADEON_Y_DEL_W_SIG_SHIFT);
+
+    if (radeon_output->tvStd == TV_STD_NTSC)
+	flicker_removal =
+	    (float) constPtr->verTotal * 2.0 / NTSC_TV_LINES_PER_FRAME + 0.5;
+    else
+	flicker_removal =
+	    (float) constPtr->verTotal * 2.0 / PAL_TV_LINES_PER_FRAME + 0.5;
+
+    if (flicker_removal < 3)
+	flicker_removal = 3;
+    for (i = 0; i < 6; ++i) {
+	if (flicker_removal == SLOPE_limit[i])
+	    break;
+    }
+    save->tv_y_saw_tooth_cntl =
+	(vert_space * SLOPE_value[i] * (1 << (FRAC_BITS - 1)) + 5001) / 10000 / 8
+	| ((SLOPE_value[i] * (1 << (FRAC_BITS - 1)) / 8) << 16);
+    save->tv_y_fall_cntl =
+	(YCOEF_EN_value[i] << 17) | ((YCOEF_value[i] * (1 << 8) / 8) << 24) |
+	RADEON_Y_FALL_PING_PONG | (272 * SLOPE_value[i] / 8) * (1 << (FRAC_BITS - 1)) /
+	1024;
+    save->tv_y_rise_cntl =
+	RADEON_Y_RISE_PING_PONG
+	| (flicker_removal * 1024 - 272) * SLOPE_value[i] / 8 * (1 << (FRAC_BITS - 1)) / 1024;
+
+    save->tv_vscaler_cntl2 = ((save->tv_vscaler_cntl2 & 0x00fffff0)
+			      | (0x10 << 24)
+			      | RADEON_DITHER_MODE 
+			      | RADEON_Y_OUTPUT_DITHER_EN
+			      | RADEON_UV_OUTPUT_DITHER_EN
+			      | RADEON_UV_TO_BUF_DITHER_EN);
+
+    tmp = (save->tv_vscaler_cntl1 >> RADEON_UV_INC_SHIFT) & RADEON_UV_INC_MASK;
     tmp = ((16384 * 256 * 10) / tmp + 5) / 10;
     tmp = (tmp << RADEON_UV_OUTPUT_POST_SCALE_SHIFT) | 0x000b0000;
     save->tv_timing_cntl = tmp;
 
+    /* XXX: taken care of in enabledisplay() */
     save->tv_dac_cntl = RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD
-	                | RADEON_TV_MONITOR_DETECT_EN
 	                | (8 << 16) | (6 << 20);
 
     if (radeon_output->tvStd == TV_STD_NTSC)
@@ -390,15 +423,16 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     else
 	save->tv_dac_cntl |= RADEON_TV_DAC_STD_PAL;
 
-#if 0
+#if 1
+    /* XXX: taken care of in enabledisplay() */
     save->tv_dac_cntl |= (RADEON_TV_DAC_RDACPD | RADEON_TV_DAC_GDACPD
 	                 | RADEON_TV_DAC_BDACPD);
 
-    if (MonType == MT_CTV) {
+    if (radeon_output->MonType == MT_CTV) {
 	save->tv_dac_cntl &= ~RADEON_TV_DAC_BDACPD;
     }
 
-    if (MonType == MT_STV) {
+    if (radeon_output->MonType == MT_STV) {
 	save->tv_dac_cntl &= ~(RADEON_TV_DAC_RDACPD |
 			       RADEON_TV_DAC_GDACPD);
     }
@@ -428,26 +462,23 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     else
 	save->tv_ftotal = PAL_TV_VFTOTAL;
 
-    save->tv_vscaler_cntl1 = constPtr->vScalerCntl1;
-    save->tv_vscaler_cntl1 |= RADEON_RESTART_FIELD;
-
-    save->tv_vscaler_cntl2 = 0x10000000;
-
     save->tv_vtotal = constPtr->verTotal - 1;
 
-    save->tv_y_fall_cntl = RADEON_Y_FALL_PING_PONG | RADEON_Y_COEF_EN;
-    save->tv_y_fall_cntl |= 0x80000400;
-
-    save->tv_y_rise_cntl = constPtr->yRiseCntl;
-    save->tv_y_saw_tooth_cntl = constPtr->ySawtoothCntl;
+    if (radeon_output->tvStd == TV_STD_NTSC) {
+	hor_timing = hor_timing_NTSC;
+	vert_timing = vert_timing_NTSC;
+    } else {
+	hor_timing = hor_timing_PAL;
+	vert_timing = vert_timing_PAL;
+    }
 
     for (i = 0; i < MAX_H_CODE_TIMING_LEN; i++) {
-	if ((save->h_code_timing[ i ] = constPtr->horTimingTable[ i ]) == 0)
+	if ((save->h_code_timing[ i ] = hor_timing[ i ]) == 0)
 	    break;
     }
 
     for (i = 0; i < MAX_V_CODE_TIMING_LEN; i++) {
-	if ((save->v_code_timing[ i ] = constPtr->verTimingTable[ i ]) == 0)
+	if ((save->v_code_timing[ i ] = vert_timing[ i ]) == 0)
 	    break;
     }
 

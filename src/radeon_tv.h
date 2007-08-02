@@ -49,3 +49,8 @@
 #define PAL_TV_LINES_PER_FRAME 625
 #define PAL_TV_ZERO_H_SIZE 473200
 #define PAL_TV_H_SIZE_UNIT 9360
+
+
+#define VERT_LEAD_IN_LINES 2
+#define FRAC_BITS 0xe
+#define FRAC_MASK 0x3fff

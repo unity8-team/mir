@@ -4311,7 +4311,7 @@ static void RADEONWriteTVFIFO(ScrnInfoPtr pScrn, CARD16 addr,
 	    break;
 	i++;
     }
-    while (i < 100000);
+    while (i < 10000);
     /*while ((tmp & RADEON_HOST_FIFO_WT_ACK) == 0);*/
 
     OUTREG(RADEON_TV_HOST_RD_WT_CNTL, 0);
@@ -4334,7 +4334,7 @@ static CARD32 RADEONReadTVFIFO(ScrnInfoPtr pScrn, CARD16 addr)
 	    break;
 	i++;
     }
-    while (i < 100000);
+    while (i < 10000);
     /*while ((tmp & RADEON_HOST_FIFO_RD_ACK) == 0);*/
 
     OUTREG(RADEON_TV_HOST_RD_WT_CNTL, 0);
@@ -4353,15 +4353,12 @@ static CARD16 RADEONGetHTimingTablesAddr(CARD32 tv_uv_adr)
     case 0:
 	hTable = RADEON_TV_MAX_FIFO_ADDR_INTERNAL;
 	break;
-
     case 1:
 	hTable = ((tv_uv_adr & RADEON_TABLE1_BOT_ADR_MASK) >> RADEON_TABLE1_BOT_ADR_SHIFT) * 2;
 	break;
-
     case 2:
 	hTable = ((tv_uv_adr & RADEON_TABLE3_TOP_ADR_MASK) >> RADEON_TABLE3_TOP_ADR_SHIFT) * 2;
 	break;
-
     default:
 	/* Of course, this should never happen */
 	hTable = 0;
@@ -4378,15 +4375,12 @@ static CARD16 RADEONGetVTimingTablesAddr(CARD32 tv_uv_adr)
     case 0:
 	vTable = ((tv_uv_adr & RADEON_MAX_UV_ADR_MASK) >> RADEON_MAX_UV_ADR_SHIFT) * 2 + 1;
 	break;
-
     case 1:
 	vTable = ((tv_uv_adr & RADEON_TABLE1_BOT_ADR_MASK) >> RADEON_TABLE1_BOT_ADR_SHIFT) * 2 + 1;
 	break;
-
     case 2:
 	vTable = ((tv_uv_adr & RADEON_TABLE3_TOP_ADR_MASK) >> RADEON_TABLE3_TOP_ADR_SHIFT) * 2 + 1;
 	break;
-
     default:
 	/* Of course, this should never happen */
 	vTable = 0;
@@ -5359,7 +5353,7 @@ static void RADEONSaveTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     ErrorF("Save TV timing tables\n");
 
-    RADEONSaveTimingTables(pScrn, save);
+    RADEONSaveTVTimingTables(pScrn, save);
 
     ErrorF("TV Save done\n");
 }
