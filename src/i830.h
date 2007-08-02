@@ -756,6 +756,7 @@ extern const int I830CopyROP[16];
 #define ALIGN_BOTH_ENDS			0x00000002
 #define NEED_NON_STOLEN			0x00000004
 #define NEED_LIFETIME_FIXED		0x00000008
+#define ALLOW_SHARING			0x00000010
 
 /* Chipset registers for VIDEO BIOS memory RW access */
 #define _855_DRAM_RW_CONTROL 0x58

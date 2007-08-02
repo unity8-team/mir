@@ -1664,6 +1664,7 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
       sarea->third_offset = 0;
       sarea->third_size = 0;
    }
+
    sarea->depth_offset = pI830->depth_buffer->offset;
    sarea->depth_size = pI830->depth_buffer->size;
    if (pI830->textures != NULL) {
@@ -1677,6 +1678,21 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    sarea->pitch = pScrn->displayWidth;
    sarea->virtualX = pScrn->virtualX;
    sarea->virtualY = pScrn->virtualY;
+
+   sarea->front_bo_handle = -1;
+   sarea->back_bo_handle = -1;
+   sarea->third_bo_handle = -1;
+   sarea->depth_bo_handle = -1;
+#ifdef XF86DRI_MM
+   if (pI830->front_buffer->bo.size)
+       sarea->front_bo_handle = pI830->front_buffer->bo.handle;
+   if (pI830->back_buffer->bo.size)
+       sarea->back_bo_handle = pI830->back_buffer->bo.handle;
+   if (pI830->third_buffer != NULL && pI830->third_buffer->bo.size)
+       sarea->third_bo_handle = pI830->third_buffer->bo.handle;
+   if (pI830->depth_buffer->bo.size)
+       sarea->depth_bo_handle = pI830->depth_buffer->bo.handle;
+#endif
 
    /* The rotation is now handled entirely by the X Server, so just leave the
     * DRI unaware.

@@ -692,6 +692,8 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 
     mask = DRM_BO_FLAG_READ | DRM_BO_FLAG_WRITE | DRM_BO_FLAG_MAPPABLE |
 	DRM_BO_FLAG_MEM_TT;
+    if (flags & ALLOW_SHARING)
+	mask |= DRM_BO_FLAG_SHAREABLE;
 
     ret = drmBOCreate(pI830->drmSubFD, 0, size, align / GTT_PAGE_SIZE, NULL,
 		      drm_bo_type_dc, mask, 0, &mem->bo);
@@ -1101,7 +1103,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
      * DRIDoMappings is the only caller of the rm/add map functions,
      * and it's only called at startup.  This should be easily fixable.
      */
-    flags = NEED_LIFETIME_FIXED;
+    flags = NEED_LIFETIME_FIXED | ALLOW_SHARING;
 
     /* Clear everything first. */
     memset(FbMemBox, 0, sizeof(*FbMemBox));
@@ -1537,9 +1539,11 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn, i830_memory **buffer,
     {
 	size = ROUND_TO_PAGE(pitch * ALIGN(height, 16));
 	*buffer = i830_allocate_memory_tiled(pScrn, name, size, pitch,
-					     GTT_PAGE_SIZE, ALIGN_BOTH_ENDS,
-					     TILING_XMAJOR |
-					     NEED_LIFETIME_FIXED);
+					     GTT_PAGE_SIZE,
+					     ALIGN_BOTH_ENDS |
+					     NEED_LIFETIME_FIXED |
+					     ALLOW_SHARING,
+					     TILING_XMAJOR);
 	*tiled = FENCE_XMAJOR;
     }
 
@@ -1549,7 +1553,9 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn, i830_memory **buffer,
     if (*buffer == NULL) {
 	size = ROUND_TO_PAGE(pitch * height);
 	*buffer = i830_allocate_memory(pScrn, name, size, GTT_PAGE_SIZE,
-				       ALIGN_BOTH_ENDS | NEED_LIFETIME_FIXED);
+				       ALIGN_BOTH_ENDS |
+				       NEED_LIFETIME_FIXED |
+				       ALLOW_SHARING);
 	*tiled = FENCE_LINEAR;
     }
 
@@ -1591,7 +1597,9 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
 	pI830->depth_buffer =
 	    i830_allocate_memory_tiled(pScrn, "depth buffer", size, pitch,
 				       GTT_PAGE_SIZE,
-				       ALIGN_BOTH_ENDS | NEED_LIFETIME_FIXED,
+				       ALIGN_BOTH_ENDS |
+				       NEED_LIFETIME_FIXED |
+				       ALLOW_SHARING,
 				       tile_format);
 	pI830->depth_tiled = (tile_format == TILING_YMAJOR) ? FENCE_YMAJOR :
 	    FENCE_XMAJOR;
@@ -1604,7 +1612,7 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
 	size = ROUND_TO_PAGE(pitch * height);
 	pI830->depth_buffer =
 	    i830_allocate_memory(pScrn, "depth buffer", size, GTT_PAGE_SIZE,
-				 NEED_LIFETIME_FIXED);
+				 ALLOW_SHARING | NEED_LIFETIME_FIXED);
 	pI830->depth_tiled = FENCE_LINEAR;
     }
 
@@ -1646,6 +1654,7 @@ i830_allocate_texture_memory(ScrnInfoPtr pScrn)
 	 */
 	pI830->textures = i830_allocate_memory(pScrn, "classic textures", size,
 					       GTT_PAGE_SIZE,
+					       ALLOW_SHARING |
 					       NEED_LIFETIME_FIXED);
 	if (pI830->textures == NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
