@@ -141,7 +141,7 @@ static const CARD16 vert_timing_PAL[] =
  **********************************************************************/
 static const TVModeConstants availableTVModes[] =
 {
-    { 
+    {
 	800,                /* horResolution */
 	600,                /* verResolution */
 	TV_STD_NTSC,        /* standard */
@@ -156,7 +156,7 @@ static const TVModeConstants availableTVModes[] =
 	4,                  /* crtcPLL_postDiv */
 	1022,               /* pixToTV */
     },
-    { 
+    {
 	800,               /* horResolution */
 	600,               /* verResolution */
 	TV_STD_PAL,        /* standard */

@@ -609,6 +609,14 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
+    if (radeon_output->type == OUTPUT_STV ||
+	radeon_output->type == OUTPUT_CTV) {
+	if (pMode->HDisplay == 800 && pMode->VDisplay == 600)
+	    return MODE_OK;
+	else
+	    return MODE_CLOCK_RANGE;
+    }
+
     if (radeon_output->type != OUTPUT_LVDS)
 	return MODE_OK;
 
