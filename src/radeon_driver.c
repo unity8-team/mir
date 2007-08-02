@@ -4541,7 +4541,6 @@ void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONRestoreTVRestarts(pScrn, restore);
   
     ErrorF("Restore Timing Tables\n");
-
     RADEONRestoreTVTimingTables(pScrn, restore);
   
 
@@ -4554,12 +4553,9 @@ void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     OUTREG(RADEON_TV_MASTER_CNTL, restore->tv_master_cntl);
 
-    /*OUTREG(RADEON_DISP_MERGE_CNTL, restore->disp_merge_cntl);*/
-
     OUTREG(RADEON_TV_GAIN_LIMIT_SETTINGS, restore->tv_gain_limit_settings);
     OUTREG(RADEON_TV_LINEAR_GAIN_SETTINGS, restore->tv_linear_gain_settings);
 
-    /* XXX: taken care of in EnableDisplay() */
     OUTREG(RADEON_TV_DAC_CNTL, restore->tv_dac_cntl);
 
     ErrorF("Leaving Restore TV\n");

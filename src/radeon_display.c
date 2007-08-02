@@ -317,9 +317,8 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
     RADEONOutputPrivatePtr radeon_output;
     radeon_output = output->driver_private;
 
-    ErrorF("enable montype: %d\n", radeon_output->MonType);
-
     if (bEnable) {
+	ErrorF("enable montype: %d\n", radeon_output->MonType);
         if (radeon_output->MonType == MT_CRT) {
             if (radeon_output->DACType == DAC_PRIMARY) {
                 tmp = INREG(RADEON_CRTC_EXT_CNTL);
@@ -362,20 +361,11 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
             save->lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS);
         } else if (radeon_output->MonType == MT_STV ||
 		   radeon_output->MonType == MT_CTV) {
-#if 1
-	    /* TV_MASTER_CNTL ??? */
-
-	    /* XXX: FIXME: STV vs CTV and DACPD bits */
-	    tmp = INREG(RADEON_TV_DAC_CNTL);
-	    tmp |= (RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD);
-	    tmp &= ~RADEON_TV_DAC_BGSLEEP;
-	    OUTREG(RADEON_TV_DAC_CNTL, tmp);
-	    save->tv_dac_cntl |= (RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD);
-	    save->tv_dac_cntl &= ~RADEON_TV_DAC_BGSLEEP;
-#endif
+	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
 	}
     } else {
-        if (radeon_output->MonType == MT_CRT || radeon_output->MonType == NONE) {
+	ErrorF("disable montype: %d\n", radeon_output->MonType);
+        if (radeon_output->MonType == MT_CRT) {
             if (radeon_output->DACType == DAC_PRIMARY) {
                 tmp = INREG(RADEON_CRTC_EXT_CNTL);
                 tmp &= ~RADEON_CRTC_CRT_ON;       
@@ -395,9 +385,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
                 }
             }
 	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
-        }
-
-        if (radeon_output->MonType == MT_DFP || radeon_output->MonType == NONE) {
+        } else if (radeon_output->MonType == MT_DFP) {
             if (radeon_output->TMDSType == TMDS_INT) {
                 tmp = INREG(RADEON_FP_GEN_CNTL);
                 tmp &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
@@ -409,10 +397,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
                 OUTREG(RADEON_FP2_GEN_CNTL, tmp);
                 save->fp2_gen_cntl &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
             }
-        }
-
-        if (radeon_output->MonType == MT_LCD || 
-            (radeon_output->MonType == NONE && radeon_output->ConnectorType == CONNECTOR_PROPRIETARY)) {
+        } else if (radeon_output->MonType == MT_LCD) {
 	    unsigned long tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
 	    if (info->IsMobility || info->IsIGP) {
 	    /* Asic bug, when turning off LVDS_ON, we have to make sure
@@ -429,21 +414,8 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    if (info->IsMobility || info->IsIGP) {
 		OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
 	    }
-        }
-
-	if (radeon_output->MonType == MT_STV ||
-	    radeon_output->MonType == MT_CTV) {
-#if 1
-
-	    /* TV_MASTER_CNTL ??? */
-
-	    tmp = INREG(RADEON_TV_DAC_CNTL);
-	    tmp &= ~(RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD);
-	    tmp |= RADEON_TV_DAC_BGSLEEP;
-	    OUTREG(RADEON_TV_DAC_CNTL, tmp);
-	    save->tv_dac_cntl &= ~(RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD);
-	    save->tv_dac_cntl |= RADEON_TV_DAC_BGSLEEP;
-#endif
+        } else if (radeon_output->MonType == MT_STV || radeon_output->MonType == MT_CTV) {
+	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
 	}
     }
 }

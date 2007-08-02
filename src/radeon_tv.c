@@ -405,17 +405,14 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     tmp = (tmp << RADEON_UV_OUTPUT_POST_SCALE_SHIFT) | 0x000b0000;
     save->tv_timing_cntl = tmp;
 
-    /* XXX: taken care of in enabledisplay() */
-    save->tv_dac_cntl = /*RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD
-			  |*/ (8 << 16) | (6 << 20);
+    save->tv_dac_cntl = RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD | (8 << 16) | (6 << 20);
 
     if (radeon_output->tvStd == TV_STD_NTSC)
 	save->tv_dac_cntl |= RADEON_TV_DAC_STD_NTSC;
     else
 	save->tv_dac_cntl |= RADEON_TV_DAC_STD_PAL;
 
-#if 1
-    /* XXX: taken care of in enabledisplay() */
+#if 0
     save->tv_dac_cntl |= (RADEON_TV_DAC_RDACPD | RADEON_TV_DAC_GDACPD
 	                 | RADEON_TV_DAC_BDACPD);
 
