@@ -406,8 +406,8 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     save->tv_timing_cntl = tmp;
 
     /* XXX: taken care of in enabledisplay() */
-    save->tv_dac_cntl = RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD
-	                | (8 << 16) | (6 << 20);
+    save->tv_dac_cntl = /*RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD
+			  |*/ (8 << 16) | (6 << 20);
 
     if (radeon_output->tvStd == TV_STD_NTSC)
 	save->tv_dac_cntl |= RADEON_TV_DAC_STD_NTSC;

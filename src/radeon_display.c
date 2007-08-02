@@ -362,18 +362,16 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
             save->lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS);
         } else if (radeon_output->MonType == MT_STV ||
 		   radeon_output->MonType == MT_CTV) {
-#if 0
+#if 1
 	    /* TV_MASTER_CNTL ??? */
 
 	    /* XXX: FIXME: STV vs CTV and DACPD bits */
 	    tmp = INREG(RADEON_TV_DAC_CNTL);
-	    tmp |= (TV_DAC_CNTL_NBLANK | TV_DAC_CNTL_NHOLD);
-	    tmp &= ~(TV_DAC_CNTL_BGSLEEP | TV_DAC_CNTL_RDACPD
-		     | TV_DAC_CNTL_GDACPD | TV_DAC_CNTL_BDACPD);
+	    tmp |= (RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD);
+	    tmp &= ~RADEON_TV_DAC_BGSLEEP;
 	    OUTREG(RADEON_TV_DAC_CNTL, tmp);
-	    save->tv_dac_cntl |= (TV_DAC_CNTL_NBLANK | TV_DAC_CNTL_NHOLD);
-	    save->tv_dac_cntl &= ~(TV_DAC_CNTL_BGSLEEP | TV_DAC_CNTL_RDACPD
-				   | TV_DAC_CNTL_GDACPD | TV_DAC_CNTL_BDACPD);
+	    save->tv_dac_cntl |= (RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD);
+	    save->tv_dac_cntl &= ~RADEON_TV_DAC_BGSLEEP;
 #endif
 	}
     } else {
@@ -435,15 +433,16 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 
 	if (radeon_output->MonType == MT_STV ||
 	    radeon_output->MonType == MT_CTV) {
+#if 1
 
 	    /* TV_MASTER_CNTL ??? */
-#if 0
+
 	    tmp = INREG(RADEON_TV_DAC_CNTL);
-	    tmp &= ~(TV_DAC_CNTL_NBLANK | TV_DAC_CNTL_NHOLD);
-	    tmp |= (TV_DAC_CNTL_BGSLEEP | TV_DAC_CNTL_RDACPD | TV_DAC_CNTL_GDACPD | TV_DAC_CNTL_BDACPD);
+	    tmp &= ~(RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD);
+	    tmp |= RADEON_TV_DAC_BGSLEEP;
 	    OUTREG(RADEON_TV_DAC_CNTL, tmp);
-	    save->tv_dac_cntl &= ~(TV_DAC_CNTL_NBLANK | TV_DAC_CNTL_NHOLD);
-	    save->tv_dac_cntl |= (TV_DAC_CNTL_BGSLEEP | TV_DAC_CNTL_RDACPD | TV_DAC_CNTL_GDACPD | TV_DAC_CNTL_BDACPD);
+	    save->tv_dac_cntl &= ~(RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD);
+	    save->tv_dac_cntl |= RADEON_TV_DAC_BGSLEEP;
 #endif
 	}
     }
