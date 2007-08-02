@@ -4612,6 +4612,9 @@ static CARD8 RADEONComputePLLGain(CARD16 reference_freq, CARD16 ref_div,
 {
     unsigned vcoFreq;
 
+    if (!ref_div)
+	return 1;
+
     vcoFreq = ((unsigned)reference_freq * fb_div) / ref_div;
 
     /*
@@ -5417,6 +5420,8 @@ static void RADEONSavePalette(ScrnInfoPtr pScrn, RADEONSavePtr save)
 /* Save state that defines current video mode */
 static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONSaveMode(%p)\n", save);
 
@@ -5428,7 +5433,8 @@ static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
     RADEONSaveDACRegisters(pScrn, save);
     RADEONSaveCrtc2Registers(pScrn, save);
     RADEONSavePLL2Registers(pScrn, save);
-    RADEONSaveTVRegisters(pScrn, save);
+    if (info->InternalTVOut)
+	RADEONSaveTVRegisters(pScrn, save);
     /*RADEONSavePalette(pScrn, save);*/
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
