@@ -147,6 +147,8 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	I830FALLBACK("pixmap offset not aligned");
     if ( pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
 	I830FALLBACK("pixmap pitch not aligned");
+    if ( pI830->tiling && offset > 4096)
+	I830FALLBACK("offset limited to 4k for tiled targets");
 
     pI830->BR[13] = (pitch & 0xffff);
     switch (pPixmap->drawable.bitsPerPixel) {
@@ -230,6 +232,12 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
     pI830->copy_src_off = exaGetPixmapOffset(pSrcPixmap);
     pI830->copy_src_tiled = (pI830->tiling &&
 			     exaPixmapInFrontbuffer(pSrcPixmap));
+
+    if (pI830->copy_src_tiled && pI830->copy_src_off > 4096)
+	I830FALLBACK("offset limited to 4k for tiled targets");
+    if (pI830->tiling && exaPixmapInFrontbuffer(pDstPixmap) &&
+	exaGetPixmapOffset(pDstPixmap) > 4096)
+	I830FALLBACK("offset limited to 4k for tiled targets");
 
     pI830->BR[13] = exaGetPixmapPitch(pDstPixmap);
     pI830->BR[13] |= I830CopyROP[alu] << 16;
