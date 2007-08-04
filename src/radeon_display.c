@@ -2071,7 +2071,6 @@ RADEONCRTC2Blank(RADEONInfoPtr info, Bool Blank)
 void RADEONBlank(ScrnInfoPtr pScrn, Bool Blank)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
     if (!pRADEONEnt->HasSecondary ||
@@ -2223,7 +2222,6 @@ RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode, int 
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    RADEONConnector *pPort;
 
     if (!pScrn->vtSema)
 	return;
