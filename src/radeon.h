@@ -904,14 +904,12 @@ extern void        RADEONEnableDisplay(ScrnInfoPtr pScrn, RADEONConnector* pPort
 extern void        RADEONDisableDisplays(ScrnInfoPtr pScrn);
 extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
 extern void        RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn);
-extern void        RADEONUnblank(ScrnInfoPtr pScrn);
-extern void        RADEONBlank(ScrnInfoPtr pScrn);
+extern void        RADEONBlank(ScrnInfoPtr pScrn, Bool Blank);
 extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 						   int PowerManagementMode,
 						   int flags);
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn);
 extern Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn);
-extern RADEONConnector *RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num);
 extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 				  RADEONMonitorType DisplayType, int crtc2);

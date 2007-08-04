@@ -119,9 +119,6 @@ typedef struct
     RADEONConnectorType ConnectorType;
     RADEONMonitorType MonType;
     xf86MonPtr MonInfo;
-
-    /* one connector can be bound to one CRTC */
-    int crtc_num;
 } RADEONConnector;
 
 
