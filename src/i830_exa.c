@@ -97,6 +97,16 @@ const int I830PatternROP[16] =
     ROP_1
 };
 
+static Bool
+exaPixmapInFrontbuffer(PixmapPtr p)
+{
+    ScreenPtr pScreen = p->drawable.pScreen;
+
+    if (p == pScreen->GetScreenPixmap(pScreen))
+	return TRUE;
+    return FALSE;
+}
+
 /**
  * I830EXASync - wait for a command to finish
  * @pScreen: current screen
@@ -162,16 +172,26 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned long offset;
+    uint32_t cmd;
 
     offset = exaGetPixmapOffset(pPixmap);  
     
     {
 	BEGIN_LP_RING(6);
+
+	cmd = XY_COLOR_BLT_CMD;
+
 	if (pPixmap->drawable.bitsPerPixel == 32)
-	    OUT_RING(XY_COLOR_BLT_CMD | XY_COLOR_BLT_WRITE_ALPHA
-			| XY_COLOR_BLT_WRITE_RGB);
-	else
-	    OUT_RING(XY_COLOR_BLT_CMD);
+	    cmd |= XY_COLOR_BLT_WRITE_ALPHA | XY_COLOR_BLT_WRITE_RGB;
+
+	if (pI830->tiling && exaPixmapInFrontbuffer(pPixmap)) {
+	    /* Fixup pitch for destination if tiled */
+	    pI830->BR[13] = (ROUND_TO(pI830->BR[13] & 0xffff, 512) >> 2) | 
+		(pI830->BR[13] & 0xffff0000);
+	    cmd |= XY_COLOR_BLT_TILED;
+	}
+
+	OUT_RING(cmd);
 
 	OUT_RING(pI830->BR[13]);
 	OUT_RING((y1 << 16) | (x1 & 0xffff));
@@ -208,6 +228,8 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 
     pI830->copy_src_pitch = exaGetPixmapPitch(pSrcPixmap);
     pI830->copy_src_off = exaGetPixmapOffset(pSrcPixmap);
+    pI830->copy_src_tiled = (pI830->tiling &&
+			     exaPixmapInFrontbuffer(pSrcPixmap));
 
     pI830->BR[13] = exaGetPixmapPitch(pDstPixmap);
     pI830->BR[13] |= I830CopyROP[alu] << 16;
@@ -231,6 +253,7 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
+    uint32_t cmd;
     int dst_x2, dst_y2;
     unsigned int dst_off;
 
@@ -242,11 +265,26 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
     {
 	BEGIN_LP_RING(8);
 
+	cmd = XY_SRC_COPY_BLT_CMD;
+
 	if (pDstPixmap->drawable.bitsPerPixel == 32)
-	    OUT_RING(XY_SRC_COPY_BLT_CMD | XY_SRC_COPY_BLT_WRITE_ALPHA |
-		     XY_SRC_COPY_BLT_WRITE_RGB);
-	else
-	    OUT_RING(XY_SRC_COPY_BLT_CMD);
+	    cmd |= XY_SRC_COPY_BLT_WRITE_ALPHA | XY_SRC_COPY_BLT_WRITE_RGB;
+
+	if (pI830->tiling && exaPixmapInFrontbuffer(pDstPixmap)) {
+	    /* Fixup pitch for destination if tiled */
+	    pI830->BR[13] = (ROUND_TO(pI830->BR[13] & 0xffff, 512) >> 2) | 
+		(pI830->BR[13] & 0xffff0000);
+	    cmd |= XY_SRC_COPY_BLT_DST_TILED;
+	}
+
+	if (pI830->copy_src_tiled) {
+	    pI830->copy_src_pitch =
+		(ROUND_TO(pI830->copy_src_pitch & 0xffff, 512) >> 2) | 
+		(pI830->copy_src_pitch & 0xffff0000);
+	    cmd |= XY_SRC_COPY_BLT_SRC_TILED;
+	}
+
+	OUT_RING(cmd);
 
 	OUT_RING(pI830->BR[13]);
 	OUT_RING((dst_y1 << 16) | (dst_x1 & 0xffff));

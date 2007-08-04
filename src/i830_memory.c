@@ -1453,11 +1453,6 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
     assert(tile_format != TILING_NONE);
 
     if (IS_I965G(pI830)) {
-        if (tile_format == TILING_XMAJOR)
-            pitch = 512;
-        else
-            pitch = 128;
- 
 	if (nr < 0 || nr >= FENCE_NEW_NR) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "i830_set_fence(): fence %d out of range\n",nr);

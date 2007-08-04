@@ -36,6 +36,7 @@
 #define   FBC_CTL_EN		(1<<31)
 #define   FBC_CTL_PERIODIC	(1<<30)
 #define   FBC_CTL_INTERVAL_SHIFT (16)
+#define   FBC_CTL_UNCOMPRESSIBLE (1<<14)
 #define   FBC_CTL_STRIDE_SHIFT	(5)
 #define   FBC_CTL_FENCENO	(1<<0)
 #define FBC_COMMAND		0x0320c
@@ -46,9 +47,15 @@
 #define   FBC_STAT_MODIFIED	(1<<29)
 #define   FBC_STAT_CURRENT_LINE	(1<<0)
 #define FBC_CONTROL2		0x03214
+#define   FBC_CTL_FENCE_DBL	(0<<4)
+#define   FBC_CTL_IDLE_IMM	(0<<2)
+#define   FBC_CTL_IDLE_FULL	(1<<2)
+#define   FBC_CTL_IDLE_LINE	(2<<2)
+#define   FBC_CTL_IDLE_DEBUG	(3<<2)
 #define   FBC_CTL_CPU_FENCE	(1<<1)
 #define   FBC_CTL_PLANEA	(0<<0)
 #define   FBC_CTL_PLANEB	(1<<0)
+#define FBC_FENCE_OFF		0x0321b
 
 #define FBC_LL_SIZE		(1536)
 #define FBC_LL_PAD		(32)
