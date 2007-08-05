@@ -1188,22 +1188,20 @@ radeon_create_resources(xf86OutputPtr output)
     if (radeon_output->type == OUTPUT_DVI) {
 	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_I_ATOM) ||
 	    (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_I)) {
-	    monitor_type_atom = MAKE_ATOM("MONITORTYPE");
+	    monitor_type_atom = MAKE_ATOM("monitor_type");
 
-	    range[0] = DVI_AUTO;
-	    range[1] = DVI_ANALOG;
 	    err = RRConfigureOutputProperty(output->randr_output, monitor_type_atom,
-					    FALSE, TRUE, FALSE, 2, range);
+					    FALSE, FALSE, FALSE, 0, NULL);
 	    if (err != 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "RRConfigureOutputProperty error, %d\n", err);
 	    }
 	    /* Set the current value of the backlight property */
 	    radeon_output->DVIType = DVI_AUTO;
-	    data = DVI_AUTO;
+	    s = "auto";
 	    err = RRChangeOutputProperty(output->randr_output, monitor_type_atom,
-					 XA_INTEGER, 32, PropModeReplace, 1, &data,
-					 FALSE, TRUE);
+					 XA_STRING, 8, PropModeReplace, strlen(s), (pointer)s,
+					 FALSE, FALSE);
 	    if (err != 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "RRChangeOutputProperty error, %d\n", err);
@@ -1258,17 +1256,21 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 	}
     } else if (property == monitor_type_atom) {
-	if (value->type != XA_INTEGER ||
-	    value->format != 32 ||
-	    value->size != 1) {
+	const char *s;
+	if (value->type != XA_STRING || value->format != 8)
 	    return FALSE;
+	s = (char*)value->data;
+	if (value->size == strlen("auto") && !strncmp("auto", s, strlen("auto"))) {
+	    radeon_output->DVIType = DVI_AUTO;
+	    return TRUE;
+	} else if (value->size == strlen("analog") && !strncmp("analog", s, strlen("analog"))) {
+	    radeon_output->DVIType = DVI_ANALOG;
+	    return TRUE;
+	} else if (value->size == strlen("digital") && !strncmp("digital", s, strlen("digital"))) {
+	    radeon_output->DVIType = DVI_DIGITAL;
+	    return TRUE;
 	}
-
-	val = *(INT32 *)value->data;
-	if (val < DVI_AUTO || val > DVI_ANALOG)
-	    return FALSE;
-
-	radeon_output->DVIType = val;
+	return FALSE;
     }
 
     return TRUE;
