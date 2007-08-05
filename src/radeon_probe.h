@@ -197,6 +197,7 @@ typedef struct _RADEONOutputPrivateRec {
     int               DotClock;
     RADEONTMDSPll     tmds_pll[4];
     /* TV out */
+    TVStd             default_tvStd;
     TVStd             tvStd;
     int               hPos;
     int               vPos;

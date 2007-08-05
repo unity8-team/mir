@@ -556,7 +556,7 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
 
 
 /* Set hw registers for a new h/v position & h size */
-static void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode)
+void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode)
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info = RADEONPTR(pScrn);

@@ -550,34 +550,35 @@ Bool RADEONGetTVInfoFromBIOS (xf86OutputPtr output) {
 	    if (RADEON_BIOS8(offset + 6) == 'T') {
 		switch (RADEON_BIOS8(offset + 7) & 0xf) {
 		case 1:
-		    radeon_output->tvStd = TV_STD_NTSC;
+		    radeon_output->default_tvStd = TV_STD_NTSC;
 		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: NTSC\n");
 		    break;
 		case 2:
-		    radeon_output->tvStd = TV_STD_PAL;
+		    radeon_output->default_tvStd = TV_STD_PAL;
 		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL\n");
 		    break;
 		case 3:
-		    radeon_output->tvStd = TV_STD_PAL_M;
+		    radeon_output->default_tvStd = TV_STD_PAL_M;
 		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL-M\n");
 		    break;
 		case 4:
-		    radeon_output->tvStd = TV_STD_PAL_60;
+		    radeon_output->default_tvStd = TV_STD_PAL_60;
 		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL-60\n");
 		    break;
 		case 5:
-		    radeon_output->tvStd = TV_STD_NTSC_J;
+		    radeon_output->default_tvStd = TV_STD_NTSC_J;
 		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: NTSC-J\n");
 		    break;
 		case 6:
-		    radeon_output->tvStd = TV_STD_SCART_PAL;
+		    radeon_output->default_tvStd = TV_STD_SCART_PAL;
 		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: SCART-PAL\n");
 		    break;
 		default:
-		    radeon_output->tvStd = TV_STD_NTSC;
+		    radeon_output->default_tvStd = TV_STD_NTSC;
 		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Unknown TV standard; defaulting to NTSC\n");
 		    break;
 		}
+		radeon_output->tvStd = radeon_output->default_tvStd;
 
 		refclk = (RADEON_BIOS8(offset + 9) >> 2) & 0x3;
 		if (refclk == 0)

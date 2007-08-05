@@ -1125,6 +1125,10 @@ radeon_set_backlight_level(xf86OutputPtr output, int level)
 static Atom backlight_atom;
 static Atom rmx_atom;
 static Atom monitor_type_atom;
+static Atom tv_hsize_atom;
+static Atom tv_hpos_atom;
+static Atom tv_vpos_atom;
+static Atom tv_std_atom;
 #define RADEON_MAX_BACKLIGHT_LEVEL 255
 
 static void
@@ -1188,7 +1192,7 @@ radeon_create_resources(xf86OutputPtr output)
     if (radeon_output->type == OUTPUT_DVI) {
 	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_I_ATOM) ||
 	    (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_I)) {
-	    monitor_type_atom = MAKE_ATOM("monitor_type");
+	    monitor_type_atom = MAKE_ATOM("dvi_monitor_type");
 
 	    err = RRConfigureOutputProperty(output->randr_output, monitor_type_atom,
 					    FALSE, FALSE, FALSE, 0, NULL);
@@ -1197,7 +1201,6 @@ radeon_create_resources(xf86OutputPtr output)
 			   "RRConfigureOutputProperty error, %d\n", err);
 	    }
 	    /* Set the current value of the backlight property */
-	    radeon_output->DVIType = DVI_AUTO;
 	    s = "auto";
 	    err = RRChangeOutputProperty(output->randr_output, monitor_type_atom,
 					 XA_STRING, 8, PropModeReplace, strlen(s), (pointer)s,
@@ -1209,6 +1212,92 @@ radeon_create_resources(xf86OutputPtr output)
 	}
     }
 
+    if (radeon_output->type == OUTPUT_STV ||
+	radeon_output->type == OUTPUT_CTV) {
+	tv_hsize_atom = MAKE_ATOM("tv_horizontal_size");
+
+	range[0] = -MAX_H_SIZE;
+	range[1] = MAX_H_SIZE;
+	err = RRConfigureOutputProperty(output->randr_output, tv_hsize_atom,
+					FALSE, TRUE, FALSE, 2, range);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+	data = 0;
+	err = RRChangeOutputProperty(output->randr_output, tv_hsize_atom,
+				     XA_INTEGER, 32, PropModeReplace, 1, &data,
+				     FALSE, TRUE);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
+
+    if (radeon_output->type == OUTPUT_STV ||
+	radeon_output->type == OUTPUT_CTV) {
+	tv_hpos_atom = MAKE_ATOM("tv_horizontal_position");
+
+	range[0] = -MAX_H_POSITION;
+	range[1] = MAX_H_POSITION;
+	err = RRConfigureOutputProperty(output->randr_output, tv_hpos_atom,
+					FALSE, TRUE, FALSE, 2, range);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+	data = 0;
+	err = RRChangeOutputProperty(output->randr_output, tv_hpos_atom,
+				     XA_INTEGER, 32, PropModeReplace, 1, &data,
+				     FALSE, TRUE);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
+
+    if (radeon_output->type == OUTPUT_STV ||
+	radeon_output->type == OUTPUT_CTV) {
+	tv_vpos_atom = MAKE_ATOM("tv_vertical_position");
+
+	range[0] = -MAX_V_POSITION;
+	range[1] = MAX_V_POSITION;
+	err = RRConfigureOutputProperty(output->randr_output, tv_vpos_atom,
+					FALSE, TRUE, FALSE, 2, range);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+	data = 0;
+	err = RRChangeOutputProperty(output->randr_output, tv_vpos_atom,
+				     XA_INTEGER, 32, PropModeReplace, 1, &data,
+				     FALSE, TRUE);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
+
+    if (radeon_output->type == OUTPUT_STV ||
+	radeon_output->type == OUTPUT_CTV) {
+	tv_std_atom = MAKE_ATOM("tv_standard");
+
+	err = RRConfigureOutputProperty(output->randr_output, tv_std_atom,
+					FALSE, FALSE, FALSE, 0, NULL);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+	/* Set the current value of the backlight property */
+	s = "default";
+	err = RRChangeOutputProperty(output->randr_output, tv_std_atom,
+				     XA_STRING, 8, PropModeReplace, strlen(s), (pointer)s,
+				     FALSE, FALSE);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
 }
 
 static Bool
@@ -1269,6 +1358,100 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	} else if (value->size == strlen("digital") && !strncmp("digital", s, strlen("digital"))) {
 	    radeon_output->DVIType = DVI_DIGITAL;
 	    return TRUE;
+	}
+	return FALSE;
+    } else if (property == tv_hsize_atom) {
+	if (value->type != XA_INTEGER ||
+	    value->format != 32 ||
+	    value->size != 1) {
+	    return FALSE;
+	}
+
+	val = *(INT32 *)value->data;
+	if (val < -MAX_H_SIZE || val > MAX_H_SIZE)
+	    return FALSE;
+
+	radeon_output->hSize = val;
+	/*RADEONUpdateHVPosition(output, NULL);*/
+	return TRUE;
+    } else if (property == tv_hpos_atom) {
+	if (value->type != XA_INTEGER ||
+	    value->format != 32 ||
+	    value->size != 1) {
+	    return FALSE;
+	}
+
+	val = *(INT32 *)value->data;
+	if (val < -MAX_H_POSITION || val > MAX_H_POSITION)
+	    return FALSE;
+
+	radeon_output->hPos = val;
+	/*RADEONUpdateHVPosition(output, NULL);*/
+	return TRUE;
+    } else if (property == tv_vpos_atom) {
+	if (value->type != XA_INTEGER ||
+	    value->format != 32 ||
+	    value->size != 1) {
+	    return FALSE;
+	}
+
+	val = *(INT32 *)value->data;
+	if (val < -MAX_H_POSITION || val > MAX_H_POSITION)
+	    return FALSE;
+
+	radeon_output->vPos = val;
+	/*RADEONUpdateHVPosition(output, NULL);*/
+	return TRUE;
+    } else if (property == tv_std_atom) {
+	const char *s;
+	if (value->type != XA_STRING || value->format != 8)
+	    return FALSE;
+	s = (char*)value->data;
+	if (value->size == strlen("default") && !strncmp("default", s, strlen("default"))) {
+	    radeon_output->tvStd = radeon_output->default_tvStd;
+	    return TRUE;
+	} else if (value->size == strlen("ntsc") && !strncmp("ntsc", s, strlen("ntsc"))) {
+	    if (radeon_output->SupportedTVStds & TV_STD_NTSC) {
+		radeon_output->tvStd = TV_STD_NTSC;
+		return TRUE;
+	    } else {
+		return FALSE;
+	    }
+	} else if (value->size == strlen("pal") && !strncmp("pal", s, strlen("pal"))) {
+	    if (radeon_output->SupportedTVStds & TV_STD_PAL) {
+		radeon_output->tvStd = TV_STD_PAL;
+		return TRUE;
+	    } else {
+		return FALSE;
+	    }
+	} else if (value->size == strlen("pal-m") && !strncmp("pal-m", s, strlen("pal-m"))) {
+	    if (radeon_output->SupportedTVStds & TV_STD_PAL_M) {
+		radeon_output->tvStd = TV_STD_PAL_M;
+		return TRUE;
+	    } else {
+		return FALSE;
+	    }
+	} else if (value->size == strlen("pal-60") && !strncmp("pal-60", s, strlen("pal-60"))) {
+	    if (radeon_output->SupportedTVStds & TV_STD_PAL_60) {
+		radeon_output->tvStd = TV_STD_PAL_60;
+		return TRUE;
+	    } else {
+		return FALSE;
+	    }
+	} else if (value->size == strlen("ntsc-j") && !strncmp("ntsc-j", s, strlen("ntsc-j"))) {
+	    if (radeon_output->SupportedTVStds & TV_STD_NTSC_J) {
+		radeon_output->tvStd = TV_STD_NTSC_J;
+		return TRUE;
+	    } else {
+		return FALSE;
+	    }
+	} else if (value->size == strlen("scart-pal") && !strncmp("scart-pal", s, strlen("scart-pal"))) {
+	    if (radeon_output->SupportedTVStds & TV_STD_SCART_PAL) {
+		radeon_output->tvStd = TV_STD_SCART_PAL;
+		return TRUE;
+	    } else {
+		return FALSE;
+	    }
 	}
 	return FALSE;
     }
@@ -1667,6 +1850,7 @@ RADEONGetTVInfo(xf86OutputPtr output)
     if (RADEONGetTVInfoFromBIOS(output)) return;
 
     /* set some reasonable defaults */
+    radeon_output->default_tvStd = TV_STD_NTSC;
     radeon_output->tvStd = TV_STD_NTSC;
     radeon_output->TVRefClk = 27.000000000;
     radeon_output->SupportedTVStds = TV_STD_NTSC | TV_STD_PAL;

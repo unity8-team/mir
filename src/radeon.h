@@ -926,6 +926,7 @@ extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 				  RADEONMonitorType DisplayType, int crtc2);
 extern int RADEONValidateFPModes(xf86OutputPtr output, char **ppModeName, DisplayModePtr *modeList);
 extern void RADEONSetPitch (ScrnInfoPtr pScrn);
+extern void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode);
 
 DisplayModePtr
 RADEONProbeOutputModes(xf86OutputPtr output);
