@@ -875,6 +875,7 @@ extern Bool        RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn);
 extern Bool        RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn);
 extern Bool        RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output);
+extern Bool        RADEONGetTVInfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output);
 
 extern void        RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,

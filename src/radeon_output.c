@@ -611,6 +611,7 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 
     if (radeon_output->type == OUTPUT_STV ||
 	radeon_output->type == OUTPUT_CTV) {
+	/* FIXME: Update when more modes are added */
 	if (pMode->HDisplay == 800 && pMode->VDisplay == 600)
 	    return MODE_OK;
 	else
@@ -1630,6 +1631,27 @@ RADEONGetTMDSInfo(xf86OutputPtr output)
     }
 }
 
+static void
+RADEONGetTVInfo(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int i;
+
+    radeon_output->hPos = 0;
+    radeon_output->vPos = 0;
+    radeon_output->hSize = 0;
+
+    if (RADEONGetTVInfoFromBIOS(output)) return;
+
+    /* set some reasonable defaults */
+    radeon_output->tvStd = TV_STD_NTSC;
+    radeon_output->TVRefClk = 27.000000000;
+    radeon_output->SupportedTVStds = TV_STD_NTSC | TV_STD_PAL;
+
+}
+
 void RADEONInitConnector(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
@@ -1657,12 +1679,11 @@ void RADEONInitConnector(xf86OutputPtr output)
 
     if (radeon_output->type == OUTPUT_DVI) {
 	RADEONGetTMDSInfo(output);
+    }
 
-	// FIXME -- this should be done in detect or getmodes
-	/*if (i == 0)
-	  RADEONGetHardCodedEDIDFromBIOS(output);*/
-
-	/*RADEONUpdatePanelSize(output);*/
+    if (radeon_output->type == OUTPUT_STV ||
+	radeon_output->type == OUTPUT_CTV) {
+	RADEONGetTVInfo(output);
     }
 
     if (radeon_output->DACType == DAC_TVDAC) {
@@ -1688,15 +1709,14 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
      * If not, we may have problem -- need to use MonitorLayout option.
      */
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	info->BiosConnector[i].valid = FALSE;
 	info->BiosConnector[i].DDCType = DDC_NONE_DETECTED;
 	info->BiosConnector[i].DACType = DAC_UNKNOWN;
 	info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
 	info->BiosConnector[i].ConnectorType = CONNECTOR_NONE;
     }
 
-    if (!RADEONGetConnectorInfoFromBIOS(pScrn) ||
-        ((info->BiosConnector[0].DDCType == 0) &&
-        (info->BiosConnector[1].DDCType == 0))) {
+    if (!RADEONGetConnectorInfoFromBIOS(pScrn)) {
 	if (info->IsMobility) {
 	    /* Below is the most common setting, but may not be true */
 #if defined(__powerpc__)
@@ -1712,6 +1732,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->BiosConnector[1].DACType = DAC_PRIMARY;
 	    info->BiosConnector[1].TMDSType = TMDS_EXT;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
+
 	} else {
 	    /* Below is the most common setting, but may not be true */
 	    info->BiosConnector[0].DDCType = DDC_DVI;
@@ -1723,6 +1744,13 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->BiosConnector[1].DACType = DAC_PRIMARY;
 	    info->BiosConnector[1].TMDSType = TMDS_EXT;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
+	}
+
+	if (info->InternalTVOut) {
+	    info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
+	    info->BiosConnector[2].DACType = DAC_TVDAC;
+	    info->BiosConnector[2].TMDSType = TMDS_NONE;
+	    info->BiosConnector[2].DDCType = DDC_NONE_DETECTED;
 	}
 
        /* Some cards have the DDC lines swapped and we have no way to
@@ -1766,7 +1794,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     }
 
     for (i = 0 ; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
-	if (info->BiosConnector[i].ConnectorType != CONNECTOR_NONE) {
+	if (info->BiosConnector[i].valid) {
 	    RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
 	    if (!radeon_output) {
 		return FALSE;
@@ -1850,98 +1878,6 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    RADEONInitConnector(output);
 	}
     }
-
-    /* if it's a mobility make sure we have a LVDS port */
-    if (info->IsMobility) {
-	if (info->IsAtomBios) {
-	    if (info->BiosConnector[0].ConnectorType != CONNECTOR_LVDS_ATOM &&
-		info->BiosConnector[1].ConnectorType != CONNECTOR_LVDS_ATOM) {
-		/* add LVDS port */
-		RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
-		if (!radeon_output) {
-		    return FALSE;
-		}
-		radeon_output->MonType = MT_UNKNOWN;
-		radeon_output->DDCType = DDC_LCD;
-		radeon_output->DACType = DAC_NONE;
-		radeon_output->TMDSType = TMDS_NONE;
-		radeon_output->ConnectorType = CONNECTOR_LVDS_ATOM;
-		RADEONSetOutputType(pScrn, radeon_output);
-		output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
-		if (!output) {
-		    return FALSE;
-		}
-		output->driver_private = radeon_output;
-		output->possible_crtcs = 1;
-		output->possible_clones = 0;
-
-		RADEONInitConnector(output);
-
-	    }
-	} else {
-	    if (info->BiosConnector[0].ConnectorType != CONNECTOR_PROPRIETARY &&
-		info->BiosConnector[1].ConnectorType != CONNECTOR_PROPRIETARY) {
-		/* add LVDS port */
-		RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
-		if (!radeon_output) {
-		    return FALSE;
-		}
-		radeon_output->MonType = MT_UNKNOWN;
-		radeon_output->DDCType = DDC_LCD;
-		radeon_output->DACType = DAC_NONE;
-		radeon_output->TMDSType = TMDS_NONE;
-		radeon_output->ConnectorType = CONNECTOR_PROPRIETARY;
-		RADEONSetOutputType(pScrn, radeon_output);
-		output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
-		if (!output) {
-		    return FALSE;
-		}
-		output->driver_private = radeon_output;
-		output->possible_crtcs = 1;
-		output->possible_clones = 0;
-
-		RADEONInitConnector(output);
-	    }
-	}
-    }
-
-    /* add TV out */
-#if 0
-    if (info->InternalTVOut) {
-	/* need to check the bios tables to see if we really have tv out and what type we have */
-	RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
-	if (!radeon_output) {
-	    return FALSE;
-	}
-	/* hard code type for now */
-	radeon_output->MonType = MT_STV;
-	radeon_output->DDCType = DDC_NONE_DETECTED;
-	radeon_output->DACType = DAC_TVDAC;
-	radeon_output->TMDSType = TMDS_NONE;
-
-	/* hard code type for now */
-	if (info->IsAtomBios)
-	    radeon_output->ConnectorType = CONNECTOR_STV_ATOM;
-	else
-	    radeon_output->ConnectorType = CONNECTOR_STV;
-
-	radeon_output->tvStd = TV_STD_NTSC;
-	radeon_output->hPos = 0;
-	radeon_output->vPos = 0;
-	radeon_output->hSize = 0;
-
-	RADEONSetOutputType(pScrn, radeon_output);
-	output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
-	if (!output) {
-	    return FALSE;
-	}
-	output->driver_private = radeon_output;
-	output->possible_crtcs = 1 | 2;
-	output->possible_clones = 0;
-
-	RADEONInitConnector(output);
-    }
-#endif
 
     return TRUE;
 }

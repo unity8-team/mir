@@ -141,6 +141,175 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
     return TRUE;
 }
 
+static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    int offset, i, tmp, tmp0, crtc, portinfo, gpio;
+
+    if (!info->VBIOS) return FALSE;
+
+    offset = RADEON_BIOS16(info->MasterDataStart + 22);
+
+    if (offset) {
+	tmp = RADEON_BIOS16(offset + 4);
+	for (i = 0; i < 8; i++) {
+	    if (tmp & (1 << i)) {
+		info->BiosConnector[i].valid = TRUE;
+		portinfo = RADEON_BIOS16(offset + 6 + i * 2);
+		info->BiosConnector[i].DACType = (portinfo & 0xf) - 1;
+		info->BiosConnector[i].ConnectorType = (portinfo >> 4) & 0xf;
+		crtc = (portinfo >> 8) & 0xf;
+		tmp0 = RADEON_BIOS16(info->MasterDataStart + 24);
+		gpio = RADEON_BIOS16(tmp0 + 4 + 27 * crtc) * 4;
+		switch(gpio) {
+		case RADEON_GPIO_MONID:
+		    info->BiosConnector[i].DDCType = DDC_MONID;
+		    break;
+		case RADEON_GPIO_DVI_DDC:
+		    info->BiosConnector[i].DDCType = DDC_DVI;
+		    break;
+		case RADEON_GPIO_VGA_DDC:
+		    info->BiosConnector[i].DDCType = DDC_VGA;
+		    break;
+		case RADEON_GPIO_CRT2_DDC:
+		    info->BiosConnector[i].DDCType = DDC_CRT2;
+		    break;
+		case RADEON_LCD_GPIO_MASK:
+		    info->BiosConnector[i].DDCType = DDC_LCD;
+		    break;
+		default:
+		    info->BiosConnector[i].DDCType = DDC_NONE_DETECTED;
+		    break;
+		}
+
+		if (i == 3)
+		    info->BiosConnector[i].TMDSType = TMDS_INT;
+		else if (i == 7)
+		    info->BiosConnector[i].TMDSType = TMDS_EXT;
+		else
+		    info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
+
+	    } else {
+		info->BiosConnector[i].valid = FALSE;
+	    }
+	}   
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No Device Info Table found!\n");
+	return FALSE;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
+    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	if (info->BiosConnector[i].valid) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-%d, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
+		       i, info->BiosConnector[i].DDCType, info->BiosConnector[i].DACType,
+		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType);
+	}
+    }
+
+    return TRUE;
+}
+
+static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    int offset, i, entry, tmp, tmp0, tmp1;
+
+    offset = RADEON_BIOS16(info->ROMHeaderStart + 0x50);
+    if (offset) {
+	for (i = 0; i < 4; i++) {
+	    entry = offset + 2 + i*2;
+
+	    if (!RADEON_BIOS16(entry)) {
+		break;
+	    }
+	    info->BiosConnector[i].valid = TRUE;
+	    tmp = RADEON_BIOS16(entry);
+	    info->BiosConnector[i].ConnectorType = (tmp >> 12) & 0xf;
+	    info->BiosConnector[i].DDCType = (tmp >> 8) & 0xf;
+	    info->BiosConnector[i].DACType = tmp & 0x3;
+	    if (tmp & 0x10)
+		info->BiosConnector[i].TMDSType = TMDS_EXT;
+	    else
+		info->BiosConnector[i].TMDSType = TMDS_INT;
+
+	}
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No Connector Info Table found!\n");
+	return FALSE;
+    }
+
+    /* check LVDS table */
+    if (info->IsMobility) {
+	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x40);
+	if (offset) {
+	    info->BiosConnector[4].valid = TRUE;
+	    info->BiosConnector[4].ConnectorType = CONNECTOR_PROPRIETARY;
+	    info->BiosConnector[4].DACType = DAC_NONE;
+	    info->BiosConnector[4].TMDSType = TMDS_NONE;
+
+	    tmp = RADEON_BIOS16(info->ROMHeaderStart + 0x42);
+	    if (tmp) {
+		tmp0 = RADEON_BIOS16(tmp + 0x15);
+		if (tmp0) {
+		    tmp1 = RADEON_BIOS8(tmp0+2) & 0x07;
+		    if (tmp1) {	    
+			info->BiosConnector[4].DDCType	= tmp1;      
+			if (info->BiosConnector[4].DDCType > DDC_LCD) {
+			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				       "Unknown DDCType %d found\n",
+				       info->BiosConnector[4].DDCType);
+			    info->BiosConnector[4].DDCType = DDC_NONE_DETECTED;
+			}
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "LCD DDC Info Table found!\n");
+		    }
+		}
+	    } else {
+		info->BiosConnector[4].DDCType = DDC_NONE_DETECTED;
+	    }
+	}
+    }
+
+    /* check TV table */
+    if (info->InternalTVOut) {
+	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x32);
+	if (offset) {
+	    if (RADEON_BIOS8(offset + 6) == 'T') {
+		info->BiosConnector[5].valid = TRUE;
+		/* assume s-video for now */
+		info->BiosConnector[5].ConnectorType = CONNECTOR_STV;
+		info->BiosConnector[5].DACType = DAC_TVDAC;
+		info->BiosConnector[5].TMDSType = TMDS_NONE;
+		info->BiosConnector[5].DDCType = DDC_NONE_DETECTED;
+	    }
+	}
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
+    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	if (info->BiosConnector[i].valid) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-%d, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
+		       i, info->BiosConnector[i].DDCType, info->BiosConnector[i].DACType,
+		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType);
+	}
+    }
+
+    return TRUE;
+}
+
+Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+
+    if(!info->VBIOS) return FALSE;
+
+    if (info->IsAtomBios)
+	return RADEONGetATOMConnectorInfoFromBIOS(pScrn);
+    else
+	return RADEONGetLegacyConnectorInfoFromBIOS(pScrn);
+}
+
+#if 0
 Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
@@ -349,6 +518,98 @@ Bool RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 
     }
     return TRUE;
+}
+#endif
+
+Bool RADEONGetTVInfoFromBIOS (xf86OutputPtr output) {
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int offset, refclk, stds;
+
+    if (!info->VBIOS) return FALSE;
+
+    if (info->IsAtomBios) {
+	/* no idea where TV table is on ATOM bios */
+	return FALSE;
+    } else {
+	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x32);
+	if (offset) {
+	    if (RADEON_BIOS8(offset + 6) == 'T') {
+		switch (RADEON_BIOS8(offset + 7) & 0xf) {
+		case 1:
+		    radeon_output->tvStd = TV_STD_NTSC;
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: NTSC\n");
+		    break;
+		case 2:
+		    radeon_output->tvStd = TV_STD_PAL;
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL\n");
+		    break;
+		case 3:
+		    radeon_output->tvStd = TV_STD_PAL_M;
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL-M\n");
+		    break;
+		case 4:
+		    radeon_output->tvStd = TV_STD_PAL_60;
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL-60\n");
+		    break;
+		case 5:
+		    radeon_output->tvStd = TV_STD_NTSC_J;
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: NTSC-J\n");
+		    break;
+		case 6:
+		    radeon_output->tvStd = TV_STD_SCART_PAL;
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: SCART-PAL\n");
+		    break;
+		default:
+		    radeon_output->tvStd = TV_STD_NTSC;
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Unknown TV standard; defaulting to NTSC\n");
+		    break;
+		}
+
+		refclk = (RADEON_BIOS8(offset + 9) >> 2) & 0x3;
+		if (refclk == 0)
+		    radeon_output->TVRefClk = 29.498928713; /* MHz */
+		else if (refclk == 1)
+		    radeon_output->TVRefClk = 28.636360000;
+		else if (refclk == 2)
+		    radeon_output->TVRefClk = 14.318180000;
+		else if (refclk == 3)
+		    radeon_output->TVRefClk = 27.000000000;
+
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TV standards supported by chip: ");
+		stds = RADEON_BIOS8(offset + 10) & 0x1f;
+		if (stds & TV_STD_NTSC) {
+		    radeon_output->SupportedTVStds |= TV_STD_NTSC;
+		    ErrorF("NTSC ");
+		}
+		if (stds & TV_STD_PAL) {
+		    radeon_output->SupportedTVStds |= TV_STD_PAL;
+		    ErrorF("PAL ");
+		}
+		if (stds & TV_STD_PAL_M) {
+		    radeon_output->SupportedTVStds |= TV_STD_PAL_M;
+		    ErrorF("PAL-M ");
+		}
+		if (stds & TV_STD_PAL_60) {
+		    radeon_output->SupportedTVStds |= TV_STD_PAL_60;
+		    ErrorF("PAL-60 ");
+		}
+		if (stds & TV_STD_NTSC_J) {
+		    radeon_output->SupportedTVStds |= TV_STD_NTSC_J;
+		    ErrorF("NTSC-J ");
+		}
+		if (stds & TV_STD_SCART_PAL) {
+		    radeon_output->SupportedTVStds |= TV_STD_SCART_PAL;
+		    ErrorF("SCART-PAL");
+		}
+		ErrorF("\n");
+
+		return TRUE;
+	    } else
+		return FALSE;
+	}
+    }
 }
 
 /* Read PLL parameters from BIOS block.  Default to typical values if there

@@ -140,13 +140,12 @@ typedef enum
 /* standards */
 typedef enum
 {
-    TV_STD_NTSC,
-    TV_STD_PAL,
-    TV_STD_PAL_M,
-    TV_STD_PAL_60,
-    TV_STD_NTSC_J,
-    TV_STD_PAL_CN,
-    TV_STD_PAL_N
+    TV_STD_NTSC      = 1,
+    TV_STD_PAL       = 2,
+    TV_STD_PAL_M     = 4,
+    TV_STD_PAL_60    = 8,
+    TV_STD_NTSC_J    = 16,
+    TV_STD_SCART_PAL = 32,
 } TVStd;
 
 typedef struct _RADEONCrtcPrivateRec {
@@ -167,6 +166,7 @@ typedef struct {
     RADEONDacType DACType;
     RADEONTmdsType TMDSType;
     RADEONConnectorType ConnectorType;
+    Bool valid;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -201,10 +201,12 @@ typedef struct _RADEONOutputPrivateRec {
     int               hPos;
     int               vPos;
     int               hSize;
+    float             TVRefClk;
+    int               SupportedTVStds;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 #define RADEON_MAX_CRTC 2
-#define RADEON_MAX_BIOS_CONNECTOR 2
+#define RADEON_MAX_BIOS_CONNECTOR 8
 
 typedef struct
 {
