@@ -198,6 +198,18 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	return FALSE;
     }
 
+    /* DVI-I ports have 2 entries: one for analog, one for digital.  combine them */
+    if (info->BiosConnector[0].valid && info->BiosConnector[7].valid) {
+	info->BiosConnector[0].TMDSType = info->BiosConnector[7].TMDSType;
+	info->BiosConnector[7].valid = FALSE;
+    }
+
+    if (info->BiosConnector[4].valid && info->BiosConnector[3].valid) {
+	info->BiosConnector[4].TMDSType = info->BiosConnector[3].TMDSType;
+	info->BiosConnector[3].valid = FALSE;
+    }
+
+
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
