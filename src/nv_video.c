@@ -349,6 +349,16 @@ NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 		pPriv->video_mem = NULL;
 	}
 	
+	if ( pPriv->TT_mem_chunk[ 0 ] && pPriv->DMANotifier [ 0 ] )
+		{
+		NVNotifierWaitStatus(pScrn, pPriv->DMANotifier [ 0 ] ,  0, 1000);
+		}
+	
+	if ( pPriv->TT_mem_chunk[ 1 ] && pPriv->DMANotifier [ 1 ] )
+		{
+		NVNotifierWaitStatus(pScrn, pPriv->DMANotifier [ 1 ] , 0, 1000);
+		} 		
+		
 	if(pPriv->TT_mem_chunk[0]) {
 		NVFreeMemory(pNv, pPriv->TT_mem_chunk[0]);
 		pPriv->TT_mem_chunk[0] = NULL;
@@ -1364,13 +1374,14 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			
 		NVDmaStart(pNv, NvSubMemFormat, 0x100, 1);
 		NVDmaNext (pNv, 0);
-		NVDmaKickoff(pNv);
-		
+				
 		//Put back NvDmaNotifier0 for EXA
 		NVDmaStart(pNv, NvSubMemFormat,
 			NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 		NVDmaNext (pNv, NvDmaNotifier0);
-			
+		
+		NVDmaKickoff(pNv);			
+
 		if ( destination_buffer == pNv->GARTScratch ) 
 			if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
 				return FALSE;
