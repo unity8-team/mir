@@ -1858,7 +1858,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		    } else {
 			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-1");
 		    }
-		} else if (info->BiosConnector[0].ConnectorType == CONNECTOR_VGA_ATOM) {
+		} else if (info->BiosConnector[i].ConnectorType == CONNECTOR_VGA_ATOM) {
 		    if (num_vga > 1) {
 			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
 			num_vga--;
@@ -1876,7 +1876,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		    } else {
 			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-1");
 		    }
-		} else if (info->BiosConnector[0].ConnectorType == CONNECTOR_CRT) {
+		} else if (info->BiosConnector[i].ConnectorType == CONNECTOR_CRT) {
 		    if (num_vga > 1) {
 			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
 			num_vga--;
