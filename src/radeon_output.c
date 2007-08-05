@@ -1035,13 +1035,12 @@ radeon_detect(xf86OutputPtr output)
     ScrnInfoPtr	    pScrn = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    Bool connected = TRUE;
 
-    /* assume tv is connected for now */
+    /* assume tv is disconnected for now */
     if (radeon_output->type == OUTPUT_STV) {
-	/*radeon_output->MonType = MT_STV;*/
 	radeon_output->MonType = MT_NONE;
     } else if (radeon_output->type == OUTPUT_CTV) {
-	/*radeon_output->MonType = MT_CTV;*/
 	radeon_output->MonType = MT_NONE;
     } else {
 	radeon_output->MonType = MT_UNKNOWN;
@@ -1050,25 +1049,36 @@ radeon_detect(xf86OutputPtr output)
 
     /* force montype based on output property */
     if (radeon_output->type == OUTPUT_DVI) {
+	if (radeon_output->MonType == MT_NONE)
+	    connected = FALSE;
 	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_I_ATOM) ||
 	    (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_I)) {
-	    if (radeon_output->MonType > MT_NONE) {
-		if (radeon_output->DVIType == DVI_ANALOG)
-		    radeon_output->MonType = MT_CRT;
-		else if (radeon_output->DVIType == DVI_DIGITAL)
-		    radeon_output->MonType = MT_DFP;
-	    }
+	    if (radeon_output->DVIType == DVI_ANALOG)
+		radeon_output->MonType = MT_CRT;
+	    else if (radeon_output->DVIType == DVI_DIGITAL)
+		radeon_output->MonType = MT_DFP;
 	}
     }
 
+    /* set montype so users can force outputs on even if detection fails */
+    if (radeon_output->MonType == MT_NONE) {
+	connected = FALSE;
+	if (radeon_output->type == OUTPUT_LVDS)
+	    radeon_output->MonType = MT_LCD;
+	else if (radeon_output->type == OUTPUT_VGA)
+            radeon_output->MonType = MT_CRT;
+	else if (radeon_output->type == OUTPUT_STV)
+            radeon_output->MonType = MT_STV;
+	else if (radeon_output->type == OUTPUT_CTV)
+            radeon_output->MonType = MT_CTV;
+	else if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM) ||
+		 (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D))
+	    radeon_output->MonType = MT_DFP;
+    }
 
     if (radeon_output->MonType == MT_UNKNOWN) {
         output->subpixel_order = SubPixelUnknown;
 	return XF86OutputStatusUnknown;
-    }
-    else if (radeon_output->MonType == MT_NONE) {
-        output->subpixel_order = SubPixelUnknown;
-	return XF86OutputStatusDisconnected;
     } else {
 
       switch(radeon_output->MonType) {
@@ -1080,8 +1090,11 @@ radeon_detect(xf86OutputPtr output)
 	  output->subpixel_order = SubPixelNone;
 	  break;
       }
-      
-      return XF86OutputStatusConnected;
+
+      if (connected)
+	  return XF86OutputStatusConnected;
+      else
+	  return XF86OutputStatusDisconnected;
     }
 
 }
