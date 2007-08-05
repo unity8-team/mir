@@ -1135,6 +1135,7 @@ radeon_create_resources(xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     INT32 range[2];
     int data, err;
+    const char *s;
 
     /* backlight control */
     if (radeon_output->type == OUTPUT_LVDS) {
@@ -1161,23 +1162,22 @@ radeon_create_resources(xf86OutputPtr output)
     }
 
     /* RMX control - fullscreen, centered, keep ratio */
+    /* actually more of a crtc property as only crtc1 has rmx */
     if (radeon_output->type == OUTPUT_LVDS ||
 	radeon_output->type == OUTPUT_DVI) {
-	rmx_atom = MAKE_ATOM("PANELSCALER");
+	rmx_atom = MAKE_ATOM("scaler");
 
-	range[0] = 0;
-	range[1] = 2;
 	err = RRConfigureOutputProperty(output->randr_output, rmx_atom,
-					FALSE, TRUE, FALSE, 2, range);
+					FALSE, FALSE, FALSE, 0, NULL);
 	if (err != 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
 	/* Set the current value of the property */
-	data = 0;
+	s = "fill";
 	err = RRChangeOutputProperty(output->randr_output, rmx_atom,
-				     XA_INTEGER, 32, PropModeReplace, 1, &data,
-				     FALSE, TRUE);
+				     XA_STRING, 8, PropModeReplace, strlen(s), (pointer)s,
+				     FALSE, FALSE);
 	if (err != 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRChangeOutputProperty error, %d\n", err);
@@ -1239,7 +1239,24 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	radeon_set_backlight_level(output, val);
 
     } else if (property == rmx_atom) {
-	return TRUE;
+	xf86CrtcPtr	crtc = output->crtc;
+	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+	if (radeon_crtc->crtc_id == 0) {
+	    const char *s;
+	    if (value->type != XA_STRING || value->format != 8)
+		return FALSE;
+	    s = (char*)value->data;
+	    if (value->size == strlen("full") && !strncmp("full", s, strlen("full"))) {
+		return TRUE;
+	    } else if (value->size == strlen("aspect") && !strncmp("aspect", s, strlen("aspect"))) {
+		return TRUE;
+	    } else if (value->size == strlen("center") && !strncmp("center", s, strlen("center"))) {
+		return TRUE;
+	    }
+	    return FALSE;
+	} else {
+	    return FALSE;
+	}
     } else if (property == monitor_type_atom) {
 	if (value->type != XA_INTEGER ||
 	    value->format != 32 ||
