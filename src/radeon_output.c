@@ -1139,7 +1139,7 @@ radeon_create_resources(xf86OutputPtr output)
 
     /* backlight control */
     if (radeon_output->type == OUTPUT_LVDS) {
-	backlight_atom = MAKE_ATOM("BACKLIGHT");
+	backlight_atom = MAKE_ATOM("backlight");
 
 	range[0] = 0;
 	range[1] = RADEON_MAX_BACKLIGHT_LEVEL;
