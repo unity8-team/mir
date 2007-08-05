@@ -297,7 +297,10 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 			if (lc > line_count)
 				lc = line_count;
 		}
-		/*XXX: and hw limitations? */
+
+		/* HW limitations */
+		if (lc > 2047)
+			lc = 2047;
 
 		NVDmaStart(pNv, NvSubMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
@@ -387,7 +390,10 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 			if (lc > line_count)
 				lc = line_count;
 		}
-		/*XXX: and hw limitations? */
+
+		/* HW limitations */
+		if (lc > 2047)
+			lc = 2047;
 
 		/* Upload to GART */
 		if (src_pitch == line_len) {
