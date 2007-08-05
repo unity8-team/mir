@@ -1038,9 +1038,11 @@ radeon_detect(xf86OutputPtr output)
 
     /* assume tv is connected for now */
     if (radeon_output->type == OUTPUT_STV) {
-	radeon_output->MonType = MT_STV;
+	/*radeon_output->MonType = MT_STV;*/
+	radeon_output->MonType = MT_NONE;
     } else if (radeon_output->type == OUTPUT_CTV) {
-	radeon_output->MonType = MT_CTV;
+	/*radeon_output->MonType = MT_CTV;*/
+	radeon_output->MonType = MT_NONE;
     } else {
 	radeon_output->MonType = MT_UNKNOWN;
 	RADEONConnectorFindMonitor(pScrn, output);
@@ -1851,17 +1853,17 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		    (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I_ATOM) ||
 		    (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_A_ATOM)) {
 		    if (num_dvi > 1) {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-1");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-0");
 			num_dvi--;
 		    } else {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-0");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-1");
 		    }
 		} else if (info->BiosConnector[0].ConnectorType == CONNECTOR_VGA_ATOM) {
 		    if (num_vga > 1) {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-1");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
 			num_vga--;
 		    } else {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-1");
 		    }
 		} else
 		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
@@ -1869,17 +1871,17 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		if ((info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D) ||
 		     (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I)) {
 		    if (num_dvi > 1) {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-1");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-0");
 			num_dvi--;
 		    } else {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-0");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-1");
 		    }
 		} else if (info->BiosConnector[0].ConnectorType == CONNECTOR_CRT) {
 		    if (num_vga > 1) {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-1");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
 			num_vga--;
 		    } else {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-1");
 		    }
 		} else
 		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);

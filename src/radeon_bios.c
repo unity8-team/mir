@@ -200,13 +200,13 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 
     /* DVI-I ports have 2 entries: one for analog, one for digital.  combine them */
     if (info->BiosConnector[0].valid && info->BiosConnector[7].valid) {
-	info->BiosConnector[0].TMDSType = info->BiosConnector[7].TMDSType;
-	info->BiosConnector[7].valid = FALSE;
+	info->BiosConnector[7].DACType = info->BiosConnector[0].DACType;
+	info->BiosConnector[0].valid = FALSE;
     }
 
     if (info->BiosConnector[4].valid && info->BiosConnector[3].valid) {
-	info->BiosConnector[4].TMDSType = info->BiosConnector[3].TMDSType;
-	info->BiosConnector[3].valid = FALSE;
+	info->BiosConnector[3].DACType = info->BiosConnector[4].DACType;
+	info->BiosConnector[4].valid = FALSE;
     }
 
 
