@@ -451,14 +451,12 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	cpp = pDst->drawable.bitsPerPixel >> 3;
 
 	if (pNv->GARTScratch) {
-		ErrorF("in UTSGart (%dx%d)\n",w,h);
 		dst_offset += (y * dst_pitch) + (x * cpp);
 		if (NVAccelUploadM2MF(pScrn, dst_offset, src, dst_pitch,
 				      src_pitch, w * cpp, h))
 			return TRUE;
 	}
 
-	ErrorF("in UTSMemcpy (%dx%d)\n",w,h);
 	dst = pDst->devPrivate.ptr + (y * dst_pitch) + (x * cpp);
 	exaWaitSync(pDst->drawable.pScreen);
 	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp))
