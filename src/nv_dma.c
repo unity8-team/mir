@@ -263,7 +263,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 
 	pNv->fifo.fb_ctxdma_handle = NvDmaFB;
 	pNv->fifo.tt_ctxdma_handle = NvDmaTT;
-	ret = drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_FIFO_ALLOC,
+	ret = drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_CHANNEL_ALLOC,
 				  &pNv->fifo, sizeof(pNv->fifo));
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,

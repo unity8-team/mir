@@ -63,7 +63,7 @@ typedef struct _NVPortPrivRec {
 	int		offset;
 	NVAllocRec * 	TT_mem_chunk[2];
 	int		currentHostBuffer;
-	struct drm_nouveau_notifier_alloc *DMANotifier[2];
+	struct drm_nouveau_notifierobj_alloc *DMANotifier[2];
 } NVPortPrivRec, *NVPortPrivPtr;
 
 
@@ -78,7 +78,7 @@ XV_DMA_NOTIFIER_FREE=2, //notifier allocated, ready for use
 /* We have six notifiers available, they are not allocated at startup */
 int XvDMANotifierStatus[6]= { XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC ,
 					XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC };
-struct drm_nouveau_notifier_alloc * XvDMANotifiers[6];
+struct drm_nouveau_notifierobj_alloc * XvDMANotifiers[6];
 
 #define GET_OVERLAY_PRIVATE(pNv) \
 	(NVPortPrivPtr)((pNv)->overlayAdaptor->pPortPrivates[0].ptr)
@@ -236,7 +236,7 @@ NVStopOverlay (ScrnInfoPtr pScrn)
  *
  * @return a notifier instance or NULL on error
  */
-static struct drm_nouveau_notifier_alloc * NVXvDMANotifierAlloc(ScrnInfoPtr pScrn)
+static struct drm_nouveau_notifierobj_alloc * NVXvDMANotifierAlloc(ScrnInfoPtr pScrn)
 {
 int i;
 for ( i = 0; i < 6; i ++ )
@@ -271,7 +271,7 @@ return NULL;
  *
  * 
  */
-static void NVXvDMANotifierFree(ScrnInfoPtr pScrn, struct drm_nouveau_notifier_alloc * target)
+static void NVXvDMANotifierFree(ScrnInfoPtr pScrn, struct drm_nouveau_notifierobj_alloc * target)
 {
 int i;
 for ( i = 0; i < 6; i ++ )
