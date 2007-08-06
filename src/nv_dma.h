@@ -79,23 +79,6 @@ enum DMAObjects {
 	NvDmaXvNotifier5	= 0xE8000005,
 };
 
-enum DMASubchannel {
-/* EXA + XAA + Xv */
-	NvSubContextSurfaces	= 0, 
-	NvSubRectangle		= 1, 
-	NvSubScaledImage	= 2, 
-/* EXA + XAA */
-	NvSubRop		= 3, 
-	NvSubImagePattern	= 4, 
-	NvSubImageBlit		= 5, 
-/* EXA */
-	NvSubMemFormat		= 6,
-	NvSub3D			= 7,
-/* XAA */
-	NvSubClipRectangle	= 6, 
-	NvSubSolidLine		= 7, 
-};
-
 #define NVDmaNext(pNv, data) do {                        \
 	NVDEBUG("\tNVDmaNext: @0x%08x  0x%08x\n", ((pNv)->dmaCurrent),(data));           \
 	(pNv)->dmaBase[(pNv)->dmaCurrent++] = (data);       \
