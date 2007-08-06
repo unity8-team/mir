@@ -54,7 +54,7 @@ do {							\
 #define I830FALLBACK(s, arg...) 			\
 do { 							\
 	return FALSE;					\
-} while(0) 
+} while(0)
 #endif
 
 const int I830CopyROP[16] =
@@ -148,11 +148,11 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
     offset = exaGetPixmapOffset(pPixmap);
     pitch = exaGetPixmapPitch(pPixmap);
 
-    if ( offset % pI830->EXADriverPtr->pixmapOffsetAlign != 0)
+    if (offset % pI830->EXADriverPtr->pixmapOffsetAlign != 0)
 	I830FALLBACK("pixmap offset not aligned");
-    if ( pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
+    if (pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
 	I830FALLBACK("pixmap pitch not aligned");
-    if ( exaPixmapTiled(pPixmap) && offset > 4096)
+    if (exaPixmapTiled(pPixmap) && offset > 4096)
 	I830FALLBACK("offset limited to 4k for tiled targets");
 
     pI830->BR[13] = (pitch & 0xffff);
@@ -181,8 +181,8 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
     unsigned long offset;
     uint32_t cmd;
 
-    offset = exaGetPixmapOffset(pPixmap);  
-    
+    offset = exaGetPixmapOffset(pPixmap);
+
     {
 	BEGIN_LP_RING(6);
 
@@ -193,7 +193,7 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 
 	if (exaPixmapTiled(pPixmap)) {
 	    /* Fixup pitch for destination if tiled */
-	    pI830->BR[13] = (ROUND_TO(pI830->BR[13] & 0xffff, 512) >> 2) | 
+	    pI830->BR[13] = (ROUND_TO(pI830->BR[13] & 0xffff, 512) >> 2) |
 		(pI830->BR[13] & 0xffff0000);
 	    cmd |= XY_COLOR_BLT_TILED;
 	}
@@ -239,8 +239,7 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 
     if (pI830->copy_src_tiled && pI830->copy_src_off > 4096)
 	I830FALLBACK("offset limited to 4k for tiled targets");
-    if (exaPixmapTiled(pDstPixmap) &&
-	exaGetPixmapOffset(pDstPixmap) > 4096)
+    if (exaPixmapTiled(pDstPixmap) && exaGetPixmapOffset(pDstPixmap) > 4096)
 	I830FALLBACK("offset limited to 4k for tiled targets");
 
     pI830->BR[13] = exaGetPixmapPitch(pDstPixmap);
@@ -284,14 +283,14 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 
 	if (exaPixmapTiled(pDstPixmap)) {
 	    /* Fixup pitch for destination if tiled */
-	    pI830->BR[13] = (ROUND_TO(pI830->BR[13] & 0xffff, 512) >> 2) | 
+	    pI830->BR[13] = (ROUND_TO(pI830->BR[13] & 0xffff, 512) >> 2) |
 		(pI830->BR[13] & 0xffff0000);
 	    cmd |= XY_SRC_COPY_BLT_DST_TILED;
 	}
 
 	if (pI830->copy_src_tiled) {
 	    pI830->copy_src_pitch =
-		(ROUND_TO(pI830->copy_src_pitch & 0xffff, 512) >> 2) | 
+		(ROUND_TO(pI830->copy_src_pitch & 0xffff, 512) >> 2) |
 		(pI830->copy_src_pitch & 0xffff0000);
 	    cmd |= XY_SRC_COPY_BLT_SRC_TILED;
 	}
@@ -460,11 +459,12 @@ I830EXAInit(ScreenPtr pScreen)
 	pI830->exa_offscreen->size;
     pI830->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
 
-    DPRINTF(PFX, "EXA Mem: memoryBase 0x%x, end 0x%x, offscreen base 0x%x, memorySize 0x%x\n",
-		pI830->EXADriverPtr->memoryBase,
-		pI830->EXADriverPtr->memoryBase + pI830->EXADriverPtr->memorySize,
-		pI830->EXADriverPtr->offScreenBase,
-		pI830->EXADriverPtr->memorySize);
+    DPRINTF(PFX, "EXA Mem: memoryBase 0x%x, end 0x%x, offscreen base 0x%x, "
+	    "memorySize 0x%x\n",
+	    pI830->EXADriverPtr->memoryBase,
+	    pI830->EXADriverPtr->memoryBase + pI830->EXADriverPtr->memorySize,
+	    pI830->EXADriverPtr->offScreenBase,
+	    pI830->EXADriverPtr->memorySize);
 
 
     /* Limits are described in the BLT engine chapter under Graphics Data Size
