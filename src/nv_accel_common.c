@@ -221,6 +221,14 @@ NVAccelInitRectangle(ScrnInfoPtr pScrn)
 	NVDmaNext (pNv, NvImagePattern);
 	NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
 	NVDmaNext (pNv, 1 /* ROP_AND */);
+	NVDmaStart(pNv, NvSubRectangle,
+			0x304 /*NV04_GDI_RECTANGLE_TEXT_MONO_FORMAT*/, 1);
+	/* XXX why putting 1 like renouveau dump, swap the text */
+#if 1 || X_BYTE_ORDER == X_BIG_ENDIAN
+	NVDmaNext (pNv, 2 /* NV04_GDI_RECTANGLE_BIGENDIAN/LE_M1 */);
+#else
+	NVDmaNext (pNv, 1 /* NV04_GDI_RECTANGLE_LOWENDIAN/CGA6_M1 */);
+#endif
 
 	return TRUE;
 }
