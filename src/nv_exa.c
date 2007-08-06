@@ -55,7 +55,7 @@ static void setM2MFDirection(ScrnInfoPtr pScrn, int dir)
 
 	if (pNv->M2MFDirection != dir) {
 
-		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
+		NVDmaStart(pNv, NvMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
 		NVDmaNext (pNv, dir ? NvDmaTT : NvDmaFB);
 		NVDmaNext (pNv, dir ? NvDmaFB : NvDmaTT);
 		pNv->M2MFDirection = dir;
@@ -97,11 +97,11 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	if (planemask != ~0 || alu != GXcopy) {
 		if (pPixmap->drawable.bitsPerPixel == 32)
 			return FALSE;
-		NVDmaStart(pNv, NvSubRectangle, 0x2fc, 1);
+		NVDmaStart(pNv, NvRectangle, 0x2fc, 1);
 		NVDmaNext (pNv, 1 /* ROP_AND */);
 		NVSetRopSolid(pScrn, alu, planemask);
 	} else {
-		NVDmaStart(pNv, NvSubRectangle, 0x2fc, 1);
+		NVDmaStart(pNv, NvRectangle, 0x2fc, 1);
 		NVDmaNext (pNv, 3 /* SRCCOPY */);
 	}
 
@@ -118,9 +118,9 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	if (!NVAccelSetCtxSurf2D(pPixmap, pPixmap, fmt))
 		return FALSE;
 
-	NVDmaStart(pNv, NvSubRectangle, RECT_FORMAT, 1);
+	NVDmaStart(pNv, NvRectangle, RECT_FORMAT, 1);
 	NVDmaNext (pNv, rectFormat(&pPixmap->drawable));
-	NVDmaStart(pNv, NvSubRectangle, RECT_SOLID_COLOR, 1);
+	NVDmaStart(pNv, NvRectangle, RECT_SOLID_COLOR, 1);
 	NVDmaNext (pNv, fg);
 
 	pNv->DMAKickoffCallback = NVDmaKickoffCallback;
@@ -134,7 +134,7 @@ static void NVExaSolid (PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	int width = x2-x1;
 	int height = y2-y1;
 
-	NVDmaStart(pNv, NvSubRectangle, RECT_SOLID_RECTS(0), 2);
+	NVDmaStart(pNv, NvRectangle, RECT_SOLID_RECTS(0), 2);
 	NVDmaNext (pNv, (x1 << 16) | y1);
 	NVDmaNext (pNv, (width << 16) | height);
 
@@ -165,11 +165,11 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 	if (planemask != ~0 || alu != GXcopy) {
 		if (pDstPixmap->drawable.bitsPerPixel == 32)
 			return FALSE;
-		NVDmaStart(pNv, NvSubImageBlit, 0x2fc, 1);
+		NVDmaStart(pNv, NvImageBlit, 0x2fc, 1);
 		NVDmaNext (pNv, 1 /* ROP_AND */);
 		NVSetRopSolid(pScrn, alu, planemask);
 	} else {
-		NVDmaStart(pNv, NvSubImageBlit, 0x2fc, 1);
+		NVDmaStart(pNv, NvImageBlit, 0x2fc, 1);
 		NVDmaNext (pNv, 3 /* SRCCOPY */);
 	}
 
@@ -221,7 +221,7 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 				inc=-1;
 			}
 			for (i = 0; i < width; i++) {
-				NVDmaStart(pNv, NvSubImageBlit, BLIT_POINT_SRC, 3);
+				NVDmaStart(pNv, NvImageBlit, BLIT_POINT_SRC, 3);
 				NVDmaNext (pNv, (srcY << 16) | (srcX+xpos));
 				NVDmaNext (pNv, (dstY << 16) | (dstX+xpos));
 				NVDmaNext (pNv, (height  << 16) | 1);
@@ -240,7 +240,7 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 				inc=-1;
 			}
 			for (i = 0; i < height; i++) {
-				NVDmaStart(pNv, NvSubImageBlit, BLIT_POINT_SRC, 3);
+				NVDmaStart(pNv, NvImageBlit, BLIT_POINT_SRC, 3);
 				NVDmaNext (pNv, ((srcY+ypos) << 16) | srcX);
 				NVDmaNext (pNv, ((dstY+ypos) << 16) | dstX);
 				NVDmaNext (pNv, (1  << 16) | width);
@@ -249,7 +249,7 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 		} 
 	} else {
 		NVDEBUG("ExaCopy: Using default path\n");
-		NVDmaStart(pNv, NvSubImageBlit, BLIT_POINT_SRC, 3);
+		NVDmaStart(pNv, NvImageBlit, BLIT_POINT_SRC, 3);
 		NVDmaNext (pNv, (srcY << 16) | srcX);
 		NVDmaNext (pNv, (dstY << 16) | dstX);
 		NVDmaNext (pNv, (height  << 16) | width);
@@ -302,7 +302,7 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 		if (lc > 2047)
 			lc = 2047;
 
-		NVDmaStart(pNv, NvSubMemFormat,
+		NVDmaStart(pNv, NvMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 		NVDmaNext (pNv, (uint32_t)src_offset);
 		NVDmaNext (pNv, (uint32_t)pNv->GARTScratch->offset);
@@ -314,10 +314,10 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 		NVDmaNext (pNv, 0);
 
 		NVNotifierReset(pScrn, pNv->Notifier0);
-		NVDmaStart(pNv, NvSubMemFormat,
+		NVDmaStart(pNv, NvMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
 		NVDmaNext (pNv, 0);
-		NVDmaStart(pNv, NvSubMemFormat, 0x100, 1);
+		NVDmaStart(pNv, NvMemFormat, 0x100, 1);
 		NVDmaNext (pNv, 0);
 		NVDmaKickoff(pNv);
 		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
@@ -408,7 +408,7 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 		}
 
 		/* DMA to VRAM */
-		NVDmaStart(pNv, NvSubMemFormat,
+		NVDmaStart(pNv, NvMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 		NVDmaNext (pNv, (uint32_t)pNv->GARTScratch->offset);
 		NVDmaNext (pNv, (uint32_t)dst_offset);
@@ -420,10 +420,10 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 		NVDmaNext (pNv, 0);
 
 		NVNotifierReset(pScrn, pNv->Notifier0);
-		NVDmaStart(pNv, NvSubMemFormat,
+		NVDmaStart(pNv, NvMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
 		NVDmaNext (pNv, 0);
-		NVDmaStart(pNv, NvSubMemFormat, 0x100, 1);
+		NVDmaStart(pNv, NvMemFormat, 0x100, 1);
 		NVDmaNext (pNv, 0);
 		NVDmaKickoff(pNv);
 		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
@@ -524,7 +524,7 @@ static Bool NVPrepareComposite(int	  op,
 	if (!NVAccelSetCtxSurf2D(pDst, pDst, dstFormat))
 		return FALSE;
 
-	NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_FORMAT, 2);
+	NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_FORMAT, 2);
 	NVDmaNext (pNv, srcFormat);
 	NVDmaNext (pNv, (op == PictOpSrc) ? STRETCH_BLIT_OPERATION_COPY :
 			STRETCH_BLIT_OPERATION_BLEND);
@@ -552,7 +552,7 @@ static void NVComposite(PixmapPtr pDst,
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
-	NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_CLIP_POINT, 6);
+	NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_CLIP_POINT, 6);
 	NVDmaNext (pNv, dstX | (dstY << 16));
 	NVDmaNext (pNv, width | (height << 16));
 	NVDmaNext (pNv, dstX | (dstY << 16));
@@ -560,7 +560,7 @@ static void NVComposite(PixmapPtr pDst,
 	NVDmaNext (pNv, 1<<20);
 	NVDmaNext (pNv, 1<<20);
 
-	NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_SRC_SIZE, 4);
+	NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_SRC_SIZE, 4);
 	NVDmaNext (pNv, src_size);
 	NVDmaNext (pNv, src_pitch);
 	NVDmaNext (pNv, src_offset);
@@ -582,7 +582,7 @@ static void NVDoneComposite (PixmapPtr pDst)
 	else
 		format = SURFACE_FORMAT_X8R8G8B8;
 
-	NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 1);
+	NVDmaStart(pNv, NvContextSurfaces, SURFACE_FORMAT, 1);
 	NVDmaNext (pNv, format);
 
 	exaMarkSync(pDst->drawable.pScreen);

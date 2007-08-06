@@ -16,6 +16,45 @@ void NVDmaKickoffCallback(NVPtr pNv)
 	pNv->DMAKickoffCallback = NULL;
 }
 
+static uint32_t subchannels[8];
+
+void NVDmaStart(NVPtr pNv, uint32_t object, uint32_t tag, int size)
+{
+	int subchannel=-1;
+	int i;
+	/* XXX FIXME */
+	ScrnInfoPtr pScrn = xf86Screens[0];
+
+	/* look for a subchannel already bound to that object */
+	for(i=0;i<8;i++)
+	{
+		if (subchannels[i]==object)
+		{
+			subchannel=i;
+			break;
+		}
+	}
+
+	/* add 2 for the potential subchannel binding */
+	if((pNv)->dmaFree <= (size + 2))
+		NVDmaWait(pScrn, size + 2);
+
+	if (subchannel==-1)
+	{
+		/* bind the object */
+		subchannel=rand()%8;
+		subchannels[subchannel]=object;
+		NVDEBUG("Bind object %x on subchannel %d\n", (object), (subchannel));
+		NVDmaNext(pNv, (1<<18) | (subchannel<<13));
+		NVDmaNext(pNv,object);
+		pNv->dmaFree -= (2);
+	}
+	NVDEBUG("NVDmaStart: subc=%d, cmd=%x, num=%d\n", (subchannel), (tag), (size));
+	NVDmaNext(pNv, ((size) << 18) | ((subchannel) << 13) | (tag));
+	pNv->dmaFree -= ((size) + 1); 
+}
+
+
 /* There is a HW race condition with videoram command buffers.
  * You can't jump to the location of your put offset.  We write put
  * at the jump offset + SKIPS dwords with noop padding in between
@@ -109,9 +148,9 @@ void NVSync(ScrnInfoPtr pScrn)
 
 	/* Wait for channel to go completely idle */
 	NVNotifierReset(pScrn, pNv->Notifier0);
-	NVDmaStart(pNv, NvSubImageBlit, 0x104, 1);
+	NVDmaStart(pNv, NvImageBlit, 0x104, 1);
 	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, NvSubImageBlit, 0x100, 1);
+	NVDmaStart(pNv, NvImageBlit, 0x100, 1);
 	NVDmaNext (pNv, 0);
 	NVDmaKickoff(pNv);
 	if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, timeout))
@@ -141,23 +180,10 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 	}
 	pNv->dmaFree -= SKIPS;
 
-	NVAccelCommonInit(pScrn);
+	for(i=0;i<8;i++)
+		subchannels[i]=0;
 
-	/* EXA + XAA + Xv */
-	NVDmaSetObjectOnSubchannel(pNv, NvSubContextSurfaces, NvContextSurfaces);
-	NVDmaSetObjectOnSubchannel(pNv, NvSubRectangle   , NvRectangle      );
-	NVDmaSetObjectOnSubchannel(pNv, NvSubScaledImage , NvScaledImage    );
-	/* EXA + XAA */
-	NVDmaSetObjectOnSubchannel(pNv, NvSubRop         , NvRop            );
-	NVDmaSetObjectOnSubchannel(pNv, NvSubImagePattern, NvImagePattern   );
-	NVDmaSetObjectOnSubchannel(pNv, NvSubImageBlit   , NvImageBlit      );
-	if (pNv->useEXA) {
-		if (pNv->GARTScratch)
-			NVDmaSetObjectOnSubchannel(pNv, NvSubMemFormat, NvMemFormat);
-	} else if (!pNv->useEXA) {
-		NVDmaSetObjectOnSubchannel(pNv, NvSubClipRectangle, NvClipRectangle);
-		NVDmaSetObjectOnSubchannel(pNv, NvSubSolidLine, NvSolidLine);
-	}
+	NVAccelCommonInit(pScrn);
 
 	switch(pNv->CurrentLayout.depth) {
 	case 24:
@@ -181,20 +207,20 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 		break;
 	}
 
-	NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 4);
+	NVDmaStart(pNv, NvContextSurfaces, SURFACE_FORMAT, 4);
 	NVDmaNext (pNv, surfaceFormat);
 	NVDmaNext (pNv, pitch | (pitch << 16));
 	NVDmaNext (pNv, (uint32_t)pNv->FB->offset);
 	NVDmaNext (pNv, (uint32_t)pNv->FB->offset);
 
-	NVDmaStart(pNv, NvSubImagePattern, PATTERN_FORMAT, 1);
+	NVDmaStart(pNv, NvImagePattern, PATTERN_FORMAT, 1);
 	NVDmaNext (pNv, patternFormat);
 
-	NVDmaStart(pNv, NvSubRectangle, RECT_FORMAT, 1);
+	NVDmaStart(pNv, NvRectangle, RECT_FORMAT, 1);
 	NVDmaNext (pNv, rectFormat);
 
 	if (!pNv->useEXA) {
-		NVDmaStart(pNv, NvSubSolidLine, LINE_FORMAT, 1);
+		NVDmaStart(pNv, NvSolidLine, LINE_FORMAT, 1);
 		NVDmaNext (pNv, lineFormat);
 	}
 

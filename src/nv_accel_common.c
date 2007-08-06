@@ -67,11 +67,9 @@ NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaSetObjectOnSubchannel(pNv, NvSubContextSurfaces,
-					NvContextSurfaces);
-	NVDmaStart(pNv, NvSubContextSurfaces, NV04_SURFACE_DMA_NOTIFY, 1);
+	NVDmaStart(pNv, NvContextSurfaces, NV04_SURFACE_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvSubContextSurfaces, NV04_SURFACE_DMA_IMAGE_SOURCE, 2);
+	NVDmaStart(pNv, NvContextSurfaces, NV04_SURFACE_DMA_IMAGE_SOURCE, 2);
 	NVDmaNext (pNv, NvDmaFB);
 	NVDmaNext (pNv, NvDmaFB);
 
@@ -130,7 +128,7 @@ NVAccelSetCtxSurf2D(PixmapPtr psPix, PixmapPtr pdPix, int format)
 	ScrnInfoPtr pScrn = xf86Screens[psPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
-	NVDmaStart(pNv, NvSubContextSurfaces, SURFACE_FORMAT, 4);
+	NVDmaStart(pNv, NvContextSurfaces, SURFACE_FORMAT, 4);
 	NVDmaNext (pNv, format);
 	NVDmaNext (pNv, ((uint32_t)exaGetPixmapPitch(pdPix) << 16) |
 			 (uint32_t)exaGetPixmapPitch(psPix));
@@ -156,12 +154,10 @@ NVAccelInitImagePattern(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaSetObjectOnSubchannel(pNv, NvSubImagePattern,
-					NvImagePattern);
-	NVDmaStart(pNv, NvSubImagePattern,
+	NVDmaStart(pNv, NvImagePattern,
 			0x180, /*NV04_IMAGE_PATTERN_SET_DMA_NOTIFY*/ 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvSubImagePattern, NV04_IMAGE_PATTERN_MONO_FORMAT, 3);
+	NVDmaStart(pNv, NvImagePattern, NV04_IMAGE_PATTERN_MONO_FORMAT, 3);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	NVDmaNext (pNv, 2 /* NV04_IMAGE_PATTERN_BIGENDIAN/LE_M1 */);
 #else
@@ -189,8 +185,7 @@ NVAccelInitRasterOp(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaSetObjectOnSubchannel(pNv, NvSubRop, NvRop);
-	NVDmaStart(pNv, NvSubRop, NV03_PRIMITIVE_RASTER_OP_DMA_NOTIFY, 1);
+	NVDmaStart(pNv, NvRop, NV03_PRIMITIVE_RASTER_OP_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvNullObject);
 
 	return TRUE;
@@ -212,20 +207,19 @@ NVAccelInitRectangle(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaSetObjectOnSubchannel(pNv, NvSubRectangle, NvRectangle);
-	NVDmaStart(pNv, NvSubRectangle,
+	NVDmaStart(pNv, NvRectangle,
 			NV04_GDI_RECTANGLE_TEXT_SET_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvDmaNotifier0);
-	NVDmaStart(pNv, NvSubRectangle,
+	NVDmaStart(pNv, NvRectangle,
 			0x184 /*NV04_GDI_RECTANGLE_TEXT_SET_DMA_FONTS*/, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvSubRectangle, NV04_GDI_RECTANGLE_TEXT_SURFACE, 1);
+	NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_SURFACE, 1);
 	NVDmaNext (pNv, NvContextSurfaces);
-	NVDmaStart(pNv, NvSubRectangle, NV04_GDI_RECTANGLE_TEXT_ROP5, 1);
+	NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_ROP5, 1);
 	NVDmaNext (pNv, NvRop);
-	NVDmaStart(pNv, NvSubRectangle, NV04_GDI_RECTANGLE_TEXT_PATTERN, 1);
+	NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_PATTERN, 1);
 	NVDmaNext (pNv, NvImagePattern);
-	NVDmaStart(pNv, NvSubRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
+	NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
 	NVDmaNext (pNv, 1 /* ROP_AND */);
 
 	return TRUE;
@@ -247,18 +241,17 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaSetObjectOnSubchannel(pNv, NvSubImageBlit,	NvImageBlit);
-	NVDmaStart(pNv, NvSubImageBlit, NV_IMAGE_BLIT_DMA_NOTIFY, 1);
+	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvDmaNotifier0);
-	NVDmaStart(pNv, NvSubImageBlit, NV_IMAGE_BLIT_COLOR_KEY, 1);
+	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_COLOR_KEY, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvSubImageBlit, NV_IMAGE_BLIT_SURFACE, 1);
+	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_SURFACE, 1);
 	NVDmaNext (pNv, NvContextSurfaces);
-	NVDmaStart(pNv, NvSubImageBlit, NV_IMAGE_BLIT_CLIP_RECTANGLE, 3);
+	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_CLIP_RECTANGLE, 3);
 	NVDmaNext (pNv, NvNullObject);
 	NVDmaNext (pNv, NvImagePattern);
 	NVDmaNext (pNv, NvRop);
-	NVDmaStart(pNv, NvSubImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
+	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
 	NVDmaNext (pNv, 1 /* NV_IMAGE_BLIT_OPERATION_ROP_AND */);
 
 	return TRUE;
@@ -293,25 +286,24 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaSetObjectOnSubchannel(pNv, NvSubScaledImage, NvScaledImage);
-	NVDmaStart(pNv, NvSubScaledImage,
+	NVDmaStart(pNv, NvScaledImage,
 			NV04_SCALED_IMAGE_FROM_MEMORY_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvDmaNotifier0);
-	NVDmaStart(pNv, NvSubScaledImage,
+	NVDmaStart(pNv, NvScaledImage,
 			NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
 	NVDmaNext (pNv, NvDmaFB); /* source object */
-	NVDmaStart(pNv, NvSubScaledImage,
+	NVDmaStart(pNv, NvScaledImage,
 			NV04_SCALED_IMAGE_FROM_MEMORY_SURFACE, 1);
 	NVDmaNext (pNv, NvContextSurfaces);
-	NVDmaStart(pNv, NvSubScaledImage, 0x188, 1); /* PATTERN */
+	NVDmaStart(pNv, NvScaledImage, 0x188, 1); /* PATTERN */
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvSubScaledImage, 0x18c, 1); /* ROP */
+	NVDmaStart(pNv, NvScaledImage, 0x18c, 1); /* ROP */
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvSubScaledImage, 0x190, 1); /* BETA1 */
+	NVDmaStart(pNv, NvScaledImage, 0x190, 1); /* BETA1 */
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvSubScaledImage, 0x194, 1); /* BETA4 */
+	NVDmaStart(pNv, NvScaledImage, 0x194, 1); /* BETA4 */
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvSubScaledImage,
+	NVDmaStart(pNv, NvScaledImage,
 			NV04_SCALED_IMAGE_FROM_MEMORY_OPERATION, 1);
 	NVDmaNext (pNv, 3 /* SRCCOPY */);
 
@@ -332,8 +324,7 @@ NVAccelInitClipRectangle(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaSetObjectOnSubchannel(pNv, NvSubClipRectangle, NvClipRectangle);
-	NVDmaStart(pNv, NvSubClipRectangle, 0x180, 1); /* DMA_NOTIFY */
+	NVDmaStart(pNv, NvClipRectangle, 0x180, 1); /* DMA_NOTIFY */
 	NVDmaNext (pNv, NvNullObject);
 
 	return TRUE;
@@ -353,14 +344,13 @@ NVAccelInitSolidLine(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaSetObjectOnSubchannel(pNv, NvSubSolidLine, NvSolidLine);
-	NVDmaStart(pNv, NvSubSolidLine, NV04_SOLID_LINE_CLIP_RECTANGLE, 3);
+	NVDmaStart(pNv, NvSolidLine, NV04_SOLID_LINE_CLIP_RECTANGLE, 3);
 	NVDmaNext (pNv, NvClipRectangle);
 	NVDmaNext (pNv, NvImagePattern);
 	NVDmaNext (pNv, NvRop);
-	NVDmaStart(pNv, NvSubSolidLine, NV04_SOLID_LINE_SURFACE, 1);
+	NVDmaStart(pNv, NvSolidLine, NV04_SOLID_LINE_SURFACE, 1);
 	NVDmaNext (pNv, NvContextSurfaces);
-	NVDmaStart(pNv, NvSubSolidLine, NV04_SOLID_LINE_OPERATION, 1);
+	NVDmaStart(pNv, NvSolidLine, NV04_SOLID_LINE_OPERATION, 1);
 	NVDmaNext (pNv, 1); /* ROP_AND */
 
 	return TRUE;
@@ -382,11 +372,10 @@ NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaSetObjectOnSubchannel(pNv, NvSubMemFormat, NvMemFormat);
-	NVDmaStart(pNv, NvSubMemFormat,
+	NVDmaStart(pNv, NvMemFormat,
 			NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvDmaNotifier0);
-	NVDmaStart(pNv, NvSubMemFormat,
+	NVDmaStart(pNv, NvMemFormat,
 			NV_MEMORY_TO_MEMORY_FORMAT_OBJECT_IN, 2);
 	NVDmaNext (pNv, NvDmaFB);
 	NVDmaNext (pNv, NvDmaFB);

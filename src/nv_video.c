@@ -636,7 +636,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 #endif
 	} else {
 		if (pNv->CurrentLayout.depth == 15) {
-			NVDmaStart(pNv, NvSubContextSurfaces,
+			NVDmaStart(pNv, NvContextSurfaces,
 					SURFACE_FORMAT, 1);
 			NVDmaNext (pNv, SURFACE_FORMAT_X1R5G5B5);
 		}
@@ -674,19 +674,19 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 	}
 
 	if(pNv->BlendingPossible) {
-		NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_FORMAT, 2);
+		NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_FORMAT, 2);
 		NVDmaNext (pNv, src_format);
 		NVDmaNext (pNv, STRETCH_BLIT_OPERATION_COPY);
 	} else {
-		NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_FORMAT, 1);
+		NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_FORMAT, 1);
 		NVDmaNext (pNv, src_format);
 	}
 
 	while(nbox--) {
-		NVDmaStart(pNv, NvSubRectangle, RECT_SOLID_COLOR, 1);
+		NVDmaStart(pNv, NvRectangle, RECT_SOLID_COLOR, 1);
 		NVDmaNext (pNv, 0);
 
-		NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_CLIP_POINT, 6);
+		NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_CLIP_POINT, 6);
 		NVDmaNext (pNv, (pbox->y1 << 16) | pbox->x1); 
 		NVDmaNext (pNv, ((pbox->y2 - pbox->y1) << 16) |
 				 (pbox->x2 - pbox->x1));
@@ -695,7 +695,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 		NVDmaNext (pNv, dsdx);
 		NVDmaNext (pNv, dtdy);
 
-		NVDmaStart(pNv, NvSubScaledImage, STRETCH_BLIT_SRC_SIZE, 4);
+		NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_SRC_SIZE, 4);
 		NVDmaNext (pNv, (height << 16) | width);
 		NVDmaNext (pNv, src_pitch);
 		NVDmaNext (pNv, src_offset);
@@ -705,7 +705,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 
 	if (!pNv->useEXA) {
 		if(pNv->CurrentLayout.depth == 15) {
-			NVDmaStart(pNv, NvSubContextSurfaces,
+			NVDmaStart(pNv, NvContextSurfaces,
 					SURFACE_FORMAT, 1);
 			NVDmaNext (pNv, SURFACE_FORMAT_R5G6B5);
 		}
@@ -1338,14 +1338,14 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		}
 		
 
-		NVDmaStart(pNv, NvSubMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
+		NVDmaStart(pNv, NvMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
 		NVDmaNext (pNv, NvDmaTT);
 		NVDmaNext (pNv, NvDmaFB);
 		pNv->M2MFDirection = 1;
 		
 		/* DMA to VRAM */
 			
-		NVDmaStart(pNv, NvSubMemFormat,
+		NVDmaStart(pNv, NvMemFormat,
 			NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 		NVDmaNext (pNv, (uint32_t)destination_buffer->offset);
 		NVDmaNext (pNv, (uint32_t)offset + DMAoffset);
@@ -1362,21 +1362,21 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			}
 		else {
 			NVNotifierReset(pScrn, pPriv->DMANotifier[pPriv->currentHostBuffer]);
-			NVDmaStart(pNv, NvSubMemFormat,
+			NVDmaStart(pNv, NvMemFormat,
 			NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 			NVDmaNext (pNv, pPriv->DMANotifier[pPriv->currentHostBuffer]->handle);
 			}
 			
 			
-		NVDmaStart(pNv, NvSubMemFormat,
+		NVDmaStart(pNv, NvMemFormat,
 			NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
 		NVDmaNext (pNv, 0);
 			
-		NVDmaStart(pNv, NvSubMemFormat, 0x100, 1);
+		NVDmaStart(pNv, NvMemFormat, 0x100, 1);
 		NVDmaNext (pNv, 0);
 				
 		//Put back NvDmaNotifier0 for EXA
-		NVDmaStart(pNv, NvSubMemFormat,
+		NVDmaStart(pNv, NvMemFormat,
 			NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 		NVDmaNext (pNv, NvDmaNotifier0);
 		
