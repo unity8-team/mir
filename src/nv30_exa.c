@@ -587,8 +587,6 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaSetObjectOnSubchannel(pNv, Nv3D, Nv3D);
-
 	NVDmaStart(pNv, Nv3D, 0x180, 1);
 	NVDmaNext (pNv, NvDmaNotifier0);
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_SET_OBJECT1, 2);
