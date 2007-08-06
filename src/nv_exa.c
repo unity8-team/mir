@@ -335,6 +335,7 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 		}
 
 		line_count -= lc;
+		src_offset += lc * src_pitch;
 	}
 
 	return TRUE;
@@ -429,6 +430,7 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
 			return FALSE;
 
+		dst_offset += lc * dst_pitch;
 		line_count -= lc;
 	}
 
@@ -449,12 +451,14 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	cpp = pDst->drawable.bitsPerPixel >> 3;
 
 	if (pNv->GARTScratch) {
+		ErrorF("in UTSGart (%dx%d)\n",w,h);
 		dst_offset += (y * dst_pitch) + (x * cpp);
 		if (NVAccelUploadM2MF(pScrn, dst_offset, src, dst_pitch,
 				      src_pitch, w * cpp, h))
 			return TRUE;
 	}
 
+	ErrorF("in UTSMemcpy (%dx%d)\n",w,h);
 	dst = pDst->devPrivate.ptr + (y * dst_pitch) + (x * cpp);
 	exaWaitSync(pDst->drawable.pScreen);
 	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp))
