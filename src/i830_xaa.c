@@ -126,7 +126,6 @@ I830XAAInit(ScreenPtr pScreen)
     if (!infoPtr)
 	return FALSE;
 
-    pI830->bufferOffset = 0;
     infoPtr->Flags = LINEAR_FRAMEBUFFER | OFFSCREEN_PIXMAPS | PIXMAP_CACHE;
 
     /* Use the same sync function as the I830.
@@ -235,6 +234,7 @@ I830XAAInit(ScreenPtr pScreen)
 	    infoPtr->RestoreAccelState = I830RestoreAccelState;
     }
 
+    /* Set up pI830->bufferOffset */
     I830SelectBuffer(pScrn, I830_SELECT_FRONT);
 
     if (!XAAInit(pScreen, infoPtr))

@@ -405,10 +405,8 @@ typedef struct _I830Rec {
    CloseScreenProcPtr CloseScreen;
 
 #ifdef I830_USE_EXA
-   unsigned int copy_src_pitch;
-   unsigned int copy_src_off;
-   unsigned int copy_src_tiled;
    ExaDriverPtr	EXADriverPtr;
+   PixmapPtr pSrcPixmap;
 #endif
 
    I830WriteIndexedByteFunc writeControl;
