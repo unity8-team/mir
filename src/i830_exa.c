@@ -153,6 +153,8 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
     if ( pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
 	I830FALLBACK("pixmap pitch not aligned");
 
+    if (exaPixmapTiled(pPixmap))
+	pitch /= 4;
     pI830->BR[13] = (pitch & 0xffff);
     switch (pPixmap->drawable.bitsPerPixel) {
 	case 8:
@@ -189,12 +191,8 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	if (pPixmap->drawable.bitsPerPixel == 32)
 	    cmd |= XY_COLOR_BLT_WRITE_ALPHA | XY_COLOR_BLT_WRITE_RGB;
 
-	if (exaPixmapTiled(pPixmap)) {
-	    /* Fixup pitch for destination if tiled */
-	    pI830->BR[13] = ((pI830->BR[13] & 0xffff) >> 2) |
-		(pI830->BR[13] & 0xffff0000);
+	if (exaPixmapTiled(pPixmap))
 	    cmd |= XY_COLOR_BLT_TILED;
-	}
 
 	OUT_RING(cmd);
 
@@ -232,10 +230,16 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 	I830FALLBACK("planemask is not solid");
 
     pI830->copy_src_pitch = exaGetPixmapPitch(pSrcPixmap);
+    if (exaPixmapTiled(pSrcPixmap))
+	pI830->copy_src_pitch /= 4;
+
     pI830->copy_src_off = exaGetPixmapOffset(pSrcPixmap);
     pI830->copy_src_tiled = exaPixmapTiled(pSrcPixmap);
 
     pI830->BR[13] = exaGetPixmapPitch(pDstPixmap);
+    if (exaPixmapTiled(pDstPixmap))
+	pI830->BR[13] /= 4;
+
     pI830->BR[13] |= I830CopyROP[alu] << 16;
 
     switch (pSrcPixmap->drawable.bitsPerPixel) {
@@ -274,17 +278,11 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 	if (pDstPixmap->drawable.bitsPerPixel == 32)
 	    cmd |= XY_SRC_COPY_BLT_WRITE_ALPHA | XY_SRC_COPY_BLT_WRITE_RGB;
 
-	if (exaPixmapTiled(pDstPixmap)) {
-	    /* Fixup pitch for destination if tiled */
-	    pI830->BR[13] = ((pI830->BR[13] & 0xffff) >> 2) |
-		(pI830->BR[13] & 0xffff0000);
+	if (exaPixmapTiled(pDstPixmap))
 	    cmd |= XY_SRC_COPY_BLT_DST_TILED;
-	}
 
-	if (pI830->copy_src_tiled) {
-	    pI830->copy_src_pitch >>= 2;
+	if (pI830->copy_src_tiled)
 	    cmd |= XY_SRC_COPY_BLT_SRC_TILED;
-	}
 
 	OUT_RING(cmd);
 
