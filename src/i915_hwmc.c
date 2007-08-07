@@ -118,6 +118,9 @@ typedef struct _I915XvMC
     I915XvMCSurfacePriv *sfprivs[I915_XVMC_MAX_SURFACES];
     I915XvMCContextPriv *ctxprivs[I915_XVMC_MAX_CONTEXTS];
     int ncontexts,nsurfaces;
+    SetPortAttributeFuncPtr saveSetPortAttribute;
+    GetPortAttributeFuncPtr saveGetPortAttribute;
+    PutImageFuncPtr savePutImage;
 } I915XvMC, *I915XvMCPtr;
 
 #define ARRARY_SIZE(a) (sizeof(a) / sizeof(a[0]))
@@ -234,6 +237,7 @@ static void initI915XvMC(I915XvMCPtr xvmc)
     }
 }
 
+//XXX
 static void cleanupI915XvMC(I915XvMCPtr xvmc, XF86VideoAdaptorPtr * XvAdaptors, int XvAdaptorCount)
 {
     unsigned int i;
@@ -483,15 +487,14 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
     XvPortRecPrivatePtr portPriv = (XvPortRecPrivatePtr)pContext->port_priv;
     I830PortPrivPtr pPriv = (I830PortPrivPtr)portPriv->DevPriv.ptr;
     I915XvMCXVPriv *vx = (I915XvMCXVPriv *)pPriv->xvmc_priv;
-
     int i;
 
     *priv = NULL;
     *num_priv = 0;
 
-    if (!pI830->directRenderingEnabled) {
+    if (!pI830->XvMCEnabled) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateContext: Cannot use XvMC without DRI!\n");
+                   "[XvMC] I915XvMCCreateContext: Cannot use XvMC!\n");
         return BadAlloc;
     }
 
@@ -834,6 +837,8 @@ static int I915XvMCInterceptXvGetAttribute(ScrnInfoPtr pScrn, Atom attribute,
     unsigned i;
     I830PortPrivPtr pPriv = (I830PortPrivPtr)data;
     I915XvMCXVPriv *vx = (I915XvMCXVPriv *)pPriv->xvmc_priv;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I915XvMCPtr pXvMC = pI830->xvmc;
 
     if (I830PTR(pScrn)->XvMCEnabled) {
         for (i = 0; i < vx->xvAttr.numAttr; ++i) {
@@ -844,7 +849,7 @@ static int I915XvMCInterceptXvGetAttribute(ScrnInfoPtr pScrn, Atom attribute,
         }
     }
 
-    return vx->GetPortAttribute(pScrn, attribute, value, data);
+    return pXvMC->saveGetPortAttribute(pScrn, attribute, value, data);
 }
 
 static int I915XvMCInterceptXvAttribute(ScrnInfoPtr pScrn, Atom attribute,
@@ -853,8 +858,10 @@ static int I915XvMCInterceptXvAttribute(ScrnInfoPtr pScrn, Atom attribute,
     unsigned i;
     I830PortPrivPtr pPriv = (I830PortPrivPtr)data;
     I915XvMCXVPriv *vx = (I915XvMCXVPriv *)pPriv->xvmc_priv;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I915XvMCPtr pXvMC = pI830->xvmc;
 
-    if (I830PTR(pScrn)->XvMCEnabled) {
+    if (pI830->XvMCEnabled) {
         for (i = 0; i < vx->xvAttr.numAttr; ++i) {
             if (vx->xvAttr.attributes[i].attribute == attribute) {
                 vx->xvAttr.attributes[i].value = value;
@@ -863,18 +870,19 @@ static int I915XvMCInterceptXvAttribute(ScrnInfoPtr pScrn, Atom attribute,
         }
     }
 
-    return vx->SetPortAttribute(pScrn, attribute, value, data);
+    return pXvMC->saveSetPortAttribute(pScrn, attribute, value, data);
 }
 
 static int I915XvMCDisplayAttributes(ScrnInfoPtr pScrn,
                                      const I915XvMCAttrHolder * ah, I830PortPrivPtr pPriv)
 {
-    I915XvMCXVPriv *vx = (I915XvMCXVPriv *) pPriv->xvmc_priv;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I915XvMCPtr pXvMC = pI830->xvmc;
     unsigned i;
     int ret;
 
     for (i = 0; i < ah->numAttr; ++i) {
-        ret = vx->SetPortAttribute(pScrn, ah->attributes[i].attribute,
+        ret = pXvMC->saveSetPortAttribute(pScrn, ah->attributes[i].attribute,
                                    ah->attributes[i].value, pPriv);
         if (ret)
             return ret;
@@ -893,14 +901,12 @@ static int I915XvMCInterceptPutImage(ScrnInfoPtr pScrn, short src_x, short src_y
     I830Ptr pI830 = I830PTR(pScrn);
     I830PortPrivPtr pPriv = (I830PortPrivPtr)data;
     I915XvMCXVPriv *vx = (I915XvMCXVPriv *)pPriv->xvmc_priv;
+    I915XvMCPtr pXvMC = pI830->xvmc;
+    I915XvMCCommandBuffer *i915XvMCData = (I915XvMCCommandBuffer *)buf;
     int ret;
 
-    if (I830PTR(pScrn)->XvMCEnabled) {
+    if (pI830->XvMCEnabled) {
         if (FOURCC_XVMC == id) {
-            I915XvMCPtr pXvMC = pI830->xvmc;
-            I915XvMCCommandBuffer *i915XvMCData = (I915XvMCCommandBuffer *)buf;
-            int i;
-
             switch (i915XvMCData->command) {
             case I915_XVMC_COMMAND_ATTRIBUTES:
                 if ((i915XvMCData->ctxNo | I915_XVMC_VALID) != vx->ctxDisplaying)
@@ -910,33 +916,25 @@ static int I915XvMCInterceptPutImage(ScrnInfoPtr pScrn, short src_x, short src_y
                 return 0;
 
             case I915_XVMC_COMMAND_DISPLAY:
-                for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
-                   i830_memory *mem = NULL;
-
-                   if ((i915XvMCData->srfNo >= I915_XVMC_MAX_SURFACES) ||
-                       !pXvMC->surfaces[i915XvMCData->srfNo] ||
-                       !pXvMC->sfprivs[i915XvMCData->srfNo]) {
-                      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                                 "[XvMC] I915XvMCInterceptPutImage: Invalid parameters !\n");
-                      return 1;
-                   }
+		if ((i915XvMCData->srfNo >= I915_XVMC_MAX_SURFACES) ||
+			!pXvMC->surfaces[i915XvMCData->srfNo] ||
+			!pXvMC->sfprivs[i915XvMCData->srfNo]) {
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			    "[XvMC] I915XvMCInterceptPutImage: Invalid parameters !\n");
+		    return 1;
+		}
                    
-                   mem = pXvMC->sfprivs[i915XvMCData->srfNo]->surface;
-                   buf = pI830->FbBase + mem->offset;
-                   id = i915XvMCData->real_id;
-                   pI830->IsXvMCSurface = 1;
-                   break;
-                }
-
-                break;
-
+		buf = pI830->FbBase + pXvMC->sfprivs[i915XvMCData->srfNo]->surface->offset;
+		id = i915XvMCData->real_id;
+		pI830->IsXvMCSurface = 1;
+		break;
             default:
                 return 0;
             }
         }
     }
 
-    ret = vx->PutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
+    ret = pXvMC->savePutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
                         drw_w, drw_h, id, buf, width, height, sync, clipBoxes, data, pDraw);
     pI830->IsXvMCSurface = 0;
     return ret;
@@ -955,57 +953,38 @@ static int I915XvMCInterceptPutImage(ScrnInfoPtr pScrn, short src_x, short src_y
  *    None
  *  
  **************************************************************************/
-void I915InitMC(ScreenPtr pScreen)
+
+Bool I915XvMCInit(ScreenPtr pScreen, XF86VideoAdaptorPtr XvAdapt)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    I915XvMCPtr pXvMC = NULL; 
-
-    pI830->XvMCEnabled = FALSE;
-    if (!pI830->directRenderingEnabled) {
-        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                   "[XvMC] Cannot use XvMC without DRI!\n");
-        return;
-    }
-
-    pXvMC = (I915XvMCPtr)calloc(1, sizeof(I915XvMC));
-    if (!pXvMC) {
-        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                   "[XvMC] Failure!\n");
-        return;
-    }
-
-    pI830->xvmc = pXvMC;
-    initI915XvMC(pXvMC);
-    xf86XvMCScreenInit(pScreen, 1, ppAdapt);
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-               "[XvMC] Initialized XvMC extension.\n");
-    pI830->XvMCEnabled = TRUE;
-}
-
-int I915XvMCInitXv(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
-{
     I830PortPrivPtr pPriv;
     I915XvMCXVPriv *vx;
-    unsigned i, j;
-    SetPortAttributeFuncPtr setportattribute = XvAdapt->SetPortAttribute;
-    GetPortAttributeFuncPtr getportattribute = XvAdapt->GetPortAttribute;
-    PutImageFuncPtr putimage = XvAdapt->PutImage;
+    I915XvMCPtr pXvMC;
+    int i, j;
 
-    XvAdapt->GetPortAttribute = I915XvMCInterceptXvGetAttribute;
-    XvAdapt->SetPortAttribute = I915XvMCInterceptXvAttribute;
-    XvAdapt->PutImage = I915XvMCInterceptPutImage;
+    if (!IS_I9XX(pI830) || IS_I965G(pI830))
+	return FALSE;
+
+    pXvMC = (I915XvMCPtr)xcalloc(1, sizeof(I915XvMC));
+    if (!pXvMC) {
+        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                   "[XvMC] alloc driver private failed!\n");
+        return FALSE;
+    }
+    pI830->xvmc = pXvMC;
+    initI915XvMC(pXvMC);
 
     for (j = 0; j < XvAdapt->nPorts; ++j) {
         pPriv = (I830PortPrivPtr) XvAdapt->pPortPrivates[j].ptr;
 
         if (NULL == (pPriv->xvmc_priv = xcalloc(1, sizeof(I915XvMCXVPriv)))) {
+	    xfree(pI830->xvmc);
             return BadAlloc;
-        }
+	}
 
-        for (i = 0; i < I915_NUM_XVMC_ATTRIBUTES; ++i) {
+        for (i = 0; i < I915_NUM_XVMC_ATTRIBUTES; ++i)
             attrAtoms[i] = MAKE_ATOM(attrXvMC[i]);
-        }
 
         vx = (I915XvMCXVPriv *) pPriv->xvmc_priv;
 
@@ -1014,24 +993,48 @@ int I915XvMCInitXv(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
         vx->xvmc_port = -1;
         vx->newAttribute = 1;
 
-        /* set up wrappers */
-        vx->GetPortAttribute = getportattribute;
-        vx->SetPortAttribute = setportattribute;
-        vx->PutImage = putimage;
-
         for (i = 0; i < I915_NUM_XVMC_ATTRIBUTES; ++i) {
             vx->xvAttr.attributes[i].attribute = attrAtoms[i];
-            vx->xvAttr.attributes[i].value = 0;
-            vx->GetPortAttribute(pScrn, attrAtoms[i],
+            XvAdapt->GetPortAttribute(pScrn, attrAtoms[i],
                                  &(vx->xvAttr.attributes[i].value), pPriv);
         }
     }
-    return Success;
+    /* set up wrappers */
+    pXvMC->saveGetPortAttribute = XvAdapt->GetPortAttribute;
+    pXvMC->saveSetPortAttribute = XvAdapt->SetPortAttribute;
+    pXvMC->savePutImage = XvAdapt->PutImage;
+
+    XvAdapt->GetPortAttribute = I915XvMCInterceptXvGetAttribute;
+    XvAdapt->SetPortAttribute = I915XvMCInterceptXvAttribute;
+    XvAdapt->PutImage = I915XvMCInterceptPutImage;
+    return TRUE;
+}
+
+Bool I915XvMCScreenInit(ScreenPtr pScreen)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (xf86XvMCScreenInit(pScreen, 1, ppAdapt)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"[XvMC] Initialized XvMC.\n");
+	pI830->XvMCEnabled = TRUE;
+    } else {
+        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		"[XvMC] xf86 XvMC initial failed\n");
+	pI830->XvMCEnabled = FALSE;
+	xfree(pI830->xvmc);
+	pI830->xvmc = NULL;
+	return FALSE;
+    }
+    return TRUE;
 }
 
 unsigned long I915XvMCPutImageSize(ScrnInfoPtr pScrn)
 {
-    if (I830PTR(pScrn)->XvMCEnabled)
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (pI830->XvMCEnabled)
         return sizeof(I915XvMCCommandBuffer);
 
     return 0;

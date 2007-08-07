@@ -560,6 +560,7 @@ I830InitVideo(ScreenPtr pScreen)
     XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
     XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
     int num_adaptors;
+    Bool xvmc_init = FALSE;
 
 #if 0
     {
@@ -602,16 +603,6 @@ I830InitVideo(ScreenPtr pScreen)
 	if (texturedAdaptor != NULL) {
 	    adaptors[num_adaptors++] = texturedAdaptor;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
-
-#ifdef XF86DRI
-#ifdef XvMCExtension
-        if (IS_I915G(pI830) || IS_I915GM(pI830) || 
-            IS_I945G(pI830) || IS_I945GM(pI830) ||
-            IS_G33CLASS(pI830)) {
-               I915XvMCInitXv(pScrn, texturedAdaptor);
-        }
-#endif
-#endif
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Failed to set up textured video\n");
@@ -633,10 +624,18 @@ I830InitVideo(ScreenPtr pScreen)
 	I830InitOffscreenImages(pScreen);
     }
 
+#ifdef XvMCExtension
+    if (texturedAdaptor)
+	xvmc_init = I915XvMCInit(pScreen, texturedAdaptor);
+#endif
     if (num_adaptors)
 	xf86XVScreenInit(pScreen, adaptors, num_adaptors);
 
     xfree(adaptors);
+#ifdef XvMCExtension
+    if (xvmc_init)
+	I915XvMCScreenInit(pScreen);
+#endif
 }
 
 static void
@@ -2631,11 +2630,7 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
 	break;
     case FOURCC_XVMC:
         *h = (*h + 1) & ~1;
-#ifdef XF86DRI
         size = I915XvMCPutImageSize(pScrn);
-#else
-        size = 0;
-#endif
         if (pitches)
             pitches[0] = size;
         break;

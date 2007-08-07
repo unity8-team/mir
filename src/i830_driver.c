@@ -2721,14 +2721,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       pI830->directRenderingEnabled = I830DRIFinishScreenInit(pScreen);
    }
 
-#ifdef XvMCExtension
-   if (pI830->XvEnabled && (pI830->directRenderingEnabled) && 
-       (IS_I915G(pI830) || IS_I915GM(pI830) || 
-        IS_I945G(pI830) || IS_I945GM(pI830) ||
-        IS_G33CLASS(pI830))) {
-       I915InitMC(pScreen);
-   }
-#endif
 #endif
 
    /* Setup 3D engine, needed for rotation too */

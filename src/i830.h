@@ -746,8 +746,8 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
 }
 
 /* i915 XvMC */
-int I915XvMCInitXv(ScrnInfoPtr, XF86VideoAdaptorPtr);
-void I915InitMC(ScreenPtr);
+Bool I915XvMCInit(ScreenPtr, XF86VideoAdaptorPtr);
+Bool I915XvMCScreenInit(ScreenPtr);
 unsigned long I915XvMCPutImageSize(ScrnInfoPtr);
 
 extern const int I830PatternROP[16];
