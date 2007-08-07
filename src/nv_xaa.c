@@ -110,13 +110,13 @@ NVWaitVSync(ScrnInfoPtr pScrn)
 {
     NVPtr pNv = NVPTR(pScrn);
 
-    NVDmaStart(pNv, 5, 0x0000012C, 1);
+    NVDmaStart(pNv, NvImageBlit, 0x0000012C, 1);
     NVDmaNext (pNv, 0);
-    NVDmaStart(pNv, 5, 0x00000134, 1);
+    NVDmaStart(pNv, NvImageBlit, 0x00000134, 1);
     NVDmaNext (pNv, pNv->CRTCnumber);
-    NVDmaStart(pNv, 5, 0x00000100, 1);
+    NVDmaStart(pNv, NvImageBlit, 0x00000100, 1);
     NVDmaNext (pNv, 0);
-    NVDmaStart(pNv, 5, 0x00000130, 1);
+    NVDmaStart(pNv, NvImageBlit, 0x00000130, 1);
     NVDmaNext (pNv, 0);
 }
 
