@@ -239,11 +239,8 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    tmp = RADEON_BIOS16(entry);
 	    info->BiosConnector[i].ConnectorType = (tmp >> 12) & 0xf;
 	    info->BiosConnector[i].DDCType = (tmp >> 8) & 0xf;
-	    info->BiosConnector[i].DACType = tmp & 0x3;
-	    if (tmp & 0x10)
-		info->BiosConnector[i].TMDSType = TMDS_EXT;
-	    else
-		info->BiosConnector[i].TMDSType = TMDS_INT;
+	    info->BiosConnector[i].DACType = tmp & 0x1;
+	    info->BiosConnector[i].TMDSType = tmp & 0x10;
 
 	}
     } else {
