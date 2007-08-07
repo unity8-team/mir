@@ -10,7 +10,7 @@ XS-Vcs-Git: git://git.debian.org/git/pkg-xorg/driver/xserver-xorg-video-intel
 XS-Vcs-Browser: http://git.debian.org/?p=pkg-xorg/driver/xserver-xorg-video-intel.git
 
 Package: xserver-xorg-video-intel
-Architecture: alpha amd64 arm armeb armel hppa hurd-i386 i386 ia64 kfreebsd-i386 m68k mips mipsel netbsd-i386 powerpc
+Architecture: alpha amd64 arm armeb armel hppa hurd-i386 i386 ia64 kfreebsd-i386 lpia m68k mips mipsel netbsd-i386 powerpc
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${xserver:Depends}
 Provides: ${xviddriver:Provides}
 Replaces: xserver-xorg (<< 6.8.2-35), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting

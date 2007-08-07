@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.1.0-1ubuntu2) gutsy; urgency=low
+
+  * Add lpia to the list of architectures.
+
+ -- Matthias Klose <doko@ubuntu.com>  Tue, 07 Aug 2007 13:12:48 +0000
+
 xserver-xorg-video-intel (2:2.1.0-1ubuntu1) gutsy; urgency=low
 
   [ Kyle McMartin ]
