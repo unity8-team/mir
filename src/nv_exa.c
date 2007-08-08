@@ -320,7 +320,7 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 		NVDmaStart(pNv, NvMemFormat, 0x100, 1);
 		NVDmaNext (pNv, 0);
 		NVDmaKickoff(pNv);
-		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
+		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 2000))
 			return FALSE;
 
 		if (dst_pitch == line_len) {
@@ -427,7 +427,7 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 		NVDmaStart(pNv, NvMemFormat, 0x100, 1);
 		NVDmaNext (pNv, 0);
 		NVDmaKickoff(pNv);
-		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
+		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 2000))
 			return FALSE;
 
 		dst_offset += lc * dst_pitch;
