@@ -44,19 +44,6 @@
 
 #define I915_XVMC_COMMAND_DISPLAY      0x00
 #define I915_XVMC_COMMAND_UNDISPLAY    0x01
-#define I915_XVMC_COMMAND_ATTRIBUTES   0x02
-
-typedef struct
-{
-    INT32 attribute;
-    INT32 value;
-} I915AttrPair;
-
-typedef struct
-{
-    unsigned numAttr;
-    I915AttrPair attributes[I915_NUM_XVMC_ATTRIBUTES];
-} I915XvMCAttrHolder;
 
 typedef struct
 {
@@ -64,7 +51,6 @@ typedef struct
     unsigned ctxNo;
     unsigned srfNo;
     unsigned subPicNo;
-    I915XvMCAttrHolder attrib;
     int real_id;
     unsigned pad;
 } I915XvMCCommandBuffer;
@@ -92,7 +78,6 @@ typedef struct
     unsigned screen;
     unsigned depth;
     int deviceID;
-    I915XvMCAttrHolder initAttrs;
 } I915XvMCCreateContextRec;
 
 typedef struct 

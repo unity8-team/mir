@@ -89,15 +89,10 @@ typedef struct _i915XvMCContext {
     unsigned screen;
     unsigned depth;
     XvPortID port;		       /* Xv Port ID when displaying */
-    I915XvMCAttrHolder attrib;          /* This contexts attributes and their values */
-    XvAttribute attribDesc[I915_NUM_XVMC_ATTRIBUTES];    /* Attribute decriptions */
     int haveXv;                        /* Have I initialized the Xv
                                         * connection for this surface? */
     XvImage *xvImage;                  /* Fake Xv Image used for command
                                         * buffer transport to the X server */
-    int attribChanged;                 /* Attributes have changed and need to
-                                        * be uploaded to Xv at next frame
-                                        * display */
     GC  gc;                            /* X GC needed for displaying */
     Drawable draw;                     /* Drawable to undisplay from */
     XID id;

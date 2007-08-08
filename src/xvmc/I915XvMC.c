@@ -122,45 +122,6 @@ _STATIC_ int findOverlap(unsigned width, unsigned height,
     return 0;
 }
 
-_STATIC_ void setupAttribDesc(Display * display, XvPortID port,
-                            const I915XvMCAttrHolder * attrib, XvAttribute attribDesc[])
-{  
-    XvAttribute *XvAttribs, *curAD;
-    int num;
-    unsigned i, j;
-
-    XLockDisplay(display);
-    XvAttribs = XvQueryPortAttributes(display, port, &num);
-    for (i = 0; i < attrib->numAttr; ++i) {
-        curAD = attribDesc + i;
-        curAD->flags = 0;
-        curAD->min_value = 0;
-        curAD->max_value = 0;
-        curAD->name = NULL;
-        for (j = 0; j < num; ++j) {
-            if (attrib->attributes[i].attribute ==
-                XInternAtom(display, XvAttribs[j].name, TRUE)) {
-                *curAD = XvAttribs[j];
-                curAD->name = strdup(XvAttribs[j].name);
-                break;
-            }
-        }
-    }
-    if (XvAttribs)
-        XFree(XvAttribs);
-    XUnlockDisplay(display);
-}
-
-_STATIC_ void releaseAttribDesc(int numAttr, XvAttribute attribDesc[])
-{
-    int i;
-
-    for (i = 0; i < numAttr; ++i) {
-        if (attribDesc[i].name)
-            free(attribDesc[i].name);
-    }
-}
-
 _STATIC_ __inline__ void renderError(void) 
 {
     printf("Invalid Macroblock Parameters found.\n");
@@ -1747,7 +1708,6 @@ _STATIC_ void i915_release_resource(Display *display, XvMCContext *context)
 
     pI915XvMC->ref--;
     i915_xvmc_unmap_buffers(pI915XvMC);
-    releaseAttribDesc(pI915XvMC->attrib.numAttr, pI915XvMC->attribDesc);
 
     driDestroyHashContents(pI915XvMC->drawHash);
     drmHashDestroy(pI915XvMC->drawHash);
@@ -1934,7 +1894,6 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     pI915XvMC->sarea_priv_offset = tmpComm->sarea_priv_offset;
     pI915XvMC->screen = tmpComm->screen;
     pI915XvMC->depth = tmpComm->depth;
-    pI915XvMC->attrib = tmpComm->initAttrs;
 
     /* Must free the private data we were passed from X */
     free(priv_data);
@@ -2047,11 +2006,9 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     }
 
     /* Initialize private context values */
-    setupAttribDesc(display, port, &pI915XvMC->attrib, pI915XvMC->attribDesc);
     pI915XvMC->yStride = STRIDE(width);
     pI915XvMC->uvStride = STRIDE(width >> 1);
     pI915XvMC->haveXv = 0;
-    pI915XvMC->attribChanged = 1;
     pI915XvMC->dual_prime = 0;
     pI915XvMC->last_flip = 0;
     pI915XvMC->locked = 0;
@@ -2582,7 +2539,6 @@ Status XvMCPutSurface(Display *display,XvMCSurface *surface,
     buf.srfNo = pI915Surface->srfNo;
     pI915SubPic = pI915Surface->privSubPic;
     buf.subPicNo = (!pI915SubPic ? 0 : pI915SubPic->srfNo);
-    buf.attrib = pI915XvMC->attrib;
     buf.real_id = FOURCC_YV12;
 
     XLockDisplay(display);
@@ -2598,7 +2554,6 @@ Status XvMCPutSurface(Display *display,XvMCSurface *surface,
 
     XSync(display, 0);
     XUnlockDisplay(display);
-    pI915XvMC->attribChanged = 0;
     PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
 
     return Success;
@@ -3302,29 +3257,9 @@ Status XvMCGetSubpictureStatus(Display *display, XvMCSubpicture *subpicture,
 XvAttribute *XvMCQueryAttributes(Display *display, XvMCContext *context,
                                  int *number) 
 {
-    i915XvMCContext *pI915XvMC;
-    XvAttribute *attributes;
-
-    if (!number)
-        return NULL;
-
+    /* now XvMC has no extra attribs than Xv */
     *number = 0;
-
-    if (!display || !context)
-        return NULL;
-
-    if (!(pI915XvMC = context->privData))
-        return NULL;
-
-    PPTHREAD_MUTEX_LOCK(pI915XvMC);
-    if (NULL != (attributes = (XvAttribute *)
-                 malloc(I915_NUM_XVMC_ATTRIBUTES * sizeof(XvAttribute)))) {
-        memcpy(attributes, pI915XvMC->attribDesc, I915_NUM_XVMC_ATTRIBUTES);
-        *number = I915_NUM_XVMC_ATTRIBUTES;
-    }
-    PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
-
-    return attributes;
+    return NULL;
 }
 
 /***************************************************************************
@@ -3343,52 +3278,6 @@ XvAttribute *XvMCQueryAttributes(Display *display, XvMCContext *context,
 Status XvMCSetAttribute(Display *display, XvMCContext *context,
                         Atom attribute, int value)
 {
-    i915XvMCContext *pI915XvMC;
-    I915XvMCCommandBuffer buf;
-    int found = 0;
-    unsigned i;
-
-    if (!display)
-        return BadValue;
-
-    if (!context || !(pI915XvMC = context->privData))
-        return (error_base + XvMCBadContext);
-
-    PPTHREAD_MUTEX_LOCK(pI915XvMC);
-    for (i = 0; i < pI915XvMC->attrib.numAttr; ++i) {
-        if (attribute == pI915XvMC->attrib.attributes[i].attribute) {
-            if ((!(pI915XvMC->attribDesc[i].flags & XvSettable)) ||
-                value < pI915XvMC->attribDesc[i].min_value ||
-                value > pI915XvMC->attribDesc[i].max_value) {
-                PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
-                return BadValue;
-            }
-
-            pI915XvMC->attrib.attributes[i].value = value;
-            found = 1;
-            pI915XvMC->attribChanged = 1;
-            break;
-        }
-    }
-
-    if (!found) {
-        PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
-        return BadMatch;
-    }
-
-    if (pI915XvMC->haveXv) {
-        buf.command = I915_XVMC_COMMAND_ATTRIBUTES;
-        pI915XvMC->xvImage->data = (char *)&buf;
-        buf.ctxNo = pI915XvMC->ctxno | I915_XVMC_VALID;
-        buf.attrib = pI915XvMC->attrib;
-        XLockDisplay(display);
-        pI915XvMC->attribChanged =
-            XvPutImage(display, pI915XvMC->port, pI915XvMC->draw,
-                       pI915XvMC->gc, pI915XvMC->xvImage, 0, 0, 1, 1, 0, 0, 1, 1);
-        XUnlockDisplay(display);
-    }
-
-    PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
     return Success;
 }
 
@@ -3410,30 +3299,5 @@ Status XvMCSetAttribute(Display *display, XvMCContext *context,
 Status XvMCGetAttribute(Display *display, XvMCContext *context,
                         Atom attribute, int *value) 
 {
-    i915XvMCContext *pI915XvMC;
-    int found = 0;
-    unsigned i;
-
-    if (!display || !value)
-        return BadValue;
-
-    if (!context || !(pI915XvMC = context->privData))
-        return (error_base + XvMCBadContext);
-
-    PPTHREAD_MUTEX_LOCK(pI915XvMC);
-    for (i = 0; i < pI915XvMC->attrib.numAttr; ++i) {
-        if (attribute == pI915XvMC->attrib.attributes[i].attribute) {
-            if (pI915XvMC->attribDesc[i].flags & XvGettable) {
-                *value = pI915XvMC->attrib.attributes[i].value;
-                found = 1;
-                break;
-            }
-        }
-    }
-    PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
-
-    if (!found)
-        return BadMatch;
-    
     return Success;
 }
