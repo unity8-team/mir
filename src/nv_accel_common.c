@@ -392,6 +392,51 @@ NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
+static Bool
+NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	static int have_object = FALSE;
+	uint32_t   class;
+
+	switch (pNv->Architecture) {
+	case NV_ARCH_04:
+		class = NV05_IMAGE_FROM_CPU;
+		break;
+	case NV_ARCH_10:
+	case NV_ARCH_20:
+	case NV_ARCH_30:
+	case NV_ARCH_40:
+	default:
+		class = NV10_IMAGE_FROM_CPU;
+		break;
+	}
+
+	if (!have_object) {
+		if (!NVDmaCreateContextObject(pNv, NvImageFromCpu, class))
+			return FALSE;
+		have_object = TRUE;
+	}
+
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_DMA_NOTIFY, 1);
+	NVDmaNext (pNv, NvDmaNotifier0);
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_CLIP_RECTANGLE, 1);
+	NVDmaNext (pNv, NvNullObject);
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_PATTERN, 1); /* PATTERN */
+	NVDmaNext (pNv, NvNullObject);
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_ROP, 1); /* ROP */
+	NVDmaNext (pNv, NvNullObject);
+	NVDmaStart(pNv, NvImageFromCpu, 0x194, 1); /* BETA1 */
+	NVDmaNext (pNv, NvNullObject);
+	NVDmaStart(pNv, NvImageFromCpu, 0x198, 1); /* BETA4 */
+	NVDmaNext (pNv, NvNullObject);
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_SURFACE, 1);
+	NVDmaNext (pNv, NvContextSurfaces);
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_OPERATION, 1);
+	NVDmaNext (pNv, 3 /* SRCCOPY */);
+	return TRUE;
+}
+
 #define INIT_CONTEXT_OBJECT(name) do {                                        \
 	ret = NVAccelInit##name(pScrn);                                       \
 	if (!ret) {                                                           \
@@ -425,6 +470,7 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 
 	/* EXA-only */
 	INIT_CONTEXT_OBJECT(MemFormat);
+	INIT_CONTEXT_OBJECT(ImageFromCpu);
 
 	/* 3D init */
 	switch (pNv->Architecture) {

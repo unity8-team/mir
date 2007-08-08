@@ -371,6 +371,64 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 }
 
 Bool
+NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
+				    int x, int y, int w, int h, int cpp)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	int line_len = w * cpp;
+	int iw, id, fmt;
+
+	if (h > 1024)
+		return FALSE;
+
+	switch (cpp) {
+	case 2: fmt = 1; break;
+	case 4: fmt = 4; break;
+	default:
+		return FALSE;
+	}
+
+	/* Pad out input width to cover both COLORA() and COLORB() */
+	iw  = (line_len + 7) & ~7;
+	id  = iw / 4; /* line push size */
+	iw /= cpp;
+
+	/* Don't support lines longer than max push size yet.. */
+	if (id > 1792)
+		return FALSE;
+
+	ErrorF("In ImageFromCpu src_pitch %d   line_len %d pll %d\n", src_pitch,line_len, id*4);
+
+	NVDmaStart(pNv, NvClipRectangle, CLIP_POINT, 2);
+	NVDmaNext (pNv, 0x0); 
+	NVDmaNext (pNv, 0x7FFF7FFF);
+
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_OPERATION, 2);
+	NVDmaNext (pNv, 0x3 /* SRCCOPY */);
+	NVDmaNext (pNv, fmt);
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_POINT, 3);
+	NVDmaNext (pNv, (y << 16) | x); /* dst point */
+	NVDmaNext (pNv, (h << 16) | w); /* width/height out */
+	NVDmaNext (pNv, (h << 16) | iw); /* width/height in */
+
+	while (h--) {
+		char *dst;
+
+		//ErrorF("In ImageFromCpu line %d\n",line_count);
+		/* send a line */
+		NVDmaStart(pNv, NvImageFromCpu,
+				NV10_IMAGE_FROM_CPU_HLINE, id);
+		dst = (char *)pNv->dmaBase + (pNv->dmaCurrent << 2);
+		memcpy(dst, src, line_len);
+		pNv->dmaCurrent += id;
+
+		src += src_pitch;
+	}
+
+	return TRUE;
+}
+
+Bool
 NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 				     int dst_pitch, int src_pitch,
 				     int line_len, int line_count)
@@ -450,13 +508,30 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	dst_pitch  = exaGetPixmapPitch(pDst);
 	cpp = pDst->drawable.bitsPerPixel >> 3;
 
+	/* try hostdata transfer */
+	if (w*h*cpp<16*1024) /* heuristic */
+	{
+		int fmt;
+
+		if (NVAccelGetCtxSurf2DFormatFromPixmap(pDst, &fmt)) {
+			NVAccelSetCtxSurf2D(pDst, pDst, fmt);
+			if (NVAccelUploadIFC(pScrn, src, src_pitch,
+						    x, y, w, h, cpp)) {
+				exaMarkSync(pDst->drawable.pScreen);
+				return TRUE;
+			}
+		}
+	}
+
+	/* try gart-based transfer */
 	if (pNv->GARTScratch) {
 		dst_offset += (y * dst_pitch) + (x * cpp);
 		if (NVAccelUploadM2MF(pScrn, dst_offset, src, dst_pitch,
-				      src_pitch, w * cpp, h))
+					src_pitch, w * cpp, h))
 			return TRUE;
 	}
 
+	/* fallback to memcpy-based transfer */
 	dst = pDst->devPrivate.ptr + (y * dst_pitch) + (x * cpp);
 	exaWaitSync(pDst->drawable.pScreen);
 	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp))
