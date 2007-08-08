@@ -565,7 +565,7 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 			  ((pScrn->bitsPerPixel * 8) -1)) / (pScrn->bitsPerPixel * 8);
     save->crtc2_pitch |= save->crtc2_pitch << 16;
 
-    /* check to see if TV_DAC is enabled for another output and keep it enabled */
+    /* check to see if TV DAC is enabled for another crtc and keep it enabled */
     if (save->crtc2_gen_cntl & RADEON_CRTC2_CRT2_ON)
 	save->crtc2_gen_cntl = RADEON_CRTC2_CRT2_ON;
     else
