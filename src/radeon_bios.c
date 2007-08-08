@@ -587,6 +587,7 @@ Bool RADEONGetTVInfoFromBIOS (xf86OutputPtr output) {
 		else if (refclk == 3)
 		    radeon_output->TVRefClk = 27.000000000;
 
+		radeon_output->SupportedTVStds = radeon_output->default_tvStd;
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TV standards supported by chip: ");
 		stds = RADEON_BIOS8(offset + 10) & 0x1f;
 		if (stds & TV_STD_NTSC) {
