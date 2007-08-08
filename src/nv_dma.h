@@ -79,6 +79,8 @@ enum DMAObjects {
 	NvDmaXvNotifier5	= 0xE8000005,
 };
 
+extern void NVDmaStart(NVPtr pNv, uint32_t object, uint32_t tag, int size);
+
 #define NVDmaNext(pNv, data) do {                        \
 	NVDEBUG("\tNVDmaNext: @0x%08x  0x%08x\n", ((pNv)->dmaCurrent),(data));           \
 	(pNv)->dmaBase[(pNv)->dmaCurrent++] = (data);       \
