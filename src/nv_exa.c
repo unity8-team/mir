@@ -397,8 +397,6 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	if (id > 1792)
 		return FALSE;
 
-	ErrorF("In ImageFromCpu src_pitch %d   line_len %d pll %d\n", src_pitch,line_len, id*4);
-
 	NVDmaStart(pNv, NvClipRectangle, CLIP_POINT, 2);
 	NVDmaNext (pNv, 0x0); 
 	NVDmaNext (pNv, 0x7FFF7FFF);
@@ -413,8 +411,6 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 
 	while (h--) {
 		char *dst;
-
-		//ErrorF("In ImageFromCpu line %d\n",line_count);
 		/* send a line */
 		NVDmaStart(pNv, NvImageFromCpu,
 				NV10_IMAGE_FROM_CPU_HLINE, id);
