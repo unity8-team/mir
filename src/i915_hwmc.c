@@ -208,6 +208,8 @@ static void initI915XvMC(I915XvMCPtr xvmc)
         xvmc->surfaces[i] = 0;
         xvmc->sfprivs[i] = NULL;
     }
+    xvmc->ncontexts = 0;
+    xvmc->nsurfaces = 0;
 }
 
 //XXX
@@ -468,7 +470,13 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
         return BadAlloc;
     }
 
-    if (pXvMC->ncontexts >= I915_XVMC_MAX_CONTEXTS) {
+    for (i = 0; i < I915_XVMC_MAX_CONTEXTS; i++) {
+        if (!pXvMC->contexts[i])
+            break;
+    }
+
+    if (i == I915_XVMC_MAX_CONTEXTS || 
+	    pXvMC->ncontexts >= I915_XVMC_MAX_CONTEXTS) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[XvMC] I915XvMCCreateContext: Out of contexts.\n");
         return BadAlloc;
@@ -483,11 +491,6 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
     }
 
     *num_priv = sizeof(I915XvMCCreateContextRec) >> 2;
-
-    for (i = 0; i < I915_XVMC_MAX_CONTEXTS; i++) {
-        if (!pXvMC->contexts[i])
-            break;
-    }
 
     ctxpriv = (I915XvMCContextPriv *)xcalloc(1, sizeof(I915XvMCContextPriv));
 
@@ -572,10 +575,22 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
     unsigned int srfno;
     unsigned long bufsize;
 
+    if (!pI830->XvMCEnabled) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "[XvMC] I915XvMCCreateContext: Cannot use XvMC!\n");
+        return BadAlloc;
+    }
+
     *priv = NULL;
     *num_priv = 0;
 
-    if (pXvMC->nsurfaces >= I915_XVMC_MAX_SURFACES) {
+    for (srfno = 0; srfno < I915_XVMC_MAX_SURFACES; ++srfno) {
+        if (!pXvMC->surfaces[srfno])
+            break;
+    }
+
+    if (srfno == I915_XVMC_MAX_SURFACES ||
+	    pXvMC->nsurfaces >= I915_XVMC_MAX_SURFACES) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[XvMC] I915XvMCCreateSurface: Too many surfaces !\n");
         return BadAlloc;
@@ -631,10 +646,6 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
         return BadAlloc;
     }
 
-    for (srfno = 0; srfno < I915_XVMC_MAX_SURFACES; ++srfno) {
-        if (!pXvMC->surfaces[srfno])
-            break;
-    }
     surfaceRec->srfno = srfno;
     surfaceRec->srf.handle = sfpriv->surface_handle;
     surfaceRec->srf.offset = sfpriv->surface->offset;
@@ -661,7 +672,13 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
     *priv = NULL;
     *num_priv = 0;
 
-    if (pXvMC->nsurfaces >= I915_XVMC_MAX_SURFACES) {
+    for (srfno = 0; srfno < I915_XVMC_MAX_SURFACES; ++srfno) {
+        if (!pXvMC->surfaces[srfno])
+            break;
+    }
+
+    if (srfno == I915_XVMC_MAX_SURFACES ||
+	    pXvMC->nsurfaces >= I915_XVMC_MAX_SURFACES) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[XvMC] I915XvMCCreateSubpicture: Too many surfaces !\n");
         return BadAlloc;
@@ -715,11 +732,6 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
         *priv = NULL;
         *num_priv = 0;
         return BadAlloc;
-    }
-
-    for (srfno = 0; srfno < I915_XVMC_MAX_SURFACES; ++srfno) {
-        if (!pXvMC->surfaces[srfno])
-            break;
     }
 
     surfaceRec->srfno = srfno;
@@ -820,7 +832,7 @@ static int I915XvMCPutImage(ScrnInfoPtr pScrn, short src_x, short src_y,
 			    "[XvMC] I915XvMCPutImage: Invalid parameters !\n");
 		    return 1;
 		}
-                   
+
 		buf = pI830->FbBase + pXvMC->sfprivs[i915XvMCData->srfNo]->surface->offset;
 		id = i915XvMCData->real_id;
 		pI830->IsXvMCSurface = 1;
