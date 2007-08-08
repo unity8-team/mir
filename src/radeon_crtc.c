@@ -565,20 +565,26 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 			  ((pScrn->bitsPerPixel * 8) -1)) / (pScrn->bitsPerPixel * 8);
     save->crtc2_pitch |= save->crtc2_pitch << 16;
 
-    save->crtc2_gen_cntl = (RADEON_CRTC2_EN
-			    | (format << 8)
-			    | RADEON_CRTC2_VSYNC_DIS
-			    | RADEON_CRTC2_HSYNC_DIS
-			    | RADEON_CRTC2_DISP_DIS
-			    | ((mode->Flags & V_DBLSCAN)
-			       ? RADEON_CRTC2_DBL_SCAN_EN
-			       : 0)
-			    | ((mode->Flags & V_CSYNC)
-			       ? RADEON_CRTC2_CSYNC_EN
-			       : 0)
-			    | ((mode->Flags & V_INTERLACE)
-			       ? RADEON_CRTC2_INTERLACE_EN
-			       : 0));
+    /* check to see if TV_DAC is enabled for another output and keep it enabled */
+    if (save->crtc2_gen_cntl & RADEON_CRTC2_CRT2_ON)
+	save->crtc2_gen_cntl = RADEON_CRTC2_CRT2_ON;
+    else
+	save->crtc2_gen_cntl = 0;
+
+    save->crtc2_gen_cntl |= (RADEON_CRTC2_EN
+			     | (format << 8)
+			     | RADEON_CRTC2_VSYNC_DIS
+			     | RADEON_CRTC2_HSYNC_DIS
+			     | RADEON_CRTC2_DISP_DIS
+			     | ((mode->Flags & V_DBLSCAN)
+				? RADEON_CRTC2_DBL_SCAN_EN
+				: 0)
+			     | ((mode->Flags & V_CSYNC)
+				? RADEON_CRTC2_CSYNC_EN
+				: 0)
+			     | ((mode->Flags & V_INTERLACE)
+				? RADEON_CRTC2_INTERLACE_EN
+				: 0));
 
     save->disp2_merge_cntl = info->SavedReg.disp2_merge_cntl;
     save->disp2_merge_cntl &= ~(RADEON_DISP2_RGB_OFFSET_EN);
