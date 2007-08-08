@@ -47,12 +47,11 @@
 
 typedef struct
 {
-    unsigned command;
-    unsigned ctxNo;
-    unsigned srfNo;
-    unsigned subPicNo;
+    unsigned int command;
+    unsigned int ctxNo;
+    unsigned int srfNo;
+    unsigned int subPicNo;
     int real_id;
-    unsigned pad;
 } I915XvMCCommandBuffer;
 
 struct hwmc_buffer
@@ -65,7 +64,7 @@ struct hwmc_buffer
 
 typedef struct 
 {
-    unsigned ctxno; /* XvMC private context reference number */
+    unsigned int ctxno; /* XvMC private context reference number */
     struct hwmc_buffer sis;
     struct hwmc_buffer ssb;
     struct hwmc_buffer msb;
@@ -73,16 +72,16 @@ typedef struct
     struct hwmc_buffer psc;
     struct hwmc_buffer corrdata;/* Correction Data Buffer */
     struct hwmc_buffer batchbuffer;
-    unsigned sarea_size;
-    unsigned sarea_priv_offset;
-    unsigned screen;
-    unsigned depth;
+    unsigned int sarea_size;
+    unsigned int sarea_priv_offset;
+    unsigned int screen;
+    unsigned int depth;
     int deviceID;
 } I915XvMCCreateContextRec;
 
 typedef struct 
 {
-    unsigned srfno;
+    unsigned int srfno;
     struct hwmc_buffer srf;
 } I915XvMCCreateSurfaceRec;
 

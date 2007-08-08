@@ -657,8 +657,8 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
     I915XvMCSurfacePriv *sfpriv = NULL;
     I915XvMCCreateSurfaceRec *surfaceRec = NULL;
     XvMCContextPtr ctx = NULL;
-    unsigned srfno;
-    unsigned bufsize;
+    unsigned int srfno;
+    unsigned int bufsize;
 
     *priv = NULL;
     *num_priv = 0;

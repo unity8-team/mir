@@ -66,13 +66,13 @@ typedef struct _i915XvMCDrmMap {
 //  pointer in the XvMCContext structure.
 ***************************************************************************/
 typedef struct _i915XvMCContext {
-    unsigned ctxno;
+    unsigned int ctxno;
     int fd;   /* File descriptor for /dev/dri */
-    unsigned last_render;
-    unsigned last_flip;
-    unsigned dual_prime; /* Flag to identify when dual prime is in use. */
-    unsigned yStride;
-    unsigned uvStride;
+    unsigned int last_render;
+    unsigned int last_flip;
+    unsigned int dual_prime; /* Flag to identify when dual prime is in use. */
+    unsigned int yStride;
+    unsigned int uvStride;
     unsigned short ref;
     pthread_mutex_t ctxmutex;
     char busIdString[21]; /* PCI:0:1:0 or PCI:0:2:0 */
@@ -84,10 +84,10 @@ typedef struct _i915XvMCContext {
     drm_context_t hHWContext; /* drmcontext; */
     drm_handle_t hsarea;                /* Handle to drm shared memory area */
     drmAddress sarea_address;	        /* Virtual address of shared memory area */
-    unsigned sarea_size;                /* Size of drm shared memory area */
-    unsigned sarea_priv_offset;	        /* Offset in sarea to private part */
-    unsigned screen;
-    unsigned depth;
+    unsigned int sarea_size;                /* Size of drm shared memory area */
+    unsigned int sarea_priv_offset;	        /* Offset in sarea to private part */
+    unsigned int screen;
+    unsigned int depth;
     XvPortID port;		       /* Xv Port ID when displaying */
     int haveXv;                        /* Have I initialized the Xv
                                         * connection for this surface? */
@@ -112,19 +112,19 @@ typedef struct _i915XvMCContext {
     sigset_t sa_mask;
 
     struct {
-        unsigned start_offset;
-        unsigned size;
-        unsigned space;
+        unsigned int start_offset;
+        unsigned int size;
+        unsigned int space;
         unsigned char *ptr;
     } batch;
 
     struct 
     {
         void *ptr;
-        unsigned size;
-        unsigned offset;
-        unsigned active_buf;
-        unsigned irq_emitted;
+        unsigned int size;
+        unsigned int offset;
+        unsigned int active_buf;
+        unsigned int irq_emitted;
     } alloc;
 } i915XvMCContext;
 
@@ -134,10 +134,10 @@ typedef struct _i915XvMCContext {
 //  structure.
 ***************************************************************************/
 typedef struct _i915XvMCSubpicture {
-    unsigned srfNo;
-    unsigned last_render;
-    unsigned last_flip;
-    unsigned pitch;
+    unsigned int srfNo;
+    unsigned int last_render;
+    unsigned int last_flip;
+    unsigned int pitch;
     unsigned char palette[3][16];
     i915XvMCDrmMap srf;
     i915XvMCContext *privContext;
@@ -150,13 +150,13 @@ typedef struct _i915XvMCSubpicture {
 ***************************************************************************/
 #define I830_MAX_BUFS 2                   /*Number of YUV buffers per surface */
 typedef struct _i915XvMCSurface {
-    unsigned srfNo;                    /* XvMC private surface numbers */
-    unsigned last_render;
-    unsigned last_flip;
-    unsigned yStride;                  /* Stride of YUV420 Y component. */
-    unsigned uvStride;
-    unsigned width;                    /* Dimensions */
-    unsigned height;
+    unsigned int srfNo;                    /* XvMC private surface numbers */
+    unsigned int last_render;
+    unsigned int last_flip;
+    unsigned int yStride;                  /* Stride of YUV420 Y component. */
+    unsigned int uvStride;
+    unsigned int width;                    /* Dimensions */
+    unsigned int height;
     i915XvMCDrmMap srf;
     i915XvMCContext *privContext;
     i915XvMCSubpicture *privSubPic;     /* Subpicture to be blended when
