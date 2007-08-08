@@ -793,7 +793,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
      * back to SF which then hands pixels off to WM.
      */
     if (pMask)
-	memcpy(sf_kernel, sf_kernel_static_mask, sizeof (sf_kernel_static));
+	memcpy(sf_kernel, sf_kernel_static_mask,
+		sizeof (sf_kernel_static_mask));
     else if (rotation_program)
 	memcpy(sf_kernel, sf_kernel_static_rotation, 
 		sizeof (sf_kernel_static_rotation));
