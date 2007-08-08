@@ -66,6 +66,7 @@ enum DMAObjects {
 	NvScaledImage		= 0x80000017, 
 	NvMemFormat		= 0x80000018,
 	Nv3D			= 0x80000019,
+	NvImageFromCpu		= 0x8000001A,
 	NvDmaFB			= 0xD8000001,
 	NvDmaTT			= 0xD8000002,
 	NvDmaNotifier0		= 0xD8000003,
