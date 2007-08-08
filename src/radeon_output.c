@@ -1998,6 +1998,11 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     optstr = (char *)xf86GetOptValString(info->Options, OPTION_CONNECTORTABLE);
 
     if (optstr) {
+	for (i = 2; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	    info->BiosConnector[i].valid = FALSE;
+	}
+	info->BiosConnector[0].valid = TRUE;
+	info->BiosConnector[1].valid = TRUE;
 	if (sscanf(optstr, "%u,%d,%d,%u,%u,%d,%d,%u",
 		   &info->BiosConnector[0].DDCType,
 		   &info->BiosConnector[0].DACType,
@@ -2012,7 +2017,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	}
     }
 
-    for (i = 0 ; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
 	    if (info->IsAtomBios) {
 		if ((info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D_ATOM) ||
