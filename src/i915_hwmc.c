@@ -93,8 +93,6 @@ typedef struct _I915XvMC
     I915XvMCSurfacePriv *sfprivs[I915_XVMC_MAX_SURFACES];
     I915XvMCContextPriv *ctxprivs[I915_XVMC_MAX_CONTEXTS];
     int ncontexts,nsurfaces;
-    SetPortAttributeFuncPtr saveSetPortAttribute;
-    GetPortAttributeFuncPtr saveGetPortAttribute;
     PutImageFuncPtr savePutImage;
 } I915XvMC, *I915XvMCPtr;
 
