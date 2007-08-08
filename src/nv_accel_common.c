@@ -262,6 +262,13 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
 	NVDmaNext (pNv, 1 /* NV_IMAGE_BLIT_OPERATION_ROP_AND */);
 
+	if (pNv->WaitVSyncPossible) {
+		NVDmaStart(pNv, NvImageBlit, 0x0120, 3);
+		NVDmaNext (pNv, 0);
+		NVDmaNext (pNv, 1);
+		NVDmaNext (pNv, 2);
+	}
+
 	return TRUE;
 }
 
