@@ -161,16 +161,9 @@ static Bool i965_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
     case PICT_x1r5g5b5:
         *dst_format = BRW_SURFACEFORMAT_B5G5R5X1_UNORM;
         break;
-    /* COLR_BUF_8BIT is special for YUV surfaces.  While we may end up being
-     * able to use it depending on how the hardware implements it, disable it
-     * for now while we don't know what exactly it does (what channel does it
-     * read from?
-     */
-    /*
     case PICT_a8:
-        *dst_format = COLR_BUF_8BIT;
+        *dst_format = BRW_SURFACEFORMAT_A8_UNORM;
         break;
-    */
     case PICT_a4r4g4b4:
     case PICT_x4r4g4b4:
 	*dst_format = BRW_SURFACEFORMAT_B4G4R4A4_UNORM;
