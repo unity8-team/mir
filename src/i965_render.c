@@ -285,7 +285,7 @@ static int next_offset, total_state_size;
 static char *state_base;
 static int state_base_offset;
 static float *vb;
-static int vb_size = (4 * 4) * 4 ; /* 4 DWORDS per vertex*/
+static int vb_size = (6 * 4) * 4 ; /* 6 DWORDS per vertex - and mask*/
 
 static CARD32 src_blend, dst_blend;
 
@@ -496,7 +496,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	next_offset = mask_sampler_offset + sizeof(*mask_sampler_state);
     }
     /* Align VB to native size of elements, for safety */
-    vb_offset = ALIGN(next_offset, 8);
+    vb_offset = ALIGN(next_offset, 32);
     next_offset = vb_offset + vb_size;
 
     /* And then the general state: */
