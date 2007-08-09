@@ -611,7 +611,6 @@ typedef struct {
     unsigned long     gartOffset;
     unsigned char     *AGP;             /* Map */
     int               agpMode;
-    int               agpFastWrite;
 
     CARD32            pciCommand;
 
