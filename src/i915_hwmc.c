@@ -131,8 +131,10 @@ static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface =
     720,
     576,
     XVMC_MPEG_2,
-    XVMC_OVERLAID_SURFACE | XVMC_SUBPICTURE_INDEPENDENT_SCALING,
-    &yv12_subpicture_list
+    /* XVMC_OVERLAID_SURFACE | XVMC_SUBPICTURE_INDEPENDENT_SCALING,*/
+    0,
+    /* &yv12_subpicture_list*/
+    NULL,
 };
 
 static XF86MCSurfaceInfoRec i915_YV12_mpg1_surface =
@@ -145,8 +147,10 @@ static XF86MCSurfaceInfoRec i915_YV12_mpg1_surface =
     720,
     576,
     XVMC_MPEG_1,
-    XVMC_OVERLAID_SURFACE | XVMC_SUBPICTURE_INDEPENDENT_SCALING,
-    &yv12_subpicture_list
+    /* XVMC_OVERLAID_SURFACE | XVMC_SUBPICTURE_INDEPENDENT_SCALING,*/
+    0,
+    /* &yv12_subpicture_list*/
+    NULL,
 };
 
 static XF86MCSurfaceInfoPtr ppSI[2] = 
@@ -177,8 +181,12 @@ static XF86MCAdaptorRec pAdapt =
     "Intel(R) Textured Video",		                        /* name */
     ARRARY_SIZE(ppSI),                                          /* num_surfaces */
     ppSI,				                        /* surfaces */
+    0,
+    NULL,
+#if 0
     ARRARY_SIZE(i915_subpicture_list),                          /* num_subpictures */
     i915_subpicture_list,		                        /* subpictures */
+#endif
     (xf86XvMCCreateContextProcPtr)I915XvMCCreateContext,
     (xf86XvMCDestroyContextProcPtr)I915XvMCDestroyContext,
     (xf86XvMCCreateSurfaceProcPtr)I915XvMCCreateSurface,
