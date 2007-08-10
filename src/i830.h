@@ -721,17 +721,8 @@ i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
 
 void i830_enter_render(ScrnInfoPtr);
 
-static inline int i830_tiling_supported(I830Ptr pI830)
-{
-    if (IS_I965G(pI830))
-	return FALSE;
-    return TRUE;
-}
-
 static inline int i830_fb_compression_supported(I830Ptr pI830)
 {
-    if (!i830_tiling_supported(pI830))
-	return FALSE;
     if (!IS_MOBILE(pI830))
 	return FALSE;
     if (IS_I810(pI830) || IS_I815(pI830) || IS_I830(pI830))

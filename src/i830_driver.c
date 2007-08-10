@@ -2250,11 +2250,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       pI830->CacheLines = -1;
    }
 
-   /* Enable tiling by default where supported */
-   if (i830_tiling_supported(pI830))
-       pI830->tiling = TRUE;
-   else
-       pI830->tiling = FALSE;
+   /* Enable tiling by default */
+   pI830->tiling = TRUE;
 
    /* Allow user override if they set a value */
    if (xf86IsOptionSet(pI830->Options, OPTION_TILING)) {
