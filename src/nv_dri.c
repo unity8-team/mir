@@ -245,7 +245,7 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 	
 	/* temporary lock step versioning */
 #if NOUVEAU_DRM_HEADER_PATCHLEVEL != 10
-#error nouveau_drm.h doesn't match expected patchlevel, update libdrm.
+#error nouveau_drm.h doesn\'t match expected patchlevel, update libdrm.
 #endif
 	if (pNv->pKernelDRMVersion->version_patchlevel !=
 			NOUVEAU_DRM_HEADER_PATCHLEVEL) {
@@ -294,15 +294,18 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	pDRIInfo->ddxDriverMinorVersion      = NV_MINOR_VERSION;
 	pDRIInfo->ddxDriverPatchVersion      = NV_PATCHLEVEL;
 
-	/* FIXME: this gets passed to drmMap somewhere, and will currently fail if
-	 *        the pNv->FB is not where we specify here.. Somehow we need to be
-	 *        able to alloc pNv->FB before doing DRIScreenInit, or maybe we just
-	 *        need a map of the entire framebuffer added to the drm.. I don't know :)
-	 *
-	 *        At the moment the setup here will probably only work if using an AGP cmdbuf..
+	/*
+	 * We set the FB to be in the higher half of VRAM. If we don't, any
+	 * VRAM allocations before the FB is mapped will change that map
+	 * and we fail.
+	 * We should detect when the DRM decides to change the FB area
+	 * but we currently don't know how to.
 	 */
-	pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical;
 	pDRIInfo->frameBufferSize            = pNv->VRAMPhysicalSize / 2;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVDRIScreenInit(): FB\n");
+	pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical +
+	                                       pDRIInfo->frameBufferSize;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVDRIScreenInit(): FB: 0x%lx offset: 0x%lx\n", pNv->FB, pNv->FB->offset);
 	pDRIInfo->frameBufferStride          = pScrn->displayWidth * pScrn->bitsPerPixel/8;
 
 	pDRIInfo->ddxDrawableTableEntry      = 1;
