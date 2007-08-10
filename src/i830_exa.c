@@ -97,19 +97,30 @@ const int I830PatternROP[16] =
     ROP_1
 };
 
-/* FIXME: use pixmap private instead */
+/**
+ * Returns whether a given pixmap is tiled or not.
+ *
+ * Currently, we only have one pixmap that might be tiled, which is the front
+ * buffer.  At the point where we are tiling some pixmaps managed by the
+ * general allocator, we should move this to using pixmap privates.
+ */
 Bool
-i830_pixmap_tiled(PixmapPtr p)
+i830_pixmap_tiled(PixmapPtr pPixmap)
 {
-    ScreenPtr pScreen = p->drawable.pScreen;
+    ScreenPtr pScreen = pPixmap->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
+    unsigned long offset;
 
-    if (!pI830->tiling)
-	return FALSE;
-
-    if (p == pScreen->GetScreenPixmap(pScreen))
+    /* Don't use exaGetPixmapOffset becuase we might be called from XAA code. */
+    offset = (long)pPixmap->devPrivate.ptr -
+	(long)pI830->FbBase;
+    if (offset == pI830->front_buffer->offset &&
+	pI830->front_buffer->tiling != TILE_NONE)
+    {
 	return TRUE;
+    }
+
     return FALSE;
 }
 

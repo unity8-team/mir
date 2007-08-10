@@ -108,12 +108,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
 
-enum tile_format {
-    TILING_NONE,
-    TILING_XMAJOR,
-    TILING_YMAJOR
-};
-
 static void i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
 			   unsigned int pitch, unsigned int size,
 			   enum tile_format tile_format);
@@ -536,6 +530,8 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 	return NULL;
     }
 
+    mem->tiling = TILE_NONE;
+
     return mem;
 }
 
@@ -560,7 +556,7 @@ i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
     i830_memory *mem;
     int fence_divide, i;
 
-    if (tile_format == TILING_NONE)
+    if (tile_format == TILE_NONE)
 	return i830_allocate_memory(pScrn, name, size, alignment, flags);
 
     /* Only allocate page-sized increments. */
@@ -637,17 +633,9 @@ i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
     }
 
     mem->size = size;
+    mem->tiling = tile_format;
 
     return mem;
-}
-
-static void
-i830_describe_tiling(ScrnInfoPtr pScrn, int verbosity, const char *prefix,
-		     i830_memory *mem, unsigned int tiling_mode)
-{
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		   "%s%s is %stiled\n", prefix, mem->name,
-		   (tiling_mode == FENCE_LINEAR) ? "not " : "");
 }
 
 void
@@ -672,6 +660,8 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 		   "%sMemory allocation layout:\n", prefix);
 
     for (mem = pI830->memory_list->next; mem->next != NULL; mem = mem->next) {
+	char phys_suffix[30] = "";
+	char *tile_suffix = "";
 
 	if (mem->offset >= pI830->stolen_size &&
 	    mem->prev->offset < pI830->stolen_size)
@@ -681,42 +671,21 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 			   prefix, pI830->stolen_size);
 	}
 
-	if (mem->bus_addr == 0) {
-	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-			   "%s0x%08lx-0x%08lx: %s (%ld kB)\n", prefix,
-			   mem->offset, mem->end - 1, mem->name,
-			   mem->size / 1024);
-	} else {
-	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-			   "%s0x%08lx-0x%08lx: %s "
-			   "(%ld kB, 0x%16llx physical)\n",
-			   prefix,
-			   mem->offset, mem->end - 1, mem->name,
-			   mem->size / 1024, mem->bus_addr);
-	}
+	if (mem->bus_addr != 0)
+	    sprintf(phys_suffix, ", 0x%16llx physical\n", mem->bus_addr);
+	if (mem->tiling == TILE_XMAJOR)
+	    tile_suffix = " X tiled";
+	else if (mem->tiling == TILE_YMAJOR)
+	    tile_suffix = " Y tiled";
+
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		       "%s0x%08lx-0x%08lx: %s (%ld kB%s)%s\n", prefix,
+		       mem->offset, mem->end - 1, mem->name,
+		       mem->size / 1024, phys_suffix, tile_suffix);
     }
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 		   "%s0x%08lx:            end of aperture\n",
 		   prefix, pI830->FbMapSize);
-
-    if (pI830->front_buffer != NULL) {
-	i830_describe_tiling(pScrn, verbosity, prefix, pI830->front_buffer,
-			     pI830->front_tiled);
-    }
-#ifdef XF86DRI
-    if (pI830->back_buffer != NULL) {
-	i830_describe_tiling(pScrn, verbosity, prefix, pI830->back_buffer,
-			     pI830->back_tiled);
-    }
-    if (pI830->third_buffer != NULL) {
-	i830_describe_tiling(pScrn, verbosity, prefix, pI830->third_buffer,
-			     pI830->third_tiled);
-    }
-    if (pI830->depth_buffer != NULL) {
-	i830_describe_tiling(pScrn, verbosity, prefix, pI830->depth_buffer,
-			     pI830->depth_tiled);
-    }
-#endif
 }
 
 static Bool
@@ -835,6 +804,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
     long size, fb_height;
     char *name;
     i830_memory *front_buffer = NULL;
+    Bool tiling;
 
     /* Clear everything first. */
     memset(FbMemBox, 0, sizeof(*FbMemBox));
@@ -903,8 +873,17 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 
     name = secondary ? "secondary front buffer" : "front buffer";
 
+    /* Front buffer tiling has to be disabled with G965 XAA because some of the
+     * acceleration operations (non-XY COLOR_BLT) can't be done to tiled
+     * buffers.
+     */
+    if (!pI830->useEXA && IS_I965G(pI830))
+	tiling = FALSE;
+    else
+	tiling = pI830->tiling;
+
     /* Attempt to allocate it tiled first if we have page flipping on. */
-    if (pI830->tiling && IsTileable(pScrn, pitch)) {
+    if (tiling && IsTileable(pScrn, pitch)) {
 	/* XXX: probably not the case on 965 */
 	if (IS_I9XX(pI830))
 	    align = MB(1);
@@ -912,14 +891,12 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 	    align = KB(512);
 	front_buffer = i830_allocate_memory_tiled(pScrn, name, size,
 						  pitch, align,
-						  0, TILING_XMAJOR);
-	pI830->front_tiled = FENCE_XMAJOR;
+						  0, TILE_XMAJOR);
     }
 
     /* If not, attempt it linear */
     if (front_buffer == NULL) {
 	front_buffer = i830_allocate_memory(pScrn, name, size, KB(64), flags);
-	pI830->front_tiled = FENCE_LINEAR;
     }
 
     if (front_buffer == NULL) {
@@ -1240,7 +1217,7 @@ myLog2(unsigned int n)
 
 static Bool
 i830_allocate_backbuffer(ScrnInfoPtr pScrn, i830_memory **buffer,
-			 unsigned int *tiled, const char *name)
+			 const char *name)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
@@ -1258,8 +1235,7 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn, i830_memory **buffer,
 	size = ROUND_TO_PAGE(pitch * ALIGN(height, 16));
 	*buffer = i830_allocate_memory_tiled(pScrn, name, size, pitch,
 					     GTT_PAGE_SIZE, ALIGN_BOTH_ENDS,
-					     TILING_XMAJOR);
-	*tiled = FENCE_XMAJOR;
+					     TILE_XMAJOR);
     }
 
     /* Otherwise, just allocate it linear */
@@ -1267,7 +1243,6 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn, i830_memory **buffer,
 	size = ROUND_TO_PAGE(pitch * height);
 	*buffer = i830_allocate_memory(pScrn, name, size, GTT_PAGE_SIZE,
 				       ALIGN_BOTH_ENDS);
-	*tiled = FENCE_LINEAR;
     }
 
     if (*buffer == NULL) {
@@ -1303,14 +1278,12 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
 	/* The 965 requires that the depth buffer be in Y Major format, while
 	 * the rest appear to fail when handed that format.
 	 */
-	tile_format = IS_I965G(pI830) ? TILING_YMAJOR: TILING_XMAJOR;
+	tile_format = IS_I965G(pI830) ? TILE_YMAJOR: TILE_XMAJOR;
 
 	pI830->depth_buffer =
 	    i830_allocate_memory_tiled(pScrn, "depth buffer", size, pitch,
 				       GTT_PAGE_SIZE, ALIGN_BOTH_ENDS,
 				       tile_format);
-	pI830->depth_tiled = (tile_format == TILING_YMAJOR) ? FENCE_YMAJOR :
-	    FENCE_XMAJOR;
     }
 
     /* Otherwise, allocate it linear. */
@@ -1319,7 +1292,6 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
 	pI830->depth_buffer =
 	    i830_allocate_memory(pScrn, "depth buffer", size, GTT_PAGE_SIZE,
 				 0);
-	pI830->depth_tiled = FENCE_LINEAR;
     }
 
     if (pI830->depth_buffer == NULL) {
@@ -1405,13 +1377,11 @@ i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 	    return FALSE;
     }
 
-    if (!i830_allocate_backbuffer(pScrn, &pI830->back_buffer,
-				  &pI830->back_tiled, "back buffer"))
+    if (!i830_allocate_backbuffer(pScrn, &pI830->back_buffer, "back buffer"))
 	return FALSE;
 
     if (pI830->TripleBuffer && !i830_allocate_backbuffer(pScrn,
 							 &pI830->third_buffer,
-							 &pI830->third_tiled,
 							 "third buffer")) {
        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		  "Failed to allocate third buffer, triple buffering "
@@ -1447,7 +1417,7 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
     DPRINTF(PFX, "i830_set_fence(): %d, 0x%08x, %d, %d kByte\n",
 	    nr, offset, pitch, size / 1024);
 
-    assert(tile_format != TILING_NONE);
+    assert(tile_format != TILE_NONE);
 
     if (IS_I965G(pI830)) {
 	if (nr < 0 || nr >= FENCE_NEW_NR) {
@@ -1457,18 +1427,18 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
 	}
 
 	switch (tile_format) {
-	case TILING_XMAJOR:
+	case TILE_XMAJOR:
             pI830->fence[nr] = (((pitch / 128) - 1) << 2) | offset | 1;
 	    pI830->fence[nr] |= I965_FENCE_X_MAJOR;
             break;
-	case TILING_YMAJOR:
+	case TILE_YMAJOR:
             /* YMajor can be 128B aligned but the current code dictates
              * otherwise. This isn't a problem apart from memory waste.
              * FIXME */
             pI830->fence[nr] = (((pitch / 128) - 1) << 2) | offset | 1;
 	    pI830->fence[nr] |= I965_FENCE_Y_MAJOR;
             break;
-	case TILING_NONE:
+	case TILE_NONE:
             break;
 	}
 
@@ -1516,13 +1486,13 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
     val = offset | FENCE_VALID;
 
     switch (tile_format) {
-    case TILING_XMAJOR:
+    case TILE_XMAJOR:
 	val |= FENCE_X_MAJOR;
 	break;
-    case TILING_YMAJOR:
+    case TILE_YMAJOR:
 	val |= FENCE_Y_MAJOR;
 	break;
-    case TILING_NONE:
+    case TILE_NONE:
 	break;
     }
 
@@ -1590,7 +1560,7 @@ i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
     }
 
     if ((IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
-	    && tile_format == TILING_YMAJOR)
+	    && tile_format == TILE_YMAJOR)
 	fence_pitch = pitch / 128;
     else if (IS_I9XX(pI830))
 	fence_pitch = pitch / 512;

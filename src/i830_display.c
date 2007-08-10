@@ -505,14 +505,14 @@ i830_display_tiled(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (!pI830->tiling)
-	return FALSE;
-
     /* Rotated data is currently linear, allocated either via XAA or EXA */
     if (crtc->rotatedData)
 	return FALSE;
 
-    return TRUE;
+    if (pI830->front_buffer->tiling != TILE_NONE)
+	return TRUE;
+
+    return FALSE;
 }
 
 static Bool

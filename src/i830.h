@@ -117,6 +117,12 @@ typedef CARD8(*I830ReadIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
 typedef void (*I830WriteByteFunc)(I830Ptr pI830, IOADDRESS addr, CARD8 value);
 typedef CARD8(*I830ReadByteFunc)(I830Ptr pI830, IOADDRESS addr);
 
+enum tile_format {
+    TILE_NONE,
+    TILE_XMAJOR,
+    TILE_YMAJOR
+};
+
 /** Record of a linear allocation in the aperture. */
 typedef struct _i830_memory i830_memory;
 struct _i830_memory {
@@ -147,6 +153,8 @@ struct _i830_memory {
      * This is either @offset or pI830->stolen_size
      */
     unsigned long agp_offset;
+
+    enum tile_format tiling;
 
     /** Description of the allocation, for logging */
     char *name;
@@ -316,8 +324,6 @@ typedef struct _I830Rec {
 
    i830_memory *logical_context;
 
-   unsigned int front_tiled;
-
 #ifdef XF86DRI
    i830_memory *back_buffer;
    i830_memory *third_buffer;
@@ -330,10 +336,6 @@ typedef struct _I830Rec {
    int drmMinor;
    int mmModeFlags;
    int mmSize;
-
-   unsigned int back_tiled;
-   unsigned int third_tiled;
-   unsigned int depth_tiled;
 
    Bool want_vblank_interrupts;
 #ifdef DAMAGE
