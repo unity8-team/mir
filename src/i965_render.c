@@ -161,16 +161,9 @@ static Bool i965_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
     case PICT_x1r5g5b5:
         *dst_format = BRW_SURFACEFORMAT_B5G5R5X1_UNORM;
         break;
-    /* COLR_BUF_8BIT is special for YUV surfaces.  While we may end up being
-     * able to use it depending on how the hardware implements it, disable it
-     * for now while we don't know what exactly it does (what channel does it
-     * read from?
-     */
-    /*
     case PICT_a8:
-        *dst_format = COLR_BUF_8BIT;
+        *dst_format = BRW_SURFACEFORMAT_A8_UNORM;
         break;
-    */
     case PICT_a4r4g4b4:
     case PICT_x4r4g4b4:
 	*dst_format = BRW_SURFACEFORMAT_B4G4R4A4_UNORM;
@@ -292,7 +285,7 @@ static int next_offset, total_state_size;
 static char *state_base;
 static int state_base_offset;
 static float *vb;
-static int vb_size = (4 * 4) * 4 ; /* 4 DWORDS per vertex*/
+static int vb_size = (6 * 4) * 4 ; /* 6 DWORDS per vertex - and mask*/
 
 static CARD32 src_blend, dst_blend;
 
@@ -503,7 +496,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	next_offset = mask_sampler_offset + sizeof(*mask_sampler_state);
     }
     /* Align VB to native size of elements, for safety */
-    vb_offset = ALIGN(next_offset, 8);
+    vb_offset = ALIGN(next_offset, 32);
     next_offset = vb_offset + vb_size;
 
     /* And then the general state: */
@@ -800,7 +793,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
      * back to SF which then hands pixels off to WM.
      */
     if (pMask)
-	memcpy(sf_kernel, sf_kernel_static_mask, sizeof (sf_kernel_static));
+	memcpy(sf_kernel, sf_kernel_static_mask,
+		sizeof (sf_kernel_static_mask));
     else if (rotation_program)
 	memcpy(sf_kernel, sf_kernel_static_rotation, 
 		sizeof (sf_kernel_static_rotation));

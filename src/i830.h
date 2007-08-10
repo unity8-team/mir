@@ -411,9 +411,8 @@ typedef struct _I830Rec {
    CloseScreenProcPtr CloseScreen;
 
 #ifdef I830_USE_EXA
-   unsigned int copy_src_pitch;
-   unsigned int copy_src_off;
    ExaDriverPtr	EXADriverPtr;
+   PixmapPtr pSrcPixmap;
 #endif
 
    I830WriteIndexedByteFunc writeControl;
@@ -538,6 +537,7 @@ typedef struct _I830Rec {
    CARD32 savePaletteB[256];
    CARD32 saveSWF[17];
    CARD32 saveBLC_PWM_CTL;
+   CARD32 saveBLC_PWM_CTL2;
    CARD32 saveFBC_CFB_BASE;
    CARD32 saveFBC_LL_BASE;
    CARD32 saveFBC_CONTROL2;
@@ -547,6 +547,7 @@ typedef struct _I830Rec {
 
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
+   unsigned int quirk_flag;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -761,5 +762,11 @@ extern const int I830CopyROP[16];
 #define _855_DRAM_RW_CONTROL 0x58
 #define _845_DRAM_RW_CONTROL 0x90
 #define DRAM_WRITE    0x33330000
+
+/* quirk flag definition */
+#define QUIRK_IGNORE_TV			0x00000001
+#define QUIRK_IGNORE_LVDS		0x00000002
+#define QUIRK_IGNORE_MACMINI_LVDS 	0x00000004
+extern void i830_fixup_devices(ScrnInfoPtr);
 
 #endif /* _I830_H_ */
