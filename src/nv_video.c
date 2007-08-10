@@ -1165,6 +1165,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		if (nvReadVIDEO(pNv, NV_PVIDEO_BUFFER) & mask) {
 			if (!pPriv->currentBuffer)
 				offset += (height) * dstPitch;
+			//xf86DrvMsg(0, X_INFO, "Skipping frame!\n");
 			skip = TRUE;
 		} else
 
@@ -1437,10 +1438,10 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			}
 		}
 		
-	if ( pPriv->currentHostBuffer != NO_PRIV_HOST_BUFFER_AVAILABLE )
-		pPriv->currentHostBuffer ^= 1;
-		
 	if (!skip) {
+		if ( pPriv->currentHostBuffer != NO_PRIV_HOST_BUFFER_AVAILABLE )
+			pPriv->currentHostBuffer ^= 1;
+		
 		if (pPriv->blitter) {
 			NVPutBlitImage(pScrn, offset, id,
 				       dstPitch, &dstBox,
@@ -1449,6 +1450,33 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				       src_w, src_h, drw_w, drw_h,
 				       clipBoxes, pDraw);
 		} else {
+			#ifdef COMPOSITE
+			int composite_overlay_must_blit = 0;
+			WindowPtr pWin = NULL;
+			
+			if (!noCompositeExtension && WindowDrawable(pDraw->type)) {
+				pWin = (WindowPtr)pDraw;
+				}
+			
+			if ( pWin )
+				if ( pWin->redirectDraw )
+					composite_overlay_must_blit = 1;
+				
+			if ( composite_overlay_must_blit )
+				{
+				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					"XV: Composite is enabled and the window is redirected - falling back on blitter!\n");
+				NVPutBlitImage(pScrn, offset, id,
+				       dstPitch, &dstBox,
+				       xa, ya, xb, yb,
+				       width, height,
+				       src_w, src_h, drw_w, drw_h,
+				       clipBoxes, pDraw);
+				}
+			else {
+				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					"XV: Composite is enabled and the window is not redirected - using overlay!\n");
+			#endif
 			NVPutOverlayImage(pScrn, offset, id,
 					  dstPitch, &dstBox, 
 					  xa, ya, xb, yb,
@@ -1456,6 +1484,9 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 					  src_w, src_h, drw_w, drw_h,
 					  clipBoxes);
 			pPriv->currentBuffer ^= 1;
+			#ifdef COMPOSITE
+				}
+			#endif
 		}
 	}
 	
@@ -1915,19 +1946,17 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 	if (!NVChipsetHasOverlay(pNv))
 		return NULL;
 
-	/*XXX: Do we still want to provide the overlay anyway, but make the
-	 *     blit adaptor the default if composite is enabled?
-	 */
-#ifdef COMPOSITE
-	if (!noCompositeExtension) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"XV: Video overlay not available, composite enabled\n");
-		return NULL;
-	}
-#endif
 	overlayAdaptor = NV10SetupOverlayVideo(pScreen);
 	if (overlayAdaptor)
-		NVInitOffscreenImages(pScreen);
+		NVInitOffscreenImages(pScreen); //I am not sure what this call does.
+	
+	#ifdef COMPOSITE
+	if (!noCompositeExtension) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"XV: Composite is enabled, enabling overlay with smart blitter fallback\n");
+		overlayAdaptor -> name = "NV Video Overlay with Composite";
+	}
+	#endif
 
 	return overlayAdaptor;
 }
