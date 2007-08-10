@@ -498,6 +498,23 @@ i830_pipe_a_require_deactivate (ScrnInfoPtr scrn)
     return;
 }
 
+/* FIXME: use pixmap private instead if possible */
+static Bool
+i830_display_tiled(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (!pI830->tiling)
+	return FALSE;
+
+    /* Rotated data is currently linear, allocated either via XAA or EXA */
+    if (crtc->rotatedData)
+	return FALSE;
+
+    return TRUE;
+}
+
 static Bool
 i830_use_fb_compression(xf86CrtcPtr crtc)
 {
@@ -508,6 +525,9 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
     int plane = (pipe == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
 
     if (!pI830->fb_compression)
+	return FALSE;
+
+    if (!i830_display_tiled(crtc))
 	return FALSE;
 
     /* Pre-965 only supports plane A */
@@ -1078,7 +1098,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     else
 	dspcntr |= DISPPLANE_SEL_PIPE_B;
 
-    if (pI830->tiling)
+    if (IS_I965G(pI830) && i830_display_tiled(crtc))
 	dspcntr |= DISPLAY_PLANE_TILED;
 
     pipeconf = INREG(pipeconf_reg);

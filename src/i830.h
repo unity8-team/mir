@@ -739,6 +739,8 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
     return TRUE;
 }
 
+Bool i830_pixmap_tiled(PixmapPtr p);
+
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];
 

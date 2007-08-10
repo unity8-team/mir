@@ -97,8 +97,9 @@ const int I830PatternROP[16] =
     ROP_1
 };
 
-static Bool
-exaPixmapTiled(PixmapPtr p)
+/* FIXME: use pixmap private instead */
+Bool
+i830_pixmap_tiled(PixmapPtr p)
 {
     ScreenPtr pScreen = p->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
@@ -189,7 +190,7 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	if (pPixmap->drawable.bitsPerPixel == 32)
 	    cmd |= XY_COLOR_BLT_WRITE_ALPHA | XY_COLOR_BLT_WRITE_RGB;
 
-	if (IS_I965G(pI830) && exaPixmapTiled(pPixmap)) {
+	if (IS_I965G(pI830) && i830_pixmap_tiled(pPixmap)) {
 	    assert((pitch % 512) == 0);
 	    pitch >>= 2;
 	    cmd |= XY_COLOR_BLT_TILED;
@@ -274,13 +275,13 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 	    cmd |= XY_SRC_COPY_BLT_WRITE_ALPHA | XY_SRC_COPY_BLT_WRITE_RGB;
 
 	if (IS_I965G(pI830)) {
-	    if (exaPixmapTiled(pDstPixmap)) {
+	    if (i830_pixmap_tiled(pDstPixmap)) {
 		assert((dst_pitch % 512) == 0);
 		dst_pitch >>= 2;
 		cmd |= XY_SRC_COPY_BLT_DST_TILED;
 	    }
 
-	    if (exaPixmapTiled(pI830->pSrcPixmap)) {
+	    if (i830_pixmap_tiled(pI830->pSrcPixmap)) {
 		assert((src_pitch % 512) == 0);
 		src_pitch >>= 2;
 		cmd |= XY_SRC_COPY_BLT_SRC_TILED;
