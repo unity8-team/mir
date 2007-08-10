@@ -1464,8 +1464,8 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				
 			if ( composite_overlay_must_blit )
 				{
-				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-					"XV: Composite is enabled and the window is redirected - falling back on blitter!\n");
+				/*xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					"XV: Composite is enabled and the window is redirected - falling back on blitter!\n");*/
 				NVPutBlitImage(pScrn, offset, id,
 				       dstPitch, &dstBox,
 				       xa, ya, xb, yb,
@@ -1474,8 +1474,8 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				       clipBoxes, pDraw);
 				}
 			else {
-				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-					"XV: Composite is enabled and the window is not redirected - using overlay!\n");
+				/*xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					"XV: Composite is enabled and the window is not redirected - using overlay!\n");*/
 			#endif
 			NVPutOverlayImage(pScrn, offset, id,
 					  dstPitch, &dstBox, 
