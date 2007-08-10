@@ -1073,10 +1073,7 @@ static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
     }
 
 out:
-    if (pI830->fb_compression)
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Framebuffer compression "
-		   "enabled\n");
-    else
+    if (!pI830->fb_compression)
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Allocation error, framebuffer"
 		   " compression disabled\n");
 	

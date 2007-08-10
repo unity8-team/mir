@@ -2275,7 +2275,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	   pI830->fb_compression = FALSE;
    }
 
-   if (pI830->fb_compression) {
+   if (pI830->fb_compression && !pI830->tiling) {
        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Framebuffer compression enabled, "
 		  "forcing tiling on.\n");
        pI830->tiling = TRUE;
