@@ -1946,11 +1946,13 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->BiosConnector[0].DACType = DAC_UNKNOWN;
 	    info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_PROPRIETARY;
+	    info->BiosConnector[0].valid = TRUE;
 
 	    info->BiosConnector[1].DDCType = DDC_VGA;
 	    info->BiosConnector[1].DACType = DAC_PRIMARY;
 	    info->BiosConnector[1].TMDSType = TMDS_EXT;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
+	    info->BiosConnector[1].valid = TRUE;
 
 	} else {
 	    /* Below is the most common setting, but may not be true */
@@ -1958,11 +1960,13 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->BiosConnector[0].DACType = DAC_TVDAC;
 	    info->BiosConnector[0].TMDSType = TMDS_INT;
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
+	    info->BiosConnector[0].valid = TRUE;
 
 	    info->BiosConnector[1].DDCType = DDC_VGA;
 	    info->BiosConnector[1].DACType = DAC_PRIMARY;
 	    info->BiosConnector[1].TMDSType = TMDS_EXT;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
+	    info->BiosConnector[1].valid = TRUE;
 	}
 
 	if (info->InternalTVOut) {
@@ -1970,6 +1974,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->BiosConnector[2].DACType = DAC_TVDAC;
 	    info->BiosConnector[2].TMDSType = TMDS_NONE;
 	    info->BiosConnector[2].DDCType = DDC_NONE_DETECTED;
+	    info->BiosConnector[2].valid = TRUE;
 	}
 
        /* Some cards have the DDC lines swapped and we have no way to

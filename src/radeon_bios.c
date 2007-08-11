@@ -227,6 +227,8 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
     RADEONInfoPtr info = RADEONPTR (pScrn);
     int offset, i, entry, tmp, tmp0, tmp1;
 
+    if (!info->VBIOS) return FALSE;
+
     offset = RADEON_BIOS16(info->ROMHeaderStart + 0x50);
     if (offset) {
 	for (i = 0; i < 4; i++) {
