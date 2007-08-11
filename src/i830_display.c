@@ -375,6 +375,7 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     unsigned long Start, Offset;
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
+    int dsptileoff = (pipe == 0 ? DSPATILEOFF : DSPBTILEOFF);
 
     Offset = ((y * pScrn->displayWidth + x) * pI830->cpp);
     if (pI830->front_buffer == NULL) {
@@ -399,6 +400,7 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	POSTING_READ(dspbase);
         OUTREG(dspsurf, Start);
 	POSTING_READ(dspsurf);
+	OUTREG(dsptileoff, (y << 16) | x);
     } else {
 	OUTREG(dspbase, Start + Offset);
 	POSTING_READ(dspbase);
