@@ -660,7 +660,7 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 		   "%sMemory allocation layout:\n", prefix);
 
     for (mem = pI830->memory_list->next; mem->next != NULL; mem = mem->next) {
-	char phys_suffix[30] = "";
+	char phys_suffix[32] = "";
 	char *tile_suffix = "";
 
 	if (mem->offset >= pI830->stolen_size &&
@@ -672,7 +672,8 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 	}
 
 	if (mem->bus_addr != 0)
-	    sprintf(phys_suffix, ", 0x%16llx physical\n", mem->bus_addr);
+	    snprintf(phys_suffix, sizeof(phys_suffix),
+		    ", 0x%016llx physical\n", mem->bus_addr);
 	if (mem->tiling == TILE_XMAJOR)
 	    tile_suffix = " X tiled";
 	else if (mem->tiling == TILE_YMAJOR)
