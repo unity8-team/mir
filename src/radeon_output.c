@@ -2079,17 +2079,17 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		    (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I_ATOM) ||
 		    (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_A_ATOM)) {
 		    if (num_dvi > 1) {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-0");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-1");
 			num_dvi--;
 		    } else {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-1");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-0");
 		    }
 		} else if (info->BiosConnector[i].ConnectorType == CONNECTOR_VGA_ATOM) {
 		    if (num_vga > 1) {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-1");
 			num_vga--;
 		    } else {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-1");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
 		    }
 		} else
 		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
@@ -2097,17 +2097,17 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		if ((info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D) ||
 		     (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I)) {
 		    if (num_dvi > 1) {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-0");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-1");
 			num_dvi--;
 		    } else {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-1");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-0");
 		    }
 		} else if (info->BiosConnector[i].ConnectorType == CONNECTOR_CRT) {
 		    if (num_vga > 1) {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-1");
 			num_vga--;
 		    } else {
-			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-1");
+			output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
 		    }
 		} else
 		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
