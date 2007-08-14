@@ -1564,6 +1564,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
        max_height = 4096;
     }
 
+#ifdef M_T_DRIVER
     /* If DFP, add a modeline corresponding to its panel size */
     if (pNv->FlatPanel && !pNv->Television && pNv->fpWidth && pNv->fpHeight) {
 	DisplayModePtr Mode;
@@ -1593,6 +1594,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	    pScrn->monitor->nVrefresh = 1;
 	}
     }
+#endif
 
     /*
      * xf86ValidateModes will check that the mode HTotal and VTotal values
