@@ -1187,6 +1187,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX\n",
 	      (unsigned long)pI830->MMIOAddr);
 
+   /* check quirks */
+   i830_fixup_devices(pScrn);
+
    /* Allocate an xf86CrtcConfig */
    xf86CrtcConfigInit (pScrn, &i830_xf86crtc_config_funcs);
    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);

@@ -32,8 +32,8 @@ void i830PipeSetBase(xf86CrtcPtr crtc, int x, int y);
 void i830WaitForVblank(ScrnInfoPtr pScrn);
 void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
 
-xf86CrtcPtr i830GetLoadDetectPipe(xf86OutputPtr output);
-void i830ReleaseLoadDetectPipe(xf86OutputPtr output);
+xf86CrtcPtr i830GetLoadDetectPipe(xf86OutputPtr output, DisplayModePtr mode, int *dpms_mode);
+void i830ReleaseLoadDetectPipe(xf86OutputPtr output, int dpms_mode);
 void i830_crtc_init(ScrnInfoPtr pScrn, int pipe);
 void i830_crtc_load_lut(xf86CrtcPtr crtc);
 DisplayModePtr i830_crtc_mode_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc);

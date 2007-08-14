@@ -83,9 +83,9 @@ am__intel_drv_la_SOURCES_DIST = brw_defines.h brw_structs.h sf_prog.h \
 	i810_memory.c i810_reg.h i810_video.c i810_wmark.c i830_3d.c \
 	i830_accel.c i830_bios.c i830_bios.h i830_common.h i830_crt.c \
 	i830_cursor.c i830_debug.c i830_debug.h i830_display.c \
-	i830_display.h i830_driver.c i830_dvo.c i830.h i830_i2c.c \
-	i830_io.c i830_lvds.c i830_memory.c i830_modes.c i830_video.c \
-	i830_video.h i830_reg.h i830_sdvo.c i830_sdvo.h \
+	i830_display.h i830_quirks.c i830_driver.c i830_dvo.c i830.h \
+	i830_i2c.c i830_io.c i830_lvds.c i830_memory.c i830_modes.c \
+	i830_video.c i830_video.h i830_reg.h i830_sdvo.c i830_sdvo.h \
 	i830_sdvo_regs.h i830_tv.c i915_3d.c i915_3d.h i915_reg.h \
 	i915_video.c i965_video.c i830_exa.c i830_xaa.c i830_render.c \
 	i915_render.c i965_render.c local_xf86Rename.h \
@@ -104,11 +104,12 @@ am_intel_drv_la_OBJECTS = i810_accel.lo i810_cursor.lo i810_dga.lo \
 	i810_driver.lo i810_io.lo i810_memory.lo i810_video.lo \
 	i810_wmark.lo i830_3d.lo i830_accel.lo i830_bios.lo \
 	i830_crt.lo i830_cursor.lo i830_debug.lo i830_display.lo \
-	i830_driver.lo i830_dvo.lo i830_i2c.lo i830_io.lo i830_lvds.lo \
-	i830_memory.lo i830_modes.lo i830_video.lo i830_sdvo.lo \
-	i830_tv.lo i915_3d.lo i915_video.lo i965_video.lo i830_exa.lo \
-	i830_xaa.lo i830_render.lo i915_render.lo i965_render.lo \
-	$(am__objects_2) $(am__objects_4)
+	i830_quirks.lo i830_driver.lo i830_dvo.lo i830_i2c.lo \
+	i830_io.lo i830_lvds.lo i830_memory.lo i830_modes.lo \
+	i830_video.lo i830_sdvo.lo i830_tv.lo i915_3d.lo i915_video.lo \
+	i965_video.lo i830_exa.lo i830_xaa.lo i830_render.lo \
+	i915_render.lo i965_render.lo $(am__objects_2) \
+	$(am__objects_4)
 intel_drv_la_OBJECTS = $(am_intel_drv_la_OBJECTS)
 intel_drv_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -218,6 +219,7 @@ PCIACCESS_LIBS = @PCIACCESS_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
 PS2PDF = @PS2PDF@
 RANLIB = @RANLIB@
+SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
@@ -323,8 +325,8 @@ intel_drv_la_SOURCES = brw_defines.h brw_structs.h sf_prog.h wm_prog.h \
 	i810_reg.h i810_video.c i810_wmark.c i830_3d.c i830_accel.c \
 	i830_bios.c i830_bios.h i830_common.h i830_crt.c i830_cursor.c \
 	i830_debug.c i830_debug.h i830_display.c i830_display.h \
-	i830_driver.c i830_dvo.c i830.h i830_i2c.c i830_io.c \
-	i830_lvds.c i830_memory.c i830_modes.c i830_video.c \
+	i830_quirks.c i830_driver.c i830_dvo.c i830.h i830_i2c.c \
+	i830_io.c i830_lvds.c i830_memory.c i830_modes.c i830_video.c \
 	i830_video.h i830_reg.h i830_sdvo.c i830_sdvo.h \
 	i830_sdvo_regs.h i830_tv.c i915_3d.c i915_3d.h i915_reg.h \
 	i915_video.c i965_video.c i830_exa.c i830_xaa.c i830_render.c \
@@ -454,6 +456,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i830_lvds.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i830_memory.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i830_modes.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i830_quirks.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i830_render.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i830_sdvo.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i830_tv.Plo@am__quote@

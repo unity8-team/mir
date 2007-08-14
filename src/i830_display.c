@@ -604,6 +604,8 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	break;
     }
 
+    intel_crtc->dpms_mode = mode;
+
 #ifdef XF86DRI
     if (pI830->directRenderingEnabled) {
 	drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn->pScreen);
@@ -1055,13 +1057,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     OUTREG(vtot_reg, (adjusted_mode->CrtcVDisplay - 1) |
 	((adjusted_mode->CrtcVTotal - 1) << 16));
     
-    /*
-     * Give us some border at the bottom for load detection
-     */
-    adjusted_mode->CrtcVBlankStart = adjusted_mode->CrtcVSyncStart;
-    if (adjusted_mode->CrtcVBlankEnd - adjusted_mode->CrtcVBlankStart < 3)
-	adjusted_mode->CrtcVBlankStart = adjusted_mode->CrtcVBlankEnd - 3;
-    
     OUTREG(vblank_reg, (adjusted_mode->CrtcVBlankStart - 1) |
 	((adjusted_mode->CrtcVBlankEnd - 1) << 16));
     OUTREG(vsync_reg, (adjusted_mode->CrtcVSyncStart - 1) |
@@ -1317,46 +1312,117 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
  * \return crtc, or NULL if no pipes are available.
  */
     
+/* VESA 640x480x72Hz mode to set on the pipe */
+static DisplayModeRec   load_detect_mode = {
+    NULL, NULL, "640x480", MODE_OK, M_T_DEFAULT,
+    31500,
+    640, 664, 704, 832, 0,
+    480, 489, 491, 520, 0,
+    V_NHSYNC | V_NVSYNC,
+    0, 0,
+
+    640, 640, 664, 704, 832, 832, 0,
+    480, 489, 489, 491, 520, 520,
+    FALSE, FALSE, 0, NULL, 0, 0.0, 0.0
+};
+
 xf86CrtcPtr
-i830GetLoadDetectPipe(xf86OutputPtr output)
+i830GetLoadDetectPipe(xf86OutputPtr output, DisplayModePtr mode, int *dpms_mode)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     xf86CrtcConfigPtr	    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
-    xf86CrtcPtr	    crtc;
+    I830CrtcPrivatePtr	    intel_crtc;
+    xf86CrtcPtr		    supported_crtc =NULL;
+    xf86CrtcPtr		    crtc = NULL;
     int			    i;
 
     if (output->crtc) 
-	return output->crtc;
+    {
+	crtc = output->crtc;
+	/*
+	 * Make sure the crtc and output are running
+	 */
+	intel_crtc = crtc->driver_private;
+	*dpms_mode = intel_crtc->dpms_mode;
+	if (intel_crtc->dpms_mode != DPMSModeOn)
+	{
+	    crtc->funcs->dpms (crtc, DPMSModeOn);
+	    output->funcs->dpms (output, DPMSModeOn);
+	}
+	return crtc;
+    }
 
     for (i = 0; i < xf86_config->num_crtc; i++)
-	if (output->possible_crtcs & (1 << i))
+    {
+	xf86CrtcPtr possible_crtc;
+	if (!(output->possible_crtcs & (1 << i)))
+	    continue;
+	possible_crtc = xf86_config->crtc[i];
+	if (!possible_crtc->enabled)
+	{
+	    crtc = possible_crtc;
 	    break;
-
-    if (i == xf86_config->num_crtc)
-	return NULL;
-
-    crtc = xf86_config->crtc[i];
+	}
+	if (!supported_crtc)
+	    supported_crtc = possible_crtc;
+    }
+    if (!crtc)
+    {
+	crtc = supported_crtc;
+	if (!crtc)
+	    return NULL;
+    }
 
     output->crtc = crtc;
     intel_output->load_detect_temp = TRUE;
+    
+    intel_crtc = crtc->driver_private;
+    *dpms_mode = intel_crtc->dpms_mode;
+
+    if (!crtc->enabled)
+    {
+	if (!mode)
+	    mode = &load_detect_mode;
+	xf86CrtcSetMode (crtc, mode, RR_Rotate_0, 0, 0);
+    }
+    else
+    {
+	if (intel_crtc->dpms_mode != DPMSModeOn)
+	    crtc->funcs->dpms (crtc, DPMSModeOn);
+
+	/* Add this output to the crtc */
+	output->funcs->mode_set (output, &crtc->mode, &crtc->mode);
+	output->funcs->commit (output);
+    }
+    /* let the output get through one full cycle before testing */
+    i830WaitForVblank (pScrn);
 
     return crtc;
 }
 
 void
-i830ReleaseLoadDetectPipe(xf86OutputPtr output)
+i830ReleaseLoadDetectPipe(xf86OutputPtr output, int dpms_mode)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830OutputPrivatePtr    intel_output = output->driver_private;
+    xf86CrtcPtr		    crtc = output->crtc;
     
     if (intel_output->load_detect_temp) 
     {
-	xf86CrtcPtr crtc = output->crtc;
 	output->crtc = NULL;
 	intel_output->load_detect_temp = FALSE;
 	crtc->enabled = xf86CrtcInUse (crtc);
 	xf86DisableUnusedFunctions(pScrn);
+    }
+    /*
+     * Switch crtc and output back off if necessary
+     */
+    if (crtc->enabled && dpms_mode != DPMSModeOn)
+    {
+	if (output->crtc == crtc)
+	    output->funcs->dpms (output, dpms_mode);
+	crtc->funcs->dpms (crtc, dpms_mode);
     }
 }
 
@@ -1505,6 +1571,7 @@ i830_crtc_init(ScrnInfoPtr pScrn, int pipe)
 
     intel_crtc = xnfcalloc (sizeof (I830CrtcPrivateRec), 1);
     intel_crtc->pipe = pipe;
+    intel_crtc->dpms_mode = DPMSModeOff;
 
     /* Initialize the LUTs for when we turn on the CRTC. */
     for (i = 0; i < 256; i++) {

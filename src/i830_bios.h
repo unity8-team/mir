@@ -130,9 +130,6 @@ struct aimdb_block {
     CARD16  aimdb_size;
 } __attribute__((packed));
 
-struct vch_bdb_20 {
-} __attribute__((packed));
-
 struct vch_panel_data {
     CARD16	fp_timing_offset;
     CARD8	fp_timing_size;

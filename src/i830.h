@@ -134,7 +134,7 @@ struct _i830_memory {
      * Physical (or more properly, bus) address of the allocation.
      * Only set if requested during allocation.
      */
-    unsigned long bus_addr;
+    uint64_t bus_addr;
     /** AGP memory handle */
     int key;
     /**
@@ -220,6 +220,8 @@ typedef struct _I830CrtcPrivateRec {
 
     Bool    		    enabled;
     
+    int			    dpms_mode;
+    
     /* Lookup table values to be set when the CRTC is enabled */
     CARD8 lut_r[256], lut_g[256], lut_b[256];
 
@@ -235,7 +237,7 @@ typedef struct _I830CrtcPrivateRec {
     /* Physical or virtual addresses of the cursor for setting in the cursor
      * registers.
      */
-    unsigned long cursor_addr;
+    uint64_t cursor_addr;
     unsigned long cursor_argb_addr;
     Bool	cursor_is_argb;
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;
@@ -527,11 +529,13 @@ typedef struct _I830Rec {
    CARD32 savePaletteB[256];
    CARD32 saveSWF[17];
    CARD32 saveBLC_PWM_CTL;
+   CARD32 saveBLC_PWM_CTL2;
 
    enum last_3d *last_3d;
 
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
+   unsigned int quirk_flag;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -723,10 +727,10 @@ extern const int I830CopyROP[16];
 #define _845_DRAM_RW_CONTROL 0x90
 #define DRAM_WRITE    0x33330000
 
-/* 
- * Xserver MM compatibility. Remove code guarded by this when the
- * XServer contains the libdrm mm code
- */
-#undef XSERVER_LIBDRM_MM
+/* quirk flag definition */
+#define QUIRK_IGNORE_TV			0x00000001
+#define QUIRK_IGNORE_LVDS		0x00000002
+#define QUIRK_IGNORE_MACMINI_LVDS 	0x00000004
+extern void i830_fixup_devices(ScrnInfoPtr);
 
 #endif /* _I830_H_ */
