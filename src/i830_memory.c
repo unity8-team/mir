@@ -318,9 +318,9 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
  * physical address.
  *
  * \return physical address if successful.
- * \return (unsigned long)-1 if unsuccessful.
+ * \return (uint64_t)-1 if unsuccessful.
  */
-static unsigned long
+static uint64_t
 i830_get_gtt_physical(ScrnInfoPtr pScrn, unsigned long offset)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -333,8 +333,11 @@ i830_get_gtt_physical(ScrnInfoPtr pScrn, unsigned long offset)
     gttentry = INGTT(offset / 1024);
 
     /* Mask out these reserved bits on this hardware. */
-    if (!IS_I965G(pI830))
+    if (!IS_I9XX(pI830) || IS_I915G(pI830) || IS_I915GM(pI830) ||
+	IS_I945G(pI830) || IS_I945GM(pI830))
+    {
 	gttentry &= ~PTE_ADDRESS_MASK_HIGH;
+    }
 
     /* If it's not a mapping type we know, then bail. */
     if ((gttentry & PTE_MAPPING_TYPE_MASK) != PTE_MAPPING_TYPE_UNCACHED &&
@@ -345,19 +348,10 @@ i830_get_gtt_physical(ScrnInfoPtr pScrn, unsigned long offset)
 		   (unsigned int)(gttentry & PTE_MAPPING_TYPE_MASK));
 	return -1;
     }
-    /* If we can't represent the address with an unsigned long, bail. */
-    if (sizeof(unsigned long) == 4 &&
-	(gttentry & PTE_ADDRESS_MASK_HIGH) != 0)
-    {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "High memory PTE (0x%08x) on 32-bit system\n",
-		   (unsigned int)gttentry);
-	return -1;
-    }
     assert((gttentry & PTE_VALID) != 0);
 
     return (gttentry & PTE_ADDRESS_MASK) |
-	(gttentry & PTE_ADDRESS_MASK_HIGH << (32 - 4));
+	((uint64_t)(gttentry & PTE_ADDRESS_MASK_HIGH) << (32 - 4));
 }
 
 /**
@@ -365,14 +359,15 @@ i830_get_gtt_physical(ScrnInfoPtr pScrn, unsigned long offset)
  * physical address.
  *
  * \return physical address if successful.
- * \return (unsigned long)-1 if unsuccessful.
+ * \return (uint64_t)-1 if unsuccessful.
  */
-static unsigned long
+static uint64_t
 i830_get_stolen_physical(ScrnInfoPtr pScrn, unsigned long offset,
 			 unsigned long size)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned long physical, scan;
+    uint64_t physical;
+    unsigned long scan;
 
     /* Check that the requested region is within stolen memory. */
     if (offset + size >= pI830->stolen_size)
@@ -386,11 +381,12 @@ i830_get_stolen_physical(ScrnInfoPtr pScrn, unsigned long offset,
      * contiguously.
      */
     for (scan = offset + 4096; scan < offset + size; scan += 4096) {
-	unsigned long scan_physical = i830_get_gtt_physical(pScrn, scan);
+	uint64_t scan_physical = i830_get_gtt_physical(pScrn, scan);
 
 	if ((scan - offset) != (scan_physical - physical)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Non-contiguous GTT entries: (%ld,%ld) vs (%ld,%ld)\n",
+		       "Non-contiguous GTT entries: (%ld,0x16%llx) vs "
+		       "(%ld,0x%16llx)\n",
 		       scan, scan_physical, offset, physical);
 	    return -1;
 	}
@@ -443,7 +439,7 @@ i830_allocate_aperture(ScrnInfoPtr pScrn, const char *name,
 	    mem->bus_addr = i830_get_stolen_physical(pScrn, mem->offset,
 						     mem->size);
 
-	    if (mem->bus_addr == ((unsigned long)-1)) {
+	    if (mem->bus_addr == ((uint64_t)-1)) {
 		/* Move the start of the allocation to just past the end of
 		 * stolen memory.
 		 */
@@ -497,11 +493,15 @@ i830_allocate_agp_memory(ScrnInfoPtr pScrn, i830_memory *mem, int flags)
 
     size = mem->size - (mem->agp_offset - mem->offset);
 
-    if (flags & NEED_PHYSICAL_ADDR)
+    if (flags & NEED_PHYSICAL_ADDR) {
+	unsigned long agp_bus_addr;
+
 	mem->key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 2,
-					  &mem->bus_addr);
-    else
+					  &agp_bus_addr);
+	mem->bus_addr = agp_bus_addr;
+    } else {
 	mem->key = xf86AllocateGARTMemory(pScrn->scrnIndex, size, 0, NULL);
+    }
     if (mem->key == -1 || ((flags & NEED_PHYSICAL_ADDR) && mem->bus_addr == 0))
     {
 	return FALSE;
@@ -687,7 +687,8 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 			   mem->size / 1024);
 	} else {
 	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-			   "%s0x%08lx-0x%08lx: %s (%ld kB, 0x%08lx physical)\n",
+			   "%s0x%08lx-0x%08lx: %s "
+			   "(%ld kB, 0x%16llx physical)\n",
 			   prefix,
 			   mem->offset, mem->end - 1, mem->name,
 			   mem->size / 1024, mem->bus_addr);
@@ -957,9 +958,13 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 	unsigned long cursor_offset_base = pI830->cursor_mem->offset;
 	unsigned long cursor_addr_base, offset = 0;
 
-	if (pI830->CursorNeedsPhysical)
-	    cursor_addr_base = pI830->cursor_mem->bus_addr;
-	else
+	if (pI830->CursorNeedsPhysical) {
+	    /* On any hardware that requires physical addresses for cursors,
+	     * the PTEs don't support memory above 4GB, so we can safely
+	     * ignore the top 32 bits of cursor_mem->bus_addr.
+	     */
+	    cursor_addr_base = (unsigned long)pI830->cursor_mem->bus_addr;
+	} else
 	    cursor_addr_base = pI830->cursor_mem->offset;
 
 	/* Set up the offsets for our cursors in each CRTC. */

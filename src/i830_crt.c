@@ -97,8 +97,6 @@ static Bool
 i830_crt_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		    DisplayModePtr adjusted_mode)
 {
-    /* disable blanking so we can detect monitors */
-    adjusted_mode->CrtcVBlankStart = adjusted_mode->CrtcVTotal - 3;
     return TRUE;
 }
 
@@ -209,10 +207,8 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     CARD32		    dsl;
     CARD8		    st00;
     int			    bclrpat_reg, pipeconf_reg, pipe_dsl_reg;
-    int			    vtotal_reg;
-    int			    vblank_reg;
+    int			    vtotal_reg, vblank_reg, vsync_reg;
     int			    pipe = i830_crtc->pipe;
-    int			    count, detect;
     Bool		    present;
 
     if (pipe == 0) 
@@ -220,6 +216,7 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
 	bclrpat_reg = BCLRPAT_A;
 	vtotal_reg = VTOTAL_A;
 	vblank_reg = VBLANK_A;
+	vsync_reg = VSYNC_A;
 	pipeconf_reg = PIPEACONF;
 	pipe_dsl_reg = PIPEA_DSL;
     }
@@ -228,6 +225,7 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
 	bclrpat_reg = BCLRPAT_B;
 	vtotal_reg = VTOTAL_B;
 	vblank_reg = VBLANK_B;
+	vsync_reg = VSYNC_B;
 	pipeconf_reg = PIPEBCONF;
 	pipe_dsl_reg = PIPEB_DSL;
     }
@@ -242,45 +240,78 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     vblank_start = (vblank & 0xfff) + 1;
     vblank_end = ((vblank >> 16) & 0xfff) + 1;
     
-    /* sample in the vertical border, selecting the larger one */
-    if (vblank_start - vactive >= vtotal - vblank_end)
-	vsample = (vblank_start + vactive) >> 1;
-    else
-	vsample = (vtotal + vblank_end) >> 1;
-
     /* Set the border color to purple. */
     OUTREG(bclrpat_reg, 0x500050);
     
-    /*
-     * Wait for the border to be displayed
-     */
-    while (INREG(pipe_dsl_reg) >= vactive)
-	;
-    while ((dsl = INREG(pipe_dsl_reg)) <= vsample)
-	;
-    /*
-     * Watch ST00 for an entire scanline
-     */
-    detect = 0;
-    count = 0;
-    do {
-	count++;
-	/* Read the ST00 VGA status register */
-	st00 = pI830->readStandard(pI830, 0x3c2);
-	if (st00 & (1 << 4))
-	    detect++;
-    } while ((INREG(pipe_dsl_reg) == dsl));
+    if (IS_I9XX (pI830))
+    {
+	CARD32	pipeconf = INREG(pipeconf_reg);
+	OUTREG(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
+	
+	st00 = pI830->readStandard (pI830, 0x3c2);
+	present = (st00 & (1 << 4)) != 0;
+	OUTREG(pipeconf_reg, pipeconf);
+    }
+    else
+    {
+	Bool	restore_vblank = FALSE;
+	int	count, detect;
+
+	/*
+	 * If there isn't any border, add some.
+	 * Yes, this will flicker
+	 */
+	if (vblank_start <= vactive && vblank_end >= vtotal)
+	{
+	    CARD32  vsync = INREG(vsync_reg);
+	    CARD32  vsync_start = (vsync & 0xffff) + 1;
+
+	    vblank_start = vsync_start;
+	    OUTREG(vblank_reg, (vblank_start - 1) | ((vblank_end - 1) << 16));
+	    restore_vblank = TRUE;
+	}
+	
+	/* sample in the vertical border, selecting the larger one */
+	if (vblank_start - vactive >= vtotal - vblank_end)
+	    vsample = (vblank_start + vactive) >> 1;
+	else
+	    vsample = (vtotal + vblank_end) >> 1;
+
+	/*
+	 * Wait for the border to be displayed
+	 */
+	while (INREG(pipe_dsl_reg) >= vactive)
+	    ;
+	while ((dsl = INREG(pipe_dsl_reg)) <= vsample)
+	    ;
+	/*
+	 * Watch ST00 for an entire scanline
+	 */
+	detect = 0;
+	count = 0;
+	do {
+	    count++;
+	    /* Read the ST00 VGA status register */
+	    st00 = pI830->readStandard(pI830, 0x3c2);
+	    if (st00 & (1 << 4))
+		detect++;
+	} while ((INREG(pipe_dsl_reg) == dsl));
+	
+	/* restore vblank if necessary */
+	if (restore_vblank)
+	    OUTREG(vblank_reg, vblank);
+	/*
+	 * If more than 3/4 of the scanline detected a monitor,
+	 * then it is assumed to be present. This works even on i830,
+	 * where there isn't any way to force the border color across
+	 * the screen
+	 */
+	present = detect * 4 > count * 3;
+    }
 
     /* Restore previous settings */
     OUTREG(bclrpat_reg, save_bclrpat);
 
-    /*
-     * If more than 3/4 of the scanline detected a monitor,
-     * then it is assumed to be present. This works even on i830,
-     * where there isn't any way to force the border color across
-     * the screen
-     */
-    present = detect * 4 > count * 3;
     return present;
 }
 
@@ -316,8 +347,9 @@ i830_crt_detect(xf86OutputPtr output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
-    xf86CrtcPtr	    crtc;
-
+    xf86CrtcPtr		    crtc;
+    int			    dpms_mode;
+    
     if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_I965G(pI830) ||
 	    IS_G33CLASS(pI830)) {
 	if (i830_crt_detect_hotplug(output))
@@ -330,38 +362,14 @@ i830_crt_detect(xf86OutputPtr output)
 	return XF86OutputStatusConnected;
 
     /* Use the load-detect method if we have no other way of telling. */
-    crtc = i830GetLoadDetectPipe (output);
+    crtc = i830GetLoadDetectPipe (output, NULL, &dpms_mode);
     
     if (crtc)
     {
-	/* VESA 640x480x72Hz mode to set on the pipe */
-	static DisplayModeRec   mode = {
-	    NULL, NULL, "640x480", MODE_OK, M_T_DEFAULT,
-	    31500,
-	    640, 664, 704, 832, 0,
-	    480, 489, 491, 520, 0,
-	    V_NHSYNC | V_NVSYNC,
-	    0, 0,
-	    0, 0, 0, 0, 0, 0, 0,
-	    0, 0, 0, 0, 0, 0,
-	    FALSE, FALSE, 0, NULL, 0, 0.0, 0.0
-	};
 	Bool			connected;
-	I830OutputPrivatePtr	intel_output = output->driver_private;
-	
-	if (!crtc->enabled)
-	{
-	    xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
-	    xf86CrtcSetMode (crtc, &mode, RR_Rotate_0, 0, 0);
-	}
-	else if (intel_output->load_detect_temp)
-	{
-	    output->funcs->mode_set (output, &crtc->mode, &crtc->mode);
-	    output->funcs->commit (output);
-	}
-	connected = i830_crt_detect_load (crtc, output);
 
-	i830ReleaseLoadDetectPipe (output);
+	connected = i830_crt_detect_load (crtc, output);
+	i830ReleaseLoadDetectPipe (output, dpms_mode);
 	if (connected)
 	    return XF86OutputStatusConnected;
 	else

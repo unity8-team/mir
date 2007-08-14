@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.1.1-0ubuntu1) gutsy; urgency=low
+
+  * New upstream version.
+  * Drop ChangeLog since it isn't updated upstream and is just
+    needless diff.
+
+ -- Kyle McMartin <kyle@ubuntu.com>  Tue, 14 Aug 2007 02:38:09 -0400
+
 xserver-xorg-video-intel (2:2.1.0-1ubuntu2) gutsy; urgency=low
 
   * Add lpia to the list of architectures.

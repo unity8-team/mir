@@ -331,8 +331,12 @@ extern int I810_DEBUG;
 
 #ifndef PCI_CHIP_I945_GM
 #define PCI_CHIP_I945_GM        0x27A2
-#define PCI_CHIP_I945_GME	0x27AE
 #define PCI_CHIP_I945_GM_BRIDGE 0x27A0
+#endif
+
+#ifndef PCI_CHIP_I945_GME
+#define PCI_CHIP_I945_GME	 0x27AE
+#define PCI_CHIP_I945_GME_BRIDGE 0x27AC
 #endif
 
 #ifndef PCI_CHIP_I965_G_1
@@ -357,8 +361,12 @@ extern int I810_DEBUG;
 
 #ifndef PCI_CHIP_I965_GM
 #define PCI_CHIP_I965_GM        0x2A02
-#define PCI_CHIP_I965_GME	0x2A12
 #define PCI_CHIP_I965_GM_BRIDGE 0x2A00
+#endif
+
+#ifndef PCI_CHIP_I965_GME
+#define PCI_CHIP_I965_GME       0x2A12
+#define PCI_CHIP_I965_GME_BRIDGE 0x2A10
 #endif
 
 #ifndef PCI_CHIP_G33_G

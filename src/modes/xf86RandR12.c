@@ -716,7 +716,7 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
     xf86CrtcPtr		*save_crtcs;
     Bool		save_enabled = crtc->enabled;
 
-    save_crtcs = ALLOCATE_LOCAL(config->num_crtc * sizeof (xf86CrtcPtr));
+    save_crtcs = ALLOCATE_LOCAL(config->num_output * sizeof (xf86CrtcPtr));
     if ((randr_mode != NULL) != crtc->enabled)
 	changed = TRUE;
     else if (randr_mode && !xf86RandRModeMatches (randr_mode, &crtc->mode))
@@ -750,6 +750,10 @@ xf86RandR12CrtcSet (ScreenPtr	pScreen,
 	    output->crtc = new_crtc;
 	}
     }
+    for (ro = 0; ro < num_randr_outputs; ro++) 
+        if (randr_outputs[ro]->pendingProperties)
+	    changed = TRUE;
+
     /* XXX need device-independent mode setting code through an API */
     if (changed)
     {
@@ -947,7 +951,6 @@ xf86RandR12SetInfo12 (ScreenPtr pScreen)
 	    return FALSE;
 	}
 
-	RROutputSetCrtc (output->randr_output, randr_crtc);
 	RROutputSetPhysicalSize(output->randr_output, 
 				output->mm_width,
 				output->mm_height);
