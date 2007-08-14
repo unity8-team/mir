@@ -219,6 +219,9 @@
 #define NV_PVIDEO_INTR_EN           0x140
 #define NV_PVIDEO_BUFFER            0x700
 #define NV_PVIDEO_STOP              0x704
+#define NV_PVIDEO_UVPLANE_BASE(buff)        (0x800+(buff)*4)
+#define NV_PVIDEO_UVPLANE_LIMIT(buff)	    (0x808+(buff)*4)
+#define NV_PVIDEO_UVPLANE_OFFSET_BUFF(buff) (0x820+(buff)*4)
 #define NV_PVIDEO_BASE(buff)        (0x900+(buff)*4)
 #define NV_PVIDEO_LIMIT(buff)       (0x908+(buff)*4)
 #define NV_PVIDEO_LUMINANCE(buff)   (0x910+(buff)*4)
@@ -231,6 +234,7 @@
 #define NV_PVIDEO_POINT_OUT(buff)   (0x948+(buff)*4)
 #define NV_PVIDEO_SIZE_OUT(buff)    (0x950+(buff)*4)
 #define NV_PVIDEO_FORMAT(buff)      (0x958+(buff)*4)
+#	define NV_PVIDEO_FORMAT_PLANAR    (1 << 0)
 #	define NV_PVIDEO_FORMAT_COLOR_LE_CR8YB8CB8YA8    (1 << 16)
 #	define NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY        (1 << 20)
 #	define NV_PVIDEO_FORMAT_MATRIX_ITURBT709         (1 << 24)
