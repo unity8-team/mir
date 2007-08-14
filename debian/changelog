@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.1.1-0ubuntu2) gutsy; urgency=low
+
+  * debian/patches/01_fix_compiz_video.diff:
+    - use xf86XVFillKeyHelperDrawable() to fix video playback with
+      compositing enabled
+
+ -- Michael Vogt <michael.vogt@ubuntu.com>  Tue, 14 Aug 2007 21:46:28 +0200
+
 xserver-xorg-video-intel (2:2.1.1-0ubuntu1) gutsy; urgency=low
 
   * New upstream version.

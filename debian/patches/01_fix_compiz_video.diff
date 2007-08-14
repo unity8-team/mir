@@ -1,0 +1,20 @@
+--- xserver-xorg-video-intel-2.1.0.orig/src/i810_video.c
++++ xserver-xorg-video-intel-2.1.0/src/i810_video.c
+@@ -1087,7 +1087,7 @@
+     if(!REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes)) {
+ 	REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
+ 	/* draw these */
+-	xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes);
++	xf86XVFillKeyHelperDrawable(pDraw, pPriv->colorKey, clipBoxes);
+     }
+ 
+     I810DisplayVideo(pScrn, id, width, height, dstPitch, 
+@@ -1381,7 +1381,7 @@
+ 		     surface->pitches[0], x1, y1, x2, y2, &dstBox,
+ 		     src_w, src_h, drw_w, drw_h);
+ 
+-    xf86XVFillKeyHelper(pScrn->pScreen, pI810Priv->colorKey, clipBoxes);
++    xf86XVFillKeyHelperDrawable(pScrn->pScreen, pI810Priv->colorKey, clipBoxes);
+ 
+     pPriv->isOn = TRUE;
+     /* we've prempted the XvImage stream so set its free timer */
