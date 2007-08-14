@@ -511,7 +511,7 @@ i830_display_tiled(xf86CrtcPtr crtc)
     if (crtc->rotatedData)
 	return FALSE;
 
-    if (pI830->front_buffer->tiling != TILE_NONE)
+    if (pI830->front_buffer && pI830->front_buffer->tiling != TILE_NONE)
 	return TRUE;
 
     return FALSE;
