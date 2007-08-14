@@ -41,6 +41,10 @@
   Exa Modifications (c) Lars Knoll (lars@trolltech.com)
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "nv_include.h"
 #include "exa.h"
 
@@ -699,7 +703,7 @@ Bool NVExaInit(ScreenPtr pScreen)
 	pNv->EXADriverPtr->DoneSolid = NVExaDoneSolid;
 
 	switch (pNv->Architecture) {
-#if X_BYTE_ORDER == X_LITTLE_ENDIAN
+#if (X_BYTE_ORDER == X_LITTLE_ENDIAN) && defined(ENABLE_NV30EXA)
 	case NV_ARCH_40:
 		pNv->EXADriverPtr->CheckComposite   = NV30EXACheckComposite;
 		pNv->EXADriverPtr->PrepareComposite = NV30EXAPrepareComposite;

@@ -1,3 +1,9 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#ifdef ENABLE_NV30EXA
+
 #include "nv_include.h"
 #include "nv_shaders.h"
 
@@ -696,3 +702,4 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
+#endif /* ENABLE_NV30EXA */
