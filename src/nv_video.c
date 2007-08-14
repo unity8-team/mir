@@ -549,8 +549,11 @@ NVPutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
 		dstPitch |= NV_PVIDEO_FORMAT_PLANAR;
 
 	/* Those are important only for planar formats (NV12) */
-	nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_BASE(buffer), 0); 
-	nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_OFFSET_BUFF(buffer), uvoffset);
+	if ( uvoffset )
+		{
+		nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_BASE(buffer), 0); 
+		nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_OFFSET_BUFF(buffer), uvoffset);
+		}
 	
 	nvWriteVIDEO(pNv, NV_PVIDEO_FORMAT(buffer), dstPitch);
 	nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 0);
@@ -1479,7 +1482,6 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	/* Try to allocate host-side double buffers, unless we have already failed*/
 	/* We take only nlines * line_len bytes - that is, only the pixel data we are interested in - because the stuff in the GART is 
 		 written contiguously */
-	
 	if ( pPriv -> currentHostBuffer != NO_PRIV_HOST_BUFFER_AVAILABLE )
 		{
 		pPriv->TT_mem_chunk[0] = NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[0], 
@@ -1545,8 +1547,6 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 
 	if ( !destination_buffer) //if we have no GART at all
 		goto CPU_copy;
-	
-	
 	
 	if(newTTSize <= destination_buffer->size)
 		{
@@ -1669,7 +1669,35 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 					dstPitch, nlines, npixels);
 				}
 			else {
-				/* XXX: todo*/
+				unsigned char * tbuf = buf;
+				for ( i=0; i < nlines; i++)
+				{
+				int dwords = npixels << 1;
+				while (dwords & ~0x03) 
+					{
+					*video_mem_destination = *tbuf;
+					*(video_mem_destination + 1) = *(tbuf + 1);
+					*(video_mem_destination + 2) = *(tbuf + 2);
+					*(video_mem_destination + 3) = *(tbuf + 3);
+					video_mem_destination += 4;
+					tbuf += 4;
+					dwords -= 4;
+					}
+				switch ( dwords ) 
+					{
+					case 3:
+						*(video_mem_destination + 2) = *(tbuf + 2);
+					case 2:
+						*(video_mem_destination + 1) = *(tbuf + 1);
+					case 1:
+						*video_mem_destination = *tbuf;
+					}
+				
+				video_mem_destination += dstPitch - (npixels << 1);
+				tbuf += srcPitch - (npixels << 1);
+				}
+				
+				NVCopyNV12ColorPlanes(buf + s2offset, buf + s3offset, video_mem_destination, dstPitch, srcPitch2, height, width);
 				}
 			}
 		else //YUY2 and RGB
