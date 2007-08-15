@@ -113,7 +113,6 @@
 
 
 				/* Forward definitions for driver functions */
-void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore);
 static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode);
 static void RADEONSave(ScrnInfoPtr pScrn);
@@ -5041,50 +5040,6 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
     RADEONSaveSurfaces(pScrn, &info->ModeReg);
 }
 
-/* Write out state to define a new video mode */
-void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
-{
-    RADEONInfoPtr  info     = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "RADEONRestoreMode(%p)\n", restore);
-
-    /* When changing mode with Dual-head card, care must be taken for
-     * the special order in setting registers. CRTC2 has to be set
-     * before changing CRTC_EXT register.  In the dual-head setup, X
-     * server calls this routine twice with primary and secondary pScrn
-     * pointers respectively. The calls can come with different
-     * order. Regardless the order of X server issuing the calls, we
-     * have to ensure we set registers in the right order!!!  Otherwise
-     * we may get a blank screen.
-     *
-     * We always restore MemMap first, the saverec should be up to date
-     * in all cases
-     */
-    RADEONRestoreMemMapRegisters(pScrn, restore);
-    RADEONRestoreCommonRegisters(pScrn, restore);
-
-    if (pRADEONEnt->HasCRTC2) {
-	RADEONRestoreCrtc2Registers(pScrn, restore);
-	RADEONRestorePLL2Registers(pScrn, restore);
-    }
-
-    RADEONRestoreCrtcRegisters(pScrn, restore);
-    RADEONRestorePLLRegisters(pScrn, restore);
-    RADEONRestoreRMXRegisters(pScrn, restore);
-    RADEONRestoreFPRegisters(pScrn, restore);
-    RADEONRestoreFP2Registers(pScrn, restore);
-    RADEONRestoreLVDSRegisters(pScrn, restore);
-
-    if (info->InternalTVOut)
-	RADEONRestoreTVRegisters(pScrn, restore);
-
-#if 0
-    RADEONRestorePalette(pScrn, &info->SavedReg);
-#endif
-}
-
 /* Read memory map */
 static void RADEONSaveMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
@@ -5490,6 +5445,7 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 void RADEONRestore(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr  restore    = &info->SavedReg;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -5525,7 +5481,24 @@ void RADEONRestore(ScrnInfoPtr pScrn)
 	OUTREG(RADEON_DAC_CNTL2, restore->dac2_cntl);
 #endif
 
-    RADEONRestoreMode(pScrn, restore);
+    RADEONRestoreMemMapRegisters(pScrn, restore);
+    RADEONRestoreCommonRegisters(pScrn, restore);
+
+    if (pRADEONEnt->HasCRTC2) {
+	RADEONRestoreCrtc2Registers(pScrn, restore);
+	RADEONRestorePLL2Registers(pScrn, restore);
+    }
+
+    RADEONRestoreCrtcRegisters(pScrn, restore);
+    RADEONRestorePLLRegisters(pScrn, restore);
+    RADEONRestoreRMXRegisters(pScrn, restore);
+    RADEONRestoreFPRegisters(pScrn, restore);
+    RADEONRestoreFP2Registers(pScrn, restore);
+    RADEONRestoreLVDSRegisters(pScrn, restore);
+
+    if (info->InternalTVOut)
+	RADEONRestoreTVRegisters(pScrn, restore);
+
     RADEONRestoreSurfaces(pScrn, restore);
 
 #if 1
