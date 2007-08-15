@@ -1325,6 +1325,76 @@ radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color)
 }
 
 static RADEONMonitorType
+r300_detect_tv(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 tmp, dac_cntl2, crtc2_gen_cntl, dac_ext_cntl, tv_dac_cntl;
+    CARD32 gpiopad_a;
+    RADEONMonitorType found = MT_NONE;
+
+    /* save the regs we need */
+    gpiopad_a = INREG(RADEON_GPIOPAD_A);
+    dac_cntl2 = INREG(RADEON_DAC_CNTL2);
+    crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL);
+    dac_ext_cntl = INREG(RADEON_DAC_EXT_CNTL);
+    tv_dac_cntl = INREG(RADEON_TV_DAC_CNTL);
+
+    OUTREGP(RADEON_GPIOPAD_A, 0, ~1 );
+
+    OUTREG(RADEON_DAC_CNTL2, RADEON_DAC2_DAC2_CLK_SEL );
+
+    OUTREG(RADEON_CRTC2_GEN_CNTL,
+	   RADEON_CRTC2_CRT2_ON | RADEON_CRTC2_VSYNC_TRISTAT );
+
+    OUTREG(RADEON_DAC_EXT_CNTL,
+	   RADEON_DAC2_FORCE_BLANK_OFF_EN |
+	   RADEON_DAC2_FORCE_DATA_EN |
+	   RADEON_DAC_FORCE_DATA_SEL_RGB |
+	   (0xec << RADEON_DAC_FORCE_DATA_SHIFT ));
+
+    OUTREG(RADEON_TV_DAC_CNTL,
+	   RADEON_TV_DAC_STD_NTSC |
+	   (8 << RADEON_TV_DAC_BGADJ_SHIFT) |
+	   (6 << RADEON_TV_DAC_DACADJ_SHIFT ));
+
+    INREG(RADEON_TV_DAC_CNTL);
+
+    usleep(4000);
+
+    OUTREG(RADEON_TV_DAC_CNTL,
+	   RADEON_TV_DAC_NBLANK |
+	   RADEON_TV_DAC_NHOLD |
+	   RADEON_TV_MONITOR_DETECT_EN |
+	   RADEON_TV_DAC_STD_NTSC |
+	   (8 << RADEON_TV_DAC_BGADJ_SHIFT) |
+	   (6 << RADEON_TV_DAC_DACADJ_SHIFT ));
+
+    INREG(RADEON_TV_DAC_CNTL);
+
+    usleep(6000);
+
+    tmp = INREG(RADEON_TV_DAC_CNTL);
+    if ( (tmp & RADEON_TV_DAC_GDACDET) != 0 ) {
+	found = MT_STV;
+	xf86DrvMsg (pScrn->scrnIndex, X_INFO,
+		    "S-Video TV connection detected\n");
+    } else if ( (tmp & RADEON_TV_DAC_BDACDET) != 0 ) {
+	found = MT_CTV;
+	xf86DrvMsg (pScrn->scrnIndex, X_INFO,
+		    "Composite TV connection detected\n" );
+    }
+
+    OUTREG(RADEON_TV_DAC_CNTL, tv_dac_cntl );
+    OUTREG(RADEON_DAC_EXT_CNTL, dac_ext_cntl);
+    OUTREG(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
+    OUTREG(RADEON_DAC_CNTL2, dac_cntl2);
+    OUTREGP(RADEON_GPIOPAD_A, gpiopad_a, ~1);
+
+    return found;
+}
+
+static RADEONMonitorType
 radeon_detect_tv(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -1332,6 +1402,9 @@ radeon_detect_tv(ScrnInfoPtr pScrn)
     CARD32 tmp, dac_cntl2, crtc_ext_cntl, crtc2_gen_cntl, tv_master_cntl;
     CARD32 tv_dac_cntl, tv_pre_dac_mux_cntl, config_cntl;
     RADEONMonitorType found = MT_NONE;
+
+    if (IS_R300_VARIANT)
+	return r300_detect_tv(pScrn);
 
     /* save the regs we need */
     dac_cntl2 = INREG(RADEON_DAC_CNTL2);
