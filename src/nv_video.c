@@ -1254,8 +1254,8 @@ static int NV_calculate_pitches_and_mem_size(int action_flags, int * srcPitch, i
 		*s3offset = (*srcPitch2 * (height >> 1)) + *s2offset;
 		*dstPitch = (width + 63) &~ 63; /*luma and chroma pitch*/
 		*line_len = npixels;
-		*newFBSize = height * *dstPitch + (nlines >> 1) * *dstPitch;
-		*newTTSize = nlines * *line_len + *dstPitch * (nlines >> 1);
+		*newFBSize = height * *dstPitch + (height >> 1) * *dstPitch;
+		*newTTSize = nlines * *line_len + (height >> 1) * *dstPitch;
 		}
 	else if ( action_flags & IS_YUY2 )
 		{
@@ -1397,6 +1397,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	CARD32 tmp = 0;
 	int line_len = 0; //length of a line, like npixels, but in bytes 
 	int DMAoffset = 0; //additional VRAM offset to start the DMA copy to
+	int UVDMAoffset = 0;
 	NVAllocRec * destination_buffer = NULL;
 	unsigned char * video_mem_destination = NULL;  
 	int action_flags; //what shall we do?
@@ -1438,6 +1439,10 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		
 	if ( action_flags & IS_YV12 )
 		{
+		tmp = ((top >> 1) * srcPitch2) + (left >> 1);
+		s2offset += tmp;
+		s3offset += tmp;
+			
 		if ( action_flags & CONVERT_TO_YUY2 )
 			{
 			DMAoffset += (left << 1) + (top * dstPitch);
@@ -1447,6 +1452,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			{
 			//real YV12 - we offset only the luma plane, and copy the whole color plane, for easiness
 			DMAoffset += left + (top * dstPitch);
+			UVDMAoffset += left + (top >> 1) * dstPitch;
 			}	
 		}
 	
@@ -1471,7 +1477,6 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		else if (pPriv->currentBuffer)
 			offset += newFBSize >> 1;
 	}
-
 
 	/*Now we take a decision regarding the way we send the data to the card.
 	Either we use double buffering of "private" TT memory
@@ -1558,9 +1563,6 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			{
 			if ( action_flags & CONVERT_TO_YUY2 )
 				{
-				tmp = ((top >> 1) * srcPitch2) + (left >> 1);
-				s2offset += tmp;
-				s3offset += tmp;
 				NVCopyData420(buf + (top * srcPitch) + left,
                                 buf + s2offset, buf + s3offset,
                                 dst, srcPitch, srcPitch2,
@@ -1570,7 +1572,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				{ /*Native YV12*/
 				unsigned char * tbuf = buf + top * srcPitch + left;
 				unsigned char * tdst = dst;
-				//xf86DrvMsg(0, X_INFO, "srcPitch %d dstPitch %d srcPitch2 %d nlines %d npixels %d left %d top %d s2offset %d\n", srcPitch, dstPitch, srcPitch2, nlines, npixels, left, top, s2offset);
+				xf86DrvMsg(0, X_INFO, "srcPitch %d dstPitch %d srcPitch2 %d nlines %d npixels %d left %d top %d s2offset %d\n", srcPitch, dstPitch, srcPitch2, nlines, npixels, left, top, s2offset);
 				/* luma upload */
 				for ( i=0; i < nlines; i++)
 					{
@@ -1579,7 +1581,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 					tbuf += srcPitch;
 					}
 				dst += line_len * nlines;
-				NVCopyNV12ColorPlanes(buf + s2offset, buf + s3offset, dst, dstPitch, srcPitch2, height, width);
+				NVCopyNV12ColorPlanes(buf + s2offset, buf + s3offset, dst, npixels, srcPitch2, nlines, npixels);
 				}
 			}
 		else 
@@ -1604,10 +1606,10 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			NVDmaStart(pNv, NvMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 			NVDmaNext (pNv, (uint32_t)destination_buffer->offset + line_len * nlines);
-			NVDmaNext (pNv, (uint32_t)offset + height * dstPitch);
+			NVDmaNext (pNv, (uint32_t)offset + height * dstPitch + UVDMAoffset);
+			NVDmaNext (pNv, npixels);
 			NVDmaNext (pNv, dstPitch);
-			NVDmaNext (pNv, dstPitch);
-			NVDmaNext (pNv, dstPitch);
+			NVDmaNext (pNv, npixels);
 			NVDmaNext (pNv, (nlines >> 1));
 			NVDmaNext (pNv, (1<<8)|1);
 			NVDmaNext (pNv, 0);
@@ -1670,9 +1672,9 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				}
 			else {
 				unsigned char * tbuf = buf;
-				for ( i=0; i < nlines; i++)
+				for ( i=0; i < height; i++)
 				{
-				int dwords = npixels << 1;
+				int dwords = width << 1;
 				while (dwords & ~0x03) 
 					{
 					*video_mem_destination = *tbuf;
@@ -1693,11 +1695,11 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 						*video_mem_destination = *tbuf;
 					}
 				
-				video_mem_destination += dstPitch - (npixels << 1);
-				tbuf += srcPitch - (npixels << 1);
+				video_mem_destination += dstPitch - (width << 1);
+				tbuf += srcPitch - (width << 1);
 				}
 				
-				NVCopyNV12ColorPlanes(buf + s2offset, buf + s3offset, video_mem_destination, dstPitch, srcPitch2, height, width);
+				NVCopyNV12ColorPlanes(buf + s2offset - tmp, buf + s3offset - tmp, pPriv->video_mem->map + (offset - (uint32_t)pPriv->video_mem->offset) + height * dstPitch, dstPitch, srcPitch2, height, width);
 				}
 			}
 		else //YUY2 and RGB
