@@ -940,8 +940,9 @@ static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
     if (IS_R300_VARIANT)
 	save->gpiopad_a = info->SavedReg.gpiopad_a | 1;
 
+    save->dac2_cntl = info->SavedReg.dac2_cntl | RADEON_DAC2_DAC2_CLK_SEL;
+
     if (IsPrimary) {
-        save->dac2_cntl = info->SavedReg.dac2_cntl | RADEON_DAC2_DAC2_CLK_SEL;
         if (IS_R300_VARIANT) {
             save->disp_output_cntl = info->SavedReg.disp_output_cntl &
 					~RADEON_DISP_TVDAC_SOURCE_MASK;
@@ -954,9 +955,7 @@ static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
             save->disp_hw_debug = info->SavedReg.disp_hw_debug | RADEON_CRT2_DISP1_SEL;
         }
     } else {
-            save->dac2_cntl = info->SavedReg.dac2_cntl | RADEON_DAC2_DAC2_CLK_SEL;
         if (IS_R300_VARIANT) {
-            save->dac2_cntl = info->SavedReg.dac2_cntl | RADEON_DAC2_DAC2_CLK_SEL;
             save->disp_output_cntl = info->SavedReg.disp_output_cntl &
 					~RADEON_DISP_TVDAC_SOURCE_MASK;
             save->disp_output_cntl |= RADEON_DISP_TVDAC_SOURCE_CRTC2;
@@ -966,7 +965,6 @@ static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
 				    RADEON_FP2_DVO_RATE_SEL_SDR);
             save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC2;
         } else {
-            save->dac2_cntl = info->SavedReg.dac2_cntl | RADEON_DAC2_DAC2_CLK_SEL;
             save->disp_hw_debug = info->SavedReg.disp_hw_debug &
 					~RADEON_CRT2_DISP1_SEL;
         }
