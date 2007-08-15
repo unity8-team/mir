@@ -825,6 +825,15 @@ static void RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
     int    yres = mode->VDisplay;
     float  Hratio, Vratio;
 
+    save->fp_vert_stretch = info->SavedReg.fp_vert_stretch &
+	                    RADEON_VERT_STRETCH_RESERVED;
+    save->fp_horz_stretch = info->SavedReg.fp_horz_stretch &
+	                    (RADEON_HORZ_FP_LOOP_STRETCH |
+	                     RADEON_HORZ_AUTO_RATIO_INC);
+
+    if (radeon_output->MonType != MT_LCD && radeon_output->MonType != MT_DFP)
+	return;
+
     if (radeon_output->PanelXRes == 0 || radeon_output->PanelYRes == 0) {
 	Hratio = 1.0;
 	Vratio = 1.0;
@@ -835,12 +844,6 @@ static void RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
 	Hratio = (float)xres/(float)radeon_output->PanelXRes;
 	Vratio = (float)yres/(float)radeon_output->PanelYRes;
     }
-
-	save->fp_vert_stretch = info->SavedReg.fp_vert_stretch &
-				  RADEON_VERT_STRETCH_RESERVED;
-	save->fp_horz_stretch = info->SavedReg.fp_horz_stretch &
-				  (RADEON_HORZ_FP_LOOP_STRETCH |
-				  RADEON_HORZ_AUTO_RATIO_INC);
 
     if (Hratio == 1.0 || !(mode->Flags & RADEON_USE_RMX)) {
 	save->fp_horz_stretch |= ((xres/8-1)<<16);
@@ -978,6 +981,9 @@ RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     Bool IsPrimary = crtc_num == 0 ? TRUE : FALSE;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
+    if (crtc_num == 0)
+	RADEONInitRMXRegisters(output, save, mode);
+
     if (radeon_output->MonType == MT_CRT) {
 	if (radeon_output->DACType == DAC_PRIMARY) {
 	    RADEONInitDACRegisters(output, save, mode, IsPrimary);
@@ -985,12 +991,8 @@ RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	    RADEONInitDAC2Registers(output, save, mode, IsPrimary);
 	}
     } else if (radeon_output->MonType == MT_LCD) {
-	if (crtc_num == 0)
-	    RADEONInitRMXRegisters(output, save, mode);
 	RADEONInitLVDSRegisters(output, save, mode, IsPrimary);
     } else if (radeon_output->MonType == MT_DFP) {
-	if (crtc_num == 0)
-	    RADEONInitRMXRegisters(output, save, mode);
 	if (radeon_output->TMDSType == TMDS_INT) {
 	    RADEONInitFPRegisters(output, save, mode, IsPrimary);
 	} else {
@@ -1014,16 +1016,15 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     RADEONInitOutputRegisters(pScrn, &info->ModeReg, adjusted_mode, output, radeon_crtc->crtc_id);
 
+    if (radeon_crtc->crtc_id == 0)
+	RADEONRestoreRMXRegisters(pScrn, &info->ModeReg);
+
     switch(radeon_output->MonType) {
     case MT_LCD:
 	ErrorF("restore LVDS\n");
-	if (radeon_crtc->crtc_id == 0)
-	    RADEONRestoreRMXRegisters(pScrn, &info->ModeReg);
 	RADEONRestoreLVDSRegisters(pScrn, &info->ModeReg);
 	break;
     case MT_DFP:
-	if (radeon_crtc->crtc_id == 0)
-	    RADEONRestoreRMXRegisters(pScrn, &info->ModeReg);
 	if (radeon_output->TMDSType == TMDS_INT) {
 	    ErrorF("restore FP\n");
 	    RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
