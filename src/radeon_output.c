@@ -1328,7 +1328,7 @@ r300_detect_tv(ScrnInfoPtr pScrn)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 tmp, dac_cntl2, crtc2_gen_cntl, dac_ext_cntl, tv_dac_cntl;
-    CARD32 gpiopad_a;
+    CARD32 gpiopad_a, disp_output_cntl;
     RADEONMonitorType found = MT_NONE;
 
     /* save the regs we need */
@@ -1337,6 +1337,7 @@ r300_detect_tv(ScrnInfoPtr pScrn)
     crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL);
     dac_ext_cntl = INREG(RADEON_DAC_EXT_CNTL);
     tv_dac_cntl = INREG(RADEON_TV_DAC_CNTL);
+    disp_output_cntl = INREG(RADEON_DISP_OUTPUT_CNTL);
 
     OUTREGP(RADEON_GPIOPAD_A, 0, ~1 );
 
@@ -1344,6 +1345,10 @@ r300_detect_tv(ScrnInfoPtr pScrn)
 
     OUTREG(RADEON_CRTC2_GEN_CNTL,
 	   RADEON_CRTC2_CRT2_ON | RADEON_CRTC2_VSYNC_TRISTAT );
+
+    tmp = disp_output_cntl & ~RADEON_DISP_TVDAC_SOURCE_MASK;
+    tmp |= RADEON_DISP_TVDAC_SOURCE_CRTC2;
+    OUTREG(RADEON_DISP_OUTPUT_CNTL, tmp);
 
     OUTREG(RADEON_DAC_EXT_CNTL,
 	   RADEON_DAC2_FORCE_BLANK_OFF_EN |
@@ -1386,6 +1391,7 @@ r300_detect_tv(ScrnInfoPtr pScrn)
     OUTREG(RADEON_TV_DAC_CNTL, tv_dac_cntl );
     OUTREG(RADEON_DAC_EXT_CNTL, dac_ext_cntl);
     OUTREG(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
+    OUTREG(RADEON_DISP_OUTPUT_CNTL, disp_output_cntl);
     OUTREG(RADEON_DAC_CNTL2, dac_cntl2);
     OUTREGP(RADEON_GPIOPAD_A, gpiopad_a, ~1);
 
@@ -1397,7 +1403,7 @@ radeon_detect_tv(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 tmp, dac_cntl2, crtc_ext_cntl, crtc2_gen_cntl, tv_master_cntl;
+    CARD32 tmp, dac_cntl2, tv_master_cntl;
     CARD32 tv_dac_cntl, tv_pre_dac_mux_cntl, config_cntl;
     RADEONMonitorType found = MT_NONE;
 
@@ -1406,7 +1412,6 @@ radeon_detect_tv(ScrnInfoPtr pScrn)
 
     /* save the regs we need */
     dac_cntl2 = INREG(RADEON_DAC_CNTL2);
-    crtc_ext_cntl = INREG(RADEON_CRTC_EXT_CNTL);
     tv_master_cntl = INREG(RADEON_TV_MASTER_CNTL);
     tv_dac_cntl = INREG(RADEON_TV_DAC_CNTL);
     config_cntl = INREG(RADEON_CONFIG_CNTL);
@@ -1460,7 +1465,6 @@ radeon_detect_tv(ScrnInfoPtr pScrn)
     OUTREG(RADEON_TV_PRE_DAC_MUX_CNTL, tv_pre_dac_mux_cntl);
     OUTREG(RADEON_TV_DAC_CNTL, tv_dac_cntl);
     OUTREG(RADEON_TV_MASTER_CNTL, tv_master_cntl);
-    OUTREG(RADEON_CRTC_EXT_CNTL, crtc_ext_cntl);
     OUTREG(RADEON_DAC_CNTL2, dac_cntl2);
 
     return found;
