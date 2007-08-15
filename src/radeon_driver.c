@@ -5076,7 +5076,7 @@ void RADEONRestoreMode(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONRestoreFPRegisters(pScrn, restore);
     RADEONRestoreFP2Registers(pScrn, restore);
     RADEONRestoreLVDSRegisters(pScrn, restore);
-    RADEONRestoreDACRegisters(pScrn, restore);
+
     if (info->InternalTVOut)
 	RADEONRestoreTVRegisters(pScrn, restore);
 
@@ -5553,21 +5553,19 @@ void RADEONRestore(ScrnInfoPtr pScrn)
     }
 #endif
 
-    /*RADEONUnblank(pScrn);*/
-    /* R4xx hangs when unblanking, but seems to restore fine without it. 
-     * This will probably cause problems with non-VGA consoles.
-     */
-    if (!info->IsAtomBios) {
-	/* need to make sure we don't enable a crtc by accident or we may get a hang */
-	if (info->crtc_on) {
-	    crtc = xf86_config->crtc[0];
-	    crtc->funcs->dpms(crtc, DPMSModeOn);
-	}
-	if (info->crtc2_on) {
-	    crtc = xf86_config->crtc[1];
-	    crtc->funcs->dpms(crtc, DPMSModeOn);
-	}
+    /* need to make sure we don't enable a crtc by accident or we may get a hang */
+    if (info->crtc2_on) {
+	crtc = xf86_config->crtc[1];
+	crtc->funcs->dpms(crtc, DPMSModeOn);
     }
+    if (info->crtc_on) {
+	crtc = xf86_config->crtc[0];
+	crtc->funcs->dpms(crtc, DPMSModeOn);
+    }
+    /* to restore console mode, DAC registers should be set after every other registers are set,
+     * otherwise,we may get blank screen 
+     */
+    RADEONRestoreDACRegisters(pScrn, restore);
 
 #if 0
     RADEONWaitForVerticalSync(pScrn);
