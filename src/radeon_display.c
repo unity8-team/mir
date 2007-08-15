@@ -276,6 +276,13 @@ void RADEONDisableDisplays(ScrnInfoPtr pScrn) {
     }
     RADEONDacPowerSet(pScrn, FALSE, FALSE);
 
+    /* turn off tv-out */
+    if (info->InternalTVOut) {
+	tmp = INREG(RADEON_TV_MASTER_CNTL);
+	tmp &= ~RADEON_TV_ON;
+	OUTREG(RADEON_TV_MASTER_CNTL, tmp);
+    }
+
     /* FP 1 */
     tmp = INREG(RADEON_FP_GEN_CNTL);
     tmp &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
@@ -333,7 +340,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
                     save->fp2_gen_cntl |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
                 } else {
                     tmp = INREG(RADEON_CRTC2_GEN_CNTL);
-                    tmp |= RADEON_CRTC2_CRT2_ON;  
+                    tmp |= RADEON_CRTC2_CRT2_ON;
                     OUTREG(RADEON_CRTC2_GEN_CNTL, tmp);
                     save->crtc2_gen_cntl |= RADEON_CRTC2_CRT2_ON;
                 }
@@ -368,7 +375,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
         if (radeon_output->MonType == MT_CRT) {
             if (radeon_output->DACType == DAC_PRIMARY) {
                 tmp = INREG(RADEON_CRTC_EXT_CNTL);
-                tmp &= ~RADEON_CRTC_CRT_ON;       
+                tmp &= ~RADEON_CRTC_CRT_ON;
                 OUTREG(RADEON_CRTC_EXT_CNTL, tmp);
                 save->crtc_ext_cntl &= ~RADEON_CRTC_CRT_ON;
             } else if (radeon_output->DACType == DAC_TVDAC) {
