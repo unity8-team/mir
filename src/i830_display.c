@@ -372,10 +372,11 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     int pipe = intel_crtc->pipe;
+    int plane = intel_crtc->plane;
     unsigned long Start, Offset;
-    int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
-    int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
-    int dsptileoff = (pipe == 0 ? DSPATILEOFF : DSPBTILEOFF);
+    int dspbase = (plane == 0 ? DSPABASE : DSPBBASE);
+    int dspsurf = (plane == 0 ? DSPASURF : DSPBSURF);
+    int dsptileoff = (plane == 0 ? DSPATILEOFF : DSPBTILEOFF);
 
     Offset = ((y * pScrn->displayWidth + x) * pI830->cpp);
     if (pI830->front_buffer == NULL) {
@@ -523,8 +524,7 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
-    int pipe = intel_crtc->pipe;
-    int plane = (pipe == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
+    int plane = (intel_crtc->plane == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
 
     if (!pI830->fb_compression)
 	return FALSE;
@@ -569,17 +569,15 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     uint32_t fbc_ctl = 0;
     unsigned long compressed_stride;
-    int pipe = intel_crtc->pipe;
-    /* FIXME: plane & pipe might not always be equal */
-    int plane = (pipe == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
+    int plane = (intel_crtc->plane == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
     unsigned long uncompressed_stride = pScrn->displayWidth * pI830->cpp;
     unsigned long interval = 1000;
 
     if (INREG(FBC_CONTROL) & FBC_CTL_EN) {
-	char cur_pipe = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
+	char cur_plane = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "fbc already enabled on "
-		   "pipe %c, not enabling on pipe %c\n", cur_pipe, pipe ? 'b' :
-		   'a');
+		   "plane %c, not enabling on plane %c\n", cur_plane,
+		   plane ? 'b' : 'a');
 	return;
     }
 
@@ -615,7 +613,7 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
     fbc_ctl |= FBC_CTL_UNCOMPRESSIBLE;
     OUTREG(FBC_CONTROL, fbc_ctl);
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc enabled on plane %c\n", pipe ?
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc enabled on plane %c\n", plane ?
 	       'b' : 'a');
 }
 
@@ -625,7 +623,7 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t fbc_ctl;
-    char pipe = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
+    char plane = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
 
     /* Disable compression */
     fbc_ctl = INREG(FBC_CONTROL);
@@ -635,7 +633,7 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
     /* Wait for compressing bit to clear */
     while (INREG(FBC_STATUS) & FBC_STAT_COMPRESSING)
 	; /* nothing */
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled on pipe %c\n", pipe);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled on pipe %c\n", plane);
 }
 
 /**
@@ -651,10 +649,11 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     int pipe = intel_crtc->pipe;
+    int plane = intel_crtc->plane;
     int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
-    int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
-    int dspbase_reg = (pipe == 0) ? DSPABASE : DSPBBASE;
     int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
+    int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
+    int dspbase_reg = (plane == 0) ? DSPABASE : DSPBBASE;
     CARD32 temp;
 
     /* XXX: When our outputs are all unaware of DPMS modes other than off and
@@ -951,10 +950,10 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     int pipe = intel_crtc->pipe;
+    int plane = intel_crtc->plane;
     int fp_reg = (pipe == 0) ? FPA0 : FPB0;
     int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
-    int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
-    int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
+    int dpll_md_reg = (pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
     int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
     int htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
     int hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
@@ -962,10 +961,11 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int vtot_reg = (pipe == 0) ? VTOTAL_A : VTOTAL_B;
     int vblank_reg = (pipe == 0) ? VBLANK_A : VBLANK_B;
     int vsync_reg = (pipe == 0) ? VSYNC_A : VSYNC_B;
-    int dspsize_reg = (pipe == 0) ? DSPASIZE : DSPBSIZE;
-    int dspstride_reg = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
-    int dsppos_reg = (pipe == 0) ? DSPAPOS : DSPBPOS;
     int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
+    int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
+    int dspstride_reg = (plane == 0) ? DSPASTRIDE : DSPBSTRIDE;
+    int dsppos_reg = (plane == 0) ? DSPAPOS : DSPBPOS;
+    int dspsize_reg = (plane == 0) ? DSPASIZE : DSPBSIZE;
     int i;
     int refclk;
     intel_clock_t clock;
@@ -1415,8 +1415,11 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 
     for (i = 0; i < xf86_config->num_crtc; i++) {
 	xf86CrtcPtr crtc = xf86_config->crtc[i];
-	CARD32 dspcntr = INREG(DSPACNTR + (DSPBCNTR - DSPACNTR) * i);
-	CARD32 pipeconf = INREG(PIPEACONF + (PIPEBCONF - PIPEACONF) * i);
+	I830CrtcPrivatePtr intel_crtc = crtc ? crtc->driver_private : NULL;
+	CARD32 dspcntr = intel_crtc->plane == 0 ? INREG(DSPACNTR) :
+	    INREG(DSPBCNTR);
+	CARD32 pipeconf = i == 0 ? INREG(PIPEACONF) :
+	    INREG(PIPEBCONF);
 	Bool hw_plane_enable = (dspcntr & DISPLAY_PLANE_ENABLE) != 0;
 	Bool hw_pipe_enable = (pipeconf & PIPEACONF_ENABLE) != 0;
 
@@ -1425,8 +1428,8 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
 		   'A' + i, crtc->enabled ? "on" : "off");
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "  Display plane %c is now %s and connected to pipe %c.\n",
-		   'A' + i,
-		   crtc->enabled ? "enabled" : "disabled",
+		   'A' + intel_crtc->plane,
+		   hw_plane_enable ? "enabled" : "disabled",
 		   dspcntr & DISPPLANE_SEL_PIPE_MASK ? 'B' : 'A');
 	if (hw_pipe_enable != crtc->enabled) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -1730,6 +1733,7 @@ i830_crtc_init(ScrnInfoPtr pScrn, int pipe)
     intel_crtc = xnfcalloc (sizeof (I830CrtcPrivateRec), 1);
     intel_crtc->pipe = pipe;
     intel_crtc->dpms_mode = DPMSModeOff;
+    intel_crtc->plane = pipe;
 
     /* Initialize the LUTs for when we turn on the CRTC. */
     for (i = 0; i < 256; i++) {

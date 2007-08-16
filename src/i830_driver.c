@@ -742,7 +742,8 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
 {
    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
    I830Ptr  pI830 = I830PTR(pScrn);
-   int	    o;
+   int	    o, c;
+   Bool	    lvds_detected = FALSE;
 
    /* everyone has at least a single analog output */
    i830_crt_init(pScrn);
@@ -765,7 +766,9 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       xf86OutputPtr	   output = config->output[o];
       I830OutputPrivatePtr intel_output = output->driver_private;
       int		   crtc_mask;
-      int		   c;
+
+      if (intel_output->type == I830_OUTPUT_LVDS)
+	  lvds_detected = TRUE;
       
       crtc_mask = 0;
       for (c = 0; c < config->num_crtc; c++)
@@ -778,6 +781,24 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       }
       output->possible_crtcs = crtc_mask;
       output->possible_clones = i830_output_clones (pScrn, intel_output->clone_mask);
+   }
+
+   /*
+    * If an LVDS display is present, swap the plane/pipe mappings so we can
+    * use FBC on the builtin display.
+    * Note: 965+ chips can compress either plane, so we leave the mapping
+    *       alone in that case.
+    */
+   if (lvds_detected && !IS_I965GM(pI830)) {
+       for (c = 0; c < config->num_crtc; c++) {
+	   xf86CrtcPtr	      crtc = config->crtc[c];
+	   I830CrtcPrivatePtr   intel_crtc = crtc->driver_private;
+
+	   if (intel_crtc->pipe == 0)
+	       intel_crtc->plane = 1;
+	   else if (intel_crtc->pipe == 1)
+	       intel_crtc->plane = 0;
+      }
    }
 }
 

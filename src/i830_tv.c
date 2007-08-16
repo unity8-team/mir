@@ -878,11 +878,11 @@ i830_tv_restore(xf86OutputPtr output)
     OUTREG(TV_CLR_LEVEL, dev_priv->save_TV_CLR_LEVEL);
 
     {
-	int pipeconf_reg = (intel_crtc->pipe == 0)?PIPEACONF:PIPEBCONF;
-	int dspcntr_reg = (intel_crtc->pipe == 0)?DSPACNTR : DSPBCNTR;
+	int pipeconf_reg = (intel_crtc->pipe == 0) ? PIPEACONF : PIPEBCONF;
+	int dspcntr_reg = (intel_crtc->plane == 0) ? DSPACNTR : DSPBCNTR;
 	int pipeconf = INREG(pipeconf_reg);
 	int dspcntr = INREG(dspcntr_reg);
-	int dspbase_reg = (intel_crtc->pipe == 0) ? DSPABASE : DSPBBASE;
+	int dspbase_reg = (intel_crtc->plane == 0) ? DSPABASE : DSPBBASE;
 	/* Pipe must be off here */
 	OUTREG(dspcntr_reg, dspcntr & ~DISPLAY_PLANE_ENABLE);
 	/* Flush the plane changes */
@@ -1182,11 +1182,11 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     OUTREG(TV_CLR_LEVEL, ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 		(video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
     {
-	int pipeconf_reg = (intel_crtc->pipe == 0)?PIPEACONF:PIPEBCONF;
-	int dspcntr_reg = (intel_crtc->pipe == 0)?DSPACNTR : DSPBCNTR;
+	int pipeconf_reg = (intel_crtc->pipe == 0) ? PIPEACONF : PIPEBCONF;
+	int dspcntr_reg = (intel_crtc->plane == 0) ? DSPACNTR : DSPBCNTR;
 	int pipeconf = INREG(pipeconf_reg);
 	int dspcntr = INREG(dspcntr_reg);
-	int dspbase_reg = (intel_crtc->pipe == 0) ? DSPABASE : DSPBBASE;
+	int dspbase_reg = (intel_crtc->plane == 0) ? DSPABASE : DSPBBASE;
 	int xpos = 0x0, ypos = 0x0;
 	unsigned int xsize, ysize;
 	/* Pipe must be off here */
