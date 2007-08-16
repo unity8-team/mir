@@ -525,6 +525,8 @@ NVPutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
 		dstBox->y2 <<= 1;
 		drw_h <<= 1;
 	}
+	
+	//xf86DrvMsg(0, X_INFO, "SIZE_IN h %d w %d, POINT_IN x %d y %d, DS_DX %d DT_DY %d, POINT_OUT x %d y %d SIZE_OUT h %d w %d\n", height, width, x1 >> 16,y1>>16, (src_w << 20) / drw_w, (src_h << 20) / drw_h,  (dstBox->x1),(dstBox->y1), (dstBox->y2 - dstBox->y1), (dstBox->x2 - dstBox->x1));
 
 	nvWriteVIDEO(pNv, NV_PVIDEO_BASE(buffer)     , 0);
 	nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(buffer)     , offset);
@@ -1201,20 +1203,19 @@ static int NV_set_dimensions(ScrnInfoPtr pScrn, int action_flags, INT32 * xa, IN
 		dstBox->y1 -= pScrn->frameY0;
 		dstBox->y2 -= pScrn->frameY0;
 		}
-	
-	
-	/* We need to enlarge the copied rectangle by a pixel so the HW
-	 * filtering doesn't pick up junk laying outside of the source */
-	/* This is fixed point arithmetic, as xf86XVClipVideoHelper probably turns its parameter into fixed point values */
-	*left = (*xa - 0x00010000) >> 16;
-	if (*left < 0) *left = 0;
-	*top = (*ya - 0x00010000) >> 16;
-	if (*top < 0) *top = 0;
-	*right = (*xb + 0x0001ffff) >> 16;
-	if (*right > width) *right = width;
-	*bottom = (*yb + 0x0001ffff) >> 16;
-	if (*bottom > height) *bottom = height;
 		
+	
+	
+	/* Convert fixed point to integer, as xf86XVClipVideoHelper probably turns its parameter into fixed point values */
+	*left = (*xa) >> 16;
+	if (*left < 0) *left = 0;
+	*top = (*ya) >> 16;
+	if (*top < 0) *top = 0;
+	*right = (*xb) >> 16;
+	if (*right > width) *right = width;
+	*bottom = (*yb) >> 16;
+	if (*bottom > height) *bottom = height;
+	
 	if ( action_flags & IS_YV12 )
 		{
 		*left &= ~1; //even "left", even "top", even number of pixels per line and even number of lines
@@ -1252,34 +1253,34 @@ static int NV_calculate_pitches_and_mem_size(int action_flags, int * srcPitch, i
 		*s2offset = *srcPitch * height;
 		*srcPitch2 = ((width >> 1) + 3) & ~3; /*of chroma*/
 		*s3offset = (*srcPitch2 * (height >> 1)) + *s2offset;
-		*dstPitch = (width + 63) &~ 63; /*luma and chroma pitch*/
+		*dstPitch = (npixels + 63) &~ 63; /*luma and chroma pitch*/
 		*line_len = npixels;
-		*newFBSize = height * *dstPitch + (height >> 1) * *dstPitch;
-		*newTTSize = nlines * *line_len + (height >> 1) * *dstPitch;
+		*newFBSize = nlines * *dstPitch + (nlines >> 1) * *dstPitch;
+		*newTTSize = nlines * *dstPitch + (nlines >> 1) * *dstPitch;
 		}
 	else if ( action_flags & IS_YUY2 )
 		{
 		*srcPitch = width << 1; /* one luma, one chroma per pixel */
-		*dstPitch = ((width << 1) + 63) & ~63;
+		*dstPitch = ((npixels << 1) + 63) & ~63;
 		*line_len = npixels << 1;
-		*newFBSize = height * *dstPitch;
+		*newFBSize = nlines * *dstPitch;
 		*newTTSize = nlines * *line_len;
 		}
 	else if ( action_flags & IS_RGB )
 		{
 		*srcPitch = width << 2; /* one R, one G, one B, one X per pixel */
-		*dstPitch = ((width << 2) + 63) & ~63;
+		*dstPitch = ((npixels << 2) + 63) & ~63;
 		*line_len = npixels << 2;
-		*newFBSize = height * *dstPitch;
-		*newTTSize = nlines * *line_len;		
+		*newFBSize = nlines * *dstPitch;
+		*newTTSize = nlines * *dstPitch;		
 		}
 	
 	
 	if ( action_flags & CONVERT_TO_YUY2 )
 		{
-		*dstPitch = ((width << 1) + 63) & ~63;
+		*dstPitch = ((npixels << 1) + 63) & ~63;
 		*line_len = npixels << 1;
-		*newFBSize = height * *dstPitch;
+		*newFBSize = nlines * *dstPitch;
 		*newTTSize = nlines * *line_len;
 		}
 	
@@ -1483,7 +1484,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	Either we rely on X's GARTScratch 
 	Either we fallback on CPU copy
 	*/
-	
+
 	/* Try to allocate host-side double buffers, unless we have already failed*/
 	/* We take only nlines * line_len bytes - that is, only the pixel data we are interested in - because the stuff in the GART is 
 		 written contiguously */
@@ -1572,7 +1573,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				{ /*Native YV12*/
 				unsigned char * tbuf = buf + top * srcPitch + left;
 				unsigned char * tdst = dst;
-				xf86DrvMsg(0, X_INFO, "srcPitch %d dstPitch %d srcPitch2 %d nlines %d npixels %d left %d top %d s2offset %d\n", srcPitch, dstPitch, srcPitch2, nlines, npixels, left, top, s2offset);
+				//xf86DrvMsg(0, X_INFO, "srcPitch %d dstPitch %d srcPitch2 %d nlines %d npixels %d left %d top %d s2offset %d\n", srcPitch, dstPitch, srcPitch2, nlines, npixels, left, top, s2offset);
 				/* luma upload */
 				for ( i=0; i < nlines; i++)
 					{
@@ -1581,7 +1582,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 					tbuf += srcPitch;
 					}
 				dst += line_len * nlines;
-				NVCopyNV12ColorPlanes(buf + s2offset, buf + s3offset, dst, npixels, srcPitch2, nlines, npixels);
+				NVCopyNV12ColorPlanes(buf + s2offset, buf + s3offset, dst, line_len, srcPitch2, nlines, line_len);
 				}
 			}
 		else 
@@ -1606,10 +1607,10 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			NVDmaStart(pNv, NvMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 			NVDmaNext (pNv, (uint32_t)destination_buffer->offset + line_len * nlines);
-			NVDmaNext (pNv, (uint32_t)offset + height * dstPitch + UVDMAoffset);
-			NVDmaNext (pNv, npixels);
+			NVDmaNext (pNv, (uint32_t)offset + dstPitch * nlines);
+			NVDmaNext (pNv, line_len);
 			NVDmaNext (pNv, dstPitch);
-			NVDmaNext (pNv, npixels);
+			NVDmaNext (pNv, line_len);
 			NVDmaNext (pNv, (nlines >> 1));
 			NVDmaNext (pNv, (1<<8)|1);
 			NVDmaNext (pNv, 0);
@@ -1619,7 +1620,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		NVDmaStart(pNv, NvMemFormat,
 			NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 		NVDmaNext (pNv, (uint32_t)destination_buffer->offset);
-		NVDmaNext (pNv, (uint32_t)offset + DMAoffset);
+		NVDmaNext (pNv, (uint32_t)offset /*+ DMAoffset*/);
 		NVDmaNext (pNv, line_len);
 		NVDmaNext (pNv, dstPitch);
 		NVDmaNext (pNv, line_len);
@@ -1671,10 +1672,10 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 					dstPitch, nlines, npixels);
 				}
 			else {
-				unsigned char * tbuf = buf;
-				for ( i=0; i < height; i++)
+				unsigned char * tbuf = buf + left + top * srcPitch;
+				for ( i=0; i < nlines; i++)
 				{
-				int dwords = width << 1;
+				int dwords = npixels << 1;
 				while (dwords & ~0x03) 
 					{
 					*video_mem_destination = *tbuf;
@@ -1695,11 +1696,11 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 						*video_mem_destination = *tbuf;
 					}
 				
-				video_mem_destination += dstPitch - (width << 1);
-				tbuf += srcPitch - (width << 1);
+				video_mem_destination += dstPitch - (npixels << 1);
+				tbuf += srcPitch - (npixels << 1);
 				}
 				
-				NVCopyNV12ColorPlanes(buf + s2offset - tmp, buf + s3offset - tmp, pPriv->video_mem->map + (offset - (uint32_t)pPriv->video_mem->offset) + height * dstPitch, dstPitch, srcPitch2, height, width);
+				NVCopyNV12ColorPlanes(buf + s2offset, buf + s3offset, video_mem_destination, dstPitch, srcPitch2, nlines, line_len);
 				}
 			}
 		else //YUY2 and RGB
@@ -1741,10 +1742,10 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		
 		if ( action_flags & USE_OVERLAY )
 			{
-			NVPutOverlayImage(pScrn, offset, ((action_flags & IS_YUY2) || (action_flags & CONVERT_TO_YUY2)) ? 0 : offset + height * dstPitch, id,
+			NVPutOverlayImage(pScrn, offset, ((action_flags & IS_YUY2) || (action_flags & CONVERT_TO_YUY2)) ? 0 : offset + nlines * dstPitch, id,
 					  dstPitch, &dstBox, 
-					  xa, ya, xb, yb,
-					  width, height,
+					  0,0, xb, yb,
+					  npixels, nlines,
 					  src_w, src_h, drw_w, drw_h,
 					  clipBoxes);
 			pPriv->currentBuffer ^= 1;
@@ -1754,8 +1755,8 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			{ //Blitter
 			NVPutBlitImage(pScrn, offset, id,
 				       dstPitch, &dstBox,
-				       xa, ya, xb, yb,
-				       width, height,
+				       0, 0, xb, yb,
+				       npixels, nlines,
 				       src_w, src_h, drw_w, drw_h,
 				       clipBoxes, pDraw);
 			}
