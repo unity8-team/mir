@@ -161,16 +161,9 @@ static Bool i965_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
     case PICT_x1r5g5b5:
         *dst_format = BRW_SURFACEFORMAT_B5G5R5X1_UNORM;
         break;
-    /* COLR_BUF_8BIT is special for YUV surfaces.  While we may end up being
-     * able to use it depending on how the hardware implements it, disable it
-     * for now while we don't know what exactly it does (what channel does it
-     * read from?
-     */
-    /*
     case PICT_a8:
-        *dst_format = COLR_BUF_8BIT;
+        *dst_format = BRW_SURFACEFORMAT_A8_UNORM;
         break;
-    */
     case PICT_a4r4g4b4:
     case PICT_x4r4g4b4:
 	*dst_format = BRW_SURFACEFORMAT_B4G4R4A4_UNORM;
@@ -292,7 +285,7 @@ static int next_offset, total_state_size;
 static char *state_base;
 static int state_base_offset;
 static float *vb;
-static int vb_size = (4 * 4) * 4 ; /* 4 DWORDS per vertex*/
+static int vb_size = (6 * 4) * 4 ; /* 6 DWORDS per vertex - and mask*/
 
 static CARD32 src_blend, dst_blend;
 
@@ -399,9 +392,11 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 src_offset, src_pitch;
-    CARD32 mask_offset = 0, mask_pitch = 0;
-    CARD32 dst_format, dst_offset, dst_pitch;
+    CARD32 src_offset, src_pitch, src_tile_format = 0, src_tiled = 0;
+    CARD32 mask_offset = 0, mask_pitch = 0, mask_tile_format = 0,
+	mask_tiled = 0;
+    CARD32 dst_format, dst_offset, dst_pitch, dst_tile_format = 0,
+	dst_tiled = 0;
     Bool rotation_program = FALSE;
 
     IntelEmitInvarientState(pScrn);
@@ -409,11 +404,23 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     src_offset = intel_get_pixmap_offset(pSrc);
     src_pitch = intel_get_pixmap_pitch(pSrc);
+    if (i830_pixmap_tiled(pSrc)) {
+	src_tiled = 1;
+	src_tile_format = 0; /* Tiled X */
+    }
     dst_offset = intel_get_pixmap_offset(pDst);
     dst_pitch = intel_get_pixmap_pitch(pDst);
+    if (i830_pixmap_tiled(pDst)) {
+	dst_tiled = 1;
+	dst_tile_format = 0; /* Tiled X */
+    }
     if (pMask) {
 	mask_offset = intel_get_pixmap_offset(pMask);
 	mask_pitch = intel_get_pixmap_pitch(pMask);
+	if (i830_pixmap_tiled(pMask)) {
+	    mask_tiled = 1;
+	    mask_tile_format = 0; /* Tiled X */
+	}
     }
     pI830->scale_units[0][0] = pSrc->drawable.width;
     pI830->scale_units[0][1] = pSrc->drawable.height;
@@ -503,7 +510,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	next_offset = mask_sampler_offset + sizeof(*mask_sampler_state);
     }
     /* Align VB to native size of elements, for safety */
-    vb_offset = ALIGN(next_offset, 8);
+    vb_offset = ALIGN(next_offset, 32);
     next_offset = vb_offset + vb_size;
 
     /* And then the general state: */
@@ -641,6 +648,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     dest_surf_state->ss2.mip_count = 0;
     dest_surf_state->ss2.render_target_rotation = 0;
     dest_surf_state->ss3.pitch = dst_pitch - 1;
+    dest_surf_state->ss3.tile_walk = dst_tile_format;
+    dest_surf_state->ss3.tiled_surface = dst_tiled;
 
     dest_surf_state = (void *)(state_base + dest_surf_offset);
     memcpy (dest_surf_state, &dest_surf_state_local, sizeof (dest_surf_state_local));
@@ -667,6 +676,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     src_surf_state->ss2.mip_count = 0;
     src_surf_state->ss2.render_target_rotation = 0;
     src_surf_state->ss3.pitch = src_pitch - 1;
+    src_surf_state->ss3.tile_walk = src_tile_format;
+    src_surf_state->ss3.tiled_surface = src_tiled;
 
     src_surf_state = (void *)(state_base + src_surf_offset);
     memcpy (src_surf_state, &src_surf_state_local, sizeof (src_surf_state_local));
@@ -695,6 +706,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	mask_surf_state->ss2.mip_count = 0;
    	mask_surf_state->ss2.render_target_rotation = 0;
    	mask_surf_state->ss3.pitch = mask_pitch - 1;
+	mask_surf_state->ss3.tile_walk = mask_tile_format;
+	mask_surf_state->ss3.tiled_surface = mask_tiled;
 
 	mask_surf_state = (void *)(state_base + mask_surf_offset);
 	memcpy (mask_surf_state, &mask_surf_state_local, sizeof (mask_surf_state_local));
@@ -800,7 +813,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
      * back to SF which then hands pixels off to WM.
      */
     if (pMask)
-	memcpy(sf_kernel, sf_kernel_static_mask, sizeof (sf_kernel_static));
+	memcpy(sf_kernel, sf_kernel_static_mask,
+		sizeof (sf_kernel_static_mask));
     else if (rotation_program)
 	memcpy(sf_kernel, sf_kernel_static_rotation, 
 		sizeof (sf_kernel_static_rotation));

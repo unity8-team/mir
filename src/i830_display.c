@@ -375,6 +375,7 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     unsigned long Start, Offset;
     int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
+    int dsptileoff = (pipe == 0 ? DSPATILEOFF : DSPBTILEOFF);
 
     Offset = ((y * pScrn->displayWidth + x) * pI830->cpp);
     if (pI830->front_buffer == NULL) {
@@ -399,6 +400,7 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	POSTING_READ(dspbase);
         OUTREG(dspsurf, Start);
 	POSTING_READ(dspsurf);
+	OUTREG(dsptileoff, (y << 16) | x);
     } else {
 	OUTREG(dspbase, Start + Offset);
 	POSTING_READ(dspbase);
@@ -498,6 +500,143 @@ i830_pipe_a_require_deactivate (ScrnInfoPtr scrn)
     return;
 }
 
+/* FIXME: use pixmap private instead if possible */
+static Bool
+i830_display_tiled(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    /* Rotated data is currently linear, allocated either via XAA or EXA */
+    if (crtc->rotatedData)
+	return FALSE;
+
+    if (pI830->front_buffer && pI830->front_buffer->tiling != TILE_NONE)
+	return TRUE;
+
+    return FALSE;
+}
+
+static Bool
+i830_use_fb_compression(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    int pipe = intel_crtc->pipe;
+    int plane = (pipe == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
+
+    if (!pI830->fb_compression)
+	return FALSE;
+
+    if (!i830_display_tiled(crtc))
+	return FALSE;
+
+    /* Pre-965 only supports plane A */
+    if (!IS_I965GM(pI830) && plane != FBC_CTL_PLANEA)
+	return FALSE;
+
+    /* Need 15, 16, or 32 (w/alpha) pixel format */
+    if (!(pScrn->bitsPerPixel == 16 || /* covers 15 bit mode as well */
+	  pScrn->bitsPerPixel == 32)) /* mode_set dtrt if fbc is in use */
+	return FALSE;
+
+    /*
+     * No checks for pixel multiply, incl. horizontal, or interlaced modes
+     * since they're currently unused.
+     */
+    return TRUE;
+}
+
+/*
+ * Several restrictions:
+ *   - DSP[AB]CNTR - no line duplication && no pixel multiplier
+ *   - pixel format == 15 bit, 16 bit, or 32 bit xRGB_8888
+ *   - no alpha buffer discard
+ *   - no dual wide display
+ *   - progressive mode only (DSP[AB]CNTR)
+ *   - uncompressed fb is <= 2048 in width, 0 mod 8
+ *   - uncompressed fb is <= 1536 in height, 0 mod 2
+ *   - SR display watermarks must be equal between 16bpp and 32bpp?
+ *
+ * FIXME: verify above conditions are true
+ */
+static void
+i830_enable_fb_compression(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    uint32_t fbc_ctl = 0;
+    unsigned long compressed_stride;
+    int pipe = intel_crtc->pipe;
+    /* FIXME: plane & pipe might not always be equal */
+    int plane = (pipe == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
+    unsigned long uncompressed_stride = pScrn->displayWidth * pI830->cpp;
+    unsigned long interval = 1000;
+
+    if (INREG(FBC_CONTROL) & FBC_CTL_EN) {
+	char cur_pipe = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "fbc already enabled on "
+		   "pipe %c, not enabling on pipe %c\n", cur_pipe, pipe ? 'b' :
+		   'a');
+	return;
+    }
+
+    compressed_stride = pI830->compressed_front_buffer->size /
+	FBC_LL_SIZE;
+
+    if (uncompressed_stride < compressed_stride)
+	compressed_stride = uncompressed_stride;
+
+    /* FBC_CTL wants 64B units */
+    compressed_stride = (compressed_stride / 64) - 1;
+
+    /* Set it up... */
+    /* Wait for compressing bit to clear */
+    while (INREG(FBC_STATUS) & FBC_STAT_COMPRESSING)
+	; /* nothing */
+    i830WaitForVblank(pScrn);
+    OUTREG(FBC_CFB_BASE, pI830->compressed_front_buffer->bus_addr);
+    OUTREG(FBC_LL_BASE, pI830->compressed_ll_buffer->bus_addr + 6);
+    OUTREG(FBC_CONTROL2, FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_FULL |
+	   FBC_CTL_CPU_FENCE | plane);
+
+    /* Zero buffers */
+    memset(pI830->FbBase + pI830->compressed_front_buffer->offset, 0,
+	   pI830->compressed_front_buffer->size);
+    memset(pI830->FbBase + pI830->compressed_ll_buffer->offset, 0,
+	   pI830->compressed_ll_buffer->size);
+
+    /* enable it... */
+    fbc_ctl |= FBC_CTL_EN | FBC_CTL_PERIODIC;
+    fbc_ctl |= (compressed_stride & 0xff) << FBC_CTL_STRIDE_SHIFT;
+    fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
+    fbc_ctl |= FBC_CTL_UNCOMPRESSIBLE;
+    OUTREG(FBC_CONTROL, fbc_ctl);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc enabled on plane %c\n", pipe ?
+	       'b' : 'a');
+}
+
+static void
+i830_disable_fb_compression(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    uint32_t fbc_ctl;
+    char pipe = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
+
+    /* Disable compression */
+    fbc_ctl = INREG(FBC_CONTROL);
+    fbc_ctl &= ~FBC_CTL_EN;
+    OUTREG(FBC_CONTROL, fbc_ctl);
+
+    /* Wait for compressing bit to clear */
+    while (INREG(FBC_STATUS) & FBC_STAT_COMPRESSING)
+	; /* nothing */
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled on pipe %c\n", pipe);
+}
 
 /**
  * Sets the power management mode of the pipe and plane.
@@ -561,8 +700,16 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
 	i830_crtc_dpms_video(crtc, TRUE);
+
+	/* Reenable compression if needed */
+	if (i830_use_fb_compression(crtc))
+	    i830_enable_fb_compression(crtc);
 	break;
     case DPMSModeOff:
+	/* Shut off compression if in use */
+	if (i830_use_fb_compression(crtc))
+	    i830_disable_fb_compression(crtc);
+
 	/* Give the overlay scaler a chance to disable if it's on this pipe */
 	i830_crtc_dpms_video(crtc, FALSE);
 
@@ -654,112 +801,6 @@ i830_crtc_unlock (xf86CrtcPtr crtc)
 #ifdef XF86DRI
     I830DRIUnlock (crtc->scrn);
 #endif
-}
-
-static Bool
-i830_use_fb_compression(xf86CrtcPtr crtc)
-{
-    ScrnInfoPtr pScrn = crtc->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
-    int pipe = intel_crtc->pipe;
-    int plane = (pipe == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
-
-    if (!pI830->fb_compression)
-	return FALSE;
-
-    /* Pre-965 only supports plane A */
-    if (!IS_I965GM(pI830) && plane != FBC_CTL_PLANEA)
-	return FALSE;
-
-    /* Need 15, 16, or 32 (w/alpha) pixel format */
-    if (!(pScrn->bitsPerPixel == 16 || /* covers 15 bit mode as well */
-	  pScrn->bitsPerPixel == 32)) /* mode_set dtrt if fbc is in use */
-	return FALSE;
-
-    /*
-     * No checks for pixel multiply, incl. horizontal, or interlaced modes
-     * since they're currently unused.
-     */
-    return TRUE;
-}
-
-/*
- * Several restrictions:
- *   - DSP[AB]CNTR - no line duplication && no pixel multiplier
- *   - pixel format == 15 bit, 16 bit, or 32 bit xRGB_8888
- *   - no alpha buffer discard
- *   - no dual wide display
- *   - progressive mode only (DSP[AB]CNTR)
- *   - uncompressed fb is <= 2048 in width, 0 mod 8
- *   - uncompressed fb is <= 1536 in height, 0 mod 2
- *   - SR display watermarks must be equal between 16bpp and 32bpp?
- *
- * FIXME: verify above conditions are true
- */
-static void
-i830_enable_fb_compression(xf86CrtcPtr crtc)
-{
-    ScrnInfoPtr pScrn = crtc->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
-    uint32_t fbc_ctl;
-    unsigned long compressed_stride;
-    int pipe = intel_crtc->pipe;
-    int plane = (pipe == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
-    unsigned long uncompressed_stride = pScrn->displayWidth * pI830->cpp;
-    unsigned long interval = 1000;
-
-    if (INREG(FBC_CONTROL) & FBC_CTL_EN) {
-	char cur_pipe = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "fbc already enabled on "
-		   "pipe %c, not enabling on pipe %c\n", cur_pipe, pipe ? 'b' :
-		   'a');
-	return;
-    }
-
-    compressed_stride = pI830->compressed_front_buffer->size /
-	FBC_LL_SIZE;
-
-    if (uncompressed_stride < compressed_stride)
-	compressed_stride = uncompressed_stride;
-
-    /* FBC_CTL wants 64B units */
-    compressed_stride = (compressed_stride / 64) - 1;
-
-    /* Set it up... */
-    OUTREG(FBC_CFB_BASE, pI830->compressed_front_buffer->bus_addr);
-    OUTREG(FBC_LL_BASE, pI830->compressed_ll_buffer->bus_addr + FBC_LL_PAD);
-    OUTREG(FBC_CONTROL2, FBC_CTL_CPU_FENCE | plane);
-
-    /* enable it... */
-    fbc_ctl = INREG(FBC_CONTROL);
-    fbc_ctl |= FBC_CTL_EN | FBC_CTL_PERIODIC;
-    fbc_ctl |= (compressed_stride & 0xff) << FBC_CTL_STRIDE_SHIFT;
-    fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
-    OUTREG(FBC_CONTROL, fbc_ctl);
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc enabled on pipe %c\n", pipe ?
-	       'b' : 'a');
-}
-
-static void
-i830_disable_fb_compression(xf86CrtcPtr crtc)
-{
-    ScrnInfoPtr pScrn = crtc->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
-    uint32_t fbc_ctl;
-    char pipe = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
-
-    /* Disable compression */
-    fbc_ctl = INREG(FBC_CONTROL);
-    fbc_ctl &= ~FBC_CTL_EN;
-    OUTREG(FBC_CONTROL, fbc_ctl);
-
-    /* Wait for compressing bit to clear */
-    while (INREG(FBC_STATUS) & FBC_STAT_COMPRESSING)
-	; /* nothing */
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled on pipe %c\n", pipe);
 }
 
 static void
@@ -1058,6 +1099,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	dspcntr |= DISPPLANE_SEL_PIPE_A;
     else
 	dspcntr |= DISPPLANE_SEL_PIPE_B;
+
+    if (IS_I965G(pI830) && i830_display_tiled(crtc))
+	dspcntr |= DISPLAY_PLANE_TILED;
 
     pipeconf = INREG(pipeconf_reg);
     if (pipe == 0 && !IS_I965G(pI830))

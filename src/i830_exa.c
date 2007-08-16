@@ -54,7 +54,7 @@ do {							\
 #define I830FALLBACK(s, arg...) 			\
 do { 							\
 	return FALSE;					\
-} while(0) 
+} while(0)
 #endif
 
 const int I830CopyROP[16] =
@@ -98,6 +98,33 @@ const int I830PatternROP[16] =
 };
 
 /**
+ * Returns whether a given pixmap is tiled or not.
+ *
+ * Currently, we only have one pixmap that might be tiled, which is the front
+ * buffer.  At the point where we are tiling some pixmaps managed by the
+ * general allocator, we should move this to using pixmap privates.
+ */
+Bool
+i830_pixmap_tiled(PixmapPtr pPixmap)
+{
+    ScreenPtr pScreen = pPixmap->drawable.pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    unsigned long offset;
+
+    /* Don't use exaGetPixmapOffset becuase we might be called from XAA code. */
+    offset = (long)pPixmap->devPrivate.ptr -
+	(long)pI830->FbBase;
+    if (offset == pI830->front_buffer->offset &&
+	pI830->front_buffer->tiling != TILE_NONE)
+    {
+	return TRUE;
+    }
+
+    return FALSE;
+}
+
+/**
  * I830EXASync - wait for a command to finish
  * @pScreen: current screen
  * @marker: marker command to wait for
@@ -133,12 +160,12 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
     offset = exaGetPixmapOffset(pPixmap);
     pitch = exaGetPixmapPitch(pPixmap);
 
-    if ( offset % pI830->EXADriverPtr->pixmapOffsetAlign != 0)
+    if (offset % pI830->EXADriverPtr->pixmapOffsetAlign != 0)
 	I830FALLBACK("pixmap offset not aligned");
-    if ( pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
+    if (pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
 	I830FALLBACK("pixmap pitch not aligned");
 
-    pI830->BR[13] = (pitch & 0xffff);
+    pI830->BR[13] = (I830PatternROP[alu] & 0xff) << 16 ;
     switch (pPixmap->drawable.bitsPerPixel) {
 	case 8:
 	    break;
@@ -151,7 +178,6 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	    pI830->BR[13] |= ((1 << 24) | (1 << 25));
 	    break;
     }
-    pI830->BR[13] |= (I830PatternROP[alu] & 0xff) << 16 ;
     pI830->BR[16] = fg;
     return TRUE;
 }
@@ -161,19 +187,29 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned long offset;
+    unsigned long offset, pitch;
+    uint32_t cmd;
 
-    offset = exaGetPixmapOffset(pPixmap);  
-    
+    offset = exaGetPixmapOffset(pPixmap);
+    pitch = exaGetPixmapPitch(pPixmap);
+
     {
 	BEGIN_LP_RING(6);
-	if (pPixmap->drawable.bitsPerPixel == 32)
-	    OUT_RING(XY_COLOR_BLT_CMD | XY_COLOR_BLT_WRITE_ALPHA
-			| XY_COLOR_BLT_WRITE_RGB);
-	else
-	    OUT_RING(XY_COLOR_BLT_CMD);
 
-	OUT_RING(pI830->BR[13]);
+	cmd = XY_COLOR_BLT_CMD;
+
+	if (pPixmap->drawable.bitsPerPixel == 32)
+	    cmd |= XY_COLOR_BLT_WRITE_ALPHA | XY_COLOR_BLT_WRITE_RGB;
+
+	if (IS_I965G(pI830) && i830_pixmap_tiled(pPixmap)) {
+	    assert((pitch % 512) == 0);
+	    pitch >>= 2;
+	    cmd |= XY_COLOR_BLT_TILED;
+	}
+
+	OUT_RING(cmd);
+
+	OUT_RING(pI830->BR[13] | pitch);
 	OUT_RING((y1 << 16) | (x1 & 0xffff));
 	OUT_RING((y2 << 16) | (x2 & 0xffff));
 	OUT_RING(offset);
@@ -206,11 +242,9 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
     if (!EXA_PM_IS_SOLID(&pSrcPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
 
-    pI830->copy_src_pitch = exaGetPixmapPitch(pSrcPixmap);
-    pI830->copy_src_off = exaGetPixmapOffset(pSrcPixmap);
+    pI830->pSrcPixmap = pSrcPixmap;
 
-    pI830->BR[13] = exaGetPixmapPitch(pDstPixmap);
-    pI830->BR[13] |= I830CopyROP[alu] << 16;
+    pI830->BR[13] = I830CopyROP[alu] << 16;
 
     switch (pSrcPixmap->drawable.bitsPerPixel) {
     case 8:
@@ -231,30 +265,49 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
+    uint32_t cmd;
     int dst_x2, dst_y2;
-    unsigned int dst_off;
+    unsigned int dst_off, dst_pitch, src_off, src_pitch;
 
     dst_x2 = dst_x1 + w;
     dst_y2 = dst_y1 + h;
 
     dst_off = exaGetPixmapOffset(pDstPixmap);
+    dst_pitch = exaGetPixmapPitch(pDstPixmap);
+    src_off = exaGetPixmapOffset(pI830->pSrcPixmap);
+    src_pitch = exaGetPixmapPitch(pI830->pSrcPixmap);
 
     {
 	BEGIN_LP_RING(8);
 
-	if (pDstPixmap->drawable.bitsPerPixel == 32)
-	    OUT_RING(XY_SRC_COPY_BLT_CMD | XY_SRC_COPY_BLT_WRITE_ALPHA |
-		     XY_SRC_COPY_BLT_WRITE_RGB);
-	else
-	    OUT_RING(XY_SRC_COPY_BLT_CMD);
+	cmd = XY_SRC_COPY_BLT_CMD;
 
-	OUT_RING(pI830->BR[13]);
+	if (pDstPixmap->drawable.bitsPerPixel == 32)
+	    cmd |= XY_SRC_COPY_BLT_WRITE_ALPHA | XY_SRC_COPY_BLT_WRITE_RGB;
+
+	if (IS_I965G(pI830)) {
+	    if (i830_pixmap_tiled(pDstPixmap)) {
+		assert((dst_pitch % 512) == 0);
+		dst_pitch >>= 2;
+		cmd |= XY_SRC_COPY_BLT_DST_TILED;
+	    }
+
+	    if (i830_pixmap_tiled(pI830->pSrcPixmap)) {
+		assert((src_pitch % 512) == 0);
+		src_pitch >>= 2;
+		cmd |= XY_SRC_COPY_BLT_SRC_TILED;
+	    }
+	}
+
+	OUT_RING(cmd);
+
+	OUT_RING(pI830->BR[13] | dst_pitch);
 	OUT_RING((dst_y1 << 16) | (dst_x1 & 0xffff));
 	OUT_RING((dst_y2 << 16) | (dst_x2 & 0xffff));
 	OUT_RING(dst_off);
 	OUT_RING((src_y1 << 16) | (src_x1 & 0xffff));
-	OUT_RING(pI830->copy_src_pitch);
-	OUT_RING(pI830->copy_src_off);
+	OUT_RING(src_pitch);
+	OUT_RING(src_off);
 
 	ADVANCE_LP_RING();
     }
@@ -415,11 +468,12 @@ I830EXAInit(ScreenPtr pScreen)
     }
     pI830->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
 
-    DPRINTF(PFX, "EXA Mem: memoryBase 0x%x, end 0x%x, offscreen base 0x%x, memorySize 0x%x\n",
-		pI830->EXADriverPtr->memoryBase,
-		pI830->EXADriverPtr->memoryBase + pI830->EXADriverPtr->memorySize,
-		pI830->EXADriverPtr->offScreenBase,
-		pI830->EXADriverPtr->memorySize);
+    DPRINTF(PFX, "EXA Mem: memoryBase 0x%x, end 0x%x, offscreen base 0x%x, "
+	    "memorySize 0x%x\n",
+	    pI830->EXADriverPtr->memoryBase,
+	    pI830->EXADriverPtr->memoryBase + pI830->EXADriverPtr->memorySize,
+	    pI830->EXADriverPtr->offScreenBase,
+	    pI830->EXADriverPtr->memorySize);
 
 
     /* Limits are described in the BLT engine chapter under Graphics Data Size

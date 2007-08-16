@@ -85,7 +85,7 @@ Default: enabled on supported configurations.
 .BI "Option \*qTiling\*q \*q" boolean \*q
 This option controls whether memory buffers are allocated in tiled mode.  In
 many cases (especially for complex rendering), tiling can improve performance.
-Default: enabled on supported configurations.
+Default: enabled.
 .TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
 Disable or enable DRI support.
@@ -140,7 +140,7 @@ and that is used with the 3D driver in Mesa from version 6.5.2 and
 upwards. If the size is set too high to make room for pre-allocated
 VideoRam, the driver will try to reduce it automatically. If you use only
 older Mesa or DRM versions, you may set this value to zero, and
-atctivate the legacy texture pool (see 
+activate the legacy texture pool (see 
 .B "Option \*qLegacy3D\*q"
 ). If you run 3D programs with large texture memory requirements, you might
 gain some performance by increasing this value.

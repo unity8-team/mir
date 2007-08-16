@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <pciaccess.h>
@@ -80,7 +81,7 @@ int main(int argc, char **argv)
 	exit(1);
     }
 
-    fd = open(argv[1], O_RDWR | O_CREAT | O_TRUNC);
+    fd = open(argv[1], O_RDWR | O_CREAT | O_TRUNC, DEFFILEMODE);
     if (fd < 0) {
 	fprintf(stderr, "Couldn't open output: %s\n", strerror(errno));
 	exit(1);

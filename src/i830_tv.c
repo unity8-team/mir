@@ -1415,10 +1415,8 @@ i830_tv_get_modes(xf86OutputPtr output)
 	    continue;
 
 	mode_ptr = xnfcalloc(1, sizeof(DisplayModeRec));
-    	mode_ptr->name = xnfalloc(strlen(tv_mode->name) + 
-				  strlen(input->name) + 4);
-	sprintf(mode_ptr->name, "%s", input->name);
-
+    	mode_ptr->name = xnfalloc(strlen(input->name) + 1);
+	strcpy (mode_ptr->name, input->name);
 
 	mode_ptr->HDisplay = hactive_s;
 	mode_ptr->HSyncStart = hactive_s + 1;
@@ -1624,6 +1622,9 @@ i830_tv_init(ScrnInfoPtr pScrn)
     I830OutputPrivatePtr    intel_output;
     struct i830_tv_priv	    *dev_priv;
     CARD32		    tv_dac_on, tv_dac_off, save_tv_dac;
+
+    if (pI830->quirk_flag & QUIRK_IGNORE_TV)
+	return;
 
     if ((INREG(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
 	return;

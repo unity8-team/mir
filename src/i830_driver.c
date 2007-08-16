@@ -1239,6 +1239,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX\n",
 	      (unsigned long)pI830->MMIOAddr);
 
+   /* check quirks */
+   i830_fixup_devices(pScrn);
+
    /* Allocate an xf86CrtcConfig */
    xf86CrtcConfigInit (pScrn, &i830_xf86crtc_config_funcs);
    xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -1832,6 +1835,8 @@ SaveHWState(ScrnInfoPtr pScrn)
    if (IS_I965G(pI830)) {
       pI830->saveDSPASURF = INREG(DSPASURF);
       pI830->saveDSPBSURF = INREG(DSPBSURF);
+      pI830->saveDSPATILEOFF = INREG(DSPATILEOFF);
+      pI830->saveDSPBTILEOFF = INREG(DSPBTILEOFF);
    }
 
    pI830->saveVCLK_DIVISOR_VGA0 = INREG(VCLK_DIVISOR_VGA0);
@@ -1926,7 +1931,10 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(PIPEASRC, pI830->savePIPEASRC);
    OUTREG(DSPABASE, pI830->saveDSPABASE);
    if (IS_I965G(pI830))
+   {
       OUTREG(DSPASURF, pI830->saveDSPASURF);
+      OUTREG(DSPATILEOFF, pI830->saveDSPATILEOFF);
+   }
    OUTREG(PIPEACONF, pI830->savePIPEACONF);
    i830WaitForVblank(pScrn);
    OUTREG(DSPACNTR, pI830->saveDSPACNTR);
@@ -1963,7 +1971,10 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(PIPEBSRC, pI830->savePIPEBSRC);
       OUTREG(DSPBBASE, pI830->saveDSPBBASE);
       if (IS_I965G(pI830))
+      {
 	 OUTREG(DSPBSURF, pI830->saveDSPBSURF);
+	 OUTREG(DSPBTILEOFF, pI830->saveDSPBTILEOFF);
+      }
       OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
       i830WaitForVblank(pScrn);
       OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
@@ -2277,11 +2288,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       pI830->CacheLines = -1;
    }
 
-   /* Enable tiling by default where supported */
-   if (i830_tiling_supported(pI830))
-       pI830->tiling = TRUE;
-   else
-       pI830->tiling = FALSE;
+   /* Enable tiling by default */
+   pI830->tiling = TRUE;
 
    /* Allow user override if they set a value */
    if (xf86IsOptionSet(pI830->Options, OPTION_TILING)) {
@@ -2303,12 +2311,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	   pI830->fb_compression = TRUE;
        else
 	   pI830->fb_compression = FALSE;
-   }
-
-   if (pI830->fb_compression) {
-       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Framebuffer compression enabled, "
-		  "forcing tiling on.\n");
-       pI830->tiling = TRUE;
    }
 
    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Framebuffer compression %sabled\n",

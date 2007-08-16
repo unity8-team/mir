@@ -593,7 +593,8 @@ I830DRIScreenInit(ScreenPtr pScreen)
 
 #if DRIINFO_MAJOR_VERSION > 5 || \
     (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3)
-      pDRIInfo->texOffsetStart = I830TexOffsetStart;
+      if (pI830->useEXA)
+	 pDRIInfo->texOffsetStart = I830TexOffsetStart;
 #endif
 
 #if DRI_SUPPORTS_CLIP_NOTIFY
@@ -1636,10 +1637,13 @@ I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 
    I830DRIUnmapScreenRegions(pScrn, sarea);
 
-   sarea->front_tiled = pI830->front_tiled;
-   sarea->back_tiled = pI830->back_tiled;
-   sarea->third_tiled = pI830->third_tiled;
-   sarea->depth_tiled = pI830->depth_tiled;
+   sarea->front_tiled = (pI830->front_buffer->tiling != TILE_NONE);
+   sarea->back_tiled = (pI830->back_buffer->tiling != TILE_NONE);
+   if (pI830->third_buffer != NULL)
+       sarea->third_tiled = (pI830->third_buffer->tiling != TILE_NONE);
+   else
+       sarea->third_tiled = FALSE;
+   sarea->depth_tiled = (pI830->depth_buffer->tiling != TILE_NONE);
    sarea->rotated_tiled = FALSE;
 
    sarea->front_offset = pI830->front_buffer->offset;

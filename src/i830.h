@@ -117,6 +117,12 @@ typedef CARD8(*I830ReadIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
 typedef void (*I830WriteByteFunc)(I830Ptr pI830, IOADDRESS addr, CARD8 value);
 typedef CARD8(*I830ReadByteFunc)(I830Ptr pI830, IOADDRESS addr);
 
+enum tile_format {
+    TILE_NONE,
+    TILE_XMAJOR,
+    TILE_YMAJOR
+};
+
 /** Record of a linear allocation in the aperture. */
 typedef struct _i830_memory i830_memory;
 struct _i830_memory {
@@ -147,6 +153,8 @@ struct _i830_memory {
      * This is either @offset or pI830->stolen_size
      */
     unsigned long agp_offset;
+
+    enum tile_format tiling;
 
     /** Description of the allocation, for logging */
     char *name;
@@ -326,8 +334,6 @@ typedef struct _I830Rec {
 
    i830_memory *logical_context;
 
-   unsigned int front_tiled;
-
 #ifdef XF86DRI
    i830_memory *back_buffer;
    i830_memory *third_buffer;
@@ -339,10 +345,6 @@ typedef struct _I830Rec {
    int TexGranularity;
    int drmMinor;
    Bool allocate_classic_textures;
-
-   unsigned int back_tiled;
-   unsigned int third_tiled;
-   unsigned int depth_tiled;
 
    Bool want_vblank_interrupts;
 #ifdef DAMAGE
@@ -414,9 +416,8 @@ typedef struct _I830Rec {
    CloseScreenProcPtr CloseScreen;
 
 #ifdef I830_USE_EXA
-   unsigned int copy_src_pitch;
-   unsigned int copy_src_off;
    ExaDriverPtr	EXADriverPtr;
+   PixmapPtr pSrcPixmap;
 #endif
 
    I830WriteIndexedByteFunc writeControl;
@@ -507,6 +508,7 @@ typedef struct _I830Rec {
    CARD32 saveDSPAPOS;
    CARD32 saveDSPABASE;
    CARD32 saveDSPASURF;
+   CARD32 saveDSPATILEOFF;
    CARD32 saveFPB0;
    CARD32 saveFPB1;
    CARD32 saveDPLL_B;
@@ -523,6 +525,7 @@ typedef struct _I830Rec {
    CARD32 saveDSPBPOS;
    CARD32 saveDSPBBASE;
    CARD32 saveDSPBSURF;
+   CARD32 saveDSPBTILEOFF;
    CARD32 saveVCLK_DIVISOR_VGA0;
    CARD32 saveVCLK_DIVISOR_VGA1;
    CARD32 saveVCLK_POST_DIV;
@@ -541,6 +544,7 @@ typedef struct _I830Rec {
    CARD32 savePaletteB[256];
    CARD32 saveSWF[17];
    CARD32 saveBLC_PWM_CTL;
+   CARD32 saveBLC_PWM_CTL2;
    CARD32 saveFBC_CFB_BASE;
    CARD32 saveFBC_LL_BASE;
    CARD32 saveFBC_CONTROL2;
@@ -550,6 +554,7 @@ typedef struct _I830Rec {
 
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
+   unsigned int quirk_flag;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -730,23 +735,16 @@ i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
 
 void i830_enter_render(ScrnInfoPtr);
 
-static inline int i830_tiling_supported(I830Ptr pI830)
-{
-    if (IS_I965G(pI830))
-	return FALSE;
-    return TRUE;
-}
-
 static inline int i830_fb_compression_supported(I830Ptr pI830)
 {
-    if (!i830_tiling_supported(pI830))
-	return FALSE;
     if (!IS_MOBILE(pI830))
 	return FALSE;
     if (IS_I810(pI830) || IS_I815(pI830) || IS_I830(pI830))
 	return FALSE;
     return TRUE;
 }
+
+Bool i830_pixmap_tiled(PixmapPtr p);
 
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];
@@ -762,5 +760,11 @@ extern const int I830CopyROP[16];
 #define _855_DRAM_RW_CONTROL 0x58
 #define _845_DRAM_RW_CONTROL 0x90
 #define DRAM_WRITE    0x33330000
+
+/* quirk flag definition */
+#define QUIRK_IGNORE_TV			0x00000001
+#define QUIRK_IGNORE_LVDS		0x00000002
+#define QUIRK_IGNORE_MACMINI_LVDS 	0x00000004
+extern void i830_fixup_devices(ScrnInfoPtr);
 
 #endif /* _I830_H_ */
