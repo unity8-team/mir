@@ -926,15 +926,22 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 		       "%s0x%08lx:            start of memory manager\n",
 		       prefix, pI830->memory_manager->offset);
 	for (mem = pI830->bo_list; mem != NULL; mem = mem->next) {
+	    char *tile_suffix = "";
+
+	    if (mem->tiling == TILE_XMAJOR)
+		tile_suffix = " X tiled";
+	    else if (mem->tiling == TILE_YMAJOR)
+		tile_suffix = " Y tiled";
+
 	    if (mem->bound) {
 		xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-			       "%s0x%08lx-0x%08lx: %s (%ld kB)\n", prefix,
+			       "%s0x%08lx-0x%08lx: %s (%ld kB)%s\n", prefix,
 			       mem->offset, mem->end - 1, mem->name,
-			       mem->size / 1024);
+			       mem->size / 1024, tile_suffix);
 	    } else {
 		xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-			       "%sunpinned          : %s (%ld kB)\n", prefix,
-			       mem->name, mem->size / 1024);
+			       "%sunpinned          : %s (%ld kB)%s\n", prefix,
+			       mem->name, mem->size / 1024, tile_suffix);
 	    }
 	}
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
