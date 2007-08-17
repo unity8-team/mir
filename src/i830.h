@@ -641,6 +641,14 @@ extern void I830SubsequentSolidFillRect(ScrnInfoPtr pScrn, int x, int y,
 
 Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
 			 unsigned long size);
+i830_memory * i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
+				   unsigned long size, unsigned long alignment,
+				   int flags);
+i830_memory *i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
+					unsigned long size,
+					unsigned long pitch,
+					unsigned long alignment, int flags,
+					enum tile_format tile_format);
 void i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity,
 			       const char *prefix);
 void i830_reset_allocations(ScrnInfoPtr pScrn);

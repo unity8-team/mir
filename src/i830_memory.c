@@ -515,7 +515,7 @@ i830_allocate_agp_memory(ScrnInfoPtr pScrn, i830_memory *mem, int flags)
  * The memory will be bound automatically when the driver is in control of the
  * VT.
  */
-static i830_memory *
+i830_memory *
 i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 		     unsigned long size, unsigned long alignment, int flags)
 {
@@ -544,7 +544,7 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
  * some search across all allocation options to fix this, probably, but that
  * would be another rewrite.
  */
-static i830_memory *
+i830_memory *
 i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
 			   unsigned long size, unsigned long pitch,
 			   unsigned long alignment, int flags,
