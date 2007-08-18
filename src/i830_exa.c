@@ -124,6 +124,22 @@ i830_pixmap_tiled(PixmapPtr pPixmap)
     return FALSE;
 }
 
+Bool
+i830_exa_pixmap_is_offscreen(PixmapPtr pPixmap)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if ((void *)pPixmap->devPrivate.ptr >= (void *)pI830->FbBase &&
+	(void *)pPixmap->devPrivate.ptr <
+	(void *)(pI830->FbBase + pI830->FbMapSize))
+    {
+	return TRUE;
+    } else {
+	return FALSE;
+    }
+}
+
 /**
  * I830EXASync - wait for a command to finish
  * @pScreen: current screen
@@ -456,7 +472,17 @@ I830EXAInit(ScreenPtr pScreen)
 
     pI830->bufferOffset = 0;
     pI830->EXADriverPtr->exa_major = 2;
+    /* If compiled against EXA 2.2, require 2.2 so we can use the
+     * PixmapIsOffscreen hook.
+     */
+#if EXA_VERSION_MINOR >= 2
+    pI830->EXADriverPtr->exa_minor = 2;
+#else
     pI830->EXADriverPtr->exa_minor = 1;
+    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+	       "EXA compatibility mode.  Output rotation rendering "
+	       "performance may suffer\n");
+#endif
     pI830->EXADriverPtr->memoryBase = pI830->FbBase;
     pI830->EXADriverPtr->offScreenBase = pI830->exa_offscreen->offset;
     pI830->EXADriverPtr->memorySize = pI830->exa_offscreen->offset +
@@ -552,6 +578,9 @@ I830EXAInit(ScreenPtr pScreen)
  	pI830->EXADriverPtr->Composite = i965_composite;
  	pI830->EXADriverPtr->DoneComposite = i830_done_composite;
     }
+#if EXA_VERSION_MINOR >= 2
+    pI830->EXADriverPtr->PixmapIsOffscreen = i830_exa_pixmap_is_offscreen;
+#endif
 
     /* UploadToScreen/DownloadFromScreen */
     if (0)

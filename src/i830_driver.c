@@ -1562,7 +1562,11 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
       memset(&req, 0, sizeof(req));
       req.majorversion = 2;
+#if EXA_VERSION_MINOR >= 2
+      req.minorversion = 2;
+#else
       req.minorversion = 1;
+#endif
       if (!LoadSubModule(pScrn->module, "exa", NULL, NULL, NULL, &req,
 		&errmaj, &errmin)) {
 	 LoaderErrorMsg(NULL, "exa", errmaj, errmin);

@@ -234,12 +234,7 @@ typedef struct _I830CrtcPrivateRec {
     /* Lookup table values to be set when the CRTC is enabled */
     CARD8 lut_r[256], lut_g[256], lut_b[256];
 
-#ifdef I830_USE_XAA
-    FBLinearPtr rotate_mem_xaa;
-#endif
-#ifdef I830_USE_EXA
-    ExaOffscreenArea *rotate_mem_exa;
-#endif
+    i830_memory *rotate_mem;
     /* Card virtual address of the cursor */
     unsigned long cursor_offset;
     unsigned long cursor_argb_offset;
@@ -689,14 +684,6 @@ Bool i830_unbind_all_memory(ScrnInfoPtr pScrn);
 
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
-#ifdef I830_USE_XAA
-FBLinearPtr
-i830_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
-				 int granularity,
-				 MoveLinearCallbackProcPtr moveCB,
-				 RemoveLinearCallbackProcPtr removeCB,
-				 pointer privData);
-#endif /* I830_USE_EXA */
 
 /* i830_modes.c */
 DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
