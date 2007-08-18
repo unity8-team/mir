@@ -1712,11 +1712,14 @@ i830_covering_crtc (ScrnInfoPtr pScrn,
 	i830_crtc_box (crtc, &crtc_box);
 	i830_box_intersect (&cover_box, &crtc_box, box);
 	coverage = i830_box_area (&cover_box);
+	if (coverage && crtc == desired)
+	{
+	    *crtc_box_ret = crtc_box;
+	    return crtc;
+	}
 	if (coverage > best_coverage)
 	{
 	    *crtc_box_ret = crtc_box;
-	    if (crtc == desired)
-		return crtc;
 	    best_crtc = crtc;
 	    best_coverage = coverage;
 	}
