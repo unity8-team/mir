@@ -849,7 +849,6 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 	    int size;
 
 	    size = 3 * pitch * pScrn->virtualY;
-	    size += 1920 * 1088 * 2 * 2;
 	    size = ROUND_TO_PAGE(size);
 
 	    cacheLines = (size + pitch - 1) / pitch;
@@ -1140,14 +1139,13 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     if (pI830->useEXA) {
 	if (pI830->exa_offscreen == NULL) {
 	    /* Default EXA to having 3 screens worth of offscreen memory space
-	     * (for pixmaps), plus a double-buffered, 1920x1088 video's worth.
+	     * (for pixmaps).
 	     *
 	     * XXX: It would be nice to auto-size it larger if the user
 	     * specified a larger size, or to fit along with texture and FB
 	     * memory if a low videoRam is specified.
 	     */
 	    size = 3 * pitch * pScrn->virtualY;
-	    size += 1920 * 1088 * 2 * 2;
 	    size = ROUND_TO_PAGE(size);
 
 	    pI830->exa_offscreen = i830_allocate_memory(pScrn, "exa offscreen",
