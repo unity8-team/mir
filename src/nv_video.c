@@ -1350,15 +1350,10 @@ static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw,
 	
 	if ( pNv->Architecture == NV_ARCH_10 )
 		{
-		switch ( pNv->Chipset )
+		if ( pNv->Chipset < CHIPSET_NV17 )
 			{
-			 case CHIPSET_NV10:   /* GeForce 256 */
-			 case CHIPSET_NV11:   /* GeForce2 MX */
-			 case CHIPSET_NV15:   /* GeForce2 */
-				*action_flags |= CONVERT_TO_YUY2; break;
-			 default:
-				break;
-			}
+			 *action_flags |= CONVERT_TO_YUY2; break;
+			 }
 		}
 	
 }
