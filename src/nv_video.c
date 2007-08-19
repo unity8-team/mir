@@ -1352,7 +1352,7 @@ static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw,
 		{
 		if ( pNv->Chipset < CHIPSET_NV17 )
 			{
-			 *action_flags |= CONVERT_TO_YUY2; break;
+			 *action_flags |= CONVERT_TO_YUY2;
 			 }
 		}
 	
