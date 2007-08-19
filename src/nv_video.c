@@ -1135,24 +1135,34 @@ static inline void NVCopyNV12ColorPlanes(unsigned char *src1, unsigned char * sr
 			  int h, int w)
 {
 	
-	int i,j;
+	int i,j,l,e;
 	
 	w >>= 1;
 	h >>= 1;
-	for (j = 0; j < h; j++) {
-		i = w;
+	l = w >> 1;
+	e = w & 1;
+	for ( j = 0; j < h; j++ ) 
+		{
 		unsigned char * us = src1;
 		unsigned char * vs = src2;
-		unsigned char * ud = dst + 1;
-		unsigned char * vd = dst;
-		while ( i --)
+		unsigned int * vuvud = (unsigned int *) dst;
+		for ( i = 0; i < l; i++ )
 			{
-			*ud = *us;
-			ud += 2;
-			us ++;
-			*vd = *vs;
-			vd += 2;
-			vs ++;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+			*vuvud++ = (vs[0]<<24) | (us[0]<<16) | (vs[1]<<8) | us[1];
+#else
+			*vuvud++ = vs[0] | (us[0]<<8) | (vs[1]<<16) | (us[1]<<24);
+#endif
+			us+=2;
+			vs+=2;
+			}
+		if (e)  {
+			unsigned short *vud = (unsigned short *) vuvud;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+			*vud = (vs[0]<<24) | (us[0] << 16);
+#else
+			*vud = vs[0] | (us[0]<<8);
+#endif
 			}
 		dst += dstPitch ;
 		src1 += srcPitch2;
