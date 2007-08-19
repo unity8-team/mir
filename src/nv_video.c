@@ -1350,10 +1350,16 @@ static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw,
 	
 	if ( pNv->Architecture == NV_ARCH_10 )
 		{
-		if ( pNv->Chipset < CHIPSET_NV17 )
+		switch ( pNv->Chipset & 0xfff0 )
 			{
-			 *action_flags |= CONVERT_TO_YUY2;
-			 }
+			case CHIPSET_NV10:
+			case CHIPSET_NV11:
+			case CHIPSET_NV15:
+			case CHIPSET_NFORCE: /*XXX: unsure about nforce and nforce2*/
+			case CHIPSET_NFORCE2:
+					*action_flags |= CONVERT_TO_YUY2; break;
+			default : break;
+			}
 		}
 	
 }
