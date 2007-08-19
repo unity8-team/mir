@@ -1304,7 +1304,7 @@ static int NV_calculate_pitches_and_mem_size(int action_flags, int * srcPitch, i
  * that is, it decides what NVPutImage and its helpers must do.
  * This eases readability by avoiding lots of switch-case statements in the core NVPutImage
  */
-static void NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv, int id, int * action_flags)
+static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv, int id, int * action_flags)
 {
 	*action_flags = 0;
 	if ( id == FOURCC_YUY2 || id == FOURCC_UYVY )
@@ -1341,6 +1341,23 @@ static void NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPriv
 		if ( id == FOURCC_YV12 || id == FOURCC_I420 )
 			{ /*The blitter does not handle YV12 natively*/
 			*action_flags |= CONVERT_TO_YUY2;
+			}
+		}
+		
+	if ( pNv->Architecture == NV_ARCH_03 || pNv->Architecture == NV_ARCH_04 )
+		if ( * action_flags & IS_YV12 ) //NV04-05 don't support native YV12 AFAIK
+			*action_flags |= CONVERT_TO_YUY2;
+	
+	if ( pNv->Architecture == NV_ARCH_10 )
+		{
+		switch ( pNv->Chipset )
+			{
+			 case CHIPSET_NV10:   /* GeForce 256 */
+			 case CHIPSET_NV11:   /* GeForce2 MX */
+			 case CHIPSET_NV15:   /* GeForce2 */
+				*action_flags |= CONVERT_TO_YUY2; break;
+			 default:
+				break;
 			}
 		}
 	
@@ -1408,7 +1425,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		return Success;
 
 	
-	NV_set_action_flags(pScrn, pDraw, pPriv, id, &action_flags);
+	NV_set_action_flags(pNv, pScrn, pDraw, pPriv, id, &action_flags);
 	
 	if ( NV_set_dimensions(pScrn, action_flags, &xa, &xb, &ya, &yb, 
 							&src_x,  &src_y, &src_w, &src_h,
