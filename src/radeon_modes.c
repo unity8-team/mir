@@ -299,6 +299,8 @@ int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
     DisplayModePtr  first      = NULL;
     DisplayModePtr  ddcModes   = NULL;
     int             count      = 0;
+    int             maxXRes    = 0;
+    int             maxYRes    = 0;
     int             i, width, height;
     ScrnInfoPtr pScrn = pScrn1;
 
@@ -334,13 +336,13 @@ int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 		p->Flags     |= RADEON_USE_RMX;
 	    }
 
-	    maxVirtX = MAX(maxVirtX, p->HDisplay);
-	    maxVirtY = MAX(maxVirtY, p->VDisplay);
+	    maxXRes = maxVirtX = MAX(maxVirtX, p->HDisplay);
+	    maxYRes = maxVirtY = MAX(maxVirtY, p->VDisplay);
 	    count++;
 
 	    last = p;
 	}
-
+    
 	/* Match up modes that are specified in the XF86Config file */
 	if (ppModeName[0]) {
 	    DisplayModePtr  next;
@@ -378,9 +380,21 @@ int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 			    break;
 			}
 		    }
+		    if (!p) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   " %dx%d is not supported by the device\n",
+				   width, height);
+		    }
 		}
 	    }
-
+	    /* just for sanity check, if maxVirtX and maxVirtY are not
+	     * specified, set max resolution that panel support for the max
+	     * virtual dimensions */
+	    if ((!maxVirtX) || (!maxVirtY)) {
+		maxVirtX = maxXRes;
+		maxVirtY = maxYRes;
+	    }
+	    
 	    /*
 	     * Add remaining DDC modes if they're smaller than the user
 	     * specified modes
