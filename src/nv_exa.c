@@ -553,7 +553,7 @@ static Bool NVCheckComposite(int	op,
 	 */
 	if (pMaskPicture)
 		ret = 0x1;
-	else if (op != PictOpOver && op != PictOpSrc)
+	else if (/*op != PictOpOver && */op != PictOpSrc)
 		ret = 0x2;
 	else if (!pSrcPicture->pDrawable)
 		ret = 0x4;
@@ -603,8 +603,7 @@ static Bool NVPrepareComposite(int	  op,
 
 	NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_FORMAT, 2);
 	NVDmaNext (pNv, srcFormat);
-	NVDmaNext (pNv, (op == PictOpSrc) ? STRETCH_BLIT_OPERATION_COPY :
-			STRETCH_BLIT_OPERATION_BLEND);
+	NVDmaNext (pNv, (op == PictOpSrc) ? STRETCH_BLIT_OPERATION_COPY : STRETCH_BLIT_OPERATION_BLEND);
 
 	src_size = ((pSrcPicture->pDrawable->width+3)&~3) |
 		(pSrcPicture->pDrawable->height << 16);
