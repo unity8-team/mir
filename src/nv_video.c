@@ -1159,7 +1159,7 @@ static inline void NVCopyNV12ColorPlanes(unsigned char *src1, unsigned char * sr
 		if (e)  {
 			unsigned short *vud = (unsigned short *) vuvud;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-			*vud = (vs[0]<<24) | (us[0] << 16);
+			*vud = (vs[0]<<8) | (us[0] << 0);
 #else
 			*vud = vs[0] | (us[0]<<8);
 #endif
