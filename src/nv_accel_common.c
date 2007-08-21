@@ -76,6 +76,49 @@ NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
+/* FLAGS_ROP_AND, DmaFB, DmaFB, 0 */
+static Bool
+NVAccelInitContextBeta1(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	static int have_object = FALSE;
+	uint32_t   class;
+
+	class = 0x12;
+
+	if (!have_object) {
+		if (!NVDmaCreateContextObject(pNv, NvContextBeta1, class))
+			return FALSE;
+		have_object = TRUE;
+	}
+
+	NVDmaStart(pNv, NvContextBeta1, 0x300, 1); /*alpha factor*/
+	NVDmaNext (pNv, 0xff << 23);
+
+	return TRUE;
+}
+
+
+static Bool
+NVAccelInitContextBeta4(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	static int have_object = FALSE;
+	uint32_t   class;
+	
+	class = 0x72;
+
+	if (!have_object) {
+		if (!NVDmaCreateContextObject(pNv, NvContextBeta4, class))
+			return FALSE;
+		have_object = TRUE;
+	}
+
+	NVDmaStart(pNv, NvContextBeta4, 0x300, 1); /*RGBA factor*/
+	NVDmaNext (pNv, 0xffff0000);
+	return TRUE;
+}
+
 Bool
 NVAccelGetCtxSurf2DFormatFromPixmap(PixmapPtr pPix, int *fmt_ret)
 {
@@ -315,9 +358,9 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 	NVDmaStart(pNv, NvScaledImage, 0x18c, 1); /* ROP */
 	NVDmaNext (pNv, NvNullObject);
 	NVDmaStart(pNv, NvScaledImage, 0x190, 1); /* BETA1 */
-	NVDmaNext (pNv, NvNullObject);
+	NVDmaNext (pNv, NvContextBeta1);
 	NVDmaStart(pNv, NvScaledImage, 0x194, 1); /* BETA4 */
-	NVDmaNext (pNv, NvNullObject);
+	NVDmaNext (pNv, NvContextBeta4);
 	NVDmaStart(pNv, NvScaledImage,
 			NV04_SCALED_IMAGE_FROM_MEMORY_OPERATION, 1);
 	NVDmaNext (pNv, 3 /* SRCCOPY */);
@@ -465,11 +508,15 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 	INIT_CONTEXT_OBJECT(DmaNotifier0);
 
 	INIT_CONTEXT_OBJECT(ContextSurfaces);
+	INIT_CONTEXT_OBJECT(ContextBeta1);
+	INIT_CONTEXT_OBJECT(ContextBeta4);
 	INIT_CONTEXT_OBJECT(ImagePattern);
 	INIT_CONTEXT_OBJECT(RasterOp);
 	INIT_CONTEXT_OBJECT(Rectangle);
 	INIT_CONTEXT_OBJECT(ImageBlit);
 	INIT_CONTEXT_OBJECT(ScaledImage);
+	
+	
 
 	/* XAA-only */
 	INIT_CONTEXT_OBJECT(ClipRectangle);

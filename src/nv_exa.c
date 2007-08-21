@@ -553,7 +553,7 @@ static Bool NVCheckComposite(int	op,
 	 */
 	if (pMaskPicture)
 		ret = 0x1;
-	else if (/*op != PictOpOver && */op != PictOpSrc)
+	else if (op != PictOpOver &&  op != PictOpSrc)
 		ret = 0x2;
 	else if (!pSrcPicture->pDrawable)
 		ret = 0x4;
