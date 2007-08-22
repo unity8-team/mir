@@ -338,8 +338,10 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
 			    | RADEON_DVS_ASYNC_RST
 			    | RADEON_CRT_FIFO_CE_EN
 			    | RADEON_TV_FIFO_CE_EN
-			    | RADEON_TVCLK_ALWAYS_ONb
 			    | RADEON_TV_ON);
+
+    if (!IS_R300_VARIANT)
+	save->tv_master_cntl |= RADEON_TVCLK_ALWAYS_ONb;
 
     save->tv_modulator_cntl1 = RADEON_SLEW_RATE_LIMIT
 	                       | RADEON_SYNC_TIP_LEVEL
