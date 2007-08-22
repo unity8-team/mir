@@ -101,11 +101,11 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	if (planemask != ~0 || alu != GXcopy) {
 		if (pPixmap->drawable.bitsPerPixel == 32)
 			return FALSE;
-		NVDmaStart(pNv, NvRectangle, 0x2fc, 1);
+		NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
 		NVDmaNext (pNv, 1 /* ROP_AND */);
 		NVSetRopSolid(pScrn, alu, planemask);
 	} else {
-		NVDmaStart(pNv, NvRectangle, 0x2fc, 1);
+		NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
 		NVDmaNext (pNv, 3 /* SRCCOPY */);
 	}
 
@@ -169,11 +169,11 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 	if (planemask != ~0 || alu != GXcopy) {
 		if (pDstPixmap->drawable.bitsPerPixel == 32)
 			return FALSE;
-		NVDmaStart(pNv, NvImageBlit, 0x2fc, 1);
+		NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
 		NVDmaNext (pNv, 1 /* ROP_AND */);
 		NVSetRopSolid(pScrn, alu, planemask);
 	} else {
-		NVDmaStart(pNv, NvImageBlit, 0x2fc, 1);
+		NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
 		NVDmaNext (pNv, 3 /* SRCCOPY */);
 	}
 

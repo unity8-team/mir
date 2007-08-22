@@ -22,6 +22,7 @@ void NVDmaStart(NVPtr pNv, uint32_t object, uint32_t tag, int size)
 {
 	int subchannel=-1;
 	int i;
+	
 	/* XXX FIXME */
 	ScrnInfoPtr pScrn = xf86Screens[0];
 

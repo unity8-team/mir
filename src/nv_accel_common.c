@@ -59,7 +59,7 @@ NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 	uint32_t   class;
 
 	class = (pNv->Architecture >= NV_10) ? NV10_CONTEXT_SURFACES_2D :
-					       NV04_SURFACE;
+					       NV04_CONTEXT_SURFACES_2D;
 
 	if (!have_object) {
 		if (!NVDmaCreateContextObject(pNv, NvContextSurfaces, class))
@@ -67,9 +67,9 @@ NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaStart(pNv, NvContextSurfaces, NV04_SURFACE_DMA_NOTIFY, 1);
+	NVDmaStart(pNv, NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_SET_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvContextSurfaces, NV04_SURFACE_DMA_IMAGE_SOURCE, 2);
+	NVDmaStart(pNv, NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_SET_DMA_IMAGE_SRC, 2);
 	NVDmaNext (pNv, NvDmaFB);
 	NVDmaNext (pNv, NvDmaFB);
 
@@ -254,7 +254,7 @@ NVAccelInitRectangle(ScrnInfoPtr pScrn)
 			NV04_GDI_RECTANGLE_TEXT_SET_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvDmaNotifier0);
 	NVDmaStart(pNv, NvRectangle,
-			0x184 /*NV04_GDI_RECTANGLE_TEXT_SET_DMA_FONTS*/, 1);
+			NV04_GDI_RECTANGLE_TEXT_SET_DMA_FONTS, 1);
 	NVDmaNext (pNv, NvNullObject);
 	NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_SURFACE, 1);
 	NVDmaNext (pNv, NvContextSurfaces);
@@ -265,7 +265,7 @@ NVAccelInitRectangle(ScrnInfoPtr pScrn)
 	NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
 	NVDmaNext (pNv, 1 /* ROP_AND */);
 	NVDmaStart(pNv, NvRectangle,
-			0x304 /*NV04_GDI_RECTANGLE_TEXT_MONO_FORMAT*/, 1);
+			NV04_GDI_RECTANGLE_TEXT_MONO_FORMAT, 1);
 	/* XXX why putting 1 like renouveau dump, swap the text */
 #if 1 || X_BYTE_ORDER == X_BIG_ENDIAN
 	NVDmaNext (pNv, 2 /* NV04_GDI_RECTANGLE_BIGENDIAN/LE_M1 */);
@@ -284,7 +284,7 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	static int have_object = FALSE;
 	uint32_t   class;
 
-	class = (pNv->WaitVSyncPossible) ? NV10_IMAGE_BLIT : NV_IMAGE_BLIT;
+	class = (pNv->WaitVSyncPossible) ? NV11_IMAGE_BLIT : NV_IMAGE_BLIT;
 
 	if (!have_object) {
 		if (!NVDmaCreateContextObject(pNv, NvImageBlit, class))
@@ -353,13 +353,17 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 	NVDmaStart(pNv, NvScaledImage,
 			NV04_SCALED_IMAGE_FROM_MEMORY_SURFACE, 1);
 	NVDmaNext (pNv, NvContextSurfaces);
-	NVDmaStart(pNv, NvScaledImage, 0x188, 1); /* PATTERN */
+	NVDmaStart(pNv, NvScaledImage, 
+			NV04_SCALED_IMAGE_FROM_MEMORY_PATTERN, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvScaledImage, 0x18c, 1); /* ROP */
+	NVDmaStart(pNv, NvScaledImage, 
+			NV04_SCALED_IMAGE_FROM_MEMORY_ROP, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvScaledImage, 0x190, 1); /* BETA1 */
+	NVDmaStart(pNv, NvScaledImage, 
+			NV04_SCALED_IMAGE_FROM_MEMORY_BETA1, 1); /* BETA1 */
 	NVDmaNext (pNv, NvContextBeta1);
-	NVDmaStart(pNv, NvScaledImage, 0x194, 1); /* BETA4 */
+	NVDmaStart(pNv, NvScaledImage, 
+			NV04_SCALED_IMAGE_FROM_MEMORY_BETA4, 1); /* BETA4 */
 	NVDmaNext (pNv, NvContextBeta4);
 	NVDmaStart(pNv, NvScaledImage, 0x2fc, 1); /* NV05_SCALED_IMAGE_FROM_MEMORY_COLOR_CONVERSION */
 	NVDmaNext (pNv, 0); /* NV_063_SET_COLOR_CONVERSION_TYPE_DITHER */
@@ -384,7 +388,8 @@ NVAccelInitClipRectangle(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaStart(pNv, NvClipRectangle, 0x180, 1); /* DMA_NOTIFY */
+	NVDmaStart(pNv, NvClipRectangle, 
+			NV01_CONTEXT_CLIP_RECTANGLE_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvNullObject);
 
 	return TRUE;
@@ -474,13 +479,13 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 	NVDmaNext (pNv, NvDmaNotifier0);
 	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_CLIP_RECTANGLE, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_PATTERN, 1); /* PATTERN */
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_PATTERN, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_ROP, 1); /* ROP */
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_ROP, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvImageFromCpu, 0x194, 1); /* BETA1 */
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_BETA1, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvImageFromCpu, 0x198, 1); /* BETA4 */
+	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_BETA4, 1);
 	NVDmaNext (pNv, NvNullObject);
 	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_SURFACE, 1);
 	NVDmaNext (pNv, NvContextSurfaces);
@@ -532,6 +537,9 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 	switch (pNv->Architecture) {
 	case NV_ARCH_40:
 		INIT_CONTEXT_OBJECT(NV40TCL);
+		break;
+	case NV_ARCH_30:
+		INIT_CONTEXT_OBJECT(NV30TCL);
 		break;
 	default:
 		break;
