@@ -3141,6 +3141,8 @@
 #       define RADEON_RGB_SRC_SEL_RMX		  (1 <<  8)
 #       define RADEON_RGB_SRC_SEL_CRTC2		  (2 <<  8)
 #       define RADEON_RGB_CONVERT_BY_PASS	  (1 << 10)
+#       define RADEON_UVRAM_READ_MARGIN_SHIFT	  16
+#       define RADEON_FIFORAM_FFMACRO_READ_MARGIN_SHIFT	  20
 #	define RADEON_TVOUT_SCALE_EN 		  (1 << 26)
 #define RADEON_TV_SYNC_CNTL                          0x0808
 #       define RADEON_SYNC_OE                     (1 <<  0)
@@ -3211,6 +3213,9 @@
 #	define RADEON_SLEW_RATE_LIMIT		 (1 << 23)
 #       define RADEON_CY_FILT_BLEND_SHIFT        28
 #define RADEON_TV_MODULATOR_CNTL2                    0x0874
+#       define RADEON_TV_U_BURST_LEVEL_MASK     0x1ff
+#       define RADEON_TV_V_BURST_LEVEL_MASK     0x1ff
+#       define RADEON_TV_V_BURST_LEVEL_SHIFT    16
 #define RADEON_TV_CRC_CNTL                           0x0890
 #define RADEON_TV_UV_ADR                             0x08ac
 #	define RADEON_MAX_UV_ADR_MASK		 0x000000ff
@@ -3242,6 +3247,10 @@
 #       define RADEON_TVPLL_RESET                (1 <<  1)
 #       define RADEON_TVPLL_SLEEP                (1 <<  3)
 #       define RADEON_TVPLL_REFCLK_SEL           (1 <<  4)
+#       define RADEON_TVPCP_SHIFT                8
+#       define RADEON_TVPCP_MASK                 (7 << 8)
+#       define RADEON_TVPVG_SHIFT                11
+#       define RADEON_TVPVG_MASK                 (7 << 11)
 #       define RADEON_TVPDC_SHIFT                14
 #       define RADEON_TVPDC_MASK                 (3 << 14)
 #       define RADEON_TVPLL_TEST_DIS             (1 << 31)

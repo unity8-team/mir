@@ -330,6 +330,7 @@ typedef struct {
     CARD32 	      tv_data_delay_b;
     CARD32 	      tv_dac_cntl;
     CARD32 	      tv_pll_cntl;
+    CARD32 	      tv_pll_cntl1;
     CARD32	      tv_pll_fine_cntl;
     CARD32 	      tv_modulator_cntl1;
     CARD32 	      tv_modulator_cntl2;
