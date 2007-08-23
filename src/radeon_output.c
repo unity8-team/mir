@@ -580,7 +580,6 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 
 
     if (radeon_output->type == OUTPUT_LVDS) {
-	if (INREG(RADEON_BIOS_4_SCRATCH) & 4)
 	    MonType =  MT_LCD;
     } else if (radeon_output->type == OUTPUT_DVI) {
 	if (radeon_output->TMDSType == TMDS_INT) {
