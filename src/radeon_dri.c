@@ -70,6 +70,11 @@ static void RADEONDRITransitionSingleToMulti3d(ScreenPtr pScreen);
 
 #ifdef DAMAGE
 static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
+
+#if (DRIINFO_MAJOR_VERSION > 5 ||		\
+     (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1))
+static void RADEONDRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num);
+#endif
 #endif
 
 /* Initialize the visual configs that are supported by the hardware.
@@ -401,7 +406,16 @@ static void RADEONLeaveServer(ScreenPtr pScreen)
 	int nrects = pDamageReg ? REGION_NUM_RECTS(pDamageReg) : 0;
 
 	if (nrects) {
-	    RADEONDRIRefreshArea(pScrn, nrects, REGION_RECTS(pDamageReg));
+	    RegionRec region;
+
+	    REGION_NULL(pScreen, &region);
+	    REGION_SUBTRACT(pScreen, &region, pDamageReg, &info->driRegion);
+
+	    nrects = REGION_NUM_RECTS(&region);
+
+	    if (nrects) {
+		RADEONDRIRefreshArea(pScrn, nrects, REGION_RECTS(&region));
+	    }
 	}
     }
 #endif
@@ -1490,6 +1504,11 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     pDRIInfo->TransitionTo3d = RADEONDRITransitionTo3d;
     pDRIInfo->TransitionSingleToMulti3D = RADEONDRITransitionSingleToMulti3d;
     pDRIInfo->TransitionMultiToSingle3D = RADEONDRITransitionMultiToSingle3d;
+#if defined(DAMAGE) && (DRIINFO_MAJOR_VERSION > 5 ||	\
+			(DRIINFO_MAJOR_VERSION == 5 &&	\
+			 DRIINFO_MINOR_VERSION >= 1))
+    pDRIInfo->ClipNotify     = RADEONDRIClipNotify;
+#endif
 
     pDRIInfo->createDummyCtx     = TRUE;
     pDRIInfo->createDummyCtxPriv = FALSE;
@@ -1753,7 +1772,11 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
 
      xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		    "RADEONDRICloseScreen\n");
-    
+
+#ifdef DAMAGE
+     REGION_UNINIT(pScreen, &info->driRegion);
+#endif
+
      if (info->irq) {
 	RADEONDRISetVBlankInterrupt (pScrn, FALSE);
 	drmCtlUninstHandler(info->drmFD);
@@ -2100,6 +2123,33 @@ static void RADEONDRITransitionTo2d(ScreenPtr pScreen)
     if (info->cursor)
 	xf86ForceHWCursor (pScreen, FALSE);
 }
+
+#if defined(DAMAGE) && (DRIINFO_MAJOR_VERSION > 5 ||	\
+			(DRIINFO_MAJOR_VERSION == 5 &&	\
+			 DRIINFO_MINOR_VERSION >= 1))
+static void
+RADEONDRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    REGION_UNINIT(pScreen, &info->driRegion);
+    REGION_NULL(pScreen, &info->driRegion);
+
+    if (num > 0) {
+	int i;
+
+	for (i = 0; i < num; i++) {
+	    WindowPtr pWin = ppWin[i];
+
+	    if (pWin) {
+		REGION_UNION(pScreen, &info->driRegion, &pWin->clipList,
+			     &info->driRegion);
+	    }
+	}
+    }
+}
+#endif
 
 void RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen)
 {

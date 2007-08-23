@@ -605,6 +605,7 @@ typedef struct {
     Bool              allowPageFlip;    /* Enable 3d page flipping */
 #ifdef DAMAGE
     DamagePtr         pDamage;
+    RegionRec         driRegion;
 #endif
     Bool              have3DWindows;    /* Are there any 3d clients? */
 
