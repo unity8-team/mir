@@ -3444,7 +3444,8 @@ RADEONPutVideo(
    id = FOURCC_YUY2;
    
    top = ya>>16;
-
+#if 0
+   /* setting the ID above makes this useful - needs revisiting */
    switch(id) {
    case FOURCC_YV12:
    case FOURCC_I420:
@@ -3462,6 +3463,10 @@ RADEONPutVideo(
         srcPitch = (width<<1);
         break;
    }
+#else
+   dstPitch = ((width<<1) + 15) & ~15;
+   srcPitch = (width<<1);
+#endif
 
    new_size = dstPitch * height;
    new_size = new_size + 0x1f; /* for aligning */
