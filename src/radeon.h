@@ -960,6 +960,10 @@ extern void RADEONAdjustPLL2RegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save
 extern void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
                                   DisplayModePtr mode, BOOL IsPrimary);
 
+extern void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+extern void RADEONRestoreTVRestarts(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+extern void RADEONRestoreTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+
 #ifdef XF86DRI
 #ifdef USE_XAA
 extern void        RADEONAccelInitCP(ScreenPtr pScreen, XAAInfoRecPtr a);

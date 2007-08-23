@@ -4256,7 +4256,6 @@ void RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 void RADEONRestoreFP2Registers(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
     OUTREG(RADEON_FP2_GEN_CNTL,         restore->fp2_gen_cntl);
@@ -4267,7 +4266,6 @@ void RADEONRestoreFP2Registers(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 void RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
     OUTREG(RADEON_FP_HORZ_STRETCH,      restore->fp_horz_stretch);
@@ -4390,7 +4388,7 @@ static CARD16 RADEONGetVTimingTablesAddr(CARD32 tv_uv_adr)
 }
 
 /* Restore horizontal/vertical timing code tables */
-static void RADEONRestoreTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+void RADEONRestoreTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -4466,7 +4464,7 @@ static void RADEONRestoreTVHVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 }
 
 /* restore TV RESTART registers */
-static void RADEONRestoreTVRestarts(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+void RADEONRestoreTVRestarts(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -5259,7 +5257,6 @@ static void RADEONSaveTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    unsigned i;
 
     ErrorF("Entering TV Save\n");
 

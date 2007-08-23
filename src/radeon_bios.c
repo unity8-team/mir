@@ -623,6 +623,7 @@ Bool RADEONGetTVInfoFromBIOS (xf86OutputPtr output) {
 		return FALSE;
 	}
     }
+    return FALSE;
 }
 
 /* Read PLL parameters from BIOS block.  Default to typical values if there
