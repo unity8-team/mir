@@ -363,13 +363,6 @@ life by reducing power usage.  Some users report reduced 3D performance
 with this enabled.  The default is
 .B off.
 .TP
-.BI "Option \*qBIOSHotkeys\*q \*q" boolean \*q
-Enable BIOS hotkey output switching. This allows the BIOS to toggle outputs
-using hotkeys (e.g., fn-f7, etc.).  Since the driver does not support ACPI, 
-there is no way to validate modes on an output switch and the BIOS can 
-potentially change things behind the driver's back.  The default is
-.B off.
-.TP
 .BI "Option \*qVGAAccess\*q \*q" boolean \*q
 Tell the driver if it can do legacy VGA IOs to the card. This is
 necessary for properly resuming consoles when in VGA text mode, but
@@ -405,6 +398,12 @@ The default is
 for RN50/ES1000 and
 .B on 
 for others.
+.TP
+.BI "Option \*qDefaultConnectorTable\*q \*q" boolean \*q
+Enable this option to skip the BIOS connector table parsing and use the
+driver defaults for each chip.  
+The default is
+.B off 
 .TP
 
 .SH SEE ALSO

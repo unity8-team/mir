@@ -188,6 +188,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_CONSTANTDPI,    "ConstantDPI",	 OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DRI,            "DRI",       	 OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_CONNECTORTABLE, "ConnectorTable",   OPTV_STRING,  {0}, FALSE },
+    { OPTION_DEFAULT_CONNECTOR_TABLE, "DefaultConnectorTable", OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -4402,15 +4403,6 @@ static void RADEONRestoreTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr restore
     hTable = RADEONGetHTimingTablesAddr(restore->tv_uv_adr);
     vTable = RADEONGetVTimingTablesAddr(restore->tv_uv_adr);
 
-    OUTREG(RADEON_TV_MASTER_CNTL, (RADEON_TV_ASYNC_RST
-				   | RADEON_CRT_ASYNC_RST
-				   | RADEON_RESTART_PHASE_FIX
-				   | RADEON_CRT_FIFO_CE_EN
-				   | RADEON_TV_FIFO_CE_EN
-				   | RADEON_TV_ON));
-
-    /*OUTREG(RADEON_TV_MASTER_CNTL, restore->tv_master_cntl | RADEON_TV_ON);*/
-
     for (i = 0; i < MAX_H_CODE_TIMING_LEN; i += 2, hTable--) {
 	tmp = ((CARD32)restore->h_code_timing[ i ] << 14) | ((CARD32)restore->h_code_timing[ i + 1 ]);
 	RADEONWriteTVFIFO(pScrn, hTable, tmp);
@@ -4510,12 +4502,9 @@ void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     ErrorF("Entering Restore TV\n");
 
-    OUTREG(RADEON_TV_MASTER_CNTL, restore->tv_master_cntl | RADEON_TV_ON);
-
     OUTREG(RADEON_TV_MASTER_CNTL, (restore->tv_master_cntl
 				   | RADEON_TV_ASYNC_RST
 				   | RADEON_CRT_ASYNC_RST
-				   | RADEON_RESTART_PHASE_FIX
 				   | RADEON_TV_FIFO_ASYNC_RST));
 
     /* Temporarily turn the TV DAC off */
@@ -4533,8 +4522,7 @@ void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     OUTREG(RADEON_TV_MASTER_CNTL, (restore->tv_master_cntl
 				   | RADEON_TV_ASYNC_RST
-				   | RADEON_CRT_ASYNC_RST
-				   | RADEON_RESTART_PHASE_FIX));
+				   | RADEON_CRT_ASYNC_RST));
 
     ErrorF("Restore TV Restarts\n");
     RADEONRestoreTVRestarts(pScrn, restore);
@@ -4544,8 +4532,7 @@ void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
   
 
     OUTREG(RADEON_TV_MASTER_CNTL, (restore->tv_master_cntl
-				   | RADEON_TV_ASYNC_RST
-				   | RADEON_RESTART_PHASE_FIX));
+				   | RADEON_TV_ASYNC_RST));
 
     ErrorF("Restore TV standard\n");
     RADEONRestoreTVOutputStd(pScrn, restore);
@@ -5304,6 +5291,7 @@ static void RADEONSaveTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->tv_y_saw_tooth_cntl = INREG(RADEON_TV_Y_SAW_TOOTH_CNTL);
 
     save->tv_pll_cntl = INPLL(pScrn, RADEON_TV_PLL_CNTL);
+    save->tv_pll_cntl1 = INPLL(pScrn, RADEON_TV_PLL_CNTL1);
 
     ErrorF("Save TV timing tables\n");
 

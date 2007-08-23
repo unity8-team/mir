@@ -368,6 +368,9 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
             save->lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS);
         } else if (radeon_output->MonType == MT_STV ||
 		   radeon_output->MonType == MT_CTV) {
+	    tmp = INREG(RADEON_TV_MASTER_CNTL);
+	    tmp |= RADEON_TV_ON;
+	    OUTREG(RADEON_TV_MASTER_CNTL, tmp);
 	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
 	}
     } else {
@@ -422,6 +425,9 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
 	    }
         } else if (radeon_output->MonType == MT_STV || radeon_output->MonType == MT_CTV) {
+	    tmp = INREG(RADEON_TV_MASTER_CNTL);
+	    tmp &= ~RADEON_TV_ON;
+	    OUTREG(RADEON_TV_MASTER_CNTL, tmp);
 	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
 	}
     }

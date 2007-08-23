@@ -1296,28 +1296,3 @@ RADEONCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode)
     return pMode;
 }
 
-void
-RADEONChooseOverlayCRTC(ScrnInfoPtr pScrn, BoxPtr dstBox)
-{
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    int c;
-    int crtc_num = 0;
-
-    for (c = 0; c < xf86_config->num_crtc; c++)
-    {
-        xf86CrtcPtr crtc = xf86_config->crtc[c];
-
-	if (!crtc->enabled)
-	    continue;
-
-	if ((dstBox->x1 >= crtc->x) && (dstBox->y1 >= crtc->y))
-	    crtc_num = c;
-    }
-
-    if (crtc_num == 1)
-        info->OverlayOnCRTC2 = TRUE;
-    else
-        info->OverlayOnCRTC2 = FALSE;
-}
-

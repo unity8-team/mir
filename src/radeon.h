@@ -151,7 +151,8 @@ typedef enum {
     OPTION_ACCELMETHOD,
     OPTION_CONSTANTDPI,
     OPTION_CONNECTORTABLE,
-    OPTION_DRI
+    OPTION_DRI,
+    OPTION_DEFAULT_CONNECTOR_TABLE
 } RADEONOpts;
 
 
@@ -329,6 +330,7 @@ typedef struct {
     CARD32 	      tv_data_delay_b;
     CARD32 	      tv_dac_cntl;
     CARD32 	      tv_pll_cntl;
+    CARD32 	      tv_pll_cntl1;
     CARD32	      tv_pll_fine_cntl;
     CARD32 	      tv_modulator_cntl1;
     CARD32 	      tv_modulator_cntl2;
@@ -460,7 +462,6 @@ typedef struct {
     Bool              IsMobility;       /* Mobile chips for laptops */
     Bool              IsIGP;            /* IGP chips */
     Bool              HasSingleDAC;     /* only TVDAC on chip */
-    Bool              OverlayOnCRTC2;
     Bool              ddc_mode;         /* Validate mode by matching exactly
 					 * the modes supported in DDC data
 					 */
@@ -947,8 +948,6 @@ void
 radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image);
 void
 RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num);
-void
-RADEONChooseOverlayCRTC(ScrnInfoPtr pScrn, BoxPtr dstBox);
 
 extern void RADEONAdjustCrtcRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
 					   DisplayModePtr mode, xf86OutputPtr output);

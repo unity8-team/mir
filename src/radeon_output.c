@@ -2344,34 +2344,29 @@ void RADEONInitConnector(xf86OutputPtr output)
 
 }
 
-/*
- * initialise the static data sos we don't have to re-do at randr change */
-Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
+static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
-    xf86OutputPtr output;
-    char *optstr;
-    int i = 0;
-    int num_vga = 0;
-    int num_dvi = 0;
 
-    /* We first get the information about all connectors from BIOS.
-     * This is how the card is phyiscally wired up.
-     * The information should be correct even on a OEM card.
-     * If not, we may have problem -- need to use MonitorLayout option.
-     */
-    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
-	info->BiosConnector[i].valid = FALSE;
-	info->BiosConnector[i].DDCType = DDC_NONE_DETECTED;
-	info->BiosConnector[i].DACType = DAC_UNKNOWN;
-	info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
-	info->BiosConnector[i].ConnectorType = CONNECTOR_NONE;
-    }
+    if (info->IsMobility) {
+	/* Below is the most common setting, but may not be true */
+	if (info->IsIGP) {
+	    info->BiosConnector[0].DDCType = DDC_LCD;
+	    info->BiosConnector[0].DACType = DAC_UNKNOWN;
+	    info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
+	    info->BiosConnector[0].ConnectorType = CONNECTOR_PROPRIETARY;
+	    info->BiosConnector[0].valid = TRUE;
 
-    if (!RADEONGetConnectorInfoFromBIOS(pScrn)) {
-	if (info->IsMobility) {
-	    /* Below is the most common setting, but may not be true */
+	    /* IGP only has TVDAC */
+	    if (info->ChipFamily == CHIP_FAMILY_RS400)
+		info->BiosConnector[1].DDCType = DDC_CRT2;
+	    else
+		info->BiosConnector[1].DDCType = DDC_VGA;
+	    info->BiosConnector[1].DACType = DAC_TVDAC;
+	    info->BiosConnector[1].TMDSType = TMDS_UNKNOWN;
+	    info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
+	    info->BiosConnector[1].valid = TRUE;
+	} else {
 #if defined(__powerpc__)
 	    info->BiosConnector[0].DDCType = DDC_DVI;
 #else
@@ -2387,9 +2382,28 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->BiosConnector[1].TMDSType = TMDS_EXT;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
 	    info->BiosConnector[1].valid = TRUE;
+	}
+    } else {
+	/* Below is the most common setting, but may not be true */
+	if (info->IsIGP) {
+	    if (info->ChipFamily == CHIP_FAMILY_RS400)
+		info->BiosConnector[0].DDCType = DDC_CRT2;
+	    else
+		info->BiosConnector[0].DDCType = DDC_VGA;
+	    info->BiosConnector[0].DACType = DAC_TVDAC;
+	    info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
+	    info->BiosConnector[0].ConnectorType = CONNECTOR_CRT;
+	    info->BiosConnector[0].valid = TRUE;
 
+	    /* not sure what a good default DDCType for DVI on 
+	     * IGP desktop chips is
+	     */
+	    info->BiosConnector[1].DDCType = DDC_MONID; /* DDC_DVI? */
+	    info->BiosConnector[1].DACType = DAC_UNKNOWN;
+	    info->BiosConnector[1].TMDSType = TMDS_EXT;
+	    info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_D;
+	    info->BiosConnector[1].valid = TRUE;
 	} else {
-	    /* Below is the most common setting, but may not be true */
 	    info->BiosConnector[0].DDCType = DDC_DVI;
 	    info->BiosConnector[0].DACType = DAC_TVDAC;
 	    info->BiosConnector[0].TMDSType = TMDS_INT;
@@ -2402,35 +2416,68 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
 	    info->BiosConnector[1].valid = TRUE;
 	}
+    }
 
-	if (info->InternalTVOut) {
-	    info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
-	    info->BiosConnector[2].DACType = DAC_TVDAC;
-	    info->BiosConnector[2].TMDSType = TMDS_NONE;
-	    info->BiosConnector[2].DDCType = DDC_NONE_DETECTED;
-	    info->BiosConnector[2].valid = TRUE;
-	}
+    if (info->InternalTVOut) {
+	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
+	info->BiosConnector[2].DACType = DAC_TVDAC;
+	info->BiosConnector[2].TMDSType = TMDS_NONE;
+	info->BiosConnector[2].DDCType = DDC_NONE_DETECTED;
+	info->BiosConnector[2].valid = TRUE;
+    }
 
-       /* Some cards have the DDC lines swapped and we have no way to
-        * detect it yet (Mac cards)
-        */
-       if (xf86ReturnOptValBool(info->Options, OPTION_REVERSE_DDC, FALSE)) {
-           info->BiosConnector[0].DDCType = DDC_VGA;
-           info->BiosConnector[1].DDCType = DDC_DVI;
-        }
+    /* Some cards have the DDC lines swapped and we have no way to
+     * detect it yet (Mac cards)
+     */
+    if (xf86ReturnOptValBool(info->Options, OPTION_REVERSE_DDC, FALSE)) {
+	info->BiosConnector[0].DDCType = DDC_VGA;
+	info->BiosConnector[1].DDCType = DDC_DVI;
+    }
+
+}
+
+/*
+ * initialise the static data sos we don't have to re-do at randr change */
+Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+    xf86OutputPtr output;
+    char *optstr;
+    int i = 0;
+    int num_vga = 0;
+    int num_dvi = 0;
+
+    /* We first get the information about all connectors from BIOS.
+     * This is how the card is phyiscally wired up.
+     * The information should be correct even on a OEM card.
+     */
+    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	info->BiosConnector[i].valid = FALSE;
+	info->BiosConnector[i].DDCType = DDC_NONE_DETECTED;
+	info->BiosConnector[i].DACType = DAC_UNKNOWN;
+	info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
+	info->BiosConnector[i].ConnectorType = CONNECTOR_NONE;
+    }
+
+    if (xf86ReturnOptValBool(info->Options, OPTION_DEFAULT_CONNECTOR_TABLE, FALSE)) {
+	RADEONSetupGenericConnectors(pScrn);
+    } else {
+	if (!RADEONGetConnectorInfoFromBIOS(pScrn))
+	    RADEONSetupGenericConnectors(pScrn);
     }
 
     if (info->HasSingleDAC) {
         /* For RS300/RS350/RS400 chips, there is no primary DAC. Force VGA port to use TVDAC*/
-        if (info->BiosConnector[0].ConnectorType == CONNECTOR_CRT) {
-            info->BiosConnector[0].DACType = DAC_TVDAC;
-            info->BiosConnector[1].DACType = DAC_NONE;
-        } else {
-            info->BiosConnector[1].DACType = DAC_TVDAC;
-            info->BiosConnector[0].DACType = DAC_NONE;
-        }
+	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	    if (info->BiosConnector[i].ConnectorType == CONNECTOR_CRT)
+		info->BiosConnector[i].DACType = DAC_TVDAC;
+	}
     } else if (!pRADEONEnt->HasCRTC2) {
-        info->BiosConnector[0].DACType = DAC_PRIMARY;
+	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	    if (info->BiosConnector[i].ConnectorType == CONNECTOR_CRT)
+		info->BiosConnector[i].DACType = DAC_PRIMARY;
+	}
     }
 
     /* parse connector table option */
