@@ -3982,13 +3982,11 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 fb, agp;
-    int fb_loc_changed;
 
     fb = INREG(RADEON_MC_FB_LOCATION);
     agp = INREG(RADEON_MC_AGP_LOCATION);
-    fb_loc_changed = (fb != info->mc_fb_location);
 
-    if (fb_loc_changed || agp != info->mc_agp_location) {
+    if (fb != info->mc_fb_location || agp != info->mc_agp_location) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "DRI init changed memory map, adjusting ...\n");
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -4007,9 +4005,8 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
 	    RADEONInitMemMapRegisters(pScrn, save, info);
 
-	    /* If MC_FB_LOCATION was changed, adjust the various offsets */
-	    if (fb_loc_changed)
-		    RADEONRestoreMemMapRegisters(pScrn, save);
+	    /* Adjust the various offsets */
+	    RADEONRestoreMemMapRegisters(pScrn, save);
     }
 
 #ifdef USE_EXA
