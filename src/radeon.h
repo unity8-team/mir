@@ -39,8 +39,7 @@
 
 #include <stdlib.h>		/* For abs() */
 #include <unistd.h>		/* For usleep() */
-#include <sys/time.h>		/* For
-#include <time.h>		 * gettimeofday() */
+#include <sys/time.h>		/* For gettimeofday() */
 
 #include "xf86str.h"
 #include "compiler.h"
