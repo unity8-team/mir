@@ -5852,7 +5852,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONEnterVT\n");
 
-    if (INREG(RADEON_CONFIG_MEMSIZE) == 0) { /* Softboot V_BIOS */
+    if (!info->FBDev && (INREG(RADEON_CONFIG_MEMSIZE) == 0)) { /* Softboot V_BIOS */
        xf86Int10InfoPtr pInt;
        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                   "zero MEMSIZE, probably at D3cold. Re-POSTing via int10.\n");
