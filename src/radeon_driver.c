@@ -724,7 +724,7 @@ void RADEONWaitForVerticalSync(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32         crtc_gen_cntl;
-    int            i;
+    struct timeval timeout;
 
     crtc_gen_cntl = INREG(RADEON_CRTC_GEN_CNTL);
     if ((crtc_gen_cntl & RADEON_CRTC_DISP_REQ_EN_B) ||
@@ -735,10 +735,10 @@ void RADEONWaitForVerticalSync(ScrnInfoPtr pScrn)
     OUTREG(RADEON_CRTC_STATUS, RADEON_CRTC_VBLANK_SAVE_CLEAR);
 
     /* Wait for it to go back up */
-    for (i = 0; i < RADEON_TIMEOUT/1000; i++) {
-	if (INREG(RADEON_CRTC_STATUS) & RADEON_CRTC_VBLANK_SAVE) break;
-	usleep(1);
-    }
+    radeon_init_timeout(&timeout, RADEON_VSYNC_TIMEOUT);
+    while (!(INREG(RADEON_CRTC_STATUS) & RADEON_CRTC_VBLANK_SAVE) &&
+        !radeon_timedout(&timeout))
+	usleep(100);
 }
 
 /* Wait for vertical sync on secondary CRTC */
@@ -747,7 +747,7 @@ void RADEONWaitForVerticalSync2(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32         crtc2_gen_cntl;
-    int            i;
+    struct timeval timeout;
  
     crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL);
     if ((crtc2_gen_cntl & RADEON_CRTC2_DISP_REQ_EN_B) ||
@@ -758,10 +758,10 @@ void RADEONWaitForVerticalSync2(ScrnInfoPtr pScrn)
     OUTREG(RADEON_CRTC2_STATUS, RADEON_CRTC2_VBLANK_SAVE_CLEAR);
 
     /* Wait for it to go back up */
-    for (i = 0; i < RADEON_TIMEOUT/1000; i++) {
-	if (INREG(RADEON_CRTC2_STATUS) & RADEON_CRTC2_VBLANK_SAVE) break;
-	usleep(1);
-    }
+    radeon_init_timeout(&timeout, RADEON_VSYNC_TIMEOUT);
+    while (!(INREG(RADEON_CRTC2_STATUS) & RADEON_CRTC2_VBLANK_SAVE) &&
+        !radeon_timedout(&timeout))
+	usleep(100);
 }
 
 
