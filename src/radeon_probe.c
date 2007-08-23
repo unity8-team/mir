@@ -303,6 +303,7 @@ RADEONProbe(DriverPtr drv, int flags)
 		foundScreen          = TRUE;
 	    }
 
+            xfree(pEnt);
 	    pEnt = xf86GetEntityInfo(usedChips[i]);
 
             /* create a RADEONEntity for all chips, even with
