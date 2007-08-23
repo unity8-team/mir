@@ -703,6 +703,7 @@ Bool NVExaInit(ScreenPtr pScreen)
 
 	switch (pNv->Architecture) {
 #if (X_BYTE_ORDER == X_LITTLE_ENDIAN) && defined(ENABLE_NV30EXA)
+	case NV_ARCH_30:
 	case NV_ARCH_40:
 		pNv->EXADriverPtr->CheckComposite   = NV30EXACheckComposite;
 		pNv->EXADriverPtr->PrepareComposite = NV30EXAPrepareComposite;
