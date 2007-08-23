@@ -2966,8 +2966,14 @@ RADEONPutImage(
 
    offset = (pPriv->video_offset) + (top * dstPitch);
 
-   if(pPriv->doubleBuffer)
+   if(pPriv->doubleBuffer) {
+	unsigned char *RADEONMMIO = info->MMIO;
+
+	/* Wait for last flip to take effect */
+	while(!(INREG(RADEON_OV0_REG_LOAD_CNTL) & RADEON_REG_LD_CTL_FLIP_READBACK));
+
 	offset += pPriv->currentBuffer * new_size;
+   }
 
    dst_start = info->FB + offset;
 
