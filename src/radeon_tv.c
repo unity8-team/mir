@@ -187,9 +187,7 @@ static long SLOPE_limit[5] = { 6, 5, 4, 3, 2 };
 static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
 				 DisplayModePtr mode)
 {
-    ScrnInfoPtr pScrn = output->scrn;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONInfoPtr  info = RADEONPTR(pScrn);
     int restart;
     unsigned hTotal;
     unsigned vTotal;
@@ -274,7 +272,8 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
     save->tv_frestart = restart % fTotal;
 
     ErrorF("computeRestarts: F/H/V=%u,%u,%u\n",
-	   save->tv_frestart , save->tv_vrestart , save->tv_hrestart);
+	   (unsigned)save->tv_frestart, (unsigned)save->tv_vrestart,
+	   (unsigned)save->tv_hrestart);
 
     /* Compute H_INC from hSize */
     if (radeon_output->tvStd == TV_STD_NTSC ||
@@ -570,7 +569,6 @@ void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode)
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     Bool reloadTable;
     RADEONSavePtr restore = &info->ModeReg;
 

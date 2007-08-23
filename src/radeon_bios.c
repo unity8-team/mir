@@ -619,8 +619,7 @@ Bool RADEONGetTVInfoFromBIOS (xf86OutputPtr output) {
 		ErrorF("\n");
 
 		return TRUE;
-	    } else
-		return FALSE;
+	    }
 	}
     }
     return FALSE;
@@ -1077,7 +1076,7 @@ RADEONRestoreBIOSRegBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 	case RADEON_TABLE_FLAG_WRITE_INDEXED:
 	    val = RADEON_BIOS32(offset);
 	    ErrorF("WRITE INDEXED: 0x%x 0x%x\n",
-		   index, val);
+		   index, (unsigned)val);
 	    OUTREG(RADEON_MM_INDEX, index);
 	    OUTREG(RADEON_MM_DATA, val);
 	    offset += 4;
@@ -1085,7 +1084,7 @@ RADEONRestoreBIOSRegBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 
 	case RADEON_TABLE_FLAG_WRITE_DIRECT:
 	    val = RADEON_BIOS32(offset);
-	    ErrorF("WRITE DIRECT: 0x%x 0x%x\n", index, val);
+	    ErrorF("WRITE DIRECT: 0x%x 0x%x\n", index, (unsigned)val);
 	    OUTREG(index, val);
 	    offset += 4;
 	    break;
@@ -1096,7 +1095,7 @@ RADEONRestoreBIOSRegBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 	    ormask = RADEON_BIOS32(offset);
 	    offset += 4;
 	    ErrorF("MASK INDEXED: 0x%x 0x%x 0x%x\n",
-		   index, andmask, ormask);
+		   index, (unsigned)andmask, (unsigned)ormask);
 	    OUTREG(RADEON_MM_INDEX, index);
 	    val = INREG(RADEON_MM_DATA);
 	    val = (val & andmask) | ormask;
@@ -1109,7 +1108,7 @@ RADEONRestoreBIOSRegBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 	    ormask = RADEON_BIOS32(offset);
 	    offset += 4;
 	    ErrorF("MASK DIRECT: 0x%x 0x%x 0x%x\n",
-		   index, andmask, ormask);
+		   index, (unsigned)andmask, (unsigned)ormask);
 	    val = INREG(index);
 	    val = (val & andmask) | ormask;
 	    OUTREG(index, val);
@@ -1198,7 +1197,7 @@ RADEONRestoreBIOSMemBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 	    offset += 2;
 
 	    ErrorF("INDEX RADEON_MEM_SDRAM_MODE_REG %x %x\n",
-		   RADEON_SDRAM_MODE_MASK, ormask);
+		   RADEON_SDRAM_MODE_MASK, (unsigned)ormask);
 
 	    /* can this use direct access? */
 	    OUTREG(RADEON_MM_INDEX, RADEON_MEM_SDRAM_MODE_REG);
@@ -1209,7 +1208,7 @@ RADEONRestoreBIOSMemBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 	    ormask = (CARD32)index << 24;
 
 	    ErrorF("INDEX RADEON_MEM_SDRAM_MODE_REG %x %x\n",
-		   RADEON_B3MEM_RESET_MASK, ormask);
+		   RADEON_B3MEM_RESET_MASK, (unsigned)ormask);
 
             /* can this use direct access? */
             OUTREG(RADEON_MM_INDEX, RADEON_MEM_SDRAM_MODE_REG);
@@ -1224,7 +1223,6 @@ static void
 RADEONRestoreBIOSPllBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     CARD16 offset = table_offset;
     CARD8  index, shift;
     CARD32 andmask, ormask, val, clk_pwrmgt_cntl;
@@ -1298,7 +1296,7 @@ RADEONRestoreBIOSPllBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 	    offset++;
 
 	    ErrorF("PLL_MASK_BYTE 0x%x 0x%x 0x%x 0x%x\n", 
-		   index, shift, andmask, ormask);
+		   index, shift, (unsigned)andmask, (unsigned)ormask);
 	    val = INPLL(pScrn, index);
 	    val = (val & andmask) | ormask;
 	    OUTPLL(pScrn, index, val);
@@ -1306,7 +1304,7 @@ RADEONRestoreBIOSPllBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 
 	case RADEON_PLL_FLAG_WRITE:
 	    val = RADEON_BIOS32(offset);
-	    ErrorF("PLL_WRITE 0x%x 0x%x\n", index, val);
+	    ErrorF("PLL_WRITE 0x%x 0x%x\n", index, (unsigned)val);
 	    OUTPLL(pScrn, index, val);
 	    offset += 4;
 	    break;

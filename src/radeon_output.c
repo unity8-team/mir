@@ -654,8 +654,6 @@ static Bool
 radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		    DisplayModePtr adjusted_mode)
 {
-    ScrnInfoPtr	pScrn = output->scrn;
-    RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     if (radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP) {
@@ -1229,12 +1227,9 @@ radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color)
 
     /* save the regs we need */
     pixclks_cntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
-    if (IS_R300_VARIANT) {
-	gpiopad_a = INREG(RADEON_GPIOPAD_A);
-	disp_output_cntl = INREG(RADEON_DISP_OUTPUT_CNTL);
-    } else {
-	disp_hw_debug = INREG(RADEON_DISP_HW_DEBUG);
-    }
+    gpiopad_a = IS_R300_VARIANT ? INREG(RADEON_GPIOPAD_A) : 0;
+    disp_output_cntl = IS_R300_VARIANT ? INREG(RADEON_DISP_OUTPUT_CNTL) : 0;
+    disp_hw_debug = !IS_R300_VARIANT ? INREG(RADEON_DISP_HW_DEBUG) : 0;
     crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL);
     tv_dac_cntl = INREG(RADEON_TV_DAC_CNTL);
     dac_ext_cntl = INREG(RADEON_DAC_EXT_CNTL);
@@ -2286,10 +2281,7 @@ RADEONGetTMDSInfo(xf86OutputPtr output)
 static void
 RADEONGetTVInfo(xf86OutputPtr output)
 {
-    ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    int i;
 
     radeon_output->hPos = 0;
     radeon_output->vPos = 0;

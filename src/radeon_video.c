@@ -2587,18 +2587,17 @@ RADEONDisplayVideo(
 	y_mult = 2;
     }
 
+    v_inc = (src_h << v_inc_shift) / drw_h;
+
     for (i = 0; i < xf86_config->num_output; i++) {
 	output = xf86_config->output[i];
 	if (output->crtc == crtc) {
 	    radeon_output = output->driver_private;
+	    if (radeon_output->Flags & RADEON_USE_RMX)
+		v_inc = ((src_h * mode->CrtcVDisplay /
+			  radeon_output->PanelYRes) << v_inc_shift) / drw_h;
 	    break;
 	}
-    }
-
-    if (radeon_output->Flags & RADEON_USE_RMX) {
-	v_inc = ((src_h * mode->CrtcVDisplay / radeon_output->PanelYRes) << v_inc_shift) / drw_h;
-    } else {
-	v_inc = (src_h << v_inc_shift) / drw_h;
     }
 
     h_inc = (1 << (12 + ecp_div));
@@ -2860,7 +2859,6 @@ RADEONPutImage(
   DrawablePtr pDraw
 ){
    RADEONInfoPtr info = RADEONPTR(pScrn);
-   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
    INT32 xa, xb, ya, yb;
    unsigned char *dst_start;
@@ -3259,7 +3257,6 @@ RADEONDisplaySurface(
 ){
     OffscreenPrivPtr pPriv = (OffscreenPrivPtr)surface->devPrivate.ptr;
     ScrnInfoPtr pScrn = surface->pScrn;
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONPortPrivPtr portPriv = info->adaptor->pPortPrivates[0].ptr;
 
@@ -3362,7 +3359,6 @@ RADEONPutVideo(
 ){
    RADEONInfoPtr info = RADEONPTR(pScrn);
    RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
-   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    unsigned char *RADEONMMIO = info->MMIO;
    INT32 xa, xb, ya, yb, top;
    unsigned int pitch, new_size, alloc_size;
@@ -3376,7 +3372,6 @@ RADEONPutVideo(
    int mult;
    int vbi_line_width, vbi_start, vbi_end;
    xf86CrtcPtr crtc;
-   RADEONCrtcPrivatePtr radeon_crtc;
 
     RADEON_SYNC(info, pScrn);
    /*
