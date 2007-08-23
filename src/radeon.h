@@ -613,7 +613,6 @@ typedef struct {
     unsigned long     gartOffset;
     unsigned char     *AGP;             /* Map */
     int               agpMode;
-    int               agpFastWrite;
 
     CARD32            pciCommand;
 
@@ -914,13 +913,13 @@ extern void        RADEONDisableDisplays(ScrnInfoPtr pScrn);
 extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
 extern void        RADEONGetTVDacAdjInfo(xf86OutputPtr output);
 extern void        RADEONUnblank(ScrnInfoPtr pScrn);
+extern void        RADEONUnblank(ScrnInfoPtr pScrn);
 extern void        RADEONBlank(ScrnInfoPtr pScrn);
 extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 						   int PowerManagementMode,
 						   int flags);
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn);
 extern Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn);
-extern xf86OutputPtr RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num);
 extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 				  RADEONMonitorType DisplayType, int crtc2);

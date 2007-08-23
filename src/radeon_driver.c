@@ -5567,8 +5567,10 @@ static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode)
     if (unblank) SetTimeSinceLastInputEvent();
 
     if ((pScrn != NULL) && pScrn->vtSema) {
-	if (unblank)  RADEONUnblank(pScrn);
-	else          RADEONBlank(pScrn);
+	if (unblank)
+	    RADEONUnblank(pScrn);
+	else
+	    RADEONBlank(pScrn);
     }
     return TRUE;
 }

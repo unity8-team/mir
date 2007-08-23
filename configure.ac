@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-ati],
-        6.6.192,
+        6.6.193,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-ati)
 
@@ -38,6 +38,10 @@ AM_MAINTAINER_MODE
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 AC_PROG_CC
+
+if test "x$GCC" = "xyes"; then
+	CFLAGS="$CFLAGS -Wall"
+fi
 
 AH_TOP([#include "xorg-server.h"])
 

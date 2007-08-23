@@ -809,4 +809,3 @@ void RADEONUnblank(ScrnInfoPtr pScrn)
 	}
     }
 }
-

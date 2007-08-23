@@ -748,28 +748,6 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
 
     xf86DrvMsg(pScreen->myNum, from, "Using AGP %dx\n", info->agpMode);
 
-    info->agpFastWrite = 0; // Always off by default as it sucks
-
-    from = xf86GetOptValInteger(info->Options, OPTION_AGP_FW,
-				&info->agpFastWrite) ? X_CONFIG : X_DEFAULT;
-
-    if (info->agpFastWrite &&
-	(vendor == PCI_VENDOR_AMD) &&
-	(device == PCI_CHIP_AMD761)) {
-
-	/* Disable fast write for AMD 761 chipset, since they cause
-	 * lockups when enabled.
-	 */
-	info->agpFastWrite = FALSE;
-	from = X_DEFAULT;
-	xf86DrvMsg(pScreen->myNum, X_WARNING,
-		   "[agp] Not enabling Fast Writes on AMD 761 chipset to avoid "
-		   "lockups");
-    }
-
-    xf86DrvMsg(pScreen->myNum, from, "AGP Fast Writes %sabled\n",
-	       info->agpFastWrite ? "en" : "dis");
-
     mode &= ~RADEON_AGP_MODE_MASK;
     if (is_v3) {
 	/* only set one mode bit for AGPv3 */
@@ -788,8 +766,26 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
 	}
     }
 
-    if (info->agpFastWrite) mode |= RADEON_AGP_FW_MODE;
-    else mode &= ~RADEON_AGP_FW_MODE;
+    /* AGP Fast Writes.
+     * TODO: take into account that certain agp modes don't support fast
+     * writes at all */
+    mode &= ~RADEON_AGP_FW_MODE; /* Disable per default */
+    if (xf86ReturnOptValBool(info->Options, OPTION_AGP_FW, FALSE)) {
+	xf86DrvMsg(pScreen->myNum, X_WARNING,
+		   "WARNING: Using the AGPFastWrite option is not recommended.\n");
+	xf86Msg(X_NONE, "\tThis option does not provide much of a noticable speed"
+		" boost, while it\n\twill probably hard lock your machine."
+		" All bets are off!\n");
+
+	/* Black list some host/AGP bridges. */
+	if ((vendor == PCI_VENDOR_AMD) && (device == PCI_CHIP_AMD761))
+	    xf86DrvMsg(pScreen->myNum, X_PROBED, "Ignoring AGPFastWrite option "
+		       "for the AMD 761 northbridge.\n");
+	else {
+	    xf86DrvMsg(pScreen->myNum, X_CONFIG, "Enabling AGP Fast Writes.\n");
+	    mode |= RADEON_AGP_FW_MODE;
+	}
+    } /* Don't mention this otherwise, so that people don't get funny ideas */
 
     xf86DrvMsg(pScreen->myNum, X_INFO,
 	       "[agp] Mode 0x%08lx [AGP 0x%04x/0x%04x; Card 0x%04x/0x%04x]\n",

@@ -308,7 +308,7 @@ remainder of video RAM is reserved for EXA offscreen management. Specifying 0
 results in all offscreen video RAM being reserved for EXA and only GART memory
 being available for OpenGL textures. This may improve EXA performance, but
 beware that it may cause problems with OpenGL drivers from Mesa versions older
-than 6.4. With XAA, specifiying lower percentage than what gets reserved without
+than 6.4. With XAA, specifying lower percentage than what gets reserved without
 this option has no effect, but the driver tries to increase the video RAM
 reserved for textures to the amount specified roughly.
 Default:
@@ -417,7 +417,7 @@ Kevin E. Martin          \fIkem@freedesktop.org\fP
 Alan Hourihane           \fIalanh@fairlite.demon.co.uk\fP
 Marc Aurele La France    \fItsi@xfree86.org\fP
 Benjamin Herrenschmidt   \fIbenh@kernel.crashing.org\fP
-Michel Dänzer            \fImichel@tungstengraphics.com\fP
+Michel D\(:anzer            \fImichel@tungstengraphics.com\fP
 Alex Deucher             \fIalexdeucher@gmail.com\fP
 Bogdan D.                \fIbogdand@users.sourceforge.net\fP
 Eric Anholt              \fIeric@anholt.net\fP
