@@ -398,10 +398,10 @@ static void RADEONLeaveServer(ScreenPtr pScreen)
 #ifdef DAMAGE
     if (info->pDamage) {
 	RegionPtr pDamageReg = DamageRegion(info->pDamage);
+	int nrects = pDamageReg ? REGION_NUM_RECTS(pDamageReg) : 0;
 
-	if (pDamageReg) {
-	    RADEONDRIRefreshArea(pScrn, REGION_NUM_RECTS(pDamageReg),
-				 REGION_RECTS(pDamageReg));
+	if (nrects) {
+	    RADEONDRIRefreshArea(pScrn, nrects, REGION_RECTS(pDamageReg));
 	}
     }
 #endif
