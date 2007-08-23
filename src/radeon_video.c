@@ -1437,9 +1437,7 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
         info->ecp_div = 1;
     ecp = (INPLL(pScrn, RADEON_VCLK_ECP_CNTL) & 0xfffffCff) | (info->ecp_div << 8);
 
-    if ((info->ChipFamily == CHIP_FAMILY_RS100) || 
-	(info->ChipFamily == CHIP_FAMILY_RS200) ||
-	(info->ChipFamily == CHIP_FAMILY_RS300)) {
+    if (info->IsIGP) {
         /* Force the overlay clock on for integrated chips
 	 */
         ecp |= (1<<18);
