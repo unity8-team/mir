@@ -2772,9 +2772,26 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 		crtc_max_Y = 8192;
 	}
     } else {
-	crtc_max_X = 1600;
-	crtc_max_Y = 1200;
+	if (pScrn->videoRam < 16384) {
+	    crtc_max_X = 1600;
+	    crtc_max_Y = 1200;
+	} else if (pScrn->videoRam <= 32768) {
+	    crtc_max_X = 2048;
+	    crtc_max_Y = 1200;
+	} else if (pScrn->videoRam > 32768) {
+	    if (IS_R300_VARIANT) {
+		crtc_max_X = 2560;
+		crtc_max_Y = 2048;
+	    } else {
+		crtc_max_X = 2048;
+		crtc_max_Y = 2048;
+	    }
+	}
     }
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Max desktop size set to %dx%d\n",
+	       crtc_max_X, crtc_max_Y);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "For a larger or smaller max desktop size, add a Virtual line to your xorg.conf\n");
 
     /*xf86CrtcSetSizeRange (pScrn, 320, 200, info->MaxSurfaceWidth, info->MaxLines);*/
     xf86CrtcSetSizeRange (pScrn, 320, 200, crtc_max_X, crtc_max_Y);
