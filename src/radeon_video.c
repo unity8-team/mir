@@ -1325,21 +1325,21 @@ static void RADEONSetupTheatre(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
                                    } else {
                                    t->wComp0Connector=RT_COMP1;
                                    }
-                xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Composite connector is port %ld\n", t->wComp0Connector);
+                xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Composite connector is port %u\n", (unsigned)t->wComp0Connector);
                                   break;
                         case 3:  if(a & 0x4){
                                    t->wSVideo0Connector=RT_YCR_COMP4;
                                    } else {
                                    t->wSVideo0Connector=RT_YCF_COMP4;
                                    }
-                xf86DrvMsg(pScrn->scrnIndex, X_INFO, "SVideo connector is port %ld\n", t->wSVideo0Connector);
+                xf86DrvMsg(pScrn->scrnIndex, X_INFO, "SVideo connector is port %u\n", (unsigned)t->wSVideo0Connector);
                                    break;
                         default:
                                 break;
                         }
                 }
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rage Theatre: Connectors (detected): tuner=%ld, composite=%ld, svideo=%ld\n",
-    	     t->wTunerConnector, t->wComp0Connector, t->wSVideo0Connector);
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Rage Theatre: Connectors (detected): tuner=%u, composite=%u, svideo=%u\n",
+    	     (unsigned)t->wTunerConnector, (unsigned)t->wComp0Connector, (unsigned)t->wSVideo0Connector);
         
          }
 
@@ -1347,8 +1347,8 @@ static void RADEONSetupTheatre(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     if(info->RageTheatreCompositePort>=0)t->wComp0Connector=info->RageTheatreCompositePort;
     if(info->RageTheatreSVideoPort>=0)t->wSVideo0Connector=info->RageTheatreSVideoPort;
         
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RageTheatre: Connectors (using): tuner=%ld, composite=%ld, svideo=%ld\n",
-    	t->wTunerConnector, t->wComp0Connector, t->wSVideo0Connector);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RageTheatre: Connectors (using): tuner=%u, composite=%u, svideo=%u\n",
+    	(unsigned)t->wTunerConnector, (unsigned)t->wComp0Connector, (unsigned)t->wSVideo0Connector);
 
     switch((info->RageTheatreCrystal>=0)?info->RageTheatreCrystal:pll->reference_freq){
                 case 2700:
@@ -1881,7 +1881,8 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
    else if(attribute == xvAdjustment) 
    {
   	pPriv->adjustment=value;
-        xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"Setting pPriv->adjustment to %ld\n", pPriv->adjustment);
+        xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"Setting pPriv->adjustment to %u\n",
+		   (unsigned)pPriv->adjustment);
   	if(pPriv->tda9885!=0){
 		pPriv->tda9885->top_adjustment=value;
 		RADEON_TDA9885_SetEncoding(pPriv);

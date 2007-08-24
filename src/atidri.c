@@ -1269,9 +1269,10 @@ Bool ATIDRIScreenInit( ScreenPtr pScreen )
       ErrorF( "[dri] Data does not fit in SAREA\n" );
       return FALSE;
    }
-   xf86DrvMsg( pScreenInfo->scrnIndex, X_INFO, "[drm] SAREA %d+%d: %d\n",
-	       sizeof(XF86DRISAREARec), sizeof(ATISAREAPrivRec),
-	       sizeof(XF86DRISAREARec) + sizeof(ATISAREAPrivRec) );
+   xf86DrvMsg( pScreenInfo->scrnIndex, X_INFO, "[drm] SAREA %u+%u: %u\n",
+	       (unsigned)sizeof(XF86DRISAREARec),
+	       (unsigned)sizeof(ATISAREAPrivRec),
+	       (unsigned)(sizeof(XF86DRISAREARec) + sizeof(ATISAREAPrivRec)) );
    pDRIInfo->SAREASize = SAREA_MAX;
 
    pATIDRI = (ATIDRIPtr) xnfcalloc( sizeof(ATIDRIRec), 1 );

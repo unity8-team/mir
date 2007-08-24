@@ -1796,7 +1796,9 @@ void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
     	counter++;
 	}
     dwTempContrast = ReadRT_fld (fld_LP_CONTRAST);
-    if(counter>=10000)xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre: timeout waiting for line count (%ld)\n", ReadRT_fld (fld_VS_LINE_COUNT));
+    if(counter>=10000)xf86DrvMsg(t->VIP->scrnIndex, X_INFO,
+				 "Rage Theatre: timeout waiting for line count (%u)\n",
+				 (unsigned)ReadRT_fld (fld_VS_LINE_COUNT));
 
 
     WriteRT_fld (fld_LP_CONTRAST, 0x0);
@@ -1851,7 +1853,9 @@ void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
     	counter++;
 	}
     WriteRT_fld (fld_LP_CONTRAST, dwTempContrast);
-    if(counter>=10000)xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "Rage Theatre: timeout waiting for line count (%ld)\n", ReadRT_fld (fld_VS_LINE_COUNT));
+    if(counter>=10000)xf86DrvMsg(t->VIP->scrnIndex, X_INFO,
+				 "Rage Theatre: timeout waiting for line count (%u)\n",
+				 (unsigned)ReadRT_fld (fld_VS_LINE_COUNT));
 
 
 
@@ -1942,7 +1946,8 @@ void DumpRageTheatreRegs(TheatrePtr t)
     for(i=0;i<0x900;i+=4)
     {
        RT_regr(i, &data);
-       xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "register 0x%04x is equal to 0x%08lx\n", i, data);
+       xf86DrvMsg(t->VIP->scrnIndex, X_INFO,
+		  "register 0x%04x is equal to 0x%08x\n", i, (unsigned)data);
     }   
 
 }
@@ -2147,7 +2152,9 @@ void DumpRageTheatreRegsByName(TheatrePtr t)
 
     for(i=0; rt_reg_list[i].name!=NULL;i++){
         RT_regr(rt_reg_list[i].addr, &data);
-        xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "register (0x%04lx) %s is equal to 0x%08lx\n", rt_reg_list[i].addr, rt_reg_list[i].name, data);
+        xf86DrvMsg(t->VIP->scrnIndex, X_INFO,
+		   "register (0x%04lx) %s is equal to 0x%08x\n",
+		   rt_reg_list[i].addr, rt_reg_list[i].name, (unsigned)data);
     	}
 
 }

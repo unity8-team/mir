@@ -653,8 +653,11 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 	    if (info->sclk == 0) info->sclk = 200;
 	    if (info->mclk == 0) info->mclk = 200;
 		
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ref_freq: %d, min_pll: %ld, max_pll: %ld, xclk: %d, sclk: %f, mclk: %f\n",
-		       pll->reference_freq, pll->min_pll_freq, pll->max_pll_freq, pll->xclk, info->sclk, info->mclk);
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ref_freq: %d, min_pll: %u, "
+		       "max_pll: %u, xclk: %d, sclk: %f, mclk: %f\n",
+		       pll->reference_freq, (unsigned)pll->min_pll_freq,
+		       (unsigned)pll->max_pll_freq, pll->xclk, info->sclk,
+		       info->mclk);
 
 	} else {
 	    pll_info_block = RADEON_BIOS16 (info->ROMHeaderStart + 0x30);
@@ -839,8 +842,9 @@ Bool RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output)
 					   ((RADEON_BIOS8(tmp+i*6+9) & 0xf)<<12) |
 					   ((RADEON_BIOS8(tmp+i*6+11) & 0xf)<<16));
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-			   "TMDS PLL from BIOS: %ld %lx\n", 
-			   radeon_output->tmds_pll[i].freq, radeon_output->tmds_pll[i].value);
+			   "TMDS PLL from BIOS: %u %x\n", 
+			   (unsigned)radeon_output->tmds_pll[i].freq,
+			   (unsigned)radeon_output->tmds_pll[i].value);
 		       
 		if (maxfreq == radeon_output->tmds_pll[i].freq) {
 		    radeon_output->tmds_pll[i].freq = 0xffffffff;

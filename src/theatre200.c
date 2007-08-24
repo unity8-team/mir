@@ -1799,10 +1799,12 @@ void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
 	t->wConnector = wConnector;
 
 	theatre_read(t, VIP_GPIO_CNTL, &data);
-	xf86DrvMsg(t->VIP->scrnIndex,X_INFO,"VIP_GPIO_CNTL: %lx\n", data);
+	xf86DrvMsg(t->VIP->scrnIndex,X_INFO,"VIP_GPIO_CNTL: %x\n",
+		   (unsigned)data);
 
 	theatre_read(t, VIP_GPIO_INOUT, &data);
-	xf86DrvMsg(t->VIP->scrnIndex,X_INFO,"VIP_GPIO_INOUT: %lx\n", data);
+	xf86DrvMsg(t->VIP->scrnIndex,X_INFO,"VIP_GPIO_INOUT: %x\n",
+		   (unsigned)data);
 	
 	switch (wConnector)
 	{
@@ -1851,10 +1853,12 @@ void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
 	}
 
 	theatre_read(t, VIP_GPIO_CNTL, &data);
-	xf86DrvMsg(t->VIP->scrnIndex,X_INFO,"VIP_GPIO_CNTL: %lx\n", data);
+	xf86DrvMsg(t->VIP->scrnIndex,X_INFO,"VIP_GPIO_CNTL: %x\n",
+		   (unsigned)data);
 
 	theatre_read(t, VIP_GPIO_INOUT, &data);
-	xf86DrvMsg(t->VIP->scrnIndex,X_INFO,"VIP_GPIO_INOUT: %lx\n", data);
+	xf86DrvMsg(t->VIP->scrnIndex,X_INFO,"VIP_GPIO_INOUT: %x\n",
+		   (unsigned)data);
 
 
 	dsp_configure_i2s_port(t, 0, 0, 0);
@@ -2007,7 +2011,8 @@ void DumpRageTheatreRegs(TheatrePtr t)
     for(i=0;i<0x900;i+=4)
     {
        RT_regr(i, &data);
-       xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "register 0x%04x is equal to 0x%08lx\n", i, data);
+       xf86DrvMsg(t->VIP->scrnIndex, X_INFO,
+		  "register 0x%04x is equal to 0x%08x\n", i, (unsigned)data);
     }   
 
 }
@@ -2212,7 +2217,9 @@ void DumpRageTheatreRegsByName(TheatrePtr t)
 
     for(i=0; rt_reg_list[i].name!=NULL;i++){
         RT_regr(rt_reg_list[i].addr, &data);
-        xf86DrvMsg(t->VIP->scrnIndex, X_INFO, "register (0x%04lx) %s is equal to 0x%08lx\n", rt_reg_list[i].addr, rt_reg_list[i].name, data);
+        xf86DrvMsg(t->VIP->scrnIndex, X_INFO,
+		   "register (0x%04lx) %s is equal to 0x%08x\n",
+		   rt_reg_list[i].addr, rt_reg_list[i].name, (unsigned)data);
     	}
 
 }

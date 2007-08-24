@@ -666,9 +666,9 @@ RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONInfoPtr info,
     save->post_div       = post_div->divider;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "dc=%ld, of=%ld, fd=%d, pd=%d\n",
-		   save->dot_clock_freq,
-		   save->pll_output_freq,
+		   "dc=%u, of=%u, fd=%d, pd=%d\n",
+		   (unsigned)save->dot_clock_freq,
+		   (unsigned)save->pll_output_freq,
 		   save->feedback_div,
 		   save->post_div);
 
@@ -735,9 +735,9 @@ RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
     save->post_div_2       = post_div->divider;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "dc=%ld, of=%ld, fd=%d, pd=%d\n",
-		   save->dot_clock_freq_2,
-		   save->pll_output_freq_2,
+		   "dc=%u, of=%u, fd=%d, pd=%d\n",
+		   (unsigned)save->dot_clock_freq_2,
+		   (unsigned)save->pll_output_freq_2,
 		   save->feedback_div_2,
 		   save->post_div_2);
 
