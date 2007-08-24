@@ -77,7 +77,7 @@ const char *TMDSTypeName[4] = {
 };
 
 const char *DDCTypeName[6] = {
-  "NONE",
+  "None",
   "MONID",
   "DVI_DDC",
   "VGA_DDC",
