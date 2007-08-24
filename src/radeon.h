@@ -791,6 +791,7 @@ typedef struct {
     int                MaxLines;
 
     CARD32            tv_dac_adj;
+    CARD32            tv_dac_enable_mask;
 
     Bool want_vblank_interrupts;
     RADEONBIOSConnector BiosConnector[RADEON_MAX_BIOS_CONNECTOR];

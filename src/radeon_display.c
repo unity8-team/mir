@@ -322,6 +322,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
     unsigned char * RADEONMMIO = info->MMIO;
     unsigned long tmp;
     RADEONOutputPrivatePtr radeon_output;
+    int tv_dac_change = 0;
     radeon_output = output->driver_private;
 
     if (bEnable) {
@@ -332,6 +333,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
                 tmp |= RADEON_CRTC_CRT_ON;                    
                 OUTREG(RADEON_CRTC_EXT_CNTL, tmp);
                 save->crtc_ext_cntl |= RADEON_CRTC_CRT_ON;
+                RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
             } else if (radeon_output->DACType == DAC_TVDAC) {
                 if (info->ChipFamily == CHIP_FAMILY_R200) {
                     tmp = INREG(RADEON_FP2_GEN_CNTL);
@@ -344,8 +346,8 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
                     OUTREG(RADEON_CRTC2_GEN_CNTL, tmp);
                     save->crtc2_gen_cntl |= RADEON_CRTC2_CRT2_ON;
                 }
+                tv_dac_change = 1;
             }
-	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
         } else if (radeon_output->MonType == MT_DFP) {
             if (radeon_output->TMDSType == TMDS_INT) {
                 tmp = INREG(RADEON_FP_GEN_CNTL);
@@ -371,7 +373,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    tmp = INREG(RADEON_TV_MASTER_CNTL);
 	    tmp |= RADEON_TV_ON;
 	    OUTREG(RADEON_TV_MASTER_CNTL, tmp);
-	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
+            tv_dac_change = 2;
 	}
     } else {
 	ErrorF("disable montype: %d\n", radeon_output->MonType);
@@ -381,6 +383,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
                 tmp &= ~RADEON_CRTC_CRT_ON;
                 OUTREG(RADEON_CRTC_EXT_CNTL, tmp);
                 save->crtc_ext_cntl &= ~RADEON_CRTC_CRT_ON;
+                RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
             } else if (radeon_output->DACType == DAC_TVDAC) {
                 if (info->ChipFamily == CHIP_FAMILY_R200) {
                     tmp = INREG(RADEON_FP2_GEN_CNTL);
@@ -393,8 +396,8 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
                     OUTREG(RADEON_CRTC2_GEN_CNTL, tmp);
                     save->crtc2_gen_cntl &= ~RADEON_CRTC2_CRT2_ON;
                 }
+                tv_dac_change = 1;
             }
-	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
         } else if (radeon_output->MonType == MT_DFP) {
             if (radeon_output->TMDSType == TMDS_INT) {
                 tmp = INREG(RADEON_FP_GEN_CNTL);
@@ -428,8 +431,21 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    tmp = INREG(RADEON_TV_MASTER_CNTL);
 	    tmp &= ~RADEON_TV_ON;
 	    OUTREG(RADEON_TV_MASTER_CNTL, tmp);
-	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
+            tv_dac_change = 2;
 	}
+    }
+
+    if (tv_dac_change) {
+	if (bEnable)
+		info->tv_dac_enable_mask |= tv_dac_change;
+	else
+		info->tv_dac_enable_mask &= ~tv_dac_change;
+
+	if (bEnable && info->tv_dac_enable_mask)
+	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
+	else if (!bEnable && info->tv_dac_enable_mask == 0)
+	    RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
+
     }
 }
 
