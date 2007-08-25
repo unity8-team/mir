@@ -57,6 +57,8 @@ static void quirk_mac_mini (I830Ptr pI830)
 static i830_quirk i830_quirk_list[] = {
     /* Lenovo T61 has no TV output */
     { PCI_CHIP_I965_GM, 0x17aa, 0x20b5, quirk_ignore_tv },
+    /* Lenovo X61s has no TV output */
+    { PCI_CHIP_I965_GM, 0x17aa, 0x201a, quirk_ignore_tv },
     /* Panasonic Toughbook CF-Y4 has no TV output */
     { PCI_CHIP_I915_GM, 0x10f7, 0x8338, quirk_ignore_tv },
     /* Lenovo 3000 v200 */
