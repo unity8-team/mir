@@ -150,14 +150,6 @@ affects the "true" overlay via xv, it won't affect things like textured video.
 .br
 The default value is either 1536 (for most chips) or 1920.
 .TP
-.BI "Option \*qUseFBDev\*q \*q" boolean \*q
-Enable or disable use of an OS\-specific framebuffer device interface
-(which is not supported on all OSs).  MergedFB does not work when this
-option is in use.  See fbdevhw(__drivermansuffix__) for further information. 
-.br
-The default is
-.B off.
-.TP
 .BI "Option \*qAGPMode\*q \*q" integer \*q
 Set AGP data transfer rate.
 (used only when DRI is enabled)

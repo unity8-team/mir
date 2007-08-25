@@ -123,7 +123,6 @@ typedef enum {
 #endif
     OPTION_DDC_MODE,
     OPTION_IGNORE_EDID,
-    OPTION_FBDEV,
     OPTION_DISP_PRIORITY,
     OPTION_PANEL_SIZE,
     OPTION_MIN_DOTCLOCK,
@@ -436,8 +435,6 @@ typedef struct {
     int               Chipset;
     RADEONChipFamily  ChipFamily;
     RADEONErrata      ChipErrata;
-
-    Bool              FBDev;
 
     unsigned long     LinearAddr;       /* Frame buffer physical address     */
     unsigned long     MMIOAddr;         /* MMIO region physical address      */

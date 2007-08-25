@@ -36,7 +36,6 @@
 /* X and server generic header files */
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "fbdevhw.h"
 #include "vgaHW.h"
 #include "xf86Modes.h"
 
