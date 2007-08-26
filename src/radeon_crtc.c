@@ -188,7 +188,7 @@ RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 #endif
 	save->crtc_offset_cntl = 0;
 
-    if (info->tilingEnabled) {
+    if (info->tilingEnabled && (crtc->rotatedData == NULL)) {
        if (IS_R300_VARIANT)
           save->crtc_offset_cntl |= (R300_CRTC_X_Y_MODE_EN |
 				     R300_CRTC_MICRO_TILE_BUFFER_DIS |
@@ -207,7 +207,7 @@ RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 
     Base = pScrn->fbOffset;
 
-    if (info->tilingEnabled) {
+    if (info->tilingEnabled && (crtc->rotatedData == NULL)) {
         if (IS_R300_VARIANT) {
 	/* On r300/r400 when tiling is enabled crtc_offset is set to the address of
 	 * the surface.  the x/y offsets are handled by the X_Y tile reg for each crtc
@@ -247,6 +247,10 @@ RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
        case 32: offset *= 4; break;
        }
        Base += offset;
+    }
+
+    if (crtc->rotatedData != NULL) {
+	Base = pScrn->fbOffset + (char *)crtc->rotatedData - (char *)info->FB;
     }
 
     Base &= ~7;                 /* 3 lower bits are always 0 */
@@ -419,7 +423,7 @@ RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
 #endif
 	save->crtc2_offset_cntl = 0;
 
-    if (info->tilingEnabled) {
+    if (info->tilingEnabled && (crtc->rotatedData == NULL)) {
        if (IS_R300_VARIANT)
           save->crtc2_offset_cntl |= (R300_CRTC_X_Y_MODE_EN |
 				      R300_CRTC_MICRO_TILE_BUFFER_DIS |
@@ -438,7 +442,7 @@ RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
 
     Base = pScrn->fbOffset;
 
-    if (info->tilingEnabled) {
+    if (info->tilingEnabled && (crtc->rotatedData == NULL)) {
         if (IS_R300_VARIANT) {
 	/* On r300/r400 when tiling is enabled crtc_offset is set to the address of
 	 * the surface.  the x/y offsets are handled by the X_Y tile reg for each crtc
@@ -478,6 +482,10 @@ RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
        case 32: offset *= 4; break;
        }
        Base += offset;
+    }
+
+    if (crtc->rotatedData != NULL) {
+	Base = pScrn->fbOffset + (char *)crtc->rotatedData - (char *)info->FB;
     }
 
     Base &= ~7;                 /* 3 lower bits are always 0 */
@@ -560,7 +568,7 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 				      ? RADEON_CRTC2_V_SYNC_POL
 				      : 0));
 
-    save->crtc2_pitch  = ((info->CurrentLayout.displayWidth * pScrn->bitsPerPixel) +
+    save->crtc2_pitch  = ((pScrn->displayWidth * pScrn->bitsPerPixel) +
 			  ((pScrn->bitsPerPixel * 8) -1)) / (pScrn->bitsPerPixel * 8);
     save->crtc2_pitch |= save->crtc2_pitch << 16;
 
