@@ -752,6 +752,13 @@ RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 }
 
 static void
+radeon_update_tv_routing(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    /* pixclks_cntl controls tv clock routing */
+    OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, restore->pixclks_cntl);
+}
+
+static void
 radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode, int x, int y)
 {
@@ -867,7 +874,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
     /* pixclks_cntl handles tv-out clock routing */
     if (update_tv_routing)
-	RADEONRestorePLL2Registers(pScrn, &info->ModeReg);
+	radeon_update_tv_routing(pScrn, &info->ModeReg);
 
     if (info->DispPriority)
         RADEONInitDispBandwidth(pScrn);
