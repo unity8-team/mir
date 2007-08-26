@@ -343,7 +343,7 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
 	                       | RADEON_SYNC_TIP_LEVEL
 	                       | RADEON_YFLT_EN
 	                       | RADEON_UVFLT_EN
-	                       | (2 << RADEON_CY_FILT_BLEND_SHIFT);
+	                       | (6 << RADEON_CY_FILT_BLEND_SHIFT);
 
     if (radeon_output->tvStd == TV_STD_NTSC ||
 	radeon_output->tvStd == TV_STD_NTSC_J) {
