@@ -1562,7 +1562,7 @@ RADEONSetupImageVideo(ScreenPtr pScreen)
 	return NULL;
 
     adapt->type = XvWindowMask | XvInputMask | XvImageMask;
-    adapt->flags = VIDEO_OVERLAID_IMAGES | VIDEO_CLIP_TO_VIEWPORT;
+    adapt->flags = VIDEO_OVERLAID_IMAGES /*| VIDEO_CLIP_TO_VIEWPORT*/;
     adapt->name = "ATI Radeon Video Overlay";
     adapt->nEncodings = 1;
     adapt->pEncodings = &DummyEncoding;
@@ -3330,8 +3330,8 @@ RADEONInitOffscreenImages(ScreenPtr pScreen)
 	return;
 
     offscreenImages[0].image = &Images[0];
-    offscreenImages[0].flags = VIDEO_OVERLAID_IMAGES |
-			       VIDEO_CLIP_TO_VIEWPORT;
+    offscreenImages[0].flags = VIDEO_OVERLAID_IMAGES /*|
+			       VIDEO_CLIP_TO_VIEWPORT*/;
     offscreenImages[0].alloc_surface = RADEONAllocateSurface;
     offscreenImages[0].free_surface = RADEONFreeSurface;
     offscreenImages[0].display = RADEONDisplaySurface;
