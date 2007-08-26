@@ -103,7 +103,7 @@ radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
     }
   
     if (mode != DPMSModeOff)
-	radeon_crtc_load_lut(crtc);  
+	radeon_crtc_load_lut(crtc);
 }
 
 static Bool
@@ -911,21 +911,8 @@ void radeon_crtc_load_lut(xf86CrtcPtr crtc)
 
     PAL_SELECT(radeon_crtc->crtc_id);
 
-    if (pScrn->depth == 15) {
-	for (i = 0; i < 32; i++) {
-	    OUTPAL(i * 8, radeon_crtc->lut_r[i], radeon_crtc->lut_g[i], radeon_crtc->lut_b[i]);
-	}
-    } else if (pScrn->depth == 16) {
-	for (i = 0; i < 64; i++) {
-	    OUTPAL(i * 4, radeon_crtc->lut_r[i], radeon_crtc->lut_g[i], radeon_crtc->lut_b[i]);
-	    if (i <= 31) {
-		OUTPAL(i * 8, radeon_crtc->lut_r[i + 64], radeon_crtc->lut_g[i + 64], radeon_crtc->lut_b[i + 64]);
-	    }
-	}
-    } else {
-	for (i = 0; i < 256; i++) {
-	    OUTPAL(i, radeon_crtc->lut_r[i], radeon_crtc->lut_g[i], radeon_crtc->lut_b[i]);
-	}
+    for (i = 0; i < 256; i++) {
+	OUTPAL(i, radeon_crtc->lut_r[i], radeon_crtc->lut_g[i], radeon_crtc->lut_b[i]);
     }
 
 }
@@ -937,17 +924,19 @@ radeon_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green,
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     ScrnInfoPtr		pScrn = crtc->scrn;
-    int i;
+    int i, j;
 
     if (pScrn->depth == 16) {
 	for (i = 0; i < 64; i++) {
-	    radeon_crtc->lut_r[i] = red[i/2] >> 8;
-	    radeon_crtc->lut_g[i] = green[i] >> 8;
-	    radeon_crtc->lut_b[i] = blue[i/2] >> 8;
 	    if (i <= 31) {
-		radeon_crtc->lut_r[i + 64] = red[i] >> 8;
-		radeon_crtc->lut_g[i + 64] = green[(i * 2) + 1] >> 8;
-		radeon_crtc->lut_b[i + 64] = blue[i] >> 8;
+		for (j = 0; j < 8; j++) {
+		    radeon_crtc->lut_r[i * 8 + j] = red[i] >> 8;
+		    radeon_crtc->lut_b[i * 8 + j] = blue[i] >> 8;
+		}
+	    }
+
+	    for (j = 0; j < 4; j++) {
+		radeon_crtc->lut_g[i * 4 + j] = green[i] >> 8;
 	    }
 	}
     } else {

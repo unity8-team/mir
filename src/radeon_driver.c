@@ -2856,7 +2856,7 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
 	  case 16:
 	      for (i = 0; i < numColors; i++) {
 		  index = indices[i];
-		  
+
 		  if (i <= 31) {
 		      for (j = 0; j < 8; j++) {
 			  lut_r[index * 8 + j] = colors[index].red << 8;
@@ -2874,7 +2874,7 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
 		  lut_r[index] = colors[index].red << 8;
 		  lut_g[index] = colors[index].green << 8;
 		  lut_b[index] = colors[index].blue << 8;
-	      } 
+	      }
 	      break;
 	  }
 
