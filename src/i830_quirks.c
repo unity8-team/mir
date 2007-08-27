@@ -84,9 +84,9 @@ void i830_fixup_devices(ScrnInfoPtr scrn)
     i830_quirk_ptr p = i830_quirk_list;
 
     while (p && p->chipType != 0) {
-	if (pI830->PciInfo->chipType == p->chipType &&
-		pI830->PciInfo->subsysVendor == p->subsysVendor &&
-		(pI830->PciInfo->subsysCard == p->subsysCard ||
+	if (DEVICE_ID(pI830->PciInfo) == p->chipType &&
+		SUBVENDOR_ID(pI830->PciInfo) == p->subsysVendor &&
+		(SUBSYS_ID(pI830->PciInfo) == p->subsysCard ||
 		 p->subsysCard == SUBSYS_ANY))
 	    p->hook(pI830);
 	++p;

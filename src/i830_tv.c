@@ -1138,7 +1138,7 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	tv_mode->dda3_inc << TV_SCDDA3_INC_SHIFT;
 
     /* Enable two fixes for the chips that need them. */
-    if (pI830->PciInfo->chipType < PCI_CHIP_I945_G)
+    if (DEVICE_ID(pI830->PciInfo) < PCI_CHIP_I945_G)
 	tv_ctl |= TV_ENC_C0_FIX | TV_ENC_SDP_FIX;
 
     OUTREG(TV_H_CTL_1, hctl1);
