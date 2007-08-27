@@ -539,9 +539,15 @@ I830DRIScreenInit(ScreenPtr pScreen)
    } else {
       pDRIInfo->busIdString = xalloc(64);
       sprintf(pDRIInfo->busIdString, "PCI:%d:%d:%d",
+#if XSERVER_LIBPCIACCESS
+	      ((pI830->PciInfo->domain << 8) | pI830->PciInfo->bus),
+	      pI830->PciInfo->dev, pI830->PciInfo->func
+#else
 	      ((pciConfigPtr) pI830->PciInfo->thisCard)->busnum,
 	      ((pciConfigPtr) pI830->PciInfo->thisCard)->devnum,
-	      ((pciConfigPtr) pI830->PciInfo->thisCard)->funcnum);
+	      ((pciConfigPtr) pI830->PciInfo->thisCard)->funcnum
+#endif
+	      );
    }
    pDRIInfo->ddxDriverMajorVersion = I830_MAJOR_VERSION;
    pDRIInfo->ddxDriverMinorVersion = I830_MINOR_VERSION;
@@ -978,13 +984,13 @@ I830DRIDoMappings(ScreenPtr pScreen)
       return FALSE;
    }
 
-   if (pI830->PciInfo->chipType != PCI_CHIP_845_G &&
-       pI830->PciInfo->chipType != PCI_CHIP_I830_M) {
+   if (DEVICE_ID(pI830->PciInfo) != PCI_CHIP_845_G &&
+       DEVICE_ID(pI830->PciInfo) != PCI_CHIP_I830_M) {
       I830SetParam(pScrn, I830_SETPARAM_USE_MI_BATCHBUFFER_START, 1 );
    }
 
    pI830DRI = (I830DRIPtr) pI830->pDRIInfo->devPrivate;
-   pI830DRI->deviceID = pI830->PciInfo->chipType;
+   pI830DRI->deviceID = DEVICE_ID(pI830->PciInfo);
    pI830DRI->width = pScrn->virtualX;
    pI830DRI->height = pScrn->virtualY;
    pI830DRI->mem = pScrn->videoRam * 1024;
@@ -1020,12 +1026,20 @@ I830DRIResume(ScreenPtr pScreen)
 
    {
       pI830DRI->irq = drmGetInterruptFromBusID(pI830->drmSubFD,
+#if XSERVER_LIBPCIACCESS
+					       ((pI830->PciInfo->domain << 8) |
+						pI830->PciInfo->bus),
+					       pI830->PciInfo->dev,
+					       pI830->PciInfo->func
+#else
 					       ((pciConfigPtr) pI830->
 						PciInfo->thisCard)->busnum,
 					       ((pciConfigPtr) pI830->
 						PciInfo->thisCard)->devnum,
 					       ((pciConfigPtr) pI830->
-						PciInfo->thisCard)->funcnum);
+						PciInfo->thisCard)->funcnum
+#endif
+					       );
 
       if (drmCtlInstHandler(pI830->drmSubFD, pI830DRI->irq)) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -1108,12 +1122,20 @@ I830DRIFinishScreenInit(ScreenPtr pScreen)
       I830DRIPtr pI830DRI = (I830DRIPtr) pI830->pDRIInfo->devPrivate;
 
       pI830DRI->irq = drmGetInterruptFromBusID(pI830->drmSubFD,
+#if XSERVER_LIBPCIACCESS
+					       ((pI830->PciInfo->domain << 8) |
+						pI830->PciInfo->bus),
+					       pI830->PciInfo->dev,
+					       pI830->PciInfo->func
+#else
 					       ((pciConfigPtr) pI830->
 						PciInfo->thisCard)->busnum,
 					       ((pciConfigPtr) pI830->
 						PciInfo->thisCard)->devnum,
 					       ((pciConfigPtr) pI830->
-						PciInfo->thisCard)->funcnum);
+						PciInfo->thisCard)->funcnum
+#endif
+					       );
 
       if (drmCtlInstHandler(pI830->drmSubFD, pI830DRI->irq)) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
