@@ -2,7 +2,7 @@ AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @XMODES_CFLAGS@
 
 noinst_PROGRAMS = bios_reader  $(BIOS_DUMPER)
 
-if HAVE_PCIACCESS
+if XSERVER_LIBPCIACCESS
 BIOS_DUMPER = bios_dumper
 
 bios_dumper_SOURCES = bios_dumper.c

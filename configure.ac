@@ -78,9 +78,6 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 PKG_CHECK_MODULES(XORG, [xorg-server xproto xvmc fontsproto $REQUIRED_MODULES])
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
-PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.5.0], have_pciaccess=yes, have_pciaccess=no)
-AM_CONDITIONAL(HAVE_PCIACCESS, test "x$have_pciaccess" = xyes)
-
 # Checks for libraries.
 
 # Checks for header files.
@@ -112,8 +109,16 @@ AC_MSG_RESULT([$DRI])
 save_CFLAGS="$CFLAGS"
 CFLAGS="$XORG_CFLAGS"
 AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
+AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
+	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
+	      [#include "xorg-server.h"])
 CFLAGS="$save_CFLAGS"
 
+if test x$XSERVER_LIBPCIACCESS = xyes; then
+	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.8.0])
+fi
+
+AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
 AM_CONDITIONAL(XMODES, test "x$XMODES" = xno)
 
 if test "x$XSERVER_SOURCE" = x; then
