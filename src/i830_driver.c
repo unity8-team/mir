@@ -201,6 +201,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dri.h"
 #include <sys/ioctl.h>
 #include <errno.h>
+#ifdef XF86DRI_MM
+#include "xf86mm.h"
+#endif
 #endif
 
 #ifdef I830_USE_EXA
@@ -418,16 +421,23 @@ static int
 I830DetectMemory(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+#if !XSERVER_LIBPCIACCESS
    PCITAG bridge;
-   CARD16 gmch_ctrl;
+#endif
+   uint16_t gmch_ctrl;
    int memsize = 0, gtt_size;
    int range;
 #if 0
    VbeInfoBlock *vbeInfo;
 #endif
 
+#if XSERVER_LIBPCIACCESS
+   struct pci_device *bridge = intel_host_bridge ();
+   pci_device_cfg_read_u16(bridge, & gmch_ctrl, I830_GMCH_CTRL);
+#else
    bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
    gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
+#endif
 
    if (IS_I965G(pI830)) {
       /* The 965 may have a GTT that is actually larger than is necessary
@@ -543,8 +553,51 @@ I830DetectMemory(ScrnInfoPtr pScrn)
 static Bool
 I830MapMMIO(ScrnInfoPtr pScrn)
 {
+#if XSERVER_LIBPCIACCESS
+   int err;
+   struct pci_device *device;
+#else
    int mmioFlags;
+#endif
    I830Ptr pI830 = I830PTR(pScrn);
+
+#if XSERVER_LIBPCIACCESS
+   pI830->GTTBase = NULL;
+   device = pI830->PciInfo;
+   err = pci_device_map_region (device, pI830->mmio_bar, TRUE);
+   if (err) 
+   {
+      xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
+		  "Unable to map mmio BAR. %s (%d)\n",
+		  strerror (err), err);
+      return FALSE;
+   }
+   pI830->MMIOBase = device->regions[pI830->mmio_bar].memory;
+   pI830->gtt_bar = -1;
+	
+   /* XXX GTT aperture base needs figuring out */
+   if (IS_I9XX(pI830)) 
+   {
+      if (IS_I965G(pI830))
+      {
+	 pI830->GTTBase = (unsigned char *) pI830->MMIOBase + (512 * 1024);
+      }
+      else
+      {
+	 pI830->gtt_bar = 3;
+	 err = pci_device_map_region (device, pI830->gtt_bar, TRUE);
+	 if (err)
+	 {
+	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
+			"Unable to map GTT BAR. %s (%d)\n",
+			strerror (err), err);
+	    pI830->GTTBase = NULL;
+	 }
+	 else
+	    pI830->GTTBase = device->regions[pI830->gtt_bar].memory;
+      }
+   }
+#else
 
 #if !defined(__alpha__)
    mmioFlags = VIDMEM_MMIO | VIDMEM_READSIDEEFFECT;
@@ -585,6 +638,7 @@ I830MapMMIO(ScrnInfoPtr pScrn)
        */
       pI830->GTTBase = NULL;
    }
+#endif /* else HAVE_PCI_ACCESS */
 
    return TRUE;
 }
@@ -594,6 +648,10 @@ I830MapMem(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    long i;
+#if XSERVER_LIBPCIACCESS
+   struct pci_device *const device = pI830->PciInfo;
+   int err;
+#endif
 
    for (i = 2; i < pI830->FbMapSize; i <<= 1) ;
    pI830->FbMapSize = i;
@@ -601,11 +659,24 @@ I830MapMem(ScrnInfoPtr pScrn)
    if (!I830MapMMIO(pScrn))
       return FALSE;
 
+#if XSERVER_LIBPCIACCESS
+   err = pci_device_map_region (device, pI830->fb_bar, TRUE);
+   if (err) 
+   {
+      xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
+		  "Unable to map frame buffer BAR. %s (%d)\n",
+		  strerror (err), err);
+      return FALSE;
+   }
+   pI830->FbBase = device->regions[pI830->fb_bar].memory;
+   pI830->FbMapSize = device->regions[pI830->fb_bar].size;
+#else
    pI830->FbBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
 				 pI830->PciTag,
 				 pI830->LinearAddr, pI830->FbMapSize);
    if (!pI830->FbBase)
       return FALSE;
+#endif
 
    if (I830IsPrimary(pScrn) && pI830->LpRing->mem != NULL) {
       pI830->LpRing->virtual_start =
@@ -620,16 +691,31 @@ I830UnmapMMIO(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
+#if XSERVER_LIBPCIACCESS
+   pci_device_unmap_region (pI830->PciInfo, pI830->mmio_bar);
+#else
    xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI830->MMIOBase,
 		   I810_REG_SIZE);
+#endif
    pI830->MMIOBase = NULL;
 
    if (IS_I9XX(pI830)) {
       if (IS_I965G(pI830))
+      {
+#if XSERVER_LIBPCIACCESS
+	 ;
+#else
 	 xf86UnMapVidMem(pScrn->scrnIndex, pI830->GTTBase, 512 * 1024);
-      else {
+#endif
+      }
+      else 
+      {
+#if XSERVER_LIBPCIACCESS
+	 pci_device_unmap_region (pI830->PciInfo, pI830->gtt_bar);
+#else
 	 xf86UnMapVidMem(pScrn->scrnIndex, pI830->GTTBase,
 			 pI830->FbMapSize / 1024);
+#endif
       }
    }
 }
@@ -927,6 +1013,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    const char *chipname;
    int num_pipe;
    int max_width, max_height;
+   uint32_t	capid;
 
    if (pScrn->numEntities != 1)
       return FALSE;
@@ -971,8 +1058,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       return FALSE;
 
    pI830->PciInfo = xf86GetPciInfoForEntity(pI830->pEnt->index);
+#if !XSERVER_LIBPCIACCESS
    pI830->PciTag = pciTag(pI830->PciInfo->bus, pI830->PciInfo->device,
 			  pI830->PciInfo->func);
+#endif
 
     /* Allocate an entity private if necessary */
     if (xf86IsEntityShared(pScrn->entityList[0])) {
@@ -1061,7 +1150,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* We have to use PIO to probe, because we haven't mapped yet. */
    I830SetPIOAccess(pI830);
 
-   switch (pI830->PciInfo->chipType) {
+   switch (DEVICE_ID(pI830->PciInfo)) {
    case PCI_CHIP_I830_M:
       chipname = "830M";
       break;
@@ -1070,8 +1159,12 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       break;
    case PCI_CHIP_I855_GM:
       /* Check capid register to find the chipset variant */
-      pI830->variant = (pciReadLong(pI830->PciTag, I85X_CAPID)
-				>> I85X_VARIANT_SHIFT) & I85X_VARIANT_MASK;
+#if XSERVER_LIBPCIACCESS
+      pci_device_cfg_read_u32 (pI830->PciInfo, &capid, I85X_CAPID);
+#else
+      capid = pciReadLong (pI830->PciTag, I85X_CAPID);
+#endif
+      pI830->variant = (capid >> I85X_VARIANT_SHIFT) & I85X_VARIANT_MASK;
       switch (pI830->variant) {
       case I855_GM:
 	 chipname = "855GM";
@@ -1155,11 +1248,11 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       from = X_CONFIG;
       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ChipID override: 0x%04X\n",
 		 pI830->pEnt->device->chipID);
-      pI830->PciInfo->chipType = pI830->pEnt->device->chipID;
+      DEVICE_ID(pI830->PciInfo) = pI830->pEnt->device->chipID;
    } else {
       from = X_PROBED;
       pScrn->chipset = (char *)xf86TokenToString(I830Chipsets,
-						 pI830->PciInfo->chipType);
+						 DEVICE_ID(pI830->PciInfo));
    }
 
    if (pI830->pEnt->device->chipRev >= 0) {
@@ -1170,6 +1263,13 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, from, "Chipset: \"%s\"\n",
 	      (pScrn->chipset != NULL) ? pScrn->chipset : "Unknown i8xx");
 
+#if XSERVER_LIBPCIACCESS
+   if (IS_I9XX(pI830))
+      pI830->fb_bar = 2;
+   else
+      pI830->fb_bar = 0;
+   pI830->LinearAddr = pI830->PciInfo->regions[pI830->fb_bar].base_addr;
+#else
    if (pI830->pEnt->device->MemBase != 0) {
       pI830->LinearAddr = pI830->pEnt->device->MemBase;
       from = X_CONFIG;
@@ -1188,10 +1288,18 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	 return FALSE;
       }
    }
+#endif
 
    xf86DrvMsg(pScrn->scrnIndex, from, "Linear framebuffer at 0x%lX\n",
 	      (unsigned long)pI830->LinearAddr);
 
+#if XSERVER_LIBPCIACCESS
+   if (IS_I9XX(pI830))
+      pI830->mmio_bar = 0;
+   else
+      pI830->mmio_bar = 1;
+   pI830->MMIOAddr = pI830->PciInfo->regions[pI830->mmio_bar].base_addr;
+#else
    if (pI830->pEnt->device->IOBase != 0) {
       pI830->MMIOAddr = pI830->pEnt->device->IOBase;
       from = X_CONFIG;
@@ -1209,6 +1317,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	 return FALSE;
       }
    }
+#endif
 
    xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX\n",
 	      (unsigned long)pI830->MMIOAddr);
@@ -1232,11 +1341,19 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, max_height);
 
    if (IS_I830(pI830) || IS_845G(pI830)) {
+#if XSERVER_LIBPCIACCESS
+      uint16_t		gmch_ctrl;
+      struct pci_device *bridge;
+
+      bridge = intel_host_bridge ();
+      pci_device_cfg_read_u16 (bridge, &gmch_ctrl, I830_GMCH_CTRL);
+#else
       PCITAG bridge;
       CARD16 gmch_ctrl;
 
       bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
       gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
+#endif
       if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_128M) {
 	 pI830->FbMapSize = 0x8000000;
       } else {
@@ -1244,8 +1361,12 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       }
    } else {
       if (IS_I9XX(pI830)) {
+#if XSERVER_LIBPCIACCESS
+	 pI830->FbMapSize = pI830->PciInfo->regions[pI830->fb_bar].size;
+#else
 	 pI830->FbMapSize = 1UL << pciGetBaseSize(pI830->PciTag, 2, TRUE,
 						  NULL);
+#endif
       } else {
 	 /* 128MB aperture for later i8xx series. */
 	 pI830->FbMapSize = 0x8000000;
@@ -1275,7 +1396,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 		(1 << 23) | (2 << 16));
 #endif
 
-   if (pI830->PciInfo->chipType == PCI_CHIP_E7221_G)
+   if (DEVICE_ID(pI830->PciInfo) == PCI_CHIP_E7221_G)
       num_pipe = 1;
    else
    if (IS_MOBILE(pI830) || IS_I9XX(pI830))
