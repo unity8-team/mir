@@ -444,7 +444,9 @@ extern int I810_DEBUG;
 
 #define PIPE_NAME(n)			('A' + (n))
 
+#if XSERVER_LIBPCIACCESS
 struct pci_device *
 intel_host_bridge (void);
+#endif
    
 #endif /* _INTEL_COMMON_H_ */
