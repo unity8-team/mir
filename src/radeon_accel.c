@@ -134,9 +134,10 @@ void RADEONWaitForFifoFunction(ScrnInfoPtr pScrn, int entries)
 		INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK;
 	    if (info->fifo_slots >= entries) return;
 	}
-	RADEONTRACE(("FIFO timed out: %u entries, stat=0x%08x\n",
-		     INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
-		     INREG(RADEON_RBBM_STATUS)));
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "FIFO timed out: %u entries, stat=0x%08x\n",
+		       INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
+		       INREG(RADEON_RBBM_STATUS));
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "FIFO timed out, resetting engine...\n");
 	RADEONEngineReset(pScrn);
@@ -165,8 +166,9 @@ void RADEONEngineFlush(ScrnInfoPtr pScrn)
 	    break;
     }
     if (i == RADEON_TIMEOUT) {
-	RADEONTRACE(("DC flush timeout: %x\n",
-		    INREG(RADEON_RB3D_DSTCACHE_CTLSTAT)));
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "DC flush timeout: %x\n",
+		       INREG(RADEON_RB3D_DSTCACHE_CTLSTAT));
     }
 }
 
@@ -296,9 +298,10 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    RADEONTRACE(("EngineRestore (%d/%d)\n",
-		 info->CurrentLayout.pixel_code,
-		 info->CurrentLayout.bitsPerPixel));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "EngineRestore (%d/%d)\n",
+		   info->CurrentLayout.pixel_code,
+		   info->CurrentLayout.bitsPerPixel);
 
     /* Setup engine location. This shouldn't be necessary since we
      * set them appropriately before any accel ops, but let's avoid
@@ -347,9 +350,10 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    RADEONTRACE(("EngineInit (%d/%d)\n",
-		 info->CurrentLayout.pixel_code,
-		 info->CurrentLayout.bitsPerPixel));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "EngineInit (%d/%d)\n",
+		   info->CurrentLayout.pixel_code,
+		   info->CurrentLayout.bitsPerPixel);
 
     OUTREG(RADEON_RB3D_CNTL, 0);
 
@@ -362,15 +366,17 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
     case 24: info->datatype = 5; break;
     case 32: info->datatype = 6; break;
     default:
-	RADEONTRACE(("Unknown depth/bpp = %d/%d (code = %d)\n",
-		     info->CurrentLayout.depth,
-		     info->CurrentLayout.bitsPerPixel,
-		     info->CurrentLayout.pixel_code));
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "Unknown depth/bpp = %d/%d (code = %d)\n",
+		       info->CurrentLayout.depth,
+		       info->CurrentLayout.bitsPerPixel,
+		       info->CurrentLayout.pixel_code);
     }
     info->pitch = ((info->CurrentLayout.displayWidth / 8) *
 		   (info->CurrentLayout.pixel_bytes == 3 ? 3 : 1));
 
-    RADEONTRACE(("Pitch for acceleration = %d\n", info->pitch));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Pitch for acceleration = %d\n", info->pitch);
 
     info->dp_gui_master_cntl =
 	((info->datatype << RADEON_GMC_DST_DATATYPE_SHIFT)

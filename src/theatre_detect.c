@@ -67,7 +67,7 @@ static Bool theatre_write(TheatrePtr t,CARD32 reg, CARD32 data)
 TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b)
 {
    TheatrePtr t;  
-   CARD32 i;
+   int i;
    CARD32 val;
    char s[20];
    
@@ -88,7 +88,9 @@ TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b)
    {
 	if(b->read(b, ((i & 0x03)<<14) | VIP_VIP_VENDOR_DEVICE_ID, 4, (CARD8 *)&val))
         {
-	  if(val)xf86DrvMsg(b->scrnIndex, X_INFO, "Device %ld on VIP bus ids as 0x%08lx\n",i,val);
+	  if(val)xf86DrvMsg(b->scrnIndex, X_INFO,
+			    "Device %d on VIP bus ids as 0x%08x\n", i,
+			    (unsigned)val);
 	  if(t->theatre_num>=0)continue; /* already found one instance */
 	  switch(val){
 	  	case RT100_ATI_ID:
@@ -101,10 +103,12 @@ TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b)
 		   break;
                 }
 	} else {
-	  xf86DrvMsg(b->scrnIndex, X_INFO, "No response from device %ld on VIP bus\n",i);	
+	  xf86DrvMsg(b->scrnIndex, X_INFO, "No response from device %d on VIP bus\n",i);	
 	}
    }
-   if(t->theatre_num>=0)xf86DrvMsg(b->scrnIndex, X_INFO, "Detected Rage Theatre as device %d on VIP bus with id 0x%08lx\n",t->theatre_num,t->theatre_id);
+   if(t->theatre_num>=0)xf86DrvMsg(b->scrnIndex, X_INFO,
+				   "Detected Rage Theatre as device %d on VIP bus with id 0x%08x\n",
+				   t->theatre_num, (unsigned)t->theatre_id);
 
    if(t->theatre_num < 0)
    {
@@ -113,7 +117,8 @@ TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b)
    }
 
    RT_regr(VIP_VIP_REVISION_ID, &val);
-   xf86DrvMsg(b->scrnIndex, X_INFO, "Detected Rage Theatre revision %8.8lX\n", val);
+   xf86DrvMsg(b->scrnIndex, X_INFO, "Detected Rage Theatre revision %8.8X\n",
+	      (unsigned)val);
 
 #if 0
 DumpRageTheatreRegsByName(t);

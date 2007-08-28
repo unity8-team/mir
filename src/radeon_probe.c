@@ -40,7 +40,6 @@
  * Modified by Marc Aurele La France <tsi@xfree86.org> for ATI driver merge.
  */
 
-#include "atimodule.h"
 #include "ativersion.h"
 
 #include "radeon_probe.h"
@@ -200,7 +199,7 @@ PciChipsets RADEONPciChipsets[] = {
 int gRADEONEntityIndex = -1;
 
 /* Return the options for supported chipset 'n'; NULL otherwise */
-const OptionInfoRec *
+_X_EXPORT const OptionInfoRec *
 RADEONAvailableOptions(int chipid, int busid)
 {
     int  i;
@@ -219,7 +218,7 @@ RADEONAvailableOptions(int chipid, int busid)
 }
 
 /* Return the string name for supported chipset 'n'; NULL otherwise. */
-void
+_X_EXPORT void
 RADEONIdentify(int flags)
 {
     xf86PrintChipsets(RADEON_NAME,
@@ -228,7 +227,7 @@ RADEONIdentify(int flags)
 }
 
 /* Return TRUE if chipset is present; FALSE otherwise. */
-Bool
+_X_EXPORT Bool
 RADEONProbe(DriverPtr drv, int flags)
 {
     int      numUsed;
@@ -285,22 +284,26 @@ RADEONProbe(DriverPtr drv, int flags)
 	    if ((pScrn = xf86ConfigPciEntity(pScrn, 0, usedChips[i],
 					     RADEONPciChipsets, 0, 0, 0,
 					     0, 0))) {
-#ifdef XFree86LOADER
-		if (!xf86LoadSubModule(pScrn, "radeon")) {
-		    xf86Msg(X_ERROR, RADEON_NAME
-			    ":  Failed to load \"radeon\" module.\n");
-		    xf86DeleteScreen(pScrn->scrnIndex, 0);
-		    continue;
-		}
-
-		xf86LoaderReqSymLists(RADEONSymbols, NULL);
-#endif
-
+		pScrn->driverVersion = RADEON_VERSION_CURRENT;
+		pScrn->driverName    = RADEON_DRIVER_NAME;
+		pScrn->name          = RADEON_NAME;
 		pScrn->Probe         = RADEONProbe;
-		RADEONFillInScreenInfo(pScrn);
+		pScrn->PreInit       = RADEONPreInit;
+		pScrn->ScreenInit    = RADEONScreenInit;
+		pScrn->SwitchMode    = RADEONSwitchMode;
+#ifdef X_XF86MiscPassMessage
+		pScrn->HandleMessage = RADEONHandleMessage;
+#endif
+		pScrn->AdjustFrame   = RADEONAdjustFrame;
+		pScrn->EnterVT       = RADEONEnterVT;
+		pScrn->LeaveVT       = RADEONLeaveVT;
+		pScrn->FreeScreen    = RADEONFreeScreen;
+		pScrn->ValidMode     = RADEONValidMode;
+
 		foundScreen          = TRUE;
 	    }
 
+            xfree(pEnt);
 	    pEnt = xf86GetEntityInfo(usedChips[i]);
 
             /* create a RADEONEntity for all chips, even with

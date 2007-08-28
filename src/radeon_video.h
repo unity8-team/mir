@@ -11,6 +11,8 @@
 #include "generic_bus.h"
 #include "theatre.h"
 
+#include "xf86Crtc.h"
+
 /* Xvideo port struct */
 typedef struct {
    CARD32	 transform_index;
@@ -40,7 +42,7 @@ typedef struct {
    CARD8         tuner_type;
    MSP3430Ptr    msp3430;
    TDA9885Ptr    tda9885;
-	UDA1380Ptr	  uda1380;
+    UDA1380Ptr	  uda1380;
 
    /* VIP bus and devices */
    GENERIC_BUS_Ptr  VIP;
@@ -77,7 +79,7 @@ typedef struct {
    Time          offTime;
    Time          freeTime;
    Bool          autopaint_colorkey;
-   Bool		 crt2; /* 0=CRT1, 1=CRT2 */
+   xf86CrtcPtr   desired_crtc;
 
 #ifdef USE_EXA
    int              size;

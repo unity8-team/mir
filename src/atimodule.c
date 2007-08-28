@@ -34,47 +34,25 @@
 
 const char *ATISymbols[] =
 {
-    "ATIPreInit",
-    "ATIScreenInit",
-    "ATISwitchMode",
-    "ATIAdjustFrame",
-    "ATIEnterVT",
-    "ATILeaveVT",
-    "ATIFreeScreen",
-    "ATIValidMode",
-    "ATIOptionsWeak",
-    "ATIFillInScreenInfo",
+    "Mach64Identify",
+    "Mach64Probe",
+    "Mach64AvailableOptions",
     NULL
 };
 
 const char *R128Symbols[] =
 {
-    "R128PreInit",
-    "R128ScreenInit",
-    "R128SwitchMode",
-    "R128AdjustFrame",
-    "R128EnterVT",
-    "R128LeaveVT",
-    "R128FreeScreen",
-    "R128ValidMode",
-    "R128OptionsWeak",
-    "R128FillInScreenInfo",
+    "R128Identify",
+    "R128Probe",
+    "R128AvailableOptions",
     NULL
 };
 
 const char *RADEONSymbols[] =
 {
-    "RADEONPreInit",
-    "RADEONScreenInit",
-    "RADEONSwitchMode",
-    "RADEONAdjustFrame",
-    "RADEONEnterVT",
-    "RADEONLeaveVT",
-    "RADEONFreeScreen",
-    "RADEONValidMode",
-    "RADEONOptionsWeak",
-    "RADEONHandleMessage",
-    "RADEONFillInScreenInfo",
+    "RADEONIdentify",
+    "RADEONProbe",
+    "RADEONAvailableOptions",
     NULL
 };
 

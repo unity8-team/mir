@@ -38,9 +38,19 @@
 
 #include "xf86str.h"
 #include "xf86DDC.h"
+#include "randrstr.h"
 
 #define _XF86MISC_SERVER_
 #include <X11/extensions/xf86misc.h>
+
+#include "xf86Crtc.h"
+
+#ifdef USE_EXA
+#include "exa.h"
+#endif
+#ifdef USE_XAA
+#include "xaa.h"
+#endif
 
 typedef enum
 {
@@ -48,7 +58,8 @@ typedef enum
     DDC_MONID,
     DDC_DVI,
     DDC_VGA,
-    DDC_CRT2
+    DDC_CRT2,
+    DDC_LCD,
 } RADEONDDCType;
 
 typedef enum
@@ -92,41 +103,120 @@ typedef enum
 {
     DAC_UNKNOWN = -1,
     DAC_PRIMARY = 0,
-    DAC_TVDAC   = 1
+    DAC_TVDAC   = 1,
+    DAC_NONE    = 2
 } RADEONDacType;
 
 typedef enum
 {
     TMDS_UNKNOWN = -1,
     TMDS_INT     = 0,
-    TMDS_EXT     = 1
+    TMDS_EXT     = 1,
+    TMDS_NONE    = 2
 } RADEONTmdsType;
 
-typedef struct
+typedef enum
 {
-    Bool IsUsed;
-    Bool IsActive;
-    int binding; // which instance of the driver "owns" this controller
-    DisplayModePtr pCurMode;
-} RADEONController;
+    DVI_AUTO,
+    DVI_DIGITAL,
+    DVI_ANALOG
+} RADEONDviType;
 
-typedef struct
+typedef enum
 {
+    TMDS_PLL_BIOS,
+    TMDS_PLL_DRIVER
+} RADEONTMDSPllType;
+
+typedef struct {
+    CARD32 freq;
+    CARD32 value;
+}RADEONTMDSPll;
+
+typedef enum
+{
+    OUTPUT_NONE,
+    OUTPUT_VGA,
+    OUTPUT_DVI,
+    OUTPUT_LVDS,
+    OUTPUT_STV,
+    OUTPUT_CTV,
+} RADEONOutputType;
+
+/* standards */
+typedef enum
+{
+    TV_STD_NTSC      = 1,
+    TV_STD_PAL       = 2,
+    TV_STD_PAL_M     = 4,
+    TV_STD_PAL_60    = 8,
+    TV_STD_NTSC_J    = 16,
+    TV_STD_SCART_PAL = 32,
+} TVStd;
+
+typedef struct _RADEONCrtcPrivateRec {
+#ifdef USE_XAA
+    FBLinearPtr rotate_mem_xaa;
+#endif
+#ifdef USE_EXA
+    ExaOffscreenArea *rotate_mem_exa;
+#endif
+    int crtc_id;
+    int binding;
+    /* Lookup table values to be set when the CRTC is enabled */
+    CARD8 lut_r[256], lut_g[256], lut_b[256];
+} RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
+
+typedef struct {
     RADEONDDCType DDCType;
     RADEONDacType DACType;
     RADEONTmdsType TMDSType;
     RADEONConnectorType ConnectorType;
+    Bool valid;
+} RADEONBIOSConnector;
+
+typedef struct _RADEONOutputPrivateRec {
+    int num;
+    RADEONOutputType type;
+    void *dev_priv;
+    RADEONDDCType DDCType;
+    RADEONDacType DACType;
+    RADEONDviType DVIType;
+    RADEONTmdsType TMDSType;
+    RADEONConnectorType ConnectorType;
     RADEONMonitorType MonType;
-    xf86MonPtr MonInfo;
-
-    /* one connector can be bound to one CRTC */
     int crtc_num;
-} RADEONConnector;
+    int DDCReg;
+    I2CBusPtr         pI2CBus;
+    CARD32            tv_dac_adj;
+    /* panel stuff */
+    int               PanelXRes;
+    int               PanelYRes;
+    int               HOverPlus;
+    int               HSyncWidth;
+    int               HBlank;
+    int               VOverPlus;
+    int               VSyncWidth;
+    int               VBlank;
+    int               Flags;            /* Saved copy of mode flags          */
+    int               PanelPwrDly;
+    int               DotClock;
+    RADEONTMDSPll     tmds_pll[4];
+    RADEONTMDSPllType tmds_pll_table;
+    /* TV out */
+    TVStd             default_tvStd;
+    TVStd             tvStd;
+    int               hPos;
+    int               vPos;
+    int               hSize;
+    float             TVRefClk;
+    int               SupportedTVStds;
+    Bool              tv_on;
+    int               load_detection;
+} RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
-
-
-#define RADEON_MAX_CONNECTOR 2
 #define RADEON_MAX_CRTC 2
+#define RADEON_MAX_BIOS_CONNECTOR 8
 
 typedef struct
 {
@@ -139,13 +229,11 @@ typedef struct
     Bool IsSecondaryRestored;
     Bool RestorePrimary;
 
-    ScrnInfoPtr pSecondaryScrn;
-    ScrnInfoPtr pPrimaryScrn;
-
     Bool ReversedDAC;	  /* TVDAC used as primary dac */
     Bool ReversedTMDS;    /* DDC_DVI is used for external TMDS */
-    RADEONConnector *PortInfo[RADEON_MAX_CONNECTOR];
-    RADEONController *Controller[RADEON_MAX_CRTC]; /* pointer to a controller */
+    xf86CrtcPtr pCrtc[RADEON_MAX_CRTC];
+    RADEONCrtcPrivatePtr Controller[RADEON_MAX_CRTC];
+
 } RADEONEntRec, *RADEONEntPtr;
 
 /* radeon_probe.c */
@@ -171,7 +259,5 @@ extern void                 RADEONFreeScreen(int, int);
 extern ModeStatus           RADEONValidMode(int, DisplayModePtr, Bool, int);
 
 extern const OptionInfoRec *RADEONOptionsWeak(void);
-
-extern void                 RADEONFillInScreenInfo(ScrnInfoPtr);
 
 #endif /* _RADEON_PROBE_H_ */

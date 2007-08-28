@@ -26,14 +26,19 @@
 
 #include "ati.h"
 #include "atichip.h"
-#include "atifillin.h"
-#include "atimodule.h"
 #include "atimach64io.h"
 #include "atimach64probe.h"
 #include "atioption.h"
 #include "ativersion.h"
 
-static SymTabRec
+/* include headers corresponding to ScrnInfoPtr fields */
+#include "atipreinit.h"
+#include "atiscreen.h"
+#include "aticonsole.h"
+#include "atiadjust.h"
+#include "ativalid.h"
+
+SymTabRec
 Mach64Chipsets[] = {
     {ATI_CHIP_88800GXC, "ATI 88800GX-C"},
     {ATI_CHIP_88800GXD, "ATI 88800GX-D"},
@@ -101,7 +106,7 @@ Mach64PciChipsets[] = {
     {-1, -1, RES_UNDEFINED}
 };
 
-const OptionInfoRec *
+_X_EXPORT const OptionInfoRec *
 Mach64AvailableOptions(int chipid, int busid)
 {
     /*
@@ -112,24 +117,39 @@ Mach64AvailableOptions(int chipid, int busid)
 }
 
 /*
+ * Mach64Identify --
+ *
+ * Print the driver's list of chipset names.
+ */
+_X_EXPORT void
+Mach64Identify
+(
+    int flags
+)
+{
+    xf86Msg(X_INFO, "%s: %s\n", ATI_NAME,
+            "Driver for ATI Mach64 chipsets");
+}
+
+/*
  * Mach64Probe --
  *
  * This function is called once, at the start of the first server generation to
  * do a minimal probe for supported hardware.
  */
-Bool
+_X_EXPORT Bool
 Mach64Probe(DriverPtr pDriver, int flags)
 {
-    GDevPtr  *devSections;
-    int  *usedChips;
-    int  numDevSections;
-    int  numUsed;
-    Bool  ProbeSuccess = FALSE;
-
-    if ((numDevSections = xf86MatchDevice(ATI_DRIVER_NAME, &devSections)) <= 0)
-        return FALSE;
+    GDevPtr *devSections;
+    int     *usedChips;
+    int     numDevSections;
+    int     numUsed;
+    Bool    ProbeSuccess = FALSE;
 
     if (xf86GetPciVideoInfo() == NULL)
+        return FALSE;
+
+    if ((numDevSections = xf86MatchDevice(ATI_DRIVER_NAME, &devSections)) <= 0)
         return FALSE;
 
     numUsed = xf86MatchPciInstances(ATI_DRIVER_NAME, PCI_VENDOR_ATI,
@@ -148,8 +168,6 @@ Mach64Probe(DriverPtr pDriver, int flags)
 
         for (i = 0; i < numUsed; i++) {
             ScrnInfoPtr pScrn;
-            EntityInfoPtr pEnt;
-            pciVideoPtr pVideo;
 
             pScrn = xf86ConfigPciEntity(NULL, 0, usedChips[i], Mach64PciChipsets,
                                         0, 0, 0, 0, NULL);
@@ -157,30 +175,24 @@ Mach64Probe(DriverPtr pDriver, int flags)
             if (!pScrn)
                 continue;
 
-            pEnt = xf86GetEntityInfo(usedChips[i]);
-            pVideo = xf86GetPciInfoForEntity(usedChips[i]);
-
-#ifdef XFree86LOADER
-
-            if (!xf86LoadSubModule(pScrn, "atimisc"))
-            {
-                xf86Msg(X_ERROR,
-                    ATI_NAME ":  Failed to load \"atimisc\" module.\n");
-                xf86DeleteScreen(pScrn->scrnIndex, 0);
-                continue;
-            }
-
-            xf86LoaderReqSymLists(ATISymbols, NULL);
-
-#endif
-
-            ATIFillInScreenInfo(pScrn);
-
-            pScrn->Probe = Mach64Probe;
+            pScrn->driverVersion = ATI_VERSION_CURRENT;
+            pScrn->driverName    = ATI_DRIVER_NAME;
+            pScrn->name          = ATI_NAME;
+            pScrn->Probe         = Mach64Probe;
+            pScrn->PreInit       = ATIPreInit;
+            pScrn->ScreenInit    = ATIScreenInit;
+            pScrn->SwitchMode    = ATISwitchMode;
+            pScrn->AdjustFrame   = ATIAdjustFrame;
+            pScrn->EnterVT       = ATIEnterVT;
+            pScrn->LeaveVT       = ATILeaveVT;
+            pScrn->FreeScreen    = ATIFreeScreen;
+            pScrn->ValidMode     = ATIValidMode;
 
             ProbeSuccess = TRUE;
         }
     }
+
+    xfree(usedChips);
 
     return ProbeSuccess;
 }

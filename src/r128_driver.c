@@ -182,7 +182,7 @@ static const OptionInfoRec R128Options[] = {
   { -1,                  NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
-_X_EXPORT const OptionInfoRec *R128OptionsWeak(void) { return R128Options; }
+const OptionInfoRec *R128OptionsWeak(void) { return R128Options; }
 
 R128RAMRec R128RAM[] = {        /* Memory Specifications
 				   From RAGE 128 Software Development
@@ -2044,7 +2044,7 @@ R128ProbeDDC(ScrnInfoPtr pScrn, int indx)
 }
 
 /* R128PreInit is called once at server startup. */
-_X_EXPORT Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
+Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
 {
     R128InfoPtr      info;
     xf86Int10InfoPtr pInt10 = NULL;
@@ -2334,7 +2334,7 @@ R128BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 }
 
 /* Called at the start of each server generation. */
-_X_EXPORT Bool R128ScreenInit(int scrnIndex, ScreenPtr pScreen,
+Bool R128ScreenInit(int scrnIndex, ScreenPtr pScreen,
                               int argc, char **argv)
 {
     ScrnInfoPtr pScrn  = xf86Screens[pScreen->myNum];
@@ -4238,7 +4238,7 @@ static Bool R128SaveScreen(ScreenPtr pScreen, int mode)
  * The workaround is to switch the mode, then switch to another VT, then
  * switch back. --AGD
  */
-_X_EXPORT Bool R128SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
+Bool R128SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
     ScrnInfoPtr   pScrn       = xf86Screens[scrnIndex];
     R128InfoPtr info        = R128PTR(pScrn);
@@ -4251,11 +4251,14 @@ _X_EXPORT Bool R128SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 }
 
 /* Used to disallow modes that are not supported by the hardware. */
-_X_EXPORT ModeStatus R128ValidMode(int scrnIndex, DisplayModePtr mode,
+ModeStatus R128ValidMode(int scrnIndex, DisplayModePtr mode,
                                    Bool verbose, int flags)
 {
     ScrnInfoPtr   pScrn = xf86Screens[scrnIndex];
     R128InfoPtr   info  = R128PTR(pScrn);
+
+    if (info->BIOSDisplay == R128_BIOS_DISPLAY_CRT)
+	return MODE_OK;
 
     if(info->isDFP) {
         if(info->PanelXRes < mode->CrtcHDisplay ||
@@ -4327,7 +4330,7 @@ _X_EXPORT ModeStatus R128ValidMode(int scrnIndex, DisplayModePtr mode,
 
 /* Adjust viewport into virtual desktop such that (0,0) in viewport space
    is (x,y) in virtual space. */
-_X_EXPORT void R128AdjustFrame(int scrnIndex, int x, int y, int flags)
+void R128AdjustFrame(int scrnIndex, int x, int y, int flags)
 {
     ScrnInfoPtr   pScrn     = xf86Screens[scrnIndex];
     R128InfoPtr   info      = R128PTR(pScrn);
@@ -4363,7 +4366,7 @@ _X_EXPORT void R128AdjustFrame(int scrnIndex, int x, int y, int flags)
 
 /* Called when VT switching back to the X server.  Reinitialize the video
    mode. */
-_X_EXPORT Bool R128EnterVT(int scrnIndex, int flags)
+Bool R128EnterVT(int scrnIndex, int flags)
 {
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
     R128InfoPtr info  = R128PTR(pScrn);
@@ -4396,7 +4399,7 @@ _X_EXPORT Bool R128EnterVT(int scrnIndex, int flags)
 
 /* Called when VT switching away from the X server.  Restore the original
    text mode. */
-_X_EXPORT void R128LeaveVT(int scrnIndex, int flags)
+void R128LeaveVT(int scrnIndex, int flags)
 {
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
     R128InfoPtr info  = R128PTR(pScrn);
@@ -4466,7 +4469,7 @@ static Bool R128CloseScreen(int scrnIndex, ScreenPtr pScreen)
     return (*pScreen->CloseScreen)(scrnIndex, pScreen);
 }
 
-_X_EXPORT void R128FreeScreen(int scrnIndex, int flags)
+void R128FreeScreen(int scrnIndex, int flags)
 {
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
     R128InfoPtr   info      = R128PTR(pScrn);
@@ -4604,19 +4607,4 @@ static int r128_set_backlight_enable(ScrnInfoPtr pScrn, int on)
 	OUTREG(R128_LVDS_GEN_CNTL, lvds_gen_cntl);
 
 	return 0;
-}
-
-_X_EXPORT void R128FillInScreenInfo(ScrnInfoPtr pScrn)
-{
-	pScrn->driverVersion = R128_VERSION_CURRENT;
-	pScrn->driverName    = R128_DRIVER_NAME;
-	pScrn->name          = R128_NAME;
-	pScrn->PreInit       = R128PreInit;
-	pScrn->ScreenInit    = R128ScreenInit;
-	pScrn->SwitchMode    = R128SwitchMode;
-	pScrn->AdjustFrame   = R128AdjustFrame;
-	pScrn->EnterVT       = R128EnterVT;
-	pScrn->LeaveVT       = R128LeaveVT;
-	pScrn->FreeScreen    = R128FreeScreen;
-	pScrn->ValidMode     = R128ValidMode;
 }

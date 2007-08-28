@@ -82,7 +82,7 @@ ATIAdjustPreInit
  * displayed location in video memory.  This is used to implement the virtual
  * window.
  */
-_X_EXPORT void
+void
 ATIAdjustFrame
 (
     int scrnIndex,

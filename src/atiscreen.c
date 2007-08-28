@@ -349,7 +349,7 @@ ATIMach64SetupMemXAA
  *
  * This function is called by DIX to initialise the screen.
  */
-_X_EXPORT Bool
+Bool
 ATIScreenInit
 (
     int       iScreen,

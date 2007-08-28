@@ -39,6 +39,7 @@
 
 #include <stdlib.h>		/* For abs() */
 #include <unistd.h>		/* For usleep() */
+#include <sys/time.h>		/* For gettimeofday() */
 
 #include "xf86str.h"
 #include "compiler.h"
@@ -65,6 +66,8 @@
 #include "xf86xv.h"
 
 #include "radeon_probe.h"
+#include "radeon_tv.h"
+
 				/* DRI support */
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
@@ -76,6 +79,9 @@
 #include "globals.h"
 #endif
 #endif
+
+#include "xf86Crtc.h"
+#include "X11/Xatom.h"
 
 				/* Render support */
 #ifdef RENDER
@@ -115,21 +121,8 @@ typedef enum {
     OPTION_ACCEL_DFS,
 #endif
 #endif
-    OPTION_PANEL_OFF,
     OPTION_DDC_MODE,
-    OPTION_MONITOR_LAYOUT,
     OPTION_IGNORE_EDID,
-    OPTION_FBDEV,
-    OPTION_MERGEDFB,
-    OPTION_CRT2HSYNC,
-    OPTION_CRT2VREFRESH,
-    OPTION_CRT2POS,
-    OPTION_METAMODES,
-    OPTION_MERGEDDPI,
-    OPTION_RADEONXINERAMA,
-    OPTION_CRT2ISSCRN0,
-    OPTION_MERGEDFBNONRECT,
-    OPTION_MERGEDFBMOUSER,
     OPTION_DISP_PRIORITY,
     OPTION_PANEL_SIZE,
     OPTION_MIN_DOTCLOCK,
@@ -157,38 +150,16 @@ typedef enum {
     OPTION_LVDS_PROBE_PLL,
     OPTION_ACCELMETHOD,
     OPTION_CONSTANTDPI,
-    OPTION_REVERSE_DISPLAY,
-    OPTION_DRI
+    OPTION_CONNECTORTABLE,
+    OPTION_DRI,
+    OPTION_DEFAULT_CONNECTOR_TABLE
 } RADEONOpts;
 
-/* ------- mergedfb support ------------- */
-		/* Psuedo Xinerama support */
-#define NEED_REPLIES  		/* ? */
-#define EXTENSION_PROC_ARGS void *
-#include "extnsionst.h"  	/* required */
-#include <X11/extensions/panoramiXproto.h>  	/* required */
-#define RADEON_XINERAMA_MAJOR_VERSION  1
-#define RADEON_XINERAMA_MINOR_VERSION  1
 
-
-/* Relative merge position */
-typedef enum {
-   radeonLeftOf,
-   radeonRightOf,
-   radeonAbove,
-   radeonBelow,
-   radeonClone
-} RADEONScrn2Rel;
-
-typedef struct _region {
-    int x0,x1,y0,y1;
-} region;
-
-/* ------------------------------------- */
-
-#define RADEON_DEBUG            1 /* Turn off debugging output               */
 #define RADEON_IDLE_RETRY      16 /* Fall out of idle loops after this count */
 #define RADEON_TIMEOUT    2000000 /* Fall out of wait loops after this count */
+
+#define RADEON_VSYNC_TIMEOUT	20000 /* Maximum wait for VSYNC (in usecs) */
 
 /* Buffer are aligned on 4096 byte boundaries */
 #define RADEON_BUFFER_ALIGN 0x00000fff
@@ -198,22 +169,28 @@ typedef struct _region {
 				   * for something else.
 				   */
 
-#if RADEON_DEBUG
-#define RADEONTRACE(x)						\
-do {									\
-    ErrorF("(**) %s(%d): ", RADEON_NAME, pScrn->scrnIndex);		\
-    ErrorF x;								\
-} while(0)
-#else
-#define RADEONTRACE(x) do { } while(0)
-#endif
+#define RADEON_LOGLEVEL_DEBUG 4
 
+/* for Xv, outputs */
+#define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
 /* Other macros */
 #define RADEON_ARRAY_SIZE(x)  (sizeof(x)/sizeof(x[0]))
 #define RADEON_ALIGN(x,bytes) (((x) + ((bytes) - 1)) & ~((bytes) - 1))
 #define RADEONPTR(pScrn)      ((RADEONInfoPtr)(pScrn)->driverPrivate)
 
+typedef struct {
+    int    revision;
+    CARD16 rr1_offset;
+    CARD16 rr2_offset;
+    CARD16 dyn_clk_offset;
+    CARD16 pll_offset;
+    CARD16 mem_config_offset;
+    CARD16 mem_reset_offset;
+    CARD16 short_mem_offset;
+    CARD16 rr3_offset;
+    CARD16 rr4_offset;
+} RADEONBIOSInitTable;
 
 typedef struct {
 				/* Common registers */
@@ -262,10 +239,11 @@ typedef struct {
     CARD32            disp_merge_cntl;
     CARD32            grph_buffer_cntl;
     CARD32            crtc_more_cntl;
+    CARD32            crtc_tile_x0_y0;
 
 				/* CRTC2 registers */
     CARD32            crtc2_gen_cntl;
-
+    CARD32            dac_macro_cntl;
     CARD32            dac2_cntl;
     CARD32            disp_output_cntl;
     CARD32            disp_tv_out_cntl;
@@ -279,6 +257,8 @@ typedef struct {
     CARD32            crtc2_offset;
     CARD32            crtc2_offset_cntl;
     CARD32            crtc2_pitch;
+    CARD32            crtc2_tile_x0_y0;
+
 				/* Flat panel registers */
     CARD32            fp_crtc_h_total_disp;
     CARD32            fp_crtc_v_total_disp;
@@ -306,7 +286,7 @@ typedef struct {
     unsigned          ppll_ref_div;
     unsigned          ppll_div_3;
     CARD32            htotal_cntl;
-    CARD32            vclk_cntl;
+    CARD32            vclk_ecp_cntl;
 
 				/* Computed values for PLL2 */
     CARD32            dot_clock_freq_2;
@@ -325,7 +305,54 @@ typedef struct {
     CARD32            palette[256];
     CARD32            palette2[256];
 
-    CARD32            tv_dac_cntl;
+    CARD32            rs480_unk_e30;
+    CARD32            rs480_unk_e34;
+    CARD32            rs480_unk_e38;
+    CARD32            rs480_unk_e3c;
+
+    /* TV out registers */
+    CARD32 	      tv_master_cntl;
+    CARD32 	      tv_htotal;
+    CARD32 	      tv_hsize;
+    CARD32 	      tv_hdisp;
+    CARD32 	      tv_hstart;
+    CARD32 	      tv_vtotal;
+    CARD32 	      tv_vdisp;
+    CARD32 	      tv_timing_cntl;
+    CARD32 	      tv_vscaler_cntl1;
+    CARD32 	      tv_vscaler_cntl2;
+    CARD32 	      tv_sync_size;
+    CARD32 	      tv_vrestart;
+    CARD32 	      tv_hrestart;
+    CARD32 	      tv_frestart;
+    CARD32 	      tv_ftotal;
+    CARD32 	      tv_clock_sel_cntl;
+    CARD32 	      tv_clkout_cntl;
+    CARD32 	      tv_data_delay_a;
+    CARD32 	      tv_data_delay_b;
+    CARD32 	      tv_dac_cntl;
+    CARD32 	      tv_pll_cntl;
+    CARD32 	      tv_pll_cntl1;
+    CARD32	      tv_pll_fine_cntl;
+    CARD32 	      tv_modulator_cntl1;
+    CARD32 	      tv_modulator_cntl2;
+    CARD32 	      tv_frame_lock_cntl;
+    CARD32 	      tv_pre_dac_mux_cntl;
+    CARD32 	      tv_rgb_cntl;
+    CARD32 	      tv_y_saw_tooth_cntl;
+    CARD32 	      tv_y_rise_cntl;
+    CARD32 	      tv_y_fall_cntl;
+    CARD32 	      tv_uv_adr;
+    CARD32	      tv_upsamp_and_gain_cntl;
+    CARD32	      tv_gain_limit_settings;
+    CARD32	      tv_linear_gain_settings;
+    CARD32	      tv_crc_cntl;
+    CARD32            tv_sync_cntl;
+    CARD32	      gpiopad_a;
+    CARD32            pll_test_cntl;
+
+    CARD16	      h_code_timing[MAX_H_CODE_TIMING_LEN];
+    CARD16	      v_code_timing[MAX_V_CODE_TIMING_LEN];
 
 } RADEONSaveRec, *RADEONSavePtr;
 
@@ -402,19 +429,12 @@ typedef enum {
 } RADEONCardType;
 
 typedef struct {
-    CARD32 freq;
-    CARD32 value;
-}RADEONTMDSPll;
-
-typedef struct {
     EntityInfoPtr     pEnt;
     pciVideoPtr       PciInfo;
     PCITAG            PciTag;
     int               Chipset;
     RADEONChipFamily  ChipFamily;
     RADEONErrata      ChipErrata;
-
-    Bool              FBDev;
 
     unsigned long     LinearAddr;       /* Frame buffer physical address     */
     unsigned long     MMIOAddr;         /* MMIO region physical address      */
@@ -438,36 +458,16 @@ typedef struct {
     unsigned long     FbMapSize;        /* Size of frame buffer, in bytes    */
     unsigned long     FbSecureSize;     /* Size of secured fb area at end of
                                            framebuffer */
-    int               Flags;            /* Saved copy of mode flags          */
-
-				/* VE/M6 support */
-    RADEONMonitorType DisplayType;      /* Monitor connected on              */
-    RADEONDDCType     DDCType;
-    RADEONConnectorType ConnectorType;
 
     Bool              IsMobility;       /* Mobile chips for laptops */
     Bool              IsIGP;            /* IGP chips */
     Bool              HasSingleDAC;     /* only TVDAC on chip */
-    Bool              IsSecondary;      /* Second Screen                     */
-    Bool	      IsPrimary;        /* Primary Screen */
-    Bool              IsSwitching;      /* Flag for switching mode           */
-    Bool              OverlayOnCRTC2;
     Bool              ddc_mode;         /* Validate mode by matching exactly
 					 * the modes supported in DDC data
 					 */
     Bool              R300CGWorkaround;
 
 				/* EDID or BIOS values for FPs */
-    int               PanelXRes;
-    int               PanelYRes;
-    int               HOverPlus;
-    int               HSyncWidth;
-    int               HBlank;
-    int               VOverPlus;
-    int               VSyncWidth;
-    int               VBlank;
-    int               PanelPwrDly;
-    int               DotClock;
     int               RefDivider;
     int               FeedbackDivider;
     int               PostDivider;
@@ -476,11 +476,9 @@ typedef struct {
     Bool              ddc_bios;
     Bool              ddc1;
     Bool              ddc2;
-    I2CBusPtr         pI2CBus;
-    CARD32            DDCReg;
 
     RADEONPLLRec      pll;
-    RADEONTMDSPll     tmds_pll[4];
+
     int               RamWidth;
     float	      sclk;		/* in MHz */
     float	      mclk;		/* in MHz */
@@ -497,6 +495,8 @@ typedef struct {
 
 #ifdef USE_EXA
     ExaDriverPtr      exa;
+    int               exaSyncMarker;
+    int               exaMarkerSynced;
     int               engineMode;
 #define EXA_ENGINEMODE_UNKNOWN 0
 #define EXA_ENGINEMODE_2D      1
@@ -605,6 +605,7 @@ typedef struct {
     Bool              allowPageFlip;    /* Enable 3d page flipping */
 #ifdef DAMAGE
     DamagePtr         pDamage;
+    RegionRec         driRegion;
 #endif
     Bool              have3DWindows;    /* Are there any 3d clients? */
 
@@ -614,7 +615,6 @@ typedef struct {
     unsigned long     gartOffset;
     unsigned char     *AGP;             /* Map */
     int               agpMode;
-    int               agpFastWrite;
 
     CARD32            pciCommand;
 
@@ -774,42 +774,10 @@ typedef struct {
     /* X itself has the 3D context */
     Bool              XInited3D;
 
-    /* merged fb stuff, also covers clone modes */
-    Bool		MergedFB;
-    RADEONScrn2Rel	CRT2Position;
-    char *		CRT2HSync;
-    char *		CRT2VRefresh;
-    char *		MetaModes;
-    ScrnInfoPtr		CRT2pScrn;
-    DisplayModePtr	CRT1Modes;
-    DisplayModePtr	CRT1CurrentMode;
-    int			CRT1frameX0;
-    int			CRT1frameY0;
-    int			CRT1frameX1;
-    int			CRT1frameY1;
-    RADEONMonitorType   MergeType;
-    RADEONDDCType       MergeDDCType;
-    void        	(*PointerMoved)(int index, int x, int y);
-    /* pseudo xinerama support for mergedfb */
-    int			maxCRT1_X1, maxCRT1_X2, maxCRT1_Y1, maxCRT1_Y2;
-    int			maxCRT2_X1, maxCRT2_X2, maxCRT2_Y1, maxCRT2_Y2;
-    int			maxClone_X1, maxClone_X2, maxClone_Y1, maxClone_Y2;
-    Bool		UseRADEONXinerama;
-    Bool		CRT2IsScrn0;
-    ExtensionEntry 	*XineramaExtEntry;
-    int			RADEONXineramaVX, RADEONXineramaVY;
-    Bool		AtLeastOneNonClone;
-    int			MergedFBXDPI, MergedFBYDPI;
-    Bool		NoVirtual;
-    int                 CRT1XOffs, CRT1YOffs, CRT2XOffs, CRT2YOffs;
-    int                 MBXNR1XMAX, MBXNR1YMAX, MBXNR2XMAX, MBXNR2YMAX;
-    Bool                NonRect, HaveNonRect, HaveOffsRegions, MouseRestrictions;
-    region              NonRectDead, OffDead1, OffDead2;
+    DisplayModePtr currentMode, savedCurrentMode;
 
     int			constantDPI; /* -1 = auto, 0 = off, 1 = on */
     int			RADEONDPIVX, RADEONDPIVY;
-    RADEONScrn2Rel	MergedDPISRel;
-    int			RADEONMergedDPIVX, RADEONMergedDPIVY, RADEONMergedDPIRot;
 
     /* special handlings for DELL triple-head server */
     Bool		IsDellServer; 
@@ -820,7 +788,22 @@ typedef struct {
     int                MaxLines;
 
     CARD32            tv_dac_adj;
+    CARD32            tv_dac_enable_mask;
 
+    Bool want_vblank_interrupts;
+    RADEONBIOSConnector BiosConnector[RADEON_MAX_BIOS_CONNECTOR];
+    RADEONBIOSInitTable BiosTable;
+
+    /* save crtc state for console restore */
+    Bool              crtc_on;
+    Bool              crtc2_on;
+
+    Bool              InternalTVOut;
+    int               tvdac_use_count;
+
+    Rotation rotation;
+    void (*PointerMoved)(int, int, int);
+    CreateScreenResourcesProcPtr CreateScreenResources;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
@@ -839,7 +822,7 @@ extern void        RADEONWaitForIdleCP(ScrnInfoPtr pScrn);
 #endif
 
 extern void        RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y,
-				       int clone);
+				       Bool clone);
 
 extern void        RADEONEngineReset(ScrnInfoPtr pScrn);
 extern void        RADEONEngineFlush(ScrnInfoPtr pScrn);
@@ -858,6 +841,7 @@ extern Bool        RADEONAccelInit(ScreenPtr pScreen);
 extern Bool        RADEONSetupMemEXA (ScreenPtr pScreen);
 extern Bool        RADEONDrawInitMMIO(ScreenPtr pScreen);
 #ifdef XF86DRI
+extern unsigned long long RADEONTexOffsetStart(PixmapPtr pPix);
 extern Bool        RADEONGetDatatypeBpp(int bpp, CARD32 *type);
 extern Bool        RADEONGetPixmapOffsetPitch(PixmapPtr pPix,
 					      CARD32 *pitch_offset);
@@ -892,19 +876,47 @@ extern void        RADEONPllErrataAfterData(RADEONInfoPtr info);
 extern Bool        RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10);
 extern Bool        RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn);
 extern Bool        RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetLVDSInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetTMDSInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetHardCodedEDIDFromBIOS (ScrnInfoPtr pScrn);
+extern Bool        RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output);
+extern Bool        RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output);
+extern Bool        RADEONGetTVInfoFromBIOS (xf86OutputPtr output);
+extern Bool        RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output);
 
+extern void        RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
+						RADEONSavePtr restore);
+extern void        RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
+						RADEONSavePtr restore);
+extern void        RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
+					      RADEONSavePtr restore);
+extern void        RADEONRestoreDACRegisters(ScrnInfoPtr pScrn,
+					     RADEONSavePtr restore);
+extern void        RADEONRestoreFPRegisters(ScrnInfoPtr pScrn,
+					    RADEONSavePtr restore);
+extern void        RADEONRestoreFP2Registers(ScrnInfoPtr pScrn,
+					     RADEONSavePtr restore);
+extern void        RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn,
+					      RADEONSavePtr restore);
+extern void        RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn,
+					     RADEONSavePtr restore);
+extern void        RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
+					     RADEONSavePtr restore);
+extern void        RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
+					       RADEONSavePtr restore);
+extern void        RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
+					      RADEONSavePtr restore);
+
+extern void        RADEONInitMemMapRegisters(ScrnInfoPtr pScrn,
+					     RADEONSavePtr save,
+					     RADEONInfoPtr info);
 extern void        RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
 extern void        RADEONSetSyncRangeFromEdid(ScrnInfoPtr pScrn, int flag);
-extern void        RADEONSetupConnectors(ScrnInfoPtr pScrn);
-extern Bool        RADEONMapControllers(ScrnInfoPtr pScrn);
-extern void        RADEONEnableDisplay(ScrnInfoPtr pScrn, RADEONConnector* pPort, BOOL bEnable);
+extern Bool        RADEONSetupConnectors(ScrnInfoPtr pScrn);
+extern void        RADEONPrintPortMap(ScrnInfoPtr pScrn);
+extern void        RADEONEnableDisplay(xf86OutputPtr pPort, BOOL bEnable);
 extern void        RADEONDisableDisplays(ScrnInfoPtr pScrn);
 extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
-extern void        RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn);
+extern void        RADEONGetTVDacAdjInfo(xf86OutputPtr output);
+extern void        RADEONUnblank(ScrnInfoPtr pScrn);
 extern void        RADEONUnblank(ScrnInfoPtr pScrn);
 extern void        RADEONBlank(ScrnInfoPtr pScrn);
 extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
@@ -912,13 +924,48 @@ extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 						   int flags);
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn);
 extern Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn);
-extern RADEONConnector *RADEONGetCrtcConnector(ScrnInfoPtr pScrn, int crtc_num);
 extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 				  RADEONMonitorType DisplayType, int crtc2);
-extern int RADEONValidateFPModes(ScrnInfoPtr pScrn, char **ppModeName);
+extern int RADEONValidateFPModes(xf86OutputPtr output, char **ppModeName, DisplayModePtr *modeList);
 extern void RADEONSetPitch (ScrnInfoPtr pScrn);
+extern void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode);
 
+DisplayModePtr
+RADEONProbeOutputModes(xf86OutputPtr output);
+extern Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
+			DisplayModePtr crtc2, int crtc_mask,
+			RADEONSavePtr save, RADEONMonitorType montype);
+
+void
+radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);
+void
+radeon_crtc_show_cursor (xf86CrtcPtr crtc);
+void
+radeon_crtc_hide_cursor (xf86CrtcPtr crtc);
+void
+radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);
+void
+radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg);
+void
+radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image);
+void
+RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num);
+
+extern void RADEONAdjustCrtcRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
+					   DisplayModePtr mode, xf86OutputPtr output);
+extern void RADEONAdjustPLLRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
+					  DisplayModePtr mode, xf86OutputPtr output);
+extern void RADEONAdjustCrtc2RegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
+					   DisplayModePtr mode, xf86OutputPtr output);
+extern void RADEONAdjustPLL2RegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
+					  DisplayModePtr mode, xf86OutputPtr output);
+extern void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
+                                  DisplayModePtr mode, BOOL IsPrimary);
+
+extern void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+extern void RADEONRestoreTVRestarts(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+extern void RADEONRestoreTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr restore);
 
 #ifdef XF86DRI
 #ifdef USE_XAA
@@ -937,6 +984,7 @@ extern drmBufPtr   RADEONCPGetBuffer(ScrnInfoPtr pScrn);
 extern void        RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard);
 extern void        RADEONCPReleaseIndirect(ScrnInfoPtr pScrn);
 extern int         RADEONCPStop(ScrnInfoPtr pScrn,  RADEONInfoPtr info);
+extern Bool RADEONDRISetVBlankInterrupt(ScrnInfoPtr pScrn, Bool on);
 
 extern void        RADEONHostDataParams(ScrnInfoPtr pScrn, CARD8 *dst,
 					CARD32 pitch, int cpp,
@@ -962,6 +1010,16 @@ do {									\
 		   "%s: CP start %d\n", __FUNCTION__, _ret);		\
     }									\
     info->CPStarted = TRUE;                                             \
+} while (0)
+
+#define RADEONCP_RELEASE(pScrn, info)					\
+do {									\
+    if (info->CPInUse) {						\
+	RADEON_PURGE_CACHE();						\
+	RADEON_WAIT_UNTIL_IDLE();					\
+	RADEONCPReleaseIndirect(pScrn);					\
+	info->CPInUse = FALSE;						\
+    }									\
 } while (0)
 
 #define RADEONCP_STOP(pScrn, info)					\
@@ -1128,14 +1186,6 @@ do {									\
     ADVANCE_RING();							\
 } while (0)
 
-#define RADEON_FLUSH_CACHE()						\
-do {									\
-    BEGIN_RING(2);							\
-    OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));		\
-    OUT_RING(RADEON_RB3D_DC_FLUSH);					\
-    ADVANCE_RING();							\
-} while (0)
-
 #define RADEON_PURGE_CACHE()						\
 do {									\
     BEGIN_RING(2);							\
@@ -1174,6 +1224,23 @@ static __inline__ void RADEON_SYNC(RADEONInfoPtr info, ScrnInfoPtr pScrn)
     if (!info->useEXA && info->accel)
 	info->accel->Sync(pScrn);
 #endif
+}
+
+static __inline__ void radeon_init_timeout(struct timeval *endtime,
+    unsigned int timeout)
+{
+    gettimeofday(endtime, NULL);
+    endtime->tv_usec += timeout;
+    endtime->tv_sec += endtime->tv_usec / 1000000;
+    endtime->tv_usec %= 1000000;
+}
+
+static __inline__ int radeon_timedout(const struct timeval *endtime)
+{
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    return now.tv_sec == endtime->tv_sec ?
+        now.tv_usec > endtime->tv_usec : now.tv_sec > endtime->tv_sec;
 }
 
 #endif /* _RADEON_H_ */

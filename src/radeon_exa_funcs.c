@@ -59,14 +59,30 @@
 
 #include "exa.h"
 
+static int
+FUNC_NAME(RADEONMarkSync)(ScreenPtr pScreen)
+{
+    RINFO_FROM_SCREEN(pScreen);
+
+    TRACE;
+
+    return ++info->exaSyncMarker;
+}
+
 static void
 FUNC_NAME(RADEONSync)(ScreenPtr pScreen, int marker)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
     TRACE;
 
-    FUNC_NAME(RADEONWaitForIdle)(xf86Screens[pScreen->myNum]);
+    if (info->exaMarkerSynced != marker) {
+	FUNC_NAME(RADEONWaitForIdle)(pScrn);
+	info->exaMarkerSynced = marker;
+    }
 
-    RADEONPTR(xf86Screens[pScreen->myNum])->engineMode = EXA_ENGINEMODE_UNKNOWN;
+    RADEONPTR(pScrn)->engineMode = EXA_ENGINEMODE_UNKNOWN;
 }
 
 static Bool
@@ -444,6 +460,8 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 	drmCommandWriteRead(info->drmFD, DRM_RADEON_INDIRECT,
 			    &indirect, sizeof(drmRadeonIndirect));
 
+	info->exaMarkerSynced = info->exaSyncMarker;
+
 	return TRUE;
     }
 #endif
@@ -504,6 +522,7 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     info->exa->Copy = FUNC_NAME(RADEONCopy);
     info->exa->DoneCopy = FUNC_NAME(RADEONDoneCopy);
 
+    info->exa->MarkSync = FUNC_NAME(RADEONMarkSync);
     info->exa->WaitMarker = FUNC_NAME(RADEONSync);
     info->exa->UploadToScreen = FUNC_NAME(RADEONUploadToScreen);
     info->exa->DownloadFromScreen = FUNC_NAME(RADEONDownloadFromScreen);

@@ -69,7 +69,12 @@ static void RADEONDRITransitionMultiToSingle3d(ScreenPtr pScreen);
 static void RADEONDRITransitionSingleToMulti3d(ScreenPtr pScreen);
 
 #ifdef DAMAGE
-static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
+static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, RegionPtr pReg);
+
+#if (DRIINFO_MAJOR_VERSION > 5 ||		\
+     (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 1))
+static void RADEONDRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num);
+#endif
 #endif
 
 /* Initialize the visual configs that are supported by the hardware.
@@ -398,10 +403,10 @@ static void RADEONLeaveServer(ScreenPtr pScreen)
 #ifdef DAMAGE
     if (info->pDamage) {
 	RegionPtr pDamageReg = DamageRegion(info->pDamage);
+	int nrects = pDamageReg ? REGION_NUM_RECTS(pDamageReg) : 0;
 
-	if (pDamageReg) {
-	    RADEONDRIRefreshArea(pScrn, REGION_NUM_RECTS(pDamageReg),
-				 REGION_RECTS(pDamageReg));
+	if (nrects) {
+	    RADEONDRIRefreshArea(pScrn, pDamageReg);
 	}
     }
 #endif
@@ -409,13 +414,7 @@ static void RADEONLeaveServer(ScreenPtr pScreen)
     /* The CP is always running, but if we've generated any CP commands
      * we must flush them to the kernel module now.
      */
-    if (info->CPInUse) {
-	RADEON_FLUSH_CACHE();
-	RADEON_WAIT_UNTIL_IDLE();
-	RADEONCPReleaseIndirect(pScrn);
-
-	info->CPInUse = FALSE;
-    }
+    RADEONCP_RELEASE(pScrn, info);
 
 #ifdef USE_EXA
     info->engineMode = EXA_ENGINEMODE_UNKNOWN;
@@ -754,28 +753,6 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
 
     xf86DrvMsg(pScreen->myNum, from, "Using AGP %dx\n", info->agpMode);
 
-    info->agpFastWrite = 0; // Always off by default as it sucks
-
-    from = xf86GetOptValInteger(info->Options, OPTION_AGP_FW,
-				&info->agpFastWrite) ? X_CONFIG : X_DEFAULT;
-
-    if (info->agpFastWrite &&
-	(vendor == PCI_VENDOR_AMD) &&
-	(device == PCI_CHIP_AMD761)) {
-
-	/* Disable fast write for AMD 761 chipset, since they cause
-	 * lockups when enabled.
-	 */
-	info->agpFastWrite = FALSE;
-	from = X_DEFAULT;
-	xf86DrvMsg(pScreen->myNum, X_WARNING,
-		   "[agp] Not enabling Fast Writes on AMD 761 chipset to avoid "
-		   "lockups");
-    }
-
-    xf86DrvMsg(pScreen->myNum, from, "AGP Fast Writes %sabled\n",
-	       info->agpFastWrite ? "en" : "dis");
-
     mode &= ~RADEON_AGP_MODE_MASK;
     if (is_v3) {
 	/* only set one mode bit for AGPv3 */
@@ -794,8 +771,26 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
 	}
     }
 
-    if (info->agpFastWrite) mode |= RADEON_AGP_FW_MODE;
-    else mode &= ~RADEON_AGP_FW_MODE;
+    /* AGP Fast Writes.
+     * TODO: take into account that certain agp modes don't support fast
+     * writes at all */
+    mode &= ~RADEON_AGP_FW_MODE; /* Disable per default */
+    if (xf86ReturnOptValBool(info->Options, OPTION_AGP_FW, FALSE)) {
+	xf86DrvMsg(pScreen->myNum, X_WARNING,
+		   "WARNING: Using the AGPFastWrite option is not recommended.\n");
+	xf86Msg(X_NONE, "\tThis option does not provide much of a noticable speed"
+		" boost, while it\n\twill probably hard lock your machine."
+		" All bets are off!\n");
+
+	/* Black list some host/AGP bridges. */
+	if ((vendor == PCI_VENDOR_AMD) && (device == PCI_CHIP_AMD761))
+	    xf86DrvMsg(pScreen->myNum, X_PROBED, "Ignoring AGPFastWrite option "
+		       "for the AMD 761 northbridge.\n");
+	else {
+	    xf86DrvMsg(pScreen->myNum, X_CONFIG, "Enabling AGP Fast Writes.\n");
+	    mode |= RADEON_AGP_FW_MODE;
+	}
+    } /* Don't mention this otherwise, so that people don't get funny ideas */
 
     xf86DrvMsg(pScreen->myNum, X_INFO,
 	       "[agp] Mode 0x%08lx [AGP 0x%04x/0x%04x; Card 0x%04x/0x%04x]\n",
@@ -1250,7 +1245,7 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
 
     /* Check the DRI version */
     DRIQueryVersion(&major, &minor, &patch);
-    if (major != DRIINFO_MAJOR_VERSION || minor < DRIINFO_MINOR_VERSION) {
+    if (major != DRIINFO_MAJOR_VERSION || minor < 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "[dri] RADEONDRIGetVersion failed because of a version "
 		   "mismatch.\n"
@@ -1258,7 +1253,7 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
 		   "needed.\n"
 		   "[dri] Disabling DRI.\n",
 		   major, minor, patch,
-                   DRIINFO_MAJOR_VERSION, DRIINFO_MINOR_VERSION);
+                   DRIINFO_MAJOR_VERSION, 0);
 	return FALSE;
     }
 
@@ -1357,6 +1352,29 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
 
     return TRUE;
 }
+
+Bool RADEONDRISetVBlankInterrupt(ScrnInfoPtr pScrn, Bool on)
+{
+    RADEONInfoPtr  info    = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int value = 0;
+
+    if (info->directRenderingEnabled && info->pKernelDRMVersion->version_minor >= 28) {
+        if (on) {
+  	    if (xf86_config->num_crtc > 1 && xf86_config->crtc[1]->enabled)
+	        value = DRM_RADEON_VBLANK_CRTC1 | DRM_RADEON_VBLANK_CRTC2;
+	    else
+	        value = DRM_RADEON_VBLANK_CRTC1;
+	}
+
+	if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_VBLANK_CRTC, value)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "RADEON Vblank Crtc Setup Failed %d\n", value);
+	    return FALSE;
+	}
+    }
+    return TRUE;
+}
+
 
 /* Initialize the screen-specific data structures for the DRI and the
  * Radeon.  This is the main entry point to the device-specific
@@ -1477,9 +1495,30 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     pDRIInfo->TransitionTo3d = RADEONDRITransitionTo3d;
     pDRIInfo->TransitionSingleToMulti3D = RADEONDRITransitionSingleToMulti3d;
     pDRIInfo->TransitionMultiToSingle3D = RADEONDRITransitionMultiToSingle3d;
+#if defined(DAMAGE) && (DRIINFO_MAJOR_VERSION > 5 ||	\
+			(DRIINFO_MAJOR_VERSION == 5 &&	\
+			 DRIINFO_MINOR_VERSION >= 1))
+    pDRIInfo->ClipNotify     = RADEONDRIClipNotify;
+#endif
 
     pDRIInfo->createDummyCtx     = TRUE;
     pDRIInfo->createDummyCtxPriv = FALSE;
+
+#ifdef USE_EXA
+    if (info->useEXA) {
+#if DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3
+       int major, minor, patch;
+
+       DRIQueryVersion(&major, &minor, &patch);
+
+       if (minor >= 3)
+#endif
+#if DRIINFO_MAJOR_VERSION > 5 || \
+    (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3)
+	  pDRIInfo->texOffsetStart = RADEONTexOffsetStart;
+#endif
+    }
+#endif
 
     if (!DRIScreenInit(pScreen, pDRIInfo, &info->drmFD)) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR,
@@ -1646,6 +1685,9 @@ Bool RADEONDRIFinishScreenInit(ScreenPtr pScreen)
     info->DRICloseScreen = pScreen->CloseScreen;
     pScreen->CloseScreen = RADEONDRIDoCloseScreen;
 
+    /* disable vblank at startup */
+    RADEONDRISetVBlankInterrupt (pScrn, FALSE);
+
     return TRUE;
 }
 
@@ -1696,20 +1738,15 @@ void RADEONDRIStop(ScreenPtr pScreen)
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     RING_LOCALS;
 
-    RADEONTRACE(("RADEONDRIStop\n"));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONDRIStop\n");
 
     /* Stop the CP */
     if (info->directRenderingInited) {
 	/* If we've generated any CP commands, we must flush them to the
 	 * kernel module now.
 	 */
-	if (info->CPInUse) {
-	    RADEON_FLUSH_CACHE();
-	    RADEON_WAIT_UNTIL_IDLE();
-	    RADEONCPReleaseIndirect(pScrn);
-
-	    info->CPInUse = FALSE;
-	}
+	RADEONCP_RELEASE(pScrn, info);
 	RADEONCP_STOP(pScrn, info);
     }
     info->directRenderingInited = FALSE;
@@ -1724,9 +1761,15 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     drmRadeonInit  drmInfo;
 
-     RADEONTRACE(("RADEONDRICloseScreen\n"));
-    
+     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		    "RADEONDRICloseScreen\n");
+
+#ifdef DAMAGE
+     REGION_UNINIT(pScreen, &info->driRegion);
+#endif
+
      if (info->irq) {
+	RADEONDRISetVBlankInterrupt (pScrn, FALSE);
 	drmCtlUninstHandler(info->drmFD);
 	info->irq = 0;
 	info->ModeReg.gen_int_cntl = 0;
@@ -1819,15 +1862,17 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
  */
 
 
-static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
+static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, RegionPtr pReg)
 {
     RADEONInfoPtr       info       = RADEONPTR(pScrn);
-    int                 i;
+    int                 i, num;
     ScreenPtr           pScreen    = pScrn->pScreen;
     RADEONSAREAPrivPtr  pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 #ifdef USE_EXA
     PixmapPtr           pPix = pScreen->GetScreenPixmap(pScreen);
 #endif
+    RegionRec region;
+    BoxPtr pbox;
 
     if (!info->directRenderingInited || !info->CPStarted)
 	return;
@@ -1837,6 +1882,17 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
      */
     if (!pSAREAPriv->pfAllowPageFlip && pSAREAPriv->pfCurrentPage == 0)
 	return;
+
+    REGION_NULL(pScreen, &region);
+    REGION_SUBTRACT(pScreen, &region, pReg, &info->driRegion);
+
+    num = REGION_NUM_RECTS(&region);
+
+    if (!num) {
+	goto out;
+    }
+
+    pbox = REGION_RECTS(&region);
 
     /* pretty much a hack. */
 
@@ -1858,7 +1914,7 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     if (!info->useEXA) {
 	/* Make sure accel has been properly inited */
 	if (info->accel == NULL || info->accel->SetupForScreenToScreenCopy == NULL)
-	    return;
+	    goto out;
 	if (info->tilingEnabled)
 	    info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
 	(*info->accel->SetupForScreenToScreenCopy)(pScrn,
@@ -1894,6 +1950,8 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     info->dst_pitch_offset &= ~RADEON_DST_TILE_MACRO;
 #endif
 
+out:
+    REGION_NULL(pScreen, &region);
     DamageEmpty(info->pDamage);
 }
 
@@ -1907,16 +1965,13 @@ static void RADEONEnablePageFlip(ScreenPtr pScreen)
 
     if (info->allowPageFlip) {
 	RADEONSAREAPrivPtr pSAREAPriv = DRIGetSAREAPrivate(pScreen);
+	BoxRec box = { .x1 = 0, .y1 = 0, .x2 = pScrn->virtualX - 1,
+		       .y2 = pScrn->virtualY - 1 };
+	RegionPtr pReg = REGION_CREATE(pScreen, &box, 1);
 
 	pSAREAPriv->pfAllowPageFlip = 1;
-
-#ifdef USE_XAA
-	if (!info->useEXA) {
-	    BoxRec box = { .x1 = 0, .y1 = 0, .x2 = pScrn->virtualX - 1,
-			   .y2 = pScrn->virtualY - 1 };
-	    RADEONDRIRefreshArea(pScrn, 1, &box);
-	}
-#endif
+	RADEONDRIRefreshArea(pScrn, pReg);
+	REGION_DESTROY(pScreen, pReg);
     }
 #endif
 }
@@ -2023,6 +2078,9 @@ static void RADEONDRITransitionTo3d(ScreenPtr pScreen)
 
     RADEONChangeSurfaces(pScrn);
     RADEONEnablePageFlip(pScreen);
+    
+    info->want_vblank_interrupts = TRUE;
+    RADEONDRISetVBlankInterrupt(pScrn, TRUE);
 
     if (info->cursor)
 	xf86ForceHWCursor (pScreen, TRUE);
@@ -2062,9 +2120,39 @@ static void RADEONDRITransitionTo2d(ScreenPtr pScreen)
 
     RADEONChangeSurfaces(pScrn);
 
+    info->want_vblank_interrupts = FALSE;
+    RADEONDRISetVBlankInterrupt(pScrn, FALSE);
+
     if (info->cursor)
 	xf86ForceHWCursor (pScreen, FALSE);
 }
+
+#if defined(DAMAGE) && (DRIINFO_MAJOR_VERSION > 5 ||	\
+			(DRIINFO_MAJOR_VERSION == 5 &&	\
+			 DRIINFO_MINOR_VERSION >= 1))
+static void
+RADEONDRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    REGION_UNINIT(pScreen, &info->driRegion);
+    REGION_NULL(pScreen, &info->driRegion);
+
+    if (num > 0) {
+	int i;
+
+	for (i = 0; i < num; i++) {
+	    WindowPtr pWin = ppWin[i];
+
+	    if (pWin) {
+		REGION_UNION(pScreen, &info->driRegion, &pWin->clipList,
+			     &info->driRegion);
+	    }
+	}
+    }
+}
+#endif
 
 void RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen)
 {

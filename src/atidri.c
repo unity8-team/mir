@@ -1194,13 +1194,13 @@ Bool ATIDRIScreenInit( ScreenPtr pScreen )
 
    /* Check the DRI version */
    DRIQueryVersion( &major, &minor, &patch );
-   if ( major != DRIINFO_MAJOR_VERSION || minor < DRIINFO_MINOR_VERSION ) {
+   if ( major != DRIINFO_MAJOR_VERSION || minor < 0 ) {
       xf86DrvMsg( pScreen->myNum, X_ERROR,
 		  "[dri] ATIDRIScreenInit failed because of a version mismatch.\n"
 		  "[dri] libdri version is %d.%d.%d but version %d.%d.x is needed.\n"
 		  "[dri] Disabling the DRI.\n",
 		  major, minor, patch,
-                  DRIINFO_MAJOR_VERSION, DRIINFO_MINOR_VERSION );
+                  DRIINFO_MAJOR_VERSION, 0 );
       return FALSE;
    }
 
@@ -1266,9 +1266,10 @@ Bool ATIDRIScreenInit( ScreenPtr pScreen )
       ErrorF( "[dri] Data does not fit in SAREA\n" );
       return FALSE;
    }
-   xf86DrvMsg( pScreenInfo->scrnIndex, X_INFO, "[drm] SAREA %d+%d: %d\n",
-	       sizeof(XF86DRISAREARec), sizeof(ATISAREAPrivRec),
-	       sizeof(XF86DRISAREARec) + sizeof(ATISAREAPrivRec) );
+   xf86DrvMsg( pScreenInfo->scrnIndex, X_INFO, "[drm] SAREA %u+%u: %u\n",
+	       (unsigned)sizeof(XF86DRISAREARec),
+	       (unsigned)sizeof(ATISAREAPrivRec),
+	       (unsigned)(sizeof(XF86DRISAREARec) + sizeof(ATISAREAPrivRec)) );
    pDRIInfo->SAREASize = SAREA_MAX;
 
    pATIDRI = (ATIDRIPtr) xnfcalloc( sizeof(ATIDRIRec), 1 );
