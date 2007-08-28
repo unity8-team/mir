@@ -1637,14 +1637,13 @@ radeon_create_resources(xf86OutputPtr output)
 	if (err != 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRConfigureOutputProperty error, %d\n", err);
-	}
+	}	
 
 	if (radeon_output->DACType == DAC_PRIMARY)
 	    data = 1; /* primary dac, only drives vga */
 	else if (radeon_output->DACType == DAC_TVDAC &&
-		 info->IsMobility &&
-		 !info->IsIGP)
-	    data = 1; /* laptops with tv only on tvdac */
+		 info->tvdac_use_count < 2)
+	    data = 1; /* only one output with tvdac */
 	else
 	    data = 0; /* shared tvdac between vga/dvi/tv */
 
@@ -2428,9 +2427,8 @@ void RADEONInitConnector(xf86OutputPtr output)
     if (radeon_output->DACType == DAC_PRIMARY)
 	radeon_output->load_detection = 1; /* primary dac, only drives vga */
     else if (radeon_output->DACType == DAC_TVDAC &&
-	     info->IsMobility &&
-	     !info->IsIGP)
-	radeon_output->load_detection = 1; /* laptops with tv only on tvdac */
+	     info->tvdac_use_count < 2)
+	radeon_output->load_detection = 1; /* only one output with tvdac */
     else
 	radeon_output->load_detection = 0; /* shared tvdac between vga/dvi/tv */
 
@@ -2617,8 +2615,12 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	}
     }
 
+    info->tvdac_use_count = 0;
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
+	    if (info->BiosConnector[i].DACType == DAC_TVDAC)
+		info->tvdac_use_count++;
+
 	    if (info->IsAtomBios) {
 		if ((info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D_ATOM) ||
 		    (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I_ATOM) ||

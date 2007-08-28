@@ -799,6 +799,7 @@ typedef struct {
     Bool              crtc2_on;
 
     Bool              InternalTVOut;
+    int               tvdac_use_count;
 
     Rotation rotation;
     void (*PointerMoved)(int, int, int);
