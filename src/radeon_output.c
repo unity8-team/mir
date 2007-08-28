@@ -1806,7 +1806,27 @@ radeon_create_resources(xf86OutputPtr output)
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
 	/* Set the current value of the backlight property */
-	s = "default";
+	switch (radeon_output->default_tvStd) {
+	case TV_STD_PAL:
+	    s = "pal";
+	    break;
+	case TV_STD_PAL_M:
+	    s = "pal-m";
+	    break;
+	case TV_STD_PAL_60:
+	    s = "pal-60";
+	    break;
+	case TV_STD_NTSC_J:
+	    s = "ntsc-j";
+	    break;
+	case TV_STD_SCART_PAL:
+	    s = "scart-pal";
+	    break;
+	case TV_STD_NTSC:
+	default:
+	    s = "ntsc";
+	    break;
+	}
 	err = RRChangeOutputProperty(output->randr_output, tv_std_atom,
 				     XA_STRING, 8, PropModeReplace, strlen(s), (pointer)s,
 				     FALSE, FALSE);
