@@ -1507,6 +1507,9 @@ i830_tv_format_configure_property (xf86OutputPtr output)
     int			    num_atoms = 0;
     int			    i;
     
+    if (!output->randr_output)
+	return Success;
+
     for (i = 0; i < NUM_TV_MODES; i++)
 	if (!tv_modes[i].component_only || dev_priv->type == TV_TYPE_COMPONENT)
 	    current_atoms[num_atoms++] = tv_format_name_atoms[i];
