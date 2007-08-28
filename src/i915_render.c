@@ -123,6 +123,17 @@ static CARD32 i915_get_blend_cntl(int op, PicturePtr pMask, CARD32 dst_format)
             sblend = BLENDFACT_ZERO;
     }
 
+    /* i915 engine reads 8bit color buffer into green channel in cases
+       like color buffer blending .etc, and also writes back green channel.
+       So with dst_alpha blend we should use color factor. See spec on
+       "8-bit rendering" */
+    if ((dst_format == PICT_a8) && i915_blend_op[op].dst_alpha) {
+        if (sblend == BLENDFACT_DST_ALPHA)
+            sblend = BLENDFACT_DST_COLR;
+        else if (sblend == BLENDFACT_INV_DST_ALPHA)
+            sblend = BLENDFACT_INV_DST_COLR;
+    }
+
     /* If the source alpha is being used, then we should only be in a case
      * where the source blend factor is 0, and the source blend value is the
      * mask channels multiplied by the source picture's alpha.
