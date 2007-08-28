@@ -73,9 +73,16 @@ const char *ATIMemoryTypeNames_264xT[] =
  *
  * It is called implicitely by xf86MapPciMem(VIDMEM_FRAMEBUFFER).
  */
+#ifndef XSERVER_LIBPCIACCESS
 #define nop_setWC(_screenNum, _base, _size, _enable) \
 do {                                                 \
 } while (0)
+#else
+#define nop_setWC(_screenNum, _base, _size, _enable) \
+do {                                                 \
+    /* XXX */                                        \
+} while (0)
+#endif
 
 #ifndef AVOID_CPIO
 
@@ -120,7 +127,11 @@ ATIUnmapLinear
         if (pATI->LinearBase)
             nop_setWC(iScreen, pATI->LinearBase, pATI->LinearSize, FALSE);
 
+#ifndef XSERVER_LIBPCIACCESS
         xf86UnMapVidMem(iScreen, pATI->pMemoryLE, (1U << pVideo->size[0]));
+#else
+        pci_device_unmap_region(pVideo, 0);
+#endif
     }
 
     pATI->pMemory = pATI->pMemoryLE = NULL;
@@ -140,8 +151,16 @@ ATIUnmapMMIO
     ATIPtr pATI
 )
 {
+    pciVideoPtr pVideo = pATI->PCIInfo;
+
     if (pATI->pMMIO)
+    {
+#ifndef XSERVER_LIBPCIACCESS
         xf86UnMapVidMem(iScreen, pATI->pMMIO, getpagesize());
+#else
+        pci_device_unmap_region(pVideo, 2);
+#endif
+    }
 
     pATI->pMMIO = pATI->pBlock[0] = pATI->pBlock[1] = NULL;
 }
@@ -163,8 +182,7 @@ ATIMapApertures
     ATIPtr pATI
 )
 {
-    pciVideoPtr   pVideo = pATI->PCIInfo;
-    int           mode;
+    pciVideoPtr pVideo = pATI->PCIInfo;
 
     if (pATI->Mapped)
         return TRUE;
@@ -192,17 +210,31 @@ ATIMapApertures
     /* Map linear aperture */
     if (pATI->LinearBase || (pATI->Block0Base && pATI->MMIOInLinear))
     {
-        mode = VIDMEM_FRAMEBUFFER;
 
+#ifndef XSERVER_LIBPCIACCESS
+
+        int mode = VIDMEM_FRAMEBUFFER;
+    
         /* Reset write-combining for the whole FB when MMIO registers fall in
          * the linear aperture.
          */
         if (pATI->MMIOInLinear)
             mode = VIDMEM_MMIO;
-
+    
         pATI->pMemoryLE = xf86MapPciMem(iScreen, mode, PCI_CFG_TAG(pVideo),
                                         pVideo->memBase[0],
                                         (1U << pVideo->size[0]));
+
+#else /* XSERVER_LIBPCIACCESS */
+
+        int err = pci_device_map_region(pVideo, 0, TRUE);
+    
+        if (err)
+            pATI->pMemoryLE = NULL;
+        else
+            pATI->pMemoryLE = pVideo->regions[0].memory;
+
+#endif /* XSERVER_LIBPCIACCESS */
 
         if (!pATI->pMemoryLE)
             goto bail;
@@ -230,10 +262,25 @@ ATIMapApertures
     /* Map MMIO aperture */
     if (pATI->Block0Base && !pATI->MMIOInLinear)
     {
-        mode = VIDMEM_MMIO;
+
+#ifndef XSERVER_LIBPCIACCESS
+
+        int mode = VIDMEM_MMIO;
+    
         pATI->pMMIO = xf86MapPciMem(iScreen, mode, PCI_CFG_TAG(pVideo),
                                     pVideo->memBase[2],
                                     getpagesize());
+
+#else /* XSERVER_LIBPCIACCESS */
+
+        int err = pci_device_map_region(pVideo, 2, TRUE);
+    
+        if (err)
+            pATI->pMMIO = NULL;
+        else
+            pATI->pMMIO = pVideo->regions[2].memory;
+
+#endif /* XSERVER_LIBPCIACCESS */
 
         if (!pATI->pMMIO)
             goto bail;

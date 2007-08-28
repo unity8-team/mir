@@ -57,6 +57,9 @@
 #include "config.h"
 #endif
 
+#ifdef XSERVER_LIBPCIACCESS
+#include <pciaccess.h>
+#endif
 #include "atipcirename.h"
 
 #include "ati.h"
@@ -66,6 +69,22 @@
 
 #include "radeon_probe.h"
 #include "r128_probe.h"
+
+#ifdef XSERVER_LIBPCIACCESS
+static const struct pci_id_match ati_device_match = {
+    PCI_VENDOR_ATI, PCI_MATCH_ANY, PCI_MATCH_ANY, PCI_MATCH_ANY, 0, 0, 0
+};
+
+/* Stolen from xf86pciBus.c */
+/* PCI classes that get included in xf86PciVideoInfo */
+#define PCIINFOCLASSES(c) \
+    (  (((c) & 0x00ff0000) == (PCI_CLASS_PREHISTORIC << 16)) ||           \
+       (((c) & 0x00ff0000) == (PCI_CLASS_DISPLAY << 16)) ||               \
+      ((((c) & 0x00ffff00) == ((PCI_CLASS_MULTIMEDIA << 16) |             \
+                               (PCI_SUBCLASS_MULTIMEDIA_VIDEO << 8)))) || \
+      ((((c) & 0x00ffff00) == ((PCI_CLASS_PROCESSOR << 16) |              \
+                               (PCI_SUBCLASS_PROCESSOR_COPROC << 8)))) )
+#endif
 
 /*
  * ATIIdentify --
@@ -101,10 +120,16 @@ ATIProbe
 )
 {
     pciVideoPtr pVideo;
+#ifndef XSERVER_LIBPCIACCESS
     pciVideoPtr *xf86PciVideoInfo;
+#else
+    struct pci_device_iterator *pVideoIter;
+#endif
     Bool        DoMach64 = FALSE;
     Bool        DoRage128 = FALSE, DoRadeon = FALSE;
     ATIChipType Chip;
+
+#ifndef XSERVER_LIBPCIACCESS
 
     xf86PciVideoInfo = xf86GetPciVideoInfo();
 
@@ -126,6 +151,35 @@ ATIProbe
         else if (Chip <= ATI_CHIP_Radeon)
             DoRadeon = TRUE;
     }
+
+#else /* XSERVER_LIBPCIACCESS */
+
+    pVideoIter = pci_id_match_iterator_create(&ati_device_match);
+
+    while ((pVideo = pci_device_next(pVideoIter)) != NULL)
+    {
+        /* Check for non-video devices */
+        if (!PCIINFOCLASSES(pVideo->device_class))
+            continue;
+
+        /* Check for prehistoric PCI Mach32 */
+        if ((PCI_DEV_VENDOR_ID(pVideo) != PCI_VENDOR_ATI) ||
+            (PCI_DEV_DEVICE_ID(pVideo) == PCI_CHIP_MACH32))
+            continue;
+
+        /* Check for Rage128's, Radeon's and later adapters */
+        Chip = ATIChipID(PCI_DEV_DEVICE_ID(pVideo), PCI_DEV_REVISION(pVideo));
+        if (Chip <= ATI_CHIP_Mach64)
+            DoMach64 = TRUE;
+        else if (Chip <= ATI_CHIP_Rage128)
+            DoRage128 = TRUE;
+        else if (Chip <= ATI_CHIP_Radeon)
+            DoRadeon = TRUE;
+    }
+
+    pci_iterator_destroy(pVideoIter);
+
+#endif /* XSERVER_LIBPCIACCESS */
 
     /* Call Radeon driver probe */
     if (DoRadeon)

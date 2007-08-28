@@ -34,7 +34,7 @@ enum region_type {
     REGION_IO 
 };
 
-#ifndef PCIACCESS
+#ifndef XSERVER_LIBPCIACCESS
 
 /* pciVideoPtr */
 #define PCI_DEV_VENDOR_ID(_pcidev) ((_pcidev)->vendor)
@@ -71,7 +71,7 @@ enum region_type {
 #define PCI_WRITE_LONG(_pcidev, _value, _offset) \
     pciWriteLong(PCI_CFG_TAG(_pcidev), (_offset), (_value))
 
-#else /* PCIACCESS */
+#else /* XSERVER_LIBPCIACCESS */
 
 typedef struct pci_device *pciVideoPtr;
 
@@ -105,6 +105,6 @@ typedef struct pci_device *pciVideoPtr;
 #define PCI_WRITE_LONG(_pcidev, _value, _offset) \
     pci_device_cfg_write_u32((_pcidev), (_value), (_offset))
 
-#endif /* PCIACCESS */
+#endif /* XSERVER_LIBPCIACCESS */
 
 #endif /* ATIPCIRENAME_H */

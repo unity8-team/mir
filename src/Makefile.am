@@ -66,6 +66,9 @@ atimisc_drv_la_SOURCES = \
 	atiload.c atimisc.c atimach64probe.c $(ATIMISC_CPIO_SOURCES) \
 	$(ATIMISC_DGA_SOURCES) $(ATIMISC_DRI_SRCS) $(ATIMISC_EXA_SOURCES)
 
+if XSERVER_LIBPCIACCESS
+# r128, radeon and theatre have not been ported yet
+else
 r128_drv_la_LTLIBRARIES = r128_drv.la
 r128_drv_la_LDFLAGS = -module -avoid-version
 r128_drv_ladir = @moduledir@/drivers
@@ -103,6 +106,7 @@ theatre200_drv_la_CFLAGS = \
 	$(AM_CFLAGS) -DMICROC_DIR=\"$(theatre200_drv_ladir)\"
 theatre200_drv_la_SOURCES = \
 	theatre200.c theatre200_module.c
+endif
 
 EXTRA_DIST = \
 	atimach64render.c \

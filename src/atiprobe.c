@@ -385,10 +385,12 @@ ATIMach64ProbeIO
         uint32_t PciReg;
         uint32_t j;
 
+#ifndef XSERVER_LIBPCIACCESS
         pciConfigPtr pPCI = pVideo->thisCard;
 
         if (pPCI == NULL)
             goto SkipSparse;
+#endif
 
         PCI_READ_LONG(pVideo, &PciReg, PCI_REG_USERCONFIG);
         j = PciReg & 0x03U;

@@ -146,8 +146,10 @@ Mach64Probe(DriverPtr pDriver, int flags)
     int     numUsed;
     Bool    ProbeSuccess = FALSE;
 
+#ifndef XSERVER_LIBPCIACCESS
     if (xf86GetPciVideoInfo() == NULL)
         return FALSE;
+#endif
 
     if ((numDevSections = xf86MatchDevice(ATI_DRIVER_NAME, &devSections)) <= 0)
         return FALSE;
