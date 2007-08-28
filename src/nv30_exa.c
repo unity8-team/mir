@@ -542,7 +542,6 @@ NV30EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 	float sX0, sX1, sY0, sY1;
 	float mX0, mX1, mY0, mY1;
 	NV30EXA_STATE;
-	ErrorF("nv30 composite\n");
 
 	NV30EXATransformCoord(state->unit[0].transform, srcX, srcY,
 			      state->unit[0].width,
@@ -591,26 +590,25 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	static int have_object = FALSE;
 	uint32_t class = 0, chipset;
 	int i;
-	ErrorF("init nv30 exa\n");
 
 #undef  NV30_TCL_PRIMITIVE_3D
 #define NV30_TCL_PRIMITIVE_3D                 0x0397
-#define NV30_TCL_PRIMITIVE_3D_CHIPSET_4X_MASK 0x00000003
+#define NV30_TCL_PRIMITIVE_3D_CHIPSET_3X_MASK 0x00000003
 #define NV35_TCL_PRIMITIVE_3D                 0x0497
-#define NV35_TCL_PRIMITIVE_3D_CHIPSET_4X_MASK 0x000001e0
+#define NV35_TCL_PRIMITIVE_3D_CHIPSET_3X_MASK 0x000001e0
 #define NV34_TCL_PRIMITIVE_3D                 0x0697
-#define NV34_TCL_PRIMITIVE_3D_CHIPSET_4X_MASK 0x00000010
+#define NV34_TCL_PRIMITIVE_3D_CHIPSET_3X_MASK 0x00000010
 
 	chipset = (nvReadMC(pNv, 0) >> 20) & 0xff;
 	if ((chipset & 0xf0) != NV_ARCH_30)
 		return TRUE;
 	chipset &= 0xf;
 
-	if (NV30_TCL_PRIMITIVE_3D_CHIPSET_4X_MASK & (1<<chipset))
+	if (NV30_TCL_PRIMITIVE_3D_CHIPSET_3X_MASK & (1<<chipset))
 		class = NV30_TCL_PRIMITIVE_3D;
-	else if (NV35_TCL_PRIMITIVE_3D_CHIPSET_4X_MASK & (1<<chipset))
+	else if (NV35_TCL_PRIMITIVE_3D_CHIPSET_3X_MASK & (1<<chipset))
 		class = NV35_TCL_PRIMITIVE_3D;
-	else if (NV34_TCL_PRIMITIVE_3D_CHIPSET_4X_MASK & (1<<chipset))
+	else if (NV34_TCL_PRIMITIVE_3D_CHIPSET_3X_MASK & (1<<chipset))
 		class = NV34_TCL_PRIMITIVE_3D;
 	else {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
