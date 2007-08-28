@@ -152,6 +152,7 @@ static RADEONMonitorType radeon_detect_tv(ScrnInfoPtr pScrn);
 static RADEONMonitorType radeon_detect_primary_dac(ScrnInfoPtr pScrn, Bool color);
 static RADEONMonitorType radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color);
 static RADEONMonitorType radeon_detect_ext_dac(ScrnInfoPtr pScrn);
+static void RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
 
 void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 {
@@ -1009,6 +1010,15 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     xf86CrtcPtr	crtc = output->crtc;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
+    if (radeon_output->type == OUTPUT_DVI &&
+	radeon_output->TMDSType == TMDS_INT) {
+	if (radeon_output->tmds_pll_table == TMDS_PLL_BIOS) {
+	    if (!RADEONGetTMDSInfoFromBIOS(output))
+		RADEONGetTMDSInfoFromTable(output);
+	} else
+	    RADEONGetTMDSInfoFromTable(output);
+    }
+
     RADEONInitOutputRegisters(pScrn, &info->ModeReg, adjusted_mode, output, radeon_crtc->crtc_id);
 
     if (radeon_crtc->crtc_id == 0)
@@ -1564,6 +1574,7 @@ radeon_set_backlight_level(xf86OutputPtr output, int level)
 }
 
 static Atom backlight_atom;
+static Atom tmds_pll_atom;
 static Atom rmx_atom;
 static Atom monitor_type_atom;
 static Atom tv_hsize_atom;
@@ -1604,6 +1615,32 @@ radeon_create_resources(xf86OutputPtr output)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRChangeOutputProperty error, %d\n", err);
 	}
+    }
+
+    if (radeon_output->type == OUTPUT_DVI &&
+	radeon_output->TMDSType == TMDS_INT) {
+	tmds_pll_atom = MAKE_ATOM("tmds_pll");
+
+	err = RRConfigureOutputProperty(output->randr_output, tmds_pll_atom,
+					FALSE, FALSE, FALSE, 0, NULL);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+	/* Set the current value of the property */
+#if defined(__powerpc__)
+	s = "driver";
+#else
+	s = "bios";
+#endif
+	err = RRChangeOutputProperty(output->randr_output, tmds_pll_atom,
+				     XA_STRING, 8, PropModeReplace, strlen(s), (pointer)s,
+				     FALSE, FALSE);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+
     }
 
     /* RMX control - fullscreen, centered, keep ratio */
@@ -1785,6 +1822,19 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	} else {
 	    return FALSE;
 	}
+    } else if (property == tmds_pll_atom) {
+	const char *s;
+	if (value->type != XA_STRING || value->format != 8)
+	    return FALSE;
+	s = (char*)value->data;
+	if (value->size == strlen("bios") && !strncmp("bios", s, strlen("bios"))) {
+	    radeon_output->tmds_pll_table = TMDS_PLL_BIOS;
+	    return TRUE;
+	} else if (value->size == strlen("driver") && !strncmp("driver", s, strlen("driver"))) {
+	    radeon_output->tmds_pll_table = TMDS_PLL_DRIVER;
+	    return TRUE;
+	}
+	return FALSE;
     } else if (property == monitor_type_atom) {
 	const char *s;
 	if (value->type != XA_STRING || value->format != 8)
@@ -2256,10 +2306,22 @@ RADEONGetLVDSInfo (xf86OutputPtr output)
 }
 
 static void
-RADEONGetTMDSInfo(xf86OutputPtr output)
+RADEONGetTMDSInfoFromTable(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int i;
+
+    for (i=0; i<4; i++) {
+        radeon_output->tmds_pll[i].value = default_tmds_pll[info->ChipFamily][i].value;
+        radeon_output->tmds_pll[i].freq = default_tmds_pll[info->ChipFamily][i].freq;
+    }
+}
+
+static void
+RADEONGetTMDSInfo(xf86OutputPtr output)
+{
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int i;
 
@@ -2270,10 +2332,8 @@ RADEONGetTMDSInfo(xf86OutputPtr output)
 
     if (RADEONGetTMDSInfoFromBIOS(output)) return;
 
-    for (i=0; i<4; i++) {
-        radeon_output->tmds_pll[i].value = default_tmds_pll[info->ChipFamily][i].value;
-        radeon_output->tmds_pll[i].freq = default_tmds_pll[info->ChipFamily][i].freq;
-    }
+    RADEONGetTMDSInfoFromTable(output);
+
 }
 
 static void
