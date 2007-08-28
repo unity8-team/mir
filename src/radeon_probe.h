@@ -211,6 +211,7 @@ typedef struct _RADEONOutputPrivateRec {
     int               hSize;
     float             TVRefClk;
     int               SupportedTVStds;
+    int               load_detection;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 #define RADEON_MAX_CRTC 2

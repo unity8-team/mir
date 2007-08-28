@@ -536,21 +536,29 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
     if (radeon_output->MonType == MT_UNKNOWN) {
 	if (radeon_output->type == OUTPUT_STV || radeon_output->type == OUTPUT_CTV) {
-	    if (info->InternalTVOut)
-		radeon_output->MonType = radeon_detect_tv(pScrn);
+	    if (info->InternalTVOut) {
+		if (radeon_output->load_detection)
+		    radeon_output->MonType = radeon_detect_tv(pScrn);
+		else
+		    radeon_output->MonType = MT_NONE;
+	    }
 	} else {
 	    radeon_output->MonType = RADEONDisplayDDCConnected(pScrn, output);
 	    if (!radeon_output->MonType) {
 		if (radeon_output->type == OUTPUT_LVDS || radeon_output->type == OUTPUT_DVI)
 		    radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output);
 		if (!radeon_output->MonType) {
-		    if (radeon_output->DACType == DAC_PRIMARY)
-			radeon_output->MonType = radeon_detect_primary_dac(pScrn, TRUE);
-		    else if (radeon_output->DACType == DAC_TVDAC) {
-			if (info->ChipFamily == CHIP_FAMILY_R200)
-			    radeon_output->MonType = radeon_detect_ext_dac(pScrn);
-			else
-			    radeon_output->MonType = radeon_detect_tv_dac(pScrn, TRUE);
+		    if (radeon_output->DACType == DAC_PRIMARY) {
+			if (radeon_output->load_detection)
+			    radeon_output->MonType = radeon_detect_primary_dac(pScrn, TRUE);
+		    } else if (radeon_output->DACType == DAC_TVDAC) {
+			if (radeon_output->load_detection) {
+			    if (info->ChipFamily == CHIP_FAMILY_R200)
+				radeon_output->MonType = radeon_detect_ext_dac(pScrn);
+			    else
+				radeon_output->MonType = radeon_detect_tv_dac(pScrn, TRUE);
+			} else
+			    radeon_output->MonType = MT_NONE;
 		    }
 		}
 	    }
@@ -1577,6 +1585,7 @@ static Atom backlight_atom;
 static Atom tmds_pll_atom;
 static Atom rmx_atom;
 static Atom monitor_type_atom;
+static Atom load_detection_atom;
 static Atom tv_hsize_atom;
 static Atom tv_hpos_atom;
 static Atom tv_vpos_atom;
@@ -1609,6 +1618,37 @@ radeon_create_resources(xf86OutputPtr output)
 	//data = (info->SavedReg.lvds_gen_cntl & RADEON_LVDS_BL_MOD_LEVEL_MASK) >> RADEON_LVDS_BL_MOD_LEVEL_SHIFT;
 	data = RADEON_MAX_BACKLIGHT_LEVEL;
 	err = RRChangeOutputProperty(output->randr_output, backlight_atom,
+				     XA_INTEGER, 32, PropModeReplace, 1, &data,
+				     FALSE, TRUE);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
+
+    if (radeon_output->DACType == DAC_PRIMARY ||
+	radeon_output->DACType == DAC_TVDAC) {
+	load_detection_atom = MAKE_ATOM("load_detection");
+
+	range[0] = 0; /* off */
+	range[1] = 1; /* on */
+	err = RRConfigureOutputProperty(output->randr_output, load_detection_atom,
+					FALSE, TRUE, FALSE, 2, range);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+
+	if (radeon_output->DACType == DAC_PRIMARY)
+	    data = 1; /* primary dac, only drives vga */
+	else if (radeon_output->DACType == DAC_TVDAC &&
+		 info->IsMobility &&
+		 !info->IsIGP)
+	    data = 1; /* laptops with tv only on tvdac */
+	else
+	    data = 0; /* shared tvdac between vga/dvi/tv */
+
+	err = RRChangeOutputProperty(output->randr_output, load_detection_atom,
 				     XA_INTEGER, 32, PropModeReplace, 1, &data,
 				     FALSE, TRUE);
 	if (err != 0) {
@@ -1802,6 +1842,19 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 #endif
 
 	radeon_set_backlight_level(output, val);
+
+    } else if (property == load_detection_atom) {
+	if (value->type != XA_INTEGER ||
+	    value->format != 32 ||
+	    value->size != 1) {
+	    return FALSE;
+	}
+
+	val = *(INT32 *)value->data;
+	if (val < 0 || val > 1)
+	    return FALSE;
+
+	radeon_output->load_detection = val;
 
     } else if (property == rmx_atom) {
 	xf86CrtcPtr	crtc = output->crtc;
@@ -2358,6 +2411,7 @@ RADEONGetTVInfo(xf86OutputPtr output)
 void RADEONInitConnector(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int DDCReg = 0;
     char* name = (char*) DDCTypeName[radeon_output->DDCType];
@@ -2370,7 +2424,16 @@ void RADEONInitConnector(xf86OutputPtr output)
     case DDC_LCD  : DDCReg = RADEON_LCD_GPIO_MASK; break;
     default: break;
     }
-    
+
+    if (radeon_output->DACType == DAC_PRIMARY)
+	radeon_output->load_detection = 1; /* primary dac, only drives vga */
+    else if (radeon_output->DACType == DAC_TVDAC &&
+	     info->IsMobility &&
+	     !info->IsIGP)
+	radeon_output->load_detection = 1; /* laptops with tv only on tvdac */
+    else
+	radeon_output->load_detection = 0; /* shared tvdac between vga/dvi/tv */
+
     if (DDCReg) {
 	radeon_output->DDCReg = DDCReg;
 	RADEONI2CInit(pScrn, &radeon_output->pI2CBus, DDCReg, name);

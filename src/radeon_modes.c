@@ -289,47 +289,47 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 #endif
     ErrorF("in RADEONProbeOutputModes\n");
 
-
-    if (radeon_output->type == OUTPUT_DVI || radeon_output->type == OUTPUT_VGA) {
-	edid_mon = xf86OutputGetEDID (output, radeon_output->pI2CBus);
-	xf86OutputSetEDID (output, edid_mon);
+    if (output->status == XF86OutputStatusConnected) {
+	if (radeon_output->type == OUTPUT_DVI || radeon_output->type == OUTPUT_VGA) {
+	    edid_mon = xf86OutputGetEDID (output, radeon_output->pI2CBus);
+	    xf86OutputSetEDID (output, edid_mon);
       
-	modes = xf86OutputGetEDIDModes (output);
-	return modes;
-    }
-    if (radeon_output->type == OUTPUT_STV || radeon_output->type == OUTPUT_CTV) {
-	modes = RADEONTVModes(output);
-	return modes;
-    }
-    if (radeon_output->type == OUTPUT_LVDS) {
-	/* okay we got DDC info */
-	if (output->MonInfo) {
-	    /* Debug info for now, at least */
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", radeon_output->num);
-	    xf86PrintEDID(output->MonInfo);
-	
-	    modes = xf86DDCGetModes(pScrn->scrnIndex, output->MonInfo);
-	
-	    for (mode = modes; mode != NULL; mode = mode->next) {
-		if (mode->Flags & V_DBLSCAN) {
-		    if ((mode->CrtcHDisplay >= 1024) || (mode->CrtcVDisplay >= 768))
-			mode->status = MODE_CLOCK_RANGE;
-		}
-	    }
-	    xf86PruneInvalidModes(pScrn, &modes, TRUE);
-	
-	    /* do some physcial size stuff */
+	    modes = xf86OutputGetEDIDModes (output);
+	    return modes;
 	}
+	if (radeon_output->type == OUTPUT_STV || radeon_output->type == OUTPUT_CTV) {
+	    modes = RADEONTVModes(output);
+	    return modes;
+	}
+	if (radeon_output->type == OUTPUT_LVDS) {
+	    /* okay we got DDC info */
+	    if (output->MonInfo) {
+		/* Debug info for now, at least */
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", radeon_output->num);
+		xf86PrintEDID(output->MonInfo);
+	
+		modes = xf86DDCGetModes(pScrn->scrnIndex, output->MonInfo);
+	
+		for (mode = modes; mode != NULL; mode = mode->next) {
+		    if (mode->Flags & V_DBLSCAN) {
+			if ((mode->CrtcHDisplay >= 1024) || (mode->CrtcVDisplay >= 768))
+			    mode->status = MODE_CLOCK_RANGE;
+		    }
+		}
+		xf86PruneInvalidModes(pScrn, &modes, TRUE);
+	
+		/* do some physcial size stuff */
+	    }
       
-	if (modes == NULL) {
-	    RADEONValidateFPModes(output, pScrn->display->modes, &modes);
+	    if (modes == NULL) {
+		RADEONValidateFPModes(output, pScrn->display->modes, &modes);
+	    }
 	}
     }
     
     if (modes) {
 	xf86ValidateModesUserConfig(pScrn, modes);
-	xf86PruneInvalidModes(pScrn, &modes,
-			      FALSE);
+	xf86PruneInvalidModes(pScrn, &modes, FALSE);
     }
 
     return modes;
