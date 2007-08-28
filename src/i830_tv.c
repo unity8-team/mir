@@ -1264,14 +1264,13 @@ static const DisplayModeRec reported_modes[] = {
  * \return TRUE if TV is connected.
  * \return FALSE if TV is disconnected.
  */
-static void
+static int
 i830_tv_detect_type (xf86CrtcPtr    crtc,
 		xf86OutputPtr  output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
-    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
     CARD32		    tv_ctl, save_tv_ctl;
     CARD32		    tv_dac, save_tv_dac;
     int			    type = TV_TYPE_UNKNOWN;
@@ -1337,8 +1336,13 @@ i830_tv_detect_type (xf86CrtcPtr    crtc,
 	type = TV_TYPE_NONE;
     }
 
-    dev_priv->type = type;
+    return type;
 }
+
+#ifdef RANDR_12_INTERFACE
+static int
+i830_tv_format_configure_property (xf86OutputPtr output);
+#endif
 
 /**
  * Detect the TV connection.
@@ -1354,17 +1358,26 @@ i830_tv_detect(xf86OutputPtr output)
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
     int			    dpms_mode;
+    int			    type = dev_priv->type;
 
     mode = reported_modes[0];
     xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
     crtc = i830GetLoadDetectPipe (output, &mode, &dpms_mode);
     if (crtc)
     {
-        i830_tv_detect_type (crtc, output);
+        type = i830_tv_detect_type (crtc, output);
         i830ReleaseLoadDetectPipe (output, dpms_mode);
     }
 
-    switch (dev_priv->type) {
+    if (type != dev_priv->type)
+    {
+	dev_priv->type = type;
+#ifdef RANDR_12_INTERFACE
+	i830_tv_format_configure_property (output);
+#endif
+    }
+	
+    switch (type) {
     case TV_TYPE_NONE:
         return XF86OutputStatusDisconnected;
     case TV_TYPE_UNKNOWN:
@@ -1477,6 +1490,32 @@ i830_tv_format_set_property (xf86OutputPtr output)
     return err == Success;
 }
 
+    
+/**
+ * Configure the TV_FORMAT property to list only supported formats
+ *
+ * Unless the connector is component, list only the formats supported by
+ * svideo and composite
+ */
+
+static int
+i830_tv_format_configure_property (xf86OutputPtr output)
+{
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+    Atom		    current_atoms[NUM_TV_MODES];
+    int			    num_atoms = 0;
+    int			    i;
+    
+    for (i = 0; i < NUM_TV_MODES; i++)
+	if (!tv_modes[i].component_only || dev_priv->type == TV_TYPE_COMPONENT)
+	    current_atoms[num_atoms++] = tv_format_name_atoms[i];
+    
+    return RRConfigureOutputProperty(output->randr_output, tv_format_atom,
+				     TRUE, FALSE, FALSE, 
+				     num_atoms, (INT32 *) current_atoms);
+}
+
 #endif /* RANDR_12_INTERFACE */
 
 static void
@@ -1500,10 +1539,8 @@ i830_tv_create_resources(xf86OutputPtr output)
 					    strlen (tv_modes[i].name),
 					    TRUE);
 
-    err = RRConfigureOutputProperty(output->randr_output, tv_format_atom,
-				    TRUE, FALSE, FALSE, 
-				    NUM_TV_MODES, (INT32 *) tv_format_name_atoms);
-    
+    err = i830_tv_format_configure_property (output);
+
     if (err != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "RRConfigureOutputProperty error, %d\n", err);

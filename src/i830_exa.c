@@ -124,7 +124,7 @@ i830_pixmap_tiled(PixmapPtr pPixmap)
     return FALSE;
 }
 
-Bool
+static Bool
 i830_exa_pixmap_is_offscreen(PixmapPtr pPixmap)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
