@@ -211,6 +211,7 @@ typedef struct _RADEONOutputPrivateRec {
     int               hSize;
     float             TVRefClk;
     int               SupportedTVStds;
+    Bool              tv_on;
     int               load_detection;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 

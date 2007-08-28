@@ -373,6 +373,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    tmp |= RADEON_TV_ON;
 	    OUTREG(RADEON_TV_MASTER_CNTL, tmp);
             tv_dac_change = 2;
+	    radeon_output->tv_on = TRUE;
 	}
     } else {
 	ErrorF("disable montype: %d\n", radeon_output->MonType);
@@ -431,6 +432,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    tmp &= ~RADEON_TV_ON;
 	    OUTREG(RADEON_TV_MASTER_CNTL, tmp);
             tv_dac_change = 2;
+	    radeon_output->tv_on = FALSE;
 	}
     }
 

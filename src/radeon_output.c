@@ -1695,7 +1695,7 @@ radeon_create_resources(xf86OutputPtr output)
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
 	/* Set the current value of the property */
-	s = "fill";
+	s = "full";
 	err = RRChangeOutputProperty(output->randr_output, rmx_atom,
 				     XA_STRING, 8, PropModeReplace, strlen(s), (pointer)s,
 				     FALSE, FALSE);
@@ -1935,7 +1935,8 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 
 	radeon_output->hSize = val;
-	/*RADEONUpdateHVPosition(output, NULL);*/
+	if (radeon_output->tv_on)
+	    RADEONUpdateHVPosition(output, &output->crtc->mode);
 	return TRUE;
     } else if (property == tv_hpos_atom) {
 	if (value->type != XA_INTEGER ||
@@ -1949,7 +1950,8 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 
 	radeon_output->hPos = val;
-	/*RADEONUpdateHVPosition(output, NULL);*/
+	if (radeon_output->tv_on)
+	    RADEONUpdateHVPosition(output, &output->crtc->mode);
 	return TRUE;
     } else if (property == tv_vpos_atom) {
 	if (value->type != XA_INTEGER ||
@@ -1963,7 +1965,8 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 
 	radeon_output->vPos = val;
-	/*RADEONUpdateHVPosition(output, NULL);*/
+	if (radeon_output->tv_on)
+	    RADEONUpdateHVPosition(output, &output->crtc->mode);
 	return TRUE;
     } else if (property == tv_std_atom) {
 	const char *s;
@@ -2471,6 +2474,7 @@ void RADEONInitConnector(xf86OutputPtr output)
     }
 
     if (radeon_output->DACType == DAC_TVDAC) {
+	radeon_output->tv_on = FALSE;
 	RADEONGetTVDacAdjInfo(output);
     }
 
