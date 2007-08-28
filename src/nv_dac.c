@@ -279,7 +279,6 @@ void
 NVDACRestore(ScrnInfoPtr pScrn, vgaRegPtr vgaReg, NVRegPtr nvReg,
              Bool primary)
 {
-    NVPtr pNv = NVPTR(pScrn);
     int restore = VGA_SR_MODE;
 
     if(primary) restore |= VGA_SR_CMAP | VGA_SR_FONTS;
