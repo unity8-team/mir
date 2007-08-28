@@ -967,7 +967,6 @@ void NVLoadStateExt (
 )
 {
     NVPtr pNv = NVPTR(pScrn);
-    int i, j;
     CARD32 temp;
 
     if(pNv->Architecture >= NV_ARCH_40) {

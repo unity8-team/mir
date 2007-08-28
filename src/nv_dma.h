@@ -53,7 +53,7 @@
 #define NV_DMA_TARGET_PCI 2
 */
 #define NV_DMA_TARGET_AGP 3
-    
+
 enum DMAObjects {
 	NvNullObject		= 0x00000000,
 	NvContextSurfaces	= 0x80000010, 
@@ -85,7 +85,7 @@ enum DMAObjects {
 extern void NVDmaStart(NVPtr pNv, uint32_t object, uint32_t tag, int size);
 
 #define NVDmaNext(pNv, data) do {                        \
-	NVDEBUG("\tNVDmaNext: @0x%08x  0x%08x\n", ((pNv)->dmaCurrent),(data));           \
+	NVDEBUG("\tNVDmaNext: @0x%08x  0x%08x\n", (unsigned)((pNv)->dmaCurrent),(unsigned)(data));           \
 	(pNv)->dmaBase[(pNv)->dmaCurrent++] = (data);       \
 } while(0)
 

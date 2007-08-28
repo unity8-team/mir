@@ -360,7 +360,6 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 	ScreenPtr      pScreen = screenInfo.screens[pScrn->scrnIndex];
 	NVPtr          pNv = NVPTR(pScrn);
 	NOUVEAUDRIPtr  pNOUVEAUDRI;
-	int cpp = pScrn->bitsPerPixel/8;
 
 	if (!DRIFinishScreenInit(pScreen)) {
 		return FALSE;

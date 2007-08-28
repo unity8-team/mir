@@ -25,7 +25,7 @@ NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
 	mem->offset = memalloc.offset;
 
 	if (drmMap(pNv->drm_fd, memalloc.map_handle, mem->size, &mem->map)) {
-		ErrorF("drmMap() failed. handle=0x%llx, size=%lld (%d)\n",
+		ErrorF("drmMap() failed. handle=0x%x, size=%lld (%d)\n",
 				memalloc.map_handle, mem->size, errno);
 		mem->map  = NULL;
 		NVFreeMemory(pNv, mem);
