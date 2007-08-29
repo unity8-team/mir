@@ -187,6 +187,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_DRI,            "DRI",       	 OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_CONNECTORTABLE, "ConnectorTable",   OPTV_STRING,  {0}, FALSE },
     { OPTION_DEFAULT_CONNECTOR_TABLE, "DefaultConnectorTable", OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_DEFAULT_TMDS_PLL, "DefaultTMDSPLL", OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 

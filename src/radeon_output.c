@@ -1018,15 +1018,6 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     xf86CrtcPtr	crtc = output->crtc;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-    if (radeon_output->type == OUTPUT_DVI &&
-	radeon_output->TMDSType == TMDS_INT) {
-	if (radeon_output->tmds_pll_table == TMDS_PLL_BIOS) {
-	    if (!RADEONGetTMDSInfoFromBIOS(output))
-		RADEONGetTMDSInfoFromTable(output);
-	} else
-	    RADEONGetTMDSInfoFromTable(output);
-    }
-
     RADEONInitOutputRegisters(pScrn, &info->ModeReg, adjusted_mode, output, radeon_crtc->crtc_id);
 
     if (radeon_crtc->crtc_id == 0)
@@ -1672,6 +1663,10 @@ radeon_create_resources(xf86OutputPtr output)
 #else
 	s = "bios";
 #endif
+	if (xf86ReturnOptValBool(info->Options, OPTION_DEFAULT_TMDS_PLL, FALSE)) {
+	    s = "driver";
+	}
+
 	err = RRChangeOutputProperty(output->randr_output, tmds_pll_atom,
 				     XA_STRING, 8, PropModeReplace, strlen(s), (pointer)s,
 				     FALSE, FALSE);
@@ -1900,10 +1895,11 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 	s = (char*)value->data;
 	if (value->size == strlen("bios") && !strncmp("bios", s, strlen("bios"))) {
-	    radeon_output->tmds_pll_table = TMDS_PLL_BIOS;
+	    if (!RADEONGetTMDSInfoFromBIOS(output))
+		RADEONGetTMDSInfoFromTable(output);
 	    return TRUE;
 	} else if (value->size == strlen("driver") && !strncmp("driver", s, strlen("driver"))) {
-	    radeon_output->tmds_pll_table = TMDS_PLL_DRIVER;
+	    RADEONGetTMDSInfoFromTable(output);
 	    return TRUE;
 	}
 	return FALSE;
