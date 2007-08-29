@@ -1973,10 +1973,7 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	if (value->type != XA_STRING || value->format != 8)
 	    return FALSE;
 	s = (char*)value->data;
-	if (value->size == strlen("default") && !strncmp("default", s, strlen("default"))) {
-	    radeon_output->tvStd = radeon_output->default_tvStd;
-	    return TRUE;
-	} else if (value->size == strlen("ntsc") && !strncmp("ntsc", s, strlen("ntsc"))) {
+	if (value->size == strlen("ntsc") && !strncmp("ntsc", s, strlen("ntsc"))) {
 	    if (radeon_output->SupportedTVStds & TV_STD_NTSC) {
 		radeon_output->tvStd = TV_STD_NTSC;
 		return TRUE;
