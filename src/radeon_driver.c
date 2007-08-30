@@ -188,6 +188,9 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_CONNECTORTABLE, "ConnectorTable",   OPTV_STRING,  {0}, FALSE },
     { OPTION_DEFAULT_CONNECTOR_TABLE, "DefaultConnectorTable", OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DEFAULT_TMDS_PLL, "DefaultTMDSPLL", OPTV_BOOLEAN, {0}, FALSE },
+#if defined(__powerpc__)
+    { OPTION_CONNECTORTABLE, "MacModel",         OPTV_STRING,  {0}, FALSE },
+#endif
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -4566,6 +4569,12 @@ void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD8 pllGain;
+
+#if defined(__powerpc__)
+    /* apparently restoring the pll causes a hang??? */
+    if (info->MacModel == RADEON_MAC_IBOOK)
+	return;
+#endif
 
     pllGain = RADEONComputePLLGain(info->pll.reference_freq,
 				   restore->ppll_ref_div & RADEON_PPLL_REF_DIV_MASK,

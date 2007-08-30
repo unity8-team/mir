@@ -2473,6 +2473,78 @@ void RADEONInitConnector(xf86OutputPtr output)
 
 }
 
+#if defined(__powerpc__)
+static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+
+
+    switch (info->MacModel) {
+    case RADEON_MAC_IBOOK:
+	info->BiosConnector[0].DDCType = DDC_DVI;
+	info->BiosConnector[0].DACType = DAC_NONE;
+	info->BiosConnector[0].TMDSType = TMDS_NONE;
+	info->BiosConnector[0].ConnectorType = CONNECTOR_PROPRIETARY;
+	info->BiosConnector[0].valid = TRUE;
+
+	info->BiosConnector[1].DDCType = DDC_VGA;
+	info->BiosConnector[1].DACType = DAC_TVDAC;
+	info->BiosConnector[1].TMDSType = TMDS_NONE;
+	info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
+	info->BiosConnector[1].valid = TRUE;
+
+	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
+	info->BiosConnector[2].DACType = DAC_TVDAC;
+	info->BiosConnector[2].TMDSType = TMDS_NONE;
+	info->BiosConnector[2].DDCType = DDC_NONE_DETECTED;
+	info->BiosConnector[2].valid = TRUE;
+	return TRUE;
+    case RADEON_MAC_POWERBOOK_DL:
+	info->BiosConnector[0].DDCType = DDC_DVI;
+	info->BiosConnector[0].DACType = DAC_NONE;
+	info->BiosConnector[0].TMDSType = TMDS_NONE;
+	info->BiosConnector[0].ConnectorType = CONNECTOR_PROPRIETARY;
+	info->BiosConnector[0].valid = TRUE;
+
+	info->BiosConnector[1].DDCType = DDC_VGA;
+	info->BiosConnector[1].DACType = DAC_PRIMARY;
+	info->BiosConnector[1].TMDSType = TMDS_EXT;
+	info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_I;
+	info->BiosConnector[1].valid = TRUE;
+
+	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
+	info->BiosConnector[2].DACType = DAC_TVDAC;
+	info->BiosConnector[2].TMDSType = TMDS_NONE;
+	info->BiosConnector[2].DDCType = DDC_NONE_DETECTED;
+	info->BiosConnector[2].valid = TRUE;
+	return TRUE;
+    case RADEON_MAC_POWERBOOK:
+	info->BiosConnector[0].DDCType = DDC_DVI;
+	info->BiosConnector[0].DACType = DAC_NONE;
+	info->BiosConnector[0].TMDSType = TMDS_NONE;
+	info->BiosConnector[0].ConnectorType = CONNECTOR_PROPRIETARY;
+	info->BiosConnector[0].valid = TRUE;
+
+	info->BiosConnector[1].DDCType = DDC_VGA;
+	info->BiosConnector[1].DACType = DAC_PRIMARY;
+	info->BiosConnector[1].TMDSType = TMDS_INT;
+	info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_I;
+	info->BiosConnector[1].valid = TRUE;
+
+	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
+	info->BiosConnector[2].DACType = DAC_TVDAC;
+	info->BiosConnector[2].TMDSType = TMDS_NONE;
+	info->BiosConnector[2].DDCType = DDC_NONE_DETECTED;
+	info->BiosConnector[2].valid = TRUE;
+	return TRUE;
+    default:
+	return FALSE;
+    }
+
+    return FALSE;
+}
+#endif
+
 static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
@@ -2508,7 +2580,7 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 
 	    info->BiosConnector[1].DDCType = DDC_VGA;
 	    info->BiosConnector[1].DACType = DAC_PRIMARY;
-	    info->BiosConnector[1].TMDSType = TMDS_EXT;
+	    info->BiosConnector[1].TMDSType = TMDS_UNKNOWN;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
 	    info->BiosConnector[1].valid = TRUE;
 	}
@@ -2589,6 +2661,27 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[i].ConnectorType = CONNECTOR_NONE;
     }
 
+#if defined(__powerpc__)
+    optstr = (char *)xf86GetOptValString(info->Options, OPTION_MAC_MODEL);
+
+    info->MacModel = 0;
+    if (optstr) {
+	if (!strncmp("ibook", optstr, strlen("ibook")))
+	    info->MacModel = RADEON_MAC_IBOOK;
+	else if (!strncmp("powerbook-duallink", optstr, strlen("powerbook-duallink")))
+	    info->MacModel = RADEON_MAC_POWERBOOK_DL;
+	else if (!strncmp("powerbook", optstr, strlen("powerbook")))
+	    info->MacModel = RADEON_MAC_POWERBOOK;
+	else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid Mac Model: %s\n", optstr);
+	    return FALSE;
+	}
+
+	if (!RADEONSetupAppleConnectors(pScrn))
+	    RADEONSetupGenericConnectors(pScrn);
+
+    } else
+#endif
     if (xf86ReturnOptValBool(info->Options, OPTION_DEFAULT_CONNECTOR_TABLE, FALSE)) {
 	RADEONSetupGenericConnectors(pScrn);
     } else {

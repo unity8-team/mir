@@ -680,7 +680,15 @@ RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONInfoPtr info,
 		   save->post_div);
 
     save->ppll_ref_div   = pll->reference_div;
+
+#if defined(__powerpc__)
+    /* apparently programming this otherwise causes a hang??? */
+    if (info->MacModel == RADEON_MAC_IBOOK)
+	save->ppll_div_3 = 0x000600ad;
+    else
+#endif
     save->ppll_div_3     = (save->feedback_div | (post_div->bitvalue << 16));
+
     save->htotal_cntl    = 0;
 
     save->vclk_ecp_cntl = (info->SavedReg.vclk_ecp_cntl &

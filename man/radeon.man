@@ -397,6 +397,20 @@ driver defaults for each chip.
 The default is
 .B off 
 .TP
+.BI "Option \*qMacModel\*q \*q" string \*q
+.br
+Used to specify Mac models for connector tables and quirks.  Only valid
+ on PowerPC.
+.br
+ibook                \-\- ibooks
+.br
+powerbook-duallink   \-\- Powerbooks with dual link DVI
+.br
+powerbook            \-\- Powerbooks with single link DVI
+.br
+The default value is
+.B undefined.
+.TP
 
 .SH SEE ALSO
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
