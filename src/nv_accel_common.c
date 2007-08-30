@@ -365,8 +365,11 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 	NVDmaStart(pNv, NvScaledImage, 
 			NV04_SCALED_IMAGE_FROM_MEMORY_BETA4, 1); /* BETA4 */
 	NVDmaNext (pNv, NvContextBeta4);
-	NVDmaStart(pNv, NvScaledImage, 0x2fc, 1); /* NV05_SCALED_IMAGE_FROM_MEMORY_COLOR_CONVERSION */
-	NVDmaNext (pNv, 0); /* NV_063_SET_COLOR_CONVERSION_TYPE_DITHER */
+	if (pNv->Architecture>=NV_ARCH_10)
+	{
+		NVDmaStart(pNv, NvScaledImage, 0x2fc, 1); /* NV05_SCALED_IMAGE_FROM_MEMORY_COLOR_CONVERSION */
+		NVDmaNext (pNv, 0); /* NV_063_SET_COLOR_CONVERSION_TYPE_DITHER */
+	}
 	NVDmaStart(pNv, NvScaledImage,
 			NV04_SCALED_IMAGE_FROM_MEMORY_OPERATION, 1);
 	NVDmaNext (pNv, 3 /* SRCCOPY */);
