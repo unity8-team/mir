@@ -97,7 +97,6 @@ struct NvFamily
 
 static struct NvFamily NVKnownFamilies[] =
 {
-  { "RIVA 128",    "NV03" },
   { "RIVA TNT",    "NV04" },
   { "RIVA TNT2",   "NV05" },
   { "GeForce 256", "NV10" },
@@ -1446,9 +1445,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     }
 
     switch (pNv->Chipset & 0x0ff0) {
-    case CHIPSET_NV03:   /* Riva128 */
-         pNv->Architecture =  NV_ARCH_03;
-         break;
     case CHIPSET_NV04:   /* TNT/TNT2 */
          pNv->Architecture =  NV_ARCH_04;
          break;
