@@ -5229,6 +5229,7 @@ static void RADEONSavePLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
 			      >> 16));
 }
 
+#if 0
 /* Read palette data */
 static void RADEONSavePalette(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
@@ -5248,6 +5249,7 @@ static void RADEONSavePalette(ScrnInfoPtr pScrn, RADEONSavePtr save)
     for (i = 0; i < 256; i++) save->palette[i] = INPAL_NEXT();
     save->palette_valid = TRUE;
 }
+#endif
 
 /* Save state that defines current video mode */
 static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
