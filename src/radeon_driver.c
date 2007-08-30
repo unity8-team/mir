@@ -189,7 +189,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_DEFAULT_CONNECTOR_TABLE, "DefaultConnectorTable", OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DEFAULT_TMDS_PLL, "DefaultTMDSPLL", OPTV_BOOLEAN, {0}, FALSE },
 #if defined(__powerpc__)
-    { OPTION_CONNECTORTABLE, "MacModel",         OPTV_STRING,  {0}, FALSE },
+    { OPTION_MAC_MODEL,      "MacModel",         OPTV_STRING,  {0}, FALSE },
 #endif
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
