@@ -402,6 +402,8 @@ NVFreeOverlayMemory(ScrnInfoPtr pScrn)
 	NVPtr	pNv = NVPTR(pScrn);
 	NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
 	NVFreePortMemory(pScrn, pPriv);
+	nvWriteMC(pNv, 0x200, (nvReadMC(pNv, 0x200) & 0xEFFFFFFF));
+	nvWriteMC(pNv, 0x200, (nvReadMC(pNv, 0x200) | 0x10000000));
 }
 
 /**
