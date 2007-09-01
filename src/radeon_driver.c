@@ -2692,30 +2692,28 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	crtc_max_X = pScrn->display->virtualX;
 	crtc_max_Y = pScrn->display->virtualY;
 	if (info->allowColorTiling) {
-	    if (crtc_max_X > info->MaxSurfaceWidth)
-		crtc_max_X = info->MaxSurfaceWidth;
-	    if (crtc_max_Y > info->MaxLines)
-		crtc_max_Y = info->MaxLines;
-	} else {
-	    if (crtc_max_X > 8192)
-		crtc_max_X = 8192;
-	    if (crtc_max_Y > 8192)
-		crtc_max_Y = 8192;
+	    if (crtc_max_X > info->MaxSurfaceWidth ||
+		crtc_max_Y > info->MaxLines) {
+		info->allowColorTiling = FALSE;
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Requested desktop size exceeds surface limts for tiling, ColorTiling disabled\n");
+	    }
 	}
+	if (crtc_max_X > 8192)
+	    crtc_max_X = 8192;
+	if (crtc_max_Y > 8192)
+	    crtc_max_Y = 8192;
     } else {
-	if (pScrn->videoRam < 16384) {
+	if (pScrn->videoRam <= 16384) {
 	    crtc_max_X = 1600;
 	    crtc_max_Y = 1200;
-	} else if (pScrn->videoRam <= 32768) {
-	    crtc_max_X = 2048;
-	    crtc_max_Y = 1200;
-	} else if (pScrn->videoRam > 32768) {
+	} else {
 	    if (IS_R300_VARIANT) {
 		crtc_max_X = 2560;
-		crtc_max_Y = 2048;
+		crtc_max_Y = 1200;
 	    } else {
 		crtc_max_X = 2048;
-		crtc_max_Y = 2048;
+		crtc_max_Y = 1200;
 	    }
 	}
     }
@@ -2723,6 +2721,9 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	       crtc_max_X, crtc_max_Y);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "For a larger or smaller max desktop size, add a Virtual line to your xorg.conf\n");
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "If you are having trouble with 3D, "
+	       "reduce the desktop size by adjusting the Virtual line to your xorg.conf\n");
 
     /*xf86CrtcSetSizeRange (pScrn, 320, 200, info->MaxSurfaceWidth, info->MaxLines);*/
     xf86CrtcSetSizeRange (pScrn, 320, 200, crtc_max_X, crtc_max_Y);
