@@ -107,6 +107,7 @@ static struct NvFamily NVKnownFamilies[] =
   { "GeForce FX",  "NV3x" },
   { "GeForce 6",   "NV4x" },
   { "GeForce 7",   "G7x" },
+  { "GeForce 8",   "G8x" },
   { NULL, NULL}
 };
 
@@ -766,6 +767,8 @@ NVProbe(DriverPtr drv, int flags)
                case CHIPSET_G71:
                case CHIPSET_G73:
                case CHIPSET_C512:
+               case CHIPSET_NV50:
+               case CHIPSET_NV84:
                    NVChipsets[numUsed].token = pciid;
                    NVChipsets[numUsed].name = "Unknown NVIDIA chip";
                    NVPciChipsets[numUsed].numChipset = pciid;
@@ -1424,9 +1427,13 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
     from = X_DEFAULT;
 
-    pNv->randr12_enable = FALSE;
-    if (xf86ReturnOptValBool(pNv->Options, OPTION_RANDR12, FALSE)) {
-	pNv->randr12_enable = TRUE;
+    if (pNv->Architecture == NV_ARCH_50) {
+	    pNv->randr12_enable = TRUE;
+    } else {
+	pNv->randr12_enable = FALSE;
+	if (xf86ReturnOptValBool(pNv->Options, OPTION_RANDR12, FALSE)) {
+	    pNv->randr12_enable = TRUE;
+	}
     }
     xf86DrvMsg(pScrn->scrnIndex, from, "Randr1.2 support %sabled\n", pNv->randr12_enable ? "en" : "dis");
 
