@@ -277,7 +277,7 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
 }
 
 
-static void nv4CalcArbitration (
+void nv4CalcArbitration (
     nv4_fifo_info *fifo,
     nv4_sim_state *arb
 )
@@ -416,7 +416,7 @@ static void nv4CalcArbitration (
     }
 }
 
-static void nv4UpdateArbitrationSettings (
+void nv4UpdateArbitrationSettings (
     unsigned      VClk, 
     unsigned      pixelDepth, 
     unsigned     *burst,
@@ -452,7 +452,7 @@ static void nv4UpdateArbitrationSettings (
     }
 }
 
-static void nv10CalcArbitration (
+void nv10CalcArbitration (
     nv10_fifo_info *fifo,
     nv10_sim_state *arb
 )
@@ -643,7 +643,7 @@ static void nv10CalcArbitration (
     }
 }
 
-static void nv10UpdateArbitrationSettings (
+void nv10UpdateArbitrationSettings (
     unsigned      VClk, 
     unsigned      pixelDepth, 
     unsigned     *burst,
@@ -680,11 +680,9 @@ static void nv10UpdateArbitrationSettings (
 }
 
 
-static void nv30UpdateArbitrationSettings (
-    NVPtr        pNv,
-    unsigned     *burst,
-    unsigned     *lwm
-)   
+void nv30UpdateArbitrationSettings (NVPtr pNv,
+				    unsigned     *burst,
+				    unsigned     *lwm)   
 {
     unsigned int MClk, NVClk;
     unsigned int fifo_size, burst_size, graphics_lwm;
@@ -701,12 +699,11 @@ static void nv30UpdateArbitrationSettings (
     *lwm = graphics_lwm >> 3;
 }
 
-static void nForceUpdateArbitrationSettings (
-    unsigned      VClk,
-    unsigned      pixelDepth,
-    unsigned     *burst,
-    unsigned     *lwm,
-    NVPtr        pNv
+void nForceUpdateArbitrationSettings (unsigned VClk,
+				      unsigned      pixelDepth,
+				      unsigned     *burst,
+				      unsigned     *lwm,
+				      NVPtr        pNv
 )
 {
     nv10_fifo_info fifo_data;
@@ -989,11 +986,11 @@ void NVLoadStateExt (
 
     if(pNv->Architecture >= NV_ARCH_10) {
         if(pNv->twoHeads) {
-           nvWriteCRTC(pNv, 0, NV_CRTC_HEAD_CONFIG, state->head);
-           nvWriteCRTC(pNv, 1, NV_CRTC_HEAD_CONFIG, state->head2);
+           nvWriteCRTC(pNv, 0, NV_CRTC_FSEL, state->head);
+           nvWriteCRTC(pNv, 1, NV_CRTC_FSEL, state->head2);
         }
-        temp = nvReadCurRAMDAC(pNv, NV_RAMDAC_0404);
-        nvWriteCurRAMDAC(pNv, NV_RAMDAC_0404, temp | (1 << 25));
+        temp = nvReadCurRAMDAC(pNv, NV_RAMDAC_NV10_CURSYNC);
+        nvWriteCurRAMDAC(pNv, NV_RAMDAC_NV10_CURSYNC, temp | (1 << 25));
     
         nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
         nvWriteVIDEO(pNv, NV_PVIDEO_INTR_EN, 0);
@@ -1103,8 +1100,8 @@ void NVUnloadStateExt
 
     if(pNv->Architecture >= NV_ARCH_10) {
         if(pNv->twoHeads) {
-           state->head     = nvReadCRTC(pNv, 0, NV_CRTC_HEAD_CONFIG);
-           state->head2    = nvReadCRTC(pNv, 1, NV_CRTC_HEAD_CONFIG);
+           state->head     = nvReadCRTC(pNv, 0, NV_CRTC_FSEL);
+           state->head2    = nvReadCRTC(pNv, 1, NV_CRTC_FSEL);
            state->crtcOwner = nvReadVGA(pNv, NV_VGA_CRTCX_OWNER);
         }
         state->extra = nvReadVGA(pNv, NV_VGA_CRTCX_EXTRA);

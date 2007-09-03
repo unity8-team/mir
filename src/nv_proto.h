@@ -104,6 +104,43 @@ void NVPointerMoved(int index, int x, int y);
 /* in nv_bios.c */
 unsigned int NVParseBios(ScrnInfoPtr pScrn);
 
+void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDepth,
+				      unsigned     *burst, unsigned     *lwm,
+				      NVPtr        pNv);
+
+
+/* nv_crtc.c */
+Bool NVSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, Rotation rotation);
+Bool NVCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode, Rotation rotation, int x, int y);
+DisplayModePtr NVCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
+void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y);
+void NVCrtcLoadPalette(xf86CrtcPtr crtc);
+void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on);
+
+/* nv_hw.c */
+void nForceUpdateArbitrationSettings (unsigned VClk, unsigned pixelDepth,
+				      unsigned     *burst, unsigned     *lwm,
+				      NVPtr        pNv);
+void nv30UpdateArbitrationSettings (NVPtr        pNv,
+				    unsigned     *burst,
+				    unsigned     *lwm);
+void nv10UpdateArbitrationSettings (unsigned      VClk, 
+				    unsigned      pixelDepth, 
+				    unsigned     *burst,
+				    unsigned     *lwm,
+				    NVPtr        pNv);
+void nv4UpdateArbitrationSettings (unsigned      VClk, 
+				   unsigned      pixelDepth, 
+				   unsigned     *burst,
+				   unsigned     *lwm,
+				   NVPtr        pNv);
+
+void NVInitSurface(ScrnInfoPtr pScrn, RIVA_HW_STATE *state);
+void NVInitGraphContext(ScrnInfoPtr pScrn);
+
+/* nv_i2c.c */
+Bool NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name);
+
 /* in nv30_exa.c */
 Bool NVAccelInitNV30TCL(ScrnInfoPtr pScrn);
 Bool NVAccelInitNV40TCL(ScrnInfoPtr pScrn);

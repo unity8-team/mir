@@ -15,9 +15,12 @@
 #include "dri.h"
 #include <stdint.h>
 #include "nouveau_drm.h"
+#include "xf86Crtc.h"
 #else
 #error "This driver requires a DRI-enabled X server"
 #endif
+
+#include "nv50_type.h"
 
 #define NV_ARCH_03  0x03
 #define NV_ARCH_04  0x04
@@ -25,6 +28,7 @@
 #define NV_ARCH_20  0x20
 #define NV_ARCH_30  0x30
 #define NV_ARCH_40  0x40
+#define NV_ARCH_50  0x50
 
 #define CHIPSET_NV03     0x0010
 #define CHIPSET_NV04     0x0020
@@ -69,6 +73,19 @@
 #define SetBit(n) (1<<(n))
 #define Set8Bits(value) ((value)&0xff)
 
+
+#define NV_I2C_BUSES 3
+#define NV40_NUM_DCB_ENTRIES 10
+
+typedef enum
+{
+    OUTPUT_NONE,
+    OUTPUT_ANALOG,
+    OUTPUT_DIGITAL,
+    OUTPUT_PANEL,
+    OUTPUT_TV,
+} NVOutputType;
+
 typedef struct {
     int bitsPerPixel;
     int depth;
@@ -76,6 +93,35 @@ typedef struct {
     rgb weight;
     DisplayModePtr mode;
 } NVFBLayout;
+
+typedef struct _nv_crtc_reg 
+{
+    unsigned char MiscOutReg;     /* */
+    CARD8 CRTC[90];
+    CARD8 Sequencer[5];
+    CARD8 Graphics[9];
+    CARD8 Attribute[21];
+    unsigned char DAC[768];       /* Internal Colorlookuptable */
+    CARD32 cursorConfig;
+    CARD32 crtcOwner;
+    CARD32 unk830;
+    CARD32 unk834;
+    CARD32 head;
+} NVCrtcRegRec, *NVCrtcRegPtr;
+
+typedef struct _nv_output_reg
+{
+    CARD32 fp_control;
+    CARD32 crtcSync;
+    CARD32 dither;
+    CARD32 general;
+    CARD32 bpp;
+    CARD32 nv10_cursync;
+    CARD32 output;
+    CARD32 debug_0;
+    CARD32 fp_horiz_regs[7];
+    CARD32 fp_vert_regs[7];
+} NVOutputRegRec, *NVOutputRegPtr;
 
 typedef struct _riva_hw_state
 {
@@ -114,6 +160,9 @@ typedef struct _riva_hw_state
     CARD32 timingV;
     CARD32 displayV;
     CARD32 crtcSync;
+
+    NVCrtcRegRec crtc_reg[2];
+    NVOutputRegRec dac_reg[2];
 } RIVA_HW_STATE, *NVRegPtr;
 
 typedef struct {
@@ -122,6 +171,25 @@ typedef struct {
 	uint64_t offset;
 	void *map;
 } NVAllocRec;
+
+typedef struct _NVCrtcPrivateRec {
+	int crtc;
+        Bool paletteEnabled;
+} NVCrtcPrivateRec, *NVCrtcPrivatePtr;
+
+#define NVCrtcPrivate(c) ((NVCrtcPrivatePtr)(c)->driver_private)
+
+typedef struct _NVOutputPrivateRec {
+        int ramdac;
+        I2CBusPtr		    pDDCBus;
+        NVOutputType type;
+        CARD32 fpSyncs;
+        CARD32 fpWidth;
+        CARD32 fpHeight;
+        Bool fpdither;
+} NVOutputPrivateRec, *NVOutputPrivatePtr;
+
+#define NVOutputPrivate(o) ((NVOutputPrivatePtr (o)->driver_private)
 
 typedef struct _NVRec *NVPtr;
 typedef struct _NVRec {
@@ -152,6 +220,7 @@ typedef struct _NVRec {
 
     NVAllocRec *        FB;
     NVAllocRec *        Cursor;
+    NVAllocRec *        CLUT;	/* NV50 only */
     NVAllocRec *        ScratchBuffer;
     NVAllocRec *        GARTScratch;
     Bool                NoAccel;
@@ -207,15 +276,17 @@ typedef struct _NVRec {
     CARD32              curFg, curBg;
     CARD32              curImage[256];
     /* I2C / DDC */
+    int ddc2;
+    xf86Int10InfoPtr    pInt10;
     I2CBusPtr           I2C;
-    xf86Int10InfoPtr    pInt;
-    void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
+  void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
     void		(*DMAKickoffCallback)(NVPtr pNv);
     XF86VideoAdaptorPtr	overlayAdaptor;
     XF86VideoAdaptorPtr	blitAdaptor;
     int			videoKey;
     int			FlatPanel;
     Bool                FPDither;
+    int                 Mobile;
     Bool                Television;
     int			CRTCnumber;
 	int         vtOWNER;
@@ -253,6 +324,18 @@ typedef struct _NVRec {
     DRIInfoPtr          pDRIInfo;
     drmVersionPtr       pLibDRMVersion;
     drmVersionPtr       pKernelDRMVersion;
+
+    Bool randr12_enable;
+    CreateScreenResourcesProcPtr    CreateScreenResources;
+
+    /* we know about 3 i2c buses */
+    I2CBusPtr           pI2CBus[3];
+    int dcb_entries;
+
+    int analog_count;
+    int digital_count;
+    CARD32 dcb_table[NV40_NUM_DCB_ENTRIES]; /* 10 is a good limit */
+
 } NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

@@ -189,16 +189,16 @@ NVIsConnected (ScrnInfoPtr pScrn, int output)
                "Probing for analog device on output %s...\n", 
                 output ? "B" : "A");
 
-    reg52C = nvReadRAMDAC(pNv, output, NV_RAMDAC_052C);
+    reg52C = nvReadRAMDAC(pNv, output, NV_RAMDAC_OUTPUT);
     reg608 = nvReadRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL);
 
     nvWriteRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL, (reg608 & ~0x00010000));
 
-    nvWriteRAMDAC(pNv, output, NV_RAMDAC_052C, (reg52C & 0x0000FEEE));
+    nvWriteRAMDAC(pNv, output, NV_RAMDAC_OUTPUT, (reg52C & 0x0000FEEE));
     usleep(1000);
     
-    temp = nvReadRAMDAC(pNv, output, NV_RAMDAC_052C);
-    nvWriteRAMDAC(pNv, output, NV_RAMDAC_052C, temp | 1);
+    temp = nvReadRAMDAC(pNv, output, NV_RAMDAC_OUTPUT);
+    nvWriteRAMDAC(pNv, output, NV_RAMDAC_OUTPUT, temp | 1);
 
     nvWriteRAMDAC(pNv, output, NV_RAMDAC_TEST_DATA, 0x94050140);
     temp = nvReadRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL);
@@ -216,7 +216,7 @@ NVIsConnected (ScrnInfoPtr pScrn, int output)
     temp = nvReadRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL);
     nvWriteRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL, temp & 0x000EFFF);
 
-    nvWriteRAMDAC(pNv, output, NV_RAMDAC_052C, reg52C);
+    nvWriteRAMDAC(pNv, output, NV_RAMDAC_OUTPUT, reg52C);
     nvWriteRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL, reg608);
 
     return present;
@@ -353,7 +353,6 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     vgaHWPtr pVga = VGAHWPTR(pScrn);
     CARD16 implementation = pNv->Chipset & 0x0ff0;
     xf86MonPtr monitorA, monitorB;
-    Bool mobile = FALSE;
     Bool tvA = FALSE;
     Bool tvB = FALSE;
     int FlatPanel = -1;   /* really means the CRTC is slaved */
@@ -479,11 +478,13 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     case 0x0148:
     case 0x0098:
     case 0x0099:
-        mobile = TRUE;
+        pNv->Mobile = TRUE;
         break;
     default:
         break;
     }
+
+    pNv->Television = FALSE;
 
     /* Parse the bios to initialize the card */
     NVSelectHeadRegisters(pScrn, 0);
@@ -500,239 +501,241 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     else
         nv10GetConfig(pNv);
 
-    NVSelectHeadRegisters(pScrn, 0);
-
-    NVLockUnlock(pNv, 0);
-
-    NVI2CInit(pScrn);
-
-    pNv->Television = FALSE;
-
-    if(!pNv->twoHeads) {
-       pNv->CRTCnumber = 0;
-       if((monitorA = NVProbeDDC(pScrn, 0))) {
-           FlatPanel = monitorA->features.input_type ? 1 : 0;
-
-           /* NV4 doesn't support FlatPanels */
-           if((pNv->Chipset & 0x0fff) <= CHIPSET_NV04)
-              FlatPanel = 0;
-       } else {
-           if(nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80) {
-              if(!(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01)) 
-                 Television = TRUE;
-              FlatPanel = 1;
-           } else {
-              FlatPanel = 0;
-           }
-           xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-                         "HW is currently programmed for %s\n",
-                          FlatPanel ? (Television ? "TV" : "DFP") : "CRT");
-       } 
-
-       if(pNv->FlatPanel == -1) {
-           pNv->FlatPanel = FlatPanel;
-           pNv->Television = Television;
-       } else {
-           xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-                      "Forcing display type to %s as specified\n", 
-                       pNv->FlatPanel ? "DFP" : "CRT");
-       }
-    } else {
-       CARD8 outputAfromCRTC, outputBfromCRTC;
-       int CRTCnumber = -1;
-       CARD8 slaved_on_A, slaved_on_B;
-       Bool analog_on_A, analog_on_B;
-       CARD32 oldhead;
-       CARD8 cr44;
+    if (!pNv->randr12_enable) {
       
-       if(implementation != CHIPSET_NV11) {
-           if(nvReadRAMDAC0(pNv, NV_RAMDAC_052C) & 0x100)
-               outputAfromCRTC = 1;
-           else            
-               outputAfromCRTC = 0;
-           if(nvReadRAMDAC(pNv, 1, NV_RAMDAC_052C) & 0x100)
-               outputBfromCRTC = 1;
-           else
-               outputBfromCRTC = 0;
-          analog_on_A = NVIsConnected(pScrn, 0);
-          analog_on_B = NVIsConnected(pScrn, 1);
-       } else {
-          outputAfromCRTC = 0;
-          outputBfromCRTC = 1;
-          analog_on_A = FALSE;
-          analog_on_B = FALSE;
-       }
+	NVSelectHeadRegisters(pScrn, 0);
+	
+	NVLockUnlock(pNv, 0);
+	
+	NVI2CInit(pScrn);
+	
+	
+	if(!pNv->twoHeads) {
+	    pNv->CRTCnumber = 0;
+	    if((monitorA = NVProbeDDC(pScrn, 0))) {
+		FlatPanel = monitorA->features.input_type ? 1 : 0;
+		
+		/* NV4 doesn't support FlatPanels */
+		if((pNv->Chipset & 0x0fff) <= CHIPSET_NV04)
+		    FlatPanel = 0;
+	    } else {
+		if(nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80) {
+		    if(!(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01)) 
+			Television = TRUE;
+		    FlatPanel = 1;
+		} else {
+		    FlatPanel = 0;
+		}
+		xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
+			   "HW is currently programmed for %s\n",
+			   FlatPanel ? (Television ? "TV" : "DFP") : "CRT");
+	    } 
+	    
+	    if(pNv->FlatPanel == -1) {
+		pNv->FlatPanel = FlatPanel;
+		pNv->Television = Television;
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
+			   "Forcing display type to %s as specified\n", 
+			   pNv->FlatPanel ? "DFP" : "CRT");
+	    }
+	} else {
+	    CARD8 outputAfromCRTC, outputBfromCRTC;
+	    int CRTCnumber = -1;
+	    CARD8 slaved_on_A, slaved_on_B;
+	    Bool analog_on_A, analog_on_B;
+	    CARD32 oldhead;
+	    CARD8 cr44;
+	    
+	    if(implementation != CHIPSET_NV11) {
+		if(nvReadRAMDAC0(pNv, NV_RAMDAC_OUTPUT) & 0x100)
+		    outputAfromCRTC = 1;
+		else            
+		    outputAfromCRTC = 0;
+		if(nvReadRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT) & 0x100)
+		    outputBfromCRTC = 1;
+		else
+		    outputBfromCRTC = 0;
+		analog_on_A = NVIsConnected(pScrn, 0);
+		analog_on_B = NVIsConnected(pScrn, 1);
+	    } else {
+		outputAfromCRTC = 0;
+		outputBfromCRTC = 1;
+		analog_on_A = FALSE;
+		analog_on_B = FALSE;
+	    }
+	    
+	    cr44 = nvReadVGA(pNv, NV_VGA_CRTCX_OWNER);
+	    pNv->vtOWNER = cr44;
+	    
+	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 3);
+	    NVSelectHeadRegisters(pScrn, 1);
+	    NVLockUnlock(pNv, 0);
+	    
+	    slaved_on_B = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80;
+	    if(slaved_on_B) {
+		tvB = !(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
+	    }
+	    
+	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 0);
+	    NVSelectHeadRegisters(pScrn, 0);
+	    NVLockUnlock(pNv, 0);
+	    
+	    slaved_on_A = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80; 
+	    if(slaved_on_A) {
+		tvA = !(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
+	    }
+	    
+	    oldhead = nvReadCRTC0(pNv, NV_CRTC_FSEL);
+	    nvWriteCRTC0(pNv, NV_CRTC_FSEL, oldhead | 0x00000010);
+	    
+	    monitorA = NVProbeDDC(pScrn, 0);
+	    monitorB = NVProbeDDC(pScrn, 1);
+	    
+	    if(slaved_on_A && !tvA) {
+		CRTCnumber = 0;
+		FlatPanel = 1;
+		xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
+			   "CRTC 0 is currently programmed for DFP\n");
+	    } else 
+		if(slaved_on_B && !tvB) {
+		    CRTCnumber = 1;
+		    FlatPanel = 1;
+		    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
+			       "CRTC 1 is currently programmed for DFP\n");
+		} else
+		    if(analog_on_A) {
+			CRTCnumber = outputAfromCRTC;
+			FlatPanel = 0;
+			xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
+				   "CRTC %i appears to have a CRT attached\n", CRTCnumber);
+		    } else
+			if(analog_on_B) {
+			    CRTCnumber = outputBfromCRTC;
+			    FlatPanel = 0;
+			    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
+				       "CRTC %i appears to have a CRT attached\n", CRTCnumber);
+			} else
+			    if(slaved_on_A) {
+				CRTCnumber = 0;
+				FlatPanel = 1;
+				Television = 1;
+				xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
+					   "CRTC 0 is currently programmed for TV\n");
+			    } else
+				if(slaved_on_B) {
+				    CRTCnumber = 1;
+				    FlatPanel = 1;
+				    Television = 1;
+				    xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
+					       "CRTC 1 is currently programmed for TV\n");
+				} else
+				    if(monitorA) {
+					FlatPanel = monitorA->features.input_type ? 1 : 0;
+				    } else 
+					if(monitorB) {
+					    FlatPanel = monitorB->features.input_type ? 1 : 0;
+					}
+	    
+	    if(pNv->FlatPanel == -1) {
+		if(FlatPanel != -1) {
+		    pNv->FlatPanel = FlatPanel;
+		    pNv->Television = Television;
+		} else {
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			       "Unable to detect display type...\n");
+		    if(pNv->Mobile) {
+			xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT,
+				   "...On a laptop, assuming DFP\n");
+			pNv->FlatPanel = 1;
+		    } else {
+			xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT,
+				   "...Using default of CRT\n");
+			pNv->FlatPanel = 0;
+		    }
+		}
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
+			   "Forcing display type to %s as specified\n", 
+			   pNv->FlatPanel ? "DFP" : "CRT");
+	    }
+	    
+	    if(pNv->CRTCnumber == -1) {
+		if(CRTCnumber != -1) pNv->CRTCnumber = CRTCnumber;
+		else {
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			       "Unable to detect which CRTCNumber...\n");
+		    if(pNv->FlatPanel) pNv->CRTCnumber = 1;
+		    else pNv->CRTCnumber = 0;
+		    xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT,
+			       "...Defaulting to CRTCNumber %i\n", pNv->CRTCnumber);
+		}
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
+			   "Forcing CRTCNumber %i as specified\n", pNv->CRTCnumber);
+	    }
+	    
+	    if(monitorA) {
+		if((monitorA->features.input_type && pNv->FlatPanel) ||
+		   (!monitorA->features.input_type && !pNv->FlatPanel))
+		{
+		    if(monitorB) { 
+			xfree(monitorB);
+			monitorB = NULL;
+		    }
+		} else {
+		    xfree(monitorA);
+		    monitorA = NULL;
+		}
+	    }
+	    
+	    if(monitorB) {
+		if((monitorB->features.input_type && !pNv->FlatPanel) ||
+		   (!monitorB->features.input_type && pNv->FlatPanel)) 
+		{
+		    xfree(monitorB);
+		} else {
+		    monitorA = monitorB;
+		}
+		monitorB = NULL;
+	    }
+	    
+	    if(implementation == CHIPSET_NV11)
+		cr44 = pNv->CRTCnumber * 0x3;
+	    
+	    nvWriteCRTC0(pNv, NV_CRTC_FSEL,  oldhead);
 
-       cr44 = nvReadVGA(pNv, NV_VGA_CRTCX_OWNER);
-       pNv->vtOWNER = cr44;
+	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, cr44);
+	    NVSelectHeadRegisters(pScrn, pNv->CRTCnumber);
+	}
+	
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Using %s on CRTC %i\n",
+		   pNv->FlatPanel ? (pNv->Television ? "TV" : "DFP") : "CRT", 
+		   pNv->CRTCnumber);
+	
+	if(pNv->FlatPanel && !pNv->Television) {
+	    pNv->fpWidth = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_HDISP_END) + 1;
+	    pNv->fpHeight = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_VDISP_END) + 1;
+	    pNv->fpSyncs = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL) & 0x30000033;
+	    xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %i x %i\n",
+		       pNv->fpWidth, pNv->fpHeight);
+	}
+	
+	if(monitorA)
+	    xf86SetDDCproperties(pScrn, monitorA);
 
-       nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 3);
-       NVSelectHeadRegisters(pScrn, 1);
-       NVLockUnlock(pNv, 0);
-
-       slaved_on_B = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80;
-       if(slaved_on_B) {
-           tvB = !(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
-       }
-
-       nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 0);
-       NVSelectHeadRegisters(pScrn, 0);
-       NVLockUnlock(pNv, 0);
-
-       slaved_on_A = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80; 
-       if(slaved_on_A) {
-           tvA = !(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
-       }
-
-       oldhead = nvReadCRTC0(pNv, NV_CRTC_HEAD_CONFIG);
-       nvWriteCRTC0(pNv, NV_CRTC_HEAD_CONFIG, oldhead | 0x00000010);
-
-       monitorA = NVProbeDDC(pScrn, 0);
-       monitorB = NVProbeDDC(pScrn, 1);
-
-       if(slaved_on_A && !tvA) {
-          CRTCnumber = 0;
-          FlatPanel = 1;
-          xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-                    "CRTC 0 is currently programmed for DFP\n");
-       } else 
-       if(slaved_on_B && !tvB) {
-          CRTCnumber = 1;
-          FlatPanel = 1;
-          xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-                    "CRTC 1 is currently programmed for DFP\n");
-       } else
-       if(analog_on_A) {
-          CRTCnumber = outputAfromCRTC;
-          FlatPanel = 0;
-          xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-                    "CRTC %i appears to have a CRT attached\n", CRTCnumber);
-       } else
-       if(analog_on_B) {
-           CRTCnumber = outputBfromCRTC;
-           FlatPanel = 0;
-           xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-                    "CRTC %i appears to have a CRT attached\n", CRTCnumber);
-       } else
-       if(slaved_on_A) {
-          CRTCnumber = 0;
-          FlatPanel = 1;
-          Television = 1;
-          xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-                    "CRTC 0 is currently programmed for TV\n");
-       } else
-       if(slaved_on_B) {
-          CRTCnumber = 1;
-          FlatPanel = 1;
-          Television = 1;
-          xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-                    "CRTC 1 is currently programmed for TV\n");
-       } else
-       if(monitorA) {
-           FlatPanel = monitorA->features.input_type ? 1 : 0;
-       } else 
-       if(monitorB) {
-           FlatPanel = monitorB->features.input_type ? 1 : 0;
-       }
-
-       if(pNv->FlatPanel == -1) {
-          if(FlatPanel != -1) {
-             pNv->FlatPanel = FlatPanel;
-             pNv->Television = Television;
-          } else {
-             xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                        "Unable to detect display type...\n");
-             if(mobile) {
-                 xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT,
-                            "...On a laptop, assuming DFP\n");
-                 pNv->FlatPanel = 1;
-             } else {
-                 xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT,
-                            "...Using default of CRT\n");
-                 pNv->FlatPanel = 0;
-             }
-          }
-       } else {
-           xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-                      "Forcing display type to %s as specified\n", 
-                       pNv->FlatPanel ? "DFP" : "CRT");
-       }
-
-       if(pNv->CRTCnumber == -1) {
-          if(CRTCnumber != -1) pNv->CRTCnumber = CRTCnumber;
-          else {
-             xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                        "Unable to detect which CRTCNumber...\n");
-             if(pNv->FlatPanel) pNv->CRTCnumber = 1;
-             else pNv->CRTCnumber = 0;
-             xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT,
-                        "...Defaulting to CRTCNumber %i\n", pNv->CRTCnumber);
-          }
-       } else {
-           xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-                      "Forcing CRTCNumber %i as specified\n", pNv->CRTCnumber);
-       }
-     
-       if(monitorA) {
-           if((monitorA->features.input_type && pNv->FlatPanel) ||
-              (!monitorA->features.input_type && !pNv->FlatPanel))
-           {
-               if(monitorB) { 
-                  xfree(monitorB);
-                  monitorB = NULL;
-               }
-           } else {
-              xfree(monitorA);
-              monitorA = NULL;
-           }
-       }
-
-       if(monitorB) {
-           if((monitorB->features.input_type && !pNv->FlatPanel) ||
-              (!monitorB->features.input_type && pNv->FlatPanel)) 
-           {
-              xfree(monitorB);
-           } else {
-              monitorA = monitorB;
-           }
-           monitorB = NULL;
-       }
-
-       if(implementation == CHIPSET_NV11)
-           cr44 = pNv->CRTCnumber * 0x3;
-
-       nvWriteCRTC0(pNv, NV_CRTC_HEAD_CONFIG,  oldhead);
-
-       nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, cr44);
-       NVSelectHeadRegisters(pScrn, pNv->CRTCnumber);
-    }
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-              "Using %s on CRTC %i\n",
-              pNv->FlatPanel ? (pNv->Television ? "TV" : "DFP") : "CRT", 
-              pNv->CRTCnumber);
-
-    if(pNv->FlatPanel && !pNv->Television) {
-       pNv->fpWidth = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_HDISP_END) + 1;
-       pNv->fpHeight = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_VDISP_END) + 1;
-       pNv->fpSyncs = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL) & 0x30000033;
-       xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %i x %i\n",
-                  pNv->fpWidth, pNv->fpHeight);
-    }
-
-    if(monitorA)
-      xf86SetDDCproperties(pScrn, monitorA);
-
-    if(!pNv->FlatPanel || (pScrn->depth != 24) || !pNv->twoHeads)
-        pNv->FPDither = FALSE;
-
-    pNv->LVDS = FALSE;
-    if(pNv->FlatPanel && pNv->twoHeads) {
-        nvWriteRAMDAC0(pNv, NV_RAMDAC_FP_TMDS_DATA, 0x00010004);
-        if(nvReadRAMDAC0(pNv, NV_RAMDAC_FP_TMDS_LVDS) & 1)
-           pNv->LVDS = TRUE;
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Panel is %s\n", 
-                   pNv->LVDS ? "LVDS" : "TMDS");
+	if(!pNv->FlatPanel || (pScrn->depth != 24) || !pNv->twoHeads)
+	    pNv->FPDither = FALSE;
+	
+	pNv->LVDS = FALSE;
+	if(pNv->FlatPanel && pNv->twoHeads) {
+	    nvWriteRAMDAC0(pNv, NV_RAMDAC_FP_TMDS_CONTROL, 0x00010004);
+	    if(nvReadRAMDAC0(pNv, NV_RAMDAC_FP_TMDS_DATA) & 1)
+		pNv->LVDS = TRUE;
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Panel is %s\n", 
+		       pNv->LVDS ? "LVDS" : "TMDS");
+	}
     }
 }
 

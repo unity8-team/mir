@@ -120,6 +120,7 @@
 #define NV_VGA_CRTCX_FIFO_LWM_NV30	0x47
 #define NV_VGA_CRTCX_FP_HTIMING		0x53
 #define NV_VGA_CRTCX_FP_VTIMING		0x54
+#define NV_VGA_CRTCX_59                 0x59
 
 #define NV_PGRAPH_STATUS            (0x00000700)
 #define NV_PFIFO_RAMHT              (0x00000210)
@@ -131,7 +132,7 @@
 #define NV_RAMDAC_CURSOR_DATA_LO    0x324
 #define NV_RAMDAC_CURSOR_DATA_HI    0x328
 
-#define NV_RAMDAC_0404              0x404
+#define NV_RAMDAC_NV10_CURSYNC      0x404
 
 #define NV_RAMDAC_NVPLL             0x500
 #define NV_RAMDAC_MPLL              0x504
@@ -141,9 +142,37 @@
 
 #define NV_RAMDAC_VPLL              0x508
 #define NV_RAMDAC_PLL_SELECT        0x50c
+#define NV_RAMDAC_PLL_SELECT_DLL_BYPASS 	(1<<4)
+#define NV_RAMDAC_PLL_SELECT_PLL_SOURCE_DEFAULT 	(0<<8)
+#define NV_RAMDAC_PLL_SELECT_PLL_SOURCE_MPLL 		(1<<8)
+#define NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL 		(2<<8)
+#define NV_RAMDAC_PLL_SELECT_PLL_SOURCE_NVPLL 		(4<<8)
+#define NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL 		(7<<8)
+#define NV_RAMDAC_PLL_SELECT_MPLL_BYPASS_FALSE 	(0<<12)
+#define NV_RAMDAC_PLL_SELECT_MPLL_BYPASS_TRUE 	(1<<12)
+#define NV_RAMDAC_PLL_SELECT_VS_PCLK_TV_NONE		(0<<16)
+#define NV_RAMDAC_PLL_SELECT_VS_PCLK_TV_VSCLK		(1<<16)
+#define NV_RAMDAC_PLL_SELECT_VS_PCLK_TV_PCLK		(2<<16)
+#define NV_RAMDAC_PLL_SELECT_VS_PCLK_TV_BOTH		(3<<16)
+
+#define NV_RAMDAC_PLL_SELECT_TVCLK_SOURCE_EXT           (0<<20)
+#define NV_RAMDAC_PLL_SELECT_TVCLK_SOURCE_VIP           (1<<20)
+
+#define NV_RAMDAC_PLL_SELECT_TVCLK_RATIO_DB1		(0<<24)
+#define NV_RAMDAC_PLL_SELECT_TVCLK_RATIO_DB2		(1<<24)
+#define NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB1		(0<<28)
+#define NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2		(1<<28)
+
+
+#define NV_RAMDAC_PLL_SETUP_CONTROL 0x510
+#define NV_RAMDAC_PLL_TEST_COUNTER  0x514
+#define NV_RAMDAC_PALETTE_TEST      0x518
 #define NV_RAMDAC_VPLL2             0x520
+#define NV_RAMDAC_SEL_CLK           0x524
 #define NV_RAMDAC_DITHER_NV11       0x528
-#define NV_RAMDAC_052C              0x52c
+#define NV_RAMDAC_OUTPUT            0x52c
+#define NV_RAMDAC_OUTPUT_DAC_ENABLE                     (1<<0)
+#define NV_RAMDAC_OUTPUT_SELECT_CRTC2                   (1<<8)
 
 #define NV_RAMDAC_NVPLL_B           0x570
 #define NV_RAMDAC_MPLL_B            0x574
@@ -154,14 +183,59 @@
 #define NV_RAMDAC_TEST_CONTROL      0x608
 #define NV_RAMDAC_TEST_DATA         0x610
 
-#define NV_RAMDAC_FP_VDISP_END      0x800
-#define NV_RAMDAC_FP_HDISP_END      0x820
-#define NV_RAMDAC_FP_HCRTC          0x828
-#define NV_RAMDAC_FP_DITHER         0x83c
-#define NV_RAMDAC_FP_CONTROL        0x848
+#define NV_RAMDAC_TV_SETUP          0x700
+#define NV_RAMDAC_TV_VBLANK_START   0x704
+#define NV_RAMDAC_TV_VBLANK_END     0x708
+#define NV_RAMDAC_TV_HBLANK_START   0x70c
+#define NV_RAMDAC_TV_HBLANK_END     0x710
+#define NV_RAMDAC_TV_BLANK_COLOR    0x714
+#define NV_RAMDAC_TV_VTOTAL         0x720
+#define NV_RAMDAC_TV_VSYNC_START    0x724
+#define NV_RAMDAC_TV_VSYNC_END      0x728
+#define NV_RAMDAC_TV_HTOTAL         0x72c
+#define NV_RAMDAC_TV_HSYNC_START    0x730
+#define NV_RAMDAC_TV_HSYNC_END      0x734
+#define NV_RAMDAC_TV_SYNC_DELAY     0x738
 
-#define NV_RAMDAC_FP_TMDS_DATA      0x8b0
-#define NV_RAMDAC_FP_TMDS_LVDS      0x8b4
+#define REG_DISP_END 0
+#define REG_DISP_TOTAL 1
+#define REG_DISP_CRTC 2
+#define REG_DISP_SYNC_START 3
+#define REG_DISP_SYNC_END 4
+#define REG_DISP_VALID_START 5
+#define REG_DISP_VALID_END 6
+
+#define NV_RAMDAC_FP_VDISP_END      0x800
+#define NV_RAMDAC_FP_VTOTAL         0x804
+#define NV_RAMDAC_FP_VCRTC          0x808
+#define NV_RAMDAC_FP_VSYNC_START    0x80c
+#define NV_RAMDAC_FP_VSYNC_END      0x810
+#define NV_RAMDAC_FP_VVALID_START   0x814
+#define NV_RAMDAC_FP_VVALID_END     0x818
+#define NV_RAMDAC_FP_HDISP_END      0x820
+#define NV_RAMDAC_FP_HTOTAL         0x824
+#define NV_RAMDAC_FP_HCRTC          0x828
+#define NV_RAMDAC_FP_HSYNC_START    0x82c
+#define NV_RAMDAC_FP_HSYNC_END      0x830
+#define NV_RAMDAC_FP_HVALID_START   0x834
+#define NV_RAMDAC_FP_HVALID_END     0x838
+
+#define NV_RAMDAC_FP_DITHER         0x83c
+#define NV_RAMDAC_FP_CHECKSUM       0x840
+#define NV_RAMDAC_FP_TEST_CONTROL   0x844
+#define NV_RAMDAC_FP_CONTROL        0x848
+#define NV_RAMDAC_FP_CONTROL_ENABLE (1<<28) // toggling this bit turns things on/off
+
+#define NV_RAMDAC_FP_DEBUG_0        0x880
+#define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK (1<<28)
+#define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL (2<<28)
+#define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH (3<<28)
+
+#define NV_RAMDAC_FP_TMDS_CONTROL   0x8b0
+/* 0xff - address mask */
+#define NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE (1<<16)
+#define NV_RAMDAC_FP_TMDS_DATA      0x8b4
+/* 0xff - data mask */
 
 #define NV_CRTC_INTR_0              0x100
 #	define NV_CRTC_INTR_VBLANK           1
@@ -171,7 +245,13 @@
 #define NV_CRTC_081C                0x81c
 #define NV_CRTC_0830                0x830
 #define NV_CRTC_0834                0x834
-#define NV_CRTC_HEAD_CONFIG         0x860
+#define NV_CRTC_FSEL                0x860
+#define NV_CRTC_FSEL_I2C           (1<<4)
+#define NV_CRTC_FSEL_TVOUT1        (1<<8)
+#define NV_CRTC_FSEL_TVOUT2        (2<<8)
+#define NV_CRTC_FSEL_OVERLAY       (1<<12)
+#define NV_CRTC_FSEL_FPP2          (1<<16)
+#define NV_CRTC_FSEL_FPP1          (2<<16)
 
 #define NV_PFB_CFG0                 0x200
 #define NV_PFB_CFG1                 0x204

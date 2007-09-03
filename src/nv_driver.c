@@ -814,7 +814,22 @@ NVProbe(DriverPtr drv, int flags)
 Bool
 NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
-    return NVModeInit(xf86Screens[scrnIndex], mode);
+    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+    NVPtr pNv = NVPTR(pScrn);
+    Bool ret = TRUE;
+
+    if (pNv->randr12_enable) {
+	NVFBLayout *pLayout = &pNv->CurrentLayout;
+	
+	if (pLayout->mode != mode) {
+		if (!NVSetMode(pScrn, mode, RR_Rotate_0))
+			ret = FALSE;
+	}
+
+	pLayout->mode = mode;
+	return ret;
+    } else 
+	return NVModeInit(xf86Screens[scrnIndex], mode);
 }
 
 /*
@@ -1028,16 +1043,40 @@ static Bool NVPreInitDRI(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
+
+static Bool
+nv_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
+{
+	scrn->virtualX = width;
+	scrn->virtualY = height;
+	return TRUE;
+}
+
+static const xf86CrtcConfigFuncsRec nv_xf86crtc_config_funcs = {
+	nv_xf86crtc_resize
+};
+
+
+#define NVPreInitFail(fmt, args...) do {                                    \
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%d: "fmt, __LINE__, ##args); \
+	if (pNv->pInt10)                                                    \
+		xf86FreeInt10(pNv->pInt10);                                 \
+	NVFreeRec(pScrn);                                                   \
+	return FALSE;                                                       \
+} while(0)
+
 /* Mandatory */
 Bool
 NVPreInit(ScrnInfoPtr pScrn, int flags)
 {
+    xf86CrtcConfigPtr xf86_config;
     NVPtr pNv;
     MessageType from;
     int i, max_width, max_height;
     ClockRangePtr clockRanges;
     const char *s;
-    int config_mon_rates;
+    int config_mon_rates = FALSE;
+    int num_crtc;
 
     if (flags & PROBE_DETECT) {
         EntityInfoPtr pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
@@ -1092,7 +1131,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
  	xf86LoaderReqSymLists(int10Symbols, NULL);
 #if !defined(__alpha__) && !defined(__powerpc__)
         xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initializing int10\n");
-        pNv->pInt = xf86InitInt10(pNv->pEnt->index);
+        pNv->pInt10 = xf86InitInt10(pNv->pEnt->index);
 #endif
     }
    
@@ -1145,18 +1184,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
      * This shouldn't happen because such problems should be caught in
      * NVProbe(), but check it just in case.
      */
-    if (pScrn->chipset == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "ChipID 0x%04X is not recognised\n", pNv->Chipset);
-	xf86FreeInt10(pNv->pInt);
-	return FALSE;
-    }
-    if (pNv->Chipset < 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Chipset \"%s\" is not recognised\n", pScrn->chipset);
-	xf86FreeInt10(pNv->pInt);
-	return FALSE;
-    }
+    if (pScrn->chipset == NULL)
+	NVPreInitFail("ChipID 0x%04X is not recognised\n", pNv->Chipset);
+
+    if (pNv->Chipset < 0)
+	NVPreInitFail("Chipset \"%s\" is not recognised\n", pScrn->chipset);
 
     xf86DrvMsg(pScrn->scrnIndex, from, "Chipset: \"%s\"\n", pScrn->chipset);
 
@@ -1166,8 +1198,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
      */
 
     if (!xf86SetDepthBpp(pScrn, 0, 0, 0, Support32bppFb)) {
-	xf86FreeInt10(pNv->pInt);
-	return FALSE;
+	NVPreInitFail("\n");
     } else {
 	/* Check that the returned depth is one we support */
 	switch (pScrn->depth) {
@@ -1178,11 +1209,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
                 /* OK */
                 break;
             default:
-                xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                    "Given depth (%d) is not supported by this driver\n",
-                    pScrn->depth);
-		xf86FreeInt10(pNv->pInt);
-                return FALSE;
+		NVPreInitFail("Given depth (%d) is not supported by this driver\n",
+			      pScrn->depth);
 	}
     }
     xf86PrintDepthBpp(pScrn);
@@ -1200,29 +1228,25 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	rgb zeros = {0, 0, 0};
 
 	if (!xf86SetWeight(pScrn, zeros, zeros)) {
-	    xf86FreeInt10(pNv->pInt);
-	    return FALSE;
+	    NVPreInitFail("\n");
 	}
     }
 
     if (!xf86SetDefaultVisual(pScrn, -1)) {
-	xf86FreeInt10(pNv->pInt);
-	return FALSE;
+	NVPreInitFail("\n");
     } else {
 	/* We don't currently support DirectColor at > 8bpp */
 	if (pScrn->depth > 8 && (pScrn->defaultVisual != TrueColor)) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Given default visual"
+	    NVPreInitFail("Given default visual"
 		       " (%s) is not supported at depth %d\n",
 		       xf86GetVisualName(pScrn->defaultVisual), pScrn->depth);
-	    xf86FreeInt10(pNv->pInt);
-	    return FALSE;
+	    
 	}
     }
 
     /* The vgahw module should be loaded here when needed */
     if (!xf86LoadSubModule(pScrn, "vgahw")) {
-	xf86FreeInt10(pNv->pInt);
-	return FALSE;
+	NVPreInitFail("\n");
     }
     
     xf86LoaderReqSymLists(vgahwSymbols, NULL);
@@ -1231,8 +1255,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
      * Allocate a vgaHWRec
      */
     if (!vgaHWGetHWRec(pScrn)) {
-	xf86FreeInt10(pNv->pInt);
-	return FALSE;
+	NVPreInitFail("\n");
     }
     
     /* We use a programmable clock */
@@ -1252,6 +1275,13 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	pScrn->rgbBits = 8;
 
     from = X_DEFAULT;
+
+    pNv->randr12_enable = FALSE;
+    if (xf86ReturnOptValBool(pNv->Options, OPTION_RANDR12, FALSE)) {
+	pNv->randr12_enable = TRUE;
+    }
+    xf86DrvMsg(pScrn->scrnIndex, from, "Randr1.2 support %sabled\n", pNv->randr12_enable ? "en" : "dis");
+
     pNv->HWCursor = TRUE;
     /*
      * The preferred method is to use the "hw cursor" option as a tri-state
@@ -1385,12 +1415,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     if (pNv->pEnt->device->MemBase != 0) {
 	/* Require that the config file value matches one of the PCI values. */
 	if (!xf86CheckPciMemBase(pNv->PciInfo, pNv->pEnt->device->MemBase)) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+	    NVPreInitFail(
 		"MemBase 0x%08lX doesn't match any PCI base register.\n",
 		pNv->pEnt->device->MemBase);
-	    xf86FreeInt10(pNv->pInt);
-	    NVFreeRec(pScrn);
-	    return FALSE;
 	}
 	pNv->VRAMPhysical = pNv->pEnt->device->MemBase;
 	from = X_CONFIG;
@@ -1399,10 +1426,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	    pNv->VRAMPhysical = pNv->PciInfo->memBase[1] & 0xff800000;
 	    from = X_PROBED;
 	} else {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "No valid FB address in PCI config space\n");
-	    xf86FreeInt10(pNv->pInt);
-	    NVFreeRec(pScrn);
+	    NVPreInitFail("No valid FB address in PCI config space\n");
 	    return FALSE;
 	}
     }
@@ -1412,12 +1436,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     if (pNv->pEnt->device->IOBase != 0) {
 	/* Require that the config file value matches one of the PCI values. */
 	if (!xf86CheckPciMemBase(pNv->PciInfo, pNv->pEnt->device->IOBase)) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		"IOBase 0x%08lX doesn't match any PCI base register.\n",
-		pNv->pEnt->device->IOBase);
-	    xf86FreeInt10(pNv->pInt);
-	    NVFreeRec(pScrn);
-	    return FALSE;
+	    NVPreInitFail("IOBase 0x%08lX doesn't match any PCI base register.\n",
+			  pNv->pEnt->device->IOBase);
 	}
 	pNv->IOAddress = pNv->pEnt->device->IOBase;
 	from = X_CONFIG;
@@ -1426,22 +1446,14 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	    pNv->IOAddress = pNv->PciInfo->memBase[0] & 0xffffc000;
 	    from = X_PROBED;
 	} else {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"No valid MMIO address in PCI config space\n");
-	    xf86FreeInt10(pNv->pInt);
-	    NVFreeRec(pScrn);
-	    return FALSE;
+	    NVPreInitFail("No valid MMIO address in PCI config space\n");
 	}
     }
     xf86DrvMsg(pScrn->scrnIndex, from, "MMIO registers at 0x%lX\n",
 	       (unsigned long)pNv->IOAddress);
      
     if (xf86RegisterResources(pNv->pEnt->index, NULL, ResExclusive)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		"xf86RegisterResources() found resource conflicts\n");
-	xf86FreeInt10(pNv->pInt);
-	NVFreeRec(pScrn);
-	return FALSE;
+	NVPreInitFail("xf86RegisterResources() found resource conflicts\n");
     }
 
     switch (pNv->Chipset & 0x0ff0) {
@@ -1492,24 +1504,58 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     pNv->alphaCursor = (pNv->Architecture >= NV_ARCH_10) &&
                        ((pNv->Chipset & 0x0ff0) != CHIPSET_NV10);
 
-    if (NVPreInitDRI(pScrn) == FALSE) {
-	    xf86FreeInt10(pNv->pInt);
-	    return FALSE;
+    if (pNv->randr12_enable) {
+	/* Allocate an xf86CrtcConfig */
+	xf86CrtcConfigInit(pScrn, &nv_xf86crtc_config_funcs);
+	xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	
+	max_width = 16384;
+	xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, 2048);
     }
 
-    if ((pScrn->monitor->nHsync == 0) && 
-	(pScrn->monitor->nVrefresh == 0))
-	config_mon_rates = FALSE;
-    else
-	config_mon_rates = TRUE;
+    if (NVPreInitDRI(pScrn) == FALSE) {
+	NVPreInitFail("\n");
+    }
+
+    if (!pNv->randr12_enable) {
+	if ((pScrn->monitor->nHsync == 0) && 
+	    (pScrn->monitor->nVrefresh == 0))
+	    config_mon_rates = FALSE;
+	else
+	    config_mon_rates = TRUE;
+    }
 
     NVCommonSetup(pScrn);
+
+    if (pNv->randr12_enable) {
+	if (pNv->Architecture < NV_ARCH_50) {
+	    NVI2CInit(pScrn);
+	    
+	    num_crtc = pNv->twoHeads ? 2 : 1;
+	    for (i = 0; i < num_crtc; i++) {
+		nv_crtc_init(pScrn, i);
+	    }
+	    
+	    NvSetupOutputs(pScrn);
+	} else {
+#if 0
+	    if (!NV50DispPreInit(pScrn))
+		NVPreInitFail("\n");
+	    if (!NV50CreateOutputs(pScrn))
+		NVPreInitFail("\n");
+	    NV50DispCreateCrtcs(pScrn);
+#endif
+	}
+
+	if (!xf86InitialConfiguration(pScrn, FALSE))
+	    NVPreInitFail("No valid modes.\n");
+    }
 
     pScrn->videoRam = pNv->RamAmountKBytes;
     xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "VideoRAM: %d kBytes\n",
                pScrn->videoRam);
 	
-	pNv->VRAMPhysicalSize = pScrn->videoRam * 1024;
+    pNv->VRAMPhysicalSize = pScrn->videoRam * 1024;
 
     /*
      * If the driver can do gamma correction, it should call xf86SetGamma()
@@ -1520,8 +1566,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	Gamma zeros = {0.0, 0.0, 0.0};
 
 	if (!xf86SetGamma(pScrn, zeros)) {
-	    xf86FreeInt10(pNv->pInt);
-	    return FALSE;
+	    NVPreInitFail("\n");
 	}
     }
 
@@ -1608,19 +1653,14 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
                           LOOKUP_BEST_REFRESH);
 
     if (i == -1) {
-	xf86FreeInt10(pNv->pInt);
-	NVFreeRec(pScrn);
-	return FALSE;
+	NVPreInitFail("\n");
     }
 
     /* Prune the modes marked as invalid */
     xf86PruneDriverModes(pScrn);
 
     if (i == 0 || pScrn->modes == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes found\n");
-	xf86FreeInt10(pNv->pInt);
-	NVFreeRec(pScrn);
-	return FALSE;
+	NVPreInitFail("No valid modes found\n");
     }
 
     /*
@@ -1649,9 +1689,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
      */
 
     if (xf86LoadSubModule(pScrn, "fb") == NULL) {
-	xf86FreeInt10(pNv->pInt);
-	NVFreeRec(pScrn);
-	return FALSE;
+	NVPreInitFail("\n");
     }
 
     xf86LoaderReqSymLists(fbSymbols, NULL);
@@ -1659,9 +1697,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     /* Load XAA if needed */
     if (!pNv->NoAccel) {
 	if (!xf86LoadSubModule(pScrn, pNv->useEXA ? "exa" : "xaa")) {
-	    xf86FreeInt10(pNv->pInt);
-	    NVFreeRec(pScrn);
-	    return FALSE;
+	    NVPreInitFail("\n");
 	}
 	xf86LoaderReqSymLists(xaaSymbols, NULL);
     }
@@ -1669,9 +1705,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     /* Load ramdac if needed */
     if (pNv->HWCursor) {
 	if (!xf86LoadSubModule(pScrn, "ramdac")) {
-	    xf86FreeInt10(pNv->pInt);
-	    NVFreeRec(pScrn);
-	    return FALSE;
+	    NVPreInitFail("\n");
 	}
 	xf86LoaderReqSymLists(ramdacSymbols, NULL);
     }
@@ -1679,9 +1713,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     /* Load shadowfb if needed */
     if (pNv->ShadowFB) {
 	if (!xf86LoadSubModule(pScrn, "shadowfb")) {
-	    xf86FreeInt10(pNv->pInt);
-	    NVFreeRec(pScrn);
-	    return FALSE;
+	    NVPreInitFail("\n");
 	}
 	xf86LoaderReqSymLists(shadowSymbols, NULL);
     }
@@ -1694,9 +1726,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     pNv->CurrentLayout.weight.blue = pScrn->weight.blue;
     pNv->CurrentLayout.mode = pScrn->currentMode;
 
-    xf86FreeInt10(pNv->pInt);
+    xf86FreeInt10(pNv->pInt10);
 
-    pNv->pInt = NULL;
+    pNv->pInt10 = NULL;
     return TRUE;
 }
 
@@ -1879,6 +1911,119 @@ NVRestore(ScrnInfoPtr pScrn)
     vgaHWProtect(pScrn, FALSE);
 }
 
+
+#define DEPTH_SHIFT(val, w) ((val << (8 - w)) | (val >> ((w << 1) - 8)))
+#define MAKE_INDEX(in, w) (DEPTH_SHIFT(in, w) * 3)
+
+static void
+NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
+	      LOCO * colors, VisualPtr pVisual)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int c;
+	NVPtr pNv = NVPTR(pScrn);
+	int i, index;
+
+	for (c = 0; c < xf86_config->num_crtc; c++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[c];
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+		NVCrtcRegPtr regp;
+
+		regp = &pNv->ModeReg.crtc_reg[nv_crtc->crtc];
+
+		if (crtc->enabled == 0)
+			continue;
+
+		switch (pNv->CurrentLayout.depth) {
+		case 15:
+			for (i = 0; i < numColors; i++) {
+				index = indices[i];
+				regp->DAC[MAKE_INDEX(index, 5) + 0] =
+				    colors[index].red;
+				regp->DAC[MAKE_INDEX(index, 5) + 1] =
+				    colors[index].green;
+				regp->DAC[MAKE_INDEX(index, 5) + 2] =
+				    colors[index].blue;
+			}
+			break;
+		case 16:
+			for (i = 0; i < numColors; i++) {
+				index = indices[i];
+				regp->DAC[MAKE_INDEX(index, 6) + 1] =
+				    colors[index].green;
+				if (index < 32) {
+					regp->DAC[MAKE_INDEX(index, 5) +
+						  0] = colors[index].red;
+					regp->DAC[MAKE_INDEX(index, 5) +
+						  2] = colors[index].blue;
+				}
+			}
+			break;
+		default:
+			for (i = 0; i < numColors; i++) {
+				index = indices[i];
+				regp->DAC[index * 3] = colors[index].red;
+				regp->DAC[(index * 3) + 1] =
+				    colors[index].green;
+				regp->DAC[(index * 3) + 2] =
+				    colors[index].blue;
+			}
+			break;
+		}
+
+		NVCrtcLoadPalette(crtc);
+	}
+}
+
+//#define DEPTH_SHIFT(val, w) ((val << (8 - w)) | (val >> ((w << 1) - 8)))
+#define COLOR(c) (unsigned int)(0x3fff * ((c)/255.0))
+static void
+NV50LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
+		LOCO * colors, VisualPtr pVisual)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	int i, index;
+	volatile struct {
+		unsigned short red, green, blue, unused;
+	} *lut = (void *) pNv->CLUT->map;
+
+	switch (pScrn->depth) {
+	case 15:
+		for (i = 0; i < numColors; i++) {
+			index = indices[i];
+			lut[DEPTH_SHIFT(index, 5)].red =
+			    COLOR(colors[index].red);
+			lut[DEPTH_SHIFT(index, 5)].green =
+			    COLOR(colors[index].green);
+			lut[DEPTH_SHIFT(index, 5)].blue =
+			    COLOR(colors[index].blue);
+		}
+		break;
+	case 16:
+		for (i = 0; i < numColors; i++) {
+			index = indices[i];
+			lut[DEPTH_SHIFT(index, 6)].green =
+			    COLOR(colors[index].green);
+			if (index < 32) {
+				lut[DEPTH_SHIFT(index, 5)].red =
+				    COLOR(colors[index].red);
+				lut[DEPTH_SHIFT(index, 5)].blue =
+				    COLOR(colors[index].blue);
+			}
+		}
+		break;
+	default:
+		for (i = 0; i < numColors; i++) {
+			index = indices[i];
+			lut[index].red = COLOR(colors[index].red);
+			lut[index].green = COLOR(colors[index].green);
+			lut[index].blue = COLOR(colors[index].blue);
+		}
+		break;
+	}
+}
+
+
 static void NVBacklightEnable(NVPtr pNv,  Bool on)
 {
     /* This is done differently on each laptop.  Here we
@@ -2004,41 +2149,53 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!vgaHWMapMem(pScrn))
 	    return FALSE;
     }
-
-	/* First init DRI/DRM */
-	if (!NVDRIScreenInit(pScrn))
-		return FALSE;
-
-	ret = drmCommandNone(pNv->drm_fd, DRM_NOUVEAU_CARD_INIT);
-	if (ret) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Error initialising the nouveau kernel module: %d\n",
-			   ret);
-		return FALSE;
-	}
-
-	/* Allocate and map memory areas we need */
-	if (!NVMapMem(pScrn))
-		return FALSE;
-
+    
+    /* First init DRI/DRM */
+    if (!NVDRIScreenInit(pScrn))
+	return FALSE;
+    
+    ret = drmCommandNone(pNv->drm_fd, DRM_NOUVEAU_CARD_INIT);
+    if (ret) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Error initialising the nouveau kernel module: %d\n",
+		   ret);
+	return FALSE;
+    }
+    
+    /* Allocate and map memory areas we need */
+    if (!NVMapMem(pScrn))
+	return FALSE;
+    
+    if (!pNv->NoAccel) {
 	/* Init DRM - Alloc FIFO */
 	if (!NVInitDma(pScrn))
-		return FALSE;
-
+	    return FALSE;
+	
 	/* setup graphics objects */
 	if (!NVAccelCommonInit(pScrn))
-		return FALSE;
-
+	    return FALSE;
+    }
+    
+    if (!pNv->randr12_enable) {
 	/* Save the current state */
 	NVSave(pScrn);
 	/* Initialise the first mode */
-	if (!NVModeInit(pScrn, pScrn->currentMode)) {
+	if (!NVModeInit(pScrn, pScrn->currentMode))
+	    return FALSE;
+
+	/* Darken the screen for aesthetic reasons and set the viewport */
+	
+	NVSaveScreen(pScreen, SCREEN_SAVER_ON);
+	pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+	
+    } else {
+	pScrn->memPhysBase = pNv->VRAMPhysical;
+	pScrn->fbOffset = 0;
+	
+	if (!NVEnterVT(scrnIndex, 0))
 	    return FALSE;
     }
 
-    /* Darken the screen for aesthetic reasons and set the viewport */
-    NVSaveScreen(pScreen, SCREEN_SAVER_ON);
-    pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 
     /*
      * The next step is to setup the screen's visuals, and initialise the
@@ -2142,11 +2299,11 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
         offscreenHeight = 32767;
 
     if (!pNv->useEXA) {
-    AvailFBArea.x1 = 0;
-    AvailFBArea.y1 = 0;
-    AvailFBArea.x2 = pScrn->displayWidth;
-    AvailFBArea.y2 = offscreenHeight;
-    xf86InitFBManager(pScreen, &AvailFBArea);
+	AvailFBArea.x1 = 0;
+	AvailFBArea.y1 = 0;
+	AvailFBArea.x2 = pScrn->displayWidth;
+	AvailFBArea.y2 = offscreenHeight;
+	xf86InitFBManager(pScreen, &AvailFBArea);
     }
     
     if (!pNv->NoAccel) {
@@ -2181,10 +2338,34 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	return FALSE;
 
     /* Initialize colormap layer.  
-	Must follow initialization of the default colormap */
-    if(!xf86HandleColormaps(pScreen, 256, 8, NVDACLoadPalette,
-	NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
-	return FALSE;
+       Must follow initialization of the default colormap */
+    if (!pNv->randr12_enable) {
+	if(!xf86HandleColormaps(pScreen, 256, 8, NVDACLoadPalette,
+				NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
+	    return FALSE;
+    } else {
+	if (pNv->Architecture < NV_ARCH_50) {
+	    if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
+				     NULL,
+				     CMAP_RELOAD_ON_MODE_SWITCH |
+				     CMAP_PALETTED_TRUECOLOR))
+		return FALSE;
+	} else {
+	    if (!xf86HandleColormaps(pScreen, 256, 8, NV50LoadPalette,
+				     NULL, CMAP_PALETTED_TRUECOLOR))
+		return FALSE;
+	}
+    }
+
+    if (pNv->randr12_enable) {
+	xf86DPMSInit(pScreen, xf86DPMSSet, 0);
+	
+	if (!xf86CrtcScreenInit(pScreen))
+	    return FALSE;
+
+	pNv->PointerMoved = pScrn->PointerMoved;
+	pScrn->PointerMoved = NVPointerMoved;
+    }
 
     if(pNv->ShadowFB) {
 	RefreshAreaFuncPtr refreshArea = NVRefreshArea;
@@ -2209,11 +2390,13 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	ShadowFBInit(pScreen, refreshArea);
     }
 
-    if(pNv->FlatPanel)
-       xf86DPMSInit(pScreen, NVDPMSSetLCD, 0);
-    else
-       xf86DPMSInit(pScreen, NVDPMSSet, 0);
-    
+    if (!pNv->randr12_enable) {
+	if(pNv->FlatPanel)
+	    xf86DPMSInit(pScreen, NVDPMSSetLCD, 0);
+	else
+	    xf86DPMSInit(pScreen, NVDPMSSet, 0);
+    }
+
     pScrn->memPhysBase = pNv->VRAMPhysical;
     pScrn->fbOffset = 0;
 
@@ -2233,7 +2416,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     /* Install our DriverFunc.  We have to do it this way instead of using the
      * HaveDriverFuncs argument to xf86AddDriver, because InitOutput clobbers
      * pScrn->DriverFunc */
-    pScrn->DriverFunc = NVDriverFunc;
+    if (!pNv->randr12_enable)
+	pScrn->DriverFunc = NVDriverFunc;
 #endif
 
     /* Report any unused options (only for the first generation) */
@@ -2246,7 +2430,26 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 static Bool
 NVSaveScreen(ScreenPtr pScreen, int mode)
 {
-    return vgaHWSaveScreen(pScreen, mode);
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    NVPtr pNv = NVPTR(pScrn);
+    int i;
+    Bool on = xf86IsUnblank(mode);
+    
+    if (pNv->randr12_enable) {
+	if (pScrn->vtSema) {
+	    for (i = 0; i < xf86_config->num_crtc; i++) {
+		
+		if (xf86_config->crtc[i]->enabled) {
+		    NVCrtcBlankScreen(xf86_config->crtc[i],
+				      on);
+		}
+	    }
+	    
+	}
+	return TRUE;
+    } else
+	return vgaHWSaveScreen(pScreen, mode);
 }
 
 static void
@@ -2256,14 +2459,35 @@ NVSave(ScrnInfoPtr pScrn)
     NVRegPtr nvReg = &pNv->SavedReg;
     vgaHWPtr pVga = VGAHWPTR(pScrn);
     vgaRegPtr vgaReg = &pVga->SavedReg;
+    int i;
 
-    NVLockUnlock(pNv, 0);
-    if(pNv->twoHeads) {
-        nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->CRTCnumber * 0x3);
-        NVLockUnlock(pNv, 0);
+    if (pNv->randr12_enable) {
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int vgaflags = VGA_SR_CMAP | VGA_SR_MODE;
+	
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86_config->crtc[i]->funcs->save(xf86_config->crtc[i]);
+	}
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86_config->output[i]->funcs->save(xf86_config->
+						    output[i]);
+	}
+
+	vgaHWUnlock(pVga);
+#ifndef __powerpc__
+	vgaflags |= VGA_SR_FONTS;
+#endif
+	vgaHWSave(pScrn, vgaReg, vgaflags);
+    } else {
+	NVLockUnlock(pNv, 0);
+	if(pNv->twoHeads) {
+	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->CRTCnumber * 0x3);
+	    NVLockUnlock(pNv, 0);
+	}
+	
+	NVDACSave(pScrn, vgaReg, nvReg, pNv->Primary);
     }
-
-    NVDACSave(pScrn, vgaReg, nvReg, pNv->Primary);
 }
 
 #ifdef RANDR

@@ -20,8 +20,9 @@ typedef enum {
     OPTION_FP_SCALE,
     OPTION_FP_TWEAK,
     OPTION_ACCELMETHOD,
-	OPTION_CMDBUF_LOCATION,
-	OPTION_CMDBUF_SIZE
+    OPTION_CMDBUF_LOCATION,
+    OPTION_CMDBUF_SIZE,
+    OPTION_RANDR12
 } NVOpts;
 
 
@@ -40,6 +41,7 @@ static const OptionInfoRec NVOptions[] = {
     { OPTION_ACCELMETHOD,	 "AccelMethod",	OPTV_STRING,	{0}, FALSE },
     { OPTION_CMDBUF_LOCATION,	"CBLocation",	OPTV_STRING,	{0}, FALSE },
     { OPTION_CMDBUF_SIZE,	"CBSize",	OPTV_INTEGER,	{0}, FALSE },
+    { OPTION_RANDR12,	"Randr12",	OPTV_BOOLEAN,	{0}, FALSE },
     { -1,                       NULL,           OPTV_NONE,      {0}, FALSE }
 };
 
