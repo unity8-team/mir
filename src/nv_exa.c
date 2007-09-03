@@ -306,6 +306,17 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 		if (lc > 2047)
 			lc = 2047;
 
+		if (pNv->Architecture >= NV_ARCH_50) {
+			NVDmaStart(pNv, NvMemFormat, 0x200, 1);
+			NVDmaNext (pNv, 1);
+			NVDmaStart(pNv, NvMemFormat, 0x21c, 1);
+			NVDmaNext (pNv, 1);
+			/* probably high-order bits of address */
+			NVDmaStart(pNv, NvMemFormat, 0x238, 2);
+			NVDmaNext (pNv, 0);
+			NVDmaNext (pNv, 0);
+		}
+
 		NVDmaStart(pNv, NvMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 		NVDmaNext (pNv, (uint32_t)src_offset);
@@ -381,6 +392,9 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	NVPtr pNv = NVPTR(pScrn);
 	int line_len = w * cpp;
 	int iw, id, fmt;
+
+	if (pNv->Architecture >= NV_ARCH_50)
+		return FALSE;
 
 	if (h > 1024)
 		return FALSE;
@@ -466,6 +480,17 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 			}
 		}
 
+		if (pNv->Architecture >= NV_ARCH_50) {
+			NVDmaStart(pNv, NvMemFormat, 0x200, 1);
+			NVDmaNext (pNv, 1);
+			NVDmaStart(pNv, NvMemFormat, 0x21c, 1);
+			NVDmaNext (pNv, 1);
+			/* probably high-order bits of address */
+			NVDmaStart(pNv, NvMemFormat, 0x238, 2);
+			NVDmaNext (pNv, 0);
+			NVDmaNext (pNv, 0);
+		}
+
 		/* DMA to VRAM */
 		NVDmaStart(pNv, NvMemFormat,
 				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
@@ -509,7 +534,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	cpp = pDst->drawable.bitsPerPixel >> 3;
 
 	/* try hostdata transfer */
-	if (w*h*cpp<16*1024) /* heuristic */
+	if (pNv->Architecture < NV_ARCH_50 && w*h*cpp<16*1024) /* heuristic */
 	{
 		int fmt;
 
