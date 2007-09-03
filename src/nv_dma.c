@@ -131,6 +131,7 @@ void NVSync(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int t_start, timeout = 2000;
+	int grobj = pNv->Architecture < NV_ARCH_50 ? NvImageBlit : Nv2D;
 
 	if(pNv->NoAccel)
 		return;
@@ -149,9 +150,9 @@ void NVSync(ScrnInfoPtr pScrn)
 
 	/* Wait for channel to go completely idle */
 	NVNotifierReset(pScrn, pNv->Notifier0);
-	NVDmaStart(pNv, NvImageBlit, 0x104, 1);
+	NVDmaStart(pNv, grobj, 0x104, 1);
 	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, NvImageBlit, 0x100, 1);
+	NVDmaStart(pNv, grobj, 0x100, 1);
 	NVDmaNext (pNv, 0);
 	NVDmaKickoff(pNv);
 	if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, timeout))
@@ -169,7 +170,7 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 	pitch = pNv->CurrentLayout.displayWidth * (pNv->CurrentLayout.bitsPerPixel >> 3);
 
 	pNv->dmaPut = pNv->dmaCurrent = READ_GET(pNv);
-	pNv->dmaMax = (pNv->fifo.cmdbuf_size >> 2) - 1;
+	pNv->dmaMax = (pNv->fifo.cmdbuf_size >> 2) - 2;
 	pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
 
 	/* assert there's enough room for the skips */
@@ -185,6 +186,9 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 		subchannels[i]=0;
 
 	NVAccelCommonInit(pScrn);
+
+	if (pNv->Architecture >= NV_ARCH_50)
+		return;
 
 	switch(pNv->CurrentLayout.depth) {
 	case 24:
@@ -337,7 +341,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 		   "  DMA base PUT      : 0x%08x\n", pNv->fifo.put_base);
 
 	pNv->dmaPut = pNv->dmaCurrent = READ_GET(pNv);
-	pNv->dmaMax = (pNv->fifo.cmdbuf_size >> 2) - 1;
+	pNv->dmaMax = (pNv->fifo.cmdbuf_size >> 2) - 2;
 	pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
 
 	for (i=0; i<SKIPS; i++)
