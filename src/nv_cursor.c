@@ -49,6 +49,13 @@
 *                                                                            *
 \****************************************************************************/
 
+#define NV_CURSOR_X 64
+#define NV_CURSOR_Y 64
+
+#define CURSOR_X_SHIFT 0
+#define CURSOR_Y_SHIFT 16
+#define CURSOR_POS_MASK 0xffff
+
 #define TRANSPARENT_PIXEL   0
 
 #define ConvertToRGB555(c)  (((c & 0xf80000) >> 9 ) | /* Blue  */           \
@@ -171,7 +178,52 @@ NVSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 {
     NVPtr pNv = NVPTR(pScrn);
 
-    nvWriteCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS, (x & 0xFFFF) | (y << 16));
+    if (pNv->randr12_enable) {
+	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	xf86CrtcPtr crtc;
+	NVCrtcPrivatePtr nv_crtc;
+	DisplayModePtr mode;
+	int thisx;
+	int thisy;
+	int o;
+	Bool inrange;
+	CARD32 temp;
+	
+	for (o = 0; o < xf86_config->num_output; o++)
+	{
+	    xf86OutputPtr output = xf86_config->output[o];
+	    
+	    if (!output->crtc)
+		continue;
+	    
+	    if (!output->crtc->enabled)
+		continue;
+	    
+	    crtc = output->crtc;
+	    mode = &crtc->mode;
+	    thisx = x - crtc->x;
+	    thisy = y - crtc->y;
+	    
+	    inrange = TRUE;
+	    if (thisx >= mode->HDisplay ||
+		thisy >= mode->VDisplay ||
+		thisx <= -NV_CURSOR_X || thisy <= -NV_CURSOR_Y) 
+	    {
+		inrange = FALSE;
+		thisx = 0;
+		thisy = 0;
+	    }
+	    
+	    temp = 0;
+	    temp |= ((thisx & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
+	    temp |= ((thisy & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
+	    
+	    nv_crtc = output->crtc->driver_private;
+	    
+	    nvWriteRAMDAC(pNv, nv_crtc->crtc, NV_RAMDAC_CURSOR_POS, temp);
+	}
+    } else
+      nvWriteCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS, (x & 0xFFFF) | (y << 16));
 }
 
 static void
@@ -213,16 +265,35 @@ static void
 NVShowCursor(ScrnInfoPtr pScrn)
 {
     NVPtr pNv = NVPTR(pScrn);
-    /* Enable cursor - X-Windows mode */
-    NVShowHideCursor(pNv, 1);
+    if (pNv->randr12_enable) {
+	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int c;
+	
+	pNv->cursorOn = TRUE;
+	for (c= 0; c < xf86_config->num_crtc; c++)
+	    NVCrtcSetCursor (xf86_config->crtc[c], TRUE);
+    } else {
+	/* Enable cursor - X-Windows mode */
+	NVShowHideCursor(pNv, 1);
+    }
 }
 
 static void
 NVHideCursor(ScrnInfoPtr pScrn)
 {
     NVPtr pNv = NVPTR(pScrn);
-    /* Disable cursor */
-    NVShowHideCursor(pNv, 0);
+
+    if (pNv->randr12_enable) {
+	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int c;
+	
+	pNv->cursorOn = FALSE;
+	for (c = 0; c < xf86_config->num_crtc; c++)
+	    NVCrtcSetCursor (xf86_config->crtc[c], TRUE);
+  
+    } else
+	/* Disable cursor */
+	NVShowHideCursor(pNv, 0);
 }
 
 static Bool 

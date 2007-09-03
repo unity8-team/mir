@@ -204,6 +204,7 @@ typedef struct _NVRec {
     int                 ChipRev;
     Bool                Primary;
     CARD32              IOAddress;
+    Bool cursorOn;
 
     /* VRAM physical address */
     unsigned long	VRAMPhysical;

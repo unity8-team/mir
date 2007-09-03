@@ -116,6 +116,7 @@ DisplayModePtr NVCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y);
 void NVCrtcLoadPalette(xf86CrtcPtr crtc);
 void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on);
+void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state);
 
 /* nv_hw.c */
 void nForceUpdateArbitrationSettings (unsigned VClk, unsigned pixelDepth,
