@@ -1918,7 +1918,16 @@ NVMapMem(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-    return TRUE;
+	if (pNv->Architecture >= NV_ARCH_50) {
+		pNv->CLUT = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 0x1000);
+		if (!pNv->CLUT) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Failed to allocate memory for CLUT\n");
+			return FALSE;
+		}
+	}
+
+	return TRUE;
 }
 
 /*
