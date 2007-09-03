@@ -53,6 +53,8 @@
 #define CHIPSET_NV44     0x0160
 #define CHIPSET_NV44A    0x0220
 #define CHIPSET_NV45     0x0210
+#define CHIPSET_NV50     0x0190
+#define CHIPSET_NV84     0x0400
 #define CHIPSET_MISC_BRIDGED  0x00F0
 #define CHIPSET_G70      0x0090
 #define CHIPSET_G71      0x0290
@@ -201,6 +203,7 @@ typedef struct _NVRec {
     pciVideoPtr         PciInfo;
     PCITAG              PciTag;
     int                 Chipset;
+    int			_Chipset;
     int                 ChipRev;
     Bool                Primary;
     CARD32              IOAddress;
@@ -263,6 +266,7 @@ typedef struct _NVRec {
     volatile CARD32 *RAMHT;
     CARD32 pramin_free;
 
+    unsigned int SaveGeneration;
     uint8_t cur_head;
     XAAInfoRecPtr       AccelInfoRec;
     ExaDriverPtr	EXADriverPtr;
@@ -337,6 +341,10 @@ typedef struct _NVRec {
     int digital_count;
     CARD32 dcb_table[NV40_NUM_DCB_ENTRIES]; /* 10 is a good limit */
 
+    struct {
+	    ORNum dac;
+	    ORNum sor;
+    } i2cMap[4];
 } NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

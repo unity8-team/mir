@@ -45,7 +45,7 @@
 #include "nv_dma.h"
 #include "nvreg.h"
 
-static const int NVCopyROP[16] =
+const int NVCopyROP[16] =
 {
    0x00,            /* GXclear */
    0x88,            /* GXand */

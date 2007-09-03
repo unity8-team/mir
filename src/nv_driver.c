@@ -845,11 +845,64 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
     NVPtr pNv = NVPTR(pScrn);
     NVFBLayout *pLayout = &pNv->CurrentLayout;
 
-    startAddr = (((y*pLayout->displayWidth)+x)*(pLayout->bitsPerPixel/8));
-    startAddr += pNv->FB->offset;
-    NVSetStartAddress(pNv, startAddr);
+    if (pNv->randr12_enable) {
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int startAddr;
+	xf86CrtcPtr crtc = config->output[config->compat_output]->crtc;
+	
+	if (crtc && crtc->enabled) {
+	    NVCrtcSetBase(crtc, x, y);
+	}
+    } else {
+	startAddr = (((y*pLayout->displayWidth)+x)*(pLayout->bitsPerPixel/8));
+	startAddr += pNv->FB->offset;
+	NVSetStartAddress(pNv, startAddr);
+    }
 }
 
+void
+NVResetCrtcConfig(ScrnInfoPtr pScrn, int set)
+{
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
+	NVPtr pNv = NVPTR(pScrn);
+	int i;
+	CARD32 val = 0;
+
+	for (i = 0; i < config->num_crtc; i++) {
+		xf86CrtcPtr crtc = config->crtc[i];
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+		if (set) {
+			NVCrtcRegPtr regp;
+
+			regp = &pNv->ModeReg.crtc_reg[nv_crtc->crtc];
+			val = regp->head;
+		}
+
+		nvWriteCRTC(pNv, nv_crtc->crtc, NV_CRTC_FSEL, val);
+	}
+}
+
+static Bool
+NV50AcquireDisplay(ScrnInfoPtr pScrn)
+{
+	if (!NV50DispInit(pScrn))
+		return FALSE;
+	if (!NV50CursorAcquire(pScrn))
+		return FALSE;
+	xf86SetDesiredModes(pScrn);
+
+	return TRUE;
+}
+
+static Bool
+NV50ReleaseDisplay(ScrnInfoPtr pScrn)
+{
+	NV50CursorRelease(pScrn);
+	NV50DispShutdown(pScrn);
+
+	return TRUE;
+}
 
 /*
  * This is called when VT switching back to the X server.  Its job is
@@ -864,14 +917,38 @@ NVEnterVT(int scrnIndex, int flags)
 {
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
     NVPtr pNv = NVPTR(pScrn);
+    
+    if (pNv->randr12_enable) { 
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	pScrn->vtSema = TRUE;
 
-    if (!NVModeInit(pScrn, pScrn->currentMode))
-        return FALSE;
+	if (pNv->Architecture == NV_ARCH_50) {
+		if (!NV50AcquireDisplay(pScrn))
+			return FALSE;
+		return TRUE;
+	}
+
+	/* Save the current state */
+	if (pNv->SaveGeneration != serverGeneration) {
+		pNv->SaveGeneration = serverGeneration;
+		NVSave(pScrn);
+	}
+
+	NVResetCrtcConfig(pScrn, 0);
+	if (!xf86SetDesiredModes(pScrn))
+		return FALSE;
+	NVResetCrtcConfig(pScrn, 1);
+
+    } else {
+	if (!NVModeInit(pScrn, pScrn->currentMode))
+	    return FALSE;
+
+    }
     NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-
     if(pNv->overlayAdaptor)
-        NVResetVideo(pScrn);
+	NVResetVideo(pScrn);
     return TRUE;
+    
 }
 
 /*
@@ -888,9 +965,14 @@ NVLeaveVT(int scrnIndex, int flags)
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
     NVPtr pNv = NVPTR(pScrn);
 
+    if (pNv->Architecture == NV_ARCH_50) {
+	NV50ReleaseDisplay(pScrn);
+	return;
+    }
     NVSync(pScrn);
     NVRestore(pScrn);
-    NVLockUnlock(pNv, 1);
+    if (!pNv->randr12_enable)
+	NVLockUnlock(pNv, 1);
 }
 
 
@@ -936,9 +1018,14 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
     if (pScrn->vtSema) {
         pScrn->vtSema = FALSE;
-        NVSync(pScrn);
-        NVRestore(pScrn);
-        NVLockUnlock(pNv, 1);
+	if (pNv->Architecture == NV_ARCH_50) {
+	    NV50ReleaseDisplay(pScrn);
+	} else {
+	    NVSync(pScrn);
+	    NVRestore(pScrn);
+	    if (!pNv->randr12_enable)
+		NVLockUnlock(pNv, 1);
+	}
     }
 
     NVUnmapMem(pScrn);
@@ -954,6 +1041,7 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
     if (pNv->blitAdaptor)
         xfree(pNv->blitAdaptor);
 
+    pScrn->vtSema = FALSE;
     pScreen->CloseScreen = pNv->CloseScreen;
     pScreen->BlockHandler = pNv->BlockHandler;
     return (*pScreen->CloseScreen)(scrnIndex, pScreen);
@@ -1056,6 +1144,66 @@ static const xf86CrtcConfigFuncsRec nv_xf86crtc_config_funcs = {
 	nv_xf86crtc_resize
 };
 
+
+static Bool
+NVDetermineChipsetArch(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	switch (pNv->Chipset & 0x0ff0) {
+	case CHIPSET_NV03:	/* Riva128 */
+		pNv->Architecture = NV_ARCH_03;
+		break;
+	case CHIPSET_NV04:	/* TNT/TNT2 */
+		pNv->Architecture = NV_ARCH_04;
+		break;
+	case CHIPSET_NV10:	/* GeForce 256 */
+	case CHIPSET_NV11:	/* GeForce2 MX */
+	case CHIPSET_NV15:	/* GeForce2 */
+	case CHIPSET_NV17:	/* GeForce4 MX */
+	case CHIPSET_NV18:	/* GeForce4 MX (8x AGP) */
+	case CHIPSET_NFORCE:	/* nForce */
+	case CHIPSET_NFORCE2:	/* nForce2 */
+		pNv->Architecture = NV_ARCH_10;
+		break;
+	case CHIPSET_NV20:	/* GeForce3 */
+	case CHIPSET_NV25:	/* GeForce4 Ti */
+	case CHIPSET_NV28:	/* GeForce4 Ti (8x AGP) */
+		pNv->Architecture = NV_ARCH_20;
+		break;
+	case CHIPSET_NV30:	/* GeForceFX 5800 */
+	case CHIPSET_NV31:	/* GeForceFX 5600 */
+	case CHIPSET_NV34:	/* GeForceFX 5200 */
+	case CHIPSET_NV35:	/* GeForceFX 5900 */
+	case CHIPSET_NV36:	/* GeForceFX 5700 */
+		pNv->Architecture = NV_ARCH_30;
+		break;
+	case CHIPSET_NV40:	/* GeForce 6800 */
+	case CHIPSET_NV41:	/* GeForce 6800 */
+	case 0x0120:		/* GeForce 6800 */
+	case CHIPSET_NV43:	/* GeForce 6600 */
+	case CHIPSET_NV44:	/* GeForce 6200 */
+	case CHIPSET_G72:	/* GeForce 7200, 7300, 7400 */
+	case CHIPSET_G70:	/* GeForce 7800 */
+	case CHIPSET_NV45:	/* GeForce 6800 */
+	case CHIPSET_NV44A:	/* GeForce 6200 */
+	case CHIPSET_G71:	/* GeForce 7900 */
+	case CHIPSET_G73:	/* GeForce 7600 */
+	case CHIPSET_C51:	/* GeForce 6100 */
+	case CHIPSET_C512:	/* Geforce 6100 (nForce 4xx) */
+		pNv->Architecture = NV_ARCH_40;
+		break;
+	case CHIPSET_NV50:
+	case CHIPSET_NV84:
+		pNv->Architecture = NV_ARCH_50;
+		break;
+	default:		/* Unknown, probably >=NV40 */
+		pNv->Architecture = NV_ARCH_40;
+		break;
+	}
+
+	return TRUE;
+}
 
 #define NVPreInitFail(fmt, args...) do {                                    \
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%d: "fmt, __LINE__, ##args); \
@@ -1191,7 +1339,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	NVPreInitFail("Chipset \"%s\" is not recognised\n", pScrn->chipset);
 
     xf86DrvMsg(pScrn->scrnIndex, from, "Chipset: \"%s\"\n", pScrn->chipset);
-
+    NVDetermineChipsetArch(pScrn);
 
     /*
      * The first thing we should figure out is the depth, bpp, etc.
@@ -1456,51 +1604,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	NVPreInitFail("xf86RegisterResources() found resource conflicts\n");
     }
 
-    switch (pNv->Chipset & 0x0ff0) {
-    case CHIPSET_NV04:   /* TNT/TNT2 */
-         pNv->Architecture =  NV_ARCH_04;
-         break;
-    case CHIPSET_NV10:   /* GeForce 256 */
-    case CHIPSET_NV11:   /* GeForce2 MX */
-    case CHIPSET_NV15:   /* GeForce2 */
-    case CHIPSET_NV17:   /* GeForce4 MX */
-    case CHIPSET_NV18:   /* GeForce4 MX (8x AGP) */
-    case CHIPSET_NFORCE: /* nForce */
-    case CHIPSET_NFORCE2:/* nForce2 */
-         pNv->Architecture =  NV_ARCH_10;
-         break;
-    case CHIPSET_NV20:   /* GeForce3 */
-    case CHIPSET_NV25:   /* GeForce4 Ti */
-    case CHIPSET_NV28:   /* GeForce4 Ti (8x AGP) */
-         pNv->Architecture =  NV_ARCH_20;
-         break;
-    case CHIPSET_NV30:   /* GeForceFX 5800 */
-    case CHIPSET_NV31:   /* GeForceFX 5600 */
-    case CHIPSET_NV34:   /* GeForceFX 5200 */
-    case CHIPSET_NV35:   /* GeForceFX 5900 */
-    case CHIPSET_NV36:   /* GeForceFX 5700 */
-         pNv->Architecture =  NV_ARCH_30;
-         break;
-    case CHIPSET_NV40:   /* GeForce 6800 */
-    case CHIPSET_NV41:   /* GeForce 6800 */
-    case 0x0120:   /* GeForce 6800 */
-    case CHIPSET_NV43:   /* GeForce 6600 */
-    case CHIPSET_NV44:   /* GeForce 6200 */
-    case CHIPSET_G72:   /* GeForce 7200, 7300, 7400 */
-    case CHIPSET_G70:   /* GeForce 7800 */
-    case CHIPSET_NV45:   /* GeForce 6800 */
-    case CHIPSET_NV44A:   /* GeForce 6200 */
-    case CHIPSET_G71:   /* GeForce 7900 */
-    case CHIPSET_G73:   /* GeForce 7600 */
-    case CHIPSET_C51:   /* GeForce 6100 */
-    case CHIPSET_C512: /* Geforce 6100 (nForce 4xx) */
-         pNv->Architecture =  NV_ARCH_40;
-         break;
-    default:           /* Unknown, probably >=NV40 */
-         pNv->Architecture =  NV_ARCH_40;
-         break;
-    }
-
     pNv->alphaCursor = (pNv->Architecture >= NV_ARCH_10) &&
                        ((pNv->Chipset & 0x0ff0) != CHIPSET_NV10);
 
@@ -1538,13 +1641,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	    
 	    NvSetupOutputs(pScrn);
 	} else {
-#if 0
 	    if (!NV50DispPreInit(pScrn))
 		NVPreInitFail("\n");
 	    if (!NV50CreateOutputs(pScrn))
 		NVPreInitFail("\n");
 	    NV50DispCreateCrtcs(pScrn);
-#endif
 	}
 
 	if (!xf86InitialConfiguration(pScrn, FALSE))

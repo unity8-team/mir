@@ -151,5 +151,18 @@ Bool NV30EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
 void NV30EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV30EXADoneComposite(PixmapPtr);
 
+/* in nv50_exa.c */
+Bool NV50EXAPrepareSolid(PixmapPtr, int, Pixel, Pixel);
+void NV50EXASolid(PixmapPtr, int, int, int, int);
+void NV50EXADoneSolid(PixmapPtr);
+Bool NV50EXAPrepareCopy(PixmapPtr, PixmapPtr, int, int, int, Pixel);
+void NV50EXACopy(PixmapPtr, int, int, int, int, int, int);
+void NV50EXADoneCopy(PixmapPtr);
+Bool NV50EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+Bool NV50EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
+				  PixmapPtr, PixmapPtr, PixmapPtr);
+void NV50EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
+void NV50EXADoneComposite(PixmapPtr);
+
 #endif /* __NV_PROTO_H__ */
 

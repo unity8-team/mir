@@ -69,6 +69,7 @@ enum DMAObjects {
 	NvImageFromCpu		= 0x8000001A,
 	NvContextBeta1		= 0x8000001B,
 	NvContextBeta4		= 0x8000001C,
+	Nv2D			= 0x80000020,
 	NvDmaFB			= 0xD8000001,
 	NvDmaTT			= 0xD8000002,
 	NvDmaNotifier0		= 0xD8000003,
