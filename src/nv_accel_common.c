@@ -432,7 +432,10 @@ NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 	static int have_object = FALSE;
 	uint32_t   class;
 
-	class = NV_MEMORY_TO_MEMORY_FORMAT;
+	if (pNv->Architecture < NV_ARCH_50)
+		class = NV_MEMORY_TO_MEMORY_FORMAT;
+	else
+		class = NV_MEMORY_TO_MEMORY_FORMAT | 0x5000;
 
 	if (!have_object) {
 		if (!NVDmaCreateContextObject(pNv, NvMemFormat, class))
@@ -497,6 +500,39 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
+static Bool
+NVAccelInit2D_NV50(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	static int have_object = FALSE;
+
+	if (!have_object) {
+		if (!NVDmaCreateContextObject(pNv, Nv2D, 0x502d))
+				return FALSE;
+		have_object = TRUE;
+	}
+
+	NVDmaStart(pNv, Nv2D, 0x180, 3);
+	NVDmaNext (pNv, NvDmaNotifier0);
+	NVDmaNext (pNv, NvDmaFB);
+	NVDmaNext (pNv, NvDmaFB);
+
+	/* Magics from nv, no clue what they do, but at least some
+	 * of them are needed to avoid crashes.
+	 */
+	NVDmaStart(pNv, Nv2D, 0x260, 1);
+	NVDmaNext (pNv, 1);
+	NVDmaStart(pNv, Nv2D, 0x290, 1);
+	NVDmaNext (pNv, 1);
+	NVDmaStart(pNv, Nv2D, 0x29c, 1);
+	NVDmaNext (pNv, 0);
+	NVDmaStart(pNv, Nv2D, 0x58c, 1);
+	NVDmaNext (pNv, 0x111);
+
+	pNv->currentRop = 0xfffffffa;
+	return TRUE;
+}
+
 #define INIT_CONTEXT_OBJECT(name) do {                                        \
 	ret = NVAccelInit##name(pScrn);                                       \
 	if (!ret) {                                                           \
@@ -514,27 +550,27 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 	Bool ret;
 	if(pNv->NoAccel) return TRUE;
 
+	/* General engine objects */
 	INIT_CONTEXT_OBJECT(NullObject);
 	INIT_CONTEXT_OBJECT(DmaNotifier0);
 
-	INIT_CONTEXT_OBJECT(ContextSurfaces);
-	INIT_CONTEXT_OBJECT(ContextBeta1);
-	INIT_CONTEXT_OBJECT(ContextBeta4);
-	INIT_CONTEXT_OBJECT(ImagePattern);
-	INIT_CONTEXT_OBJECT(RasterOp);
-	INIT_CONTEXT_OBJECT(Rectangle);
-	INIT_CONTEXT_OBJECT(ImageBlit);
-	INIT_CONTEXT_OBJECT(ScaledImage);
-	
-	
-
-	/* XAA-only */
-	INIT_CONTEXT_OBJECT(ClipRectangle);
-	INIT_CONTEXT_OBJECT(SolidLine);
-
-	/* EXA-only */
+	/* 2D engine */
+	if (pNv->Architecture < NV_ARCH_50) {
+		INIT_CONTEXT_OBJECT(ContextSurfaces);
+		INIT_CONTEXT_OBJECT(ContextBeta1);
+		INIT_CONTEXT_OBJECT(ContextBeta4);
+		INIT_CONTEXT_OBJECT(ImagePattern);
+		INIT_CONTEXT_OBJECT(RasterOp);
+		INIT_CONTEXT_OBJECT(Rectangle);
+		INIT_CONTEXT_OBJECT(ImageBlit);
+		INIT_CONTEXT_OBJECT(ScaledImage);
+		INIT_CONTEXT_OBJECT(ClipRectangle);
+		INIT_CONTEXT_OBJECT(SolidLine);
+		INIT_CONTEXT_OBJECT(ImageFromCpu);
+	} else {
+		INIT_CONTEXT_OBJECT(2D_NV50);
+	}
 	INIT_CONTEXT_OBJECT(MemFormat);
-	INIT_CONTEXT_OBJECT(ImageFromCpu);
 
 	/* 3D init */
 	switch (pNv->Architecture) {
