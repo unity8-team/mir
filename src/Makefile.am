@@ -63,7 +63,12 @@ nouveau_drv_la_SOURCES = \
 	 nv50_display.c \
 	 nv50_exa.c \
 	 nv50_output.c \
-	 nv50_sor.c
+	 nv50_sor.c \
+	 nv50_type.h \
+	 nv50_display.h \
+	 nv50_cursor.h \
+	 nv50_output.h \
+	 nv_shaders.h
 
 #riva128_la_LTLIBRARIES = riva128.la
 #riva128_la_LDFLAGS = -module -avoid-version
