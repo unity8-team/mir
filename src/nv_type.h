@@ -21,6 +21,7 @@
 #endif
 
 #include "nv50_type.h"
+#include "nv_pcicompat.h"
 
 #define NV_ARCH_03  0x03
 #define NV_ARCH_04  0x04
@@ -200,11 +201,14 @@ typedef struct _NVRec {
     RIVA_HW_STATE       *CurrentState;
     CARD32              Architecture;
     EntityInfoPtr       pEnt;
-    pciVideoPtr         PciInfo;
-    PCITAG              PciTag;
+#ifndef XSERVER_LIBPCIACCESS
+	pciVideoPtr	PciInfo;
+	PCITAG		PciTag;
+#else
+	struct pci_device *PciInfo;
+#endif /* XSERVER_LIBPCIACCESS */
     int                 Chipset;
-    int			_Chipset;
-    int                 ChipRev;
+    char                NVArch;
     Bool                Primary;
     CARD32              IOAddress;
     Bool cursorOn;

@@ -134,7 +134,7 @@ NV50DacLoadDetect(xf86OutputPtr output)
     tmp2 = pNv->REGS[(0x0061A004+dacOff)/4];
     pNv->REGS[(0x0061A004+dacOff)/4] = 0x80150000;
     while(pNv->REGS[(0x0061A004+dacOff)/4] & 0x80000000);
-    tmp = pNv->_Chipset == 0x50 ? 420 : 340;
+    tmp = pNv->NVArch == 0x50 ? 420 : 340;
     pNv->REGS[(0x0061A00C+dacOff)/4] = tmp | 0x100000;
     usleep(4500);
     load = pNv->REGS[(0x0061A00C+dacOff)/4];

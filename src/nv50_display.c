@@ -393,10 +393,10 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 
         C(0x00000840 + headOff, 0);
         C(0x00000844 + headOff, 0);
-        if(pNv->_Chipset != 0x50)
+        if(pNv->NVArch != 0x50)
             C(0x0000085C + headOff, 0);
         C(0x00000874 + headOff, 0);
-        if(pNv->_Chipset != 0x50)
+        if(pNv->NVArch != 0x50)
             C(0x0000089C + headOff, 0);
     } else {
         C(0x00000860 + headOff, pNv->FB->offset >> 8);
@@ -409,13 +409,13 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
         pNv->REGS[0x00610388/4] = 0x150000;
         pNv->REGS[0x0061038C/4] = 0;
         C(0x00000884 + headOff, pNv->Cursor->offset >> 8);
-        if(pNv->_Chipset != 0x50)
+        if(pNv->NVArch != 0x50)
             C(0x0000089C + headOff, 1);
         if(pPriv->cursorVisible)
             NV50CrtcShowHideCursor(crtc, TRUE, FALSE);
         C(0x00000840 + headOff, pScrn->depth == 8 ? 0x80000000 : 0xc0000000);
         C(0x00000844 + headOff, pNv->CLUT->offset >> 8);
-        if(pNv->_Chipset != 0x50)
+        if(pNv->NVArch != 0x50)
             C(0x0000085C + headOff, 1);
         C(0x00000874 + headOff, 1);
     }

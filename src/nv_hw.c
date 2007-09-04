@@ -699,6 +699,20 @@ void nv30UpdateArbitrationSettings (NVPtr pNv,
     *lwm = graphics_lwm >> 3;
 }
 
+#ifdef XSERVER_LIBPCIACCESS
+
+struct pci_device GetDeviceByPCITAG(uint32_t bus, uint32_t dev, uint32_t func)
+{
+	const struct pci_slot_match match[] = { {0, bus, dev, func, 0} };
+	struct pci_device_iterator *iterator = pci_slot_match_iterator_create(&match);
+	/* assume one device to exist */
+	struct pci_device *device = pci_device_next(iterator);
+
+	return *device;
+}
+
+#endif /* XSERVER_LIBPCIACCESS */
+
 void nForceUpdateArbitrationSettings (unsigned VClk,
 				      unsigned      pixelDepth,
 				      unsigned     *burst,
@@ -710,14 +724,30 @@ void nForceUpdateArbitrationSettings (unsigned VClk,
     nv10_sim_state sim_data;
     unsigned int M, N, P, pll, MClk, NVClk, memctrl;
 
+#ifdef XSERVER_LIBPCIACCESS
+	struct pci_device tmp;
+#endif /* XSERVER_LIBPCIACCESS */
+
     if((pNv->Chipset & 0x0FF0) == CHIPSET_NFORCE) {
        unsigned int uMClkPostDiv;
 
-       uMClkPostDiv = (pciReadLong(pciTag(0, 0, 3), 0x6C) >> 8) & 0xf;
+#ifdef XSERVER_LIBPCIACCESS
+	tmp = GetDeviceByPCITAG(0, 0, 3);
+	PCI_DEV_READ_LONG(&tmp, 0x6C, &uMClkPostDiv);
+	uMClkPostDiv = (uMClkPostDiv >> 8) & 0xf;
+#else
+	uMClkPostDiv = (pciReadLong(pciTag(0, 0, 3), 0x6C) >> 8) & 0xf;
+#endif /* XSERVER_LIBPCIACCESS */
        if(!uMClkPostDiv) uMClkPostDiv = 4; 
        MClk = 400000 / uMClkPostDiv;
     } else {
-       MClk = pciReadLong(pciTag(0, 0, 5), 0x4C) / 1000;
+#ifdef XSERVER_LIBPCIACCESS
+	tmp = GetDeviceByPCITAG(0, 0, 5);
+	PCI_DEV_READ_LONG(&tmp, 0x4C, &MClk);
+	MClk /= 1000;
+#else
+	MClk = pciReadLong(pciTag(0, 0, 5), 0x4C) / 1000;
+#endif /* XSERVER_LIBPCIACCESS */
     }
 
     pll = nvReadRAMDAC0(pNv, NV_RAMDAC_NVPLL);
@@ -726,17 +756,40 @@ void nForceUpdateArbitrationSettings (unsigned VClk,
     sim_data.pix_bpp        = (char)pixelDepth;
     sim_data.enable_video   = 0;
     sim_data.enable_mp      = 0;
-    sim_data.memory_type    = (pciReadLong(pciTag(0, 0, 1), 0x7C) >> 12) & 1;
+#ifdef XSERVER_LIBPCIACCESS
+	tmp = GetDeviceByPCITAG(0, 0, 1);
+	PCI_DEV_READ_LONG(&tmp, 0x7C, &(sim_data.memory_type));
+	sim_data.memory_type = (sim_data.memory_type >> 12) & 1;
+#else
+	sim_data.memory_type = (pciReadLong(pciTag(0, 0, 1), 0x7C) >> 12) & 1;
+#endif /* XSERVER_LIBPCIACCESS */
     sim_data.memory_width   = 64;
 
-    memctrl = pciReadLong(pciTag(0, 0, 3), 0x00) >> 16;
+#ifdef XSERVER_LIBPCIACCESS
+	/* This offset is 0, is this even usefull? */
+	tmp = GetDeviceByPCITAG(0, 0, 3);
+	PCI_DEV_READ_LONG(&tmp, 0x00, &memctrl);
+	memctrl >>= 16;
+#else
+	memctrl = pciReadLong(pciTag(0, 0, 3), 0x00) >> 16;
+#endif /* XSERVER_LIBPCIACCESS */
 
     if((memctrl == 0x1A9) || (memctrl == 0x1AB) || (memctrl == 0x1ED)) {
         int dimm[3];
-
-        dimm[0] = (pciReadLong(pciTag(0, 0, 2), 0x40) >> 8) & 0x4F;
-        dimm[1] = (pciReadLong(pciTag(0, 0, 2), 0x44) >> 8) & 0x4F;
-        dimm[2] = (pciReadLong(pciTag(0, 0, 2), 0x48) >> 8) & 0x4F;
+#ifdef XSERVER_LIBPCIACCESS
+	tmp = GetDeviceByPCITAG(0, 0, 2);
+	PCI_DEV_READ_LONG(&tmp, 0x40, &dimm[0]);
+	PCI_DEV_READ_LONG(&tmp, 0x44, &dimm[1]);
+	PCI_DEV_READ_LONG(&tmp, 0x48, &dimm[2]);
+	int i;
+	for (i = 0; i < 3; i++) {
+		dimm[i] = (dimm[i] >> 8) & 0x4F;
+	}
+#else
+	dimm[0] = (pciReadLong(pciTag(0, 0, 2), 0x40) >> 8) & 0x4F;
+	dimm[1] = (pciReadLong(pciTag(0, 0, 2), 0x44) >> 8) & 0x4F;
+	dimm[2] = (pciReadLong(pciTag(0, 0, 2), 0x48) >> 8) & 0x4F;
+#endif
 
         if((dimm[0] + dimm[1]) != dimm[2]) {
              ErrorF("WARNING: "

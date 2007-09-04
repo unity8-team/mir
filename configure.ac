@@ -71,6 +71,15 @@ PKG_CHECK_MODULES(XORG, [xorg-server >= 1.1] xproto fontsproto libdrm xf86dripro
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
 # Checks for libraries.
+AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
+		[XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
+		[#include "xorg/xorg-server.h"])
+
+if test x$XSERVER_LIBPCIACCESS = xyes; then
+	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.8.0])
+fi
+
+AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
 
 # Checks for header files.
 AC_HEADER_STDC

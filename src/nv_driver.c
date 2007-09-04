@@ -44,7 +44,9 @@ Bool    RivaGetScrnInfoRec(PciChipsets *chips, int chip);*/
 /* Mandatory functions */
 static const OptionInfoRec * NVAvailableOptions(int chipid, int busid);
 static void    NVIdentify(int flags);
+#ifndef XSERVER_LIBPCIACCESS
 static Bool    NVProbe(DriverPtr drv, int flags);
+#endif /* XSERVER_LIBPCIACCESS */
 static Bool    NVPreInit(ScrnInfoPtr pScrn, int flags);
 static Bool    NVScreenInit(int Index, ScreenPtr pScreen, int argc,
                             char **argv);
@@ -70,6 +72,23 @@ static void	NVSave(ScrnInfoPtr pScrn);
 static void	NVRestore(ScrnInfoPtr pScrn);
 static Bool	NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
 
+#ifdef XSERVER_LIBPCIACCESS
+
+#define NOUVEAU_PCI_DEVICE(_vendor_id, _device_id) \
+	{ (_vendor_id), (_device_id), PCI_MATCH_ANY, PCI_MATCH_ANY, 0x00030000, 0x00ffffff, 0 }
+
+static const struct pci_id_match nouveau_device_match[] = {
+	NOUVEAU_PCI_DEVICE(PCI_VENDOR_NVIDIA, PCI_MATCH_ANY),
+	NOUVEAU_PCI_DEVICE(PCI_VENDOR_NVIDIA_SGS, PCI_MATCH_ANY),
+	{ 0, 0, 0 },
+};
+
+static Bool NVPciProbe (	DriverPtr 		drv,
+				int 			entity_num,
+				struct pci_device	*dev,
+				intptr_t		match_data	);
+
+#endif /* XSERVER_LIBPCIACCESS */
 
 /*
  * This contains the functions needed by the server after loading the
@@ -80,13 +99,22 @@ static Bool	NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
  */
 
 _X_EXPORT DriverRec NV = {
-        NV_VERSION,
+	NV_VERSION,
 	NV_DRIVER_NAME,
-        NVIdentify,
-        NVProbe,
+	NVIdentify,
+#ifdef XSERVER_LIBPCIACCESS
+	NULL,
+#else
+	NVProbe,
+#endif /* XSERVER_LIBPCIACCESS */
 	NVAvailableOptions,
-        NULL,
-        0
+	NULL,
+	0,
+	NULL,
+#ifdef XSERVER_LIBPCIACCESS
+	nouveau_device_match,
+	NVPciProbe
+#endif /* XSERVER_LIBPCIACCESS */
 };
 
 struct NvFamily
@@ -110,252 +138,6 @@ static struct NvFamily NVKnownFamilies[] =
   { "GeForce 8",   "G8x" },
   { NULL, NULL}
 };
-
-/* Known cards as of 2006/06/16 */
-
-static SymTabRec NVKnownChipsets[] =
-{
-  { 0x12D20018, "RIVA 128" },
-  { 0x12D20019, "RIVA 128ZX" },
-
-  { 0x10DE0020, "RIVA TNT" },
-
-  { 0x10DE0028, "RIVA TNT2" },
-  { 0x10DE002A, "Unknown TNT2" },
-  { 0x10DE002C, "Vanta" },
-  { 0x10DE0029, "RIVA TNT2 Ultra" },
-  { 0x10DE002D, "RIVA TNT2 Model 64" },
-
-  { 0x10DE00A0, "Aladdin TNT2" },
-
-  { 0x10DE0100, "GeForce 256" },
-  { 0x10DE0101, "GeForce DDR" },
-  { 0x10DE0103, "Quadro" },
-
-  { 0x10DE0110, "GeForce2 MX/MX 400" },
-  { 0x10DE0111, "GeForce2 MX 100/200" },
-  { 0x10DE0112, "GeForce2 Go" },
-  { 0x10DE0113, "Quadro2 MXR/EX/Go" },
-
-  { 0x10DE01A0, "GeForce2 Integrated GPU" },
-
-  { 0x10DE0150, "GeForce2 GTS" },
-  { 0x10DE0151, "GeForce2 Ti" },
-  { 0x10DE0152, "GeForce2 Ultra" },
-  { 0x10DE0153, "Quadro2 Pro" },
-
-  { 0x10DE0170, "GeForce4 MX 460" },
-  { 0x10DE0171, "GeForce4 MX 440" },
-  { 0x10DE0172, "GeForce4 MX 420" },
-  { 0x10DE0173, "GeForce4 MX 440-SE" },
-  { 0x10DE0174, "GeForce4 440 Go" },
-  { 0x10DE0175, "GeForce4 420 Go" },
-  { 0x10DE0176, "GeForce4 420 Go 32M" },
-  { 0x10DE0177, "GeForce4 460 Go" },
-  { 0x10DE0178, "Quadro4 550 XGL" },
-#if defined(__powerpc__)
-  { 0x10DE0179, "GeForce4 MX (Mac)" },
-#else
-  { 0x10DE0179, "GeForce4 440 Go 64M" },
-#endif
-  { 0x10DE017A, "Quadro NVS" },
-  { 0x10DE017C, "Quadro4 500 GoGL" },
-  { 0x10DE017D, "GeForce4 410 Go 16M" },
-
-  { 0x10DE0181, "GeForce4 MX 440 with AGP8X" },
-  { 0x10DE0182, "GeForce4 MX 440SE with AGP8X" },
-  { 0x10DE0183, "GeForce4 MX 420 with AGP8X" },
-  { 0x10DE0185, "GeForce4 MX 4000" },
-  { 0x10DE0186, "GeForce4 448 Go" },
-  { 0x10DE0187, "GeForce4 488 Go" },
-  { 0x10DE0188, "Quadro4 580 XGL" },
-#if defined(__powerpc__)
-  { 0x10DE0189, "GeForce4 MX with AGP8X (Mac)" },
-#endif
-  { 0x10DE018A, "Quadro4 NVS 280 SD" },
-  { 0x10DE018B, "Quadro4 380 XGL" },
-  { 0x10DE018C, "Quadro NVS 50 PCI" },
-  { 0x10DE018D, "GeForce4 448 Go" },
-
-  { 0x10DE01F0, "GeForce4 MX Integrated GPU" },
-
-  { 0x10DE0200, "GeForce3" },
-  { 0x10DE0201, "GeForce3 Ti 200" },
-  { 0x10DE0202, "GeForce3 Ti 500" },
-  { 0x10DE0203, "Quadro DCC" },
-
-  { 0x10DE0250, "GeForce4 Ti 4600" },
-  { 0x10DE0251, "GeForce4 Ti 4400" },
-  { 0x10DE0253, "GeForce4 Ti 4200" },
-  { 0x10DE0258, "Quadro4 900 XGL" },
-  { 0x10DE0259, "Quadro4 750 XGL" },
-  { 0x10DE025B, "Quadro4 700 XGL" },
-
-  { 0x10DE0280, "GeForce4 Ti 4800" },
-  { 0x10DE0281, "GeForce4 Ti 4200 with AGP8X" },
-  { 0x10DE0282, "GeForce4 Ti 4800 SE" },
-  { 0x10DE0286, "GeForce4 4200 Go" },
-  { 0x10DE028C, "Quadro4 700 GoGL" },
-  { 0x10DE0288, "Quadro4 980 XGL" },
-  { 0x10DE0289, "Quadro4 780 XGL" },
-
-  { 0x10DE0301, "GeForce FX 5800 Ultra" },
-  { 0x10DE0302, "GeForce FX 5800" },
-  { 0x10DE0308, "Quadro FX 2000" },
-  { 0x10DE0309, "Quadro FX 1000" },
-
-  { 0x10DE0311, "GeForce FX 5600 Ultra" },
-  { 0x10DE0312, "GeForce FX 5600" },
-  { 0x10DE0314, "GeForce FX 5600XT" },
-  { 0x10DE031A, "GeForce FX Go5600" },
-  { 0x10DE031B, "GeForce FX Go5650" },
-  { 0x10DE031C, "Quadro FX Go700" },
-
-  { 0x10DE0320, "GeForce FX 5200" },
-  { 0x10DE0321, "GeForce FX 5200 Ultra" },
-  { 0x10DE0322, "GeForce FX 5200" },
-  { 0x10DE0323, "GeForce FX 5200LE" },
-  { 0x10DE0324, "GeForce FX Go5200" },
-  { 0x10DE0325, "GeForce FX Go5250" },
-  { 0x10DE0326, "GeForce FX 5500" },
-  { 0x10DE0327, "GeForce FX 5100" },
-  { 0x10DE0328, "GeForce FX Go5200 32M/64M" },
-#if defined(__powerpc__)
-  { 0x10DE0329, "GeForce FX 5200 (Mac)" },
-#endif
-  { 0x10DE032A, "Quadro NVS 55/280 PCI" },
-  { 0x10DE032B, "Quadro FX 500/600 PCI" },
-  { 0x10DE032C, "GeForce FX Go53xx Series" },
-  { 0x10DE032D, "GeForce FX Go5100" },
-
-  { 0x10DE0330, "GeForce FX 5900 Ultra" },
-  { 0x10DE0331, "GeForce FX 5900" },
-  { 0x10DE0332, "GeForce FX 5900XT" },
-  { 0x10DE0333, "GeForce FX 5950 Ultra" },
-  { 0x10DE0334, "GeForce FX 5900ZT" },
-  { 0x10DE0338, "Quadro FX 3000" },
-  { 0x10DE033F, "Quadro FX 700" },
-
-  { 0x10DE0341, "GeForce FX 5700 Ultra" },
-  { 0x10DE0342, "GeForce FX 5700" },
-  { 0x10DE0343, "GeForce FX 5700LE" },
-  { 0x10DE0344, "GeForce FX 5700VE" },
-  { 0x10DE0347, "GeForce FX Go5700" },
-  { 0x10DE0348, "GeForce FX Go5700" },
-  { 0x10DE034C, "Quadro FX Go1000" },
-  { 0x10DE034E, "Quadro FX 1100" },
-
-  { 0x10DE0040, "GeForce 6800 Ultra" },
-  { 0x10DE0041, "GeForce 6800" },
-  { 0x10DE0042, "GeForce 6800 LE" },
-  { 0x10DE0043, "GeForce 6800 XE" },
-  { 0x10DE0044, "GeForce 6800 XT" },
-  { 0x10DE0045, "GeForce 6800 GT" },
-  { 0x10DE0046, "GeForce 6800 GT" },
-  { 0x10DE0047, "GeForce 6800 GS" },
-  { 0x10DE0048, "GeForce 6800 XT" },
-  { 0x10DE004E, "Quadro FX 4000" },
-
-  { 0x10DE00C0, "GeForce 6800 GS" },
-  { 0x10DE00C1, "GeForce 6800" },
-  { 0x10DE00C2, "GeForce 6800 LE" },
-  { 0x10DE00C3, "GeForce 6800 XT" },
-  { 0x10DE00C8, "GeForce Go 6800" },
-  { 0x10DE00C9, "GeForce Go 6800 Ultra" },
-  { 0x10DE00CC, "Quadro FX Go1400" },
-  { 0x10DE00CD, "Quadro FX 3450/4000 SDI" },
-  { 0x10DE00CE, "Quadro FX 1400" },
-
-  { 0x10DE0140, "GeForce 6600 GT" },
-  { 0x10DE0141, "GeForce 6600" },
-  { 0x10DE0142, "GeForce 6600 LE" },
-  { 0x10DE0143, "GeForce 6600 VE" },
-  { 0x10DE0144, "GeForce Go 6600" },
-  { 0x10DE0145, "GeForce 6610 XL" },
-  { 0x10DE0146, "GeForce Go 6600 TE/6200 TE" },
-  { 0x10DE0147, "GeForce 6700 XL" },
-  { 0x10DE0148, "GeForce Go 6600" },
-  { 0x10DE0149, "GeForce Go 6600 GT" },
-  { 0x10DE014C, "Quadro FX 550" },
-  { 0x10DE014D, "Quadro FX 550" },
-  { 0x10DE014E, "Quadro FX 540" },
-  { 0x10DE014F, "GeForce 6200" },
-
-  { 0x10DE0160, "GeForce 6500" },
-  { 0x10DE0161, "GeForce 6200 TurboCache(TM)" },
-  { 0x10DE0162, "GeForce 6200SE TurboCache(TM)" },
-  { 0x10DE0163, "GeForce 6200 LE" },
-  { 0x10DE0164, "GeForce Go 6200" },
-  { 0x10DE0165, "Quadro NVS 285" },
-  { 0x10DE0166, "GeForce Go 6400" },
-  { 0x10DE0167, "GeForce Go 6200" },
-  { 0x10DE0168, "GeForce Go 6400" },
-  { 0x10DE0169, "GeForce 6250" },
-
-  { 0x10DE0211, "GeForce 6800" },
-  { 0x10DE0212, "GeForce 6800 LE" },
-  { 0x10DE0215, "GeForce 6800 GT" },
-  { 0x10DE0218, "GeForce 6800 XT" },
-
-  { 0x10DE0221, "GeForce 6200" },
-  { 0x10DE0222, "GeForce 6200 A-LE" },
-
-  { 0x10DE0090, "GeForce 7800 GTX" },
-  { 0x10DE0091, "GeForce 7800 GTX" },
-  { 0x10DE0092, "GeForce 7800 GT" },
-  { 0x10DE0093, "GeForce 7800 GS" },
-  { 0x10DE0095, "GeForce 7800 SLI" },
-  { 0x10DE0098, "GeForce Go 7800" },
-  { 0x10DE0099, "GeForce Go 7800 GTX" },
-  { 0x10DE009D, "Quadro FX 4500" },
-
-  { 0x10DE01D1, "GeForce 7300 LE" },
-  { 0x10DE01D3, "GeForce 7300 SE" },
-  { 0x10DE01D6, "GeForce Go 7200" },
-  { 0x10DE01D7, "GeForce Go 7300" },
-  { 0x10DE01D8, "GeForce Go 7400" },
-  { 0x10DE01D9, "GeForce Go 7400 GS" },
-  { 0x10DE01DA, "Quadro NVS 110M" },
-  { 0x10DE01DB, "Quadro NVS 120M" },
-  { 0x10DE01DC, "Quadro FX 350M" },
-  { 0x10DE01DD, "GeForce 7500 LE" },
-  { 0x10DE01DE, "Quadro FX 350" },
-  { 0x10DE01DF, "GeForce 7300 GS" },
-
-  { 0x10DE0391, "GeForce 7600 GT" },
-  { 0x10DE0392, "GeForce 7600 GS" },
-  { 0x10DE0393, "GeForce 7300 GT" },
-  { 0x10DE0394, "GeForce 7600 LE" },
-  { 0x10DE0395, "GeForce 7300 GT" },
-  { 0x10DE0397, "GeForce Go 7700" },
-  { 0x10DE0398, "GeForce Go 7600" },
-  { 0x10DE0399, "GeForce Go 7600 GT"},
-  { 0x10DE039A, "Quadro NVS 300M" },
-  { 0x10DE039B, "GeForce Go 7900 SE" },
-  { 0x10DE039C, "Quadro FX 550M" },
-  { 0x10DE039E, "Quadro FX 560" },
-
-  { 0x10DE0290, "GeForce 7900 GTX" },
-  { 0x10DE0291, "GeForce 7900 GT" },
-  { 0x10DE0292, "GeForce 7900 GS" },
-  { 0x10DE0298, "GeForce Go 7900 GS" },
-  { 0x10DE0299, "GeForce Go 7900 GTX" },
-  { 0x10DE029A, "Quadro FX 2500M" },
-  { 0x10DE029B, "Quadro FX 1500M" },
-  { 0x10DE029C, "Quadro FX 5500" },
-  { 0x10DE029D, "Quadro FX 3500" },
-  { 0x10DE029E, "Quadro FX 1500" },
-  { 0x10DE029F, "Quadro FX 4500 X2" },
-
-  { 0x10DE0240, "GeForce 6150" },
-  { 0x10DE0241, "GeForce 6150 LE" },
-  { 0x10DE0242, "GeForce 6100" },
-  { 0x10DE0244, "GeForce Go 6150" },
-  { 0x10DE0247, "GeForce Go 6100" },
-
-  {-1, NULL}
-};
-
 
 /*
  * List of symbols from other modules that this module references.  This
@@ -546,39 +328,41 @@ NVFreeRec(ScrnInfoPtr pScrn)
 static pointer
 nouveauSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 {
-    static Bool setupDone = FALSE;
+	static Bool setupDone = FALSE;
 
-    /* This module should be loaded only once, but check to be sure. */
+	/* This module should be loaded only once, but check to be sure. */
 
-    if (!setupDone) {
-        setupDone = TRUE;
-        xf86AddDriver(&NV, module, 0);
+	if (!setupDone) {
+		setupDone = TRUE;
+		/* The 1 here is needed to turn off a backwards compatibility mode */
+		/* Otherwise NVPciProbe() is not called */
+		xf86AddDriver(&NV, module, 1);
 
-        /*
-         * Modules that this driver always requires may be loaded here
-         * by calling LoadSubModule().
-         */
-        /*
-         * Tell the loader about symbols from other modules that this module
-         * might refer to.
-         */
-        LoaderRefSymLists(vgahwSymbols, xaaSymbols, exaSymbols, fbSymbols,
+		/*
+		 * Modules that this driver always requires may be loaded here
+		 * by calling LoadSubModule().
+		 */
+		/*
+		 * Tell the loader about symbols from other modules that this module
+		 * might refer to.
+		 */
+		LoaderRefSymLists(vgahwSymbols, xaaSymbols, exaSymbols, fbSymbols,
 #ifdef XF86DRI
-                          drmSymbols, 
+				drmSymbols, 
 #endif
-                          ramdacSymbols, shadowSymbols, rivaSymbols,
-                          i2cSymbols, ddcSymbols, vbeSymbols,
-                          int10Symbols, NULL);
+				ramdacSymbols, shadowSymbols, rivaSymbols,
+				i2cSymbols, ddcSymbols, vbeSymbols,
+				int10Symbols, NULL);
 
-        /*
-         * The return value must be non-NULL on success even though there
-         * is no TearDownProc.
-         */
-        return (pointer)1;
-    } else {
-        if (errmaj) *errmaj = LDR_ONCEONLY;
-        return NULL;
-    }
+		/*
+		 * The return value must be non-NULL on success even though there
+		 * is no TearDownProc.
+		 */
+		return (pointer)1;
+	} else {
+		if (errmaj) *errmaj = LDR_ONCEONLY;
+		return NULL;
+	}
 }
 
 static const OptionInfoRec *
@@ -644,7 +428,11 @@ NVGetScrnInfoRec(PciChipsets *chips, int chip)
     pScrn->driverName       = NV_DRIVER_NAME;
     pScrn->name             = NV_NAME;
 
-    pScrn->Probe            = NVProbe;
+#ifndef XSERVER_LIBPCIACCESS
+	pScrn->Probe = NVProbe;
+#else
+	pScrn->Probe = NULL;
+#endif
     pScrn->PreInit          = NVPreInit;
     pScrn->ScreenInit       = NVScreenInit;
     pScrn->SwitchMode       = NVSwitchMode;
@@ -657,161 +445,216 @@ NVGetScrnInfoRec(PciChipsets *chips, int chip)
     return TRUE;
 }
 
-#define MAX_CHIPS MAXSCREENS
-
-
-static CARD32 
-NVGetPCIXpressChip (pciVideoPtr pVideo)
+/* This returns architecture in hexdecimal, so NV40 is 0x40 */
+static char NVGetArchitecture (volatile CARD32 *regs)
 {
-    volatile CARD32 *regs;
-    CARD32 pciid, pcicmd;
-    PCITAG Tag = ((pciConfigPtr)(pVideo->thisCard))->tag;
+	char architecture = 0;
 
-    pcicmd = pciReadLong(Tag, PCI_CMD_STAT_REG);
-    pciWriteLong(Tag, PCI_CMD_STAT_REG, pcicmd | PCI_CMD_MEM_ENABLE);
-    
-    regs = xf86MapPciMem(-1, VIDMEM_MMIO, Tag, pVideo->memBase[0], 0x2000);
+	/* We're dealing with >=NV10 */
+	if ((regs[0] & 0x0f000000) > 0 ) {
+		/* Bit 27-20 contain the architecture in hex */
+		architecture = (regs[0] & 0xff00000) >> 20;
+	/* NV04 or NV05 */
+	} else if ((regs[0] & 0xff00fff0) == 0x20004000) {
+		architecture = 0x04;
+	}
 
-    pciid = regs[0x1800/4];
-
-    xf86UnMapVidMem(-1, (pointer)regs, 0x2000);
-
-    pciWriteLong(Tag, PCI_CMD_STAT_REG, pcicmd);
-
-    if((pciid & 0x0000ffff) == 0x000010DE) 
-       pciid = 0x10DE0000 | (pciid >> 16);
-    else 
-    if((pciid & 0xffff0000) == 0xDE100000) /* wrong endian */
-       pciid = 0x10DE0000 | ((pciid << 8) & 0x0000ff00) |
-                            ((pciid >> 8) & 0x000000ff);
-
-    return pciid;
+	return architecture;
 }
 
+/* Reading the pci_id from the card registers is the most reliable way */
+static CARD32 NVGetPCIID (volatile CARD32 *regs)
+{
+	CARD32 pci_id;
 
+	char architecture = NVGetArchitecture(regs);
+
+	/* Dealing with an unknown or unsupported card */
+	if (architecture == 0) {
+		return 0;
+	}
+
+	if (architecture >= 0x04 && architecture <= 0x4F) {
+		pci_id = regs[0x1800/4];
+	} else if (architecture >= 0x50 && architecture <= 0x5F) {
+		pci_id = regs[0x88000/4];
+	} else {
+		return 0;
+	}
+
+	/* A pci-id can be inverted, we must correct this */
+	if ((pci_id & 0xffff) == PCI_VENDOR_NVIDIA) {
+		pci_id = (PCI_VENDOR_NVIDIA << 16) | (pci_id >> 16);
+	} else if ((pci_id & 0xffff) == PCI_VENDOR_NVIDIA_SGS) {
+		pci_id = (PCI_VENDOR_NVIDIA_SGS << 16) | (pci_id >> 16);
+	/* Checking endian issues */
+	} else {
+		/* PCI_VENDOR_NVIDIA = 0x10DE */
+		if ((pci_id & (0xffff << 16)) == (0xDE10 << 16)) { /* wrong endian */
+			pci_id = (PCI_VENDOR_NVIDIA << 16) | ((pci_id << 8) & 0x0000ff00) |
+				((pci_id >> 8) & 0x000000ff);
+		/* PCI_VENDOR_NVIDIA_SGS = 0x12D2 */
+		} else if ((pci_id & (0xffff << 16)) == (0xD212 << 16)) { /* wrong endian */
+			pci_id = (PCI_VENDOR_NVIDIA_SGS << 16) | ((pci_id << 8) & 0x0000ff00) |
+				((pci_id >> 8) & 0x000000ff);
+		}
+	}
+
+	return pci_id;
+}
+
+#ifdef XSERVER_LIBPCIACCESS
+
+static Bool NVPciProbe (	DriverPtr 		drv,
+				int 			entity_num,
+				struct pci_device	*dev,
+				intptr_t		match_data	)
+{
+	ScrnInfoPtr pScrn = NULL;
+
+	volatile CARD32 *regs = NULL;
+
+	/* Temporary mapping to discover the architecture */
+	pci_device_map_memory_range(dev, PCI_DEV_MEM_BASE(dev, 0), 0x90000, FALSE, &regs);
+
+	/* Bit 27-20 contain the architecture in hex */
+	char architecture = (regs[0] & 0xff00000) >> 20;
+
+	CARD32 pci_id = NVGetPCIID(regs);
+
+	pci_device_unmap_memory_range(dev, regs, 0x90000);
+
+	/* Currently NV04 up to NV83 is supported */
+	/* For safety the fictional NV8F is used */
+	if (architecture >= 0x04 && architecture <= 0x8F) {
+
+		/* At this stage the pci_id should be ok, so we generate this to avoid list duplication */
+		const PciChipsets NVChipsets[] = {
+			{ pci_id, pci_id, RES_SHARED_VGA },
+			{ -1, -1, RES_UNDEFINED }
+		};
+
+		pScrn = xf86ConfigPciEntity(pScrn, 0, entity_num, NVChipsets, 
+						NULL, NULL, NULL, NULL, NULL);
+
+		if (pScrn != NULL) {
+			pScrn->driverVersion    = NV_VERSION;
+			pScrn->driverName       = NV_DRIVER_NAME;
+			pScrn->name             = NV_NAME;
+
+			pScrn->Probe            = NULL;
+			pScrn->PreInit          = NVPreInit;
+			pScrn->ScreenInit       = NVScreenInit;
+			pScrn->SwitchMode       = NVSwitchMode;
+			pScrn->AdjustFrame      = NVAdjustFrame;
+			pScrn->EnterVT          = NVEnterVT;
+			pScrn->LeaveVT          = NVLeaveVT;
+			pScrn->FreeScreen       = NVFreeScreen;
+			pScrn->ValidMode        = NVValidMode;
+
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+#endif /* XSERVER_LIBPCIACCESS */
+
+#define MAX_CHIPS MAXSCREENS
+
+#ifndef XSERVER_LIBPCIACCESS
 /* Mandatory */
 static Bool
 NVProbe(DriverPtr drv, int flags)
 {
-    int i;
-    GDevPtr *devSections;
-    int *usedChips;
-    SymTabRec NVChipsets[MAX_CHIPS + 1];
-    PciChipsets NVPciChipsets[MAX_CHIPS + 1];
-    pciVideoPtr *ppPci;
-    int numDevSections;
-    int numUsed;
-    Bool foundScreen = FALSE;
+	int i;
+	GDevPtr *devSections;
+	int *usedChips;
+	SymTabRec NVChipsets[MAX_CHIPS + 1];
+	PciChipsets NVPciChipsets[MAX_CHIPS + 1];
+	pciVideoPtr *ppPci;
+	int numDevSections;
+	int numUsed;
+	Bool foundScreen = FALSE;
 
+	if ((numDevSections = xf86MatchDevice(NV_DRIVER_NAME, &devSections)) <= 0) 
+		return FALSE;  /* no matching device section */
 
-    if ((numDevSections = xf86MatchDevice(NV_DRIVER_NAME, &devSections)) <= 0) 
-        return FALSE;  /* no matching device section */
+	if (!(ppPci = xf86GetPciVideoInfo())) 
+		return FALSE;  /* no PCI cards found */
 
-    if (!(ppPci = xf86GetPciVideoInfo())) 
-        return FALSE;  /* no PCI cards found */
+	numUsed = 0;
 
-    numUsed = 0;
+	/* Create the NVChipsets and NVPciChipsets from found devices */
+	while (*ppPci && (numUsed < MAX_CHIPS)) {
+		if (((*ppPci)->vendor == PCI_VENDOR_NVIDIA_SGS) || 
+			((*ppPci)->vendor == PCI_VENDOR_NVIDIA)) 
+		{
+			volatile CARD32 *regs;
+			CARD32 pcicmd;
 
-    /* Create the NVChipsets and NVPciChipsets from found devices */
-    while (*ppPci && (numUsed < MAX_CHIPS)) {
-        if(((*ppPci)->vendor == PCI_VENDOR_NVIDIA_SGS) || 
-           ((*ppPci)->vendor == PCI_VENDOR_NVIDIA)) 
-        {
-            SymTabRec *nvchips = NVKnownChipsets;
-            int pciid = ((*ppPci)->vendor << 16) | (*ppPci)->chipType;
-            int token = pciid;
+			PCI_DEV_READ_LONG(*ppPci, PCI_CMD_STAT_REG, &pcicmd);
+			/* Enable reading memory? */
+			PCI_DEV_WRITE_LONG(*ppPci, PCI_CMD_STAT_REG, pcicmd | PCI_CMD_MEM_ENABLE);
 
-            if(((token & 0xfff0) == CHIPSET_MISC_BRIDGED) ||
-               ((token & 0xfff0) == CHIPSET_G73_BRIDGED))
-            {
-                token = NVGetPCIXpressChip(*ppPci);
-            }
+			regs = xf86MapPciMem(-1, VIDMEM_MMIO, PCI_DEV_TAG(*ppPci), PCI_DEV_MEM_BASE(*ppPci, 0), 0x90000);
+			int pciid = NVGetPCIID(regs);
 
-            while(nvchips->name) {
-               if(token == nvchips->token)
-                  break;
-               nvchips++;
-            }
+			char architecture = NVGetArchitecture(regs);
+			char name[25];
+			sprintf(name, "NVIDIA NV%02X", architecture);
+			/* NV04 upto NV83 is supported, NV8F is fictive limit */
+			if (architecture >= 0x04 && architecture <= 0x8F) {
+				NVChipsets[numUsed].token = pciid;
+				NVChipsets[numUsed].name = name;
+				NVPciChipsets[numUsed].numChipset = pciid; 
+				NVPciChipsets[numUsed].PCIid = pciid;
+				NVPciChipsets[numUsed].resList = RES_SHARED_VGA;
+				numUsed++;
+			}
+			xf86UnMapVidMem(-1, (pointer)regs, 0x90000);
 
-            if(nvchips->name) { /* found one */
-               NVChipsets[numUsed].token = pciid;
-               NVChipsets[numUsed].name = nvchips->name;
-               NVPciChipsets[numUsed].numChipset = pciid; 
-               NVPciChipsets[numUsed].PCIid = pciid;
-               NVPciChipsets[numUsed].resList = RES_SHARED_VGA;
-               numUsed++;
-            } else if ((*ppPci)->vendor == PCI_VENDOR_NVIDIA) {
-               /* look for a compatible devices which may be newer than 
-                  the NVKnownChipsets list above.  */
-               switch(token & 0xfff0) {
-               case CHIPSET_NV17:
-               case CHIPSET_NV18:
-               case CHIPSET_NV25:
-               case CHIPSET_NV28:
-               case CHIPSET_NV30:
-               case CHIPSET_NV31:
-               case CHIPSET_NV34:
-               case CHIPSET_NV35:
-               case CHIPSET_NV36:
-               case CHIPSET_NV40:
-               case CHIPSET_NV41:
-               case 0x0120:
-               case CHIPSET_NV43:
-               case CHIPSET_NV44:
-               case 0x0130:
-               case CHIPSET_G72:
-               case CHIPSET_G70:
-               case CHIPSET_NV45:
-               case CHIPSET_NV44A:
-               case 0x0230:
-               case CHIPSET_G71:
-               case CHIPSET_G73:
-               case CHIPSET_C512:
-               case CHIPSET_NV50:
-               case CHIPSET_NV84:
-                   NVChipsets[numUsed].token = pciid;
-                   NVChipsets[numUsed].name = "Unknown NVIDIA chip";
-                   NVPciChipsets[numUsed].numChipset = pciid;
-                   NVPciChipsets[numUsed].PCIid = pciid;
-                   NVPciChipsets[numUsed].resList = RES_SHARED_VGA;
-                   numUsed++;
-                   break;
-               default:  break;  /* we don't recognize it */
-               }
-            }
-        }
-        ppPci++;
-    }
+			/* Reset previous state */
+			PCI_DEV_WRITE_LONG(*ppPci, PCI_CMD_STAT_REG, pcicmd);
+		}
+		ppPci++;
+	}
 
-    /* terminate the list */
-    NVChipsets[numUsed].token = -1;
-    NVChipsets[numUsed].name = NULL; 
-    NVPciChipsets[numUsed].numChipset = -1;
-    NVPciChipsets[numUsed].PCIid = -1;
-    NVPciChipsets[numUsed].resList = RES_UNDEFINED;
+	/* terminate the list */
+	NVChipsets[numUsed].token = -1;
+	NVChipsets[numUsed].name = NULL; 
+	NVPciChipsets[numUsed].numChipset = -1;
+	NVPciChipsets[numUsed].PCIid = -1;
+	NVPciChipsets[numUsed].resList = RES_UNDEFINED;
 
-    numUsed = xf86MatchPciInstances(NV_NAME, 0, NVChipsets, NVPciChipsets,
-                                    devSections, numDevSections, drv,
-                                    &usedChips);
-                        
-    if (numUsed <= 0) 
-        return FALSE;
+	numUsed = xf86MatchPciInstances(NV_NAME, 0, NVChipsets, NVPciChipsets,
+					devSections, numDevSections, drv,
+					&usedChips);
 
-    if (flags & PROBE_DETECT)
-	foundScreen = TRUE;
-    else for (i = 0; i < numUsed; i++) {
-        pciVideoPtr pPci;
+	if (numUsed <= 0) {
+		return FALSE;
+	}
 
-        pPci = xf86GetPciInfoForEntity(usedChips[i]);
-        if(NVGetScrnInfoRec(NVPciChipsets, usedChips[i])) 
-	    foundScreen = TRUE;
-    }
+	if (flags & PROBE_DETECT) {
+		foundScreen = TRUE;
+	} else {
+		for (i = 0; i < numUsed; i++) {
+			pciVideoPtr pPci;
 
-    xfree(devSections);
-    xfree(usedChips);
+			pPci = xf86GetPciInfoForEntity(usedChips[i]);
+			if (NVGetScrnInfoRec(NVPciChipsets, usedChips[i])) {
+				foundScreen = TRUE;
+			}
+		}
+	}
 
-    return foundScreen;
+	xfree(devSections);
+	xfree(usedChips);
+
+	return foundScreen;
 }
+#endif /* XSERVER_LIBPCIACCESS */
 
 /* Usually mandatory */
 Bool
@@ -1272,8 +1115,10 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
  
     /* Find the PCI info for this screen */
     pNv->PciInfo = xf86GetPciInfoForEntity(pNv->pEnt->index);
+#ifndef XSERVER_LIBPCIACCESS
     pNv->PciTag = pciTag(pNv->PciInfo->bus, pNv->PciInfo->device,
 			  pNv->PciInfo->func);
+#endif /* XSERVER_LIBPCIACCESS */
 
     pNv->Primary = xf86IsPrimaryPci(pNv->PciInfo);
 
@@ -1292,57 +1137,45 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     /* Set pScrn->monitor */
     pScrn->monitor = pScrn->confScreen->monitor;
 
-    /*
-     * Set the Chipset and ChipRev, allowing config file entries to
-     * override.
-     */
-    if (pNv->pEnt->device->chipset && *pNv->pEnt->device->chipset) {
-	pScrn->chipset = pNv->pEnt->device->chipset;
-        pNv->Chipset = xf86StringToToken(NVKnownChipsets, pScrn->chipset);
-        from = X_CONFIG;
-    } else if (pNv->pEnt->device->chipID >= 0) {
-	pNv->Chipset = pNv->pEnt->device->chipID;
-	pScrn->chipset = (char *)xf86TokenToString(NVKnownChipsets, 
-                                                   pNv->Chipset);
-	from = X_CONFIG;
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ChipID override: 0x%04X\n",
-		   pNv->Chipset);
-    } else {
-	from = X_PROBED;
-	pNv->Chipset = (pNv->PciInfo->vendor << 16) | pNv->PciInfo->chipType;
+	volatile CARD32 *regs = NULL;
+#ifdef XSERVER_LIBPCIACCESS
+	pci_device_map_memory_range(pNv->PciInfo, PCI_DEV_MEM_BASE(pNv->PciInfo, 0), 0x90000, FALSE, &regs);
+	pNv->Chipset = NVGetPCIID(regs) & 0xffff;
+	pNv->NVArch = NVGetArchitecture(regs);
+	pci_device_unmap_memory_range(pNv->PciInfo, regs, 0x90000);
+#else
+	CARD32 pcicmd;
+	PCI_DEV_READ_LONG(pNv->PciInfo, PCI_CMD_STAT_REG, &pcicmd);
+	/* Enable reading memory? */
+	PCI_DEV_WRITE_LONG(pNv->PciInfo, PCI_CMD_STAT_REG, pcicmd | PCI_CMD_MEM_ENABLE);
+	regs = xf86MapPciMem(-1, VIDMEM_MMIO, pNv->PciTag, PCI_DEV_MEM_BASE(pNv->PciInfo, 0), 0x90000);
+	pNv->Chipset = NVGetPCIID(regs) & 0xffff;
+	pNv->NVArch = NVGetArchitecture(regs);
+	xf86UnMapVidMem(-1, (pointer)regs, 0x90000);
+	/* Reset previous state */
+	PCI_DEV_WRITE_LONG(pNv->PciInfo, PCI_CMD_STAT_REG, pcicmd);
+#endif /* XSERVER_LIBPCIACCESS */
 
-        if(((pNv->Chipset & 0xfff0) == CHIPSET_MISC_BRIDGED) ||
-           ((pNv->Chipset & 0xfff0) == CHIPSET_G73_BRIDGED))
-        {
-            pNv->Chipset = NVGetPCIXpressChip(pNv->PciInfo);
-        }
+	pScrn->chipset = malloc(sizeof(char) * 25);
+	sprintf(pScrn->chipset, "NVIDIA NV%02X", pNv->NVArch);
 
-	pScrn->chipset = (char *)xf86TokenToString(NVKnownChipsets, 
-                                                   pNv->Chipset);
-        if(!pScrn->chipset)
-          pScrn->chipset = "Unknown NVIDIA chipset";
-    }
+	if(!pScrn->chipset) {
+		pScrn->chipset = "Unknown NVIDIA";
+	}
 
-    if (pNv->pEnt->device->chipRev >= 0) {
-	pNv->ChipRev = pNv->pEnt->device->chipRev;
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ChipRev override: %d\n",
-		   pNv->ChipRev);
-    } else {
-	pNv->ChipRev = pNv->PciInfo->chipRev;
-    }
+	/*
+	* This shouldn't happen because such problems should be caught in
+	* NVProbe(), but check it just in case.
+	*/
+	if (pScrn->chipset == NULL)
+		NVPreInitFail("ChipID 0x%04X is not recognised\n", pNv->Chipset);
 
-    /*
-     * This shouldn't happen because such problems should be caught in
-     * NVProbe(), but check it just in case.
-     */
-    if (pScrn->chipset == NULL)
-	NVPreInitFail("ChipID 0x%04X is not recognised\n", pNv->Chipset);
+	if (pNv->NVArch < 0x04)
+		NVPreInitFail("Chipset \"%s\" is not recognised\n", pScrn->chipset);
 
-    if (pNv->Chipset < 0)
-	NVPreInitFail("Chipset \"%s\" is not recognised\n", pScrn->chipset);
+	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Chipset: \"%s\"\n", pScrn->chipset);
 
-    xf86DrvMsg(pScrn->scrnIndex, from, "Chipset: \"%s\"\n", pScrn->chipset);
-    NVDetermineChipsetArch(pScrn);
+	NVDetermineChipsetArch(pScrn);
 
     /*
      * The first thing we should figure out is the depth, bpp, etc.
@@ -1577,8 +1410,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	pNv->VRAMPhysical = pNv->pEnt->device->MemBase;
 	from = X_CONFIG;
     } else {
-	if (pNv->PciInfo->memBase[1] != 0) {
-	    pNv->VRAMPhysical = pNv->PciInfo->memBase[1] & 0xff800000;
+	if (PCI_DEV_MEM_BASE(pNv->PciInfo, 1) != 0) {
+	    pNv->VRAMPhysical = PCI_DEV_MEM_BASE(pNv->PciInfo, 1) & 0xff800000;
 	    from = X_PROBED;
 	} else {
 	    NVPreInitFail("No valid FB address in PCI config space\n");
@@ -1597,8 +1430,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	pNv->IOAddress = pNv->pEnt->device->IOBase;
 	from = X_CONFIG;
     } else {
-	if (pNv->PciInfo->memBase[0] != 0) {
-	    pNv->IOAddress = pNv->PciInfo->memBase[0] & 0xffffc000;
+	if (PCI_DEV_MEM_BASE(pNv->PciInfo, 0) != 0) {
+	    pNv->IOAddress = PCI_DEV_MEM_BASE(pNv->PciInfo, 0) & 0xffffc000;
 	    from = X_PROBED;
 	} else {
 	    NVPreInitFail("No valid MMIO address in PCI config space\n");
@@ -1607,9 +1440,26 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     xf86DrvMsg(pScrn->scrnIndex, from, "MMIO registers at 0x%lX\n",
 	       (unsigned long)pNv->IOAddress);
      
-    if (xf86RegisterResources(pNv->pEnt->index, NULL, ResExclusive)) {
-	NVPreInitFail("xf86RegisterResources() found resource conflicts\n");
+	if (xf86RegisterResources(pNv->pEnt->index, NULL, ResExclusive)) {
+		NVPreInitFail("xf86RegisterResources() found resource conflicts\n");
     }
+	/* The highest architecture currently supported is NV5x */
+	if (pNv->NVArch >= 0x50) {
+		pNv->Architecture =  NV_ARCH_50;
+	} else if (pNv->NVArch >= 0x40) {
+		pNv->Architecture =  NV_ARCH_40;
+	} else if (pNv->NVArch >= 0x30) {
+		pNv->Architecture = NV_ARCH_30;
+	} else if (pNv->NVArch >= 0x20) {
+		pNv->Architecture = NV_ARCH_20;
+	} else if (pNv->NVArch >= 0x10) {
+		pNv->Architecture = NV_ARCH_10;
+	} else if (pNv->NVArch >= 0x04) {
+		pNv->Architecture = NV_ARCH_04;
+	/*  The lowest architecture currently supported is NV04 */
+	} else {
+		return FALSE;
+	}
 
     pNv->alphaCursor = (pNv->Architecture >= NV_ARCH_10) &&
                        ((pNv->Chipset & 0x0ff0) != CHIPSET_NV10);

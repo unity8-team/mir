@@ -73,5 +73,12 @@
 #include "nouveau_drm.h"
 #include "nouveau_reg.h"
 #include "nvreg.h"
+#include "nv_crtc.h"
+#include "nv_output.h"
+
+#include "nv50_display.h"
+#include "nv50_cursor.h"
+#include "nv50_output.h"
+#include "nv50_type.h"
 
 #endif /* __NV_INCLUDE_H__ */

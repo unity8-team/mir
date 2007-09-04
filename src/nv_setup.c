@@ -320,15 +320,33 @@ static void nv10GetConfig (NVPtr pNv)
     }
 #endif
 
-    if(implementation == CHIPSET_NFORCE) {
-        int amt = pciReadLong(pciTag(0, 0, 1), 0x7C);
-        pNv->RamAmountKBytes = (((amt >> 6) & 31) + 1) * 1024;
-    } else if(implementation == CHIPSET_NFORCE2) {
-        int amt = pciReadLong(pciTag(0, 0, 1), 0x84);
-        pNv->RamAmountKBytes = (((amt >> 4) & 127) + 1) * 1024;
-    } else {
-        pNv->RamAmountKBytes = (nvReadFB(pNv, 0x020C) & 0xFFF00000) >> 10;
-    }
+	if (implementation == CHIPSET_NFORCE) {
+		uint32_t amt;
+#ifdef XSERVER_LIBPCIACCESS
+		const struct pci_slot_match match[] = { {0, 0, 0, 1, 0} };
+		struct pci_device_iterator *iterator = pci_slot_match_iterator_create(&match);
+		/* assume one device to exist */
+		struct pci_device *device = pci_device_next(iterator);
+		PCI_DEV_READ_LONG(device, 0x7c, &amt);
+#else
+		amt = pciReadLong(pciTag(0, 0, 1), 0x7C);
+#endif /* XSERVER_LIBPCIACCESS */
+		pNv->RamAmountKBytes = (((amt >> 6) & 31) + 1) * 1024;
+	} else if (implementation == CHIPSET_NFORCE2) {
+		uint32_t amt; 
+#ifdef XSERVER_LIBPCIACCESS
+		const struct pci_slot_match match[] = { {0, 0, 0, 1, 0} };
+		struct pci_device_iterator *iterator = pci_slot_match_iterator_create(&match);
+		/* assume one device to exist */
+		struct pci_device *device = pci_device_next(iterator);
+		PCI_DEV_READ_LONG(device, 0x84, &amt);
+#else
+		amt = pciReadLong(pciTag(0, 0, 1), 0x84);
+#endif /* XSERVER_LIBPCIACCESS */
+		pNv->RamAmountKBytes = (((amt >> 4) & 127) + 1) * 1024;
+	} else {
+		pNv->RamAmountKBytes = (nvReadFB(pNv, 0x020C) & 0xFFF00000) >> 10;
+	}
 
     if(pNv->RamAmountKBytes > 256*1024)
         pNv->RamAmountKBytes = 256*1024;
@@ -385,10 +403,15 @@ NVCommonSetup(ScrnInfoPtr pScrn)
      */
     pVga->MMIOBase   = (CARD8 *)pNv;
     pVga->MMIOOffset = 0;
-    
-    pNv->REGS = xf86MapPciMem(pScrn->scrnIndex, 
-                              VIDMEM_MMIO | VIDMEM_READSIDEEFFECT, 
-                              pNv->PciTag, pNv->IOAddress, 0x01000000);
+
+#ifndef XSERVER_LIBPCIACCESS
+	pNv->REGS = xf86MapPciMem(pScrn->scrnIndex, 
+			VIDMEM_MMIO | VIDMEM_READSIDEEFFECT, 
+			pNv->PciTag, pNv->IOAddress, 0x01000000);
+#else
+	/* 0x01000000 is the size */
+	pci_device_map_memory_range(pNv->PciInfo, pNv->IOAddress, 0x01000000, TRUE, &(pNv->REGS));
+#endif /* XSERVER_LIBPCIACCESS */
 
     pNv->PRAMIN   = pNv->REGS + (NV_PRAMIN_OFFSET/4);
     pNv->PCRTC0   = pNv->REGS + (NV_PCRTC0_OFFSET/4);
