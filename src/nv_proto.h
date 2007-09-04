@@ -110,13 +110,17 @@ void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDe
 
 
 /* nv_crtc.c */
-Bool NVSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode, Rotation rotation);
-Bool NVCrtcSetMode(xf86CrtcPtr crtc, DisplayModePtr pMode, Rotation rotation, int x, int y);
+void NVSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
 DisplayModePtr NVCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y);
 void NVCrtcLoadPalette(xf86CrtcPtr crtc);
 void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on);
 void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state);
+void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
+void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool Lock);
+
+/* nv_output.h */
+void NvSetupOutputs(ScrnInfoPtr pScrn);
 
 /* nv_hw.c */
 void nForceUpdateArbitrationSettings (unsigned VClk, unsigned pixelDepth,

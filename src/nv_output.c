@@ -342,6 +342,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
     int bpp;
     NVPtr pNv = NVPTR(pScrn);
     NVFBLayout *pLayout = &pNv->CurrentLayout;
+    last_mode = mode;
     RIVA_HW_STATE *state, *sv_state;
     Bool is_fp = FALSE;
     NVOutputRegPtr regp, savep;

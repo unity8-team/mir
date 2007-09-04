@@ -656,7 +656,42 @@ NVProbe(DriverPtr drv, int flags)
 }
 #endif /* XSERVER_LIBPCIACCESS */
 
-/* Usually mandatory */
+/*
+ * This function is needed by the XF86VideMode extension which is used by
+ * the current pre-randr clients. The API covers only one screen, but
+ * implementing the latest modesetting framework like done in the Intel
+ * driver is more than a few lines of patch, the randr-1.2 branch in its
+ * current form cannot the mode switching in a perfect way right now.
+ *
+ * As there are effors to bring modesetting into the kernel, controlled
+ * thru the drm module, of which nouveu currently requires its own version,
+ * one could even try to go one step further and try to bring the nouveau
+ * modesetting into the nouveau kernel module.c (as a first step which does
+ * not require a kernel patch), which would increase the chances that the
+ * text console is properly restored after X dies as the kernel can simply
+ * restore the text console when the process which has changed modes thru
+ * /dev/drm has been disconnected from the device.
+ *
+ * The current implementation simply tries to set each crtc to the mode
+ * for which the application asks for, hoping that one of them gives a
+ * usable monitor display (no error handling implemented), and sets
+ * the viewport of each crtc to (0,0), which means essentially clone
+ * mode with all monitors which managed to switch to the mode showing
+ * top left area of the framebuffer memory if the application's window
+ * is there. This is essentially what the Intel driver did in earlyer
+ * versions. To restore a LeftOf/RightOf layout, you two randr calls
+ * seem to be neccessary, one which sets the reversed layout, followed
+ * by one which sets the desired layout:
+ *
+ * xrandr --output Digital-1 --left-of Digital-0
+ * xrandr --output Digital-0 --left-of Digital-1
+ *
+ * FIXME: This could be fixed by getting the current viewports for the
+ * CRTCs and use these during mode settings, or (preferably) by getting
+ * the current screen layout and adapting the new viewports so that
+ * a new, continuos screen layout with the same monitor arrangement,
+ * but in the new mode is set up.
+ */
 Bool
 NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
@@ -666,16 +701,18 @@ NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 
     if (pNv->randr12_enable) {
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
-	
+
 	if (pLayout->mode != mode) {
-		if (!NVSetMode(pScrn, mode, RR_Rotate_0))
-			ret = FALSE;
+		/* This needs to be fixed with error handling */
+		NVSetMode(pScrn, mode);
+		pLayout->mode = mode;
 	}
 
 	pLayout->mode = mode;
 	return ret;
-    } else 
+    } else {
 	return NVModeInit(xf86Screens[scrnIndex], mode);
+    }
 }
 
 /*

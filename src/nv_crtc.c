@@ -1299,6 +1299,17 @@ void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state)
   NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, current);
 }
 
+void NVSetMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
+{
+	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		if (xf86_config->crtc[i]->enabled) {
+			nv_crtc_mode_set(xf86_config->crtc[i], mode, NULL, 0,0);
+		}
+	}
+}
+
 static void NVCrtcWriteDacMask(xf86CrtcPtr crtc, CARD8 value)
 {
   ScrnInfoPtr pScrn = crtc->scrn;
