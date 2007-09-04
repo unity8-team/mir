@@ -2450,9 +2450,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	else
 	    ret = NV50CursorInit(pScreen);
 
-	if (ret) {
+	if (ret != TRUE) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
 		"Hardware cursor initialization failed\n");
+	    pNv->HWCursor = FALSE;
 	}
     }
 
