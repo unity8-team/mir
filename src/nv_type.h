@@ -208,7 +208,7 @@ typedef struct _NVRec {
 	struct pci_device *PciInfo;
 #endif /* XSERVER_LIBPCIACCESS */
     int                 Chipset;
-    char                NVArch;
+    int                 NVArch;
     Bool                Primary;
     CARD32              IOAddress;
     Bool cursorOn;

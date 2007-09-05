@@ -420,9 +420,9 @@ NVGetScrnInfoRec(PciChipsets *chips, int chip)
 }
 
 /* This returns architecture in hexdecimal, so NV40 is 0x40 */
-static char NVGetArchitecture (volatile CARD32 *regs)
+static int NVGetArchitecture (volatile CARD32 *regs)
 {
-	char architecture = 0;
+	int architecture = 0;
 
 	/* We're dealing with >=NV10 */
 	if ((regs[0] & 0x0f000000) > 0 ) {
@@ -441,7 +441,7 @@ static CARD32 NVGetPCIID (volatile CARD32 *regs)
 {
 	CARD32 pci_id;
 
-	char architecture = NVGetArchitecture(regs);
+	int architecture = NVGetArchitecture(regs);
 
 	/* Dealing with an unknown or unsupported card */
 	if (architecture == 0) {
@@ -572,7 +572,7 @@ NVProbe(DriverPtr drv, int flags)
 			regs = xf86MapPciMem(-1, VIDMEM_MMIO, PCI_DEV_TAG(*ppPci), PCI_DEV_MEM_BASE(*ppPci, 0), 0x90000);
 			int pciid = NVGetPCIID(regs);
 
-			char architecture = NVGetArchitecture(regs);
+			int architecture = NVGetArchitecture(regs);
 			char name[25];
 			sprintf(name, "NVIDIA NV%02X", architecture);
 			/* NV04 upto NV83 is supported, NV8F is fictive limit */
