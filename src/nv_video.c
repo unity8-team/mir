@@ -2275,10 +2275,13 @@ void NVInitVideo (ScreenPtr pScreen)
 	XF86VideoAdaptorPtr  blitAdaptor = NULL;
 	int                  num_adaptors;
 
-	if (pScrn->bitsPerPixel == 8)
-		return;
-
-	if (pNv->Architecture < NV_ARCH_50) {
+	/*
+	 * Driving the blitter requires the DMA FIFO. Using the FIFO
+	 * without accel causes DMA errors. While the overlay might
+	 * might work without accel, we also disable it for now when
+	 * acceleration is disabled:
+	 */
+	if (pScrn->bitsPerPixel != 8 && pNv->Architecture < NV_ARCH_50 && !pNv->NoAccel) {
 		overlayAdaptor = NVSetupOverlayVideo(pScreen);
 		blitAdaptor    = NVSetupBlitVideo(pScreen);
 	}
