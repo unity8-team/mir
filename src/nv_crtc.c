@@ -1039,7 +1039,7 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
     NVPtr pNv = NVPTR(pScrn);
 
     /* Sync the engine before adjust mode */
-    if (!pNv->NoAccel) {
+    if (pNv->EXADriverPtr) {
 	exaMarkSync(pScrn->pScreen);
 	exaWaitSync(pScrn->pScreen);
     }

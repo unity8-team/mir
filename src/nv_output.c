@@ -649,8 +649,7 @@ static const xf86OutputFuncsRec nv_digital_output_funcs = {
 static xf86OutputStatus
 nv_output_lvds_detect(xf86OutputPtr output)
 {
-	ErrorF("LVDS DETECT\n");
-    return XF86OutputStatusConnected;    
+    return XF86OutputStatusUnknown;    
 }
 
 static DisplayModePtr

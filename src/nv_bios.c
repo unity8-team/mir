@@ -1618,7 +1618,8 @@ static unsigned int nv_find_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	  headerSize = 0x8;
 	}
 
-	ErrorF("DCB size is %02X, entries is %02X\n", headerSize, entries);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "DCB size is %02X, entries is %02X\n", headerSize, entries);
 	if (entries >= NV40_NUM_DCB_ENTRIES)
 		entries = NV40_NUM_DCB_ENTRIES;
 
