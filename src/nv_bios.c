@@ -1562,6 +1562,76 @@ static unsigned int findstr(bios_t* bios, unsigned char *str, int len)
 	return 0;
 }
 
+
+#define G5_FIXED_LOC 0xe2f8
+
+static unsigned int nv_find_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
+{
+        NVPtr pNv = NVPTR(pScrn);
+	CARD16 bufloc;
+	int is_g5 = 0;
+	CARD32 sig;
+	char *table2;
+	unsigned char headerSize, entries;
+        CARD32 header_word;
+	int i;
+	int sig_offsets[2] = { 0x4, 0x6 };
+	int offset = -1;
+
+	/* get the offset from 0x36 */
+	
+	bufloc = *(CARD16 *)&bios->data[0x36];
+
+	if (bufloc == 0x0) {
+		if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV43) {
+			is_g5 = 1;
+			bufloc = G5_FIXED_LOC;
+		} else {
+			return 0;
+		}
+	}
+	
+	table2 = &bios->data[bufloc];
+
+	/* lets play hunt the signature */
+	for (i = 0; i < sizeof(sig_offsets) / sizeof(int); i++) {
+	  sig = *(uint32_t*)(table2 + sig_offsets[i]);
+	  if ((sig == 0x4edcbdcb) || (sig == 0xcbbddc4e)) {
+	    offset = sig_offsets[i];
+	    break;
+	  }
+	}
+	if (offset == -1)
+	  return 0;
+
+	if (offset == 6) {
+	  header_word = *(uint32_t *)table2;
+	  if (is_g5) {
+	    headerSize = 0x3c;
+	    entries = 0xa;
+	  } else {
+	    headerSize = (header_word >> 8) & 0xff;
+	    entries = (header_word >> 16) & 0xff;
+	  }
+	} else {
+	  entries = 0xa;
+	  headerSize = 0x8;
+	}
+
+	ErrorF("DCB size is %02X, entries is %02X\n", headerSize, entries);
+	if (entries >= NV40_NUM_DCB_ENTRIES)
+		entries = NV40_NUM_DCB_ENTRIES;
+
+	for (i = 0; i < entries; i++) {
+		if (is_g5)
+			pNv->dcb_table[i] = __bswap_32(*(uint32_t *)&table2[headerSize + 8 * i]);
+		else
+			pNv->dcb_table[i] = *(uint32_t *)&table2[headerSize + 8 * i];
+	}
+
+	return entries;
+}
+
 unsigned int NVParseBios(ScrnInfoPtr pScrn)
 {
 	unsigned int bit_offset;
@@ -1589,6 +1659,18 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 		parse_pins_structure(pScrn, &bios, bit_offset);
 	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "No known script signature found.\n");
+	}
+
+	/* look for NV40+ DCB table - and make a copy somewhere for
+	 * output setup code
+	 */
+	ret = nv_find_dcb_table(pScrn, &bios);
+	if (ret) {
+		pNv->dcb_entries = ret;
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "DCB found %d entries.\n", ret);
+	} else {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "No DCB table found\n");
 	}
 
 	xfree(bios.data);
