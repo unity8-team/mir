@@ -950,22 +950,27 @@ nvProbeDDC(ScrnInfoPtr pScrn, int index)
 
 Bool NVI2CInit(ScrnInfoPtr pScrn)
 {
-    char *mod = "i2c";
+	char *mod = "i2c";
 
-    if (xf86LoadSubModule(pScrn, mod)) {
-        xf86LoaderReqSymLists(i2cSymbols,NULL);
+	if (xf86LoadSubModule(pScrn, mod)) {
+		xf86LoaderReqSymLists(i2cSymbols,NULL);
 
-        mod = "ddc";
-        if(xf86LoadSubModule(pScrn, mod)) {
-            xf86LoaderReqSymLists(ddcSymbols, NULL);
-            return NVDACi2cInit(pScrn);
-        } 
-    }
+		mod = "ddc";
+		if(xf86LoadSubModule(pScrn, mod)) {
+			xf86LoaderReqSymLists(ddcSymbols, NULL);
+			/* randr-1.2 clients have their DDC's initialized elsewhere */
+			if (pNv->randr12_enable) {
+				return TRUE;
+			} else {
+				return NVDACi2cInit(pScrn);
+			}
+		} 
+	}
 
-    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-              "Couldn't load %s module.  DDC probing can't be done\n", mod);
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		"Couldn't load %s module.  DDC probing can't be done\n", mod);
 
-    return FALSE;
+	return FALSE;
 }
 
 static Bool NVPreInitDRI(ScrnInfoPtr pScrn)
