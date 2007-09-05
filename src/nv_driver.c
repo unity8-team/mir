@@ -774,6 +774,7 @@ NVEnterVT(int scrnIndex, int flags)
     
     if (pNv->randr12_enable) { 
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
 	pScrn->vtSema = TRUE;
 
 	if (pNv->Architecture == NV_ARCH_50) {
@@ -786,6 +787,10 @@ NVEnterVT(int scrnIndex, int flags)
 	if (pNv->SaveGeneration != serverGeneration) {
 		pNv->SaveGeneration = serverGeneration;
 		NVSave(pScrn);
+	}
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		NVCrtcLockUnlock(xf86_config->crtc[i], 0);
 	}
 
 	NVResetCrtcConfig(pScrn, 0);
