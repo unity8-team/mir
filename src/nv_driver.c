@@ -35,9 +35,6 @@
 
 extern DisplayModePtr xf86ModesAdd(DisplayModePtr Modes, DisplayModePtr Additions);
 
-/*const   OptionInfoRec * RivaAvailableOptions(int chipid, int busid);
-Bool    RivaGetScrnInfoRec(PciChipsets *chips, int chip);*/
-
 /*
  * Forward definitions for the functions that make up the driver.
  */
@@ -213,12 +210,6 @@ static const char *int10Symbols[] = {
     NULL
 };
 
-static const char *rivaSymbols[] = {
-   "RivaGetScrnInfoRec",
-   "RivaAvailableOptions",
-    NULL
-};
-
 const char *drmSymbols[] = {
     "drmOpen", 
     "drmAddBufs",
@@ -340,7 +331,7 @@ nouveauSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 #ifdef XF86DRI
 				drmSymbols, 
 #endif
-				ramdacSymbols, shadowSymbols, rivaSymbols,
+				ramdacSymbols, shadowSymbols,
 				i2cSymbols, ddcSymbols, vbeSymbols,
 				int10Symbols, NULL);
 
@@ -358,13 +349,6 @@ nouveauSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 static const OptionInfoRec *
 NVAvailableOptions(int chipid, int busid)
 {
-/*    if(chipid == 0x12D20018) {
-	if (!xf86LoadOneModule("riva128", NULL)) {
-	    return NULL;
-	} else
-	    return RivaAvailableOptions(chipid, busid);
-    }*/
-    
     return NVOptions;
 }
 

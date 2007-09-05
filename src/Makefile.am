@@ -69,23 +69,3 @@ nouveau_drv_la_SOURCES = \
 	 nv50_output.h \
 	 nv_shaders.h
 
-#riva128_la_LTLIBRARIES = riva128.la
-#riva128_la_LDFLAGS = -module -avoid-version
-#riva128_ladir = @moduledir@/drivers
-
-#riva128_la_SOURCES = \
-#         riva_const.h \
-#         riva_cursor.c \
-#         riva_dac.c \
-#         riva_dga.c \
-#         riva_driver.c \
-#         riva_hw.c \
-#         riva_hw.h \
-#         riva_include.h \
-#         riva_local.h \
-#         riva_proto.h \
-#         riva_setup.c \
-#         riva_shadow.c \
-#         riva_tbl.h \
-#         riva_type.h \
-#         riva_xaa.c
