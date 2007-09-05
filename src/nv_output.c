@@ -138,39 +138,28 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 }
 
 static void
-nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
-		   DisplayModePtr adjusted_mode);
-
-static DisplayModePtr last_mode;
-
-static void
 nv_digital_output_dpms(xf86OutputPtr output, int mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86CrtcPtr crtc = output->crtc;
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	NVCrtcPrivatePtr nv_crtc;
-
-	CARD32 fpcontrol;
 
 	if (crtc) {
-		nv_crtc = crtc->driver_private;
+		NVPtr pNv = NVPTR(output->scrn);
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-		fpcontrol = nvReadRAMDAC(pNv, nv_crtc->crtc, NV_RAMDAC_FP_CONTROL) & 0xCfffffCC;	
+		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_crtc->crtc, NV_RAMDAC_FP_CONTROL);	
 		switch(mode) {
 			case DPMSModeStandby:
 			case DPMSModeSuspend:
 			case DPMSModeOff:
 				/* cut the TMDS output */	    
 				fpcontrol |= 0x20000022;
-				nvWriteRAMDAC(pNv, nv_crtc->crtc, NV_RAMDAC_FP_CONTROL, fpcontrol);
 				break;
 			case DPMSModeOn:
-				/* restore previous mode */
-				nv_output_mode_set(output, last_mode, NULL);
+				/* disable cutting the TMDS output */
+				fpcontrol &= ~0x20000022;
 				break;
 		}
+		nvWriteRAMDAC(pNv, nv_crtc->crtc, NV_RAMDAC_FP_CONTROL, fpcontrol);
 	}
 }
 
@@ -342,7 +331,6 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
     int bpp;
     NVPtr pNv = NVPTR(pScrn);
     NVFBLayout *pLayout = &pNv->CurrentLayout;
-    last_mode = mode;
     RIVA_HW_STATE *state, *sv_state;
     Bool is_fp = FALSE;
     NVOutputRegPtr regp, savep;
