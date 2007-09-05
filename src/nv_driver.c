@@ -448,13 +448,10 @@ static CARD32 NVGetPCIID (volatile CARD32 *regs)
 		return 0;
 	}
 
-	if (architecture >= 0x04 && architecture <= 0x4F) {
-		pci_id = regs[0x1800/4];
-	} else if (architecture >= 0x50 && architecture <= 0x5F) {
+	if (architecture >= 0x40)
 		pci_id = regs[0x88000/4];
-	} else {
-		return 0;
-	}
+	else
+		pci_id = regs[0x1800/4];
 
 	/* A pci-id can be inverted, we must correct this */
 	if ((pci_id & 0xffff) == PCI_VENDOR_NVIDIA) {
