@@ -815,8 +815,8 @@ struct nv_i2c_struct {
     int reg;
     char *name;
 } nv_i2c_buses[] = { 
-    { 0x3e, "DDC1" },
-    { 0x36, "DDC2" },
+    { 0x36, "DDC1" },
+    { 0x3e, "DDC2" },
     { 0x50, "TV" },
 };
 
