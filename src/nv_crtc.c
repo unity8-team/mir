@@ -945,11 +945,11 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
     } else
        regp->cursorConfig |= 0x02000000;
 
-	/* These are the result by experimentation by: Matthew Garrett <mjg59@srcf.ucam.org> */
-	/* What do these do exactly? */
+	/* This is a workaround in the sense that it assumes an existing valid mode, but it's better than nothing */
+	/* Any ideas for a better solution? */
 	if (is_fp) {
-		regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = 0xa;
-		regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = 0x2;
+		regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING);
+		regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_VTIMING);
 	} else {
 		regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = 0;
 		regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = 0;
