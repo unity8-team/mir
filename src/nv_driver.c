@@ -169,16 +169,6 @@ static const char *fbSymbols[] = {
     NULL
 };
 
-static const char *xaaSymbols[] = {
-    "XAACopyROP",
-    "XAACreateInfoRec",
-    "XAADestroyInfoRec",
-    "XAAFallbackOps",
-    "XAAInit",
-    "XAAPatternROP",
-    NULL
-};
-
 static const char *exaSymbols[] = {
     "exaDriverInit",
     "exaOffscreenInit",
@@ -346,7 +336,7 @@ nouveauSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 		 * Tell the loader about symbols from other modules that this module
 		 * might refer to.
 		 */
-		LoaderRefSymLists(vgahwSymbols, xaaSymbols, exaSymbols, fbSymbols,
+		LoaderRefSymLists(vgahwSymbols, exaSymbols, fbSymbols,
 #ifdef XF86DRI
 				drmSymbols, 
 #endif
@@ -913,8 +903,6 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
     NVUnmapMem(pScrn);
     vgaHWUnmapMem(pScrn);
-    if (pNv->AccelInfoRec)
-        XAADestroyInfoRec(pNv->AccelInfoRec);
     if (pNv->CursorInfoRec)
         xf86DestroyCursorInfoRec(pNv->CursorInfoRec);
     if (pNv->ShadowPtr)
@@ -1293,22 +1281,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
 		"Using \"Shadow Framebuffer\" - acceleration disabled\n");
     }
-    if (!pNv->NoAccel) {
-        from = X_DEFAULT;
-        pNv->useEXA = TRUE;
-        if((s = (char *)xf86GetOptValString(pNv->Options, OPTION_ACCELMETHOD))) {
-            if(!xf86NameCmp(s,"XAA")) {
-                from = X_CONFIG;
-                pNv->useEXA = FALSE;
-            } else if(!xf86NameCmp(s,"EXA")) {
-                from = X_CONFIG;
-                pNv->useEXA = TRUE;
-            }
-        }
-	xf86DrvMsg(pScrn->scrnIndex, from, "Using %s acceleration method\n", pNv->useEXA ? "EXA" : "XAA");
-    } else {
-        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Acceleration disabled\n");
-    }
     
     pNv->Rotate = 0;
     pNv->RandRRotation = FALSE;
@@ -1627,12 +1599,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
     xf86LoaderReqSymLists(fbSymbols, NULL);
     
-    /* Load XAA if needed */
+    /* Load EXA if needed */
     if (!pNv->NoAccel) {
-	if (!xf86LoadSubModule(pScrn, pNv->useEXA ? "exa" : "xaa")) {
+	if (!xf86LoadSubModule(pScrn, "exa")) {
 	    NVPreInitFail("\n");
 	}
-	xf86LoaderReqSymLists(xaaSymbols, NULL);
+	xf86LoaderReqSymLists(exaSymbols, NULL);
     }
 
     /* Load ramdac if needed */
@@ -1817,7 +1789,8 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     }
 #endif
 
-    NVResetGraphics(pScrn);
+    if (!pNv->NoAccel)
+	    NVResetGraphics(pScrn);
 
     vgaHWProtect(pScrn, FALSE);
 
@@ -2103,8 +2076,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     int ret;
     VisualPtr visual;
     unsigned char *FBStart;
-    int width, height, displayWidth, offscreenHeight, shadowHeight;
-    BoxRec AvailFBArea;
+    int width, height, displayWidth, shadowHeight;
 
     /* 
      * First get the ScrnInfoRec
@@ -2264,26 +2236,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     
     xf86SetBlackWhitePixels(pScreen);
 
-    offscreenHeight = pNv->FB->size /
-                     (pScrn->displayWidth * pScrn->bitsPerPixel >> 3);
-    if(offscreenHeight > 32767)
-        offscreenHeight = 32767;
-
-    if (!pNv->useEXA) {
-	AvailFBArea.x1 = 0;
-	AvailFBArea.y1 = 0;
-	AvailFBArea.x2 = pScrn->displayWidth;
-	AvailFBArea.y2 = offscreenHeight;
-	xf86InitFBManager(pScreen, &AvailFBArea);
-    }
-    
     if (!pNv->NoAccel) {
-        if (pNv->useEXA)
-            NVExaInit(pScreen);
-        else /* XAA */
-            NVXaaInit(pScreen);
+	    NVExaInit(pScreen);
+	    NVResetGraphics(pScrn);
     }
-    NVResetGraphics(pScrn);
     
     miInitializeBackingStore(pScreen);
     xf86SetBackingStore(pScreen);

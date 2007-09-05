@@ -53,7 +53,6 @@ nouveau_drv_la_SOURCES = \
          nv_shadow.c \
          nv_type.h \
          nv_video.c \
-         nv_xaa.c \
          nv30_exa.c \
          nv_crtc.c \
          nv_output.c \

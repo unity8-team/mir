@@ -71,11 +71,6 @@ void  NVResetGraphics(ScrnInfoPtr pScrn);
 Bool  NVDmaCreateContextObject(NVPtr pNv, int handle, int class);
 Bool  NVInitDma(ScrnInfoPtr pScrn);
 
-/* in nv_xaa.c */
-Bool   NVXaaInit(ScreenPtr pScreen);
-void   NVWaitVSync(ScrnInfoPtr pScrn);
-void   NVSetRopSolid(ScrnInfoPtr pScrn, CARD32 rop, CARD32 planemask);
-
 /* in nv_exa.c */
 Bool NVExaInit(ScreenPtr pScreen);
 Bool NVAccelUploadM2MF(ScrnInfoPtr, uint64_t, const char * , int, int, int, int);

@@ -173,6 +173,21 @@ static XF86ImageRec NVImages[NUM_IMAGES_ALL] =
 	XVIMAGE_RGB
 };
 
+static void
+NVWaitVSync(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	NVDmaStart(pNv, NvImageBlit, 0x0000012C, 1);
+	NVDmaNext (pNv, 0);
+	NVDmaStart(pNv, NvImageBlit, 0x00000134, 1);
+	NVDmaNext (pNv, pNv->CRTCnumber);
+	NVDmaStart(pNv, NvImageBlit, 0x00000100, 1);
+	NVDmaNext (pNv, 0);
+	NVDmaStart(pNv, NvImageBlit, 0x00000130, 1);
+	NVDmaNext (pNv, 0);
+}
+
 /**
  * NVSetPortDefaults
  * set attributes of port "pPriv" to compiled-in (except for colorKey) defaults
@@ -693,51 +708,43 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 	CARD32         dst_size, dst_point;
 	CARD32         src_point, src_format;
 
-	if (pNv->useEXA) {
-		ScreenPtr pScreen = pScrn->pScreen;
-		PixmapPtr pPix    = exaGetDrawablePixmap(pDraw);
-		int dst_format;
+	ScreenPtr pScreen = pScrn->pScreen;
+	PixmapPtr pPix    = exaGetDrawablePixmap(pDraw);
+	int dst_format;
 
-		/* Try to get the dest drawable into vram */
-		if (!exaPixmapIsOffscreen(pPix)) {
-			exaMoveInPixmap(pPix);
-			ExaOffscreenMarkUsed(pPix);
-		}
+	/* Try to get the dest drawable into vram */
+	if (!exaPixmapIsOffscreen(pPix)) {
+		exaMoveInPixmap(pPix);
+		ExaOffscreenMarkUsed(pPix);
+	}
 
-		/* If we failed, draw directly onto the screen pixmap.
-		 * Not sure if this is the best approach, maybe failing
-		 * with BadAlloc would be better?
-		 */
-		if (!exaPixmapIsOffscreen(pPix)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				"XV: couldn't move dst surface into vram\n");
-			pPix = pScreen->GetScreenPixmap(pScreen);
-		}
+	/* If we failed, draw directly onto the screen pixmap.
+	 * Not sure if this is the best approach, maybe failing
+	 * with BadAlloc would be better?
+	 */
+	if (!exaPixmapIsOffscreen(pPix)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"XV: couldn't move dst surface into vram\n");
+		pPix = pScreen->GetScreenPixmap(pScreen);
+	}
 
-		NVAccelGetCtxSurf2DFormatFromPixmap(pPix, &dst_format);
-		NVAccelSetCtxSurf2D(pPix, pPix, dst_format);
+	NVAccelGetCtxSurf2DFormatFromPixmap(pPix, &dst_format);
+	NVAccelSetCtxSurf2D(pPix, pPix, dst_format);
 
 #ifdef COMPOSITE
-		/* Adjust coordinates if drawing to an offscreen pixmap */
-		if (pPix->screen_x || pPix->screen_y) {
-			REGION_TRANSLATE(pScrn->pScreen, clipBoxes,
-							     -pPix->screen_x,
-							     -pPix->screen_y);
-			dstBox->x1 -= pPix->screen_x;
-			dstBox->x2 -= pPix->screen_x;
-			dstBox->y1 -= pPix->screen_y;
-			dstBox->y2 -= pPix->screen_y;
-		}
-
-		DamageDamageRegion((DrawablePtr)pPix, clipBoxes);
-#endif
-	} else {
-		if (pNv->CurrentLayout.depth == 15) {
-			NVDmaStart(pNv, NvContextSurfaces,
-					SURFACE_FORMAT, 1);
-			NVDmaNext (pNv, SURFACE_FORMAT_X1R5G5B5);
-		}
+	/* Adjust coordinates if drawing to an offscreen pixmap */
+	if (pPix->screen_x || pPix->screen_y) {
+		REGION_TRANSLATE(pScrn->pScreen, clipBoxes,
+						     -pPix->screen_x,
+						     -pPix->screen_y);
+		dstBox->x1 -= pPix->screen_x;
+		dstBox->x2 -= pPix->screen_x;
+		dstBox->y1 -= pPix->screen_y;
+		dstBox->y2 -= pPix->screen_y;
 	}
+
+	DamageDamageRegion((DrawablePtr)pPix, clipBoxes);
+#endif
 
 	pbox = REGION_RECTS(clipBoxes);
 	nbox = REGION_NUM_RECTS(clipBoxes);
@@ -800,20 +807,9 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 		pbox++;
 	}
 
-	if (!pNv->useEXA) {
-		if(pNv->CurrentLayout.depth == 15) {
-			NVDmaStart(pNv, NvContextSurfaces,
-					SURFACE_FORMAT, 1);
-			NVDmaNext (pNv, SURFACE_FORMAT_R5G6B5);
-		}
-	}
-
 	NVDmaKickoff(pNv);
 
-	if (pNv->useEXA)
-		exaMarkSync(pScrn->pScreen);
-	else
-		SET_SYNC_FLAG(pNv->AccelInfoRec);
+	exaMarkSync(pScrn->pScreen);
 
 	pPriv->videoStatus = FREE_TIMER;
 	pPriv->videoTime = currentTime.milliseconds + FREE_DELAY;

@@ -1036,13 +1036,13 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 void nv_crtc_prepare(xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-  /* Sync the engine before adjust mode */
-if (pNv->AccelInfoRec && pNv->AccelInfoRec->NeedToSync) {
-    (*pNv->AccelInfoRec->Sync)(pScrn);
-    pNv->AccelInfoRec->NeedToSync = FALSE;
-}
+    NVPtr pNv = NVPTR(pScrn);
 
+    /* Sync the engine before adjust mode */
+    if (!pNv->NoAccel) {
+	exaMarkSync(pScrn->pScreen);
+	exaWaitSync(pScrn->pScreen);
+    }
 }
 
 void nv_crtc_commit(xf86CrtcPtr crtc)

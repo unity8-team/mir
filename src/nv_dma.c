@@ -162,12 +162,7 @@ void NVSync(ScrnInfoPtr pScrn)
 void NVResetGraphics(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	CARD32 surfaceFormat, patternFormat, rectFormat, lineFormat;
-	int pitch, i;
-
-	if(pNv->NoAccel) return;
-
-	pitch = pNv->CurrentLayout.displayWidth * (pNv->CurrentLayout.bitsPerPixel >> 3);
+	int i;
 
 	pNv->dmaPut = pNv->dmaCurrent = READ_GET(pNv);
 	pNv->dmaMax = (pNv->fifo.cmdbuf_size >> 2) - 2;
@@ -186,54 +181,6 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 		subchannels[i]=0;
 
 	NVAccelCommonInit(pScrn);
-
-	if (pNv->Architecture >= NV_ARCH_50)
-		return;
-
-	switch(pNv->CurrentLayout.depth) {
-	case 24:
-		surfaceFormat = SURFACE_FORMAT_X8R8G8B8;
-		patternFormat = PATTERN_FORMAT_DEPTH24;
-		rectFormat = RECT_FORMAT_DEPTH24;
-		lineFormat = LINE_FORMAT_DEPTH24;
-		break;
-	case 16:
-	case 15:
-		surfaceFormat = SURFACE_FORMAT_R5G6B5;
-		patternFormat = PATTERN_FORMAT_DEPTH16;
-		rectFormat = RECT_FORMAT_DEPTH16;
-		lineFormat = LINE_FORMAT_DEPTH16;
-		break;
-	default:
-		surfaceFormat = SURFACE_FORMAT_Y8;
-		patternFormat = PATTERN_FORMAT_DEPTH8;
-		rectFormat = RECT_FORMAT_DEPTH8;
-		lineFormat = LINE_FORMAT_DEPTH8;
-		break;
-	}
-
-	NVDmaStart(pNv, NvContextSurfaces, SURFACE_FORMAT, 4);
-	NVDmaNext (pNv, surfaceFormat);
-	NVDmaNext (pNv, pitch | (pitch << 16));
-	NVDmaNext (pNv, (uint32_t)pNv->FB->offset);
-	NVDmaNext (pNv, (uint32_t)pNv->FB->offset);
-
-	NVDmaStart(pNv, NvImagePattern, PATTERN_FORMAT, 1);
-	NVDmaNext (pNv, patternFormat);
-
-	NVDmaStart(pNv, NvRectangle, RECT_FORMAT, 1);
-	NVDmaNext (pNv, rectFormat);
-
-	if (!pNv->useEXA) {
-		NVDmaStart(pNv, NvSolidLine, LINE_FORMAT, 1);
-		NVDmaNext (pNv, lineFormat);
-	}
-
-	pNv->currentRop = ~0;  /* set to something invalid */
-	NVSetRopSolid(pScrn, GXcopy, ~0);
-
-	pNv->M2MFDirection = -1; /* invalid */
-	/*NVDmaKickoff(pNv);*/
 }
 
 Bool NVDmaCreateContextObject(NVPtr pNv, int handle, int class)

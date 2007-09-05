@@ -231,6 +231,7 @@ NVAccelInitRasterOp(ScrnInfoPtr pScrn)
 	NVDmaStart(pNv, NvRop, NV03_PRIMITIVE_RASTER_OP_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvNullObject);
 
+	pNv->currentRop = ~0;
 	return TRUE;
 }
 

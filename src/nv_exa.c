@@ -53,6 +53,62 @@
 
 #include <sys/time.h>
 
+const int NVCopyROP[16] =
+{
+   0x00,            /* GXclear */
+   0x88,            /* GXand */
+   0x44,            /* GXandReverse */
+   0xCC,            /* GXcopy */
+   0x22,            /* GXandInverted */
+   0xAA,            /* GXnoop */
+   0x66,            /* GXxor */
+   0xEE,            /* GXor */
+   0x11,            /* GXnor */
+   0x99,            /* GXequiv */
+   0x55,            /* GXinvert*/
+   0xDD,            /* GXorReverse */
+   0x33,            /* GXcopyInverted */
+   0xBB,            /* GXorInverted */
+   0x77,            /* GXnand */
+   0xFF             /* GXset */
+};
+
+static void 
+NVSetPattern(ScrnInfoPtr pScrn, CARD32 clr0, CARD32 clr1,
+				CARD32 pat0, CARD32 pat1)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	NVDmaStart(pNv, NvImagePattern, PATTERN_COLOR_0, 4);
+	NVDmaNext (pNv, clr0);
+	NVDmaNext (pNv, clr1);
+	NVDmaNext (pNv, pat0);
+	NVDmaNext (pNv, pat1);
+}
+
+static void 
+NVSetROP(ScrnInfoPtr pScrn, CARD32 alu, CARD32 planemask)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	int rop = NVCopyROP[alu] & 0xf0;
+
+	if (planemask != ~0) {
+		NVSetPattern(pScrn, 0, planemask, ~0, ~0);
+		if (pNv->currentRop != (alu + 32)) {
+			NVDmaStart(pNv, NvRop, ROP_SET, 1);
+			NVDmaNext (pNv, rop | 0x0a);
+			pNv->currentRop = alu + 32;
+		}
+	} else
+	if (pNv->currentRop != alu) {
+		if(pNv->currentRop >= 16)
+			NVSetPattern(pScrn, ~0, ~0, ~0, ~0);
+		NVDmaStart(pNv, NvRop, ROP_SET, 1);
+		NVDmaNext (pNv, rop | (rop >> 4));
+		pNv->currentRop = alu;
+	}
+}
+
 static void setM2MFDirection(ScrnInfoPtr pScrn, int dir)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -103,7 +159,7 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 			return FALSE;
 		NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
 		NVDmaNext (pNv, 1 /* ROP_AND */);
-		NVSetRopSolid(pScrn, alu, planemask);
+		NVSetROP(pScrn, alu, planemask);
 	} else {
 		NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
 		NVDmaNext (pNv, 3 /* SRCCOPY */);
@@ -171,7 +227,7 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 			return FALSE;
 		NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
 		NVDmaNext (pNv, 1 /* ROP_AND */);
-		NVSetRopSolid(pScrn, alu, planemask);
+		NVSetROP(pScrn, alu, planemask);
 	} else {
 		NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
 		NVDmaNext (pNv, 3 /* SRCCOPY */);

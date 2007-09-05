@@ -272,9 +272,7 @@ typedef struct _NVRec {
 
     unsigned int SaveGeneration;
     uint8_t cur_head;
-    XAAInfoRecPtr       AccelInfoRec;
     ExaDriverPtr	EXADriverPtr;
-    Bool                useEXA;
     xf86CursorInfoPtr   CursorInfoRec;
     void		(*PointerMoved)(int index, int x, int y);
     ScreenBlockHandlerProcPtr BlockHandler;
