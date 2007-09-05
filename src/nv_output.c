@@ -649,7 +649,8 @@ static const xf86OutputFuncsRec nv_digital_output_funcs = {
 static xf86OutputStatus
 nv_output_lvds_detect(xf86OutputPtr output)
 {
-    return XF86OutputStatusUnknown;    
+	ErrorF("LVDS DETECT\n");
+    return XF86OutputStatusConnected;    
 }
 
 static DisplayModePtr
@@ -716,7 +717,7 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index)
 }
 
 
-static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index)
+static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index, int lvds)
 {
   NVPtr pNv = NVPTR(pScrn);
   xf86OutputPtr	    output;
@@ -725,7 +726,10 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index)
   int   crtc_mask = (1<<0) | (1<<1);
 
   sprintf(outputname, "Digital-%d", pNv->digital_count);
-  output = xf86OutputCreate (pScrn, &nv_digital_output_funcs, outputname);
+  if (lvds)
+    output = xf86OutputCreate (pScrn, &nv_lvds_output_funcs, outputname);
+  else
+    output = xf86OutputCreate (pScrn, &nv_digital_output_funcs, outputname);
   if (!output)
     return;
   nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
@@ -768,7 +772,7 @@ void Nv20SetupOutputs(ScrnInfoPtr pScrn)
     }
 
     for (i = 0 ; i < num_digital_outputs; i++) {
-      nv_add_digital_output(pScrn, i);
+      nv_add_digital_output(pScrn, i, 0);
     }
 }
 
@@ -793,7 +797,11 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	  nv_add_analog_output(pScrn, port);
 	  break;
 	case 2:
-	  nv_add_digital_output(pScrn, port);
+	  nv_add_digital_output(pScrn, port, 0);
+	  break;
+	case 3:
+	  nv_add_digital_output(pScrn, port, 1);
+	  break;
 	default:
 	  break;
 	}
