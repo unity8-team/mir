@@ -2269,6 +2269,7 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 void NVInitVideo (ScreenPtr pScreen)
 {
 	ScrnInfoPtr          pScrn = xf86Screens[pScreen->myNum];
+	NVPtr                pNv = NVPTR(pScrn);
 	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr  overlayAdaptor = NULL;
 	XF86VideoAdaptorPtr  blitAdaptor = NULL;
@@ -2277,8 +2278,10 @@ void NVInitVideo (ScreenPtr pScreen)
 	if (pScrn->bitsPerPixel == 8)
 		return;
 
-	overlayAdaptor = NVSetupOverlayVideo(pScreen);
-	blitAdaptor    = NVSetupBlitVideo(pScreen);
+	if (pNv->Architecture < NV_ARCH_50) {
+		overlayAdaptor = NVSetupOverlayVideo(pScreen);
+		blitAdaptor    = NVSetupBlitVideo(pScreen);
+	}
 
 	num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
 	if(blitAdaptor || overlayAdaptor) {
