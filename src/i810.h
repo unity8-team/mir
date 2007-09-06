@@ -190,8 +190,6 @@ typedef struct _I810Rec {
    IOADDRESS ioBase;
    EntityInfoPtr pEnt;
 #if XSERVER_LIBPCIACCESS
-   int mmio_bar;
-   int fb_bar;
    struct pci_device *PciInfo;
 #else
    pciVideoPtr PciInfo;

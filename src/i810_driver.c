@@ -1080,8 +1080,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 	      (pScrn->chipset != NULL) ? pScrn->chipset : "Unknown i810");
 
 #if XSERVER_LIBPCIACCESS
-   pI810->fb_bar = 0;
-   pI810->LinearAddr = pI810->PciInfo->regions[pI810->fb_bar].base_addr;
+   pI810->LinearAddr = pI810->PciInfo->regions[0].base_addr;
 #else
    if (pI810->pEnt->device->MemBase != 0) {
       pI810->LinearAddr = pI810->pEnt->device->MemBase;
@@ -1102,8 +1101,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 	      (unsigned long)pI810->LinearAddr);
 
 #if XSERVER_LIBPCIACCESS
-   pI810->mmio_bar = 1;
-   pI810->MMIOAddr = pI810->PciInfo->regions[pI810->mmio_bar].base_addr;
+   pI810->MMIOAddr = pI810->PciInfo->regions[1].base_addr;
 #else
    if (pI810->pEnt->device->IOBase != 0) {
       pI810->MMIOAddr = pI810->pEnt->device->IOBase;
@@ -1409,7 +1407,11 @@ I810MapMMIO(ScrnInfoPtr pScrn)
 #endif
 
 #if XSERVER_LIBPCIACCESS
-   err = pci_device_map_region (device, pI810->mmio_bar, TRUE);
+   err = pci_device_map_range (device,
+			       pI810->MMIOAddr,
+			       I810_REG_SIZE,
+			       PCI_DEV_MAP_FLAG_WRITABLE,
+			       (void **) &pI810->MMIOBase);
    if (err) 
    {
       xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
@@ -1417,7 +1419,6 @@ I810MapMMIO(ScrnInfoPtr pScrn)
 		  strerror (err), err);
       return FALSE;
    }
-   pI810->MMIOBase = device->regions[pI810->mmio_bar].memory;
 #else
    pI810->MMIOBase = xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
 				   pI810->PciTag,
@@ -1432,19 +1433,22 @@ static Bool
 I810MapMem(ScrnInfoPtr pScrn)
 {
    I810Ptr pI810 = I810PTR(pScrn);
-   long i;
 #if XSERVER_LIBPCIACCESS
    struct pci_device *const device = pI810->PciInfo;
    int err;
+#else
+   long i;
 #endif
-
-   for (i = 2; i < pI810->FbMapSize; i <<= 1) ;
 
    if (!I810MapMMIO(pScrn))
       return FALSE;
 
 #if XSERVER_LIBPCIACCESS
-   err = pci_device_map_region (device, pI810->fb_bar, TRUE);
+   err = pci_device_map_range (device,
+			       pI810->LinearAddr,
+			       pI810->FbMapSize,
+			       PCI_DEV_MAP_FLAG_WRITABLE | PCI_DEV_MAP_FLAG_WRITE_COMBINE,
+			       (void **) &pI810->FbBase);
    if (err) 
    {
       xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
@@ -1452,9 +1456,9 @@ I810MapMem(ScrnInfoPtr pScrn)
 		  strerror (err), err);
       return FALSE;
    }
-   pI810->FbBase = device->regions[pI810->fb_bar].memory;
-   pI810->FbMapSize = device->regions[pI810->fb_bar].size;
 #else
+   for (i = 2; i < pI810->FbMapSize; i <<= 1) ;
+
    pI810->FbBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
 				 pI810->PciTag,
 				 pI810->LinearAddr, i);
@@ -1473,7 +1477,7 @@ I810UnmapMMIO(ScrnInfoPtr pScrn)
    I810Ptr pI810 = I810PTR(pScrn);
 
 #if XSERVER_LIBPCIACCESS
-   pci_device_unmap_region (pI810->PciInfo, pI810->mmio_bar);
+   pci_device_unmap_range (pI810->PciInfo, pI810->MMIOBase, I810_REG_SIZE);
 #else
    xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI810->MMIOBase,
 		   I810_REG_SIZE);
@@ -1487,7 +1491,7 @@ I810UnmapMem(ScrnInfoPtr pScrn)
    I810Ptr pI810 = I810PTR(pScrn);
 
 #if XSERVER_LIBPCIACCESS
-   pci_device_unmap_region (pI810->PciInfo, pI810->fb_bar);
+   pci_device_unmap_range (pI810->PciInfo, pI810->FbBase, pI810->FbMapSize);
 #else
    xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI810->FbBase,
 		   pI810->FbMapSize);

@@ -291,6 +291,7 @@ typedef struct _I830Rec {
 
    /* These are set in PreInit and never changed. */
    long FbMapSize;
+   long GTTMapSize;
 
    i830_memory *memory_list;	/**< Linked list of video memory allocations */
    long stolen_size;		/**< bytes of pre-bound stolen memory */
@@ -367,9 +368,6 @@ typedef struct _I830Rec {
    EntityInfoPtr pEnt;
 #if XSERVER_LIBPCIACCESS
    struct pci_device *PciInfo;
-   int mmio_bar;
-   int fb_bar;
-   int gtt_bar;
 #else
    pciVideoPtr PciInfo;
    PCITAG PciTag;
