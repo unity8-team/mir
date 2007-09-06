@@ -256,29 +256,6 @@ NVProbeDDC (ScrnInfoPtr pScrn, int bus)
     return MonInfo;
 }
 
-static void nv3GetConfig (NVPtr pNv)
-{
-    CARD32 reg_FB0 = nvReadFB(pNv, 0x0);
-    switch (reg_FB0 & 0x00000003) {
-    case 0:
-        pNv->RamAmountKBytes = 1024 * 8;
-        break;
-    case 1:
-        pNv->RamAmountKBytes = 1024 * 2;
-        break;
-    case 2:
-        pNv->RamAmountKBytes = 1024 * 4;
-        break;
-    default:
-        pNv->RamAmountKBytes = 1024 * 8;
-        break;
-    }
-    pNv->CrystalFreqKHz   = (nvReadEXTDEV(pNv, 0x0000) & 0x00000040) ? 14318 : 13500;
-    pNv->CURSOR           = &(pNv->PRAMIN[0x00008000/4 - 0x0800/4]);
-    pNv->MinVClockFreqKHz = 12000;
-    pNv->MaxVClockFreqKHz = 256000;
-}
-
 static void nv4GetConfig (NVPtr pNv)
 {
     CARD32 reg_FB0 = nvReadFB(pNv, 0x0);
@@ -513,12 +490,11 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     NVSelectHeadRegisters(pScrn, 0);
     NVParseBios(pScrn);
 
-    if(pNv->Architecture == NV_ARCH_03)
-        nv3GetConfig(pNv);
-    else if(pNv->Architecture == NV_ARCH_04)
-        nv4GetConfig(pNv);
-    else
-        nv10GetConfig(pNv);
+	if(pNv->Architecture == NV_ARCH_04) {
+		nv4GetConfig(pNv);
+	} else {
+		nv10GetConfig(pNv);
+	}
 
     if (!pNv->randr12_enable) {
       
