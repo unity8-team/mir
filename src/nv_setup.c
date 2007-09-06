@@ -387,7 +387,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 			pNv->PciTag, pNv->IOAddress, 0x01000000);
 #else
 	/* 0x01000000 is the size */
-	pci_device_map_memory_range(pNv->PciInfo, pNv->IOAddress, 0x01000000, TRUE, &(pNv->REGS));
+	pci_device_map_range(pNv->PciInfo, pNv->IOAddress, 0x01000000, PCI_DEV_MAP_FLAG_WRITABLE, &(pNv->REGS));
 #endif /* XSERVER_LIBPCIACCESS */
 
     pNv->PRAMIN   = pNv->REGS + (NV_PRAMIN_OFFSET/4);

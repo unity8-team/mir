@@ -486,14 +486,14 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 	volatile CARD32 *regs = NULL;
 
 	/* Temporary mapping to discover the architecture */
-	pci_device_map_memory_range(dev, PCI_DEV_MEM_BASE(dev, 0), 0x90000, FALSE, &regs);
+	pci_device_map_range(dev, PCI_DEV_MEM_BASE(dev, 0), 0x90000, 0, &regs);
 
 	/* Bit 27-20 contain the architecture in hex */
 	char architecture = (regs[0] & 0xff00000) >> 20;
 
 	CARD32 pci_id = NVGetPCIID(regs);
 
-	pci_device_unmap_memory_range(dev, regs, 0x90000);
+	pci_device_unmap_range(dev, regs, 0x90000);
 
 	/* Currently NV04 up to NV83 is supported */
 	/* For safety the fictional NV8F is used */
@@ -1095,10 +1095,10 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	volatile CARD32 *regs = NULL;
 #ifdef XSERVER_LIBPCIACCESS
-	pci_device_map_memory_range(pNv->PciInfo, PCI_DEV_MEM_BASE(pNv->PciInfo, 0), 0x90000, FALSE, &regs);
+	pci_device_map_range(pNv->PciInfo, PCI_DEV_MEM_BASE(pNv->PciInfo, 0), 0x90000, 0, &regs);
 	pNv->Chipset = NVGetPCIID(regs) & 0xffff;
 	pNv->NVArch = NVGetArchitecture(regs);
-	pci_device_unmap_memory_range(pNv->PciInfo, regs, 0x90000);
+	pci_device_unmap_range(pNv->PciInfo, regs, 0x90000);
 #else
 	CARD32 pcicmd;
 	PCI_DEV_READ_LONG(pNv->PciInfo, PCI_CMD_STAT_REG, &pcicmd);
