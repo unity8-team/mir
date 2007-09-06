@@ -751,6 +751,22 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 }
 
+/* This should accomodate up to 65535x65535 */
+#define NOUVEAU_RES(_h_res, _v_res) ((_h_res << 16) | _v_res)
+
+/* These are timing modes for DFP's */
+/* These are not neccesarily correct, just our best guess */
+struct timing_modes {
+	uint32_t res;
+	uint8_t htiming;
+	uint8_t vtiming;
+} known_modes[] = {
+	{NOUVEAU_RES(1024, 768), 0x40, 0x00},
+	{NOUVEAU_RES(1280, 1024), 0x0a, 0x02},
+	{NOUVEAU_RES(1680, 1050), 0x00, 0x00},
+	{NOUVEAU_RES(2560, 1600), 0x00, 0x00},
+	{0, 0, 0}
+};
 
 
 /**
@@ -785,16 +801,23 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
     int vertBlankStart  =  mode->CrtcVDisplay      - 1;
     int vertBlankEnd    =  mode->CrtcVTotal        - 1;
     Bool is_fp = FALSE;
+    Bool is_first_output = FALSE;
 
     for (i = 0; i < xf86_config->num_output; i++) {
 	xf86OutputPtr  output = xf86_config->output[i];
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
- 	if (output->crtc == crtc)
-	  if ((nv_output->type == OUTPUT_PANEL) || 
-	      (nv_output->type == OUTPUT_DIGITAL))
-	        is_fp = TRUE;
-	
+ 	if (output->crtc == crtc) {
+		if ((nv_output->type == OUTPUT_PANEL) || 
+			(nv_output->type == OUTPUT_DIGITAL)) {
+
+			is_fp = TRUE;
+			/* This is usefull to fall back on bios DFP timings */
+			if (i == 0) {
+				is_first_output = TRUE;
+			}
+		}
+	}
     }
 
     regp = &pNv->ModeReg.crtc_reg[nv_crtc->crtc];    
@@ -945,11 +968,39 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
     } else
        regp->cursorConfig |= 0x02000000;
 
-	/* This is a workaround in the sense that it assumes an existing valid mode, but it's better than nothing */
-	/* Any ideas for a better solution? */
+	/* This relies on a table, with a fallback on bios timings */
 	if (is_fp) {
-		regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING);
-		regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_VTIMING);
+		int j;
+		Bool found_mode = FALSE;
+		for ( j = 0; known_modes[j].res != 0; j++) {
+			if ( known_modes[j].res == NOUVEAU_RES(mode->CrtcHDisplay, mode->CrtcVDisplay) ) {
+				found_mode = TRUE;
+				break;
+			}
+		}
+		/* Found a mode in the table */
+		if (found_mode) {
+			ErrorF("Found a DFP mode, if your screen is screwed up, then that mode is probably incorrect.\n");
+			regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = known_modes[j].htiming;
+			regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = known_modes[j].vtiming;
+			ErrorF("Using mode: HTIMING=0x%X, VTIMING=0x%X\n", regp->CRTC[NV_VGA_CRTCX_FP_HTIMING], regp->CRTC[NV_VGA_CRTCX_FP_VTIMING]);
+		/* Falling on bios timings which should be set up already */
+		} else if (is_first_output) {
+			ErrorF("No mode is known, falling to existing mode, most likely bios provided.\n");
+			regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING);
+			regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_VTIMING);
+			ErrorF("Using mode: HTIMING=0x%X, VTIMING=0x%X\n", regp->CRTC[NV_VGA_CRTCX_FP_HTIMING], regp->CRTC[NV_VGA_CRTCX_FP_VTIMING]);
+		/* Can't fallback on bios timings */
+		} else {
+			ErrorF("No mode is known, this is not the primary screen, so fallback's aren't possible.\n");
+			regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = 0;
+			regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = 0;
+			ErrorF("Using mode: HTIMING=0x%X, VTIMING=0x%X\n", regp->CRTC[NV_VGA_CRTCX_FP_HTIMING], regp->CRTC[NV_VGA_CRTCX_FP_VTIMING]);
+		}
+
+		if (!found_mode) {
+			ErrorF("Consider submitting your mode, you can figure it out by using it as the (only) primary screen\n");
+		}
 	} else {
 		regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = 0;
 		regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = 0;
