@@ -98,12 +98,22 @@ radeon_crtc_show_cursor (xf86CrtcPtr crtc)
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
     unsigned char     *RADEONMMIO = info->MMIO;
 
+#ifdef XF86DRI
+    if (info->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
+#endif
+
+    RADEON_SYNC(info, pScrn);
+
     if (crtc_id == 0) 
 	OUTREGP(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_CUR_EN | 2 << 20, 
 		~(RADEON_CRTC_CUR_EN | RADEON_CRTC_CUR_MODE_MASK));
     else if (crtc_id == 1)
 	OUTREGP(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_CUR_EN | 2 << 20,
 		~(RADEON_CRTC2_CUR_EN | RADEON_CRTC2_CUR_MODE_MASK));
+
+#ifdef XF86DRI
+    if (info->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
+#endif
 }
 
 void
@@ -115,12 +125,20 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
     unsigned char     *RADEONMMIO = info->MMIO;
 
+#ifdef XF86DRI
+    if (info->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
+#endif
+
+    RADEON_SYNC(info, pScrn);
+
     if (crtc_id == 0)
 	OUTREGP(RADEON_CRTC_GEN_CNTL, 0, ~RADEON_CRTC_CUR_EN);
     else if (crtc_id == 1)
 	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~RADEON_CRTC2_CUR_EN);
 
-
+#ifdef XF86DRI
+    if (info->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
+#endif
 }
 
 void
