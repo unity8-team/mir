@@ -56,7 +56,7 @@
 #define OVERSCAN_VALUE 0x01
 
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-static void nv_crtc_load_state_ext (xf86CrtcPtr crtc, RIVA_HW_STATE *state);
+static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 
@@ -805,6 +805,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	int vertBlankStart  =  mode->CrtcVDisplay      - 1;
 	int vertBlankEnd    =  mode->CrtcVTotal        - 1;
 	/* What about vsync and hsync? */
+
 	Bool is_fp = FALSE;
 
 	for (i = 0; i < xf86_config->num_output; i++) {
@@ -817,6 +818,17 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 				is_fp = TRUE;
 			}
+		}
+	}
+
+	/* The CRTC needs a little time to stay in sync at panel resultion */
+	/* I don't know at this state if this is the case, but elsewere is just a hack as well */
+	/* Any better ideas were to put this? */
+	if (is_fp) {
+		if (pNv->NVArch == 0x11) {
+			horizTotal -= 56/8;
+		} else {
+			horizTotal -= 32/8;
 		}
 	}
 

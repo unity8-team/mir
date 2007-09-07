@@ -136,7 +136,6 @@
 
 #define NV_RAMDAC_NVPLL             0x500
 #define NV_RAMDAC_MPLL              0x504
-#define NV_RAMDAC_FP_TG_CTRL        0x848
 
 #	define NV_RAMDAC_PLL_COEFF_MDIV     0x000000FF
 #	define NV_RAMDAC_PLL_COEFF_NDIV     0x0000FF00
@@ -232,6 +231,9 @@
 #define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK (1<<28)
 #define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL (2<<28)
 #define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH (3<<28)
+#define NV_RAMDAC_FP_DEBUG_1        0x884
+#define NV_RAMDAC_FP_DEBUG_2        0x888
+#define NV_RAMDAC_FP_DEBUG_3        0x88C
 
 #define NV_RAMDAC_FP_TMDS_CONTROL   0x8b0
 /* 0xff - address mask */

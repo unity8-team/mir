@@ -114,16 +114,22 @@ typedef struct _nv_crtc_reg
 
 typedef struct _nv_output_reg
 {
-    CARD32 fp_control;
-    CARD32 crtcSync;
-    CARD32 dither;
-    CARD32 general;
-    CARD32 bpp;
-    CARD32 nv10_cursync;
-    CARD32 output;
-    CARD32 debug_0;
-    CARD32 fp_horiz_regs[7];
-    CARD32 fp_vert_regs[7];
+	CARD32 fp_control;
+	CARD32 crtcSync;
+	CARD32 dither;
+	CARD32 general;
+	CARD32 bpp;
+	CARD32 nv10_cursync;
+	CARD32 output;
+	CARD32 debug_0;
+	CARD32 debug_1;
+	CARD32 debug_2;
+	CARD32 fp_horiz_regs[7];
+	CARD32 fp_vert_regs[7];
+	CARD32 fp_hvalid_start;
+	CARD32 fp_hvalid_end;
+	CARD32 fp_vvalid_start;
+	CARD32 fp_vvalid_end;
 } NVOutputRegRec, *NVOutputRegPtr;
 
 typedef struct _riva_hw_state

@@ -214,6 +214,8 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
     regp = &state->dac_reg[nv_output->ramdac];
   
     NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_0, regp->debug_0);
+    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_0, regp->debug_1);
+    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_0, regp->debug_2);
     NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
     NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_CONTROL, regp->fp_control);
     //    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HCRTC, regp->crtcSync);
@@ -241,6 +243,11 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	    
 	    NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_vert_regs[i]);
 	}
+
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_START, regp->fp_hvalid_start);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_END, regp->fp_hvalid_end);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_START, regp->fp_vvalid_start);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_END, regp->fp_vvalid_end);
     }
 
 }
@@ -327,14 +334,16 @@ static void
 nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
-	ScrnInfoPtr	pScrn = output->scrn;
+	ScrnInfoPtr pScrn = output->scrn;
 	int bpp;
 	NVPtr pNv = NVPTR(pScrn);
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	RIVA_HW_STATE *state, *sv_state;
 	Bool is_fp = FALSE;
 	NVOutputRegPtr regp, savep;
-	xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
+	float aspect_ratio, panel_ratio;
+	uint32_t h_scale, v_scale;
 	int i;
 
 	state = &pNv->ModeReg;
@@ -342,14 +351,13 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 
 	sv_state = &pNv->SavedReg;
 	savep = &sv_state->dac_reg[nv_output->ramdac];
-	
-	if ((nv_output->type == OUTPUT_PANEL) || (nv_output->type == OUTPUT_DIGITAL))
-	{
+
+	if ((nv_output->type == OUTPUT_PANEL) || (nv_output->type == OUTPUT_DIGITAL)) {
 		is_fp = TRUE;
 
 		for (i = 0; i < 7; i++) {
-		    regp->fp_horiz_regs[i] = savep->fp_horiz_regs[i];
-		    regp->fp_vert_regs[i] = savep->fp_vert_regs[i];
+			regp->fp_horiz_regs[i] = savep->fp_horiz_regs[i];
+			regp->fp_vert_regs[i] = savep->fp_vert_regs[i];
 		}
 
 		regp->fp_horiz_regs[REG_DISP_END] = mode->CrtcHDisplay - 1;
@@ -359,7 +367,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		regp->fp_horiz_regs[REG_DISP_SYNC_END] = mode->CrtcHSyncEnd - 1;
 		regp->fp_horiz_regs[REG_DISP_VALID_START] = mode->CrtcHSkew;
 		regp->fp_horiz_regs[REG_DISP_VALID_END] = mode->CrtcHDisplay - 1;
-		
+
 		regp->fp_vert_regs[REG_DISP_END] = mode->CrtcVDisplay - 1;
 		regp->fp_vert_regs[REG_DISP_TOTAL] = mode->CrtcVTotal - 1;
 		regp->fp_vert_regs[REG_DISP_CRTC] = mode->CrtcVDisplay;
@@ -369,8 +377,48 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		regp->fp_vert_regs[REG_DISP_VALID_END] = mode->CrtcVDisplay - 1;
 	}
 
-	if (pNv->Architecture >= NV_ARCH_10) 
+	if (is_fp) {
+		panel_ratio = nv_output->fpWidth/nv_output->fpHeight;
+		aspect_ratio = mode->HDisplay/mode->VDisplay;
+		/* Scale factors is the so called 20.12 format, taken from Haiku */
+		h_scale = ((1 << 12) * mode->HDisplay)/nv_output->fpWidth;
+		v_scale = ((1 << 12) * mode->VDisplay)/nv_output->fpHeight;
+
+		/* Enable full width  and height on the flat panel */
+		regp->fp_hvalid_start = 0;
+		regp->fp_hvalid_end = (nv_output->fpWidth - 1);
+		regp->fp_vvalid_start = 0;
+		regp->fp_vvalid_end = (nv_output->fpHeight - 1);
+
+		/* When doing vertical scaling, limit the last fetched line */
+		if (v_scale != (1 << 12)) {
+			regp->debug_2 = (1 << 28) | ((mode->VDisplay - 1) << 16);
+		} else {
+			regp->debug_2 = 0;
+		}
+
+		/* Tell the panel not to scale */
+		regp->fp_control = savep->fp_control & 0xfffffeff;
+
+		/* GPU scaling happens automaticly at a ratio of 1:33 */
+		/* A 1280x1024 panel has a ratio of 1:25, we don't want to scale that */
+		/* This is taken from Haiku, personally i find the 0.10 factor strange */
+		if (h_scale != (1 << 12) && (panel_ratio > (aspect_ratio + 0.10))) {
+			uint32_t diff;
+
+			ErrorF("Scaling resolution on a widescreen panel\n");
+
+			/* Scaling in both directions needs to the same */
+			h_scale = v_scale;
+			diff = nv_output->fpWidth - ((1 << 12) * mode->HDisplay)/h_scale;
+			regp->fp_vvalid_start = diff/2;
+			regp->fp_vvalid_end = nv_output->fpHeight - (diff/2) - 1;
+		}
+	}
+
+	if (pNv->Architecture >= NV_ARCH_10) {
 		regp->nv10_cursync = savep->nv10_cursync | (1<<25);
+	}
 
 	regp->bpp = bpp;    /* this is not bitsPerPixel, it's 8,15,16,32 */
 
