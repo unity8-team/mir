@@ -326,129 +326,136 @@ nv_output_tweak_panel(xf86OutputPtr output, NVRegPtr state)
 static void
 nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 {
-    NVOutputPrivatePtr nv_output = output->driver_private;
-    ScrnInfoPtr	pScrn = output->scrn;
-    int bpp;
-    NVPtr pNv = NVPTR(pScrn);
-    NVFBLayout *pLayout = &pNv->CurrentLayout;
-    RIVA_HW_STATE *state, *sv_state;
-    Bool is_fp = FALSE;
-    NVOutputRegPtr regp, savep;
-    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int i;
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr	pScrn = output->scrn;
+	int bpp;
+	NVPtr pNv = NVPTR(pScrn);
+	NVFBLayout *pLayout = &pNv->CurrentLayout;
+	RIVA_HW_STATE *state, *sv_state;
+	Bool is_fp = FALSE;
+	NVOutputRegPtr regp, savep;
+	xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
 
-    state = &pNv->ModeReg;
-    regp = &state->dac_reg[nv_output->ramdac];
+	state = &pNv->ModeReg;
+	regp = &state->dac_reg[nv_output->ramdac];
 
-    sv_state = &pNv->SavedReg;
-    savep = &sv_state->dac_reg[nv_output->ramdac];
-	    
-    if ((nv_output->type == OUTPUT_PANEL) || (nv_output->type == OUTPUT_DIGITAL))
-    {
-	is_fp = TRUE;
-
-	for (i = 0; i < 7; i++) {
-	    regp->fp_horiz_regs[i] = savep->fp_horiz_regs[i];
-	    regp->fp_vert_regs[i] = savep->fp_vert_regs[i];
-	}
-
-	regp->fp_horiz_regs[REG_DISP_END] = mode->CrtcHDisplay - 1;
-	regp->fp_horiz_regs[REG_DISP_TOTAL] = mode->CrtcHTotal - 1;
-	regp->fp_horiz_regs[REG_DISP_CRTC] = mode->CrtcHDisplay;
-	regp->fp_horiz_regs[REG_DISP_SYNC_START] = mode->CrtcHSyncStart - 1;
-	regp->fp_horiz_regs[REG_DISP_SYNC_END] = mode->CrtcHSyncEnd - 1;
-	regp->fp_horiz_regs[REG_DISP_VALID_START] = mode->CrtcHSkew;
-	regp->fp_horiz_regs[REG_DISP_VALID_END] = mode->CrtcHDisplay - 1;
+	sv_state = &pNv->SavedReg;
+	savep = &sv_state->dac_reg[nv_output->ramdac];
 	
-	regp->fp_vert_regs[REG_DISP_END] = mode->CrtcVDisplay - 1;
-	regp->fp_vert_regs[REG_DISP_TOTAL] = mode->CrtcVTotal - 1;
-	regp->fp_vert_regs[REG_DISP_CRTC] = mode->CrtcVDisplay;
-	regp->fp_vert_regs[REG_DISP_SYNC_START] = mode->CrtcVSyncStart - 1;
-	regp->fp_vert_regs[REG_DISP_SYNC_END] = mode->CrtcVSyncEnd - 1;
-	regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
-	regp->fp_vert_regs[REG_DISP_VALID_END] = mode->CrtcVDisplay - 1;
-    
-    }
-
-    if (pNv->Architecture >= NV_ARCH_10) 
-	regp->nv10_cursync = savep->nv10_cursync | (1<<25);
-
-    regp->bpp    = bpp;    /* this is not bitsPerPixel, it's 8,15,16,32 */
-
-    regp->debug_0 = savep->debug_0;
-    regp->fp_control = savep->fp_control & 0xfff000ff;
-    if(is_fp == 1) {
-	if(!pNv->fpScaler || (nv_output->fpWidth <= mode->HDisplay)
-	   || (nv_output->fpHeight <= mode->VDisplay))
+	if ((nv_output->type == OUTPUT_PANEL) || (nv_output->type == OUTPUT_DIGITAL))
 	{
-	    regp->fp_control |= (1 << 8) ;
+		is_fp = TRUE;
+
+		for (i = 0; i < 7; i++) {
+		    regp->fp_horiz_regs[i] = savep->fp_horiz_regs[i];
+		    regp->fp_vert_regs[i] = savep->fp_vert_regs[i];
+		}
+
+		regp->fp_horiz_regs[REG_DISP_END] = mode->CrtcHDisplay - 1;
+		regp->fp_horiz_regs[REG_DISP_TOTAL] = mode->CrtcHTotal - 1;
+		regp->fp_horiz_regs[REG_DISP_CRTC] = mode->CrtcHDisplay;
+		regp->fp_horiz_regs[REG_DISP_SYNC_START] = mode->CrtcHSyncStart - 1;
+		regp->fp_horiz_regs[REG_DISP_SYNC_END] = mode->CrtcHSyncEnd - 1;
+		regp->fp_horiz_regs[REG_DISP_VALID_START] = mode->CrtcHSkew;
+		regp->fp_horiz_regs[REG_DISP_VALID_END] = mode->CrtcHDisplay - 1;
+		
+		regp->fp_vert_regs[REG_DISP_END] = mode->CrtcVDisplay - 1;
+		regp->fp_vert_regs[REG_DISP_TOTAL] = mode->CrtcVTotal - 1;
+		regp->fp_vert_regs[REG_DISP_CRTC] = mode->CrtcVDisplay;
+		regp->fp_vert_regs[REG_DISP_SYNC_START] = mode->CrtcVSyncStart - 1;
+		regp->fp_vert_regs[REG_DISP_SYNC_END] = mode->CrtcVSyncEnd - 1;
+		regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
+		regp->fp_vert_regs[REG_DISP_VALID_END] = mode->CrtcVDisplay - 1;
 	}
-	regp->crtcSync = savep->crtcSync;
-	regp->crtcSync += nv_output_tweak_panel(output, state);
 
-	regp->debug_0 &= ~NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
-    }
-    else
-	regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
+	if (pNv->Architecture >= NV_ARCH_10) 
+		regp->nv10_cursync = savep->nv10_cursync | (1<<25);
 
-    ErrorF("output %d debug_0 %08X\n", nv_output->ramdac, regp->debug_0);
+	regp->bpp = bpp;    /* this is not bitsPerPixel, it's 8,15,16,32 */
 
-    if(pNv->twoHeads) {
-	if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-	    regp->dither = savep->dither & ~0x00010000;
-	    if(pNv->FPDither)
-		regp->dither |= 0x00010000;
+	regp->debug_0 = savep->debug_0;
+	regp->fp_control = savep->fp_control & 0xfff000ff;
+	if(is_fp) {
+		if(!pNv->fpScaler || (nv_output->fpWidth <= mode->HDisplay)
+			|| (nv_output->fpHeight <= mode->VDisplay)) {
+				regp->fp_control |= (1 << 8) ;
+		}
+		regp->crtcSync = savep->crtcSync;
+		regp->crtcSync += nv_output_tweak_panel(output, state);
+
+		regp->debug_0 &= ~NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
 	} else {
-	    ErrorF("savep->dither %08X\n", savep->dither);
-	    regp->dither = savep->dither & ~1;
-	    if(pNv->FPDither)
-		regp->dither |= 1;
-	} 
-    }
-
-    if(pLayout->depth < 24) 
-	bpp = pLayout->depth;
-    else bpp = 32;    
-
-    regp->general  = bpp == 16 ? 0x00101100 : 0x00100100;
-
-    if (pNv->alphaCursor)
-	regp->general |= (1<<29);
-
-    if(bpp != 8) /* DirectColor */
-	regp->general |= 0x00000030;
-
-    if (output->crtc) {
-	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
-	int two_crt = FALSE;
-	int two_mon = FALSE;
-
-	for (i = 0; i < config->num_output; i++) {
-	    NVOutputPrivatePtr nv_output2 = config->output[i]->driver_private;
-
-	    /* is it this output ?? */
-	    if (config->output[i] == output)
-		continue;
-
-	    /* it the output connected */
-	    if (config->output[i]->crtc == NULL)
-		continue;
-
-	    two_mon = TRUE;
-	    if ((nv_output2->type == OUTPUT_ANALOG) && (nv_output->type == OUTPUT_ANALOG))
-		two_crt = TRUE;
+		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
 	}
 
-	if (is_fp == TRUE)
-	    regp->output = 0x0;
-	else 
-  	    regp->output = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+	ErrorF("output %d debug_0 %08X\n", nv_output->ramdac, regp->debug_0);
 
-	if (nv_crtc->crtc == 1 && two_mon)
-	  regp->output |= NV_RAMDAC_OUTPUT_SELECT_CRTC2;
+	if(pNv->twoHeads) {
+		if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
+			regp->dither = savep->dither & ~0x00010000;
+			if(pNv->FPDither) {
+				regp->dither |= 0x00010000;
+			}
+		} else {
+			ErrorF("savep->dither %08X\n", savep->dither);
+			regp->dither = savep->dither & ~1;
+			if(pNv->FPDither) {
+				regp->dither |= 1;
+			}
+		} 
+	}
+
+	if(pLayout->depth < 24) {
+		bpp = pLayout->depth;
+	} else {
+		bpp = 32;
+	}
+
+	regp->general  = bpp == 16 ? 0x00101100 : 0x00100100;
+
+	if (pNv->alphaCursor) {
+		regp->general |= (1<<29);
+	}
+
+	if(bpp != 8) {/* DirectColor */
+		regp->general |= 0x00000030;
+	}
+
+	if (output->crtc) {
+		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+		int two_crt = FALSE;
+		int two_mon = FALSE;
+
+		for (i = 0; i < config->num_output; i++) {
+			NVOutputPrivatePtr nv_output2 = config->output[i]->driver_private;
+
+			/* is it this output ?? */
+			if (config->output[i] == output)
+				continue;
+
+			/* it the output connected */
+			if (config->output[i]->crtc == NULL)
+				continue;
+
+			two_mon = TRUE;
+			if ((nv_output2->type == OUTPUT_ANALOG) && (nv_output->type == OUTPUT_ANALOG)) {
+				two_crt = TRUE;
+			}
+
+			if (is_fp == TRUE) {
+				regp->output = 0x0;
+			} else { 
+				regp->output = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+			}
+
+			if (nv_crtc->crtc == 1 && two_mon) {
+				regp->output |= NV_RAMDAC_OUTPUT_SELECT_CRTC2;
+			}
+		}
 
 	ErrorF("%d: crtc %d output%d: %04X: twocrt %d twomon %d\n", is_fp, nv_crtc->crtc, nv_output->ramdac, regp->output, two_crt, two_mon);
-    }
+	}
 }
 
 static void

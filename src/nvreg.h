@@ -136,6 +136,8 @@
 
 #define NV_RAMDAC_NVPLL             0x500
 #define NV_RAMDAC_MPLL              0x504
+#define NV_RAMDAC_FP_TG_CTRL        0x848
+
 #	define NV_RAMDAC_PLL_COEFF_MDIV     0x000000FF
 #	define NV_RAMDAC_PLL_COEFF_NDIV     0x0000FF00
 #	define NV_RAMDAC_PLL_COEFF_PDIV     0x00070000
