@@ -522,6 +522,7 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
      unsigned char seq1 = 0, crtc17 = 0;
      unsigned char crtc1A;
      int ret;
+     Bool crtc_is_on = FALSE;
 
      NVCrtcSetOwner(crtc);
 
@@ -550,6 +551,7 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
        /* Screen: On; HSync: On, VSync: On */
        seq1 = 0x00;
        crtc17 = 0x80;
+       crtc_is_on = TRUE;
        break;
      }
 
@@ -563,6 +565,8 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
      NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1, crtc1A);
 
+	/* This is usefull for Xv NVWaitVSync() */
+	nv_crtc->pNv->crtc_active[nv_crtc->crtc] = crtc_is_on;
 }
 
 static Bool
@@ -1138,6 +1142,8 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 
     nv_crtc = xnfcalloc (sizeof (NVCrtcPrivateRec), 1);
     nv_crtc->crtc = crtc_num;
+    /* This is usefull to do stuff from crtc functions */
+    nv_crtc->pNv = pNv;
 
     crtc->driver_private = nv_crtc;
 

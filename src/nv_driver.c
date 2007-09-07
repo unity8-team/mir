@@ -1335,17 +1335,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     if (xf86GetOptValBool(pNv->Options, OPTION_FP_DITHER, &(pNv->FPDither))) 
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "enabling flat panel dither\n");
 
-    if (xf86GetOptValInteger(pNv->Options, OPTION_CRTC_NUMBER,
-                             &pNv->CRTCnumber)) 
-    {
-	if((pNv->CRTCnumber < 0) || (pNv->CRTCnumber > 1)) {
-           pNv->CRTCnumber = -1;
-           xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
-                      "Invalid CRTC number.  Must be 0 or 1\n");
-        }
-    } else {
-        pNv->CRTCnumber = -1; /* autodetect later */
-    }
+    //if (xf86GetOptValInteger(pNv->Options, OPTION_CRTC_NUMBER,
+   //                          &pNv->CRTCnumber)) 
+    //{
+	//pNv->crtc_active[0] = FALSE;
+	//pNv->crtc_active[1] = FALSE;
+    //}
 
 
     if (xf86GetOptValInteger(pNv->Options, OPTION_FP_TWEAK, 
@@ -1833,7 +1828,7 @@ NVRestore(ScrnInfoPtr pScrn)
 		NVLockUnlock(pNv, 0);
 
 		if(pNv->twoHeads) {
-			nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->CRTCnumber * 0x3);
+			nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);
 			NVLockUnlock(pNv, 0);
 		}
 
@@ -2408,7 +2403,7 @@ NVSave(ScrnInfoPtr pScrn)
     } else {
 	NVLockUnlock(pNv, 0);
 	if(pNv->twoHeads) {
-	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->CRTCnumber * 0x3);
+	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);
 	    NVLockUnlock(pNv, 0);
 	}
 

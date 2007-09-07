@@ -181,7 +181,9 @@ NVWaitVSync(ScrnInfoPtr pScrn)
 	NVDmaStart(pNv, NvImageBlit, 0x0000012C, 1);
 	NVDmaNext (pNv, 0);
 	NVDmaStart(pNv, NvImageBlit, 0x00000134, 1);
-	NVDmaNext (pNv, pNv->CRTCnumber);
+	/* If crtc1 is active, this will produce one, otherwise zero */
+	/* The assumption is that at least one is active */
+	NVDmaNext (pNv, pNv->crtc_active[1]);
 	NVDmaStart(pNv, NvImageBlit, 0x00000100, 1);
 	NVDmaNext (pNv, 0);
 	NVDmaStart(pNv, NvImageBlit, 0x00000130, 1);

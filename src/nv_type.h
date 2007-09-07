@@ -175,13 +175,6 @@ typedef struct {
 	void *map;
 } NVAllocRec;
 
-typedef struct _NVCrtcPrivateRec {
-	int crtc;
-        Bool paletteEnabled;
-} NVCrtcPrivateRec, *NVCrtcPrivatePtr;
-
-#define NVCrtcPrivate(c) ((NVCrtcPrivatePtr)(c)->driver_private)
-
 typedef struct _NVOutputPrivateRec {
         int ramdac;
         I2CBusPtr		    pDDCBus;
@@ -295,8 +288,8 @@ typedef struct _NVRec {
     Bool                FPDither;
     int                 Mobile;
     Bool                Television;
-    int			CRTCnumber;
 	int         vtOWNER;
+	Bool		crtc_active[2];
     OptionInfoPtr	Options;
     Bool                alphaCursor;
     unsigned char       DDCBase;
@@ -348,6 +341,14 @@ typedef struct _NVRec {
 	    ORNum sor;
     } i2cMap[4];
 } NVRec;
+
+typedef struct _NVCrtcPrivateRec {
+	int crtc;
+	Bool paletteEnabled;
+	NVPtr pNv;
+} NVCrtcPrivateRec, *NVCrtcPrivatePtr;
+
+#define NVCrtcPrivate(c) ((NVCrtcPrivatePtr)(c)->driver_private)
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))
 

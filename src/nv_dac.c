@@ -230,7 +230,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
     nvReg->fifo = nvReadVGA(pNv, 0x1c) & ~(1<<5);
 
-    if(pNv->CRTCnumber) {
+    if(pNv->crtc_active[1]) {
        nvReg->head  = nvReadCRTC(pNv, 0, NV_CRTC_FSEL) & ~0x00001000;
        nvReg->head2 = nvReadCRTC(pNv, 1, NV_CRTC_FSEL) | 0x00001000;
        nvReg->crtcOwner = 3;
@@ -238,8 +238,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
        nvReg->vpll = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL);
        if(pNv->twoStagePLL) 
           nvReg->vpllB = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL_B);
-    } else 
-    if(pNv->twoHeads) {
+    } else if(pNv->twoHeads) {
        nvReg->head  =  nvReadCRTC(pNv, 0, NV_CRTC_FSEL) | 0x00001000;
        nvReg->head2 =  nvReadCRTC(pNv, 1, NV_CRTC_FSEL) & ~0x00001000;
        nvReg->crtcOwner = 0;
@@ -312,9 +311,11 @@ NVDACSave(ScrnInfoPtr pScrn, vgaRegPtr vgaReg, NVRegPtr nvReg,
                              (saveFonts? VGA_SR_FONTS : 0));
     NVUnloadStateExt(pNv, nvReg);
 
-    /* can't read this reliably on NV11 */
-    if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) 
-       nvReg->crtcOwner = pNv->CRTCnumber;
+	/* can't read this reliably on NV11 */
+	if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
+		/* 0 if inactive -> crtc0 is active, otherwise 1 */
+		nvReg->crtcOwner = pNv->crtc_active[1];
+	}
 }
 
 #define DEPTH_SHIFT(val, w) ((val << (8 - w)) | (val >> ((w << 1) - 8)))
