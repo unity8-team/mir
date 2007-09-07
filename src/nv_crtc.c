@@ -784,193 +784,195 @@ struct timing_modes {
 static void
 nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NVPtr pNv = NVPTR(pScrn);
-    NVRegPtr state = &pNv->ModeReg;
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-    NVFBLayout *pLayout = &pNv->CurrentLayout;
-    NVCrtcRegPtr regp, savep;
-    unsigned int i;
-    int horizDisplay    = (mode->CrtcHDisplay/8)   - 1;
-    int horizStart      = (mode->CrtcHSyncStart/8) - 1;
-    int horizEnd        = (mode->CrtcHSyncEnd/8)   - 1;
-    int horizTotal      = (mode->CrtcHTotal/8)     - 5;
-    int horizBlankStart = (mode->CrtcHDisplay/8)   - 1;
-    int horizBlankEnd   = (mode->CrtcHTotal/8)     - 1;
-    int vertDisplay     =  mode->CrtcVDisplay      - 1;
-    int vertStart       =  mode->CrtcVSyncStart    - 1;
-    int vertEnd         =  mode->CrtcVSyncEnd      - 1;
-    int vertTotal       =  mode->CrtcVTotal        - 2;
-    int vertBlankStart  =  mode->CrtcVDisplay      - 1;
-    int vertBlankEnd    =  mode->CrtcVTotal        - 1;
-    Bool is_fp = FALSE;
-    Bool is_first_output = FALSE;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	NVRegPtr state = &pNv->ModeReg;
+	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVFBLayout *pLayout = &pNv->CurrentLayout;
+	NVCrtcRegPtr regp, savep;
+	unsigned int i;
+	int horizDisplay    = (mode->CrtcHDisplay/8)   - 1;
+	int horizStart      = (mode->CrtcHSyncStart/8) - 1;
+	int horizEnd        = (mode->CrtcHSyncEnd/8)   - 1;
+	int horizTotal      = (mode->CrtcHTotal/8)     - 5;
+	int horizBlankStart = (mode->CrtcHDisplay/8)   - 1;
+	int horizBlankEnd   = (mode->CrtcHTotal/8)     - 1;
+	int vertDisplay     =  mode->CrtcVDisplay      - 1;
+	int vertStart       =  mode->CrtcVSyncStart    - 1;
+	int vertEnd         =  mode->CrtcVSyncEnd      - 1;
+	int vertTotal       =  mode->CrtcVTotal        - 2;
+	int vertBlankStart  =  mode->CrtcVDisplay      - 1;
+	int vertBlankEnd    =  mode->CrtcVTotal        - 1;
+	Bool is_fp = FALSE;
+	Bool is_first_output = FALSE;
 
-    for (i = 0; i < xf86_config->num_output; i++) {
-	xf86OutputPtr  output = xf86_config->output[i];
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr  output = xf86_config->output[i];
+		NVOutputPrivatePtr nv_output = output->driver_private;
 
- 	if (output->crtc == crtc) {
-		if ((nv_output->type == OUTPUT_PANEL) || 
-			(nv_output->type == OUTPUT_DIGITAL)) {
+		if (output->crtc == crtc) {
+			if ((nv_output->type == OUTPUT_PANEL) || 
+				(nv_output->type == OUTPUT_DIGITAL)) {
 
-			is_fp = TRUE;
-			/* This is usefull to fall back on bios DFP timings */
-			if (i == 0) {
-				is_first_output = TRUE;
+				is_fp = TRUE;
+				/* This is usefull to fall back on bios DFP timings */
+				if (i == 0) {
+					is_first_output = TRUE;
+				}
 			}
 		}
 	}
-    }
 
-    regp = &pNv->ModeReg.crtc_reg[nv_crtc->crtc];    
-    savep = &pNv->SavedReg.crtc_reg[nv_crtc->crtc];
+	regp = &pNv->ModeReg.crtc_reg[nv_crtc->crtc];    
+	savep = &pNv->SavedReg.crtc_reg[nv_crtc->crtc];
 
-    if(mode->Flags & V_INTERLACE) 
-        vertTotal |= 1;
+	if(mode->Flags & V_INTERLACE) 
+		vertTotal |= 1;
 
-    regp->CRTC[NV_VGA_CRTCX_HTOTAL]  = Set8Bits(horizTotal);
-    regp->CRTC[NV_VGA_CRTCX_HDISPE]  = Set8Bits(horizDisplay);
-    regp->CRTC[NV_VGA_CRTCX_HBLANKS]  = Set8Bits(horizBlankStart);
-    regp->CRTC[NV_VGA_CRTCX_HBLANKE]  = SetBitField(horizBlankEnd,4:0,4:0) 
-                       | SetBit(7);
-    regp->CRTC[NV_VGA_CRTCX_HSYNCS]  = Set8Bits(horizStart);
-    regp->CRTC[NV_VGA_CRTCX_HSYNCE]  = SetBitField(horizBlankEnd,5:5,7:7)
-                       | SetBitField(horizEnd,4:0,4:0);
-    regp->CRTC[NV_VGA_CRTCX_VTOTAL]  = SetBitField(vertTotal,7:0,7:0);
-    regp->CRTC[NV_VGA_CRTCX_OVERFLOW]  = SetBitField(vertTotal,8:8,0:0)
-                       | SetBitField(vertDisplay,8:8,1:1)
-                       | SetBitField(vertStart,8:8,2:2)
-                       | SetBitField(vertBlankStart,8:8,3:3)
-                       | SetBit(4)
-                       | SetBitField(vertTotal,9:9,5:5)
-                       | SetBitField(vertDisplay,9:9,6:6)
-                       | SetBitField(vertStart,9:9,7:7);
-    regp->CRTC[NV_VGA_CRTCX_MAXSCLIN]  = SetBitField(vertBlankStart,9:9,5:5)
-                       | SetBit(6)
-                       | ((mode->Flags & V_DBLSCAN) ? 0x80 : 0x00);
-    regp->CRTC[NV_VGA_CRTCX_VSYNCS] = Set8Bits(vertStart);
-    regp->CRTC[NV_VGA_CRTCX_VSYNCE] = SetBitField(vertEnd,3:0,3:0) | SetBit(5);
-    regp->CRTC[NV_VGA_CRTCX_VDISPE] = Set8Bits(vertDisplay);
-    regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((pLayout->displayWidth/8)*(pLayout->bitsPerPixel/8));
-    regp->CRTC[NV_VGA_CRTCX_VBLANKS] = Set8Bits(vertBlankStart);
-    regp->CRTC[NV_VGA_CRTCX_VBLANKE] = Set8Bits(vertBlankEnd);
+	regp->CRTC[NV_VGA_CRTCX_HTOTAL]  = Set8Bits(horizTotal);
+	regp->CRTC[NV_VGA_CRTCX_HDISPE]  = Set8Bits(horizDisplay);
+	regp->CRTC[NV_VGA_CRTCX_HBLANKS]  = Set8Bits(horizBlankStart);
+	regp->CRTC[NV_VGA_CRTCX_HBLANKE]  = SetBitField(horizBlankEnd,4:0,4:0) 
+				| SetBit(7);
+	regp->CRTC[NV_VGA_CRTCX_HSYNCS]  = Set8Bits(horizStart);
+	regp->CRTC[NV_VGA_CRTCX_HSYNCE]  = SetBitField(horizBlankEnd,5:5,7:7)
+				| SetBitField(horizEnd,4:0,4:0);
+	regp->CRTC[NV_VGA_CRTCX_VTOTAL]  = SetBitField(vertTotal,7:0,7:0);
+	regp->CRTC[NV_VGA_CRTCX_OVERFLOW]  = SetBitField(vertTotal,8:8,0:0)
+				| SetBitField(vertDisplay,8:8,1:1)
+				| SetBitField(vertStart,8:8,2:2)
+				| SetBitField(vertBlankStart,8:8,3:3)
+				| SetBit(4)
+				| SetBitField(vertTotal,9:9,5:5)
+				| SetBitField(vertDisplay,9:9,6:6)
+				| SetBitField(vertStart,9:9,7:7);
+	regp->CRTC[NV_VGA_CRTCX_MAXSCLIN]  = SetBitField(vertBlankStart,9:9,5:5)
+				| SetBit(6)
+				| ((mode->Flags & V_DBLSCAN) ? 0x80 : 0x00);
+	regp->CRTC[NV_VGA_CRTCX_VSYNCS] = Set8Bits(vertStart);
+	regp->CRTC[NV_VGA_CRTCX_VSYNCE] = SetBitField(vertEnd,3:0,3:0) | SetBit(5);
+	regp->CRTC[NV_VGA_CRTCX_VDISPE] = Set8Bits(vertDisplay);
+	regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((pLayout->displayWidth/8)*(pLayout->bitsPerPixel/8));
+	regp->CRTC[NV_VGA_CRTCX_VBLANKS] = Set8Bits(vertBlankStart);
+	regp->CRTC[NV_VGA_CRTCX_VBLANKE] = Set8Bits(vertBlankEnd);
 
-    regp->Attribute[0x10] = 0x01;
+	regp->Attribute[0x10] = 0x01;
 
-    if(pNv->Television)
-       regp->Attribute[0x11] = 0x00;
+	if(pNv->Television)
+		regp->Attribute[0x11] = 0x00;
 
-    regp->CRTC[NV_VGA_CRTCX_LSR] = SetBitField(horizBlankEnd,6:6,4:4)
-                  | SetBitField(vertBlankStart,10:10,3:3)
-                  | SetBitField(vertStart,10:10,2:2)
-                  | SetBitField(vertDisplay,10:10,1:1)
-                  | SetBitField(vertTotal,10:10,0:0);
+	regp->CRTC[NV_VGA_CRTCX_LSR] = SetBitField(horizBlankEnd,6:6,4:4)
+				| SetBitField(vertBlankStart,10:10,3:3)
+				| SetBitField(vertStart,10:10,2:2)
+				| SetBitField(vertDisplay,10:10,1:1)
+				| SetBitField(vertTotal,10:10,0:0);
 
-    regp->CRTC[NV_VGA_CRTCX_HEB] = SetBitField(horizTotal,8:8,0:0) 
-                  | SetBitField(horizDisplay,8:8,1:1)
-                  | SetBitField(horizBlankStart,8:8,2:2)
-                  | SetBitField(horizStart,8:8,3:3);
+	regp->CRTC[NV_VGA_CRTCX_HEB] = SetBitField(horizTotal,8:8,0:0) 
+				| SetBitField(horizDisplay,8:8,1:1)
+				| SetBitField(horizBlankStart,8:8,2:2)
+				| SetBitField(horizStart,8:8,3:3);
 
-    regp->CRTC[NV_VGA_CRTCX_EXTRA] = SetBitField(vertTotal,11:11,0:0)
-                    | SetBitField(vertDisplay,11:11,2:2)
-                    | SetBitField(vertStart,11:11,4:4)
-                    | SetBitField(vertBlankStart,11:11,6:6);
+	regp->CRTC[NV_VGA_CRTCX_EXTRA] = SetBitField(vertTotal,11:11,0:0)
+				| SetBitField(vertDisplay,11:11,2:2)
+				| SetBitField(vertStart,11:11,4:4)
+				| SetBitField(vertBlankStart,11:11,6:6);
 
-    if(mode->Flags & V_INTERLACE) {
-       horizTotal = (horizTotal >> 1) & ~1;
-       regp->CRTC[NV_VGA_CRTCX_INTERLACE] = Set8Bits(horizTotal);
-       regp->CRTC[NV_VGA_CRTCX_HEB] |= SetBitField(horizTotal,8:8,4:4);
-    } else {
-	regp->CRTC[NV_VGA_CRTCX_INTERLACE] = 0xff;  /* interlace off */
-    }
-
-    regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfa;
-    
-    if (is_fp) {
-	    regp->CRTC[NV_VGA_CRTCX_LCD] = savep->CRTC[NV_VGA_CRTCX_LCD] | 1;
-	    /* this turns on the DFP on nv28 outputs */
-	    regp->CRTC[NV_VGA_CRTCX_59] = savep->CRTC[NV_VGA_CRTCX_59] | 1;
-    } else {
-	    regp->CRTC[NV_VGA_CRTCX_LCD] = savep->CRTC[NV_VGA_CRTCX_LCD] & ~1;
-    }
-
-    /*
-     * Initialize DAC palette.
-     */
-    if(pLayout->bitsPerPixel != 8 )
-    {
-        for (i = 0; i < 256; i++)
-        {
-            regp->DAC[i*3]     = i;
-            regp->DAC[(i*3)+1] = i;
-            regp->DAC[(i*3)+2] = i;
-        }
-    }
-    
-    /*
-     * Calculate the extended registers.
-     */
-
-    if(pLayout->depth < 24) 
-	i = pLayout->depth;
-    else i = 32;
-
-    if(pNv->Architecture >= NV_ARCH_10)
-	pNv->CURSOR = (CARD32 *)pNv->Cursor->map;
-
-    ErrorF("crtc %d %d %d\n", nv_crtc->crtc, mode->CrtcHDisplay, pLayout->displayWidth);
-    nv_crtc_calc_state_ext(crtc,
-			   i,
-			   pLayout->displayWidth,
-			   mode->CrtcHDisplay,
-			   mode->CrtcVDisplay,
-			   mode->Clock,
-			   mode->Flags);
-
-    if (is_fp)
-      regp->CRTC[NV_VGA_CRTCX_PIXEL] |= (1 << 7);
-
-    regp->CRTC[NV_VGA_CRTCX_FIFO1] = savep->CRTC[NV_VGA_CRTCX_FIFO1] & ~(1<<5);
-
-    if(nv_crtc->crtc) {
-       if (is_fp) {
-	       regp->head &= ~NV_CRTC_FSEL_FPP2;
-	       regp->head |= NV_CRTC_FSEL_FPP1;
-       } else {
-	       regp->head &= ~NV_CRTC_FSEL_FPP1;
-	       regp->head |= NV_CRTC_FSEL_FPP2;
-       }
-
-       regp->crtcOwner = 3;
-       /* only enable secondary pllsel if CRTC 1 is selected on */
-
-    } else {
-      if(pNv->twoHeads) {
-	regp->head  =  savep->head | 0x00001000;
-        if (is_fp) {
-		regp->head &= ~NV_CRTC_FSEL_FPP2;
-		regp->head |= NV_CRTC_FSEL_FPP1;
+	if(mode->Flags & V_INTERLACE) {
+		horizTotal = (horizTotal >> 1) & ~1;
+		regp->CRTC[NV_VGA_CRTCX_INTERLACE] = Set8Bits(horizTotal);
+		regp->CRTC[NV_VGA_CRTCX_HEB] |= SetBitField(horizTotal,8:8,4:4);
 	} else {
-	        regp->head &= ~NV_CRTC_FSEL_FPP1;
-  	        regp->head |= NV_CRTC_FSEL_FPP2;
+		regp->CRTC[NV_VGA_CRTCX_INTERLACE] = 0xff;  /* interlace off */
 	}
 
-	regp->crtcOwner = 0;
-      }
-    }
+	regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfa;
+    
+	if (is_fp) {
+		regp->CRTC[NV_VGA_CRTCX_LCD] = savep->CRTC[NV_VGA_CRTCX_LCD] | 1;
+		/* this turns on the DFP on nv28 outputs */
+		regp->CRTC[NV_VGA_CRTCX_59] = savep->CRTC[NV_VGA_CRTCX_59] | 1;
+	} else {
+		regp->CRTC[NV_VGA_CRTCX_LCD] = savep->CRTC[NV_VGA_CRTCX_LCD] & ~1;
+	}
 
-    regp->cursorConfig = 0x00000100;
-    if(mode->Flags & V_DBLSCAN)
-       regp->cursorConfig |= (1 << 4);
-    if(pNv->alphaCursor) {
-        if((pNv->Chipset & 0x0ff0) != CHIPSET_NV11) 
-           regp->cursorConfig |= 0x04011000;
-        else
-           regp->cursorConfig |= 0x14011000;
-    } else
-       regp->cursorConfig |= 0x02000000;
+	/*
+	* Initialize DAC palette.
+	*/
+	if(pLayout->bitsPerPixel != 8 ) {
+		for (i = 0; i < 256; i++) {
+			regp->DAC[i*3]     = i;
+			regp->DAC[(i*3)+1] = i;
+			regp->DAC[(i*3)+2] = i;
+		}
+	}
+
+	/*
+	* Calculate the extended registers.
+	*/
+
+	if(pLayout->depth < 24) {
+		i = pLayout->depth;
+	} else {
+		i = 32;
+	}
+
+	if(pNv->Architecture >= NV_ARCH_10)
+		pNv->CURSOR = (CARD32 *)pNv->Cursor->map;
+
+	ErrorF("crtc %d %d %d\n", nv_crtc->crtc, mode->CrtcHDisplay, pLayout->displayWidth);
+	nv_crtc_calc_state_ext(crtc,
+				i,
+				pLayout->displayWidth,
+				mode->CrtcHDisplay,
+				mode->CrtcVDisplay,
+				mode->Clock,
+				mode->Flags);
+
+	if (is_fp)
+		regp->CRTC[NV_VGA_CRTCX_PIXEL] |= (1 << 7);
+
+	regp->CRTC[NV_VGA_CRTCX_FIFO1] = savep->CRTC[NV_VGA_CRTCX_FIFO1] & ~(1<<5);
+
+	if(nv_crtc->crtc) {
+		if (is_fp) {
+			regp->head &= ~NV_CRTC_FSEL_FPP2;
+			regp->head |= NV_CRTC_FSEL_FPP1;
+		} else {
+			regp->head &= ~NV_CRTC_FSEL_FPP1;
+			regp->head |= NV_CRTC_FSEL_FPP2;
+		}
+
+		regp->crtcOwner = 3;
+		/* only enable secondary pllsel if CRTC 1 is selected on */
+
+	} else {
+		if(pNv->twoHeads) {
+			regp->head  =  savep->head | 0x00001000;
+			if (is_fp) {
+				regp->head &= ~NV_CRTC_FSEL_FPP2;
+				regp->head |= NV_CRTC_FSEL_FPP1;
+			} else {
+				regp->head &= ~NV_CRTC_FSEL_FPP1;
+				regp->head |= NV_CRTC_FSEL_FPP2;
+			}
+
+			regp->crtcOwner = 0;
+		}
+	}
+
+	regp->cursorConfig = 0x00000100;
+	if(mode->Flags & V_DBLSCAN)
+		regp->cursorConfig |= (1 << 4);
+	if(pNv->alphaCursor) {
+		if((pNv->Chipset & 0x0ff0) != CHIPSET_NV11) {
+			regp->cursorConfig |= 0x04011000;
+		} else {
+			regp->cursorConfig |= 0x14011000;
+		}
+	} else {
+		regp->cursorConfig |= 0x02000000;
+	}
 
 	/* This relies on a table, with a fallback on bios timings */
 	if (is_fp) {
@@ -1010,8 +1012,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = 0;
 	}
 
-    regp->unk830 = mode->CrtcVDisplay - 3;
-    regp->unk834 = mode->CrtcVDisplay - 1;
+	regp->unk830 = mode->CrtcVDisplay - 3;
+	regp->unk834 = mode->CrtcVDisplay - 1;
 }
 
 /**
