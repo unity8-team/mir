@@ -585,9 +585,27 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode)
 	NVPtr pNv = NVPTR(pScrn);
 	int depth = pScrn->depth;
 	unsigned int i;
+	uint32_t drain;
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->crtc];
 
+	/* Initializing some default bios settings */
+
+	/* This is crude, but if it works for Haiku ;-) */
+	drain = mode->HDisplay * mode->VDisplay * pScrn->bitsPerPixel;
+
+	if ( drain <= 1024*768*4 ) {
+		/* CRTC fifo burst size */
+		regp->CRTC[NV_VGA_CRTCX_FIFO0] = 0x03;
+		/* CRTC fifo fetch interval */
+		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = 0x20;
+	} else if (drain <= 1280*1024*4) {
+		regp->CRTC[NV_VGA_CRTCX_FIFO0] = 0x02;
+		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = 0x40;
+	} else {
+		regp->CRTC[NV_VGA_CRTCX_FIFO0] = 0x01;
+		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = 0x40;
+	}
 
 	/*
 	* compute correct Hsync & Vsync polarity 
