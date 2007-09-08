@@ -755,24 +755,6 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 }
 
-/* This should accomodate up to 65535x65535 */
-#define NOUVEAU_RES(_h_res, _v_res) ((_h_res << 16) | _v_res)
-
-/* These are timing modes for DFP's */
-/* These are not neccesarily correct, just our best guess */
-struct timing_modes {
-	uint32_t res;
-	uint8_t htiming;
-	uint8_t vtiming;
-} known_modes[] = {
-	{NOUVEAU_RES(1024, 768), 0x40, 0x00},
-	{NOUVEAU_RES(1280, 1024), 0x0a, 0x02},
-	{NOUVEAU_RES(1680, 1050), 0x00, 0x00},
-	{NOUVEAU_RES(2560, 1600), 0x00, 0x00},
-	{0, 0, 0}
-};
-
-
 /**
  * Sets up registers for the given mode/adjusted_mode pair.
  *
