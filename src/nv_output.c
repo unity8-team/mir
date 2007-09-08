@@ -174,6 +174,8 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
     regp->general       = NVOutputReadRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL);
     regp->fp_control    = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL);
     regp->debug_0	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_0);
+    regp->debug_1	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_1);
+    regp->debug_2	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_2);
     state->config       = nvReadFB(pNv, NV_PFB_CFG0);
     
     regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
@@ -200,6 +202,11 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	    
 	    regp->fp_vert_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
 	}
+
+	regp->fp_hvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_START);
+	regp->fp_hvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_END);
+	regp->fp_vvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_START);
+	regp->fp_vvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_END);
     }
 
 }
@@ -214,8 +221,8 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
     regp = &state->dac_reg[nv_output->ramdac];
   
     NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_0, regp->debug_0);
-    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_0, regp->debug_1);
-    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_0, regp->debug_2);
+    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
+    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
     NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
     NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_CONTROL, regp->fp_control);
     //    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HCRTC, regp->crtcSync);
@@ -378,15 +385,22 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	}
 
 	if (is_fp) {
-		panel_ratio = nv_output->fpWidth/nv_output->fpHeight;
-		aspect_ratio = mode->HDisplay/mode->VDisplay;
+		ErrorF("Pre-panel scaling\n");
+		ErrorF("panel-size:%dx%d\n", nv_output->fpWidth, nv_output->fpHeight);
+		panel_ratio = (nv_output->fpWidth)/(float)(nv_output->fpHeight);
+		ErrorF("panel_ratio=%f\n", panel_ratio);
+		aspect_ratio = (mode->HDisplay)/(float)(mode->VDisplay);
+		ErrorF("aspect_ratio=%f\n", aspect_ratio);
 		/* Scale factors is the so called 20.12 format, taken from Haiku */
 		h_scale = ((1 << 12) * mode->HDisplay)/nv_output->fpWidth;
 		v_scale = ((1 << 12) * mode->VDisplay)/nv_output->fpHeight;
+		ErrorF("h_scale=%d\n", h_scale);
+		ErrorF("v_scale=%d\n", v_scale);
 
 		/* Enable full width  and height on the flat panel */
 		regp->fp_hvalid_start = 0;
 		regp->fp_hvalid_end = (nv_output->fpWidth - 1);
+
 		regp->fp_vvalid_start = 0;
 		regp->fp_vvalid_end = (nv_output->fpHeight - 1);
 
@@ -401,8 +415,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		regp->fp_control = savep->fp_control & 0xfffffeff;
 
 		/* GPU scaling happens automaticly at a ratio of 1:33 */
-		/* A 1280x1024 panel has a ratio of 1:25, we don't want to scale that */
-		/* This is taken from Haiku, personally i find the 0.10 factor strange */
+		/* A 1280x1024 panel has a ratio of 1:25, we don't want to scale that at 4:3 resolutions */
 		if (h_scale != (1 << 12) && (panel_ratio > (aspect_ratio + 0.10))) {
 			uint32_t diff;
 
@@ -411,26 +424,35 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 			/* Scaling in both directions needs to the same */
 			h_scale = v_scale;
 			diff = nv_output->fpWidth - ((1 << 12) * mode->HDisplay)/h_scale;
+			regp->fp_hvalid_start = diff/2;
+			regp->fp_hvalid_end = nv_output->fpWidth - (diff/2) - 1;
+		}
+
+		/* Same scaling, just for panels with aspect ratio's smaller than 1 */
+		if (v_scale != (1 << 12) && (panel_ratio < (aspect_ratio - 0.10))) {
+			uint32_t diff;
+
+			ErrorF("Scaling resolution on a portrait panel\n");
+
+			/* Scaling in both directions needs to the same */
+			v_scale = h_scale;
+			diff = nv_output->fpHeight - ((1 << 12) * mode->VDisplay)/v_scale;
 			regp->fp_vvalid_start = diff/2;
 			regp->fp_vvalid_end = nv_output->fpHeight - (diff/2) - 1;
 		}
+
+		ErrorF("Post-panel scaling\n");
 	}
 
 	if (pNv->Architecture >= NV_ARCH_10) {
 		regp->nv10_cursync = savep->nv10_cursync | (1<<25);
 	}
 
-	regp->bpp = bpp;    /* this is not bitsPerPixel, it's 8,15,16,32 */
-
 	regp->debug_0 = savep->debug_0;
-	regp->fp_control = savep->fp_control & 0xfff000ff;
+	regp->debug_1 = savep->debug_1;
 	if(is_fp) {
-		if(!pNv->fpScaler || (nv_output->fpWidth <= mode->HDisplay)
-			|| (nv_output->fpHeight <= mode->VDisplay)) {
-				regp->fp_control |= (1 << 8) ;
-		}
 		regp->crtcSync = savep->crtcSync;
-		regp->crtcSync += nv_output_tweak_panel(output, state);
+		//regp->crtcSync += nv_output_tweak_panel(output, state);
 
 		regp->debug_0 &= ~NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
 	} else {
@@ -440,7 +462,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	ErrorF("output %d debug_0 %08X\n", nv_output->ramdac, regp->debug_0);
 
 	if(pNv->twoHeads) {
-		if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
+		if(pNv->NVArch == 0x11) {
 			regp->dither = savep->dither & ~0x00010000;
 			if(pNv->FPDither) {
 				regp->dither |= 0x00010000;
@@ -469,6 +491,8 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	if(bpp != 8) {/* DirectColor */
 		regp->general |= 0x00000030;
 	}
+
+	regp->bpp = bpp;    /* this is not bitsPerPixel, it's 8,15,16,32 */
 
 	if (output->crtc) {
 		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
@@ -523,21 +547,36 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 static Bool
 nv_ddc_detect(xf86OutputPtr output)
 {
-    /* no use for shared DDC output */
-    NVOutputPrivatePtr nv_output = output->driver_private;
-    xf86MonPtr ddc_mon;
+	/* no use for shared DDC output */
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	xf86MonPtr ddc_mon;
 
-    ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
-    if (!ddc_mon)
-	return 0;
+	ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
+	if (!ddc_mon)
+		return FALSE;
 
-    if (ddc_mon->features.input_type && (nv_output->type == OUTPUT_ANALOG))
-	return 0;
+	if (ddc_mon->features.input_type && (nv_output->type == OUTPUT_ANALOG))
+		return FALSE;
 
-    if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL))
-	return 0;
+	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL)) {
+		return FALSE;
+	}
 
-    return 1;
+	xf86PrintEDID(ddc_mon);
+
+	if (nv_output->type == OUTPUT_DIGITAL) {
+		int i;
+		for (i = 0; i < 8; i++) {
+			if ((ddc_mon->timings2[i].hsize > nv_output->fpWidth) ||
+				(ddc_mon->timings2[i].vsize > nv_output->fpHeight)) {
+
+				nv_output->fpWidth = ddc_mon->timings2[i].hsize;
+				nv_output->fpHeight = ddc_mon->timings2[i].vsize;
+			}
+		}
+	}
+
+	return TRUE;
 }
 
 static Bool

@@ -821,16 +821,24 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		}
 	}
 
+	ErrorF("crtc: Pre-sync workaround\n");
 	/* The CRTC needs a little time to stay in sync at panel resultion */
 	/* I don't know at this state if this is the case, but elsewere is just a hack as well */
 	/* Any better ideas were to put this? */
 	if (is_fp) {
-		if (pNv->NVArch == 0x11) {
+		if (pNv->Architecture >= NV_ARCH_40) {
+			horizTotal -= 56/8;
+			/* This is my observation, screen becomes fuzzy otherwise */
+			/* Maybe this is because the crtc timing needs to end before the dfp's? */
+			/* Check this on older hardware please */
+			vertTotal -= 1;
+		} else if (pNv->NVArch == 0x11) {
 			horizTotal -= 56/8;
 		} else {
 			horizTotal -= 32/8;
 		}
 	}
+	ErrorF("crtc: Post-sync workaround\n");
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->crtc];    
 	savep = &pNv->SavedReg.crtc_reg[nv_crtc->crtc];
