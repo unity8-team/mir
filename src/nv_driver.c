@@ -500,8 +500,9 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 	if (architecture >= 0x04 && architecture <= 0x8F) {
 
 		/* At this stage the pci_id should be ok, so we generate this to avoid list duplication */
+		/* AGP bridge chips need their bridge chip id to be detected */
 		const PciChipsets NVChipsets[] = {
-			{ pci_id, pci_id, RES_SHARED_VGA },
+			{ pci_id, PCI_DEV_PCI_ID(dev), RES_SHARED_VGA },
 			{ -1, -1, RES_UNDEFINED }
 		};
 
@@ -579,8 +580,9 @@ NVProbe(DriverPtr drv, int flags)
 			if (architecture >= 0x04 && architecture <= 0x8F) {
 				NVChipsets[numUsed].token = pciid;
 				NVChipsets[numUsed].name = name;
-				NVPciChipsets[numUsed].numChipset = pciid; 
-				NVPciChipsets[numUsed].PCIid = pciid;
+				NVPciChipsets[numUsed].numChipset = pciid;
+				/* AGP bridge chips need their bridge chip id to be detected */
+				NVPciChipsets[numUsed].PCIid = PCI_DEV_PCI_ID(*ppPci);
 				NVPciChipsets[numUsed].resList = RES_SHARED_VGA;
 				numUsed++;
 			}

@@ -43,4 +43,6 @@
 
 #endif /* XSERVER_LIBPCIACCESS */
 
+#define PCI_DEV_PCI_ID(_device) ((PCI_DEV_VENDOR_ID(_device) << 16) | PCI_DEV_DEVICE_ID(_device))
+
 #endif /* __NV_PCICOMPAT_H__ */
