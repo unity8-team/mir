@@ -579,180 +579,191 @@ nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 static void
 nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-   NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-   NVCrtcRegPtr regp;
-   NVPtr pNv = NVPTR(pScrn);
-   int depth = pScrn->depth;
-   unsigned int i;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVCrtcRegPtr regp;
+	NVPtr pNv = NVPTR(pScrn);
+	int depth = pScrn->depth;
+	unsigned int i;
 
-   regp = &pNv->ModeReg.crtc_reg[nv_crtc->crtc];
+	regp = &pNv->ModeReg.crtc_reg[nv_crtc->crtc];
 
 
-   /*
-    * compute correct Hsync & Vsync polarity 
-    */
-   if ((mode->Flags & (V_PHSYNC | V_NHSYNC))
-       && (mode->Flags & (V_PVSYNC | V_NVSYNC)))
-   {
-       regp->MiscOutReg = 0x23;
-       if (mode->Flags & V_NHSYNC) regp->MiscOutReg |= 0x40;
-       if (mode->Flags & V_NVSYNC) regp->MiscOutReg |= 0x80;
-   }
-   else
-   {
-       int VDisplay = mode->VDisplay;
-       if (mode->Flags & V_DBLSCAN)
-	   VDisplay *= 2;
-       if (mode->VScan > 1)
-	   VDisplay *= mode->VScan;
-       if      (VDisplay < 400)
-	   regp->MiscOutReg = 0xA3;		/* +hsync -vsync */
-       else if (VDisplay < 480)
-	   regp->MiscOutReg = 0x63;		/* -hsync +vsync */
-       else if (VDisplay < 768)
-	   regp->MiscOutReg = 0xE3;		/* -hsync -vsync */
-       else
-	   regp->MiscOutReg = 0x23;		/* +hsync +vsync */
-   }
-   
-   regp->MiscOutReg |= (mode->ClockIndex & 0x03) << 2;
-   
-   /*
-    * Time Sequencer
-    */
-    if (depth == 4)
-        regp->Sequencer[0] = 0x02;
-    else
-        regp->Sequencer[0] = 0x00;
-    if (mode->Flags & V_CLKDIV2) 
-        regp->Sequencer[1] = 0x09;
-    else
-        regp->Sequencer[1] = 0x01;
-    if (depth == 1)
-        regp->Sequencer[2] = 1 << BIT_PLANE;
-    else
-        regp->Sequencer[2] = 0x0F;
-    regp->Sequencer[3] = 0x00;                             /* Font select */
-    if (depth < 8)
-        regp->Sequencer[4] = 0x06;                             /* Misc */
-    else
-        regp->Sequencer[4] = 0x0E;                             /* Misc */
+	/*
+	* compute correct Hsync & Vsync polarity 
+	*/
+	if ((mode->Flags & (V_PHSYNC | V_NHSYNC))
+		&& (mode->Flags & (V_PVSYNC | V_NVSYNC))) {
 
-    /*
-     * CRTC Controller
-     */
-    regp->CRTC[0]  = (mode->CrtcHTotal >> 3) - 5;
-    regp->CRTC[1]  = (mode->CrtcHDisplay >> 3) - 1;
-    regp->CRTC[2]  = (mode->CrtcHBlankStart >> 3) - 1;
-    regp->CRTC[3]  = (((mode->CrtcHBlankEnd >> 3) - 1) & 0x1F) | 0x80;
-    i = (((mode->CrtcHSkew << 2) + 0x10) & ~0x1F);
-    if (i < 0x80)
-	regp->CRTC[3] |= i;
-    regp->CRTC[4]  = (mode->CrtcHSyncStart >> 3);
-    regp->CRTC[5]  = ((((mode->CrtcHBlankEnd >> 3) - 1) & 0x20) << 2)
+		regp->MiscOutReg = 0x23;
+		if (mode->Flags & V_NHSYNC) regp->MiscOutReg |= 0x40;
+		if (mode->Flags & V_NVSYNC) regp->MiscOutReg |= 0x80;
+	} else {
+		int VDisplay = mode->VDisplay;
+		if (mode->Flags & V_DBLSCAN)
+			VDisplay *= 2;
+		if (mode->VScan > 1)
+			VDisplay *= mode->VScan;
+		if (VDisplay < 400) {
+			regp->MiscOutReg = 0xA3;		/* +hsync -vsync */
+		} else if (VDisplay < 480) {
+			regp->MiscOutReg = 0x63;		/* -hsync +vsync */
+		} else if (VDisplay < 768) {
+			regp->MiscOutReg = 0xE3;		/* -hsync -vsync */
+		} else {
+			regp->MiscOutReg = 0x23;		/* +hsync +vsync */
+		}
+	}
+
+	regp->MiscOutReg |= (mode->ClockIndex & 0x03) << 2;
+
+	/*
+	* Time Sequencer
+	*/
+	if (depth == 4) {
+		regp->Sequencer[0] = 0x02;
+	} else {
+		regp->Sequencer[0] = 0x00;
+	}
+	if (mode->Flags & V_CLKDIV2) {
+		regp->Sequencer[1] = 0x09;
+	} else {
+		regp->Sequencer[1] = 0x01;
+	}
+	if (depth == 1) {
+		regp->Sequencer[2] = 1 << BIT_PLANE;
+	} else {
+		regp->Sequencer[2] = 0x0F;
+		regp->Sequencer[3] = 0x00;                     /* Font select */
+	}
+	if (depth < 8) {
+		regp->Sequencer[4] = 0x06;                             /* Misc */
+	} else {
+		regp->Sequencer[4] = 0x0E;                             /* Misc */
+	}
+
+	/*
+	* CRTC Controller
+	*/
+	regp->CRTC[0]  = (mode->CrtcHTotal >> 3) - 5;
+	regp->CRTC[1]  = (mode->CrtcHDisplay >> 3) - 1;
+	regp->CRTC[2]  = (mode->CrtcHBlankStart >> 3) - 1;
+	regp->CRTC[3]  = (((mode->CrtcHBlankEnd >> 3) - 1) & 0x1F) | 0x80;
+	i = (((mode->CrtcHSkew << 2) + 0x10) & ~0x1F);
+	if (i < 0x80) {
+		regp->CRTC[3] |= i;
+	}
+	regp->CRTC[4]  = (mode->CrtcHSyncStart >> 3);
+	regp->CRTC[5]  = ((((mode->CrtcHBlankEnd >> 3) - 1) & 0x20) << 2)
 	| (((mode->CrtcHSyncEnd >> 3)) & 0x1F);
-    regp->CRTC[6]  = (mode->CrtcVTotal - 2) & 0xFF;
-    regp->CRTC[7]  = (((mode->CrtcVTotal - 2) & 0x100) >> 8)
-	| (((mode->CrtcVDisplay - 1) & 0x100) >> 7)
-	| ((mode->CrtcVSyncStart & 0x100) >> 6)
-	| (((mode->CrtcVBlankStart - 1) & 0x100) >> 5)
-	| 0x10
-	| (((mode->CrtcVTotal - 2) & 0x200)   >> 4)
-	| (((mode->CrtcVDisplay - 1) & 0x200) >> 3)
-	| ((mode->CrtcVSyncStart & 0x200) >> 2);
-    regp->CRTC[8]  = 0x00;
-    regp->CRTC[9]  = (((mode->CrtcVBlankStart - 1) & 0x200) >> 4) | 0x40;
-    if (mode->Flags & V_DBLSCAN)
-	regp->CRTC[9] |= 0x80;
-    if (mode->VScan >= 32)
-	regp->CRTC[9] |= 0x1F;
-    else if (mode->VScan > 1)
-	regp->CRTC[9] |= mode->VScan - 1;
-    regp->CRTC[10] = 0x00;
-    regp->CRTC[11] = 0x00;
-    regp->CRTC[12] = 0x00;
-    regp->CRTC[13] = 0x00;
-    regp->CRTC[14] = 0x00;
-    regp->CRTC[15] = 0x00;
-    regp->CRTC[16] = mode->CrtcVSyncStart & 0xFF;
-    regp->CRTC[17] = (mode->CrtcVSyncEnd & 0x0F) | 0x20;
-    regp->CRTC[18] = (mode->CrtcVDisplay - 1) & 0xFF;
-    regp->CRTC[19] = mode->CrtcHDisplay >> 4;  /* just a guess */
-    regp->CRTC[20] = 0x00;
-    regp->CRTC[21] = (mode->CrtcVBlankStart - 1) & 0xFF; 
-    regp->CRTC[22] = (mode->CrtcVBlankEnd - 1) & 0xFF;
-    if (depth < 8)
-	regp->CRTC[23] = 0xE3;
-    else
-	regp->CRTC[23] = 0xC3;
-    regp->CRTC[24] = 0xFF;
+	regp->CRTC[6]  = (mode->CrtcVTotal - 2) & 0xFF;
+	regp->CRTC[7]  = (((mode->CrtcVTotal - 2) & 0x100) >> 8)
+			| (((mode->CrtcVDisplay - 1) & 0x100) >> 7)
+			| ((mode->CrtcVSyncStart & 0x100) >> 6)
+			| (((mode->CrtcVBlankStart - 1) & 0x100) >> 5)
+			| 0x10
+			| (((mode->CrtcVTotal - 2) & 0x200)   >> 4)
+			| (((mode->CrtcVDisplay - 1) & 0x200) >> 3)
+			| ((mode->CrtcVSyncStart & 0x200) >> 2);
+	regp->CRTC[8]  = 0x00;
+	regp->CRTC[9]  = (((mode->CrtcVBlankStart - 1) & 0x200) >> 4) | 0x40;
+	if (mode->Flags & V_DBLSCAN) {
+		regp->CRTC[9] |= 0x80;
+	}
+	if (mode->VScan >= 32) {
+		regp->CRTC[9] |= 0x1F;
+	} else if (mode->VScan > 1) {
+		regp->CRTC[9] |= mode->VScan - 1;
+	}
+	regp->CRTC[10] = 0x00;
+	regp->CRTC[11] = 0x00;
+	regp->CRTC[12] = 0x00;
+	regp->CRTC[13] = 0x00;
+	regp->CRTC[14] = 0x00;
+	regp->CRTC[15] = 0x00;
+	regp->CRTC[16] = mode->CrtcVSyncStart & 0xFF;
+	regp->CRTC[17] = (mode->CrtcVSyncEnd & 0x0F) | 0x20;
+	regp->CRTC[18] = (mode->CrtcVDisplay - 1) & 0xFF;
+	regp->CRTC[19] = mode->CrtcHDisplay >> 4;  /* just a guess */
+	regp->CRTC[20] = 0x00;
+	regp->CRTC[21] = (mode->CrtcVBlankStart - 1) & 0xFF; 
+	regp->CRTC[22] = (mode->CrtcVBlankEnd - 1) & 0xFF;
+	if (depth < 8) {
+		regp->CRTC[23] = 0xE3;
+	} else {
+		regp->CRTC[23] = 0xC3;
+	}
+	regp->CRTC[24] = 0xFF;
 
-    /*
-     * Theory resumes here....
-     */
+	/*
+	* Theory resumes here....
+	*/
 
-    /*
-     * Graphics Display Controller
-     */
-    regp->Graphics[0] = 0x00;
-    regp->Graphics[1] = 0x00;
-    regp->Graphics[2] = 0x00;
-    regp->Graphics[3] = 0x00;
-    if (depth == 1) {
-        regp->Graphics[4] = BIT_PLANE;
-        regp->Graphics[5] = 0x00;
-    } else {
-        regp->Graphics[4] = 0x00;
-        if (depth == 4)
-            regp->Graphics[5] = 0x02;
-        else
-            regp->Graphics[5] = 0x40;
-    }
-    regp->Graphics[6] = 0x05;   /* only map 64k VGA memory !!!! */
-    regp->Graphics[7] = 0x0F;
-    regp->Graphics[8] = 0xFF;
+	/*
+	* Graphics Display Controller
+	*/
+	regp->Graphics[0] = 0x00;
+	regp->Graphics[1] = 0x00;
+	regp->Graphics[2] = 0x00;
+	regp->Graphics[3] = 0x00;
+	if (depth == 1) {
+		regp->Graphics[4] = BIT_PLANE;
+		regp->Graphics[5] = 0x00;
+	} else {
+		regp->Graphics[4] = 0x00;
+		if (depth == 4) {
+			regp->Graphics[5] = 0x02;
+		} else {
+			regp->Graphics[5] = 0x40;
+		}
+	}
+	regp->Graphics[6] = 0x05;   /* only map 64k VGA memory !!!! */
+	regp->Graphics[7] = 0x0F;
+	regp->Graphics[8] = 0xFF;
   
-    if (depth == 1) {
-        /* Initialise the Mono map according to which bit-plane gets used */
+	if (depth == 1) {
+		/* Initialise the Mono map according to which bit-plane gets used */
 
-	Bool flipPixels = xf86GetFlipPixels();
+		Bool flipPixels = xf86GetFlipPixels();
 
-        for (i=0; i<16; i++)
-            if (((i & (1 << BIT_PLANE)) != 0) != flipPixels)
-                regp->Attribute[i] = WHITE_VALUE;
-            else
-                regp->Attribute[i] = BLACK_VALUE;
+		for (i=0; i<16; i++) {
+			if (((i & (1 << BIT_PLANE)) != 0) != flipPixels) {
+				regp->Attribute[i] = WHITE_VALUE;
+			} else {
+				regp->Attribute[i] = BLACK_VALUE;
+			}
+		}
 
-    } else {
-        regp->Attribute[0]  = 0x00; /* standard colormap translation */
-        regp->Attribute[1]  = 0x01;
-        regp->Attribute[2]  = 0x02;
-        regp->Attribute[3]  = 0x03;
-        regp->Attribute[4]  = 0x04;
-        regp->Attribute[5]  = 0x05;
-        regp->Attribute[6]  = 0x06;
-        regp->Attribute[7]  = 0x07;
-        regp->Attribute[8]  = 0x08;
-        regp->Attribute[9]  = 0x09;
-        regp->Attribute[10] = 0x0A;
-        regp->Attribute[11] = 0x0B;
-        regp->Attribute[12] = 0x0C;
-        regp->Attribute[13] = 0x0D;
-        regp->Attribute[14] = 0x0E;
-        regp->Attribute[15] = 0x0F;
-        if (depth == 4)
-            regp->Attribute[16] = 0x81; /* wrong for the ET4000 */
-        else
-            regp->Attribute[16] = 0x41; /* wrong for the ET4000 */
-	if (depth > 4)
-	  regp->Attribute[17] = 0xff;
-        /* Attribute[17] (overscan) initialised in vgaHWGetHWRec() */
-    }
-    regp->Attribute[18] = 0x0F;
-    regp->Attribute[19] = 0x00;
-    regp->Attribute[20] = 0x00;
-
+	} else {
+		regp->Attribute[0]  = 0x00; /* standard colormap translation */
+		regp->Attribute[1]  = 0x01;
+		regp->Attribute[2]  = 0x02;
+		regp->Attribute[3]  = 0x03;
+		regp->Attribute[4]  = 0x04;
+		regp->Attribute[5]  = 0x05;
+		regp->Attribute[6]  = 0x06;
+		regp->Attribute[7]  = 0x07;
+		regp->Attribute[8]  = 0x08;
+		regp->Attribute[9]  = 0x09;
+		regp->Attribute[10] = 0x0A;
+		regp->Attribute[11] = 0x0B;
+		regp->Attribute[12] = 0x0C;
+		regp->Attribute[13] = 0x0D;
+		regp->Attribute[14] = 0x0E;
+		regp->Attribute[15] = 0x0F;
+		if (depth == 4) {
+			regp->Attribute[16] = 0x81; /* wrong for the ET4000 */
+		} else {
+			regp->Attribute[16] = 0x41; /* wrong for the ET4000 */
+		}
+		if (depth > 4) {
+			regp->Attribute[17] = 0xff;
+		}
+		/* Attribute[17] (overscan) initialised in vgaHWGetHWRec() */
+	}
+	regp->Attribute[18] = 0x0F;
+	regp->Attribute[19] = 0x00;
+	regp->Attribute[20] = 0x00;
 }
 
 /**
