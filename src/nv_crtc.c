@@ -264,49 +264,50 @@ void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool Lock)
  * Calculate the Video Clock parameters for the PLL.
  */
 static void CalcVClock (
-    int           clockIn,
-    int          *clockOut,
-    CARD32         *pllOut,
-    NVPtr        pNv
+	int		clockIn,
+	int		*clockOut,
+	CARD32		*pllOut,
+	NVPtr		pNv
 )
 {
-    unsigned lowM, highM;
-    unsigned DeltaNew, DeltaOld;
-    unsigned VClk, Freq;
-    unsigned M, N, P;
-    
-    DeltaOld = 0xFFFFFFFF;
+	unsigned lowM, highM;
+	unsigned DeltaNew, DeltaOld;
+	unsigned VClk, Freq;
+	unsigned M, N, P;
 
-    VClk = (unsigned)clockIn;
-    
-    if (pNv->CrystalFreqKHz == 13500) {
-        lowM  = 7;
-        highM = 13;
-    } else {
-        lowM  = 8;
-        highM = 14;
-    }
+	DeltaOld = 0xFFFFFFFF;
 
-    for (P = 0; P <= 4; P++) {
-        Freq = VClk << P;
-        if ((Freq >= 128000) && (Freq <= 350000)) {
-            for (M = lowM; M <= highM; M++) {
-                N = ((VClk << P) * M) / pNv->CrystalFreqKHz;
-                if(N <= 255) {
-                    Freq = ((pNv->CrystalFreqKHz * N) / M) >> P;
-                    if (Freq > VClk)
-                        DeltaNew = Freq - VClk;
-                    else
-                        DeltaNew = VClk - Freq;
-                    if (DeltaNew < DeltaOld) {
-                        *pllOut   = (P << 16) | (N << 8) | M;
-                        *clockOut = Freq;
-                        DeltaOld  = DeltaNew;
-                    }
-                }
-            }
-        }
-    }
+	VClk = (unsigned)clockIn;
+
+	if (pNv->CrystalFreqKHz == 13500) {
+		lowM  = 7;
+		highM = 13;
+	} else {
+		lowM  = 8;
+		highM = 14;
+	}
+
+	for (P = 0; P <= 4; P++) {
+		Freq = VClk << P;
+		if ((Freq >= 128000) && (Freq <= 350000)) {
+			for (M = lowM; M <= highM; M++) {
+				N = ((VClk << P) * M) / pNv->CrystalFreqKHz;
+				if (N <= 255) {
+					Freq = ((pNv->CrystalFreqKHz * N) / M) >> P;
+					if (Freq > VClk) {
+						DeltaNew = Freq - VClk;
+					} else {
+						DeltaNew = VClk - Freq;
+					}
+					if (DeltaNew < DeltaOld) {
+						*pllOut   = (P << 16) | (N << 8) | M;
+						*clockOut = Freq;
+						DeltaOld  = DeltaNew;
+					}
+				}
+			}
+		}
+	}
 }
 
 static void CalcVClock2Stage (
