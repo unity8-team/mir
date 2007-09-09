@@ -279,12 +279,28 @@ static void CalcVClock (
 
 	VClk = (unsigned)clockIn;
 
-	if (pNv->CrystalFreqKHz == 13500) {
-		lowM  = 7;
-		highM = 13;
-	} else {
-		lowM  = 8;
-		highM = 14;
+	/* Taken from Haiku, after someone with an NV28 had an issue */
+	switch(pNv->NVArch) {
+		case 0x28:
+			lowM = 1;
+			if (VClk > 340000) {
+				highM = 2;
+			} else if (VClk > 200000) {
+				highM = 4;
+			} else if (VClk > 150000) {
+				highM = 6;
+			} else {
+				highM = 14;
+			}
+		default:
+			lowM = 1;
+			if (VClk > 340000) {
+				highM = 2;
+			} else if (VClk > 250000) {
+				highM = 6;
+			} else {
+				highM = 14;
+			}
 	}
 
 	for (P = 0; P <= 4; P++) {
