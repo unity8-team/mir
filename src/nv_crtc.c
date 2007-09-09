@@ -351,30 +351,32 @@ static void CalcVClock2Stage (
 
 static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
-  state->vpll         = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL);
-  if(pNv->twoHeads)
-    state->vpll2     = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2);
-  if(pNv->twoStagePLL) {
-    state->vpllB    = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL_B);
-    state->vpll2B   = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2_B);
-  }
-  state->pllsel       = nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT);
+	state->vpll = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL);
+	if(pNv->twoHeads) {
+		state->vpll2 = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2);
+	}
+	if(pNv->twoStagePLL) {
+		state->vpllB = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL_B);
+		state->vpll2B = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2_B);
+	}
+	state->pllsel = nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT);
 }
 
 
 static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
-  nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
-  
-  ErrorF("writting vpll %08X\n", state->vpll);
-  ErrorF("writting vpll2 %08X\n", state->vpll2);
-  nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll);
-  if(pNv->twoHeads)
-    nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2, state->vpll2);
-  if(pNv->twoStagePLL) {
-    nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpllB);
-    nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2B);
-  }  
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
+
+	ErrorF("writting vpll %08X\n", state->vpll);
+	ErrorF("writting vpll2 %08X\n", state->vpll2);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll);
+	if(pNv->twoHeads) {
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2, state->vpll2);
+	}
+	if(pNv->twoStagePLL) {
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpllB);
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2B);
+	}  
 }
 
 /*
@@ -477,31 +479,25 @@ void nv_crtc_calc_state_ext(
             break;
     }
 
-    /* okay do we have 2 CRTCs running ? */
-    num_crtc_enabled = 0;
-    for (i = 0; i < xf86_config->num_crtc; i++) {
-      if (xf86_config->crtc[i]->enabled)
-	num_crtc_enabled++;
-    }
+	/* okay do we have 2 CRTCs running ? */
+	num_crtc_enabled = 0;
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		if (xf86_config->crtc[i]->enabled) {
+			num_crtc_enabled++;
+		}
+	}
 
-    if (num_crtc_enabled > 1) {
-      if (nv_crtc->crtc == 1) {
-	state->vpll2 = state->pll;
-	state->vpll2B = state->pllB;
-	state->pllsel |= (1<<29) | (1<<11);
-      } else {
-	state->vpll = state->pll;
-	state->vpllB = state->pllB;
-	state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
-	state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
-      }
-    } else {
-      state->vpll = state->pll;
-      state->vpllB = state->pllB;
-      state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
-      state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
-    }
-
+	if (nv_crtc->crtc == 1) {
+		state->vpll2 = state->pll;
+		state->vpll2B = state->pllB;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_CRTC1;
+	} else {
+		state->vpll = state->pll;
+		state->vpllB = state->pllB;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
+		state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
+	}
 
     regp->CRTC[NV_VGA_CRTCX_FIFO0] = state->arbitration0;
     regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = state->arbitration1 & 0xff;
