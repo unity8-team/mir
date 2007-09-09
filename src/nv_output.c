@@ -442,6 +442,10 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		}
 
 		ErrorF("Post-panel scaling\n");
+	} else {
+		/* copy a bunch of things from the current state for non-dfp's */
+		regp->fp_control = savep->fp_control & 0xfff000ff;
+		regp->debug_2 = savep->debug_2;
 	}
 
 	if (pNv->Architecture >= NV_ARCH_10) {
@@ -482,7 +486,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		bpp = 32;
 	}
 
-	regp->general  = bpp == 16 ? 0x00101100 : 0x00100100;
+	regp->general = bpp == 16 ? 0x00101100 : 0x00100100;
 
 	if (pNv->alphaCursor) {
 		regp->general |= (1<<29);
@@ -514,19 +518,19 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 			if ((nv_output2->type == OUTPUT_ANALOG) && (nv_output->type == OUTPUT_ANALOG)) {
 				two_crt = TRUE;
 			}
-
-			if (is_fp == TRUE) {
-				regp->output = 0x0;
-			} else { 
-				regp->output = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-			}
-
-			if (nv_crtc->crtc == 1 && two_mon) {
-				regp->output |= NV_RAMDAC_OUTPUT_SELECT_CRTC2;
-			}
 		}
 
-	ErrorF("%d: crtc %d output%d: %04X: twocrt %d twomon %d\n", is_fp, nv_crtc->crtc, nv_output->ramdac, regp->output, two_crt, two_mon);
+		if (is_fp == TRUE) {
+			regp->output = 0x0;
+		} else { 
+			regp->output = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+		}
+
+		if (nv_crtc->crtc == 1 && two_mon) {
+			regp->output |= NV_RAMDAC_OUTPUT_SELECT_CRTC2;
+		}
+
+		ErrorF("%d: crtc %d output%d: %04X: twocrt %d twomon %d\n", is_fp, nv_crtc->crtc, nv_output->ramdac, regp->output, two_crt, two_mon);
 	}
 }
 
