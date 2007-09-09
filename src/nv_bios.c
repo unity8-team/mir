@@ -1577,6 +1577,8 @@ static unsigned int nv_find_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	int i;
 	int sig_offsets[2] = { 0x4, 0x6 };
 	int offset = -1;
+	CARD32 tmp_dcb_table[NV40_NUM_DCB_ENTRIES];
+	uint32_t counter, port;
 
 	/* get the offset from 0x36 */
 	
@@ -1625,9 +1627,45 @@ static unsigned int nv_find_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 
 	for (i = 0; i < entries; i++) {
 		if (is_g5)
-			pNv->dcb_table[i] = __bswap_32(*(uint32_t *)&table2[headerSize + 8 * i]);
+			tmp_dcb_table[i] = __bswap_32(*(uint32_t *)&table2[headerSize + 8 * i]);
 		else
-			pNv->dcb_table[i] = *(uint32_t *)&table2[headerSize + 8 * i];
+			tmp_dcb_table[i] = *(uint32_t *)&table2[headerSize + 8 * i];
+	}
+
+	counter = 0;
+	/* There is an issue with NV4x cards, that the ordering of i2c buses and other things is strange */
+	/* Fixing the table to look like earlier cards, with port 1 first is the best solution */
+	if (pNv->Architecture == NV_ARCH_40) {
+		for (i = 0; i < entries; i++) {
+			port = (tmp_dcb_table[i] >> 4) & 0xf;
+			/* We want port 0 first */
+			if (port == 0) {
+				/* We want to label this as port 1 */
+				pNv->dcb_table[counter] = (tmp_dcb_table[i] & ~(0xf << 4)) | (1 << 4);
+				counter++;
+			}
+		}
+		for (i = 0; i < entries; i++) {
+			port = (tmp_dcb_table[i] >> 4) & 0xf;
+			/* Then port 1 */
+			if (port == 1) {
+				/* We want to label this as port 0 */
+				pNv->dcb_table[counter] = (tmp_dcb_table[i] & ~(0xf << 4)) | (0 << 4);
+				counter++;
+			}
+		}
+		for (i = 0; i < entries; i++) {
+			port = (tmp_dcb_table[i] >> 4) & 0xf;
+			/* Are there more ports than 2? */
+			if (port == 2) {
+				pNv->dcb_table[counter] = tmp_dcb_table[i];
+				counter++;
+			}
+		}
+	} else {
+		for (i = 0; i < entries; i++) {
+			pNv->dcb_table[i] = tmp_dcb_table[i];
+		}
 	}
 
 	return entries;

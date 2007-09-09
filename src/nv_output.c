@@ -906,14 +906,6 @@ struct nv_i2c_struct {
 	{ 0x50, "TV" },
 };
 
-/* The busses seem to be swapped on nv4x */
-/* Please contact if this is true for nv3x as well */
-struct nv_i2c_struct nv40_i2c_buses[] = {
-	{ 0x36, "DDC1" },
-	{ 0x3e, "DDC2" },
-	{ 0x50, "TV" },
-};
-
 void NvSetupOutputs(ScrnInfoPtr pScrn)
 {
     int i;
@@ -927,11 +919,7 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 
 	/* add the 3 I2C buses */
 	for (i = 0; i < NV_I2C_BUSES; i++) {
-		if (pNv->Architecture >= NV_ARCH_40) {
-			NV_I2CInit(pScrn, &pNv->pI2CBus[i], nv40_i2c_buses[i].reg, nv40_i2c_buses[i].name);
-		} else {
-			NV_I2CInit(pScrn, &pNv->pI2CBus[i], nv_i2c_buses[i].reg, nv_i2c_buses[i].name);
-		}
+		NV_I2CInit(pScrn, &pNv->pI2CBus[i], nv_i2c_buses[i].reg, nv_i2c_buses[i].name);
 	}
 
     NvDCBSetupOutputs(pScrn);
