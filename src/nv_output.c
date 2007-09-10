@@ -528,8 +528,10 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 			regp->output = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 		}
 
-		if (nv_crtc->crtc == 1 && two_mon) {
+		if (nv_crtc->crtc == 1) {
 			regp->output |= NV_RAMDAC_OUTPUT_SELECT_CRTC2;
+		} else {
+			regp->output &= ~NV_RAMDAC_OUTPUT_SELECT_CRTC2;
 		}
 
 		ErrorF("%d: crtc %d output%d: %04X: twocrt %d twomon %d\n", is_fp, nv_crtc->crtc, nv_output->ramdac, regp->output, two_crt, two_mon);

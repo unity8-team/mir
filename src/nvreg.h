@@ -33,10 +33,10 @@
 #define NV_PRAMIN_SIZE              0x00100000
 
 #define NV_PCRTC0_OFFSET            0x00600000
-#define NV_PCRTC0_SIZE              0x00001000 /* empirical */
+#define NV_PCRTC0_SIZE              0x00002000 /* empirical */
 
 #define NV_PRAMDAC0_OFFSET          0x00680000
-#define NV_PRAMDAC0_SIZE            0x00001000
+#define NV_PRAMDAC0_SIZE            0x00002000
 
 #define NV_PFB_OFFSET               0x00100000
 #define NV_PFB_SIZE                 0x00001000
