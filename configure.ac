@@ -105,6 +105,14 @@ if test "x$WANT_NV30EXA" = "xyes"; then
 	AC_DEFINE(ENABLE_NV30EXA, 1, [Define if you want nv30 Exa])
 fi
 
+# Make Randr1.2 disablable (for xorg server < 1.3)
+AC_ARG_ENABLE(randr12,
+	[  --enable-randr12        Enable RandR 1.2 (default=yes)],
+	[WANT_RANDR12=$enableval], [WANT_RANDR12=yes])
+if test "x$WANT_RANDR12" = "xyes"; then
+	AC_DEFINE(ENABLE_RANDR12, 1, [Define if you want RandR 1.2])
+fi
+
 AC_OUTPUT([
 	Makefile
 	src/Makefile

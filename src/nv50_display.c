@@ -26,6 +26,8 @@
 #include "config.h"
 #endif
 
+#ifdef ENABLE_RANDR12
+
 #include <float.h>
 #include <math.h>
 #include <strings.h>
@@ -533,3 +535,5 @@ NV50DispCreateCrtcs(ScrnInfoPtr pScrn)
         crtc->driver_private = nv50_crtc;
     }
 }
+
+#endif /* ENABLE_RANDR12 */

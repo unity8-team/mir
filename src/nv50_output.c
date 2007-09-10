@@ -26,6 +26,8 @@
 #include "config.h"
 #endif
 
+#ifdef ENABLE_RANDR12
+
 #include <string.h>
 
 
@@ -372,3 +374,5 @@ NV50CreateOutputs(ScrnInfoPtr pScrn)
 
     return TRUE;
 }
+
+#endif /* ENABLE_RANDR12 */

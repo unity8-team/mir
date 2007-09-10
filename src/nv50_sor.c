@@ -25,6 +25,8 @@
 #include "config.h"
 #endif
 
+#ifdef ENABLE_RANDR12
+
 #define DPMS_SERVER
 #include <X11/extensions/dpms.h>
 
@@ -150,3 +152,5 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or)
 
     return output;
 }
+
+#endif /* ENABLE_RANDR12 */

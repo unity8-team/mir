@@ -1,6 +1,8 @@
 #ifndef __NV50_OUTPUT_H__
 #define __NV50_OUTPUT_H__
 
+#ifdef ENABLE_RANDR12
+
 typedef struct NV50OutputPrivRec {
     ORType type;
     ORNum or;
@@ -30,5 +32,7 @@ Bool NV50DacLoadDetect(xf86OutputPtr);
 
 /* nv50_sor.c */
 xf86OutputPtr NV50CreateSor(ScrnInfoPtr, ORNum);
+
+#endif
 
 #endif

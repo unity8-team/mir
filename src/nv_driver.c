@@ -27,6 +27,8 @@
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_driver.c,v 1.144 2006/06/16 00:19:32 mvojkovi Exp $ */
 
+#include <stdio.h>
+
 #include "nv_include.h"
 
 #include "xf86int10.h"
@@ -672,6 +674,7 @@ NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     NVPtr pNv = NVPTR(pScrn);
     Bool ret = TRUE;
 
+#ifdef ENABLE_RANDR12
     if (pNv->randr12_enable) {
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 
@@ -683,9 +686,10 @@ NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 
 	pLayout->mode = mode;
 	return ret;
-    } else {
-	return NVModeInit(xf86Screens[scrnIndex], mode);
     }
+#endif
+
+	return NVModeInit(xf86Screens[scrnIndex], mode);
 }
 
 /*
@@ -701,6 +705,7 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
     NVPtr pNv = NVPTR(pScrn);
     NVFBLayout *pLayout = &pNv->CurrentLayout;
 
+#ifdef ENABLE_RANDR12
     if (pNv->randr12_enable) {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int startAddr;
@@ -709,13 +714,16 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
 	if (crtc && crtc->enabled) {
 	    NVCrtcSetBase(crtc, x, y);
 	}
-    } else {
+    } else
+#endif
+    {
 	startAddr = (((y*pLayout->displayWidth)+x)*(pLayout->bitsPerPixel/8));
 	startAddr += pNv->FB->offset;
 	NVSetStartAddress(pNv, startAddr);
     }
 }
 
+#ifdef ENABLE_RANDR12
 void
 NVResetCrtcConfig(ScrnInfoPtr pScrn, int set)
 {
@@ -738,10 +746,12 @@ NVResetCrtcConfig(ScrnInfoPtr pScrn, int set)
 		nvWriteCRTC(pNv, nv_crtc->crtc, NV_CRTC_FSEL, val);
 	}
 }
+#endif
 
 static Bool
 NV50AcquireDisplay(ScrnInfoPtr pScrn)
 {
+#ifdef ENABLE_RANDR12
 	if (!NV50DispInit(pScrn))
 		return FALSE;
 	if (!NV50CursorAcquire(pScrn))
@@ -749,14 +759,18 @@ NV50AcquireDisplay(ScrnInfoPtr pScrn)
 	xf86SetDesiredModes(pScrn);
 
 	return TRUE;
+#else
+	return FALSE;
+#endif
 }
 
 static Bool
 NV50ReleaseDisplay(ScrnInfoPtr pScrn)
 {
+#ifdef ENABLE_RANDR12
 	NV50CursorRelease(pScrn);
 	NV50DispShutdown(pScrn);
-
+#endif
 	return TRUE;
 }
 
@@ -774,6 +788,7 @@ NVEnterVT(int scrnIndex, int flags)
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
     NVPtr pNv = NVPTR(pScrn);
     
+#ifdef ENABLE_RANDR12
     if (pNv->randr12_enable) { 
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
@@ -800,7 +815,9 @@ NVEnterVT(int scrnIndex, int flags)
 		return FALSE;
 	NVResetCrtcConfig(pScrn, 1);
 
-    } else {
+    } else
+#endif
+    {
 	if (!NVModeInit(pScrn, pScrn->currentMode))
 	    return FALSE;
 
@@ -996,7 +1013,7 @@ static Bool NVPreInitDRI(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
-
+#ifdef ENABLE_RANDR12
 static Bool
 nv_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 {
@@ -1008,6 +1025,7 @@ nv_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 static const xf86CrtcConfigFuncsRec nv_xf86crtc_config_funcs = {
 	nv_xf86crtc_resize
 };
+#endif
 
 #define NVPreInitFail(fmt, args...) do {                                    \
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%d: "fmt, __LINE__, ##args); \
@@ -1021,7 +1039,9 @@ static const xf86CrtcConfigFuncsRec nv_xf86crtc_config_funcs = {
 Bool
 NVPreInit(ScrnInfoPtr pScrn, int flags)
 {
+#ifdef ENABLE_RANDR12
     xf86CrtcConfigPtr xf86_config;
+#endif
     NVPtr pNv;
     MessageType from;
     int i, max_width, max_height;
@@ -1400,6 +1420,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     pNv->alphaCursor = (pNv->Architecture >= NV_ARCH_10) &&
                        ((pNv->Chipset & 0x0ff0) != CHIPSET_NV10);
 
+#ifdef ENABLE_RANDR12
     if (pNv->randr12_enable) {
 	/* Allocate an xf86CrtcConfig */
 	xf86CrtcConfigInit(pScrn, &nv_xf86crtc_config_funcs);
@@ -1408,6 +1429,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	max_width = 16384;
 	xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, 2048);
     }
+#endif
 
     if (NVPreInitDRI(pScrn) == FALSE) {
 	NVPreInitFail("\n");
@@ -1423,6 +1445,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
     NVCommonSetup(pScrn);
 
+#ifdef ENABLE_RANDR12
     if (pNv->randr12_enable) {
 	if (pNv->Architecture < NV_ARCH_50) {
 	    NVI2CInit(pScrn);
@@ -1444,6 +1467,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (!xf86InitialConfiguration(pScrn, FALSE))
 	    NVPreInitFail("No valid modes.\n");
     }
+#endif
 
     pScrn->videoRam = pNv->RamAmountKBytes;
     xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "VideoRAM: %d kBytes\n",
@@ -1799,6 +1823,7 @@ NVRestore(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	NVRegPtr nvReg = &pNv->SavedReg;
 
+#ifdef ENABLE_RANDR12
 	if (pNv->randr12_enable) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 		int i;
@@ -1826,7 +1851,9 @@ NVRestore(ScrnInfoPtr pScrn)
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 			NVCrtcLockUnlock(xf86_config->crtc[i], 1);
 		}
-	} else {
+	} else
+#endif
+	{
 		NVLockUnlock(pNv, 0);
 
 		if(pNv->twoHeads) {
@@ -1852,6 +1879,7 @@ static void
 NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 	      LOCO * colors, VisualPtr pVisual)
 {
+#ifdef ENABLE_RANDR12
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int c;
 	NVPtr pNv = NVPTR(pScrn);
@@ -1906,6 +1934,7 @@ NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 
 		NVCrtcLoadPalette(crtc);
 	}
+#endif
 }
 
 //#define DEPTH_SHIFT(val, w) ((val << (8 - w)) | (val >> ((w << 1) - 8)))
@@ -2246,8 +2275,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     if (pNv->HWCursor) { 
 	if (pNv->Architecture < NV_ARCH_50)
 	    ret = NVCursorInit(pScreen);
+#ifdef ENABLE_RANDR12
 	else
 	    ret = NV50CursorInit(pScreen);
+#endif
 
 	if (ret != TRUE) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
@@ -2280,6 +2311,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	}
     }
 
+#ifdef ENABLE_RANDR12
     if (pNv->randr12_enable) {
 	xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 	
@@ -2289,6 +2321,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	pNv->PointerMoved = pScrn->PointerMoved;
 	pScrn->PointerMoved = NVPointerMoved;
     }
+#endif
 
     if(pNv->ShadowFB) {
 	RefreshAreaFuncPtr refreshArea = NVRefreshArea;
@@ -2353,6 +2386,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 static Bool
 NVSaveScreen(ScreenPtr pScreen, int mode)
 {
+#ifdef ENABLE_RANDR12
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     NVPtr pNv = NVPTR(pScrn);
@@ -2372,6 +2406,7 @@ NVSaveScreen(ScreenPtr pScreen, int mode)
 	}
 	return TRUE;
     } else
+#endif
 	return vgaHWSaveScreen(pScreen, mode);
 }
 
@@ -2382,11 +2417,12 @@ NVSave(ScrnInfoPtr pScrn)
     NVRegPtr nvReg = &pNv->SavedReg;
     vgaHWPtr pVga = VGAHWPTR(pScrn);
     vgaRegPtr vgaReg = &pVga->SavedReg;
-    int i;
-
+ 
+#ifdef ENABLE_RANDR12
     if (pNv->randr12_enable) {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int vgaflags = VGA_SR_CMAP | VGA_SR_MODE;
+        int i;
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86_config->crtc[i]->funcs->save(xf86_config->crtc[i]);
@@ -2402,7 +2438,9 @@ NVSave(ScrnInfoPtr pScrn)
 	vgaflags |= VGA_SR_FONTS;
 #endif
 	vgaHWSave(pScrn, vgaReg, vgaflags);
-    } else {
+    } else
+#endif
+    {
 	NVLockUnlock(pNv, 0);
 	if(pNv->twoHeads) {
 	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);

@@ -25,6 +25,8 @@
 #include "config.h"
 #endif
 
+#ifdef ENABLE_RANDR12
+
 #include <string.h>
 
 #include <cursorstr.h>
@@ -102,3 +104,5 @@ Bool NV50CursorInit(ScreenPtr pScreen)
             HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32 |
             HARDWARE_CURSOR_ARGB);
 }
+
+#endif /* ENABLE_RANDR12 */

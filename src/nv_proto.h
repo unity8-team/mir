@@ -105,6 +105,7 @@ void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDe
 
 
 /* nv_crtc.c */
+#ifdef ENABLE_RANDR12
 void NVSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
 DisplayModePtr NVCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y);
@@ -113,6 +114,7 @@ void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on);
 void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool Lock);
+#endif
 
 /* nv_output.h */
 void NvSetupOutputs(ScrnInfoPtr pScrn);
