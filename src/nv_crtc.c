@@ -335,43 +335,73 @@ static void CalcVClock (
 }
 
 static void CalcVClock2Stage (
-    int           clockIn,
-    int          *clockOut,
-    CARD32         *pllOut,
-    CARD32         *pllBOut,
-    NVPtr        pNv
+	int		clockIn,
+	int		*clockOut,
+	CARD32		*pllOut,
+	CARD32		*pllBOut,
+	NVPtr		pNv
 )
 {
-    unsigned DeltaNew, DeltaOld;
-    unsigned VClk, Freq;
-    unsigned M, N, P;
+	unsigned DeltaNew, DeltaOld;
+	unsigned VClk, Freq;
+	unsigned M, N, P;
+	unsigned lowM, highM, highP;
 
-    DeltaOld = 0xFFFFFFFF;
+	DeltaOld = 0xFFFFFFFF;
 
-    *pllBOut = 0x80000401;  /* fixed at x4 for now */
+	*pllBOut = 0x80000401;  /* fixed at x4 for now */
 
-    VClk = (unsigned)clockIn;
+	VClk = (unsigned)clockIn;
 
-    for (P = 0; P <= 6; P++) {
-        Freq = VClk << P;
-        if ((Freq >= 400000) && (Freq <= 1000000)) {
-            for (M = 1; M <= 13; M++) {
-                N = ((VClk << P) * M) / (pNv->CrystalFreqKHz << 2);
-                if((N >= 5) && (N <= 255)) {
-                    Freq = (((pNv->CrystalFreqKHz << 2) * N) / M) >> P;
-                    if (Freq > VClk)
-                        DeltaNew = Freq - VClk;
-                    else
-                        DeltaNew = VClk - Freq;
-                    if (DeltaNew < DeltaOld) {
-                        *pllOut   = (P << 16) | (N << 8) | M;
-                        *clockOut = Freq;
-                        DeltaOld  = DeltaNew;
-                    }
-                }
-            }
-        }
-    }
+	/* Taken from Haiku, after someone with an NV28 had an issue */
+	switch(pNv->NVArch) {
+		case 0x28:
+			lowM = 1;
+			highP = 32;
+			if (VClk > 340000) {
+				highM = 2;
+			} else if (VClk > 200000) {
+				highM = 4;
+			} else if (VClk > 150000) {
+				highM = 6;
+			} else {
+				highM = 14;
+			}
+			break;
+		default:
+			lowM = 1;
+			highP = 16;
+			if (VClk > 340000) {
+				highM = 2;
+			} else if (VClk > 250000) {
+				highM = 6;
+			} else {
+				highM = 14;
+			}
+			break;
+	}
+
+	for (P = 0; P <= highP; P++) {
+		Freq = VClk << P;
+		if ((Freq >= 400000) && (Freq <= 1000000)) {
+			for (M = lowM; M <= highM; M++) {
+				N = ((VClk << P) * M) / (pNv->CrystalFreqKHz << 2);
+				if ((N >= 5) && (N <= 255)) {
+					Freq = (((pNv->CrystalFreqKHz << 2) * N) / M) >> P;
+					if (Freq > VClk) {
+						DeltaNew = Freq - VClk;
+					} else {
+						DeltaNew = VClk - Freq;
+					}
+					if (DeltaNew < DeltaOld) {
+						*pllOut   = (P << 16) | (N << 8) | M;
+						*clockOut = Freq;
+						DeltaOld  = DeltaNew;
+					}
+				}
+			}
+		}
+	}
 }
 
 static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
