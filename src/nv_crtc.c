@@ -270,10 +270,14 @@ static void CalcVClock (
 	NVPtr		pNv
 )
 {
-	unsigned lowM, highM;
+	unsigned lowM, highM, highP;
 	unsigned DeltaNew, DeltaOld;
 	unsigned VClk, Freq;
 	unsigned M, N, P;
+
+	/* M: PLL reference frequency postscaler divider */
+	/* P: PLL VCO output postscaler divider */
+	/* N: PLL VCO postscaler setting */
 
 	DeltaOld = 0xFFFFFFFF;
 
@@ -283,6 +287,7 @@ static void CalcVClock (
 	switch(pNv->NVArch) {
 		case 0x28:
 			lowM = 1;
+			highP = 32;
 			if (VClk > 340000) {
 				highM = 2;
 			} else if (VClk > 200000) {
@@ -292,8 +297,10 @@ static void CalcVClock (
 			} else {
 				highM = 14;
 			}
+			break;
 		default:
 			lowM = 1;
+			highP = 16;
 			if (VClk > 340000) {
 				highM = 2;
 			} else if (VClk > 250000) {
@@ -301,9 +308,10 @@ static void CalcVClock (
 			} else {
 				highM = 14;
 			}
+			break;
 	}
 
-	for (P = 0; P <= 4; P++) {
+	for (P = 0; P <= highP; P++) {
 		Freq = VClk << P;
 		if ((Freq >= 128000) && (Freq <= 350000)) {
 			for (M = lowM; M <= highM; M++) {
