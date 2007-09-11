@@ -338,7 +338,7 @@ typedef struct _ATIRec
      * Cursor-related definitions.
      */
     xf86CursorInfoPtr pCursorInfo;
-    pointer pCursorImage;
+    pointer pCursorPage, pCursorImage;
     unsigned long CursorBase;
     CARD32 CursorOffset;
     CARD16 CursorXOffset, CursorYOffset;
