@@ -850,35 +850,24 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       output->possible_crtcs = crtc_mask;
       output->possible_clones = i830_output_clones (pScrn, intel_output->clone_mask);
    }
-
-   /* Only recent DRM drivers can support plane<->pipe reversal */
-   if (pI830->directRenderingEnabled && pI830->drmMinor < 10)
-       goto out;
-
-   /*
-    * If an LVDS display is present, swap the plane/pipe mappings so we can
-    * use FBC on the builtin display.
-    * Note: 965+ chips can compress either plane, so we leave the mapping
-    *       alone in that case.
-    */
-   if (lvds_detected && !IS_I965GM(pI830)) {
-       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "adjusting plane->pipe mappings "
-		  "to allow for framebuffer compression\n");
-       for (c = 0; c < config->num_crtc; c++) {
-	   xf86CrtcPtr	      crtc = config->crtc[c];
-	   I830CrtcPrivatePtr   intel_crtc = crtc->driver_private;
-
-	   if (intel_crtc->pipe == 0)
-	       intel_crtc->plane = 1;
-	   else if (intel_crtc->pipe == 1)
-	       intel_crtc->plane = 0;
-      }
-   }
-
-out:
-   return;
 }
 
+static int
+I830LVDSPresent(ScrnInfoPtr pScrn)
+{
+   xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR (pScrn);
+   int o, lvds_detected = FALSE;
+
+   for (o = 0; o < config->num_output; o++) {
+      xf86OutputPtr	   output = config->output[o];
+      I830OutputPrivatePtr intel_output = output->driver_private;
+
+      if (intel_output->type == I830_OUTPUT_LVDS)
+	  lvds_detected = TRUE;
+   }
+
+   return lvds_detected;
+}
 /**
  * Setup the CRTCs
  */
@@ -2719,15 +2708,31 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    config = XF86_CRTC_CONFIG_PTR(pScrn);
    sPriv = DRIGetSAREAPrivate(pScreen);
-   /* Setup pipe->plane mappings for DRI & DRM */
-   for (c = 0; c < config->num_crtc; c++) {
-       xf86CrtcPtr crtc = config->crtc[c];
-       I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
 
-       if (intel_crtc->plane == 0)
-	   sPriv->planeA_pipe = intel_crtc->pipe;
-       else if (intel_crtc->plane == 1)
-	   sPriv->planeB_pipe = intel_crtc->pipe;
+   /*
+    * If an LVDS display is present, swap the plane/pipe mappings so we can
+    * use FBC on the builtin display.
+    * Note: 965+ chips can compress either plane, so we leave the mapping
+    *       alone in that case.
+    * Also, only flip the pipes if the DRM can support it.
+    */
+   if (I830LVDSPresent(pScrn) && !IS_I965GM(pI830) &&
+       (!pI830->directRenderingEnabled ||
+	(pI830->directRenderingEnabled && pI830->drmMinor >= 10))) {
+       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "adjusting plane->pipe mappings "
+		  "to allow for framebuffer compression\n");
+       for (c = 0; c < config->num_crtc; c++) {
+	   xf86CrtcPtr	      crtc = config->crtc[c];
+	   I830CrtcPrivatePtr   intel_crtc = crtc->driver_private;
+
+	   if (intel_crtc->pipe == 0) {
+	       intel_crtc->plane = 1;
+	       sPriv->planeB_pipe = 0;
+	   } else if (intel_crtc->pipe == 1) {
+	       intel_crtc->plane = 0;
+	       sPriv->planeA_pipe = 1;
+	   }
+      }
    }
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "drm planeA pipe: %d, "
