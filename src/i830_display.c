@@ -414,14 +414,14 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	if (!sPriv)
 	    return;
 
-	switch (pipe) {
+	switch (plane) {
 	case 0:
-	    sPriv->pipeA_x = x;
-	    sPriv->pipeA_y = y;
+	    sPriv->planeA_x = x;
+	    sPriv->planeA_y = y;
 	    break;
 	case 1:
-	    sPriv->pipeB_x = x;
-	    sPriv->pipeB_y = y;
+	    sPriv->planeB_x = x;
+	    sPriv->planeB_y = y;
 	    break;
 	default:
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -763,14 +763,14 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	if (!sPriv)
 	    return;
 
-	switch (pipe) {
+	switch (plane) {
 	case 0:
-	    sPriv->pipeA_w = enabled ? crtc->mode.HDisplay : 0;
-	    sPriv->pipeA_h = enabled ? crtc->mode.VDisplay : 0;
+	    sPriv->planeA_w = enabled ? crtc->mode.HDisplay : 0;
+	    sPriv->planeA_h = enabled ? crtc->mode.VDisplay : 0;
 	    break;
 	case 1:
-	    sPriv->pipeB_w = enabled ? crtc->mode.HDisplay : 0;
-	    sPriv->pipeB_h = enabled ? crtc->mode.VDisplay : 0;
+	    sPriv->planeB_w = enabled ? crtc->mode.HDisplay : 0;
+	    sPriv->planeB_h = enabled ? crtc->mode.VDisplay : 0;
 	    break;
 	default:
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,

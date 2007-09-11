@@ -851,6 +851,10 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       output->possible_clones = i830_output_clones (pScrn, intel_output->clone_mask);
    }
 
+   /* Only recent DRM drivers can support plane<->pipe reversal */
+   if (pI830->directRenderingEnabled && pI830->drmMinor < 10)
+       goto out;
+
    /*
     * If an LVDS display is present, swap the plane/pipe mappings so we can
     * use FBC on the builtin display.
@@ -858,6 +862,8 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
     *       alone in that case.
     */
    if (lvds_detected && !IS_I965GM(pI830)) {
+       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "adjusting plane->pipe mappings "
+		  "to allow for framebuffer compression\n");
        for (c = 0; c < config->num_crtc; c++) {
 	   xf86CrtcPtr	      crtc = config->crtc[c];
 	   I830CrtcPrivatePtr   intel_crtc = crtc->driver_private;
@@ -868,6 +874,9 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
 	       intel_crtc->plane = 0;
       }
    }
+
+out:
+   return;
 }
 
 /**
@@ -2249,11 +2258,13 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    VisualPtr visual;
    I830Ptr pI8301 = NULL;
    unsigned long sys_mem;
-   int i;
+   int i, c;
    Bool allocation_done = FALSE;
    MessageType from;
 #ifdef XF86DRI
    Bool driDisabled;
+   drmI830Sarea *sPriv;
+   xf86CrtcConfigPtr config;
 #ifdef XF86DRI_MM
    unsigned long savedMMSize;
 #endif
@@ -2705,6 +2716,22 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!pI830->directRenderingEnabled) {
       i830_free_3d_memory(pScrn);
    }
+
+   config = XF86_CRTC_CONFIG_PTR(pScrn);
+   sPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+   /* Setup pipe->plane mappings for DRI & DRM */
+   for (c = 0; c < config->num_crtc; c++) {
+       xf86CrtcPtr crtc = config->crtc[c];
+       I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+
+       if (intel_crtc->plane == 0)
+	   sPriv->planeA_pipe = intel_crtc->pipe;
+       else if (intel_crtc->plane == 1)
+	   sPriv->planeB_pipe = intel_crtc->pipe;
+   }
+
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "drm planeA pipe: %d, "
+	      "planeB pipe: %d\n", sPriv->planeA_pipe, sPriv->planeB_pipe);
 
 #else
    pI830->directRenderingEnabled = FALSE;

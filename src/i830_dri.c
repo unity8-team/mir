@@ -91,7 +91,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DRM_VBLANK_FLIP 0x8000000
 
 typedef struct drm_i915_flip {
-   int pipes;
+   int planes;
 } drm_i915_flip_t;
 
 #undef DRM_IOCTL_I915_FLIP
@@ -1288,20 +1288,20 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 #ifdef DAMAGE
       /* Try flipping back to the front page if necessary */
       if (sPriv && !sPriv->pf_enabled && sPriv->pf_current_page != 0) {
-	 drm_i915_flip_t flip = { .pipes = 0 };
+	 drm_i915_flip_t flip = { .planes = 0 };
 
 	 if (sPriv->pf_current_page & (0x3 << 2)) {
 	    sPriv->pf_current_page = sPriv->pf_current_page & 0x3;
 	    sPriv->pf_current_page |= (sPriv->third_handle ? 2 : 1) << 2;
 
-	    flip.pipes |= 0x2;
+	    flip.planes |= 0x2;
 	 }
 
 	 if (sPriv->pf_current_page & 0x3) {
 	    sPriv->pf_current_page = sPriv->pf_current_page & (0x3 << 2);
 	    sPriv->pf_current_page |= sPriv->third_handle ? 2 : 1;
 
-	    flip.pipes |= 0x1;
+	    flip.planes |= 0x1;
 	 }
 
 	 drmCommandWrite(pI830->drmSubFD, DRM_I915_FLIP, &flip, sizeof(flip));
@@ -1634,14 +1634,14 @@ I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
       unsigned numvisible[2] = { 0, 0 };
       int i, j;
 
-      crtcBox[0].x1 = sPriv->pipeA_x;
-      crtcBox[0].y1 = sPriv->pipeA_y;
-      crtcBox[0].x2 = crtcBox[0].x1 + sPriv->pipeA_w;
-      crtcBox[0].y2 = crtcBox[0].y1 + sPriv->pipeA_h;
-      crtcBox[1].x1 = sPriv->pipeB_x;
-      crtcBox[1].y1 = sPriv->pipeB_y;
-      crtcBox[1].x2 = crtcBox[1].x1 + sPriv->pipeB_w;
-      crtcBox[1].y2 = crtcBox[1].y1 + sPriv->pipeB_h;
+      crtcBox[0].x1 = sPriv->planeA_x;
+      crtcBox[0].y1 = sPriv->planeA_y;
+      crtcBox[0].x2 = crtcBox[0].x1 + sPriv->planeA_w;
+      crtcBox[0].y2 = crtcBox[0].y1 + sPriv->planeA_h;
+      crtcBox[1].x1 = sPriv->planeB_x;
+      crtcBox[1].y1 = sPriv->planeB_y;
+      crtcBox[1].x2 = crtcBox[1].x1 + sPriv->planeB_w;
+      crtcBox[1].y2 = crtcBox[1].y1 + sPriv->planeB_h;
 
       for (i = 0; i < 2; i++) {
 	 for (j = 0; j < num; j++) {
