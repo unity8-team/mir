@@ -2718,7 +2718,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 
    config = XF86_CRTC_CONFIG_PTR(pScrn);
-   sPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+   sPriv = DRIGetSAREAPrivate(pScreen);
    /* Setup pipe->plane mappings for DRI & DRM */
    for (c = 0; c < config->num_crtc; c++) {
        xf86CrtcPtr crtc = config->crtc[c];
