@@ -401,14 +401,15 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     pNv->PVIDEO   = pNv->REGS + (NV_PVIDEO_OFFSET/4);
     pNv->PMC      = pNv->REGS + (NV_PMC_OFFSET/4);
 
+    pNv->PCRTC1   = pNv->PCRTC0 + 0x2000/4;
+    pNv->PRAMDAC1 = pNv->PRAMDAC0 + 0x2000/4;
+
     /* 8 bit registers */
     pNv->PCIO0    = (CARD8*)pNv->REGS + NV_PCIO0_OFFSET;
     pNv->PDIO0    = (CARD8*)pNv->REGS + NV_PDIO0_OFFSET;
     pNv->PVIO     = (CARD8*)pNv->REGS + NV_PVIO_OFFSET;
     pNv->PROM     = (CARD8*)pNv->REGS + NV_PROM_OFFSET;
 
-    pNv->PCRTC1   = pNv->PCRTC0 + 0x2000;
-    pNv->PRAMDAC1 = pNv->PRAMDAC0 + 0x2000;
     pNv->PCIO1    = pNv->PCIO0 + 0x2000;
     pNv->PDIO1    = pNv->PDIO0 + 0x2000;
 
