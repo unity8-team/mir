@@ -465,7 +465,7 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 
 	switch (pNv->Architecture) {
 	case NV_ARCH_04:
-		class = NV05_IMAGE_FROM_CPU;
+		class = NV_IMAGE_FROM_CPU;
 		break;
 	case NV_ARCH_10:
 	case NV_ARCH_20:
@@ -490,10 +490,13 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 	NVDmaNext (pNv, NvNullObject);
 	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_ROP, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_BETA1, 1);
-	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_BETA4, 1);
-	NVDmaNext (pNv, NvNullObject);
+	if (pNv->Architecture >= NV_ARCH_10)
+	{
+		NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_BETA1, 1);
+		NVDmaNext (pNv, NvNullObject);
+		NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_BETA4, 1);
+		NVDmaNext (pNv, NvNullObject);
+	}
 	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_SURFACE, 1);
 	NVDmaNext (pNv, NvContextSurfaces);
 	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_OPERATION, 1);
