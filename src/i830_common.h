@@ -133,9 +133,6 @@ typedef struct {
 	int planeB_w;
 	int planeB_h;
 
-	int planeA_pipe;
-	int planeB_pipe;
-
 	/* Triple buffering */
 	drm_handle_t third_handle;
 	int third_offset;

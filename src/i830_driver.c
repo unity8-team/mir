@@ -2252,7 +2252,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    MessageType from;
 #ifdef XF86DRI
    Bool driDisabled;
-   drmI830Sarea *sPriv;
    xf86CrtcConfigPtr config;
 #ifdef XF86DRI_MM
    unsigned long savedMMSize;
@@ -2707,14 +2706,13 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 
    config = XF86_CRTC_CONFIG_PTR(pScrn);
-   sPriv = DRIGetSAREAPrivate(pScreen);
 
    /*
     * If an LVDS display is present, swap the plane/pipe mappings so we can
     * use FBC on the builtin display.
     * Note: 965+ chips can compress either plane, so we leave the mapping
     *       alone in that case.
-    * Also, only flip the pipes if the DRM can support it.
+    * Also make sure the DRM can handle the swap.
     */
    if (I830LVDSPresent(pScrn) && !IS_I965GM(pI830) &&
        (!pI830->directRenderingEnabled ||
@@ -2725,18 +2723,12 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	   xf86CrtcPtr	      crtc = config->crtc[c];
 	   I830CrtcPrivatePtr   intel_crtc = crtc->driver_private;
 
-	   if (intel_crtc->pipe == 0) {
+	   if (intel_crtc->pipe == 0)
 	       intel_crtc->plane = 1;
-	       sPriv->planeB_pipe = 0;
-	   } else if (intel_crtc->pipe == 1) {
+	   else if (intel_crtc->pipe == 1)
 	       intel_crtc->plane = 0;
-	       sPriv->planeA_pipe = 1;
-	   }
       }
    }
-
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "drm planeA pipe: %d, "
-	      "planeB pipe: %d\n", sPriv->planeA_pipe, sPriv->planeB_pipe);
 
 #else
    pI830->directRenderingEnabled = FALSE;
