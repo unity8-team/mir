@@ -119,6 +119,13 @@ XF86VideoFormatRec NVFormats[NUM_FORMATS_ALL] =
 	{15, DirectColor}, {16, DirectColor}, {24, DirectColor}
 };
 
+#define NUM_NV04_OVERLAY_ATTRIBUTES 1
+XF86AttributeRec NV04OverlayAttributes[NUM_NV04_OVERLAY_ATTRIBUTES] =
+{
+	{XvSettable | XvGettable, 0, (1 << 24) - 1, "XV_COLORKEY"},
+};
+
+
 #define NUM_OVERLAY_ATTRIBUTES 9
 XF86AttributeRec NVOverlayAttributes[NUM_OVERLAY_ATTRIBUTES] =
 {
@@ -2148,8 +2155,8 @@ NVSetupOverlayVideoAdapter(ScreenPtr pScreen)
 	pPriv = (NVPortPrivPtr)(&adapt->pPortPrivates[1]);
 	adapt->pPortPrivates[0].ptr	= (pointer)(pPriv);
 
-	adapt->pAttributes		= NVOverlayAttributes;
-	adapt->nAttributes		= NUM_OVERLAY_ATTRIBUTES;
+	adapt->pAttributes		= (pNv->Architecture != NV_ARCH_04) ? NVOverlayAttributes : NV04OverlayAttributes;
+	adapt->nAttributes		= (pNv->Architecture != NV_ARCH_04) ? NUM_OVERLAY_ATTRIBUTES : NUM_NV04_OVERLAY_ATTRIBUTES;
 	adapt->pImages			= NVImages;
 	adapt->nImages			= NUM_IMAGES_YUV;
 	adapt->PutVideo			= NULL;
@@ -2177,15 +2184,18 @@ NVSetupOverlayVideoAdapter(ScreenPtr pScreen)
 
 	pNv->overlayAdaptor	= adapt;
 
-	xvBrightness		= MAKE_ATOM("XV_BRIGHTNESS");
-	xvDoubleBuffer		= MAKE_ATOM("XV_DOUBLE_BUFFER");
-	xvContrast		= MAKE_ATOM("XV_CONTRAST");
 	xvColorKey		= MAKE_ATOM("XV_COLORKEY");
-	xvSaturation		= MAKE_ATOM("XV_SATURATION");
-	xvHue			= MAKE_ATOM("XV_HUE");
-	xvAutopaintColorKey	= MAKE_ATOM("XV_AUTOPAINT_COLORKEY");
-	xvSetDefaults		= MAKE_ATOM("XV_SET_DEFAULTS");
-	xvITURBT709		= MAKE_ATOM("XV_ITURBT_709");
+	if ( pNv->Architecture != NV_ARCH_04 )
+		{
+		xvBrightness		= MAKE_ATOM("XV_BRIGHTNESS");
+		xvDoubleBuffer		= MAKE_ATOM("XV_DOUBLE_BUFFER");
+		xvContrast		= MAKE_ATOM("XV_CONTRAST");
+		xvSaturation		= MAKE_ATOM("XV_SATURATION");
+		xvHue			= MAKE_ATOM("XV_HUE");
+		xvAutopaintColorKey	= MAKE_ATOM("XV_AUTOPAINT_COLORKEY");
+		xvSetDefaults		= MAKE_ATOM("XV_SET_DEFAULTS");
+		xvITURBT709		= MAKE_ATOM("XV_ITURBT_709");
+		}
 
 	NVResetVideo(pScrn);
 
@@ -2278,7 +2288,7 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 		return NULL;
 
 	overlayAdaptor = NVSetupOverlayVideoAdapter(pScreen);
-	if (overlayAdaptor)
+	if (overlayAdaptor && pNv->Architecture != NV_ARCH_04 )
 		NVInitOffscreenImages(pScreen); //I am not sure what this call does.
 	
 	#ifdef COMPOSITE
