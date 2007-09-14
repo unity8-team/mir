@@ -258,6 +258,7 @@ NVStopOverlay (ScrnInfoPtr pScrn)
 		nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
 	else
 		{
+		nvWriteRAMDAC(pNv, 0, 0x244, nvReadRAMDAC(pNv, 0, 0x244) &~ 0x1);
 		nvWriteRAMDAC(pNv, 0, 0x224, 0);
 		nvWriteRAMDAC(pNv, 0, 0x228, 0);
 		nvWriteRAMDAC(pNv, 0, 0x22c, 0);
@@ -601,7 +602,6 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
 {
 	NVPtr         pNv    = NVPTR(pScrn);
 	NVPortPrivPtr pPriv  = GET_OVERLAY_PRIVATE(pNv);
-	int           buffer = pPriv->currentBuffer;
 
 	/* paint the color key */
 	if(pPriv->autopaintColorKey && (pPriv->grabbedByV4L ||
@@ -614,7 +614,7 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
 		}
 	}
 
-	if(pNv->CurrentLayout.mode->Flags & V_DBLSCAN) {
+	if(pNv->CurrentLayout.mode->Flags & V_DBLSCAN) { /*This may not work with NV04 overlay according to rivatv source*/
 		dstBox->y1 <<= 1;
 		dstBox->y2 <<= 1;
 		drw_h <<= 1;
@@ -628,12 +628,15 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
 	nvWriteRAMDAC(pNv, 0, 0x22c, 0);
 	
 	/* NV_PVIDEO_BUFF0_START_ADDRESS */
-	nvWriteRAMDAC(pNv, 0, 0x20C + 4*buffer, offset);
+	nvWriteRAMDAC(pNv, 0, 0x20C, offset);
+	nvWriteRAMDAC(pNv, 0, 0x20C + 4, offset);
 	/* NV_PVIDEO_BUFF0_PITCH_LENGTH */
-	nvWriteRAMDAC(pNv, 0, 0x214 + 4*buffer, dstPitch);
+	nvWriteRAMDAC(pNv, 0, 0x214, dstPitch);
+	nvWriteRAMDAC(pNv, 0, 0x214 + 4, dstPitch);
 	
 	/* NV_PVIDEO_BUFF0_OFFSET */
-	nvWriteRAMDAC(pNv, 0, 0x21C + 4*buffer, 0);
+	nvWriteRAMDAC(pNv, 0, 0x21C, 0);
+	nvWriteRAMDAC(pNv, 0, 0x21C + 4, 0);
 	
 	/* NV_PVIDEO_WINDOW_START */
         nvWriteRAMDAC(pNv, 0, 0x230, (dstBox->y1 << 16) | dstBox->x1);
@@ -641,10 +644,7 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
 	nvWriteRAMDAC(pNv, 0, 0x234, ((dstBox->y2 - dstBox->y1) << 16) |
 			   (dstBox->x2 - dstBox->x1));
         /* NV_PVIDEO_STEP_SIZE */
-        /*yscale = ((port->vld_height - 1) << 11) / (window->height - 1);
-        xscale = ((port->vld_width - 1) << 11) / (window->width - 1);
-         VID_WR32 (info->chip.PVIDEO, 0x200, (yscale << 16) | xscale);*/	
-	nvWriteRAMDAC(pNv,  0,  0x200, (uint32_t)((src_h - 1 << 11) / (dstBox->y2 - dstBox->y1 - 1)) << 16 | (uint32_t)((src_w - 1 << 11) / (dstBox->x2 - dstBox->x1 - 1)));
+	nvWriteRAMDAC(pNv,  0,  0x200, (uint32_t)((src_h - 1 << 11) / (drw_h - 1)) << 16 | (uint32_t)((src_w - 1 << 11) / (drw_w - 1)));
 	
 	/* NV_PVIDEO_RED_CSC_OFFSET */
 	/* NV_PVIDEO_GREEN_CSC_OFFSET */
@@ -668,8 +668,14 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
 	/* Color key */
 	nvWriteRAMDAC(pNv, 0, 0x240, pPriv->colorKey);
 	
-	/*NV_PVIDEO_OVERLAY (KEY_ON, VIDEO_ON, FORMAT_CCIR) */
-	nvWriteRAMDAC(pNv, 0, 0x244, 0x011);
+	/*NV_PVIDEO_OVERLAY
+		0x1 Video on
+		0x10 Use colorkey
+		0x100 Format YUY2 */
+	nvWriteRAMDAC(pNv, 0, 0x244, 0x111);
+	
+	/* NV_PVIDEO_SU_STATE */
+	nvWriteRAMDAC(pNv, 0, 0x228, (nvReadRAMDAC(pNv, 0, 0x228) ^ (1 << 16)));
 	
 	pPriv->videoStatus = CLIENT_VIDEO_ON;
 }
@@ -1369,11 +1375,11 @@ static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw,
 			*action_flags |= CONVERT_TO_YUY2;
 			}
 		}
-		
+
 	if ( pNv->Architecture == NV_ARCH_04 )
-		if ( * action_flags & IS_YV12 ) //NV04-05 don't support native YV12 AFAIK
+		if ( * action_flags & IS_YV12 ) //NV04-05 don't support native YV12, only YUY2 and ITU-R BT.601)
 			*action_flags |= CONVERT_TO_YUY2;
-	
+		
 	if ( pNv->Architecture == NV_ARCH_10 )
 		{
 		switch ( pNv->Chipset & 0xfff0 )
@@ -1511,17 +1517,16 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	/*The overlay supports hardware double buffering. We handle this here*/
 	if (pPriv->doubleBuffer) {
 		int mask = 1 << (pPriv->currentBuffer << 2);
-
 		/* overwrite the newest buffer if there's not one free */
 		if (nvReadVIDEO(pNv, NV_PVIDEO_BUFFER) & mask) {
 			if (!pPriv->currentBuffer)
 				offset += newFBSize >> 1;
-
 			skip = TRUE;
 		} 
-		else if (pPriv->currentBuffer)
-			offset += newFBSize >> 1;
-	}
+		else 
+			if (pPriv->currentBuffer)
+				offset += newFBSize >> 1;
+		}
 
 	/*Now we take a decision regarding the way we send the data to the card.
 	Either we use double buffering of "private" TT memory
@@ -2117,7 +2122,7 @@ NVSetupBlitVideo (ScreenPtr pScreen)
  * @see NVResetVideo(ScrnInfoPtr pScrn)
  */
 static XF86VideoAdaptorPtr 
-NVSetupOverlayVideo(ScreenPtr pScreen)
+NVSetupOverlayVideoAdapter(ScreenPtr pScreen)
 {
 	ScrnInfoPtr         pScrn = xf86Screens[pScreen->myNum];
 	NVPtr               pNv       = NVPTR(pScrn);
@@ -2162,7 +2167,9 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 	pPriv->currentBuffer		= 0;
 	pPriv->grabbedByV4L		= FALSE;
 	pPriv->blitter			= FALSE;
-
+	if ( pNv->Architecture == NV_ARCH_04 )
+		pPriv->doubleBuffer		= 0;
+	
 	NVSetPortDefaults (pScrn, pPriv);
 
 	/* gotta uninit this someplace */
@@ -2270,7 +2277,7 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 	if (!NVChipsetHasOverlay(pNv))
 		return NULL;
 
-	overlayAdaptor = NVSetupOverlayVideo(pScreen);
+	overlayAdaptor = NVSetupOverlayVideoAdapter(pScreen);
 	if (overlayAdaptor)
 		NVInitOffscreenImages(pScreen); //I am not sure what this call does.
 	
