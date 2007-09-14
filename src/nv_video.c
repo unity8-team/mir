@@ -253,8 +253,15 @@ static void
 NVStopOverlay (ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-
-	nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
+	
+	if ( pNv -> Architecture != NV_ARCH_04 )
+		nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
+	else
+		{
+		nvWriteRAMDAC(pNv, 0, 0x224, 0);
+		nvWriteRAMDAC(pNv, 0, 0x228, 0);
+		nvWriteRAMDAC(pNv, 0, 0x22c, 0);
+		}
 }
 
 /**
@@ -584,7 +591,7 @@ NVPutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
 }
 
 static void
-NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
+NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
 		  int dstPitch, BoxPtr dstBox,
 		  int x1, int y1, int x2, int y2,
 		  short width, short height,
@@ -595,7 +602,7 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
 	NVPtr         pNv    = NVPTR(pScrn);
 	NVPortPrivPtr pPriv  = GET_OVERLAY_PRIVATE(pNv);
 	int           buffer = pPriv->currentBuffer;
-/*0x00680000*/
+
 	/* paint the color key */
 	if(pPriv->autopaintColorKey && (pPriv->grabbedByV4L ||
 		!REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes))) {
@@ -613,47 +620,56 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
 		drw_h <<= 1;
 	}
 
+	/* NV_PVIDEO_OE_STATE */
+        /* NV_PVIDEO_SU_STATE */
+        /* NV_PVIDEO_RM_STATE */
+        nvWriteRAMDAC(pNv, 0, 0x224, 0);
+	nvWriteRAMDAC(pNv, 0, 0x228, 0);
+	nvWriteRAMDAC(pNv, 0, 0x22c, 0);
 	
-	nvWriteVIDEO(pNv, 0x680000  - 0x8000+ 0x224, 0);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x228, 0);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x22C, 0);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x20C + 4*buffer   , offset);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x21C + 4*buffer   , 0);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x214 + 4*buffer   , dstPitch);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x230   , (dstBox->y1 << 16) | dstBox->x1);
-	nvWriteVIDEO(pNv,  0x680000 - 0x8000+ 0x234/* + 4*buffer UNKNOWN*/, (height << 16) | width);
-	nvWriteVIDEO(pNv,  0x680000 - 0x8000+ 0x200/* + 4*buffer UNKNOWN*/, (uint32_t)((src_h - 1 << 11) / (dstBox->y2 - dstBox->y1)) << 16 | (uint32_t)((src_w - 1 << 11) / (dstBox->x2 - dstBox->x1)));
+	/* NV_PVIDEO_BUFF0_START_ADDRESS */
+	nvWriteRAMDAC(pNv, 0, 0x20C + 4*buffer, offset);
+	/* NV_PVIDEO_BUFF0_PITCH_LENGTH */
+	nvWriteRAMDAC(pNv, 0, 0x214 + 4*buffer, dstPitch);
 	
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x280, 0x69);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x284, 0x3e);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x288, 0x89);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x28C, 0x0);
+	/* NV_PVIDEO_BUFF0_OFFSET */
+	nvWriteRAMDAC(pNv, 0, 0x21C + 4*buffer, 0);
 	
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x204, 0x001);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x208, 0x111);
+	/* NV_PVIDEO_WINDOW_START */
+        nvWriteRAMDAC(pNv, 0, 0x230, (dstBox->y1 << 16) | dstBox->x1);
+	/* NV_PVIDEO_WINDOW_SIZE */
+	nvWriteRAMDAC(pNv, 0, 0x234, ((dstBox->y2 - dstBox->y1) << 16) |
+			   (dstBox->x2 - dstBox->x1));
+        /* NV_PVIDEO_STEP_SIZE */
+        /*yscale = ((port->vld_height - 1) << 11) / (window->height - 1);
+        xscale = ((port->vld_width - 1) << 11) / (window->width - 1);
+         VID_WR32 (info->chip.PVIDEO, 0x200, (yscale << 16) | xscale);*/	
+	nvWriteRAMDAC(pNv,  0,  0x200, (uint32_t)((src_h - 1 << 11) / (dstBox->y2 - dstBox->y1 - 1)) << 16 | (uint32_t)((src_w - 1 << 11) / (dstBox->x2 - dstBox->x1 - 1)));
 	
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x23C, 0x03);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x238, 0x38);
+	/* NV_PVIDEO_RED_CSC_OFFSET */
+	/* NV_PVIDEO_GREEN_CSC_OFFSET */
+	/* NV_PVIDEO_BLUE_CSC_OFFSET */
+	/* NV_PVIDEO_CSC_ADJUST */
+	nvWriteRAMDAC(pNv, 0, 0x280, 0x69);
+	nvWriteRAMDAC(pNv, 0, 0x284, 0x3e);
+	nvWriteRAMDAC(pNv, 0, 0x288, 0x89);
+	nvWriteRAMDAC(pNv, 0, 0x28C, 0x0);
+
+        /* NV_PVIDEO_CONTROL_Y (BLUR_ON, LINE_HALF) */
+	nvWriteRAMDAC(pNv, 0, 0x204, 0x001);
+	/* NV_PVIDEO_CONTROL_X (WEIGHT_HEAVY, SHARPENING_ON, SMOOTHING_ON) */
+	nvWriteRAMDAC(pNv, 0, 0x208, 0x111);
 	
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x240, pPriv->colorKey);
+	/* NV_PVIDEO_FIFO_BURST_LENGTH */  
+	nvWriteRAMDAC(pNv, 0, 0x23C, 0x03);
+	/* NV_PVIDEO_FIFO_THRES_SIZE */
+	nvWriteRAMDAC(pNv, 0, 0x238, 0x38);
+	
+	/* Color key */
+	nvWriteRAMDAC(pNv, 0, 0x240, pPriv->colorKey);
 	
 	/*NV_PVIDEO_OVERLAY (KEY_ON, VIDEO_ON, FORMAT_CCIR) */
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x240, 0x111);
-	nvWriteVIDEO(pNv, 0x680000 - 0x8000+ 0x228, 1 << 16);
-
-	/*dstPitch |= NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY;   
-	if(id != FOURCC_UYVY)
-		dstPitch |= NV_PVIDEO_FORMAT_COLOR_LE_CR8YB8CB8YA8;
-	if(pPriv->iturbt_709)
-		dstPitch |= NV_PVIDEO_FORMAT_MATRIX_ITURBT709;
-	
-	if( id == FOURCC_YV12 || id == FOURCC_I420 )
-		dstPitch |= NV_PVIDEO_FORMAT_PLANAR;
-	
-	nvWriteVIDEO(pNv, NV_PVIDEO_FORMAT(buffer), dstPitch);
-	nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 0);
-	nvWriteVIDEO(pNv, NV_PVIDEO_BUFFER, buffer ? 0x10 :  0x1);
-	*/
+	nvWriteRAMDAC(pNv, 0, 0x244, 0x011);
 	
 	pPriv->videoStatus = CLIENT_VIDEO_ON;
 }
@@ -1354,7 +1370,7 @@ static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw,
 			}
 		}
 		
-	if ( pNv->Architecture == NV_ARCH_03 || pNv->Architecture == NV_ARCH_04 )
+	if ( pNv->Architecture == NV_ARCH_04 )
 		if ( * action_flags & IS_YV12 ) //NV04-05 don't support native YV12 AFAIK
 			*action_flags |= CONVERT_TO_YUY2;
 	
@@ -1770,7 +1786,15 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		
 		if ( action_flags & USE_OVERLAY )
 			{
-			NVPutOverlayImage(pScrn, offset, ((action_flags & IS_YUY2) || (action_flags & CONVERT_TO_YUY2)) ? 0 : offset + nlines * dstPitch, id,
+			if ( pNv->Architecture == NV_ARCH_04 )
+				NV04PutOverlayImage(pScrn, offset, id,
+					  dstPitch, &dstBox, 
+					  0,0, xb, yb,
+					  npixels, nlines,
+					  src_w, src_h, drw_w, drw_h,
+					  clipBoxes);
+			else
+				NVPutOverlayImage(pScrn, offset, ((action_flags & IS_YUY2) || (action_flags & CONVERT_TO_YUY2)) ? 0 : offset + nlines * dstPitch, id,
 					  dstPitch, &dstBox, 
 					  0,0, xb, yb,
 					  npixels, nlines,
@@ -2086,14 +2110,14 @@ NVSetupBlitVideo (ScreenPtr pScreen)
 }
 
 /**
- * NV10SetupOverlayVideo
+ * NVSetupOverlayVideo
  * this function does all the work setting up an overlay port
  * 
  * @return overlay port
  * @see NVResetVideo(ScrnInfoPtr pScrn)
  */
 static XF86VideoAdaptorPtr 
-NV10SetupOverlayVideo(ScreenPtr pScreen)
+NVSetupOverlayVideo(ScreenPtr pScreen)
 {
 	ScrnInfoPtr         pScrn = xf86Screens[pScreen->myNum];
 	NVPtr               pNv       = NVPTR(pScrn);
@@ -2161,6 +2185,7 @@ NV10SetupOverlayVideo(ScreenPtr pScreen)
 	return adapt;
 }
 
+
 XF86OffscreenImageRec NVOffscreenImages[2] = {
 	{
 		&NVImages[0],
@@ -2209,6 +2234,7 @@ static Bool
 NVChipsetHasOverlay(NVPtr pNv)
 {
 	switch (pNv->Architecture) {
+	case NV_ARCH_04: /*NV04 has a different overlay than NV10+*/
 	case NV_ARCH_10:
 	case NV_ARCH_20:
 	case NV_ARCH_30:
@@ -2244,7 +2270,7 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 	if (!NVChipsetHasOverlay(pNv))
 		return NULL;
 
-	overlayAdaptor = NV10SetupOverlayVideo(pScreen);
+	overlayAdaptor = NVSetupOverlayVideo(pScreen);
 	if (overlayAdaptor)
 		NVInitOffscreenImages(pScreen); //I am not sure what this call does.
 	
