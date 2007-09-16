@@ -37,35 +37,15 @@
 
 #include <xf86DDC.h>
 
-static unsigned const char *
-NV50GetVBIOSImage(NVPtr pNv)
-{
-	unsigned char *VBIOS;
-	uint32_t old_bar0_pramin;
-
-	VBIOS = xalloc(65536);
-	if (VBIOS) {
-		old_bar0_pramin = pNv->REGS[0x1700/4];
-		pNv->REGS[0x1700/4] = pNv->REGS[0x00619f04/4] >> 8;
-
-		memcpy(VBIOS, (const void *)&pNv->REGS[0x700000/4], 65536);
-
-		pNv->REGS[0x1700/4] = old_bar0_pramin;
-	}
-
-	return (unsigned const char *)VBIOS;
-}
-
 static Bool NV50ReadPortMapping(int scrnIndex, NVPtr pNv)
 {
-    unsigned const char *VBIOS;
+    unsigned const char *VBIOS = pNv->VBIOS;
     unsigned char *table2;
     unsigned char headerSize, entries;
     int i;
     CARD16 a;
     CARD32 b;
 
-    VBIOS = NV50GetVBIOSImage(pNv);
     if (!VBIOS)
 	    goto fail;
 

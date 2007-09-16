@@ -47,7 +47,7 @@ typedef struct {
 	CARD16      io_flag_condition_offset;
 } bios_t;
 
-static Bool NVValidBios(ScrnInfoPtr pScrn, const unsigned char *data)
+static Bool NVValidVBIOS(ScrnInfoPtr pScrn, const unsigned char *data)
 {
 	/* check for BIOS signature */
 	if (!(data[0] == 0x55 && data[1] == 0xAA)) {
@@ -60,7 +60,7 @@ static Bool NVValidBios(ScrnInfoPtr pScrn, const unsigned char *data)
 	return TRUE;
 }
 
-static void NVDownloadBiosPROM(ScrnInfoPtr pScrn, unsigned char *data)
+static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, unsigned char *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int i;
@@ -82,33 +82,47 @@ static void NVDownloadBiosPROM(ScrnInfoPtr pScrn, unsigned char *data)
 	nvWriteMC(pNv, 0x1850, 0x1);
 }
 
-static void NVDownloadBiosPRAMIN(ScrnInfoPtr pScrn, unsigned char *data)
+static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, unsigned char *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	const unsigned char *pramin = (void*)&pNv->REGS[0x00700000/4];
+	uint32_t old_bar0_pramin = 0;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Attempting to locate BIOS image in PRAMIN\n");
+
+	if (pNv->Architecture >= NV_ARCH_50) {
+		uint32_t vbios_vram;
+
+		vbios_vram = (pNv->REGS[0x619f04/4] & ~0xff) << 8;
+		if (!vbios_vram) {
+			vbios_vram  = pNv->REGS[0x1700/4] << 16;
+			vbios_vram += 0xf0000;
+		}
+
+		old_bar0_pramin = pNv->REGS[0x1700/4];
+		pNv->REGS[0x1700/4] = vbios_vram >> 16;
+	}
+
 	memcpy(data, pramin, 65536);
+
+	if (pNv->Architecture >= NV_ARCH_50) {
+		pNv->REGS[0x1700/4] = old_bar0_pramin;
+	}
 }
 
-static Bool NVDownloadBios(ScrnInfoPtr pScrn, bios_t *bios)
+static Bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint32_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	bios->data = xcalloc(1, 65536);
-
-	NVDownloadBiosPROM(pScrn, bios->data);
-	if (NVValidBios(pScrn, bios->data))
+	NVShadowVBIOS_PROM(pScrn, data);
+	if (NVValidVBIOS(pScrn, data))
 		return TRUE;
 
-	NVDownloadBiosPRAMIN(pScrn, bios->data);
-	if (NVValidBios(pScrn, bios->data))
+	NVShadowVBIOS_PRAMIN(pScrn, data);
+	if (NVValidVBIOS(pScrn, data))
 		return TRUE;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Failed to locate BIOS image\n");
-	xfree(bios->data);
 	return FALSE;
 }
 
@@ -1680,14 +1694,17 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	unsigned char nv_signature[]={0xff,0x7f,'N','V',0x0};
 	unsigned char bit_signature[]={'B','I','T'};
 	NVPtr pNv;
-	int i, ret;
+	int ret;
 	pNv = NVPTR(pScrn);
 
-	if (!NVDownloadBios(pScrn, &bios)) {
+	pNv->VBIOS = xalloc(64 * 1024);
+	if (!NVShadowVBIOS(pScrn, pNv->VBIOS)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "No valid BIOS image found.\n");
+		xfree(pNv->VBIOS);
 		return 0;
 	}
+	bios.data = (unsigned char *)pNv->VBIOS;
 
 	/* check for known signatures */
 	if ((bit_offset = findstr(&bios, bit_signature, sizeof(bit_signature)))) {
@@ -1712,6 +1729,5 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "No DCB table found\n");
 	}
 
-	xfree(bios.data);
 	return 1;
 }

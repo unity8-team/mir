@@ -227,6 +227,7 @@ typedef struct _NVRec {
     /* PCI buffer virtual address */
     unsigned long 	SGPhysical;
 
+    uint32_t *		VBIOS;
     NVAllocRec *        FB;
     NVAllocRec *        Cursor;
     NVAllocRec *        CLUT;	/* NV50 only */
