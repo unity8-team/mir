@@ -1555,41 +1555,45 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     }
 #endif
 
-    /*
-     * xf86ValidateModes will check that the mode HTotal and VTotal values
-     * don't exceed the chipset's limit if pScrn->maxHValue and
-     * pScrn->maxVValue are set.  Since our NVValidMode() already takes
-     * care of this, we don't worry about setting them here.
-     */
-    i = xf86ValidateModes(pScrn, pScrn->monitor->Modes,
-                          pScrn->display->modes, clockRanges,
-                          NULL, 256, max_width,
-                          512, 128, max_height,
-                          pScrn->display->virtualX,
-                          pScrn->display->virtualY,
-                          pNv->VRAMPhysicalSize / 2,
-                          LOOKUP_BEST_REFRESH);
+    if (pNv->randr12_enable) {
+	    pScrn->displayWidth = (pScrn->virtualX + 255) & ~255;
+    } else { 
+	    /*
+	     * xf86ValidateModes will check that the mode HTotal and VTotal values
+	     * don't exceed the chipset's limit if pScrn->maxHValue and
+	     * pScrn->maxVValue are set.  Since our NVValidMode() already takes
+	     * care of this, we don't worry about setting them here.
+	     */
+	    i = xf86ValidateModes(pScrn, pScrn->monitor->Modes,
+	                          pScrn->display->modes, clockRanges,
+	                          NULL, 256, max_width,
+	                          512, 128, max_height,
+	                          pScrn->display->virtualX,
+	                          pScrn->display->virtualY,
+	                          pNv->VRAMPhysicalSize / 2,
+	                          LOOKUP_BEST_REFRESH);
+	
+	    if (i == -1) {
+		NVPreInitFail("\n");
+	    }
+	
+	    /* Prune the modes marked as invalid */
+	    xf86PruneDriverModes(pScrn);
 
-    if (i == -1) {
-	NVPreInitFail("\n");
+	    /*
+	     * Set the CRTC parameters for all of the modes based on the type
+	     * of mode, and the chipset's interlace requirements.
+	     *
+	     * Calling this is required if the mode->Crtc* values are used by the
+	     * driver and if the driver doesn't provide code to set them.  They
+	     * are not pre-initialised at all.
+	     */
+	    xf86SetCrtcForModes(pScrn, 0);
     }
 
-    /* Prune the modes marked as invalid */
-    xf86PruneDriverModes(pScrn);
-
-    if (i == 0 || pScrn->modes == NULL) {
+    if (pScrn->modes == NULL) {
 	NVPreInitFail("No valid modes found\n");
     }
-
-    /*
-     * Set the CRTC parameters for all of the modes based on the type
-     * of mode, and the chipset's interlace requirements.
-     *
-     * Calling this is required if the mode->Crtc* values are used by the
-     * driver and if the driver doesn't provide code to set them.  They
-     * are not pre-initialised at all.
-     */
-    xf86SetCrtcForModes(pScrn, 0);
 
     /* Set the current mode to the first in the list */
     pScrn->currentMode = pScrn->modes;
