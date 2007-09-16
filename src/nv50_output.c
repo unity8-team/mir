@@ -33,6 +33,7 @@
 
 #include "nv_include.h"
 #include "nv50_type.h"
+#include "nv50_display.h"
 #include "nv50_output.h"
 
 #include <xf86DDC.h>
@@ -75,10 +76,12 @@ static Bool NV50ReadPortMapping(int scrnIndex, NVPtr pNv)
         port = (b >> 4) & 0xf;
         or = ffs((b >> 24) & 0xf) - 1;
 
-        if(type < 4 && port != 0xf) {
+	if (type == 0xe)
+		break;
+
+        if(type < 4) {
             switch(type) {
                 case 0: /* CRT */
-                case 1: /* TV */
                     if(pNv->i2cMap[port].dac != -1) {
                         xf86DrvMsg(scrnIndex, X_WARNING,
                                    "DDC routing table corrupt!  DAC %i -> %i "
@@ -87,8 +90,9 @@ static Bool NV50ReadPortMapping(int scrnIndex, NVPtr pNv)
                     }
                     pNv->i2cMap[port].dac = or;
                     break;
+                case 1: /* TV */
+		    break;
                 case 2: /* TMDS */
-                case 3: /* LVDS */
                     if(pNv->i2cMap[port].sor != -1)
                         xf86DrvMsg(scrnIndex, X_WARNING,
                                    "DDC routing table corrupt!  SOR %i -> %i "
@@ -96,11 +100,19 @@ static Bool NV50ReadPortMapping(int scrnIndex, NVPtr pNv)
                                    or, pNv->i2cMap[port].sor, port);
                     pNv->i2cMap[port].sor = or;
                     break;
+                case 3: /* LVDS */
+		    pNv->lvds.present = TRUE;
+		    pNv->lvds.or = or;
+		    break;
             }
         }
     }
 
-    xf86DrvMsg(scrnIndex, X_PROBED, "I2C map:\n");
+    xf86DrvMsg(scrnIndex, X_PROBED, "Connector map:\n");
+    if (pNv->lvds.present) {
+	    xf86DrvMsg(scrnIndex, X_PROBED,
+		       "  [N/A] -> SOR%i (LVDS)\n", pNv->lvds.or);
+    }
     for(i = 0; i < 4; i++) {
         if(pNv->i2cMap[i].dac != -1)
             xf86DrvMsg(scrnIndex, X_PROBED, "  Bus %i -> DAC%i\n", i, pNv->i2cMap[i].dac);
@@ -167,23 +179,20 @@ void
 NV50OutputSetPClk(xf86OutputPtr output, int pclk)
 {
     NV50OutputPrivPtr pPriv = output->driver_private;
-    pPriv->set_pclk(output, pclk);
+
+    if (pPriv->set_pclk)
+	pPriv->set_pclk(output, pclk);
 }
 
 int
 NV50OutputModeValid(xf86OutputPtr output, DisplayModePtr mode)
 {
-    if(mode->Clock > 400000 || mode->Clock < 25000)
-        return MODE_CLOCK_RANGE;
+    if (mode->Clock > 400000)
+	return MODE_CLOCK_HIGH;
+    if (mode->Clock < 25000)
+	return MODE_CLOCK_LOW;
 
     return MODE_OK;
-}
-
-Bool
-NV50OutputModeFixup(xf86OutputPtr output, DisplayModePtr mode,
-                   DisplayModePtr adjusted_mode)
-{
-    return TRUE;
 }
 
 void
@@ -327,20 +336,29 @@ NV50CreateOutputs(ScrnInfoPtr pScrn)
         if(pNv->i2cMap[i].dac != -1)
             dac = NV50CreateDac(pScrn, pNv->i2cMap[i].dac);
         if(pNv->i2cMap[i].sor != -1)
-            sor = NV50CreateSor(pScrn, pNv->i2cMap[i].sor);
+            sor = NV50CreateSor(pScrn, pNv->i2cMap[i].sor, TMDS);
 
         if(dac) {
             NV50OutputPrivPtr pPriv = dac->driver_private;
 
             pPriv->partner = sor;
             pPriv->i2c = i2c;
+	    pPriv->scale = NV50_SCALE_OFF;
         }
         if(sor) {
             NV50OutputPrivPtr pPriv = sor->driver_private;
 
             pPriv->partner = dac;
             pPriv->i2c = i2c;
+	    pPriv->scale = NV50_SCALE_ASPECT;
         }
+    }
+
+    if (pNv->lvds.present) {
+	xf86OutputPtr lvds = NV50CreateSor(pScrn, pNv->lvds.or, LVDS);
+	NV50OutputPrivPtr pPriv = lvds->driver_private;
+
+	pPriv->scale = NV50_SCALE_ASPECT;
     }
 
     /* For each output, set the crtc and clone masks */

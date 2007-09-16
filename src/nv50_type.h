@@ -19,4 +19,9 @@ typedef enum ORNum {
    SOR1 = 1
 } ORNum;
 
+typedef enum PanelType {
+    TMDS,
+    LVDS
+} PanelType;
+
 #endif

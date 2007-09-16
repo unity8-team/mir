@@ -1,11 +1,16 @@
 #ifndef __NV50_OUTPUT_H__
 #define __NV50_OUTPUT_H__
 
+#include "nv50_display.h"
+
 #ifdef ENABLE_RANDR12
 
 typedef struct NV50OutputPrivRec {
     ORType type;
     ORNum or;
+    PanelType panelType;
+    DisplayModePtr nativeMode;
+    enum NV50ScaleMode scale;
 
     xf86OutputPtr partner;
     I2CBusPtr i2c;
@@ -17,7 +22,6 @@ typedef struct NV50OutputPrivRec {
 
 void NV50OutputSetPClk(xf86OutputPtr, int pclk);
 int NV50OutputModeValid(xf86OutputPtr, DisplayModePtr);
-Bool NV50OutputModeFixup(xf86OutputPtr, DisplayModePtr mode, DisplayModePtr adjusted_mode);
 void NV50OutputPrepare(xf86OutputPtr);
 void NV50OutputCommit(xf86OutputPtr);
 void NV50OutputPartnersDetect(xf86OutputPtr dac, xf86OutputPtr sor, I2CBusPtr i2c);
@@ -31,7 +35,7 @@ xf86OutputPtr NV50CreateDac(ScrnInfoPtr, ORNum);
 Bool NV50DacLoadDetect(xf86OutputPtr);
 
 /* nv50_sor.c */
-xf86OutputPtr NV50CreateSor(ScrnInfoPtr, ORNum);
+xf86OutputPtr NV50CreateSor(ScrnInfoPtr, ORNum, PanelType);
 
 #endif
 

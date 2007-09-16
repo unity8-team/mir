@@ -349,6 +349,10 @@ typedef struct _NVRec {
 	    ORNum dac;
 	    ORNum sor;
     } i2cMap[4];
+    struct {
+	    Bool  present;
+	    ORNum or;
+    } lvds;
 } NVRec;
 
 typedef struct _NVCrtcPrivateRec {

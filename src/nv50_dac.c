@@ -78,6 +78,13 @@ NV50DacDPMSSet(xf86OutputPtr output, int mode)
     pNv->REGS[(0x0061A004+off)/4] = tmp;
 }
 
+Bool
+NV50DacModeFixup(xf86OutputPtr output, DisplayModePtr mode,
+		 DisplayModePtr adjusted_mode)
+{
+	return TRUE;
+}
+
 static void
 NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
               DisplayModePtr adjusted_mode)
@@ -101,6 +108,8 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
     C(0x00000404 + dacOff,
         (adjusted_mode->Flags & V_NHSYNC) ? 1 : 0 |
         (adjusted_mode->Flags & V_NVSYNC) ? 2 : 0);
+
+    G80CrtcSetScale(output->crtc, adjusted_mode, NV50_SCALE_OFF);
 }
 
 /*
@@ -167,7 +176,7 @@ static const xf86OutputFuncsRec NV50DacOutputFuncs = {
     .save = NULL,
     .restore = NULL,
     .mode_valid = NV50OutputModeValid,
-    .mode_fixup = NV50OutputModeFixup,
+    .mode_fixup = NV50DacModeFixup,
     .prepare = NV50OutputPrepare,
     .commit = NV50OutputCommit,
     .mode_set = NV50DacModeSet,
