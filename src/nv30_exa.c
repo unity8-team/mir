@@ -46,7 +46,7 @@ NV30SurfaceFormat[] = {
 	{ PICT_a8r8g8b8	, 0x148 },
 	{ PICT_x8r8g8b8	, 0x145 },
 	{ PICT_r5g6b5	, 0x143 },
-//	{ PICT_a8       , 0x149 },
+	{ PICT_a8       , 0x149 },
 	{ -1, ~0 }
 };
 
@@ -64,6 +64,47 @@ NV30_GetPictSurfaceFormat(int format)
 	return NULL;
 }
 
+enum {
+	NV30EXA_FPID_PASS_COL0 = 0,
+	NV30EXA_FPID_PASS_TEX0 = 1,
+	NV30EXA_FPID_COMPOSITE_MASK = 2,
+	NV30EXA_FPID_COMPOSITE_MASK_SA_CA = 3,
+	NV30EXA_FPID_COMPOSITE_MASK_CA = 4,
+	NV30EXA_FPID_MAX = 5
+} NV30EXA_FPID;
+
+static nv_shader_t *nv40_fp_map[NV30EXA_FPID_MAX] = {
+	&nv30_fp_pass_col0,
+	&nv30_fp_pass_tex0,
+	&nv30_fp_composite_mask,
+	&nv30_fp_composite_mask_sa_ca,
+	&nv30_fp_composite_mask_ca
+};
+
+static nv_shader_t *nv40_fp_map_a8[NV30EXA_FPID_MAX];
+
+static void
+NV30EXAHackupA8Shaders(ScrnInfoPtr pScrn)
+{
+	int s;
+
+	for (s = 0; s < NV30EXA_FPID_MAX; s++) {
+		nv_shader_t *def, *a8;
+
+		def = nv40_fp_map[s];
+		a8 = xcalloc(1, sizeof(nv_shader_t));
+		a8->card_priv.NV30FP.num_regs = def->card_priv.NV30FP.num_regs;
+		a8->size = def->size + 4;
+		memcpy(a8->data, def->data, def->size * sizeof(uint32_t));
+		nv40_fp_map_a8[s] = a8;
+
+		a8->data[a8->size - 8 + 0] &= ~0x00000081;
+		a8->data[a8->size - 4 + 0]  = 0x01401e81;
+		a8->data[a8->size - 4 + 1]  = 0x1c9dfe00;
+		a8->data[a8->size - 4 + 2]  = 0x0001c800;
+		a8->data[a8->size - 4 + 3]  = 0x0001c800;
+	}
+}
 
 /* should be in nouveau_reg.h at some point.. */
 #define NV30TCL_TX_SWIZZLE_UNIT_S0_X_SHIFT	14
@@ -248,8 +289,8 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 }
 
 static void
-NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend, Bool dest_has_alpha,
-							Bool component_alpha)
+NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
+		PictFormatShort dest_format, Bool component_alpha)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t sblend, dblend;
@@ -257,7 +298,7 @@ NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend, Bool dest_has_alpha,
 	sblend = blend->src_card_op;
 	dblend = blend->dst_card_op;
 
-	if (!dest_has_alpha && blend->dst_alpha) {
+	if (!PICT_FORMAT_A(dest_format) && blend->dst_alpha) {
 		if (sblend == BF(DST_ALPHA))
 			sblend = BF(ONE);
 		else if (sblend == BF(ONE_MINUS_DST_ALPHA))
@@ -269,6 +310,14 @@ NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend, Bool dest_has_alpha,
 			dblend = BF(SRC_COLOR);
 		else if (dblend == BF(ONE_MINUS_SRC_ALPHA))
 			dblend = BF(ONE_MINUS_SRC_COLOR);
+	}
+
+	if (dest_format == PICT_a8 && blend->dst_alpha) {
+		if (sblend == BF(DST_ALPHA))
+			sblend = BF(DST_COLOR);
+		else
+		if (sblend == BF(ONE_MINUS_DST_ALPHA))
+			sblend = BF(ONE_MINUS_DST_COLOR);
 	}
 
 	if (sblend == BF(ONE) && dblend == BF(ZERO)) {
@@ -450,11 +499,12 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 	ScrnInfoPtr pScrn = xf86Screens[psPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	nv_pict_op_t *blend;
+	int fpid = NV30EXA_FPID_PASS_COL0;
 	NV30EXA_STATE;
 
 	blend = NV30_GetPictOpRec(op);
 
-	NV30_SetupBlend(pScrn, blend, PICT_FORMAT_A(pdPict->format),
+	NV30_SetupBlend(pScrn, blend, pdPict->format,
 			(pmPict && pmPict->componentAlpha &&
 			 PICT_FORMAT_RGB(pmPict->format)));
 
@@ -467,19 +517,24 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 
 		if (pmPict->componentAlpha && PICT_FORMAT_RGB(pmPict->format)) {
 			if (blend->src_alpha)
-			NV30_LoadFragProg(pScrn, &nv30_fp_composite_mask_sa_ca);
+				fpid = NV30EXA_FPID_COMPOSITE_MASK_SA_CA;
 			else
-			NV30_LoadFragProg(pScrn, &nv30_fp_composite_mask_ca);
+				fpid = NV30EXA_FPID_COMPOSITE_MASK_CA;
 		} else {
-			NV30_LoadFragProg(pScrn, &nv30_fp_composite_mask);
+			fpid = NV30EXA_FPID_COMPOSITE_MASK;
 		}
 
 		state->have_mask = TRUE;
 	} else {
-		NV30_LoadFragProg(pScrn, &nv30_fp_pass_tex0);
+		fpid = NV30EXA_FPID_PASS_TEX0;
 
 		state->have_mask = FALSE;
 	}
+
+	if (pdPict->format == PICT_a8)
+		NV30_LoadFragProg(pScrn, nv40_fp_map_a8[fpid]);
+	else
+		NV30_LoadFragProg(pScrn, nv40_fp_map[fpid]);
 
 	/* Appears to be some kind of cache flush, needed here at least
 	 * sometimes.. funky text rendering otherwise :)
@@ -787,6 +842,8 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	static int have_object = FALSE;
 	uint32_t class = 0, chipset;
 	int i;
+
+	NV30EXAHackupA8Shaders(pScrn);
 
 #undef  NV40_TCL_PRIMITIVE_3D
 #define NV40_TCL_PRIMITIVE_3D                 0x4097
