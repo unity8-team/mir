@@ -21,15 +21,16 @@ NVAccelGetPixmapOffset(PixmapPtr pPix)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	CARD32 offset;
+	unsigned long offset;
 
-	if (pPix->drawable.type == DRAWABLE_WINDOW) {
-		offset = pNv->FB->offset;
-	} else {
-		offset  = (uint32_t)((unsigned long)pPix->devPrivate.ptr -
-				(unsigned long)pNv->FB->map);
-		offset += pNv->FB->offset;
+	offset = exaGetPixmapOffset(pPix);
+	if (offset >= pNv->FB->size) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "AII, passed bad pixmap: offset 0x%lx\n",
+			   offset);
+		return pNv->FB->offset;
 	}
+	offset += pNv->FB->offset;
 
 	return offset;
 }
