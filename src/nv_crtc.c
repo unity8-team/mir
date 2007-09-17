@@ -967,13 +967,19 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	}
 
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfa;
-    
+
 	if (is_fp) {
 		regp->CRTC[NV_VGA_CRTCX_LCD] = savep->CRTC[NV_VGA_CRTCX_LCD] | 1;
-		/* this turns on the DFP on nv28 outputs */
-		regp->CRTC[NV_VGA_CRTCX_59] = savep->CRTC[NV_VGA_CRTCX_59] | 1;
 	} else {
 		regp->CRTC[NV_VGA_CRTCX_LCD] = savep->CRTC[NV_VGA_CRTCX_LCD] & ~1;
+	}
+
+	/* The first bit is probably needed for the second crtc, the state is what the blob sets for a nv28 */
+	/* It doesn't mess my single head config (dfp) on a nv43 */
+	if (nv_crtc->crtc == 1) {
+		regp->CRTC[NV_VGA_CRTCX_59] = 0x11;
+	} else {
+		regp->CRTC[NV_VGA_CRTCX_59] = 0x10;
 	}
 
 	/*
