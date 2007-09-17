@@ -1065,6 +1065,18 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = 0;
 	regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = 0;
 
+	/* blob sets this value */
+	regp->CRTC[NV_VGA_CRTCX_3C] = 0x70;
+	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
+	regp->CRTC[NV_VGA_CRTCX_47] = 0x01;
+
+	/* more blob imitating */
+	if (nv_crtc->crtc == 1) {
+		regp->CRTC[NV_VGA_CRTCX_56] = 0x04;
+	} else {
+		regp->CRTC[NV_VGA_CRTCX_56] = 0x0;
+	}
+
 	regp->unk830 = mode->CrtcVDisplay - 3;
 	regp->unk834 = mode->CrtcVDisplay - 1;
 }
