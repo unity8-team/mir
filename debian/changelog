@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.1.1-0ubuntu3) gutsy; urgency=low
+
+  * debian/patches/01_fix_compiz_video.diff:
+    - default to overlay mode on hardware that supports it to
+      make compiz video work
+
+ -- Michael Vogt <michael.vogt@ubuntu.com>  Tue, 18 Sep 2007 09:48:45 +0100
+
 xserver-xorg-video-intel (2:2.1.1-0ubuntu2) gutsy; urgency=low
 
   * debian/patches/01_fix_compiz_video.diff:

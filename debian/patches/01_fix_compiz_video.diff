@@ -18,3 +18,36 @@
  
      pPriv->isOn = TRUE;
      /* we've prempted the XvImage stream so set its free timer */
+--- xserver-xorg-video-intel-2.1.1.orig/src/i830_video.c
++++ xserver-xorg-video-intel-2.1.1/src/i830_video.c
+@@ -569,8 +569,12 @@
+     /* Set up textured video if we can do it at this depth and we are on
+      * supported hardware.
+      */
++#if 0
+     if (pScrn->bitsPerPixel >= 16 && (IS_I9XX(pI830) || IS_I965G(pI830)) &&
+ 	!(!IS_I965G(pI830) && pScrn->displayWidth > 2048))
++#endif
++    if (pScrn->bitsPerPixel >= 16 && IS_I965G(pI830) &&
++	!(!IS_I965G(pI830) && pScrn->displayWidth > 2048))
+     {
+ 	texturedAdaptor = I830SetupImageVideoTextured(pScreen);
+ 	if (texturedAdaptor != NULL) {
+@@ -2486,7 +2490,8 @@
+     }
+ #endif
+ 
+-    if (((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
++    if (pPriv->textured &&
++	((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
+ 	((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
+ 	 pI830->FbMapSize)) {
+ 	/* If the pixmap wasn't in framebuffer, then we have no way in XAA to
+@@ -2504,6 +2509,7 @@
+ 	if (!RegionsEqual(&pPriv->clip, clipBoxes)) {
+ 	    REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
+ 	    i830_fill_colorkey (pScreen, pPriv->colorKey, clipBoxes);
++	    xf86XVFillKeyHelperDrawable(pDraw, pPriv->colorKey, clipBoxes);
+ 	}
+     } else if (IS_I965G(pI830)) {
+ 	I965DisplayVideoTextured(pScrn, pPriv, destId, clipBoxes, width, height,
