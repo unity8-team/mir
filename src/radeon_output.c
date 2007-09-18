@@ -2605,7 +2605,6 @@ RADEONGetTVInfo(xf86OutputPtr output)
 void RADEONInitConnector(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int DDCReg = 0;
     char* name = (char*) DDCTypeName[radeon_output->DDCType];
