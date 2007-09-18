@@ -432,7 +432,8 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	} else if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM) ||
 		 (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D)) {
 	    MonType = MT_DFP;
-	} else if ((*MonInfo)->rawData[0x14] & 0x80) {	/* if it's digital */
+	} else if (radeon_output->type == OUTPUT_DVI &&
+		   ((*MonInfo)->rawData[0x14] & 0x80)) { /* if it's digital and DVI */
 	    MonType = MT_DFP;
 	} else {
 	    MonType = MT_CRT;
