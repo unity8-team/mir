@@ -5271,6 +5271,7 @@ static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
     if (info->InternalTVOut)
 	RADEONSaveTVRegisters(pScrn, save);
     /*RADEONSavePalette(pScrn, save);*/
+    RADEONSaveExtChipRegisters(pScrn);
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONSaveMode returns %p\n", save);
@@ -5367,6 +5368,8 @@ void RADEONRestore(ScrnInfoPtr pScrn)
 
     if (info->InternalTVOut)
 	RADEONRestoreTVRegisters(pScrn, restore);
+
+    RADEONRestoreExtChipRegisters(pScrn);
 
     RADEONRestoreSurfaces(pScrn, restore);
 

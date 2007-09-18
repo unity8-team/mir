@@ -222,5 +222,6 @@ XORG_CHECK_LINUXDOC
 AC_OUTPUT([
 	Makefile
 	src/Makefile
+        src/sil164/Makefile
 	man/Makefile
 ])

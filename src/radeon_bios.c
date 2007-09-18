@@ -884,6 +884,47 @@ Bool RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output)
     return FALSE;
 }
 
+Bool RADEONGetExtTMDSInfoFromBIOS (xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int offset, table_start, max_freq, gpio_reg, flags;
+
+    if (!info->VBIOS) return FALSE;
+
+    if (info->IsAtomBios) {
+	return FALSE;
+    } else {
+	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x58);
+	if (offset) {
+	    table_start = offset + 4;
+	    max_freq = RADEON_BIOS16(table_start);
+	    radeon_output->dvo_slave_addr = RADEON_BIOS8(table_start+2);
+	    gpio_reg = RADEON_BIOS8(table_start+3);
+	    if (gpio_reg == 1)
+		radeon_output->dvo_i2c_reg = RADEON_GPIO_MONID;
+	    else if (gpio_reg == 2)
+		radeon_output->dvo_i2c_reg = RADEON_GPIO_DVI_DDC;
+	    else if (gpio_reg == 3)
+		radeon_output->dvo_i2c_reg = RADEON_GPIO_VGA_DDC;
+	    else if (gpio_reg == 4)
+		radeon_output->dvo_i2c_reg = RADEON_GPIO_CRT2_DDC;
+	    /*else if (gpio_reg == 5)
+	      radeon_output->dvo_i2c_reg = RADEON_GPIO_MM;*/
+	    else {
+		ErrorF("unknown gpio reg: %d\n", gpio_reg);
+		return FALSE;
+	    }
+	    flags = RADEON_BIOS8(table_start+5);
+	    /* XXX: init command list */
+	    return TRUE;
+	}
+    }
+
+    return FALSE;
+}
+
 /* support for init from bios tables
  *
  * Based heavily on the netbsd radeonfb driver

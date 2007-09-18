@@ -47,6 +47,8 @@
 #include "radeon_version.h"
 #include "radeon_tv.h"
 
+#include "i2c_vid.h"
+#include "sil164/sil164.h"
 
 const char *MonTypeName[7] = {
   "AUTO",
@@ -146,6 +148,17 @@ static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
     {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RS400*/ /* FIXME: just values from rv380 used... */
 };
 
+static const char *SIL164Symbols[] = {
+    "Sil164VidOutput",
+    NULL
+};
+
+RADEONDVORec radeon_dvo_drivers[] = 
+    { { 0, "sil164", "SIL164VidOutput", SIL164Symbols, NULL, NULL, NULL} };
+
+#define RADEON_NUM_DVO_DRIVERS (sizeof(radeon_dvo_drivers)/sizeof(RADEONDVORec))
+
+
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output);
 static void RADEONUpdatePanelSize(xf86OutputPtr output);
 static RADEONMonitorType radeon_detect_tv(ScrnInfoPtr pScrn);
@@ -153,6 +166,159 @@ static RADEONMonitorType radeon_detect_primary_dac(ScrnInfoPtr pScrn, Bool color
 static RADEONMonitorType radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color);
 static RADEONMonitorType radeon_detect_ext_dac(ScrnInfoPtr pScrn);
 static void RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
+
+Bool RADEONFindDVOController(ScrnInfoPtr pScrn, xf86OutputPtr output)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONDVOPtr drv;
+    void *ret_ptr;
+    int i;
+
+    for (i = 0; i < RADEON_NUM_DVO_DRIVERS; i++) {
+	drv = &radeon_dvo_drivers[i];
+	drv->modhandle = xf86LoadSubModule(pScrn, drv->modulename);
+
+	if (!drv->modhandle)
+	    continue;
+
+	xf86LoaderReqSymLists(drv->symbols, NULL);
+
+	radeon_output->ExtChip = NULL;
+	ret_ptr = NULL;
+	drv->vid_rec = LoaderSymbol(drv->fntablename);
+
+	ErrorF("dvo i2c reg: 0x%02x\n", radeon_output->dvo_i2c_reg);
+
+	OUTREG(radeon_output->dvo_i2c_reg, INREG(radeon_output->dvo_i2c_reg) &
+	       (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
+
+	if (drv->vid_rec)
+	    ret_ptr = drv->vid_rec->init(radeon_output->pDVOBus, radeon_output->dvo_slave_addr);
+
+	if (ret_ptr) {
+	    drv->devpriv = ret_ptr;
+	    radeon_output->ExtChip = drv;
+	    return TRUE;
+	}
+	xf86UnloadSubModule(drv->modhandle);
+    }
+
+    ErrorF("dvo chip detect failed\n");
+    return FALSE;
+}
+
+void RADEONDVOPowerSet(ScrnInfoPtr pScrn, xf86OutputPtr output, int mode)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+    if (!radeon_output->ExtChip)
+	return;
+
+    OUTREG(radeon_output->dvo_i2c_reg, INREG(radeon_output->dvo_i2c_reg) &
+	   (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
+    radeon_output->ExtChip->vid_rec->dump_regs(radeon_output->ExtChip->devpriv);
+    radeon_output->ExtChip->vid_rec->dpms(radeon_output->ExtChip->devpriv, mode);
+
+}
+
+static void RADEONDVOSaveRegisters(ScrnInfoPtr pScrn, xf86OutputPtr output)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+    if (!radeon_output->ExtChip)
+	return;
+
+    OUTREG(radeon_output->dvo_i2c_reg, INREG(radeon_output->dvo_i2c_reg) &
+	   (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
+    radeon_output->ExtChip->vid_rec->dump_regs(radeon_output->ExtChip->devpriv);
+    radeon_output->ExtChip->vid_rec->save(radeon_output->ExtChip->devpriv);
+
+}
+
+static void RADEONDVOProgramRegisters(ScrnInfoPtr pScrn, xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+    if (!radeon_output->ExtChip)
+	return;
+
+    OUTREG(radeon_output->dvo_i2c_reg, INREG(radeon_output->dvo_i2c_reg) &
+	   (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
+    radeon_output->ExtChip->vid_rec->dump_regs(radeon_output->ExtChip->devpriv);
+    radeon_output->ExtChip->vid_rec->mode_set(radeon_output->ExtChip->devpriv, mode, adjusted_mode);
+
+}
+
+static void RADEONDVORestoreRegisters(ScrnInfoPtr pScrn, xf86OutputPtr output)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+    if (!radeon_output->ExtChip)
+	return;
+
+    OUTREG(radeon_output->dvo_i2c_reg, INREG(radeon_output->dvo_i2c_reg) &
+	   (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
+    radeon_output->ExtChip->vid_rec->dump_regs(radeon_output->ExtChip->devpriv);
+    radeon_output->ExtChip->vid_rec->restore(radeon_output->ExtChip->devpriv);
+
+}
+
+static ModeStatus RADEONDVOModeValid(ScrnInfoPtr pScrn, xf86OutputPtr output, DisplayModePtr mode)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+    if (!radeon_output->ExtChip)
+	return MODE_OK;
+
+    OUTREG(radeon_output->dvo_i2c_reg, INREG(radeon_output->dvo_i2c_reg) &
+	   (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
+    radeon_output->ExtChip->vid_rec->dump_regs(radeon_output->ExtChip->devpriv);
+    return radeon_output->ExtChip->vid_rec->mode_valid(radeon_output->ExtChip->devpriv, mode);
+
+}
+
+void RADEONSaveExtChipRegisters(ScrnInfoPtr pScrn)
+{
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output;
+    xf86OutputPtr output;
+    int o;
+
+    for (o = 0; o < xf86_config->num_output; o++) {
+	output = xf86_config->output[o];
+	radeon_output = output->driver_private;
+	if (radeon_output->TMDSType == TMDS_EXT)
+	    RADEONDVOSaveRegisters(pScrn, output);
+    }
+}
+
+void RADEONRestoreExtChipRegisters(ScrnInfoPtr pScrn)
+{
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output;
+    xf86OutputPtr output;
+    int o;
+
+    for (o = 0; o < xf86_config->num_output; o++) {
+	output = xf86_config->output[o];
+	radeon_output = output->driver_private;
+	if (radeon_output->TMDSType == TMDS_EXT)
+	    RADEONDVORestoreRegisters(pScrn, output);
+    }
+
+}
 
 void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 {
@@ -637,6 +803,7 @@ static int
 radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    ScrnInfoPtr pScrn = output->scrn;
 
     if (radeon_output->type == OUTPUT_STV ||
 	radeon_output->type == OUTPUT_CTV) {
@@ -646,6 +813,10 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 	else
 	    return MODE_CLOCK_RANGE;
     }
+
+    if (radeon_output->MonType == MT_DFP &&
+	radeon_output->TMDSType == TMDS_EXT)
+	return RADEONDVOModeValid(pScrn, output, pMode);
 
     if (radeon_output->type != OUTPUT_LVDS)
 	return MODE_OK;
@@ -776,6 +947,12 @@ static void RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
 				~RADEON_FP2_PANEL_FORMAT;/* 18 bit format, */
 
     save->fp2_gen_cntl &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+
+    /* XXX: these may be chip specific */
+    save->fp2_gen_cntl |= (1 << 22) | R200_FP2_DVO_CLOCK_MODE_SINGLE;
+
+    if (mode->Clock > 165000)
+	save->fp2_gen_cntl |= R200_FP2_DVO_DUAL_CHANNEL_EN;
 
     if (IsPrimary) {
         if ((info->ChipFamily == CHIP_FAMILY_R200) || IS_R300_VARIANT) {
@@ -1034,6 +1211,7 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
 	} else {
 	    ErrorF("restore FP2\n");
+	    RADEONDVOProgramRegisters(pScrn, output, mode, adjusted_mode);
 	    RADEONRestoreFP2Registers(pScrn, &info->ModeReg);
 	}
 	break;
@@ -2458,7 +2636,21 @@ void RADEONInitConnector(xf86OutputPtr output)
     }
 
     if (radeon_output->type == OUTPUT_DVI) {
-	RADEONGetTMDSInfo(output);
+	if (radeon_output->TMDSType == TMDS_EXT) {
+#if defined(__powerpc__)
+	    radeon_output->dvo_i2c_reg = RADEON_GPIO_MONID;
+	    radeon_output->dvo_slave_addr = 0x70;
+#else
+	    if (!RADEONGetExtTMDSInfoFromBIOS(output)) {
+		radeon_output->dvo_i2c_reg = RADEON_GPIO_CRT2_DDC;
+		radeon_output->dvo_slave_addr = 0x70;
+	    }
+#endif
+	    RADEONI2CInit(pScrn, &radeon_output->pDVOBus, radeon_output->dvo_i2c_reg, "DVO");
+	    /* probe dvo chips */
+	    RADEONFindDVOController(pScrn, output);
+	} else
+	    RADEONGetTMDSInfo(output);
     }
 
     if (radeon_output->type == OUTPUT_STV ||
@@ -2477,7 +2669,6 @@ void RADEONInitConnector(xf86OutputPtr output)
 static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
-
 
     switch (info->MacModel) {
     case RADEON_MAC_IBOOK:

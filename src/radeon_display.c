@@ -358,6 +358,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
                 tmp |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
                 OUTREG(RADEON_FP2_GEN_CNTL, tmp);
                 save->fp2_gen_cntl |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+		RADEONDVOPowerSet(pScrn, output, DPMSModeOn);
             }
         } else if (radeon_output->MonType == MT_LCD) {
             tmp = INREG(RADEON_LVDS_GEN_CNTL);
@@ -409,6 +410,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
                 tmp &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
                 OUTREG(RADEON_FP2_GEN_CNTL, tmp);
                 save->fp2_gen_cntl &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+		RADEONDVOPowerSet(pScrn, output, DPMSModeOff);
             }
         } else if (radeon_output->MonType == MT_LCD) {
 	    unsigned long tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
