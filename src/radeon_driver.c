@@ -2790,6 +2790,10 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	       "For information on using the multimedia capabilities\n\tof this"
 	       " adapter, please see http://gatos.sf.net.\n");
 
+    xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
+	       "MergedFB support has been removed and replaced with"
+	       " xrandr 1.2 support\n");
+
     return TRUE;
 
 fail:
