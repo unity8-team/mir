@@ -56,6 +56,7 @@ static struct ch7xxx_id_struct {
 	{ CH7011_VID, "CH7011" },
 	{ CH7009A_VID, "CH7009A" },
 	{ CH7009B_VID, "CH7009B" },
+	{ CH7301_VID, "CH7301" },
 };
 
 #define ID_ARRAY_SIZE (sizeof(ch7xxx_ids) / sizeof(ch7xxx_ids[0]))

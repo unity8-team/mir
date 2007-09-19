@@ -97,19 +97,47 @@ const int I830PatternROP[16] =
     ROP_1
 };
 
-static Bool
-exaPixmapTiled(PixmapPtr p)
+/**
+ * Returns whether a given pixmap is tiled or not.
+ *
+ * Currently, we only have one pixmap that might be tiled, which is the front
+ * buffer.  At the point where we are tiling some pixmaps managed by the
+ * general allocator, we should move this to using pixmap privates.
+ */
+Bool
+i830_pixmap_tiled(PixmapPtr pPixmap)
 {
-    ScreenPtr pScreen = p->drawable.pScreen;
+    ScreenPtr pScreen = pPixmap->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
+    unsigned long offset;
 
-    if (!pI830->tiling)
-	return FALSE;
-
-    if (p == pScreen->GetScreenPixmap(pScreen))
+    /* Don't use exaGetPixmapOffset becuase we might be called from XAA code. */
+    offset = (long)pPixmap->devPrivate.ptr -
+	(long)pI830->FbBase;
+    if (offset == pI830->front_buffer->offset &&
+	pI830->front_buffer->tiling != TILE_NONE)
+    {
 	return TRUE;
+    }
+
     return FALSE;
+}
+
+static Bool
+i830_exa_pixmap_is_offscreen(PixmapPtr pPixmap)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if ((void *)pPixmap->devPrivate.ptr >= (void *)pI830->FbBase &&
+	(void *)pPixmap->devPrivate.ptr <
+	(void *)(pI830->FbBase + pI830->FbMapSize))
+    {
+	return TRUE;
+    } else {
+	return FALSE;
+    }
 }
 
 /**
@@ -189,7 +217,7 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	if (pPixmap->drawable.bitsPerPixel == 32)
 	    cmd |= XY_COLOR_BLT_WRITE_ALPHA | XY_COLOR_BLT_WRITE_RGB;
 
-	if (IS_I965G(pI830) && exaPixmapTiled(pPixmap)) {
+	if (IS_I965G(pI830) && i830_pixmap_tiled(pPixmap)) {
 	    assert((pitch % 512) == 0);
 	    pitch >>= 2;
 	    cmd |= XY_COLOR_BLT_TILED;
@@ -274,13 +302,13 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 	    cmd |= XY_SRC_COPY_BLT_WRITE_ALPHA | XY_SRC_COPY_BLT_WRITE_RGB;
 
 	if (IS_I965G(pI830)) {
-	    if (exaPixmapTiled(pDstPixmap)) {
+	    if (i830_pixmap_tiled(pDstPixmap)) {
 		assert((dst_pitch % 512) == 0);
 		dst_pitch >>= 2;
 		cmd |= XY_SRC_COPY_BLT_DST_TILED;
 	    }
 
-	    if (exaPixmapTiled(pI830->pSrcPixmap)) {
+	    if (i830_pixmap_tiled(pI830->pSrcPixmap)) {
 		assert((src_pitch % 512) == 0);
 		src_pitch >>= 2;
 		cmd |= XY_SRC_COPY_BLT_SRC_TILED;
@@ -444,7 +472,17 @@ I830EXAInit(ScreenPtr pScreen)
 
     pI830->bufferOffset = 0;
     pI830->EXADriverPtr->exa_major = 2;
+    /* If compiled against EXA 2.2, require 2.2 so we can use the
+     * PixmapIsOffscreen hook.
+     */
+#if EXA_VERSION_MINOR >= 2
+    pI830->EXADriverPtr->exa_minor = 2;
+#else
     pI830->EXADriverPtr->exa_minor = 1;
+    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+	       "EXA compatibility mode.  Output rotation rendering "
+	       "performance may suffer\n");
+#endif
     pI830->EXADriverPtr->memoryBase = pI830->FbBase;
     pI830->EXADriverPtr->offScreenBase = pI830->exa_offscreen->offset;
     pI830->EXADriverPtr->memorySize = pI830->exa_offscreen->offset +
@@ -540,6 +578,9 @@ I830EXAInit(ScreenPtr pScreen)
  	pI830->EXADriverPtr->Composite = i965_composite;
  	pI830->EXADriverPtr->DoneComposite = i830_done_composite;
     }
+#if EXA_VERSION_MINOR >= 2
+    pI830->EXADriverPtr->PixmapIsOffscreen = i830_exa_pixmap_is_offscreen;
+#endif
 
     /* UploadToScreen/DownloadFromScreen */
     if (0)

@@ -61,6 +61,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86Crtc.h"
 #include "xf86RandR12.h"
 
+#include "xorg-server.h"
+#ifdef XSERVER_LIBPCIACCESS
+#include <pciaccess.h>
+#endif
+
 #ifdef XF86DRI
 #include "xf86drm.h"
 #include "sarea.h"
@@ -117,6 +122,12 @@ typedef CARD8(*I830ReadIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
 typedef void (*I830WriteByteFunc)(I830Ptr pI830, IOADDRESS addr, CARD8 value);
 typedef CARD8(*I830ReadByteFunc)(I830Ptr pI830, IOADDRESS addr);
 
+enum tile_format {
+    TILE_NONE,
+    TILE_XMAJOR,
+    TILE_YMAJOR
+};
+
 /** Record of a linear allocation in the aperture. */
 typedef struct _i830_memory i830_memory;
 struct _i830_memory {
@@ -147,6 +158,8 @@ struct _i830_memory {
      * This is either @offset or pI830->stolen_size
      */
     unsigned long agp_offset;
+
+    enum tile_format tiling;
 
     /** Description of the allocation, for logging */
     char *name;
@@ -217,6 +230,7 @@ extern const char *i830_output_type_names[];
 
 typedef struct _I830CrtcPrivateRec {
     int			    pipe;
+    int			    plane;
 
     Bool    		    enabled;
     
@@ -225,12 +239,7 @@ typedef struct _I830CrtcPrivateRec {
     /* Lookup table values to be set when the CRTC is enabled */
     CARD8 lut_r[256], lut_g[256], lut_b[256];
 
-#ifdef I830_USE_XAA
-    FBLinearPtr rotate_mem_xaa;
-#endif
-#ifdef I830_USE_EXA
-    ExaOffscreenArea *rotate_mem_exa;
-#endif
+    i830_memory *rotate_mem;
     /* Card virtual address of the cursor */
     unsigned long cursor_offset;
     unsigned long cursor_argb_offset;
@@ -282,6 +291,7 @@ typedef struct _I830Rec {
 
    /* These are set in PreInit and never changed. */
    long FbMapSize;
+   long GTTMapSize;
 
    i830_memory *memory_list;	/**< Linked list of video memory allocations */
    long stolen_size;		/**< bytes of pre-bound stolen memory */
@@ -322,8 +332,6 @@ typedef struct _I830Rec {
 
    i830_memory *logical_context;
 
-   unsigned int front_tiled;
-
 #ifdef XF86DRI
    i830_memory *back_buffer;
    i830_memory *third_buffer;
@@ -336,10 +344,6 @@ typedef struct _I830Rec {
    int drmMinor;
    int mmModeFlags;
    int mmSize;
-
-   unsigned int back_tiled;
-   unsigned int third_tiled;
-   unsigned int depth_tiled;
 
    Bool want_vblank_interrupts;
 #ifdef DAMAGE
@@ -368,8 +372,12 @@ typedef struct _I830Rec {
    unsigned long MMIOAddr;
    IOADDRESS ioBase;
    EntityInfoPtr pEnt;
+#if XSERVER_LIBPCIACCESS
+   struct pci_device *PciInfo;
+#else
    pciVideoPtr PciInfo;
    PCITAG PciTag;
+#endif
    CARD8 variant;
 
    unsigned int BR[20];
@@ -503,6 +511,7 @@ typedef struct _I830Rec {
    CARD32 saveDSPAPOS;
    CARD32 saveDSPABASE;
    CARD32 saveDSPASURF;
+   CARD32 saveDSPATILEOFF;
    CARD32 saveFPB0;
    CARD32 saveFPB1;
    CARD32 saveDPLL_B;
@@ -519,6 +528,7 @@ typedef struct _I830Rec {
    CARD32 saveDSPBPOS;
    CARD32 saveDSPBBASE;
    CARD32 saveDSPBSURF;
+   CARD32 saveDSPBTILEOFF;
    CARD32 saveVCLK_DIVISOR_VGA0;
    CARD32 saveVCLK_DIVISOR_VGA1;
    CARD32 saveVCLK_POST_DIV;
@@ -642,6 +652,14 @@ extern void I830SubsequentSolidFillRect(ScrnInfoPtr pScrn, int x, int y,
 
 Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
 			 unsigned long size);
+i830_memory * i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
+				   unsigned long size, unsigned long alignment,
+				   int flags);
+i830_memory *i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
+					unsigned long size,
+					unsigned long pitch,
+					unsigned long alignment, int flags,
+					enum tile_format tile_format);
 void i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity,
 			       const char *prefix);
 void i830_reset_allocations(ScrnInfoPtr pScrn);
@@ -683,14 +701,6 @@ Bool i830_unbind_all_memory(ScrnInfoPtr pScrn);
 
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
-#ifdef I830_USE_XAA
-FBLinearPtr
-i830_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
-				 int granularity,
-				 MoveLinearCallbackProcPtr moveCB,
-				 RemoveLinearCallbackProcPtr removeCB,
-				 pointer privData);
-#endif /* I830_USE_EXA */
 
 /* i830_modes.c */
 DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
@@ -728,17 +738,8 @@ i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
 
 void i830_enter_render(ScrnInfoPtr);
 
-static inline int i830_tiling_supported(I830Ptr pI830)
-{
-    if (IS_I965G(pI830))
-	return FALSE;
-    return TRUE;
-}
-
 static inline int i830_fb_compression_supported(I830Ptr pI830)
 {
-    if (!i830_tiling_supported(pI830))
-	return FALSE;
     if (!IS_MOBILE(pI830))
 	return FALSE;
     if (IS_I810(pI830) || IS_I815(pI830) || IS_I830(pI830))
@@ -746,10 +747,7 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
     return TRUE;
 }
 
-/* i915 XvMC */
-Bool I915XvMCInit(ScreenPtr, XF86VideoAdaptorPtr);
-Bool I915XvMCScreenInit(ScreenPtr);
-unsigned long I915XvMCPutImageSize(ScrnInfoPtr);
+Bool i830_pixmap_tiled(PixmapPtr p);
 
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];
@@ -768,5 +766,10 @@ extern const int I830CopyROP[16];
 #define QUIRK_IGNORE_LVDS		0x00000002
 #define QUIRK_IGNORE_MACMINI_LVDS 	0x00000004
 extern void i830_fixup_devices(ScrnInfoPtr);
+
+/* i915 XvMC */
+Bool I915XvMCInit(ScreenPtr, XF86VideoAdaptorPtr);
+Bool I915XvMCScreenInit(ScreenPtr);
+unsigned long I915XvMCPutImageSize(ScrnInfoPtr);
 
 #endif /* _I830_H_ */

@@ -54,17 +54,27 @@ static void quirk_mac_mini (I830Ptr pI830)
     pI830->quirk_flag |= QUIRK_IGNORE_MACMINI_LVDS;
 }
 
+/* keep this list sorted by OEM, then by chip ID */
 static i830_quirk i830_quirk_list[] = {
-    /* Lenovo T61 has no TV output */
-    { PCI_CHIP_I965_GM, 0x17aa, 0x20b5, quirk_ignore_tv },
-    /* Panasonic Toughbook CF-Y4 has no TV output */
-    { PCI_CHIP_I915_GM, 0x10f7, 0x8338, quirk_ignore_tv },
-    /* Lenovo 3000 v200 */
-    { PCI_CHIP_I965_GM, 0x17aa, 0x3c18, quirk_ignore_tv },
     /* Aopen mini pc */
     { PCI_CHIP_I945_GM, 0xa0a0, SUBSYS_ANY, quirk_ignore_lvds },
-    /* Mac mini has no lvds, but macbook pro does */
+    
+    /* Apple Mac mini has no lvds, but macbook pro does */
     { PCI_CHIP_I945_GM, 0x8086, 0x7270, quirk_mac_mini },
+    
+    /* Dell Latitude X1 */
+    { PCI_CHIP_I945_GM, 0x1028, 0x01a3, quirk_ignore_tv },
+    
+    /* Lenovo X60s has no TV output */
+    { PCI_CHIP_I945_GM, 0x17aa, 0x201a, quirk_ignore_tv },
+    /* Lenovo T61 has no TV output */
+    { PCI_CHIP_I965_GM, 0x17aa, 0x20b5, quirk_ignore_tv },
+    /* Lenovo 3000 v200 */
+    { PCI_CHIP_I965_GM, 0x17aa, 0x3c18, quirk_ignore_tv },
+    
+    /* Panasonic Toughbook CF-Y4 has no TV output */
+    { PCI_CHIP_I915_GM, 0x10f7, 0x8338, quirk_ignore_tv },
+    
     { 0, 0, 0, NULL },
 };
 
@@ -74,9 +84,9 @@ void i830_fixup_devices(ScrnInfoPtr scrn)
     i830_quirk_ptr p = i830_quirk_list;
 
     while (p && p->chipType != 0) {
-	if (pI830->PciInfo->chipType == p->chipType &&
-		pI830->PciInfo->subsysVendor == p->subsysVendor &&
-		(pI830->PciInfo->subsysCard == p->subsysCard ||
+	if (DEVICE_ID(pI830->PciInfo) == p->chipType &&
+		SUBVENDOR_ID(pI830->PciInfo) == p->subsysVendor &&
+		(SUBSYS_ID(pI830->PciInfo) == p->subsysCard ||
 		 p->subsysCard == SUBSYS_ANY))
 	    p->hook(pI830);
 	++p;

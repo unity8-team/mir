@@ -40,6 +40,7 @@ int main(int argc, char **argv)
     I830Rec i830;
     ScrnInfoRec scrn;
     int err, mmio_bar;
+    void *mmio;
 
     err = pci_system_init();
     if (err != 0) {
@@ -68,12 +69,17 @@ int main(int argc, char **argv)
 
     mmio_bar = IS_I9XX((&i830)) ? 0 : 1;
 
-    err = pci_device_map_region(dev, mmio_bar, 1);
+    err = pci_device_map_range (dev,
+				dev->regions[mmio_bar].base_addr,
+				dev->regions[mmio_bar].size, 
+				PCI_DEV_MAP_FLAG_WRITABLE,
+				&mmio);
+    
     if (err != 0) {
 	fprintf(stderr, "Couldn't map MMIO region: %s\n", strerror(err));
 	exit(1);
     }
-    i830.mmio = i830.pci_dev->regions[mmio_bar].memory;
+    i830.mmio = mmio;
 
     scrn.scrnIndex = 0;
     scrn.pI830 = &i830;

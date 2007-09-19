@@ -346,18 +346,32 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define IPEIR                  0x2088
 #define IPEHR                  0x208C
 #define INST_DONE                0x2090
+#define SCPD0                    0x209c	/* debug */
 #define INST_PS                  0x20c4
 #define IPEIR_I965                  0x2064 /* i965 */
 #define IPEHR_I965                  0x2068 /* i965 */
 #define INST_DONE_I965              0x206c
 #define INST_PS_I965                0x2070
+
+/* Current active ring head address: 
+ */
 #define ACTHD                 0x2074
+
+/* Current primary/secondary DMA fetch addresses:
+ */
 #define DMA_FADD_P             0x2078
+#define DMA_FADD_S               0x20d4
 #define INST_DONE_1              0x207c
 
 #define CACHE_MODE_0           0x2120
 #define CACHE_MODE_1           0x2124
 #define MI_ARB_STATE           0x20e4
+
+/* Start addresses for each of the primary rings:
+ */
+#define PR0_STR                  0x20f0
+#define PR1_STR                  0x20f4
+#define PR2_STR                  0x20f8
 
 #define WIZ_CTL                0x7c00
 #define WIZ_CTL_SINGLE_SUBSPAN  (1<<6)

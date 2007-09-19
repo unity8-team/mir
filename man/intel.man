@@ -85,7 +85,7 @@ Default: enabled on supported configurations.
 .BI "Option \*qTiling\*q \*q" boolean \*q
 This option controls whether memory buffers are allocated in tiled mode.  In
 many cases (especially for complex rendering), tiling can improve performance.
-Default: enabled on supported configurations.
+Default: enabled.
 .TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
 Disable or enable DRI support.

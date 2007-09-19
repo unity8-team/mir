@@ -123,6 +123,17 @@ static CARD32 i915_get_blend_cntl(int op, PicturePtr pMask, CARD32 dst_format)
             sblend = BLENDFACT_ZERO;
     }
 
+    /* i915 engine reads 8bit color buffer into green channel in cases
+       like color buffer blending .etc, and also writes back green channel.
+       So with dst_alpha blend we should use color factor. See spec on
+       "8-bit rendering" */
+    if ((dst_format == PICT_a8) && i915_blend_op[op].dst_alpha) {
+        if (sblend == BLENDFACT_DST_ALPHA)
+            sblend = BLENDFACT_DST_COLR;
+        else if (sblend == BLENDFACT_INV_DST_ALPHA)
+            sblend = BLENDFACT_INV_DST_COLR;
+    }
+
     /* If the source alpha is being used, then we should only be in a case
      * where the source blend factor is 0, and the source blend value is the
      * mask channels multiplied by the source picture's alpha.
@@ -155,16 +166,9 @@ static Bool i915_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
     case PICT_x1r5g5b5:
         *dst_format = COLR_BUF_ARGB1555;
         break;
-    /* COLR_BUF_8BIT is special for YUV surfaces.  While we may end up being
-     * able to use it depending on how the hardware implements it, disable it
-     * for now while we don't know what exactly it does (what channel does it
-     * read from?
-     */
-    /*
     case PICT_a8:
         *dst_format = COLR_BUF_8BIT;
         break;
-    */
     case PICT_a4r4g4b4:
     case PICT_x4r4g4b4:
 	*dst_format = COLR_BUF_ARGB4444;
@@ -285,10 +289,9 @@ i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 
     pI830->mapstate[unit * 3 + 0] = offset;
     pI830->mapstate[unit * 3 + 1] = format |
+	MS3_USE_FENCE_REGS |
 	((pPix->drawable.height - 1) << MS3_HEIGHT_SHIFT) |
 	((pPix->drawable.width - 1) << MS3_WIDTH_SHIFT);
-    if (pI830->tiling)
-	pI830->mapstate[unit * 3 + 1] |= MS3_USE_FENCE_REGS;
     pI830->mapstate[unit * 3 + 2] = ((pitch / 4) - 1) << MS4_PITCH_SHIFT;
 
     pI830->samplerstate[unit * 3 + 0] = (MIPFILTER_NONE <<
@@ -314,6 +317,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 dst_format, dst_offset, dst_pitch;
     CARD32 blendctl;
+    int out_reg = FS_OC;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -413,6 +417,9 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	ADVANCE_LP_RING();
     }
 
+    if (dst_format == COLR_BUF_8BIT)
+	out_reg = FS_U0;
+
     FS_BEGIN();
 
     /* Declare the registers necessary for our program.  I don't think the
@@ -433,7 +440,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 
     if (!pMask) {
 	/* No mask, so move to output color */
-	i915_fs_mov(FS_OC, i915_fs_operand_reg(FS_R0));
+	i915_fs_mov(out_reg, i915_fs_operand_reg(FS_R0));
     } else {
 	/* Load the pMaskPicture texel */
 	i915_fs_texld(FS_R1, FS_S1, FS_T1);
@@ -454,17 +461,20 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	    PICT_FORMAT_RGB(pMaskPicture->format))
 	{
 	    if (i915_blend_op[op].src_alpha) {
-		i915_fs_mul(FS_OC, i915_fs_operand(FS_R0, W, W, W, W),
+		i915_fs_mul(out_reg, i915_fs_operand(FS_R0, W, W, W, W),
 			    i915_fs_operand_reg(FS_R1));
 	    } else {
-		i915_fs_mul(FS_OC, i915_fs_operand_reg(FS_R0),
+		i915_fs_mul(out_reg, i915_fs_operand_reg(FS_R0),
 			    i915_fs_operand_reg(FS_R1));
 	    }
 	} else {
-	    i915_fs_mul(FS_OC, i915_fs_operand_reg(FS_R0),
+	    i915_fs_mul(out_reg, i915_fs_operand_reg(FS_R0),
 			i915_fs_operand(FS_R1, W, W, W, W));
 	}
     }
+    if (dst_format == COLR_BUF_8BIT)
+	i915_fs_mov(FS_OC, i915_fs_operand(out_reg, W, W, W, W));
+
     FS_END();
 
     return TRUE;
