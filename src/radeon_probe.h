@@ -40,7 +40,6 @@
 #include "xf86DDC.h"
 #include "randrstr.h"
 
-#include "i2c_vid.h"
 #define _XF86MISC_SERVER_
 #include <X11/extensions/xf86misc.h>
 
@@ -149,17 +148,6 @@ typedef enum
     TV_STD_SCART_PAL = 32,
 } TVStd;
 
-typedef struct
-{
-    int type;
-    char *modulename;
-    char *fntablename;
-    const char **symbols;
-    XF86I2CVidOutputPtr vid_rec;
-    void *devpriv;
-    pointer modhandle;
-} RADEONDVORec, *RADEONDVOPtr;
-
 typedef struct _RADEONCrtcPrivateRec {
 #ifdef USE_XAA
     FBLinearPtr rotate_mem_xaa;
@@ -208,11 +196,6 @@ typedef struct _RADEONOutputPrivateRec {
     int               PanelPwrDly;
     int               DotClock;
     RADEONTMDSPll     tmds_pll[4];
-    /* DVO */
-    RADEONDVOPtr      ExtChip;
-    int               dvo_i2c_reg;
-    int               dvo_slave_addr;
-    I2CBusPtr         pDVOBus;
     /* TV out */
     TVStd             default_tvStd;
     TVStd             tvStd;

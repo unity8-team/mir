@@ -144,6 +144,7 @@ typedef enum {
 #endif
     OPTION_SHOWCACHE,
     OPTION_DYNAMIC_CLOCKS,
+    OPTION_BIOS_HOTKEYS,
     OPTION_VGA_ACCESS,
     OPTION_REVERSE_DDC,
     OPTION_LVDS_PROBE_PLL,
@@ -891,8 +892,6 @@ extern Bool        RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetTVInfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output);
-extern Bool        RADEONGetExtTMDSInfoFromBIOS (xf86OutputPtr output);
-
 
 extern void        RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 						RADEONSavePtr restore);
@@ -943,9 +942,6 @@ extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
 extern int RADEONValidateFPModes(xf86OutputPtr output, char **ppModeName, DisplayModePtr *modeList);
 extern void RADEONSetPitch (ScrnInfoPtr pScrn);
 extern void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode);
-extern void RADEONSaveExtChipRegisters(ScrnInfoPtr pScrn);
-extern void RADEONRestoreExtChipRegisters(ScrnInfoPtr pScrn);
-extern void RADEONDVOPowerSet(ScrnInfoPtr pScrn, xf86OutputPtr output, int mode);
 
 DisplayModePtr
 RADEONProbeOutputModes(xf86OutputPtr output);
