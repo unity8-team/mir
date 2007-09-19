@@ -2548,6 +2548,16 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
+
+    if (!pRADEONEnt->HasCRTC2) {
+	info->BiosConnector[0].DDCType = DDC_VGA;
+	info->BiosConnector[0].DACType = DAC_PRIMARY;
+	info->BiosConnector[0].TMDSType = TMDS_NONE;
+	info->BiosConnector[0].ConnectorType = CONNECTOR_CRT;
+	info->BiosConnector[0].valid = TRUE;
+	return;
+    }
 
     if (info->IsMobility) {
 	/* Below is the most common setting, but may not be true */
