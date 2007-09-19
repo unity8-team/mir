@@ -862,7 +862,6 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		case 1:
 		    RADEONAdjustCrtc2RegistersForTV(pScrn, &info->ModeReg, adjusted_mode, output);
 		    RADEONAdjustPLL2RegistersForTV(pScrn, &info->ModeReg, adjusted_mode, output);
-		    update_tv_routing = TRUE;
 		    break;
 		}
 	    }

@@ -4661,7 +4661,10 @@ void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
     OUTPLLP(pScrn, RADEON_VCLK_ECP_CNTL,
 	    RADEON_VCLK_SRC_SEL_PPLLCLK,
 	    ~(RADEON_VCLK_SRC_SEL_MASK));
-    /*OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL, restore->vclk_ecp_cntl);*/
+
+    usleep(50000);
+
+    OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL, restore->vclk_ecp_cntl);
 
     ErrorF("finished PLL1\n");
 
@@ -4735,7 +4738,10 @@ void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
     OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL,
 	    RADEON_PIX2CLK_SRC_SEL_P2PLLCLK,
 	    ~(RADEON_PIX2CLK_SRC_SEL_MASK));
-    /*OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, restore->pixclks_cntl);*/
+
+    usleep(5000);
+
+    OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, restore->pixclks_cntl);
 
     ErrorF("finished PLL2\n");
 
