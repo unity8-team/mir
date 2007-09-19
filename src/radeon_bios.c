@@ -242,7 +242,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    info->BiosConnector[i].ConnectorType = (tmp >> 12) & 0xf;
 	    info->BiosConnector[i].DDCType = (tmp >> 8) & 0xf;
 	    info->BiosConnector[i].DACType = tmp & 0x1;
-	    info->BiosConnector[i].TMDSType = tmp & 0x10;
+	    info->BiosConnector[i].TMDSType = (tmp >> 4) & 0x1;
 
 	    /* most XPRESS chips seem to specify DDC_CRT2 for their 
 	     * VGA DDC port, however DDC never seems to work on that
