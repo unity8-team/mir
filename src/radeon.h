@@ -148,7 +148,6 @@ typedef enum {
     OPTION_REVERSE_DDC,
     OPTION_LVDS_PROBE_PLL,
     OPTION_ACCELMETHOD,
-    OPTION_CONSTANTDPI,
     OPTION_CONNECTORTABLE,
     OPTION_DRI,
     OPTION_DEFAULT_CONNECTOR_TABLE,
@@ -786,9 +785,6 @@ typedef struct {
     Bool              XInited3D;
 
     DisplayModePtr currentMode, savedCurrentMode;
-
-    int			constantDPI; /* -1 = auto, 0 = off, 1 = on */
-    int			RADEONDPIVX, RADEONDPIVY;
 
     /* special handlings for DELL triple-head server */
     Bool		IsDellServer; 

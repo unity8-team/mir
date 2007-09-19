@@ -183,7 +183,6 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_REVERSE_DDC,    "ReverseDDC",       OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_LVDS_PROBE_PLL, "LVDSProbePLL",     OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_ACCELMETHOD,    "AccelMethod",      OPTV_STRING,  {0}, FALSE },
-    { OPTION_CONSTANTDPI,    "ConstantDPI",	 OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DRI,            "DRI",       	 OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_CONNECTORTABLE, "ConnectorTable",   OPTV_STRING,  {0}, FALSE },
     { OPTION_DEFAULT_CONNECTOR_TABLE, "DefaultConnectorTable", OPTV_BOOLEAN, {0}, FALSE },
@@ -2511,7 +2510,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     xf86Int10InfoPtr  pInt10 = NULL;
     void *int10_save = NULL;
     const char *s;
-    MessageType from;
     int crtc_max_X, crtc_max_Y;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -2646,25 +2644,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	} else
 	    info->DispPriority = 1; 
     }
-
-    info->constantDPI = -1;
-    from = X_DEFAULT;
-    if (xf86GetOptValBool(info->Options, OPTION_CONSTANTDPI, &info->constantDPI)) {
-       from = X_CONFIG;
-    } else {
-       if (monitorResolution > 0) {
-	  info->constantDPI = TRUE;
-	  from = X_CMDLINE;
-	  xf86DrvMsg(pScrn->scrnIndex, from,
-		"\"-dpi %d\" given in command line, assuming \"ConstantDPI\" set\n",
-		monitorResolution);
-       } else {
-	  info->constantDPI = FALSE;
-       }
-    }
-    xf86DrvMsg(pScrn->scrnIndex, from,
-	"X server will %skeep DPI constant for all screen sizes\n",
-	info->constantDPI ? "" : "not ");
 
     if (!RADEONPreInitInt10(pScrn, &pInt10))
 	goto fail;
@@ -5451,26 +5430,6 @@ static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode)
     return TRUE;
 }
 
-static void
-RADEONResetDPI(ScrnInfoPtr pScrn, Bool force)
-{
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-
-    if(force					||
-       (info->RADEONDPIVX != pScrn->virtualX)	||
-       (info->RADEONDPIVY != pScrn->virtualY)
-					  ) {
-
-       pScreen->mmWidth = (pScrn->virtualX * 254 + pScrn->xDpi * 5) / (pScrn->xDpi * 10);
-       pScreen->mmHeight = (pScrn->virtualY * 254 + pScrn->yDpi * 5) / (pScrn->yDpi * 10);
-
-       info->RADEONDPIVX = pScrn->virtualX;
-       info->RADEONDPIVY = pScrn->virtualY;
-
-    }
-}
-
 Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
     ScrnInfoPtr    pScrn       = xf86Screens[scrnIndex];
@@ -5528,13 +5487,7 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     }
 #endif
 
-    /* Since RandR (indirectly) uses SwitchMode(), we need to
-     * update our Xinerama info here, too, in case of resizing
-     */
-    if(info->constantDPI) {
-       RADEONResetDPI(pScrn, FALSE);
-    }
-
+    /* reset ecp for overlay */
     info->ecp_div = -1;
 
     return ret;
