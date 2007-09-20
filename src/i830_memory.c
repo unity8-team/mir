@@ -740,7 +740,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
  *   the entire Screen lifetime.  This means not using buffer objects, which
  *   get their offsets chosen at each EnterVT time.
  */
-static i830_memory *
+i830_memory *
 i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 		     unsigned long size, unsigned long alignment, int flags)
 {
@@ -774,7 +774,7 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
  * some search across all allocation options to fix this, probably, but that
  * would be another rewrite.
  */
-static i830_memory *
+i830_memory *
 i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
 			   unsigned long size, unsigned long pitch,
 			   unsigned long alignment, int flags,
@@ -1126,7 +1126,6 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 	    int size;
 
 	    size = 3 * pitch * pScrn->virtualY;
-	    size += 1920 * 1088 * 2 * 2;
 	    size = ROUND_TO_PAGE(size);
 
 	    cacheLines = (size + pitch - 1) / pitch;
@@ -1417,14 +1416,13 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     if (pI830->useEXA) {
 	if (pI830->exa_offscreen == NULL) {
 	    /* Default EXA to having 3 screens worth of offscreen memory space
-	     * (for pixmaps), plus a double-buffered, 1920x1088 video's worth.
+	     * (for pixmaps).
 	     *
 	     * XXX: It would be nice to auto-size it larger if the user
 	     * specified a larger size, or to fit along with texture and FB
 	     * memory if a low videoRam is specified.
 	     */
 	    size = 3 * pitch * pScrn->virtualY;
-	    size += 1920 * 1088 * 2 * 2;
 	    size = ROUND_TO_PAGE(size);
 
 	    /* EXA has no way to tell it that the offscreen memory manager has
@@ -1995,41 +1993,3 @@ I830CheckAvailableMemory(ScrnInfoPtr pScrn)
 
     return maxPages * 4;
 }
-
-#ifdef I830_USE_XAA
-/**
- * Allocates memory from the XF86 linear allocator, but also purges
- * memory if possible to cause the allocation to succeed.
- */
-FBLinearPtr
-i830_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
-				 int granularity,
-				 MoveLinearCallbackProcPtr moveCB,
-				 RemoveLinearCallbackProcPtr removeCB,
-				 pointer privData)
-{
-    FBLinearPtr linear;
-    int max_size;
-
-    linear = xf86AllocateOffscreenLinear(pScreen, length, granularity, moveCB,
-					 removeCB, privData);
-    if (linear != NULL)
-	return linear;
-
-    /* The above allocation didn't succeed, so purge unlocked stuff and try
-     * again.
-     */
-    xf86QueryLargestOffscreenLinear(pScreen, &max_size, granularity,
-				    PRIORITY_EXTREME);
-
-    if (max_size < length)
-	return NULL;
-
-    xf86PurgeUnlockedOffscreenAreas(pScreen);
-
-    linear = xf86AllocateOffscreenLinear(pScreen, length, granularity, moveCB,
-					 removeCB, privData);
-
-    return linear;
-}
-#endif

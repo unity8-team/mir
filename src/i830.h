@@ -61,6 +61,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86Crtc.h"
 #include "xf86RandR12.h"
 
+#include "xorg-server.h"
+#ifdef XSERVER_LIBPCIACCESS
+#include <pciaccess.h>
+#endif
+
 #ifdef XF86DRI
 #include "xf86drm.h"
 #include "sarea.h"
@@ -229,6 +234,7 @@ extern const char *i830_output_type_names[];
 
 typedef struct _I830CrtcPrivateRec {
     int			    pipe;
+    int			    plane;
 
     Bool    		    enabled;
     
@@ -237,12 +243,7 @@ typedef struct _I830CrtcPrivateRec {
     /* Lookup table values to be set when the CRTC is enabled */
     CARD8 lut_r[256], lut_g[256], lut_b[256];
 
-#ifdef I830_USE_XAA
-    FBLinearPtr rotate_mem_xaa;
-#endif
-#ifdef I830_USE_EXA
-    ExaOffscreenArea *rotate_mem_exa;
-#endif
+    i830_memory *rotate_mem;
     /* Card virtual address of the cursor */
     unsigned long cursor_offset;
     unsigned long cursor_argb_offset;
@@ -294,6 +295,7 @@ typedef struct _I830Rec {
 
    /* These are set in PreInit and never changed. */
    long FbMapSize;
+   long GTTMapSize;
 
    /**
     * Linked list of video memory allocations.  The head and tail are
@@ -373,8 +375,12 @@ typedef struct _I830Rec {
    unsigned long MMIOAddr;
    IOADDRESS ioBase;
    EntityInfoPtr pEnt;
+#if XSERVER_LIBPCIACCESS
+   struct pci_device *PciInfo;
+#else
    pciVideoPtr PciInfo;
    PCITAG PciTag;
+#endif
    CARD8 variant;
 
    unsigned int BR[20];
@@ -650,6 +656,14 @@ extern void I830SubsequentSolidFillRect(ScrnInfoPtr pScrn, int x, int y,
 Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
 			 unsigned long size);
 void i830_allocator_fini(ScrnInfoPtr pScrn);
+i830_memory * i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
+				   unsigned long size, unsigned long alignment,
+				   int flags);
+i830_memory *i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
+					unsigned long size,
+					unsigned long pitch,
+					unsigned long alignment, int flags,
+					enum tile_format tile_format);
 void i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity,
 			       const char *prefix);
 void i830_reset_allocations(ScrnInfoPtr pScrn);
@@ -690,14 +704,6 @@ Bool i830_unbind_all_memory(ScrnInfoPtr pScrn);
 
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
-#ifdef I830_USE_XAA
-FBLinearPtr
-i830_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
-				 int granularity,
-				 MoveLinearCallbackProcPtr moveCB,
-				 RemoveLinearCallbackProcPtr removeCB,
-				 pointer privData);
-#endif /* I830_USE_EXA */
 
 /* i830_modes.c */
 DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
