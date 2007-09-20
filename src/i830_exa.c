@@ -112,9 +112,7 @@ i830_pixmap_tiled(PixmapPtr pPixmap)
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned long offset;
 
-    /* Don't use exaGetPixmapOffset becuase we might be called from XAA code. */
-    offset = (long)pPixmap->devPrivate.ptr -
-	(long)pI830->FbBase;
+    offset = intel_get_pixmap_offset(pPixmap);
     if (offset == pI830->front_buffer->offset &&
 	pI830->front_buffer->tiling != TILE_NONE)
     {

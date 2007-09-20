@@ -371,13 +371,12 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     dest_surf_state->ss0.mipmap_layout_mode = 0;
     dest_surf_state->ss0.render_cache_read_mode = 0;
 
-    dest_surf_state->ss1.base_addr = (long)pPixmap->devPrivate.ptr -
-	(long)pI830->FbBase;
+    dest_surf_state->ss1.base_addr = intel_get_pixmap_offset(pPixmap);
     dest_surf_state->ss2.height = pScrn->virtualY - 1;
     dest_surf_state->ss2.width = pScrn->virtualX - 1;
     dest_surf_state->ss2.mip_count = 0;
     dest_surf_state->ss2.render_target_rotation = 0;
-    dest_surf_state->ss3.pitch = pPixmap->devKind - 1;
+    dest_surf_state->ss3.pitch = intel_get_pixmap_pitch(pPixmap) - 1;
     dest_surf_state->ss3.tiled_surface = i830_pixmap_tiled(pPixmap);
     dest_surf_state->ss3.tile_walk = 0; /* TileX */
 
