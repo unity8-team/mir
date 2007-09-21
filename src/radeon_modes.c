@@ -125,11 +125,6 @@ static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 	new->next       = NULL;
 	new->prev       = NULL;
 
-	pScrn->display->virtualX =
-	    pScrn->virtualX = MAX(pScrn->virtualX, radeon_output->PanelXRes);
-	pScrn->display->virtualY =
-	    pScrn->virtualY = MAX(pScrn->virtualY, radeon_output->PanelYRes);
-
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "No valid mode specified, force to native mode\n");
     }
