@@ -187,7 +187,7 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
     } else if(pNv->twoHeads) {
 	regp->dither = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DITHER);
     }
-    //    regp->crtcSync = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HCRTC);
+    regp->crtcSync = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HCRTC);
     regp->nv10_cursync = NVOutputReadRAMDAC(output, NV_RAMDAC_NV10_CURSYNC);
 
     if (nv_output->type == OUTPUT_DIGITAL) {
@@ -227,7 +227,7 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
     NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
     NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
     NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_CONTROL, regp->fp_control);
-    //    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HCRTC, regp->crtcSync);
+    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HCRTC, regp->crtcSync);
   
 
     if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
@@ -381,6 +381,13 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		regp->fp_vert_regs[REG_DISP_VALID_END] = mode->CrtcVDisplay - 1;
 	}
 
+	/* This seems to be a common mode
+	 * bit0: positive vsync
+	 * bit1: positive hsync
+	 * bit8: enable panel scaling 
+	 */
+	regp->fp_control = 0x11100011;
+
 	if (is_fp) {
 		ErrorF("Pre-panel scaling\n");
 		ErrorF("panel-size:%dx%d\n", nv_output->fpWidth, nv_output->fpHeight);
@@ -407,9 +414,6 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		} else {
 			regp->debug_2 = 0;
 		}
-
-		/* Tell the panel not to scale */
-		regp->fp_control = savep->fp_control & 0xfffffeff;
 
 		/* GPU scaling happens automaticly at a ratio of 1:33 */
 		/* A 1280x1024 panel has a ratio of 1:25, we don't want to scale that at 4:3 resolutions */
@@ -441,18 +445,19 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		ErrorF("Post-panel scaling\n");
 	} else {
 		/* copy a bunch of things from the current state for non-dfp's */
-		regp->fp_control = savep->fp_control & 0xfff000ff;
 		regp->debug_2 = savep->debug_2;
 	}
 
 	if (pNv->Architecture >= NV_ARCH_10) {
-		regp->nv10_cursync = savep->nv10_cursync | (1<<25);
+		/* Bios and blob don't seem to do anything (else) */
+		regp->nv10_cursync = (1<<25);
 	}
 
 	regp->debug_0 = savep->debug_0;
 	regp->debug_1 = savep->debug_1;
 	if(is_fp) {
-		regp->crtcSync = savep->crtcSync;
+		/* My bios does 0x500, blob seems to do 0x4c4 or 0x4e4, all work */
+		regp->crtcSync = 0x4c4;
 		//regp->crtcSync += nv_output_tweak_panel(output, state);
 
 		regp->debug_0 &= ~NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
@@ -462,19 +467,13 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 
 	ErrorF("output %d debug_0 %08X\n", nv_output->ramdac, regp->debug_0);
 
+	/* Flatpanel support needs at least a NV10 */
 	if(pNv->twoHeads) {
-		if(pNv->NVArch == 0x11) {
-			regp->dither = savep->dither & ~0x00010000;
-			if(pNv->FPDither) {
-				regp->dither |= 0x00010000;
-			}
-		} else {
-			ErrorF("savep->dither %08X\n", savep->dither);
-			regp->dither = savep->dither & ~1;
-			if(pNv->FPDither) {
-				regp->dither |= 1;
-			}
-		} 
+		/* Instead of 1, several other values are also used: 2, 7, 9 */
+		/* The purpose is unknown */
+		if(pNv->FPDither) {
+			regp->dither = 0x00010000;
+		}
 	}
 
 	if(pLayout->depth < 24) {
