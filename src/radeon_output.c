@@ -766,7 +766,7 @@ static void RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
 				   DisplayModePtr mode, BOOL IsPrimary)
 {
     ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
 
 
     if (pScrn->rgbBits == 8) 
@@ -776,26 +776,23 @@ static void RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
 	save->fp2_gen_cntl = info->SavedReg.fp2_gen_cntl &
 				~RADEON_FP2_PANEL_FORMAT;/* 18 bit format, */
 
-    save->fp2_gen_cntl &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+    save->fp2_gen_cntl &= ~(RADEON_FP2_ON |
+			    RADEON_FP2_DVO_EN |
+			    RADEON_FP2_DVO_RATE_SEL_SDR);
 
     if (IsPrimary) {
         if ((info->ChipFamily == CHIP_FAMILY_R200) || IS_R300_VARIANT) {
-            save->fp2_gen_cntl   &= ~(R200_FP2_SOURCE_SEL_MASK | 
-                                      RADEON_FP2_DVO_EN |
-                                      RADEON_FP2_DVO_RATE_SEL_SDR);
-	if (mode->Flags & RADEON_USE_RMX) 
-	    save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_RMX;
+            save->fp2_gen_cntl &= ~R200_FP2_SOURCE_SEL_MASK;
+	    if (mode->Flags & RADEON_USE_RMX) 
+		save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_RMX;
         } else {
-            save->fp2_gen_cntl   &= ~(RADEON_FP2_SRC_SEL_CRTC2 | 
-                                      RADEON_FP2_DVO_RATE_SEL_SDR);
-            }
+            save->fp2_gen_cntl &= ~RADEON_FP2_SRC_SEL_CRTC2;
+	}
     } else {
         if ((info->ChipFamily == CHIP_FAMILY_R200) || IS_R300_VARIANT) {
-            save->fp2_gen_cntl &= ~(R200_FP2_SOURCE_SEL_MASK | 
-                                    RADEON_FP2_DVO_RATE_SEL_SDR);
+            save->fp2_gen_cntl &= ~R200_FP2_SOURCE_SEL_MASK;
             save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC2;
         } else {
-            save->fp2_gen_cntl &= ~(RADEON_FP2_DVO_RATE_SEL_SDR);
             save->fp2_gen_cntl |= RADEON_FP2_SRC_SEL_CRTC2;
         }
     }

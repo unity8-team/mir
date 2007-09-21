@@ -289,6 +289,7 @@ void RADEONDisableDisplays(ScrnInfoPtr pScrn) {
 
     /* FP 2 */
     tmp = INREG(RADEON_FP2_GEN_CNTL);
+    tmp |= RADEON_FP2_BLANK_EN;
     tmp &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
     OUTREG(RADEON_FP2_GEN_CNTL, tmp);
 
@@ -355,10 +356,12 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
                 save->fp_gen_cntl |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
             } else if (radeon_output->TMDSType == TMDS_EXT) {
                 tmp = INREG(RADEON_FP2_GEN_CNTL);
+		tmp &= ~RADEON_FP2_BLANK_EN;
                 tmp |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
                 OUTREG(RADEON_FP2_GEN_CNTL, tmp);
                 save->fp2_gen_cntl |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
-            }
+		save->fp2_gen_cntl &= ~RADEON_FP2_BLANK_EN;
+           }
         } else if (radeon_output->MonType == MT_LCD) {
             tmp = INREG(RADEON_LVDS_GEN_CNTL);
             tmp |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
@@ -406,9 +409,11 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
                 save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
             } else if (radeon_output->TMDSType == TMDS_EXT) {
                 tmp = INREG(RADEON_FP2_GEN_CNTL);
+		tmp |= RADEON_FP2_BLANK_EN;
                 tmp &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
                 OUTREG(RADEON_FP2_GEN_CNTL, tmp);
                 save->fp2_gen_cntl &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+                save->fp2_gen_cntl |= RADEON_FP2_BLANK_EN;
             }
         } else if (radeon_output->MonType == MT_LCD) {
 	    unsigned long tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
