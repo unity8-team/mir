@@ -969,17 +969,17 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfa;
 
 	if (is_fp) {
-		regp->CRTC[NV_VGA_CRTCX_LCD] = savep->CRTC[NV_VGA_CRTCX_LCD] | 1;
+		/* Maybe we need more to enable DFP screens, haiku has some info on this register */
+		regp->CRTC[NV_VGA_CRTCX_LCD] = (1 << 3) | (1 << 0);
 	} else {
-		regp->CRTC[NV_VGA_CRTCX_LCD] = savep->CRTC[NV_VGA_CRTCX_LCD] & ~1;
+		regp->CRTC[NV_VGA_CRTCX_LCD] = 0;
 	}
 
-	/* The first bit is probably needed for the second crtc, the state is what the blob sets for a nv28 */
-	/* It doesn't mess my single head config (dfp) on a nv43 */
-	if (nv_crtc->crtc == 1) {
-		regp->CRTC[NV_VGA_CRTCX_59] = 0x11;
+	/* I'm trusting haiku driver on this one, they say it enables an external TDMS clock */
+	if (is_fp) {
+		regp->CRTC[NV_VGA_CRTCX_59] = 0x1;
 	} else {
-		regp->CRTC[NV_VGA_CRTCX_59] = 0x10;
+		regp->CRTC[NV_VGA_CRTCX_59] = 0x0;
 	}
 
 	/*
@@ -1020,7 +1020,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		regp->CRTC[NV_VGA_CRTCX_PIXEL] |= (1 << 7);
 	}
 
-	regp->CRTC[NV_VGA_CRTCX_FIFO1] = savep->CRTC[NV_VGA_CRTCX_FIFO1] & ~(1<<5);
+	/* This is the value i have, blob seems to use others as well */
+	regp->CRTC[NV_VGA_CRTCX_FIFO1] = 0x1c;
 
 	if(nv_crtc->crtc) {
 		if (is_fp) {
@@ -1294,6 +1295,10 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING, regp->CRTC[NV_VGA_CRTCX_FP_HTIMING]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_VTIMING, regp->CRTC[NV_VGA_CRTCX_FP_VTIMING]);
 
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3C, regp->CRTC[NV_VGA_CRTCX_3C]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_45, regp->CRTC[NV_VGA_CRTCX_45]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_47, regp->CRTC[NV_VGA_CRTCX_47]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_56, regp->CRTC[NV_VGA_CRTCX_56]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_59, regp->CRTC[NV_VGA_CRTCX_59]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
     }
@@ -1361,7 +1366,6 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
     regp = &state->crtc_reg[nv_crtc->crtc];
  
-    regp->CRTC[NV_VGA_CRTCX_59] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_59);
     regp->CRTC[NV_VGA_CRTCX_LCD] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_LCD);
     regp->CRTC[NV_VGA_CRTCX_REPAINT0] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT0);
     regp->CRTC[NV_VGA_CRTCX_REPAINT1] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1);
@@ -1392,6 +1396,11 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
         regp->cursorConfig = nvReadCRTC(pNv, nv_crtc->crtc, NV_CRTC_CURSOR_CONFIG);
 
+	regp->CRTC[NV_VGA_CRTCX_3C] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3C);
+	regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_45);
+	regp->CRTC[NV_VGA_CRTCX_47] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_47);
+	regp->CRTC[NV_VGA_CRTCX_56] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_56);
+	regp->CRTC[NV_VGA_CRTCX_59] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_59);
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER);
 	regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING);
 	regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_VTIMING);

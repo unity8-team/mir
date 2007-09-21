@@ -364,11 +364,6 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	if ((nv_output->type == OUTPUT_PANEL) || (nv_output->type == OUTPUT_DIGITAL)) {
 		is_fp = TRUE;
 
-		for (i = 0; i < 7; i++) {
-			regp->fp_horiz_regs[i] = savep->fp_horiz_regs[i];
-			regp->fp_vert_regs[i] = savep->fp_vert_regs[i];
-		}
-
 		regp->fp_horiz_regs[REG_DISP_END] = mode->CrtcHDisplay - 1;
 		regp->fp_horiz_regs[REG_DISP_TOTAL] = mode->CrtcHTotal - 1;
 		regp->fp_horiz_regs[REG_DISP_CRTC] = mode->CrtcHDisplay;
