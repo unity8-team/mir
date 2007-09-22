@@ -200,12 +200,15 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 	}
 }
 
+int tmds_regs[] = { 0x2, 0x4, 0x2b };
+
 void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputRegPtr regp;
+	int i;
 
 	regp = &state->dac_reg[nv_output->ramdac];
 	regp->general       = NVOutputReadRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL);
@@ -225,18 +228,19 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	regp->crtcSync = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HCRTC);
 	regp->nv10_cursync = NVOutputReadRAMDAC(output, NV_RAMDAC_NV10_CURSYNC);
 
+	for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
+		regp->TMDS[tmds_regs[i]] = NVOutputReadTMDS(output, tmds_regs[i]);
+	}
+
 	if (nv_output->type == OUTPUT_DIGITAL) {
-		int i;
 
 		for (i = 0; i < 7; i++) {
 			uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
-
 			regp->fp_horiz_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
 		}
 		
 		for (i = 0; i < 7; i++) {
 			uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
-
 			regp->fp_vert_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
 		}
 
@@ -253,6 +257,7 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	ScrnInfoPtr	pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputRegPtr regp;
+	int i;
 
 	regp = &state->dac_reg[nv_output->ramdac];
 
@@ -272,18 +277,20 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL, regp->general);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
 
+	for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
+		NVOutputWriteTMDS(output, tmds_regs[i], regp->TMDS[tmds_regs[i]]);
+	}
+
 	if (nv_output->type == OUTPUT_DIGITAL) {
-		int i;
 
 		for (i = 0; i < 7; i++) {
-		    uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
-		    NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_horiz_regs[i]);
+			uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
+			NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_horiz_regs[i]);
 		}
 		
 		for (i = 0; i < 7; i++) {
-		    uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
-		    
-		    NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_vert_regs[i]);
+			uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
+			NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_vert_regs[i]);
 		}
 
 		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_START, regp->fp_hvalid_start);
@@ -291,6 +298,8 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_START, regp->fp_vvalid_start);
 		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_END, regp->fp_vvalid_end);
 	}
+
+	
 }
 
 
@@ -501,6 +510,14 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	}
 
 	ErrorF("output %d debug_0 %08X\n", nv_output->ramdac, regp->debug_0);
+
+	/* This is just a guess, there are probably more registers which need setting */
+	/* But we must start somewhere ;-) */
+	if (is_fp) {
+		regp->TMDS[0x2] = 0x29;
+		regp->TMDS[0x4] = 0x80;
+		regp->TMDS[0x2b] = 0x7f;
+	}
 
 	/* Flatpanel support needs at least a NV10 */
 	if(pNv->twoHeads) {
