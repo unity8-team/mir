@@ -132,6 +132,7 @@ typedef struct _nv_output_reg
 	CARD32 fp_hvalid_end;
 	CARD32 fp_vvalid_start;
 	CARD32 fp_vvalid_end;
+	CARD8 TMDS[128];
 } NVOutputRegRec, *NVOutputRegPtr;
 
 typedef struct _riva_hw_state

@@ -202,98 +202,95 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 
 void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 {
-    NVOutputPrivatePtr nv_output = output->driver_private;
-    ScrnInfoPtr pScrn = output->scrn;
-    NVPtr pNv = NVPTR(pScrn);
-    NVOutputRegPtr regp;
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	NVOutputRegPtr regp;
 
-    regp = &state->dac_reg[nv_output->ramdac];
-    regp->general       = NVOutputReadRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL);
-    regp->fp_control    = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL);
-    regp->debug_0	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_0);
-    regp->debug_1	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_1);
-    regp->debug_2	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_2);
-    state->config       = nvReadFB(pNv, NV_PFB_CFG0);
-    
-    regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
-    
-    if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-	regp->dither = NVOutputReadRAMDAC(output, NV_RAMDAC_DITHER_NV11);
-    } else if(pNv->twoHeads) {
-	regp->dither = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DITHER);
-    }
-    regp->crtcSync = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HCRTC);
-    regp->nv10_cursync = NVOutputReadRAMDAC(output, NV_RAMDAC_NV10_CURSYNC);
+	regp = &state->dac_reg[nv_output->ramdac];
+	regp->general       = NVOutputReadRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL);
+	regp->fp_control    = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL);
+	regp->debug_0	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_0);
+	regp->debug_1	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_1);
+	regp->debug_2	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_2);
+	state->config       = nvReadFB(pNv, NV_PFB_CFG0);
 
-    if (nv_output->type == OUTPUT_DIGITAL) {
-	int i;
+	regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
 
-	for (i = 0; i < 7; i++) {
-	    uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
-	    
-	    regp->fp_horiz_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
+	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
+		regp->dither = NVOutputReadRAMDAC(output, NV_RAMDAC_DITHER_NV11);
+	} else if (pNv->twoHeads) {
+		regp->dither = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DITHER);
 	}
-	
-	for (i = 0; i < 7; i++) {
-	    uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
-	    
-	    regp->fp_vert_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
+	regp->crtcSync = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HCRTC);
+	regp->nv10_cursync = NVOutputReadRAMDAC(output, NV_RAMDAC_NV10_CURSYNC);
+
+	if (nv_output->type == OUTPUT_DIGITAL) {
+		int i;
+
+		for (i = 0; i < 7; i++) {
+			uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
+
+			regp->fp_horiz_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
+		}
+		
+		for (i = 0; i < 7; i++) {
+			uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
+
+			regp->fp_vert_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
+		}
+
+		regp->fp_hvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_START);
+		regp->fp_hvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_END);
+		regp->fp_vvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_START);
+		regp->fp_vvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_END);
 	}
-
-	regp->fp_hvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_START);
-	regp->fp_hvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_END);
-	regp->fp_vvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_START);
-	regp->fp_vvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_END);
-    }
-
 }
 
 void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 {
-    NVOutputPrivatePtr nv_output = output->driver_private;
-    ScrnInfoPtr	pScrn = output->scrn;
-    NVPtr pNv = NVPTR(pScrn);
-    NVOutputRegPtr regp;
-  
-    regp = &state->dac_reg[nv_output->ramdac];
-  
-    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_0, regp->debug_0);
-    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
-    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
-    NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
-    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_CONTROL, regp->fp_control);
-    NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HCRTC, regp->crtcSync);
-  
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr	pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	NVOutputRegPtr regp;
 
-    if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_DITHER_NV11, regp->dither);
-    } else if(pNv->twoHeads) {
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DITHER, regp->dither);
-    }
-  
-    NVOutputWriteRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL, regp->general);
-    NVOutputWriteRAMDAC(output, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
+	regp = &state->dac_reg[nv_output->ramdac];
 
-    if (nv_output->type == OUTPUT_DIGITAL) {
-	int i;
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_0, regp->debug_0);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_CONTROL, regp->fp_control);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HCRTC, regp->crtcSync);
 
-	for (i = 0; i < 7; i++) {
-	    uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
-	    NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_horiz_regs[i]);
-	}
-	
-	for (i = 0; i < 7; i++) {
-	    uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
-	    
-	    NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_vert_regs[i]);
+	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
+		NVOutputWriteRAMDAC(output, NV_RAMDAC_DITHER_NV11, regp->dither);
+	} else if (pNv->twoHeads) {
+		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DITHER, regp->dither);
 	}
 
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_START, regp->fp_hvalid_start);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_END, regp->fp_hvalid_end);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_START, regp->fp_vvalid_start);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_END, regp->fp_vvalid_end);
-    }
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL, regp->general);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
 
+	if (nv_output->type == OUTPUT_DIGITAL) {
+		int i;
+
+		for (i = 0; i < 7; i++) {
+		    uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
+		    NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_horiz_regs[i]);
+		}
+		
+		for (i = 0; i < 7; i++) {
+		    uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
+		    
+		    NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_vert_regs[i]);
+		}
+
+		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_START, regp->fp_hvalid_start);
+		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_END, regp->fp_hvalid_end);
+		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_START, regp->fp_vvalid_start);
+		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_END, regp->fp_vvalid_end);
+	}
 }
 
 
