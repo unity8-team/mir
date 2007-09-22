@@ -2907,6 +2907,15 @@ RADEONPutImage(
 				 clipBoxes, width, height))
        return Success;
 
+   if (!crtc) {
+       if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
+	   unsigned char *RADEONMMIO = info->MMIO;
+	   OUTREG(RADEON_OV0_SCALE_CNTL, 0);
+	   pPriv->videoStatus &= ~CLIENT_VIDEO_ON;
+       }
+       return Success;
+   }
+
    dstBox.x1 -= crtc->x;
    dstBox.x2 -= crtc->x;
    dstBox.y1 -= crtc->y;
@@ -3285,6 +3294,15 @@ RADEONDisplaySurface(
 				  surface->width, surface->height))
         return Success;
 
+   if (!crtc) {
+       if (pPriv->isOn) {
+	   unsigned char *RADEONMMIO = info->MMIO;
+	   OUTREG(RADEON_OV0_SCALE_CNTL, 0);
+	   pPriv->isOn = FALSE;
+       }
+       return Success;
+   }
+
     dstBox.x1 -= crtc->x;
     dstBox.x2 -= crtc->x;
     dstBox.y1 -= crtc->y;
@@ -3418,6 +3436,15 @@ RADEONPutVideo(
 				 &dstBox, &xa, &xb, &ya, &yb,
 				 clipBoxes, width, height))
        return Success;
+
+   if (!crtc) {
+       if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
+	   unsigned char *RADEONMMIO = info->MMIO;
+	   OUTREG(RADEON_OV0_SCALE_CNTL, 0);
+	   pPriv->videoStatus &= ~CLIENT_VIDEO_ON;
+       }
+       return Success;
+   }
 
    dstBox.x1 -= crtc->x;
    dstBox.x2 -= crtc->x;
