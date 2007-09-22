@@ -2544,6 +2544,19 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[2].DDCType = DDC_NONE_DETECTED;
 	info->BiosConnector[2].valid = TRUE;
 	return TRUE;
+    case RADEON_MAC_MINI:
+	info->BiosConnector[0].DDCType = DDC_CRT2;
+	info->BiosConnector[0].DACType = DAC_TVDAC;
+	info->BiosConnector[0].TMDSType = TMDS_EXT;
+	info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
+	info->BiosConnector[0].valid = TRUE;
+
+	info->BiosConnector[1].ConnectorType = CONNECTOR_STV;
+	info->BiosConnector[1].DACType = DAC_TVDAC;
+	info->BiosConnector[1].TMDSType = TMDS_NONE;
+	info->BiosConnector[1].DDCType = DDC_NONE_DETECTED;
+	info->BiosConnector[1].valid = TRUE;
+	return TRUE;
     default:
 	return FALSE;
     }
@@ -2689,6 +2702,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->MacModel = RADEON_MAC_POWERBOOK_DL;
 	else if (!strncmp("powerbook", optstr, strlen("powerbook")))
 	    info->MacModel = RADEON_MAC_POWERBOOK;
+	else if (!strncmp("mini", optstr, strlen("mini")))
+	    info->MacModel = RADEON_MAC_MINI;
 	else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid Mac Model: %s\n", optstr);
 	    return FALSE;

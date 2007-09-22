@@ -429,7 +429,8 @@ typedef enum {
 typedef enum {
        RADEON_MAC_IBOOK             = 0x00000001,
        RADEON_MAC_POWERBOOK_DL      = 0x00000002,
-       RADEON_MAC_POWERBOOK         = 0x00000004
+       RADEON_MAC_POWERBOOK         = 0x00000004,
+       RADEON_MAC_MINI              = 0x00000008
 } RADEONMacModel;
 #endif
 

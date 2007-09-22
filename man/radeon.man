@@ -404,9 +404,11 @@ Used to specify Mac models for connector tables and quirks.  Only valid
 .br
 ibook                \-\- ibooks
 .br
-powerbook-duallink   \-\- Powerbooks with dual link DVI
+powerbook-duallink   \-\- Powerbooks with external DVI
 .br
-powerbook            \-\- Powerbooks with single link DVI
+powerbook            \-\- Powerbooks with integrated DVI
+.br
+mini                 \-\- Mac Mini
 .br
 The default value is
 .B undefined.
