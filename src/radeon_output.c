@@ -679,15 +679,17 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	    adjusted_mode->Flags |= RADEON_USE_RMX;
 
 	if (adjusted_mode->Flags & RADEON_USE_RMX) {
-	    adjusted_mode->CrtcHTotal     = mode->CrtcHDisplay + radeon_output->HBlank;
-	    adjusted_mode->CrtcHSyncStart = mode->CrtcHDisplay + radeon_output->HOverPlus;
-	    adjusted_mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + radeon_output->HSyncWidth;
-	    adjusted_mode->CrtcVTotal     = mode->CrtcVDisplay + radeon_output->VBlank;
-	    adjusted_mode->CrtcVSyncStart = mode->CrtcVDisplay + radeon_output->VOverPlus;
-	    adjusted_mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + radeon_output->VSyncWidth;
-	    adjusted_mode->Clock          = radeon_output->DotClock;
 	    radeon_output->Flags |= RADEON_USE_RMX;
-	    adjusted_mode->Flags          = radeon_output->Flags;
+	    if (radeon_output->MonType == MT_DFP) {
+		adjusted_mode->CrtcHTotal     = mode->CrtcHDisplay + radeon_output->HBlank;
+		adjusted_mode->CrtcHSyncStart = mode->CrtcHDisplay + radeon_output->HOverPlus;
+		adjusted_mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + radeon_output->HSyncWidth;
+		adjusted_mode->CrtcVTotal     = mode->CrtcVDisplay + radeon_output->VBlank;
+		adjusted_mode->CrtcVSyncStart = mode->CrtcVDisplay + radeon_output->VOverPlus;
+		adjusted_mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + radeon_output->VSyncWidth;
+		adjusted_mode->Clock          = radeon_output->DotClock;
+		adjusted_mode->Flags          = radeon_output->Flags;
+	    }
 	} else
 	    radeon_output->Flags &= ~RADEON_USE_RMX;
 
