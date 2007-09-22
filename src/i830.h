@@ -171,6 +171,10 @@ struct _i830_memory {
     i830_memory *prev;
     /** @} */
 
+#ifdef XF86DRI_MM
+    drmBO bo;
+    Bool lifetime_fixed_offset;
+#endif
 };
 
 typedef struct {
@@ -293,7 +297,13 @@ typedef struct _I830Rec {
    long FbMapSize;
    long GTTMapSize;
 
-   i830_memory *memory_list;	/**< Linked list of video memory allocations */
+   /**
+    * Linked list of video memory allocations.  The head and tail are
+    * dummy entries that bound the allocation area.
+    */
+   i830_memory *memory_list;
+   /** Linked list of buffer object memory allocations */
+   i830_memory *bo_list;
    long stolen_size;		/**< bytes of pre-bound stolen memory */
    int gtt_acquired;		/**< whether we currently own the AGP */
 
@@ -336,8 +346,7 @@ typedef struct _I830Rec {
 
    int TexGranularity;
    int drmMinor;
-   int mmModeFlags;
-   int mmSize;
+   Bool allocate_classic_textures;
 
    Bool want_vblank_interrupts;
 #ifdef DAMAGE
@@ -646,6 +655,7 @@ extern void I830SubsequentSolidFillRect(ScrnInfoPtr pScrn, int x, int y,
 
 Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
 			 unsigned long size);
+void i830_allocator_fini(ScrnInfoPtr pScrn);
 i830_memory * i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 				   unsigned long size, unsigned long alignment,
 				   int flags);
@@ -748,6 +758,9 @@ extern const int I830CopyROP[16];
 /* Flags for memory allocation function */
 #define NEED_PHYSICAL_ADDR		0x00000001
 #define ALIGN_BOTH_ENDS			0x00000002
+#define NEED_NON_STOLEN			0x00000004
+#define NEED_LIFETIME_FIXED		0x00000008
+#define ALLOW_SHARING			0x00000010
 
 /* Chipset registers for VIDEO BIOS memory RW access */
 #define _855_DRAM_RW_CONTROL 0x58
