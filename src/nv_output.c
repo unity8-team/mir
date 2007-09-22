@@ -827,7 +827,9 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index)
   output->driver_private = nv_output;
   nv_output->type = OUTPUT_ANALOG;
 
-  nv_output->ramdac = pNv->analog_count;
+  /* dvi outputs share their i2c port with their analog output on the same port */
+  /* But they can never work at the same time, so it's convient to share ramdac index */
+  nv_output->ramdac = i2c_index;
 
   nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
 
@@ -863,7 +865,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index, int lvds)
   output->driver_private = nv_output;
   nv_output->type = OUTPUT_DIGITAL;
   
-  nv_output->ramdac = pNv->digital_count;
+  nv_output->ramdac = i2c_index;
   
   nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
   
