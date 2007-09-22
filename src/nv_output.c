@@ -68,6 +68,41 @@ const char *MonTypeName[7] = {
     "STV"
 };
 
+/* 
+ * TMDS registers are indirect 8 bit registers.
+ * Reading is straightforward, writing a bit odd.
+ * Reading: Write adress (+write protect bit, do not forget this), then read value.
+ * Writing: Write adress (+write protect bit), write value, write adress again and write it again (+write protect bit).
+ */
+
+void NVOutputWriteTMDS(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr	pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+
+	nvWriteRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
+		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
+
+	nvWriteRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_TMDS_DATA, val & 0xff);
+
+	nvWriteRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_TMDS_CONTROL, tmds_reg & 0xff);
+	nvWriteRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
+		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
+}
+
+CARD8 NVOutputReadTMDS(xf86OutputPtr output, CARD32 tmds_reg)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr	pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+
+	nvWriteRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
+		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
+
+	return (nvReadRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_TMDS_DATA) & 0xff);
+}
+
 void NVOutputWriteRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg, CARD32 val)
 {
     NVOutputPrivatePtr nv_output = output->driver_private;
