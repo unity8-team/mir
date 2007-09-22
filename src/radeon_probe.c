@@ -314,7 +314,7 @@ RADEONProbe(DriverPtr drv, int flags)
 		DevUnion   *pPriv;
 		RADEONEntPtr pRADEONEnt;
 
-		xf86SetEntitySharable(usedChips[i]);
+		/*xf86SetEntitySharable(usedChips[i]);*/
 
 		if (gRADEONEntityIndex == -1)
 		    gRADEONEntityIndex = xf86AllocateEntityPrivateIndex();
