@@ -215,7 +215,8 @@ radeon_clip_video_helper(ScrnInfoPtr pScrn,
 	    REGION_INIT (pScreen, &crtc_region_local, &crtc_box, 1);
 	    crtc_region = &crtc_region_local;
 	    REGION_INTERSECT (pScreen, crtc_region, crtc_region, reg);
-	}
+	} else
+	    return FALSE;
 	*crtc_ret = crtc;
     }
 
