@@ -453,13 +453,16 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		regp->nv10_cursync = (1<<25);
 	}
 
-	regp->debug_0 = savep->debug_0;
+	/* These are the common blob values, minus a few fp specific bit's */
+	regp->debug_0 = 0x1101111;
 	regp->debug_1 = savep->debug_1;
 	if(is_fp) {
 		/* My bios does 0x500, blob seems to do 0x4c4 or 0x4e4, all work */
 		regp->crtcSync = 0x4c4;
 		//regp->crtcSync += nv_output_tweak_panel(output, state);
 
+		/* I am not completely certain, but seems to be set only for dfp's */
+		regp->debug_0 |= (1<<8);
 		regp->debug_0 &= ~NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
 	} else {
 		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
