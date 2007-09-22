@@ -648,13 +648,17 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 	    return MODE_CLOCK_RANGE;
     }
 
-    if (radeon_output->type != OUTPUT_LVDS)
-	return MODE_OK;
-
-    if (pMode->HDisplay > radeon_output->PanelXRes ||
-	pMode->VDisplay > radeon_output->PanelYRes)
-	return MODE_PANEL;
-
+    if (radeon_output->type == OUTPUT_LVDS) {
+	if (radeon_output->rmx_type == RMX_OFF) {
+	    if (pMode->HDisplay != radeon_output->PanelXRes ||
+		pMode->VDisplay != radeon_output->PanelYRes)
+		return MODE_PANEL;
+	}
+	if (pMode->HDisplay > radeon_output->PanelXRes ||
+	    pMode->VDisplay > radeon_output->PanelYRes)
+	    return MODE_PANEL;
+    }
+    
     return MODE_OK;
 }
 
@@ -664,7 +668,8 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-    if (radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP) {
+    if ((radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP)
+	&& radeon_output->rmx_type != RMX_OFF) {
 	xf86CrtcPtr crtc = output->crtc;
 	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
@@ -1675,7 +1680,7 @@ radeon_create_resources(xf86OutputPtr output)
 
     }
 
-    /* RMX control - fullscreen, centered, keep ratio */
+    /* RMX control - fullscreen, centered, keep ratio, off */
     /* actually more of a crtc property as only crtc1 has rmx */
     if (radeon_output->type == OUTPUT_LVDS ||
 	radeon_output->type == OUTPUT_DVI) {
@@ -1688,7 +1693,10 @@ radeon_create_resources(xf86OutputPtr output)
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
 	/* Set the current value of the property */
-	s = "full";
+	if (radeon_output->type == OUTPUT_LVDS)
+	    s = "full";
+	else
+	    s = "off";
 	err = RRChangeOutputProperty(output->randr_output, rmx_atom,
 				     XA_STRING, 8, PropModeReplace, strlen(s), (pointer)s,
 				     FALSE, FALSE);
@@ -1869,24 +1877,24 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	radeon_output->load_detection = val;
 
     } else if (property == rmx_atom) {
-	xf86CrtcPtr	crtc = output->crtc;
-	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-	if (radeon_crtc->crtc_id == 0) {
-	    const char *s;
-	    if (value->type != XA_STRING || value->format != 8)
-		return FALSE;
-	    s = (char*)value->data;
-	    if (value->size == strlen("full") && !strncmp("full", s, strlen("full"))) {
-		return TRUE;
-	    } else if (value->size == strlen("aspect") && !strncmp("aspect", s, strlen("aspect"))) {
-		return TRUE;
-	    } else if (value->size == strlen("center") && !strncmp("center", s, strlen("center"))) {
-		return TRUE;
-	    }
-	    return FALSE;
-	} else {
-	    return FALSE;
-	}
+	const char *s;
+	if (value->type != XA_STRING || value->format != 8)
+ 	    return FALSE;
+	s = (char*)value->data;
+	if (value->size == strlen("full") && !strncmp("full", s, strlen("full"))) {
+	    radeon_output->rmx_type = RMX_FULL;
+	    return TRUE;
+	} else if (value->size == strlen("aspect") && !strncmp("aspect", s, strlen("aspect"))) {
+	    radeon_output->rmx_type = RMX_ASPECT;
+	    return TRUE;
+	} else if (value->size == strlen("center") && !strncmp("center", s, strlen("center"))) {
+	    radeon_output->rmx_type = RMX_CENTER;
+	    return TRUE;
+ 	} else if (value->size == strlen("off") && !strncmp("off", s, strlen("off"))) {
+	    radeon_output->rmx_type = RMX_OFF;
+	    return TRUE;
+ 	}
+	return FALSE;
     } else if (property == tmds_pll_atom) {
 	const char *s;
 	if (value->type != XA_STRING || value->format != 8)

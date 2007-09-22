@@ -122,6 +122,14 @@ typedef enum
     DVI_ANALOG
 } RADEONDviType;
 
+typedef enum
+{
+    RMX_OFF,
+    RMX_FULL,
+    RMX_CENTER,
+    RMX_ASPECT
+} RADEONRMXType;
+
 typedef struct {
     CARD32 freq;
     CARD32 value;
@@ -196,6 +204,7 @@ typedef struct _RADEONOutputPrivateRec {
     int               PanelPwrDly;
     int               DotClock;
     RADEONTMDSPll     tmds_pll[4];
+    RADEONRMXType     rmx_type;
     /* TV out */
     TVStd             default_tvStd;
     TVStd             tvStd;
