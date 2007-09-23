@@ -2475,10 +2475,12 @@ void RADEONInitConnector(xf86OutputPtr output)
     }
 
     if (radeon_output->type == OUTPUT_LVDS) {
+	radeon_output->rmx_type = RMX_FULL;
 	RADEONGetLVDSInfo(output);
     }
 
     if (radeon_output->type == OUTPUT_DVI) {
+	radeon_output->rmx_type = RMX_OFF;
 	RADEONGetTMDSInfo(output);
     }
 
