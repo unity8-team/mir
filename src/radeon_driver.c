@@ -4172,8 +4172,8 @@ void RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     if (info->IsMobility) {
 	OUTREG(RADEON_LVDS_GEN_CNTL,  restore->lvds_gen_cntl);
-	/*OUTREG(RADEON_LVDS_PLL_CNTL,  restore->lvds_pll_cntl);  
-	OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
+	OUTREG(RADEON_LVDS_PLL_CNTL,  restore->lvds_pll_cntl);  
+	/*OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
 	OUTREG(RADEON_BIOS_5_SCRATCH, restore->bios_5_scratch);
 	OUTREG(RADEON_BIOS_6_SCRATCH, restore->bios_6_scratch);*/
     }

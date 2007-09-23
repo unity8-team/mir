@@ -790,7 +790,7 @@ static void RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
     if (IsPrimary) {
         if ((info->ChipFamily == CHIP_FAMILY_R200) || IS_R300_VARIANT) {
             save->fp2_gen_cntl &= ~R200_FP2_SOURCE_SEL_MASK;
-	    if (mode->Flags & RADEON_USE_RMX) 
+	    if (mode->Flags & RADEON_USE_RMX)
 		save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_RMX;
         } else {
             save->fp2_gen_cntl &= ~RADEON_FP2_SRC_SEL_CRTC2;
@@ -812,16 +812,30 @@ static void RADEONInitLVDSRegisters(xf86OutputPtr output, RADEONSavePtr save,
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
-    save->lvds_pll_cntl = info->SavedReg.lvds_pll_cntl;
+    save->lvds_pll_cntl = (info->SavedReg.lvds_pll_cntl |
+			   RADEON_LVDS_PLL_EN);
+
+    save->lvds_pll_cntl &= ~RADEON_LVDS_PLL_RESET;
 
     save->lvds_gen_cntl = info->SavedReg.lvds_gen_cntl;
     save->lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
     save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
 
-    if (IsPrimary)
-	save->lvds_gen_cntl &= ~RADEON_LVDS_SEL_CRTC2;
-    else
-	save->lvds_gen_cntl |= RADEON_LVDS_SEL_CRTC2;
+    if (IS_R300_VARIANT)
+	save->lvds_pll_cntl &= ~(R300_LVDS_SRC_SEL_MASK);
+
+    if (IsPrimary) {
+	if (IS_R300_VARIANT) {
+	    if (mode->Flags & RADEON_USE_RMX)
+		save->lvds_pll_cntl |= R300_LVDS_SRC_SEL_RMX;
+	} else
+	    save->lvds_gen_cntl &= ~RADEON_LVDS_SEL_CRTC2;
+    } else {
+	if (IS_R300_VARIANT) {
+	    save->lvds_pll_cntl |= R300_LVDS_SRC_SEL_CRTC2;
+	} else
+	    save->lvds_gen_cntl |= RADEON_LVDS_SEL_CRTC2;
+    }
 
 }
 

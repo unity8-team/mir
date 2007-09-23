@@ -924,6 +924,12 @@
 #define RADEON_LVDS_PLL_CNTL                0x02d4
 #       define RADEON_HSYNC_DELAY_SHIFT     28
 #       define RADEON_HSYNC_DELAY_MASK      (0xf << 28)
+#       define RADEON_LVDS_PLL_EN           (1   << 16)
+#       define RADEON_LVDS_PLL_RESET        (1   << 17)
+#       define R300_LVDS_SRC_SEL_MASK       (3   << 18)
+#       define R300_LVDS_SRC_SEL_CRTC1      (0   << 18)
+#       define R300_LVDS_SRC_SEL_CRTC2      (1   << 18)
+#       define R300_LVDS_SRC_SEL_RMX        (2   << 18)
 
 #define RADEON_MAX_LATENCY                  0x0f3f /* PCI */
 #define RADEON_MC_AGP_LOCATION              0x014c
