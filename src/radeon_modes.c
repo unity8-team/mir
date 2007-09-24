@@ -82,7 +82,7 @@ static DisplayModePtr RADEONTVModes(xf86OutputPtr output)
 {
     DisplayModePtr new  = NULL;
 
-    /* just a place holder */    
+    /* just a place holder */
     new = xf86CVTMode(800, 600, 60.00, FALSE, FALSE);
     new->type = M_T_DRIVER | M_T_PREFERRED;
 
@@ -125,146 +125,11 @@ static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 	new->next       = NULL;
 	new->prev       = NULL;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "No valid mode specified, force to native mode\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Added native panel mode: %dx%d\n",
+		   radeon_output->PanelXRes, radeon_output->PanelYRes);
     }
 
     return new;
-}
-
-/* FP mode initialization routine for using on-chip RMX to scale
- */
-int RADEONValidateFPModes(xf86OutputPtr output, char **ppModeName, DisplayModePtr *modeList)
-{
-    ScrnInfoPtr pScrn = output->scrn;
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    DisplayModePtr  last       = NULL;
-    DisplayModePtr  new        = NULL;
-    DisplayModePtr  first      = NULL;
-    DisplayModePtr  p, tmp;
-    int             count      = 0;
-    int             i, width, height;
-
-    pScrn->virtualX = pScrn->display->virtualX;
-    pScrn->virtualY = pScrn->display->virtualY;
-
-    /* We have a flat panel connected to the primary display, and we
-     * don't have any DDC info.
-     */
-    for (i = 0; ppModeName[i] != NULL; i++) {
-
-	if (sscanf(ppModeName[i], "%dx%d", &width, &height) != 2) continue;
-
-	/* Note: We allow all non-standard modes as long as they do not
-	 * exceed the native resolution of the panel.  Since these modes
-	 * need the internal RMX unit in the video chips (and there is
-	 * only one per card), this will only apply to the primary head.
-	 */
-	if (width < 320 || width > radeon_output->PanelXRes ||
-	    height < 200 || height > radeon_output->PanelYRes) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Mode %s is out of range.\n", ppModeName[i]);
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Valid modes must be between 320x200-%dx%d\n",
-		       radeon_output->PanelXRes, radeon_output->PanelYRes);
-	    continue;
-	}
-
-	new             = xnfcalloc(1, sizeof(DisplayModeRec));
-	new->name       = xnfalloc(strlen(ppModeName[i]) + 1);
-	strcpy(new->name, ppModeName[i]);
-	new->HDisplay   = width;
-	new->VDisplay   = height;
-
-	/* These values are effective values after expansion They are
-	 * not really used to set CRTC registers.
-	 */
-	new->HTotal     = radeon_output->PanelXRes + radeon_output->HBlank;
-	new->HSyncStart = radeon_output->PanelXRes + radeon_output->HOverPlus;
-	new->HSyncEnd   = new->HSyncStart + radeon_output->HSyncWidth;
-	new->VTotal     = radeon_output->PanelYRes + radeon_output->VBlank;
-	new->VSyncStart = radeon_output->PanelYRes + radeon_output->VOverPlus;
-	new->VSyncEnd   = new->VSyncStart + radeon_output->VSyncWidth;
-	new->Clock      = radeon_output->DotClock;
-	new->Flags     |= RADEON_USE_RMX;
-
-#ifdef M_T_PREFERRED
-	if (width == radeon_output->PanelXRes && height == radeon_output->PanelYRes)
-	  new->type |= M_T_PREFERRED;
-#endif
-
-	new->type      |= M_T_USERDEF;
-
-	new->next       = NULL;
-	new->prev       = last;
-
-	if (last) last->next = new;
-	last = new;
-        if (!first) first = new;
-
-	pScrn->display->virtualX =
-	    pScrn->virtualX = MAX(pScrn->virtualX, width);
-	pScrn->display->virtualY =
-	    pScrn->virtualY = MAX(pScrn->virtualY, height);
-	count++;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Valid mode using on-chip RMX: %s\n", new->name);
-    }
-
-    /* If all else fails, add the native mode */
-    if (!count) {
-	first = last = RADEONFPNativeMode(output);
-	if (first) count = 1;
-    }
-
-    /* add in all default vesa modes smaller than panel size, used for randr*/
-    for (p = *modeList; p && p->next; p = p->next->next) {
-	if ((p->HDisplay <= radeon_output->PanelXRes) && (p->VDisplay <= radeon_output->PanelYRes)) {
-	    tmp = first;
-	    while (tmp) {
-		if ((p->HDisplay == tmp->HDisplay) && (p->VDisplay == tmp->VDisplay)) break;
-		tmp = tmp->next;
-	    }
-	    if (!tmp) {
-		new             = xnfcalloc(1, sizeof(DisplayModeRec));
-		new->name       = xnfalloc(strlen(p->name) + 1);
-		strcpy(new->name, p->name);
-		new->HDisplay   = p->HDisplay;
-		new->VDisplay   = p->VDisplay;
-
-		/* These values are effective values after expansion They are
-		 * not really used to set CRTC registers.
-		 */
-		new->HTotal     = radeon_output->PanelXRes + radeon_output->HBlank;
-		new->HSyncStart = radeon_output->PanelXRes + radeon_output->HOverPlus;
-		new->HSyncEnd   = new->HSyncStart + radeon_output->HSyncWidth;
-		new->VTotal     = radeon_output->PanelYRes + radeon_output->VBlank;
-		new->VSyncStart = radeon_output->PanelYRes + radeon_output->VOverPlus;
-		new->VSyncEnd   = new->VSyncStart + radeon_output->VSyncWidth;
-		new->Clock      = radeon_output->DotClock;
-		new->Flags     |= RADEON_USE_RMX;
-
-		new->type      |= M_T_DEFAULT;
-
-		if (last) last->next = new;
-	        last = new;
-		if (!first) first = new;
-	    }
-	}
-    }
-
-    /* Close the doubly-linked mode list, if we found any usable modes */
-    if (last) {
-	last->next   = NULL; //first;
-	first->prev  = NULL; //last;
-	*modeList = first;
-	//RADEONSetPitch(pScrn);
-    }
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Total number of valid FP mode(s) found: %d\n", count);
-
-    return count;
 }
 
 DisplayModePtr
@@ -272,14 +137,13 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    DisplayModePtr mode;
     xf86MonPtr		    edid_mon;
     DisplayModePtr	    modes = NULL;
 
 #if 0
     /* force reprobe */
     radeon_output->MonType = MT_UNKNOWN;
-	
+
     RADEONConnectorFindMonitor(pScrn, output);
 #endif
     ErrorF("in RADEONProbeOutputModes\n");
@@ -288,7 +152,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 	if (radeon_output->type == OUTPUT_DVI || radeon_output->type == OUTPUT_VGA) {
 	    edid_mon = xf86OutputGetEDID (output, radeon_output->pI2CBus);
 	    xf86OutputSetEDID (output, edid_mon);
-      
+
 	    modes = xf86OutputGetEDIDModes (output);
 	    return modes;
 	}
@@ -299,29 +163,17 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 	if (radeon_output->type == OUTPUT_LVDS) {
 	    /* okay we got DDC info */
 	    if (output->MonInfo) {
-		/* Debug info for now, at least */
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID for output %d\n", radeon_output->num);
-		xf86PrintEDID(output->MonInfo);
-	
-		modes = xf86DDCGetModes(pScrn->scrnIndex, output->MonInfo);
-	
-		for (mode = modes; mode != NULL; mode = mode->next) {
-		    if (mode->Flags & V_DBLSCAN) {
-			if ((mode->CrtcHDisplay >= 1024) || (mode->CrtcVDisplay >= 768))
-			    mode->status = MODE_CLOCK_RANGE;
-		    }
-		}
-		xf86PruneInvalidModes(pScrn, &modes, TRUE);
-	
-		/* do some physcial size stuff */
-	    }
-      
-	    if (modes == NULL) {
-		RADEONValidateFPModes(output, pScrn->display->modes, &modes);
-	    }
+		edid_mon = xf86OutputGetEDID (output, radeon_output->pI2CBus);
+		xf86OutputSetEDID (output, edid_mon);
+
+		modes = xf86OutputGetEDIDModes (output);
+		return modes;
+	    } else
+		/* add native panel mode */
+		modes = RADEONFPNativeMode(output);
 	}
     }
-    
+
     if (modes) {
 	xf86ValidateModesUserConfig(pScrn, modes);
 	xf86PruneInvalidModes(pScrn, &modes, FALSE);
