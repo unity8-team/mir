@@ -102,11 +102,6 @@ typedef struct drm_i915_flip {
 
 #include "dristruct.h"
 
-static char I830KernelDriverName[] = "i915";
-static char I830ClientDriverName[] = "i915tex";
-static char I965ClientDriverName[] = "i965";
-static char I830LegacyClientDriverName[] = "i915";
-
 static Bool I830InitVisualConfigs(ScreenPtr pScreen);
 static Bool I830CreateContext(ScreenPtr pScreen, VisualPtr visual,
 			      drm_context_t hwContext, void *pVisualConfigPriv,
@@ -538,11 +533,11 @@ I830DRIScreenInit(ScreenPtr pScreen)
    pI830->pDRIInfo = pDRIInfo;
    pI830->LockHeld = 0;
 
-   pDRIInfo->drmDriverName = I830KernelDriverName;
+   pDRIInfo->drmDriverName = "i915";
    if (IS_I965G(pI830))
-      pDRIInfo->clientDriverName = I965ClientDriverName;
-   else 
-      pDRIInfo->clientDriverName = I830ClientDriverName;
+      pDRIInfo->clientDriverName = "i965";
+   else
+      pDRIInfo->clientDriverName = "i915";
 
    if (xf86LoaderCheckSymbol("DRICreatePCIBusID")) {
       pDRIInfo->busIdString = DRICreatePCIBusID(pI830->PciInfo);
@@ -719,9 +714,15 @@ I830DRIScreenInit(ScreenPtr pScreen)
 	    drmFreeVersion(version);
 	    return FALSE;
 	 }
-	 if (strncmp(version->name, I830KernelDriverName, strlen(I830KernelDriverName))) {
-	    xf86DrvMsg(pScreen->myNum, X_WARNING, 
-			"i830 Kernel module detected, Use the i915 Kernel module instead, aborting DRI init.\n");
+	 /* Check whether the kernel module attached to the device isn't the
+	  * one we expected (meaning it's the old i830 module).
+	  */
+	 if (strncmp(version->name, pDRIInfo->drmDriverName,
+		     strlen(pDRIInfo->drmDriverName)))
+	 {
+	    xf86DrvMsg(pScreen->myNum, X_WARNING,
+		       "Detected i830 kernel module.  The i915 kernel module "
+		       "is required for DRI.  Aborting.\n");
 	    I830DRICloseScreen(pScreen);
 	    drmFreeVersion(version);
 	    return FALSE;
@@ -737,15 +738,6 @@ I830DRIScreenInit(ScreenPtr pScreen)
 #endif	 
 	 drmFreeVersion(version);
       }
-   }
-
-   /*
-    * Backwards compatibility
-    */
-
-   if ((pDRIInfo->clientDriverName == I830ClientDriverName) && 
-       (pI830->allocate_classic_textures)) {
-      pDRIInfo->clientDriverName = I830LegacyClientDriverName;
    }
 
    return TRUE;
