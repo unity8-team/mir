@@ -915,38 +915,43 @@ void Nv20SetupOutputs(ScrnInfoPtr pScrn)
 
 void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 {
-  unsigned char type, port, or;
-  NVPtr pNv = NVPTR(pScrn);
-  int i;
+	unsigned char type, port, or, i2c_index;
+	NVPtr pNv = NVPTR(pScrn);
+	int i;
 
-  /* we setup the outputs up from the BIOS table */
-  if (pNv->dcb_entries) {
-    for (i = 0 ; i < pNv->dcb_entries; i++) {
-      type = pNv->dcb_table[i] & 0xf;
-      port = (pNv->dcb_table[i] >> 4) & 0xf;
-      or = ffs((pNv->dcb_table[i] >> 24) & 0xf) - 1;
-     
-      if (type < 4)
-	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry: %d: %08X type: %d, port %d:, or %d\n", i, pNv->dcb_table[i], type, port, or);
-      if (type < 4 && port != 0xf) {
-	switch(type) {
-	case 0: /* analog */
-	  nv_add_analog_output(pScrn, port);
-	  break;
-	case 2:
-	  nv_add_digital_output(pScrn, port, 0);
-	  break;
-	case 3:
-	  nv_add_digital_output(pScrn, port, 1);
-	  break;
-	default:
-	  break;
-	}
-      }
-    }
-  } else
-    Nv20SetupOutputs(pScrn);
+	/* we setup the outputs up from the BIOS table */
+	if (pNv->dcb_entries) {
+		for (i = 0 ; i < pNv->dcb_entries; i++) {
+			type = pNv->dcb_table[i] & 0xf;
+			port = (pNv->dcb_table[i] >> 4) & 0xf;
+			or = ffs((pNv->dcb_table[i] >> 24) & 0xf) - 1;
+			if (pNv->Architecture == NV_ARCH_40) {
+				/* Ports seem to be inverse on nv4x */
+				i2c_index = (~port) & 1;
+			} else {
+				i2c_index = port;
+			}
 
+			if (type < 4)
+				xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry: %d: %08X type: %d, port %d:, or %d\n", i, pNv->dcb_table[i], type, port, or);
+			if (type < 4 && port != 0xf) {
+				switch(type) {
+				case 0: /* analog */
+					nv_add_analog_output(pScrn, i2c_index);
+					break;
+				case 2:
+					nv_add_digital_output(pScrn, i2c_index, 0);
+					break;
+				case 3:
+					nv_add_digital_output(pScrn, i2c_index, 1);
+					break;
+				default:
+					break;
+				}
+			}
+		}
+	} else
+		Nv20SetupOutputs(pScrn);
 }
 
 struct nv_i2c_struct {
