@@ -715,14 +715,6 @@ Bool RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output)
 		radeon_output->PanelPwrDly = 2000;
 
 	    radeon_output->Flags = 0;
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-		       "LVDS Info:\n"
-		       "XRes: %d, YRes: %d, DotClock: %d\n"
-		       "HBlank: %d, HOverPlus: %d, HSyncWidth: %d\n"
-		       "VBlank: %d, VOverPlus: %d, VSyncWidth: %d\n",
-		       radeon_output->PanelXRes, radeon_output->PanelYRes, radeon_output->DotClock,
-		       radeon_output->HBlank, radeon_output->HOverPlus, radeon_output->HSyncWidth,
-		       radeon_output->VBlank, radeon_output->VOverPlus, radeon_output->VSyncWidth);
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "No LVDS Info Table found in BIOS!\n");
@@ -793,6 +785,16 @@ Bool RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output)
 	    }
 	}
     }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+	       "LVDS Info:\n"
+	       "XRes: %d, YRes: %d, DotClock: %d\n"
+	       "HBlank: %d, HOverPlus: %d, HSyncWidth: %d\n"
+	       "VBlank: %d, VOverPlus: %d, VSyncWidth: %d\n",
+	       radeon_output->PanelXRes, radeon_output->PanelYRes, radeon_output->DotClock,
+	       radeon_output->HBlank, radeon_output->HOverPlus, radeon_output->HSyncWidth,
+	       radeon_output->VBlank, radeon_output->VOverPlus, radeon_output->VSyncWidth);
+
     return TRUE;
 }
 

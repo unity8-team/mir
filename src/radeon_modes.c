@@ -135,17 +135,10 @@ static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 DisplayModePtr
 RADEONProbeOutputModes(xf86OutputPtr output)
 {
-    ScrnInfoPtr	    pScrn = output->scrn;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     xf86MonPtr		    edid_mon;
     DisplayModePtr	    modes = NULL;
 
-#if 0
-    /* force reprobe */
-    radeon_output->MonType = MT_UNKNOWN;
-
-    RADEONConnectorFindMonitor(pScrn, output);
-#endif
     ErrorF("in RADEONProbeOutputModes\n");
 
     if (output->status == XF86OutputStatusConnected) {
@@ -168,15 +161,12 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 
 		modes = xf86OutputGetEDIDModes (output);
 		return modes;
-	    } else
+	    } else {
 		/* add native panel mode */
 		modes = RADEONFPNativeMode(output);
+		return modes;
+	    }
 	}
-    }
-
-    if (modes) {
-	xf86ValidateModesUserConfig(pScrn, modes);
-	xf86PruneInvalidModes(pScrn, &modes, FALSE);
     }
 
     return modes;
