@@ -866,7 +866,8 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index)
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
-	int   crtc_mask = (1<<i2c_index);
+	int crtc_num = i2c_index;
+	int crtc_mask = (1<<crtc_num);
 
 	sprintf(outputname, "Analog-%d", pNv->analog_count);
 	output = xf86OutputCreate (pScrn, &nv_analog_output_funcs, outputname);
@@ -883,7 +884,7 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index)
 
 	/* dvi outputs share their i2c port with their analog output on the same port */
 	/* But they can never work at the same time, so it's convient to share ramdac index */
-	nv_output->ramdac = i2c_index;
+	//nv_output->ramdac = i2c_index;
 
 	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
 
@@ -891,6 +892,40 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index)
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 
 	pNv->analog_count++;
+
+	/* Are we part of a dvi-d/dvi-a pair? */
+	if (pNv->ramdac_occupied[0] && pNv->crtc_associated[0] == crtc_num) {
+		nv_output->ramdac = 0;
+		ErrorF("DVI-D/DVI-A pair on ramdac0\n");
+		return;
+	}
+
+	/* Are we part of a dvi-d/dvi-a pair? */
+	if (pNv->ramdac_occupied[1] && pNv->crtc_associated[1] == crtc_num) {
+		nv_output->ramdac = 1;
+		ErrorF("DVI-D/DVI-A pair on ramdac1\n");
+		return;
+	}
+
+	/* Are we not a digital monitor? */
+	if (!(pNv->ramdac_occupied[0]) && !(nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED)) {
+		nv_output->ramdac = 0;
+		pNv->ramdac_occupied[0] = TRUE;
+		pNv->crtc_associated[0] = crtc_num;
+		ErrorF("CRT active on ramdac0\n");
+		return;
+	}
+
+	/* Are we not a digital monitor? */
+	if (!(pNv->ramdac_occupied[1]) && !(nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED)) {
+		nv_output->ramdac = 1;
+		pNv->ramdac_occupied[1] = TRUE;
+		pNv->crtc_associated[1] = crtc_num;
+		ErrorF("CRT active on ramdac1\n");
+		return;
+	}
+
+	ErrorF("Something wen't wrong, found no ramdac for analog monitor\n");
 }
 
 
@@ -900,7 +935,8 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index, Bool dual_dv
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
-	int   crtc_mask = (1<<i2c_index);
+	int crtc_num = i2c_index;
+	int crtc_mask = (1<<crtc_num);
 
 	sprintf(outputname, "Digital-%d", pNv->digital_count);
 	if (lvds)
@@ -918,7 +954,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index, Bool dual_dv
 	output->driver_private = nv_output;
 	nv_output->type = OUTPUT_DIGITAL;
 
-	nv_output->ramdac = i2c_index;
+	//nv_output->ramdac = i2c_index;
 
 	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
 
@@ -933,10 +969,16 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index, Bool dual_dv
 		/* Is the ramdac in use for a dfp? */
 		if (nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED) {
 			pramdac0 = TRUE;
+			nv_output->ramdac = 0;
+			pNv->ramdac_occupied[0] = TRUE;
+			pNv->crtc_associated[0] = crtc_num;
 			ErrorF("DFP active on ramdac0\n");
 		}
 		if (nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED) {
 			pramdac1 = TRUE;
+			nv_output->ramdac = 1;
+			pNv->ramdac_occupied[1] = TRUE;
+			pNv->crtc_associated[1] = crtc_num;
 			ErrorF("DFP active on ramdac1\n");
 		}
 

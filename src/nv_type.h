@@ -346,6 +346,8 @@ typedef struct _NVRec {
     int digital_count;
     CARD32 dcb_table[NV40_NUM_DCB_ENTRIES]; /* 10 is a good limit */
     Bool crosswired_tmds;
+    Bool ramdac_occupied[2];
+    int crtc_associated[2];
 
     struct {
 	    ORNum dac;
