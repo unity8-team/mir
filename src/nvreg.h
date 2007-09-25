@@ -182,7 +182,7 @@
 #define NV_RAMDAC_DITHER_NV11       0x528
 #define NV_RAMDAC_OUTPUT            0x52c
 #define NV_RAMDAC_OUTPUT_DAC_ENABLE                     (1<<0)
-#define NV_RAMDAC_OUTPUT_SELECT_CRTC2                   (1<<8)
+#define NV_RAMDAC_OUTPUT_SELECT_CRTC1                   (1<<8)
 
 #define NV_RAMDAC_NVPLL_B           0x570
 #define NV_RAMDAC_MPLL_B            0x574
@@ -237,6 +237,9 @@
 #define NV_RAMDAC_FP_CONTROL_ENABLE (1<<28) // toggling this bit turns things on/off
 
 #define NV_RAMDAC_FP_DEBUG_0        0x880
+/* Not a 100% sure, but several mmio traces confirm this */
+/* This is one of the things needed to determine how the dvi transmitter(s) is/are wired */
+#define NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED (1<<7)
 #define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK (1<<28)
 #define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL (2<<28)
 #define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH (3<<28)
