@@ -821,72 +821,70 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 
 static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index)
 {
-  NVPtr pNv = NVPTR(pScrn);
-  xf86OutputPtr	    output;
-  NVOutputPrivatePtr    nv_output;
-  char outputname[20];
-  int   crtc_mask = (1<<0) | (1<<1);
+	NVPtr pNv = NVPTR(pScrn);
+	xf86OutputPtr	    output;
+	NVOutputPrivatePtr    nv_output;
+	char outputname[20];
+	int   crtc_mask = (1<<0) | (1<<1);
 
-  sprintf(outputname, "Analog-%d", pNv->analog_count);
-  output = xf86OutputCreate (pScrn, &nv_analog_output_funcs, outputname);
-  if (!output)
-    return;
-  nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
-  if (!nv_output)
-  {
-    xf86OutputDestroy (output);
-    return;
-  }
-  
-  output->driver_private = nv_output;
-  nv_output->type = OUTPUT_ANALOG;
+	sprintf(outputname, "Analog-%d", pNv->analog_count);
+	output = xf86OutputCreate (pScrn, &nv_analog_output_funcs, outputname);
+	if (!output)
+		return;
+	nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
+	if (!nv_output) {
+		xf86OutputDestroy (output);
+		return;
+	}
 
-  /* dvi outputs share their i2c port with their analog output on the same port */
-  /* But they can never work at the same time, so it's convient to share ramdac index */
-  nv_output->ramdac = i2c_index;
+	output->driver_private = nv_output;
+	nv_output->type = OUTPUT_ANALOG;
 
-  nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
+	/* dvi outputs share their i2c port with their analog output on the same port */
+	/* But they can never work at the same time, so it's convient to share ramdac index */
+	nv_output->ramdac = i2c_index;
 
-  output->possible_crtcs = crtc_mask;
-  xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
-  
-  pNv->analog_count++;
+	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
+
+	output->possible_crtcs = crtc_mask;
+	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
+
+	pNv->analog_count++;
 }
 
 
 static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index, int lvds)
 {
-  NVPtr pNv = NVPTR(pScrn);
-  xf86OutputPtr	    output;
-  NVOutputPrivatePtr    nv_output;
-  char outputname[20];
-  int   crtc_mask = (1<<0) | (1<<1);
+	NVPtr pNv = NVPTR(pScrn);
+	xf86OutputPtr	    output;
+	NVOutputPrivatePtr    nv_output;
+	char outputname[20];
+	int   crtc_mask = (1<<0) | (1<<1);
 
-  sprintf(outputname, "Digital-%d", pNv->digital_count);
-  if (lvds)
-    output = xf86OutputCreate (pScrn, &nv_lvds_output_funcs, outputname);
-  else
-    output = xf86OutputCreate (pScrn, &nv_digital_output_funcs, outputname);
-  if (!output)
-    return;
-  nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
-  if (!nv_output)
-  {
-    xf86OutputDestroy (output);
-    return;
-  }
-  
-  output->driver_private = nv_output;
-  nv_output->type = OUTPUT_DIGITAL;
-  
-  nv_output->ramdac = i2c_index;
-  
-  nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
-  
-  output->possible_crtcs = crtc_mask;
-  xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
+	sprintf(outputname, "Digital-%d", pNv->digital_count);
+	if (lvds)
+		output = xf86OutputCreate (pScrn, &nv_lvds_output_funcs, outputname);
+	else
+		output = xf86OutputCreate (pScrn, &nv_digital_output_funcs, outputname);
+	if (!output)
+		return;
+	nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
+	if (!nv_output) {
+		xf86OutputDestroy (output);
+		return;
+	}
 
-  pNv->digital_count++;
+	output->driver_private = nv_output;
+	nv_output->type = OUTPUT_DIGITAL;
+
+	nv_output->ramdac = i2c_index;
+
+	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
+
+	output->possible_crtcs = crtc_mask;
+	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
+
+	pNv->digital_count++;
 }
 /**
  * Set up the outputs according to what type of chip we are.
