@@ -1066,17 +1066,17 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = 0;
 	regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = 0;
 
-	/* blob sets this value */
-	regp->CRTC[NV_VGA_CRTCX_3C] = 0x70;
-	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
-	regp->CRTC[NV_VGA_CRTCX_47] = 0x01;
+	/* These values seem to vary */
+	/* 0x00, 0x04, 0x10, 0x14 for example */
+	regp->CRTC[NV_VGA_CRTCX_3C] = savep->CRTC[NV_VGA_CRTCX_3C];
 
-	/* more blob imitating */
-	if (nv_crtc->crtc == 1) {
-		regp->CRTC[NV_VGA_CRTCX_56] = 0x04;
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_56] = 0x0;
-	}
+	/* It's annoying to be wrong */
+	/* Values of 0x80 and 0x00 seem to be used */
+	regp->CRTC[NV_VGA_CRTCX_45] = savep->CRTC[NV_VGA_CRTCX_45];
+
+	/* These values seem to vary */
+	/* 0x01, 0x10, 0x11 for example */
+	regp->CRTC[NV_VGA_CRTCX_56] = savep->CRTC[NV_VGA_CRTCX_56];
 
 	regp->unk830 = mode->CrtcVDisplay - 3;
 	regp->unk834 = mode->CrtcVDisplay - 1;
@@ -1297,7 +1297,6 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3C, regp->CRTC[NV_VGA_CRTCX_3C]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_45, regp->CRTC[NV_VGA_CRTCX_45]);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_47, regp->CRTC[NV_VGA_CRTCX_47]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_56, regp->CRTC[NV_VGA_CRTCX_56]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_59, regp->CRTC[NV_VGA_CRTCX_59]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
@@ -1398,7 +1397,6 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	regp->CRTC[NV_VGA_CRTCX_3C] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3C);
 	regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_45);
-	regp->CRTC[NV_VGA_CRTCX_47] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_47);
 	regp->CRTC[NV_VGA_CRTCX_56] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_56);
 	regp->CRTC[NV_VGA_CRTCX_59] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_59);
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER);
