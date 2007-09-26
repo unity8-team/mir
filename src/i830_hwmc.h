@@ -47,7 +47,7 @@ struct intel_xvmc_driver {
 
 extern struct intel_xvmc_driver *xvmc_driver;
 extern struct intel_xvmc_driver i915_xvmc_driver;
-extern struct intel_xvmc_driver i965_xvmc_driver;
+/* extern struct intel_xvmc_driver i965_xvmc_driver; */
 
 extern Bool intel_xvmc_set_driver(struct intel_xvmc_driver *);
 extern Bool intel_xvmc_probe(ScrnInfoPtr);
