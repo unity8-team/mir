@@ -58,8 +58,6 @@ Bool intel_xvmc_probe(ScrnInfoPtr pScrn)
 	else
 	    ret = intel_xvmc_set_driver(&i965_xvmc_driver);
 	 */
-	if (ret)
-	    pI830->XvMCEnabled = TRUE;
     } else {
 	ErrorF("Your chipset doesn't support XvMC.\n");
 	return FALSE;
@@ -74,10 +72,9 @@ void intel_xvmc_finish(ScrnInfoPtr pScrn)
     (*xvmc_driver->fini)(pScrn);
 }
 
-Bool intel_xvmc_init(ScreenPtr pScreen, XF86VideoAdaptorPtr xv_adaptor)
+Bool intel_xvmc_xv_init(ScreenPtr pScreen, XF86VideoAdaptorPtr xv_adaptor)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
 
     if (!xvmc_driver) {
 	ErrorF("Failed to probe XvMC driver.\n");
@@ -88,11 +85,22 @@ Bool intel_xvmc_init(ScreenPtr pScreen, XF86VideoAdaptorPtr xv_adaptor)
 	ErrorF("XvMC driver initialize failed.\n");
 	return FALSE;
     }
+    return TRUE;
+}
+
+Bool intel_xvmc_init(ScreenPtr pScreen)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (!xvmc_driver)
+	return FALSE;
 
     if (xf86XvMCScreenInit(pScreen, 1, &xvmc_driver->adaptor)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"[XvMC] %s driver initialized.\n",
 		xvmc_driver->name);
+	pI830->XvMCEnabled = TRUE;
     } else {
 	intel_xvmc_finish(pScrn);
 	pI830->XvMCEnabled = FALSE;

@@ -51,7 +51,8 @@ extern struct intel_xvmc_driver i915_xvmc_driver;
 
 extern Bool intel_xvmc_set_driver(struct intel_xvmc_driver *);
 extern Bool intel_xvmc_probe(ScrnInfoPtr);
-extern Bool intel_xvmc_init(ScreenPtr, XF86VideoAdaptorPtr);
+extern Bool intel_xvmc_xv_init(ScreenPtr, XF86VideoAdaptorPtr);
+extern Bool intel_xvmc_init(ScreenPtr);
 extern void intel_xvmc_finish(ScrnInfoPtr);
 extern int intel_xvmc_putimage_size(ScrnInfoPtr);
 
