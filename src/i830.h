@@ -319,12 +319,12 @@ typedef struct _I830Rec {
    /* For Xvideo */
    i830_memory *overlay_regs;
 #endif
-   
+#ifdef XvMCExtension
    /* For XvMC */
-   void *xvmc;
    Bool XvMCEnabled;
    Bool IsXvMCSurface;
- 
+#endif
+
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
    Rotation rotation;
    void (*PointerMoved)(int, int, int);

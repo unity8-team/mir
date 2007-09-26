@@ -458,7 +458,7 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
     DRIInfoPtr pDRIInfo = pI830->pDRIInfo;
     I830DRIPtr pI830DRI = pDRIInfo->devPrivate;
     I915XvMCCreateContextRec *contextRec = NULL;
-    I915XvMCPtr pXvMC = pI830->xvmc;
+    I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
     I915XvMCContextPriv *ctxpriv = NULL;
     int i;
 
@@ -569,7 +569,7 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
                                  int *num_priv, long **priv )
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I915XvMCPtr pXvMC = pI830->xvmc;
+    I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
     I915XvMCSurfacePriv *sfpriv = NULL;
     I915XvMCCreateSurfaceRec *surfaceRec = NULL;
     XvMCContextPtr ctx = NULL;
@@ -663,7 +663,7 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
                                      int *num_priv, long **priv )
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I915XvMCPtr pXvMC = pI830->xvmc;
+    I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
     I915XvMCSurfacePriv *sfpriv = NULL;
     I915XvMCCreateSurfaceRec *surfaceRec = NULL;
     XvMCContextPtr ctx = NULL;
@@ -749,8 +749,7 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 
 static void I915XvMCDestroyContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    I915XvMCPtr pXvMC = pI830->xvmc;
+    I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
     int i;
 
     for (i = 0; i < I915_XVMC_MAX_CONTEXTS; i++) {
@@ -771,7 +770,7 @@ static void I915XvMCDestroyContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext)
 static void I915XvMCDestroySurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I915XvMCPtr pXvMC = pI830->xvmc;
+    I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
     int i;
 
     for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
@@ -792,7 +791,7 @@ static void I915XvMCDestroySurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
 static void I915XvMCDestroySubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I915XvMCPtr pXvMC = pI830->xvmc;
+    I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
     int i;
 
     for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
@@ -818,7 +817,7 @@ static int I915XvMCPutImage(ScrnInfoPtr pScrn, short src_x, short src_y,
                                      DrawablePtr pDraw)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    I915XvMCPtr pXvMC = pI830->xvmc;
+    I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
     I915XvMCCommandBuffer *i915XvMCData = (I915XvMCCommandBuffer *)buf;
     int ret;
 
