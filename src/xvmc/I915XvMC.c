@@ -45,6 +45,7 @@
 #include <xf86drm.h>
 #include <drm_sarea.h>
 
+#include "intel_xvmc.h"
 #include "I915XvMC.h"
 #include "i915_structs.h"
 #include "i915_program.h"
@@ -124,8 +125,7 @@ _STATIC_ int findOverlap(unsigned int width, unsigned int height,
 
 _STATIC_ __inline__ void renderError(void) 
 {
-    printf("Invalid Macroblock Parameters found.\n");
-    return;
+    XVMC_ERR("Invalid Macroblock Parameters found.");
 }
 
 _STATIC_ void I915XvMCContendedLock(i915XvMCContext *pI915XvMC, drmLockFlags flags)
@@ -1105,7 +1105,7 @@ _STATIC_ void i915_mc_invalidate_subcontext_buffers(XvMCContext *context, unsign
         size += sizeof(*psc);
 
     if (size == sizeof(*load_indirect)) {
-        printf("There must be at least one bit set\n");
+        XVMC_ERR("There must be at least one bit set\n");
         return;
     }
 
@@ -1771,7 +1771,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 
     if (!(flags & XVMC_DIRECT)) {
         /* Indirect */
-        printf("Indirect Rendering not supported! Using Direct.\n");
+        XVMC_ERR("Indirect Rendering not supported! Using Direct.");
         return BadAccess;
     }
 
@@ -1802,13 +1802,13 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     XLockDisplay(display);
     if (!XvMCQueryExtension(display, &event_base, &error_base)) {
         XUnlockDisplay(display);
-        printf("XvMCExtension is not available!\n");
+        XVMC_ERR("XvMCExtension is not available!");
         return BadAlloc;
     }
     /* Verify XvMC version */
     ret = XvMCQueryVersion(display, &major, &minor);
     if (ret) {
-        printf("XvMCQueryVersion Failed, unable to determine protocol version\n");
+        XVMC_ERR("XvMCQueryVersion Failed, unable to determine protocol version.");
     }
     XUnlockDisplay(display);
     /* FIXME: Check Major and Minor here */
@@ -1816,14 +1816,14 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     /* Allocate private Context data */
     context->privData = (void *)calloc(1, sizeof(i915XvMCContext));
     if (!context->privData) {
-        printf("Unable to allocate resources for XvMC context.\n");
+        XVMC_ERR("Unable to allocate resources for XvMC context.");
         return BadAlloc;
     }
     pI915XvMC = (i915XvMCContext *)context->privData;
 
     /* Check for drm */
     if (!drmAvailable()) {
-        printf("Direct Rendering is not avilable on this system!\n");
+        XVMC_ERR("Direct Rendering is not avilable on this system!");
         free(pI915XvMC);
         context->privData = NULL;
         return BadAccess;
@@ -1836,7 +1836,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     XLockDisplay(display);
     if ((ret = _xvmc_create_context(display, context, &priv_count, &priv_data))) {
         XUnlockDisplay(display);
-        printf("Unable to create XvMC Context.\n");
+        XVMC_ERR("Unable to create XvMC Context.");
         free(pI915XvMC);
         context->privData = NULL;
         return ret;
@@ -1844,8 +1844,8 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     XUnlockDisplay(display);
 
     if (priv_count != (sizeof(I915XvMCCreateContextRec) >> 2)) {
-        printf("_xvmc_create_context() returned incorrect data size!\n");
-        printf("\tExpected %d, got %d\n", 
+        XVMC_ERR("_xvmc_create_context() returned incorrect data size!");
+        XVMC_INFO("\tExpected %d, got %d",
                (int)(sizeof(I915XvMCCreateContextRec) >> 2),priv_count);
         _xvmc_destroy_context(display, context);
         free(priv_data);
@@ -1904,8 +1904,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
                                             &isCapable);
     if (!ret || !isCapable) {
         XUnlockDisplay(display);
-        fprintf(stderr,
-                "Direct Rendering is not available on this system!\n");
+	XVMC_ERR("Direct Rendering is not available on this system!");
         free(pI915XvMC);
         context->privData = NULL;
         return BadAlloc;
@@ -1914,7 +1913,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     if (!uniDRIOpenConnection(display, pI915XvMC->screen,
                               &pI915XvMC->hsarea, &curBusID)) {
         XUnlockDisplay(display);
-        fprintf(stderr, "Could not open DRI connection to X server!\n");
+        XVMC_ERR("Could not open DRI connection to X server!");
         free(pI915XvMC);
         context->privData = NULL;
         return BadAlloc;
@@ -1927,7 +1926,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 
     /* Open DRI Device */
     if((pI915XvMC->fd = drmOpen(I915KernelDriverName, NULL)) < 0) {
-        printf("DRM Device for %s could not be opened.\n", I915KernelDriverName);
+        XVMC_ERR("DRM Device for %s could not be opened.", I915KernelDriverName);
         free(pI915XvMC);
         context->privData = NULL;
         return BadAccess;
@@ -1940,8 +1939,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     XLockDisplay(display);
     if (!uniDRIAuthConnection(display, pI915XvMC->screen, magic)) {
         XUnlockDisplay(display);
-        fprintf(stderr,
-                "[XvMC]: X server did not allow DRI. Check permissions.\n");
+	XVMC_ERR("[XvMC]: X server did not allow DRI. Check permissions.");
         free(pI915XvMC);
         context->privData = NULL;
         return BadAlloc;
@@ -1953,7 +1951,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
      */
     if (drmMap(pI915XvMC->fd, pI915XvMC->hsarea,
                pI915XvMC->sarea_size, &pI915XvMC->sarea_address) < 0) {
-        fprintf(stderr, "Unable to map DRI SAREA.\n");
+        XVMC_ERR("Unable to map DRI SAREA.\n");
         free(pI915XvMC);
         context->privData = NULL;
         return BadAlloc;
@@ -1969,8 +1967,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     XUnlockDisplay(display);
 
     if (!ret) {
-        fprintf(stderr,
-                "[XvMC]: Could not find a matching TrueColor visual.\n");
+	XVMC_ERR("Could not find a matching TrueColor visual.");
         free(pI915XvMC);
         context->privData = NULL;
         drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
@@ -1980,8 +1977,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     if (!uniDRICreateContext(display, pI915XvMC->screen,
                              pI915XvMC->visualInfo.visual, &pI915XvMC->id,
                              &pI915XvMC->hHWContext)) {
-
-        fprintf(stderr, "[XvMC]: Could not create DRI context.\n");
+        XVMC_ERR("Could not create DRI context.");
         free(pI915XvMC);
         context->privData = NULL;
         drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
@@ -1989,8 +1985,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     }
 
     if (NULL == (pI915XvMC->drawHash = drmHashCreate())) {
-        fprintf(stderr, 
-                "[XvMC]: Could not allocate drawable hash table.\n");
+	XVMC_ERR("Could not allocate drawable hash table.");
         free(pI915XvMC);
         context->privData = NULL;
         drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
@@ -2085,7 +2080,7 @@ Status XvMCCreateSurface(Display *display, XvMCContext *context, XvMCSurface *su
     if ((ret = _xvmc_create_surface(display, context, surface,
                                     &priv_count, &priv_data))) {
         XUnlockDisplay(display);
-        printf("Unable to create XvMCSurface.\n");
+        XVMC_ERR("Unable to create XvMCSurface.");
         free(pI915Surface);
         surface->privData = NULL;
         PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
@@ -2095,8 +2090,8 @@ Status XvMCCreateSurface(Display *display, XvMCContext *context, XvMCSurface *su
     XUnlockDisplay(display);
 
     if (priv_count != (sizeof(I915XvMCCreateSurfaceRec) >> 2)) {
-        printf("_xvmc_create_surface() returned incorrect data size!\n");
-        printf("\tExpected %d, got %d\n", 
+        XVMC_ERR("_xvmc_create_surface() returned incorrect data size!");
+        XVMC_INFO("\tExpected %d, got %d",
                (int)(sizeof(I915XvMCCreateSurfaceRec) >> 2), priv_count);
         _xvmc_destroy_surface(display, surface);
         free(priv_data);
@@ -2281,13 +2276,8 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
     i915XvMCContext *pI915XvMC = NULL;
 
     /* Check Parameters for validity */
-    if (!display) {
-        printf("Error, Invalid display!\n");
-        return BadValue;
-    }
-
     if (!display || !context || !target_surface) {
-        printf("Error, Invalid Display, Context or Target!\n");
+        XVMC_ERR("Invalid Display, Context or Target!");
         return BadValue;
     }
 
@@ -2295,12 +2285,12 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
         return Success;
 
     if (!macroblock_array || !blocks) {
-        printf("Error, Invalid block data!\n");
+        XVMC_ERR("Invalid block data!");
         return BadValue;
     }
 
     if (macroblock_array->num_blocks < (num_macroblocks + first_macroblock)) {
-        printf("Error, Too many macroblocks requested for MB array size.\n");
+        XVMC_ERR("Too many macroblocks requested for MB array size.");
         return BadValue;
     }
 
@@ -2312,7 +2302,7 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
 
     /* Test For YV12 Surface */
     if (context->surface_type_id != FOURCC_YV12) {
-        printf("Error, HWMC only possible on YV12 Surfaces\n");
+        XVMC_ERR("HWMC only possible on YV12 Surfaces.");
         return BadValue;
     }
 
@@ -2322,7 +2312,7 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
         privPast = privTarget;
     } else {
         if (!(privPast = past_surface->privData)) {
-            printf("Error, Invalid Past Surface!\n");
+            XVMC_ERR("Invalid Past Surface!");
             return (error_base + XvMCBadSurface);
         }
         
@@ -2334,12 +2324,12 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
         privFuture = privPast; // privTarget;
     } else {
         if (!past_surface) {
-            printf("Error, No Past Surface!\n");
+            XVMC_ERR("No Past Surface!");
             return BadValue;
         }
 
         if (!(privFuture = future_surface->privData)) {
-            printf("Error, Invalid Future Surface!\n");
+            XVMC_ERR("Invalid Future Surface!");
             return (error_base + XvMCBadSurface);
         }
 
@@ -2358,12 +2348,12 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
         /* Lockup can happen if the coordinates are too far out of range */
         if (mb->x > (target_surface->width >> 4)) {
             mb->x = 0;
-            printf("reset x\n");
+            XVMC_INFO("reset x");
         }
 
         if (mb->y > (target_surface->height >> 4)) {
             mb->y = 0;
-            printf("reset y\n");
+            XVMC_INFO("reset y");
         }
 
         /* Catch no pattern case */
@@ -2371,7 +2361,7 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
             !(mb->macroblock_type & XVMC_MB_TYPE_INTRA) &&
             mb->coded_block_pattern) {
             mb->coded_block_pattern = 0;
-            printf("no coded blocks present!\n");
+            XVMC_INFO("no coded blocks present!");
         }
         
         bspm = mb_bytes[mb->coded_block_pattern];
@@ -2382,7 +2372,7 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
         corrdata_size += bspm;
 
         if (corrdata_size > pI915XvMC->corrdata.size) {
-            printf("Error, correction data buffer overflow\n");
+            XVMC_ERR("correction data buffer overflow.");
             break;
         }
         memcpy(corrdata_ptr, block_ptr, bspm);
@@ -2627,7 +2617,7 @@ Status XvMCGetSurfaceStatus(Display *display, XvMCSurface *surface, int *stat)
     if (pI915Surface->last_flip) {
         /* This can not happen */
         if (pI915XvMC->last_flip < pI915Surface->last_flip) {
-            printf("Error: Context last flip is less than surface last flip.\n");
+            XVMC_ERR("Context last flip is less than surface last flip.");
             PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
             return BadValue;
         }
@@ -2763,7 +2753,7 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
     if ((ret = _xvmc_create_subpicture(display, context, subpicture,
                                        &priv_count, &priv_data))) {
         XUnlockDisplay(display);
-        printf("Unable to create XvMCSubpicture.\n");
+        XVMC_ERR("Unable to create XvMCSubpicture.");
         free(pI915Subpicture);
         subpicture->privData = NULL;
         PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
@@ -2772,8 +2762,8 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
     XUnlockDisplay(display);
 
     if (priv_count != (sizeof(I915XvMCCreateSurfaceRec) >> 2)) {
-        printf("_xvmc_create_subpicture() returned incorrect data size!\n");
-        printf("\tExpected %d, got %d\n", 
+        XVMC_ERR("_xvmc_create_subpicture() returned incorrect data size!");
+        XVMC_INFO("\tExpected %d, got %d", 
                (int)(sizeof(I915XvMCCreateSurfaceRec) >> 2), priv_count);
         XLockDisplay(display);
         _xvmc_destroy_subpicture(display, subpicture);

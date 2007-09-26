@@ -11,6 +11,7 @@ libI810XvMC_la_LIBADD = @DRI_LIBS@
 
 libI915XvMC_la_SOURCES = I915XvMC.c \
                          I915XvMC.h \
+			 intel_xvmc.h \
                          intel_batchbuffer.c \
                          intel_batchbuffer.h \
                          xf86dri.c \
