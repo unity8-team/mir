@@ -669,8 +669,11 @@ extern long I830CheckAvailableMemory(ScrnInfoPtr pScrn);
 Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_texture_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
+#ifdef XvMCExtension
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
                                i830_memory **buffer, unsigned long size, int flags);
+#endif
+
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
@@ -766,10 +769,5 @@ extern const int I830CopyROP[16];
 #define QUIRK_IGNORE_LVDS		0x00000002
 #define QUIRK_IGNORE_MACMINI_LVDS 	0x00000004
 extern void i830_fixup_devices(ScrnInfoPtr);
-
-/* i915 XvMC */
-Bool I915XvMCInit(ScreenPtr, XF86VideoAdaptorPtr);
-Bool I915XvMCScreenInit(ScreenPtr);
-unsigned long I915XvMCPutImageSize(ScrnInfoPtr);
 
 #endif /* _I830_H_ */
