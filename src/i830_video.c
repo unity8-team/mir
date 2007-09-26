@@ -2444,9 +2444,10 @@ I830PutImage(ScrnInfoPtr pScrn,
     }
 #endif
 
-    if (((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
-	((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
-	 pI830->FbMapSize)) {
+    if (!pI830->useEXA &&
+	    (((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
+	     ((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
+	      pI830->FbMapSize))) {
 	/* If the pixmap wasn't in framebuffer, then we have no way in XAA to
 	 * force it there.  So, we simply refuse to draw and fail.
 	 */

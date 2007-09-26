@@ -127,8 +127,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    /* front buffer, pitch, offset */
    OUT_RING(_3DSTATE_BUF_INFO_CMD);
    OUT_RING(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
-	    BUF_3D_PITCH(pPixmap->devKind));
-   OUT_RING(BUF_3D_ADDR((long)pPixmap->devPrivate.ptr - (long)pI830->FbBase));
+	    BUF_3D_PITCH(intel_get_pixmap_pitch(pPixmap)));
+   OUT_RING(BUF_3D_ADDR(intel_get_pixmap_offset(pPixmap)));
    ADVANCE_LP_RING();
 
    if (!planar) {
