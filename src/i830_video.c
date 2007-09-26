@@ -74,7 +74,10 @@
 #include "dixstruct.h"
 #include "fourcc.h"
 
+#ifdef XvMCExtension
+#include "i830_hwmc.h"
 #include "i915_hwmc.h"
+#endif
 
 #ifndef USE_USLEEP_FOR_VIDEO
 #define USE_USLEEP_FOR_VIDEO 0
@@ -557,7 +560,6 @@ I830InitVideo(ScreenPtr pScreen)
     XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
     XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
     int num_adaptors;
-    Bool xvmc_init = FALSE;
 
 #if 0
     {
@@ -621,18 +623,16 @@ I830InitVideo(ScreenPtr pScreen)
 	I830InitOffscreenImages(pScreen);
     }
 
-#ifdef XvMCExtension
-    if (texturedAdaptor)
-	xvmc_init = I915XvMCInit(pScreen, texturedAdaptor);
-#endif
     if (num_adaptors)
 	xf86XVScreenInit(pScreen, adaptors, num_adaptors);
 
-    xfree(adaptors);
 #ifdef XvMCExtension
-    if (xvmc_init)
-	I915XvMCScreenInit(pScreen);
+    if (intel_xvmc_probe(pScrn)) {
+	if (texturedAdaptor)
+	    intel_xvmc_init(pScreen, texturedAdaptor);
+    }
 #endif
+    xfree(adaptors);
 }
 
 static void
@@ -2283,6 +2283,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     switch (id) {
     case FOURCC_YV12:
     case FOURCC_I420:
+	//XXX
         if (pI830->IsXvMCSurface) {
             srcPitch = (width + 0x3ff) & ~0x3ff;
             srcPitch2 = ((width >> 1) + 0x3ff) & ~0x3ff;
@@ -2546,7 +2547,7 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
 	break;
     case FOURCC_XVMC:
         *h = (*h + 1) & ~1;
-        size = I915XvMCPutImageSize(pScrn);
+        size = intel_xvmc_putimage_size(pScrn);
         if (pitches)
             pitches[0] = size;
         break;

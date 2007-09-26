@@ -59,6 +59,8 @@ INTEL_DRI_SRCS = \
          i810_dri.h \
          i830_dri.c \
          i810_hwmc.c \
+	 i830_hwmc.h \
+	 i830_hwmc.c \
          i915_hwmc.c \
          i915_hwmc.h \
          i830_dri.h

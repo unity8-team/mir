@@ -55,6 +55,7 @@
 #include "xf86xvpriv.h"
 #endif
 
+#include "i830_hwmc.h"
 #include "i915_hwmc.h"
 
 #define I915_XVMC_MAX_BUFFERS 2
@@ -195,11 +196,6 @@ static XF86MCAdaptorRec pAdapt =
     (xf86XvMCDestroySubpictureProcPtr)I915XvMCDestroySubpicture
 };
 
-static XF86MCAdaptorPtr ppAdapt[1] = 
-{
-    (XF86MCAdaptorPtr)&pAdapt
-};
-
 /*
  * Init and clean up the screen private parts of XvMC.
  */
@@ -220,14 +216,12 @@ static void initI915XvMC(I915XvMCPtr xvmc)
     xvmc->nsurfaces = 0;
 }
 
-//XXX
-static void cleanupI915XvMC(I915XvMCPtr xvmc, XF86VideoAdaptorPtr * XvAdaptors, int XvAdaptorCount)
+static void cleanupI915XvMC(I915XvMCPtr xvmc)
 {
-    unsigned int i;
+    int i;
 
     for (i = 0; i < I915_XVMC_MAX_CONTEXTS; i++) {
         xvmc->contexts[i] = 0;
-
         if (xvmc->ctxprivs[i]) {
             xfree(xvmc->ctxprivs[i]);
             xvmc->ctxprivs[i] = NULL;
@@ -236,7 +230,6 @@ static void cleanupI915XvMC(I915XvMCPtr xvmc, XF86VideoAdaptorPtr * XvAdaptors, 
 
     for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
         xvmc->surfaces[i] = 0;
-        
         if (xvmc->sfprivs[i]) {
             xfree(xvmc->sfprivs[i]);
             xvmc->sfprivs[i] = NULL;
@@ -857,28 +850,14 @@ static int I915XvMCPutImage(ScrnInfoPtr pScrn, short src_x, short src_y,
     return ret;
 }
 
-/*********************************** Public Function **************************************/
-
-/**************************************************************************
- *
- *  I915InitMC
- *
- *  Inputs:
- *    Screen pointer
- *
- *  Outputs:
- *    None
- *  
- **************************************************************************/
-
-Bool I915XvMCInit(ScreenPtr pScreen, XF86VideoAdaptorPtr XvAdapt)
+static int i915_xvmc_putimage_size(ScrnInfoPtr pScrn)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
-    I915XvMCPtr pXvMC;
+    return sizeof(I915XvMCCommandBuffer);
+}
 
-    if (!IS_I9XX(pI830) || IS_I965G(pI830))
-	return FALSE;
+static Bool i915_xvmc_init(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
+{
+    I915XvMCPtr pXvMC;
 
     pXvMC = (I915XvMCPtr)xcalloc(1, sizeof(I915XvMC));
     if (!pXvMC) {
@@ -886,7 +865,7 @@ Bool I915XvMCInit(ScreenPtr pScreen, XF86VideoAdaptorPtr XvAdapt)
                    "[XvMC] alloc driver private failed!\n");
         return FALSE;
     }
-    pI830->xvmc = pXvMC;
+    xvmc_driver->devPrivate = (void*)pXvMC;
     initI915XvMC(pXvMC);
 
     /* set up wrappers */
@@ -895,32 +874,21 @@ Bool I915XvMCInit(ScreenPtr pScreen, XF86VideoAdaptorPtr XvAdapt)
     return TRUE;
 }
 
-Bool I915XvMCScreenInit(ScreenPtr pScreen)
+static void i915_xvmc_fini(ScrnInfoPtr pScrn)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
+    I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
 
-    if (xf86XvMCScreenInit(pScreen, 1, ppAdapt)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"[XvMC] Initialized XvMC.\n");
-	pI830->XvMCEnabled = TRUE;
-    } else {
-        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"[XvMC] xf86 XvMC initial failed\n");
-	pI830->XvMCEnabled = FALSE;
-	xfree(pI830->xvmc);
-	pI830->xvmc = NULL;
-	return FALSE;
-    }
-    return TRUE;
+    cleanupI915XvMC(pXvMC);
+    xfree(xvmc_driver->devPrivate);
 }
 
-unsigned long I915XvMCPutImageSize(ScrnInfoPtr pScrn)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    if (pI830->XvMCEnabled)
-        return sizeof(I915XvMCCommandBuffer);
-
-    return 0;
-}
+/* new xvmc driver interface */
+struct intel_xvmc_driver i915_xvmc_driver = {
+    "i915_xvmc",
+    &pAdapt,
+    XVMC_DRIVER_MPEG2_MC,
+    i915_xvmc_init,
+    i915_xvmc_fini,
+    i915_xvmc_putimage_size,
+    NULL
+};

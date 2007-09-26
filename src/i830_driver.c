@@ -197,6 +197,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_debug.h"
 #include "i830_bios.h"
 
+#ifdef XvMCExtension
+#include "i830_hwmc.h"
+#endif
+
 #ifdef XF86DRI
 #include "dri.h"
 #include <sys/ioctl.h>
@@ -2970,6 +2974,12 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 static void
 I830FreeScreen(int scrnIndex, int flags)
 {
+#ifdef XvMCExtension
+    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+    I830Ptr pI830 = I830PTR(pScrn);
+    if (pI830->XvMCEnabled)
+	intel_xvmc_finish(xf86Screens[scrnIndex]);
+#endif
    I830FreeRec(xf86Screens[scrnIndex]);
    if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
       vgaHWFreeHWRec(xf86Screens[scrnIndex]);
