@@ -91,7 +91,8 @@ Bool intel_xvmc_init(ScreenPtr pScreen, XF86VideoAdaptorPtr xv_adaptor)
 
     if (xf86XvMCScreenInit(pScreen, 1, &xvmc_driver->adaptor)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"[XvMC] Initialized XvMC.\n");
+		"[XvMC] %s driver initialized.\n",
+		xvmc_driver->name);
     } else {
 	intel_xvmc_finish(pScrn);
 	pI830->XvMCEnabled = FALSE;
