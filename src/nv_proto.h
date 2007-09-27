@@ -143,6 +143,9 @@ void NVInitGraphContext(ScrnInfoPtr pScrn);
 /* nv_i2c.c */
 Bool NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name);
 
+/* in nv10_exa.c */
+Bool NVAccelInitNV10TCL(ScrnInfoPtr pScrn);
+
 /* in nv30_exa.c */
 Bool NVAccelInitNV30TCL(ScrnInfoPtr pScrn);
 Bool NVAccelInitNV40TCL(ScrnInfoPtr pScrn);

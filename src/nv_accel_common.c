@@ -294,13 +294,13 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_DMA_NOTIFY, 1);
+	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_SET_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvDmaNotifier0);
-	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_COLOR_KEY, 1);
+	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_SET_COLOR_KEY, 1);
 	NVDmaNext (pNv, NvNullObject);
-	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_SURFACE, 1);
+	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_SET_SURFACES_2D, 1);
 	NVDmaNext (pNv, NvContextSurfaces);
-	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_CLIP_RECTANGLE, 3);
+	NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_SET_CLIP_RECTANGLE, 3);
 	NVDmaNext (pNv, NvNullObject);
 	NVDmaNext (pNv, NvImagePattern);
 	NVDmaNext (pNv, NvRop);
@@ -584,6 +584,9 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 		break;
 	case NV_ARCH_30:
 		INIT_CONTEXT_OBJECT(NV30TCL);
+		break;
+	case NV_ARCH_10:
+		INIT_CONTEXT_OBJECT(NV10TCL);
 		break;
 	default:
 		break;

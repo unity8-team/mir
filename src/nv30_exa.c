@@ -7,10 +7,6 @@
 #include "nv_include.h"
 #include "nv_shaders.h"
 
-#define NV30_TCL_PRIMITIVE_3D_VTX_ATTR_2F_X(d)         (0x00001880 + d * 0x0008)
-#define NV30_TCL_PRIMITIVE_3D_VTX_ATTR_2F_Y(d)         (0x00001884 + d * 0x0008)
-#define NV30_TCL_PRIMITIVE_3D_VTX_ATTR_2I(d)           (0x00001900 + d * 0x0004)
-
 typedef struct nv_pict_surface_format {
 	int	 pict_fmt;
 	uint32_t card_fmt;
