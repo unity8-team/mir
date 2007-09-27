@@ -511,8 +511,8 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 	return FALSE;
     }
 
-    info->exa->exa_major = 2;
-    info->exa->exa_minor = 0;
+    info->exa->exa_major = EXA_VERSION_MAJOR;
+    info->exa->exa_minor = EXA_VERSION_MINOR;
 
     info->exa->PrepareSolid = FUNC_NAME(RADEONPrepareSolid);
     info->exa->Solid = FUNC_NAME(RADEONSolid);
@@ -564,7 +564,14 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     }
 #endif
 
+#if EXA_VERSION_MAJOR > 2 || (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 3)
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting EXA maxPitchBytes\n");
+
+    info->exa->maxPitchBytes = 16320;
     info->exa->maxX = info->exa->Composite ? 2048 : 8192;
+#else
+    info->exa->maxX = info->exa->Composite ? 2048 : 16320 / 4;
+#endif
     info->exa->maxY = info->exa->Composite ? 2048 : 8192;
 
     RADEONEngineInit(pScrn);

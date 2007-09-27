@@ -1938,8 +1938,8 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 
 #ifdef USE_EXA
 	if (info->useEXA) {
-	    info->exaReq.majorversion = 2;
-	    info->exaReq.minorversion = 0;
+	    info->exaReq.majorversion = EXA_VERSION_MAJOR;
+	    info->exaReq.minorversion = EXA_VERSION_MINOR;
 
 	    if (!LoadSubModule(pScrn->module, "exa", NULL, NULL, NULL,
 			       &info->exaReq, &errmaj, &errmin)) {

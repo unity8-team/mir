@@ -157,7 +157,7 @@ static Bool RADEONGetOffsetPitch(PixmapPtr pPix, int bpp, CARD32 *pitch_offset,
 {
 	RINFO_FROM_SCREEN(pPix->drawable.pScreen);
 
-	if (pitch % info->exa->pixmapPitchAlign != 0)
+	if (pitch > 16320 || pitch % info->exa->pixmapPitchAlign != 0)
 		RADEON_FALLBACK(("Bad pitch 0x%08x\n", pitch));
 
 	if (offset % info->exa->pixmapOffsetAlign != 0)
