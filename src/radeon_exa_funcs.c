@@ -244,7 +244,7 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
 #if X_BYTE_ORDER == X_BIG_ENDIAN || defined(ACCEL_CP)
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
 #endif
-    CARD8	   *dst	     = pDst->devPrivate.ptr;
+    CARD8	   *dst	     = info->FB + exaGetPixmapOffset(pDst);
     unsigned int   dst_pitch = exaGetPixmapPitch(pDst);
     unsigned int   bpp	     = pDst->drawable.bitsPerPixel;
 #ifdef ACCEL_CP
@@ -362,7 +362,7 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 	    ~(RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP |
 	      RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP);
 #endif
-    CARD8	  *src	     = pSrc->devPrivate.ptr;
+    CARD8	  *src	     = info->FB + exaGetPixmapOffset(pSrc);
     int		   src_pitch = exaGetPixmapPitch(pSrc);
     int		   bpp	     = pSrc->drawable.bitsPerPixel;
 #ifdef ACCEL_CP
