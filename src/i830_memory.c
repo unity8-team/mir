@@ -392,10 +392,10 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	/* Overlay is always set up as fixed, currently. */
 	if (!OVERLAY_NOPHYSICAL(pI830) && !IS_I965G(pI830)) {
 	    mmsize -= ROUND_TO(OVERLAY_SIZE, GTT_PAGE_SIZE);
-	    if (pI830->CursorNeedsPhysical) {
-		mmsize -= 2 * (ROUND_TO(HWCURSOR_SIZE, GTT_PAGE_SIZE) +
-			     ROUND_TO(HWCURSOR_SIZE_ARGB, GTT_PAGE_SIZE));
-	    }
+	}
+	if (pI830->CursorNeedsPhysical) {
+	    mmsize -= 2 * (ROUND_TO(HWCURSOR_SIZE, GTT_PAGE_SIZE) +
+		    ROUND_TO(HWCURSOR_SIZE_ARGB, GTT_PAGE_SIZE));
 	}
 	if (pI830->fb_compression)
 	    mmsize -= MB(6);
@@ -992,7 +992,7 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
 	return TRUE;
 
     if (OVERLAY_NOPHYSICAL(pI830))
-	flags = 0;
+	flags &= ~NEED_PHYSICAL_ADDR;
 
     if (!IS_I965G(pI830)) {
 	/* XXX: The lifetime fixed offset for overlay register is bogus, and we
@@ -1193,7 +1193,7 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int flags = pI830->CursorNeedsPhysical ? NEED_PHYSICAL_ADDR : 0;
+    int flags = pI830->CursorNeedsPhysical ? NEED_PHYSICAL_ADDR : NEED_LIFETIME_FIXED;
     int i;
     long size;
 
@@ -1381,7 +1381,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     if (IS_I965G(pI830) && !pI830->noAccel && pI830->exa_965_state == NULL) {
 	pI830->exa_965_state =
 	    i830_allocate_memory(pScrn, "exa G965 state buffer",
-		    EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, 0);
+		    EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, NEED_LIFETIME_FIXED);
 	if (pI830->exa_965_state == NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		    "Failed to allocate exa state buffer for 965.\n");
