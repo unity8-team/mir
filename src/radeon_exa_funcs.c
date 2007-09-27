@@ -241,9 +241,7 @@ static Bool
 FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
 				char *src, int src_pitch)
 {
-#if X_BYTE_ORDER == X_BIG_ENDIAN || defined(ACCEL_CP)
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-#endif
     CARD8	   *dst	     = info->FB + exaGetPixmapOffset(pDst);
     unsigned int   dst_pitch = exaGetPixmapPitch(pDst);
     unsigned int   bpp	     = pDst->drawable.bitsPerPixel;
@@ -353,9 +351,7 @@ static Bool
 FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 				    char *dst, int dst_pitch)
 {
-#if defined(ACCEL_CP) || X_BYTE_ORDER == X_BIG_ENDIAN
     RINFO_FROM_SCREEN(pSrc->drawable.pScreen);
-#endif
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned int swapper = info->ModeReg.surface_cntl &
