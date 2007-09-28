@@ -181,7 +181,7 @@ static CARD8 NVReadVgaAttr(xf86CrtcPtr crtc, CARD8 index)
 void NVCrtcSetOwner(xf86CrtcPtr crtc)
 {
   NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-  /*TODO beos double writes this on nv11 */
+  /*TODO haiku double writes this on nv11 */
   NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_OWNER, nv_crtc->crtc * 0x3);
 }
 
@@ -572,10 +572,19 @@ static void
 nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
      NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
      unsigned char seq1 = 0, crtc17 = 0;
      unsigned char crtc1A;
      int ret;
-     Bool crtc_is_on = FALSE;
+
+	ErrorF("nv_crtc_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
+
+	if (crtc->enabled) {
+		pNv->crtc_active[nv_crtc->crtc] = TRUE;
+	} else {
+		pNv->crtc_active[nv_crtc->crtc] = FALSE;
+	}
 
      NVCrtcSetOwner(crtc);
 
@@ -604,7 +613,6 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
        /* Screen: On; HSync: On, VSync: On */
        seq1 = 0x00;
        crtc17 = 0x80;
-       crtc_is_on = TRUE;
        break;
      }
 
@@ -617,16 +625,15 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
      NVWriteVgaSeq(crtc, 0x0, 0x3);
 
      NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1, crtc1A);
-
-	/* This is usefull for Xv NVWaitVSync() */
-	nv_crtc->pNv->crtc_active[nv_crtc->crtc] = crtc_is_on;
 }
 
 static Bool
 nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
-    return TRUE;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ErrorF("nv_crtc_mode_fixup is called for CRTC %d\n", nv_crtc->crtc);
+	return TRUE;
 }
 
 static void
@@ -1007,7 +1014,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		pNv->CURSOR = (CARD32 *)pNv->Cursor->map;
 	}
 
-	ErrorF("crtc %d %d %d\n", nv_crtc->pcio, mode->CrtcHDisplay, pLayout->displayWidth);
+	ErrorF("crtc %d %d %d\n", nv_crtc->crtc, mode->CrtcHDisplay, pLayout->displayWidth);
 	nv_crtc_calc_state_ext(crtc,
 				i,
 				pLayout->displayWidth,
@@ -1099,6 +1106,8 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
     NVPtr pNv = NVPTR(pScrn);
 
+	ErrorF("nv_crtc_mode_set is called for CRTC %d\n", nv_crtc->crtc);
+
     xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Mode on CRTC %d\n", nv_crtc->crtc);
     xf86PrintModeline(pScrn->scrnIndex, mode);
     NVCrtcSetOwner(crtc);
@@ -1135,6 +1144,8 @@ void nv_crtc_save(xf86CrtcPtr crtc)
     NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
     NVPtr pNv = NVPTR(pScrn);
 
+	ErrorF("nv_crtc_save is called for CRTC %d\n", nv_crtc->crtc);
+
     NVCrtcSetOwner(crtc);
     nv_crtc_save_state_pll(pNv, &pNv->SavedReg);
     nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
@@ -1148,6 +1159,8 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
     NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
     NVPtr pNv = NVPTR(pScrn);
 
+	ErrorF("nv_crtc_restore is called for CRTC %d\n", nv_crtc->crtc);
+
     NVCrtcSetOwner(crtc);    
     nv_crtc_load_state_ext(crtc, &pNv->SavedReg);
     nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
@@ -1160,6 +1173,9 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     NVPtr pNv = NVPTR(pScrn);
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+	ErrorF("nv_crtc_prepare is called for CRTC %d\n", nv_crtc->crtc);
 
     /* Sync the engine before adjust mode */
     if (pNv->EXADriverPtr) {
@@ -1170,18 +1186,21 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 
 void nv_crtc_commit(xf86CrtcPtr crtc)
 {
-
-
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ErrorF("nv_crtc_commit for CRTC %d\n", nv_crtc->crtc);
 }
 
 static Bool nv_crtc_lock(xf86CrtcPtr crtc)
 {
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ErrorF("nv_crtc_lock is called for CRTC %d\n", nv_crtc->crtc);
 	return FALSE;
 }
 
 static void nv_crtc_unlock(xf86CrtcPtr crtc)
 {
-
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ErrorF("nv_crtc_unlock is called for CRTC %d\n", nv_crtc->crtc);
 }
 
 static const xf86CrtcFuncsRec nv_crtc_funcs = {

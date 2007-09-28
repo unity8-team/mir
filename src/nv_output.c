@@ -197,7 +197,20 @@ nv_panel_output_dpms(xf86OutputPtr output, int mode)
 static void
 nv_analog_output_dpms(xf86OutputPtr output, int mode)
 {
+	xf86CrtcPtr crtc = output->crtc;
 
+	if (crtc) {
+		NVPtr pNv = NVPTR(output->scrn);
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+		ErrorF("nv_analog_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
+
+		if (crtc->enabled) {
+			pNv->crtc_active[nv_crtc->crtc] = TRUE;
+		} else {
+			pNv->crtc_active[nv_crtc->crtc] = FALSE;
+		}
+	}
 }
 
 static void
@@ -209,7 +222,15 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 		NVPtr pNv = NVPTR(output->scrn);
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_crtc->pcio, NV_RAMDAC_FP_CONTROL);	
+		ErrorF("nv_digital_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
+
+		if (crtc->enabled) {
+			pNv->crtc_active[nv_crtc->crtc] = TRUE;
+		} else {
+			pNv->crtc_active[nv_crtc->crtc] = FALSE;
+		}
+
+		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_crtc->pcio, NV_RAMDAC_FP_CONTROL);
 		switch(mode) {
 			case DPMSModeStandby:
 			case DPMSModeSuspend:
@@ -867,7 +888,7 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index)
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
 	int crtc_num = i2c_index;
-	int crtc_mask = (1<<crtc_num);
+	int crtc_mask = (1<<0) | (1<<1);
 
 	sprintf(outputname, "Analog-%d", pNv->analog_count);
 	output = xf86OutputCreate (pScrn, &nv_analog_output_funcs, outputname);
@@ -936,7 +957,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index, Bool dual_dv
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
 	int crtc_num = i2c_index;
-	int crtc_mask = (1<<crtc_num);
+	int crtc_mask = (1<<0) | (1<<1);
 
 	sprintf(outputname, "Digital-%d", pNv->digital_count);
 	if (lvds)

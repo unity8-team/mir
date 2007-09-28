@@ -75,7 +75,7 @@ Bool  NVInitDma(ScrnInfoPtr pScrn);
 Bool NVExaInit(ScreenPtr pScreen);
 Bool NVAccelUploadM2MF(ScrnInfoPtr, uint64_t, const char * , int, int, int, int);
 
-/* in riva_hw.c */
+/* in nv_hw.c */
 void NVCalcStateExt(NVPtr,struct _riva_hw_state *,int,int,int,int,int,int);
 void NVLoadStateExt(ScrnInfoPtr pScrn,struct _riva_hw_state *);
 void NVUnloadStateExt(NVPtr,struct _riva_hw_state *);
