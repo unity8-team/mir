@@ -209,7 +209,7 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 		NVPtr pNv = NVPTR(output->scrn);
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_crtc->crtc, NV_RAMDAC_FP_CONTROL);	
+		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_crtc->pcio, NV_RAMDAC_FP_CONTROL);	
 		switch(mode) {
 			case DPMSModeStandby:
 			case DPMSModeSuspend:
@@ -222,7 +222,7 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 				fpcontrol &= ~0x20000022;
 				break;
 		}
-		nvWriteRAMDAC(pNv, nv_crtc->crtc, NV_RAMDAC_FP_CONTROL, fpcontrol);
+		nvWriteRAMDAC(pNv, nv_crtc->pcio, NV_RAMDAC_FP_CONTROL, fpcontrol);
 	}
 }
 

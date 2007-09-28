@@ -221,7 +221,7 @@ NVSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 	    
 	    nv_crtc = output->crtc->driver_private;
 	    
-	    nvWriteRAMDAC(pNv, nv_crtc->crtc, NV_RAMDAC_CURSOR_POS, temp);
+	    nvWriteRAMDAC(pNv, nv_crtc->pcio, NV_RAMDAC_CURSOR_POS, temp);
 	}
     } else
 #endif

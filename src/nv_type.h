@@ -361,6 +361,7 @@ typedef struct _NVRec {
 
 typedef struct _NVCrtcPrivateRec {
 	int crtc;
+	int pcio;
 	Bool paletteEnabled;
 	NVPtr pNv;
 } NVCrtcPrivateRec, *NVCrtcPrivatePtr;
