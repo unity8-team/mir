@@ -91,7 +91,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DRM_VBLANK_FLIP 0x8000000
 
 typedef struct drm_i915_flip {
-   int planes;
+   int pipes;
 } drm_i915_flip_t;
 
 #undef DRM_IOCTL_I915_FLIP
@@ -1256,20 +1256,20 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 #ifdef DAMAGE
       /* Try flipping back to the front page if necessary */
       if (sPriv && !sPriv->pf_enabled && sPriv->pf_current_page != 0) {
-	 drm_i915_flip_t flip = { .planes = 0 };
+	 drm_i915_flip_t flip = { .pipes = 0 };
 
 	 if (sPriv->pf_current_page & (0x3 << 2)) {
 	    sPriv->pf_current_page = sPriv->pf_current_page & 0x3;
 	    sPriv->pf_current_page |= (sPriv->third_handle ? 2 : 1) << 2;
 
-	    flip.planes |= 0x2;
+	    flip.pipes |= 0x2;
 	 }
 
 	 if (sPriv->pf_current_page & 0x3) {
 	    sPriv->pf_current_page = sPriv->pf_current_page & (0x3 << 2);
 	    sPriv->pf_current_page |= sPriv->third_handle ? 2 : 1;
 
-	    flip.planes |= 0x1;
+	    flip.pipes |= 0x1;
 	 }
 
 	 drmCommandWrite(pI830->drmSubFD, DRM_I915_FLIP, &flip, sizeof(flip));
