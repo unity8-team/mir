@@ -544,7 +544,8 @@ void nv_crtc_calc_state_ext(
 		}
 	}
 
-	if (nv_crtc->crtc == 1) {
+	/* We can still use the main clock if we're the only crtc active */
+	if (num_crtc_enabled > 1) {
 		state->vpll2 = state->pll;
 		state->vpll2B = state->pllB;
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
@@ -1030,7 +1031,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* This is the value i have, blob seems to use others as well */
 	regp->CRTC[NV_VGA_CRTCX_FIFO1] = 0x1c;
 
-	if(nv_crtc->crtc) {
+	if(nv_crtc->pcio == 1) {
 		if (is_fp) {
 			regp->head &= ~NV_CRTC_FSEL_FPP2;
 			regp->head |= NV_CRTC_FSEL_FPP1;
@@ -1038,11 +1039,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 			regp->head &= ~NV_CRTC_FSEL_FPP1;
 			regp->head |= NV_CRTC_FSEL_FPP2;
 		}
-
-		regp->crtcOwner = 3;
-	/* only enable secondary pllsel if CRTC 1 is selected on */
 	} else {
-		/* Maybe use pNv->crtc_active[1], or is it too early for that? */
 		if(pNv->twoHeads) {
 			regp->head  =  savep->head | 0x00001000;
 			if (is_fp) {
@@ -1052,8 +1049,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 				regp->head &= ~NV_CRTC_FSEL_FPP1;
 				regp->head |= NV_CRTC_FSEL_FPP2;
 			}
-
-			regp->crtcOwner = 0;
 		}
 	}
 

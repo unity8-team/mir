@@ -356,7 +356,9 @@ nv_output_save (xf86OutputPtr output)
     ScrnInfoPtr	pScrn = output->scrn;
     NVPtr pNv = NVPTR(pScrn);
     RIVA_HW_STATE *state;
-  
+
+	ErrorF("nv_output_save is called\n");
+
     state = &pNv->SavedReg;
   
     nv_output_save_state_ext(output, state);    
@@ -369,7 +371,9 @@ nv_output_restore (xf86OutputPtr output)
     ScrnInfoPtr	pScrn = output->scrn;
     NVPtr pNv = NVPTR(pScrn);
     RIVA_HW_STATE *state;
-  
+
+	ErrorF("nv_output_restore is called\n");
+
     state = &pNv->SavedReg;
   
     nv_output_load_state_ext(output, state);
@@ -392,7 +396,8 @@ static Bool
 nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
-    return TRUE;
+	ErrorF("nv_output_mode_fixup is called\n");
+	return TRUE;
 }
 
 static int
@@ -654,6 +659,8 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     NVPtr pNv = NVPTR(pScrn);
     RIVA_HW_STATE *state;
 
+	ErrorF("nv_output_mode_set is called\n");
+
     state = &pNv->ModeReg;
 
     nv_output_mode_set_regs(output, mode);
@@ -739,6 +746,8 @@ nv_digital_output_detect(xf86OutputPtr output)
 {
     NVOutputPrivatePtr nv_output = output->driver_private;
 
+	ErrorF("nv_digital_output_detect is called\n");
+
     if (nv_ddc_detect(output))
 	return XF86OutputStatusConnected;
 
@@ -750,6 +759,8 @@ static xf86OutputStatus
 nv_analog_output_detect(xf86OutputPtr output)
 {
     NVOutputPrivatePtr nv_output = output->driver_private;
+
+	ErrorF("nv_analog_output_detect is called\n");
 
     if (nv_ddc_detect(output))
 	return XF86OutputStatusConnected;
@@ -770,6 +781,7 @@ nv_output_get_modes(xf86OutputPtr output)
     DisplayModePtr ddc_modes, mode;
     int i;
 
+	ErrorF("nv_output_get_modes is called\n");
 
     ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
 
@@ -798,22 +810,22 @@ nv_output_get_modes(xf86OutputPtr output)
 static void
 nv_output_destroy (xf86OutputPtr output)
 {
-    if (output->driver_private)
-	xfree (output->driver_private);
+	ErrorF("nv_output_destroy is called\n");
+	if (output->driver_private)
+		xfree (output->driver_private);
 
 }
 
 static void
 nv_output_prepare(xf86OutputPtr output)
 {
-
+	ErrorF("nv_output_prepare is called\n");
 }
 
 static void
 nv_output_commit(xf86OutputPtr output)
 {
-
-
+	ErrorF("nv_output_commit is called\n");
 }
 
 static const xf86OutputFuncsRec nv_analog_output_funcs = {
@@ -881,7 +893,7 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 };
 
 
-static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index)
+static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index, Bool dvi_pair)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
@@ -915,14 +927,14 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index)
 	pNv->analog_count++;
 
 	/* Are we part of a dvi-d/dvi-a pair? */
-	if (pNv->ramdac_occupied[0] && pNv->crtc_associated[0] == crtc_num) {
+	if (pNv->ramdac_occupied[0] && dvi_pair) {
 		nv_output->ramdac = 0;
 		ErrorF("DVI-D/DVI-A pair on ramdac0\n");
 		return;
 	}
 
 	/* Are we part of a dvi-d/dvi-a pair? */
-	if (pNv->ramdac_occupied[1] && pNv->crtc_associated[1] == crtc_num) {
+	if (pNv->ramdac_occupied[1] && dvi_pair) {
 		nv_output->ramdac = 1;
 		ErrorF("DVI-D/DVI-A pair on ramdac1\n");
 		return;
@@ -932,7 +944,6 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index)
 	if (!(pNv->ramdac_occupied[0]) && !(nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED)) {
 		nv_output->ramdac = 0;
 		pNv->ramdac_occupied[0] = TRUE;
-		pNv->crtc_associated[0] = crtc_num;
 		ErrorF("CRT active on ramdac0\n");
 		return;
 	}
@@ -941,7 +952,6 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index)
 	if (!(pNv->ramdac_occupied[1]) && !(nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED)) {
 		nv_output->ramdac = 1;
 		pNv->ramdac_occupied[1] = TRUE;
-		pNv->crtc_associated[1] = crtc_num;
 		ErrorF("CRT active on ramdac1\n");
 		return;
 	}
@@ -992,14 +1002,12 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index, Bool dual_dv
 			pramdac0 = TRUE;
 			nv_output->ramdac = 0;
 			pNv->ramdac_occupied[0] = TRUE;
-			pNv->crtc_associated[0] = crtc_num;
 			ErrorF("DFP active on ramdac0\n");
 		}
 		if (nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED) {
 			pramdac1 = TRUE;
 			nv_output->ramdac = 1;
 			pNv->ramdac_occupied[1] = TRUE;
-			pNv->crtc_associated[1] = crtc_num;
 			ErrorF("DFP active on ramdac1\n");
 		}
 
@@ -1057,7 +1065,7 @@ void Nv20SetupOutputs(ScrnInfoPtr pScrn)
     int num_digital_outputs = 1;
 
     for (i = 0 ; i < num_analog_outputs; i++) {
-      nv_add_analog_output(pScrn, i);
+      nv_add_analog_output(pScrn, i, FALSE);
     }
 
     for (i = 0 ; i < num_digital_outputs; i++) {
@@ -1072,6 +1080,7 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	int i;
 	int num_digital = 0;
 	Bool dual_dvi = FALSE;
+	Bool dvi_pair = FALSE;
 
 	/* check how many TMDS ports there are */
 	if (pNv->dcb_entries) {
@@ -1107,9 +1116,11 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 			if (type < 4 && port != 0xf) {
 				switch(type) {
 				case 0: /* Analog */
-					nv_add_analog_output(pScrn, i2c_index);
+					nv_add_analog_output(pScrn, i2c_index, dvi_pair);
+					dvi_pair = FALSE;
 					break;
 				case 2: /* TMDS */
+					dvi_pair = TRUE;
 					nv_add_digital_output(pScrn, i2c_index, dual_dvi, 0);
 					break;
 				case 3: /* LVDS */
