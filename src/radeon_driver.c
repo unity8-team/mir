@@ -2026,15 +2026,17 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     info->pKernelDRMVersion = NULL;
 
     if (info->Chipset == PCI_CHIP_RN50_515E ||
-	info->Chipset == PCI_CHIP_RN50_5969) {
+	info->Chipset == PCI_CHIP_RN50_5969 ||
+	info->Chipset == PCI_CHIP_RC410_5A61 ||
+	info->Chipset == PCI_CHIP_RC410_5A62) {
     	if (xf86ReturnOptValBool(info->Options, OPTION_DRI, FALSE)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"Direct rendering for RN50 forced on -- "
+		"Direct rendering for RN50/RC410 forced on -- "
 		"This is NOT officially supported at the hardware level "
 		"and may cause instability or lockups\n");
     	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Direct rendering not officially supported on RN50\n");
+		"Direct rendering not officially supported on RN50/RC410\n");
 	    return FALSE;
 	}
     }
