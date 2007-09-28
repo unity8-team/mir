@@ -1,0 +1,11 @@
+--- a/src/i830_quirks.c	2007-08-14 00:58:29.000000000 -0400
++++ b/src/i830_quirks.c	2007-09-28 09:45:29.000000000 -0400
+@@ -61,6 +61,8 @@
+     { PCI_CHIP_I915_GM, 0x10f7, 0x8338, quirk_ignore_tv },
+     /* Lenovo 3000 v200 */
+     { PCI_CHIP_I965_GM, 0x17aa, 0x3c18, quirk_ignore_tv },
++    /* Dell XPS 1330 */
++    { PCI_CHIP_I965_GM, 0x1028, 0x0209, quirk_ignore_tv },
+     /* Aopen mini pc */
+     { PCI_CHIP_I945_GM, 0xa0a0, SUBSYS_ANY, quirk_ignore_lvds },
+     /* Mac mini has no lvds, but macbook pro does */

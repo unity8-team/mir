@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.1.1-0ubuntu4) gutsy; urgency=low
+
+  * 02_xps1330_tvout_quirk.diff:
+    - add quirk, xps1330 has no tv out
+
+ -- Kyle McMartin <kyle@ubuntu.com>  Fri, 28 Sep 2007 09:45:48 -0400
+
 xserver-xorg-video-intel (2:2.1.1-0ubuntu3) gutsy; urgency=low
 
   * debian/patches/01_fix_compiz_video.diff:
