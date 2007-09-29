@@ -1086,6 +1086,16 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = 0;
 	regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = 0;
 
+	/* 0x20 seems to be enabled and 0x14 disabled */
+	regp->CRTC[NV_VGA_CRTCX_26] = 0x20;
+
+	/* 0x00 is disabled, 0x22 crt and 0x88 dfp */
+	if (is_fp) {
+		regp->CRTC[NV_VGA_CRTCX_3B] = 0x88;
+	} else {
+		regp->CRTC[NV_VGA_CRTCX_3B] = 0x22;
+	}
+
 	/* These values seem to vary */
 	/* 0x00, 0x04, 0x10, 0x14 for example */
 	regp->CRTC[NV_VGA_CRTCX_3C] = savep->CRTC[NV_VGA_CRTCX_3C];
@@ -1097,6 +1107,16 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* These values seem to vary */
 	/* 0x01, 0x10, 0x11 for example */
 	regp->CRTC[NV_VGA_CRTCX_56] = savep->CRTC[NV_VGA_CRTCX_56];
+
+	/* bit0: Seems to be mostly used on crtc1 */
+	/* bit1: 1=crtc1, 0=crtc, but i'm unsure about this */
+	/* 0x7E (crtc0, only seen in one dump) and 0x7F (crtc1) seem to be some kind of disable setting */
+	/* This is likely to be incomplete */
+	if (nv_crtc->pcio == 1) {
+		regp->CRTC[NV_VGA_CRTCX_58] = 0x3;
+	} else {
+		regp->CRTC[NV_VGA_CRTCX_58] = 0x0;
+	}
 
 	regp->unk830 = mode->CrtcVDisplay - 3;
 	regp->unk834 = mode->CrtcVDisplay - 1;
@@ -1327,9 +1347,12 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING, regp->CRTC[NV_VGA_CRTCX_FP_HTIMING]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_VTIMING, regp->CRTC[NV_VGA_CRTCX_FP_VTIMING]);
 
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_26, regp->CRTC[NV_VGA_CRTCX_26]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3B, regp->CRTC[NV_VGA_CRTCX_3B]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3C, regp->CRTC[NV_VGA_CRTCX_3C]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_45, regp->CRTC[NV_VGA_CRTCX_45]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_56, regp->CRTC[NV_VGA_CRTCX_56]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_58, regp->CRTC[NV_VGA_CRTCX_58]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_59, regp->CRTC[NV_VGA_CRTCX_59]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
     }
@@ -1427,9 +1450,12 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
         regp->cursorConfig = nvReadCRTC(pNv, nv_crtc->pcio, NV_CRTC_CURSOR_CONFIG);
 
+	regp->CRTC[NV_VGA_CRTCX_26] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_26);
+	regp->CRTC[NV_VGA_CRTCX_3B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3B);
 	regp->CRTC[NV_VGA_CRTCX_3C] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3C);
 	regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_45);
 	regp->CRTC[NV_VGA_CRTCX_56] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_56);
+	regp->CRTC[NV_VGA_CRTCX_58] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_58);
 	regp->CRTC[NV_VGA_CRTCX_59] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_59);
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER);
 	regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING);

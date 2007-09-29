@@ -107,6 +107,7 @@
 #define NV_VGA_CRTCX_FIFO_LWM		0x20
 #define NV_VGA_CRTCX_BUFFER		0x21
 #define NV_VGA_CRTCX_LSR		0x25
+#define NV_VGA_CRTCX_26		0x26
 #define NV_VGA_CRTCX_PIXEL		0x28
 #define NV_VGA_CRTCX_HEB		0x2d
 #define NV_VGA_CRTCX_CURCTL2		0x2f
@@ -114,6 +115,7 @@
 #define NV_VGA_CRTCX_CURCTL1		0x31
 #define NV_VGA_CRTCX_LCD		0x33
 #define NV_VGA_CRTCX_INTERLACE		0x39
+#define NV_VGA_CRTCX_3B		0x3b
 #define NV_VGA_CRTCX_3C		0x3c
 #define NV_VGA_CRTCX_EXTRA		0x41
 #define NV_VGA_CRTCX_OWNER		0x44
@@ -123,7 +125,8 @@
 #define NV_VGA_CRTCX_FP_HTIMING		0x53
 #define NV_VGA_CRTCX_FP_VTIMING		0x54
 #define NV_VGA_CRTCX_56			0x56
-#define NV_VGA_CRTCX_59                 0x59
+#define NV_VGA_CRTCX_58			0x58
+#define NV_VGA_CRTCX_59			0x59
 
 #define NV_PGRAPH_STATUS            (0x00000700)
 #define NV_PFIFO_RAMHT              (0x00000210)
