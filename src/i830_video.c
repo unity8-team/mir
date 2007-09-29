@@ -626,7 +626,7 @@ I830InitVideo(ScreenPtr pScreen)
 #ifdef XvMCExtension
     if (intel_xvmc_probe(pScrn)) {
 	if (texturedAdaptor)
-	    ret = intel_xvmc_xv_init(pScreen, texturedAdaptor);
+	    ret = intel_xvmc_driver_init(pScreen, texturedAdaptor);
     }
 #endif
 
@@ -635,7 +635,7 @@ I830InitVideo(ScreenPtr pScreen)
 
 #ifdef XvMCExtension
     if (ret)
-	intel_xvmc_init(pScreen);
+	intel_xvmc_screen_init(pScreen);
 #endif
     xfree(adaptors);
 }

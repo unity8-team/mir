@@ -72,7 +72,7 @@ void intel_xvmc_finish(ScrnInfoPtr pScrn)
     (*xvmc_driver->fini)(pScrn);
 }
 
-Bool intel_xvmc_xv_init(ScreenPtr pScreen, XF86VideoAdaptorPtr xv_adaptor)
+Bool intel_xvmc_driver_init(ScreenPtr pScreen, XF86VideoAdaptorPtr xv_adaptor)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 
@@ -88,7 +88,7 @@ Bool intel_xvmc_xv_init(ScreenPtr pScreen, XF86VideoAdaptorPtr xv_adaptor)
     return TRUE;
 }
 
-Bool intel_xvmc_init(ScreenPtr pScreen)
+Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
