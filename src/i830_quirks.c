@@ -76,6 +76,8 @@ static i830_quirk i830_quirk_list[] = {
     
     /* Panasonic Toughbook CF-Y4 has no TV output */
     { PCI_CHIP_I915_GM, 0x10f7, 0x8338, quirk_ignore_tv },
+    /* Panasonic Toughbook CF-Y7 has no TV output */
+    { PCI_CHIP_I965_GM, 0x10f7, 0x8338, quirk_ignore_tv },
     
     { 0, 0, 0, NULL },
 };
