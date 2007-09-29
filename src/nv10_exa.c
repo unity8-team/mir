@@ -150,7 +150,6 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	int x = 0,y = 0,i;
 	int w = Pict->pDrawable->width;
 	int h = Pict->pDrawable->height;
-	float projectionmatrix[16];
 
 	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_BUFFER_FORMAT, 4);
 	NVDmaNext (pNv, NV10DstFormat(Pict->format));
@@ -160,7 +159,7 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_HORIZ, 2);
 	NVDmaNext (pNv, (w<<16)|x);
 	NVDmaNext (pNv, (h<<16)|y);
-	NVDmaStart(pNv, Nv3D, 0x2b4, 1); /* clip_mode */
+	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_MODE, 1); /* clip_mode */
 	NVDmaNext (pNv, 0);
 	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(0), 1);
 	NVDmaNext (pNv, ((w-1+x)<<16)|x|0x08000800);
@@ -168,17 +167,12 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	NVDmaNext (pNv, ((h-1+y)<<16)|y|0x08000800);
 
 	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_PROJECTION_MATRIX(0), 16);
-	projectionmatrix[0*4+0] = w * 0.5;
-	projectionmatrix[1*4+1] = h * -0.5;
-#if SCREEN_BPP == 32
-	projectionmatrix[2*4+2] = 16777215.0 * 0.5;
-#else
-	projectionmatrix[2*4+2] = 65535.0 * 0.5;
-#endif
-	projectionmatrix[3*4+3] = 1.0;
-	for (i=0;i<16;i++) {
-		NVDmaFloat (pNv, projectionmatrix[i]);
-	}
+	for(i=0;i<16;i++)
+		if (i/4==i%4)
+			NVDmaFloat(pNv, 1.0f);
+		else
+			NVDmaFloat(pNv, 0.0f);
+
 	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DEPTH_RANGE_NEAR, 2);
 	NVDmaNext (pNv, 0);
 #if SCREEN_BPP == 32
