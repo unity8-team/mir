@@ -204,12 +204,6 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 		ErrorF("nv_analog_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
-
-		if (crtc->enabled) {
-			pNv->crtc_active[nv_crtc->crtc] = TRUE;
-		} else {
-			pNv->crtc_active[nv_crtc->crtc] = FALSE;
-		}
 	}
 }
 
@@ -217,6 +211,7 @@ static void
 nv_digital_output_dpms(xf86OutputPtr output, int mode)
 {
 	xf86CrtcPtr crtc = output->crtc;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	if (crtc) {
 		NVPtr pNv = NVPTR(output->scrn);
@@ -224,13 +219,7 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 
 		ErrorF("nv_digital_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
 
-		if (crtc->enabled) {
-			pNv->crtc_active[nv_crtc->crtc] = TRUE;
-		} else {
-			pNv->crtc_active[nv_crtc->crtc] = FALSE;
-		}
-
-		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_crtc->pcio, NV_RAMDAC_FP_CONTROL);
+		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_CONTROL);
 		switch(mode) {
 			case DPMSModeStandby:
 			case DPMSModeSuspend:
@@ -243,7 +232,7 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 				fpcontrol &= ~0x20000022;
 				break;
 		}
-		nvWriteRAMDAC(pNv, nv_crtc->pcio, NV_RAMDAC_FP_CONTROL, fpcontrol);
+		nvWriteRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_CONTROL, fpcontrol);
 	}
 }
 
@@ -641,7 +630,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 			regp->output = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 		}
 
-		if (nv_crtc->crtc == 1) {
+		if (nv_crtc->pcio == 1) {
 			regp->output |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 		} else {
 			regp->output &= ~NV_RAMDAC_OUTPUT_SELECT_CRTC1;

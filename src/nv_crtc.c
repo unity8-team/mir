@@ -180,9 +180,32 @@ static CARD8 NVReadVgaAttr(xf86CrtcPtr crtc, CARD8 index)
 
 void NVCrtcSetOwner(xf86CrtcPtr crtc)
 {
-  NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-  /*TODO haiku double writes this on nv11 */
-  NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_OWNER, nv_crtc->crtc * 0x3);
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	/* Non standard beheaviour required by NV11 */
+	if (pNv) {
+		uint8_t owner = NVReadVGA0(pNv, NV_VGA_CRTCX_OWNER);
+		ErrorF("pre-Owner: 0x%X\n", owner);
+		if (owner == 0x04) {
+			/* Double read as the blob does */
+			nvReadMC(pNv, 0x1084);
+			uint32_t pbus84 = nvReadMC(pNv, 0x1084);
+			ErrorF("pbus84: 0x%X\n", pbus84);
+			pbus84 &= ~(1<<28);
+			ErrorF("pbus84: 0x%X\n", pbus84);
+			nvWriteMC(pNv, 0x1084, pbus84);
+		}
+		/* The blob never writes owner to pcio1, so should we */
+		if (pNv->NVArch == 0x11) {
+			NVWriteVGA0(pNv, NV_VGA_CRTCX_OWNER, 0xff);
+		}
+		NVWriteVGA0(pNv, NV_VGA_CRTCX_OWNER, nv_crtc->crtc * 0x3);
+		owner = NVReadVGA0(pNv, NV_VGA_CRTCX_OWNER);
+		ErrorF("post-Owner: 0x%X\n", owner);
+	} else {
+		ErrorF("pNv pointer is NULL\n");
+	}
 }
 
 static void
@@ -544,8 +567,9 @@ void nv_crtc_calc_state_ext(
 		}
 	}
 
-	/* We can still use the main clock if we're the only crtc active */
-	if (num_crtc_enabled > 1) {
+	ErrorF("There are %d CRTC's enabled\n", num_crtc_enabled);
+
+	if (nv_crtc->crtc == 1) {
 		state->vpll2 = state->pll;
 		state->vpll2B = state->pllB;
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
@@ -580,12 +604,6 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
      int ret;
 
 	ErrorF("nv_crtc_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
-
-	if (crtc->enabled) {
-		pNv->crtc_active[nv_crtc->crtc] = TRUE;
-	} else {
-		pNv->crtc_active[nv_crtc->crtc] = FALSE;
-	}
 
      NVCrtcSetOwner(crtc);
 
@@ -1145,7 +1163,6 @@ void nv_crtc_save(xf86CrtcPtr crtc)
     nv_crtc_save_state_pll(pNv, &pNv->SavedReg);
     nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
     nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
-
 }
 
 void nv_crtc_restore(xf86CrtcPtr crtc)
@@ -1161,7 +1178,6 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
     nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
     nv_crtc_load_state_pll(pNv, &pNv->SavedReg);
     nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
-
 }
 
 void nv_crtc_prepare(xf86CrtcPtr crtc)
@@ -1189,6 +1205,7 @@ static Bool nv_crtc_lock(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ErrorF("nv_crtc_lock is called for CRTC %d\n", nv_crtc->crtc);
+
 	return FALSE;
 }
 
