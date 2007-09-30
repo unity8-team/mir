@@ -316,6 +316,14 @@ NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 			sblend = BF(ONE_MINUS_DST_COLOR);
 	}
 
+	if (dest_format == PICT_a8 && blend->src_alpha) {
+		if (dblend == BF(SRC_ALPHA))
+			dblend = BF(SRC_COLOR);
+		else
+		if (dblend == BF(ONE_MINUS_SRC_ALPHA))
+			dblend = BF(ONE_MINUS_SRC_COLOR);
+	}
+
 	if (sblend == BF(ONE) && dblend == BF(ZERO)) {
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 1);
 	NVDmaNext (pNv, 0);
@@ -480,7 +488,7 @@ NV30EXACheckComposite(int op, PicturePtr psPict,
 		if (!NV30EXACheckCompositeTexture(pmPict))
 			FALLBACK("mask picture\n");
 	}
-	
+
 	return TRUE;
 }
 
