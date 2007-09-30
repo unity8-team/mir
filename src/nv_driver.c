@@ -490,8 +490,7 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 	/* Temporary mapping to discover the architecture */
 	pci_device_map_range(dev, PCI_DEV_MEM_BASE(dev, 0), 0x90000, 0, &regs);
 
-	/* Bit 27-20 contain the architecture in hex */
-	char architecture = (regs[0] & 0xff00000) >> 20;
+	char architecture = NVGetArchitecture(regs);
 
 	CARD32 pci_id = NVGetPCIID(regs);
 
