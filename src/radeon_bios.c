@@ -672,6 +672,139 @@ Bool RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output)
     return FALSE;
 }
 
+Bool RADEONGetExtTMDSInfoFromBIOS (xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int offset, table_start, max_freq, gpio_reg, flags;
+
+    if (!info->VBIOS) return FALSE;
+
+    if (info->IsAtomBios) {
+	return FALSE;
+    } else {
+	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x58);
+	if (offset) {
+	     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"External TMDS Table revision: %d\n",
+			RADEON_BIOS8(offset));
+	    table_start = offset+4;
+	    max_freq = RADEON_BIOS16(table_start);
+	    radeon_output->dvo_i2c_slave_addr = RADEON_BIOS8(table_start+2);
+	    gpio_reg = RADEON_BIOS8(table_start+3);
+	    if (gpio_reg == 1)
+		radeon_output->dvo_i2c_reg = RADEON_GPIO_MONID;
+	    else if (gpio_reg == 2)
+		radeon_output->dvo_i2c_reg = RADEON_GPIO_DVI_DDC;
+	    else if (gpio_reg == 3)
+		radeon_output->dvo_i2c_reg = RADEON_GPIO_VGA_DDC;
+	    else if (gpio_reg == 4)
+		radeon_output->dvo_i2c_reg = RADEON_GPIO_CRT2_DDC;
+	    else if (gpio_reg == 5)
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "unsupported MM gpio_reg\n");
+		/*radeon_output->i2c_reg = RADEON_GPIO_MM;*/
+	    else {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Unknown gpio reg: %d\n", gpio_reg);
+		return FALSE;
+	    }
+	    flags = RADEON_BIOS8(table_start+5);
+	    radeon_output->dvo_duallink = flags & 0x01;
+	    if (radeon_output->dvo_duallink) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Duallink TMDS detected\n");
+	    }
+	    return TRUE;
+	}
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+	       "No External TMDS Table found\n");
+
+    return FALSE;
+}
+
+Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int offset, index, id;
+    CARD32 val, reg, andmask, ormask;
+
+    if (!info->VBIOS) return FALSE;
+
+    if (info->IsAtomBios) {
+	return FALSE;
+    } else {
+	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x58);
+	if (offset) {
+	    index = offset+10;
+	    id = RADEON_BIOS16(index);
+	    while (id != 0xffff) {
+		index += 2;
+		switch(id >> 13) {
+		case 0:
+		    reg = id & 0x1fff;
+		    val = RADEON_BIOS32(index);
+		    index += 4;
+		    ErrorF("WRITE INDEXED: 0x%x 0x%x\n",
+			   reg, (unsigned)val);
+		    /*OUTREG(reg, val);*/
+		    break;
+		case 2:
+		    reg = id & 0x1fff;
+		    andmask = RADEON_BIOS32(index);
+		    index += 4;
+		    ormask = RADEON_BIOS32(index);
+		    index += 4;
+		    val = INREG(reg);
+		    val = (val & andmask) | ormask;
+		    ErrorF("MASK DIRECT: 0x%x 0x%x 0x%x\n",
+			   reg, (unsigned)andmask, (unsigned)ormask);
+		    /*OUTREG(reg, val);*/
+		    break;
+		case 4:
+		    val = RADEON_BIOS16(index);
+		    index += 2;
+		    ErrorF("delay: %d\n", val);
+		    usleep(val);
+		    break;
+		case 5:
+		    reg = id & 0x1fff;
+		    andmask = RADEON_BIOS32(index);
+		    index += 4;
+		    ormask = RADEON_BIOS32(index);
+		    index += 4;
+		    ErrorF("MASK PLL: 0x%x 0x%x 0x%x\n",
+			   reg, (unsigned)andmask, (unsigned)ormask);
+		    /*val = INPLL(pScrn, reg);
+		    val = (val & andmask) | ormask;
+		    OUTPLL(pScrn, reg, val);*/
+		    break;
+		case 6:
+		    reg = id & 0x1fff;
+		    val = RADEON_BIOS8(index);
+		    index += 1;
+		    ErrorF("i2c write: 0x%x, 0x%x\n", reg, val);
+		    RADEONDVOWriteByte(radeon_output->DVOChip, reg, val);
+		    break;
+		default:
+		    ErrorF("unknown id %d\n", id>>13);
+		    return FALSE;
+		};
+		id = RADEON_BIOS16(index);
+	    }
+	    return TRUE;
+	}
+    }
+
+    return FALSE;
+}
+
 /* support for init from bios tables
  *
  * Based heavily on the netbsd radeonfb driver

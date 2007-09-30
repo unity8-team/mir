@@ -2755,10 +2755,10 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
    }
 
     /* Free the video bios (if applicable) */
-    if (info->VBIOS) {
-	xfree(info->VBIOS);
-	info->VBIOS = NULL;
-    }
+    //if (info->VBIOS) {
+    //xfree(info->VBIOS);
+    //info->VBIOS = NULL;
+    //}
 
 				/* Free int10 info */
     if (pInt10)

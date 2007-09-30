@@ -950,6 +950,15 @@ extern Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
 			DisplayModePtr crtc2, int crtc_mask,
 			RADEONSavePtr save, RADEONMonitorType montype);
 
+extern Bool
+RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch);
+extern Bool
+RADEONDVOWriteByte(I2CDevPtr dvo, int addr, CARD8 ch);
+extern Bool
+RADEONGetExtTMDSInfoFromBIOS (xf86OutputPtr output);
+extern Bool
+RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output);
+
 void
 radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);
 void

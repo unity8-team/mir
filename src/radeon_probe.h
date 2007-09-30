@@ -205,6 +205,11 @@ typedef struct _RADEONOutputPrivateRec {
     int               DotClock;
     RADEONTMDSPll     tmds_pll[4];
     RADEONRMXType     rmx_type;
+    /* dvo */
+    I2CDevPtr         DVOChip;
+    int               dvo_i2c_reg;
+    int               dvo_i2c_slave_addr;
+    Bool              dvo_duallink;
     /* TV out */
     TVStd             default_tvStd;
     TVStd             tvStd;
