@@ -379,6 +379,43 @@ static Bool init_repeat(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exe
 	return TRUE;
 }
 
+static Bool init_io_restrict_prog2(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+{
+	/* INIT_IO_RESTRICT_PROG   opcode: 0x34
+	 * 
+	 * offset      (8  bit): opcode
+	 * offset + 1  (16 bit): CRTC reg
+	 * offset + 3  (8  bit): CRTC index
+	 * offset + 4  (8  bit): and mask
+	 * offset + 5  (8  bit): shift right
+	 * offset + 6  (8  bit): condition offset for doubling freq
+	 * offset + 7  (8  bit): number of configurations
+	 * offset + 8  (32 bit): register
+	 * offset + 12 (32 bit): configuration 1
+	 * ...
+	 * 
+	 * Starting at offset + 11 there are "number of configurations"
+	 * 32 bit values. To find out which configuration value to use
+	 * read "CRTC reg" on the CRTC controller with index "CRTC index"
+	 * and bitwise AND this value with "and mask" and then bit shift the
+	 * result "shift right" bits to the right.
+	 * Assign "register" with appropriate configuration value.
+	 */
+
+	NVPtr pNv = NVPTR(pScrn);
+	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
+	CARD16 crtcreg = *((CARD16 *) (&bios->data[offset + 1]));
+	CARD8  index = *((CARD8 *) (&bios->data[offset + 3]));
+	CARD8 and = *((CARD8 *) (&bios->data[offset + 4]));
+	CARD8 shiftr = *((CARD8 *) (&bios->data[offset + 5]));
+	CARD8 io_flag_condition_offset = *((CARD8 *) (&bios->data[offset + 6]));
+	CARD8 nr = *((CARD8 *) (&bios->data[offset + 7]));
+	CARD32 reg = *((CARD32 *) (&bios->data[offset + 8]));
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
+	return TRUE;
+}
+
 static Bool init_end_repeat(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	if (iexec->repeat)
@@ -990,6 +1027,19 @@ static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_
 	return TRUE;
 }
 
+static Bool init_pll2(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+{
+ 	CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
+	CARD16 val = *((CARD16 *) (&bios->data[offset + 5]));
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
+	/* TODO */
+	if (iexec->execute) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%04X\n", offset, reg, val);
+	}
+	return TRUE;
+}
+
 static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	CARD8 sub = *((CARD8 *) (&bios->data[offset + 1]));
@@ -1331,6 +1381,7 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_PROG"                         , 0x31, 15      , 10      , 4       , init_prog                       },
 	{ "INIT_IO_RESTRICT_PROG"             , 0x32, 11      , 6       , 4       , init_io_restrict_prog           },
 	{ "INIT_REPEAT"                       , 0x33, 2       , 0       , 0       , init_repeat                     },
+	{ "INIT_IO_RESTRICT_PROG2"            , 0x34, 12      , 7       , 2       , init_io_restrict_prog2          },
 	{ "INIT_END_REPEAT"                   , 0x36, 1       , 0       , 0       , init_end_repeat                 },
 	{ "INIT_COPY"                         , 0x37, 11      , 0       , 0       , init_copy                       },
 	{ "INIT_NOT"                          , 0x38, 1       , 0       , 0       , init_not                        },
@@ -1368,7 +1419,7 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_CONDITION"                    , 0x75, 2       , 0       , 0       , init_condition                  },
 /*	{ "INIT_IO_CONDITION",                , 0x76, x       , x,      , x       , init_io_condition               }, */
 	{ "INIT_INDEX_IO"                     , 0x78, 6       , 0       , 0       , init_index_io                   },
-/*	{ "INIT_PLL2"                         , 0x79, x       , x       , x       , init_pll2                       }, */
+	{ "INIT_PLL2"                         , 0x79, 7       , 0       , 0       , init_pll2                       },
 	{ "INIT_ZM_REG"                       , 0x7A, 9       , 0       , 0       , init_zm_reg                     },
 /*	{ "INIT_RAM_RESTRICT_ZM_REG_GROUP"    , 0x8F, x       , x       , x       , init_ram_restrict_zm_reg_group  }, */
 /*	{ "INIT_COPY_ZM_REG"                  , 0x90, x       , x       , x       , init_copy_zm_reg                }, */
@@ -1541,15 +1592,32 @@ static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int o
 	int init2 = bios->data[offset + 20] + (bios->data[offset + 21] * 256);     
 	int init_size = bios->data[offset + 22] + (bios->data[offset + 23] * 256) + 1;                                                    
 	int ram_tab;
-
+	int i;
+	CARD8 chksum = 0;
+	
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "PINS version %d.%d\n",pins_version_major,pins_version_minor);
 
-#if 0
-	if (pins_version_major==2)
-		ram_tab = init1-0x0010;
-	else
-		ram_tab = bios->data[offset + 24] + (bios->data[offset + 25] * 256);
+	/* checksum */
+	for (i=0; i < 8; i++)
+		chksum += bios->data[offset+i];
+	if (chksum) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "bad PINS checksum\n");
+		return;
+	}
 
+	switch(pins_version_major) {
+		case 2:
+			ram_tab = init1-0x0010;
+			break;
+		case 3:
+		case 4:
+		case 5:
+			ram_tab = bios->data[offset + 24] + (bios->data[offset + 25] * 256);
+			break;
+		default:
+			return;
+	}
+	
 	if ((pins_version_major==5)&&(pins_version_minor>=6))
 	{
 		/* VCO range info */
@@ -1557,12 +1625,14 @@ static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int o
 
 	if ((pins_version_major==5)&&(pins_version_minor>=16))
 	{
+		bit_entry_t bitentry;
+		bitentry.offset = offset + 75;
+		parse_bit_init_tbl_entry(pScrn, bios, &bitentry);
+	}
+	else {
+		/* TODO type1 script */
 
 	}
-
-	parse_bit_init_tbl_entry(pScrn, bios, bitentry);
-
-#endif
 }
 
 static unsigned int findstr(bios_t* bios, unsigned char *str, int len)
