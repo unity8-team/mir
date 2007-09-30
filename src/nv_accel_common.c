@@ -585,6 +585,7 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 	case NV_ARCH_30:
 		INIT_CONTEXT_OBJECT(NV30TCL);
 		break;
+	case NV_ARCH_20:
 	case NV_ARCH_10:
 		INIT_CONTEXT_OBJECT(NV10TCL);
 		break;
