@@ -61,6 +61,15 @@ void   NVCommonSetup(ScrnInfoPtr pScrn);
 
 /* in nv_cursor.c */
 Bool   NVCursorInit(ScreenPtr pScreen);
+#ifdef ENABLE_RANDR12
+Bool NVCursorInitRandr12(ScreenPtr pScreen);
+void nv_crtc_show_cursor(xf86CrtcPtr crtc);
+void nv_crtc_hide_cursor(xf86CrtcPtr crtc);
+void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y);
+void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg);
+void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image);
+void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image);
+#endif /* ENABLE_RANDR12 */
 
 /* in nv_dma.c */
 void  NVDmaKickoff(NVPtr pNv);
@@ -83,9 +92,9 @@ void NVSetStartAddress(NVPtr,CARD32);
 int  NVShowHideCursor(NVPtr,int);
 void NVLockUnlock(NVPtr,int);
 uint8_t nvReadVGA(NVPtr pNv, uint8_t index);
-void NVWriteVGA(NVPtr pNv, uint8_t index, uint8_t data);
+void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data);
 uint8_t NVReadVGA0(NVPtr pNv, uint8_t index);
-void nvWriteVGA0(NVPtr pNv, uint8_t index, uint8_t data);
+void NVWriteVGA0(NVPtr pNv, uint8_t index, uint8_t data);
 void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg, CARD32 val);
 CARD32 nvReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg);
 void nvWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, CARD32 val);
@@ -116,10 +125,18 @@ void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on);
 void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool Lock);
-#endif
+void NVWriteVgaCrtc(xf86CrtcPtr crtc, CARD8 index, CARD8 value);
+CARD8 NVReadVgaCrtc(xf86CrtcPtr crtc, CARD8 index);
+#endif /* ENABLE_RANDR12 */
 
-/* nv_output.h */
+/* nv_output.c */
+#ifdef ENABLE_RANDR12
 void NvSetupOutputs(ScrnInfoPtr pScrn);
+void NVOutputWriteRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg, CARD32 val);
+CARD32 NVOutputReadRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg);
+#endif /* ENABLE_RANDR12 */
+
+
 
 /* nv_hw.c */
 void nForceUpdateArbitrationSettings (unsigned VClk, unsigned pixelDepth,

@@ -1417,8 +1417,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		NVPreInitFail("xf86RegisterResources() found resource conflicts\n");
     }
 
-    pNv->alphaCursor = (pNv->Architecture >= NV_ARCH_10) &&
-                       ((pNv->Chipset & 0x0ff0) != CHIPSET_NV10);
+	pNv->alphaCursor = (pNv->NVArch >= 0x11);
+
+	//pNv->alphaCursor = FALSE;
 
 #ifdef ENABLE_RANDR12
     if (pNv->randr12_enable) {
@@ -2277,11 +2278,13 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     /* Initialize HW cursor layer. 
 	Must follow software cursor initialization*/
     if (pNv->HWCursor) { 
-	if (pNv->Architecture < NV_ARCH_50)
-	    ret = NVCursorInit(pScreen);
+	if (pNv->Architecture < NV_ARCH_50 && !pNv->randr12_enable)
+		ret = NVCursorInit(pScreen);
 #ifdef ENABLE_RANDR12
+	else if (pNv->Architecture < NV_ARCH_50 && pNv->randr12_enable)
+		ret = NVCursorInitRandr12(pScreen);
 	else
-	    ret = NV50CursorInit(pScreen);
+		ret = NV50CursorInit(pScreen);
 #endif
 
 	if (ret != TRUE) {

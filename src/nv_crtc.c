@@ -81,7 +81,7 @@ static CARD8 NVReadMiscOut(xf86CrtcPtr crtc)
 }
 
 
-static void NVWriteVgaCrtc(xf86CrtcPtr crtc, CARD8 index, CARD8 value)
+void NVWriteVgaCrtc(xf86CrtcPtr crtc, CARD8 index, CARD8 value)
 {
   ScrnInfoPtr pScrn = crtc->scrn;
   NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -92,7 +92,7 @@ static void NVWriteVgaCrtc(xf86CrtcPtr crtc, CARD8 index, CARD8 value)
   NV_WR08(pCRTCReg, CRTC_DATA, value);
 }
 
-static CARD8 NVReadVgaCrtc(xf86CrtcPtr crtc, CARD8 index)
+CARD8 NVReadVgaCrtc(xf86CrtcPtr crtc, CARD8 index)
 {
   ScrnInfoPtr pScrn = crtc->scrn;
   NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -1235,40 +1235,68 @@ static void nv_crtc_unlock(xf86CrtcPtr crtc)
 	ErrorF("nv_crtc_unlock is called for CRTC %d\n", nv_crtc->crtc);
 }
 
+/* NV04-NV10 doesn't support alpha cursors */
 static const xf86CrtcFuncsRec nv_crtc_funcs = {
-    .dpms = nv_crtc_dpms,
-    .save = nv_crtc_save, /* XXX */
-    .restore = nv_crtc_restore, /* XXX */
-    .mode_fixup = nv_crtc_mode_fixup,
-    .mode_set = nv_crtc_mode_set,
-    .prepare = nv_crtc_prepare,
-    .commit = nv_crtc_commit,
-    .destroy = NULL, /* XXX */
-    .lock = nv_crtc_lock,
-    .unlock = nv_crtc_unlock,
+	.dpms = nv_crtc_dpms,
+	.save = nv_crtc_save, /* XXX */
+	.restore = nv_crtc_restore, /* XXX */
+	.mode_fixup = nv_crtc_mode_fixup,
+	.mode_set = nv_crtc_mode_set,
+	.prepare = nv_crtc_prepare,
+	.commit = nv_crtc_commit,
+	.destroy = NULL, /* XXX */
+	.lock = nv_crtc_lock,
+	.unlock = nv_crtc_unlock,
+	.set_cursor_colors = nv_crtc_set_cursor_colors,
+	.set_cursor_position = nv_crtc_set_cursor_position,
+	.show_cursor = nv_crtc_show_cursor,
+	.hide_cursor = nv_crtc_hide_cursor,
+	.load_cursor_image = nv_crtc_load_cursor_image,
 };
+
+/* NV11 and up has support for alpha cursors. */ 
+/* Due to different maximum sizes we cannot allow it to use normal cursors */
+static const xf86CrtcFuncsRec nv11_crtc_funcs = {
+	.dpms = nv_crtc_dpms,
+	.save = nv_crtc_save, /* XXX */
+	.restore = nv_crtc_restore, /* XXX */
+	.mode_fixup = nv_crtc_mode_fixup,
+	.mode_set = nv_crtc_mode_set,
+	.prepare = nv_crtc_prepare,
+	.commit = nv_crtc_commit,
+	.destroy = NULL, /* XXX */
+	.lock = nv_crtc_lock,
+	.unlock = nv_crtc_unlock,
+	.set_cursor_colors = nv_crtc_set_cursor_colors,
+	.set_cursor_position = nv_crtc_set_cursor_position,
+	.show_cursor = nv_crtc_show_cursor,
+	.hide_cursor = nv_crtc_hide_cursor,
+	.load_cursor_argb = nv_crtc_load_cursor_argb,
+};
+
 
 void
 nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 {
-    NVPtr pNv = NVPTR(pScrn);
-    xf86CrtcPtr crtc;
-    NVCrtcPrivatePtr nv_crtc;
+	NVPtr pNv = NVPTR(pScrn);
+	xf86CrtcPtr crtc;
+	NVCrtcPrivatePtr nv_crtc;
 
-    crtc = xf86CrtcCreate (pScrn, &nv_crtc_funcs);
-    if (crtc == NULL)
-	return;
+	if (pNv->NVArch >= 0x11) {
+		crtc = xf86CrtcCreate (pScrn, &nv11_crtc_funcs);
+	} else {
+		crtc = xf86CrtcCreate (pScrn, &nv_crtc_funcs);
+	}
+	if (crtc == NULL)
+		return;
 
-    nv_crtc = xnfcalloc (sizeof (NVCrtcPrivateRec), 1);
-    nv_crtc->crtc = crtc_num;
-    nv_crtc->pcio = crtc_num; 
-    /* This is usefull to do stuff from crtc functions */
-    nv_crtc->pNv = pNv;
+	nv_crtc = xnfcalloc (sizeof (NVCrtcPrivateRec), 1);
+	nv_crtc->crtc = crtc_num;
+	nv_crtc->pcio = crtc_num;
 
-    crtc->driver_private = nv_crtc;
+	crtc->driver_private = nv_crtc;
 
-    NVCrtcLockUnlock(crtc, 0);
-
+	NVCrtcLockUnlock(crtc, 0);
 }
 
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
@@ -1479,18 +1507,6 @@ NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y)
 
     crtc->x = x;
     crtc->y = y;
-}
-
-void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state)
-{
-  int current = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1);
-
-  if(state) 
-    current |= 1;
-  else
-    current &= ~1;
-
-  NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, current);
 }
 
 void NVSetMode(ScrnInfoPtr pScrn, DisplayModePtr mode)

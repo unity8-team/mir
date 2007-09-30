@@ -363,7 +363,6 @@ typedef struct _NVCrtcPrivateRec {
 	int crtc;
 	int pcio;
 	Bool paletteEnabled;
-	NVPtr pNv;
 } NVCrtcPrivateRec, *NVCrtcPrivatePtr;
 
 #define NVCrtcPrivate(c) ((NVCrtcPrivatePtr)(c)->driver_private)

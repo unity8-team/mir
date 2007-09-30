@@ -109,7 +109,7 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
         (adjusted_mode->Flags & V_NHSYNC) ? 1 : 0 |
         (adjusted_mode->Flags & V_NVSYNC) ? 2 : 0);
 
-    G80CrtcSetScale(output->crtc, adjusted_mode, NV50_SCALE_OFF);
+    NV50CrtcSetScale(output->crtc, adjusted_mode, NV50_SCALE_OFF);
 }
 
 /*

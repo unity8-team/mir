@@ -176,56 +176,8 @@ NVLoadCursorImage( ScrnInfoPtr pScrn, unsigned char *src )
 static void
 NVSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 {
-    NVPtr pNv = NVPTR(pScrn);
-
-#ifdef ENABLE_RANDR12
-    if (pNv->randr12_enable) {
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	xf86CrtcPtr crtc;
-	NVCrtcPrivatePtr nv_crtc;
-	DisplayModePtr mode;
-	int thisx;
-	int thisy;
-	int o;
-	Bool inrange;
-	CARD32 temp;
-	
-	for (o = 0; o < xf86_config->num_output; o++)
-	{
-	    xf86OutputPtr output = xf86_config->output[o];
-	    
-	    if (!output->crtc)
-		continue;
-	    
-	    if (!output->crtc->enabled)
-		continue;
-	    
-	    crtc = output->crtc;
-	    mode = &crtc->mode;
-	    thisx = x - crtc->x;
-	    thisy = y - crtc->y;
-	    
-	    inrange = TRUE;
-	    if (thisx >= mode->HDisplay ||
-		thisy >= mode->VDisplay ||
-		thisx <= -NV_CURSOR_X || thisy <= -NV_CURSOR_Y) 
-	    {
-		inrange = FALSE;
-		thisx = 0;
-		thisy = 0;
-	    }
-	    
-	    temp = 0;
-	    temp |= ((thisx & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
-	    temp |= ((thisy & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
-	    
-	    nv_crtc = output->crtc->driver_private;
-	    
-	    nvWriteRAMDAC(pNv, nv_crtc->pcio, NV_RAMDAC_CURSOR_POS, temp);
-	}
-    } else
-#endif
-      nvWriteCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS, (x & 0xFFFF) | (y << 16));
+	NVPtr pNv = NVPTR(pScrn);
+	nvWriteCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS, (x & 0xFFFF) | (y << 16));
 }
 
 static void
@@ -266,40 +218,15 @@ NVSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 static void 
 NVShowCursor(ScrnInfoPtr pScrn)
 {
-    NVPtr pNv = NVPTR(pScrn);
-
-#ifdef ENABLE_RANDR12
-    if (pNv->randr12_enable) {
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int c;
-	
-	pNv->cursorOn = TRUE;
-	for (c= 0; c < xf86_config->num_crtc; c++)
-	    NVCrtcSetCursor (xf86_config->crtc[c], TRUE);
-    } else
-#endif
-    {
+	NVPtr pNv = NVPTR(pScrn);
 	/* Enable cursor - X-Windows mode */
 	NVShowHideCursor(pNv, 1);
-    }
 }
 
 static void
 NVHideCursor(ScrnInfoPtr pScrn)
 {
-    NVPtr pNv = NVPTR(pScrn);
-
-#ifdef ENABLE_RANDR12
-    if (pNv->randr12_enable) {
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int c;
-	
-	pNv->cursorOn = FALSE;
-	for (c = 0; c < xf86_config->num_crtc; c++)
-	    NVCrtcSetCursor (xf86_config->crtc[c], TRUE);
-  
-    } else
-#endif
+	NVPtr pNv = NVPTR(pScrn);
 	/* Disable cursor */
 	NVShowHideCursor(pNv, 0);
 }
@@ -307,7 +234,7 @@ NVHideCursor(ScrnInfoPtr pScrn)
 static Bool 
 NVUseHWCursor(ScreenPtr pScreen, CursorPtr pCurs)
 {
-    return TRUE;
+	return TRUE;
 }
 
 #ifdef ARGB_CURSOR
@@ -403,3 +330,118 @@ NVCursorInit(ScreenPtr pScreen)
 
     return(xf86InitCursor(pScreen, infoPtr));
 }
+
+#ifdef ENABLE_RANDR12
+
+#define CURSOR_PTR ((CARD32*)pNv->Cursor->map)
+
+Bool NVCursorInitRandr12(ScreenPtr pScreen)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	int flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
+			HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32;
+	int cursor_size = 0;
+	if (pNv->alphaCursor) { /* >= NV11 */
+		cursor_size = MAX_CURSOR_SIZE_ALPHA;
+		flags |= HARDWARE_CURSOR_ARGB;
+	} else {
+		cursor_size = MAX_CURSOR_SIZE;
+	}
+	return xf86_cursors_init(pScreen, cursor_size, cursor_size, flags);
+}
+
+void nv_crtc_show_cursor(xf86CrtcPtr crtc)
+{
+	int current = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1) | 1;
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, current);
+}
+
+void nv_crtc_hide_cursor(xf86CrtcPtr crtc)
+{
+	int current = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1) & ~1;
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, current);
+}
+
+void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	xf86OutputPtr output = NULL;
+	int i;
+
+	/* We need our output, so we know our ramdac */
+	for (i = 0; i < xf86_config->num_output; i++) {
+		output = xf86_config->output[i];
+
+		if (output->crtc == crtc) {
+			/* TODO: Add a check if an output was found? */
+			break;
+		}
+	}
+
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_CURSOR_POS, ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT) | (y << CURSOR_Y_SHIFT));
+}
+
+void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
+{
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	CARD32 fore, back;
+
+	if(pNv->alphaCursor) {
+		fore = ConvertToRGB888(fg);
+		back = ConvertToRGB888(bg);
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+		if(pNv->NVArch == 0x11) {
+			fore = BYTE_SWAP_32(fore);
+			back = BYTE_SWAP_32(back);
+		}
+#endif
+	} else {
+		fore = ConvertToRGB555(fg);
+		back = ConvertToRGB555(bg);
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+		if(pNv->NVArch == 0x11) {
+			fore = ((fore & 0xff) << 8) | (fore >> 8);
+			back = ((back & 0xff) << 8) | (back >> 8);
+		}
+#endif
+	}
+
+	/* Eventually this must be replaced as well */
+	if ((pNv->curFg != fore) || (pNv->curBg != back)) {
+		pNv->curFg = fore;
+		pNv->curBg = back;
+		TransformCursor(pNv);
+	}
+}
+
+
+
+void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
+{
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+
+	/* save copy of image for color changes */
+	memcpy(pNv->curImage, image, 256);
+
+	/* Eventually this has to be replaced as well */
+	TransformCursor(pNv);
+}
+
+void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
+{
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+
+	/* Copy the cursor straight into the right registers */
+	memcpy(CURSOR_PTR, image, 16384);
+}
+
+#endif /* ENABLE_RANDR12 */
