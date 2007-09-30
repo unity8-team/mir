@@ -229,6 +229,7 @@ RADEONRestoreDVOChip(ScrnInfoPtr pScrn, xf86OutputPtr output)
 		RADEONDVOWriteByte(radeon_output->DVOChip, 0x08, 0x3b);
 		break;
 	    default:
+		break;
 	    }
 	}
 #endif
