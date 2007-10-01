@@ -221,6 +221,7 @@ struct _I830DVODriver {
    char *modulename;
    char *fntablename;
    unsigned int dvo_reg;
+   uint32_t gpio;
    int address;
    const char **symbols;
    I830I2CVidOutputRec *vid_rec;

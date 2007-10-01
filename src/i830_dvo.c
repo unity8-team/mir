@@ -99,9 +99,10 @@ struct _I830DVODriver i830_dvo_drivers[] =
 	.type = I830_OUTPUT_DVO_LVDS,
 	.modulename = "ch7017",
 	.fntablename = "ch7017_methods",
-	.dvo_reg = DVOA,
+	.dvo_reg = DVOC,
 	.address = 0xea,
 	.symbols = ch7017_symbols,
+	.gpio = GPIOE,
     }
 };
 
@@ -430,7 +431,12 @@ i830_dvo_init(ScrnInfoPtr pScrn)
 	ret_ptr = NULL;
 	drv->vid_rec = LoaderSymbol(drv->fntablename);
 
-	if (drv->type == I830_OUTPUT_DVO_LVDS)
+	/* Allow the I2C driver info to specify the GPIO to be used in
+	 * special cases, but otherwise default to what's defined in the spec.
+	 */
+	if (drv->gpio != 0)
+	    gpio = drv->gpio;
+	else if (drv->type == I830_OUTPUT_DVO_LVDS)
 	    gpio = GPIOB;
 	else
 	    gpio = GPIOE;
