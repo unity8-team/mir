@@ -116,9 +116,15 @@ CFLAGS="$save_CFLAGS"
 
 if test x$XSERVER_LIBPCIACCESS = xyes; then
 	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.8.0])
+else
+	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.5.0],
+				       have_libpciaccess=yes,
+				       have_libpciaccess=no)
 fi
-
+have_libpciaccess=no
 AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
+AM_CONDITIONAL(LIBPCIACCESS,
+	test "x$XSERVER_LIBPCIACCESS" = xyes -o "x$have_libpciaccess" = xyes)
 AM_CONDITIONAL(XMODES, test "x$XMODES" = xno)
 
 if test "x$XSERVER_SOURCE" = x; then
