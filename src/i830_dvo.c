@@ -55,12 +55,10 @@ static const char *ivch_symbols[] = {
     NULL
 };
 
-#if 0
 static const char *ch7017_symbols[] = {
     "ch7017_methods",
     NULL
 };
-#endif
 
 /* driver list */
 struct _I830DVODriver i830_dvo_drivers[] =
@@ -97,10 +95,14 @@ struct _I830DVODriver i830_dvo_drivers[] =
 	.address = (TFP410_ADDR_1<<1),
 	.symbols = TFP410Symbols
     },
-    /*
-    { I830_OUTPUT_DVO_LVDS, "ch7017", "ch7017_methods",
-      0xea, ch7017_symbols, NULL, NULL, NULL }
-    */
+    {
+	.type = I830_OUTPUT_DVO_LVDS,
+	.modulename = "ch7017",
+	.fntablename = "ch7017_methods",
+	.dvo_reg = DVOA,
+	.address = 0xea,
+	.symbols = ch7017_symbols,
+    }
 };
 
 #define I830_NUM_DVO_DRIVERS (sizeof(i830_dvo_drivers)/sizeof(struct _I830DVODriver))
