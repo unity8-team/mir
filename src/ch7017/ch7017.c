@@ -55,6 +55,7 @@ struct ch7017_priv {
     CARD8 save_lvds_control_2;
     CARD8 save_outputs_enable;
     CARD8 save_lvds_power_down;
+    CARD8 save_power_management;
 };
 
 static void
@@ -224,12 +225,20 @@ ch7017_dpms(I2CDevPtr d, int mode)
 
     ch7017_read(priv, CH7017_LVDS_POWER_DOWN, &val);
 
+    /* Turn off TV/VGA, and never turn it on since we don't support it. */
+    ch7017_write(priv, CH7017_POWER_MANAGEMENT,
+		 CH7017_DAC0_POWER_DOWN |
+		 CH7017_DAC1_POWER_DOWN |
+		 CH7017_DAC2_POWER_DOWN |
+		 CH7017_DAC3_POWER_DOWN |
+		 CH7017_TV_POWER_DOWN_EN);
+
     if (mode == DPMSModeOn) {
 	/* Turn on the LVDS */
 	ch7017_write(priv, CH7017_LVDS_POWER_DOWN,
 			val & ~CH7017_LVDS_POWER_DOWN_EN);
     } else {
-	/* Turn on the LVDS */
+	/* Turn off the LVDS */
 	ch7017_write(priv, CH7017_LVDS_POWER_DOWN,
 			val | CH7017_LVDS_POWER_DOWN_EN);
     }
@@ -273,6 +282,7 @@ ch7017_save(I2CDevPtr d)
     ch7017_read(priv, CH7017_LVDS_CONTROL_2, &priv->save_lvds_control_2);
     ch7017_read(priv, CH7017_OUTPUTS_ENABLE, &priv->save_outputs_enable);
     ch7017_read(priv, CH7017_LVDS_POWER_DOWN, &priv->save_lvds_power_down);
+    ch7017_read(priv, CH7017_POWER_MANAGEMENT, &priv->save_power_management);
 }
 
 static void
@@ -290,6 +300,7 @@ ch7017_restore(I2CDevPtr d)
     ch7017_write(priv, CH7017_LVDS_CONTROL_2, priv->save_lvds_control_2);
     ch7017_write(priv, CH7017_OUTPUTS_ENABLE, priv->save_outputs_enable);
     ch7017_write(priv, CH7017_LVDS_POWER_DOWN, priv->save_lvds_power_down);
+    ch7017_write(priv, CH7017_POWER_MANAGEMENT, priv->save_power_management);
 }
 
 I830I2CVidOutputRec ch7017_methods = {
