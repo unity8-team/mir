@@ -93,8 +93,6 @@ tfp410_init(I2CBusPtr b, I2CSlaveAddr addr)
     TFP410Ptr tfp;
     int id;
 
-    xf86DrvMsg(b->scrnIndex, X_INFO, "detecting tfp410\n");
-
     tfp = xcalloc(1, sizeof(TFP410Rec));
     if (tfp == NULL)
 	return NULL;
@@ -110,9 +108,11 @@ tfp410_init(I2CBusPtr b, I2CSlaveAddr addr)
     tfp->quiet = TRUE;
 
     if ((id = tfp410GetID(tfp, TFP410_VID_LO)) != TFP410_VID) {
-	xf86DrvMsg(tfp->d.pI2CBus->scrnIndex, X_ERROR,
-		   "tfp410 not detected got VID %X: from %s Slave %d.\n",
-		   id, tfp->d.pI2CBus->BusName, tfp->d.SlaveAddr);
+	if (id != 0xffffffff) {
+	    xf86DrvMsg(tfp->d.pI2CBus->scrnIndex, X_ERROR,
+		       "tfp410 not detected got VID %X: from %s Slave %d.\n",
+		       id, tfp->d.pI2CBus->BusName, tfp->d.SlaveAddr);
+	}
 	goto out;
     }
 

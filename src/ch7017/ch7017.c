@@ -94,8 +94,6 @@ ch7017_init(I2CBusPtr b, I2CSlaveAddr addr)
     struct ch7017_priv *priv;
     CARD8 val;
 
-    xf86DrvMsg(b->scrnIndex, X_INFO, "detecting ch7017\n");
-
     priv = xcalloc(1, sizeof(struct ch7017_priv));
     if (priv == NULL)
 	return NULL;

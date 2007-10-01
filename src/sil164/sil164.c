@@ -81,8 +81,6 @@ sil164_init(I2CBusPtr b, I2CSlaveAddr addr)
     SIL164Ptr sil;
     unsigned char ch;
 
-    xf86DrvMsg(b->scrnIndex, X_ERROR, "detecting sil164\n");
-
     sil = xcalloc(1, sizeof(SIL164Rec));
     if (sil == NULL)
 	return NULL;
