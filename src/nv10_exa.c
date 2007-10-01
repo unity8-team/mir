@@ -110,8 +110,8 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_TX_OFFSET(unit), 1 );
 	NVDmaNext (pNv, NVAccelGetPixmapOffset(pixmap));
 
-	int log2w = (int)log2i((float)Pict->pDrawable->width);
-	int log2h = (int)log2i((float)Pict->pDrawable->height);
+	int log2w = log2i(Pict->pDrawable->width);
+	int log2h = log2i(Pict->pDrawable->height);
 	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FORMAT(unit), 1 );
 	NVDmaNext (pNv, (NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_T_CLAMP_TO_EDGE<<28) |
 			(NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_S_CLAMP_TO_EDGE<<24) |
