@@ -48,6 +48,7 @@ struct ivch_priv {
     I2CDevRec	    d;
 
     xf86OutputPtr   output;
+    Bool quiet;
 
     CARD16    	    width;
     CARD16    	    height;
@@ -105,9 +106,11 @@ ivch_read(struct ivch_priv *priv, int addr, CARD16 *data)
     return TRUE;
 
  fail:
-    xf86DrvMsg(priv->d.pI2CBus->scrnIndex, X_ERROR,
-	       "ivch: Unable to read register 0x%02x from %s:%02x.\n",
-	       addr, priv->d.pI2CBus->BusName, priv->d.SlaveAddr);
+    if (!priv->quiet) {
+	xf86DrvMsg(priv->d.pI2CBus->scrnIndex, X_ERROR,
+		   "ivch: Unable to read register 0x%02x from %s:%02x.\n",
+		   addr, priv->d.pI2CBus->BusName, priv->d.SlaveAddr);
+    }
     b->I2CStop(&priv->d);
 
     return FALSE;
@@ -140,9 +143,12 @@ ivch_write(struct ivch_priv *priv, int addr, CARD16 data)
 
  fail:
     b->I2CStop(&priv->d);
-    xf86DrvMsg(priv->d.pI2CBus->scrnIndex, X_ERROR,
-	       "Unable to write register 0x%02x to %s:%d.\n",
-	       addr, priv->d.pI2CBus->BusName, priv->d.SlaveAddr);
+
+    if (!priv->quiet) {
+	xf86DrvMsg(priv->d.pI2CBus->scrnIndex, X_ERROR,
+		   "Unable to write register 0x%02x to %s:%d.\n",
+		   addr, priv->d.pI2CBus->BusName, priv->d.SlaveAddr);
+    }
 
     return FALSE;
 }
@@ -167,9 +173,11 @@ ivch_init(I2CBusPtr b, I2CSlaveAddr addr)
     priv->d.AcknTimeout = b->AcknTimeout;
     priv->d.ByteTimeout = b->ByteTimeout;
     priv->d.DriverPrivate.ptr = priv;
+    priv->quiet = TRUE;
 
     if (!ivch_read(priv, VR00, &temp))
 	goto out;
+    priv->quiet = FALSE;
 
     /* Since the identification bits are probably zeroes, which doesn't seem
      * very unique, check that the value in the base address field matches
