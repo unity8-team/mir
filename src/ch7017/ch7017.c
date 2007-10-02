@@ -50,6 +50,7 @@ struct ch7017_priv {
     CARD8 save_hapi;
     CARD8 save_vali;
     CARD8 save_valo;
+    CARD8 save_ailo;
     CARD8 save_lvds_pll_vco;
     CARD8 save_feedback_div;
     CARD8 save_lvds_control_2;
@@ -157,31 +158,34 @@ ch7017_mode_set(I2CDevPtr d, DisplayModePtr mode, DisplayModePtr adjusted_mode)
     ch7017_dump_regs(d);
 
     /* LVDS PLL settings from page 75 of 7017-7017ds.pdf*/
-    if (mode->Clock < 50000) {
-	lvds_pll_feedback_div = 45;
-	lvds_pll_vco_control = (2 << 4) | (3 << 0);
-	outputs_enable = (0 << 0); /* XXX: enables */
+    if (mode->Clock < 100000) {
+	outputs_enable = CH7017_LVDS_CHANNEL_A | CH7017_CHARGE_PUMP_LOW;
+	lvds_pll_feedback_div = CH7017_LVDS_PLL_FEEDBACK_DEFAULT_RESERVED |
+	    (2 << CH7017_LVDS_PLL_FEED_BACK_DIVIDER_SHIFT) |
+	    (13 << CH7017_LVDS_PLL_FEED_FORWARD_DIVIDER_SHIFT);
+	lvds_pll_vco_control = CH7017_LVDS_PLL_VCO_DEFAULT_RESERVED |
+	    (2 << CH7017_LVDS_PLL_VCO_SHIFT) |
+	    (3 << CH7017_LVDS_PLL_POST_SCALE_DIV_SHIFT);
 	lvds_control_2 = (1 << CH7017_LOOP_FILTER_SHIFT) |
 	    (0 << CH7017_PHASE_DETECTOR_SHIFT);
-    } else if (mode->Clock < 100000) {
-	lvds_pll_feedback_div = 45;
-	lvds_pll_vco_control = (2 << 4) | (3 << 0);
-	outputs_enable = (0 << 0); /* XXX: enables */
-	lvds_control_2 = (1 << CH7017_LOOP_FILTER_SHIFT) |
-	    (0 << CH7017_PHASE_DETECTOR_SHIFT);
-    } else if (mode->Clock < 160000) {
+    } else {
+	outputs_enable = CH7017_LVDS_CHANNEL_A | CH7017_CHARGE_PUMP_HIGH;
+	lvds_pll_feedback_div = CH7017_LVDS_PLL_FEEDBACK_DEFAULT_RESERVED |
+	    (2 << CH7017_LVDS_PLL_FEED_BACK_DIVIDER_SHIFT) |
+	    (3 << CH7017_LVDS_PLL_FEED_FORWARD_DIVIDER_SHIFT);
 	lvds_pll_feedback_div = 35;
-	outputs_enable = (3 << 0); /* XXX: enables */
 	lvds_control_2 = (3 << CH7017_LOOP_FILTER_SHIFT) |
 	    (0 << CH7017_PHASE_DETECTOR_SHIFT);
-	if (1) { /* XXX: dual panel */
-	    lvds_pll_vco_control = (2 << 4) | (13 << 0);
+	if (1) { /* XXX: dual channel panel detection.  Assume yes for now. */
+	    outputs_enable |= CH7017_LVDS_CHANNEL_B;
+	    lvds_pll_vco_control = CH7017_LVDS_PLL_VCO_DEFAULT_RESERVED |
+		(2 << CH7017_LVDS_PLL_VCO_SHIFT) |
+		(13 << CH7017_LVDS_PLL_POST_SCALE_DIV_SHIFT);
 	} else {
-	    lvds_pll_vco_control = (1 << 4) | (13 << 0);
+	    lvds_pll_vco_control = CH7017_LVDS_PLL_VCO_DEFAULT_RESERVED |
+		(1 << CH7017_LVDS_PLL_VCO_SHIFT) |
+		(13 << CH7017_LVDS_PLL_POST_SCALE_DIV_SHIFT);
 	}
-    } else {
-	FatalError("Invalid mode clock (%.1fMHz)\n",
-		   (float)mode->Clock / 1000.0);
     }
 
     horizontal_active_pixel_input = mode->HDisplay & 0x00ff;
@@ -189,10 +193,11 @@ ch7017_mode_set(I2CDevPtr d, DisplayModePtr mode, DisplayModePtr adjusted_mode)
     vertical_active_line_output = mode->VDisplay & 0x00ff;
     horizontal_active_pixel_output = mode->HDisplay & 0x00ff;
 
-    active_input_line_output = ((mode->HDisplay & 0x0700) >> 9) |
-	((mode->VDisplay & 0x0700) >> 8);
+    active_input_line_output = ((mode->HDisplay & 0x0700) >> 8) |
+	(((mode->VDisplay & 0x0700) >> 8) << 3);
 
-    lvds_power_down = (mode->HDisplay & 0x0f00) >> 8;
+    lvds_power_down = CH7017_LVDS_POWER_DOWN_DEFAULT_RESERVED |
+	(mode->HDisplay & 0x0700) >> 8;
 
     ch7017_dpms(d, DPMSModeOff);
     ch7017_write(priv, CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT,
@@ -201,6 +206,8 @@ ch7017_mode_set(I2CDevPtr d, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 		    horizontal_active_pixel_output);
     ch7017_write(priv, CH7017_VERTICAL_ACTIVE_LINE_OUTPUT,
 		    vertical_active_line_output);
+    ch7017_write(priv, CH7017_ACTIVE_INPUT_LINE_OUTPUT,
+		 active_input_line_output);
     ch7017_write(priv, CH7017_LVDS_PLL_VCO_CONTROL, lvds_pll_vco_control);
     ch7017_write(priv, CH7017_LVDS_PLL_FEEDBACK_DIV, lvds_pll_feedback_div);
     ch7017_write(priv, CH7017_LVDS_CONTROL_2, lvds_control_2);
@@ -261,6 +268,7 @@ do {							\
     DUMP(CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT);
     DUMP(CH7017_HORIZONTAL_ACTIVE_PIXEL_OUTPUT);
     DUMP(CH7017_VERTICAL_ACTIVE_LINE_OUTPUT);
+    DUMP(CH7017_ACTIVE_INPUT_LINE_OUTPUT);
     DUMP(CH7017_LVDS_PLL_VCO_CONTROL);
     DUMP(CH7017_LVDS_PLL_FEEDBACK_DIV);
     DUMP(CH7017_LVDS_CONTROL_2);
@@ -275,6 +283,7 @@ ch7017_save(I2CDevPtr d)
 
     ch7017_read(priv, CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT, &priv->save_hapi);
     ch7017_read(priv, CH7017_VERTICAL_ACTIVE_LINE_OUTPUT, &priv->save_valo);
+    ch7017_read(priv, CH7017_ACTIVE_INPUT_LINE_OUTPUT, &priv->save_ailo);
     ch7017_read(priv, CH7017_LVDS_PLL_VCO_CONTROL, &priv->save_lvds_pll_vco);
     ch7017_read(priv, CH7017_LVDS_PLL_FEEDBACK_DIV, &priv->save_feedback_div);
     ch7017_read(priv, CH7017_LVDS_CONTROL_2, &priv->save_lvds_control_2);
@@ -293,6 +302,7 @@ ch7017_restore(I2CDevPtr d)
 
     ch7017_write(priv, CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT, priv->save_hapi);
     ch7017_write(priv, CH7017_VERTICAL_ACTIVE_LINE_OUTPUT, priv->save_valo);
+    ch7017_write(priv, CH7017_ACTIVE_INPUT_LINE_OUTPUT, priv->save_ailo);
     ch7017_write(priv, CH7017_LVDS_PLL_VCO_CONTROL, priv->save_lvds_pll_vco);
     ch7017_write(priv, CH7017_LVDS_PLL_FEEDBACK_DIV, priv->save_feedback_div);
     ch7017_write(priv, CH7017_LVDS_CONTROL_2, priv->save_lvds_control_2);
