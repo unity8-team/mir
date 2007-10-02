@@ -177,6 +177,16 @@ typedef struct _riva_hw_state
     NVOutputRegRec dac_reg[2];
 } RIVA_HW_STATE, *NVRegPtr;
 
+typedef struct _nv50_crtc_reg
+{
+	
+} NV50CrtcRegRec, *NV50CrtcRegPtr;
+
+typedef struct _nv50_hw_state
+{
+	NV50CrtcRegRec crtc_reg[2];
+} NV50_HW_STATE, *NV50RegPtr;
+
 typedef struct {
 	int type;
 	uint64_t size;
@@ -201,6 +211,8 @@ typedef struct _NVRec {
     RIVA_HW_STATE       SavedReg;
     RIVA_HW_STATE       ModeReg;
     RIVA_HW_STATE       *CurrentState;
+	NV50_HW_STATE	NV50SavedReg;
+	NV50_HW_STATE	NV50ModeReg;
     CARD32              Architecture;
     EntityInfoPtr       pEnt;
 #ifndef XSERVER_LIBPCIACCESS
@@ -365,8 +377,8 @@ typedef struct _NVCrtcPrivateRec {
 	Bool paletteEnabled;
 } NVCrtcPrivateRec, *NVCrtcPrivatePtr;
 
-typedef struct NV50CrtcPrivRec {
-	Head head;
+typedef struct _NV50CrtcPrivRec {
+	int pcio;
 	int pclk; /* Target pixel clock in kHz */
 	Bool cursorVisible;
 	Bool skipModeFixup;

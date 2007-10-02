@@ -146,7 +146,7 @@ NV50CrtcSetPClk(xf86CrtcPtr crtc)
     NVPtr pNv = NVPTR(crtc->scrn);
     NV50CrtcPrivPtr pPriv = crtc->driver_private;
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-    const int headOff = 0x800 * pPriv->head;
+    const int headOff = 0x800 * pPriv->pcio;
     int lo_n, lo_m, hi_n, hi_m, p, i;
     CARD32 lo = pNv->REGS[(0x00614104+headOff)/4];
     CARD32 hi = pNv->REGS[(0x00614108+headOff)/4];
@@ -194,7 +194,7 @@ NV50DispCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 data)
                     xf86CrtcPtr crtc = xf86_config->crtc[i];
                     NV50CrtcPrivPtr pPriv = crtc->driver_private;
 
-                    if(r & (0x200 << pPriv->head))
+                    if(r & (0x200 << pPriv->pcio))
                         NV50CrtcSetPClk(crtc);
                 }
             }
@@ -209,7 +209,7 @@ Head
 NV50CrtcGetHead(xf86CrtcPtr crtc)
 {
     NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    return pPriv->head;
+    return pPriv->pcio;
 }
 
 Bool
@@ -378,7 +378,7 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
     ScrnInfoPtr pScrn = crtc->scrn;
     NVPtr pNv = NVPTR(pScrn);
     NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    const int headOff = 0x400 * pPriv->head;
+    const int headOff = 0x400 * pPriv->pcio;
 
     if(blank) {
         NV50CrtcShowHideCursor(crtc, FALSE, FALSE);
@@ -498,7 +498,7 @@ void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode,
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    const int headOff = 0x400 * pPriv->head;
+    const int headOff = 0x400 * pPriv->pcio;
     int outX, outY;
 
     switch(scale) {
