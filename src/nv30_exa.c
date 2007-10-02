@@ -294,46 +294,40 @@ NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 	sblend = blend->src_card_op;
 	dblend = blend->dst_card_op;
 
-	if (!PICT_FORMAT_A(dest_format) && blend->dst_alpha) {
-		if (sblend == BF(DST_ALPHA))
-			sblend = BF(ONE);
-		else if (sblend == BF(ONE_MINUS_DST_ALPHA))
-			sblend = BF(ZERO);
+	if (blend->dst_alpha) {
+		if (!PICT_FORMAT_A(dest_format)) {
+			if (sblend == BF(DST_ALPHA)) {
+				sblend = BF(ONE);
+			} else if (sblend == BF(ONE_MINUS_DST_ALPHA)) {
+				sblend = BF(ZERO);
+			}
+		} else if (dest_format == PICT_a8) {
+			if (sblend == BF(DST_ALPHA)) {
+				sblend = BF(DST_COLOR);
+			} else if (sblend == BF(ONE_MINUS_DST_ALPHA)) {
+				sblend = BF(ONE_MINUS_DST_COLOR);
+			}
+		}
 	}
 
-	if (component_alpha && blend->src_alpha) {
-		if (dblend == BF(SRC_ALPHA))
+	if (blend->src_alpha && (component_alpha || dest_format == PICT_a8)) {
+		if (dblend == BF(SRC_ALPHA)) {
 			dblend = BF(SRC_COLOR);
-		else if (dblend == BF(ONE_MINUS_SRC_ALPHA))
+		} else if (dblend == BF(ONE_MINUS_SRC_ALPHA)) {
 			dblend = BF(ONE_MINUS_SRC_COLOR);
-	}
-
-	if (dest_format == PICT_a8 && blend->dst_alpha) {
-		if (sblend == BF(DST_ALPHA))
-			sblend = BF(DST_COLOR);
-		else
-		if (sblend == BF(ONE_MINUS_DST_ALPHA))
-			sblend = BF(ONE_MINUS_DST_COLOR);
-	}
-
-	if (dest_format == PICT_a8 && blend->src_alpha) {
-		if (dblend == BF(SRC_ALPHA))
-			dblend = BF(SRC_COLOR);
-		else
-		if (dblend == BF(ONE_MINUS_SRC_ALPHA))
-			dblend = BF(ONE_MINUS_SRC_COLOR);
+		}
 	}
 
 	if (sblend == BF(ONE) && dblend == BF(ZERO)) {
-	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 1);
-	NVDmaNext (pNv, 0);
+		NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 1);
+		NVDmaNext (pNv, 0);
 	} else {
-	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 5);
-	NVDmaNext (pNv, 1);
-	NVDmaNext (pNv, (sblend << 16) | sblend);
-	NVDmaNext (pNv, (dblend << 16) | dblend);
-	NVDmaNext (pNv, 0x00000000);			/* Blend colour */
-	NVDmaNext (pNv, (0x8006 << 16) | 0x8006);	/* FUNC_ADD, FUNC_ADD */
+		NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 5);
+		NVDmaNext (pNv, 1);
+		NVDmaNext (pNv, (sblend << 16) | sblend);
+		NVDmaNext (pNv, (dblend << 16) | dblend);
+		NVDmaNext (pNv, 0x00000000);			/* Blend colour */
+		NVDmaNext (pNv, (0x8006 << 16) | 0x8006);	/* FUNC_ADD, FUNC_ADD */
 	}
 }
 
@@ -359,8 +353,7 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	else
 		card_filter = 1;
 
-	chipset = (nvReadMC(pNv, 0) >> 20) & 0xff;
-	if ((chipset & 0xf0) == NV_ARCH_30)
+	if (pNv->Architecture == NV_ARCH_30)
 	{
 		NVDmaStart(pNv, Nv3D,
 				NV30_TCL_PRIMITIVE_3D_TX_ADDRESS_UNIT(unit), 8);
