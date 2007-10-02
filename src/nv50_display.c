@@ -39,14 +39,6 @@
 #include "nv50_display.h"
 #include "nv50_output.h"
 
-typedef struct NV50CrtcPrivRec {
-    Head head;
-    int pclk; /* Target pixel clock in kHz */
-    Bool cursorVisible;
-    Bool skipModeFixup;
-    Bool dither;
-} NV50CrtcPrivRec, *NV50CrtcPrivPtr;
-
 static void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update);
 
 /*
@@ -328,7 +320,7 @@ NV50CrtcDoModeFixup(DisplayModePtr dst, const DisplayModePtr src)
         ((2*src->CrtcVTotal - src->CrtcVSyncStart + src->CrtcVBlankStart) / 2 - 2);
 }
 
-static Bool
+Bool
 NV50CrtcModeFixup(xf86CrtcPtr crtc,
                  DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
@@ -341,7 +333,7 @@ NV50CrtcModeFixup(xf86CrtcPtr crtc,
     return TRUE;
 }
 
-static void
+void
 NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode,
                DisplayModePtr adjusted_mode, int x, int y)
 {
@@ -421,11 +413,6 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
     }
 }
 
-void
-NV50CrtcDPMSSet(xf86CrtcPtr crtc, int mode)
-{
-}
-
 /******************************** Cursor stuff ********************************/
 static void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
 {
@@ -452,13 +439,7 @@ void NV50CrtcHideCursor(xf86CrtcPtr crtc)
 
 /******************************** CRTC stuff ********************************/
 
-static Bool
-NV50CrtcLock(xf86CrtcPtr crtc)
-{
-    return FALSE;
-}
-
-static void
+void
 NV50CrtcPrepare(xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
@@ -547,7 +528,7 @@ void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode,
     C(0x000008DC + headOff, outY << 16 | outX);
 }
 
-static void
+void
 NV50CrtcCommit(xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
@@ -568,46 +549,6 @@ NV50CrtcCommit(xf86CrtcPtr crtc)
             NV50CrtcBlankScreen(xf86_config->crtc[i], TRUE);
 
     C(0x00000080, 0);
-}
-
-static const xf86CrtcFuncsRec nv50_crtc_funcs = {
-    .dpms = NV50CrtcDPMSSet,
-    .save = NULL,
-    .restore = NULL,
-    .lock = NV50CrtcLock,
-    .unlock = NULL,
-    .mode_fixup = NV50CrtcModeFixup,
-    .prepare = NV50CrtcPrepare,
-    .mode_set = NV50CrtcModeSet,
-    // .gamma_set = NV50DispGammaSet,
-    .commit = NV50CrtcCommit,
-    .shadow_create = NULL,
-    .shadow_destroy = NULL,
-    .set_cursor_position = NV50SetCursorPosition,
-    .show_cursor = NV50CrtcShowCursor,
-    .hide_cursor = NV50CrtcHideCursor,
-    .load_cursor_argb = NV50LoadCursorARGB,
-    .destroy = NULL,
-};
-
-void
-NV50DispCreateCrtcs(ScrnInfoPtr pScrn)
-{
-    NVPtr pNv = NVPTR(pScrn);
-    Head head;
-    xf86CrtcPtr crtc;
-    NV50CrtcPrivPtr nv50_crtc;
-
-    /* Create a "crtc" object for each head */
-    for(head = HEAD0; head <= HEAD1; head++) {
-        crtc = xf86CrtcCreate(pScrn, &nv50_crtc_funcs);
-        if(!crtc) return;
-
-        nv50_crtc = xnfcalloc(sizeof(*nv50_crtc), 1);
-        nv50_crtc->head = head;
-	nv50_crtc->dither = pNv->FPDither;
-        crtc->driver_private = nv50_crtc;
-    }
 }
 
 #endif /* ENABLE_RANDR12 */

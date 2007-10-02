@@ -187,5 +187,25 @@ Bool NV50EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
 void NV50EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV50EXADoneComposite(PixmapPtr);
 
+#ifdef ENABLE_RANDR12
+/* in nv50_display.c */
+Bool NV50CrtcModeFixup(xf86CrtcPtr crtc,
+		DisplayModePtr mode, DisplayModePtr adjusted_mode);
+void NV50CrtcPrepare(xf86CrtcPtr crtc);
+void NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode,
+		DisplayModePtr adjusted_mode, int x, int y);
+void NV50CrtcCommit(xf86CrtcPtr crtc);
+
+/* in nv50_cursor.c */
+void NV50SetCursorPosition(xf86CrtcPtr crtc, int x, int y);
+void NV50CrtcShowCursor(xf86CrtcPtr crtc);
+void NV50CrtcHideCursor(xf86CrtcPtr crtc);
+void NV50LoadCursorARGB(xf86CrtcPtr crtc, CARD32 *src);
+
+/* in nv50_crtc.c */
+void NV50DispCreateCrtcs(ScrnInfoPtr pScrn);
+#endif /* ENABLE_RANDR12 */
+
+
 #endif /* __NV_PROTO_H__ */
 

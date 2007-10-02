@@ -59,6 +59,7 @@ nouveau_drv_la_SOURCES = \
          nv_output.c \
          nv_i2c.c \
 	 nv50_cursor.c \
+	 nv50_crtc.c \
 	 nv50_dac.c \
 	 nv50_display.c \
 	 nv50_exa.c \

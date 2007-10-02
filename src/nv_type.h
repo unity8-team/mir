@@ -365,6 +365,14 @@ typedef struct _NVCrtcPrivateRec {
 	Bool paletteEnabled;
 } NVCrtcPrivateRec, *NVCrtcPrivatePtr;
 
+typedef struct NV50CrtcPrivRec {
+	Head head;
+	int pclk; /* Target pixel clock in kHz */
+	Bool cursorVisible;
+	Bool skipModeFixup;
+	Bool dither;
+} NV50CrtcPrivRec, *NV50CrtcPrivPtr;
+
 #define NVCrtcPrivate(c) ((NVCrtcPrivatePtr)(c)->driver_private)
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))
