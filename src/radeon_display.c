@@ -791,6 +791,11 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
 	mode1 = &xf86_config->crtc[1]->mode;
       } else
 	return;
+    } else {
+	if (xf86_config->crtc[0]->enabled)
+	    mode1 = &xf86_config->crtc[0]->mode;
+	else
+	    return;
     }
 
     RADEONInitDispBandwidth2(pScrn, info, pixel_bytes2, mode1, mode2);
