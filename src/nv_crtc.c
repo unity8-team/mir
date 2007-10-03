@@ -882,18 +882,18 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	NVCrtcRegPtr regp, savep;
 	unsigned int i;
-	int horizDisplay    = (mode->CrtcHDisplay/8)   - 1;
-	int horizStart      = (mode->CrtcHSyncStart/8) - 1;
-	int horizEnd        = (mode->CrtcHSyncEnd/8)   - 1;
-	int horizTotal      = (mode->CrtcHTotal/8)     - 5;
-	int horizBlankStart = (mode->CrtcHDisplay/8)   - 1;
-	int horizBlankEnd   = (mode->CrtcHTotal/8)     - 1;
-	int vertDisplay     =  mode->CrtcVDisplay      - 1;
-	int vertStart       =  mode->CrtcVSyncStart    - 1;
-	int vertEnd         =  mode->CrtcVSyncEnd      - 1;
-	int vertTotal       =  mode->CrtcVTotal        - 2;
-	int vertBlankStart  =  mode->CrtcVDisplay      - 1;
-	int vertBlankEnd    =  mode->CrtcVTotal        - 1;
+	int horizDisplay	= (mode->CrtcHDisplay/8);
+	int horizStart		= (mode->CrtcHSyncStart/8);
+	int horizEnd		= (mode->CrtcHSyncEnd/8);
+	int horizTotal		= (mode->CrtcHTotal/8) ;
+	int horizBlankStart	= (mode->CrtcHDisplay/8);
+	int horizBlankEnd	= (mode->CrtcHTotal/8);
+	int vertDisplay		=  mode->CrtcVDisplay;
+	int vertStart		=  mode->CrtcVSyncStart;
+	int vertEnd		=  mode->CrtcVSyncEnd;
+	int vertTotal		=  mode->CrtcVTotal;
+	int vertBlankStart	=  mode->CrtcVDisplay;
+	int vertBlankEnd	=  mode->CrtcVTotal;
 	/* What about vsync and hsync? */
 
 	Bool is_fp = FALSE;
@@ -912,22 +912,36 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	}
 
 	ErrorF("crtc: Pre-sync workaround\n");
-	/* The CRTC needs a little time to stay in sync at panel resultion */
-	/* I don't know at this state if this is the case, but elsewere is just a hack as well */
-	/* Any better ideas were to put this? */
+	/* Flatpanel stuff from haiku */
 	if (is_fp) {
-		if (pNv->Architecture >= NV_ARCH_40) {
-			horizTotal -= 56/8;
-			/* This is my observation, screen becomes fuzzy otherwise */
-			/* Maybe this is because the crtc timing needs to end before the dfp's? */
-			/* Check this on older hardware please */
-			vertTotal -= 1;
-		} else if (pNv->NVArch == 0x11) {
+		/* This is to keep the panel synced at native resolution */
+		if (pNv->NVArch == 0x11) {
 			horizTotal -= 56/8;
 		} else {
 			horizTotal -= 32/8;
 		}
+
+		vertTotal -= 1;
+		horizTotal -= 1;
+
+		if (horizStart == horizDisplay) 
+			horizStart -= 1;
+		if (horizEnd == horizTotal)
+			horizEnd -= 1;
+		if (vertStart == vertDisplay)
+			vertStart += 1;
+		if (vertEnd  == vertTotal)
+			vertEnd -= 1;
 	}
+
+	/* Stuff from haiku, put here so it doesn't mess up the comparisons above */
+	horizTotal -= 5;
+	horizDisplay -= 1;
+	vertTotal -= 2;
+	vertDisplay -= 1;
+	horizBlankEnd -= 1;
+	vertBlankEnd -= 1;
+
 	ErrorF("crtc: Post-sync workaround\n");
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];    
@@ -1116,6 +1130,14 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		regp->CRTC[NV_VGA_CRTCX_58] = 0x3;
 	} else {
 		regp->CRTC[NV_VGA_CRTCX_58] = 0x0;
+	}
+
+	/* This seems to be valid for most cards, but bit 5 is also used sometimes */
+	/* Also this may not be true for dual dvi cards, please more dumps to clarify the situation */
+	if (nv_crtc->head == 1) {
+		regp->CRTC[NV_VGA_CRTCX_52] = 0x04;
+	} else {
+		regp->CRTC[NV_VGA_CRTCX_52] = 0x08;
 	}
 
 	regp->unk830 = mode->CrtcVDisplay - 3;
@@ -1379,6 +1401,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3B, regp->CRTC[NV_VGA_CRTCX_3B]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3C, regp->CRTC[NV_VGA_CRTCX_3C]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_45, regp->CRTC[NV_VGA_CRTCX_45]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_52, regp->CRTC[NV_VGA_CRTCX_52]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_56, regp->CRTC[NV_VGA_CRTCX_56]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_58, regp->CRTC[NV_VGA_CRTCX_58]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_59, regp->CRTC[NV_VGA_CRTCX_59]);
@@ -1482,6 +1505,7 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->CRTC[NV_VGA_CRTCX_3B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3B);
 	regp->CRTC[NV_VGA_CRTCX_3C] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3C);
 	regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_45);
+	regp->CRTC[NV_VGA_CRTCX_52] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_52);
 	regp->CRTC[NV_VGA_CRTCX_56] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_56);
 	regp->CRTC[NV_VGA_CRTCX_58] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_58);
 	regp->CRTC[NV_VGA_CRTCX_59] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_59);
