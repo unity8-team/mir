@@ -750,40 +750,32 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-    if (radeon_output->MonType == MT_LCD) {
-	adjusted_mode->HTotal     = radeon_output->PanelXRes + radeon_output->HBlank;
-	adjusted_mode->HSyncStart = radeon_output->PanelXRes + radeon_output->HOverPlus;
-	adjusted_mode->HSyncEnd   = adjusted_mode->HSyncStart + radeon_output->HSyncWidth;
-	adjusted_mode->VTotal     = radeon_output->PanelYRes + radeon_output->VBlank;
-	adjusted_mode->VSyncStart = radeon_output->PanelYRes + radeon_output->VOverPlus;
-	adjusted_mode->VSyncEnd   = adjusted_mode->VSyncStart + radeon_output->VSyncWidth;
-	adjusted_mode->Clock      = radeon_output->DotClock;
-	adjusted_mode->Flags      = radeon_output->Flags;
-    }
-
+    /* decide if we are using RMX */
     if ((radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP)
 	&& radeon_output->rmx_type != RMX_OFF) {
 	xf86CrtcPtr crtc = output->crtc;
 	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-	if (radeon_crtc->crtc_id == 0)
-	    adjusted_mode->Flags |= RADEON_USE_RMX;
-
-	if (adjusted_mode->Flags & RADEON_USE_RMX) {
-	    radeon_output->Flags |= RADEON_USE_RMX;
-
-	    adjusted_mode->CrtcHTotal     = mode->CrtcHDisplay + radeon_output->HBlank;
-	    adjusted_mode->CrtcHSyncStart = mode->CrtcHDisplay + radeon_output->HOverPlus;
-	    adjusted_mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + radeon_output->HSyncWidth;
-	    adjusted_mode->CrtcVTotal     = mode->CrtcVDisplay + radeon_output->VBlank;
-	    adjusted_mode->CrtcVSyncStart = mode->CrtcVDisplay + radeon_output->VOverPlus;
-	    adjusted_mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + radeon_output->VSyncWidth;
-	    adjusted_mode->Clock          = radeon_output->DotClock;
-	    adjusted_mode->Flags          = radeon_output->Flags;
-
+	if (radeon_crtc->crtc_id == 0) {
+	    if (mode->HDisplay < radeon_output->PanelXRes ||
+		mode->VDisplay < radeon_output->PanelYRes)
+		radeon_output->Flags |= RADEON_USE_RMX;
 	} else
 	    radeon_output->Flags &= ~RADEON_USE_RMX;
+    }
 
+    /* update crtc timing for LVDS always and DFP if RMX is active */
+    if ((radeon_output->MonType == MT_LCD) ||
+	((radeon_output->MonType == MT_DFP) &&
+	 (radeon_output->Flags & RADEON_USE_RMX))) {
+	adjusted_mode->CrtcHTotal     = mode->CrtcHDisplay + radeon_output->HBlank;
+	adjusted_mode->CrtcHSyncStart = mode->CrtcHDisplay + radeon_output->HOverPlus;
+	adjusted_mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + radeon_output->HSyncWidth;
+	adjusted_mode->CrtcVTotal     = mode->CrtcVDisplay + radeon_output->VBlank;
+	adjusted_mode->CrtcVSyncStart = mode->CrtcVDisplay + radeon_output->VOverPlus;
+	adjusted_mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + radeon_output->VSyncWidth;
+	adjusted_mode->Clock          = radeon_output->DotClock;
+	adjusted_mode->Flags          = radeon_output->Flags;
     }
 
     return TRUE;
