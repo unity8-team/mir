@@ -630,7 +630,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 			regp->output = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 		}
 
-		if (nv_crtc->pcio == 1) {
+		if (nv_crtc->head == 1) {
 			regp->output |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 		} else {
 			regp->output &= ~NV_RAMDAC_OUTPUT_SELECT_CRTC1;

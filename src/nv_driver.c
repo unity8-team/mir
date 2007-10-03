@@ -738,11 +738,11 @@ NVResetCrtcConfig(ScrnInfoPtr pScrn, int set)
 		if (set) {
 			NVCrtcRegPtr regp;
 
-			regp = &pNv->ModeReg.crtc_reg[nv_crtc->pcio];
+			regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 			val = regp->head;
 		}
 
-		nvWriteCRTC(pNv, nv_crtc->pcio, NV_CRTC_FSEL, val);
+		nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_FSEL, val);
 	}
 }
 #endif
@@ -1894,7 +1894,7 @@ NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 		NVCrtcRegPtr regp;
 
-		regp = &pNv->ModeReg.crtc_reg[nv_crtc->pcio];
+		regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
 		if (crtc->enabled == 0)
 			continue;

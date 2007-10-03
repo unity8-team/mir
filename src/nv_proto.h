@@ -195,6 +195,7 @@ void NV50CrtcPrepare(xf86CrtcPtr crtc);
 void NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode,
 		DisplayModePtr adjusted_mode, int x, int y);
 void NV50CrtcCommit(xf86CrtcPtr crtc);
+void NV50CrtcSetPClk(xf86CrtcPtr crtc);
 
 /* in nv50_cursor.c */
 void NV50SetCursorPosition(xf86CrtcPtr crtc, int x, int y);
@@ -204,6 +205,8 @@ void NV50LoadCursorARGB(xf86CrtcPtr crtc, CARD32 *src);
 
 /* in nv50_crtc.c */
 void NV50DispCreateCrtcs(ScrnInfoPtr pScrn);
+void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value);
+void NV50CrtcCommand(xf86CrtcPtr crtc, CARD32 addr, CARD32 value);
 #endif /* ENABLE_RANDR12 */
 
 

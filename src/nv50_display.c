@@ -140,13 +140,12 @@ NV50CalcPLL(float pclk, int *pNA, int *pMA, int *pNB, int *pMB, int *pP)
     }
 }
 
-static void
-NV50CrtcSetPClk(xf86CrtcPtr crtc)
+void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 {
     NVPtr pNv = NVPTR(crtc->scrn);
     NV50CrtcPrivPtr pPriv = crtc->driver_private;
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-    const int headOff = 0x800 * pPriv->pcio;
+    const int headOff = 0x800 * pPriv->head;
     int lo_n, lo_m, hi_n, hi_m, p, i;
     CARD32 lo = pNv->REGS[(0x00614104+headOff)/4];
     CARD32 hi = pNv->REGS[(0x00614108+headOff)/4];
@@ -172,44 +171,11 @@ NV50CrtcSetPClk(xf86CrtcPtr crtc)
     }
 }
 
-void
-NV50DispCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 data)
-{
-    NVPtr pNv = NVPTR(pScrn);
-
-    pNv->REGS[0x00610304/4] = data;
-    pNv->REGS[0x00610300/4] = addr | 0x80010001;
-
-    while(pNv->REGS[0x00610300/4] & 0x80000000) {
-        const int super = ffs((pNv->REGS[0x00610024/4] >> 4) & 7);
-
-        if(super) {
-            if(super == 2) {
-                xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-                const CARD32 r = pNv->REGS[0x00610030/4];
-                int i;
-
-                for(i = 0; i < xf86_config->num_crtc; i++)
-                {
-                    xf86CrtcPtr crtc = xf86_config->crtc[i];
-                    NV50CrtcPrivPtr pPriv = crtc->driver_private;
-
-                    if(r & (0x200 << pPriv->pcio))
-                        NV50CrtcSetPClk(crtc);
-                }
-            }
-
-            pNv->REGS[0x00610024/4] = 8 << super;
-            pNv->REGS[0x00610030/4] = 0x80000000;
-        }
-    }
-}
-
 Head
 NV50CrtcGetHead(xf86CrtcPtr crtc)
 {
     NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    return pPriv->pcio;
+    return pPriv->head;
 }
 
 Bool
@@ -258,12 +224,12 @@ NV50DispInit(ScrnInfoPtr pScrn)
     pNv->REGS[0x00610200/4] = 0x1000b03;
     while(!(pNv->REGS[0x00610200/4] & 0x40000000));
 
-    C(0x00000084, 0);
-    C(0x00000088, 0);
-    C(0x00000874, 0);
-    C(0x00000800, 0);
-    C(0x00000810, 0);
-    C(0x0000082C, 0);
+	NV50DisplayCommand(pScrn, 0x84, 0);
+	NV50DisplayCommand(pScrn, 0x88, 0);
+	NV50DisplayCommand(pScrn, 0x874, 0);
+	NV50DisplayCommand(pScrn, 0x800, 0);
+	NV50DisplayCommand(pScrn, 0x810, 0);
+	NV50DisplayCommand(pScrn, 0x82c, 0);
 
     return TRUE;
 }
@@ -281,7 +247,7 @@ NV50DispShutdown(ScrnInfoPtr pScrn)
         NV50CrtcBlankScreen(crtc, TRUE);
     }
 
-    C(0x00000080, 0);
+	NV50DisplayCommand(pScrn, 0x80, 0);
 
     for(i = 0; i < xf86_config->num_crtc; i++) {
         xf86CrtcPtr crtc = xf86_config->crtc[i];
@@ -341,90 +307,89 @@ NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode,
     NV50CrtcPrivPtr pPriv = crtc->driver_private;
     const int HDisplay = adjusted_mode->HDisplay;
     const int VDisplay = adjusted_mode->VDisplay;
-    const int headOff = 0x400 * NV50CrtcGetHead(crtc);
 
     pPriv->pclk = adjusted_mode->Clock;
 
-    C(0x00000804 + headOff, adjusted_mode->Clock | 0x800000);
-    C(0x00000808 + headOff, (adjusted_mode->Flags & V_INTERLACE) ? 2 : 0);
-    C(0x00000810 + headOff, 0);
-    C(0x0000082C + headOff, 0);
-    C(0x00000814 + headOff, adjusted_mode->CrtcHBlankStart);
-    C(0x00000818 + headOff, adjusted_mode->CrtcHSyncEnd);
-    C(0x0000081C + headOff, adjusted_mode->CrtcHBlankEnd);
-    C(0x00000820 + headOff, adjusted_mode->CrtcHTotal);
-    if(adjusted_mode->Flags & V_INTERLACE)
-        C(0x00000824 + headOff, adjusted_mode->CrtcHSkew);
-    C(0x00000868 + headOff, pScrn->virtualY << 16 | pScrn->virtualX);
-    C(0x0000086C + headOff, pScrn->displayWidth * (pScrn->bitsPerPixel / 8) | 0x100000);
-    switch(pScrn->depth) {
-        case  8: C(0x00000870 + headOff, 0x1E00); break;
-        case 15: C(0x00000870 + headOff, 0xE900); break;
-        case 16: C(0x00000870 + headOff, 0xE800); break;
-        case 24: C(0x00000870 + headOff, 0xCF00); break;
-    }
-    NV50CrtcSetDither(crtc, pPriv->dither, FALSE);
-    C(0x000008A8 + headOff, 0x40000);
-    C(0x000008C0 + headOff, y << 16 | x);
-    C(0x000008C8 + headOff, VDisplay << 16 | HDisplay);
-    C(0x000008D4 + headOff, 0);
+	/* DoCrtc includes head offset */
+	NV50CrtcCommand(crtc, 0x804, adjusted_mode->Clock | 0x800000);
+	NV50CrtcCommand(crtc, 0x808, (adjusted_mode->Flags & V_INTERLACE) ? 2 : 0);
+	NV50CrtcCommand(crtc, 0x810, 0);
+	NV50CrtcCommand(crtc, 0x82c, 0);
+	NV50CrtcCommand(crtc, 0x814, adjusted_mode->CrtcHBlankStart);
+	NV50CrtcCommand(crtc, 0x818, adjusted_mode->CrtcHSyncEnd);
+	NV50CrtcCommand(crtc, 0x81c, adjusted_mode->CrtcHBlankEnd);
+	NV50CrtcCommand(crtc, 0x820, adjusted_mode->CrtcHTotal);
+	if(adjusted_mode->Flags & V_INTERLACE) {
+		NV50CrtcCommand(crtc, 0x824, adjusted_mode->CrtcHSkew);
+	}
+	NV50CrtcCommand(crtc, 0x868, pScrn->virtualY << 16 | pScrn->virtualX);
+	NV50CrtcCommand(crtc, 0x86c, pScrn->displayWidth * (pScrn->bitsPerPixel / 8) | 0x100000);
+	switch(pScrn->depth) {
+		case 8: NV50CrtcCommand(crtc, 0x870, 0x1e00); break;
+		case 15: NV50CrtcCommand(crtc, 0x870, 0xe900); break;
+		case 16: NV50CrtcCommand(crtc, 0x870, 0xe800); break;
+		case 24: NV50CrtcCommand(crtc, 0x870, 0xcf00); break;
+	}
+	NV50CrtcSetDither(crtc, pPriv->dither, FALSE);
+	NV50CrtcCommand(crtc, 0x8a8, 0x40000);
+	NV50CrtcCommand(crtc, 0x8c0, y << 16 | x);
+	NV50CrtcCommand(crtc, 0x8c8, VDisplay << 16 | HDisplay);
+	NV50CrtcCommand(crtc, 0x8d4, 0);
 
-    NV50CrtcBlankScreen(crtc, FALSE);
+	NV50CrtcBlankScreen(crtc, FALSE);
 }
 
 void
 NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NVPtr pNv = NVPTR(pScrn);
-    NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    const int headOff = 0x400 * pPriv->pcio;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	NV50CrtcPrivPtr pPriv = crtc->driver_private;
 
-    if(blank) {
-        NV50CrtcShowHideCursor(crtc, FALSE, FALSE);
+	if(blank) {
+		NV50CrtcShowHideCursor(crtc, FALSE, FALSE);
 
-        C(0x00000840 + headOff, 0);
-        C(0x00000844 + headOff, 0);
-        if(pNv->NVArch != 0x50)
-            C(0x0000085C + headOff, 0);
-        C(0x00000874 + headOff, 0);
-        if(pNv->NVArch != 0x50)
-            C(0x0000089C + headOff, 0);
-    } else {
-        C(0x00000860 + headOff, pNv->FB->offset >> 8);
-        C(0x00000864 + headOff, 0);
-        pNv->REGS[0x00610380/4] = 0;
-	/*XXX: in "nv" this is total vram size.  our RamAmountKBytes is clamped
-	 *     to 256MiB.
-	 */
-        pNv->REGS[0x00610384/4] = pNv->RamAmountKBytes * 1024 - 1;
-        pNv->REGS[0x00610388/4] = 0x150000;
-        pNv->REGS[0x0061038C/4] = 0;
-        C(0x00000884 + headOff, pNv->Cursor->offset >> 8);
-        if(pNv->NVArch != 0x50)
-            C(0x0000089C + headOff, 1);
-        if(pPriv->cursorVisible)
-            NV50CrtcShowHideCursor(crtc, TRUE, FALSE);
-        C(0x00000840 + headOff, pScrn->depth == 8 ? 0x80000000 : 0xc0000000);
-        C(0x00000844 + headOff, pNv->CLUT->offset >> 8);
-        if(pNv->NVArch != 0x50)
-            C(0x0000085C + headOff, 1);
-        C(0x00000874 + headOff, 1);
-    }
+		NV50CrtcCommand(crtc, 0x840, 0);
+		NV50CrtcCommand(crtc, 0x844, 0);
+		if(pNv->NVArch != 0x50)
+			NV50CrtcCommand(crtc, 0x85c, 0);
+		NV50CrtcCommand(crtc, 0x874, 0);
+		if(pNv->NVArch != 0x50)
+			NV50CrtcCommand(crtc, 0x89c, 0);
+	} else {
+		NV50CrtcCommand(crtc, 0x860, pNv->FB->offset >> 8);
+		NV50CrtcCommand(crtc, 0x864, 0);
+		pNv->REGS[0x00610380/4] = 0;
+		/*XXX: in "nv" this is total vram size.  our RamAmountKBytes is clamped
+		*     to 256MiB.
+		*/
+		pNv->REGS[0x00610384/4] = pNv->RamAmountKBytes * 1024 - 1;
+		pNv->REGS[0x00610388/4] = 0x150000;
+		pNv->REGS[0x0061038C/4] = 0;
+		NV50CrtcCommand(crtc, 0x884, pNv->Cursor->offset >> 8);
+		if(pNv->NVArch != 0x50)
+			NV50CrtcCommand(crtc, 0x89c, 1);
+		if(pPriv->cursorVisible)
+			NV50CrtcShowHideCursor(crtc, TRUE, FALSE);
+		NV50CrtcCommand(crtc, 0x840, pScrn->depth == 8 ? 0x80000000 : 0xc0000000);
+		NV50CrtcCommand(crtc, 0x844, pNv->CLUT->offset >> 8);
+		if(pNv->NVArch != 0x50)
+			NV50CrtcCommand(crtc, 0x85c, 1);
+		NV50CrtcCommand(crtc, 0x874, 1);
+     }
 }
 
 /******************************** Cursor stuff ********************************/
 static void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    const int headOff = 0x400 * NV50CrtcGetHead(crtc);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NV50CrtcPrivPtr pPriv = crtc->driver_private;
 
-    C(0x00000880 + headOff, show ? 0x85000000 : 0x5000000);
-    if(update) {
-        pPriv->cursorVisible = show;
-        C(0x00000080, 0);
-    }
+	NV50CrtcCommand(crtc, 0x880, show ? 0x85000000 : 0x5000000);
+	if(update) {
+		pPriv->cursorVisible = show;
+		NV50CrtcCommand(crtc, 0x80, 0);
+	}
 }
 
 void NV50CrtcShowCursor(xf86CrtcPtr crtc)
@@ -467,14 +432,14 @@ NV50CrtcSkipModeFixup(xf86CrtcPtr crtc)
 void
 NV50CrtcSetDither(xf86CrtcPtr crtc, Bool dither, Bool update)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    const int headOff = 0x400 * NV50CrtcGetHead(crtc);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NV50CrtcPrivPtr pPriv = crtc->driver_private;
 
-    pPriv->dither = dither;
+	pPriv->dither = dither;
 
-    C(0x000008A0 + headOff, dither ? 0x11 : 0);
-    if(update) C(0x00000080, 0);
+	NV50CrtcCommand(crtc, 0x8a0, dither ? 0x11 : 0);
+	if(update) 
+		NV50CrtcCommand(crtc, 0x80, 0);
 }
 
 static void ComputeAspectScale(DisplayModePtr mode, int *outX, int *outY)
@@ -498,7 +463,6 @@ void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode,
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    const int headOff = 0x400 * pPriv->pcio;
     int outX, outY;
 
     switch(scale) {
@@ -518,14 +482,14 @@ void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode,
             break;
     }
 
-    if((mode->Flags & V_DBLSCAN) || (mode->Flags & V_INTERLACE) ||
-       mode->HDisplay != outX || mode->VDisplay != outY) {
-        C(0x000008A4 + headOff, 9);
-    } else {
-        C(0x000008A4 + headOff, 0);
-    }
-    C(0x000008D8 + headOff, outY << 16 | outX);
-    C(0x000008DC + headOff, outY << 16 | outX);
+	if((mode->Flags & V_DBLSCAN) || (mode->Flags & V_INTERLACE) ||
+		mode->HDisplay != outX || mode->VDisplay != outY) {
+		NV50CrtcCommand(crtc, 0x8a4, 9);
+	} else {
+		NV50CrtcCommand(crtc, 0x8a4, 0);
+	}
+	NV50CrtcCommand(crtc, 0x8d8, outY << 16 | outX);
+	NV50CrtcCommand(crtc, 0x8dc, outY << 16 | outX);
 }
 
 void
@@ -548,7 +512,7 @@ NV50CrtcCommit(xf86CrtcPtr crtc)
         if(!((1 << i) & crtc_mask))
             NV50CrtcBlankScreen(xf86_config->crtc[i], TRUE);
 
-    C(0x00000080, 0);
+	NV50CrtcCommand(crtc, 0x80, 0);
 }
 
 #endif /* ENABLE_RANDR12 */

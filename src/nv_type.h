@@ -262,6 +262,8 @@ typedef struct _NVRec {
     volatile CARD32 *PCRTC0;
     volatile CARD32 *PCRTC1;
 
+	volatile CARD32 *NV50_PCRTC;
+
     volatile CARD32 *PRAMDAC0;
     volatile CARD32 *PRAMDAC1;
     volatile CARD32 *PFB;
@@ -373,12 +375,12 @@ typedef struct _NVRec {
 
 typedef struct _NVCrtcPrivateRec {
 	int crtc;
-	int pcio;
+	int head;
 	Bool paletteEnabled;
 } NVCrtcPrivateRec, *NVCrtcPrivatePtr;
 
 typedef struct _NV50CrtcPrivRec {
-	int pcio;
+	int head;
 	int pclk; /* Target pixel clock in kHz */
 	Bool cursorVisible;
 	Bool skipModeFixup;

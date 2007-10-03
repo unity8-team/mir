@@ -391,6 +391,9 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 #endif /* XSERVER_LIBPCIACCESS */
 
     pNv->PRAMIN   = pNv->REGS + (NV_PRAMIN_OFFSET/4);
+	if (pNv->Architecture >= NV_ARCH_50) {
+		pNv->NV50_PCRTC = pNv->REGS + (NV50_PCRTC_OFFSET/4);
+	}
     pNv->PCRTC0   = pNv->REGS + (NV_PCRTC0_OFFSET/4);
     pNv->PRAMDAC0 = pNv->REGS + (NV_PRAMDAC0_OFFSET/4);
     pNv->PFB      = pNv->REGS + (NV_PFB_OFFSET/4);

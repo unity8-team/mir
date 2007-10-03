@@ -16,9 +16,6 @@ Bool NV50DispPreInit(ScrnInfoPtr);
 Bool NV50DispInit(ScrnInfoPtr);
 void NV50DispShutdown(ScrnInfoPtr);
 
-void NV50DispCommand(ScrnInfoPtr, CARD32 addr, CARD32 data);
-#define C(mthd, data) NV50DispCommand(pScrn, (mthd), (data))
-
 Head NV50CrtcGetHead(xf86CrtcPtr);
 
 void NV50CrtcDoModeFixup(DisplayModePtr dst, DisplayModePtr src);

@@ -94,7 +94,7 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
     const int dacOff = 0x80 * pPriv->or;
 
     if(!adjusted_mode) {
-        C(0x00000400 + dacOff, 0);
+	NV50DisplayCommand(pScrn, 0x400 + dacOff, 0);
         return;
     }
 
@@ -103,11 +103,12 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
     // turns it off automatically.
     NV50DacDPMSSet(output, DPMSModeOn);
 
-    C(0x00000400 + dacOff,
-        (NV50CrtcGetHead(output->crtc) == HEAD0 ? 1 : 2) | 0x40);
-    C(0x00000404 + dacOff,
-        (adjusted_mode->Flags & V_NHSYNC) ? 1 : 0 |
-        (adjusted_mode->Flags & V_NVSYNC) ? 2 : 0);
+	NV50DisplayCommand(pScrn, 0x400 + dacOff,
+		(NV50CrtcGetHead(output->crtc) == HEAD0 ? 1 : 2) | 0x40);
+
+	NV50DisplayCommand(pScrn, 0x404 + dacOff,
+		(adjusted_mode->Flags & V_NHSYNC) ? 1 : 0 |
+		(adjusted_mode->Flags & V_NVSYNC) ? 2 : 0);
 
     NV50CrtcSetScale(output->crtc, adjusted_mode, NV50_SCALE_OFF);
 }

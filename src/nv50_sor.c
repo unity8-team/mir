@@ -104,7 +104,7 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 
     if(!adjusted_mode) {
         /* Disconnect the SOR */
-        C(0x00000600 + sorOff, 0);
+	NV50DisplayCommand(pScrn, 0x600 + sorOff, 0);
         return;
     }
 
@@ -122,10 +122,10 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
     // turns it off automatically.
     NV50SorDPMSSet(output, DPMSModeOn);
 
-    C(0x00000600 + sorOff,
-        (NV50CrtcGetHead(output->crtc) == HEAD0 ? 1 : 2) | type |
-        ((adjusted_mode->Flags & V_NHSYNC) ? 0x1000 : 0) |
-        ((adjusted_mode->Flags & V_NVSYNC) ? 0x2000 : 0));
+	NV50DisplayCommand(pScrn, 0x600 + sorOff,
+		(NV50CrtcGetHead(output->crtc) == HEAD0 ? 1 : 2) | type |
+		((adjusted_mode->Flags & V_NHSYNC) ? 0x1000 : 0) |
+		((adjusted_mode->Flags & V_NVSYNC) ? 0x2000 : 0));
 
     NV50CrtcSetScale(output->crtc, adjusted_mode, pPriv->scale);
 }
