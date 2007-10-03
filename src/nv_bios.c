@@ -1467,6 +1467,7 @@ static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offse
 		} else {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: Init table command not found: 0x%02X\n", 
 				offset, id);
+			break;
 		}
 
 		/* Add the offset of the current command including all data
