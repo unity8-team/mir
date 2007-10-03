@@ -50,7 +50,7 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 		/* What does is the meaning of this? */
 		const int super = ffs((NV50CrtcRead(pScrn, 0x24) >> 4) & 0x7);
 
-		if (super == 1) {
+		if (super > 0) {
 			if (super == 2) {
 				xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 				const CARD32 clockvar = NV50CrtcRead(pScrn, 0x30);
