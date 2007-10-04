@@ -674,7 +674,7 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaStart(pNv, Nv3D, 0x180, 1);
+	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_SET_OBJECT0, 1);
 	NVDmaNext (pNv, NvDmaNotifier0);
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_SET_OBJECT1, 3);
 	NVDmaNext (pNv, NvDmaFB);
@@ -687,17 +687,17 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	NVDmaNext (pNv, NvDmaFB);
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_SET_OBJECT3, 1);
 	NVDmaNext (pNv, NvDmaFB);
-	NVDmaStart(pNv, Nv3D, 0x1b0, 1);
+	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_SET_OBJECT8B, 1);
 	NVDmaNext (pNv, NvDmaFB);
 
 	NVDmaStart(pNv, Nv3D, 0x2b8, 1);
 	NVDmaNext(pNv, 0);
-	NVDmaStart(pNv, Nv3D, 0x200, 2);
+	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_COLOR_BUFFER_DIM0, 2);
 	NVDmaNext(pNv, 0);
 	NVDmaNext(pNv, 0);
-	NVDmaStart(pNv, Nv3D, 0x2c0, 1);
+	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_COLOR_BUFFER_OFS0, 1);
 	NVDmaNext(pNv, 0x0fff0000);
-	NVDmaStart(pNv, Nv3D, 0x2c4, 1);
+	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_COLOR_BUFFER_OFS1, 1);
 	NVDmaNext(pNv, 0x0fff0000);
 	/* voodoo */
 	for(i = 0x2c8; i <= 0x2fc; i += 4)
@@ -707,7 +707,7 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	}
 	NVDmaStart(pNv, Nv3D, 0x02bc, 1);
 	NVDmaNext(pNv, 0);
-	NVDmaStart(pNv, Nv3D, 0x0220, 1);
+	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_ENABLED_BUFFERS, 1);
 	NVDmaNext(pNv, 1);
 	NVDmaStart(pNv, Nv3D, 0x03b0, 1);
 	NVDmaNext(pNv, 0x00100000);
@@ -812,7 +812,7 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	NVDmaStart(pNv, Nv3D, 0x1d78, 1);
 	NVDmaNext (pNv, 0x110);
 
-	NVDmaStart(pNv, Nv3D, 0x0220, 1);
+	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_ENABLED_BUFFERS, 1);
 	NVDmaNext (pNv, 1);
 	NVDmaStart(pNv, Nv3D,
 			NV30_TCL_PRIMITIVE_3D_VIEWPORT_COLOR_BUFFER_DIM0, 2);
