@@ -237,7 +237,9 @@ RADEONProbe(DriverPtr drv, int flags)
     Bool     foundScreen = FALSE;
     int      i;
 
+#ifndef XSERVER_LIBPCIACCESS
     if (!xf86GetPciVideoInfo()) return FALSE;
+#endif
 
     /* Collect unclaimed device sections for both driver names */
     nATIGDev    = xf86MatchDevice(ATI_NAME, &ATIGDevs);

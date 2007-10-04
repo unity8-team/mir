@@ -355,8 +355,6 @@ ATIPrintRegisters
     ATIPtr pATI
 )
 {
-    pciVideoPtr  pVideo = pATI->PCIInfo;
-    pciConfigPtr pPCI = pVideo->thisCard;
     int          Index;
     CARD32       lcd_index, tv_out_index, lcd_gen_ctrl;
     CARD8        dac_read, dac_mask, dac_write;
@@ -642,10 +640,14 @@ ATIPrintRegisters
         xf86ErrorFVerb(4, "\n\n PCI configuration register values:");
         for (Index = 0;  Index < 256;  Index+= 4)
         {
+            pciVideoPtr pVideo = pATI->PCIInfo;
+            uint32_t    data;
+
+            PCI_READ_LONG(pVideo, &data, Index);
+
             if (!(Index & 15))
                 xf86ErrorFVerb(4, "\n 0x%02X: ", Index);
-            xf86ErrorFVerb(4, " 0x%08lX",
-			   (unsigned long)pciReadLong(pPCI->tag, Index));
+            xf86ErrorFVerb(4, " 0x%08X", data);
         }
     }
 

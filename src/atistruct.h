@@ -61,6 +61,8 @@
 #include "xf86Pci.h"
 #include "xf86Resources.h"
 
+#include "atipcirename.h"
+
 #define CacheSlotOf(____Register) ((____Register) / UnitOf(DWORD_SELECT))
 
 /*
