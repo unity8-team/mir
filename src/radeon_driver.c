@@ -5243,6 +5243,7 @@ static void RADEONSavePalette(ScrnInfoPtr pScrn, RADEONSavePtr save)
 static void RADEONSave(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr  save       = &info->SavedReg;
 
@@ -5279,8 +5280,10 @@ static void RADEONSave(ScrnInfoPtr pScrn)
     RADEONSaveCrtcRegisters(pScrn, save);
     RADEONSaveFPRegisters(pScrn, save);
     RADEONSaveDACRegisters(pScrn, save);
-    RADEONSaveCrtc2Registers(pScrn, save);
-    RADEONSavePLL2Registers(pScrn, save);
+    if (pRADEONEnt->HasCRTC2) {
+	RADEONSaveCrtc2Registers(pScrn, save);
+	RADEONSavePLL2Registers(pScrn, save);
+    }
     if (info->InternalTVOut)
 	RADEONSaveTVRegisters(pScrn, save);
 
@@ -5369,9 +5372,11 @@ void RADEONRestore(ScrnInfoPtr pScrn)
 #endif
 
     /* need to make sure we don't enable a crtc by accident or we may get a hang */
-    if (info->crtc2_on) {
-	crtc = xf86_config->crtc[1];
-	crtc->funcs->dpms(crtc, DPMSModeOn);
+    if (pRADEONEnt->HasCRTC2) {
+	if (info->crtc2_on) {
+	    crtc = xf86_config->crtc[1];
+	    crtc->funcs->dpms(crtc, DPMSModeOn);
+	}
     }
     if (info->crtc_on) {
 	crtc = xf86_config->crtc[0];
