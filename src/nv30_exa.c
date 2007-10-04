@@ -420,9 +420,11 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PictFormatShort format)
 		return FALSE;
 	}
 
+        uint32_t pitch = (uint32_t)exaGetPixmapPitch(pPix);
+
 	NVDmaStart(pNv, Nv3D, 0x208, 3);
 	NVDmaNext (pNv, fmt->card_fmt);
-	NVDmaNext (pNv, (uint32_t)exaGetPixmapPitch(pPix));
+	NVDmaNext (pNv, pitch << 16 | pitch);
 	NVDmaNext (pNv, NVAccelGetPixmapOffset(pPix));
 
 	return TRUE;
