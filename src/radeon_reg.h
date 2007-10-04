@@ -780,7 +780,7 @@
 #       define RADEON_FP2_PANEL_FORMAT         (1 <<  3)
 #       define RADEON_FP2_DETECT_SENSE         (1 <<  8)
 #       define R200_FP2_SOURCE_SEL_MASK        (3 << 10)
-#       define R200_FP2_SOURCE_SEL_CRTC1       (0 <<  10)
+#       define R200_FP2_SOURCE_SEL_CRTC1       (0 << 10)
 #       define R200_FP2_SOURCE_SEL_CRTC2       (1 << 10)
 #       define R200_FP2_SOURCE_SEL_RMX         (2 << 10)
 #       define R200_FP2_SOURCE_SEL_TRANS_UNIT  (3 << 10)
@@ -796,6 +796,8 @@
 #       define RADEON_FP2_DVO_EN               (1 << 25)
 #       define RADEON_FP2_DVO_RATE_SEL_SDR     (1 << 26)
 #       define R200_FP2_DVO_RATE_SEL_SDR       (1 << 27)
+#       define R300_FP2_DVO_CLOCK_MODE_SINGLE  (1 << 28)
+#       define R300_FP2_DVO_DUAL_CHANNEL_EN    (1 << 29)
 #define RADEON_FP_H_SYNC_STRT_WID           0x02c4
 #define RADEON_FP_H2_SYNC_STRT_WID          0x03c4
 #define RADEON_FP_HORZ_STRETCH              0x028c

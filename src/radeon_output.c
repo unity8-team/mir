@@ -865,13 +865,15 @@ static void RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
 			    RADEON_FP2_DVO_EN |
 			    RADEON_FP2_DVO_RATE_SEL_SDR);
 
-#if 0
-    /* XXX: these may be chip specific */
-    save->fp2_gen_cntl |= (1 << 22) | R200_FP2_DVO_CLOCK_MODE_SINGLE;
 
-    if (mode->Clock > 165000)
-	save->fp2_gen_cntl |= R200_FP2_DVO_DUAL_CHANNEL_EN;
+    /* XXX: these may be oem specific */
+    if (IS_R300_VARIANT) {
+	save->fp2_gen_cntl |= RADEON_FP2_PAD_FLOP_EN | R300_FP2_DVO_CLOCK_MODE_SINGLE;
+#if 0
+	if (mode->Clock > 165000)
+	    save->fp2_gen_cntl |= R300_FP2_DVO_DUAL_CHANNEL_EN;
 #endif
+    }
 
     if (IsPrimary) {
         if ((info->ChipFamily == CHIP_FAMILY_R200) || IS_R300_VARIANT) {
