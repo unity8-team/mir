@@ -795,8 +795,8 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
     xf86DrvMsg(pScreen->myNum, X_INFO,
 	       "[agp] Mode 0x%08lx [AGP 0x%04x/0x%04x; Card 0x%04x/0x%04x]\n",
 	       mode, vendor, device,
-	       info->PciInfo->vendor,
-	       info->PciInfo->chipType);
+	       PCI_DEV_VENDOR_ID(info->PciInfo),
+	       PCI_DEV_DEVICE_ID(info->PciInfo));
 
     if (drmAgpEnable(info->drmFD, mode) < 0) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR, "[agp] AGP not enabled\n");
@@ -1183,9 +1183,9 @@ static void RADEONDRIIrqInit(RADEONInfoPtr info, ScreenPtr pScreen)
     if (!info->irq) {
 	info->irq = drmGetInterruptFromBusID(
 	    info->drmFD,
-	    ((pciConfigPtr)info->PciInfo->thisCard)->busnum,
-	    ((pciConfigPtr)info->PciInfo->thisCard)->devnum,
-	    ((pciConfigPtr)info->PciInfo->thisCard)->funcnum);
+	    PCI_CFG_BUS(info->PciInfo),
+	    PCI_CFG_DEV(info->PciInfo),
+	    PCI_CFG_FUNC(info->PciInfo));
 
 	if ((drmCtlInstHandler(info->drmFD, info->irq)) != 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1291,9 +1291,9 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
 	busId = xalloc(64);
 	sprintf(busId,
 		"PCI:%d:%d:%d",
-		info->PciInfo->bus,
-		info->PciInfo->device,
-		info->PciInfo->func);
+		PCI_DEV_BUS(info->PciInfo),
+		PCI_DEV_DEV(info->PciInfo),
+		PCI_DEV_FUNC(info->PciInfo));
     }
 
     /* Low level DRM open */
@@ -1431,9 +1431,9 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
 	pDRIInfo->busIdString            = xalloc(64);
 	sprintf(pDRIInfo->busIdString,
 		"PCI:%d:%d:%d",
-		info->PciInfo->bus,
-		info->PciInfo->device,
-		info->PciInfo->func);
+		PCI_DEV_BUS(info->PciInfo),
+		PCI_DEV_DEV(info->PciInfo),
+		PCI_DEV_FUNC(info->PciInfo));
     }
     pDRIInfo->ddxDriverMajorVersion      = info->allowColorTiling ?
     				RADEON_VERSION_MAJOR_TILED : RADEON_VERSION_MAJOR;

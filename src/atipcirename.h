@@ -41,6 +41,9 @@ enum region_type {
 #define PCI_DEV_DEVICE_ID(_pcidev) ((_pcidev)->chipType)
 #define PCI_DEV_REVISION(_pcidev)  ((_pcidev)->chipRev)
 
+#define PCI_SUB_VENDOR_ID(_pcidev) ((_pcidev)->subsysVendor)
+#define PCI_SUB_DEVICE_ID(_pcidev) ((_pcidev)->subsysCard)
+
 #define PCI_DEV_TAG(_pcidev) pciTag((_pcidev)->bus,    \
                                     (_pcidev)->device, \
                                     (_pcidev)->func)
@@ -65,6 +68,9 @@ enum region_type {
     (((_pcidev)->size[(_b)] > 0) ? (1 << (_pcidev)->size[(_b)]) : 0)
 
 /* read/write PCI configuration space */
+#define PCI_READ_BYTE(_pcidev, _value_ptr, _offset) \
+    *(_value_ptr) = pciReadByte(PCI_CFG_TAG(_pcidev), (_offset))
+
 #define PCI_READ_LONG(_pcidev, _value_ptr, _offset) \
     *(_value_ptr) = pciReadLong(PCI_CFG_TAG(_pcidev), (_offset))
 
@@ -78,6 +84,9 @@ typedef struct pci_device *pciVideoPtr;
 #define PCI_DEV_VENDOR_ID(_pcidev) ((_pcidev)->vendor_id)
 #define PCI_DEV_DEVICE_ID(_pcidev) ((_pcidev)->device_id)
 #define PCI_DEV_REVISION(_pcidev)  ((_pcidev)->revision)
+
+#define PCI_SUB_VENDOR_ID(_pcidev) ((_pcidev)->subvendor_id)
+#define PCI_SUB_DEVICE_ID(_pcidev) ((_pcidev)->subdevice_id)
 
 /* pci-rework functions take a 'pci_device' parameter instead of a tag */
 #define PCI_DEV_TAG(_pcidev)        (_pcidev)
@@ -98,6 +107,9 @@ typedef struct pci_device *pciVideoPtr;
 
 #define PCI_REGION_BASE(_pcidev, _b, _type) ((_pcidev)->regions[(_b)].base_addr)
 #define PCI_REGION_SIZE(_pcidev, _b)        ((_pcidev)->regions[(_b)].size)
+
+#define PCI_READ_BYTE(_pcidev, _value_ptr, _offset) \
+    pci_device_cfg_read_u8((_pcidev), (_value_ptr), (_offset))
 
 #define PCI_READ_LONG(_pcidev, _value_ptr, _offset) \
     pci_device_cfg_read_u32((_pcidev), (_value_ptr), (_offset))

@@ -1213,9 +1213,11 @@ RADEONResetVideo(ScrnInfoPtr pScrn)
 
     xvAdjustment      = MAKE_ATOM("XV_DEBUG_ADJUSTMENT");
 
-    sprintf(tmp, "RXXX:%d.%d.%d", info->PciInfo->vendor, info->PciInfo->chipType, info->PciInfo->chipRev);
+    sprintf(tmp, "RXXX:%d.%d.%d", PCI_DEV_VENDOR_ID(info->PciInfo),
+	    PCI_DEV_DEVICE_ID(info->PciInfo), PCI_DEV_REVISION(info->PciInfo));
     pPriv->device_id = MAKE_ATOM(tmp);
-    sprintf(tmp, "PCI:%02d:%02d.%d", info->PciInfo->bus, info->PciInfo->device, info->PciInfo->func);
+    sprintf(tmp, "PCI:%02d:%02d.%d", PCI_DEV_BUS(info->PciInfo),
+	    PCI_DEV_DEV(info->PciInfo), PCI_DEV_FUNC(info->PciInfo));
     pPriv->location_id = MAKE_ATOM(tmp);
     sprintf(tmp, "INSTANCE:%d", pScrn->scrnIndex);
     pPriv->instance_id = MAKE_ATOM(tmp);

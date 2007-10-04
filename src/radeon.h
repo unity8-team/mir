@@ -88,6 +88,8 @@
 #include "picturestr.h"
 #endif
 
+#include "atipcirename.h"
+
 #ifndef MAX
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #endif
@@ -456,8 +458,8 @@ typedef struct {
     CARD32            mc_fb_location;
     CARD32            mc_agp_location;
 
-    unsigned char     *MMIO;            /* Map of MMIO region                */
-    unsigned char     *FB;              /* Map of frame buffer               */
+    void              *MMIO;            /* Map of MMIO region                */
+    void              *FB;              /* Map of frame buffer               */
     CARD8             *VBIOS;           /* Video BIOS pointer                */
 
     Bool              IsAtomBios;       /* New BIOS used in R420 etc.        */

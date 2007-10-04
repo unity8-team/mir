@@ -621,7 +621,7 @@ RADEONHostDataParams(ScrnInfoPtr pScrn, CARD8 *dst, CARD32 pitch, int cpp,
 		     CARD32 *dstPitchOff, int *x, int *y)
 {
     RADEONInfoPtr info = RADEONPTR( pScrn );
-    CARD32 dstOffs = dst - info->FB + info->fbLocation;
+    CARD32 dstOffs = dst - (CARD8*)info->FB + info->fbLocation;
 
     *dstPitchOff = pitch << 16 | (dstOffs & ~RADEON_BUFFER_ALIGN) >> 10;
     *y = ( dstOffs & RADEON_BUFFER_ALIGN ) / pitch;

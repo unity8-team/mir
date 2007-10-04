@@ -48,7 +48,13 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
     int tmp;
     unsigned short dptr;
 
-    if (!(info->VBIOS = xalloc(RADEON_VBIOS_SIZE))) {
+    if (!(info->VBIOS = xalloc(
+#ifdef XSERVER_LIBPCIACCESS
+			       info->PciInfo->rom_size
+#else
+			       RADEON_VBIOS_SIZE
+#endif
+			       ))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Cannot allocate space for hold Video BIOS!\n");
 	return FALSE;
@@ -58,6 +64,12 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	    (void)memcpy(info->VBIOS, xf86int10Addr(pInt10, info->BIOSAddr),
 			 RADEON_VBIOS_SIZE);
 	} else {
+#ifdef XSERVER_LIBPCIACCESS
+	    if (pci_device_read_rom(info->PciInfo, info->VBIOS)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Failed to read PCI ROM!\n");
+	    }
+#else
 	    xf86ReadPciBIOS(0, info->PciTag, 0, info->VBIOS, RADEON_VBIOS_SIZE);
 	    if (info->VBIOS[0] != 0x55 || info->VBIOS[1] != 0xaa) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -69,6 +81,7 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 		xf86ReadDomainMemory(info->PciTag, info->BIOSAddr,
 				     RADEON_VBIOS_SIZE, info->VBIOS);
 	    }
+#endif
 	}
     }
 
