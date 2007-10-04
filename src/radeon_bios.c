@@ -765,7 +765,7 @@ Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output)
 		    val = RADEON_BIOS32(index);
 		    index += 4;
 		    ErrorF("WRITE INDEXED: 0x%x 0x%x\n",
-			   reg, (unsigned)val);
+			   (unsigned)reg, (unsigned)val);
 		    /*OUTREG(reg, val);*/
 		    break;
 		case 2:
@@ -777,13 +777,13 @@ Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output)
 		    val = INREG(reg);
 		    val = (val & andmask) | ormask;
 		    ErrorF("MASK DIRECT: 0x%x 0x%x 0x%x\n",
-			   reg, (unsigned)andmask, (unsigned)ormask);
+			   (unsigned)reg, (unsigned)andmask, (unsigned)ormask);
 		    /*OUTREG(reg, val);*/
 		    break;
 		case 4:
 		    val = RADEON_BIOS16(index);
 		    index += 2;
-		    ErrorF("delay: %d\n", val);
+		    ErrorF("delay: %u\n", (unsigned)val);
 		    usleep(val);
 		    break;
 		case 5:
@@ -793,7 +793,7 @@ Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output)
 		    ormask = RADEON_BIOS32(index);
 		    index += 4;
 		    ErrorF("MASK PLL: 0x%x 0x%x 0x%x\n",
-			   reg, (unsigned)andmask, (unsigned)ormask);
+			   (unsigned)reg, (unsigned)andmask, (unsigned)ormask);
 		    /*val = INPLL(pScrn, reg);
 		    val = (val & andmask) | ormask;
 		    OUTPLL(pScrn, reg, val);*/
@@ -802,7 +802,8 @@ Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output)
 		    reg = id & 0x1fff;
 		    val = RADEON_BIOS8(index);
 		    index += 1;
-		    ErrorF("i2c write: 0x%x, 0x%x\n", reg, val);
+		    ErrorF("i2c write: 0x%x, 0x%x\n", (unsigned)reg,
+			   (unsigned)val);
 		    RADEONDVOWriteByte(radeon_output->DVOChip, reg, val);
 		    break;
 		default:
