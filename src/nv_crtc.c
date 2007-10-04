@@ -464,100 +464,94 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
  * mode state structure.
  */
 void nv_crtc_calc_state_ext(
-    xf86CrtcPtr crtc,
-    int            bpp,
-    int            width,
-    int            hDisplaySize,
-    int            height,
-    int            dotClock,
-    int		   flags 
+	xf86CrtcPtr 	crtc,
+	int			bpp,
+	int			width,
+	int			hDisplaySize,
+	int			height,
+	int			dotClock,
+	int			flags 
 )
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    int pixelDepth, VClk;
-    CARD32 CursorStart;
-    NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    NVCrtcRegPtr regp;
-    NVPtr pNv = NVPTR(pScrn);    
-    RIVA_HW_STATE *state;
-    int num_crtc_enabled, i;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	int pixelDepth, VClk;
+	CARD32 CursorStart;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	NVCrtcRegPtr regp;
+	NVPtr pNv = NVPTR(pScrn);    
+	RIVA_HW_STATE *state;
+	int num_crtc_enabled, i;
 
-    state = &pNv->ModeReg;
+	state = &pNv->ModeReg;
 
-    regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
-    /*
-     * Extended RIVA registers.
-     */
-    pixelDepth = (bpp + 1)/8;
-    if(pNv->twoStagePLL)
-        CalcVClock2Stage(dotClock, &VClk, &state->pll, &state->pllB, pNv);
-    else
-        CalcVClock(dotClock, &VClk, &state->pll, pNv);
+	/*
+	 * Extended RIVA registers.
+	 */
+	pixelDepth = (bpp + 1)/8;
+	if(pNv->twoStagePLL)
+		CalcVClock2Stage(dotClock, &VClk, &state->pll, &state->pllB, pNv);
+	else
+		CalcVClock(dotClock, &VClk, &state->pll, pNv);
 
-    switch (pNv->Architecture)
-    {
-        case NV_ARCH_04:
-            nv4UpdateArbitrationSettings(VClk, 
-                                         pixelDepth * 8, 
-                                        &(state->arbitration0),
-                                        &(state->arbitration1),
-                                         pNv);
-            regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x00;
-            regp->CRTC[NV_VGA_CRTCX_CURCTL1] = 0xbC;
-	    if (flags & V_DBLSCAN)
-		regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
-            regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x00000000;
-            state->pllsel   |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2 | NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL; 
-            state->config   = 0x00001114;
-            regp->CRTC[NV_VGA_CRTCX_REPAINT1] = hDisplaySize < 1280 ? 0x04 : 0x00;
-            break;
-        case NV_ARCH_10:
-        case NV_ARCH_20:
-        case NV_ARCH_30:
-        default:
-            if(((pNv->Chipset & 0xfff0) == CHIPSET_C51) ||
-               ((pNv->Chipset & 0xfff0) == CHIPSET_C512))
-            {
-                state->arbitration0 = 128; 
-                state->arbitration1 = 0x0480; 
-            } else
-            if(((pNv->Chipset & 0xffff) == CHIPSET_NFORCE) ||
-               ((pNv->Chipset & 0xffff) == CHIPSET_NFORCE2))
-            {
-                nForceUpdateArbitrationSettings(VClk,
-                                          pixelDepth * 8,
-                                         &(state->arbitration0),
-                                         &(state->arbitration1),
-                                          pNv);
-            } else if(pNv->Architecture < NV_ARCH_30) {
-                nv10UpdateArbitrationSettings(VClk, 
-                                          pixelDepth * 8, 
-                                         &(state->arbitration0),
-                                         &(state->arbitration1),
-                                          pNv);
-            } else {
-                nv30UpdateArbitrationSettings(pNv,
-                                         &(state->arbitration0),
-                                         &(state->arbitration1));
-            }
+	switch (pNv->Architecture) {
+	case NV_ARCH_04:
+		nv4UpdateArbitrationSettings(VClk, 
+						pixelDepth * 8, 
+						&(state->arbitration0),
+						&(state->arbitration1),
+						pNv);
+		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x00;
+		regp->CRTC[NV_VGA_CRTCX_CURCTL1] = 0xbC;
+		if (flags & V_DBLSCAN)
+			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
+		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x00000000;
+		state->pllsel   |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2 | NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL; 
+		state->config   = 0x00001114;
+		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = hDisplaySize < 1280 ? 0x04 : 0x00;
+		break;
+	case NV_ARCH_10:
+	case NV_ARCH_20:
+	case NV_ARCH_30:
+	default:
+		if (((pNv->Chipset & 0xfff0) == CHIPSET_C51) ||
+			((pNv->Chipset & 0xfff0) == CHIPSET_C512)) {
+			state->arbitration0 = 128; 
+			state->arbitration1 = 0x0480; 
+		} else if (((pNv->Chipset & 0xffff) == CHIPSET_NFORCE) ||
+			((pNv->Chipset & 0xffff) == CHIPSET_NFORCE2)) {
+			nForceUpdateArbitrationSettings(VClk,
+						pixelDepth * 8,
+						&(state->arbitration0),
+						&(state->arbitration1),
+						pNv);
+		} else if (pNv->Architecture < NV_ARCH_30) {
+			nv10UpdateArbitrationSettings(VClk, 
+						pixelDepth * 8, 
+						&(state->arbitration0),
+						&(state->arbitration1),
+						pNv);
+		} else {
+			nv30UpdateArbitrationSettings(pNv,
+						&(state->arbitration0),
+						&(state->arbitration1));
+		}
 
+		CursorStart = pNv->Cursor->offset;
 
-	    CursorStart = pNv->Cursor->offset;
+		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x80 | (CursorStart >> 17);
+		regp->CRTC[NV_VGA_CRTCX_CURCTL1] = (CursorStart >> 11) << 2;
+		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = CursorStart >> 24;
 
-            regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x80 | (CursorStart >> 17);
-            regp->CRTC[NV_VGA_CRTCX_CURCTL1] = (CursorStart >> 11) << 2;
-	    regp->CRTC[NV_VGA_CRTCX_CURCTL2] = CursorStart >> 24;
+		if (flags & V_DBLSCAN) 
+			regp->CRTC[NV_VGA_CRTCX_CURCTL1]|= 2;
 
-	    if (flags & V_DBLSCAN) 
-		regp->CRTC[NV_VGA_CRTCX_CURCTL1]|= 2;
-
-
-            state->config   = nvReadFB(pNv, NV_PFB_CFG0);
-            regp->CRTC[NV_VGA_CRTCX_REPAINT1] = hDisplaySize < 1280 ? 0x04 : 0x00;
-            break;
-    }
+		state->config   = nvReadFB(pNv, NV_PFB_CFG0);
+		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = hDisplaySize < 1280 ? 0x04 : 0x00;
+		break;
+	}
 
 	/* okay do we have 2 CRTCs running ? */
 	num_crtc_enabled = 0;
@@ -581,15 +575,14 @@ void nv_crtc_calc_state_ext(
 		state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
 	}
 
-    regp->CRTC[NV_VGA_CRTCX_FIFO0] = state->arbitration0;
-    regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = state->arbitration1 & 0xff;
-    if (pNv->Architecture >= NV_ARCH_30) {
-      regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = state->arbitration1 >> 8;
-    }
-    
-    
-    regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((width / 8) * pixelDepth) & 0x700) >> 3;
-    regp->CRTC[NV_VGA_CRTCX_PIXEL] = (pixelDepth > 2) ? 3 : pixelDepth;
+	regp->CRTC[NV_VGA_CRTCX_FIFO0] = state->arbitration0;
+	regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = state->arbitration1 & 0xff;
+	if (pNv->Architecture >= NV_ARCH_30) {
+		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = state->arbitration1 >> 8;
+	}
+
+	regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((width / 8) * pixelDepth) & 0x700) >> 3;
+	regp->CRTC[NV_VGA_CRTCX_PIXEL] = (pixelDepth > 2) ? 3 : pixelDepth;
 }
 
 
