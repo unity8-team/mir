@@ -67,8 +67,7 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 			}
 
 			NV50CrtcWrite(pScrn, 0x24, 1 << (3 + super));
-			/* Why keep the loop intact? */
-			NV50CrtcWrite(pScrn, 0x300, 0x80000000);
+			NV50CrtcWrite(pScrn, 0x30, 0x80000000);
 		}
 	}
 }
