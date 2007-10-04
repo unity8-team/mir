@@ -5317,15 +5317,6 @@ void RADEONRestore(ScrnInfoPtr pScrn)
     OUTREG(RADEON_GRPH_BUFFER_CNTL, restore->grph_buffer_cntl);
     OUTREG(RADEON_GRPH2_BUFFER_CNTL, restore->grph2_buffer_cntl);
 
-#if 0
-    /* M6 card has trouble restoring text mode for its CRT.
-     * This is fixed elsewhere and will be removed in the future.
-     */
-    if ((xf86IsEntityShared(info->pEnt->index) || info->MergedFB)
-	&& info->IsM6)
-	OUTREG(RADEON_DAC_CNTL2, restore->dac2_cntl);
-#endif
-
     RADEONRestoreMemMapRegisters(pScrn, restore);
     RADEONRestoreCommonRegisters(pScrn, restore);
 
