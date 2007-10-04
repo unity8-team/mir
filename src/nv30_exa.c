@@ -424,7 +424,10 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PictFormatShort format)
 
 	NVDmaStart(pNv, Nv3D, 0x208, 3);
 	NVDmaNext (pNv, fmt->card_fmt);
-	NVDmaNext (pNv, pitch << 16 | pitch);
+	if (pNv->Architecture == NV_30)
+		NVDmaNext (pNv, pitch << 16 | pitch);
+	else
+		NVDmaNext (pNv, pitch);
 	NVDmaNext (pNv, NVAccelGetPixmapOffset(pPix));
 
 	return TRUE;
