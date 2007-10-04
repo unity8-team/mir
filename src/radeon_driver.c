@@ -5239,30 +5239,6 @@ static void RADEONSavePalette(ScrnInfoPtr pScrn, RADEONSavePtr save)
 }
 #endif
 
-/* Save state that defines current video mode */
-static void RADEONSaveMode(ScrnInfoPtr pScrn, RADEONSavePtr save)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "RADEONSaveMode(%p)\n", save);
-
-    RADEONSaveMemMapRegisters(pScrn, save);
-    RADEONSaveCommonRegisters(pScrn, save);
-    RADEONSavePLLRegisters(pScrn, save);
-    RADEONSaveCrtcRegisters(pScrn, save);
-    RADEONSaveFPRegisters(pScrn, save);
-    RADEONSaveDACRegisters(pScrn, save);
-    RADEONSaveCrtc2Registers(pScrn, save);
-    RADEONSavePLL2Registers(pScrn, save);
-    if (info->InternalTVOut)
-	RADEONSaveTVRegisters(pScrn, save);
-    /*RADEONSavePalette(pScrn, save);*/
-
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "RADEONSaveMode returns %p\n", save);
-}
-
 /* Save everything needed to restore the original VC state */
 static void RADEONSave(ScrnInfoPtr pScrn)
 {
@@ -5297,7 +5273,17 @@ static void RADEONSave(ScrnInfoPtr pScrn)
     save->clock_cntl_index = INREG(RADEON_CLOCK_CNTL_INDEX);
     RADEONPllErrataAfterIndex(info);
 
-    RADEONSaveMode(pScrn, save);
+    RADEONSaveMemMapRegisters(pScrn, save);
+    RADEONSaveCommonRegisters(pScrn, save);
+    RADEONSavePLLRegisters(pScrn, save);
+    RADEONSaveCrtcRegisters(pScrn, save);
+    RADEONSaveFPRegisters(pScrn, save);
+    RADEONSaveDACRegisters(pScrn, save);
+    RADEONSaveCrtc2Registers(pScrn, save);
+    RADEONSavePLL2Registers(pScrn, save);
+    if (info->InternalTVOut)
+	RADEONSaveTVRegisters(pScrn, save);
+
     RADEONSaveSurfaces(pScrn, save);
 }
 
