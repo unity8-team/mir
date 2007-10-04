@@ -454,20 +454,21 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
 	NVDmaNext (pNv, 0);
 
-#if IS_NV11
-	NVDmaStart(pNv, Nv3D, 0x120, 3);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 1);
-	NVDmaNext (pNv, 2);
+	if (class != NV10_TCL_PRIMITIVE_3D) {
+		/* For nv11, nv17 */
+		NVDmaStart(pNv, Nv3D, 0x120, 3);
+		NVDmaNext (pNv, 0);
+		NVDmaNext (pNv, 1);
+		NVDmaNext (pNv, 2);
 
-	NVDmaStart(pNv, NvImageBlit, 0x120, 3);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 1);
-	NVDmaNext (pNv, 2);
+		NVDmaStart(pNv, NvImageBlit, 0x120, 3);
+		NVDmaNext (pNv, 0);
+		NVDmaNext (pNv, 1);
+		NVDmaNext (pNv, 2);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
-	NVDmaNext (pNv, 0);
-#endif
+		NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
+		NVDmaNext (pNv, 0);
+	}
 
 	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
 	NVDmaNext (pNv, 0);
