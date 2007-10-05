@@ -272,7 +272,7 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_FP_ACTIVE_PROGRAM, 1);
 	NVDmaNext (pNv, shader->hw_id | 1);
 
-	if (pNv->Architecture == NV_30) {
+	if (pNv->Architecture == NV_ARCH_30) {
 		NVDmaStart(pNv, Nv3D, 0x1d60, 1);
 		NVDmaNext (pNv, 0); /* USES_KIL (1<<7) == 0 */
 		NVDmaStart(pNv, Nv3D, 0x1450, 1);
@@ -358,12 +358,20 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 		NVDmaStart(pNv, Nv3D,
 				NV30_TCL_PRIMITIVE_3D_TX_ADDRESS_UNIT(unit), 8);
 		NVDmaNext (pNv, NVAccelGetPixmapOffset(pPix));
+#if 0
 		NVDmaNext (pNv, (2 << 4)  /* 2D */ |
 				(fmt->card_fmt << 8) |
 				(1 << 13) /* NPOT */ |
 				(1<<16) /* 1 mipmap level */ |
 				(1<<0) /* NvDmaFB */ |
 				(1<<3) /* border disable? */);
+#endif
+#if 1
+                NVDmaNext (pNv, (fmt->card_fmt << 8) |
+                                (1 << 16) |
+                                (log2i(pPix->drawable.width)  << 20) |
+                                (log2i(pPix->drawable.height) << 24));
+#endif
 		NVDmaNext (pNv, (card_repeat <<  0) /* S */ |
 				(card_repeat <<  8) /* T */ |
 				(card_repeat << 16) /* R */);
@@ -424,7 +432,7 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PictFormatShort format)
 
 	NVDmaStart(pNv, Nv3D, 0x208, 3);
 	NVDmaNext (pNv, fmt->card_fmt);
-	if (pNv->Architecture == NV_30)
+	if (pNv->Architecture == NV_ARCH_30)
 		NVDmaNext (pNv, pitch << 16 | pitch);
 	else
 		NVDmaNext (pNv, pitch);
