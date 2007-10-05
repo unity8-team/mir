@@ -993,20 +993,16 @@ static Bool
 i830_allocate_overlay(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    int flags = NEED_PHYSICAL_ADDR | NEED_LIFETIME_FIXED;
+    int flags = 0;
 
     /* Only allocate if overlay is going to be enabled. */
     if (!pI830->XvEnabled)
 	return TRUE;
 
-    if (OVERLAY_NOPHYSICAL(pI830))
-	flags &= ~NEED_PHYSICAL_ADDR;
+    if (!OVERLAY_NOPHYSICAL(pI830))
+	flags |= NEED_PHYSICAL_ADDR;
 
     if (!IS_I965G(pI830)) {
-	/* XXX: The lifetime fixed offset for overlay register is bogus, and we
-	 * should just tell i830_video.c about the new location at EnterVT
-	 * time.
-	 */
 	pI830->overlay_regs = i830_allocate_memory(pScrn, "overlay registers",
 						   OVERLAY_SIZE, GTT_PAGE_SIZE,
 						   flags);
