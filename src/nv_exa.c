@@ -793,14 +793,23 @@ Bool NVExaInit(ScreenPtr pScreen)
 	}
 
 	switch (pNv->Architecture) {
-#if (X_BYTE_ORDER == X_LITTLE_ENDIAN) && defined(ENABLE_NV30EXA)
+#if defined(ENABLE_NV30EXA)
 //	not working yet
-//	case NV_ARCH_30:
-	case NV_ARCH_40:
+/*
+	case NV_ARCH_30:
 		pNv->EXADriverPtr->CheckComposite   = NV30EXACheckComposite;
 		pNv->EXADriverPtr->PrepareComposite = NV30EXAPrepareComposite;
 		pNv->EXADriverPtr->Composite        = NV30EXAComposite;
 		pNv->EXADriverPtr->DoneComposite    = NV30EXADoneComposite;
+		break;
+*/
+#endif
+#if (X_BYTE_ORDER == X_LITTLE_ENDIAN) && defined(ENABLE_NV40EXA)
+	case NV_ARCH_40:
+		pNv->EXADriverPtr->CheckComposite   = NV40EXACheckComposite;
+		pNv->EXADriverPtr->PrepareComposite = NV40EXAPrepareComposite;
+		pNv->EXADriverPtr->Composite        = NV40EXAComposite;
+		pNv->EXADriverPtr->DoneComposite    = NV40EXADoneComposite;
 		break;
 #endif
 	case NV_ARCH_50:

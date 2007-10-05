@@ -55,6 +55,7 @@ nouveau_drv_la_SOURCES = \
          nv_video.c \
          nv10_exa.c \
          nv30_exa.c \
+         nv40_exa.c \
          nv_crtc.c \
          nv_output.c \
          nv_i2c.c \

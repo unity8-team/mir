@@ -167,12 +167,19 @@ Bool NVAccelInitNV10TCL(ScrnInfoPtr pScrn);
 
 /* in nv30_exa.c */
 Bool NVAccelInitNV30TCL(ScrnInfoPtr pScrn);
-Bool NVAccelInitNV40TCL(ScrnInfoPtr pScrn);
 Bool NV30EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
 Bool NV30EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
 				  PixmapPtr, PixmapPtr, PixmapPtr);
 void NV30EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV30EXADoneComposite(PixmapPtr);
+
+/* in nv40_exa.c */
+Bool NVAccelInitNV40TCL(ScrnInfoPtr pScrn);
+Bool NV40EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+Bool NV40EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
+				  PixmapPtr, PixmapPtr, PixmapPtr);
+void NV40EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
+void NV40EXADoneComposite(PixmapPtr);
 
 /* in nv50_exa.c */
 Bool NV50EXAPrepareSolid(PixmapPtr, int, Pixel, Pixel);
