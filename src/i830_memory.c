@@ -1434,7 +1434,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 				     size, 1, NEED_LIFETIME_FIXED);
 	    if (pI830->exa_offscreen == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Failed to allocate EXA offscreen memory.");
+			   "Failed to allocate EXA offscreen memory.\n");
 		return FALSE;
 	    }
 	}
