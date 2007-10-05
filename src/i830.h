@@ -583,6 +583,7 @@ extern void IntelEmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I915EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
+void i830_update_cursor_offsets(ScrnInfoPtr pScrn);
 
 /* CRTC-based cursor functions */
 void

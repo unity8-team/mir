@@ -1197,7 +1197,7 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int flags = pI830->CursorNeedsPhysical ? NEED_PHYSICAL_ADDR : NEED_LIFETIME_FIXED;
+    int flags = pI830->CursorNeedsPhysical ? NEED_PHYSICAL_ADDR : 0;
     int i;
     long size;
 
@@ -1211,35 +1211,8 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
     pI830->cursor_mem = i830_allocate_memory(pScrn, "HW cursors",
 					     size, GTT_PAGE_SIZE,
 					     flags);
-    if (pI830->cursor_mem != NULL) {
-	unsigned long cursor_offset_base = pI830->cursor_mem->offset;
-	unsigned long cursor_addr_base, offset = 0;
-
-	if (pI830->CursorNeedsPhysical) {
-	    /* On any hardware that requires physical addresses for cursors,
-	     * the PTEs don't support memory above 4GB, so we can safely
-	     * ignore the top 32 bits of cursor_mem->bus_addr.
-	     */
-	    cursor_addr_base = (unsigned long)pI830->cursor_mem->bus_addr;
-	} else
-	    cursor_addr_base = pI830->cursor_mem->offset;
-
-	/* Set up the offsets for our cursors in each CRTC. */
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-	    xf86CrtcPtr crtc = xf86_config->crtc[i];
-	    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-
-	    intel_crtc->cursor_argb_addr = cursor_addr_base + offset;
-	    intel_crtc->cursor_argb_offset = cursor_offset_base + offset;
-	    offset += HWCURSOR_SIZE_ARGB;
-
-	    intel_crtc->cursor_addr = cursor_addr_base + offset;
-	    intel_crtc->cursor_offset = cursor_offset_base + offset;
-	    offset += HWCURSOR_SIZE;
-	}
-
+    if (pI830->cursor_mem != NULL)
 	return TRUE;
-    }
 
     /*
      * Allocate four separate buffers when the kernel doesn't support
@@ -1265,21 +1238,6 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 	if (!pI830->cursor_mem_argb[i])
 	    return FALSE;
 
-	/*
-	 * Set up the pointers into the allocations
-	 */
-	if (pI830->CursorNeedsPhysical)
-	{
-	    intel_crtc->cursor_addr = pI830->cursor_mem_classic[i]->bus_addr;
-	    intel_crtc->cursor_argb_addr = pI830->cursor_mem_argb[i]->bus_addr;
-	}
-	else
-	{
-	    intel_crtc->cursor_addr = pI830->cursor_mem_classic[i]->offset;
-	    intel_crtc->cursor_argb_addr = pI830->cursor_mem_argb[i]->offset;
-	}
-	intel_crtc->cursor_offset = pI830->cursor_mem_classic[i]->offset;
-	intel_crtc->cursor_argb_offset = pI830->cursor_mem_argb[i]->offset;
     }
     return TRUE;
 }
@@ -1935,6 +1893,7 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
 	}
 #endif
     }
+    i830_update_cursor_offsets(pScrn);
 
     return TRUE;
 }
