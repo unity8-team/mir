@@ -1389,7 +1389,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     if (IS_I965G(pI830) && !pI830->noAccel && pI830->exa_965_state == NULL) {
 	pI830->exa_965_state =
 	    i830_allocate_memory(pScrn, "exa G965 state buffer",
-		    EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, NEED_LIFETIME_FIXED);
+		    EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, 0);
 	if (pI830->exa_965_state == NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		    "Failed to allocate exa state buffer for 965.\n");
