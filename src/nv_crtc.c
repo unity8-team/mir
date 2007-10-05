@@ -628,6 +628,12 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
        break;
      }
 
+	if (mode == DPMSModeOn) {
+		pNv->crtc_active[nv_crtc->head] = TRUE;
+	} else {
+		pNv->crtc_active[nv_crtc->head] = FALSE;
+	}
+
      NVWriteVgaSeq(crtc, 0x00, 0x1);
      seq1 = NVReadVgaSeq(crtc, 0x01) & ~0x20;
      NVWriteVgaSeq(crtc, 0x1, seq1);
@@ -1056,24 +1062,24 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* This is the value i have, blob seems to use others as well */
 	regp->CRTC[NV_VGA_CRTCX_FIFO1] = 0x1c;
 
-	if(nv_crtc->head == 1) {
+	/* NV40's don't set FPP units, unless in special conditions (then they set both) */
+	/* But what are those special conditions? */
+	if (pNv->Architecture <= NV_ARCH_30) {
 		if (is_fp) {
-			regp->head &= ~NV_CRTC_FSEL_FPP2;
-			regp->head |= NV_CRTC_FSEL_FPP1;
-		} else {
-			regp->head &= ~NV_CRTC_FSEL_FPP1;
-			regp->head |= NV_CRTC_FSEL_FPP2;
-		}
-	} else {
-		if(pNv->twoHeads) {
-			regp->head  =  savep->head | 0x00001000;
-			if (is_fp) {
-				regp->head &= ~NV_CRTC_FSEL_FPP2;
+			if(nv_crtc->head == 1) {
 				regp->head |= NV_CRTC_FSEL_FPP1;
-			} else {
-				regp->head &= ~NV_CRTC_FSEL_FPP1;
+			} else if (pNv->twoHeads) {
 				regp->head |= NV_CRTC_FSEL_FPP2;
 			}
+		}
+	}
+
+	/* In some situations I2C is also enabled on head 1, even when head 1 is not used */
+	/* Seems to be in "crosswired" tmds situations as far as i can tell (only one known case) */
+	if (nv_crtc->head == 0) {
+		regp->head |= NV_CRTC_FSEL_I2C;
+		if (pNv->overlayAdaptor) {
+			regp->head |= NV_CRTC_FSEL_OVERLAY;
 		}
 	}
 
@@ -1173,6 +1179,8 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     //    NVCrtcLockUnlock(crtc, 1);
 
     NVCrtcSetBase(crtc, x, y);
+
+	pNv->crtc_active[nv_crtc->head] = TRUE;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     /* turn on LFB swapping */
     {
