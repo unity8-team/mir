@@ -804,7 +804,7 @@ Bool NVExaInit(ScreenPtr pScreen)
 		break;
 */
 #endif
-#if (X_BYTE_ORDER == X_LITTLE_ENDIAN) && defined(ENABLE_NV40EXA)
+#if (X_BYTE_ORDER == X_LITTLE_ENDIAN) && defined(ENABLE_NV30EXA)
 	case NV_ARCH_40:
 		pNv->EXADriverPtr->CheckComposite   = NV40EXACheckComposite;
 		pNv->EXADriverPtr->PrepareComposite = NV40EXAPrepareComposite;
