@@ -272,6 +272,14 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     while (pI830->memory_list->next->next != NULL)
 	i830_free_memory(pScrn, pI830->memory_list->next);
 
+    /* Free any allocations in buffer objects */
+#ifdef XF86DRI_MM
+    if (pI830->memory_manager) {
+	while (pI830->bo_list != NULL)
+	    i830_free_memory(pScrn, pI830->bo_list);
+    }
+#endif
+
     /* Null out the pointers for all the allocations we just freed.  This is
      * kind of gross, but at least it's just one place now.
      */
