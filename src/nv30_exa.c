@@ -132,16 +132,31 @@ NV30EXAHackupA8Shaders(ScrnInfoPtr pScrn)
   (NV30TCL_TX_SWIZZLE_UNIT_S1_X_##ts1z << NV30TCL_TX_SWIZZLE_UNIT_S1_Z_SHIFT)|\
   (NV30TCL_TX_SWIZZLE_UNIT_S1_X_##ts1w << NV30TCL_TX_SWIZZLE_UNIT_S1_W_SHIFT)\
   }
+
+#if 0
 static nv_pict_texture_format_t
 NV30TextureFormat[] = {
-	_(a8r8g8b8, 0x85,   S1,   S1,   S1,   S1, X, Y, Z, W),
-	_(x8r8g8b8, 0x85,   S1,   S1,   S1,  ONE, X, Y, Z, W),
-	_(x8b8g8r8, 0x85,   S1,   S1,   S1,  ONE, Z, Y, X, W),
-	_(a1r5g5b5, 0x82,   S1,   S1,   S1,   S1, X, Y, Z, W),
-	_(x1r5g5b5, 0x82,   S1,   S1,   S1,  ONE, X, Y, Z, W),
-	_(  r5g6b5, 0x84,   S1,   S1,   S1,   S1, X, Y, Z, W),
-	_(      a8, 0x81, ZERO, ZERO, ZERO,   S1, X, X, X, X),
+	_(a8r8g8b8, 0x12,   S1,   S1,   S1,   S1, W, X, Y, Z),
+	_(x8r8g8b8, 0x12,   S1,   S1,   S1,  ONE, W, X, Y, Z),
+	_(x8b8g8r8, 0x12,   S1,   S1,   S1,  ONE, W, Z, Y, X),
+	_(a1r5g5b5, 0x10,   S1,   S1,   S1,   S1, W, X, Y, Z),
+	_(x1r5g5b5, 0x10,   S1,   S1,   S1,  ONE, W, X, Y, Z),
+//	_(  r5g6b5, 0x04,   S1,   S1,   S1,   S1, X, Y, Z, W),
+	_(      a8, 0x1b, ZERO, ZERO, ZERO,   S1, X, X, X, X),
 	{ -1, ~0, ~0 }
+};
+#endif
+
+static nv_pict_texture_format_t
+NV30TextureFormat[] = {
+        _(a8r8g8b8, 0x85,   S1,   S1,   S1,   S1, X, Y, Z, W),
+        _(x8r8g8b8, 0x85,   S1,   S1,   S1,  ONE, X, Y, Z, W),
+        _(x8b8g8r8, 0x85,   S1,   S1,   S1,  ONE, Z, Y, X, W),
+        _(a1r5g5b5, 0x82,   S1,   S1,   S1,   S1, X, Y, Z, W),
+        _(x1r5g5b5, 0x82,   S1,   S1,   S1,  ONE, X, Y, Z, W),
+        _(  r5g6b5, 0x84,   S1,   S1,   S1,   S1, X, Y, Z, W),
+        _(      a8, 0x81, ZERO, ZERO, ZERO,   S1, X, X, X, X),
+        { -1, ~0, ~0 }
 };
 
 static nv_pict_texture_format_t *
@@ -358,21 +373,15 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 		NVDmaStart(pNv, Nv3D,
 				NV30_TCL_PRIMITIVE_3D_TX_ADDRESS_UNIT(unit), 8);
 		NVDmaNext (pNv, NVAccelGetPixmapOffset(pPix));
-#if 0
-		NVDmaNext (pNv, (2 << 4)  /* 2D */ |
-				(fmt->card_fmt << 8) |
-				(1 << 13) /* NPOT */ |
-				(1<<16) /* 1 mipmap level */ |
-				(1<<0) /* NvDmaFB */ |
-				(1<<3) /* border disable? */);
-#endif
-#if 1
-                NVDmaNext (pNv, (fmt->card_fmt << 8) |
-                                (1 << 16) |
+                
+                NVDmaNext (pNv, (2 << 4) /* 2D */ |
+                                (fmt->card_fmt << 8) |
+                                (1 << 16) /* 1 mipmap level */ |
+                                (1 << 13) /* NPOT */ |
                                 (log2i(pPix->drawable.width)  << 20) |
                                 (log2i(pPix->drawable.height) << 24));
-#endif
-		NVDmaNext (pNv, (card_repeat <<  0) /* S */ |
+		
+                NVDmaNext (pNv, (card_repeat <<  0) /* S */ |
 				(card_repeat <<  8) /* T */ |
 				(card_repeat << 16) /* R */);
 		NVDmaNext (pNv, 0x40000000);
