@@ -2270,7 +2270,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    Bool allocation_done = FALSE;
    MessageType from;
 #ifdef XF86DRI
-   Bool driDisabled;
    xf86CrtcConfigPtr config;
 #endif
 
