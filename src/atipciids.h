@@ -252,7 +252,7 @@
 #define PCI_CHIP_RV280_5965 		0x5965
 #define PCI_CHIP_RN50_5969		0x5969
 #define PCI_CHIP_RS482_5974             0x5974
-#define PCI_CHIP_RS482_5975             0x5975
+#define PCI_CHIP_RS485_5975             0x5975
 #define PCI_CHIP_RS400_5A41             0x5A41
 #define PCI_CHIP_RS400_5A42             0x5A42
 #define PCI_CHIP_RC410_5A61             0x5A61

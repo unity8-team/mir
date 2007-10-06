@@ -1673,7 +1673,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     case PCI_CHIP_RS400_5A42:
     case PCI_CHIP_RC410_5A62:
     case PCI_CHIP_RS480_5955:
-    case PCI_CHIP_RS482_5975:
+    case PCI_CHIP_RS485_5975:
         info->IsMobility = TRUE;
     case PCI_CHIP_RS400_5A41:
     case PCI_CHIP_RC410_5A61:
@@ -2086,10 +2086,10 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	info->Chipset == PCI_CHIP_RN50_5969 ||
 	info->Chipset == PCI_CHIP_RC410_5A61 ||
 	info->Chipset == PCI_CHIP_RC410_5A62 ||
-	info->Chipset == PCI_CHIP_RS482_5975) {
+	info->Chipset == PCI_CHIP_RS485_5975) {
     	if (xf86ReturnOptValBool(info->Options, OPTION_DRI, FALSE)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"Direct rendering for RN50/RC410/RS482 forced on -- "
+		"Direct rendering for RN50/RC410/RS485 forced on -- "
 		"This is NOT officially supported at the hardware level "
 		"and may cause instability or lockups\n");
     	} else {
@@ -2132,7 +2132,7 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	info->Chipset == PCI_CHIP_RS480_5954 ||
 	info->Chipset == PCI_CHIP_RS480_5955 ||
 	info->Chipset == PCI_CHIP_RS482_5974 ||
-	info->Chipset == PCI_CHIP_RS482_5975) {
+	info->Chipset == PCI_CHIP_RS485_5975) {
 
 	if (info->pKernelDRMVersion->version_minor < 27) {
  	     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
