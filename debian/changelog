@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.1.1-0ubuntu6) gutsy; urgency=low
+
+  * 04-fix-g33-gtt-stolen-mem-range.diff:
+    - Latest kernel release changes how stolen mem range is computed on
+      G33 hardware, needs this corresponding X change otherwise we die
+      trying to allocate GART memory.
+
+ -- Kyle McMartin <kyle@ubuntu.com>  Sat, 06 Oct 2007 10:01:17 -0400
+
 xserver-xorg-video-intel (2:2.1.1-0ubuntu5) gutsy; urgency=low
 
   * 03_fix_brightness_control.diff:

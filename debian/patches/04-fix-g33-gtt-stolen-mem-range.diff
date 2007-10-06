@@ -1,0 +1,23 @@
+commit 2a8592f2ebcba86b1127aa889155d58a3dc186ca
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Sep 5 14:52:56 2007 +0800
+
+    Fix G33 GTT stolen mem range
+    
+    G33 GTT table lives in seperate stolen mem with
+    graphics data stolen mem.
+
+diff --git a/src/i830_driver.c b/src/i830_driver.c
+index 9fa231d..983be76 100644
+--- a/src/i830_driver.c
++++ b/src/i830_driver.c
+@@ -483,6 +483,9 @@ I830DetectMemory(ScrnInfoPtr pScrn)
+    range = gtt_size + 4;
+ 
+    if (IS_I85X(pI830) || IS_I865G(pI830) || IS_I9XX(pI830)) {
++      /* G33 has seperate GTT stolen mem */
++      if (IS_G33CLASS(pI830))
++	  range = 0;
+       switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
+       case I855_GMCH_GMS_STOLEN_1M:
+ 	 memsize = MB(1) - KB(range);
