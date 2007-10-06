@@ -419,21 +419,22 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 {
 	ScrnInfoPtr pScrn = xf86Screens[pSrc->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	int src_pitch, cpp, offset;
+	int src_offset, src_pitch, cpp, offset;
 	const char *src;
 
+	src_offset = NVAccelGetPixmapOffset(pSrc);
 	src_pitch  = exaGetPixmapPitch(pSrc);
 	cpp = pSrc->drawable.bitsPerPixel >> 3;
 	offset = (y * src_pitch) + (x * cpp);
 
 	if (pNv->GARTScratch) {
 		if (NVAccelDownloadM2MF(pScrn, dst,
-					NVAccelGetPixmapOffset(pSrc) + offset,
+					src_offset + offset,
 					dst_pitch, src_pitch, w * cpp, h))
 			return TRUE;
 	}
 
-	src = pSrc->devPrivate.ptr + offset;
+	src = (char *) src_offset + offset;
 	exaWaitSync(pSrc->drawable.pScreen);
 	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp))
 		return TRUE;
@@ -613,7 +614,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	}
 
 	/* fallback to memcpy-based transfer */
-	dst = pDst->devPrivate.ptr + (y * dst_pitch) + (x * cpp);
+	dst = (char *) dst_offset + (y * dst_pitch) + (x * cpp);
 	exaWaitSync(pDst->drawable.pScreen);
 	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp))
 		return TRUE;
