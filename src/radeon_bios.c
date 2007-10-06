@@ -176,6 +176,9 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		case RADEON_LCD_GPIO_MASK:
 		    info->BiosConnector[i].DDCType = DDC_LCD;
 		    break;
+		case RADEON_MDGPIO_EN_REG:
+		    info->BiosConnector[i].DDCType = DDC_GPIO;
+		    break;
 		default:
 		    info->BiosConnector[i].DDCType = DDC_NONE_DETECTED;
 		    break;
@@ -277,7 +280,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		    tmp1 = RADEON_BIOS8(tmp0+2) & 0x07;
 		    if (tmp1) {	    
 			info->BiosConnector[4].DDCType	= tmp1;      
-			if (info->BiosConnector[4].DDCType > DDC_LCD) {
+			if (info->BiosConnector[4].DDCType > DDC_GPIO) {
 			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 				       "Unknown DDCType %d found\n",
 				       info->BiosConnector[4].DDCType);

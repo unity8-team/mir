@@ -60,6 +60,7 @@ typedef enum
     DDC_VGA,
     DDC_CRT2,
     DDC_LCD,
+    DDC_GPIO,
 } RADEONDDCType;
 
 typedef enum

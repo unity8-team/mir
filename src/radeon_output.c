@@ -75,13 +75,14 @@ const char *TMDSTypeName[4] = {
   "None"
 };
 
-const char *DDCTypeName[6] = {
+const char *DDCTypeName[7] = {
   "None",
   "MONID",
   "DVI_DDC",
   "VGA_DDC",
   "CRT2_DDC",
-  "LCD_DDC"
+  "LCD_DDC",
+  "GPIO_DDC"
 };
 
 const char *DACTypeName[4] = {
@@ -277,7 +278,7 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     DDCReg = radeon_output->DDCReg;
 
     /* Read and output monitor info using DDC2 over I2C bus */
-    if (radeon_output->pI2CBus && info->ddc2 && (DDCReg != RADEON_LCD_GPIO_MASK)) {
+    if (radeon_output->pI2CBus && info->ddc2 && (DDCReg != RADEON_LCD_GPIO_MASK) && (DDCReg != RADEON_MDGPIO_EN_REG)) {
 	OUTREG(DDCReg, INREG(DDCReg) &
 	       (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
 
@@ -331,7 +332,7 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	    usleep(15000);
 	    if(*MonInfo)  break;
 	}
-    } else if (radeon_output->pI2CBus && info->ddc2 && DDCReg == RADEON_LCD_GPIO_MASK) {
+    } else if (radeon_output->pI2CBus && info->ddc2 && ((DDCReg == RADEON_LCD_GPIO_MASK) || (DDCReg == RADEON_MDGPIO_EN_REG))) {
          *MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex, radeon_output->pI2CBus);
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DDC2/I2C is not properly initialized\n");
@@ -2206,6 +2207,10 @@ static void RADEONI2CGetBits(I2CBusPtr b, int *Clock, int *data)
         val = INREG(b->DriverPrivate.uval+4);
         *Clock = (val & (1<<13)) != 0;
         *data  = (val & (1<<12)) != 0;
+    } else if (b->DriverPrivate.uval == RADEON_MDGPIO_EN_REG) {
+        val = INREG(b->DriverPrivate.uval+4);
+        *Clock = (val & (1<<19)) != 0;
+        *data  = (val & (1<<18)) != 0;
     } else {
         val = INREG(b->DriverPrivate.uval);
         *Clock = (val & RADEON_GPIO_Y_1) != 0;
@@ -2224,6 +2229,11 @@ static void RADEONI2CPutBits(I2CBusPtr b, int Clock, int data)
         val = INREG(b->DriverPrivate.uval) & (CARD32)~((1<<12) | (1<<13));
         val |= (Clock ? 0:(1<<13));
         val |= (data ? 0:(1<<12));
+        OUTREG(b->DriverPrivate.uval, val);
+    } else if (b->DriverPrivate.uval == RADEON_MDGPIO_EN_REG) {
+        val = INREG(b->DriverPrivate.uval) & (CARD32)~((1<<18) | (1<<19));
+        val |= (Clock ? 0:(1<<19));
+        val |= (data ? 0:(1<<18));
         OUTREG(b->DriverPrivate.uval, val);
     } else {
         val = INREG(b->DriverPrivate.uval) & (CARD32)~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1);
@@ -2547,6 +2557,7 @@ void RADEONInitConnector(xf86OutputPtr output)
     case DDC_VGA  : DDCReg = RADEON_GPIO_VGA_DDC; break;
     case DDC_CRT2 : DDCReg = RADEON_GPIO_CRT2_DDC; break;
     case DDC_LCD  : DDCReg = RADEON_LCD_GPIO_MASK; break;
+    case DDC_GPIO : DDCReg = RADEON_MDGPIO_EN_REG; break;
     default: break;
     }
 
