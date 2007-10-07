@@ -157,7 +157,8 @@ typedef enum {
 #if defined(__powerpc__)
     OPTION_MAC_MODEL,
 #endif
-    OPTION_DEFAULT_TMDS_PLL
+    OPTION_DEFAULT_TMDS_PLL,
+    OPTION_LVDS_BIOS_NATIVE_MODE
 } RADEONOpts;
 
 
@@ -815,6 +816,8 @@ typedef struct {
 #if defined(__powerpc__)
     RADEONMacModel    MacModel;
 #endif
+
+    Bool              LVDSBiosNativeMode;
 
     Rotation rotation;
     void (*PointerMoved)(int, int, int);

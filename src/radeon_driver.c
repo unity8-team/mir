@@ -190,6 +190,7 @@ static const OptionInfoRec RADEONOptions[] = {
 #if defined(__powerpc__)
     { OPTION_MAC_MODEL,      "MacModel",         OPTV_STRING,  {0}, FALSE },
 #endif
+    { OPTION_LVDS_BIOS_NATIVE_MODE, "LVDSBiosNativeMode", OPTV_BOOLEAN, {0}, TRUE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
