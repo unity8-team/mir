@@ -28,6 +28,7 @@
 #include "config.h"
 #endif
 
+#define _INTEL_XVMC_SERVER_
 #include "i830.h"
 #include "i830_hwmc.h"
 

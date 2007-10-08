@@ -55,6 +55,7 @@
 #include "xf86xvpriv.h"
 #endif
 
+#define _INTEL_XVMC_SERVER_
 #include "i830_hwmc.h"
 #include "i915_hwmc.h"
 
@@ -830,7 +831,7 @@ static int I915XvMCPutImage(ScrnInfoPtr pScrn, short src_x, short src_y,
     if (pI830->XvMCEnabled) {
         if (FOURCC_XVMC == id) {
             switch (i915XvMCData->command) {
-            case I915_XVMC_COMMAND_DISPLAY:
+            case INTEL_XVMC_COMMAND_DISPLAY:
 		if ((i915XvMCData->srfNo >= I915_XVMC_MAX_SURFACES) ||
 			!pXvMC->surfaces[i915XvMCData->srfNo] ||
 			!pXvMC->sfprivs[i915XvMCData->srfNo]) {

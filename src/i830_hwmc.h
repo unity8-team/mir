@@ -27,6 +27,16 @@
 #ifndef I830_HWMC_H
 #define I830_HWMC_H
 
+#define FOURCC_XVMC     (('C' << 24) + ('M' << 16) + ('V' << 8) + 'X')
+
+/*
+ * Commands that client submits through XvPutImage:
+ */
+
+#define INTEL_XVMC_COMMAND_DISPLAY      0x00
+#define INTEL_XVMC_COMMAND_UNDISPLAY    0x01
+
+#ifdef _INTEL_XVMC_SERVER_
 #include <xf86xvmc.h>
 
 #define XVMC_DRIVER_MPEG2_MC    0x0001
@@ -55,5 +65,6 @@ extern Bool intel_xvmc_driver_init(ScreenPtr, XF86VideoAdaptorPtr);
 extern Bool intel_xvmc_screen_init(ScreenPtr);
 extern void intel_xvmc_finish(ScrnInfoPtr);
 extern int intel_xvmc_putimage_size(ScrnInfoPtr);
+#endif
 
 #endif
