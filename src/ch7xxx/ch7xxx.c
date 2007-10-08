@@ -67,6 +67,8 @@ struct ch7xxx_reg_state {
 
 struct ch7xxx_priv {
     I2CDevRec d;
+    Bool quiet;
+
     struct ch7xxx_reg_state SavedReg;
     struct ch7xxx_reg_state ModeReg;
     CARD8 save_TCTL, save_TPCP, save_TPD, save_TPVT;
@@ -92,9 +94,11 @@ static Bool
 ch7xxx_read(struct ch7xxx_priv *dev_priv, int addr, unsigned char *ch)
 {
     if (!xf86I2CReadByte(&dev_priv->d, addr, ch)) {
-	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex,
-		   X_ERROR, "Unable to read from %s Slave %d.\n",
-		   dev_priv->d.pI2CBus->BusName, dev_priv->d.SlaveAddr);
+	if (!dev_priv->quiet) {
+	    xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex,
+		       X_ERROR, "Unable to read from %s Slave %d.\n",
+		       dev_priv->d.pI2CBus->BusName, dev_priv->d.SlaveAddr);
+	}
 	return FALSE;
     }
 
@@ -106,9 +110,11 @@ static Bool
 ch7xxx_write(struct ch7xxx_priv *dev_priv, int addr, unsigned char ch)
 {
     if (!xf86I2CWriteByte(&dev_priv->d, addr, ch)) {
-	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_ERROR,
-		   "Unable to write to %s Slave %d.\n",
-		   dev_priv->d.pI2CBus->BusName, dev_priv->d.SlaveAddr);
+	if (!dev_priv->quiet) {
+	    xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_ERROR,
+		       "Unable to write to %s Slave %d.\n",
+		       dev_priv->d.pI2CBus->BusName, dev_priv->d.SlaveAddr);
+	}
 	return FALSE;
     }
 
@@ -136,6 +142,7 @@ ch7xxx_init(I2CBusPtr b, I2CSlaveAddr addr)
     dev_priv->d.ByteTimeout = b->ByteTimeout;
     dev_priv->d.DriverPrivate.ptr = dev_priv;
 
+    dev_priv->quiet = TRUE;
     if (!ch7xxx_read(dev_priv, CH7xxx_REG_VID, &vendor))
 	goto out;
 
@@ -159,9 +166,11 @@ ch7xxx_init(I2CBusPtr b, I2CSlaveAddr addr)
 		   dev_priv->d.SlaveAddr);
 	goto out;
     }
-	xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_INFO,
-		   "Detected %s chipset, vendor/device ID 0x%02x/0x%02x\n",
-		   name, vendor, device);
+    dev_priv->quiet = FALSE;
+
+    xf86DrvMsg(dev_priv->d.pI2CBus->scrnIndex, X_INFO,
+	       "Detected %s chipset, vendor/device ID 0x%02x/0x%02x\n",
+	       name, vendor, device);
 
     if (!xf86I2CDevInit(&dev_priv->d)) {
 	goto out;

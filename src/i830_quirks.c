@@ -64,6 +64,8 @@ static i830_quirk i830_quirk_list[] = {
     
     /* Dell Latitude X1 */
     { PCI_CHIP_I945_GM, 0x1028, 0x01a3, quirk_ignore_tv },
+    /* Dell XPS 1330 */
+    { PCI_CHIP_I965_GM, 0x1028, 0x0209, quirk_ignore_tv },
     
     /* Lenovo X60s has no TV output */
     { PCI_CHIP_I945_GM, 0x17aa, 0x201a, quirk_ignore_tv },
@@ -74,6 +76,8 @@ static i830_quirk i830_quirk_list[] = {
     
     /* Panasonic Toughbook CF-Y4 has no TV output */
     { PCI_CHIP_I915_GM, 0x10f7, 0x8338, quirk_ignore_tv },
+    /* Panasonic Toughbook CF-Y7 has no TV output */
+    { PCI_CHIP_I965_GM, 0x10f7, 0x8338, quirk_ignore_tv },
     
     { 0, 0, 0, NULL },
 };

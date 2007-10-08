@@ -95,6 +95,8 @@ typedef struct _TFP410SaveRec {
 
 typedef struct {
     I2CDevRec d;
+    Bool quiet;
+
     TFP410SaveRec SavedReg;
     TFP410SaveRec ModeReg;
 } TFP410Rec, *TFP410Ptr;

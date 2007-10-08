@@ -65,6 +65,7 @@ typedef struct _Sil164SaveRec {
 
 typedef struct {
     I2CDevRec d;
+    Bool quiet;
     SIL164SaveRec SavedReg;
     SIL164SaveRec ModeReg;
 } SIL164Rec, *SIL164Ptr;
