@@ -883,11 +883,10 @@ static void i915_xvmc_fini(ScrnInfoPtr pScrn)
 
 /* new xvmc driver interface */
 struct intel_xvmc_driver i915_xvmc_driver = {
-    "i915_xvmc",
-    &pAdapt,
-    XVMC_DRIVER_MPEG2_MC,
-    i915_xvmc_init,
-    i915_xvmc_fini,
-    i915_xvmc_putimage_size,
-    NULL
+    .name	= "i915_xvmc",
+    .adaptor	= &pAdapt,
+    .flag	= XVMC_DRIVER_MPEG2_MC,
+    .init	= i915_xvmc_init,
+    .fini	= i915_xvmc_fini,
+    .putimage_size = i915_xvmc_putimage_size,
 };
