@@ -1139,6 +1139,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		regp->CRTC[NV_VGA_CRTCX_52] = 0x08;
 	}
 
+	/* The exact purpose of this register is unknown, but we copy value from crtc0 */
+	regp->unk81c = nvReadCRTC0(pNv, NV_CRTC_081C);
+
 	regp->unk830 = mode->CrtcVDisplay - 3;
 	regp->unk834 = mode->CrtcVDisplay - 1;
 }
@@ -1394,6 +1397,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
         nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CURSOR_CONFIG, regp->cursorConfig);
         nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0830, regp->unk830);
         nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0834, regp->unk834);
+	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_081C, regp->unk81c);
 	
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING, regp->CRTC[NV_VGA_CRTCX_FP_HTIMING]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_VTIMING, regp->CRTC[NV_VGA_CRTCX_FP_VTIMING]);
@@ -1492,6 +1496,7 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
  
     regp->unk830 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0830);
     regp->unk834 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0834);
+    regp->unk81c = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_081C);
 
     if(pNv->Architecture >= NV_ARCH_10) {
         if(pNv->twoHeads) {

@@ -111,6 +111,7 @@ typedef struct _nv_crtc_reg
     CARD32 crtcOwner;
     CARD32 unk830;
     CARD32 unk834;
+	CARD32 unk81c;
     CARD32 head;
 } NVCrtcRegRec, *NVCrtcRegPtr;
 
