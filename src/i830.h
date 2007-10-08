@@ -68,6 +68,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef XF86DRI
 #include "xf86drm.h"
+#ifdef XF86DRI_MM
+#include "xf86mm.h"
+#endif
 #include "sarea.h"
 #define _XF86DRI_SERVER_
 #include "dri.h"
