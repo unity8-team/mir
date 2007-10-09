@@ -42,29 +42,27 @@ static nv_shader_t nv40_vp_exa_render = {
 
 static nv_shader_t nv30_fp_pass_col0 = {
   .card_priv.NV30FP.num_regs = 2,
-  .size = (2*4),
+  .size = (1*4),
   .data = {
     /* MOV R0, fragment.color */
     0x01403e81, 0x1c9dc801, 0x0001c800, 0x3fe1c800, 
-    0x00000001, 0x00000000, 0x00000000, 0x00000000
   }
 };
 
 static nv_shader_t nv30_fp_pass_tex0 = {
   .card_priv.NV30FP.num_regs = 2,
-  .size = (3*4),
+  .size = (2*4),
   .data = {
     /* TEX R0, fragment.texcoord[0], texture[0], 2D */
     0x17009e00, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
     /* MOV R0, R0 */
     0x01401e81, 0x1c9dc800, 0x0001c800, 0x0001c800,
-    0x00000001, 0x00000000, 0x00000000, 0x00000000
   }
 };
 
 static nv_shader_t nv30_fp_composite_mask = {
   .card_priv.NV30FP.num_regs = 2,
-  .size = (4*4),
+  .size = (3*4),
   .data = {
     /* TEXC0 R1.w         , fragment.texcoord[1], texture[1], 2D */
     0x1702b102, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
@@ -72,13 +70,12 @@ static nv_shader_t nv30_fp_composite_mask = {
     0x17009e00, 0x1ff5c801, 0x0001c800, 0x3fe1c800,
     /* MUL   R0           , R0, R1.w */
     0x02001e81, 0x1c9dc800, 0x0001fe04, 0x0001c800,
-    0x00000001, 0x00000000, 0x00000000, 0x00000000
   }
 };
 
 static nv_shader_t nv30_fp_composite_mask_sa_ca = {
   .card_priv.NV30FP.num_regs = 2,
-  .size = (4*4),
+  .size = (3*4),
   .data = {
     /* TEXC0 R1.w         , fragment.texcoord[0], texture[0], 2D */
     0x17009102, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
@@ -86,13 +83,12 @@ static nv_shader_t nv30_fp_composite_mask_sa_ca = {
     0x1702be00, 0x1ff5c801, 0x0001c800, 0x3fe1c800,
     /* MUL   R0           , R1,wwww, R0 */
     0x02001e81, 0x1c9dfe04, 0x0001c800, 0x0001c800,
-    0x00000001, 0x00000000, 0x00000000, 0x00000000
   }
 };
 
 static nv_shader_t nv30_fp_composite_mask_ca = {
   .card_priv.NV30FP.num_regs = 2,
-  .size = (4*4),
+  .size = (3*4),
   .data = {
     /* TEXC0 R0           , fragment.texcoord[0], texture[0], 2D */
     0x17009f00, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
@@ -100,7 +96,6 @@ static nv_shader_t nv30_fp_composite_mask_ca = {
     0x1702be02, 0x1c95c801, 0x0001c800, 0x3fe1c800,
     /* MUL   R0           , R0, R1 */
     0x02001e81, 0x1c9dc800, 0x0001c804, 0x0001c800,
-    0x00000001, 0x00000000, 0x00000000, 0x00000000
   }
 };
 
