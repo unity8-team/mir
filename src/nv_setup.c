@@ -292,8 +292,7 @@ static void nv10GetConfig (NVPtr pNv)
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     /* turn on big endian register access */
     if(!(nvReadMC(pNv, 0x0004) & 0x01000001)) {
-       nvWriteMC(pNv, 0x0004, 0x01000001);
-       mem_barrier();
+       xf86DrvMsg(0, X_ERROR, "Card is in big endian mode, something is very wrong !\n");
     }
 #endif
 
