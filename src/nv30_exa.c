@@ -239,7 +239,7 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	NVDmaNext (pNv, shader->hw_id|1);
 
 	NVDmaStart(pNv, Nv3D, 0x23c, 1);
-	NVDmaNext (pNv, 1);
+	NVDmaNext (pNv, 3);
 	NVDmaStart(pNv, Nv3D, 0x1d60, 1);
 	NVDmaNext (pNv, 0); /* USES_KIL (1<<7) == 0 */
 	NVDmaStart(pNv, Nv3D, 0x1450, 1);
@@ -337,8 +337,6 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 			0x2000 /* engine lock */);
 	NVDmaNext (pNv, (pPix->drawable.width << 16) | pPix->drawable.height);
 	NVDmaNext (pNv, 0); /* border ARGB */
-	//	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_TX_DEPTH_UNIT(unit), 1);
-	//	NVDmaNext (pNv, 0x0);/* there should be an offset here, but what is it for ??? */
 
 	state->unit[unit].width		= (float)pPix->drawable.width;
 	state->unit[unit].height	= (float)pPix->drawable.height;
@@ -361,41 +359,41 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 
 	uint32_t pitch = (uint32_t)exaGetPixmapPitch(pPix);
 
-	int SCREEN_WIDTH = pPict->pDrawable->width;
-	int SCREEN_HEIGHT = pPict->pDrawable->height;
+	int w = pPict->pDrawable->width;
+	int h = pPict->pDrawable->height;
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_COLOR_BUFFER_DIM0, 5);
-	NVDmaNext (pNv, SCREEN_WIDTH<<16);
-	NVDmaNext (pNv, SCREEN_HEIGHT<<16);
+	NVDmaNext (pNv, w<<16);
+	NVDmaNext (pNv, h<<16);
 	NVDmaNext (pNv, fmt->card_fmt); /* format */
 	NVDmaNext (pNv, pitch << 16 | pitch);
 	NVDmaNext (pNv, NVAccelGetPixmapOffset(pPix));
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_COLOR_BUFFER_OFS0, 2);
-	NVDmaNext (pNv, (SCREEN_WIDTH-1)<<16);
-	NVDmaNext (pNv, (SCREEN_HEIGHT-1)<<16);
+	NVDmaNext (pNv, (w-1)<<16);
+	NVDmaNext (pNv, (h-1)<<16);
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_DIMS_0, 2);
-	NVDmaNext (pNv, SCREEN_WIDTH<<16);
-	NVDmaNext (pNv, SCREEN_HEIGHT<<16);
+	NVDmaNext (pNv, w<16);
+	NVDmaNext (pNv, h<<16);
 
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_XFRM_OX, 8);
-	NVDmaFloat(pNv, (float)SCREEN_WIDTH/2.0);
-	NVDmaFloat(pNv, (float)SCREEN_HEIGHT/2.0);
+	NVDmaFloat(pNv, (float)w/2.0);
+	NVDmaFloat(pNv, (float)h/2.0);
 	NVDmaFloat(pNv, 0.0);
 	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, (float)SCREEN_WIDTH/2.0);
-	NVDmaFloat(pNv, -((float)SCREEN_HEIGHT/2.0));
+	NVDmaFloat(pNv, (float)w/2.0);
+	NVDmaFloat(pNv, -((float)h/2.0));
 	NVDmaFloat(pNv, 1.0);
 	NVDmaFloat(pNv, 0.0);
 
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VP_UPLOAD_CONST_ID, 17);
 	NVDmaNext (pNv, 0);
-	NVDmaFloat(pNv, (2.0 / ((float)SCREEN_WIDTH-0.0)));
+	NVDmaFloat(pNv, (2.0 / ((float)w-0.0)));
 	NVDmaFloat(pNv, 0.0);
 	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, -(((float)SCREEN_WIDTH+0.0)/((float)SCREEN_WIDTH-0.0)));
+	NVDmaFloat(pNv, -(((float)w+0.0)/((float)w-0.0)));
 	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, (2.0) / (0.0 - (float)SCREEN_HEIGHT));
+	NVDmaFloat(pNv, (2.0) / (0.0 - (float)h));
 	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, -((0.0+(float)SCREEN_HEIGHT)/(0.0-(float)SCREEN_HEIGHT)));
+	NVDmaFloat(pNv, -((0.0+(float)h)/(0.0-(float)h)));
 	NVDmaFloat(pNv, 0.0);
 	NVDmaFloat(pNv, 0.0);
 	NVDmaFloat(pNv, 1.0);
@@ -515,7 +513,15 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 	NV30_SetupSurface(pScrn, pdPix, pdPict);
 	NV30EXATexture(pScrn, psPix, psPict, 0);
 
-	//NV30_LoadVtxProg(pScrn, &nv40_vp_exa_render);
+#define printformat(f) ErrorF("(%dbpp A%dR%dG%dB%d)",(f>>24),(f&0xf000)>>12,(f&0xf00)>>8,(f&0xf0)>>4,f&0xf)
+	ErrorF("Preparecomposite src %x",psPict);
+	printformat((psPict->format));
+	ErrorF(" dst %x",pdPict);
+	printformat((pdPict->format));
+	ErrorF(" mask %x",pdPict);
+	if (pmPict)
+		printformat((pmPict->format));
+	ErrorF("\n");
 	NV30_SetVtx(pScrn,pmPict?1:0);
 	if (pmPict) {
 		NV30EXATexture(pScrn, pmPix, pmPict, 1);
@@ -782,45 +788,45 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	//NVDmaStart(pNv, Nv3D, 0x1d60,1);
 	//NVDmaNext (pNv, 0x03008000);
 
-	int SCREEN_WIDTH=4096;
-	int SCREEN_HEIGHT=4096;
-	int SCREEN_PITCH=4096*4;
+	int w=4096;
+	int h=4096;
+	int pitch=4096*4;
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_COLOR_BUFFER_DIM0, 5);
-	NVDmaNext (pNv, SCREEN_WIDTH<<16);
-	NVDmaNext (pNv, SCREEN_HEIGHT<<16);
+	NVDmaNext (pNv, w<<16);
+	NVDmaNext (pNv, h<<16);
 	NVDmaNext (pNv, 0x148); /* format */
-	NVDmaNext (pNv, SCREEN_PITCH << 16 | SCREEN_PITCH);
+	NVDmaNext (pNv, pitch << 16 | pitch);
 	NVDmaNext (pNv, 0x0);
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_COLOR_BUFFER_OFS0, 2);
-	NVDmaNext (pNv, (SCREEN_WIDTH-1)<<16);
-	NVDmaNext (pNv, (SCREEN_HEIGHT-1)<<16);
+	NVDmaNext (pNv, (w-1)<<16);
+	NVDmaNext (pNv, (h-1)<<16);
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_SCISSOR_WIDTH_XPOS, 2);
-	NVDmaNext (pNv, SCREEN_WIDTH<<16);
-	NVDmaNext (pNv, SCREEN_HEIGHT<<16);
+	NVDmaNext (pNv, w<<16);
+	NVDmaNext (pNv, h<<16);
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_DIMS_0, 2);
-	NVDmaNext (pNv, SCREEN_WIDTH<<16);
-	NVDmaNext (pNv, SCREEN_HEIGHT<<16);
+	NVDmaNext (pNv, w<<16);
+	NVDmaNext (pNv, h<<16);
 
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_XFRM_OX, 8);
-	NVDmaFloat(pNv, (float)SCREEN_WIDTH/2.0);
-	NVDmaFloat(pNv, (float)SCREEN_HEIGHT/2.0);
+	NVDmaFloat(pNv, (float)w/2.0);
+	NVDmaFloat(pNv, (float)h/2.0);
 	NVDmaFloat(pNv, 0.0);
 	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, (float)SCREEN_WIDTH/2.0);
-	NVDmaFloat(pNv, -((float)SCREEN_HEIGHT/2.0));
+	NVDmaFloat(pNv, (float)w/2.0);
+	NVDmaFloat(pNv, -((float)h/2.0));
 	NVDmaFloat(pNv, 1.0);
 	NVDmaFloat(pNv, 0.0);
 
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VP_UPLOAD_CONST_ID, 17);
 	NVDmaNext (pNv, 0);
-	NVDmaFloat(pNv, (2.0 / ((float)SCREEN_WIDTH-0.0)));
+	NVDmaFloat(pNv, (2.0 / ((float)w-0.0)));
 	NVDmaFloat(pNv, 0.0);
 	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, -(((float)SCREEN_WIDTH+0.0)/((float)SCREEN_WIDTH-0.0)));
+	NVDmaFloat(pNv, -(((float)w+0.0)/((float)w-0.0)));
 	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, (2.0) / (0.0 - (float)SCREEN_HEIGHT));
+	NVDmaFloat(pNv, (2.0) / (0.0 - (float)h));
 	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, -((0.0+(float)SCREEN_HEIGHT)/(0.0-(float)SCREEN_HEIGHT)));
+	NVDmaFloat(pNv, -((0.0+(float)h)/(0.0-(float)h)));
 	NVDmaFloat(pNv, 0.0);
 	NVDmaFloat(pNv, 0.0);
 	NVDmaFloat(pNv, 1.0);
