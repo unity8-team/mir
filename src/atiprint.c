@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
 
 #include "ati.h"
 #include "atichip.h"
