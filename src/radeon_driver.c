@@ -5326,7 +5326,7 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 	vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE); /* Save mode only */
 # else
 	/* Save mode * & fonts & cmap */
-	vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS);
+	vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_ALL);
 # endif
 	vgaHWLock(hwp);
     }
@@ -5418,7 +5418,7 @@ void RADEONRestore(ScrnInfoPtr pScrn)
 	*/
        vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE );
 # else
-       vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
+       vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_ALL );
 # endif
        vgaHWLock(hwp);
     }
