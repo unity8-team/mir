@@ -1,4 +1,3 @@
 01_fix_compiz_video.diff
 02_xps1330_tvout_quirk.diff
 03_fix_brightness_control.diff
-04-fix-g33-gtt-stolen-mem-range.diff
