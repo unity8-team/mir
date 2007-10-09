@@ -66,6 +66,17 @@ atimisc_drv_la_SOURCES = \
 	atiload.c atimisc.c atimach64probe.c $(ATIMISC_CPIO_SOURCES) \
 	$(ATIMISC_DGA_SOURCES) $(ATIMISC_DRI_SRCS) $(ATIMISC_EXA_SOURCES)
 
+if XSERVER_LIBPCIACCESS
+# r128 has not been ported yet
+else
+r128_drv_la_LTLIBRARIES = r128_drv.la
+r128_drv_la_LDFLAGS = -module -avoid-version
+r128_drv_ladir = @moduledir@/drivers
+r128_drv_la_SOURCES = \
+	r128_accel.c r128_cursor.c r128_dga.c r128_driver.c \
+	r128_video.c r128_misc.c r128_probe.c $(R128_DRI_SRCS)
+endif
+
 radeon_drv_la_LTLIBRARIES = radeon_drv.la
 radeon_drv_la_LDFLAGS = -module -avoid-version
 radeon_drv_ladir = @moduledir@/drivers
@@ -75,16 +86,6 @@ radeon_drv_la_SOURCES = \
 	radeon_vip.c radeon_misc.c radeon_probe.c radeon_display.c \
 	radeon_crtc.c radeon_output.c radeon_modes.c radeon_tv.c \
 	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES)
-
-if XSERVER_LIBPCIACCESS
-# r128 and theatre have not been ported yet
-else
-r128_drv_la_LTLIBRARIES = r128_drv.la
-r128_drv_la_LDFLAGS = -module -avoid-version
-r128_drv_ladir = @moduledir@/drivers
-r128_drv_la_SOURCES = \
-	r128_accel.c r128_cursor.c r128_dga.c r128_driver.c \
-	r128_video.c r128_misc.c r128_probe.c $(R128_DRI_SRCS)
 
 theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
 theatre_detect_drv_la_LDFLAGS = -module -avoid-version
@@ -106,7 +107,6 @@ theatre200_drv_la_CFLAGS = \
 	$(AM_CFLAGS) -DMICROC_DIR=\"$(theatre200_drv_ladir)\"
 theatre200_drv_la_SOURCES = \
 	theatre200.c theatre200_module.c
-endif
 
 EXTRA_DIST = \
 	atimach64render.c \
