@@ -897,15 +897,18 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 	Bool is_fp = FALSE;
 
+	xf86OutputPtr  output;
+	NVOutputPrivatePtr nv_output;
 	for (i = 0; i < xf86_config->num_output; i++) {
-		xf86OutputPtr  output = xf86_config->output[i];
-		NVOutputPrivatePtr nv_output = output->driver_private;
+		output = xf86_config->output[i];
+		nv_output = output->driver_private;
 
 		if (output->crtc == crtc) {
 			if ((nv_output->type == OUTPUT_PANEL) || 
 				(nv_output->type == OUTPUT_DIGITAL)) {
 
 				is_fp = TRUE;
+				break;
 			}
 		}
 	}
@@ -913,11 +916,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	ErrorF("crtc: Pre-sync workaround\n");
 	/* Flatpanel stuff from haiku */
 	if (is_fp) {
-		/* This is to keep the panel synced at native resolution */
-		if (pNv->NVArch == 0x11) {
-			horizTotal -= 56/8;
-		} else {
-			horizTotal -= 32/8;
+		if (nv_output->fpWidth == mode->CrtcHDisplay) {
+			/* This is to keep the panel synced at native resolution */
+			if (pNv->NVArch == 0x11) {
+				horizTotal -= 56/8;
+			} else {
+				horizTotal -= 32/8;
+			}
 		}
 
 		vertTotal -= 1;
