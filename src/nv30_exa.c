@@ -42,7 +42,7 @@ NV30SurfaceFormat[] = {
 	{ PICT_a8r8g8b8	, 0x148 },
 	{ PICT_x8r8g8b8	, 0x145 },
 	{ PICT_r5g6b5	, 0x143 },
-	{ PICT_a8       , 0x149 },
+//	{ PICT_a8       , 0x149 },
 	{ -1, ~0 }
 };
 
@@ -136,10 +136,13 @@ NV30EXAHackupA8Shaders(ScrnInfoPtr pScrn)
 static nv_pict_texture_format_t
 NV30TextureFormat[] = {
 	_(a8r8g8b8, 0x12,   S1,   S1,   S1,   S1, W, X, Y, Z),
+	_(a8b8g8r8, 0x12,   S1,   S1,   S1,   S1, W, Z, Y, X),
 	_(x8r8g8b8, 0x12,   S1,   S1,   S1,  ONE, W, X, Y, Z),
 	_(x8b8g8r8, 0x12,   S1,   S1,   S1,  ONE, W, Z, Y, X),
 	_(a1r5g5b5, 0x10,   S1,   S1,   S1,   S1, W, X, Y, Z),
 	_(x1r5g5b5, 0x10,   S1,   S1,   S1,  ONE, W, X, Y, Z),
+	_(x4r4g4b4, 0x1d,   S1,   S1,   S1,  ONE, W, X, Y, Z),
+	_(a4r4g4b4, 0x1d,   S1,   S1,   S1,   S1, W, X, Y, Z),
 //	_(  r5g6b5, 0x04,   S1,   S1,   S1,   S1, X, Y, Z, W),
 	_(      a8, 0x1b, ZERO, ZERO, ZERO,   S1, X, X, X, X),
 	{ -1, ~0, ~0 }
@@ -196,7 +199,8 @@ NV30_GetPictOpRec(int op)
 	return &NV30PictOp[op];
 }
 
-#if 0
+#define FALLBACK_DEBUG 0
+#if FALLBACK_DEBUG == 1
 #define FALLBACK(fmt,args...) do {					\
 	ErrorF("FALLBACK %s:%d> " fmt, __func__, __LINE__, ##args);	\
 	return FALSE;							\
@@ -293,7 +297,7 @@ NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 	}
 }
 
-	static Bool
+static Bool
 NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -305,10 +309,7 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	if (!fmt)
 		return FALSE;
 
-	if (pPict->repeat && pPict->repeatType == RepeatNormal)
-		card_repeat = 1;
-	else
-		card_repeat = 3;
+	card_repeat = 3; /* repeatNone */
 
 	if (pPict->filter == PictFilterBilinear)
 		card_filter = 2;
@@ -345,7 +346,7 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	return TRUE;
 }
 
-	static Bool
+static Bool
 NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -371,7 +372,7 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 	NVDmaNext (pNv, (w-1)<<16);
 	NVDmaNext (pNv, (h-1)<<16);
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_DIMS_0, 2);
-	NVDmaNext (pNv, w<16);
+	NVDmaNext (pNv, w<<16);
 	NVDmaNext (pNv, h<<16);
 
 	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VIEWPORT_XFRM_OX, 8);
@@ -384,29 +385,10 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 	NVDmaFloat(pNv, 1.0);
 	NVDmaFloat(pNv, 0.0);
 
-	NVDmaStart(pNv, Nv3D, NV30_TCL_PRIMITIVE_3D_VP_UPLOAD_CONST_ID, 17);
-	NVDmaNext (pNv, 0);
-	NVDmaFloat(pNv, (2.0 / ((float)w-0.0)));
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, -(((float)w+0.0)/((float)w-0.0)));
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, (2.0) / (0.0 - (float)h));
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, -((0.0+(float)h)/(0.0-(float)h)));
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 1.0);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 1.0);
-
 	return TRUE;
 }
 
-	static Bool
+static Bool
 NV30EXACheckCompositeTexture(PicturePtr pPict)
 {
 	nv_pict_texture_format_t *fmt;
@@ -425,14 +407,13 @@ NV30EXACheckCompositeTexture(PicturePtr pPict)
 			pPict->filter != PictFilterBilinear)
 		FALLBACK("filter 0x%x not supported\n", pPict->filter);
 
-	if (pPict->repeat && (pPict->repeat != RepeatNormal &&
-				pPict->repeatType != RepeatNone))
+	if (pPict->repeat && pPict->repeatType != RepeatNone)
 		FALLBACK("repeat 0x%x not supported\n", pPict->repeatType);
 
 	return TRUE;
 }
 
-	Bool
+Bool
 NV30EXACheckComposite(int op, PicturePtr psPict,
 		PicturePtr pmPict,
 		PicturePtr pdPict)
@@ -490,7 +471,7 @@ void NV30_SetVtx(ScrnInfoPtr pScrn, int multitex)
 	NVDmaNext (pNv, 0x2);
 }
 
-	Bool
+Bool
 NV30EXAPrepareComposite(int op, PicturePtr psPict,
 		PicturePtr pmPict,
 		PicturePtr pdPict,
@@ -513,15 +494,20 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 	NV30_SetupSurface(pScrn, pdPix, pdPict);
 	NV30EXATexture(pScrn, psPix, psPict, 0);
 
+#if FALLBACK_DEBUG == 1
 #define printformat(f) ErrorF("(%dbpp A%dR%dG%dB%d)",(f>>24),(f&0xf000)>>12,(f&0xf00)>>8,(f&0xf0)>>4,f&0xf)
-	ErrorF("Preparecomposite src %x",psPict);
+	ErrorF("Preparecomposite src(%dx%d)",psPict->pDrawable->width,psPict->pDrawable->height);
 	printformat((psPict->format));
-	ErrorF(" dst %x",pdPict);
+	ErrorF(" dst(%dx%d)",pdPict->pDrawable->width,pdPict->pDrawable->height);
 	printformat((pdPict->format));
-	ErrorF(" mask %x",pdPict);
 	if (pmPict)
+	{
+		ErrorF(" mask(%dx%d)",pmPict->pDrawable->width,pmPict->pDrawable->height);
 		printformat((pmPict->format));
+	}
 	ErrorF("\n");
+#endif
+
 	NV30_SetVtx(pScrn,pmPict?1:0);
 	if (pmPict) {
 		NV30EXATexture(pScrn, pmPix, pmPict, 1);
@@ -601,6 +587,9 @@ NV30EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 	float mX0, mX1, mY0, mY1;
 	NV30EXA_STATE;
 
+#if FALLBACK_DEBUG == 1
+	ErrorF("Composite [%dx%d] (%d,%d)IN(%d,%d)OP(%d,%d)\n",width,height,srcX,srcY,maskX,maskY,dstX,dstY);
+#endif
 	NV30EXATransformCoord(state->unit[0].transform, srcX, srcY,
 			      state->unit[0].width,
 			      state->unit[0].height, &sX0, &sY0);
@@ -648,6 +637,8 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	static int have_object = FALSE;
 	uint32_t class = 0, chipset;
 	int i;
+
+	NV30EXAHackupA8Shaders(pScrn);
 
 #undef  NV30_TCL_PRIMITIVE_3D
 #define NV30_TCL_PRIMITIVE_3D                 0x0397
