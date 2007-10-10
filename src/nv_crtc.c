@@ -1126,6 +1126,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* 0x7E (crtc0, only seen in one dump) and 0x7F (crtc1) seem to be some kind of disable setting */
 	/* This is likely to be incomplete */
 	if (nv_crtc->head == 1) {
+		/* Perhaps this is related to output type? */
 		regp->CRTC[NV_VGA_CRTCX_58] = 0x3;
 	} else {
 		regp->CRTC[NV_VGA_CRTCX_58] = 0x0;
