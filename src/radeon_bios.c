@@ -257,6 +257,23 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		info->BiosConnector[i].DDCType = DDC_MONID;
 	    }
 
+	    /* XPRESS desktop chips seem to have a proprietary connector listed for
+	     * DVI-D, try and do the right thing here.
+	    */
+	    if ((!info->IsMobility) &&
+		(info->BiosConnector[i].ConnectorType == CONNECTOR_PROPRIETARY)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Proprietary connector found, assuming DVI-D\n");
+		info->BiosConnector[i].DACType = DAC_NONE;
+		info->BiosConnector[i].TMDSType = TMDS_EXT;
+		info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_D;
+	    }
+
+	    if (info->BiosConnector[i].ConnectorType >= CONNECTOR_UNSUPPORTED) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown connector type: %d!\n",
+			   info->BiosConnector[i].ConnectorType);
+		info->BiosConnector[i].valid = FALSE;
+	    }
 
 	}
     } else {
