@@ -85,7 +85,7 @@ AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
 AC_HEADER_STDC
 
 # Use -Wall all the time
-CFLAGS="$CFLAGS -Wall"
+CFLAGS="$CFLAGS -Wall -minline-all-stringops"
 AC_SUBST([CFLAGS])
 
 AC_SUBST([XORG_CFLAGS])

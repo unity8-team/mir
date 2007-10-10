@@ -82,7 +82,6 @@ Bool  NVInitDma(ScrnInfoPtr pScrn);
 
 /* in nv_exa.c */
 Bool NVExaInit(ScreenPtr pScreen);
-Bool NVAccelUploadM2MF(ScrnInfoPtr, uint64_t, const char * , int, int, int, int);
 
 /* in nv_hw.c */
 void NVCalcStateExt(NVPtr,struct _riva_hw_state *,int,int,int,int,int,int);

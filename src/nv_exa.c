@@ -321,7 +321,7 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 
 static void NVExaDoneCopy (PixmapPtr pDstPixmap) {}
 
-Bool NVAccelMemcpyRect(char *dst, const char *src, int height,
+static inline Bool NVAccelMemcpyRect(char *dst, const char *src, int height,
 		       int dst_pitch, int src_pitch, int line_len)
 {
 	if ((src_pitch == line_len) && (src_pitch == dst_pitch)) {
@@ -337,7 +337,7 @@ Bool NVAccelMemcpyRect(char *dst, const char *src, int height,
 	return TRUE;
 }
 
-Bool
+static inline Bool
 NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 				     int dst_pitch, int src_pitch,
 				     int line_len, int line_count)
@@ -442,13 +442,13 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 	return FALSE;
 }
 
-Bool
-NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
-				    int x, int y, int w, int h, int cpp)
+static inline Bool
+NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch, 
+		 PixmapPtr pDst, int fmt, int x, int y, int w, int h, int cpp)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int line_len = w * cpp;
-	int iw, id, fmt;
+	int iw, id, ifc_fmt;
 
 	if (pNv->Architecture >= NV_ARCH_50)
 		return FALSE;
@@ -457,11 +457,13 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		return FALSE;
 
 	switch (cpp) {
-	case 2: fmt = 1; break;
-	case 4: fmt = 4; break;
+	case 2: ifc_fmt = 1; break;
+	case 4: ifc_fmt = 4; break;
 	default:
 		return FALSE;
 	}
+
+	NVAccelSetCtxSurf2D(pDst, pDst, fmt);
 
 	/* Pad out input width to cover both COLORA() and COLORB() */
 	iw  = (line_len + 7) & ~7;
@@ -478,7 +480,7 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 
 	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_OPERATION, 2);
 	NVDmaNext (pNv, 0x3 /* SRCCOPY */);
-	NVDmaNext (pNv, fmt);
+	NVDmaNext (pNv, ifc_fmt);
 	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_POINT, 3);
 	NVDmaNext (pNv, (y << 16) | x); /* dst point */
 	NVDmaNext (pNv, (h << 16) | w); /* width/height out */
@@ -499,7 +501,7 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	return TRUE;
 }
 
-Bool
+static inline Bool
 NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 				     int dst_pitch, int src_pitch,
 				     int line_len, int line_count)
@@ -596,8 +598,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 		int fmt;
 
 		if (NVAccelGetCtxSurf2DFormatFromPixmap(pDst, &fmt)) {
-			NVAccelSetCtxSurf2D(pDst, pDst, fmt);
-			if (NVAccelUploadIFC(pScrn, src, src_pitch,
+			if (NVAccelUploadIFC(pScrn, src, src_pitch, pDst, fmt,
 						    x, y, w, h, cpp)) {
 				exaMarkSync(pDst->drawable.pScreen);
 				return TRUE;
@@ -796,14 +797,14 @@ Bool NVExaInit(ScreenPtr pScreen)
 	switch (pNv->Architecture) {
 #if defined(ENABLE_NV30EXA)
 //	not working yet
-/*
+
 	case NV_ARCH_30:
 		pNv->EXADriverPtr->CheckComposite   = NV30EXACheckComposite;
 		pNv->EXADriverPtr->PrepareComposite = NV30EXAPrepareComposite;
 		pNv->EXADriverPtr->Composite        = NV30EXAComposite;
 		pNv->EXADriverPtr->DoneComposite    = NV30EXADoneComposite;
 		break;
-*/
+
 #endif
 #if (X_BYTE_ORDER == X_LITTLE_ENDIAN) && defined(ENABLE_NV30EXA)
 	case NV_ARCH_40:
