@@ -79,7 +79,7 @@ sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 # Checks for header files.
 AC_HEADER_STDC
 
-if test "$DRI" != no; then
+if test "x$DRI" = xauto; then
 	AC_CHECK_FILE([${sdkdir}/dri.h],
                       [have_dri_h="yes"], [have_dri_h="no"])
 	AC_CHECK_FILE([${sdkdir}/sarea.h],
