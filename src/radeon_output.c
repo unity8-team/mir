@@ -670,9 +670,19 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONMonitorType MonType = MT_NONE;
 
-
     if (radeon_output->type == OUTPUT_LVDS) {
-	    MonType =  MT_LCD;
+#if defined(__powerpc__)
+	/* not sure on ppc, OF? */
+#else
+	if (!info->IsAtomBios) {
+	    /* see if the lid is closed -- only works at boot */
+	    if (INREG(RADEON_BIOS_6_SCRATCH) & 0x10)
+		MonType = MT_NONE;
+	    else
+		MonType = MT_LCD;
+	} else
+#endif
+	    MonType = MT_LCD;
     } else if (radeon_output->type == OUTPUT_DVI) {
 	if (radeon_output->TMDSType == TMDS_INT) {
 	    if (INREG(RADEON_FP_GEN_CNTL) & RADEON_FP_DETECT_SENSE)
