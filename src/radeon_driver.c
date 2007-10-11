@@ -4251,6 +4251,8 @@ void RADEONRestoreBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(RADEON_BIOS_5_SCRATCH, restore->bios_5_scratch);
     if (restore->bios_6_scratch & 0x40000000)
 	bios_6_scratch |= 0x40000000;
+    else
+	bios_6_scratch &= ~0x40000000;
     OUTREG(RADEON_BIOS_6_SCRATCH, bios_6_scratch);
 
 }
