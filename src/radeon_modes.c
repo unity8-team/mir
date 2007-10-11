@@ -224,11 +224,13 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 
     if (output->status == XF86OutputStatusConnected) {
 	if (radeon_output->type == OUTPUT_DVI || radeon_output->type == OUTPUT_VGA) {
-	    edid_mon = xf86OutputGetEDID (output, radeon_output->pI2CBus);
-	    xf86OutputSetEDID (output, edid_mon);
+	    if (output->MonInfo) {
+		edid_mon = xf86OutputGetEDID (output, radeon_output->pI2CBus);
+		xf86OutputSetEDID (output, edid_mon);
 
-	    modes = xf86OutputGetEDIDModes (output);
-	    return modes;
+		modes = xf86OutputGetEDIDModes (output);
+		return modes;
+	    }
 	}
 	if (radeon_output->type == OUTPUT_STV || radeon_output->type == OUTPUT_CTV) {
 	    modes = RADEONTVModes(output);
