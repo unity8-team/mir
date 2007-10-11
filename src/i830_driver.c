@@ -1732,16 +1732,6 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
    if (pI830->entityPrivate)
       pI830->entityPrivate->RingRunning = 0;
 
-   /* Reset the fence registers to 0 */
-   if (IS_I965G(pI830)) {
-      for (i = 0; i < FENCE_NEW_NR; i++) {
-	 OUTREG(FENCE_NEW + i * 8, 0);
-	 OUTREG(FENCE_NEW + 4 + i * 8, 0);
-      }
-   } else {
-      for (i = 0; i < FENCE_NR; i++)
-         OUTREG(FENCE + i * 4, 0);
-   }
    /* Flush the ring buffer (if enabled), then disable it. */
    /* God this is ugly */
 #define flush_ring() do { \
@@ -1767,34 +1757,6 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
    OUTREG(LP_RING + RING_START, 0);
 
    xf86_hide_cursors (pScrn);
-}
-
-static void
-SetFenceRegs(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int i;
-
-   DPRINTF(PFX, "SetFenceRegs\n");
-
-   if (!I830IsPrimary(pScrn)) return;
-
-   if (IS_I965G(pI830)) {
-      for (i = 0; i < FENCE_NEW_NR; i++) {
-         OUTREG(FENCE_NEW + i * 8, pI830->fence[i]);
-         OUTREG(FENCE_NEW + 4 + i * 8, pI830->fence[i+FENCE_NEW_NR]);
-         if (I810_DEBUG & DEBUG_VERBOSE_VGA) {
-	    ErrorF("Fence Start Register : %x\n", pI830->fence[i]);
-	    ErrorF("Fence End Register : %x\n", pI830->fence[i+FENCE_NEW_NR]);
-         }
-      }
-   } else {
-      for (i = 0; i < FENCE_NR; i++) {
-         OUTREG(FENCE + i * 4, pI830->fence[i]);
-         if (I810_DEBUG & DEBUG_VERBOSE_VGA)
-	    ErrorF("Fence Register : %x\n", pI830->fence[i]);
-      }
-   }
 }
 
 static void
@@ -1864,7 +1826,6 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
 
    if (!pI830->noAccel)
       SetRingRegs(pScrn);
-   SetFenceRegs(pScrn);
    if (!pI830->SWCursor)
       I830InitHWCursor(pScrn);
 }

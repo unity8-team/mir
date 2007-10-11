@@ -115,9 +115,11 @@ static i830_memory *
 i830_allocate_aperture(ScrnInfoPtr pScrn, const char *name,
 		       long size, unsigned long alignment, int flags);
 
-static void i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
+static int i830_set_tiling(ScrnInfoPtr pScrn, unsigned int offset,
 			   unsigned int pitch, unsigned int size,
 			   enum tile_format tile_format);
+
+static void i830_clear_tiling(ScrnInfoPtr pScrn, unsigned int fence_nr);
 
 /**
  * Returns the fence size for a tiled area of the given size.
@@ -162,26 +164,31 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	int ret;
 
 	ret = drmBOSetPin(pI830->drmSubFD, &mem->bo, 1);
-	if (ret == 0) {
-	    mem->bound = TRUE;
-	    mem->offset = mem->bo.offset;
-	    mem->end = mem->bo.offset + mem->size;
-	    return TRUE;
-	} else {
+	if (ret != 0)
 	    return FALSE;
-	}
+
+	mem->bound = TRUE;
+	mem->offset = mem->bo.offset;
+	mem->end = mem->bo.offset + mem->size;
     }
 #endif
 
-    if (!pI830->gtt_acquired)
-	return TRUE;
+    if (!mem->bound) {
+	if (!pI830->gtt_acquired)
+	    return TRUE;
 
-    if (mem->key == -1 ||
-	xf86BindGARTMemory(pScrn->scrnIndex, mem->key, mem->agp_offset)) {
+	if (mem->key != -1 && 
+	    !xf86BindGARTMemory(pScrn->scrnIndex, mem->key, mem->agp_offset))
+	{
+	    return FALSE;
+	}
+
 	mem->bound = TRUE;
-	return TRUE;
-    } else {
-	return FALSE;
+    }
+
+    if (mem->tiling != TILE_NONE) {
+	mem->fence_nr = i830_set_tiling(pScrn, mem->offset, mem->pitch,
+					mem->size, mem->tiling);
     }
 
     return TRUE;
@@ -192,6 +199,9 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 {
     if (mem == NULL || !mem->bound)
 	return TRUE;
+
+    if (mem->tiling != TILE_NONE)
+	i830_clear_tiling(pScrn, mem->fence_nr);
 
 #ifdef XF86DRI_MM
     if (mem->bo.size != 0) {
@@ -303,10 +313,6 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->textures = NULL;
 #endif
     pI830->LpRing->mem = NULL;
-
-    /* Reset the fence register allocation. */
-    pI830->next_fence = 0;
-    memset(pI830->fence, 0, sizeof(pI830->fence));
 }
 
 void
@@ -797,16 +803,9 @@ i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
     unsigned long aper_size;
     unsigned long aper_align;
     i830_memory *mem;
-    int fence_divide, i;
 
     if (tile_format == TILE_NONE)
 	return i830_allocate_memory(pScrn, name, size, alignment, flags);
-
-    /* XXX: for now, refuse to tile with movable buffer object allocations,
-     * until we can move the set_fence (and failure recovery) into bind time.
-     */
-    if (pI830->memory_manager != NULL && !(flags & NEED_LIFETIME_FIXED))
-	return NULL;
 
     /* Only allocate page-sized increments. */
     size = ALIGN(size, GTT_PAGE_SIZE);
@@ -832,51 +831,13 @@ i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
     if (aper_align < alignment)
 	aper_align = alignment;
 
-    fence_divide = 1;
     mem = i830_allocate_memory(pScrn, name, aper_size, aper_align, flags);
-    if (mem == NULL && !IS_I965G(pI830)) {
-	/* For the older hardware with stricter fencing limits, if we
-	 * couldn't allocate with the large alignment, try relaxing the
-	 * alignment requirements and using more fences to cover the area.
-	 */
-	for (fence_divide = 2; fence_divide <= 4 && mem == NULL;
-	     fence_divide *= 2)
-	{
-	    /* Check that it's not too small for fencing. */
-	    if (i830_get_fence_size(pScrn, aper_align / fence_divide) !=
-		aper_align / fence_divide)
-	    {
-		break;
-	    }
-
-	    mem = i830_allocate_memory(pScrn, name, aper_size,
-				       aper_align / fence_divide, flags);
-	}
-    }
-
     if (mem == NULL)
 	return NULL;
-
-    /* Make sure we've got enough free fence regs.  It's pretty hard to run
-     * out, luckily, with 8 even on older hardware and us only tiling
-     * front/back/depth buffers.
-     */
-    if (pI830->next_fence + fence_divide >
-	(IS_I965G(pI830) ? FENCE_NEW_NR : FENCE_NR))
-    {
-	i830_free_memory(pScrn, mem);
-	return NULL;
-    }
-
-    /* Set up the fence registers. */
-    for (i = 0; i < fence_divide; i++) {
-	i830_set_fence(pScrn, pI830->next_fence++,
-		       mem->offset + mem->size * i / fence_divide, pitch,
-		       mem->size / fence_divide, tile_format);
-    }
-
     mem->size = size;
     mem->tiling = tile_format;
+    mem->pitch = pitch;
+    mem->fence_nr = -1;
 
     return mem;
 }
@@ -1222,9 +1183,6 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
      */
     for (i = 0; i < xf86_config->num_crtc; i++)
     {
-	xf86CrtcPtr	    crtc = xf86_config->crtc[i];
-	I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
-	
 	pI830->cursor_mem_classic[i] = i830_allocate_memory (pScrn, 
 							     "Core cursor",
 							     HWCURSOR_SIZE,
@@ -1654,203 +1612,216 @@ i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 #endif
 
 /**
- * Sets up a fence area for the hardware.
+ * Sets up tiled surface registers ("fences") for the hardware.
  *
  * The fences control automatic tiled address swizzling for CPU access of the
- * framebuffer.
+ * framebuffer, and may be used in many rendering operations instead of
+ * manually supplying tiling enables per surface.
  */
-static void
-i830_set_fence(ScrnInfoPtr pScrn, int nr, unsigned int offset,
-	       unsigned int pitch, unsigned int size,
-	       enum tile_format tile_format)
+static int
+i830_set_tiling(ScrnInfoPtr pScrn, unsigned int offset,
+		unsigned int pitch, unsigned int size,
+		enum tile_format tile_format)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 val;
     CARD32 fence_mask = 0;
     unsigned int fence_pitch;
+    unsigned int max_fence;
+    unsigned int fence_nr;
 
-    DPRINTF(PFX, "i830_set_fence(): %d, 0x%08x, %d, %d kByte\n",
-	    nr, offset, pitch, size / 1024);
+    DPRINTF(PFX, "i830_set_tiling(): 0x%08x, %d, %d kByte\n",
+	    offset, pitch, size / 1024);
 
     assert(tile_format != TILE_NONE);
 
+    if (IS_I965G(pI830))
+	max_fence = FENCE_NEW_NR;
+    else
+	max_fence = FENCE_NR;
+
+    for (fence_nr = 0; fence_nr < max_fence; fence_nr++) {
+	if (!pI830->fence_used[fence_nr])
+	    break;
+    }
+    if (fence_nr == max_fence)
+	FatalError("Ran out of fence registers at %d\n", fence_nr);
+
+    pI830->fence_used[fence_nr] = TRUE;
+
     if (IS_I965G(pI830)) {
-	if (nr < 0 || nr >= FENCE_NEW_NR) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "i830_set_fence(): fence %d out of range\n",nr);
-	    return;
-	}
+	uint32_t fence_start, fence_end;
 
 	switch (tile_format) {
 	case TILE_XMAJOR:
-            pI830->fence[nr] = (((pitch / 128) - 1) << 2) | offset | 1;
-	    pI830->fence[nr] |= I965_FENCE_X_MAJOR;
+	    fence_start = (((pitch / 128) - 1) << 2) | offset | 1;
+	    fence_start |= I965_FENCE_X_MAJOR;
             break;
 	case TILE_YMAJOR:
             /* YMajor can be 128B aligned but the current code dictates
              * otherwise. This isn't a problem apart from memory waste.
              * FIXME */
-            pI830->fence[nr] = (((pitch / 128) - 1) << 2) | offset | 1;
-	    pI830->fence[nr] |= I965_FENCE_Y_MAJOR;
+	    fence_start = (((pitch / 128) - 1) << 2) | offset | 1;
+	    fence_start |= I965_FENCE_Y_MAJOR;
             break;
-	case TILE_NONE:
-            break;
+	default:
+	    return -1;
 	}
 
 	/* The end marker is the address of the last page in the allocation. */
-	pI830->fence[FENCE_NEW_NR + nr] = offset + size - 4096;
-	return;
-    }
+	fence_end = offset + size - 4096;
 
-    if (nr < 0 || nr >= FENCE_NR) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "i830_set_fence(): fence %d out of range\n",nr);
-	return;
-    }
-
-    pI830->fence[nr] = 0;
-
-    if (IS_I9XX(pI830))
-   	fence_mask = ~I915G_FENCE_START_MASK;
-    else
-   	fence_mask = ~I830_FENCE_START_MASK;
-
-    if (offset & fence_mask) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "i830_set_fence(): %d: offset (0x%08x) is not %s aligned\n",
-		   nr, offset, (IS_I9XX(pI830)) ? "1MB" : "512k");
-	return;
-    }
-
-    if (offset % size) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "i830_set_fence(): %d: offset (0x%08x) is not size (%dk) "
-		   "aligned\n",
-		   nr, offset, size / 1024);
-	return;
-    }
-
-    if (pitch & 127) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "i830_set_fence(): %d: pitch (%d) not a multiple of 128 "
-		   "bytes\n",
-		   nr, pitch);
-	return;
-    }
-
-    val = offset | FENCE_VALID;
-
-    switch (tile_format) {
-    case TILE_XMAJOR:
-	val |= FENCE_X_MAJOR;
-	break;
-    case TILE_YMAJOR:
-	val |= FENCE_Y_MAJOR;
-	break;
-    case TILE_NONE:
-	break;
-    }
-
-    if (IS_I9XX(pI830)) {
-   	switch (size) {
-	case MB(1):
-	    val |= I915G_FENCE_SIZE_1M;
-	    break;
-	case MB(2):
-	    val |= I915G_FENCE_SIZE_2M;
-	    break;
-	case MB(4):
-	    val |= I915G_FENCE_SIZE_4M;
-	    break;
-	case MB(8):
-	    val |= I915G_FENCE_SIZE_8M;
-	    break;
-	case MB(16):
-	    val |= I915G_FENCE_SIZE_16M;
-	    break;
-	case MB(32):
-	    val |= I915G_FENCE_SIZE_32M;
-	    break;
-	case MB(64):
-	    val |= I915G_FENCE_SIZE_64M;
-	    break;
-	default:
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "i830_set_fence(): %d: illegal size (%d kByte)\n",
-		       nr, size / 1024);
-	    return;
-   	}
+	OUTREG(FENCE_NEW + fence_nr * 8, fence_start);
+	OUTREG(FENCE_NEW + fence_nr * 8 + 4, fence_end);
     } else {
-   	switch (size) {
-	case KB(512):
-	    val |= FENCE_SIZE_512K;
+	if (IS_I9XX(pI830))
+	    fence_mask = ~I915G_FENCE_START_MASK;
+	else
+	    fence_mask = ~I830_FENCE_START_MASK;
+
+	if (offset & fence_mask) {
+	    FatalError("i830_set_tiling(): %d: offset (0x%08x) is not %s "
+		       "aligned\n",
+		       fence_nr, offset, (IS_I9XX(pI830)) ? "1MB" : "512k");
+	}
+
+	if (offset % size) {
+	    FatalError("i830_set_tiling(): %d: offset (0x%08x) is not "
+		       "size (%dk) aligned\n",
+		       fence_nr, offset, size / 1024);
+	}
+
+	if (pitch & 127) {
+	    FatalError("i830_set_tiling(): %d: pitch (%d) not a multiple of "
+		       "128 bytes\n",
+		       fence_nr, pitch);
+	}
+
+	val = offset | FENCE_VALID;
+
+	switch (tile_format) {
+	case TILE_XMAJOR:
+	    val |= FENCE_X_MAJOR;
 	    break;
-	case MB(1):
-	    val |= FENCE_SIZE_1M;
+	case TILE_YMAJOR:
+	    val |= FENCE_Y_MAJOR;
 	    break;
-	case MB(2):
-	    val |= FENCE_SIZE_2M;
+	case TILE_NONE:
 	    break;
-	case MB(4):
-	    val |= FENCE_SIZE_4M;
+	}
+
+	if (IS_I9XX(pI830)) {
+	    switch (size) {
+	    case MB(1):
+		val |= I915G_FENCE_SIZE_1M;
+		break;
+	    case MB(2):
+		val |= I915G_FENCE_SIZE_2M;
+		break;
+	    case MB(4):
+		val |= I915G_FENCE_SIZE_4M;
+		break;
+	    case MB(8):
+		val |= I915G_FENCE_SIZE_8M;
+		break;
+	    case MB(16):
+		val |= I915G_FENCE_SIZE_16M;
+		break;
+	    case MB(32):
+		val |= I915G_FENCE_SIZE_32M;
+		break;
+	    case MB(64):
+		val |= I915G_FENCE_SIZE_64M;
+		break;
+	    default:
+		FatalError("i830_set_tiling(): %d: illegal size (%d kByte)\n",
+			   fence_nr, size / 1024);
+	    }
+	} else {
+	    switch (size) {
+	    case KB(512):
+		val |= FENCE_SIZE_512K;
+		break;
+	    case MB(1):
+		val |= FENCE_SIZE_1M;
+		break;
+	    case MB(2):
+		val |= FENCE_SIZE_2M;
+		break;
+	    case MB(4):
+		val |= FENCE_SIZE_4M;
+		break;
+	    case MB(8):
+		val |= FENCE_SIZE_8M;
+		break;
+	    case MB(16):
+		val |= FENCE_SIZE_16M;
+		break;
+	    case MB(32):
+		val |= FENCE_SIZE_32M;
+		break;
+	    case MB(64):
+		val |= FENCE_SIZE_64M;
+		break;
+	    default:
+		FatalError("i830_set_tiling(): %d: illegal size (%d kByte)\n",
+			   fence_nr, size / 1024);
+	    }
+	}
+
+	if ((IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830)) &&
+	    tile_format == TILE_YMAJOR)
+	    fence_pitch = pitch / 128;
+	else if (IS_I9XX(pI830))
+	    fence_pitch = pitch / 512;
+	else
+	    fence_pitch = pitch / 128;
+
+	switch (fence_pitch) {
+	case 1:
+	    val |= FENCE_PITCH_1;
 	    break;
-	case MB(8):
-	    val |= FENCE_SIZE_8M;
+	case 2:
+	    val |= FENCE_PITCH_2;
 	    break;
-	case MB(16):
-	    val |= FENCE_SIZE_16M;
+	case 4:
+	    val |= FENCE_PITCH_4;
 	    break;
-	case MB(32):
-	    val |= FENCE_SIZE_32M;
+	case 8:
+	    val |= FENCE_PITCH_8;
 	    break;
-	case MB(64):
-	    val |= FENCE_SIZE_64M;
+	case 16:
+	    val |= FENCE_PITCH_16;
+	    break;
+	case 32:
+	    val |= FENCE_PITCH_32;
+	    break;
+	case 64:
+	    val |= FENCE_PITCH_64;
 	    break;
 	default:
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "i830_set_fence(): %d: illegal size (%d kByte)\n",
-		       nr, size / 1024);
-	    return;
-   	}
+	    FatalError("i830_set_tiling(): %d: illegal pitch (%d)\n",
+		       fence_nr, pitch);
+	}
+
+	OUTREG(FENCE + fence_nr * 4, val);
     }
 
-    if ((IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
-	    && tile_format == TILE_YMAJOR)
-	fence_pitch = pitch / 128;
-    else if (IS_I9XX(pI830))
-	fence_pitch = pitch / 512;
-    else
-	fence_pitch = pitch / 128;
+    return fence_nr;
+}
 
-    switch (fence_pitch) {
-    case 1:
-	val |= FENCE_PITCH_1;
-	break;
-    case 2:
-	val |= FENCE_PITCH_2;
-	break;
-    case 4:
-	val |= FENCE_PITCH_4;
-	break;
-    case 8:
-	val |= FENCE_PITCH_8;
-	break;
-    case 16:
-	val |= FENCE_PITCH_16;
-	break;
-    case 32:
-	val |= FENCE_PITCH_32;
-	break;
-    case 64:
-	val |= FENCE_PITCH_64;
-	break;
-    default:
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "i830_set_fence(): %d: illegal pitch (%d)\n", nr, pitch);
-	return;
+static void
+i830_clear_tiling(ScrnInfoPtr pScrn, unsigned int fence_nr)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (IS_I965G(pI830)) {
+	OUTREG(FENCE_NEW + fence_nr * 8, 0);
+	OUTREG(FENCE_NEW + fence_nr * 8 + 4, 0);
+    } else {
+	OUTREG(FENCE + fence_nr * 4, 0);
     }
-
-    pI830->fence[nr] = val;
+    pI830->fence_used[fence_nr] = FALSE;
 }
 
 /**

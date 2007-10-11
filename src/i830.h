@@ -163,6 +163,13 @@ struct _i830_memory {
     unsigned long agp_offset;
 
     enum tile_format tiling;
+    /**
+     * Index of the fence register representing the tiled surface, when
+     * bound.
+     */
+    int fence_nr;
+    /** Pitch value in bytes for tiled surfaces */
+    unsigned int pitch;
 
     /** Description of the allocation, for logging */
     char *name;
@@ -393,17 +400,7 @@ typedef struct _I830Rec {
    int NumScanlineColorExpandBuffers;
    int nextColorExpandBuf;
 
-    /**
-     * Values to be programmed into the fence registers.
-     *
-     * Pre-965, this is a list of FENCE_NR (8) CARD32 registers that
-     * contain their start, size, and pitch.  On the 965, it is a list of
-     * FENCE_NEW_NR CARD32s for the start and pitch fields (low 32 bits) of
-     * the fence registers followed by FENCE_NEW_NR CARD32s for the end fields
-     * (high 32 bits) of the fence registers.
-     */
-   unsigned int fence[FENCE_NEW_NR * 2];
-   unsigned int next_fence;
+   Bool fence_used[FENCE_NEW_NR];
 
    Bool useEXA;
    Bool noAccel;
