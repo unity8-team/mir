@@ -4236,11 +4236,22 @@ void RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     if (info->IsMobility) {
 	OUTREG(RADEON_LVDS_GEN_CNTL,  restore->lvds_gen_cntl);
-	OUTREG(RADEON_LVDS_PLL_CNTL,  restore->lvds_pll_cntl);  
-	/*OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
-	OUTREG(RADEON_BIOS_5_SCRATCH, restore->bios_5_scratch);
-	OUTREG(RADEON_BIOS_6_SCRATCH, restore->bios_6_scratch);*/
+	OUTREG(RADEON_LVDS_PLL_CNTL,  restore->lvds_pll_cntl);
     }
+
+}
+
+void RADEONRestoreBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 bios_6_scratch = INREG(RADEON_BIOS_6_SCRATCH);
+
+    OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
+    OUTREG(RADEON_BIOS_5_SCRATCH, restore->bios_5_scratch);
+    if (restore->bios_6_scratch & 0x40000000)
+	bios_6_scratch |= 0x40000000;
+    OUTREG(RADEON_BIOS_6_SCRATCH, bios_6_scratch);
 
 }
 
@@ -5083,6 +5094,16 @@ static void RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
 }
 
+static void RADEONSaveBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    save->bios_4_scratch       = INREG(RADEON_BIOS_4_SCRATCH);
+    save->bios_5_scratch       = INREG(RADEON_BIOS_5_SCRATCH);
+    save->bios_6_scratch       = INREG(RADEON_BIOS_6_SCRATCH);
+}
+
 /* Read flat panel registers */
 static void RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
@@ -5097,9 +5118,6 @@ static void RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->lvds_pll_cntl        = INREG(RADEON_LVDS_PLL_CNTL);
     save->tmds_pll_cntl        = INREG(RADEON_TMDS_PLL_CNTL);
     save->tmds_transmitter_cntl= INREG(RADEON_TMDS_TRANSMITTER_CNTL);
-    save->bios_4_scratch       = INREG(RADEON_BIOS_4_SCRATCH);
-    save->bios_5_scratch       = INREG(RADEON_BIOS_5_SCRATCH);
-    save->bios_6_scratch       = INREG(RADEON_BIOS_6_SCRATCH);
 
     if (info->ChipFamily == CHIP_FAMILY_RV280) {
 	/* bit 22 of TMDS_PLL_CNTL is read-back inverted */
@@ -5341,6 +5359,7 @@ static void RADEONSave(ScrnInfoPtr pScrn)
     RADEONSavePLLRegisters(pScrn, save);
     RADEONSaveCrtcRegisters(pScrn, save);
     RADEONSaveFPRegisters(pScrn, save);
+    RADEONSaveBIOSRegisters(pScrn, save);
     RADEONSaveDACRegisters(pScrn, save);
     if (pRADEONEnt->HasCRTC2) {
 	RADEONSaveCrtc2Registers(pScrn, save);
@@ -5387,6 +5406,7 @@ void RADEONRestore(ScrnInfoPtr pScrn)
 	RADEONRestorePLL2Registers(pScrn, restore);
     }
 
+    RADEONRestoreBIOSRegisters(pScrn, restore);
     RADEONRestoreCrtcRegisters(pScrn, restore);
     RADEONRestorePLLRegisters(pScrn, restore);
     RADEONRestoreRMXRegisters(pScrn, restore);

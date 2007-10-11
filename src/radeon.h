@@ -913,6 +913,8 @@ extern void        RADEONRestoreFP2Registers(ScrnInfoPtr pScrn,
 					     RADEONSavePtr restore);
 extern void        RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn,
 					      RADEONSavePtr restore);
+extern void        RADEONRestoreBIOSRegisters(ScrnInfoPtr pScrn,
+					      RADEONSavePtr restore);
 extern void        RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn,
 					     RADEONSavePtr restore);
 extern void        RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,

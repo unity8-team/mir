@@ -768,6 +768,18 @@ RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 }
 
 static void
+RADEONInitBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info      = RADEONPTR(pScrn);
+
+    /* tell the bios not to muck with the hardware on events */
+    save->bios_4_scratch = 0;
+    save->bios_5_scratch = 0xff00;
+    save->bios_6_scratch = info->SavedReg.bios_6_scratch | 0x40000000;
+
+}
+
+static void
 radeon_update_tv_routing(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     /* pixclks_cntl controls tv clock routing */
@@ -812,6 +824,9 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		no_odd_post_div = TRUE;
 	}
     }
+
+    if (info->IsMobility)
+	RADEONInitBIOSRegisters(pScrn, &info->ModeReg);
 
     ErrorF("init memmap\n");
     RADEONInitMemMapRegisters(pScrn, &info->ModeReg, info);
@@ -867,6 +882,9 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    }
 	}
     }
+
+    if (info->IsMobility)
+	RADEONRestoreBIOSRegisters(pScrn, &info->ModeReg);
 
     ErrorF("restore memmap\n");
     RADEONRestoreMemMapRegisters(pScrn, &info->ModeReg);
