@@ -279,8 +279,18 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     int	    p;
 
     /* While there is any memory between the start and end markers, free it. */
-    while (pI830->memory_list->next->next != NULL)
+    while (pI830->memory_list->next->next != NULL) {
+	i830_memory *mem = pI830->memory_list->next;
+
+	/* Don't reset BO allocator, which we set up at init. */
+	if (pI830->memory_manager == mem) {
+	    mem = mem->next;
+	    if (mem->next == NULL)
+		break;
+	}
+
 	i830_free_memory(pScrn, pI830->memory_list->next);
+    }
 
     /* Free any allocations in buffer objects */
 #ifdef XF86DRI_MM
