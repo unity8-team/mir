@@ -833,12 +833,19 @@ I830DRIDoMappings(ScreenPtr pScreen)
    pScrn->pScreen->width = pScrn->virtualX;
    pScrn->pScreen->height = pScrn->virtualY;
 
-   if (!i830_update_dri_buffers(pScrn)) {
-      /* screen mappings probably failed */
-      xf86DrvMsg(pScreen->myNum, X_ERROR,
-		 "[drm] drmAddMap(screen mappings) failed. Disabling DRI\n");
-      DRICloseScreen(pScreen);
-      return FALSE;
+   /* If we are using the kernel memory manager, we have to delay SAREA and
+    * mapping setup until our buffers are pinned at EnterVT, losing the
+    * opportunity to fail cleanly early on.
+    */
+   if (pI830->memory_manager == NULL) {
+      if (!i830_update_dri_buffers(pScrn)) {
+	 /* screen mappings probably failed */
+	 xf86DrvMsg(pScreen->myNum, X_ERROR,
+		    "[drm] drmAddMap(screen mappings) failed. "
+		    "Disabling DRI\n");
+	 DRICloseScreen(pScreen);
+	 return FALSE;
+      }
    }
 
    if (pI830->allocate_classic_textures)

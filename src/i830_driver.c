@@ -3070,6 +3070,11 @@ I830EnterVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled) {
+      /* Update buffer offsets in sarea and mappings, since buffer offsets
+       * may have changed.
+       */
+      if (!i830_update_dri_buffers(pScrn))
+	 FatalError("i830_update_dri_buffers() failed\n");
 
       I830DRISetVBlankInterrupt (pScrn, TRUE);
 
@@ -3087,12 +3092,6 @@ I830EnterVT(int scrnIndex, int flags)
 	 sarea->texAge++;
 	 for(i = 0; i < I830_NR_TEX_REGIONS+1 ; i++)
 	    sarea->texList[i].age = sarea->texAge;
-
-	 /* Update buffer offsets in sarea and mappings, since buffer offsets
-	  * may have changed.
-	  */
-	 if (!i830_update_dri_buffers(pScrn))
-	    FatalError("i830_update_dri_buffers() failed\n");
 
 	 DPRINTF(PFX, "calling dri unlock\n");
 	 DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
