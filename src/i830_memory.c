@@ -758,7 +758,9 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *mem;
 
-    if (pI830->memory_manager && !(flags & NEED_PHYSICAL_ADDR)) {
+    if (pI830->memory_manager && !(flags & NEED_PHYSICAL_ADDR) &&
+	!(flags & NEED_LIFETIME_FIXED))
+    {
 	return i830_allocate_memory_bo(pScrn, name, size, alignment, flags);
     } else {
 	mem = i830_allocate_aperture(pScrn, name, size, alignment, flags);
