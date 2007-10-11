@@ -709,14 +709,17 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     mem->offset = -1;
     mem->end = -1;
     mem->size = size;
-    if (flags & NEED_LIFETIME_FIXED) {
+    if (flags & NEED_LIFETIME_FIXED)
+	mem->lifetime_fixed_offset = TRUE;
+
+    /* Bind it if we currently control the VT */
+    if (pScrn->vtSema) {
 	if (!i830_bind_memory(pScrn, mem)) {
 	    drmBOUnReference(pI830->drmSubFD, &mem->bo);
 	    xfree(mem->name);
 	    xfree(mem);
 	    return NULL;
 	}
-	mem->lifetime_fixed_offset = TRUE;
     }
 
     /* Insert new allocation into the list */
