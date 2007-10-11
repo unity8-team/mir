@@ -3018,6 +3018,17 @@ I830EnterVT(int scrnIndex, int flags)
 
    pI830->leaving = FALSE;
 
+#ifdef XF86DRI_MM
+   if (pI830->directRenderingEnabled) {
+      /* Unlock the memory manager first of all so that we can pin our
+       * buffer objects
+       */
+      if (pI830->memory_manager != NULL) {
+	 drmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT);
+      }
+   }
+#endif /* XF86DRI_MM */
+
    if (I830IsPrimary(pScrn))
       if (!i830_bind_all_memory(pScrn))
          return FALSE;
@@ -3077,11 +3088,11 @@ I830EnterVT(int scrnIndex, int flags)
 	 for(i = 0; i < I830_NR_TEX_REGIONS+1 ; i++)
 	    sarea->texList[i].age = sarea->texAge;
 
-#ifdef XF86DRI_MM
-	 if (pI830->memory_manager != NULL) {
-	    drmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT);
-	 }
-#endif /* XF86DRI_MM */
+	 /* Update buffer offsets in sarea and mappings, since buffer offsets
+	  * may have changed.
+	  */
+	 if (!i830_update_dri_buffers(pScrn))
+	    FatalError("i830_update_dri_buffers() failed\n");
 
 	 DPRINTF(PFX, "calling dri unlock\n");
 	 DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);

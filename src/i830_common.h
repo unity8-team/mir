@@ -74,7 +74,7 @@ typedef struct {
    unsigned int depth_offset;
    unsigned int w;
    unsigned int h;
-   unsigned int pitch;
+   unsigned int pitch; /* Pitch of front buffer in units of pixels */
    unsigned int pitch_bits;
    unsigned int back_pitch;
    unsigned int depth_pitch;
