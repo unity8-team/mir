@@ -403,7 +403,18 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	 * physical-address allocations of cursor/overlay registers.
 	 */
 	mmsize = size;
-	/* Overlay is always set up as fixed, currently. */
+
+	/* EXA area is fixed. */
+	if (pI830->useEXA) {
+	    mmsize -= ROUND_TO_PAGE(3 * pScrn->displayWidth * pI830->cpp *
+				    pScrn->virtualY);
+	}
+	/* Classic textures are fixed. */
+	if (pI830->allocate_classic_textures)
+	    mmsize -= MB(32);
+	/* Overlay and cursors, if physical, need to be allocated outside
+	 * of the kernel memory manager.
+	 */
 	if (!OVERLAY_NOPHYSICAL(pI830) && !IS_I965G(pI830)) {
 	    mmsize -= ROUND_TO(OVERLAY_SIZE, GTT_PAGE_SIZE);
 	}
