@@ -1087,11 +1087,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
     i830_memory *front_buffer = NULL;
     Bool tiling;
 
-    /* The front buffer is currently marked as NEED_LIFETIME_FIXED because
-     * DRIDoMappings is the only caller of the rm/add map functions,
-     * and it's only called at startup.  This should be easily fixable.
-     */
-    flags = NEED_LIFETIME_FIXED | ALLOW_SHARING;
+    flags = ALLOW_SHARING;
 
     /* Clear everything first. */
     memset(FbMemBox, 0, sizeof(*FbMemBox));
@@ -1488,7 +1484,6 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn, i830_memory **buffer,
 	*buffer = i830_allocate_memory_tiled(pScrn, name, size, pitch,
 					     GTT_PAGE_SIZE,
 					     ALIGN_BOTH_ENDS |
-					     NEED_LIFETIME_FIXED |
 					     ALLOW_SHARING,
 					     TILE_XMAJOR);
     }
@@ -1500,7 +1495,6 @@ i830_allocate_backbuffer(ScrnInfoPtr pScrn, i830_memory **buffer,
 	size = ROUND_TO_PAGE(pitch * height);
 	*buffer = i830_allocate_memory(pScrn, name, size, GTT_PAGE_SIZE,
 				       ALIGN_BOTH_ENDS |
-				       NEED_LIFETIME_FIXED |
 				       ALLOW_SHARING);
     }
 
@@ -1543,7 +1537,6 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
 	    i830_allocate_memory_tiled(pScrn, "depth buffer", size, pitch,
 				       GTT_PAGE_SIZE,
 				       ALIGN_BOTH_ENDS |
-				       NEED_LIFETIME_FIXED |
 				       ALLOW_SHARING,
 				       tile_format);
     }
@@ -1555,7 +1548,7 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
 	size = ROUND_TO_PAGE(pitch * height);
 	pI830->depth_buffer =
 	    i830_allocate_memory(pScrn, "depth buffer", size, GTT_PAGE_SIZE,
-				 ALLOW_SHARING | NEED_LIFETIME_FIXED);
+				 ALLOW_SHARING);
     }
 
     if (pI830->depth_buffer == NULL) {

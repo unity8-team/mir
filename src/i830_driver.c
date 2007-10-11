@@ -777,12 +777,8 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    }
 }
 
-#if 0
-/* This code ended up unused, but will be at least a reference when we let the
- * front buffer move.
- */
 static void
-i830UpdateFrontOffset(ScrnInfoPtr pScrn)
+i830_update_front_offset(ScrnInfoPtr pScrn)
 {
    ScreenPtr pScreen = pScrn->pScreen;
    I830Ptr pI830 = I830PTR(pScrn);
@@ -820,11 +816,10 @@ i830CreateScreenResources(ScreenPtr pScreen)
    if (!(*pScreen->CreateScreenResources)(pScreen))
       return FALSE;
 
-   i830UpdateFrontOffset(pScrn);
+   i830_update_front_offset(pScrn);
 
    return TRUE;
 }
-#endif
 
 int
 i830_output_clones (ScrnInfoPtr pScrn, int type_mask)
@@ -2867,10 +2862,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pScreen->SaveScreen = xf86SaveScreen;
    pI830->CloseScreen = pScreen->CloseScreen;
    pScreen->CloseScreen = I830CloseScreen;
-#if 0
    pI830->CreateScreenResources = pScreen->CreateScreenResources;
    pScreen->CreateScreenResources = i830CreateScreenResources;
-#endif
 
    if (!xf86CrtcScreenInit (pScreen))
        return FALSE;
@@ -3035,9 +3028,8 @@ I830EnterVT(int scrnIndex, int flags)
 
    i830_describe_allocations(pScrn, 1, "");
 
-#if 0
-   i830UpdateFrontOffset(pScrn);
-#endif
+   /* Update the screen pixmap in case the buffer moved */
+   i830_update_front_offset(pScrn);
 
    if (i830_check_error_state(pScrn)) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
