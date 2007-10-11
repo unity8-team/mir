@@ -2959,13 +2959,8 @@ I830LeaveVT(int scrnIndex, int flags)
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
       DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
-#ifdef XF86DRI_MM
-      if (pI830->memory_manager != NULL) {
-	 drmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT);
-      }
-#endif /* XF86DRI_MM */
+
       I830DRISetVBlankInterrupt (pScrn, FALSE);
-      
       drmCtlUninstHandler(pI830->drmSubFD);
    }
 #endif
@@ -2983,6 +2978,18 @@ I830LeaveVT(int scrnIndex, int flags)
 
    if (I830IsPrimary(pScrn))
       i830_unbind_all_memory(pScrn);
+
+   /* Tell the kernel to evict all buffer objects and block new buffer
+    * allocations until we relese the lock.
+    */
+#ifdef XF86DRI_MM
+   if (pI830->directRenderingOpen) {
+      if (pI830->memory_manager != NULL) {
+	 drmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT);
+      }
+   }
+#endif /* XF86DRI_MM */
+
    if (pI830->AccelInfoRec)
       pI830->AccelInfoRec->NeedToSync = FALSE;
 }
