@@ -1647,6 +1647,16 @@ radeon_detect(xf86OutputPtr output)
 	  break;
       }
 
+      if (!connected) {
+	  /* default to unknown for flaky chips/connectors
+	   * so we can get something on the screen
+	   */
+	  if (((radeon_output->type == OUTPUT_VGA || radeon_output->type == OUTPUT_DVI) &&
+	       radeon_output->DACType == DAC_TVDAC) ||
+	      (info->IsIGP && radeon_output->type == OUTPUT_DVI))
+	      return XF86OutputStatusUnknown;
+      }
+
       if (connected)
 	  return XF86OutputStatusConnected;
       else
