@@ -116,7 +116,6 @@ void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDe
 
 /* nv_crtc.c */
 #ifdef ENABLE_RANDR12
-void NVSetMode(ScrnInfoPtr pScrn, DisplayModePtr pMode);
 DisplayModePtr NVCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y);
 void NVCrtcLoadPalette(xf86CrtcPtr crtc);

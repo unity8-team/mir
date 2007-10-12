@@ -969,17 +969,101 @@ static Bool NVPreInitDRI(ScrnInfoPtr pScrn)
 
 #ifdef ENABLE_RANDR12
 static Bool
-nv_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
+nv_xf86crtc_resize(ScrnInfoPtr pScrn, int width, int height)
 {
-	scrn->virtualX = width;
-	scrn->virtualY = height;
+	ErrorF("nv_xf86crtc_resize is called with %dx%d resolution\n", width, height);
+	pScrn->virtualX = width;
+	pScrn->virtualY = height;
 	return TRUE;
 }
 
 static const xf86CrtcConfigFuncsRec nv_xf86crtc_config_funcs = {
 	nv_xf86crtc_resize
 };
-#endif
+
+/* This is taken from the haiku driver */
+/* We must accept crtc pitch constrains */
+/* A hardware bug on some hardware requires twice the pitch */
+static CARD8 NVGetCRTCMask(ScrnInfoPtr pScrn, CARD8 bpp)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	CARD8 mask = 0;
+	switch(bpp) {
+		case 8:
+			mask = 0xf; /* 0x7 */
+			break;
+		case 15:
+			mask = 0x7; /* 0x3 */
+			break;
+		case 16:
+			mask = 0x7; /* 0x3 */
+			break;
+		case 24:
+			mask = 0xf; /* 0x7 */
+			break;
+		case 32:
+			mask = 0x3; /* 0x1 */
+			break;
+		default:
+			ErrorF("Unkown color format\n");
+			break;
+	}
+
+	return mask;
+}
+
+/* This is taken from the haiku driver */
+static CARD8 NVGetAccelerationMask(ScrnInfoPtr pScrn, CARD8 bpp)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	CARD8 mask = 0;
+	/* Identical for NV04 */
+	if (pNv->Architecture == NV_ARCH_04) {
+		return NVGetCRTCMask(pScrn, bpp);
+	} else {
+		switch(bpp) {
+			case 8:
+				mask = 0x3f;
+				break;
+			case 15:
+				mask = 0x1f;
+				break;
+			case 16:
+				mask = 0x1f;
+				break;
+			case 24:
+				mask = 0x3f;
+				break;
+			case 32:
+				mask = 0x0f;
+				break;
+			default:
+				ErrorF("Unkown color format\n");
+				break;
+		}
+	}
+
+	return mask;
+}
+
+static CARD32 NVGetVideoPitch(ScrnInfoPtr pScrn, CARD8 bpp)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	CARD8 crtc_mask, accel_mask = 0;
+	crtc_mask = NVGetCRTCMask(pScrn, bpp);
+	if (!pNv->NoAccel) {
+		accel_mask = NVGetAccelerationMask(pScrn, bpp);
+	}
+
+	/* adhere to the largest granularity imposed */
+	if (accel_mask > crtc_mask) {
+		return (pScrn->virtualX + accel_mask) & ~accel_mask;
+	} else {
+		return (pScrn->virtualX + crtc_mask) & ~crtc_mask;
+	}
+}
+
+#endif /* ENABLE_RANDR12 */
 
 #define NVPreInitFail(fmt, args...) do {                                    \
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%d: "fmt, __LINE__, ##args); \
@@ -1510,9 +1594,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     }
 #endif
 
-    if (pNv->randr12_enable) {
-	    pScrn->displayWidth = (pScrn->virtualX + 255) & ~255;
-    } else { 
+	if (pNv->randr12_enable) {
+		pScrn->displayWidth = NVGetVideoPitch(pScrn, pScrn->depth);
+	} else {
 	    /*
 	     * xf86ValidateModes will check that the mode HTotal and VTotal values
 	     * don't exceed the chipset's limit if pScrn->maxHValue and

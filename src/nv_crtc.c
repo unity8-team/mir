@@ -546,7 +546,7 @@ void nv_crtc_calc_state_ext(
 		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = CursorStart >> 24;
 
 		if (flags & V_DBLSCAN) 
-			regp->CRTC[NV_VGA_CRTCX_CURCTL1]|= 2;
+			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
 
 		state->config   = nvReadFB(pNv, NV_PFB_CFG0);
 		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = hDisplaySize < 1280 ? 0x04 : 0x00;
@@ -581,7 +581,9 @@ void nv_crtc_calc_state_ext(
 		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = state->arbitration1 >> 8;
 	}
 
-	regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((width / 8) * pixelDepth) & 0x700) >> 3;
+	ErrorF("width: %d\n", width);
+
+	regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((pScrn->displayWidth/ 8) * pixelDepth) & 0x700) >> 3;
 	regp->CRTC[NV_VGA_CRTCX_PIXEL] = (pixelDepth > 2) ? 3 : pixelDepth;
 }
 
@@ -663,27 +665,8 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode)
 	NVPtr pNv = NVPTR(pScrn);
 	int depth = pScrn->depth;
 	unsigned int i;
-	uint32_t drain;
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
-
-	/* Initializing some default bios settings */
-
-	/* This is crude, but if it works for Haiku ;-) */
-	drain = mode->HDisplay * mode->VDisplay * pScrn->bitsPerPixel;
-
-	if ( drain <= 1024*768*4 ) {
-		/* CRTC fifo burst size */
-		regp->CRTC[NV_VGA_CRTCX_FIFO0] = 0x03;
-		/* CRTC fifo fetch interval */
-		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = 0x20;
-	} else if (drain <= 1280*1024*4) {
-		regp->CRTC[NV_VGA_CRTCX_FIFO0] = 0x02;
-		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = 0x40;
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_FIFO0] = 0x01;
-		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = 0x40;
-	}
 
 	/*
 	* compute correct Hsync & Vsync polarity 
@@ -946,10 +929,10 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	horizBlankEnd -= 1;
 	vertBlankEnd -= 1;
 
-	ErrorF("crtc: Post-sync workaround\n");
-
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];    
 	savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
+
+	ErrorF("crtc: Post-sync workaround\n");
 
 	if(mode->Flags & V_INTERLACE) 
 		vertTotal |= 1;
@@ -977,7 +960,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_VGA_CRTCX_VSYNCS] = Set8Bits(vertStart);
 	regp->CRTC[NV_VGA_CRTCX_VSYNCE] = SetBitField(vertEnd,3:0,3:0) | SetBit(5);
 	regp->CRTC[NV_VGA_CRTCX_VDISPE] = Set8Bits(vertDisplay);
-	regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((pLayout->displayWidth/8)*(pLayout->bitsPerPixel/8));
+	regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((pScrn->displayWidth/8)*(pLayout->bitsPerPixel/8));
 	regp->CRTC[NV_VGA_CRTCX_VBLANKS] = Set8Bits(vertBlankStart);
 	regp->CRTC[NV_VGA_CRTCX_VBLANKE] = Set8Bits(vertBlankEnd);
 
@@ -1051,10 +1034,10 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		pNv->CURSOR = (CARD32 *)pNv->Cursor->map;
 	}
 
-	ErrorF("crtc %d %d %d\n", nv_crtc->crtc, mode->CrtcHDisplay, pLayout->displayWidth);
+	ErrorF("crtc %d %d %d\n", nv_crtc->crtc, mode->CrtcHDisplay, pScrn->displayWidth);
 	nv_crtc_calc_state_ext(crtc,
 				i,
-				pLayout->displayWidth,
+				pScrn->displayWidth,
 				mode->CrtcHDisplay,
 				mode->CrtcVDisplay,
 				mode->Clock,
@@ -1535,7 +1518,9 @@ NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y)
     NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
     NVFBLayout *pLayout = &pNv->CurrentLayout;
     CARD32 start = 0;
-    
+
+	ErrorF("NVCrtcSetBase: x: %d y: %d\n", x, y);
+
     start += ((y * pScrn->displayWidth + x) * (pLayout->bitsPerPixel/8));
     start += pNv->FB->offset;
 
@@ -1543,17 +1528,6 @@ NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y)
 
     crtc->x = x;
     crtc->y = y;
-}
-
-void NVSetMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
-{
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int i;
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-		if (xf86_config->crtc[i]->enabled) {
-			nv_crtc_mode_set(xf86_config->crtc[i], mode, NULL, 0,0);
-		}
-	}
 }
 
 static void NVCrtcWriteDacMask(xf86CrtcPtr crtc, CARD8 value)
