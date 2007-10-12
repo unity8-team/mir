@@ -190,7 +190,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 
     if (mem->tiling != TILE_NONE) {
 	mem->fence_nr = i830_set_tiling(pScrn, mem->offset, mem->pitch,
-					mem->size, mem->tiling);
+					mem->allocated_size, mem->tiling);
     }
 
     /* Mark the pages accessible now that they're bound. */
@@ -617,6 +617,7 @@ i830_allocate_aperture(ScrnInfoPtr pScrn, const char *name,
     /* Only allocate page-sized increments. */
     size = ALIGN(size, GTT_PAGE_SIZE);
     mem->size = size;
+    mem->allocated_size = size;
 
     if (alignment < GTT_PAGE_SIZE)
 	alignment = GTT_PAGE_SIZE;
@@ -754,6 +755,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     mem->offset = -1;
     mem->end = -1;
     mem->size = size;
+    mem->allocated_size = size;
     if (flags & NEED_LIFETIME_FIXED)
 	mem->lifetime_fixed_offset = TRUE;
 

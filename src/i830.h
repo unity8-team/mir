@@ -145,6 +145,11 @@ struct _i830_memory {
      */
     unsigned long size;
     /**
+     * Allocated aperture size, taking into account padding to allow for
+     * tiling.
+     */
+    unsigned long allocated_size;
+    /**
      * Physical (or more properly, bus) address of the allocation.
      * Only set if requested during allocation.
      */
