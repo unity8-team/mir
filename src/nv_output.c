@@ -702,7 +702,7 @@ nv_ddc_detect(xf86OutputPtr output)
 
 	if (nv_output->type == OUTPUT_DIGITAL) {
 		int i;
-		for (i = 0; ddc_mon->timings2[i].hsize != 0; i++) {
+		for (i = 0; i < 8; i++) {
 			/* Selecting only based on width ok? */
 			if (ddc_mon->timings2[i].hsize > nv_output->fpWidth) {
 				nv_output->fpWidth = ddc_mon->timings2[i].hsize;
@@ -1053,6 +1053,9 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index, Bool dual_dv
 
 	} else if (dual_dvi) {
 		ErrorF("Sorry, atm we cannot properly handle dual dvi cards\n");
+		ErrorF("Using fallback defaults\n");
+		nv_output->ramdac = i2c_index;
+		pNv->crosswired_tmds = FALSE;
 	}
 
 	output->possible_crtcs = crtc_mask;
@@ -1125,7 +1128,8 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 
 			if (type < 4)
 				xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry: %d: %08X type: %d, port %d:, or %d\n", i, pNv->dcb_table[i], type, port, or);
-			if (type < 4 && port != 0xf) {
+			/* I have no clue what to do with anything but port 0 and 1 */
+			if (type < 4 && port < 2) {
 				switch(type) {
 				case 0: /* Analog */
 					nv_add_analog_output(pScrn, i2c_index, dvi_pair);
