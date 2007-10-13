@@ -1,3 +1,21 @@
+xserver-xorg-video-intel (2:2.1.1-0ubuntu9) gutsy; urgency=low
+
+   [Peter Clifton]
+   * 01_fix_compiz_video.diff:
+     - Bracket second clause in test for textured video to avoid
+       compiler warning and possibly incorrect testing.
+   * 04_fix_hw_restore.diff
+     - Only restore palette registers for pipes which are enabled, or
+       the system may hard-lock. (Initial patch by Bryce Harrington).
+       (Closes LP: #127101)
+   * 05_fix_xv_reset.diff
+     - Playing Xv video after switching modes once the Xv driver is
+       initialised causes a lockup, as the overlay regisers need
+       re-programming. Ensure such a reset happens after a mode-switch.
+       (Closes LP: #141063)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Sat, 13 Oct 2007 12:58:07 -0700
+
 xserver-xorg-video-intel (2:2.1.1-0ubuntu8) gutsy; urgency=low
 
   * Brown paper bag release.

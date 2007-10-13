@@ -1,3 +1,5 @@
 01_fix_compiz_video.diff
 02_xps1330_tvout_quirk.diff
 03_fix_brightness_control.diff
+04_fix_hw_restore.diff
+05_fix_xv_reset.diff

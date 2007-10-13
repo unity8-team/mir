@@ -1,0 +1,21 @@
+Index: xserver-xorg-video-intel-2.1.1/src/i830_driver.c
+===================================================================
+--- xserver-xorg-video-intel-2.1.1.orig/src/i830_driver.c	2007-10-12 14:37:57.000000000 +0100
++++ xserver-xorg-video-intel-2.1.1/src/i830_driver.c	2007-10-12 14:39:08.000000000 +0100
+@@ -1985,11 +1985,12 @@
+    OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
+    OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
+ 
+-   for(i = 0; i < 256; i++) {
+-      OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
++   if ((INREG(PIPEACONF) & PIPEACONF_ENABLE)) {
++      for(i = 0; i < 256; i++) {
++         OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
++      }
+    }
+-   
+-   if(xf86_config->num_crtc == 2) {
++   if (xf86_config->num_crtc == 2 && (INREG(PIPEBCONF) & PIPEBCONF_ENABLE)) {
+       for(i= 0; i < 256; i++) {
+          OUTREG(PALETTE_B + (i << 2), pI830->savePaletteB[i]);
+       }

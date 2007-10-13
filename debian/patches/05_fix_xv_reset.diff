@@ -1,0 +1,12 @@
+Index: xserver-xorg-video-intel-2.1.1.bwh.pcjc2/src/i830_video.c
+===================================================================
+--- xserver-xorg-video-intel-2.1.1.bwh.pcjc2.orig/src/i830_video.c	2007-10-11 17:31:01.000000000 +0100
++++ xserver-xorg-video-intel-2.1.1.bwh.pcjc2/src/i830_video.c	2007-10-11 17:31:01.000000000 +0100
+@@ -2927,6 +2927,7 @@
+ 	 */
+ 	I830StopVideo(pScrn, pPriv, TRUE);
+ 	pPriv->overlayOK = FALSE;
++	pPriv->current_crtc = NULL;
+ 	pPriv->oneLineMode = FALSE;
+     }
+ }
