@@ -2832,42 +2832,76 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 }
 
 #if defined(__powerpc__)
+
 /*
  * Returns RADEONMacModel or 0 based on lines 'detected as' and 'machine'
- * in /proc/cpuinfo file */
-static RADEONMacModel getMacModel (void){
-    RADEONMacModel dviConn = 0;
-    int macmodel = 0;
-    char cpuline[50];  /* 50 should be sufficient for /proc/cpuinfo lines */
+ * in /proc/cpuinfo (on Linux) */
+static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
+{
+    RADEONMacModel ret = 0;
+#ifdef __linux__
+    char cpuline[50];  /* 50 should be sufficient for our purposes */
     FILE *f = fopen ("/proc/cpuinfo", "r");
-    if (f != NULL){
-        while (fgets (cpuline, sizeof cpuline, f)){
-            char *start;
-            if (!strncmp (cpuline, "machine", strlen ("machine"))){
-                if ((start = strstr (cpuline, "PowerBook")) != NULL)
-                    macmodel = *(start + strlen ("PowerBook")) - '0';
-                /* macmodel cannot be used here, because 'machine' line arrives before 'detected as' line */
-            }else if (!strncmp (cpuline, "detected as", strlen ("detected as"))){
-                if (strstr (cpuline, "iBook"))
-                    dviConn = RADEON_MAC_IBOOK;
-                else if (strstr (cpuline, "PowerBook")){
-                    /* database with known DVI connectors:
-                     * dualllink: 5,2
-                     * singlelink: */
-                    if (macmodel >= 5)
-                        dviConn = RADEON_MAC_POWERBOOK_DL;
-                    else
-                        dviConn = RADEON_MAC_POWERBOOK;
+
+    if (f != NULL) {
+	while (fgets(cpuline, sizeof cpuline, f)) {
+	    if (!strncmp(cpuline, "machine", strlen ("machine"))) {
+		if (strstr(cpuline, "PowerBook5,6") ||
+		    strstr(cpuline, "PowerBook5,7") ||
+		    strstr(cpuline, "PowerBook5,8") ||
+		    strstr(cpuline, "PowerBook5,9")) {
+		    ret = RADEON_MAC_POWERBOOK_DL;
+		    break;
+		}
+
+		if (strstr(cpuline, "PowerMac10,1") ||
+		    strstr(cpuline, "PowerMac10,2")) {
+		    ret = RADEON_MAC_MINI;
+		    break;
+		}
+	    } else if (!strncmp(cpuline, "detected as", strlen("detected as"))) {
+                if (strstr(cpuline, "iBook")) {
+                    ret = RADEON_MAC_IBOOK;
+		    break;
+		} else if (strstr(cpuline, "PowerBook")) {
+		    ret = RADEON_MAC_POWERBOOK_DL;
+		    break;
                 }
-                /* else: 'detected as' line not found, we suppose not apple PowerPC computer, so nothing to do */
+
+                /* No known PowerMac model detected */
                 break;
             }
         }
-    }else
-        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot detect laptop model for DVI connector identification because /proc/cpuinfo not readable.  Please use the MacModel option in xorg.conf to configure it.\n");
-    return dviConn;
-}
+
+	fclose (f);
+    } else
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Cannot detect PowerMac model because /proc/cpuinfo not "
+		   "readable.\n");
+
+#endif /* __linux */
+
+    if (ret) {
+	xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT, "Detected %s.\n",
+		   ret == RADEON_MAC_POWERBOOK_DL ? "PowerBook with dual link DVI" :
+		   ret == RADEON_MAC_POWERBOOK ? "PowerBook with single link DVI" :
+		   ret == RADEON_MAC_IBOOK ? "iBook" :
+		   "Mac Mini");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "If this is not correct, try Option \"MacModel\" and "
+		   "consider reporting to the\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "xorg-driver-ati@lists.x.org mailing list"
+#ifdef __linux__
+		   " with the contents of /proc/cpuinfo"
 #endif
+		   ".\n");
+    }
+
+    return ret;
+}
+
+#endif /* __powerpc__ */
 
 /*
  * initialise the static data sos we don't have to re-do at randr change */
@@ -2894,11 +2928,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     }
 
 #if defined(__powerpc__)
-    info->MacModel = getMacModel ();
-    if (info->MacModel)
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Detected DVI connector %d.\n", info->MacModel);
-
-    /* overwrite detected data, in case it's falsely detected */
+    info->MacModel = 0;
     optstr = (char *)xf86GetOptValString(info->Options, OPTION_MAC_MODEL);
     if (optstr) {
 	if (!strncmp("ibook", optstr, strlen("ibook")))
@@ -2911,8 +2941,11 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->MacModel = RADEON_MAC_MINI;
 	else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid Mac Model: %s\n", optstr);
-	    return FALSE;
 	}
+    }
+
+    if (!info->MacModel) {
+	info->MacModel = RADEONDetectMacModel(pScrn);
     }
 
     if (info->MacModel){
