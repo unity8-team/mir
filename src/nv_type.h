@@ -343,6 +343,11 @@ typedef struct _NVRec {
     CARD32              currentRop;
     int                 M2MFDirection;
 
+    /* the following two are used to limit the amount
+    of 0x2FC calls that are SW on nv04 */
+    int			currentRectOp;
+    int			currentBlitOp;
+
     Bool                WaitVSyncPossible;
     Bool                BlendingPossible;
     Bool                RandRRotation;
