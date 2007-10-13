@@ -2831,6 +2831,44 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 
 }
 
+#if defined(__powerpc__)
+/*
+ * Returns RADEONMacModel or 0 based on lines 'detected as' and 'machine'
+ * in /proc/cpuinfo file */
+static RADEONMacModel getMacModel (void){
+    RADEONMacModel dviConn = 0;
+    int macmodel = 0;
+    char cpuline[50];  /* 50 should be sufficient for /proc/cpuinfo lines */
+    FILE *f = fopen ("/proc/cpuinfo", "r");
+    if (f != NULL){
+        while (fgets (cpuline, sizeof cpuline, f)){
+            char *start;
+            if (!strncmp (cpuline, "machine", strlen ("machine"))){
+                if ((start = strstr (cpuline, "PowerBook")) != NULL)
+                    macmodel = *(start + strlen ("PowerBook")) - '0';
+                /* macmodel cannot be used here, because 'machine' line arrives before 'detected as' line */
+            }else if (!strncmp (cpuline, "detected as", strlen ("detected as"))){
+                if (strstr (cpuline, "iBook"))
+                    dviConn = RADEON_MAC_IBOOK;
+                else if (strstr (cpuline, "PowerBook")){
+                    /* database with known DVI connectors:
+                     * dualllink: 5,2
+                     * singlelink: */
+                    if (macmodel >= 5)
+                        dviConn = RADEON_MAC_POWERBOOK_DL;
+                    else
+                        dviConn = RADEON_MAC_POWERBOOK;
+                }
+                /* else: 'detected as' line not found, we suppose not apple PowerPC computer, so nothing to do */
+                break;
+            }
+        }
+    }else
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot detect laptop model for DVI connector identification because /proc/cpuinfo not readable.  Please use the MacModel option in xorg.conf to configure it.\n");
+    return dviConn;
+}
+#endif
+
 /*
  * initialise the static data sos we don't have to re-do at randr change */
 Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
@@ -2856,9 +2894,12 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     }
 
 #if defined(__powerpc__)
-    optstr = (char *)xf86GetOptValString(info->Options, OPTION_MAC_MODEL);
+    info->MacModel = getMacModel ();
+    if (info->MacModel)
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Detected DVI connector %d.\n", info->MacModel);
 
-    info->MacModel = 0;
+    /* overwrite detected data, in case it's falsely detected */
+    optstr = (char *)xf86GetOptValString(info->Options, OPTION_MAC_MODEL);
     if (optstr) {
 	if (!strncmp("ibook", optstr, strlen("ibook")))
 	    info->MacModel = RADEON_MAC_IBOOK;
@@ -2872,10 +2913,11 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid Mac Model: %s\n", optstr);
 	    return FALSE;
 	}
+    }
 
+    if (info->MacModel){
 	if (!RADEONSetupAppleConnectors(pScrn))
 	    RADEONSetupGenericConnectors(pScrn);
-
     } else
 #endif
     if (xf86ReturnOptValBool(info->Options, OPTION_DEFAULT_CONNECTOR_TABLE, FALSE)) {
