@@ -36,7 +36,7 @@
 #define NV_PCRTC0_SIZE              0x00002000 /* empirical */
 
 #define NV50_PCRTC_OFFSET		0x00610000
-#define NV50_PCTRC_SIZE		0x00004000 /* Until a better guess comes along */
+#define NV50_PCRTC_SIZE		0x00004000 /* Until a better guess comes along */
 
 #define NV_PRAMDAC0_OFFSET          0x00680000
 #define NV_PRAMDAC0_SIZE            0x00002000

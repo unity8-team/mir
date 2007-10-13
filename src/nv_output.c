@@ -481,14 +481,23 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_END]);
 	}
 
-	/* This seems to be a common mode
-	 * bit0: positive vsync
-	 * bit4: positive hsync
-	 * bit8: enable panel scaling 
-	 */
-	regp->fp_control = 0x11100011;
-
 	if (is_fp) {
+		/* This seems to be a common mode
+		* bit0: positive vsync
+		* bit4: positive hsync
+		* bit8: enable panel scaling 
+		*/
+		regp->fp_control = 0x11100000;
+
+		/* Deal with vsync/hsync ploarity */
+		if (mode->Flags & V_PVSYNC) {
+			regp->fp_control |= (1 << 0);
+		}
+
+		if (mode->Flags & V_PHSYNC) {
+			regp->fp_control |= (1 << 4);
+		}
+
 		ErrorF("Pre-panel scaling\n");
 		ErrorF("panel-size:%dx%d\n", nv_output->fpWidth, nv_output->fpHeight);
 		panel_ratio = (nv_output->fpWidth)/(float)(nv_output->fpHeight);
@@ -693,10 +702,9 @@ nv_ddc_detect(xf86OutputPtr output)
 
 	if (nv_output->type == OUTPUT_DIGITAL) {
 		int i;
-		for (i = 0; i < 8; i++) {
-			if ((ddc_mon->timings2[i].hsize > nv_output->fpWidth) ||
-				(ddc_mon->timings2[i].vsize > nv_output->fpHeight)) {
-
+		for (i = 0; ddc_mon->timings2[i].hsize != 0; i++) {
+			/* Selecting only based on width ok? */
+			if (ddc_mon->timings2[i].hsize > nv_output->fpWidth) {
 				nv_output->fpWidth = ddc_mon->timings2[i].hsize;
 				nv_output->fpHeight = ddc_mon->timings2[i].vsize;
 			}

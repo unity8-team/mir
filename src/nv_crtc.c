@@ -876,6 +876,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	int vertTotal		=  mode->CrtcVTotal;
 	int vertBlankStart	=  mode->CrtcVDisplay;
 	int vertBlankEnd	=  mode->CrtcVTotal;
+	int linecomp 		= mode->CrtcVDisplay;
 	/* What about vsync and hsync? */
 
 	Bool is_fp = FALSE;
@@ -950,7 +951,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 				| SetBitField(vertDisplay,8:8,1:1)
 				| SetBitField(vertStart,8:8,2:2)
 				| SetBitField(vertBlankStart,8:8,3:3)
-				| SetBit(4)
+				| SetBitField(linecomp,8:8,4:4)
 				| SetBitField(vertTotal,9:9,5:5)
 				| SetBitField(vertDisplay,9:9,6:6)
 				| SetBitField(vertStart,9:9,7:7);
@@ -963,6 +964,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((pScrn->displayWidth/8)*(pLayout->bitsPerPixel/8));
 	regp->CRTC[NV_VGA_CRTCX_VBLANKS] = Set8Bits(vertBlankStart);
 	regp->CRTC[NV_VGA_CRTCX_VBLANKE] = Set8Bits(vertBlankEnd);
+	/* Not an extended register */
+	regp->CRTC[NV_VGA_CRTCX_LINECOMP] = Set8Bits(linecomp);
 
 	regp->Attribute[0x10] = 0x01;
 
