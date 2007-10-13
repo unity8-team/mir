@@ -1047,8 +1047,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		regp->CRTC[NV_VGA_CRTCX_PIXEL] |= (1 << 7);
 	}
 
-	/* This is the value i have, blob seems to use others as well */
-	regp->CRTC[NV_VGA_CRTCX_FIFO1] = 0x1c;
+	regp->CRTC[NV_VGA_CRTCX_FIFO1] = savep->CRTC[NV_VGA_CRTCX_FIFO1] & ~(1<<5);
 
 	/* NV40's don't set FPP units, unless in special conditions (then they set both) */
 	/* But what are those special conditions? */

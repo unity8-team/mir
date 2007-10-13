@@ -261,7 +261,6 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	} else if (pNv->twoHeads) {
 		regp->dither = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DITHER);
 	}
-	regp->crtcSync = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HCRTC);
 	regp->nv10_cursync = NVOutputReadRAMDAC(output, NV_RAMDAC_NV10_CURSYNC);
 
 	//for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
@@ -302,7 +301,6 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_CONTROL, regp->fp_control);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HCRTC, regp->crtcSync);
 
 	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
 		NVOutputWriteRAMDAC(output, NV_RAMDAC_DITHER_NV11, regp->dither);
@@ -499,6 +497,9 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 			regp->debug_2 = 0;
 		}
 
+		/* We want automatic scaling */
+		regp->debug_1 = 0;
+
 		/* GPU scaling happens automaticly at a ratio of 1:33 */
 		/* A 1280x1024 panel has a ratio of 1:25, we don't want to scale that at 4:3 resolutions */
 		if (h_scale != (1 << 12) && (panel_ratio > (aspect_ratio + 0.10))) {
@@ -542,10 +543,6 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	regp->debug_0 |= 0x1101111;
 	regp->debug_1 = savep->debug_1;
 	if(is_fp) {
-		/* My bios does 0x500, blob seems to do 0x4c4 or 0x4e4, all work */
-		regp->crtcSync = 0x4c4;
-		//regp->crtcSync += nv_output_tweak_panel(output, state);
-
 		/* I am not completely certain, but seems to be set only for dfp's */
 		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED;
 	}
