@@ -1732,7 +1732,6 @@ static void
 ResetState(ScrnInfoPtr pScrn, Bool flush)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   int i;
    unsigned long temp;
 
    DPRINTF(PFX, "ResetState: flush is %s\n", BOOLTOSTRING(flush));
@@ -1840,6 +1839,52 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
       I830InitHWCursor(pScrn);
 }
 
+enum pipe {
+    PIPE_A = 0,
+    PIPE_B,
+};
+
+static Bool
+i830_pipe_enabled(I830Ptr pI830, enum pipe pipe)
+{
+    if (pipe == PIPE_A)
+	return (INREG(PIPEACONF) & PIPEACONF_ENABLE);
+    else
+	return (INREG(PIPEBCONF) & PIPEBCONF_ENABLE);
+}
+
+static void
+i830_save_palette(I830Ptr pI830, enum pipe pipe)
+{
+    int i;
+
+    if (!i830_pipe_enabled(pI830, pipe))
+	return;
+
+    for(i= 0; i < 256; i++) {
+	if (pipe == PIPE_A)
+	    pI830->savePaletteA[i] = INREG(PALETTE_A + (i << 2));
+	else
+	    pI830->savePaletteB[i] = INREG(PALETTE_B + (i << 2));
+    }
+}
+
+static void
+i830_restore_palette(I830Ptr pI830, enum pipe pipe)
+{
+    int i;
+
+    if (!i830_pipe_enabled(pI830, pipe))
+	return;
+
+    for(i= 0; i < 256; i++) {
+	if (pipe == PIPE_A)
+	    OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
+	else
+	    OUTREG(PALETTE_B + (i << 2), pI830->savePaletteB[i]);
+    }
+}
+
 static Bool
 SaveHWState(ScrnInfoPtr pScrn)
 {
@@ -1877,9 +1922,7 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveDSPAPOS = INREG(DSPAPOS);
    pI830->saveDSPABASE = INREG(DSPABASE);
 
-   for(i= 0; i < 256; i++) {
-      pI830->savePaletteA[i] = INREG(PALETTE_A + (i << 2));
-   }
+   i830_save_palette(pI830, PIPE_A);
 
    if(xf86_config->num_crtc == 2) {
       pI830->savePIPEBCONF = INREG(PIPEBCONF);
@@ -1901,9 +1944,8 @@ SaveHWState(ScrnInfoPtr pScrn)
       pI830->saveDSPBSIZE = INREG(DSPBSIZE);
       pI830->saveDSPBPOS = INREG(DSPBPOS);
       pI830->saveDSPBBASE = INREG(DSPBBASE);
-      for(i= 0; i < 256; i++) {
-         pI830->savePaletteB[i] = INREG(PALETTE_B + (i << 2));
-      }
+
+      i830_save_palette(pI830, PIPE_B);
    }
 
    if (IS_I965G(pI830)) {
@@ -2069,15 +2111,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
    OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
 
-   for(i = 0; i < 256; i++) {
-      OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
-   }
-   
-   if(xf86_config->num_crtc == 2) {
-      for(i= 0; i < 256; i++) {
-         OUTREG(PALETTE_B + (i << 2), pI830->savePaletteB[i]);
-      }
-   }
+   i830_restore_palette(pI830, PIPE_A);
+   i830_restore_palette(pI830, PIPE_B);
 
    for(i = 0; i < 7; i++) {
       OUTREG(SWF0 + (i << 2), pI830->saveSWF[i]);
