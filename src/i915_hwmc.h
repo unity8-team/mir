@@ -33,17 +33,8 @@
 #define SIZE_YUV420(w, h)       (h * (STRIDE(w) + STRIDE(w >> 1)))
 #define SIZE_XX44(w, h)         (h * STRIDE(w))
 
-#define FOURCC_XVMC     (('C' << 24) + ('M' << 16) + ('V' << 8) + 'X')
-
 #define I915_NUM_XVMC_ATTRIBUTES       0x02
 #define I915_XVMC_VALID 0x80000000
-
-/*
- * Commands that client submits through XvPutImage:
- */
-
-#define I915_XVMC_COMMAND_DISPLAY      0x00
-#define I915_XVMC_COMMAND_UNDISPLAY    0x01
 
 typedef struct
 {

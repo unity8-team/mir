@@ -45,7 +45,6 @@
 #include <xf86drm.h>
 #include <drm_sarea.h>
 
-#include "intel_xvmc.h"
 #include "I915XvMC.h"
 #include "i915_structs.h"
 #include "i915_program.h"
@@ -2524,7 +2523,7 @@ Status XvMCPutSurface(Display *display,XvMCSurface *surface,
     pI915XvMC->draw = draw;
     pI915XvMC->xvImage->data = (char *)&buf;
 
-    buf.command = I915_XVMC_COMMAND_DISPLAY;
+    buf.command = INTEL_XVMC_COMMAND_DISPLAY;
     buf.ctxNo = pI915XvMC->ctxno;
     buf.srfNo = pI915Surface->srfNo;
     pI915SubPic = pI915Surface->privSubPic;

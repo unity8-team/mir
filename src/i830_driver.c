@@ -198,6 +198,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_bios.h"
 
 #ifdef XvMCExtension
+#define _INTEL_XVMC_SERVER_
 #include "i830_hwmc.h"
 #endif
 
