@@ -23,7 +23,7 @@
 
 #include "nv_include.h"
 #include "nvreg.h"
-
+#include <byteswap.h>
 #define DEBUGLEVEL 6
 /*#define PERFORM_WRITE*/
 
