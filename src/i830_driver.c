@@ -793,21 +793,21 @@ i830_update_front_offset(ScrnInfoPtr pScrn)
    ScreenPtr pScreen = pScrn->pScreen;
    I830Ptr pI830 = I830PTR(pScrn);
 
-   /* If we are still in ScreenInit, there is no screen pixmap to be updated
-    * yet.  We'll fix it up at CreateScreenResources.
-    */
-   if (pI830->starting)
-      return;
-
    /* Update buffer locations, which may have changed as a result of
     * i830_bind_all_memory().
     */
    pScrn->fbOffset = pI830->front_buffer->offset;
-   if (!pScreen->ModifyPixmapHeader(pScreen->GetScreenPixmap(pScreen),
-				    -1, -1, -1, -1, -1,
-				    (pointer)(pI830->FbBase +
-					      pScrn->fbOffset)))
+
+   /* If we are still in ScreenInit, there is no screen pixmap to be updated
+    * yet.  We'll fix it up at CreateScreenResources.
+    */
+   if (!pI830->starting) {
+      if (!pScreen->ModifyPixmapHeader(pScreen->GetScreenPixmap(pScreen),
+				       -1, -1, -1, -1, -1,
+				       (pointer)(pI830->FbBase +
+						 pScrn->fbOffset)))
        FatalError("Couldn't adjust screen pixmap\n");
+   }
 }
 
 /**
