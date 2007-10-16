@@ -260,7 +260,7 @@ i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     if (mem->bo.size != 0) {
 	I830Ptr pI830 = I830PTR(pScrn);
 
-	drmBOUnReference(pI830->drmSubFD, &mem->bo);
+	drmBOUnreference(pI830->drmSubFD, &mem->bo);
 	if (pI830->bo_list == mem)
 	    pI830->bo_list = mem->next;
 	if (mem->next)
@@ -744,8 +744,8 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     if (flags & ALLOW_SHARING)
 	mask |= DRM_BO_FLAG_SHAREABLE;
 
-    ret = drmBOCreate(pI830->drmSubFD, 0, size, align / GTT_PAGE_SIZE, NULL,
-		      drm_bo_type_dc, mask, 0, &mem->bo);
+    ret = drmBOCreate(pI830->drmSubFD, size, align / GTT_PAGE_SIZE, NULL,
+		      mask, 0, &mem->bo);
     if (ret) {
 	xfree(mem->name);
 	xfree(mem);
@@ -762,7 +762,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     /* Bind it if we currently control the VT */
     if (pScrn->vtSema) {
 	if (!i830_bind_memory(pScrn, mem)) {
-	    drmBOUnReference(pI830->drmSubFD, &mem->bo);
+	    drmBOUnreference(pI830->drmSubFD, &mem->bo);
 	    xfree(mem->name);
 	    xfree(mem);
 	    return NULL;
