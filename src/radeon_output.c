@@ -777,15 +777,25 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
     }
 
     /* update timing for LVDS and DFP if RMX is active */
-    if (radeon_output->Flags & RADEON_USE_RMX) {
-	adjusted_mode->CrtcHTotal     = mode->CrtcHDisplay + radeon_output->HBlank;
-	adjusted_mode->CrtcHSyncStart = mode->CrtcHDisplay + radeon_output->HOverPlus;
-	adjusted_mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + radeon_output->HSyncWidth;
-	adjusted_mode->CrtcVTotal     = mode->CrtcVDisplay + radeon_output->VBlank;
-	adjusted_mode->CrtcVSyncStart = mode->CrtcVDisplay + radeon_output->VOverPlus;
-	adjusted_mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + radeon_output->VSyncWidth;
-	adjusted_mode->Clock          = radeon_output->DotClock;
-	adjusted_mode->Flags          = radeon_output->Flags;
+    if ((radeon_output->MonType == MT_LCD) || (radeon_output->Flags & RADEON_USE_RMX)) {
+	/* set to the panel's native mode */
+	adjusted_mode->HTotal = radeon_output->PanelXRes + radeon_output->HBlank;
+	adjusted_mode->HSyncStart = radeon_output->PanelXRes + radeon_output->HOverPlus;
+	adjusted_mode->HSyncEnd = adjusted_mode->HSyncStart + radeon_output->HSyncWidth;
+	adjusted_mode->VTotal = radeon_output->PanelYRes + radeon_output->VBlank;
+	adjusted_mode->VSyncStart = radeon_output->PanelYRes + radeon_output->VOverPlus;
+	adjusted_mode->VSyncEnd = adjusted_mode->VSyncStart + radeon_output->VSyncWidth;
+	/* update crtc values */
+	xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
+	/* adjust crtc values */
+	adjusted_mode->CrtcHTotal = adjusted_mode->CrtcHDisplay + radeon_output->HBlank;
+	adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHDisplay + radeon_output->HOverPlus;
+	adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHSyncStart + radeon_output->HSyncWidth;
+	adjusted_mode->CrtcVTotal = adjusted_mode->CrtcVDisplay + radeon_output->VBlank;
+	adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVDisplay + radeon_output->VOverPlus;
+	adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVSyncStart + radeon_output->VSyncWidth;
+	adjusted_mode->Clock = radeon_output->DotClock;
+	adjusted_mode->Flags = radeon_output->Flags;
     }
 
     return TRUE;
