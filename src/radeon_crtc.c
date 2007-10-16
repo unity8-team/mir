@@ -348,11 +348,10 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 
     hsync_wid = (mode->CrtcHSyncEnd - mode->CrtcHSyncStart) / 8;
     if (!hsync_wid)       hsync_wid = 1;
-    if (hsync_wid > 0x3f) hsync_wid = 0x3f;
     hsync_start = mode->CrtcHSyncStart - 8;
 
     save->crtc_h_sync_strt_wid = ((hsync_start & 0x1fff)
-				  | (hsync_wid << 16)
+				  | ((hsync_wid & 0x3f) << 16)
 				  | ((mode->Flags & V_NHSYNC)
 				     ? RADEON_CRTC_H_SYNC_POL
 				     : 0));
@@ -363,10 +362,9 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 
     vsync_wid = mode->CrtcVSyncEnd - mode->CrtcVSyncStart;
     if (!vsync_wid)       vsync_wid = 1;
-    if (vsync_wid > 0x1f) vsync_wid = 0x1f;
 
     save->crtc_v_sync_strt_wid = (((mode->CrtcVSyncStart - 1) & 0xfff)
-				  | (vsync_wid << 16)
+				  | ((vsync_wid & 0x1f) << 16)
 				  | ((mode->Flags & V_NVSYNC)
 				     ? RADEON_CRTC_V_SYNC_POL
 				     : 0));
@@ -545,11 +543,10 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 
     hsync_wid = (mode->CrtcHSyncEnd - mode->CrtcHSyncStart) / 8;
     if (!hsync_wid)       hsync_wid = 1;
-    if (hsync_wid > 0x3f) hsync_wid = 0x3f;
     hsync_start = mode->CrtcHSyncStart - 8;
 
     save->crtc2_h_sync_strt_wid = ((hsync_start & 0x1fff)
-				   | (hsync_wid << 16)
+				   | ((hsync_wid & 0x3f) << 16)
 				   | ((mode->Flags & V_NHSYNC)
 				      ? RADEON_CRTC_H_SYNC_POL
 				      : 0));
@@ -560,10 +557,9 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 
     vsync_wid = mode->CrtcVSyncEnd - mode->CrtcVSyncStart;
     if (!vsync_wid)       vsync_wid = 1;
-    if (vsync_wid > 0x1f) vsync_wid = 0x1f;
 
     save->crtc2_v_sync_strt_wid = (((mode->CrtcVSyncStart - 1) & 0xfff)
-				   | (vsync_wid << 16)
+				   | ((vsync_wid & 0x1f) << 16)
 				   | ((mode->Flags & V_NVSYNC)
 				      ? RADEON_CRTC2_V_SYNC_POL
 				      : 0));
