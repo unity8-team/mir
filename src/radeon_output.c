@@ -1936,7 +1936,7 @@ radeon_create_resources(xf86OutputPtr output)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
-	/* Set the current value of the backlight property */
+	/* Set the current value of the property */
 	switch (radeon_output->default_tvStd) {
 	case TV_STD_PAL:
 	    s = "pal";
@@ -2106,47 +2106,23 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 	s = (char*)value->data;
 	if (value->size == strlen("ntsc") && !strncmp("ntsc", s, strlen("ntsc"))) {
-	    if (radeon_output->SupportedTVStds & TV_STD_NTSC) {
-		radeon_output->tvStd = TV_STD_NTSC;
-		return TRUE;
-	    } else {
-		return FALSE;
-	    }
+	    radeon_output->tvStd = TV_STD_NTSC;
+	    return TRUE;
 	} else if (value->size == strlen("pal") && !strncmp("pal", s, strlen("pal"))) {
-	    if (radeon_output->SupportedTVStds & TV_STD_PAL) {
-		radeon_output->tvStd = TV_STD_PAL;
-		return TRUE;
-	    } else {
-		return FALSE;
-	    }
+	    radeon_output->tvStd = TV_STD_PAL;
+	    return TRUE;
 	} else if (value->size == strlen("pal-m") && !strncmp("pal-m", s, strlen("pal-m"))) {
-	    if (radeon_output->SupportedTVStds & TV_STD_PAL_M) {
-		radeon_output->tvStd = TV_STD_PAL_M;
-		return TRUE;
-	    } else {
-		return FALSE;
-	    }
+	    radeon_output->tvStd = TV_STD_PAL_M;
+	    return TRUE;
 	} else if (value->size == strlen("pal-60") && !strncmp("pal-60", s, strlen("pal-60"))) {
-	    if (radeon_output->SupportedTVStds & TV_STD_PAL_60) {
-		radeon_output->tvStd = TV_STD_PAL_60;
-		return TRUE;
-	    } else {
-		return FALSE;
-	    }
+	    radeon_output->tvStd = TV_STD_PAL_60;
+	    return TRUE;
 	} else if (value->size == strlen("ntsc-j") && !strncmp("ntsc-j", s, strlen("ntsc-j"))) {
-	    if (radeon_output->SupportedTVStds & TV_STD_NTSC_J) {
-		radeon_output->tvStd = TV_STD_NTSC_J;
-		return TRUE;
-	    } else {
-		return FALSE;
-	    }
+	    radeon_output->tvStd = TV_STD_NTSC_J;
+	    return TRUE;
 	} else if (value->size == strlen("scart-pal") && !strncmp("scart-pal", s, strlen("scart-pal"))) {
-	    if (radeon_output->SupportedTVStds & TV_STD_SCART_PAL) {
-		radeon_output->tvStd = TV_STD_SCART_PAL;
-		return TRUE;
-	    } else {
-		return FALSE;
-	    }
+	    radeon_output->tvStd = TV_STD_SCART_PAL;
+	    return TRUE;
 	}
 	return FALSE;
     }
