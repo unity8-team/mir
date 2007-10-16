@@ -1758,11 +1758,11 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 
 
     from               = X_PROBED;
-    info->LinearAddr   = PCI_REGION_BASE(info->PciInfo, 0, REGION_MEM) & 0xfe000000;
+    info->LinearAddr   = PCI_REGION_BASE(info->PciInfo, 0, REGION_MEM) & ~0x1ffffffUL;
     pScrn->memPhysBase = info->LinearAddr;
     if (dev->MemBase) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Linear address override, using 0x%08lx instead of 0x%08lx\n",
+		   "Linear address override, using 0x%016lx instead of 0x%016lx\n",
 		   dev->MemBase,
 		   info->LinearAddr);
 	info->LinearAddr = dev->MemBase;
@@ -1773,7 +1773,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	return FALSE;
     }
     xf86DrvMsg(pScrn->scrnIndex, from,
-	       "Linear framebuffer at 0x%08lx\n", info->LinearAddr);
+	       "Linear framebuffer at 0x%016lx\n", info->LinearAddr);
 
 #ifndef XSERVER_LIBPCIACCESS
 				/* BIOS */
@@ -2589,7 +2589,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     info->PciTag  = pciTag(PCI_DEV_BUS(info->PciInfo),
 			   PCI_DEV_DEV(info->PciInfo),
 			   PCI_DEV_FUNC(info->PciInfo));
-    info->MMIOAddr = PCI_REGION_BASE(info->PciInfo, 2, REGION_MEM) & 0xffffff00;
+    info->MMIOAddr = PCI_REGION_BASE(info->PciInfo, 2, REGION_MEM) & ~0xffUL;
     info->MMIOSize = PCI_REGION_SIZE(info->PciInfo, 2);
     if (info->pEnt->device->IOBase) {
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
@@ -2602,7 +2602,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	goto fail1;
     }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "MMIO registers at 0x%08lx: size %ldKB\n", info->MMIOAddr, info->MMIOSize / 1024);
+	       "MMIO registers at 0x%016lx: size %ldKB\n", info->MMIOAddr, info->MMIOSize / 1024);
 
     if(!RADEONMapMMIO(pScrn)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
