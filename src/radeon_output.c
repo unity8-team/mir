@@ -776,10 +776,14 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	}
     }
 
-    /* update clock for LVDS always and DFP if RMX is active */
-    if ((radeon_output->MonType == MT_LCD) ||
-	((radeon_output->MonType == MT_DFP) &&
-	 (radeon_output->Flags & RADEON_USE_RMX))) {
+    /* update timing for LVDS and DFP if RMX is active */
+    if (radeon_output->Flags & RADEON_USE_RMX) {
+	adjusted_mode->CrtcHTotal     = mode->CrtcHDisplay + radeon_output->HBlank;
+	adjusted_mode->CrtcHSyncStart = mode->CrtcHDisplay + radeon_output->HOverPlus;
+	adjusted_mode->CrtcHSyncEnd   = mode->CrtcHSyncStart + radeon_output->HSyncWidth;
+	adjusted_mode->CrtcVTotal     = mode->CrtcVDisplay + radeon_output->VBlank;
+	adjusted_mode->CrtcVSyncStart = mode->CrtcVDisplay + radeon_output->VOverPlus;
+	adjusted_mode->CrtcVSyncEnd   = mode->CrtcVSyncStart + radeon_output->VSyncWidth;
 	adjusted_mode->Clock          = radeon_output->DotClock;
 	adjusted_mode->Flags          = radeon_output->Flags;
     }
