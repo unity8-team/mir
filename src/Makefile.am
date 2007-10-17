@@ -42,7 +42,7 @@ nouveau_drv_la_SOURCES = \
          nv_driver.c \
          nv_hw.c \
          nv_include.h \
-         nouveau_reg.h \
+         nouveau_class.h \
          nv_dripriv.h \
          nv_local.h \
          nv_mem.c \

@@ -79,7 +79,8 @@ NVSetPattern(ScrnInfoPtr pScrn, CARD32 clr0, CARD32 clr1,
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	NVDmaStart(pNv, NvImagePattern, PATTERN_COLOR_0, 4);
+	NVDmaStart(pNv, NvImagePattern,
+			NV04_IMAGE_PATTERN_MONOCHROME_COLOR0, 4);
 	NVDmaNext (pNv, clr0);
 	NVDmaNext (pNv, clr1);
 	NVDmaNext (pNv, pat0);
@@ -95,7 +96,7 @@ NVSetROP(ScrnInfoPtr pScrn, CARD32 alu, CARD32 planemask)
 	if (planemask != ~0) {
 		NVSetPattern(pScrn, 0, planemask, ~0, ~0);
 		if (pNv->currentRop != (alu + 32)) {
-			NVDmaStart(pNv, NvRop, ROP_SET, 1);
+			NVDmaStart(pNv, NvRop, NV03_CONTEXT_ROP_ROP, 1);
 			NVDmaNext (pNv, rop | 0x0a);
 			pNv->currentRop = alu + 32;
 		}
@@ -103,7 +104,7 @@ NVSetROP(ScrnInfoPtr pScrn, CARD32 alu, CARD32 planemask)
 	if (pNv->currentRop != alu) {
 		if(pNv->currentRop >= 16)
 			NVSetPattern(pScrn, ~0, ~0, ~0, ~0);
-		NVDmaStart(pNv, NvRop, ROP_SET, 1);
+		NVDmaStart(pNv, NvRop, NV03_CONTEXT_ROP_ROP, 1);
 		NVDmaNext (pNv, rop | (rop >> 4));
 		pNv->currentRop = alu;
 	}
@@ -115,7 +116,8 @@ static void setM2MFDirection(ScrnInfoPtr pScrn, int dir)
 
 	if (pNv->M2MFDirection != dir) {
 
-		NVDmaStart(pNv, NvMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
+		NVDmaStart(pNv, NvMemFormat,
+				NV_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
 		NVDmaNext (pNv, dir ? NvDmaTT : NvDmaFB);
 		NVDmaNext (pNv, dir ? NvDmaFB : NvDmaTT);
 		pNv->M2MFDirection = dir;
@@ -149,13 +151,13 @@ static CARD32 rectFormat(DrawablePtr pDrawable)
 	switch(pDrawable->bitsPerPixel) {
 	case 32:
 	case 24:
-		return RECT_FORMAT_DEPTH24;
+		return NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A8R8G8B8;
 		break;
 	case 16:
-		return RECT_FORMAT_DEPTH16;
+		return NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A16R5G6B5;
 		break;
 	default:
-		return RECT_FORMAT_DEPTH8;
+		return NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A8R8G8B8;
 		break;
 	}
 }
@@ -192,15 +194,15 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	 * alpha channel gets forced to 0xFF for some reason.  We're using 
 	 * SURFACE_FORMAT_Y32 as a workaround
 	 */
-	if (fmt == SURFACE_FORMAT_A8R8G8B8)
-		fmt = 0xb;
+	if (fmt == NV04_CONTEXT_SURFACES_2D_FORMAT_A8R8G8B8)
+		fmt = NV04_CONTEXT_SURFACES_2D_FORMAT_Y32;
 
 	if (!NVAccelSetCtxSurf2D(pPixmap, pPixmap, fmt))
 		return FALSE;
 
-	NVDmaStart(pNv, NvRectangle, RECT_FORMAT, 1);
+	NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT, 1);
 	NVDmaNext (pNv, rectFormat(&pPixmap->drawable));
-	NVDmaStart(pNv, NvRectangle, RECT_SOLID_COLOR, 1);
+	NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
 	NVDmaNext (pNv, fg);
 
 	pNv->DMAKickoffCallback = NVDmaKickoffCallback;
@@ -214,7 +216,9 @@ static void NVExaSolid (PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	int width = x2-x1;
 	int height = y2-y1;
 
-	NVDmaStart(pNv, NvRectangle, RECT_SOLID_RECTS(0), 2);
+	NVDmaStart(pNv, NvRectangle,
+			NV04_GDI_RECTANGLE_TEXT_UNCLIPPED_RECTANGLE_POINT(0),
+			2);
 	NVDmaNext (pNv, (x1 << 16) | y1);
 	NVDmaNext (pNv, (width << 16) | height);
 
@@ -299,7 +303,8 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 				inc=-1;
 			}
 			for (i = 0; i < width; i++) {
-				NVDmaStart(pNv, NvImageBlit, BLIT_POINT_SRC, 3);
+				NVDmaStart(pNv, NvImageBlit,
+						NV_IMAGE_BLIT_POINT_IN, 3);
 				NVDmaNext (pNv, (srcY << 16) | (srcX+xpos));
 				NVDmaNext (pNv, (dstY << 16) | (dstX+xpos));
 				NVDmaNext (pNv, (height  << 16) | 1);
@@ -318,7 +323,8 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 				inc=-1;
 			}
 			for (i = 0; i < height; i++) {
-				NVDmaStart(pNv, NvImageBlit, BLIT_POINT_SRC, 3);
+				NVDmaStart(pNv, NvImageBlit,
+						NV_IMAGE_BLIT_POINT_IN, 3);
 				NVDmaNext (pNv, ((srcY+ypos) << 16) | srcX);
 				NVDmaNext (pNv, ((dstY+ypos) << 16) | dstX);
 				NVDmaNext (pNv, (1  << 16) | width);
@@ -327,7 +333,7 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 		} 
 	} else {
 		NVDEBUG("ExaCopy: Using default path\n");
-		NVDmaStart(pNv, NvImageBlit, BLIT_POINT_SRC, 3);
+		NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_POINT_IN, 3);
 		NVDmaNext (pNv, (srcY << 16) | srcX);
 		NVDmaNext (pNv, (dstY << 16) | dstX);
 		NVDmaNext (pNv, (height  << 16) | width);
@@ -492,14 +498,14 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	if (id > 1792)
 		return FALSE;
 
-	NVDmaStart(pNv, NvClipRectangle, CLIP_POINT, 2);
+	NVDmaStart(pNv, NvClipRectangle, NV01_CONTEXT_CLIP_RECTANGLE_POINT, 2);
 	NVDmaNext (pNv, 0x0); 
 	NVDmaNext (pNv, 0x7FFF7FFF);
 
-	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_OPERATION, 2);
-	NVDmaNext (pNv, 0x3 /* SRCCOPY */);
+	NVDmaStart(pNv, NvImageFromCpu, NV01_IMAGE_FROM_CPU_OPERATION, 2);
+	NVDmaNext (pNv, NV01_IMAGE_FROM_CPU_OPERATION_SRCCOPY);
 	NVDmaNext (pNv, ifc_fmt);
-	NVDmaStart(pNv, NvImageFromCpu, NV05_IMAGE_FROM_CPU_POINT, 3);
+	NVDmaStart(pNv, NvImageFromCpu, NV01_IMAGE_FROM_CPU_POINT, 3);
 	NVDmaNext (pNv, (y << 16) | x); /* dst point */
 	NVDmaNext (pNv, (h << 16) | w); /* width/height out */
 	NVDmaNext (pNv, (h << 16) | iw); /* width/height in */
@@ -508,7 +514,7 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		char *dst;
 		/* send a line */
 		NVDmaStart(pNv, NvImageFromCpu,
-				NV10_IMAGE_FROM_CPU_HLINE, id);
+				NV01_IMAGE_FROM_CPU_COLOR(0), id);
 		dst = (char *)pNv->dmaBase + (pNv->dmaCurrent << 2);
 		memcpy(dst, src, line_len);
 		pNv->dmaCurrent += id;
@@ -641,131 +647,8 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	return FALSE;
 }
 
-
-static Bool NVCheckComposite(int	op,
-			     PicturePtr pSrcPicture,
-			     PicturePtr pMaskPicture,
-			     PicturePtr pDstPicture)
-{
-	CARD32 ret = 0;
-
-	/* PictOpOver doesn't work correctly. The HW command assumes
-	 * non premuliplied alpha
-	 */
-	if (pMaskPicture)
-		ret = 0x1;
-	else if (op != PictOpOver &&  op != PictOpSrc)
-		ret = 0x2;
-	else if (!pSrcPicture->pDrawable)
-		ret = 0x4;
-	else if (pSrcPicture->transform || pSrcPicture->repeat)
-		ret = 0x8;
-	else if (pSrcPicture->alphaMap || pDstPicture->alphaMap)
-		ret = 0x10;
-	else if (pSrcPicture->format != PICT_a8r8g8b8 &&
-			pSrcPicture->format != PICT_x8r8g8b8 &&
-			pSrcPicture->format != PICT_r5g6b5)
-		ret = 0x20;
-	else if (pDstPicture->format != PICT_a8r8g8b8 &&
-			pDstPicture->format != PICT_x8r8g8b8 &&
-			pDstPicture->format != PICT_r5g6b5)
-		ret = 0x40;
-
-	return ret == 0;
-}
-
-static CARD32 src_size, src_pitch, src_offset;
-
-static Bool NVPrepareComposite(int	  op,
-			       PicturePtr pSrcPicture,
-			       PicturePtr pMaskPicture,
-			       PicturePtr pDstPicture,
-			       PixmapPtr  pSrc,
-			       PixmapPtr  pMask,
-			       PixmapPtr  pDst)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	int srcFormat, dstFormat;
-
-	if (pSrcPicture->format == PICT_a8r8g8b8)
-		srcFormat = STRETCH_BLIT_FORMAT_A8R8G8B8;
-	else if (pSrcPicture->format == PICT_x8r8g8b8)
-		srcFormat = STRETCH_BLIT_FORMAT_X8R8G8B8;
-	else if (pSrcPicture->format == PICT_r5g6b5)
-		srcFormat = STRETCH_BLIT_FORMAT_DEPTH16;
-	else
-		return FALSE;
-
-	if (!NVAccelGetCtxSurf2DFormatFromPicture(pDstPicture, &dstFormat))
-		return FALSE;
-	if (!NVAccelSetCtxSurf2D(pDst, pDst, dstFormat))
-		return FALSE;
-
-	NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_FORMAT, 2);
-	NVDmaNext (pNv, srcFormat);
-	NVDmaNext (pNv, (op == PictOpSrc) ? STRETCH_BLIT_OPERATION_COPY : STRETCH_BLIT_OPERATION_BLEND);
-
-	src_size = ((pSrcPicture->pDrawable->width+3)&~3) |
-		(pSrcPicture->pDrawable->height << 16);
-	src_pitch  = exaGetPixmapPitch(pSrc)
-		| (STRETCH_BLIT_SRC_FORMAT_ORIGIN_CORNER << 16)
-		| (STRETCH_BLIT_SRC_FORMAT_FILTER_POINT_SAMPLE << 24);
-	src_offset = NVAccelGetPixmapOffset(pSrc);
-
-	return TRUE;
-}
-
-static void NVComposite(PixmapPtr pDst,
-			int	  srcX,
-			int	  srcY,
-			int	  maskX,
-			int	  maskY,
-			int	  dstX,
-			int	  dstY,
-			int	  width,
-			int	  height)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-
-	NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_CLIP_POINT, 6);
-	NVDmaNext (pNv, dstX | (dstY << 16));
-	NVDmaNext (pNv, width | (height << 16));
-	NVDmaNext (pNv, dstX | (dstY << 16));
-	NVDmaNext (pNv, width | (height << 16));
-	NVDmaNext (pNv, 1<<20);
-	NVDmaNext (pNv, 1<<20);
-
-	NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_SRC_SIZE, 4);
-	NVDmaNext (pNv, src_size);
-	NVDmaNext (pNv, src_pitch);
-	NVDmaNext (pNv, src_offset);
-	NVDmaNext (pNv, srcX | (srcY<<16));
-
-	NVDmaKickoff(pNv);
-}
-
-static void NVDoneComposite (PixmapPtr pDst)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	CARD32 format;
-
-	if (pNv->CurrentLayout.depth == 8)
-		format = SURFACE_FORMAT_Y8;
-	else if (pNv->CurrentLayout.depth == 16)
-		format = SURFACE_FORMAT_R5G6B5;
-	else
-		format = SURFACE_FORMAT_X8R8G8B8;
-
-	NVDmaStart(pNv, NvContextSurfaces, SURFACE_FORMAT, 1);
-	NVDmaNext (pNv, format);
-
-	exaMarkSync(pDst->drawable.pScreen);
-}
-
-Bool NVExaInit(ScreenPtr pScreen) 
+Bool
+NVExaInit(ScreenPtr pScreen) 
 {
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
@@ -842,12 +725,6 @@ Bool NVExaInit(ScreenPtr pScreen)
 	case NV_ARCH_50:
 		break;
 	default:
-		if (!pNv->BlendingPossible)
-			break;
-		pNv->EXADriverPtr->CheckComposite   = NVCheckComposite;
-		pNv->EXADriverPtr->PrepareComposite = NVPrepareComposite;
-		pNv->EXADriverPtr->Composite        = NVComposite;
-		pNv->EXADriverPtr->DoneComposite    = NVDoneComposite;
 		break;
 	}
 

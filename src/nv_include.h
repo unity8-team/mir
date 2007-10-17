@@ -71,7 +71,7 @@
 #include "nv_proto.h"
 #include "nv_dma.h"
 #include "nouveau_drm.h"
-#include "nouveau_reg.h"
+#include "nouveau_class.h"
 #include "nvreg.h"
 
 #include "nv50_display.h"

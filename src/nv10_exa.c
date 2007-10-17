@@ -134,11 +134,11 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 
 	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FILTER(unit), 1);
 	if (Pict->filter == PictFilterNearest)
-		NVDmaNext (pNv, (NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAG_FILTER_NEAREST<<28) |
-				(NV10_TCL_PRIMITIVE_3D_TX_FILTER_MIN_FILTER_NEAREST<<24));
+		NVDmaNext (pNv, (NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAGNIFY_NEAREST<<28) |
+				(NV10_TCL_PRIMITIVE_3D_TX_FILTER_MINIFY_NEAREST<<24));
 	else
-		NVDmaNext (pNv, (NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAG_FILTER_LINEAR<<28) |
-				(NV10_TCL_PRIMITIVE_3D_TX_FILTER_MIN_FILTER_LINEAR<<24));
+		NVDmaNext (pNv, (NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAGNIFY_LINEAR<<28) |
+				(NV10_TCL_PRIMITIVE_3D_TX_FILTER_MINIFY_LINEAR<<24));
 
 	state.unit[unit].width		= (float)pixmap->drawable.width;
 	state.unit[unit].height		= (float)pixmap->drawable.height;
@@ -274,8 +274,8 @@ static Bool NV10PrepareComposite(int	  op,
 	/* Set PictOp */
 	NV10SetPictOp(pNv, op);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_BEGIN_END, 1);
-	NVDmaNext (pNv, 8); /* GL_QUADS + 1 */
+	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
+	NVDmaNext (pNv, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_QUADS);
 
 	state.have_mask=(pMaskPicture!=NULL);
 	return TRUE;
@@ -379,8 +379,8 @@ static void NV10DoneComposite (PixmapPtr pDst)
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_BEGIN_END, 1);
-	NVDmaNext (pNv, 0); /* STOP */
+	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
+	NVDmaNext (pNv, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_STOP);
 
 	exaMarkSync(pDst->drawable.pScreen);
 }
@@ -414,14 +414,14 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_SET_DMA_NOTIFY, 1);
+	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_NOTIFY, 1);
 	NVDmaNext (pNv, NvNullObject);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_SET_DMA_IN_MEMORY0, 2);
+	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_IN_MEMORY0, 2);
 	NVDmaNext (pNv, NvDmaFB);
 	NVDmaNext (pNv, NvDmaTT);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_SET_DMA_IN_MEMORY2, 2);
+	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_IN_MEMORY2, 2);
 	NVDmaNext (pNv, NvDmaFB);
 	NVDmaNext (pNv, NvDmaFB);
 

@@ -787,19 +787,22 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 		     (dstBox->x2 - dstBox->x1);
 	dst_point = (dstBox->y1 << 16) | dstBox->x1;
 
-	src_pitch |= (STRETCH_BLIT_SRC_FORMAT_ORIGIN_CENTER << 16) |
-		    (STRETCH_BLIT_SRC_FORMAT_FILTER_BILINEAR << 24);
+	src_pitch |= (NV04_SCALED_IMAGE_FROM_MEMORY_FORMAT_ORIGIN_CENTER |
+		      NV04_SCALED_IMAGE_FROM_MEMORY_FORMAT_FILTER_BILINEAR);
 	src_point = ((y1 << 4) & 0xffff0000) | (x1 >> 12);
 
 	switch(id) {
 	case FOURCC_RGB:
-		src_format = STRETCH_BLIT_FORMAT_X8R8G8B8;
+		src_format =
+			NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT_X8R8G8B8;
 		break;
 	case FOURCC_UYVY:
-		src_format = STRETCH_BLIT_FORMAT_UYVY;
+		src_format =
+			NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT_YB8V8YA8U8;
 		break;
 	default:
-		src_format = STRETCH_BLIT_FORMAT_YUYV;
+		src_format =
+			NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT_V8YB8U8YA8;
 		break;
 	}
 
@@ -809,19 +812,24 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 	}
 
 	if(pNv->BlendingPossible) {
-		NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_FORMAT, 2);
+		NVDmaStart(pNv, NvScaledImage,
+				NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 2);
 		NVDmaNext (pNv, src_format);
-		NVDmaNext (pNv, STRETCH_BLIT_OPERATION_COPY);
+		NVDmaNext (pNv,
+			   NV04_SCALED_IMAGE_FROM_MEMORY_OPERATION_SRCCOPY);
 	} else {
-		NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_FORMAT, 1);
+		NVDmaStart(pNv, NvScaledImage,
+				NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 2);
 		NVDmaNext (pNv, src_format);
 	}
 
 	while(nbox--) {
-		NVDmaStart(pNv, NvRectangle, RECT_SOLID_COLOR, 1);
+		NVDmaStart(pNv, NvRectangle,
+				NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
 		NVDmaNext (pNv, 0);
 
-		NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_CLIP_POINT, 6);
+		NVDmaStart(pNv, NvScaledImage,
+				NV04_SCALED_IMAGE_FROM_MEMORY_CLIP_POINT, 6);
 		NVDmaNext (pNv, (pbox->y1 << 16) | pbox->x1); 
 		NVDmaNext (pNv, ((pbox->y2 - pbox->y1) << 16) |
 				 (pbox->x2 - pbox->x1));
@@ -830,7 +838,8 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 		NVDmaNext (pNv, dsdx);
 		NVDmaNext (pNv, dtdy);
 
-		NVDmaStart(pNv, NvScaledImage, STRETCH_BLIT_SRC_SIZE, 4);
+		NVDmaStart(pNv, NvScaledImage,
+				NV04_SCALED_IMAGE_FROM_MEMORY_SIZE, 4);
 		NVDmaNext (pNv, (height << 16) | width);
 		NVDmaNext (pNv, src_pitch);
 		NVDmaNext (pNv, src_offset);
@@ -1652,7 +1661,8 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			}
 		
 		
-		NVDmaStart(pNv, NvMemFormat, MEMFORMAT_DMA_OBJECT_IN, 2);
+		NVDmaStart(pNv, NvMemFormat,
+				NV_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
 		NVDmaNext (pNv, NvDmaTT);
 		NVDmaNext (pNv, NvDmaFB);
 		pNv->M2MFDirection = 1;

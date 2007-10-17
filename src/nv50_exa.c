@@ -1,26 +1,5 @@
 #include "nv_include.h"
 
-#define NV50_2D_NOP                                                   0x00000100
-#define NV50_2D_UNK110                                                0x00000110
-#define NV50_2D_DST_FORMAT                                            0x00000200
-#define NV50_2D_SRC_FORMAT                                            0x00000230
-#define NV50_2D_SRC_FORMAT_8BPP                                       0x000000f3
-#define NV50_2D_SRC_FORMAT_15BPP                                      0x000000f8
-#define NV50_2D_SRC_FORMAT_16BPP                                      0x000000e8
-#define NV50_2D_SRC_FORMAT_24BPP                                      0x000000e6
-#define NV50_2D_SRC_FORMAT_32BPP                                      0x000000cf
-#define NV50_2D_CLIP_X                                                0x00000280
-#define NV50_2D_SET_OPERATION                                         0x000002ac
-#define NV50_2D_SET_OPERATION_ROP_AND                                 0x00000001
-#define NV50_2D_SET_OPERATION_SRCCOPY                                 0x00000003
-#define NV50_2D_RASTER_OP                                             0x000002a0
-#define NV50_2D_PATTERN_FORMAT                                        0x000002e8
-#define NV50_2D_PATTERN_COLOR_0                                       0x000002f0
-#define NV50_2D_RECT_UNK580                                           0x00000580
-#define NV50_2D_RECT_FORMAT                                           0x00000584
-#define NV50_2D_RECT_X1                                               0x00000600
-#define NV50_2D_BLIT_DST_X                                            0x000008b0
-
 #define NV50EXA_LOCALS(p)                                              \
 	ScrnInfoPtr pScrn = xf86Screens[(p)->drawable.pScreen->myNum]; \
 	NVPtr pNv = NVPTR(pScrn);                                      \
@@ -102,7 +81,7 @@ NV50EXASetPattern(PixmapPtr pdPix, int col0, int col1, int pat0, int pat1)
 {
 	NV50EXA_LOCALS(pdPix);
 
-	NVDmaStart(pNv, Nv2D, NV50_2D_PATTERN_COLOR_0, 4);
+	NVDmaStart(pNv, Nv2D, NV50_2D_PATTERN_COLOR(0), 4);
 	NVDmaNext (pNv, col0);
 	NVDmaNext (pNv, col1);
 	NVDmaNext (pNv, pat0);
@@ -116,12 +95,12 @@ NV50EXASetROP(PixmapPtr pdPix, int alu, Pixel planemask)
 	NV50EXA_LOCALS(pdPix);
 	int rop = NVCopyROP[alu];
 
-	NVDmaStart(pNv, Nv2D, NV50_2D_SET_OPERATION, 1);
+	NVDmaStart(pNv, Nv2D, NV50_2D_OPERATION, 1);
 	if(alu == GXcopy && planemask == ~0) {
-		NVDmaNext (pNv, NV50_2D_SET_OPERATION_SRCCOPY);
+		NVDmaNext (pNv, NV50_2D_OPERATION_SRCCOPY);
 		return;
 	} else {
-		NVDmaNext (pNv, NV50_2D_SET_OPERATION_ROP_AND);
+		NVDmaNext (pNv, NV50_2D_OPERATION_ROP_AND);
 	}
 
 	NVDmaStart(pNv, Nv2D, NV50_2D_PATTERN_FORMAT, 1);
@@ -145,7 +124,7 @@ NV50EXASetROP(PixmapPtr pdPix, int alu, Pixel planemask)
 	}
 
 	if (pNv->currentRop != rop) {
-		NVDmaStart(pNv, Nv2D, NV50_2D_RASTER_OP, 1);
+		NVDmaStart(pNv, Nv2D, NV50_2D_ROP, 1);
 		NVDmaNext (pNv, rop);
 		pNv->currentRop = rop;
 	}
@@ -168,7 +147,7 @@ NV50EXAPrepareSolid(PixmapPtr pdPix, int alu, Pixel planemask, Pixel fg)
 		return FALSE;
 	NV50EXASetROP(pdPix, alu, planemask);
 
-	NVDmaStart(pNv, Nv2D, NV50_2D_RECT_UNK580, 3);
+	NVDmaStart(pNv, Nv2D, 0x580, 3);
 	NVDmaNext (pNv, 4);
 	NVDmaNext (pNv, fmt);
 	NVDmaNext (pNv, fg);
@@ -223,7 +202,7 @@ NV50EXACopy(PixmapPtr pdPix, int srcX , int srcY,
 {
 	NV50EXA_LOCALS(pdPix);
 
-	NVDmaStart(pNv, Nv2D, NV50_2D_UNK110, 1);
+	NVDmaStart(pNv, Nv2D, 0x0110, 1);
 	NVDmaNext (pNv, 0);
 	NVDmaStart(pNv, Nv2D, NV50_2D_BLIT_DST_X, 12);
 	NVDmaNext (pNv, dstX);
