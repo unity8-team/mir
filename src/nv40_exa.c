@@ -237,10 +237,9 @@ NV40_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 
 	BEGIN_RING(Nv3D, NV40TCL_FP_ADDRESS, 1);
 	OUT_RING  (shader->hw_id | NV40TCL_FP_ADDRESS_DMA0);
-
 	BEGIN_RING(Nv3D, NV40TCL_FP_CONTROL, 1);
 	OUT_RING  (shader->card_priv.NV30FP.num_regs <<
-			NV40TCL_FP_CONTROL_TEMP_COUNT_SHIFT);
+		   NV40TCL_FP_CONTROL_TEMP_COUNT_SHIFT);
 }
 
 static void
@@ -287,7 +286,7 @@ NV40_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 		OUT_RING  (dblend);
 		OUT_RING  (0x00000000);
 		OUT_RING  (NV40TCL_BLEND_EQUATION_ALPHA_FUNC_ADD |
-				NV40TCL_BLEND_EQUATION_RGB_FUNC_ADD);
+			   NV40TCL_BLEND_EQUATION_RGB_FUNC_ADD);
 	}
 }
 
@@ -305,34 +304,34 @@ NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	BEGIN_RING(Nv3D, NV40TCL_TEX_OFFSET(unit), 8);
 	OUT_RING  (NVAccelGetPixmapOffset(pPix));
 	OUT_RING  (fmt->card_fmt | NV40TCL_TEX_FORMAT_LINEAR |
-			NV40TCL_TEX_FORMAT_DIMS_2D | NV40TCL_TEX_FORMAT_DMA0 |
-			NV40TCL_TEX_FORMAT_NO_BORDER | (0x8000) |
-			(1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT));
+		   NV40TCL_TEX_FORMAT_DIMS_2D | NV40TCL_TEX_FORMAT_DMA0 |
+		   NV40TCL_TEX_FORMAT_NO_BORDER | (0x8000) |
+		   (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT));
 	if (pPict->repeat && pPict->repeatType == RepeatNormal) {
 		OUT_RING  (NV40TCL_TEX_WRAP_S_REPEAT |
-				NV40TCL_TEX_WRAP_T_REPEAT |
-				NV40TCL_TEX_WRAP_R_REPEAT);
+			   NV40TCL_TEX_WRAP_T_REPEAT |
+			   NV40TCL_TEX_WRAP_R_REPEAT);
 	} else {
 		OUT_RING  (NV40TCL_TEX_WRAP_S_CLAMP_TO_EDGE |
-				NV40TCL_TEX_WRAP_T_CLAMP_TO_EDGE |
-				NV40TCL_TEX_WRAP_R_CLAMP_TO_EDGE);
+			   NV40TCL_TEX_WRAP_T_CLAMP_TO_EDGE |
+			   NV40TCL_TEX_WRAP_R_CLAMP_TO_EDGE);
 	}
 	OUT_RING  (NV40TCL_TEX_ENABLE_ENABLE);
 	OUT_RING  (fmt->card_swz);
 	if (pPict->filter == PictFilterBilinear) {
 		OUT_RING  (NV40TCL_TEX_FILTER_MIN_LINEAR |
-				NV40TCL_TEX_FILTER_MAG_LINEAR |
-				0x3fd6);
+			   NV40TCL_TEX_FILTER_MAG_LINEAR |
+			   0x3fd6);
 	} else {
 		OUT_RING  (NV40TCL_TEX_FILTER_MIN_NEAREST |
-				NV40TCL_TEX_FILTER_MAG_NEAREST |
-				0x3fd6);
+			   NV40TCL_TEX_FILTER_MAG_NEAREST |
+			   0x3fd6);
 	}
 	OUT_RING  ((pPix->drawable.width << 16) | pPix->drawable.height);
 	OUT_RING  (0); /* border ARGB */
 	BEGIN_RING(Nv3D, NV40TCL_TEX_SIZE1(unit), 1);
 	OUT_RING  ((1 << NV40TCL_TEX_SIZE1_DEPTH_SHIFT) |
-			(uint32_t)exaGetPixmapPitch(pPix));
+		   (uint32_t)exaGetPixmapPitch(pPix));
 
 	state->unit[unit].width		= (float)pPix->drawable.width;
 	state->unit[unit].height	= (float)pPix->drawable.height;
@@ -357,8 +356,8 @@ NV40_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PictFormatShort format)
 
 	BEGIN_RING(Nv3D, NV40TCL_RT_FORMAT, 3);
 	OUT_RING  (NV40TCL_RT_FORMAT_TYPE_LINEAR |
-			NV40TCL_RT_FORMAT_ZETA_Z24S8 | 
-			fmt->card_fmt);
+		   NV40TCL_RT_FORMAT_ZETA_Z24S8 |
+		   fmt->card_fmt);
 	OUT_RING  (pitch);
 	OUT_RING  (NVAccelGetPixmapOffset(pPix));
 
@@ -507,17 +506,17 @@ NV40EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
 }
 
 #define CV_OUTm(sx,sy,mx,my,dx,dy) do {                                        \
-	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2F_X(8), 4);                    \
-	OUT_RINGf ((sx)); OUT_RINGf ((sy));                          \
-	OUT_RINGf ((mx)); OUT_RINGf ((my));                          \
-	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2I(0), 1);                      \
-	OUT_RING  (((dy)<<16)|(dx));                                      \
+	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2F_X(8), 4);                         \
+	OUT_RINGf ((sx)); OUT_RINGf ((sy));                                    \
+	OUT_RINGf ((mx)); OUT_RINGf ((my));                                    \
+	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2I(0), 1);                           \
+	OUT_RING  (((dy)<<16)|(dx));                                           \
 } while(0)
 #define CV_OUT(sx,sy,dx,dy) do {                                               \
-	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2F_X(8), 2);                    \
-	OUT_RINGf ((sx)); OUT_RINGf ((sy));                          \
-	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2I(0), 1);                      \
-	OUT_RING  (((dy)<<16)|(dx));                                      \
+	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2F_X(8), 2);                         \
+	OUT_RINGf ((sx)); OUT_RINGf ((sy));                                    \
+	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2I(0), 1);                           \
+	OUT_RING  (((dy)<<16)|(dx));                                           \
 } while(0)
 
 void
