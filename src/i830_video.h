@@ -90,3 +90,6 @@ void I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 			      short src_w, short src_h,
 			      short drw_w, short drw_h,
 			      PixmapPtr pPixmap);
+
+void I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
+			   pointer pReadmask);

@@ -105,8 +105,6 @@ static int I830QueryImageAttributesOverlay(ScrnInfoPtr, int, unsigned short *,
 static int I830QueryImageAttributesTextured(ScrnInfoPtr, int, unsigned short *,
 					    unsigned short *, int *, int *);
 
-static void I830BlockHandler(int, pointer, pointer, pointer);
-
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
 static Atom xvBrightness, xvContrast, xvSaturation, xvColorKey, xvPipe, xvDoubleBuffer;
@@ -865,9 +863,6 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
      * setup.
      */
     pPriv->overlayOK = TRUE;
-
-    pI830->BlockHandler = pScreen->BlockHandler;
-    pScreen->BlockHandler = I830BlockHandler;
 
     xvColorKey = MAKE_ATOM("XV_COLORKEY");
     xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
@@ -2536,20 +2531,22 @@ I830QueryImageAttributesTextured(ScrnInfoPtr pScrn,
     return I830QueryImageAttributes(pScrn, id, w, h, pitches, offsets, TRUE);
 }
 
-static void
-I830BlockHandler(int i,
-		 pointer blockData, pointer pTimeout, pointer pReadmask)
+void
+I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
+		      pointer pReadmask)
 {
-    ScreenPtr pScreen = screenInfo.screens[i];
     ScrnInfoPtr pScrn = xf86Screens[i];
     I830Ptr pI830 = I830PTR(pScrn);
-    I830PortPrivPtr pPriv = GET_PORT_PRIVATE(pScrn);
+    I830PortPrivPtr pPriv;
 
-    pScreen->BlockHandler = pI830->BlockHandler;
+    if (pI830->adaptor == NULL)
+        return;
 
-    (*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+    /* No overlay scaler on the 965. */
+    if (IS_I965G(pI830))
+        return;
 
-    pScreen->BlockHandler = I830BlockHandler;
+    pPriv = GET_PORT_PRIVATE(pScrn);
 
     if (pPriv->videoStatus & TIMER_MASK) {
 #if 1
@@ -2778,7 +2775,6 @@ I830DisplaySurface(XF86SurfacePtr surface,
 	UpdateCurrentTime();
 	pI830Priv->videoStatus = FREE_TIMER;
 	pI830Priv->freeTime = currentTime.milliseconds + FREE_DELAY;
-	pScrn->pScreen->BlockHandler = I830BlockHandler;
     }
 
     return Success;
