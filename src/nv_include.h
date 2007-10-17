@@ -47,7 +47,6 @@
 
 #include "fb.h"
 
-#include "xaa.h"
 #include "xf86cmap.h"
 #include "shadowfb.h"
 

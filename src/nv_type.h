@@ -5,7 +5,6 @@
 
 #include "colormapst.h"
 #include "vgaHW.h"
-#include "xaa.h"
 #include "xf86Cursor.h"
 #include "xf86int10.h"
 #include "exa.h"
