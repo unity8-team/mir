@@ -79,12 +79,11 @@ NVSetPattern(ScrnInfoPtr pScrn, CARD32 clr0, CARD32 clr1,
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	NVDmaStart(pNv, NvImagePattern,
-			NV04_IMAGE_PATTERN_MONOCHROME_COLOR0, 4);
-	NVDmaNext (pNv, clr0);
-	NVDmaNext (pNv, clr1);
-	NVDmaNext (pNv, pat0);
-	NVDmaNext (pNv, pat1);
+	BEGIN_RING(NvImagePattern, NV04_IMAGE_PATTERN_MONOCHROME_COLOR0, 4);
+	OUT_RING  (clr0);
+	OUT_RING  (clr1);
+	OUT_RING  (pat0);
+	OUT_RING  (pat1);
 }
 
 static void 
@@ -96,16 +95,16 @@ NVSetROP(ScrnInfoPtr pScrn, CARD32 alu, CARD32 planemask)
 	if (planemask != ~0) {
 		NVSetPattern(pScrn, 0, planemask, ~0, ~0);
 		if (pNv->currentRop != (alu + 32)) {
-			NVDmaStart(pNv, NvRop, NV03_CONTEXT_ROP_ROP, 1);
-			NVDmaNext (pNv, rop | 0x0a);
+			BEGIN_RING(NvRop, NV03_CONTEXT_ROP_ROP, 1);
+			OUT_RING  (rop | 0x0a);
 			pNv->currentRop = alu + 32;
 		}
 	} else
 	if (pNv->currentRop != alu) {
 		if(pNv->currentRop >= 16)
 			NVSetPattern(pScrn, ~0, ~0, ~0, ~0);
-		NVDmaStart(pNv, NvRop, NV03_CONTEXT_ROP_ROP, 1);
-		NVDmaNext (pNv, rop | (rop >> 4));
+		BEGIN_RING(NvRop, NV03_CONTEXT_ROP_ROP, 1);
+		OUT_RING  (rop | (rop >> 4));
 		pNv->currentRop = alu;
 	}
 }
@@ -116,10 +115,10 @@ static void setM2MFDirection(ScrnInfoPtr pScrn, int dir)
 
 	if (pNv->M2MFDirection != dir) {
 
-		NVDmaStart(pNv, NvMemFormat,
-				NV_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
-		NVDmaNext (pNv, dir ? NvDmaTT : NvDmaFB);
-		NVDmaNext (pNv, dir ? NvDmaFB : NvDmaTT);
+		BEGIN_RING(NvMemFormat,
+			   NV_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
+		OUT_RING  (dir ? NvDmaTT : NvDmaFB);
+		OUT_RING  (dir ? NvDmaFB : NvDmaTT);
 		pNv->M2MFDirection = dir;
 	}
 }
@@ -129,8 +128,8 @@ static void setcurrentRectOp(ScrnInfoPtr pScrn, int op)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pNv->currentRectOp != op) {
-		NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
-		NVDmaNext (pNv, op);
+		BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
+		OUT_RING  (op);
 		pNv->currentRectOp = op;
 	}
 }
@@ -140,8 +139,8 @@ static void setcurrentBlitOp(ScrnInfoPtr pScrn, int op)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pNv->currentBlitOp != op) {
-		NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
-		NVDmaNext (pNv, op);
+		BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
+		OUT_RING  (op);
 		pNv->currentBlitOp = op;
 	}
 }
@@ -200,10 +199,10 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	if (!NVAccelSetCtxSurf2D(pPixmap, pPixmap, fmt))
 		return FALSE;
 
-	NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT, 1);
-	NVDmaNext (pNv, rectFormat(&pPixmap->drawable));
-	NVDmaStart(pNv, NvRectangle, NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
-	NVDmaNext (pNv, fg);
+	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT, 1);
+	OUT_RING  (rectFormat(&pPixmap->drawable));
+	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
+	OUT_RING  (fg);
 
 	pNv->DMAKickoffCallback = NVDmaKickoffCallback;
 	return TRUE;
@@ -216,14 +215,13 @@ static void NVExaSolid (PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	int width = x2-x1;
 	int height = y2-y1;
 
-	NVDmaStart(pNv, NvRectangle,
-			NV04_GDI_RECTANGLE_TEXT_UNCLIPPED_RECTANGLE_POINT(0),
-			2);
-	NVDmaNext (pNv, (x1 << 16) | y1);
-	NVDmaNext (pNv, (width << 16) | height);
+	BEGIN_RING(NvRectangle,
+		   NV04_GDI_RECTANGLE_TEXT_UNCLIPPED_RECTANGLE_POINT(0), 2);
+	OUT_RING  ((x1 << 16) | y1);
+	OUT_RING  ((width << 16) | height);
 
 	if((width * height) >= 512)
-		NVDmaKickoff(pNv);
+		FIRE_RING();
 }
 
 static void NVExaDoneSolid (PixmapPtr pPixmap)
@@ -303,11 +301,11 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 				inc=-1;
 			}
 			for (i = 0; i < width; i++) {
-				NVDmaStart(pNv, NvImageBlit,
-						NV_IMAGE_BLIT_POINT_IN, 3);
-				NVDmaNext (pNv, (srcY << 16) | (srcX+xpos));
-				NVDmaNext (pNv, (dstY << 16) | (dstX+xpos));
-				NVDmaNext (pNv, (height  << 16) | 1);
+				BEGIN_RING(NvImageBlit,
+					   NV_IMAGE_BLIT_POINT_IN, 3);
+				OUT_RING  ((srcY << 16) | (srcX+xpos));
+				OUT_RING  ((dstY << 16) | (dstX+xpos));
+				OUT_RING  ((height  << 16) | 1);
 				xpos+=inc;
 			}
 		} else {
@@ -323,24 +321,24 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 				inc=-1;
 			}
 			for (i = 0; i < height; i++) {
-				NVDmaStart(pNv, NvImageBlit,
-						NV_IMAGE_BLIT_POINT_IN, 3);
-				NVDmaNext (pNv, ((srcY+ypos) << 16) | srcX);
-				NVDmaNext (pNv, ((dstY+ypos) << 16) | dstX);
-				NVDmaNext (pNv, (1  << 16) | width);
+				BEGIN_RING(NvImageBlit,
+					   NV_IMAGE_BLIT_POINT_IN, 3);
+				OUT_RING  (((srcY+ypos) << 16) | srcX);
+				OUT_RING  (((dstY+ypos) << 16) | dstX);
+				OUT_RING  ((1  << 16) | width);
 				ypos+=inc;
 			}
 		} 
 	} else {
 		NVDEBUG("ExaCopy: Using default path\n");
-		NVDmaStart(pNv, NvImageBlit, NV_IMAGE_BLIT_POINT_IN, 3);
-		NVDmaNext (pNv, (srcY << 16) | srcX);
-		NVDmaNext (pNv, (dstY << 16) | dstX);
-		NVDmaNext (pNv, (height  << 16) | width);
+		BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_POINT_IN, 3);
+		OUT_RING  ((srcY << 16) | srcX);
+		OUT_RING  ((dstY << 16) | dstX);
+		OUT_RING  ((height  << 16) | width);
 	}
 
 	if((width * height) >= 512)
-		NVDmaKickoff(pNv); 
+		FIRE_RING(); 
 }
 
 static void NVExaDoneCopy (PixmapPtr pDstPixmap) {}
@@ -387,34 +385,33 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 			lc = 2047;
 
 		if (pNv->Architecture >= NV_ARCH_50) {
-			NVDmaStart(pNv, NvMemFormat, 0x200, 1);
-			NVDmaNext (pNv, 1);
-			NVDmaStart(pNv, NvMemFormat, 0x21c, 1);
-			NVDmaNext (pNv, 1);
+			BEGIN_RING(NvMemFormat, 0x200, 1);
+			OUT_RING  (1);
+			BEGIN_RING(NvMemFormat, 0x21c, 1);
+			OUT_RING  (1);
 			/* probably high-order bits of address */
-			NVDmaStart(pNv, NvMemFormat, 0x238, 2);
-			NVDmaNext (pNv, 0);
-			NVDmaNext (pNv, 0);
+			BEGIN_RING(NvMemFormat, 0x238, 2);
+			OUT_RING  (0);
+			OUT_RING  (0);
 		}
 
-		NVDmaStart(pNv, NvMemFormat,
-				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		NVDmaNext (pNv, (uint32_t)src_offset);
-		NVDmaNext (pNv, (uint32_t)pNv->GARTScratch->offset);
-		NVDmaNext (pNv, src_pitch);
-		NVDmaNext (pNv, line_len);
-		NVDmaNext (pNv, line_len);
-		NVDmaNext (pNv, lc);
-		NVDmaNext (pNv, (1<<8)|1);
-		NVDmaNext (pNv, 0);
+		BEGIN_RING(NvMemFormat,
+			   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
+		OUT_RING  ((uint32_t)src_offset);
+		OUT_RING  ((uint32_t)pNv->GARTScratch->offset);
+		OUT_RING  (src_pitch);
+		OUT_RING  (line_len);
+		OUT_RING  (line_len);
+		OUT_RING  (lc);
+		OUT_RING  ((1<<8)|1);
+		OUT_RING  (0);
 
 		NVNotifierReset(pScrn, pNv->Notifier0);
-		NVDmaStart(pNv, NvMemFormat,
-				NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
-		NVDmaNext (pNv, 0);
-		NVDmaStart(pNv, NvMemFormat, 0x100, 1);
-		NVDmaNext (pNv, 0);
-		NVDmaKickoff(pNv);
+		BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
+		OUT_RING  (0);
+		BEGIN_RING(NvMemFormat, 0x100, 1);
+		OUT_RING  (0);
+		FIRE_RING();
 		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 2000))
 			return FALSE;
 
@@ -498,23 +495,22 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	if (id > 1792)
 		return FALSE;
 
-	NVDmaStart(pNv, NvClipRectangle, NV01_CONTEXT_CLIP_RECTANGLE_POINT, 2);
-	NVDmaNext (pNv, 0x0); 
-	NVDmaNext (pNv, 0x7FFF7FFF);
+	BEGIN_RING(NvClipRectangle, NV01_CONTEXT_CLIP_RECTANGLE_POINT, 2);
+	OUT_RING  (0x0); 
+	OUT_RING  (0x7FFF7FFF);
 
-	NVDmaStart(pNv, NvImageFromCpu, NV01_IMAGE_FROM_CPU_OPERATION, 2);
-	NVDmaNext (pNv, NV01_IMAGE_FROM_CPU_OPERATION_SRCCOPY);
-	NVDmaNext (pNv, ifc_fmt);
-	NVDmaStart(pNv, NvImageFromCpu, NV01_IMAGE_FROM_CPU_POINT, 3);
-	NVDmaNext (pNv, (y << 16) | x); /* dst point */
-	NVDmaNext (pNv, (h << 16) | w); /* width/height out */
-	NVDmaNext (pNv, (h << 16) | iw); /* width/height in */
+	BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_OPERATION, 2);
+	OUT_RING  (NV01_IMAGE_FROM_CPU_OPERATION_SRCCOPY);
+	OUT_RING  (ifc_fmt);
+	BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_POINT, 3);
+	OUT_RING  ((y << 16) | x); /* dst point */
+	OUT_RING  ((h << 16) | w); /* width/height out */
+	OUT_RING  ((h << 16) | iw); /* width/height in */
 
 	while (h--) {
 		char *dst;
 		/* send a line */
-		NVDmaStart(pNv, NvImageFromCpu,
-				NV01_IMAGE_FROM_CPU_COLOR(0), id);
+		BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_COLOR(0), id);
 		dst = (char *)pNv->dmaBase + (pNv->dmaCurrent << 2);
 		memcpy(dst, src, line_len);
 		pNv->dmaCurrent += id;
@@ -564,35 +560,34 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 		}
 
 		if (pNv->Architecture >= NV_ARCH_50) {
-			NVDmaStart(pNv, NvMemFormat, 0x200, 1);
-			NVDmaNext (pNv, 1);
-			NVDmaStart(pNv, NvMemFormat, 0x21c, 1);
-			NVDmaNext (pNv, 1);
+			BEGIN_RING(NvMemFormat, 0x200, 1);
+			OUT_RING  (1);
+			BEGIN_RING(NvMemFormat, 0x21c, 1);
+			OUT_RING  (1);
 			/* probably high-order bits of address */
-			NVDmaStart(pNv, NvMemFormat, 0x238, 2);
-			NVDmaNext (pNv, 0);
-			NVDmaNext (pNv, 0);
+			BEGIN_RING(NvMemFormat, 0x238, 2);
+			OUT_RING  (0);
+			OUT_RING  (0);
 		}
 
 		/* DMA to VRAM */
-		NVDmaStart(pNv, NvMemFormat,
-				NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		NVDmaNext (pNv, (uint32_t)pNv->GARTScratch->offset);
-		NVDmaNext (pNv, (uint32_t)dst_offset);
-		NVDmaNext (pNv, line_len);
-		NVDmaNext (pNv, dst_pitch);
-		NVDmaNext (pNv, line_len);
-		NVDmaNext (pNv, lc);
-		NVDmaNext (pNv, (1<<8)|1);
-		NVDmaNext (pNv, 0);
+		BEGIN_RING(NvMemFormat,
+			   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
+		OUT_RING  ((uint32_t)pNv->GARTScratch->offset);
+		OUT_RING  ((uint32_t)dst_offset);
+		OUT_RING  (line_len);
+		OUT_RING  (dst_pitch);
+		OUT_RING  (line_len);
+		OUT_RING  (lc);
+		OUT_RING  ((1<<8)|1);
+		OUT_RING  (0);
 
 		NVNotifierReset(pScrn, pNv->Notifier0);
-		NVDmaStart(pNv, NvMemFormat,
-				NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
-		NVDmaNext (pNv, 0);
-		NVDmaStart(pNv, NvMemFormat, 0x100, 1);
-		NVDmaNext (pNv, 0);
-		NVDmaKickoff(pNv);
+		BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
+		OUT_RING  (0);
+		BEGIN_RING(NvMemFormat, 0x100, 1);
+		OUT_RING  (0);
+		FIRE_RING();
 		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 2000))
 			return FALSE;
 

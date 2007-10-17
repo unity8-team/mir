@@ -72,9 +72,9 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image);
 #endif /* ENABLE_RANDR12 */
 
 /* in nv_dma.c */
-void  NVDmaKickoff(NVPtr pNv);
+void  NVDmaKickoffNNN(NVPtr pNv);
 void  NVDmaKickoffCallback(NVPtr pNv);
-void  NVDmaWait(ScrnInfoPtr pScrn, int size);
+void  NVDmaWaitNNN(ScrnInfoPtr pScrn, int size);
 void  NVSync(ScrnInfoPtr pScrn);
 void  NVResetGraphics(ScrnInfoPtr pScrn);
 Bool  NVDmaCreateContextObject(NVPtr pNv, int handle, int class);

@@ -36,23 +36,23 @@ NV50EXAAcquireSurface2D(PixmapPtr pPix, int is_src)
 	if (!NV50EXA2DSurfaceFormat(pPix, &fmt))
 		return FALSE;
 
-	NVDmaStart(pNv, Nv2D, mthd, 2);
-	NVDmaNext (pNv, fmt);
-	NVDmaNext (pNv, 1);
+	BEGIN_RING(Nv2D, mthd, 2);
+	OUT_RING  (fmt);
+	OUT_RING  (1);
 
-	NVDmaStart(pNv, Nv2D, mthd + 0x14, 5);
-	NVDmaNext (pNv, (uint32_t)exaGetPixmapPitch(pPix));
-	NVDmaNext (pNv, pPix->drawable.width);
-	NVDmaNext (pNv, pPix->drawable.height);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, NVAccelGetPixmapOffset(pPix));
+	BEGIN_RING(Nv2D, mthd + 0x14, 5);
+	OUT_RING  ((uint32_t)exaGetPixmapPitch(pPix));
+	OUT_RING  (pPix->drawable.width);
+	OUT_RING  (pPix->drawable.height);
+	OUT_RING  (0);
+	OUT_RING  (NVAccelGetPixmapOffset(pPix));
 
 	if (is_src == 0) {
-		NVDmaStart(pNv, Nv2D, NV50_2D_CLIP_X, 4);
-		NVDmaNext (pNv, 0);
-		NVDmaNext (pNv, 0);
-		NVDmaNext (pNv, pPix->drawable.width);
-		NVDmaNext (pNv, pPix->drawable.height);
+		BEGIN_RING(Nv2D, NV50_2D_CLIP_X, 4);
+		OUT_RING  (0);
+		OUT_RING  (0);
+		OUT_RING  (pPix->drawable.width);
+		OUT_RING  (pPix->drawable.height);
 	}
 
 	return TRUE;
@@ -71,9 +71,9 @@ NV50EXAReleaseSurfaces(PixmapPtr pdPix)
 {
 	NV50EXA_LOCALS(pdPix);
 
-	NVDmaStart(pNv, Nv2D, NV50_2D_NOP, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaKickoff(pNv);
+	BEGIN_RING(Nv2D, NV50_2D_NOP, 1);
+	OUT_RING  (0);
+	FIRE_RING();
 }
 
 static void
@@ -81,11 +81,11 @@ NV50EXASetPattern(PixmapPtr pdPix, int col0, int col1, int pat0, int pat1)
 {
 	NV50EXA_LOCALS(pdPix);
 
-	NVDmaStart(pNv, Nv2D, NV50_2D_PATTERN_COLOR(0), 4);
-	NVDmaNext (pNv, col0);
-	NVDmaNext (pNv, col1);
-	NVDmaNext (pNv, pat0);
-	NVDmaNext (pNv, pat1);
+	BEGIN_RING(Nv2D, NV50_2D_PATTERN_COLOR(0), 4);
+	OUT_RING  (col0);
+	OUT_RING  (col1);
+	OUT_RING  (pat0);
+	OUT_RING  (pat1);
 }
 
 extern const int NVCopyROP[16];
@@ -95,23 +95,23 @@ NV50EXASetROP(PixmapPtr pdPix, int alu, Pixel planemask)
 	NV50EXA_LOCALS(pdPix);
 	int rop = NVCopyROP[alu];
 
-	NVDmaStart(pNv, Nv2D, NV50_2D_OPERATION, 1);
+	BEGIN_RING(Nv2D, NV50_2D_OPERATION, 1);
 	if(alu == GXcopy && planemask == ~0) {
-		NVDmaNext (pNv, NV50_2D_OPERATION_SRCCOPY);
+		OUT_RING  (NV50_2D_OPERATION_SRCCOPY);
 		return;
 	} else {
-		NVDmaNext (pNv, NV50_2D_OPERATION_ROP_AND);
+		OUT_RING  (NV50_2D_OPERATION_ROP_AND);
 	}
 
-	NVDmaStart(pNv, Nv2D, NV50_2D_PATTERN_FORMAT, 1);
+	BEGIN_RING(Nv2D, NV50_2D_PATTERN_FORMAT, 1);
 	switch (pdPix->drawable.depth) {
-		case  8: NVDmaNext(pNv, 3); break;
-		case 15: NVDmaNext(pNv, 1); break;
-		case 16: NVDmaNext(pNv, 0); break;
+		case  8: OUT_RING  (3); break;
+		case 15: OUT_RING  (1); break;
+		case 16: OUT_RING  (0); break;
 		case 24:
 		case 32:
 		default:
-			 NVDmaNext(pNv, 2);
+			 OUT_RING  (2);
 			 break;
 	}
 
@@ -124,8 +124,8 @@ NV50EXASetROP(PixmapPtr pdPix, int alu, Pixel planemask)
 	}
 
 	if (pNv->currentRop != rop) {
-		NVDmaStart(pNv, Nv2D, NV50_2D_ROP, 1);
-		NVDmaNext (pNv, rop);
+		BEGIN_RING(Nv2D, NV50_2D_ROP, 1);
+		OUT_RING  (rop);
 		pNv->currentRop = rop;
 	}
 }
@@ -147,10 +147,10 @@ NV50EXAPrepareSolid(PixmapPtr pdPix, int alu, Pixel planemask, Pixel fg)
 		return FALSE;
 	NV50EXASetROP(pdPix, alu, planemask);
 
-	NVDmaStart(pNv, Nv2D, 0x580, 3);
-	NVDmaNext (pNv, 4);
-	NVDmaNext (pNv, fmt);
-	NVDmaNext (pNv, fg);
+	BEGIN_RING(Nv2D, 0x580, 3);
+	OUT_RING  (4);
+	OUT_RING  (fmt);
+	OUT_RING  (fg);
 
 	return TRUE;
 }
@@ -160,14 +160,14 @@ NV50EXASolid(PixmapPtr pdPix, int x1, int y1, int x2, int y2)
 {
 	NV50EXA_LOCALS(pdPix);
 
-	NVDmaStart(pNv, Nv2D, NV50_2D_RECT_X1, 4);
-	NVDmaNext (pNv, x1);
-	NVDmaNext (pNv, y1);
-	NVDmaNext (pNv, x2);
-	NVDmaNext (pNv, y2);
+	BEGIN_RING(Nv2D, NV50_2D_RECT_X1, 4);
+	OUT_RING  (x1);
+	OUT_RING  (y1);
+	OUT_RING  (x2);
+	OUT_RING  (y2);
 
 	if((x2 - x1) * (y2 - y1) >= 512)
-		NVDmaKickoff(pNv);
+		FIRE_RING();
 }
 
 void
@@ -202,24 +202,24 @@ NV50EXACopy(PixmapPtr pdPix, int srcX , int srcY,
 {
 	NV50EXA_LOCALS(pdPix);
 
-	NVDmaStart(pNv, Nv2D, 0x0110, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv2D, NV50_2D_BLIT_DST_X, 12);
-	NVDmaNext (pNv, dstX);
-	NVDmaNext (pNv, dstY);
-	NVDmaNext (pNv, width);
-	NVDmaNext (pNv, height);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, srcX);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, srcY);
+	BEGIN_RING(Nv2D, 0x0110, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv2D, NV50_2D_BLIT_DST_X, 12);
+	OUT_RING  (dstX);
+	OUT_RING  (dstY);
+	OUT_RING  (width);
+	OUT_RING  (height);
+	OUT_RING  (0);
+	OUT_RING  (1);
+	OUT_RING  (0);
+	OUT_RING  (1);
+	OUT_RING  (0);
+	OUT_RING  (srcX);
+	OUT_RING  (0);
+	OUT_RING  (srcY);
 
 	if(width * height >= 512)
-		NVDmaKickoff(pNv);
+		FIRE_RING();
 }
 
 void

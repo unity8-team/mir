@@ -107,13 +107,13 @@ static Bool NV10CheckComposite(int	op,
 
 static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 {
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_TX_OFFSET(unit), 1 );
-	NVDmaNext (pNv, NVAccelGetPixmapOffset(pixmap));
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_OFFSET(unit), 1 );
+	OUT_RING  (NVAccelGetPixmapOffset(pixmap));
 
 	int log2w = log2i(Pict->pDrawable->width);
 	int log2h = log2i(Pict->pDrawable->height);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FORMAT(unit), 1 );
-	NVDmaNext (pNv, (NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_T_CLAMP_TO_EDGE<<28) |
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FORMAT(unit), 1 );
+	OUT_RING  ((NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_T_CLAMP_TO_EDGE<<28) |
 			(NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_S_CLAMP_TO_EDGE<<24) |
 			(log2w<<20) |
 			(log2h<<16) |
@@ -123,21 +123,21 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 			0x51 /* UNK */
 			);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_TX_ENABLE(unit), 1 );
-	NVDmaNext (pNv, 1);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_ENABLE(unit), 1 );
+	OUT_RING  (1);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_PITCH(unit), 1);
-	NVDmaNext (pNv, exaGetPixmapPitch(pixmap) << 16);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_PITCH(unit), 1);
+	OUT_RING  (exaGetPixmapPitch(pixmap) << 16);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_SIZE(unit), 1);
-	NVDmaNext (pNv, (Pict->pDrawable->width<<16) | Pict->pDrawable->height); /* FIXME alignment restrictions, should be even at least */
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_SIZE(unit), 1);
+	OUT_RING  ((Pict->pDrawable->width<<16) | Pict->pDrawable->height); /* FIXME alignment restrictions, should be even at least */
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FILTER(unit), 1);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FILTER(unit), 1);
 	if (Pict->filter == PictFilterNearest)
-		NVDmaNext (pNv, (NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAGNIFY_NEAREST<<28) |
+		OUT_RING  ((NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAGNIFY_NEAREST<<28) |
 				(NV10_TCL_PRIMITIVE_3D_TX_FILTER_MINIFY_NEAREST<<24));
 	else
-		NVDmaNext (pNv, (NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAGNIFY_LINEAR<<28) |
+		OUT_RING  ((NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAGNIFY_LINEAR<<28) |
 				(NV10_TCL_PRIMITIVE_3D_TX_FILTER_MINIFY_LINEAR<<24));
 
 	state.unit[unit].width		= (float)pixmap->drawable.width;
@@ -151,44 +151,44 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	int w = Pict->pDrawable->width;
 	int h = Pict->pDrawable->height;
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_BUFFER_FORMAT, 4);
-	NVDmaNext (pNv, NV10DstFormat(Pict->format));
-	NVDmaNext (pNv, ((uint32_t)exaGetPixmapPitch(pixmap) << 16) |(uint32_t)exaGetPixmapPitch(pixmap));
-	NVDmaNext (pNv, NVAccelGetPixmapOffset(pixmap));
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_HORIZ, 2);
-	NVDmaNext (pNv, (w<<16)|x);
-	NVDmaNext (pNv, (h<<16)|y);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_MODE, 1); /* clip_mode */
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(0), 1);
-	NVDmaNext (pNv, ((w-1+x)<<16)|x|0x08000800);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_VERT(0), 1);
-	NVDmaNext (pNv, ((h-1+y)<<16)|y|0x08000800);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_BUFFER_FORMAT, 4);
+	OUT_RING  (NV10DstFormat(Pict->format));
+	OUT_RING  (((uint32_t)exaGetPixmapPitch(pixmap) << 16) |(uint32_t)exaGetPixmapPitch(pixmap));
+	OUT_RING  (NVAccelGetPixmapOffset(pixmap));
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_HORIZ, 2);
+	OUT_RING  ((w<<16)|x);
+	OUT_RING  ((h<<16)|y);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_MODE, 1); /* clip_mode */
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(0), 1);
+	OUT_RING  (((w-1+x)<<16)|x|0x08000800);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_VERT(0), 1);
+	OUT_RING  (((h-1+y)<<16)|y|0x08000800);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_PROJECTION_MATRIX(0), 16);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_PROJECTION_MATRIX(0), 16);
 	for(i=0;i<16;i++)
 		if (i/4==i%4)
-			NVDmaFloat(pNv, 1.0f);
+			OUT_RINGf (1.0f);
 		else
-			NVDmaFloat(pNv, 0.0f);
+			OUT_RINGf (0.0f);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DEPTH_RANGE_NEAR, 2);
-	NVDmaNext (pNv, 0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DEPTH_RANGE_NEAR, 2);
+	OUT_RING  (0);
 #if SCREEN_BPP == 32
-	NVDmaFloat (pNv, 16777216.0);
+	OUT_RINGf (16777216.0);
 #else
-	NVDmaFloat (pNv, 65536.0);
+	OUT_RINGf (65536.0);
 #endif
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_SCALE_X, 4);
-	NVDmaFloat (pNv, (w * 0.5) - 2048.0);
-	NVDmaFloat (pNv, (h * 0.5) - 2048.0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_SCALE_X, 4);
+	OUT_RINGf ((w * 0.5) - 2048.0);
+	OUT_RINGf ((h * 0.5) - 2048.0);
 #if SCREEN_BPP == 32
-	NVDmaFloat (pNv, 16777215.0 * 0.5);
+	OUT_RINGf (16777215.0 * 0.5);
 #else
-	NVDmaFloat (pNv, 65535.0 * 0.5);
+	OUT_RINGf (65535.0 * 0.5);
 #endif
-	NVDmaNext (pNv, 0);
+	OUT_RING  (0);
 }
 
 static void NV10SetMultitexture(NVPtr pNv,int multitex)
@@ -242,9 +242,9 @@ static void NV10SetPictOp(NVPtr pNv,int op)
 		{0x0001,0x0001}, // PictOpAdd
 	};
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_BLEND_FUNC_SRC, 2);
-	NVDmaNext (pNv, pictops[op].src);
-	NVDmaNext (pNv, pictops[op].dst);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_BLEND_FUNC_SRC, 2);
+	OUT_RING  (pictops[op].src);
+	OUT_RING  (pictops[op].dst);
 }
 
 static Bool NV10PrepareComposite(int	  op,
@@ -274,8 +274,8 @@ static Bool NV10PrepareComposite(int	  op,
 	/* Set PictOp */
 	NV10SetPictOp(pNv, op);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
-	NVDmaNext (pNv, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_QUADS);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
+	OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_QUADS);
 
 	state.have_mask=(pMaskPicture!=NULL);
 	return TRUE;
@@ -283,27 +283,27 @@ static Bool NV10PrepareComposite(int	  op,
 
 static inline void NV10Vertex(NVPtr pNv,float vx,float vy,float tx,float ty)
 {
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_TX0_2F_S, 2);
-	NVDmaFloat(pNv, tx);
-	NVDmaFloat(pNv, ty);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_POS_3F_X, 3);
-	NVDmaFloat(pNv, vx);
-	NVDmaFloat(pNv, vy);
-	NVDmaFloat(pNv, 0.f);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_TX0_2F_S, 2);
+	OUT_RINGf (tx);
+	OUT_RINGf (ty);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_POS_3F_X, 3);
+	OUT_RINGf (vx);
+	OUT_RINGf (vy);
+	OUT_RINGf (0.f);
 }
 
 static inline void NV10MVertex(NVPtr pNv,float vx,float vy,float t0x,float t0y,float t1x,float t1y)
 {
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_TX0_2F_S, 2);
-	NVDmaFloat(pNv, t0x);
-	NVDmaFloat(pNv, t0y);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_TX1_2F_S, 2);
-	NVDmaFloat(pNv, t1x);
-	NVDmaFloat(pNv, t1y);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_POS_3F_X, 3);
-	NVDmaFloat(pNv, vx);
-	NVDmaFloat(pNv, vy);
-	NVDmaFloat(pNv, 0.f);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_TX0_2F_S, 2);
+	OUT_RINGf (t0x);
+	OUT_RINGf (t0y);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_TX1_2F_S, 2);
+	OUT_RINGf (t1x);
+	OUT_RINGf (t1y);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_POS_3F_X, 3);
+	OUT_RINGf (vx);
+	OUT_RINGf (vy);
+	OUT_RINGf (0.f);
 }
 
 #define xFixedToFloat(v) \
@@ -371,7 +371,7 @@ static void NV10Composite(PixmapPtr pDst,
 		NV10Vertex(pNv , dstX         , dstY + height , sX0 , sY1);
 	}
 
-	NVDmaKickoff(pNv);
+	FIRE_RING();
 }
 
 static void NV10DoneComposite (PixmapPtr pDst)
@@ -379,8 +379,8 @@ static void NV10DoneComposite (PixmapPtr pDst)
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
-	NVDmaNext (pNv, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_STOP);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
+	OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_STOP);
 
 	exaMarkSync(pDst->drawable.pScreen);
 }
@@ -414,204 +414,204 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_NOTIFY, 1);
-	NVDmaNext (pNv, NvNullObject);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_NOTIFY, 1);
+	OUT_RING  (NvNullObject);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_IN_MEMORY0, 2);
-	NVDmaNext (pNv, NvDmaFB);
-	NVDmaNext (pNv, NvDmaTT);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_IN_MEMORY0, 2);
+	OUT_RING  (NvDmaFB);
+	OUT_RING  (NvDmaTT);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_IN_MEMORY2, 2);
-	NVDmaNext (pNv, NvDmaFB);
-	NVDmaNext (pNv, NvDmaFB);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_IN_MEMORY2, 2);
+	OUT_RING  (NvDmaFB);
+	OUT_RING  (NvDmaFB);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
-	NVDmaNext (pNv, 0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
+	OUT_RING  (0);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_HORIZ, 2);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_HORIZ, 2);
+	OUT_RING  (0);
+	OUT_RING  (0);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(0), 1);
-	NVDmaNext (pNv, (0x7ff<<16)|0x800);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_VERT(0), 1);
-	NVDmaNext (pNv, (0x7ff<<16)|0x800);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(0), 1);
+	OUT_RING  ((0x7ff<<16)|0x800);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_VERT(0), 1);
+	OUT_RING  ((0x7ff<<16)|0x800);
 
 	for (i=1;i<8;i++) {
-		NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(i), 1);
-		NVDmaNext (pNv, 0);
-		NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_VERT(i), 1);
-		NVDmaNext (pNv, 0);
+		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(i), 1);
+		OUT_RING  (0);
+		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_VERT(i), 1);
+		OUT_RING  (0);
 	}
 
-	NVDmaStart(pNv, Nv3D, 0x290, 1);
-	NVDmaNext (pNv, (0x10<<16)|1);
-	NVDmaStart(pNv, Nv3D, 0x3f4, 1);
-	NVDmaNext (pNv, 0);
+	BEGIN_RING(Nv3D, 0x290, 1);
+	OUT_RING  ((0x10<<16)|1);
+	BEGIN_RING(Nv3D, 0x3f4, 1);
+	OUT_RING  (0);
 
-//	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_NOTIFY, 1);
-//	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
-	NVDmaNext (pNv, 0);
+//	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_NOTIFY, 1);
+//	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
+	OUT_RING  (0);
 
 	if (class != NV10_TCL_PRIMITIVE_3D) {
 		/* For nv11, nv17 */
-		NVDmaStart(pNv, Nv3D, 0x120, 3);
-		NVDmaNext (pNv, 0);
-		NVDmaNext (pNv, 1);
-		NVDmaNext (pNv, 2);
+		BEGIN_RING(Nv3D, 0x120, 3);
+		OUT_RING  (0);
+		OUT_RING  (1);
+		OUT_RING  (2);
 
-		NVDmaStart(pNv, NvImageBlit, 0x120, 3);
-		NVDmaNext (pNv, 0);
-		NVDmaNext (pNv, 1);
-		NVDmaNext (pNv, 2);
+		BEGIN_RING(NvImageBlit, 0x120, 3);
+		OUT_RING  (0);
+		OUT_RING  (1);
+		OUT_RING  (2);
 
-		NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
-		NVDmaNext (pNv, 0);
+		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
+		OUT_RING  (0);
 	}
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
-	NVDmaNext (pNv, 0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
+	OUT_RING  (0);
 
 	/* Set state */
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_FOG_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_ALPHA_FUNC_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_ALPHA_FUNC_FUNC, 2);
-	NVDmaNext (pNv, 0x207);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_TX_ENABLE(0), 2);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA(0), 12);
-	NVDmaNext (pNv, 0x30141010);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0x20040000);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0x00000c00);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0x00000c00);
-	NVDmaNext (pNv, 0x18000000);
-	NVDmaNext (pNv, 0x300e0300);
-	NVDmaNext (pNv, 0x0c091c80);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DITHER_ENABLE, 2);
-	NVDmaNext (pNv, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_LINE_SMOOTH_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_WEIGHT_ENABLE, 2);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_BLEND_FUNC_SRC, 4);
-	NVDmaNext (pNv, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0x8006);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_STENCIL_MASK, 8);
-	NVDmaNext (pNv, 0xff);
-	NVDmaNext (pNv, 0x207);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0xff);
-	NVDmaNext (pNv, 0x1e00);
-	NVDmaNext (pNv, 0x1e00);
-	NVDmaNext (pNv, 0x1e00);
-	NVDmaNext (pNv, 0x1d01);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_NORMALIZE_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_FOG_ENABLE, 2);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_LIGHT_MODEL, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_COLOR_CONTROL, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_ENABLED_LIGHTS, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_POLYGON_OFFSET_POINT_ENABLE, 3);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DEPTH_FUNC, 1);
-	NVDmaNext (pNv, 0x201);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DEPTH_WRITE_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_DEPTH_TEST_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_POLYGON_OFFSET_FACTOR, 2);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_POINT_SIZE, 1);
-	NVDmaNext (pNv, 8);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_POINT_PARAMETERS_ENABLE, 2);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_LINE_WIDTH, 1);
-	NVDmaNext (pNv, 8);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_LINE_SMOOTH_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_POLYGON_MODE_FRONT, 2);
-	NVDmaNext (pNv, 0x1b02);
-	NVDmaNext (pNv, 0x1b02);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_CULL_FACE, 2);
-	NVDmaNext (pNv, 0x405);
-	NVDmaNext (pNv, 0x901);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_POLYGON_SMOOTH_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_CULL_FACE_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_CLIP_PLANE_ENABLE(0), 8);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_FOG_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_ALPHA_FUNC_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_ALPHA_FUNC_FUNC, 2);
+	OUT_RING  (0x207);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_ENABLE(0), 2);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA(0), 12);
+	OUT_RING  (0x30141010);
+	OUT_RING  (0);
+	OUT_RING  (0x20040000);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	OUT_RING  (0x00000c00);
+	OUT_RING  (0);
+	OUT_RING  (0x00000c00);
+	OUT_RING  (0x18000000);
+	OUT_RING  (0x300e0300);
+	OUT_RING  (0x0c091c80);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DITHER_ENABLE, 2);
+	OUT_RING  (1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_LINE_SMOOTH_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_WEIGHT_ENABLE, 2);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_BLEND_FUNC_SRC, 4);
+	OUT_RING  (1);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	OUT_RING  (0x8006);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_STENCIL_MASK, 8);
+	OUT_RING  (0xff);
+	OUT_RING  (0x207);
+	OUT_RING  (0);
+	OUT_RING  (0xff);
+	OUT_RING  (0x1e00);
+	OUT_RING  (0x1e00);
+	OUT_RING  (0x1e00);
+	OUT_RING  (0x1d01);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_NORMALIZE_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_FOG_ENABLE, 2);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_LIGHT_MODEL, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_COLOR_CONTROL, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_ENABLED_LIGHTS, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_POLYGON_OFFSET_POINT_ENABLE, 3);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DEPTH_FUNC, 1);
+	OUT_RING  (0x201);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DEPTH_WRITE_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DEPTH_TEST_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_POLYGON_OFFSET_FACTOR, 2);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_POINT_SIZE, 1);
+	OUT_RING  (8);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_POINT_PARAMETERS_ENABLE, 2);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_LINE_WIDTH, 1);
+	OUT_RING  (8);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_LINE_SMOOTH_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_POLYGON_MODE_FRONT, 2);
+	OUT_RING  (0x1b02);
+	OUT_RING  (0x1b02);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_CULL_FACE, 2);
+	OUT_RING  (0x405);
+	OUT_RING  (0x901);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_POLYGON_SMOOTH_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_CULL_FACE_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_CLIP_PLANE_ENABLE(0), 8);
 	for (i=0;i<8;i++) {
-		NVDmaNext (pNv, 0);
+		OUT_RING  (0);
 	}
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_FOG_EQUATION_CONSTANT, 3);
-	NVDmaNext (pNv, 0x3fc00000);	/* -1.50 */
-	NVDmaNext (pNv, 0xbdb8aa0a);	/* -0.09 */
-	NVDmaNext (pNv, 0);		/*  0.00 */
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_FOG_EQUATION_CONSTANT, 3);
+	OUT_RING  (0x3fc00000);	/* -1.50 */
+	OUT_RING  (0xbdb8aa0a);	/* -0.09 */
+	OUT_RING  (0);		/*  0.00 */
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
-	NVDmaNext (pNv, 0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
+	OUT_RING  (0);
 
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_FOG_MODE, 2);
-	NVDmaNext (pNv, 0x802);
-	NVDmaNext (pNv, 2);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VIEW_MATRIX_ENABLE, 1);
-	NVDmaNext (pNv, 4);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_COLOR_MASK, 1);
-	NVDmaNext (pNv, 0x01010101);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_FOG_MODE, 2);
+	OUT_RING  (0x802);
+	OUT_RING  (2);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEW_MATRIX_ENABLE, 1);
+	OUT_RING  (4);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_COLOR_MASK, 1);
+	OUT_RING  (0x01010101);
 
 	/* Set vertex component */
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_COL_4F_R, 4);
-	NVDmaFloat (pNv, 0.6);
-	NVDmaFloat (pNv, 0.4);
-	NVDmaFloat (pNv, 0.2);
-	NVDmaFloat (pNv, 1.0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_COL2_3F_R, 3);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_NOR_3F_X, 3);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0);
-	NVDmaFloat (pNv, 1.0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_TX0_4F_S, 4);
-	NVDmaFloat (pNv, 0.0);
-	NVDmaFloat (pNv, 0.0);
-	NVDmaFloat (pNv, 0.0);
-	NVDmaFloat (pNv, 1.0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_TX1_4F_S, 4);
-	NVDmaFloat (pNv, 0.0);
-	NVDmaFloat (pNv, 0.0);
-	NVDmaFloat (pNv, 0.0);
-	NVDmaFloat (pNv, 1.0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_FOG_1F, 1);
-	NVDmaFloat (pNv, 0.0);
-	NVDmaStart(pNv, Nv3D, NV10_TCL_PRIMITIVE_3D_EDGEFLAG_ENABLE, 1);
-	NVDmaNext (pNv, 1);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_COL_4F_R, 4);
+	OUT_RINGf (0.6);
+	OUT_RINGf (0.4);
+	OUT_RINGf (0.2);
+	OUT_RINGf (1.0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_COL2_3F_R, 3);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_NOR_3F_X, 3);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	OUT_RINGf (1.0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_TX0_4F_S, 4);
+	OUT_RINGf (0.0);
+	OUT_RINGf (0.0);
+	OUT_RINGf (0.0);
+	OUT_RINGf (1.0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_TX1_4F_S, 4);
+	OUT_RINGf (0.0);
+	OUT_RINGf (0.0);
+	OUT_RINGf (0.0);
+	OUT_RINGf (1.0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_FOG_1F, 1);
+	OUT_RINGf (0.0);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_EDGEFLAG_ENABLE, 1);
+	OUT_RING  (1);
 
 	return TRUE;
 }

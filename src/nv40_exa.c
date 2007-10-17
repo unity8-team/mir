@@ -187,24 +187,24 @@ NV40_LoadVtxProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	if (!shader->hw_id) {
 		shader->hw_id = next_hw_id;
 
-		NVDmaStart(pNv, Nv3D, NV40TCL_VP_UPLOAD_FROM_ID, 1);
-		NVDmaNext (pNv, (shader->hw_id));
+		BEGIN_RING(Nv3D, NV40TCL_VP_UPLOAD_FROM_ID, 1);
+		OUT_RING  ((shader->hw_id));
 		for (i=0; i<shader->size; i+=4) {
-			NVDmaStart(pNv, Nv3D, NV40TCL_VP_UPLOAD_INST(0), 4);
-			NVDmaNext (pNv, shader->data[i + 0]);
-			NVDmaNext (pNv, shader->data[i + 1]);
-			NVDmaNext (pNv, shader->data[i + 2]);
-			NVDmaNext (pNv, shader->data[i + 3]);
+			BEGIN_RING(Nv3D, NV40TCL_VP_UPLOAD_INST(0), 4);
+			OUT_RING  (shader->data[i + 0]);
+			OUT_RING  (shader->data[i + 1]);
+			OUT_RING  (shader->data[i + 2]);
+			OUT_RING  (shader->data[i + 3]);
 			next_hw_id++;
 		}
 	}
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_VP_START_FROM_ID, 1);
-	NVDmaNext (pNv, (shader->hw_id));
+	BEGIN_RING(Nv3D, NV40TCL_VP_START_FROM_ID, 1);
+	OUT_RING  ((shader->hw_id));
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_VP_ATTRIB_EN, 2);
-	NVDmaNext (pNv, shader->card_priv.NV30VP.vp_in_reg);
-	NVDmaNext (pNv, shader->card_priv.NV30VP.vp_out_reg);
+	BEGIN_RING(Nv3D, NV40TCL_VP_ATTRIB_EN, 2);
+	OUT_RING  (shader->card_priv.NV30VP.vp_in_reg);
+	OUT_RING  (shader->card_priv.NV30VP.vp_out_reg);
 }
 
 static void
@@ -235,11 +235,11 @@ NV40_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 		next_hw_id_offset = (next_hw_id_offset + 63) & ~63;
 	}
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_FP_ADDRESS, 1);
-	NVDmaNext (pNv, shader->hw_id | NV40TCL_FP_ADDRESS_DMA0);
+	BEGIN_RING(Nv3D, NV40TCL_FP_ADDRESS, 1);
+	OUT_RING  (shader->hw_id | NV40TCL_FP_ADDRESS_DMA0);
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_FP_CONTROL, 1);
-	NVDmaNext (pNv, shader->card_priv.NV30FP.num_regs <<
+	BEGIN_RING(Nv3D, NV40TCL_FP_CONTROL, 1);
+	OUT_RING  (shader->card_priv.NV30FP.num_regs <<
 			NV40TCL_FP_CONTROL_TEMP_COUNT_SHIFT);
 }
 
@@ -278,15 +278,15 @@ NV40_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 	}
 
 	if (sblend == SF(ONE) && dblend == DF(ZERO)) {
-		NVDmaStart(pNv, Nv3D, NV40TCL_BLEND_ENABLE, 1);
-		NVDmaNext (pNv, 0);
+		BEGIN_RING(Nv3D, NV40TCL_BLEND_ENABLE, 1);
+		OUT_RING  (0);
 	} else {
-		NVDmaStart(pNv, Nv3D, NV40TCL_BLEND_ENABLE, 5);
-		NVDmaNext (pNv, 1);
-		NVDmaNext (pNv, sblend);
-		NVDmaNext (pNv, dblend);
-		NVDmaNext (pNv, 0x00000000);
-		NVDmaNext (pNv, NV40TCL_BLEND_EQUATION_ALPHA_FUNC_ADD |
+		BEGIN_RING(Nv3D, NV40TCL_BLEND_ENABLE, 5);
+		OUT_RING  (1);
+		OUT_RING  (sblend);
+		OUT_RING  (dblend);
+		OUT_RING  (0x00000000);
+		OUT_RING  (NV40TCL_BLEND_EQUATION_ALPHA_FUNC_ADD |
 				NV40TCL_BLEND_EQUATION_RGB_FUNC_ADD);
 	}
 }
@@ -302,36 +302,36 @@ NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	if (!fmt)
 		return FALSE;
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_TEX_OFFSET(unit), 8);
-	NVDmaNext (pNv, NVAccelGetPixmapOffset(pPix));
-	NVDmaNext (pNv, fmt->card_fmt | NV40TCL_TEX_FORMAT_LINEAR |
+	BEGIN_RING(Nv3D, NV40TCL_TEX_OFFSET(unit), 8);
+	OUT_RING  (NVAccelGetPixmapOffset(pPix));
+	OUT_RING  (fmt->card_fmt | NV40TCL_TEX_FORMAT_LINEAR |
 			NV40TCL_TEX_FORMAT_DIMS_2D | NV40TCL_TEX_FORMAT_DMA0 |
 			NV40TCL_TEX_FORMAT_NO_BORDER | (0x8000) |
 			(1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT));
 	if (pPict->repeat && pPict->repeatType == RepeatNormal) {
-		NVDmaNext (pNv, NV40TCL_TEX_WRAP_S_REPEAT |
+		OUT_RING  (NV40TCL_TEX_WRAP_S_REPEAT |
 				NV40TCL_TEX_WRAP_T_REPEAT |
 				NV40TCL_TEX_WRAP_R_REPEAT);
 	} else {
-		NVDmaNext (pNv, NV40TCL_TEX_WRAP_S_CLAMP_TO_EDGE |
+		OUT_RING  (NV40TCL_TEX_WRAP_S_CLAMP_TO_EDGE |
 				NV40TCL_TEX_WRAP_T_CLAMP_TO_EDGE |
 				NV40TCL_TEX_WRAP_R_CLAMP_TO_EDGE);
 	}
-	NVDmaNext (pNv, NV40TCL_TEX_ENABLE_ENABLE);
-	NVDmaNext (pNv, fmt->card_swz);
+	OUT_RING  (NV40TCL_TEX_ENABLE_ENABLE);
+	OUT_RING  (fmt->card_swz);
 	if (pPict->filter == PictFilterBilinear) {
-		NVDmaNext (pNv, NV40TCL_TEX_FILTER_MIN_LINEAR |
+		OUT_RING  (NV40TCL_TEX_FILTER_MIN_LINEAR |
 				NV40TCL_TEX_FILTER_MAG_LINEAR |
 				0x3fd6);
 	} else {
-		NVDmaNext (pNv, NV40TCL_TEX_FILTER_MIN_NEAREST |
+		OUT_RING  (NV40TCL_TEX_FILTER_MIN_NEAREST |
 				NV40TCL_TEX_FILTER_MAG_NEAREST |
 				0x3fd6);
 	}
-	NVDmaNext (pNv, (pPix->drawable.width << 16) | pPix->drawable.height);
-	NVDmaNext (pNv, 0); /* border ARGB */
-	NVDmaStart(pNv, Nv3D, NV40TCL_TEX_SIZE1(unit), 1);
-	NVDmaNext (pNv, (1 << NV40TCL_TEX_SIZE1_DEPTH_SHIFT) |
+	OUT_RING  ((pPix->drawable.width << 16) | pPix->drawable.height);
+	OUT_RING  (0); /* border ARGB */
+	BEGIN_RING(Nv3D, NV40TCL_TEX_SIZE1(unit), 1);
+	OUT_RING  ((1 << NV40TCL_TEX_SIZE1_DEPTH_SHIFT) |
 			(uint32_t)exaGetPixmapPitch(pPix));
 
 	state->unit[unit].width		= (float)pPix->drawable.width;
@@ -355,12 +355,12 @@ NV40_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PictFormatShort format)
 
         uint32_t pitch = (uint32_t)exaGetPixmapPitch(pPix);
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_RT_FORMAT, 3);
-	NVDmaNext (pNv, NV40TCL_RT_FORMAT_TYPE_LINEAR |
+	BEGIN_RING(Nv3D, NV40TCL_RT_FORMAT, 3);
+	OUT_RING  (NV40TCL_RT_FORMAT_TYPE_LINEAR |
 			NV40TCL_RT_FORMAT_ZETA_Z24S8 | 
 			fmt->card_fmt);
-	NVDmaNext (pNv, pitch);
-	NVDmaNext (pNv, NVAccelGetPixmapOffset(pPix));
+	OUT_RING  (pitch);
+	OUT_RING  (NVAccelGetPixmapOffset(pPix));
 
 	return TRUE;
 }
@@ -473,13 +473,13 @@ NV40EXAPrepareComposite(int op, PicturePtr psPict,
 	/* Appears to be some kind of cache flush, needed here at least
 	 * sometimes.. funky text rendering otherwise :)
 	 */
-	NVDmaStart(pNv, Nv3D, NV40TCL_TEX_CACHE_CTL, 1);
-	NVDmaNext (pNv, 2);
-	NVDmaStart(pNv, Nv3D, NV40TCL_TEX_CACHE_CTL, 1);
-	NVDmaNext (pNv, 1);
+	BEGIN_RING(Nv3D, NV40TCL_TEX_CACHE_CTL, 1);
+	OUT_RING  (2);
+	BEGIN_RING(Nv3D, NV40TCL_TEX_CACHE_CTL, 1);
+	OUT_RING  (1);
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_BEGIN_END, 1);
-	NVDmaNext (pNv, NV40TCL_BEGIN_END_QUADS);
+	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
+	OUT_RING  (NV40TCL_BEGIN_END_QUADS);
 
 	return TRUE;
 }
@@ -507,17 +507,17 @@ NV40EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
 }
 
 #define CV_OUTm(sx,sy,mx,my,dx,dy) do {                                        \
-	NVDmaStart(pNv, Nv3D, NV40TCL_VTX_ATTR_2F_X(8), 4);                    \
-	NVDmaFloat(pNv, (sx)); NVDmaFloat(pNv, (sy));                          \
-	NVDmaFloat(pNv, (mx)); NVDmaFloat(pNv, (my));                          \
-	NVDmaStart(pNv, Nv3D, NV40TCL_VTX_ATTR_2I(0), 1);                      \
-	NVDmaNext (pNv, ((dy)<<16)|(dx));                                      \
+	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2F_X(8), 4);                    \
+	OUT_RINGf ((sx)); OUT_RINGf ((sy));                          \
+	OUT_RINGf ((mx)); OUT_RINGf ((my));                          \
+	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2I(0), 1);                      \
+	OUT_RING  (((dy)<<16)|(dx));                                      \
 } while(0)
 #define CV_OUT(sx,sy,dx,dy) do {                                               \
-	NVDmaStart(pNv, Nv3D, NV40TCL_VTX_ATTR_2F_X(8), 2);                    \
-	NVDmaFloat(pNv, (sx)); NVDmaFloat(pNv, (sy));                          \
-	NVDmaStart(pNv, Nv3D, NV40TCL_VTX_ATTR_2I(0), 1);                      \
-	NVDmaNext (pNv, ((dy)<<16)|(dx));                                      \
+	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2F_X(8), 2);                    \
+	OUT_RINGf ((sx)); OUT_RINGf ((sy));                          \
+	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2I(0), 1);                      \
+	OUT_RING  (((dy)<<16)|(dx));                                      \
 } while(0)
 
 void
@@ -559,7 +559,7 @@ NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 		CV_OUT(sX0 , sY1 , dstX        , dstY + height);
 	}
 
-	NVDmaKickoff(pNv);
+	FIRE_RING();
 }
 
 void
@@ -568,8 +568,8 @@ NV40EXADoneComposite(PixmapPtr pdPix)
 	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_BEGIN_END, 1);
-	NVDmaNext (pNv, NV40TCL_BEGIN_END_STOP);
+	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
+	OUT_RING  (NV40TCL_BEGIN_END_STOP);
 }
 
 #define NV40TCL_CHIPSET_4X_MASK 0x00000baf
@@ -605,101 +605,101 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 		have_object = TRUE;
 	}
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_DMA_NOTIFY, 1);
-	NVDmaNext (pNv, NvDmaNotifier0);
-	NVDmaStart(pNv, Nv3D, NV40TCL_DMA_TEXTURE0, 1);
-	NVDmaNext (pNv, NvDmaFB);
-	NVDmaStart(pNv, Nv3D, NV40TCL_DMA_COLOR0, 2);
-	NVDmaNext (pNv, NvDmaFB);
-	NVDmaNext (pNv, NvDmaFB);
+	BEGIN_RING(Nv3D, NV40TCL_DMA_NOTIFY, 1);
+	OUT_RING  (NvDmaNotifier0);
+	BEGIN_RING(Nv3D, NV40TCL_DMA_TEXTURE0, 1);
+	OUT_RING  (NvDmaFB);
+	BEGIN_RING(Nv3D, NV40TCL_DMA_COLOR0, 2);
+	OUT_RING  (NvDmaFB);
+	OUT_RING  (NvDmaFB);
 
 	/* voodoo */
-	NVDmaStart(pNv, Nv3D, 0x1ea4, 3);
-	NVDmaNext(pNv, 0x00000010);
-	NVDmaNext(pNv, 0x01000100);
-	NVDmaNext(pNv, 0xff800006);
-	NVDmaStart(pNv, Nv3D, 0x1fc4, 1);
-	NVDmaNext(pNv, 0x06144321);
-	NVDmaStart(pNv, Nv3D, 0x1fc8, 2);
-	NVDmaNext(pNv, 0xedcba987);
-	NVDmaNext(pNv, 0x00000021);
-	NVDmaStart(pNv, Nv3D, 0x1fd0, 1);
-	NVDmaNext(pNv, 0x00171615);
-	NVDmaStart(pNv, Nv3D, 0x1fd4, 1);
-	NVDmaNext(pNv, 0x001b1a19);
-	NVDmaStart(pNv, Nv3D, 0x1ef8, 1);
-	NVDmaNext(pNv, 0x0020ffff);
-	NVDmaStart(pNv, Nv3D, 0x1d64, 1);
-	NVDmaNext(pNv, 0x00d30000);
-	NVDmaStart(pNv, Nv3D, 0x1e94, 1);
-	NVDmaNext(pNv, 0x00000001);
+	BEGIN_RING(Nv3D, 0x1ea4, 3);
+	OUT_RING  (0x00000010);
+	OUT_RING  (0x01000100);
+	OUT_RING  (0xff800006);
+	BEGIN_RING(Nv3D, 0x1fc4, 1);
+	OUT_RING  (0x06144321);
+	BEGIN_RING(Nv3D, 0x1fc8, 2);
+	OUT_RING  (0xedcba987);
+	OUT_RING  (0x00000021);
+	BEGIN_RING(Nv3D, 0x1fd0, 1);
+	OUT_RING  (0x00171615);
+	BEGIN_RING(Nv3D, 0x1fd4, 1);
+	OUT_RING  (0x001b1a19);
+	BEGIN_RING(Nv3D, 0x1ef8, 1);
+	OUT_RING  (0x0020ffff);
+	BEGIN_RING(Nv3D, 0x1d64, 1);
+	OUT_RING  (0x00d30000);
+	BEGIN_RING(Nv3D, 0x1e94, 1);
+	OUT_RING  (0x00000001);
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_VIEWPORT_TRANSLATE_X, 8);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 1.0);
-	NVDmaFloat(pNv, 1.0);
-	NVDmaFloat(pNv, 1.0);
-	NVDmaFloat(pNv, 0.0);
+	BEGIN_RING(Nv3D, NV40TCL_VIEWPORT_TRANSLATE_X, 8);
+	OUT_RINGf (0.0);
+	OUT_RINGf (0.0);
+	OUT_RINGf (0.0);
+	OUT_RINGf (0.0);
+	OUT_RINGf (1.0);
+	OUT_RINGf (1.0);
+	OUT_RINGf (1.0);
+	OUT_RINGf (0.0);
 
 	/* default 3D state */
 	/*XXX: replace with the same state that the DRI emits on startup */
-	NVDmaStart(pNv, Nv3D, NV40TCL_STENCIL_FRONT_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV40TCL_STENCIL_BACK_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV40TCL_ALPHA_TEST_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV40TCL_DEPTH_WRITE_ENABLE, 2);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, 0); 
-	NVDmaStart(pNv, Nv3D, NV40TCL_COLOR_MASK, 1);
-	NVDmaNext (pNv, 0x01010101); /* TR,TR,TR,TR */
-	NVDmaStart(pNv, Nv3D, NV40TCL_CULL_FACE_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV40TCL_BLEND_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV40TCL_COLOR_LOGIC_OP_ENABLE, 2);
-	NVDmaNext (pNv, 0);
-	NVDmaNext (pNv, NV40TCL_COLOR_LOGIC_OP_COPY);
-	NVDmaStart(pNv, Nv3D, NV40TCL_DITHER_ENABLE, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, Nv3D, NV40TCL_SHADE_MODEL, 1);
-	NVDmaNext (pNv, NV40TCL_SHADE_MODEL_SMOOTH);
-	NVDmaStart(pNv, Nv3D, NV40TCL_POLYGON_OFFSET_FACTOR,2);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaFloat(pNv, 0.0);
-	NVDmaStart(pNv, Nv3D, NV40TCL_POLYGON_MODE_FRONT, 2);
-	NVDmaNext (pNv, NV40TCL_POLYGON_MODE_FRONT_FILL);
-	NVDmaNext (pNv, NV40TCL_POLYGON_MODE_BACK_FILL);
-	NVDmaStart(pNv, Nv3D, NV40TCL_POLYGON_STIPPLE_PATTERN(0), 0x20);
+	BEGIN_RING(Nv3D, NV40TCL_STENCIL_FRONT_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV40TCL_STENCIL_BACK_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV40TCL_ALPHA_TEST_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV40TCL_DEPTH_WRITE_ENABLE, 2);
+	OUT_RING  (0);
+	OUT_RING  (0); 
+	BEGIN_RING(Nv3D, NV40TCL_COLOR_MASK, 1);
+	OUT_RING  (0x01010101); /* TR,TR,TR,TR */
+	BEGIN_RING(Nv3D, NV40TCL_CULL_FACE_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV40TCL_BLEND_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV40TCL_COLOR_LOGIC_OP_ENABLE, 2);
+	OUT_RING  (0);
+	OUT_RING  (NV40TCL_COLOR_LOGIC_OP_COPY);
+	BEGIN_RING(Nv3D, NV40TCL_DITHER_ENABLE, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV40TCL_SHADE_MODEL, 1);
+	OUT_RING  (NV40TCL_SHADE_MODEL_SMOOTH);
+	BEGIN_RING(Nv3D, NV40TCL_POLYGON_OFFSET_FACTOR,2);
+	OUT_RINGf (0.0);
+	OUT_RINGf (0.0);
+	BEGIN_RING(Nv3D, NV40TCL_POLYGON_MODE_FRONT, 2);
+	OUT_RING  (NV40TCL_POLYGON_MODE_FRONT_FILL);
+	OUT_RING  (NV40TCL_POLYGON_MODE_BACK_FILL);
+	BEGIN_RING(Nv3D, NV40TCL_POLYGON_STIPPLE_PATTERN(0), 0x20);
 	for (i=0;i<0x20;i++)
-		NVDmaNext(pNv, 0xFFFFFFFF);
+		OUT_RING  (0xFFFFFFFF);
 	for (i=0;i<16;i++) {
-		NVDmaStart(pNv, Nv3D, NV40TCL_TEX_ENABLE(i), 1);
-		NVDmaNext(pNv, 0);
+		BEGIN_RING(Nv3D, NV40TCL_TEX_ENABLE(i), 1);
+		OUT_RING  (0);
 	}
 
-	NVDmaStart(pNv, Nv3D, 0x1d78, 1);
-	NVDmaNext (pNv, 0x110);
+	BEGIN_RING(Nv3D, 0x1d78, 1);
+	OUT_RING  (0x110);
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_RT_ENABLE, 1);
-	NVDmaNext (pNv, NV40TCL_RT_ENABLE_COLOR0);
+	BEGIN_RING(Nv3D, NV40TCL_RT_ENABLE, 1);
+	OUT_RING  (NV40TCL_RT_ENABLE_COLOR0);
 
-	NVDmaStart(pNv, Nv3D, NV40TCL_RT_HORIZ, 2);
-	NVDmaNext (pNv, (4096 << 16));
-	NVDmaNext (pNv, (4096 << 16));
-	NVDmaStart(pNv, Nv3D, NV40TCL_SCISSOR_HORIZ, 2);
-	NVDmaNext (pNv, (4096 << 16));
-	NVDmaNext (pNv, (4096 << 16));
-	NVDmaStart(pNv, Nv3D, NV40TCL_VIEWPORT_HORIZ, 2);
-	NVDmaNext (pNv, (4096 << 16));
-	NVDmaNext (pNv, (4096 << 16));
-	NVDmaStart(pNv, Nv3D, NV40TCL_VIEWPORT_CLIP_HORIZ(0), 2);
-	NVDmaNext (pNv, (4095 << 16));
-	NVDmaNext (pNv, (4095 << 16));
+	BEGIN_RING(Nv3D, NV40TCL_RT_HORIZ, 2);
+	OUT_RING  ((4096 << 16));
+	OUT_RING  ((4096 << 16));
+	BEGIN_RING(Nv3D, NV40TCL_SCISSOR_HORIZ, 2);
+	OUT_RING  ((4096 << 16));
+	OUT_RING  ((4096 << 16));
+	BEGIN_RING(Nv3D, NV40TCL_VIEWPORT_HORIZ, 2);
+	OUT_RING  ((4096 << 16));
+	OUT_RING  ((4096 << 16));
+	BEGIN_RING(Nv3D, NV40TCL_VIEWPORT_CLIP_HORIZ(0), 2);
+	OUT_RING  ((4095 << 16));
+	OUT_RING  ((4095 << 16));
 
 	return TRUE;
 }

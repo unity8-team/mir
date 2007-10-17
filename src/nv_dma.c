@@ -2,7 +2,7 @@
 #include "nv_include.h"
 #include "nvreg.h"
 
-void NVDmaKickoff(NVPtr pNv)
+void NVDmaKickoffNNN(NVPtr pNv)
 {
 	if(pNv->dmaCurrent != pNv->dmaPut) {
 		pNv->dmaPut = pNv->dmaCurrent;
@@ -12,13 +12,13 @@ void NVDmaKickoff(NVPtr pNv)
 
 void NVDmaKickoffCallback(NVPtr pNv)
 {
-	NVDmaKickoff(pNv);
+	FIRE_RING();
 	pNv->DMAKickoffCallback = NULL;
 }
 
 static uint32_t subchannels[8];
 
-void NVDmaStart(NVPtr pNv, uint32_t object, uint32_t tag, int size)
+void NVDmaStartNNN(NVPtr pNv, uint32_t object, uint32_t tag, int size)
 {
 	int subchannel=-1;
 	int i;
@@ -38,7 +38,7 @@ void NVDmaStart(NVPtr pNv, uint32_t object, uint32_t tag, int size)
 
 	/* add 2 for the potential subchannel binding */
 	if((pNv)->dmaFree <= (size + 2))
-		NVDmaWait(pScrn, size + 2);
+		WAIT_RING(size + 2);
 
 	if (subchannel==-1)
 	{
@@ -46,12 +46,12 @@ void NVDmaStart(NVPtr pNv, uint32_t object, uint32_t tag, int size)
 		subchannel=rand()%8;
 		subchannels[subchannel]=object;
 		NVDEBUG("Bind object %x on subchannel %d\n", (object), (subchannel));
-		NVDmaNext(pNv, (1<<18) | (subchannel<<13));
-		NVDmaNext(pNv,object);
+		OUT_RING  ((1<<18) | (subchannel<<13));
+		OUT_RING  (object);
 		pNv->dmaFree -= (2);
 	}
-	NVDEBUG("NVDmaStart: subc=%d, cmd=%x, num=%d\n", (subchannel), (tag), (size));
-	NVDmaNext(pNv, ((size) << 18) | ((subchannel) << 13) | (tag));
+	NVDEBUG("BEGIN_RING: subc=%d, cmd=%x, num=%d\n", (subchannel), (tag), (size));
+	OUT_RING  (((size) << 18) | ((subchannel) << 13) | (tag));
 	pNv->dmaFree -= ((size) + 1); 
 }
 
@@ -63,7 +63,7 @@ void NVDmaStart(NVPtr pNv, uint32_t object, uint32_t tag, int size)
  */
 #define SKIPS  8
 
-void NVDmaWait (ScrnInfoPtr pScrn, int size)
+void NVDmaWaitNNN(ScrnInfoPtr pScrn, int size)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int t_start;
@@ -78,7 +78,7 @@ void NVDmaWait (ScrnInfoPtr pScrn, int size)
 		if(pNv->dmaPut >= dmaGet) {
 			pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
 			if(pNv->dmaFree < size) {
-				NVDmaNext(pNv, (0x20000000|pNv->fifo.put_base));
+				OUT_RING  ((0x20000000|pNv->fifo.put_base));
 				if(dmaGet <= SKIPS) {
 					if(pNv->dmaPut <= SKIPS) /* corner case - will be idle */
 						WRITE_PUT(pNv, SKIPS + 1);
@@ -150,11 +150,11 @@ void NVSync(ScrnInfoPtr pScrn)
 
 	/* Wait for channel to go completely idle */
 	NVNotifierReset(pScrn, pNv->Notifier0);
-	NVDmaStart(pNv, grobj, 0x104, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaStart(pNv, grobj, 0x100, 1);
-	NVDmaNext (pNv, 0);
-	NVDmaKickoff(pNv);
+	BEGIN_RING(grobj, 0x104, 1);
+	OUT_RING  (0);
+	BEGIN_RING(grobj, 0x100, 1);
+	OUT_RING  (0);
+	FIRE_RING();
 	if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, timeout))
 		NVLockedUp(pScrn);
 }
@@ -170,9 +170,9 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 
 	/* assert there's enough room for the skips */
 	if(pNv->dmaFree <= SKIPS)
-		NVDmaWait(pScrn, SKIPS); 
+		WAIT_RING(SKIPS); 
 	for (i=0; i<SKIPS; i++) {
-		NVDmaNext(pNv,0);
+		OUT_RING(0);
 		pNv->dmaBase[i]=0;
 	}
 	pNv->dmaFree -= SKIPS;
@@ -292,7 +292,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 	pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
 
 	for (i=0; i<SKIPS; i++)
-		NVDmaNext(pNv,0);
+		OUT_RING(0);
 	pNv->dmaFree -= SKIPS;
 
 	return TRUE;

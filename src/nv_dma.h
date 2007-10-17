@@ -73,20 +73,30 @@ enum DMAObjects {
 	NvDmaXvNotifier5	= 0xE8000005,
 };
 
-extern void NVDmaStart(NVPtr pNv, uint32_t object, uint32_t tag, int size);
+extern void NVDmaStartNNN(NVPtr pNv, uint32_t object, uint32_t tag, int size);
 
-#define NVDmaNext(pNv, data) do {                        \
-	NVDEBUG("\tNVDmaNext: @0x%08x  0x%08x\n", (unsigned)((pNv)->dmaCurrent),(unsigned)(data));           \
-	(pNv)->dmaBase[(pNv)->dmaCurrent++] = (data);       \
+#define BEGIN_RING(obj,mthd,size) do {                                         \
+	NVDmaStartNNN(pNv, (obj), (mthd), (size));                             \
 } while(0)
 
-#define NVDmaFloat(pNv, data) do { \
-	union {                    \
-		float v;           \
-		uint32_t u;        \
-	} c;                       \
-	c.v = (data);              \
-	NVDmaNext((pNv), c.u);     \
+#define OUT_RING(data) do {                                                    \
+	NVDEBUG("\tOUT_RING  : @0x%08x  0x%08x\n",                             \
+		(unsigned)(pNv->dmaCurrent), (unsigned)(data));                \
+	pNv->dmaBase[pNv->dmaCurrent++] = (data);                              \
+} while(0)
+
+#define OUT_RINGf(data) do {                                                   \
+	union { float v; uint32_t u; } c;                                      \
+	c.v = (data);                                                          \
+	OUT_RING(c.u);                                                         \
+} while(0)
+
+#define WAIT_RING(size) do {                                                   \
+	NVDmaWaitNNN(pScrn, (size));                                           \
+} while(0)
+
+#define FIRE_RING() do {                                                       \
+	NVDmaKickoffNNN(pNv);                                                  \
 } while(0)
 
 #endif /* NV_DMA_H */
