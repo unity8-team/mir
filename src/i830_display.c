@@ -1025,6 +1025,14 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     if (!ok)
 	FatalError("Couldn't find PLL settings for mode!\n");
 
+    if (fabs(adjusted_mode->Clock - clock.dot) / clock.dot > .02) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Chosen PLL clock of %.1f Mhz more than 2%% away from "
+		   "desired %.1f Mhz\n",
+		   (float)clock.dot / 1000,
+		   (float)adjusted_mode->Clock / 1000);
+    }
+
     fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
 
     dpll = DPLL_VGA_MODE_DIS;
