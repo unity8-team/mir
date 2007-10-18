@@ -383,14 +383,6 @@ case.  This is only useful for LVDS panels (laptop internal panels).
 The default is
 .B on.
 .TP
-.BI "Option \*qLVDSBiosNativeMode\*q \*q" boolean \*q
-On some laptops, the LVDS mode from the timing tables in the bios does 
-not work properly.  In those cases, a CVT mode seems to work better.  
-If you get a blank screen or have LVDS display problems, disable this 
-option to use a CVT mode.  
-The default is
-.B on.
-.TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
 Enable DRI support.  This option allows you to enable to disable the DRI.  
 The default is

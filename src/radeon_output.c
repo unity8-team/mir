@@ -2450,15 +2450,6 @@ RADEONGetLVDSInfo (xf86OutputPtr output)
 	}
     }
 
-    info->LVDSBiosNativeMode = TRUE;
-    if (!xf86ReturnOptValBool(info->Options, OPTION_LVDS_BIOS_NATIVE_MODE, TRUE)) {
-	info->LVDSBiosNativeMode = FALSE;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using CVT mode for LVDS\n");
-    } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using LVDS Native Mode\n");
-    }
-
-
     /* The panel size we collected from BIOS may not be the
      * maximum size supported by the panel.  If not, we update
      * it now.  These will be used if no matching mode can be

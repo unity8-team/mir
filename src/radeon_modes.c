@@ -104,29 +104,22 @@ static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 	radeon_output->PanelYRes != 0 &&
 	radeon_output->DotClock != 0) {
 
-	if (info->LVDSBiosNativeMode) {
-	    new             = xnfcalloc(1, sizeof (DisplayModeRec));
-	    sprintf(stmp, "%dx%d", radeon_output->PanelXRes, radeon_output->PanelYRes);
-	    new->name       = xnfalloc(strlen(stmp) + 1);
-	    strcpy(new->name, stmp);
-	    new->HDisplay   = radeon_output->PanelXRes;
-	    new->VDisplay   = radeon_output->PanelYRes;
+	new             = xnfcalloc(1, sizeof (DisplayModeRec));
+	sprintf(stmp, "%dx%d", radeon_output->PanelXRes, radeon_output->PanelYRes);
+	new->name       = xnfalloc(strlen(stmp) + 1);
+	strcpy(new->name, stmp);
+	new->HDisplay   = radeon_output->PanelXRes;
+	new->VDisplay   = radeon_output->PanelYRes;
 
-	    new->HTotal     = new->HDisplay + radeon_output->HBlank;
-	    new->HSyncStart = new->HDisplay + radeon_output->HOverPlus;
-	    new->HSyncEnd   = new->HSyncStart + radeon_output->HSyncWidth;
-	    new->VTotal     = new->VDisplay + radeon_output->VBlank;
-	    new->VSyncStart = new->VDisplay + radeon_output->VOverPlus;
-	    new->VSyncEnd   = new->VSyncStart + radeon_output->VSyncWidth;
+	new->HTotal     = new->HDisplay + radeon_output->HBlank;
+	new->HSyncStart = new->HDisplay + radeon_output->HOverPlus;
+	new->HSyncEnd   = new->HSyncStart + radeon_output->HSyncWidth;
+	new->VTotal     = new->VDisplay + radeon_output->VBlank;
+	new->VSyncStart = new->VDisplay + radeon_output->VOverPlus;
+	new->VSyncEnd   = new->VSyncStart + radeon_output->VSyncWidth;
 
-	    new->Clock      = radeon_output->DotClock;
-	    new->Flags      = 0;
-
-	} else {
-	    /* Add native panel size */
-	    new = xf86CVTMode(radeon_output->PanelXRes, radeon_output->PanelYRes, 60.0, FALSE, FALSE);
-
-	}
+	new->Clock      = radeon_output->DotClock;
+	new->Flags      = 0;
 
 	if (new) {
 	    new->type       = M_T_DRIVER | M_T_PREFERRED;
