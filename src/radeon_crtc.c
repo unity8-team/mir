@@ -802,10 +802,11 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 #ifdef XF86DRI
 	if (info->directRenderingEnabled && (info->tilingEnabled != tilingOld)) {
 	    RADEONSAREAPrivPtr pSAREAPriv;
-	  if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_SWITCH_TILING, (info->tilingEnabled ? 1 : 0)) < 0)
-	      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			 "[drm] failed changing tiling status\n");
-	    pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+	    if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_SWITCH_TILING, (info->tilingEnabled ? 1 : 0)) < 0)
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[drm] failed changing tiling status\n");
+	    /* if this is called during ScreenInit() we don't have pScrn->pScreen yet */
+	    pSAREAPriv = DRIGetSAREAPrivate(screenInfo.screens[pScrn->scrnIndex]);
 	    info->tilingEnabled = pSAREAPriv->tiling_enabled ? TRUE : FALSE;
 	}
 #endif
@@ -911,9 +912,12 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
     if (info->tilingEnabled != tilingOld) {
 	/* need to redraw front buffer, I guess this can be considered a hack ? */
-	xf86EnableDisableFBAccess(pScrn->scrnIndex, FALSE);
+	/* if this is called during ScreenInit() we don't have pScrn->pScreen yet */
+	if (pScrn->pScreen)
+	    xf86EnableDisableFBAccess(pScrn->scrnIndex, FALSE);
 	RADEONChangeSurfaces(pScrn);
-	xf86EnableDisableFBAccess(pScrn->scrnIndex, TRUE);
+	if (pScrn->pScreen)
+	    xf86EnableDisableFBAccess(pScrn->scrnIndex, TRUE);
 	/* xf86SetRootClip would do, but can't access that here */
     }
 
