@@ -4,12 +4,14 @@ library "examples/sort.5c";
 import Sort;
 
 int width = 1000, height = 200;
-
+int min_vco = 1400000000;
+int max_vco = 2800000000;
 int min = 0xffffffff;
 int max = 0;
 
 int max_clocks = 1000;
 int[4][max_clocks] clocks;
+int[4][max_clocks] vcos;
 int[4] clock_count = {0...};
 
 int[4] p2vals = {5,10,7,14};
@@ -49,8 +51,7 @@ void calc_p2(int p2i)
 						continue;
 					if (m2 > m1)
 						continue; /* won't happen */
-					if (vco < 1400000000 ||
-					    vco > 2800000000)
+					if (vco < min_vco || vco > max_vco)
 						continue;
 
 /*
@@ -61,6 +62,7 @@ void calc_p2(int p2i)
 */
 
 					clocks[p2i][clock_count[p2i]] = clock;
+					vcos[p2i][clock_count[p2i]] = vco;
 					clock_count[p2i]++;
 				}
 			}
@@ -88,6 +90,9 @@ real scale_x(real clock)
 for (p2i = 0; p2i < dim(p2vals); p2i++) {
 	int p2 = p2vals[p2i]; 
 	calc_p2(p2i);
+	real row_y1 = (p2i + 1) / (dim(p2vals) + 1) * height;
+	real row_y2 = p2i / (dim(p2vals) + 1) * height;
+
 	/*qsort(&p2vals[p2i], sort_p2);*/
 
 	switch (p2) {
@@ -104,6 +109,8 @@ for (p2i = 0; p2i < dim(p2vals); p2i++) {
 		set_source_rgb(cr, 0,0,0);
 		break;
 	}
+
+	/* draw the line for the clock */
 	for (int i = 0; i < clock_count[p2i]; i++) {
 		int clock = clocks[p2i][i];
 		real xpos;
@@ -112,8 +119,27 @@ for (p2i = 0; p2i < dim(p2vals); p2i++) {
 			continue;
 
 		xpos = scale_x(clock);
-		move_to(cr, xpos, p2i / (dim(p2vals) + 1) * height);
-		line_to(cr, xpos, (p2i + 1) / (dim(p2vals) + 1) * height);
+		move_to(cr, xpos, row_y1);
+		line_to(cr, xpos, row_y2);
+		stroke(cr);
+	}
+
+	set_source_rgb(cr, 1, 1, 1);
+	/* add a mark for the vco value of the clocks at each location */
+	for (int i = 0; i < clock_count[p2i]; i++) {
+		int clock = clocks[p2i][i];
+		int vco = vcos[p2i][i];
+		real mark_center;
+
+		if (clock < min_rate || clock > max_rate)
+			continue;
+
+		real xpos = scale_x(clock);
+		real vcofrac = (vco - min_vco) / (max_vco - min_vco);
+		real mark_height = (row_y1 + vcofrac * (row_y2 - row_y1));
+
+		move_to(cr, xpos, mark_height - 1);
+		line_to(cr, xpos, mark_height + 1);
 		stroke(cr);
 	}
 
