@@ -103,11 +103,8 @@ void NVOutputWriteTMDS(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
 	int ramdac;
 
 	/* Is TMDS programmed on a different output? */
-	if (pNv->crosswired_tmds) {
-		ramdac = (~(nv_output->ramdac)) & 1;
-	} else {
-		ramdac = nv_output->ramdac;
-	}
+	/* Always choose the prefered ramdac, since that one contains the tmds stuff */
+	ramdac = nv_output->prefered_ramdac;
 
 	NVWriteTMDS(pNv, ramdac, tmds_reg, val);
 }
@@ -120,11 +117,8 @@ CARD8 NVOutputReadTMDS(xf86OutputPtr output, CARD32 tmds_reg)
 	int ramdac;
 
 	/* Is TMDS programmed on a different output? */
-	if (pNv->crosswired_tmds) {
-		ramdac = (~(nv_output->ramdac)) & 1;
-	} else {
-		ramdac = nv_output->ramdac;
-	}
+	/* Always choose the prefered ramdac, since that one contains the tmds stuff */
+	ramdac = nv_output->prefered_ramdac;
 
 	return NVReadTMDS(pNv, ramdac, tmds_reg);
 }
@@ -236,7 +230,7 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 	}
 }
 
-int tmds_regs[] = { 0x2, 0x4, 0x2b };
+int tmds_regs[] = { 0x4 };
 
 void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 {
@@ -263,9 +257,9 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	}
 	regp->nv10_cursync = NVOutputReadRAMDAC(output, NV_RAMDAC_NV10_CURSYNC);
 
-	//for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
-	//	regp->TMDS[tmds_regs[i]] = NVOutputReadTMDS(output, tmds_regs[i]);
-	//}
+	for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
+		regp->TMDS[tmds_regs[i]] = NVOutputReadTMDS(output, tmds_regs[i]);
+	}
 
 	if (nv_output->type == OUTPUT_DIGITAL) {
 
@@ -311,9 +305,9 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL, regp->general);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
 
-	//for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
-	//	NVOutputWriteTMDS(output, tmds_regs[i], regp->TMDS[tmds_regs[i]]);
-	//}
+	for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
+		NVOutputWriteTMDS(output, tmds_regs[i], regp->TMDS[tmds_regs[i]]);
+	}
 
 	if (nv_output->type == OUTPUT_DIGITAL) {
 
@@ -340,30 +334,45 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 static void
 nv_output_save (xf86OutputPtr output)
 {
-    ScrnInfoPtr	pScrn = output->scrn;
-    NVPtr pNv = NVPTR(pScrn);
-    RIVA_HW_STATE *state;
+	ScrnInfoPtr	pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	RIVA_HW_STATE *state;
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	int ramdac_backup = nv_output->ramdac;
 
 	ErrorF("nv_output_save is called\n");
 
-    state = &pNv->SavedReg;
-  
-    nv_output_save_state_ext(output, state);    
-  
+	/* This is early init and we have not yet been assigned a ramdac */
+	nv_output->ramdac = nv_output->prefered_ramdac;
+
+	state = &pNv->SavedReg;
+
+	nv_output_save_state_ext(output, state);
+
+	/* restore previous state */
+	nv_output->ramdac = ramdac_backup;
 }
 
 static void
 nv_output_restore (xf86OutputPtr output)
 {
-    ScrnInfoPtr	pScrn = output->scrn;
-    NVPtr pNv = NVPTR(pScrn);
-    RIVA_HW_STATE *state;
+	ScrnInfoPtr	pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	RIVA_HW_STATE *state;
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	int ramdac_backup = nv_output->ramdac;
 
 	ErrorF("nv_output_restore is called\n");
 
-    state = &pNv->SavedReg;
-  
-    nv_output_load_state_ext(output, state);
+	/* We want consistent mode restoring and the ramdac entry is variable */
+	nv_output->ramdac = nv_output->prefered_ramdac;
+
+	state = &pNv->SavedReg;
+
+	nv_output_load_state_ext(output, state);
+
+	/* restore previous state */
+	nv_output->ramdac = ramdac_backup;
 }
 
 static int
@@ -575,7 +584,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	}
 
 	/* We must ensure that we never disable the wrong tmds control */
-	if (pNv->crosswired_tmds) {
+	if (nv_output->ramdac != nv_output->prefered_ramdac) {
 		if (is_fp) {
 			regp2->debug_0 &= ~NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
 		} else {
@@ -593,11 +602,13 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 
 	/* This is just a guess, there are probably more registers which need setting */
 	/* But we must start somewhere ;-) */
-	//if (is_fp) {
-	//	regp->TMDS[0x2] = 0x29;
-	//	regp->TMDS[0x4] = 0x80;
-	//	regp->TMDS[0x2b] = 0x7f;
-	//}
+	if (is_fp) {
+		regp->TMDS[0x4] = 0x80;
+		/* Enable crosswired mode */
+		if (nv_output->ramdac != nv_output->prefered_ramdac) {
+			regp->TMDS[0x4] |= (1 << 3);
+		}
+	}
 
 	/* Flatpanel support needs at least a NV10 */
 	if(pNv->twoHeads) {
@@ -777,10 +788,11 @@ nv_analog_output_detect(xf86OutputPtr output)
     if (nv_ddc_detect(output))
 	return XF86OutputStatusConnected;
 
-    /* seems a bit flaky on ramdac 1 */
-    if ((nv_output->ramdac==0) && nv_crt_load_detect(output))
-	return XF86OutputStatusConnected;
-    
+	/* Disabled for now, since we don't actually have a ramdac yet and i need time to figure out a nice way to do this ;-) */
+	/* seems a bit flaky on ramdac 1 */
+	//if ((nv_output->ramdac==0) && nv_crt_load_detect(output))
+		//return XF86OutputStatusConnected;
+
     return XF86OutputStatusDisconnected;
 }
 
@@ -832,6 +844,25 @@ static void
 nv_output_prepare(xf86OutputPtr output)
 {
 	ErrorF("nv_output_prepare is called\n");
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr	pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (nv_output->ramdac_assigned) {
+		return;
+	}
+
+	/* This may cause problems if later on ramdac 0 is disabled */
+	/* Select ramdac */
+	if (pNv->ramdac_count) {
+		pNv->ramdac_count = 2;
+		nv_output->ramdac = 1;
+	} else {
+		pNv->ramdac_count = 1;
+		nv_output->ramdac = 0;
+	}
+
+	nv_output->ramdac_assigned = TRUE;
 }
 
 static void
@@ -905,14 +936,14 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 };
 
 
-static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index, Bool dvi_pair)
+static void nv_add_analog_output(ScrnInfoPtr pScrn, int index, int i2c_index, Bool dvi_pair)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
-	int crtc_num = i2c_index;
 	int crtc_mask = (1<<0) | (1<<1);
+	int real_index;
 
 	sprintf(outputname, "Analog-%d", pNv->analog_count);
 	output = xf86OutputCreate (pScrn, &nv_analog_output_funcs, outputname);
@@ -929,56 +960,32 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index, Bool dvi_pair
 
 	/* dvi outputs share their i2c port with their analog output on the same port */
 	/* But they can never work at the same time, so it's convient to share ramdac index */
-	//nv_output->ramdac = i2c_index;
+	nv_output->prefered_ramdac = index;
 
-	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
+	/* Is anyone crosswired?, pick the other index */
+	if (pNv->output_info & OUTPUT_0_CROSSWIRED_TMDS || 
+		pNv->output_info & OUTPUT_1_CROSSWIRED_TMDS) {
+
+		real_index = (~index) & 1; 
+	} else {
+		real_index = index;
+	}
+
+	nv_output->pDDCBus = pNv->pI2CBus[real_index];
 
 	output->possible_crtcs = crtc_mask;
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 
 	pNv->analog_count++;
-
-	/* Are we part of a dvi-d/dvi-a pair? */
-	if (pNv->ramdac_occupied[0] && dvi_pair) {
-		nv_output->ramdac = 0;
-		ErrorF("DVI-D/DVI-A pair on ramdac0\n");
-		return;
-	}
-
-	/* Are we part of a dvi-d/dvi-a pair? */
-	if (pNv->ramdac_occupied[1] && dvi_pair) {
-		nv_output->ramdac = 1;
-		ErrorF("DVI-D/DVI-A pair on ramdac1\n");
-		return;
-	}
-
-	/* Are we not a digital monitor? */
-	if (!(pNv->ramdac_occupied[0]) && !(nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED)) {
-		nv_output->ramdac = 0;
-		pNv->ramdac_occupied[0] = TRUE;
-		ErrorF("CRT active on ramdac0\n");
-		return;
-	}
-
-	/* Are we not a digital monitor? */
-	if (!(pNv->ramdac_occupied[1]) && !(nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED)) {
-		nv_output->ramdac = 1;
-		pNv->ramdac_occupied[1] = TRUE;
-		ErrorF("CRT active on ramdac1\n");
-		return;
-	}
-
-	ErrorF("Something wen't wrong, found no ramdac for analog monitor\n");
 }
 
 
-static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index, Bool dual_dvi, int lvds)
+static void nv_add_digital_output(ScrnInfoPtr pScrn, int index, int i2c_index, Bool dual_dvi, int lvds)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
-	int crtc_num = i2c_index;
 	int crtc_mask = (1<<0) | (1<<1);
 
 	sprintf(outputname, "Digital-%d", pNv->digital_count);
@@ -997,65 +1004,45 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int i2c_index, Bool dual_dv
 	output->driver_private = nv_output;
 	nv_output->type = OUTPUT_DIGITAL;
 
-	//nv_output->ramdac = i2c_index;
+	nv_output->prefered_ramdac = index;
 
-	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
+	/* Sorry, i don't know what to do with lvds */
+	if (!lvds) {
+		int real_index;
+		/* Is anyone crosswired?, pick the other index */
+		if (pNv->output_info & OUTPUT_0_CROSSWIRED_TMDS || 
+			pNv->output_info & OUTPUT_1_CROSSWIRED_TMDS) {
 
-	/* Time to detect were the tmds port is located */
-	if (!dual_dvi && !lvds) {
-		Bool pramdac0 = FALSE;
-		Bool pramdac1 = FALSE;
-		Bool tmds_ramdac0 = FALSE;
-		Bool tmds_ramdac1 = FALSE;
-
-		/* This probably requires bios init */
-		/* Is the ramdac in use for a dfp? */
-		if (nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED) {
-			pramdac0 = TRUE;
-			nv_output->ramdac = 0;
-			pNv->ramdac_occupied[0] = TRUE;
-			ErrorF("DFP active on ramdac0\n");
+			real_index = (~index) & 1; 
+		} else {
+			real_index = index;
 		}
-		if (nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED) {
-			pramdac1 = TRUE;
-			nv_output->ramdac = 1;
-			pNv->ramdac_occupied[1] = TRUE;
-			ErrorF("DFP active on ramdac1\n");
+		/* This is a suspusion, please do tell if this causes problems for anyone */
+		nv_output->pDDCBus = pNv->pI2CBus[real_index];
+		/* At the moment something must be already active, before we do anything */
+		if (nvReadRAMDAC(pNv,  real_index, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED) {
+			/* We're not supposed to be LVDS */
+			/* Using index, because this is part of the TMDS programming */
+			if (pNv->output_info & (OUTPUT_0_LVDS << index)) {
+				xfree(nv_output);
+				xf86OutputDestroy (output);
+				return;
+			}
+			/* we should be slaved to a ramdac, otherwise we don't exist */
+			if (!(pNv->output_info & (OUTPUT_0_SLAVED << real_index))) {
+				xfree(nv_output);
+				xf86OutputDestroy (output);
+				return;
+			}
+		} else {
+			xfree(nv_output);
+			xf86OutputDestroy (output);
+			return;
 		}
-
-		if (pramdac0 && pramdac1) {
-			ErrorF("Detection stage broken, there is indication of dfp on both ramdac's\n");
-		}
-
-		/* Know a better register to poke? */
-		if (NVReadTMDS(pNv, 0, 0x2e) & 0x80) {
-			tmds_ramdac0 = TRUE;
-			ErrorF("TMDS programming on ramdac0\n");
-		}
-		if (NVReadTMDS(pNv, 1, 0x2e) & 0x80) {
-			tmds_ramdac1 = TRUE;
-			ErrorF("TMDS programming on ramdac1\n");
-		}
-
-		if (tmds_ramdac0 && tmds_ramdac1) {
-			ErrorF("Detection stage broken, there is indication of two programmed dfp's\n");
-		}
-
-		pNv->crosswired_tmds = FALSE;
-
-		if (tmds_ramdac0 && nv_output->ramdac == 1) {
-			pNv->crosswired_tmds = TRUE;
-		}
-
-		if (tmds_ramdac1 && nv_output->ramdac == 0) {
-			pNv->crosswired_tmds = TRUE;
-		}
-
-	} else if (dual_dvi) {
-		ErrorF("Sorry, atm we cannot properly handle dual dvi cards\n");
-		ErrorF("Using fallback defaults\n");
-		nv_output->ramdac = i2c_index;
-		pNv->crosswired_tmds = FALSE;
+	} else {
+		xfree(nv_output);
+		xf86OutputDestroy (output);
+		return;
 	}
 
 	output->possible_crtcs = crtc_mask;
@@ -1080,11 +1067,11 @@ void Nv20SetupOutputs(ScrnInfoPtr pScrn)
     int num_digital_outputs = 1;
 
     for (i = 0 ; i < num_analog_outputs; i++) {
-      nv_add_analog_output(pScrn, i, FALSE);
+      nv_add_analog_output(pScrn, i, i, FALSE);
     }
 
     for (i = 0 ; i < num_digital_outputs; i++) {
-      nv_add_digital_output(pScrn, i, FALSE, 0);
+      nv_add_digital_output(pScrn, i, i, FALSE, 0);
     }
 }
 
@@ -1113,6 +1100,30 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 		dual_dvi = TRUE;
 	}
 
+	/* It's time to gather some information */
+
+	/* Being slaved indicates we're a flatpanel (or tv-out) */
+	if (NVReadVGA0(pNv, NV_VGA_CRTCX_PIXEL) & 0x80) {
+		pNv->output_info |= OUTPUT_0_SLAVED;
+	}
+	if (NVReadVGA1(pNv, NV_VGA_CRTCX_PIXEL) & 0x80) {
+		pNv->output_info |= OUTPUT_1_SLAVED;
+	}
+	/* This is an educated guess */
+	if (NVReadTMDS(pNv, 0, 0x4) & (1 << 3)) {
+		pNv->output_info |= OUTPUT_0_CROSSWIRED_TMDS;
+	}
+	if (NVReadTMDS(pNv, 1, 0x4) & (1 << 3)) {
+		pNv->output_info |= OUTPUT_1_CROSSWIRED_TMDS;
+	}
+	/* Are we LVDS? */
+	if (NVReadTMDS(pNv, 0, 0x4) & (1 << 0)) {
+		pNv->output_info |= OUTPUT_0_LVDS;
+	}
+	if (NVReadTMDS(pNv, 1, 0x4) & (1 << 0)) {
+		pNv->output_info |= OUTPUT_1_LVDS;
+	}
+
 	/* we setup the outputs up from the BIOS table */
 	if (pNv->dcb_entries) {
 		for (i = 0 ; i < pNv->dcb_entries; i++) {
@@ -1132,15 +1143,15 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 			if (type < 4 && port < 2) {
 				switch(type) {
 				case 0: /* Analog */
-					nv_add_analog_output(pScrn, i2c_index, dvi_pair);
+					nv_add_analog_output(pScrn, port, i2c_index, dvi_pair);
 					dvi_pair = FALSE;
 					break;
 				case 2: /* TMDS */
 					dvi_pair = TRUE;
-					nv_add_digital_output(pScrn, i2c_index, dual_dvi, 0);
+					nv_add_digital_output(pScrn, port, i2c_index, dual_dvi, 0);
 					break;
 				case 3: /* LVDS */
-					nv_add_digital_output(pScrn, i2c_index, dual_dvi, 1);
+					nv_add_digital_output(pScrn, port, i2c_index, dual_dvi, 1);
 					break;
 				default:
 					break;

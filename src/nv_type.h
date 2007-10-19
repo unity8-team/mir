@@ -195,7 +195,9 @@ typedef struct {
 } NVAllocRec;
 
 typedef struct _NVOutputPrivateRec {
-        int ramdac;
+	int ramdac;
+	int prefered_ramdac;
+	Bool ramdac_assigned;
         I2CBusPtr		    pDDCBus;
         NVOutputType type;
         CARD32 fpSyncs;
@@ -203,6 +205,15 @@ typedef struct _NVOutputPrivateRec {
         CARD32 fpHeight;
         Bool fpdither;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
+
+typedef enum {
+	OUTPUT_0_SLAVED = (1 << 0),
+	OUTPUT_1_SLAVED = (1 << 1),
+	OUTPUT_0_LVDS = (1 << 2),
+	OUTPUT_1_LVDS = (1 << 3),
+	OUTPUT_0_CROSSWIRED_TMDS = (1 << 4),
+	OUTPUT_1_CROSSWIRED_TMDS = (1 << 5),
+} OutputInfo;
 
 #define NVOutputPrivate(o) ((NVOutputPrivatePtr (o)->driver_private)
 
@@ -364,9 +375,9 @@ typedef struct _NVRec {
     int analog_count;
     int digital_count;
     CARD32 dcb_table[NV40_NUM_DCB_ENTRIES]; /* 10 is a good limit */
-    Bool crosswired_tmds;
-    Bool ramdac_occupied[2];
     int crtc_associated[2];
+    int ramdac_count;
+    uint32_t output_info;
 
     struct {
 	    ORNum dac;

@@ -56,6 +56,20 @@ void NVWriteVGA0(NVPtr pNv, uint8_t index, uint8_t data)
 	VGA_WR08(ptr, 0x03D5, data);
 }
 
+uint8_t NVReadVGA1(NVPtr pNv, uint8_t index)
+{
+	volatile const uint8_t *ptr = pNv->PCIO1;
+	VGA_WR08(ptr, 0x03D4, index);
+	return VGA_RD08(ptr, 0x03D5);
+}
+
+void NVWriteVGA1(NVPtr pNv, uint8_t index, uint8_t data)
+{
+	volatile const uint8_t *ptr = pNv->PCIO1;
+	VGA_WR08(ptr, 0x03D4, index);
+	VGA_WR08(ptr, 0x03D5, data);
+}
+
 uint8_t nvReadVGA(NVPtr pNv, uint8_t index)
 {
   volatile const uint8_t *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
