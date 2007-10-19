@@ -2195,7 +2195,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     } else {
 	pScrn->memPhysBase = pNv->VRAMPhysical;
 	pScrn->fbOffset = 0;
-	
+
+	/* Gather some misc info before the randr stuff kicks in */
+	pNv->misc_info.crtc_0_reg_52 = NVReadVGA0(pNv, NV_VGA_CRTCX_52);
+
 	if (!NVEnterVT(scrnIndex, 0))
 	    return FALSE;
     }

@@ -206,6 +206,10 @@ typedef struct _NVOutputPrivateRec {
         Bool fpdither;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
 
+typedef struct _MiscStartupInfo {
+	CARD8 crtc_0_reg_52;
+} MiscStartupInfo;
+
 typedef enum {
 	OUTPUT_0_SLAVED = (1 << 0),
 	OUTPUT_1_SLAVED = (1 << 1),
@@ -378,6 +382,7 @@ typedef struct _NVRec {
     int crtc_associated[2];
     int ramdac_count;
     uint32_t output_info;
+    MiscStartupInfo misc_info;
 
     struct {
 	    ORNum dac;

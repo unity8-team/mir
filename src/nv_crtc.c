@@ -1093,6 +1093,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_VGA_CRTCX_26] = 0x20;
 
 	/* 0x00 is disabled, 0x22 crt and 0x88 dfp */
+	/* 0x11 is LVDS? */
 	if (is_fp) {
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x88;
 	} else {
@@ -1100,12 +1101,10 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	}
 
 	/* These values seem to vary */
-	/* 0x00, 0x04, 0x10, 0x14 for example */
 	regp->CRTC[NV_VGA_CRTCX_3C] = savep->CRTC[NV_VGA_CRTCX_3C];
 
-	/* It's annoying to be wrong */
-	/* Values of 0x80 and 0x00 seem to be used */
-	regp->CRTC[NV_VGA_CRTCX_45] = savep->CRTC[NV_VGA_CRTCX_45];
+	/* 0x80 seems to be used very often, if not always */
+	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
 
 	/* These values seem to vary */
 	/* 0x01, 0x10, 0x11 for example */
@@ -1115,19 +1114,14 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* bit1: 1=crtc1, 0=crtc, but i'm unsure about this */
 	/* 0x7E (crtc0, only seen in one dump) and 0x7F (crtc1) seem to be some kind of disable setting */
 	/* This is likely to be incomplete */
-	if (nv_crtc->head == 1) {
-		/* Perhaps this is related to output type? */
-		regp->CRTC[NV_VGA_CRTCX_58] = 0x3;
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_58] = 0x0;
-	}
+	/* This is a very strange register, changed very often by the blob */
+	regp->CRTC[NV_VGA_CRTCX_58] = 0x0;
 
-	/* This seems to be valid for most cards, but bit 5 is also used sometimes */
-	/* Also this may not be true for dual dvi cards, please more dumps to clarify the situation */
+	/* The blob seems to take the current value from crtc 0, add 4 to that and reuse the old value for crtc 1*/
 	if (nv_crtc->head == 1) {
-		regp->CRTC[NV_VGA_CRTCX_52] = 0x04;
+		regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_0_reg_52;
 	} else {
-		regp->CRTC[NV_VGA_CRTCX_52] = 0x08;
+		regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_0_reg_52 + 4;
 	}
 
 	/* The exact purpose of this register is unknown, but we copy value from crtc0 */
