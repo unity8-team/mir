@@ -207,7 +207,8 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 	xf86CrtcPtr crtc = output->crtc;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
-	if (crtc) {
+	/* Are we assigned a ramdac already?, else we will be activeted during mode set */
+	if (crtc && nv_output->ramdac_assigned) {
 		NVPtr pNv = NVPTR(output->scrn);
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
@@ -490,23 +491,24 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_END]);
 	}
 
+	/* This seems to be a common mode
+	* bit0: positive vsync
+	* bit4: positive hsync
+	* bit8: enable panel scaling 
+	* This must also be set for non-flatpanels
+	*/
+	regp->fp_control = 0x11100000;
+
+	/* Deal with vsync/hsync ploarity */
+	if (mode->Flags & V_PVSYNC) {
+		regp->fp_control |= (1 << 0);
+	}
+
+	if (mode->Flags & V_PHSYNC) {
+		regp->fp_control |= (1 << 4);
+	}
+
 	if (is_fp) {
-		/* This seems to be a common mode
-		* bit0: positive vsync
-		* bit4: positive hsync
-		* bit8: enable panel scaling 
-		*/
-		regp->fp_control = 0x11100000;
-
-		/* Deal with vsync/hsync ploarity */
-		if (mode->Flags & V_PVSYNC) {
-			regp->fp_control |= (1 << 0);
-		}
-
-		if (mode->Flags & V_PHSYNC) {
-			regp->fp_control |= (1 << 4);
-		}
-
 		ErrorF("Pre-panel scaling\n");
 		ErrorF("panel-size:%dx%d\n", nv_output->fpWidth, nv_output->fpHeight);
 		panel_ratio = (nv_output->fpWidth)/(float)(nv_output->fpHeight);
@@ -605,7 +607,11 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	if (is_fp) {
 		regp->TMDS[0x4] = 0x80;
 		/* Enable crosswired mode */
-		if (nv_output->ramdac != nv_output->prefered_ramdac) {
+		/* As far as i know, this may never be set on ramdac 0 tmds registers (ramdac 1 -> crosswired -> ramdac 0 tmds regs) */
+		/* This will upset the monitor, trust me, i know it :-( */
+		/* Restricting to cards that had this setup at bootup time, until i am certain it's ok to use */
+		if (nv_output->ramdac != nv_output->prefered_ramdac && nv_output->ramdac == 0
+			&& pNv->output_info & OUTPUT_1_CROSSWIRED_TMDS) {
 			regp->TMDS[0x4] |= (1 << 3);
 		}
 	}
