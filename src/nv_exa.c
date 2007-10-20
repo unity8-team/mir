@@ -180,10 +180,10 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	if (planemask != ~0 || alu != GXcopy) {
 		if (pPixmap->drawable.bitsPerPixel == 32)
 			return FALSE;
-		setcurrentRectOp(pScrn, 1);
+		setcurrentRectOp(pScrn, 1); /* ROP_AND */
 		NVSetROP(pScrn, alu, planemask);
 	} else {
-		setcurrentRectOp(pScrn, 3);
+		setcurrentRectOp(pScrn, 3); /* SRCCOPY */
 	}
 
 	if (!NVAccelGetCtxSurf2DFormatFromPixmap(pPixmap, &fmt))
@@ -247,10 +247,10 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 	if (planemask != ~0 || alu != GXcopy) {
 		if (pDstPixmap->drawable.bitsPerPixel == 32)
 			return FALSE;
-		setcurrentBlitOp(pScrn, 1);
+		setcurrentBlitOp(pScrn, 1); /* ROP_AND */
 		NVSetROP(pScrn, alu, planemask);
 	} else {
-		setcurrentBlitOp(pScrn, 3);
+		setcurrentBlitOp(pScrn, 3); /* SRCCOPY */
 	}
 
 	if (!NVAccelGetCtxSurf2DFormatFromPixmap(pDstPixmap, &fmt))
