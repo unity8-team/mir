@@ -123,28 +123,6 @@ static void setM2MFDirection(ScrnInfoPtr pScrn, int dir)
 	}
 }
 
-static void setcurrentRectOp(ScrnInfoPtr pScrn, int op)
-{
-	NVPtr pNv = NVPTR(pScrn);
-
-	if (pNv->currentRectOp != op) {
-		BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
-		OUT_RING  (op);
-		pNv->currentRectOp = op;
-	}
-}
-
-static void setcurrentBlitOp(ScrnInfoPtr pScrn, int op)
-{
-	NVPtr pNv = NVPTR(pScrn);
-
-	if (pNv->currentBlitOp != op) {
-		BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
-		OUT_RING  (op);
-		pNv->currentBlitOp = op;
-	}
-}
-
 static CARD32 rectFormat(DrawablePtr pDrawable)
 {
 	switch(pDrawable->bitsPerPixel) {
@@ -180,10 +158,12 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	if (planemask != ~0 || alu != GXcopy) {
 		if (pPixmap->drawable.bitsPerPixel == 32)
 			return FALSE;
-		setcurrentRectOp(pScrn, 1); /* ROP_AND */
+		BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
+		OUT_RING  (1); /* ROP_AND */
 		NVSetROP(pScrn, alu, planemask);
 	} else {
-		setcurrentRectOp(pScrn, 3); /* SRCCOPY */
+		BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
+		OUT_RING  (3); /* SRCCOPY */
 	}
 
 	if (!NVAccelGetCtxSurf2DFormatFromPixmap(pPixmap, &fmt))
@@ -247,10 +227,12 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 	if (planemask != ~0 || alu != GXcopy) {
 		if (pDstPixmap->drawable.bitsPerPixel == 32)
 			return FALSE;
-		setcurrentBlitOp(pScrn, 1); /* ROP_AND */
+		BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
+		OUT_RING  (1); /* ROP_AND */
 		NVSetROP(pScrn, alu, planemask);
 	} else {
-		setcurrentBlitOp(pScrn, 3); /* SRCCOPY */
+		BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
+		OUT_RING  (3); /* SRCCOPY */
 	}
 
 	if (!NVAccelGetCtxSurf2DFormatFromPixmap(pDstPixmap, &fmt))
@@ -691,13 +673,6 @@ NVExaInit(ScreenPtr pScreen)
 	}
 
 	switch (pNv->Architecture) {
-//not working yet		
-/*	case NV_ARCH_10:
-		pNv->EXADriverPtr->CheckComposite   = NV10CheckComposite;
-		pNv->EXADriverPtr->PrepareComposite = NV10PrepareComposite;
-		pNv->EXADriverPtr->Composite        = NV10Composite;
-		pNv->EXADriverPtr->DoneComposite    = NV10DoneComposite;
-		break;*/
 #if defined(ENABLE_NV30EXA)
 //	not working yet
 /*
