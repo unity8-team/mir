@@ -58,7 +58,8 @@ static void quirk_mac_mini (I830Ptr pI830)
 static i830_quirk i830_quirk_list[] = {
     /* Aopen mini pc */
     { PCI_CHIP_I945_GM, 0xa0a0, SUBSYS_ANY, quirk_ignore_lvds },
-    
+    { PCI_CHIP_I965_GM, 0x8086, 0x1999, quirk_ignore_lvds },
+
     /* Apple Mac mini has no lvds, but macbook pro does */
     { PCI_CHIP_I945_GM, 0x8086, 0x7270, quirk_mac_mini },
     
@@ -79,6 +80,11 @@ static i830_quirk i830_quirk_list[] = {
     /* Panasonic Toughbook CF-Y7 has no TV output */
     { PCI_CHIP_I965_GM, 0x10f7, 0x8338, quirk_ignore_tv },
     
+    /* Toshiba Satellite U300 has no TV output */
+    { PCI_CHIP_I965_GM, 0x1179, 0xff50, quirk_ignore_tv },
+
+    /* Samsung Q35 has no TV output */
+    { PCI_CHIP_I945_GM, 0x144d, 0xc504, quirk_ignore_tv },
     { 0, 0, 0, NULL },
 };
 

@@ -68,6 +68,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef XF86DRI
 #include "xf86drm.h"
+#ifdef XF86DRI_MM
+#include "xf86mm.h"
+#endif
 #include "sarea.h"
 #define _XF86DRI_SERVER_
 #include "dri.h"
@@ -142,6 +145,11 @@ struct _i830_memory {
      */
     unsigned long size;
     /**
+     * Allocated aperture size, taking into account padding to allow for
+     * tiling.
+     */
+    unsigned long allocated_size;
+    /**
      * Physical (or more properly, bus) address of the allocation.
      * Only set if requested during allocation.
      */
@@ -160,6 +168,13 @@ struct _i830_memory {
     unsigned long agp_offset;
 
     enum tile_format tiling;
+    /**
+     * Index of the fence register representing the tiled surface, when
+     * bound.
+     */
+    int fence_nr;
+    /** Pitch value in bytes for tiled surfaces */
+    unsigned int pitch;
 
     /** Description of the allocation, for logging */
     char *name;
@@ -396,17 +411,7 @@ typedef struct _I830Rec {
    int NumScanlineColorExpandBuffers;
    int nextColorExpandBuf;
 
-    /**
-     * Values to be programmed into the fence registers.
-     *
-     * Pre-965, this is a list of FENCE_NR (8) CARD32 registers that
-     * contain their start, size, and pitch.  On the 965, it is a list of
-     * FENCE_NEW_NR CARD32s for the start and pitch fields (low 32 bits) of
-     * the fence registers followed by FENCE_NEW_NR CARD32s for the end fields
-     * (high 32 bits) of the fence registers.
-     */
-   unsigned int fence[FENCE_NEW_NR * 2];
-   unsigned int next_fence;
+   Bool fence_used[FENCE_NEW_NR];
 
    Bool useEXA;
    Bool noAccel;
@@ -638,12 +643,10 @@ extern Bool I830DRIDoMappings(ScreenPtr pScreen);
 extern Bool I830DRIResume(ScreenPtr pScreen);
 extern void I830DRICloseScreen(ScreenPtr pScreen);
 extern Bool I830DRIFinishScreenInit(ScreenPtr pScreen);
-extern Bool I830UpdateDRIBuffers(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
-extern void I830DRIUnmapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
-extern Bool I830DRIMapScreenRegions(ScrnInfoPtr pScrn, drmI830Sarea *sarea);
 extern void I830DRIUnlock(ScrnInfoPtr pScrn);
 extern Bool I830DRILock(ScrnInfoPtr pScrn);
 extern Bool I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on);
+Bool i830_update_dri_buffers(ScrnInfoPtr pScrn);
 #endif
 
 unsigned long intel_get_pixmap_offset(PixmapPtr pPix);

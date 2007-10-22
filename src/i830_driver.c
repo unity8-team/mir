@@ -171,6 +171,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/mman.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -196,6 +197,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_display.h"
 #include "i830_debug.h"
 #include "i830_bios.h"
+#include "i830_video.h"
 
 #ifdef XvMCExtension
 #define _INTEL_XVMC_SERVER_
@@ -486,9 +488,6 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    range = gtt_size + 4;
 
    if (IS_I85X(pI830) || IS_I865G(pI830) || IS_I9XX(pI830)) {
-      /* G33 has seperate GTT stolen mem */
-      if (IS_G33CLASS(pI830))
-	  range = 0;
       switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
       case I855_GMCH_GMS_STOLEN_1M:
 	 memsize = MB(1) - KB(range);
@@ -675,6 +674,15 @@ I830MapMem(ScrnInfoPtr pScrn)
 	 pI830->FbBase + pI830->LpRing->mem->offset;
    }
 
+   /* Mark the pages we haven't yet bound into AGP as inaccessible. */
+   if (pI830->FbMapSize > pI830->stolen_size) {
+      if (mprotect(pI830->FbBase + pI830->stolen_size,
+		   pI830->FbMapSize - pI830->stolen_size, PROT_NONE) != 0) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		    "Failed to mprotect unbound AGP: %s\n", strerror(errno));
+      }
+   }
+
    return TRUE;
 }
 
@@ -785,31 +793,27 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    }
 }
 
-#if 0
-/* This code ended up unused, but will be at least a reference when we let the
- * front buffer move.
- */
 static void
-i830UpdateFrontOffset(ScrnInfoPtr pScrn)
+i830_update_front_offset(ScrnInfoPtr pScrn)
 {
    ScreenPtr pScreen = pScrn->pScreen;
    I830Ptr pI830 = I830PTR(pScrn);
-
-   /* If we are still in ScreenInit, there is no screen pixmap to be updated
-    * yet.  We'll fix it up at CreateScreenResources.
-    */
-   if (pI830->starting)
-      return;
 
    /* Update buffer locations, which may have changed as a result of
     * i830_bind_all_memory().
     */
    pScrn->fbOffset = pI830->front_buffer->offset;
-   if (!pScreen->ModifyPixmapHeader(pScreen->GetScreenPixmap(pScreen),
-				    -1, -1, -1, -1, -1,
-				    (pointer)(pI830->FbBase +
-					      pScrn->fbOffset)))
+
+   /* If we are still in ScreenInit, there is no screen pixmap to be updated
+    * yet.  We'll fix it up at CreateScreenResources.
+    */
+   if (!pI830->starting) {
+      if (!pScreen->ModifyPixmapHeader(pScreen->GetScreenPixmap(pScreen),
+				       -1, -1, -1, -1, -1,
+				       (pointer)(pI830->FbBase +
+						 pScrn->fbOffset)))
        FatalError("Couldn't adjust screen pixmap\n");
+   }
 }
 
 /**
@@ -828,11 +832,10 @@ i830CreateScreenResources(ScreenPtr pScreen)
    if (!(*pScreen->CreateScreenResources)(pScreen))
       return FALSE;
 
-   i830UpdateFrontOffset(pScrn);
+   i830_update_front_offset(pScrn);
 
    return TRUE;
 }
-#endif
 
 int
 i830_output_clones (ScrnInfoPtr pScrn, int type_mask)
@@ -1735,7 +1738,6 @@ static void
 ResetState(ScrnInfoPtr pScrn, Bool flush)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   int i;
    unsigned long temp;
 
    DPRINTF(PFX, "ResetState: flush is %s\n", BOOLTOSTRING(flush));
@@ -1745,16 +1747,6 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
    if (pI830->entityPrivate)
       pI830->entityPrivate->RingRunning = 0;
 
-   /* Reset the fence registers to 0 */
-   if (IS_I965G(pI830)) {
-      for (i = 0; i < FENCE_NEW_NR; i++) {
-	 OUTREG(FENCE_NEW + i * 8, 0);
-	 OUTREG(FENCE_NEW + 4 + i * 8, 0);
-      }
-   } else {
-      for (i = 0; i < FENCE_NR; i++)
-         OUTREG(FENCE + i * 4, 0);
-   }
    /* Flush the ring buffer (if enabled), then disable it. */
    /* God this is ugly */
 #define flush_ring() do { \
@@ -1780,34 +1772,6 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
    OUTREG(LP_RING + RING_START, 0);
 
    xf86_hide_cursors (pScrn);
-}
-
-static void
-SetFenceRegs(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   int i;
-
-   DPRINTF(PFX, "SetFenceRegs\n");
-
-   if (!I830IsPrimary(pScrn)) return;
-
-   if (IS_I965G(pI830)) {
-      for (i = 0; i < FENCE_NEW_NR; i++) {
-         OUTREG(FENCE_NEW + i * 8, pI830->fence[i]);
-         OUTREG(FENCE_NEW + 4 + i * 8, pI830->fence[i+FENCE_NEW_NR]);
-         if (I810_DEBUG & DEBUG_VERBOSE_VGA) {
-	    ErrorF("Fence Start Register : %x\n", pI830->fence[i]);
-	    ErrorF("Fence End Register : %x\n", pI830->fence[i+FENCE_NEW_NR]);
-         }
-      }
-   } else {
-      for (i = 0; i < FENCE_NR; i++) {
-         OUTREG(FENCE + i * 4, pI830->fence[i]);
-         if (I810_DEBUG & DEBUG_VERBOSE_VGA)
-	    ErrorF("Fence Register : %x\n", pI830->fence[i]);
-      }
-   }
 }
 
 static void
@@ -1877,9 +1841,54 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
 
    if (!pI830->noAccel)
       SetRingRegs(pScrn);
-   SetFenceRegs(pScrn);
    if (!pI830->SWCursor)
       I830InitHWCursor(pScrn);
+}
+
+enum pipe {
+    PIPE_A = 0,
+    PIPE_B,
+};
+
+static Bool
+i830_pipe_enabled(I830Ptr pI830, enum pipe pipe)
+{
+    if (pipe == PIPE_A)
+	return (INREG(PIPEACONF) & PIPEACONF_ENABLE);
+    else
+	return (INREG(PIPEBCONF) & PIPEBCONF_ENABLE);
+}
+
+static void
+i830_save_palette(I830Ptr pI830, enum pipe pipe)
+{
+    int i;
+
+    if (!i830_pipe_enabled(pI830, pipe))
+	return;
+
+    for(i= 0; i < 256; i++) {
+	if (pipe == PIPE_A)
+	    pI830->savePaletteA[i] = INREG(PALETTE_A + (i << 2));
+	else
+	    pI830->savePaletteB[i] = INREG(PALETTE_B + (i << 2));
+    }
+}
+
+static void
+i830_restore_palette(I830Ptr pI830, enum pipe pipe)
+{
+    int i;
+
+    if (!i830_pipe_enabled(pI830, pipe))
+	return;
+
+    for(i= 0; i < 256; i++) {
+	if (pipe == PIPE_A)
+	    OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
+	else
+	    OUTREG(PALETTE_B + (i << 2), pI830->savePaletteB[i]);
+    }
 }
 
 static Bool
@@ -1919,9 +1928,7 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveDSPAPOS = INREG(DSPAPOS);
    pI830->saveDSPABASE = INREG(DSPABASE);
 
-   for(i= 0; i < 256; i++) {
-      pI830->savePaletteA[i] = INREG(PALETTE_A + (i << 2));
-   }
+   i830_save_palette(pI830, PIPE_A);
 
    if(xf86_config->num_crtc == 2) {
       pI830->savePIPEBCONF = INREG(PIPEBCONF);
@@ -1943,9 +1950,8 @@ SaveHWState(ScrnInfoPtr pScrn)
       pI830->saveDSPBSIZE = INREG(DSPBSIZE);
       pI830->saveDSPBPOS = INREG(DSPBPOS);
       pI830->saveDSPBBASE = INREG(DSPBBASE);
-      for(i= 0; i < 256; i++) {
-         pI830->savePaletteB[i] = INREG(PALETTE_B + (i << 2));
-      }
+
+      i830_save_palette(pI830, PIPE_B);
    }
 
    if (IS_I965G(pI830)) {
@@ -2111,15 +2117,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
    OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
 
-   for(i = 0; i < 256; i++) {
-      OUTREG(PALETTE_A + (i << 2), pI830->savePaletteA[i]);
-   }
-   
-   if(xf86_config->num_crtc == 2) {
-      for(i= 0; i < 256; i++) {
-         OUTREG(PALETTE_B + (i << 2), pI830->savePaletteB[i]);
-      }
-   }
+   i830_restore_palette(pI830, PIPE_A);
+   i830_restore_palette(pI830, PIPE_B);
 
    for(i = 0; i < 7; i++) {
       OUTREG(SWF0 + (i << 2), pI830->saveSWF[i]);
@@ -2260,6 +2259,23 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
       else
          I830EmitInvarientState(pScrn);
    }
+}
+
+static void
+I830BlockHandler(int i,
+		 pointer blockData, pointer pTimeout, pointer pReadmask)
+{
+    ScreenPtr pScreen = screenInfo.screens[i];
+    ScrnInfoPtr pScrn = xf86Screens[i];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    pScreen->BlockHandler = pI830->BlockHandler;
+
+    (*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+
+    pScreen->BlockHandler = I830BlockHandler;
+
+    I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
 }
 
 static Bool
@@ -2872,13 +2888,14 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Not available\n");
 #endif
 
+   pI830->BlockHandler = pScreen->BlockHandler;
+   pScreen->BlockHandler = I830BlockHandler;
+
    pScreen->SaveScreen = xf86SaveScreen;
    pI830->CloseScreen = pScreen->CloseScreen;
    pScreen->CloseScreen = I830CloseScreen;
-#if 0
    pI830->CreateScreenResources = pScreen->CreateScreenResources;
    pScreen->CreateScreenResources = i830CreateScreenResources;
-#endif
 
    if (!xf86CrtcScreenInit (pScreen))
        return FALSE;
@@ -2973,13 +2990,8 @@ I830LeaveVT(int scrnIndex, int flags)
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
       DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
-#ifdef XF86DRI_MM
-      if (pI830->memory_manager != NULL) {
-	 drmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT);
-      }
-#endif /* XF86DRI_MM */
+
       I830DRISetVBlankInterrupt (pScrn, FALSE);
-      
       drmCtlUninstHandler(pI830->drmSubFD);
    }
 #endif
@@ -2997,6 +3009,18 @@ I830LeaveVT(int scrnIndex, int flags)
 
    if (I830IsPrimary(pScrn))
       i830_unbind_all_memory(pScrn);
+
+   /* Tell the kernel to evict all buffer objects and block new buffer
+    * allocations until we relese the lock.
+    */
+#ifdef XF86DRI_MM
+   if (pI830->directRenderingOpen) {
+      if (pI830->memory_manager != NULL) {
+	 drmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT);
+      }
+   }
+#endif /* XF86DRI_MM */
+
    if (pI830->AccelInfoRec)
       pI830->AccelInfoRec->NeedToSync = FALSE;
 }
@@ -3025,15 +3049,25 @@ I830EnterVT(int scrnIndex, int flags)
 
    pI830->leaving = FALSE;
 
+#ifdef XF86DRI_MM
+   if (pI830->directRenderingEnabled) {
+      /* Unlock the memory manager first of all so that we can pin our
+       * buffer objects
+       */
+      if (pI830->memory_manager != NULL) {
+	 drmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT);
+      }
+   }
+#endif /* XF86DRI_MM */
+
    if (I830IsPrimary(pScrn))
       if (!i830_bind_all_memory(pScrn))
          return FALSE;
 
    i830_describe_allocations(pScrn, 1, "");
 
-#if 0
-   i830UpdateFrontOffset(pScrn);
-#endif
+   /* Update the screen pixmap in case the buffer moved */
+   i830_update_front_offset(pScrn);
 
    if (i830_check_error_state(pScrn)) {
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -3066,6 +3100,11 @@ I830EnterVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled) {
+      /* Update buffer offsets in sarea and mappings, since buffer offsets
+       * may have changed.
+       */
+      if (!i830_update_dri_buffers(pScrn))
+	 FatalError("i830_update_dri_buffers() failed\n");
 
       I830DRISetVBlankInterrupt (pScrn, TRUE);
 
@@ -3083,12 +3122,6 @@ I830EnterVT(int scrnIndex, int flags)
 	 sarea->texAge++;
 	 for(i = 0; i < I830_NR_TEX_REGIONS+1 ; i++)
 	    sarea->texList[i].age = sarea->texAge;
-
-#ifdef XF86DRI_MM
-	 if (pI830->memory_manager != NULL) {
-	    drmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT);
-	 }
-#endif /* XF86DRI_MM */
 
 	 DPRINTF(PFX, "calling dri unlock\n");
 	 DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
