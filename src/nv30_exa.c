@@ -662,8 +662,8 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 		return TRUE;
 	chipset &= 0xf;
 
-	if (NV34_TCL_PRIMITIVE_3D_CHIPSET_3X_MASK & (1<<chipset))
-		class = NV34_TCL_PRIMITIVE_3D;
+	if (NV30_TCL_PRIMITIVE_3D_CHIPSET_3X_MASK & (1<<chipset))
+		class = NV30_TCL_PRIMITIVE_3D;
 	else if (NV35_TCL_PRIMITIVE_3D_CHIPSET_3X_MASK & (1<<chipset))
 		class = NV35_TCL_PRIMITIVE_3D;
 	else if (NV34_TCL_PRIMITIVE_3D_CHIPSET_3X_MASK & (1<<chipset))
