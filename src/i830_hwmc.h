@@ -36,13 +36,19 @@
 #define INTEL_XVMC_COMMAND_DISPLAY      0x00
 #define INTEL_XVMC_COMMAND_UNDISPLAY    0x01
 
+/* hw xvmc support type */
+#define XVMC_I915_MPEG2_MC	0x01
+#define XVMC_I965_MPEG2_MC	0x02
+#define XVMC_I945_MPEG2_VLD	0x04
+#define XVMC_I965_MPEG2_VLD	0x08
+
+/* common header for context private */
+struct _intel_xvmc_common {
+    unsigned int type;
+};
+
 #ifdef _INTEL_XVMC_SERVER_
 #include <xf86xvmc.h>
-
-#define XVMC_DRIVER_MPEG2_MC    0x0001
-#define XVMC_DRIVER_MPEG2_VLD   0x0002
-#define XVMC_DRIVER_H264_MC     0x0004
-#define XVMC_DRIVER_H264_VLD    0x0008
 
 struct intel_xvmc_driver {
     char *name;

@@ -56,7 +56,6 @@
 #endif
 
 #define _INTEL_XVMC_SERVER_
-#include "i830_hwmc.h"
 #include "i915_hwmc.h"
 
 #define I915_XVMC_MAX_BUFFERS 2
@@ -531,6 +530,7 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
         return BadAlloc;
     }
 
+    contextRec->comm.type = xvmc_driver->flag;
     contextRec->ctxno = i;
     contextRec->sis.handle = ctxpriv->sis_handle;
     contextRec->sis.offset = ctxpriv->mcStaticIndirectState->offset;
@@ -892,7 +892,7 @@ static void i915_xvmc_fini(ScrnInfoPtr pScrn)
 struct intel_xvmc_driver i915_xvmc_driver = {
     .name	= "i915_xvmc",
     .adaptor	= &pAdapt,
-    .flag	= XVMC_DRIVER_MPEG2_MC,
+    .flag	= XVMC_I915_MPEG2_MC,
     .init	= i915_xvmc_init,
     .fini	= i915_xvmc_fini,
     .putimage_size = i915_xvmc_putimage_size,

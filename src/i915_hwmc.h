@@ -27,6 +27,8 @@
 #ifndef _I915_HWMC_H
 #define _I915_HWMC_H
 
+#include "i830_hwmc.h"
+
 #define STRIDE(w)               (((w) + 0x3ff) & ~0x3ff)
 #define SIZE_Y420(w, h)         (h * STRIDE(w))
 #define SIZE_UV420(w, h)        ((h >> 1) * STRIDE(w >> 1))
@@ -55,6 +57,7 @@ struct hwmc_buffer
 
 typedef struct 
 {
+    struct _intel_xvmc_common comm;
     unsigned int ctxno; /* XvMC private context reference number */
     struct hwmc_buffer sis;
     struct hwmc_buffer ssb;
