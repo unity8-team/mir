@@ -216,6 +216,19 @@ static void NV10SetMultitexture(NVPtr pNv,int multitex)
 	}
 	else
 	{
+		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA(0), 12);
+		OUT_RING  (0x18141010);
+		OUT_RING  (0);
+		OUT_RING  (0x08040820);
+		OUT_RING  (0);
+		OUT_RING  (0);
+		OUT_RING  (0);
+		OUT_RING  (0x00000c00);
+		OUT_RING  (0);
+		OUT_RING  (0x000010cd);
+		OUT_RING  (0x18000000);
+		OUT_RING  (0x300e0300);
+		OUT_RING  (0x0c091c80);
 	}
 }
 
