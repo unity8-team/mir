@@ -316,11 +316,11 @@ NV10EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
 		v.vector[1] = IntToxFixed(y);
 		v.vector[2] = xFixed1;
 		PictureTransformPoint(t, &v);
-		*x_ret = xFixedToFloat(v.vector[0]) / sx;
-		*y_ret = xFixedToFloat(v.vector[1]) / sy;
+		*x_ret = xFixedToFloat(v.vector[0]);
+		*y_ret = xFixedToFloat(v.vector[1]);
 	} else {
-		*x_ret = (float)x / sx;
-		*y_ret = (float)y / sy;
+		*x_ret = (float)x;
+		*y_ret = (float)y;
 	}
 }
 
