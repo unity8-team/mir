@@ -350,8 +350,7 @@ static void i915_unmap_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxp
 static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxpriv)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    /* FIXME xvmc ttm */
-    int flags = ALIGN_BOTH_ENDS | NEED_LIFETIME_FIXED;
+    int flags = ALIGN_BOTH_ENDS;
 
     if (IS_I915G(pI830) || IS_I915GM(pI830) ||
 	    IS_I945G(pI830) || IS_I945GM(pI830))
@@ -390,13 +389,13 @@ static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *c
     /* XXX xvmc ttm */
     if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]Correction Data Buffer", 
                                    &(ctxpriv->mcCorrdata), 512 * 1024,
-                                   ALIGN_BOTH_ENDS | NEED_LIFETIME_FIXED)) {
+                                   ALIGN_BOTH_ENDS)) {
         return FALSE;
     }
 
     if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]batch buffer",
                                    &(ctxpriv->mcBatchBuffer), 8 * 1024,
-                                   ALIGN_BOTH_ENDS | NEED_LIFETIME_FIXED)) {
+                                   ALIGN_BOTH_ENDS)) {
         return FALSE;
     }
 
@@ -630,7 +629,7 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
     /* FIXME xvmc ttm */
     if (!i830_allocate_xvmc_buffer(pScrn, "XvMC surface", 
                                    &(sfpriv->surface), bufsize,
-                                   ALIGN_BOTH_ENDS | NEED_LIFETIME_FIXED)) {
+                                   ALIGN_BOTH_ENDS)) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[XvMC] I915XvMCCreateSurface: Failed to allocate XvMC surface space!\n");
         xfree(sfpriv);
