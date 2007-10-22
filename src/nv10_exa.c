@@ -84,7 +84,7 @@ static Bool NV10CheckBuffer(PicturePtr Picture)
 	return TRUE;
 }
 
-static Bool NV10CheckComposite(int	op,
+Bool NV10CheckComposite(int	op,
 			     PicturePtr pSrcPicture,
 			     PicturePtr pMaskPicture,
 			     PicturePtr pDstPicture)
@@ -113,18 +113,18 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 	int log2w = log2i(Pict->pDrawable->width);
 	int log2h = log2i(Pict->pDrawable->height);
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FORMAT(unit), 1 );
-	OUT_RING  ((NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_T_CLAMP_TO_EDGE<<28) |
-			(NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_S_CLAMP_TO_EDGE<<24) |
+	OUT_RING  ((NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_T_CLAMP_TO_EDGE) |
+			(NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_S_CLAMP_TO_EDGE) |
 			(log2w<<20) |
 			(log2h<<16) |
 			(1<<12) | /* lod == 1 */
 			(1<<11) | /* enable NPOT */
-			(NV10TexFormat(Pict->format)<<7) |
+			(NV10TexFormat(Pict->format)) |
 			0x51 /* UNK */
 			);
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_ENABLE(unit), 1 );
-	OUT_RING  (1);
+	OUT_RING  (NV10_TCL_PRIMITIVE_3D_TX_ENABLE_ENABLE);
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_PITCH(unit), 1);
 	OUT_RING  (exaGetPixmapPitch(pixmap) << 16);
@@ -134,11 +134,11 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FILTER(unit), 1);
 	if (Pict->filter == PictFilterNearest)
-		OUT_RING  ((NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAGNIFY_NEAREST<<28) |
-				(NV10_TCL_PRIMITIVE_3D_TX_FILTER_MINIFY_NEAREST<<24));
+		OUT_RING  ((NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAGNIFY_NEAREST) |
+				(NV10_TCL_PRIMITIVE_3D_TX_FILTER_MINIFY_NEAREST));
 	else
-		OUT_RING  ((NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAGNIFY_LINEAR<<28) |
-				(NV10_TCL_PRIMITIVE_3D_TX_FILTER_MINIFY_LINEAR<<24));
+		OUT_RING  ((NV10_TCL_PRIMITIVE_3D_TX_FILTER_MAGNIFY_LINEAR) |
+				(NV10_TCL_PRIMITIVE_3D_TX_FILTER_MINIFY_LINEAR));
 
 	state.unit[unit].width		= (float)pixmap->drawable.width;
 	state.unit[unit].height		= (float)pixmap->drawable.height;
@@ -181,13 +181,9 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	OUT_RINGf (65536.0);
 #endif
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_SCALE_X, 4);
-	OUT_RINGf ((w * 0.5) - 2048.0);
-	OUT_RINGf ((h * 0.5) - 2048.0);
-#if SCREEN_BPP == 32
-	OUT_RINGf (16777215.0 * 0.5);
-#else
-	OUT_RINGf (65535.0 * 0.5);
-#endif
+	OUT_RINGf (-2048.0);
+	OUT_RINGf (-2048.0);
+	OUT_RINGf (0);
 	OUT_RING  (0);
 }
 
@@ -247,7 +243,7 @@ static void NV10SetPictOp(NVPtr pNv,int op)
 	OUT_RING  (pictops[op].dst);
 }
 
-static Bool NV10PrepareComposite(int	  op,
+Bool NV10PrepareComposite(int	  op,
 			       PicturePtr pSrcPicture,
 			       PicturePtr pMaskPicture,
 			       PicturePtr pDstPicture,
@@ -329,7 +325,7 @@ NV10EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
 }
 
 
-static void NV10Composite(PixmapPtr pDst,
+void NV10Composite(PixmapPtr pDst,
 			int	  srcX,
 			int	  srcY,
 			int	  maskX,
@@ -374,7 +370,7 @@ static void NV10Composite(PixmapPtr pDst,
 	FIRE_RING();
 }
 
-static void NV10DoneComposite (PixmapPtr pDst)
+void NV10DoneComposite (PixmapPtr pDst)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
@@ -579,8 +575,11 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_FOG_MODE, 2);
 	OUT_RING  (0x802);
 	OUT_RING  (2);
+	/* for some reason VIEW_MATRIX_ENABLE need to be 6 instead of 4 when
+	 * using texturing, except when using the texture matrix
+	 */
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEW_MATRIX_ENABLE, 1);
-	OUT_RING  (4);
+	OUT_RING  (6);
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_COLOR_MASK, 1);
 	OUT_RING  (0x01010101);
 
