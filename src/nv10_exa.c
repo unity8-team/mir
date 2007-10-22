@@ -254,6 +254,8 @@ static void NV10SetPictOp(NVPtr pNv,int op)
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_BLEND_FUNC_SRC, 2);
 	OUT_RING  (pictops[op].src);
 	OUT_RING  (pictops[op].dst);
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 1);
+	OUT_RING  (1);
 }
 
 Bool NV10PrepareComposite(int	  op,
@@ -598,9 +600,9 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 
 	/* Set vertex component */
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_COL_4F_R, 4);
-	OUT_RINGf (0.6);
-	OUT_RINGf (0.4);
-	OUT_RINGf (0.2);
+	OUT_RINGf (1.0);
+	OUT_RINGf (1.0);
+	OUT_RINGf (1.0);
 	OUT_RINGf (1.0);
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_COL2_3F_R, 3);
 	OUT_RING  (0);
