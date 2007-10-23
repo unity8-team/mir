@@ -1032,16 +1032,20 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int index, int i2c_index, B
 			/* We're not supposed to be LVDS */
 			/* Using index, because this is part of the TMDS programming */
 			if (pNv->output_info & (OUTPUT_0_LVDS << index)) {
+				ErrorF("Output refused because this is supposed to be TMDS, not LVDS.\n");
 				create_output = FALSE;
 			}
 			/* we should be slaved to a ramdac, otherwise we don't exist */
 			if (!(pNv->output_info & (OUTPUT_0_SLAVED << real_index))) {
+				ErrorF("Output refused because the output is not slaved, which is needed for a DFP.\n");
 				create_output = FALSE;
 			}
 		} else {
+			ErrorF("Output refused because the DFP doesn't seem to be active.\n");
 			create_output = FALSE;
 		}
 	} else {
+		ErrorF("Output refused because we don't accept LVDS at the moment.\n");
 		create_output = FALSE;
 	}
 
