@@ -547,6 +547,10 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 
 			/* Scaling in both directions needs to the same */
 			h_scale = v_scale;
+
+			/* Set a new horizontal scale factor and enable testmode (bit12) */
+			regp->debug_1 = ((h_scale >> 1) & 0xfff) | (1 << 12);
+
 			diff = nv_output->fpWidth - ((1 << 12) * mode->HDisplay)/h_scale;
 			regp->fp_hvalid_start = diff/2;
 			regp->fp_hvalid_end = nv_output->fpWidth - (diff/2) - 1;
@@ -560,6 +564,10 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 
 			/* Scaling in both directions needs to the same */
 			v_scale = h_scale;
+
+			/* Is this ok, since haiku only does widescreen panels? */
+			regp->debug_1 = ((v_scale >> 1) & 0xfff) | (1 << 12);
+
 			diff = nv_output->fpHeight - ((1 << 12) * mode->VDisplay)/v_scale;
 			regp->fp_vvalid_start = diff/2;
 			regp->fp_vvalid_end = nv_output->fpHeight - (diff/2) - 1;
