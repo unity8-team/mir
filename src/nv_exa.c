@@ -255,6 +255,8 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 	ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
+	/* We want to catch people who have this bug, to find a decent fix */
+#if 0
 	/* Now check whether we have the same values for srcY and dstY and
 	   whether the used chipset is buggy. Currently we flag all of G70
 	   cards as buggy, which is probably much to broad. KoalaBR 
@@ -318,6 +320,13 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 		OUT_RING  ((dstY << 16) | dstX);
 		OUT_RING  ((height  << 16) | width);
 	}
+#endif /* 0 */
+
+	NVDEBUG("ExaCopy: Using default path\n");
+	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_POINT_IN, 3);
+	OUT_RING  ((srcY << 16) | srcX);
+	OUT_RING  ((dstY << 16) | dstX);
+	OUT_RING  ((height  << 16) | width);
 
 	if((width * height) >= 512)
 		FIRE_RING(); 
