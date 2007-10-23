@@ -19,10 +19,11 @@ static int NV10TexFormat(int ExaFormat)
 {
 	struct {int exa;int hw;} tex_format[] =
 	{
-		{PICT_a8r8g8b8,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R8G8B8A8_RECT},
+		{PICT_a8r8g8b8,	0x900},
+		//{PICT_x8r8g8b8,	0x7},
 		//{PICT_a1r5g5b5,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R5G5B5A1},
 		//{PICT_a4r4g4b4,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R4G4B4A4},
-		//{PICT_a8,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_A8_RECT}
+		//{PICT_a8,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_A8} -- this one does not work 
 		// FIXME other formats
 	};
 
@@ -41,7 +42,7 @@ static int NV10DstFormat(int ExaFormat)
 	struct {int exa;int hw;} dst_format[] =
 	{
 		{PICT_a8r8g8b8,	0x108},
-		{PICT_x8r8g8b8, 0x108},	// FIXME that one might need more
+		{PICT_x8r8g8b8, 0x108}, //FIXME blending factors?
 		{PICT_r5g6b5,	0x103}
 		// FIXME other formats
 	};
@@ -67,6 +68,9 @@ static Bool NV10CheckTexture(PicturePtr Picture)
 		return FALSE;
 	if (Picture->filter != PictFilterNearest && Picture->filter != PictFilterBilinear)
 		return FALSE;
+	if (Picture->componentAlpha)
+		return FALSE;
+	/* we cannot repeat on NV10 because NPOT textures do not support this. unfortunately. */
 	if (Picture->repeat != RepeatNone)
 		return FALSE;
 	return TRUE;
@@ -79,10 +83,25 @@ static Bool NV10CheckBuffer(PicturePtr Picture)
 
 	if ((w > 4096) || (h>4096))
 		return FALSE;
+	if (Picture->componentAlpha) //this is used by rendercheck CA composite tests. not sure about real-life.
+		return FALSE;
 	if (!NV10DstFormat(Picture->format))
 		return FALSE;
 	return TRUE;
 }
+
+static Bool NV10CheckPictOp(int op)
+{
+	if ( op == PictOpAtopReverse ) /*this op doesn't work right now*/
+		{
+		return FALSE;
+		}
+	if ( op >= PictOpSaturate )
+		{ //we do no saturate, disjoint, conjoint, though we could do e.g. DisjointClear which really is Clear
+		return FALSE;
+		}
+	return TRUE;
+}	
 
 Bool NV10CheckComposite(int	op,
 			     PicturePtr pSrcPicture,
@@ -94,14 +113,111 @@ Bool NV10CheckComposite(int	op,
 			(pSrcPicture->format == PICT_a8) &&
 			(pDstPicture->format == PICT_a8) )
 		return TRUE;*/
+#if 0
+	char out2[4096];
+	char * out = out2;
 
-	if (!NV10CheckBuffer(pDstPicture))
+	switch ( op )
+		{
+		case PictOpOver:
+			sprintf(out, "PictOpOver ");
+			break;
+		case PictOpOutReverse:
+			sprintf(out, "PictOpOutReverse ");
+			break;
+		case PictOpAdd:
+			sprintf(out, "PictOpAdd ");
+			break;
+		default :
+			sprintf(out, "PictOp%d ", op);
+		}
+	out = out + strlen(out);
+	switch ( pSrcPicture->format )
+		{
+		case PICT_a8r8g8b8:
+			sprintf(out, "A8R8G8B8 -> ");
+			break;
+		case PICT_x8r8g8b8:
+			sprintf(out, "X8R8G8B8 -> ");
+			break;
+		case PICT_x8b8g8r8:
+			sprintf(out, "X8B8G8R8 -> ");
+			break;
+		case PICT_a8:
+			sprintf(out, "A8 -> ");
+			break;
+		case PICT_a1:
+			sprintf(out, "A1 -> ");
+			break;
+		default:
+			sprintf(out, "%x -> ", pSrcPicture->format);
+		}
+	out+=strlen(out);
+	switch ( pDstPicture->format )
+		{
+		case PICT_a8r8g8b8:
+			sprintf(out, "A8R8G8B8 ");
+			break;
+		case PICT_x8r8g8b8:
+			sprintf(out, "X8R8G8B8  ");
+			break;
+		case PICT_x8b8g8r8:
+			sprintf(out, "X8B8G8R8  ");
+			break;
+		case PICT_a8:
+			sprintf(out, "A8  ");
+			break;
+		case PICT_a1:
+			sprintf(out, "A1  ");
+			break;
+		default:
+			sprintf(out, "%x  ", pDstPicture->format);
+		}
+	out+=strlen(out);
+	if ( !pMaskPicture ) 
+		sprintf(out, "& NONE");
+	else
+	switch ( pMaskPicture->format )
+		{
+		case PICT_a8r8g8b8:
+			sprintf(out, "& A8R8G8B8 ");
+			break;
+		case PICT_x8r8g8b8:
+			sprintf(out, "& X8R8G8B8  ");
+			break;
+		case PICT_x8b8g8r8:
+			sprintf(out, "& X8B8G8R8  ");
+			break;
+		case PICT_a8:
+			sprintf(out, "& A8  ");
+			break;
+		case PICT_a1:
+			sprintf(out, "& A1  ");
+			break;
+		default:
+			sprintf(out, "& %x  ", pMaskPicture->format);
+		}
+	strcat(out, "\n");
+	xf86DrvMsg(0, X_INFO, out2);
+#endif		
+	if (!NV10CheckPictOp(op))
+		{
 		return FALSE;
+		}
+	if (!NV10CheckBuffer(pDstPicture)) 
+		{
+		return FALSE;
+		}
+		
 	if (!NV10CheckTexture(pSrcPicture))
+		{
 		return FALSE;
-	if ((pMaskPicture)&&(!NV10CheckTexture(pMaskPicture)))
+		}
+		
+	if ((pMaskPicture)/*&&(!NV10CheckTexture(pMaskPicture))*/) //no mask for now. at all.
+		{
 		return FALSE;
-
+		}
 	return TRUE;
 }
 
@@ -109,19 +225,19 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 {
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_OFFSET(unit), 1 );
 	OUT_RING  (NVAccelGetPixmapOffset(pixmap));
-
 	int log2w = log2i(Pict->pDrawable->width);
 	int log2h = log2i(Pict->pDrawable->height);
-	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FORMAT(unit), 1 );
-	OUT_RING  ((NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_T_CLAMP_TO_EDGE) |
-			(NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_S_CLAMP_TO_EDGE) |
+	unsigned int txfmt =
+			(NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_T_CLAMP_TO_EDGE) | (NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_S_CLAMP_TO_EDGE) |
 			(log2w<<20) |
 			(log2h<<16) |
 			(1<<12) | /* lod == 1 */
 			(1<<11) | /* enable NPOT */
 			(NV10TexFormat(Pict->format)) |
-			0x51 /* UNK */
-			);
+			0x51 /* UNK */;
+
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FORMAT(unit), 1 );
+	OUT_RING  (txfmt);
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_ENABLE(unit), 1 );
 	OUT_RING  (NV10_TCL_PRIMITIVE_3D_TX_ENABLE_ENABLE);
@@ -232,7 +348,7 @@ static void NV10SetMultitexture(NVPtr pNv,int multitex)
 	}
 }
 
-static void NV10SetPictOp(NVPtr pNv,int op)
+static void NV10SetPictOp(NVPtr pNv,int op, int sf, int df)
 {
 	struct {int src;int dst;} pictops[] =
 	{
@@ -251,6 +367,13 @@ static void NV10SetPictOp(NVPtr pNv,int op)
 		{0x0001,0x0001}, // PictOpAdd
 	};
 
+	#if 0
+	if ( sf == PICT_x8r8g8b8 && (pictops[op].src == 0x302 || pictops[op].src == 0x303 || pictops[op].src == 0x308))
+		pictops[op].src = 0x0001; //no alpha channel? source alpha = 1
+	if ( df == PICT_x8r8g8b8 && (pictops[op].dst == 0x304 || pictops[op].dst == 0x305))
+		pictops[op].dst = 0x0001; //no alpha channel? dest alpha = 1
+	#endif
+	
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_BLEND_FUNC_SRC, 2);
 	OUT_RING  (pictops[op].src);
 	OUT_RING  (pictops[op].dst);
@@ -283,7 +406,7 @@ Bool NV10PrepareComposite(int	  op,
 	NV10SetMultitexture(pNv, (pMaskPicture!=NULL));
 
 	/* Set PictOp */
-	NV10SetPictOp(pNv, op);
+	NV10SetPictOp(pNv, op, pSrcPicture->format, pDstPicture->format);
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
 	OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_QUADS);
