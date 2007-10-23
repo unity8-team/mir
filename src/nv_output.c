@@ -523,10 +523,10 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 
 		/* Enable full width  and height on the flat panel */
 		regp->fp_hvalid_start = 0;
-		regp->fp_hvalid_end = (nv_output->fpWidth - 1);
+		regp->fp_hvalid_end = (mode->HDisplay - 1);
 
 		regp->fp_vvalid_start = 0;
-		regp->fp_vvalid_end = (nv_output->fpHeight - 1);
+		regp->fp_vvalid_end = (mode->VDisplay - 1);
 
 		/* When doing vertical scaling, limit the last fetched line */
 		if (v_scale != (1 << 12)) {
@@ -557,6 +557,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		}
 
 		/* Same scaling, just for panels with aspect ratio's smaller than 1 */
+		/* This may be broken */
 		if (v_scale != (1 << 12) && (panel_ratio < (aspect_ratio - 0.10))) {
 			uint32_t diff;
 
@@ -587,7 +588,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	/* These are the common blob values, minus a few fp specific bit's */
 	/* The OR mask is in case the powerdown switch was enabled from the other output */
 	regp->debug_0 |= 0x1101111;
-	regp->debug_1 = savep->debug_1;
+
 	if(is_fp) {
 		/* I am not completely certain, but seems to be set only for dfp's */
 		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED;

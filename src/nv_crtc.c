@@ -188,8 +188,6 @@ void NVCrtcSetOwner(xf86CrtcPtr crtc)
 		uint8_t owner = NVReadVGA0(pNv, NV_VGA_CRTCX_OWNER);
 		ErrorF("pre-Owner: 0x%X\n", owner);
 		if (owner == 0x04) {
-			/* Double read as the blob does */
-			nvReadMC(pNv, 0x1084);
 			uint32_t pbus84 = nvReadMC(pNv, 0x1084);
 			ErrorF("pbus84: 0x%X\n", pbus84);
 			pbus84 &= ~(1<<28);
@@ -466,9 +464,9 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 void nv_crtc_calc_state_ext(
 	xf86CrtcPtr 	crtc,
 	int			bpp,
-	int			width,
-	int			hDisplaySize,
-	int			height,
+	int			DisplayWidth, /* Does this change after setting the mode? */
+	int			CrtcHDisplay,
+	int			CrtcVDisplay,
 	int			dotClock,
 	int			flags 
 )
@@ -510,7 +508,7 @@ void nv_crtc_calc_state_ext(
 		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x00000000;
 		state->pllsel   |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2 | NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL; 
 		state->config   = 0x00001114;
-		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = hDisplaySize < 1280 ? 0x04 : 0x00;
+		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = CrtcHDisplay < 1280 ? 0x04 : 0x00;
 		break;
 	case NV_ARCH_10:
 	case NV_ARCH_20:
@@ -549,7 +547,7 @@ void nv_crtc_calc_state_ext(
 			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
 
 		state->config   = nvReadFB(pNv, NV_PFB_CFG0);
-		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = hDisplaySize < 1280 ? 0x04 : 0x00;
+		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = CrtcHDisplay < 1280 ? 0x04 : 0x00;
 		break;
 	}
 
@@ -581,9 +579,7 @@ void nv_crtc_calc_state_ext(
 		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = state->arbitration1 >> 8;
 	}
 
-	ErrorF("width: %d\n", width);
-
-	regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((pScrn->displayWidth/ 8) * pixelDepth) & 0x700) >> 3;
+	regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((DisplayWidth/8) * pixelDepth) & 0x700) >> 3;
 	regp->CRTC[NV_VGA_CRTCX_PIXEL] = (pixelDepth > 2) ? 3 : pixelDepth;
 }
 
@@ -929,6 +925,19 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	vertDisplay -= 1;
 	horizBlankEnd -= 1;
 	vertBlankEnd -= 1;
+
+	ErrorF("horizDisplay: 0x%X \n", horizDisplay);
+	ErrorF("horizStart: 0x%X \n", horizStart);
+	ErrorF("horizEnd: 0x%X \n", horizEnd);
+	ErrorF("horizTotal: 0x%X \n", horizTotal);
+	ErrorF("horizBlankStart: 0x%X \n", horizBlankStart);
+	ErrorF("horizBlankEnd: 0x%X \n", horizBlankEnd);
+	ErrorF("vertDisplay: 0x%X \n", vertDisplay);
+	ErrorF("vertStart: 0x%X \n", vertStart);
+	ErrorF("vertEnd: 0x%X \n", vertEnd);
+	ErrorF("vertTotal: 0x%X \n", vertTotal);
+	ErrorF("vertBlankStart: 0x%X \n", vertBlankStart);
+	ErrorF("vertBlankEnd: 0x%X \n", vertBlankEnd);
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];    
 	savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
