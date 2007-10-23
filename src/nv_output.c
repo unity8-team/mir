@@ -950,18 +950,14 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int index, int i2c_index, Bo
 	char outputname[20];
 	int crtc_mask = (1<<0) | (1<<1);
 	int real_index;
+	Bool create_output = TRUE;
 
 	sprintf(outputname, "Analog-%d", pNv->analog_count);
-	output = xf86OutputCreate (pScrn, &nv_analog_output_funcs, outputname);
-	if (!output)
-		return;
 	nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
 	if (!nv_output) {
-		xf86OutputDestroy (output);
 		return;
 	}
 
-	output->driver_private = nv_output;
 	nv_output->type = OUTPUT_ANALOG;
 
 	/* dvi outputs share their i2c port with their analog output on the same port */
@@ -976,6 +972,18 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int index, int i2c_index, Bo
 	} else {
 		real_index = index;
 	}
+
+	if (!create_output) {
+		xfree(nv_output);
+		return;
+	}
+
+	/* Delay creation of output until we actually know we want it */
+	output = xf86OutputCreate (pScrn, &nv_analog_output_funcs, outputname);
+	if (!output)
+		return;
+
+	output->driver_private = nv_output;
 
 	nv_output->pDDCBus = pNv->pI2CBus[real_index];
 
@@ -993,21 +1001,15 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int index, int i2c_index, B
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
 	int crtc_mask = (1<<0) | (1<<1);
+	Bool create_output = TRUE;
 
 	sprintf(outputname, "Digital-%d", pNv->digital_count);
-	if (lvds)
-		output = xf86OutputCreate (pScrn, &nv_lvds_output_funcs, outputname);
-	else
-		output = xf86OutputCreate (pScrn, &nv_digital_output_funcs, outputname);
-	if (!output)
-		return;
 	nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
+
 	if (!nv_output) {
-		xf86OutputDestroy (output);
 		return;
 	}
 
-	output->driver_private = nv_output;
 	nv_output->type = OUTPUT_DIGITAL;
 
 	nv_output->prefered_ramdac = index;
@@ -1030,26 +1032,33 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int index, int i2c_index, B
 			/* We're not supposed to be LVDS */
 			/* Using index, because this is part of the TMDS programming */
 			if (pNv->output_info & (OUTPUT_0_LVDS << index)) {
-				xfree(nv_output);
-				xf86OutputDestroy (output);
-				return;
+				create_output = FALSE;
 			}
 			/* we should be slaved to a ramdac, otherwise we don't exist */
 			if (!(pNv->output_info & (OUTPUT_0_SLAVED << real_index))) {
-				xfree(nv_output);
-				xf86OutputDestroy (output);
-				return;
+				create_output = FALSE;
 			}
 		} else {
-			xfree(nv_output);
-			xf86OutputDestroy (output);
-			return;
+			create_output = FALSE;
 		}
 	} else {
+		create_output = FALSE;
+	}
+
+	if (!create_output) {
 		xfree(nv_output);
-		xf86OutputDestroy (output);
 		return;
 	}
+
+	/* Delay creation of output until we are certain is desirable */
+	if (lvds)
+		output = xf86OutputCreate (pScrn, &nv_lvds_output_funcs, outputname);
+	else
+		output = xf86OutputCreate (pScrn, &nv_digital_output_funcs, outputname);
+	if (!output)
+		return;
+
+	output->driver_private = nv_output;
 
 	output->possible_crtcs = crtc_mask;
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
