@@ -67,7 +67,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     if (!(flags & XVMC_DIRECT)) {
         /* Indirect */
         XVMC_ERR("Indirect Rendering not supported! Using Direct.");
-        return BadAccess;
+        return BadValue;
     }
 
     /* Limit use to root for now */
@@ -96,7 +96,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     ret = XvMCQueryVersion(display, &major, &minor);
     if (ret) {
         XVMC_ERR("XvMCQueryVersion Failed, unable to determine protocol version.");
-	return BadAccess;
+	return ret;
     }
 
     /* XXX: major and minor could be checked in future for XvMC
@@ -127,18 +127,18 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 		XVMC_ERR("unimplemented xvmc type %d", comm->type);
 		free(priv_data);
 		priv_data = NULL;
-		return BadAccess;
+		return BadValue;
 	}
     } else {
 	XVMC_ERR("wrong hw xvmc type returned\n");
 	free(priv_data);
 	priv_data = NULL;
-	return BadAccess;
+	return BadValue;
     }
 
     if (xvmc_driver == NULL) {
 	XVMC_ERR("fail to load xvmc driver for type %d\n", comm->type);
-	return BadAccess;
+	return BadValue;
     }
 
     /* driver hook should free priv_data after return if success.
@@ -147,7 +147,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     if (ret) {
 	XVMC_ERR("driver create context failed\n");
 	free(priv_data);
-	return BadAccess;
+	return ret;
     }
 
 #if 0
@@ -269,14 +269,15 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 ***************************************************************************/
 Status XvMCDestroyContext(Display *display, XvMCContext *context)
 {
-    int ret = -1;
+    Status ret;
+
     if (!display || !context)
-        return BadValue;
+        return XvMCBadContext;
 
     ret = (xvmc_driver->destroy_context)(display, context);
     if (ret) {
 	XVMC_ERR("destroy context fail\n");
-	return BadAccess;
+	return ret;
     }
 
     /* Pass Control to the X server to destroy the drm_context_t */
@@ -290,20 +291,23 @@ Status XvMCDestroyContext(Display *display, XvMCContext *context)
 ***************************************************************************/
 Status XvMCCreateSurface(Display *display, XvMCContext *context, XvMCSurface *surface) 
 {
-    int ret;
+    Status ret;
 //    i915XvMCContext *pI915XvMC;
 //    i915XvMCSurface *pI915Surface;
 //    I915XvMCCreateSurfaceRec *tmpComm = NULL;
 //    int priv_count;
 //    uint *priv_data;
 
-    if (!display || !context || !surface)
-        return BadValue;
+    if (!display || !context)
+        return XvMCBadContext;
+
+    if (!surface)
+	return XvMCBadSurface;
 
     ret = (xvmc_driver->create_surface)(display, context, surface);
     if (ret) {
 	XVMC_ERR("create surface failed\n");
-	return BadAccess;
+	return ret;
     }
 
 #if 0
@@ -390,7 +394,7 @@ Status XvMCDestroySurface(Display *display, XvMCSurface *surface)
 //    i915XvMCContext *pI915XvMC;
 
     if (!display || !surface)
-        return BadValue;
+        return XvMCBadSurface;
 
     (xvmc_driver->destroy_surface)(display, surface);
 
@@ -518,12 +522,14 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
                          XvMCMacroBlockArray *macroblock_array,
                          XvMCBlockArray *blocks)
 {
-    int ret;
+    Status ret;
 
-    if (!display || !context || !target_surface) {
+    if (!display || !context) {
         XVMC_ERR("Invalid Display, Context or Target!");
-        return BadValue;
+        return XvMCBadContext;
     }
+    if (!target_surface)
+	return XvMCBadSurface;
 
     ret = (xvmc_driver->render_surface)(display, context, picture_structure,
 	    target_surface, past_surface, future_surface, flags,
@@ -532,7 +538,7 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
 
     if (ret) {
 	XVMC_ERR("render surface fail\n");
-	return BadAccess;
+	return ret;
     }
 #if 0
     int i;
@@ -764,16 +770,16 @@ Status XvMCPutSurface(Display *display,XvMCSurface *surface,
                       unsigned short destw, unsigned short desth,
                       int flags)
 {
-    int ret = -1;
+    Status ret;
 
     if (!display || !surface)
-        return BadValue;
+        return XvMCBadSurface;
 
     ret = (xvmc_driver->put_surface)(display, surface, draw, srcx, srcy,
 	    srcw, srch, destx, desty, destw, desth, flags);
     if (ret) {
 	XVMC_ERR("put surface fail\n");
-	return BadAccess;
+	return ret;
     }
 
 #if 0
@@ -853,6 +859,9 @@ Status XvMCSyncSurface(Display *display, XvMCSurface *surface)
     Status ret;
     int stat = 0;
 
+    if (!display || !surface)
+	return XvMCBadSurface;
+
     do {
         ret = XvMCGetSurfaceStatus(display, surface, &stat);
     } while (!ret && (stat & XVMC_RENDERING));
@@ -872,6 +881,8 @@ Status XvMCSyncSurface(Display *display, XvMCSurface *surface)
 ***************************************************************************/
 Status XvMCFlushSurface(Display * display, XvMCSurface *surface) 
 {
+    if (!display || !surface)
+	return XvMCBadSurface;
     return Success;
 }
 
@@ -889,15 +900,15 @@ Status XvMCFlushSurface(Display * display, XvMCSurface *surface)
 ***************************************************************************/
 Status XvMCGetSurfaceStatus(Display *display, XvMCSurface *surface, int *stat) 
 {
-    int ret = -1;
+    Status ret;
 
     if (!display || !surface || !stat)
-        return BadValue;
+        return XvMCBadSurface;
 
     ret = (xvmc_driver->get_surface_status)(display, surface, stat);
     if (ret) {
 	XVMC_ERR("get surface status fail\n");
-	return BadAccess;
+	return ret;
     }
 
 #if 0
@@ -972,10 +983,11 @@ Status XvMCHideSurface(Display *display, XvMCSurface *surface)
 {
 //    i915XvMCSurface *pI915Surface;
 //    i915XvMCContext *pI915XvMC;
-    int stat = 0, ret;
+    int stat = 0;
+    Status ret;
 
     if (!display || !surface)
-        return BadValue;
+        return XvMCBadSurface;
 
 #if 0
     if (!(pI915Surface = surface->privData))

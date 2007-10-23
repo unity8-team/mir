@@ -114,17 +114,17 @@ struct _intel_xvmc_driver {
     void (*fini)(void);
 
     /* driver specific xvmc callbacks */
-    int (*create_context)(Display* display, XvMCContext *context,
+    Status (*create_context)(Display* display, XvMCContext *context,
 	    int priv_count, CARD32 *priv_data);
 
-    int (*destroy_context)(Display* display, XvMCContext *context);
+    Status (*destroy_context)(Display* display, XvMCContext *context);
 
-    int (*create_surface)(Display* display, XvMCContext *context,
+    Status (*create_surface)(Display* display, XvMCContext *context,
 	    XvMCSurface *surface);
 
-    int (*destroy_surface)(Display* display, XvMCSurface *surface);
+    Status (*destroy_surface)(Display* display, XvMCSurface *surface);
 
-    int (*render_surface)(Display *display, XvMCContext *context,
+    Status (*render_surface)(Display *display, XvMCContext *context,
 	    unsigned int picture_structure,
 	    XvMCSurface *target_surface,
 	    XvMCSurface *past_surface,
@@ -136,14 +136,14 @@ struct _intel_xvmc_driver {
 	    XvMCBlockArray *blocks);
 
     /* XXX this should be same for all drivers */
-    int (*put_surface)(Display *display, XvMCSurface *surface,
+    Status (*put_surface)(Display *display, XvMCSurface *surface,
 	    Drawable draw, short srcx, short srcy,
 	    unsigned short srcw, unsigned short srch,
 	    short destx, short desty,
 	    unsigned short destw, unsigned short desth,
 	    int flags);
 
-    int (*get_surface_status)(Display *display, XvMCSurface *surface, int *stat);
+    Status (*get_surface_status)(Display *display, XvMCSurface *surface, int *stat);
 
     /* XXX more for vld */
 };

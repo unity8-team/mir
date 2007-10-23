@@ -65,11 +65,11 @@ static char I915KernelDriverName[] = "i915";
 static int error_base;
 static int event_base;
 
-static int i915_xvmc_mc_create_context(Display* display, XvMCContext *context, int priv_count, CARD32* priv_data);
-static int i915_xvmc_mc_destroy_context(Display* display, XvMCContext *context);
-static int i915_xvmc_mc_create_surface(Display* display, XvMCContext *context, XvMCSurface *surface);
-static int i915_xvmc_mc_destroy_surface(Display* display, XvMCSurface *surface);
-static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
+static Status i915_xvmc_mc_create_context(Display* display, XvMCContext *context, int priv_count, CARD32* priv_data);
+static Status i915_xvmc_mc_destroy_context(Display* display, XvMCContext *context);
+static Status i915_xvmc_mc_create_surface(Display* display, XvMCContext *context, XvMCSurface *surface);
+static Status i915_xvmc_mc_destroy_surface(Display* display, XvMCSurface *surface);
+static Status i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
                          unsigned int picture_structure,
                          XvMCSurface *target_surface,
                          XvMCSurface *past_surface,
@@ -79,13 +79,13 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
                          unsigned int first_macroblock,
                          XvMCMacroBlockArray *macroblock_array,
                          XvMCBlockArray *blocks);
-static int i915_xvmc_mc_put_surface(Display *display,XvMCSurface *surface,
+static Status i915_xvmc_mc_put_surface(Display *display,XvMCSurface *surface,
                       Drawable draw, short srcx, short srcy,
                       unsigned short srcw, unsigned short srch,
                       short destx, short desty,
                       unsigned short destw, unsigned short desth,
                       int flags);
-static int i915_xvmc_mc_get_surface_status(Display *display, XvMCSurface *surface, int *stat);
+static Status i915_xvmc_mc_get_surface_status(Display *display, XvMCSurface *surface, int *stat);
 //XXX
 static int i915_xvmc_mc_init()
 {return 0;}
@@ -1750,7 +1750,7 @@ static void i915_release_resource(Display *display, XvMCContext *context)
     context->privData = NULL;
 }
 
-static int i915_xvmc_mc_create_context(Display *display, XvMCContext *context,
+static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context,
 	int priv_count, CARD32 *priv_data)
 {
     i915XvMCContext *pI915XvMC = NULL;
@@ -1929,7 +1929,7 @@ static int i915_xvmc_mc_create_context(Display *display, XvMCContext *context,
     pthread_mutex_init(&pI915XvMC->ctxmutex, NULL);
     intelInitBatchBuffer(pI915XvMC);
     pI915XvMC->ref = 1;
-    return 0;
+    return Success;
 }
 
 /***************************************************************************
@@ -1947,7 +1947,7 @@ static int i915_xvmc_mc_destroy_context(Display *display, XvMCContext *context)
     i915XvMCContext *pI915XvMC;
 
     if (!(pI915XvMC = context->privData))
-        return (error_base + XvMCBadContext);
+        return XvMCBadContext;
 
     /* Pass Control to the X server to destroy the drm_context_t */
     i915_release_resource(display,context);
@@ -1957,7 +1957,7 @@ static int i915_xvmc_mc_destroy_context(Display *display, XvMCContext *context)
 /***************************************************************************
 // Function: XvMCCreateSurface
 ***************************************************************************/
-static int i915_xvmc_mc_create_surface(Display *display, XvMCContext *context, XvMCSurface *surface) 
+static Status i915_xvmc_mc_create_surface(Display *display, XvMCContext *context, XvMCSurface *surface) 
 {
     Status ret;
     i915XvMCContext *pI915XvMC;
