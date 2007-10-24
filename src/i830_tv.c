@@ -1451,6 +1451,9 @@ i830_tv_get_modes(xf86OutputPtr output)
 	
 	mode_ptr->type = M_T_DRIVER;
 	mode_ptr->next = ret;
+	mode_ptr->prev = NULL;
+	if (ret != NULL)
+	    reg->prev = mode_ptr;
 	ret = mode_ptr;
     } 
 
