@@ -1393,7 +1393,7 @@ static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw,
 		if ( * action_flags & IS_YV12 ) //NV04-05 don't support native YV12, only YUY2 and ITU-R BT.601)
 			*action_flags |= CONVERT_TO_YUY2;
 		
-	if ( pNv->Architecture == NV_ARCH_10 )
+	if ( pNv->Architecture == NV_ARCH_10 || pNv->Architecture == NV_ARCH_20 )
 		{
 		switch ( pNv->Chipset & 0xfff0 )
 			{
@@ -1402,7 +1402,9 @@ static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw,
 			case CHIPSET_NV15:
 			case CHIPSET_NFORCE: /*XXX: unsure about nforce and nforce2*/
 			case CHIPSET_NFORCE2:
+			case CHIPSET_NV20: /*reported by pq - in fact all cards older than geforce4 ti probably don't have YV12 overlay*/
 					*action_flags |= CONVERT_TO_YUY2; break;
+			
 			default : break;
 			}
 		}
