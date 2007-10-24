@@ -1453,7 +1453,7 @@ i830_tv_get_modes(xf86OutputPtr output)
 	mode_ptr->next = ret;
 	mode_ptr->prev = NULL;
 	if (ret != NULL)
-	    reg->prev = mode_ptr;
+	    ret->prev = mode_ptr;
 	ret = mode_ptr;
     } 
 
