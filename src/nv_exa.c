@@ -683,12 +683,13 @@ NVExaInit(ScreenPtr pScreen)
 
 	switch (pNv->Architecture) {
 	
-	/*case NV_ARCH_10:
+	case NV_ARCH_10:
+	//case NV_ARCH_20: waiting for confirmation from pq
  		pNv->EXADriverPtr->CheckComposite   = NV10CheckComposite;
  		pNv->EXADriverPtr->PrepareComposite = NV10PrepareComposite;
  		pNv->EXADriverPtr->Composite        = NV10Composite;
  		pNv->EXADriverPtr->DoneComposite    = NV10DoneComposite;
-		break;*/
+		break;
 		
 #if defined(ENABLE_NV30EXA)
 //	not working yet
