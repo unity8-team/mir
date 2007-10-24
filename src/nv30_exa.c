@@ -268,6 +268,9 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	BEGIN_RING(Nv3D, 0x1d7c, 1);
 	OUT_RING  (0xffff0000);
 
+        //BEGIN_RING(Nv3D, 0x0b00, 1);
+        //OUT_RING(0x00000004);
+
 }
 
 static void
@@ -795,6 +798,9 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (0x148); /* format */
 	OUT_RING  (pitch << 16 | pitch);
 	OUT_RING  (0x0);
+        BEGIN_RING(Nv3D, 0x0a00, 2);
+        OUT_RING  ((w<<16) | 0);
+        OUT_RING  ((h<<16) | 0);
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(0), 2);
 	OUT_RING  ((w-1)<<16);
 	OUT_RING  ((h-1)<<16);
