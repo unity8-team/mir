@@ -165,7 +165,17 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	I830Ptr pI830 = I830PTR(pScrn);
 	int ret;
 
-	ret = drmBOSetPin(pI830->drmSubFD, &mem->bo, 1);
+	ret = drmBOSetStatus(pI830->drmSubFD, &mem->bo,
+			     DRM_BO_FLAG_MEM_VRAM |
+			     DRM_BO_FLAG_MEM_TT |
+			     DRM_BO_FLAG_READ |
+			     DRM_BO_FLAG_WRITE |
+			     DRM_BO_FLAG_NO_EVICT,
+			     DRM_BO_MASK_MEM |
+			     DRM_BO_FLAG_READ |
+			     DRM_BO_FLAG_WRITE |
+			     DRM_BO_FLAG_NO_EVICT,
+			     0, 0, 0);
 	if (ret != 0)
 	    return FALSE;
 
@@ -226,7 +236,10 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	I830Ptr pI830 = I830PTR(pScrn);
 	int ret;
 
-	ret = drmBOSetPin(pI830->drmSubFD, &mem->bo, 0);
+	ret = drmBOSetStatus(pI830->drmSubFD, &mem->bo,
+			     0, DRM_BO_FLAG_NO_EVICT,
+			     0, 0, 0);
+
 	if (ret == 0) {
 	    mem->bound = FALSE;
 	    /* Give buffer obviously wrong offset/end until it's re-pinned. */
@@ -739,8 +752,15 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 	return NULL;
     }
 
+    /*
+     * Create buffers in local memory to avoid having the creation order
+     * determine the TT offset. Driver acceleration
+     * cannot handle changed front buffer TT offsets yet ,
+     * so let's keep our fingers crossed.
+     */
+
     mask = DRM_BO_FLAG_READ | DRM_BO_FLAG_WRITE | DRM_BO_FLAG_MAPPABLE |
-	DRM_BO_FLAG_MEM_TT;
+	DRM_BO_FLAG_MEM_LOCAL;
     if (flags & ALLOW_SHARING)
 	mask |= DRM_BO_FLAG_SHAREABLE;
 
