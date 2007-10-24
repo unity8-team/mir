@@ -893,38 +893,29 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		}
 	}
 
-	ErrorF("crtc: Pre-sync workaround\n");
-	/* Flatpanel stuff from haiku */
-	if (is_fp) {
-		if (nv_output->fpWidth == mode->CrtcHDisplay) {
-			/* This is to keep the panel synced at native resolution */
-			if (pNv->NVArch == 0x11) {
-				horizTotal -= 56/8;
-			} else {
-				horizTotal -= 32/8;
-			}
-		}
-
-		vertTotal -= 1;
-		horizTotal -= 1;
-
-		if (horizStart == horizDisplay) 
-			horizStart -= 1;
-		if (horizEnd == horizTotal)
-			horizEnd -= 1;
-		if (vertStart == vertDisplay)
-			vertStart += 1;
-		if (vertEnd  == vertTotal)
-			vertEnd -= 1;
-	}
-
-	/* Stuff from haiku, put here so it doesn't mess up the comparisons above */
+	/* Stuff from haiku, put here so it doesn't look messy up there */
 	horizTotal -= 5;
 	horizDisplay -= 1;
 	vertTotal -= 2;
 	vertDisplay -= 1;
 	horizBlankEnd -= 1;
 	vertBlankEnd -= 1;
+
+	ErrorF("crtc: Pre-sync workaround\n");
+	/* Reverted to what nv did, because that works for all resolutions on flatpanels */
+	if (is_fp) {
+		vertStart = vertTotal - 3;  
+		vertEnd = vertTotal - 2;
+		vertBlankStart = vertStart;
+		horizStart = horizTotal - 5;
+		horizEnd = horizTotal - 2;   
+		horizBlankEnd = horizTotal + 4;   
+		if (pNv->overlayAdaptor) { 
+			/* This reportedly works around Xv some overlay bandwidth problems*/
+			horizTotal += 2;
+		}
+	}
+	ErrorF("crtc: Post-sync workaround\n");
 
 	ErrorF("horizDisplay: 0x%X \n", horizDisplay);
 	ErrorF("horizStart: 0x%X \n", horizStart);
@@ -941,8 +932,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];    
 	savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
-
-	ErrorF("crtc: Post-sync workaround\n");
 
 	if(mode->Flags & V_INTERLACE) 
 		vertTotal |= 1;
