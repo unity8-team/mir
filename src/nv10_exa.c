@@ -103,20 +103,20 @@ static Bool NV10CheckPictOp(int op)
 	return TRUE;
 }	
 
-Bool NV10CheckComposite(int	op,
-			     PicturePtr pSrcPicture,
+#if 0
+#define NV10EXAFallbackInfo(X,Y,Z,S,T) NV10EXAFallbackInfo_real(X,Y,Z,S,T)
+#else
+#define NV10EXAFallbackInfo(X,Y,Z,S,T) ;
+#endif
+
+static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPicture,
 			     PicturePtr pMaskPicture,
 			     PicturePtr pDstPicture)
 {
-	// XXX A8 + A8 special case "TO BE DONE LATER"
-/*	if ((!pMaskPicture) &&
-			(pSrcPicture->format == PICT_a8) &&
-			(pDstPicture->format == PICT_a8) )
-		return TRUE;*/
-#if 0
 	char out2[4096];
 	char * out = out2;
-
+	sprintf(out, "%s  ", reason);
+	out = out + strlen(out);
 	switch ( op )
 		{
 		case PictOpOver:
@@ -199,25 +199,44 @@ Bool NV10CheckComposite(int	op,
 		}
 	strcat(out, "\n");
 	xf86DrvMsg(0, X_INFO, out2);
-#endif		
+}
+
+
+Bool NV10CheckComposite(int	op,
+			     PicturePtr pSrcPicture,
+			     PicturePtr pMaskPicture,
+			     PicturePtr pDstPicture)
+{
+	// XXX A8 + A8 special case "TO BE DONE LATER"
+/*	if ((!pMaskPicture) &&
+			(pSrcPicture->format == PICT_a8) &&
+			(pDstPicture->format == PICT_a8) )
+		return TRUE;*/
+
 	if (!NV10CheckPictOp(op))
 		{
+		NV10EXAFallbackInfo("pictop", op, pSrcPicture, pMaskPicture, pDstPicture);
 		return FALSE;
 		}
 	if (!NV10CheckBuffer(pDstPicture)) 
 		{
+		NV10EXAFallbackInfo("dst", op, pSrcPicture, pMaskPicture, pDstPicture);
 		return FALSE;
 		}
 		
 	if (!NV10CheckTexture(pSrcPicture))
 		{
+		NV10EXAFallbackInfo("src", op, pSrcPicture, pMaskPicture, pDstPicture);
 		return FALSE;
 		}
 		
-	if ((pMaskPicture)/*&&(!NV10CheckTexture(pMaskPicture))*/) //no mask for now. at all.
+	if ((pMaskPicture) &&(!NV10CheckTexture(pMaskPicture)))
 		{
+		NV10EXAFallbackInfo("mask", op, pSrcPicture, pMaskPicture, pDstPicture);
 		return FALSE;
 		}
+		
+	NV10EXAFallbackInfo("Accelerating", op, pSrcPicture, pMaskPicture, pDstPicture);
 	return TRUE;
 }
 
@@ -312,55 +331,91 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	OUT_RING  (0);
 }
 
-static void NV10SetMultitexture(NVPtr pNv,int multitex, int sf)
+static void NV10SetRegCombs(NVPtr pNv, PicturePtr src, PicturePtr mask)
 {
-	// FIXME
-	if (multitex)
-	{
-/*
-18141010    NV10_TCL_PRIMITIVE_3D.RC_IN_ALPHA[0] = D_INPUT=ZERO | D_COMPONENT_USAGE=ALPHA | D_MAPPING=UNSIGNED_IDENTITY_NV | C_INPUT=ZERO | C_COMPONENT_USAGE=ALPHA | C_MAPPING=UNSIGNED_IDENTITY_NV | B_INPUT=PRIMARY_COLOR_NV | B_COMPONENT_USAGE=ALPHA | B_MAPPING=UNSIGNED_IDENTITY_NV | A_INPUT=TEXTURE1_ARB | A_COMPONENT_USAGE=ALPHA | 
-		A_MAPPING=UNSIGNED_IDENTITY_NV
-091c1010    NV10_TCL_PRIMITIVE_3D.RC_IN_ALPHA[1] = D_INPUT=ZERO | D_COMPONENT_USAGE=ALPHA | D_MAPPING=UNSIGNED_IDENTITY_NV | C_INPUT=ZERO | C_COMPONENT_USAGE=ALPHA | C_MAPPING=UNSIGNED_IDENTITY_NV | B_INPUT=SPARE0_NV | B_COMPONENT_USAGE=ALPHA | B_MAPPING=UNSIGNED_IDENTITY_NV | A_INPUT=TEXTURE0_ARB | A_COMPONENT_USAGE=BLUE | A_MAPPING=UNSIGNED_IDENTITY_NV
-08040820    NV10_TCL_PRIMITIVE_3D.RC_IN_RGB[0] = D_INPUT=ZERO | D_COMPONENT_USAGE=RGB | D_MAPPING=UNSIGNED_INVERT_NV | C_INPUT=TEXTURE1_ARB | C_COMPONENT_USAGE=RGB | C_MAPPING=UNSIGNED_IDENTITY_NV | B_INPUT=PRIMARY_COLOR_NV | B_COMPONENT_USAGE=RGB | B_MAPPING=UNSIGNED_IDENTITY_NV | A_INPUT=TEXTURE1_ARB | A_COMPONENT_USAGE=RGB | A_MAPPING=UNSIGNED_IDENTITY_NV
-090c0920    NV10_TCL_PRIMITIVE_3D.RC_IN_RGB[1] = D_INPUT=ZERO | D_COMPONENT_USAGE=RGB | D_MAPPING=UNSIGNED_INVERT_NV | C_INPUT=TEXTURE0_ARB | C_COMPONENT_USAGE=RGB | C_MAPPING=UNSIGNED_IDENTITY_NV | B_INPUT=SPARE0_NV | B_COMPONENT_USAGE=RGB | B_MAPPING=UNSIGNED_IDENTITY_NV | A_INPUT=TEXTURE0_ARB | A_COMPONENT_USAGE=RGB | A_MAPPING=UNSIGNED_IDENTITY_NV
-00000000    NV10_TCL_PRIMITIVE_3D.RC_COLOR[0] = B=0 | G=0 | R=0 | A=0
-00000000    NV10_TCL_PRIMITIVE_3D.RC_COLOR[1] = B=0 | G=0 | R=0 | A=0
-00000c00    NV10_TCL_PRIMITIVE_3D.RC_OUT_ALPHA[0] = CD_OUTPUT=ZERO | AB_OUTPUT=ZERO | SUM_OUTPUT=SPARE0_NV | CD_DOT_PRODUCT=FALSE | AB_DOT_PRODUCT=FALSE | MUX_SUM=FALSE | BIAS=NONE | SCALE=NONE | leftover=0x00000000/0x0000ffff
-00000c00    NV10_TCL_PRIMITIVE_3D.RC_OUT_ALPHA[1] = CD_OUTPUT=ZERO | AB_OUTPUT=ZERO | SUM_OUTPUT=SPARE0_NV | CD_DOT_PRODUCT=FALSE | AB_DOT_PRODUCT=FALSE | MUX_SUM=FALSE | BIAS=NONE | SCALE=NONE | leftover=0x00000000/0x0000ffff
-000010cd    NV10_TCL_PRIMITIVE_3D.RC_OUT_RGB[0] = CD_OUTPUT=SPARE1_NV | AB_OUTPUT=SPARE0_NV | SUM_OUTPUT=ZERO | CD_DOT_PRODUCT=TRUE | AB_DOT_PRODUCT=FALSE | MUX_SUM=FALSE | BIAS=NONE | SCALE=NONE | OPERATION=0 | leftover=0x00000000/0x3800ffff
-280010cd    NV10_TCL_PRIMITIVE_3D.RC_OUT_RGB[1] = CD_OUTPUT=SPARE1_NV | AB_OUTPUT=SPARE0_NV | SUM_OUTPUT=ZERO | CD_DOT_PRODUCT=TRUE | AB_DOT_PRODUCT=FALSE | MUX_SUM=FALSE | BIAS=NONE | SCALE=NONE | OPERATION=5 | leftover=0x00000000/0x3800ffff
-300e0300    NV10_TCL_PRIMITIVE_3D.RC_FINAL0 = D_INPUT=ZERO | D_COMPONENT_USAGE=RGB | D_MAPPING=UNSIGNED_IDENTITY_NV | C_INPUT=FOG | C_COMPONENT_USAGE=RGB | C_MAPPING=UNSIGNED_IDENTITY_NV | B_INPUT=SPARE0_PLUS_SECONDARY_COLOR_NV | B_COMPONENT_USAGE=RGB | B_MAPPING=UNSIGNED_IDENTITY_NV | A_INPUT=ZERO | A_COMPONENT_USAGE=ALPHA | A_MAPPING=UNSIGNED_INVERT_NV
-0c091c80    NV10_TCL_PRIMITIVE_3D.RC_FINAL1 = COLOR_SUM_CLAMP=TRUE | G_INPUT=SPARE0_NV | G_COMPONENT_USAGE=ALPHA | G_MAPPING=UNSIGNED_IDENTITY_NV | F_INPUT=TEXTURE0_ARB | F_COMPONENT_USAGE=RGB | F_MAPPING=UNSIGNED_IDENTITY_NV | E_INPUT=SPARE0_NV | E_COMPONENT_USAGE=RGB | E_MAPPING=UNSIGNED_IDENTITY_NV | leftover=0x00000000/0xffffff80
-00042294  size 1, subchannel 1 (0xbeef5601),offset 0x0294,increment
-00000000    NV10_TCL_PRIMITIVE_3D.LIGHT_MODEL = COLOR_CONTROL=0 | LOCAL_VIEWER=FALSE | leftover=0x00000000/0x00010002
-000423b8  size 1, subchannel 1 (0xbeef5601),offset 0x03b8,increment
-00000000    NV10_TCL_PRIMITIVE_3D.COLOR_CONTROL
-000423bc  size 1, subchannel 1 (0xbeef5601),offset 0x03bc,increment
-00000000    NV10_TCL_PRIMITIVE_3D.ENABLED_LIGHTS = LIGHT0=FALSE | LIGHT1=FALSE | LIGHT2=FALSE | LIGHT3=FALSE | LIGHT4=FALSE | LIGHT5=FALSE | LIGHT6=FALSE | LIGHT7=FALSE | leftover=0x00000000/0x00005555
-00402500  size 16, subchannel 1 (0xbeef5601),offset 0x0500,increment
-*/		
-	}
+/*This can be a bit difficult to understand at first glance.
+Reg combiners are described here:
+http://icps.u-strasbg.fr/~marchesin/perso/extensions/NV/register_combiners.html
+	
+Single texturing setup, without honoring vertex colors (non default setup) is:
+Alpha RC 0 : a_0  * 1 + 0 * 0
+RGB RC 0 : rgb_0 * 1 + 0 * 0
+RC 1s are unused
+	
+Default setup uses vertex rgb/alpha in place of 1s above, but we don't need that in 2D.
+	
+Multi texturing setup, where we do TEX0 in TEX1 (masking) is:
+Alpha RC 0 : a_0 * a_1 + 0 * 0
+RGB RC0 : rgb_0 * a_1 + 0 * 0
+RC 1s are unused
+	
+*/
+
+unsigned int rc0_in_alpha = 0, rc0_in_rgb = 0;
+unsigned int rc1_in_alpha = 0, rc1_in_rgb = 0;
+
+#define A_ALPHA_ZERO (NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_A_INPUT_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_A_COMPONENT_USAGE_ALPHA)
+#define B_ALPHA_ZERO (NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_B_INPUT_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_B_COMPONENT_USAGE_ALPHA)
+#define C_ALPHA_ZERO (NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_C_INPUT_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_C_COMPONENT_USAGE_ALPHA)
+#define D_ALPHA_ZERO (NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_D_INPUT_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_D_COMPONENT_USAGE_ALPHA)
+	
+#define A_ALPHA_ONE (A_ALPHA_ZERO | (NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_A_MAPPING_UNSIGNED_INVERT_NV))
+#define B_ALPHA_ONE (B_ALPHA_ZERO | (NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_B_MAPPING_UNSIGNED_INVERT_NV))
+#define C_ALPHA_ONE (C_ALPHA_ZERO | (NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_C_MAPPING_UNSIGNED_INVERT_NV))
+#define D_ALPHA_ONE (D_ALPHA_ZERO | (NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_D_MAPPING_UNSIGNED_INVERT_NV))
+
+#define A_RGB_ZERO (NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_A_INPUT_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_A_COMPONENT_USAGE_RGB)
+#define B_RGB_ZERO (NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_B_INPUT_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_B_COMPONENT_USAGE_RGB)
+#define C_RGB_ZERO (NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_C_INPUT_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_C_COMPONENT_USAGE_RGB)
+#define D_RGB_ZERO (NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_D_INPUT_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_D_COMPONENT_USAGE_RGB)
+
+#define A_RGB_ONE (A_RGB_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_A_MAPPING_UNSIGNED_INVERT_NV)
+#define B_RGB_ONE (B_RGB_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_B_MAPPING_UNSIGNED_INVERT_NV)
+#define C_RGB_ONE (C_RGB_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_C_MAPPING_UNSIGNED_INVERT_NV)
+#define D_RGB_ONE (D_RGB_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_D_MAPPING_UNSIGNED_INVERT_NV)
+
+			
+	rc0_in_alpha |= C_ALPHA_ZERO | D_ALPHA_ZERO;
+	if (src->format == PICT_x8r8g8b8)
+		rc0_in_alpha |= A_ALPHA_ONE; //A = alpha = 1 everywhere
 	else
-	{
-		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA(0), 12);
-		if (sf == PICT_x8r8g8b8)
-			OUT_RING  (0x30141010);
+		rc0_in_alpha |= 0x18000000; //A = a_0, use texture 0 alpha value
+	
+	if ( ! mask ) 
+		rc0_in_alpha |= B_ALPHA_ONE;
+	else 
+		if ( mask->format == PICT_x8r8g8b8 )  //no alpha? ignore it
+			rc0_in_alpha |= B_ALPHA_ONE;
 		else
-			OUT_RING  (0x18141010);
-		OUT_RING  (0);
-		if (sf != PICT_a8 )
-			OUT_RING  (0x08040820);
-		else OUT_RING  (0x00040820);
-		OUT_RING  (0);
-		OUT_RING  (0);
-		OUT_RING  (0);
-		OUT_RING  (0x00000c00);
-		OUT_RING  (0);
-		OUT_RING  (0x000010cd);
-		OUT_RING  (0x18000000);
-		OUT_RING  (0x300e0300);
-		OUT_RING  (0x0c091c80);
-	}
+			rc0_in_alpha |= 0x00190000; //B = a_1, use texture 1 alpha value
+	
+	rc0_in_rgb |=  C_RGB_ZERO | D_RGB_ZERO;
+	if (src->format == PICT_a8 )
+		rc0_in_rgb |= A_RGB_ZERO;
+	else 
+		rc0_in_rgb |= 0x08000000; //A = rgb_0, use texture 0 rgb
+	
+	if ( ! mask )
+		rc0_in_rgb |= B_RGB_ONE;
+	else 
+		if (  mask->format == PICT_x8r8g8b8 )  //no alpha? ignore it
+			rc0_in_rgb |= B_RGB_ONE;
+		else
+			rc0_in_rgb |= 0x00190000; //B = a_1, use texture 1 alpha value
+	
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA(0), 12);
+	OUT_RING(rc0_in_alpha);
+	OUT_RING  (rc1_in_alpha);
+	OUT_RING (rc0_in_rgb);
+	OUT_RING  (rc1_in_rgb);
+	OUT_RING  (0); /*COLOR 0*/
+	OUT_RING  (0); /*COLOR 1*/
+	OUT_RING  (0x00000c00);
+	OUT_RING  (0);
+	OUT_RING  (0x000010cd);
+	OUT_RING  (0x18000000);
+	OUT_RING  (0x300e0300);
+	OUT_RING  (0x0c091c80);
 }
 
 static void NV10SetPictOp(NVPtr pNv,int op, int sf, int df)
@@ -410,8 +465,7 @@ Bool NV10PrepareComposite(int	  op,
 	if (pMaskPicture)
 		NV10SetTexture(pNv,1,pMaskPicture,pMask);
 
-	/* Set Multitexturing */
-	NV10SetMultitexture(pNv, (pMaskPicture!=NULL), pSrcPicture->format);
+	NV10SetRegCombs(pNv, pSrcPicture, pMaskPicture);
 
 	/* Set PictOp */
 	NV10SetPictOp(pNv, op, pSrcPicture->format, pDstPicture->format);
