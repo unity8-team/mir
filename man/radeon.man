@@ -383,6 +383,13 @@ case.  This is only useful for LVDS panels (laptop internal panels).
 The default is
 .B on.
 .TP
+.BI "Option \*TVDACLoadDetect\*q \*q" boolean \*q
+Enable load detection on the TV DAC.  The TV DAC is used to drive both 
+TV-OUT and analog monitors. Load detection is often unreliable in the 
+TV DAC so it is disabled by default.
+The default is
+.B off.
+.TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
 Enable DRI support.  This option allows you to enable to disable the DRI.  
 The default is

@@ -190,6 +190,7 @@ static const OptionInfoRec RADEONOptions[] = {
 #if defined(__powerpc__)
     { OPTION_MAC_MODEL,      "MacModel",         OPTV_STRING,  {0}, FALSE },
 #endif
+    { OPTION_TVDAC_LOAD_DETECT, "TVDACLoadDetect", OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 

@@ -157,7 +157,8 @@ typedef enum {
 #if defined(__powerpc__)
     OPTION_MAC_MODEL,
 #endif
-    OPTION_DEFAULT_TMDS_PLL
+    OPTION_DEFAULT_TMDS_PLL,
+    OPTION_TVDAC_LOAD_DETECT
 } RADEONOpts;
 
 
