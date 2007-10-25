@@ -106,7 +106,7 @@ static Bool NV10CheckPictOp(int op)
 #if 0
 #define NV10EXAFallbackInfo(X,Y,Z,S,T) NV10EXAFallbackInfo_real(X,Y,Z,S,T)
 #else
-#define NV10EXAFallbackInfo(X,Y,Z,S,T) ;
+#define NV10EXAFallbackInfo(X,Y,Z,S,T) do { ; } while (0);
 #endif
 
 static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPicture,
