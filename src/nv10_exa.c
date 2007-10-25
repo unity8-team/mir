@@ -20,7 +20,8 @@ static int NV10TexFormat(int ExaFormat)
 	struct {int exa;int hw;} tex_format[] =
 	{
 		{PICT_a8r8g8b8,	0x900},
-		{PICT_x8r8g8b8,	0x380},
+		{PICT_x8r8g8b8,	0x900},
+		//{PICT_x8r8g8b8,	0x380},
 		//{PICT_a1r5g5b5,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R5G5B5A1},
 		//{PICT_a4r4g4b4,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R4G4B4A4},
 		//{PICT_a8,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_A8} -- this one does not work 
@@ -312,7 +313,7 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	OUT_RING  (0);
 }
 
-static void NV10SetMultitexture(NVPtr pNv,int multitex)
+static void NV10SetMultitexture(NVPtr pNv,int multitex, int sf)
 {
 	// FIXME
 	if (multitex)
@@ -343,7 +344,10 @@ static void NV10SetMultitexture(NVPtr pNv,int multitex)
 	else
 	{
 		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA(0), 12);
-		OUT_RING  (0x18141010);
+		if (sf == PICT_x8r8g8b8)
+			OUT_RING  (0x30141010);
+		else
+			OUT_RING  (0x18141010);
 		OUT_RING  (0);
 		OUT_RING  (0x08040820);
 		OUT_RING  (0);
@@ -406,7 +410,7 @@ Bool NV10PrepareComposite(int	  op,
 		NV10SetTexture(pNv,1,pMaskPicture,pMask);
 
 	/* Set Multitexturing */
-	NV10SetMultitexture(pNv, (pMaskPicture!=NULL));
+	NV10SetMultitexture(pNv, (pMaskPicture!=NULL), pSrcPicture->format);
 
 	/* Set PictOp */
 	NV10SetPictOp(pNv, op, pSrcPicture->format, pDstPicture->format);
