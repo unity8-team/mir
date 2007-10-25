@@ -23,7 +23,7 @@ static int NV10TexFormat(int ExaFormat)
 		{PICT_x8r8g8b8,	0x900},
 		//{PICT_a1r5g5b5,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R5G5B5A1},
 		//{PICT_a4r4g4b4,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R4G4B4A4},
-		{PICT_a8,	0x03 << 1 | 1 << 11},
+		{PICT_a8,	0x03 << 7 | 1 << 11},
 		// FIXME other formats
 	};
 
