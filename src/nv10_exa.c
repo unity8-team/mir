@@ -227,6 +227,7 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 	OUT_RING  (NVAccelGetPixmapOffset(pixmap));
 	int log2w = log2i(Pict->pDrawable->width);
 	int log2h = log2i(Pict->pDrawable->height);
+	int w;
 	unsigned int txfmt =
 			(NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_T_CLAMP_TO_EDGE) | (NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_S_CLAMP_TO_EDGE) |
 			(log2w<<20) |
@@ -244,8 +245,17 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_PITCH(unit), 1);
 	OUT_RING  (exaGetPixmapPitch(pixmap) << 16);
 
+	/* NPOT_SIZE expects an even number for width, we can round up uneven
+	 * numbers here because EXA always gives 64 byte aligned pixmaps
+	 * and for all formats we support 64 bytes represents an even number
+	 * of pixels
+	 */
+	w = Pict->pDrawable->width;
+	if (w & 1)
+		w++;
+
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_SIZE(unit), 1);
-	OUT_RING  ((Pict->pDrawable->width<<16) | Pict->pDrawable->height); /* FIXME alignment restrictions, should be even at least */
+	OUT_RING  ((w<<16) | Pict->pDrawable->height);
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FILTER(unit), 1);
 	if (Pict->filter == PictFilterNearest)
