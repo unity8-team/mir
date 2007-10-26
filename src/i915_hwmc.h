@@ -66,9 +66,7 @@ typedef struct
     struct hwmc_buffer psc;
     struct hwmc_buffer corrdata;/* Correction Data Buffer */
     struct hwmc_buffer batchbuffer;
-    unsigned int sarea_size;
     unsigned int sarea_priv_offset;
-    unsigned int screen;
     unsigned int depth;
     int deviceID;
 } I915XvMCCreateContextRec;

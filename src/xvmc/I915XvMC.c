@@ -148,7 +148,7 @@ static __inline__ void renderError(void)
 
 static void I915XvMCContendedLock(i915XvMCContext *pI915XvMC, drmLockFlags flags)
 {
-    drmGetLock(pI915XvMC->fd, pI915XvMC->hHWContext, flags);
+    drmGetLock(xvmc_driver->fd, pI915XvMC->hHWContext, flags);
 }
 
 #define SET_BLOCKED_SIGSET(pI915XvMC)   do {    \
@@ -199,7 +199,7 @@ static void LOCK_HARDWARE(i915XvMCContext  *pI915XvMC)
 static void UNLOCK_HARDWARE(i915XvMCContext *pI915XvMC)
 {
     pI915XvMC->locked = 0;
-    DRM_UNLOCK(pI915XvMC->fd, pI915XvMC->driHwLock, 
+    DRM_UNLOCK(xvmc_driver->fd, pI915XvMC->driHwLock, 
                pI915XvMC->hHWContext);
     PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
 }
@@ -1205,49 +1205,49 @@ static void i915_mc_invalidate_subcontext_buffers(XvMCContext *context, unsigned
 
 static int i915_xvmc_map_buffers(i915XvMCContext *pI915XvMC)
 {
-    if (drmMap(pI915XvMC->fd,
+    if (drmMap(xvmc_driver->fd,
                pI915XvMC->sis.handle,
                pI915XvMC->sis.size,
                (drmAddress *)&pI915XvMC->sis.map) != 0) {
         return -1;
     }
 
-    if (drmMap(pI915XvMC->fd,
+    if (drmMap(xvmc_driver->fd,
                pI915XvMC->ssb.handle,
                pI915XvMC->ssb.size,
                (drmAddress *)&pI915XvMC->ssb.map) != 0) {
         return -1;
     }
 
-    if (drmMap(pI915XvMC->fd,
+    if (drmMap(xvmc_driver->fd,
                pI915XvMC->msb.handle,
                pI915XvMC->msb.size,
                (drmAddress *)&pI915XvMC->msb.map) != 0) {
         return -1;
     }
 
-    if (drmMap(pI915XvMC->fd,
+    if (drmMap(xvmc_driver->fd,
                pI915XvMC->psp.handle,
                pI915XvMC->psp.size,
                (drmAddress *)&pI915XvMC->psp.map) != 0) {
         return -1;
     }
 
-    if (drmMap(pI915XvMC->fd,
+    if (drmMap(xvmc_driver->fd,
                pI915XvMC->psc.handle,
                pI915XvMC->psc.size,
                (drmAddress *)&pI915XvMC->psc.map) != 0) {
         return -1;
     }
 
-    if (drmMap(pI915XvMC->fd,
+    if (drmMap(xvmc_driver->fd,
                pI915XvMC->corrdata.handle,
                pI915XvMC->corrdata.size,
                (drmAddress *)&pI915XvMC->corrdata.map) != 0) {
         return -1;
     }
     
-    if (drmMap(pI915XvMC->fd,
+    if (drmMap(xvmc_driver->fd,
                pI915XvMC->batchbuffer.handle,
                pI915XvMC->batchbuffer.size,
                (drmAddress *)&pI915XvMC->batchbuffer.map) != 0) {
@@ -1718,6 +1718,7 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
 static void i915_release_resource(Display *display, XvMCContext *context)
 {
     i915XvMCContext *pI915XvMC;
+    int screen = DefaultScreen(display);
 
     if (!(pI915XvMC = context->privData))
         return;
@@ -1731,18 +1732,19 @@ static void i915_release_resource(Display *display, XvMCContext *context)
     pthread_mutex_destroy(&pI915XvMC->ctxmutex);
 
     XLockDisplay(display);
-    uniDRIDestroyContext(display, pI915XvMC->screen, pI915XvMC->id);
+    uniDRIDestroyContext(display, screen, pI915XvMC->id);
     XUnlockDisplay(display);
 
     intelDestroyBatchBuffer(pI915XvMC);
-    drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
 
-    if (pI915XvMC->fd >= 0)
-        drmClose(pI915XvMC->fd);
-    pI915XvMC->fd = -1;
+    drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
+
+    if (xvmc_driver->fd >= 0)
+        drmClose(xvmc_driver->fd);
+    xvmc_driver->fd = -1;
 
     XLockDisplay(display);
-    uniDRICloseConnection(display, pI915XvMC->screen);
+    uniDRICloseConnection(display, screen);
     _xvmc_destroy_context(display, context);
     XUnlockDisplay(display);
 
@@ -1768,9 +1770,8 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
                (int)(sizeof(I915XvMCCreateContextRec) >> 2),priv_count);
         _xvmc_destroy_context(display, context);
         free(priv_data);
-        free(pI915XvMC);
         context->privData = NULL;
-        return BadAccess;
+        return BadValue;
     }
 
     context->privData = (void *)calloc(1, sizeof(i915XvMCContext));
@@ -1816,73 +1817,22 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     pI915XvMC->batchbuffer.handle = tmpComm->batchbuffer.handle;
     pI915XvMC->batchbuffer.offset = tmpComm->batchbuffer.offset;
     pI915XvMC->batchbuffer.size = tmpComm->batchbuffer.size;
-    pI915XvMC->sarea_size = tmpComm->sarea_size;
     pI915XvMC->sarea_priv_offset = tmpComm->sarea_priv_offset;
-    //XXX
-//    xvmc_driver->screen = 
-    pI915XvMC->screen = tmpComm->screen;
     pI915XvMC->depth = tmpComm->depth;
 
     /* Must free the private data we were passed from X */
     free(priv_data);
     priv_data = NULL;
 
-    /* XXX just keep current i915 setup code for now */
-
-    ret = uniDRIQueryDirectRenderingCapable(display, pI915XvMC->screen,
-                                            &isCapable);
-    if (!ret || !isCapable) {
-	XVMC_ERR("Direct Rendering is not available on this system!");
-        return BadAlloc;
-    }
-
-    if (!uniDRIOpenConnection(display, pI915XvMC->screen,
-                              &pI915XvMC->hsarea, &curBusID)) {
-        XVMC_ERR("Could not open DRI connection to X server!");
-        return BadAlloc;
-    }
-
-    strncpy(pI915XvMC->busIdString, curBusID, 20);
-    pI915XvMC->busIdString[20] = '\0';
-    free(curBusID);
-
-    /* Open DRI Device */
-    if((pI915XvMC->fd = drmOpen("i915", NULL)) < 0) {
-        XVMC_ERR("DRM Device could not be opened.");
-	//(xvmc_driver->fini)();
-	//xvmc_driver = NULL;
-        return BadAccess;
-    }
-
-    /* Get magic number */
-    drmGetMagic(pI915XvMC->fd, &magic);
-    // context->flags = (unsigned long)magic;
-
-    if (!uniDRIAuthConnection(display, pI915XvMC->screen, magic)) {
-	XVMC_ERR("[XvMC]: X server did not allow DRI. Check permissions.");
-	//(xvmc_driver->fini)();
-	//xvmc_driver = NULL;
-        return BadAlloc;
-    }
-
-    /*
-     * Map DRI Sarea. we always want it right?
-     */
-    if (drmMap(pI915XvMC->fd, pI915XvMC->hsarea,
-               pI915XvMC->sarea_size, &pI915XvMC->sarea_address) < 0) {
-        XVMC_ERR("Unable to map DRI SAREA.\n");
-	//(xvmc_driver->fini)();
-	//xvmc_driver = NULL;
-        return BadAlloc;
-    }
-    pSAREA = (drm_sarea_t *)pI915XvMC->sarea_address;
+    pSAREA = (drm_sarea_t *)xvmc_driver->sarea_address;
     pI915XvMC->driHwLock = (drmLock *)&pSAREA->lock;
-    pI915XvMC->sarea = SAREAPTR(pI915XvMC);
-    XLockDisplay(display);
-    ret = XMatchVisualInfo(display, pI915XvMC->screen,
+    pI915XvMC->sarea = (drmI830Sarea*)((char*)pSAREA + pI915XvMC->sarea_priv_offset);
+    /*
+     *  XXX we don't need to bother X for DRI context, as we're not DRI. */
+#if 0
+    ret = XMatchVisualInfo(display, xvmc_driver->screen,
                            (pI915XvMC->depth == 32) ? 24 : pI915XvMC->depth, TrueColor,
                            &pI915XvMC->visualInfo);
-    XUnlockDisplay(display);
 
     if (!ret) {
 	XVMC_ERR("Could not find a matching TrueColor visual.");
@@ -1901,12 +1851,12 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
         drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
         return BadAlloc;
     }
+#endif
 
     if (NULL == (pI915XvMC->drawHash = drmHashCreate())) {
 	XVMC_ERR("Could not allocate drawable hash table.");
         free(pI915XvMC);
         context->privData = NULL;
-        drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
         return BadAlloc;
     }
 
@@ -1914,7 +1864,6 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
         i915_xvmc_unmap_buffers(pI915XvMC);
         free(pI915XvMC);
         context->privData = NULL;
-        drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
         return BadAlloc;
     }
 
@@ -1927,6 +1876,7 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     pI915XvMC->locked = 0;
     pI915XvMC->port = context->port;
     pthread_mutex_init(&pI915XvMC->ctxmutex, NULL);
+    /* XXX */
     intelInitBatchBuffer(pI915XvMC);
     pI915XvMC->ref = 1;
     return Success;
@@ -2024,7 +1974,7 @@ static Status i915_xvmc_mc_create_surface(Display *display, XvMCContext *context
     pI915Surface->srf.size = tmpComm->srf.size;
     free(priv_data);
 
-    if (drmMap(pI915XvMC->fd,
+    if (drmMap(xvmc_driver->fd,
                pI915Surface->srf.handle,
                pI915Surface->srf.size,
                (drmAddress *)&pI915Surface->srf.map) != 0) {

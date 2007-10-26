@@ -386,7 +386,6 @@ static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *c
         return FALSE;
     }
 
-    /* XXX xvmc ttm */
     if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]Correction Data Buffer", 
                                    &(ctxpriv->mcCorrdata), 512 * 1024,
                                    ALIGN_BOTH_ENDS)) {
@@ -530,6 +529,7 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
     }
 
     contextRec->comm.type = xvmc_driver->flag;
+    contextRec->comm.sarea_size = pDRIInfo->SAREASize;
     contextRec->ctxno = i;
     contextRec->sis.handle = ctxpriv->sis_handle;
     contextRec->sis.offset = ctxpriv->mcStaticIndirectState->offset;
@@ -557,9 +557,7 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
     contextRec->batchbuffer.handle = ctxpriv->batchbuffer_handle;
     contextRec->batchbuffer.offset = ctxpriv->mcBatchBuffer->offset;
     contextRec->batchbuffer.size = ctxpriv->mcBatchBuffer->size;
-    contextRec->sarea_size = pDRIInfo->SAREASize;
     contextRec->sarea_priv_offset = sizeof(XF86DRISAREARec);
-    contextRec->screen = pScrn->pScreen->myNum;
     contextRec->depth = pScrn->bitsPerPixel;
     contextRec->deviceID = pI830DRI->deviceID;
 

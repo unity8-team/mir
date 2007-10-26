@@ -54,7 +54,7 @@ int intelEmitIrqLocked(i915XvMCContext *pI915XvMC)
    int ret, seq;
 
    ie.irq_seq = &seq;
-   ret = drmCommandWriteRead(pI915XvMC->fd, DRM_I830_IRQ_EMIT,
+   ret = drmCommandWriteRead(xvmc_driver->fd, DRM_I830_IRQ_EMIT,
                              &ie, sizeof(ie));
 
    if ( ret ) {
@@ -73,7 +73,7 @@ void intelWaitIrq(i915XvMCContext *pI915XvMC, int seq)
    iw.irq_seq = seq;
 
    do {
-      ret = drmCommandWrite(pI915XvMC->fd, DRM_I830_IRQ_WAIT, &iw, sizeof(iw) );
+      ret = drmCommandWrite(xvmc_driver->fd, DRM_I830_IRQ_WAIT, &iw, sizeof(iw) );
    } while (ret == -EAGAIN || ret == -EINTR);
 
    if (ret) {
@@ -206,7 +206,7 @@ void intelFlushBatchLocked(i915XvMCContext *pI915XvMC,
       assert(batch.start + batch.used <= pI915XvMC->alloc.offset + pI915XvMC->alloc.size);
 
       if (pI915XvMC->alloc.offset) {
-          if (drmCommandWrite(pI915XvMC->fd, DRM_I830_BATCHBUFFER, &batch, sizeof(batch))) {
+          if (drmCommandWrite(xvmc_driver->fd, DRM_I830_BATCHBUFFER, &batch, sizeof(batch))) {
               fprintf(stderr, "DRM_I830_BATCHBUFFER: %d\n",  -errno);
               exit(1);
           }
@@ -219,7 +219,7 @@ void intelFlushBatchLocked(i915XvMCContext *pI915XvMC,
          cmd.num_cliprects = batch.num_cliprects;
          cmd.cliprects = batch.cliprects;
 
-         if (drmCommandWrite(pI915XvMC->fd, DRM_I830_CMDBUFFER, 
+         if (drmCommandWrite(xvmc_driver->fd, DRM_I830_CMDBUFFER, 
                              &cmd, sizeof(cmd))) {
             fprintf(stderr, "DRM_I915_CMDBUFFER: %d\n",  -errno);
             exit(1);
@@ -247,7 +247,7 @@ void intelCmdIoctl(i915XvMCContext *pI915XvMC, char *buf, unsigned used)
    cmd.DR1 = 0;
    cmd.DR4 = 0;
 
-   if (drmCommandWrite(pI915XvMC->fd, DRM_I830_CMDBUFFER, 
+   if (drmCommandWrite(xvmc_driver->fd, DRM_I830_CMDBUFFER, 
                        &cmd, sizeof(cmd))) {
       fprintf(stderr, "DRM_I830_CMDBUFFER: %d\n",  -errno);
       exit(1);

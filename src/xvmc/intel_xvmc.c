@@ -26,26 +26,26 @@
  */
 #include "intel_xvmc.h"
 
-static struct _intel_xvmc_driver* xvmc_driver = NULL;
+struct _intel_xvmc_driver *xvmc_driver = NULL;
 static int error_base;
 static int event_base;
 
-/***************************************************************************
-// Function: XvMCCreateContext
-// Description: Create a XvMC context for the given surface parameters.
-// Arguments:
-//   display - Connection to the X server.
-//   port - XvPortID to use as avertised by the X connection.
-//   surface_type_id - Unique identifier for the Surface type.
-//   width - Width of the surfaces.
-//   height - Height of the surfaces.
-//   flags - one or more of the following
-//      XVMC_DIRECT - A direct rendered context is requested.
-//
-// Notes: surface_type_id and width/height parameters must match those
-//        returned by XvMCListSurfaceTypes.
-// Returns: Status
-***************************************************************************/
+/*
+* Function: XvMCCreateContext
+* Description: Create a XvMC context for the given surface parameters.
+* Arguments:
+*   display - Connection to the X server.
+*   port - XvPortID to use as avertised by the X connection.
+*   surface_type_id - Unique identifier for the Surface type.
+*   width - Width of the surfaces.
+*   height - Height of the surfaces.
+*   flags - one or more of the following
+*      XVMC_DIRECT - A direct rendered context is requested.
+
+* Notes: surface_type_id and width/height parameters must match those
+*        returned by XvMCListSurfaceTypes.
+* Returns: Status
+*/
 Status XvMCCreateContext(Display *display, XvPortID port,
                          int surface_type_id, int width, int height,
                          int flags, XvMCContext *context)
@@ -55,17 +55,17 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     char *curBusID;
     CARD32 *priv_data = NULL;
     struct _intel_xvmc_common *comm;
-    uint magic;
+    drm_magic_t magic;
     int major, minor;
     int priv_count;
     int isCapable;
+    int screen = DefaultScreen(display);
 
     /* Verify Obvious things first */
     if (!display || !context)
         return BadValue;
 
     if (!(flags & XVMC_DIRECT)) {
-        /* Indirect */
         XVMC_ERR("Indirect Rendering not supported! Using Direct.");
         return BadValue;
     }
@@ -91,7 +91,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 
     if (!XvMCQueryExtension(display, &event_base, &error_base)) {
         XVMC_ERR("XvMCExtension is not available!");
-        return BadAccess;
+        return BadValue;
     }
     ret = XvMCQueryVersion(display, &major, &minor);
     if (ret) {
@@ -136,32 +136,25 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 	return BadValue;
     }
 
-    if (xvmc_driver == NULL) {
+    if (xvmc_driver == NULL || xvmc_driver->type != comm->type) {
 	XVMC_ERR("fail to load xvmc driver for type %d\n", comm->type);
 	return BadValue;
     }
+    xvmc_driver->sarea_size = comm->sarea_size;
 
-    /* driver hook should free priv_data after return if success.
-     * and set xvmc_driver->screen num */
-    ret = (xvmc_driver->create_context)(display, context, priv_count, priv_data);
-    if (ret) {
-	XVMC_ERR("driver create context failed\n");
-	free(priv_data);
-	return ret;
-    }
-
-#if 0
-    ret = uniDRIQueryDirectRenderingCapable(display, xvmc_driver->screen,
+    ret = uniDRIQueryDirectRenderingCapable(display, screen,
                                             &isCapable);
     if (!ret || !isCapable) {
 	XVMC_ERR("Direct Rendering is not available on this system!");
-        return BadAlloc;
+	free(priv_data);
+        return BadValue;
     }
 
-    if (!uniDRIOpenConnection(display, xvmc_driver->screen,
+    if (!uniDRIOpenConnection(display, screen,
                               &xvmc_driver->hsarea, &curBusID)) {
         XVMC_ERR("Could not open DRI connection to X server!");
-        return BadAlloc;
+	free(priv_data);
+        return BadValue;
     }
 
     strncpy(xvmc_driver->busID, curBusID, 20);
@@ -171,19 +164,21 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     /* Open DRI Device */
     if((xvmc_driver->fd = drmOpen("i915", NULL)) < 0) {
         XVMC_ERR("DRM Device could not be opened.");
-	(xvmc_driver->fini)();
+	//(xvmc_driver->fini)();
 	xvmc_driver = NULL;
-        return BadAccess;
+	free(priv_data);
+        return BadValue;
     }
 
     /* Get magic number */
     drmGetMagic(xvmc_driver->fd, &magic);
     // context->flags = (unsigned long)magic;
 
-    if (!uniDRIAuthConnection(display, xvmc_driver->screen, magic)) {
+    if (!uniDRIAuthConnection(display, screen, magic)) {
 	XVMC_ERR("[XvMC]: X server did not allow DRI. Check permissions.");
-	(xvmc_driver->fini)();
+	//(xvmc_driver->fini)();
 	xvmc_driver = NULL;
+	free(priv_data);
         return BadAlloc;
     }
 
@@ -193,66 +188,24 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     if (drmMap(xvmc_driver->fd, xvmc_driver->hsarea,
                xvmc_driver->sarea_size, &xvmc_driver->sarea_address) < 0) {
         XVMC_ERR("Unable to map DRI SAREA.\n");
-	(xvmc_driver->fini)();
+	//(xvmc_driver->fini)();
 	xvmc_driver = NULL;
+	free(priv_data);
         return BadAlloc;
     }
 
-    pSAREA = (drm_sarea_t *)xvmc_driver->sarea_address;
-    pI915XvMC->driHwLock = (drmLock *)&pSAREA->lock;
-    pI915XvMC->sarea = SAREAPTR(pI915XvMC);
-    XLockDisplay(display);
-    ret = XMatchVisualInfo(display, pI915XvMC->screen,
-                           (pI915XvMC->depth == 32) ? 24 : pI915XvMC->depth, TrueColor,
-                           &pI915XvMC->visualInfo);
-    XUnlockDisplay(display);
-
-    if (!ret) {
-	XVMC_ERR("Could not find a matching TrueColor visual.");
-        free(pI915XvMC);
-        context->privData = NULL;
-        drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
-        return BadAlloc;
+    /* call driver hook.
+     * driver hook should free priv_data after return if success.*/
+    ret = (xvmc_driver->create_context)(display, context, priv_count, priv_data);
+    if (ret) {
+	XVMC_ERR("driver create context failed\n");
+	free(priv_data);
+	drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
+	return ret;
     }
 
-    if (!uniDRICreateContext(display, pI915XvMC->screen,
-                             pI915XvMC->visualInfo.visual, &pI915XvMC->id,
-                             &pI915XvMC->hHWContext)) {
-        XVMC_ERR("Could not create DRI context.");
-        free(pI915XvMC);
-        context->privData = NULL;
-        drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
-        return BadAlloc;
-    }
-
-    if (NULL == (pI915XvMC->drawHash = drmHashCreate())) {
-	XVMC_ERR("Could not allocate drawable hash table.");
-        free(pI915XvMC);
-        context->privData = NULL;
-        drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
-        return BadAlloc;
-    }
-
-    if (i915_xvmc_map_buffers(pI915XvMC)) {
-        i915_xvmc_unmap_buffers(pI915XvMC);
-        free(pI915XvMC);
-        context->privData = NULL;
-        drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
-        return BadAlloc;
-    }
-
-    /* Initialize private context values */
-    pI915XvMC->yStride = STRIDE(width);
-    pI915XvMC->uvStride = STRIDE(width >> 1);
-    pI915XvMC->haveXv = 0;
-    pI915XvMC->dual_prime = 0;
-    pI915XvMC->last_flip = 0;
-    pI915XvMC->locked = 0;
-    pI915XvMC->port = context->port;
-    pthread_mutex_init(&pI915XvMC->ctxmutex, NULL);
-    intelInitBatchBuffer(pI915XvMC);
-    pI915XvMC->ref = 1;
-#endif
+    /* FIXME batch buffer */
+    //intelInitBatchBuffer(xvmc_driver);
 
     return Success;
 }

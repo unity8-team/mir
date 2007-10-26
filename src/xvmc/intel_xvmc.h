@@ -101,14 +101,16 @@ extern Status   _xvmc_destroy_subpicture(Display *dpy,
 struct _intel_xvmc_driver {
     int type;			/* hw xvmc type - i830_hwmc.h */
     int screen;			/* current screen num*/
-#if 0
+
+    int fd;			/* drm file handler */
     drm_handle_t hsarea;	/* DRI open connect */
+    char busID[32];
+
     unsigned int sarea_size;
     drmAddress sarea_address;
-#endif
-    char busID[32];
-    int fd;			/* drm file handler */
+
     void *private;
+
     /* XXX: remove? */
     int (*init)(void);
     void (*fini)(void);
@@ -149,5 +151,6 @@ struct _intel_xvmc_driver {
 };
 
 extern struct _intel_xvmc_driver i915_xvmc_mc_driver;
+extern struct _intel_xvmc_driver *xvmc_driver;
 
 #endif

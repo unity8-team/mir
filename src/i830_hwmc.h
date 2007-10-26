@@ -45,6 +45,7 @@
 /* common header for context private */
 struct _intel_xvmc_common {
     unsigned int type;
+    unsigned int sarea_size;
 };
 
 #ifdef _INTEL_XVMC_SERVER_
