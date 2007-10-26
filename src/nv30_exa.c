@@ -40,9 +40,11 @@ static nv30_exa_state_t exa_state;
 static nv_pict_surface_format_t
 NV30SurfaceFormat[] = {
 	{ PICT_a8r8g8b8	, 0x148 },
+	{ PICT_a8b8g8r8	, 0x150 },
 	{ PICT_x8r8g8b8	, 0x145 },
+	{ PICT_x8b8g8r8	, 0x14f },
 	{ PICT_r5g6b5	, 0x143 },
-//	{ PICT_a8       , 0x149 },
+	{ PICT_a8       , 0x149 },
 };
 
 static nv_pict_surface_format_t *
@@ -418,8 +420,8 @@ NV30EXACheckCompositeTexture(PicturePtr pPict)
 			pPict->filter != PictFilterBilinear)
 		FALLBACK("filter 0x%x not supported\n", pPict->filter);
 
-	if (pPict->repeat && pPict->repeatType != RepeatNone)
-		FALLBACK("repeat 0x%x not supported\n", pPict->repeatType);
+	if (!(w==1 && h==1) && pPict->repeat && pPict->repeatType != RepeatNone)
+		FALLBACK("repeat 0x%x not supported (surface %dx%d)\n", pPict->repeatType,w,h);
 
 	return TRUE;
 }
