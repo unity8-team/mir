@@ -344,7 +344,8 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	   ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
 
     if (MonInfo) {
-	xf86OutputSetEDID (output, MonInfo);
+	if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
+	    xf86OutputSetEDID(output, MonInfo);
 	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_LVDS_ATOM) ||
 	    (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_PROPRIETARY)) {
 	    MonType = MT_LCD;
