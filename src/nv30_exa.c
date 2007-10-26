@@ -142,7 +142,7 @@ NV30TextureFormat[] = {
 	_(x1r5g5b5, 0x10,   S1,   S1,   S1,  ONE, X, Y, Z, W),
 	_(x4r4g4b4, 0x1d,   S1,   S1,   S1,  ONE, X, Y, Z, W),
 	_(a4r4g4b4, 0x1d,   S1,   S1,   S1,   S1, X, Y, Z, W),
-	_(      a8, 0x1b, ZERO, ZERO, ZERO,   S1, W, W, W, W),
+	_(      a8, 0x1b, ZERO, ZERO, ZERO,   S1, X, X, X, X),
 };
 
 
@@ -259,17 +259,12 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_FP_ACTIVE_PROGRAM, 1);
 	OUT_RING  (shader->hw_id|1);
 
-	BEGIN_RING(Nv3D, 0x23c, 1);
-	OUT_RING  (3);
 	BEGIN_RING(Nv3D, 0x1d60, 1);
 	OUT_RING  (0); /* USES_KIL (1<<7) == 0 */
 	BEGIN_RING(Nv3D, 0x1450, 1);
 	OUT_RING  (shader->card_priv.NV30FP.num_regs << 16| 4);
 	BEGIN_RING(Nv3D, 0x1d7c, 1);
 	OUT_RING  (0xffff0000);
-
-        //BEGIN_RING(Nv3D, 0x0b00, 1);
-        //OUT_RING(0x00000004);
 
 }
 
@@ -316,7 +311,7 @@ NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 		OUT_RING  ((sblend << 16) | sblend);
 		OUT_RING  ((dblend << 16) | dblend);
 		OUT_RING  (0x00000000);			/* Blend colour */
-		OUT_RING  ((0x8006 << 16) | 0x8006);	/* FUNC_ADD, FUNC_ADD */
+		OUT_RING  (0x8006);			/* FUNC_ADD */
 	}
 }
 
@@ -346,8 +341,8 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	OUT_RING  ((2 << 4) /* 2D */ |
 			(fmt->card_fmt << 8) |
 			(1 << 16) /* 1 mipmap level */ |
-/*			(log2i(pPix->drawable.width)  << 20) |
-			(log2i(pPix->drawable.height) << 24) |*/
+			(log2i(pPix->drawable.width)  << 20) |
+			(log2i(pPix->drawable.height) << 24) |
 			9);
 
 	OUT_RING  ((card_repeat <<  0) /* S */ |
@@ -358,9 +353,12 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 
 	OUT_RING  ((card_filter << 16) /* min */ |
 			(card_filter << 24) /* mag */ |
-			0x3fd6 /* engine lock */);
+			0x2000 /* engine lock */);
 	OUT_RING  ((pPix->drawable.width << 16) | pPix->drawable.height);
 	OUT_RING  (0); /* border ARGB */
+
+	BEGIN_RING(Nv3D, 0xb00 + 4*unit,1);
+	OUT_RING  (0);
 
 	state->unit[unit].width		= (float)pPix->drawable.width;
 	state->unit[unit].height	= (float)pPix->drawable.height;
@@ -457,33 +455,6 @@ NV30EXACheckComposite(int op, PicturePtr psPict,
 	return TRUE;
 }
 
-void NV30_SetVtx(ScrnInfoPtr pScrn, int multitex)
-{
-	NVPtr pNv = NVPTR(pScrn);
-
-	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VERTEX_ARRAY_FORMAT(0), 16);
-	OUT_RING  (0x22);
-	OUT_RING  (0x2);
-	OUT_RING  (0x2);
-	OUT_RING  (0x2);
-	OUT_RING  (0x2);
-	OUT_RING  (0x2);
-	OUT_RING  (0x2);
-	OUT_RING  (0x2);
-
-	OUT_RING  (0x22);
-	if (multitex)
-		OUT_RING  (0x22);
-	else
-		OUT_RING  (0x02);
-	OUT_RING  (0x2);
-	OUT_RING  (0x2);
-	OUT_RING  (0x2);
-	OUT_RING  (0x2);
-	OUT_RING  (0x2);
-	OUT_RING  (0x2);
-}
-
 Bool
 NV30EXAPrepareComposite(int op, PicturePtr psPict,
 		PicturePtr pmPict,
@@ -508,7 +479,7 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 	NV30EXATexture(pScrn, psPix, psPict, 0);
 
 #if 0
-#define printformat(f) ErrorF("(%xh %dbpp A%dR%dG%dB%d)",f,(f>>24),(f&0xf000)>>12,(f&0xf00)>>8,(f&0xf0)>>4,f&0xf)
+#define printformat(f) ErrorF("(%xh %s %dbpp A%dR%dG%dB%d)",f,(f>>16)&0xf==2?"ARGB":"ABGR",(f>>24),(f&0xf000)>>12,(f&0xf00)>>8,(f&0xf0)>>4,f&0xf)
 	ErrorF("Preparecomposite src(%dx%d)",psPict->pDrawable->width,psPict->pDrawable->height);
 	printformat((psPict->format));
 	ErrorF(" dst(%dx%d)",pdPict->pDrawable->width,pdPict->pDrawable->height);
@@ -521,7 +492,6 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 	ErrorF("\n");
 #endif
 
-	NV30_SetVtx(pScrn,pmPict?1:0);
 	if (pmPict) {
 		NV30EXATexture(pScrn, pmPix, pmPict, 1);
 
@@ -545,6 +515,9 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 		NV30_LoadFragProg(pScrn, nv40_fp_map_a8[fpid]);
 	else
 		NV30_LoadFragProg(pScrn, nv40_fp_map[fpid]);
+
+	BEGIN_RING(Nv3D, 0x23c, 1);
+	OUT_RING  (pmPict?3:1);
 
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
 	OUT_RING  (8); /* GL_QUADS */
