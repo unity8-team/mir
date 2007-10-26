@@ -95,7 +95,6 @@ static DisplayModePtr RADEONTVModes(xf86OutputPtr output)
 static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     DisplayModePtr  new   = NULL;
     char            stmp[32];
@@ -210,39 +209,22 @@ DisplayModePtr
 RADEONProbeOutputModes(xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    xf86MonPtr		    edid_mon;
     DisplayModePtr	    modes = NULL;
 
     ErrorF("in RADEONProbeOutputModes\n");
 
     if (output->status == XF86OutputStatusConnected) {
-	if (radeon_output->type == OUTPUT_DVI || radeon_output->type == OUTPUT_VGA) {
-	    if (output->MonInfo) {
-		edid_mon = xf86OutputGetEDID (output, radeon_output->pI2CBus);
-		xf86OutputSetEDID (output, edid_mon);
-
-		modes = xf86OutputGetEDIDModes (output);
-		return modes;
-	    }
-	}
 	if (radeon_output->type == OUTPUT_STV || radeon_output->type == OUTPUT_CTV) {
 	    modes = RADEONTVModes(output);
-	    return modes;
-	}
-	if (radeon_output->type == OUTPUT_LVDS) {
-	    /* okay we got DDC info */
-	    if (output->MonInfo) {
-		edid_mon = xf86OutputGetEDID (output, radeon_output->pI2CBus);
-		xf86OutputSetEDID (output, edid_mon);
-
+	} else {
+	    if (output->MonInfo)
 		modes = xf86OutputGetEDIDModes (output);
-	    }
 	    if (modes == NULL) {
-		modes = RADEONFPNativeMode(output);
+		if (radeon_output->type == OUTPUT_LVDS)
+		    modes = RADEONFPNativeMode(output);
 		/* add the screen modes */
 		RADEONAddScreenModes(output, &modes);
 	    }
-	    return modes;
 	}
     }
 

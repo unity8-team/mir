@@ -270,7 +270,7 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned long DDCReg;
     RADEONMonitorType MonType = MT_NONE;
-    xf86MonPtr* MonInfo = &output->MonInfo;
+    xf86MonPtr MonInfo = NULL;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONDDCType DDCType = radeon_output->DDCType;
     int i, j;
@@ -310,7 +310,8 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	    OUTREG(DDCReg,
 		   INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
 	    usleep(15000);
-	    *MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex, radeon_output->pI2CBus);
+
+	    MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex, radeon_output->pI2CBus);
 
 	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
 	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
@@ -330,10 +331,10 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
 	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
 	    usleep(15000);
-	    if(*MonInfo)  break;
+	    if (MonInfo)  break;
 	}
     } else if (radeon_output->pI2CBus && info->ddc2 && ((DDCReg == RADEON_LCD_GPIO_MASK) || (DDCReg == RADEON_MDGPIO_EN_REG))) {
-         *MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex, radeon_output->pI2CBus);
+         MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex, radeon_output->pI2CBus);
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DDC2/I2C is not properly initialized\n");
 	MonType = MT_NONE;
@@ -342,7 +343,8 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     OUTREG(DDCReg, INREG(DDCReg) &
 	   ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
 
-    if (*MonInfo) {
+    if (MonInfo) {
+	xf86OutputSetEDID (output, MonInfo);
 	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_LVDS_ATOM) ||
 	    (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_PROPRIETARY)) {
 	    MonType = MT_LCD;
@@ -350,7 +352,7 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 		 (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D)) {
 	    MonType = MT_DFP;
 	} else if (radeon_output->type == OUTPUT_DVI &&
-		   ((*MonInfo)->rawData[0x14] & 0x80)) { /* if it's digital and DVI */
+		   (MonInfo->rawData[0x14] & 0x80)) { /* if it's digital and DVI */
 	    MonType = MT_DFP;
 	} else {
 	    MonType = MT_CRT;
