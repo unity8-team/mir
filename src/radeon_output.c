@@ -686,7 +686,7 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 	} else
 #endif
 	    MonType = MT_LCD;
-    } else if (radeon_output->type == OUTPUT_DVI) {
+    } /*else if (radeon_output->type == OUTPUT_DVI) {
 	if (radeon_output->TMDSType == TMDS_INT) {
 	    if (INREG(RADEON_FP_GEN_CNTL) & RADEON_FP_DETECT_SENSE)
 		MonType = MT_DFP;
@@ -694,7 +694,7 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 	    if (INREG(RADEON_FP2_GEN_CNTL) & RADEON_FP2_DETECT_SENSE)
 		MonType = MT_DFP;
 	}
-    }
+	}*/
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Detected Monitor Type: %d\n", MonType);
