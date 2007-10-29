@@ -1043,8 +1043,12 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int index, int i2c_index, B
 		} else {
 			real_index = index;
 		}
-		/* This is a suspusion, please do tell if this causes problems for anyone */
-		nv_output->pDDCBus = pNv->pI2CBus[real_index];
+		/* This is always inverted for nv4x cards, so my suspicion was incorrect */
+		if (pNv->Architecture == NV_ARCH_40) {
+			nv_output->pDDCBus = pNv->pI2CBus[(~index) & 1];
+		} else {
+			nv_output->pDDCBus = pNv->pI2CBus[index];
+		}
 		/* At the moment something must be already active, before we do anything */
 		if (nvReadRAMDAC(pNv,  real_index, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED) {
 			/* We're not supposed to be LVDS */
