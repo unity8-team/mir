@@ -1060,6 +1060,10 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int index, int i2c_index, B
 			}
 		} else {
 			ErrorF("Output refused because the DFP doesn't seem to be active.\n");
+			ErrorF("Debug info:\n");
+			ErrorF("Ramdac index: %d\n", real_index);
+			ErrorF("Ramdac0: NV_RAMDAC_FP_DEBUG_0: 0x%X\n", nvReadRAMDAC(pNv,  0, NV_RAMDAC_FP_DEBUG_0));
+			ErrorF("Ramdac1: NV_RAMDAC_FP_DEBUG_0: 0x%X\n", nvReadRAMDAC(pNv,  1, NV_RAMDAC_FP_DEBUG_0));
 			create_output = FALSE;
 		}
 	} else {
