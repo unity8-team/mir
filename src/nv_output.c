@@ -247,6 +247,7 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	regp->debug_0	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_0);
 	regp->debug_1	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_1);
 	regp->debug_2	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_2);
+	regp->sel_clk		= NVOutputReadRAMDAC(output, NV_RAMDAC_SEL_CLK);
 	state->config       = nvReadFB(pNv, NV_PFB_CFG0);
 
 	regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
@@ -294,6 +295,7 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_0, regp->debug_0);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_SEL_CLK, regp->sel_clk);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_CONTROL, regp->fp_control);
 
@@ -489,6 +491,13 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		ErrorF("REG_DISP_SYNC_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_SYNC_END]);
 		ErrorF("REG_DISP_VALID_START: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_START]);
 		ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_END]);
+	}
+
+	/* This register is only used on the primary ramdac */
+	/* The value 0x40000 is not acceptable in text mode, but seems to do no harm in X mode */
+	/* The blob does this often, the exact purpose is not exactly known */
+	if (nv_output->ramdac == 0) {
+		regp->sel_clk = nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK) | (1 << 18);
 	}
 
 	/* This seems to be a common mode

@@ -126,6 +126,7 @@ typedef struct _nv_output_reg
 	CARD32 debug_0;
 	CARD32 debug_1;
 	CARD32 debug_2;
+	CARD32 sel_clk;
 	CARD32 fp_horiz_regs[7];
 	CARD32 fp_vert_regs[7];
 	CARD32 fp_hvalid_start;
