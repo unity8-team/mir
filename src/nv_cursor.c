@@ -37,6 +37,8 @@
 |*                                                                           *|
  \***************************************************************************/
 
+/* Copyright 2007 Maarten Maathuis */
+
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_cursor.c,v 1.13 2004/03/13 22:07:05 mvojkovi Exp $ */
 
 #include "nv_include.h"
