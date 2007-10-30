@@ -1318,7 +1318,13 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     xf86DrvMsg(pScrn->scrnIndex, from, "Using %s cursor\n",
 		pNv->HWCursor ? "HW" : "SW");
 
-    pNv->FpScale = TRUE;
+
+	/* pre-randr12 needs flatpanel scaling, otherwise it doesn't scale at all */
+	if (pNv->randr12_enable) {
+		pNv->FpScale = FALSE;
+	} else {
+		pNv->FpScale = TRUE;
+	}
     if (xf86GetOptValBool(pNv->Options, OPTION_FP_SCALE, &pNv->FpScale)) {
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Flat panel scaling %s\n",
                    pNv->FpScale ? "on" : "off");

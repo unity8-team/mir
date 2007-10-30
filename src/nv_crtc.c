@@ -880,6 +880,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	NVCrtcRegPtr regp, savep;
 	unsigned int i;
+	uint32_t clock = mode->Clock;
 	int horizDisplay	= (mode->CrtcHDisplay/8);
 	int horizStart		= (mode->CrtcHSyncStart/8);
 	int horizEnd		= (mode->CrtcHSyncEnd/8);
@@ -920,6 +921,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	vertDisplay -= 1;
 	horizBlankEnd -= 1;
 	vertBlankEnd -= 1;
+
+	ErrorF("Mode clock: %d\n", clock);
+	/* We need to run at the native panel size clock */
+	if (is_fp && !pNv->fpScaler) {
+		clock = nv_output->clock;
+		ErrorF("Overriding clock for native panel size: %d\n", clock);
+	}
 
 	ErrorF("crtc: Pre-sync workaround\n");
 	/* Reverted to what nv did, because that works for all resolutions on flatpanels */
@@ -1062,7 +1070,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 				pScrn->displayWidth,
 				mode->CrtcHDisplay,
 				mode->CrtcVDisplay,
-				mode->Clock,
+				clock,
 				mode->Flags);
 
 	/* Enable slaved mode */

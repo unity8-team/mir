@@ -231,7 +231,7 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 
 int tmds_regs[] = { 0x4 };
 
-void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
+void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
@@ -261,7 +261,7 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 		regp->TMDS[tmds_regs[i]] = NVOutputReadTMDS(output, tmds_regs[i]);
 	}
 
-	if (nv_output->type == OUTPUT_DIGITAL) {
+	if (nv_output->type == OUTPUT_DIGITAL || override) {
 
 		for (i = 0; i < 7; i++) {
 			uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
@@ -280,7 +280,7 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	}
 }
 
-void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
+void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr	pScrn = output->scrn;
@@ -310,7 +310,7 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 		NVOutputWriteTMDS(output, tmds_regs[i], regp->TMDS[tmds_regs[i]]);
 	}
 
-	if (nv_output->type == OUTPUT_DIGITAL) {
+	if (nv_output->type == OUTPUT_DIGITAL || override) {
 
 		for (i = 0; i < 7; i++) {
 			uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
@@ -327,10 +327,9 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_START, regp->fp_vvalid_start);
 		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_END, regp->fp_vvalid_end);
 	}
-
-	
 }
 
+/* NOTE: Don't rely on this data for anything other than restoring VT's */
 
 static void
 nv_output_save (xf86OutputPtr output)
@@ -348,7 +347,9 @@ nv_output_save (xf86OutputPtr output)
 
 	state = &pNv->SavedReg;
 
-	nv_output_save_state_ext(output, state);
+	/* Due to strange mapping of outputs we could have swapped analog and digital */
+	/* So we force save all the registers */
+	nv_output_save_state_ext(output, state, TRUE);
 
 	/* restore previous state */
 	nv_output->ramdac = ramdac_backup;
@@ -370,7 +371,9 @@ nv_output_restore (xf86OutputPtr output)
 
 	state = &pNv->SavedReg;
 
-	nv_output_load_state_ext(output, state);
+	/* Due to strange mapping of outputs we could have swapped analog and digital */
+	/* So we force load all the registers */
+	nv_output_load_state_ext(output, state, TRUE);
 
 	/* restore previous state */
 	nv_output->ramdac = ramdac_backup;
@@ -456,21 +459,50 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	if ((nv_output->type == OUTPUT_PANEL) || (nv_output->type == OUTPUT_DIGITAL)) {
 		is_fp = TRUE;
 
-		regp->fp_horiz_regs[REG_DISP_END] = mode->CrtcHDisplay - 1;
-		regp->fp_horiz_regs[REG_DISP_TOTAL] = mode->CrtcHTotal - 1;
-		regp->fp_horiz_regs[REG_DISP_CRTC] = mode->CrtcHDisplay;
-		regp->fp_horiz_regs[REG_DISP_SYNC_START] = mode->CrtcHSyncStart - 1;
-		regp->fp_horiz_regs[REG_DISP_SYNC_END] = mode->CrtcHSyncEnd - 1;
-		regp->fp_horiz_regs[REG_DISP_VALID_START] = mode->CrtcHSkew;
-		regp->fp_horiz_regs[REG_DISP_VALID_END] = mode->CrtcHDisplay - 1;
+		/* Do we need to set the native mode or not? */
+		if (pNv->fpScaler) {
+			/* We can set the mode as usual if we let the panel scale */
+			regp->fp_horiz_regs[REG_DISP_END] = mode->HDisplay - 1;
+			regp->fp_horiz_regs[REG_DISP_TOTAL] = mode->HTotal - 1;
+			regp->fp_horiz_regs[REG_DISP_CRTC] = mode->HDisplay;
+			regp->fp_horiz_regs[REG_DISP_SYNC_START] = mode->HSyncStart - 1;
+			regp->fp_horiz_regs[REG_DISP_SYNC_END] = mode->HSyncEnd - 1;
+			regp->fp_horiz_regs[REG_DISP_VALID_START] = mode->HSkew;
+			regp->fp_horiz_regs[REG_DISP_VALID_END] = mode->HDisplay - 1;
 
-		regp->fp_vert_regs[REG_DISP_END] = mode->CrtcVDisplay - 1;
-		regp->fp_vert_regs[REG_DISP_TOTAL] = mode->CrtcVTotal - 1;
-		regp->fp_vert_regs[REG_DISP_CRTC] = mode->CrtcVDisplay;
-		regp->fp_vert_regs[REG_DISP_SYNC_START] = mode->CrtcVSyncStart - 1;
-		regp->fp_vert_regs[REG_DISP_SYNC_END] = mode->CrtcVSyncEnd - 1;
-		regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
-		regp->fp_vert_regs[REG_DISP_VALID_END] = mode->CrtcVDisplay - 1;
+			regp->fp_vert_regs[REG_DISP_END] = mode->VDisplay - 1;
+			regp->fp_vert_regs[REG_DISP_TOTAL] = mode->VTotal - 1;
+			regp->fp_vert_regs[REG_DISP_CRTC] = mode->VDisplay;
+			regp->fp_vert_regs[REG_DISP_SYNC_START] = mode->VSyncStart - 1;
+			regp->fp_vert_regs[REG_DISP_SYNC_END] = mode->VSyncEnd - 1;
+			regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
+			regp->fp_vert_regs[REG_DISP_VALID_END] = mode->VDisplay - 1;
+		} else {
+			/* For gpu scaling we need the native mode */
+			/* Let's find our native mode amongst all the ddc modes */
+			DisplayModePtr native = nv_output->monitor_modes;
+			do {
+				/* assumption: each mode has it's unique clock */
+				if (nv_output->clock == native->Clock) {
+					break;
+				}
+			} while (native = native->next);
+			regp->fp_horiz_regs[REG_DISP_END] = native->HDisplay - 1;
+			regp->fp_horiz_regs[REG_DISP_TOTAL] = native->HTotal - 1;
+			regp->fp_horiz_regs[REG_DISP_CRTC] = native->HDisplay;
+			regp->fp_horiz_regs[REG_DISP_SYNC_START] = native->HSyncStart - 1;
+			regp->fp_horiz_regs[REG_DISP_SYNC_END] = native->HSyncEnd - 1;
+			regp->fp_horiz_regs[REG_DISP_VALID_START] = native->HSkew;
+			regp->fp_horiz_regs[REG_DISP_VALID_END] = native->HDisplay - 1;
+
+			regp->fp_vert_regs[REG_DISP_END] = native->VDisplay - 1;
+			regp->fp_vert_regs[REG_DISP_TOTAL] = native->VTotal - 1;
+			regp->fp_vert_regs[REG_DISP_CRTC] = native->VDisplay;
+			regp->fp_vert_regs[REG_DISP_SYNC_START] = native->VSyncStart - 1;
+			regp->fp_vert_regs[REG_DISP_SYNC_END] = native->VSyncEnd - 1;
+			regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
+			regp->fp_vert_regs[REG_DISP_VALID_END] = native->VDisplay - 1;
+		}
 
 		ErrorF("Horizontal:\n");
 		ErrorF("REG_DISP_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_END]);
@@ -528,66 +560,61 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		ErrorF("h_scale=%d\n", h_scale);
 		ErrorF("v_scale=%d\n", v_scale);
 
-		/* Enable full width  and height on the flat panel */
-		regp->fp_hvalid_start = 0;
-		regp->fp_hvalid_end = (mode->HDisplay - 1);
-
-		regp->fp_vvalid_start = 0;
-		regp->fp_vvalid_end = (mode->VDisplay - 1);
-
-		/* When doing vertical scaling, limit the last fetched line */
-		if (v_scale != (1 << 12)) {
-			regp->debug_2 = (1 << 28) | ((mode->VDisplay - 1) << 16);
-		} else {
-			regp->debug_2 = 0;
-		}
+		/* Don't limit last fetched line */
+		regp->debug_2 = 0;
 
 		/* We want automatic scaling */
 		regp->debug_1 = 0;
 
-		/* This is broken (at least on Nv4x hardware) and requires reverse engineering */
-#if 0
-		/* GPU scaling happens automaticly at a ratio of 1:33 */
-		/* A 1280x1024 panel has a ratio of 1:25, we don't want to scale that at 4:3 resolutions */
-		if (h_scale != (1 << 12) && (panel_ratio > (aspect_ratio + 0.10))) {
-			uint32_t diff;
+		regp->fp_hvalid_start = 0;
+		regp->fp_hvalid_end = (nv_output->fpWidth - 1);
 
-			ErrorF("Scaling resolution on a widescreen panel\n");
+		regp->fp_vvalid_start = 0;
+		regp->fp_vvalid_end = (nv_output->fpHeight - 1);
 
-			/* Scaling in both directions needs to the same */
-			h_scale = v_scale;
+		if (pNv->fpScaler) {
+			ErrorF("Flat panel is doing the scaling.\n");
+			regp->fp_control |= (1 << 8);
+		} else {
+			ErrorF("GPU is doing the scaling.\n");
+			/* GPU scaling happens automaticly at a ratio of 1:33 */
+			/* A 1280x1024 panel has a ratio of 1:25, we don't want to scale that at 4:3 resolutions */
+			if (h_scale != (1 << 12) && (panel_ratio > (aspect_ratio + 0.10))) {
+				uint32_t diff;
 
-			/* Set a new horizontal scale factor and enable testmode (bit12) */
-			regp->debug_1 = ((h_scale >> 1) & 0xfff) | (1 << 12);
+				ErrorF("Scaling resolution on a widescreen panel\n");
 
-			diff = nv_output->fpWidth - (((1 << 12) * mode->HDisplay)/h_scale);
-			regp->fp_hvalid_start = diff/2;
-			regp->fp_hvalid_end = nv_output->fpWidth - (diff/2) - 1;
+				/* Scaling in both directions needs to the same */
+				h_scale = v_scale;
+
+				/* Set a new horizontal scale factor and enable testmode (bit12) */
+				regp->debug_1 = ((h_scale >> 1) & 0xfff) | (1 << 12);
+
+				diff = nv_output->fpWidth - (((1 << 12) * mode->HDisplay)/h_scale);
+				regp->fp_hvalid_start = diff/2;
+				regp->fp_hvalid_end = nv_output->fpWidth - (diff/2) - 1;
+			}
+
+			/* Same scaling, just for panels with aspect ratio's smaller than 1 */
+			/* This may be broken */
+			if (v_scale != (1 << 12) && (panel_ratio < (aspect_ratio - 0.10))) {
+				uint32_t diff;
+
+				ErrorF("Scaling resolution on a portrait panel\n");
+
+				/* Scaling in both directions needs to the same */
+				v_scale = h_scale;
+
+				/* Is this ok, since haiku only does widescreen panels? */
+				regp->debug_1 = ((v_scale >> 1) & 0xfff) | (1 << 12);
+
+				diff = nv_output->fpHeight - (((1 << 12) * mode->VDisplay)/v_scale);
+				regp->fp_vvalid_start = diff/2;
+				regp->fp_vvalid_end = nv_output->fpHeight - (diff/2) - 1;
+			}
 		}
-
-		/* Same scaling, just for panels with aspect ratio's smaller than 1 */
-		/* This may be broken */
-		if (v_scale != (1 << 12) && (panel_ratio < (aspect_ratio - 0.10))) {
-			uint32_t diff;
-
-			ErrorF("Scaling resolution on a portrait panel\n");
-
-			/* Scaling in both directions needs to the same */
-			v_scale = h_scale;
-
-			/* Is this ok, since haiku only does widescreen panels? */
-			regp->debug_1 = ((v_scale >> 1) & 0xfff) | (1 << 12);
-
-			diff = nv_output->fpHeight - (((1 << 12) * mode->VDisplay)/v_scale);
-			regp->fp_vvalid_start = diff/2;
-			regp->fp_vvalid_end = nv_output->fpHeight - (diff/2) - 1;
-		}
-#endif /* 0 */
 
 		ErrorF("Post-panel scaling\n");
-	} else {
-		/* copy a bunch of things from the current state for non-dfp's */
-		regp->debug_2 = savep->debug_2;
 	}
 
 	if (pNv->Architecture >= NV_ARCH_10) {
@@ -728,7 +755,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     state = &pNv->ModeReg;
 
     nv_output_mode_set_regs(output, mode);
-    nv_output_load_state_ext(output, state);
+    nv_output_load_state_ext(output, state, FALSE);
 }
 
 static Bool
@@ -737,6 +764,7 @@ nv_ddc_detect(xf86OutputPtr output)
 	/* no use for shared DDC output */
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
+	ScrnInfoPtr	pScrn = output->scrn;
 
 	ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
 	if (!ddc_mon)
@@ -752,12 +780,29 @@ nv_ddc_detect(xf86OutputPtr output)
 	xf86PrintEDID(ddc_mon);
 
 	if (nv_output->type == OUTPUT_DIGITAL) {
-		int i;
-		for (i = 0; i < 8; i++) {
+		int i, j;
+		for (i = 0; i < 4; i++) {
+			/* Filter out the stupid entries */
+			if (ddc_mon->det_mon[i].section.d_timings.h_active > 4096)
+				continue;
+			if (ddc_mon->det_mon[i].section.d_timings.v_active > 4096)
+				continue;
 			/* Selecting only based on width ok? */
-			if (ddc_mon->timings2[i].hsize > nv_output->fpWidth) {
-				nv_output->fpWidth = ddc_mon->timings2[i].hsize;
-				nv_output->fpHeight = ddc_mon->timings2[i].vsize;
+			if (ddc_mon->det_mon[i].section.d_timings.h_active > nv_output->fpWidth) {
+				nv_output->fpWidth = ddc_mon->det_mon[i].section.d_timings.h_active;
+				nv_output->fpHeight = ddc_mon->det_mon[i].section.d_timings.v_active;
+				/* ddc clocks are in Hz, while mode clocks are in kHz */
+				nv_output->clock = ddc_mon->det_mon[i].section.d_timings.clock/1000;
+				/* Find the matchig native refresh rate */
+				for (j = 0; i < 5; i++) {
+					if (ddc_mon->det_mon[i].section.std_t[j].hsize == nv_output->fpWidth &&
+						ddc_mon->det_mon[i].section.std_t[j].vsize == nv_output->fpHeight) {
+
+						nv_output->refresh = ddc_mon->det_mon[i].section.std_t[j].refresh;
+						break;
+					}
+				}
+				nv_output->monitor_modes = xf86DDCGetModes(pScrn->scrnIndex, ddc_mon);
 			}
 		}
 	}

@@ -204,6 +204,9 @@ typedef struct _NVOutputPrivateRec {
         CARD32 fpSyncs;
         CARD32 fpWidth;
         CARD32 fpHeight;
+	CARD32 clock;
+	DisplayModePtr monitor_modes;
+	uint32_t refresh;
         Bool fpdither;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
 
