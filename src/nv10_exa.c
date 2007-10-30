@@ -96,7 +96,9 @@ static Bool NV10CheckTexture(PicturePtr Picture)
 		return FALSE;
 	/* we cannot repeat on NV10 because NPOT textures do not support this. unfortunately. */
 	if (Picture->repeat != RepeatNone)
-		return FALSE;
+		/* we can repeat 1x1 ARGB and XRGB textures */
+		if (!(w == 1 && h == 1 && (Picture->format == PICT_a8r8g8b8 || Picture->format == PICT_x8r8g8b8)))
+			return FALSE;
 	return TRUE;
 }
 
@@ -272,33 +274,41 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 	int log2h = log2i(Pict->pDrawable->height);
 	int w;
 	unsigned int txfmt =
-			(NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_T_CLAMP_TO_EDGE) | (NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_S_CLAMP_TO_EDGE) |
+			(NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_T_CLAMP_TO_EDGE) |
+			(NV10_TCL_PRIMITIVE_3D_TX_FORMAT_WRAP_S_CLAMP_TO_EDGE) |
 			(log2w<<20) |
 			(log2h<<16) |
 			(1<<12) | /* lod == 1 */
-			(NV10TexFormat(Pict->format)) |
 			0x51 /* UNK */;
+
+	/* if repeat is set we're always handling a 1x1 ARGB or XRGB texture */
+	if (Pict->repeat != RepeatNone)
+		txfmt |= 0x300; /* ARGB format */
+	else
+	{
+		txfmt |= NV10TexFormat(Pict->format);
+
+		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_PITCH(unit), 1);
+		OUT_RING  (exaGetPixmapPitch(pixmap) << 16);
+
+		/* NPOT_SIZE expects an even number for width, we can round up uneven
+		 * numbers here because EXA always gives 64 byte aligned pixmaps
+		 * and for all formats we support 64 bytes represents an even number
+		 * of pixels
+		 */
+		w = Pict->pDrawable->width;
+		if (w & 1)
+			w++;
+
+		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_SIZE(unit), 1);
+		OUT_RING  ((w<<16) | Pict->pDrawable->height);
+	}
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FORMAT(unit), 1 );
 	OUT_RING  (txfmt);
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_ENABLE(unit), 1 );
 	OUT_RING  (NV10_TCL_PRIMITIVE_3D_TX_ENABLE_ENABLE);
-
-	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_PITCH(unit), 1);
-	OUT_RING  (exaGetPixmapPitch(pixmap) << 16);
-
-	/* NPOT_SIZE expects an even number for width, we can round up uneven
-	 * numbers here because EXA always gives 64 byte aligned pixmaps
-	 * and for all formats we support 64 bytes represents an even number
-	 * of pixels
-	 */
-	w = Pict->pDrawable->width;
-	if (w & 1)
-		w++;
-
-	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_SIZE(unit), 1);
-	OUT_RING  ((w<<16) | Pict->pDrawable->height);
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_FILTER(unit), 1);
 	if (Pict->filter == PictFilterNearest)
