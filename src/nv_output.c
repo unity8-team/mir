@@ -508,7 +508,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	*/
 	regp->fp_control = 0x11100000;
 
-	/* Deal with vsync/hsync ploarity */
+	/* Deal with vsync/hsync polarity */
 	if (mode->Flags & V_PVSYNC) {
 		regp->fp_control |= (1 << 0);
 	}
@@ -649,7 +649,22 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		bpp = 32;
 	}
 
-	regp->general = bpp == 16 ? 0x00101100 : 0x00100100;
+	/* Kindly borrowed from haiku driver */
+	/* bit4 and bit5 activate indirect mode trough color palette */
+	switch (pLayout->depth) {
+		case 32:
+		case 16:
+			regp->general = 0x00101130;
+			break;
+		case 24:
+		case 15:
+			regp->general = 0x00100130;
+			break;
+		case 8:
+		default:
+			regp->general = 0x00101100;
+			break;
+	}
 
 	if (pNv->alphaCursor) {
 		regp->general |= (1<<29);

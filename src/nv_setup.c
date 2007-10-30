@@ -62,26 +62,26 @@ static CARD8 NVReadCrtc(vgaHWPtr pVga, CARD8 index)
 static void NVWriteGr(vgaHWPtr pVga, CARD8 index, CARD8 value)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    VGA_WR08(pNv->PVIO, VGA_GRAPH_INDEX, index);
-    VGA_WR08(pNv->PVIO, VGA_GRAPH_DATA,  value);
+    VGA_WR08(pNv->PVIO0, VGA_GRAPH_INDEX, index);
+    VGA_WR08(pNv->PVIO0, VGA_GRAPH_DATA,  value);
 }
 static CARD8 NVReadGr(vgaHWPtr pVga, CARD8 index)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    VGA_WR08(pNv->PVIO, VGA_GRAPH_INDEX, index);
-    return (VGA_RD08(pNv->PVIO, VGA_GRAPH_DATA));
+    VGA_WR08(pNv->PVIO0, VGA_GRAPH_INDEX, index);
+    return (VGA_RD08(pNv->PVIO0, VGA_GRAPH_DATA));
 }
 static void NVWriteSeq(vgaHWPtr pVga, CARD8 index, CARD8 value)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    VGA_WR08(pNv->PVIO, VGA_SEQ_INDEX, index);
-    VGA_WR08(pNv->PVIO, VGA_SEQ_DATA,  value);
+    VGA_WR08(pNv->PVIO0, VGA_SEQ_INDEX, index);
+    VGA_WR08(pNv->PVIO0, VGA_SEQ_DATA,  value);
 }
 static CARD8 NVReadSeq(vgaHWPtr pVga, CARD8 index)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    VGA_WR08(pNv->PVIO, VGA_SEQ_INDEX, index);
-    return (VGA_RD08(pNv->PVIO, VGA_SEQ_DATA));
+    VGA_WR08(pNv->PVIO0, VGA_SEQ_INDEX, index);
+    return (VGA_RD08(pNv->PVIO0, VGA_SEQ_DATA));
 }
 static void NVWriteAttr(vgaHWPtr pVga, CARD8 index, CARD8 value)
 {
@@ -114,12 +114,12 @@ static CARD8 NVReadAttr(vgaHWPtr pVga, CARD8 index)
 static void NVWriteMiscOut(vgaHWPtr pVga, CARD8 value)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    VGA_WR08(pNv->PVIO, VGA_MISC_OUT_W, value);
+    VGA_WR08(pNv->PVIO0, VGA_MISC_OUT_W, value);
 }
 static CARD8 NVReadMiscOut(vgaHWPtr pVga)
 {
     NVPtr pNv = (NVPtr)pVga->MMIOBase;
-    return (VGA_RD08(pNv->PVIO, VGA_MISC_OUT_R));
+    return (VGA_RD08(pNv->PVIO0, VGA_MISC_OUT_R));
 }
 static void NVEnablePalette(vgaHWPtr pVga)
 {
@@ -409,11 +409,12 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     /* 8 bit registers */
     pNv->PCIO0    = (CARD8*)pNv->REGS + NV_PCIO0_OFFSET;
     pNv->PDIO0    = (CARD8*)pNv->REGS + NV_PDIO0_OFFSET;
-    pNv->PVIO     = (CARD8*)pNv->REGS + NV_PVIO_OFFSET;
+    pNv->PVIO0     = (CARD8*)pNv->REGS + NV_PVIO_OFFSET;
     pNv->PROM     = (CARD8*)pNv->REGS + NV_PROM_OFFSET;
 
     pNv->PCIO1    = pNv->PCIO0 + 0x2000;
     pNv->PDIO1    = pNv->PDIO0 + 0x2000;
+    pNv->PVIO1    = pNv->PVIO0 + 0x2000;
 
     pNv->twoHeads =  (pNv->Architecture >= NV_ARCH_10) &&
                      (implementation != CHIPSET_NV10) &&

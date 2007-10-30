@@ -62,24 +62,49 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 
+static CARD8 NVReadPVIO(xf86CrtcPtr crtc, CARD8 address)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (nv_crtc->head == 1) {
+		return NV_RD08(pNv->PVIO1, address);
+	} else {
+		return NV_RD08(pNv->PVIO0, address);
+	}
+}
+
+static void NVWritePVIO(xf86CrtcPtr crtc, CARD8 address, CARD8 value)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (nv_crtc->head == 1) {
+		NV_WR08(pNv->PVIO1, address, value);
+	} else {
+		NV_WR08(pNv->PVIO0, address, value);
+	}
+}
+
 static void NVWriteMiscOut(xf86CrtcPtr crtc, CARD8 value)
 {
-  ScrnInfoPtr pScrn = crtc->scrn;
-  NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-  NVPtr pNv = NVPTR(pScrn);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 
-  NV_WR08(pNv->PVIO, VGA_MISC_OUT_W, value);
+	NVWritePVIO(crtc, VGA_MISC_OUT_W, value);
 }
 
 static CARD8 NVReadMiscOut(xf86CrtcPtr crtc)
 {
-  ScrnInfoPtr pScrn = crtc->scrn;
-  NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-  NVPtr pNv = NVPTR(pScrn);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 
-  return NV_RD08(pNv->PVIO, VGA_MISC_OUT_R);
+	return NVReadPVIO(crtc, VGA_MISC_OUT_R);
 }
-
 
 void NVWriteVgaCrtc(xf86CrtcPtr crtc, CARD8 index, CARD8 value)
 {
@@ -105,44 +130,42 @@ CARD8 NVReadVgaCrtc(xf86CrtcPtr crtc, CARD8 index)
 
 static void NVWriteVgaSeq(xf86CrtcPtr crtc, CARD8 index, CARD8 value)
 {
-  ScrnInfoPtr pScrn = crtc->scrn;
-  NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-  NVPtr pNv = NVPTR(pScrn);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 
-  NV_WR08(pNv->PVIO, VGA_SEQ_INDEX, index);
-  NV_WR08(pNv->PVIO, VGA_SEQ_DATA, value);
+	NVWritePVIO(crtc, VGA_SEQ_INDEX, index);
+	NVWritePVIO(crtc, VGA_SEQ_DATA, value);
 }
 
 static CARD8 NVReadVgaSeq(xf86CrtcPtr crtc, CARD8 index)
 {
-  ScrnInfoPtr pScrn = crtc->scrn;
-  NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-  NVPtr pNv = NVPTR(pScrn);
-  volatile CARD8 *pVGAReg = pNv->PVIO;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 
-  NV_WR08(pNv->PVIO, VGA_SEQ_INDEX, index);
-  return NV_RD08(pNv->PVIO, VGA_SEQ_DATA);
+	NVWritePVIO(crtc, VGA_SEQ_INDEX, index);
+	return NVReadPVIO(crtc, VGA_SEQ_DATA);
 }
 
 static void NVWriteVgaGr(xf86CrtcPtr crtc, CARD8 index, CARD8 value)
 {
-  ScrnInfoPtr pScrn = crtc->scrn;
-  NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-  NVPtr pNv = NVPTR(pScrn);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 
-  NV_WR08(pNv->PVIO, VGA_GRAPH_INDEX, index);
-  NV_WR08(pNv->PVIO, VGA_GRAPH_DATA, value);
+	NVWritePVIO(crtc, VGA_GRAPH_INDEX, index);
+	NVWritePVIO(crtc, VGA_GRAPH_DATA, value);
 }
 
 static CARD8 NVReadVgaGr(xf86CrtcPtr crtc, CARD8 index)
 {
-  ScrnInfoPtr pScrn = crtc->scrn;
-  NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-  NVPtr pNv = NVPTR(pScrn);
-  volatile CARD8 *pVGAReg = pNv->PVIO;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 
-  NV_WR08(pVGAReg, VGA_GRAPH_INDEX, index);
-  return NV_RD08(pVGAReg, VGA_GRAPH_DATA);
+	NVWritePVIO(crtc, VGA_GRAPH_INDEX, index);
+	return NVReadPVIO(crtc, VGA_GRAPH_DATA);
 } 
 
 
@@ -587,60 +610,55 @@ void nv_crtc_calc_state_ext(
 static void
 nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
-     NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-     unsigned char seq1 = 0, crtc17 = 0;
-     unsigned char crtc1A;
-     int ret;
+	unsigned char seq1 = 0, crtc17 = 0;
+	unsigned char crtc1A;
+	int ret;
 
 	ErrorF("nv_crtc_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
 
-     NVCrtcSetOwner(crtc);
+	NVCrtcSetOwner(crtc);
 
-     crtc1A = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1) & ~0xC0;
-     switch(mode) {
-     case DPMSModeStandby:
-       /* Screen: Off; HSync: Off, VSync: On -- Not Supported */
-       seq1 = 0x20;
-       crtc17 = 0x80;
-       crtc1A |= 0x80;
-       break;
-     case DPMSModeSuspend:
-       /* Screen: Off; HSync: On, VSync: Off -- Not Supported */
-       seq1 = 0x20;
-       crtc17 = 0x80;
-       crtc1A |= 0x40;
-       break;
-     case DPMSModeOff:
-       /* Screen: Off; HSync: Off, VSync: Off */
-       seq1 = 0x20;
-       crtc17 = 0x00;
-       crtc1A |= 0xC0;
-       break;
-     case DPMSModeOn:
-     default:
-       /* Screen: On; HSync: On, VSync: On */
-       seq1 = 0x00;
-       crtc17 = 0x80;
-       break;
-     }
-
-	if (mode == DPMSModeOn) {
-		pNv->crtc_active[nv_crtc->head] = TRUE;
-	} else {
-		pNv->crtc_active[nv_crtc->head] = FALSE;
+	crtc1A = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1) & ~0xC0;
+	switch(mode) {
+		case DPMSModeStandby:
+		/* Screen: Off; HSync: Off, VSync: On -- Not Supported */
+		seq1 = 0x20;
+		crtc17 = 0x80;
+		crtc1A |= 0x80;
+		break;
+	case DPMSModeSuspend:
+		/* Screen: Off; HSync: On, VSync: Off -- Not Supported */
+		seq1 = 0x20;
+		crtc17 = 0x80;
+		crtc1A |= 0x40;
+		break;
+	case DPMSModeOff:
+		/* Screen: Off; HSync: Off, VSync: Off */
+		seq1 = 0x20;
+		crtc17 = 0x00;
+		crtc1A |= 0xC0;
+		break;
+	case DPMSModeOn:
+	default:
+		/* Screen: On; HSync: On, VSync: On */
+		seq1 = 0x00;
+		crtc17 = 0x80;
+		break;
 	}
 
-     NVWriteVgaSeq(crtc, 0x00, 0x1);
-     seq1 = NVReadVgaSeq(crtc, 0x01) & ~0x20;
-     NVWriteVgaSeq(crtc, 0x1, seq1);
-     crtc17 |= NVReadVgaCrtc(crtc, NV_VGA_CRTCX_MODECTL) & ~0x80;
-     usleep(10000);
-     NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_MODECTL, crtc17);
-     NVWriteVgaSeq(crtc, 0x0, 0x3);
+	NVVgaSeqReset(crtc, TRUE);
+	/* Each head has it's own sequencer, so we can turn it off when we want */
+	seq1 |= (NVReadVgaSeq(crtc, 0x01) & ~0x20);
+	NVWriteVgaSeq(crtc, 0x1, seq1);
+	crtc17 |= (NVReadVgaCrtc(crtc, NV_VGA_CRTCX_MODECTL) & ~0x80);
+	usleep(10000);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_MODECTL, crtc17);
+	NVVgaSeqReset(crtc, FALSE);
 
-     NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1, crtc1A);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1, crtc1A);
 }
 
 static Bool
@@ -997,10 +1015,11 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfa;
 
 	if (is_fp) {
+		/* This needs improvement */
 		/* Maybe we need more to enable DFP screens, haiku has some info on this register */
-		regp->CRTC[NV_VGA_CRTCX_LCD] = (1 << 3) | (1 << 0);
+		regp->CRTC[NV_VGA_CRTCX_LCD] = (1 << 0) | (1 << 3);
 	} else {
-		regp->CRTC[NV_VGA_CRTCX_LCD] = 0;
+		regp->CRTC[NV_VGA_CRTCX_LCD] = (1 << 0) | (1 << 1);
 	}
 
 	/* I'm trusting haiku driver on this one, they say it enables an external TDMS clock */
@@ -1044,6 +1063,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 				mode->Clock,
 				mode->Flags);
 
+	/* Enable slaved mode */
 	if (is_fp) {
 		regp->CRTC[NV_VGA_CRTCX_PIXEL] |= (1 << 7);
 	}
@@ -1228,6 +1248,15 @@ void nv_crtc_commit(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ErrorF("nv_crtc_commit for CRTC %d\n", nv_crtc->crtc);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+
+	/* I hope this is the right place */
+	if (crtc->enabled) {
+		pNv->crtc_active[nv_crtc->head] = TRUE;
+	} else {
+		pNv->crtc_active[nv_crtc->head] = FALSE;
+	}
 }
 
 static Bool nv_crtc_lock(xf86CrtcPtr crtc)
