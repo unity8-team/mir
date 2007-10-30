@@ -315,7 +315,9 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 
 static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 {
-	int x = 0,y = 0,i;
+	int i;
+	int x = Pict->pDrawable->x;
+	int y = Pict->pDrawable->y;
 	int w = Pict->pDrawable->width;
 	int h = Pict->pDrawable->height;
 
