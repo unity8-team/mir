@@ -248,6 +248,10 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	regp->sel_clk		= NVOutputReadRAMDAC(output, NV_RAMDAC_SEL_CLK);
 	state->config       = nvReadFB(pNv, NV_PFB_CFG0);
 
+	regp->unk_a20 = NVOutputReadRAMDAC(output, NV_RAMDAC_A20);
+	regp->unk_a24 = NVOutputReadRAMDAC(output, NV_RAMDAC_A24);
+	regp->unk_a34 = NVOutputReadRAMDAC(output, NV_RAMDAC_A34);
+
 	regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
 
 	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
@@ -296,6 +300,10 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_SEL_CLK, regp->sel_clk);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_CONTROL, regp->fp_control);
+
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_A20, regp->unk_a20);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_A24, regp->unk_a24);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_A34, regp->unk_a34);
 
 	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
 		NVOutputWriteRAMDAC(output, NV_RAMDAC_DITHER_NV11, regp->dither);
@@ -703,6 +711,13 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	}
 
 	regp->bpp = bpp;    /* this is not bitsPerPixel, it's 8,15,16,32 */
+
+	/* Some values the blob sets */
+	/* This may apply to the real ramdac that is being used (for crosswired situations) */
+	/* Nevertheless, it's unlikely to cause many problems, since the values are equal for both */
+	regp->unk_a20 = 0x0;
+	regp->unk_a24 = 0xfffff;
+	regp->unk_a34 = 0x1;
 
 	if (output->crtc) {
 		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;

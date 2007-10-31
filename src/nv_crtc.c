@@ -1157,6 +1157,12 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 	regp->unk830 = mode->CrtcVDisplay - 3;
 	regp->unk834 = mode->CrtcVDisplay - 1;
+
+	/* This is what the blob does */
+	regp->unk850 = nvReadCRTC(pNv, 0, NV_CRTC_0850);
+
+	/* Never ever modify gpio, unless you know very well what you're doing */
+	regp->gpio = nvReadCRTC(pNv, 0, NV_CRTC_GPIO);
 }
 
 /**
@@ -1417,8 +1423,10 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER, 0xff);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER, regp->CRTC[NV_VGA_CRTCX_BUFFER]);
         nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CURSOR_CONFIG, regp->cursorConfig);
+	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_GPIO, regp->gpio);
         nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0830, regp->unk830);
         nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0834, regp->unk834);
+	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0850, regp->unk850);
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_081C, regp->unk81c);
 	
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING, regp->CRTC[NV_VGA_CRTCX_FP_HTIMING]);
@@ -1516,8 +1524,10 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
     regp->CRTC[NV_VGA_CRTCX_CURCTL2] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL2);
     regp->CRTC[NV_VGA_CRTCX_INTERLACE] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_INTERLACE);
  
+    regp->gpio = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_GPIO);
     regp->unk830 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0830);
     regp->unk834 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0834);
+    regp->unk850 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0850);
     regp->unk81c = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_081C);
 
     if(pNv->Architecture >= NV_ARCH_10) {

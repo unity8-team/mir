@@ -108,8 +108,10 @@ typedef struct _nv_crtc_reg
     unsigned char DAC[768];       /* Internal Colorlookuptable */
     CARD32 cursorConfig;
     CARD32 crtcOwner;
+	CARD32 gpio;
     CARD32 unk830;
     CARD32 unk834;
+	CARD32 unk850;
 	CARD32 unk81c;
     CARD32 head;
 } NVCrtcRegRec, *NVCrtcRegPtr;
@@ -127,6 +129,9 @@ typedef struct _nv_output_reg
 	CARD32 debug_1;
 	CARD32 debug_2;
 	CARD32 sel_clk;
+	CARD32 unk_a20;
+	CARD32 unk_a24;
+	CARD32 unk_a34;
 	CARD32 fp_horiz_regs[7];
 	CARD32 fp_vert_regs[7];
 	CARD32 fp_hvalid_start;
