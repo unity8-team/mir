@@ -1048,12 +1048,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfa;
 
+	/* Common values are 0x0, 0x3, 0x8, 0xb, see logic below */
+	if (nv_crtc->head == 0) {
+		regp->CRTC[NV_VGA_CRTCX_LCD] = (1 << 3);
+	}
+
 	if (is_fp) {
-		/* This needs improvement */
-		/* Maybe we need more to enable DFP screens, haiku has some info on this register */
-		regp->CRTC[NV_VGA_CRTCX_LCD] = (1 << 0) | (1 << 3);
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_LCD] = (1 << 0) | (1 << 1);
+		regp->CRTC[NV_VGA_CRTCX_LCD] |= (1 << 0) | (1 << 1);
 	}
 
 	/* I'm trusting haiku driver on this one, they say it enables an external TDMS clock */
@@ -1102,7 +1103,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		regp->CRTC[NV_VGA_CRTCX_PIXEL] |= (1 << 7);
 	}
 
-	regp->CRTC[NV_VGA_CRTCX_FIFO1] = savep->CRTC[NV_VGA_CRTCX_FIFO1] & ~(1<<5);
+	/* What is the meaning of this register? */
+	/* A few popular values are 0x18, 0x1c, 0x38, 0x3c */ 
+	regp->CRTC[NV_VGA_CRTCX_FIFO1] = savep->CRTC[NV_VGA_CRTCX_FIFO1];
 
 	/* NV40's don't set FPP units, unless in special conditions (then they set both) */
 	/* But what are those special conditions? */
@@ -1158,9 +1161,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* 0x80 seems to be used very often, if not always */
 	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
 
-	/* These values seem to vary */
-	/* 0x01, 0x10, 0x11 for example */
-	regp->CRTC[NV_VGA_CRTCX_56] = savep->CRTC[NV_VGA_CRTCX_56];
+	/* Common values like 0x14 and 0x04 are converted to 0x10 and 0x00 */
+	regp->CRTC[NV_VGA_CRTCX_56] = savep->CRTC[NV_VGA_CRTCX_56] & ~(1<<4);
 
 	/* bit0: Seems to be mostly used on crtc1 */
 	/* bit1: 1=crtc1, 0=crtc, but i'm unsure about this */
