@@ -195,6 +195,11 @@
 #define NV_RAMDAC_VPLL_B            0x578
 #define NV_RAMDAC_VPLL2_B           0x57c
 
+#define NV_RAMDAC_580			0x580
+/* This is not always activated, but only when VCLK_RATIO_DB1 is used */
+#define NV_RAMDAC_580_VPLL1_ACTIVE			(1<<8)
+#define NV_RAMDAC_580_VPLL2_ACTIVE			(1<<28)
+
 #define NV_RAMDAC_GENERAL_CONTROL   0x600
 #define NV_RAMDAC_TEST_CONTROL      0x608
 #define NV_RAMDAC_TEST_DATA         0x610

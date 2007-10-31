@@ -165,6 +165,7 @@ typedef struct _riva_hw_state
     CARD32 vpllB;
     CARD32 vpll2B;
     CARD32 pllsel;
+	CARD32 reg580;
     CARD32 general;
     CARD32 crtcOwner;
     CARD32 head;
@@ -217,6 +218,8 @@ typedef struct _NVOutputPrivateRec {
 
 typedef struct _MiscStartupInfo {
 	CARD8 crtc_0_reg_52;
+	CARD32 ramdac_0_reg_580;
+	CARD32 ramdac_0_pllsel;
 } MiscStartupInfo;
 
 typedef enum {

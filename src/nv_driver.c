@@ -2204,6 +2204,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 	/* Gather some misc info before the randr stuff kicks in */
 	pNv->misc_info.crtc_0_reg_52 = NVReadVGA0(pNv, NV_VGA_CRTCX_52);
+	pNv->misc_info.ramdac_0_reg_580 = nvReadRAMDAC(pNv, 0, NV_RAMDAC_580);
+	pNv->misc_info.ramdac_0_pllsel = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
 
 	if (!NVEnterVT(scrnIndex, 0))
 	    return FALSE;

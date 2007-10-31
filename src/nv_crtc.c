@@ -463,12 +463,14 @@ static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		state->vpll2B = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2_B);
 	}
 	state->pllsel = nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT);
+	state->reg580 = nvReadRAMDAC0(pNv, NV_RAMDAC_580);
 }
 
 
 static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_580, state->reg580);
 
 	ErrorF("writting vpll %08X\n", state->vpll);
 	ErrorF("writting vpll2 %08X\n", state->vpll2);
@@ -586,16 +588,38 @@ void nv_crtc_calc_state_ext(
 
 	ErrorF("There are %d CRTC's enabled\n", num_crtc_enabled);
 
+	state->reg580 = pNv->misc_info.ramdac_0_reg_580 & 
+		~(NV_RAMDAC_580_VPLL1_ACTIVE | NV_RAMDAC_580_VPLL2_ACTIVE);
+
+	/* Vclk ratio db1 is used whenever reg580 is modified for vpll activity */
+	if (!(pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
+		if (num_crtc_enabled == 2) {
+			state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
+			state->reg580 |= NV_RAMDAC_580_VPLL2_ACTIVE;
+		} else {
+			/* CRTC0 must always be active */
+			state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
+		}
+	}
+
 	if (nv_crtc->crtc == 1) {
 		state->vpll2 = state->pll;
 		state->vpll2B = state->pllB;
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
+		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2) {
+			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
+		} else {
+			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
+		}
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_CRTC1;
 	} else {
 		state->vpll = state->pll;
 		state->vpllB = state->pllB;
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
-		state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
+		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2) {
+			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
+		} else {
+			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
+		}
 	}
 
 	regp->CRTC[NV_VGA_CRTCX_FIFO0] = state->arbitration0;
