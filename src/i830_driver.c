@@ -172,6 +172,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/mman.h>
+#include <errno.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -202,7 +203,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef XF86DRI
 #include "dri.h"
 #include <sys/ioctl.h>
-#include <errno.h>
 #ifdef XF86DRI_MM
 #include "xf86mm.h"
 #endif

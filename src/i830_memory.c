@@ -313,12 +313,14 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     while (pI830->memory_list->next->next != NULL) {
 	i830_memory *mem = pI830->memory_list->next;
 
+#ifdef XF86DRI
 	/* Don't reset BO allocator, which we set up at init. */
 	if (pI830->memory_manager == mem) {
 	    mem = mem->next;
 	    if (mem->next == NULL)
 		break;
 	}
+#endif	
 
 	i830_free_memory(pScrn, pI830->memory_list->next);
     }
@@ -825,11 +827,14 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *mem;
 
+#ifdef XF86DRI_MM
     if (pI830->memory_manager && !(flags & NEED_PHYSICAL_ADDR) &&
 	!(flags & NEED_LIFETIME_FIXED))
     {
 	return i830_allocate_memory_bo(pScrn, name, size, alignment, flags);
-    } else {
+    } else
+#endif	
+    {
 	mem = i830_allocate_aperture(pScrn, name, size, alignment, flags);
 	if (mem == NULL)
 	    return NULL;
