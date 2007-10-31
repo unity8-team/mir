@@ -407,20 +407,19 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 
 	uint32_t pitch = (uint32_t)exaGetPixmapPitch(pPix);
 
+	int x = pPict->pDrawable->x;
+	int y = pPict->pDrawable->y;
 	int w = pPict->pDrawable->width;
 	int h = pPict->pDrawable->height;
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_HORIZ, 5);
-	OUT_RING  (w<<16);
-	OUT_RING  (h<<16);
+	OUT_RING  ((w<<16)|x);
+	OUT_RING  ((h<<16)|y);
 	OUT_RING  (fmt->card_fmt); /* format */
 	OUT_RING  (pitch << 16 | pitch);
 	OUT_RING  (NVAccelGetPixmapOffset(pPix));
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(0), 2);
-	OUT_RING  ((w-1)<<16);
-	OUT_RING  ((h-1)<<16);
-	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_HORIZ, 2);
-	OUT_RING  (w<<16);
-	OUT_RING  (h<<16);
+	OUT_RING  ((w-1+x)<<16);
+	OUT_RING  ((h-1+y)<<16);
 
 	return TRUE;
 }
@@ -628,8 +627,6 @@ NV30EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 		CV_OUT(sX1 , sY1 , dstX + width, dstY + height);
 		CV_OUT(sX0 , sY1 , dstX        , dstY + height);
 	}
-
-	FIRE_RING();
 }
 
 void
@@ -640,6 +637,8 @@ NV30EXADoneComposite(PixmapPtr pdPix)
 
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
 	OUT_RING  (0);
+
+	FIRE_RING();
 }
 
 Bool
