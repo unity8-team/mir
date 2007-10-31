@@ -1647,77 +1647,185 @@ static unsigned int findstr(bios_t* bios, unsigned char *str, int len)
 	return 0;
 }
 
+static void
+nv_read_dcb_i2c_table(ScrnInfoPtr pScrn, bios_t *bios, uint16_t i2ctabptr)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	unsigned char *i2ctable;
+	unsigned char dcb_version, headerlen = 0;
+	int recordoffset = 0;
+	int i;
+
+	pNv->dcb_table.i2c_entries = MAX_NUM_DCB_ENTRIES;
+	memset(pNv->dcb_table.i2c_read, 0, sizeof(pNv->dcb_table.i2c_read));
+	memset(pNv->dcb_table.i2c_write, 0, sizeof(pNv->dcb_table.i2c_write));
+
+	i2ctable = &bios->data[i2ctabptr];
+	dcb_version = pNv->dcb_table.version;
+
+	if (dcb_version >= 0x30) {
+		if (i2ctable[0] != dcb_version) { /* necessary? */
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				"DCB I2C table version mismatch (%02X vs %02X)\n",
+					i2ctable[0], dcb_version);
+			return;
+		}
+		headerlen = i2ctable[1];
+		pNv->dcb_table.i2c_entries = i2ctable[2];
+		if (i2ctable[0] >= 0x40) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				"G80 DCB I2C table detected, arrgh\n"); /* they're plain weird */
+			return;
+		}
+	}
+	/* Don't call this function on a DCB 1.1 bios */
+	if (dcb_version < 0x14 && dcb_version >= 0x12)
+		recordoffset = 2;
+
+	/* After version 0x12 read and write i2c buses are swapped */
+	if (dcb_version > 0x12) {
+		for (i = 0; i < pNv->dcb_table.i2c_entries; i++) {
+			if (i2ctable[headerlen + 4 * i + 3] != 0xff) {
+				pNv->dcb_table.i2c_read[i] = i2ctable[headerlen + recordoffset + 1 + 4 * i];
+				pNv->dcb_table.i2c_write[i] = i2ctable[headerlen + recordoffset + 4 * i];
+			}
+		}
+	} else {
+		for (i = 0; i < pNv->dcb_table.i2c_entries; i++) {
+			if (i2ctable[headerlen + 4 * i + 3] != 0xff) {
+				pNv->dcb_table.i2c_read[i] = i2ctable[headerlen + recordoffset + 4 * i];
+				pNv->dcb_table.i2c_write[i] = i2ctable[headerlen + recordoffset + 1 + 4 * i];
+			}
+		}
+	}
+}
 
 #define G5_FIXED_LOC 0xe2f8
 
-static unsigned int nv_find_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
+static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 {
-        NVPtr pNv = NVPTR(pScrn);
-	CARD16 bufloc;
+	NVPtr pNv = NVPTR(pScrn);
+	uint16_t dcbptr, i2ctabptr = 0;
 	int is_g5 = 0;
-	CARD32 sig;
-	char *table2;
-	unsigned char headerSize, entries;
-        CARD32 header_word;
+	unsigned char *dcbtable;
+	unsigned char dcb_version, headerlen = 0x4, entries = MAX_NUM_DCB_ENTRIES;
+	Bool configblock = FALSE;
+	int recordlength = 8;
 	int i;
-	int sig_offsets[2] = { 0x4, 0x6 };
-	int offset = -1;
-	CARD32 tmp_dcb_table[NV40_NUM_DCB_ENTRIES];
-	uint32_t counter, port;
 
-	/* get the offset from 0x36 */
-	
-	bufloc = *(CARD16 *)&bios->data[0x36];
+	pNv->dcb_table.entries = 0;
+	pNv->dcb_table.i2c_entries = 0;
 
-	if (bufloc == 0x0) {
+	/* get the offset from 0x36 */	
+	dcbptr = *(uint16_t *)&bios->data[0x36];
+
+	if (dcbptr == 0x0) {
 		if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV43) {
 			is_g5 = 1;
-			bufloc = G5_FIXED_LOC;
+			dcbptr = G5_FIXED_LOC;
 		} else {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				"No Display Configuration Block pointer found\n");
 			return 0;
 		}
 	}
 	
-	table2 = &bios->data[bufloc];
+	dcbtable = &bios->data[dcbptr];
 
-	/* lets play hunt the signature */
-	for (i = 0; i < sizeof(sig_offsets) / sizeof(int); i++) {
-	  sig = *(uint32_t*)(table2 + sig_offsets[i]);
-	  if ((sig == 0x4edcbdcb) || (sig == 0xcbbddc4e)) {
-	    offset = sig_offsets[i];
-	    break;
-	  }
-	}
-	if (offset == -1)
-	  return 0;
-
-	if (offset == 6) {
-	  header_word = *(uint32_t *)table2;
-	  if (is_g5) {
-	    headerSize = 0x3c;
-	    entries = 0xa;
-	  } else {
-	    headerSize = (header_word >> 8) & 0xff;
-	    entries = (header_word >> 16) & 0xff;
-	  }
-	} else {
-	  entries = 0xa;
-	  headerSize = 0x8;
-	}
-
+	/* get DCB version */
+	dcb_version = dcbtable[0];
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "DCB size is %02X, entries is %02X\n", headerSize, entries);
-	if (entries >= NV40_NUM_DCB_ENTRIES)
-		entries = NV40_NUM_DCB_ENTRIES;
+		"Display Configuration Block version %d.%d found\n",
+			dcb_version >> 4, dcb_version & 0xf);
 
-	for (i = 0; i < entries; i++) {
-		if (is_g5)
-			pNv->dcb_table[i] = __bswap_32(*(uint32_t *)&table2[headerSize + 8 * i]);
-		else
-			pNv->dcb_table[i] = *(uint32_t *)&table2[headerSize + 8 * i];
+       	if (is_g5) {	/* is this bodge still needed? */
+		headerlen = 0x3c;
+		entries = 0xa;
+		configblock = TRUE;
+		goto g5;
 	}
 
-	return entries;
+	if (dcb_version >= 0x20) { /* NV17+ */
+		uint32_t sig;
+
+		if (dcb_version >= 0x30) { /* NV40+ */
+			headerlen = dcbtable[1];
+			entries = dcbtable[2];
+			i2ctabptr = *(uint16_t *)&dcbtable[4];
+			sig = *(uint32_t *)&dcbtable[6];
+
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				"DCB header length %02X, with %02X possible entries\n",
+					headerlen, entries);
+		} else {
+			/* dcb_block_count = *(dcbtable[1]); */
+			i2ctabptr = *(uint16_t *)&dcbtable[2];
+			sig = *(uint32_t *)&dcbtable[4];
+			headerlen = 8;
+		}
+		configblock = TRUE;
+
+		if ((sig != 0x4edcbdcb) && (sig != 0xcbbddc4e)) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				"Bad Display Configuration Block signature (%08X)\n", sig);
+			return 0;
+		}
+	} else if (dcb_version >= 0x14) { /* some NV15/16, and NV11+ */
+		char sig[8];
+
+		memset(sig, 0, 8);
+		strncpy(sig, &dcbtable[-7], 7);
+		/* dcb_block_count = *(dcbtable[1]); */
+		i2ctabptr = *(uint16_t *)&dcbtable[2];
+		recordlength = 6;
+
+		if (strcmp(sig, "DEV_REC")) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				"Bad Display Configuration Block signature (%s)\n", sig);
+			return 0;
+		}
+	} else if (dcb_version >= 0x12) { /* some NV6/10, and NV15+ */
+		/* dcb_block_count = *(dcbtable[1]); */
+		i2ctabptr = *(uint16_t *)&dcbtable[2];
+	} else {	/* NV5+, maybe NV4 */
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Structure of Display Configuration Blocks prior to version 1.2 unknown\n");
+		return 0;
+	}
+
+	pNv->dcb_table.version = dcb_version;
+
+	if (entries >= MAX_NUM_DCB_ENTRIES)
+		entries = MAX_NUM_DCB_ENTRIES;
+
+g5:
+	for (i = 0; i < entries; i++) {
+		uint32_t connection, config = 0;
+
+		if (is_g5) {
+			connection = __bswap_32(*(uint32_t *)&dcbtable[headerlen + recordlength * i]);
+			if (configblock)
+				config = __bswap_32(*(uint32_t *)&dcbtable[headerlen + 4 + recordlength * i]);
+		} else {
+			connection = *(uint32_t *)&dcbtable[headerlen + recordlength * i];
+			if (configblock)
+				config = *(uint32_t *)&dcbtable[headerlen + 4 + recordlength * i];
+		}
+
+		/* I think this is a good descriminator, but I don't understand pre v2.0
+		 * DCBs so well, so maybe those need testing against 0xffffffff */
+		/* Should we allow discontinuous DCBs? Certainly DCB I2C tables can be discontinuous */
+		if ((connection & 0x0f000000) == 0x0f000000) /* end of records */
+			break;
+
+		pNv->dcb_table.connection[i] = connection;
+		pNv->dcb_table.config[i] = config;
+	}
+	pNv->dcb_table.entries = i;
+
+	nv_read_dcb_i2c_table(pScrn, bios, i2ctabptr);
+
+	return pNv->dcb_table.entries;
 }
 
 unsigned int NVParseBios(ScrnInfoPtr pScrn)
@@ -1752,17 +1860,11 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "No known script signature found.\n");
 	}
 
-	/* look for NV40+ DCB table - and make a copy somewhere for
-	 * output setup code
-	 */
-	ret = nv_find_dcb_table(pScrn, &bios);
-	if (ret) {
-		pNv->dcb_entries = ret;
+	/* read Display Configuration Block (DCB) table */
+	ret = nv_read_dcb_table(pScrn, &bios);
+	if (ret)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "DCB found %d entries.\n", ret);
-	} else {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "No DCB table found\n");
-	}
+			   "Found %d entries in DCB.\n", ret);
 
 	return 1;
 }

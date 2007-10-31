@@ -1067,7 +1067,7 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 };
 
 
-static void nv_add_analog_output(ScrnInfoPtr pScrn, int index, int i2c_index, Bool dvi_pair)
+static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index, Bool dvi_pair)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
@@ -1076,6 +1076,7 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int index, int i2c_index, Bo
 	int crtc_mask = (1<<0) | (1<<1);
 	int real_index;
 	Bool create_output = TRUE;
+	int index = i2c_index;
 
 	sprintf(outputname, "Analog-%d", pNv->analog_count);
 	nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
@@ -1083,20 +1084,14 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int index, int i2c_index, Bo
 		return;
 	}
 
+	if (pNv->dcb_table.i2c_read[i2c_index] && pNv->pI2CBus[i2c_index] == NULL)
+		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
+
 	nv_output->type = OUTPUT_ANALOG;
 
 	/* dvi outputs share their i2c port with their analog output on the same port */
 	/* But they can never work at the same time, so it's convient to share ramdac index */
 	nv_output->prefered_ramdac = index;
-
-	/* Is anyone crosswired?, pick the other index */
-	if (pNv->output_info & OUTPUT_0_CROSSWIRED_TMDS || 
-		pNv->output_info & OUTPUT_1_CROSSWIRED_TMDS) {
-
-		real_index = (~index) & 1; 
-	} else {
-		real_index = index;
-	}
 
 	if (!create_output) {
 		xfree(nv_output);
@@ -1110,7 +1105,7 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int index, int i2c_index, Bo
 
 	output->driver_private = nv_output;
 
-	nv_output->pDDCBus = pNv->pI2CBus[real_index];
+	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
 
 	output->possible_crtcs = crtc_mask;
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
@@ -1119,7 +1114,7 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int index, int i2c_index, Bo
 }
 
 
-static void nv_add_digital_output(ScrnInfoPtr pScrn, int index, int i2c_index, Bool dual_dvi, int lvds)
+static void nv_add_digital_output(ScrnInfoPtr pScrn,  int i2c_index, Bool dual_dvi, int lvds)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
@@ -1127,6 +1122,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int index, int i2c_index, B
 	char outputname[20];
 	int crtc_mask = (1<<0) | (1<<1);
 	Bool create_output = TRUE;
+	int index = i2c_index;
 
 	sprintf(outputname, "Digital-%d", pNv->digital_count);
 	nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
@@ -1134,6 +1130,9 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int index, int i2c_index, B
 	if (!nv_output) {
 		return;
 	}
+
+	if (pNv->dcb_table.i2c_read[i2c_index] && pNv->pI2CBus[i2c_index] == NULL)
+		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
 
 	nv_output->type = OUTPUT_DIGITAL;
 
@@ -1150,12 +1149,9 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int index, int i2c_index, B
 		} else {
 			real_index = index;
 		}
-		/* This is always inverted for nv4x cards, so my suspicion was incorrect */
-		if (pNv->Architecture == NV_ARCH_40) {
-			nv_output->pDDCBus = pNv->pI2CBus[(~index) & 1];
-		} else {
-			nv_output->pDDCBus = pNv->pI2CBus[index];
-		}
+
+		nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
+
 		/* At the moment something must be already active, before we do anything */
 		if (nvReadRAMDAC(pNv,  real_index, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED) {
 			/* We're not supposed to be LVDS */
@@ -1219,17 +1215,17 @@ void Nv20SetupOutputs(ScrnInfoPtr pScrn)
     int num_digital_outputs = 1;
 
     for (i = 0 ; i < num_analog_outputs; i++) {
-      nv_add_analog_output(pScrn, i, i, FALSE);
+      nv_add_analog_output(pScrn, i, FALSE);
     }
 
     for (i = 0 ; i < num_digital_outputs; i++) {
-      nv_add_digital_output(pScrn, i, i, FALSE, 0);
+      nv_add_digital_output(pScrn, i, FALSE, 0);
     }
 }
 
 void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 {
-	unsigned char type, port, or, i2c_index;
+	unsigned char type, i2c_index, or;
 	NVPtr pNv = NVPTR(pScrn);
 	int i;
 	int num_digital = 0;
@@ -1237,12 +1233,12 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	Bool dvi_pair = FALSE;
 
 	/* check how many TMDS ports there are */
-	if (pNv->dcb_entries) {
-		for (i = 0 ; i < pNv->dcb_entries; i++) {
-			type = pNv->dcb_table[i] & 0xf;
-			port = (pNv->dcb_table[i] >> 4) & 0xf;
+	if (pNv->dcb_table.entries) {
+		for (i = 0 ; i < pNv->dcb_table.entries; i++) {
+			type = pNv->dcb_table.connection[i] & 0xf;
+			i2c_index = (pNv->dcb_table.connection[i] >> 4) & 0xf;
 			/* TMDS */
-			if (type == 2 && port != 0xf) {
+			if (type == 2 && i2c_index != 0xf) {
 				num_digital++;
 			}
 		}
@@ -1277,33 +1273,26 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	}
 
 	/* we setup the outputs up from the BIOS table */
-	if (pNv->dcb_entries) {
-		for (i = 0 ; i < pNv->dcb_entries; i++) {
-			type = pNv->dcb_table[i] & 0xf;
-			port = (pNv->dcb_table[i] >> 4) & 0xf;
-			or = ffs((pNv->dcb_table[i] >> 24) & 0xf) - 1;
-			if (pNv->Architecture == NV_ARCH_40) {
-				/* Ports seem to be inverse on nv4x */
-				i2c_index = (~port) & 1;
-			} else {
-				i2c_index = port;
-			}
+	if (pNv->dcb_table.entries) {
+		for (i = 0 ; i < pNv->dcb_table.entries; i++) {
+			type = pNv->dcb_table.connection[i] & 0xf;
+			i2c_index = (pNv->dcb_table.connection[i] >> 4) & 0xf;
+			or = ffs((pNv->dcb_table.connection[i] >> 24) & 0xf) - 1;
 
-			if (type < 4)
-				xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry: %d: %08X type: %d, port %d:, or %d\n", i, pNv->dcb_table[i], type, port, or);
-			/* I have no clue what to do with anything but port 0 and 1 */
-			if (type < 4 && port < 2) {
+			if (type < 4) {
+				xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry: %d: %08X type: %d, i2c_index: %d, or: %d\n", i, pNv->dcb_table.connection[i], type, i2c_index, or);
+
 				switch(type) {
-				case 0: /* Analog */
-					nv_add_analog_output(pScrn, port, i2c_index, dvi_pair);
+				case OUTPUT_ANALOG: /* Analogue VGA */
+					nv_add_analog_output(pScrn, i2c_index, dvi_pair);
 					dvi_pair = FALSE;
 					break;
-				case 2: /* TMDS */
+				case OUTPUT_DIGITAL: /* TMDS */
 					dvi_pair = TRUE;
-					nv_add_digital_output(pScrn, port, i2c_index, dual_dvi, 0);
+					nv_add_digital_output(pScrn, i2c_index, dual_dvi, 0);
 					break;
-				case 3: /* LVDS */
-					nv_add_digital_output(pScrn, port, i2c_index, dual_dvi, 1);
+				case OUTPUT_PANEL: /* LVDS */
+					nv_add_digital_output(pScrn, i2c_index, dual_dvi, 1);
 					break;
 				default:
 					break;
@@ -1311,38 +1300,26 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 			}
 		}
 	} else {
+		/* obsolete? */
+		/* certainly screwed, as no I2C for it now... */
 		Nv20SetupOutputs(pScrn);
 	}
 }
 
-struct nv_i2c_struct {
-	int reg;
-	char *name;
-} nv_i2c_buses[] = { 
-	{ 0x3e, "DDC1" },
-	{ 0x36, "DDC2" },
-	{ 0x50, "TV" },
-};
-
 void NvSetupOutputs(ScrnInfoPtr pScrn)
 {
-    int i;
-    NVPtr pNv = NVPTR(pScrn);
-    xf86OutputPtr	    output;
-    NVOutputPrivatePtr    nv_output;
+	int i;
+	NVPtr pNv = NVPTR(pScrn);
 
-    int num_outputs = pNv->twoHeads ? 2 : 1;
-    char outputname[20];
-    pNv->Television = FALSE;
+	pNv->Television = FALSE;
 
-	/* add the 3 I2C buses */
-	for (i = 0; i < NV_I2C_BUSES; i++) {
-		NV_I2CInit(pScrn, &pNv->pI2CBus[i], nv_i2c_buses[i].reg, nv_i2c_buses[i].name);
-	}
-
-    NvDCBSetupOutputs(pScrn);
+	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
+	NvDCBSetupOutputs(pScrn);
 
 #if 0
+	xf86OutputPtr output;
+	NVOutputPrivatePtr nv_output;
+
     if (pNv->Mobile) {
 	output = xf86OutputCreate(pScrn, &nv_output_funcs, OutputType[OUTPUT_LVDS]);
 	if (!output)

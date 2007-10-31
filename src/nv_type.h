@@ -78,16 +78,15 @@
 #define Set8Bits(value) ((value)&0xff)
 
 
-#define NV_I2C_BUSES 3
-#define NV40_NUM_DCB_ENTRIES 10
+#define MAX_NUM_DCB_ENTRIES 16
 
-typedef enum
+typedef enum /* matches DCB types */
 {
-    OUTPUT_NONE,
-    OUTPUT_ANALOG,
-    OUTPUT_DIGITAL,
-    OUTPUT_PANEL,
-    OUTPUT_TV,
+    OUTPUT_NONE = 4,
+    OUTPUT_ANALOG = 0,
+    OUTPUT_DIGITAL = 2,
+    OUTPUT_PANEL = 3,
+    OUTPUT_TV = 1,
 } NVOutputType;
 
 typedef struct {
@@ -380,13 +379,20 @@ typedef struct _NVRec {
     Bool randr12_enable;
     CreateScreenResourcesProcPtr    CreateScreenResources;
 
-    /* we know about 3 i2c buses */
-    I2CBusPtr           pI2CBus[3];
-    int dcb_entries;
+    I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
 
     int analog_count;
     int digital_count;
-    CARD32 dcb_table[NV40_NUM_DCB_ENTRIES]; /* 10 is a good limit */
+    struct {
+	    int entries;
+	    int i2c_entries;
+	    int version;
+	    uint32_t connection[MAX_NUM_DCB_ENTRIES];
+	    uint32_t config[MAX_NUM_DCB_ENTRIES];
+	    unsigned char i2c_read[MAX_NUM_DCB_ENTRIES];
+	    unsigned char i2c_write[MAX_NUM_DCB_ENTRIES];
+    } dcb_table;
+	    
     int crtc_associated[2];
     int ramdac_count;
     uint32_t output_info;
