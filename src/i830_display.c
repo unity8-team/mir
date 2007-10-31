@@ -224,9 +224,9 @@ static void i9xx_clock(int refclk, intel_clock_t *clock)
 static void intel_clock(I830Ptr pI830, int refclk, intel_clock_t *clock)
 {
     if (IS_I9XX(pI830))
-	return i9xx_clock (refclk, clock);
+	i9xx_clock (refclk, clock);
     else
-	return i8xx_clock (refclk, clock);
+	i8xx_clock (refclk, clock);
 }
 
 static void
