@@ -229,7 +229,7 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 	}
 }
 
-int tmds_regs[] = { 0x4 };
+int tmds_regs[] = { 0x4, 0x2b, 0x2c, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x3a };
 
 void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
 {
@@ -668,6 +668,37 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 			&& pNv->output_info & OUTPUT_1_CROSSWIRED_TMDS) {
 			regp->TMDS[0x4] |= (1 << 3);
 		}
+	}
+
+	/* Completely unknown TMDS registers:
+	 * 0x0
+	 * 0x1
+	 * 0x2
+	 * 0x5
+	 */
+
+	/* The TMDS game begins */
+	/* A few registers are also programmed on non-tmds monitors */
+	/* At the moment i can't give rationale for these values */
+	if (!is_fp) {
+		regp->TMDS[0x2e] = 0x80;
+		regp->TMDS[0x2f] = 0xff;
+		regp->TMDS[0x33] = 0xfe;
+	} else {
+		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+		regp->TMDS[0x2b] = 0x7d;
+		regp->TMDS[0x2c] = 0x0;
+		if (nv_crtc->head == 1) {
+			regp->TMDS[0x2e] = 0x81;
+		} else {
+			regp->TMDS[0x2e] = 0x85;
+		}
+		regp->TMDS[0x2f] = 0x21;
+		regp->TMDS[0x30] = 0x0;
+		regp->TMDS[0x31] = 0x0;
+		regp->TMDS[0x32] = 0x0;
+		regp->TMDS[0x33] = 0xf0;
+		regp->TMDS[0x3a] = 0x80;
 	}
 
 	/* Flatpanel support needs at least a NV10 */
