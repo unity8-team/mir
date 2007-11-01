@@ -938,12 +938,20 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		}
 	}
 
-	/* Stuff from haiku, put here so it doesn't look messy up there */
-	horizTotal -= 5;
+	/* Restored to stuff that nv does */
 	horizDisplay -= 1;
-	vertTotal -= 2;
-	vertDisplay -= 1;
+	horizStart -= 1;
+	/* This one has been increased by 2(compared with nv), to fix allignment issues on analog monitors */
+	horizEnd += 1;
+	/* This controls the size of the pink band, not the alligment */
+	horizTotal -= 5;
+	horizBlankStart -= 1;
 	horizBlankEnd -= 1;
+	vertDisplay -= 1;
+	vertStart -= 1;
+	vertEnd -= 1;
+	vertTotal -= 2;
+	vertBlankStart -= 1;
 	vertBlankEnd -= 1;
 
 	ErrorF("Mode clock: %d\n", clock);
@@ -1141,6 +1149,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		regp->cursorConfig |= 0x02000000;
 	}
 
+	/* Unblock some timings */
 	regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = 0;
 	regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = 0;
 
@@ -1161,8 +1170,12 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* 0x80 seems to be used very often, if not always */
 	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
 
+	/* Are these(0x55 and 0x56) also timing related registers, since disabling them does nothing? */
+	regp->CRTC[NV_VGA_CRTCX_55] = 0x0;
+
 	/* Common values like 0x14 and 0x04 are converted to 0x10 and 0x00 */
-	regp->CRTC[NV_VGA_CRTCX_56] = savep->CRTC[NV_VGA_CRTCX_56] & ~(1<<4);
+	//regp->CRTC[NV_VGA_CRTCX_56] = savep->CRTC[NV_VGA_CRTCX_56] & ~(1<<4);
+	regp->CRTC[NV_VGA_CRTCX_56] = 0x0;
 
 	/* bit0: Seems to be mostly used on crtc1 */
 	/* bit1: 1=crtc1, 0=crtc, but i'm unsure about this */
@@ -1582,21 +1595,25 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 void
 NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NVPtr pNv = NVPTR(pScrn);    
-    NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-    NVFBLayout *pLayout = &pNv->CurrentLayout;
-    CARD32 start = 0;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);    
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVFBLayout *pLayout = &pNv->CurrentLayout;
+	CARD32 start = 0;
 
 	ErrorF("NVCrtcSetBase: x: %d y: %d\n", x, y);
 
-    start += ((y * pScrn->displayWidth + x) * (pLayout->bitsPerPixel/8));
-    start += pNv->FB->offset;
+	start += ((y * pScrn->displayWidth + x) * (pLayout->bitsPerPixel/8));
+	start += pNv->FB->offset;
 
-    nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_START, start);
+	/* 30 bits addresses in 32 bits according to haiku */
+	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_START, start & 0xfffffffc);
 
-    crtc->x = x;
-    crtc->y = y;
+	/* set NV4/NV10 byte adress: (bit0 - 1) */
+	NVWriteVgaAttr(crtc, 0x13, (start & 0x3) << 1);
+
+	crtc->x = x;
+	crtc->y = y;
 }
 
 static void NVCrtcWriteDacMask(xf86CrtcPtr crtc, CARD8 value)

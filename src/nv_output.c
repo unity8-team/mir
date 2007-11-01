@@ -265,23 +265,22 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 		regp->TMDS[tmds_regs[i]] = NVOutputReadTMDS(output, tmds_regs[i]);
 	}
 
-	if (nv_output->type == OUTPUT_DIGITAL || override) {
+	/* The regs below are 0 for non-flatpanels, so you can load and save them */
 
-		for (i = 0; i < 7; i++) {
-			uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
-			regp->fp_horiz_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
-		}
-		
-		for (i = 0; i < 7; i++) {
-			uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
-			regp->fp_vert_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
-		}
-
-		regp->fp_hvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_START);
-		regp->fp_hvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_END);
-		regp->fp_vvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_START);
-		regp->fp_vvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_END);
+	for (i = 0; i < 7; i++) {
+		uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
+		regp->fp_horiz_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
 	}
+
+	for (i = 0; i < 7; i++) {
+		uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
+		regp->fp_vert_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
+	}
+
+	regp->fp_hvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_START);
+	regp->fp_hvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_END);
+	regp->fp_vvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_START);
+	regp->fp_vvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_END);
 }
 
 void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
@@ -318,23 +317,22 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 		NVOutputWriteTMDS(output, tmds_regs[i], regp->TMDS[tmds_regs[i]]);
 	}
 
-	if (nv_output->type == OUTPUT_DIGITAL || override) {
+	/* The regs below are 0 for non-flatpanels, so you can load and save them */
 
-		for (i = 0; i < 7; i++) {
-			uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
-			NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_horiz_regs[i]);
-		}
-		
-		for (i = 0; i < 7; i++) {
-			uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
-			NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_vert_regs[i]);
-		}
-
-		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_START, regp->fp_hvalid_start);
-		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_END, regp->fp_hvalid_end);
-		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_START, regp->fp_vvalid_start);
-		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_END, regp->fp_vvalid_end);
+	for (i = 0; i < 7; i++) {
+		uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
+		NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_horiz_regs[i]);
 	}
+
+	for (i = 0; i < 7; i++) {
+		uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
+		NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_vert_regs[i]);
+	}
+
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_START, regp->fp_hvalid_start);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_END, regp->fp_hvalid_end);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_START, regp->fp_vvalid_start);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_END, regp->fp_vvalid_end);
 }
 
 /* NOTE: Don't rely on this data for anything other than restoring VT's */
@@ -735,10 +733,6 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 
 	if (pNv->alphaCursor) {
 		regp->general |= (1<<29);
-	}
-
-	if(bpp != 8) {/* DirectColor */
-		regp->general |= 0x00000030;
 	}
 
 	regp->bpp = bpp;    /* this is not bitsPerPixel, it's 8,15,16,32 */
