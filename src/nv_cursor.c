@@ -355,14 +355,62 @@ Bool NVCursorInitRandr12(ScreenPtr pScreen)
 
 void nv_crtc_show_cursor(xf86CrtcPtr crtc)
 {
-	int current = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1) | 1;
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, current);
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	int current = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1);
+
+	/* Enable on this crtc */
+	NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_CURCTL1, current | 1);
+
+	if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+		xf86OutputPtr output = NULL;
+		int i;
+
+		/* We need our output, so we know our ramdac */
+		for (i = 0; i < xf86_config->num_output; i++) {
+			output = xf86_config->output[i];
+
+			if (output->crtc == crtc) {
+				/* TODO: Add a check if an output was found? */
+				break;
+			}
+		}
+
+		volatile CARD32 curpos = NVOutputReadRAMDAC(output, NV_RAMDAC_CURSOR_POS);
+		NVOutputWriteRAMDAC(output, NV_RAMDAC_CURSOR_POS, curpos);
+	}
 }
 
 void nv_crtc_hide_cursor(xf86CrtcPtr crtc)
 {
-	int current = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1) & ~1;
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, current);
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	int current = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1);
+
+	/* Disable on this crtc */
+	NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_CURCTL1, current & ~1);
+
+	if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+		xf86OutputPtr output = NULL;
+		int i;
+
+		/* We need our output, so we know our ramdac */
+		for (i = 0; i < xf86_config->num_output; i++) {
+			output = xf86_config->output[i];
+
+			if (output->crtc == crtc) {
+				/* TODO: Add a check if an output was found? */
+				break;
+			}
+		}
+
+		volatile CARD32 curpos = NVOutputReadRAMDAC(output, NV_RAMDAC_CURSOR_POS);
+		NVOutputWriteRAMDAC(output, NV_RAMDAC_CURSOR_POS, curpos);
+	}
 }
 
 void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
@@ -420,7 +468,6 @@ void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 		TransformCursor(pNv);
 	}
 }
-
 
 
 void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)

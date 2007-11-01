@@ -108,26 +108,38 @@ static CARD8 NVReadMiscOut(xf86CrtcPtr crtc)
 	return NVReadPVIO(crtc, VGA_MISC_OUT_R);
 }
 
+void NVWriteVGA(NVPtr pNv, int head, CARD8 index, CARD8 value)
+{
+	volatile CARD8 *pCRTCReg = head ? pNv->PCIO1 : pNv->PCIO0;
+
+	NV_WR08(pCRTCReg, CRTC_INDEX, index);
+	NV_WR08(pCRTCReg, CRTC_DATA, value);
+}
+
+CARD8 NVReadVGA(NVPtr pNv, int head, CARD8 index)
+{
+	volatile CARD8 *pCRTCReg = head ? pNv->PCIO1 : pNv->PCIO0;
+
+	NV_WR08(pCRTCReg, CRTC_INDEX, index);
+	return NV_RD08(pCRTCReg, CRTC_DATA);
+}
+
 void NVWriteVgaCrtc(xf86CrtcPtr crtc, CARD8 index, CARD8 value)
 {
-  ScrnInfoPtr pScrn = crtc->scrn;
-  NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-  NVPtr pNv = NVPTR(pScrn);
-  volatile CARD8 *pCRTCReg = nv_crtc->head ? pNv->PCIO1 : pNv->PCIO0;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 
-  NV_WR08(pCRTCReg, CRTC_INDEX, index);
-  NV_WR08(pCRTCReg, CRTC_DATA, value);
+	NVWriteVGA(pNv, nv_crtc->head, index, value);
 }
 
 CARD8 NVReadVgaCrtc(xf86CrtcPtr crtc, CARD8 index)
 {
-  ScrnInfoPtr pScrn = crtc->scrn;
-  NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-  NVPtr pNv = NVPTR(pScrn);
-  volatile CARD8 *pCRTCReg = nv_crtc->head ? pNv->PCIO1 : pNv->PCIO0;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 
-  NV_WR08(pCRTCReg, CRTC_INDEX, index);
-  return NV_RD08(pCRTCReg, CRTC_DATA);
+	return NVReadVGA(pNv, nv_crtc->head, index);
 }
 
 static void NVWriteVgaSeq(xf86CrtcPtr crtc, CARD8 index, CARD8 value)
