@@ -1,0 +1,80 @@
+Index: xserver-xorg-video-intel-2.1.1/src/i830_driver.c
+===================================================================
+--- xserver-xorg-video-intel-2.1.1.orig/src/i830_driver.c	2007-10-16 18:36:13.000000000 +0100
++++ xserver-xorg-video-intel-2.1.1/src/i830_driver.c	2007-10-16 18:36:55.000000000 +0100
+@@ -959,7 +959,6 @@
+       return FALSE;
+ 
+    pI830 = I830PTR(pScrn);
+-   pI830->SaveGeneration = -1;
+    pI830->pEnt = pEnt;
+ 
+    pScrn->displayWidth = 640; /* default it */
+@@ -1402,7 +1401,9 @@
+    }
+    I830SetupOutputs(pScrn);
+ 
++   /* Save the graphics state */
+    SaveHWState(pScrn);
++
+    if (!xf86InitialConfiguration (pScrn, FALSE))
+    {
+       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
+@@ -1410,7 +1411,6 @@
+       PreInitCleanup(pScrn);
+       return FALSE;
+    }
+-   RestoreHWState(pScrn);
+ 
+    /* XXX This should go away, replaced by xf86Crtc.c support for it */
+    pI830->rotation = RR_Rotate_0;
+@@ -1583,7 +1583,7 @@
+       xf86LoaderReqSymLists(I810ramdacSymbols, NULL);
+    }
+ 
+-   i830CompareRegsToSnapshot(pScrn, "After PreInit");
++   //i830CompareRegsToSnapshot(pScrn, "After PreInit");
+ 
+    I830UnmapMMIO(pScrn);
+ 
+@@ -2971,15 +2971,6 @@
+ 
+    DPRINTF(PFX, "Enter VT\n");
+ 
+-   /*
+-    * Only save state once per server generation since that's what most
+-    * drivers do.  Could change this to save state at each VT enter.
+-    */
+-   if (pI830->SaveGeneration != serverGeneration) {
+-      pI830->SaveGeneration = serverGeneration;
+-      SaveHWState(pScrn);
+-   }
+-
+    pI830->leaving = FALSE;
+ 
+    if (I830IsPrimary(pScrn))
+Index: xserver-xorg-video-intel-2.1.1/src/i830_tv.c
+===================================================================
+--- xserver-xorg-video-intel-2.1.1.orig/src/i830_tv.c	2007-08-14 06:24:34.000000000 +0100
++++ xserver-xorg-video-intel-2.1.1/src/i830_tv.c	2007-10-16 18:36:55.000000000 +0100
+@@ -1361,6 +1361,7 @@
+     if (crtc)
+     {
+         i830_tv_detect_type (crtc, output);
++        i830_tv_restore (output);
+         i830ReleaseLoadDetectPipe (output, dpms_mode);
+     }
+ 
+Index: xserver-xorg-video-intel-2.1.1/src/i830.h
+===================================================================
+--- xserver-xorg-video-intel-2.1.1.orig/src/i830.h	2007-10-16 18:34:36.000000000 +0100
++++ xserver-xorg-video-intel-2.1.1/src/i830.h	2007-10-16 18:36:55.000000000 +0100
+@@ -522,8 +522,6 @@
+    int xoffset;
+    int yoffset;
+ 
+-   unsigned int SaveGeneration;
+-
+    OsTimerPtr devicesTimer;
+ 
+    int ddc2;

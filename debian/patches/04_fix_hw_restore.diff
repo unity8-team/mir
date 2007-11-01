@@ -1,8 +1,30 @@
 Index: xserver-xorg-video-intel-2.1.1/src/i830_driver.c
 ===================================================================
---- xserver-xorg-video-intel-2.1.1.orig/src/i830_driver.c	2007-10-12 14:37:57.000000000 +0100
-+++ xserver-xorg-video-intel-2.1.1/src/i830_driver.c	2007-10-12 14:39:08.000000000 +0100
-@@ -1985,11 +1985,12 @@
+--- xserver-xorg-video-intel-2.1.1.orig/src/i830_driver.c	2007-10-16 18:34:44.000000000 +0100
++++ xserver-xorg-video-intel-2.1.1/src/i830_driver.c	2007-10-16 18:36:13.000000000 +0100
+@@ -1928,7 +1928,9 @@
+    OUTREG(DSPABASE, pI830->saveDSPABASE);
+    if (IS_I965G(pI830))
+       OUTREG(DSPASURF, pI830->saveDSPASURF);
+-   OUTREG(PIPEACONF, pI830->savePIPEACONF);
++   if ((pI830->saveDPLL_A & DPLL_VCO_ENABLE) &&
++       (pI830->saveDPLL_A & DPLL_VGA_MODE_DIS))
++      OUTREG(PIPEACONF, pI830->savePIPEACONF);
+    i830WaitForVblank(pScrn);
+    OUTREG(DSPACNTR, pI830->saveDSPACNTR);
+    OUTREG(DSPABASE, INREG(DSPABASE));
+@@ -1965,7 +1967,9 @@
+       OUTREG(DSPBBASE, pI830->saveDSPBBASE);
+       if (IS_I965G(pI830))
+ 	 OUTREG(DSPBSURF, pI830->saveDSPBSURF);
+-      OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
++      if ((pI830->saveDPLL_B & DPLL_VCO_ENABLE) &&
++          (pI830->saveDPLL_B & DPLL_VGA_MODE_DIS))
++         OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
+       i830WaitForVblank(pScrn);
+       OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
+       OUTREG(DSPBBASE, INREG(DSPBBASE));
+@@ -1985,11 +1989,12 @@
     OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
     OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
  

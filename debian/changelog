@@ -1,3 +1,27 @@
+xserver-xorg-video-intel (2:2.1.1-0ubuntu10) hardy; urgency=low
+
+  [ Bryce Harrington ]
+  [Peter Clifton]
+  * 08_fix_855_3D_state.diff
+    - Emit the invariant 3D state to the GPU during EnterVT after
+      marking the 3D state as clobbered. This fixes / works around
+      textured surface corruption after resume on 855GM hardware.
+      (Closes LP: #133118)
+  * 07_fix_startup_blink.diff
+    - Alter startup sequence to avoid blinking the display whilst
+      initialising the graphics chip.
+      (Closes LP: #148686)
+  * 04_fix_hw_restore.diff
+    - Only restore PIPE[AB]CONF if the DPLL for that PIPE is running
+      and not in VGA pipeline mode.
+      (Closes LP: #108056)
+
+  [Kyle McMartin, Bryce Harrington]
+  * 06_sync_quirks.diff:
+    - Sync TV out quirks with upstream
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Thu, 01 Nov 2007 21:44:36 +0200
+
 xserver-xorg-video-intel (2:2.1.1-0ubuntu9) gutsy; urgency=low
 
    [Peter Clifton]
