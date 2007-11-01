@@ -102,7 +102,12 @@ void NVOutputWriteTMDS(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
 
 	/* Is TMDS programmed on a different output? */
 	/* Always choose the prefered ramdac, since that one contains the tmds stuff */
-	ramdac = nv_output->prefered_ramdac;
+	/* Assumption: there is always once output that can only run of the primary ramdac */
+	if (nv_output->valid_ramdac & RAMDAC_1) {
+		ramdac = 1;
+	} else {
+		ramdac = 0;
+	}
 
 	NVWriteTMDS(pNv, ramdac, tmds_reg, val);
 }
@@ -116,7 +121,12 @@ CARD8 NVOutputReadTMDS(xf86OutputPtr output, CARD32 tmds_reg)
 
 	/* Is TMDS programmed on a different output? */
 	/* Always choose the prefered ramdac, since that one contains the tmds stuff */
-	ramdac = nv_output->prefered_ramdac;
+	/* Assumption: there is always once output that can only run of the primary ramdac */
+	if (nv_output->valid_ramdac & RAMDAC_1) {
+		ramdac = 1;
+	} else {
+		ramdac = 0;
+	}
 
 	return NVReadTMDS(pNv, ramdac, tmds_reg);
 }
@@ -349,7 +359,13 @@ nv_output_save (xf86OutputPtr output)
 	ErrorF("nv_output_save is called\n");
 
 	/* This is early init and we have not yet been assigned a ramdac */
-	nv_output->ramdac = nv_output->prefered_ramdac;
+	/* Always choose the prefered ramdac, for consistentcy */
+	/* Assumption: there is always once output that can only run of the primary ramdac */
+	if (nv_output->valid_ramdac & RAMDAC_1) {
+		nv_output->ramdac = 1;
+	} else {
+		nv_output->ramdac = 0;
+	}
 
 	state = &pNv->SavedReg;
 
@@ -373,7 +389,13 @@ nv_output_restore (xf86OutputPtr output)
 	ErrorF("nv_output_restore is called\n");
 
 	/* We want consistent mode restoring and the ramdac entry is variable */
-	nv_output->ramdac = nv_output->prefered_ramdac;
+	/* Always choose the prefered ramdac, for consistentcy */
+	/* Assumption: there is always once output that can only run of the primary ramdac */
+	if (nv_output->valid_ramdac & RAMDAC_1) {
+		nv_output->ramdac = 1;
+	} else {
+		nv_output->ramdac = 0;
+	}
 
 	state = &pNv->SavedReg;
 
@@ -638,7 +660,8 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	}
 
 	/* We must ensure that we never disable the wrong tmds control */
-	if (nv_output->ramdac != nv_output->prefered_ramdac) {
+	/* Assumption: one output can only run of ramdac 0 */
+	if ((nv_output->ramdac == 0) && (nv_output->valid_ramdac & RAMDAC_1)) {
 		if (is_fp) {
 			regp2->debug_0 &= ~NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
 		} else {
@@ -662,7 +685,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		/* As far as i know, this may never be set on ramdac 0 tmds registers (ramdac 1 -> crosswired -> ramdac 0 tmds regs) */
 		/* This will upset the monitor, trust me, i know it :-( */
 		/* Restricting to cards that had this setup at bootup time, until i am certain it's ok to use */
-		if (nv_output->ramdac != nv_output->prefered_ramdac && nv_output->ramdac == 0
+		if ((nv_output->ramdac == 0) && (nv_output->valid_ramdac & RAMDAC_1)
 			&& pNv->output_info & OUTPUT_1_CROSSWIRED_TMDS) {
 			regp->TMDS[0x4] |= (1 << 3);
 		}
@@ -926,9 +949,14 @@ nv_output_get_modes(xf86OutputPtr output)
     NVOutputPrivatePtr nv_output = output->driver_private;
     xf86MonPtr ddc_mon;
     DisplayModePtr ddc_modes, mode;
-    int i;
+	NVPtr pNv = NVPTR(pScrn);
 
 	ErrorF("nv_output_get_modes is called\n");
+
+	/* We no longer have ramdac, which will be reassigned soon enough */
+	pNv->ramdac_active[nv_output->ramdac] = FALSE;
+	nv_output->ramdac_assigned = FALSE;
+	nv_output->ramdac = -1;
 
     ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
 
@@ -972,20 +1000,20 @@ nv_output_prepare(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (nv_output->ramdac_assigned) {
+		ErrorF("We already have a ramdac, what went wrong?\n");
 		return;
 	}
 
-	/* This may cause problems if later on ramdac 0 is disabled */
-	/* Select ramdac */
-	if (pNv->ramdac_count) {
-		pNv->ramdac_count = 2;
-		nv_output->ramdac = 1;
-	} else {
-		pNv->ramdac_count = 1;
+	if ((nv_output->valid_ramdac & RAMDAC_0) && !(pNv->ramdac_active[0])) {
+		pNv->ramdac_active[0] = TRUE;
 		nv_output->ramdac = 0;
+	} else if ((nv_output->valid_ramdac & RAMDAC_1) && !(pNv->ramdac_active[1])) {
+		pNv->ramdac_active[1] = TRUE;
+		nv_output->ramdac = 1;
 	}
 
-	nv_output->ramdac_assigned = TRUE;
+	if (nv_output->ramdac != -1)
+		nv_output->ramdac_assigned = TRUE;
 }
 
 static void
@@ -1059,7 +1087,7 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 };
 
 
-static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index, Bool dvi_pair)
+static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bool dvi_pair)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
@@ -1068,7 +1096,6 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index, Bool dvi_pair
 	int crtc_mask = (1<<0) | (1<<1);
 	int real_index;
 	Bool create_output = TRUE;
-	int index = i2c_index;
 
 	sprintf(outputname, "Analog-%d", pNv->analog_count);
 	nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
@@ -1081,9 +1108,12 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index, Bool dvi_pair
 
 	nv_output->type = OUTPUT_ANALOG;
 
-	/* dvi outputs share their i2c port with their analog output on the same port */
-	/* But they can never work at the same time, so it's convient to share ramdac index */
-	nv_output->prefered_ramdac = index;
+	/* order + 1:
+	 * bit0: RAMDAC_0 valid
+	 * bit1: RAMDAC_1 valid
+	 * So lowest order has highest priority.
+	 */
+	nv_output->valid_ramdac = order + 1;
 
 	if (!create_output) {
 		xfree(nv_output);
@@ -1106,7 +1136,7 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int i2c_index, Bool dvi_pair
 }
 
 
-static void nv_add_digital_output(ScrnInfoPtr pScrn,  int i2c_index, Bool dual_dvi, int lvds)
+static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bool dual_dvi, int lvds)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
@@ -1128,7 +1158,12 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn,  int i2c_index, Bool dual_d
 
 	nv_output->type = OUTPUT_DIGITAL;
 
-	nv_output->prefered_ramdac = index;
+	/* order + 1:
+	 * bit0: RAMDAC_0 valid
+	 * bit1: RAMDAC_1 valid
+	 * So lowest order has highest priority.
+	 */
+	nv_output->valid_ramdac = order + 1;
 
 	/* Sorry, i don't know what to do with lvds */
 	if (!lvds) {
@@ -1143,6 +1178,8 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn,  int i2c_index, Bool dual_d
 		}
 
 		nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
+
+		/* This detection may be flawed, it will corrected as soon as i have a good idea */
 
 		/* At the moment something must be already active, before we do anything */
 		if (nvReadRAMDAC(pNv,  real_index, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED) {
@@ -1252,15 +1289,15 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 
 				switch(type) {
 				case OUTPUT_ANALOG: /* Analogue VGA */
-					nv_add_analog_output(pScrn, i2c_index, dvi_pair);
+					nv_add_analog_output(pScrn, or, i2c_index, dvi_pair);
 					dvi_pair = FALSE;
 					break;
 				case OUTPUT_DIGITAL: /* TMDS */
 					dvi_pair = TRUE;
-					nv_add_digital_output(pScrn, i2c_index, dual_dvi, 0);
+					nv_add_digital_output(pScrn, or, i2c_index, dual_dvi, 0);
 					break;
 				case OUTPUT_PANEL: /* LVDS */
-					nv_add_digital_output(pScrn, i2c_index, dual_dvi, 1);
+					nv_add_digital_output(pScrn, or, i2c_index, dual_dvi, 1);
 					break;
 				default:
 					break;

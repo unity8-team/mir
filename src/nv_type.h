@@ -200,10 +200,15 @@ typedef struct {
 	void *map;
 } NVAllocRec;
 
+typedef enum {
+	RAMDAC_0 = (1 << 0),
+	RAMDAC_1 = (1 << 1)
+} ValidRamdac;
+
 typedef struct _NVOutputPrivateRec {
 	int ramdac;
-	int prefered_ramdac;
 	Bool ramdac_assigned;
+	uint8_t valid_ramdac;
         I2CBusPtr		    pDDCBus;
         NVOutputType type;
         CARD32 fpSyncs;
@@ -227,7 +232,7 @@ typedef enum {
 	OUTPUT_0_LVDS = (1 << 2),
 	OUTPUT_1_LVDS = (1 << 3),
 	OUTPUT_0_CROSSWIRED_TMDS = (1 << 4),
-	OUTPUT_1_CROSSWIRED_TMDS = (1 << 5),
+	OUTPUT_1_CROSSWIRED_TMDS = (1 << 5)
 } OutputInfo;
 
 #define NVOutputPrivate(o) ((NVOutputPrivatePtr (o)->driver_private)
@@ -341,6 +346,7 @@ typedef struct _NVRec {
     Bool                Television;
 	int         vtOWNER;
 	Bool		crtc_active[2];
+	Bool		ramdac_active[2];
     OptionInfoPtr	Options;
     Bool                alphaCursor;
     unsigned char       DDCBase;
@@ -392,9 +398,7 @@ typedef struct _NVRec {
 	    unsigned char i2c_read[MAX_NUM_DCB_ENTRIES];
 	    unsigned char i2c_write[MAX_NUM_DCB_ENTRIES];
     } dcb_table;
-	    
-    int crtc_associated[2];
-    int ramdac_count;
+
     uint32_t output_info;
     MiscStartupInfo misc_info;
 
