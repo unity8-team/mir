@@ -611,6 +611,7 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
     fbc_ctl |= (compressed_stride & 0xff) << FBC_CTL_STRIDE_SHIFT;
     fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
     fbc_ctl |= FBC_CTL_UNCOMPRESSIBLE;
+    fbc_ctl |= pI830->front_buffer->fence_nr;
     OUTREG(FBC_CONTROL, fbc_ctl);
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc enabled on plane %c\n", plane ?
