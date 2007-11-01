@@ -817,8 +817,6 @@ nv_ddc_detect(xf86OutputPtr output)
 		return FALSE;
 	}
 
-	xf86PrintEDID(ddc_mon);
-
 	if (nv_output->type == OUTPUT_DIGITAL) {
 		int i, j;
 		for (i = 0; i < 4; i++) {
@@ -1192,30 +1190,6 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn,  int i2c_index, Bool dual_d
 
 	pNv->digital_count++;
 }
-/**
- * Set up the outputs according to what type of chip we are.
- *
- * Some outputs may not initialize, due to allocation failure or because a
- * controller chip isn't found.
- */
-
-void Nv20SetupOutputs(ScrnInfoPtr pScrn)
-{
-    NVPtr pNv = NVPTR(pScrn);
-    xf86OutputPtr	    output;
-    NVOutputPrivatePtr    nv_output;
-    int i;
-    int num_analog_outputs = pNv->twoHeads ? 2 : 1;
-    int num_digital_outputs = 1;
-
-    for (i = 0 ; i < num_analog_outputs; i++) {
-      nv_add_analog_output(pScrn, i, FALSE);
-    }
-
-    for (i = 0 ; i < num_digital_outputs; i++) {
-      nv_add_digital_output(pScrn, i, FALSE, 0);
-    }
-}
 
 void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 {
@@ -1293,10 +1267,6 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 				}
 			}
 		}
-	} else {
-		/* obsolete? */
-		/* certainly screwed, as no I2C for it now... */
-		Nv20SetupOutputs(pScrn);
 	}
 }
 
