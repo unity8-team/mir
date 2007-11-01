@@ -322,7 +322,7 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
 	}
 #endif	
 
-	i830_free_memory(pScrn, pI830->memory_list->next);
+	i830_free_memory(pScrn, mem);
     }
 
     /* Free any allocations in buffer objects */
