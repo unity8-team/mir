@@ -246,7 +246,7 @@ NV40_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	}
 
 	if (!shader->hw_id) {
-		uint32_t *map = fp_mem->map;
+		uint32_t *map = fp_mem->map + next_hw_id_offset;
 		int i;
 
 		for (i = 0; i < shader->size; i++) {
