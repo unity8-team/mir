@@ -897,6 +897,9 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->Attribute[20] = 0x00;
 }
 
+#define MAX_H_VALUE(i) ((0x1ff + i) << 3)
+#define MAX_V_VALUE(i) ((0xfff + i) << 0)
+
 /**
  * Sets up registers for the given mode/adjusted_mode pair.
  *
@@ -917,20 +920,98 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	NVCrtcRegPtr regp, savep;
 	unsigned int i;
 	uint32_t clock = mode->Clock;
-	int horizDisplay	= (mode->CrtcHDisplay/8);
-	int horizStart		= (mode->CrtcHSyncStart/8);
-	int horizEnd		= (mode->CrtcHSyncEnd/8);
-	int horizTotal		= (mode->CrtcHTotal/8) ;
-	int horizBlankStart	= (mode->CrtcHDisplay/8);
-	int horizBlankEnd	= (mode->CrtcHTotal/8);
-	int vertDisplay		=  mode->CrtcVDisplay;
-	int vertStart		=  mode->CrtcVSyncStart;
-	int vertEnd		=  mode->CrtcVSyncEnd;
-	int vertTotal		=  mode->CrtcVTotal;
-	int vertBlankStart	=  mode->CrtcVDisplay;
-	int vertBlankEnd	=  mode->CrtcVTotal;
-	int linecomp 		= mode->CrtcVDisplay;
-	/* What about vsync and hsync? */
+
+	/* Happily borrowed from haiku driver, as an extra safety */
+
+	/* Make it multiples of 8 */
+	mode->CrtcHDisplay &= ~7;
+	mode->CrtcHSyncStart &= ~7;
+	mode->CrtcHSyncEnd &= ~7;
+	mode->CrtcHTotal &= ~7;
+
+	/* Horizontal stuff */
+
+	/* Time for some mode mangling */
+	/* We only have 9 bits to store most of this information (mask 0x3f) */
+	if (mode->CrtcHDisplay > MAX_H_VALUE(-2))
+		mode->CrtcHDisplay = MAX_H_VALUE(-2);
+
+	if (mode->CrtcHSyncStart > MAX_H_VALUE(-1))
+		mode->CrtcHSyncStart = MAX_H_VALUE(-1);
+
+	if  (mode->CrtcHSyncEnd > MAX_H_VALUE(0))
+		mode->CrtcHSyncEnd = MAX_H_VALUE(0);
+
+	if (mode->CrtcHTotal > MAX_H_VALUE(5))
+		mode->CrtcHTotal = MAX_H_VALUE(5);
+
+	/* Make room for a sync pulse if there is not enough room */
+	if (mode->CrtcHTotal < mode->CrtcHSyncEnd + 0x50)
+		mode->CrtcHTotal = mode->CrtcHSyncEnd + 0x50;
+
+	/* Too large sync pulse? */
+	if (mode->CrtcHTotal > mode->CrtcHSyncEnd + 0x3f8)
+		mode->CrtcHTotal = mode->CrtcHSyncEnd + 0x3f8;
+
+	/* Is the sync pulse outside the screen? */
+	if (mode->CrtcHSyncEnd > mode->CrtcHTotal - 8)
+		mode->CrtcHSyncEnd = mode->CrtcHTotal - 8;
+
+	if (mode->CrtcHSyncStart < mode->CrtcHDisplay + 8)
+		mode->CrtcHSyncStart = mode->CrtcHDisplay + 8;
+
+	/* We've only got 5 bits to store the sync stuff */
+	if (mode->CrtcHSyncEnd > mode->CrtcHSyncStart + (0x1f << 3))
+		mode->CrtcHSyncEnd = mode->CrtcHSyncStart + (0x1f << 3);
+
+	/* Vertical stuff */
+
+	/* We've only got 12 bits for this stuff */
+	if (mode->CrtcVDisplay > MAX_V_VALUE(-2))
+		mode->CrtcVDisplay = MAX_V_VALUE(-2);
+
+	if (mode->CrtcVSyncStart > MAX_V_VALUE(-1))
+		mode->CrtcVSyncStart = MAX_V_VALUE(-1);
+
+	if  (mode->CrtcVSyncEnd > MAX_V_VALUE(0))
+		mode->CrtcVSyncEnd = MAX_V_VALUE(0);
+
+	if (mode->CrtcVTotal > MAX_V_VALUE(5))
+		mode->CrtcVTotal = MAX_V_VALUE(5);
+
+	/* Make room for a sync pulse if there is not enough room */
+	if (mode->CrtcVTotal < mode->CrtcVSyncEnd + 0x3)
+		mode->CrtcVTotal = mode->CrtcVSyncEnd + 0x3;
+
+	/* Too large sync pulse? */
+	if (mode->CrtcVTotal > mode->CrtcVSyncEnd + 0xff)
+		mode->CrtcVTotal = mode->CrtcVSyncEnd + 0xff;
+
+	/* Is the sync pulse outside the screen? */
+	if (mode->CrtcVSyncEnd > mode->CrtcVTotal - 1)
+		mode->CrtcVSyncEnd = mode->CrtcVTotal - 1;
+
+	if (mode->CrtcVSyncStart < mode->CrtcVDisplay + 1)
+		mode->CrtcVSyncStart = mode->CrtcVDisplay + 1;
+
+	/* We've only got 4 bits to store the sync stuff */
+	if (mode->CrtcVSyncEnd > mode->CrtcVSyncStart + (0x0f << 0))
+		mode->CrtcVSyncEnd = mode->CrtcVSyncStart + (0x0f << 0);
+
+	int horizDisplay	= (mode->CrtcHDisplay >> 3) - 1;
+	int horizStart		= (mode->CrtcHSyncStart >> 3);
+	/* The reason for this offset is completelt unknown, but important to keep analog screen alligned */
+	int horizEnd		= (mode->CrtcHSyncEnd >> 3) + 4;
+	int horizTotal		= (mode->CrtcHTotal >> 3) - 5;
+	int horizBlankStart	= horizDisplay;
+	int horizBlankEnd	= horizTotal + 4;
+	int vertDisplay		= mode->CrtcVDisplay - 1;
+	int vertStart		= mode->CrtcVSyncStart;
+	int vertEnd		= mode->CrtcVSyncEnd;
+	int vertTotal		= mode->CrtcVTotal - 2;
+	int vertBlankStart	= vertDisplay;
+	int vertBlankEnd	= vertTotal + 1;
+	int lineComp		= mode->CrtcVDisplay;
 
 	Bool is_fp = FALSE;
 
@@ -949,22 +1030,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 			}
 		}
 	}
-
-	/* Restored to stuff that nv does */
-	horizDisplay -= 1;
-	horizStart -= 1;
-	/* This one has been increased by 2(compared with nv), to fix allignment issues on analog monitors */
-	horizEnd += 1;
-	/* This controls the size of the pink band, not the alligment */
-	horizTotal -= 5;
-	horizBlankStart -= 1;
-	horizBlankEnd -= 1;
-	vertDisplay -= 1;
-	vertStart -= 1;
-	vertEnd -= 1;
-	vertTotal -= 2;
-	vertBlankStart -= 1;
-	vertBlankEnd -= 1;
 
 	ErrorF("Mode clock: %d\n", clock);
 	/* We need to run at the native panel size clock */
@@ -1021,12 +1086,12 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 				| SetBitField(vertDisplay,8:8,1:1)
 				| SetBitField(vertStart,8:8,2:2)
 				| SetBitField(vertBlankStart,8:8,3:3)
-				| SetBitField(linecomp,8:8,4:4)
+				| SetBitField(lineComp,8:8,4:4)
 				| SetBitField(vertTotal,9:9,5:5)
 				| SetBitField(vertDisplay,9:9,6:6)
 				| SetBitField(vertStart,9:9,7:7);
 	regp->CRTC[NV_VGA_CRTCX_MAXSCLIN]  = SetBitField(vertBlankStart,9:9,5:5)
-				| SetBit(6)
+				| SetBitField(lineComp,9:9,6:6)
 				| ((mode->Flags & V_DBLSCAN) ? 0x80 : 0x00);
 	regp->CRTC[NV_VGA_CRTCX_VSYNCS] = Set8Bits(vertStart);
 	regp->CRTC[NV_VGA_CRTCX_VSYNCE] = SetBitField(vertEnd,3:0,3:0) | SetBit(5);
@@ -1035,12 +1100,11 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_VGA_CRTCX_VBLANKS] = Set8Bits(vertBlankStart);
 	regp->CRTC[NV_VGA_CRTCX_VBLANKE] = Set8Bits(vertBlankEnd);
 	/* Not an extended register */
-	regp->CRTC[NV_VGA_CRTCX_LINECOMP] = Set8Bits(linecomp);
+	regp->CRTC[NV_VGA_CRTCX_LINECOMP] = lineComp & 0xff;
 
 	regp->Attribute[0x10] = 0x01;
-
-	if(pNv->Television)
-		regp->Attribute[0x11] = 0x00;
+	/* Blob sets this for normal monitors as well */
+	regp->Attribute[0x11] = 0x00;
 
 	regp->CRTC[NV_VGA_CRTCX_LSR] = SetBitField(horizBlankEnd,6:6,4:4)
 				| SetBitField(vertBlankStart,10:10,3:3)
@@ -1066,7 +1130,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		regp->CRTC[NV_VGA_CRTCX_INTERLACE] = 0xff;  /* interlace off */
 	}
 
-	regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfa;
+	/* bit2 = 0 -> fine pitched crtc granularity */
+	/* The rest disables double buffering on CRTC access */
+	regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfb;
 
 	/* Common values are 0x0, 0x3, 0x8, 0xb, see logic below */
 	if (nv_crtc->head == 0) {
@@ -1188,6 +1254,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* Common values like 0x14 and 0x04 are converted to 0x10 and 0x00 */
 	//regp->CRTC[NV_VGA_CRTCX_56] = savep->CRTC[NV_VGA_CRTCX_56] & ~(1<<4);
 	regp->CRTC[NV_VGA_CRTCX_56] = 0x0;
+
+	regp->CRTC[NV_VGA_CRTCX_57] = 0x0;
 
 	/* bit0: Seems to be mostly used on crtc1 */
 	/* bit1: 1=crtc1, 0=crtc, but i'm unsure about this */
@@ -1489,6 +1557,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_45, regp->CRTC[NV_VGA_CRTCX_45]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_52, regp->CRTC[NV_VGA_CRTCX_52]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_56, regp->CRTC[NV_VGA_CRTCX_56]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_57, regp->CRTC[NV_VGA_CRTCX_57]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_58, regp->CRTC[NV_VGA_CRTCX_58]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_59, regp->CRTC[NV_VGA_CRTCX_59]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
@@ -1596,6 +1665,7 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_45);
 	regp->CRTC[NV_VGA_CRTCX_52] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_52);
 	regp->CRTC[NV_VGA_CRTCX_56] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_56);
+	regp->CRTC[NV_VGA_CRTCX_57] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_57);
 	regp->CRTC[NV_VGA_CRTCX_58] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_58);
 	regp->CRTC[NV_VGA_CRTCX_59] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_59);
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER);

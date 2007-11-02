@@ -130,6 +130,7 @@
 #define NV_VGA_CRTCX_52			0x52
 #define NV_VGA_CRTCX_55			0x55
 #define NV_VGA_CRTCX_56			0x56
+#define NV_VGA_CRTCX_57			0x57
 #define NV_VGA_CRTCX_58			0x58
 #define NV_VGA_CRTCX_59			0x59
 
