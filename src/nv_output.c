@@ -205,6 +205,19 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 		NVPtr pNv = NVPTR(output->scrn);
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
+		/* We are going for modesetting, so we must reset the ramdacs */
+		if (mode == DPMSModeOff) {
+				ScrnInfoPtr pScrn = output->scrn;
+				NVPtr pNv = NVPTR(pScrn);
+				NVOutputPrivatePtr nv_output = output->driver_private;
+				NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+
+				/* We no longer have ramdac, which will be reassigned soon enough */
+				pNv->ramdac_active[nv_output->ramdac] = FALSE;
+				nv_output->ramdac_assigned = FALSE;
+				nv_output->ramdac = -1;
+		}
+
 		ErrorF("nv_analog_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
 	}
 }
@@ -236,6 +249,19 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 				break;
 		}
 		nvWriteRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_CONTROL, fpcontrol);
+
+		/* We are going for modesetting, so we must reset the ramdacs */
+		if (mode == DPMSModeOff) {
+				ScrnInfoPtr pScrn = output->scrn;
+				NVPtr pNv = NVPTR(pScrn);
+				NVOutputPrivatePtr nv_output = output->driver_private;
+				NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+
+				/* We no longer have ramdac, which will be reassigned soon enough */
+				pNv->ramdac_active[nv_output->ramdac] = FALSE;
+				nv_output->ramdac_assigned = FALSE;
+				nv_output->ramdac = -1;
+		}
 	}
 }
 
@@ -425,6 +451,7 @@ nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
 	ErrorF("nv_output_mode_fixup is called\n");
+
 	return TRUE;
 }
 
@@ -949,14 +976,8 @@ nv_output_get_modes(xf86OutputPtr output)
     NVOutputPrivatePtr nv_output = output->driver_private;
     xf86MonPtr ddc_mon;
     DisplayModePtr ddc_modes, mode;
-	NVPtr pNv = NVPTR(pScrn);
 
 	ErrorF("nv_output_get_modes is called\n");
-
-	/* We no longer have ramdac, which will be reassigned soon enough */
-	pNv->ramdac_active[nv_output->ramdac] = FALSE;
-	nv_output->ramdac_assigned = FALSE;
-	nv_output->ramdac = -1;
 
     ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
 
