@@ -537,10 +537,11 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 			/* Let's find our native mode amongst all the ddc modes */
 			DisplayModePtr native = nv_output->monitor_modes;
 			do {
-				/* assumption: each mode has it's unique clock */
-				if (nv_output->clock == native->Clock) {
-					break;
-				}
+				/* Let's find a matching mode */
+				if (nv_output->fpWidth == native->HDisplay  &&
+					nv_output->fpHeight == native->VDisplay) {
+						break;
+					}
 			} while (native = native->next);
 			regp->fp_horiz_regs[REG_DISP_END] = native->HDisplay - 1;
 			regp->fp_horiz_regs[REG_DISP_TOTAL] = native->HTotal - 1;
@@ -879,17 +880,6 @@ nv_ddc_detect(xf86OutputPtr output)
 			if (ddc_mon->det_mon[i].section.d_timings.h_active > nv_output->fpWidth) {
 				nv_output->fpWidth = ddc_mon->det_mon[i].section.d_timings.h_active;
 				nv_output->fpHeight = ddc_mon->det_mon[i].section.d_timings.v_active;
-				/* ddc clocks are in Hz, while mode clocks are in kHz */
-				nv_output->clock = ddc_mon->det_mon[i].section.d_timings.clock/1000;
-				/* Find the matchig native refresh rate */
-				for (j = 0; i < 5; i++) {
-					if (ddc_mon->det_mon[i].section.std_t[j].hsize == nv_output->fpWidth &&
-						ddc_mon->det_mon[i].section.std_t[j].vsize == nv_output->fpHeight) {
-
-						nv_output->refresh = ddc_mon->det_mon[i].section.std_t[j].refresh;
-						break;
-					}
-				}
 				nv_output->monitor_modes = xf86DDCGetModes(pScrn->scrnIndex, ddc_mon);
 			}
 		}
