@@ -232,7 +232,7 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 
 	/* We just woke up again from an actual monitor dpms and not a modeset prepare */
 	/* Put here since we actually need our ramdac to wake up again ;-) */
-	if (crtc && !nv_output->ramdac_assigned && nv_output->ramdac != -1) {
+	if (crtc && mode != DPMSModeOff && !nv_output->ramdac_assigned && nv_output->ramdac != -1) {
 		pNv->ramdac_active[nv_output->ramdac] = TRUE;
 		nv_output->ramdac_assigned = TRUE;
 	}
