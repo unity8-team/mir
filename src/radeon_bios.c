@@ -39,6 +39,7 @@
 #include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
+#include "radeon_atombios.h"
 #include "vbe.h"
 
 /* Read the Video BIOS block and the FP registers (if applicable). */
@@ -131,8 +132,24 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
     else
 	info->IsAtomBios = FALSE;
 
-    if (info->IsAtomBios) 
+    if (info->IsAtomBios) {
+        AtomBIOSArg atomBiosArg;
+
+        if (RHDAtomBIOSFunc(pScrn->scrnIndex, NULL, ATOMBIOS_INIT, &atomBiosArg) == ATOM_SUCCESS) {
+	    info->atomBIOS = atomBiosArg.ptr;
+        }
+
+        atomBiosArg.fb.start = info->FbFreeStart;
+        atomBiosArg.fb.size = info->FbFreeSize;
+        if (RHDAtomBIOSFunc(pScrn->scrnIndex, info->atomBIOS, ATOMBIOS_ALLOCATE_FB_SCRATCH,
+			    &atomBiosArg) == ATOM_SUCCESS) {
+
+	    info->FbFreeStart = atomBiosArg.fb.start;
+	    info->FbFreeSize = atomBiosArg.fb.size;
+        }
+        rhdTestAtomBIOS(info->atomBIOS);
 	info->MasterDataStart = RADEON_BIOS16 (info->ROMHeaderStart + 32);
+    }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s BIOS detected\n",
 	       info->IsAtomBios ? "ATOM":"Legacy");
