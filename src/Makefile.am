@@ -32,6 +32,20 @@ R128_DRI_SRCS = r128_dri.c
 RADEON_DRI_SRCS = radeon_dri.c
 endif
 
+RADEON_ATOMBIOS_SOURCES = AtomBios/CD_Operations.c\
+			  AtomBios/Decoder.c\
+			  AtomBios/hwserv_drv.c \
+			         AtomBios/includes/atombios.h \
+        AtomBios/includes/CD_binding.h \
+        AtomBios/includes/CD_Common_Types.h \
+        AtomBios/includes/CD_Definitions.h \
+        AtomBios/includes/CD_hw_services.h \
+        AtomBios/includes/CD_Opcodes.h \
+        AtomBios/includes/CD_Structs.h \
+        AtomBios/includes/Decoder.h \
+        AtomBios/includes/regsdef.h
+
+
 if ATIMISC_CPIO
 ATIMISC_CPIO_SOURCES = ativga.c ativgaio.c atibank.c atiwonder.c atiwonderio.c
 endif
@@ -45,7 +59,8 @@ ATIMISC_EXA_SOURCES = atimach64exa.c
 RADEON_EXA_SOURCES = radeon_exa.c
 endif
 
-AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@
+AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ -DDISABLE_EASF -DENABLE_ALL_SERVICE_FUNCTIONS -DATOM_BIOS -DATOM_BIOS_PARSER
+INCLUDES = -I$(srcdir)/AtomBios/includes
 
 ati_drv_la_LTLIBRARIES = ati_drv.la
 ati_drv_la_LDFLAGS = -module -avoid-version
@@ -85,7 +100,8 @@ radeon_drv_la_SOURCES = \
 	radeon_driver.c radeon_video.c radeon_bios.c radeon_mm_i2c.c \
 	radeon_vip.c radeon_misc.c radeon_probe.c radeon_display.c \
 	radeon_crtc.c radeon_output.c radeon_modes.c radeon_tv.c \
-	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES)
+	$(RADEON_ATOMBIOS_SOURCES) radeon_atombios.c radeon_atomwrapper.c\
+	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES) atombios_output.c atombios_crtc.c
 
 theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
 theatre_detect_drv_la_LDFLAGS = -module -avoid-version

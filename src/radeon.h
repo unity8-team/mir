@@ -443,6 +443,8 @@ typedef enum {
 	CARD_PCIE
 } RADEONCardType;
 
+typedef struct _atomBIOSHandle *atomBIOSHandlePtr;
+
 typedef struct {
     EntityInfoPtr     pEnt;
     pciVideoPtr       PciInfo;
@@ -816,6 +818,15 @@ typedef struct {
 #if defined(__powerpc__)
     RADEONMacModel    MacModel;
 #endif
+
+    atomBIOSHandlePtr atomBIOS;
+    unsigned long FbFreeStart, FbFreeSize;
+
+    int cursor_width;
+    int cursor_height;
+    int cursor_format;
+    int cursor_x;
+    int cursor_y;
 
     Rotation rotation;
     void (*PointerMoved)(int, int, int);

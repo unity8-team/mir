@@ -168,6 +168,15 @@ typedef struct _RADEONCrtcPrivateRec {
     int binding;
     /* Lookup table values to be set when the CRTC is enabled */
     CARD8 lut_r[256], lut_g[256], lut_b[256];
+
+    uint32_t crtc_offset;
+    int               h_total, h_blank, h_sync_wid, h_sync_pol;
+    int               v_total, v_blank, v_sync_wid, v_sync_pol;
+    int               fb_format, fb_length;
+    int               fb_pitch, fb_width, fb_height;
+    INT16             cursor_x;
+    INT16             cursor_y;
+    unsigned long     cursor_offset;
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
 typedef struct {
@@ -176,6 +185,7 @@ typedef struct {
     RADEONTmdsType TMDSType;
     RADEONConnectorType ConnectorType;
     Bool valid;
+    int gpio;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -221,6 +231,9 @@ typedef struct _RADEONOutputPrivateRec {
     int               SupportedTVStds;
     Bool              tv_on;
     int               load_detection;
+
+    unsigned long     gpio;
+    char              *name;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 #define RADEON_MAX_CRTC 2
