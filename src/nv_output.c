@@ -204,18 +204,19 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 	if (crtc) {
 		NVPtr pNv = NVPTR(output->scrn);
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+		NVOutputPrivatePtr nv_output = output->driver_private;
 
 		/* We are going for modesetting, so we must reset the ramdacs */
 		if (mode == DPMSModeOff) {
-				ScrnInfoPtr pScrn = output->scrn;
-				NVPtr pNv = NVPTR(pScrn);
-				NVOutputPrivatePtr nv_output = output->driver_private;
-				NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
-
-				/* We no longer have ramdac, which will be reassigned soon enough */
-				pNv->ramdac_active[nv_output->ramdac] = FALSE;
-				nv_output->ramdac_assigned = FALSE;
-				nv_output->ramdac = -1;
+			/* We no longer have ramdac, which will be reassigned soon enough */
+			pNv->ramdac_active[nv_output->ramdac] = FALSE;
+			nv_output->ramdac_assigned = FALSE;
+		} else {
+			/* We just woke up again from an actual monitor dpms and not a modeset prepare */
+			if (!nv_output->ramdac_assigned) {
+				pNv->ramdac_active[nv_output->ramdac] = TRUE;
+				nv_output->ramdac_assigned = TRUE;
+			}
 		}
 
 		ErrorF("nv_analog_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
@@ -227,10 +228,17 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 {
 	xf86CrtcPtr crtc = output->crtc;
 	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVPtr pNv = NVPTR(output->scrn);
 
-	/* Are we assigned a ramdac already?, else we will be activeted during mode set */
+	/* We just woke up again from an actual monitor dpms and not a modeset prepare */
+	/* Put here since we actually need our ramdac to wake up again ;-) */
+	if (crtc && !nv_output->ramdac_assigned && nv_output->ramdac != -1) {
+		pNv->ramdac_active[nv_output->ramdac] = TRUE;
+		nv_output->ramdac_assigned = TRUE;
+	}
+
+	/* Are we assigned a ramdac already?, else we will be activated during mode set */
 	if (crtc && nv_output->ramdac_assigned) {
-		NVPtr pNv = NVPTR(output->scrn);
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 		ErrorF("nv_digital_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
@@ -252,15 +260,9 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 
 		/* We are going for modesetting, so we must reset the ramdacs */
 		if (mode == DPMSModeOff) {
-				ScrnInfoPtr pScrn = output->scrn;
-				NVPtr pNv = NVPTR(pScrn);
-				NVOutputPrivatePtr nv_output = output->driver_private;
-				NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
-
-				/* We no longer have ramdac, which will be reassigned soon enough */
-				pNv->ramdac_active[nv_output->ramdac] = FALSE;
-				nv_output->ramdac_assigned = FALSE;
-				nv_output->ramdac = -1;
+			/* We no longer have ramdac, which will be reassigned soon enough */
+			pNv->ramdac_active[nv_output->ramdac] = FALSE;
+			nv_output->ramdac_assigned = FALSE;
 		}
 	}
 }
@@ -542,7 +544,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 					nv_output->fpHeight == native->VDisplay) {
 						break;
 					}
-			} while (native = native->next);
+			} while ((native = native->next));
 			regp->fp_horiz_regs[REG_DISP_END] = native->HDisplay - 1;
 			regp->fp_horiz_regs[REG_DISP_TOTAL] = native->HTotal - 1;
 			regp->fp_horiz_regs[REG_DISP_CRTC] = native->HDisplay;
