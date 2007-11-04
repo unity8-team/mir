@@ -996,6 +996,7 @@
 #define RADEON_MPP_GP_CONFIG                0x01c8 /* ? */
 #define R300_MC_IND_INDEX                   0x01f8
 #       define R300_MC_IND_ADDR_MASK        0x3f
+#       define R300_MC_IND_WR_EN            (1 << 8)
 #define R300_MC_IND_DATA                    0x01fc
 #define R300_MC_READ_CNTL_AB                0x017c
 #       define R300_MEM_RBS_POSITION_A_MASK 0x03
@@ -3269,5 +3270,7 @@
 #define RADEON_RS480_UNK_e34			0xe34
 #define RADEON_RS480_UNK_e38			0xe38
 #define RADEON_RS480_UNK_e3c			0xe3c
+
+#include "avivo_reg.h"
 
 #endif

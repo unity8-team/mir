@@ -129,4 +129,8 @@ do {									\
     }									\
 } while (0)
 
+#define INMC(pScrn, addr) RADEONINMC(pScrn, addr)
+
+#define OUTMC(pScrn, addr, val) RADEONOUTMC(pScrn, addr, val)
+
 #endif

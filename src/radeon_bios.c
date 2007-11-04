@@ -132,12 +132,16 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
     else
 	info->IsAtomBios = FALSE;
 
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s BIOS detected\n",
+	       info->IsAtomBios ? "ATOM":"Legacy");
+
     if (info->IsAtomBios) {
+#if 1
         AtomBIOSArg atomBiosArg;
 
-        if (RHDAtomBIOSFunc(pScrn->scrnIndex, NULL, ATOMBIOS_INIT, &atomBiosArg) == ATOM_SUCCESS) {
+	if (RHDAtomBIOSFunc(pScrn->scrnIndex, NULL, ATOMBIOS_INIT, &atomBiosArg) == ATOM_SUCCESS) {
 	    info->atomBIOS = atomBiosArg.ptr;
-        }
+	}
 
         atomBiosArg.fb.start = info->FbFreeStart;
         atomBiosArg.fb.size = info->FbFreeSize;
@@ -148,11 +152,9 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	    info->FbFreeSize = atomBiosArg.fb.size;
         }
         rhdTestAtomBIOS(info->atomBIOS);
+#endif
 	info->MasterDataStart = RADEON_BIOS16 (info->ROMHeaderStart + 32);
     }
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s BIOS detected\n",
-	       info->IsAtomBios ? "ATOM":"Legacy");
 
     return TRUE;
 }

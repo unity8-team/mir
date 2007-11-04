@@ -716,6 +716,29 @@ void RADEONOUTPLL(ScrnInfoPtr pScrn, int addr, CARD32 data)
     RADEONPllErrataAfterData(info);
 }
 
+/* Read MC register */
+unsigned RADEONINMC(ScrnInfoPtr pScrn, int addr)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32         data;
+
+    OUTREG8(R300_MC_IND_INDEX, addr & 0x3f);
+    data = INREG(R300_MC_IND_DATA);
+
+    return data;
+}
+
+/* Write PLL information */
+void RADEONOUTMC(ScrnInfoPtr pScrn, int addr, CARD32 data)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG8(R300_MC_IND_INDEX, (((addr) & 0x3f) |
+				R300_MC_IND_WR_EN));
+    OUTREG(R300_MC_IND_DATA, data);
+}
 
 #if 0
 /* Read PAL information (only used for debugging) */

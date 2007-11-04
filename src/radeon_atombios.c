@@ -386,7 +386,7 @@ rhdInitAtomBIOS(int scrnIndex)
 
 #if ATOM_BIOS_PARSER
     /* Try to find out if BIOS has been posted (either by system or int10 */
-    if (1 || !rhdBIOSGetFbBaseAndSize(scrnIndex, handle, &dummy, &dummy)) {
+    if (!rhdBIOSGetFbBaseAndSize(scrnIndex, handle, &dummy, &dummy)) {
 	/* run AsicInit */
 	if (!rhdASICInit(handle))
 	    xf86DrvMsg(scrnIndex, X_WARNING,
@@ -849,7 +849,7 @@ CailReadMC(VOID *CAIL, ULONG Address)
     ScrnInfoPtr pScrn = xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex];
     CAILFUNC(CAIL);
 
-    ret = AVIVOINMC(pScrn, Address);
+    ret = INMC(pScrn, Address);
     DEBUGP(ErrorF("%s(%x) = %x\n",__func__,Address,ret));
     return ret;
 }
@@ -860,7 +860,7 @@ CailWriteMC(VOID *CAIL, ULONG Address, ULONG data)
     CAILFUNC(CAIL);
     ScrnInfoPtr pScrn = xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex];
     DEBUGP(ErrorF("%s(%x,%x)\n",__func__,Address,data));
-    AVIVOOUTMC(pScrn, Address, data);
+    OUTMC(pScrn, Address, data);
 }
 
 VOID

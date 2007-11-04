@@ -100,7 +100,7 @@ radeon_drv_la_SOURCES = \
 	radeon_driver.c radeon_video.c radeon_bios.c radeon_mm_i2c.c \
 	radeon_vip.c radeon_misc.c radeon_probe.c radeon_display.c \
 	radeon_crtc.c radeon_output.c radeon_modes.c radeon_tv.c \
-	$(RADEON_ATOMBIOS_SOURCES) radeon_atombios.c radeon_atomwrapper.c\
+	$(RADEON_ATOMBIOS_SOURCES) radeon_atombios.c radeon_atomwrapper.c \
 	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES) atombios_output.c atombios_crtc.c
 
 theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
