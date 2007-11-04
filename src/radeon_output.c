@@ -154,7 +154,12 @@ static RADEONMonitorType radeon_detect_primary_dac(ScrnInfoPtr pScrn, Bool color
 static RADEONMonitorType radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color);
 static RADEONMonitorType radeon_detect_ext_dac(ScrnInfoPtr pScrn);
 static void RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
-
+#if 0
+extern void atombios_output_mode_set(xf86OutputPtr output,
+				     DisplayModePtr mode,
+				     DisplayModePtr adjusted_mode);
+extern void atombios_output_dpms(xf86OutputPtr output, int mode);
+#endif
 Bool
 RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch)
 {
@@ -706,6 +711,16 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 static void
 radeon_dpms(xf86OutputPtr output, int mode)
 {
+    ScrnInfoPtr pScrn  = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+#if 1
+    if (info->IsAtomBios) {
+	atombios_output_dpms(output, mode);
+	return;
+    }
+#endif
+
     switch(mode) {
     case DPMSModeOn:
 	RADEONEnableDisplay(output, TRUE);
@@ -1153,6 +1168,15 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     xf86CrtcPtr	crtc = output->crtc;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
+#if 0
+    if (info->IsAtomBios) {
+	ErrorF("AGD: output mode set start\n");
+	atombios_output_mode_set(output, mode, adjusted_mode);
+	ErrorF("AGD: output mode set end\n");
+	return;
+    }
+#endif
+
     RADEONInitOutputRegisters(pScrn, &info->ModeReg, adjusted_mode, output, radeon_crtc->crtc_id);
 
     if (radeon_crtc->crtc_id == 0)
@@ -1184,12 +1208,28 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);
     }
 
+#if 0
+    if (info->IsAtomBios) {
+	ErrorF("AGD: output mode set start\n");
+	atombios_output_mode_set(output, mode, adjusted_mode);
+	ErrorF("AGD: output mode set end\n");
+	//return;
+    }
+#endif
+
 }
 
 static void
 radeon_mode_commit(xf86OutputPtr output)
 {
-    RADEONEnableDisplay(output, TRUE);
+    ScrnInfoPtr pScrn  = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+#if 1
+    if (info->IsAtomBios)
+	atombios_output_dpms(output, DPMSModeOn);
+    //else
+#endif
+	RADEONEnableDisplay(output, TRUE);
 }
 
 /* the following functions are based on the load detection code

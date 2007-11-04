@@ -151,7 +151,7 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	    info->FbFreeStart = atomBiosArg.fb.start;
 	    info->FbFreeSize = atomBiosArg.fb.size;
         }
-        rhdTestAtomBIOS(info->atomBIOS);
+        //rhdTestAtomBIOS(info->atomBIOS);
 #endif
 	info->MasterDataStart = RADEON_BIOS16 (info->ROMHeaderStart + 32);
     }

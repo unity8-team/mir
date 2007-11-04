@@ -54,7 +54,13 @@
 #endif
 
 void radeon_crtc_load_lut(xf86CrtcPtr crtc);
-
+#if 0
+extern void atombios_crtc_mode_set(xf86CrtcPtr crtc,
+				   DisplayModePtr mode,
+				   DisplayModePtr adjusted_mode,
+				   int x, int y);
+extern void atombios_crtc_dpms(xf86CrtcPtr crtc, int mode);
+#endif
 static void
 radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
@@ -63,7 +69,14 @@ radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    
+
+#if 1
+    if (info->IsAtomBios) {
+	atombios_crtc_dpms(crtc, mode);
+	//return;
+    }
+#endif
+
     mask = radeon_crtc->crtc_id ? (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS | RADEON_CRTC2_HSYNC_DIS | RADEON_CRTC2_DISP_REQ_EN_B) : (RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS | RADEON_CRTC_VSYNC_DIS);
 
 
@@ -116,7 +129,15 @@ radeon_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 static void
 radeon_crtc_mode_prepare(xf86CrtcPtr crtc)
 {
-    radeon_crtc_dpms(crtc, DPMSModeOff);
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+#if 1
+    if (info->IsAtomBios)
+	atombios_crtc_dpms(crtc, DPMSModeOff);
+    else
+#endif
+	radeon_crtc_dpms(crtc, DPMSModeOff);
 }
 
 /* Define common registers for requested video mode */
@@ -168,7 +189,7 @@ RADEONInitSurfaceCntl(xf86CrtcPtr crtc, RADEONSavePtr save)
 
 }
 
-static Bool
+Bool
 RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 		   int x, int y)
 {
@@ -286,7 +307,7 @@ RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 }
 
 /* Define CRTC registers for requested video mode */
-static Bool
+Bool
 RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 			DisplayModePtr mode)
 {
@@ -399,7 +420,7 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
     return TRUE;
 }
 
-static Bool
+Bool
 RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
 		    int x, int y)
 {
@@ -512,7 +533,7 @@ RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
 }
 
 /* Define CRTC2 registers for requested video mode */
-static Bool
+Bool
 RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 			 DisplayModePtr mode)
 {
@@ -812,6 +833,13 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 #endif
     }
 
+#if 0
+    if (info->IsAtomBios) {
+	atombios_crtc_mode_set(crtc, mode, adjusted_mode, x, y);
+	return;
+    }
+#endif
+
     for (i = 0; i < xf86_config->num_output; i++) {
 	xf86OutputPtr output = xf86_config->output[i];
 	RADEONOutputPrivatePtr radeon_output = output->driver_private;
@@ -888,6 +916,14 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     ErrorF("restore common\n");
     RADEONRestoreCommonRegisters(pScrn, &info->ModeReg);
 
+#if 1
+    if (info->IsAtomBios) {
+	//RADEONRestoreCrtcRegisters(pScrn, &info->ModeReg);
+	atombios_crtc_mode_set(crtc, mode, adjusted_mode, x, y);
+	return;
+    }
+#endif
+
     switch (radeon_crtc->crtc_id) {
     case 0:
 	ErrorF("restore crtc1\n");
@@ -924,12 +960,27 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     /* reset ecp_div for Xv */
     info->ecp_div = -1;
 
+#if 0
+    if (info->IsAtomBios) {
+	atombios_crtc_mode_set(crtc, mode, adjusted_mode, x, y);
+	//return;
+    }
+#endif
+
 }
 
 static void
 radeon_crtc_mode_commit(xf86CrtcPtr crtc)
 {
-    radeon_crtc_dpms(crtc, DPMSModeOn);
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+#if 1
+    if (info->IsAtomBios)
+	atombios_crtc_dpms(crtc, DPMSModeOn);
+    //else
+#endif
+	radeon_crtc_dpms(crtc, DPMSModeOn);
 }
 
 void radeon_crtc_load_lut(xf86CrtcPtr crtc)
