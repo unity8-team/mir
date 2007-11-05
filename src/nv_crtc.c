@@ -626,7 +626,7 @@ void nv_crtc_calc_state_ext(
 	} else {
 		state->vpll = state->pll;
 		state->vpllB = state->pllB;
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
 		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2) {
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
 		} else {
