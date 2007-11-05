@@ -2450,7 +2450,7 @@ NVSaveScreen(ScreenPtr pScreen, int mode)
     Bool on = xf86IsUnblank(mode);
     
     if (pNv->randr12_enable) {
-	if (pScrn->vtSema) {
+	if (pScrn->vtSema && pNv->Architecture < NV_ARCH_50) {
 	    for (i = 0; i < xf86_config->num_crtc; i++) {
 		
 		if (xf86_config->crtc[i]->enabled) {
