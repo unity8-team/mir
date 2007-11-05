@@ -408,7 +408,7 @@ nv_output_save (xf86OutputPtr output)
 static void
 nv_output_restore (xf86OutputPtr output)
 {
-	ScrnInfoPtr	pScrn = output->scrn;
+	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	RIVA_HW_STATE *state;
 	NVOutputPrivatePtr nv_output = output->driver_private;
@@ -438,13 +438,20 @@ nv_output_restore (xf86OutputPtr output)
 static int
 nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
-    if (pMode->Flags & V_DBLSCAN)
-	return MODE_NO_DBLESCAN;
-  
-    if (pMode->Clock > 400000 || pMode->Clock < 25000)
-	return MODE_CLOCK_RANGE;
-  
-    return MODE_OK;
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	xf86CrtcPtr crtc = output->crtc;
+	NVCrtcPrivatePtr nv_crtc;
+	if (crtc) nv_crtc = crtc->driver_private;
+	ErrorF("nv_output_mode_valid is called\n");
+
+	if (pMode->Flags & V_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
+	if (pMode->Clock > 400000 || pMode->Clock < 25000)
+		return MODE_CLOCK_RANGE;
+
+	return MODE_OK;
 }
 
 
@@ -1017,7 +1024,7 @@ nv_output_prepare(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (nv_output->ramdac_assigned) {
-		ErrorF("We already have a ramdac, what went wrong?\n");
+		ErrorF("We already have a ramdac.\n");
 		return;
 	}
 

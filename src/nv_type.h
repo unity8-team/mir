@@ -99,20 +99,20 @@ typedef struct {
 
 typedef struct _nv_crtc_reg 
 {
-    unsigned char MiscOutReg;     /* */
-    CARD8 CRTC[90];
-    CARD8 Sequencer[5];
-    CARD8 Graphics[9];
-    CARD8 Attribute[21];
-    unsigned char DAC[768];       /* Internal Colorlookuptable */
-    CARD32 cursorConfig;
-    CARD32 crtcOwner;
+	unsigned char MiscOutReg;     /* */
+	CARD8 CRTC[90];
+	CARD8 Sequencer[5];
+	CARD8 Graphics[9];
+	CARD8 Attribute[21];
+	unsigned char DAC[768];       /* Internal Colorlookuptable */
+	CARD32 cursorConfig;
+	CARD32 crtcOwner;
 	CARD32 gpio;
-    CARD32 unk830;
-    CARD32 unk834;
+	CARD32 unk830;
+	CARD32 unk834;
 	CARD32 unk850;
 	CARD32 unk81c;
-    CARD32 head;
+	CARD32 head;
 } NVCrtcRegRec, *NVCrtcRegPtr;
 
 typedef struct _nv_output_reg

@@ -644,6 +644,21 @@ void nv_crtc_calc_state_ext(
 	regp->CRTC[NV_VGA_CRTCX_PIXEL] = (pixelDepth > 2) ? 3 : pixelDepth;
 }
 
+static xf86CrtcPtr
+nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+		if (nv_crtc->crtc == index)
+			return crtc;
+	}
+
+	return NULL;
+}
 
 static void
 nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
@@ -697,6 +712,13 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	NVVgaSeqReset(crtc, FALSE);
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1, crtc1A);
+
+	/* I hope this is the right place */
+	if (crtc->enabled && mode == DPMSModeOn) {
+		pNv->crtc_active[nv_crtc->head] = TRUE;
+	} else {
+		pNv->crtc_active[nv_crtc->head] = FALSE;
+	}
 }
 
 static Bool
@@ -704,7 +726,14 @@ nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	ErrorF("nv_crtc_mode_fixup is called for CRTC %d\n", nv_crtc->crtc);
+
+	/* Primary crtc must always be active */
+	if (nv_crtc->head == 1 && !pNv->crtc_active[0])
+		return FALSE;
+
 	return TRUE;
 }
 
@@ -756,10 +785,11 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode)
 	} else {
 		regp->Sequencer[0] = 0x00;
 	}
+	/* 0x20 disables the sequencer */
 	if (mode->Flags & V_CLKDIV2) {
-		regp->Sequencer[1] = 0x09;
+		regp->Sequencer[1] = 0x29;
 	} else {
-		regp->Sequencer[1] = 0x01;
+		regp->Sequencer[1] = 0x21;
 	}
 	if (depth == 1) {
 		regp->Sequencer[2] = 1 << BIT_PLANE;
@@ -819,10 +849,11 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[20] = 0x00;
 	regp->CRTC[21] = (mode->CrtcVBlankStart - 1) & 0xFF; 
 	regp->CRTC[22] = (mode->CrtcVBlankEnd - 1) & 0xFF;
+	/* 0x80 enables the sequencer, we don't want that */
 	if (depth < 8) {
-		regp->CRTC[23] = 0xE3;
+		regp->CRTC[23] = 0xE3 & ~0x80;
 	} else {
-		regp->CRTC[23] = 0xC3;
+		regp->CRTC[23] = 0xC3 & ~0x80;
 	}
 	regp->CRTC[24] = 0xFF;
 
@@ -1322,7 +1353,6 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
     NVCrtcSetBase(crtc, x, y);
 
-	pNv->crtc_active[nv_crtc->head] = TRUE;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     /* turn on LFB swapping */
     {
@@ -1367,17 +1397,19 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 
 void nv_crtc_prepare(xf86CrtcPtr crtc)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NVPtr pNv = NVPTR(pScrn);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	ErrorF("nv_crtc_prepare is called for CRTC %d\n", nv_crtc->crtc);
 
-    /* Sync the engine before adjust mode */
-    if (pNv->EXADriverPtr) {
-	exaMarkSync(pScrn->pScreen);
-	exaWaitSync(pScrn->pScreen);
-    }
+	crtc->funcs->dpms(crtc, DPMSModeOff);
+
+	/* Sync the engine before adjust mode */
+	if (pNv->EXADriverPtr) {
+		exaMarkSync(pScrn->pScreen);
+		exaWaitSync(pScrn->pScreen);
+	}
 }
 
 void nv_crtc_commit(xf86CrtcPtr crtc)
@@ -1387,12 +1419,9 @@ void nv_crtc_commit(xf86CrtcPtr crtc)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 
-	/* I hope this is the right place */
-	if (crtc->enabled) {
-		pNv->crtc_active[nv_crtc->head] = TRUE;
-	} else {
-		pNv->crtc_active[nv_crtc->head] = FALSE;
-	}
+	crtc->funcs->dpms (crtc, DPMSModeOn);
+	if (crtc->scrn->pScreen != NULL)
+		xf86_reload_cursors (crtc->scrn->pScreen);
 }
 
 static Bool nv_crtc_lock(xf86CrtcPtr crtc)
