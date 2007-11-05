@@ -600,8 +600,9 @@ void nv_crtc_calc_state_ext(
 
 	ErrorF("There are %d CRTC's enabled\n", num_crtc_enabled);
 
-	state->reg580 = pNv->misc_info.ramdac_0_reg_580 & 
-		~(NV_RAMDAC_580_VPLL1_ACTIVE | NV_RAMDAC_580_VPLL2_ACTIVE);
+	/* Do not remove any present VPLL related bits, that can cause problems */
+	/* The meaning of this register is debatable */
+	state->reg580 = pNv->misc_info.ramdac_0_reg_580;
 
 	/* Vclk ratio db1 is used whenever reg580 is modified for vpll activity */
 	if (!(pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
