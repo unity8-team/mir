@@ -668,8 +668,6 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
-    RADEONInfoPtr info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONMonitorType MonType = MT_NONE;
 
@@ -677,7 +675,11 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 #if defined(__powerpc__)
 	/* not sure on ppc, OF? */
 #else
+	RADEONInfoPtr info       = RADEONPTR(pScrn);
+
 	if (!info->IsAtomBios) {
+	    unsigned char *RADEONMMIO = info->MMIO;
+
 	    /* see if the lid is closed -- only works at boot */
 	    if (INREG(RADEON_BIOS_6_SCRATCH) & 0x10)
 		MonType = MT_NONE;
