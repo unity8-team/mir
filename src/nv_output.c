@@ -536,15 +536,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 			regp->fp_vert_regs[REG_DISP_VALID_END] = mode->VDisplay - 1;
 		} else {
 			/* For gpu scaling we need the native mode */
-			/* Let's find our native mode amongst all the ddc modes */
-			DisplayModePtr native = nv_output->monitor_modes;
-			do {
-				/* Let's find a matching mode */
-				if (nv_output->fpWidth == native->HDisplay  &&
-					nv_output->fpHeight == native->VDisplay) {
-						break;
-					}
-			} while ((native = native->next));
+			DisplayModePtr native = nv_output->native_mode;
 			regp->fp_horiz_regs[REG_DISP_END] = native->HDisplay - 1;
 			regp->fp_horiz_regs[REG_DISP_TOTAL] = native->HTotal - 1;
 			regp->fp_horiz_regs[REG_DISP_CRTC] = native->HDisplay;
@@ -873,16 +865,13 @@ nv_ddc_detect(xf86OutputPtr output)
 	if (nv_output->type == OUTPUT_DIGITAL) {
 		int i, j;
 		for (i = 0; i < 4; i++) {
-			/* Filter out the stupid entries */
-			if (ddc_mon->det_mon[i].section.d_timings.h_active > 4096)
-				continue;
-			if (ddc_mon->det_mon[i].section.d_timings.v_active > 4096)
+			/* We only look at detailed timings atm */
+			if (ddc_mon->det_mon[i].type != DT)
 				continue;
 			/* Selecting only based on width ok? */
 			if (ddc_mon->det_mon[i].section.d_timings.h_active > nv_output->fpWidth) {
 				nv_output->fpWidth = ddc_mon->det_mon[i].section.d_timings.h_active;
 				nv_output->fpHeight = ddc_mon->det_mon[i].section.d_timings.v_active;
-				nv_output->monitor_modes = xf86DDCGetModes(pScrn->scrnIndex, ddc_mon);
 			}
 		}
 	}
@@ -964,35 +953,50 @@ nv_analog_output_detect(xf86OutputPtr output)
 static DisplayModePtr
 nv_output_get_modes(xf86OutputPtr output)
 {
-    ScrnInfoPtr	pScrn = output->scrn;
-    NVOutputPrivatePtr nv_output = output->driver_private;
-    xf86MonPtr ddc_mon;
-    DisplayModePtr ddc_modes, mode;
+	ScrnInfoPtr	pScrn = output->scrn;
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	xf86MonPtr ddc_mon;
+	DisplayModePtr ddc_modes;
 
 	ErrorF("nv_output_get_modes is called\n");
 
-    ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
+	ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
 
-    if (ddc_mon == NULL) {
+	if (ddc_mon == NULL) {
+		xf86OutputSetEDID(output, ddc_mon);
+		return NULL;
+	}
+
+	if (ddc_mon->features.input_type && (nv_output->type == OUTPUT_ANALOG)) {
+		xf86OutputSetEDID(output, NULL);
+		return NULL;
+	}
+
+	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL)) {
+		xf86OutputSetEDID(output, NULL);
+		return NULL;
+	}
+
 	xf86OutputSetEDID(output, ddc_mon);
-	return NULL;
-    }
 
-    if (ddc_mon->features.input_type && (nv_output->type == OUTPUT_ANALOG)) {
-	xf86OutputSetEDID(output, NULL);
-	return NULL;
-    }
+	ddc_modes = xf86OutputGetEDIDModes (output);
 
-    if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL)) {
-	xf86OutputSetEDID(output, NULL);
-	return NULL;
-    }
+	/* Add a native resolution mode that is prefered */
+	if (nv_output->type == OUTPUT_DIGITAL) {
+		DisplayModePtr mode;
+		/* Reduced blanking should be fine on DVI monitor */
+		nv_output->native_mode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
+		nv_output->native_mode->type = M_T_DRIVER | M_T_PREFERRED;
+		/* We want the new mode to be prefered */
+		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+			if (mode->type & M_T_PREFERRED) {
+				mode->type &= ~M_T_PREFERRED;
+			}
+		}
+		ddc_modes = xf86ModesAdd(ddc_modes, nv_output->native_mode);
+	}
 
-    xf86OutputSetEDID(output, ddc_mon);
-
-    ddc_modes = xf86OutputGetEDIDModes (output);	  
-    return ddc_modes;
-
+	return ddc_modes;
 }
 
 static void

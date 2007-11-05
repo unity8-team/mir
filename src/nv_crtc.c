@@ -1034,14 +1034,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	ErrorF("Mode clock: %d\n", clock);
 	/* We need to run at the native panel size clock */
 	if (is_fp && !pNv->fpScaler) {
-		DisplayModePtr native = nv_output->monitor_modes;
-		do {
-			/* Let's find a matching mode */
-			if (nv_output->fpWidth == native->HDisplay  &&
-				nv_output->fpHeight == native->VDisplay) {
-					break;
-				}
-		} while (native = native->next);
+		DisplayModePtr native = nv_output->native_mode;
 		clock = native->Clock;
 		ErrorF("Overriding clock for native panel size: %d\n", clock);
 	}
