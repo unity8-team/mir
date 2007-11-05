@@ -1191,41 +1191,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 
 	/* Sorry, i don't know what to do with lvds */
 	if (!lvds) {
-		int real_index;
-		/* Is anyone crosswired?, pick the other index */
-		if (pNv->output_info & OUTPUT_0_CROSSWIRED_TMDS || 
-			pNv->output_info & OUTPUT_1_CROSSWIRED_TMDS) {
-
-			real_index = (~index) & 1; 
-		} else {
-			real_index = index;
-		}
-
 		nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
-
-		/* This detection may be flawed, it will corrected as soon as i have a good idea */
-
-		/* At the moment something must be already active, before we do anything */
-		if (nvReadRAMDAC(pNv,  real_index, NV_RAMDAC_FP_DEBUG_0) & NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED) {
-			/* We're not supposed to be LVDS */
-			/* Using index, because this is part of the TMDS programming */
-			if (pNv->output_info & (OUTPUT_0_LVDS << index)) {
-				ErrorF("Output refused because this is supposed to be TMDS, not LVDS.\n");
-				create_output = FALSE;
-			}
-			/* we should be slaved to a ramdac, otherwise we don't exist */
-			if (!(pNv->output_info & (OUTPUT_0_SLAVED << real_index))) {
-				ErrorF("Output refused because the output is not slaved, which is needed for a DFP.\n");
-				create_output = FALSE;
-			}
-		} else {
-			ErrorF("Output refused because the DFP doesn't seem to be active.\n");
-			ErrorF("Debug info:\n");
-			ErrorF("Ramdac index: %d\n", real_index);
-			ErrorF("Ramdac0: NV_RAMDAC_FP_DEBUG_0: 0x%X\n", nvReadRAMDAC(pNv,  0, NV_RAMDAC_FP_DEBUG_0));
-			ErrorF("Ramdac1: NV_RAMDAC_FP_DEBUG_0: 0x%X\n", nvReadRAMDAC(pNv,  1, NV_RAMDAC_FP_DEBUG_0));
-			create_output = FALSE;
-		}
 	} else {
 		ErrorF("Output refused because we don't accept LVDS at the moment.\n");
 		create_output = FALSE;
