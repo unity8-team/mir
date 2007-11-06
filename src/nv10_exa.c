@@ -326,10 +326,10 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 {
 	int i;
-	int x = Pict->pDrawable->x;
-	int y = Pict->pDrawable->y;
-	int w = Pict->pDrawable->width;
-	int h = Pict->pDrawable->height;
+	int x = 0;
+	int y = 0;
+	int w = 2048;
+	int h = 2048;
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_BUFFER_FORMAT, 4);
 	OUT_RING  (NV10DstFormat(Pict->format));
