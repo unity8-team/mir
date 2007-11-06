@@ -121,6 +121,7 @@ typedef struct _nv_output_reg
 	CARD32 crtcSync;
 	CARD32 dither;
 	CARD32 general;
+	CARD32 test_control;
 	CARD32 bpp;
 	CARD32 nv10_cursync;
 	CARD32 output;

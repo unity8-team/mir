@@ -279,6 +279,7 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 
 	regp = &state->dac_reg[nv_output->ramdac];
 	regp->general       = NVOutputReadRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL);
+	regp->test_control = NVOutputReadRAMDAC(output, NV_RAMDAC_TEST_CONTROL);
 	regp->fp_control    = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL);
 	regp->debug_0	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_0);
 	regp->debug_1	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_1);
@@ -349,6 +350,7 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	}
 
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL, regp->general);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_TEST_CONTROL, regp->test_control);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
 
 	for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
@@ -795,6 +797,9 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	regp->unk_a20 = 0x0;
 	regp->unk_a24 = 0xfffff;
 	regp->unk_a34 = 0x1;
+
+	/* Put test control into what seems to be the neutral position */
+	regp->test_control = 0xf0000000;
 
 	if (output->crtc) {
 		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
