@@ -1346,9 +1346,11 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		 DisplayModePtr adjusted_mode,
 		 int x, int y)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-    NVPtr pNv = NVPTR(pScrn);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
+
+	nv_crtc->lastMode = *(adjusted_mode);
 
 	ErrorF("nv_crtc_mode_set is called for CRTC %d\n", nv_crtc->crtc);
 
