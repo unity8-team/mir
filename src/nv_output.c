@@ -267,7 +267,9 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 	}
 }
 
-int tmds_regs[] = { 0x4, 0x2b, 0x2c, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x3a };
+/* Some registers are not set, because they are zero. */
+/* This sequence matters, this is how the blob does it */
+int tmds_regs[] = { 0x2f, 0x2e, 0x33, 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x04, 0x3a, 0x33, 0x04 };
 
 void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
 {
@@ -722,13 +724,6 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		}
 	}
 
-	/* Completely unknown TMDS registers:
-	 * 0x0
-	 * 0x1
-	 * 0x2
-	 * 0x5
-	 */
-
 	/* The TMDS game begins */
 	/* A few registers are also programmed on non-tmds monitors */
 	/* At the moment i can't give rationale for these values */
@@ -738,6 +733,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		regp->TMDS[0x33] = 0xfe;
 	} else {
 		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+		uint32_t pll_setup_control = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SETUP_CONTROL);
 		regp->TMDS[0x2b] = 0x7d;
 		regp->TMDS[0x2c] = 0x0;
 		if (nv_crtc->head == 1) {
@@ -751,6 +747,45 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		regp->TMDS[0x32] = 0x0;
 		regp->TMDS[0x33] = 0xf0;
 		regp->TMDS[0x3a] = 0x80;
+
+		/* Here starts the registers that may cause problems for some */
+		/* This an educated guess */
+		if (pNv->misc_info.reg_c040 & (1 << 10)) {
+			regp->TMDS[0x5] = 0x68;
+		} else {
+			regp->TMDS[0x5] = 0x6e;
+		}
+
+		/* This seems to be related to PLL_SETUP_CONTROL */
+		/* When PLL_SETUP_CONTROL ends with 0x1c, then this value is 0xc1 */
+		/* Otherwise 0xf1 */
+		if ((pll_setup_control & 0xff) == 0x1c) {
+			regp->TMDS[0x0] = 0xc1;
+		} else {
+			regp->TMDS[0x0] = 0xf1;
+		}
+
+		/* This is also related to PLL_SETUP_CONTROL, exactly how is unknown */
+		if (pll_setup_control == 0) {
+			regp->TMDS[0x1] = 0x0;
+		} else {
+			if (nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK) & (1<<12)) {
+				regp->TMDS[0x1] = 0x41;
+			} else {
+				regp->TMDS[0x1] = 0x42;
+			}
+		}
+
+		if (pll_setup_control == 0x0) {
+			regp->TMDS[0x2] = 0x90;
+		} else {
+			regp->TMDS[0x2] = 0x89;
+		}
+		/* This test is not needed for me although the blob sets this value */
+		/* It may be wrong, but i'm leaving it for historical reference */
+		/*if (pNv->misc_info.reg_c040 == 0x3c0bc003 || pNv->misc_info.reg_c040 == 0x3c0bc333) {
+			regp->TMDS[0x2] = 0xa9;
+		}*/
 	}
 
 	/* Flatpanel support needs at least a NV10 */
