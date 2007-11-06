@@ -524,6 +524,22 @@ void nv_crtc_calc_state_ext(
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
+	/* We need output for the vpll */
+	xf86OutputPtr  output;
+	NVOutputPrivatePtr nv_output;
+	for (i = 0; i < xf86_config->num_output; i++) {
+		output = xf86_config->output[i];
+		nv_output = output->driver_private;
+
+		if (output->crtc == crtc) {
+			if ((nv_output->type == OUTPUT_PANEL) || 
+				(nv_output->type == OUTPUT_DIGITAL)) {
+
+				break;
+			}
+		}
+	}
+
 	/*
 	 * Extended RIVA registers.
 	 */
@@ -615,7 +631,7 @@ void nv_crtc_calc_state_ext(
 		}
 	}
 
-	if (nv_crtc->crtc == 1) {
+	if (nv_output->ramdac == 1) {
 		state->vpll2 = state->pll;
 		state->vpll2B = state->pllB;
 		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2) {
