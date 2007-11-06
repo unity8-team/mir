@@ -1085,12 +1085,12 @@ nv_clear_ramdac_from_outputs(xf86OutputPtr output, int ramdac)
 	NVOutputPrivatePtr nv_output2;
 	for (i = 0; i < xf86_config->num_output; i++) {
 		output2 = xf86_config->output[i];
-			nv_output2 = output2->driver_private;
-			if (nv_output2->ramdac == ramdac && output != output2) {
-				nv_output2->ramdac = -1;
-				nv_output2->ramdac_assigned = FALSE;
-				break;
-			}
+		nv_output2 = output2->driver_private;
+		if (nv_output2->ramdac == ramdac && output != output2) {
+			nv_output2->ramdac = -1;
+			nv_output2->ramdac_assigned = FALSE;
+			break;
+		}
 	}
 }
 
