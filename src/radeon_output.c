@@ -160,6 +160,7 @@ extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr adjusted_mode);
 extern void atombios_output_dpms(xf86OutputPtr output, int mode);
 #endif
+
 Bool
 RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch)
 {
@@ -714,7 +715,7 @@ radeon_dpms(xf86OutputPtr output, int mode)
     ScrnInfoPtr pScrn  = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
-#if 1
+#if 0
     if (info->IsAtomBios) {
 	atombios_output_dpms(output, mode);
 	return;
@@ -1224,10 +1225,10 @@ radeon_mode_commit(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn  = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
-#if 1
+#if 0
     if (info->IsAtomBios)
 	atombios_output_dpms(output, DPMSModeOn);
-    //else
+    else
 #endif
 	RADEONEnableDisplay(output, TRUE);
 }

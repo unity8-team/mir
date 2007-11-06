@@ -70,10 +70,10 @@ radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-#if 1
+#if 0
     if (info->IsAtomBios) {
 	atombios_crtc_dpms(crtc, mode);
-	//return;
+	return;
     }
 #endif
 
@@ -132,12 +132,7 @@ radeon_crtc_mode_prepare(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
-#if 1
-    if (info->IsAtomBios)
-	atombios_crtc_dpms(crtc, DPMSModeOff);
-    else
-#endif
-	radeon_crtc_dpms(crtc, DPMSModeOff);
+    radeon_crtc_dpms(crtc, DPMSModeOff);
 }
 
 /* Define common registers for requested video mode */
@@ -916,26 +911,24 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     ErrorF("restore common\n");
     RADEONRestoreCommonRegisters(pScrn, &info->ModeReg);
 
-#if 1
-    if (info->IsAtomBios) {
-	//RADEONRestoreCrtcRegisters(pScrn, &info->ModeReg);
-	atombios_crtc_mode_set(crtc, mode, adjusted_mode, x, y);
-	return;
-    }
-#endif
-
     switch (radeon_crtc->crtc_id) {
     case 0:
 	ErrorF("restore crtc1\n");
 	RADEONRestoreCrtcRegisters(pScrn, &info->ModeReg);
 	ErrorF("restore pll1\n");
-	RADEONRestorePLLRegisters(pScrn, &info->ModeReg);
+	if (info->IsAtomBios)
+	    atombios_crtc_set_pll(crtc, adjusted_mode);
+	else
+	    RADEONRestorePLLRegisters(pScrn, &info->ModeReg);
 	break;
     case 1:
 	ErrorF("restore crtc2\n");
 	RADEONRestoreCrtc2Registers(pScrn, &info->ModeReg);
 	ErrorF("restore pll2\n");
-	RADEONRestorePLL2Registers(pScrn, &info->ModeReg);
+	if (info->IsAtomBios)
+	    atombios_crtc_set_pll(crtc, adjusted_mode);
+	else
+	    RADEONRestorePLL2Registers(pScrn, &info->ModeReg);
 	break;
     }
 
@@ -960,13 +953,6 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     /* reset ecp_div for Xv */
     info->ecp_div = -1;
 
-#if 0
-    if (info->IsAtomBios) {
-	atombios_crtc_mode_set(crtc, mode, adjusted_mode, x, y);
-	//return;
-    }
-#endif
-
 }
 
 static void
@@ -975,12 +961,7 @@ radeon_crtc_mode_commit(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
-#if 1
-    if (info->IsAtomBios)
-	atombios_crtc_dpms(crtc, DPMSModeOn);
-    //else
-#endif
-	radeon_crtc_dpms(crtc, DPMSModeOn);
+    radeon_crtc_dpms(crtc, DPMSModeOn);
 }
 
 void radeon_crtc_load_lut(xf86CrtcPtr crtc)
