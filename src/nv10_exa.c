@@ -47,7 +47,7 @@ static int NV10TexFormat(int ExaFormat)
 		{PICT_x8r8g8b8,	0x900},
 		//{PICT_a1r5g5b5,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R5G5B5A1},
 		//{PICT_a4r4g4b4,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R4G4B4A4},
-		{PICT_a8,	0x03 << 7 | 1 << 11},
+		{PICT_a8,	0x980},
 		// FIXME other formats
 	};
 
@@ -97,7 +97,7 @@ static Bool NV10CheckTexture(PicturePtr Picture)
 	/* we cannot repeat on NV10 because NPOT textures do not support this. unfortunately. */
 	if (Picture->repeat != RepeatNone)
 		/* we can repeat 1x1 ARGB and XRGB textures */
-		if (!(w == 1 && h == 1 && (Picture->format == PICT_a8r8g8b8 || Picture->format == PICT_x8r8g8b8)))
+		if (!(w == 1 && h == 1 && (Picture->format == PICT_a8r8g8b8 || Picture->format == PICT_x8r8g8b8 || Picture->format == PICT_a8)))
 			return FALSE;
 	return TRUE;
 }
@@ -283,7 +283,12 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 
 	/* if repeat is set we're always handling a 1x1 ARGB or XRGB texture */
 	if (Pict->repeat != RepeatNone)
-		txfmt |= 0x300; /* ARGB format */
+	{
+		if (Pict->format == PICT_a8)
+			txfmt |= 0x80; /* A8 */
+		else
+			txfmt |= 0x300; /* ARGB format */
+	}
 	else
 	{
 		txfmt |= NV10TexFormat(Pict->format);
