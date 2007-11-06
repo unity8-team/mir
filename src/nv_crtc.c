@@ -677,6 +677,46 @@ nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index)
 	return NULL;
 }
 
+static Bool 
+nv_crtc0_require_activate(ScrnInfoPtr pScrn)
+{
+	xf86CrtcPtr crtc = nv_find_crtc_by_index(pScrn, 0);
+	/* VESA 640x480x72Hz mode to set on crtc0*/
+	static DisplayModeRec   mode = {
+		NULL, NULL, "640x480", MODE_OK, M_T_DEFAULT,
+		31500,
+		640, 664, 704, 832, 0,
+		480, 489, 491, 520, 0,
+		V_NHSYNC | V_NVSYNC,
+		0, 0,
+		0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0,
+		FALSE, FALSE, 0, NULL, 0, 0.0, 0.0
+	};
+
+	if (!crtc)
+		return FALSE;
+	if (crtc->enabled)
+		return FALSE;
+
+	crtc->funcs->mode_set (crtc, &mode, &mode, 0, 0);
+	crtc->funcs->dpms (crtc, DPMSModeOn);
+	return TRUE;
+}
+
+static void
+nv_crtc0_require_deactivate(ScrnInfoPtr pScrn)
+{
+	xf86CrtcPtr crtc = nv_find_crtc_by_index(pScrn, 0);
+
+	if (!crtc)
+		return;
+	if (crtc->enabled)
+		return;
+
+	crtc->funcs->dpms (crtc, DPMSModeOff);
+}
+
 static void
 nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
@@ -1422,6 +1462,8 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 
 	ErrorF("nv_crtc_prepare is called for CRTC %d\n", nv_crtc->crtc);
 
+	nv_crtc->deactivate = nv_crtc0_require_activate(pScrn);
+
 	crtc->funcs->dpms(crtc, DPMSModeOff);
 
 	/* Sync the engine before adjust mode */
@@ -1441,6 +1483,11 @@ void nv_crtc_commit(xf86CrtcPtr crtc)
 	crtc->funcs->dpms (crtc, DPMSModeOn);
 	if (crtc->scrn->pScreen != NULL)
 		xf86_reload_cursors (crtc->scrn->pScreen);
+
+	if (nv_crtc->deactivate) {
+		nv_crtc0_require_deactivate(pScrn);
+		nv_crtc->deactivate = FALSE;
+	}
 }
 
 static Bool nv_crtc_lock(xf86CrtcPtr crtc)

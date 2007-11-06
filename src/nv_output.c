@@ -452,11 +452,6 @@ nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 
-	/* Until i know how to swap ramdac's properly, this is the only way */
-	if (pNv->ramdac_active[0] && !(nv_output->valid_ramdac & RAMDAC_1)
-		&& nv_output->ramdac != 0)
-		return MODE_BAD;
-
 	if (pMode->Flags & V_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
@@ -1081,6 +1076,25 @@ nv_output_destroy (xf86OutputPtr output)
 }
 
 static void
+nv_clear_ramdac_from_outputs(xf86OutputPtr output, int ramdac)
+{
+	int i;
+	ScrnInfoPtr pScrn = output->scrn;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	xf86OutputPtr output2;
+	NVOutputPrivatePtr nv_output2;
+	for (i = 0; i < xf86_config->num_output; i++) {
+		output2 = xf86_config->output[i];
+			nv_output2 = output2->driver_private;
+			if (nv_output2->ramdac == ramdac && output != output2) {
+				nv_output2->ramdac = -1;
+				nv_output2->ramdac_assigned = FALSE;
+				break;
+			}
+	}
+}
+
+static void
 nv_output_prepare(xf86OutputPtr output)
 {
 	ErrorF("nv_output_prepare is called\n");
@@ -1095,6 +1109,25 @@ nv_output_prepare(xf86OutputPtr output)
 		return;
 	}
 
+	/* We need this ramdac, so let's steal it */
+	if (!(nv_output->valid_ramdac & RAMDAC_1) && pNv->ramdac_active[0]) {
+		ErrorF("Stealing ramdac0 ;-)\n");
+		int i;
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+		xf86OutputPtr output2;
+		NVOutputPrivatePtr nv_output2;
+		for (i = 0; i < xf86_config->num_output; i++) {
+			output2 = xf86_config->output[i];
+			nv_output2 = output2->driver_private;
+			if (nv_output2->ramdac == 0 && output != output2) {
+				nv_output2->ramdac = -1;
+				nv_output2->ramdac_assigned = FALSE;
+				break;
+			}
+		}
+		pNv->ramdac_active[0] = FALSE;
+	}
+
 	if ((nv_output->valid_ramdac & RAMDAC_0) && !(pNv->ramdac_active[0])) {
 		ErrorF("Activating ramdac %d\n", 0);
 		pNv->ramdac_active[0] = TRUE;
@@ -1105,8 +1138,10 @@ nv_output_prepare(xf86OutputPtr output)
 		nv_output->ramdac = 1;
 	}
 
-	if (nv_output->ramdac != -1)
+	if (nv_output->ramdac != -1) {
 		nv_output->ramdac_assigned = TRUE;
+		nv_clear_ramdac_from_outputs(output, nv_output->ramdac);
+	}
 }
 
 static void
@@ -1188,7 +1223,7 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
-	int crtc_mask = (1<<0) | (1<<1);
+	int crtc_mask = (1<<0);
 	int real_index;
 	Bool create_output = TRUE;
 
@@ -1209,6 +1244,10 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 	 * So lowest order has highest priority.
 	 */
 	nv_output->valid_ramdac = order + 1;
+
+	/* Restricting this will cause a full mode set when trying to squeeze in the primary mode */
+	if (nv_output->valid_ramdac & RAMDAC_1) 
+		crtc_mask |= (1<<1);
 
 	if (!create_output) {
 		xfree(nv_output);
@@ -1239,7 +1278,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
-	int crtc_mask = (1<<0) | (1<<1);
+	int crtc_mask = (1<<0);
 	Bool create_output = TRUE;
 	int index = i2c_index;
 
@@ -1261,6 +1300,10 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 	 * So lowest order has highest priority.
 	 */
 	nv_output->valid_ramdac = order + 1;
+
+	/* Restricting this will cause a full mode set when trying to squeeze in the primary mode */
+	if (nv_output->valid_ramdac & RAMDAC_1) 
+		crtc_mask |= (1<<1);
 
 	/* Sorry, i don't know what to do with lvds */
 	if (!lvds) {
