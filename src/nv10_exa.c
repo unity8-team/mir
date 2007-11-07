@@ -30,7 +30,7 @@
 
 typedef struct nv10_exa_state {
 	Bool have_mask;
-
+	Bool is_a8_plus_a8; /*as known as is_extremely_dirty :)*/
 	struct {
 		PictTransformPtr transform;
 		float width;
@@ -45,6 +45,7 @@ static int NV10TexFormat(int ExaFormat)
 	{
 		{PICT_a8r8g8b8,	0x900},
 		{PICT_x8r8g8b8,	0x900},
+		{PICT_r5g6b5, 0x880}, //this one was only tested with rendercheck
 		//{PICT_a1r5g5b5,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R5G5B5A1},
 		//{PICT_a4r4g4b4,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R4G4B4A4},
 		{PICT_a8,	0x980},
@@ -96,8 +97,8 @@ static Bool NV10CheckTexture(PicturePtr Picture)
 		return FALSE;
 	/* we cannot repeat on NV10 because NPOT textures do not support this. unfortunately. */
 	if (Picture->repeat != RepeatNone)
-		/* we can repeat 1x1 ARGB and XRGB textures */
-		if (!(w == 1 && h == 1 && (Picture->format == PICT_a8r8g8b8 || Picture->format == PICT_x8r8g8b8 || Picture->format == PICT_a8)))
+		/* we can repeat 1x1 textures */
+		if (!(w == 1 && h == 1))
 			return FALSE;
 	return TRUE;
 }
@@ -129,10 +130,27 @@ static Bool NV10CheckPictOp(int op)
 	return TRUE;
 }	
 
+/* Check if the current operation is a doable A8 + A8 */
+/* A8 destination is a special case, because we do it by having the card think 
+it's ARGB. For now we support PictOpAdd which is the only important op for this dst format, 
+and without transformation or funny things.*/
+static Bool NV10CheckA8_PLUS_A8_FEASABILITY(PicturePtr src, PicturePtr msk, PicturePtr dst, int op)  
+{
+	/*This does not work quite well yet so we fallback*/
+	return FALSE;
+	
+	if ((!msk) && 	(src->format == PICT_a8) && (dst->format == PICT_a8) && (!src->transform) && 
+									((op == PictOpAdd) || (op == PictOpSrc) || (op == PictOpClear) || (op == PictOpDst)) && (src->repeat == RepeatNone))
+		{
+		return TRUE;
+		}
+	return FALSE;
+}
+
 #if 0
 #define NV10EXAFallbackInfo(X,Y,Z,S,T) NV10EXAFallbackInfo_real(X,Y,Z,S,T)
 #else
-#define NV10EXAFallbackInfo(X,Y,Z,S,T) do { ; } while (0);
+#define NV10EXAFallbackInfo(X,Y,Z,S,T) do { ; } while (0)
 #endif
 
 static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPicture,
@@ -145,6 +163,15 @@ static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPictu
 	out = out + strlen(out);
 	switch ( op )
 		{
+		case PictOpClear:
+			sprintf(out, "PictOpClear ");
+			break;
+		case PictOpSrc:
+			sprintf(out, "PictOpSrc ");
+			break;
+		case PictOpDst:
+			sprintf(out, "PictOpDst ");
+			break;
 		case PictOpOver:
 			sprintf(out, "PictOpOver ");
 			break;
@@ -161,24 +188,33 @@ static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPictu
 	switch ( pSrcPicture->format )
 		{
 		case PICT_a8r8g8b8:
-			sprintf(out, "A8R8G8B8 -> ");
+			sprintf(out, "A8R8G8B8 ");
 			break;
 		case PICT_x8r8g8b8:
-			sprintf(out, "X8R8G8B8 -> ");
+			sprintf(out, "X8R8G8B8 ");
 			break;
 		case PICT_x8b8g8r8:
-			sprintf(out, "X8B8G8R8 -> ");
+			sprintf(out, "X8B8G8R8 ");
+			break;
+		case PICT_r5g6b5:
+			sprintf(out, "R5G6B5 ");
 			break;
 		case PICT_a8:
-			sprintf(out, "A8 -> ");
+			sprintf(out, "A8 ");
 			break;
 		case PICT_a1:
-			sprintf(out, "A1 -> ");
+			sprintf(out, "A1 ");
 			break;
 		default:
-			sprintf(out, "%x -> ", pSrcPicture->format);
+			sprintf(out, "%x ", pSrcPicture->format);
 		}
 	out+=strlen(out);
+	sprintf(out, "(%dx%d) ", pSrcPicture->pDrawable->width, pSrcPicture->pDrawable->height);
+	if ( pSrcPicture->repeat != RepeatNone )
+		strcat(out, "R ");
+	strcat(out, "-> ");
+	out+=strlen(out);
+	
 	switch ( pDstPicture->format )
 		{
 		case PICT_a8r8g8b8:
@@ -190,6 +226,9 @@ static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPictu
 		case PICT_x8b8g8r8:
 			sprintf(out, "X8B8G8R8  ");
 			break;
+		case PICT_r5g6b5:
+			sprintf(out, "R5G6B5 ");
+			break;
 		case PICT_a8:
 			sprintf(out, "A8  ");
 			break;
@@ -200,9 +239,13 @@ static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPictu
 			sprintf(out, "%x  ", pDstPicture->format);
 		}
 	out+=strlen(out);
+	sprintf(out, "(%dx%d) ", pDstPicture->pDrawable->width, pDstPicture->pDrawable->height);
+	if ( pDstPicture->repeat != RepeatNone )
+		strcat(out, "R ");
+	out+=strlen(out);
 	if ( !pMaskPicture ) 
 		sprintf(out, "& NONE");
-	else
+	else {
 	switch ( pMaskPicture->format )
 		{
 		case PICT_a8r8g8b8:
@@ -223,6 +266,12 @@ static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPictu
 		default:
 			sprintf(out, "& %x  ", pMaskPicture->format);
 		}
+		out+=strlen(out);
+		sprintf(out, "(%dx%d) ", pMaskPicture->pDrawable->width, pMaskPicture->pDrawable->height);
+		if ( pMaskPicture->repeat != RepeatNone )
+			strcat(out, "R ");
+		out+=strlen(out);
+	}
 	strcat(out, "\n");
 	xf86DrvMsg(0, X_INFO, out2);
 }
@@ -233,11 +282,12 @@ Bool NV10CheckComposite(int	op,
 			     PicturePtr pMaskPicture,
 			     PicturePtr pDstPicture)
 {
-	// XXX A8 + A8 special case "TO BE DONE LATER"
-/*	if ((!pMaskPicture) &&
-			(pSrcPicture->format == PICT_a8) &&
-			(pDstPicture->format == PICT_a8) )
-		return TRUE;*/
+	
+	if (NV10CheckA8_PLUS_A8_FEASABILITY(pSrcPicture,pMaskPicture,pDstPicture,op))
+		{ //A8 destination hack is OK ? - disabled by default anyway
+		NV10EXAFallbackInfo("Hackelerating", op, pSrcPicture, pMaskPicture, pDstPicture);
+		return TRUE;
+		}
 
 	if (!NV10CheckPictOp(op))
 		{
@@ -281,29 +331,37 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 			(1<<12) | /* lod == 1 */
 			0x51 /* UNK */;
 
-	/* if repeat is set we're always handling a 1x1 ARGB or XRGB texture */
+	/* if repeat is set we're always handling a 1x1 texture with ARGB/XRGB destination, in that case we change the format
+	to use the POT (swizzled) matching format */
 	if (Pict->repeat != RepeatNone)
 	{
 		if (Pict->format == PICT_a8)
 			txfmt |= 0x80; /* A8 */
+		else if (Pict->format == PICT_r5g6b5 )
+			txfmt |= 0x280; /* R5G6B5 */
 		else
 			txfmt |= 0x300; /* ARGB format */
 	}
 	else
 	{
-		txfmt |= NV10TexFormat(Pict->format);
+		if ( ! state.is_a8_plus_a8 )
+			{
+			txfmt |= NV10TexFormat(Pict->format);
+			w = Pict->pDrawable->width;
+			/* NPOT_SIZE expects an even number for width, we can round up uneven
+			* numbers here because EXA always gives 64 byte aligned pixmaps
+			* and for all formats we support 64 bytes represents an even number
+			* of pixels
+			*/
+			w = (w + 1) &~ 1;
+			}
+		else {
+			txfmt |= NV10TexFormat(PICT_a8r8g8b8);
+			w = (exaGetPixmapPitch(pixmap)) >> 2;
+			}
 
 		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_PITCH(unit), 1);
 		OUT_RING  (exaGetPixmapPitch(pixmap) << 16);
-
-		/* NPOT_SIZE expects an even number for width, we can round up uneven
-		 * numbers here because EXA always gives 64 byte aligned pixmaps
-		 * and for all formats we support 64 bytes represents an even number
-		 * of pixels
-		 */
-		w = Pict->pDrawable->width;
-		if (w & 1)
-			w++;
 
 		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_SIZE(unit), 1);
 		OUT_RING  ((w<<16) | Pict->pDrawable->height);
@@ -337,10 +395,18 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	int h = 2048;
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_BUFFER_FORMAT, 4);
-	OUT_RING  (NV10DstFormat(Pict->format));
+	if ( state.is_a8_plus_a8 )
+		{ /*A8 + A8 hack*/
+		OUT_RING  (NV10DstFormat(PICT_a8r8g8b8));
+		}
+	else {
+		OUT_RING  (NV10DstFormat(Pict->format));
+		}
+	
 	OUT_RING  (((uint32_t)exaGetPixmapPitch(pixmap) << 16) |(uint32_t)exaGetPixmapPitch(pixmap));
 	OUT_RING  (NVAccelGetPixmapOffset(pixmap));
 	OUT_RING  (0);
+		
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_HORIZ, 2);
 	OUT_RING  ((w<<16)|x);
 	OUT_RING  ((h<<16)|y);
@@ -444,6 +510,12 @@ unsigned int rc1_in_alpha = 0, rc1_in_rgb = 0;
 		else
 			rc0_in_rgb |= 0x00190000; //B = a_1, use texture 1 alpha value
 	
+	if ( state.is_a8_plus_a8 )
+		{
+		rc0_in_alpha = 0x18000000 | B_ALPHA_ONE | C_ALPHA_ZERO | D_ALPHA_ZERO; //A = a_0, use texture 0 alpha value
+		rc0_in_rgb = 0x08000000 | B_RGB_ONE | C_RGB_ZERO | D_RGB_ZERO; //A = rgb_0, use texture 0 rgb
+		}
+		
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA(0), 12);
 	OUT_RING(rc0_in_alpha);
 	OUT_RING  (rc1_in_alpha);
@@ -496,6 +568,21 @@ Bool NV10PrepareComposite(int	  op,
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
+	if (NV10CheckA8_PLUS_A8_FEASABILITY(pSrcPicture,pMaskPicture,pDstPicture,op))
+		{ //is this our A8 + A8 hack?
+		state.have_mask = FALSE;
+		state.is_a8_plus_a8 = TRUE;
+		NV10SetBuffer(pNv,pDstPicture,pDst);
+		NV10SetTexture(pNv,0,pSrcPicture,pSrc);
+		NV10SetRegCombs(pNv, pSrcPicture, pMaskPicture);
+		NV10SetPictOp(pNv, op, PICT_r5g6b5, PICT_r5g6b5);
+		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
+		OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_QUADS);
+		return TRUE;
+		}
+	
+	state.is_a8_plus_a8 = FALSE;
+		
 	/* Set dst format */
 	NV10SetBuffer(pNv,pDstPicture,pDst);
 
@@ -580,7 +667,15 @@ void NV10Composite(PixmapPtr pDst,
 	NVPtr pNv = NVPTR(pScrn);
 	float sX0, sX1, sY0, sY1;
 	float mX0, mX1, mY0, mY1;
-
+	
+	if ( state.is_a8_plus_a8 )
+		{
+		//xf86DrvMsg(0, X_INFO, "Composite hack part - srcX %d srcY %d dstX %d dstY %d w %d h %d\n", srcX, srcY, dstX, dstY, width, height);		
+		srcX = srcX >> 2;
+		dstX = dstX >> 2;
+		width = ((width + 3) &~ 3) >> 2;		
+		}
+		
 	NV10EXATransformCoord(state.unit[0].transform, srcX, srcY,
 			      state.unit[0].width,
 			      state.unit[0].height, &sX0, &sY0);
