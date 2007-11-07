@@ -924,23 +924,9 @@ nv_ddc_detect(xf86OutputPtr output)
 	if (ddc_mon->features.input_type && (nv_output->type == OUTPUT_ANALOG))
 		return FALSE;
 
-	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL)) {
+	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL ||
+				nv_output->type == OUTPUT_PANEL))
 		return FALSE;
-	}
-
-	if (nv_output->type == OUTPUT_DIGITAL) {
-		int i, j;
-		for (i = 0; i < 4; i++) {
-			/* We only look at detailed timings atm */
-			if (ddc_mon->det_mon[i].type != DT)
-				continue;
-			/* Selecting only based on width ok? */
-			if (ddc_mon->det_mon[i].section.d_timings.h_active > nv_output->fpWidth) {
-				nv_output->fpWidth = ddc_mon->det_mon[i].section.d_timings.h_active;
-				nv_output->fpHeight = ddc_mon->det_mon[i].section.d_timings.v_active;
-			}
-		}
-	}
 
 	return TRUE;
 }
@@ -1058,7 +1044,8 @@ nv_output_get_modes(xf86OutputPtr output)
 		return NULL;
 	}
 
-	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL || nv_output->type == OUTPUT_PANEL)) {
+	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL ||
+				nv_output->type == OUTPUT_PANEL)) {
 		xf86OutputSetEDID(output, NULL);
 		return NULL;
 	}
@@ -1067,13 +1054,26 @@ nv_output_get_modes(xf86OutputPtr output)
 
 	ddc_modes = xf86OutputGetEDIDModes (output);
 
-	/* Add a native resolution mode that is prefered */
 	if (nv_output->type == OUTPUT_DIGITAL || nv_output->type == OUTPUT_PANEL) {
+		int i;
 		DisplayModePtr mode;
+
+		for (i = 0; i < 4; i++) {
+			/* We only look at detailed timings atm */
+			if (ddc_mon->det_mon[i].type != DT)
+				continue;
+			/* Selecting only based on width ok? */
+			if (ddc_mon->det_mon[i].section.d_timings.h_active > nv_output->fpWidth) {
+				nv_output->fpWidth = ddc_mon->det_mon[i].section.d_timings.h_active;
+				nv_output->fpHeight = ddc_mon->det_mon[i].section.d_timings.v_active;
+			}
+		}
+
+		/* Add a native resolution mode that is preferred */
 		/* Reduced blanking should be fine on DVI monitor */
 		nv_output->native_mode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
 		nv_output->native_mode->type = M_T_DRIVER | M_T_PREFERRED;
-		/* We want the new mode to be prefered */
+		/* We want the new mode to be preferred */
 		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
 			if (mode->type & M_T_PREFERRED) {
 				mode->type &= ~M_T_PREFERRED;
@@ -1233,7 +1233,13 @@ nv_lvds_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, DisplayMode
 static xf86OutputStatus
 nv_lvds_output_detect(xf86OutputPtr output)
 {
-	return XF86OutputStatusConnected;
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->fp_native_mode || nv_ddc_detect(output))
+		return XF86OutputStatusConnected;
+
+	return XF86OutputStatusDisconnected;
 }
 
 static DisplayModePtr
@@ -1244,11 +1250,8 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	DisplayModePtr modes;
 
-	/* this is currently broken, as this code path has not run nv_ddc_detect
-	 * to get fpWidth / fpHeight. That code should probably be moved into
-	 * nv_output_get_modes anyway
 	if (modes = nv_output_get_modes(output))
-		return modes;*/
+		return modes;
 
 	/* it is possible to set up a mode from what we can read from the
 	 * RAMDAC registers, but if we can't read the BIOS table correctly
