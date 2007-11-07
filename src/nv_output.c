@@ -909,25 +909,43 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     nv_output_load_state_ext(output, state, FALSE);
 }
 
-static Bool
-nv_ddc_detect(xf86OutputPtr output)
+static xf86MonPtr
+nv_get_edid(xf86OutputPtr output)
 {
 	/* no use for shared DDC output */
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
-	ScrnInfoPtr	pScrn = output->scrn;
+
+	if (nv_output->pDDCBus == NULL)
+		return NULL;
 
 	ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
 	if (!ddc_mon)
-		return FALSE;
+		return NULL;
 
 	if (ddc_mon->features.input_type && (nv_output->type == OUTPUT_ANALOG))
-		return FALSE;
+		goto invalid;
 
 	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL ||
 				nv_output->type == OUTPUT_PANEL))
+		goto invalid;
+
+	return ddc_mon;
+
+invalid:
+	xfree(ddc_mon);
+	return NULL;
+}
+
+static Bool
+nv_ddc_detect(xf86OutputPtr output)
+{
+	xf86MonPtr m = nv_get_edid(output);
+
+	if (m == NULL)
 		return FALSE;
 
+	xfree(m);
 	return TRUE;
 }
 
@@ -1022,35 +1040,18 @@ nv_analog_output_detect(xf86OutputPtr output)
 static DisplayModePtr
 nv_output_get_modes(xf86OutputPtr output)
 {
-	ScrnInfoPtr	pScrn = output->scrn;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
 	DisplayModePtr ddc_modes;
 
 	ErrorF("nv_output_get_modes is called\n");
 
-	if (nv_output->pDDCBus == NULL)
-		return NULL;
-
-	ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
-
-	if (ddc_mon == NULL) {
-		xf86OutputSetEDID(output, ddc_mon);
-		return NULL;
-	}
-
-	if (ddc_mon->features.input_type && (nv_output->type == OUTPUT_ANALOG)) {
-		xf86OutputSetEDID(output, NULL);
-		return NULL;
-	}
-
-	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL ||
-				nv_output->type == OUTPUT_PANEL)) {
-		xf86OutputSetEDID(output, NULL);
-		return NULL;
-	}
+	ddc_mon = nv_get_edid(output);
 
 	xf86OutputSetEDID(output, ddc_mon);
+
+	if (ddc_mon == NULL)
+		return NULL;
 
 	ddc_modes = xf86OutputGetEDIDModes (output);
 
