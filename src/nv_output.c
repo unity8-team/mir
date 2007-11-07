@@ -308,9 +308,10 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	}
 	regp->nv10_cursync = NVOutputReadRAMDAC(output, NV_RAMDAC_NV10_CURSYNC);
 
-	for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
-		regp->TMDS[tmds_regs[i]] = NVOutputReadTMDS(output, tmds_regs[i]);
-	}
+	if (nv_output->type == OUTPUT_DIGITAL)
+		for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
+			regp->TMDS[tmds_regs[i]] = NVOutputReadTMDS(output, tmds_regs[i]);
+		}
 
 	/* The regs below are 0 for non-flatpanels, so you can load and save them */
 
@@ -368,9 +369,10 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_TEST_CONTROL, regp->test_control);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
 
-	for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
-		NVOutputWriteTMDS(output, tmds_regs[i], regp->TMDS[tmds_regs[i]]);
-	}
+	if (nv_output->type == OUTPUT_DIGITAL)
+		for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
+			NVOutputWriteTMDS(output, tmds_regs[i], regp->TMDS[tmds_regs[i]]);
+		}
 
 	/* The regs below are 0 for non-flatpanels, so you can load and save them */
 
@@ -605,9 +607,12 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	* bit0: positive vsync
 	* bit4: positive hsync
 	* bit8: enable panel scaling 
+	* bit31: sometimes seen on LVDS panels
 	* This must also be set for non-flatpanels
 	*/
 	regp->fp_control = 0x11100000;
+	if (nv_output->type == OUTPUT_PANEL);
+		regp->fp_control = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL) & 0xfff00000;
 
 	/* Deal with vsync/hsync polarity */
 	if (mode->Flags & V_PVSYNC) {
@@ -1033,6 +1038,9 @@ nv_output_get_modes(xf86OutputPtr output)
 	DisplayModePtr ddc_modes;
 
 	ErrorF("nv_output_get_modes is called\n");
+
+	if (nv_output->pDDCBus == NULL)
+		return NULL;
 
 	ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
 
