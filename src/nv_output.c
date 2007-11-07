@@ -1186,6 +1186,38 @@ static const xf86OutputFuncsRec nv_digital_output_funcs = {
     .commit = nv_output_commit,
 };
 
+static int nv_lvds_output_mode_valid
+(xf86OutputPtr output, DisplayModePtr pMode)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	/* No modes > panel's native res */
+	if (pMode->HDisplay > nv_output->fpWidth || pMode->VDisplay > nv_output->fpHeight)
+		return MODE_PANEL;
+
+	return nv_output_mode_valid(output, pMode);
+}
+
+static Bool
+nv_lvds_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
+	adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
+	adjusted_mode->HSyncEnd = nv_output->native_mode->HSyncEnd;
+	adjusted_mode->HTotal = nv_output->native_mode->HTotal;
+	adjusted_mode->VDisplay = nv_output->native_mode->VDisplay;
+	adjusted_mode->VSyncStart = nv_output->native_mode->VSyncStart;
+	adjusted_mode->VSyncEnd = nv_output->native_mode->VSyncEnd;
+	adjusted_mode->VTotal = nv_output->native_mode->VTotal;
+	adjusted_mode->Clock = nv_output->native_mode->Clock;
+
+	xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
+
+	return TRUE;
+}
+
 static xf86OutputStatus
 nv_lvds_output_detect(xf86OutputPtr output)
 {
@@ -1196,24 +1228,48 @@ static DisplayModePtr
 nv_lvds_output_get_modes(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
+	DisplayModePtr modes;
 
-//	nv_output->fpWidth = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HDISP_END) + 1;
-//	nv_output->fpHeight = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VDISP_END) + 1;
+	/* this is currently broken, as this code path has not run nv_ddc_detect
+	 * to get fpWidth / fpHeight. That code should probably be moved into
+	 * nv_output_get_modes anyway
+	if (modes = nv_output_get_modes(output))
+		return modes;*/
+
+	/* it is possible to set up a mode from what we can read from the
+	 * RAMDAC registers, but if we can't read the BIOS table correctly
+	 * we might as well give up */
+	if (pNv->fp_native_mode == NULL)
+		return NULL;
+
+	nv_output->fpWidth = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HDISP_END) + 1;
+	nv_output->fpHeight = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VDISP_END) + 1;
 	nv_output->fpSyncs = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL) & 0x30000033;
 
-//	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %i x %i\n",
-//		nv_output->fpWidth, nv_output->fpHeight);
+	if (pNv->fp_native_mode->HDisplay != nv_output->fpWidth ||
+		pNv->fp_native_mode->VDisplay != nv_output->fpHeight) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Panel size mismatch; ignoring RAMDAC\n");
+		nv_output->fpWidth = pNv->fp_native_mode->HDisplay;
+		nv_output->fpHeight = pNv->fp_native_mode->VDisplay;
+	}
 
-	return NULL;
+	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %lu x %lu\n",
+		nv_output->fpWidth, nv_output->fpHeight);
+
+	nv_output->native_mode = xf86DuplicateMode(pNv->fp_native_mode);
+
+	return xf86DuplicateMode(pNv->fp_native_mode);
 }
 
 static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.dpms = nv_lvds_output_dpms,
 	.save = nv_output_save,
 	.restore = nv_output_restore,
-	.mode_valid = nv_output_mode_valid,
-	.mode_fixup = nv_output_mode_fixup,
+	.mode_valid = nv_lvds_output_mode_valid,
+	.mode_fixup = nv_lvds_output_mode_fixup,
 	.mode_set = nv_output_mode_set,
 	.detect = nv_lvds_output_detect,
 	.get_modes = nv_lvds_output_get_modes,
@@ -1221,7 +1277,6 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
 };
-
 
 static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bool dvi_pair)
 {
@@ -1298,6 +1353,8 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 	if (pNv->dcb_table.i2c_read[i2c_index] && pNv->pI2CBus[i2c_index] == NULL)
 		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
 
+	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
+
 	nv_output->type = OUTPUT_DIGITAL;
 
 	/* order + 1:
@@ -1312,9 +1369,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 		crtc_mask |= (1<<1);
 
 	/* Sorry, i don't know what to do with lvds */
-	if (!lvds) {
-		nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
-	} else {
+	if (lvds) {
 		ErrorF("Output refused because we don't accept LVDS at the moment.\n");
 		create_output = FALSE;
 	}
