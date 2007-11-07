@@ -1120,6 +1120,8 @@ nv_output_prepare(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr	pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
+	xf86CrtcPtr crtc = output->crtc;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	output->funcs->dpms(output, DPMSModeOff);
 
@@ -1147,11 +1149,12 @@ nv_output_prepare(xf86OutputPtr output)
 		pNv->ramdac_active[0] = FALSE;
 	}
 
-	if ((nv_output->valid_ramdac & RAMDAC_0) && !(pNv->ramdac_active[0])) {
+	/* I sometimes get the strange feeling that ramdac's like to be paired with their matching crtc */
+	if ((nv_output->valid_ramdac & RAMDAC_0) && !(pNv->ramdac_active[0]) && nv_crtc->head == 0) {
 		ErrorF("Activating ramdac %d\n", 0);
 		pNv->ramdac_active[0] = TRUE;
 		nv_output->ramdac = 0;
-	} else if ((nv_output->valid_ramdac & RAMDAC_1) && !(pNv->ramdac_active[1])) {
+	} else if ((nv_output->valid_ramdac & RAMDAC_1) && !(pNv->ramdac_active[1]) && nv_crtc->head == 1) {
 		ErrorF("Activating ramdac %d\n", 1);
 		pNv->ramdac_active[1] = TRUE;
 		nv_output->ramdac = 1;
