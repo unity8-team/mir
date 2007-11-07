@@ -1311,12 +1311,12 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 
 	nv_output->type = OUTPUT_ANALOG;
 
-	/* order + 1:
+	/* order:
 	 * bit0: RAMDAC_0 valid
 	 * bit1: RAMDAC_1 valid
 	 * So lowest order has highest priority.
 	 */
-	nv_output->valid_ramdac = order + 1;
+	nv_output->valid_ramdac = order;
 
 	/* Restricting this will cause a full mode set when trying to squeeze in the primary mode */
 	if (nv_output->valid_ramdac & RAMDAC_1) 
@@ -1367,12 +1367,12 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 
 	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
 
-	/* order + 1:
+	/* order:
 	 * bit0: RAMDAC_0 valid
 	 * bit1: RAMDAC_1 valid
 	 * So lowest order has highest priority.
 	 */
-	nv_output->valid_ramdac = order + 1;
+	nv_output->valid_ramdac = order;
 
 	/* Restricting this will cause a full mode set when trying to squeeze in the primary mode */
 	if (nv_output->valid_ramdac & RAMDAC_1) 
@@ -1466,7 +1466,7 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
 		type = pNv->dcb_table.connection[i] & 0xf;
 		i2c_index = (pNv->dcb_table.connection[i] >> 4) & 0xf;
-		or = ffs((pNv->dcb_table.connection[i] >> 24) & 0xf) - 1;
+		or = ffs((pNv->dcb_table.connection[i] >> 24) & 0xf);
 
 		if (type < 4) {
 			xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry: %d: %08X type: %d, i2c_index: %d, or: %d\n", i, pNv->dcb_table.connection[i], type, i2c_index, or);
