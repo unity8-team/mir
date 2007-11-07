@@ -103,51 +103,6 @@ atombios_crtc_dpms(xf86CrtcPtr crtc, int mode)
     }
 }
 
-static void
-atombios_set_crtc_source(xf86CrtcPtr crtc)
-{
-    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    AtomBIOSArg data;
-    unsigned char *space;
-    SELECT_CRTC_SOURCE_PS_ALLOCATION crtc_src_param;
-    int index = GetIndexIntoMasterTable(COMMAND, SelectCRTC_Source);
-    int major, minor;
-    
-    atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
-    
-    ErrorF("select crtc source table is %d %d\n", major, minor);
-
-    switch(major) {
-    case 1: {
-	switch(minor) {
-	case 0:
-	case 1:
-	default:
-	    crtc_src_param.ucCRTC = radeon_crtc->crtc_id;
-	    crtc_src_param.ucDevice = radeon_crtc->crtc_id? 0: 3;
-	    break;
-	}
-	break;
-    }
-    default:
-	break;
-    }
-
-    data.exec.index = index;
-    data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &crtc_src_param;
-    
-    if (RHDAtomBIOSFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Set CRTC Source success\n");
-	return;
-    }
-  
-    ErrorF("Set CRTC Source failed\n");
-    return;
-}
-
 static AtomBiosResult
 atombios_set_crtc_timing(atomBIOSHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_param)
 {
@@ -450,7 +405,8 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
     }
 
-    atombios_set_crtc_source(crtc);
+    // moved to output
+    //atombios_set_crtc_source(crtc);
 
     atombios_set_crtc_timing(info->atomBIOS, &crtc_timing);
 

@@ -71,7 +71,8 @@ typedef enum
     MT_LCD     = 2,
     MT_DFP     = 3,
     MT_CTV     = 4,
-    MT_STV     = 5
+    MT_STV     = 5,
+    MT_CV      = 6
 } RADEONMonitorType;
 
 typedef enum
