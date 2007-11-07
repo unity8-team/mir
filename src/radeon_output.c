@@ -154,11 +154,13 @@ static RADEONMonitorType radeon_detect_primary_dac(ScrnInfoPtr pScrn, Bool color
 static RADEONMonitorType radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color);
 static RADEONMonitorType radeon_detect_ext_dac(ScrnInfoPtr pScrn);
 static void RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
+static Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state);
 
 extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr mode,
 				     DisplayModePtr adjusted_mode);
 extern void atombios_output_dpms(xf86OutputPtr output, int mode);
+extern RADEONMonitorType atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output);
 
 Bool
 RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch)
@@ -266,6 +268,42 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 		   DDCTypeName[radeon_output->DDCType]);
     }
 
+}
+
+static RADEONMonitorType
+avivo_display_ddc_connected(ScrnInfoPtr pScrn, xf86OutputPtr output)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned long DDCReg;
+    RADEONMonitorType MonType = MT_NONE;
+    xf86MonPtr MonInfo = NULL;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONDDCType DDCType = radeon_output->DDCType;
+
+    AVIVOI2CDoLock(output->scrn, 1);
+    MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
+    AVIVOI2CDoLock(output->scrn, 0);
+    if (MonInfo) {
+	if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
+	    xf86OutputSetEDID(output, MonInfo);
+	if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_LVDS_ATOM) ||
+	    (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_PROPRIETARY)) {
+	    MonType = MT_LCD;
+	} else if ((info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM) ||
+		   (!info->IsAtomBios && radeon_output->ConnectorType == CONNECTOR_DVI_D)) {
+	    MonType = MT_DFP;
+	} else if (radeon_output->type == OUTPUT_DVI &&
+		   (MonInfo->rawData[0x14] & 0x80)) { /* if it's digital and DVI */
+	    MonType = MT_DFP;
+	} else {
+	    MonType = MT_CRT;
+	}
+    } else MonType = MT_NONE;
+    
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "DDC Type: %d[%04x], Detected Monitor Type: %d\n", DDCType, radeon_output->gpio, MonType);
+
+    return MonType;
 }
 
 static RADEONMonitorType
@@ -635,22 +673,39 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 		    radeon_output->MonType = MT_NONE;
 	    }
 	} else {
-	    radeon_output->MonType = RADEONDisplayDDCConnected(pScrn, output);
+	    if (IS_AVIVO_VARIANT)
+		radeon_output->MonType = avivo_display_ddc_connected(pScrn, output);
+	    else
+		radeon_output->MonType = RADEONDisplayDDCConnected(pScrn, output);
 	    if (!radeon_output->MonType) {
-		if (radeon_output->type == OUTPUT_LVDS || radeon_output->type == OUTPUT_DVI)
-		    radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output);
-		if (!radeon_output->MonType) {
-		    if (radeon_output->DACType == DAC_PRIMARY) {
-			if (radeon_output->load_detection)
-			    radeon_output->MonType = radeon_detect_primary_dac(pScrn, TRUE);
-		    } else if (radeon_output->DACType == DAC_TVDAC) {
-			if (radeon_output->load_detection) {
-			    if (info->ChipFamily == CHIP_FAMILY_R200)
-				radeon_output->MonType = radeon_detect_ext_dac(pScrn);
-			    else
-				radeon_output->MonType = radeon_detect_tv_dac(pScrn, TRUE);
-			} else
-			    radeon_output->MonType = MT_NONE;
+		if (IS_AVIVO_VARIANT) {
+		    if (!radeon_output->MonType) {
+			if (radeon_output->type == OUTPUT_LVDS)
+			    radeon_output->MonType = MT_LCD;
+			if (!radeon_output->MonType) {
+			    if (radeon_output->DACType == DAC_PRIMARY) {
+				radeon_output->MonType = atombios_dac_detect(pScrn, output);
+			    } else if (radeon_output->DACType == DAC_TVDAC) {
+				radeon_output->MonType = atombios_dac_detect(pScrn, output);
+			    }
+			}
+		    }
+		} else {
+		    if (radeon_output->type == OUTPUT_LVDS || radeon_output->type == OUTPUT_DVI)
+			radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output);
+		    if (!radeon_output->MonType) {
+			if (radeon_output->DACType == DAC_PRIMARY) {
+			    if (radeon_output->load_detection)
+				radeon_output->MonType = radeon_detect_primary_dac(pScrn, TRUE);
+			} else if (radeon_output->DACType == DAC_TVDAC) {
+			    if (radeon_output->load_detection) {
+				if (info->ChipFamily == CHIP_FAMILY_R200)
+				    radeon_output->MonType = radeon_detect_ext_dac(pScrn);
+				else
+				    radeon_output->MonType = radeon_detect_tv_dac(pScrn, TRUE);
+			    } else
+				radeon_output->MonType = MT_NONE;
+			}
 		    }
 		}
 	    }
@@ -1216,9 +1271,6 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 static void
 radeon_mode_commit(xf86OutputPtr output)
 {
-    ScrnInfoPtr pScrn  = output->scrn;
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-
     radeon_dpms(output, DPMSModeOn);
 }
 
@@ -2239,6 +2291,138 @@ void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output
     radeon_output->type = output;
 }
 
+static
+Bool AVIVOI2CReset(ScrnInfoPtr pScrn)
+{
+  RADEONInfoPtr info = RADEONPTR(pScrn);
+  unsigned char *RADEONMMIO = info->MMIO;
+
+  OUTREG(AVIVO_I2C_STOP, 1);
+  INREG(AVIVO_I2C_STOP);
+  OUTREG(AVIVO_I2C_STOP, 0x0);
+  return TRUE;
+}
+
+static
+Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 temp;
+
+    switch(lock_state) {
+    case 0:
+	temp = INREG(AVIVO_I2C_CNTL);
+	OUTREG(AVIVO_I2C_CNTL, temp | 0x100);
+	/* enable hdcp block */
+	OUTREG(R520_PCLK_HDCP_CNTL, 0x0);
+	break;
+    case 1:
+	/* disable hdcp block */
+	OUTREG(R520_PCLK_HDCP_CNTL, 0x1);
+	usleep(1);
+	OUTREG(AVIVO_I2C_CNTL, 0x1);
+	usleep(1);
+	temp = INREG(AVIVO_I2C_CNTL);
+	if (!(temp & 0x2)) {
+	    ErrorF("Lock failed %08X\n", temp);
+	    return FALSE;
+	}
+	break;
+    }
+    return TRUE;
+}
+
+void
+avivo_i2c_gpio0_get_bits(I2CBusPtr b, int *Clock, int *data)
+{
+    ScrnInfoPtr screen_info = xf86Screens[b->scrnIndex]; 
+    RADEONInfoPtr info       = RADEONPTR(screen_info);
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned long  val;
+
+    ErrorF("INREG %08x\n", INREG(b->DriverPrivate.uval));
+    /* Get the result */
+    val = INREG(b->DriverPrivate.uval + 0xC);
+    *Clock = (val & (1<<19)) != 0;
+    *data  = (val & (1<<18)) != 0;
+}
+
+void
+avivo_i2c_gpio0_put_bits(I2CBusPtr b, int Clock, int data)
+{
+    ScrnInfoPtr screen_info = xf86Screens[b->scrnIndex]; 
+    RADEONInfoPtr info       = RADEONPTR(screen_info);
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned long  val;
+
+    val = 0;
+    val |= (Clock ? 0:(1<<19));
+    val |= (data ? 0:(1<<18));
+    OUTREG(b->DriverPrivate.uval + 0x8, val);
+    /* read back to improve reliability on some cards. */
+    val = INREG(b->DriverPrivate.uval + 0x8);
+}
+
+void
+avivo_i2c_gpio123_get_bits(I2CBusPtr b, int *Clock, int *data)
+{
+    ScrnInfoPtr screen_info = xf86Screens[b->scrnIndex]; 
+    RADEONInfoPtr info       = RADEONPTR(screen_info);
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned long  val;
+
+    if (INREG(b->DriverPrivate.uval) == 0)
+	OUTREG(b->DriverPrivate.uval, (1<<0) | (1<<8));
+
+    /* Get the result */
+    val = INREG(b->DriverPrivate.uval + 0xC);
+    *Clock = (val & (1<<0)) != 0;
+    *data  = (val & (1<<8)) != 0;
+}
+
+static void
+avivo_i2c_gpio123_put_bits(I2CBusPtr b, int Clock, int data)
+{
+    ScrnInfoPtr screen_info = xf86Screens[b->scrnIndex]; 
+    RADEONInfoPtr info       = RADEONPTR(screen_info);
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned long  val;
+
+    val = 0;
+    val |= (Clock ? 0:(1<<0));
+    val |= (data ? 0:(1<<8));
+    OUTREG(b->DriverPrivate.uval + 0x8, val);
+    /* read back to improve reliability on some cards. */
+    val = INREG(b->DriverPrivate.uval + 0x8);
+}
+
+static Bool
+avivo_i2c_init(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
+{
+    I2CBusPtr pI2CBus;
+
+    pI2CBus = xf86CreateI2CBusRec();
+    if (!pI2CBus) return FALSE;
+
+    pI2CBus->BusName    = name;
+    pI2CBus->scrnIndex  = pScrn->scrnIndex;
+    if (i2c_reg == AVIVO_GPIO_0) {
+	pI2CBus->I2CPutBits = avivo_i2c_gpio0_put_bits;
+	pI2CBus->I2CGetBits = avivo_i2c_gpio0_get_bits;
+    } else {
+	pI2CBus->I2CPutBits = avivo_i2c_gpio123_put_bits;
+	pI2CBus->I2CGetBits = avivo_i2c_gpio123_get_bits;
+    }
+    pI2CBus->AcknTimeout = 5;
+    pI2CBus->DriverPrivate.uval = i2c_reg;
+
+    if (!xf86I2CBusInit(pI2CBus)) return FALSE;
+
+    *bus_ptr = pI2CBus;
+    return TRUE;
+}
+
 static void RADEONI2CGetBits(I2CBusPtr b, int *Clock, int *data)
 {
     ScrnInfoPtr    pScrn      = xf86Screens[b->scrnIndex];
@@ -2592,18 +2776,28 @@ RADEONGetTVInfo(xf86OutputPtr output)
 void RADEONInitConnector(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int DDCReg = 0;
     char* name = (char*) DDCTypeName[radeon_output->DDCType];
 
-    switch(radeon_output->DDCType) {
-    case DDC_MONID: DDCReg = RADEON_GPIO_MONID; break;
-    case DDC_DVI  : DDCReg = RADEON_GPIO_DVI_DDC; break;
-    case DDC_VGA  : DDCReg = RADEON_GPIO_VGA_DDC; break;
-    case DDC_CRT2 : DDCReg = RADEON_GPIO_CRT2_DDC; break;
-    case DDC_LCD  : DDCReg = RADEON_LCD_GPIO_MASK; break;
-    case DDC_GPIO : DDCReg = RADEON_MDGPIO_EN_REG; break;
-    default: break;
+    if (IS_AVIVO_VARIANT) {
+	if (radeon_output->gpio)
+	    avivo_i2c_init(pScrn, &radeon_output->pI2CBus, radeon_output->gpio, name);
+    } else {
+	switch(radeon_output->DDCType) {
+	case DDC_MONID: DDCReg = RADEON_GPIO_MONID; break;
+	case DDC_DVI  : DDCReg = RADEON_GPIO_DVI_DDC; break;
+	case DDC_VGA  : DDCReg = RADEON_GPIO_VGA_DDC; break;
+	case DDC_CRT2 : DDCReg = RADEON_GPIO_CRT2_DDC; break;
+	case DDC_LCD  : DDCReg = RADEON_LCD_GPIO_MASK; break;
+	case DDC_GPIO : DDCReg = RADEON_MDGPIO_EN_REG; break;
+	default: break;
+	}
+	if (DDCReg) {
+	    radeon_output->DDCReg = DDCReg;
+	    RADEONI2CInit(pScrn, &radeon_output->pI2CBus, DDCReg, name);
+	}
     }
 
     if (radeon_output->DACType == DAC_PRIMARY)
@@ -2613,11 +2807,6 @@ void RADEONInitConnector(xf86OutputPtr output)
 	     radeon_output->load_detection = 1;*/ /* only one output with tvdac */
     else
 	radeon_output->load_detection = 0; /* shared tvdac between vga/dvi/tv */
-
-    if (DDCReg) {
-	radeon_output->DDCReg = DDCReg;
-	RADEONI2CInit(pScrn, &radeon_output->pI2CBus, DDCReg, name);
-    }
 
     if (radeon_output->type == OUTPUT_LVDS) {
 	radeon_output->rmx_type = RMX_FULL;
