@@ -17,6 +17,12 @@
 #include "radeon_macros.h"
 #include "radeon_atombios.h"
 
+#ifdef XF86DRI
+#define _XF86DRI_SERVER_
+#include "radeon_dri.h"
+#include "radeon_sarea.h"
+#include "sarea.h"
+#endif
 
 AtomBiosResult
 atombios_enable_crtc(atomBIOSHandlePtr atomBIOS, int crtc, int state)
@@ -348,22 +354,38 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 void
 atombios_crtc_mode_set(xf86CrtcPtr crtc,
-                   DisplayModePtr mode,
-                   DisplayModePtr adjusted_mode,
-                   int x, int y)
+		       DisplayModePtr mode,
+		       DisplayModePtr adjusted_mode,
+		       int x, int y)
 {
-    ScrnInfoPtr screen_info = crtc->scrn;
+    ScrnInfoPtr pScrn = crtc->scrn;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned long fb_location = crtc->scrn->fbOffset + info->fbLocation;
     int regval;
     AtomBiosResult atom_res;
     RADEONSavePtr restore = &info->ModeReg;
+    Bool           tilingOld   = info->tilingEnabled;
 
     SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION crtc_timing;
 
     memset(&crtc_timing, 0, sizeof(crtc_timing));
+
+    if (info->allowColorTiling) {
+	info->tilingEnabled = (adjusted_mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
+#ifdef XF86DRI
+	if (info->directRenderingEnabled && (info->tilingEnabled != tilingOld)) {
+	    RADEONSAREAPrivPtr pSAREAPriv;
+	    if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_SWITCH_TILING, (info->tilingEnabled ? 1 : 0)) < 0)
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[drm] failed changing tiling status\n");
+	    /* if this is called during ScreenInit() we don't have pScrn->pScreen yet */
+	    pSAREAPriv = DRIGetSAREAPrivate(screenInfo.screens[pScrn->scrnIndex]);
+	    info->tilingEnabled = pSAREAPriv->tiling_enabled ? TRUE : FALSE;
+	}
+#endif
+    }
 
     crtc_timing.ucCRTC = radeon_crtc->crtc_id;
     crtc_timing.usH_Total = adjusted_mode->CrtcHTotal;
@@ -387,7 +409,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
     if (IS_AVIVO_VARIANT) {
 	radeon_crtc->fb_width = adjusted_mode->CrtcHDisplay;
-	radeon_crtc->fb_height = screen_info->virtualY;
+	radeon_crtc->fb_height = pScrn->virtualY;
 	radeon_crtc->fb_pitch = adjusted_mode->CrtcHDisplay;
 	radeon_crtc->fb_length = radeon_crtc->fb_pitch * radeon_crtc->fb_height * 4;
 	switch (crtc->scrn->bitsPerPixel) {
@@ -433,6 +455,17 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     atombios_set_crtc_timing(info->atomBIOS, &crtc_timing);
 
     atombios_crtc_set_pll(crtc, adjusted_mode);
+
+    if (info->tilingEnabled != tilingOld) {
+	/* need to redraw front buffer, I guess this can be considered a hack ? */
+	/* if this is called during ScreenInit() we don't have pScrn->pScreen yet */
+	if (pScrn->pScreen)
+	    xf86EnableDisableFBAccess(pScrn->scrnIndex, FALSE);
+	RADEONChangeSurfaces(pScrn);
+	if (pScrn->pScreen)
+	    xf86EnableDisableFBAccess(pScrn->scrnIndex, TRUE);
+	/* xf86SetRootClip would do, but can't access that here */
+    }
 
 }
 

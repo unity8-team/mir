@@ -54,13 +54,13 @@
 #endif
 
 void radeon_crtc_load_lut(xf86CrtcPtr crtc);
-#if 0
+
 extern void atombios_crtc_mode_set(xf86CrtcPtr crtc,
 				   DisplayModePtr mode,
 				   DisplayModePtr adjusted_mode,
 				   int x, int y);
 extern void atombios_crtc_dpms(xf86CrtcPtr crtc, int mode);
-#endif
+
 static void
 radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
@@ -70,12 +70,10 @@ radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-#if 0
-    if (info->IsAtomBios) {
+    if (IS_AVIVO_VARIANT) {
 	atombios_crtc_dpms(crtc, mode);
 	return;
     }
-#endif
 
     mask = radeon_crtc->crtc_id ? (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS | RADEON_CRTC2_HSYNC_DIS | RADEON_CRTC2_DISP_REQ_EN_B) : (RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS | RADEON_CRTC_VSYNC_DIS);
 
@@ -799,7 +797,7 @@ radeon_update_tv_routing(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 }
 
 static void
-radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
+legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode, int x, int y)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
@@ -827,13 +825,6 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	}
 #endif
     }
-
-#if 0
-    if (info->IsAtomBios) {
-	atombios_crtc_mode_set(crtc, mode, adjusted_mode, x, y);
-	return;
-    }
-#endif
 
     for (i = 0; i < xf86_config->num_output; i++) {
 	xf86OutputPtr output = xf86_config->output[i];
@@ -916,18 +907,18 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	ErrorF("restore crtc1\n");
 	RADEONRestoreCrtcRegisters(pScrn, &info->ModeReg);
 	ErrorF("restore pll1\n");
-	if (info->IsAtomBios)
+	/*if (info->IsAtomBios)
 	    atombios_crtc_set_pll(crtc, adjusted_mode);
-	else
+	else*/
 	    RADEONRestorePLLRegisters(pScrn, &info->ModeReg);
 	break;
     case 1:
 	ErrorF("restore crtc2\n");
 	RADEONRestoreCrtc2Registers(pScrn, &info->ModeReg);
 	ErrorF("restore pll2\n");
-	if (info->IsAtomBios)
+	/*if (info->IsAtomBios)
 	    atombios_crtc_set_pll(crtc, adjusted_mode);
-	else
+	else*/
 	    RADEONRestorePLL2Registers(pScrn, &info->ModeReg);
 	break;
     }
@@ -953,6 +944,20 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     /* reset ecp_div for Xv */
     info->ecp_div = -1;
 
+}
+
+static void
+radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
+		     DisplayModePtr adjusted_mode, int x, int y)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    if (IS_AVIVO_VARIANT) {
+	atombios_crtc_mode_set(crtc, mode, adjusted_mode, x, y);
+    } else {
+	legacy_crtc_mode_set(crtc, mode, adjusted_mode, x, y);
+    }
 }
 
 static void
@@ -990,7 +995,12 @@ radeon_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green,
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     ScrnInfoPtr		pScrn = crtc->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     int i, j;
+
+    // fix me
+    if (IS_AVIVO_VARIANT)
+	return;
 
     if (pScrn->depth == 16) {
 	for (i = 0; i < 64; i++) {

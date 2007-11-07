@@ -154,12 +154,11 @@ static RADEONMonitorType radeon_detect_primary_dac(ScrnInfoPtr pScrn, Bool color
 static RADEONMonitorType radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color);
 static RADEONMonitorType radeon_detect_ext_dac(ScrnInfoPtr pScrn);
 static void RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
-#if 0
+
 extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr mode,
 				     DisplayModePtr adjusted_mode);
 extern void atombios_output_dpms(xf86OutputPtr output, int mode);
-#endif
 
 Bool
 RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch)
@@ -715,12 +714,10 @@ radeon_dpms(xf86OutputPtr output, int mode)
     ScrnInfoPtr pScrn  = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
-#if 0
-    if (info->IsAtomBios) {
+    if (IS_AVIVO_VARIANT) {
 	atombios_output_dpms(output, mode);
 	return;
     }
-#endif
 
     switch(mode) {
     case DPMSModeOn:
@@ -1160,7 +1157,7 @@ RADEONInitOutputRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 }
 
 static void
-radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
+legacy_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		  DisplayModePtr adjusted_mode)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
@@ -1168,15 +1165,6 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     xf86CrtcPtr	crtc = output->crtc;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
-#if 0
-    if (info->IsAtomBios) {
-	ErrorF("AGD: output mode set start\n");
-	atombios_output_mode_set(output, mode, adjusted_mode);
-	ErrorF("AGD: output mode set end\n");
-	return;
-    }
-#endif
 
     RADEONInitOutputRegisters(pScrn, &info->ModeReg, adjusted_mode, output, radeon_crtc->crtc_id);
 
@@ -1209,14 +1197,19 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	RADEONRestoreDACRegisters(pScrn, &info->ModeReg);
     }
 
-#if 0
-    if (info->IsAtomBios) {
-	ErrorF("AGD: output mode set start\n");
+}
+
+static void
+radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
+		  DisplayModePtr adjusted_mode)
+{
+    ScrnInfoPtr	    pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    if (IS_AVIVO_VARIANT)
 	atombios_output_mode_set(output, mode, adjusted_mode);
-	ErrorF("AGD: output mode set end\n");
-	//return;
-    }
-#endif
+    else
+	legacy_mode_set(output, mode, adjusted_mode);
 
 }
 
@@ -1225,12 +1218,8 @@ radeon_mode_commit(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn  = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
-#if 0
-    if (info->IsAtomBios)
-	atombios_output_dpms(output, DPMSModeOn);
-    else
-#endif
-	RADEONEnableDisplay(output, TRUE);
+
+    radeon_dpms(output, DPMSModeOn);
 }
 
 /* the following functions are based on the load detection code

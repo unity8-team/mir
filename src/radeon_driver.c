@@ -3470,9 +3470,10 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     RADEONSave(pScrn);
 
-    RADEONDisableDisplays(pScrn);
+    if (!IS_AVIVO_VARIANT)
+	RADEONDisableDisplays(pScrn);
 
-    if (info->IsMobility) {
+    if (info->IsMobility && !IS_AVIVO_VARIANT) {
         if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
 	    RADEONSetDynamicClock(pScrn, 1);
         } else {
