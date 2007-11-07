@@ -1447,30 +1447,28 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	}
 
 	/* we setup the outputs up from the BIOS table */
-	if (pNv->dcb_table.entries) {
-		for (i = 0 ; i < pNv->dcb_table.entries; i++) {
-			type = pNv->dcb_table.connection[i] & 0xf;
-			i2c_index = (pNv->dcb_table.connection[i] >> 4) & 0xf;
-			or = ffs((pNv->dcb_table.connection[i] >> 24) & 0xf) - 1;
+	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
+		type = pNv->dcb_table.connection[i] & 0xf;
+		i2c_index = (pNv->dcb_table.connection[i] >> 4) & 0xf;
+		or = ffs((pNv->dcb_table.connection[i] >> 24) & 0xf) - 1;
 
-			if (type < 4) {
-				xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry: %d: %08X type: %d, i2c_index: %d, or: %d\n", i, pNv->dcb_table.connection[i], type, i2c_index, or);
+		if (type < 4) {
+			xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry: %d: %08X type: %d, i2c_index: %d, or: %d\n", i, pNv->dcb_table.connection[i], type, i2c_index, or);
 
-				switch(type) {
-				case OUTPUT_ANALOG: /* Analogue VGA */
-					nv_add_analog_output(pScrn, or, i2c_index, dvi_pair);
-					dvi_pair = FALSE;
-					break;
-				case OUTPUT_DIGITAL: /* TMDS */
-					dvi_pair = TRUE;
-					nv_add_digital_output(pScrn, or, i2c_index, dual_dvi, 0);
-					break;
-				case OUTPUT_PANEL: /* LVDS */
-					nv_add_digital_output(pScrn, or, i2c_index, dual_dvi, 1);
-					break;
-				default:
-					break;
-				}
+			switch(type) {
+			case OUTPUT_ANALOG: /* Analogue VGA */
+				nv_add_analog_output(pScrn, or, i2c_index, dvi_pair);
+				dvi_pair = FALSE;
+				break;
+			case OUTPUT_DIGITAL: /* TMDS */
+				dvi_pair = TRUE;
+				nv_add_digital_output(pScrn, or, i2c_index, dual_dvi, 0);
+				break;
+			case OUTPUT_PANEL: /* LVDS */
+				nv_add_digital_output(pScrn, or, i2c_index, dual_dvi, 1);
+				break;
+			default:
+				break;
 			}
 		}
 	}

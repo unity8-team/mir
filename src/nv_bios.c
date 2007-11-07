@@ -1665,7 +1665,7 @@ nv_read_dcb_i2c_table(ScrnInfoPtr pScrn, bios_t *bios, uint16_t i2ctabptr)
 	NVPtr pNv = NVPTR(pScrn);
 	unsigned char *i2ctable;
 	unsigned char dcb_version, headerlen = 0;
-	int recordoffset = 0;
+	int recordoffset = 0, rdofs = 1, wrofs = 0;
 	int i;
 
 	pNv->dcb_table.i2c_entries = MAX_NUM_DCB_ENTRIES;
@@ -1690,24 +1690,17 @@ nv_read_dcb_i2c_table(ScrnInfoPtr pScrn, bios_t *bios, uint16_t i2ctabptr)
 			return;
 		}
 	}
-	/* Don't call this function on a DCB 1.1 bios */
-	if (dcb_version < 0x14 && dcb_version >= 0x12)
+	/* it's your own fault if you call this function on a DCB 1.1 BIOS */
+	if (dcb_version < 0x14) {
 		recordoffset = 2;
+		rdofs = 0;
+		wrofs = 1;
+	}
 
-	/* After version 0x12 read and write i2c buses are swapped */
-	if (dcb_version > 0x12) {
-		for (i = 0; i < pNv->dcb_table.i2c_entries; i++) {
-			if (i2ctable[headerlen + 4 * i + 3] != 0xff) {
-				pNv->dcb_table.i2c_read[i] = i2ctable[headerlen + recordoffset + 1 + 4 * i];
-				pNv->dcb_table.i2c_write[i] = i2ctable[headerlen + recordoffset + 4 * i];
-			}
-		}
-	} else {
-		for (i = 0; i < pNv->dcb_table.i2c_entries; i++) {
-			if (i2ctable[headerlen + 4 * i + 3] != 0xff) {
-				pNv->dcb_table.i2c_read[i] = i2ctable[headerlen + recordoffset + 4 * i];
-				pNv->dcb_table.i2c_write[i] = i2ctable[headerlen + recordoffset + 1 + 4 * i];
-			}
+	for (i = 0; i < pNv->dcb_table.i2c_entries; i++) {
+		if (i2ctable[headerlen + 4 * i + 3] != 0xff) {
+			pNv->dcb_table.i2c_read[i] = i2ctable[headerlen + recordoffset + rdofs + 4 * i];
+			pNv->dcb_table.i2c_write[i] = i2ctable[headerlen + recordoffset + wrofs + 4 * i];
 		}
 	}
 }
@@ -1718,7 +1711,7 @@ static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint16_t dcbptr, i2ctabptr = 0;
-	int is_g5 = 0;
+	Bool is_g5 = FALSE;
 	unsigned char *dcbtable;
 	unsigned char dcb_version, headerlen = 0x4, entries = MAX_NUM_DCB_ENTRIES;
 	Bool configblock = FALSE;
@@ -1728,13 +1721,19 @@ static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	pNv->dcb_table.entries = 0;
 	pNv->dcb_table.i2c_entries = 0;
 
-	/* get the offset from 0x36 */	
+	/* get the offset from 0x36 */
 	dcbptr = *(uint16_t *)&bios->data[0x36];
 
 	if (dcbptr == 0x0) {
 		if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV43) {
-			is_g5 = 1;
-			dcbptr = G5_FIXED_LOC;
+			is_g5 = TRUE;
+			dcbtable = &bios->data[G5_FIXED_LOC];
+			dcb_version = 0x5;	// magic G5 value
+			headerlen = 0x3c;
+			entries = 0xa;
+			i2ctabptr = 0xe384;
+			configblock = TRUE;
+			goto g5;
 		} else {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				"No Display Configuration Block pointer found\n");
@@ -1749,13 +1748,6 @@ static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"Display Configuration Block version %d.%d found\n",
 			dcb_version >> 4, dcb_version & 0xf);
-
-       	if (is_g5) {	/* is this bodge still needed? */
-		headerlen = 0x3c;
-		entries = 0xa;
-		configblock = TRUE;
-		goto g5;
-	}
 
 	if (dcb_version >= 0x20) { /* NV17+ */
 		uint32_t sig;
@@ -1805,12 +1797,12 @@ static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		return 0;
 	}
 
+g5:
 	pNv->dcb_table.version = dcb_version;
 
 	if (entries >= MAX_NUM_DCB_ENTRIES)
 		entries = MAX_NUM_DCB_ENTRIES;
 
-g5:
 	for (i = 0; i < entries; i++) {
 		uint32_t connection, config = 0;
 
@@ -1824,9 +1816,11 @@ g5:
 				config = *(uint32_t *)&dcbtable[headerlen + 4 + recordlength * i];
 		}
 
-		/* I think this is a good descriminator, but I don't understand pre v2.0
-		 * DCBs so well, so maybe those need testing against 0xffffffff */
-		/* Should we allow discontinuous DCBs? Certainly DCB I2C tables can be discontinuous */
+		/* I think this is a good descriminator, but I don't understand
+		 * pre v2.0 DCBs so well, so maybe those need testing against
+		 * 0xffffffff */
+		/* Should we allow discontinuous DCBs? Certainly DCB I2C tables
+		 * can be discontinuous */
 		if ((connection & 0x0f000000) == 0x0f000000) /* end of records */
 			break;
 
@@ -1934,6 +1928,9 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	NVPtr pNv;
 	int ret;
 	pNv = NVPTR(pScrn);
+
+	pNv->dcb_table.entries = 0;
+	pNv->dcb_table.i2c_entries = 0;
 
 	pNv->VBIOS = xalloc(64 * 1024);
 	if (!NVShadowVBIOS(pScrn, pNv->VBIOS)) {
