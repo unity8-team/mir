@@ -1046,7 +1046,7 @@ nv_output_get_modes(xf86OutputPtr output)
 		return NULL;
 	}
 
-	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL)) {
+	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL || nv_output->type == OUTPUT_PANEL)) {
 		xf86OutputSetEDID(output, NULL);
 		return NULL;
 	}
@@ -1056,7 +1056,7 @@ nv_output_get_modes(xf86OutputPtr output)
 	ddc_modes = xf86OutputGetEDIDModes (output);
 
 	/* Add a native resolution mode that is prefered */
-	if (nv_output->type == OUTPUT_DIGITAL) {
+	if (nv_output->type == OUTPUT_DIGITAL || nv_output->type == OUTPUT_PANEL) {
 		DisplayModePtr mode;
 		/* Reduced blanking should be fine on DVI monitor */
 		nv_output->native_mode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
@@ -1355,8 +1355,6 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 
 	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
 
-	nv_output->type = OUTPUT_DIGITAL;
-
 	/* order + 1:
 	 * bit0: RAMDAC_0 valid
 	 * bit1: RAMDAC_1 valid
@@ -1368,10 +1366,12 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 	if (nv_output->valid_ramdac & RAMDAC_1) 
 		crtc_mask |= (1<<1);
 
-	/* Sorry, i don't know what to do with lvds */
 	if (lvds) {
+		nv_output->type = OUTPUT_PANEL;
 		ErrorF("Output refused because we don't accept LVDS at the moment.\n");
 		create_output = FALSE;
+	} else {
+		nv_output->type = OUTPUT_DIGITAL;
 	}
 
 	if (!create_output) {
