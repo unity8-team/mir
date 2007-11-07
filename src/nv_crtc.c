@@ -484,13 +484,15 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_580, state->reg580);
 
-	ErrorF("writting vpll %08X\n", state->vpll);
-	ErrorF("writting vpll2 %08X\n", state->vpll2);
+	ErrorF("writing vpll %08X\n", state->vpll);
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll);
 	if(pNv->twoHeads) {
+		ErrorF("writing vpll2 %08X\n", state->vpll2);
 		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2, state->vpll2);
 	}
 	if(pNv->twoStagePLL) {
+		ErrorF("writing vpllB %08X\n", state->vpllB);
+		ErrorF("writing vpll2B %08X\n", state->vpll2B);
 		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpllB);
 		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2B);
 	}  

@@ -151,49 +151,49 @@ CARD32 NVOutputReadRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg)
 
 static void nv_output_backlight_enable(xf86OutputPtr output,  Bool on)
 {
-    ScrnInfoPtr	pScrn = output->scrn;
-    NVPtr pNv = NVPTR(pScrn);   
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 
-    /* This is done differently on each laptop.  Here we
-       define the ones we know for sure. */
-    
+	ErrorF("nv_output_backlight_enable is called for output %s to turn %s\n", output->name, on ? "on" : "off");
+
+	/* This is done differently on each laptop.  Here we
+	 * define the ones we know for sure. */
+
 #if defined(__powerpc__)
-    if((pNv->Chipset == 0x10DE0179) || 
-       (pNv->Chipset == 0x10DE0189) || 
-       (pNv->Chipset == 0x10DE0329))
-    {
-	/* NV17,18,34 Apple iMac, iBook, PowerBook */
-	CARD32 tmp_pmc, tmp_pcrt;
-	tmp_pmc = nvReadMC(pNv, 0x10F0) & 0x7FFFFFFF;
-	tmp_pcrt = nvReadCRTC0(pNv, NV_CRTC_081C) & 0xFFFFFFFC;
-	if(on) {
-	    tmp_pmc |= (1 << 31);
-	    tmp_pcrt |= 0x1;
+	if ((pNv->Chipset == 0x10DE0179) ||
+	    (pNv->Chipset == 0x10DE0189) ||
+	    (pNv->Chipset == 0x10DE0329)) {
+		/* NV17,18,34 Apple iMac, iBook, PowerBook */
+		CARD32 tmp_pmc, tmp_pcrt;
+		tmp_pmc = nvReadMC(pNv, 0x10F0) & 0x7FFFFFFF;
+		tmp_pcrt = nvReadCRTC0(pNv, NV_CRTC_081C) & 0xFFFFFFFC;
+		if (on) {
+			tmp_pmc |= (1 << 31);
+			tmp_pcrt |= 0x1;
+		}
+		nvWriteMC(pNv, 0x10F0, tmp_pmc);
+		nvWriteCRTC0(pNv, NV_CRTC_081C, tmp_pcrt);
 	}
-	nvWriteMC(pNv, 0x10F0, tmp_pmc);
-	nvWriteCRTC0(pNv, NV_CRTC_081C, tmp_pcrt);
-    }
 #endif
-    
-    if(pNv->twoHeads && ((pNv->Chipset & 0x0ff0) != CHIPSET_NV11))
-	nvWriteMC(pNv, 0x130C, on ? 3 : 7);
+
+	if(pNv->twoHeads && ((pNv->Chipset & 0x0ff0) != CHIPSET_NV11))
+		nvWriteMC(pNv, 0x130C, on ? 3 : 7);
 }
 
 static void
-nv_panel_output_dpms(xf86OutputPtr output, int mode)
+nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 {
-
-    switch(mode) {
-    case DPMSModeStandby:
-    case DPMSModeSuspend:
-    case DPMSModeOff:
-	nv_output_backlight_enable(output, 0);
-	break;
-    case DPMSModeOn:
-	nv_output_backlight_enable(output, 1);
-    default:
-	break;
-    }
+	switch (mode) {
+	case DPMSModeStandby:
+	case DPMSModeSuspend:
+	case DPMSModeOff:
+		nv_output_backlight_enable(output, 0);
+		break;
+	case DPMSModeOn:
+		nv_output_backlight_enable(output, 1);
+	default:
+		break;
+	}
 }
 
 static void
@@ -340,6 +340,13 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 
 	regp = &state->dac_reg[nv_output->ramdac];
 
+	if (nv_output->type == OUTPUT_PANEL) {
+		ErrorF("Writing %08X to RAMDAC_FP_DEBUG_0\n", regp->debug_0);
+		ErrorF("Writing %08X to RAMDAC_FP_DEBUG_1\n", regp->debug_1);
+		ErrorF("Writing %08X to RAMDAC_FP_DEBUG_2\n", regp->debug_2);
+		ErrorF("Writing %08X to RAMDAC_OUTPUT\n", regp->output);
+		ErrorF("Writing %08X to RAMDAC_FP_CONTROL\n", regp->fp_control);
+	}
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_0, regp->debug_0);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
@@ -1072,7 +1079,6 @@ nv_output_destroy (xf86OutputPtr output)
 	ErrorF("nv_output_destroy is called\n");
 	if (output->driver_private)
 		xfree (output->driver_private);
-
 }
 
 static void
@@ -1181,39 +1187,39 @@ static const xf86OutputFuncsRec nv_digital_output_funcs = {
 };
 
 static xf86OutputStatus
-nv_output_lvds_detect(xf86OutputPtr output)
+nv_lvds_output_detect(xf86OutputPtr output)
 {
-    return XF86OutputStatusUnknown;    
+	return XF86OutputStatusConnected;
 }
 
 static DisplayModePtr
-nv_output_lvds_get_modes(xf86OutputPtr output)
+nv_lvds_output_get_modes(xf86OutputPtr output)
 {
-    ScrnInfoPtr	pScrn = output->scrn;
-    NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr pScrn = output->scrn;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 
-    //    nv_output->fpWidth = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HDISP_END) + 1;
-    //    nv_output->fpHeight = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VDISP_END) + 1;
-    nv_output->fpSyncs = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL) & 0x30000033;
-    //    xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %i x %i\n",
-    //	       nv_output->fpWidth, nv_output->fpHeight);
+//	nv_output->fpWidth = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HDISP_END) + 1;
+//	nv_output->fpHeight = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VDISP_END) + 1;
+	nv_output->fpSyncs = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL) & 0x30000033;
 
-    return NULL;
+//	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %i x %i\n",
+//		nv_output->fpWidth, nv_output->fpHeight);
 
+	return NULL;
 }
 
 static const xf86OutputFuncsRec nv_lvds_output_funcs = {
-    .dpms = nv_panel_output_dpms,
-    .save = nv_output_save,
-    .restore = nv_output_restore,
-    .mode_valid = nv_output_mode_valid,
-    .mode_fixup = nv_output_mode_fixup,
-    .mode_set = nv_output_mode_set,
-    .detect = nv_output_lvds_detect,
-    .get_modes = nv_output_lvds_get_modes,
-    .destroy = nv_output_destroy,
-    .prepare = nv_output_prepare,
-    .commit = nv_output_commit,
+	.dpms = nv_lvds_output_dpms,
+	.save = nv_output_save,
+	.restore = nv_output_restore,
+	.mode_valid = nv_output_mode_valid,
+	.mode_fixup = nv_output_mode_fixup,
+	.mode_set = nv_output_mode_set,
+	.detect = nv_lvds_output_detect,
+	.get_modes = nv_lvds_output_get_modes,
+	.destroy = nv_output_destroy,
+	.prepare = nv_output_prepare,
+	.commit = nv_output_commit,
 };
 
 
