@@ -418,8 +418,6 @@ typedef struct _NVCrtcPrivateRec {
 	int crtc;
 	int head;
 	Bool paletteEnabled;
-	DisplayModeRec lastMode; /* If we need to free ramdac0 */
-	Bool deactivate;
 } NVCrtcPrivateRec, *NVCrtcPrivatePtr;
 
 typedef struct _NV50CrtcPrivRec {

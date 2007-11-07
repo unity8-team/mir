@@ -320,6 +320,39 @@ void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool Lock)
   else cr11 &= ~0x80;
   NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_VSYNCE, cr11);
 }
+
+xf86OutputPtr 
+NVGetOutputFromCRTC(xf86CrtcPtr crtc)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		NVOutputPrivatePtr nv_output = output->driver_private;
+
+		if (output->crtc == crtc) {
+			return output;
+		}
+	}
+}
+
+xf86CrtcPtr
+nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+		if (nv_crtc->crtc == index)
+			return crtc;
+	}
+
+	return NULL;
+}
+
 /*
  * Calculate the Video Clock parameters for the PLL.
  */
@@ -526,6 +559,9 @@ void nv_crtc_calc_state_ext(
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
+	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
 	/*
 	 * Extended RIVA registers.
 	 */
@@ -651,94 +687,6 @@ void nv_crtc_calc_state_ext(
 	regp->CRTC[NV_VGA_CRTCX_PIXEL] = (pixelDepth > 2) ? 3 : pixelDepth;
 }
 
-static xf86CrtcPtr
-nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index)
-{
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int i;
-
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-		xf86CrtcPtr crtc = xf86_config->crtc[i];
-		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-		if (nv_crtc->crtc == index)
-			return crtc;
-	}
-
-	return NULL;
-}
-
-static Bool 
-nv_crtc0_require_activate(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	xf86CrtcPtr crtc = nv_find_crtc_by_index(pScrn, 0);
-	int i;
-	/* VESA 640x480x72Hz mode to set on crtc0*/
-	static DisplayModeRec   mode = {
-		NULL, NULL, "640x480", MODE_OK, M_T_DEFAULT,
-		31500,
-		640, 664, 704, 832, 0,
-		480, 489, 491, 520, 0,
-		V_NHSYNC | V_NVSYNC,
-		0, 0,
-		0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		FALSE, FALSE, 0, NULL, 0, 0.0, 0.0
-	};
-
-	if (!crtc)
-		return FALSE;
-	if (pNv->crtc_active[0])
-		return FALSE;
-
-	xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
-	crtc->funcs->dpms (crtc, DPMSModeOff);
-	crtc->funcs->mode_set (crtc, &mode, &mode, 0, 0);
-
-	/* Some output related values must be set */
-	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, 1);
-	/* Negative hsync and negative vsync */
-	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_CONTROL, 0x11100000);
-	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK) | (1 << 18));
-	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0, 0x1101111);
-	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_1, 0);
-	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_2, 0);
-
-	/* Flush DFP registers */
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
-		nvWriteRAMDAC(pNv, 0, ramdac_reg, 0);
-	}
-
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
-		nvWriteRAMDAC(pNv, 0, ramdac_reg, 0);
-	}
-
-	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_HVALID_START, 0);
-	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_HVALID_END, 0);
-	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_VVALID_START, 0);
-	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_VVALID_END, 0);
-
-	crtc->funcs->dpms (crtc, DPMSModeOn);
-
-	return TRUE;
-}
-
-static void
-nv_crtc0_require_deactivate(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	xf86CrtcPtr crtc = nv_find_crtc_by_index(pScrn, 0);
-
-	if (!crtc)
-		return;
-	if (pNv->crtc_active[0])
-		return;
-
-	crtc->funcs->dpms (crtc, DPMSModeOff);
-}
-
 static void
 nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
@@ -798,6 +746,24 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	} else {
 		pNv->crtc_active[nv_crtc->head] = FALSE;
 	}
+
+#if 0
+	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	if (!nv_output->valid_ramdac & RAMDAC_1) {
+		/* Assumption we are ramdac 0, currently the same as the crtc */
+		xf86CrtcPtr crtc2 = nv_find_crtc_by_index(pScrn, 1);
+		xf86OutputPtr output2 = NVGetOutputFromCRTC(crtc2);
+		NVOutputPrivatePtr nv_output2 = output2->driver_private;
+		/* Let's force them to crtc 0 if we are inactive */
+		if (pNv->crtc_active[0]) {
+			if (nv_output2->valid_ramdac & RAMDAC_1)
+				output2->possible_crtcs |= (1<<1);
+		} else {
+			output2->possible_crtcs &= ~(1<<1);
+		}
+	}
+#endif
 }
 
 static Bool
@@ -1408,8 +1374,6 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 
-	nv_crtc->lastMode = *(adjusted_mode);
-
 	ErrorF("nv_crtc_mode_set is called for CRTC %d\n", nv_crtc->crtc);
 
     xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Mode on CRTC %d\n", nv_crtc->crtc);
@@ -1482,9 +1446,6 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 
 	crtc->funcs->dpms(crtc, DPMSModeOff);
 
-	if (nv_crtc->head == 1) 
-		nv_crtc->deactivate = nv_crtc0_require_activate(pScrn);
-
 	/* Sync the engine before adjust mode */
 	if (pNv->EXADriverPtr) {
 		exaMarkSync(pScrn->pScreen);
@@ -1502,11 +1463,6 @@ void nv_crtc_commit(xf86CrtcPtr crtc)
 	crtc->funcs->dpms (crtc, DPMSModeOn);
 	if (crtc->scrn->pScreen != NULL)
 		xf86_reload_cursors (crtc->scrn->pScreen);
-
-	if (nv_crtc->deactivate) {
-		nv_crtc0_require_deactivate(pScrn);
-		nv_crtc->deactivate = FALSE;
-	}
 }
 
 static Bool nv_crtc_lock(xf86CrtcPtr crtc)

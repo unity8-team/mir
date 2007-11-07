@@ -1043,6 +1043,7 @@ nv_output_get_modes(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
 	DisplayModePtr ddc_modes;
+	ScrnInfoPtr pScrn = output->scrn;
 
 	ErrorF("nv_output_get_modes is called\n");
 

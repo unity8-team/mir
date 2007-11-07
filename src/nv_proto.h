@@ -129,6 +129,8 @@ void NVWriteVgaCrtc(xf86CrtcPtr crtc, CARD8 index, CARD8 value);
 CARD8 NVReadVgaCrtc(xf86CrtcPtr crtc, CARD8 index);
 void NVWriteVGA(NVPtr pNv, int head, CARD8 index, CARD8 value);
 CARD8 NVReadVGA(NVPtr pNv, int head, CARD8 index);
+xf86OutputPtr NVGetOutputFromCRTC(xf86CrtcPtr crtc);
+xf86CrtcPtr nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index);
 #endif /* ENABLE_RANDR12 */
 
 /* nv_output.c */
