@@ -308,7 +308,9 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	}
 	regp->nv10_cursync = NVOutputReadRAMDAC(output, NV_RAMDAC_NV10_CURSYNC);
 
-	if (nv_output->type == OUTPUT_DIGITAL)
+	/* I want to be able reset TMDS registers for DVI-D/DVI-A pairs for example */
+	/* Also write on VT restore */
+	if (nv_output->type != OUTPUT_PANEL || override )
 		for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
 			regp->TMDS[tmds_regs[i]] = NVOutputReadTMDS(output, tmds_regs[i]);
 		}
@@ -369,7 +371,9 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_TEST_CONTROL, regp->test_control);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
 
-	if (nv_output->type == OUTPUT_DIGITAL)
+	/* I want to be able reset TMDS registers for DVI-D/DVI-A pairs for example */
+	/* Also write on VT restore */
+	if (nv_output->type != OUTPUT_PANEL || override )
 		for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
 			NVOutputWriteTMDS(output, tmds_regs[i], regp->TMDS[tmds_regs[i]]);
 		}
