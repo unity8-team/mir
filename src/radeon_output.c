@@ -161,6 +161,7 @@ extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr adjusted_mode);
 extern void atombios_output_dpms(xf86OutputPtr output, int mode);
 extern RADEONMonitorType atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output);
+extern int atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
 
 Bool
 RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch)
@@ -1237,7 +1238,10 @@ legacy_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    RADEONRestoreFPRegisters(pScrn, &info->ModeReg);
 	} else {
 	    ErrorF("restore FP2\n");
-	    RADEONRestoreDVOChip(pScrn, output);
+	    if (info->IsAtomBios)
+		atombios_external_tmds_setup(output, mode);
+	    else 
+		RADEONRestoreDVOChip(pScrn, output);
 	    RADEONRestoreFP2Registers(pScrn, &info->ModeReg);
 	}
 	break;

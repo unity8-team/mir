@@ -87,6 +87,38 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
 #endif
 }
 
+int
+atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    ENABLE_EXTERNAL_TMDS_ENCODER_PS_ALLOCATION disp_data;
+    AtomBIOSArg data;
+    unsigned char *space;
+    AtomBiosResult ret;
+
+    disp_data.sXTmdsEncoder.ucEnable = 1;
+
+    if (mode->Clock > 165000)
+	disp_data.sXTmdsEncoder.ucMisc = 1;
+    else
+	disp_data.sXTmdsEncoder.ucMisc = 0;
+
+    if (!info->dac6bits)
+	disp_data.sXTmdsEncoder.ucMisc |= (1 << 1);
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, EnableExternalTMDS_Encoder);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &disp_data;
+    
+    if (RHDAtomBIOSFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("External TMDS enable success\n");
+	return ATOM_SUCCESS;
+    }
+    
+    ErrorF("External TMDS enable failed\n", radeon_output->DACType);
+    return ATOM_NOT_IMPLEMENTED;
+}
 
 static int
 atombios_output_tmds1_setup(xf86OutputPtr output, DisplayModePtr mode)
