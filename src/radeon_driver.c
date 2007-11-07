@@ -438,18 +438,20 @@ RADEONPreInt10Save(ScrnInfoPtr pScrn, void **pPtr)
     CARD32 CardTmp;
     static struct RADEONInt10Save SaveStruct = { 0, 0, 0 };
 
-    /* Save the values and zap MEM_CNTL */
-    SaveStruct.MEM_CNTL = INREG(RADEON_MEM_CNTL);
-    SaveStruct.MEMSIZE = INREG(RADEON_CONFIG_MEMSIZE);
-    SaveStruct.MPP_TB_CONFIG = INREG(RADEON_MPP_TB_CONFIG);
+    if (!IS_AVIVO_VARIANT) {
+	/* Save the values and zap MEM_CNTL */
+	SaveStruct.MEM_CNTL = INREG(RADEON_MEM_CNTL);
+	SaveStruct.MEMSIZE = INREG(RADEON_CONFIG_MEMSIZE);
+	SaveStruct.MPP_TB_CONFIG = INREG(RADEON_MPP_TB_CONFIG);
 
-    /*
-     * Zap MEM_CNTL and set MPP_TB_CONFIG<31:24> to 4
-     */
-    OUTREG(RADEON_MEM_CNTL, 0);
-    CardTmp = SaveStruct.MPP_TB_CONFIG & 0x00ffffffu;
-    CardTmp |= 0x04 << 24;
-    OUTREG(RADEON_MPP_TB_CONFIG, CardTmp);
+	/*
+	 * Zap MEM_CNTL and set MPP_TB_CONFIG<31:24> to 4
+	 */
+	OUTREG(RADEON_MEM_CNTL, 0);
+	CardTmp = SaveStruct.MPP_TB_CONFIG & 0x00ffffffu;
+	CardTmp |= 0x04 << 24;
+	OUTREG(RADEON_MPP_TB_CONFIG, CardTmp);
+    }
 
     *pPtr = (void *)&SaveStruct;
 }
@@ -464,6 +466,9 @@ RADEONPostInt10Check(ScrnInfoPtr pScrn, void *ptr)
 
     /* If we don't have a valid (non-zero) saved MEM_CNTL, get out now */
     if (!pSave || !pSave->MEM_CNTL)
+	return;
+
+    if (IS_AVIVO_VARIANT)
 	return;
 
     /*
@@ -723,21 +728,62 @@ unsigned RADEONINMC(ScrnInfoPtr pScrn, int addr)
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32         data;
 
-    OUTREG8(R300_MC_IND_INDEX, addr & 0x3f);
-    data = INREG(R300_MC_IND_DATA);
+    if (IS_AVIVO_VARIANT) {
+	OUTREG(AVIVO_MC_INDEX, (addr & 0xff) | 0x7f0000);
+	(void)INREG(AVIVO_MC_INDEX);
+	data = INREG(AVIVO_MC_DATA);
+
+	OUTREG(AVIVO_MC_INDEX, 0);
+	(void)INREG(AVIVO_MC_INDEX);
+    } else {
+	OUTREG8(R300_MC_IND_INDEX, addr & 0x3f);
+	(void)INREG(R300_MC_IND_INDEX);
+	data = INREG(R300_MC_IND_DATA);
+	
+	OUTREG(R300_MC_IND_INDEX, 0);
+	(void)INREG(R300_MC_IND_INDEX);
+    }
 
     return data;
 }
 
-/* Write PLL information */
+/* Write MC information */
 void RADEONOUTMC(ScrnInfoPtr pScrn, int addr, CARD32 data)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    OUTREG8(R300_MC_IND_INDEX, (((addr) & 0x3f) |
-				R300_MC_IND_WR_EN));
-    OUTREG(R300_MC_IND_DATA, data);
+    if (IS_AVIVO_VARIANT) {
+	OUTREG(AVIVO_MC_INDEX, (addr & 0xff) | 0xff0000);
+	(void)INREG(AVIVO_MC_INDEX);
+	OUTREG(AVIVO_MC_DATA, data);
+	OUTREG(AVIVO_MC_INDEX, 0);
+	(void)INREG(AVIVO_MC_INDEX);
+    } else {
+	OUTREG8(R300_MC_IND_INDEX, (((addr) & 0x3f) |
+				    R300_MC_IND_WR_EN));
+	(void)INREG(R300_MC_IND_INDEX);
+	OUTREG(R300_MC_IND_DATA, data);
+	OUTREG(R300_MC_IND_INDEX, 0);
+	(void)INREG(R300_MC_IND_INDEX);
+    }
+}
+
+Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+
+    if (info->ChipFamily == CHIP_FAMILY_RV515) {
+	if (INMC(pScrn, RV515_MC_STATUS) & RV515_MC_STATUS_IDLE)
+	    return TRUE;
+	else
+	    return FALSE;
+    } else {
+	if (INMC(pScrn, R520_MC_STATUS) & R520_MC_STATUS_IDLE)
+	    return TRUE;
+	else
+	    return FALSE;
+    }
 }
 
 #if 0
@@ -1206,11 +1252,16 @@ static Bool RADEONPreInitWeight(ScrnInfoPtr pScrn)
 void RADEONInitMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				      RADEONInfoPtr info)
 {
-    save->mc_fb_location = info->mc_fb_location;
-    save->mc_agp_location = info->mc_agp_location;
-    save->display_base_addr = info->fbLocation;
-    save->display2_base_addr = info->fbLocation;
-    save->ov0_base_addr = info->fbLocation;
+    if (IS_AVIVO_VARIANT) {
+	save->mc_fb_location = info->mc_fb_location;
+	save->mc_agp_location = info->mc_agp_location;
+    } else {
+	save->mc_fb_location = info->mc_fb_location;
+	save->mc_agp_location = info->mc_agp_location;
+	save->display_base_addr = info->fbLocation;
+	save->display2_base_addr = info->fbLocation;
+	save->ov0_base_addr = info->fbLocation;
+    }
 }
 
 static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
@@ -1220,9 +1271,21 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
     CARD32 mem_size;
     CARD32 aper_size;
 
-    /* Default to existing values */
-    info->mc_fb_location = INREG(RADEON_MC_FB_LOCATION);
-    info->mc_agp_location = INREG(RADEON_MC_AGP_LOCATION);
+    if (IS_AVIVO_VARIANT) {
+        if (info->ChipFamily == CHIP_FAMILY_RV515) {
+            info->mc_fb_location = INMC(pScrn, MC01);
+            ErrorF("mc fb is %08X\n", info->mc_fb_location);
+            info->mc_agp_location = INMC(pScrn, MC02);
+        } else {
+            info->mc_fb_location = INMC(pScrn, AVIVO_MC_MEMORY_MAP);
+            ErrorF("mc fb is %08X\n", info->mc_fb_location);
+            info->mc_agp_location = INMC(pScrn, MC05);
+        }
+    } else {
+	/* Default to existing values */
+	info->mc_fb_location = INREG(RADEON_MC_FB_LOCATION);
+	info->mc_agp_location = INREG(RADEON_MC_AGP_LOCATION);
+    }
 
     /* We shouldn't use info->videoRam here which might have been clipped
      * but the real video RAM instead
@@ -1376,7 +1439,8 @@ static CARD32 RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
 	info->ChipFamily == CHIP_FAMILY_RV350 ||
 	info->ChipFamily == CHIP_FAMILY_RV380 ||
 	info->ChipFamily == CHIP_FAMILY_R420 ||
-	info->ChipFamily == CHIP_FAMILY_RV410) {
+	info->ChipFamily == CHIP_FAMILY_RV410 ||
+        IS_AVIVO_VARIANT) {
 	    OUTREGP (RADEON_HOST_PATH_CNTL, RADEON_HDP_APER_CNTL,
 		     ~RADEON_HDP_APER_CNTL);
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1449,7 +1513,8 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
     if (pScrn->videoRam > accessible)
 	pScrn->videoRam = accessible;
 
-    info->MemCntl            = INREG(RADEON_SDRAM_MODE_REG);
+    if (!IS_AVIVO_VARIANT)
+	info->MemCntl            = INREG(RADEON_SDRAM_MODE_REG);
     info->BusCntl            = INREG(RADEON_BUS_CNTL);
 
     RADEONGetVRamType(pScrn);
@@ -1771,6 +1836,10 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     case PCI_CHIP_R481_4B4C:
         info->ChipFamily = CHIP_FAMILY_R420; /*CHIP_FAMILY_R480*/
         break;
+
+    case PCI_CHIP_RV515_7142:
+	info->ChipFamily = CHIP_FAMILY_RV515;
+	break;
 
     default:
 	/* Original Radeon/7200 */
@@ -2304,7 +2373,7 @@ static void RADEONPreInitColorTiling(ScrnInfoPtr pScrn)
 
     info->allowColorTiling = xf86ReturnOptValBool(info->Options,
 				        OPTION_COLOR_TILING, TRUE);
-    if (IS_R300_VARIANT) {
+    if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
 	/* this may be 4096 on r4xx -- need to double check */
 	info->MaxSurfaceWidth = 3968; /* one would have thought 4096...*/
 	info->MaxLines = 4096;
@@ -2774,7 +2843,7 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	    crtc_max_X = 1600;
 	    crtc_max_Y = 1200;
 	} else {
-	    if (IS_R300_VARIANT) {
+	    if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
 		crtc_max_X = 2560;
 		crtc_max_Y = 1200;
 	    } else {
@@ -3787,9 +3856,11 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     RADEONDGAInit(pScreen);
 
     /* Init Xv */
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Initializing Xv\n");
-    RADEONInitVideo(pScreen);
+    if (!IS_AVIVO_VARIANT) {
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "Initializing Xv\n");
+	RADEONInitVideo(pScreen);
+    }
 
     /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
     /* Wrap CloseScreen */
@@ -3846,142 +3917,208 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	       "  MC_AGP_LOCATION  : 0x%08x\n",
 	       (unsigned)restore->mc_agp_location);
 
-    /* Write memory mapping registers only if their value change
-     * since we must ensure no access is done while they are
-     * reprogrammed
-     */
-    if (INREG(RADEON_MC_FB_LOCATION) != restore->mc_fb_location ||
-	INREG(RADEON_MC_AGP_LOCATION) != restore->mc_agp_location) {
-	CARD32 crtc_ext_cntl, crtc_gen_cntl, crtc2_gen_cntl=0, ov0_scale_cntl;
-	CARD32 old_mc_status, status_idle;
+    if (IS_AVIVO_VARIANT) {
+	CARD32 mc_fb_loc, mc_agp_loc;
+	if (info->ChipFamily == CHIP_FAMILY_RV515) {
+	    mc_fb_loc = INMC(pScrn, MC01);
+	    ErrorF("%s: save mc is %08x\n", __func__, mc_fb_loc);
+	    mc_agp_loc = INMC(pScrn, MC02);
+	} else {
+	    mc_fb_loc = INMC(pScrn, AVIVO_MC_MEMORY_MAP);
+	    mc_agp_loc = INMC(pScrn, MC05);
+	}
+#if 1
+	/* disable VGA CTRL */
+	OUTREG(AVIVO_D1VGA_CTRL, INREG(AVIVO_D1VGA_CTRL) & ~AVIVO_DVGA_MODE_ENABLE);
+	OUTREG(AVIVO_D2VGA_CTRL, INREG(AVIVO_D2VGA_CTRL) & ~AVIVO_DVGA_MODE_ENABLE);
+#endif
+	if (mc_fb_loc != info->mc_fb_location ||
+	    mc_agp_loc != info->mc_agp_location) {
+	    CARD32 tmp;
 
-	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		       "  Map Changed ! Applying ...\n");
+	    RADEONWaitForIdleMMIO(pScrn);
 
-	/* Make sure engine is idle. We assume the CCE is stopped
-	 * at this point
+	    /* Stop display & memory access */
+	    tmp = INREG(AVIVO_CRTC1_CNTL);
+	    OUTREG(AVIVO_CRTC1_CNTL, tmp & ~AVIVO_CRTC_EN);
+
+	    tmp = INREG(AVIVO_CRTC2_CNTL);
+	    tmp &= ~AVIVO_CRTC_EN;
+	    OUTREG(AVIVO_CRTC2_CNTL, tmp);
+
+	    tmp = INREG(AVIVO_CRTC2_CNTL);
+
+	    usleep(10000);
+	    timeout = 0;
+	    while (!(avivo_get_mc_idle(pScrn))) {
+		if (++timeout > 1000000) {
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			       "Timeout trying to update memory controller settings !\n");
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			       "You will probably crash now ... \n");
+		    /* Nothing we can do except maybe try to kill the server,
+		     * let's wait 2 seconds to leave the above message a chance
+		     * to maybe hit the disk and continue trying to setup despite
+		     * the MC being non-idle
+		     */
+		    usleep(2000000);
+		}
+		usleep(10);
+	    }
+
+	    if (info->ChipFamily == CHIP_FAMILY_RV515) {
+		OUTMC(pScrn, MC01, info->mc_fb_location);
+		OUTMC(pScrn, MC02, 0x003f0000);
+		(void)INMC(pScrn, MC02);
+	    } else {
+		OUTMC(pScrn, AVIVO_MC_MEMORY_MAP, info->mc_fb_location);
+		OUTMC(pScrn, MC05, 0x003f0000);
+		(void)INMC(pScrn, AVIVO_MC_MEMORY_MAP);
+	    }
+	    OUTREG(AVIVO_HDP_FB_LOCATION, info->mc_fb_location);
+	    
+	    /* Reset the engine and HDP */
+	    RADEONEngineReset(pScrn);
+	}
+    } else {
+
+	/* Write memory mapping registers only if their value change
+	 * since we must ensure no access is done while they are
+	 * reprogrammed
 	 */
-	RADEONWaitForIdleMMIO(pScrn);
+	if (INREG(RADEON_MC_FB_LOCATION) != restore->mc_fb_location ||
+	    INREG(RADEON_MC_AGP_LOCATION) != restore->mc_agp_location) {
+	    CARD32 crtc_ext_cntl, crtc_gen_cntl, crtc2_gen_cntl=0, ov0_scale_cntl;
+	    CARD32 old_mc_status, status_idle;
 
-	if (info->IsIGP)
+	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+			   "  Map Changed ! Applying ...\n");
+
+	    /* Make sure engine is idle. We assume the CCE is stopped
+	     * at this point
+	     */
+	    RADEONWaitForIdleMMIO(pScrn);
+
+	    if (info->IsIGP)
 		goto igp_no_mcfb;
 
-	/* Capture MC_STATUS in case things go wrong ... */
-	old_mc_status = INREG(RADEON_MC_STATUS);
+	    /* Capture MC_STATUS in case things go wrong ... */
+	    old_mc_status = INREG(RADEON_MC_STATUS);
 
-	/* Stop display & memory access */
-	ov0_scale_cntl = INREG(RADEON_OV0_SCALE_CNTL);
-	OUTREG(RADEON_OV0_SCALE_CNTL, ov0_scale_cntl & ~RADEON_SCALER_ENABLE);
-	crtc_ext_cntl = INREG(RADEON_CRTC_EXT_CNTL);
-	OUTREG(RADEON_CRTC_EXT_CNTL, crtc_ext_cntl | RADEON_CRTC_DISPLAY_DIS);
-	crtc_gen_cntl = INREG(RADEON_CRTC_GEN_CNTL);
-	RADEONWaitForVerticalSync(pScrn);
-	OUTREG(RADEON_CRTC_GEN_CNTL,
-	       (crtc_gen_cntl
-		& ~(RADEON_CRTC_CUR_EN | RADEON_CRTC_ICON_EN))
-	       | RADEON_CRTC_DISP_REQ_EN_B | RADEON_CRTC_EXT_DISP_EN);
+	    /* Stop display & memory access */
+	    ov0_scale_cntl = INREG(RADEON_OV0_SCALE_CNTL);
+	    OUTREG(RADEON_OV0_SCALE_CNTL, ov0_scale_cntl & ~RADEON_SCALER_ENABLE);
+	    crtc_ext_cntl = INREG(RADEON_CRTC_EXT_CNTL);
+	    OUTREG(RADEON_CRTC_EXT_CNTL, crtc_ext_cntl | RADEON_CRTC_DISPLAY_DIS);
+	    crtc_gen_cntl = INREG(RADEON_CRTC_GEN_CNTL);
+	    RADEONWaitForVerticalSync(pScrn);
+	    OUTREG(RADEON_CRTC_GEN_CNTL,
+		   (crtc_gen_cntl
+		    & ~(RADEON_CRTC_CUR_EN | RADEON_CRTC_ICON_EN))
+		   | RADEON_CRTC_DISP_REQ_EN_B | RADEON_CRTC_EXT_DISP_EN);
 
- 	if (pRADEONEnt->HasCRTC2) {
-	    crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL);
-	    RADEONWaitForVerticalSync2(pScrn);
-	    OUTREG(RADEON_CRTC2_GEN_CNTL,
-		   (crtc2_gen_cntl
-		    & ~(RADEON_CRTC2_CUR_EN | RADEON_CRTC2_ICON_EN))
-		   | RADEON_CRTC2_DISP_REQ_EN_B);
-	}
-
- 	/* Make sure the chip settles down (paranoid !) */ 
- 	usleep(100000);
-
-	/* Wait for MC idle */
-	if (IS_R300_VARIANT)
-	    status_idle = R300_MC_IDLE;
-	else
-	    status_idle = RADEON_MC_IDLE;
-
-	timeout = 0;
-	while (!(INREG(RADEON_MC_STATUS) & status_idle)) {
-	    if (++timeout > 1000000) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Timeout trying to update memory controller settings !\n");
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "MC_STATUS = 0x%08x (on entry = 0x%08x)\n",
-			   INREG(RADEON_MC_STATUS), (unsigned int)old_mc_status);
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "You will probably crash now ... \n");
-		/* Nothing we can do except maybe try to kill the server,
-		 * let's wait 2 seconds to leave the above message a chance
-		 * to maybe hit the disk and continue trying to setup despite
-		 * the MC being non-idle
-		 */
-		usleep(2000000);
+	    if (pRADEONEnt->HasCRTC2) {
+		crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL);
+		RADEONWaitForVerticalSync2(pScrn);
+		OUTREG(RADEON_CRTC2_GEN_CNTL,
+		       (crtc2_gen_cntl
+			& ~(RADEON_CRTC2_CUR_EN | RADEON_CRTC2_ICON_EN))
+		       | RADEON_CRTC2_DISP_REQ_EN_B);
 	    }
-	    usleep(10);
-	}
 
-	/* Update maps, first clearing out AGP to make sure we don't get
-	 * a temporary overlap
-	 */
- 	OUTREG(RADEON_MC_AGP_LOCATION, 0xfffffffc);
-	OUTREG(RADEON_MC_FB_LOCATION, restore->mc_fb_location);
-    igp_no_mcfb:
- 	OUTREG(RADEON_MC_AGP_LOCATION, restore->mc_agp_location);
-	/* Make sure map fully reached the chip */
-	(void)INREG(RADEON_MC_FB_LOCATION);
+	    /* Make sure the chip settles down (paranoid !) */ 
+	    usleep(100000);
 
-	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		       "  Map applied, resetting engine ...\n");
+	    /* Wait for MC idle */
+	    if (IS_R300_VARIANT)
+		status_idle = R300_MC_IDLE;
+	    else
+		status_idle = RADEON_MC_IDLE;
 
-	/* Reset the engine and HDP */
-	RADEONEngineReset(pScrn);
-
-	/* Make sure we have sane offsets before re-enabling the CRTCs, disable
-	 * stereo, clear offsets, and wait for offsets to catch up with hw
-	 */
-
-	OUTREG(RADEON_CRTC_OFFSET_CNTL, RADEON_CRTC_OFFSET_FLIP_CNTL);
-	OUTREG(RADEON_CRTC_OFFSET, 0);
-	OUTREG(RADEON_CUR_OFFSET, 0);
-	timeout = 0;
-	while(INREG(RADEON_CRTC_OFFSET) & RADEON_CRTC_OFFSET__GUI_TRIG_OFFSET) {
-	    if (timeout++ > 1000000) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Timeout waiting for CRTC offset to update !\n");
-		break;
-	    }
-	    usleep(1000);
-	}
-	if (pRADEONEnt->HasCRTC2) {
-	    OUTREG(RADEON_CRTC2_OFFSET_CNTL, RADEON_CRTC2_OFFSET_FLIP_CNTL);
-	    OUTREG(RADEON_CRTC2_OFFSET, 0);
-	    OUTREG(RADEON_CUR2_OFFSET, 0);
 	    timeout = 0;
-	    while(INREG(RADEON_CRTC2_OFFSET) & RADEON_CRTC2_OFFSET__GUI_TRIG_OFFSET) {
+	    while (!(INREG(RADEON_MC_STATUS) & status_idle)) {
+		if (++timeout > 1000000) {
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			       "Timeout trying to update memory controller settings !\n");
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			       "MC_STATUS = 0x%08x (on entry = 0x%08x)\n",
+			       INREG(RADEON_MC_STATUS), (unsigned int)old_mc_status);
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			       "You will probably crash now ... \n");
+		    /* Nothing we can do except maybe try to kill the server,
+		     * let's wait 2 seconds to leave the above message a chance
+		     * to maybe hit the disk and continue trying to setup despite
+		     * the MC being non-idle
+		     */
+		    usleep(2000000);
+		}
+		usleep(10);
+	    }
+
+	    /* Update maps, first clearing out AGP to make sure we don't get
+	     * a temporary overlap
+	     */
+	    OUTREG(RADEON_MC_AGP_LOCATION, 0xfffffffc);
+	    OUTREG(RADEON_MC_FB_LOCATION, restore->mc_fb_location);
+	igp_no_mcfb:
+	    OUTREG(RADEON_MC_AGP_LOCATION, restore->mc_agp_location);
+	    /* Make sure map fully reached the chip */
+	    (void)INREG(RADEON_MC_FB_LOCATION);
+
+	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+			   "  Map applied, resetting engine ...\n");
+
+	    /* Reset the engine and HDP */
+	    RADEONEngineReset(pScrn);
+
+	    /* Make sure we have sane offsets before re-enabling the CRTCs, disable
+	     * stereo, clear offsets, and wait for offsets to catch up with hw
+	     */
+
+	    OUTREG(RADEON_CRTC_OFFSET_CNTL, RADEON_CRTC_OFFSET_FLIP_CNTL);
+	    OUTREG(RADEON_CRTC_OFFSET, 0);
+	    OUTREG(RADEON_CUR_OFFSET, 0);
+	    timeout = 0;
+	    while(INREG(RADEON_CRTC_OFFSET) & RADEON_CRTC_OFFSET__GUI_TRIG_OFFSET) {
 		if (timeout++ > 1000000) {
 		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			       "Timeout waiting for CRTC2 offset to update !\n");
+			       "Timeout waiting for CRTC offset to update !\n");
 		    break;
 		}
 		usleep(1000);
 	    }
+	    if (pRADEONEnt->HasCRTC2) {
+		OUTREG(RADEON_CRTC2_OFFSET_CNTL, RADEON_CRTC2_OFFSET_FLIP_CNTL);
+		OUTREG(RADEON_CRTC2_OFFSET, 0);
+		OUTREG(RADEON_CUR2_OFFSET, 0);
+		timeout = 0;
+		while(INREG(RADEON_CRTC2_OFFSET) & RADEON_CRTC2_OFFSET__GUI_TRIG_OFFSET) {
+		    if (timeout++ > 1000000) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Timeout waiting for CRTC2 offset to update !\n");
+			break;
+		    }
+		    usleep(1000);
+		}
+	    }
 	}
+
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "Updating display base addresses...\n");
+
+	OUTREG(RADEON_DISPLAY_BASE_ADDR, restore->display_base_addr);
+	if (pRADEONEnt->HasCRTC2)
+	    OUTREG(RADEON_DISPLAY2_BASE_ADDR, restore->display2_base_addr);
+	OUTREG(RADEON_OV0_BASE_ADDR, restore->ov0_base_addr);
+	(void)INREG(RADEON_OV0_BASE_ADDR);
+
+	/* More paranoia delays, wait 100ms */
+	usleep(100000);
+
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "Memory map updated.\n");
     }
-
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Updating display base addresses...\n");
-
-    OUTREG(RADEON_DISPLAY_BASE_ADDR, restore->display_base_addr);
-    if (pRADEONEnt->HasCRTC2)
-        OUTREG(RADEON_DISPLAY2_BASE_ADDR, restore->display2_base_addr);
-    OUTREG(RADEON_OV0_BASE_ADDR, restore->ov0_base_addr);
-    (void)INREG(RADEON_OV0_BASE_ADDR);
-
-    /* More paranoia delays, wait 100ms */
-    usleep(100000);
-
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Memory map updated.\n");
- }
+}
 
 #ifdef XF86DRI
 static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
@@ -3989,11 +4126,45 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 fb, agp;
+    int fb_loc_changed;
 
-    fb = INREG(RADEON_MC_FB_LOCATION);
-    agp = INREG(RADEON_MC_AGP_LOCATION);
+    if (IS_AVIVO_VARIANT) {
+	if (info->ChipFamily == CHIP_FAMILY_RV515) {
+	    fb = INMC(pScrn, MC01);
+	    agp = INMC(pScrn, MC02);
+	} else {
+	    fb = INMC(pScrn, AVIVO_MC_MEMORY_MAP);
+	    agp = INMC(pScrn, MC05);
+	}
+	fb_loc_changed = (fb != info->mc_fb_location);
 
-    if (fb != info->mc_fb_location || agp != info->mc_agp_location) {
+	if (fb_loc_changed || agp != info->mc_agp_location) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "DRI init changed memory map, adjusting ...\n");
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "  MC_FB_LOCATION  was: 0x%08lx is: 0x%08lx\n",
+		       info->mc_fb_location, fb);
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "  MC_AGP_LOCATION was: 0x%08lx is: 0x%08lx\n",
+		       info->mc_agp_location, agp);
+	    info->mc_fb_location = fb;
+	    info->mc_agp_location = agp;
+	    info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
+	    info->dst_pitch_offset =
+		(((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64)
+		  << 22) | ((info->fbLocation + pScrn->fbOffset) >> 10));
+	    RADEONInitMemMapRegisters(pScrn, save, info);
+
+	    /* If MC_FB_LOCATION was changed, adjust the various offsets */
+	    if (fb_loc_changed)
+		RADEONRestoreMemMapRegisters(pScrn, save);
+	}
+    } else {
+
+	fb = INREG(RADEON_MC_FB_LOCATION);
+	agp = INREG(RADEON_MC_AGP_LOCATION);
+
+	if (fb != info->mc_fb_location || agp != info->mc_agp_location) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "DRI init changed memory map, adjusting ...\n");
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -4014,6 +4185,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
 	    /* Adjust the various offsets */
 	    RADEONRestoreMemMapRegisters(pScrn, save);
+	}
     }
 
 #ifdef USE_EXA
@@ -4907,7 +5079,7 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 #endif
     if (info->ChipFamily < CHIP_FAMILY_R200) {
 	color_pattern = RADEON_SURF_TILE_COLOR_MACRO;
-    } else if (IS_R300_VARIANT) {
+    } else if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
        color_pattern = R300_SURF_TILE_COLOR_MACRO;
     } else {
 	color_pattern = R200_SURF_TILE_COLOR_MACRO;
@@ -4946,7 +5118,7 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	drmsurfalloc.flags = swap_pattern;
 
 	if (info->tilingEnabled) {
-	    if (IS_R300_VARIANT)
+	    if (IS_R300_VARIANT || IS_AVIVO_VARIANT)
 		drmsurfalloc.flags |= (width_bytes / 8) | color_pattern;
 	    else
 		drmsurfalloc.flags |= (width_bytes / 16) | color_pattern;
@@ -4971,7 +5143,7 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 		depth_pattern = RADEON_SURF_TILE_DEPTH_16BPP;
 	    else
 		depth_pattern = RADEON_SURF_TILE_DEPTH_32BPP;
-	} else if (IS_R300_VARIANT) {
+	} else if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
 	    if (depthCpp == 2)
 		depth_pattern = R300_SURF_TILE_COLOR_MACRO;
 	    else
@@ -4990,7 +5162,7 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	    drmRadeonSurfaceAlloc drmsurfalloc;
 	    drmsurfalloc.size = depthBufferSize;
 	    drmsurfalloc.address = info->depthOffset;
-            if (IS_R300_VARIANT)
+            if (IS_R300_VARIANT || IS_AVIVO_VARIANT)
                 drmsurfalloc.flags = swap_pattern | (depth_width_bytes / 8) | depth_pattern;
             else
                 drmsurfalloc.flags = swap_pattern | (depth_width_bytes / 16) | depth_pattern;
@@ -5008,7 +5180,7 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	unsigned char *RADEONMMIO = info->MMIO;
 	/* we don't need anything like WaitForFifo, no? */
 	if (info->tilingEnabled) {
-	    if (IS_R300_VARIANT)
+	    if (IS_R300_VARIANT || IS_AVIVO_VARIANT)
 		surf_info |= (width_bytes / 8) | color_pattern;
 	    else
 		surf_info |= (width_bytes / 16) | color_pattern;
@@ -5344,6 +5516,221 @@ static void RADEONSavePalette(ScrnInfoPtr pScrn, RADEONSavePtr save)
 }
 #endif
 
+void avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    struct avivo_state *state = &save->avivo;
+
+    state->mc_memory_map = INMC(pScrn, AVIVO_MC_MEMORY_MAP);
+    state->vga_memory_base = INREG(AVIVO_VGA_MEMORY_BASE);
+    state->vga_fb_start = INREG(AVIVO_VGA_FB_START);
+    state->vga1_cntl = INREG(AVIVO_VGA1_CONTROL);
+    state->vga2_cntl = INREG(AVIVO_VGA2_CONTROL);
+
+    state->pll1_post_div_cntl = INREG(AVIVO_PLL1_POST_DIV_CNTL);
+    state->pll1_post_div = INREG(AVIVO_PLL1_POST_DIV);
+    state->pll1_post_div_mystery = INREG(AVIVO_PLL1_POST_DIV_MYSTERY);
+    state->pll1_post_mul = INREG(AVIVO_PLL1_POST_MUL);
+    state->pll1_divider_cntl = INREG(AVIVO_PLL1_DIVIDER_CNTL);
+    state->pll1_divider = INREG(AVIVO_PLL1_DIVIDER);
+    state->pll1_mystery0 = INREG(AVIVO_PLL1_MYSTERY0);
+    state->pll1_mystery1 = INREG(AVIVO_PLL1_MYSTERY1);
+    state->pll2_post_div_cntl = INREG(AVIVO_PLL2_POST_DIV_CNTL);
+    state->pll2_post_div = INREG(AVIVO_PLL2_POST_DIV);
+    state->pll2_post_div_mystery = INREG(AVIVO_PLL2_POST_DIV_MYSTERY);
+    state->pll2_post_mul = INREG(AVIVO_PLL2_POST_MUL);
+    state->pll2_divider_cntl = INREG(AVIVO_PLL2_DIVIDER_CNTL);
+    state->pll2_divider = INREG(AVIVO_PLL2_DIVIDER);
+    state->pll2_mystery0 = INREG(AVIVO_PLL2_MYSTERY0);
+    state->pll2_mystery1 = INREG(AVIVO_PLL2_MYSTERY1);
+    state->crtc_pll_source = INREG(AVIVO_CRTC_PLL_SOURCE);
+
+    state->crtc1_h_total = INREG(AVIVO_CRTC1_H_TOTAL);
+    state->crtc1_h_blank = INREG(AVIVO_CRTC1_H_BLANK);
+    state->crtc1_h_sync_wid = INREG(AVIVO_CRTC1_H_SYNC_WID);
+    state->crtc1_h_sync_pol = INREG(AVIVO_CRTC1_H_SYNC_POL);
+    state->crtc1_v_total = INREG(AVIVO_CRTC1_V_TOTAL);
+    state->crtc1_v_blank = INREG(AVIVO_CRTC1_V_BLANK);
+    state->crtc1_v_sync_wid = INREG(AVIVO_CRTC1_V_SYNC_WID);
+    state->crtc1_v_sync_pol = INREG(AVIVO_CRTC1_V_SYNC_POL);
+    state->crtc1_cntl = INREG(AVIVO_CRTC1_CNTL);
+    state->crtc1_blank_status = INREG(AVIVO_CRTC1_BLANK_STATUS);
+    state->crtc1_stereo_status = INREG(AVIVO_CRTC1_STEREO_STATUS);
+    state->crtc1_scan_enable = INREG(AVIVO_CRTC1_SCAN_ENABLE);
+    state->crtc1_fb_format = INREG(AVIVO_CRTC1_FB_FORMAT);
+    state->crtc1_fb_location = INREG(AVIVO_CRTC1_FB_LOCATION);
+    state->crtc1_fb_end = INREG(AVIVO_CRTC1_FB_END);
+    state->crtc1_pitch = INREG(AVIVO_CRTC1_PITCH);
+    state->crtc1_x_length = INREG(AVIVO_CRTC1_X_LENGTH);
+    state->crtc1_y_length = INREG(AVIVO_CRTC1_Y_LENGTH);
+    state->crtc1_fb_height = INREG(AVIVO_CRTC1_FB_HEIGHT);
+    state->crtc1_offset_start = INREG(AVIVO_CRTC1_OFFSET_START);
+    state->crtc1_offset_end = INREG(AVIVO_CRTC1_OFFSET_END);
+    state->crtc1_expn_size = INREG(AVIVO_CRTC1_EXPANSION_SOURCE);
+    state->crtc1_expn_cntl = INREG(AVIVO_CRTC1_EXPANSION_CNTL);
+    state->crtc1_6594 = INREG(AVIVO_CRTC1_6594);
+    state->crtc1_659c = INREG(AVIVO_CRTC1_659C);
+    state->crtc1_65a4 = INREG(AVIVO_CRTC1_65A4);
+    state->crtc1_65a8 = INREG(AVIVO_CRTC1_65A8);
+    state->crtc1_65ac = INREG(AVIVO_CRTC1_65AC);
+    state->crtc1_65b0 = INREG(AVIVO_CRTC1_65B0);
+    state->crtc1_65b8 = INREG(AVIVO_CRTC1_65B8);
+    state->crtc1_65bc = INREG(AVIVO_CRTC1_65BC);
+    state->crtc1_65c0 = INREG(AVIVO_CRTC1_65C0);
+    state->crtc1_65c8 = INREG(AVIVO_CRTC1_65C8);
+
+    state->crtc2_h_total = INREG(AVIVO_CRTC2_H_TOTAL);
+    state->crtc2_h_blank = INREG(AVIVO_CRTC2_H_BLANK);
+    state->crtc2_h_sync_wid = INREG(AVIVO_CRTC2_H_SYNC_WID);
+    state->crtc2_h_sync_pol = INREG(AVIVO_CRTC2_H_SYNC_POL);
+    state->crtc2_v_total = INREG(AVIVO_CRTC2_V_TOTAL);
+    state->crtc2_v_blank = INREG(AVIVO_CRTC2_V_BLANK);
+    state->crtc2_v_sync_wid = INREG(AVIVO_CRTC2_V_SYNC_WID);
+    state->crtc2_v_sync_pol = INREG(AVIVO_CRTC2_V_SYNC_POL);
+    state->crtc2_cntl = INREG(AVIVO_CRTC2_CNTL);
+    state->crtc2_blank_status = INREG(AVIVO_CRTC2_BLANK_STATUS);
+    state->crtc2_scan_enable = INREG(AVIVO_CRTC2_SCAN_ENABLE);
+    state->crtc2_fb_format = INREG(AVIVO_CRTC2_FB_FORMAT);
+    state->crtc2_fb_location = INREG(AVIVO_CRTC2_FB_LOCATION);
+    state->crtc2_fb_end = INREG(AVIVO_CRTC2_FB_END);
+    state->crtc2_pitch = INREG(AVIVO_CRTC2_PITCH);
+    state->crtc2_x_length = INREG(AVIVO_CRTC2_X_LENGTH);
+    state->crtc2_y_length = INREG(AVIVO_CRTC2_Y_LENGTH);
+
+    state->dac1_cntl = INREG(AVIVO_DACA_CNTL);
+    state->dac1_force_output_cntl = INREG(AVIVO_DACA_FORCE_OUTPUT_CNTL);
+    state->dac1_powerdown = INREG(AVIVO_DACA_POWERDOWN);
+
+    state->tmds1_cntl = INREG(AVIVO_TMDSA_CNTL);
+    state->tmds1_bit_depth_cntl = INREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL);
+    state->tmds1_data_sync = INREG(AVIVO_TMDSA_DATA_SYNCHRONIZATION);
+    state->tmds1_transmitter_enable = INREG(AVIVO_TMDSA_TRANSMITTER_ENABLE);
+    state->tmds1_transmitter_cntl = INREG(AVIVO_TMDSA_TRANSMITTER_CONTROL);
+
+    state->dac2_cntl = INREG(AVIVO_DACB_CNTL);
+    state->dac2_force_output_cntl = INREG(AVIVO_DACB_FORCE_OUTPUT_CNTL);
+    state->dac2_powerdown = INREG(AVIVO_DACB_POWERDOWN);
+
+    state->tmds2_cntl = INREG(AVIVO_LVTMA_CNTL);
+    state->tmds2_bit_depth_cntl = INREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL);
+    state->tmds2_data_sync = INREG(AVIVO_LVTMA_DATA_SYNCHRONIZATION);
+    state->tmds2_transmitter_enable = INREG(AVIVO_LVTMA_TRANSMITTER_ENABLE);
+    state->tmds2_transmitter_cntl = INREG(AVIVO_LVTMA_TRANSMITTER_CONTROL);
+
+}
+
+void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    struct avivo_state *state = &restore->avivo;
+
+    OUTMC(pScrn, AVIVO_MC_MEMORY_MAP, state->mc_memory_map);
+    OUTREG(AVIVO_VGA_MEMORY_BASE, state->vga_memory_base);
+    OUTREG(AVIVO_VGA_FB_START, state->vga_fb_start);
+    OUTREG(AVIVO_VGA1_CONTROL, state->vga1_cntl);
+    OUTREG(AVIVO_VGA2_CONTROL, state->vga2_cntl);
+
+    OUTREG(AVIVO_PLL1_POST_DIV_CNTL, state->pll1_post_div_cntl);
+    OUTREG(AVIVO_PLL1_POST_DIV, state->pll1_post_div);
+    OUTREG(AVIVO_PLL1_POST_DIV_MYSTERY, state->pll1_post_div_mystery);
+    OUTREG(AVIVO_PLL1_POST_MUL, state->pll1_post_mul);
+    OUTREG(AVIVO_PLL1_DIVIDER_CNTL, state->pll1_divider_cntl);
+    OUTREG(AVIVO_PLL1_DIVIDER, state->pll1_divider);
+    OUTREG(AVIVO_PLL1_MYSTERY0, state->pll1_mystery0);
+    OUTREG(AVIVO_PLL1_MYSTERY1, state->pll1_mystery1);
+    OUTREG(AVIVO_PLL2_POST_DIV_CNTL, state->pll2_post_div_cntl);
+    OUTREG(AVIVO_PLL2_POST_DIV, state->pll2_post_div);
+    OUTREG(AVIVO_PLL2_POST_DIV_MYSTERY, state->pll2_post_div_mystery);
+    OUTREG(AVIVO_PLL2_POST_MUL, state->pll2_post_mul);
+    OUTREG(AVIVO_PLL2_DIVIDER_CNTL, state->pll2_divider_cntl);
+    OUTREG(AVIVO_PLL2_DIVIDER, state->pll2_divider);
+    OUTREG(AVIVO_PLL2_MYSTERY0, state->pll2_mystery0);
+    OUTREG(AVIVO_PLL2_MYSTERY1, state->pll2_mystery1);
+    OUTREG(AVIVO_CRTC_PLL_SOURCE, state->crtc_pll_source);
+
+    OUTREG(AVIVO_CRTC1_H_TOTAL, state->crtc1_h_total);
+    OUTREG(AVIVO_CRTC1_H_BLANK, state->crtc1_h_blank);
+    OUTREG(AVIVO_CRTC1_H_SYNC_WID, state->crtc1_h_sync_wid);
+    OUTREG(AVIVO_CRTC1_H_SYNC_POL, state->crtc1_h_sync_pol);
+    OUTREG(AVIVO_CRTC1_V_TOTAL, state->crtc1_v_total);
+    OUTREG(AVIVO_CRTC1_V_BLANK, state->crtc1_v_blank);
+    /*
+     * Weird we shouldn't restore sync width when going back to text
+     * mode, it must not be a 0 value, i guess a deeper look in cold
+     * text mode register value would help to understand what is
+     * truely needed to do.
+     */
+#if 0
+    OUTREG(AVIVO_CRTC1_V_SYNC_WID, state->crtc1_v_sync_wid);
+#endif
+    OUTREG(AVIVO_CRTC1_V_SYNC_POL, state->crtc1_v_sync_pol);
+    OUTREG(AVIVO_CRTC1_CNTL, state->crtc1_cntl);
+    OUTREG(AVIVO_CRTC1_SCAN_ENABLE, state->crtc1_scan_enable);
+    OUTREG(AVIVO_CRTC1_FB_FORMAT, state->crtc1_fb_format);
+    OUTREG(AVIVO_CRTC1_FB_LOCATION, state->crtc1_fb_location);
+    OUTREG(AVIVO_CRTC1_FB_END, state->crtc1_fb_end);
+    OUTREG(AVIVO_CRTC1_PITCH, state->crtc1_pitch);
+    OUTREG(AVIVO_CRTC1_X_LENGTH, state->crtc1_x_length);
+    OUTREG(AVIVO_CRTC1_Y_LENGTH, state->crtc1_y_length);
+    OUTREG(AVIVO_CRTC1_FB_HEIGHT, state->crtc1_fb_height);
+    OUTREG(AVIVO_CRTC1_OFFSET_START, state->crtc1_offset_start);
+    OUTREG(AVIVO_CRTC1_OFFSET_END, state->crtc1_offset_end);
+    OUTREG(AVIVO_CRTC1_EXPANSION_SOURCE, state->crtc1_expn_size);
+    OUTREG(AVIVO_CRTC1_EXPANSION_CNTL, state->crtc1_expn_cntl);
+    OUTREG(AVIVO_CRTC1_6594, state->crtc1_6594);
+    OUTREG(AVIVO_CRTC1_659C, state->crtc1_659c);
+    OUTREG(AVIVO_CRTC1_65A4, state->crtc1_65a4);
+    OUTREG(AVIVO_CRTC1_65A8, state->crtc1_65a8);
+    OUTREG(AVIVO_CRTC1_65AC, state->crtc1_65ac);
+    OUTREG(AVIVO_CRTC1_65B0, state->crtc1_65b0);
+    OUTREG(AVIVO_CRTC1_65B8, state->crtc1_65b8);
+    OUTREG(AVIVO_CRTC1_65BC, state->crtc1_65bc);
+    OUTREG(AVIVO_CRTC1_65C0, state->crtc1_65c0);
+    OUTREG(AVIVO_CRTC1_65C8, state->crtc1_65c8);
+    OUTREG(AVIVO_CRTC2_H_TOTAL, state->crtc2_h_total);
+    OUTREG(AVIVO_CRTC2_H_BLANK, state->crtc2_h_blank);
+#if 0
+    OUTREG(AVIVO_CRTC2_H_SYNC_WID, state->crtc2_h_sync_wid);
+#endif
+    OUTREG(AVIVO_CRTC2_H_SYNC_POL, state->crtc2_h_sync_pol);
+    OUTREG(AVIVO_CRTC2_V_TOTAL, state->crtc2_v_total);
+    OUTREG(AVIVO_CRTC2_V_BLANK, state->crtc2_v_blank);
+    OUTREG(AVIVO_CRTC2_V_SYNC_WID, state->crtc2_v_sync_wid);
+    OUTREG(AVIVO_CRTC2_V_SYNC_POL, state->crtc2_v_sync_pol);
+    OUTREG(AVIVO_CRTC2_CNTL, state->crtc2_cntl);
+    OUTREG(AVIVO_CRTC2_BLANK_STATUS, state->crtc2_blank_status);
+    OUTREG(AVIVO_CRTC2_SCAN_ENABLE, state->crtc2_scan_enable);
+    OUTREG(AVIVO_CRTC2_FB_FORMAT, state->crtc2_fb_format);
+    OUTREG(AVIVO_CRTC2_FB_LOCATION, state->crtc2_fb_location);
+    OUTREG(AVIVO_CRTC2_FB_END, state->crtc2_fb_end);
+    OUTREG(AVIVO_CRTC2_PITCH, state->crtc2_pitch);
+    OUTREG(AVIVO_CRTC2_X_LENGTH, state->crtc2_x_length);
+    OUTREG(AVIVO_CRTC2_Y_LENGTH, state->crtc2_y_length);
+
+    OUTREG(AVIVO_DACA_CNTL, state->dac1_cntl);
+    OUTREG(AVIVO_DACA_FORCE_OUTPUT_CNTL, state->dac1_force_output_cntl);
+    OUTREG(AVIVO_DACA_POWERDOWN, state->dac1_powerdown);
+
+    OUTREG(AVIVO_TMDSA_CNTL, state->tmds1_cntl);
+    OUTREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL, state->tmds1_bit_depth_cntl);
+    OUTREG(AVIVO_TMDSA_DATA_SYNCHRONIZATION, state->tmds1_data_sync);
+    OUTREG(AVIVO_TMDSA_TRANSMITTER_ENABLE, state->tmds1_transmitter_enable);
+    OUTREG(AVIVO_TMDSA_TRANSMITTER_CONTROL, state->tmds1_transmitter_cntl);
+
+    OUTREG(AVIVO_DACB_CNTL, state->dac2_cntl);
+    OUTREG(AVIVO_DACB_FORCE_OUTPUT_CNTL, state->dac2_force_output_cntl);
+    OUTREG(AVIVO_DACB_POWERDOWN, state->dac2_powerdown);
+
+    OUTREG(AVIVO_LVTMA_CNTL, state->tmds2_cntl);
+    OUTREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL, state->tmds2_bit_depth_cntl);
+    OUTREG(AVIVO_LVTMA_DATA_SYNCHRONIZATION, state->tmds2_data_sync);
+    OUTREG(AVIVO_LVTMA_TRANSMITTER_ENABLE, state->tmds2_transmitter_enable);
+    OUTREG(AVIVO_LVTMA_TRANSMITTER_CONTROL, state->tmds2_transmitter_cntl);
+
+}
+
 /* Save everything needed to restore the original VC state */
 static void RADEONSave(ScrnInfoPtr pScrn)
 {
@@ -5374,26 +5761,32 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 	vgaHWLock(hwp);
     }
 #endif
-    save->dp_datatype      = INREG(RADEON_DP_DATATYPE);
-    save->rbbm_soft_reset  = INREG(RADEON_RBBM_SOFT_RESET);
-    save->clock_cntl_index = INREG(RADEON_CLOCK_CNTL_INDEX);
-    RADEONPllErrataAfterIndex(info);
 
-    RADEONSaveMemMapRegisters(pScrn, save);
-    RADEONSaveCommonRegisters(pScrn, save);
-    RADEONSavePLLRegisters(pScrn, save);
-    RADEONSaveCrtcRegisters(pScrn, save);
-    RADEONSaveFPRegisters(pScrn, save);
-    RADEONSaveBIOSRegisters(pScrn, save);
-    RADEONSaveDACRegisters(pScrn, save);
-    if (pRADEONEnt->HasCRTC2) {
-	RADEONSaveCrtc2Registers(pScrn, save);
-	RADEONSavePLL2Registers(pScrn, save);
+    if (IS_AVIVO_VARIANT) {
+	avivo_save(pScrn, save);
+    } else {
+	save->dp_datatype      = INREG(RADEON_DP_DATATYPE);
+	save->rbbm_soft_reset  = INREG(RADEON_RBBM_SOFT_RESET);
+	save->clock_cntl_index = INREG(RADEON_CLOCK_CNTL_INDEX);
+	RADEONPllErrataAfterIndex(info);
+
+	RADEONSaveMemMapRegisters(pScrn, save);
+	RADEONSaveCommonRegisters(pScrn, save);
+	RADEONSavePLLRegisters(pScrn, save);
+	RADEONSaveCrtcRegisters(pScrn, save);
+	RADEONSaveFPRegisters(pScrn, save);
+	RADEONSaveBIOSRegisters(pScrn, save);
+	RADEONSaveDACRegisters(pScrn, save);
+	if (pRADEONEnt->HasCRTC2) {
+	    RADEONSaveCrtc2Registers(pScrn, save);
+	    RADEONSavePLL2Registers(pScrn, save);
+	}
+	if (info->InternalTVOut)
+	    RADEONSaveTVRegisters(pScrn, save);
     }
-    if (info->InternalTVOut)
-	RADEONSaveTVRegisters(pScrn, save);
 
-    RADEONSaveSurfaces(pScrn, save);
+	RADEONSaveSurfaces(pScrn, save);
+
 }
 
 /* Restore the original (text) mode */
@@ -5416,31 +5809,36 @@ void RADEONRestore(ScrnInfoPtr pScrn)
 
     RADEONBlank(pScrn);
 
-    OUTREG(RADEON_CLOCK_CNTL_INDEX, restore->clock_cntl_index);
-    RADEONPllErrataAfterIndex(info);
-    OUTREG(RADEON_RBBM_SOFT_RESET,  restore->rbbm_soft_reset);
-    OUTREG(RADEON_DP_DATATYPE,      restore->dp_datatype);
-    OUTREG(RADEON_GRPH_BUFFER_CNTL, restore->grph_buffer_cntl);
-    OUTREG(RADEON_GRPH2_BUFFER_CNTL, restore->grph2_buffer_cntl);
+    if (IS_AVIVO_VARIANT) {
+	avivo_restore(pScrn, restore);
+    } else {
+	OUTREG(RADEON_CLOCK_CNTL_INDEX, restore->clock_cntl_index);
+	RADEONPllErrataAfterIndex(info);
+	OUTREG(RADEON_RBBM_SOFT_RESET,  restore->rbbm_soft_reset);
+	OUTREG(RADEON_DP_DATATYPE,      restore->dp_datatype);
+	OUTREG(RADEON_GRPH_BUFFER_CNTL, restore->grph_buffer_cntl);
+	OUTREG(RADEON_GRPH2_BUFFER_CNTL, restore->grph2_buffer_cntl);
 
-    RADEONRestoreMemMapRegisters(pScrn, restore);
-    RADEONRestoreCommonRegisters(pScrn, restore);
+	RADEONRestoreMemMapRegisters(pScrn, restore);
+	RADEONRestoreCommonRegisters(pScrn, restore);
 
-    if (pRADEONEnt->HasCRTC2) {
-	RADEONRestoreCrtc2Registers(pScrn, restore);
-	RADEONRestorePLL2Registers(pScrn, restore);
+	if (pRADEONEnt->HasCRTC2) {
+	    RADEONRestoreCrtc2Registers(pScrn, restore);
+	    RADEONRestorePLL2Registers(pScrn, restore);
+	}
+
+	RADEONRestoreBIOSRegisters(pScrn, restore);
+	RADEONRestoreCrtcRegisters(pScrn, restore);
+	RADEONRestorePLLRegisters(pScrn, restore);
+	RADEONRestoreRMXRegisters(pScrn, restore);
+	RADEONRestoreFPRegisters(pScrn, restore);
+	RADEONRestoreFP2Registers(pScrn, restore);
+	RADEONRestoreLVDSRegisters(pScrn, restore);
+
+	if (info->InternalTVOut)
+	    RADEONRestoreTVRegisters(pScrn, restore);
+
     }
-
-    RADEONRestoreBIOSRegisters(pScrn, restore);
-    RADEONRestoreCrtcRegisters(pScrn, restore);
-    RADEONRestorePLLRegisters(pScrn, restore);
-    RADEONRestoreRMXRegisters(pScrn, restore);
-    RADEONRestoreFPRegisters(pScrn, restore);
-    RADEONRestoreFP2Registers(pScrn, restore);
-    RADEONRestoreLVDSRegisters(pScrn, restore);
-
-    if (info->InternalTVOut)
-	RADEONRestoreTVRegisters(pScrn, restore);
 
     RADEONRestoreSurfaces(pScrn, restore);
 
@@ -5662,7 +6060,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, Bool crtc2)
     crtcoffsetcntl &= ~RADEON_CRTC_OFFSET_FLIP_CNTL;
 #endif
     if (info->tilingEnabled) {
-        if (IS_R300_VARIANT) {
+        if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
 	/* On r300/r400 when tiling is enabled crtc_offset is set to the address of
 	 * the surface.  the x/y offsets are handled by the X_Y tile reg for each crtc
 	 * Makes tiling MUCH easier.
@@ -5719,7 +6117,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, Bool crtc2)
     }
 #endif
 
-    if (IS_R300_VARIANT) {
+    if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
 	OUTREG(xytilereg, crtcxytile);
     } else {
 	OUTREG(regcntl, crtcoffsetcntl);

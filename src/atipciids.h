@@ -286,6 +286,9 @@
 #define PCI_CHIP_RS350_7834             0x7834
 #define PCI_CHIP_RS350_7835             0x7835
 
+#define PCI_CHIP_RV515_7142             0x7142
+
+
 /* Misc */
 #define PCI_CHIP_AMD761			0x700E
 

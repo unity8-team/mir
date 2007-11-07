@@ -89,6 +89,25 @@
 
 #endif
 
+static void
+avivo_setup_cursor(xf86CrtcPtr crtc, Bool enable)
+{
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
+    unsigned char     *RADEONMMIO = info->MMIO;
+
+    OUTREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset, 0);
+
+    if (enable) {
+	OUTREG(AVIVO_CURSOR1_LOCATION + radeon_crtc->crtc_offset,
+	       info->fbLocation + info->cursor_offset);
+	OUTREG(AVIVO_CURSOR1_SIZE + radeon_crtc->crtc_offset,
+	       ((info->cursor_width -1) << 16) | (info->cursor_height-1));
+	OUTREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset,
+	       AVIVO_CURSOR_EN | (AVIVO_CURSOR_FORMAT_ARGB << AVIVO_CURSOR_FORMAT_SHIFT));
+    }
+}
+
 void
 radeon_crtc_show_cursor (xf86CrtcPtr crtc)
 {
@@ -104,12 +123,19 @@ radeon_crtc_show_cursor (xf86CrtcPtr crtc)
 
     RADEON_SYNC(info, pScrn);
 
-    if (crtc_id == 0) 
-	OUTREGP(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_CUR_EN | 2 << 20, 
-		~(RADEON_CRTC_CUR_EN | RADEON_CRTC_CUR_MODE_MASK));
-    else if (crtc_id == 1)
-	OUTREGP(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_CUR_EN | 2 << 20,
-		~(RADEON_CRTC2_CUR_EN | RADEON_CRTC2_CUR_MODE_MASK));
+    if (IS_AVIVO_VARIANT) {
+	OUTREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset,
+	       INREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset)
+	       | AVIVO_CURSOR_EN);
+	avivo_setup_cursor(crtc, TRUE);
+    } else {
+	if (crtc_id == 0) 
+	    OUTREGP(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_CUR_EN | 2 << 20, 
+		    ~(RADEON_CRTC_CUR_EN | RADEON_CRTC_CUR_MODE_MASK));
+	else if (crtc_id == 1)
+	    OUTREGP(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_CUR_EN | 2 << 20,
+		    ~(RADEON_CRTC2_CUR_EN | RADEON_CRTC2_CUR_MODE_MASK));
+    }
 
 #ifdef XF86DRI
     if (info->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
@@ -131,10 +157,17 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
 
     RADEON_SYNC(info, pScrn);
 
-    if (crtc_id == 0)
-	OUTREGP(RADEON_CRTC_GEN_CNTL, 0, ~RADEON_CRTC_CUR_EN);
-    else if (crtc_id == 1)
-	OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~RADEON_CRTC2_CUR_EN);
+    if (IS_AVIVO_VARIANT) {
+	OUTREG(AVIVO_CURSOR1_CNTL+ radeon_crtc->crtc_offset,
+	       INREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset)
+	       & ~(AVIVO_CURSOR_EN));
+	avivo_setup_cursor(crtc, FALSE);
+    } else {
+	if (crtc_id == 0)
+	    OUTREGP(RADEON_CRTC_GEN_CNTL, 0, ~RADEON_CRTC_CUR_EN);
+	else if (crtc_id == 1)
+	    OUTREGP(RADEON_CRTC2_GEN_CNTL, 0, ~RADEON_CRTC2_CUR_EN);
+    }
 
 #ifdef XF86DRI
     if (info->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
@@ -163,30 +196,40 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
     else if (mode->Flags & V_DBLSCAN)
 	y *= 2;
 
-    if (crtc_id == 0) {
-	OUTREG(RADEON_CUR_HORZ_VERT_OFF,  (RADEON_CUR_LOCK
-					   | (xorigin << 16)
-					   | yorigin));
-	OUTREG(RADEON_CUR_HORZ_VERT_POSN, (RADEON_CUR_LOCK
-					   | ((xorigin ? 0 : x) << 16)
-					   | (yorigin ? 0 : y)));
-	RADEONCTRACE(("cursor_offset: 0x%x, yorigin: %d, stride: %d, temp %08X\n",
-			info->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
-	OUTREG(RADEON_CUR_OFFSET,
-		info->cursor_offset + pScrn->fbOffset + yorigin * stride);
-    } else if (crtc_id == 1) {
-	OUTREG(RADEON_CUR2_HORZ_VERT_OFF,  (RADEON_CUR2_LOCK
-					    | (xorigin << 16)
-					    | yorigin));
-	OUTREG(RADEON_CUR2_HORZ_VERT_POSN, (RADEON_CUR2_LOCK
-					   | ((xorigin ? 0 : x) << 16)
-					   | (yorigin ? 0 : y)));
-	RADEONCTRACE(("cursor_offset2: 0x%x, yorigin: %d, stride: %d, temp %08X\n",
-			info->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
-	OUTREG(RADEON_CUR2_OFFSET,
-		info->cursor_offset + pScrn->fbOffset + yorigin * stride);
-    }
+    if (IS_AVIVO_VARIANT) {
+	if (x < 0)
+	    x = 0;
+	if (y < 0)
+	    y = 0;
 
+	OUTREG(AVIVO_CURSOR1_POSITION + radeon_crtc->crtc_offset, (x << 16) | y);
+	radeon_crtc->cursor_x = x;
+	radeon_crtc->cursor_y = y;
+    } else {
+	if (crtc_id == 0) {
+	    OUTREG(RADEON_CUR_HORZ_VERT_OFF,  (RADEON_CUR_LOCK
+					       | (xorigin << 16)
+					       | yorigin));
+	    OUTREG(RADEON_CUR_HORZ_VERT_POSN, (RADEON_CUR_LOCK
+					       | ((xorigin ? 0 : x) << 16)
+					       | (yorigin ? 0 : y)));
+	    RADEONCTRACE(("cursor_offset: 0x%x, yorigin: %d, stride: %d, temp %08X\n",
+			  info->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
+	    OUTREG(RADEON_CUR_OFFSET,
+		   info->cursor_offset + pScrn->fbOffset + yorigin * stride);
+	} else if (crtc_id == 1) {
+	    OUTREG(RADEON_CUR2_HORZ_VERT_OFF,  (RADEON_CUR2_LOCK
+						| (xorigin << 16)
+						| yorigin));
+	    OUTREG(RADEON_CUR2_HORZ_VERT_POSN, (RADEON_CUR2_LOCK
+						| ((xorigin ? 0 : x) << 16)
+						| (yorigin ? 0 : y)));
+	    RADEONCTRACE(("cursor_offset2: 0x%x, yorigin: %d, stride: %d, temp %08X\n",
+			  info->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
+	    OUTREG(RADEON_CUR2_OFFSET,
+		   info->cursor_offset + pScrn->fbOffset + yorigin * stride);
+	}
+    }
 }
 
 void
@@ -270,10 +313,11 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 
 #ifdef USE_XAA
     if (!info->useEXA) {
+	int align = IS_AVIVO_VARIANT ? 4096 : 256;
 	FBAreaPtr          fbarea;
 
 	fbarea = xf86AllocateOffscreenArea(pScreen, width, height,
-					   256, NULL, NULL, NULL);
+					   align, NULL, NULL, NULL);
 
 	if (!fbarea) {
 	    info->cursor_offset    = 0;
@@ -284,7 +328,7 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 	    info->cursor_offset  = RADEON_ALIGN((fbarea->box.x1 +
 						fbarea->box.y1 * width) *
 						info->CurrentLayout.pixel_bytes,
-						256);
+						align);
 	    info->cursor_end = info->cursor_offset + size_bytes;
 	}
 	RADEONCTRACE(("RADEONCursorInit (0x%08x-0x%08x)\n",

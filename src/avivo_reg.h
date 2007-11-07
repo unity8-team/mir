@@ -5,7 +5,6 @@
  * DACs (be it TV or VGA) and TMDS transmitters take their input from
  * the CRTC.
  */
-#define IS_AVIVO_VARIANT 1
 
 /* Core engine. */
 #define AVIVO_ENGINE_STATUS					0x0014

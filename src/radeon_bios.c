@@ -179,6 +179,8 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		crtc = (portinfo >> 8) & 0xf;
 		tmp0 = RADEON_BIOS16(info->MasterDataStart + 24);
 		gpio = RADEON_BIOS16(tmp0 + 4 + 27 * crtc) * 4;
+		info->BiosConnector[i].gpio = gpio;
+
 		switch(gpio) {
 		case RADEON_GPIO_MONID:
 		    info->BiosConnector[i].DDCType = DDC_MONID;

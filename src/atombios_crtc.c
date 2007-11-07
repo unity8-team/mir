@@ -14,7 +14,6 @@
 
 #include "radeon.h"
 #include "radeon_reg.h"
-#include "avivo_reg.h"
 #include "radeon_macros.h"
 #include "radeon_atombios.h"
 
@@ -289,24 +288,20 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     unsigned char *space;    
     RADEONSavePtr save = &info->ModeReg;
 
-    PLLCalculate(mode->Clock, &ref_div, &fb_div, &post_div);
-
-    xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
-               "crtc(%d) Clock: mode %d, PLL %d\n",
-               radeon_crtc->crtc_id, mode->Clock, sclock);
-    xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
-               "crtc(%d) PLL  : refdiv %d, fbdiv 0x%X(%d), pdiv %d\n",
-               radeon_crtc->crtc_id, ref_div, fb_div, fb_div, post_div);
-
-    xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
-               "AGD: crtc(%d) PLL  : refdiv %d, fbdiv 0x%X(%d), pdiv %d\n",
-               radeon_crtc->crtc_id, save->ppll_ref_div, save->feedback_div, save->feedback_div, save->post_div);
-
-    if (1) {
+    if (IS_AVIVO_VARIANT) {
+	PLLCalculate(mode->Clock, &ref_div, &fb_div, &post_div);
+    } else {
 	fb_div = save->feedback_div;
 	post_div = save->post_div;
 	ref_div = save->ppll_ref_div;
     }
+
+    xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
+	       "crtc(%d) Clock: mode %d, PLL %d\n",
+	       radeon_crtc->crtc_id, mode->Clock, sclock);
+    xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
+	       "crtc(%d) PLL  : refdiv %d, fbdiv 0x%X(%d), pdiv %d\n",
+	       radeon_crtc->crtc_id, ref_div, fb_div, fb_div, post_div);
 
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
     
@@ -390,7 +385,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     ErrorF("Mode %dx%d - %d %d %d\n", adjusted_mode->CrtcHDisplay, adjusted_mode->CrtcVDisplay,
 	   adjusted_mode->CrtcHTotal, adjusted_mode->CrtcVTotal, adjusted_mode->Flags);
 
-    if (0) {
+    if (IS_AVIVO_VARIANT) {
 	radeon_crtc->fb_width = adjusted_mode->CrtcHDisplay;
 	radeon_crtc->fb_height = screen_info->virtualY;
 	radeon_crtc->fb_pitch = adjusted_mode->CrtcHDisplay;
@@ -441,96 +436,3 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
 }
 
-
-
-static void
-atombios_setup_cursor(ScrnInfoPtr pScrn, int id, int enable)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char     *RADEONMMIO = info->MMIO;
-    if (id == 0) {
-        OUTREG(AVIVO_CURSOR1_CNTL, 0);
-
-        if (enable) {
-            OUTREG(AVIVO_CURSOR1_LOCATION, info->fbLocation +
-                                           info->cursor_offset);
-            OUTREG(AVIVO_CURSOR1_SIZE, ((info->cursor_width -1) << 16) |
-					(info->cursor_height-1));
-            OUTREG(AVIVO_CURSOR1_CNTL, AVIVO_CURSOR_EN |
-                                       (AVIVO_CURSOR_FORMAT_ARGB <<
-                                        AVIVO_CURSOR_FORMAT_SHIFT));
-        }
-    }
-}
-
-void
-atombios_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
-{
-    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    int crtc_id = radeon_crtc->crtc_id;
-
-    if (x < 0)
-        x = 0;
-    if (y < 0)
-        y = 0;
-
-    OUTREG(AVIVO_CURSOR1_POSITION + radeon_crtc->crtc_offset, (x << 16) | y);
-    radeon_crtc->cursor_x = x;
-    radeon_crtc->cursor_y = y;
-}
-
-
-void
-atombios_crtc_show_cursor(xf86CrtcPtr crtc)
-{
-    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-
-#ifdef XF86DRI
-    if (info->CPStarted && crtc->scrn->pScreen) DRILock(crtc->scrn->pScreen, 0);
-#endif
-
-    RADEON_SYNC(info, crtc->scrn);
-
-    OUTREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset,
-           INREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset)
-           | AVIVO_CURSOR_EN);
-    atombios_setup_cursor(crtc->scrn, radeon_crtc->crtc_id, 1);
-    
-#ifdef XF86DRI
-    if (info->CPStarted && crtc->scrn->pScreen) DRIUnlock(crtc->scrn->pScreen);
-#endif
-}
-
-void
-atombios_crtc_hide_cursor(xf86CrtcPtr crtc)
-{
-    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-
-#ifdef XF86DRI
-    if (info->CPStarted && crtc->scrn->pScreen) DRILock(crtc->scrn->pScreen, 0);
-#endif
-
-    RADEON_SYNC(info, crtc->scrn);
-
-    OUTREG(AVIVO_CURSOR1_CNTL+ radeon_crtc->crtc_offset,
-           INREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset)
-           & ~(AVIVO_CURSOR_EN));
-    atombios_setup_cursor(crtc->scrn, radeon_crtc->crtc_id, 0);
-
-#ifdef XF86DRI
-    if (info->CPStarted && crtc->scrn->pScreen) DRIUnlock(crtc->scrn->pScreen);
-#endif
-}
-
-static void
-atombios_crtc_destroy(xf86CrtcPtr crtc)
-{
-    if (crtc->driver_private)
-        xfree(crtc->driver_private);
-} 
