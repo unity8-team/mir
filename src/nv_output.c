@@ -1380,6 +1380,10 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 
 	if (lvds) {
 		nv_output->type = OUTPUT_PANEL;
+		/* comment below two lines to test LVDS under RandR12.
+		 * If your screen "blooms" or "bleeds" (i.e. has a developing
+		 * white / psychedelic pattern) then KILL X IMMEDIATELY
+		 * (ctrl+alt+backspace) & if the effect continues reset power */
 		ErrorF("Output refused because we don't accept LVDS at the moment.\n");
 		create_output = FALSE;
 	} else {
