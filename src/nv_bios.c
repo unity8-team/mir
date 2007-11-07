@@ -45,6 +45,12 @@ typedef struct {
 	CARD16      macro_offset; 
 	CARD16      condition_offset;
 	CARD16      io_flag_condition_offset;
+
+	CARD16 fptablepointer;
+	CARD16 fpxlatetableptr;
+	CARD16 lvdsmanufacturerpointer;
+	CARD16 fpxlatemanufacturertableptr;
+	CARD16 fpxlateflagtableptr;
 } bios_t;
 
 static Bool NVValidVBIOS(ScrnInfoPtr pScrn, const unsigned char *data)
@@ -1544,6 +1550,12 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 	bios->io_flag_condition_offset =
 		*((CARD16 *) (&bios->data[bitentry->offset + 8]));
 
+	bios->fptablepointer = *((CARD16 *)(&bios->data[bitentry->offset + 30]));
+	bios->fpxlatetableptr = *((CARD16 *)(&bios->data[bitentry->offset + 32]));
+	bios->lvdsmanufacturerpointer = *((CARD16 *)(&bios->data[bitentry->offset + 42]));
+	bios->fpxlatemanufacturertableptr = *((CARD16 *)(&bios->data[bitentry->offset + 44]));
+	bios->fpxlateflagtableptr = *((CARD16 *)(&bios->data[bitentry->offset + 46]));
+
 	parse_init_tables(pScrn, bios);
 
 	return 1;
@@ -1828,6 +1840,89 @@ g5:
 	return pNv->dcb_table.entries;
 }
 
+static void nv_read_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	unsigned int fpstrapping;
+	unsigned char *fptable, *fpxlatetable;
+	unsigned char *lvdsmanufacturertable, *fpxlatemanufacturertable;
+	unsigned char *fpxlateflagtable;
+	unsigned int fpindex, lvdsmanufacturerindex;
+	DisplayModePtr mode;
+
+	fpstrapping = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 16) & 0xf;
+
+	if (bios->fptablepointer == 0x0 || bios->fpxlatetableptr == 0x0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Pointer to flat panel table invalid\n");
+		return;
+	}
+
+	fptable = &bios->data[bios->fptablepointer];
+	fpxlatetable = &bios->data[bios->fpxlatetableptr];
+/*	not yet used
+	lvdsmanufacturertable = &bios->data[bios->lvdsmanufacturerpointer];
+	fpxlatemanufacturertable = &bios->data[bios->fpxlatemanufacturertableptr];
+	fpxlateflagtable = &bios->data[bios->fpxlateflagtableptr]; */
+
+	fpindex = fpxlatetable[fpstrapping];
+/*	not yet used
+	lvdsmanufacturerindex = fpxlatemanufacturertable[fpstrapping]; */
+
+	if (fpindex > 0xf) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Bad flat panel table index\n");
+		return;
+	}
+
+	/* FIXME: try to understand go6800 dump... */
+	if (fptable[44 * fpindex] != 0x10) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"FP Table revisions other than 0x10 not currently supported\n");
+		return;
+	}
+
+	if (!(mode = xcalloc(1, sizeof(DisplayModeRec))))
+		return;
+
+	/* bytes 1-2 are "panel type", including bits on whether Colour/mono, single/dual link, and type (TFT etc.) */
+	/* bytes 3-5 are bits per colour in RGB */
+	/* byte 6 is empty */
+	mode->Clock = *(uint16_t *)&fptable[44 * fpindex + 7] * 10;
+
+	mode->HDisplay = *(uint16_t *)&fptable[44 * fpindex + 9];
+	/* 11-12 is HDispEnd */
+	/* 13-14 is HValid Start */
+	/* 15-16 is HValid End */
+	mode->HSyncStart = *(uint16_t *)&fptable[44 * fpindex + 17] + 1;
+	mode->HSyncEnd = *(uint16_t *)&fptable[44 * fpindex + 19] + 1;
+	mode->HTotal = *(uint16_t *)&fptable[44 * fpindex + 21] + 1;
+
+	mode->VDisplay = *(uint16_t *)&fptable[44 * fpindex + 23];
+	mode->VSyncStart = *(uint16_t *)&fptable[44 * fpindex + 31] + 1;
+	mode->VSyncEnd = *(uint16_t *)&fptable[44 * fpindex + 33] + 1;
+	mode->VTotal = *(uint16_t *)&fptable[44 * fpindex + 35] + 1;
+
+	mode->Flags |= (fptable[44 * fpindex + 37] & 0x10) ? V_PHSYNC : V_NHSYNC;
+	mode->Flags |= (fptable[44 * fpindex + 37] & 0x1) ? V_PVSYNC : V_NVSYNC;
+
+	/* bytes 38-39 relate to spread spectrum settings */
+	/* bytes 40-43 are something to do with PWM */
+
+	mode->prev = mode->next = NULL;
+	mode->status = MODE_OK;
+	mode->type = M_T_DRIVER | M_T_PREFERRED;
+	xf86SetModeDefaultName(mode);
+
+//	if (pNv->debug_modes) { this should exist
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Found flat panel mode in BIOS tables:\n");
+		xf86PrintModeline(pScrn->scrnIndex, mode);
+//	}
+
+	pNv->fp_native_mode = mode;
+}
+
 unsigned int NVParseBios(ScrnInfoPtr pScrn)
 {
 	unsigned int bit_offset;
@@ -1865,6 +1960,11 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	if (ret)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Found %d entries in DCB.\n", ret);
+
+	pNv->fp_native_mode = NULL;
+	/* FIXME: can we detect mobile BIOS? */
+	if (pNv->Mobile)
+		nv_read_fp_tables(pScrn, &bios);
 
 	return 1;
 }

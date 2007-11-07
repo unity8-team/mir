@@ -402,6 +402,8 @@ typedef struct _NVRec {
     uint32_t output_info;
     MiscStartupInfo misc_info;
 
+    DisplayModePtr fp_native_mode;
+
     struct {
 	    ORNum dac;
 	    ORNum sor;
