@@ -1320,7 +1320,7 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
-	int crtc_mask = (1<<0);
+	int crtc_mask = 0;
 	int real_index;
 	Bool create_output = TRUE;
 
@@ -1349,6 +1349,10 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 	 * So lowest order has highest priority.
 	 */
 	nv_output->valid_ramdac = order;
+
+	/* Some early nvidia cards have outputs only valid on secondary */
+	if (nv_output->valid_ramdac & RAMDAC_0) 
+		crtc_mask |= (1<<0);
 
 	/* Restricting this will cause a full mode set when trying to squeeze in the primary mode */
 	if (nv_output->valid_ramdac & RAMDAC_1) 
@@ -1381,7 +1385,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
-	int crtc_mask = (1<<0);
+	int crtc_mask = 0;
 	Bool create_output = TRUE;
 	int index = i2c_index;
 
@@ -1410,6 +1414,10 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 	 * So lowest order has highest priority.
 	 */
 	nv_output->valid_ramdac = order;
+
+	/* Some early nvidia cards have outputs only valid on secondary */
+	if (nv_output->valid_ramdac & RAMDAC_0) 
+		crtc_mask |= (1<<0);
 
 	/* Restricting this will cause a full mode set when trying to squeeze in the primary mode */
 	if (nv_output->valid_ramdac & RAMDAC_1) 
