@@ -150,18 +150,18 @@ TransformCursor (NVPtr pNv)
     /* convert to color cursor */
     if(pNv->alphaCursor) {
        dwords = MAX_CURSOR_SIZE_ALPHA * MAX_CURSOR_SIZE_ALPHA;
-       if(!(tmp = ALLOCATE_LOCAL(dwords * 4))) return;
+       if(!(tmp = xalloc(dwords * 4))) return;
        ConvertCursor8888(pNv, pNv->curImage, tmp);
     } else {
        dwords = (MAX_CURSOR_SIZE * MAX_CURSOR_SIZE) >> 1;
-       if(!(tmp = ALLOCATE_LOCAL(dwords * 4))) return;
+       if(!(tmp = xalloc(dwords * 4))) return;
        ConvertCursor1555(pNv, pNv->curImage, (CARD16*)tmp);
     }
 
     for(i = 0; i < dwords; i++)
         pNv->CURSOR[i] = tmp[i];
 
-    DEALLOCATE_LOCAL(tmp);
+    xfree(tmp);
 }
 
 static void
