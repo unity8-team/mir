@@ -2231,6 +2231,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 	if (!NVEnterVT(scrnIndex, 0))
 	    return FALSE;
+	NVSaveScreen(pScreen, SCREEN_SAVER_ON);
     }
 
 
