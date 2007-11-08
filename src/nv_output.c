@@ -736,9 +736,8 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		/* Enable crosswired mode */
 		/* As far as i know, this may never be set on ramdac 0 tmds registers (ramdac 1 -> crosswired -> ramdac 0 tmds regs) */
 		/* This will upset the monitor, trust me, i know it :-( */
-		/* Restricting to cards that had this setup at bootup time, until i am certain it's ok to use */
-		if ((nv_output->ramdac == 0) && (nv_output->valid_ramdac & RAMDAC_1)
-			&& pNv->output_info & OUTPUT_1_CROSSWIRED_TMDS) {
+		/* Now allowed for non-bios inited systems */
+		if ((nv_output->ramdac == 0) && (nv_output->valid_ramdac & RAMDAC_1)) {
 			regp->TMDS[0x4] |= (1 << 3);
 		}
 	}
@@ -884,9 +883,9 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		}
 
 		if (nv_crtc->head == 1) {
-			regp->output |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+			regp->output |= NV_RAMDAC_OUTPUT_SELECT_VPLL2;
 		} else {
-			regp->output &= ~NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+			regp->output &= ~NV_RAMDAC_OUTPUT_SELECT_VPLL2;
 		}
 
 		ErrorF("%d: crtc %d output%d: %04X: twocrt %d twomon %d\n", is_fp, nv_crtc->crtc, nv_output->ramdac, regp->output, two_crt, two_mon);

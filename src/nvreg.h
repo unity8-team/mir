@@ -190,7 +190,7 @@
 #define NV_RAMDAC_DITHER_NV11       0x528
 #define NV_RAMDAC_OUTPUT            0x52c
 #define NV_RAMDAC_OUTPUT_DAC_ENABLE                     (1<<0)
-#define NV_RAMDAC_OUTPUT_SELECT_CRTC1                   (1<<8)
+#define NV_RAMDAC_OUTPUT_SELECT_VPLL2                   (1<<8)
 
 #define NV_RAMDAC_NVPLL_B           0x570
 #define NV_RAMDAC_MPLL_B            0x574

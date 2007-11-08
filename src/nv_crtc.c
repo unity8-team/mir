@@ -508,14 +508,22 @@ static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		state->vpll2B = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2_B);
 	}
 	state->pllsel = nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT);
-	state->reg580 = nvReadRAMDAC0(pNv, NV_RAMDAC_580);
+	/* This is almost a magic register */
+	/* This seems to be strictly NV40 */
+	if (pNv->Architecture == NV_ARCH_40) {
+		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040 & ~(0x3 << 16));
+		state->reg580 = nvReadRAMDAC0(pNv, NV_RAMDAC_580);
+		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
+	}
 }
 
 
 static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_580, state->reg580);
+	if (pNv->Architecture == NV_ARCH_40) {
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_580, state->reg580);
+	}
 
 	ErrorF("writing vpll %08X\n", state->vpll);
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll);
@@ -638,18 +646,20 @@ void nv_crtc_calc_state_ext(
 
 	ErrorF("There are %d CRTC's enabled\n", num_crtc_enabled);
 
-	/* Do not remove any present VPLL related bits, that can cause problems */
-	/* The meaning of this register is debatable */
-	state->reg580 = pNv->misc_info.ramdac_0_reg_580;
+	if (pNv->Architecture == NV_ARCH_40) {
+		/* Do not remove any present VPLL related bits, that can cause problems */
+		/* The meaning of this register is debatable */
+		state->reg580 = pNv->misc_info.ramdac_0_reg_580;
 
-	/* Vclk ratio db1 is used whenever reg580 is modified for vpll activity */
-	if (!(pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
-		if (nv_crtc->crtc == 1) {
-			state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
-			state->reg580 |= NV_RAMDAC_580_VPLL2_ACTIVE;
-		} else {
-			/* CRTC0 must always be active */
-			state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
+		/* Vclk ratio db1 is used whenever reg580 is modified for vpll activity */
+		if (!(pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
+			if (nv_crtc->crtc == 1) {
+				state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
+				state->reg580 |= NV_RAMDAC_580_VPLL2_ACTIVE;
+			} else {
+				/* CRTC0 must always be active */
+				state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
+			}
 		}
 	}
 
