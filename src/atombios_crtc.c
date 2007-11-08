@@ -401,6 +401,15 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	OUTREG(AVIVO_CRTC1_PITCH + radeon_crtc->crtc_offset,
 	       crtc->scrn->displayWidth);
 
+	/* avivo can only shift offset by 4 pixel in x if you program somethings
+	 * not multiple of 4 you gonna drive the GPU crazy and likely won't
+	 * be able to restore it without cold reboot (vbe post not enough)
+	 */
+	x = x & ~3;
+	OUTREG(AVIVO_CRTC1_OFFSET_END + radeon_crtc->crtc_offset,
+	       ((mode->HDisplay + x -128) << 16) | (mode->VDisplay + y - 128));
+	OUTREG(AVIVO_CRTC1_OFFSET_START + radeon_crtc->crtc_offset, (x << 16) | y);
+
 	OUTREG(AVIVO_CRTC1_SCAN_ENABLE + radeon_crtc->crtc_offset, 1);
 
     }
