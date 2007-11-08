@@ -99,7 +99,7 @@ ch7017_init(I2CBusPtr b, I2CSlaveAddr addr)
     if (priv == NULL)
 	return NULL;
 
-    priv->d.DevName = "CH7017/7018 TMDS Controller";
+    priv->d.DevName = "CH7017/7018/7019 LVDS Controller";
     priv->d.SlaveAddr = addr;
     priv->d.pI2CBus = b;
     priv->d.StartTimeout = b->StartTimeout;
@@ -111,9 +111,11 @@ ch7017_init(I2CBusPtr b, I2CSlaveAddr addr)
     if (!xf86I2CReadByte(&priv->d, CH7017_DEVICE_ID, &val))
 	goto fail;
 
-    if (val != CH7017_DEVICE_ID_VALUE && val != CH7018_DEVICE_ID_VALUE) {
+    if (val != CH7017_DEVICE_ID_VALUE &&
+	val != CH7018_DEVICE_ID_VALUE &&
+	val != CH7019_DEVICE_ID_VALUE) {
 	xf86DrvMsg(priv->d.pI2CBus->scrnIndex, X_ERROR,
-		   "ch7017 not detected, got %d: from %s Slave %d.\n",
+		   "ch701x not detected, got %d: from %s Slave %d.\n",
 		   val, priv->d.pI2CBus->BusName, priv->d.SlaveAddr);
 	goto fail;
     }
