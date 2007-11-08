@@ -387,8 +387,11 @@ typedef struct _NVRec {
 
     I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
 
-    int analog_count;
-    int digital_count;
+	int vga_count;
+	int dvi_d_count;
+	int dvi_a_count;
+	int lvds_count;
+
     struct {
 	    int entries;
 	    int i2c_entries;

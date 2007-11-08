@@ -1324,7 +1324,15 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 	int real_index;
 	Bool create_output = TRUE;
 
-	sprintf(outputname, "Analog-%d", pNv->analog_count);
+	/* DVI have an analog connector and a digital one, differentiate between that and a normal vga */
+	if (dvi_pair) {
+		sprintf(outputname, "DVI-A-%d", pNv->dvi_a_count);
+		pNv->dvi_a_count++;
+	} else {
+		sprintf(outputname, "VGA-%d", pNv->vga_count);
+		pNv->vga_count++;
+	}
+
 	nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
 	if (!nv_output) {
 		return;
@@ -1364,8 +1372,6 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 
 	output->possible_crtcs = crtc_mask;
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
-
-	pNv->analog_count++;
 }
 
 
@@ -1379,7 +1385,14 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 	Bool create_output = TRUE;
 	int index = i2c_index;
 
-	sprintf(outputname, "Digital-%d", pNv->digital_count);
+	if (lvds) {
+		sprintf(outputname, "LVDS-%d", pNv->lvds_count);
+		pNv->lvds_count++;
+	} else {
+		sprintf(outputname, "DVI-D-%d", pNv->dvi_d_count);
+		pNv->dvi_d_count++;
+	}
+
 	nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
 
 	if (!nv_output) {
@@ -1433,8 +1446,6 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 
 	output->possible_crtcs = crtc_mask;
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
-
-	pNv->digital_count++;
 }
 
 void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
