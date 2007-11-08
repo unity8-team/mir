@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.1.1-4ubuntu2) hardy; urgency=low
+
+  * Duh, really nuke the i810 manpage conflict.
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Thu, 08 Nov 2007 18:52:43 +0200
+
 xserver-xorg-video-intel (2:2.1.1-4ubuntu1) hardy; urgency=low
 
   * Merge from debian unstable, remaining changes:
