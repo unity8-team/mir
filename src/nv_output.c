@@ -183,6 +183,16 @@ static void nv_output_backlight_enable(xf86OutputPtr output,  Bool on)
 static void
 nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 {
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVPtr pNv = NVPTR(output->scrn);
+
+	if (nv_output->ramdac != -1 && mode != DPMSModeOff) {
+		/* This was not a modeset, but a normal dpms call */
+		pNv->ramdac_active[nv_output->ramdac] = TRUE;
+		ErrorF("Activating ramdac %d\n", nv_output->ramdac);
+		nv_output->ramdac_assigned = TRUE;
+	}
+
 	switch (mode) {
 	case DPMSModeStandby:
 	case DPMSModeSuspend:
@@ -193,6 +203,13 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 		nv_output_backlight_enable(output, 1);
 	default:
 		break;
+	}
+
+	/* We may be going for modesetting, so we must reset the ramdacs */
+	if (nv_output->ramdac != -1 && mode == DPMSModeOff) {
+		pNv->ramdac_active[nv_output->ramdac] = FALSE;
+		ErrorF("Deactivating ramdac %d\n", nv_output->ramdac);
+		nv_output->ramdac_assigned = FALSE;
 	}
 }
 
@@ -206,12 +223,12 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 	ErrorF("nv_analog_output_dpms is called with mode %d\n", mode);
 
 	if (nv_output->ramdac != -1) {
-		/* We are going for modesetting, so we must reset the ramdacs */
+		/* We may be going for modesetting, so we must reset the ramdacs */
 		if (mode == DPMSModeOff) {
-			/* We no longer have ramdac, which will be reassigned soon enough */
 			pNv->ramdac_active[nv_output->ramdac] = FALSE;
 			ErrorF("Deactivating ramdac %d\n", nv_output->ramdac);
 			nv_output->ramdac_assigned = FALSE;
+			/* This was not a modeset, but a normal dpms call */
 		} else {
 			pNv->ramdac_active[nv_output->ramdac] = TRUE;
 			ErrorF("Activating ramdac %d\n", nv_output->ramdac);
@@ -265,8 +282,8 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 		nvWriteRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_CONTROL, fpcontrol);
 	}
 
+	/* We may be going for modesetting, so we must reset the ramdacs */
 	if (nv_output->ramdac != -1 && mode == DPMSModeOff) {
-		/* We no longer have ramdac, which will be reassigned soon enough */
 		pNv->ramdac_active[nv_output->ramdac] = FALSE;
 		nv_output->ramdac_assigned = FALSE;
 		ErrorF("Deactivating ramdac %d\n", nv_output->ramdac);
