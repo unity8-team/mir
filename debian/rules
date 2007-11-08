@@ -64,8 +64,6 @@ install: build
 	dh_installdirs
 
 	cd obj-$(DEB_BUILD_GNU_TYPE) && $(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
-	rm -f $(CURDIR)/debian/tmp/usr/lib/xorg/modules/drivers/i810_drv.so \
-		$(CURDIR)/debian/tmp/usr/share/man/man4/i810.4
 
 # Build architecture-dependent files here.
 binary-arch: DH_OPTIONS=-s
@@ -74,11 +72,11 @@ binary-arch: build install serverabi
 	dh_testroot
 
 	dh_installdocs README
-	dh_installchangelogs # ChangeLog
+	dh_installchangelogs ChangeLog
 	dh_install --sourcedir=debian/tmp --list-missing --exclude=.la --exclude=usr/share/man/man4
 	dh_installman
 	dh_link
-	dh_strip
+	dh_strip --dbg-package=xserver-xorg-video-intel-dbg
 	dh_compress
 	dh_fixperms
 	dh_makeshlibs
