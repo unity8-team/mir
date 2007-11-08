@@ -503,7 +503,7 @@ nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	ErrorF("nv_output_mode_fixup is called\n");
 
 	/* For internal panels and gpu scaling on DVI we need the native mode */
-	if ((nv_output->type == OUTPUT_LVDS) || (!pNv->fpScaler && (nv_output->type == OUTPUT_TMDS))) {
+	if ((nv_output->type == OUTPUT_LVDS) || (pNv->fpScaler && (nv_output->type == OUTPUT_TMDS))) {
 		adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
 		adjusted_mode->HSkew = nv_output->native_mode->HSkew;
 		adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
@@ -668,7 +668,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		regp->fp_vvalid_start = 0;
 		regp->fp_vvalid_end = (nv_output->fpHeight - 1);
 
-		if (pNv->fpScaler) {
+		if (!pNv->fpScaler) {
 			ErrorF("Flat panel is doing the scaling.\n");
 			regp->fp_control |= (1 << 8);
 		} else {
