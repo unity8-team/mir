@@ -676,7 +676,7 @@ void nv_crtc_calc_state_ext(
 	} else {
 		state->vpll = state->pll;
 		state->vpllB = state->pllB;
-		if (nv_output->type == OUTPUT_PANEL)
+		if (nv_output->type == OUTPUT_LVDS)
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
 		else	
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
@@ -1104,8 +1104,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		nv_output = output->driver_private;
 
 		if (output->crtc == crtc) {
-			if ((nv_output->type == OUTPUT_PANEL) || 
-				(nv_output->type == OUTPUT_DIGITAL)) {
+			if ((nv_output->type == OUTPUT_LVDS) ||
+				(nv_output->type == OUTPUT_TMDS)) {
 
 				is_fp = TRUE;
 				break;

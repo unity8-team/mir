@@ -84,8 +84,8 @@ typedef enum /* matches DCB types */
 {
     OUTPUT_NONE = 4,
     OUTPUT_ANALOG = 0,
-    OUTPUT_DIGITAL = 2,
-    OUTPUT_PANEL = 3,
+    OUTPUT_TMDS = 2,
+    OUTPUT_LVDS = 3,
     OUTPUT_TV = 1,
 } NVOutputType;
 

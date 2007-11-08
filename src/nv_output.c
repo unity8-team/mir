@@ -244,13 +244,13 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 }
 
 static void
-nv_digital_output_dpms(xf86OutputPtr output, int mode)
+nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 {
 	xf86CrtcPtr crtc = output->crtc;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(output->scrn);
 
-	ErrorF("nv_digital_output_dpms is called with mode %d\n", mode);
+	ErrorF("nv_tmds_output_dpms is called with mode %d\n", mode);
 
 	/* We just woke up again from an actual monitor dpms and not a modeset prepare */
 	/* Put here since we actually need our ramdac to wake up again ;-) */
@@ -264,7 +264,7 @@ nv_digital_output_dpms(xf86OutputPtr output, int mode)
 	if (crtc && nv_output->ramdac != -1) {
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-		ErrorF("nv_digital_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
+		ErrorF("nv_tmds_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
 
 		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_CONTROL);
 		switch(mode) {
@@ -327,7 +327,7 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 
 	/* I want to be able reset TMDS registers for DVI-D/DVI-A pairs for example */
 	/* Also write on VT restore */
-	if (nv_output->type != OUTPUT_PANEL || override )
+	if (nv_output->type != OUTPUT_LVDS || override )
 		for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
 			regp->TMDS[tmds_regs[i]] = NVOutputReadTMDS(output, tmds_regs[i]);
 		}
@@ -360,7 +360,7 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 
 	regp = &state->dac_reg[nv_output->ramdac];
 
-	if (nv_output->type == OUTPUT_PANEL) {
+	if (nv_output->type == OUTPUT_LVDS) {
 		ErrorF("Writing %08X to RAMDAC_FP_DEBUG_0\n", regp->debug_0);
 		ErrorF("Writing %08X to RAMDAC_FP_DEBUG_1\n", regp->debug_1);
 		ErrorF("Writing %08X to RAMDAC_FP_DEBUG_2\n", regp->debug_2);
@@ -390,7 +390,7 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 
 	/* I want to be able reset TMDS registers for DVI-D/DVI-A pairs for example */
 	/* Also write on VT restore */
-	if (nv_output->type != OUTPUT_PANEL || override )
+	if (nv_output->type != OUTPUT_LVDS || override )
 		for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
 			NVOutputWriteTMDS(output, tmds_regs[i], regp->TMDS[tmds_regs[i]]);
 		}
@@ -557,7 +557,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	sv_state = &pNv->SavedReg;
 	savep = &sv_state->dac_reg[nv_output->ramdac];
 
-	if ((nv_output->type == OUTPUT_PANEL) || (nv_output->type == OUTPUT_DIGITAL)) {
+	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
 		is_fp = TRUE;
 
 		/* Do we need to set the native mode or not? */
@@ -632,7 +632,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	* This must also be set for non-flatpanels
 	*/
 	regp->fp_control = 0x11100000;
-	if (nv_output->type == OUTPUT_PANEL);
+	if (nv_output->type == OUTPUT_LVDS);
 		regp->fp_control = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL) & 0xfff00000;
 
 	/* Deal with vsync/hsync polarity */
@@ -942,8 +942,8 @@ nv_get_edid(xf86OutputPtr output)
 	if (ddc_mon->features.input_type && (nv_output->type == OUTPUT_ANALOG))
 		goto invalid;
 
-	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_DIGITAL ||
-				nv_output->type == OUTPUT_PANEL))
+	if ((!ddc_mon->features.input_type) && (nv_output->type == OUTPUT_TMDS ||
+				nv_output->type == OUTPUT_LVDS))
 		goto invalid;
 
 	return ddc_mon;
@@ -1022,11 +1022,11 @@ nv_crt_load_detect(xf86OutputPtr output)
 }
 
 static xf86OutputStatus
-nv_digital_output_detect(xf86OutputPtr output)
+nv_tmds_output_detect(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
-	ErrorF("nv_digital_output_detect is called\n");
+	ErrorF("nv_tmds_output_detect is called\n");
 
 	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
@@ -1072,7 +1072,7 @@ nv_output_get_modes(xf86OutputPtr output)
 
 	ddc_modes = xf86OutputGetEDIDModes (output);
 
-	if (nv_output->type == OUTPUT_DIGITAL || nv_output->type == OUTPUT_PANEL) {
+	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 		int i;
 		DisplayModePtr mode;
 
@@ -1205,14 +1205,14 @@ static const xf86OutputFuncsRec nv_analog_output_funcs = {
     .commit = nv_output_commit,
 };
 
-static const xf86OutputFuncsRec nv_digital_output_funcs = {
-    .dpms = nv_digital_output_dpms,
+static const xf86OutputFuncsRec nv_tmds_output_funcs = {
+    .dpms = nv_tmds_output_dpms,
     .save = nv_output_save,
     .restore = nv_output_restore,
     .mode_valid = nv_output_mode_valid,
     .mode_fixup = nv_output_mode_fixup,
     .mode_set = nv_output_mode_set,
-    .detect = nv_digital_output_detect,
+    .detect = nv_tmds_output_detect,
     .get_modes = nv_output_get_modes,
     .destroy = nv_output_destroy,
     .prepare = nv_output_prepare,
@@ -1378,7 +1378,6 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }
 
-
 static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bool dual_dvi, int lvds)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -1424,7 +1423,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 		crtc_mask |= (1<<1);
 
 	if (lvds) {
-		nv_output->type = OUTPUT_PANEL;
+		nv_output->type = OUTPUT_LVDS;
 		/* comment below two lines to test LVDS under RandR12.
 		 * If your screen "blooms" or "bleeds" (i.e. has a developing
 		 * white / psychedelic pattern) then KILL X IMMEDIATELY
@@ -1432,7 +1431,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 		ErrorF("Output refused because we don't accept LVDS at the moment.\n");
 		create_output = FALSE;
 	} else {
-		nv_output->type = OUTPUT_DIGITAL;
+		nv_output->type = OUTPUT_TMDS;
 	}
 
 	if (!create_output) {
@@ -1444,7 +1443,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 	if (lvds)
 		output = xf86OutputCreate (pScrn, &nv_lvds_output_funcs, outputname);
 	else
-		output = xf86OutputCreate (pScrn, &nv_digital_output_funcs, outputname);
+		output = xf86OutputCreate (pScrn, &nv_tmds_output_funcs, outputname);
 	if (!output)
 		return;
 
@@ -1461,7 +1460,7 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	unsigned char type, i2c_index, or;
 	NVPtr pNv = NVPTR(pScrn);
 	int i;
-	int num_digital = 0;
+	int num_tmds = 0;
 	Bool dual_dvi = FALSE;
 	Bool dvi_pair = FALSE;
 
@@ -1472,12 +1471,12 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 			i2c_index = (pNv->dcb_table.connection[i] >> 4) & 0xf;
 			/* TMDS */
 			if (type == 2 && i2c_index != 0xf) {
-				num_digital++;
+				num_tmds++;
 			}
 		}
 	}
 
-	if (num_digital > 1) {
+	if (num_tmds > 1) {
 		dual_dvi = TRUE;
 	}
 
@@ -1515,15 +1514,15 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 			xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry: %d: %08X type: %d, i2c_index: %d, or: %d\n", i, pNv->dcb_table.connection[i], type, i2c_index, or);
 
 			switch(type) {
-			case OUTPUT_ANALOG: /* Analogue VGA */
+			case OUTPUT_ANALOG:
 				nv_add_analog_output(pScrn, or, i2c_index, dvi_pair);
 				dvi_pair = FALSE;
 				break;
-			case OUTPUT_DIGITAL: /* TMDS */
+			case OUTPUT_TMDS:
 				dvi_pair = TRUE;
 				nv_add_digital_output(pScrn, or, i2c_index, dual_dvi, 0);
 				break;
-			case OUTPUT_PANEL: /* LVDS */
+			case OUTPUT_LVDS:
 				nv_add_digital_output(pScrn, or, i2c_index, dual_dvi, 1);
 				break;
 			default:
