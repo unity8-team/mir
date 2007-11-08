@@ -991,7 +991,7 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode)
  * be easily turned on/off after this.
  */
 static void
-nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
+nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
@@ -1001,7 +1001,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	NVCrtcRegPtr regp, savep;
 	unsigned int i;
-	uint32_t clock = mode->Clock;
+	uint32_t clock = adjusted_mode->Clock;
 
 	/* Happily borrowed from haiku driver, as an extra safety */
 
@@ -1114,12 +1114,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	}
 
 	ErrorF("Mode clock: %d\n", clock);
-	/* We need to run at the native panel size clock */
-	if (is_fp && !pNv->fpScaler) {
-		DisplayModePtr native = nv_output->native_mode;
-		clock = native->Clock;
-		ErrorF("Overriding clock for native panel size: %d\n", clock);
-	}
 
 	ErrorF("crtc: Pre-sync workaround\n");
 	/* Reverted to what nv did, because that works for all resolutions on flatpanels */
@@ -1391,8 +1385,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     NVCrtcSetOwner(crtc);
 
     nv_crtc_mode_set_vga(crtc, mode);
-    nv_crtc_mode_set_regs(crtc, mode);
-
+    nv_crtc_mode_set_regs(crtc, mode, adjusted_mode);
 
     NVVgaProtect(crtc, TRUE);
     nv_crtc_load_state_ext(crtc, &pNv->ModeReg);

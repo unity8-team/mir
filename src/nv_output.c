@@ -496,7 +496,28 @@ static Bool
 nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
 	ErrorF("nv_output_mode_fixup is called\n");
+
+	/* For internal panels and gpu scaling on DVI we need the native mode */
+	if ((nv_output->type == OUTPUT_LVDS) || (!pNv->fpScaler && (nv_output->type == OUTPUT_TMDS))) {
+		adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
+		adjusted_mode->HSkew = nv_output->native_mode->HSkew;
+		adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
+		adjusted_mode->HSyncEnd = nv_output->native_mode->HSyncEnd;
+		adjusted_mode->HTotal = nv_output->native_mode->HTotal;
+		adjusted_mode->VDisplay = nv_output->native_mode->VDisplay;
+		adjusted_mode->VScan = nv_output->native_mode->VScan;
+		adjusted_mode->VSyncStart = nv_output->native_mode->VSyncStart;
+		adjusted_mode->VSyncEnd = nv_output->native_mode->VSyncEnd;
+		adjusted_mode->VTotal = nv_output->native_mode->VTotal;
+		adjusted_mode->Clock = nv_output->native_mode->Clock;
+
+		xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
+	}
 
 	return TRUE;
 }
@@ -534,7 +555,7 @@ nv_output_tweak_panel(xf86OutputPtr output, NVRegPtr state)
 }
 
 static void
-nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
+nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
@@ -560,43 +581,21 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
 		is_fp = TRUE;
 
-		/* Do we need to set the native mode or not? */
-		if (pNv->fpScaler) {
-			/* We can set the mode as usual if we let the panel scale */
-			regp->fp_horiz_regs[REG_DISP_END] = mode->HDisplay - 1;
-			regp->fp_horiz_regs[REG_DISP_TOTAL] = mode->HTotal - 1;
-			regp->fp_horiz_regs[REG_DISP_CRTC] = mode->HDisplay;
-			regp->fp_horiz_regs[REG_DISP_SYNC_START] = mode->HSyncStart - 1;
-			regp->fp_horiz_regs[REG_DISP_SYNC_END] = mode->HSyncEnd - 1;
-			regp->fp_horiz_regs[REG_DISP_VALID_START] = mode->HSkew;
-			regp->fp_horiz_regs[REG_DISP_VALID_END] = mode->HDisplay - 1;
+		regp->fp_horiz_regs[REG_DISP_END] = adjusted_mode->HDisplay - 1;
+		regp->fp_horiz_regs[REG_DISP_TOTAL] = adjusted_mode->HTotal - 1;
+		regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HDisplay;
+		regp->fp_horiz_regs[REG_DISP_SYNC_START] = adjusted_mode->HSyncStart - 1;
+		regp->fp_horiz_regs[REG_DISP_SYNC_END] = adjusted_mode->HSyncEnd - 1;
+		regp->fp_horiz_regs[REG_DISP_VALID_START] = adjusted_mode->HSkew;
+		regp->fp_horiz_regs[REG_DISP_VALID_END] = adjusted_mode->HDisplay - 1;
 
-			regp->fp_vert_regs[REG_DISP_END] = mode->VDisplay - 1;
-			regp->fp_vert_regs[REG_DISP_TOTAL] = mode->VTotal - 1;
-			regp->fp_vert_regs[REG_DISP_CRTC] = mode->VDisplay;
-			regp->fp_vert_regs[REG_DISP_SYNC_START] = mode->VSyncStart - 1;
-			regp->fp_vert_regs[REG_DISP_SYNC_END] = mode->VSyncEnd - 1;
-			regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
-			regp->fp_vert_regs[REG_DISP_VALID_END] = mode->VDisplay - 1;
-		} else {
-			/* For gpu scaling we need the native mode */
-			DisplayModePtr native = nv_output->native_mode;
-			regp->fp_horiz_regs[REG_DISP_END] = native->HDisplay - 1;
-			regp->fp_horiz_regs[REG_DISP_TOTAL] = native->HTotal - 1;
-			regp->fp_horiz_regs[REG_DISP_CRTC] = native->HDisplay;
-			regp->fp_horiz_regs[REG_DISP_SYNC_START] = native->HSyncStart - 1;
-			regp->fp_horiz_regs[REG_DISP_SYNC_END] = native->HSyncEnd - 1;
-			regp->fp_horiz_regs[REG_DISP_VALID_START] = native->HSkew;
-			regp->fp_horiz_regs[REG_DISP_VALID_END] = native->HDisplay - 1;
-
-			regp->fp_vert_regs[REG_DISP_END] = native->VDisplay - 1;
-			regp->fp_vert_regs[REG_DISP_TOTAL] = native->VTotal - 1;
-			regp->fp_vert_regs[REG_DISP_CRTC] = native->VDisplay;
-			regp->fp_vert_regs[REG_DISP_SYNC_START] = native->VSyncStart - 1;
-			regp->fp_vert_regs[REG_DISP_SYNC_END] = native->VSyncEnd - 1;
-			regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
-			regp->fp_vert_regs[REG_DISP_VALID_END] = native->VDisplay - 1;
-		}
+		regp->fp_vert_regs[REG_DISP_END] = adjusted_mode->VDisplay - 1;
+		regp->fp_vert_regs[REG_DISP_TOTAL] = adjusted_mode->VTotal - 1;
+		regp->fp_vert_regs[REG_DISP_CRTC] = adjusted_mode->VDisplay;
+		regp->fp_vert_regs[REG_DISP_SYNC_START] = adjusted_mode->VSyncStart - 1;
+		regp->fp_vert_regs[REG_DISP_SYNC_END] = adjusted_mode->VSyncEnd - 1;
+		regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
+		regp->fp_vert_regs[REG_DISP_VALID_END] = adjusted_mode->VDisplay - 1;
 
 		ErrorF("Horizontal:\n");
 		ErrorF("REG_DISP_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_END]);
@@ -636,11 +635,11 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode)
 		regp->fp_control = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL) & 0xfff00000;
 
 	/* Deal with vsync/hsync polarity */
-	if (mode->Flags & V_PVSYNC) {
+	if (adjusted_mode->Flags & V_PVSYNC) {
 		regp->fp_control |= (1 << 0);
 	}
 
-	if (mode->Flags & V_PHSYNC) {
+	if (adjusted_mode->Flags & V_PHSYNC) {
 		regp->fp_control |= (1 << 4);
 	}
 
@@ -921,7 +920,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     state = &pNv->ModeReg;
 
-    nv_output_mode_set_regs(output, mode);
+    nv_output_mode_set_regs(output, mode, adjusted_mode);
     nv_output_load_state_ext(output, state, FALSE);
 }
 
@@ -1231,26 +1230,6 @@ static int nv_lvds_output_mode_valid
 	return nv_output_mode_valid(output, pMode);
 }
 
-static Bool
-nv_lvds_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
-	adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
-	adjusted_mode->HSyncEnd = nv_output->native_mode->HSyncEnd;
-	adjusted_mode->HTotal = nv_output->native_mode->HTotal;
-	adjusted_mode->VDisplay = nv_output->native_mode->VDisplay;
-	adjusted_mode->VSyncStart = nv_output->native_mode->VSyncStart;
-	adjusted_mode->VSyncEnd = nv_output->native_mode->VSyncEnd;
-	adjusted_mode->VTotal = nv_output->native_mode->VTotal;
-	adjusted_mode->Clock = nv_output->native_mode->Clock;
-
-	xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
-
-	return TRUE;
-}
-
 static xf86OutputStatus
 nv_lvds_output_detect(xf86OutputPtr output)
 {
@@ -1305,7 +1284,7 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.save = nv_output_save,
 	.restore = nv_output_restore,
 	.mode_valid = nv_lvds_output_mode_valid,
-	.mode_fixup = nv_lvds_output_mode_fixup,
+	.mode_fixup = nv_output_mode_fixup,
 	.mode_set = nv_output_mode_set,
 	.detect = nv_lvds_output_detect,
 	.get_modes = nv_lvds_output_get_modes,
