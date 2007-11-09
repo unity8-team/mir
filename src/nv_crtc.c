@@ -508,6 +508,8 @@ static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		state->vpll2B = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2_B);
 	}
 	state->pllsel = nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT);
+	/* Something is wrong with this, so let's leave it alone for the moment */
+#if 0
 	/* This is almost a magic register */
 	/* This seems to be strictly NV40 */
 	if (pNv->Architecture == NV_ARCH_40) {
@@ -515,15 +517,18 @@ static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		state->reg580 = nvReadRAMDAC0(pNv, NV_RAMDAC_580);
 		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
 	}
+#endif
 }
 
 
 static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
+#if 0
 	if (pNv->Architecture == NV_ARCH_40) {
 		nvWriteRAMDAC0(pNv, NV_RAMDAC_580, state->reg580);
 	}
+#endif
 
 	ErrorF("writing vpll %08X\n", state->vpll);
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll);
@@ -646,6 +651,8 @@ void nv_crtc_calc_state_ext(
 
 	ErrorF("There are %d CRTC's enabled\n", num_crtc_enabled);
 
+	/* Something is wrong with this, so until it's proven to be needed, let's leave it alone */
+#if 0
 	if (pNv->Architecture == NV_ARCH_40) {
 		/* Do not remove any present VPLL related bits, that can cause problems */
 		/* The meaning of this register is debatable */
@@ -662,6 +669,7 @@ void nv_crtc_calc_state_ext(
 			}
 		}
 	}
+#endif
 
 	/* We've bound crtc's and ramdac's together */
 	if (nv_crtc->crtc == 1) {
