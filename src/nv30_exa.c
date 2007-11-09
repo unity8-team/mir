@@ -332,12 +332,10 @@ NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 		BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 1);
 		OUT_RING  (0);
 	} else {
-		BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 5);
+		BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 3);
 		OUT_RING  (1);
 		OUT_RING  ((sblend << 16) | sblend);
 		OUT_RING  ((dblend << 16) | dblend);
-		OUT_RING  (0x00000000);			/* Blend colour */
-		OUT_RING  (0x8006);			/* FUNC_ADD */
 	}
 }
 
@@ -382,9 +380,6 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 			0x2000 /* engine lock */);
 	OUT_RING  ((pPix->drawable.width << 16) | pPix->drawable.height);
 	OUT_RING  (0); /* border ARGB */
-
-	BEGIN_RING(Nv3D, 0xb00 + 4*unit,1);
-	OUT_RING  (0);
 
 	state->unit[unit].width		= (float)pPix->drawable.width;
 	state->unit[unit].height	= (float)pPix->drawable.height;
@@ -750,7 +745,12 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (0x01010101); /* TR,TR,TR,TR */
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_CULL_FACE_ENABLE, 1);
 	OUT_RING  (0);
-	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 1);
+	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_BLEND_FUNC_ENABLE, 5);
+	OUT_RING  (0);				/* Blend enable */
+	OUT_RING  (0);				/* Blend src */
+	OUT_RING  (0);				/* Blend dst */
+	OUT_RING  (0x00000000);			/* Blend colour */
+	OUT_RING  (0x8006);			/* FUNC_ADD */
 	OUT_RING  (0);
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_COLOR_LOGIC_OP_ENABLE, 2);
 	OUT_RING  (0);
