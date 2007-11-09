@@ -3141,8 +3141,9 @@ I830EnterVT(int scrnIndex, int flags)
    if (pI830->checkDevices)
       pI830->devicesTimer = TimerSet(NULL, 0, 1000, I830CheckDevicesTimer, pScrn);
 
-   /* Mark 3D state as being clobbered */
+   /* Mark 3D state as being clobbered and setup the basics */
    *pI830->last_3d = LAST_3D_OTHER;
+   IntelEmitInvarientState(pScrn);
 
    return TRUE;
 }
