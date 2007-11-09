@@ -1838,6 +1838,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
         break;
 
     case PCI_CHIP_RV515_7142:
+    case PCI_CHIP_RV515_7183:
 	info->ChipFamily = CHIP_FAMILY_RV515;
 	break;
 

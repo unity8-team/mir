@@ -287,6 +287,7 @@
 #define PCI_CHIP_RS350_7835             0x7835
 
 #define PCI_CHIP_RV515_7142             0x7142
+#define PCI_CHIP_RV515_7183             0x7183
 
 
 /* Misc */
