@@ -384,6 +384,12 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	if (info->tilingEnabled) {
 	    radeon_crtc->fb_format |= AVIVO_CRTC_MACRO_ADDRESS_MODE;
 	}
+
+	if (radeon_crtc->crtc_id == 0)
+	    OUTREG(AVIVO_VGA1_CONTROL, 0);
+	else
+	    OUTREG(AVIVO_VGA2_CONTROL, 0);
+
 	/* setup fb format and location
 	 */
 	OUTREG(AVIVO_CRTC1_EXPANSION_SOURCE + radeon_crtc->crtc_offset,
