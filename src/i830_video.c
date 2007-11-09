@@ -2257,11 +2257,11 @@ I830PutImage(ScrnInfoPtr pScrn,
 	pI830->entityPrivate->XvInUse = i830_crtc_pipe (pPriv->current_crtc);;
     }
 
-    /* overlay limits */
-    if(src_w > (drw_w * 7))
+    /* Clamp dst width & height to 7x of src (overlay limit) */
+    if(drw_w > (src_w * 7))
 	drw_w = src_w * 7;
 
-    if(src_h > (drw_h * 7))
+    if(drw_h > (src_h * 7))
 	drw_h = src_h * 7;
 
     /* Clip */
@@ -2886,15 +2886,14 @@ i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
     if (crtc != pPriv->current_crtc)
 	return;
 
-    /* Check if it's the crtc the overlay is on */
-    if (on) {
-	i830_overlay_switch_to_crtc (pScrn, crtc);
-    } else {
+    /* Check if it's the crtc the overlay is off */
+    if (!on) {
 	/* We stop the video when mode switching, so we don't lock up
 	 * the engine. The overlayOK will determine whether we can re-enable
 	 * with the current video on completion of the mode switch.
 	 */
 	I830StopVideo(pScrn, pPriv, TRUE);
+	pPriv->current_crtc = NULL;
 	pPriv->overlayOK = FALSE;
 	pPriv->oneLineMode = FALSE;
     }

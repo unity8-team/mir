@@ -172,6 +172,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/mman.h>
+#include <errno.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -207,7 +208,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef XF86DRI
 #include "dri.h"
 #include <sys/ioctl.h>
-#include <errno.h>
 #ifdef XF86DRI_MM
 #include "xf86mm.h"
 #endif
@@ -1435,17 +1435,17 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
     * If either XAA or EXA (exclusive) is compiled in, default to it.
     * 
     * If both are compiled in, and the user didn't specify noAccel, use the
-    * config option AccelMethod to determine which to use, defaulting to XAA
+    * config option AccelMethod to determine which to use, defaulting to EXA
     * if none is specified, or if the string was unrecognized.
     *
     * All this *could* go away if we removed XAA support from this driver,
     * for example. :)
     */
    if (!pI830->noAccel) {
-#if (defined(I830_USE_EXA) && defined(I830_USE_XAA)) || !defined(I830_USE_EXA)
-       pI830->useEXA = FALSE;
-#else
+#ifdef I830_USE_EXA
        pI830->useEXA = TRUE;
+#else
+       pI830->useEXA = FALSE;
 #endif
 #if defined(I830_USE_XAA) && defined(I830_USE_EXA)
        int from = X_DEFAULT;
@@ -2057,7 +2057,13 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(DSPASURF, pI830->saveDSPASURF);
       OUTREG(DSPATILEOFF, pI830->saveDSPATILEOFF);
    }
-   OUTREG(PIPEACONF, pI830->savePIPEACONF);
+   /*
+    * Make sure the DPLL is active and not in VGA mode or the
+    * write of PIPEnCONF may cause a crash
+    */
+   if ((pI830->saveDPLL_B & DPLL_VCO_ENABLE) &&
+       (pI830->saveDPLL_B & DPLL_VGA_MODE_DIS))
+	   OUTREG(PIPEACONF, pI830->savePIPEACONF);
    i830WaitForVblank(pScrn);
    OUTREG(DSPACNTR, pI830->saveDSPACNTR);
    OUTREG(DSPABASE, INREG(DSPABASE));
@@ -2097,7 +2103,13 @@ RestoreHWState(ScrnInfoPtr pScrn)
 	 OUTREG(DSPBSURF, pI830->saveDSPBSURF);
 	 OUTREG(DSPBTILEOFF, pI830->saveDSPBTILEOFF);
       }
-      OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
+
+      /*
+       * See PIPEnCONF note above
+       */
+      if ((pI830->saveDPLL_B & DPLL_VCO_ENABLE) &&
+	  (pI830->saveDPLL_B & DPLL_VGA_MODE_DIS))
+	      OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
       i830WaitForVblank(pScrn);
       OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
       OUTREG(DSPBBASE, INREG(DSPBBASE));
@@ -3015,8 +3027,8 @@ I830LeaveVT(int scrnIndex, int flags)
     */
 #ifdef XF86DRI_MM
    if (pI830->directRenderingOpen) {
-      if (pI830->memory_manager != NULL) {
-	 drmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT);
+      if (pI830->memory_manager != NULL && pScrn->vtSema) {
+	 drmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT, 1, 0);
       }
    }
 #endif /* XF86DRI_MM */
@@ -3054,8 +3066,8 @@ I830EnterVT(int scrnIndex, int flags)
       /* Unlock the memory manager first of all so that we can pin our
        * buffer objects
        */
-      if (pI830->memory_manager != NULL) {
-	 drmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT);
+      if (pI830->memory_manager != NULL && pScrn->vtSema) {
+	 drmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT, 1);
       }
    }
 #endif /* XF86DRI_MM */
@@ -3140,8 +3152,9 @@ I830EnterVT(int scrnIndex, int flags)
    if (pI830->checkDevices)
       pI830->devicesTimer = TimerSet(NULL, 0, 1000, I830CheckDevicesTimer, pScrn);
 
-   /* Mark 3D state as being clobbered */
+   /* Mark 3D state as being clobbered and setup the basics */
    *pI830->last_3d = LAST_3D_OTHER;
+   IntelEmitInvarientState(pScrn);
 
    return TRUE;
 }
@@ -3168,6 +3181,14 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
    if (pScrn->vtSema == TRUE) {
       I830LeaveVT(scrnIndex, 0);
+#ifdef XF86DRI_MM
+      if (pI830->directRenderingEnabled) {
+ 	 if (pI830->memory_manager != NULL) {
+	    drmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT, 1);
+	 }
+      }
+#endif /* XF86DRI_MM */
+
    }
 
    if (pI830->devicesTimer)

@@ -560,6 +560,34 @@ static void i830DumpIndexed (ScrnInfoPtr pScrn, char *name, int id, int val, int
     }
 }
 
+static void i830DumpAR(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int i;
+    uint16_t st01, palette_enable = 0;
+    unsigned char orig_arx, msr;
+
+    msr = INREG8(0x3cc);
+    if (msr & 1)
+	st01 = 0x3da;
+    else
+	st01 = 0x3ba;
+
+    INREG8(st01); /* make sure index/write register is in index mode */
+    orig_arx = INREG8(0x3c0);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%19.19sX: 0x%02x\n",
+	       "AR", orig_arx);
+    
+    for (i = 0; i <= 0x14; i++) {
+	INREG8(st01);
+	OUTREG8(0x3c0, i);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%18.18s%02x: 0x%02x\n",
+		   "AR", i, INREG8(0x3c1));
+    }
+    INREG8(st01);
+    OUTREG8(0x3c0, orig_arx);
+}
+
 void i830DumpRegs (ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -594,6 +622,7 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
     xf86DrvMsg (pScrn->scrnIndex, X_INFO, "%20.20s: 0x%02x\n",
 		    "MSR", (unsigned int) msr);
 
+    i830DumpAR (pScrn);
     if (msr & 1)
 	crt = 0x3d0;
     else
