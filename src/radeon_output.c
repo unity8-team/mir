@@ -258,7 +258,7 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 	radeon_output = output->driver_private;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-		   "Port%d:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s\n", 
+		   "Port%d:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- %s [0x%x]\n", 
 		   o,
 		   MonTypeName[radeon_output->MonType+1],
 		   info->IsAtomBios ? 
@@ -266,7 +266,8 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 		   ConnectorTypeName[radeon_output->ConnectorType],
 		   DACTypeName[radeon_output->DACType+1],
 		   TMDSTypeName[radeon_output->TMDSType+1],
-		   DDCTypeName[radeon_output->DDCType]);
+		   DDCTypeName[radeon_output->DDCType],
+		   radeon_output->gpio);
     }
 
 }
@@ -3238,6 +3239,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    }
 	    radeon_output->MonType = MT_UNKNOWN;
 	    radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
+	    radeon_output->gpio = info->BiosConnector[i].gpio;
 	    radeon_output->DDCType = info->BiosConnector[i].DDCType;
 	    if (info->IsAtomBios) {
 		if (radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM)
