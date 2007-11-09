@@ -1356,7 +1356,7 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }
 
-static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bool dual_dvi, int lvds)
+static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, int lvds)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
@@ -1435,27 +1435,30 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, B
 
 void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 {
-	unsigned char type, i2c_index, or;
+	unsigned char type, i2c_index, old_i2c_index, or;
 	NVPtr pNv = NVPTR(pScrn);
 	int i;
-	int num_tmds = 0;
-	Bool dual_dvi = FALSE;
-	Bool dvi_pair = FALSE;
+	Bool dvi_pair[MAX_NUM_DCB_ENTRIES];
 
 	/* check how many TMDS ports there are */
 	if (pNv->dcb_table.entries) {
 		for (i = 0 ; i < pNv->dcb_table.entries; i++) {
 			type = pNv->dcb_table.connection[i] & 0xf;
+			old_i2c_index = i2c_index;
 			i2c_index = (pNv->dcb_table.connection[i] >> 4) & 0xf;
-			/* TMDS */
-			if (type == 2 && i2c_index != 0xf) {
-				num_tmds++;
+
+			dvi_pair[i] = FALSE;
+
+			/* Are we on the same i2c index? */
+			if (i2c_index != 0xf && i2c_index == old_i2c_index) {
+				/* Have we passed the analog connector or not? */
+				if (type == OUTPUT_TMDS) {
+					dvi_pair[i - 1] = TRUE;
+				} else if (type == OUTPUT_ANALOG) {
+					dvi_pair[i ] = TRUE;
+				}
 			}
 		}
-	}
-
-	if (num_tmds > 1) {
-		dual_dvi = TRUE;
 	}
 
 	/* It's time to gather some information */
@@ -1493,15 +1496,13 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 
 			switch(type) {
 			case OUTPUT_ANALOG:
-				nv_add_analog_output(pScrn, or, i2c_index, dvi_pair);
-				dvi_pair = FALSE;
+				nv_add_analog_output(pScrn, or, i2c_index, dvi_pair[i]);
 				break;
 			case OUTPUT_TMDS:
-				dvi_pair = TRUE;
-				nv_add_digital_output(pScrn, or, i2c_index, dual_dvi, 0);
+				nv_add_digital_output(pScrn, or, i2c_index, 0);
 				break;
 			case OUTPUT_LVDS:
-				nv_add_digital_output(pScrn, or, i2c_index, dual_dvi, 1);
+				nv_add_digital_output(pScrn, or, i2c_index, 1);
 				break;
 			default:
 				break;
