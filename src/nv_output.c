@@ -1045,8 +1045,8 @@ nv_analog_output_detect(xf86OutputPtr output)
 
 	/* This may not work in all cases, but it's the best that can be done */
 	/* Example: Secondary output running of primary ramdac, what to do? */
-	if (nv_crt_load_detect(output))
-		return XF86OutputStatusConnected;
+	//if (nv_crt_load_detect(output))
+	//	return XF86OutputStatusConnected;
 
 	return XF86OutputStatusDisconnected;
 }
