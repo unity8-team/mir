@@ -476,6 +476,8 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 				   ALIGN_BOTH_ENDS | NEED_NON_STOLEN);
 
 	if (pI830->memory_manager != NULL) {
+	    int ret;
+
 	    /* Tell the kernel to manage it */
 	    ret = drmMMInit(pI830->drmSubFD,
 			    pI830->memory_manager->offset / GTT_PAGE_SIZE,
