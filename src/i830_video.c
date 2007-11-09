@@ -2216,11 +2216,11 @@ I830PutImage(ScrnInfoPtr pScrn,
 	pI830->entityPrivate->XvInUse = i830_crtc_pipe (pPriv->current_crtc);;
     }
 
-    /* overlay limits */
-    if(src_w > (drw_w * 7))
+    /* Clamp dst width & height to 7x of src (overlay limit) */
+    if(drw_w > (src_w * 7))
 	drw_w = src_w * 7;
 
-    if(src_h > (drw_h * 7))
+    if(drw_h > (src_h * 7))
 	drw_h = src_h * 7;
 
     /* Clip */
