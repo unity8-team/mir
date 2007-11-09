@@ -673,8 +673,8 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 			regp->fp_control |= (1 << 8);
 		} else {
 			ErrorF("GPU is doing the scaling.\n");
-			/* GPU scaling happens automaticly at a ratio of 1:33 */
-			/* A 1280x1024 panel has a ratio of 1:25, we don't want to scale that at 4:3 resolutions */
+			/* GPU scaling happens automaticly at a ratio of 1.33 */
+			/* A 1280x1024 panel has a ratio of 1.25, we don't want to scale that at 4:3 resolutions */
 			if (h_scale != (1 << 12) && (panel_ratio > (aspect_ratio + 0.10))) {
 				uint32_t diff;
 
@@ -692,7 +692,6 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 			}
 
 			/* Same scaling, just for panels with aspect ratio's smaller than 1 */
-			/* This may be broken */
 			if (v_scale != (1 << 12) && (panel_ratio < (aspect_ratio - 0.10))) {
 				uint32_t diff;
 
@@ -701,8 +700,8 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 				/* Scaling in both directions needs to the same */
 				v_scale = h_scale;
 
-				/* Is this ok, since haiku only does widescreen panels? */
-				regp->debug_1 = ((v_scale >> 1) & 0xfff) | (1 << 12);
+				/* Set a new vertical scale factor and enable testmode (bit28) */
+				regp->debug_1 = (((v_scale >> 1) & 0xfff) << 16) | (1 << (12 + 16));
 
 				diff = nv_output->fpHeight - (((1 << 12) * mode->VDisplay)/v_scale);
 				regp->fp_vvalid_start = diff/2;
