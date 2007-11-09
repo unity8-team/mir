@@ -2222,7 +2222,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		pNv->misc_info.reg_c040 = nvReadMC(pNv, 0xc040);
 	}
 	pNv->misc_info.ramdac_0_pllsel = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
-	
+	pNv->misc_info.sel_clk = nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
 
 	if (!NVEnterVT(scrnIndex, 0))
 	    return FALSE;

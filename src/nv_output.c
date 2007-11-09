@@ -620,7 +620,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	/* The value 0x40000 is not acceptable in text mode, but seems to do no harm in X mode */
 	/* The blob does this often, the exact purpose is not exactly known */
 	if (nv_output->ramdac == 0) {
-		regp->sel_clk = nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK) | (1 << 18);
+		regp->sel_clk = pNv->misc_info.sel_clk | (1 << 18);
 	}
 
 	/* This seems to be a common mode
