@@ -1763,6 +1763,7 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     uint magic;
     int major, minor;
     int isCapable;
+    int screen = DefaultScreen(display);
 
     if (priv_count != (sizeof(I915XvMCCreateContextRec) >> 2)) {
         XVMC_ERR("_xvmc_create_context() returned incorrect data size!");
@@ -1827,10 +1828,7 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     pSAREA = (drm_sarea_t *)xvmc_driver->sarea_address;
     pI915XvMC->driHwLock = (drmLock *)&pSAREA->lock;
     pI915XvMC->sarea = (drmI830Sarea*)((char*)pSAREA + pI915XvMC->sarea_priv_offset);
-    /*
-     *  XXX we don't need to bother X for DRI context, as we're not DRI. */
-#if 0
-    ret = XMatchVisualInfo(display, xvmc_driver->screen,
+    ret = XMatchVisualInfo(display, screen,
                            (pI915XvMC->depth == 32) ? 24 : pI915XvMC->depth, TrueColor,
                            &pI915XvMC->visualInfo);
 
@@ -1838,20 +1836,19 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
 	XVMC_ERR("Could not find a matching TrueColor visual.");
         free(pI915XvMC);
         context->privData = NULL;
-        drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
+        drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
         return BadAlloc;
     }
 
-    if (!uniDRICreateContext(display, pI915XvMC->screen,
+    if (!uniDRICreateContext(display, screen,
                              pI915XvMC->visualInfo.visual, &pI915XvMC->id,
                              &pI915XvMC->hHWContext)) {
         XVMC_ERR("Could not create DRI context.");
         free(pI915XvMC);
         context->privData = NULL;
-        drmUnmap(pI915XvMC->sarea_address, pI915XvMC->sarea_size);
+        drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
         return BadAlloc;
     }
-#endif
 
     if (NULL == (pI915XvMC->drawHash = drmHashCreate())) {
 	XVMC_ERR("Could not allocate drawable hash table.");
