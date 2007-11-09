@@ -162,7 +162,7 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
-    int offset, i, tmp, tmp0, crtc, portinfo, gpio;
+    int offset, i, j, tmp, tmp0, id, portinfo, gpio;
 
     if (!info->VBIOS) return FALSE;
 
@@ -176,10 +176,11 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		portinfo = RADEON_BIOS16(offset + 6 + i * 2);
 		info->BiosConnector[i].DACType = (portinfo & 0xf) - 1;
 		info->BiosConnector[i].ConnectorType = (portinfo >> 4) & 0xf;
-		crtc = (portinfo >> 8) & 0xf;
+		id = (portinfo >> 8) & 0xf;
 		tmp0 = RADEON_BIOS16(info->MasterDataStart + 24);
-		gpio = RADEON_BIOS16(tmp0 + 4 + 27 * crtc) * 4;
+		gpio = RADEON_BIOS16(tmp0 + 4 + 27 * id) * 4;
 		info->BiosConnector[i].gpio = gpio;
+		info->BiosConnector[i].output_id = id;
 
 		switch(gpio) {
 		case RADEON_GPIO_MONID:
@@ -221,17 +222,24 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	return FALSE;
     }
 
-    /* DVI-I ports have 2 entries: one for analog, one for digital.  combine them */
-    if (info->BiosConnector[0].valid && info->BiosConnector[7].valid) {
-	info->BiosConnector[7].DACType = info->BiosConnector[0].DACType;
-	info->BiosConnector[0].valid = FALSE;
+    for (i = 0; i < 8; i++) {
+	if (info->BiosConnector[i].valid) {
+	    for (j = 0; j < 8; j++) {
+		if (info->BiosConnector[j].valid && (i != j) ) {
+		    if (info->BiosConnector[i].output_id == info->BiosConnector[j].output_id) {
+			if ((i == 3) || (i == 7)) {
+			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
+			    info->BiosConnector[j].valid = FALSE;
+			} else if ((j == 3) || (j == 7)) {
+			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
+			    info->BiosConnector[i].valid = FALSE;
+			}
+			/* other possible combos?  */
+		    }
+		}
+	    }
+	}
     }
-
-    if (info->BiosConnector[4].valid && info->BiosConnector[3].valid) {
-	info->BiosConnector[3].DACType = info->BiosConnector[4].DACType;
-	info->BiosConnector[4].valid = FALSE;
-    }
-
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {

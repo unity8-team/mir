@@ -3240,6 +3240,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->MonType = MT_UNKNOWN;
 	    radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
 	    radeon_output->gpio = info->BiosConnector[i].gpio;
+	    radeon_output->output_id = info->BiosConnector[i].output_id;
 	    radeon_output->DDCType = info->BiosConnector[i].DDCType;
 	    if (info->IsAtomBios) {
 		if (radeon_output->ConnectorType == CONNECTOR_DVI_D_ATOM)
