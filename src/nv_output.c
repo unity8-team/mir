@@ -1486,7 +1486,7 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
 		type = pNv->dcb_table.connection[i] & 0xf;
 		i2c_index = (pNv->dcb_table.connection[i] >> 4) & 0xf;
-		or = (pNv->dcb_table.connection[i] >> 24) & 0xf;
+		or = ffs((pNv->dcb_table.connection[i] >> 24) & 0xf);
 
 		if (type < 4) {
 			xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry: %d: %08X type: %d, i2c_index: %d, or: %d\n", i, pNv->dcb_table.connection[i], type, i2c_index, or);
