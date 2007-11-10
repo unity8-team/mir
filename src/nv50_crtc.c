@@ -30,30 +30,44 @@
 
 #include "nv_include.h"
 
-void NV50CrtcWrite(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value)
+void NV50DisplayWrite(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	pNv->NV50_PCRTC[addr/4] = value;
 }
 
-CARD32 NV50CrtcRead(ScrnInfoPtr pScrn, CARD32 addr)
+CARD32 NV50DisplayRead(ScrnInfoPtr pScrn, CARD32 addr)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	return pNv->NV50_PCRTC[addr/4];
 }
 
+/* Things related to crtc's seem to come with offsets of 0x800 */
+void NV50CrtcWrite(xf86CrtcPtr crtc, CARD32 addr, CARD32 value)
+{
+	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NV50DisplayWrite(pScrn, addr + nv_crtc->head * 0x800, value);
+}
+
+CARD32 NV50CrtcRead(xf86CrtcPtr crtc, CARD32 addr)
+{
+	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	return  NV50DisplayRead(pScrn, addr + nv_crtc->head * 0x800);
+}
+
 /* Don't call the directly, only load state should do this on the long run*/
 void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 {
-	NVPtr pNv = NVPTR(pScrn);
-	while (NV50CrtcRead(pScrn, 0x300) & 0x80000000) {
+	while (NV50DisplayRead(pScrn, 0x300) & 0x80000000) {
 		/* What does is the meaning of this? */
-		const int super = ffs((NV50CrtcRead(pScrn, 0x24) >> 4) & 0x7);
+		const int super = ffs((NV50DisplayRead(pScrn, 0x24) >> 4) & 0x7);
 
 		if (super > 0) {
 			if (super == 2) {
 				xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-				const CARD32 clockvar = NV50CrtcRead(pScrn, 0x30);
+				const CARD32 clockvar = NV50DisplayRead(pScrn, 0x30);
 				int i;
 
 				for(i = 0; i < xf86_config->num_crtc; i++) {
@@ -66,16 +80,16 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 				}
 			}
 
-			NV50CrtcWrite(pScrn, 0x24, 1 << (3 + super));
-			NV50CrtcWrite(pScrn, 0x30, 0x80000000);
+			NV50DisplayWrite(pScrn, 0x24, 1 << (3 + super));
+			NV50DisplayWrite(pScrn, 0x30, 0x80000000);
 		}
 	}
 }
 
 void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value)
 {
-	NV50CrtcWrite(pScrn, 0x304, value);
-	NV50CrtcWrite(pScrn, 0x300, addr | 0x80010001);
+	NV50DisplayWrite(pScrn, 0x304, value);
+	NV50DisplayWrite(pScrn, 0x300, addr | 0x80010001);
 	NV50CheckWriteVClk(pScrn);
 }
 
@@ -83,7 +97,6 @@ void NV50CrtcCommand(xf86CrtcPtr crtc, CARD32 addr, CARD32 value)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
-	NVPtr pNv = NVPTR(pScrn);
 
 	/* This head dependent offset may not be true everywere */
 	NV50DisplayCommand(pScrn, addr + 0x400 * nv_crtc->head, value);
