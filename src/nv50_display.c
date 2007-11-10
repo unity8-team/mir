@@ -322,7 +322,7 @@ NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_m
 		case 16: NV50CrtcCommand(crtc, 0x870, 0xe800); break;
 		case 24: NV50CrtcCommand(crtc, 0x870, 0xcf00); break;
 	}
-	NV50CrtcSetDither(crtc, pPriv->dither, FALSE);
+	NV50CrtcSetDither(crtc, nv_crtc->dither, FALSE);
 	NV50CrtcCommand(crtc, 0x8a8, 0x40000);
 	NV50CrtcCommand(crtc, 0x8c0, y << 16 | x);
 	NV50CrtcCommand(crtc, 0x8c8, VDisplay << 16 | HDisplay);
