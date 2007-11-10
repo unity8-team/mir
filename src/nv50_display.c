@@ -142,10 +142,8 @@ NV50CalcPLL(float pclk, int *pNA, int *pMA, int *pNB, int *pMB, int *pP)
 
 void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 {
-	NVPtr pNv = NVPTR(crtc->scrn);
-	NV50CrtcPrivPtr pPriv = crtc->driver_private;
+	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-	const int headOff = 0x800 * pPriv->head;
 	int lo_n, lo_m, hi_n, hi_m, p, i;
 	CARD32 lo = NV50CrtcRead(crtc, 0x4104);
 	CARD32 hi = NV50CrtcRead(crtc, 0x4108);
@@ -154,7 +152,7 @@ void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 	lo &= 0xff00ff00;
 	hi &= 0x8000ff00;
 
-	NV50CalcPLL(pPriv->pclk, &lo_n, &lo_m, &hi_n, &hi_m, &p);
+	NV50CalcPLL(nv_crtc->pclk, &lo_n, &lo_m, &hi_n, &hi_m, &p);
 
 	lo |= (lo_m << 16) | lo_n;
 	hi |= (p << 28) | (hi_m << 16) | hi_n;
@@ -167,7 +165,7 @@ void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 
 		if(output->crtc != crtc)
 			continue;
-		NV50OutputSetPClk(output, pPriv->pclk);
+		NV50OutputSetPClk(output, nv_crtc->pclk);
 	}
 }
 
@@ -181,8 +179,6 @@ NV50CrtcGetHead(xf86CrtcPtr crtc)
 Bool
 NV50DispPreInit(ScrnInfoPtr pScrn)
 {
-	NVPtr pNv = NVPTR(pScrn);
-
 	/* These labels are guesswork based on symmetry (2 SOR's and 3 DAC's exist)*/
 	NV50DisplayWrite(pScrn, 0x184, NV50DisplayRead(pScrn, 0x4004));
 	NV50DisplayWrite(pScrn, 0x190, NV50OrRead(pScrn, SOR0, 0x6100));
@@ -211,19 +207,17 @@ NV50DispPreInit(ScrnInfoPtr pScrn)
 Bool
 NV50DispInit(ScrnInfoPtr pScrn)
 {
-    NVPtr pNv = NVPTR(pScrn);
+	if (NV50DisplayRead(pScrn, 0x24) & 0x100) {
+		NV50DisplayWrite(pScrn, 0x24, 0x100);
+		NV50DisplayWrite(pScrn, 0x94e8, NV50DisplayRead(pScrn, 0x94e8) & ~1);
+		while (NV50DisplayRead(pScrn, 0x94e8) & 2);
+	}
 
-    if(pNv->REGS[0x00610024/4] & 0x100) {
-        pNv->REGS[0x00610024/4] = 0x100;
-        pNv->REGS[0x006194E8/4] &= ~1;
-        while(pNv->REGS[0x006194E8/4] & 2);
-    }
-
-    pNv->REGS[0x00610200/4] = 0x2b00;
-    while((pNv->REGS[0x00610200/4] & 0x1e0000) != 0);
-    pNv->REGS[0x00610300/4] = 1;
-    pNv->REGS[0x00610200/4] = 0x1000b03;
-    while(!(pNv->REGS[0x00610200/4] & 0x40000000));
+	NV50DisplayWrite(pScrn, 0x200, 0x2b00);
+	while ((NV50DisplayRead(pScrn, 0x200) & 0x1e0000) != 0);
+	NV50DisplayWrite(pScrn, 0x300, 0x1);
+	NV50DisplayWrite(pScrn, 0x200, 0x1000b03);
+	while (!(NV50DisplayRead(pScrn, 0x200) & 0x40000000));
 
 	NV50DisplayCommand(pScrn, 0x84, 0);
 	NV50DisplayCommand(pScrn, 0x88, 0);
@@ -232,40 +226,39 @@ NV50DispInit(ScrnInfoPtr pScrn)
 	NV50DisplayCommand(pScrn, 0x810, 0);
 	NV50DisplayCommand(pScrn, 0x82c, 0);
 
-    return TRUE;
+	return TRUE;
 }
 
 void
 NV50DispShutdown(ScrnInfoPtr pScrn)
 {
-    NVPtr pNv = NVPTR(pScrn);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int i;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
 
-    for(i = 0; i < xf86_config->num_crtc; i++) {
-        xf86CrtcPtr crtc = xf86_config->crtc[i];
+	for(i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
 
-        NV50CrtcBlankScreen(crtc, TRUE);
-    }
+		NV50CrtcBlankScreen(crtc, TRUE);
+	}
 
 	NV50DisplayCommand(pScrn, 0x80, 0);
 
-    for(i = 0; i < xf86_config->num_crtc; i++) {
-        xf86CrtcPtr crtc = xf86_config->crtc[i];
+	for(i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
 
-        if(crtc->enabled) {
-            const CARD32 mask = 4 << NV50CrtcGetHead(crtc);
+		if(crtc->enabled) {
+			const CARD32 mask = 4 << NV50CrtcGetHead(crtc);
 
-            pNv->REGS[0x00610024/4] = mask;
-            while(!(pNv->REGS[0x00610024/4] & mask));
-        }
-    }
+			NV50DisplayWrite(pScrn, 0x24, mask);
+			while(!(NV50DisplayRead(pScrn, 0x24) & mask));
+		}
+	}
 
-    pNv->REGS[0x00610200/4] = 0;
-    pNv->REGS[0x00610300/4] = 0;
-    while ((pNv->REGS[0x00610200/4] & 0x1e0000) != 0);
-    while ((pNv->REGS[0x0061C030/4] & 0x10000000));
-    while ((pNv->REGS[0x0061C830/4] & 0x10000000));
+	NV50DisplayWrite(pScrn, 0x200, 0x0);
+	NV50DisplayWrite(pScrn, 0x300, 0x0);
+	while ((NV50DisplayRead(pScrn, 0x200) & 0x1e0000) != 0);
+	while ((NV50OrRead(pScrn, SOR0, 0xc030) & 0x10000000));
+	while ((NV50OrRead(pScrn, SOR1, 0xc030) & 0x10000000));
 }
 
 void
