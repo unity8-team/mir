@@ -182,25 +182,25 @@ static const xf86OutputFuncsRec NV50DacOutputFuncs = {
 xf86OutputPtr
 NV50CreateDac(ScrnInfoPtr pScrn, ORNum or)
 {
-    NV50OutputPrivPtr pPriv = xnfcalloc(sizeof(*pPriv), 1);
-    xf86OutputPtr output;
-    char orName[5];
+	NV50OutputPrivPtr nv_output = xnfcalloc(sizeof(*nv_output), 1);
+	xf86OutputPtr output;
+	char orName[5];
 
-    if(!pPriv)
-        return FALSE;
+	if(!nv_output)
+		return FALSE;
 
-    snprintf(orName, 5, "VGA%i", or);
-    output = xf86OutputCreate(pScrn, &NV50DacOutputFuncs, orName);
+	snprintf(orName, 5, "VGA%i", or);
+	output = xf86OutputCreate(pScrn, &NV50DacOutputFuncs, orName);
 
-    pPriv->type = DAC;
-    pPriv->or = or;
-    pPriv->cached_status = XF86OutputStatusUnknown;
-    pPriv->set_pclk = NV50DacSetPClk;
-    output->driver_private = pPriv;
-    output->interlaceAllowed = TRUE;
-    output->doubleScanAllowed = TRUE;
+	nv_output->type = DAC;
+	nv_output->or = or;
+	nv_output->cached_status = XF86OutputStatusUnknown;
+	nv_output->set_pclk = NV50DacSetPClk;
+	output->driver_private = nv_output;
+	output->interlaceAllowed = TRUE;
+	output->doubleScanAllowed = TRUE;
 
-    return output;
+	return output;
 }
 
 #endif /* ENABLE_RANDR12 */
