@@ -39,43 +39,36 @@
 static void
 NV50DacSetPClk(xf86OutputPtr output, int pclk)
 {
-    NVPtr pNv = NVPTR(output->scrn);
-    NV50OutputPrivPtr pPriv = output->driver_private;
-    const int orOff = 0x800 * pPriv->or;
-
-    pNv->REGS[(0x00614280+orOff)/4] = 0;
+	NV50OutputWrite(output, 0x4280, 0);
 }
 
 static void
 NV50DacDPMSSet(xf86OutputPtr output, int mode)
 {
-    NVPtr pNv = NVPTR(output->scrn);
-    NV50OutputPrivPtr pPriv = output->driver_private;
-    const int off = 0x800 * pPriv->or;
-    CARD32 tmp;
+	CARD32 tmp;
 
-    /*
-     * DPMSModeOn       everything on
-     * DPMSModeStandby  hsync disabled, vsync enabled
-     * DPMSModeSuspend  hsync enabled, vsync disabled
-     * DPMSModeOff      sync disabled
-     */
-    while(pNv->REGS[(0x0061A004+off)/4] & 0x80000000);
+	/*
+	 * DPMSModeOn       everything on
+	 * DPMSModeStandby  hsync disabled, vsync enabled
+	 * DPMSModeSuspend  hsync enabled, vsync disabled
+	 * DPMSModeOff      sync disabled
+	 */
+	while(NV50OutputRead(output, 0xa004) & 0x80000000);
 
-    tmp = pNv->REGS[(0x0061A004+off)/4];
-    tmp &= ~0x7f;
-    tmp |= 0x80000000;
+	tmp = NV50OutputRead(output, 0xa004);
+	tmp &= ~0x7f;
+	tmp |= 0x80000000;
 
-    if(mode == DPMSModeStandby || mode == DPMSModeOff)
-        tmp |= 1;
-    if(mode == DPMSModeSuspend || mode == DPMSModeOff)
-        tmp |= 4;
-    if(mode != DPMSModeOn)
-        tmp |= 0x10;
-    if(mode == DPMSModeOff)
-        tmp |= 0x40;
+	if(mode == DPMSModeStandby || mode == DPMSModeOff)
+		tmp |= 1;
+	if(mode == DPMSModeSuspend || mode == DPMSModeOff)
+		tmp |= 4;
+	if(mode != DPMSModeOn)
+		tmp |= 0x10;
+	if(mode == DPMSModeOff)
+		tmp |= 0x40;
 
-    pNv->REGS[(0x0061A004+off)/4] = tmp;
+	NV50OutputWrite(output, 0xa004, tmp);
 }
 
 Bool
@@ -87,21 +80,21 @@ NV50DacModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 
 static void
 NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
-              DisplayModePtr adjusted_mode)
+		DisplayModePtr adjusted_mode)
 {
-    ScrnInfoPtr pScrn = output->scrn;
-    NV50OutputPrivPtr pPriv = output->driver_private;
-    const int dacOff = 0x80 * pPriv->or;
+	ScrnInfoPtr pScrn = output->scrn;
+	NV50OutputPrivPtr nv_output = output->driver_private;
+	const int dacOff = 0x80 * nv_output->or;
 
-    if(!adjusted_mode) {
-	NV50DisplayCommand(pScrn, 0x400 + dacOff, 0);
-        return;
-    }
+	if(!adjusted_mode) {
+		NV50DisplayCommand(pScrn, 0x400 + dacOff, 0);
+		return;
+	}
 
-    // This wouldn't be necessary, but the server is stupid and calls
-    // NV50DacDPMSSet after the output is disconnected, even though the hardware
-    // turns it off automatically.
-    NV50DacDPMSSet(output, DPMSModeOn);
+	// This wouldn't be necessary, but the server is stupid and calls
+	// NV50DacDPMSSet after the output is disconnected, even though the hardware
+	// turns it off automatically.
+	NV50DacDPMSSet(output, DPMSModeOn);
 
 	NV50DisplayCommand(pScrn, 0x400 + dacOff,
 		(NV50CrtcGetHead(output->crtc) == HEAD0 ? 1 : 2) | 0x40);
@@ -110,7 +103,7 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
 		(adjusted_mode->Flags & V_NHSYNC) ? 1 : 0 |
 		(adjusted_mode->Flags & V_NVSYNC) ? 2 : 0);
 
-    NV50CrtcSetScale(output->crtc, adjusted_mode, NV50_SCALE_OFF);
+	NV50CrtcSetScale(output->crtc, adjusted_mode, NV50_SCALE_OFF);
 }
 
 /*
@@ -119,71 +112,71 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
 static xf86OutputStatus
 NV50DacDetect(xf86OutputPtr output)
 {
-    NV50OutputPrivPtr pPriv = output->driver_private;
+	NV50OutputPrivPtr nv_output = output->driver_private;
 
-    /* Assume physical status isn't going to change before the BlockHandler */
-    if(pPriv->cached_status != XF86OutputStatusUnknown)
-        return pPriv->cached_status;
+	/* Assume physical status isn't going to change before the BlockHandler */
+	if(nv_output->cached_status != XF86OutputStatusUnknown)
+		return nv_output->cached_status;
 
-    NV50OutputPartnersDetect(output, pPriv->partner, pPriv->i2c);
-    return pPriv->cached_status;
+	NV50OutputPartnersDetect(output, nv_output->partner, nv_output->i2c);
+	return nv_output->cached_status;
 }
 
 Bool
 NV50DacLoadDetect(xf86OutputPtr output)
 {
-    ScrnInfoPtr pScrn = output->scrn;
-    NVPtr pNv = NVPTR(pScrn);
-    NV50OutputPrivPtr pPriv = output->driver_private;
-    const int scrnIndex = pScrn->scrnIndex;
-    const int dacOff = 2048 * pPriv->or;
-    CARD32 load, tmp, tmp2;
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	NV50OutputPrivPtr nv_output = output->driver_private;
+	const int scrnIndex = pScrn->scrnIndex;
+	CARD32 load, tmp, tmp2;
 
-    xf86DrvMsg(scrnIndex, X_PROBED, "Trying load detection on VGA%i ... ",
-            pPriv->or);
+	xf86DrvMsg(scrnIndex, X_PROBED, "Trying load detection on VGA%i ... ",
+		nv_output->or);
 
-    pNv->REGS[(0x0061A010+dacOff)/4] = 0x00000001;
-    tmp2 = pNv->REGS[(0x0061A004+dacOff)/4];
-    pNv->REGS[(0x0061A004+dacOff)/4] = 0x80150000;
-    while(pNv->REGS[(0x0061A004+dacOff)/4] & 0x80000000);
-    tmp = pNv->NVArch == 0x50 ? 420 : 340;
-    pNv->REGS[(0x0061A00C+dacOff)/4] = tmp | 0x100000;
-    usleep(4500);
-    load = pNv->REGS[(0x0061A00C+dacOff)/4];
-    pNv->REGS[(0x0061A00C+dacOff)/4] = 0;
-    pNv->REGS[(0x0061A004+dacOff)/4] = 0x80000000 | tmp2;
+	NV50OutputWrite(output, 0xa010, 0x00000001);
+	tmp2 = NV50OutputRead(output, 0xa004);
 
-    // Use this DAC if all three channels show load.
-    if((load & 0x38000000) == 0x38000000) {
-        xf86ErrorF("found one!\n");
-        return TRUE;
-    }
+	NV50OutputWrite(output, 0xa004, 0x80150000);
+	while(NV50OutputRead(output, 0xa004) & 0x80000000);
+	tmp = (pNv->NVArch == 0x50) ? 420 : 340;
+	NV50OutputWrite(output, 0xa00c, tmp | 0x100000);
+	usleep(4500);
+	load = NV50OutputRead(output, 0xa00c);
+	NV50OutputWrite(output, 0xa00c, 0);
+	NV50OutputWrite(output, 0xa004, 0x80000000 | tmp2);
 
-    xf86ErrorF("nothing.\n");
-    return FALSE;
+	// Use this DAC if all three channels show load.
+	if((load & 0x38000000) == 0x38000000) {
+		xf86ErrorF("found one!\n");
+		return TRUE;
+	}
+
+	xf86ErrorF("nothing.\n");
+	return FALSE;
 }
 
 static void
 NV50DacDestroy(xf86OutputPtr output)
 {
-    NV50OutputDestroy(output);
+	NV50OutputDestroy(output);
 
-    xfree(output->driver_private);
-    output->driver_private = NULL;
+	xfree(output->driver_private);
+	output->driver_private = NULL;
 }
 
 static const xf86OutputFuncsRec NV50DacOutputFuncs = {
-    .dpms = NV50DacDPMSSet,
-    .save = NULL,
-    .restore = NULL,
-    .mode_valid = NV50OutputModeValid,
-    .mode_fixup = NV50DacModeFixup,
-    .prepare = NV50OutputPrepare,
-    .commit = NV50OutputCommit,
-    .mode_set = NV50DacModeSet,
-    .detect = NV50DacDetect,
-    .get_modes = NV50OutputGetDDCModes,
-    .destroy = NV50DacDestroy,
+	.dpms = NV50DacDPMSSet,
+	.save = NULL,
+	.restore = NULL,
+	.mode_valid = NV50OutputModeValid,
+	.mode_fixup = NV50DacModeFixup,
+	.prepare = NV50OutputPrepare,
+	.commit = NV50OutputCommit,
+	.mode_set = NV50DacModeSet,
+	.detect = NV50DacDetect,
+	.get_modes = NV50OutputGetDDCModes,
+	.destroy = NV50DacDestroy,
 };
 
 xf86OutputPtr
