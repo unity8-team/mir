@@ -229,6 +229,8 @@ void NV50DisplayWrite(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value);
 CARD32 NV50DisplayRead(ScrnInfoPtr pScrn, CARD32 addr);
 
 /* in nv50_output.c */
+void NV50OrWrite(ScrnInfoPtr pScrn, int or, CARD32 addr, CARD32 value);
+CARD32 NV50OrRead(ScrnInfoPtr pScrn, int or, CARD32 addr);
 void NV50OutputWrite(xf86OutputPtr output, CARD32 addr, CARD32 value);
 CARD32 NV50OutputRead(xf86OutputPtr output, CARD32 addr);
 #endif /* ENABLE_RANDR12 */

@@ -142,69 +142,70 @@ NV50CalcPLL(float pclk, int *pNA, int *pMA, int *pNB, int *pMB, int *pP)
 
 void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 {
-    NVPtr pNv = NVPTR(crtc->scrn);
-    NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-    const int headOff = 0x800 * pPriv->head;
-    int lo_n, lo_m, hi_n, hi_m, p, i;
-    CARD32 lo = pNv->REGS[(0x00614104+headOff)/4];
-    CARD32 hi = pNv->REGS[(0x00614108+headOff)/4];
+	NVPtr pNv = NVPTR(crtc->scrn);
+	NV50CrtcPrivPtr pPriv = crtc->driver_private;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+	const int headOff = 0x800 * pPriv->head;
+	int lo_n, lo_m, hi_n, hi_m, p, i;
+	CARD32 lo = NV50CrtcRead(crtc, 0x4104);
+	CARD32 hi = NV50CrtcRead(crtc, 0x4108);
 
-    pNv->REGS[(0x00614100+headOff)/4] = 0x10000610;
-    lo &= 0xff00ff00;
-    hi &= 0x8000ff00;
+	NV50CrtcWrite(crtc, 0x4100, 0x10000610);
+	lo &= 0xff00ff00;
+	hi &= 0x8000ff00;
 
-    NV50CalcPLL(pPriv->pclk, &lo_n, &lo_m, &hi_n, &hi_m, &p);
+	NV50CalcPLL(pPriv->pclk, &lo_n, &lo_m, &hi_n, &hi_m, &p);
 
-    lo |= (lo_m << 16) | lo_n;
-    hi |= (p << 28) | (hi_m << 16) | hi_n;
-    pNv->REGS[(0x00614104+headOff)/4] = lo;
-    pNv->REGS[(0x00614108+headOff)/4] = hi;
-    pNv->REGS[(0x00614200+headOff)/4] = 0;
+	lo |= (lo_m << 16) | lo_n;
+	hi |= (p << 28) | (hi_m << 16) | hi_n;
+	NV50CrtcWrite(crtc, 0x4104, lo);
+	NV50CrtcWrite(crtc, 0x4108, hi);
+	NV50CrtcWrite(crtc, 0x4200, 0);
 
-    for(i = 0; i < xf86_config->num_output; i++) {
-        xf86OutputPtr output = xf86_config->output[i];
+	for(i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
 
-        if(output->crtc != crtc)
-            continue;
-        NV50OutputSetPClk(output, pPriv->pclk);
-    }
+		if(output->crtc != crtc)
+			continue;
+		NV50OutputSetPClk(output, pPriv->pclk);
+	}
 }
 
 Head
 NV50CrtcGetHead(xf86CrtcPtr crtc)
 {
-    NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    return pPriv->head;
+	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	return nv_crtc->head;
 }
 
 Bool
 NV50DispPreInit(ScrnInfoPtr pScrn)
 {
-    NVPtr pNv = NVPTR(pScrn);
+	NVPtr pNv = NVPTR(pScrn);
 
-    pNv->REGS[0x00610184/4] = pNv->REGS[0x00614004/4];
-    pNv->REGS[0x00610190/4] = pNv->REGS[0x00616100/4];
-    pNv->REGS[0x006101a0/4] = pNv->REGS[0x00616900/4];
-    pNv->REGS[0x00610194/4] = pNv->REGS[0x00616104/4];
-    pNv->REGS[0x006101a4/4] = pNv->REGS[0x00616904/4];
-    pNv->REGS[0x00610198/4] = pNv->REGS[0x00616108/4];
-    pNv->REGS[0x006101a8/4] = pNv->REGS[0x00616908/4];
-    pNv->REGS[0x0061019C/4] = pNv->REGS[0x0061610C/4];
-    pNv->REGS[0x006101ac/4] = pNv->REGS[0x0061690c/4];
-    pNv->REGS[0x006101D0/4] = pNv->REGS[0x0061A000/4];
-    pNv->REGS[0x006101D4/4] = pNv->REGS[0x0061A800/4];
-    pNv->REGS[0x006101D8/4] = pNv->REGS[0x0061B000/4];
-    pNv->REGS[0x006101E0/4] = pNv->REGS[0x0061C000/4];
-    pNv->REGS[0x006101E4/4] = pNv->REGS[0x0061C800/4];
-    pNv->REGS[0x0061A004/4] = 0x80550000;
-    pNv->REGS[0x0061A010/4] = 0x00000001;
-    pNv->REGS[0x0061A804/4] = 0x80550000;
-    pNv->REGS[0x0061A810/4] = 0x00000001;
-    pNv->REGS[0x0061B004/4] = 0x80550000;
-    pNv->REGS[0x0061B010/4] = 0x00000001;
+	/* These labels are guesswork based on symmetry (2 SOR's and 3 DAC's exist)*/
+	NV50DisplayWrite(pScrn, 0x184, NV50DisplayRead(pScrn, 0x4004));
+	NV50DisplayWrite(pScrn, 0x190, NV50OrRead(pScrn, SOR0, 0x6100));
+	NV50DisplayWrite(pScrn, 0x1a0, NV50OrRead(pScrn, SOR1, 0x6100));
+	NV50DisplayWrite(pScrn, 0x194, NV50OrRead(pScrn, SOR0, 0x6104));
+	NV50DisplayWrite(pScrn, 0x1a4, NV50OrRead(pScrn, SOR1, 0x6104));
+	NV50DisplayWrite(pScrn, 0x198, NV50OrRead(pScrn, SOR0, 0x6108));
+	NV50DisplayWrite(pScrn, 0x1a8, NV50OrRead(pScrn, SOR1, 0x6108));
+	NV50DisplayWrite(pScrn, 0x19c, NV50OrRead(pScrn, SOR0, 0x610c));
+	NV50DisplayWrite(pScrn, 0x1ac, NV50OrRead(pScrn, SOR1, 0x610c));
+	NV50DisplayWrite(pScrn, 0x1d0, NV50OrRead(pScrn, DAC0, 0xa000));
+	NV50DisplayWrite(pScrn, 0x1d4, NV50OrRead(pScrn, DAC1, 0xa000));
+	NV50DisplayWrite(pScrn, 0x1d8, NV50OrRead(pScrn, DAC2, 0xa000));
+	NV50DisplayWrite(pScrn, 0x1e0, NV50OrRead(pScrn, SOR0, 0xc000));
+	NV50DisplayWrite(pScrn, 0x1e4, NV50OrRead(pScrn, SOR1, 0xc000));
+	NV50OrWrite(pScrn, DAC0, 0xa004, 0x80550000);
+	NV50OrWrite(pScrn, DAC0, 0xa010, 0x00000001);
+	NV50OrWrite(pScrn, DAC1, 0xa004, 0x80550000);
+	NV50OrWrite(pScrn, DAC1, 0xa010, 0x00000001);
+	NV50OrWrite(pScrn, DAC2, 0xa004, 0x80550000);
+	NV50OrWrite(pScrn, DAC2, 0xa010, 0x00000001);
 
-    return TRUE;
+	return TRUE;
 }
 
 Bool
