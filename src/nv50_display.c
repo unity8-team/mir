@@ -374,24 +374,23 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 /******************************** Cursor stuff ********************************/
 static void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NV50CrtcPrivPtr pPriv = crtc->driver_private;
+	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
 
 	NV50CrtcCommand(crtc, 0x880, show ? 0x85000000 : 0x5000000);
 	if(update) {
-		pPriv->cursorVisible = show;
+		nv_crtc->cursorVisible = show;
 		NV50CrtcCommand(crtc, 0x80, 0);
 	}
 }
 
 void NV50CrtcShowCursor(xf86CrtcPtr crtc)
 {
-    NV50CrtcShowHideCursor(crtc, TRUE, TRUE);
+	NV50CrtcShowHideCursor(crtc, TRUE, TRUE);
 }
 
 void NV50CrtcHideCursor(xf86CrtcPtr crtc)
 {
-    NV50CrtcShowHideCursor(crtc, FALSE, TRUE);
+	NV50CrtcShowHideCursor(crtc, FALSE, TRUE);
 }
 
 /******************************** CRTC stuff ********************************/
@@ -399,35 +398,34 @@ void NV50CrtcHideCursor(xf86CrtcPtr crtc)
 void
 NV50CrtcPrepare(xf86CrtcPtr crtc)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int i;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
 
-    for(i = 0; i < xf86_config->num_output; i++) {
-        xf86OutputPtr output = xf86_config->output[i];
+	for(i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
 
-        if(!output->crtc)
-            output->funcs->mode_set(output, NULL, NULL);
-    }
+		if(!output->crtc)
+			output->funcs->mode_set(output, NULL, NULL);
+	}
 
-    pPriv->skipModeFixup = FALSE;
+	nv_crtc->skipModeFixup = FALSE;
 }
 
 void
 NV50CrtcSkipModeFixup(xf86CrtcPtr crtc)
 {
-    NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    pPriv->skipModeFixup = TRUE;
+	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	nv_crtc->skipModeFixup = TRUE;
 }
 
 void
 NV50CrtcSetDither(xf86CrtcPtr crtc, Bool dither, Bool update)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NV50CrtcPrivPtr pPriv = crtc->driver_private;
+	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
 
-	pPriv->dither = dither;
+	nv_crtc->dither = dither;
 
 	NV50CrtcCommand(crtc, 0x8a0, dither ? 0x11 : 0);
 	if(update) 
@@ -436,45 +434,40 @@ NV50CrtcSetDither(xf86CrtcPtr crtc, Bool dither, Bool update)
 
 static void ComputeAspectScale(DisplayModePtr mode, int *outX, int *outY)
 {
-    float scaleX, scaleY, scale;
+	float scaleX, scaleY, scale;
 
-    scaleX = mode->CrtcHDisplay / (float)mode->HDisplay;
-    scaleY = mode->CrtcVDisplay / (float)mode->VDisplay;
+	scaleX = mode->CrtcHDisplay / (float)mode->HDisplay;
+	scaleY = mode->CrtcVDisplay / (float)mode->VDisplay;
 
-    if(scaleX > scaleY)
-        scale = scaleY;
-    else
-        scale = scaleX;
+	if(scaleX > scaleY)
+		scale = scaleY;
+	else
+		scale = scaleX;
 
-    *outX = mode->HDisplay * scale;
-    *outY = mode->VDisplay * scale;
+	*outX = mode->HDisplay * scale;
+	*outY = mode->VDisplay * scale;
 }
 
-void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode,
-                     enum NV50ScaleMode scale)
+void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode, enum NV50ScaleMode scale)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NV50CrtcPrivPtr pPriv = crtc->driver_private;
-    int outX, outY;
+	int outX = 0, outY = 0;
 
-    switch(scale) {
-        case NV50_SCALE_ASPECT:
-            ComputeAspectScale(mode, &outX, &outY);
-            break;
+	switch(scale) {
+		case NV50_SCALE_ASPECT:
+			ComputeAspectScale(mode, &outX, &outY);
+			break;
+		case NV50_SCALE_OFF:
+		case NV50_SCALE_FILL:
+			outX = mode->CrtcHDisplay;
+			outY = mode->CrtcVDisplay;
+			break;
+		case NV50_SCALE_CENTER:
+			outX = mode->HDisplay;
+			outY = mode->VDisplay;
+			break;
+	}
 
-        case NV50_SCALE_OFF:
-        case NV50_SCALE_FILL:
-            outX = mode->CrtcHDisplay;
-            outY = mode->CrtcVDisplay;
-            break;
-
-        case NV50_SCALE_CENTER:
-            outX = mode->HDisplay;
-            outY = mode->VDisplay;
-            break;
-    }
-
-	if((mode->Flags & V_DBLSCAN) || (mode->Flags & V_INTERLACE) ||
+	if ((mode->Flags & V_DBLSCAN) || (mode->Flags & V_INTERLACE) ||
 		mode->HDisplay != outX || mode->VDisplay != outY) {
 		NV50CrtcCommand(crtc, 0x8a4, 9);
 	} else {
@@ -487,22 +480,24 @@ void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode,
 void
 NV50CrtcCommit(xf86CrtcPtr crtc)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-    int i, crtc_mask = 0;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+	int i, crtc_mask = 0;
 
-    /* If any heads are unused, blank them */
-    for(i = 0; i < xf86_config->num_output; i++) {
-        xf86OutputPtr output = xf86_config->output[i];
+	/* If any heads are unused, blank them */
+	for(i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
 
-        if(output->crtc)
-            /* XXXagp: This assumes that xf86_config->crtc[i] is HEADi */
-            crtc_mask |= 1 << NV50CrtcGetHead(output->crtc);
-    }
+		if (output->crtc) {
+			/* XXXagp: This assumes that xf86_config->crtc[i] is HEADi */
+			crtc_mask |= 1 << NV50CrtcGetHead(output->crtc);
+		}
+	}
 
-    for(i = 0; i < xf86_config->num_crtc; i++)
-        if(!((1 << i) & crtc_mask))
-            NV50CrtcBlankScreen(xf86_config->crtc[i], TRUE);
+	for(i = 0; i < xf86_config->num_crtc; i++) {
+		if(!((1 << i) & crtc_mask)) {
+			NV50CrtcBlankScreen(xf86_config->crtc[i], TRUE);
+		}
+	}
 
 	NV50CrtcCommand(crtc, 0x80, 0);
 }
