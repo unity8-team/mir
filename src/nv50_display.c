@@ -214,7 +214,15 @@ NV50DispInit(ScrnInfoPtr pScrn)
 	}
 
 	NV50DisplayWrite(pScrn, 0x200, 0x2b00);
-	while ((NV50DisplayRead(pScrn, 0x200) & 0x1e0000) != 0);
+	/* A bugfix (#12637) from the nv driver, to unlock the driver if it's left in a poor state */
+	do {
+		CARD32 val = NV50DisplayRead(pScrn, 0x200);
+		if ((val & 0x9f0000) == 0x20000)
+			NV50DisplayWrite(pScrn, 0x200, val | 0x800000);
+
+		if ((val & 0x3f0000) == 0x30000)
+			NV50DisplayWrite(pScrn, 0x200, val | 0x200000);
+	} while ((NV50DisplayRead(pScrn, 0x200) & 0x1e0000) != 0);
 	NV50DisplayWrite(pScrn, 0x300, 0x1);
 	NV50DisplayWrite(pScrn, 0x200, 0x1000b03);
 	while (!(NV50DisplayRead(pScrn, 0x200) & 0x40000000));
