@@ -282,9 +282,11 @@ avivo_display_ddc_connected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONDDCType DDCType = radeon_output->DDCType;
 
-    AVIVOI2CDoLock(output->scrn, 1);
-    MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-    AVIVOI2CDoLock(output->scrn, 0);
+    if (radeon_output->pI2CBus) {
+	AVIVOI2CDoLock(output->scrn, 1);
+	MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
+	AVIVOI2CDoLock(output->scrn, 0);
+    }
     if (MonInfo) {
 	if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
 	    xf86OutputSetEDID(output, MonInfo);
