@@ -92,19 +92,11 @@ static void NVWritePVIO(xf86CrtcPtr crtc, CARD32 address, CARD8 value)
 
 static void NVWriteMiscOut(xf86CrtcPtr crtc, CARD8 value)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVPtr pNv = NVPTR(pScrn);
-
 	NVWritePVIO(crtc, VGA_MISC_OUT_W, value);
 }
 
 static CARD8 NVReadMiscOut(xf86CrtcPtr crtc)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVPtr pNv = NVPTR(pScrn);
-
 	return NVReadPVIO(crtc, VGA_MISC_OUT_R);
 }
 
@@ -144,40 +136,24 @@ CARD8 NVReadVgaCrtc(xf86CrtcPtr crtc, CARD8 index)
 
 static void NVWriteVgaSeq(xf86CrtcPtr crtc, CARD8 index, CARD8 value)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVPtr pNv = NVPTR(pScrn);
-
 	NVWritePVIO(crtc, VGA_SEQ_INDEX, index);
 	NVWritePVIO(crtc, VGA_SEQ_DATA, value);
 }
 
 static CARD8 NVReadVgaSeq(xf86CrtcPtr crtc, CARD8 index)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVPtr pNv = NVPTR(pScrn);
-
 	NVWritePVIO(crtc, VGA_SEQ_INDEX, index);
 	return NVReadPVIO(crtc, VGA_SEQ_DATA);
 }
 
 static void NVWriteVgaGr(xf86CrtcPtr crtc, CARD8 index, CARD8 value)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVPtr pNv = NVPTR(pScrn);
-
 	NVWritePVIO(crtc, VGA_GRAPH_INDEX, index);
 	NVWritePVIO(crtc, VGA_GRAPH_DATA, value);
 }
 
 static CARD8 NVReadVgaGr(xf86CrtcPtr crtc, CARD8 index)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVPtr pNv = NVPTR(pScrn);
-
 	NVWritePVIO(crtc, VGA_GRAPH_INDEX, index);
 	return NVReadPVIO(crtc, VGA_GRAPH_DATA);
 } 
@@ -329,7 +305,6 @@ NVGetOutputFromCRTC(xf86CrtcPtr crtc)
 	int i;
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
-		NVOutputPrivatePtr nv_output = output->driver_private;
 
 		if (output->crtc == crtc) {
 			return output;
@@ -624,7 +599,7 @@ void nv_crtc_calc_state_ext(
 )
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	int pixelDepth, VClk;
+	int pixelDepth, VClk = 0;
 	CARD32 CursorStart;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -811,7 +786,6 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	NVPtr pNv = NVPTR(pScrn);
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
-	int ret;
 
 	ErrorF("nv_crtc_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
 
@@ -862,24 +836,6 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	} else {
 		pNv->crtc_active[nv_crtc->head] = FALSE;
 	}
-
-#if 0
-	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	if (!nv_output->valid_ramdac & RAMDAC_1) {
-		/* Assumption we are ramdac 0, currently the same as the crtc */
-		xf86CrtcPtr crtc2 = nv_find_crtc_by_index(pScrn, 1);
-		xf86OutputPtr output2 = NVGetOutputFromCRTC(crtc2);
-		NVOutputPrivatePtr nv_output2 = output2->driver_private;
-		/* Let's force them to crtc 0 if we are inactive */
-		if (pNv->crtc_active[0]) {
-			if (nv_output2->valid_ramdac & RAMDAC_1)
-				output2->possible_crtcs |= (1<<1);
-		} else {
-			output2->possible_crtcs &= ~(1<<1);
-		}
-	}
-#endif
 }
 
 static Bool
@@ -887,8 +843,6 @@ nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
 	ErrorF("nv_crtc_mode_fixup is called for CRTC %d\n", nv_crtc->crtc);
 
 	return TRUE;
@@ -1101,8 +1055,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	NVRegPtr state = &pNv->ModeReg;
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	NVCrtcRegPtr regp, savep;
@@ -1566,8 +1519,6 @@ void nv_crtc_commit(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ErrorF("nv_crtc_commit for CRTC %d\n", nv_crtc->crtc);
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
 
 	crtc->funcs->dpms (crtc, DPMSModeOn);
 	if (crtc->scrn->pScreen != NULL)
@@ -1654,11 +1605,8 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NVPtr pNv = NVPTR(pScrn);    
     NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-    int i, j;
-    CARD32 temp;
+    int i;
     NVCrtcRegPtr regp;
 
     regp = &state->crtc_reg[nv_crtc->head];
@@ -1701,8 +1649,6 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
     ScrnInfoPtr pScrn = crtc->scrn;
     NVPtr pNv = NVPTR(pScrn);    
     NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-    int i, j;
-    CARD32 temp;
     NVCrtcRegPtr regp;
     
     regp = &state->crtc_reg[nv_crtc->head];
@@ -1770,8 +1716,6 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NVPtr pNv = NVPTR(pScrn);    
     NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
     int i;
     NVCrtcRegPtr regp;
@@ -1802,7 +1746,6 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
     NVPtr pNv = NVPTR(pScrn);    
     NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
     NVCrtcRegPtr regp;
-    int i;
 
     regp = &state->crtc_reg[nv_crtc->head];
  
@@ -1960,7 +1903,6 @@ void NVCrtcLoadPalette(xf86CrtcPtr crtc)
 
 void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on)
 {
-    NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
     unsigned char scrn;
 
     NVCrtcSetOwner(crtc);

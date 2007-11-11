@@ -416,7 +416,6 @@ void nv_crtc_hide_cursor(xf86CrtcPtr crtc)
 void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	xf86OutputPtr output = NULL;
 	int i;
@@ -436,7 +435,6 @@ void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 
 void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	CARD32 fore, back;
@@ -472,7 +470,6 @@ void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 
 void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 
@@ -485,7 +482,6 @@ void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 
 void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 

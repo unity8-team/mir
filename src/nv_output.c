@@ -476,10 +476,6 @@ nv_output_restore (xf86OutputPtr output)
 static int
 nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
 	if (pMode->Flags & V_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
@@ -1013,8 +1009,6 @@ nv_crt_load_detect(xf86OutputPtr output)
 static xf86OutputStatus
 nv_tmds_output_detect(xf86OutputPtr output)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
 	ErrorF("nv_tmds_output_detect is called\n");
 
 	if (nv_ddc_detect(output))
@@ -1027,8 +1021,6 @@ nv_tmds_output_detect(xf86OutputPtr output)
 static xf86OutputStatus
 nv_analog_output_detect(xf86OutputPtr output)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
 	ErrorF("nv_analog_output_detect is called\n");
 
 	if (nv_ddc_detect(output))
@@ -1048,7 +1040,6 @@ nv_output_get_modes(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
 	DisplayModePtr ddc_modes;
-	ScrnInfoPtr pScrn = output->scrn;
 
 	ErrorF("nv_output_get_modes is called\n");
 
@@ -1240,7 +1231,7 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	DisplayModePtr modes;
 
-	if (modes = nv_output_get_modes(output))
+	if ((modes = nv_output_get_modes(output)))
 		return modes;
 
 	/* it is possible to set up a mode from what we can read from the
@@ -1290,7 +1281,6 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
 	int crtc_mask = 0;
-	int real_index;
 	Bool create_output = TRUE;
 
 	/* DVI have an analog connector and a digital one, differentiate between that and a normal vga */
@@ -1355,7 +1345,6 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, i
 	char outputname[20];
 	int crtc_mask = 0;
 	Bool create_output = TRUE;
-	int index = i2c_index;
 
 	if (lvds) {
 		sprintf(outputname, "LVDS-%d", pNv->lvds_count);
@@ -1504,35 +1493,12 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 
 void NvSetupOutputs(ScrnInfoPtr pScrn)
 {
-	int i;
 	NVPtr pNv = NVPTR(pScrn);
 
 	pNv->Television = FALSE;
 
 	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
 	NvDCBSetupOutputs(pScrn);
-
-#if 0
-	xf86OutputPtr output;
-	NVOutputPrivatePtr nv_output;
-
-    if (pNv->Mobile) {
-	output = xf86OutputCreate(pScrn, &nv_output_funcs, OutputType[OUTPUT_LVDS]);
-	if (!output)
-	    return;
-
-	nv_output = xnfcalloc(sizeof(NVOutputPrivateRec), 1);
-	if (!nv_output) {
-	    xf86OutputDestroy(output);
-	    return;
-	}
-
-	output->driver_private = nv_output;
-	nv_output->type = output_type;
-
-	output->possible_crtcs = i ? 1 : crtc_mask;
-    }
-#endif
 }
 
 #endif /* ENABLE_RANDR12 */
