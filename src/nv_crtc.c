@@ -720,10 +720,11 @@ void nv_crtc_calc_state_ext(
 		/* This register is only used on the primary ramdac */
 		/* This seems to be needed to select the proper clocks, otherwise bad things happen */
 		/* Assumption CRTC1 will overwrte the CRTC0 value */
+		/* Also make sure we don't set both bits */
 		if (nv_crtc->head == 1) {
-			state->sel_clk = pNv->misc_info.sel_clk | (1 << 18);
+			state->sel_clk = (pNv->misc_info.sel_clk & ~(0xf << 16)) | (1 << 18);
 		} else {
-			state->sel_clk = pNv->misc_info.sel_clk | (1 << 16);
+			state->sel_clk = (pNv->misc_info.sel_clk & ~(0xf << 16)) | (1 << 16);
 		}
 
 		/* Do not remove any present VPLL related bits, that can cause problems */
