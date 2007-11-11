@@ -426,20 +426,20 @@ static const xf86OutputFuncsRec NV50SorLVDSOutputFuncs = {
 };
 
 static DisplayModePtr
-GetLVDSNativeMode(ScrnInfoPtr pScrn)
+ReadLVDSNativeMode(ScrnInfoPtr pScrn, const int off)
 {
 	DisplayModePtr mode = xnfcalloc(1, sizeof(DisplayModeRec));
-	const CARD32 size = NV50DisplayRead(pScrn, 0xb4c);
+	const CARD32 size = NV50DisplayRead(pScrn, 0xb4c + off);
 	const int width = size & 0x3fff;
 	const int height = (size >> 16) & 0x3fff;
 
 	mode->HDisplay = mode->CrtcHDisplay = width;
 	mode->VDisplay = mode->CrtcVDisplay = height;
-	mode->Clock = NV50DisplayRead(pScrn, 0xad4) & 0x3fffff;
-	mode->CrtcHBlankStart = NV50DisplayRead(pScrn, 0xafc);
-	mode->CrtcHSyncEnd = NV50DisplayRead(pScrn, 0xb04);
-	mode->CrtcHBlankEnd = NV50DisplayRead(pScrn, 0xae8);
-	mode->CrtcHTotal = NV50DisplayRead(pScrn, 0xaf4);
+	mode->Clock = NV50DisplayRead(pScrn, 0xad4 + off) & 0x3fffff;
+	mode->CrtcHBlankStart = NV50DisplayRead(pScrn, 0xafc + off);
+	mode->CrtcHSyncEnd = NV50DisplayRead(pScrn, 0xb04 + off);
+	mode->CrtcHBlankEnd = NV50DisplayRead(pScrn, 0xae8 + off);
+	mode->CrtcHTotal = NV50DisplayRead(pScrn, 0xaf4 + off);
 
 	mode->next = mode->prev = NULL;
 	mode->status = MODE_OK;
@@ -448,6 +448,20 @@ GetLVDSNativeMode(ScrnInfoPtr pScrn)
 	xf86SetModeDefaultName(mode);
 
 	return mode;
+}
+
+static DisplayModePtr
+GetLVDSNativeMode(ScrnInfoPtr pScrn)
+{
+	CARD32 val = NV50DisplayRead(pScrn, 0x50);
+
+	if ((val & 0x3) == 0x2) {
+		return ReadLVDSNativeMode(pScrn, 0);
+	} else if ((val & 0x300) == 0x200) {
+		return ReadLVDSNativeMode(pScrn, 0x540);
+	}
+
+	return NULL;
 }
 
 xf86OutputPtr
@@ -464,6 +478,19 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, PanelType panelType)
 	if(panelType == LVDS) {
 		strcpy(orName, "LVDS");
 		funcs = &NV50SorLVDSOutputFuncs;
+
+		nv_output->nativeMode = GetLVDSNativeMode(pScrn);
+
+		if(!nv_output->nativeMode) {
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				"Failed to find LVDS native mode\n");
+			xfree(nv_output);
+			return FALSE;
+		}
+
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s native size %dx%d\n",
+			orName, nv_output->nativeMode->HDisplay,
+			nv_output->nativeMode->VDisplay);
 	} else {
 		snprintf(orName, 5, "DVI%d", or);
 		funcs = &NV50SorTMDSOutputFuncs;
@@ -486,14 +513,6 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, PanelType panelType)
 		NV50OutputWrite(output, 0xc010, 0x0000152f);
 		NV50OutputWrite(output, 0xc014, 0x00000000);
 		NV50OutputWrite(output, 0xc018, 0x00245af8);
-	}
-
-	if(panelType == LVDS) {
-		nv_output->nativeMode = GetLVDSNativeMode(pScrn);
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s native size %dx%d\n",
-			orName, nv_output->nativeMode->HDisplay,
-			nv_output->nativeMode->VDisplay);
 	}
 
 	return output;
