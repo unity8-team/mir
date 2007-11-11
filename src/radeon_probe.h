@@ -245,7 +245,7 @@ typedef struct _RADEONOutputPrivateRec {
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 #define RADEON_MAX_CRTC 2
-#define RADEON_MAX_BIOS_CONNECTOR 8
+#define RADEON_MAX_BIOS_CONNECTOR 16
 
 typedef struct
 {

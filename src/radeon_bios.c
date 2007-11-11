@@ -170,8 +170,15 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 
     if (offset) {
 	tmp = RADEON_BIOS16(offset + 4);
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	    if (tmp & (1 << i)) {
+
+		if (i == 8) {
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping Component Video\n");
+		    info->BiosConnector[i].valid = FALSE;
+		    continue;
+		}
+
 		info->BiosConnector[i].valid = TRUE;
 		portinfo = RADEON_BIOS16(offset + 6 + i * 2);
 		info->BiosConnector[i].DACType = (portinfo & 0xf) - 1;
@@ -210,6 +217,8 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		    info->BiosConnector[i].TMDSType = TMDS_INT;
 		else if (i == 7)
 		    info->BiosConnector[i].TMDSType = TMDS_EXT;
+		else if (i == 9)
+		    info->BiosConnector[i].TMDSType = TMDS_EXT;
 		else
 		    info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
 
@@ -227,10 +236,10 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    for (j = 0; j < 8; j++) {
 		if (info->BiosConnector[j].valid && (i != j) ) {
 		    if (info->BiosConnector[i].output_id == info->BiosConnector[j].output_id) {
-			if ((i == 3) || (i == 7)) {
+			if ((i == 3) || (i == 7) || (i == 9)) {
 			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
 			    info->BiosConnector[j].valid = FALSE;
-			} else if ((j == 3) || (j == 7)) {
+			} else if ((j == 3) || (j == 7) || (j == 9)) {
 			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
 			    info->BiosConnector[i].valid = FALSE;
 			}
