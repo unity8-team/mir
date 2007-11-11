@@ -1705,13 +1705,13 @@ nv_read_dcb_i2c_table(ScrnInfoPtr pScrn, bios_t *bios, uint16_t i2ctabptr)
 	}
 }
 
-#define G5_FIXED_LOC 0xe2f8
+#define G5_NV43_FIXED_LOC 0xe31b
 
 static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint16_t dcbptr, i2ctabptr = 0;
-	Bool is_g5 = FALSE;
+	Bool is_g5_nv43 = FALSE;
 	unsigned char *dcbtable;
 	unsigned char dcb_version, headerlen = 0x4, entries = MAX_NUM_DCB_ENTRIES;
 	Bool configblock = FALSE;
@@ -1726,21 +1726,15 @@ static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 
 	if (dcbptr == 0x0) {
 		if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV43) {
-			is_g5 = TRUE;
-			dcbtable = &bios->data[G5_FIXED_LOC];
-			dcb_version = 0x5;	// magic G5 value
-			headerlen = 0x3c;
-			entries = 0xa;
-			i2ctabptr = 0xe384;
-			configblock = TRUE;
-			goto g5;
+			dcbptr = G5_NV43_FIXED_LOC;
+			is_g5_nv43 = TRUE;
 		} else {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				"No Display Configuration Block pointer found\n");
 			return 0;
 		}
 	}
-	
+
 	dcbtable = &bios->data[dcbptr];
 
 	/* get DCB version */
@@ -1769,7 +1763,7 @@ static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		}
 		configblock = TRUE;
 
-		if ((sig != 0x4edcbdcb) && (sig != 0xcbbddc4e)) {
+		if (sig != 0x4edcbdcb) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				"Bad Display Configuration Block signature (%08X)\n", sig);
 			return 0;
@@ -1797,7 +1791,6 @@ static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		return 0;
 	}
 
-g5:
 	pNv->dcb_table.version = dcb_version;
 
 	if (entries >= MAX_NUM_DCB_ENTRIES)
@@ -1806,7 +1799,7 @@ g5:
 	for (i = 0; i < entries; i++) {
 		uint32_t connection, config = 0;
 
-		if (is_g5) {
+		if (is_g5_nv43) {
 			connection = __bswap_32(*(uint32_t *)&dcbtable[headerlen + recordlength * i]);
 			if (configblock)
 				config = __bswap_32(*(uint32_t *)&dcbtable[headerlen + 4 + recordlength * i]);
@@ -1828,6 +1821,10 @@ g5:
 		pNv->dcb_table.config[i] = config;
 	}
 	pNv->dcb_table.entries = i;
+
+	/* the G5 6600 uses a relative address */
+	if (is_g5_nv43)
+		i2ctabptr += G5_NV43_FIXED_LOC;
 
 	nv_read_dcb_i2c_table(pScrn, bios, i2ctabptr);
 
