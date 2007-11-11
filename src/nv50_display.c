@@ -351,7 +351,7 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 	} else {
 		NV50CrtcCommand(crtc, 0x860, pNv->FB->offset >> 8);
 		NV50CrtcCommand(crtc, 0x864, 0);
-		pNv->REGS[0x00610380/4] = 0;
+		NV50DisplayWrite(pScrn, 0x380, 0);
 		/*XXX: in "nv" this is total vram size.  our RamAmountKBytes is clamped
 		*     to 256MiB.
 		*/
