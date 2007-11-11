@@ -772,11 +772,11 @@ NVEnterVT(int scrnIndex, int flags)
 			uint8_t tmds_reg4;
 
 			/* Disable any crosswired tmds, to avoid picking up a signal on a disabled output */
-			/* Example: TMDS1 crosswired to CRTC0 (by bios) reassigned to CRTC1 in xorg, disabled.
+			/* Example: TMDS1 crosswired to CRTC0 (by bios) reassigned to CRTC1 in xorg, disabled. */
 			/* But the bios reinits it to CRTC0 when going back to VT. */
 			/* Because it's disabled, it doesn't get a mode set, still it picks up the signal from CRTC0 (which is another output) */
 			/* A legitimately crosswired output will get set properly during mode set */
-			if (tmds_reg4 = NVReadTMDS(pNv, nv_output->ramdac, 0x4) & (1 << 3)) {
+			if ((tmds_reg4 = NVReadTMDS(pNv, nv_output->ramdac, 0x4)) & (1 << 3)) {
 				NVWriteTMDS(pNv, nv_output->ramdac, 0x4, tmds_reg4 & ~(1 << 3));
 			}
 		}

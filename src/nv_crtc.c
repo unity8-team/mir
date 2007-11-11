@@ -64,7 +64,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 
-static CARD8 NVReadPVIO(xf86CrtcPtr crtc, CARD8 address)
+static CARD8 NVReadPVIO(xf86CrtcPtr crtc, CARD32 address)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -77,7 +77,7 @@ static CARD8 NVReadPVIO(xf86CrtcPtr crtc, CARD8 address)
 	}
 }
 
-static void NVWritePVIO(xf86CrtcPtr crtc, CARD8 address, CARD8 value)
+static void NVWritePVIO(xf86CrtcPtr crtc, CARD32 address, CARD8 value)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -335,6 +335,8 @@ NVGetOutputFromCRTC(xf86CrtcPtr crtc)
 			return output;
 		}
 	}
+
+	return NULL;
 }
 
 xf86CrtcPtr
@@ -508,34 +510,103 @@ static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		state->vpll2B = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2_B);
 	}
 	state->pllsel = nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT);
+	state->sel_clk = nvReadRAMDAC0(pNv, NV_RAMDAC_SEL_CLK);
 	/* This seems to be strictly NV40 */
 	if (pNv->Architecture == NV_ARCH_40) {
-		//nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040 & ~(0x3 << 16));
 		state->reg580 = nvReadRAMDAC0(pNv, NV_RAMDAC_580);
-		//nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
 	}
 }
 
 
 static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
+	CARD32 fp_debug_0[2];
+	fp_debug_0[0] = nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0);
+	fp_debug_0[1] = nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0);
+
+	if (state->vpll2) {
+		if (pNv->Architecture == NV_ARCH_40) {
+			nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0,
+				fp_debug_0[1] | NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL);
+
+			/* Wait for the situation to stabilise */
+			usleep(5000);
+
+			CARD32 reg_c040 = pNv->misc_info.reg_c040;
+			/* for vpll2 change bits 18 and 19 are disabled */
+			reg_c040 &= ~(0x3 << 18);
+			nvWriteMC(pNv, 0xc040, reg_c040);
+		}
+
+		if(pNv->twoHeads) {
+			ErrorF("writing vpll2 %08X\n", state->vpll2);
+			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2, state->vpll2);
+		}
+		if(pNv->twoStagePLL) {
+			ErrorF("writing vpll2B %08X\n", state->vpll2B);
+			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2B);
+		}
+
+		ErrorF("writing pllsel %08X\n", state->pllsel);
+		/* Let's keep the primary vpll off */
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel & ~NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL);
+
+		if (pNv->Architecture == NV_ARCH_40) {
+			uint32_t reg580 = state->reg580;
+			/* Let's keep vpll1 off for the moment */
+			if (!(pNv->misc_info.ramdac_0_reg_580 & NV_RAMDAC_580_VPLL1_ACTIVE))
+				reg580 &= ~NV_RAMDAC_580_VPLL1_ACTIVE;
+			ErrorF("writing reg580 %08X\n", reg580);
+			nvWriteRAMDAC0(pNv, NV_RAMDAC_580, reg580);
+			/* We need to wait a while */
+			usleep(5000);
+			nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
+
+			nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0, fp_debug_0[1]);
+
+			/* Wait for the situation to stabilise */
+			usleep(5000);
+		}
+	}
+
 	if (pNv->Architecture == NV_ARCH_40) {
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_580, state->reg580);
+		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0,
+			fp_debug_0[0] | NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL);
+
+		/* Wait for the situation to stabilise */
+		usleep(5000);
+
+		CARD32 reg_c040 = pNv->misc_info.reg_c040;
+		/* for vpll1 change bits 16 and 17 are disabled */
+		reg_c040 &= ~(0x3 << 16);
+		nvWriteMC(pNv, 0xc040, reg_c040);
 	}
 
 	ErrorF("writing vpll %08X\n", state->vpll);
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll);
-	if(pNv->twoHeads) {
-		ErrorF("writing vpll2 %08X\n", state->vpll2);
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2, state->vpll2);
-	}
 	if(pNv->twoStagePLL) {
 		ErrorF("writing vpllB %08X\n", state->vpllB);
-		ErrorF("writing vpll2B %08X\n", state->vpll2B);
 		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpllB);
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2B);
-	}  
+	}
+
+	ErrorF("writing pllsel %08X\n", state->pllsel);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
+
+	if (pNv->Architecture == NV_ARCH_40) {
+		ErrorF("writing reg580 %08X\n", state->reg580);
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_580, state->reg580);
+		/* We need to wait a while */
+		usleep(5000);
+		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
+
+		/* This register is only written after the last clock is set */
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
+
+		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0, fp_debug_0[0]);
+
+		/* Wait for the situation to stabilise */
+		usleep(5000);
+	}
 }
 
 /*
@@ -645,11 +716,20 @@ void nv_crtc_calc_state_ext(
 
 	ErrorF("There are %d CRTC's enabled\n", num_crtc_enabled);
 
-	/* Something is wrong with this, so until it's proven to be needed, let's leave it alone */
 	if (pNv->Architecture == NV_ARCH_40) {
+		/* This register is only used on the primary ramdac */
+		/* This seems to be needed to select the proper clocks, otherwise bad things happen */
+		/* Assumption CRTC1 will overwrte the CRTC0 value */
+		if (nv_crtc->head == 1) {
+			state->sel_clk = pNv->misc_info.sel_clk | (1 << 18);
+		} else {
+			state->sel_clk = pNv->misc_info.sel_clk | (1 << 16);
+		}
+
 		/* Do not remove any present VPLL related bits, that can cause problems */
 		/* The meaning of this register is debatable */
-		state->reg580 = pNv->misc_info.ramdac_0_reg_580;
+		if (!state->reg580) 
+			state->reg580 = pNv->misc_info.ramdac_0_reg_580;
 
 		Bool vpll1_ok = TRUE;
 		Bool vpll2_ok = TRUE;
@@ -693,13 +773,13 @@ void nv_crtc_calc_state_ext(
 		} else {
 			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
 		}
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_CRTC1;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2;
 	} else {
 		state->vpll = state->pll;
 		state->vpllB = state->pllB;
 		if (nv_output->type == OUTPUT_LVDS)
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
-		else	
+		else
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
 		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2) {
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
@@ -707,6 +787,10 @@ void nv_crtc_calc_state_ext(
 			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
 		}
 	}
+
+	/* The purpose is unknown */
+	if (pNv->Architecture == NV_ARCH_40)
+		state->pllsel |= (1 << 2);
 
 	regp->CRTC[NV_VGA_CRTCX_FIFO0] = state->arbitration0;
 	regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = state->arbitration1 & 0xff;

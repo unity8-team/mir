@@ -138,6 +138,8 @@ xf86CrtcPtr nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index);
 void NvSetupOutputs(ScrnInfoPtr pScrn);
 void NVOutputWriteRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg, CARD32 val);
 CARD32 NVOutputReadRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg);
+void NVWriteTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg, CARD32 val);
+CARD8 NVReadTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg);
 #endif /* ENABLE_RANDR12 */
 
 

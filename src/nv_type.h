@@ -166,6 +166,7 @@ typedef struct _riva_hw_state
     CARD32 vpll2B;
     CARD32 pllsel;
 	CARD32 reg580;
+	CARD32 sel_clk;
     CARD32 general;
     CARD32 crtcOwner;
     CARD32 head;
