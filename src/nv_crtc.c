@@ -1339,16 +1339,22 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 				regp->head |= NV_CRTC_FSEL_FPP2;
 			}
 		}
+	} else {
+		/* This is observer on some g70 cards, it wasn't a flatpanel */
+		if (nv_crtc->head == 1) {
+			regp->head |= NV_CRTC_FSEL_FPP2;
+		}
 	}
 
-	/* In some situations I2C is also enabled on head 1, even when head 1 is not used */
-	/* Seems to be in "crosswired" tmds situations as far as i can tell (only one known case) */
 	if (nv_crtc->head == 0) {
-		regp->head |= NV_CRTC_FSEL_I2C;
 		if (pNv->overlayAdaptor) {
 			regp->head |= NV_CRTC_FSEL_OVERLAY;
 		}
 	}
+
+	/* I'm hoping that enabling this on both heads gives the best of both worlds */
+	/* Bad things happen when you only enable it on head 1 and disable that head */
+	regp->head |= NV_CRTC_FSEL_I2C;
 
 	regp->cursorConfig = 0x00000100;
 	if(mode->Flags & V_DBLSCAN)

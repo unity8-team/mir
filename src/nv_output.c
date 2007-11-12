@@ -705,28 +705,12 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	}
 
 	/* These are the common blob values, minus a few fp specific bit's */
-	/* The OR mask is in case the powerdown switch was enabled from the other output */
-	regp->debug_0 |= 0x1101111;
+	/* Let's keep the TMDS pll and fpclock running in all situations */
+	regp->debug_0 = 0x1101111;
 
 	if(is_fp) {
 		/* I am not completely certain, but seems to be set only for dfp's */
 		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED;
-	}
-
-	/* We must ensure that we never disable the wrong tmds control */
-	/* Assumption: one output can only run of ramdac 0 */
-	if ((nv_output->ramdac == 0) && (nv_output->valid_ramdac & RAMDAC_1)) {
-		if (is_fp) {
-			regp2->debug_0 &= ~NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
-		} else {
-			regp2->debug_0 |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
-		}
-	} else {
-		if (is_fp) {
-			regp->debug_0 &= ~NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
-		} else {
-			regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH;
-		}
 	}
 
 	ErrorF("output %d debug_0 %08X\n", nv_output->ramdac, regp->debug_0);
