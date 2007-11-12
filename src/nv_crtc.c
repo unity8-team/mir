@@ -694,11 +694,11 @@ void nv_crtc_calc_state_ext(
 	if (pNv->Architecture == NV_ARCH_40) {
 		/* This register is only used on the primary ramdac */
 		/* This seems to be needed to select the proper clocks, otherwise bad things happen */
-		/* Assumption CRTC1 will overwrte the CRTC0 value */
+		/* Assumption CRTC1 will overwrite the CRTC0 value */
 		/* Also make sure we don't set both bits */
-		if (nv_crtc->head == 1) {
-			state->sel_clk = (pNv->misc_info.sel_clk & ~(0xf << 16)) | (1 << 18);
-		} else {
+		state->sel_clk = (pNv->misc_info.sel_clk & ~(0xf << 16)) | (1 << 18);
+		/* Are we a TMDS running on head 0(=ramdac 0), but native to ramdac 1? */
+		if (nv_crtc->head == 0 && nv_output->type == OUTPUT_TMDS && nv_output->valid_ramdac & RAMDAC_1) {
 			state->sel_clk = (pNv->misc_info.sel_clk & ~(0xf << 16)) | (1 << 16);
 		}
 
