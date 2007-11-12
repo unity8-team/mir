@@ -671,7 +671,7 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
 	nvWriteRAMDAC(pNv, 0, 0x234, ((dstBox->y2 - dstBox->y1) << 16) |
 			   (dstBox->x2 - dstBox->x1));
         /* NV_PVIDEO_STEP_SIZE */
-	nvWriteRAMDAC(pNv,  0,  0x200, (uint32_t)((src_h - 1 << 11) / (drw_h - 1)) << 16 | (uint32_t)((src_w - 1 << 11) / (drw_w - 1)));
+	nvWriteRAMDAC(pNv,  0,  0x200, (uint32_t)(((src_h - 1) << 11) / (drw_h - 1)) << 16 | (uint32_t)(((src_w - 1) << 11) / (drw_w - 1)));
 	
 	/* NV_PVIDEO_RED_CSC_OFFSET */
 	/* NV_PVIDEO_GREEN_CSC_OFFSET */

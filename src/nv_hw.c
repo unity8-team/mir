@@ -182,18 +182,18 @@ typedef struct {
 } nv10_fifo_info;
 
 typedef struct {
-  int pclk_khz;
-  int mclk_khz;
-  int nvclk_khz;
-  char mem_page_miss;
-  char mem_latency;
-  int memory_type;
-  int memory_width;
-  char enable_video;
-  char gr_during_vid;
-  char pix_bpp;
-  char mem_aligned;
-  char enable_mp;
+  uint32_t pclk_khz;
+  uint32_t mclk_khz;
+  uint32_t nvclk_khz;
+  uint8_t mem_page_miss;
+  uint8_t mem_latency;
+  uint32_t memory_type;
+  uint32_t memory_width;
+  uint8_t enable_video;
+  uint8_t gr_during_vid;
+  uint8_t pix_bpp;
+  uint8_t mem_aligned;
+  uint8_t enable_mp;
 } nv10_sim_state;
 
 
@@ -761,7 +761,7 @@ void nForceUpdateArbitrationSettings (unsigned VClk,
 
 #ifdef XSERVER_LIBPCIACCESS
 	tmp = GetDeviceByPCITAG(0, 0, 3);
-	PCI_DEV_READ_LONG(&tmp, 0x6C, &uMClkPostDiv);
+	PCI_DEV_READ_LONG(&tmp, 0x6C, &(uMClkPostDiv));
 	uMClkPostDiv = (uMClkPostDiv >> 8) & 0xf;
 #else
 	uMClkPostDiv = (pciReadLong(pciTag(0, 0, 3), 0x6C) >> 8) & 0xf;
@@ -771,7 +771,7 @@ void nForceUpdateArbitrationSettings (unsigned VClk,
     } else {
 #ifdef XSERVER_LIBPCIACCESS
 	tmp = GetDeviceByPCITAG(0, 0, 5);
-	PCI_DEV_READ_LONG(&tmp, 0x4C, &MClk);
+	PCI_DEV_READ_LONG(&tmp, 0x4C, &(MClk));
 	MClk /= 1000;
 #else
 	MClk = pciReadLong(pciTag(0, 0, 5), 0x4C) / 1000;
@@ -796,19 +796,19 @@ void nForceUpdateArbitrationSettings (unsigned VClk,
 #ifdef XSERVER_LIBPCIACCESS
 	/* This offset is 0, is this even usefull? */
 	tmp = GetDeviceByPCITAG(0, 0, 3);
-	PCI_DEV_READ_LONG(&tmp, 0x00, &memctrl);
+	PCI_DEV_READ_LONG(&tmp, 0x00, &(memctrl));
 	memctrl >>= 16;
 #else
 	memctrl = pciReadLong(pciTag(0, 0, 3), 0x00) >> 16;
 #endif /* XSERVER_LIBPCIACCESS */
 
     if((memctrl == 0x1A9) || (memctrl == 0x1AB) || (memctrl == 0x1ED)) {
-        int dimm[3];
+        uint32_t dimm[3];
 #ifdef XSERVER_LIBPCIACCESS
 	tmp = GetDeviceByPCITAG(0, 0, 2);
-	PCI_DEV_READ_LONG(&tmp, 0x40, &dimm[0]);
-	PCI_DEV_READ_LONG(&tmp, 0x44, &dimm[1]);
-	PCI_DEV_READ_LONG(&tmp, 0x48, &dimm[2]);
+	PCI_DEV_READ_LONG(&tmp, 0x40, &(dimm[0]));
+	PCI_DEV_READ_LONG(&tmp, 0x44, &(dimm[1]));
+	PCI_DEV_READ_LONG(&tmp, 0x48, &(dimm[2]));
 	int i;
 	for (i = 0; i < 3; i++) {
 		dimm[i] = (dimm[i] >> 8) & 0x4F;
@@ -953,7 +953,7 @@ void NVCalcStateExt (
     int		   flags 
 )
 {
-    int pixelDepth, VClk;
+    int pixelDepth, VClk = 0;
 	CARD32 CursorStart;
 
     /*

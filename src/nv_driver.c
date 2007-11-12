@@ -485,16 +485,16 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 {
 	ScrnInfoPtr pScrn = NULL;
 
-	volatile CARD32 *regs = NULL;
+	volatile uint32_t *regs = NULL;
 
 	/* Temporary mapping to discover the architecture */
-	pci_device_map_range(dev, PCI_DEV_MEM_BASE(dev, 0), 0x90000, 0, &regs);
+	pci_device_map_range(dev, PCI_DEV_MEM_BASE(dev, 0), 0x90000, 0, (void **) &regs);
 
-	char architecture = NVGetArchitecture(regs);
+	uint8_t architecture = NVGetArchitecture(regs);
 
 	CARD32 pci_id = NVGetPCIID(regs);
 
-	pci_device_unmap_range(dev, regs, 0x90000);
+	pci_device_unmap_range(dev, (void *) regs, 0x90000);
 
 	/* Currently NV04 up to NV83 is supported */
 	/* For safety the fictional NV8F is used */
@@ -662,7 +662,6 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
 #ifdef ENABLE_RANDR12
     if (pNv->randr12_enable) {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int startAddr;
 	xf86CrtcPtr crtc = config->output[config->compat_output]->crtc;
 	
 	if (crtc && crtc->enabled) {
@@ -1004,7 +1003,6 @@ static const xf86CrtcConfigFuncsRec nv_xf86crtc_config_funcs = {
 /* A hardware bug on some hardware requires twice the pitch */
 static CARD8 NVGetCRTCMask(ScrnInfoPtr pScrn, CARD8 bpp)
 {
-	NVPtr pNv = NVPTR(pScrn);
 	CARD8 mask = 0;
 	switch(bpp) {
 		case 8:
@@ -1171,12 +1169,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
     /* Set pScrn->monitor */
     pScrn->monitor = pScrn->confScreen->monitor;
 
-	volatile CARD32 *regs = NULL;
+	volatile uint32_t *regs = NULL;
 #ifdef XSERVER_LIBPCIACCESS
-	pci_device_map_range(pNv->PciInfo, PCI_DEV_MEM_BASE(pNv->PciInfo, 0), 0x90000, 0, &regs);
+	pci_device_map_range(pNv->PciInfo, PCI_DEV_MEM_BASE(pNv->PciInfo, 0), 0x90000, 0, (void **) &regs);
 	pNv->Chipset = NVGetPCIID(regs) & 0xffff;
 	pNv->NVArch = NVGetArchitecture(regs);
-	pci_device_unmap_range(pNv->PciInfo, regs, 0x90000);
+	pci_device_unmap_range(pNv->PciInfo, (void *) regs, 0x90000);
 #else
 	CARD32 pcicmd;
 	PCI_DEV_READ_LONG(pNv->PciInfo, PCI_CMD_STAT_REG, &pcicmd);
