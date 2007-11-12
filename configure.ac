@@ -67,7 +67,7 @@ XORG_DRIVER_CHECK_EXT(XV, videoproto)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
-PKG_CHECK_MODULES(XORG, [xorg-server >= 1.1] xproto fontsproto libdrm xf86driproto $REQUIRED_MODULES)
+PKG_CHECK_MODULES(XORG, [xorg-server >= 1.3] xproto fontsproto libdrm xf86driproto $REQUIRED_MODULES)
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
 # Checks for libraries.
@@ -103,22 +103,6 @@ AC_SUBST([DRIVER_NAME])
 
 XORG_MANPAGE_SECTIONS
 XORG_RELEASE_VERSION
-
-# Make NV30 EXA disablable (for xorg server < 1.3)
-AC_ARG_ENABLE(nv30exa,
-	[  --enable-nv30exa        Enable NV30 EXA (default=yes)],
-	[WANT_NV30EXA=$enableval], [WANT_NV30EXA=yes])
-if test "x$WANT_NV30EXA" = "xyes"; then
-	AC_DEFINE(ENABLE_NV30EXA, 1, [Define if you want nv30 Exa])
-fi
-
-# Make Randr1.2 disablable (for xorg server < 1.3)
-AC_ARG_ENABLE(randr12,
-	[  --enable-randr12        Enable RandR 1.2 (default=yes)],
-	[WANT_RANDR12=$enableval], [WANT_RANDR12=yes])
-if test "x$WANT_RANDR12" = "xyes"; then
-	AC_DEFINE(ENABLE_RANDR12, 1, [Define if you want RandR 1.2])
-fi
 
 AC_OUTPUT([
 	Makefile

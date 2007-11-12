@@ -21,13 +21,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#ifdef ENABLE_RANDR12
-
 #include <float.h>
 #include <math.h>
 #include <strings.h>
@@ -510,4 +503,3 @@ NV50CrtcCommit(xf86CrtcPtr crtc)
 	NV50CrtcCommand(crtc, 0x80, 0);
 }
 
-#endif /* ENABLE_RANDR12 */

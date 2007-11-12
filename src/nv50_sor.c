@@ -21,12 +21,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#ifdef ENABLE_RANDR12
-
 #define DPMS_SERVER
 #include <X11/extensions/dpms.h>
 #include <X11/Xatom.h>
@@ -518,4 +512,3 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, PanelType panelType)
 	return output;
 }
 
-#endif /* ENABLE_RANDR12 */

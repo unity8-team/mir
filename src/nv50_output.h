@@ -3,8 +3,6 @@
 
 #include "nv50_display.h"
 
-#ifdef ENABLE_RANDR12
-
 typedef struct NV50OutputPrivRec {
     ORType type;
     ORNum or;
@@ -36,7 +34,5 @@ Bool NV50DacLoadDetect(xf86OutputPtr);
 
 /* nv50_sor.c */
 xf86OutputPtr NV50CreateSor(ScrnInfoPtr, ORNum, PanelType);
-
-#endif
 
 #endif

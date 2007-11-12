@@ -21,12 +21,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#ifdef ENABLE_RANDR12
-
 #include <unistd.h>
 
 #define DPMS_SERVER
@@ -203,4 +197,3 @@ NV50CreateDac(ScrnInfoPtr pScrn, ORNum or)
 	return output;
 }
 
-#endif /* ENABLE_RANDR12 */

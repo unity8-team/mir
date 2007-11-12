@@ -22,12 +22,6 @@
  * SOFTWARE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#ifdef ENABLE_NV30EXA
-
 #include "nv_include.h"
 #include "nv_shaders.h"
 
@@ -862,6 +856,3 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
-
-
-#endif /* ENABLE_NV30EXA */

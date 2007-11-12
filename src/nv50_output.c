@@ -21,15 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#ifdef ENABLE_RANDR12
-
 #include <string.h>
-
 
 #include "nv_include.h"
 #include "nv50_type.h"
@@ -400,4 +392,3 @@ NV50CreateOutputs(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
-#endif /* ENABLE_RANDR12 */

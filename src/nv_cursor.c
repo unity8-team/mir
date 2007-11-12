@@ -333,8 +333,6 @@ NVCursorInit(ScreenPtr pScreen)
     return(xf86InitCursor(pScreen, infoPtr));
 }
 
-#ifdef ENABLE_RANDR12
-
 #define CURSOR_PTR ((CARD32*)pNv->Cursor->map)
 
 Bool NVCursorInitRandr12(ScreenPtr pScreen)
@@ -489,4 +487,3 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	memcpy(CURSOR_PTR, image, 16384);
 }
 
-#endif /* ENABLE_RANDR12 */

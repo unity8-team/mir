@@ -14,9 +14,7 @@
 #include "dri.h"
 #include <stdint.h>
 #include "nouveau_drm.h"
-#ifdef ENABLE_RANDR12
 #include "xf86Crtc.h"
-#endif
 #else
 #error "This driver requires a DRI-enabled X server"
 #endif

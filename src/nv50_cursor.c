@@ -21,12 +21,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#ifdef ENABLE_RANDR12
-
 #include <string.h>
 
 #include <cursorstr.h>
@@ -105,4 +99,3 @@ Bool NV50CursorInit(ScreenPtr pScreen)
             HARDWARE_CURSOR_ARGB);
 }
 
-#endif /* ENABLE_RANDR12 */

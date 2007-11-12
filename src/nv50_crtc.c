@@ -21,13 +21,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#ifdef ENABLE_RANDR12
-
 #include "nv_include.h"
 
 void NV50DisplayWrite(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value)
@@ -182,4 +175,3 @@ void NV50DispCreateCrtcs(ScrnInfoPtr pScrn)
 	}
 }
 
-#endif /* ENABLE_RANDR12 */

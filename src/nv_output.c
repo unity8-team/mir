@@ -30,8 +30,6 @@
 #include "config.h"
 #endif
 
-#ifdef ENABLE_RANDR12
-
 #include "xf86.h"
 #include "os.h"
 #include "mibank.h"
@@ -1484,8 +1482,6 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
 	NvDCBSetupOutputs(pScrn);
 }
-
-#endif /* ENABLE_RANDR12 */
 
 /*************************************************************************** \
 |*                                                                           *|

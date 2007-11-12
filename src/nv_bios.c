@@ -1871,7 +1871,6 @@ static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 
 static void nv_read_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
 {
-#ifdef ENABLE_RANDR12
 	NVPtr pNv = NVPTR(pScrn);
 	unsigned int fpstrapping;
 	unsigned char *fptable, *fpxlatetable;
@@ -1986,10 +1985,6 @@ v1common:
 //	}
 
 	pNv->fp_native_mode = mode;
-#else
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Reading flat panel tables disabled\n");
-#endif
 }
 
 unsigned int NVParseBios(ScrnInfoPtr pScrn)

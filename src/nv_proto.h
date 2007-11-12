@@ -50,7 +50,6 @@ void   NVDACLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
                         LOCO *colors, VisualPtr pVisual );
 Bool   NVDACi2cInit(ScrnInfoPtr pScrn);
 
-
 /* in nv_video.c */
 void NVInitVideo(ScreenPtr);
 void NVResetVideo (ScrnInfoPtr pScrnInfo);
@@ -61,7 +60,6 @@ void   NVCommonSetup(ScrnInfoPtr pScrn);
 
 /* in nv_cursor.c */
 Bool   NVCursorInit(ScreenPtr pScreen);
-#ifdef ENABLE_RANDR12
 Bool NVCursorInitRandr12(ScreenPtr pScreen);
 void nv_crtc_show_cursor(xf86CrtcPtr crtc);
 void nv_crtc_hide_cursor(xf86CrtcPtr crtc);
@@ -69,7 +67,6 @@ void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y);
 void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg);
 void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image);
 void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image);
-#endif /* ENABLE_RANDR12 */
 
 /* in nv_dma.c */
 void  NVDmaKickoffNNN(NVPtr pNv);
@@ -115,9 +112,7 @@ void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDe
 				      unsigned     *burst, unsigned     *lwm,
 				      NVPtr        pNv);
 
-
 /* nv_crtc.c */
-#ifdef ENABLE_RANDR12
 DisplayModePtr NVCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y);
 void NVCrtcLoadPalette(xf86CrtcPtr crtc);
@@ -131,18 +126,13 @@ void NVWriteVGA(NVPtr pNv, int head, CARD8 index, CARD8 value);
 CARD8 NVReadVGA(NVPtr pNv, int head, CARD8 index);
 xf86OutputPtr NVGetOutputFromCRTC(xf86CrtcPtr crtc);
 xf86CrtcPtr nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index);
-#endif /* ENABLE_RANDR12 */
 
 /* nv_output.c */
-#ifdef ENABLE_RANDR12
 void NvSetupOutputs(ScrnInfoPtr pScrn);
 void NVOutputWriteRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg, CARD32 val);
 CARD32 NVOutputReadRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg);
 void NVWriteTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg, CARD32 val);
 CARD8 NVReadTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg);
-#endif /* ENABLE_RANDR12 */
-
-
 
 /* nv_hw.c */
 void nForceUpdateArbitrationSettings (unsigned VClk, unsigned pixelDepth,
@@ -205,7 +195,6 @@ Bool NV50EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
 void NV50EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV50EXADoneComposite(PixmapPtr);
 
-#ifdef ENABLE_RANDR12
 /* in nv50_display.c */
 Bool NV50CrtcModeFixup(xf86CrtcPtr crtc,
 		DisplayModePtr mode, DisplayModePtr adjusted_mode);
@@ -235,7 +224,6 @@ void NV50OrWrite(ScrnInfoPtr pScrn, int or, CARD32 addr, CARD32 value);
 CARD32 NV50OrRead(ScrnInfoPtr pScrn, int or, CARD32 addr);
 void NV50OutputWrite(xf86OutputPtr output, CARD32 addr, CARD32 value);
 CARD32 NV50OutputRead(xf86OutputPtr output, CARD32 addr);
-#endif /* ENABLE_RANDR12 */
 
 
 #endif /* __NV_PROTO_H__ */

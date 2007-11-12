@@ -26,12 +26,9 @@
  * decleration is at the bottom of this file as it is rather ugly 
  */
 
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
-#ifdef ENABLE_RANDR12
 
 #include <assert.h>
 #include "xf86.h"
@@ -1938,8 +1935,6 @@ void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on)
     NVWriteVgaSeq(crtc, 0x01, scrn);
     NVVgaSeqReset(crtc, FALSE);
 }
-
-#endif /* ENABLE_RANDR12 */
 
 /*************************************************************************** \
 |*                                                                           *|
