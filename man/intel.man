@@ -184,7 +184,9 @@ The 830M and newer driver supports the following outputs through RandR 1.2:
 Analog VGA output
 .TP
 .BI "LVDS"
-Laptop panel
+Laptop panel.  Properties:
+  BACKLIGHT - set backlight level
+  BACKLIGHT_CONTROL - set backlight level control method (i.e. use kernel interfaces, native LVDS power register, legacy register, or combination)
 .TP
 .BI "TV"
 Integrated TV output

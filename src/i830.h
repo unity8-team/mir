@@ -295,6 +295,57 @@ enum last_3d {
     LAST_3D_ROTATION
 };
 
+/*
+ * Backlight control has some unfortunate properties:
+ *   - many machines won't give us brightness change notifications
+ *     o brightness hotkeys
+ *     o events like AC plug/unplug (can be controlled via _DOS setting)
+ *     o ambient light sensor triggered changes
+ *   - some machines use the so-called "legacy" backlight interface
+ *     o resulting brightness is a combo of LBB and PWM values
+ *     o LBB sits in config space
+ *   - some machines have ACPI methods for changing brightness
+ *     o one of the few ways the X server and firmware can stay in sync
+ *   - new machines have the IGD OpRegion interface available
+ *     o a reliable way of keeping the firmware and X in sync
+ *
+ * So the real problem is on machines where ACPI or OpRegion methods aren't
+ * available.  In that case, problems can occur:
+ *   1) the BIOS and X will have different ideas of what the brightness is,
+ *      leading to unexpected results when the brightness is increased or
+ *      decreased via hotkey or X protocol
+ *   2) unless X takes the legacy register into account, machines using it
+ *      may prevent X from raising the brightness above 0 if the firmware
+ *      set LBB to 0
+ * Given these problems, we provide the user with a selection of methods,
+ * so they can choose an ideal one for their platform (assuming our quirk
+ * code picks the wrong one).
+ *
+ * Four different methods are available:
+ *   NATIVE:  only ever touch the native backlight control registers
+ *     This method may be susceptible to problem (2) above if the firmware
+ *     modifies the legacy registers.
+ *   LEGACY:  only ever touch the legacy backlight control registers
+ *     This method may be susceptible to problem (1) above if the firmware
+ *     also modifies the legacy registers.
+ *   COMBO:  try to use both sets
+ *     In this case, the driver will try to modify both sets of registers
+ *     if needed.  To avoid problem (2) above it may set the LBB register
+ *     to a non-zero value if the brightness is to be increased.  It's still
+ *     susceptible to problem (1), but to a lesser extent than the LEGACY only
+ *     method.
+ *   KERNEL:  use kernel methods for controlling the backlight
+ *     This is only available on some platforms, but where present this can
+ *     provide the best user experience.
+ */
+
+enum backlight_control {
+    NATIVE = 0,
+    LEGACY,
+    COMBO,
+    KERNEL,
+};
+
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
    unsigned char *GTTBase;
@@ -497,6 +548,8 @@ typedef struct _I830Rec {
    OsTimerPtr devicesTimer;
 
    int ddc2;
+
+   enum backlight_control backlight_control_method;
 
    CARD32 saveDSPACNTR;
    CARD32 saveDSPBCNTR;
