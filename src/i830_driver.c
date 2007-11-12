@@ -2056,8 +2056,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
     * Make sure the DPLL is active and not in VGA mode or the
     * write of PIPEnCONF may cause a crash
     */
-   if ((pI830->saveDPLL_B & DPLL_VCO_ENABLE) &&
-       (pI830->saveDPLL_B & DPLL_VGA_MODE_DIS))
+   if ((pI830->saveDPLL_A & DPLL_VCO_ENABLE) &&
+       (pI830->saveDPLL_A & DPLL_VGA_MODE_DIS))
 	   OUTREG(PIPEACONF, pI830->savePIPEACONF);
    i830WaitForVblank(pScrn);
    OUTREG(DSPACNTR, pI830->saveDSPACNTR);
