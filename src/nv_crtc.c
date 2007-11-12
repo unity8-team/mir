@@ -1340,7 +1340,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 			}
 		}
 	} else {
-		/* This is observer on some g70 cards, it wasn't a flatpanel */
+		/* This is observed on some g70 cards, non-flatpanel's too */
 		if (nv_crtc->head == 1) {
 			regp->head |= NV_CRTC_FSEL_FPP2;
 		}
