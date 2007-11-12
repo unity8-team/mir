@@ -231,7 +231,7 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	return FALSE;
     }
 
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
 	    for (j = 0; j < 8; j++) {
 		if (info->BiosConnector[j].valid && (i != j) ) {
