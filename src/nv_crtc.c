@@ -496,13 +496,24 @@ static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
 	CARD32 fp_debug_0[2];
+	uint32_t index[2];
 	fp_debug_0[0] = nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0);
 	fp_debug_0[1] = nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0);
 
+	/* The TMDS_PLL switch is on the actual ramdac */
+	if (state->crosswired) {
+		index[0] = 1;
+		index[1] = 0;
+		ErrorF("Crosswired pll state load\n");
+	} else {
+		index[0] = 0;
+		index[1] = 1;
+	}
+
 	if (state->vpll2) {
 		if (pNv->Architecture == NV_ARCH_40) {
-			nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0,
-				fp_debug_0[1] | NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL);
+			nvWriteRAMDAC(pNv, index[1], NV_RAMDAC_FP_DEBUG_0,
+				fp_debug_0[index[1]] | NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL);
 
 			/* Wait for the situation to stabilise */
 			usleep(5000);
@@ -537,7 +548,7 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 			usleep(5000);
 			nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
 
-			nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0, fp_debug_0[1]);
+			nvWriteRAMDAC(pNv, index[1], NV_RAMDAC_FP_DEBUG_0, fp_debug_0[index[1]]);
 
 			/* Wait for the situation to stabilise */
 			usleep(5000);
@@ -545,8 +556,8 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	}
 
 	if (pNv->Architecture == NV_ARCH_40) {
-		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0,
-			fp_debug_0[0] | NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL);
+		nvWriteRAMDAC(pNv, index[0], NV_RAMDAC_FP_DEBUG_0,
+			fp_debug_0[index[0]] | NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL);
 
 		/* Wait for the situation to stabilise */
 		usleep(5000);
@@ -577,7 +588,7 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		/* This register is only written after the last clock is set */
 		nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
 
-		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0, fp_debug_0[0]);
+		nvWriteRAMDAC(pNv, index[0], NV_RAMDAC_FP_DEBUG_0, fp_debug_0[index[0]]);
 
 		/* Wait for the situation to stabilise */
 		usleep(5000);
@@ -700,6 +711,9 @@ void nv_crtc_calc_state_ext(
 		/* Are we a TMDS running on head 0(=ramdac 0), but native to ramdac 1? */
 		if (nv_crtc->head == 0 && nv_output->type == OUTPUT_TMDS && nv_output->valid_ramdac & RAMDAC_1) {
 			state->sel_clk = (pNv->misc_info.sel_clk & ~(0xf << 16)) | (1 << 16);
+			state->crosswired = TRUE;
+		} else if (nv_crtc->head == 0) {
+			state->crosswired = FALSE;
 		}
 
 		/* Do not remove any present VPLL related bits, that can cause problems */

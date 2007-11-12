@@ -167,6 +167,7 @@ typedef struct _riva_hw_state
     CARD32 pllsel;
 	CARD32 reg580;
 	CARD32 sel_clk;
+	Bool crosswired;
     CARD32 general;
     CARD32 crtcOwner;
     CARD32 head;
