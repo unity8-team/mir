@@ -37,22 +37,22 @@ typedef struct {
 } init_exec_t;
 
 typedef struct {
-	unsigned char *data;
+	uint8_t *data;
 	unsigned int  length;
 
-	CARD16      init_tbls_offset;
-	CARD16      macro_index_offset;    
-	CARD16      macro_offset; 
-	CARD16      condition_offset;
-	CARD16      io_flag_condition_offset;
+	uint16_t init_tbls_offset;
+	uint16_t macro_index_offset;
+	uint16_t macro_offset;
+	uint16_t condition_offset;
+	uint16_t io_flag_condition_offset;
 
-	CARD16 fptablepointer;
-	CARD16 fpxlatetableptr;
-	CARD16 lvdsmanufacturerpointer;
-	CARD16 fpxlatemanufacturertableptr;
+	uint16_t fptablepointer;
+	uint16_t fpxlatetableptr;
+	uint16_t lvdsmanufacturerpointer;
+	uint16_t fpxlatemanufacturertableptr;
 } bios_t;
 
-static Bool nv_cksum(const unsigned char *data, unsigned int offset, unsigned int length)
+static Bool nv_cksum(const uint8_t *data, unsigned int offset, unsigned int length)
 {
 	/* there's a few checksums in the BIOS, so here's a generic checking function */
 	int i;
@@ -67,7 +67,7 @@ static Bool nv_cksum(const unsigned char *data, unsigned int offset, unsigned in
 	return FALSE;
 }
 
-static Bool NVValidVBIOS(ScrnInfoPtr pScrn, const unsigned char *data)
+static Bool NVValidVBIOS(ScrnInfoPtr pScrn, const uint8_t *data)
 {
 	/* check for BIOS signature */
 	if (!(data[0] == 0x55 && data[1] == 0xAA)) {
@@ -140,8 +140,6 @@ static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, unsigned char *data)
 
 static Bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint32_t *data)
 {
-	NVPtr pNv = NVPTR(pScrn);
-
 	NVShadowVBIOS_PROM(pScrn, data);
 	if (NVValidVBIOS(pScrn, data))
 		return TRUE;
@@ -155,17 +153,17 @@ static Bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint32_t *data)
 
 typedef struct {
 	char* name;
-	unsigned char id;
+	uint8_t id;
 	int length;
 	int length_offset;
 	int length_multiplier;
-	Bool (*handler)(ScrnInfoPtr pScrn, bios_t *, CARD16, init_exec_t *);
+	Bool (*handler)(ScrnInfoPtr pScrn, bios_t *, uint16_t, init_exec_t *);
 } init_tbl_entry_t;
 
 typedef struct {
-	unsigned char id[2];
-	unsigned short length;
-	unsigned short offset;
+	uint8_t id[2];
+	uint16_t length;
+	uint16_t offset;
 } bit_entry_t;
 
 static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset, init_exec_t *iexec);
@@ -180,7 +178,7 @@ void still_alive()
 //	usleep(200000);
 }
 
-static int nv_valid_reg(CARD32 reg)
+static int nv_valid_reg(uint32_t reg)
 {
 	#define WITHIN(x,y,z) ((x>=y)&&(x<y+z))
 	if (WITHIN(reg,NV_PRAMIN_OFFSET,NV_PRAMIN_SIZE))
@@ -1510,10 +1508,10 @@ void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	/* Loops and calls parse_init_table() for each present table. */
 
 	int i = 0;
-	CARD16 table;
+	uint16_t table;
 	init_exec_t iexec = {TRUE, FALSE};
 
-	while (table = *((CARD16 *) (&bios->data[bios->init_tbls_offset + i]))) {
+	while ((table = *((uint16_t *)(&bios->data[bios->init_tbls_offset + i])))) {
         
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: Parsing init table %d\n", 
 			table, i / 2);
@@ -1578,27 +1576,27 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 		return 0;
 	}
 
-	bios->init_tbls_offset = *((CARD16 *) (&bios->data[bitentry->offset]));
-	bios->macro_index_offset = *((CARD16 *) (&bios->data[bitentry->offset + 2]));
-	bios->macro_offset = *((CARD16 *) (&bios->data[bitentry->offset + 4]));
+	bios->init_tbls_offset = *((uint16_t *)(&bios->data[bitentry->offset]));
+	bios->macro_index_offset = *((uint16_t *)(&bios->data[bitentry->offset + 2]));
+	bios->macro_offset = *((uint16_t *)(&bios->data[bitentry->offset + 4]));
 	bios->condition_offset = 
-		*((CARD16 *) (&bios->data[bitentry->offset + 6]));
-	if (*((CARD16 *) (&bios->data[bitentry->offset + 8])) != 
-		*((CARD16 *) (&bios->data[bitentry->offset + 10]))) {
+		*((uint16_t *)(&bios->data[bitentry->offset + 6]));
+	if (*((uint16_t *)(&bios->data[bitentry->offset + 8])) !=
+		*((uint16_t *)(&bios->data[bitentry->offset + 10]))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "Unable to find IO flag condition offset.\n");
 		return 0;
 	}
 
 	bios->io_flag_condition_offset =
-		*((CARD16 *) (&bios->data[bitentry->offset + 8]));
+		*((uint16_t *)(&bios->data[bitentry->offset + 8]));
 
 	if (bitentry->length > 33) {
-		bios->fptablepointer = *((CARD16 *)(&bios->data[bitentry->offset + 30]));
-		bios->fpxlatetableptr = *((CARD16 *)(&bios->data[bitentry->offset + 32]));
+		bios->fptablepointer = *((uint16_t *)(&bios->data[bitentry->offset + 30]));
+		bios->fpxlatetableptr = *((uint16_t *)(&bios->data[bitentry->offset + 32]));
 	}
 	if (bitentry->length > 45) {
-		bios->lvdsmanufacturerpointer = *((CARD16 *)(&bios->data[bitentry->offset + 42]));
-		bios->fpxlatemanufacturertableptr = *((CARD16 *)(&bios->data[bitentry->offset + 44]));
+		bios->lvdsmanufacturerpointer = *((uint16_t *)(&bios->data[bitentry->offset + 42]));
+		bios->fpxlatemanufacturertableptr = *((uint16_t *)(&bios->data[bitentry->offset + 44]));
 	}
 
 	parse_init_tables(pScrn, bios);
@@ -1654,11 +1652,9 @@ static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int o
 	int pins_version_minor=bios->data[offset+6];
 	int init1 = bios->data[offset + 18] + (bios->data[offset + 19] * 256);     
 	int init2 = bios->data[offset + 20] + (bios->data[offset + 21] * 256);     
-	int init_size = bios->data[offset + 22] + (bios->data[offset + 23] * 256) + 1;                                                    
+	int init_size = bios->data[offset + 22] + (bios->data[offset + 23] * 256) + 1;
 	int ram_tab;
-	int i;
-	CARD8 chksum = 0;
-	
+
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "PINS version %d.%d\n",pins_version_major,pins_version_minor);
 
 	/* checksum */
@@ -1711,7 +1707,7 @@ static unsigned int findstr(bios_t* bios, unsigned char *str, int len)
 	int i;
 
 	for (i = 2; i <= (bios->length - len); i++)
-		if (strncmp(&bios->data[i], str, len) == 0)
+		if (strncmp((char *)&bios->data[i], (char *)str, len) == 0)
 			return i;
 
 	return 0;
@@ -1721,8 +1717,8 @@ static void
 nv_read_dcb_i2c_table(ScrnInfoPtr pScrn, bios_t *bios, uint16_t i2ctabptr)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	unsigned char *i2ctable;
-	unsigned char dcb_version, headerlen = 0;
+	uint8_t *i2ctable;
+	uint8_t dcb_version, headerlen = 0;
 	int recordoffset = 0, rdofs = 1, wrofs = 0;
 	int i;
 
@@ -1770,8 +1766,8 @@ static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	NVPtr pNv = NVPTR(pScrn);
 	uint16_t dcbptr, i2ctabptr = 0;
 	Bool is_g5_nv43 = FALSE;
-	unsigned char *dcbtable;
-	unsigned char dcb_version, headerlen = 0x4, entries = MAX_NUM_DCB_ENTRIES;
+	uint8_t *dcbtable;
+	uint8_t dcb_version, headerlen = 0x4, entries = MAX_NUM_DCB_ENTRIES;
 	Bool configblock = FALSE;
 	int recordlength = 8;
 	int i;
@@ -1830,7 +1826,7 @@ static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		char sig[8];
 
 		memset(sig, 0, 8);
-		strncpy(sig, &dcbtable[-7], 7);
+		strncpy(sig, (char *)&dcbtable[-7], 7);
 		/* dcb_block_count = *(dcbtable[1]); */
 		i2ctabptr = *(uint16_t *)&dcbtable[2];
 		recordlength = 6;
@@ -1893,10 +1889,10 @@ static void nv_read_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	unsigned int fpstrapping;
-	unsigned char *fptable, *fpxlatetable;
-	unsigned char *lvdsmanufacturertable, *fpxlatemanufacturertable;
+	uint8_t *fptable, *fpxlatetable;
+/*	uint8_t *lvdsmanufacturertable, *fpxlatemanufacturertable;*/
 	unsigned int fpindex, lvdsmanufacturerindex;
-	unsigned char fptable_ver, headerlen = 0, recordlen = 44;
+	uint8_t fptable_ver, headerlen = 0, recordlen = 44;
 	int ofs;
 	DisplayModePtr mode;
 
@@ -2013,8 +2009,8 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	bios_t bios;
 	bios.data=NULL;
 	bios.fptablepointer = 0;
-	unsigned char nv_signature[]={0xff,0x7f,'N','V',0x0};
-	unsigned char bit_signature[]={'B','I','T'};
+	uint8_t nv_signature[]={0xff,0x7f,'N','V',0x0};
+	uint8_t bit_signature[]={'B','I','T'};
 	NVPtr pNv;
 	int ret;
 	pNv = NVPTR(pScrn);
@@ -2029,7 +2025,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 		xfree(pNv->VBIOS);
 		return 0;
 	}
-	bios.data = (unsigned char *)pNv->VBIOS;
+	bios.data = (uint8_t *)pNv->VBIOS;
 	bios.length = bios.data[2] * 512;
 	if (bios.length > NV_PROM_SIZE)
 		bios.length = NV_PROM_SIZE;
