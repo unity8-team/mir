@@ -52,6 +52,21 @@ typedef struct {
 	CARD16 fpxlatemanufacturertableptr;
 } bios_t;
 
+static Bool nv_cksum(const unsigned char *data, unsigned int offset, unsigned int length)
+{
+	/* there's a few checksums in the BIOS, so here's a generic checking function */
+	int i;
+	uint8_t sum = 0;
+
+	for (i = 0; i < length; i++)
+		sum += data[offset + i];
+
+	if (sum)
+		return TRUE;
+
+	return FALSE;
+}
+
 static Bool NVValidVBIOS(ScrnInfoPtr pScrn, const unsigned char *data)
 {
 	/* check for BIOS signature */
@@ -61,7 +76,14 @@ static Bool NVValidVBIOS(ScrnInfoPtr pScrn, const unsigned char *data)
 		return FALSE;
 	}
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "...appears to be valid\n");
+	if (nv_cksum(data, 0, data[2] * 512)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "...BIOS checksum invalid\n");
+		/* probably ought to set a do_not_execute flag for table parsing here,
+		 * assuming most BIOSen are valid */
+	} else
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "...appears to be valid\n");
+
 	return TRUE;
 }
 
@@ -109,7 +131,7 @@ static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, unsigned char *data)
 		pNv->REGS[0x1700/4] = vbios_vram >> 16;
 	}
 
-	memcpy(data, pramin, 65536);
+	memcpy(data, pramin, NV_PROM_SIZE);
 
 	if (pNv->Architecture >= NV_ARCH_50) {
 		pNv->REGS[0x1700/4] = old_bar0_pramin;
@@ -1640,9 +1662,7 @@ static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int o
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "PINS version %d.%d\n",pins_version_major,pins_version_minor);
 
 	/* checksum */
-	for (i=0; i < 8; i++)
-		chksum += bios->data[offset+i];
-	if (chksum) {
+	if (nv_cksum(bios->data, offset, 8)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "bad PINS checksum\n");
 		return;
 	}
@@ -1690,7 +1710,7 @@ static unsigned int findstr(bios_t* bios, unsigned char *str, int len)
 {
 	int i;
 
-	for (i = 2; i < bios->length; i++)
+	for (i = 2; i <= (bios->length - len); i++)
 		if (strncmp(&bios->data[i], str, len) == 0)
 			return i;
 
@@ -1906,7 +1926,7 @@ static void nv_read_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	case 0x00:	/* some NV11, 15, 16 */
 		/* note that in this version the lvdsmanufacturertable is not defined */
 		ofs = 6;
-		recordlen =42;
+		recordlen = 42;
 		goto v1common;
 	case 0x10:	/* some NV15/16, and NV11+ */
 		ofs = 7;
@@ -1992,7 +2012,6 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	unsigned int bit_offset;
 	bios_t bios;
 	bios.data=NULL;
-	bios.length=NV_PROM_SIZE;
 	bios.fptablepointer = 0;
 	unsigned char nv_signature[]={0xff,0x7f,'N','V',0x0};
 	unsigned char bit_signature[]={'B','I','T'};
@@ -2011,6 +2030,9 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 		return 0;
 	}
 	bios.data = (unsigned char *)pNv->VBIOS;
+	bios.length = bios.data[2] * 512;
+	if (bios.length > NV_PROM_SIZE)
+		bios.length = NV_PROM_SIZE;
 
 	/* check for known signatures */
 	if ((bit_offset = findstr(&bios, bit_signature, sizeof(bit_signature)))) {
