@@ -698,7 +698,7 @@ NVExaInit(ScreenPtr pScreen)
  		pNv->EXADriverPtr->DoneComposite    = NV10DoneComposite;
 		break;
 		
-#if (X_BYTE_ORDER == X_LITTLE_ENDIAN)
+#if defined(ENABLE_NV30EXA)
 	case NV_ARCH_30:
 		pNv->EXADriverPtr->CheckComposite   = NV30EXACheckComposite;
 		pNv->EXADriverPtr->PrepareComposite = NV30EXAPrepareComposite;
