@@ -206,6 +206,9 @@
 #define NV_RAMDAC_TEST_CONTROL      0x608
 #define NV_RAMDAC_TEST_DATA         0x610
 
+/* This register is similar to TEST_CONTROL in the style of values */
+#define NV_RAMDAC_670			0x670
+
 #define NV_RAMDAC_TV_SETUP          0x700
 #define NV_RAMDAC_TV_VBLANK_START   0x704
 #define NV_RAMDAC_TV_VBLANK_END     0x708
@@ -265,6 +268,9 @@
 #define NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE (1<<16)
 #define NV_RAMDAC_FP_TMDS_DATA      0x8b4
 /* 0xff - data mask */
+
+/* Some kind of switch */
+#define NV_RAMDAC_900			0x900
 
 #define NV_RAMDAC_A20		0xA20
 #define NV_RAMDAC_A24		0xA24

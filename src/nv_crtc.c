@@ -721,6 +721,8 @@ void nv_crtc_calc_state_ext(
 		Bool vpll1_ok = TRUE;
 		Bool vpll2_ok = TRUE;
 
+		/* This isn't true everywere */
+#if 0
 		/* For lack of a better name */
 		int magic_factor = (pNv->misc_info.sel_clk & (0xf << 8)) >> 8;
 
@@ -740,6 +742,7 @@ void nv_crtc_calc_state_ext(
 					break;
 			}
 		}
+#endif
 
 		/* Vclk ratio DB1 is used whenever reg580 is modified for vpll activity */
 		if (!(pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
@@ -1357,15 +1360,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		}
 	}
 
+	/* Except for rare conditions I2C is enabled on the primary crtc */
 	if (nv_crtc->head == 0) {
 		if (pNv->overlayAdaptor) {
 			regp->head |= NV_CRTC_FSEL_OVERLAY;
 		}
+		regp->head |= NV_CRTC_FSEL_I2C;
 	}
-
-	/* I'm hoping that enabling this on both heads gives the best of both worlds */
-	/* Bad things happen when you only enable it on head 1 and disable that head */
-	regp->head |= NV_CRTC_FSEL_I2C;
 
 	regp->cursorConfig = 0x00000100;
 	if(mode->Flags & V_DBLSCAN)

@@ -302,12 +302,15 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 
 	regp = &state->dac_reg[nv_output->ramdac];
 	regp->general       = NVOutputReadRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL);
-	regp->test_control = NVOutputReadRAMDAC(output, NV_RAMDAC_TEST_CONTROL);
-	regp->fp_control    = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL);
+	regp->test_control	= NVOutputReadRAMDAC(output, NV_RAMDAC_TEST_CONTROL);
+	regp->unk_670 	= NVOutputReadRAMDAC(output, NV_RAMDAC_670);
+	regp->fp_control	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL);
 	regp->debug_0	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_0);
 	regp->debug_1	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_1);
 	regp->debug_2	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_2);
 	state->config       = nvReadFB(pNv, NV_PFB_CFG0);
+
+	regp->unk_900 	= NVOutputReadRAMDAC(output, NV_RAMDAC_900);
 
 	regp->unk_a20 = NVOutputReadRAMDAC(output, NV_RAMDAC_A20);
 	regp->unk_a24 = NVOutputReadRAMDAC(output, NV_RAMDAC_A24);
@@ -374,6 +377,8 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_A24, regp->unk_a24);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_A34, regp->unk_a34);
 
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_900, regp->unk_900);
+
 	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
 		NVOutputWriteRAMDAC(output, NV_RAMDAC_DITHER_NV11, regp->dither);
 	} else if (pNv->twoHeads) {
@@ -382,6 +387,7 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL, regp->general);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_TEST_CONTROL, regp->test_control);
+	NVOutputWriteRAMDAC(output, NV_RAMDAC_670, regp->unk_670);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
 
 	/* I want to be able reset TMDS registers for DVI-D/DVI-A pairs for example */
@@ -837,6 +843,15 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 
 	/* Put test control into what seems to be the neutral position */
 	regp->test_control = 0xf0000000;
+
+	/* This is a similar register to test control */
+	/* Common values are 0xf0000000, 0xf0100000 and 0xf0010000, also without the f */
+	/* This is an educated guess */
+	/* The blob doesn't set this on ramdac 1, so maybe the primary one counts for both? */
+	regp->unk_670 = 0xf0000000;
+
+	/* Some kind of switch i think, only one variation exists */
+	regp->unk_900 = 0x10000;
 
 	if (output->crtc) {
 		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
