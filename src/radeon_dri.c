@@ -722,7 +722,9 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
     unsigned long mode   = drmAgpGetMode(info->drmFD);	/* Default mode */
     unsigned int  vendor = drmAgpVendorId(info->drmFD);
     unsigned int  device = drmAgpDeviceId(info->drmFD);
-    CARD32 agp_status = INREG(RADEON_AGP_STATUS) & mode;
+    /* ignore agp 3.0 mode bit from the chip as it's buggy on some cards with
+       pcie-agp rialto bridge chip - use the one from bridge which must match */
+    CARD32 agp_status = (INREG(RADEON_AGP_STATUS) | RADEON_AGPv3_MODE) & mode;
     Bool is_v3 = (agp_status & RADEON_AGPv3_MODE);
     unsigned int defaultMode;
     MessageType from;
