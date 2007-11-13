@@ -43,9 +43,18 @@
 #define XVMC_I965_MPEG2_VLD	0x08
 
 /* common header for context private */
+struct hwmc_buffer
+{
+    drm_handle_t handle;
+    unsigned long offset;
+    unsigned long size;
+    unsigned long bus_addr;
+};
+
 struct _intel_xvmc_common {
     unsigned int type;
     unsigned int sarea_size;
+    struct hwmc_buffer batchbuffer;
 };
 
 #ifdef _INTEL_XVMC_SERVER_
@@ -55,6 +64,9 @@ struct intel_xvmc_driver {
     char *name;
     XF86MCAdaptorPtr adaptor;
     unsigned int flag;
+    i830_memory *batch;
+    drm_handle_t batch_handle;
+
     /* more items for xvmv surface manage? */
     Bool (*init)(ScrnInfoPtr, XF86VideoAdaptorPtr);
     void (*fini)(ScrnInfoPtr);

@@ -31,7 +31,6 @@
 #include "I915XvMC.h"
 #include "i915_structs.h"
 #include "i915_program.h"
-#include "intel_batchbuffer.h"
 
 #define SAREAPTR(ctx) ((drmI830Sarea *)                     \
                        (((CARD8 *)(ctx)->sarea_address) +   \
@@ -204,7 +203,7 @@ static void UNLOCK_HARDWARE(i915XvMCContext *pI915XvMC)
     PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
 }
 
-static void i915_flush(i915XvMCContext *pI915XvMC, int map, int render)
+static void i915_flush(int map, int render)
 {
     struct i915_mi_flush mi_flush;
 
@@ -214,7 +213,7 @@ static void i915_flush(i915XvMCContext *pI915XvMC, int map, int render)
     mi_flush.dw0.map_cache_invalidate = map;
     mi_flush.dw0.render_cache_flush_inhibit = render;
 
-    intelBatchbufferData(pI915XvMC, &mi_flush, sizeof(mi_flush), 0);
+    intelBatchbufferData(&mi_flush, sizeof(mi_flush), 0);
 }
 
 /* for MC picture rendering */
@@ -539,14 +538,13 @@ static void i915_mc_load_sis_msb_buffers(XvMCContext *context)
     else
         msb->dw0.buffer_address = (pI915XvMC->msb.bus_addr >> 2);
 
-    intelBatchbufferData(pI915XvMC, base, size, 0);
+    intelBatchbufferData(base, size, 0);
     free(base);
 }
 
 static void i915_mc_mpeg_set_origin(XvMCContext *context, XvMCMacroBlock *mb)
 {
     struct i915_3dmpeg_set_origin set_origin;
-    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
 
     /* 3DMPEG_SET_ORIGIN */
     memset(&set_origin, 0, sizeof(set_origin));
@@ -556,13 +554,12 @@ static void i915_mc_mpeg_set_origin(XvMCContext *context, XvMCMacroBlock *mb)
     set_origin.dw1.h_origin = mb->x;
     set_origin.dw1.v_origin = mb->y;
 
-    intelBatchbufferData(pI915XvMC, &set_origin, sizeof(set_origin), 0);
+    intelBatchbufferData(&set_origin, sizeof(set_origin), 0);
 }
 
 static void i915_mc_mpeg_macroblock_ipicture(XvMCContext *context, XvMCMacroBlock *mb)
 {
     struct i915_3dmpeg_macroblock_ipicture macroblock_ipicture;
-    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
 
     /* 3DMPEG_MACROBLOCK_IPICTURE */
     memset(&macroblock_ipicture, 0, sizeof(macroblock_ipicture));
@@ -570,14 +567,13 @@ static void i915_mc_mpeg_macroblock_ipicture(XvMCContext *context, XvMCMacroBloc
     macroblock_ipicture.dw0.opcode = OPC_3DMPEG_MACROBLOCK_IPICTURE;
     macroblock_ipicture.dw0.dct_type = (mb->dct_type == XVMC_DCT_TYPE_FIELD);
 
-    intelBatchbufferData(pI915XvMC, &macroblock_ipicture, sizeof(macroblock_ipicture), 0);
+    intelBatchbufferData(&macroblock_ipicture, sizeof(macroblock_ipicture), 0);
 }
 
 
 static void i915_mc_mpeg_macroblock_0mv(XvMCContext *context, XvMCMacroBlock *mb)
 {
     struct i915_3dmpeg_macroblock_0mv macroblock_0mv;
-    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
 
     /* 3DMPEG_MACROBLOCK(0mv) */
     memset(&macroblock_0mv, 0, sizeof(macroblock_0mv));
@@ -600,13 +596,12 @@ static void i915_mc_mpeg_macroblock_0mv(XvMCContext *context, XvMCMacroBlock *mb
     macroblock_0mv.header.dw1.coded_block_pattern = mb->coded_block_pattern;
     macroblock_0mv.header.dw1.skipped_macroblocks = 0;
 
-    intelBatchbufferData(pI915XvMC, &macroblock_0mv, sizeof(macroblock_0mv), 0);
+    intelBatchbufferData(&macroblock_0mv, sizeof(macroblock_0mv), 0);
 }
 
 static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *mb)
 {
     struct i915_3dmpeg_macroblock_1fbmv macroblock_1fbmv;
-    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
     
     /* Motion Vectors */
     su_t fmv;
@@ -639,7 +634,7 @@ static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *
     macroblock_1fbmv.dw2 = fmv.u[0];
     macroblock_1fbmv.dw3 = bmv.u[0];
     
-    intelBatchbufferData(pI915XvMC, &macroblock_1fbmv, sizeof(macroblock_1fbmv), 0);
+    intelBatchbufferData(&macroblock_1fbmv, sizeof(macroblock_1fbmv), 0);
 }
 
 static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext *context, XvMCMacroBlock *mb, unsigned int ps)
@@ -706,7 +701,7 @@ static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext *context, XvMCMacroBlock *
     macroblock_2fbmv.dw4 = fmv.u[1];
     macroblock_2fbmv.dw5 = bmv.u[1];
 
-    intelBatchbufferData(pI915XvMC, &macroblock_2fbmv, sizeof(macroblock_2fbmv), 0);
+    intelBatchbufferData(&macroblock_2fbmv, sizeof(macroblock_2fbmv), 0);
 }
 
 /* for MC context initialization */
@@ -1032,7 +1027,7 @@ static void i915_mc_one_time_state_initialization(XvMCContext *context)
     s6->color_buffer_write = 1;
     s6->triangle_pv = 0;
 
-    intelBatchbufferData(pI915XvMC, base, size, 0);
+    intelBatchbufferData(base, size, 0);
     free(base);
 
     /* 3DSTATE_LOAD_INDIRECT */
@@ -1091,7 +1086,7 @@ static void i915_mc_one_time_state_initialization(XvMCContext *context)
     else
         psc->dw0.buffer_address = (pI915XvMC->psc.bus_addr >> 2);
 
-    intelBatchbufferData(pI915XvMC, base, size, 0);
+    intelBatchbufferData(base, size, 0);
     free(base);
 }
 
@@ -1199,7 +1194,7 @@ static void i915_mc_invalidate_subcontext_buffers(XvMCContext *context, unsigned
         ptr = ++psc;
     }
 
-    intelBatchbufferData(pI915XvMC, base, size, 0);
+    intelBatchbufferData(base, size, 0);
     free(base);
 }
 
@@ -1247,10 +1242,11 @@ static int i915_xvmc_map_buffers(i915XvMCContext *pI915XvMC)
         return -1;
     }
     
+    /* XXX */
     if (drmMap(xvmc_driver->fd,
-               pI915XvMC->batchbuffer.handle,
-               pI915XvMC->batchbuffer.size,
-               (drmAddress *)&pI915XvMC->batchbuffer.map) != 0) {
+               xvmc_driver->batchbuffer.handle,
+               xvmc_driver->batchbuffer.size,
+               (drmAddress *)&xvmc_driver->batchbuffer.map) != 0) {
         return -1;
     }
 
@@ -1289,9 +1285,9 @@ static void i915_xvmc_unmap_buffers(i915XvMCContext *pI915XvMC)
         pI915XvMC->corrdata.map = NULL;
     }
 
-    if (pI915XvMC->batchbuffer.map) {
-        drmUnmap(pI915XvMC->batchbuffer.map, pI915XvMC->batchbuffer.size);
-        pI915XvMC->batchbuffer.map = NULL;
+    if (xvmc_driver->batchbuffer.map) {
+        drmUnmap(xvmc_driver->batchbuffer.map, xvmc_driver->batchbuffer.size);
+        xvmc_driver->batchbuffer.map = NULL;
     }
 }
 
@@ -1618,7 +1614,7 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
     s6->color_buffer_write = 1;
 
     s7 = (struct s7_dword *)(++s6);
-    intelBatchbufferData(pI915XvMC, base, size, 0);
+    intelBatchbufferData(base, size, 0);
     free(base);
 
     /* 3DSTATE_3DSTATE_SCISSOR_RECTANGLE */
@@ -1629,7 +1625,7 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
     scissor_rectangle.dw1.min_y = 0;
     scissor_rectangle.dw2.max_x = 2047;
     scissor_rectangle.dw2.max_y = 2047;
-    intelBatchbufferData(pI915XvMC, &scissor_rectangle, sizeof(scissor_rectangle), 0);
+    intelBatchbufferData(&scissor_rectangle, sizeof(scissor_rectangle), 0);
 
     /* 3DSTATE_LOAD_INDIRECT */
     size = sizeof(*load_indirect) + sizeof(*sis) + sizeof(*ssb) + sizeof(*msb) + sizeof(*psp);
@@ -1669,7 +1665,7 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
     psp->dw1.length = ((sizeof(struct i915_3dstate_pixel_shader_program) +
                         sizeof(union shader_inst)) >> 2) - 1;
 
-    intelBatchbufferData(pI915XvMC, base, size, 0);
+    intelBatchbufferData(base, size, 0);
     free(base);
 
     /* 3DPRIMITIVE */
@@ -1706,7 +1702,7 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
     vd->tc1.tcx = 0;
     vd->tc1.tcy = 0;
 
-    intelBatchbufferData(pI915XvMC, base, size, 0);
+    intelBatchbufferData(base, size, 0);
     free(base);
 }
 
@@ -1735,7 +1731,7 @@ static void i915_release_resource(Display *display, XvMCContext *context)
     uniDRIDestroyContext(display, screen, pI915XvMC->id);
     XUnlockDisplay(display);
 
-    intelDestroyBatchBuffer(pI915XvMC);
+    intelDestroyBatchBuffer();
 
     drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
 
@@ -1815,9 +1811,6 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     pI915XvMC->corrdata.handle = tmpComm->corrdata.handle;
     pI915XvMC->corrdata.offset = tmpComm->corrdata.offset;
     pI915XvMC->corrdata.size = tmpComm->corrdata.size;
-    pI915XvMC->batchbuffer.handle = tmpComm->batchbuffer.handle;
-    pI915XvMC->batchbuffer.offset = tmpComm->batchbuffer.offset;
-    pI915XvMC->batchbuffer.size = tmpComm->batchbuffer.size;
     pI915XvMC->sarea_priv_offset = tmpComm->sarea_priv_offset;
     pI915XvMC->depth = tmpComm->depth;
 
@@ -1872,9 +1865,8 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     pI915XvMC->last_flip = 0;
     pI915XvMC->locked = 0;
     pI915XvMC->port = context->port;
-    pthread_mutex_init(&pI915XvMC->ctxmutex, NULL);
     /* XXX */
-    intelInitBatchBuffer(pI915XvMC);
+    pthread_mutex_init(&pI915XvMC->ctxmutex, NULL);
     pI915XvMC->ref = 1;
     return Success;
 }
@@ -2160,7 +2152,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
         corrdata_ptr += bspm;
     } 
 
-    i915_flush(pI915XvMC, 1, 0);
+    i915_flush(1, 0);
     // i915_mc_invalidate_subcontext_buffers(context, BLOCK_SIS | BLOCK_DIS | BLOCK_SSB 
     // | BLOCK_MSB | BLOCK_PSP | BLOCK_PSC);
 
@@ -2221,9 +2213,9 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
         }       /* Field Picture */
     }
 
-    intelFlushBatch(pI915XvMC, TRUE);
-    pI915XvMC->last_render = pI915XvMC->alloc.irq_emitted;
-    privTarget->last_render = pI915XvMC->last_render;
+    intelFlushBatch(TRUE);
+    xvmc_driver->last_render = xvmc_driver->alloc.irq_emitted;
+    privTarget->last_render = xvmc_driver->last_render;
 
     UNLOCK_HARDWARE(pI915XvMC);
     return 0;

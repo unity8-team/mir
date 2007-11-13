@@ -13,10 +13,10 @@ extern int VERBOSE;
         if (VERBOSE) fprintf(stderr,                                    \
                              "BEGIN_BATCH(%ld) in %s, %d dwords free\n", \
                              ((unsigned long)n), __FUNCTION__,          \
-                             pI915XvMC->batch.space/4);                     \
-        if (pI915XvMC->batch.space < (n)*4)                                 \
-            intelFlushBatch(pI915XvMC, TRUE);                            \
-        batch_ptr = pI915XvMC->batch.ptr;                                   \
+                             xvmc_driver->batch.space/4);                     \
+        if (xvmc_driver->batch.space < (n)*4)                                 \
+            intelFlushBatch(TRUE);                            \
+        batch_ptr = xvmc_driver->batch.ptr;                                   \
     } while (0)
 
 #define OUT_BATCH(n)                                                    \
@@ -29,14 +29,14 @@ extern int VERBOSE;
 #define ADVANCE_BATCH()                                        \
     do {                                                       \
         if (VERBOSE) fprintf(stderr, "ADVANCE_BATCH()\n");     \
-        pI915XvMC->batch.space -= (batch_ptr - pI915XvMC->batch.ptr);  \
-        pI915XvMC->batch.ptr = batch_ptr;                          \
-        assert(pI915XvMC->batch.space >= 0);                       \
+        xvmc_driver->batch.space -= (batch_ptr - xvmc_driver->batch.ptr);  \
+        xvmc_driver->batch.ptr = batch_ptr;                          \
+        assert(xvmc_driver->batch.space >= 0);                       \
     } while(0)
 
-extern void intelFlushBatch(i915XvMCContext *, Bool);
-extern void intelBatchbufferData(i915XvMCContext *, const void *, unsigned, unsigned);
-extern void intelInitBatchBuffer(i915XvMCContext *);
-extern void intelDestroyBatchBuffer(i915XvMCContext *);
-extern void intelCmdIoctl(i915XvMCContext *, char *, unsigned);
+extern void intelFlushBatch(Bool);
+extern void intelBatchbufferData(const void *, unsigned, unsigned);
+extern void intelInitBatchBuffer(void);
+extern void intelDestroyBatchBuffer(void);
+extern void intelCmdIoctl(char *, unsigned);
 #endif /* _INTEL_BATCHBUFFER_H */

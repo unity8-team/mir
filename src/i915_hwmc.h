@@ -47,15 +47,8 @@ typedef struct
     int real_id;
 } I915XvMCCommandBuffer;
 
-struct hwmc_buffer
-{
-    drm_handle_t handle;
-    unsigned long offset;
-    unsigned long size;
-    unsigned long bus_addr;
-};
 
-typedef struct 
+typedef struct
 {
     struct _intel_xvmc_common comm;
     unsigned int ctxno; /* XvMC private context reference number */
@@ -65,7 +58,6 @@ typedef struct
     struct hwmc_buffer psp;
     struct hwmc_buffer psc;
     struct hwmc_buffer corrdata;/* Correction Data Buffer */
-    struct hwmc_buffer batchbuffer;
     unsigned int sarea_priv_offset;
     unsigned int depth;
     int deviceID;

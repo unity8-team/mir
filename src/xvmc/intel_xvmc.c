@@ -141,6 +141,9 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 	return BadValue;
     }
     xvmc_driver->sarea_size = comm->sarea_size;
+    xvmc_driver->batchbuffer.handle = comm->batchbuffer.handle;
+    xvmc_driver->batchbuffer.offset = comm->batchbuffer.offset;
+    xvmc_driver->batchbuffer.size = comm->batchbuffer.size;
 
     ret = uniDRIQueryDirectRenderingCapable(display, screen,
                                             &isCapable);
@@ -204,8 +207,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 	return ret;
     }
 
-    /* FIXME batch buffer */
-    //intelInitBatchBuffer(xvmc_driver);
+    intelInitBatchBuffer();
 
     return Success;
 }
@@ -675,7 +677,7 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
         }       /* Field Picture */
     }
 
-    intelFlushBatch(pI915XvMC, TRUE);
+    intelFlushBatch(TRUE);
     pI915XvMC->last_render = pI915XvMC->alloc.irq_emitted;
     privTarget->last_render = pI915XvMC->last_render;
 

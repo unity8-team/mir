@@ -63,7 +63,6 @@ typedef struct _i915XvMCDrmMap {
 ***************************************************************************/
 typedef struct _i915XvMCContext {
     unsigned int ctxno;
-    unsigned int last_render;
     unsigned int last_flip;
     unsigned int dual_prime; /* Flag to identify when dual prime is in use. */
     unsigned int yStride;
@@ -97,25 +96,9 @@ typedef struct _i915XvMCContext {
     i915XvMCDrmMap psc;
 
     i915XvMCDrmMap corrdata;
-    i915XvMCDrmMap batchbuffer;
 
     sigset_t sa_mask;
 
-    struct {
-	unsigned int start_offset;
-	unsigned int size;
-	unsigned int space;
-	unsigned char *ptr;
-    } batch;
-
-    struct
-    {
-        void *ptr;
-        unsigned int size;
-        unsigned int offset;
-        unsigned int active_buf;
-        unsigned int irq_emitted;
-    } alloc;
 } i915XvMCContext;
 
 /***************************************************************************

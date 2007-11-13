@@ -54,6 +54,8 @@
 #include "xf86dri.h"
 #include "driDrawable.h"
 
+#include "intel_batchbuffer.h"
+
 #define DEBUG 0
 
 #define XVMC_ERR(s, arg...)					\
@@ -97,8 +99,15 @@ extern Status  _xvmc_create_subpicture(Display *dpy, XvMCContext *context,
 extern Status   _xvmc_destroy_subpicture(Display *dpy,
 					 XvMCSubpicture *subpicture);
 
+typedef struct _intel_xvmc_drm_map {
+    drm_handle_t handle;
+    unsigned long offset;
+    unsigned long size;
+    unsigned long bus_addr;
+    drmAddress map;
+} intel_xvmc_drm_map_t, *intel_xvmc_drm_map_ptr;
 
-struct _intel_xvmc_driver {
+typedef struct _intel_xvmc_driver {
     int type;			/* hw xvmc type - i830_hwmc.h */
     int screen;			/* current screen num*/
 
@@ -108,6 +117,24 @@ struct _intel_xvmc_driver {
 
     unsigned int sarea_size;
     drmAddress sarea_address;
+
+    struct {
+	unsigned int start_offset;
+	unsigned int size;
+	unsigned int space;
+	unsigned char *ptr;
+    } batch;
+
+    struct
+    {
+        void *ptr;
+        unsigned int size;
+        unsigned int offset;
+        unsigned int active_buf;
+        unsigned int irq_emitted;
+    } alloc;
+    intel_xvmc_drm_map_t batchbuffer;
+    unsigned int last_render;
 
     void *private;
 
@@ -148,7 +175,7 @@ struct _intel_xvmc_driver {
     Status (*get_surface_status)(Display *display, XvMCSurface *surface, int *stat);
 
     /* XXX more for vld */
-};
+} intel_xvmc_driver_t, *intel_xvmc_driver_ptr;
 
 extern struct _intel_xvmc_driver i915_xvmc_mc_driver;
 extern struct _intel_xvmc_driver *xvmc_driver;

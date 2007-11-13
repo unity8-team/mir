@@ -83,8 +83,6 @@ typedef struct _I915XvMCContextPriv
     drm_handle_t psc_handle;
     i830_memory *mcCorrdata;
     drm_handle_t corrdata_handle;
-    i830_memory *mcBatchBuffer;
-    drm_handle_t batchbuffer_handle;
 } I915XvMCContextPriv;
 
 typedef struct _I915XvMC 
@@ -296,9 +294,9 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxpri
     }
 
     if (drmAddMap(pI830->drmSubFD,
-                  (drm_handle_t)(ctxpriv->mcBatchBuffer->offset + pI830->LinearAddr),
-                  ctxpriv->mcBatchBuffer->size, DRM_AGP, 0,
-                  (drmAddress)&ctxpriv->batchbuffer_handle) < 0) {
+                  (drm_handle_t)(xvmc_driver->batch->offset + pI830->LinearAddr),
+                  xvmc_driver->batch->size, DRM_AGP, 0,
+                  &xvmc_driver->batch_handle) < 0) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[drm] drmAddMap(batchbuffer_handle) failed!\n");
         return FALSE;
@@ -341,9 +339,9 @@ static void i915_unmap_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxp
         ctxpriv->corrdata_handle = 0;
     }
 
-    if (ctxpriv->batchbuffer_handle) {
-        drmRmMap(pI830->drmSubFD, ctxpriv->batchbuffer_handle);
-        ctxpriv->batchbuffer_handle = 0;
+    if (xvmc_driver->batch_handle) {
+        drmRmMap(pI830->drmSubFD, xvmc_driver->batch_handle);
+        xvmc_driver->batch_handle = 0;
     }
 }
 
@@ -393,7 +391,7 @@ static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *c
     }
 
     if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]batch buffer",
-                                   &(ctxpriv->mcBatchBuffer), 8 * 1024,
+                                   &(xvmc_driver->batch), 8 * 1024,
                                    ALIGN_BOTH_ENDS)) {
         return FALSE;
     }
@@ -434,9 +432,9 @@ static void i915_free_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxpr
         ctxpriv->mcCorrdata = NULL;
     }
 
-    if (ctxpriv->mcBatchBuffer) {
-        i830_free_memory(pScrn, ctxpriv->mcBatchBuffer);
-        ctxpriv->mcBatchBuffer = NULL;
+    if (xvmc_driver->batch) {
+        i830_free_memory(pScrn, xvmc_driver->batch);
+        xvmc_driver->batch = NULL;
     }
 }
 
@@ -528,8 +526,14 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
         return BadAlloc;
     }
 
+    /* common context items */
     contextRec->comm.type = xvmc_driver->flag;
     contextRec->comm.sarea_size = pDRIInfo->SAREASize;
+    contextRec->comm.batchbuffer.offset = xvmc_driver->batch->offset;
+    contextRec->comm.batchbuffer.size = xvmc_driver->batch->size;
+    contextRec->comm.batchbuffer.handle = xvmc_driver->batch_handle;
+
+    /* i915 private context */
     contextRec->ctxno = i;
     contextRec->sis.handle = ctxpriv->sis_handle;
     contextRec->sis.offset = ctxpriv->mcStaticIndirectState->offset;
@@ -554,9 +558,6 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
     contextRec->corrdata.handle = ctxpriv->corrdata_handle;
     contextRec->corrdata.offset = ctxpriv->mcCorrdata->offset;
     contextRec->corrdata.size = ctxpriv->mcCorrdata->size;
-    contextRec->batchbuffer.handle = ctxpriv->batchbuffer_handle;
-    contextRec->batchbuffer.offset = ctxpriv->mcBatchBuffer->offset;
-    contextRec->batchbuffer.size = ctxpriv->mcBatchBuffer->size;
     contextRec->sarea_priv_offset = sizeof(XF86DRISAREARec);
     contextRec->depth = pScrn->bitsPerPixel;
     contextRec->deviceID = pI830DRI->deviceID;
