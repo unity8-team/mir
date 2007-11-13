@@ -168,9 +168,9 @@ Default for i830 and above: Disabled.
 .TP
 .BI "Option \*qAccelMethod\*q \*q" string \*q
 Choose acceleration architecture, either "XAA" or "EXA".  XAA is the old
-(but stable) XFree86 based acceleration architecture.  EXA is a newer and
-simpler acceleration architecture designed to better accelerate the X Render
-extension.  Default: "XAA".
+XFree86 based acceleration architecture.  EXA is a newer and simpler
+acceleration architecture designed to better accelerate the X Render extension.
+Default: "EXA".
 .TP
 .BI "Option \*qModeDebug\*q \*q" boolean \*q
 Enable printing of additional debugging information about modesetting to
@@ -184,7 +184,9 @@ The 830M and newer driver supports the following outputs through RandR 1.2:
 Analog VGA output
 .TP
 .BI "LVDS"
-Laptop panel
+Laptop panel.  Properties:
+  BACKLIGHT - set backlight level
+  BACKLIGHT_CONTROL - set backlight level control method (i.e. use kernel interfaces, native LVDS power register, legacy register, or combination)
 .TP
 .BI "TV"
 Integrated TV output

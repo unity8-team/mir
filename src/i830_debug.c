@@ -564,7 +564,7 @@ static void i830DumpAR(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int i;
-    uint16_t st01, palette_enable = 0;
+    uint16_t st01;
     unsigned char orig_arx, msr;
 
     msr = INREG8(0x3cc);
