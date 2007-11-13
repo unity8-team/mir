@@ -357,7 +357,7 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 		*     to 256MiB.
 		*/
 		NV50DisplayWrite(pScrn, 0x384, pNv->RamAmountKBytes * 1024 - 1);
-		NV50DisplayWrite(pScrn, 0x388, 0x1500000);
+		NV50DisplayWrite(pScrn, 0x388, 0x150000);
 		NV50DisplayWrite(pScrn, 0x38C, 0);
 		NV50CrtcCommand(crtc, 0x884, pNv->Cursor->offset >> 8);
 		if(pNv->NVArch != 0x50)
