@@ -1736,9 +1736,11 @@ NVMapMem(ScrnInfoPtr pScrn)
 		
 	}
 
+#ifndef __powerpc__
 	/*The DRM allocates AGP memory, PCI as a fallback */
 	pNv->GARTScratch = NVAllocateMemory(pNv, NOUVEAU_MEM_AGP | NOUVEAU_MEM_PCI_ACCEPTABLE,
 							gart_scratch_size);
+#endif
 	if (!pNv->GARTScratch) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Unable to allocate GART memory\n");
