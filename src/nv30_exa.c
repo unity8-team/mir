@@ -265,9 +265,16 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	}
 
 	if (!shader->hw_id) {
-		memcpy(fp_mem->map + next_hw_id_offset, shader->data,
-				shader->size *
-				sizeof(uint32_t));
+		uint32_t *map = fp_mem->map + next_hw_id_offset;
+		int i;
+
+		for (i = 0; i < shader->size; i++) {
+			uint32_t data = shader->data[i];
+#if (X_BYTE_ORDER != X_LITTLE_ENDIAN)
+			data = ((data >> 16) | ((data & 0xffff) << 16));
+#endif
+			map[i] = data;
+		}
 
 		shader->hw_id  = fp_mem->offset;
 		shader->hw_id += next_hw_id_offset;
