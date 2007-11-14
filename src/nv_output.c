@@ -310,7 +310,7 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	regp->debug_2	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_2);
 	state->config       = nvReadFB(pNv, NV_PFB_CFG0);
 
-	regp->unk_900 	= NVOutputReadRAMDAC(output, NV_RAMDAC_900);
+	//regp->unk_900 	= NVOutputReadRAMDAC(output, NV_RAMDAC_900);
 
 	regp->unk_a20 = NVOutputReadRAMDAC(output, NV_RAMDAC_A20);
 	regp->unk_a24 = NVOutputReadRAMDAC(output, NV_RAMDAC_A24);
@@ -377,7 +377,7 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_A24, regp->unk_a24);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_A34, regp->unk_a34);
 
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_900, regp->unk_900);
+	//NVOutputWriteRAMDAC(output, NV_RAMDAC_900, regp->unk_900);
 
 	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
 		NVOutputWriteRAMDAC(output, NV_RAMDAC_DITHER_NV11, regp->dither);
@@ -854,8 +854,8 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		regp->unk_670 = 0xf0100000;
 	}
 
-	/* Some kind of switch i think, only one variation exists */
-	regp->unk_900 = 0x10000;
+	/* This may be causing problems */
+	//regp->unk_900 = 0x10000;
 
 	if (output->crtc) {
 		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
