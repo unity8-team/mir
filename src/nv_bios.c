@@ -40,11 +40,13 @@ typedef struct {
 	uint8_t *data;
 	unsigned int  length;
 
-	uint16_t init_tbls_offset;
-	uint16_t macro_index_offset;
-	uint16_t macro_offset;
-	uint16_t condition_offset;
-	uint16_t io_flag_condition_offset;
+	uint16_t init_script_tbls_ptr;
+	uint16_t macro_index_tbl_ptr;
+	uint16_t macro_tbl_ptr;
+	uint16_t condition_tbl_ptr;
+	uint16_t io_condition_tbl_ptr;
+	uint16_t io_flag_condition_tbl_ptr;
+	uint16_t init_function_tbl_ptr;
 
 	uint16_t fptablepointer;
 	uint16_t fpxlatetableptr;
@@ -72,22 +74,22 @@ static Bool NVValidVBIOS(ScrnInfoPtr pScrn, const uint8_t *data)
 	/* check for BIOS signature */
 	if (!(data[0] == 0x55 && data[1] == 0xAA)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "...BIOS signature not found\n");
+			   "... BIOS signature not found\n");
 		return FALSE;
 	}
 
 	if (nv_cksum(data, 0, data[2] * 512)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "...BIOS checksum invalid\n");
+			   "... BIOS checksum invalid\n");
 		/* probably ought to set a do_not_execute flag for table parsing here,
 		 * assuming most BIOSen are valid */
 	} else
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "...appears to be valid\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "... appears to be valid\n");
 
 	return TRUE;
 }
 
-static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, unsigned char *data)
+static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, uint8_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int i;
@@ -97,7 +99,7 @@ static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, unsigned char *data)
 
 	/* enable ROM access */
 	nvWriteMC(pNv, 0x1850, 0x0);
-	for (i=0; i<NV_PROM_SIZE; i++) {
+	for (i = 0; i < NV_PROM_SIZE; i++) {
 		/* according to nvclock, we need that to work around a 6600GT/6800LE bug */
 		data[i] = pNv->PROM[i];
 		data[i] = pNv->PROM[i];
@@ -109,10 +111,10 @@ static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, unsigned char *data)
 	nvWriteMC(pNv, 0x1850, 0x1);
 }
 
-static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, unsigned char *data)
+static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint32_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	const unsigned char *pramin = (void*)&pNv->REGS[0x00700000/4];
+	const uint32_t *pramin = (void*)&pNv->REGS[0x00700000/4];
 	uint32_t old_bar0_pramin = 0;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -140,12 +142,12 @@ static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, unsigned char *data)
 
 static Bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint32_t *data)
 {
-	NVShadowVBIOS_PROM(pScrn, data);
-	if (NVValidVBIOS(pScrn, data))
+	NVShadowVBIOS_PROM(pScrn, (uint8_t *)data);
+	if (NVValidVBIOS(pScrn, (uint8_t *)data))
 		return TRUE;
 
 	NVShadowVBIOS_PRAMIN(pScrn, data);
-	if (NVValidVBIOS(pScrn, data))
+	if (NVValidVBIOS(pScrn, (uint8_t *)data))
 		return TRUE;
 
 	return FALSE;
@@ -511,25 +513,25 @@ static Bool init_io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offse
 	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
 	CARD8 cond = *((CARD8 *) (&bios->data[offset + 1]));
 	CARD16 crtcreg = *((CARD16 *) 
-		(&bios->data[bios->io_flag_condition_offset + 
+		(&bios->data[bios->io_flag_condition_tbl_ptr +
 		cond * IO_FLAG_CONDITION_SIZE]));
 	CARD8 index = *((CARD8 *) 
-		(&bios->data[bios->io_flag_condition_offset + 
+		(&bios->data[bios->io_flag_condition_tbl_ptr +
 		cond * IO_FLAG_CONDITION_SIZE + 2]));
 	CARD8 and1 = *((CARD8 *) 
-		(&bios->data[bios->io_flag_condition_offset + 
+		(&bios->data[bios->io_flag_condition_tbl_ptr +
 		cond * IO_FLAG_CONDITION_SIZE + 3]));
 	CARD8 shift = *((CARD8 *) 
-		(&bios->data[bios->io_flag_condition_offset + 
+		(&bios->data[bios->io_flag_condition_tbl_ptr +
 		cond * IO_FLAG_CONDITION_SIZE + 4]));
 	CARD16 offs = *((CARD16 *) 
-		(&bios->data[bios->io_flag_condition_offset + 
+		(&bios->data[bios->io_flag_condition_tbl_ptr +
 		cond * IO_FLAG_CONDITION_SIZE + 5]));
 	CARD8 and2 = *((CARD8 *) 
-		(&bios->data[bios->io_flag_condition_offset + 
+		(&bios->data[bios->io_flag_condition_tbl_ptr +
 		cond * IO_FLAG_CONDITION_SIZE + 7]));
 	CARD8 cmpval = *((CARD8 *) 
-		(&bios->data[bios->io_flag_condition_offset + 
+		(&bios->data[bios->io_flag_condition_tbl_ptr +
 		cond * IO_FLAG_CONDITION_SIZE + 8]));
 
 	CARD8 data;
@@ -1073,7 +1075,7 @@ static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: EXECUTING SUB-SCRIPT: %d\n", offset, sub);
 
 		parse_init_table(pScrn, bios, 
-				*((CARD16 *) (&bios->data[bios->init_tbls_offset + sub * 2])),
+				*((CARD16 *) (&bios->data[bios->init_script_tbls_ptr + sub * 2])),
 				iexec);
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: END OF SUB-SCRIPT\n", offset);
@@ -1189,7 +1191,7 @@ static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec
 static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	CARD8 index = *((CARD8 *) (&bios->data[offset + 1]));
-	CARD32 tmp = bios->macro_index_offset + (index << 1);
+	CARD32 tmp = bios->macro_index_tbl_ptr + (index << 1);
 	CARD32 offs =  *((CARD8 *) (&bios->data[tmp]))  << 3;
 	CARD32 nr = *((CARD8 *) (&bios->data[tmp + 1]));
 	CARD32 reg, data;
@@ -1197,7 +1199,7 @@ static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec
 	int i;
 	
     if (iexec->execute) {
-	    offs += bios->macro_offset;
+	    offs += bios->macro_tbl_ptr;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: WRITE %d 32-BIT REGS:\n", offset, nr);
 
 	    for (i = 0; i < nr; i++) {
@@ -1297,13 +1299,13 @@ static Bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_
 	CARD8 cond = *((CARD8 *) (&bios->data[offset + 1]));
 	CARD32 reg = 
 		*((CARD32 *) 
-				(&bios->data[bios->condition_offset + cond * CONDITION_SIZE]));
+				(&bios->data[bios->condition_tbl_ptr + cond * CONDITION_SIZE]));
 	CARD32 and = 
 		*((CARD32 *) 
-				(&bios->data[bios->condition_offset + cond * CONDITION_SIZE + 4]));
+				(&bios->data[bios->condition_tbl_ptr + cond * CONDITION_SIZE + 4]));
 	CARD32 cmpval = 
 		*((CARD32 *) 
-				(&bios->data[bios->condition_offset + cond * CONDITION_SIZE + 8]));
+				(&bios->data[bios->condition_tbl_ptr + cond * CONDITION_SIZE + 8]));
 	CARD32 data;
 
 	if (iexec->execute) {
@@ -1511,7 +1513,7 @@ void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	uint16_t table;
 	init_exec_t iexec = {TRUE, FALSE};
 
-	while ((table = *((uint16_t *)(&bios->data[bios->init_tbls_offset + i])))) {
+	while ((table = *((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + i])))) {
         
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: Parsing init table %d\n", 
 			table, i / 2);
@@ -1523,15 +1525,141 @@ void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	}
 }
 
+static void parse_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	unsigned int fpstrapping;
+	uint8_t *fptable, *fpxlatetable;
+/*	uint8_t *lvdsmanufacturertable, *fpxlatemanufacturertable;*/
+	unsigned int fpindex, lvdsmanufacturerindex;
+	uint8_t fptable_ver, headerlen = 0, recordlen = 44;
+	int ofs;
+	DisplayModePtr mode;
+
+	fpstrapping = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 16) & 0xf;
+
+	if (bios->fptablepointer == 0x0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Pointer to flat panel table invalid\n");
+		return;
+	}
+
+	fptable = &bios->data[bios->fptablepointer];
+
+	fptable_ver = fptable[0];
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"Found flat panel mode table revision %d.%d\n",
+			fptable_ver >> 4, fptable_ver & 0xf);
+
+	switch (fptable_ver) {
+	/* PINS version 0x5.0x11 BIOSen have version 1 like tables, but no version field,
+	 * and miss one of the spread spectrum/PWM bytes.
+	 * This could affect early GF2Go parts (not seen any appropriate ROMs though).
+	 * Here we assume that a version of 0x00 matches this case (combining with a
+	 * PINS version check would be better), as the common case for the panel type
+	 * field is 0x0005, and that is in fact what we are reading the first byte of. */
+	case 0x00:	/* some NV11, 15, 16 */
+		/* note that in this version the lvdsmanufacturertable is not defined */
+		ofs = 6;
+		recordlen = 42;
+		goto v1common;
+	case 0x10:	/* some NV15/16, and NV11+ */
+		ofs = 7;
+v1common:
+		if (bios->fpxlatetableptr == 0x0) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				"Pointer to flat panel translation table invalid\n");
+			return;
+		}
+		fpxlatetable = &bios->data[bios->fpxlatetableptr];
+	/*	not yet used
+		lvdsmanufacturertable = &bios->data[bios->lvdsmanufacturerpointer];
+		fpxlatemanufacturertable = &bios->data[bios->fpxlatemanufacturertableptr];*/
+
+		fpindex = fpxlatetable[fpstrapping];
+	/*	not yet used
+		lvdsmanufacturerindex = fpxlatemanufacturertable[fpstrapping]; */
+
+		if (fpindex > 0xf) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				"Bad flat panel table index\n");
+			return;
+		}
+		break;
+	case 0x20:	/* NV40+ */
+		headerlen = fptable[1];
+		recordlen = fptable[2];	// check this, or hardcode as 0x20
+/*		may be the wrong test, if there's a translation table
+		if (fpstrapping > fptable[3]) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				"Flat panel strapping number too high\n");
+			return;
+		}*/
+		ofs = 0;
+/*		I don't know where the index for the table comes from in v2.0, so bail
+		break;*/
+	default:
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"FP Table revision not currently supported\n");
+		return;
+	}
+
+	if (!(mode = xcalloc(1, sizeof(DisplayModeRec))))
+		return;
+
+	mode->Clock = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 0] * 10;
+	mode->HDisplay = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 2];
+	mode->HSyncStart = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 10] + 1;
+	mode->HSyncEnd = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 12] + 1;
+	mode->HTotal = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 14] + 1;
+	mode->VDisplay = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 16];
+	mode->VSyncStart = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 24] + 1;
+	mode->VSyncEnd = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 26] + 1;
+	mode->VTotal = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 28] + 1;
+	mode->Flags |= (fptable[headerlen + recordlen * fpindex + ofs + 30] & 0x10) ? V_PHSYNC : V_NHSYNC;
+	mode->Flags |= (fptable[headerlen + recordlen * fpindex + ofs + 30] & 0x1) ? V_PVSYNC : V_NVSYNC;
+
+	/* for version 1.0:
+	 * bytes 1-2 are "panel type", including bits on whether Colour/mono, single/dual link, and type (TFT etc.)
+	 * bytes 3-6 are bits per colour in RGBX
+	 * 11-12 is HDispEnd
+	 * 13-14 is HValid Start
+	 * 15-16 is HValid End
+	 * bytes 38-39 relate to spread spectrum settings
+	 * bytes 40-43 are something to do with PWM */
+
+	mode->prev = mode->next = NULL;
+	mode->status = MODE_OK;
+	mode->type = M_T_DRIVER | M_T_PREFERRED;
+	xf86SetModeDefaultName(mode);
+
+//	if (pNv->debug_modes) { this should exist
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Found flat panel mode in BIOS tables:\n");
+		xf86PrintModeline(pScrn->scrnIndex, mode);
+//	}
+
+	pNv->fp_native_mode = mode;
+}
+
 static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
 	uint16_t table;
-	/* Parses the init table segment that the bit entry points to.
+	/* Parses the flat panel table segment that the bit entry points to.
 	 * Starting at bitentry->offset:
 	 *
-	 * offset + 0  (16 bits): offset of FIXME table
-	 * offset + 2  (16 bits): offset of mode table
+	 * offset + 0  (16 bits): FIXME table pointer
+	 * offset + 2  (16 bits): mode table pointer
 	 */
+
+	/* If it's not a laptop, you probably don't care about fptables */
+	/* FIXME: detect mobile BIOS? */
+
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (!pNv->Mobile)
+		return 1;
 
 	if (bitentry->length != 4) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "Do not understand BIT display table entry.\n");
@@ -1541,6 +1669,8 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	table = *((uint16_t *) (&bios->data[bitentry->offset]));
 	bios->fptablepointer = *((uint16_t *) (&bios->data[bitentry->offset + 2]));
 
+	parse_fp_tables(pScrn, bios);
+
 	return 1;
 }
 
@@ -1549,24 +1679,15 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 	/* Parses the init table segment that the bit entry points to.
 	 * Starting at bitentry->offset: 
 	 * 
-	 * offset + 0  (16 bits): offset of init tables
-	 * offset + 2  (16 bits): macro index table offset
-	 * offset + 4  (16 bits): macro offset
-	 * offset + 6  (16 bits): condition offset
-	 * offset + 8  (16 bits): io flag condition offset (?)
-	 * offset + 10 (16 bits): io flag condition offset (?)
-	 * offset + 12 (16 bits): unknown
-	 *
-	 * offset + 8 and offset + 10 seems to contain the same
-	 * offsets on all bioses i have checked. Don't know which
-	 * one is the correct, therefore this code will bail out
-	 * if the two values are not the same.
+	 * offset + 0  (16 bits): init script tables pointer
+	 * offset + 2  (16 bits): macro index table pointer
+	 * offset + 4  (16 bits): macro table pointer
+	 * offset + 6  (16 bits): condition table pointer
+	 * offset + 8  (16 bits): io condition table pointer
+	 * offset + 10 (16 bits): io flag condition table pointer
+	 * offset + 12 (16 bits): init function table pointer
 	 *
 	 * TODO:
-	 * * In addition to "conditions" and "io flag conditions" there seems to be
-	 *   "io conditions". These are probably located at offset + (8, 10 or 12).
-	 *    We need more BIOS dumps to figure this out...
-	 * 
 	 * * Are 'I' bit entries always of length 0xE?
 	 * 
 	 */
@@ -1576,19 +1697,41 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 		return 0;
 	}
 
-	bios->init_tbls_offset = *((uint16_t *)(&bios->data[bitentry->offset]));
-	bios->macro_index_offset = *((uint16_t *)(&bios->data[bitentry->offset + 2]));
-	bios->macro_offset = *((uint16_t *)(&bios->data[bitentry->offset + 4]));
-	bios->condition_offset = 
-		*((uint16_t *)(&bios->data[bitentry->offset + 6]));
-	if (*((uint16_t *)(&bios->data[bitentry->offset + 8])) !=
-		*((uint16_t *)(&bios->data[bitentry->offset + 10]))) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "Unable to find IO flag condition offset.\n");
-		return 0;
-	}
+	bios->init_script_tbls_ptr = *((uint16_t *)(&bios->data[bitentry->offset]));
+	bios->macro_index_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 2]));
+	bios->macro_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 4]));
+	bios->condition_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 6]));
+	bios->io_condition_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 8]));
+	bios->io_flag_condition_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 10]));
+	bios->init_function_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 12]));
 
-	bios->io_flag_condition_offset =
-		*((uint16_t *)(&bios->data[bitentry->offset + 8]));
+	parse_init_tables(pScrn, bios);
+
+	return 1;
+}
+
+static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
+{
+	/* Parse the pointers for useful tables in the BMP structure, starting at
+	 * offset 75 from the ..NV. signature.
+	 *
+	 * First 7 pointers as for parse_bit_init_tbl_entry
+	 *
+	 * offset + 30: flat panel timings table pointer
+	 * offset + 32: flat panel strapping translation table pointer
+	 * offset + 42: LVDS manufacturer panel config table pointer
+	 * offset + 44: LVDS manufacturer strapping translation table pointer
+	 */
+
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (!parse_bit_init_tbl_entry(pScrn, bios, bitentry))
+		return 0;
+
+	/* If it's not a laptop, you probably don't care about fptables */
+	/* FIXME: detect mobile BIOS? */
+	if (!pNv->Mobile)
+		return 1;
 
 	if (bitentry->length > 33) {
 		bios->fptablepointer = *((uint16_t *)(&bios->data[bitentry->offset + 30]));
@@ -1599,7 +1742,7 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 		bios->fpxlatemanufacturertableptr = *((uint16_t *)(&bios->data[bitentry->offset + 44]));
 	}
 
-	parse_init_tables(pScrn, bios);
+	parse_fp_tables(pScrn, bios);
 
 	return 1;
 }
@@ -1885,124 +2028,6 @@ static unsigned int nv_read_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	return pNv->dcb_table.entries;
 }
 
-static void nv_read_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	unsigned int fpstrapping;
-	uint8_t *fptable, *fpxlatetable;
-/*	uint8_t *lvdsmanufacturertable, *fpxlatemanufacturertable;*/
-	unsigned int fpindex, lvdsmanufacturerindex;
-	uint8_t fptable_ver, headerlen = 0, recordlen = 44;
-	int ofs;
-	DisplayModePtr mode;
-
-	fpstrapping = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 16) & 0xf;
-
-	if (bios->fptablepointer == 0x0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"Pointer to flat panel table invalid\n");
-		return;
-	}
-
-	fptable = &bios->data[bios->fptablepointer];
-
-	fptable_ver = fptable[0];
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Found flat panel mode table revision %d.%d\n",
-			fptable_ver >> 4, fptable_ver & 0xf);
-
-	switch (fptable_ver) {
-	/* PINS version 0x5.0x11 BIOSen have version 1 like tables, but no version field,
-	 * and miss one of the spread spectrum/PWM bytes.
-	 * This could affect early GF2Go parts (not seen any appropriate ROMs though).
-	 * Here we assume that a version of 0x00 matches this case (combining with a
-	 * PINS version check would be better), as the common case for the panel type
-	 * field is 0x0005, and that is in fact what we are reading the first byte of. */
-	case 0x00:	/* some NV11, 15, 16 */
-		/* note that in this version the lvdsmanufacturertable is not defined */
-		ofs = 6;
-		recordlen = 42;
-		goto v1common;
-	case 0x10:	/* some NV15/16, and NV11+ */
-		ofs = 7;
-v1common:
-		if (bios->fpxlatetableptr == 0x0) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"Pointer to flat panel translation table invalid\n");
-			return;
-		}
-		fpxlatetable = &bios->data[bios->fpxlatetableptr];
-	/*	not yet used
-		lvdsmanufacturertable = &bios->data[bios->lvdsmanufacturerpointer];
-		fpxlatemanufacturertable = &bios->data[bios->fpxlatemanufacturertableptr];*/
-
-		fpindex = fpxlatetable[fpstrapping];
-	/*	not yet used
-		lvdsmanufacturerindex = fpxlatemanufacturertable[fpstrapping]; */
-
-		if (fpindex > 0xf) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"Bad flat panel table index\n");
-			return;
-		}
-		break;
-	case 0x20:	/* NV40+ */
-		headerlen = fptable[1];
-		recordlen = fptable[2];	// check this, or hardcode as 0x20
-/*		may be the wrong test, if there's a translation table
-		if (fpstrapping > fptable[3]) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"Flat panel strapping number too high\n");
-			return;
-		}*/
-		ofs = 0;
-/*		I don't know where the index for the table comes from in v2.0, so bail
-		break;*/
-	default:
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"FP Table revision not currently supported\n");
-		return;
-	}
-
-	if (!(mode = xcalloc(1, sizeof(DisplayModeRec))))
-		return;
-
-	mode->Clock = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 0] * 10;
-	mode->HDisplay = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 2];
-	mode->HSyncStart = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 10] + 1;
-	mode->HSyncEnd = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 12] + 1;
-	mode->HTotal = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 14] + 1;
-	mode->VDisplay = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 16];
-	mode->VSyncStart = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 24] + 1;
-	mode->VSyncEnd = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 26] + 1;
-	mode->VTotal = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 28] + 1;
-	mode->Flags |= (fptable[headerlen + recordlen * fpindex + ofs + 30] & 0x10) ? V_PHSYNC : V_NHSYNC;
-	mode->Flags |= (fptable[headerlen + recordlen * fpindex + ofs + 30] & 0x1) ? V_PVSYNC : V_NVSYNC;
-
-	/* for version 1.0:
-	 * bytes 1-2 are "panel type", including bits on whether Colour/mono, single/dual link, and type (TFT etc.)
-	 * bytes 3-6 are bits per colour in RGBX
-	 * 11-12 is HDispEnd
-	 * 13-14 is HValid Start
-	 * 15-16 is HValid End
-	 * bytes 38-39 relate to spread spectrum settings
-	 * bytes 40-43 are something to do with PWM */
-
-	mode->prev = mode->next = NULL;
-	mode->status = MODE_OK;
-	mode->type = M_T_DRIVER | M_T_PREFERRED;
-	xf86SetModeDefaultName(mode);
-
-//	if (pNv->debug_modes) { this should exist
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"Found flat panel mode in BIOS tables:\n");
-		xf86PrintModeline(pScrn->scrnIndex, mode);
-//	}
-
-	pNv->fp_native_mode = mode;
-}
-
 unsigned int NVParseBios(ScrnInfoPtr pScrn)
 {
 	unsigned int bit_offset;
@@ -2017,6 +2042,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 
 	pNv->dcb_table.entries = 0;
 	pNv->dcb_table.i2c_entries = 0;
+	pNv->fp_native_mode = NULL;
 
 	pNv->VBIOS = xalloc(64 * 1024);
 	if (!NVShadowVBIOS(pScrn, pNv->VBIOS)) {
@@ -2046,11 +2072,6 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	if (ret)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Found %d entries in DCB.\n", ret);
-
-	pNv->fp_native_mode = NULL;
-	/* FIXME: can we detect mobile BIOS? */
-	if (pNv->Mobile)
-		nv_read_fp_tables(pScrn, &bios);
 
 	return 1;
 }
