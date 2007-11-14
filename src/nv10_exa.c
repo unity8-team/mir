@@ -48,8 +48,7 @@ static int NV10TexFormat(int ExaFormat)
 		{PICT_r5g6b5, 0x880}, //this one was only tested with rendercheck
 		//{PICT_a1r5g5b5,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R5G5B5A1},
 		//{PICT_a4r4g4b4,	NV10_TCL_PRIMITIVE_3D_TX_FORMAT_FORMAT_R4G4B4A4},
-		{PICT_a8,	0x980},
-		// FIXME other formats
+		{PICT_a8,	0x980}, //used as mask mostly, or source for A8 + A8 with a hack, see below
 	};
 
 	int i;
@@ -134,13 +133,11 @@ static Bool NV10CheckPictOp(int op)
 /* A8 destination is a special case, because we do it by having the card think 
 it's ARGB. For now we support PictOpAdd which is the only important op for this dst format, 
 and without transformation or funny things.*/
-static Bool NV10CheckA8_PLUS_A8_FEASABILITY(PicturePtr src, PicturePtr msk, PicturePtr dst, int op)  
+static Bool NV10Check_A8plusA8_Feasability(PicturePtr src, PicturePtr msk, PicturePtr dst, int op)  
 {
-	/*This does not work quite well yet so we fallback*/
-	return FALSE;
-	
+
 	if ((!msk) && 	(src->format == PICT_a8) && (dst->format == PICT_a8) && (!src->transform) && 
-									((op == PictOpAdd) || (op == PictOpSrc) || (op == PictOpClear) || (op == PictOpDst)) && (src->repeat == RepeatNone))
+									(op == PictOpAdd) && (src->repeat == RepeatNone))
 		{
 		return TRUE;
 		}
@@ -283,8 +280,8 @@ Bool NV10CheckComposite(int	op,
 			     PicturePtr pDstPicture)
 {
 	
-	if (NV10CheckA8_PLUS_A8_FEASABILITY(pSrcPicture,pMaskPicture,pDstPicture,op))
-		{ //A8 destination hack is OK ? - disabled by default anyway
+	if (NV10Check_A8plusA8_Feasability(pSrcPicture,pMaskPicture,pDstPicture,op))
+		{
 		NV10EXAFallbackInfo("Hackelerating", op, pSrcPicture, pMaskPicture, pDstPicture);
 		return TRUE;
 		}
@@ -344,21 +341,14 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 	}
 	else
 	{
-		if ( ! state.is_a8_plus_a8 )
-			{
-			txfmt |= NV10TexFormat(Pict->format);
-			w = Pict->pDrawable->width;
-			/* NPOT_SIZE expects an even number for width, we can round up uneven
-			* numbers here because EXA always gives 64 byte aligned pixmaps
-			* and for all formats we support 64 bytes represents an even number
-			* of pixels
-			*/
-			w = (w + 1) &~ 1;
-			}
-		else {
-			txfmt |= NV10TexFormat(PICT_a8r8g8b8);
-			w = (exaGetPixmapPitch(pixmap)) >> 2;
-			}
+		txfmt |= NV10TexFormat(Pict->format);
+		w = Pict->pDrawable->width;
+		/* NPOT_SIZE expects an even number for width, we can round up uneven
+		* numbers here because EXA always gives 64 byte aligned pixmaps
+		* and for all formats we support 64 bytes represents an even number
+		* of pixels
+		*/
+		w = (w + 1) &~ 1;
 
 		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_NPOT_PITCH(unit), 1);
 		OUT_RING  (exaGetPixmapPitch(pixmap) << 16);
@@ -448,6 +438,7 @@ Single texturing setup, without honoring vertex colors (non default setup) is:
 Alpha RC 0 : a_0  * 1 + 0 * 0
 RGB RC 0 : rgb_0 * 1 + 0 * 0
 RC 1s are unused
+Final combiner uses default setup
 	
 Default setup uses vertex rgb/alpha in place of 1s above, but we don't need that in 2D.
 	
@@ -455,12 +446,13 @@ Multi texturing setup, where we do TEX0 in TEX1 (masking) is:
 Alpha RC 0 : a_0 * a_1 + 0 * 0
 RGB RC0 : rgb_0 * a_1 + 0 * 0
 RC 1s are unused
+Final combiner uses default setup
 	
 */
 
 unsigned int rc0_in_alpha = 0, rc0_in_rgb = 0;
 unsigned int rc1_in_alpha = 0, rc1_in_rgb = 0;
-
+unsigned int color0 = 0, color1 = 0;
 #define A_ALPHA_ZERO (NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_A_INPUT_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_A_COMPONENT_USAGE_ALPHA)
 #define B_ALPHA_ZERO (NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_B_INPUT_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_B_COMPONENT_USAGE_ALPHA)
 #define C_ALPHA_ZERO (NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_C_INPUT_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA_C_COMPONENT_USAGE_ALPHA)
@@ -481,13 +473,12 @@ unsigned int rc1_in_alpha = 0, rc1_in_rgb = 0;
 #define C_RGB_ONE (C_RGB_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_C_MAPPING_UNSIGNED_INVERT_NV)
 #define D_RGB_ONE (D_RGB_ZERO | NV10_TCL_PRIMITIVE_3D_RC_IN_RGB_D_MAPPING_UNSIGNED_INVERT_NV)
 
-			
 	rc0_in_alpha |= C_ALPHA_ZERO | D_ALPHA_ZERO;
 	if (src->format == PICT_x8r8g8b8)
 		rc0_in_alpha |= A_ALPHA_ONE; //A = alpha = 1 everywhere
 	else
 		rc0_in_alpha |= 0x18000000; //A = a_0, use texture 0 alpha value
-	
+
 	if ( ! mask ) 
 		rc0_in_alpha |= B_ALPHA_ONE;
 	else 
@@ -495,13 +486,13 @@ unsigned int rc1_in_alpha = 0, rc1_in_rgb = 0;
 			rc0_in_alpha |= B_ALPHA_ONE;
 		else
 			rc0_in_alpha |= 0x00190000; //B = a_1, use texture 1 alpha value
-	
+
 	rc0_in_rgb |=  C_RGB_ZERO | D_RGB_ZERO;
 	if (src->format == PICT_a8 )
 		rc0_in_rgb |= A_RGB_ZERO;
 	else 
 		rc0_in_rgb |= 0x08000000; //A = rgb_0, use texture 0 rgb
-	
+
 	if ( ! mask )
 		rc0_in_rgb |= B_RGB_ONE;
 	else 
@@ -509,20 +500,14 @@ unsigned int rc1_in_alpha = 0, rc1_in_rgb = 0;
 			rc0_in_rgb |= B_RGB_ONE;
 		else
 			rc0_in_rgb |= 0x00190000; //B = a_1, use texture 1 alpha value
-	
-	if ( state.is_a8_plus_a8 )
-		{
-		rc0_in_alpha = 0x18000000 | B_ALPHA_ONE | C_ALPHA_ZERO | D_ALPHA_ZERO; //A = a_0, use texture 0 alpha value
-		rc0_in_rgb = 0x08000000 | B_RGB_ONE | C_RGB_ZERO | D_RGB_ZERO; //A = rgb_0, use texture 0 rgb
-		}
 		
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA(0), 12);
 	OUT_RING(rc0_in_alpha);
 	OUT_RING  (rc1_in_alpha);
 	OUT_RING (rc0_in_rgb);
 	OUT_RING  (rc1_in_rgb);
-	OUT_RING  (0); /*COLOR 0*/
-	OUT_RING  (0); /*COLOR 1*/
+	OUT_RING  (color0); /*COLOR 0*/
+	OUT_RING  (color1); /*COLOR 1*/
 	OUT_RING  (0x00000c00);
 	OUT_RING  (0);
 	OUT_RING  (0x000010cd);
@@ -531,7 +516,62 @@ unsigned int rc1_in_alpha = 0, rc1_in_rgb = 0;
 	OUT_RING  (0x0c091c80);
 }
 
-static void NV10SetPictOp(NVPtr pNv,int op, int sf, int df)
+static void NV10SetRegCombs_A8plusA8(NVPtr pNv, int pass, int mask_out_bytes)
+{
+	unsigned int rc0_in_alpha = 0, rc0_in_rgb = 0;
+	unsigned int rc1_in_alpha = 0, rc1_in_rgb = 0;
+	unsigned int color0 = 0, color1 = 0;
+
+	if ( pass == 1)
+		{
+		if ( mask_out_bytes & 1 )
+			rc0_in_alpha = A_ALPHA_ZERO | B_ALPHA_ZERO | C_ALPHA_ZERO | D_ALPHA_ZERO;
+		else rc0_in_alpha = 0x19000000 | B_ALPHA_ONE | C_ALPHA_ZERO | D_ALPHA_ZERO; //A = a_1, B = 1, C = 0, D = 0
+		
+		rc0_in_rgb = C_RGB_ZERO | D_RGB_ZERO; //A = a_0, B = constant color 0
+		
+		if ( mask_out_bytes & 2 )
+			rc0_in_rgb |= A_RGB_ZERO | B_RGB_ZERO;
+		else rc0_in_rgb |= 0x18000000 | 0x00010000;
+		
+		color0 = 0x00ff0000; //R = 1 G = 0 B = 0	
+		}
+	else {
+		rc0_in_alpha = A_ALPHA_ZERO | B_ALPHA_ZERO | C_ALPHA_ZERO | D_ALPHA_ZERO;
+		
+		rc0_in_rgb = 0;
+		
+		
+		
+		if ( mask_out_bytes & 8 )
+			rc0_in_rgb |= A_RGB_ZERO | B_RGB_ZERO;
+		else  rc0_in_rgb |= 0x18000000 | 0x00010000; // A = a_0, B = cst color 0
+		
+		color0 = 0x000000ff; //R = 0 G = 0 B = 1
+		
+		if ( mask_out_bytes & 4)
+			rc0_in_rgb |= C_RGB_ZERO | D_RGB_ZERO;
+		else rc0_in_rgb |= 0x1900 | 0x02; //C = a_1, D = cst color 1
+			
+		color1 = 0x0000ff00; //R = 0, G = 1, B = 0
+		}
+
+	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_RC_IN_ALPHA(0), 12);
+	OUT_RING(rc0_in_alpha);
+	OUT_RING  (rc1_in_alpha);
+	OUT_RING (rc0_in_rgb);
+	OUT_RING  (rc1_in_rgb);
+	OUT_RING  (color0); /*COLOR 0*/
+	OUT_RING  (color1); /*COLOR 1*/
+	OUT_RING  (0x00000c00);
+	OUT_RING  (0);
+	OUT_RING  (0x00000c00);
+	OUT_RING  (0x18000000);
+	OUT_RING  (0x300c0000);
+	OUT_RING  (0x00001c80);
+}
+
+static void NV10SetPictOp(NVPtr pNv,int op)
 {
 	struct {int src;int dst;} pictops[] =
 	{
@@ -568,16 +608,14 @@ Bool NV10PrepareComposite(int	  op,
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (NV10CheckA8_PLUS_A8_FEASABILITY(pSrcPicture,pMaskPicture,pDstPicture,op))
+	if (NV10Check_A8plusA8_Feasability(pSrcPicture,pMaskPicture,pDstPicture,op))
 		{ //is this our A8 + A8 hack?
 		state.have_mask = FALSE;
 		state.is_a8_plus_a8 = TRUE;
 		NV10SetBuffer(pNv,pDstPicture,pDst);
-		NV10SetTexture(pNv,0,pSrcPicture,pSrc);
-		NV10SetRegCombs(pNv, pSrcPicture, pMaskPicture);
-		NV10SetPictOp(pNv, op, PICT_r5g6b5, PICT_r5g6b5);
-		BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
-		OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_QUADS);
+		NV10SetPictOp(pNv, op);
+		NV10SetTexture(pNv, 0, pSrcPicture, pSrc);
+		NV10SetTexture(pNv, 1, pSrcPicture, pSrc);
 		return TRUE;
 		}
 	
@@ -596,7 +634,7 @@ Bool NV10PrepareComposite(int	  op,
 	NV10SetRegCombs(pNv, pSrcPicture, pMaskPicture);
 
 	/* Set PictOp */
-	NV10SetPictOp(pNv, op, pSrcPicture->format, pDstPicture->format);
+	NV10SetPictOp(pNv, op);
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
 	OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_QUADS);
@@ -667,14 +705,6 @@ void NV10Composite(PixmapPtr pDst,
 	NVPtr pNv = NVPTR(pScrn);
 	float sX0, sX1, sY0, sY1;
 	float mX0, mX1, mY0, mY1;
-	
-	if ( state.is_a8_plus_a8 )
-		{
-		//xf86DrvMsg(0, X_INFO, "Composite hack part - srcX %d srcY %d dstX %d dstY %d w %d h %d\n", srcX, srcY, dstX, dstY, width, height);		
-		srcX = srcX >> 2;
-		dstX = dstX >> 2;
-		width = ((width + 3) &~ 3) >> 2;		
-		}
 		
 	NV10EXATransformCoord(state.unit[0].transform, srcX, srcY,
 			      state.unit[0].width,
@@ -684,6 +714,132 @@ void NV10Composite(PixmapPtr pDst,
 			      state.unit[0].width,
 			      state.unit[0].height, &sX1, &sY1);
 
+	if ( state.is_a8_plus_a8 )
+		{
+		/*We do A8 + A8 in 2-pass : setup the source texture as A8 twice, with different tex coords, do B and G on first pass
+		Then setup again and do R and A on second pass
+		The image is split in three parts - a left border, that ranges from the beginning to the first 4 byte boundary (can be inexistant),
+		a center part that has a multiple of four width (ranges from a boundary to another), and a right part that starts at the last
+		4 byte boundary (can be inexistant). Special case where the image does not cross an alignment marker is handled too.*/
+			
+		/*I know it's unreadable. I'm not sorry about that. Feel free to do better.*/
+			
+		/* Assumption : the destination picture always touches one alignment marker (4-byte boundary). This is true of 
+		all >= 4 width pixmaps, and a lot of smaller ones. */
+			
+		int left_border_size = ((dstX + 3) &~ 3) - dstX;
+		int right_border_size = (dstX + width) & 3;
+			
+		/* Cases when the assumption is wrong - destination is unaligned and width + position does not cross a boundary */
+		if ( (dstX & 3) && (width + (dstX & 3)) < 4) //if the destination picture is not aligned, and it does not cross the next alignment marker
+			{
+			right_border_size = 0;
+			}
+		
+		int part_pos_dX = 0;
+		int part_pos_dXend = 0;
+		int part_pos_sX = 0;
+		int part_pos_sXend = 0;
+		int mask_out_bytes = 0;
+		int i; //center, left, right part
+		int horrible_hackup; //we do only one destination ARGB pixel at a time, so we may need to decompose the central part
+		
+		for (  i = 0; i < 3; i ++ )
+			{
+			if ( i == 0 && (left_border_size + right_border_size) >= width ) continue; //no central part
+			if ( i == 1 && !left_border_size ) continue; //no left part
+			if ( i == 2 && !right_border_size ) continue; //no right part
+				
+			switch ( i ) 
+				{
+				case 0: /*draw center part*/
+					part_pos_dX = (dstX + left_border_size) >> 2; //start after left border
+					part_pos_dXend = (dstX + width - right_border_size) >> 2;
+					part_pos_sX = sX0 + left_border_size;
+					part_pos_sXend = sX1 - right_border_size;
+					mask_out_bytes = 0;
+					break;
+				case 1: /*draw left part*/
+					part_pos_dX = (dstX &~ 3) >> 2;
+					part_pos_dXend = (dstX + left_border_size) >> 2;
+					part_pos_sX = sX0 + left_border_size - ((left_border_size + 3) &~ 3);
+					part_pos_sXend = sX0 + left_border_size;
+					mask_out_bytes = 0;
+					switch ( ((left_border_size + 3) &~ 3) - left_border_size ) //mask X leftmost bytes (BGRA)
+						{
+						case 4: 
+							mask_out_bytes |= 1 << 0;
+						case 3: 
+							mask_out_bytes |= 1 << 1;
+						case 2:
+							mask_out_bytes |= 1 << 2;
+						case 1: 
+							mask_out_bytes |= 1 << 3;
+						}
+					if ( (width - left_border_size) <= -1 )
+						mask_out_bytes |= 1 << 0;
+					if ( ( width - left_border_size) <= -2 )
+						mask_out_bytes |= 1 << 1;
+					break;
+				case 2: /*draw right part*/
+					part_pos_dX = (dstX + width - right_border_size) >> 2;
+					part_pos_dXend = (dstX + width - right_border_size + ((right_border_size + 3 ) &~ 3)) >> 2;
+					part_pos_sX = sX1 - right_border_size;
+					part_pos_sXend = sX1 - right_border_size + ((right_border_size + 3 ) &~ 3);
+					mask_out_bytes = 0;
+					switch ((((right_border_size + 3) &~ 3) - right_border_size))
+						{
+						case 4:
+							mask_out_bytes |= 1 << 3;
+						case 3:
+							mask_out_bytes |= 1 << 2;
+						case 2: 
+							mask_out_bytes |= 1 << 1;
+						case 1:
+							mask_out_bytes |= 1 << 0;
+						}
+					break;
+				}
+			
+			horrible_hackup = part_pos_dXend;
+			
+			for ( part_pos_dXend = part_pos_dX + 1, part_pos_sXend = part_pos_sX + 4; part_pos_dXend <= horrible_hackup; part_pos_dX ++, part_pos_dXend ++, part_pos_sX += 4, part_pos_sXend += 4)
+			{
+
+			//xf86DrvMsg(0, X_INFO, "drawing - lb %d rb %d sX %d sX_end %d dX %d dX_end %d\n", left_border_size, right_border_size, part_pos_sX, part_pos_sXend, part_pos_dX, part_pos_dXend);		
+				
+			/*Pass number 0*/
+			
+			NV10SetRegCombs_A8plusA8(pNv, 0, mask_out_bytes);
+			BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
+			OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_QUADS);		
+					
+			NV10MVertex(pNv , part_pos_dX	, dstY              , part_pos_sX, sY0, part_pos_sX + 1, sY0);
+			NV10MVertex(pNv , part_pos_dXend	, dstY              , part_pos_sXend - 4, sY0, part_pos_sXend - 3, sY0);
+			NV10MVertex(pNv , part_pos_dXend	, dstY + height, part_pos_sXend - 4,  sY1, part_pos_sXend - 3, sY1);
+			NV10MVertex(pNv , part_pos_dX	, dstY + height, part_pos_sX, sY1, part_pos_sX + 1, sY1);
+			
+			BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
+			OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_STOP);
+			
+			/*Pass number 1*/
+			
+			NV10SetRegCombs_A8plusA8(pNv, 1, mask_out_bytes);
+			BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
+			OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_QUADS);		
+					
+			NV10MVertex(pNv , part_pos_dX, dstY              , part_pos_sX + 2, sY0, part_pos_sX + 3, sY0);
+			NV10MVertex(pNv , part_pos_dXend , dstY              , part_pos_sXend - 2, sY0, part_pos_sXend - 1, sY0);
+			NV10MVertex(pNv , part_pos_dXend , dstY + height, part_pos_sXend - 2, sY1, part_pos_sXend - 1, sY1);
+			NV10MVertex(pNv , part_pos_dX, dstY + height, part_pos_sX + 2, sY1, part_pos_sX + 3, sY1);
+
+			BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
+			OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_STOP);
+			
+			}
+			}
+		}
+		
 	if (state.have_mask) {
 		NV10EXATransformCoord(state.unit[1].transform, maskX, maskY,
 				      state.unit[1].width,
