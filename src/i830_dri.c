@@ -1093,7 +1093,7 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
       if (!pScrn->vtSema)
      	 return;
       pI830->LockHeld = 1;
-      I830RefreshRing(pScrn);
+      i830_refresh_ring(pScrn);
 
       I830EmitFlush(pScrn);
 
@@ -1777,7 +1777,7 @@ I830DRILock(ScrnInfoPtr pScrn)
    if (pI830->directRenderingEnabled && !pI830->LockHeld) {
       DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
       pI830->LockHeld = 1;
-      I830RefreshRing(pScrn);
+      i830_refresh_ring(pScrn);
       return TRUE;
    }
    else

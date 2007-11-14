@@ -249,25 +249,6 @@ I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
 	     buffer, pI830->bufferOffset);
 }
 
-void
-I830RefreshRing(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   /* If we're reaching RefreshRing as a result of grabbing the DRI lock
-    * before we've set up the ringbuffer, don't bother.
-    */
-   if (pI830->LpRing->mem == NULL)
-       return;
-
-   pI830->LpRing->head = INREG(LP_RING + RING_HEAD) & I830_HEAD_MASK;
-   pI830->LpRing->tail = INREG(LP_RING + RING_TAIL);
-   pI830->LpRing->space = pI830->LpRing->head - (pI830->LpRing->tail + 8);
-   if (pI830->LpRing->space < 0)
-      pI830->LpRing->space += pI830->LpRing->mem->size;
-   i830MarkSync(pScrn);
-}
-
 /* The following function sets up the supported acceleration. Call it
  * from the FbInit() function in the SVGA driver, or before ScreenInit
  * in a monolithic server.

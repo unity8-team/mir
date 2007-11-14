@@ -664,7 +664,7 @@ i830_crtc_hide_cursor (xf86CrtcPtr crtc);
 void
 i830_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg);
 
-extern void I830RefreshRing(ScrnInfoPtr pScrn);
+extern void i830_refresh_ring(ScrnInfoPtr pScrn);
 extern void I830EmitFlush(ScrnInfoPtr pScrn);
 
 #ifdef I830_XV
