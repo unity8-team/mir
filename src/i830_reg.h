@@ -56,6 +56,8 @@
 #define   FBC_CTL_PLANEA	(0<<0)
 #define   FBC_CTL_PLANEB	(1<<0)
 #define FBC_FENCE_OFF		0x0321b
+#define FBC_MOD_NUM		0x03220
+#define FBC_TAG_DEBUG		0x03300
 
 #define FBC_LL_SIZE		(1536)
 #define FBC_LL_PAD		(32)
