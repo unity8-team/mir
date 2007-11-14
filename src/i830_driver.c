@@ -2606,8 +2606,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       pI830->directRenderingEnabled = FALSE;
    }
 
-   pScrn->displayWidth = pScrn->displayWidth;
-
 #ifdef HAS_MTRR_SUPPORT
    {
       int fd;
