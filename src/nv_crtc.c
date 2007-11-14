@@ -721,8 +721,6 @@ void nv_crtc_calc_state_ext(
 		Bool vpll1_ok = TRUE;
 		Bool vpll2_ok = TRUE;
 
-		/* This isn't true everywere */
-#if 0
 		/* For lack of a better name */
 		int magic_factor = (pNv->misc_info.sel_clk & (0xf << 8)) >> 8;
 
@@ -742,7 +740,6 @@ void nv_crtc_calc_state_ext(
 					break;
 			}
 		}
-#endif
 
 		/* Vclk ratio DB1 is used whenever reg580 is modified for vpll activity */
 		if (!(pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
