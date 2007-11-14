@@ -293,7 +293,7 @@ i830_lvds_get_backlight_kernel(xf86OutputPtr output)
     char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
     int fd;
 
-    sprintf(path, "%s/%s/brightness", BACKLIGHT_CLASS,
+    sprintf(path, "%s/%s/actual_brightness", BACKLIGHT_CLASS,
 	    backlight_interfaces[backlight_index]);
     fd = open(path, O_RDWR);
     if (fd == -1) {
