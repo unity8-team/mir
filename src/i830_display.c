@@ -646,7 +646,7 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
     /* Wait for compressing bit to clear */
     while (INREG(FBC_STATUS) & FBC_STAT_COMPRESSING)
 	; /* nothing */
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled on pipe %c\n", plane);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled on plane %c\n", plane);
 }
 
 /**
