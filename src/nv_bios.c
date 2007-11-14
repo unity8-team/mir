@@ -229,7 +229,7 @@ static void nv32_rd(ScrnInfoPtr pScrn, uint32_t reg, uint32_t *data)
 	*data = pNv->REGS[reg/4];
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"	Read:  Reg: 0x%08X, Data: 0x%08X\n", reg, *data);
+			   "	Read:  Reg: 0x%08X, Data: 0x%08X\n", reg, *data);
 }
 
 static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
@@ -240,10 +240,10 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 	}
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"	Write: Reg: 0x%08X, Data: 0x%08X\n", reg, data);
+			   "	Write: Reg: 0x%08X, Data: 0x%08X\n", reg, data);
 	if (!nv_valid_reg(reg)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"========= unknown reg 0x%X ==========\n", reg);
+			   "========= unknown reg 0x%X ==========\n", reg);
 		return 0;
 	}
 #ifdef PERFORM_WRITE
@@ -264,8 +264,8 @@ static void nv_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t 
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"	Indexed read:  Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
-				port, index, head, *data);
+			   "	Indexed read:  Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
+			   port, index, head, *data);
 }
 
 static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t data, int head)
@@ -279,8 +279,8 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t 
 	}
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"	Indexed write: Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
-				port, index, head, data);
+			   "	Indexed write: Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
+			   port, index, head, data);
 #ifdef PERFORM_WRITE
 	still_alive();
 	VGA_WR08(ptr, port, index);
@@ -407,16 +407,16 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
-				offset, crtcport, crtcindex, mask, shift, count, reg);
+			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
+			   offset, crtcport, crtcindex, mask, shift, count, reg);
 
 	/* FIXME how to choose head?? */
 	nv_port_rd(pScrn, crtcport, crtcindex, &config, 0);
 	config = (config & mask) >> shift;
 	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
-				offset, config, count);
+			   "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
+			   offset, config, count);
 		return FALSE;
 	}
 
@@ -424,7 +424,7 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Writing config %02X\n", offset, config);
+			   "0x%04X: Writing config %02X\n", offset, config);
 
 	nv32_wr(pScrn, reg, configval);
 
@@ -488,8 +488,8 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Reg: 0x%08X, Shift: 0x%02X, SrcMask: 0x%02X, Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X\n",
-				offset, reg, shift, srcmask, crtcport, crtcindex, mask);
+			   "0x%04X: Reg: 0x%08X, Shift: 0x%02X, SrcMask: 0x%02X, Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X\n",
+			   offset, reg, shift, srcmask, crtcport, crtcindex, mask);
 
 	nv32_rd(pScrn, reg, &data);
 
@@ -518,10 +518,10 @@ static Bool init_not(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec
 	 */
 	if (iexec->execute)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: ------ SKIPPING FOLLOWING COMMANDS  ------\n", offset);
+			   "0x%04X: ------ SKIPPING FOLLOWING COMMANDS  ------\n", offset);
 	else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", offset);
+			   "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", offset);
 
 	iexec->execute = !iexec->execute;
 	return TRUE;
@@ -550,8 +550,8 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, FlagArray: 0x%04X, FAMask: 0x%02X, Cmpval: 0x%02X\n",
-				offset, crtcport, crtcindex, mask, shift, flagarray, flagarraymask, cmpval);
+			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, FlagArray: 0x%04X, FAMask: 0x%02X, Cmpval: 0x%02X\n",
+			   offset, crtcport, crtcindex, mask, shift, flagarray, flagarraymask, cmpval);
 
 	/* FIXME how to choose head?? */
 	nv_port_rd(pScrn, crtcport, crtcindex, &data, 0);
@@ -561,8 +561,8 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Checking if 0x%02X equals 0x%02X\n",
-				offset, data, cmpval);
+			   "0x%04X: Checking if 0x%02X equals 0x%02X\n",
+			   offset, data, cmpval);
 
 	if (data == cmpval)
 		return TRUE;
@@ -589,12 +589,12 @@ static Bool init_io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t off
 
 	if (io_flag_condition(pScrn, bios, offset, cond))
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: CONDITION FULFILLED - CONTINUING TO EXECUTE\n", offset);
+			   "0x%04X: CONDITION FULFILLED - CONTINUING TO EXECUTE\n", offset);
 	else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: CONDITION IS NOT FULFILLED.\n", offset);
+			   "0x%04X: CONDITION IS NOT FULFILLED.\n", offset);
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: ------ SKIPPING FOLLOWING COMMANDS  ------\n", offset);
+			   "0x%04X: ------ SKIPPING FOLLOWING COMMANDS  ------\n", offset);
 		iexec->execute = FALSE;
 	}
 
@@ -638,16 +638,16 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, IO Flag Condition: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
-				offset, crtcport, crtcindex, mask, shift, io_flag_condition_idx, count, reg);
+			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, IO Flag Condition: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
+			   offset, crtcport, crtcindex, mask, shift, io_flag_condition_idx, count, reg);
 
 	/* FIXME how to choose head?? */
 	nv_port_rd(pScrn, crtcport, crtcindex, &config, 0);
 	config = (config & mask) >> shift;
 	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
-				offset, config, count);
+			   "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
+			   offset, config, count);
 		return FALSE;
 	}
 
@@ -656,17 +656,17 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 	if (io_flag_condition_idx > 0) {
 		if (io_flag_condition(pScrn, bios, offset, io_flag_condition_idx)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"0x%04X: CONDITION FULFILLED - FREQ DOUBLED\n", offset);
+				   "0x%04X: CONDITION FULFILLED - FREQ DOUBLED\n", offset);
 			freq *= 2;
 		} else
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"0x%04X: CONDITION IS NOT FULFILLED. FREQ UNCHANGED\n", offset);
+				   "0x%04X: CONDITION IS NOT FULFILLED. FREQ UNCHANGED\n", offset);
 	}
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Reg: 0x%08X, Config: 0x%02X, Freq: %d0kHz\n",
-				offset, reg, config, freq);
+			   "0x%04X: Reg: 0x%08X, Config: 0x%02X, Freq: %d0kHz\n",
+			   offset, reg, config, freq);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
 
@@ -702,8 +702,8 @@ static Bool init_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Reg: 0x%04X, Freq: %d0kHz\n",
-				offset, reg, freq);
+			   "0x%04X: Reg: 0x%04X, Freq: %d0kHz\n",
+			   offset, reg, freq);
 
 	/* FIXMElots */
 
@@ -1134,8 +1134,9 @@ static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 		return TRUE;
 
 	if (DEBUGLEVEL >= 6)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Reg: 0x%08X, Value1: 0x%08X, Value2: 0x%08X\n",
-			offset, reg, value1, value2);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Reg: 0x%08X, Value1: 0x%08X, Value2: 0x%08X\n",
+			   offset, reg, value1, value2);
 
 	/* it's not clear from my .dmp file, but it seems we should zero out NV_PBUS_PCI_NV_19(0x0000184C) and then restore it */
 	nv32_rd(pScrn, NV_PBUS_PCI_NV_19, &pci_nv_19);
@@ -1266,8 +1267,9 @@ static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 		return TRUE;
 
 	if (DEBUGLEVEL >= 6)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Reg: 0x%08X, Mask: 0x%08X, Data: 0x%08X\n",
-			offset, reg, mask, data);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Reg: 0x%08X, Mask: 0x%08X, Data: 0x%08X\n",
+			   offset, reg, mask, data);
 
 	nv32_rd(pScrn, reg, &value);
 
@@ -1304,8 +1306,8 @@ static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Macro: 0x%02X, MacroTableIndex: 0x%02X, Count: 0x%02X\n",
-				offset, macro_index_tbl_idx, macro_tbl_idx, count);
+			   "0x%04X: Macro: 0x%02X, MacroTableIndex: 0x%02X, Count: 0x%02X\n",
+			   offset, macro_index_tbl_idx, macro_tbl_idx, count);
 
 	for (i = 0; i < count; i++) {
 		reg = *((uint32_t *)
@@ -1346,7 +1348,7 @@ static Bool init_resume(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 
 	iexec->execute = TRUE;;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"0x%04X: ---- EXECUTING FOLLOWING COMMANDS ----\n", offset);
+		   "0x%04X: ---- EXECUTING FOLLOWING COMMANDS ----\n", offset);
 
 	return TRUE;
 }
@@ -1404,8 +1406,7 @@ static Bool init_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Sleeping for 0x%04X microseconds.\n",
-				offset, time);
+			   "0x%04X: Sleeping for 0x%04X microseconds.\n", offset, time);
 
 	usleep(time);
 
@@ -1441,27 +1442,27 @@ static Bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Cond: 0x%02X, Reg: 0x%08X, Mask: 0x%08X, Cmpval: 0x%08X\n",
-				offset, cond, reg, mask, cmpval);
+			   "0x%04X: Cond: 0x%02X, Reg: 0x%08X, Mask: 0x%08X, Cmpval: 0x%08X\n",
+			   offset, cond, reg, mask, cmpval);
 
 	nv32_rd(pScrn, reg, &data);
 	data &= mask;
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Checking if 0x%08X equals 0x%08X\n",
-				offset, data, cmpval);
+			   "0x%04X: Checking if 0x%08X equals 0x%08X\n",
+			   offset, data, cmpval);
 
 	if (data == cmpval) {
 		if (DEBUGLEVEL >= 6)
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"0x%04X: CONDITION FULFILLED - CONTINUING TO EXECUTE\n", offset);
+				   "0x%04X: CONDITION FULFILLED - CONTINUING TO EXECUTE\n", offset);
 	} else {
 		if (DEBUGLEVEL >= 6)
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"0x%04X: CONDITION IS NOT FULFILLED.\n", offset);
+				   "0x%04X: CONDITION IS NOT FULFILLED.\n", offset);
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: ------ SKIPPING FOLLOWING COMMANDS  ------\n", offset);
+			   "0x%04X: ------ SKIPPING FOLLOWING COMMANDS  ------\n", offset);
 		iexec->execute = FALSE;
 	}
 
@@ -1492,8 +1493,8 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%08X, Data: 0x%08X\n",
-				offset, crtcport, crtcindex, mask, data);
+			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%08X, Data: 0x%08X\n",
+			   offset, crtcport, crtcindex, mask, data);
 
 	/* FIXME how to choose head?? */
 	nv_port_rd(pScrn, crtcport, crtcindex, &value, 0);
@@ -1608,16 +1609,16 @@ static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offse
 			;
 
 		if (itbl_entry[i].name) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ (0x%02X) - %s ]\n", offset,
-				itbl_entry[i].id, itbl_entry[i].name);
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ (0x%02X) - %s ]\n",
+				   offset, itbl_entry[i].id, itbl_entry[i].name);
 
 			/* execute eventual command handler */
 			if (itbl_entry[i].handler)
 				if (!(*itbl_entry[i].handler)(pScrn, bios, offset, iexec))
 					break;
 		} else {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Init table command not found: 0x%02X\n",
-				offset, id);
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Init table command not found: 0x%02X\n", offset, id);
 			break;
 		}
 
@@ -1642,7 +1643,8 @@ void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing init table %d\n",
 			table, i / 2);
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", table);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", table);
 		still_alive();
 		parse_init_table(pScrn, bios, table, &iexec);
 		i += 2;
@@ -1664,7 +1666,7 @@ static void parse_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
 
 	if (bios->fptablepointer == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"Pointer to flat panel table invalid\n");
+			   "Pointer to flat panel table invalid\n");
 		return;
 	}
 
@@ -1673,8 +1675,8 @@ static void parse_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	fptable_ver = fptable[0];
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Found flat panel mode table revision %d.%d\n",
-			fptable_ver >> 4, fptable_ver & 0xf);
+		   "Found flat panel mode table revision %d.%d\n",
+		   fptable_ver >> 4, fptable_ver & 0xf);
 
 	switch (fptable_ver) {
 	/* PINS version 0x5.0x11 BIOSen have version 1 like tables, but no version field,
@@ -1693,7 +1695,7 @@ static void parse_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
 v1common:
 		if (bios->fpxlatetableptr == 0x0) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"Pointer to flat panel translation table invalid\n");
+				   "Pointer to flat panel translation table invalid\n");
 			return;
 		}
 		fpxlatetable = &bios->data[bios->fpxlatetableptr];
@@ -1707,7 +1709,7 @@ v1common:
 
 		if (fpindex > 0xf) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"Bad flat panel table index\n");
+				   "Bad flat panel table index\n");
 			return;
 		}
 		break;
@@ -1717,7 +1719,7 @@ v1common:
 /*		may be the wrong test, if there's a translation table
 		if (fpstrapping > fptable[3]) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"Flat panel strapping number too high\n");
+				   "Flat panel strapping number too high\n");
 			return;
 		}*/
 		ofs = 0;
@@ -1725,7 +1727,7 @@ v1common:
 		break;*/
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"FP Table revision not currently supported\n");
+			   "FP Table revision not currently supported\n");
 		return;
 	}
 
@@ -1761,7 +1763,7 @@ v1common:
 
 //	if (pNv->debug_modes) { this should exist
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"Found flat panel mode in BIOS tables:\n");
+			   "Found flat panel mode in BIOS tables:\n");
 		xf86PrintModeline(pScrn->scrnIndex, mode);
 //	}
 
@@ -1787,7 +1789,8 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 		return 1;
 
 	if (bitentry->length != 4) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Do not understand BIT display table entry.\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Do not understand BIT display table entry.\n");
 		return 0;
 	}
 
@@ -1818,7 +1821,8 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 	 */
 
 	if (bitentry->length < 12) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Unable to recognize BIT init table entry.\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Unable to recognize BIT init table entry.\n");
 		return 0;
 	}
 
@@ -1880,8 +1884,9 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	while (!done) {
 		bitentry = (bit_entry_t *) &bios->data[offset];
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Found BIT command with id 0x%02X\n",
-				offset, bitentry->id[0]); 
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Found BIT command with id 0x%02X\n",
+			   offset, bitentry->id[0]);
 
 		switch (bitentry->id[0]) {
 		case 0:
@@ -1891,14 +1896,12 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 			break;
 		case 'D':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"0x%04X: Found flat panel display table entry in BIT structure.\n",
-				offset);
+				   "0x%04X: Found flat panel display table entry in BIT structure.\n", offset);
 			parse_bit_display_tbl_entry(pScrn, bios, bitentry);
 			break;
 		case 'I':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"0x%04X: Found init table entry in BIT structure.\n", 
-				offset);
+				   "0x%04X: Found init table entry in BIT structure.\n", offset);
 
 			parse_bit_init_tbl_entry(pScrn, bios, bitentry);
 			break;
@@ -1922,7 +1925,8 @@ static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int o
 	int init_size = bios->data[offset + 22] + (bios->data[offset + 23] * 256) + 1;
 	int ram_tab;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PINS version %d.%d\n", pins_version_major, pins_version_minor);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PINS version %d.%d\n",
+		   pins_version_major, pins_version_minor);
 
 	/* checksum */
 	if (nv_cksum(bios->data, offset, 8)) {
@@ -2024,15 +2028,15 @@ read_dcb_i2c_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_version, uint16_
 	if (dcb_version >= 0x30) {
 		if (i2ctable[0] != dcb_version) { /* necessary? */
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"DCB I2C table version mismatch (%02X vs %02X)\n",
-					i2ctable[0], dcb_version);
+				   "DCB I2C table version mismatch (%02X vs %02X)\n",
+				   i2ctable[0], dcb_version);
 			return;
 		}
 		headerlen = i2ctable[1];
 		i2c_entries = i2ctable[2];
 		if (i2ctable[0] >= 0x40) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"G80 DCB I2C table detected, arrgh\n"); /* they're plain weird */
+				   "G80 DCB I2C table detected, arrgh\n"); /* they're plain weird */
 			return;
 		}
 	}
@@ -2075,7 +2079,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			is_g5_nv43 = TRUE;
 		} else {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"No Display Configuration Block pointer found\n");
+				   "No Display Configuration Block pointer found\n");
 			return 0;
 		}
 	}
@@ -2085,8 +2089,8 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	/* get DCB version */
 	dcb_version = dcbtable[0];
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Display Configuration Block version %d.%d found\n",
-			dcb_version >> 4, dcb_version & 0xf);
+		   "Display Configuration Block version %d.%d found\n",
+		   dcb_version >> 4, dcb_version & 0xf);
 
 	if (dcb_version >= 0x20) { /* NV17+ */
 		uint32_t sig;
@@ -2098,8 +2102,8 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			sig = *(uint32_t *)&dcbtable[6];
 
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"DCB header length %02X, with %02X possible entries\n",
-					headerlen, entries);
+				   "DCB header length %02X, with %02X possible entries\n",
+				   headerlen, entries);
 		} else {
 			/* dcb_block_count = *(dcbtable[1]); */
 			i2ctabptr = *(uint16_t *)&dcbtable[2];
@@ -2109,7 +2113,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 
 		if (sig != 0x4edcbdcb) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"Bad Display Configuration Block signature (%08X)\n", sig);
+				   "Bad Display Configuration Block signature (%08X)\n", sig);
 			return 0;
 		}
 	} else if (dcb_version >= 0x14) { /* some NV15/16, and NV11+ */
@@ -2124,7 +2128,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 
 		if (strcmp(sig, "DEV_REC")) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"Bad Display Configuration Block signature (%s)\n", sig);
+				   "Bad Display Configuration Block signature (%s)\n", sig);
 			return 0;
 		}
 	} else if (dcb_version >= 0x12) { /* some NV6/10, and NV15+ */
@@ -2133,7 +2137,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		configblock = FALSE;
 	} else {	/* NV5+, maybe NV4 */
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"Structure of Display Configuration Blocks prior to version 1.2 unknown\n");
+			   "Structure of Display Configuration Blocks prior to version 1.2 unknown\n");
 		return 0;
 	}
 
@@ -2209,9 +2213,9 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	} else if ((bit_offset = findstr(&bios, nv_signature, sizeof(nv_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV signature found.\n");
 		parse_pins_structure(pScrn, &bios, bit_offset);
-	} else {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "No known script signature found.\n");
-	}
+	} else
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "No known script signature found.\n");
 
 	/* parse Display Configuration Block (DCB) table */
 	if (parse_dcb_table(pScrn, &bios))
