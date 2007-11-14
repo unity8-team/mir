@@ -11,9 +11,9 @@ if (p2 == 7 || p2 == 14) {
 	max_p = 80;
 }
 
-for (int m1 = 10; m1 <= 20; m1++) {
+for (int m1 = 10; m1 <= 22; m1++) {
 	for (int m2 = 5; m2 <= 9; m2++) {
-		for (int n = 3; n <= 8; n++) {
+		for (int n = 1; n <= 6; n++) {
 			for (int p1 = 1; p1 <= 8; p1++) {
 				int ref = 96000000;
 				int m = 5 * (m1 + 2) + (m2 + 2);
