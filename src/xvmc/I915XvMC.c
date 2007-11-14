@@ -1241,14 +1241,6 @@ static int i915_xvmc_map_buffers(i915XvMCContext *pI915XvMC)
                (drmAddress *)&pI915XvMC->corrdata.map) != 0) {
         return -1;
     }
-    
-    /* XXX */
-    if (drmMap(xvmc_driver->fd,
-               xvmc_driver->batchbuffer.handle,
-               xvmc_driver->batchbuffer.size,
-               (drmAddress *)&xvmc_driver->batchbuffer.map) != 0) {
-        return -1;
-    }
 
     return 0;
 }
@@ -1283,11 +1275,6 @@ static void i915_xvmc_unmap_buffers(i915XvMCContext *pI915XvMC)
     if (pI915XvMC->corrdata.map) {
         drmUnmap(pI915XvMC->corrdata.map, pI915XvMC->corrdata.size);
         pI915XvMC->corrdata.map = NULL;
-    }
-
-    if (xvmc_driver->batchbuffer.map) {
-        drmUnmap(xvmc_driver->batchbuffer.map, xvmc_driver->batchbuffer.size);
-        xvmc_driver->batchbuffer.map = NULL;
     }
 }
 

@@ -96,20 +96,38 @@ void intelDestroyBatchBuffer(void)
 }
 
 
-void intelInitBatchBuffer(void)
+Bool intelInitBatchBuffer(void)
 {
     if (xvmc_driver->batchbuffer.map) {
-        xvmc_driver->alloc.size = xvmc_driver->batchbuffer.size;
-        xvmc_driver->alloc.offset = xvmc_driver->batchbuffer.offset;
-        xvmc_driver->alloc.ptr = xvmc_driver->batchbuffer.map;
+	xvmc_driver->alloc.size = xvmc_driver->batchbuffer.size;
+	xvmc_driver->alloc.offset = xvmc_driver->batchbuffer.offset;
+	xvmc_driver->alloc.ptr = xvmc_driver->batchbuffer.map;
     } else {
-        xvmc_driver->alloc.size = 8 * 1024;
-        xvmc_driver->alloc.offset = 0;
-        xvmc_driver->alloc.ptr = malloc(xvmc_driver->alloc.size);
+	xvmc_driver->alloc.size = 8 * 1024;
+	xvmc_driver->alloc.offset = 0;
+	xvmc_driver->alloc.ptr = malloc(xvmc_driver->alloc.size);
     }
 
-   xvmc_driver->alloc.active_buf = 0;
-   assert(xvmc_driver->alloc.ptr);
+    xvmc_driver->alloc.active_buf = 0;
+    assert(xvmc_driver->alloc.ptr);
+
+    if (drmMap(xvmc_driver->fd,
+		xvmc_driver->batchbuffer.handle,
+		xvmc_driver->batchbuffer.size,
+		(drmAddress *)&xvmc_driver->batchbuffer.map) != 0) {
+	XVMC_ERR("fail to map batch buffer\n");
+	return False;
+    }
+}
+
+void intelFiniBatchBuffer(void)
+{
+    intelFlushBatch(TRUE);
+
+    if (xvmc_driver->batchbuffer.map) {
+        drmUnmap(xvmc_driver->batchbuffer.map, xvmc_driver->batchbuffer.size);
+        xvmc_driver->batchbuffer.map = NULL;
+    }
 }
 
 void intelBatchbufferRequireSpace(unsigned int sz)

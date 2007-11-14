@@ -238,6 +238,7 @@ Status XvMCDestroyContext(Display *display, XvMCContext *context)
     /* Pass Control to the X server to destroy the drm_context_t */
     //XXX move generic destroy method here
     //i915_release_resource(display,context);
+    intelFiniBatchBuffer();
     return Success;
 }
 
